@@ -18,6 +18,8 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_version.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_packet.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_infoframe.h>
 #include <linux/jiffies.h>
 #include <linux/amlogic/media/vout/dsc.h>
 #include <linux/amlogic/media/vrr/vrr.h>
@@ -128,6 +130,8 @@ struct hdmitx_common {
 
 	/* save the last plug out/in work done state */
 	enum hdmi_event_t last_hpd_handle_done_stat;
+	/* save the last drm infoframe eotf */
+	enum hdmi_eotf last_drm_eotf;
 	/* 1, connect; 0, disconnect */
 	unsigned char hpd_state;
 	/* if HDMI plugin even once time, then set 1
@@ -260,10 +264,10 @@ struct hdmitx_common {
 	struct hdcprp_topo *topo_info;
 	bool hdcp22_type;
 #endif
-#ifdef CONFIG_AMLOGIC_HDMITX21
+
 	enum hdmi_ll_mode ll_user_set_mode; /* ll setting: 0/AUTOMATIC, 1/Always OFF, 2/ALWAYS ON */
 	bool ll_enabled_in_auto_mode; /* ll_mode enabled in auto or not */
-
+#ifdef CONFIG_AMLOGIC_HDMITX21
 	u32 aon_output:1; /* always output in bl30 */
 
 	u8 def_stream_type;
@@ -280,6 +284,24 @@ struct hdmitx_common {
 	u8 poll_rx_status_mtd;
 
 #endif
+	/* hdr info */
+	enum hdmi_hdr_transfer hdr_transfer_feature;
+	enum hdmi_hdr_color hdr_color_feature;
+	unsigned int colormetry;
+	/* hdmitx infoframe */
+	struct hdmitx_infoframe infoframes;
+	/* hdr work */
+	struct work_struct work_hdr;
+	struct work_struct work_hdr_unmute;
+	/* hdr10plus flag */
+	unsigned int hdr10plus_feature;
+	/* amdv info */
+	enum eotf_type hdmi_current_eotf_type;
+	enum mode_type hdmi_current_tunnel_mode;
+	bool hdmi_current_signal_sdr;
+	unsigned int amdv_src_feature;
+	/* hdmitx bist */
+	unsigned int bist_lock:1;
 };
 
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
@@ -500,7 +522,6 @@ void hdmitx_hdcp_do_work(struct hdmitx_common *tx_comm);
 #ifdef CONFIG_AMLOGIC_HDMITX21
 ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,
 	char *buf);
-void hdmi_tx_enable_ll_mode(bool enable);
-
 #endif
+
 #endif

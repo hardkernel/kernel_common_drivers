@@ -21,8 +21,7 @@
 #define HDCP_FAILED_RETRY_TIMER 200
 #define HDCP_DS_KSVLIST_RETRY_TIMER 5000//200
 #define HDCP_RCVIDLIST_CHECK_TIMER 3000//200
-#define HDMI_INFOFRAME_TYPE_EMP 0x7f
-#define HDMI_INFOFRAME_TYPE_SBTM 0xA //SBTM-EM PKT use GEN5
+
 #define DEFAULT_STREAM_TYPE 0
 #define VIDEO_MUTE_PATH_1 0x8000000 //mute by vid_mute sysfs node
 #define VIDEO_MUTE_PATH_2 0x4000000 //mute by stream type 1
@@ -38,12 +37,6 @@
 
 struct emp_packet_st;
 enum emp_component_conf;
-
-struct hdmi_packet_t {
-	u8 hb[3];
-	u8 pb[28];
-	u8 no_used; /* padding to 32 bytes */
-};
 
 #define HDMI_INFOFRAME_EMP_VRR_GAME ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_VRR_GAME))
 #define HDMI_INFOFRAME_EMP_VRR_QMS ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_VRR_QMS))
@@ -89,7 +82,6 @@ int hdmitx21_init_reg_map(struct platform_device *pdev);
 void hdmitx21_set_audioclk(bool en);
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
-void hdmitx_infoframe_send(u16 info_type, u8 *body);
 
 /* there are 2 ways to send out infoframe
  * xxx_infoframe_set() will take use of struct xxx_infoframe_set
@@ -100,20 +92,14 @@ void hdmi_vend_infoframe_set(struct hdmi_vendor_infoframe *info);
 void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb);
 int hdmi_vend_infoframe_get(struct hdmitx_dev *hdev, u8 *body);
-void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info);
 void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb);
 int hdmi_avi_infoframe_get(u8 *body);
-int hdmi_avi_infoframe_unpack_renew(struct hdmi_avi_infoframe *frame,
-	const void *buffer, size_t size);
 void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info);
 void hdmi_audio_infoframe_set(struct hdmi_audio_infoframe *info);
 void hdmi_audio_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info);
 void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
-void hdmi_emp_infoframe_set(enum emp_type type, struct emp_packet_st *info);
-void hdmi_emp_frame_set_member(struct emp_packet_st *info,
-	enum emp_component_conf conf, u32 val);
-void hdmi_sbtm_infoframe_rawset(u8 *hb, u8 *pb);
+
 void hdmitx_dhdr_send(u8 *body, int max_size);
 void hdmitx21_write_dhdr_sram(void);
 void hdmitx21_read_dhdr_sram(void);
@@ -151,69 +137,6 @@ struct vrr_conf_para {
 	u16 vrrmax;
 };
 
-/* Class 0 video timing extended metedata structure for game/fva, 2.1A P445 */
-struct vtem_gamevrr_st {
-	u8 vrr_en:1; /* MD0 */
-	u8 fva_factor_m1:4;
-	u8 base_vfront; /* MD1 */
-	u16 brr_rate; /* MD2/3 */
-};
-
-/* Class 1 video timing extended metedata structure for qms, 2.1A P445 */
-struct vtem_qmsvrr_st {
-	u8 m_const:1; /* MD0 */
-	u8 qms_en:1;
-	u8 base_vfront; /* MD1 */
-	u16 brr_rate; /* MD2/3 */
-	enum TARGET_FRAME_RATE next_tfr:5;
-};
-
-struct emp_packet_header {
-	u8 header; /* hb0, fixed value 0x7f */
-	u8 last:1; /* hb1 */
-	u8 first:1;
-	u8 seq_idx; /* hb2 */
-};
-
-struct emp_packet_0_body {
-	u8 sync:1; /* pb0 synchronous metadata */
-	u8 vfr:1; /* video format related, cs/cd/resolution */
-	u8 afr:1; /* audio format related */
-	/* 2b00: periodic pseudo-static MD
-	 * 2b01: periodic dynamic MD
-	 * 2b10: unique MD
-	 */
-	u8 ds_type:2;
-	u8 end:1;
-	u8 new:1;
-	/* pb2  0: vendor specific MD 1: defined by 2.1
-	 * 2: defined by CTA-861-G  3: defined by VESA
-	 */
-	u8 org_id;
-	u16 ds_tag; /* pb3/4 */
-	u16 ds_length; /* pb5/6 */
-	union {
-		struct vtem_gamevrr_st game_md;
-		struct vtem_qmsvrr_st qms_md;
-		struct vtem_sbtm_st sbtm_md;
-		u8 md[21]; /* pb7~pb27, md0~md20 */
-	} md;
-};
-
-struct emp_packet_n_body {
-	u8 md[28]; /* md(x)~md(x+27) */
-};
-
-/* extended metadata packet, 2.1A P304, no checksum in the PB0 */
-struct emp_packet_st {
-	enum emp_type type;
-	struct emp_packet_header header;
-	union {
-		struct emp_packet_0_body emp0;
-		struct emp_packet_n_body empn;
-	} body;
-};
-
 /* below will be used in the vrr sync handler */
 struct tx_vrr_params {
 	/* the member conf_params is critical and may change at anytime */
@@ -228,51 +151,6 @@ struct tx_vrr_params {
 	u32 mdelta_limit; /* for mdelta = 1 case */
 	u8 fapa_early_cnt;
 };
-
-enum emp_component_conf {
-	CONF_HEADER_INIT,
-	CONF_HEADER_LAST,
-	CONF_HEADER_FIRST,
-	CONF_HEADER_SEQ_INDEX,
-	CONF_SYNC,
-	CONF_VFR,
-	CONF_AFR,
-	CONF_DS_TYPE,
-	CONF_END,
-	CONF_NEW,
-	CONF_ORG_ID,
-	CONF_DATA_SET_TAG,
-	CONF_DATA_SET_LENGTH,
-	CONF_VRR_EN,
-	CONF_FACTOR_M1,
-	CONF_QMS_EN,
-	CONF_M_CONST,
-	CONF_BASE_VFRONT,
-	CONF_NEXT_TFR,
-	CONF_BASE_REFRESH_RATE,
-	CONF_SBTM_VER,
-	CONF_SBTM_MODE,
-	CONF_SBTM_TYPE,
-	CONF_SBTM_GRDM_MIN,
-	CONF_SBTM_GRDM_LUM,
-	CONF_SBTM_FRMPBLIMITINT,
-};
-
-/* CONF_AVI_BT2020 */
-#define CLR_AVI_BT2020	0x0
-#define SET_AVI_BT2020	0x1
-/* CONF_AVI_Q01 */
-#define RGB_RANGE_DEFAULT	0
-#define RGB_RANGE_LIM		1
-#define RGB_RANGE_FUL		2
-#define RGB_RANGE_RSVD		3
-/* CONF_AVI_YQ01 */
-#define YCC_RANGE_LIM		0
-#define YCC_RANGE_FUL		1
-#define YCC_RANGE_RSVD		2
-void hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val);
-
-int hdmitx_infoframe_rawget(u16 info_type, u8 *body);
 
 void hdmi_gcppkt_manual_set(bool en);
 

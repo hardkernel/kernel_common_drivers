@@ -435,7 +435,7 @@ static int get_extended_colorimetry_from_avi(struct hdmitx_dev *hdev)
 {
 	int ret;
 	u8 body[32] = {0};
-	union hdmi_infoframe *infoframe = &hdev->infoframes.avi;
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframes.avi;
 	struct hdmi_avi_infoframe *avi = &infoframe->avi;
 
 	ret = hdmi_avi_infoframe_get(body);
@@ -705,27 +705,43 @@ static int hdmitx21_calc_formatpara(struct hdmitx_hw_common *tx_hw,
 	return 0;
 }
 
-static void hdmitx_set_packet(int type,
-	unsigned char *DB, unsigned char *HB)
+static void hdmitx_set_packet(int type, unsigned char *buffer)
 {
-	unsigned char vsif_db[28] = {0};
-
 	switch (type) {
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 	case HDMI_INFOFRAME_TYPE_VENDOR2:
-		if (!HB || !DB) {
+		if (!buffer) {
 			if (type == HDMI_INFOFRAME_TYPE_VENDOR2)
-				hdmi_vend_infoframe2_rawset(NULL, NULL);
+				hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
 			else
-				hdmi_vend_infoframe_rawset(NULL, NULL);
+				hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
 			return;
 		}
 		/* vsif_db[0] is checksum, requires software calculation */
-		memcpy(&vsif_db[1], DB, 27);
+		/* TODO: memcpy(&vsif_db[1], DB, 27); */
 		if (type == HDMI_INFOFRAME_TYPE_VENDOR2)
-			hdmi_vend_infoframe2_rawset(HB, vsif_db);
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, buffer);
 		else
-			hdmi_vend_infoframe_rawset(HB, vsif_db);
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, buffer);
+		break;
+	case HDMI_PACKET_DRM:
+		if (!buffer) {
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, NULL);
+			return;
+		}
+		/* drm_db[0] is checksum, requires software calculation */
+		/* TODO: memcpy(&drm_db[1], DB, 26); */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, buffer);
+		break;
+	case HDMI_PACKET_EMP:
+		hdmitx_dhdr_send(buffer, sizeof(struct hdmi_packet_t) * 3);
+		break;
+	case HDMI_PACKET_AVI:
+		if (!buffer) {
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, NULL);
+			return;
+		}
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, buffer);
 		break;
 	default:
 		break;
@@ -739,7 +755,7 @@ void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 {
 	HDMITX_INFO("%s%d\n", __func__, __LINE__);
 	global_tx_hw = &hdev->tx_hw;
-	global_tx_hw->infoframes = &hdev->infoframes;
+	global_tx_hw->infoframes = &hdev->tx_comm.infoframes;
 
 	global_tx_hw->base.cntlconfig = hdmitx_cntl_config;
 	global_tx_hw->base.cntlmisc = hdmitx_cntl_misc;
@@ -1781,7 +1797,7 @@ unsigned int hdmitx21_get_vendor_infoframe_ieee(void)
 static void set_aud_info_pkt(struct aud_para *audio_param)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	struct hdmi_audio_infoframe *info = &hdev->infoframes.aud.audio;
+	struct hdmi_audio_infoframe *info = &hdev->tx_comm.infoframes.aud.audio;
 	u8 aud_output_i2s_ch = hdev->tx_comm.cur_audio_param.aud_output_i2s_ch;
 
 	hdmi_audio_infoframe_init(info);
@@ -2438,10 +2454,10 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 				hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 3, 1);
 				hd21_write_reg(VENC_VIDEO_TST_EN, 0);
 			}
-			hdev->bist_lock = 0;
+			hdev->tx_comm.bist_lock = 0;
 			return;
 		}
-		hdev->bist_lock = 1;
+		hdev->tx_comm.bist_lock = 1;
 		/* for 480i/576i mode */
 		if (vinfo->viu_mux == VIU_MUX_ENCI) {
 			/* nearly DE_BEGIN */
@@ -3239,6 +3255,104 @@ static void hdmitx21_vp_conf(unsigned char color_depth, unsigned char output_col
 	hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
 }
 
+static void hdmi_tx_enable_ll_mode(bool enable)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+
+	if (enable) {
+		if (tx_comm->rxcap.allm) {
+			/*
+			 * DV CTS case89 requirement: if IFDB with no
+			 * additional VSIF support in EDID, then only
+			 * send DV-VSIF, not send HF-VSIF
+			 */
+			if (hdmitx_dv_en(tx_comm->tx_hw) &&
+				(tx_comm->rxcap.ifdb_present &&
+					tx_comm->rxcap.additional_vsif_num < 1)) {
+				HDMITX_INFO("%s: can't send HF-VSIF, ifdb: %d, vsif_num: %d\n",
+					__func__, tx_comm->rxcap.ifdb_present,
+					tx_comm->rxcap.additional_vsif_num);
+				return;
+			}
+			tx_comm->allm_mode = 1;
+			HDMITX_INFO("%s: enabling ALLM, enable:%d, allm:%d, cnc3:%d\n",
+				__func__, enable, tx_comm->rxcap.allm, tx_comm->rxcap.cnc3);
+			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 1, NULL);
+			tx_comm->ct_mode = 0;
+			tx_comm->it_content = 0;
+			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE, SET_CT_OFF);
+		} else if (tx_comm->rxcap.cnc3) {
+			/* disable ALLM first if enabled */
+			if (tx_comm->allm_mode == 1) {
+				tx_comm->allm_mode = 0;
+				HDMITX_INFO("%s: first dis-ALLM, enable:%d, allm:%d, cnc3:%d\n",
+					__func__, enable, tx_comm->rxcap.allm, tx_comm->rxcap.cnc3);
+				hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
+				if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0 &&
+					!hdmitx_dv_en(tx_comm->tx_hw) &&
+					!hdmitx_hdr10p_en(tx_comm->tx_hw))
+					hdmitx_common_setup_vsif_packet(tx_comm,
+						VT_HDMI14_4K, 1, NULL);
+				/*
+				 * if not hdmi1.4 4k, need to sent > 4 frames and shorter than 1S
+				 * HF-VSIF with allm_mode = 0, and then disable HF-VSIF according
+				 * 10.2.1 HF-VSIF Transitions in hdmi2.1a. TODO:
+				 */
+			}
+			tx_comm->ct_mode = 1;
+			tx_comm->it_content = 1;
+			HDMITX_INFO("%s: enabling GAME Mode, enable:%d, allm:%d, cnc3:%d\n",
+				__func__, enable, tx_comm->rxcap.allm, tx_comm->rxcap.cnc3);
+			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE,
+				SET_CT_GAME | IT_CONTENT << 4);
+		} else {
+			/* for safety, clear ALLM/HDMI1.X GAME if enabled */
+			/* disable ALLM */
+			if (tx_comm->allm_mode == 1) {
+				tx_comm->allm_mode = 0;
+				HDMITX_INFO("%s: disabling ALLM, enable:%d, allm:%d, cnc3:%d\n",
+					__func__, enable, tx_comm->rxcap.allm, tx_comm->rxcap.cnc3);
+				hdmitx_common_setup_vsif_packet(tx_comm,
+					VT_ALLM, 0, NULL);
+				if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0 &&
+					!hdmitx_dv_en(tx_comm->tx_hw) &&
+					!hdmitx_hdr10p_en(tx_comm->tx_hw))
+					hdmitx_common_setup_vsif_packet(tx_comm,
+						VT_HDMI14_4K, 1, NULL);
+			}
+			/* clear content type */
+			if (tx_comm->ct_mode == 1) {
+				tx_comm->ct_mode = 0;
+				tx_comm->it_content = 0;
+				HDMITX_INFO("%s:disabling GAME Mode, enable:%d, allm:%d, cnc3:%d\n",
+					__func__, enable, tx_comm->rxcap.allm, tx_comm->rxcap.cnc3);
+				hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE, SET_CT_OFF);
+			}
+		}
+	} else {
+		/* disable ALLM */
+		if (tx_comm->allm_mode == 1) {
+			tx_comm->allm_mode = 0;
+			HDMITX_INFO("%s: disabling ALLM, enable:%d, allm:%d, cnc3:%d\n",
+				__func__, enable, tx_comm->rxcap.allm, tx_comm->rxcap.cnc3);
+			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
+			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0 &&
+				!hdmitx_dv_en(tx_comm->tx_hw) &&
+				!hdmitx_hdr10p_en(tx_comm->tx_hw))
+				hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
+		}
+		/* clear content type */
+		if (tx_comm->ct_mode == 1) {
+			tx_comm->ct_mode = 0;
+			tx_comm->it_content = 0;
+			HDMITX_INFO("%s: disabling GAME Mode, enable:%d, allm:%d, cnc3:%d\n",
+				__func__, enable, tx_comm->rxcap.allm, tx_comm->rxcap.cnc3);
+			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE, SET_CT_OFF);
+		}
+	}
+}
+
 static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			      u32 argv)
 {
@@ -3313,6 +3427,7 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmi_avi_infoframe_config(CONF_AVI_AR, argv & 0x3);
 		break;
 	case CONF_AVI_BT2020:
+		hdmi_avi_infoframe_config(CONF_AVI_BT2020, argv);
 		break;
 	case CONF_AVI_VIC:
 		hdmi_avi_infoframe_config(CONF_AVI_VIC, argv & 0xff);
@@ -3342,6 +3457,15 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		if (!hdev->tx_comm.config_csc_en)
 			break;
 		hdmitx21_color_convert(hdev, argv);
+		break;
+	case CONFIG_DITHER:
+		hdmitx21_dither_config(hdev);
+		break;
+	case CONFIG_ALLM:
+		if (argv == ENABLE_ALLM)
+			hdmi_tx_enable_ll_mode(argv);
+		else if (argv == DISABLE_ALLM)
+			hdmi_tx_enable_ll_mode(argv);
 		break;
 	default:
 		break;
@@ -4300,7 +4424,7 @@ static int hdmitx_pkt_dump(char *buf, int len)
 	pos += snprintf(buf + pos, len - pos, "GCP.dc_phase_st: %d\n", (reg_val & 0x60) >> 5);
 	pos += snprintf(buf + pos, len - pos, "\n");
 	//AVI PKT
-	infoframe = &hdev->infoframes.avi;
+	infoframe = &hdev->tx_comm.infoframes.avi;
 	avi = &infoframe->avi;
 	ret = hdmi_avi_infoframe_get(body);
 	if (ret == -1) {
@@ -4503,7 +4627,7 @@ static int hdmitx_pkt_dump(char *buf, int len)
 	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 
 	//DRM PKT
-	infoframe = &hdev->infoframes.drm;
+	infoframe = &hdev->tx_comm.infoframes.drm;
 	drm = &infoframe->drm;
 	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_DRM, body);
 	if (ret == -1) {
@@ -4564,7 +4688,7 @@ static int hdmitx_pkt_dump(char *buf, int len)
 
 	/* TODO: vendor vendor2 */
 	/* AUDIO PKT */
-	infoframe = &hdev->infoframes.aud;
+	infoframe = &hdev->tx_comm.infoframes.aud;
 	audio = &infoframe->audio;
 	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AUDIO, body);
 	if (ret == -1) {

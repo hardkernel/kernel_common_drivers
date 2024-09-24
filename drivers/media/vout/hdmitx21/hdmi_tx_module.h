@@ -130,14 +130,11 @@ struct hdmitx_dev {
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct delayed_work work_internal_intr;
-	struct work_struct work_hdr;
-	struct work_struct work_hdr_unmute;
 	struct delayed_work work_start_hdcp;
 	struct delayed_work work_drm_start_hdcp;
 	void *am_hdcp;
 	bool dw_hdcp22_cap;
 	int hpdmode;
-	struct hdmitx_infoframe infoframes;
 	struct hdmi_config_platform_data config_data;
 	enum hdmi_event_t hdmitx_event;
 	u32 irq_hpd;
@@ -166,18 +163,7 @@ struct hdmitx_dev {
 
 	/* configure for I2S: 8ch in, 2ch out */
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
-	enum hdmi_hdr_transfer hdr_transfer_feature;
-	enum hdmi_hdr_color hdr_color_feature;
-	/* 0: sdr 1:standard HDR 2:non standard 3:HLG*/
-	u32 colormetry;
-	u32 dv_src_feature;
-	u32 sdr_hdr_feature;
-	u32 hdr10plus_feature;
-	enum eotf_type hdmi_current_eotf_type;
-	enum mode_type hdmi_current_tunnel_mode;
-	bool hdmi_current_signal_sdr;
 	u32 pxp_mode:1;
-	u32 bist_lock:1;
 	u32 edid_mask_qms:1;
 	u32 fr_duration;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;

@@ -1162,7 +1162,7 @@ static void hdmitx_parsing_hdrpkt(struct seq_file *s)
 
 	seq_puts(s, "\n--------parsing DRM/HDR--------\n");
 	seq_printf(s, "hdr_transfer_feature: 0x%x\n",
-		   hdev->hdr_transfer_feature);
+		   hdev->tx_comm.hdr_transfer_feature);
 	seq_printf(s, "hdmi_current_hdr_mode: 0x%x\n",
 		   hdev->tx_comm.hdmi_current_hdr_mode);
 	seq_printf(s, "hdmi_last_hdr_mode: 0x%x\n", hdev->tx_comm.hdmi_last_hdr_mode);
@@ -1270,14 +1270,14 @@ static void print_current_dv_hdr_(struct seq_file *s)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	seq_printf(s, "hdmi_current_eotf_type: 0x%x\n",
-		   hdev->hdmi_current_eotf_type);
+		   hdev->tx_comm.hdmi_current_eotf_type);
 	seq_printf(s, "hdmi_current_tunnel_mode: 0x%x\n",
-		   hdev->hdmi_current_tunnel_mode);
-	seq_printf(s, "dv_src_feature: %d\n", hdev->dv_src_feature);
+		   hdev->tx_comm.hdmi_current_tunnel_mode);
+	seq_printf(s, "amdv_src_feature: %d\n", hdev->tx_comm.amdv_src_feature);
 	seq_printf(s, "hdr_transfer_feature: %d\n",
-		   hdev->hdr_transfer_feature);
-	seq_printf(s, "hdr_color_feature: %d\n", hdev->hdr_color_feature);
-	seq_printf(s, "colormetry: %d\n", hdev->colormetry);
+		   hdev->tx_comm.hdr_transfer_feature);
+	seq_printf(s, "hdr_color_feature: %d\n", hdev->tx_comm.hdr_color_feature);
+	seq_printf(s, "colormetry: %d\n", hdev->tx_comm.colormetry);
 }
 
 static void hdmitx_parsing_vsifpkt(struct seq_file *s)

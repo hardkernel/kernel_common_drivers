@@ -420,7 +420,7 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 		config_tv_enc_calc(hdev, vic);
 		break;
 	}
-	if (hdev->bist_lock)
+	if (hdev->tx_comm.bist_lock)
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 	/* for dsc mode enable, vpp post 4 slice->4ppc to hdmi, no up_sample
 	 * for frl mode enable & non_y420 mode, vpp post 4 slice into VENC

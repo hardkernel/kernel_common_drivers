@@ -2372,13 +2372,15 @@ static ssize_t ll_mode_store(struct device *dev,
 			       size_t count)
 {
 	global_tx_common->ll_enabled_in_auto_mode = com_str(buf, "1");
+	struct hdmitx_hw_common *tx_hw = global_tx_common->tx_hw;
 
 	HDMITX_INFO("store ll_enabled_in_auto_mode: %d, ll_user_set_mode:%d\n",
 		global_tx_common->ll_enabled_in_auto_mode, global_tx_common->ll_user_set_mode);
 
 	if (global_tx_common->ll_user_set_mode == HDMI_LL_MODE_AUTO) {
 		HDMITX_INFO("store ll_mode as %s, calling hdmi_tx_enable_ll_mode()\n", buf);
-		hdmi_tx_enable_ll_mode(global_tx_common->ll_enabled_in_auto_mode);
+		hdmitx_hw_cntl_config(tx_hw, CONFIG_ALLM,
+				global_tx_common->ll_enabled_in_auto_mode);
 	} else {
 		HDMITX_INFO("ll mode is forced on/off: %d\n", global_tx_common->ll_user_set_mode);
 	}
@@ -2423,16 +2425,19 @@ static ssize_t ll_user_mode_store(struct device *dev,
 			       const char *buf,
 			       size_t count)
 {
+	struct hdmitx_hw_common *tx_hw = global_tx_common->tx_hw;
+
 	HDMITX_INFO("store ll_user_set_mode as %s\n", buf);
 	if (com_str(buf, "enable")) {
 		global_tx_common->ll_user_set_mode = HDMI_LL_MODE_ENABLE;
-		hdmi_tx_enable_ll_mode(true);
+		hdmitx_hw_cntl_config(tx_hw, CONFIG_ALLM, ENABLE_ALLM);
 	} else if (com_str(buf, "disable")) {
 		global_tx_common->ll_user_set_mode = HDMI_LL_MODE_DISABLE;
-		hdmi_tx_enable_ll_mode(false);
+		hdmitx_hw_cntl_config(tx_hw, CONFIG_ALLM, DISABLE_ALLM);
 	} else {
 		global_tx_common->ll_user_set_mode = HDMI_LL_MODE_AUTO;
-		hdmi_tx_enable_ll_mode(global_tx_common->ll_enabled_in_auto_mode);
+		hdmitx_hw_cntl_config(tx_hw, CONFIG_ALLM,
+				global_tx_common->ll_enabled_in_auto_mode);
 	}
 	return count;
 }

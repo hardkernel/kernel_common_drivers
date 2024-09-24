@@ -53,10 +53,10 @@ int hdmitx_hw_calc_format_para(struct hdmitx_hw_common *tx_hw,
 }
 
 int hdmitx_hw_set_packet(struct hdmitx_hw_common *tx_hw,
-	int type, unsigned char *DB, unsigned char *HB)
+	int type, unsigned char *buffer)
 {
 	if (tx_hw->setpacket)
-		tx_hw->setpacket(type, DB, HB);
+		tx_hw->setpacket(type, buffer);
 	return 0;
 }
 

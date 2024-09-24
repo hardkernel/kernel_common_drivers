@@ -149,6 +149,10 @@
 #define CONFIG_CSC_EN           (CMD_CONF_OFFSET + 0x1000 + 0x06)
 	#define CSC_ENABLE          1
 	#define CSC_DISABLE         0
+#define CONFIG_DITHER           (CMD_CONF_OFFSET + 0x1000 + 0x07)
+#define CONFIG_ALLM             (CMD_CONF_OFFSET + 0x1000 + 0x08)
+	#define ENABLE_ALLM         1
+	#define DISABLE_ALLM        0
 
 /* Audio part */
 #define CONF_CLR_AVI_PACKET     (CMD_CONF_OFFSET + 0x04)
@@ -166,7 +170,7 @@
 #define CONF_HW_INIT			(CMD_CONF_OFFSET + 0x101b)
 
 enum avi_component_conf {
-	CONF_AVI_BT2020 = (CMD_CONF_OFFSET + 0X2000 + 0x00),
+	CONF_AVI_BT2020 = (CMD_CONF_OFFSET + 0x2000 + 0x00),
 	CONF_AVI_RGBYCC_INDIC,
 	CONF_AVI_Q01,
 	CONF_AVI_YQ01,
@@ -178,18 +182,6 @@ enum avi_component_conf {
 	CONF_AVI_CT_TYPE,
 };
 
-/* CONF_AVI_BT2020 CMD*/
-#define CLR_AVI_BT2020	0x0
-#define SET_AVI_BT2020	0x1
-/* CONF_AVI_Q01 CMD*/
-#define RGB_RANGE_DEFAULT	0
-#define RGB_RANGE_LIM		1
-#define RGB_RANGE_FUL		2
-#define RGB_RANGE_RSVD		3
-/* CONF_AVI_YQ01 */
-#define YCC_RANGE_LIM		0
-#define YCC_RANGE_FUL		1
-#define YCC_RANGE_RSVD		2
 /* CN TYPE define */
 enum {
 	SET_CT_OFF = 0,
@@ -216,6 +208,7 @@ enum hdmi_ll_mode {
 #define HDMI_AUDIO_CONTENT_PROTECTION   5
 #define HDMI_PACKET_HBR         6
 #define HDMI_PACKET_DRM		0x86
+#define HDMI_PACKET_EMP		0x87
 
 #define HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH       0x3
 #define HDMITX_HWCMD_TURNOFF_HDMIHW           0x4
@@ -275,7 +268,7 @@ struct hdmitx_hw_common {
 	 *	if ((DB[4] >> 4) == T3D_FRAME_PACKING)
 	 * Need a only pure data packet to call
 	 */
-	void (*setpacket)(int type, unsigned char *DB, unsigned char *HB);
+	void (*setpacket)(int type, unsigned char *buffer);
 	void (*disablepacket)(int type);
 
 	/* Audio/Video/System Status */
@@ -331,7 +324,7 @@ int hdmitx_hw_validate_mode(struct hdmitx_hw_common *tx_hw,
 int hdmitx_hw_calc_format_para(struct hdmitx_hw_common *tx_hw,
 	struct hdmi_format_para *para);
 int hdmitx_hw_set_packet(struct hdmitx_hw_common *tx_hw,
-	int type, unsigned char *DB, unsigned char *HB);
+	int type, unsigned char *buffer);
 int hdmitx_hw_disable_packet(struct hdmitx_hw_common *tx_hw,
 	int type);
 int hdmitx_hw_set_phy(struct hdmitx_hw_common *tx_hw,

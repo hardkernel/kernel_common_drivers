@@ -49,6 +49,7 @@
 #include <linux/amlogic/clk_measure.h>
 #include "../../hdmitx_common/hdmitx_compliance.h"
 #include "../meson_drm_hdmitx.h"
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_infoframe.h>
 
 #define HDMITX_VIC_MASK			0xff
 
@@ -116,7 +117,7 @@ struct ksv_lists_ {
 
 static struct ksv_lists_ tmp_ksv_lists;
 
-static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB);
+static void hdmitx_set_packet(int type, unsigned char *buffer);
 static void hdmitx_disable_packet(int type);
 static void hdmitx_setaudioinfoframe(unsigned char *AUD_DB,
 				     unsigned char *CHAN_STAT_BUF);
@@ -2459,20 +2460,22 @@ static enum hdmi_tf_type hdmitx_get_cur_hdr10p_st(void)
 	return type;
 }
 
-static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
+static void hdmitx_set_packet(int type, unsigned char *buffer)
 {
 	int i;
 	int pkt_data_len = 0;
 	unsigned int ieee_code = 0;
+	static unsigned char *virt_ptr;
+	static unsigned char *virt_ptr_align32bit;
+	unsigned long phys_ptr;
 
 	switch (type) {
 	case HDMI_PACKET_AVI:
 		break;
-	case HDMI_PACKET_VEND:
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 	/* 21 allm will use vendor2 */
 	case HDMI_INFOFRAME_TYPE_VENDOR2:
-		if (!DB || !HB) {
+		if (!buffer) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 3, 1);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x0);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID0, 0x00);
@@ -2482,43 +2485,42 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 				hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0 + i, 0x00);
 			return;
 		}
-		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID0, DB[0]);
-		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID1, DB[1]);
-		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID2, DB[2]);
-		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0, DB[3]);
-		hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, HB[2]);
-		ieee_code = DB[0] | DB[1] << 8 | DB[2] << 16;
-		if (ieee_code == HDMI_IEEE_OUI && DB[3] == 0x20) {
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, buffer[2]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID0, buffer[4]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID1, buffer[5]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID2, buffer[6]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0, buffer[7]);
+		ieee_code = buffer[4] | buffer[5] << 8 | buffer[6] << 16;
+		if (ieee_code == HDMI_IEEE_OUI && buffer[7] == 0x20) {
 			/* set HDMI VIC */
 			hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, buffer[8]);
 		}
-		if (ieee_code == HDMI_IEEE_OUI && DB[3] == 0x40) {
+		if (ieee_code == HDMI_IEEE_OUI && buffer[7] == 0x40) {
 			/* 3D VSI */
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, DB[5]);
-			if ((DB[4] >> 4) == T3D_FRAME_PACKING)
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, buffer[7]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, buffer[8]);
+			if ((buffer[8] >> 4) == T3D_FRAME_PACKING)
 				hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 5);
 			else
 				hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 6);
 		}
-		if (ieee_code == DOVI_IEEEOUI && HB[2] == 0x1b) {
+		if (ieee_code == DOVI_IEEEOUI && buffer[2] == 0x1b) {
 			/*set dolby vsif data information*/
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, DB[5]);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD3, DB[6]);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD4, DB[7]);
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD5, DB[8]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, buffer[8]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD2, buffer[9]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD3, buffer[10]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD4, buffer[11]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD5, buffer[12]);
 		}
 		/*set hdr 10+ vsif data information*/
 		if (ieee_code == HDR10PLUS_IEEEOUI) {
 			for (i = 0; i < 23; i++)
-				hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1 + i,
-					DB[4 + i]);
+				hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1 + i, buffer[8 + i]);
 		}
 		/* allm */
 		if (ieee_code == HDMI_FORUM_IEEE_OUI)
-			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, DB[4]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, buffer[8]);
 
 		/* Enable VSI packet */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
@@ -2528,7 +2530,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 		break;
 	case HDMI_PACKET_DRM:
 		pkt_data_len = 26;
-		if (!DB || !HB) {
+		if (!buffer) {
 			for (i = 0; i < pkt_data_len + 2; i++)
 				hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB01 + i, 0);
 
@@ -2538,10 +2540,10 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 			return;
 		}
 		/* Ignore HB[0] */
-		hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB01, HB[1]);
-		hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB02, HB[2]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB01, buffer[1]);
+		hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB02, buffer[2]);
 		for (i = 0; i < pkt_data_len; i++)
-			hdmitx_wr_reg(HDMITX_DWC_FC_DRM_PB00 + i, DB[i]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_DRM_PB00 + i, buffer[4 + i]);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 6, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 7, 1);
 		break;
@@ -2551,10 +2553,39 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 	case HDMI_SOURCE_DESCRIPTION:
 		pkt_data_len = 25;
 		for (i = 0; i < 25; i++)
-			hdmitx_wr_reg(HDMITX_DWC_FC_SPDVENDORNAME0 + i, DB[i]);
+			hdmitx_wr_reg(HDMITX_DWC_FC_SPDVENDORNAME0 + i, buffer[4 + i]);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 4, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO2, 0x1, 4, 4);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
+		break;
+	case HDMI_PACKET_EMP:
+		if (!buffer) {
+			hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 0, 0, 1);
+			return;
+		}
+		/* init virt_ptr and virt_ptr_align32bit */
+		if (!virt_ptr) {
+			virt_ptr = kzalloc((sizeof(buffer) + 0x1f), GFP_KERNEL);
+			virt_ptr_align32bit = (unsigned char *)
+				((((unsigned long)virt_ptr) + 0x1f) & (~0x1f));
+		}
+		memcpy(virt_ptr_align32bit, buffer, sizeof(struct hdmi_packet_t) * 3);
+		phys_ptr = virt_to_phys(virt_ptr_align32bit);
+		HDMITX_INFO("hdr: emp_pkt phys_ptr: %lx\n", phys_ptr);
+		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0,
+				sizeof(buffer) / (sizeof(struct hdmi_packet_t)), 16, 16);
+		/* enable */
+		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 1, 0, 1);
+
+		if (hdmitx_rd_check_reg(HDMITX_TOP_EMP_STAT0, 0, 0x7fffffff))
+			hdmitx_set_reg_bits(HDMITX_TOP_EMP_STAT0, 1, 31, 1);
+		if (hdmitx_rd_check_reg(HDMITX_TOP_EMP_STAT0, 0, 0xbfffffff))
+			hdmitx_set_reg_bits(HDMITX_TOP_EMP_STAT0, 1, 30, 1);
+		/* phys_ptr */
+		hdmitx_wr_reg(HDMITX_TOP_EMP_MEMADDR_START, phys_ptr);
+		/* little */
+		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL1, 1, 17, 1);
+		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL1, 120, 0, 16);
 		break;
 	default:
 		break;
@@ -3290,12 +3321,12 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		return;
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		if (strncmp(tmpbuf + 4, "off", 3) == 0) {
-			hdev->bist_lock = 0;
+			hdev->tx_comm.bist_lock = 0;
 			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 1, 3, 1);
 			hd_write_reg(P_VENC_VIDEO_TST_EN, 0);
 			return;
 		}
-		hdev->bist_lock = 1;
+		hdev->tx_comm.bist_lock = 1;
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
 		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AVI_RGBYCC_INDIC, para->cs);
 		if (hdev->tx_hw.chip_data->chip_type < MESON_CPU_ID_SC2)
@@ -4142,14 +4173,11 @@ static int hdmitx_pkt_dump(char *buf, int len)
 	reg_addr = HDMITX_DWC_FC_PACKET_TX_EN;
 	reg_val = hdmitx_rd_reg(reg_addr);
 
-	switch ((reg_val & 0x10) >> 4) {
-	case 0:
-		conf = "disable";
-		break;
-	case 1:
-	default:
+	if (((reg_val & 0x10) >> 4) && ((hdmitx_rd_reg(HDMITX_DWC_FC_DATAUTO0) & 0x8) >> 3))
 		conf = "enable";
-	}
+	else
+		conf = "disable";
+
 	pos += snprintf(buf + pos, len - pos, "VSIF.enable : %s\n\n", conf);
 
 	//AUDIO PKT
@@ -5519,6 +5547,7 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		if (argv == SET_AVI_BT2020) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);
+			HDMITX_DEBUG_PACKET("avi_colorimetry: bt2020\n");
 		}
 		if (argv == CLR_AVI_BT2020)
 			hdmitx_set_avi_colorimetry(&hdev->tx_comm.fmt_para);
@@ -5677,6 +5706,10 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		} else {
 			HDMITX_INFO("csc not support/implemented yet\n");
 		}
+		break;
+	case CONFIG_DITHER:
+		break;
+	case CONFIG_ALLM:
 		break;
 	default:
 		break;
@@ -6142,15 +6175,18 @@ void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
 		/* C1C0 601 */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 1, 6, 2);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
+		HDMITX_DEBUG_PACKET("avi_colorimetry: bt601\n");
 		break;
 	default:
-		if (hdev->colormetry) {
+		if (hdev->tx_comm.colormetry) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);
+			HDMITX_DEBUG_PACKET("avi_colorimetry: bt2020\n");
 		} else {
 			/* C1C0 709 */
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
+			HDMITX_DEBUG_PACKET("avi_colorimetry: bt709\n");
 		}
 		break;
 	}

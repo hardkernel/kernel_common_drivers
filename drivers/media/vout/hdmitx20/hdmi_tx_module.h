@@ -82,8 +82,6 @@ struct hdmitx_dev {
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct delayed_work work_internal_intr;
-	struct work_struct work_hdr;
-	struct work_struct work_hdr_unmute;
 	struct delayed_work work_do_hdcp;
 
 	/*hdcp */
@@ -118,21 +116,7 @@ struct hdmitx_dev {
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
 
-	/*hdr/dv*/
-	enum hdmi_hdr_transfer hdr_transfer_feature;
-	enum hdmi_hdr_color hdr_color_feature;
-	/* 0: sdr 1:standard HDR 2:non standard 3:HLG*/
-	unsigned int colormetry;
-	unsigned int dv_src_feature;
-	unsigned int sdr_hdr_feature;
-	unsigned int hdr10plus_feature;
-	enum eotf_type hdmi_current_eotf_type;
-	enum mode_type hdmi_current_tunnel_mode;
-	bool hdmi_current_signal_sdr;
-	/*hdr/dv end*/
-
 	unsigned int cedst_en:1; /* configure in DTS */
-	unsigned int bist_lock:1;
 
 	unsigned int hdmi_rext; /* Rext resistor */
 	struct hdmitx_clk_tree_s hdmitx_clk_tree;

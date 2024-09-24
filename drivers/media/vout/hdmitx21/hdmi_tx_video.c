@@ -27,7 +27,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 
 static void construct_avi_packet(struct hdmitx_dev *hdev)
 {
-	struct hdmi_avi_infoframe *info = &hdev->infoframes.avi.avi;
+	struct hdmi_avi_infoframe *info = &hdev->tx_comm.infoframes.avi.avi;
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
 	hdmi_avi_infoframe_init(info);
@@ -171,7 +171,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 
 	/* For dolby */
 	if (hdev->tx_comm.rxcap.dv_info.block_flag == CORRECT &&
-		hdev->dv_src_feature == 1)
+		hdev->tx_comm.amdv_src_feature == 1)
 		return;
 
 	ven_db[0] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
@@ -205,7 +205,7 @@ int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
 	u8 ven_hb[3];
 	struct hdmi_vendor_infoframe *info;
 
-	info = &hdev->infoframes.vend.vendor.hdmi;
+	info = &hdev->tx_comm.infoframes.vend.vendor.hdmi;
 
 	ven_hb[0] = 0x81;
 	ven_hb[1] = 0x01;

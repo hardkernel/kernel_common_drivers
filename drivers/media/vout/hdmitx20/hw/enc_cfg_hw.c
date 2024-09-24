@@ -1663,7 +1663,7 @@ void set_vmode_enc_hw(struct hdmitx_dev *hdev)
 	} else {
 		HDMITX_ERROR("set enc not find VIC: %d\n", hdev->tx_comm.fmt_para.vic);
 	}
-	if (hdev->bist_lock)
+	if (hdev->tx_comm.bist_lock)
 		hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 }
 

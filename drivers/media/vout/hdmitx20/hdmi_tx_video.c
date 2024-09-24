@@ -122,72 +122,65 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 					enum hdmi_vic videocode)
 {
-	int i;
-	unsigned char VEN_DB[6];
-	unsigned char VEN_HB[3];
+	unsigned char buffer[31] = {0};
 	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
 
-	VEN_HB[0] = 0x81;
-	VEN_HB[1] = 0x01;
-	VEN_HB[2] = 0x5;
+	buffer[0] = 0x81;
+	buffer[1] = 0x01;
+	buffer[2] = 0x5;
 
-	if (videocode == 0) {	   /* For non-4kx2k mode setting */
-		hdmitx_hw_set_packet(tx_hw_base, HDMI_PACKET_VEND, NULL, VEN_HB);
+	if (videocode == 0) {
+		/* for non-4kx2k mode setting */
+		hdmitx_hw_set_packet(tx_hw_base, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
 		return;
 	}
 
 	if (hdev->tx_comm.rxcap.dv_info.block_flag == CORRECT ||
-	    hdev->dv_src_feature == 1) {	   /* For dolby */
+			hdev->tx_comm.amdv_src_feature == 1)
+		/* for amdv */
 		return;
-	}
 
-	for (i = 0; i < 0x6; i++)
-		VEN_DB[i] = 0;
-	VEN_DB[0] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
-	VEN_DB[1] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
-	VEN_DB[2] = GET_OUI_BYTE2(HDMI_IEEE_OUI);
-	VEN_DB[3] = 0x00;    /* 4k x 2k  Spec P156 */
+	buffer[4] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
+	buffer[5] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
+	buffer[6] = GET_OUI_BYTE2(HDMI_IEEE_OUI);
+	/* 4k x 2k  Spec P156 */
+	buffer[7] = 0x00;
 
 	if (videocode == HDMI_95_3840x2160p30_16x9) {
-		VEN_DB[3] = 0x20;
-		VEN_DB[4] = 0x1;
+		buffer[7] = 0x20;
+		buffer[8] = 0x1;
 	} else if (videocode == HDMI_94_3840x2160p25_16x9) {
-		VEN_DB[3] = 0x20;
-		VEN_DB[4] = 0x2;
+		buffer[7] = 0x20;
+		buffer[8] = 0x2;
 	} else if (videocode == HDMI_93_3840x2160p24_16x9) {
-		VEN_DB[3] = 0x20;
-		VEN_DB[4] = 0x3;
+		buffer[7] = 0x20;
+		buffer[8] = 0x3;
 	} else if (videocode == HDMI_98_4096x2160p24_256x135) {
-		VEN_DB[3] = 0x20;
-		VEN_DB[4] = 0x4;
-	} else {
-		;
+		buffer[7] = 0x20;
+		buffer[8] = 0x4;
 	}
-	hdmitx_hw_set_packet(tx_hw_base, HDMI_PACKET_VEND, VEN_DB, VEN_HB);
+
+	hdmitx_hw_set_packet(tx_hw_base, HDMI_INFOFRAME_TYPE_VENDOR, buffer);
 }
 
 int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
 {
-	int i;
-	unsigned char VEN_DB[6];
-	unsigned char VEN_HB[3];
+	unsigned char buffer[31] = {0};
 	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
 
-	VEN_HB[0] = 0x81;
-	VEN_HB[1] = 0x01;
-	VEN_HB[2] = 0x6;
+	buffer[0] = 0x81;
+	buffer[1] = 0x01;
+	buffer[2] = 0x6;
 	if (type == T3D_DISABLE) {
-		hdmitx_hw_set_packet(tx_hw_base, HDMI_PACKET_VEND, NULL, VEN_HB);
+		hdmitx_hw_set_packet(tx_hw_base, HDMI_INFOFRAME_TYPE_VENDOR, buffer);
 	} else {
-		for (i = 0; i < 0x6; i++)
-			VEN_DB[i] = 0;
-		VEN_DB[0] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
-		VEN_DB[1] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
-		VEN_DB[2] = GET_OUI_BYTE2(HDMI_IEEE_OUI);
-		VEN_DB[3] = 0x40;
-		VEN_DB[4] = type << 4;
-		VEN_DB[5] = param << 4;
-		hdmitx_hw_set_packet(tx_hw_base, HDMI_PACKET_VEND, VEN_DB, VEN_HB);
+		buffer[4] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
+		buffer[5] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
+		buffer[6] = GET_OUI_BYTE2(HDMI_IEEE_OUI);
+		buffer[7] = 0x40;
+		buffer[8] = type << 4;
+		buffer[9] = param << 4;
+		hdmitx_hw_set_packet(tx_hw_base, HDMI_INFOFRAME_TYPE_VENDOR, buffer);
 	}
 	return 0;
 }
@@ -196,8 +189,7 @@ int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
  */
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 {
-	unsigned char SPD_DB[25] = {0x00};
-	unsigned char SPD_HB[3] = {0x83, 0x1, 0x19};
+	unsigned char buffer[31] = {0x83, 0x1, 0x19};
 	unsigned int len = 0;
 	struct vendor_info_data *vend_data;
 	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
@@ -210,15 +202,15 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 	}
 	if (vend_data->vendor_name) {
 		len = strlen(vend_data->vendor_name);
-		strncpy(&SPD_DB[0], vend_data->vendor_name,
+		strncpy(&buffer[4], vend_data->vendor_name,
 			(len > 8) ? 8 : len);
 	}
 	if (vend_data->product_desc) {
 		len = strlen(vend_data->product_desc);
-		strncpy(&SPD_DB[8], vend_data->product_desc,
+		strncpy(&buffer[12], vend_data->product_desc,
 			(len > 16) ? 16 : len);
 	}
-	SPD_DB[24] = 0x1;
-	hdmitx_hw_set_packet(tx_hw_base, HDMI_SOURCE_DESCRIPTION, SPD_DB, SPD_HB);
+	buffer[28] = 0x1;
+	hdmitx_hw_set_packet(tx_hw_base, HDMI_SOURCE_DESCRIPTION, buffer);
 }
 
