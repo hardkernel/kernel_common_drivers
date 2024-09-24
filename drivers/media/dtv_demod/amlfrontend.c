@@ -2755,6 +2755,10 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 		return -ECANCELED;
 	}
 
+	/* if suspended, delsys will be recovered in aml_dtvdm_init */
+	if (tvp->cmd == DTV_DELIVERY_SYSTEM && demod->suspended)
+		demod->suspended = false;
+
 	switch (tvp->cmd) {
 	case DTV_DELIVERY_SYSTEM:
 		delsys = tvp->u.data;
