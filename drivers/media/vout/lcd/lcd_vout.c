@@ -2273,6 +2273,7 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 static struct lcd_data_s lcd_data_axg = {
 	.chip_type = LCD_CHIP_AXG,
 	.chip_name = "axg",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_g12a[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2283,6 +2284,7 @@ static struct lcd_data_s lcd_data_axg = {
 static struct lcd_data_s lcd_data_g12a = {
 	.chip_type = LCD_CHIP_G12A,
 	.chip_name = "g12a",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_g12a[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2293,6 +2295,7 @@ static struct lcd_data_s lcd_data_g12a = {
 static struct lcd_data_s lcd_data_g12b = {
 	.chip_type = LCD_CHIP_G12B,
 	.chip_name = "g12b",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_g12a[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2303,6 +2306,7 @@ static struct lcd_data_s lcd_data_g12b = {
 static struct lcd_data_s lcd_data_tl1 = {
 	.chip_type = LCD_CHIP_TL1,
 	.chip_name = "tl1",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_tl1[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2313,6 +2317,7 @@ static struct lcd_data_s lcd_data_tl1 = {
 static struct lcd_data_s lcd_data_sm1 = {
 	.chip_type = LCD_CHIP_SM1,
 	.chip_name = "sm1",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_g12a[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2323,6 +2328,7 @@ static struct lcd_data_s lcd_data_sm1 = {
 static struct lcd_data_s lcd_data_tm2 = {
 	.chip_type = LCD_CHIP_TM2,
 	.chip_name = "tm2",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_tl1[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2333,6 +2339,7 @@ static struct lcd_data_s lcd_data_tm2 = {
 static struct lcd_data_s lcd_data_t5 = {
 	.chip_type = LCD_CHIP_T5,
 	.chip_name = "t5",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_t5[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2343,6 +2350,7 @@ static struct lcd_data_s lcd_data_t5 = {
 static struct lcd_data_s lcd_data_t5d = {
 	.chip_type = LCD_CHIP_T5D,
 	.chip_name = "t5d",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_t5[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2353,6 +2361,7 @@ static struct lcd_data_s lcd_data_t5d = {
 static struct lcd_data_s lcd_data_t7 = {
 	.chip_type = LCD_CHIP_T7,
 	.chip_name = "t7",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_t7[0],
 	.drv_max = 3,
 	.offset_venc = {0x0, 0x600, 0x800},
@@ -2363,6 +2372,7 @@ static struct lcd_data_s lcd_data_t7 = {
 static struct lcd_data_s lcd_data_t3 = {
 	.chip_type = LCD_CHIP_T3,
 	.chip_name = "t3",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_t5[0],
 	.drv_max = 2,
 	.offset_venc = {0x0, 0x600, 0x0},
@@ -2373,6 +2383,7 @@ static struct lcd_data_s lcd_data_t3 = {
 static struct lcd_data_s lcd_data_t5w = {
 	.chip_type = LCD_CHIP_T5W,
 	.chip_name = "t5w",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_t5[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2383,6 +2394,7 @@ static struct lcd_data_s lcd_data_t5w = {
 static struct lcd_data_s lcd_data_c3 = {
 	.chip_type = LCD_CHIP_C3,
 	.chip_name = "c3",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_c3[0],
 	.drv_max = 1,
 	.offset_venc = {0},
@@ -2393,6 +2405,7 @@ static struct lcd_data_s lcd_data_c3 = {
 static struct lcd_data_s lcd_data_t5m = {
 	.chip_type = LCD_CHIP_T5M,
 	.chip_name = "t5m",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_t5[0],
 	.drv_max = 1,
 	.offset_venc = {0x0},
@@ -2403,6 +2416,7 @@ static struct lcd_data_s lcd_data_t5m = {
 static struct lcd_data_s lcd_data_t3x = {
 	.chip_type = LCD_CHIP_T3X,
 	.chip_name = "t3x",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_t3x[0],
 	.drv_max = 2,
 	.offset_venc = {0x0, 0x100},
@@ -2413,6 +2427,7 @@ static struct lcd_data_s lcd_data_t3x = {
 static struct lcd_data_s lcd_data_txhd2 = {
 	.chip_type = LCD_CHIP_TXHD2,
 	.chip_name = "txhd2",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_txhd2[0],
 	.drv_max = 1,
 	.offset_venc = {0x0},
@@ -2423,6 +2438,7 @@ static struct lcd_data_s lcd_data_txhd2 = {
 static struct lcd_data_s lcd_data_s6 = {
 	.chip_type = LCD_CHIP_S6,
 	.chip_name = "s6",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_g12a[0],
 	.drv_max = 1,
 	.offset_venc = {0x0},
@@ -2433,6 +2449,7 @@ static struct lcd_data_s lcd_data_s6 = {
 static struct lcd_data_s lcd_data_t6d = {
 	.chip_type = LCD_CHIP_T6D,
 	.chip_name = "t6d",
+	.rev_type = 0,
 	.reg_map_table = &lcd_reg_t6d[0],
 	.drv_max = 1,
 	.offset_venc = {0x0},
@@ -2513,10 +2530,25 @@ static const struct of_device_id lcd_dt_match_table[] = {
 };
 #endif
 
+static struct lcd_data_s *lcd_chip_detect(struct platform_device *pdev)
+{
+	const struct of_device_id *match;
+	struct lcd_data_s *lcd_data = NULL;
+#ifdef CONFIG_OF
+	match = of_match_device(lcd_dt_match_table, &pdev->dev);
+	if (!match) {
+		LCDERR("%s: no match table\n", __func__);
+	} else {
+		lcd_data = (struct lcd_data_s *)match->data;
+		lcd_data->rev_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
+	}
+#endif
+	return lcd_data;
+}
+
 static int lcd_probe(struct platform_device *pdev)
 {
 	struct aml_lcd_drv_s *pdrv;
-	const struct of_device_id *match;
 	struct lcd_data_s *pdata;
 	unsigned int index = 0;
 	int ret = 0;
@@ -2541,12 +2573,11 @@ static int lcd_probe(struct platform_device *pdev)
 	}
 	lcd_drv_init_state |= (1 << index);
 
-	match = of_match_device(lcd_dt_match_table, &pdev->dev);
-	if (!match) {
-		LCDERR("%s: no match table\n", __func__);
+	pdata =  lcd_chip_detect(pdev);
+	if (!pdata) {
+		LCDERR("%s: no match data\n", __func__);
 		return -1;
 	}
-	pdata = (struct lcd_data_s *)match->data;
 	LCDPR("[%d]: driver version: %s(%d-%s)\n",
 	      index, LCD_DRV_VERSION, pdata->chip_type, pdata->chip_name);
 	if (index >= pdata->drv_max) {

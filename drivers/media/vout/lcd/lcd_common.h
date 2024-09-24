@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/cpu_version.h>
 #include "lcd_reg.h"
 
 /* 20220430: initial version*/

@@ -707,6 +707,7 @@ struct lcd_vmode_mgr_s {
 struct lcd_data_s {
 	enum lcd_chip_e chip_type;
 	const char *chip_name;
+	unsigned char rev_type;
 	int *reg_map_table;
 	unsigned char drv_max;
 	unsigned int offset_venc[LCD_MAX_DRV];
