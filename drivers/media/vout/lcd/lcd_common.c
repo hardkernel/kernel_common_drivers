@@ -2199,6 +2199,11 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			lcd_extern_dev_index_add(pdrv->index, para[0]);
 		}
 #endif
+
+		phy_cfg->vswing_level = 0;
+		phy_cfg->preem_level = 0;
+		lcd_phy_param_preset(pdrv);
+		lcd_lane_map_preset(pdrv);
 		break;
 	case LCD_EDP:
 		ret = of_property_read_u32_array(child, "edp_attr", &para[0], 9);

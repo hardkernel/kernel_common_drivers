@@ -513,7 +513,7 @@ int lcd_mlvds_clk_phase_set(struct aml_lcd_drv_s *pdrv)
 	struct lcd_clk_config_s *cconf;
 	int ret = -1;
 
-	if (pdrv->status & LCD_STATUS_IF_ON)
+	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
 		return -1;
 	if (pdrv->config.basic.lcd_type != LCD_MLVDS)
 		return -1;
