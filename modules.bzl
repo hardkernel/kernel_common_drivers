@@ -88,7 +88,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/pci/controller/amlogic-pcie-v3_host.ko",
     "common_drivers/drivers/pm/amlogic-pm.ko",
     "common_drivers/drivers/power/amlogic-power.ko",
-#    "common_drivers/drivers/pwm/amlogic-pwm.ko",
+    "common_drivers/drivers/pwm/amlogic-pwm.ko",
     "common_drivers/drivers/reset/amlogic-reset.ko",
     "common_drivers/drivers/rtc/amlogic-rtc.ko",
     "common_drivers/drivers/secmon/amlogic-secmon.ko",

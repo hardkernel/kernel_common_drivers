@@ -135,7 +135,7 @@ struct meson_pwm_channel {
 };
 
 struct meson_pwm {
-	struct pwm_chip chip;
+	struct pwm_chip *chip;
 	struct meson_pwm_data *data;
 	struct meson_pwm_channel channels[MESON_DOUBLE_NUM_PWMS];
 	struct meson_pwm_variant variant;

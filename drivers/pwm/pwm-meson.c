@@ -168,7 +168,7 @@ struct meson_pwm *to_meson_pwm(struct pwm_chip *chip)
 static inline struct meson_pwm *to_meson_pwm(struct pwm_chip *chip)
 #endif
 {
-	return container_of(chip, struct meson_pwm, chip);
+	return pwmchip_get_drvdata(chip);
 }
 EXPORT_SYMBOL(to_meson_pwm);
 
@@ -248,15 +248,15 @@ static int meson_pwm_calc(struct meson_pwm *meson, struct pwm_device *pwm,
 #endif
 
 	if (fin_freq == 0) {
-		dev_err(&meson->chip.dev, "invalid source clock frequency\n");
+		dev_err(&meson->chip->dev, "invalid source clock frequency\n");
 		return -EINVAL;
 	}
 
-	dev_dbg(&meson->chip.dev, "fin_freq: %lu Hz\n", fin_freq);
+	dev_dbg(&meson->chip->dev, "fin_freq: %lu Hz\n", fin_freq);
 
 	pre_div = DIV64_U64_ROUND_CLOSEST(fin_freq * (u64)period, NSEC_PER_SEC * 0xffffLL);
 	if (pre_div > MISC_CLK_DIV_MASK) {
-		dev_err(&meson->chip.dev, "unable to get period pre_div\n");
+		dev_err(&meson->chip->dev, "unable to get period pre_div\n");
 		return -EINVAL;
 	}
 
@@ -271,11 +271,11 @@ static int meson_pwm_calc(struct meson_pwm *meson, struct pwm_device *pwm,
 
 	cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * (u64)period, NSEC_PER_SEC * (pre_div + 1));
 	if (cnt > 0xffff) {
-		dev_err(&meson->chip.dev, "unable to get period cnt\n");
+		dev_err(&meson->chip->dev, "unable to get period cnt\n");
 		return -EINVAL;
 	}
 
-	dev_dbg(&meson->chip.dev, "period=%u pre_div=%u cnt=%u\n", period,
+	dev_dbg(&meson->chip->dev, "period=%u pre_div=%u cnt=%u\n", period,
 		pre_div, cnt);
 
 	if (duty == period) {
@@ -291,11 +291,11 @@ static int meson_pwm_calc(struct meson_pwm *meson, struct pwm_device *pwm,
 		duty_cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * (u64)duty,
 				     NSEC_PER_SEC * (pre_div + 1));
 		if (duty_cnt > 0xffff) {
-			dev_err(&meson->chip.dev, "unable to get duty cycle\n");
+			dev_err(&meson->chip->dev, "unable to get duty cycle\n");
 			return -EINVAL;
 		}
 
-		dev_dbg(&meson->chip.dev, "duty=%u pre_div=%u duty_cnt=%u\n",
+		dev_dbg(&meson->chip->dev, "duty=%u pre_div=%u duty_cnt=%u\n",
 			duty, pre_div, duty_cnt);
 
 		channel->pre_div = pre_div;
@@ -842,13 +842,13 @@ MODULE_DEVICE_TABLE(of, meson_pwm_matches);
 
 static int meson_pwm_init_channels(struct meson_pwm *meson)
 {
-	struct device *dev = &meson->chip.dev;
+	struct device *dev = &meson->chip->dev;
 	struct clk_init_data init;
 	unsigned int i;
 	char name[255];
 	int err;
 
-	for (i = 0; i < meson->chip.npwm; i++) {
+	for (i = 0; i < meson->chip->npwm; i++) {
 		struct meson_pwm_channel *channel = &meson->channels[i];
 
 		snprintf(name, sizeof(name), "%s#mux%u", dev_name(dev), i);
@@ -889,15 +889,14 @@ static int meson_pwm_init_channels(struct meson_pwm *meson)
 static int meson_pwm_v2_init_channels(struct meson_pwm *meson)
 {
 	struct meson_pwm_channel *channels = meson->channels;
-	struct device *dev = &meson->chip.dev;
+	struct device *dev = pwmchip_parent(meson->chip);
+	struct device_node *np = dev->of_node;
 	unsigned int i;
-	char name[255];
 
-	for (i = 0; i < (meson->chip.npwm / 2); i++) {
-		snprintf(name, sizeof(name), "clkin%u", i);
-		(channels + i)->clk = devm_clk_get(dev, name);
+	for (i = 0; i < (meson->chip->npwm / 2); i++) {
+		(channels + i)->clk = of_clk_get(np, i);
 		if (IS_ERR((channels + i)->clk)) {
-			dev_err(&meson->chip.dev, "can't get device clock\n");
+			dev_err(&meson->chip->dev, "can't get device clock\n");
 			return PTR_ERR((channels + i)->clk);
 		}
 		(channels + i)->clk_rate = clk_get_rate((channels + i)->clk);
@@ -921,17 +920,27 @@ static struct regmap_config meson_pwm_regmap_config = {
 static int meson_pwm_probe(struct platform_device *pdev)
 {
 	struct meson_pwm *meson;
-	struct meson_pwm_data *match;
 	struct resource *regs;
+	struct pwm_chip *chip;
 	int err;
 	int i;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct resource *ext_clk_regs;
 #endif
+	struct meson_pwm_data *match =
+			(struct meson_pwm_data *)of_device_get_match_data(&pdev->dev);
 
-	meson = devm_kzalloc(&pdev->dev, sizeof(*meson), GFP_KERNEL);
-	if (!meson)
-		return -ENOMEM;
+	if (match->double_channel) {
+		chip = devm_pwmchip_alloc(&pdev->dev, MESON_DOUBLE_NUM_PWMS, sizeof(*meson));
+		// chip->npwm = MESON_DOUBLE_NUM_PWMS;
+	} else {
+		chip = devm_pwmchip_alloc(&pdev->dev, MESON_NUM_PWMS, sizeof(*meson));
+		// chip->npwm = MESON_DOUBLE_NUM_PWMS;
+	}
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	meson = to_meson_pwm(chip);
+	meson->chip = chip;
 	meson->data = devm_kzalloc(&pdev->dev, sizeof(*meson->data), GFP_KERNEL);
 	if (!meson->data)
 		return -ENOMEM;
@@ -949,10 +958,7 @@ static int meson_pwm_probe(struct platform_device *pdev)
 						   &meson_pwm_regmap_config);
 #endif
 	spin_lock_init(&meson->lock);
-	meson->chip.dev = pdev->dev;
-	meson->chip.ops = &meson_pwm_ops;
-	// meson->chip.base = -1;
-	match = (struct meson_pwm_data *)of_device_get_match_data(&pdev->dev);
+	meson->chip->ops = &meson_pwm_ops;
 	meson->data->num_parents = match->num_parents;
 	meson->data->double_channel = match->double_channel;
 	meson->data->extern_clk = match->extern_clk;
@@ -978,16 +984,6 @@ static int meson_pwm_probe(struct platform_device *pdev)
 		meson->data->parent_names[i] = devm_kstrdup(&pdev->dev, match->parent_names[i],
 				GFP_KERNEL);
 
-#ifndef CONFIG_AMLOGIC_MODIFY
-	meson->chip.npwm = MESON_NUM_PWMS;
-#else
-	if (meson->data->double_channel)
-		meson->chip.npwm = MESON_DOUBLE_NUM_PWMS;
-	else
-		meson->chip.npwm = MESON_NUM_PWMS;
-#endif
-	meson->chip.of_xlate = of_pwm_xlate_with_flags;
-	// meson->chip.of_pwm_n_cells = 3;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (meson->data->extern_clk)
 		err = meson_pwm_v2_init_channels(meson);
@@ -997,7 +993,7 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	err = pwmchip_add(&meson->chip);
+	err = pwmchip_add(meson->chip);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register PWM chip: %d\n", err);
 		return err;
@@ -1020,7 +1016,7 @@ static int meson_pwm_remove(struct platform_device *pdev)
 	if (meson->data->double_channel)
 		meson_pwm_sysfs_exit(&pdev->dev);
 #endif
-	pwmchip_remove(&meson->chip);
+	pwmchip_remove(meson->chip);
 
 	return 0;
 }
