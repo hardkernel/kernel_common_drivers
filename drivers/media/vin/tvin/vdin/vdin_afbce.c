@@ -238,23 +238,14 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 
 bool vdin_chk_is_comb_mode(struct vdin_dev_s *devp)
 {
-	enum vdin_format_convert_e vdin_out_fmt;
-	int reg_fmt444_rgb_en = false;
 	int reg_fmt444_comb = false;
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T3X) /* No comb mode on t3x */
 		return false;
 
-	vdin_out_fmt = devp->format_convert;
-	if (vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_RGB ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_GBR ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_BRG ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_RGB)
-		reg_fmt444_rgb_en = true;
-
-	if ((vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
-	     vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_YUV444 || reg_fmt444_rgb_en) &&
-	     devp->h_active > 2048)
+	/* only set comb when 444 8bit output */
+	if (vdin_is_convert_to_444(devp->format_convert) &&
+		devp->source_bitdepth == 8)
 		reg_fmt444_comb = true;
 	else
 		reg_fmt444_comb = false;

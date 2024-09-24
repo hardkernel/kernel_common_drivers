@@ -5199,7 +5199,7 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		 * change default to 10bit for 8in8out detail maybe lost
 		 */
 		if (vdin_is_convert_to_444(devp->format_convert) &&
-		    vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) {
+		    vdin_is_4k(devp) && !devp->prop.dv_unique_drm_flag) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3) &&
 			    devp->index && devp->set_canvas_manual &&
 			    devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT)
@@ -5277,7 +5277,8 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 	}
 	if (vdin_dbg_en)
-		pr_info("%s %d cfg:0x%x prop.dep:%x\n", __func__, devp->source_bitdepth,
+		pr_info("%s bitdepth:%d,unique_drm:%d,cfg:0x%x prop.dep:%x\n", __func__,
+			devp->source_bitdepth, devp->prop.dv_unique_drm_flag,
 			devp->color_depth_config, devp->prop.colordepth);
 }
 
