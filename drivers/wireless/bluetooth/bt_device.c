@@ -428,7 +428,7 @@ static int bt_resume(struct platform_device *pdev)
 	if ((get_resume_method() == RTC_WAKEUP) ||
 		(get_resume_method() == AUTO_WAKEUP)) {
 		btwake_evt = 1;
-		btirq_flag = 1;
+		btirq_flag = 0;
 	    flag_n = 0;
 		flag_p = 0;
 		cnt = 0;
