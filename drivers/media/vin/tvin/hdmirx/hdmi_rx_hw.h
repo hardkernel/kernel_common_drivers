@@ -16,7 +16,8 @@
 /* 2024.08.24 disable tap0 error checking function */
 /* 2024.09.13 optimize t5m bist & slt flow */
 /* 2024.09.24 optimize getting phy trim value flow */
-#define RX_HW_VER "ver.2024/09/24"
+/* 2024.09.26 modify frl training flow */
+#define RX_HW_VER "ver.2024/09/26"
 
 #define K_TEST_CHK_ERR_CNT
 

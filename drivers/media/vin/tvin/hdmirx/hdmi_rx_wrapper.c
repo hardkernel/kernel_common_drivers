@@ -83,6 +83,8 @@ static int ecc_err_monitor;
 u32 vrr_func_en = 1;
 u32 allm_func_en = 0xff;
 u32 htotal_cnt;
+static int frate_flg = 0xf;
+static int frate_flg1 = 0xf;
 
 typedef void (*pf_callback)(int earc_port, bool st);
 static pf_callback earc_hdmirx_hpdst;
@@ -1545,9 +1547,18 @@ irqreturn_t irq2_handler(int irq, void *params)
 		rx_pr("ced update!!! 0x0084:0x%x\n", tmp);
 		rx_pr("ced flag 0x%x\n", hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, E_PORT2));
 	}
-	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_AON_CTL])
-		if (log_level & COR_LOG)
-			rx_pr("[isr] ctrl aon\n");
+	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_AON_CTL]) {
+		tmp = hdmirx_rd_cor(RX_INTR10_AON_AON_IVCRX, E_PORT2);
+		if (tmp & 0x10) {
+			hdmirx_wr_cor(RX_INTR10_AON_AON_IVCRX, 0xff, E_PORT2);
+			rx[E_PORT2].var.frl_rate =
+				hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, E_PORT2) & 0xf;
+			frate_flg = rx[E_PORT2].var.frl_rate;
+			if (log_level & FRL_LOG)
+				rx_pr("frl rate change\n");
+			rx[E_PORT2].state = FSM_FRL_FLT_READY;
+		}
+	}
 	return IRQ_HANDLED;
 }
 
@@ -1719,9 +1730,18 @@ irqreturn_t irq3_handler(int irq, void *params)
 		rx_pr("ced update!!! 0x0084:0x%x\n", tmp);
 		rx_pr("ced flag 0x%x\n", hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, E_PORT3));
 	}
-	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_AON_CTL])
-		if (log_level & COR_LOG)
-			rx_pr("[isr] ctrl aon\n");
+	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_AON_CTL]) {
+		tmp = hdmirx_rd_cor(RX_INTR10_AON_AON_IVCRX, E_PORT3);
+		if (tmp & 0x10) {
+			hdmirx_wr_cor(RX_INTR10_AON_AON_IVCRX, 0xff, E_PORT3);
+			rx[E_PORT3].var.frl_rate =
+				hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, E_PORT3) & 0xf;
+			frate_flg1 = rx[E_PORT3].var.frl_rate;
+			if (log_level & FRL_LOG)
+				rx_pr("frl rate change\n");
+			rx[E_PORT3].state = FSM_FRL_FLT_READY;
+		}
+	}
 	return IRQ_HANDLED;
 }
 
@@ -7360,7 +7380,6 @@ void valid_m_monitor1(u8 port)
 	}
 }
 
-static int frate_flg = 0xf;
 void frate_monitor(void)
 {
 	u8 port = E_PORT2;
@@ -7396,7 +7415,7 @@ void frate_monitor(void)
 			}
 			if (rx[port].state == FSM_SIG_READY) {
 				//hdmirx_top_irq_en(0, 0, port);
-				rx_irq_en(0, port);
+				rx_irq_en(IRQ_EN_HDCP, port);
 			}
 			hdmirx_frl_config(port);
 			rx_lts_2_flt_ready(port);
@@ -7404,7 +7423,7 @@ void frate_monitor(void)
 		} else {
 			if (rx[port].state == FSM_SIG_READY) {
 				//hdmirx_top_irq_en(0, 0, port);
-				rx_irq_en(0, port);
+				rx_irq_en(IRQ_EN_HDCP, port);
 			}
 			if (rx[port].state > FSM_FRL_FLT_READY)
 				rx[port].state = FSM_FRL_FLT_READY;
@@ -7417,7 +7436,7 @@ void frate_monitor(void)
 				if (rx[port].state == FSM_SIG_READY) {
 					rx[port].state = FSM_FRL_FLT_READY;
 					//hdmirx_top_irq_en(0, 0, port);
-					rx_irq_en(0, port);
+					rx_irq_en(IRQ_EN_HDCP, port);
 				}
 			}
 			if (rx[port].state == FSM_SIG_READY) {
@@ -7431,7 +7450,6 @@ void frate_monitor(void)
 		valid_m_monitor(port);
 }
 
-static int frate_flg1 = 0xf;
 void frate_monitor1(void)
 {
 	u8 port = E_PORT3;
@@ -7467,7 +7485,7 @@ void frate_monitor1(void)
 			}
 			if (rx[port].state == FSM_SIG_READY) {
 				//hdmirx_top_irq_en(0, 0, port);
-				rx_irq_en(0, port);
+				rx_irq_en(IRQ_EN_HDCP, port);
 			}
 			hdmirx_frl_config(port);
 			rx_lts_2_flt_ready(port);
@@ -7475,7 +7493,7 @@ void frate_monitor1(void)
 		} else {
 			if (rx[port].state == FSM_SIG_READY) {
 				//hdmirx_top_irq_en(0, 0, port);
-				rx_irq_en(0, port);
+				rx_irq_en(IRQ_EN_HDCP, port);
 			}
 			if (rx[port].state > FSM_FRL_FLT_READY)
 				rx[port].state = FSM_FRL_FLT_READY;
@@ -7488,7 +7506,7 @@ void frate_monitor1(void)
 				if (rx[port].state == FSM_SIG_READY) {
 					rx[port].state = FSM_FRL_FLT_READY;
 					//hdmirx_top_irq_en(0, 0, port);
-					rx_irq_en(0, port);
+					rx_irq_en(IRQ_EN_HDCP, port);
 				}
 			}
 			if (rx[port].state == FSM_SIG_READY) {

@@ -1666,6 +1666,7 @@ void rx_set_irq_21(u8 enable, u8 port)
 		hdmirx_wr_cor(RX_DEPACK2_INTR2_DP0B_IVCRX, 0xff, port);
 		hdmirx_wr_cor(RX_DEPACK_INTR6_DP2_IVCRX, 0xff, port);
 		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, 0xff, port);
+		hdmirx_wr_cor(RX_INTR10_AON_AON_IVCRX, 0xff, port);
 	}
 }
 
@@ -1709,6 +1710,7 @@ void hdmirx_top_irq_en(u8 en, u8 port)
 	data32 |= top_irq_tab[IRQ_DE_RISE];
 	data32 |= top_irq_tab[IRQ_PWD_CTL];
 	if (rx_info.chip_id >= CHIP_ID_T3X) {
+		data32 |= top_irq_tab[IRQ_AON_CTL];
 		data32 |= top_irq_tab[IRQ_VALID_M_FALL];
 		data32 |= top_irq_tab[IRQ_EMP_DONE];
 		data32 |= top_irq_tab[IRQ_T3X_EDID_AD];
@@ -1745,9 +1747,12 @@ void hdmirx_top_irq_en(u8 en, u8 port)
 			top_intr_maskn_value |= 0x1e0000;
 	} else if (en == IRQ_EN_HDCP) {
 		top_intr_maskn_value = top_irq_tab[IRQ_PWD_CTL];
+		if (rx_info.chip_id == CHIP_ID_T3X)
+			top_intr_maskn_value |= top_irq_tab[IRQ_AON_CTL];
 	} else if (en == IRQ_EN_EDID) {
 		if (rx_info.chip_id == CHIP_ID_T3X) {
 			top_intr_maskn_value = top_irq_tab[IRQ_T3X_EDID_AD];
+			top_intr_maskn_value |= top_irq_tab[IRQ_AON_CTL];
 		} else {
 			switch (port) {
 			case E_PORT0:
@@ -4350,6 +4355,10 @@ void cor_init(u8 port)
 	hdmirx_wr_cor(PWD0_CLK_EN_4_PHYCK_IVCRX, 0x04, port);//register address: 0x20a6
 
 	hdmirx_wr_cor(RX_AON_SRST_AON_IVCRX, 0x00, port);//reset
+
+	data8 = 0;
+	data8 |= 1 << 4;
+	hdmirx_wr_cor(RX_INTR10_MASK_AON_AON_IVCRX, data8, port);//for frl rate change
 	//-------------------
 	//  vp core config
 	//-------------------
