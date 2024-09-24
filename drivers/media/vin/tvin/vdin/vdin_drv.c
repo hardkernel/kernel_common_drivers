@@ -425,7 +425,7 @@ static void vdin_measure_clk_ctl(struct vdin_dev_s *devp, bool on_off)
 	if (vdin_dbg_en)
 		pr_info("%s(vdin%d),on_off:%d,inuse=0x%x\n", __func__, devp->index,
 			on_off, g_vdin_msr_ctl.inuse);
-	if (!g_vdin_msr_ctl.inuse && devp->msr_clk) {
+	if (!g_vdin_msr_ctl.inuse && devp->msr_clk && g_vdin_msr_ctl.is_clk_enabled) {
 		clk_disable_unprepare(devp->msr_clk);
 		g_vdin_msr_ctl.is_clk_enabled = false;
 		pr_info("%s(vdin%d), msr clk disabled\n", __func__, devp->index);
