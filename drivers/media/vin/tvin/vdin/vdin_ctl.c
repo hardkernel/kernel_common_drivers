@@ -33,6 +33,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/sched/clock.h>
 #include <linux/arm-smccc.h>
+#include <linux/amlogic/media/vrr/vrr.h>
 
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -7994,6 +7995,8 @@ enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
 			ret = VDIN_VRR_FREESYNC_PREMIUM;
 		else if (freesync_type == 3)
 			ret = VDIN_VRR_FREESYNC_PREMIUM_PRO;
+	} else if (game_mode && vrr_instead_vlock()) {
+		ret = VDIN_VRR_LATENCY;
 	} else {
 		ret = VDIN_VRR_OFF;
 	}
