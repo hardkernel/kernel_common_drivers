@@ -299,7 +299,7 @@ static void file_pop_display_q(struct video_queue_dev *dev,
 		}
 		k--;
 		if (k < 0) {
-			vq_print(dev->inst, P_ERROR, "can find vf in display_q\n");
+			vq_print(dev->inst, P_FENCE, "can't find vf in display_q\n");
 			break;
 		}
 	}
@@ -324,7 +324,7 @@ static void file_pop_out2vt_q(struct video_queue_dev *dev, struct file *recycle_
 		}
 		i--;
 		if (i < 0) {
-			vq_print(dev->inst, P_ERROR, "can find vf in out2vt_q\n");
+			vq_print(dev->inst, P_FENCE, "can't find vf in out2vt_q\n");
 			break;
 		}
 	}
