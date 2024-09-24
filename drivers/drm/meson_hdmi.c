@@ -755,6 +755,27 @@ static int get_hdcp_mode(void)
 	return hdcp_mode_flag;
 }
 
+static int get_sink_type(void)
+{
+	int sink_type_flag = 0;
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+
+	if (!tx_comm->hpd_state) {
+		/* none */
+		sink_type_flag = BIT(0);
+		return sink_type_flag;
+	}
+
+	if (tx_comm->rxcap.vsdb_phy_addr.b)
+		/* repeater */
+		sink_type_flag = BIT(1);
+	else
+		/* sink */
+		sink_type_flag = BIT(2);
+
+	return sink_type_flag;
+}
+
 static int am_hdmitx_connector_atomic_set_property
 	(struct drm_connector *connector,
 	struct drm_connector_state *state,
@@ -863,6 +884,9 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->hdmi_used_prop) {
 		*val = hdmitx_common_get_hdmi_used_state(tx_comm);
+		return 0;
+	} else if (property == am_hdmi->sink_type_prop) {
+		*val = get_sink_type();
 		return 0;
 	}
 
@@ -2261,6 +2285,20 @@ static void meson_hdmitx_init_hdmi_used_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_sink_type_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "sink_type", 0, 8);
+	if (prop) {
+		am_hdmi->sink_type_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to init sink_type property\n");
+	}
+}
+
 static void meson_hdmitx_init_contenttype_cap_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -2553,6 +2591,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_hdcp_user_prop(drm, am_hdmi);
 	meson_hdmitx_init_frac_rate_policy_property(drm, am_hdmi);
 	meson_hdmitx_init_hdmi_used_property(drm, am_hdmi);
+	meson_hdmitx_init_sink_type_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

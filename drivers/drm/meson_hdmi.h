@@ -95,6 +95,13 @@ struct am_hdmi_tx {
 	 * if never hdmi plugin, then keep as 0
 	 */
 	struct drm_property *hdmi_used_prop;
+	/*
+	 * the current HDMI RX device type
+	 * 1 none
+	 * 2 repeater
+	 * 4 sink
+	 */
+	struct drm_property *sink_type_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
