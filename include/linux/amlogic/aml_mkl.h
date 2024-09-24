@@ -28,6 +28,7 @@
 
 /* key ladder mode */
 #define AML_KL_MODE_AML (0)
+#define AML_KL_MODE_CAS_A (1)
 #define AML_KL_MODE_ETSI (2)
 #define AML_KL_MODE_MSR (3)
 
@@ -105,7 +106,8 @@ struct amlkl_params {
 	__u8 reserved1;
 	__u8 eks[6][16];
 	__u16 vid;
-	__u8 reserved[14];
+	__u8 mid_extra_flag;
+	__u8 reserved[13];
 };
 
 struct amlcr_params {
