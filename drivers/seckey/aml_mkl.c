@@ -69,6 +69,7 @@
 #define KL_LEVEL_MASK (7)
 #define KL_STAGE_OFFSET (0)
 #define KL_STAGE_MASK (3)
+#define KL_MID_EXTRA_FLAG_OFFSET (6)
 
 #define KL_MSR_FUNCID_OFFSET  (0)
 #define KL_MSR_KEYALGO_OFFSET (12)
@@ -256,7 +257,7 @@ static int aml_mkl_etsi_run(struct file *filp, struct amlkl_params *param)
 		pu->uid);
 
 	if (pu->uid & ~KL_USERID_MASK ||
-	    (pu->uid > AML_KT_USER_M2M_5 && pu->uid < AML_KT_USER_TSD) ||
+	    (pu->uid > AML_KT_USER_M2M_ANY && pu->uid < AML_KT_USER_TSD) ||
 	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
 	    pu->algo & ~KL_KEYALGO_MASK ||
 	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
@@ -313,6 +314,7 @@ static int aml_mkl_etsi_run(struct file *filp, struct amlkl_params *param)
 		   param->usage.algo << KL_KEYALGO_OFFSET |
 		   param->usage.uid << KL_USERID_OFFSET |
 		   param->kt_handle << KL_KTE_OFFSET |
+		   param->mid_extra_flag << KL_MID_EXTRA_FLAG_OFFSET |
 		   param->mrk_cfg_index << KL_MRK_OFFSET | param->func_id);
 	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
 
@@ -485,7 +487,7 @@ static int aml_mkl_run(struct file *filp, struct amlkl_params *param)
 		pu->uid);
 
 	if (pu->uid & ~KL_USERID_MASK ||
-	    (pu->uid > AML_KT_USER_M2M_5 && pu->uid < AML_KT_USER_TSD) ||
+	    (pu->uid > AML_KT_USER_M2M_ANY && pu->uid < AML_KT_USER_TSD) ||
 	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
 	    pu->algo & ~KL_KEYALGO_MASK ||
 	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
@@ -571,7 +573,7 @@ static int aml_mkl_msr_run(struct file *filp, struct amlkl_params *param)
 		pu->uid);
 
 	if (pu->uid & ~KL_USERID_MASK ||
-	    (pu->uid > AML_KT_USER_M2M_5 && pu->uid < AML_KT_USER_TSD) ||
+	    (pu->uid > AML_KT_USER_M2M_ANY && pu->uid < AML_KT_USER_TSD) ||
 	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
 	    pu->algo & ~KL_KEYALGO_MASK ||
 	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
@@ -671,7 +673,8 @@ static long aml_mkl_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		}
 
-		if (kl_param.kl_mode == AML_KL_MODE_ETSI) {
+		if (kl_param.kl_mode == AML_KL_MODE_ETSI ||
+			kl_param.kl_mode == AML_KL_MODE_CAS_A) {
 			if (dev->kl_type == KL_TYPE_OLD)
 				ret = aml_mkl_etsi_old_run(filp, &kl_param);
 			else
