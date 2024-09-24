@@ -5394,10 +5394,15 @@ int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 	static int parse_process_count;
 	char meta_buf[1024];
 	static u32 last_play_id;
+	static u32 err_parse_cnt;
 
 	if (!aux_buf || aux_size == 0 || !fmt || !md_buf || !comp_buf ||
 	    !total_comp_size || !total_md_size || !ret_flags)
 		return 1;
+	if (err_parse_cnt > 10) {
+		pr_err("parser error count %d\n", err_parse_cnt);
+		return 1;
+	}
 
 	parse_process_count++;
 	if (parse_process_count > 1) {
@@ -5418,6 +5423,7 @@ int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 			amdv_clear_buf(0);
 		}
 		last_play_id = vf->src_fmt.play_id;
+		err_parse_cnt = 0;
 		if (debug_dolby & 2)
 			pr_dv_dbg("update play id=%d:\n", last_play_id);
 	}
@@ -5570,6 +5576,7 @@ int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 					("meta(%d), pts(%lld) -> metadata parser process fail\n",
 					 rpu_size, vf->pts_us64);
 				ret = 3;
+				err_parse_cnt += 1;
 			} else {
 				if (*total_comp_size + comp_size
 					< COMP_BUF_SIZE)
@@ -8049,7 +8056,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 							md_buf[current_id][i + 6],
 							md_buf[current_id][i + 7]);
 				}
-			} else {  /*no parse or parse failed*/
+			} else if (ret == 0) {  /*no parse*/
 				if (get_vframe_src_fmt(vf) ==
 				    VFRAME_SIGNAL_FMT_HDR10PRIME)
 					src_format = FORMAT_PRIMESL;
@@ -8061,6 +8068,8 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 						 &total_md_size,
 						 &src_format,
 						 &ret_flags, drop_flag, 0);
+			} else {/* parse failed*/
+				src_format = FORMAT_SDR;
 			}
 			if (force_mel)
 				ret_flags = 1;
