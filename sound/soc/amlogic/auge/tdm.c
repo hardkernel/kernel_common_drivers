@@ -2990,7 +2990,7 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	}
 
 	/*set default clk for output*/
-	if (!IS_ERR(p_tdm->mclk2pad) && p_tdm->start_clk_enable == 1)
+	if (p_tdm->start_clk_enable == 1)
 		aml_set_default_tdm_clk(p_tdm);
 
 	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {

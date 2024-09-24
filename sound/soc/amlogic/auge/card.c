@@ -1148,7 +1148,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 						ARRAY_SIZE(card_controls));
 
 		if (priv->spk_mute_enable) {
-			gpio_set_value(priv->spk_mute_gpio,
+			gpio_direction_output(priv->spk_mute_gpio,
 				(active_low) ? GPIOF_OUT_INIT_LOW :
 				GPIOF_OUT_INIT_HIGH);
 		} else {
@@ -1157,8 +1157,8 @@ static int aml_card_parse_gpios(struct device_node *node,
 				msleep(spk_mute_sleep_time);
 			else
 				msleep(200);
-			if (!priv->spk_mute_flag)
-				gpio_set_value(priv->spk_mute_gpio,
+			if (!priv->spk_mute_flag || !priv->spk_mute_enable)
+				gpio_direction_output(priv->spk_mute_gpio,
 					(active_low) ? GPIOF_OUT_INIT_HIGH :
 					GPIOF_OUT_INIT_LOW);
 		}
@@ -1649,10 +1649,36 @@ static void aml_card_platform_shutdown(struct platform_device *pdev)
 	}
 }
 
+#ifdef CONFIG_HIBERNATION
+static int aml_card_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+
+	priv->av_mute_enable = 0;
+	priv->spk_mute_enable = 0;
+	aml_card_parse_gpios(pdev->dev.of_node, priv);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_card_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = aml_card_platform_restore,
+};
+#endif
+
 static struct platform_driver aml_card = {
 	.driver = {
 		.name = "asoc-aml-card",
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_card_pm_ops,
+#else
 		.pm = &snd_soc_pm_ops,
+#endif
 		.of_match_table = auge_of_match,
 #if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
