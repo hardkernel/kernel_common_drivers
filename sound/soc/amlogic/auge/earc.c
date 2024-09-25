@@ -60,17 +60,54 @@
 static DEFINE_MUTEX(earc_mutex);
 
 u8 default_rx_cds[] = {
-	0x01, 0x01, 0x24, 0x38,/* Version, BLOCK_ID, PAYLOAD_LENGTH, Data Block Header Byte */
-	/* L-PCM: 32k, 44.1k, 48k support 8 channel, others 2 channel */
-	0x09, 0x7f, 0x05, 0x0f, 0x07, 0x05,/* L-PCM */
-	0x67, 0x7e, 0x03,/* MAT */
-	0x57, 0x06, 0x03,/* EAC3 */
+	0x01,/* Capabilities Data Structure Version = 0x1 */
+	0x01,/* BLOCK_ID = 0x1, Selected CTA-861-G Descriptors */
+	0x1B,/* PAYLOAD_LENGTH */
+	/* Data Block Header Byte,
+	 * Tag Code bit 5-7 = 0x1,
+	 * Audio Data Block(include one or more Short Audio Descriptors)
+	 * Length of following data block payload(in bytes) bit 0-4 = 0x18
+	 */
+	0x2F,
+	/* L-PCM: 32k, 44.1k, 48k, 8 channel, 16 and 24 bit */
+	0x09, 0x7f, 0x05,
+	/* L-PCM: 32k, 44.1k, 48k, 88.2k, 96k, 176.4k, 192k, 2 channel, 16 and 24 bit */
+	0x0f, 0x07, 0x05,
+	0x67, 0x04, 0x03,/* MAT */
+	0x57, 0x04, 0x01,/* EAC3 */
 	0x15, 0x07, 0x50,/* AC3 */
-	0x3f, 0x06, 0xc0,/* DTS */
-	0x5f, 0x7e, 0x03,/* DTSHD */
-	0x5f, 0x7e, 0x01,/* DTSHD */
-	0x83, 0x4f, 0x00, 0x00,/* Speaker Allocation Data Block */
-	0xe6, 0x11, 0x46, 0xd0, 0x00, 0x70, 0x00/* Vendor-Specific Data Block */
+	/* 0x3f, 0x06, 0xc0, DTS */
+	/* 0x5f, 0x7e, 0x03, DTSHD */
+	/* 0x5f, 0x7e, 0x01, DTSHD */
+	/* Data Block Header Byte,
+	 * Tag Code bit 5-7 = 0x4,
+	 * Speaker Allocation Data Block
+	 * Length of following data block payload(in bytes) bit 0-4 = 0x3
+	 */
+	0x83,
+	0x4f, 0x00, 0x00,/* RLC/RRC, BL/BR, FC, LFE, FL/FR */
+	/* Data Block Header Byte,
+	 * Tag Code bit 5-7 = 0x7,
+	 * Use Extended Tag, Dolby Vendor-Specific Audio Data Block
+	 * Length of following data block payload(in bytes) bit 0-4 = 0x6
+	 */
+	0xe6,
+	0x11,/* Extended tag code = 0x11 */
+	0x46,/* IEEE organizational unique identifier third two hex digits (0x46) */
+	0xd0,/* IEEE organizational unique identifier second two hex digits (0xD0) */
+	0x00,/* IEEE organizational unique identifier first two hex digits (0x00) */
+	/* Dolby VSADB version bit 0-2 = 0, Version = 1.0
+	 * Output configuration bit 4-6 = 0x7
+	 * bit 4 = 1, Center speaker zone present
+	 * bit 5 = 1, Surround speaker zone present
+	 * bit 6 = 1, Height speaker zone present
+	 * Headphone playback bit 7 = 0, Sink device not configured for headphone playback only
+	 */
+	0x70,
+	/* Sink device capabilities
+	 * bit 0 = 0, Refer to Dolby MAT Short Audio Descriptors
+	 */
+	0x00
 };
 
 /*
