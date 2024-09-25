@@ -70,17 +70,17 @@ static const struct sy602x_dap_ram_command sy602x_dap_ram_init[] = {
 	{.item = DAP_RAM_SPEQ_COEF_3, .data =
 		"\x46\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" },
 	{.item = DAP_RAM_DRC_BIQUAD_0, .data =
-	"\x47\x00\x00\x00\x00\x00\x7B\x11\xD3\x00\x00\x00\x00\x00\x02\x77\x17\x00\x02\x77\x17" },
+	"\x47\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_DRC_BIQUAD_1, .data =
 	"\x48\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_DRC_BIQUAD_2, .data =
-	"\x49\x00\x00\x00\x00\x00\x7B\x11\xD3\x00\x00\x00\x00\x1F\x82\x77\x17\x00\x7D\x88\xE9" },
+	"\x49\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_DRC_BIQUAD_3, .data =
-	"\x4A\x00\x00\x00\x00\x00\x55\x86\xE1\x00\x00\x00\x00\x00\x15\x3C\x90\x00\x15\x3C\x90" },
+	"\x4A\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_DRC_BIQUAD_4, .data =
 	"\x4B\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_DRC_BIQUAD_5, .data =
-	"\x4C\x00\x00\x00\x00\x00\x55\x86\xE1\x00\x00\x00\x00\x1F\x95\x3C\x90\x00\x6A\xC3\x70" },
+	"\x4C\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_LOUDNESS_GAIN, .data =
 		"\x4D\x08\x00\x00\x00\x08\x00\x00\x00\x08\x00\x00\x00" },
 };
@@ -106,7 +106,7 @@ static const struct sy602x_dap_ram_command sy602x_dap_ram_eq_1[] = {
 	{.item = DAP_RAM_EQ_BIQUAD_5, .data =
 	"\x35\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_EQ_BIQUAD_6, .data =
-	"\x37\x1F\x80\xDB\x7C\x00\xFE\xCB\x01\x00\x7F\x5B\x42\x1F\x01\x35\x00\x00\x7F\xC9\x42" },
+	"\x37\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_EQ_BIQUAD_7, .data =
 	"\x38\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x00\x00" },
 	{.item = DAP_RAM_EQ_BIQUAD_8, .data =
@@ -142,11 +142,11 @@ static const struct sy602x_reg sy602x_reg_init_seq_0[] = {
 	{.reg = SY602X_SYS_CTL_REG3,	.val = 0x78 },
 	{.reg = SY602X_PROT_SYS_CNTL,	.val = 0x1F },
 	{.reg = SY602X_INTER_PRIVATE,	.val = 0x000000F0 },
-	{.reg = SY602X_OCDET_WIND_WIDTH,	.val = 0x00000001 },
-	{.reg = SY602X_FAULT_OC_TH,	.val = 0x00000001 },
+	{.reg = SY602X_OCDET_WIND_WIDTH,	.val = 0x00000003 },
+	{.reg = SY602X_FAULT_OC_TH,	.val = 0x00001003 },
 	{.reg = SY602X_PWM_MUX_REG,	.val = 0x00000000 },
 	{.reg = SY602X_PWM_OUTFLIP,	.val = 0x40003210 },
-	{.reg = SY602X_PWM_CTL_REG,	.val = 0x0000002F },
+	{.reg = SY602X_PWM_CTL_REG,	.val = 0x0000002E },
 	{.reg = SY602X_PWM_DC_THRESH,	.val = 0x05 },
 	{.reg = SY602X_MOD_LMT_REG,	.val = 0x07 },
 	{.reg = SY602X_PWM_DLA_CH1P,	.val = 0x00 },
@@ -180,8 +180,8 @@ static const struct sy602x_reg sy602x_reg_init_seq_1[] = {
 
 	{.reg = SY602X_DSP_CTL3,	.val = 0x00 },
 	{.reg = SY602X_FUNC_DEBUG,	.val = 0x50 },
-	{.reg = SY602X_PBQ_CHECKSUM,	.val = 0x08FFB77D },
-	{.reg = SY602X_DRC_CHECKSUM,	.val = 0x0000001E },
+	{.reg = SY602X_PBQ_CHECKSUM,	.val = 0x08000000 },
+	{.reg = SY602X_DRC_CHECKSUM,	.val = 0x00000000 },
 
 	{.reg = SY602X_DRC_CTRL,	.val = 0x01000001 },
 	{.reg = SY602X_MAS_VOL,	.val = 0xF3 },
@@ -189,7 +189,7 @@ static const struct sy602x_reg sy602x_reg_init_seq_1[] = {
 	{.reg = SY602X_CH2_VOL,	.val = 0xB2 },
 	{.reg = SY602X_POST_SCALER,	.val = 0x7F },
 	{.reg = SY602X_FINE_VOL,	.val = 0x00 },
-	{.reg = SY602X_IN_MUX_REG,	.val = 0x00 },
+	{.reg = SY602X_IN_MUX_REG,	.val = 0x80 },
 	{.reg = SY602X_DSP_CTL_REG1,	.val = 0x06 },
 	{.reg = SY602X_MONITOR_CFG1,	.val = 0x00 },
 	{.reg = SY602X_MONITOR_CFG2,	.val = 0x00 },
