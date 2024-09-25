@@ -134,6 +134,7 @@ u32 vd_test_fps[MAX_VD_LAYERS];
 u64 vd_test_fps_val[MAX_VD_LAYERS] = {1, 1, 1};
 u64 vd_test_vsync_val[MAX_VD_LAYERS] = {1, 1, 1};
 u32 dewarp_load_flag; /*0 dynamic load, 1 load bin file*/
+u32 new_afr_pulldown;
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -4064,24 +4065,32 @@ static int config_ai_param(struct composer_dev *dev,
 
 static void set_frc_pattern(struct composer_dev *dev, struct vframe_s *vf)
 {
+	int duration;
+
 	if (!vf->vc_private)
 		return;
 	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
 		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
 		vf->source_type == VFRAME_SOURCE_TYPE_TUNER) {
 		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_1_1;
+		new_afr_pulldown = 0;
 		vc_print(dev->index, PRINT_OTHER, "%s:HDMI mode, FRC full function", __func__);
 		return;
 	}
 
-	switch (vf->duration) {
+	duration = find_nearest_duration(dev, vf->duration);
+	switch (duration) {
 	case 3200:
 	case 3203:
 	case 3840:
+		if (check_frc_n2m_status())
+			new_afr_pulldown = 1;
 		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_1_2;
 		break;
 	case 4000:
 	case 4004:
+		if (check_frc_n2m_status())
+			new_afr_pulldown = 1;
 		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_2_5;
 		break;
 	default:

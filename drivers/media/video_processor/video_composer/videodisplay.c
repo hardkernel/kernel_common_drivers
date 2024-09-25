@@ -50,6 +50,7 @@ static u32 vsync_pts_inc_scale_base[MAX_VD_LAYERS];
 
 #define PATTERN_32_DETECT_RANGE 7
 #define PATTERN_22_DETECT_RANGE 7
+#define PATTERN_11_DETECT_RANGE 6
 #define PATTERN_22323_DETECT_RANGE 5
 #define PATTERN_44_DETECT_RANGE 5
 #define PATTERN_55_DETECT_RANGE 5
@@ -60,7 +61,8 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg);
 
 /*if add new patten, need change dev->patten[X]*/
 enum video_refresh_pattern {
-	PATTERN_32 = 0,
+	PATTERN_11 = 0,
+	PATTERN_32,
 	PATTERN_22,
 	PATTERN_22323,
 	PATTERN_44,
@@ -154,7 +156,7 @@ static bool vd_vf_is_tvin(struct vframe_s *vf)
 	return false;
 }
 
-static bool frc_n2m_worked(void)
+bool check_frc_n2m_status(void)
 {
 	bool ret = false;
 
@@ -331,19 +333,23 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 	if (pattern >= MAX_NUM_PATTERNS)
 		return;
 
-	if (pattern == PATTERN_32) {
-		factor1 = 3;
-		factor2 = 2;
-		pattern_range = PATTERN_32_DETECT_RANGE;
+	if (pattern == PATTERN_11) {
+		factor1 = 1;
+		factor2 = 1;
+		pattern_range = PATTERN_11_DETECT_RANGE;
 	} else if (pattern == PATTERN_22) {
 		factor1 = 2;
 		factor2 = 2;
 		pattern_range =  PATTERN_22_DETECT_RANGE;
-	}  else if (pattern == PATTERN_44) {
+	} else if (pattern == PATTERN_32) {
+		factor1 = 3;
+		factor2 = 2;
+		pattern_range =  PATTERN_32_DETECT_RANGE;
+	} else if (pattern == PATTERN_44) {
 		factor1 = 4;
 		factor2 = 4;
 		pattern_range =  PATTERN_44_DETECT_RANGE;
-	}  else if (pattern == PATTERN_55) {
+	} else if (pattern == PATTERN_55) {
 		factor1 = 5;
 		factor2 = 5;
 		pattern_range =  PATTERN_55_DETECT_RANGE;
@@ -366,13 +372,24 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 			}
 		}
 	} else if (dev->pattern[pattern] == pattern_range) {
-		if (pattern == PATTERN_22 &&
+		if (pattern == PATTERN_11 &&
+			patten_trace[dev->index] == 2 &&
+			dev->pre_pat_trace == 1 &&
+			vf->frame_index == dev->last_vf_index + 1) {
+			patten_trace[dev->index] = 1;
+			vc_print(dev->index, PRINT_PATTERN,
+				"patten_11: video %d:%d mode force unbroken, pre_pat=%d, %d, index=%d, %d\n",
+				factor1, factor2, dev->pre_pat_trace,
+				patten_trace[dev->index],
+				vf->frame_index, dev->last_vf_index);
+			return;
+		} else if (pattern == PATTERN_22 &&
 			patten_trace[dev->index] == 3 &&
 			dev->pre_pat_trace == 2 &&
 			vf->frame_index == dev->last_vf_index + 1) {
 			patten_trace[dev->index] = 2;
 			vc_print(dev->index, PRINT_PATTERN,
-				"patten: video %d:%d mode force unbroken, pre_pat=%d, %d, index=%d, %d\n",
+				"patten_22: video %d:%d mode force unbroken, pre_pat=%d, %d, index=%d, %d\n",
 				factor1, factor2, dev->pre_pat_trace,
 				patten_trace[dev->index],
 				vf->frame_index, dev->last_vf_index);
@@ -385,7 +402,8 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 			factor1, factor2, dev->pre_pat_trace, patten_trace[dev->index],
 			vf->frame_index, dev->last_vf_index);
 	} else {
-		vc_print(dev->index, PRINT_PATTERN, "invalid case, reset to 0.\n");
+		vc_print(dev->index, PRINT_PATTERN,
+			"pattern:%d invalid case, reset to 0.\n", pattern);
 		dev->pattern[pattern] = 0;
 	}
 }
@@ -527,13 +545,36 @@ static void vd_vsync_video_pattern_53(struct composer_dev *dev, struct vframe_s 
 	}
 }
 
+static void vd_vsync_video_pattern_11120(struct composer_dev *dev, struct vframe_s *vf)
+{
+	int i = 0, sum = 0, ave = 0;
+
+	for (i = 0; i < PATTEN_FACTOR_MAX; i++)
+		sum += dev->patten_factor[i];
+
+	ave = sum / PATTEN_FACTOR_MAX;
+	if (ave == 1) {
+		dev->pattern_detected = PATTERN_11;
+		dev->pattern[PATTERN_11] = PATTERN_11_DETECT_RANGE;
+		dev->pattern_enter_cnt++;
+		vc_print(dev->index, PRINT_PATTERN, "%s: video 11 mode detected\n", __func__);
+	} else {
+		vc_print(dev->index, PRINT_PATTERN, "%s: not 11 mode.\n", __func__);
+	}
+}
+
 static void vsync_video_pattern(struct composer_dev *dev, struct vframe_s *vf)
 {
+	vd_vsync_video_pattern(dev, PATTERN_11, vf);
 	vd_vsync_video_pattern(dev, PATTERN_32, vf);
 	vd_vsync_video_pattern(dev, PATTERN_22, vf);
 	vd_vsync_video_pattern_22323(dev, vf);
 	vd_vsync_video_pattern(dev, PATTERN_44, vf);
 	vd_vsync_video_pattern(dev, PATTERN_55, vf);
+	if (dev->pattern_detected != PATTERN_11 ||
+		(dev->pattern_detected == PATTERN_11 &&
+			dev->pattern[PATTERN_11] != PATTERN_11_DETECT_RANGE))
+		vd_vsync_video_pattern_11120(dev, vf);
 	if (dev->pattern_detected != PATTERN_22 ||
 		(dev->pattern_detected == PATTERN_22 &&
 			dev->pattern[PATTERN_22] != PATTERN_22_DETECT_RANGE))
@@ -562,6 +603,11 @@ static inline int vd_perform_pulldown(struct composer_dev *dev,
 		return -1;
 
 	switch (dev->pattern_detected) {
+	case PATTERN_11:
+		pattern_range =  PATTERN_11_DETECT_RANGE;
+		expected_prev_interval = 1;
+		expected_curr_interval = 1;
+		break;
 	case PATTERN_32:
 		pattern_range = PATTERN_32_DETECT_RANGE;
 		switch (dev->pre_pat_trace) {
@@ -645,7 +691,7 @@ static inline int vd_perform_pulldown(struct composer_dev *dev,
 	return 0;
 }
 
-static int find_nearest_duration(struct composer_dev *dev, int duration_val)
+int find_nearest_duration(struct composer_dev *dev, int duration_val)
 {
 	int min = INT_MAX;
 	int duration_arr[11] = {800, 801, 960, 1600, 1601, 1920, 3200, 3203, 3840, 4000, 4004};
@@ -673,6 +719,8 @@ static bool pulldown_support_vf(struct composer_dev *dev, u32 duration_val)
 
 	duration = find_nearest_duration(dev, duration_val);
 
+	if (new_afr_pulldown)
+		support = true;
 	if (vsync_pts_inc_scale[dev->index] == 1 &&
 		vsync_pts_inc_scale_base[dev->index] == 48) {
 		/*48hz for 24fps 23.976fps*/
@@ -680,8 +728,8 @@ static bool pulldown_support_vf(struct composer_dev *dev, u32 duration_val)
 			support = true;
 	} else if (vsync_pts_inc_scale[dev->index] == 1 &&
 		vsync_pts_inc_scale_base[dev->index] == 50) {
-		/*50hz for 25fps*/
-		if (duration == 3840)
+		/*50hz for 25fps 50fps*/
+		if (duration == 3840 || duration == 1920)
 			support = true;
 	} else if (vsync_pts_inc_scale[dev->index] == 1001 &&
 		vsync_pts_inc_scale_base[dev->index] == 60000) {
@@ -720,6 +768,7 @@ static bool pulldown_support_vf(struct composer_dev *dev, u32 duration_val)
 			duration == 1600)
 			support = true;
 	}
+
 	return support;
 }
 
@@ -754,7 +803,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 		if (get_lowlatency_mode())
 			return vf;
 
-		if (dev->index == 0 && frc_n2m_worked())
+		if (dev->index == 0 && is_meson_t3x_cpu() && check_frc_n2m_status())
 			aisr_delay_vsync = 1;
 		else
 			aisr_delay_vsync = 0;
@@ -855,7 +904,8 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 					"peek: vsync_index: %d, vsync_count:%d, frame_index=%d\n",
 					vf->vc_private->vsync_index, vsync_count[dev->index],
 					vf->frame_index);
-				if (vsync_index + 1 >= vsync_count[dev->index])
+				if (vsync_index + 1 >= vsync_count[dev->index] &&
+					dev->pattern_detected != PATTERN_11)
 					expired = false;
 			}
 			expired_tmp = expired;
