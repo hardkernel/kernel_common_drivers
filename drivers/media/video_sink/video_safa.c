@@ -930,65 +930,73 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	pi_gamma_mode    = 1;
 	pi_max_sad_mode  = 1;
 
-	if (safa_pps_top_en) {
-		if (vsr_safa->mode == 0 || vsr_safa->mode == 1) {
-			step = vsr_safa->pre_hsize <= 1024 ? 1 :
-				(vsr_safa->pre_hsize <= 2048 ? 2 : 3);
+	if (vsr_safa->mode == 0 || vsr_safa->mode == 1) {
+		step = vsr_safa->pre_hsize <= 1024 ? 1 :
+			(vsr_safa->pre_hsize <= 2048 ? 2 : 3);
+	} else {
+		step = vsr_safa->pre_hsize <= 512  ? 1 :
+			(vsr_safa->pre_hsize <= 1024 ? 2 : 3);
+		drt_intp_chrm_en = 0;
+	}
+	if (vsr->vsr_top.input_422_en) {
+		sharp_en = 1;
+		pi_vofst = 2;
+		analy_en = 1;
+		//postsc hsize region
+		if (step == 1) {
+			postsc_size_mux = 0;
+			dir_info_ds_x_en = 0;
+			drt_intp_en = 1;
+		} else if (step == 2) {
+			postsc_size_mux = 0;
+			dir_info_ds_x_en = 1;
+			drt_intp_en = 1;
 		} else {
-			step = vsr_safa->pre_hsize <= 512  ? 1 :
-				(vsr_safa->pre_hsize <= 1024 ? 2 : 3);
-			drt_intp_chrm_en = 0;
-		}
-		if (vsr->vsr_top.input_422_en) {
-			sharp_en = 1;
-			pi_vofst = 2;
-			analy_en = 1;
-			//postsc hsize region
-			if (step == 1) {
-				postsc_size_mux = 0;
-				dir_info_ds_x_en = 0;
-				drt_intp_en = 1;
-			} else if (step == 2) {
-				postsc_size_mux = 0;
-				dir_info_ds_x_en = 1;
-				drt_intp_en = 1;
-			} else {
-				postsc_size_mux = 1;
-				dir_info_ds_x_en = 1;
-				drt_intp_en = 0;
-				adp_tap_alp_mode = 3;
-				beta_mode = 3;
-				sr_delta_alp_mode = 3;
-				sr_gamma_alp_mode = 3;
-				pi_gamma_mode = 3;
-				pi_max_sad_mode = 3;
-			}
-		} else {
-			analy_en = 0;
-			sharp_en = 0;
-			pi_vofst = 1;
+			postsc_size_mux = 1;
+			dir_info_ds_x_en = 1;
+			drt_intp_en = 0;
 			adp_tap_alp_mode = 3;
 			beta_mode = 3;
 			sr_delta_alp_mode = 3;
 			sr_gamma_alp_mode = 3;
 			pi_gamma_mode = 3;
 			pi_max_sad_mode = 3;
-			/* new add for t6d */
-			if (step == 3)
-				postsc_size_mux = 1;
-			else
-				postsc_size_mux = 0;
 		}
-		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
-			pr_info("%s:preh/v_en:%d, %d, pre_h/vsize:%d, %d, preh/v_ratio:%d, %d, postsc_en:%d\n",
-				__func__,
-				vsr_safa->preh_en,
-				vsr_safa->prev_en,
-				vsr_safa->pre_hsize,
-				vsr_safa->pre_vsize,
-				vsr_safa->preh_ratio,
-				vsr_safa->prev_ratio,
-				vsr_safa->postsc_en);
+	} else {
+		analy_en = 0;
+		sharp_en = 0;
+		pi_vofst = 1;
+		adp_tap_alp_mode = 3;
+		beta_mode = 3;
+		sr_delta_alp_mode = 3;
+		sr_gamma_alp_mode = 3;
+		pi_gamma_mode = 3;
+		pi_max_sad_mode = 3;
+		/* new add for t6d */
+		if (step == 3)
+			postsc_size_mux = 1;
+		else
+			postsc_size_mux = 0;
+	}
+	//scale down or input hsize over 1024/2048 disable analy_en
+	if ((vsr->vsr_top.hsize_in > vsr->vsr_top.hsize_out ||
+		vsr->vsr_top.vsize_in > vsr->vsr_top.vsize_out) ||
+		((glayer_info[0].src_height_max == 2160 && vsr->vsr_top.hsize_in > 2048) ||
+		(glayer_info[0].src_height_max == 1088 && vsr->vsr_top.hsize_in > 1024)))
+		analy_en = 0;
+	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+		pr_info("%s:preh/v_en:%d, %d, pre_h/vsize:%d, %d, preh/v_ratio:%d, %d, postsc_en:%d step = %d analy_en = %d\n",
+			__func__,
+			vsr_safa->preh_en,
+			vsr_safa->prev_en,
+			vsr_safa->pre_hsize,
+			vsr_safa->pre_vsize,
+			vsr_safa->preh_ratio,
+			vsr_safa->prev_ratio,
+			vsr_safa->postsc_en,
+			step,
+			analy_en);
+	if (safa_pps_top_en) {
 		//postsc coef lut config
 		safa_pps_scale_set_coef(vsr,
 			vsr_reg->safa_pps_cntl_scale_coef_idx_luma,
@@ -1045,8 +1053,6 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 				(64 << 16) |
 				(194 << 0));
 		}
-		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-			postsc_size_mux, 1, 1);
 		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 			pi_vofst, 9, 2);
 		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
@@ -1131,12 +1137,6 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 			0, 19, 1);
 	}
-	//scale down or input hsize over 1024/2048 disable analy_en
-	if ((vsr->vsr_top.hsize_in > vsr->vsr_top.hsize_out ||
-		vsr->vsr_top.vsize_in > vsr->vsr_top.vsize_out) ||
-		((glayer_info[0].src_height_max == 2160 && vsr->vsr_top.hsize_in > 2048) ||
-		(glayer_info[0].src_height_max == 1088 && vsr->vsr_top.hsize_in > 1024)))
-		analy_en = 0;
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		analy_en, 4, 1);
 	if (cur_dev->dejaggy_support) {
@@ -1154,6 +1154,8 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	}
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		safa_pps_top_en, 8, 1);
+	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+		postsc_size_mux, 1, 1);
 }
 
 static void set_vsr_input_format(struct vsr_setting_s *vsr)
