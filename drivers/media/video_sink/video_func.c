@@ -4329,7 +4329,7 @@ static void do_vd1_swap_frame(u8 layer_id,
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (is_amdv_on())
-			new_src_fmt = get_amdv_src_format(VD1_PATH);
+			new_src_fmt = get_amdv_src_format(VD1_PATH, vd_layer[0].dispbuf);
 		else
 #endif
 			new_src_fmt =

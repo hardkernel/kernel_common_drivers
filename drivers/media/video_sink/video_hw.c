@@ -975,7 +975,7 @@ void set_amdv_mode(int mode)
 {
 }
 
-int get_amdv_src_format(enum vd_path_e vd_path)
+int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf)
 {
 	return 0;
 }

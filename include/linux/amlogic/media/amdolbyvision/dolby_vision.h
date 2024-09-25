@@ -217,7 +217,7 @@ void update_graphic_width_height(unsigned int width,
 int get_amdv_policy(void);
 void set_amdv_policy(int policy);
 int get_amdv_ll_policy(void);
-int get_amdv_src_format(enum vd_path_e vd_path);
+int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf);
 bool is_amdv_el_disable(void);
 bool is_dovi_dual_layer_frame(struct vframe_s *vf);
 void amdv_set_provider(char *prov_name, enum vd_path_e vd_layer);

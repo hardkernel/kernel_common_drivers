@@ -3736,12 +3736,16 @@ int layer_id_to_dv_id(enum vd_path_e vd_path)
 	return 0;
 }
 
-int get_amdv_src_format(enum vd_path_e vd_path)
+int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf)
 {
 	int dv_id = 0;
 
 	if (multi_dv_mode) {
-		dv_id = layer_id_to_dv_id(vd_path);
+		if (vf)
+			dv_id = vf->src_fmt.dv_id;
+		else
+			dv_id = layer_id_to_dv_id(vd_path);
+
 		if (vd_path >= VD_PATH_MAX || !dv_inst_valid(dv_id))
 			return UNKNOWN_SOURCE;
 

@@ -1621,7 +1621,7 @@ static void align_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
 	dv_support = get_dv_support_info() & 7;
 	if (is_amdv_enable() && is_aml_tvmode() &&
 	    !is_amdv_on() && dv_support == 7) {
-		int ret_src = get_amdv_src_format(VD1_PATH);
+		int ret_src = get_amdv_src_format(VD1_PATH, vf);
 		int dv_hdr_policy = get_amdv_hdr_policy(vf);
 
 		/* HDR = 1/DV = 3/HLG= 5/SDR=6 */
