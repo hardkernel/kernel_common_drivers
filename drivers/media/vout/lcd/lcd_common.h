@@ -171,7 +171,7 @@ int lcd_phy_param_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 int lcd_phy_analog_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status);
 int lcd_phy_probe(struct aml_lcd_drv_s *pdrv);
-int lcd_phy_config_init(struct aml_lcd_drv_s *pdrv);
+int lcd_phy_config_init(struct lcd_data_s *pdata);
 
 void lcd_phy_tcon_chpi_bbc_init_tl1(struct aml_lcd_drv_s *pdrv);
 
@@ -299,7 +299,7 @@ void lcd_venc_enable(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag);
 int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv);
 int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv);
-int lcd_venc_probe(struct aml_lcd_drv_s *pdrv);
+int lcd_venc_config_init(struct lcd_data_s *pdata);
 void lcd_screen_black(struct aml_lcd_drv_s *pdrv);
 void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal);

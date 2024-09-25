@@ -69,6 +69,7 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_axg = {
 	.lane_num = 5,
+	.lane_lock_total = 0,
 
 	.phy_vswing_level_to_val = NULL,
 	.phy_amp_dft_val = NULL,
@@ -84,7 +85,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_axg = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_axg(struct aml_lcd_drv_s *pdrv)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_axg(void)
 {
 	return &lcd_phy_ctrl_axg;
 }

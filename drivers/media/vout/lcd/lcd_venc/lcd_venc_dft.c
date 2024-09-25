@@ -118,18 +118,6 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	return 0;
 }
 
-static int lcd_venc_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
-{
-	if (num >= LCD_ENC_TST_NUM_MAX)
-		return -1;
-
-	lcd_queue_work(&pdrv->test_check_work);
-
-	lcd_venc_bist_set(pdrv, num);
-
-	return 0;
-}
-
 static void lcd_venc_gamma_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int data[2];
@@ -347,14 +335,6 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 	return init_state;
 }
 
-static void lcd_test_pattern_check(struct work_struct *work)
-{
-	struct aml_lcd_drv_s *pdrv;
-
-	pdrv = container_of(work, struct aml_lcd_drv_s, test_check_work);
-	aml_lcd_notifier_call_chain(LCD_EVENT_TEST_PATTERN, (void *)pdrv);
-}
-
 static void lcd_venc_set_vrr_recovery(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int vtotal = pdrv->config.timing.act_timing.v_period;
@@ -451,7 +431,7 @@ static int lcd_venc_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
-int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op)
+int lcd_venc_op_init_dft(struct lcd_venc_op_s *venc_op)
 {
 	if (!venc_op)
 		return -1;
@@ -459,7 +439,7 @@ int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_
 	venc_op->wait_vsync = lcd_venc_wait_vsync;
 	venc_op->get_max_lcnt = lcd_venc_get_max_lint_cnt;
 	venc_op->gamma_test_en = lcd_venc_gamma_debug_test_en;
-	venc_op->venc_debug_test = lcd_venc_debug_test;
+	venc_op->venc_debug_test = lcd_venc_bist_set;
 	venc_op->venc_set_timing = lcd_venc_set_timing;
 	venc_op->venc_set = lcd_venc_set;
 	venc_op->venc_change = lcd_venc_change_timing;
@@ -470,8 +450,6 @@ int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
 	venc_op->venc_reg_dump = lcd_venc_reg_dump;
-
-	INIT_WORK(&pdrv->test_check_work, lcd_test_pattern_check);
 
 	return 0;
 };

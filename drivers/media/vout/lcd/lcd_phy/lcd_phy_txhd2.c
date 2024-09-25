@@ -224,6 +224,7 @@ static unsigned int lcd_phy_amp_dft_txhd2(struct aml_lcd_drv_s *pdrv)
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_txhd2 = {
 	.lane_num = 12,
+	.lane_lock_total = 0,
 
 	.phy_vswing_level_to_val = lcd_phy_vswing_level_to_value_dft,
 	.phy_preem_level_to_val = lcd_phy_preem_level_to_val_txhd2,
@@ -241,7 +242,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_txhd2 = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_txhd2(struct aml_lcd_drv_s *pdrv)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_txhd2(void)
 {
 	return &lcd_phy_ctrl_txhd2;
 }

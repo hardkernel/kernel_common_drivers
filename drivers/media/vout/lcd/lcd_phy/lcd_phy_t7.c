@@ -181,6 +181,7 @@ static unsigned int lcd_phy_preem_level_to_value_t7(struct aml_lcd_drv_s *pdrv, 
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_t7 = {
 	.lane_num = 16,
+	.lane_lock_total = 0,
 
 	.phy_vswing_level_to_val = lcd_phy_vswing_level_to_value_dft,
 	.phy_preem_level_to_val = lcd_phy_preem_level_to_value_t7,
@@ -198,7 +199,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t7 = {
 	.phy_set_edp = lcd_edp_phy_set,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_t7(struct aml_lcd_drv_s *pdrv)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t7(void)
 {
 	phy_ctrl_p = &lcd_phy_ctrl_t7;
 	return phy_ctrl_p;

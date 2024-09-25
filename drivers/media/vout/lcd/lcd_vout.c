@@ -1778,18 +1778,18 @@ static void lcd_cdev_remove(struct aml_lcd_drv_s *pdrv)
 	cdev_del(&pdrv->cdev);
 }
 
-static int lcd_global_init_once(struct platform_device *pdev)
+static int lcd_global_init_once(struct lcd_data_s *pdata)
 {
 	int ret;
 
-	if (lcd_global_init_flag) {
-		lcd_global_init_flag++;
+	if (lcd_global_init_flag++)
 		return 0;
-	}
-	lcd_global_init_flag++;
+
 	mutex_init(&lcd_vout_mutex);
 	mutex_init(&lcd_power_mutex);
 	lcd_clk_init();
+	lcd_phy_config_init(pdata);
+	lcd_venc_config_init(pdata);
 
 	lcd_notifier_init();
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
@@ -1807,8 +1807,7 @@ static int lcd_global_init_once(struct platform_device *pdev)
 	if (!lcd_cdev)
 		return -1;
 
-	ret = alloc_chrdev_region(&lcd_cdev->devno, 0,
-				  LCD_MAX_DRV, LCD_CDEV_NAME);
+	ret = alloc_chrdev_region(&lcd_cdev->devno, 0, LCD_MAX_DRV, LCD_CDEV_NAME);
 	if (ret) {
 		ret = 1;
 		goto lcd_cdev_init_once_err;
@@ -2210,8 +2209,6 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
 
 	lcd_clk_config_probe(pdrv);
-	lcd_phy_config_init(pdrv);
-	lcd_venc_probe(pdrv);
 	lcd_config_default(pdrv);
 	lcd_init_vout(pdrv);
 	lcd_fr_lock_init(pdrv);
@@ -2553,8 +2550,6 @@ static int lcd_probe(struct platform_device *pdev)
 	unsigned int index = 0;
 	int ret = 0;
 
-	lcd_global_init_once(pdev);
-
 	if (!pdev->dev.of_node)
 		return -1;
 	ret = of_property_read_u32(pdev->dev.of_node, "index", &index);
@@ -2578,6 +2573,9 @@ static int lcd_probe(struct platform_device *pdev)
 		LCDERR("%s: no match data\n", __func__);
 		return -1;
 	}
+
+	lcd_global_init_once(pdata);
+
 	LCDPR("[%d]: driver version: %s(%d-%s)\n",
 	      index, LCD_DRV_VERSION, pdata->chip_type, pdata->chip_name);
 	if (index >= pdata->drv_max) {

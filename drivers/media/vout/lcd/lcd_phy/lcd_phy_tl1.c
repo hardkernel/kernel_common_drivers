@@ -267,6 +267,7 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_tl1 = {
 	.lane_num = 12,
+	.lane_lock_total = 0,
 
 	.phy_vswing_level_to_val = lcd_phy_vswing_level_to_value_dft,
 	.phy_preem_level_to_val = lcd_phy_preem_level_to_value_dft,
@@ -284,9 +285,9 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_tl1 = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_tl1(struct aml_lcd_drv_s *pdrv)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_tl1(struct lcd_data_s *pdata)
 {
-	if ((pdrv->data->chip_type == LCD_CHIP_TL1 && is_meson_rev_b()) || is_meson_rev_a())
+	if ((pdata->chip_type == LCD_CHIP_TL1 && is_meson_rev_b()) || is_meson_rev_a())
 		ctrl_bit_on = 0;
 	else
 		ctrl_bit_on = 1;

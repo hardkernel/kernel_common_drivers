@@ -286,31 +286,31 @@ int lcd_venc_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
-int lcd_venc_probe(struct aml_lcd_drv_s *pdrv)
+int lcd_venc_config_init(struct lcd_data_s *pdata)
 {
 	int ret;
 
 	if (lcd_venc_op.init_flag)
 		return 0;
 
-	switch (pdrv->data->chip_type) {
+	switch (pdata->chip_type) {
 	case LCD_CHIP_T7:
 	case LCD_CHIP_T3:
 	case LCD_CHIP_T5W:
 	case LCD_CHIP_T5M:
 	case LCD_CHIP_T6D:
-		ret = lcd_venc_op_init_t7(pdrv, &lcd_venc_op);
+		ret = lcd_venc_op_init_t7(&lcd_venc_op);
 		break;
 	case LCD_CHIP_C3:
-		ret = lcd_venc_op_init_c3(pdrv, &lcd_venc_op);
+		ret = lcd_venc_op_init_c3(&lcd_venc_op);
 		break;
 	case LCD_CHIP_T3X:
-		ret = lcd_venc_op_init_t3x(pdrv, &lcd_venc_op);
+		ret = lcd_venc_op_init_t3x(&lcd_venc_op);
 		break;
 	case LCD_CHIP_TXHD2:
 	case LCD_CHIP_S6:
 	default:
-		ret = lcd_venc_op_init_dft(pdrv, &lcd_venc_op);
+		ret = lcd_venc_op_init_dft(&lcd_venc_op);
 		break;
 	}
 	if (ret) {

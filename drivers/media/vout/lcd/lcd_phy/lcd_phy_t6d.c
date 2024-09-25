@@ -314,6 +314,7 @@ static void phy_glb_param_dft_t6d(struct aml_lcd_drv_s *pdrv)
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_t6d = {
 	.lane_num = 10,
+	.lane_lock_total = 0,
 
 	.phy_vswing_level_to_val = lcd_phy_vswing_level_to_value_dft,
 	.phy_preem_level_to_val = lcd_phy_preem_level_to_val_t6d,
@@ -331,7 +332,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t6d = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_t6d(struct aml_lcd_drv_s *pdrv)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t6d(void)
 {
 	cali_odt = PHY_DEF_ODT;    //todo
 	cali_bias = PHY_DEF_BIAS;  //todo

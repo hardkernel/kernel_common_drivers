@@ -921,7 +921,6 @@ struct aml_lcd_drv_s {
 
 	struct delayed_work config_probe_dly_work;
 	struct delayed_work tcon_config_dly_work;
-	struct work_struct test_check_work;
 	struct work_struct late_resume_work;
 	struct work_struct vx1_reset_work;
 	struct work_struct screen_restore_work;
