@@ -249,8 +249,8 @@ static int get_lcd_tablet_modes(struct meson_panel_dev *panel,
 		else
 			sprintf(nmodes[0].name, "panel");
 
-		lcd_drm_display_mode_add(pdrv, &pdrv->config.timing.base_timing, &nmodes[0],
-			pdrv->config.timing.base_timing.frame_rate);
+		lcd_drm_display_mode_add(pdrv, pdrv->config.timing.base_timing, &nmodes[0],
+			pdrv->config.timing.base_timing->frame_rate);
 		*num = 1;
 		*modes = nmodes;
 		return 0;

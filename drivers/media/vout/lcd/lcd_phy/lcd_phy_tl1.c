@@ -54,7 +54,8 @@ static int lcd_phy_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
-static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy)
+static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv,
+				      struct phy_config_s *phy_cfg, struct phy_attr_s *phy)
 {
 	unsigned int data32, chreg, chdig, bit;
 	int i;
@@ -69,14 +70,14 @@ static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv, struct phy_con
 	phy->cv_mode = (data32 >> 19) & 0x1;
 
 	data32 = lcd_hiu_read(HHI_DIF_CSI_PHY_CNTL16);
-	phy->ckdi = (data32 >> 12) & 0xfff;
+	phy_cfg->ckdi = (data32 >> 12) & 0xfff;
 
-	for (i = 0; i < phy->lane_num; i++) {
+	for (i = 0; i < phy_cfg->lane_num; i++) {
 		bit = i & 0x1 ? 16 : 0;
 		chreg = lcd_hiu_getb(chreg_reg[i >> 1], bit, 16);
 		chdig = lcd_hiu_getb(chdig_reg[i >> 1], bit, 16);
 
-		phy->lane[i].en = ((chreg >> 7) & 0x1) ? 0 : 1;
+		phy_cfg->ch_ctrl[i].en = ((chreg >> 7) & 0x1) ? 0 : 1;
 		phy->lane[i].preem = (chreg >> 8) & 0xff;
 		phy->lane[i].amp = 0;
 	}
@@ -84,9 +85,10 @@ static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv, struct phy_con
 	return 0;
 }
 
-static void lcd_phy_common_update(struct phy_config_s *phy, unsigned int cntl14)
+static void lcd_phy_common_update(struct aml_lcd_drv_s *pdrv, unsigned int cntl14)
 {
 	unsigned int cntl15 = 0, cntl16 = 0;
+	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
 
 	cntl14 &= ~(0xf);
 	cntl14 |= phy->vswing;
@@ -108,18 +110,19 @@ static void lcd_phy_common_update(struct phy_config_s *phy, unsigned int cntl14)
 	else
 		cntl15 = 0x00070000;
 
-	cntl16 = (phy->ckdi << 12) | 0x80000000;
+	cntl16 = (pdrv->config.phy_cfg.ckdi << 12) | 0x80000000;
 
 	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL14, cntl14);
 	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL15, cntl15);
 	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL16, cntl16);
 }
 
-static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy, int status,
-			int bypass)
+static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status, int bypass)
 {
 	unsigned int chreg, reg_data = 0, chdig = 0;
 	unsigned char i, bit;
+	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		LCDPR("%s: %d, bypass:%d\n", __func__, status, bypass);
@@ -130,7 +133,7 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *ph
 			reg_data |= 0x000b;
 		else
 			reg_data |= 0x0002;
-		if (phy->weakly_pull_down)
+		if (phy_cfg->weakly_pull_down)
 			reg_data &= ~(1 << 3);
 	} else {
 		reg_data = (!ctrl_bit_on) << 0;
@@ -140,12 +143,12 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *ph
 	}
 
 	for (i = 0; i < 12; i++) {
-		if (phy->lane_valid & (1 << i)) {
+		if (phy_cfg->lane_valid & (1 << i)) {
 			bit = i & 0x1 ? 16 : 0;
 			chreg = reg_data & ~(1 << 7);
-			chdig = ((phy->ckdi & (0x1 << i)) == 0) && bypass ? 0x4 : 0;
+			chdig = ((phy_cfg->ckdi & (0x1 << i)) == 0) && bypass ? 0x4 : 0;
 			if (status) {
-				chreg |= (phy->lane[i].en ? 0 : 1) << 7;
+				chreg |= (phy_cfg->ch_ctrl[i].en ? 0 : 1) << 7;
 				chreg |= (phy->lane[i].preem & 0xff) << 8;
 			}
 			lcd_hiu_setb(chreg_reg[i >> 1], chreg, bit, 16);
@@ -186,34 +189,31 @@ void lcd_phy_tcon_chpi_bbc_init_tl1(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
 	if (status) {
 		cntl14 = 0xff2027e0;
-		lcd_phy_common_update(phy, cntl14);
+		lcd_phy_common_update(pdrv, cntl14);
 	}
-	lcd_phy_cntl_set(pdrv, phy, status, 1);
+	lcd_phy_cntl_set(pdrv, status, 1);
 }
 
 static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
 	if (status) {
-		if (phy->ext_pullup)
+		if (pdrv->config.phy_cfg.ext_pullup)
 			cntl14 = 0xff2027e0;
 		else
 			cntl14 = 0xf02027a0;
-		lcd_phy_common_update(phy, cntl14);
+		lcd_phy_common_update(pdrv, cntl14);
 	}
-	lcd_phy_cntl_set(pdrv, phy, status, 1);
+	lcd_phy_cntl_set(pdrv, status, 1);
 }
 
 static void lcd_mlvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	struct mlvds_config_s *mlvds_conf;
 	unsigned int bypass = 1, cntl14 = 0;
 
@@ -221,14 +221,13 @@ static void lcd_mlvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	if (status) {
 		bypass = (mlvds_conf->clk_phase >> 12) & 0x1;
 		cntl14 = 0xff2027e0;
-		lcd_phy_common_update(phy, cntl14);
+		lcd_phy_common_update(pdrv, cntl14);
 	}
-	lcd_phy_cntl_set(pdrv, phy, status, bypass);
+	lcd_phy_cntl_set(pdrv, status, bypass);
 }
 
 static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	struct p2p_config_s *p2p_conf;
 	unsigned int p2p_type, vcm_flag;
 	unsigned int cntl14 = 0;
@@ -242,15 +241,15 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		case P2P_CMPI:
 		case P2P_ISP:
 		case P2P_EPI:
-			phy->low_common_mode = 0;
+			pdrv->config.phy_cfg.low_common_mode = 0;
 			cntl14 = 0xff2027a0;
 			break;
 		case P2P_CHPI: /* low common mode */
 		case P2P_CSPI:
 		case P2P_USIT:
-			phy->low_common_mode = 1;
+			pdrv->config.phy_cfg.low_common_mode = 1;
 			if (p2p_type == P2P_CHPI)
-				phy->weakly_pull_down = 1;
+				pdrv->config.phy_cfg.weakly_pull_down = 1;
 			if (vcm_flag) /* 580mV */
 				cntl14 = 0xe0600272;
 			else /* default 385mV */
@@ -260,9 +259,9 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 			LCDERR("%s: invalid p2p_type 0x%x\n", __func__, p2p_type);
 			return;
 		}
-		lcd_phy_common_update(phy, cntl14);
+		lcd_phy_common_update(pdrv, cntl14);
 	}
-	lcd_phy_cntl_set(pdrv, phy, status, 1);
+	lcd_phy_cntl_set(pdrv, status, 1);
 }
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_tl1 = {

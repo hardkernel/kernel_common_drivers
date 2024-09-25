@@ -165,23 +165,28 @@ void dptx_timing_update(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s 
 {
 	struct lcd_config_s *pconf = &pdrv->config;
 
-	pconf->timing.base_timing.h_active = timing->h_a;
-	pconf->timing.base_timing.v_active = timing->v_a;
-	pconf->timing.base_timing.h_period = timing->h_a + timing->h_b;
-	pconf->timing.base_timing.v_period = timing->v_a + timing->v_b;
-	pconf->timing.base_timing.pixel_clk = timing->pclk;
+	if (!pconf->timing.dft_timing)
+		return;
 
-	pconf->timing.base_timing.hsync_width = timing->h_pw;
-	pconf->timing.base_timing.hsync_bp = timing->h_b - timing->h_fp - timing->h_pw;
-	pconf->timing.base_timing.hsync_pol = (timing->timing_ctrl >> 1) & 0x1;
-	pconf->timing.base_timing.vsync_width = timing->v_pw;
-	pconf->timing.base_timing.vsync_bp = timing->v_b - timing->v_fp - timing->v_pw;
-	pconf->timing.base_timing.vsync_pol = (timing->timing_ctrl >> 2) & 0x1;
+	pconf->timing.dft_timing->h_active = timing->h_a;
+	pconf->timing.dft_timing->v_active = timing->v_a;
+	pconf->timing.dft_timing->h_period = timing->h_a + timing->h_b;
+	pconf->timing.dft_timing->v_period = timing->v_a + timing->v_b;
+	pconf->timing.dft_timing->pixel_clk = timing->pclk;
+
+	pconf->timing.dft_timing->hsync_width = timing->h_pw;
+	pconf->timing.dft_timing->hsync_bp = timing->h_b - timing->h_fp - timing->h_pw;
+	pconf->timing.dft_timing->hsync_pol = (timing->timing_ctrl >> 1) & 0x1;
+	pconf->timing.dft_timing->vsync_width = timing->v_pw;
+	pconf->timing.dft_timing->vsync_bp = timing->v_b - timing->v_fp - timing->v_pw;
+	pconf->timing.dft_timing->vsync_pol = (timing->timing_ctrl >> 2) & 0x1;
+
 
 	pconf->basic.screen_width = timing->h_size;
 	pconf->basic.screen_height = timing->v_size;
 
-	lcd_clk_frame_rate_init(&pconf->timing.base_timing);
+	lcd_clk_frame_rate_init(pconf->timing.dft_timing);
+	pconf->timing.base_timing = pconf->timing.dft_timing;
 	lcd_enc_timing_init_config(pdrv);
 	lcd_clk_generate_parameter(pdrv);
 }
@@ -299,18 +304,24 @@ void dptx_manage_timing(struct aml_lcd_drv_s *pdrv, struct dptx_EDID_s *EDID_p)
 
 	timing_cnt = 0;
 	if (!range_limit_valid) {
-		pdrv->config.timing.base_timing.fr_adjust_type = VOUT_FR_ADJ_NONE;
+		pdrv->config.timing.act_timing.fr_adjust_type = VOUT_FR_ADJ_NONE;
 		pdrv->config.fr_auto_flag = 0xff;
 		goto collect_timing_done;
 	}
+	if (!pdrv->config.timing.timings[0])
+		pdrv->config.timing.dft_timing = lcd_timing_alloc(pdrv);
+	if (!pdrv->config.timing.dft_timing) {
+		LCDERR("%s timing alloc error\n", __func__);
+		return;
+	}
 	if (EDID_p->range_limit.min_vfreq < EDID_p->range_limit.max_vfreq) {
-		pdrv->config.timing.base_timing.fr_adjust_type = VOUT_FR_ADJ_VTOTAL;
-		pdrv->config.timing.base_timing.frame_rate_max = EDID_p->range_limit.max_vfreq;
-		pdrv->config.timing.base_timing.frame_rate_min = EDID_p->range_limit.min_vfreq;
+		pdrv->config.timing.dft_timing->fr_adjust_type = VOUT_FR_ADJ_VTOTAL;
+		pdrv->config.timing.dft_timing->frame_rate_max = EDID_p->range_limit.max_vfreq;
+		pdrv->config.timing.dft_timing->frame_rate_min = EDID_p->range_limit.min_vfreq;
 	//} else if (EDID_p->range_limit.min_hfreq < EDID_p->range_limit.max_hfreq) {
 	//} else if (EDID_p->range_limit.max_pclk) {
 	} else {
-		pdrv->config.timing.base_timing.fr_adjust_type = VOUT_FR_ADJ_NONE;
+		pdrv->config.timing.dft_timing->fr_adjust_type = VOUT_FR_ADJ_NONE;
 		pdrv->config.fr_auto_flag = 0xff;
 		goto collect_timing_done;
 	}

@@ -78,20 +78,22 @@ static void lcd_phy_cntl_set_lane_aux_t7(unsigned int flag, unsigned int aux_reg
 
 static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
 
 	if (!phy_ctrl_p)
 		return;
 
 	if (status) {
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid & 0x0101, 0x06430028, phy->preem_level);
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid & 0xfefe, 0x06530028, phy->preem_level);
-		lcd_phy_cntl_set_lane_aux_t7(phy->lane_valid, 0x0100ffff);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid & 0x0101, 0x06430028,
+					 phy_cfg->preem_level);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid & 0xfefe, 0x06530028,
+					 phy_cfg->preem_level);
+		lcd_phy_cntl_set_lane_aux_t7(phy_cfg->lane_valid, 0x0100ffff);
 
-		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00406240 | phy->vswing_level);
+		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00406240 | phy_cfg->vswing_level);
 	} else {
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid, 0, 0);
-		lcd_phy_cntl_set_lane_aux_t7(phy->lane_valid, 0);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid, 0, 0);
+		lcd_phy_cntl_set_lane_aux_t7(phy_cfg->lane_valid, 0);
 		if (phy_ctrl_p->lane_lock_total == 0)
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0);
 	}
@@ -99,20 +101,22 @@ static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
 
 	if (!phy_ctrl_p)
 		return;
 
 	if (status) {
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid & 0x0101, 0x06430028, phy->preem_level);
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid & 0xfefe, 0x06530028, phy->preem_level);
-		lcd_phy_cntl_set_lane_aux_t7(phy->lane_valid, 0x0100ffff);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid & 0x0101, 0x06430028,
+					 phy_cfg->preem_level);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid & 0xfefe, 0x06530028,
+					 phy_cfg->preem_level);
+		lcd_phy_cntl_set_lane_aux_t7(phy_cfg->lane_valid, 0x0100ffff);
 
-		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00401640 | phy->vswing_level);
+		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00401640 | phy_cfg->vswing_level);
 	} else {
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid, 0, 0);
-		lcd_phy_cntl_set_lane_aux_t7(phy->lane_valid, 0);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid, 0, 0);
+		lcd_phy_cntl_set_lane_aux_t7(phy_cfg->lane_valid, 0);
 		if (phy_ctrl_p->lane_lock_total == 0)
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0);
 	}
@@ -120,25 +124,25 @@ static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
 
 	if (!phy_ctrl_p)
 		return;
 
 	if (status) {
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid & 0x1b1b, 0x022a0028, 0); //data lane
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid & 0x0404, 0x822a0028, 0); //clk lane
-		lcd_phy_cntl_set_lane_aux_t7(phy->lane_valid, 0x0000ffcf);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid & 0x1b1b, 0x022a0028, 0); //data lane
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid & 0x0404, 0x822a0028, 0); //clk lane
+		lcd_phy_cntl_set_lane_aux_t7(phy_cfg->lane_valid, 0x0000ffcf);
 
 		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x1e406253);
 		// if (pdrv->index)
-		if (phy->lane_valid & 0xff00)
+		if (phy_cfg->lane_valid & 0xff00)
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, 0xffff);
 		else
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, (0xffff << 16));
 	} else {
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid & 0x1f1f, 0, 0);
-		lcd_phy_cntl_set_lane_aux_t7(phy->lane_valid, 0);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid & 0x1f1f, 0, 0);
+		lcd_phy_cntl_set_lane_aux_t7(phy_cfg->lane_valid, 0);
 
 		if (phy_ctrl_p->lane_lock_total == 0)
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0);
@@ -151,20 +155,20 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_edp_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
 
 	if (!phy_ctrl_p)
 		return;
 
 	if (status) {
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid, 0x06530028, phy->preem_level);
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid & 0x0101, 0x46770038, 0); //DP aux lane
-		lcd_phy_cntl_set_lane_aux_t7(phy->lane_valid, 0x0000ffff);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid, 0x06530028, phy_cfg->preem_level);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid & 0x0101, 0x46770038, 0); //DP aux lane
+		lcd_phy_cntl_set_lane_aux_t7(phy_cfg->lane_valid, 0x0000ffff);
 
-		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00406240 | phy->vswing_level);
+		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00406240 | phy_cfg->vswing_level);
 	} else {
-		lcd_phy_cntl_set_lane_t7(phy->lane_valid, 0, 0);
-		lcd_phy_cntl_set_lane_aux_t7(phy->lane_valid, 0);
+		lcd_phy_cntl_set_lane_t7(phy_cfg->lane_valid, 0, 0);
+		lcd_phy_cntl_set_lane_aux_t7(phy_cfg->lane_valid, 0);
 		if (phy_ctrl_p->lane_lock_total == 0)
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0);
 	}

@@ -137,21 +137,12 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int init_state;
 
-	pconf->timing.dft_timing.h_active = lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 0, 13)
+	pconf->timing.act_timing.h_active = lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 0, 13)
 		- lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 16, 13) + 1;
-	pconf->timing.dft_timing.v_active = lcd_vcbus_getb(VPU_VOUT_DELN_E_POS, 0, 13)
+	pconf->timing.act_timing.v_active = lcd_vcbus_getb(VPU_VOUT_DELN_E_POS, 0, 13)
 		- lcd_vcbus_getb(VPU_VOUT_DELN_E_POS, 16, 13) + 1;
-	pconf->timing.dft_timing.h_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 16, 13);
-	pconf->timing.dft_timing.v_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 0, 13);
-
-	pconf->timing.base_timing.h_active = pconf->timing.dft_timing.h_active;
-	pconf->timing.act_timing.h_active = pconf->timing.dft_timing.h_active;
-	pconf->timing.base_timing.v_active = pconf->timing.dft_timing.v_active;
-	pconf->timing.act_timing.v_active = pconf->timing.dft_timing.v_active;
-	pconf->timing.base_timing.h_period = pconf->timing.dft_timing.h_period;
-	pconf->timing.act_timing.h_period = pconf->timing.dft_timing.h_period;
-	pconf->timing.base_timing.v_period = pconf->timing.dft_timing.v_period;
-	pconf->timing.act_timing.v_period = pconf->timing.dft_timing.v_period;
+	pconf->timing.act_timing.h_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 16, 13);
+	pconf->timing.act_timing.v_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 0, 13);
 
 	init_state = lcd_vcbus_getb(VPU_VOUT_CORE_CTRL, 0, 1);
 	return init_state;

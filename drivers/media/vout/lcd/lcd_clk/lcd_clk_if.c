@@ -99,6 +99,50 @@ void lcd_clk_frac_generate(struct aml_lcd_drv_s *pdrv)
 		cconf->data->pll_frac_generate(pdrv);
 }
 
+static void lcd_bit_rate_match_phy(struct aml_lcd_drv_s *pdrv)
+{
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_attr_s *phy;
+	int i = 0;
+	unsigned int phy_clk;
+
+	phy_cfg->act_phy = phy_cfg->phys[0];// if not matched, use default
+	phy_clk = lcd_do_div(pdrv->config.timing.bit_rate, 1000000);
+	for (i = 0; i < phy_cfg->group_num; i++) {
+		phy = phy_cfg->phys[i];
+		if (phy->phy_clk < phy_clk - 20 || phy->phy_clk > phy_clk + 20)
+			continue;
+
+		phy_cfg->act_phy = phy_cfg->phys[i];
+		LCDPR("%s act_phy[%d], clk:%d\n", __func__, i, phy_cfg->act_phy->phy_clk);
+		return;
+	}
+	LCDPR("no phy_clk matched, use default(phy[0])\n");
+}
+
+static void lcd_phy_match_ss(struct aml_lcd_drv_s *pdrv)
+{
+	struct phy_attr_s *phy;
+	struct lcd_timing_s *tim = &pdrv->config.timing;
+
+	phy = pdrv->config.phy_cfg.act_phy;
+	if (!phy)
+		return;
+
+	if (tim->act_timing.ss_force) {
+		tim->ss_freq = tim->act_timing.ss_freq;
+		tim->ss_level = tim->act_timing.ss_level;
+		tim->ss_mode = tim->act_timing.ss_mode;
+	} else {
+		tim->ss_freq = phy->ss.freq;
+		tim->ss_level = phy->ss.level;
+		tim->ss_mode = phy->ss.mode;
+	}
+
+	LCDPR("[%d]:match ss_level=%d, ss_freq=%d, ss_mode=%d\n",
+		pdrv->index, tim->ss_level, tim->ss_freq, tim->ss_mode);
+}
+
 void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
@@ -129,7 +173,8 @@ void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 
 	if (cconf->data->clk_generate_parameter)
 		cconf->data->clk_generate_parameter(pdrv);
-	lcd_cus_ctrl_config_update(pdrv, NULL, LCD_CUS_CTRL_SEL_TUNING_ATTR);
+	lcd_bit_rate_match_phy(pdrv);
+	lcd_phy_match_ss(pdrv);
 	lcd_clk_ss_param_init(pdrv);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -713,7 +758,7 @@ void lcd_clk_config_parameter_init(struct aml_lcd_drv_s *pdrv)
 	if (cconf->data->clk_parameter_init)
 		cconf->data->clk_parameter_init(pdrv);
 
-	lcd_clk_ss_param_init(pdrv);
+	//lcd_clk_ss_param_init(pdrv); in lcd_config_init()->lcd_clk_generate_parameter()
 }
 
 static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)

@@ -183,7 +183,6 @@ static int lcd_vmode_remove_all(struct aml_lcd_drv_s *pdrv)
 static void lcd_tablet_add_all_vmode(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_vmode_info_s *vmode_find = NULL;
-	struct lcd_detail_timing_s **timing_match;
 	int i;
 
 	if (!pdrv)
@@ -191,24 +190,11 @@ static void lcd_tablet_add_all_vmode(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vmode_remove_all(pdrv);
 
-	//default ref timing
-	vmode_find = lcd_detail_timing_to_vmode(&pdrv->config.timing.dft_timing);
-	if (!vmode_find)
-		return;
-	lcd_vmode_add_single(pdrv, vmode_find);
-
-	timing_match = lcd_cus_ctrl_timing_match_get(pdrv);
-	if (timing_match) {
-		for (i = 0; i < pdrv->config.cus_ctrl.timing_cnt; i++) {
-			if (!timing_match[i])
-				break;
-
-			vmode_find = lcd_detail_timing_to_vmode(timing_match[i]);
-			if (!vmode_find)
-				continue;
-			lcd_vmode_add_single(pdrv, vmode_find);
-		}
-		kfree(timing_match);
+	for (i = 0; i < pdrv->config.timing.num_timings; i++) {
+		vmode_find = lcd_detail_timing_to_vmode(pdrv->config.timing.timings[i]);
+		if (!vmode_find)
+			continue;
+		lcd_vmode_add_single(pdrv, vmode_find);
 	}
 }
 
@@ -285,7 +271,7 @@ static void lcd_act_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 // * dft_timing 2 pdrv->vinfo (lcd_tablet_vout_server_init)
 static void lcd_dft_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_detail_timing_s *ptiming = &pdrv->config.timing.dft_timing;
+	struct lcd_detail_timing_s *ptiming = &pdrv->config.timing.act_timing;
 
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 
@@ -449,29 +435,68 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 	struct lcd_detail_timing_s *ptiming;
 	unsigned int pre_pclk;
 	int dur_index;
+	unsigned char switch_type, switch_type_pre = pdrv->config.timing.switch_type;
 
+	if (!pdrv->config.timing.base_timing)
+		return;
 	/* clear clk_change flag */
 	pdrv->config.timing.clk_change &= ~(LCD_CLK_PLL_RESET);
 	if (pdrv->vmode_mgr.next_vmode_info) {
-		pre_pclk = pdrv->config.timing.base_timing.pixel_clk;
+		pre_pclk = pdrv->config.timing.base_timing->pixel_clk;
 		pdrv->vmode_mgr.cur_vmode_info = pdrv->vmode_mgr.next_vmode_info;
 		pdrv->vmode_mgr.next_vmode_info = NULL;
 
 		pdrv->std_duration = pdrv->vmode_mgr.cur_vmode_info->duration;
 		ptiming = pdrv->vmode_mgr.cur_vmode_info->dft_timing;
-		memcpy(&pdrv->config.timing.base_timing, ptiming,
-			sizeof(struct lcd_detail_timing_s));
+		pdrv->config.timing.base_timing = ptiming;
 
 		//update base_timing to act_timing
 		lcd_enc_timing_init_config(pdrv);
 
-		lcd_cus_ctrl_config_update(pdrv, (void *)ptiming, LCD_CUS_CTRL_SEL_TIMMING);
-		if (pdrv->config.timing.base_timing.pixel_clk != pre_pclk) {
+		if (pdrv->config.timing.base_timing->pixel_clk != pre_pclk) {
 			pdrv->config.timing.clk_change |= LCD_CLK_PLL_RESET;
 			lcd_clk_generate_parameter(pdrv);
 		}
 
 		pdrv->vmode_switch = 1; // more than (vfp, hfp, clk) changed
+	}
+
+	switch_type = pdrv->config.timing.act_timing.switch_type;
+	switch (switch_type_pre) {
+	case LCD_VMODE_SWITCH_FULL:
+		pdrv->config.timing.switch_type = LCD_VMODE_SWITCH_FULL;
+		break;
+	case LCD_VMODE_SWITCH_LIMIT:
+		if (switch_type == LCD_VMODE_SWITCH_FULL)
+			pdrv->config.timing.switch_type = LCD_VMODE_SWITCH_FULL;
+		else
+			pdrv->config.timing.switch_type = LCD_VMODE_SWITCH_LIMIT;
+		break;
+	case LCD_VMODE_SWITCH_MIN:
+	case LCD_VMODE_SWITCH_MIN_WO_TCON_RST:
+		if (switch_type == LCD_VMODE_SWITCH_FULL)
+			pdrv->config.timing.switch_type = LCD_VMODE_SWITCH_FULL;
+		else if (switch_type == LCD_VMODE_SWITCH_LIMIT)
+			pdrv->config.timing.switch_type = LCD_VMODE_SWITCH_LIMIT;
+		else
+			pdrv->config.timing.switch_type = LCD_VMODE_SWITCH_MIN;
+		break;
+	default:
+		pdrv->config.timing.switch_type = switch_type;
+		break;
+	}
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: timing_switch_flag: %d, lcd_status: 0x%x\n", pdrv->index,
+			__func__, pdrv->config.timing.switch_type, pdrv->status);
+	}
+
+	if (pdrv->config.timing.switch_type_dbg) {
+		pdrv->config.timing.switch_type = pdrv->config.timing.switch_type_dbg;
+		LCDPR("[%d]: %s: timing_switch_flag pre: %d, cur: %d, force dbg to final: %d\n",
+		      pdrv->index, __func__, switch_type_pre,
+		      pdrv->config.timing.act_timing.switch_type,
+		      pdrv->config.timing.switch_type);
 	}
 
 	if (!pdrv->vmode_mgr.cur_vmode_info || !pdrv->std_duration) {
@@ -480,30 +505,25 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 	}
 
 	dur_index = pdrv->vmode_mgr.cur_vmode_info->duration_index;
-
+	ptiming = &pdrv->config.timing.act_timing;
 	if (dur_index != 0xff) {
-		pdrv->config.timing.act_timing.sync_duration_num =
-			pdrv->std_duration[dur_index].duration_num;
-		pdrv->config.timing.act_timing.sync_duration_den =
-			pdrv->std_duration[dur_index].duration_den;
-		pdrv->config.timing.act_timing.frac =
-			pdrv->std_duration[dur_index].frac;
-		pdrv->config.timing.act_timing.frame_rate =
-			pdrv->std_duration[dur_index].frame_rate;
+		ptiming->sync_duration_num = pdrv->std_duration[dur_index].duration_num;
+		ptiming->sync_duration_den = pdrv->std_duration[dur_index].duration_den;
+		ptiming->frac = pdrv->std_duration[dur_index].frac;
+		ptiming->frame_rate = pdrv->std_duration[dur_index].frame_rate;
 	} else {
-		pdrv->config.timing.act_timing.sync_duration_num =
-			pdrv->vmode_mgr.cur_vmode_info->base_fr;
-		pdrv->config.timing.act_timing.sync_duration_den = 1;
-		pdrv->config.timing.act_timing.frac = 0;
-		pdrv->config.timing.act_timing.frame_rate =
-			pdrv->vmode_mgr.cur_vmode_info->base_fr;
+		ptiming->sync_duration_num = pdrv->vmode_mgr.cur_vmode_info->base_fr;
+		ptiming->sync_duration_den = 1;
+		ptiming->frac = 0;
+		ptiming->frame_rate = pdrv->vmode_mgr.cur_vmode_info->base_fr;
 	}
 	lcd_frame_rate_change(pdrv);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: %dx%d, duration=%d:%d, dur_index=%d, clk_change=0x%x\n",
+		LCDPR("[%d]: %s: %dx%dp%dhz, duration=%d:%d, dur_index=%d, clk_change=0x%x\n",
 			pdrv->index, __func__, pdrv->config.timing.act_timing.h_active,
 			pdrv->config.timing.act_timing.v_active,
+			pdrv->config.timing.act_timing.frame_rate,
 			pdrv->config.timing.act_timing.sync_duration_num,
 			pdrv->config.timing.act_timing.sync_duration_den,
 			dur_index, pdrv->config.timing.clk_change);
@@ -515,18 +535,13 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv)
 	unsigned long long local_time[4];
 	unsigned int event_off, event_on;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: timing_switch_flag: %d, lcd_status: 0x%x\n", pdrv->index,
-			__func__, pdrv->config.cus_ctrl.timing_switch_flag, pdrv->status);
-	}
-
-	if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_NONE)
+	if (pdrv->config.timing.switch_type == LCD_VMODE_SWITCH_NONE)
 		return;
 
 	if (!(pdrv->status & LCD_STATUS_POWER))
 		return;
 
-	switch (pdrv->config.cus_ctrl.timing_switch_flag) {
+	switch (pdrv->config.timing.switch_type) {
 	case LCD_VMODE_SWITCH_MIN:
 		event_off = LCD_EVENT_UFR_SWITCH_OFF;
 		event_on = LCD_EVENT_UFR_SWITCH_ON;
@@ -852,15 +867,17 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		}
 
 		/* update frame rate */
-		pdrv->config.timing.act_timing.frame_rate =
-			pdrv->config.timing.base_timing.frame_rate;
-		pdrv->config.timing.act_timing.sync_duration_num =
-			pdrv->config.timing.base_timing.sync_duration_num;
-		pdrv->config.timing.act_timing.sync_duration_den =
-			pdrv->config.timing.base_timing.sync_duration_den;
-		pdrv->config.timing.act_timing.frac =
-			pdrv->config.timing.base_timing.frac;
-		pdrv->fr_mode = 0;
+		if (pdrv->config.timing.base_timing) {
+			pdrv->config.timing.act_timing.frame_rate =
+				pdrv->config.timing.base_timing->frame_rate;
+			pdrv->config.timing.act_timing.sync_duration_num =
+				pdrv->config.timing.base_timing->sync_duration_num;
+			pdrv->config.timing.act_timing.sync_duration_den =
+				pdrv->config.timing.base_timing->sync_duration_den;
+			pdrv->config.timing.act_timing.frac =
+				pdrv->config.timing.base_timing->frac;
+			pdrv->fr_mode = 0;
+		}
 	} else {
 		if (!lcd_framerate_support_check(pdrv, duration)) {
 			LCDERR("[%d]: %s: can't support duration %d\n, exit\n",

@@ -703,10 +703,7 @@ static void lcd_ufr_power_if_on(struct aml_lcd_drv_s *pdrv)
 {
 	mutex_lock(&lcd_vout_mutex);
 	if (!(pdrv->status & LCD_STATUS_IF_ON)) {
-		if (lcd_cus_ctrl_timing_is_valid(pdrv))
-			lcd_ufr_power_ctrl(pdrv, 1);
-		else
-			lcd_power_ctrl(pdrv, 1);
+		lcd_ufr_power_ctrl(pdrv, 1);
 		pdrv->status |= LCD_STATUS_IF_ON;
 	}
 	pdrv->config.change_flag = 0;
@@ -719,10 +716,7 @@ static void lcd_ufr_power_if_off(struct aml_lcd_drv_s *pdrv)
 	mutex_lock(&lcd_vout_mutex);
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 		pdrv->status &= ~LCD_STATUS_IF_ON;
-		if (lcd_cus_ctrl_timing_is_valid(pdrv))
-			lcd_ufr_power_ctrl(pdrv, 0);
-		else
-			lcd_power_ctrl(pdrv, 0);
+		lcd_ufr_power_ctrl(pdrv, 0);
 	}
 	mutex_unlock(&lcd_vout_mutex);
 }
@@ -1472,6 +1466,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	union lcd_ctrl_config_u *pctrl;
 	struct lcd_config_s *pconf;
 	struct phy_config_s *phy_cfg;
+	struct phy_attr_s *phy;
 	struct ioctl_phy_config_s *ioctl_phy_cfg = &ioctl_phy_config, ioctl_phy_usr;
 	unsigned int ss_level = 0xffffffff, ss_freq = 0xffffffff, ss_mode = 0xffffffff;
 	struct aml_lcd_ss_ctl_s ss_ctl = {0xffffffff, 0xffffffff, 0xffffffff};
@@ -1579,12 +1574,17 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case LCD_IOC_GET_PHY_PARAM:
 		phy_cfg = &pconf->phy_cfg;
+		phy = pconf->phy_cfg.act_phy;
+		if (!phy) {
+			ret = -EFAULT;
+			break;
+		}
 		ioctl_phy_cfg->flag = phy_cfg->flag;
-		ioctl_phy_cfg->vswing = phy_cfg->vswing;
-		ioctl_phy_cfg->vcm = phy_cfg->vcm;
-		ioctl_phy_cfg->odt = phy_cfg->odt;
-		ioctl_phy_cfg->ref_bias = phy_cfg->ref_bias;
-		ioctl_phy_cfg->cv_mode = phy_cfg->cv_mode;
+		ioctl_phy_cfg->vswing = phy->vswing;
+		ioctl_phy_cfg->vcm = phy->vcm;
+		ioctl_phy_cfg->odt = phy->odt;
+		ioctl_phy_cfg->ref_bias = phy->ref_bias;
+		ioctl_phy_cfg->cv_mode = phy->cv_mode;
 		ioctl_phy_cfg->weakly_pull_down = phy_cfg->weakly_pull_down;
 		ioctl_phy_cfg->lane_num = phy_cfg->lane_num;
 		ioctl_phy_cfg->ext_pullup = phy_cfg->ext_pullup;
@@ -1592,8 +1592,8 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ioctl_phy_cfg->preem_level = phy_cfg->preem_level;
 		lane_num = phy_cfg->lane_num > CH_LANE_MAX ? CH_LANE_MAX : phy_cfg->lane_num;
 		for (i = 0; i < lane_num; i++) {
-			ioctl_phy_cfg->ioctl_lane[i].preem = phy_cfg->lane[i].preem;
-			ioctl_phy_cfg->ioctl_lane[i].amp = phy_cfg->lane[i].amp;
+			ioctl_phy_cfg->ioctl_lane[i].preem = phy->lane[i].preem;
+			ioctl_phy_cfg->ioctl_lane[i].amp = phy->lane[i].amp;
 		}
 		if (copy_to_user(argp, (const void *)ioctl_phy_cfg,
 		    sizeof(struct ioctl_phy_config_s)))
@@ -1607,6 +1607,11 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		phy_cfg = &pconf->phy_cfg;
+		phy = pconf->phy_cfg.act_phy;
+		if (!phy) {
+			ret = -EFAULT;
+			break;
+		}
 		if (ioctl_phy_usr.ioctl_mode == 0) {
 			switch (pdrv->config.basic.lcd_type) {
 			case LCD_LVDS:
@@ -1636,24 +1641,24 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				return -EINVAL;
 			}
 			phy_cfg->flag = ioctl_phy_usr.flag;
-			phy_cfg->vswing = ioctl_phy_usr.vswing;
-			phy_cfg->vcm = ioctl_phy_usr.vcm;
-			phy_cfg->odt = ioctl_phy_usr.odt;
-			phy_cfg->ref_bias = ioctl_phy_usr.ref_bias;
-			phy_cfg->cv_mode = ioctl_phy_usr.cv_mode;
+			phy->vswing = ioctl_phy_usr.vswing;
+			phy->vcm = ioctl_phy_usr.vcm;
+			phy->odt = ioctl_phy_usr.odt;
+			phy->ref_bias = ioctl_phy_usr.ref_bias;
+			phy->cv_mode = ioctl_phy_usr.cv_mode;
 			phy_cfg->weakly_pull_down = ioctl_phy_usr.weakly_pull_down;
 			phy_cfg->lane_num = ioctl_phy_usr.lane_num;
 			phy_cfg->ext_pullup = ioctl_phy_usr.ext_pullup;
 			phy_cfg->vswing_level = ioctl_phy_usr.vswing_level;
 			phy_cfg->preem_level = ioctl_phy_usr.preem_level;
-			phy_cfg->vswing =
+			phy->vswing =
 				lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 			temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
 			lane_num = phy_cfg->lane_num > CH_LANE_MAX ?
 				CH_LANE_MAX : phy_cfg->lane_num;
 			for (i = 0; i < lane_num; i++) {
-				phy_cfg->lane[i].preem = temp;
-				phy_cfg->lane[i].amp = ioctl_phy_usr.ioctl_lane[i].amp;
+				phy->lane[i].preem = temp;
+				phy->lane[i].amp = ioctl_phy_usr.ioctl_lane[i].amp;
 			}
 		}
 		if (pdrv->status & LCD_STATUS_IF_ON)
@@ -2090,14 +2095,6 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 	pdrv->init_flag = 0;
 
 	init_state = lcd_get_venc_init_config(pdrv);
-	pdrv->config.timing.base_timing.h_active = pdrv->config.timing.act_timing.h_active;
-	pdrv->config.timing.dft_timing.h_active = pdrv->config.timing.act_timing.h_active;
-	pdrv->config.timing.base_timing.v_active = pdrv->config.timing.act_timing.v_active;
-	pdrv->config.timing.dft_timing.v_active = pdrv->config.timing.act_timing.v_active;
-	pdrv->config.timing.base_timing.h_period = pdrv->config.timing.act_timing.h_period;
-	pdrv->config.timing.dft_timing.h_period = pdrv->config.timing.act_timing.h_period;
-	pdrv->config.timing.base_timing.v_period = pdrv->config.timing.act_timing.v_period;
-	pdrv->config.timing.dft_timing.v_period = pdrv->config.timing.act_timing.v_period;
 
 	if (init_state) {
 		if (pdrv->boot_ctrl->dccd_flag) {
@@ -2126,7 +2123,7 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 	LCDPR("[%d]: ppc: %d, clk_mode: %d, base_fr: %d, status: 0x%x, init_flag: %d\n",
 		pdrv->index, pdrv->config.timing.ppc,
 		pdrv->config.timing.clk_mode,
-		pdrv->config.timing.dft_timing.frame_rate,
+		pdrv->config.timing.act_timing.frame_rate,
 		pdrv->status, pdrv->init_flag);
 }
 
@@ -2156,11 +2153,9 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 	pdrv->config.custom_pinmux = pdrv->boot_ctrl->custom_pinmux;
 	pdrv->config.basic.lcd_type = pdrv->boot_ctrl->lcd_type;
 	pdrv->config.timing.clk_mode = pdrv->boot_ctrl->clk_mode;
-	pdrv->config.timing.dft_timing.frame_rate = pdrv->boot_ctrl->base_frame_rate;
-	pdrv->config.timing.dft_timing.frame_rate_min = pdrv->boot_ctrl->base_frame_rate;
-	pdrv->config.timing.dft_timing.frame_rate_max = pdrv->boot_ctrl->base_frame_rate;
-	pdrv->config.timing.base_timing.frame_rate = pdrv->boot_ctrl->base_frame_rate;
-	pdrv->config.timing.act_timing.frame_rate = pdrv->boot_ctrl->base_frame_rate;
+	pdrv->config.timing.act_timing.frame_rate_min = pdrv->boot_ctrl->base_frame_rate;
+	pdrv->config.timing.act_timing.frame_rate_max = pdrv->boot_ctrl->base_frame_rate;
+
 	switch (pdrv->boot_ctrl->ppc) {
 	case LCD_VENC_2PPC:
 		pdrv->config.timing.ppc = 2;
