@@ -585,6 +585,14 @@ static ssize_t debug_store(struct device *dev,
 		if (parm[1] && (kstrtouint(parm[1], 16, &val) == 0))
 			devp->tvafe_function_sel = val;
 		pr_info("[%s]tvafe_function_sel:%#x\n", __func__, devp->tvafe_function_sel);
+	} else if (!strcmp(parm[0], "tvafe_dbg")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &val) == 0))
+			devp->tvafe_dbg = val;
+		pr_info("[%s]tvafe_function_sel:%#x\n", __func__, devp->tvafe_function_sel);
+	} else if (!strcmp(parm[0], "wss_valid_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &val) == 0))
+			devp->tvafe_ratio_effect_cnt = val;
+		pr_info("[%s]tvafe_function_sel:%#x\n", __func__, devp->tvafe_function_sel);
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}

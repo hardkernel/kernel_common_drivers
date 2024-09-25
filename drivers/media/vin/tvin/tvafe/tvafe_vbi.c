@@ -155,7 +155,7 @@ static void vbi_data_type_set(struct vbi_dev_s *devp)
 		W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20, vbi_data_type);
 		W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, 0);
 	} else if (devp->slicer->type == VBI_TYPE_WSS625) {
-		if (R_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20) == VBI_TYPE_WSSJ)
+		if (R_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20) == VBI_DATA_TYPE_WSSJ)
 			W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20, 0);
 		W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, vbi_data_type);
 	}
@@ -275,7 +275,7 @@ static void vbi_slicer_type_set(struct vbi_dev_s *devp)
 		//if (get_tvafe_signal_fmt() == TVIN_SIG_FMT_CVBS_PAL_I ||
 		    //get_tvafe_signal_fmt() == TVIN_SIG_FMT_CVBS_SECAM)
 		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, VBI_DATA_TYPE_WSS625);
-		if (R_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20) == VBI_TYPE_WSSJ)
+		if (R_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20) == VBI_DATA_TYPE_WSSJ)
 			W_APB_REG(CVD2_VBI_DATA_TYPE_LINE20, 0);
 		//else
 			//W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, VBI_DATA_TYPE_WSSJ);

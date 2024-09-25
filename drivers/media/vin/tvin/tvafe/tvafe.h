@@ -40,7 +40,8 @@
 /* 20230607: optimized snow config */
 /* 20230609: chip bringup */
 /* 20230804: atv add filter format and set saturation fail */
-#define TVAFE_VER "20230804: atv add filter format and set saturation fail"
+/* 20241007: wss function optimization */
+#define TVAFE_VER "20241007: wss function optimization"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
@@ -179,6 +180,7 @@ struct tvafe_dev_s {
 	unsigned int tvafe_function_sel;
 	unsigned int tvafe_ratio_cnt;
 	unsigned int tvafe_ratio_effect_cnt;
+	u8 tvafe_dbg;
 };
 
 bool tvafe_get_snow_cfg(void);

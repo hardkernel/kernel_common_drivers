@@ -791,7 +791,7 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 	u8 maybe_ratio = 0;
 	u8 aspect_ratio = 0;
-	static int count[16] = {0};
+	static int count[TVIN_AR_NOT_VALUE + 1] = {0};
 
 	if (!(devp->tvafe_function_sel & TVAFE_WSS_FUNCTION))
 		return;
@@ -807,15 +807,15 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 		//return;
 
 	aspect_ratio = tvafe_cvd2_get_wss(tvafe->cvd2.config_fmt);
-	if (aspect_ratio > 15)
+	if (aspect_ratio > TVIN_AR_NOT_VALUE)
 		return;
 
 	count[aspect_ratio]++;
 
-	/* over 6/22 times,ratio is effective*/
+	/* over 3/22 times,ratio is effective*/
 	if (++tvafe->aspect_ratio_cnt > devp->tvafe_ratio_cnt) {
 		//has wss value judge, maybe is interference value
-		for (i = 0; i < 15; i++) {
+		for (i = 0; i < TVIN_AR_NOT_VALUE; i++) {
 			if (count[i] > devp->tvafe_ratio_effect_cnt &&
 			    !maybe_ratio) {
 				maybe_ratio = i;
@@ -824,6 +824,9 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 			}
 			count[i] = 0;
 		}
+		if (devp->tvafe_dbg & TVAFE_WSS_FUNCTION)
+			pr_info("wss-maybe:%d-cnt:%d,%d\n", maybe_ratio,
+					count[maybe_ratio], has_interference_value);
 		if (maybe_ratio && !has_interference_value) {//not interference confirm wss value
 			if (tvafe->active_ratio != maybe_ratio)
 				pr_info("wss aspect_ratio:%d->%d,%d\n",
@@ -2096,6 +2099,8 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 					&tdevp->tvafe_function_sel);
 	if (ret == 0)
 		tvafe_pr_info("find tvafe_function_sel: 0x%x\n", tdevp->tvafe_function_sel);
+	else
+		tdevp->tvafe_function_sel = TVAFE_WSS_FUNCTION;
 
 	if ((tvafe_cpu_type() == TVAFE_CPU_TYPE_TM2) ||
 	    (tvafe_cpu_type() == TVAFE_CPU_TYPE_T5) ||

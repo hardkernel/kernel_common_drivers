@@ -505,7 +505,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, 0);
 	} else {
 		W_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, VBI_DATA_TYPE_WSS625);
-		if (R_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20) == VBI_TYPE_WSSJ)
+		if (R_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20) == VBI_DATA_TYPE_WSSJ)
 			W_APB_REG(CVD2_VBI_DATA_TYPE_LINE20, 0);
 	}
 	/* config wss dto */
