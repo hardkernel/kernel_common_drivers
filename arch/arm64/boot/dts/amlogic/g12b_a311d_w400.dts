@@ -189,10 +189,7 @@
 			size = <0x0 0x4000000>;
 		};
 	};
-	galcore {
-		status = "okay";
-		memory-region = <&galcore_reserved>;
-	};
+
 	gpioleds {
 		compatible = "gpio-leds";
 		status = "disable";
@@ -206,79 +203,6 @@
 		};
 	};
 
-	bt-dev{
-		compatible = "amlogic, aml-bt";
-		dev_name = "bt-dev";
-		status = "okay";
-		reset-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
-		hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
-	};
-
-	wifi{
-		compatible = "amlogic, aml-wifi";
-		dev_name = "aml_wifi";
-		status = "okay";
-		interrupt-gpios = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-		irq_trigger_type = "IRQF_TRIGGER_LOW";
-		power_on-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_HIGH>;
-		wifi_static_buf = <1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pwm_e_pins>;
-		pwm_config = <&wifi_pwm_conf>;
-	};
-
-	wifi_pwm_conf:wifi_pwm_conf{
-		pwm_channel1_conf {
-			pwms = <&pwm_ef MESON_PWM_0 30541 0>;
-			duty-cycle = <15270>;
-			times = <10>;
-		};
-		pwm_channel2_conf {
-			pwms = <&pwm_ef MESON_PWM_2 30500 0>;
-			duty-cycle = <15250>;
-			times = <12>;
-		};
-	};
-
-	codec_mm {
-		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved>;
-		dev_name = "codec_mm";
-		random_access = <1>;
-		status = "okay";
-	};
-
-	ppmgr {
-		compatible = "amlogic, ppmgr";
-		memory-region = <&ppmgr_reserved>;
-		dev_name = "ppmgr";
-		status = "okay";
-	};
-
-	deinterlace {
-		compatible = "amlogic, deinterlace";
-		status = "disabled";
-		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
-		flag_cma = <4>; //<1>;
-		//memory-region = <&di_reserved>;
-		memory-region = <&di_cma_reserved>;
-		interrupts = <0 46 1
-				0 40 1>;
-		interrupt-names = "pre_irq", "post_irq";
-		clocks = <&clkc CLKID_VPU_CLKB_TMP>,
-			<&clkc CLKID_VPU_CLKB>;
-		clock-names = "vpu_clkb",
-			"vpu_mux";
-		clock-range = <334 667>;
-		/* buffer-size = <3621952>;(yuv422 8bit) */
-		buffer-size = <4074560>;/*yuv422 fullpack*/
-		/* reserve-iomap = "true"; */
-		/* if enable nr10bit, set nr10bit-support to 1 */
-		post-wr-support = <1>;
-		nr10bit-support = <1>;
-		nrds-enable = <1>;
-		pps-enable = <1>;
-	};
 	multi-di {
 		compatible = "amlogic, dim-g12b";
 		status = "okay";
@@ -302,25 +226,6 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
-	};
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
-	};
-	amlvideo2_0 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <0>;
-		cma_mode = <1>;
-	};
-	amlvideo2_1 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <1>;
-		cma_mode = <1>;
 	};
 
 	gpio_keypad {
@@ -347,156 +252,6 @@
 		key_tolerance = <40 40 40>;
 	};
 
-	unifykey{
-		compatible = "amlogic,unifykey";
-		status = "ok";
-		unifykey-num = <15>;
-		unifykey-index-0 = <&keysn_0>;
-		unifykey-index-1 = <&keysn_1>;
-		unifykey-index-2 = <&keysn_2>;
-		unifykey-index-3 = <&keysn_3>;
-		unifykey-index-4 = <&keysn_4>;
-		unifykey-index-5 = <&keysn_5>;
-		unifykey-index-6 = <&keysn_6>;
-		unifykey-index-7 = <&keysn_7>;
-		unifykey-index-8 = <&keysn_8>;
-		unifykey-index-9 = <&keysn_9>;
-		unifykey-index-10= <&keysn_10>;
-		unifykey-index-11= <&keysn_11>;
-		unifykey-index-12= <&keysn_12>;
-		unifykey-index-13= <&keysn_13>;
-		unifykey-index-14= <&keysn_14>;
-
-		keysn_0: key_0{
-			key-name = "usid";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_1:key_1{
-			key-name = "mac";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_2:key_2{
-			key-name = "hdcp";
-			key-device = "secure";
-			key-type = "sha1";
-			key-permit = "read","write","del";
-		};
-		keysn_3:key_3{
-			key-name = "secure_boot_set";
-			key-device = "efuse";
-			key-permit = "write";
-		};
-		keysn_4:key_4{
-			key-name = "mac_bt";
-			key-device = "normal";
-			key-permit = "read","write","del";
-			key-type  = "mac";
-		};
-		keysn_5:key_5{
-			key-name = "mac_wifi";
-			key-device = "normal";
-			key-permit = "read","write","del";
-			key-type = "mac";
-		};
-		keysn_6:key_6{
-			key-name = "hdcp2_tx";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_7:key_7{
-			key-name = "hdcp2_rx";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_8:key_8{
-			key-name = "widevinekeybox";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_9:key_9{
-			key-name = "deviceid";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_10:key_10{
-			key-name = "hdcp22_fw_private";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_11:key_11{
-			key-name = "PlayReadykeybox25";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_12:key_12{
-			key-name = "prpubkeybox";// PlayReady
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_13:key_13{
-			key-name = "prprivkeybox";// PlayReady
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_14:key_14{
-			key-name = "netflix_mgkid";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-	};//End unifykey
-
-	amlvecm {
-		compatible = "amlogic, vecm";
-		dev_name = "aml_vecm";
-		status = "okay";
-		gamma_en = <0>;/*1:enable ;0:disable*/
-		wb_en = <0>;/*1:enable ;0:disable*/
-		cm_en = <0>;/*1:enable ;0:disable*/
-	};
-	amdolby_vision {
-		compatible = "amlogic, dolby_vision_g12a";
-		dev_name = "aml_amdolby_vision_driver";
-		status = "okay";
-		tv_mode = <0>;/*1:enable ;0:disable*/
-	};
-
-	/* Audio Related start */
-	pdm_codec:dummy{
-		#sound-dai-cells = <0>;
-		compatible = "amlogic, pdm_dummy_codec";
-		status = "okay";
-	};
-	dummy_codec:dummy{
-		#sound-dai-cells = <0>;
-		compatible = "amlogic, aml_dummy_codec";
-		status = "okay";
-	};
-	amlogic_codec:t9015{
-		#sound-dai-cells = <0>;
-		compatible = "amlogic, aml_codec_T9015";
-		reg = <0x0 0xFF632000 0x0 0x2000>;
-		is_auge_used = <1>; /* meson or auge chipset used */
-		tdmout_index = <1>;
-		status = "okay";
-	};
-	audio_effect:eqdrc{
-		/*eq_enable = <1>;*/
-		/*drc_enable = <1>;*/
-		/*
-		 * 0:tdmout_a
-		 * 1:tdmout_b
-		 * 2:tdmout_c
-		 * 3:spdifout
-		 * 4:spdifout_b
-		 */
-		eqdrc_module = <1>;
-		/* max 0xf, each bit for one lane, usually one lane */
-		lane_mask = <0x1>;
-		/* max 0xff, each bit for one channel */
-		channel_mask = <0x3>;
-	};
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
@@ -647,23 +402,6 @@
 			};
 		};
 	};
-	audiolocker: locker {
-		compatible = "amlogic, audiolocker";
-		clocks = <&clkaudio CLKID_AUDIO_LOCKER_OUT
-				&clkaudio CLKID_AUDIO_LOCKER_IN
-				&clkaudio CLKID_AUDIO_MCLK_D
-				&clkaudio CLKID_AUDIO_MCLK_E
-				&clkc CLKID_MPLL1
-				&clkc CLKID_MPLL2>;
-		clock-names = "lock_out", "lock_in", "out_src",
-					"in_src", "out_calc", "in_ref";
-		interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "irq";
-		frequency = <49000000>; /* pll */
-		dividor = <49>; /* locker's parent */
-		status = "disabled";
-	};
-	/* Audio Related end */
 
 	vbat: fixedregulator@vbat {
 		compatible = "regulator-fixed";
@@ -772,87 +510,6 @@
 		/* Based on P200 schematics, signal CARD_1.8V/3.3V_CTR */
 		states = <1800000 1
 			  3300000 0>;
-	};
-
-	cpu_opp_table0: cpu_opp_table0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <770000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <666666666>;
-			opp-microvolt = <770000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <770000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <770000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1398000000>;
-			opp-microvolt = <800000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <840000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <880000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <910000>;
-		};
-	};
-
-	cpu_opp_table1: cpu_opp_table1 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <790000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <666666666>;
-			opp-microvolt = <790000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <810000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <810000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1398000000>;
-			opp-microvolt = <830000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <870000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <910000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <940000>;
-		};
-	};
-
-	cpufreq-meson {
-		compatible = "amlogic, cpufreq-meson";
-		status = "okay";
 	};
 
 	sensor: sensor {

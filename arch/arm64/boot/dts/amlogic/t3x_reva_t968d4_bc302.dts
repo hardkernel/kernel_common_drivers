@@ -1115,6 +1115,10 @@
 	};
 };
 
+&amlvideo2_1 {
+	/delete-property/ memory-region;
+};
+
 &audiobus {
 	tdma:tdm@0 {
 		compatible = "amlogic, t3x-snd-tdma";

@@ -179,6 +179,7 @@
 			size = <0x0 0x0>;
 			//size = <0x0 0x5000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -305,60 +306,6 @@
 		 */
 	};
 
-	smmu: aml_smmu {
-		compatible = "amlogic,smmu";
-		status = "disabled";
-		#iommu-cells = <1>;
-		memory-region = <&pcie_dma_ops_mm>;
-	};
-
-	codec_mm {
-		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
-		dev_name = "codec_mm";
-		random_access = <1>;
-		status = "okay";
-		/*
-		 * scatter_alloc_mode: the mode of scatter memory allocation
-		 * 0: default mode, alloc from system and cma
-		 * 1: only alloc from system
-		 */
-		scatter_alloc_mode = <1>;
-	};
-
-	cvbsout {
-		compatible = "amlogic, cvbsout-sc2";
-		status = "disabled";
-
-		/* clk path */
-		/* 0:vid_pll vid2_clk */
-		/* 1:gp0_pll vid2_clk */
-		/* 2:vid_pll vid1_clk */
-		/* 3:gp0_pll vid1_clk */
-		clk_path = <0>;
-
-		/* performance: reg_address, reg_value */
-		/* tm2 */
-		performance = <0x1bf0  0x9
-			0x1b56  0x333
-			0x1b12  0x8080
-			0x1b05  0xfd
-			0x1c59  0xf850
-			0xffff  0x0>; /* ending flag */
-		performance_sarft = <0x1bf0  0x9
-			0x1b56  0x333
-			0x1b12  0x0
-			0x1b05  0x9
-			0x1c59  0xfc48
-			0xffff  0x0>; /* ending flag */
-		performance_revB_telecom = <0x1bf0  0x9
-			0x1b56  0x546
-			0x1b12  0x8080
-			0x1b05  0x9
-			0x1c59  0xf850
-			0xffff  0x0>; /* ending flag */
-	};
-
 	multi-di {
 		//status = "okay";
 		/***************************************************
@@ -401,265 +348,6 @@
 		//hf = <1>;
 		tb = <0>;
 	};
-
-	unifykey{
-		compatible = "amlogic,unifykey";
-		status = "okay";
-		unifykey-num = <29>;
-		unifykey-index-0 = <&keysn_0>;
-		unifykey-index-1 = <&keysn_1>;
-		unifykey-index-2 = <&keysn_2>;
-		unifykey-index-3 = <&keysn_3>;
-		unifykey-index-4 = <&keysn_4>;
-		unifykey-index-5 = <&keysn_5>;
-		unifykey-index-6 = <&keysn_6>;
-		unifykey-index-7 = <&keysn_7>;
-		unifykey-index-8 = <&keysn_8>;
-		unifykey-index-9 = <&keysn_9>;
-		unifykey-index-10= <&keysn_10>;
-		unifykey-index-11= <&keysn_11>;
-		unifykey-index-12= <&keysn_12>;
-		unifykey-index-13= <&keysn_13>;
-		unifykey-index-14= <&keysn_14>;
-		unifykey-index-15= <&keysn_15>;
-		unifykey-index-16= <&keysn_16>;
-		unifykey-index-17= <&keysn_17>;
-		unifykey-index-18= <&keysn_18>;
-		unifykey-index-19= <&keysn_19>;
-		unifykey-index-20= <&keysn_20>;
-		unifykey-index-21= <&keysn_21>;
-		unifykey-index-22= <&keysn_22>;
-		unifykey-index-23= <&keysn_23>;
-		unifykey-index-24= <&keysn_24>;
-		unifykey-index-25= <&keysn_25>;
-		unifykey-index-26= <&keysn_26>;
-		unifykey-index-27= <&keysn_27>;
-		unifykey-index-28= <&keysn_28>;
-
-		keysn_0: key_0{
-			key-name = "usid";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_1:key_1{
-			key-name = "mac";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_2:key_2{
-			key-name = "hdcp";
-			key-device = "secure";
-			key-type = "sha1";
-			key-permit = "read","write","del";
-		};
-		keysn_3:key_3{
-			key-name = "secure_boot_set";
-			key-device = "efuse";
-			key-permit = "write";
-		};
-		keysn_4:key_4{
-			key-name = "mac_bt";
-			key-device = "normal";
-			key-permit = "read","write","del";
-			key-type  = "mac";
-		};
-		keysn_5:key_5{
-			key-name = "mac_wifi";
-			key-device = "normal";
-			key-permit = "read","write","del";
-			key-type = "mac";
-		};
-		keysn_6:key_6{
-			key-name = "hdcp2_tx";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_7:key_7{
-			key-name = "hdcp2_rx";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_8:key_8{
-			key-name = "widevinekeybox";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_9:key_9{
-			key-name = "deviceid";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_10:key_10{
-			key-name = "hdcp22_fw_private";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_11:key_11{
-			key-name = "PlayReadykeybox25";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_12:key_12{
-			key-name = "prpubkeybox";// PlayReady
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_13:key_13{
-			key-name = "prprivkeybox";// PlayReady
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_14:key_14{
-			key-name = "attestationkeybox";// attestation key
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_15:key_15{
-			key-name = "region_code";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_16:key_16{
-			key-name = "netflix_mgkid";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_17:key_17{
-			key-name = "attestationdevidbox";// attest dev id box
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_18:key_18{
-			key-name = "oemkey";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_19:key_19{
-			key-name = "lcd";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_20:key_20{
-			key-name = "lcd_extern";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_21:key_21{
-			key-name = "backlight";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_22:key_22{
-			key-name = "lcd_tcon";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_23:key_23{
-			key-name = "lcd_tcon_spi";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_24:key_24{
-			key-name = "ldim_dev";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_25:key_25{
-			key-name = "lcd1";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_26:key_26{
-			key-name = "lcd1_extern";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_27:key_27{
-			key-name = "backlight1";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_28:key_28{
-			key-name = "lcd_optical";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-	};//End unifykey
-
-	pmic_osc: clock-pmic {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32768>;
-		clock-output-names = "pmic_osc";
-	};
-
-	hdmirx {
-		compatible = "amlogic, hdmirx_t3x";
-		#address-cells=<1>;
-		#size-cells=<1>;
-		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
-		status = "okay";
-		pinctrl-names = "hdmirx_pins", "sleep";
-		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
-			&hdmirx_c_mux &hdmirx_d_mux>;
-		pinctrl-1 = <&hdmirx_pin_sleep>;
-		repeat = <0>;
-		//power-domains = <&pwrdm PDID_T7_HDMIRX>;
-		interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH
-		0 157 IRQ_TYPE_LEVEL_HIGH
-		0 158 IRQ_TYPE_LEVEL_HIGH
-		0 159 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "hdmi0_irq", "hdmi1_irq", "hdmi2_irq", "hdmi3_irq";
-		clocks =<&clkc CLKID_HDMIRX_CFG>,
-			   <&clkc CLKID_HDMIRX_ACR>,
-			   <&clkc CLKID_HDMIRX_METER>,
-			   <&clkc CLKID_HDMIRX_2M>,
-			   <&clkc CLKID_HDMIRX_5M>,
-			   <&clkc CLKID_HDMIRX_HDCP>,
-			   <&xtal>,
-			   <&clkc CLKID_HDMIRX_AXI>,
-			   <&clkc CLKID_FCLK_DIV4>,
-			   <&clkc CLKID_FCLK_DIV5>;
-		clock-names = "hdmirx_cfg_clk",
-				"cts_hdmirx_acr_ref_clk",
-				"cts_hdmirx_meter_clk",
-				"cts_hdmirx_2m_clk",
-				"cts_hdmirx_5m_clk",
-				"cts_hdmirx_hdcp2x_eclk",
-				"xtal",
-				"cts_hdmi_axi_clk",
-				"fclk_div4",
-				"fclk_div5";
-		hdmirx_id = <0>;
-		en_4k_2_2k = <0>;
-		hpd_low_cec_off = <0>;
-		arc_port = <2>;
-		vrr_range_dynamic_update_en = <1>;
-		/* for 2.2R:0x8, for 5.1R:0x6 */
-		term_lvl = <0x8>;
-		term_lvl_t3x_21 = <0x8>;
-		/* bit4: enable feature, bit3~0: port number */
-		disable_port = <0x0>;
-		/* MAP_ADDR_MODULE_CBUS */
-		/* MAP_ADDR_MODULE_HIU */
-		/* MAP_ADDR_MODULE_HDMIRX_CAPB3 */
-		/* MAP_ADDR_MODULE_SEC_AHB */
-		/* MAP_ADDR_MODULE_SEC_AHB2 */
-		/* MAP_ADDR_MODULE_APB4 */
-		/* MAP_ADDR_MODULE_TOP */
-		/* MAP_ADDR_MODULE_CLK_CTRL */
-		/* MAP_ADDR_MODULE_ANA_CTRL */
-		reg = < 0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0xfe390000 0x0 0x20000
-			0x0 0xfe000000 0x0 0x15000
-			0x0 0xfe008000 0x280 0x334>;
-	};
-
 	/* Audio Related start */
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
@@ -874,43 +562,6 @@
 	};
 	/* Audio Related end */
 
-	picdec {
-		compatible = "amlogic, picdec";
-		status = "okay";
-	};
-
-	amdolby_vision {
-		compatible = "amlogic, dolby_vision_t3x";
-		dev_name = "aml_amdolby_vision_driver";
-		status = "okay";
-		tv_mode = <1>;/*1:enable ;0:disable*/
-		multi_core1 = <0>;
-		interrupts = <GIC_SPI 107 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "viu1_dolby_int";
-	};
-
-	aml_frc {
-		compatible = "amlogic, t3x_frc";
-		dev_name = "aml_frc";
-		status = "okay";
-		frc_en = <1>;/*1:enable ;0:disable*/
-		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
-		interrupts = <GIC_SPI 323 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 324 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 322 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 320 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "irq_frc_in", "irq_frc_out", "irq_axi_crash", "irq_frc_rdma";
-		memory-region = <&frc_cma_reserved>;
-		clocks = <&clkc CLKID_FRC>, <&clkc CLKID_ME>;
-		clock-names = "clk_frc", "clk_me";
-		power-domains = <&pwrdm PDID_T3X_FRC_TOP>;
-		power-domain-names = "frc-top";
-		reg = <0x0 0xFF850000 0x0 0x30000 /*frc reg*/
-		       0x0 0xFE000000 0x0 0x300
-		       0x0 0xFF800000 0x0 0x40000>; /*vpu_reg*/
-		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
-	};
-
 	/* SMC */
 	smartcard {
 		compatible = "amlogic,smartcard-sc2";
@@ -1062,43 +713,6 @@
 		};
 	};
 
-	ppmgr {
-		compatible = "amlogic, ppmgr";
-		memory-region = <&ppmgr_reserved>;
-		dev_name = "ppmgr";
-		status = "okay";
-	};
-
-	video_queue {
-		compatible = "amlogic, video_queue";
-		dev_name = "videoqueue";
-		status = "okay";
-	};
-
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
-	};
-
-	amlvideo2_0 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <0>;
-		cma_mode = <1>;
-	};
-
-	amlvideo2_1 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		memory-region = <&amlvideo2_1_cma_reserved>;
-		status = "okay";
-		amlvideo2_id = <1>;
-		cma_mode = <0>;
-		support_4k = <1>;
-	};
-
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
@@ -1162,6 +776,26 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+};
+
+&codec_mm {
+	/*
+	 * scatter_alloc_mode: the mode of scatter memory allocation
+	 * 0: default mode, alloc from system and cma
+	 * 1: only alloc from system
+	 */
+	scatter_alloc_mode = <1>;
+};
+
+&hdmirx {
+	status = "okay";
+	pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
+		&hdmirx_c_mux &hdmirx_d_mux>;
+	en_4k_2_2k = <0>;
+	hpd_low_cec_off = <0>;
+	arc_port = <2>;
+	/* bit4: enable feature, bit3~0: port number */
+	disable_port = <0x0>;
 };
 
 &audiobus {
@@ -1773,6 +1407,33 @@
 	memory-region = <&camera_cma_reserved>;
 };
 
+&i2c2 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names="default";
+	pinctrl-0=<&i2c2_pins3>;
+
+	lcd_extern_i2c0: lcd_extern_i2c@29 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_HV650LS";
+		reg = <0x29>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c1: lcd_extern_i2c@33 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS602";
+		reg = <0x33>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c2: lcd_extern_i2c@20 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS901";
+		reg = <0x20>;
+		status = "okay";
+	};
+};
 /* SDIO */
 /* ref board pcie wifi */
 &sd_emmc_a {
@@ -1803,7 +1464,7 @@
 
 /* SD card */
 &sd_emmc_b {
-	status = "disable";
+	status = "disabled";
 	pinctrl-0 = <&sdcard_pins>;
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
@@ -1860,34 +1521,6 @@
 //	mmc-pwrseq = <&emmc_pwrseq>;
 //	vmmc-supply = <&sdcard_3v3>;
 //	vqmmc-supply = <&vddio_c>;
-};
-
-&i2c2 {
-	status = "okay";
-	clock-frequency = <100000>;
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_pins3>;
-
-	lcd_extern_i2c0: lcd_extern_i2c@29 {
-		compatible = "lcd_ext, i2c";
-		dev_name = "i2c_HV650LS";
-		reg = <0x29>;
-		status = "okay";
-	};
-
-	lcd_extern_i2c1: lcd_extern_i2c@33 {
-		compatible = "lcd_ext, i2c";
-		dev_name = "i2c_CS602";
-		reg = <0x33>;
-		status = "okay";
-	};
-
-	lcd_extern_i2c2: lcd_extern_i2c@20 {
-		compatible = "lcd_ext, i2c";
-		dev_name = "i2c_CS901";
-		reg = <0x20>;
-		status = "okay";
-	};
 };
 
 &saradc {

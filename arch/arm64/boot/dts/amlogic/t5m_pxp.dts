@@ -775,6 +775,10 @@
 	};
 }; /* end of / */
 
+&fixed_area_gpu {
+	/delete-property/ memory-region;
+};
+
 &fb {
 	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
