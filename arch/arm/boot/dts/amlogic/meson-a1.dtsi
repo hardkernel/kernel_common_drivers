@@ -116,6 +116,14 @@
 		status = "okay";
 	};
 
+	ram-dump {
+		compatible = "amlogic, ram_dump";
+		status = "okay";
+		reg = <0xFE005AD8 4>;
+		reg-names = "SYSCTRL_STICKY_REG6";
+		store_device = "data";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
