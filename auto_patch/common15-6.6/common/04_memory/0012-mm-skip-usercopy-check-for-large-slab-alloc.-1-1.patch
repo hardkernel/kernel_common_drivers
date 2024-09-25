@@ -1,0 +1,41 @@
+From 8113d7c6491a64846233f45f2ab0aded4b560d59 Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Wed, 25 Sep 2024 19:05:31 +0800
+Subject: [PATCH] mm: skip usercopy check for large slab alloc. [1/1]
+
+PD#SWPL-186095
+
+Problem:
+aml large slab can not pass usercopy check.
+
+Solution:
+skip usercopy check for large slab alloc.
+
+Verify:
+a1.
+
+Change-Id: I78c1180867d34d4ab6b6f8c53216ad9343937bf3
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ mm/usercopy.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index 98f84510f34c..23d4eed692ef 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -199,9 +199,11 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+ 		if (PageOwnerPriv1(virt_to_page(ptr)))
+ 			return;
+ #endif
++#ifndef CONFIG_AMLOGIC_MEMORY_EXTEND
+ 		offset = ptr - folio_address(folio);
+ 		if (n > folio_size(folio) - offset)
+ 			usercopy_abort("page alloc", NULL, to_user, offset, n);
++#endif
+ 	}
+ }
+ 
+-- 
+2.42.0
+
