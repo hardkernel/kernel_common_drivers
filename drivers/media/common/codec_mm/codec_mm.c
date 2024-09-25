@@ -932,13 +932,6 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 
 	int can_from_tvp = (mem->flags & CODEC_MM_FLAGS_TVP);
 
-	if (can_from_res) {
-		if (mem->flags & CODEC_MM_FLAGS_RESERVED)
-			dma_coerce_mask_and_coherent(mgt->dev, DMA_BIT_MASK(64));
-		else
-			can_from_res = 0;
-	}
-
 	if (can_from_tvp) {
 		can_from_sys = 0;
 		can_from_res = 0;
