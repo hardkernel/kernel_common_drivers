@@ -446,6 +446,15 @@ static int bt_resume(struct platform_device *pdev)
 			EV_KEY, KEY_POWER, 0);
 		input_sync(prdata->pdata->input_dev);
 	}
+	if (get_resume_method() == REMOTE_CUS_WAKEUP) {
+		pr_debug("%s:simulate report key\r", __func__);
+		input_event(prdata->pdata->input_dev,
+			EV_KEY, 133, 1);
+		input_sync(prdata->pdata->input_dev);
+		input_event(prdata->pdata->input_dev,
+			EV_KEY, 133, 0);
+		input_sync(prdata->pdata->input_dev);
+	}
 
 	return 0;
 }
