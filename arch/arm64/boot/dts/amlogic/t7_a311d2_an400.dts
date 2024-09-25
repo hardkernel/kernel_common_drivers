@@ -216,6 +216,7 @@
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
+
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -281,21 +282,6 @@
 		};
 	};
 
-	smmu: aml_smmu {
-		compatible = "amlogic,smmu";
-		status = "disable";
-		#iommu-cells = <1>;
-		memory-region = <&pcie_dma_ops_mm>;
-	};
-
-	codec_mm {
-		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
-		dev_name = "codec_mm";
-		random_access = <1>;
-		status = "okay";
-	};
-
 	multi-di {
 		//status = "okay";
 		/***************************************************
@@ -338,148 +324,6 @@
 		//hf = <0>;
 	};
 
-	unifykey{
-		compatible = "amlogic,unifykey";
-		status = "okay";
-		unifykey-num = <19>;
-		unifykey-index-0 = <&keysn_0>;
-		unifykey-index-1 = <&keysn_1>;
-		unifykey-index-2 = <&keysn_2>;
-		unifykey-index-3 = <&keysn_3>;
-		unifykey-index-4 = <&keysn_4>;
-		unifykey-index-5 = <&keysn_5>;
-		unifykey-index-6 = <&keysn_6>;
-		unifykey-index-7 = <&keysn_7>;
-		unifykey-index-8 = <&keysn_8>;
-		unifykey-index-9 = <&keysn_9>;
-		unifykey-index-10= <&keysn_10>;
-		unifykey-index-11= <&keysn_11>;
-		unifykey-index-12= <&keysn_12>;
-		unifykey-index-13= <&keysn_13>;
-		unifykey-index-14= <&keysn_14>;
-		unifykey-index-15= <&keysn_15>;
-		unifykey-index-16= <&keysn_16>;
-		unifykey-index-17= <&keysn_17>;
-		unifykey-index-18= <&keysn_18>;
-		unifykey-index-19= <&keysn_19>;
-		unifykey-index-20= <&keysn_20>;
-		unifykey-index-21= <&keysn_21>;
-
-		keysn_0: key_0{
-			key-name = "usid";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_1:key_1{
-			key-name = "mac";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_2:key_2{
-			key-name = "hdcp";
-			key-device = "secure";
-			key-type = "sha1";
-			key-permit = "read","write","del";
-		};
-		keysn_3:key_3{
-			key-name = "secure_boot_set";
-			key-device = "efuse";
-			key-permit = "write";
-		};
-		keysn_4:key_4{
-			key-name = "mac_bt";
-			key-device = "normal";
-			key-permit = "read","write","del";
-			key-type  = "mac";
-		};
-		keysn_5:key_5{
-			key-name = "mac_wifi";
-			key-device = "normal";
-			key-permit = "read","write","del";
-			key-type = "mac";
-		};
-		keysn_6:key_6{
-			key-name = "hdcp2_tx";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_7:key_7{
-			key-name = "hdcp2_rx";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_8:key_8{
-			key-name = "widevinekeybox";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_9:key_9{
-			key-name = "deviceid";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_10:key_10{
-			key-name = "hdcp22_fw_private";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_11:key_11{
-			key-name = "PlayReadykeybox25";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_12:key_12{
-			key-name = "prpubkeybox";// PlayReady
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_13:key_13{
-			key-name = "prprivkeybox";// PlayReady
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_14:key_14{
-			key-name = "attestationkeybox";// attestation key
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_15:key_15{
-			key-name = "region_code";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_16:key_16{
-			key-name = "netflix_mgkid";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_17:key_17{
-			key-name = "attestationdevidbox";// attest dev id box
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_18:key_18{
-			key-name = "oemkey";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_19:key_19{
-			key-name = "lcd";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_20:key_20{
-			key-name = "lcd_extern";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_21:key_21{
-			key-name = "backlight";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-	};//End unifykey
-
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
@@ -506,64 +350,6 @@
 	lens: lens {
 		compatible = "soc, lens";
 		status = "okay";
-	};
-
-	hdmirx {
-		compatible = "amlogic, hdmirx_t7";
-		#address-cells=<1>;
-		#size-cells=<1>;
-		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
-		status = "disabled";
-		pinctrl-names = "hdmirx_pins";
-		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
-			&hdmirx_c_mux>;
-		repeat = <0>;
-		#ops_port = <0xf0>;
-		power-domains = <&pwrdm PDID_T7_HDMIRX>;
-		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
-		clocks =<&clkc CLKID_HDMIRX_CFG>,
-			   <&clkc CLKID_HDMIRX_ACR>,
-			   <&clkc CLKID_HDMIRX_METER>,
-			   <&clkc CLKID_HDMIRX_2M>,
-			   <&clkc CLKID_HDMIRX_5M>,
-			   <&clkc CLKID_HDMIRX_HDCP>,
-			   <&xtal>,
-			   <&clkc CLKID_FCLK_DIV4>,
-			   <&clkc CLKID_FCLK_DIV5>;
-		clock-names = "hdmirx_cfg_clk",
-				"cts_hdmirx_acr_ref_clk",
-				"cts_hdmirx_meter_clk",
-				"cts_hdmirx_2m_clk",
-				"cts_hdmirx_5m_clk",
-				"cts_hdmirx_hdcp2x_eclk",
-				"xtal",
-				"fclk_div4",
-				"fclk_div5";
-		hdmirx_id = <0>;
-		en_4k_2_2k = <0>;
-		hpd_low_cec_off = <1>;
-		arc_port = <1>;
-		/* for 2.2R:0x8, for 5.1R:0x6 */
-		term_lvl = <0x8>;
-		aud_compose_type = <2>;
-		/* bit4: enable feature, bit3~0: port number */
-		disable_port = <0x0>;
-		/* MAP_ADDR_MODULE_CBUS */
-		/* MAP_ADDR_MODULE_HIU */
-		/* MAP_ADDR_MODULE_HDMIRX_CAPB3 */
-		/* MAP_ADDR_MODULE_SEC_AHB */
-		/* MAP_ADDR_MODULE_SEC_AHB2 */
-		/* MAP_ADDR_MODULE_APB4 */
-		/* MAP_ADDR_MODULE_TOP */
-		/* MAP_ADDR_MODULE_CLK_CTRL */
-		reg = < 0x0 0x0 0x0 0x0
-			0x0 0xff63C000 0x0 0x2000
-			0x0 0xffe0d000 0x0 0x2000
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0xfe398000 0x0 0x18000
-			0x0 0xfe000000 0x0 0x1fff>;
 	};
 
 	/* Audio Related start */
@@ -743,31 +529,6 @@
 	};
 	/* Audio Related end */
 
-	picdec {
-		compatible = "amlogic, picdec";
-		status = "okay";
-	};
-
-	ppmgr {
-		compatible = "amlogic, ppmgr";
-		memory-region = <&ppmgr_reserved>;
-		dev_name = "ppmgr";
-		status = "okay";
-	};
-
-	video_queue {
-		compatible = "amlogic, video_queue";
-		dev_name = "videoqueue";
-		status = "okay";
-	};
-
-	amdolby_vision {
-		compatible = "amlogic, dolby_vision_t7";
-		dev_name = "aml_amdolby_vision_driver";
-		status = "okay";
-		tv_mode = <0>;/*1:enable ;0:disable*/
-	};
-
     /* SMC */
 //	smartcard {
 //		compatible = "amlogic,smartcard-sc2";
@@ -864,28 +625,6 @@
 		pinctrl-names = "s_ts0", "s_ts1";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
 		pinctrl-1 = <&dvb_s_ts1_pins>;
-	};
-
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
-	};
-
-	amlvideo2_0 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <0>;
-		cma_mode = <1>;
-	};
-
-	amlvideo2_1 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <1>;
-		cma_mode = <1>;
 	};
 
 	adc_keypad {
@@ -1049,7 +788,17 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+};
 
+&hdmirx {
+	status = "disabled";
+	pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
+		&hdmirx_c_mux>;
+	en_4k_2_2k = <0>;
+	hpd_low_cec_off = <1>;
+	arc_port = <1>;
+	/* bit4: enable feature, bit3~0: port number */
+	disable_port = <0x0>;
 };
 
 &audiobus {
@@ -1120,7 +869,7 @@
 		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
-		Channel_Mask {
+		Channel_Mask: Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/
 			Spdif_samesource_Channel_Mask = "i2s_2/3";
 		};
@@ -1498,7 +1247,7 @@
 &pcie {
 	reset-gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
 	iommu-map = <0x100 &smmu 0x5 0x10>;
-	status = "disable";
+	status = "disabled";
 };
 
 &i2c1 {
@@ -1672,6 +1421,13 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&amvideom {
+	display_device_cnt = <2>;
+	vpp0_layer_count = <2>;
+	/* number of video layer display on vpp1 */
+	vpp1_layer_count = <1>;
+};
+
 &drm_vpu {
 	status = "disabled";
 	logo_addr = "0x3f800000";
@@ -1729,13 +1485,6 @@
 			};
 		};
 	};
-};
-
-&amvideom {
-	display_device_cnt = <2>;
-	vpp0_layer_count = <2>;
-	/* number of video layer display on vpp1 */
-	vpp1_layer_count = <1>;
 };
 
 &amhdmitx {

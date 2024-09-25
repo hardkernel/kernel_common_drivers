@@ -229,6 +229,15 @@
 			linux,cma-default;
 			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
+
+		pcie_dma_ops_mm:linux,pcie_dma_ops {
+			compatible = "shared-dma-pool";
+			status = "disabled";
+			reusable;
+			size = <0x0 0x1000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";

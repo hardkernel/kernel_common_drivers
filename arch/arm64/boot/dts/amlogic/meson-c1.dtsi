@@ -1554,6 +1554,86 @@
 		reg = <0x0 0xfe005904 0x0 0x8>;
 		status = "okay";
 	};
+
+	free_reserved: free_reserved {
+		compatible = "amlogic, free_reserved";
+		memory-region = <&autocap_reserved>;
+		status = "okay";
+	};
+
+	codec_mm: codec_mm {
+		compatible = "amlogic, codec, mm";
+		memory-region = <&codec_mm_cma &codec_mm_reserved>;
+		dev_name = "codec_mm";
+		status = "disabled";
+	};
+
+	/* Audio Related start */
+	pdm_codec:pdm_codec{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, pdm_dummy_codec";
+		status = "okay";
+	};
+
+	dummy_codec:dummy_codec{
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml_dummy_codec";
+		status = "okay";
+	};
+
+	a1_codec:a1_codec {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, a1_acodec";
+		status = "okay";
+		reg = <0x0 0xFE004800 0x0 0x20>;
+		tdmout_index = <1>;
+		tdmin_index = <1>;
+		dat0_ch_sel = <0>;
+		dacr_output_inv = <0>;
+		power-domains = <&pwrdm PDID_CX_ACODEC>;
+	};
+
+	audiolocker: locker {
+		compatible = "amlogic, audiolocker";
+		clocks = <&clkaudio CLKID_AUDIO_LOCKER_OUT
+				&clkaudio CLKID_AUDIO_LOCKER_IN
+				&clkaudio CLKID_AUDIO_MCLK_C
+				&clkaudio CLKID_AUDIO_MCLK_D
+				&clkc CLKID_FCLK_DIV2
+				&clkc CLKID_FCLK_DIV3>;
+		clock-names = "lock_out", "lock_in", "out_src",
+					"in_src", "out_calc", "in_ref";
+		interrupts = <GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "irq";
+		frequency = <49000000>; /* pll */
+		dividor = <49>; /* locker's parent */
+		power-domains = <&pwrdm PDID_CX_AUDIO>;
+		status = "okay";
+	};
+	/* Audio Related end */
+
+	ircut: ircut {
+		compatible = "amlogic, aml-ircut";
+		status = "okay";
+		ircut-gpio = <&gpio GPIOA_10 GPIO_ACTIVE_HIGH
+				&gpio GPIOA_12 GPIO_ACTIVE_HIGH>;
+		ir-led-gpio = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
+		ldr-gpio = <&gpio GPIOM_5 GPIO_ACTIVE_LOW>;
+		// sequence description
+		//  0: port 0(GPIOA_10), 0=0, set port 0 to Low
+		// w: wait mseconds
+		ircut-sequence = "init: 1=1,w=200,1=0,w=1000,0=1,w=200,0=0,w=1000",
+				"enable: 1=1,w=200,1=0,w=1000,0=0",
+				"disable: 0=1,w=200,0=0,w=1000,1=0";
+		ir-led-sequence = "init: 0=0",
+				"enable: 0=1",
+				"disable: 0=0";
+	};
+
+	cpufreq-meson {
+		compatible = "amlogic, cpufreq-meson";
+		status = "okay";
+	};
 };
 
 &pinctrl_periphs {
