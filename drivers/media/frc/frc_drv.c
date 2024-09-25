@@ -254,8 +254,9 @@ static long frc_ioctl(struct file *file,
 			break;
 		}
 
-		pr_frc(1, "set memc_autoctrl:%d boot_timestamp_en%d boot_check%d\n",
-		data, devp->in_sts.boot_timestamp_en, devp->in_sts.boot_check_finished);
+		pr_frc(1, "set memc_autoctrl:%d boot_timestamp_en%d boot_chk:%d stats:%#X\n",
+			data, devp->in_sts.boot_timestamp_en,
+			devp->in_sts.boot_check_finished, devp->in_sts.st_flag);
 		if (data) {
 //			if (devp->in_sts.boot_timestamp_en &&
 //				!devp->in_sts.boot_check_finished) {
@@ -272,8 +273,9 @@ static long frc_ioctl(struct file *file,
 			}
 		} else {
 			devp->frc_sts.auto_ctrl = false;
-			//if (devp->frc_sts.state != FRC_STATE_BYPASS)
-				frc_change_to_state(FRC_STATE_DISABLE);
+			if (devp->frc_sts.state == FRC_STATE_ENABLE ||
+				devp->frc_sts.new_state == FRC_STATE_ENABLE)
+				frc_change_to_state(FRC_STATE_BYPASS);
 		}
 		break;
 
