@@ -1002,7 +1002,7 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 
 	if (!ip) {
 	#if !defined(CONFIG_ARM64)
-		pr_err("can't find backtrace for page:%lx\n",
+		pr_debug("can't find backtrace for page:%lx\n",
 			 page_to_pfn(page));
 	#endif
 		return;
