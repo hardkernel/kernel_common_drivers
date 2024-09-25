@@ -1073,10 +1073,10 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 		if (uhmod) {
 			UVM_PRINTK(UVM_DBG, "%s before kref_put uhmod:%px, dmabuf:%px ref:%u\n",
 				__func__, uhmod, dmabuf, kref_read(&uhmod->ref));
-			ret = kref_put(&uhmod->ref, uvm_hook_mod_release);
 			ref = kref_read(&uhmod->ref);
-			if (uhmod->type == VF_PROCESS_DI && ref == 0)
+			if (uhmod->type == VF_PROCESS_DI && ref == 1)
 				handle->flags &= ~BIT(UVM_DETACH_FLAG);
+			ret = kref_put(&uhmod->ref, uvm_hook_mod_release);
 			UVM_PRINTK(UVM_DBG, "%s, after kref_put dmabuf:%px ref:%u flags:%lu\n",
 					__func__, dmabuf, ref, handle->flags);
 		} else {
