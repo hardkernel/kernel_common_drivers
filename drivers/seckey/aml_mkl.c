@@ -816,12 +816,11 @@ device_create_error:
 	return ret;
 }
 
-static int aml_mkl_remove(struct platform_device *pdev)
+static void aml_mkl_remove(struct platform_device *pdev)
 {
 	aml_mkl_exit(aml_mkl_class, pdev);
 	class_destroy(aml_mkl_class);
 	debugfs_remove_recursive(aml_mkl_debug_dent);
-	return 0;
 }
 
 #ifdef CONFIG_OF

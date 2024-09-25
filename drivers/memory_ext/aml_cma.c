@@ -1545,8 +1545,8 @@ void __nocfi show_page(struct page *page)
 	pr_info("page:%lx, map:%lx, mf:%lx, pf:%lx, m:%d, c:%d, o:%lx, pt:%lx, f:%ps\n",
 		page_to_pfn(page), (unsigned long)page->mapping, map_flag,
 		page->flags & 0xffffffff,
-		page_mapcount(page), page_count(page), page->private, page->index,
-		(void *)trace);
+		folio_mapcount(page_folio(page)), folio_ref_count(page_folio(page)),
+		page->private, page->index, (void *)trace);
 	aml__dump_owner(page);
 	if (cma_debug_level > 4 && !irqs_disabled())
 		rmap_walk_vma(page);

@@ -1530,7 +1530,7 @@ aes_dd_err:
 	return err;
 }
 
-static int aml_aes_remove(struct platform_device *pdev)
+static void aml_aes_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	static struct aml_aes_dev *aes_dd;
@@ -1539,11 +1539,11 @@ static int aml_aes_remove(struct platform_device *pdev)
 
 	aes_dd = platform_get_drvdata(pdev);
 	if (!aes_dd)
-		return -ENODEV;
+		return;
 	match = of_match_device(aml_aes_dt_match, &pdev->dev);
 	if (!match) {
 		dev_err(dev, "%s: cannot find match dt\n", __func__);
-		return -EINVAL;
+		return;
 	}
 	aes_info = match->data;
 	spin_lock(&aml_aes.lock);
@@ -1557,7 +1557,6 @@ static int aml_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&aes_dd->queue_task);
 #endif
 	pm_runtime_disable(aes_dd->parent);
-	return 0;
 }
 
 static struct platform_driver aml_aes_driver = {

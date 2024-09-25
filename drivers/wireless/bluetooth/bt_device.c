@@ -653,7 +653,7 @@ err_res:
 	return ret;
 }
 
-static int bt_remove(struct platform_device *pdev)
+static void bt_remove(struct platform_device *pdev)
 {
 	struct bt_dev_runtime_data *prdata =
 		platform_get_drvdata(pdev);
@@ -677,8 +677,6 @@ static int bt_remove(struct platform_device *pdev)
 		rfkill_destroy(rfk);
 	}
 	rfk = NULL;
-
-	return 0;
 }
 
 #ifdef CONFIG_OF

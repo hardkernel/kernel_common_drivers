@@ -237,21 +237,19 @@ dma_err:
 	return err;
 }
 
-static int aml_dma_remove(struct platform_device *pdev)
+static void aml_dma_remove(struct platform_device *pdev)
 {
 	struct aml_dma_dev *dma_dd;
 	struct device *dev = &pdev->dev;
 
 	dma_dd = platform_get_drvdata(pdev);
 	if (!dma_dd)
-		return -ENODEV;
+		return;
 #if !DMA_IRQ_MODE
 	kthread_stop(dma_dd->kthread);
 #endif
 	of_platform_depopulate(dev);
 	debugfs_remove_recursive(aml_dma_debug_dent);
-
-	return 0;
 }
 
 static struct platform_driver aml_dma_driver = {

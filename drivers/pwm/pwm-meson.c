@@ -1009,7 +1009,7 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meson_pwm_remove(struct platform_device *pdev)
+static void meson_pwm_remove(struct platform_device *pdev)
 {
 	struct meson_pwm *meson = platform_get_drvdata(pdev);
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -1017,8 +1017,6 @@ static int meson_pwm_remove(struct platform_device *pdev)
 		meson_pwm_sysfs_exit(&pdev->dev);
 #endif
 	pwmchip_remove(meson->chip);
-
-	return 0;
 }
 
 static struct platform_driver meson_pwm_driver = {

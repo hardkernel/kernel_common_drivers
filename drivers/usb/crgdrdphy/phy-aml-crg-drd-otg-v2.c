@@ -433,7 +433,7 @@ NO_M31:
 	return 0;
 }
 
-static int amlogic_crg_otg_v2_remove(struct platform_device *pdev)
+static void amlogic_crg_otg_v2_remove(struct platform_device *pdev)
 {
 	struct amlogic_crg_otg *phy = platform_get_drvdata(pdev);
 
@@ -443,8 +443,6 @@ static int amlogic_crg_otg_v2_remove(struct platform_device *pdev)
 		regulator_disable(phy->usb_regulator_ao3v3);
 	if (phy->usb_regulator_ao1v8)
 		regulator_disable(phy->usb_regulator_ao1v8);
-
-	return 0;
 }
 
 static void amlogic_crg_otg_v2_shutdown(struct platform_device *pdev)

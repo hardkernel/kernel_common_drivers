@@ -673,10 +673,9 @@ static int __init aml_watch_point_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_watch_point_drv_remove(struct platform_device *pdev)
+static void aml_watch_point_drv_remove(struct platform_device *pdev)
 {
 	class_unregister(&watch_point_class);
-	return 0;
 }
 
 static struct platform_driver aml_watch_point_driver = {

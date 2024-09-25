@@ -364,7 +364,7 @@ out_err:
 	return ret;
 }
 
-static int meson_spifc_remove(struct platform_device *pdev)
+static void meson_spifc_remove(struct platform_device *pdev)
 {
 	struct spi_controller *master = platform_get_drvdata(pdev);
 	struct meson_spifc *spifc = spi_controller_get_devdata(master);
@@ -372,8 +372,6 @@ static int meson_spifc_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 	clk_disable_unprepare(spifc->clk);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

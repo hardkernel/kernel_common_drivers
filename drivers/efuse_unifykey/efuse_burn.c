@@ -263,7 +263,7 @@ out:
 	return ret;
 }
 
-static int efuse_burn_remove(struct platform_device *pdev)
+static void efuse_burn_remove(struct platform_device *pdev)
 {
 	struct aml_efuse_burn_dev *efuse_burn_dev;
 
@@ -274,7 +274,6 @@ static int efuse_burn_remove(struct platform_device *pdev)
 	class_unregister(&efuse_burn_dev->cls);
 	platform_set_drvdata(pdev, NULL);
 	devm_kfree(&pdev->dev, efuse_burn_dev);
-	return 0;
 }
 
 static const struct of_device_id efuse_burn_dt_match[] = {

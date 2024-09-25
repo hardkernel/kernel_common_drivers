@@ -1,7 +1,7 @@
-From b818d9513b697ded03f703528edc6ddd17c59c1b Mon Sep 17 00:00:00 2001
+From c322618e9744e7ffcd9d5d974e992f0bfe56a2d1 Mon Sep 17 00:00:00 2001
 From: "wanwei.jiang" <wanwei.jiang@amlogic.com>
 Date: Mon, 28 Feb 2022 09:54:55 +0800
-Subject: [PATCH] freertos: add freertos support [1/1]
+Subject: [PATCH 08/20] freertos: add freertos support [1/1]
 
 PD#SWPL-71741
 PD#SWPL-128739
@@ -78,7 +78,7 @@ index 4a50af78df7e..40f62bc76a0d 100644
  {
  	unsigned long timeout;
 diff --git a/arch/arm64/kernel/smp.c b/arch/arm64/kernel/smp.c
-index 060aaff67045..1ddecd47e39a 100644
+index 1f9755ed5532..706fb5ec019e 100644
 --- a/arch/arm64/kernel/smp.c
 +++ b/arch/arm64/kernel/smp.c
 @@ -53,6 +53,10 @@
@@ -93,7 +93,7 @@ index 060aaff67045..1ddecd47e39a 100644
  #undef CREATE_TRACE_POINTS
  #include <trace/hooks/debug.h>
 @@ -77,6 +81,9 @@ enum ipi_msg_type {
- 	IPI_CPU_CRASH_STOP,
+ 	IPI_CPU_STOP_NMI,
  	IPI_TIMER,
  	IPI_IRQ_WORK,
 +#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
@@ -102,8 +102,8 @@ index 060aaff67045..1ddecd47e39a 100644
  	NR_IPI,
  	/*
  	 * Any enum >= NR_IPI and < MAX_IPI is special and not tracable
-@@ -830,6 +837,9 @@ static const char *ipi_types[MAX_IPI] __tracepoint_string = {
- 	[IPI_CPU_CRASH_STOP]	= "CPU stop (for crash dump) interrupts",
+@@ -834,6 +841,9 @@ static const char *ipi_types[MAX_IPI] __tracepoint_string = {
+ 	[IPI_CPU_STOP_NMI]	= "CPU stop NMIs",
  	[IPI_TIMER]		= "Timer broadcast interrupts",
  	[IPI_IRQ_WORK]		= "IRQ work interrupts",
 +#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
@@ -112,7 +112,7 @@ index 060aaff67045..1ddecd47e39a 100644
  	[IPI_CPU_BACKTRACE]	= "CPU backtrace interrupts",
  	[IPI_KGDB_ROUNDUP]	= "KGDB roundup interrupts",
  };
-@@ -871,6 +881,13 @@ void arch_irq_work_raise(void)
+@@ -875,6 +885,13 @@ void arch_irq_work_raise(void)
  }
  #endif
  
@@ -123,10 +123,10 @@ index 060aaff67045..1ddecd47e39a 100644
 +}
 +#endif
 +
- static void __noreturn local_cpu_stop(void)
+ static void __noreturn local_cpu_stop(unsigned int cpu)
  {
- 	set_cpu_online(smp_processor_id(), false);
-@@ -990,6 +1007,12 @@ static void do_handle_IPI(int ipinr)
+ 	set_cpu_online(cpu, false);
+@@ -997,6 +1014,12 @@ static void do_handle_IPI(int ipinr)
  		break;
  #endif
  

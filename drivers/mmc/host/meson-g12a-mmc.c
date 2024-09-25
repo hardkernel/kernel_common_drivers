@@ -2752,7 +2752,7 @@ free_host:
 	return ret;
 }
 
-static int g12a_mmc_remove(struct platform_device *pdev)
+static void g12a_mmc_remove(struct platform_device *pdev)
 {
 	struct meson_host *host = dev_get_drvdata(&pdev->dev);
 
@@ -2774,7 +2774,6 @@ static int g12a_mmc_remove(struct platform_device *pdev)
 
 	devm_kfree(host->dev, host->adj_win);
 	mmc_free_host(host->mmc);
-	return 0;
 }
 
 static const struct meson_mmc_data meson_g12a_data = {

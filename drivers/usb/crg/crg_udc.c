@@ -4704,7 +4704,7 @@ err0:
 	return -1;
 }
 
-static int crg_udc_remove(struct platform_device *pdev)
+static void crg_udc_remove(struct platform_device *pdev)
 {
 	struct crg_gadget_dev *crg_udc;
 	u32 tmp = 0;
@@ -4751,8 +4751,6 @@ static int crg_udc_remove(struct platform_device *pdev)
 		atomic_set(&g_udc_req_ptr[i].used, 0);
 
 	CRG_DEBUG("%s %d gadget remove\n", __func__, __LINE__);
-
-	return 0;
 }
 
 static void crg_udc_shutdown(struct platform_device *pdev)

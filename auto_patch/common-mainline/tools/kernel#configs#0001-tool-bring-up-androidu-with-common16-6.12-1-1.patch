@@ -1,4 +1,4 @@
-From 57eb0866285140aa25c6a00a50d3c6195a7120a6 Mon Sep 17 00:00:00 2001
+From f1b877cad00ce27e7eba09ee0d65188e9d030aad Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Fri, 6 Sep 2024 00:07:39 +0800
 Subject: [PATCH] tool: bring up androidu with common16-6.12 [1/1]
@@ -33,14 +33,12 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  u/android-6.1/{Android.bp => Android_bp}           | 0
  v/android-6.1/{Android.bp => Android_bp}           | 0
  v/android-6.6/{Android.bp => Android_bp}           | 0
- w/android-6.1/{Android.bp => Android_bp}           | 0
- w/android-6.6/{Android.bp => Android_bp}           | 0
  w/android-6.next/{Android.bp => Android_bp}        | 0
  xsd/approvedBuild/{Android.bp => Android_bp}       | 0
  xsd/approvedBuild/vts/{Android.bp => Android_bp}   | 0
  xsd/kernelLifetimes/{Android.bp => Android_bp}     | 0
  xsd/kernelLifetimes/vts/{Android.bp => Android_bp} | 0
- 22 files changed, 0 insertions(+), 0 deletions(-)
+ 20 files changed, 0 insertions(+), 0 deletions(-)
  rename Android.bp => Android_bp (100%)
  rename build/{Android.bp => Android_bp} (100%)
  rename r/android-4.14/{Android.bp => Android_bp} (100%)
@@ -56,8 +54,6 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  rename u/android-6.1/{Android.bp => Android_bp} (100%)
  rename v/android-6.1/{Android.bp => Android_bp} (100%)
  rename v/android-6.6/{Android.bp => Android_bp} (100%)
- rename w/android-6.1/{Android.bp => Android_bp} (100%)
- rename w/android-6.6/{Android.bp => Android_bp} (100%)
  rename w/android-6.next/{Android.bp => Android_bp} (100%)
  rename xsd/approvedBuild/{Android.bp => Android_bp} (100%)
  rename xsd/approvedBuild/vts/{Android.bp => Android_bp} (100%)
@@ -124,14 +120,6 @@ diff --git a/v/android-6.6/Android.bp b/v/android-6.6/Android_bp
 similarity index 100%
 rename from v/android-6.6/Android.bp
 rename to v/android-6.6/Android_bp
-diff --git a/w/android-6.1/Android.bp b/w/android-6.1/Android_bp
-similarity index 100%
-rename from w/android-6.1/Android.bp
-rename to w/android-6.1/Android_bp
-diff --git a/w/android-6.6/Android.bp b/w/android-6.6/Android_bp
-similarity index 100%
-rename from w/android-6.6/Android.bp
-rename to w/android-6.6/Android_bp
 diff --git a/w/android-6.next/Android.bp b/w/android-6.next/Android_bp
 similarity index 100%
 rename from w/android-6.next/Android.bp

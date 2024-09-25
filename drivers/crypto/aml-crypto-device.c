@@ -2109,7 +2109,7 @@ error:
 	return err;
 }
 
-static int aml_crypto_dev_remove(struct platform_device *pdev)
+static void aml_crypto_dev_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	static struct aml_crypto_dev *crypto_dd;
@@ -2117,11 +2117,11 @@ static int aml_crypto_dev_remove(struct platform_device *pdev)
 
 	crypto_dd = platform_get_drvdata(pdev);
 	if (!crypto_dd)
-		return -ENODEV;
+		return;
 	match = of_match_device(aml_crypto_dev_dt_match, &pdev->dev);
 	if (!match) {
 		dev_err(dev, "%s: cannot find match dt\n", __func__);
-		return -EINVAL;
+		return;
 	}
 
 #if !USE_BUSY_POLLING
@@ -2129,7 +2129,6 @@ static int aml_crypto_dev_remove(struct platform_device *pdev)
 #endif
 
 	misc_deregister(&aml_crypto_device);
-	return 0;
 }
 
 static struct platform_driver aml_crypto_dev_driver = {

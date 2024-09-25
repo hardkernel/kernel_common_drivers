@@ -742,9 +742,8 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int amlogic_new_usb3_remove(struct platform_device *pdev)
+static void amlogic_new_usb3_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 #ifdef CONFIG_PM_RUNTIME

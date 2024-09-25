@@ -241,11 +241,9 @@ static int mbox_sec_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mbox_sec_remove(struct platform_device *pdev)
+static void mbox_sec_remove(struct platform_device *pdev)
 {
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id mbox_of_match[] = {

@@ -795,7 +795,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meson_ir_remove(struct platform_device *pdev)
+static void meson_ir_remove(struct platform_device *pdev)
 {
 	struct meson_ir_chip *chip = platform_get_drvdata(pdev);
 
@@ -814,8 +814,6 @@ static int meson_ir_remove(struct platform_device *pdev)
 	input_unregister_device(chip->r_dev->input_device);
 	meson_ir_map_tab_list_free(chip);
 	irq_set_affinity_hint(chip->irqno, NULL);
-
-	return 0;
 }
 
 static int meson_ir_resume(struct device *dev)

@@ -480,7 +480,7 @@ static void crg_shutdown(struct platform_device *pdev)
 	clk_disable_unprepare(crg->general_clk);
 }
 
-static int crg_remove(struct platform_device *pdev)
+static void crg_remove(struct platform_device *pdev)
 {
 	struct crg_drd	   *crg = platform_get_drvdata(pdev);
 
@@ -493,8 +493,6 @@ static int crg_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	clk_disable_unprepare(crg->general_clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

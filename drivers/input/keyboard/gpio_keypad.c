@@ -308,7 +308,7 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meson_gpio_kp_remove(struct platform_device *pdev)
+static void meson_gpio_kp_remove(struct platform_device *pdev)
 {
 	struct gpio_keypad *keypad;
 
@@ -317,7 +317,6 @@ static int meson_gpio_kp_remove(struct platform_device *pdev)
 	input_unregister_device(keypad->input_dev);
 	input_free_device(keypad->input_dev);
 	del_timer(&keypad->polling_timer);
-	return 0;
 }
 
 static const struct of_device_id key_dt_match[] = {

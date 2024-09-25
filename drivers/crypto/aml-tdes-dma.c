@@ -1500,14 +1500,14 @@ tdes_dd_err:
 	return err;
 }
 
-static int aml_tdes_remove(struct platform_device *pdev)
+static void aml_tdes_remove(struct platform_device *pdev)
 {
 	static struct aml_tdes_dev *tdes_dd;
 	struct aml_tdes_info *tdes_info = NULL;
 
 	tdes_dd = platform_get_drvdata(pdev);
 	if (!tdes_dd)
-		return -ENODEV;
+		return;
 
 	tdes_info = tdes_dd->info;
 	spin_lock(&aml_tdes.lock);
@@ -1521,8 +1521,6 @@ static int aml_tdes_remove(struct platform_device *pdev)
 	tasklet_kill(&tdes_dd->queue_task);
 
 	pm_runtime_disable(tdes_dd->parent);
-
-	return 0;
 }
 
 static struct platform_driver aml_tdes_driver = {

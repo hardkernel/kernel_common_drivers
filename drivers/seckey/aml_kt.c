@@ -1264,12 +1264,11 @@ destroy_class:
 	return ret;
 }
 
-static int aml_kt_remove(struct platform_device *pdev)
+static void aml_kt_remove(struct platform_device *pdev)
 {
 	aml_kt_exit(aml_kt_class, pdev);
 	class_destroy(aml_kt_class);
 	debugfs_remove_recursive(aml_kt_debug_dent);
-	return 0;
 }
 
 #ifdef CONFIG_OF

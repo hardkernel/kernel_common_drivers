@@ -714,7 +714,7 @@ static const struct dev_pm_ops amlogic_pcie_pm_ops = {
 				      amlogic_pcie_resume_noirq)
 };
 
-static int amlogic_pcie_rc_remove(struct platform_device *pdev)
+static void amlogic_pcie_rc_remove(struct platform_device *pdev)
 {
 	struct amlogic_pcie_rc *rc = platform_get_drvdata(pdev);
 	struct amlogic_pcie *amlogic = &rc->amlogic;
@@ -724,8 +724,6 @@ static int amlogic_pcie_rc_remove(struct platform_device *pdev)
 	amlogic_pcie_free_irq_domain(rc);
 	amlogic_pcie_deinit_phys(amlogic);
 	amlogic_pcie_disable_clocks(amlogic);
-
-	return 0;
 }
 
 static const struct of_device_id amlogic_pcie_of_match[] = {

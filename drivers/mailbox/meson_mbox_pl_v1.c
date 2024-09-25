@@ -412,10 +412,9 @@ static int mbox_pl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mbox_pl_remove(struct platform_device *pdev)
+static void mbox_pl_remove(struct platform_device *pdev)
 {
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 struct mbox_domain c2_mbox_domains[] = {

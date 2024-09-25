@@ -132,7 +132,7 @@ static int aml_hwspinlock_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int aml_hwspinlock_remove(struct platform_device *pdev)
+static void aml_hwspinlock_remove(struct platform_device *pdev)
 {
 	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
 	int ret;
@@ -140,12 +140,10 @@ static int aml_hwspinlock_remove(struct platform_device *pdev)
 	ret = hwspin_lock_unregister(bank);
 	if (ret) {
 		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
-		return ret;
+		return;
 	}
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver aml_hwspinlock_driver = {

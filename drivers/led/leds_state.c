@@ -360,7 +360,7 @@ static int meson_led_state_resume(struct platform_device *pdev)
 }
 #endif
 
-static int meson_led_state_remove(struct platform_device *pdev)
+static void meson_led_state_remove(struct platform_device *pdev)
 {
 	struct led_state_data *data = platform_get_drvdata(pdev);
 	struct led_classdev *led_cdev = &data->cdev;
@@ -370,8 +370,6 @@ static int meson_led_state_remove(struct platform_device *pdev)
 	device_remove_file(led_cdev->dev, &dev_attr_blink_on);
 	device_remove_file(led_cdev->dev, &dev_attr_blink_off);
 	led_classdev_unregister(&data->cdev);
-
-	return 0;
 }
 
 static const struct of_device_id of_led_state_match[] = {

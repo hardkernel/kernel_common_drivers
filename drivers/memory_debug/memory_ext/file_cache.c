@@ -39,7 +39,7 @@ static int record_fct(struct page *page, struct file_cache_trace *fct,
 	struct file_cache_trace *tmp;
 	struct rb_node **link, *parent = NULL;
 
-	mapping = page_mapping(page);
+	mapping = folio_mapping(page_folio(page));
 	if (!mapping)
 		return -1;
 
@@ -363,7 +363,7 @@ static void statistic_filecache_info(struct filecache_stat *fs,
 				continue;
 
 			t++;
-			mc = page_mapcount(page);
+			mc = folio_mapcount(page_folio(page));
 			if (mc <= 0) {
 				if (a)
 					an++;

@@ -4224,7 +4224,7 @@ free_host:
 	return ret;
 }
 
-static int meson_mmc_remove(struct platform_device *pdev)
+static void meson_mmc_remove(struct platform_device *pdev)
 {
 	struct meson_host *host = dev_get_drvdata(&pdev->dev);
 
@@ -4246,7 +4246,6 @@ static int meson_mmc_remove(struct platform_device *pdev)
 
 	devm_kfree(host->dev, host->adj_win);
 	mmc_free_host(host->mmc);
-	return 0;
 }
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD

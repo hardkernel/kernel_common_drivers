@@ -882,7 +882,7 @@ static const struct dev_pm_ops aml_pcie_pm_ops = {
 				      amlogic_pcie_resume_noirq)
 };
 
-static int amlogic_pcie_remove(struct platform_device *pdev)
+static void amlogic_pcie_remove(struct platform_device *pdev)
 {
 	struct amlogic_pcie *aml_pcie = platform_get_drvdata(pdev);
 	struct dw_pcie_rp *pp = &aml_pcie->pci.pp;
@@ -891,8 +891,6 @@ static int amlogic_pcie_remove(struct platform_device *pdev)
 	amlogic_pcie_disable_clocks(aml_pcie);
 	amlogic_pcie_assert_reset(aml_pcie);
 	amlogic_pcie_phy_power_off(aml_pcie);
-
-	return 0;
 }
 
 static void amlogic_pcie_shutdown(struct platform_device *pdev)

@@ -586,7 +586,7 @@ err:
 	return ret;
 }
 
-static int meson_adc_kp_remove(struct platform_device *pdev)
+static void meson_adc_kp_remove(struct platform_device *pdev)
 {
 	struct meson_adc_kp *kp = platform_get_drvdata(pdev);
 
@@ -596,8 +596,6 @@ static int meson_adc_kp_remove(struct platform_device *pdev)
 	input_free_device(kp->input);
 	meson_adc_kp_list_free(kp);
 	kfree(kp);
-
-	return 0;
 }
 
 #ifdef CONFIG_AMLOGIC_GX_SUSPEND

@@ -706,13 +706,12 @@ void host_parse_firmware_name(struct host_module *host, struct host_data *host_d
 	};
 }
 
-static int host_platform_remove(struct platform_device *pdev)
+static void host_platform_remove(struct platform_device *pdev)
 {
 	struct host_module *host = platform_get_drvdata(pdev);
 
 	host_destroy_debugfs_files(host);
 	host_destroy_device_files(&pdev->dev);
-	return 0;
 }
 
 static int host_firmware_reserved_ddr(struct platform_device *pdev, struct reserved_mem *fwmem,

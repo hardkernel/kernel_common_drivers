@@ -524,15 +524,13 @@ static int mbox_fifo_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mbox_fifo_remove(struct platform_device *pdev)
+static void mbox_fifo_remove(struct platform_device *pdev)
 {
 	struct mbox_controller *mbox_cons = platform_get_drvdata(pdev);
 
 	mbox_controller_unregister(mbox_cons);
 
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT

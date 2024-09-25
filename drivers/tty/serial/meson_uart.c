@@ -892,15 +892,13 @@ static int meson_uart_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int meson_uart_remove(struct platform_device *pdev)
+static void meson_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 
 	port = platform_get_drvdata(pdev);
 	uart_remove_one_port(&meson_uart_driver, port);
 	meson_ports[pdev->id] = NULL;
-
-	return 0;
 }
 
 static int meson_uart_resume(struct platform_device *pdev)

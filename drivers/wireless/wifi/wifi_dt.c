@@ -956,11 +956,10 @@ out:
 	return ret;
 }
 
-static int wifi_dev_remove(struct platform_device *pdev)
+static void wifi_dev_remove(struct platform_device *pdev)
 {
 	WIFI_INFO("%s is enter\n", __func__);
 	wifi_teardown_dt();
-	return 0;
 }
 
 static int wifi_suspend(struct platform_device *pdev,

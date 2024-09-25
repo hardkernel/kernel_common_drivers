@@ -1462,14 +1462,12 @@ static int __nocfi aml_smmu_device_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_smmu_device_remove(struct platform_device *pdev)
+static void aml_smmu_device_remove(struct platform_device *pdev)
 {
 	struct aml_smmu_device *smmu = platform_get_drvdata(pdev);
 
 	iommu_device_unregister(&smmu->iommu);
 	iommu_device_sysfs_remove(&smmu->iommu);
-
-	return 0;
 }
 
 static void aml_smmu_device_shutdown(struct platform_device *pdev)

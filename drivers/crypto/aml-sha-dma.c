@@ -1649,13 +1649,13 @@ sha_dd_err:
 	return err;
 }
 
-static int aml_sha_remove(struct platform_device *pdev)
+static void aml_sha_remove(struct platform_device *pdev)
 {
 	static struct aml_sha_dev *sha_dd;
 
 	sha_dd = platform_get_drvdata(pdev);
 	if (!sha_dd)
-		return -ENODEV;
+		return;
 	spin_lock(&aml_sha.lock);
 	list_del(&sha_dd->list);
 	spin_unlock(&aml_sha.lock);
@@ -1668,7 +1668,6 @@ static int aml_sha_remove(struct platform_device *pdev)
 	tasklet_kill(&sha_dd->done_task);
 #endif
 	pm_runtime_disable(sha_dd->parent);
-	return 0;
 }
 
 #ifdef CONFIG_OF

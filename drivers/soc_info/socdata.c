@@ -237,13 +237,12 @@ out:
 	return ret;
 }
 
-static int aml_socdata_remove(struct platform_device *pdev)
+static void aml_socdata_remove(struct platform_device *pdev)
 {
 	unregister_chrdev_region(socdata_devp->devno, 1);
 	device_destroy(&socdata_class, socdata_devp->devno);
 	cdev_del(&socdata_devp->cdev);
 	class_unregister(&socdata_class);
-	return 0;
 }
 
 static const struct of_device_id meson_socdata_dt_match[] = {

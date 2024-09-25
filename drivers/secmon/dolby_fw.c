@@ -529,13 +529,12 @@ err:
 	return ret;
 }
 
-static int dolby_fw_remove(struct platform_device *pdev)
+static void dolby_fw_remove(struct platform_device *pdev)
 {
 	device_destroy(class_dolby_fw, MKDEV(major_id, 0));
 	class_destroy(class_dolby_fw);
 	unregister_chrdev(major_id, DOLBY_FW_DEVICE_NAME);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct of_device_id amlogic_dolby_fw_dt_match[] = {

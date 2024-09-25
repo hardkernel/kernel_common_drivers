@@ -1324,7 +1324,7 @@ static optee_invoke_fn *get_invoke_func(struct device *dev)
  * optee_remove is called by platform subsystem to alert the driver
  * that it should release the device
  */
-static int optee_smc_remove(struct platform_device *pdev)
+static void optee_smc_remove(struct platform_device *pdev)
 {
 	struct optee *optee = platform_get_drvdata(pdev);
 
@@ -1347,8 +1347,6 @@ static int optee_smc_remove(struct platform_device *pdev)
 		memunmap(optee->smc.memremaped_shm);
 
 	kfree(optee);
-
-	return 0;
 }
 
 /* optee_shutdown - Device Removal Routine

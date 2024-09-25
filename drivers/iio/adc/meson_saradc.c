@@ -1631,7 +1631,7 @@ err:
 	return ret;
 }
 
-static int meson_sar_adc_remove(struct platform_device *pdev)
+static void meson_sar_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
@@ -1654,7 +1654,7 @@ static int meson_sar_adc_remove(struct platform_device *pdev)
 
 	mutex_destroy(&priv->lock);
 
-	return meson_sar_adc_uninit(indio_dev);
+	meson_sar_adc_uninit(indio_dev);
 }
 
 static int __maybe_unused meson_sar_adc_suspend(struct device *dev)

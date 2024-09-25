@@ -1360,7 +1360,7 @@ sm4_dd_err:
 	return err;
 }
 
-static int aml_sm4_remove(struct platform_device *pdev)
+static void aml_sm4_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	static struct aml_sm4_dev *sm4_dd;
@@ -1369,11 +1369,11 @@ static int aml_sm4_remove(struct platform_device *pdev)
 
 	sm4_dd = platform_get_drvdata(pdev);
 	if (!sm4_dd)
-		return -ENODEV;
+		return;
 	match = of_match_device(aml_sm4_dt_match, &pdev->dev);
 	if (!match) {
 		dev_err(dev, "%s: cannot find match dt\n", __func__);
-		return -EINVAL;
+		return;
 	}
 	sm4_info = match->data;
 	spin_lock(&aml_sm4.lock);
@@ -1387,7 +1387,6 @@ static int aml_sm4_remove(struct platform_device *pdev)
 	tasklet_kill(&sm4_dd->queue_task);
 #endif
 	pm_runtime_disable(sm4_dd->parent);
-	return 0;
 }
 
 static struct platform_driver aml_sm4_driver = {

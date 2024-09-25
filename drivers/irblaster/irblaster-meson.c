@@ -439,15 +439,13 @@ static int  meson_irblaster_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meson_irblaster_remove(struct platform_device *pdev)
+static void meson_irblaster_remove(struct platform_device *pdev)
 {
 	struct meson_irblaster_dev *irblaster_dev = platform_get_drvdata(pdev);
 
 	tasklet_disable(&irblaster_tasklet);
 	tasklet_kill(&irblaster_tasklet);
 	irblasterchip_remove(&irblaster_dev->chip);
-
-	return 0;
 }
 
 static int meson_irblaster_runtime_suspend(struct device *dev)

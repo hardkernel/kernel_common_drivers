@@ -458,7 +458,7 @@ static int unipolar_ctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int unipolar_ctrl_remove(struct platform_device *pdev)
+static void unipolar_ctrl_remove(struct platform_device *pdev)
 {
 	struct meson_unipolar_ctrl *dcon_led = platform_get_drvdata(pdev);
 
@@ -466,8 +466,6 @@ static int unipolar_ctrl_remove(struct platform_device *pdev)
 	sysfs_remove_group(&dcon_led->cdev.dev->kobj,
 				&meson_unipolar_ctrl_attribute_group);
 	led_classdev_unregister(&dcon_led->cdev);
-
-	return 0;
 }
 
 static const struct of_device_id unipolar_ctrl_table[] = {

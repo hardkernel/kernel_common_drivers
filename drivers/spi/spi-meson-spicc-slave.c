@@ -473,7 +473,7 @@ out:
 	return ret;
 }
 
-static int sspicc_remove(struct platform_device *pdev)
+static void sspicc_remove(struct platform_device *pdev)
 {
 	struct slave_spicc *spicc = platform_get_drvdata(pdev);
 
@@ -482,8 +482,6 @@ static int sspicc_remove(struct platform_device *pdev)
 	destroy_workqueue(spicc->xfer_wq);
 
 	vmem_destroy_controller(spicc->vmemctlr);
-
-	return 0;
 }
 
 static const struct of_device_id sspicc_of_match[] = {

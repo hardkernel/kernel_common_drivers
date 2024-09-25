@@ -597,14 +597,12 @@ static int aml_jtag_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit aml_jtag_remove(struct platform_device *pdev)
+static void __exit aml_jtag_remove(struct platform_device *pdev)
 {
 	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
 
 	class_unregister(&jdev->cls);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id aml_jtag_dt_match[] = {

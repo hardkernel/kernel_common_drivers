@@ -509,7 +509,7 @@ static int meson_pm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit meson_pm_remove(struct platform_device *pdev)
+static void __exit meson_pm_remove(struct platform_device *pdev)
 {
 	if (debug_reg)
 		iounmap(debug_reg);
@@ -521,7 +521,6 @@ static int __exit meson_pm_remove(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
 	lgcy_early_suspend_exit(pdev);
 #endif
-	return 0;
 }
 
 static const struct of_device_id amlogic_pm_dt_match[] = {

@@ -61,9 +61,9 @@ static int amlogic_usb2_m31_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int amlogic_usb2_m31_remove(struct platform_device *pdev)
+static void amlogic_usb2_m31_remove(struct platform_device *pdev)
 {
-	return 0;
+	return;
 }
 
 #ifdef CONFIG_PM_RUNTIME

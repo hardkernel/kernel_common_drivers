@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels")
 load("//common:common_drivers/amlogic_utils.bzl", "define_common_amlogic")
 load("//common:common_drivers/modules.bzl", "AMLOGIC_MODULES")
 load("//common:common_drivers/project/project.bzl", "EXT_MODULES_ANDROID", "GKI_CONFIG", "KCONFIG_EXT_SRCS")

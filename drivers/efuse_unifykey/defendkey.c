@@ -446,7 +446,7 @@ out:
 	return ret;
 }
 
-static int defendkey_remove(struct platform_device *pdev)
+static void defendkey_remove(struct platform_device *pdev)
 {
 	struct aml_defendkey_dev *defendkey_dev = platform_get_drvdata(pdev);
 
@@ -455,8 +455,6 @@ static int defendkey_remove(struct platform_device *pdev)
 	cdev_del(&defendkey_dev->cdev);
 	class_unregister(&defendkey_dev->cls);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id defendkey_dt_match[] = {

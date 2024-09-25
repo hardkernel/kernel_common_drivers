@@ -200,11 +200,10 @@ static int bl40_platform_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int bl40_platform_remove(struct platform_device *pdev)
+static void bl40_platform_remove(struct platform_device *pdev)
 {
 	misc_deregister(&bl40_miscdev);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct of_device_id bl40_device_id[] = {

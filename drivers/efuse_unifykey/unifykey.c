@@ -1348,7 +1348,7 @@ out:
 	return ret;
 }
 
-static int aml_unifykeys_remove(struct platform_device *pdev)
+static void aml_unifykeys_remove(struct platform_device *pdev)
 {
 	struct aml_uk_dev *ukdev = platform_get_drvdata(pdev);
 
@@ -1361,8 +1361,6 @@ static int aml_unifykeys_remove(struct platform_device *pdev)
 	class_unregister(&ukdev->cls);
 	platform_set_drvdata(pdev, NULL);
 	amlkey_if_deinit();
-
-	return 0;
 }
 
 static const struct of_device_id unifykeys_dt_match[] = {

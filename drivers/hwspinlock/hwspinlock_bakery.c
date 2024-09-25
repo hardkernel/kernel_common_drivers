@@ -322,12 +322,10 @@ probe_err:
 	return err;
 }
 
-static int aml_hwspinlock_remove(struct platform_device *pdev)
+static void aml_hwspinlock_remove(struct platform_device *pdev)
 {
 	hwspin_lock_unregister(aml_spinlock->bank);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id hwlock_of_match[] = {

@@ -541,7 +541,7 @@ static int meson_spicc_set_speed(struct meson_spicc_device *spicc, int hz)
 	int ret = 0;
 
 	/* Setup clock speed */
-	if (!spi_controller_is_slave(spicc->controller) && hz &&
+	if (!spi_controller_is_target(spicc->controller) && hz &&
 	    spicc->speed_hz != hz) {
 		spicc->speed_hz = hz;
 		ret = clk_set_rate(spicc->clk, hz);
@@ -967,7 +967,7 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 				    spicc->base + SPICC_CONREG);
 	} else {
 		meson_spicc_tx(spicc);
-		writel_relaxed(spi_controller_is_slave(spicc->controller) ?
+		writel_relaxed(spi_controller_is_target(spicc->controller) ?
 			SPICC_RR_EN : SPICC_TC_EN, spicc->base + SPICC_INTREG);
 		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
 				    spicc->base + SPICC_CONREG);
@@ -1084,7 +1084,7 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 	 * Set controller mode and enable controller ahead of others here,
 	 * and never disable them.
 	 */
-	if (!spi_controller_is_slave(spicc->controller)) {
+	if (!spi_controller_is_target(spicc->controller)) {
 		writel_relaxed(SPICC_ENABLE | SPICC_MODE_MASTER,
 			       spicc->base + SPICC_CONREG);
 		if (spicc->data->has_oen)
@@ -1569,7 +1569,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (!spi_controller_is_slave(spicc->controller)) {
+	if (!spi_controller_is_target(spicc->controller)) {
 		spicc->clk = meson_spicc_clk_get(spicc);
 		if (IS_ERR_OR_NULL(spicc->clk)) {
 			dev_err(&pdev->dev, "divider clock get failed\n");
@@ -1638,7 +1638,7 @@ out_controller:
 	return ret;
 }
 
-static int meson_spicc_remove(struct platform_device *pdev)
+static void meson_spicc_remove(struct platform_device *pdev)
 {
 	struct meson_spicc_device *spicc = platform_get_drvdata(pdev);
 
@@ -1655,8 +1655,6 @@ static int meson_spicc_remove(struct platform_device *pdev)
 	device_remove_file(&spicc->controller->dev, &dev_attr_testdev);
 #endif
 #endif
-
-	return 0;
 }
 
 #ifdef CONFIG_AMLOGIC_MODIFY
