@@ -1629,8 +1629,8 @@
 
 	irblaster_pins:irblaster_pin {
 		mux {
-			groups = "ir_remote_out";
-			function = "ir_remote_out";
+			groups = "remote_out";
+			function = "remote_out";
 		};
 	};
 
