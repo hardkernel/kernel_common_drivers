@@ -492,6 +492,7 @@ struct amlvideo2_fh {
 	bool set_format_flag;
 	struct vb2_queue vb2_q;
 	enum v4l2_field field;
+	struct mutex mutex;/*for judge if screencap doing */
 	unsigned int is_streamed_on;
 
 	suseconds_t frm_save_time_us; /* us */
@@ -5464,6 +5465,7 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 			      void *para)
 {
 	struct amlvideo2_node  *node = NULL;
+	struct amlvideo2_fh *fh = NULL;
 	struct vframe_s *recycle_vf = NULL;
 	struct vframe_states states;
 	struct vframe_provider_s *vfp = NULL;
@@ -5503,19 +5505,25 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 			pr_info("node user not work, return\n");
 		return ret;
 	}
+	fh = node->fh;
 
 	switch (cmd) {
 	case  VOUT_EVENT_MODE_CHANGE:
 		pr_info("mode changed in amlvideo2.\n");
+		mutex_lock(&fh->mutex);
 		if (!node->fh->is_streamed_on) {
+			mutex_unlock(&fh->mutex);
 			pr_info("driver not need to screencap.\n");
 			return ret;
 		}
 		node->pflag = true;
 		i_ret = wait_for_completion_timeout(&node->plug_sema,
 						    msecs_to_jiffies(150));
-		if (i_ret == 0)
+		if (i_ret == 0) {
+			mutex_unlock(&fh->mutex);
 			return 0;
+		}
+
 		if (amlvideo2_dbg_en)
 			pr_info("finish wait plug sema .\n");
 
@@ -5551,6 +5559,7 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 		if (get_vdin_status(0) & 0x2) {
 			ret = amlvideo2_stop_tvin_service(node);
 			if (ret < 0) {
+				mutex_unlock(&fh->mutex);
 				pr_err("stop tvin service failed.\n");
 				node->pflag = false;
 				return ret;
@@ -5562,6 +5571,7 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 
 		ret = amlvideo2_start_tvin_service(node);
 		if (ret < 0) {
+			mutex_unlock(&fh->mutex);
 			pr_err("start tvin service failed.\n");
 			node->pflag = false;
 			return ret;
@@ -5574,6 +5584,7 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 		break;
 	}
 
+	mutex_unlock(&fh->mutex);
 	if (amlvideo2_dbg_en)
 		pr_info("finish %s. ret = %d\n", __func__, ret);
 
@@ -5850,16 +5861,19 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 			node->r_type, node->vid);
 		pr_info("vdin_device_num = %d\n", node->vdin_device_num);
 	}
+	mutex_lock(&fh->mutex);
 	if (node->start_vdin_flag ||
 	    node->r_type == AML_RECEIVER_NONE) {
 		if (amlvideo2_dbg_en)
 			pr_info("stop tvin service .\n");
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 		if (IS_ERR_OR_NULL(vops)) {
+			mutex_unlock(&fh->mutex);
 			pr_info("%s amlvideo2 vdin ops is NULL\n", __func__);
 			return 0;
 		}
 		if (IS_ERR_OR_NULL(vops->stop_tvin_service)) {
+			mutex_unlock(&fh->mutex);
 			pr_info("%s amlvideo2 vdin stop_tvin_service is NULL\n", __func__);
 			return 0;
 		}
@@ -5867,6 +5881,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		if (node->aml2_dev->node_id == 1) {
 			ret = vops->stop_tvin_service(node->vdin_device_num);
 			if (ret < 0) {
+				mutex_unlock(&fh->mutex);
 				pr_err("%s amlvideo2 vdin stop failed\n", __func__);
 				return 0;
 			}
@@ -5878,6 +5893,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 
 	node->start_vdin_flag = 0;
 	fh->is_streamed_on = 0;
+	mutex_unlock(&fh->mutex);
 	return ret;
 }
 
@@ -7030,6 +7046,7 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	init_waitqueue_head(&vid_node->vidq.wq);
 
 	mutex_init(&vid_node->mutex);
+	mutex_init(&fh->mutex);
 	init_completion(&vid_node->plug_sema);
 #ifdef CONFIG_PM
 	init_completion(&vid_node->suspend_sema);
