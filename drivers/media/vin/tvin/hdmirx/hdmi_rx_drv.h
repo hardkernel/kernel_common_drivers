@@ -74,8 +74,8 @@
 //2024.08.30 disable hdcp when suspend
 //2024.09.18 remove warning print
 //2024.09.24 reduce rx boot print
-#define RX_VER0 "ver.2024/09/24"
-
+//2024.09.30 update fsm when update edid
+#define RX_VER0 "ver.2024/09/30"
 
 /*print type*/
 #define COR1_LOG	0x10000

@@ -1972,6 +1972,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 			hdmi_rx_top_edid_update();
 		} else {
 			if (port_idx != rx_info.main_port) {
+				rx[port_idx].fsm_ext_state = FSM_INIT;
 				rx_set_port_hpd(port_idx, 0);
 				port_hpd_rst_flag |= (1 << port_idx);
 				hdmi_rx_top_edid_update();
