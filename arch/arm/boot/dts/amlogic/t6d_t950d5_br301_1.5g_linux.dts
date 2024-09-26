@@ -374,6 +374,8 @@
 		 * 0:not set loss mode for di out;
 		 * 1:1:check the loss flag in vf and set for di
 		 ***************************************************/
+		post-wr-support = <1>;
+		postlink_en = <0>;
 	};/* end of multi-di */
 
 	/* for external keypad */
