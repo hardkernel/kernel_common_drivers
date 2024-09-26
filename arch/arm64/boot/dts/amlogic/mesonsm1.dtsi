@@ -740,12 +740,18 @@
 	bl40: bl40 {
 		compatible = "amlogic, bl40";
 		memory-region = <&bl40_fw_reserved>;
-		reg-names = "m4-support-reg",
+		reg-names = "device-support-reg",
 			    "ddrfw-region";
-		reg = <0x0 0xff63003c 0x0 0x20>, /*m4 support region*/
+		reg = <0x0 0xff63003c 0x0 0x4>, /*m4 support region*/
 		      <0x0 0x0 0x0 0x80000>; /*host ddrfw region [offset size]*/
 		startup-position = /bits/ 8 <PURE_DDR>; /*m4 load from the ddr address*/
 		mbox-names = "mbox_m3";
+		/* host m4 support bit
+		 * efuse reg EFUSE_LIC3 bit[28]
+		 * 1: disable
+		 * 0: enable
+		 */
+		m4-support-bit = <0x10000000>;
 		mboxes = <&mbox_pl0 SM1_REE2AO_MF>;
 		status = "okay";
 	};

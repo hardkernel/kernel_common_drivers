@@ -708,11 +708,19 @@
 			startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 			memory-region = <&dsp_fw_reserved>;
 			reg-names = "base-reg",
+				    "device-support-reg",
 				    "ddrfw-region";
 			reg = <0x0 0xfe030000 0x0 0x114>, /*host base address*/
+			      <0x0 0xff63003c 0x0 0x4>, /*dsp support region*/
 			      <0x0 0x0 0x0 0x600000>; /*host ddrfw region [offset size]*/
 			clocks = <&clkc CLKID_DSPA_SEL>;
 			clock-names = "dspa_clk";
+			/* host dsp support bit
+			 * efuse reg EFUSE_LIC3 bit[24]
+			 * 1: disable
+			 * 0: enable
+			 */
+			dsp-support-bit = <0x1000000>;
 			power-domains = <&pwrdm PDID_CX_DSP_A>;
 			mboxes = <&mbox_pl C2_REE2DSPA_DSP>;
 			clkfreq-khz = <400000>;

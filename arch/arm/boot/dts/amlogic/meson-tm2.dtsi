@@ -883,12 +883,20 @@
 		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved0>;
 		reg-names = "base-reg",
+			    "device-support-reg",
 			    "ddrfw-region";
 		reg = <0xff680000 0x114>, /*host base reg address*/
+		      <0xff63003c 0x4>, /*dsp support region*/
 		      <0x0 0xa00000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA_MUX>;
 		clock-names = "dspa_clk";
 		mbox-names = "init_dsp";
+		/* host dsp support bit
+		 * efuse reg EFUSE_LIC3 bit[14]
+		 * 1: disable
+		 * 0: enable
+		 */
+		dsp-support-bit = <0x4000>;
 		mboxes = <&mbox_pl0 TM2_REE2AO_HIFI4DSPA>;
 		power-domains = <&pwrc  PWRC_TM2_DSPA_ID>;
 		clkfreq-khz = <400000>;
@@ -900,12 +908,20 @@
 		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved1>;
 		reg-names = "base-reg",
+			    "device-support-reg",
 			    "ddrfw-region";
 		reg = <0xff690000 0x114>, /*host base reg address*/
+		      <0xff63003c 0x4>, /*dsp support region*/
 		      <0x0 0x600000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPB_MUX>;
 		clock-names = "dspb_clk";
 		mbox-names = "init_dsp";
+		/* host dsp support bit
+		 * efuse reg EFUSE_LIC3 bit[15]
+		 * 1: disable
+		 * 0: enable
+		 */
+		dsp-support-bit = <0x8000>;
 		mboxes = <&mbox_pl0 TM2_REE2AO_HIFI4DSPB>;
 		power-domains = <&pwrc  PWRC_TM2_DSPB_ID>;
 		clkfreq-khz = <400000>;

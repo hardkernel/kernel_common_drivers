@@ -437,7 +437,7 @@
 		memory-region = <&dsp_fw_reserved0>;
 		reg-names = "base-reg",
 			    "health-reg",
-			    "dspsupport-reg",
+			    "device-support-reg",
 			    "shm-region",
 			    "ddrfw-region";
 		reg = <0x0 0xfe340018 0x0 0x114>, /*host base reg address*/
@@ -447,6 +447,12 @@
 		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA_CLK>;
 		clock-names = "dspa_clk";
+		/* host dsp support bit
+		 * efuse reg OTP_LIC23 bit[24]
+		 * 1: disable
+		 * 0: enable
+		 */
+		dsp-support-bit = <0x1000000>;
 		mboxes = <&mbox_fifo T7_REE2DSPA_DSP>;
 		power-domains = <&pwrdm PDID_T7_DSPA>;
 		//logbuff-polling-ms = <50>;
@@ -460,7 +466,7 @@
 		memory-region = <&dsp_fw_reserved1>;
 		reg-names = "base-reg",
 			    "health-reg",
-			    "dspsupport-reg",
+			    "device-support-reg",
 			    "ddrfw-region";
 		reg = <0x0 0xfe350018 0x0 0x114>, /*host base reg address*/
 		      <0x0 0xfe01025c 0x0 0x4>, /*host health reg address*/
@@ -468,6 +474,12 @@
 		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPB_CLK>;
 		clock-names = "dspb_clk";
+		/* host dsp support bit
+		 * efuse reg OTP_LIC23 bit[25]
+		 * 1: disable
+		 * 0: enable
+		 */
+		dsp-support-bit = <0x2000000>;
 		mboxes = <&mbox_fifo T7_REE2DSPB_DSP>;
 		power-domains = <&pwrdm PDID_T7_DSPB>;
 		//logbuff-polling-ms = <50>;

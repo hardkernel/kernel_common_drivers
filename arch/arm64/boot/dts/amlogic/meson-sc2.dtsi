@@ -869,7 +869,7 @@
 		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved>;
 		reg-names = "base-reg",
-			    "dspsupport-reg",
+			    "device-support-reg",
 			    "ddrfw-region";
 		reg = <0x0 0xfe340000 0x0 0x114>, /*host base address*/
 		      <0x0 0xfe44006c 0x0 0x4>, /*dsp support region*/
@@ -882,6 +882,12 @@
 		 * bit3: pm_support_ffv
 		 */
 		pm-support = /bits/ 8 <0>;
+		/* host dsp support bit
+		 * efuse reg OTP_LIC23 bit[24]
+		 * 1: disable
+		 * 0: enable
+		 */
+		dsp-support-bit = <0x1000000>;
 		power-domains = <&pwrdm PDID_SC2_DSP>;
 		mboxes = <&mbox_fifo SC2_REE2DSPA_HOST>,
 			 <&mbox_fifo SC2_DSPA2REE_HOST>;
