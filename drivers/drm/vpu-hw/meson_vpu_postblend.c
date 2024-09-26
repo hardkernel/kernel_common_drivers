@@ -910,10 +910,19 @@ static void s6_postblend_set_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *old_state)
 {
 	int crtc_index;
+	enum vmode_e mode;
 
 	crtc_index = vblk->index;
-	if (crtc_index == 1)
+	mode = state->sub->vmode;
+	mode &= VMODE_MODE_BIT_MASK;
+
+	if (crtc_index == VPP1) {
+		if (mode == VMODE_HDMI)
+			set_viu2_osd_matrix_rgb2yuv(true);
+		else
+			set_viu2_osd_matrix_rgb2yuv(false);
 		return;
+	}
 
 	postblend_set_state(vblk, state, old_state);
 

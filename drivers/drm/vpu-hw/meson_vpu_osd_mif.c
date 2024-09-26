@@ -844,9 +844,13 @@ void osd_mali_src_en(struct meson_vpu_block *vblk,
 		     struct rdma_reg_ops *reg_ops,
 		     struct osd_mif_reg_s *reg, u8 osd_index, bool flag)
 {
+	struct meson_vpu_osd *osd;
+
+	osd = to_osd_block(vblk);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blk0_cfg_w0, flag, 30, 1);
-	reg_ops->rdma_write_reg_bits(OSD_PATH_MISC_CTRL,
-				     flag, (osd_index + 4), 1);
+	if (!osd->is_viu2_osd)
+		reg_ops->rdma_write_reg_bits(OSD_PATH_MISC_CTRL,
+					 flag, (osd_index + 4), 1);
 }
 
 void osd_mali_src_en_linear(struct meson_vpu_block *vblk,
@@ -1342,7 +1346,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	if (vblk->ops->init_register)
 		vblk->ops->init_register(vblk, state);
 
-	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
+	if (priv->vpu_data && priv->vpu_data->has_gfcd && crtc_index == VPP0) {
 		process_unit = mvos->process_unit;
 		if (process_unit == GFCD_AFBC || process_unit == GFCD_AFRC) {
 			MESON_DRM_BLOCK("set gfcd %d.\n", process_unit);
@@ -1989,6 +1993,11 @@ static void s6_osd_hw_init(struct meson_vpu_block *vblk)
 	osd->reg = &s6_osd_mif_reg[vblk->index];
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->mali_src_en_switch = 1;
+	if (vblk->index == MESON_OSD3)
+		osd->is_viu2_osd = 1;
+	osd->has_gfcd = true;
+	osd->gfcd_global_alpha_policy =
+		!!(pipeline->priv->of_conf.gfcd_mask & BIT(GFCD_GLOBAL_ALPHA));
 
 	osd->infos = formats_of_s1a;
 
