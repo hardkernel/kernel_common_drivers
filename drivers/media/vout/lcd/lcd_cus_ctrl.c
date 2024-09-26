@@ -232,7 +232,7 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 	struct lcd_detail_timing_s *ptiming;
 	struct lcd_timing_s *tims = &pdrv->config.timing;
 	unsigned int offset = 0, fr_size, tmg_size;
-	unsigned int hfp, vfp, temp;
+	unsigned int temp;
 	int i, n, ret = 0, fr_cnt = 0, tmg_group_cnt = 0;
 	struct lcd_dfr_fr_s *fr;
 	struct lcd_dfr_timing_s *dfr_timing;
@@ -264,24 +264,18 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 		fr[i].frame_rate = temp & 0xfff;
 		fr[i].timing_index = (temp >> 12) & 0xf;
 		offset += 2;
+		fr[i].frame_rate_min = *(unsigned short *)(p + offset);
+		offset += 2;
+		fr[i].frame_rate_max = *(unsigned short *)(p + offset);
+		offset += 2;
 	}
 
 	for (i = 0;  i < tmg_group_cnt; i++) {
-		dfr_timing[i].htotal = *(unsigned short *)(p + offset);
-		offset += 2;
 		dfr_timing[i].vtotal = *(unsigned short *)(p + offset);
 		offset += 2;
 		dfr_timing[i].vtotal_min = *(unsigned short *)(p + offset);
 		offset += 2;
 		dfr_timing[i].vtotal_max = *(unsigned short *)(p + offset);
-		offset += 2;
-		dfr_timing[i].frame_rate_min = *(unsigned short *)(p + offset);
-		offset += 2;
-		dfr_timing[i].frame_rate_max = *(unsigned short *)(p + offset);
-		offset += 2;
-		dfr_timing[i].hpw = *(unsigned short *)(p + offset);
-		offset += 2;
-		dfr_timing[i].hbp = *(unsigned short *)(p + offset);
 		offset += 2;
 		dfr_timing[i].vpw = *(unsigned short *)(p + offset);
 		offset += 2;
@@ -292,26 +286,22 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 	if (attr_conf->param_size < offset) {
 		LCDERR("[%d]: %s: param_size(%d) and offset(%d) are mismatch!\n",
 			pdrv->index, __func__, attr_conf->param_size, offset);
-		ret = -1;
-		goto parse_dfr_timing_end;
+		goto parse_dfr_timing_err;
 	}
 
 	for (i = 0; i < fr_cnt; i++) {
 		ptiming = lcd_timing_alloc(pdrv);
-		if (!ptiming) {
-			ret = -1;
-			goto parse_dfr_timing_end;
-		}
+		if (!ptiming)
+			goto parse_dfr_timing_err;
 		memcpy(ptiming, tims->timings[0], sizeof(*ptiming));
 		ptiming->ss_force = 0;
 
 		ptiming->frame_rate = fr[i].frame_rate;
+		ptiming->frame_rate_min = fr[i].frame_rate_min;
+		ptiming->frame_rate_max = fr[i].frame_rate_max;
 		if (fr[i].timing_index == 0) {
 			ptiming->pixel_clk = ptiming->frame_rate *
 				ptiming->h_period * ptiming->v_period;
-			//frame_rate range is update for compatibility in lcd_fr_range_update
-			ptiming->frame_rate_min = 0;
-			ptiming->frame_rate_max = 0;
 		} else {
 			n = fr[i].timing_index - 1;
 			if (n >= tmg_group_cnt) {
@@ -319,23 +309,18 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 					pdrv->index, __func__, fr[i].timing_index, tmg_group_cnt);
 				ret = -1;
 				lcd_timing_free_last(pdrv);
-				goto parse_dfr_timing_end;
+				goto parse_dfr_timing_err;
 			}
-			ptiming->h_period = dfr_timing[n].htotal;
 			ptiming->v_period = dfr_timing[n].vtotal;
 			ptiming->v_period_min = dfr_timing[n].vtotal_min;
 			ptiming->v_period_max = dfr_timing[n].vtotal_max;
-			ptiming->frame_rate_min = dfr_timing[n].frame_rate_min;
-			ptiming->frame_rate_max = dfr_timing[n].frame_rate_max;
+			ptiming->vsync_width = dfr_timing[n].vpw;
+			ptiming->vsync_bp = dfr_timing[n].vbp;
+			ptiming->vsync_fp = ptiming->v_period - ptiming->v_active -
+				ptiming->vsync_width - ptiming->vsync_bp;
 			ptiming->pixel_clk = ptiming->frame_rate *
 				ptiming->h_period * ptiming->v_period;
 		}
-		hfp = ptiming->h_period - ptiming->h_active -
-			ptiming->hsync_width - ptiming->hsync_bp;
-		vfp = ptiming->v_period - ptiming->v_active -
-			ptiming->vsync_width - ptiming->vsync_bp;
-		ptiming->hsync_fp = hfp;
-		ptiming->vsync_fp = vfp;
 		ptiming->switch_type = attr_conf->attr_flag;
 		lcd_clk_frame_rate_init(ptiming);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -346,10 +331,15 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 
 		lcd_config_timing_check(pdrv, ptiming);
 	}
-	return 0;
-parse_dfr_timing_end:
 
-	return ret;
+	kfree(fr);
+	kfree(dfr_timing);
+	return 0;
+
+parse_dfr_timing_err:
+	kfree(fr);
+	kfree(dfr_timing);
+	return -1;
 }
 
 static int lcd_cus_ctrl_attr_parse_extend_tmg_ukey(struct aml_lcd_drv_s *pdrv,
