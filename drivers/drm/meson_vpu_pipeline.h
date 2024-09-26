@@ -243,6 +243,10 @@ struct meson_vpu_osd {
 	struct osd_mif_reg_s *reg;
 	int mif_acc_mode;
 	u32 mali_src_en_switch;
+	u32 is_viu2_osd;
+	const struct meson_drm_format_info **infos;
+	int format_swap;
+	bool has_gfcd;
 	bool gfcd_global_alpha_policy;
 };
 
