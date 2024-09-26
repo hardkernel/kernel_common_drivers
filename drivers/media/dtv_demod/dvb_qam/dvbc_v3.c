@@ -14,6 +14,10 @@
 unsigned char dvbc_agc_target = 0xc;
 unsigned char j83b_agc_target = 0xe;
 
+MODULE_PARM_DESC(dvbc_top_fe_enable, "");
+unsigned char dvbc_top_fe_enable = 1;
+module_param(dvbc_top_fe_enable, byte, 0644);
+
 static unsigned char dvbc_qam_reg[15] = { 0 };
 static unsigned int dvbc_qam_value[15] = { 0 };
 
@@ -177,7 +181,11 @@ u32 dvbc_get_symb_rate(struct aml_dtvdemod *demod)
 	u32 symb_rate;
 
 	adc_freq = qam_read_reg(demod, 0xd) >> 16 & 0xffff;
-	tmp = qam_read_reg(demod, 0x2e);
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6D) &&
+		dvbc_top_fe_enable)
+		tmp = front_read_reg(0x6d);
+	else
+		tmp = qam_read_reg(demod, 0x2e);
 
 	if ((tmp >> 15) == 0)
 		symb_rate = 0;
@@ -428,6 +436,28 @@ void dvbc_improve_impulse_noise(struct aml_dtvdemod *demod, bool enable)
 		qam_read_reg(demod, 0x65), qam_read_reg(demod, 0x70));
 }
 
+void demod_top_dvbc_set_init_sr(struct aml_dtvdemod *demod)
+{
+	u64 val = 0, sym = 0;
+
+	if (demod->auto_sr) {
+		dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_MIDDLE);
+		dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_MIDDLE);
+		//7250: 0x2b = 0x401a7b96
+		val = ((1 << 10) * 24000) / (demod->demod_status.symb_rate - 2);
+	} else {
+		dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_NORMAL);
+		dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_NORMAL);
+		front_write_reg(0x2d, 0x57011);
+		front_write_reg(0x2e, 0x400);
+		val = ((1 << 10) * 24000) / demod->demod_status.symb_rate;
+	}
+
+	sym = val * (1 << 9);
+	front_write_bits(0x2b, sym, 0, 25);
+	front_write_bits(0x2b, 0x4, 28, 4);
+}
+
 void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
 	u32 clk_freq;
@@ -650,9 +680,13 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		default:
 			break;
 		}
-
-		qam_auto_scan(demod, 1);
+		if (!dvbc_top_fe_enable && !demod_chip_after_eq(DTVDEMOD_HW_T6D))
+			qam_auto_scan(demod, 1);
 	}
+
+	/* use top frontend */
+	if (dvbc_top_fe_enable && demod_chip_after_eq(DTVDEMOD_HW_T6D))
+		demod_set_top_frontend(demod, SYS_DVBC_ANNEX_A);
 
 	qam_write_reg(demod, 0x65, 0x700c); // offset
 	qam_write_reg(demod, 0xb4, 0x32030);
@@ -785,33 +819,66 @@ void dvbc_cfg_sr_cnt(struct aml_dtvdemod *demod, enum dvbc_sym_speed spd)
 
 void dvbc_cfg_sr_scan_speed(struct aml_dtvdemod *demod, enum dvbc_sym_speed spd)
 {
-	switch (spd) {
-	case SYM_SPEED_MIDDLE:
-		qam_write_reg(demod, SR_SCAN_SPEED, 0x245bf45c);
-		break;
-	case SYM_SPEED_HIGH:
-		qam_write_reg(demod, SR_SCAN_SPEED, 0x234cf523);
-		break;
-	case SYM_SPEED_NORMAL:
-	default:
-		qam_write_reg(demod, SR_SCAN_SPEED, 0x235cf459);
-		break;
+	if (dvbc_top_fe_enable && demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
+		switch (spd) {
+		case SYM_SPEED_MIDDLE:
+			front_write_reg(0x2c, 0x0b042264);
+			front_write_reg(0x2d, 0x5510f);
+			break;
+		case SYM_SPEED_HIGH:
+			front_write_reg(0x2c, 0x0b042264);
+			front_write_reg(0x2d, 0x53110);
+			break;
+		case SYM_SPEED_NORMAL:
+		default:
+			front_write_reg(0x2c, 0x11042264);
+			front_write_reg(0x2d, 0x5310c);
+			break;
+		}
+	} else {
+		switch (spd) {
+		case SYM_SPEED_MIDDLE:
+			qam_write_reg(demod, SR_SCAN_SPEED, 0x245bf45c);
+			break;
+		case SYM_SPEED_HIGH:
+			qam_write_reg(demod, SR_SCAN_SPEED, 0x234cf523);
+			break;
+		case SYM_SPEED_NORMAL:
+		default:
+			qam_write_reg(demod, SR_SCAN_SPEED, 0x235cf459);
+			break;
+		}
 	}
 }
 
 void dvbc_cfg_tim_sweep_range(struct aml_dtvdemod *demod, enum dvbc_sym_speed spd)
 {
-	switch (spd) {
-	case SYM_SPEED_MIDDLE:
-		qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x220000);
-		break;
-	case SYM_SPEED_HIGH:
-		qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x400000);
-		break;
-	case SYM_SPEED_NORMAL:
-	default:
-		qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x400);
-		break;
+	if (dvbc_top_fe_enable && demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
+		switch (spd) {
+		case SYM_SPEED_MIDDLE:
+			front_write_reg(0x2e, 0x220000);
+			break;
+		case SYM_SPEED_HIGH:
+			front_write_reg(0x2e, 0x400000);
+			break;
+		case SYM_SPEED_NORMAL:
+		default:
+			front_write_reg(0x2e, 0x400);
+			break;
+		}
+	} else {
+		switch (spd) {
+		case SYM_SPEED_MIDDLE:
+			qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x220000);
+			break;
+		case SYM_SPEED_HIGH:
+			qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x400000);
+			break;
+		case SYM_SPEED_NORMAL:
+		default:
+			qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x400);
+			break;
+		}
 	}
 }
 

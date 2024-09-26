@@ -231,6 +231,7 @@
 /*  V4.1.006 T6X dvbc new blind scan bringup */
 /*  V4.1.007 fix dvbs blind scan state and clear params when leaving */
 /*  V4.1.008 fix dvbc auto qam lock error mod */
+/*  V4.1.009 dvbc use top frontend from T6D */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -247,8 +248,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.1.008"
-#define DTVDEMOD_VER	"2026/01/21 fix dvbc auto qam lock error mod "
+#define AMLDTVDEMOD_VER "V4.1.009"
+#define DTVDEMOD_VER	"2026/02/11 dvbc use top frontend from T6D "
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -553,6 +554,7 @@ struct aml_dtvdemod {
 	u32 blind_result_frequency;
 	u32 blind_result_symbol_rate;
 	enum dtvblind_scan_step blind_step;
+	unsigned int sym_speed_high;
 };
 
 struct amldtvdemod_device_s {

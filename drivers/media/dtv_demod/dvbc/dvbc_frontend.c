@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -265,6 +265,7 @@ int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	}
 
 	demod->sr_val_hw = param.symb_rate;
+	demod->sym_speed_high = 0;
 
 	if (!demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		if (param.mode == 3 && demod->demod_status.tmp != ADC_MODE)
@@ -313,8 +314,21 @@ int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	if (demod->auto_sr &&
 		(tuner_find_by_name(fe, "r842") ||
 		tuner_find_by_name(fe, "r836") ||
-		tuner_find_by_name(fe, "r850")))
-		msleep(500);
+		tuner_find_by_name(fe, "r850"))) {
+		if (dvbc_top_fe_enable && demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
+			msleep(130);
+			demod->sr_val_hw = dvbc_get_symb_rate(demod);
+			PR_DBG("cur sr_val_hw :%d\n", demod->sr_val_hw);
+			if (demod->sr_val_hw < 6820) {
+				dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_HIGH);
+				dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_HIGH);
+				demod->sym_speed_high = 1;
+			}
+			msleep(370);
+		} else {
+			msleep(500);
+		}
+	}
 
 	dvbc_status(demod, &demod_sts, NULL);
 	demod->freq_dvbc = param.ch_freq;
@@ -390,7 +404,6 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 	int ret = 0;
 	s16 strength = 0;
 	static unsigned int time_start;
-	static unsigned int sym_speed_high;
 
 	if (re_tune) {
 		/*avoid that the previous channel has not been locked/unlocked*/
@@ -406,8 +419,6 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		demod->sr_val_hw_count = 0;
 		demod->sr_val_uf_count = 0;
 		demod->fsm_reset = false;
-		sym_speed_high = 0;
-
 		time_start = jiffies_to_msecs(jiffies);
 
 		return 2;
@@ -434,7 +445,9 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 			eq_state = qam_read_reg(demod, 0x5d) & 0xf;
 			fsm_state = qam_read_reg(demod, 0x31) & 0xf;
 
-			if (abs(demod->sr_val_hw - demod->sr_val_hw_stable) <= 100)
+			if (abs(demod->sr_val_hw - demod->sr_val_hw_stable) <=
+				((demod_chip_after_eq(DTVDEMOD_HW_T6D) &&
+				dvbc_top_fe_enable) ? 10 : 100))
 				demod->sr_val_hw_count++;
 			else
 				demod->sr_val_hw_count = 0;
@@ -446,7 +459,9 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 
 			demod->sr_val_hw_stable = demod->sr_val_hw;
 
-			if (eq_state >= 2 || demod->sr_val_hw_count >= 3) {
+			if (eq_state >= 2 || demod->sr_val_hw_count >=
+				((demod_chip_after_eq(DTVDEMOD_HW_T6D) &&
+				dvbc_top_fe_enable) ? 4 : 3)) {
 				// slow down auto sr speed and range.
 				dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_NORMAL);
 				dvbc_cfg_sr_cnt(demod, SYM_SPEED_NORMAL);
@@ -462,12 +477,12 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 				return 2;
 			} else {
 				if (demod->sr_val_hw < 6820 &&
-					sym_speed_high == 0) {
+					demod->sym_speed_high == 0) {
 					// fast down auto sr speed and range.
 					dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_HIGH);
 					dvbc_cfg_sr_cnt(demod, SYM_SPEED_HIGH);
 					dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_HIGH);
-					sym_speed_high = 1;
+					demod->sym_speed_high = 1;
 					PR_DVBC("fast scan[%d], sr_val_hw %d, cost %d ms\n",
 						fe->dtv_property_cache.frequency,
 						demod->sr_val_hw_stable,
@@ -487,8 +502,12 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 
 		// total wait 1250ms for auto sr done.
 		if ((jiffies_to_msecs(jiffies) - time_start < 1250) && !demod->auto_sr_done) {
-			// try every 100ms.
-			*delay = HZ / 10;
+			if (dvbc_top_fe_enable && demod_chip_after_eq(DTVDEMOD_HW_T6D))
+				// try every 10ms
+				*delay = HZ / 100;
+			else
+				// try every 100ms.
+				*delay = HZ / 10;
 
 			return 2; // wait.
 		}
@@ -728,8 +747,12 @@ unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *delay, bool
 
 		// total wait 1250ms for auto sr done.
 		if ((jiffies_to_msecs(jiffies) - time_start < 1250) && !demod->auto_sr_done) {
-			// try every 100ms.
-			*delay = HZ / 10;
+			if (dvbc_top_fe_enable && demod_chip_after_eq(DTVDEMOD_HW_T6D))
+				// try every 10ms.
+				*delay = HZ / 100;
+			else
+				// try every 100ms.
+				*delay = HZ / 10;
 
 			return 2; // wait.
 		}

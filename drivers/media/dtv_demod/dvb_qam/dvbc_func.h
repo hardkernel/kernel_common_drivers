@@ -27,6 +27,8 @@ enum qam_md_e {
 #define MAXNAMESIZE 30
 #define POWOF4(number) (1 << ((number) << 1)) /* was: s32 PowOf2(s32 number); */
 
+extern unsigned char dvbc_top_fe_enable;
+
 enum dvbc_sym_speed {
 	SYM_SPEED_NORMAL,
 	SYM_SPEED_MIDDLE,
@@ -468,6 +470,7 @@ enum fe_modulation amdemod_qam_fe(enum qam_md_e qam);
 int dvbc_get_power_strength(int agc_gain, int tuner_strength);
 int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts,
 		struct seq_file *seq);
+void demod_top_dvbc_set_init_sr(struct aml_dtvdemod *demod);
 void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam, bool auto_sr);
 void demod_dvbc_store_qam_cfg(struct aml_dtvdemod *demod);
 void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod);

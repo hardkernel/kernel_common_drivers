@@ -288,18 +288,19 @@ int isdbt_super_fec_layer_mode(int mode);
 int isdbt_get_super_fec_layer(void);
 #endif //CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 
-void ofdm_initial(int bandwidth,
-		  /* 00:8M 01:7M 10:6M 11:5M */
-		  int samplerate,
-		  /* 00:45M 01:20.8333M 10:20.7M 11:28.57 */
-		  int IF,
-		  /* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
-		  int mode,
-		  /* 00:DVBT,01:ISDBT */
-		  int tc_mode
-		  /* 0: Unsigned, 1:TC */);
+void ofdm_initial(struct aml_dtvdemod *demod,
+		int bandwidth,
+		/* 00:8M 01:7M 10:6M 11:5M */
+		int samplerate,
+		/* 00:45M 01:20.8333M 10:20.7M 11:28.57 */
+		int IF,
+		/* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
+		int mode,
+		/* 00:DVBT,01:ISDBT */
+		int tc_mode
+		/* 0: Unsigned, 1:TC */);
 
-void demod_set_top_frontend(enum fe_delivery_system delsys);
+void demod_set_top_frontend(struct aml_dtvdemod *demod, enum fe_delivery_system delsys);
 
 /*no use void monitor_isdbt(void);*/
 void demod_set_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg);

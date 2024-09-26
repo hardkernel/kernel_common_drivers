@@ -68,7 +68,7 @@ int gxtv_demod_dvbt_isdbt_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-void isdbt_reset_demod(void)
+void isdbt_reset_demod(struct aml_dtvdemod *demod)
 {
 	dvbt_isdbt_wr_reg_new(0x02, 0x00800000);
 	dvbt_isdbt_wr_reg_new(0x00, 0x00000000);
@@ -79,7 +79,7 @@ void isdbt_reset_demod(void)
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 24));
 
 	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
-		demod_set_top_frontend(SYS_ISDBT);
+		demod_set_top_frontend(demod, SYS_ISDBT);
 
 		dvbt_isdbt_wr_reg(0x8 << 2, 0x00013000);//bypass ISDBT frontend
 	}
@@ -151,7 +151,7 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 				strength, THRD_TUNER_STRENGTH_ISDBT);
 
 		if (!(no_signal_cnt++ % 20))
-			isdbt_reset_demod();
+			isdbt_reset_demod(demod);
 
 		unlock_cnt = 0;
 
@@ -160,7 +160,7 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 
 	if (no_signal_cnt) {
 		no_signal_cnt = 0;
-		isdbt_reset_demod();
+		isdbt_reset_demod(demod);
 	}
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
@@ -214,7 +214,7 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 	//The status is updated only when the status continuously reaches the threshold of times
 	if (lock < 0) {
 		if (!(++unlock_cnt % reset_in_unlock_times))
-			isdbt_reset_demod();
+			isdbt_reset_demod(demod);
 
 		if (demod->last_lock >= 0) {
 			demod->last_lock = -1;

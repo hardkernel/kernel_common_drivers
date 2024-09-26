@@ -11,7 +11,7 @@ extern bool isdbt_reuse_sfec;
 int dvbt_isdbt_read_ber(struct dvb_frontend *fe, u32 *ber);
 int gxtv_demod_dvbt_isdbt_read_snr(struct dvb_frontend *fe, u16 *snr);
 
-void isdbt_reset_demod(void);
+void isdbt_reset_demod(struct aml_dtvdemod *demod);
 int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune);
 int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status);

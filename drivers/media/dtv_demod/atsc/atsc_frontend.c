@@ -348,7 +348,7 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		//ATSC use top frontend
 		atsc_write_reg_v4(ATSC_DEMOD_REG_0X56, 0x1000); //bypass top frontend
 		atsc_write_reg_v4(ATSC_DEMOD_REG_0X71, 0x701);
-		demod_set_top_frontend(SYS_ATSC);
+		demod_set_top_frontend(demod, SYS_ATSC);
 	}
 
 	PR_DBG("atsc_mode %d\n", demod->atsc_mode);

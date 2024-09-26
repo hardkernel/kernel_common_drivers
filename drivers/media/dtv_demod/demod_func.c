@@ -2566,8 +2566,9 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 	return 0;
 }
 
-void demod_set_top_frontend(enum fe_delivery_system delsys)
+void demod_set_top_frontend(struct aml_dtvdemod *demod, enum fe_delivery_system delsys)
 {
+	PR_DBG("delsys %d use top frontend\n", delsys);
 	switch (delsys) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
@@ -2704,6 +2705,84 @@ void demod_set_top_frontend(enum fe_delivery_system delsys)
 
 			front_write_reg(0x60, 0x7ff000);
 			front_write_reg(0x61, 0x0);
+		}
+		break;
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+		if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
+			/* bit[17]: bypass qam frontend */
+			qam_write_reg(demod, 0x4e, 0x12020012);
+
+			front_write_reg(0x36, 0x0);
+			front_write_reg(0x37, 0x0);
+
+			front_write_reg(0x20, (front_read_reg(0x20) | (1 << 17)));
+			front_write_reg(0x20, (front_read_reg(0x20) | (1 << 18)));
+
+			front_write_reg(0x21, 0x10122);
+			front_write_reg(0x22, 0x7200a06);
+			front_write_reg(0x23, 0x42190190);
+			/* agc target */
+			front_write_reg(0x26, 0x18000f0f);
+
+			front_write_reg(0x28, 0xa0003030);
+			front_write_reg(0x29, 0x1a141a14);
+			front_write_reg(0x2a, 0x4404181a);
+
+			front_write_reg(0x70, 0x306);
+
+			front_write_reg(0x27, 0x03555555);
+			front_write_reg(0x2f, 0x00000004);
+
+			/* acf coef */
+			front_write_reg(0x40, 0x062e7250);
+			front_write_reg(0x41, 0x0f77c5);
+			front_write_reg(0x42, 0x7617b9);
+			front_write_reg(0x43, 0x038059);
+			front_write_reg(0x44, 0x0177cd);
+			front_write_reg(0x45, 0x7c87ff);
+			front_write_reg(0x46, 0x02c023);
+			front_write_reg(0x47, 0x7f67db);
+			front_write_reg(0x48, 0x7ec010);
+			front_write_reg(0x49, 0x01d009);
+			front_write_reg(0x4a, 0x7ee7ea);
+			front_write_reg(0x4b, 0x7ff011);
+			front_write_reg(0x4c, 0x00f7fd);
+			front_write_reg(0x4d, 0x7f17f7);
+			front_write_reg(0x4e, 0x00600d);
+			front_write_reg(0x4f, 0x0057f9);
+			front_write_reg(0x50, 0x7f67ff);
+			front_write_reg(0x51, 0x007007);
+			front_write_reg(0x52, 0x7ff7fa);
+			front_write_reg(0x53, 0x7fc002);
+			front_write_reg(0x54, 0x005002);
+			front_write_reg(0x55, 0x7fe7fc);
+			front_write_reg(0x56, 0x7ff002);
+			front_write_reg(0x57, 0x003000);
+			front_write_reg(0x58, 0x7fe7fe);
+			front_write_reg(0x59, 0x000002);
+			front_write_reg(0x5a, 0x001000);
+			front_write_reg(0x5b, 0x7ff7ff);
+			front_write_reg(0x5c, 0x000001);
+			front_write_reg(0x5d, 0x0);
+			front_write_reg(0x5e, 0x7ff000);
+			front_write_reg(0x5f, 0x0);
+			front_write_reg(0x60, 0x0);
+			front_write_reg(0x61, 0x0);
+
+			front_write_reg(0x62, 0x061790e5);
+			front_write_reg(0x63, 0x3f13b9);
+			front_write_reg(0x64, 0x00e025);
+			front_write_reg(0x65, 0x3f43eb);
+			front_write_reg(0x66, 0x00a00c);
+			front_write_reg(0x67, 0x3f83fb);
+			front_write_reg(0x68, 0x6);
+			/* acf coef end */
+
+			demod_top_dvbc_set_init_sr(demod);
+
+			front_write_reg(0x36, 0x3fffffff);
+			front_write_reg(0x37, 0x3fffffff);
 		}
 		break;
 	default:
@@ -3681,7 +3760,8 @@ int isdbt_get_super_fec_layer(void)
 }
 #endif //CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 
-void ofdm_initial(int bandwidth,
+void ofdm_initial(struct aml_dtvdemod *demod,
+		int bandwidth,
 		/* 00:8M 01:7M 10:6M 11:5M */
 		int samplerate,
 		/* 00:45M 01:20.8333M 10:20.7M 11:28.57 100: 24.00 */
@@ -4163,7 +4243,7 @@ void ofdm_initial(int bandwidth,
 	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
 		// ISDBT use top frontend and bypass ISDBT frontend
 		if (mode == 1) {
-			demod_set_top_frontend(SYS_ISDBT);
+			demod_set_top_frontend(demod, SYS_ISDBT);
 			dvbt_isdbt_wr_reg(0x8 << 2, 0x00013000);
 		}
 	}
@@ -4230,17 +4310,18 @@ int dvbt_isdbt_set_ch(struct aml_dtvdemod *demod,
 	if (bw == BANDWIDTH_AUTO)
 		demod_mode = 2;
 
-	ofdm_initial(bw,
+	ofdm_initial(demod,
+			bw,
 			/* 00:8M 01:7M 10:6M 11:5M */
-		     sr,
-		     /* 00:45M 01:20.8333M 10:20.7M 11:28.57  100:24m */
-		     ifreq,
-		     /* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
-		     demod_mode - 1,
-		     /* 00:DVBT,01:ISDBT */
-		     1
-		     /* 0: Unsigned, 1:TC */
-	    );
+			sr,
+			/* 00:45M 01:20.8333M 10:20.7M 11:28.57  100:24m */
+			ifreq,
+			/* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
+			demod_mode - 1,
+			/* 00:DVBT,01:ISDBT */
+			1
+			/* 0: Unsigned, 1:TC */
+	);
 	PR_DVBT("DVBT/ISDBT mode\n");
 
 	return ret;
