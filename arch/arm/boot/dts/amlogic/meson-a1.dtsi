@@ -163,7 +163,7 @@
 			soc_thermal:soc_thermal {
 				polling-delay = <1000>;
 				polling-delay-passive = <100>;
-				sustainable-power = <130>;
+				sustainable-power = <122>;
 				thermal-sensors = <&tsensor 0>;
 				trips {
 					pswitch_on: trip-point@0 {
