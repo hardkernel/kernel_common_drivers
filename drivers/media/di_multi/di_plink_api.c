@@ -2745,6 +2745,8 @@ unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k)
 		return EPVPP_BYPASS_REASON_GAME_MODE;
 	if (dvfm->vfs.duration < 1600 && dvfm->vfs.duration != 0)
 		return EPVPP_BYPASS_REASON_120HZ;
+	if (dvfm->vfs.fgs_valid)
+		return EPVPP_BYPASS_REASON_FG;
 	return 0;
 }
 
@@ -2781,6 +2783,8 @@ unsigned int dpvpp_is_bypass_dvfm_postlink(struct dvfm_s *dvfm)
 		return EPVPP_BYPASS_REASON_DV_PATH;
 	if (dvfm->vfs.flag & VFRAME_FLAG_GAME_MODE)
 		return EPVPP_BYPASS_REASON_GAME_MODE;
+	if (dvfm->vfs.fgs_valid)
+		return EPVPP_BYPASS_REASON_FG;
 	return 0;
 }
 
@@ -3201,6 +3205,8 @@ static unsigned int dpvpp_bypass_check_prelink(struct vframe_s *vfm, bool first)
 			reason = EPVPP_BYPASS_REASON_120HZ;
 		if (vfm->flag & VFRAME_FLAG_GAME_MODE)
 			reason = EPVPP_BYPASS_REASON_GAME_MODE;
+		if (vfm->fgs_valid)
+			reason = EPVPP_BYPASS_REASON_FG;
 	}
 	/* If vframe is EOS, information below maybe invalid */
 	if (VFMT_IS_EOS(vfm->type))
@@ -3252,6 +3258,8 @@ static unsigned int dpvpp_bypass_check_postlink(struct vframe_s *vfm, bool first
 			reason = EPVPP_BYPASS_REASON_120HZ;
 		if (vfm->flag & VFRAME_FLAG_GAME_MODE)
 			reason = EPVPP_BYPASS_REASON_GAME_MODE;
+		if (vfm->fgs_valid)
+			reason = EPVPP_BYPASS_REASON_FG;
 	}
 	if (VFMT_IS_EOS(vfm->type))
 		reason = EPVPP_BYPASS_REASON_EOS;
@@ -3293,8 +3301,9 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm,
 			ponly_enable = true;
 		}
 
-		if (get_datal()->fg_bypass_en && vfm->fgs_valid)
-			ponly_enable = false;
+		/* fg case will be checked in dpvpp_bypass_check and dpvpp_is_bypass */
+		//if (get_datal()->fg_bypass_en && vfm->fgs_valid)
+		//	ponly_enable = false;
 
 		if (!ponly_enable) {
 			dbg_plink1("%s:not ponly:%d:0x%x, fgs_valid:[0x%x]\n",

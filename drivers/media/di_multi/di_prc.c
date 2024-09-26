@@ -6088,6 +6088,7 @@ bool vf_2_subvf(struct dsub_vf_s *vfms, struct vframe_s *vfm)
 	vfms->fmt		= vfm->src_fmt.fmt;
 	vfms->sei_magic_code		= vfm->src_fmt.sei_magic_code;
 	vfms->duration		= vfm->duration;
+	vfms->fgs_valid		= vfm->fgs_valid;
 	return true;
 }
 
@@ -6123,6 +6124,7 @@ bool vf_from_subvf(struct vframe_s *vfm, struct dsub_vf_s *vfms)
 	vfm->src_fmt.fmt		= vfms->fmt;
 	vfm->src_fmt.sei_magic_code		= vfms->sei_magic_code;
 	vfm->duration = vfms->duration;
+	vfm->fgs_valid = vfms->fgs_valid;
 	return true;
 }
 

@@ -806,6 +806,7 @@ struct dsub_vf_s {
 	u32 sei_magic_code;
 	void *mem_handle;	/* di use this for struct dim_mm_blk_s */
 	u32 duration;
+	bool fgs_valid;
 };
 
 /* use this to replace vframe_s in di */
