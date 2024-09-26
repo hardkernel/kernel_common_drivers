@@ -4367,7 +4367,7 @@ static void aml_bl_config_probe_work(struct work_struct *p_work)
 	bdrv = container_of(d_work, struct aml_bl_drv_s, config_probe_dly_work);
 
 	index = bdrv->index;
-	if (bdrv->key_valid && !lcd_unifykey_init_get()) {
+	if (bdrv->key_valid) {
 		is_init = lcd_unifykey_init_get();
 		if (!is_init) {
 			if (bdrv->retry_cnt++ < LCD_UNIFYKEY_WAIT_TIMEOUT) {
