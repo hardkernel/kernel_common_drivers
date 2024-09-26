@@ -12904,6 +12904,8 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 		if (amdv_on_count <=
 			amdv_run_mode_delay + 1)
 			amdv_on_count++;
+		if (video_turn_off && is_aml_tvmode())
+			amdv_on_count = 0;
 		if (debug_dolby & 8)
 			pr_dv_dbg("%s: amdv_on_count %d\n",
 				     __func__, amdv_on_count);
