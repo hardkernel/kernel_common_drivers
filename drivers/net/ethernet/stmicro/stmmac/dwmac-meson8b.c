@@ -828,14 +828,10 @@ static int meson8b_resume(struct device *dev)
 			input_sync(dwmac->input_dev);
 		}
 
-		if (ret < 0) {
-			pr_info("exeth hold wakelock 10s\n");
-			pm_wakeup_event(dev, 10000);
-		}
-		else {
-			pr_info("exeth hold wakelock 5s\n");
-			pm_wakeup_event(dev, 5000);
-		}
+		pr_info("exeth hold wakelock 5s\n");
+		pm_wakeup_event(dev, 5000);
+		priv->amlogic_task_action = 102;
+		stmmac_trigger_amlogic_task(priv);
 	}
 
 	return ret;

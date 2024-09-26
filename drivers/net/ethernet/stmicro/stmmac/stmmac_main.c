@@ -307,10 +307,20 @@ static void stmmac_amlogic_task(struct work_struct *work)
 			}
 		}
 #endif
-	}
-	else if (priv->amlogic_task_action == 101) {
+	} else if (priv->amlogic_task_action == 101) {
 		msleep(3000);
 		stmmac_global_err(priv);
+	} else if (priv->amlogic_task_action == 102) {
+		unsigned int rx_pkt_counter;
+
+		rx_pkt_counter = priv->xstats.rx_pkt_n;
+		msleep(4000);
+		rx_pkt_counter = priv->xstats.rx_pkt_n - rx_pkt_counter;
+		pr_info("rx_pkt_counter: %d\n", rx_pkt_counter);
+		if (!rx_pkt_counter) {
+			pm_wakeup_event(priv->device, 10000);
+			stmmac_global_err(priv);
+		}
 	}
 	priv->amlogic_task_action = 0;
 }
@@ -7596,10 +7606,6 @@ int stmmac_resume(struct device *dev)
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	ret = stmmac_hw_setup(ndev, false);
-	if (ret < 0) {
-		priv->amlogic_task_action = 101;
-		stmmac_trigger_amlogic_task(priv);
-	}
 #else
 	stmmac_hw_setup(ndev, false);
 #endif
