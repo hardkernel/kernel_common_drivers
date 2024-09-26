@@ -1563,6 +1563,9 @@ static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	if (osd_index == 2)
 		//s6 viu2 src from mali afbcd
 		reg_ops->rdma_write_reg_bits(VPP2_MISC, 1, 0, 1);
+	else
+		reg_ops->rdma_write_reg_bits(OSD_PATH_MISC_CTRL, 0x1,
+				(osd_index + 4), 1);
 
 	aligned_32 = 1;
 	afbc_color_reorder = afbc_color_order(plane_info->pixel_format);
@@ -1592,10 +1595,6 @@ static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 
 	if (pipeline_state->sec_src)
 		pipeline_state->sec_src |= MALI_AFBCD_SECURE;
-
-	/* set osd path misc ctrl */
-	reg_ops->rdma_write_reg_bits(OSD_PATH_MISC_CTRL, 0x1,
-				(osd_index + 4), 1);
 
 	/* set linear addr */
 	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_ctrl_stat, 0x1, 2, 1);

@@ -251,6 +251,7 @@ struct meson_vpu_osd {
 	int mif_acc_mode;
 	int viu2_hold_line;
 	u32 mali_src_en_switch;
+	u32 is_viu2_osd;
 	const struct meson_drm_format_info **infos;
 	int format_swap;
 	DECLARE_KFIFO(canvas_q, u32, MAX_CANVAS_FIFO_NUM);
