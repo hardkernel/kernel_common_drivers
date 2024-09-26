@@ -358,7 +358,6 @@ static int a1_acodec_dai_mute_stream(struct snd_soc_dai *dai, int mute, int stre
 	int ret;
 
 	pr_debug("%s, mute:%d\n", __func__, mute);
-	snd_soc_component_write(component, ACODEC_0, 0xF000);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		reg_val = snd_soc_component_read(component, ACODEC_2);
