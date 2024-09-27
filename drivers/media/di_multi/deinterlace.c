@@ -6719,12 +6719,6 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			  vframe_type_name[di_buf->di_wr_linked_buf->type],
 			  di_buf->di_wr_linked_buf->index);
 #endif
-	if (ppre->cur_inp_type & VIDTYPE_COMPRESS) {
-		ppre->di_inp_buf->vframe->width =
-			ppre->di_inp_buf->vframe->compWidth;
-		ppre->di_inp_buf->vframe->height =
-			ppre->di_inp_buf->vframe->compHeight;
-	}
 
 	memcpy(di_buf->vframe,
 	       ppre->di_inp_buf->vframe, sizeof(struct vframe_s));
