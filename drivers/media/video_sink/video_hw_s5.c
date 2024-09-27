@@ -12116,10 +12116,13 @@ void set_video_slice_policy(struct video_layer_s *layer,
 		if ((vinfo->width > 4096 && vinfo->height > 2160)) {
 			slice_num = 1;
 			pi_en = 1;
-		/* 4k 120hz */
-		} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
+		/* 4k 120hz || 4k1k240hz */
+		} else if ((vinfo->width > 1920 && vinfo->height > 1080 &&
 			(vinfo->sync_duration_num /
-			vinfo->sync_duration_den > 60)) {
+			vinfo->sync_duration_den > 60)) ||
+			(vinfo->width > 1920 && vinfo->height >= 1080 &&
+			(vinfo->sync_duration_num /
+			vinfo->sync_duration_den > 120))) {
 			if (vf->duration < 1500 ||
 				vinfo->sync_duration_num / vinfo->sync_duration_den == 144 ||
 				vinfo->sync_duration_num / vinfo->sync_duration_den == 288 ||
@@ -12140,6 +12143,9 @@ void set_video_slice_policy(struct video_layer_s *layer,
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 				/* 4k120hz and frc_n2m_worked && aisr enable 1 slice */
 				/*frc_switch_flag : 0 or 2 force 2 slice valid*/
+				if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
+					pr_info("%s:line=%d, slice_num=%d\n",
+						__func__, __LINE__, slice_num);
 				if (frc_switch_flag == 0 || frc_switch_flag == 2) {
 					slice_num = 2;
 					/* temp set for current frame */
@@ -12182,6 +12188,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			vinfo->height >= 1080 &&
 			(vinfo->sync_duration_num /
 			vinfo->sync_duration_den > 144)) {
+			/* 4k1k 288hz */
 			slice_num = 2;
 			if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
 				pr_info("%s:dv on=%d\n", __func__, is_amdv_on());

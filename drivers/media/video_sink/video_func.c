@@ -4062,7 +4062,7 @@ static void force_switch_slice(void)
 	if (switch_flag != 1 && switch_flag != 2)
 		return;
 
-	if (vinfo && (vinfo->width > 1920 && vinfo->height > 1080 &&
+	if (vinfo && (vinfo->width > 1920 && vinfo->height >= 1080 &&
 		(vinfo->sync_duration_num /
 		vinfo->sync_duration_den > 60))) {
 		/* for t3x */
@@ -4116,7 +4116,7 @@ bool force_switch_to_2slice(void)
 
 	if (!video_is_meson_t3x_cpu())
 		return false;
-	if (vinfo && (vinfo->width > 1920 && vinfo->height > 1080 &&
+	if (vinfo && (vinfo->width > 1920 && vinfo->height >= 1080 &&
 		(vinfo->sync_duration_num /
 		vinfo->sync_duration_den > 60))) {
 		/* for t3x */
