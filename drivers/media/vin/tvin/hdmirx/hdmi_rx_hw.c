@@ -3859,8 +3859,8 @@ bool rx_clk_rate_monitor(u8 port)
 	/* if (rx[rx_info.main_port].state < FSM_WAIT_CLK_STABLE) */
 		/*return changed;*/
 	/*if (is_clk_stable()) { */
-	pll_band = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PLL_BAND);
-	phy_band = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PHY_BAND);
+	pll_band = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
+	phy_band = aml_cable_clk_band(rx[port].clk.cable_clk, clk_rate);
 	if (rx[port].phy.pll_bw != pll_band ||
 	    rx[port].phy.phy_bw != phy_band) {
 		rx[port].phy.cablesel = 0;
@@ -6387,71 +6387,104 @@ int rx_get_aud_pll_err_sts(u8 port)
 	return ret;
 }
 
-u32 rx_get_bandwidth(u32 cable_clk, u32 clk_rate, u32 band_type)
+u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
 {
-	u32 bw = 0;
+	u32 bw;
+	u32 cab_clk = cable_clk;
+
+	if (rx_info.chip_id < CHIP_ID_TL1)
+		return PHY_BW_2;
+
+	/* rx_pr("cable clk=%d, clk_rate=%d\n", cable_clk, clk_rate); */
+	/* 1:40 */
+	if (clk_rate)
+		cab_clk = cable_clk << 2;
+
+	/* 1:10 */
+	if (rx_info.chip_id >= CHIP_ID_T5M) {
+		if (cab_clk < (37 * MHz))
+			bw = PHY_BW_0;
+		else if (cab_clk < (75 * MHz))
+			bw = PHY_BW_1;
+		else if (cab_clk < (115 * MHz))
+			bw = PHY_BW_2;
+		else if (cab_clk < (150 * MHz))
+			bw = PHY_BW_3;
+		else if (cab_clk < (300 * MHz))
+			bw = PHY_BW_4;
+		else if (cab_clk < (525 * MHz))
+			bw = PHY_BW_5;
+		else if (cab_clk < (600 * MHz))
+			bw = PHY_BW_6;
+		else
+			bw = PHY_BW_3;
+	} else {
+		if (cab_clk < (45 * MHz))
+			bw = PHY_BW_0;
+		else if (cab_clk < (77 * MHz))
+			bw = PHY_BW_1;
+		else if (cab_clk < (155 * MHz))
+			bw = PHY_BW_2;
+		else if (cab_clk < (340 * MHz))
+			bw = PHY_BW_3;
+		else if (cab_clk < (525 * MHz))
+			bw = PHY_BW_4;
+		else if (cab_clk < (600 * MHz))
+			bw = PHY_BW_5;
+		else
+			bw = PHY_BW_2;
+	}
+	if (rx_info.aml_phy.force_bw & 0x100) {
+		if (((rx_info.aml_phy.force_bw >> 4) & 0xf) <= 0x6)
+			bw = (rx_info.aml_phy.force_bw >> 4) & 0xf;
+		else
+			bw = PHY_BW_2;
+	}
+	return bw;
+}
+
+u32 aml_phy_pll_band(u32 cable_clk, u32 clk_rate)
+{
+	u32 bw;
 	u32 cab_clk = cable_clk;
 
 	if (clk_rate)
 		cab_clk = cable_clk << 2;
-	if (band_type == PLL_BAND) {
-		if (rx_info.chip_id >= CHIP_ID_T5M) {
-			if (cab_clk < (37 * MHz))
-				bw = PLL_BW_0;
-			else if (cab_clk < (75 * MHz))
-				bw = PLL_BW_1;
-			else if (cab_clk < (150 * MHz))
-				bw = PLL_BW_2;
-			else if (cab_clk < (300 * MHz))
-				bw = PLL_BW_3;
-			else if (cab_clk < (600 * MHz))
-				bw = PLL_BW_4;
-			else
-				bw = PLL_BW_2;
-		} else {
-			if (cab_clk < (35 * MHz))
-				bw = PLL_BW_0;
-			//CVT 1280X720 is 77M
-			else if (cab_clk < (75 * MHz))
-				bw = PLL_BW_1;
-			else if (cab_clk < (155 * MHz))
-				bw = PLL_BW_2;
-			else if (cab_clk < (340 * MHz))
-				bw = PLL_BW_3;
-			else if (cab_clk < (600 * MHz))
-				bw = PLL_BW_4;
-			else
-				bw = PLL_BW_2;
-		}
-	} else if (band_type == PHY_BAND) {
-		if (rx_info.chip_id >= CHIP_ID_T5M) {
-			if (cab_clk < (37 * MHz))
-				bw = PLL_BW_0;
-			else if (cab_clk < (75 * MHz))
-				bw = PLL_BW_1;
-			else if (cab_clk < (150 * MHz))
-				bw = PLL_BW_2;
-			else if (cab_clk < (300 * MHz))
-				bw = PLL_BW_3;
-			else if (cab_clk < (600 * MHz))
-				bw = PLL_BW_4;
-			else
-				bw = PLL_BW_2;
-		} else {
-			if (cab_clk < (35 * MHz))
-				bw = PLL_BW_0;
-			//CVT 1280X720 is 77M
-			else if (cab_clk < (75 * MHz))
-				bw = PLL_BW_1;
-			else if (cab_clk < (155 * MHz))
-				bw = PLL_BW_2;
-			else if (cab_clk < (340 * MHz))
-				bw = PLL_BW_3;
-			else if (cab_clk < (600 * MHz))
-				bw = PLL_BW_4;
-			else
-				bw = PLL_BW_2;
-		}
+
+	/* 1:10 */
+	if (rx_info.chip_id >= CHIP_ID_T5M) {
+		if (cab_clk < (37 * MHz))
+			bw = PLL_BW_0;
+		else if (cab_clk < (75 * MHz))
+			bw = PLL_BW_1;
+		else if (cab_clk < (150 * MHz))
+			bw = PLL_BW_2;
+		else if (cab_clk < (300 * MHz))
+			bw = PLL_BW_3;
+		else if (cab_clk < (600 * MHz))
+			bw = PLL_BW_4;
+		else
+			bw = PLL_BW_2;
+	} else {
+		if (cab_clk < (35 * MHz))
+			bw = PLL_BW_0;
+		//CVT 1280X720 is 77M
+		else if (cab_clk < (75 * MHz))
+			bw = PLL_BW_1;
+		else if (cab_clk < (155 * MHz))
+			bw = PLL_BW_2;
+		else if (cab_clk < (340 * MHz))
+			bw = PLL_BW_3;
+		else if (cab_clk < (600 * MHz))
+			bw = PLL_BW_4;
+		else
+			bw = PLL_BW_2;
+	}
+	if (rx_info.aml_phy.force_bw & 0x100) {
+		if ((rx_info.aml_phy.force_bw & 0xf) <= 0x4)
+			bw = rx_info.aml_phy.force_bw & 0xf;
+		else
+			bw = PLL_BW_2;
 	}
 	return bw;
 }

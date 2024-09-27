@@ -420,7 +420,7 @@ void aml_pll_bw_cfg_tl1(void)
 	u32 clk_rate;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	bw = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PLL_BAND);
+	bw = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
 	if (!is_clk_stable(port) || !cableclk)
 		return;
 	od_div = apll_tab_tl1[bw].od_div;
