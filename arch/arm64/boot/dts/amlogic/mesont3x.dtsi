@@ -3390,11 +3390,11 @@
 		 * bit0 -- enable afbce
 		 * bit1 -- enable afbce compression-lossy
 		 * bit4 -- afbce for 4k
-		 * bit5 -- afbce for 1080p
+		 * bit5 -- afbce for 1080p 1080i
 		 * bit6 -- afbce for 720p
 		 * bit7 -- afbce for smaller resolution
 		 */
-		afbce_bit_mode = <0x11>;
+		afbce_bit_mode = <0x71>;
 		vdin_function_sel = <0x420200>;
 		chk_wr_done_en;
 		lossy_mode = <0x0>; /* 0x0:quan_lossy 0x1:cr_lossy */

@@ -2744,11 +2744,11 @@ void vdin_set_hv_scale_t3x(struct vdin_dev_s *devp)
 set_hv_shrink:
 
 	if ((devp->double_wr || K_FORCE_HV_SHRINK) &&
-	    devp->h_active > 1920 && devp->v_active > 1080) {
+	    (devp->h_active > 1920 || devp->v_active > 1080)) {
 		devp->h_shrink_times = H_SHRINK_TIMES_4k;
 		devp->v_shrink_times = V_SHRINK_TIMES_4k;
-	} else if (devp->double_wr && devp->h_active > 1280 &&
-		   devp->v_active > 720) {
+	} else if (devp->double_wr && (devp->h_active > 720 ||
+		devp->v_active > 576)) {
 		devp->h_shrink_times = H_SHRINK_TIMES_1080;
 		devp->v_shrink_times = V_SHRINK_TIMES_1080;
 	} else {
