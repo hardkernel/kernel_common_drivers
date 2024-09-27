@@ -43,6 +43,9 @@ int codec_mm_dump_all_scatters(void);
 
 int codec_mm_scatter_mgt_test(void);
 int codec_mm_scatter_test(int mode, int p1, int p2);
+int codec_mm_scatter_simu_thread_test(uint time,
+		uint buffer_page_num, uint buffer_num, uint intrval_ms,
+		uint wait_size, uint tvp_mode);
 int codec_mm_dump_all_hash_table(void);
 
 int codec_mm_scatter_mask_for_keep(void *sc_mm);

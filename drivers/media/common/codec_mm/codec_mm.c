@@ -3602,13 +3602,12 @@ static ssize_t debug_store(struct class *class,
 		struct class_attribute *attr,
 		const char *buf, size_t size)
 {
-	unsigned int val;
+	unsigned int val, tmp;
 	ssize_t ret;
 
 	val = -1;
-	/*ret = sscanf(buf, "%d", &val);*/
-	ret = kstrtoint(buf, 0, &val);
-	if (ret != 0)
+	ret = sscanf(buf, "%d %d", &val, &tmp);
+	if (ret == 0)
 		return -EINVAL;
 	switch (val) {
 	case 0:
@@ -3663,6 +3662,20 @@ static ssize_t debug_store(struct class *class,
 		break;
 	case 200:
 		codec_mm_dbuf_walk(NULL);
+		break;
+	case 900: {
+			uint cmd, buffer_page_num, buffer_num, intrval_ms, times;
+			uint wait_size, tvp_mode;
+
+			ret = sscanf(buf, "%d %d %d %d %d %d %d",
+					&cmd, &times, &buffer_page_num, &buffer_num,
+					&intrval_ms, &wait_size, &tvp_mode);
+			pr_info("buf num:%d, page num:%d, intrval_ms:%d, times:%d, wait size:%d, tvp:%d\n",
+					buffer_num, buffer_page_num, intrval_ms,
+					times, wait_size, tvp_mode);
+			codec_mm_scatter_simu_thread_test(times, buffer_page_num, buffer_num,
+					intrval_ms, wait_size, tvp_mode);
+		}
 		break;
 	default:
 		pr_err("unknown cmd! %d\n", val);
