@@ -175,7 +175,8 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 			demux_ext->decode_info(demux, &rp_info);
 	}
 
-	pr_dbg("dma release handle:%x\n", block->handle);
+	pr_dbg("dma release handle:0x%x, paddr:0x%llx, size:0x%x\n",
+		block->handle, block->paddr, block->size);
 	kfree(block);
 }
 
@@ -289,7 +290,9 @@ int dma_buf_get_fd(struct dmx_dma_buf_info *info, struct dmx_demux *dmx)
 	return 0;
 error_fd:
 	dma_buf_put(dbuf);
+	return fd;
 error_alloc_object:
+	pr_error("kfree block:%px\n", block);
 	kfree(block);
 error_copy:
 	return -EFAULT;
