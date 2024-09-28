@@ -1710,6 +1710,25 @@ void vdin_self_start_dec(struct vdin_dev_s *devp)
 			tvin_port_str(devp->parm.port), devp->flags);
 }
 
+void vdin_delay_n_vsync(struct vdin_dev_s *devp, unsigned int vsync_cnt)
+{
+	unsigned int delay_us;
+
+	if (devp->hw_core == VDIN_HW_CORE_LITE)
+		return;
+
+	if (!((devp->last_wr_vfe && (devp->last_wr_vfe->vf.flag & VFRAME_FLAG_GAME_MODE)) ||
+	      (devp->curr_wr_vfe && (devp->curr_wr_vfe->vf.flag & VFRAME_FLAG_GAME_MODE))))
+		return;
+
+	if (devp->parm.info.fps) {
+		delay_us = (1000000 / devp->parm.info.fps) * vsync_cnt;
+		if (vdin_dbg_en)
+			pr_info("vdin%d,delay_us:%d us\n", devp->index, delay_us);
+		usleep_range(delay_us, delay_us + 10);
+	}
+}
+
 /*
  * 1. disable irq.
  * 2. disable hw work, including:
@@ -1751,6 +1770,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	}
 #endif
 	disable_irq(devp->irq);
+	devp->flags &= (~VDIN_FLAG_ISR_EN);
+	vdin_delay_n_vsync(devp, 2);
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 	    devp->vpu_crash_irq > 0)
 		disable_irq(devp->vpu_crash_irq);
@@ -1760,8 +1782,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	if (devp->vdin2_meta_wr_done_irq > 0)
 		disable_irq(devp->vdin2_meta_wr_done_irq);
-
-	devp->flags &= (~VDIN_FLAG_ISR_EN);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* waiting frm_end */
@@ -3321,6 +3341,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	devp->irq_cnt++;
+
+	if (!(devp->flags & VDIN_FLAG_ISR_EN)) {
+		vdin_drop_frame_info(devp, "VDIN_FLAG_ISR_EN");
+		return IRQ_HANDLED;
+	}
 
 	if (devp->vdin_isr_drop) {
 		devp->vdin_isr_drop--;
