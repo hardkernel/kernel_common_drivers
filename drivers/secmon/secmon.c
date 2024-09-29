@@ -24,6 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <asm/page.h>
+#include <linux/suspend.h>
 
 static void __iomem *sharemem_in_base;
 static void __iomem *sharemem_out_base;
@@ -300,11 +301,25 @@ static  struct platform_driver secmon_platform_driver = {
 	},
 };
 
+#ifdef CONFIG_STDSECUMEM
+static int __init setup_secmon_nosave(void)
+{
+	unsigned long start_pfn = virt_to_pfn(secmon_start_virt);
+	unsigned long end_pfn = virt_to_pfn(secmon_start_virt + secmon_size);
+
+	register_nosave_region(start_pfn, end_pfn);
+	return 0;
+}
+#endif
+
 int __init meson_secmon_init(void)
 {
 	int ret;
 
 	ret = platform_driver_register(&secmon_platform_driver);
+#ifdef CONFIG_STDSECUMEM
+	setup_secmon_nosave();
+#endif
 	WARN((secmon_dev_registered != DEV_REGISTERED),
 	     "ERROR: secmon device must be enable!!!\n");
 	return ret;
