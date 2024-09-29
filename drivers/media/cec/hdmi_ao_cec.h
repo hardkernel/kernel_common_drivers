@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2024/08/09: t6d cec driver bringup"
+#define CEC_DRIVER_VERSION     "2024/09/30: cec support std hibernate"
 
 #define CEC_DEV_NAME		"cec"
 

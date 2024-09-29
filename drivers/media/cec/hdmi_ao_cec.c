@@ -3333,7 +3333,28 @@ static int aml_cec_resume_noirq(struct device *dev)
 	return 0;
 }
 
+static int aml_cec_pm_freeze(struct device *dev)
+{
+	struct pinctrl *pin;
+
+	//it will check pinctrl state when pinctrl restore pinmux
+	//freeze -- sleep   restore -- default
+	pin = devm_pinctrl_get_select(dev, "cec_pin_sleep");
+	CEC_INFO("%s\n", __func__);
+	return 0;
+}
+
+static int aml_cec_pm_restore(struct device *dev)
+{
+	pinctrl_pm_select_default_state(dev);
+	aml_cec_resume_noirq(dev);
+	CEC_INFO("%s\n", __func__);
+	return 0;
+}
+
 static const struct dev_pm_ops aml_cec_pm = {
+	.freeze = aml_cec_pm_freeze,
+	.restore = aml_cec_pm_restore,
 	.prepare  = aml_cec_pm_prepare,
 	.complete = aml_cec_pm_complete,
 	.suspend_noirq = aml_cec_suspend_noirq,

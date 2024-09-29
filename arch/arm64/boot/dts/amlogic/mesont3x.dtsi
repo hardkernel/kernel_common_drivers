@@ -2768,7 +2768,7 @@
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
 		pinctrl-0=<&cec_b>;
 		pinctrl-1=<&cec_b>;
-		pinctrl-2=<&cec_b>;
+		pinctrl-2=<&cec_pin_sleep>;
 		clocks = <&clkc CLKID_CECB_32K_CLKOUT>;
 		clock-names = "cecb_clk";
 		reg = <0x0 0xfe028000 0x0 0x2000
@@ -4725,6 +4725,13 @@
 		mux {
 			groups = "cec";
 			function = "cec";
+		};
+	};
+
+	cec_pin_sleep: cec_pin_sleep {
+		mux {
+			groups = "GPIOW_16";
+			function = "gpio_periphs";
 		};
 	};
 
