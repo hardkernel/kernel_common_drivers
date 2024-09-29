@@ -1702,7 +1702,7 @@ int dmabuf_manage_secure_block_free(u32 id_high, u32 id_low,
 	if (pool) {
 		if (addr && size > 0) {
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-			if (version > SECURE_HEAP_USER_TA_VERSION)
+			if (version >= SECURE_HEAP_USER_TA_VERSION)
 				dmabuf_manage_secmem_block_free(pool, addr);
 #endif
 
