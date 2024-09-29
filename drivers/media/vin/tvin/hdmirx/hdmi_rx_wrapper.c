@@ -78,6 +78,7 @@ static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
 static int fpll_stable_max = 50;
 static int reset_pcs_en;
+static int force_avi_stable;
 int fsm_debug;
 static int ecc_err_monitor;
 u32 vrr_func_en = 1;
@@ -1461,6 +1462,7 @@ irqreturn_t irq2_handler(int irq, void *params)
 			skip_frame(skip_frame_cnt, E_PORT2, "irq2 valid_m_fall");
 			if (log_level & 0x100)
 				rx_pr("[isr] valid_m_fall\n");
+			rx[E_PORT2].state = FSM_WAIT_FRL_TRN_DONE;
 		}
 	}
 	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_EMP_DONE]) {
@@ -1642,6 +1644,7 @@ irqreturn_t irq3_handler(int irq, void *params)
 			skip_frame(skip_frame_cnt, E_PORT3, "irq3 valid_m_fail");
 			if (log_level & 0x100)
 				rx_pr("[isr] valid_m_fall\n");
+			rx[E_PORT3].state = FSM_WAIT_FRL_TRN_DONE;
 		}
 	}
 	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_EMP_DONE]) {
@@ -2353,6 +2356,9 @@ static bool rx_is_avi_stable(u8 port)
 	bool ret = true;
 
 	if (rx_info.chip_id < CHIP_ID_T7)
+		return ret;
+
+	if (force_avi_stable)
 		return ret;
 
 	if ((rx[port].pre.colorspace != rx[port].cur.colorspace ||
@@ -3146,6 +3152,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(cal_phy_time, i++);
 	pr_var(pll_band, i++);
 	pr_var(cdr_bw, i++);
+	pr_var(force_avi_stable, i++);
 	pr_var(rx[E_PORT0].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT1].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT2].var.clk_stable_cnt, i++);
@@ -3626,6 +3633,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(cdr_bw),
 		&cdr_bw, value))
 		return pr_var(cdr_bw, index);
+	if (set_pr_var(tmpbuf, var_to_str(force_avi_stable),
+		&force_avi_stable, value))
+		return pr_var(force_avi_stable, index);
 	//fsm var
 	if (set_pr_var(tmpbuf, var_to_str(rx[E_PORT0].var.dbg_ve),
 		&rx[E_PORT0].var.dbg_ve, value))
@@ -5934,7 +5944,8 @@ void rx_port2_main_state_machine(void)
 						rx[port].state = FSM_HPD_LOW;
 						rx[port].var.vic_check_en = false;
 					} else {
-						rx[port].state = FSM_FRL_FLT_READY;
+						rx[port].state = rx[port].var.frl_rate ?
+							FSM_WAIT_FRL_TRN_DONE : FSM_FRL_FLT_READY;
 						rx_set_eq_run_state(E_EQ_START, port);
 						rx[port].var.vic_check_en = true;
 					}
@@ -6418,7 +6429,8 @@ void rx_port3_main_state_machine(void)
 						rx[port].state = FSM_HPD_LOW;
 						rx[port].var.vic_check_en = false;
 					} else {
-						rx[port].state = FSM_FRL_FLT_READY;
+						rx[port].state = rx[port].var.frl_rate ?
+							FSM_WAIT_FRL_TRN_DONE : FSM_FRL_FLT_READY;
 						rx_set_eq_run_state(E_EQ_START, port);
 						rx[port].var.vic_check_en = true;
 					}

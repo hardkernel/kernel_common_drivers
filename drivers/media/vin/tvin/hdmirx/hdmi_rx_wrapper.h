@@ -35,7 +35,8 @@
 /* 2024.08.30 fix hpd time too short */
 /* 2024.09.04 optimize drm pkt handle flow in irq */
 /* 2024.09.26 fix rx can not unmute on t3x */
-#define RX_WRAPPER_VER "ver.2024/09/26"
+/* 2024.10.08 use irq to set fpll cfg */
+#define RX_WRAPPER_VER "ver.2024/10/08"
 
 struct freq_ref_s {
 	bool interlace;
