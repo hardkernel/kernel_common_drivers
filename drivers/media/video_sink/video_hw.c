@@ -13868,7 +13868,7 @@ void video_secure_set(u8 vpp_index)
 		layer = get_layer_by_layer_id(i);
 
 		/* layer is NULL or vpp_index does not match, skip */
-		if (!layer || layer->vpp_index != vpp_index)
+		if (!layer/* || layer->vpp_index != vpp_index*/)
 			continue;
 		if (layer->dispbuf &&
 		    (layer->dispbuf->flag & VFRAME_FLAG_VIDEO_SECURE))
@@ -13898,7 +13898,7 @@ void video_secure_set(u8 vpp_index)
 			else if (layer->layer_id == 1)
 				secure_src |= VD2_FGRAIN_SECURE;
 		}
-		video_enable |= layer->enabled;
+		video_enable |= layer->enabled << i;
 	}
 
 	if (video_enable) {

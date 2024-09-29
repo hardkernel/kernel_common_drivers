@@ -350,10 +350,19 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 	struct vd_secure_info_s vd_secure[MAX_SECURE_OUT];
 	bool vpp_top_en = 0;
 	struct vpu_sec_bit_s change;
+	u32 reg_vpp_index = vpp_index;
 
 	version = vpu_secure_version();
 	if (!is_vpu_secure_support())
 		return 0;
+
+	/* prevsync belongs to the screen corresponding to VPP_TOP,
+	 * but when updating the register, the RDMA channel of prevsync needs to be used.
+	 * Therefore, there are two variables: vpp_index and reg_vpp_index.
+	 */
+	if (vpp_index == VPP_PRE_VSYNC)
+		vpp_index = VPP_TOP;
+
 	switch (module) {
 	case OSD_MODULE:
 		if ((secure_src & OSD1_INPUT_SECURE) ||
@@ -486,7 +495,7 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 				pr_info("line=%d,module=%d value=0x%x, value_save=0x%x, bit_changed=0x%x\n",
 					__LINE__, module, value, value_save[vpp_index],
 					change.bit_changed);
-			secure_reg_update(ins, &change, vpp_index);
+			secure_reg_update(ins, &change, reg_vpp_index);
 			secure_update = 1;
 		}
 		value_save[vpp_index] = value;
