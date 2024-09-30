@@ -18,7 +18,7 @@ ${ROOT_DIR}/common/scripts/kconfig/merge_config.sh -m -r \
 	${ROOT_DIR}/common/common_drivers/arch/arm64/configs/amlogic_gki.fragment  \
 	${ROOT_DIR}/common/common_drivers/arch/arm64/configs/amlogic_gki.10  \
 	${ROOT_DIR}/common/common_drivers/arch/arm64/configs/amlogic_gki.debug \
-	${ROOT_DIR}/common/common_drivers/arch/arm64/configs/amlogic_gcc64_deconfig
+	${ROOT_DIR}/common/common_drivers/arch/arm64/configs/amlogic_gcc64_defconfig
 
 export -n KCONFIG_CONFIG
 CROSS_COMPILE_TOOL=${ROOT_DIR}/prebuilts/gcc/linux-x86/host/x86_64-aarch64-10.3-2021.07/bin/aarch64-none-linux-gnu-
