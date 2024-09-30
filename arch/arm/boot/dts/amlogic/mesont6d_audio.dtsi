@@ -21,7 +21,15 @@
 			lane_offset = <8>;
 			charger_current_cap = <0x2>;
 			output_type = <0>;
-			output_pin = <0>;
+			/*
+			 *LP_RP_EN = 0x0,
+			 *LP_RN_EN = 0x1
+			 *LN_RP_EN = 0x2,
+			 *LN_RN_EN = 0x3,
+			 *LR_PN_EN = 0x4
+			 */
+			headphone_pin = <0>;
+			lineout_pin = <0x3>;
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
 			status = "okay";

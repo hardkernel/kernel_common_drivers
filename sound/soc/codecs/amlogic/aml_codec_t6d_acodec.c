@@ -71,9 +71,11 @@ struct am_acodec_priv {
 	/*the headphone mode capacitance*/
 	int charger_current_cap;
 	/*LP_RP_EN */
-	int output_pin;
+	int headphone_pin;
+	int lineout_pin;
 	/*headphone and lineout output*/
 	int output_type;
+	int headphone_mute;
 };
 
 enum meson_acodec_version {
@@ -255,44 +257,36 @@ static void acodec_adc_pga_gain_set(struct snd_soc_component *component, int ver
 static void output_pin_enable(struct snd_soc_component *component,
 	enum output_pin_sel pin, int enable)
 {
+	unsigned int mask = 0, val = 0;
+
 	switch (pin) {
 	case LP_RP_EN:
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LOLP_EN,
-							1 << LOLP_EN);
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LORP_EN,
-							1 << LORP_EN);
+		mask = 1 << LOLP_EN | 1 << LORP_EN;
+		val = enable << LOLP_EN | enable << LORP_EN;
 		break;
 	case LP_RN_EN:
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LOLP_EN,
-							1 << LOLP_EN);
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LORN_EN,
-							0 << LORN_EN);
+		mask = 1 << LOLP_EN | 1 << LORN_EN;
+		val = enable << LOLP_EN | enable << LORN_EN;
 		break;
 	case LN_RP_EN:
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LOLN_EN,
-							0 << LOLN_EN);
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LORP_EN,
-							1 << LORP_EN);
+		mask = 1 << LOLN_EN | 1 << LORP_EN;
+		val = enable << LOLN_EN | enable << LORP_EN;
 		break;
 	case LN_RN_EN:
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LOLN_EN,
-							1 << LOLN_EN);
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LORN_EN,
-							1 << LORN_EN);
+		mask = 1 << LOLN_EN | 1 << LORN_EN;
+		val = enable << LOLN_EN | enable << LORN_EN;
 		break;
 	case LR_PN_EN:
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LOLP_EN,
-							1 << LOLP_EN);
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LOLN_EN,
-							1 << LOLN_EN);
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LORP_EN,
-							1 << LORP_EN);
-		snd_soc_component_update_bits(component, ACODEC_0, 1 << LORN_EN,
-							1 << LORN_EN);
+		mask = 0xf;
+		val = enable ? 0xf : 0;
 		break;
 	default:
+		mask = 0xf;
+		val = enable ? 0xf : 0;
 		break;
 	}
+	snd_soc_component_update_bits(component, ACODEC_0, mask,
+							val);
 }
 
 #ifdef AUDIO_DEBUG_POP
@@ -319,7 +313,6 @@ static void drop_pop_mode_1(struct snd_soc_component *component)
 	struct am_acodec_priv *aml_acodec =
 				snd_soc_component_get_drvdata(component);
 	enum charge_cap_level level = aml_acodec->charger_current_cap;
-	enum output_pin_sel output = aml_acodec->output_pin;
 
 	snd_soc_component_update_bits(component, ACODEC_3, 1 << DISCHARGE_CURRENT,
 							0 << DISCHARGE_CURRENT);
@@ -329,9 +322,6 @@ static void drop_pop_mode_1(struct snd_soc_component *component)
 							1 << EN_C_ONCE);
 	snd_soc_component_update_bits(component, ACODEC_8, 0xf << CHARGE_CURRENT_CAP,
 						level << CHARGE_CURRENT_CAP);
-	if (aml_acodec->output_type == DUAL_OUTPUT)
-		output = LR_PN_EN;
-	output_pin_enable(component, output, 1);
 }
 
 static void headphone_mode_sel(struct snd_soc_component *component,
@@ -372,13 +362,14 @@ static void single_mode_headphone_set(struct snd_soc_component *component)
 	struct am_acodec_priv *aml_acodec =
 				snd_soc_component_get_drvdata(component);
 
-	output_path_set(component, aml_acodec->chip_version, aml_acodec->output_pin);
-	headphone_mode_sel(component, aml_acodec->output_pin);
+	output_path_set(component, aml_acodec->chip_version, aml_acodec->headphone_pin);
+	headphone_mode_sel(component, aml_acodec->headphone_pin);
 	snd_soc_component_update_bits(component, ACODEC_3, 1 << HEADPHONE_MODE,
 							1 << HEADPHONE_MODE);
 	snd_soc_component_update_bits(component, ACODEC_3, 0x3 << DRIVER_MODE_SEL,
 							0x00 << DRIVER_MODE_SEL);
 	drop_pop_mode_1(component);
+	output_pin_enable(component, aml_acodec->headphone_pin, 1);
 }
 
 static void single_mode_lineout_set(struct snd_soc_component *component)
@@ -386,20 +377,20 @@ static void single_mode_lineout_set(struct snd_soc_component *component)
 	struct am_acodec_priv *aml_acodec =
 				snd_soc_component_get_drvdata(component);
 
-	output_path_set(component, aml_acodec->chip_version, aml_acodec->output_pin);
+	output_path_set(component, aml_acodec->chip_version, aml_acodec->lineout_pin);
 	snd_soc_component_update_bits(component, ACODEC_3, 1 << HEADPHONE_MODE,
 							0 << HEADPHONE_MODE);
 	snd_soc_component_update_bits(component, ACODEC_3, 0x3 << DRIVER_MODE_SEL,
 							0x00 << DRIVER_MODE_SEL);
-	drop_pop_mode_1(component);
+	output_pin_enable(component, aml_acodec->lineout_pin, 1);
 }
 
 static void dual_output_single_mode_set(struct snd_soc_component *component)
 {
 	struct am_acodec_priv *aml_acodec =
 				snd_soc_component_get_drvdata(component);
-	enum output_pin_sel headphone = aml_acodec->output_pin;
-	enum output_pin_sel lineout = LN_RN_EN - headphone;
+	enum output_pin_sel headphone = aml_acodec->headphone_pin;
+	enum output_pin_sel lineout = aml_acodec->lineout_pin;
 
 	output_path_set(component, aml_acodec->chip_version, headphone);
 	output_path_set(component, aml_acodec->chip_version, lineout);
@@ -408,8 +399,10 @@ static void dual_output_single_mode_set(struct snd_soc_component *component)
 							1 << HEADPHONE_MODE);
 	snd_soc_component_update_bits(component, ACODEC_3, 0x3 << DRIVER_MODE_SEL,
 							0x3 << DRIVER_MODE_SEL);
-	headphone_mode_sel(component, aml_acodec->output_pin);
+	headphone_mode_sel(component, aml_acodec->headphone_pin);
 	drop_pop_mode_1(component);
+	output_pin_enable(component, aml_acodec->lineout_pin, 1);
+	output_pin_enable(component, aml_acodec->headphone_pin, 1);
 }
 
 static void diff_mode_lineout_set(struct snd_soc_component *component)
@@ -636,6 +629,30 @@ static const struct soc_enum DAC_source_sel_enum =
 			(SND_SOC_NOPM, 0, ARRAY_SIZE(DAC_Src_texts),
 			DAC_Src_texts);
 
+static int Headphone_mute_get(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = aml_acodec->headphone_mute;
+	return 0;
+}
+
+static int Headphone_mute_set(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	int value = ucontrol->value.integer.value[0];
+
+	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
+
+	aml_acodec->headphone_mute = value;
+
+	output_pin_enable(component, aml_acodec->headphone_pin, value ? 0 : 1);
+	return 0;
+}
+
 static const struct snd_kcontrol_new am_acodec_snd_controls[] = {
 	/*PGA_IN Gain */
 	SOC_DOUBLE_TLV
@@ -673,6 +690,11 @@ static const struct snd_kcontrol_new am_acodec_snd_controls[] = {
 			DAC_source_sel_enum,
 			aml_DAC_source_sel_get_enum,
 			aml_DAC_source_sel_set_enum),
+
+	SOC_SINGLE_BOOL_EXT("Headphone mute", 0,
+			    Headphone_mute_get,
+			    Headphone_mute_set),
+
 };
 
 static const struct snd_kcontrol_new am_acodec_snd_dac2_controls[] = {
@@ -1178,9 +1200,13 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 			"charger_current_cap", &aml_acodec->charger_current_cap);
 	if (ret < 0)
 		aml_acodec->charger_current_cap = CAP_8_30UF;
-	ret = of_property_read_u32(pdev->dev.of_node, "output_pin", &aml_acodec->output_pin);
+	ret = of_property_read_u32(pdev->dev.of_node, "headphone_pin", &aml_acodec->headphone_pin);
 	if (ret < 0)
-		aml_acodec->output_pin = LR_PN_EN;
+		aml_acodec->headphone_pin = LP_RP_EN;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "lineout_pin", &aml_acodec->lineout_pin);
+	if (ret < 0)
+		aml_acodec->lineout_pin = LN_RN_EN;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "output_type", &aml_acodec->output_type);
 	if (ret < 0)
