@@ -5145,10 +5145,6 @@ void rx_port0_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
@@ -5546,10 +5542,6 @@ void rx_port1_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
@@ -6029,10 +6021,7 @@ void rx_port2_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
+				hdmirx_config_compress_video(port);
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
@@ -6514,10 +6503,7 @@ void rx_port3_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
+				hdmirx_config_compress_video(port);
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;

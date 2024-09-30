@@ -5606,6 +5606,12 @@ void set_dv_ll_mode(bool en, u8 port)
 	}
 }
 
+void hdmirx_config_compress_video(u8 port)
+{
+	if (rx[port].dsc_flag)
+		rx_switch_to_self_hsync(port, true);
+}
+
 /*
  * hdmirx_config_video - video mute config
  */
@@ -5708,8 +5714,6 @@ void hdmirx_config_video(u8 port)
 	if (rx_is_switch_to_analog_clk(port))
 		rx_switch_to_analog_clk(port);
 
-	if (rx[port].dsc_flag)
-		rx_switch_to_self_hsync(port, true);
 	if (port == rx_info.main_port) {
 		if (rx[port].cur.vactive >= 2100 || rx[port].cur.hactive >= 3800)
 			hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), 1);

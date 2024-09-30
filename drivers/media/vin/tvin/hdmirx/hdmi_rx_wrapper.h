@@ -37,7 +37,8 @@
 /* 2024.09.26 fix rx can not unmute on t3x */
 /* 2024.10.08 use irq to set fpll cfg */
 /* 2024.10.10 fix fem exit when open irq */
-#define RX_WRAPPER_VER "ver.2024/10/08"
+/* 2024.10.11 fix dsc timing judge */
+#define RX_WRAPPER_VER "ver.2024/10/11"
 
 struct freq_ref_s {
 	bool interlace;
