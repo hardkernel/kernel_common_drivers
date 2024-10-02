@@ -791,6 +791,42 @@
 	wakeup_map = <&hk_ir_wakeup_key>;
 };
 
+&gpio {
+	gpio-line-names =
+			"", "", 		// GPIOE 0 ~ GPIOE 1
+
+			"", "", "", "", // GPIOB 0 ~ GPIOB 3
+			"", "", "", "", // GPIOB 4 ~ GPIOB 7
+			"", "", "", "", // GPIOB 8 ~ GPIOB 11
+			"", "",         // GPIOB 11 ~ GPIOB 13
+
+			"", "", "", "", // GPIOC 0 ~ GPIOC 3
+			"", "", "", "", // GPIOC 4 ~ GPIOC 7
+
+			"", "", "PIN_28", "PIN_27", // GPIOD 0 ~ GPIOD 3
+			"PIN_7",				// GPIOD 4
+
+			"", "PIN_16", "PIN_18", "", // GPIODV 0 ~ GPIODV 3
+			"", "BLUE_LED", "RED_LED",     // GPIODV 4 ~ GPIODV 6
+
+			"", "", "", "", // GPIOH 0 ~ GPIOH 3
+			"PIN_29", "PIN_31", "", "", // GPIOH 4 ~ GPIOH 7
+			"", "", "", "", // GPIOH 8 ~ GPIOH 11
+
+			"PIN_33", "PIN_35", "PIN_32", "PIN_36", // GPIOX 0 ~ GPIOX 3
+			"PIN_15", "PIN_11", "PIN_12", "PIN_26", // GPIOX 4 ~ GPIOX 7
+			"PIN_19", "PIN_21", "PIN_24", "PIN_23", // GPIOX 8 ~ GPIOX 11
+			"PIN_8", "PIN_10", "PIN_22", "PIN_13", // GPIOX 12 ~ GPIOX 15
+			"", "PIN_3", "PIN_5", "", // GPIOX 16 ~ GPIOX 19
+
+			"", "", "", "", // GPIOZ 0 ~ GPIOZ 3
+			"", "", "", "", // GPIOZ 4 ~ GPIOZ 7
+			"", "", "", "", // GPIOZ 8 ~ GPIOZ 11
+			"",				// GPIOZ 12
+
+			"", "", ""; // GPIO_TEST_N, GPIO_CC1, GPIO_CC2
+};
+
 &periphs_pinctrl {
 	pwm_a_gpio_dv1: pwm_a_gpio_dv1 {
 		mux {
