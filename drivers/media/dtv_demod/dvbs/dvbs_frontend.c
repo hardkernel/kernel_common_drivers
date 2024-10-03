@@ -406,7 +406,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 	int asperity = 0, next_step_khz = 0, signal_state = 0, freq_add = 0, freq_add_dly = 0;
 	int scan_time = 1;
 	bool found_tp = false;
-	unsigned int last_step_num = 50, cur_step_num = 0, percent_base = 0;
+	unsigned int last_step_num = 0, cur_step_num = 0, percent_base = 0;
 
 	list_for_each_entry(tmp, &devp->demod_list, list) {
 		if (tmp->id == 0) {
@@ -511,11 +511,11 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 			}
 
 			cur_step_num = (freq - freq_min) / freq_one_percent + percent_base;
-			PR_DVBS("last %d cur_step_num %d\n",
-					demod->blind_result_frequency, cur_step_num);
+			PR_DVBS("last %d cur_step_num %d\n", last_step_num, cur_step_num);
 			if (freq <= freq_max &&
-					cur_step_num > demod->blind_result_frequency &&
+					cur_step_num > last_step_num &&
 					cur_step_num <= (scan_time == 1 ? 50 : 25)) {
+				last_step_num = cur_step_num;
 				demod->blind_result_frequency = cur_step_num;
 				demod->blind_result_symbol_rate = 0;
 
@@ -564,6 +564,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 
 	if (total_result.tp_num > 0 && !devp->blind_scan_stop) {
 		// map blind scan try lock process to 51% ~ 99%
+		last_step_num = 50;
 		freq_one_percent = total_result.tp_num * 50 / 50;
 
 		dvbs_blind_fft_result_handle(&total_result);
