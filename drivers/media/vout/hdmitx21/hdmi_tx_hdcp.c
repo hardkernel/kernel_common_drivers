@@ -1955,7 +1955,11 @@ static void hdcp_check_update_whandler(struct work_struct *w)
 		hdcptx_reset(p_hdcp);
 	}
 	if (p_hdcp->hdcptx_enabled) {
-		p_hdcp->hdcp_cap_ds = hdcp_check_ds_hdcp2ver(p_hdcp);
+		/* only read downstream hdcp version when hdcp2.2 is capable on source side */
+		if (get_hdcp2_lstore())
+			p_hdcp->hdcp_cap_ds = hdcp_check_ds_hdcp2ver(p_hdcp);
+		else
+			p_hdcp->hdcp_cap_ds = HDCP_VER_HDCP1X;
 		if (p_hdcp->hdcp_cap_ds != HDCP_VER_NONE) {
 			update_hdcp_state(p_hdcp, HDCP_STAT_AUTH);
 			hdcptx_auth_start(p_hdcp);
