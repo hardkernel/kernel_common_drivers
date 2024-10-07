@@ -3106,7 +3106,8 @@ static int vpu_probe(struct platform_device *pdev)
 		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
 		vpu_conf.data->chip_type == VPU_CHIP_S7D ||
 		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
-		vpu_conf.data->chip_type == VPU_CHIP_T6D)
+		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
+		vpu_conf.data->chip_type == VPU_CHIP_T5M)
 		ret = init_arb_urgent_table();
 	if (ret)
 		vpu_power_init();
