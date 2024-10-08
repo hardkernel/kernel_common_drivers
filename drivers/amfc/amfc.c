@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
+#include <linux/syscore_ops.h>
 #include <crypto/internal/scompress.h>
 
 #ifdef CONFIG_HIGHMEM
@@ -1174,6 +1175,39 @@ static struct class amfc_class = {
 };
 
 /*------------ driver layer ---------------*/
+static int amfc_remove(struct platform_device *pdev)
+{
+	int i;
+	struct amfc *tmp = amfc;
+
+	if (amfc) {
+		amfc = NULL;
+		class_destroy(&amfc_class);
+		for (i = 0; i < 4; i++) {
+			if (tmp->pages[i])
+				__free_pages(tmp->pages[i], 0);
+		}
+		vfree(tmp->bounce_buffer);
+		kfree(tmp->compress);
+		kfree(tmp->decompress);
+		devm_kfree(&pdev->dev, tmp);
+	}
+	return 0;
+}
+
+void amfc_syscore_shutdown(void)
+{
+	struct platform_device *pdev;
+
+	pdev = to_platform_device(amfc->dev);
+	amfc_remove(pdev);
+	pm_runtime_force_suspend(&pdev->dev);
+}
+
+static struct syscore_ops amfc_syscore_ops = {
+	.shutdown = amfc_syscore_shutdown,
+};
+
 static int __init amfc_probe(struct platform_device *pdev)
 {
 	int r = 0, irq, num;
@@ -1297,6 +1331,7 @@ static int __init amfc_probe(struct platform_device *pdev)
 	if (r)
 		pr_info("%s, class regist failed:%d\n", __func__, r);
 
+	register_syscore_ops(&amfc_syscore_ops);
 	return 0;
 err:
 	for (num = 0; num < 4; num++) {
@@ -1323,32 +1358,6 @@ static int amfc_resume(struct device *dev)
 	return 0;
 }
 
-static int amfc_remove(struct platform_device *pdev)
-{
-	int i;
-	struct amfc *tmp = amfc;
-
-	if (amfc) {
-		amfc = NULL;
-		class_destroy(&amfc_class);
-		for (i = 0; i < 4; i++) {
-			if (tmp->pages[i])
-				__free_pages(tmp->pages[i], 0);
-		}
-		vfree(tmp->bounce_buffer);
-		kfree(tmp->compress);
-		kfree(tmp->decompress);
-		devm_kfree(&pdev->dev, tmp);
-	}
-	return 0;
-}
-
-static void amfc_shutdown(struct platform_device *pdev)
-{
-	amfc_remove(pdev);
-	pm_runtime_force_suspend(&pdev->dev);
-}
-
 static SIMPLE_DEV_PM_OPS(amfc_pm_ops, amfc_suspend, amfc_resume);
 
 #ifdef CONFIG_OF
@@ -1372,7 +1381,6 @@ static struct platform_driver amfc_driver = {
 		.pm = &amfc_pm_ops,
 	},
 	.remove   = amfc_remove,
-	.shutdown = amfc_shutdown,
 };
 
 int __init amfc_init(void)
