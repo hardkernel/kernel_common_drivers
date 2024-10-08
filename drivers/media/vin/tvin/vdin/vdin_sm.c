@@ -606,11 +606,12 @@ void tvin_smr_init_counter(int index)
 
 u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e state)
 {
-	unsigned int signal_type = devp->parm.info.signal_type;
+	unsigned int signal_type = 0;
 	enum tvin_sg_chg_flg signal_chg = TVIN_SIG_CHG_NONE;
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct tvin_sig_property_s *prop;
 	unsigned int i;
+	u32 val = 0;
 
 	if (state < TVIN_SM_STATUS_PRESTABLE)
 		return TVIN_SIG_CHG_NONE;
@@ -661,6 +662,8 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 			/*devp->prop.vdin_hdr_flag = false;*/
 			signal_type &= ~(1 << 29);
 			signal_type &= ~(1 << 25);
+			val = vdin_matrix_range_chk(devp);
+			signal_type |= (val << 25);
 			/* default is bt709,if change need sync */
 			signal_type = ((1 << 16) |
 				       (signal_type & (~0xFF0000)));
@@ -692,6 +695,8 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 				devp->prop.vdin_hdr_flag = false;
 				signal_type &= ~(1 << 29);
 				signal_type &= ~(1 << 25);
+				val = vdin_matrix_range_chk(devp);
+				signal_type |= (val << 25);
 				/* default is bt709,if change need sync */
 				signal_type = ((1 << 16) |
 					(signal_type & (~0xFF0000)));
@@ -702,14 +707,9 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 	} else if (prop->hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_flag = false;
 		signal_type &= ~(1 << 29);
-		if (devp->prop.color_fmt_range == TVIN_RGB_FULL ||
-		    devp->prop.color_fmt_range == TVIN_YUV_FULL)
-			signal_type |= (1 << 25);
-		else if (devp->prop.color_fmt_range == TVIN_RGB_LIMIT ||
-			 devp->prop.color_fmt_range == TVIN_YUV_LIMIT)
-			signal_type &= ~(1 << 25);
-		else
-			signal_type &= ~(1 << 25);/* 0:limit */
+		signal_type &= ~(1 << 25);
+		val = vdin_matrix_range_chk(devp);
+		signal_type |= (val << 25);
 		/* default is bt709,if change need sync */
 		signal_type = ((1 << 16) | (signal_type & (~0xFF0000)));
 		signal_type = ((1 << 8) | (signal_type & (~0xFF00)));
