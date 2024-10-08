@@ -7770,10 +7770,14 @@ static inline unsigned int vdin_set_vin_base_fr(unsigned int fps)
 		fps = 50;
 	else if (fps <= 60)
 		fps = 60;
+	else if (fps <= 100)
+		fps = 100;
 	else if (fps <= 120)
 		fps = 120;
 	else if (fps <= 144)
 		fps = 144;
+	else if (fps <= 165)
+		fps = 165;
 	else if (fps <= 200)
 		fps = 200;
 	else if (fps <= 240)
