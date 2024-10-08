@@ -438,7 +438,7 @@ static const struct clk_hw_onecell_data g12a_aoclk_onecell_data = {
 		[CLKID_AO_CEC]		= &g12a_aoclk_cec.hw,
 		[CLKID_AO_CTS_RTC_OSCIN] = &g12a_aoclk_cts_rtc_oscin.hw,
 	},
-	.num = NR_CLKS,
+	.num = NR_AO_CLKS,
 };
 
 static const struct meson_aoclk_data g12a_aoclkc_data = {
@@ -457,7 +457,6 @@ static const struct of_device_id g12a_aoclkc_match_table[] = {
 	},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, g12a_aoclkc_match_table);
 
 static struct platform_driver g12a_aoclkc_driver = {
 	.probe		= meson_aoclkc_probe,
@@ -467,5 +466,18 @@ static struct platform_driver g12a_aoclkc_driver = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int __init g12a_aoclk_init(void)
+{
+	return platform_driver_register(&g12a_aoclkc_driver);
+}
+
+void __exit g12a_aoclk_exit(void)
+{
+}
+#else
+MODULE_DEVICE_TABLE(of, g12a_aoclkc_match_table);
 module_platform_driver(g12a_aoclkc_driver);
+
 MODULE_LICENSE("GPL v2");
+#endif

@@ -36,6 +36,6 @@
 #define CLKID_AO_CEC		27
 #define CLKID_AO_CTS_RTC_OSCIN	28
 
-#define NR_CLKS	29
+#define NR_AO_CLKS	29
 
 #endif
