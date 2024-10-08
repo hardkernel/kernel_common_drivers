@@ -21,6 +21,7 @@
 #include <linux/amlogic/aml_spi_mem.h>
 #include <linux/amlogic/aml_pageinfo.h>
 #include <linux/amlogic/nand_encryption.h>
+#include <linux/amlogic/key_manage.h>
 
 static int spinand_read_reg_op(struct spinand_device *spinand, u8 reg, u8 *val)
 {
@@ -1498,6 +1499,7 @@ static int spinand_probe(struct spi_mem *mem)
 	if (ret)
 		goto err_spinand_cleanup;
 
+	auto_attach();
 	return 0;
 
 err_spinand_cleanup:
