@@ -55,6 +55,9 @@
 #include <linux/amlogic/aml_iotrace.h>
 #endif
 
+#define SIZE_ALIG32(frm_hsize)   ((((frm_hsize) + 31) >> 5) << 5)
+#define SIZE_ALIG2(frm_hsize)   ((((frm_hsize) + 1) >> 1) << 1)
+
 int frc_enable_cnt = 1;
 module_param(frc_enable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_enable_cnt, "frc enable counter");
@@ -581,8 +584,13 @@ static bool frc_osd_window_en(struct st_frc_in_sts *cur_in_sts)
 	if (get_chip_type() != ID_T3X)
 		return false;
 
-	if ((cur_in_sts->in_hsize < HSIZE_MAX_4K && cur_in_sts->in_hsize > HSIZE_MIN_4K) ||
-		(cur_in_sts->in_vsize < VSIZE_MAX_2K && cur_in_sts->in_vsize > VSIZE_MIN_2K))
+	if ((devp->out_sts.vout_width == WIDTH_4K && devp->out_sts.vout_height == HEIGHT_2K) &&
+		((cur_in_sts->in_hsize < HSIZE_MAX_4K && cur_in_sts->in_hsize > HSIZE_MIN_4K) ||
+		(cur_in_sts->in_vsize < VSIZE_MAX_2K && cur_in_sts->in_vsize > VSIZE_MIN_2K)))
+		return true;
+	else if ((devp->out_sts.vout_width == WIDTH_4K && devp->out_sts.vout_height == HEIGHT_1K) &&
+		((cur_in_sts->in_hsize < HSIZE_MAX_4K && cur_in_sts->in_hsize > HSIZE_MIN_4K) ||
+		(cur_in_sts->in_vsize < VSIZE_MAX_1K && cur_in_sts->in_vsize > VSIZE_MIN_1K)))
 		return true;
 	else if ((devp->out_sts.vout_width == WIDTH_2K && devp->out_sts.vout_height == HEIGHT_1K) &&
 		((cur_in_sts->in_hsize < HSIZE_MAX_2K && cur_in_sts->in_hsize > HSIZE_MIN_2K) ||
@@ -617,9 +625,15 @@ static void frc_disable_deal_diff_win(void)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
-	if (devp->out_sts.out_framerate > 60 &&
-		(devp->st_change == 1 || devp->st_change == 2)) {
-		return;
+	if (devp->out_sts.out_framerate > 60 && (devp->st_change == 1 || devp->st_change == 2)) {
+		if ((devp->frc_sts.vsize_changed || devp->frc_sts.hsize_changed) &&
+			(devp->frc_sts.state == FRC_STATE_ENABLE ||
+				devp->frc_sts.new_state == FRC_STATE_ENABLE)) {
+			pr_frc(2, "size changed, start disable frc\n");
+			frc_fast_disable_process();
+		} else {
+			return;
+		}
 	} else if (devp->frc_sts.state == FRC_STATE_ENABLE ||
 		devp->frc_sts.new_state == FRC_STATE_ENABLE) {
 		pr_frc(2, "start disable frc\n");
@@ -641,6 +655,16 @@ static void frc_disable_deal_n2m_change(void)
 		frc_change_to_state(FRC_STATE_BYPASS);
 		frc_state_change_finish(devp);
 	}
+}
+
+static int frc_set_window_dly_cnt(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (devp->out_sts.out_framerate <= FRC_VD_FPS_120)
+		return WINDOW_DELAY_CNT_120hz;
+	else
+		return WINDOW_DELAY_CNT_240hz;
 }
 
 const char * const frc_state_ary[] = {
@@ -731,7 +755,10 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	//enum frc_state_e cur_state = devp->frc_sts.state;
 	u32 cur_sig_in;
 	u32 tmpvalue;
+	int win_dly_cnt;
 	bool is_osd_window;
+	bool hsize_change;
+	bool vsize_change;
 	struct frc_fw_data_s *pfw_data;
 	struct frc_top_type_s *frc_top;
 	struct vinfo_s *vinfo = get_current_vinfo();
@@ -776,15 +803,31 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		READ_FRC_REG(FRC_REG_OUT_INT_FLAG));
 	}
 
-	/* check h size change */
 	devp->in_sts.size_chged = 0;
 	devp->in_sts.t3x_proc_size_chg = 0;
+	devp->frc_sts.vsize_changed = 0;
+	devp->frc_sts.hsize_changed = 0;
+	hsize_change = 0;
+	vsize_change = 0;
+	if (devp->st_change == 1 && devp->in_sts.in_hsize != SIZE_ALIG32(cur_in_sts->in_hsize)) {
+		hsize_change = 1;
+		pr_frc(2, "in_hsize = %d cur_in_size_32 = %d\n",
+			devp->in_sts.in_hsize, SIZE_ALIG32(cur_in_sts->in_hsize));
+	}
+	if (devp->st_change == 1 &&
+		SIZE_ALIG2(devp->in_sts.in_vsize) != SIZE_ALIG2(cur_in_sts->in_vsize)) {
+		vsize_change = 1;
+		pr_frc(2, "in_vsize = %d cur_in_size_2 = %d\n",
+			devp->in_sts.in_vsize, cur_in_sts->in_vsize);
+	}
+	/* check h size change */
 	if (devp->in_sts.in_hsize != cur_in_sts->in_hsize) {
 		pr_frc(1, "hsize change (%d - %d)\n",
 			devp->in_sts.in_hsize, cur_in_sts->in_hsize);
 		devp->in_sts.in_hsize = cur_in_sts->in_hsize;
 		devp->in_sts.t3x_proc_size_chg = 1;
 		if (get_chip_type() == ID_T3X) {
+			devp->frc_sts.hsize_changed = hsize_change;
 			frc_disable_deal_diff_win();
 		} else if (devp->frc_sts.state == FRC_STATE_ENABLE && get_chip_type() == ID_T5M) {
 			pr_frc(2, "%s start disable frc", __func__);
@@ -814,7 +857,8 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 			devp->in_sts.in_vsize, cur_in_sts->in_vsize);
 		devp->in_sts.in_vsize = cur_in_sts->in_vsize;
 		devp->in_sts.t3x_proc_size_chg = 1;
-		if (get_chip_type() == ID_T3X && cur_in_sts->vf_sts) {
+		if (get_chip_type() == ID_T3X) {
+			devp->frc_sts.vsize_changed = vsize_change;
 			frc_disable_deal_diff_win();
 		} else if (devp->frc_sts.state == FRC_STATE_ENABLE && get_chip_type() == ID_T5M) {
 			pr_frc(2, "%s start disable frc", __func__);
@@ -944,8 +988,9 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	switch (devp->in_sts.vf_sts) {
 	case VFRAME_NO:
 		if (cur_sig_in == VFRAME_HAVE) {
+			win_dly_cnt = frc_set_window_dly_cnt();
 			if (devp->in_sts.have_vf_cnt++ >=
-				(frc_enable_cnt + (is_osd_window ? WINDOW_DELAY_CNT : 0))) {
+				(frc_enable_cnt + (is_osd_window ? win_dly_cnt : 0))) {
 				devp->in_sts.vf_sts = cur_sig_in;
 				sts_change |= FRC_EVENT_VF_CHG_TO_HAVE;
 				devp->in_sts.have_vf_cnt = 0;

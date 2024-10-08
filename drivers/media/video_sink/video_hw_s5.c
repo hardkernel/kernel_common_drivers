@@ -115,6 +115,7 @@ static struct vpp_post_s g_vpp_post;
 #define SIZE_ALIG16(frm_hsize)   ((((frm_hsize) + 15) >> 4) << 4)
 #define SIZE_ALIG8(frm_hsize)    ((((frm_hsize) + 7) >> 3) << 3)
 #define SIZE_ALIG4(frm_hsize)    ((((frm_hsize) + 3) >> 2) << 2)
+#define SIZE_ALIG2(frm_hsize)    ((((frm_hsize) + 1) >> 1) << 1)
 #define BYPASS_DV         BIT(0)
 #define BYPASS_HDR        BIT(1)
 #define BYAPSS_DETUNNEL   BIT(2)
@@ -12774,6 +12775,7 @@ void vpu_set_frc_bypass(struct video_layer_s *layer)
 
 void update_frc_in_size_s5(struct video_layer_s *layer)
 {
+	bool size_changed = 0;
 	u32 switch_flag = 0;
 	int ret = 0;
 
@@ -12794,7 +12796,20 @@ void update_frc_in_size_s5(struct video_layer_s *layer)
 		layer->next_frame_par->frc_h_size = layer->next_frame_par->nnhf_input_w;
 	layer->next_frame_par->frc_v_size = layer->next_frame_par->nnhf_input_h;
 
-	if (!layer->frc_h_size_pre || switch_flag == 1) {
+	if (SIZE_ALIG32(layer->next_frame_par->frc_h_size) != SIZE_ALIG32(layer->frc_h_size_pre)) {
+		size_changed = 1;
+		if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
+			pr_info("%s:frc_h_size change %d->%d\n",
+				__func__, layer->frc_h_size_pre, layer->next_frame_par->frc_h_size);
+	}
+	if (SIZE_ALIG2(layer->next_frame_par->frc_v_size) != SIZE_ALIG2(layer->frc_v_size_pre)) {
+		size_changed = 1;
+		if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
+			pr_info("%s:frc_v_size change %d->%d\n",
+				__func__, layer->frc_v_size_pre, layer->next_frame_par->frc_v_size);
+	}
+
+	if (!layer->frc_h_size_pre || (switch_flag == 1 && !size_changed)) {
 		;
 	} else if (layer->next_frame_par->nnhf_input_w !=
 		layer->frc_h_size_pre ||

@@ -139,8 +139,9 @@
 // frc_20240902 fix pps adjust abnormal (need test)
 // frc_20240906 disable frc when out fr is 165hz
 // frc_20240913 frc_re_cfg_cnt set 0
+// frc_20240924 not set pre_vsync T5M
 
-#define FRC_FW_VER			"2024-0924 not set pre_vsync T5M"
+#define FRC_FW_VER			"2024-1016 frc disable when vsize change"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -497,6 +498,8 @@ struct st_frc_sts {
 	u32 state_transing;
 	u32 frame_cnt;
 	u8 changed_flag;
+	u8 vsize_changed;
+	u8 hsize_changed;
 	u32 vs_cnt;
 	u32 re_cfg_cnt;
 	u32 out_put_mode_changed;

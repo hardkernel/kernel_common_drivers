@@ -23,7 +23,8 @@
 
 #define FRC_RE_CFG_CNT  0 //3
 
-#define WINDOW_DELAY_CNT 100
+#define WINDOW_DELAY_CNT_120hz 100
+#define WINDOW_DELAY_CNT_240hz 200
 
 enum vf_sts {
 	VFRAME_NO = 0,
