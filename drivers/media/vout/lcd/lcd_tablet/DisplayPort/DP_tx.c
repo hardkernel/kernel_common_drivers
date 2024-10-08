@@ -399,6 +399,7 @@ void dptx_load_uboot_edid_timing(struct aml_lcd_drv_s *pdrv)
 		dptx_timing_update(pdrv, tm);
 }
 
+#ifndef MODULE
 static int dptx0_boot_ctrl_setup(char *str)
 {
 	int ret = 0;
@@ -435,3 +436,4 @@ static int dptx1_boot_ctrl_setup(char *str)
 
 __setup("dptx0_ctrl=", dptx0_boot_ctrl_setup);
 __setup("dptx1_ctrl=", dptx1_boot_ctrl_setup);
+#endif

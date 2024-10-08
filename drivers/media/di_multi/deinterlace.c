@@ -12366,6 +12366,7 @@ int dim_seq_file_module_para_di(struct seq_file *seq)
 	return 0;
 }
 
+#ifndef MODULE
 static int di_axis_reverse(char *str)
 {
 	char *ptr = str;
@@ -12395,6 +12396,7 @@ static int di_axis_reverse(char *str)
 }
 
 __setup("video_reverse=", di_axis_reverse);
+#endif
 
 #ifdef MARK_HIS /*move to di_sys.c*/
 //MODULE_DESCRIPTION("AMLOGIC DEINTERLACE driver");

@@ -21,6 +21,7 @@ struct hdmitx_boot_param *get_hdmitx_boot_params(void)
 	return &tx_params;
 }
 
+#ifndef MODULE
 /* besides characters defined in separator, '\"' are used as separator;
  * and any characters in '\"' will not act as separator
  */
@@ -277,4 +278,4 @@ static int hdmitx_boot_dsc_policy(char *str)
 	return 1;
 }
 __setup("dsc_policy=", hdmitx_boot_dsc_policy);
-
+#endif

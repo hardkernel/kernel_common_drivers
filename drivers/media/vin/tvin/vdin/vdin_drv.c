@@ -201,6 +201,7 @@ static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
 char *vf_get_receiver_name(const char *provider_name);
 
+#ifndef MODULE
 static int vdin_get_video_reverse(char *str)
 {
 	unsigned char *ptr = str;
@@ -211,6 +212,7 @@ static int vdin_get_video_reverse(char *str)
 	return 1;
 }
 __setup("video_reverse=", vdin_get_video_reverse);
+#endif
 
 static const struct vframe_operations_s vdin_vf_ops = {
 	.peek = vdin_vf_peek,

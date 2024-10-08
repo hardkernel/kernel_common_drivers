@@ -48,6 +48,7 @@ static u32 dsu_freq_vote_result[VOTER_NUM];
 	(_x1 > _x2 ? _x1 : _x2); })
 
 static unsigned int freqmax[MAX_CLUSTERS];
+#ifndef MODULE
 static int freqmax0_param(char *buff)
 {
 	if (!buff)
@@ -72,6 +73,7 @@ static int freqmax1_param(char *buff)
 
 __setup("freqmax0=", freqmax0_param);
 __setup("freqmax1=", freqmax1_param);
+#endif
 
 static unsigned int get_cpufreq_table_index(u64 function_id,
 					    u64 arg0, u64 arg1, u64 arg2)

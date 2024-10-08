@@ -51,6 +51,7 @@ static DEFINE_PER_CPU(int, en);
 #define IO_BLACKLIST_AMVECM	0x8
 #define IO_BLACKLIST_USB	0x10
 
+#ifndef MODULE
 static int ramoops_io_blacklist = IO_BLACKLIST_AMVECM;
 
 static int ramoops_io_blacklist_setup(char *buf)
@@ -66,6 +67,7 @@ static int ramoops_io_blacklist_setup(char *buf)
 	return 1;
 }
 __setup("ramoops_io_blacklist=", ramoops_io_blacklist_setup);
+#endif
 
 static unsigned int check_reg[MAX_DETECT_REG];
 static unsigned int check_mask[MAX_DETECT_REG];

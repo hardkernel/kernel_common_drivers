@@ -1269,6 +1269,7 @@ __exit void vout_exit_module(void)
 	platform_driver_unregister(&vout_driver);
 }
 
+#ifndef MODULE
 static int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -1391,6 +1392,7 @@ static int get_connector_type_to_compat(char *str)
 }
 
 __setup("connector_type=", get_connector_type_to_compat);
+#endif
 
 /*TODO: drm to disable display/mode sysfs set.*/
 void disable_vout_mode_set_sysfs(void)

@@ -58,6 +58,7 @@
 static int skip_logo;
 int recovery_mode;
 
+#ifndef MODULE
 static int check_reboot_mode(char *str)
 {
 	if (strncmp("qui", str, 3) == 0)
@@ -76,6 +77,7 @@ static int check_reboot_mode(char *str)
 }
 
 __setup("reboot_mode=", check_reboot_mode);
+#endif
 
 static void am_meson_fb_output_poll_changed(struct drm_device *dev)
 {

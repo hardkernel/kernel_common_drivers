@@ -4604,6 +4604,7 @@ static struct platform_driver meson_mmc_driver = {
 	},
 };
 
+#ifndef MODULE
 static int caps2_setup(char *p)
 {
 	caps2_quirks = p;
@@ -4611,6 +4612,7 @@ static int caps2_setup(char *p)
 }
 
 __setup("meson-gx-mmc.caps2_quirks=", caps2_setup);
+#endif
 
 int __init meson_mmc_init(void)
 {

@@ -20,8 +20,10 @@
 bool force_device_mode;
 module_param_named(otg_device, force_device_mode,
 		bool, 0644);
-static char otg_mode_string[2] = "0";
+
 struct dentry *amlogic_usb_debugfs_root;
+#ifndef MODULE
+static char otg_mode_string[2] = "0";
 
 static int force_otg_mode(char *s)
 {
@@ -34,6 +36,7 @@ static int force_otg_mode(char *s)
 	return 1;
 }
 __setup("otg_device=", force_otg_mode);
+#endif
 
 int get_otg_mode(void)
 {
