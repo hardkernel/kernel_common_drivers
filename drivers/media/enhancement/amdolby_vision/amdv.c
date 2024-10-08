@@ -18648,6 +18648,7 @@ static struct platform_driver aml_amdolby_vision_driver = {
 	.remove = __exit_p(amdolby_vision_remove),
 };
 
+#ifndef MODULE
 static int get_amdv_uboot_on(char *str)
 {
 	char uboot_amdv_on[DV_NAME_LEN_MAX] = {0};
@@ -18729,6 +18730,7 @@ static int recovery_mode_check(char *str)
 	return 1;
 }
 __setup("recovery_part=", recovery_mode_check);
+#endif
 
 int __init amdolby_vision_init(void)
 {

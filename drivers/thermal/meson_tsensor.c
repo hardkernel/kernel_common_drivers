@@ -529,6 +529,7 @@ static void r1p1_tsensor_update_irqs(struct meson_tsensor_data *data)
 
 static int g_tsensor_debug_enable;
 
+#ifndef MODULE
 static int get_tsensor_debug_enable(char *str)
 {
 	if (kstrtoint(str, 0, &g_tsensor_debug_enable)) {
@@ -539,6 +540,7 @@ static int get_tsensor_debug_enable(char *str)
 	return 1;
 }
 __setup("tsensor_debug=", get_tsensor_debug_enable);
+#endif
 
 static int meson_get_temp(void *p, int *temp)
 {

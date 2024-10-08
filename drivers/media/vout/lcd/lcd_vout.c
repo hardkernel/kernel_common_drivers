@@ -2890,6 +2890,7 @@ void __exit lcd_exit(void)
 	platform_driver_unregister(&lcd_platform_driver);
 }
 
+#ifndef MODULE
 static int lcd_panel_name_para_setup(char *str)
 {
 	if (str)
@@ -3132,6 +3133,7 @@ __setup("lcd0=", lcd0_boot_setup);
 __setup("lcd1=", lcd1_boot_setup);
 __setup("lcd2=", lcd2_boot_setup);
 __setup("lcd_debug=", lcd_debug_ctrl_setup);
+#endif
 
 //MODULE_DESCRIPTION("Meson LCD Panel Driver");
 //MODULE_LICENSE("GPL");

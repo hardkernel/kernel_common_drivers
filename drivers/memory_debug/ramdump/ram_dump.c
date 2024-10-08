@@ -73,6 +73,7 @@ struct ramdump {
 
 static struct ramdump *ram;
 
+#ifndef MODULE
 static void ramdump_parse_info(void)
 {
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
@@ -125,6 +126,7 @@ static int early_ramdump_para(char *buf)
 }
 
 early_param("ramdump", early_ramdump_para);
+#endif
 
 #ifdef SAVE_DATA_BY_INIT_RC_SHELL
 static ssize_t ramdump_bin_read(struct file *filp, struct kobject *kobj,

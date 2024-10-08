@@ -134,6 +134,7 @@ static u32 dummyp_timing_flip;
  * **********************************************************
  */
 
+#ifndef MODULE
 static int dummy_encp_timing_flip_setup(char *str)
 {
 	int ret;
@@ -144,6 +145,7 @@ static int dummy_encp_timing_flip_setup(char *str)
 	return 1;
 }
 __setup("dummyp_timing_flip=", dummy_encp_timing_flip_setup);
+#endif
 
 int get_dummyp_timing_flip(void)
 {

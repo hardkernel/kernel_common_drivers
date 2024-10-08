@@ -80,6 +80,7 @@ static unsigned long init_dmc_irq_usleep = 500;
 /* thread irq recheck time */
 static unsigned long init_thread_recheck_ns;
 
+#ifndef MODULE
 static int early_dmc_param(char *buf)
 {
 	unsigned long s_addr, e_addr, mask, debug = 0;
@@ -107,9 +108,11 @@ static int early_dmc_param(char *buf)
 	return 1;
 }
 __setup("dmc_monitor=", early_dmc_param);
+#endif
 
 /* only used to dmc filter set on uboot cmdline */
 static char dmc_filter_early_buf[1024];
+#ifndef MODULE
 static int early_dmc_filter(char *buf)
 {
 	/*
@@ -159,6 +162,7 @@ static int early_dmc_irq_thread(char *buf)
 	return 1;
 }
 __setup("dmc_irq_thread=", early_dmc_irq_thread);
+#endif
 
 static int set_dmc_filter(unsigned char *buf)
 {

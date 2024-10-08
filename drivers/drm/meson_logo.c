@@ -84,6 +84,7 @@ static u32 drm_logo_bpp = 16;
 static u32 drm_logo_width = 1920;
 static u32 drm_logo_height = 1080;
 
+#ifndef MODULE
 static int drm_logo_bpp_setup(char *str)
 {
 	int ret;
@@ -94,12 +95,14 @@ static int drm_logo_bpp_setup(char *str)
 	return 1;
 }
 __setup("display_bpp=", drm_logo_bpp_setup);
+#endif
 
 static u32 drm_logo_get_display_bpp(void)
 {
 	return drm_logo_bpp;
 }
 
+#ifndef MODULE
 static int drm_logo_width_setup(char *str)
 {
 	int ret;
@@ -110,12 +113,14 @@ static int drm_logo_width_setup(char *str)
 	return 1;
 }
 __setup("fb_width=", drm_logo_width_setup);
+#endif
 
 static u32 drm_logo_get_fb_width(void)
 {
 	return drm_logo_width;
 }
 
+#ifndef MODULE
 static int drm_logo_height_setup(char *str)
 {
 	int ret;
@@ -126,6 +131,7 @@ static int drm_logo_height_setup(char *str)
 	return 1;
 }
 __setup("fb_height=", drm_logo_height_setup);
+#endif
 
 static u32 drm_logo_get_fb_height(void)
 {
@@ -233,6 +239,7 @@ static inline int install_osd_reverse_info(struct osd_info_s *init_osd_info,
 	return 0;
 }
 
+#ifndef MODULE
 static int drm_logo_reverse_setup(char *str)
 {
 	char	*ptr = str;
@@ -264,6 +271,7 @@ static int drm_logo_reverse_setup(char *str)
 	return 1;
 }
 __setup("osd_reverse=", drm_logo_reverse_setup);
+#endif
 
 void drm_logo_get_osd_reverse(u32 *index, u32 *reverse_type)
 {

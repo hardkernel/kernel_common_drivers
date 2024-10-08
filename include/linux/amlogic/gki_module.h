@@ -6,6 +6,8 @@
 #ifndef __GKI_MODULE_AMLOGIC_H
 #define __GKI_MODULE_AMLOGIC_H
 
+#ifdef CONFIG_AMLOGIC_GKI_TOOL
+
 #define GKI_MODULE_SETUP_MAGIC1 0x014589cd
 #define GKI_MODULE_SETUP_MAGIC2 0x2367abef
 
@@ -106,5 +108,7 @@ void __module_init_hook(struct module *m);
 #define module_init(fn)			module_init_hook(fn)
 
 #endif //MODULE
+
+#endif //CONFIG_AMLOGIC_GKI_TOOL
 
 #endif //__GKI_MODULE_AMLOGIC_H

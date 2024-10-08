@@ -9,6 +9,7 @@
 
 int bypass_clk_disable;
 
+#ifndef MODULE
 static int bypass_clk_disable_setup(char *buf)
 {
 	if (!buf)
@@ -22,6 +23,7 @@ static int bypass_clk_disable_setup(char *buf)
 	return 1;
 }
 __setup("bypass_clk_disable=", bypass_clk_disable_setup);
+#endif
 
 static int __init clk_module_init(void)
 {

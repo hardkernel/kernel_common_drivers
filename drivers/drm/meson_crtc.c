@@ -69,6 +69,7 @@ void set_amdv_mode(int mode)
 }
 #endif
 
+#ifndef MODULE
 static int gamma_boot_ctl(char *str)
 {
 	if (strncmp("0", str, 1) == 0)
@@ -80,6 +81,7 @@ static int gamma_boot_ctl(char *str)
 }
 
 __setup("gamma=", gamma_boot_ctl);
+#endif
 
 /*
  **********TV SUPPORT DV****************
