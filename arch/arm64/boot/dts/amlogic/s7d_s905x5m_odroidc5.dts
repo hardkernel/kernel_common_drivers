@@ -892,8 +892,7 @@
 };
 
 &uart_A {
-	status = "okay";
-	uart-has-rtscts;
+	status = "disabled";
 };
 
 &drm_subsystem {
