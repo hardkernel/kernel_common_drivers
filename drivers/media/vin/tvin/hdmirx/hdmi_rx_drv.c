@@ -103,6 +103,8 @@ struct delayed_work	repeater_dwork;
 struct workqueue_struct	*repeater_wq;
 struct work_data scdc_dwork;
 struct workqueue_struct	*scdc_wq;
+struct work_data print_dwork;
+struct workqueue_struct	*print_wq;
 
 //struct phy_port_data aml_phy_dwork;
 struct work_struct     aml_phy_dwork_port0;
@@ -750,8 +752,9 @@ bool hdmirx_fmt_chg(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 	} else {
 		fmt = hdmirx_hw_get_fmt(port);
 		if (fmt != parm->info.fmt) {
-			rx_pr("hdmirx fmt: %d --> %d\n",
-			      parm->info.fmt, fmt);
+			if (log_level & VIDEO_LOG)
+				rx_pr("hdmirx fmt: %d --> %d\n",
+				parm->info.fmt, fmt);
 			parm->info.fmt = fmt;
 			ret = true;
 		} else {
@@ -4069,6 +4072,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 		INIT_DELAYED_WORK(&esm_dwork, rx_hpd_to_esm_handle);
 		/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
 	}
+
+	print_wq = create_workqueue(hdevp->frontend.name);
+		INIT_WORK(&print_dwork.work_wq, rx_fsm_print_handler);
 	/* create for aml phy init */
 	aml_phy_wq_port0 = create_workqueue(hdevp->frontend.name);
 	INIT_WORK(&aml_phy_dwork_port0, aml_phy_init_handler_port0);
@@ -4333,6 +4339,9 @@ static int hdmirx_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&scdc_dwork.work_wq);
 	destroy_workqueue(scdc_wq);
+
+	cancel_work_sync(&print_dwork.work_wq);
+	destroy_workqueue(print_wq);
 
 	cancel_delayed_work_sync(&esm_dwork);
 	destroy_workqueue(esm_wq);

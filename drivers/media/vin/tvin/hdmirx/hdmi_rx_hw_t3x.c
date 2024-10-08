@@ -845,7 +845,8 @@ void get_eq_val_t3x_20(u8 port)
 	eq_boost0 = data32 & 0x1f;
 	eq_boost1 = (data32 >> 8)  & 0x1f;
 	eq_boost2 = (data32 >> 16)      & 0x1f;
-	rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
+	if (log_level & PHY_LOG)
+		rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 }
 
 /* check eq_boost1 & tap0 status */
@@ -1228,9 +1229,11 @@ void aml_enhance_eq_t3x_20(u8 port)
 		eq_boost0 = data32 & 0x1f;
 		eq_boost1 = (data32 >> 8)  & 0x1f;
 		eq_boost2 = (data32 >> 16)	& 0x1f;
-		rx_pr("after enhance eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
+		if (log_level & PHY_LOG)
+			rx_pr("after enhance eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 	} else {
-		rx_pr("no enhance eq\n");
+		if (log_level & PHY_LOG)
+			rx_pr("no enhance eq\n");
 	}
 }
 
@@ -5817,27 +5820,30 @@ void rx_mute_t3x(bool en, u8 port_type)
 			rx_mute_dual_video_rdma(E_RX_MUTE, E_RX_NA);
 			if (tvin_get_game_mode_status(port_type))
 				rx_mute_dual_video_vcbus(E_RX_MUTE, E_RX_NA);
-			rx_pr("main port mute\n");
+			if (log_level & VIDEO_LOG)
+				rx_pr("main port mute\n");
 		} else if (port_type == TVIN_PORT_SUB) {
 			rx_mute_dual_video_rdma(E_RX_NA, E_RX_MUTE);
 			rx_mute_dual_video_vcbus(E_RX_NA, E_RX_MUTE);
-			rx_pr("sub port mute\n");
+			if (log_level & VIDEO_LOG)
+				rx_pr("sub port mute\n");
 		} else {
 			rx_mute_dual_video_rdma(E_RX_NA, E_RX_NA);
 			if (tvin_get_game_mode_status(port_type))
 				rx_mute_dual_video_vcbus(E_RX_MUTE, E_RX_NA);
 			rx_mute_dual_video_vcbus(E_RX_NA, E_RX_NA);
-			rx_pr("Na\n");
 		}
 	} else {
 		if (port_type == TVIN_PORT_MAIN) {
 			rx_mute_dual_video_rdma(E_RX_UNMUTE, E_RX_NA);
 			rx_mute_dual_video_vcbus(E_RX_UNMUTE, E_RX_NA);
-			rx_pr("main port unmute\n");
+			if (log_level & VIDEO_LOG)
+				rx_pr("main port unmute\n");
 		} else if (port_type == TVIN_PORT_SUB) {
 			rx_mute_dual_video_rdma(E_RX_NA, E_RX_UNMUTE);
 			rx_mute_dual_video_vcbus(E_RX_NA, E_RX_UNMUTE);
-			rx_pr("sub port unmute\n");
+			if (log_level & VIDEO_LOG)
+				rx_pr("sub port unmute\n");
 		} else {
 			rx_mute_dual_video_rdma(E_RX_NA, E_RX_NA);
 			rx_mute_dual_video_vcbus(E_RX_NA, E_RX_NA);

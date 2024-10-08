@@ -86,7 +86,7 @@ u32 allm_func_en = 0xff;
 u32 htotal_cnt;
 static int frate_flg = 0xf;
 static int frate_flg1 = 0xf;
-
+char fsm_pr_buff[E_PORT_NUM][100];
 typedef void (*pf_callback)(int earc_port, bool st);
 static pf_callback earc_hdmirx_hpdst;
 static cec_callback cec_hdmirx5v_update;
@@ -2905,7 +2905,8 @@ void fsm_restart(u8 port)
 	rx[port].phy.pll_bw = 0;
 	rx_info.aml_phy.force_sqo = 0;
 	i2c_err_cnt[port] = 0;
-	rx_pr("force_fsm_init\n");
+	if (log_level & DBG_LOG)
+		rx_pr("force_fsm_init\n");
 }
 
 void dump_unnormal_info(u8 port)
@@ -3943,13 +3944,11 @@ void hdmirx_mute_vpp(bool en, u8 port)
 			set_video_mute(HDMI_RX_MUTE_SET, true);
 			rx[port].var.mute_cnt = 0;
 		}
-		rx_pr("vpp mute\n");
 	} else {
 		if (rx_info.chip_id == CHIP_ID_T3X)
 			rx_mute_t3x(false, rx_get_port_type(port));
 		else
 			set_video_mute(HDMI_RX_MUTE_SET, false);
-		rx_pr("vpp unmute\n");
 	}
 }
 
@@ -4397,6 +4396,19 @@ static void hdcp22_decrypt_monitor(u8 port)
 	}
 }
 
+void rx_fsm_print(u8 port)
+{
+	print_dwork.port = port;
+	queue_work(print_wq, &print_dwork.work_wq);
+}
+
+void rx_fsm_print_handler(struct work_struct *work)
+{
+	struct work_data *dd = container_of(work, struct work_data, work_wq);
+
+	rx_pr("%s\n", fsm_pr_buff[dd->port]);
+}
+
 /*
  * FUNC: rx_main_state_machine
  * signal detection main process
@@ -4700,9 +4712,10 @@ void rx_main_state_machine(void)
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
-				rx_pr("Sig ready\n");
-				if (log_level & VIDEO_LOG)
+				if (log_level & VIDEO_LOG) {
+					rx_pr("Sig ready\n");
 					dump_state(RX_DUMP_VIDEO, port);
+				}
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -4890,12 +4903,14 @@ void rx_main_state_machine(void)
 	default:
 		break;
 	}
-	/* for fsm debug */
 	if (rx[port].state != rx[port].pre_state) {
-		if (log_level & LOG_EN)
-			rx_pr("fsm_main (%s) to (%s)\n",
-			      fsm_st[rx[port].pre_state],
-			      fsm_st[rx[port].state]);
+		memset(fsm_pr_buff[port], 0, sizeof(fsm_pr_buff[port]));
+		if (log_level & LOG_EN) {
+			sprintf(fsm_pr_buff[port], "fsm_main (%s) to (%s)",
+				fsm_st[rx[port].pre_state],
+				fsm_st[rx[port].state]);
+		}
+		rx_fsm_print(port);
 		rx[port].pre_state = rx[port].state;
 	}
 }
@@ -5148,9 +5163,10 @@ void rx_port0_main_state_machine(void)
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
-				rx_pr("port%d Sig ready\n", port);
-				if (log_level & VIDEO_LOG)
+				if (log_level & VIDEO_LOG) {
+					rx_pr("port%d Sig ready\n", port);
 					dump_state(RX_DUMP_VIDEO, port);
+				}
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -5293,10 +5309,13 @@ void rx_port0_main_state_machine(void)
 	}
 	/* for fsm debug */
 	if (rx[port].state != rx[port].pre_state) {
-		if (!(log_level & COR1_LOG))
-			rx_pr("fsm0 (%s) to (%s)\n",
-			      fsm_st[rx[port].pre_state],
-			      fsm_st[rx[port].state]);
+		memset(fsm_pr_buff[port], 0, sizeof(fsm_pr_buff[port]));
+		if (log_level & LOG_EN) {
+			sprintf(fsm_pr_buff[port], "fsm_main %d (%s) to (%s)", port,
+				fsm_st[rx[port].pre_state],
+				fsm_st[rx[port].state]);
+		}
+		rx_fsm_print(port);
 		rx[port].pre_state = rx[port].state;
 	}
 }
@@ -5545,9 +5564,10 @@ void rx_port1_main_state_machine(void)
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
-				rx_pr("port%d Sig ready\n", port);
-				if (log_level & VIDEO_LOG)
+				if (log_level & VIDEO_LOG) {
+					rx_pr("port%d Sig ready\n", port);
 					dump_state(RX_DUMP_VIDEO, port);
+				}
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -5690,10 +5710,13 @@ void rx_port1_main_state_machine(void)
 	}
 	/* for fsm debug */
 	if (rx[port].state != rx[port].pre_state) {
-		if (!(log_level & COR1_LOG))
-			rx_pr("fsm1 (%s) to (%s)\n",
-			      fsm_st[rx[port].pre_state],
-			      fsm_st[rx[port].state]);
+		memset(fsm_pr_buff[port], 0, sizeof(fsm_pr_buff[port]));
+		if (log_level & LOG_EN) {
+			sprintf(fsm_pr_buff[port], "fsm_main %d (%s) to (%s)", port,
+				fsm_st[rx[port].pre_state],
+				fsm_st[rx[port].state]);
+		}
+		rx_fsm_print(port);
 		rx[port].pre_state = rx[port].state;
 	}
 }
@@ -6025,9 +6048,10 @@ void rx_port2_main_state_machine(void)
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
-				rx_pr("port%d Sig ready\n", port);
-				if (log_level & VIDEO_LOG)
+				if (log_level & VIDEO_LOG) {
+					rx_pr("port%d Sig ready\n", port);
 					dump_state(RX_DUMP_VIDEO, port);
+				}
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -6174,9 +6198,13 @@ void rx_port2_main_state_machine(void)
 	}
 	/* for fsm debug */
 	if (rx[port].state != rx[port].pre_state) {
-		rx_pr("fsm2 (%s) to (%s)\n",
-			      fsm_st[rx[port].pre_state],
-			      fsm_st[rx[port].state]);
+		memset(fsm_pr_buff[port], 0, sizeof(fsm_pr_buff[port]));
+		if (log_level & LOG_EN) {
+			sprintf(fsm_pr_buff[port], "fsm_main %d (%s) to (%s)", port,
+				fsm_st[rx[port].pre_state],
+				fsm_st[rx[port].state]);
+		}
+		rx_fsm_print(port);
 		rx[port].pre_state = rx[port].state;
 	}
 }
@@ -6507,9 +6535,10 @@ void rx_port3_main_state_machine(void)
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
-				rx_pr("port%d Sig ready\n", port);
-				if (log_level & VIDEO_LOG)
+				if (log_level & VIDEO_LOG) {
+					rx_pr("port%d Sig ready\n", port);
 					dump_state(RX_DUMP_VIDEO, port);
+				}
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -6652,9 +6681,13 @@ void rx_port3_main_state_machine(void)
 	}
 	/* for fsm debug */
 	if (rx[port].state != rx[port].pre_state) {
-		rx_pr("fsm3 (%s) to (%s)\n",
-			      fsm_st[rx[port].pre_state],
-			      fsm_st[rx[port].state]);
+		memset(fsm_pr_buff[port], 0, sizeof(fsm_pr_buff[port]));
+		if (log_level & LOG_EN) {
+			sprintf(fsm_pr_buff[port], "fsm_main %d (%s) to (%s)", port,
+				fsm_st[rx[port].pre_state],
+				fsm_st[rx[port].state]);
+		}
+		rx_fsm_print(port);
 		rx[port].pre_state = rx[port].state;
 	}
 }

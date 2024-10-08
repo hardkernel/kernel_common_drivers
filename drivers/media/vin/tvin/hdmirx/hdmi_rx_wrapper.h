@@ -38,7 +38,8 @@
 /* 2024.10.08 use irq to set fpll cfg */
 /* 2024.10.10 fix fem exit when open irq */
 /* 2024.10.11 fix dsc timing judge */
-#define RX_WRAPPER_VER "ver.2024/10/11"
+/* 2024.10.12 reduce fsm print */
+#define RX_WRAPPER_VER "ver.2024/10/12"
 
 struct freq_ref_s {
 	bool interlace;
@@ -201,5 +202,6 @@ bool __weak get_video_mute_val(u32 owner)
 }
 
 void rx_monitor_error_counter(u8 port);
+void rx_fsm_print_handler(struct work_struct *work);
 
 #endif

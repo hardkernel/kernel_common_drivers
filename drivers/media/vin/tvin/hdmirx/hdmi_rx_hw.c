@@ -4528,7 +4528,8 @@ void hdmirx_output_en(bool en)
 
 void hdmirx_hw_config(u8 port)
 {
-	rx_pr("%s port:%d\n", __func__, port);
+	if (log_level & DBG_LOG)
+		rx_pr("%s port:%d\n", __func__, port);
 	hdmirx_top_sw_reset();
 	//rx_i2c_div_init();
 	hdmirx_output_en(false);
@@ -4987,7 +4988,6 @@ void rx_aud_pll_ctl(bool en, u8 port)
 					}
 					rx_audio_pll_sw_update();
 					hdmirx_audio_fifo_rst(port);
-					rx_pr("21 audio cfg\n");
 				} else if (!vpcore1_select) {
 					tmp = hdmirx_rd_top_common(HDMIRX_TOP_FSW_CNTL);
 					tmp |= _BIT(8 + port * 2);
