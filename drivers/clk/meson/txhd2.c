@@ -3600,7 +3600,6 @@ void __exit txhd2_exit(void)
 
 #else
 builtin_platform_driver(txhd2_driver);
-builtin_platform_driver(txhd2_driver);
 
 MODULE_LICENSE("GPL v2");
 #endif

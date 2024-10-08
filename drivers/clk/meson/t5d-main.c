@@ -7,7 +7,6 @@
 #include <linux/amlogic/module_merge.h>
 #include "t5d.h"
 
-#ifdef MODULE
 static int __init t5d_main_init(void)
 {
 	call_sub_init(t5d_init);
@@ -25,4 +24,3 @@ module_init(t5d_main_init);
 module_exit(t5d_main_exit);
 
 MODULE_LICENSE("GPL v2");
-#endif  /* MODULE */

@@ -7,7 +7,6 @@
 #include <linux/amlogic/module_merge.h>
 #include "tm2.h"
 
-#ifdef MODULE
 static int __init tm2_main_init(void)
 {
 	call_sub_init(tm2_init);
@@ -25,4 +24,3 @@ module_init(tm2_main_init);
 module_exit(tm2_main_exit);
 
 MODULE_LICENSE("GPL v2");
-#endif  /* MODULE */
