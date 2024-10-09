@@ -92,7 +92,7 @@ export -f pre_defconfig_cmds
 PRE_DEFCONFIG_CMDS=pre_defconfig_cmds
 
 function post_defconfig_cmds() {
-	rm -f ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}
+	rm -f ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/${DEFCONFIG}
 }
 export -f post_defconfig_cmds
 POST_DEFCONFIG_CMDS=post_defconfig_cmds
