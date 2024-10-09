@@ -1345,39 +1345,88 @@ static int meson_spicc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int meson_spicc_off(struct spicc_device *spicc)
+{
+	pinctrl_pm_select_sleep_state(&spicc->pdev->dev);
+	clk_disable_unprepare(spicc->spi_clk);
+	if (spicc->sys_clk)
+		clk_disable_unprepare(spicc->sys_clk);
+
+	return 0;
+}
+
+static int meson_spicc_on(struct spicc_device *spicc)
+{
+	if (spicc->sys_clk)
+		clk_prepare_enable(spicc->sys_clk);
+	clk_prepare_enable(spicc->spi_clk);
+	pinctrl_pm_select_default_state(&spicc->pdev->dev);
+
+	return 0;
+}
+
+#ifdef CONFIG_HIBERNATION
+static int meson_spicc_freeze(struct device *dev)
+{
+	struct spicc_device *spicc = dev_get_drvdata(dev);
+
+	return meson_spicc_off(spicc);
+}
+
+static int meson_spicc_thaw(struct device *dev)
+{
+	struct spicc_device *spicc = dev_get_drvdata(dev);
+
+	return meson_spicc_on(spicc);
+}
+
+static int meson_spicc_restore(struct device *dev)
+{
+	struct spicc_device *spicc = dev_get_drvdata(dev);
+
+	return meson_spicc_on(spicc);
+}
+#endif
+
 static void meson_spicc_shutdown(struct platform_device *pdev)
 {
 	struct spicc_device *spicc = platform_get_drvdata(pdev);
 
-	if (spicc->sys_clk)
-		clk_disable_unprepare(spicc->sys_clk);
-	clk_disable_unprepare(spicc->spi_clk);
+	meson_spicc_off(spicc);
 }
 
 static int meson_spicc_suspend(struct device *dev)
 {
 	struct spicc_device *spicc = dev_get_drvdata(dev);
+	int ret;
 
-	if (spicc->sys_clk)
-		clk_disable_unprepare(spicc->sys_clk);
-	clk_disable_unprepare(spicc->spi_clk);
+	ret = spi_controller_suspend(spicc->controller);
+	if (!ret)
+		ret = meson_spicc_off(spicc);
 
-	return spi_controller_suspend(spicc->controller);
+	return ret;
 }
 
 static int meson_spicc_resume(struct device *dev)
 {
 	struct spicc_device *spicc = dev_get_drvdata(dev);
+	int ret;
 
-	if (spicc->sys_clk)
-		clk_prepare_enable(spicc->sys_clk);
-	clk_prepare_enable(spicc->spi_clk);
+	ret = meson_spicc_on(spicc);
+	if (!ret)
+		ret = spi_controller_resume(spicc->controller);
 
-	return spi_controller_resume(spicc->controller);
+	return ret;
 }
 
 static const struct dev_pm_ops meson_spicc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(meson_spicc_suspend, meson_spicc_resume)
+	.suspend	= meson_spicc_suspend,
+	.resume		= meson_spicc_resume,
+#ifdef CONFIG_HIBERNATION
+	.freeze		= meson_spicc_freeze,
+	.thaw		= meson_spicc_thaw,
+	.restore	= meson_spicc_restore,
+#endif
 };
 
 static const struct of_device_id meson_spicc_v2_of_match[] = {

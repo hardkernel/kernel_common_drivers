@@ -2731,6 +2731,39 @@
 		};
 	};
 
+	spicc0_pins_x_sleep: spicc0_pins_x_sleep {
+		mux {
+			groups = "GPIOX_8",
+				 "GPIOX_9",
+				 "GPIOX_10",
+				 "GPIOX_11";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	spicc0_pins_h_sleep: spicc0_pins_h_sleep {
+		mux {
+			groups = "GPIOH_4",
+				 "GPIOH_5",
+				 "GPIOH_6",
+				 "GPIOH_7";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	spicc0_pins_z_sleep: spicc0_pins_z_sleep {
+		mux {
+			groups = "GPIOZ_0",
+				 "GPIOZ_1",
+				 "GPIOZ_2",
+				 "GPIOZ_3";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	spifc_pins:spifc_pins {
 		mux {
 			groups = "spif_hold",

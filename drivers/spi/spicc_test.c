@@ -506,7 +506,7 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 					xfer->rx_dma,
 					xfer->len,
 					v);
-		dev_info(dev, "set trig mode %d\n", v);
+		dev_info(dev, "set trig mode %lu\n", v);
 	}
 
 	else if (cdata->dirspi_dma_trig_start &&

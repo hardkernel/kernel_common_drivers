@@ -1221,8 +1221,9 @@
 
 &spicc0 {
 	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_x>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spicc0_pins_z>;
+	pinctrl-1 = <&spicc0_pins_z_sleep>;
 };
 
 &spifc {
