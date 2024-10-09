@@ -39,13 +39,14 @@ static int mediaproxy_init(void)
 		pr_err("Failed to malloc mediaproxy_dev\n");
 		return ret;
 	}
-
-	spin_lock_init(&mediaproxy->p_lock);
-	spin_lock_init(&mediaproxy->c_lock);
+	mutex_init(&mediaproxy->p_lock);
+	mutex_init(&mediaproxy->c_lock);
 	init_waitqueue_head(&mediaproxy->read_queue);
 	init_waitqueue_head(&mediaproxy->transfer_queue);
 	mediaproxy->has_consumer = 0;
 	mediaproxy->all_producer_fifo_empty = true;
+	mediaproxy->has_unusing_fifo = 0;
+	mediaproxy->subscribe_msg_type = 0;
 	return ret;
 }
 
@@ -57,15 +58,30 @@ static void mediaproxy_cleanup(void)
 		for (i = 0; i < MAX_SESSION; i++) {
 			if (mediaproxy->producers[i]) {
 				pr_info("%s free producers[%d]\n", __func__, i);
-				kfifo_free(&mediaproxy->producers[i]->msg_kfifo);
+				//had alloc kfifo, need free fifo
+				if (mediaproxy->producers[i]->session_id >= 0)
+					kfifo_free(&mediaproxy->producers[i]->msg_kfifo);
 				kfree(mediaproxy->producers[i]);
 				mediaproxy->producers[i] = NULL;
 			}
 			if (mediaproxy->consumers[i]) {
 				pr_info("%s free consumers[%d]\n", __func__, i);
-				kfifo_free(&mediaproxy->consumers[i]->msg_kfifo);
 				kfree(mediaproxy->consumers[i]);
 				mediaproxy->consumers[i] = NULL;
+			}
+			if (mediaproxy->p_fifo[i]) {
+				pr_info("%s free p_fifo[%d]\n", __func__, i);
+				if (mediaproxy->p_fifo[i]->state != MP_FIFO_NONE)
+					kfifo_free(&mediaproxy->p_fifo[i]->msg_kfifo);
+				kfree(mediaproxy->p_fifo[i]);
+				mediaproxy->p_fifo[i] = NULL;
+			}
+			if (mediaproxy->c_fifo[i]) {
+				pr_info("%s free c_fifo[%d]\n", __func__, i);
+				if (mediaproxy->c_fifo[i]->state != MP_FIFO_NONE)
+					kfifo_free(&mediaproxy->c_fifo[i]->msg_kfifo);
+				kfree(mediaproxy->c_fifo[i]);
+				mediaproxy->c_fifo[i] = NULL;
 			}
 		}
 		kfree(mediaproxy);
@@ -73,12 +89,114 @@ static void mediaproxy_cleanup(void)
 	}
 }
 
+static int mediaproxy_get_fifo(enum mp_role_e type, int size)
+{
+	int idx = -1;
+	int i;
+	int ret = 0;
+	int alloced_idx = -1;
+
+	if (!mediaproxy) {
+		pr_err("Failed to get kfifo mediaproxy isnull\n");
+		return idx;
+	}
+	//get fifo from alloced fifo
+	for (i = 0; i < MAX_SESSION; i++) {
+		if (type == MP_ROLE_PRODUCER) {
+			if (mediaproxy->p_fifo[i]) {
+				if (mediaproxy->p_fifo[i]->state == MP_FIFO_UNUSED) {
+					alloced_idx = i;
+					if (kfifo_size(&mediaproxy->p_fifo[i]->msg_kfifo) >= size)
+						idx = i;
+				}
+			} else {
+				//alloc new file
+				mediaproxy->p_fifo[i] =
+						kzalloc(sizeof(struct mediaproxy_fifo), GFP_KERNEL);
+				ret = kfifo_alloc(&mediaproxy->p_fifo[i]->msg_kfifo,
+						KFIFO_MAX_SIZE, GFP_KERNEL);
+				if (ret) {
+					pr_err("Failed to alloc kfifo size:[%d]\n", size);
+					return idx;
+				}
+				mediaproxy->p_fifo[i]->state = MP_FIFO_USED;
+				pr_info("success to alloc kfifo size:[%d] i=[%d]\n", size, i);
+				idx = i;
+			}
+			//if not get fifo.we need realloc fifo
+			if (idx == -1 && alloced_idx != -1) {
+				//
+				kfifo_free(&mediaproxy->p_fifo[alloced_idx]->msg_kfifo);
+				ret = kfifo_alloc(&mediaproxy->p_fifo[alloced_idx]->msg_kfifo,
+								KFIFO_MAX_SIZE, GFP_KERNEL);
+				if (ret) {
+					pr_err("Failed to realloc kfifo size:[%d]\n", size);
+					return idx;
+				}
+				mediaproxy->p_fifo[alloced_idx]->state = MP_FIFO_USED;
+				idx = alloced_idx;
+				pr_info("find p realloc kfifo size:[%d][%d]\n", size, idx);
+				break;
+			}
+			if (idx >= 0) {
+				pr_info("find p kfifo size:[%d][%d]\n", size, idx);
+				//reset fifo
+				mediaproxy->p_fifo[idx]->state = MP_FIFO_USED;
+				break;
+			}
+
+		} else {
+			if (mediaproxy->c_fifo[i]) {
+				if (mediaproxy->c_fifo[i]->state == MP_FIFO_UNUSED) {
+					alloced_idx = i;
+					if (kfifo_size(&mediaproxy->c_fifo[i]->msg_kfifo) >= size)
+						idx = i;
+				}
+			} else {
+				//alloc new file
+				mediaproxy->c_fifo[i] =
+						kzalloc(sizeof(struct mediaproxy_fifo), GFP_KERNEL);
+				ret = kfifo_alloc(&mediaproxy->c_fifo[i]->msg_kfifo,
+								KFIFO_MAX_SIZE, GFP_KERNEL);
+				if (ret) {
+					pr_err("Failed to alloc kfifo size:[%d]\n", size);
+					return idx;
+				}
+				mediaproxy->c_fifo[i]->state = MP_FIFO_USED;
+				pr_info("success to alloc kfifo size:[%d] i=[%d]\n", size, i);
+				idx = i;
+			}
+			//if not get fifo.we need realloc fifo
+			if (idx == -1 && alloced_idx != -1) {
+				//
+				kfifo_free(&mediaproxy->c_fifo[alloced_idx]->msg_kfifo);
+				ret = kfifo_alloc(&mediaproxy->c_fifo[alloced_idx]->msg_kfifo,
+									KFIFO_MAX_SIZE, GFP_KERNEL);
+				if (ret) {
+					pr_err("Failed to realloc kfifo size:[%d]\n", size);
+					return idx;
+				}
+				mediaproxy->c_fifo[alloced_idx]->state = MP_FIFO_USED;
+				idx = alloced_idx;
+				pr_info("find c realloc kfifo size:[%d][%d]\n", size, idx);
+				break;
+			}
+			if (idx >= 0) {
+				pr_info("find c kfifo size:[%d][%d]\n", size, idx);
+				mediaproxy->c_fifo[idx]->state = MP_FIFO_USED;
+				break;
+			}
+		}
+	}
+	pr_info("%s get idx[%d]\n", __func__, idx);
+	return idx;
+}
+
 static int session_creat(void **sess, char *name)
 {
-	int ret;
 	struct mediaproxy_session *session;
 
-	pr_info("Mediaproxy is opened\n");
+	pr_info("Mediaproxy is opened name[%s]\\n", name);
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session) {
 		pr_info("kzalloc session error\n");
@@ -86,37 +204,40 @@ static int session_creat(void **sess, char *name)
 	}
 	session->session_id = -1;
 	session->role = MP_ROLE_INVALID;
-	session->subscribe_msg_type = 0xFF;
+	session->subscribe_msg_type = 0x0;
 	session->module_name = name;
 	session->lock = NULL;
 	session->session_entry = NULL;
-	ret = kfifo_alloc(&session->msg_kfifo, KFIFO_MAX_SIZE, GFP_KERNEL);
-	if (ret) {
-		pr_err("Failed to alloc kfifo\n");
-		kfree(session);
-		return ret;
-	}
+	session->fifo_idx = -1;
+	session->fifo_len = KFIFO_MAX_SIZE;
 	*sess = session;
+	pr_info("Mediaproxy is opened name[%s] end\\n", name);
 	return 0;
 }
 
 static ssize_t session_kernel_write(struct mediaproxy_session *session, int num, void *buf)
 {
 	unsigned int copied = num;
-	unsigned long flags = 0;
+	int idx;
 
-	if (!mediaproxy) {
-		pr_err("Mediaproxy is not initialized\n");
+	if (!mediaproxy || !session) {
+		pr_err("Mediaproxy or session is not initialized\n");
 		return -EFAULT;
 	}
-	kfifo_in(&session->msg_kfifo, buf, copied);
-	spin_lock_irqsave(&mediaproxy->p_lock, flags);
-	mediaproxy->all_producer_fifo_empty = kfifo_is_empty(&session->msg_kfifo);
+	idx = session->fifo_idx;
+	if (idx == -1) {
+		pr_err("session fifo idx -1. not connect\n");
+		return -EFAULT;
+	}
+	if (session->role != MP_ROLE_PRODUCER)
+		return -EFAULT;
+
+	kfifo_in(&mediaproxy->p_fifo[idx]->msg_kfifo, buf, copied);
+	mediaproxy->all_producer_fifo_empty = kfifo_is_empty(&mediaproxy->p_fifo[idx]->msg_kfifo);
 	wake_up_interruptible(&mediaproxy->transfer_queue);
-	spin_unlock_irqrestore(&mediaproxy->p_lock, flags);
 	pr_dbg("mediaproxy write success, module[%s] copied size: %d fifo len: %d\n",
 		session->module_name,
-		copied, kfifo_len(&session->msg_kfifo));
+		copied, kfifo_len(&mediaproxy->p_fifo[idx]->msg_kfifo));
 	return copied;
 }
 
@@ -164,11 +285,11 @@ static int producer_thread_fn(void *user_data)
 		event++;
 		if (event >= MEDIA_ERRORCODES_PIPELINE_MAX)
 			event = MEDIA_ERRORCODES_PIPELINE_MIN;
-		pr_info("set msg type [%d]\n", data[0].message_type);
-		pr_info("set msg type [%d]\n", data[1].message_type);
+		pr_dbg("set msg type [%d]\n", data[0].message_type);
+		pr_dbg("set msg type [%d]\n", data[1].message_type);
 		notify_msg_to_mediaproxy(k_dec_producer_session, 2, data);
-		pr_info("set msg type [%d]\n", data[2].message_type);
-		pr_info("set msg type [%d]\n", data[3].message_type);
+		pr_dbg("set msg type [%d]\n", data[2].message_type);
+		pr_dbg("set msg type [%d]\n", data[3].message_type);
 		notify_msg_to_mediaproxy(k_di_producer_session, 2, data + 2);
 		i++;
 		if (i > 100000)
@@ -197,17 +318,37 @@ static int consumer_thread_fn(void *data)
 			if (msg[i].message_type == MEDIA_VIDEO_STATISTIC_INFO) {
 				pr_info("get msg type [%d]\n",
 				msg[i].message_type);
-				pr_info("get msg id [%d]\n",
+				pr_dbg("get msg id [%d]\n",
 				msg[i].data.statistics_info.decoder_id);
-				pr_info("get msg id [%d]\n",
+				pr_dbg("get msg id [%d]\n",
 				msg[i].data.statistics_info.decoded_frames);
-				pr_info("get msg id [%d]\n",
+				pr_dbg("get msg id [%d]\n",
 				msg[i].data.statistics_info.err_frames);
-				pr_info("get msg id [%d]\n",
+				pr_dbg("get msg id [%d]\n",
 				msg[i].data.statistics_info.drop_frames);
 			}
 		}
 	}
+	return 0;
+}
+
+int update_subscribe_msg_type(void)
+{
+	u32 subscribe_msg_type = 0;
+	int i = 0;
+
+	if (!mediaproxy)
+		return 0;
+
+	for (i = 0; i < MAX_SESSION; i++) {
+		if (mediaproxy->consumers[i]) {
+			subscribe_msg_type =
+				subscribe_msg_type |
+				mediaproxy->consumers[i]->subscribe_msg_type;
+		}
+	}
+	mediaproxy->subscribe_msg_type = subscribe_msg_type;
+	pr_info("mediaproxy update subscribe_msg_type 0x[%x]\n", mediaproxy->subscribe_msg_type);
 	return 0;
 }
 
@@ -216,6 +357,7 @@ int mediaproxy_open(struct inode *inode, struct file *filp)
 	int ret;
 
 	try_module_get(THIS_MODULE);
+	pr_info("mediaproxy_open start\n");
 	ret = session_creat((void **)&filp->private_data, "app");
 	if (ret) {
 		pr_err("Failed to creat session\n");
@@ -227,26 +369,37 @@ int mediaproxy_open(struct inode *inode, struct file *filp)
 int mediaproxy_release(struct inode *inode, struct file *filp)
 {
 	struct mediaproxy_session *session = filp->private_data;
-	unsigned long flags = 0;
 
 	pr_info("release session\n");
 	if (session->session_id >= 0) {
 		//not disconnect, get lock
-		spinlock_t *lock = session->lock;
+		struct mutex *lock = session->lock;
 
-		spin_lock_irqsave(lock, flags);
+		mutex_lock(lock);
 		pr_info("release session %s-%d\n",
 			MP_ROLE_STRING(session->role), session->session_id);
 		session->session_entry[session->session_id] = NULL;
 		if (session->role == MP_ROLE_CONSUMER)
 			mediaproxy->has_consumer--;
-		kfifo_free(&session->msg_kfifo);
+		session->subscribe_msg_type = 0x0;
+
+		if (session->role == MP_ROLE_CONSUMER) {
+			//
+			mediaproxy->c_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
+			update_subscribe_msg_type();
+		} else {
+			//
+			kfifo_free(&session->msg_kfifo);
+			mediaproxy->p_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
+		}
+		mediaproxy->has_unusing_fifo++;
+		pr_info("release has_unusing_fifo [%d]\n", mediaproxy->has_unusing_fifo);
 		kfree(session);
 		filp->private_data = NULL;
-		spin_unlock_irqrestore(lock, flags);
+		mutex_unlock(lock);
+		wake_up_interruptible(&mediaproxy->transfer_queue);
 	} else {
-		//disconnect only need free filo and session
-		kfifo_free(&session->msg_kfifo);
+		//disconnect only need session
 		kfree(session);
 		filp->private_data = NULL;
 	}
@@ -254,10 +407,9 @@ int mediaproxy_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int mediaproxy_connect(enum mp_role_e role, struct mediaproxy_session *session)
+static int mediaproxy_connect(enum mp_role_e role, u32 fifo_len, struct mediaproxy_session *session)
 {
-	int i;
-	unsigned long flags = 0;
+	int i, ret;
 
 	if (!mediaproxy) {
 		pr_err("Mediaproxy is not initialized\n");
@@ -270,7 +422,7 @@ static int mediaproxy_connect(enum mp_role_e role, struct mediaproxy_session *se
 	}
 	switch (role) {
 	case MP_ROLE_PRODUCER:
-		spin_lock_irqsave(&mediaproxy->p_lock, flags);
+		mutex_lock(&mediaproxy->p_lock);
 		for (i = 0; i < MAX_SESSION; i++) {
 			if (!mediaproxy->producers[i]) {
 				session->session_id = i;
@@ -278,15 +430,29 @@ static int mediaproxy_connect(enum mp_role_e role, struct mediaproxy_session *se
 				session->lock = &mediaproxy->p_lock;
 				session->session_entry = mediaproxy->producers;
 				mediaproxy->producers[i] = session;
-				pr_info("Session %s-%d is connected\n",
-				MP_ROLE_STRING(role), session->session_id);
+				ret = kfifo_alloc(&session->msg_kfifo, fifo_len, GFP_KERNEL);
+				if (ret)
+					pr_err("Failed to alloc size:[%d]\n", fifo_len);
+				session->fifo_idx = mediaproxy_get_fifo(role, fifo_len);
+				pr_info("Session %s-%d is connected fifo idx [%d]\n",
+				MP_ROLE_STRING(role), session->session_id, session->fifo_idx);
+				if (session->fifo_idx >= 0) {
+					mediaproxy->p_fifo[session->fifo_idx]->subscribe_msg_type =
+						session->subscribe_msg_type;
+					strncpy(mediaproxy->p_fifo[session->fifo_idx]->module_name,
+						session->module_name, STR_MAX_SIZE - 1);
+				}
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&mediaproxy->p_lock, flags);
+		mutex_unlock(&mediaproxy->p_lock);
+		if (session->fifo_idx == -1) {
+			pr_err("producer [%s] can not got fifo\n", session->module_name);
+			return -EFAULT;
+		}
 		return 0;
 	case MP_ROLE_CONSUMER:
-		spin_lock_irqsave(&mediaproxy->c_lock, flags);
+		mutex_lock(&mediaproxy->c_lock);
 		for (i = 0; i < MAX_SESSION; i++) {
 			if (!mediaproxy->consumers[i]) {
 				session->session_id = i;
@@ -295,13 +461,24 @@ static int mediaproxy_connect(enum mp_role_e role, struct mediaproxy_session *se
 				session->session_entry = mediaproxy->consumers;
 				mediaproxy->consumers[i] = session;
 				mediaproxy->has_consumer++;
+				session->fifo_idx = mediaproxy_get_fifo(role, fifo_len);
 				wake_up_interruptible(&mediaproxy->transfer_queue);
-				pr_info("Session %s-%d is connected\n",
-				MP_ROLE_STRING(role), session->session_id);
+				pr_info("Session %s-%d is connected fifo idx [%d]\n",
+				MP_ROLE_STRING(role), session->session_id, session->fifo_idx);
+				if (session->fifo_idx >= 0) {
+					mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type =
+						session->subscribe_msg_type;
+					strncpy(mediaproxy->c_fifo[session->fifo_idx]->module_name,
+						session->module_name, STR_MAX_SIZE - 1);
+				}
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&mediaproxy->c_lock, flags);
+		mutex_unlock(&mediaproxy->c_lock);
+		if (session->fifo_idx == -1) {
+			pr_err("consumer [%s] can not got fifo\n", session->module_name);
+			return -EFAULT;
+		}
 		return 0;
 	case MP_ROLE_INVALID:
 	default:
@@ -312,13 +489,11 @@ static int mediaproxy_connect(enum mp_role_e role, struct mediaproxy_session *se
 
 static int mediaproxy_disconnect(struct mediaproxy_session *session)
 {
-	unsigned long flags = 0;
-
 	if (!session || !session->lock) {
 		pr_info("Session or lock is null when disconnected\n");
 		return 0;
 	}
-	spin_lock_irqsave(session->lock, flags);
+	mutex_lock(session->lock);
 	session->session_entry[session->session_id] = NULL;
 	if (session->role == MP_ROLE_CONSUMER)
 		mediaproxy->has_consumer--;
@@ -326,30 +501,53 @@ static int mediaproxy_disconnect(struct mediaproxy_session *session)
 	pr_info("Session %s-%d is disconnected\n",
 		MP_ROLE_STRING(session->role), session->session_id);
 	session->session_id = -1;
-	session->role = MP_ROLE_INVALID;
-	session->subscribe_msg_type = 0xFF;
+	session->subscribe_msg_type = 0x0;
 	session->session_entry = NULL;
-	spin_unlock_irqrestore(session->lock, flags);
+	if (session->role == MP_ROLE_CONSUMER) {
+		mediaproxy->c_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
+		mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
+		update_subscribe_msg_type();
+	} else {
+		kfifo_free(&session->msg_kfifo);
+		mediaproxy->p_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
+		mediaproxy->p_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
+	}
+	mediaproxy->has_unusing_fifo++;
+	pr_info("disconnect has_unusing_fifo [%d]\n", mediaproxy->has_unusing_fifo);
+	session->role = MP_ROLE_INVALID;
+	session->fifo_idx = -1;
+	mutex_unlock(session->lock);
 	session->lock = NULL;
+	wake_up_interruptible(&mediaproxy->transfer_queue);
 	return 0;
 }
 
 ssize_t mediaproxy_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
 {
 	unsigned int copied = 0;
-
+	int idx = -1;
 	struct mediaproxy_session *session = filp->private_data;
 
+	if (session)
+		idx = session->fifo_idx;
 	if (!mediaproxy) {
 		pr_err("Mediaproxy is not initialized\n");
 		return -EFAULT;
 	}
-	if (kfifo_is_empty(&session->msg_kfifo)) {
+	if (idx < 0) {
+		//pr_err("session is not connect fifo[%d]\n", idx);
+		return -EFAULT;
+	}
+	if (!session || session->role != MP_ROLE_CONSUMER) {
+		pr_err("session is not consumer\n");
+		return -EFAULT;
+	}
+
+	if (kfifo_is_empty(&mediaproxy->c_fifo[idx]->msg_kfifo)) {
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
-
 		if (wait_event_interruptible_timeout(mediaproxy->read_queue,
-			!kfifo_is_empty(&session->msg_kfifo),
+			!kfifo_is_empty(&mediaproxy->c_fifo[idx]->msg_kfifo),
 			msecs_to_jiffies(READ_TIME_OUT)) == 0) {
 			// timeout
 			pr_dbg("read timeout\n");
@@ -357,35 +555,64 @@ ssize_t mediaproxy_read(struct file *filp, char __user *buf, size_t count, loff_
 		}
 	}
 
-	if (kfifo_to_user(&session->msg_kfifo, buf, count, &copied)) {
+	if (kfifo_to_user(&mediaproxy->c_fifo[idx]->msg_kfifo, buf, count, &copied)) {
 		pr_err("consumer kfifo_to_user failed\n");
 		return -EFAULT;
 	}
 	pr_dbg("Mediaproxy is read success, copied:%d, fifo len: %d\n",
-		copied, kfifo_len(&session->msg_kfifo));
+		copied, kfifo_len(&mediaproxy->c_fifo[idx]->msg_kfifo));
 	return copied;
 }
 
 ssize_t mediaproxy_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
 {
 	unsigned int copied = 0;
-	unsigned long flags = 0;
+	int idx = -1;
 	struct mediaproxy_session *session = filp->private_data;
+	int data_copied;
+	struct aml_video_user_data msg;
 
+	if (session)
+		idx = session->fifo_idx;
 	if (!mediaproxy) {
 		pr_err("Mediaproxy is not initialized\n");
 		return -EFAULT;
 	}
+	if (idx < 0) {
+		//pr_err("session is not connect\n");
+		return -EFAULT;
+	}
+	if (session->role != MP_ROLE_PRODUCER) {
+		pr_err("session is not producer\n");
+		return -EFAULT;
+	}
+	kfifo_reset_out(&session->msg_kfifo);
 	if (kfifo_from_user(&session->msg_kfifo, buf, count, &copied)) {
 		pr_err("producer fifo_from_user failed\n");
 		return -EFAULT;
 	}
-	spin_lock_irqsave(&mediaproxy->p_lock, flags);
-	mediaproxy->all_producer_fifo_empty = kfifo_is_empty(&session->msg_kfifo);
+	//copy from fifo to fifo
+	while (!kfifo_is_empty(&session->msg_kfifo)) {
+		memset(&msg, 0, sizeof(struct aml_video_user_data));
+		data_copied = kfifo_out(&session->msg_kfifo, &msg, 1);
+		if ((msg.message_type & mediaproxy->subscribe_msg_type)) {
+			pr_dbg("mediaproxy write p [%d] [%s]",
+				idx, mediaproxy->p_fifo[idx]->module_name);
+			kfifo_in(&mediaproxy->p_fifo[idx]->msg_kfifo, &msg, data_copied);
+		} else {
+			pr_dbg("mediaproxy skip write p[%d] [%s] 0x[%x]0x[%x]-[%d] len[%d]", idx,
+				mediaproxy->p_fifo[idx]->module_name,
+				msg.message_type, mediaproxy->subscribe_msg_type,
+				msg.message_type & mediaproxy->subscribe_msg_type,
+				kfifo_len(&session->msg_kfifo));
+		}
+	}
+	//mutex_unlock(&mediaproxy->p_lock);
+	mediaproxy->all_producer_fifo_empty = kfifo_is_empty(&mediaproxy->p_fifo[idx]->msg_kfifo);
 	wake_up_interruptible(&mediaproxy->transfer_queue);
-	spin_unlock_irqrestore(&mediaproxy->p_lock, flags);
+	//mutex_unlock(&mediaproxy->p_lock);
 	pr_dbg("mediaproxy write success, copied size: %d fifo len: %d\n",
-		copied, kfifo_len(&session->msg_kfifo));
+		copied, kfifo_len(&mediaproxy->p_fifo[idx]->msg_kfifo));
 	return copied;
 }
 
@@ -407,7 +634,7 @@ static long mediaproxy_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 	switch (cmd) {
 	case MEDIAPROXY_CONNECT:
 		pr_info("MEDIAPROXY_CONNECT\n");
-		result = mediaproxy_connect(args.role, session);
+		result = mediaproxy_connect(args.role, session->fifo_len, session);
 		break;
 	case MEDIAPROXY_DISCONNECT:
 		pr_info("MEDIAPROXY_DISCONNECT\n");
@@ -418,8 +645,34 @@ static long mediaproxy_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 		break;
 	case MEDIAPROXY_MSG_TYPE__SUBSCRIBE:
 		session->subscribe_msg_type = args.subscribe_msg_type;
-		pr_info("MEDIAPROXY_MSG_TYPE__SUBSCRIBE type %d\n",
-			args.subscribe_msg_type);
+		if (session->role == MP_ROLE_CONSUMER)
+			update_subscribe_msg_type();
+		if (session->fifo_idx >= 0) {
+			//had connect buf not subscribe or need update msg type
+			if (session->role == MP_ROLE_PRODUCER)
+				mediaproxy->p_fifo[session->fifo_idx]->subscribe_msg_type =
+					args.subscribe_msg_type;
+			else
+				mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type =
+					args.subscribe_msg_type;
+		}
+		pr_info("MEDIAPROXY_MSG_TYPE__SUBSCRIBE type %d [%d][%s] role [%d]\n",
+			args.subscribe_msg_type, session->fifo_idx,
+			session->module_name, session->role);
+		break;
+	case MEDIAPROXY_SET_FIFO_LEN:
+		{
+			if (args.fifo_len <= 32)
+				session->fifo_len = 32;
+			else if (args.fifo_len <= 64)
+				session->fifo_len = 64;
+			else if (args.fifo_len <= 128)
+				session->fifo_len = 128;
+			else
+				session->fifo_len = 256;
+			pr_info("MEDIAPROXY_SET_FIFO_LEN fifo len [%d][%d]\n",
+				session->fifo_len, args.fifo_len);
+		}
 		break;
 	default:
 		pr_err("Unknown ioctl cmd\n");
@@ -435,6 +688,8 @@ static int _check_thread_wakeup(void)
 
 	if (mediaproxy->has_consumer > 0 && !mediaproxy->all_producer_fifo_empty)
 		cond = 1;
+	if (mediaproxy->has_unusing_fifo > 0)
+		cond = 1;
 	if (kthread_should_stop())
 		cond = 1;
 
@@ -443,53 +698,79 @@ static int _check_thread_wakeup(void)
 
 static int mediaproxy_thread_fn(void *data)
 {
-	struct aml_video_user_data msg;
-
-	memset(&msg, 0, sizeof(struct aml_video_user_data));
 	while (!kthread_should_stop()) {
 		if (wait_event_interruptible(mediaproxy->transfer_queue, _check_thread_wakeup())) {
 			pr_err("exit thread\n");
 			return -ERESTARTSYS;
 		}
 
-		if (copy_data_between_kfifo(mediaproxy->producers, mediaproxy->consumers, &msg) < 0)
+		if (copy_data_between_kfifo() < 0)
 			return -ERESTARTSYS;
 	}
 
 	return 0;
 }
 
-static int copy_data_between_kfifo(struct mediaproxy_session **producer,
-	struct mediaproxy_session **consumer,
-	struct aml_video_user_data *msg)
+static int copy_data_between_kfifo(void)
 {
 	int i, j, data_copied;
-	unsigned long flags = 0;
+	struct aml_video_user_data msg;
+
+	memset(&msg, 0, sizeof(struct aml_video_user_data));
 
 	for (i = 0; i < MAX_SESSION; i++) {
-		spin_lock_irqsave(&mediaproxy->p_lock, flags);
-		if (producer[i] && !kfifo_is_empty(&producer[i]->msg_kfifo)) {
-			data_copied = kfifo_out(&producer[i]->msg_kfifo, msg, 1);
+		if (mediaproxy->p_fifo[i] && !kfifo_is_empty(&mediaproxy->p_fifo[i]->msg_kfifo)) {
+			data_copied = kfifo_out(&mediaproxy->p_fifo[i]->msg_kfifo, &msg, 1);
 			mediaproxy->all_producer_fifo_empty =
-				kfifo_is_empty(&producer[i]->msg_kfifo);
+				kfifo_is_empty(&mediaproxy->p_fifo[i]->msg_kfifo);
 			for (j = 0; j < MAX_SESSION; j++) {
-				spin_lock_irqsave(&mediaproxy->c_lock, flags);
-				if (consumer[j])
-					pr_dbg("mediaproxy copy type: 0x%x consumer: 0x%x [%s] : %d\n",
-					msg->message_type,
-					consumer[j]->subscribe_msg_type,
-					consumer[j]->module_name,
-					msg->message_type & consumer[j]->subscribe_msg_type);
-				if (consumer[j] &&
-				(msg->message_type & consumer[j]->subscribe_msg_type))
-					kfifo_in(&consumer[j]->msg_kfifo, msg, data_copied);
+				if (!mediaproxy->c_fifo[j])
+					continue;
 
-				spin_unlock_irqrestore(&mediaproxy->c_lock, flags);
+				int type = mediaproxy->c_fifo[j]->subscribe_msg_type;
+
+				pr_dbg("copy type: 0x%x consumer[%d]: 0x%x [%s] : %d state [%d]\n",
+					msg.message_type,
+					j,
+					type,
+					mediaproxy->c_fifo[j]->module_name,
+					msg.message_type & type,
+					mediaproxy->c_fifo[j]->state);
+				if (mediaproxy->c_fifo[j]->state != MP_FIFO_USED) {
+					//fifo had unused,we not need copy msg
+					continue;
+				}
+				if ((msg.message_type & type)) {
+					pr_dbg("mediaproxy copy c[%d] [%s]",
+						j, mediaproxy->c_fifo[j]->module_name);
+					kfifo_in(&mediaproxy->c_fifo[j]->msg_kfifo,
+						&msg, data_copied);
+				}
 			}
 			wake_up_interruptible(&mediaproxy->read_queue);
-			memset(msg, 0, sizeof(struct aml_video_user_data));
+			memset(&msg, 0, sizeof(struct aml_video_user_data));
 		}
-		spin_unlock_irqrestore(&mediaproxy->p_lock, flags);
+		if (mediaproxy->p_fifo[i] &&
+			mediaproxy->p_fifo[i]->state == MP_FIFO_UNUSING &&
+			kfifo_is_empty(&mediaproxy->p_fifo[i]->msg_kfifo)) {
+			mediaproxy->p_fifo[i]->state = MP_FIFO_UNUSED;
+			mediaproxy->has_unusing_fifo--;
+			pr_info("p_fifo[%d] name[%s] state[%d] to  MP_FIFO_UNUSED\n",
+				i,
+				mediaproxy->p_fifo[i]->module_name,
+				mediaproxy->has_unusing_fifo);
+		}
+		if (mediaproxy->c_fifo[i] &&
+			mediaproxy->c_fifo[i]->state == MP_FIFO_UNUSING) {
+			//fifo had unused,we need clear fifo
+			kfifo_reset_out(&mediaproxy->c_fifo[i]->msg_kfifo);
+			mediaproxy->c_fifo[i]->state = MP_FIFO_UNUSED;
+			mediaproxy->has_unusing_fifo--;
+			pr_info("c_fifo[%d] name[%s] state[%d] set to  MP_FIFO_UNUSED\n",
+				i,
+				mediaproxy->c_fifo[i]->module_name,
+				mediaproxy->has_unusing_fifo);
+		}
 	}
 	return 0;
 }
@@ -499,26 +780,32 @@ static int mediaproxy_get_consumer_count(void)
 	return mediaproxy->has_consumer;
 }
 
-int media_proxy_produce_init(void **handle, char *modulename, u32 msg_type)
+int media_proxy_produce_init(void **handle, char *module_name, u32 msg_type)
 {
 	int ret = 0, c_ret = 0;
 	struct mediaproxy_session *session;
-
-	ret = session_creat(handle, modulename);
+	pr_err("mediaproxy produce init [%s]\n", module_name);
+	ret = session_creat(handle, module_name);
 	if (*handle) {
 		session = *handle;
-		c_ret = mediaproxy_connect(MP_ROLE_PRODUCER, session);
+		pr_err("mediaproxy produce start connect\n");
+		c_ret = mediaproxy_connect(MP_ROLE_PRODUCER, KFIFO_MAX_SIZE, session);
 		//connect error,free session
 		if (c_ret != 0) {
 			pr_err("mediaproxy produce creat and connect error\n");
-			kfifo_free(&session->msg_kfifo);
 			kfree(*handle);
 			*handle = NULL;
 			ret = -1;
 		} else {
+			pr_err("mediaproxy produce connect [%d]\n", session->fifo_idx);
 			session->subscribe_msg_type = msg_type;
-			pr_info("mediaproxy produce msg type :0x%x  modulename:%s\n",
-			msg_type, modulename);
+			if (session->fifo_idx >= 0) {
+				//had connect buf not subscribe or need update msg type
+				mediaproxy->p_fifo[session->fifo_idx]->subscribe_msg_type =
+					msg_type;
+			}
+			pr_info("mediaproxy produce msg type :0x%x  module_name:%s\n",
+			msg_type, module_name);
 		}
 	} else {
 		pr_err("mediaproxy handle creat error\n");
@@ -531,6 +818,8 @@ EXPORT_SYMBOL(media_proxy_produce_init);
 int notify_msg_to_mediaproxy(void *handle, int num, void *data)
 {
 	struct mediaproxy_session *session;
+	int i = 0;
+	struct aml_video_user_data *ptr;
 
 	if (!handle) {
 		pr_err("notify mediaproxy handle is null\n");
@@ -541,9 +830,17 @@ int notify_msg_to_mediaproxy(void *handle, int num, void *data)
 		return 0;
 	}
 	session = handle;
-
-	if (session)
-		session_kernel_write(session, num, data);
+	ptr = data;
+	for (i = 0; i < num; i++) {
+		if (ptr->message_type & mediaproxy->subscribe_msg_type)
+			session_kernel_write(session, 1, ptr);
+		else
+			pr_dbg("mediaproxy not send data:%d 0x[%x]0x[%x]&[%d]\n", i,
+				ptr->message_type,
+				mediaproxy->subscribe_msg_type,
+				ptr->message_type & mediaproxy->subscribe_msg_type);
+		ptr++;
+	}
 	return num;
 }
 EXPORT_SYMBOL(notify_msg_to_mediaproxy);
@@ -551,7 +848,6 @@ EXPORT_SYMBOL(notify_msg_to_mediaproxy);
 int media_proxy_produce_deinit(void *handle)
 {
 	struct mediaproxy_session *session;
-	unsigned long flags = 0;
 
 	if (!handle)
 		return 0;
@@ -560,20 +856,29 @@ int media_proxy_produce_deinit(void *handle)
 	pr_info("deinit session\n");
 	if (session->session_id >= 0) {
 		//not disconnect, get lock
-		spinlock_t *lock = session->lock;
+		struct mutex *lock = session->lock;
 
-		spin_lock_irqsave(lock, flags);
+		mutex_lock(lock);
 		pr_info("deinit session %s-%d\n",
 			MP_ROLE_STRING(session->role), session->session_id);
 		session->session_entry[session->session_id] = NULL;
 		if (session->role == MP_ROLE_CONSUMER)
 			mediaproxy->has_consumer--;
-		kfifo_free(&session->msg_kfifo);
+		if (session->role == MP_ROLE_CONSUMER) {
+			mediaproxy->c_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
+			mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
+			update_subscribe_msg_type();
+		} else {
+			mediaproxy->p_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
+			mediaproxy->p_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
+		}
+		mediaproxy->has_unusing_fifo++;
+		pr_info("deinit has_unusing_fifo [%d]\n", mediaproxy->has_unusing_fifo);
 		kfree(session);
-		spin_unlock_irqrestore(lock, flags);
+		mutex_unlock(lock);
+		wake_up_interruptible(&mediaproxy->transfer_queue);
 	} else {
 		//disconnect only need free filo and session
-		kfifo_free(&session->msg_kfifo);
 		kfree(session);
 	}
 	return 0;
@@ -584,20 +889,30 @@ int media_proxy_consumer_init(void **handle, char *module_name, u32 msg_type)
 {
 	struct mediaproxy_session *session;
 	int c_ret = 0;
-	int ret = session_creat(handle, module_name);
+	int ret = 0;
+
+	pr_info("mediaproxy consumer init [%s]\n", module_name);
+	ret = session_creat(handle, module_name);
 
 	if (*handle) {
 		session = *handle;
-		c_ret = mediaproxy_connect(MP_ROLE_CONSUMER, session);
+		pr_info("mediaproxy consumer init [%s] connect\n", module_name);
+
+		c_ret = mediaproxy_connect(MP_ROLE_CONSUMER, KFIFO_MAX_SIZE, session);
 		//connect error,free session
 		if (c_ret != 0) {
 			pr_err("mediaproxy consumer creat and connect error\n");
-			kfifo_free(&session->msg_kfifo);
 			kfree(*handle);
 			*handle = NULL;
 			ret = -1;
 		} else {
 			session->subscribe_msg_type = msg_type;
+			update_subscribe_msg_type();
+			if (session->fifo_idx >= 0) {
+				//had connect buf not subscribe or need update msg type
+				mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type =
+					msg_type;
+			}
 			pr_info("mediaproxy consumer msg type :0x%x module_name:%s\n",
 				msg_type, module_name);
 		}
@@ -624,13 +939,18 @@ int receive_msg_from_mediaproxy(void *handle,  int num, void *data)
 		return 0;
 	}
 	session = handle;
-	len =  kfifo_len(&session->msg_kfifo);
+	if (session->fifo_idx < 0 || session->fifo_idx >= MAX_SESSION) {
+		pr_err("fifo is not connect get msg from proxy\n");
+		return 0;
+	}
+	len =  kfifo_len(&mediaproxy->c_fifo[session->fifo_idx]->msg_kfifo);
 	if (len > num)
 		len = num;
 	if (len > 0)
-		data_copied = kfifo_out(&session->msg_kfifo, data, len);
+		data_copied = kfifo_out(&mediaproxy->c_fifo[session->fifo_idx]->msg_kfifo,
+						data, len);
 	else
-		pr_dbg("Mediaproxy donot have msg\n");
+		pr_dbg("Mediaproxy c[%d] donot have msg\n", session->fifo_idx);
 	return data_copied;
 }
 EXPORT_SYMBOL(receive_msg_from_mediaproxy);
@@ -694,8 +1014,7 @@ static ssize_t send_event_thread_store(struct class *class,
 		if (!k_dec_cus_session) {
 			media_proxy_consumer_init((void **)&k_dec_cus_session, "dec-consumer",
 			MEDIA_VIDEO_STATISTIC_INFO |
-				MEDIA_VIDEO_ERROR_EVENT |
-				MEDIA_VIDEO_OUTPUT_INFO);
+					MEDIA_VIDEO_OUTPUT_INFO);
 		}
 		vdec_thread = kthread_create(producer_thread_fn, NULL, "mediaproxy_produce_thread");
 		if (IS_ERR(vdec_thread))

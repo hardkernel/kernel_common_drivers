@@ -22,9 +22,9 @@
 
 #define DEV_NAME "mediaproxy"
 //TODO：debug sys
-
+#define STR_MAX_SIZE  32
 #define KFIFO_MAX_SIZE  32 /*the number of elements in the fifo, this must be a power of 2*/
-#define MAX_SESSION 4
+#define MAX_SESSION 16
 
 #define READ_TIME_OUT   100   /* Time to wait for read in millisecond */
 
@@ -33,6 +33,7 @@
 #define MEDIAPROXY_DISCONNECT _IOW(MEDIAPROXY_MAGIC, 1, int)
 #define MEDIAPROXY_GET_CONSUMER_COUNT _IOW(MEDIAPROXY_MAGIC, 2, int)
 #define MEDIAPROXY_MSG_TYPE__SUBSCRIBE _IOW(MEDIAPROXY_MAGIC, 3, int)
+#define MEDIAPROXY_SET_FIFO_LEN _IOW(MEDIAPROXY_MAGIC, 4, int)
 
 #define MP_ROLE_STRING(role) \
 	(((role) == MP_ROLE_PRODUCER) ? "producer" : \
@@ -44,9 +45,25 @@ enum mp_role_e {
 	MP_ROLE_CONSUMER,
 };
 
+/*state change*/
+enum mp_fifo_state_e {
+	MP_FIFO_NONE,
+	MP_FIFO_UNUSING,
+	MP_FIFO_USED,
+	MP_FIFO_UNUSED,
+};
+
 union mediaproxy_ioctl_args {
 	enum mp_role_e role;
 	u32 subscribe_msg_type;
+	u32 fifo_len;
+};
+
+struct mediaproxy_fifo {
+	u32 subscribe_msg_type;
+	enum mp_fifo_state_e state;
+	char module_name[STR_MAX_SIZE];
+	DECLARE_KFIFO_PTR(msg_kfifo, struct aml_video_user_data);
 };
 
 /*
@@ -67,8 +84,10 @@ struct mediaproxy_session {
 	enum mp_role_e role;
 	u32 subscribe_msg_type;
 	char *module_name;
-	spinlock_t *lock;/* a pointer to the p_lock/c_lock. */
+	struct mutex *lock;/* a pointer to the p_lock/c_lock. */
 	struct mediaproxy_session **session_entry;
+	int fifo_idx;
+	int fifo_len;
 	DECLARE_KFIFO_PTR(msg_kfifo, struct aml_video_user_data);
 };
 
@@ -96,10 +115,14 @@ struct mediaproxy_dev {
 	int major;
 	unsigned int has_consumer;
 	bool all_producer_fifo_empty;
+	int has_unusing_fifo;
+	u32 subscribe_msg_type;
 	struct mediaproxy_session *producers[MAX_SESSION];
 	struct mediaproxy_session *consumers[MAX_SESSION];
-	spinlock_t p_lock;/* spinlock_t lock for producer. */
-	spinlock_t c_lock;/* spinlock_t lock for consumer. */
+	struct mediaproxy_fifo *p_fifo[MAX_SESSION];
+	struct mediaproxy_fifo *c_fifo[MAX_SESSION];
+	struct mutex p_lock;/* mutex lock for producer. */
+	struct mutex c_lock;/* mutex lock for consumer. */
 	wait_queue_head_t read_queue;
 	wait_queue_head_t transfer_queue;
 };
@@ -110,11 +133,12 @@ static int mediaproxy_thread_fn(void *data);
  *Copy msg from the producer fifo to the consumer fifo,
  *depending on the type of message the consumer is subscribed to.
  */
-static int copy_data_between_kfifo(struct mediaproxy_session **producer,
-	struct mediaproxy_session **consumer, struct aml_video_user_data *msg);
+static int copy_data_between_kfifo(void);
 
 // ioctl
-static int mediaproxy_connect(enum mp_role_e role, struct mediaproxy_session *session);
+static int mediaproxy_connect(enum mp_role_e role,
+							u32 fifo_len,
+							struct mediaproxy_session *session);
 static int mediaproxy_disconnect(struct mediaproxy_session *session);
 static int mediaproxy_get_consumer_count(void);
 static ssize_t session_kernel_write(struct mediaproxy_session *session, int num, void *buf);
