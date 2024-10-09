@@ -238,11 +238,11 @@ static int audio_es_len_limit = (40 * 1024);
 module_param(audio_es_len_limit, int, 0644);
 
 MODULE_PARM_DESC(video_es_splice, "\n\t\t video es splice");
-static int video_es_splice;
+static int video_es_splice = 1;
 module_param(video_es_splice, int, 0644);
 
 MODULE_PARM_DESC(audio_es_splice, "\n\t\t audio es splice");
-static int audio_es_splice;
+static int audio_es_splice = 1;
 module_param(audio_es_splice, int, 0644);
 
 MODULE_PARM_DESC(ts_output_max_pid_num_per_sid, "\n\t\t max pid num per sid in si_table");
@@ -1043,15 +1043,27 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		if (es_params->has_splice == 0) {
 			memcpy(&header, &es_params->header, h_len);
 			ATRACE_COUNTER(pout->name, es_params->header.pts);
-			pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d offset:0x%0x\n",
-		       pout->type == AUDIO_TYPE ? "audio" : "video",
-			   pout->es_pes->pid,
-			   pout->sid,
-		       header.pts_dts_flag,
-		       (unsigned long)header.pts,
-		       (unsigned long)header.dts,
-		       header.len,
-		       pout->pchan->r_offset);
+			if ((pout->type == VIDEO_TYPE && video_es_splice != 0) ||
+				(pout->type == AUDIO_TYPE && audio_es_splice != 0))
+				pr_dbg("0 0 splice %s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d offset:0x%0x\n",
+			       pout->type == AUDIO_TYPE ? "audio" : "video",
+				   pout->es_pes->pid,
+				   pout->sid,
+			       header.pts_dts_flag,
+			       (unsigned long)header.pts,
+			       (unsigned long)header.dts,
+			       header.len,
+			       pout->pchan->r_offset);
+			else
+				pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d offset:0x%0x\n",
+				   pout->type == AUDIO_TYPE ? "audio" : "video",
+				   pout->es_pes->pid,
+				   pout->sid,
+				   header.pts_dts_flag,
+				   (unsigned long)header.pts,
+				   (unsigned long)header.dts,
+				   header.len,
+				   pout->pchan->r_offset);
 		} else {
 			header.len = es_params->header.len;
 		pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
@@ -1556,14 +1568,25 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		} else {
 			memcpy(&header, &es_params->header, h_len);
 			ATRACE_COUNTER(pout->name, es_params->header.pts);
-			pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
-		       pout->type == AUDIO_TYPE ? "audio" : "video",
-			   pout->es_pes->pid,
-			   pout->sid,
-		       header.pts_dts_flag,
-		       (unsigned long)header.pts,
-		       (unsigned long)header.dts,
-		       header.len);
+			if ((pout->type == VIDEO_TYPE && video_es_splice != 0) ||
+				(pout->type == AUDIO_TYPE && audio_es_splice != 0))
+				pr_dbg("0 0 splice %s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
+			       pout->type == AUDIO_TYPE ? "audio" : "video",
+				   pout->es_pes->pid,
+				   pout->sid,
+			       header.pts_dts_flag,
+			       (unsigned long)header.pts,
+			       (unsigned long)header.dts,
+			       header.len);
+			else
+				pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
+				   pout->type == AUDIO_TYPE ? "audio" : "video",
+				   pout->es_pes->pid,
+				   pout->sid,
+				   header.pts_dts_flag,
+				   (unsigned long)header.pts,
+				   (unsigned long)header.dts,
+				   header.len);
 		}
 
 		if (!(es_params->header.pts_dts_flag & 0x4) ||
@@ -1678,13 +1701,23 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 	sec_es_data.data_end = (unsigned long)ptmp + len;
 
 	if (es_params->has_splice == 0)
-		pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
-			pout->type == AUDIO_TYPE ? "audio" : "video",
-		   pout->es_pes->pid,
-		   pout->sid,
-	       sec_es_data.pts_dts_flag, (unsigned long)sec_es_data.pts,
-	       (unsigned long)sec_es_data.dts,
-	       (unsigned long)(sec_es_data.data_start - sec_es_data.buf_start));
+		if ((pout->type == AUDIO_TYPE && audio_es_splice != 0) ||
+			(pout->type == VIDEO_TYPE && video_es_splice != 0))
+			pr_dbg("0 0 splice %s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+				pout->type == AUDIO_TYPE ? "audio" : "video",
+			   pout->es_pes->pid,
+			   pout->sid,
+		       sec_es_data.pts_dts_flag, (unsigned long)sec_es_data.pts,
+		       (unsigned long)sec_es_data.dts,
+		       (unsigned long)(sec_es_data.data_start - sec_es_data.buf_start));
+		else
+			pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+				pout->type == AUDIO_TYPE ? "audio" : "video",
+			   pout->es_pes->pid,
+			   pout->sid,
+			   sec_es_data.pts_dts_flag, (unsigned long)sec_es_data.pts,
+			   (unsigned long)sec_es_data.dts,
+			   (unsigned long)(sec_es_data.data_start - sec_es_data.buf_start));
 	else
 		pr_dbg("last splice %s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
 			pout->type == AUDIO_TYPE ? "audio" : "video",
@@ -1877,21 +1910,32 @@ static int write_sec_video_es_data(struct out_elem *pout,
 //				sec_es_data.data_start, sec_es_data.data_end);
 
 	if (es_params->has_splice == 0) {
-		pr_dbg("video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
-			pout->es_pes->pid,
-			pout->sid,
-			sec_es_data.pts_dts_flag,
-			(unsigned long)sec_es_data.pts,
-			(unsigned long)sec_es_data.dts,
-			(unsigned long)(sec_es_data.data_start -
-				sec_es_data.buf_start));
-			if (len >= debug_es_len && flag == 0 && debug_es_len) {
-				int tt = 0;
+		if (video_es_splice != 0)
+			pr_dbg("0 0 splice video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+				pout->es_pes->pid,
+				pout->sid,
+				sec_es_data.pts_dts_flag,
+				(unsigned long)sec_es_data.pts,
+				(unsigned long)sec_es_data.dts,
+				(unsigned long)(sec_es_data.data_start -
+					sec_es_data.buf_start));
+		else
+			pr_dbg("video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+				pout->es_pes->pid,
+				pout->sid,
+				sec_es_data.pts_dts_flag,
+				(unsigned long)sec_es_data.pts,
+				(unsigned long)sec_es_data.dts,
+				(unsigned long)(sec_es_data.data_start -
+					sec_es_data.buf_start));
 
-				for (tt = 0; tt < debug_es_len; tt++)
-					dprint("0x%0x ", ptmp[tt]);
-				dprint("\n");
-			}
+		if (len >= debug_es_len && flag == 0 && debug_es_len) {
+			int tt = 0;
+
+			for (tt = 0; tt < debug_es_len; tt++)
+				dprint("0x%0x ", ptmp[tt]);
+			dprint("\n");
+		}
 	} else {
 		pr_dbg("last splice video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
 			pout->es_pes->pid,
