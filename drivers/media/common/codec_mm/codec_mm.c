@@ -1215,6 +1215,8 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 		codec_mm_extpool_free((struct gen_pool *)mem->from_ext,
 				      mem->mem_handle,
 				      mem->buffer_size);
+		if (!mgt->fastplay_enable && codec_mm_extpool_pool_release(&mgt->cma_res_pool) == 0)
+			pr_info("disable cma_res mem\n");
 	}
 #ifdef CONFIG_CODEC_MM_EXT_POOL
 	else if (mem->from_flags ==
