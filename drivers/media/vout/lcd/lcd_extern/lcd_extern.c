@@ -1420,10 +1420,6 @@ static void lcd_extern_dev_probe_work(struct work_struct *p_work)
 		goto lcd_ext_dev_probe_work_err;
 	}
 
-	if (edrv->index == 0)
-		sprintf(edrv->ukey_name, "lcd_extern");
-	else
-		sprintf(edrv->ukey_name, "lcd%d_extern", edrv->index);
 	ret = lcd_unifykey_check(edrv->ukey_name);
 	if (ret)
 		goto lcd_ext_dev_probe_work_err;
@@ -1492,6 +1488,10 @@ static int lcd_extern_config_load(struct lcd_extern_driver_s *edrv)
 		edrv->key_valid = (unsigned char)para[0];
 	}
 	EXTPR("[%d]: key_valid: %d\n", edrv->index, edrv->key_valid);
+	if (edrv->index == 0)
+		sprintf(edrv->ukey_name, "lcd_extern");
+	else
+		sprintf(edrv->ukey_name, "lcd%d_extern", edrv->index);
 
 	if (edrv->key_valid && !lcd_unifykey_init_get()) {
 		edrv->config_load = 1;
