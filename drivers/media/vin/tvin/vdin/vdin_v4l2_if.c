@@ -1286,9 +1286,7 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		}
 	}
 
-	/* mipi-csi donot support state_machine */
 	if (devp->parm.port == TVIN_PORT_MIPI) {
-		devp->parm.info.status = TVIN_SIG_STATUS_STABLE;
 		if (devp->frontend && devp->frontend->sm_ops &&
 			devp->frontend->sm_ops->get_fmt)
 			devp->parm.info.fmt =
@@ -1296,7 +1294,11 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		else
 			devp->parm.info.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
 	}
-
+	/* mipi-csi and loopback donot support state_machine */
+	if (devp->hw_core == VDIN_HW_CORE_LITE ||
+	    devp->parm.port == TVIN_PORT_MIPI) {
+		devp->parm.info.status = TVIN_SIG_STATUS_STABLE;
+	}
 	mutex_unlock(&devp->fe_lock);
 
 	dprintk(0, "%s current port:%#x(%s)\n", __func__,
