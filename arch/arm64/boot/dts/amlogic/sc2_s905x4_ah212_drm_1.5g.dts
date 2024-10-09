@@ -51,9 +51,9 @@
 		};
 
 		/* global autoconfigured region for contiguous allocations */
-		ramoops@8400000 {
+		ramoops@0x06700000 {
 			compatible = "ramoops";
-			reg = <0x0 0x08400000 0x0 0x00100000>;
+			reg = <0x0 0x06700000 0x0 0x00100000>;
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
@@ -81,7 +81,7 @@
 			/*reusable;*/
 			no-map;
 			alignment = <0x0 0x100000>;
-			reg = <0x0 0x05000000 0x0 0x2300000>;
+			reg = <0x0 0x05000000 0x0 0x1700000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -166,7 +166,7 @@
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
-			size = <0x0 0x1000000>;
+			size = <0x0 0xC00000>;
 			alignment = <0x0 0x100000>;
 		};
 
