@@ -7,7 +7,7 @@
 #include <asm/byteorder.h>
 #include <linux/errno.h>
 #include <linux/io.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>

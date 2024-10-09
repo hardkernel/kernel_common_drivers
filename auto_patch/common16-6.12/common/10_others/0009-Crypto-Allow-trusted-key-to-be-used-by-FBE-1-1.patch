@@ -1,7 +1,7 @@
-From e2984f8194014c0e0a398c29cc51156efdd28dd5 Mon Sep 17 00:00:00 2001
+From c6e3e1550ae2449146715bb0eea4614809502895 Mon Sep 17 00:00:00 2001
 From: Mingyen Hung <mingyen.hung@amlogic.com>
 Date: Wed, 31 Aug 2022 21:23:45 -0700
-Subject: [PATCH 09/11] Crypto: Allow trusted key to be used by FBE [1/1]
+Subject: [PATCH 30/32] Crypto: Allow trusted key to be used by FBE [1/1]
 
 PD#SWPL-130061
 
@@ -22,18 +22,18 @@ Signed-off-by: Mingyen Hung <mingyen.hung@amlogic.com>
  1 file changed, 30 insertions(+), 1 deletion(-)
 
 diff --git a/fs/crypto/keyring.c b/fs/crypto/keyring.c
-index 75b8913d8934..ff524836c7a3 100644
+index a629783df707..df059aa73a8f 100644
 --- a/fs/crypto/keyring.c
 +++ b/fs/crypto/keyring.c
-@@ -21,6 +21,9 @@
- #include <asm/unaligned.h>
- #include <crypto/skcipher.h>
+@@ -23,6 +23,9 @@
  #include <linux/key-type.h>
+ #include <linux/random.h>
+ #include <linux/seq_file.h>
 +#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_FBE)
 +#include <keys/trusted-type.h>
 +#endif
- #include <linux/random.h>
- #include <linux/seq_file.h>
+ 
+ #include "fscrypt_private.h"
  
 @@ -677,7 +680,33 @@ static int get_keyring_key(u32 key_id, u32 type,
  	if (IS_ERR(ref))

@@ -894,7 +894,12 @@ function modules_install() {
 	popd
 
 	if [[ ${BAZEL} == "1" ]]; then
-		cp ${DIST_DIR}/vmlinux ${OUT_AMLOGIC_DIR}/symbols
+		if [[ -f ${DIST_DIR}/vmlinux ]]; then
+			cp ${DIST_DIR}/vmlinux ${OUT_AMLOGIC_DIR}/symbols
+		else
+			vmlinux_file=`find ${BAZEL_OUT} -name vmlinux | grep kernel_aarch64`
+			cp ${vmlinux_file} ${OUT_AMLOGIC_DIR}/symbols
+		fi
 
 		find ${BAZEL_OUT} -name *.ko | grep "unstripped" | while read module; do
 		        cp ${module} ${OUT_AMLOGIC_DIR}/symbols

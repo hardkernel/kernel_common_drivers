@@ -771,8 +771,8 @@ static long dmabuf_manage_set_filterfd(unsigned long args)
 		node->filter_fd = info.filter_fd;
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 		f = fdget(node->filter_fd);
-		if (f.file && f.file->private_data) {
-			dmxdevfilter = f.file->private_data;
+		if (fd_file(f) && fd_file(f)->private_data) {
+			dmxdevfilter = fd_file(f)->private_data;
 			if (dmxdevfilter)
 				dmxdev = dmxdevfilter->dev;
 		}

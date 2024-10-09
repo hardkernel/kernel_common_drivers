@@ -154,7 +154,7 @@ int aml_demod_gpio_set(int gpio, int dir, int value, const char *label)
 {
 	if (gpio_is_valid(gpio)) {
 		aml_gpio_request(gpio, label);
-		if (dir == GPIOF_DIR_OUT)
+		if (dir != GPIOF_IN)
 			gpio_direction_output(gpio, value);
 		else {
 			gpio_direction_input(gpio);

@@ -88,7 +88,7 @@ static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 	}
 
 	/* OD pin[No output capacity], set direction output as low output. */
-	if (pin_cfg->dir == GPIOF_DIR_OUT) {
+	if (pin_cfg->dir != GPIOF_IN) {
 		if (on)
 			aml_gpio_set_value(pin_cfg->pin, pin_cfg->value);
 		else

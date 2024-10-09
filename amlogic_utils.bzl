@@ -76,7 +76,7 @@ def define_common_amlogic(
         kmi_symbol_list_add_only = True if define_abi_targets else None
 
     if dist_dir == None:
-        dist_dir = "out/android-mainline/dist"
+        dist_dir = "out/android16-6.12/dist"
         # dist_dir = "out/{branch}/dist".format(branch = BRANCH)
 
     # Also refer to the list of ext modules for ABI monitoring targets
@@ -139,8 +139,8 @@ def define_common_amlogic(
         name + "_images",
         name + "_modules_install",
         # Mixed build: Additional GKI artifacts.
-        ":kernel_aarch64_download_or_build",
-        ":kernel_aarch64_additional_artifacts_download_or_build",
+        ":kernel_aarch64",
+        ":kernel_aarch64_additional_artifacts",
         name + "_merged_kernel_uapi_headers",
     ]
 

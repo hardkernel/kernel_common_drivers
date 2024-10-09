@@ -1,7 +1,7 @@
-From 7b6a65cbd9c6730271660a5f493544208e81bb27 Mon Sep 17 00:00:00 2001
+From 9ec140b08db84637789f78005de326cefcfcea0f Mon Sep 17 00:00:00 2001
 From: Hanjie Lin <hanjie.lin@amlogic.com>
 Date: Wed, 19 Apr 2023 17:41:08 +0800
-Subject: [PATCH 06/11] smp: add APU support [1/2]
+Subject: [PATCH 27/32] smp: add APU support [1/2]
 
 PD#SWPL-119162
 
@@ -28,10 +28,10 @@ Signed-off-by: Hanjie Lin <hanjie.lin@amlogic.com>
  8 files changed, 123 insertions(+)
 
 diff --git a/arch/arm64/kernel/cpuinfo.c b/arch/arm64/kernel/cpuinfo.c
-index 09eeaa24d456..b79f9e3a0ebe 100644
+index 44718d0482b3..50977924ecb5 100644
 --- a/arch/arm64/kernel/cpuinfo.c
 +++ b/arch/arm64/kernel/cpuinfo.c
-@@ -199,6 +199,10 @@ static int c_show(struct seq_file *m, void *v)
+@@ -200,6 +200,10 @@ static int c_show(struct seq_file *m, void *v)
  		struct cpuinfo_arm64 *cpuinfo = &per_cpu(cpu_data, i);
  		u32 midr = cpuinfo->reg_midr;
  
@@ -42,7 +42,7 @@ index 09eeaa24d456..b79f9e3a0ebe 100644
  		/*
  		 * glibc reads /proc/cpuinfo to determine the number of
  		 * online processors, looking for lines beginning with
-@@ -408,6 +412,9 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
+@@ -409,6 +413,9 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
  		break;
  	}
  
@@ -53,10 +53,10 @@ index 09eeaa24d456..b79f9e3a0ebe 100644
  }
  
 diff --git a/arch/arm64/kernel/smp.c b/arch/arm64/kernel/smp.c
-index 1ddecd47e39a..bb45270c710c 100644
+index 706fb5ec019e..7a135398e805 100644
 --- a/arch/arm64/kernel/smp.c
 +++ b/arch/arm64/kernel/smp.c
-@@ -268,6 +268,9 @@ asmlinkage notrace void secondary_start_kernel(void)
+@@ -270,6 +270,9 @@ asmlinkage notrace void secondary_start_kernel(void)
  	 * the CPU migration code to notice that the CPU is online
  	 * before we continue.
  	 */
@@ -66,7 +66,7 @@ index 1ddecd47e39a..bb45270c710c 100644
  	pr_info("CPU%u: Booted secondary processor 0x%010lx [0x%08x]\n",
  					 cpu, (unsigned long)mpidr,
  					 read_cpuid_id());
-@@ -456,7 +459,15 @@ static void __init hyp_mode_check(void)
+@@ -458,7 +461,15 @@ static void __init hyp_mode_check(void)
  
  void __init smp_cpus_done(unsigned int max_cpus)
  {
@@ -82,7 +82,7 @@ index 1ddecd47e39a..bb45270c710c 100644
  	hyp_mode_check();
  	setup_system_features();
  	setup_user_features();
-@@ -698,10 +709,33 @@ static void __init acpi_parse_and_init_cpus(void)
+@@ -702,10 +713,33 @@ static void __init acpi_parse_and_init_cpus(void)
  static void __init of_parse_and_init_cpus(void)
  {
  	struct device_node *dn;
@@ -116,7 +116,7 @@ index 1ddecd47e39a..bb45270c710c 100644
  		if (hwid & ~MPIDR_HWID_BITMASK)
  			goto next;
  
-@@ -746,6 +780,16 @@ static void __init of_parse_and_init_cpus(void)
+@@ -750,6 +784,16 @@ static void __init of_parse_and_init_cpus(void)
  next:
  		cpu_count++;
  	}
@@ -151,10 +151,10 @@ index d17b2f851082..f44b72e50795 100644
  		if (arch_find_n_match_cpu_physical_id(cpun, cpu, thread))
  			return cpun;
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index a75117514dfb..92e2c2d43961 100644
+index 309f8bef1b61..d5df52643596 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
-@@ -3543,6 +3543,13 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
+@@ -3601,6 +3601,13 @@ int proc_pid_readdir(struct file *file, struct dir_context *ctx)
  		char name[10 + 1];
  		unsigned int len;
  
@@ -168,7 +168,7 @@ index a75117514dfb..92e2c2d43961 100644
  		cond_resched();
  		if (!has_pid_permissions(fs_info, iter.task, HIDEPID_INVISIBLE))
  			continue;
-@@ -3893,6 +3900,12 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
+@@ -3951,6 +3958,12 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
  		if (!tid)
  			continue;	/* The task has just exited. */
  		len = snprintf(name, sizeof(name), "%u", tid);
@@ -208,10 +208,10 @@ index da60956b2915..4fe32fb5240b 100644
  
  		/* Copy values here to work around gcc-2.95.3, gcc-2.96 */
 diff --git a/include/linux/smp.h b/include/linux/smp.h
-index fcd61dfe2af3..b98c46466d5e 100644
+index f1aa0952e8c3..e81c3aece580 100644
 --- a/include/linux/smp.h
 +++ b/include/linux/smp.h
-@@ -294,4 +294,10 @@ int smpcfd_prepare_cpu(unsigned int cpu);
+@@ -294,6 +294,12 @@ int smpcfd_prepare_cpu(unsigned int cpu);
  int smpcfd_dead_cpu(unsigned int cpu);
  int smpcfd_dying_cpu(unsigned int cpu);
  
@@ -221,12 +221,14 @@ index fcd61dfe2af3..b98c46466d5e 100644
 +extern int apu_enable;
 +#endif
 +
- #endif /* __LINUX_SMP_H */
+ #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
+ bool csd_lock_is_stuck(void);
+ #else
 diff --git a/kernel/smp.c b/kernel/smp.c
-index aaffecdad319..979168a663c6 100644
+index f25e20617b7e..9b5fb6dd8265 100644
 --- a/kernel/smp.c
 +++ b/kernel/smp.c
-@@ -982,6 +982,10 @@ void __init smp_init(void)
+@@ -1010,6 +1010,10 @@ void __init smp_init(void)
  
  	num_nodes = num_online_nodes();
  	num_cpus  = num_online_cpus();
@@ -237,7 +239,7 @@ index aaffecdad319..979168a663c6 100644
  	pr_info("Brought up %d node%s, %d CPU%s\n",
  		num_nodes, str_plural(num_nodes), num_cpus, str_plural(num_cpus));
  
-@@ -1124,3 +1128,18 @@ int smp_call_on_cpu(unsigned int cpu, int (*func)(void *), void *par, bool phys)
+@@ -1152,3 +1156,18 @@ int smp_call_on_cpu(unsigned int cpu, int (*func)(void *), void *par, bool phys)
  	return sscs.ret;
  }
  EXPORT_SYMBOL_GPL(smp_call_on_cpu);
@@ -257,10 +259,10 @@ index aaffecdad319..979168a663c6 100644
 +early_param("apu_enable", setup_apu_enable);
 +#endif
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 58b6a94b80a9..cb6b6a3ba75c 100644
+index 3a4d0d990ad2..ea97c728f8ee 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -5091,6 +5091,11 @@ int tracing_set_cpumask(struct trace_array *tr,
+@@ -5171,6 +5171,11 @@ int tracing_set_cpumask(struct trace_array *tr,
  	if (!tr)
  		return -EINVAL;
  
@@ -272,9 +274,9 @@ index 58b6a94b80a9..cb6b6a3ba75c 100644
  	local_irq_disable();
  	arch_spin_lock(&tr->max_lock);
  	for_each_tracing_cpu(cpu) {
-@@ -8668,6 +8673,21 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
- 	trace_create_cpu_file("snapshot_raw", TRACE_MODE_READ, d_cpu,
- 				tr, cpu, &snapshot_raw_fops);
+@@ -8832,6 +8837,21 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
+ 				      tr, cpu, &snapshot_raw_fops);
+ 	}
  #endif
 +#ifdef CONFIG_AMLOGIC_APU
 +	if (!apu_enable || apu_id != cpu)

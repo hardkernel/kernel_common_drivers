@@ -78,6 +78,8 @@ static int check_reboot_mode(char *str)
 
 __setup("reboot_mode=", check_reboot_mode);
 
+// Todo: need owner to review
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 15606
 static void am_meson_fb_output_poll_changed(struct drm_device *dev)
 {
 #ifdef CONFIG_AMLOGIC_DRM_EMULATE_FBDEV
@@ -92,9 +94,13 @@ static void am_meson_fb_output_poll_changed(struct drm_device *dev)
 	}
 #endif
 }
+#endif
 
 static const struct drm_mode_config_funcs meson_mode_config_funcs = {
+// Todo: need owner to review
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 15606
 	.output_poll_changed = am_meson_fb_output_poll_changed,
+#endif
 	.atomic_check        = drm_atomic_helper_check,
 	.atomic_commit       = meson_atomic_commit,
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION

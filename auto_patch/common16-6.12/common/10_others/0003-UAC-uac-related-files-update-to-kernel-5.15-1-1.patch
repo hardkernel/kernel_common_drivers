@@ -1,7 +1,7 @@
-From 9d36d2a800fb208431b1241ae116b502e7e31435 Mon Sep 17 00:00:00 2001
+From 50aee393c7ec9dcf8920595459785cc3b7f1c3c8 Mon Sep 17 00:00:00 2001
 From: "wenlong.zhu" <wenlong.zhu@amlogic.com>
 Date: Fri, 24 Mar 2023 15:08:35 +0800
-Subject: [PATCH 03/11] UAC: uac related files update to kernel 5.15 [1/1]
+Subject: [PATCH 24/32] UAC: uac related files update to kernel 5.15 [1/1]
 
 PD#SWPL-114902
 
@@ -24,10 +24,10 @@ Signed-off-by: wenlong.zhu <wenlong.zhu@amlogic.com>
  4 files changed, 209 insertions(+)
 
 diff --git a/drivers/usb/gadget/function/f_hid.c b/drivers/usb/gadget/function/f_hid.c
-index 93dae017ae45..8c7ea9ba1e0e 100644
+index 740311c4fa24..c54139a78b64 100644
 --- a/drivers/usb/gadget/function/f_hid.c
 +++ b/drivers/usb/gadget/function/f_hid.c
-@@ -83,6 +83,10 @@ struct f_hidg {
+@@ -109,6 +109,10 @@ struct f_hidg {
  	struct usb_ep			*out_ep;
  };
  
@@ -38,8 +38,8 @@ index 93dae017ae45..8c7ea9ba1e0e 100644
  static inline struct f_hidg *func_to_hidg(struct usb_function *f)
  {
  	return container_of(f, struct f_hidg, func);
-@@ -524,6 +528,97 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
- 	return status;
+@@ -718,6 +722,97 @@ static long f_hidg_ioctl(struct file *file, unsigned int code, unsigned long arg
+ 	}
  }
  
 +#ifdef CONFIG_AMLOGIC_BRIDGE_HID
@@ -136,7 +136,7 @@ index 93dae017ae45..8c7ea9ba1e0e 100644
  static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
  {
  	struct f_hidg	*hidg  = file->private_data;
-@@ -1014,6 +1109,10 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
+@@ -1269,6 +1364,10 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
  	if (status)
  		goto fail_free_descs;
  
@@ -146,8 +146,8 @@ index 93dae017ae45..8c7ea9ba1e0e 100644
 +
  	return 0;
  fail_free_descs:
- 	usb_free_all_descriptors(f);
-@@ -1255,6 +1354,10 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
+ 	destroy_workqueue(hidg->workqueue);
+@@ -1514,6 +1613,10 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
  {
  	struct f_hidg *hidg = func_to_hidg(f);
  
@@ -156,10 +156,10 @@ index 93dae017ae45..8c7ea9ba1e0e 100644
 +#endif
 +
  	cdev_device_del(&hidg->cdev, &hidg->dev);
- 
+ 	destroy_workqueue(hidg->workqueue);
  	usb_free_all_descriptors(f);
 diff --git a/drivers/usb/gadget/function/f_uac2.c b/drivers/usb/gadget/function/f_uac2.c
-index 2d6d3286ffde..8d29753a472a 100644
+index 1cdda44455b3..3fd759f9f863 100644
 --- a/drivers/usb/gadget/function/f_uac2.c
 +++ b/drivers/usb/gadget/function/f_uac2.c
 @@ -13,6 +13,9 @@
@@ -172,7 +172,7 @@ index 2d6d3286ffde..8d29753a472a 100644
  
  #include "u_audio.h"
  
-@@ -1044,6 +1047,17 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
+@@ -1031,6 +1034,17 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
  	struct usb_string *us;
  	int ret;
  
@@ -191,7 +191,7 @@ index 2d6d3286ffde..8d29753a472a 100644
  	if (ret)
  		return ret;
 diff --git a/drivers/usb/gadget/function/u_audio.c b/drivers/usb/gadget/function/u_audio.c
-index 89af0feb7512..b5421ae39ace 100644
+index ca8dbec65f73..14688418f023 100644
 --- a/drivers/usb/gadget/function/u_audio.c
 +++ b/drivers/usb/gadget/function/u_audio.c
 @@ -17,6 +17,9 @@
@@ -263,7 +263,7 @@ index 89af0feb7512..b5421ae39ace 100644
  	substream = prm->ss;
  
  	/* Do nothing if ALSA isn't active */
-@@ -661,6 +709,10 @@ int u_audio_start_capture(struct g_audio *audio_dev)
+@@ -679,6 +727,10 @@ int u_audio_start_capture(struct g_audio *audio_dev)
  	if (usb_ep_queue(ep_fback, req_fback, GFP_ATOMIC))
  		dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
  
@@ -274,7 +274,7 @@ index 89af0feb7512..b5421ae39ace 100644
  	return 0;
  }
  EXPORT_SYMBOL_GPL(u_audio_start_capture);
-@@ -672,6 +724,10 @@ void u_audio_stop_capture(struct g_audio *audio_dev)
+@@ -690,6 +742,10 @@ void u_audio_stop_capture(struct g_audio *audio_dev)
  	set_active(&uac->c_prm, false);
  	if (audio_dev->in_ep_fback)
  		free_ep_fback(&uac->c_prm, audio_dev->in_ep_fback);
@@ -285,7 +285,7 @@ index 89af0feb7512..b5421ae39ace 100644
  	free_ep(&uac->c_prm, audio_dev->out_ep);
  }
  EXPORT_SYMBOL_GPL(u_audio_stop_capture);
-@@ -741,6 +797,11 @@ int u_audio_start_playback(struct g_audio *audio_dev)
+@@ -767,6 +823,11 @@ int u_audio_start_playback(struct g_audio *audio_dev)
  			dev_err(dev, "%s:%d Error!\n", __func__, __LINE__);
  	}
  
@@ -297,7 +297,7 @@ index 89af0feb7512..b5421ae39ace 100644
  	set_active(&uac->p_prm, true);
  
  	return 0;
-@@ -752,6 +813,12 @@ void u_audio_stop_playback(struct g_audio *audio_dev)
+@@ -778,6 +839,12 @@ void u_audio_stop_playback(struct g_audio *audio_dev)
  	struct snd_uac_chip *uac = audio_dev->uac;
  
  	set_active(&uac->p_prm, false);
@@ -310,7 +310,7 @@ index 89af0feb7512..b5421ae39ace 100644
  	free_ep(&uac->p_prm, audio_dev->in_ep);
  }
  EXPORT_SYMBOL_GPL(u_audio_stop_playback);
-@@ -800,6 +867,12 @@ int u_audio_set_volume(struct g_audio *audio_dev, int playback, s16 val)
+@@ -826,6 +893,12 @@ int u_audio_set_volume(struct g_audio *audio_dev, int playback, s16 val)
  	val = clamp(val, prm->volume_min, prm->volume_max);
  	if (prm->volume != val) {
  		prm->volume = val;
@@ -323,7 +323,7 @@ index 89af0feb7512..b5421ae39ace 100644
  		change = 1;
  	}
  	spin_unlock_irqrestore(&prm->lock, flags);
-@@ -850,6 +923,12 @@ int u_audio_set_mute(struct g_audio *audio_dev, int playback, int val)
+@@ -876,6 +949,12 @@ int u_audio_set_mute(struct g_audio *audio_dev, int playback, int val)
  	if (prm->mute != mute) {
  		prm->mute = mute;
  		change = 1;
@@ -336,7 +336,7 @@ index 89af0feb7512..b5421ae39ace 100644
  	}
  	spin_unlock_irqrestore(&prm->lock, flags);
  
-@@ -1363,6 +1442,16 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
+@@ -1389,6 +1468,16 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
  			prm->volume_max = fu->volume_max;
  			prm->volume_min = fu->volume_min;
  			prm->volume_res = fu->volume_res;

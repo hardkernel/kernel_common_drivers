@@ -1180,7 +1180,6 @@ static const struct file_operations p##_fops = {			\
 	.owner = THIS_MODULE,						\
 	.open = p##_open,						\
 	.write = p##_write,						\
-	.llseek = no_llseek,						\
 	.release = single_release,					\
 }
 

@@ -217,8 +217,8 @@ static struct mem_cgroup __nocfi * aml_mem_cgroup_iter(struct mem_cgroup *root,
 		 * Exit when a concurrent walker completes it.
 		 */
 		if (!prev)
-			reclaim->generation = iter->generation;
-		else if (reclaim->generation != iter->generation)
+			reclaim->generation = atomic_read(&iter->generation);
+		else if (reclaim->generation != atomic_read(&iter->generation))
 			goto out_unlock;
 
 		while (1) {
@@ -279,7 +279,7 @@ static struct mem_cgroup __nocfi * aml_mem_cgroup_iter(struct mem_cgroup *root,
 			css_put(&pos->css);
 
 		if (!memcg)
-			iter->generation++;
+			atomic_inc(&iter->generation);
 	}
 
 out_unlock:
