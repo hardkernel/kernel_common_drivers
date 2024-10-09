@@ -2339,6 +2339,12 @@
 			0x0 0xfe000000 0x0 0xc00>; /* clk reg */
 	};
 
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
+		status = "okay";
+	};
+
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux-s5";
 		status = "okay";
