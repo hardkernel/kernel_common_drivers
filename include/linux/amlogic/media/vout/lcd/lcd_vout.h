@@ -752,6 +752,7 @@ struct lcd_resource_s {
 
 #define LCD_STATUS_IF_ON         BIT(0) //real status
 #define LCD_STATUS_ENCL_ON       BIT(1) //real status
+#define LCD_STATUS_ENCL_DUMMY   BIT(2) //real status
 #define LCD_STATUS_ON         (LCD_STATUS_IF_ON | LCD_STATUS_ENCL_ON)
 #define LCD_STATUS_POWER         BIT(4) //control status
 #define LCD_STATUS_PREPARE       BIT(5) //control status

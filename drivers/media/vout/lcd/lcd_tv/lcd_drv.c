@@ -213,9 +213,10 @@ int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv)
 		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
 			lcd_vbyone_interrupt_enable(pdrv, 0);
 	}
-
-	lcd_clk_change(pdrv);
-	lcd_venc_change(pdrv);
+	if (!(pdrv->status & LCD_STATUS_ENCL_DUMMY)) {
+		lcd_clk_change(pdrv);
+		lcd_venc_change(pdrv);
+	}
 
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 		if (pdrv->config.basic.lcd_type == LCD_VBYONE)

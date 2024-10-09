@@ -38,7 +38,6 @@
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
 
-static int lcd_init_on_flag;
 /* ************************************************** *
  * lcd mode function
  * **************************************************
@@ -641,22 +640,7 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 
 	if (mode & VMODE_INIT_BIT_MASK) {
 		lcd_clk_gate_switch(pdrv, 1);
-	} else if (lcd_init_on_flag == 0) {
-		lcd_init_on_flag = 1;
-		if (pdrv->key_valid == 0 && (pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
-			aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
-			lcd_if_enable_retry(pdrv);
-			pdrv->status |= (LCD_STATUS_PREPARE | LCD_STATUS_POWER);
-		} else {
-			if (pdrv->vmode_switch) {
-				lcd_vmode_switch(pdrv);
-			} else {
-				mutex_lock(&lcd_vout_mutex);
-				lcd_tv_driver_change(pdrv);
-				mutex_unlock(&lcd_vout_mutex);
-			}
-		}
-	} else if (lcd_init_on_flag == 1) {
+	} else {
 		if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
 			//workaround for drm resume
 			aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
@@ -1041,10 +1025,9 @@ static int lcd_suspend(void *data)
 
 	mutex_lock(&lcd_power_mutex);
 	lcd_proc_time_clear(pdrv);
-	lcd_init_on_flag = 1; //align lcd_init flag
 	pdrv->init_flag = 0;
 	pdrv->status &= ~LCD_STATUS_POWER;
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF | LCD_EVENT_ENCL_DUMMY, (void *)pdrv);
 	LCDPR("[%d]: early_suspend finished\n", pdrv->index);
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
@@ -1068,7 +1051,8 @@ static int lcd_resume(void *data)
 	} else {
 		mutex_lock(&lcd_power_mutex);
 		LCDPR("[%d]: directly late_resume\n", pdrv->index);
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE,
+						(void *)pdrv);
 		lcd_if_enable_retry(pdrv);
 		pdrv->status |= LCD_STATUS_POWER;
 		LCDPR("[%d]: late_resume finished\n", pdrv->index);

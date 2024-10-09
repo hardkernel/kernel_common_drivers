@@ -394,6 +394,15 @@ static void lcd_prbs_config_clk_t6d(struct aml_lcd_drv_s *pdrv, unsigned int lcd
 		LCDPR("[%d]: %s ok\n", pdrv->index, __func__);
 }
 
+static void lcd_clk_set_dummy_t6d(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_clk_setb(CLKCTRL_VIID_CLK0_CTRL, 5, 16, 3);
+	lcd_clk_setb(CLKCTRL_VIID_CLK0_DIV, 19, 0, 8);
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL0, 0, 28, 1);
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL0, 0, 29, 1);
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL0, 0, 30, 1);
+}
+
 static void lcd_clk_prbs_test_t6d(struct aml_lcd_drv_s *pdrv,
 				 unsigned int ms, unsigned int mode_flag)
 {
@@ -627,6 +636,7 @@ static struct lcd_clk_data_s lcd_clk_data_t6d = {
 	.clk_disable = lcd_clk_disable_t6d,
 	.clktree_set = lcd_set_tcon_clk_t6d,
 	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase_t6d,
+	.clk_set_dummy = lcd_clk_set_dummy_t6d,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.clk_reg_print = lcd_clk_reg_dump,

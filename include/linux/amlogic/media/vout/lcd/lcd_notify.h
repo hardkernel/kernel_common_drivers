@@ -25,6 +25,9 @@
 #define LCD_PRIORITY_POWER_BL_ON       1
 #define LCD_PRIORITY_SCREEN_RESTORE    0
 
+#define LCD_PRIORITY_POWER_ENCL_ACTIVE LCD_PRIORITY_POWER_ENCL_ON
+#define LCD_PRIORITY_POWER_ENCL_DUMMY LCD_PRIORITY_POWER_ENCL_OFF
+
 /* original event */
 #define LCD_EVENT_SCREEN_BLACK         BIT(0)
 #define LCD_EVENT_BL_OFF               BIT(1)  //clr LCD_ON bl_state
@@ -63,6 +66,8 @@
 #define LCD_VLOCK_PARAM_BIT_UPDATE     BIT(4)
 #define LCD_VLOCK_PARAM_BIT_VALID      BIT(0)
 #define LCD_EVENT_VLOCK_PARAM          BIT(16)
+#define LCD_EVENT_ENCL_DUMMY           BIT(17)
+#define LCD_EVENT_ENCL_ACTIVE          BIT(18)
 
 /* lcd backlight pwm_vs vfreq change occurred */
 #define LCD_EVENT_BACKLIGHT_UPDATE     BIT(25)

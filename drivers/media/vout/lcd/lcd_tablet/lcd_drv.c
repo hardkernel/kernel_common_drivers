@@ -160,8 +160,10 @@ int lcd_tablet_driver_change(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 
-	lcd_clk_change(pdrv);
-	lcd_venc_change(pdrv);
+	if (!(pdrv->status & LCD_STATUS_ENCL_DUMMY)) {
+		lcd_clk_change(pdrv);
+		lcd_venc_change(pdrv);
+	}
 
 	if ((pdrv->status & LCD_STATUS_ON) == LCD_STATUS_ON) {
 		if (pdrv->config.basic.lcd_type == LCD_VBYONE)

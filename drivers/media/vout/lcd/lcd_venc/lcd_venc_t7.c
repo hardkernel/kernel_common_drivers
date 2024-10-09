@@ -646,6 +646,37 @@ static int lcd_venc_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
+static void lcd_venc_set_dummy_t6d(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int offset = pdrv->data->offset_venc[pdrv->index];
+
+	if (pdrv->data->chip_type != LCD_CHIP_T6D)
+		return;
+	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 0);
+
+	lcd_vcbus_write(ENCL_VIDEO_MODE + offset, 0x8000);
+	lcd_vcbus_write(ENCL_VIDEO_MODE_ADV + offset, 0x18);
+	lcd_vcbus_write(ENCL_VIDEO_FILT_CTRL + offset, 0x1000);
+
+	lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT + offset, 951);
+	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset, 524);
+	lcd_vcbus_write(ENCL_VIDEO_HAVON_BEGIN + offset, 80);
+	lcd_vcbus_write(ENCL_VIDEO_HAVON_END + offset, 799);
+	lcd_vcbus_write(ENCL_VIDEO_VAVON_BLINE + offset, 22);
+	lcd_vcbus_write(ENCL_VIDEO_VAVON_ELINE + offset, 501);
+
+	lcd_vcbus_write(ENCL_VIDEO_HSO_BEGIN + offset, 0);
+	lcd_vcbus_write(ENCL_VIDEO_HSO_END + offset,   20);
+	lcd_vcbus_write(ENCL_VIDEO_VSO_BEGIN + offset, 0);
+	lcd_vcbus_write(ENCL_VIDEO_VSO_END + offset,   0);
+	lcd_vcbus_write(ENCL_VIDEO_VSO_BLINE + offset, 0);
+	lcd_vcbus_write(ENCL_VIDEO_VSO_ELINE + offset, 5);
+
+	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
+
+	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
+}
+
 int lcd_venc_op_init_t7(struct lcd_venc_op_s *venc_op)
 {
 	if (!venc_op)
@@ -657,6 +688,7 @@ int lcd_venc_op_init_t7(struct lcd_venc_op_s *venc_op)
 	venc_op->venc_debug_test = lcd_venc_bist_set;
 	venc_op->venc_set_timing = lcd_venc_set_timing;
 	venc_op->venc_set = lcd_venc_set;
+	venc_op->venc_set_dummy = lcd_venc_set_dummy_t6d;
 	venc_op->venc_change = lcd_venc_change_timing;
 	venc_op->venc_enable = lcd_venc_enable_ctrl;
 	venc_op->get_venc_init_config = lcd_venc_get_init_config;

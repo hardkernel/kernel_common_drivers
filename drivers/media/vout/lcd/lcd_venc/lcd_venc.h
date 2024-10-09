@@ -17,6 +17,7 @@ struct lcd_venc_op_s {
 	int (*venc_debug_test)(struct aml_lcd_drv_s *pdrv, unsigned int num);
 	void (*venc_set_timing)(struct aml_lcd_drv_s *pdrv);
 	void (*venc_set)(struct aml_lcd_drv_s *pdrv);
+	void (*venc_set_dummy)(struct aml_lcd_drv_s *pdrv);
 	void (*venc_change)(struct aml_lcd_drv_s *pdrv);
 	void (*venc_enable)(struct aml_lcd_drv_s *pdrv, int flag);
 	void (*mute_set)(struct aml_lcd_drv_s *pdrv, unsigned char flag);

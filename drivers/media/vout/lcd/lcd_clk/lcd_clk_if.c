@@ -553,6 +553,49 @@ void lcd_clk_change(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+int lcd_clk_set_dummy(struct aml_lcd_drv_s *pdrv, int status)
+{
+	struct lcd_clk_config_s *cconf;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf || !cconf->data || !cconf->data->clk_set_dummy)
+		return -1;
+
+	if (status) {
+#ifdef CONFIG_AMLOGIC_VPU
+		if (vpu_support_overclk()) {
+			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
+			lcd_venc_enable(pdrv, 0);
+			msleep(30);
+			vpu_dev_clk_request(pdrv->lcd_vpu_dev, 25000000);
+			msleep(30);
+			lcd_venc_enable(pdrv, 1);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
+		}
+#endif
+		mutex_lock(&lcd_clk_mutex);
+		cconf->data->clk_set_dummy(pdrv);
+		mutex_unlock(&lcd_clk_mutex);
+	} else {
+#ifdef CONFIG_AMLOGIC_VPU
+		if (vpu_support_overclk()) {
+			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
+			lcd_venc_enable(pdrv, 0);
+			msleep(30);
+			vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
+			msleep(30);
+			lcd_venc_enable(pdrv, 1);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
+		}
+#endif
+		lcd_set_clk(pdrv);
+	}
+	LCDPR("[%d]: %s status: %d\n", pdrv->index, __func__, status);
+	return 0;
+}
+
 int lcd_mlvds_clk_phase_set(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;

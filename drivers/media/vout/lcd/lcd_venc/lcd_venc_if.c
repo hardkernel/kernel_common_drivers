@@ -268,6 +268,17 @@ void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
 	lcd_venc_op.venc_set_vtotal(pdrv, vtotal);
 }
 
+void lcd_venc_set_dummy(struct aml_lcd_drv_s *pdrv)
+{
+	if (!lcd_venc_op.venc_set_dummy)
+		return;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	lcd_venc_op.venc_set_dummy(pdrv);
+}
+
 int lcd_venc_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	int n, len = 0;
