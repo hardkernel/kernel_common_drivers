@@ -1305,33 +1305,6 @@ static ssize_t hdmi_used_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hdmi_used);
 
-static ssize_t fake_plug_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d", global_tx_common->hpd_state);
-}
-
-static ssize_t fake_plug_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
-{
-	HDMITX_INFO("fake plug %s\n", buf);
-
-	if (strncmp(buf, "1", 1) == 0)
-		global_tx_common->hpd_state = 1;
-
-	if (strncmp(buf, "0", 1) == 0)
-		global_tx_common->hpd_state = 0;
-
-	hdmitx_common_notify_hpd_status(global_tx_common, false);
-	/* notify to drm hdmi */
-	hdmitx_fire_drm_hpd_cb_unlocked(global_tx_common);
-
-	return count;
-}
-
-static DEVICE_ATTR_RW(fake_plug);
-
 static ssize_t _llm_cap_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -1626,7 +1599,6 @@ int hdmitx_sysfs_common_create(struct device *dev,
 	ret = device_create_file(dev, &dev_attr_hdmi_used);
 
 	ret = device_create_file(dev, &dev_attr_debug);
-	ret = device_create_file(dev, &dev_attr_fake_plug);
 	ret = device_create_file(dev, &dev_attr_config_csc_en);
 	ret = device_create_file(dev, &dev_attr_soundbar_en);
 
@@ -1673,7 +1645,6 @@ int hdmitx_sysfs_common_destroy(struct device *dev)
 	device_remove_file(dev, &dev_attr_hdmi_used);
 
 	device_remove_file(dev, &dev_attr_debug);
-	device_remove_file(dev, &dev_attr_fake_plug);
 	device_remove_file(dev, &dev_attr_config_csc_en);
 	device_remove_file(dev, &dev_attr_soundbar_en);
 
