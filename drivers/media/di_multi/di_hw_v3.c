@@ -5415,7 +5415,7 @@ static void hw_init_v3(void)
 			fifo_size_di = 0x100;
 	}
 
-	if (DIM_IS_ICS_T5M) {
+	if (DIM_IS_IC(T3)) {
 		op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
 		op->wr(REG_DCTR_T3_GCLK_CTRL0, 0xc0);
 		op->wr(REG_DCTR_T3_GCLK_CTRL1, 0x3c0000);

@@ -6489,7 +6489,7 @@ void di_plink_force_dmc_priority(bool urgent, bool wait, bool interlace)
 				(DI_READ_DMC_AM1_CHAN_CTRL,
 				urgent ? 0xCFF403C4 : 0xCFF203C4);
 			WRITE_DMCREG
-				(DI_READ_DMC_AM1_CHAN_CTRL,
+				(DI_WRTIE_DMC_AM4_CHAN_CTRL,
 				urgent ? 0xCFF403C4 : 0xCFF203C4);
 			if (debug_flag & DEBUG_FLAG_PLINK)
 				pr_info("%s: port:0x%x 0x%x to 0x%x (%s) wait:%s time %dms\n",
