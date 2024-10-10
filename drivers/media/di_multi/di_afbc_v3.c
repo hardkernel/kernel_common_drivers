@@ -5505,6 +5505,10 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 						pcfg,
 						win_in,
 						op_in);
+		} else if (!ndvfm->c.set_cfg.b.en_mem_afbcd &&
+			   pafd_ctr->b.chg_mem == 3) {
+			pafd_ctr->l_vt_mem = 0;
+			dim_print("afbcd:reset mem\n");
 		}
 #ifdef MARK_DEADCODE_HIS
 		/*chan2_vf is write dead so comment the following codes*/
