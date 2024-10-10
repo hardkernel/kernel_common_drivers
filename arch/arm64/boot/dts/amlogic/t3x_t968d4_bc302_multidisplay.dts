@@ -736,7 +736,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				prefix-names = "AMP","AMP2","AMP3";
+				prefix-names = "AMP","AMP2";
 				sound-dai = <&ad82128 &ad82128_2 &acodec>;
 			};
 		};
