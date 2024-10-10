@@ -922,7 +922,7 @@ static struct clk_regmap t3x_gp1_pll = {
 
 static const struct reg_sequence t3x_pcie_pll_init_regs[] = {
 	{ .reg = CLKCTRL_PCIEPLL_CTRL0,	.def = 0x000f7d06,},
-	{ .reg = CLKCTRL_PCIEPLL_CTRL1,	.def = 0xf0002dd3,},
+	{ .reg = CLKCTRL_PCIEPLL_CTRL1,	.def = 0xf0002d53,},
 	{ .reg = CLKCTRL_PCIEPLL_CTRL2,	.def = 0x55813041, .delay_us = 20 },
 	{ .reg = CLKCTRL_PCIEPLL_CTRL0,	.def = 0x000f7d07, .delay_us = 20 },
 	{ .reg = CLKCTRL_PCIEPLL_CTRL0,	.def = 0x000f7d01, .delay_us = 20 },
