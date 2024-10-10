@@ -298,12 +298,12 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	int strength_limit = THRD_TUNER_STRENGTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	unsigned int p1_peak, val, cur_time;
+	unsigned int p1_peak = 0, val = 0, cur_time = 0;
 	static int no_signal_cnt, unlock_cnt, reset_time;
-	int snr, modu, cr, l1post, ldpc;
-	unsigned int plp_num, fef_info = 0;
+	int snr = 0, modu = 0, cr = 0, l1post = 0, ldpc = 0;
+	unsigned int plp_num = 0, fef_info = 0;
 	unsigned int data_plp = 0, common_plp = 0;
-	u64_t plp_common;
+	u64_t plp_common = 0;
 
 	cur_time = jiffies_to_msecs(jiffies);
 	demod->time_passed = cur_time - demod->time_start;

@@ -982,6 +982,8 @@ int dvbt2_get_plp(u32 *plp_num, u64 *plp_common)
 {
 	unsigned int value = 0, i = 0, id = 0;
 
+	*plp_common = 0;
+
 	if (is_meson_t5d_cpu()) {
 		value = front_read_reg(0x3e);
 		*plp_num = (value >> 24) & 0x3f;
