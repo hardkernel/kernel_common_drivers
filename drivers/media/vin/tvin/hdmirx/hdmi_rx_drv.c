@@ -4416,12 +4416,13 @@ static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 		return NOTIFY_OK;
 	if (event == PM_SUSPEND_PREPARE && hdcp22_on) {
 		rx_pr("PM_SUSPEND_PREPARE\n");
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x2);
 		hdcp22_kill_esm = 1;
 		/*wait time out ESM_KILL_WAIT_TIMES*20 ms*/
 		while (delay++ < ESM_KILL_WAIT_TIMES) {
 			if (!hdcp22_kill_esm)
 				break;
-			msleep(20);
+			msleep(50);
 		}
 		if (!hdcp22_kill_esm)
 			rx_pr("hdcp22 kill ok!\n");

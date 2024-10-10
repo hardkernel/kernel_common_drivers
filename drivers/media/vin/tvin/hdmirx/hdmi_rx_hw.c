@@ -3401,7 +3401,7 @@ void hdcp_22_off(void)
 		/* it will stop cec wake up func if EE domain still working */
 		/* rx_set_cur_hpd(0); */
 		hpd_to_esm = 0;
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
+		//hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
 	//if (hdcp22_kill_esm == 0)
 	hdmirx_hdcp22_esm_rst();
 	//else

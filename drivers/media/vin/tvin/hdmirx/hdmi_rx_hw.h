@@ -17,7 +17,8 @@
 /* 2024.09.13 optimize t5m bist & slt flow */
 /* 2024.09.24 optimize getting phy trim value flow */
 /* 2024.09.26 modify frl training flow */
-#define RX_HW_VER "ver.2024/09/26"
+/* 2024.10.10 optimize hdcp2.2 suspend flow */
+#define RX_HW_VER "ver.2024/10/08"
 
 #define K_TEST_CHK_ERR_CNT
 
