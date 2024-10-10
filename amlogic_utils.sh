@@ -1700,6 +1700,11 @@ export -f copy_kernel_headers_to_compress
 
 function set_default_parameters_for_32bit () {
 	tool_args=()
+
+	CLANG_PREBUILT_BIN=prebuilts/clang/host/linux-x86/clang-${CLANG_VERSION}/bin
+	CLANGTOOLS_PREBUILT_BIN=build/kernel/build-tools/path/linux-x86
+	EXTRA_PATH=prebuilts/kernel-build-tools/linux-x86/bin/
+
 	prebuilts_paths=(
 		CLANG_PREBUILT_BIN
 		CLANGTOOLS_PREBUILT_BIN
@@ -1708,6 +1713,7 @@ function set_default_parameters_for_32bit () {
 		DTC_PREBUILTS_BIN
 		LIBUFDT_PREBUILTS_BIN
 		BUILDTOOLS_PREBUILT_BIN
+		EXTRA_PATH
 	)
 	echo CC_CLANG=$CC_CLANG
 	if [[ $CC_CLANG -eq "1" ]]; then
@@ -1772,7 +1778,7 @@ function set_default_parameters_for_32bit () {
 	# Have host compiler use LLD and compiler-rt.
 	LLD_COMPILER_RT="-fuse-ld=lld --rtlib=compiler-rt"
 	if [[ -n "${NDK_TRIPLE}" ]]; then
-		NDK_DIR=${ROOT_DIR}/prebuilts/ndk-r23
+		NDK_DIR=`echo ${ROOT_DIR}/prebuilts/ndk*`
 
 		if [[ ! -d "${NDK_DIR}" ]]; then
 			# Kleaf/Bazel will checkout the ndk to a different directory than

@@ -206,6 +206,8 @@ static struct clk_regmap t5d_cecb_32k_clkout = {
 	},
 };
 
+// Todo: need owner to review
+#if CONFIG_AMLOGIC_KERNEL_VERSION < 16612
 /* Array of all clocks provided by this provider */
 static struct clk_hw_onecell_data t5d_aoclkc_hw_onecell_data = {
 	.hws = {
@@ -230,6 +232,7 @@ static struct clk_hw_onecell_data t5d_aoclkc_hw_onecell_data = {
 	},
 	.num = NR_AOCLKS,
 };
+#endif
 
 /* Convenience table to populate regmap in .probe */
 static struct clk_regmap *const t5d_aoclkc_clk_regmaps[] __initconst = {
@@ -255,7 +258,10 @@ static struct clk_regmap *const t5d_aoclkc_clk_regmaps[] __initconst = {
 const struct meson_eeclkc_data t5d_aoclkc_data = {
 	.regmap_clks = t5d_aoclkc_clk_regmaps,
 	.regmap_clk_num = ARRAY_SIZE(t5d_aoclkc_clk_regmaps),
+// Todo: need owner to review
+#if CONFIG_AMLOGIC_KERNEL_VERSION < 16612
 	.hw_onecell_data = &t5d_aoclkc_hw_onecell_data,
+#endif
 };
 
 static const struct of_device_id clkc_match_table[] = {

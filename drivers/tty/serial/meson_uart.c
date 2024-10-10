@@ -503,7 +503,7 @@ static int meson_uart_request_port(struct uart_port *port)
 			return -ENOMEM;
 	}
 
-	dev_dbg(&pdev->dev, "==uart%d reg addr = 0x%llx\n", port->line, port->mapbase);
+	dev_dbg(&pdev->dev, "==uart%d reg addr = 0x%llx\n", port->line, (unsigned long long)port->mapbase);
 
 	val = (AML_UART_RECV_IRQ(1) | AML_UART_XMIT_IRQ(port->fifosize / 2));
 	writel_relaxed(val, port->membase + AML_UART_MISC);
