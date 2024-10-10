@@ -646,6 +646,7 @@ struct vdin_debug_s {
 	bool pause_afbce_dec;
 	bool bypass_filter_vsync;
 	bool force_bypass_tunnel;
+	bool conversion;
 	unsigned int sar_width;
 	unsigned int sar_height;
 	unsigned int ratio_control;

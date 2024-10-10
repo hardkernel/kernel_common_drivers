@@ -65,10 +65,12 @@ int vdin_capture_picture(struct vdin_parm_s *vdin_cap_param,
 
 	vdin_cap_param->frame_rate = 60;
 	devp->cfg_dma_buf = 1;
-	devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
-	devp->debug.dest_cfmt = vdin_cap_param->dfmt;
-	devp->debug.scaling4w = vdin_cap_param->dest_h_active;
-	devp->debug.scaling4h = vdin_cap_param->dest_v_active;
+	if (!devp->debug.conversion) {
+		devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+		devp->debug.dest_cfmt = vdin_cap_param->dfmt;
+		devp->debug.scaling4w = vdin_cap_param->dest_h_active;
+		devp->debug.scaling4h = vdin_cap_param->dest_v_active;
+	}
 	vdin_set_canvas_addr[0].dma_buffer = cap_buf;
 	vdin_set_canvas_addr[0].dmabuf_attach =
 	dma_buf_attach(vdin_set_canvas_addr[0].dma_buffer, devp->dev);

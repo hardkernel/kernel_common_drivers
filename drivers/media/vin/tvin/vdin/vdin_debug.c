@@ -2874,14 +2874,15 @@ start_chk:
 				devp->debug.scaling4h = val;
 			if (kstrtoul(parm[3], 10, &val) == 0)
 				devp->debug.dest_cfmt = val;
-
 			devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+			devp->debug.conversion = true;
 			pr_info("enable manual conversion w = %u h = %u ",
 				devp->debug.scaling4w, devp->debug.scaling4h);
 			pr_info("dest_cfmt = %s.\n",
 				tvin_color_fmt_str(devp->debug.dest_cfmt));
 		} else {
 			devp->flags &= (~VDIN_FLAG_MANUAL_CONVERSION);
+			devp->debug.conversion = false;
 			pr_info("disable manual conversion w = %u h = %u ",
 				devp->debug.scaling4w, devp->debug.scaling4h);
 			pr_info("dest_cfmt = %s\n",

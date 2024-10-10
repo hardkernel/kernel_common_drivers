@@ -1293,6 +1293,9 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	if (!devp->debug.dbg_dv_hw5)
 		memset(&devp->dv_hw5, 0, sizeof(devp->dv_hw5));
 
+	if (devp->debug.conversion)
+		devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+
 	if (devp->debug.force_bypass_tunnel)
 		devp->bypass_tunnel = true;
 	else
@@ -5306,26 +5309,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (is_meson_txhd2_cpu() && devp->set_canvas_manual == 1 &&
 		    devp->dts_config.keystone_sel) {
 			param.port = TVIN_PORT_VIU1_WB0_POST_BLEND;
-			devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
-			devp->debug.dest_cfmt = TVIN_RGB444;
-			devp->debug.scaling4w = param.dest_h_active;
-			devp->debug.scaling4h = param.dest_v_active;
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
 			param.port = TVIN_PORT_VIU1_WB0_VPP;
 		} else {
 			param.port = TVIN_PORT_VIU1;
-		}
-
-		if (devp->set_canvas_manual != 1) {
-			param.reserved |= PARAM_STATE_HISTGRAM;
-			/* use 1280X720 for histgram*/
-			if (vdin_v4l2_param.width > 1280 &&
-			    vdin_v4l2_param.height > 720) {
-				devp->debug.scaling4w = 1280;
-				devp->debug.scaling4h = 720;
-				devp->debug.dest_cfmt = TVIN_YUV422;
-				devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
-			}
 		}
 
 		param.frame_rate = vdin_v4l2_param.fps;
@@ -5333,9 +5320,28 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		devp->prop.colordepth = vdin_v4l2_param.bit_dep;
 
 		if (devp->set_canvas_manual == 1)
-			param.dfmt = TVIN_RGB444;
+			param.dfmt = vdin_v4l2_param.dst_fmt;
 		else
 			param.dfmt = TVIN_YUV422;
+
+		if (devp->set_canvas_manual == 1) {
+			if (!devp->debug.conversion) {
+				devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+				devp->debug.dest_cfmt = vdin_v4l2_param.dst_fmt;
+				devp->debug.scaling4w = vdin_v4l2_param.dst_width;
+				devp->debug.scaling4h = vdin_v4l2_param.dst_height;
+			}
+		} else {
+			param.reserved |= PARAM_STATE_HISTGRAM;
+			/* use 1280X720 for histgram*/
+			if (vdin_v4l2_param.width > 1280 &&
+				vdin_v4l2_param.height > 720) {
+				devp->debug.scaling4w = 1280;
+				devp->debug.scaling4h = 720;
+				devp->debug.dest_cfmt = TVIN_YUV422;
+				devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+			}
+		}
 
 		param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
 		param.fmt = TVIN_SIG_FMT_MAX;
@@ -5354,6 +5360,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		devp->parm.reserved &= ~PARAM_STATE_HISTGRAM;
 		devp->flags &= (~VDIN_FLAG_ISR_REQ);
 		devp->flags &= (~VDIN_FLAG_FS_OPENED);
+		devp->flags &= (~VDIN_FLAG_MANUAL_CONVERSION);
 		stop_tvin_service(devp->index);
 
 		/*release manual set dma-bufs*/
