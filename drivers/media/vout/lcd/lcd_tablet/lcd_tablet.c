@@ -485,6 +485,21 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 		pdrv->config.timing.switch_type = switch_type;
 		break;
 	}
+	switch (pdrv->config.timing.switch_type) {
+	case LCD_VMODE_SWITCH_MIN:
+		pdrv->switch_off_event = LCD_EVENT_MDSW_MIN_OFF;
+		pdrv->switch_on_event = LCD_EVENT_MDSW_MIN_ON;
+		break;
+	case LCD_VMODE_SWITCH_LIMIT:
+		pdrv->switch_off_event = LCD_EVENT_MDSW_LIMIT_OFF;
+		pdrv->switch_on_event = LCD_EVENT_MDSW_LIMIT_ON;
+		break;
+	case LCD_VMODE_SWITCH_FULL:
+	default:
+		pdrv->switch_off_event = LCD_EVENT_POWER_OFF;
+		pdrv->switch_on_event = LCD_EVENT_POWER_ON;
+		break;
+	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: %s: timing_switch_flag: %d, lcd_status: 0x%x\n", pdrv->index,
@@ -532,38 +547,19 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 
 static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned long long local_time[4];
-	unsigned int event_off, event_on;
+	unsigned long long local_time[2];
 
 	if (pdrv->config.timing.switch_type == LCD_VMODE_SWITCH_NONE)
 		return;
 
-	if (!(pdrv->status & LCD_STATUS_POWER))
-		return;
-
-	switch (pdrv->config.timing.switch_type) {
-	case LCD_VMODE_SWITCH_MIN:
-		event_off = LCD_EVENT_UFR_SWITCH_OFF;
-		event_on = LCD_EVENT_UFR_SWITCH_ON;
-		break;
-	case LCD_VMODE_SWITCH_LIMIT:
-		event_off = LCD_EVENT_UFR_IF_POWER_OFF;
-		event_on = LCD_EVENT_UFR_IF_POWER_ON;
-		break;
-	case LCD_VMODE_SWITCH_FULL:
-	default:
-		event_off = LCD_EVENT_POWER_OFF;
-		event_on = LCD_EVENT_POWER_ON;
-		break;
-	}
-
-	local_time[0] = sched_clock();
 	//step 1: switch off
+	local_time[0] = sched_clock();
 	if (pdrv->status & LCD_STATUS_POWER) {
 		/* include lcd_vout_mutex */
-		aml_lcd_notifier_call_chain(event_off, (void *)pdrv);
+		aml_lcd_notifier_call_chain(pdrv->switch_off_event, (void *)pdrv);
 	}
 	local_time[1] = sched_clock();
+	pdrv->proc_time.switch_off_time = local_time[1] - local_time[0];
 
 	//step 2: driver change
 	if (pdrv->status & LCD_STATUS_PREPARE) {
@@ -571,20 +567,9 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv)
 		lcd_tablet_driver_change(pdrv);
 		mutex_unlock(&lcd_vout_mutex);
 	}
-	local_time[2] = sched_clock();
 
 	//step 3: switch on
-	if (pdrv->status & LCD_STATUS_POWER) {
-		/* include lcd_vout_mutex */
-		aml_lcd_notifier_call_chain(event_on, (void *)pdrv);
-		if (event_on == LCD_EVENT_UFR_IF_POWER_ON ||
-		    event_on == LCD_EVENT_POWER_ON)
-			lcd_if_enable_retry(pdrv);
-	}
-	local_time[3] = sched_clock();
-
-	pdrv->proc_time.switch_off_time = local_time[1] - local_time[0];
-	pdrv->proc_time.switch_on_time  = local_time[3] - local_time[2];
+	lcd_queue_work(&pdrv->mode_switch_on_work);
 }
 
 static int lcd_set_current_vmode(enum vmode_e mode, void *data)
@@ -610,6 +595,7 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 
 	lcd_proc_time_clear(pdrv);
 	local_time[0] = sched_clock();
+	pdrv->proc_time.switch_start_time = local_time[0];
 	/* clear fr*/
 	pdrv->fr_duration = 0;
 	pdrv->fr_mode = 0;
@@ -636,14 +622,17 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 		pdrv->status |= LCD_EVENT_ENABLE;
 	}
 
+	if (pdrv->vmode_switch == 0) {
+		local_time[1] = sched_clock();
+		pdrv->proc_time.switch_full_time = local_time[1] - local_time[0];
+	}
+
 	/* must update vrr dev after driver change for panel parameters update */
 	lcd_vrr_dev_update(pdrv);
 
 	pdrv->vmode_switch = 0;
 	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
 
-	local_time[1] = sched_clock();
-	pdrv->proc_time.full_time = local_time[1] - local_time[0];
 	mutex_unlock(&lcd_power_mutex);
 	return ret;
 }

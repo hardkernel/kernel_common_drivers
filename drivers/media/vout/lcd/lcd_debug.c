@@ -669,8 +669,8 @@ static ssize_t lcd_proc_time_show(struct device *dev, struct device_attribute *a
 		"switch_type:    0x%x\n"
 		"mute_time:        %llu\n"
 		"bl_off_time:      %llu\n"
-		"tcon_off_time:    %llu\n"
 		"switch_off_time:  %llu\n"
+		"tcon_off_time:    %llu\n"
 		"signal_off_time:  %llu\n"
 		"power_off_time:   %llu\n"
 		"signal_on_time:   %llu\n"
@@ -679,18 +679,18 @@ static ssize_t lcd_proc_time_show(struct device *dev, struct device_attribute *a
 		"tcon_reg_time:    %llu\n"
 		"tcon_data_time:   %llu\n"
 		"tcon_on_time:     %llu\n"
-		"switch_on_time:   %llu\n"
 		"power_on_time:    %llu\n"
+		"switch_on_time:   %llu\n"
 		"bl_on_time:       %llu\n"
 		"unmute_time:      %llu\n"
-		"full_time:        %llu\n\n"
+		"switch_full_time: %llu\n\n"
 		"lcd_vs_isr_time:  %llu\n"
 		"tcon_vs_isr_time: %llu\n\n",
 		pdrv->config.timing.switch_type,
 		pdrv->proc_time.mute_time,
 		pdrv->proc_time.bl_off_time,
-		pdrv->proc_time.tcon_off_time,
 		pdrv->proc_time.switch_off_time,
+		pdrv->proc_time.tcon_off_time,
 		pdrv->proc_time.signal_off_time,
 		pdrv->proc_time.power_off_time,
 		pdrv->proc_time.signal_on_time,
@@ -699,11 +699,11 @@ static ssize_t lcd_proc_time_show(struct device *dev, struct device_attribute *a
 		pdrv->proc_time.tcon_reg_time,
 		pdrv->proc_time.tcon_data_time,
 		pdrv->proc_time.tcon_on_time,
-		pdrv->proc_time.switch_on_time,
 		pdrv->proc_time.power_on_time,
+		pdrv->proc_time.switch_on_time,
 		pdrv->proc_time.bl_on_time,
 		pdrv->proc_time.unmute_time,
-		pdrv->proc_time.full_time,
+		pdrv->proc_time.switch_full_time,
 		pdrv->proc_time.lcd_vs_isr_time,
 		pdrv->proc_time.tcon_vs_isr_time);
 
@@ -2905,14 +2905,14 @@ static ssize_t lcd_debug_unmute_cnt_store(struct device *dev, struct device_attr
 		if (ret != 1)
 			goto lcd_debug_unmute_cnt_store_err;
 		/*unmute_cnt_added take effect only once, will auto clean in next unmute*/
-		pdrv->unmute_cnt_added = (unsigned char)temp;
+		pdrv->unmute_cnt_added = (unsigned short)temp;
 		LCDPR("set unmute_cnt_added: %d\n", pdrv->unmute_cnt_added);
 		break;
 	default:
 		ret = kstrtouint(buf, 10, &temp);
 		if (ret)
 			goto lcd_debug_unmute_cnt_store_err;
-		pdrv->unmute_cnt_test = (unsigned char)temp;
+		pdrv->unmute_cnt_test = (unsigned short)temp;
 		LCDPR("set unmute_cnt_test: 0x%x\n", pdrv->unmute_cnt_test);
 		break;
 	}
@@ -2945,7 +2945,7 @@ static ssize_t lcd_debug_mute_cnt_store(struct device *dev, struct device_attrib
 		pr_info("invalid data\n");
 		return -EINVAL;
 	}
-	pdrv->mute_cnt_test = (unsigned char)temp;
+	pdrv->mute_cnt_test = (unsigned short)temp;
 	LCDPR("set mute_cnt_test: %d\n", pdrv->mute_cnt_test);
 
 	return count;

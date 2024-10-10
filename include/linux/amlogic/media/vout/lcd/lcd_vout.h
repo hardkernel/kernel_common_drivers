@@ -604,7 +604,8 @@ struct lcd_time_s {
 	unsigned long long extern_init_time;
 	unsigned long long power_off_time;
 	unsigned long long power_on_time;
-	unsigned long long full_time;
+	unsigned long long switch_start_time;
+	unsigned long long switch_full_time;
 
 	unsigned long long lcd_vs_isr_time;
 	unsigned long long tcon_vs_isr_time;
@@ -853,12 +854,12 @@ struct aml_lcd_drv_s {
 	unsigned char mute_state;
 	unsigned char mute_flag;
 	unsigned char mute_switch;
-	unsigned char mute_wait_cnt;
-	unsigned char mute_cnt;
-	unsigned char unmute_cnt;
-	unsigned char mute_cnt_test;
-	unsigned char unmute_cnt_test;
-	unsigned char unmute_cnt_added;
+	unsigned short mute_wait_cnt;
+	unsigned short mute_cnt;
+	unsigned short unmute_cnt;
+	unsigned short mute_cnt_test;
+	unsigned short unmute_cnt_test;
+	unsigned short unmute_cnt_added;
 	unsigned char tcon_isr_bypass;
 	unsigned char probe_done;
 	unsigned char viu_sel;
@@ -871,6 +872,8 @@ struct aml_lcd_drv_s {
 	char vbyone_isr_name[10];
 	char output_name[30];
 	unsigned int vmode_switch;
+	unsigned int switch_on_event;
+	unsigned int switch_off_event;
 	unsigned char config_check_glb;
 	unsigned char config_check_en;
 	int fr_lock_en;
@@ -933,7 +936,7 @@ struct aml_lcd_drv_s {
 	struct delayed_work tcon_config_dly_work;
 	struct work_struct late_resume_work;
 	struct work_struct vx1_reset_work;
-	struct work_struct screen_restore_work;
+	struct work_struct mode_switch_on_work;
 	struct delayed_work init_on_delayed_work;
 	struct delayed_work test_delayed_work;
 	struct resource *res_vsync_irq[3];

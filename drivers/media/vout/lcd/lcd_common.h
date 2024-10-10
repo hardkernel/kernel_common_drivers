@@ -79,7 +79,8 @@
 /* 20240806: support phy tuning function */
 /* 20240909: update phy tuning: get real state from register */
 /* 20240923: support reserved memory to transmit panel parameter to kernel */
-#define LCD_DRV_VERSION    "20240923"
+/* 20241023: optimize mute/unmute flow */
+#define LCD_DRV_VERSION    "20241023"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
