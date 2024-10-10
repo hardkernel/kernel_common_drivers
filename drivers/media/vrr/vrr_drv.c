@@ -420,6 +420,12 @@ void vrr_crop_update_delay_line(u32 line, u16 axis_y,
 		return;
 	}
 
+	if (!vdrv->vrr_dev) {
+		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+			VRRPR("%s no vrr_dev\n", __func__);
+		return;
+	}
+
 	if (flag == 0) {
 		crop_line = line;
 	} else if (flag == 1) {
