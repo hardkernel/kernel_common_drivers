@@ -1682,6 +1682,7 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 		desc[j].cmd_cfg |= CMD_CFG_OWNER;
 		desc[j].cmd_cfg |= CMD_CFG_RESP_NUM;
 		desc[j].cmd_cfg |= CMD_CFG_R1B;
+		desc[j].cmd_arg = 0;
 		desc[j].cmd_resp = 0;
 		desc[j].cmd_data = 0;
 	}
@@ -1748,6 +1749,7 @@ static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 		desc[data->sg_count].cmd_cfg |= CMD_CFG_OWNER;
 		desc[data->sg_count].cmd_cfg |= CMD_CFG_RESP_NUM;
 		desc[data->sg_count].cmd_cfg |= CMD_CFG_R1B;
+		desc[data->sg_count].cmd_arg = 0;
 		desc[data->sg_count].cmd_resp = 0;
 		desc[data->sg_count].cmd_data = 0;
 		j++;
@@ -1803,6 +1805,7 @@ static void meson_mmc_quirk_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 		desc->cmd_cfg |= CMD_CFG_OWNER;
 		desc->cmd_cfg |= CMD_CFG_RESP_NUM;
 		desc->cmd_cfg |= CMD_CFG_R1B;
+		desc->cmd_arg = 0;
 		desc->cmd_resp = 0;
 		desc->cmd_data = 0;
 	}
@@ -2128,10 +2131,8 @@ static void emmc_show_cmd_window(char *str, int repeat_times)
 
 static u32 emmc_search_cmd_delay(char *str, int repeat_times, u32 *p_size)
 {
-	int best_start = -1, best_size = -1;
-	int cur_start = -1, cur_size = 0;
-	u32 cmd_delay;
-	int i;
+	int cur_start = -1, cur_size = 0, i;
+	u32 best_start = 0, best_size = 0, cmd_delay;
 
 	for (i = 0; i < 64; i++) {
 		if (str[i] == repeat_times) {
