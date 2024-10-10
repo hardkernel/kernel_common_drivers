@@ -3,12 +3,10 @@
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels")
 load("//common:common_drivers/amlogic_utils.bzl", "define_common_amlogic")
 load("//common:common_drivers/modules.bzl", "AMLOGIC_MODULES")
-load("//common:common_drivers/project/project.bzl", "EXT_MODULES_ANDROID", "GKI_CONFIG", "KCONFIG_EXT_SRCS", "FULL_KERNEL_VERSION")
+load("//common:common_drivers/project/project.bzl", "EXT_MODULES_ANDROID", "GKI_CONFIG", "KCONFIG_EXT_SRCS", "FULL_KERNEL_VERSION","DTBO_DEVICETREE")
 load("//common:common_drivers/project/dtb.bzl", "AMLOGIC_DTBS")
 
-_AMLOGIC_DTBOS = [
-    "android_overlay_dt.dtbo",
-]
+_AMLOGIC_DTBOS = DTBO_DEVICETREE or [ "android_overlay_dt.dtbo" ]
 
 _AMLOGIC_OUTS = [
 ] + AMLOGIC_DTBS

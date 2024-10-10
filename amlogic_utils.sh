@@ -1947,7 +1947,13 @@ function build_kernel_for_32bit () {
 	make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} uImage -j12 &&
 	make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} modules -j12 &&
 	if [[ -n ${ANDROID_PROJECT} ]]; then
-		make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} android_overlay_dt.dtbo -j12
+		if [[ -n ${DTBO_DEVICETREE} ]]; then
+			make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} \
+				${TOOL_ARGS} ${DTBO_DEVICETREE} -j12
+		else
+			make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} \
+				${TOOL_ARGS} android_overlay_dt.dtbo -j12
+		fi
 	fi
 	make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} dtbs -j12 || exit
 	set +x

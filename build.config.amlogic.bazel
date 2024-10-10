@@ -97,6 +97,7 @@ MAKE_GOALS="
 modules
 dtbs
 android_overlay_dt.dtbo
+adt4_overlay_dt.dtbo
 "
 
 KMI_SYMBOL_LIST=android/abi_gki_aarch64_amlogic

@@ -191,6 +191,12 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/project.bzl
 	echo "UPGRADE_PROJECT = \"${UPGRADE_PROJECT}\"" >> ${PROJECT_DIR}/project.bzl
 
+	echo "DTBO_DEVICETREE = ["			>> ${PROJECT_DIR}/project.bzl
+	if [[ -n ${DTBO_DEVICETREE} ]]; then
+		echo "    \"${DTBO_DEVICETREE}\","	>> ${PROJECT_DIR}/project.bzl
+	fi
+	echo "]"					>> ${PROJECT_DIR}/project.bzl
+
 	[[ -f ${PROJECT_DIR}/dtb.bzl ]] || touch ${PROJECT_DIR}/dtb.bzl
 	echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/dtb.bzl
 	echo 						>> ${PROJECT_DIR}/dtb.bzl

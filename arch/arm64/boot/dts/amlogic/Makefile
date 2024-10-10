@@ -4,6 +4,7 @@ dtb-y += c2_c305x_af400.dtb
 dtb-y += a1-a113l-ad401.dtb
 dtb-y += a1-a113l-ad409.dtb
 dtbo-y += android_overlay_dt.dtbo
+dtbo-y += adt4_overlay_dt.dtbo
 dtb-y += a1-a113l-ad403.dtb
 dtb-y += a1-a113l-ad403-spk.dtb
 dtb-y += a1-a113l-ad40ae.dtb
