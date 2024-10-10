@@ -3333,7 +3333,7 @@ static int aml_cec_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static int aml_cec_pm_freeze(struct device *dev)
+static int aml_cec_pm_freeze_noirq(struct device *dev)
 {
 	struct pinctrl *pin;
 
@@ -3344,7 +3344,7 @@ static int aml_cec_pm_freeze(struct device *dev)
 	return 0;
 }
 
-static int aml_cec_pm_restore(struct device *dev)
+static int aml_cec_pm_restore_noirq(struct device *dev)
 {
 	pinctrl_pm_select_default_state(dev);
 	aml_cec_resume_noirq(dev);
@@ -3353,8 +3353,8 @@ static int aml_cec_pm_restore(struct device *dev)
 }
 
 static const struct dev_pm_ops aml_cec_pm = {
-	.freeze = aml_cec_pm_freeze,
-	.restore = aml_cec_pm_restore,
+	.freeze_noirq = aml_cec_pm_freeze_noirq,
+	.restore_noirq = aml_cec_pm_restore_noirq,
 	.prepare  = aml_cec_pm_prepare,
 	.complete = aml_cec_pm_complete,
 	.suspend_noirq = aml_cec_suspend_noirq,
