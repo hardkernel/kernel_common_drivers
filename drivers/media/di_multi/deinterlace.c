@@ -10877,8 +10877,6 @@ void di_unreg_setting(bool plink)
 	sc2_dbg_set(0);
 	/*set flg*/
 	set_hw_reg_flg(false);
-	if (get_datal()->dct_op && !plink)
-		get_datal()->dct_op->unreg_all();
 	if (dim_hdr_ops())
 		dim_hdr_ops()->unreg_setting();
 	dim_dw_unreg_setting();

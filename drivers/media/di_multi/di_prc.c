@@ -2033,6 +2033,8 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
+			if (get_datal()->dct_op)
+				get_datal()->dct_op->unreg_all();
 			di_unreg_setting(false);
 			dpre_init();
 			dpost_unreg(ch);
@@ -2051,6 +2053,8 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {	//??
 			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
+			if (get_datal()->dct_op)
+				get_datal()->dct_op->unreg_all();
 			di_unreg_setting(false);
 			dpre_init();
 			dpost_unreg(ch);
@@ -2092,6 +2096,8 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg2,step2:\n", ch);
+			if (get_datal()->dct_op)
+				get_datal()->dct_op->unreg_all();
 			di_unreg_setting(false);
 			dpre_init();
 			dpost_unreg(ch);
@@ -2134,6 +2140,8 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg3,step2:\n", ch);
+			if (get_datal()->dct_op)
+				get_datal()->dct_op->unreg_all();
 			di_unreg_setting(false);
 			dpre_init();
 			dpost_unreg(ch);
