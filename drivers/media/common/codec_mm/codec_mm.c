@@ -4474,6 +4474,7 @@ bool is_2k_platform(void)
 	int pack_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_PACK);
 
 	if (cpu_type == MESON_CPU_MAJOR_ID_T5D ||
+		cpu_type == MESON_CPU_MAJOR_ID_T6D ||
 		cpu_type == MESON_CPU_MAJOR_ID_TXHD2 ||
 		cpu_type == MESON_CPU_MAJOR_ID_S1A ||
 		(cpu_type == MESON_CPU_MAJOR_ID_S4 && pack_type == 2) ||
