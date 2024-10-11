@@ -539,6 +539,7 @@ unsigned int slt_lut3d_en;
 module_param(osd_pic_en, uint, 0664);
 MODULE_PARM_DESC(osd_pic_en, "\n osd_pic_en\n");
 
+unsigned int slt_en;
 #define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
 #define MATRIX_5x3_COEF_SIZE 24
 
@@ -12429,10 +12430,13 @@ void amvecm_slt_fmeter_disable(void)
 void amvecm_slt_sr_enable(void)
 {
 	amvecm_slt_fmeter_enable();
-	cm_load_reg(&slt_sr0_default);
-	cm_load_reg(&slt_sr1_default);
+	if (chip_type_id != chip_t6d) {
+		cm_load_reg(&slt_sr0_default);
+		cm_load_reg(&slt_sr1_default);
+	}
 
-	if (chip_type_id == chip_s7d) {
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_t6d) {
 		amve_sharpness_sub_ctrl(0, 1);
 		amve_sharpness_sub_ctrl(1, 1);
 		amve_sharpness_sub_ctrl(2, 1);
@@ -12656,7 +12660,11 @@ void amvecm_slt_lut3d_disable(void)
 
 void amvecm_slt_enable(void)
 {
+	slt_en = 1;
 	pq_load_en = 0;
+	vecm_latch_flag = 0;
+	vecm_latch_flag2 = 0;
+	pq_user_latch_flag = 0;
 
 	amvecm_slt_hdr_enable();
 	amvecm_slt_cm_enable();
@@ -12676,6 +12684,7 @@ void amvecm_slt_enable(void)
 
 void amvecm_slt_disable(void)
 {
+	slt_en = 0;
 	pq_load_en = 1;
 
 	amvecm_slt_hdr_disable();
@@ -12701,10 +12710,19 @@ void amvecm_list_module_status(void)
 	int data_port;
 	struct cm_port_s cm_port;
 	unsigned int reg_ctrl;
+	unsigned int addr_offset_vd1 = 0;
+	unsigned int addr_offset_vd2 = 0;
+	unsigned int reg_lc = SRSHARP1_LC_TOP_CTRL;
+
+	if (chip_type_id == chip_t6d) {
+		addr_offset_vd1 = 0x2a00;
+		addr_offset_vd2 = 0x2a30;
+		reg_lc = VPP_LC_MODE;
+	}
 
 	/*hdr*/
-	vd1_hdr_en = READ_VPP_REG_BITS(VD1_HDR2_CTRL, 13, 1);
-	vd2_hdr_en = READ_VPP_REG_BITS(VD2_HDR2_CTRL, 13, 1);
+	vd1_hdr_en = READ_VPP_REG_BITS(VD1_HDR2_CTRL + addr_offset_vd1, 13, 1);
+	vd2_hdr_en = READ_VPP_REG_BITS(VD2_HDR2_CTRL + addr_offset_vd2, 13, 1);
 
 	/*cm*/
 	if (chip_type_id == chip_s5 ||
@@ -12727,7 +12745,9 @@ void amvecm_list_module_status(void)
 	}
 
 	/*sr*/
-	if (chip_type_id == chip_t3x) {
+	if (chip_type_id == chip_t6d) {
+		sharpness0_en = READ_VPP_REG_BITS(VPP_SR_EN, 0, 1);
+	} else if (chip_type_id == chip_t3x) {
 		sharpness0_en = READ_VPP_REG_BITS(0x5027, 1, 1);
 		sharpness1_en = READ_VPP_REG_BITS(0x5227, 1, 1);
 	} else {
@@ -12737,7 +12757,7 @@ void amvecm_list_module_status(void)
 	}
 
 	/*lc*/
-	lc_en = READ_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 4, 1);
+	lc_en = READ_VPP_REG_BITS(reg_lc, 4, 1);
 
 	/*dnlp*/
 	if (chip_type_id == chip_t3x) {
@@ -12746,7 +12766,7 @@ void amvecm_list_module_status(void)
 	} else if (dnlp_sel == 2) {
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 			reg_ctrl = SRSHARP1_DNLP_EN;
-		} else if (chip_type_id == chip_s7d) {
+		} else if (chip_type_id == chip_s7d || chip_type_id == chip_t6d) {
 			reg_ctrl = VPP_DNLP_EN_MODE;
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if ((!vinfo_lcd_support() && chip_type_id != chip_s5) ||
@@ -12759,7 +12779,7 @@ void amvecm_list_module_status(void)
 			reg_ctrl = SRSHARP0_DNLP_EN;
 		}
 
-		if (chip_type_id != chip_s7d)
+		if (chip_type_id != chip_s7d && chip_type_id != chip_t6d)
 			dnlp_en = READ_VPP_REG_BITS(reg_ctrl, 0, 1);
 		else
 			dnlp_en = READ_VPP_REG_BITS(reg_ctrl, 4, 1);
@@ -12839,9 +12859,14 @@ void amvecm_list_module_status(void)
 	pr_info("vd1 hdr : %d\n", vd1_hdr_en);
 	pr_info("vd2 hdr : %d\n", vd2_hdr_en);
 	pr_info("cm : %d\n", cm_en);
-	pr_info("sharpness0 : %d\n", sharpness0_en);
-	if (chip_type_id != chip_txhd2)
-		pr_info("sharpness1 : %d\n", sharpness1_en);
+	if (chip_type_id == chip_t6d) {
+		pr_info("sr : %d\n", sharpness0_en);
+	} else {
+		pr_info("sharpness0 : %d\n", sharpness0_en);
+		if (chip_type_id != chip_txhd2)
+			pr_info("sharpness1 : %d\n", sharpness1_en);
+	}
+
 	pr_info("lc : %d\n", lc_en);
 	pr_info("dnlp : %d\n", dnlp_en);
 	pr_info("black_ext : %d\n", black_ext_en);

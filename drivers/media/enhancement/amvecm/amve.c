@@ -3573,15 +3573,17 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 						lc_disable(0, vpp_index);
 				}
 			}
-			if (pq_cfg_cur.black_ext_en != pq_cfg.black_ext_en) {
-				pq_cfg_cur.black_ext_en = pq_cfg.black_ext_en;
-				WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
-					pq_cfg.black_ext_en, 3, 1);
-			}
-			if (pq_cfg_cur.chroma_cor_en != pq_cfg.chroma_cor_en) {
-				pq_cfg_cur.chroma_cor_en = pq_cfg.chroma_cor_en;
-				WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
-					pq_cfg.chroma_cor_en, 4, 1);
+			if (!slt_en) {
+				if (pq_cfg_cur.black_ext_en != pq_cfg.black_ext_en) {
+					pq_cfg_cur.black_ext_en = pq_cfg.black_ext_en;
+					WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
+						pq_cfg.black_ext_en, 3, 1);
+				}
+				if (pq_cfg_cur.chroma_cor_en != pq_cfg.chroma_cor_en) {
+					pq_cfg_cur.chroma_cor_en = pq_cfg.chroma_cor_en;
+					WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
+						pq_cfg.chroma_cor_en, 4, 1);
+				}
 			}
 			/*blue stretch*/
 			if (chip_type_id == chip_txhd2)
@@ -3766,15 +3768,17 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 						lc_disable(0, vpp_index);
 				}
 			}
-			if (pq_cfg_cur.black_ext_en != pq_cfg.black_ext_en) {
-				pq_cfg_cur.black_ext_en = pq_cfg.black_ext_en;
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
-					pq_cfg.black_ext_en, 3, 1, vpp_index);
-			}
-			if (pq_cfg_cur.chroma_cor_en != pq_cfg.chroma_cor_en) {
-				pq_cfg_cur.chroma_cor_en = pq_cfg.chroma_cor_en;
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
-					pq_cfg.chroma_cor_en, 4, 1, vpp_index);
+			if (!slt_en) {
+				if (pq_cfg_cur.black_ext_en != pq_cfg.black_ext_en) {
+					pq_cfg_cur.black_ext_en = pq_cfg.black_ext_en;
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
+						pq_cfg.black_ext_en, 3, 1, vpp_index);
+				}
+				if (pq_cfg_cur.chroma_cor_en != pq_cfg.chroma_cor_en) {
+					pq_cfg_cur.chroma_cor_en = pq_cfg.chroma_cor_en;
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
+						pq_cfg.chroma_cor_en, 4, 1, vpp_index);
+				}
 			}
 			/*blue stretch*/
 			if (chip_type_id == chip_txhd2)
