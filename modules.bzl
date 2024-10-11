@@ -95,7 +95,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/soc_info/amlogic-socinfo.ko",
     "common_drivers/drivers/spi/amlogic-spi.ko",
     "common_drivers/drivers/tee/amlogic-tee.ko",
-#    "common_drivers/drivers/thermal/amlogic-thermal.ko",
+    "common_drivers/drivers/thermal/amlogic-thermal.ko",
     "common_drivers/drivers/usb/amlogic-usb.ko",
     "common_drivers/drivers/usb/dwc_otg.ko",
     "common_drivers/drivers/watchdog/amlogic-watchdog.ko",

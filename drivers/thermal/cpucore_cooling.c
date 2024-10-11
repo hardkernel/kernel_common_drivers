@@ -125,7 +125,6 @@ static int cpucore_set_cur_state(struct thermal_cooling_device *cdev,
 
 static int calculate_hotstep(struct thermal_instance *instance)
 {
-	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *cdev;
 	struct cpucore_cooling_device *cpucore_dev;
 	int hyst = 0, trip_temp;
@@ -133,10 +132,9 @@ static int calculate_hotstep(struct thermal_instance *instance)
 	if (!instance)
 		return -EINVAL;
 
-	tz = instance->tz;
 	cdev = instance->cdev;
 
-	if (!tz || !cdev)
+	if (!cdev)
 		return -EINVAL;
 
 	cpucore_dev = cdev->devdata;
@@ -144,15 +142,16 @@ static int calculate_hotstep(struct thermal_instance *instance)
 	trip_temp = instance->trip->temperature;
 	hyst = instance->trip->hysteresis;
 
-	if (tz->temperature >= (trip_temp + (cpucore_dev->hotstep + 1) * hyst)) {
+	if (cpucore_dev->temperature >= (trip_temp + (cpucore_dev->hotstep + 1) * hyst)) {
 		cpucore_dev->hotstep++;
-		pr_debug("[%s]temp:%d increase,trip:%d,hotstep:%d\n", cdev->type, tz->temperature,
-			trip_temp, cpucore_dev->hotstep);
+		pr_debug("[%s]temp:%d increase,trip:%d,hotstep:%d\n", cdev->type,
+			cpucore_dev->temperature, trip_temp, cpucore_dev->hotstep);
 	}
-	if (tz->temperature < (trip_temp + cpucore_dev->hotstep * hyst) && cpucore_dev->hotstep) {
+	if (cpucore_dev->temperature < (trip_temp + cpucore_dev->hotstep * hyst) &&
+		cpucore_dev->hotstep) {
 		cpucore_dev->hotstep--;
-		pr_debug("[%s]temp:%d decrease,trip:%d,hotstep:%d\n", cdev->type, tz->temperature,
-			trip_temp, cpucore_dev->hotstep);
+		pr_debug("[%s]temp:%d decrease,trip:%d,hotstep:%d\n", cdev->type,
+			cpucore_dev->temperature, trip_temp, cpucore_dev->hotstep);
 	}
 
 	if (cpucore_dev->hotstep > instance->upper)

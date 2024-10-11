@@ -33,6 +33,7 @@ struct cpucore_cooling_device {
 	struct thermal_cooling_device *cool_dev;
 	int hotstep;
 	int setstep;
+	int temperature;
 };
 
 struct thermal_cooling_device *cpucore_cooling_register(struct device_node *np,

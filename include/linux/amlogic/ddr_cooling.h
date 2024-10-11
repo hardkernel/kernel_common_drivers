@@ -21,6 +21,7 @@ struct ddr_cooling_device {
 	u32 *ddr_bits_keep;	/*for keep ddr reg val excepts change bits*/
 	u32 last_state;
 	struct list_head node;
+	int temperature;
 };
 
 #ifdef CONFIG_AMLOGIC_DDR_THERMAL

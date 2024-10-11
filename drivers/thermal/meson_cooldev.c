@@ -237,9 +237,8 @@ static int meson_cooldev_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meson_cooldev_remove(struct platform_device *pdev)
+static void meson_cooldev_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static const struct of_device_id meson_cooldev_of_match[] = {
