@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -79,7 +78,6 @@ struct aml_tdes_dev {
 	struct aml_tdes_ctx	*ctx;
 	struct device		*dev;
 	struct device		*parent;
-	int	irq;
 
 	unsigned long		flags;
 	int	err;
@@ -136,12 +134,15 @@ static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd);
 static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 			      u32 *key, u32 keylen, u32 *iv)
 {
-	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 dsc;
 	struct device *dev = dd->dev;
 	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 	u32 *piv = key_iv;
 	u32 len = keylen;
 	dma_addr_t dma_addr_key;
+	u32 status = 0;
+	int err = 0;
+	u32 nents = 1;
 
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
@@ -162,55 +163,57 @@ static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 		return -EINVAL;
 	}
 
-	dsc[0].src_addr = (u32)(0xffffff00 | dd->ctx->kte);
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
+	dsc.src_addr = (u64)(0xffffffffffffff00 | dd->ctx->kte);
+	dsc.tgt_addr = 0;
+	dsc.dsc_cfg.d32 = 0;
 	/* Internal key_iv storage of DMA is 48 bytes (32 for key; 16 for iv)
 	 * For some reason, it fails to set key if key length is 8 bytes(ex: DES).
 	 * Therefore, we always set length to 32 bytes(full key storage) regardless of
 	 * real key length.
 	 * PLEASE ask Qian Cheng(cheng.qian@amlogic.com) for details.
 	 */
-	dsc[0].dsc_cfg.b.length = 32;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.owner = 1;
-	dsc[0].dsc_cfg.b.eoc = 0;
+	dsc.dsc_cfg.b.length = 32;
+	dsc.dsc_cfg.b.mode = MODE_KEY;
+	dsc.dsc_cfg.b.owner = 1;
+	dsc.dsc_cfg.b.eoc = iv ? 0 : 1;
+	aml_dma_dsc_writer(dd->descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
 
 	if (iv) {
-		dsc[1].src_addr = (u32)dma_addr_key;
-		dsc[1].tgt_addr = 32;
-		dsc[1].dsc_cfg.d32 = 0;
-		dsc[1].dsc_cfg.b.length = 16;
-		dsc[1].dsc_cfg.b.mode = MODE_KEY;
-		dsc[1].dsc_cfg.b.owner = 1;
-		dsc[1].dsc_cfg.b.eoc = 1;
-	} else {
-		dsc[0].dsc_cfg.b.eoc = 1;
+		dsc.src_addr = (u64)dma_addr_key;
+		dsc.tgt_addr = 32;
+		dsc.dsc_cfg.d32 = 0;
+		dsc.dsc_cfg.b.length = 16;
+		dsc.dsc_cfg.b.mode = MODE_KEY;
+		dsc.dsc_cfg.b.owner = 1;
+		dsc.dsc_cfg.b.eoc = 1;
+		nents++;
+		aml_dma_dsc_writer(dd->descriptor, 1, &dsc, dd->dma->dma_bus64, 0);
 	}
-
-	aml_write_crypto_reg(dd->thread,
-			     (uintptr_t)dd->dma_descript_tab | 2);
-	aml_dma_debug(dsc, iv ? 2 : 1, __func__, dd->thread, dd->status);
-	while (aml_read_crypto_reg(dd->status) == 0)
-		;
-	aml_write_crypto_reg(dd->status, 0xf);
+	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, nents, dd->dma_descript_tab,
+				      USE_BUSY_POLLING, DMA_FLAG_TDES_IN_USE);
+	aml_dma_debug(dd->descriptor, nents, __func__, dd->thread,
+			 dd->status, dd->dma->dma_bus64);
+	if (status & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
+		err = -EINVAL;
+	}
 	dma_unmap_single(dd->parent, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
 	kfree(key_iv);
-	return 0;
+	return err;
 }
 
 static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 			   u32 *key, u32 keylen, u32 *iv)
 {
-	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 dsc;
 	struct device *dev = dd->dev;
 	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 	u32 *piv = key_iv + 8;
 	u32 len = keylen;
 	dma_addr_t dma_addr_key;
-	u8 status = 0;
+	u32 status = 0;
 	int err = 0;
 
 	if (!key_iv) {
@@ -236,35 +239,24 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		return -EINVAL;
 	}
 
-	dsc[0].src_addr = (u32)dma_addr_key;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = len;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.owner = 1;
-	dsc[0].dsc_cfg.b.eoc = 1;
+	dsc.src_addr = (u64)dma_addr_key;
+	dsc.tgt_addr = 0;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = len;
+	dsc.dsc_cfg.b.mode = MODE_KEY;
+	dsc.dsc_cfg.b.owner = 1;
+	dsc.dsc_cfg.b.eoc = 1;
+	aml_dma_dsc_writer(dd->descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
 
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
-#if DMA_IRQ_MODE
-	aml_write_crypto_reg(dd->thread,
-			     (uintptr_t)dd->dma_descript_tab | 2);
-	while (aml_read_crypto_reg(dd->status) == 0)
-		;
-	status = aml_read_crypto_reg(dd->status);
+	aml_dma_debug(dd->descriptor, 1, __func__, dd->thread, dd->status, dd->dma->dma_bus64);
+	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
+				      USE_BUSY_POLLING, DMA_FLAG_TDES_IN_USE);
+	aml_dma_debug(dd->descriptor, 1, "end tdes keyiv", dd->thread,
+			 dd->status, dd->dma->dma_bus64);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dev, "hw crypto failed.\n");
+		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
-#else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
-			     1, DMA_FLAG_TDES_IN_USE);
-	aml_dma_debug(dsc, 1, "end tdes keyiv", dd->thread, dd->status);
-	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dev, "hw crypto failed.\n");
-		err = -EINVAL;
-	}
-#endif
 	dma_unmap_single(dd->parent, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
@@ -303,16 +295,18 @@ static size_t aml_tdes_sg_copy(struct scatterlist **sg, size_t *offset,
 	return off;
 }
 
-static size_t aml_tdes_sg_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
+static size_t aml_tdes_sg_dma(struct aml_tdes_dev *dd, void *descriptor,
 			     size_t total)
 {
 	struct device *dev = dd->dev;
+	struct dma_dsc_64 dsc;
 	u32 i = 0;
 	int err = 0;
 	struct scatterlist *in_sg = dd->in_sg;
 	struct scatterlist *out_sg = dd->out_sg;
 	u32 in_nents = 0, out_nents = 0;
-	struct dma_sg_dsc *sg_dsc = NULL;
+	struct dma_sg_dsc_64 sg_dsc;
+	u32 dma_sg_dsc_sz = aml_dma_get_dsc_sz(dd->dma->dma_bus64, 1);
 
 	in_nents = sg_nents(in_sg);
 	out_nents = sg_nents(out_sg);
@@ -343,76 +337,59 @@ static size_t aml_tdes_sg_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 				       in_nents, DMA_TO_DEVICE);
 	}
 
-#if DMA_IRQ_MODE
 	dd->sg_dsc_in = dma_alloc_coherent(dd->parent,
-			in_nents * sizeof(struct dma_sg_dsc),
-			&dd->dma_sg_dsc_in, GFP_ATOMIC | GFP_DMA);
+					   in_nents * dma_sg_dsc_sz,
+					   &dd->dma_sg_dsc_in, GFP_KERNEL | GFP_DMA);
 	if (!dd->sg_dsc_in) {
 		dev_err(dev, "dma_alloc_coherent() for input error\n");
 		return 0;
 	}
 
 	dd->sg_dsc_out = dma_alloc_coherent(dd->parent,
-			out_nents * sizeof(struct dma_sg_dsc),
-			&dd->dma_sg_dsc_out, GFP_ATOMIC | GFP_DMA);
+					    out_nents * dma_sg_dsc_sz,
+					    &dd->dma_sg_dsc_out, GFP_KERNEL | GFP_DMA);
 	if (!dd->dma_sg_dsc_out) {
 		dev_err(dev, "dma_alloc_coherent() for output error\n");
-		dma_free_coherent(dd->parent, in_nents * sizeof(struct dma_sg_dsc),
-				dd->sg_dsc_in, dd->dma_sg_dsc_in);
+		dma_free_coherent(dd->parent, in_nents * dma_sg_dsc_sz,
+				  dd->sg_dsc_in, dd->dma_sg_dsc_in);
 		return 0;
 	}
-#else
-	dd->sg_dsc_in = dma_alloc_coherent(dd->parent,
-			in_nents * sizeof(struct dma_sg_dsc),
-			&dd->dma_sg_dsc_in, GFP_KERNEL | GFP_DMA);
-	if (!dd->sg_dsc_in) {
-		dev_err(dev, "dma_alloc_coherent() for input error\n");
-		return 0;
-	}
-
-	dd->sg_dsc_out = dma_alloc_coherent(dd->parent,
-			out_nents * sizeof(struct dma_sg_dsc),
-			&dd->dma_sg_dsc_out, GFP_KERNEL | GFP_DMA);
-	if (!dd->dma_sg_dsc_out) {
-		dev_err(dev, "dma_alloc_coherent() for output error\n");
-		dma_free_coherent(dd->parent, in_nents * sizeof(struct dma_sg_dsc),
-				dd->sg_dsc_in, dd->dma_sg_dsc_in);
-		return 0;
-	}
-#endif
-
-	sg_dsc = dd->sg_dsc_in;
 	in_sg = dd->in_sg;
 	for (i = 0; i < in_nents; i++) {
-		sg_dsc[i].dsc_cfg.d32 = 0;
-		sg_dsc[i].dsc_cfg.b.valid = 1;
-		sg_dsc[i].dsc_cfg.b.eoc = i == (in_nents - 1) ? 1 : 0;
-		sg_dsc[i].dsc_cfg.b.length = in_sg->length;
-		sg_dsc[i].addr = in_sg->dma_address;
+		sg_dsc.dsc_cfg.d32 = 0;
+		sg_dsc.dsc_cfg.b.valid = 1;
+		sg_dsc.dsc_cfg.b.eoc = i == (in_nents - 1) ? 1 : 0;
+		sg_dsc.dsc_cfg.b.length = in_sg->length;
+		sg_dsc.addr = in_sg->dma_address;
+		aml_dma_dsc_writer(dd->sg_dsc_in, i, &sg_dsc, dd->dma->dma_bus64, 1);
+
 		in_sg = sg_next(in_sg);
 	}
 	WARN_ON(in_sg);
 
 	out_sg = dd->out_sg;
-	sg_dsc = dd->sg_dsc_out;
 	for (i = 0; i < out_nents; i++) {
-		sg_dsc[i].dsc_cfg.d32 = 0;
-		sg_dsc[i].dsc_cfg.b.valid = 1;
-		sg_dsc[i].dsc_cfg.b.eoc = i == (out_nents - 1) ? 1 : 0;
-		sg_dsc[i].dsc_cfg.b.length = out_sg->length;
-		sg_dsc[i].addr = out_sg->dma_address;
+		sg_dsc.dsc_cfg.d32 = 0;
+		sg_dsc.dsc_cfg.b.valid = 1;
+		sg_dsc.dsc_cfg.b.eoc = i == (out_nents - 1) ? 1 : 0;
+		sg_dsc.dsc_cfg.b.length = out_sg->length;
+		sg_dsc.addr = out_sg->dma_address;
+		aml_dma_dsc_writer(dd->sg_dsc_out, i, &sg_dsc, dd->dma->dma_bus64, 1);
 		out_sg = sg_next(out_sg);
 	}
 	WARN_ON(out_sg);
 
-	aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents, __func__);
-	aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents, __func__);
+	aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents,
+			   __func__, dd->dma->dma_bus64);
+	aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents,
+			   __func__, dd->dma->dma_bus64);
 
-	dsc->src_addr = dd->dma_sg_dsc_in;
-	dsc->tgt_addr = dd->dma_sg_dsc_out;
-	dsc->dsc_cfg.d32 = 0;
-	dsc->dsc_cfg.b.length = total;
-	dsc->dsc_cfg.b.link_error = 1;
+	dsc.src_addr = dd->dma_sg_dsc_in;
+	dsc.tgt_addr = dd->dma_sg_dsc_out;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = total;
+	dsc.dsc_cfg.b.link_error = 1;
+	aml_dma_dsc_writer(descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
 
 	return total;
 }
@@ -450,66 +427,50 @@ static int aml_tdes_hw_init(struct aml_tdes_dev *dd)
 
 static void aml_tdes_finish_req(struct aml_tdes_dev *dd, int err)
 {
-#if DMA_IRQ_MODE
-	struct skcipher_request *req = dd->req;
-#endif
 	unsigned long flags;
 
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
 	dd->flags &= ~TDES_FLAGS_BUSY;
 	dd->dma->dma_busy &= ~DMA_FLAG_MAY_OCCUPY;
 	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-#if DMA_IRQ_MODE
-	req->base.complete(&req->base, err);
-#endif
 }
 
-static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
+static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, void *descriptor,
 			      u32 nents)
 {
 	u32 op_mode = OP_MODE_ECB;
+	struct dma_dsc_64 dsc;
 	u32 i = 0;
-#if DMA_IRQ_MODE
-	unsigned long flags;
-#else
 	int err = 0;
-	u8 status = 0;
-#endif
+	u32 status = 0;
 
 	if (dd->flags & TDES_FLAGS_CBC)
 		op_mode = OP_MODE_CBC;
 
 	for (i = 0; i < nents; i++) {
-		dsc[i].dsc_cfg.b.enc_sha_only = dd->flags & TDES_FLAGS_ENCRYPT;
-		dsc[i].dsc_cfg.b.mode =
+		/* some fields are already filled, read it back and update dsc */
+		aml_dma_dsc_reader(descriptor, i, &dsc, dd->dma->dma_bus64, 0);
+
+		dsc.dsc_cfg.b.enc_sha_only = dd->flags & TDES_FLAGS_ENCRYPT;
+		dsc.dsc_cfg.b.mode =
 			((dd->ctx->keylen == DES_KEY_SIZE) ? MODE_DES :
 			 ((dd->ctx->keylen == 2 * DES_KEY_SIZE) ?
 			  MODE_TDES_2K : MODE_TDES_3K));
-		dsc[i].dsc_cfg.b.op_mode = op_mode;
-		dsc[i].dsc_cfg.b.eoc = (i == (nents - 1));
-		dsc[i].dsc_cfg.b.owner = 1;
-	}
+		dsc.dsc_cfg.b.op_mode = op_mode;
+		dsc.dsc_cfg.b.eoc = (i == (nents - 1));
+		dsc.dsc_cfg.b.owner = 1;
 
-	aml_dma_debug(dsc, nents, __func__, dd->thread, dd->status);
+		aml_dma_dsc_writer(descriptor, i, &dsc, dd->dma->dma_bus64, 0);
+	}
+	aml_dma_debug(descriptor, nents, __func__, dd->thread, dd->status, dd->dma->dma_bus64);
 
 	/* Start DMA transfer */
-#if DMA_IRQ_MODE
-	spin_lock_irqsave(&dd->dma->dma_lock, flags);
-	dd->dma->dma_busy |= DMA_FLAG_TDES_IN_USE;
-	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-
 	dd->flags |= TDES_FLAGS_DMA;
-
-	aml_write_crypto_reg(dd->thread,
-			     (uintptr_t)dd->dma_descript_tab | 2);
-	return -EINPROGRESS;
-#else
-	dd->flags |= TDES_FLAGS_DMA;
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, nents, dd->dma_descript_tab,
-			     1, DMA_FLAG_TDES_IN_USE);
+	status = aml_dma_do_hw_crypto(dd->dma, descriptor, nents, dd->dma_descript_tab,
+				      USE_BUSY_POLLING, DMA_FLAG_TDES_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR)
 		dd->flags |= TDES_FLAGS_ERROR;
-	aml_dma_debug(dsc, nents, "end tdes", dd->thread, dd->status);
+	aml_dma_debug(descriptor, nents, "end tdes", dd->thread, dd->status, dd->dma->dma_bus64);
 	err = aml_tdes_crypt_dma_stop(dd);
 	if (!err) {
 		err = dd->flags & TDES_FLAGS_ERROR;
@@ -517,16 +478,14 @@ static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 	}
 
 	return err;
-#endif
 }
 
 static int aml_tdes_crypt_dma_link_mode_start(struct aml_tdes_dev *dd)
 {
 	int err = 0;
 	size_t count = 0;
-	struct dma_dsc *dsc = dd->descriptor;
 
-	count = aml_tdes_sg_dma(dd, dsc, dd->total);
+	count = aml_tdes_sg_dma(dd, dd->descriptor, dd->total);
 	dd->flags |= TDES_FLAGS_FAST;
 	dd->fast_total = count;
 	dd->total -= dd->fast_total;
@@ -539,7 +498,7 @@ static int aml_tdes_crypt_dma_link_mode_start(struct aml_tdes_dev *dd)
 					 DES_BLOCK_SIZE, 0);
 
 	/* using 1 entry in link mode */
-	err = aml_tdes_crypt_dma(dd, dsc, 1);
+	err = aml_tdes_crypt_dma(dd, dd->descriptor, 1);
 
 	return err;
 }
@@ -549,7 +508,7 @@ static int aml_tdes_crypt_dma_start(struct aml_tdes_dev *dd)
 	int err = 0;
 	size_t count = 0;
 	dma_addr_t addr_in, addr_out;
-	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 dsc;
 	u32 nents;
 
 	/* slow dma */
@@ -561,15 +520,18 @@ static int aml_tdes_crypt_dma_start(struct aml_tdes_dev *dd)
 	dd->dma_size = count;
 	dma_sync_single_for_device(dd->parent, addr_in, dd->dma_size,
 				   DMA_TO_DEVICE);
-	dsc->src_addr = (u32)addr_in;
-	dsc->tgt_addr = (u32)addr_out;
-	dsc->dsc_cfg.d32 = 0;
-	dsc->dsc_cfg.b.length = count;
+
+	dsc.src_addr = (u32)addr_in;
+	dsc.tgt_addr = (u32)addr_out;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = count;
+	aml_dma_dsc_writer(dd->descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
+
 	nents = 1;
 	dd->flags &= ~TDES_FLAGS_FAST;
 
 	dd->total -= count;
-	err = aml_tdes_crypt_dma(dd, dsc, nents);
+	err = aml_tdes_crypt_dma(dd, dd->descriptor, nents);
 
 	return err;
 }
@@ -598,45 +560,10 @@ static int aml_tdes_write_ctrl(struct aml_tdes_dev *dd)
 static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 				 struct skcipher_request *req)
 {
-#if DMA_IRQ_MODE
-	struct crypto_async_request *async_req, *backlog;
-#endif
 	struct aml_tdes_ctx *ctx;
 	struct aml_tdes_reqctx *rctx;
 	s32 err = 0;
-#if DMA_IRQ_MODE
-	s32 ret = 0;
-#endif
 
-#if DMA_IRQ_MODE
-	unsigned long flags;
-	spin_lock_irqsave(&dd->dma->dma_lock, flags);
-	if (req)
-		ret = crypto_enqueue_request(&dd->queue, &req->base);
-
-	if ((dd->flags & TDES_FLAGS_BUSY) || dd->dma->dma_busy) {
-		spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-		return ret;
-	}
-	backlog = crypto_get_backlog(&dd->queue);
-	async_req = crypto_dequeue_request(&dd->queue);
-	if (async_req) {
-		dd->flags |= TDES_FLAGS_BUSY;
-		dd->dma->dma_busy |= DMA_FLAG_MAY_OCCUPY;
-	}
-	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-
-	if (!async_req) {
-		pm_runtime_mark_last_busy(dd->parent);
-		pm_runtime_put_autosuspend(dd->parent);
-		return ret;
-	}
-
-	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
-
-	req = skcipher_request_cast(async_req);
-#endif
 	/* assign new request to device */
 	dd->req = req;
 	dd->total = req->cryptlen;
@@ -667,19 +594,12 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 	if (err != -EINPROGRESS) {
 		/* tdes_task will not finish it, so do it here */
 		aml_tdes_finish_req(dd, err);
-#if DMA_IRQ_MODE
-		tasklet_schedule(&dd->queue_task);
-#endif
 	}
 
-#if DMA_IRQ_MODE
-	return ret;
-#else
 	if (err)
 		return -EAGAIN;
 	else
 		return 0;
-#endif
 }
 
 int aml_tdes_process(struct skcipher_request *req)
@@ -696,6 +616,7 @@ static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd)
 	int err = -EINVAL;
 	size_t count;
 	u32 in_nents = 0, out_nents = 0;
+	u32 dma_sg_dsc_sz = aml_dma_get_dsc_sz(dd->dma->dma_bus64, 1);
 
 	if (dd->flags & TDES_FLAGS_DMA) {
 		err = 0;
@@ -704,9 +625,9 @@ static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd)
 			out_nents = sg_nents(dd->out_sg);
 			if (dd->in_sg != dd->out_sg) {
 				dma_unmap_sg(dd->parent, dd->in_sg, in_nents,
-						DMA_TO_DEVICE);
+					     DMA_TO_DEVICE);
 				dma_unmap_sg(dd->parent, dd->out_sg, out_nents,
-						DMA_FROM_DEVICE);
+					     DMA_FROM_DEVICE);
 			} else {
 				dma_sync_sg_for_cpu(dd->parent, dd->in_sg,
 						    in_nents, DMA_FROM_DEVICE);
@@ -714,12 +635,14 @@ static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd)
 					     in_nents, DMA_BIDIRECTIONAL);
 			}
 
-			aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents, __func__);
-			aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents, __func__);
+			aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents,
+					   __func__, dd->dma->dma_bus64);
+			aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents,
+					   __func__, dd->dma->dma_bus64);
 
-			dma_free_coherent(dd->parent, in_nents * sizeof(struct dma_sg_dsc),
+			dma_free_coherent(dd->parent, in_nents * dma_sg_dsc_sz,
 					dd->sg_dsc_in, dd->dma_sg_dsc_in);
-			dma_free_coherent(dd->parent, out_nents * sizeof(struct dma_sg_dsc),
+			dma_free_coherent(dd->parent, out_nents * dma_sg_dsc_sz,
 					dd->sg_dsc_out, dd->dma_sg_dsc_out);
 			/* install IV */
 			if (dd->flags & TDES_FLAGS_CBC) {
@@ -769,6 +692,7 @@ static int aml_tdes_buff_init(struct aml_tdes_dev *dd)
 {
 	struct device *dev = dd->dev;
 	int err = -ENOMEM;
+	u32 dma_sg_dsc_sz = aml_dma_get_dsc_sz(dd->dma->dma_bus64, 1);
 
 	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, 0);
 	dd->buf_out = (void *)__get_free_pages(GFP_KERNEL, 0);
@@ -782,8 +706,8 @@ static int aml_tdes_buff_init(struct aml_tdes_dev *dd)
 
 	dd->descriptor =
 		dmam_alloc_coherent(dd->parent,
-				   MAX_NUM_TABLES * sizeof(struct dma_dsc),
-				   &dd->dma_descript_tab, GFP_KERNEL | GFP_DMA);
+				    MAX_NUM_TABLES * dma_sg_dsc_sz,
+				    &dd->dma_descript_tab, GFP_KERNEL | GFP_DMA);
 	if (!dd->descriptor) {
 		dev_err(dev, "dma descriptor error\n");
 		err = -EINVAL;
@@ -823,11 +747,13 @@ err_alloc:
 
 static void aml_tdes_buff_cleanup(struct aml_tdes_dev *dd)
 {
+	u32 dma_sg_dsc_sz = aml_dma_get_dsc_sz(dd->dma->dma_bus64, 1);
+
 	dma_unmap_single(dd->parent, dd->dma_addr_out, dd->buflen,
 			 DMA_FROM_DEVICE);
 	dma_unmap_single(dd->parent, dd->dma_addr_in, dd->buflen,
 			 DMA_TO_DEVICE);
-	dmam_free_coherent(dd->parent, MAX_NUM_TABLES * sizeof(struct dma_dsc),
+	dmam_free_coherent(dd->parent, MAX_NUM_TABLES * dma_sg_dsc_sz,
 			dd->descriptor, dd->dma_descript_tab);
 	free_page((unsigned long)dd->buf_out);
 	free_page((unsigned long)dd->buf_in);
@@ -886,11 +812,7 @@ static int aml_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 			return err;
 		}
 	}
-#if DMA_IRQ_MODE
-	return aml_tdes_handle_queue(dd, req);
-#else
 	return aml_dma_crypto_enqueue_req(dd->dma, &req->base);
-#endif
 }
 
 static int aml_des_setkey(struct crypto_skcipher *tfm, const u8 *key,
@@ -935,26 +857,22 @@ static int aml_des_kl_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 static int aml_tdes_ecb_encrypt(struct skcipher_request *req)
 {
-	return aml_tdes_crypt(req,
-			TDES_FLAGS_ENCRYPT);
+	return aml_tdes_crypt(req, TDES_FLAGS_ENCRYPT);
 }
 
 static int aml_tdes_ecb_decrypt(struct skcipher_request *req)
 {
-	return aml_tdes_crypt(req,
-			0);
+	return aml_tdes_crypt(req, 0);
 }
 
 static int aml_tdes_cbc_encrypt(struct skcipher_request *req)
 {
-	return aml_tdes_crypt(req,
-			TDES_FLAGS_ENCRYPT | TDES_FLAGS_CBC);
+	return aml_tdes_crypt(req, TDES_FLAGS_ENCRYPT | TDES_FLAGS_CBC);
 }
 
 static int aml_tdes_cbc_decrypt(struct skcipher_request *req)
 {
-	return aml_tdes_crypt(req,
-			TDES_FLAGS_CBC);
+	return aml_tdes_crypt(req, TDES_FLAGS_CBC);
 }
 
 static int aml_tdes_lite_init_tfm(struct crypto_skcipher *tfm);
@@ -1197,7 +1115,7 @@ static int aml_tdes_lite_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	if (ctx->same_key) {
 		crypto_skcipher_clear_flags(ctx->fallback, CRYPTO_TFM_REQ_MASK);
 		crypto_skcipher_set_flags(ctx->fallback, tfm->base.crt_flags &
-				CRYPTO_TFM_REQ_MASK);
+					  CRYPTO_TFM_REQ_MASK);
 		ret = crypto_skcipher_setkey(ctx->fallback, key, keylen);
 	}
 
@@ -1281,69 +1199,6 @@ static struct skcipher_alg tdes_lite_algs[] = {
 	}
 };
 
-#if DMA_IRQ_MODE
-static void aml_tdes_queue_task(unsigned long data)
-{
-	struct aml_tdes_dev *dd = (struct aml_tdes_dev *)data;
-
-	aml_tdes_handle_queue(dd, NULL);
-}
-
-static void aml_tdes_done_task(unsigned long data)
-{
-	struct aml_tdes_dev *dd = (struct aml_tdes_dev *)data;
-	int err;
-
-	err = aml_tdes_crypt_dma_stop(dd);
-
-	if (!err) {
-		err = dd->flags & TDES_FLAGS_ERROR;
-		dd->flags = (dd->flags & ~TDES_FLAGS_ERROR);
-	}
-
-	err = dd->err ? dd->err : err;
-
-	if (dd->total && !err) {
-		if (!err)
-			err = aml_tdes_crypt_dma_start(dd);
-		if (err == -EINPROGRESS)
-			return; /* DMA started. Not fininishing. */
-	}
-
-	if (dd->ctx->kte < 0)
-		err = set_tdes_key_iv(dd, NULL, 0, NULL);
-
-	aml_tdes_finish_req(dd, err);
-	aml_tdes_handle_queue(dd, NULL);
-}
-
-static irqreturn_t aml_tdes_irq(int irq, void *dev_id)
-{
-	struct aml_tdes_dev *tdes_dd = dev_id;
-	struct device *dev = tdes_dd->dev;
-	u8 status = aml_read_crypto_reg(tdes_dd->status);
-
-	if (status) {
-		if (status == 0x1)
-			dev_err(dev, "irq overwrite\n");
-		if (tdes_dd->dma->dma_busy == DMA_FLAG_MAY_OCCUPY)
-			return IRQ_HANDLED;
-		if ((tdes_dd->dma->dma_busy & DMA_FLAG_TDES_IN_USE) &&
-		    (tdes_dd->flags & TDES_FLAGS_DMA)) {
-			if (status & DMA_STATUS_KEY_ERROR)
-				tdes_dd->flags |= TDES_FLAGS_ERROR;
-			aml_write_crypto_reg(tdes_dd->status, 0xf);
-			tdes_dd->dma->dma_busy &= ~DMA_FLAG_TDES_IN_USE;
-			tasklet_schedule(&tdes_dd->done_task);
-			return IRQ_HANDLED;
-		} else {
-			return IRQ_NONE;
-		}
-	}
-
-	return IRQ_NONE;
-}
-#endif
 static void aml_tdes_unregister_algs(struct aml_tdes_dev *dd,
 				     struct aml_tdes_info *tdes_info)
 {
@@ -1428,26 +1283,11 @@ static int aml_tdes_probe(struct platform_device *pdev)
 	tdes_dd->thread = tdes_dd->dma->thread;
 	tdes_dd->status = tdes_dd->dma->status;
 	tdes_dd->link_mode = tdes_dd->dma->link_mode;
-	tdes_dd->irq = tdes_dd->dma->irq;
 
 	platform_set_drvdata(pdev, tdes_dd);
 
 	INIT_LIST_HEAD(&tdes_dd->list);
 
-#if DMA_IRQ_MODE
-	tasklet_init(&tdes_dd->done_task, aml_tdes_done_task,
-		     (unsigned long)tdes_dd);
-	tasklet_init(&tdes_dd->queue_task, aml_tdes_queue_task,
-		     (unsigned long)tdes_dd);
-
-	crypto_init_queue(&tdes_dd->queue, AML_TDES_QUEUE_LENGTH);
-	err = devm_request_irq(dev, tdes_dd->irq, aml_tdes_irq, IRQF_SHARED,
-			       "aml-tdes", tdes_dd);
-	if (err) {
-		dev_err(dev, "unable to request tdes irq.\n");
-		goto tdes_irq_err;
-	}
-#endif
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 	pm_runtime_enable(dev);
@@ -1489,11 +1329,6 @@ err_algs:
 err_tdes_buff:
 err_tdes_pm:
 	pm_runtime_disable(dev);
-#if DMA_IRQ_MODE
-tdes_irq_err:
-	tasklet_kill(&tdes_dd->done_task);
-	tasklet_kill(&tdes_dd->queue_task);
-#endif
 tdes_dd_err:
 	dev_err(dev, "initialization failed.\n");
 

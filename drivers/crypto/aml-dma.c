@@ -13,6 +13,7 @@
 #include <linux/hw_random.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -30,8 +31,10 @@
 #include <crypto/internal/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/of_platform.h>
+#include <linux/arm-smccc.h>
 #include "aml-crypto-dma.h"
 #include "aml-sha-dma.h"
+#include "aml-sha3-dma.h"
 #include "aml-aes-dma.h"
 #include "aml-tdes-dma.h"
 #include "aml-sm4-dma.h"
@@ -40,6 +43,7 @@
 #define ENABLE_AES	(1)
 #define ENABLE_TDES	(1)
 #define ENABLE_SM4	(1)
+#define ENABLE_SHA3	(1)
 #define ENABLE_CRYPTO_DEV (1)
 #define AML_DMA_QUEUE_LENGTH (50)
 static struct dentry *aml_dma_debug_dent;
@@ -110,7 +114,6 @@ static int aml_dma_init_dbgfs(struct device *dev)
 	return 0;
 }
 
-#if !DMA_IRQ_MODE
 static int aml_dma_queue_manage(void *data)
 {
 	struct aml_dma_dev *dev = (struct aml_dma_dev *)data;
@@ -131,18 +134,25 @@ static int aml_dma_queue_manage(void *data)
 			backlog->complete(backlog, -EINPROGRESS);
 
 		if (async_req) {
+			const char *driver_name =
+				crypto_tfm_alg_driver_name(async_req->tfm);
+
 			__set_current_state(TASK_RUNNING);
 			if (crypto_tfm_alg_type(async_req->tfm) ==
 			    CRYPTO_ALG_TYPE_AHASH) {
 				struct ahash_request *req =
 					ahash_request_cast(async_req);
-				ret = aml_sha_process(req);
-				aml_sha_finish_req(req, ret);
+				if (strstr(driver_name, "sha3") ||
+					   strstr(driver_name, "shake")) {
+					ret = aml_sha3_process(req);
+					aml_sha3_finish_req(req, ret);
+				} else {
+					ret = aml_sha_process(req);
+					aml_sha_finish_req(req, ret);
+				}
 			} else {
 				struct skcipher_request *req =
 				skcipher_request_cast(async_req);
-				const char *driver_name =
-				crypto_tfm_alg_driver_name(async_req->tfm);
 
 				if (strstr(driver_name, "aes"))
 					ret = aml_aes_process(req);
@@ -163,7 +173,37 @@ static int aml_dma_queue_manage(void *data)
 
 	return 0;
 }
-#endif
+
+static int aml_dma_set_dma_mode(struct aml_dma_dev *dd, uint32_t mode)
+{
+	int err = -1;
+	struct device *dev = dd->dev;
+	/* 40 bits are reserved for dsc addr in thread register */
+	u32 coherent_mask_bits;
+
+	if (mode != 32 && mode != 64) {
+		dev_err(dev, "Invalid mode(%u)\n", mode);
+		goto out;
+	}
+	err = aml_dma_call_smc(CRYPTO_CMD, CRYPTO_CMD_CRYPTO_DMA_SET_BUS64,
+			       dd->thread, mode);
+	if (err) {
+		dev_err(dev, "failed to set thread 0 to %u bits\n", mode);
+		goto out;
+	}
+	/* Set DMA mask */
+	err = dma_set_mask(dev, DMA_BIT_MASK(mode));
+	if (err) {
+		dev_err(dev, "failed to set dma mask to %u bits\n", mode);
+		goto out;
+	}
+	coherent_mask_bits = mode > 40 ? 40 : mode;
+	err = dma_set_coherent_mask(dev, DMA_BIT_MASK(coherent_mask_bits));
+	if (err)
+		dev_err(dev, "failed to set dma coherent mask to %u bits\n", mode);
+out:
+	return err;
+}
 
 static int aml_dma_probe(struct platform_device *pdev)
 {
@@ -188,6 +228,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 	dma_dd->thread = priv_data->thread;
 	dma_dd->status = priv_data->status;
 	dma_dd->link_mode = priv_data->link_mode;
+	dma_dd->dev = dev;
 	res_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_base) {
 		dev_err(dev, "error to get normal IORESOURCE_MEM.\n");
@@ -200,12 +241,28 @@ static int aml_dma_probe(struct platform_device *pdev)
 		}
 	}
 
+	of_property_read_u8(pdev->dev.of_node, "dma_bus64", &dma_dd->dma_bus64);
+	if (dma_dd->dma_bus64) {
+		err = aml_dma_set_dma_mode(dma_dd, 64);
+		if (err)
+			goto dma_err;
+	}
+
 	dma_dd->irq = platform_get_irq(pdev, 0);
+	init_completion(&dma_dd->done);
+	err = devm_request_irq(dev, dma_dd->irq, aml_crypto_dma_irq,
+			       IRQF_SHARED, "aml-dma", dma_dd);
+	if (err) {
+		dev_err(dev, "unable to request aml dma irq.\n");
+		err = -EINVAL;
+		goto dma_err;
+	}
+
 	dma_dd->dma_busy = 0;
 	platform_set_drvdata(pdev, dma_dd);
 	spin_lock_init(&dma_dd->dma_lock);
-#if !DMA_IRQ_MODE
 	crypto_init_queue(&dma_dd->queue, AML_DMA_QUEUE_LENGTH);
+
 	spin_lock_init(&dma_dd->queue_lock);
 	dma_dd->kthread = kthread_run(aml_dma_queue_manage,
 				      dma_dd, "aml_crypto");
@@ -213,7 +270,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 		err = PTR_ERR(dma_dd->kthread);
 		goto dma_err;
 	}
-#endif
+
 	err = aml_dma_init_dbgfs(dev);
 	if (err)
 		goto dma_err;
@@ -227,10 +284,8 @@ static int aml_dma_probe(struct platform_device *pdev)
 	return err;
 
 dma_err:
-#if !DMA_IRQ_MODE
 	if (dma_dd && dma_dd->kthread)
 		kthread_stop(dma_dd->kthread);
-#endif
 	debugfs_remove_recursive(aml_dma_debug_dent);
 	dev_err(dev, "initialization failed.\n");
 
@@ -245,11 +300,10 @@ static void aml_dma_remove(struct platform_device *pdev)
 	dma_dd = platform_get_drvdata(pdev);
 	if (!dma_dd)
 		return;
-#if !DMA_IRQ_MODE
 	kthread_stop(dma_dd->kthread);
-#endif
 	of_platform_depopulate(dev);
 	debugfs_remove_recursive(aml_dma_debug_dent);
+	devm_free_irq(dev, dma_dd->irq, dma_dd);
 }
 
 static struct platform_driver aml_dma_driver = {
@@ -291,6 +345,11 @@ static int __init aml_dma_driver_init(void)
 	if (ret)
 		goto sm4_init_failed;
 #endif
+#if ENABLE_SHA3
+	ret = aml_sha3_driver_init();
+	if (ret)
+		goto sha3_init_failed;
+#endif
 	ret = platform_driver_register(&aml_dma_driver);
 	if (ret)
 		goto plat_init_failed;
@@ -298,6 +357,10 @@ static int __init aml_dma_driver_init(void)
 	return ret;
 
 plat_init_failed:
+#if ENABLE_SHA3
+sha3_init_failed:
+	aml_sha3_driver_exit();
+#endif
 #if ENABLE_SM4
 sm4_init_failed:
 	aml_sm4_driver_exit();
@@ -339,6 +402,9 @@ static void __exit aml_dma_driver_exit(void)
 #endif
 #if ENABLE_SM4
 	aml_sm4_driver_exit();
+#endif
+#if ENABLE_SHA3
+	aml_sha3_driver_exit();
 #endif
 }
 module_exit(aml_dma_driver_exit);

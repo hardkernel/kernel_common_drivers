@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_device.h>
@@ -51,9 +50,6 @@
 
 #define SHA_BUFFER_LEN	\
 	ALIGN_DOWN((512 - sizeof(struct aml_sha_reqctx)), 64)
-
-#define AML_DIGEST_BUFSZ (SHA256_DIGEST_SIZE + 16)
-
 #define DEFAULT_AUTOSUSPEND_DELAY	1000
 
 struct aml_sha_dev;
@@ -77,7 +73,7 @@ struct aml_sha_reqctx {
 	size_t block_size;
 	u32 fast_nents;
 
-	u8  *digest;
+	u8  *hw_ctx;
 	u8  buffer[] __aligned(sizeof(u32));
 };
 
@@ -96,7 +92,6 @@ struct aml_sha_dev {
 	struct list_head	list;
 	struct device		*dev;
 	struct device		*parent;
-	int			irq;
 
 	struct aml_dma_dev      *dma;
 	u32 thread;
@@ -109,6 +104,7 @@ struct aml_sha_dev {
 	struct ahash_request	*req;
 	void	*descriptor;
 	dma_addr_t	dma_descript_tab;
+	u32		hw_ctx_sz;
 };
 
 struct aml_sha_drv {
@@ -198,8 +194,8 @@ int aml_sha_init(struct ahash_request *req)
 		return -EINVAL;
 	}
 
-	ctx->digest = kzalloc(AML_DIGEST_BUFSZ, GFP_ATOMIC | GFP_DMA);
-	if (!ctx->digest)
+	ctx->hw_ctx = kzalloc(dd->hw_ctx_sz, GFP_ATOMIC | GFP_DMA);
+	if (!ctx->hw_ctx)
 		return -ENOMEM;
 
 	if (tctx->is_hmac)
@@ -215,7 +211,7 @@ int aml_sha_init(struct ahash_request *req)
 }
 
 static int aml_sha_xmit_dma(struct aml_sha_dev *dd,
-			    struct ahash_request *req, struct dma_dsc *dsc,
+			    struct ahash_request *req, void *descriptor,
 			    u32 nents, int final)
 {
 	int i = 0;
@@ -223,12 +219,9 @@ static int aml_sha_xmit_dma(struct aml_sha_dev *dd,
 	struct aml_sha_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(req);
 	size_t length = 0;
-#if DMA_IRQ_MODE
-	unsigned long flags;
-#else
-	u8 status = 0;
+	u32 status = 0;
 	int err = 0;
-#endif
+	struct dma_dsc_64 dsc;
 
 	dbgp(1, "xmit_dma:ctx:%p,digcnt:0x%llx 0x%llx,nents: %u,final:%d\n",
 	     ctx, ctx->digcnt[1], ctx->digcnt[0], nents, final);
@@ -240,36 +233,37 @@ static int aml_sha_xmit_dma(struct aml_sha_dev *dd,
 	else if (ctx->flags & SHA_FLAGS_SHA256)
 		mode = MODE_SHA256;
 
-	ctx->hash_addr = dma_map_single(dd->parent, ctx->digest,
-					AML_DIGEST_BUFSZ, DMA_FROM_DEVICE);
+	ctx->hash_addr = dma_map_single(dd->parent, ctx->hw_ctx,
+					dd->hw_ctx_sz, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dd->parent, ctx->hash_addr)) {
 		dev_err(dd->dev, "hash %d bytes error\n",
-			AML_DIGEST_BUFSZ);
+			dd->hw_ctx_sz);
 		return -EINVAL;
 	}
-
 	for (i = 0; i < nents; i++) {
-		dsc[i].tgt_addr = (uintptr_t)ctx->hash_addr;
-		dsc[i].dsc_cfg.b.enc_sha_only = 1;
-		dsc[i].dsc_cfg.b.mode = mode;
-		dsc[i].dsc_cfg.b.begin =
-			(i == 0 && !(ctx->digcnt[0] || ctx->digcnt[1]) &&
-			 !(tctx->is_hmac));
-		dsc[i].dsc_cfg.b.end = final;
-		dsc[i].dsc_cfg.b.op_mode = OP_MODE_SHA;
-		dsc[i].dsc_cfg.b.eoc = (i == (nents - 1));
-		dsc[i].dsc_cfg.b.owner = 1;
-	}
+		/* some fields are already filled, read it back and update dsc */
+		aml_dma_dsc_reader(descriptor, i, &dsc, dd->dma->dma_bus64, 0);
 
-	aml_dma_debug(dsc, nents, __func__, dd->thread, dd->status);
-	/* should be non-zero before next lines to disable clocks later */
-	for (i = 0; i < nents; i++) {
-		length = dsc->dsc_cfg.b.length;
+		dsc.tgt_addr = (uintptr_t)ctx->hash_addr;
+		dsc.dsc_cfg.b.enc_sha_only = 1;
+		dsc.dsc_cfg.b.mode = mode;
+		dsc.dsc_cfg.b.begin =
+		   (i == 0 && !(ctx->digcnt[0] || ctx->digcnt[1]) &&
+		   !(tctx->is_hmac));
+		dsc.dsc_cfg.b.end = final;
+		dsc.dsc_cfg.b.op_mode = OP_MODE_SHA;
+		dsc.dsc_cfg.b.eoc = (i == (nents - 1));
+		dsc.dsc_cfg.b.owner = 1;
+
+		aml_dma_dsc_writer(descriptor, i, &dsc, dd->dma->dma_bus64, 0);
+
+		length = dsc.dsc_cfg.b.length;
 		ctx->digcnt[0] += length;
 		if (ctx->digcnt[0] < length)
 			ctx->digcnt[1]++;
 	}
-
+	aml_dma_debug(descriptor, nents, __func__, dd->thread, dd->status, dd->dma->dma_bus64);
+	/* should be non-zero before next lines to disable clocks later */
 	if (final)
 		ctx->flags |= SHA_FLAGS_FINAL; /* catch last interrupt */
 
@@ -279,22 +273,12 @@ static int aml_sha_xmit_dma(struct aml_sha_dev *dd,
 	     ctx, ctx->digcnt[1], ctx->digcnt[0], length, final);
 
 	/* Start DMA transfer */
-#if DMA_IRQ_MODE
-	spin_lock_irqsave(&dd->dma->dma_lock, flags);
-	dd->dma->dma_busy |= DMA_FLAG_SHA_IN_USE;
-	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-
 	dd->flags |=  SHA_FLAGS_DMA_ACTIVE;
-	aml_write_crypto_reg(dd->thread,
-			     (uintptr_t)dd->dma_descript_tab | 2);
-	return -EINPROGRESS;
-#else
-	dd->flags |=  SHA_FLAGS_DMA_ACTIVE;
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, nents, dd->dma_descript_tab,
-								  1, DMA_FLAG_SHA_IN_USE);
+	status = aml_dma_do_hw_crypto(dd->dma, descriptor, nents, dd->dma_descript_tab,
+				      USE_BUSY_POLLING, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR)
 		dd->flags |= SHA_FLAGS_ERROR;
-	aml_dma_debug(dsc, nents, "end sha", dd->thread, dd->status);
+	aml_dma_debug(descriptor, nents, "end sha", dd->thread, dd->status, dd->dma->dma_bus64);
 
 	dd->flags |= SHA_FLAGS_OUTPUT_READY;
 	dd->flags &= ~SHA_FLAGS_DMA_ACTIVE;
@@ -306,11 +290,10 @@ static int aml_sha_xmit_dma(struct aml_sha_dev *dd,
 	}
 
 	return err;
-#endif
 }
 
 static int aml_sha_xmit_start(struct aml_sha_dev *dd,
-			      struct ahash_request *req, struct dma_dsc *dsc,
+			      struct ahash_request *req, void *dsc,
 			      u32 nents, int final)
 {
 	return aml_sha_xmit_dma(dd, req, dsc, nents, final);
@@ -321,7 +304,7 @@ static int aml_sha_xmit_dma_map(struct aml_sha_dev *dd,
 				struct aml_sha_reqctx *ctx,
 				size_t length, int final)
 {
-	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 dsc;
 
 	ctx->dma_addr = dma_map_single(dd->parent, ctx->buffer,
 				       ctx->buflen, DMA_TO_DEVICE);
@@ -333,12 +316,13 @@ static int aml_sha_xmit_dma_map(struct aml_sha_dev *dd,
 	dma_sync_single_for_device(dd->parent, ctx->dma_addr,
 				   SHA_BUFFER_LEN, DMA_TO_DEVICE);
 
-	dsc->src_addr = (uintptr_t)ctx->dma_addr;
-	dsc->dsc_cfg.d32 = 0;
-	dsc->dsc_cfg.b.length = length;
+	dsc.src_addr = (uintptr_t)ctx->dma_addr;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = length;
+	aml_dma_dsc_writer(dd->descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
 
 	/* next call does not fail... so no unmap in the case of error */
-	return aml_sha_xmit_start(dd, req, dsc, 1, final);
+	return aml_sha_xmit_start(dd, req, dd->descriptor, 1, final);
 }
 
 static int aml_sha_update_dma_slow(struct aml_sha_dev *dd,
@@ -402,7 +386,7 @@ static int aml_sha_update_dma_start(struct aml_sha_dev *dd,
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(req);
 	unsigned int length = 0, final = 0, tail = 0;
 	struct scatterlist *sg;
-	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 dsc;
 	struct device *dev = dd->dev;
 	int err = 0;
 
@@ -469,9 +453,13 @@ static int aml_sha_update_dma_start(struct aml_sha_dev *dd,
 		}
 
 		ctx->dma_addr = sg_dma_address(sg);
-		dsc[ctx->fast_nents].src_addr = (uintptr_t)ctx->dma_addr;
-		dsc[ctx->fast_nents].dsc_cfg.d32 = 0;
-		dsc[ctx->fast_nents].dsc_cfg.b.length = length;
+
+		dsc.src_addr = (uintptr_t)ctx->dma_addr;
+		dsc.tgt_addr = 0;
+		dsc.dsc_cfg.d32 = 0;
+		dsc.dsc_cfg.b.length = length;
+		aml_dma_dsc_writer(dd->descriptor, ctx->fast_nents,
+				   &dsc, dd->dma->dma_bus64, 0);
 
 		sg = sg_next(sg);
 		ctx->fast_nents++;
@@ -484,7 +472,7 @@ static int aml_sha_update_dma_start(struct aml_sha_dev *dd,
 	}
 	if (ctx->fast_nents) {
 		ctx->flags |= SHA_FLAGS_FAST;
-		err = aml_sha_xmit_start(dd, req, dsc, ctx->fast_nents, final);
+		err = aml_sha_xmit_start(dd, req, dd->descriptor, ctx->fast_nents, final);
 		if (err && err != -EINPROGRESS) {
 			pr_err("%s:%d: aml_sha_xmit_start failed with err = %d\n"
 					, __func__, __LINE__, err);
@@ -509,7 +497,7 @@ static int aml_sha_update_dma_stop(struct aml_sha_dev *dd)
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(dd->req);
 
 	aml_dma_debug(dd->descriptor, ctx->fast_nents ?
-		      ctx->fast_nents : 1, __func__, dd->thread, dd->status);
+		      ctx->fast_nents : 1, __func__, dd->thread, dd->status, dd->dma->dma_bus64);
 
 	if (ctx->flags & SHA_FLAGS_FAST)
 		dma_unmap_sg(dd->parent, ctx->sg, ctx->fast_nents, DMA_TO_DEVICE);
@@ -519,7 +507,7 @@ static int aml_sha_update_dma_stop(struct aml_sha_dev *dd)
 
 	if (ctx->hash_addr)
 		dma_unmap_single(dd->dev, ctx->hash_addr,
-				 AML_DIGEST_BUFSZ, DMA_FROM_DEVICE);
+				 dd->hw_ctx_sz, DMA_FROM_DEVICE);
 	return 0;
 }
 
@@ -556,11 +544,11 @@ static void aml_sha_copy_ready_hash(struct ahash_request *req)
 		return;
 
 	if (ctx->flags & SHA_FLAGS_SHA1)
-		memcpy(req->result, ctx->digest, SHA1_DIGEST_SIZE);
+		memcpy(req->result, ctx->hw_ctx, SHA1_DIGEST_SIZE);
 	else if (ctx->flags & SHA_FLAGS_SHA224)
-		memcpy(req->result, ctx->digest, SHA224_DIGEST_SIZE);
+		memcpy(req->result, ctx->hw_ctx, SHA224_DIGEST_SIZE);
 	else if (ctx->flags & SHA_FLAGS_SHA256)
-		memcpy(req->result, ctx->digest, SHA256_DIGEST_SIZE);
+		memcpy(req->result, ctx->hw_ctx, SHA256_DIGEST_SIZE);
 }
 
 static int aml_sha_finish_hmac(struct ahash_request *req)
@@ -568,22 +556,22 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 	struct aml_sha_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(req);
 	struct aml_sha_dev *dd = ctx->dd;
-	struct dma_dsc *dsc = dd->descriptor;
-	dma_addr_t hmac_digest = 0;
-	u8 *digest = 0;
+	struct dma_dsc_64 dsc;
+	dma_addr_t hmac_hw_ctx = 0;
+	u8 *hw_ctx = 0;
 	u32 mode;
 	u32 ds = 0;
 	u8 *key;
 	dma_addr_t dma_key = 0;
-	u8 status = 0;
+	u32 status = 0;
 	int err = 0;
 
-	digest = dmam_alloc_coherent(dd->parent, AML_DIGEST_BUFSZ,
-				     &hmac_digest, GFP_ATOMIC | GFP_DMA);
-	if (!digest)
+	hw_ctx = dmam_alloc_coherent(dd->parent, dd->hw_ctx_sz,
+				     &hmac_hw_ctx, GFP_ATOMIC | GFP_DMA);
+	if (!hw_ctx)
 		return -ENOMEM;
 
-	memcpy(digest, ctx->digest, AML_DIGEST_BUFSZ);
+	memcpy(hw_ctx, ctx->hw_ctx, dd->hw_ctx_sz);
 
 	key = kzalloc(tctx->keylen, GFP_ATOMIC | GFP_DMA);
 	if (!key)
@@ -594,8 +582,8 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 				 tctx->keylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(dd->parent, dma_key)) {
 		dev_err(dd->dev, "mapping key addr failed: %d\n", tctx->keylen);
-		dmam_free_coherent(dd->parent, AML_DIGEST_BUFSZ,
-				   digest, hmac_digest);
+		dmam_free_coherent(dd->parent, dd->hw_ctx_sz,
+				   hw_ctx, hmac_hw_ctx);
 		return -EINVAL;
 	}
 
@@ -611,56 +599,46 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 		ds = SHA224_DIGEST_SIZE;
 	else if (ctx->flags & SHA_FLAGS_SHA256)
 		ds = SHA256_DIGEST_SIZE;
+
 	/* opad */
-	dsc[0].src_addr = (uintptr_t)dma_key;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = tctx->keylen;
-	dsc[0].dsc_cfg.b.mode = mode;
-	dsc[0].dsc_cfg.b.enc_sha_only = 1;
-	dsc[0].dsc_cfg.b.op_mode = OP_MODE_HMAC_O;
-	dsc[0].dsc_cfg.b.begin = 1;
-	dsc[0].dsc_cfg.b.end = 0;
-	dsc[0].dsc_cfg.b.eoc = 0;
-	dsc[0].dsc_cfg.b.owner = 1;
+	dsc.src_addr = (uintptr_t)dma_key;
+	dsc.tgt_addr = 0;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = tctx->keylen;
+	dsc.dsc_cfg.b.mode = mode;
+	dsc.dsc_cfg.b.enc_sha_only = 1;
+	dsc.dsc_cfg.b.op_mode = OP_MODE_HMAC_O;
+	dsc.dsc_cfg.b.begin = 1;
+	dsc.dsc_cfg.b.end = 0;
+	dsc.dsc_cfg.b.eoc = 0;
+	dsc.dsc_cfg.b.owner = 1;
+	aml_dma_dsc_writer(dd->descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
 
 	/* 2nd stage hash */
-	dsc[1].src_addr = (uintptr_t)hmac_digest;
-	dsc[1].tgt_addr = (uintptr_t)hmac_digest;
-	dsc[1].dsc_cfg.d32 = 0;
-	dsc[1].dsc_cfg.b.length = ds;
-	dsc[1].dsc_cfg.b.mode = mode;
-	dsc[1].dsc_cfg.b.enc_sha_only = 1;
-	dsc[1].dsc_cfg.b.begin = 0;
-	dsc[1].dsc_cfg.b.end = 1;
-	dsc[1].dsc_cfg.b.eoc = 1;
-	dsc[1].dsc_cfg.b.owner = 1;
+	dsc.src_addr = (uintptr_t)hmac_hw_ctx;
+	dsc.tgt_addr = (uintptr_t)hmac_hw_ctx;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = ds;
+	dsc.dsc_cfg.b.mode = mode;
+	dsc.dsc_cfg.b.enc_sha_only = 1;
+	dsc.dsc_cfg.b.begin = 0;
+	dsc.dsc_cfg.b.end = 1;
+	dsc.dsc_cfg.b.eoc = 1;
+	dsc.dsc_cfg.b.owner = 1;
+	aml_dma_dsc_writer(dd->descriptor, 1, &dsc, dd->dma->dma_bus64, 0);
 
-	aml_dma_debug(dsc, 2, __func__, dd->thread, dd->status);
-#if DMA_IRQ_MODE
-	aml_write_crypto_reg(dd->thread,
-			     (uintptr_t)dd->dma_descript_tab | 2);
-	while (aml_read_crypto_reg(dd->status) == 0)
-		;
-	status = aml_read_crypto_reg(dd->status);
+	aml_dma_debug(dd->descriptor, 2, __func__, dd->thread, dd->status, dd->dma->dma_bus64);
+	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 2, dd->dma_descript_tab,
+				      USE_BUSY_POLLING, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
-#else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 2, dd->dma_descript_tab,
-								  1, DMA_FLAG_SHA_IN_USE);
-	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
-		err = -EINVAL;
-	}
-	aml_dma_debug(dsc, 2, "end hmac", dd->thread, dd->status);
-#endif
+	aml_dma_debug(dd->descriptor, 2, "end hmac", dd->thread, dd->status, dd->dma->dma_bus64);
 	dma_unmap_single(dd->parent, dma_key,
 			 tctx->keylen, DMA_TO_DEVICE);
-	memcpy(ctx->digest, digest, AML_DIGEST_BUFSZ);
-	dmam_free_coherent(dd->parent, AML_DIGEST_BUFSZ, digest, hmac_digest);
+	memcpy(ctx->hw_ctx, hw_ctx, dd->hw_ctx_sz);
+	dmam_free_coherent(dd->parent, dd->hw_ctx_sz, hw_ctx, hmac_hw_ctx);
 
 	return err;
 }
@@ -669,45 +647,50 @@ static void aml_sha_clean_key(struct ahash_request *req)
 {
 	struct aml_sha_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct aml_sha_dev *dd = tctx->dd;
-	struct dma_dsc *dsc = 0;
+	void *descriptor = NULL;
+	struct dma_dsc_64 dsc;
 	dma_addr_t dma_key = 0;
 	dma_addr_t dma_descript_tab = 0;
 	u8 *key = 0;
+	size_t dsc_sz = 0;
 
-	dsc = dmam_alloc_coherent(dd->parent, sizeof(struct dma_dsc),
-			&dma_descript_tab, GFP_ATOMIC | GFP_DMA);
-	if (!dsc)
+	dsc_sz = aml_dma_get_dsc_sz(dd->dma->dma_bus64, 0);
+	descriptor = dmam_alloc_coherent(dd->parent, dsc_sz,
+					 &dma_descript_tab, GFP_ATOMIC | GFP_DMA);
+	if (!descriptor)
 		return;
 
 	key = dmam_alloc_coherent(dd->parent, tctx->keylen,
-			&dma_key, GFP_ATOMIC | GFP_DMA);
+				  &dma_key, GFP_ATOMIC | GFP_DMA);
 	if (!key) {
-		dmam_free_coherent(dd->parent, sizeof(struct dma_dsc),
-				dsc, dma_descript_tab);
-		return;
+		goto out;
 	}
 
 	memset(key, 0, tctx->keylen);
 
-	dsc[0].src_addr = (u32)dma_key;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = tctx->keylen;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
+	dsc.src_addr = (u64)dma_key;
+	dsc.tgt_addr = 0;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = tctx->keylen;
+	dsc.dsc_cfg.b.mode = MODE_KEY;
+	dsc.dsc_cfg.b.eoc = 1;
+	dsc.dsc_cfg.b.owner = 1;
+	aml_dma_dsc_writer(descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
 
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+	aml_dma_debug(descriptor, 1, __func__, dd->thread,
+		      dd->status, dd->dma->dma_bus64);
 
-	aml_write_crypto_reg(dd->thread,
-			(uintptr_t)dma_descript_tab | 2);
+	aml_write_crypto_reg(dd->dma, dd->thread,
+			     (uintptr_t)dma_descript_tab | 2);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
-	aml_write_crypto_reg(dd->status, 0xf);
-
-	dmam_free_coherent(dd->parent, tctx->keylen, key, dma_key);
-	dmam_free_coherent(dd->parent, sizeof(struct dma_dsc),
-			dsc, dma_descript_tab);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
+out:
+	if (key)
+		dmam_free_coherent(dd->parent, tctx->keylen, key, dma_key);
+	if (descriptor)
+		dmam_free_coherent(dd->parent, dsc_sz,
+				   descriptor, dma_descript_tab);
 }
 
 static int aml_sha_finish(struct ahash_request *req)
@@ -722,7 +705,7 @@ static int aml_sha_finish(struct ahash_request *req)
 	}
 	aml_sha_copy_ready_hash(req);
 
-	kfree(ctx->digest);
+	kfree(ctx->hw_ctx);
 	dbgp(1, "finish digcnt: ctx: %p, 0x%llx 0x%llx, bufcnt: %zd, %x %x\n",
 	     ctx, ctx->digcnt[1], ctx->digcnt[0], ctx->bufcnt,
 	     req->result[0], req->result[1]);
@@ -747,20 +730,18 @@ void aml_sha_finish_req(struct ahash_request *req, int err)
 	dd->dma->dma_busy &= ~DMA_FLAG_MAY_OCCUPY;
 	dd->flags &= ~(SHA_FLAGS_BUSY | SHA_FLAGS_OUTPUT_READY);
 	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-#if DMA_IRQ_MODE
-	if (req->base.complete)
-		req->base.complete(&req->base, err);
-#endif
 }
 
 static int aml_sha_hw_init(struct aml_sha_dev *dd)
 {
 	if (!(dd->flags & SHA_FLAGS_INIT)) {
+		size_t dsc_sz = aml_dma_get_dsc_sz(dd->dma->dma_bus64, 0);
+
 		dd->descriptor =
 			dmam_alloc_coherent(dd->parent,
-					MAX_NUM_TABLES * sizeof(struct dma_dsc),
-					&dd->dma_descript_tab,
-					GFP_KERNEL | GFP_DMA);
+					    MAX_NUM_TABLES * dsc_sz,
+					    &dd->dma_descript_tab,
+					    GFP_KERNEL | GFP_DMA);
 		if (!dd->descriptor) {
 			dev_err(dd->dev, "dma descriptor allocate error\n");
 			return -ENOMEM;
@@ -779,53 +760,40 @@ static int aml_sha_state_restore(struct ahash_request *req)
 	struct aml_sha_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct aml_sha_dev *dd = tctx->dd;
 	dma_addr_t dma_ctx;
-	struct dma_dsc *dsc = dd->descriptor;
-	s32 len = AML_DIGEST_BUFSZ;
-	u8 status = 0;
+	struct dma_dsc_64 dsc;
+	s32 len = dd->hw_ctx_sz;
+	u32 status = 0;
 	int err = 0;
 
 	if (!ctx->digcnt[0] && !ctx->digcnt[1] && !tctx->is_hmac)
 		return err;
 
-	dma_ctx = dma_map_single(dd->parent, ctx->digest,
-				 AML_DIGEST_BUFSZ, DMA_TO_DEVICE);
+	dma_ctx = dma_map_single(dd->parent, ctx->hw_ctx,
+				 dd->hw_ctx_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dd->parent, dma_ctx)) {
 		dev_err(dd->dev, "mapping dma_ctx failed\n");
 		return -ENOMEM;
 	}
 
-	dsc[0].src_addr = (u32)dma_ctx;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = len;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
+	dsc.src_addr = (uintptr_t)dma_ctx;
+	dsc.tgt_addr = 0;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = len;
+	dsc.dsc_cfg.b.mode = MODE_KEY;
+	dsc.dsc_cfg.b.eoc = 1;
+	dsc.dsc_cfg.b.owner = 1;
+	aml_dma_dsc_writer(dd->descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
 
-#if DMA_IRQ_MODE
-	aml_write_crypto_reg(dd->thread,
-			     (uintptr_t)dd->dma_descript_tab | 2);
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
-	while (aml_read_crypto_reg(dd->status) == 0)
-		;
-	status = aml_read_crypto_reg(dd->status);
+	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
+				      USE_BUSY_POLLING, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
-#else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
-								  1, DMA_FLAG_SHA_IN_USE);
-	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
-		err = -EINVAL;
-	}
-	aml_dma_debug(dsc, 1, "end restore", dd->thread, dd->status);
-#endif
-
+	aml_dma_debug(dd->descriptor, 1, "end restore", dd->thread, dd->status,
+			 dd->dma->dma_bus64);
 	dma_unmap_single(dd->parent, dma_ctx,
-			 AML_DIGEST_BUFSZ, DMA_TO_DEVICE);
+			 dd->hw_ctx_sz, DMA_TO_DEVICE);
 	return err;
 }
 
@@ -835,17 +803,19 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	struct aml_sha_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct dma_dsc *dsc = 0;
+	struct dma_dsc_64 dsc;
+	void *descriptor = 0;
+	size_t dsc_sz = 0;
 	u32 bs = 0;
 	int err = 0;
 	dma_addr_t dma_key = 0;
 	dma_addr_t dma_descript_tab = 0;
 	dma_addr_t partial = 0;
 	u8 *key = 0;
-	u8 *digest = 0;
+	u8 *hw_ctx = 0;
 	u32 i;
 	u32 mode = MODE_SHA1;
-	u8 status = 0;
+	u32 status = 0;
 
 	switch (crypto_ahash_digestsize(tfm)) {
 	case SHA1_DIGEST_SIZE:
@@ -867,19 +837,19 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	else if (ctx->flags & SHA_FLAGS_SHA256)
 		mode = MODE_SHA256;
 
-	dsc = dmam_alloc_coherent(dd->parent, sizeof(struct dma_dsc),
-				  &dma_descript_tab, GFP_ATOMIC | GFP_DMA);
-	if (!dsc) {
+	dsc_sz = aml_dma_get_dsc_sz(dd->dma->dma_bus64, 0);
+
+	descriptor = dmam_alloc_coherent(dd->parent, dsc_sz,
+					 &dma_descript_tab, GFP_ATOMIC | GFP_DMA);
+	if (!descriptor) {
 		dd->flags &= ~SHA_FLAGS_BUSY;
 		return -ENOMEM;
 	}
-
 	key = dmam_alloc_coherent(dd->parent, bs,
 				  &dma_key, GFP_ATOMIC | GFP_DMA);
 	if (!key) {
-		dmam_free_coherent(dd->parent, sizeof(struct dma_dsc),
-				   dsc, dma_descript_tab);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out;
 	}
 	memcpy(key, tctx->key, tctx->keylen);
 	memset(key + tctx->keylen, 0, bs - tctx->keylen);
@@ -887,64 +857,53 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	for (i = 0; i < bs; i++)
 		*(u8 *)(key + i) ^= 0x36;
 
-	digest = dmam_alloc_coherent(dd->parent, AML_DIGEST_BUFSZ,
+	hw_ctx = dmam_alloc_coherent(dd->parent, dd->hw_ctx_sz,
 				     &partial, GFP_ATOMIC | GFP_DMA);
-	if (!digest) {
-		dmam_free_coherent(dd->parent, bs, key, dma_key);
-		dmam_free_coherent(dd->parent, sizeof(struct dma_dsc),
-				   dsc, dma_descript_tab);
-		return -ENOMEM;
+	if (!hw_ctx) {
+		err = -ENOMEM;
+		goto out;
 	}
 
 	/* start first round hash */
-	dsc[0].src_addr = (uintptr_t)dma_key;
-	dsc[0].tgt_addr = (uintptr_t)partial;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = bs;
-	dsc[0].dsc_cfg.b.mode = mode;
-	dsc[0].dsc_cfg.b.enc_sha_only = 1;
-	dsc[0].dsc_cfg.b.op_mode = OP_MODE_SHA;
-	dsc[0].dsc_cfg.b.begin = 1;
-	dsc[0].dsc_cfg.b.end = 0;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
+	dsc.src_addr = (uintptr_t)dma_key;
+	dsc.tgt_addr = (uintptr_t)partial;
+	dsc.dsc_cfg.d32 = 0;
+	dsc.dsc_cfg.b.length = bs;
+	dsc.dsc_cfg.b.mode = mode;
+	dsc.dsc_cfg.b.enc_sha_only = 1;
+	dsc.dsc_cfg.b.op_mode = OP_MODE_SHA;
+	dsc.dsc_cfg.b.begin = 1;
+	dsc.dsc_cfg.b.end = 0;
+	dsc.dsc_cfg.b.eoc = 1;
+	dsc.dsc_cfg.b.owner = 1;
+	aml_dma_dsc_writer(descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
 
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
-#if DMA_IRQ_MODE
-	aml_write_crypto_reg(dd->thread,
-			     (uintptr_t)dma_descript_tab | 2);
-	while (aml_read_crypto_reg(dd->status) == 0)
-		;
-	status = aml_read_crypto_reg(dd->status);
+	aml_dma_debug(descriptor, 1, __func__, dd->thread, dd->status,
+		      dd->dma->dma_bus64);
+	status = aml_dma_do_hw_crypto(dd->dma, descriptor, 1, dma_descript_tab,
+				      USE_BUSY_POLLING, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
-#else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dma_descript_tab,
-								  1, DMA_FLAG_SHA_IN_USE);
-	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
-		err = -EINVAL;
-	}
-	aml_dma_debug(dsc, 1, "end hmac key", dd->thread, dd->status);
-#endif
-	memcpy(ctx->digest, digest, AML_DIGEST_BUFSZ);
-	dmam_free_coherent(dd->parent, bs, key, dma_key);
-	dmam_free_coherent(dd->parent, sizeof(struct dma_dsc),
-			   dsc, dma_descript_tab);
-	dmam_free_coherent(dd->parent, AML_DIGEST_BUFSZ, digest, partial);
-
+	aml_dma_debug(descriptor, 1, "end hmac key", dd->thread, dd->status,
+			dd->dma->dma_bus64);
+	/* Save hw state in ctx */
+	memcpy(ctx->hw_ctx, hw_ctx, dd->hw_ctx_sz);
+out:
+	if (key)
+		dmam_free_coherent(dd->parent, bs, key, dma_key);
+	if (descriptor)
+		dmam_free_coherent(dd->parent, dsc_sz,
+				descriptor, dma_descript_tab);
+	if (hw_ctx)
+		dmam_free_coherent(dd->parent, dd->hw_ctx_sz, hw_ctx, partial);
 	return err;
 }
 
 static int aml_sha_handle_queue(struct aml_sha_dev *dd,
 				struct ahash_request *req)
 {
-#if DMA_IRQ_MODE
-	struct crypto_async_request *async_req, *backlog;
-#endif
 	struct aml_sha_reqctx *ctx;
 	unsigned long flags;
 	int err = 0, ret = 0;
@@ -955,46 +914,17 @@ static int aml_sha_handle_queue(struct aml_sha_dev *dd,
 		return ret;
 	}
 
-#if DMA_IRQ_MODE
-	spin_lock_irqsave(&dd->dma->dma_lock, flags);
-	if (req)
-		ret = ahash_enqueue_request(&dd->queue, req);
-
-	if ((dd->flags & SHA_FLAGS_BUSY) || dd->dma->dma_busy) {
-		spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-		return ret;
-	}
-
-	backlog = crypto_get_backlog(&dd->queue);
-	async_req = crypto_dequeue_request(&dd->queue);
-	if (async_req) {
-		dd->flags |= SHA_FLAGS_BUSY;
-		dd->dma->dma_busy |= DMA_FLAG_MAY_OCCUPY;
-	}
-	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-
-	if (!async_req) {
-		pm_runtime_mark_last_busy(dd->parent);
-		pm_runtime_put_autosuspend(dd->parent);
-		return ret;
-	}
-
-	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
-
-	req = ahash_request_cast(async_req);
-#else
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
 	dd->flags |= SHA_FLAGS_BUSY;
 	dd->dma->dma_busy |= DMA_FLAG_MAY_OCCUPY;
 	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
-#endif
 	ctx = ahash_request_ctx(req);
 
 	dbgp(1, "handling new req, ctx: %p, op: %lu, nbytes: %d\n",
 	     ctx, ctx->op, req->nbytes);
 
 	if (ctx->flags & SHA_FLAGS_NEED_KEY) {
+		/* hmac */
 		err = aml_hmac_install_key(dd, req);
 		if (err)
 			goto err1;
@@ -1007,40 +937,24 @@ static int aml_sha_handle_queue(struct aml_sha_dev *dd,
 
 	if (ctx->op == SHA_OP_UPDATE) {
 		err = aml_sha_update_req(dd, req);
-#if DMA_IRQ_MODE
-		/* no final() after finup() */
-		if (err != -EINPROGRESS && (ctx->flags & SHA_FLAGS_FINAL))
-			err = aml_sha_final_req(dd, req);
-#else
 		if (!err) {
 			spin_lock_irqsave(&dd->dma->dma_lock, flags);
 			dd->flags &= ~SHA_FLAGS_BUSY;
 			dd->dma->dma_busy &= ~DMA_FLAG_MAY_OCCUPY;
 			spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
 		}
-#endif
 	} else if (ctx->op == SHA_OP_FINAL) {
 		err = aml_sha_final_req(dd, req);
-#if !DMA_IRQ_MODE
 		if (!err) {
 			spin_lock_irqsave(&dd->dma->dma_lock, flags);
 			dd->flags &= ~SHA_FLAGS_BUSY;
 			dd->dma->dma_busy &= ~DMA_FLAG_MAY_OCCUPY;
 			spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
 		}
-#endif
 	}
 
 err1:
-#if DMA_IRQ_MODE
-	if (err != -EINPROGRESS)
-		/* done_task will not finish it, so do it here */
-		aml_sha_finish_req(req, err);
-	return ret;
-#else
 	return err;
-#endif
-
 }
 
 static int aml_sha_enqueue(struct ahash_request *req, unsigned int op)
@@ -1068,11 +982,7 @@ static int aml_sha_enqueue(struct ahash_request *req, unsigned int op)
 		}
 	}
 
-#if DMA_IRQ_MODE
-	return aml_sha_handle_queue(dd, req);
-#else
 	return aml_dma_crypto_enqueue_req(dd->dma, &req->base);
-#endif
 }
 
 int aml_sha_process(struct ahash_request *req)
@@ -1481,70 +1391,6 @@ static struct ahash_alg sha_algs[] = {
 	}
 };
 
-#if DMA_IRQ_MODE
-static void aml_sha_done_task(unsigned long data)
-{
-	struct aml_sha_dev *dd = (struct aml_sha_dev *)data;
-	int err = 0;
-
-	if (!(SHA_FLAGS_BUSY & dd->flags)) {
-		aml_sha_handle_queue(dd, NULL);
-		return;
-	}
-
-	if (SHA_FLAGS_OUTPUT_READY & dd->flags) {
-		if (SHA_FLAGS_DMA_ACTIVE & dd->flags) {
-			dd->flags &= ~SHA_FLAGS_DMA_ACTIVE;
-			aml_sha_update_dma_stop(dd);
-			if (dd->err) {
-				err = dd->err;
-				dd->err = 0;
-				goto finish;
-			}
-			/* hash or semi-hash ready */
-			dd->flags &= ~SHA_FLAGS_OUTPUT_READY;
-			err = aml_sha_update_dma_start(dd, dd->req);
-			if (err != -EINPROGRESS)
-				goto finish;
-		}
-	}
-	return;
-
-finish:
-	/* finish curent request */
-	aml_sha_finish_req(dd->req, err);
-
-	if (!(SHA_FLAGS_BUSY & dd->flags)) {
-		aml_sha_handle_queue(dd, NULL);
-		return;
-	}
-}
-
-static irqreturn_t aml_sha_irq(int irq, void *dev_id)
-{
-	struct aml_sha_dev *sha_dd = dev_id;
-	u8 status = aml_read_crypto_reg(sha_dd->status);
-
-	if (status) {
-		if (status == 0x1)
-			dev_err(sha_dd->dev, "irq overwrite\n");
-		if (sha_dd->dma->dma_busy == DMA_FLAG_MAY_OCCUPY)
-			return IRQ_HANDLED;
-		if (sha_dd->flags & SHA_FLAGS_DMA_ACTIVE &&
-		    (sha_dd->dma->dma_busy & DMA_FLAG_SHA_IN_USE)) {
-			sha_dd->flags |= SHA_FLAGS_OUTPUT_READY;
-			aml_write_crypto_reg(sha_dd->status, 0xf);
-			sha_dd->dma->dma_busy &= ~DMA_FLAG_SHA_IN_USE;
-			tasklet_schedule(&sha_dd->done_task);
-			return IRQ_HANDLED;
-		} else {
-			return IRQ_NONE;
-		}
-	}
-	return IRQ_NONE;
-}
-#endif
-
 static void aml_sha_unregister_algs(struct aml_sha_dev *dd)
 {
 	int i;
@@ -1576,6 +1422,10 @@ static int aml_sha_probe(struct platform_device *pdev)
 	struct aml_sha_dev *sha_dd;
 	struct device *dev = &pdev->dev;
 	int err = -EPERM;
+	/* default is 48 for most chips.
+	 * For S7D, it is 40 and specified in dts
+	 */
+	u32 hw_ctx_sz = SHA256_DIGEST_SIZE + 16;
 
 	sha_dd = devm_kzalloc(dev, sizeof(struct aml_sha_dev), GFP_KERNEL);
 	if (!sha_dd) {
@@ -1583,29 +1433,18 @@ static int aml_sha_probe(struct platform_device *pdev)
 		goto sha_dd_err;
 	}
 
+	of_property_read_u32(pdev->dev.of_node, "hw_ctx_sz", &hw_ctx_sz);
+
 	sha_dd->dev = dev;
 	sha_dd->parent = dev->parent;
 	sha_dd->dma = dev_get_drvdata(dev->parent);
 	sha_dd->thread = sha_dd->dma->thread;
 	sha_dd->status = sha_dd->dma->status;
-	sha_dd->irq = sha_dd->dma->irq;
-
+	sha_dd->hw_ctx_sz = hw_ctx_sz;
 	platform_set_drvdata(pdev, sha_dd);
 
 	INIT_LIST_HEAD(&sha_dd->list);
 
-#if DMA_IRQ_MODE
-	tasklet_init(&sha_dd->done_task, aml_sha_done_task,
-		     (unsigned long)sha_dd);
-
-	crypto_init_queue(&sha_dd->queue, AML_SHA_QUEUE_LENGTH);
-	err = devm_request_irq(dev, sha_dd->irq, aml_sha_irq, IRQF_SHARED,
-			       "aml-sha", sha_dd);
-	if (err) {
-		dev_err(dev, "unable to request sha irq.\n");
-		goto res_err;
-	}
-#endif
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 	pm_runtime_irq_safe(dev);
@@ -1639,10 +1478,6 @@ err_algs:
 	spin_unlock(&aml_sha.lock);
 err_pm:
 	pm_runtime_disable(dev);
-#if DMA_IRQ_MODE
-res_err:
-	tasklet_kill(&sha_dd->done_task);
-#endif
 sha_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1652,21 +1487,22 @@ sha_dd_err:
 static void aml_sha_remove(struct platform_device *pdev)
 {
 	static struct aml_sha_dev *sha_dd;
+	size_t dsc_sz = 0;
 
 	sha_dd = platform_get_drvdata(pdev);
 	if (!sha_dd)
 		return;
+
 	spin_lock(&aml_sha.lock);
 	list_del(&sha_dd->list);
 	spin_unlock(&aml_sha.lock);
 
-	dmam_free_coherent(sha_dd->parent, MAX_NUM_TABLES * sizeof(struct dma_dsc),
-			  sha_dd->descriptor, sha_dd->dma_descript_tab);
+	dsc_sz = aml_dma_get_dsc_sz(sha_dd->dma->dma_bus64, 0);
+
+	dmam_free_coherent(sha_dd->parent, MAX_NUM_TABLES * dsc_sz,
+			   sha_dd->descriptor, sha_dd->dma_descript_tab);
 
 	aml_sha_unregister_algs(sha_dd);
-#if DMA_IRQ_MODE
-	tasklet_kill(&sha_dd->done_task);
-#endif
 	pm_runtime_disable(sha_dd->parent);
 }
 
@@ -1677,7 +1513,7 @@ static const struct of_device_id aml_sha_dt_match[] = {
 	{},
 };
 #else
-#define aml_aes_dt_match NULL
+#define aml_sha_dt_match NULL
 #endif
 static struct platform_driver aml_sha_driver = {
 	.probe		= aml_sha_probe,
