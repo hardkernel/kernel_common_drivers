@@ -42,10 +42,6 @@ struct proc_dir_entry *cpufreq_proc;
 static int opp_table_index[MAX_CLUSTERS];
 static u32 dsu_voltage_vote_result[VOTER_NUM];
 static u32 dsu_freq_vote_result[VOTER_NUM];
-#define MAX(x1, x2) ({ \
-	typeof(x1) _x1 = x1; \
-	typeof(x2) _x2 = x2; \
-	(_x1 > _x2 ? _x1 : _x2); })
 
 static unsigned int freqmax[MAX_CLUSTERS];
 static int freqmax0_param(char *buff)
@@ -1112,7 +1108,7 @@ free_np:
 	return ret;
 }
 
-static int meson_cpufreq_exit(struct cpufreq_policy *policy)
+static void meson_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev;
 	struct meson_cpufreq_driver_data *cpufreq_data;
@@ -1120,7 +1116,8 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 
 	cpufreq_data = policy->driver_data;
 	if (!cpufreq_data)
-		return 0;
+		return;
+
 	cur_cluster = cpufreq_data->clusterid;
 	dsu_voltage_vote_result[cpufreq_data->clusterid] = 0;
 	dsu_freq_vote_result[cpufreq_data->clusterid] = 0;
@@ -1130,7 +1127,7 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 	if (!cpu_dev) {
 		pr_err("%s: failed to get cpu%d device\n", __func__,
 		       policy->cpu);
-		return -ENODEV;
+		return;
 	}
 
 	if (policy->freq_table) {
@@ -1144,8 +1141,6 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 		regulator_put(cpufreq_data->reg_dsu);
 	dev_dbg(cpu_dev, "%s: Exited, cpu: %d\n", __func__, policy->cpu);
 	kfree(cpufreq_data);
-
-	return 0;
 }
 
 static int meson_cpufreq_suspend(struct cpufreq_policy *policy)
@@ -1341,10 +1336,9 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int meson_cpufreq_remove(struct platform_device *pdev)
+static void meson_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&meson_cpufreq_driver);
-	return 0;
 }
 
 static const struct of_device_id amlogic_cpufreq_meson_dt_match[] = {

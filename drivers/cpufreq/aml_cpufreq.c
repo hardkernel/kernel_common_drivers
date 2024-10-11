@@ -510,15 +510,13 @@ static void destroy_aml_cpufreq_proc_files(struct cpufreq_policy *policy)
 	remove_proc_entry(policy_name, data->procroot);
 }
 
-static int aml_cpufreq_exit(struct cpufreq_policy *policy)
+static void aml_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct cluster_data *data = policy->driver_data;
 
 	if (!data->suspended)
 		aml_cpufreq_set_target(policy, data->exit_index);
 	destroy_aml_cpufreq_proc_files(policy);
-
-	return 0;
 }
 
 static int aml_cpufreq_suspend(struct cpufreq_policy *policy)
@@ -604,8 +602,6 @@ static int aml_cpufreq_probe(struct platform_device *pdev)
 	struct cluster_data *clusterdata;
 	char cluster_name[10] = {0};
 	int ret = -1, i = 0, j, count;
-	struct property *prop;
-	const __be32 *cur;
 
 	while (1) {
 		sprintf(cluster_name, "cluster%d", i);
@@ -643,7 +639,7 @@ static int aml_cpufreq_probe(struct platform_device *pdev)
 		clusterdata[i].dev = &pdev->dev;
 		clusterdata[i].procroot = root;
 		/*setup cluster related cpus*/
-		of_property_for_each_u32(cluster_np, "cluster_cores", prop, cur, j) {
+		of_property_for_each_u32(cluster_np, "cluster_cores", j) {
 			cpumask_set_cpu(j, clusterdata[i].cpus);
 			pr_info("cpu%d->cluster%d\n", j, clusterdata[i].clusterid);
 		}
