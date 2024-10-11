@@ -3282,12 +3282,12 @@ static void vdx_misc_late_proc(u8 layer_id)
 			else
 				pts_inc_scale_base = vsync_pts_inc_scale_base;
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
-			videoqueue_pcrscr_update(vsync_pts_inc_scale,
+			videoqueue_pcrscr_update(VPP0, vsync_pts_inc_scale,
 				pts_inc_scale_base);
 #endif
 		} else {
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
-			videoqueue_pcrscr_update(vsync_pts_inc_scale,
+			videoqueue_pcrscr_update(VPP0, vsync_pts_inc_scale,
 				vsync_pts_inc_scale_base);
 #endif
 		}

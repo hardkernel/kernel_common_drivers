@@ -55,6 +55,9 @@
 #define P_AVSYNC	0X8
 #define P_THREAD	0X10
 
+#define VSYNC_MAIN_NORMAL 0x1
+#define VSYNC_PIP_NORMAL 0x2
+
 #define UNDEQUEU_COUNT 4
 #define CHECK_DELAYE_COUNT 6
 
@@ -73,6 +76,7 @@ static u64 vpp_vsync_us;
 static u64 pcr_margin;
 static struct video_queue_dev *vq_dev;
 static struct video_queue_dev *vq_pip_dev;
+static u32 vsync_status_flag;
 
 int vq_print(int index, int debug_flag, const char *fmt, ...)
 {
@@ -163,7 +167,7 @@ void vsync_notify_videoqueue(u8 layer_id,
 	time_cur = ktime_to_us(ktime_get());
 }
 
-void videoqueue_pcrscr_update(s32 inc, u32 base)
+void videoqueue_pcrscr_update(u8 vpp_index, s32 inc, u32 base)
 {
 	bool is_vlock_locked = false;
 	int index = 0;
@@ -171,6 +175,21 @@ void videoqueue_pcrscr_update(s32 inc, u32 base)
 
 	if (!vq_dev || !vq_dev->vq_reg_flag)
 		return;
+
+	vq_print(VIDEO_QUEUE_MAIN, P_SYNC, "vpp_index: %d, inc: %d, base: %d.\n",
+		vpp_index, inc, base);
+
+	if (vpp_index == 0 && inc == 0) {
+		vsync_status_flag &= ~VSYNC_MAIN_NORMAL;
+		return;
+	}
+	if (vpp_index == 0 && inc)
+		vsync_status_flag |= VSYNC_MAIN_NORMAL;
+	if (vpp_index == 1 && inc)
+		vsync_status_flag |= VSYNC_PIP_NORMAL;
+	if (vsync_status_flag & VSYNC_MAIN_NORMAL && vsync_status_flag & VSYNC_PIP_NORMAL)
+		if (vpp_index == 1 && inc)
+			return;
 
 	if (vq_dev->sync_start)
 		is_vlock_locked = vlock_get_vlock_flag();
@@ -1288,6 +1307,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 
 	dev->sync_start = false;
 	dev->game_mode = false;
+	vsync_status_flag = 0;
 	return ret;
 }
 

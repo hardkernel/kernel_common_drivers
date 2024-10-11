@@ -522,7 +522,7 @@ void vsync_notify_videosync(void);
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 void vsync_notify_videoqueue(u8 layer_id,
 	u32 vsync_pts_inc_scale, u32 vsync_pts_inc_scale_base);
-void videoqueue_pcrscr_update(s32 inc, u32 base);
+void videoqueue_pcrscr_update(u8 vpp_index, s32 inc, u32 base);
 #endif
 
 #ifdef CONFIG_AMLOGIC_VDETECT
