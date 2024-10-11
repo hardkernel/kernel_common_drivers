@@ -432,6 +432,31 @@ enum vadj_index_e {
 	VE_VADJ2
 };
 
+enum pq_module_e {
+	pq_module_vpp_pq = 0,
+	pq_module_dnlp,
+	pq_module_cm,
+	pq_module_wb,
+	pq_module_pre_gamma,
+	pq_module_gamma,/*5*/
+	pq_module_lc,
+	pq_module_black_ext,
+	pq_module_chroma_cor,
+	pq_module_dither,
+	pq_module_3dlut,/*10*/
+	pq_module_vadj1,
+	pq_module_vadj2,
+	pq_module_sharpness,
+	pq_module_sr_peaking,
+	pq_module_sr_lcti,/*15*/
+	pq_module_sr_theta,
+	pq_module_sr_deband,
+	pq_module_sr_dejaggy,
+	pq_module_sr_dering,
+	pq_module_sr_drlpf,/*20*/
+	pq_module_module_max,
+};
+
 /*flag:
  *bit 0: brigtness
  *bit 1: contrast
@@ -529,6 +554,7 @@ enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
 
 int amvecm_set_saturation_hue(int mab, enum wr_md_e mode, int vpp_index);
 void amvecm_saturation_hue_update(int offset_val);
+void amvecm_update_module_status(void);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);

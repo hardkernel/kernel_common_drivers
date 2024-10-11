@@ -239,6 +239,7 @@ uint reg_pk_final_ngain = 0xFF;
 uint reg_pk_nor_rsft_mode;
 int hsize_in = 3840;
 int vsize_in = 2160;
+int pq_module_status[pq_module_module_max] = {1};
 
 struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX] = {
 	/*for tv enable pq module*/
@@ -9191,7 +9192,7 @@ static void amvecm_dither_enable(int enable)
 		WRITE_VPP_REG_BITS(VPP_VE_DITHER_CTRL, 0, 0, 1);
 		break;
 	case 1:/*enable*/
-		WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 0, 1);
+		WRITE_VPP_REG_BITS(VPP_VE_DITHER_CTRL, 1, 0, 1);
 		break;
 		/*dither round enable*/
 	case 2:/*disable*/
@@ -10882,11 +10883,21 @@ static const char *amvecm_debug_usage_str = {
 static ssize_t amvecm_debug_show(struct class *cla,
 				 struct class_attribute *attr, char *buf)
 {
+	ssize_t len = 0;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	int i = 0;
+
 	pr_info("cm2_debug:%d\n", cm2_debug);
 	pr_info("cm_cur_work_color_md:%d\n", cm_cur_work_color_md);
 #endif
-	return sprintf(buf, "%s\n", amvecm_debug_usage_str);
+	len = sprintf(buf, "%s\n", amvecm_debug_usage_str);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	amvecm_update_module_status();
+	for (i = 0; i < pq_module_module_max; i++)
+		len += sprintf(buf + len,
+			"pq_module_status_for_tool:%d=%d\n", i, pq_module_status[i]);
+#endif
+	return len;
 }
 
 static ssize_t amvecm_debug_store(struct class *cla,
@@ -10895,6 +10906,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
+	long val2 = 0;
 	unsigned int i = 0;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	long tmp_val[4] = {0};
@@ -11007,24 +11019,20 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			pr_info("pattern_mask is 0x%x\n", pattern_mask);
 		}
 	} else if (!strncmp(parm[0], "vadj1", 5)) {
-		if (chip_type_id == chip_t3x) {
-			if (!strncmp(parm[1], "enable", 6)) {
-				ve_vadj_ctl(WR_VCB, VE_VADJ1, 1, 0);
-				pr_info("enable vadj1\n");
-			} else if (!strncmp(parm[1], "disable", 7)) {
-				ve_vadj_ctl(WR_VCB, VE_VADJ1, 0, 0);
-				pr_info("disable vadj1\n");
-			}
+		if (!strncmp(parm[1], "enable", 6)) {
+			amvecm_vadj_enable(VE_VADJ1, 1);
+			pr_info("enable vadj1\n");
+		} else if (!strncmp(parm[1], "disable", 7)) {
+			amvecm_vadj_enable(VE_VADJ1, 0);
+			pr_info("disable vadj1\n");
 		}
 	} else if (!strncmp(parm[0], "vadj2", 5)) {
-		if (chip_type_id == chip_t3x) {
-			if (!strncmp(parm[1], "enable", 6)) {
-				ve_vadj_ctl(WR_VCB, VE_VADJ2, 1, 0);
-				pr_info("enable vadj2\n");
-			} else if (!strncmp(parm[1], "disable", 7)) {
-				ve_vadj_ctl(WR_VCB, VE_VADJ2, 0, 0);
-				pr_info("disable vadj2\n");
-			}
+		if (!strncmp(parm[1], "enable", 6)) {
+			amvecm_vadj_enable(VE_VADJ2, 1);
+			pr_info("enable vadj2\n");
+		} else if (!strncmp(parm[1], "disable", 7)) {
+			amvecm_vadj_enable(VE_VADJ2, 0);
+			pr_info("disable vadj2\n");
 		}
 	} else if (!strncmp(parm[0], "wb", 2)) {
 		if (!strncmp(parm[1], "enable", 6)) {
@@ -11042,10 +11050,10 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 	} else if (!strncmp(parm[0], "pre_gamma", 2)) {
 		if (!strncmp(parm[1], "enable", 6)) {
-			post_pre_gamma_ctl(WR_VCB, 1, 0);
+			amvecm_pre_gamma_enable(1);
 			pr_info("enable pre_gamma\n");
 		} else if (!strncmp(parm[1], "disable", 7)) {
-			post_pre_gamma_ctl(WR_VCB, 0, 0);
+			amvecm_pre_gamma_enable(0);
 			pr_info("disable pre_gamma\n");
 		}
 	} else if (!strncmp(parm[0], "gamma", 5)) {
@@ -12264,6 +12272,197 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		reg_pk_nor_rsft_mode = val;
 	} else if (!strcmp(parm[0], "g_reg_pk_nor_rsft_mode")) {
 		pr_info("reg_pk_nor_rsft_mode: %d\n", reg_pk_nor_rsft_mode);
+	} else if (kstrtol(parm[0], 10, &val) >= 0) {
+		if (kstrtol(parm[1], 10, &val2) < 0)
+			goto free_buf;
+		val2 = (val2 == 0) ? 0 : 1;
+		pr_info("pq_module(%d), enable(%d)\n", (int)val, (int)val2);
+		switch (val) {
+		case pq_module_vpp_pq:
+			amvecm_pq_enable(val2);
+			pq_module_status[pq_module_vpp_pq] = val2;
+			break;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		case pq_module_sharpness:
+			if (val2) {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d) {
+					amve_sharpness_sub_ctrl(0, 1);
+				} else {
+					amvecm_sharpness_enable(0);
+					amvecm_sharpness_enable(2);
+					amvecm_sharpness_enable(4);
+					amvecm_sharpness_enable(6);
+					amvecm_sharpness_enable(8);
+					amvecm_sharpness_enable(10);
+					amvecm_sharpness_enable(12);
+				}
+			} else {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d) {
+					amve_sharpness_sub_ctrl(0, 0);
+				} else {
+					amvecm_sharpness_enable(1);
+					amvecm_sharpness_enable(3);
+					amvecm_sharpness_enable(5);
+					amvecm_sharpness_enable(7);
+					amvecm_sharpness_enable(9);
+					amvecm_sharpness_enable(11);
+					amvecm_sharpness_enable(13);
+				}
+			}
+			break;
+		case pq_module_sr_peaking:
+			if (val2) {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+					amve_sharpness_sub_ctrl(1, 1);
+				else
+					amvecm_sharpness_enable(0);
+			} else {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+					amve_sharpness_sub_ctrl(1, 1);
+				else
+					amvecm_sharpness_enable(1);
+			}
+			break;
+		case pq_module_sr_lcti:
+			if (val2) {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+					amve_sharpness_sub_ctrl(2, 1);
+				else
+					amvecm_sharpness_enable(2);
+			} else {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+					amve_sharpness_sub_ctrl(2, 0);
+				else
+					amvecm_sharpness_enable(3);
+			}
+			break;
+		case pq_module_sr_theta:
+			if (val2)
+				amvecm_sharpness_enable(4);
+			else
+				amvecm_sharpness_enable(5);
+			break;
+		case pq_module_sr_deband:
+			if (val2)
+				amvecm_sharpness_enable(6);
+			else
+				amvecm_sharpness_enable(7);
+			break;
+		case pq_module_sr_dejaggy:
+			if (val2)
+				amvecm_sharpness_enable(8);
+			else
+				amvecm_sharpness_enable(9);
+			break;
+		case pq_module_sr_dering:
+			if (val2) {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+					amve_sharpness_sub_ctrl(3, 1);
+				else
+					amvecm_sharpness_enable(10);
+			} else {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+					amve_sharpness_sub_ctrl(3, 0);
+				else
+					amvecm_sharpness_enable(11);
+			}
+			break;
+		case pq_module_sr_drlpf:
+			if (val2) {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+					amve_sharpness_sub_ctrl(6, 1);
+				else
+					amvecm_sharpness_enable(12);
+			} else {
+				if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+					amve_sharpness_sub_ctrl(6, 0);
+				else
+					amvecm_sharpness_enable(13);
+			}
+			break;
+		case pq_module_dnlp:
+			if (val2)
+				ve_enable_dnlp();
+			else
+				ve_disable_dnlp();
+			break;
+		case pq_module_cm:
+			if (val2)
+				cm_en = 1;
+			else
+				cm_en = 0;
+			break;
+		case pq_module_wb:
+			if (!data_path)
+				amvecm_wb_enable(val2);
+			else
+				amvecm_wb_enable_sub(val2);
+			break;
+		case pq_module_pre_gamma:
+			amvecm_pre_gamma_enable(val2);
+			break;
+		case pq_module_gamma:
+			if (val2) {
+				if (!data_path)
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_EN; /* gamma off */
+				else
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_EN_SUB;
+			} else {
+				if (!data_path)
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;/* gamma off */
+				else
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS_SUB;
+			}
+			break;
+		case pq_module_lc:
+			if (val2)
+				lc_en = 1;
+			else
+				lc_en = 0;
+			break;
+		case pq_module_black_ext:
+			amvecm_black_ext_enable(val2);
+			break;
+		case pq_module_chroma_cor:
+			vpp_datapath_config(CHROMA_CORING, val2, 0);
+			break;
+		case pq_module_dither:
+			amvecm_dither_enable(val2);
+			break;
+		case pq_module_3dlut:
+			lut3d_en = val2;
+			vpp_enable_lut3d(val2);
+			break;
+		case pq_module_vadj1:
+			amvecm_vadj_enable(VE_VADJ1, val2);
+			break;
+		case pq_module_vadj2:
+			amvecm_vadj_enable(VE_VADJ2, val2);
+			break;
+#endif
+		default:
+			break;
+		}
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -12886,6 +13085,58 @@ void amvecm_list_module_status(void)
 	pr_info("3dlut : %d\n", lut3d_en);
 	pr_info("wb : %d\n", wb_en);
 	pr_info("gamma : %d\n", gamma_en);
+
+	pq_module_status[pq_module_sharpness] = sharpness0_en;
+	pq_module_status[pq_module_dnlp] = dnlp_en;
+	pq_module_status[pq_module_cm] = cm_en;
+	pq_module_status[pq_module_wb] = wb_en;
+	pq_module_status[pq_module_gamma] = gamma_en;
+	pq_module_status[pq_module_lc] = lc_en;
+	pq_module_status[pq_module_black_ext] = black_ext_en;
+	pq_module_status[pq_module_chroma_cor] = chroma_coring_en;
+	pq_module_status[pq_module_3dlut] = lut3d_en;
+	pq_module_status[pq_module_vadj1] = vadj1_en;
+	pq_module_status[pq_module_vadj2] = vadj2_en;
+}
+
+void amvecm_update_module_status(void)
+{
+	amvecm_list_module_status();
+	if (chip_type_id == chip_s7d ||
+	chip_type_id == chip_s6 ||
+	chip_type_id == chip_t6d) {
+		pq_module_status[pq_module_sr_peaking] =
+			READ_VPP_REG_BITS(VPP_PK_EN, 0, 1);
+		pq_module_status[pq_module_sr_lcti] =
+			READ_VPP_REG_BITS(VPP_HTI_EN_MODE, 12, 1);
+		pq_module_status[pq_module_sr_dering] =
+			READ_VPP_REG_BITS(VPP_DERING_EN, 0, 1);
+		pq_module_status[pq_module_sr_drlpf] =
+			READ_VPP_REG_BITS(VPP_NR_LPF_EN, 24, 1);
+	} else {
+		pq_module_status[pq_module_sr_peaking] =
+			READ_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE, 1, 1);
+		pq_module_status[pq_module_sr_lcti] =
+			READ_VPP_REG_BITS(SRSHARP0_HCTI_FLT_CLP_DC, 28, 1);
+		pq_module_status[pq_module_sr_dering] =
+			READ_VPP_REG_BITS(SRSHARP0_SR3_DERING_CTRL, 28, 3);
+		pq_module_status[pq_module_sr_drlpf] =
+			(READ_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN, 0, 3) == 0) ? 0 : 1;
+	}
+	pq_module_status[pq_module_sr_theta] =
+		(READ_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN, 4, 3) == 0) ? 0 : 1;
+	pq_module_status[pq_module_sr_deband] =
+		READ_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL, 4, 1);
+	pq_module_status[pq_module_sr_dejaggy] =
+		READ_VPP_REG_BITS(SRSHARP0_DEJ_CTRL, 0, 1);
+	pq_module_status[pq_module_dither] =
+			READ_VPP_REG_BITS(VPP_VE_DITHER_CTRL, 0, 1);
+	if (chip_type_id == chip_t3x)
+		pq_module_status[pq_module_pre_gamma] =
+			post_pre_gamma_get(SLICE0, 0, 1);
+	else
+		pq_module_status[pq_module_pre_gamma] =
+			READ_VPP_REG_BITS(VPP_GAMMA_CTRL, 0, 1);
 }
 
 static const char *amvecm_slt_usage_str = {

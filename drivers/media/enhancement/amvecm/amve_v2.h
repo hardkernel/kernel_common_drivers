@@ -141,6 +141,6 @@ void mtx_setting_v2(enum vpp_matrix_e mtx_sel,
 	enum mtx_csc_e mtx_csc,
 	int mtx_on,
 	enum vpp_slice_e slice, int vpp_index);
-
+int post_pre_gamma_get(enum vpp_slice_e slice, int start, int len);
 #endif
 #endif

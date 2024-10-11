@@ -3161,6 +3161,14 @@ void set_viu2_gamma_regs(int en, int sel)
 	}
 }
 
+void amvecm_pre_gamma_enable(int enable)
+{
+	if (chip_type_id != chip_t3x)
+		WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, enable, 0, 1);
+	else
+		post_pre_gamma_ctl(WR_VCB, enable, 0);
+}
+
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb, int vpp_index)
 {
 	int i;
@@ -3260,6 +3268,19 @@ void sharpness_gain_update(int vpp_index)
 		vecm_latch_flag2 &= ~SHARPNESS_GAIN_UPDATE;
 	}
 }
+
+void amvecm_vadj_enable(enum vadj_index_e vadj_idx, int enable)
+{
+	if (chip_type_id == chip_t3x) {
+		ve_vadj_ctl(WR_VCB, vadj_idx, enable, 0);
+	} else {
+		if (vadj_idx == VE_VADJ1)
+			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, enable, 0, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, enable, 0, 1);
+	}
+}
+
 #endif
 
 void amvecm_wb_enable(int enable)

@@ -1100,6 +1100,12 @@ void post_pre_gamma_ctl(enum wr_md_e mode, int en, int vpp_index)
 	pr_amve_v2("pre_gamma_ctl: en = %d\n", en);
 }
 
+int post_pre_gamma_get(enum vpp_slice_e slice, int start, int len)
+{
+	return READ_VPP_REG_BITS(VPP_GAMMA_CTRL +
+				pst_reg_ofst[slice], start, len);
+}
+
 void vpp_luma_hist_en(int slice_case,
 	enum wr_md_e mode, int vpp_index)
 {

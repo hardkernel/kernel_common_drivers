@@ -236,6 +236,7 @@ void amvecm_wb_enable(int enable);
 void amvecm_wb_enable_sub(int enable);
 int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
+void amvecm_pre_gamma_enable(int enable);
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb, int vpp_index);
 void lcd_gamma_api(unsigned int index,
 	u16 *r_data, u16 *g_data, u16 *b_data,
@@ -260,6 +261,6 @@ void set_sharpness_gain(int sr0_gain, int sr1_gain);
 void sharpness_gain_update(int vpp_index);
 void osd_sharpness_init(void);
 void osd_sharpness_ctrl(unsigned int sel, unsigned int enable);
-
+void amvecm_vadj_enable(enum vadj_index_e vadj_idx, int enable);
 #endif
 
