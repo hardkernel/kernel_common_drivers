@@ -820,6 +820,7 @@ struct vdin_parm_s {
 	unsigned short skip_count;	/* for skip frame */
 
 	struct csi_parm_s csi_hw_info;
+	unsigned int crop[4]; /* 0~3: top left width height*/
 
 	/*for reserved */
 	uintptr_t reserved;

@@ -3644,12 +3644,8 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	dst_left = (output->width - dst_width) / 2;
 	dst_top = dst_top & 0xfffffffe;
 	dst_left = dst_left & 0xfffffffe;
-	//node->crop_info.source_top_crop = dst_top;
-	//node->crop_info.source_left_crop = dst_left;
-	//node->crop_info.source_width_crop = dst_width;
-	//node->crop_info.source_height_crop = dst_height;
-	/* data operating. */
 
+	/* data operating. */
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 	if (dst_left != output->frame->x || dst_top != output->frame->y ||
 	    dst_width != output->frame->w || dst_height != output->frame->h) {
@@ -3860,6 +3856,11 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 		src_left = src_left * vf->width / output->width;
 		src_width = src_width * vf->width / output->width;
 		src_height = src_height * vf->height / output->height;
+	} else if (node->vid == 1) {
+		src_top = 0;
+		src_left = 0;
+		src_width = vf->width;
+		src_height = vf->height;
 	}
 	if (amlvideo2_dbg_en & 4) {
 		if (vf->canvas0Addr != (u32)-1) {
@@ -5874,6 +5875,10 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 				pr_info("need vdin scale, dst_w: %d, dst_h: %d,",
 					fh->width, fh->height);
 		}
+		para.crop[0] = node->crop_info.source_top_crop;
+		para.crop[1] = node->crop_info.source_left_crop;
+		para.crop[2] = node->crop_info.source_width_crop;
+		para.crop[3] = node->crop_info.source_height_crop;
 		para.reserved |= PARAM_STATE_SCREEN_CAP;
 		if (para.scan_mode == TVIN_SCAN_MODE_INTERLACED)
 			para.dest_v_active = para.dest_v_active / 2;
@@ -5902,6 +5907,8 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 				vinfo->mode, para.scan_mode);
 			pr_info("node->vdin_device_num = %d .\n",
 				node->vdin_device_num);
+			pr_info("crop:top %d left %d width %d height %d\n",
+				para.crop[0], para.crop[1], para.crop[2], para.crop[3]);
 		}
 		if (IS_ERR_OR_NULL(vops)) {
 			pr_info("%s amlvideo2 vdin ops is NULL\n", __func__);
@@ -6241,6 +6248,10 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 	para.dest_h_active = dst_w;
 	para.dest_v_active = dst_h;
+	para.crop[0] = node->crop_info.source_top_crop;
+	para.crop[1] = node->crop_info.source_left_crop;
+	para.crop[2] = node->crop_info.source_width_crop;
+	para.crop[3] = node->crop_info.source_height_crop;
 
 	if (dst_w < VDIN1_SCALE_W || dst_h < VDIN1_SCALE_H) {
 		para.dest_h_active = VDIN1_SCALE_W;
@@ -6282,6 +6293,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 			vinfo->mode, para.scan_mode);
 		pr_info("node->vdin_device_num = %d .\n",
 			node->vdin_device_num);
+		pr_info("crop:top %d left %d width %d height %d\n",
+			para.crop[0], para.crop[1], para.crop[2], para.crop[3]);
 	}
 	if (IS_ERR_OR_NULL(vops)) {
 		if (node->r_type == AML_RECEIVER_NONE)
@@ -6477,6 +6490,10 @@ static int start_send_normal_frame(struct amlvideo2_fh *fh)
 
 	para.dest_h_active = dst_w;
 	para.dest_v_active = dst_h;
+	para.crop[0] = node->crop_info.source_top_crop;
+	para.crop[1] = node->crop_info.source_left_crop;
+	para.crop[2] = node->crop_info.source_width_crop;
+	para.crop[3] = node->crop_info.source_height_crop;
 
 	if (amlvideo2_dest_w != 0)
 		para.dest_h_active = amlvideo2_dest_w;
@@ -6512,6 +6529,8 @@ static int start_send_normal_frame(struct amlvideo2_fh *fh)
 			vinfo->mode, para.scan_mode);
 		pr_info("node->vdin_device_num = %d .\n",
 			node->vdin_device_num);
+		pr_info("crop:top %d left %d width %d height %d\n",
+			para.crop[0], para.crop[1], para.crop[2], para.crop[3]);
 	}
 	if (IS_ERR_OR_NULL(vops)) {
 		if (node->r_type == AML_RECEIVER_NONE)
