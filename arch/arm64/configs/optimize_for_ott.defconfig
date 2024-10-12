@@ -32,3 +32,6 @@ CONFIG_AMLOGIC_MEDIA_TVIN_BT656=n
 
 # amlogic-dvb-usbcam
 # CONFIG_AMLOGIC_USBCAM=n
+
+# optimize for ott lowram version
+CONFIG_ZRAM_WRITEBACK=y
