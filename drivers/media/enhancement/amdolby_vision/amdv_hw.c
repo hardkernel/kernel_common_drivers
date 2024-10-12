@@ -3691,7 +3691,7 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 		     / vinfo->sync_duration_den == 50))
 			v_height = v_height / 2;
 		mute_type = get_mute_type();
-		if ((get_video_mute() == VIDEO_MUTE_ON_DV) &&
+		if ((get_output_mute() == VIDEO_MUTE_ON_DV) &&
 		    (!(dolby_vision_flags & FLAG_MUTE) ||
 		    cur_mute_type != mute_type)) {
 			pr_dv_dbg("mute %s\n", mute_type_str[mute_type]);
@@ -3705,7 +3705,7 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 					  (0x0 << 10) | 0x0);
 			cur_mute_type = mute_type;
 			dolby_vision_flags |= FLAG_MUTE;
-		} else if ((get_video_mute() == VIDEO_MUTE_OFF) &&
+		} else if ((get_output_mute() == VIDEO_MUTE_OFF) &&
 			(dolby_vision_flags & FLAG_MUTE)) {
 			/* vpp unmuted when dv mute */
 			/* clean flag to unmute core3 here*/

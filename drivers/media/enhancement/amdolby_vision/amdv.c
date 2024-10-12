@@ -12540,10 +12540,10 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 					in_size = (dovi_setting.video_width << 16) |
 							(dovi_setting.video_height);
 
-					if ((get_video_mute() ==
+					if ((get_output_mute() ==
 					VIDEO_MUTE_ON_DV &&
 					!(dolby_vision_flags & FLAG_MUTE)) ||
-					(get_video_mute() == VIDEO_MUTE_OFF &&
+					(get_output_mute() == VIDEO_MUTE_OFF &&
 					dolby_vision_flags & FLAG_MUTE)) {
 						/* core 3 only */
 						apply_stb_core_settings
@@ -12779,9 +12779,9 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 				update_amdv_status
 					(dovi_setting.src_format);
 			} else {
-				if ((get_video_mute() == VIDEO_MUTE_ON_DV &&
+				if ((get_output_mute() == VIDEO_MUTE_ON_DV &&
 				     !(dolby_vision_flags & FLAG_MUTE)) ||
-				    (get_video_mute() == VIDEO_MUTE_OFF &&
+				    (get_output_mute() == VIDEO_MUTE_OFF &&
 				     dolby_vision_flags & FLAG_MUTE) ||
 				     last_dolby_vision_ll_policy !=
 				     dolby_vision_ll_policy)
@@ -13537,10 +13537,10 @@ static int amdolby_vision_process_v2_stb
 					(m_dovi_setting.input[1].video_width << 16) |
 					(m_dovi_setting.input[1].video_height);
 
-					if ((get_video_mute() ==
+					if ((get_output_mute() ==
 					VIDEO_MUTE_ON_DV &&
 					!(dolby_vision_flags & FLAG_MUTE)) ||
-					(get_video_mute() == VIDEO_MUTE_OFF &&
+					(get_output_mute() == VIDEO_MUTE_OFF &&
 					dolby_vision_flags & FLAG_MUTE)) {
 						/* core 3 only */
 						apply_stb_core_settings
@@ -13746,9 +13746,9 @@ static int amdolby_vision_process_v2_stb
 			update_amdv_status
 				(cur_src_format);
 		} else {
-			if ((get_video_mute() == VIDEO_MUTE_ON_DV &&
+			if ((get_output_mute() == VIDEO_MUTE_ON_DV &&
 			     !(dolby_vision_flags & FLAG_MUTE)) ||
-			    (get_video_mute() == VIDEO_MUTE_OFF &&
+			    (get_output_mute() == VIDEO_MUTE_OFF &&
 			     (dolby_vision_flags & FLAG_MUTE)) ||
 			     last_dolby_vision_ll_policy !=
 			     dolby_vision_ll_policy)
