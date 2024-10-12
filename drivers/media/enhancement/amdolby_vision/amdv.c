@@ -170,9 +170,9 @@ static bool dolby_vision_enable;
 module_param(dolby_vision_enable, bool, 0664);
 MODULE_PARM_DESC(dolby_vision_enable, "\n dolby_vision_enable\n");
 
-static bool efuse_checked;
+bool efuse_checked;
 static bool amdv_efuse_bypass;
-static bool efuse_mode;
+bool efuse_mode;
 module_param(efuse_mode, bool, 0664);
 MODULE_PARM_DESC(efuse_mode, "\n efuse_mode\n");
 
@@ -1812,7 +1812,7 @@ int amdv_update_setting(void)
 	if (!dovi_setting_update_flag)
 		return 0;
 
-	if (load_fixed_setting) {
+	if (load_fixed_setting && !is_aml_hw5()) {
 		if (is_aml_tvmode()) {
 			pr_dv_dbg("load_fixed_setting %d, dovi_setting_update_flag %d\n",
 					 load_fixed_setting, dovi_setting_update_flag);
@@ -4771,13 +4771,16 @@ int amdv_policy_process(struct vframe_s *vf, int *mode,
 {
 	int mode_change = 0;
 
-	if (hw5_reg_from_file  && dolby_vision_policy == 2) {/*only for debug hw5*/
+	if (hw5_reg_from_file && is_aml_hw5()) {/*only for debug hw5*/
 		if (debug_dolby & 0x2000)
 			pr_dv_dbg("policy process %d %d\n", dolby_vision_mode, *mode);
+		if (efuse_mode)
+			return 0;
+		if (!top2_lut_buf || !top2_reg_buf)
+			return 0;
 		if (*mode != dolby_vision_mode)
 			return 1;
-	}
-	if (load_fixed_setting) {/*only for debug*/
+	} else if (load_fixed_setting) {/*only for debug*/
 		if (debug_dolby & 8)
 			pr_dv_dbg("policy process %d %d,%d,%px\n",
 			dolby_vision_mode, *mode, efuse_mode, core1_reg_lut);
@@ -11084,8 +11087,7 @@ int amdv_parse_metadata(struct vframe_s *vf,
 		}
 		top2_v_info.tv_dovi_setting_change_flag = true;
 		return 0;
-	}
-	if (load_fixed_setting) {
+	} else if (load_fixed_setting) {
 		if (is_aml_tvmode()) {/*continue parser_metadata for stb*/
 			if (vf)
 				amdv_setting_video_flag = true;
@@ -14515,7 +14517,6 @@ static ssize_t amdolby_vision_load_reg_file_store
 			}
 		}
 		read_txt_to_buf(top1_lut_txt, top1_lut_buf, top1_lut_num, false);
-
 	} else if (!strcmp(parm[0], "top2_lut")) {
 		load_reg_and_lut_file(parm[1], &top2_lut_txt);
 		if (!top2_lut_buf) {
@@ -16213,6 +16214,8 @@ static ssize_t amdolby_vision_debug_store
 			}
 			amdv_run_mode_delay = 0;
 		}
+		if (is_aml_hw5())
+			hw5_reg_from_file = 1;
 		pr_info("load_fixed_setting %d\n", load_fixed_setting);
 	} else if (!strcmp(parm[0], "debug_maxcll")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)

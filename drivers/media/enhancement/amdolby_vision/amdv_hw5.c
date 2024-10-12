@@ -580,15 +580,17 @@ static void dolby5_ahb_reg_config(u32 *reg_baddr,
 	int reg_val, reg_addr;
 	static u32 ves_top1 = 0x21c03c0;
 	u32 tmp;
-	u32 *p_last_baddr;
+	u32 *p_last_baddr = NULL;
 	u32 p_last_val;
 
-	if (core_sel == 0)
-		p_last_baddr = (u32 *)(last_tv_hw5_setting->top1_reg);
-	else if (core_sel == 1)
-		p_last_baddr = (u32 *)(last_tv_hw5_setting->top1b_reg);
-	else
-		p_last_baddr = (u32 *)(last_tv_hw5_setting->top2_reg);
+	if (last_tv_hw5_setting) {
+		if (core_sel == 0)
+			p_last_baddr = (u32 *)(last_tv_hw5_setting->top1_reg);
+		else if (core_sel == 1)
+			p_last_baddr = (u32 *)(last_tv_hw5_setting->top1b_reg);
+		else
+			p_last_baddr = (u32 *)(last_tv_hw5_setting->top2_reg);
+	}
 
 	for (i = 0; i < reg_num; i = i + 1) {
 		reg_val = reg_baddr[i * 2];
@@ -596,8 +598,12 @@ static void dolby5_ahb_reg_config(u32 *reg_baddr,
 		reg_addr = reg_addr & 0xffff;
 		reg_val = reg_val & 0xffffffff;
 
-		p_last_val = p_last_baddr[i * 2];
-		p_last_val = p_last_val & 0xffffffff;
+		if (p_last_baddr) {
+			p_last_val = p_last_baddr[i * 2];
+			p_last_val = p_last_val & 0xffffffff;
+		} else {
+			p_last_val = 0;
+		}
 		if (i < 6)
 			if (debug_dolby & 0x10000000)
 				pr_dv_dbg("=== addr: 0x%x val:0x%x ===%x %x %x\n",
@@ -1705,10 +1711,10 @@ int tv_top2_set(u64 *reg_data,
 		top1_done = false; //todo
 
 	if (debug_dolby & 1)
-		pr_dv_dbg("top2_set:on %d %d,reset %d,toggle %d,video %d,level %d,rd %d,%d\n",
+		pr_dv_dbg("top2_set:on %d %d,reset %d,toggle %d,video %d,level %d,rd %d,%d,%d\n",
 				  top2_info.core_on, top2_info.core_on_cnt,
 				  reset, toggle, video_enable, top2_info.py_level,
-				  py_rd_id, vpp_vsync_id);
+				  py_rd_id, vpp_vsync_id, ttt);
 
 	if (!enable_top1) {
 		if (!force_enable_top12_lut)
@@ -1725,6 +1731,7 @@ int tv_top2_set(u64 *reg_data,
 	}
 	/*TB49 and IDK include RGB cases*/
 	if ((dv_unique_drm || (test_dv & DEBUG_5065_RGB_BUG)) &&
+		tv_hw5_setting &&
 		tv_hw5_setting->top2.color_format == CP_RGB &&
 		tv_hw5_setting->top2_reg[23] == 0x00000058000002c0)
 		tv_hw5_setting->top2_reg[23] = 0x00000058000002c1;/*bit0 change from yuv to rgb*/
@@ -1962,7 +1969,7 @@ int tv_top_set(u64 *top1_reg,
 				READ_VPP_DV_REG(VPU_DOLBY_WRAP_CTRL),
 				READ_VPP_DV_REG(DOLBY_TOP2_RDMA_SIZE5),
 				READ_VPP_DV_REG(0x0d01),
-				(top2_reg[2] & 0xFFFFFFFF),
+				top2_reg ? (top2_reg[2] & 0xFFFFFFFF) : 0,
 				pr_done, top1_done);
 
 	//enable tvcore clk

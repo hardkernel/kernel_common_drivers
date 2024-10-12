@@ -1004,6 +1004,8 @@ extern u32 lightsense_test_mode;
 extern u32 hlg_max;
 extern u32 hlg_min;
 extern u64 *core1_reg_lut;
+extern bool efuse_mode;
+extern bool efuse_checked;
 /************/
 
 #define pr_dv_dbg(fmt, args...)\

@@ -2229,6 +2229,8 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 				if (get_vframe_src_fmt(vf) ==
 				    VFRAME_SIGNAL_FMT_HDR10PRIME)
 					src_format = FORMAT_PRIMESL;
+				else if (load_fixed_setting)
+					src_format = FORMAT_SDR;
 				else
 					meta_flag_bl =
 					parse_sei_and_meta_hw5
@@ -3148,6 +3150,7 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 	u32 h_ori;
 	u32 v_ori;
 	struct vd_proc_info_t *vd_proc_info;
+	unsigned int reg_value;
 
 	if (!is_aml_tvmode())
 		return -1;
@@ -3412,6 +3415,35 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 		top2_v_info.tv_dovi_setting_change_flag = false;
 		return 0;
 	}
+
+	if (load_fixed_setting) {
+		if (!efuse_checked) {
+			reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
+			if ((reg_value & 0x10000) == 0)
+				efuse_mode = 0;
+			else
+				efuse_mode = 1;
+			efuse_checked = true;
+		}
+		if (efuse_mode) {
+			pr_info("dv efuse!\n");
+			return 0;
+		}
+		/*read crc for slt test*/
+		if (VSYNC_RD_DV_REG(DOLBY5_CORE2_CRC_CNTRL) == 0)
+			VSYNC_WR_DV_REG(DOLBY5_CORE2_CRC_CNTRL, 1);
+		if (debug_dolby & 0x8)
+			pr_info("read crc %x %x, %x %x\n",
+			READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
+			READ_VPP_DV_REG(0x250b),/*vpp crc*/
+			READ_VPP_DV_REG(VPU_DOLBY_WRAP_CTRL),
+			READ_VPP_DV_REG(T3X_VD1_S0_DV_BYPASS_CTRL));
+
+		/*for slt, for toggle each vsync*/
+		if (vf)
+			dolby_vision_flags |= FLAG_TOGGLE_FRAME;
+	}
+
 	if (update_top2_control_path_flag) {
 		amdv_hw5_control_path(vf, vd_proc_info);
 		update_top2_control_path_flag = false;
