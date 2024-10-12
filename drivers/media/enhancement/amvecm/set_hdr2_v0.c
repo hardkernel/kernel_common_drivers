@@ -51,6 +51,10 @@ uint osd_gamut_demo_mode;/*0:off, 1:half show for 2 slices case*/
 module_param(osd_gamut_demo_mode, uint, 0664);
 MODULE_PARM_DESC(osd_gamut_demo_mode, "\n osd_gamut_demo_mode\n");
 
+uint vd1_bp_force;/*0:off, 1:force bypass vd1 hdr*/
+module_param(vd1_bp_force, uint, 0664);
+MODULE_PARM_DESC(vd1_bp_force, "\n vd1_bp_force\n");
+
 // sdr to hdr table  12bit
 int cgain_lut0[HDR2_CGAIN_LUT_SIZE] = {
 	0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400,
@@ -2322,8 +2326,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	} else if (mtx_sel == HDR_OUT_MTX) {
 		for (i = 0; i < MTX_NUM_PARAM; i++)
 			out_mtx[i] = hdr_mtx_param->mtx_out[i];
-#ifdef HDR2_PRINT
-		pr_info("hdr: out_mtx %d %d = %x,%x %x %x %x %x,%x\n",
+
+		pr_csc(64, "hdr: out_mtx %d %d = %x,%x %x %x %x %x,%x\n",
 			hdr_mtx_param->mtx_on,
 			hdr_mtx_param->mtx_only,
 			(hdr_mtx_param->mtxo_pre_offset[0] << 16) |
@@ -2339,7 +2343,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			out_mtx[2 * 3 + 2],
 			(hdr_mtx_param->mtxo_pos_offset[0] << 16) |
 			(hdr_mtx_param->mtxo_pos_offset[1] & 0xFFF));
-#endif
+
 		VSYNC_WRITE_VPP_REG_VPP_SEL(CGAIN_OFFT,
 			(hdr_mtx_param->mtx_cgain_offset[2] << 16) |
 			hdr_mtx_param->mtx_cgain_offset[1], vpp_sel);
@@ -4794,6 +4798,12 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 	}
 
+	if (vd1_bp_force  && module_sel == VD1_HDR) {
+		pr_csc(12, "%s: vd1_bp_force not set luts and matrixs, module_sel=0x%x\n",
+			__func__, module_sel);
+		return hdr_process_select;
+	}
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu() || is_meson_t3x_cpu()) {
 		pr_csc(12, "%s: s5 update hdr core sel(%d).\n",
@@ -5846,7 +5856,8 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		break;
 	}
 
-	/*pr_info("mtx_sel:%d, mtx_csc:0x%x\n", mtx_sel, mtx_csc);*/
+	pr_csc(64, "%s: mtx_sel:0x%x, mtx_csc:0x%x, mtx_on:%d\n",
+		__func__, mtx_sel, mtx_csc, mtx_on);
 }
 
 static int create_hdr_full_setting(enum hdr_module_sel module_sel,

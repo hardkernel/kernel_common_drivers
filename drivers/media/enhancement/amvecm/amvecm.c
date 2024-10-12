@@ -10738,6 +10738,15 @@ void resume_lut3d(int vpp_index)
 	}
 }
 
+void resume_hdr_clk_gate(void)
+{
+	if (chip_type_id != chip_t5w)
+		return;
+
+	WRITE_VPP_REG(VD1_HDR2_CLK_GATE, 0xaaa);
+	pr_amvecm_dbg("amvecm: resume vd1 hdr clk gate\n");
+}
+
 void resume_recovery_process(int vpp_index)
 {
 	struct vinfo_s *vinfo = get_current_vinfo();
@@ -15617,6 +15626,9 @@ static int amvecm_drv_resume(struct device *dev)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_resume();
 
+	if (chip_type_id == chip_t5w)
+		resume_hdr_clk_gate();
+
 	if (chip_type_id == chip_t7)
 		resume_mtx_t7();
 
@@ -15672,6 +15684,9 @@ static int amvecm_drv_thaw(struct device *dev)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_resume();
 
+	if (chip_type_id == chip_t5w)
+		resume_hdr_clk_gate();
+
 	if (chip_type_id == chip_t5w ||
 		chip_type_id == chip_t7 ||
 		chip_type_id == chip_s7 ||
@@ -15694,6 +15709,9 @@ static int amvecm_drv_restore(struct device *dev)
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_resume();
+
+	if (chip_type_id == chip_t5w)
+		resume_hdr_clk_gate();
 
 	if (chip_type_id == chip_t7)
 		resume_mtx_t7();
