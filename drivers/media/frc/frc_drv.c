@@ -457,10 +457,12 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 {
 	struct frc_data_s *frc_data;
 	struct frc_fw_data_s *pfw_data;
+	struct frc_rdma_s *frc_rdma;
 	enum chip_id chip;
 
 	frc_data = (struct frc_data_s *)devp->data;
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	frc_rdma = get_frc_rdma();
 	chip = frc_data->match_data->chip;
 
 #define K_MEMC_CLK_DIS
@@ -555,8 +557,13 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 				devp->clk_me = clk_get(&devp->pdev->dev, "clk_me");
 				frc_clk_init(devp);
 			}
+			pr_frc(2, "cma_mem_alloced = %d\n", devp->buf.cma_mem_alloced);
 			if (!devp->buf.cma_mem_alloced)
 				frc_buf_alloc(devp);
+			/*T3X STD */
+			pr_frc(2, "frc_rdma->buf_alloced = %d\n", frc_rdma->buf_alloced);
+			if (!frc_rdma->buf_alloced)
+				frc_rdma_init();
 			set_frc_clk_disable(devp, 0);
 			frc_init_config(devp);
 			frc_buf_config(devp);
@@ -1587,12 +1594,66 @@ static int frc_runtime_resume(struct device *dev)
 
 	return 0;
 }
+
+#ifdef CONFIG_HIBERNATION
+static int frc_freeze(struct device *dev)
+{
+	struct frc_dev_s *devp = NULL;
+
+	devp = get_frc_devp();
+	if (!devp)
+		return -1;
+	PR_FRC("call %s ...\n", __func__);
+
+	frc_change_to_state(FRC_STATE_BYPASS);
+	set_frc_enable(false);
+	set_frc_bypass(true);
+	frc_state_change_finish(devp);
+	set_frc_clk_disable(devp, 1);
+	frc_buf_release(devp);
+	devp->power_on_flag = false;
+
+	return 0;
+}
+
+static int frc_thaw(struct device *dev)
+{
+	PR_FRC("call %s ...\n", __func__);
+
+	return 0;
+}
+
+static int frc_restore(struct device *dev)
+{
+	struct frc_dev_s *devp = NULL;
+
+	devp = get_frc_devp();
+	if (!devp)
+		return -1;
+	PR_FRC("call %s ...\n", __func__);
+	frc_power_domain_ctrl(devp, 1);
+	if (!devp->power_on_flag)
+		devp->power_on_flag = true;
+	set_frc_bypass(ON);
+	devp->frc_sts.auto_ctrl = true;
+	devp->frc_sts.re_config = true;
+
+	return 0;
+}
+
+#endif
 #endif
 
 static const struct dev_pm_ops frc_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(frc_pm_suspend, frc_pm_resume)
 	SET_RUNTIME_PM_OPS(frc_runtime_suspend, frc_runtime_resume,
 			NULL)
+	.suspend = frc_pm_suspend,
+	.resume = frc_pm_resume,
+#ifdef CONFIG_HIBERNATION
+	.freeze = frc_freeze,
+	.thaw = frc_thaw,
+	.restore = frc_restore,
+#endif
 };
 
 static struct platform_driver frc_driver = {

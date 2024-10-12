@@ -12748,7 +12748,7 @@ void clear_vpu_venc_error(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 void vpu_set_frc_bypass(struct video_layer_s *layer)
 {
-	u32 bypass_flag = 0;
+	u32 bypass_flag;
 	u32 reg_1a1c;
 	u8 vpp_index = layer->vpp_index;
 
@@ -12758,19 +12758,19 @@ void vpu_set_frc_bypass(struct video_layer_s *layer)
 	bypass_flag = frc_bypass_signal();
 	if (bypass_flag == 0)
 		return;
+
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 
 	reg_1a1c = READ_VCBUS_REG(VIU_FRC_MISC);
-	if (bypass_flag == 1) {
-		reg_1a1c |= 1;
+
+	if ((bypass_flag == 1 && (reg_1a1c & 0x1) == 0) ||
+		(bypass_flag == 2 && (reg_1a1c & 0x1) == 1)) {
+		reg_1a1c = (reg_1a1c & 0xFFFFFFFE) | (bypass_flag & 0x1);
+
 		if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
-			pr_info("[VPU] bypass frc set 1\n");
-	} else {
-		reg_1a1c &= 0xFFFFFFFE;
-		if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
-			pr_info("[VPU] bypass frc set 0\n");
+			pr_info("[VPU] bypass frc set %d\n", bypass_flag & 0x1);
+		rdma_wr(VIU_FRC_MISC, reg_1a1c);
 	}
-	rdma_wr(VIU_FRC_MISC, reg_1a1c);
 }
 
 void update_frc_in_size_s5(struct video_layer_s *layer)
