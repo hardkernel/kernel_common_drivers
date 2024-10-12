@@ -44,6 +44,14 @@ static struct clk_regmap sc2_fixed_pll_dco = {
 			.shift   = 10,
 			.width   = 5,
 		},
+#ifdef CONFIG_ARM
+		/* od for 32bit */
+		.od = {
+			.reg_off = ANACTRL_FIXPLL_CTRL0,
+			.shift   = 16,
+			.width   = 2,
+		},
+#endif
 		.frac = {
 			.reg_off = ANACTRL_FIXPLL_CTRL1,
 			.shift   = 0,
@@ -860,6 +868,14 @@ static struct clk_regmap sc2_hifi_pll_dco = {
 			.shift   = 10,
 			.width   = 1,  /* keep always n = 1 */
 		},
+#ifdef CONFIG_ARM
+		/* for 32bit */
+		.od = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift	= 16,
+			.width	= 2,
+		},
+#endif
 		.frac = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL1,
 			.shift   = 0,
