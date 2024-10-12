@@ -248,9 +248,10 @@ u32 force_best_pq;
 module_param(force_best_pq, uint, 0664);
 MODULE_PARM_DESC(force_best_pq, "\n force_best_pq\n");
 
-/*bit0: 0-> efuse, 1->no efuse; */
-/*bit1: 1->ko loaded*/
-/*bit2: 1-> value updated*/
+/*bit0: 0->efuse, 1->no efuse;*/
+/*bit1: 1->ko loaded success*/
+/*bit2: 1->value updated*/
+/*bit3: 1->tv, 0->ott*/
 static int support_info;
 int get_dv_support_info(void)
 {
@@ -14800,6 +14801,53 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		}
 	}
 
+	/* get efuse flag*/
+	if (is_aml_txlx() || is_aml_tm2() || is_aml_t7() ||
+		is_aml_t3() || is_aml_t5w() || is_aml_t5m()) {
+		WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 1, 4, 1);
+		reg_clk = READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL);
+		WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, 0x2800);
+		reg_value = READ_VPP_DV_REG(AMDV_TV_REG_START + 1);
+		if (debug_dolby & 1)
+			pr_info("reg_clk=%x %x, VPU_CLK_GATE=0x%x\n",
+				reg_clk, READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL),
+				READ_VPP_DV_REG(VPU_CLK_GATE));
+		if ((reg_value & 0x400) == 0)
+			efuse_mode = 0;
+		else
+			efuse_mode = 1;
+		WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
+		if (efuse_mode)
+			WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 0, 4, 1);
+		efuse_checked = true;
+	} else if (is_aml_t3x()) {
+		//todo
+		//reg_clk = READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL);
+		//WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, 0x2800);
+		reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
+		if ((reg_value & 0x10000) == 0)
+			efuse_mode = 0;
+		else
+			efuse_mode = 1;
+		//WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
+	} else {
+		reg_value = READ_VPP_DV_REG(AMDV_CORE1A_REG_START + 1);
+		if ((reg_value & 0x100) == 0)
+			efuse_mode = 0;
+		else
+			efuse_mode = 1;
+	}
+	pr_info("efuse_mode=%d reg_value = 0x%x\n", efuse_mode, reg_value);
+	support_info = efuse_mode ? 0 : 1;/*bit0=1 => no efuse*/
+	support_info = support_info | (1 << 2); /*bit2=1 => value updated*/
+	if (tv_mode)
+		support_info |= 1 << 3; /*bit3=1 => tv*/
+
+	if (efuse_mode)
+		return ret;
+	support_info = support_info | (1 << 1); /*bit1=1 => ko loaded success*/
+	pr_info("dv capability %d\n", support_info);
+
 	if ((!p_funcs_stb || !p_funcs_tv) && func) {
 		if (func->control_path && !p_funcs_stb) {
 			pr_info("*** register_dv_stb2.4_functions.***\n");
@@ -15048,56 +15096,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		} else {
 			return ret;
 		}
-		ret = 0;
-		/* get efuse flag*/
-
-		if (is_aml_txlx() || is_aml_tm2() || is_aml_t7() ||
-			is_aml_t3() || is_aml_t5w() || is_aml_t5m()) {
-			WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 1, 4, 1);
-			reg_clk = READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL);
-			WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, 0x2800);
-			reg_value = READ_VPP_DV_REG(AMDV_TV_REG_START + 1);
-			if (debug_dolby & 1)
-				pr_info("reg_clk=%x %x, VPU_CLK_GATE=0x%x\n",
-					reg_clk, READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL),
-					READ_VPP_DV_REG(VPU_CLK_GATE));
-
-			if ((reg_value & 0x400) == 0)
-				efuse_mode = 0;
-			else
-				efuse_mode = 1;
-			WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
-			if (efuse_mode)
-				WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 0, 4, 1);
-			efuse_checked = true;
-		} else if (is_aml_t3x()) {
-			//todo
-			//reg_clk = READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL);
-			//WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, 0x2800);
-			reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
-			if ((reg_value & 0x10000) == 0)
-				efuse_mode = 0;
-			else
-				efuse_mode = 1;
-			//WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
-		} else {
-			reg_value = READ_VPP_DV_REG(AMDV_CORE1A_REG_START + 1);
-			if ((reg_value & 0x100) == 0)
-				efuse_mode = 0;
-			else
-				efuse_mode = 1;
-		}
-		pr_info("efuse_mode=%d reg_value = 0x%x\n",
-			efuse_mode, reg_value);
-
-		support_info = efuse_mode ? 0 : 1;/*bit0=1 => no efuse*/
-		support_info = support_info | (1 << 1); /*bit1=1 => ko loaded*/
-		support_info = support_info | (1 << 2); /*bit2=1 => updated*/
-		if (tv_mode)
-			support_info |= 1 << 3; /*bit3=1 => tv*/
-
-		pr_info("dv capability %d\n", support_info);
-
 		/*stb core doesn't need run mode*/
 		/*TV core need run mode and the value is 2*/
 		if (is_aml_txlx_stbmode() ||
@@ -15133,7 +15131,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		copy_core1a = 1;
 	}
 	module_installed = true;
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(register_dv_functions);
 
