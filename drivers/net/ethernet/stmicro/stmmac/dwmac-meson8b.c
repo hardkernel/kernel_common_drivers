@@ -457,7 +457,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
 		pr_info("use default internal_phy as 0\n");
 
-	ndev->wol_enabled = true;
+	ndev->ethtool->wol_enabled = true;
 #ifdef CONFIG_PM_SLEEP
 	if (of_property_read_u32(np, "mac_wol", &wol_switch_from_user) == 0)
 		pr_info("feature mac_wol\n");
@@ -490,33 +490,27 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	plat_dat = stmmac_probe_config_dt(pdev, stmmac_res.mac);
+	plat_dat = devm_stmmac_probe_config_dt(pdev, stmmac_res.mac);
 	if (IS_ERR(plat_dat))
 		return PTR_ERR(plat_dat);
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac) {
-		ret = -ENOMEM;
-		goto err_remove_config_dt;
-	}
+	if (!dwmac)
+		return -ENOMEM;
 
 	dwmac->data = (const struct meson8b_dwmac_data *)
 		of_device_get_match_data(&pdev->dev);
-	if (!dwmac->data) {
-		ret = -EINVAL;
-		goto err_remove_config_dt;
-	}
+	if (!dwmac->data)
+		return -EINVAL;
 	dwmac->regs = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(dwmac->regs)) {
-		ret = PTR_ERR(dwmac->regs);
-		goto err_remove_config_dt;
-	}
+	if (IS_ERR(dwmac->regs))
+		return PTR_ERR(dwmac->regs);
 
 	dwmac->dev = &pdev->dev;
 	ret = of_get_phy_mode(pdev->dev.of_node, &dwmac->phy_mode);
 	if (ret) {
 		dev_err(&pdev->dev, "missing phy-mode property\n");
-		goto err_remove_config_dt;
+		return ret;
 	}
 
 	/* use 2ns as fallback since this value was previously hardcoded */
@@ -538,40 +532,36 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		if (dwmac->rx_delay_ps > 3000 || dwmac->rx_delay_ps % 200) {
 			dev_err(dwmac->dev,
 				"The RGMII RX delay range is 0..3000ps in 200ps steps");
-			ret = -EINVAL;
-			goto err_remove_config_dt;
+			return -EINVAL;
 		}
 	} else {
 		if (dwmac->rx_delay_ps != 0 && dwmac->rx_delay_ps != 2000) {
 			dev_err(dwmac->dev,
 				"The only allowed RGMII RX delays values are: 0ps, 2000ps");
-			ret = -EINVAL;
-			goto err_remove_config_dt;
+			return -EINVAL;
 		}
 	}
 
 	dwmac->timing_adj_clk = devm_clk_get_optional(dwmac->dev,
 						      "timing-adjustment");
-	if (IS_ERR(dwmac->timing_adj_clk)) {
-		ret = PTR_ERR(dwmac->timing_adj_clk);
-		goto err_remove_config_dt;
-	}
+	if (IS_ERR(dwmac->timing_adj_clk))
+		return PTR_ERR(dwmac->timing_adj_clk);
 
 	ret = meson8b_init_rgmii_delays(dwmac);
 	if (ret)
-		goto err_remove_config_dt;
+		return ret;
 
 	ret = meson8b_init_rgmii_tx_clk(dwmac);
 	if (ret)
-		goto err_remove_config_dt;
+		return ret;
 
 	ret = dwmac->data->set_phy_mode(dwmac);
 	if (ret)
-		goto err_remove_config_dt;
+		return ret;
 
 	ret = meson8b_init_prg_eth(dwmac);
 	if (ret)
-		goto err_remove_config_dt;
+		return ret;
 
 	plat_dat->bsp_priv = dwmac;
 
@@ -694,15 +684,10 @@ static int meson8b_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct meson8b_dwmac *dwmac;
-	struct phy_device *phydev;
+	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
+	struct phy_device *phydev = ndev->phydev;
 	int ret;
 
-	if (!ndev || !netif_running(ndev))
-		return 0;
-
-	dwmac = priv->plat->bsp_priv;
-	phydev = ndev->phydev;
 	/*open wol, shutdown phy when not link*/
 	if ((wol_switch_from_user) && phydev->link) {
 		set_wol_notify_bl31(true);
@@ -730,16 +715,11 @@ static int meson8b_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct meson8b_dwmac *dwmac;
-	struct phy_device *phydev;
+	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
 	int ret;
 
-	if (!ndev || !netif_running(ndev))
-		return 0;
-
-	dwmac = priv->plat->bsp_priv;
-	phydev = ndev->phydev;
 	priv->wolopts = 0;
+
 	if ((wol_switch_from_user) && (without_reset)) {
 		ret = stmmac_resume(dev);
 
@@ -762,8 +742,6 @@ static int meson8b_resume(struct device *dev)
 			if (dwmac->data->resume)
 				dwmac->data->resume(dwmac);
 		}
-		/*our phy not support wol by now*/
-		phydev->irq_suspended = 0;
 		ret = stmmac_resume(dev);
 		/*this flow only for txhd2, not for common anymore*/
 		if (phy_mode == 2)
@@ -784,8 +762,6 @@ static void meson8b_dwmac_remove(struct platform_device *pdev)
 	stmmac_dvr_remove(&pdev->dev);
 
 	stmmac_remove_config_dt(pdev, priv->plat);
-
-	return;
 }
 
 static SIMPLE_DEV_PM_OPS(meson8b_pm_ops,
@@ -843,10 +819,14 @@ static struct platform_driver meson8b_dwmac_driver = {
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #ifdef CONFIG_PM_SLEEP
 	.remove_new = meson8b_dwmac_remove,
-	.shutdown = meson8b_dwmac_shutdown,
 #endif
 #else
 	.remove_new = stmmac_pltfr_remove,
+#endif
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+	.shutdown = meson8b_dwmac_shutdown,
+#endif
 #endif
 	.driver = {
 		.name           = "meson8b-dwmac",

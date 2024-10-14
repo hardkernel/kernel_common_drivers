@@ -519,7 +519,7 @@ err:
 	return ret;
 }
 
-static int g12a_mdio_mux_remove(struct platform_device *pdev)
+static void g12a_mdio_mux_remove(struct platform_device *pdev)
 {
 	struct g12a_mdio_mux *priv = platform_get_drvdata(pdev);
 
@@ -529,8 +529,6 @@ static int g12a_mdio_mux_remove(struct platform_device *pdev)
 		clk_disable_unprepare(priv->pll);
 
 	clk_disable_unprepare(priv->pclk);
-
-	return 0;
 }
 
 static struct platform_driver g12a_mdio_mux_driver = {
