@@ -1,4 +1,4 @@
-From 83e064e3d44056ea2b132361887aaf206ab9c94c Mon Sep 17 00:00:00 2001
+From 8a09ee012fb3ce98d03f7d6f3ee9f9303b32a94e Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 20 Jun 2023 19:32:11 +0800
 Subject: [PATCH] mm: add memory optimization. [1/1]
@@ -48,7 +48,7 @@ index 741d7c3bcba5..de133a6c7820 100644
  	}
  
 diff --git a/drivers/of/base.c b/drivers/of/base.c
-index 54719f8156ed..95e8c18a4a24 100644
+index bc5abe650c5c..e46a0750c827 100644
 --- a/drivers/of/base.c
 +++ b/drivers/of/base.c
 @@ -166,8 +166,9 @@ void __of_phandle_cache_inv_entry(phandle handle)
@@ -77,10 +77,10 @@ index 54719f8156ed..95e8c18a4a24 100644
  
  	/* Symlink in /proc as required by userspace ABI */
 diff --git a/include/linux/android_kabi.h b/include/linux/android_kabi.h
-index f6dd7f00b386..ee6b29e8d796 100644
+index 1fa329ee4d73..1671fc1e1cc2 100644
 --- a/include/linux/android_kabi.h
 +++ b/include/linux/android_kabi.h
-@@ -83,12 +83,15 @@
+@@ -84,12 +84,15 @@
   *   number: the "number" of the padding variable in the structure.  Start with
   *   1 and go up.
   */
@@ -173,14 +173,14 @@ index 559eff84a620..dfe427268949 100644
  EXPORT_SYMBOL(init_task);
  
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 2e0dac3da346..7669ad1dc1c0 100644
+index 2e0dac3da346..a19d231f0fba 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -81,7 +81,9 @@ obj-$(CONFIG_UTS_NS) += utsname.o
  obj-$(CONFIG_USER_NS) += user_namespace.o
  obj-$(CONFIG_PID_NS) += pid_namespace.o
  obj-$(CONFIG_IKCONFIG) += configs.o
-+ifndef CONFIG_AMLOGIC_MEMORY_OPT
++ifndef CONFIG_AMLOGIC_KHEADERS_OPT
  obj-$(CONFIG_IKHEADERS) += kheaders.o
 +endif
  obj-$(CONFIG_SMP) += stop_machine.o
@@ -220,7 +220,7 @@ index d8b26077824c..993e24f06f1d 100644
  	trace_android_vh_dup_task_struct(tsk, orig);
  	return tsk;
 diff --git a/kernel/module.c b/kernel/module.c
-index f99e733f451a..2995dd5e4bd9 100644
+index 658571891a10..37bdb9ebec50 100644
 --- a/kernel/module.c
 +++ b/kernel/module.c
 @@ -2743,15 +2743,21 @@ static bool is_core_symbol(const Elf_Sym *src, const Elf_Shdr *sechdrs,

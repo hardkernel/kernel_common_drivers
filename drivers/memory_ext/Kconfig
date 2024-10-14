@@ -133,7 +133,6 @@ config AMLOGIC_CMA_DIS
 
 config AMLOGIC_MEMORY_OPT
 	bool "Amlogic memory optimization support"
-	depends on AMLOGIC_BREAK_GKI
 	depends on AMLOGIC_MEMORY_EXTEND
 	default n
 	help
@@ -189,4 +188,31 @@ config AMLOGIC_ARM_KASAN
 	default y
 	help
 		Support enable kasan on arm32
+
+config AMLOGIC_DTB_NODE_OPT
+	bool "remove dtb node optimization"
+	default n
+	help
+		some project to optimize the slab size, remove the
+		dtb node under /sys/firmware/devicetree directory.
+
+config AMLOGIC_KALLSYM_OPT
+	bool "kallsyms optimization"
+	default n
+	help
+		some project to optimize the kallsyms.
+
+config AMLOGIC_PRINTK_OPT
+	bool "printk optimization"
+	default n
+	help
+		some project to optimize the printk, reduce the
+		log buffer size.
+
+config AMLOGIC_KHEADERS_OPT
+	bool "kheaders optimization"
+	default n
+	help
+		some project to remove the kheaders, reduce the
+		kernel image size.
 
