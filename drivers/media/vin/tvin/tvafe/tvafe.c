@@ -2061,7 +2061,7 @@ fail_alloc_cdev_region:
 	return ret;
 }
 
-static int tvafe_drv_remove(struct platform_device *pdev)
+static void tvafe_drv_remove(struct platform_device *pdev)
 {
 	struct tvafe_dev_s *tdevp;
 
@@ -2086,7 +2086,6 @@ static int tvafe_drv_remove(struct platform_device *pdev)
 	unregister_chrdev_region(tvafe_devno, 1);
 
 	tvafe_pr_info("driver removed ok.\n");
-	return 0;
 }
 
 #ifdef CONFIG_PM

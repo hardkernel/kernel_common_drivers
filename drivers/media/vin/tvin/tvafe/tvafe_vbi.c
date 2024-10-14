@@ -2508,7 +2508,7 @@ fail_alloc_cdev_region:
 	return ret;
 }
 
-static int vbi_remove(struct platform_device *pdev)
+static void vbi_remove(struct platform_device *pdev)
 {
 	struct vbi_dev_s *vbi_dev;
 
@@ -2535,8 +2535,6 @@ static int vbi_remove(struct platform_device *pdev)
 	unregister_chrdev_region(vbi_id, 0);
 
 	tvafe_pr_info(": driver removed ok.\n");
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

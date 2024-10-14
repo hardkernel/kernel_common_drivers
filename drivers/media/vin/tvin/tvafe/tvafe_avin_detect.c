@@ -1314,7 +1314,7 @@ static void tvafe_avin_detect_shutdown(struct platform_device *pdev)
 	kfree(av_dev);
 }
 
-int tvafe_avin_detect_remove(struct platform_device *pdev)
+static void tvafe_avin_detect_remove(struct platform_device *pdev)
 {
 	struct tvafe_avin_det_s *av_dev = platform_get_drvdata(pdev);
 
@@ -1326,8 +1326,6 @@ int tvafe_avin_detect_remove(struct platform_device *pdev)
 	tvafe_avin_detect_disable(av_dev);
 	device_remove_file(av_dev->config_dev, &dev_attr_debug);
 	kfree(av_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
