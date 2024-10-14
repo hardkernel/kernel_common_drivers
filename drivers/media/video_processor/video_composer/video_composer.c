@@ -803,7 +803,7 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 		"%s: output_duration is %lld.\n", __func__, dev->output_duration);
 	if (dev->output_duration > 60) {
 		buf_width = 1920;
-		buf_height = dev->vinfo_h * 1920 / dev->vinfo_w;
+		buf_height = 1080;
 	}
 
 	vc_print(dev->index, PRINT_OTHER, "%s: usage: %ld\n", __func__, usage);

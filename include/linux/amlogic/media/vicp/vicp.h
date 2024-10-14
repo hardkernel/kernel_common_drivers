@@ -84,17 +84,17 @@ struct vicp_clock_config_s {
 };
 
 struct output_axis_s {
-	u32 left;
-	u32 top;
-	u32 width;
-	u32 height;
+	int left;
+	int top;
+	int width;
+	int height;
 };
 
 struct crop_info_s {
-	u32 left;
-	u32 top;
-	u32 width;
-	u32 height;
+	int left;
+	int top;
+	int width;
+	int height;
 };
 
 struct data_option_s {

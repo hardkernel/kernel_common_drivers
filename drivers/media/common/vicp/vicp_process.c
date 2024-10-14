@@ -2182,8 +2182,15 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			vicp_print(VICP_INFO, "%s: use fbc vframe.\n", __func__);
 			input_vframe = data_config->input_data.data_vf;
 			vid_cmpr_top->src_compress = 1;
-			vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
-			vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+			if (data_config->data_option.crop_info.width <= 0 ||
+				data_config->data_option.crop_info.height <= 0) {
+				vicp_print(VICP_INFO, "%s: invalid crop param.\n", __func__);
+				vid_cmpr_top->src_hsize = input_vframe->compWidth;
+				vid_cmpr_top->src_vsize = input_vframe->compHeight;
+			} else {
+				vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+				vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+			}
 			vid_cmpr_top->src_head_baddr = input_vframe->compHeadAddr;
 			vid_cmpr_top->src_body_baddr = input_vframe->compBodyAddr;
 
@@ -2214,12 +2221,20 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 
 			vid_cmpr_top->src_compress = 0;
 			temp_compress_param.compress_mode = LOSSY_COMPRESS_MODE_OFF;
-			vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
-			vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
-			if (is_fbc_exist) {
-				vid_cmpr_top->src_hsize = vid_cmpr_top->src_hsize >> 2;
-				vid_cmpr_top->src_vsize = vid_cmpr_top->src_vsize >> 2;
+			if (data_config->data_option.crop_info.width <= 0 ||
+				data_config->data_option.crop_info.height <= 0) {
+				vid_cmpr_top->src_hsize = input_vframe->width;
+				vid_cmpr_top->src_vsize = input_vframe->height;
+			} else {
+				vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+				vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+
+				if (is_fbc_exist) {
+					vid_cmpr_top->src_hsize = vid_cmpr_top->src_hsize >> 2;
+					vid_cmpr_top->src_vsize = vid_cmpr_top->src_vsize >> 2;
+				}
 			}
+
 			vid_cmpr_top->src_head_baddr = 0;
 			vid_cmpr_top->src_body_baddr = 0;
 			vid_cmpr_top->rdmif_canvas0_addr0 =
@@ -2284,8 +2299,14 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		input_dma = &data_config->input_data.data_dma;
 		vid_cmpr_top->src_compress = 0;
 		temp_compress_param.compress_mode = LOSSY_COMPRESS_MODE_OFF;
-		vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
-		vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+		if (data_config->data_option.crop_info.width <= 0 ||
+			data_config->data_option.crop_info.height <= 0) {
+			vid_cmpr_top->src_hsize = input_dma->data_width;
+			vid_cmpr_top->src_vsize = input_dma->data_height;
+		} else {
+			vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+			vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+		}
 		vid_cmpr_top->src_fmt_mode = input_dma->color_format;
 		vid_cmpr_top->src_compbits = input_dma->color_depth;
 		vid_cmpr_top->rdmif_canvas0_addr0 = input_dma->buf_addr;
