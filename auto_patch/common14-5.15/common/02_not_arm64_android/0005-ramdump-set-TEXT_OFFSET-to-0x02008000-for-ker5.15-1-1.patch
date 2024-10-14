@@ -1,0 +1,133 @@
+From fea98028a3f7ab002b31e043ef99c510aae6e9f6 Mon Sep 17 00:00:00 2001
+From: "dongqing.li" <dongqing.li@amlogic.com>
+Date: Wed, 18 Oct 2023 17:16:57 +0800
+Subject: [PATCH] ramdump: set TEXT_OFFSET=0x02008000 for ker5.15-u32 [1/1]
+
+PD#SWPL-182182
+
+Problem:
+The .text addr of Kernel 32bit is 0. When enabling the
+ramdump, it needs to be offset to 24MB+.
+
+Solution:
+1. modify textofs-y := 0x02008000, LOADADDR=0x02008000
+2. enable for .ko link error: CONFIG_ARM_MODULE_PLTS
+3. disable AUTO_ZRELADDR (less than 128MB, not necessary)
+4. enable for gdb debug: CONFIG_AMLOGIC_RAMDUMP, CONFIG_KALLSYMS,
+CONFIG_KALLSYMS_ALL, CONFIG_DEBUG_INFO, CONFIG_FRAME_POINTER,
+CONFIG_DEBUG_KERNEL
+5. add trace_android_vh_ipi_stop() for ker 32bit IPI_STOP.
+
+Verify:
+sc2, T5D, T5W, TXHD2, S4D
+
+Change-Id: I771e8d82c0ec4c51f85a3b71aba6cc3540fac98c
+Signed-off-by: dongqing.li <dongqing.li@amlogic.com>
+---
+ arch/arm/Makefile               |  1 +
+ arch/arm/boot/Makefile          |  5 +++++
+ arch/arm/boot/compressed/head.S |  5 +++++
+ arch/arm/kernel/head.S          | 10 ++++++++++
+ arch/arm/kernel/smp.c           |  4 ++++
+ 5 files changed, 25 insertions(+)
+
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index 790d4418a070..d318a5b977e7 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -153,6 +153,7 @@ textofs-$(CONFIG_ARCH_MSM8960) := 0x00208000
+ textofs-$(CONFIG_ARCH_MESON) := 0x00208000
+ textofs-$(CONFIG_ARCH_AXXIA) := 0x00308000
+ textofs-$(CONFIG_AMLOGIC_DRIVER) := 0x00208000
++textofs-$(CONFIG_AMLOGIC_RAMDUMP) := 0x02008000
+ 
+ # Machine directory name.  This list is sorted alphanumerically
+ # by CONFIG_* macro name.
+diff --git a/arch/arm/boot/Makefile b/arch/arm/boot/Makefile
+index 54a09f9464fb..5d5454622bfc 100644
+--- a/arch/arm/boot/Makefile
++++ b/arch/arm/boot/Makefile
+@@ -17,6 +17,11 @@ ifneq ($(MACHINE),)
+ include $(MACHINE)/Makefile.boot
+ endif
+ 
++ifeq ($(CONFIG_AMLOGIC_RAMDUMP),y)
++zreladdr-y       += 0x02008000
++params_phys-y    := 0x02000100
++initrd_phys-y    := 0x02900000
++endif
+ # Note: the following conditions must always be true:
+ #   ZRELADDR == virt_to_phys(PAGE_OFFSET + TEXT_OFFSET)
+ #   PARAMS_PHYS must be within 4MB of ZRELADDR
+diff --git a/arch/arm/boot/compressed/head.S b/arch/arm/boot/compressed/head.S
+index bf79f2f78d23..d85b1bfec712 100644
+--- a/arch/arm/boot/compressed/head.S
++++ b/arch/arm/boot/compressed/head.S
+@@ -313,7 +313,12 @@ not_angel:
+ 1:
+ #endif /* CONFIG_USE_OF */
+ 		/* Determine final kernel image address. */
++#ifdef CONFIG_AMLOGIC_RAMDUMP
++		ldr	r3, =TEXT_OFFSET
++		add	r4, r0, r3
++#else
+ 		add	r4, r0, #TEXT_OFFSET
++#endif
+ #else
+ 		ldr	r4, =zreladdr
+ #endif
+diff --git a/arch/arm/kernel/head.S b/arch/arm/kernel/head.S
+index 3fc7f9750ce4..ac31b60f7540 100644
+--- a/arch/arm/kernel/head.S
++++ b/arch/arm/kernel/head.S
+@@ -65,7 +65,12 @@ kernel_sec_end:
+ 	.popsection
+ 
+ 	.macro	pgtbl, rd, phys
++#ifdef CONFIG_AMLOGIC_RAMDUMP
++	ldr	r3, =TEXT_OFFSET
++	add	\rd, \phys, r3
++#else
+ 	add	\rd, \phys, #TEXT_OFFSET
++#endif
+ 	sub	\rd, \rd, #PG_DIR_SIZE
+ 	.endm
+ 
+@@ -120,7 +125,12 @@ ENTRY(stext)
+ 
+ #ifndef CONFIG_XIP_KERNEL
+ 	adr_l	r8, _text			@ __pa(_text)
++#ifdef CONFIG_AMLOGIC_RAMDUMP
++	ldr	r3, =TEXT_OFFSET
++	sub	r8, r8, r3
++#else
+ 	sub	r8, r8, #TEXT_OFFSET		@ PHYS_OFFSET
++#endif
+ #else
+ 	ldr	r8, =PLAT_PHYS_OFFSET		@ always constant in this case
+ #endif
+diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
+index 083662ead0a8..6f74caa15b36 100644
+--- a/arch/arm/kernel/smp.c
++++ b/arch/arm/kernel/smp.c
+@@ -55,6 +55,9 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_raise);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_entry);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_exit);
+ 
++#undef CREATE_TRACE_POINTS
++#include <trace/hooks/debug.h>
++
+ /*
+  * as from 2.5, kernels no longer have an init_tasks structure
+  * so we need some other way of telling a new secondary core
+@@ -656,6 +659,7 @@ static void do_handle_IPI(int ipinr)
+ 		break;
+ 
+ 	case IPI_CPU_STOP:
++		trace_android_vh_ipi_stop(get_irq_regs());
+ 		ipi_cpu_stop(cpu);
+ 		break;
+ 
+-- 
+2.46.0
+
