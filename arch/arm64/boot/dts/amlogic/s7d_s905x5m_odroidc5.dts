@@ -902,6 +902,16 @@
 			drive-strength = <3>;
 		};
 	};
+
+	a_uart_pins_not_cts_rts:a_uart_not_cts_rts {
+		mux {
+			groups = "uart_a_tx",
+					 "uart_a_rx";
+			function = "uart_a";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
+		};
+	};
 }; /* end of periphs_pinctrl */
 
 &audio_data {
@@ -1117,6 +1127,18 @@
 };
 
 &uart_A {
+	status = "disabled";
+	pinctrl-0 = <&a_uart_pins_not_cts_rts>;
+	pinctrl-1 = <&a_uart_pins>;
+	pinctrl-names = "default";
+	/delete-property/ uart_for_bt;
+};
+
+&uart_C {
+	status = "disabled";
+};
+
+&uart_D {
 	status = "disabled";
 };
 
