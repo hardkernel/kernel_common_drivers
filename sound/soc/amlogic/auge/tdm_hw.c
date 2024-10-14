@@ -221,10 +221,11 @@ int tdmout_get_frddr_type(int bitwidth)
 
 void aml_tdm_fifo_ctrl(struct aml_audio_controller *actrl,
 	int bitwidth, int stream,
-	int index, unsigned int fifo_id)
+	int index, unsigned int fifo_id, int gain_ver)
 {
 	unsigned int frddr_type = tdmout_get_frddr_type(bitwidth);
 	unsigned int reg, offset;
+	int frddr_sel_mask = 0x7;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		pr_debug("tdm prepare----playback\n");
@@ -238,8 +239,15 @@ void aml_tdm_fifo_ctrl(struct aml_audio_controller *actrl,
 		} else {
 			reg = EE_AUDIO_TDMOUT_A_CTRL1;
 		}
+		/* from sm1, the frddr select mask is bit 24-26,
+		 * before sm1, the frddr select mask is bit 24-25,
+		 * the bit 26 is for gain control.
+		 */
+		if (gain_ver == GAIN_VER1)
+			frddr_sel_mask = 0x3;
+
 		aml_audiobus_update_bits(actrl, reg,
-				0x3 << 24 | 0x1f << 8 | 0x7 << 4,
+				frddr_sel_mask << 24 | 0x1f << 8 | 0x7 << 4,
 				fifo_id << 24 | (bitwidth - 1) << 8 | frddr_type << 4);
 	} else {
 		pr_debug("tdm prepare----capture\n");

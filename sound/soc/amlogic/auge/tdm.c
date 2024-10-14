@@ -1789,7 +1789,8 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			bit_depth,
 			substream->stream,
 			p_tdm->id,
-			fifo_id);
+			fifo_id,
+			p_tdm->chipinfo->gain_ver);
 
 		switch (p_tdm->id) {
 		case 0:

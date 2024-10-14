@@ -74,7 +74,7 @@ int tdmout_get_frddr_type(int bitwidth);
 
 void aml_tdm_fifo_ctrl(struct aml_audio_controller *actrl,
 	int bitwidth, int stream,
-	int index, unsigned int fifo_id);
+	int index, unsigned int fifo_id, int gain_ver);
 
 void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	struct pcm_setting *p_config,
