@@ -1538,7 +1538,7 @@ static bool cma_vma_show(struct page *page, struct vm_area_struct *vma,
 	return false; /* keep loop */
 }
 
-void rmap_walk_vma(struct page *page)
+void __nocfi rmap_walk_vma(struct page *page)
 {
 	struct rmap_walk_control rwc = {
 		.rmap_one = cma_vma_show,
