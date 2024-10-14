@@ -15,7 +15,7 @@ function pre_defconfig_cmds() {
 		export PATH=${PATH}:/usr/bin/
 	fi
 
-	if [[ -z ${ANDROID_PROJECT} ]]; then
+	if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
 		local temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
 		echo "CONFIG_AMLOGIC_SERIAL_MESON=y" > ${temp_file}
 		echo "CONFIG_DEVTMPFS=y" >> ${temp_file}
@@ -967,6 +967,7 @@ function rebuild_rootfs() {
 		cp ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/customer . -rf
 	fi
 	cp -rf ../../modules .
+	cp -rf ../../ext_modules .
 
 	find . | fakeroot cpio -o -H newc | gzip > ../rootfs_new.cpio.gz
 	cd ../
@@ -1477,6 +1478,10 @@ function handle_input_parameters () {
 		--kasan)
 			KASAN=1
 			LTO=none
+			shift
+			;;
+		--fatload)
+			FATLOAD=1
 			shift
 			;;
 		-h|--help)

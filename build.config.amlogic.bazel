@@ -20,7 +20,7 @@ function pre_defconfig_cmds() {
 	KCONFIG_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}
 	local temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
 
-	if [[ -z ${ANDROID_PROJECT} ]]; then
+	if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
 		echo "CONFIG_AMLOGIC_SERIAL_MESON=y" > ${temp_file}
 		echo "CONFIG_AMLOGIC_SERIAL_MESON_CONSOLE=y" >> ${temp_file}
 		echo "CONFIG_AMLOGIC_SERIAL_EARLY_CONSOLE=y" >> ${temp_file}

@@ -28,6 +28,7 @@ function show_help {
 	echo "  --dev_config            for use the config specified by oem instead of amlogic like ./mk.sh --dev_config a_config+b_config+c_config"
 	echo "  --use_prebuilt_gki      for use prebuilt gki, require parameter value, https://ci.android.com/builds/submitted/10412065/kernel_aarch64/latest, --use_prebuilt_gki 10412065"
 	echo "  --kasan                 for build kernel with config kasan"
+	echo "  --fatload          	for force change to fatload mode in android build"
 }
 
 # handle the dir parameters for amlogic_utils.sh
@@ -130,6 +131,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/build.config.project
 		echo 						>> ${PROJECT_DIR}/build.config.project
 	fi
+	echo "FATLOAD=${FATLOAD}" 		>>  ${PROJECT_DIR}/build.config.project
 
 	[[ -f ${PROJECT_DIR}/build.config.gki10 ]] || touch ${PROJECT_DIR}/build.config.gki10
 	echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/build.config.gki10
@@ -174,6 +176,13 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	sed -i "/ANDROID_PROJECT/d" ${PROJECT_DIR}/project.bzl
 	echo "ANDROID_PROJECT = \"${ANDROID_PROJECT}\"" >> ${PROJECT_DIR}/project.bzl
 
+	sed -i "/ANDROID_MODULE/d" ${PROJECT_DIR}/project.bzl
+	if [[ -n ${ANDROID_PROJECT} && -z ${FATLOAD} ]]; then
+		echo "EXTRA_ANDROID_MODULE = True"		>> ${PROJECT_DIR}/project.bzl
+	else
+		echo "EXTRA_ANDROID_MODULE = False"		>> ${PROJECT_DIR}/project.bzl
+	fi
+
 	sed -i "/GKI_CONFIG/d" ${PROJECT_DIR}/project.bzl
 	echo "GKI_CONFIG = \"${GKI_CONFIG}\""		>> ${PROJECT_DIR}/project.bzl
 
@@ -188,7 +197,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	cat  ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/amlogic/Makefile | grep -n "dtb" | cut -d "=" -f 2 | sed 's/[[:space:]][[:space:]]*/ /g' | sed 's/^[ ]*//' | sed 's/[ ]*$//' | sed '/^#/d;/^$/d' | sed 's/^/    "/' | sed 's/$/",/' | uniq >> ${PROJECT_DIR}/dtb.bzl
 	echo "]"					>> ${PROJECT_DIR}/dtb.bzl
 
-	if [[ "${GKI_CONFIG}" != "gki_20" || -n ${KASAN} || -z ${ANDROID_PROJECT} ]]; then
+	if [[ "${GKI_CONFIG}" != "gki_20" || -n ${KASAN} || -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
 		args="${args} --gki_build_config_fragment=//common:common_drivers/build.config.amlogic.fragment.bazel"
 	fi
 
