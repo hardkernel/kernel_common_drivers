@@ -1101,10 +1101,14 @@ function set_env_for_adjust_config_action () {
 	export OUT_DIR=$(readlink -m ${COMMON_OUT_DIR}/${KERNEL_DIR})
 	export DIST_DIR=$(readlink -m ${DIST_DIR:-${COMMON_OUT_DIR}/dist})
 
+	CLANG_PREBUILT_BIN=prebuilts/clang/host/linux-x86/clang-${CLANG_VERSION}/bin
+	CLANGTOOLS_PREBUILT_BIN=build/kernel/build-tools/path/linux-x86
+
 	# set the version of clang bin
 	prebuilts_paths=(
 		CLANG_PREBUILT_BIN
 		BUILDTOOLS_PREBUILT_BIN
+		CLANGTOOLS_PREBUILT_BIN
 	)
 	for prebuilt_bin in "${prebuilts_paths[@]}"; do
 		prebuilt_bin=\${${prebuilt_bin}}
@@ -1663,7 +1667,7 @@ function make_dtbo() {
 export -f make_dtbo
 
 function installing_UAPI_kernel_headers () {
-	if [ -z "${SKIP_CP_KERNEL_HDR}" ]; then
+	if [ ${SKIP_CP_KERNEL_HDR} -ne 1 ]; then
 		echo "========================================================"
 		echo " Installing UAPI kernel headers:"
 		mkdir -p "${KERNEL_UAPI_HEADERS_DIR}/usr"
@@ -1681,7 +1685,7 @@ function installing_UAPI_kernel_headers () {
 export -f installing_UAPI_kernel_headers
 
 function copy_kernel_headers_to_compress () {
-	if [ -z "${SKIP_CP_KERNEL_HDR}" ] ; then
+	if [ ${SKIP_CP_KERNEL_HDR} -ne 1 ] ; then
 		echo "========================================================"
 		KERNEL_HEADERS_TAR=${DIST_DIR}/kernel-headers.tar.gz
 		echo " Copying kernel headers to ${KERNEL_HEADERS_TAR}"
@@ -1715,9 +1719,17 @@ function set_default_parameters_for_32bit () {
 		BUILDTOOLS_PREBUILT_BIN
 		EXTRA_PATH
 	)
+
+	if [[ -z ${SKIP_CP_KERNEL_HDR} ]]; then
+		SKIP_CP_KERNEL_HDR=1
+	else
+		SKIP_CP_KERNEL_HDR=${SKIP_CP_KERNEL_HDR}
+	fi
+
 	echo CC_CLANG=$CC_CLANG
 	if [[ $CC_CLANG -eq "1" ]]; then
 		source ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+		DTC=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/bin/dtc
 		if [[ -n "${LLVM}" ]]; then
 			tool_args+=("LLVM=1")
 			# Reset a bunch of variables that the kernel's top level Makefile does, just
