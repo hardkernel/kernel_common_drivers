@@ -384,9 +384,6 @@ static struct ksymbol module_symbols[] = {
 	KSYM_FUN(LZ4_decompress_safe),
 	KSYM_FUN(LZ4_decompress_safe_partial),
 	KSYM_FUN(out_of_line_wait_on_bit_lock),
-	KSYM_OBJ(generic_ro_fops),
-	KSYM_OBJ(posix_acl_default_xattr_handler),
-	KSYM_OBJ(posix_acl_access_xattr_handler),
 	{	/*
 		 * compiler always say symbol undefined if use KSYM_FUN macro
 		 * seems compiler have bug.
