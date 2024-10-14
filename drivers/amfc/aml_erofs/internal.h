@@ -607,10 +607,6 @@ typedef const char *(*simple_get_link_t)(struct dentry *dentry, struct inode *in
 typedef int (*fs_param_is_enum_t)(struct p_log *log, const struct fs_parameter_spec *p,
 				  struct fs_parameter *param, struct fs_parse_result *result);
 
-extern struct file_operations *generic_ro_fops_t;
-extern struct xattr_handler *posix_acl_default_xattr_handler_t;
-extern struct xattr_handler *posix_acl_access_xattr_handler_t;
-
 extern __xa_cmpxchg_t			f___xa_cmpxchg;
 extern fs_ftype_to_dtype_t		f_fs_ftype_to_dtype;
 extern filemap_read_t			f_filemap_read;
