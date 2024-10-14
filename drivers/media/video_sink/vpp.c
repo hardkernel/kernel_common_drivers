@@ -3070,6 +3070,13 @@ RESTART:
 			pre_scaler[input->layer_id].pre_hscaler_rate;
 		filter->vpp_hsc_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_hscaler_rate;
+		if (filter->vpp_hsc_nonlinear_4region_en &&
+			wide_mode == VIDEO_WIDEOPTION_NONLINEAR) {
+			filter->vpp_hf_start_phase_slope >>=
+				pre_scaler[input->layer_id].pre_hscaler_rate;
+			filter->vpp_hf_end_phase_slope =
+				filter->vpp_hf_start_phase_slope | 0x1000000;
+		}
 	} else if ((filter->vpp_hf_start_phase_step >= 0x2000000 &&
 	    filter->vpp_hsc_start_phase_step == filter->vpp_hf_start_phase_step &&
 	    pre_scaler_en) ||
