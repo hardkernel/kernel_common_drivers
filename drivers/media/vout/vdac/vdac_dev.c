@@ -467,8 +467,7 @@ static void vdac_enable_cvbs_out(bool on)
 				vdac_ana_reg_write(reg_cntl0, s_vdac_data->cvbsout_cfg_cntl0);
 				vdac_ctrl_table_config(1);
 			}
-		} else if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
-		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
+		} else if (s_vdac_data->cpu_id >= VDAC_CPU_T5) {
 			vdac_enable_dac_input(reg_cntl0);
 			if (!s_vdac_data->cdac_disable)
 				vdac_ctrl_config(1, reg_cntl1, 7);
@@ -484,8 +483,7 @@ static void vdac_enable_cvbs_out(bool on)
 	} else {
 		if (s_vdac_data->cpu_id >= VDAC_CPU_T5M) {
 			vdac_ctrl_table_config(0);
-		} else if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
-			   s_vdac_data->cpu_id < VDAC_CPU_MAX) {
+		} else if (s_vdac_data->cpu_id >= VDAC_CPU_T5) {
 			vdac_ana_reg_setb(reg_cntl0, 0x0, 4, 1);
 			vdac_ctrl_config(0, reg_cntl1, 7);
 		} else {
@@ -716,6 +714,8 @@ int vdac_enable_check_cvbs(void)
 
 static void vdac_dev_disable(void)
 {
+	unsigned int reg_val;
+
 	if (!s_vdac_data)
 		return;
 
@@ -728,6 +728,27 @@ static void vdac_dev_disable(void)
 		 */
 		vdac_ana_reg_write(s_vdac_data->reg_cntl0, 0);
 		vdac_ana_reg_write(s_vdac_data->reg_cntl1, 0);
+	} else if (s_vdac_data->cpu_id == VDAC_CPU_S7 ||
+		s_vdac_data->cpu_id == VDAC_CPU_S7D) {
+		/* for S7/S7D, band gap is used by both cvbs out
+		 * and sar adc, can't disable it when suspend.
+		 * reg_cntl0 only enable bg_en bit, other bits set 0;
+		 * reg_cntl1 set cdac_en bit to 0;
+		 */
+		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl0);
+		reg_val &= BIT(11);
+		vdac_ana_reg_write(s_vdac_data->reg_cntl0, reg_val);
+		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl1);
+		reg_val &= ~BIT(7);
+		vdac_ana_reg_write(s_vdac_data->reg_cntl1, reg_val);
+	} else if (s_vdac_data->cpu_id == VDAC_CPU_SC2) {
+		/*
+		 * for sc2, sar adc has its own band gap, so cvbs out
+		 * band gap can be disabled to save power consumption
+		 */
+		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl1);
+		reg_val |= BIT(3);
+		vdac_ana_reg_write(s_vdac_data->reg_cntl1, reg_val);
 	}
 
 	if ((pri_flag & VDAC_MODULE_MASK) == 0) {
@@ -745,9 +766,6 @@ static void vdac_dev_disable(void)
 		vdac_enable_dtv_demod(0);
 
 	mutex_unlock(&vdac_mutex);
-
-	if (vdac_debug_print)
-		print_vdac_reg_value();
 }
 
 static void vdac_dev_enable(void)
@@ -1046,6 +1064,8 @@ static int amvdac_drv_suspend(struct platform_device *pdev,
 {
 	vdac_dev_disable();
 	pr_info("%s: private_flag:0x%x\n", __func__, pri_flag);
+	if (vdac_debug_print)
+		print_vdac_reg_value();
 	return 0;
 }
 
@@ -1060,8 +1080,9 @@ static int amvdac_drv_resume(struct platform_device *pdev)
 static void amvdac_drv_shutdown(struct platform_device *pdev)
 {
 	vdac_dev_disable();
-
 	pr_info("%s: private_flag:0x%x\n", __func__, pri_flag);
+	if (vdac_debug_print)
+		print_vdac_reg_value();
 }
 
 static struct platform_driver aml_vdac_driver = {

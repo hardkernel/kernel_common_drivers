@@ -61,12 +61,17 @@ enum cvbs_cpu_type {
 	CVBS_CPU_TYPE_S4D    = 10,
 	CVBS_CPU_TYPE_T5W    = 11,
 	CVBS_CPU_TYPE_S1A    = 12,
+	CVBS_CPU_TYPE_S7     = 13,
+	CVBS_CPU_TYPE_S7D    = 14,
 };
 
 struct meson_cvbsout_data {
 	enum cvbs_cpu_type cpu_id;
 	const char *name;
 	unsigned int vdac_vref_adj;
+	/* not used on new chips, only used for old
+	 * chips which have no efuse for gsw store
+	 */
 	unsigned int vdac_gsw;
 	unsigned int reg_vid_pll_clk_div;
 	unsigned int reg_vid_clk_div;
@@ -82,6 +87,11 @@ struct performance_config_s {
 	struct reg_s *reg_table;
 };
 
+struct dts_perf_config {
+	char *config_name;
+	struct performance_config_s *perfconf;
+};
+
 /* cvbs driver flag */
 #define CVBS_FLAG_EN_ENCI   BIT(0)
 #define CVBS_FLAG_EN_VDAC   BIT(1)
@@ -93,9 +103,18 @@ struct cvbs_drv_s {
 	struct class  *base_class;
 	struct device *dev;
 	struct meson_cvbsout_data *cvbs_data;
+	/* for PAL CTCC performance config */
 	struct performance_config_s perf_conf_pal;
-	struct performance_config_s perf_conf_ntsc;
+	/* for PAL SVA performance config */
 	struct performance_config_s perf_conf_pal_sva;
+	/* for NTSC domestic performance config */
+	struct performance_config_s perf_conf_ntsc;
+	/* for NTSC TTC performance config */
+	struct performance_config_s perf_conf_ntsc_ttc;
+	/* for PAL, 1: use sva performance config, 0: use ctcc */
+	bool sva_std;
+	/* for NTSC, 1: use TTC performance config, 0: use domestic */
+	bool ntsc_ttc;
 	struct delayed_work vdac_dwork;
 	unsigned int flag;
 
@@ -111,6 +130,8 @@ struct cvbs_drv_s {
 
 	/*DRM related*/
 	int drm_cvbs_id;
+	/* for external video mute */
+	bool video_mute;
 };
 
 static  DEFINE_MUTEX(cvbs_mutex);

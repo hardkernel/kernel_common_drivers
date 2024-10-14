@@ -23,7 +23,7 @@
 #include <linux/printk.h>
 
 #undef pr_fmt
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) "cvbsout: " fmt
 
 #define cvbs_log_info(fmt, ...) \
 	pr_info(fmt, ##__VA_ARGS__)
