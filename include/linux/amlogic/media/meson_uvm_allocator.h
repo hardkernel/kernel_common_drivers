@@ -100,6 +100,15 @@ struct uvm_fd_info {
 	int fd;
 	int type;
 	u64 timestamp;
+	u32 buf_width;
+	u32 buf_height;
+	u32 buf_stride;
+	u32 buf_format;
+	u32 crop_left;
+	u32 crop_top;
+	u32 crop_right;
+	u32 crop_bottom;
+	u32 reserve[4];
 };
 
 struct uvm_fd_data {

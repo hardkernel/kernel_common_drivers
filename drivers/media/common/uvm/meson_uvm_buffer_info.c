@@ -12,12 +12,16 @@
 
 #include "meson_uvm_buffer_info.h"
 
+#define LOG_ERROR   1
+#define LOG_WARNING 2
+#define LOG_DEBUG   3
+
 static int mubi_debug_level;
 __module_param(mubi_debug_level, int, 0644);
 #define MUBI_PRINTK(level, fmt, arg...) \
 	do { \
 		if (mubi_debug_level >= (level)) \
-			pr_info("MUBI: " fmt, ## arg); \
+			pr_info("uvm_buffer_info: [%s] " fmt, __func__, ## arg); \
 	} while (0)
 
 static bool is_dv_video(const struct vframe_s *vfp)
@@ -98,67 +102,79 @@ static enum uvm_video_type get_resolution_vframe(const struct vframe_s *vfp)
 	return AM_VIDEO_NORMAL;
 }
 
-static struct vframe_s *get_vf_from_dma(struct dma_buf *dma_buf)
+static struct vframe_s *get_vf_from_fd(int fd)
 {
+	struct file *file_vf = NULL;
+	struct vframe_s *vf = NULL;
 	bool is_dec_vf = false;
-	bool is_v4l_vf = false;
-	struct vframe_s *p_vf = NULL;
-	struct uvm_hook_mod *uhmod = NULL;
+	bool is_v4lvideo_fd = false;
 	struct file_private_data *file_private_data = NULL;
+	struct uvm_hook_mod *uhmod;
 
-	is_dec_vf = is_valid_mod_type(dma_buf, VF_SRC_DECODER);
-	is_v4l_vf = is_valid_mod_type(dma_buf, VF_PROCESS_V4LVIDEO);
-
-	if (is_dec_vf) {
-		p_vf = dmabuf_get_vframe(dma_buf);
-		if (!p_vf)
-			MUBI_PRINTK(1, "%s, get vframe for decoder fail\n", __func__);
-
-		dmabuf_put_vframe(dma_buf);
-	} else if (is_v4l_vf) {
-		uhmod = uvm_get_hook_mod(dma_buf, VF_PROCESS_V4LVIDEO);
-		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
-			MUBI_PRINTK(1, "%s, dma file file_private_data is NULL\n", __func__);
-			goto exit_ret;
-		}
-
-		file_private_data = uhmod->arg;
-		uvm_put_hook_mod(dma_buf, VF_PROCESS_V4LVIDEO);
-
-		if (!file_private_data)
-			MUBI_PRINTK(1, "%s, invalid buffer fd, cannot found dma file", __func__);
-		else
-			p_vf = &file_private_data->vf;
-	} else {
-		MUBI_PRINTK(1, "%s, buffer is not UVM, not V4lvideo", __func__);
+	file_vf = fget(fd);
+	if (!file_vf) {
+		MUBI_PRINTK(LOG_ERROR, "fget fd fail\n");
+		goto exit_null;
 	}
 
-exit_ret:
-	return p_vf;
+	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+	if (is_dec_vf) {
+		vf = dmabuf_get_vframe((struct dma_buf *)(file_vf->private_data));
+		if (vf) {
+			MUBI_PRINTK(LOG_DEBUG, "vframe_type = 0x%x, vframe_flag = 0x%x.\n",
+				vf->type, vf->flag);
+			dmabuf_put_vframe((struct dma_buf *)(file_vf->private_data));
+		} else {
+			MUBI_PRINTK(LOG_ERROR, "vf is NULL.\n");
+		}
+	} else {
+#ifdef CONFIG_AMLOGIC_V4L_VIDEO3
+		if (is_v4lvideo_buf_file(file_vf))
+			is_v4lvideo_fd = true;
+#endif
+
+		if (is_v4lvideo_fd) {
+			file_private_data = (struct file_private_data *)(file_vf->private_data);
+		} else {
+			uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
+						 VF_PROCESS_V4LVIDEO);
+			if (!uhmod) {
+				MUBI_PRINTK(LOG_ERROR, "uhmod is NULL\n");
+				goto exit_null;
+			}
+			if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+				MUBI_PRINTK(LOG_ERROR, "file_private_data is NULL.\n");
+				goto exit_null;
+			}
+
+			file_private_data = uhmod->arg;
+			uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
+					 VF_PROCESS_V4LVIDEO);
+		}
+
+		if (!file_private_data) {
+			MUBI_PRINTK(LOG_ERROR, "invalid fd: no uvm, no v4lvideo!!\n");
+			goto exit_null;
+		} else {
+			vf = &file_private_data->vf;
+		}
+	}
+
+exit_null:
+	if (file_vf)
+		fput(file_vf);
+	return vf;
 }
 
-int get_uvm_video_info(const int fd, int *videotype, u64 *timestamp)
+int get_uvm_video_info(const int fd, struct uvm_fd_info *info)
 {
-	struct dma_buf *dmabuf;
 	struct vframe_s *vfp;
 	enum uvm_video_type type = AM_VIDEO_NORMAL;
 	int ret = 0;
 
-	dmabuf = dma_buf_get(fd);
-	if (IS_ERR_OR_NULL(dmabuf)) {
-		MUBI_PRINTK(1, "%s, invalid dmabuf fd\n", __func__);
-		return -EINVAL;
-	}
-
-	if (!dmabuf_is_uvm(dmabuf)) {
-		MUBI_PRINTK(1, "%s, dmabuf is not uvm\n", __func__);
-		dma_buf_put(dmabuf);
-		return -EINVAL;
-	}
-
-	vfp = get_vf_from_dma(dmabuf);
+	vfp = get_vf_from_fd(fd);
 	if (IS_ERR_OR_NULL(vfp)) {
-		MUBI_PRINTK(1, "%s, vframe is null.\n", __func__);
+		MUBI_PRINTK(LOG_ERROR, "vframe is null. maybe is DMA buffer\n");
 		ret = -EINVAL;
 		goto exit_ret;
 	}
@@ -182,14 +198,29 @@ int get_uvm_video_info(const int fd, int *videotype, u64 *timestamp)
 		type |= AM_VIDEO_AFBC;
 
 	type |= get_resolution_vframe(vfp);
+	info->type = (int)type;
 
-	*videotype = (int)type;
-	*timestamp = vfp->timestamp;
+	if ((vfp->type & VIDTYPE_COMPRESS) != 0) {
+		info->buf_width = vfp->compWidth;
+		info->buf_height = vfp->compHeight;
+		info->crop_right = info->buf_width;
+		info->crop_bottom = info->buf_height;
+		if (is_src_crop_valid(vfp->src_crop)) {
+			info->crop_right -= vfp->src_crop.right;
+			info->crop_bottom -= vfp->src_crop.bottom;
+		}
+	} else {
+		info->buf_width = vfp->width;
+		info->buf_height = vfp->height;
+		info->crop_right = info->buf_width;
+		info->crop_bottom = info->buf_height;
+	}
+	info->timestamp = vfp->timestamp;
+	info->buf_stride = info->buf_width;
 
-	MUBI_PRINTK(1, "%s, videotype:0x%x timestamp:%lld\n",
-			__func__, *videotype, *timestamp);
+	MUBI_PRINTK(LOG_DEBUG, "videotype: 0x%x timestamp: %lld wxh: %dx%d crop: (%d %d %d %d)\n",
+			info->type, info->timestamp, info->buf_width, info->buf_height,
+			info->crop_left, info->crop_top, info->crop_right, info->crop_bottom);
 exit_ret:
-	dma_buf_put(dmabuf);
-
 	return ret;
 }

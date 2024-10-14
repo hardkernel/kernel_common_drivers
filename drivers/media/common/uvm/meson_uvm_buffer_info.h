@@ -6,6 +6,8 @@
 #ifndef __MESON_UVM_BUFFER_INFO_H_
 #define __MESON_UVM_BUFFER_INFO_H_
 
+#include <linux/amlogic/media/meson_uvm_allocator.h>
+
 enum uvm_video_type {
 	AM_VIDEO_NORMAL      = 0x0,
 	AM_VIDEO_DV          = 0x1,
@@ -19,6 +21,6 @@ enum uvm_video_type {
 	AM_VIDEO_8K          = 0x100,
 };
 
-int get_uvm_video_info(const int fd, int *videotype, u64 *timestamp);
+int get_uvm_video_info(const int fd, struct uvm_fd_info *info);
 
 #endif

@@ -900,8 +900,6 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int fd = 0;
 	size_t usage = 0;
 	int alloc_buf_size = 0;
-	int videotype = 0;
-	u64 timestamp = 0;
 
 	md = file->private_data;
 
@@ -1085,17 +1083,17 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!mua_is_valid_dmabuf(fd))
 			return -EINVAL;
 
-		ret = get_uvm_video_info(fd, &videotype, &timestamp);
+		ret = get_uvm_video_info(fd, &data.fd_info);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_INFO, "get video %d info fail.\n", fd);
 			return ret;
 		} else {
-			MUA_PRINTK(MUA_INFO, "get video %d info type:%x, timestamp:%lld.\n",
-					fd, videotype, timestamp);
+			MUA_PRINTK(MUA_INFO,
+				   "get video %d info type:%x, timestamp:%lld, buffer size:%ux%u.\n",
+				   fd, data.fd_info.type, data.fd_info.timestamp,
+				   data.fd_info.buf_width, data.fd_info.buf_height);
 		}
 
-		data.fd_info.type = videotype;
-		data.fd_info.timestamp = timestamp;
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 		break;
