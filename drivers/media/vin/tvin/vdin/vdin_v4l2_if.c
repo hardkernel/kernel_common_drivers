@@ -469,10 +469,9 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 			reqbufs->type, reqbufs->count);
 		//return 0;
 	}
-	if (reqbufs->count && (reqbufs->count < devp->vb_queue.min_buffers_needed ||
-		reqbufs->count > VDIN_CANVAS_MAX_CNT)) {
-		dprintk(0, "%s err,count=%d,out of range[%d,%d]\n", __func__,
-			reqbufs->count, devp->vb_queue.min_buffers_needed, VDIN_CANVAS_MAX_CNT);
+	if (reqbufs->count && reqbufs->count > VDIN_CANVAS_MAX_CNT) {
+		dprintk(0, "%s err,count=%d,out of range[%d]\n", __func__,
+			reqbufs->count, VDIN_CANVAS_MAX_CNT);
 		return -EINVAL;
 	}
 
@@ -495,9 +494,6 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 	vb_buf = to_vb2_v4l2_buffer(devp->vb_queue.bufs[i]);
 	vdin_buf = to_vdin_vb_buf(vb_buf);
 
-	/*check buffer*/
-	dprintk(1, "%s num_buffers %d -end\n", __func__,
-		devp->vb_queue.num_buffers);
 	return ret;
 }
 
@@ -1633,8 +1629,8 @@ static int vdin_vb2ops_buffer_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 
 	queue = &devp->vb_queue;
-	dprintk(3, "buf prepare idx:%d bufs:%d planes:%d queue_cnt:%d, buf sts:%s\n",
-		vb->index, queue->num_buffers,
+	dprintk(3, "buf prepare idx:%d planes:%d queue_cnt:%d, buf sts:%s\n",
+		vb->index,
 		vb->num_planes, queue->queued_count,
 		vb2_buf_sts_to_str(vb->state));
 
@@ -1677,8 +1673,7 @@ static void vdin_vb2ops_buffer_queue(struct vb2_buffer *vb)
 
 	spin_unlock_irqrestore(&devp->list_head_lock, flags);
 	/* TODO: Update any DMA pointers if necessary */
-	dprintk(3, "num_buf:%d, queue_cnt:%d, after state:%s\n",
-		devp->vb_queue.num_buffers,
+	dprintk(3, "queue_cnt:%d, after state:%s\n",
 		devp->vb_queue.queued_count,
 		vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
 }
@@ -1758,8 +1753,8 @@ static int vdin_vb2ops_buf_init(struct vb2_buffer *vb)
 
 	dprintk(1, "%s idx:%d, type:0x%x, memory:0x%x, num_planes:%d\n",
 		__func__, vb->index, vb->type, vb->memory, vb->num_planes);
-	dprintk(1, "vb2q type:0x%x num buffer:%d request id:%d\n", vb2q->type,
-		vb2q->num_buffers, vb2q->queued_count);
+	dprintk(1, "vb2q type:0x%x request id:%d\n", vb2q->type,
+		vb2q->queued_count);
 
 	vb_buf = to_vb2_v4l2_buffer(vb);
 	vdin_buf = to_vdin_vb_buf(vb_buf);
@@ -1852,12 +1847,7 @@ static int vdin_v4l2_queue_init(struct vdin_dev_s *devp,
 	/*que->mem_ops = &vb2_dma_sg_memops;*/
 
 	que->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
-	/*
-	 * Assume that this DMA engine needs to have at least two buffers
-	 * available before it can be started. The start_streaming() op
-	 * won't be called until at least this many buffers are queued up.
-	 */
-	que->min_buffers_needed = 3;
+
 	/*
 	 * The serialization lock for the streaming ioctls. This is the same
 	 * as the main serialization lock, but if some of the non-streaming

@@ -6781,7 +6781,7 @@ fail_kzalloc_vdev:
  *	delete vdinx device
  *	free drvdata
  */
-static int vdin_drv_remove(struct platform_device *pdev)
+void vdin_drv_remove(struct platform_device *pdev)
 {
 	int ret;
 	struct vdin_dev_s *devp;
@@ -6813,7 +6813,6 @@ static int vdin_drv_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	kfree(devp);
 	pr_info("%s: driver removed ok\n", __func__);
-	return 0;
 }
 
 #ifdef CONFIG_PM
