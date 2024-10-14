@@ -1,6 +1,6 @@
-From 377fc09732057019f0436ea574e99491a680e01f Mon Sep 17 00:00:00 2001
-From: "song.han" <song.han@amlogic.com>
-Date: Wed, 23 Feb 2022 14:20:28 +0800
+From ba7d1afbf914a333692de6ca1db9416bc2c73bda Mon Sep 17 00:00:00 2001
+From: yao zhang1 <yao.zhang1@amlogic.com>
+Date: Mon, 14 Oct 2024 10:57:32 +0000
 Subject: [PATCH] boottime: reduce boot time [1/1]
 
 PD#SWPL-71744
@@ -18,38 +18,60 @@ Solution:
 Verify:
 c2_af400
 
-Signed-off-by: song.han <song.han@amlogic.com>
+Change-Id: Icc4def18fccc74228b6d8391e10ca71bbce64382
 Signed-off-by: yao zhang1 <yao.zhang1@amlogic.com>
-Change-Id: I90e67854b213dd673077c72bb4830264d17f1f88
 ---
- crypto/jitterentropy-kcapi.c | 27 +++++++++++++++++++++++++++
- kernel/params.c              | 12 ++++++++++++
- 2 files changed, 39 insertions(+)
+ crypto/jitterentropy-kcapi.c | 42 ++++++++++++++++++++++++++++++++++++
+ kernel/params.c              | 15 +++++++++++++
+ 2 files changed, 57 insertions(+)
 
 diff --git a/crypto/jitterentropy-kcapi.c b/crypto/jitterentropy-kcapi.c
-index 7d1463a1562a..6098e8c80628 100644
+index 7d1463a1562a..e8685c9b2af1 100644
 --- a/crypto/jitterentropy-kcapi.c
 +++ b/crypto/jitterentropy-kcapi.c
-@@ -318,6 +318,32 @@ static struct rng_alg jent_alg = {
+@@ -318,6 +318,7 @@ static struct rng_alg jent_alg = {
  	}
  };
  
-+#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
++#if !IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
+ static int __init jent_mod_init(void)
+ {
+ 	SHASH_DESC_ON_STACK(desc, tfm);
+@@ -348,6 +349,47 @@ static int __init jent_mod_init(void)
+ 	}
+ 	return crypto_register_rng(&jent_alg);
+ }
++#else
 +static struct delayed_work jent_work;
 +static void __jent_mod_init(struct work_struct *work)
 +{
++	SHASH_DESC_ON_STACK(desc, tfm);
++	struct crypto_shash *tfm;
 +	int ret = 0;
 +
-+	ret = jent_entropy_init();
-+	if (ret) {
-+		pr_info("jitterentropy: Initialization failed with : %d\n", ret);
-+		return;
++	jent_testing_init();
++
++	tfm = crypto_alloc_shash(JENT_CONDITIONING_HASH, 0, 0);
++	if (IS_ERR(tfm)) {
++		jent_testing_exit();
++		//return PTR_ERR(tfm);
 +	}
-+	ret = crypto_register_rng(&jent_alg);
++
++	desc->tfm = tfm;
++	crypto_shash_init(desc);
++	ret = jent_entropy_init(desc);
++	shash_desc_zero(desc);
++	crypto_free_shash(tfm);
 +	if (ret) {
-+		pr_err("registering jent_alg failed: %d\n", ret);
-+		return;
++		/* Handle permanent health test error */
++		if (fips_enabled)
++			panic("jitterentropy: Initialization failed with host not compliant with requirements: %d\n", ret);
++
++		jent_testing_exit();
++		pr_info("jitterentropy: Initialization failed with host not compliant with requirements: %d\n", ret);
++		//return -EFAULT;
 +	}
++	crypto_register_rng(&jent_alg);
 +}
 +
 +static int __init jent_mod_init(void)
@@ -59,23 +81,25 @@ index 7d1463a1562a..6098e8c80628 100644
 +
 +	return 0;
 +}
-+#else
- static int __init jent_mod_init(void)
- {
- 	SHASH_DESC_ON_STACK(desc, tfm);
-@@ -348,6 +374,7 @@ static int __init jent_mod_init(void)
- 	}
- 	return crypto_register_rng(&jent_alg);
- }
 +#endif
  
  static void __exit jent_mod_exit(void)
  {
 diff --git a/kernel/params.c b/kernel/params.c
-index 2d4a0564697e..deac97a77122 100644
+index 2d4a0564697e..c3a2c9858a7d 100644
 --- a/kernel/params.c
 +++ b/kernel/params.c
-@@ -973,6 +973,14 @@ static int __init param_sysfs_init(void)
+@@ -14,6 +14,9 @@
+ #include <linux/slab.h>
+ #include <linux/ctype.h>
+ #include <linux/security.h>
++#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
++#include <linux/async.h>
++#endif
+ 
+ #ifdef CONFIG_SYSFS
+ /* Protects all built-in parameters, modules use their own param_lock */
+@@ -973,6 +976,14 @@ static int __init param_sysfs_init(void)
  }
  subsys_initcall(param_sysfs_init);
  
@@ -90,7 +114,7 @@ index 2d4a0564697e..deac97a77122 100644
  /*
   * param_sysfs_builtin_init - add sysfs version and parameter
   * attributes for built-in modules
-@@ -982,8 +990,12 @@ static int __init param_sysfs_builtin_init(void)
+@@ -982,8 +993,12 @@ static int __init param_sysfs_builtin_init(void)
  	if (!module_kset)
  		return -ENOMEM;
  
@@ -104,5 +128,5 @@ index 2d4a0564697e..deac97a77122 100644
  	return 0;
  }
 -- 
-2.42.0
+2.46.0
 
