@@ -1604,9 +1604,9 @@ function build_ext_modules() {
 		mkdir -p ${OUT_DIR}/${EXT_MOD_REL}
 
 		set -x
-		make ARCH=${ARCH} -C ${ROOT_DIR}/${EXT_MOD} M=${EXT_MOD_REL} KERNEL_SRC=${ROOT_DIR}/${KERNEL_DIR}  \
+		make ARCH=${ARCH} -C ${ROOT_DIR}/${EXT_MOD} M=${EXT_MOD_REL} VPATH=${ROOT_DIR}/${KERNEL_DIR} KERNEL_SRC=${ROOT_DIR}/${KERNEL_DIR}  \
 				O=${OUT_DIR} ${TOOL_ARGS} -j12 || exit
-		make ARCH=${ARCH} -C ${ROOT_DIR}/${EXT_MOD} M=${EXT_MOD_REL} KERNEL_SRC=${ROOT_DIR}/${KERNEL_DIR}  \
+		make ARCH=${ARCH} -C ${ROOT_DIR}/${EXT_MOD} M=${EXT_MOD_REL} VPATH=${ROOT_DIR}/${KERNEL_DIR} KERNEL_SRC=${ROOT_DIR}/${KERNEL_DIR}  \
 				O=${OUT_DIR} ${TOOL_ARGS} ${MODULE_STRIP_FLAG}		\
 				INSTALL_MOD_PATH=${MODULES_STAGING_DIR}			\
 				INSTALL_MOD_DIR="extra/${EXT_MOD}"			\
@@ -1912,7 +1912,9 @@ function build_kernel_for_32bit () {
 	make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} uImage -j12 &&
 	make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} modules -j12 &&
 	if [[ -n ${ANDROID_PROJECT} ]]; then
-		make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} android_overlay_dt.dtbo -j12
+		if [[ "${FULL_KERNEL_VERSION}" == "common13-5.15" ||  "${FULL_KERNEL_VERSION}" == "common14-5.15" ]]; then
+			make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} android_overlay_dt.dtbo -j12
+		fi
 	fi
 	make ARCH=arm -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} dtbs -j12 || exit
 	set +x
