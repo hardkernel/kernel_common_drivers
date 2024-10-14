@@ -7238,8 +7238,9 @@ static void hdr_support_process(struct vinfo_s *vinfo,
 			 (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL))) {
 			/*tv sdr->hdr*/
 			sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
+		}
 #endif
-		} else {
+		else {
 			/* sdr->sdr*/
 			sdr_process_mode[vd_path] = PROC_BYPASS;
 		}
