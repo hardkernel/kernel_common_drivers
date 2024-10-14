@@ -2590,8 +2590,8 @@ static int lcd_tcon_mem_config(void)
 	if (lcd_tcon_conf->axi_tbl_len && lcd_tcon_conf->axi_mem_cfg_tbl) {
 		for (i = 0; i < lcd_tcon_conf->axi_tbl_len; i++) {
 			axi_cfg = &lcd_tcon_conf->axi_mem_cfg_tbl[i];
-			LCDPR("axi mem type=%d, size=%#x, reg=%#x, valid=%d\n",
-				axi_cfg->mem_type, axi_cfg->mem_size,
+			LCDPR("axi[%d] mem type=%d, size=%#x, reg=%#x, valid=%d\n",
+				i, axi_cfg->mem_type, axi_cfg->mem_size,
 				axi_cfg->axi_reg, axi_cfg->mem_valid);
 			switch (axi_cfg->mem_type) {
 			case TCON_AXI_MEM_TYPE_OD:

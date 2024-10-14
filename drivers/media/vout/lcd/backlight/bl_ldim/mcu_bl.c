@@ -362,12 +362,14 @@ static int blmcu_power_on(struct aml_ldim_driver_s *ldim_drv)
 
 static int blmcu_power_off(struct aml_ldim_driver_s *ldim_drv)
 {
-	LDIMPR("enter %s\n", __func__);
+	if (ldim_debug_print)
+		LDIMPR("enter %s\n", __func__);
 
 	if (!bl_mcu)
 		return -1;
 
-	LDIMPR("enter %s111\n", __func__);
+	if (ldim_debug_print)
+		LDIMPR("enter %s111\n", __func__);
 
 	mutex_lock(&dev_mutex);
 	bl_mcu->dev_on_flag = 0;

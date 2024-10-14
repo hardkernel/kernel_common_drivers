@@ -27,7 +27,8 @@
 bool lcd_unifykey_init_get(void)
 {
 	if (is_ukey_in_param_mem()) {
-		LCDUKEY("ukey in panel param mem, init ok\n");
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDUKEY("ukey in panel param mem, init ok\n");
 		return true;
 	}
 
@@ -406,6 +407,7 @@ void lcd_unifykey_header_print(unsigned char *buf)
 		return;
 	header = (struct aml_lcd_unifykey_header_s *)buf;
 	LCDUKEY("unifykey v%d header:\n", header->version);
+	LCDUKEY("version           = 0x%04x\n", header->version);
 	LCDUKEY("crc32             = 0x%08x\n", header->crc32);
 	LCDUKEY("data_len          = %d\n", header->data_len);
 	LCDUKEY("block_next_flag   = %d\n", header->block_next_flag);

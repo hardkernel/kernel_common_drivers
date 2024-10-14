@@ -354,7 +354,8 @@ int lcd_tcon_rdma_init(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (!rdma_chip) {
-		LCDERR("not support tcon rdma\n");
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("not support tcon rdma\n");
 		goto __tcon_rdma_init_exit;
 	}
 

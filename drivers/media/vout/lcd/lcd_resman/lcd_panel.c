@@ -37,6 +37,7 @@
 #include <linux/page-flags.h>
 #include <linux/mm.h>
 #include <linux/amlogic/tee.h>
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 #include <linux/amlogic/media/vout/lcd/lcd_math.h>
 
@@ -120,7 +121,7 @@ int lcd_panel_file_pre_proc(void)
 
 	LRMPR("%s panel_param_mem: size:0x%x, key_cnt:%d, ukey_exist:%d\n",
 		__func__, head->size, head->key_cnt, head->ukey_exist);
-	if (lcd_debug_print_flag) {
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		for (i = 0; i < head->key_cnt; i++) {
 			key = &panel_param_mem.keys[i];
 			LRMPR("[%d]: size;0x%x, mem_ofst:0x%x, name:%s\n",

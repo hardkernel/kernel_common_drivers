@@ -15,7 +15,6 @@
 		compatible = "amlogic, lcd-t6d";
 		status = "okay";
 		index = <0>;
-		pxp = <0>;
 		mode = "tv";
 		fr_auto_policy = <1>; /* 0=disable, 1=enable */
 		key_valid = <1>;

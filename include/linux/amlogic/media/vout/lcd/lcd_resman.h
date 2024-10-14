@@ -6,7 +6,6 @@
 #ifndef _AML_LCD_RESMAN_H
 #define _AML_LCD_RESMAN_H
 
-extern unsigned int lcd_debug_print_flag;
 #define LRMPR(fmt, args...)     pr_info("lcd: " fmt "", ## args)
 #define LRMERR(fmt, args...)    pr_err("lcd: error: " fmt "", ## args)
 

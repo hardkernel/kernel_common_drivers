@@ -596,6 +596,8 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	if (!pdrv)
 		return -1;
 
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s: mode=0x%x\n", pdrv->index, __func__, mode);
 	if (lcd_vout_serve_bypass) {
 		LCDPR("[%d]: vout_serve bypass\n", pdrv->index);
 		return 0;

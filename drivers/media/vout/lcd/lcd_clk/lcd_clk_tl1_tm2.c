@@ -238,7 +238,7 @@ set_pll_retry_tl1:
 	usleep_range(10, 15);
 	lcd_hiu_write(HHI_TCON_PLL_CNTL2, 0x0000300c);
 
-	ret = lcd_pll_wait_lock(HHI_TCON_PLL_CNTL0, LCD_PLL_LOCK_TL1);
+	ret = lcd_pll_wait_lock(cconf->pll_id, HHI_TCON_PLL_CNTL0, LCD_PLL_LOCK_TL1);
 	if (ret) {
 		if (cnt++ < PLL_RETRY_MAX)
 			goto set_pll_retry_tl1;

@@ -256,8 +256,8 @@ static int amblt_get_config(struct amblt_drv_s *amblt_drv, struct platform_devic
 	amblt_drv->zone_h = para[0];
 	amblt_drv->zone_v = para[1];
 	amblt_drv->zone_size = para[0] * para[1];
-	AMBLTPR("%s: zone h=%d, v=%d, size=%d\n",
-		__func__, amblt_drv->zone_h, amblt_drv->zone_v, amblt_drv->zone_size);
+	//AMBLTPR("%s: zone h=%d, v=%d, size=%d\n",
+	//	__func__, amblt_drv->zone_h, amblt_drv->zone_v, amblt_drv->zone_size);
 	amblt_zone_pixel_init(amblt_drv);
 
 	amblt_drv->res_vs_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");

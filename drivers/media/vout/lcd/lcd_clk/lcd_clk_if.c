@@ -117,7 +117,8 @@ static void lcd_bit_rate_match_phy(struct aml_lcd_drv_s *pdrv)
 		LCDPR("%s act_phy[%d], clk:%d\n", __func__, i, phy_cfg->act_phy->phy_clk);
 		return;
 	}
-	LCDPR("no phy_clk matched, use default(phy[0])\n");
+	if (phy_cfg->phys[0]->phy_clk)
+		LCDPR("no phy_clk matched, use default(phy[0])\n");
 }
 
 static void lcd_phy_match_ss(struct aml_lcd_drv_s *pdrv)
@@ -628,7 +629,8 @@ void lcd_clk_gate_switch(struct aml_lcd_drv_s *pdrv, int status)
 		return;
 
 	if (cconf->clktree.clk_gate_state == status) {
-		LCDPR("[%d]: clk gate is already %s\n", pdrv->index, status ? "on" : "off");
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: gate is already %s\n", pdrv->index, status ? "on" : "off");
 		return;
 	}
 

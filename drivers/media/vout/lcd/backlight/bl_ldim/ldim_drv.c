@@ -740,8 +740,10 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	unsigned int *bl_matrix;
 
 	mcd_nr = _IOC_NR(cmd);
-	LDIMPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
-	       __func__, _IOC_DIR(cmd), mcd_nr);
+	if (ldim_debug_print) {
+		LDIMPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
+			__func__, _IOC_DIR(cmd), mcd_nr);
+	}
 
 	if (bdrv->bconf.method != BL_CTRL_LOCAL_DIMMING) {
 		LDIMERR("%s: bconf.method is not ldim!!\n", __func__);
@@ -1009,8 +1011,6 @@ int aml_ldim_get_config_dts(struct device_node *child)
 	}
 	ldim_config.seg_row = para[0];
 	ldim_config.seg_col = para[1];
-	LDIMPR("get bl_zone row = %d, col = %d\n",
-	       ldim_config.seg_row, ldim_config.seg_col);
 
 aml_ldim_get_config_dts_next:
 	/* get bl_mode from dts */
@@ -1019,7 +1019,8 @@ aml_ldim_get_config_dts_next:
 		LDIMERR("failed to get bl_ldim_mode\n");
 	else
 		ldim_config.bl_mode = (unsigned char)para[0];
-	LDIMPR("get bl_mode = %d\n", ldim_config.bl_mode);
+	LDIMPR("get bl_zone row = %d, col = %d, bl_mode = %d\n",
+		ldim_config.seg_row, ldim_config.seg_col, ldim_config.bl_mode);
 
 	/* get ldim_dev_index from dts */
 	ret = of_property_read_u32(child, "ldim_dev_index", &para[0]);
@@ -1041,12 +1042,11 @@ int aml_ldim_get_config_unifykey(unsigned char *buf)
 	/* get bl_ldim_region_row_col 4byte*/
 	ldim_config.seg_row = *(p + LCD_UKEY_BL_LDIM_ROW);
 	ldim_config.seg_col = *(p + LCD_UKEY_BL_LDIM_COL);
-	LDIMPR("get bl_zone row = %d, col = %d\n",
-	       ldim_config.seg_row, ldim_config.seg_col);
 
 	/* get bl_ldim_mode 1byte*/
 	ldim_config.bl_mode = *(p + LCD_UKEY_BL_LDIM_MODE);
-	LDIMPR("get bl_mode = %d\n", ldim_config.bl_mode);
+	LDIMPR("get bl_zone row = %d, col = %d, bl_mode = %d\n",
+		ldim_config.seg_row, ldim_config.seg_col, ldim_config.bl_mode);
 
 	/* get ldim_dev_index 1byte*/
 	ldim_config.dev_index = *(p + LCD_UKEY_BL_LDIM_DEV_INDEX);
@@ -1377,7 +1377,6 @@ int aml_ldim_probe(struct platform_device *pdev)
 		LDIMERR("ldim_vsync_irq resource error\n");
 		goto err4;
 	}
-	LDIMPR("ldim_vsync_irq: %d\n", ldim_vsync_irq);
 	if (request_irq(ldim_vsync_irq, ldim_vsync_isr, IRQF_SHARED,
 		"ldim_vsync", (void *)"ldim_vsync")) {
 		LDIMERR("can't request ldim_vsync_irq(%d)\n", ldim_vsync_irq);
@@ -1389,11 +1388,11 @@ int aml_ldim_probe(struct platform_device *pdev)
 		LDIMERR("ldim_pwm_vs_irq resource error\n");
 		goto err4;
 	}
-	LDIMPR("ldim_pwm_vs_irq: %d\n", ldim_pwm_vs_irq);
 	if (request_irq(ldim_pwm_vs_irq, ldim_pwm_vs_isr, IRQF_TRIGGER_FALLING,
 		"ldim_pwm_vs", (void *)"ldim_pwm_vs")) {
 		LDIMERR("can't request ldim_pwm_vs_irq(%d)\n", ldim_pwm_vs_irq);
 	}
+	LDIMPR("ldim_vsync_irq: %d, ldim_pwm_vs_irq: %d\n", ldim_vsync_irq, ldim_pwm_vs_irq);
 
 	ldim_driver.valid_flag = 1;
 

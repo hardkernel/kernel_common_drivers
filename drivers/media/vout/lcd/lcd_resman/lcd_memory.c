@@ -37,7 +37,7 @@
 #include <linux/page-flags.h>
 #include <linux/mm.h>
 #include <linux/amlogic/tee.h>
-
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 
 /*
@@ -120,7 +120,7 @@ void lrm_resource_device_prepare(char *name)
 	list_add_tail(&res->list, &lrm_resource_device_list);
 	spin_unlock(&lrm_res_dev_lock);
 
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LRMPR("lrm device %s add ok\n", name);
 }
 
@@ -136,7 +136,7 @@ void lrm_resource_device_finish(char *name)
 		if (strncmp(res->name, name, 32) == 0) {
 			list_del(&res->list);
 			kfree(res);
-			if (lcd_debug_print_flag)
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 				LRMPR("lrm device %s finish\n", name);
 		}
 	}
@@ -261,7 +261,7 @@ void *lrm_phys_to_virt(phys_addr_t paddr, u32 size)
 
 	if (lrm->no_map) {
 		vaddr = memremap(paddr, size, MEMREMAP_WC);
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LRMPR("%s memremap pa:0x%llx\n", __func__, (u64)paddr);
 	} else if (PageHighMem(phys_to_page(paddr))) {
 		nr_page = DIV_ROUND_UP(size, PAGE_SIZE);
@@ -270,7 +270,7 @@ void *lrm_phys_to_virt(phys_addr_t paddr, u32 size)
 			pages[i] = phys_to_page(paddr + i * PAGE_SIZE);
 
 		vaddr = vmap(pages, nr_page, VM_MAP, PAGE_KERNEL);
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LRMPR("%s vmap pa;0x%llx %d pages\n", __func__, (u64)paddr, nr_page);
 	} else {
 		vaddr = phys_to_virt(paddr);
@@ -763,7 +763,7 @@ int lrm_update_bootloader(struct lcd_rsvd_mem_s *lrm)
 		}
 		memcpy(&mem->info, p, sizeof(mem->info));
 		list_add_tail(&mem->list, &lrm->mem_list);
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LRMPR("lcd rsvd mem used by bootloader: pa:0x%llx, size:0x%x, name:%s",
 				 lrm->pstart + mem->info.offset, mem->info.size, mem->info.name);
 		lrm->allocated_num++;

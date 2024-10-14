@@ -807,8 +807,10 @@ int bl_pwm_channel_register(struct device *dev, phandle pwm_phandle,
 		}
 		bl_pwm->pwm_data.meson = to_meson_pwm(bl_pwm->pwm_data.pwm->chip);
 		pwm_init_state(bl_pwm->pwm_data.pwm, &bl_pwm->pwm_data.state);
-		BLPR("register %s(%d) 0x%px\n",
-		     pwm_str, bl_pwm->pwm_data.meson_index, bl_pwm->pwm_data.pwm);
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+			BLPR("register %s(%d) 0x%px\n",
+				pwm_str, bl_pwm->pwm_data.meson_index, bl_pwm->pwm_data.pwm);
+		}
 	}
 
 	return ret;

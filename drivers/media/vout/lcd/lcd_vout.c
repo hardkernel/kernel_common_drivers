@@ -663,8 +663,6 @@ static int lcd_driver_active(struct aml_lcd_drv_s *pdrv)
 		return -1;
 	lcd_set_venc(pdrv);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
 	return 0;
 }
 
@@ -674,8 +672,6 @@ static int lcd_driver_dummy(struct aml_lcd_drv_s *pdrv)
 		return -1;
 	lcd_venc_set_dummy(pdrv);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
 	return 0;
 }
 
@@ -2229,7 +2225,10 @@ static void lcd_config_probe_work(struct work_struct *p_work)
 		LCDERR("[%d]: %s: key_init_flag=%d, exit\n", pdrv->index, __func__, is_init);
 		goto lcd_config_probe_work_failed;
 	}
-	LCDPR("[%d]: key_init_flag=%d, retry_cnt=%d\n", pdrv->index, is_init, pdrv->retry_cnt);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: key_init_flag=%d, retry_cnt=%d\n",
+			pdrv->index, is_init, pdrv->retry_cnt);
+	}
 
 	ret = lcd_mode_probe(pdrv);
 	sprintf(lrm_dev_name, "lcd%d", pdrv->index);
@@ -2279,7 +2278,7 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 	} else {
 		pdrv->status = 0;
 	}
-	LCDPR("[%d]: ppc: %d, clk_mode: %d, base_fr: %d, status: 0x%x, init_flag: %d\n",
+	LCDPR("[%d]: init: ppc: %d, clk_mode: %d, base_fr: %d, status: 0x%x, init_flag: %d\n",
 		pdrv->index, pdrv->config.timing.ppc,
 		pdrv->config.timing.clk_mode,
 		pdrv->config.timing.act_timing.frame_rate,
@@ -2730,8 +2729,6 @@ static int lcd_probe(struct platform_device *pdev)
 
 	lcd_global_init_once(pdata);
 
-	LCDPR("[%d]: driver version: %s(%d-%s)\n",
-	      index, LCD_DRV_VERSION, pdata->chip_type, pdata->chip_name);
 	if (index >= pdata->drv_max) {
 		LCDERR("[%d]: %s: invalid index\n", index, __func__);
 		return -1;

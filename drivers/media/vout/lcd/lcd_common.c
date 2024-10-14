@@ -368,7 +368,7 @@ static int lcd_cpu_gpio_register(struct aml_lcd_drv_s *pdrv, unsigned int index,
 
 	/* request gpio */
 	cpu_gpio->gpio = devm_gpiod_get_index(pdrv->dev, "lcd_cpu", index, value);
-	if (IS_ERR(cpu_gpio->gpio)) {
+	if (IS_ERR_OR_NULL(cpu_gpio->gpio)) {
 		LCDERR("[%d]: register gpio %s[%d]: %p, err: %d\n",
 		       pdrv->index, cpu_gpio->name, index, cpu_gpio->gpio,
 		       IS_ERR(cpu_gpio->gpio));
@@ -477,7 +477,7 @@ static void lcd_custom_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	pconf->pin = devm_pinctrl_get_select(pdrv->dev, pinmux_str);
-	if (IS_ERR(pconf->pin)) {
+	if (IS_ERR_OR_NULL(pconf->pin)) {
 		LCDERR("set custom_pinmux %s error\n", pinmux_str);
 	} else {
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -527,7 +527,7 @@ void lcd_rgb_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 
 	/* request pinmux */
 	pconf->pin = devm_pinctrl_get_select(pdrv->dev, lcd_rgb_pinmux_str[index]);
-	if (IS_ERR(pconf->pin)) {
+	if (IS_ERR_OR_NULL(pconf->pin)) {
 		LCDERR("[%d]: set rgb pinmux %s error\n", pdrv->index, lcd_rgb_pinmux_str[index]);
 		return;
 	}
@@ -576,7 +576,7 @@ void lcd_bt_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 
 	/* request pinmux */
 	pconf->pin = devm_pinctrl_get_select(pdrv->dev, lcd_bt_pinmux_str[index]);
-	if (IS_ERR(pconf->pin)) {
+	if (IS_ERR_OR_NULL(pconf->pin)) {
 		LCDERR("[%d]: set bt pinmux %s error\n", pdrv->index, lcd_bt_pinmux_str[index]);
 		return;
 	}
@@ -613,7 +613,7 @@ void lcd_vbyone_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	pconf->pin = devm_pinctrl_get_select(pdrv->dev, lcd_vbyone_pinmux_str[index]);
-	if (IS_ERR(pconf->pin)) {
+	if (IS_ERR_OR_NULL(pconf->pin)) {
 		LCDERR("[%d]: set vbyone pinmux %s error\n",
 		       pdrv->index, lcd_vbyone_pinmux_str[index]);
 	} else {
@@ -661,7 +661,7 @@ void lcd_mlvds_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	pconf->pin = devm_pinctrl_get_select(pdrv->dev, lcd_tcon_pinmux_str[index]);
-	if (IS_ERR(pconf->pin)) {
+	if (IS_ERR_OR_NULL(pconf->pin)) {
 		LCDERR("[%d]: set mlvds pinmux %s error\n",
 		       pdrv->index, lcd_tcon_pinmux_str[index]);
 	} else {
@@ -704,7 +704,7 @@ void lcd_p2p_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	pconf->pin = devm_pinctrl_get_select(pdrv->dev, lcd_tcon_pinmux_str[index]);
-	if (IS_ERR(pconf->pin)) {
+	if (IS_ERR_OR_NULL(pconf->pin)) {
 		LCDERR("[%d]: set p2p pinmux %s error\n",
 		       pdrv->index, lcd_tcon_pinmux_str[index]);
 	} else {
@@ -741,7 +741,7 @@ void lcd_edp_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	pconf->pin = devm_pinctrl_get_select(pdrv->dev, lcd_edp_pinmux_str[index]);
-	if (IS_ERR(pconf->pin)) {
+	if (IS_ERR_OR_NULL(pconf->pin)) {
 		LCDERR("[%d]: set edp pinmux %s error\n",
 		       pdrv->index, lcd_edp_pinmux_str[index]);
 	} else {
@@ -781,7 +781,7 @@ void lcd_mipi_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	pconf->pin = devm_pinctrl_get_select(pdrv->dev, lcd_mipi_pinmux_str[index]);
-	if (IS_ERR(pconf->pin)) {
+	if (IS_ERR_OR_NULL(pconf->pin)) {
 		LCDERR("[%d]: set mipi pinmux %s error\n",
 		       pdrv->index, lcd_mipi_pinmux_str[index]);
 	} else {
@@ -944,17 +944,12 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 	if (!ptiming)
 		return;
 
-	LCDPR("[%d]: %s, %s, %dbit, %dx%d\n",
-	      pdrv->index,
-	      pconf->basic.model_name,
-	      lcd_type_type_to_str(pconf->basic.lcd_type),
-	      pconf->basic.lcd_bits,
-	      ptiming->h_active, ptiming->v_active);
-
 	if ((lcd_debug_print_flag & LCD_DBG_PR_NORMAL) == 0)
 		return;
 
-
+	LCDPR("[%d]: %s, %s\n",
+	      pdrv->index, pconf->basic.model_name,
+	      lcd_type_type_to_str(pconf->basic.lcd_type));
 	LCDPR("pll_flag = %d\n", pconf->timing.pll_flag);
 	LCDPR("clk_mode = %d\n", pconf->timing.clk_mode);
 	LCDPR("custom_pinmux = %d\n", pconf->custom_pinmux);
@@ -997,7 +992,7 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 		LCDPR("bit_swap = %d\n", pctrl->rgb_cfg.bit_swap);
 	} else if ((pconf->basic.lcd_type == LCD_BT656) ||
 		   (pconf->basic.lcd_type == LCD_BT1120)) {
-		LCDPR("clk_phase = %d\n", pctrl->bt_cfg.clk_phase);
+		LCDPR("clk_phase = 0x%x\n", pctrl->bt_cfg.clk_phase);
 		LCDPR("field_type = %d\n", pctrl->bt_cfg.field_type);
 		LCDPR("mode_422 = %d\n", pctrl->bt_cfg.mode_422);
 		LCDPR("yc_swap = %d\n", pctrl->bt_cfg.yc_swap);
@@ -1021,7 +1016,7 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 		LCDPR("channel_num = %d\n", pctrl->mlvds_cfg.channel_num);
 		LCDPR("channel_sel0 = 0x%x\n", pctrl->mlvds_cfg.channel_sel0);
 		LCDPR("channel_sel1 = 0x%x\n", pctrl->mlvds_cfg.channel_sel1);
-		LCDPR("clk_phase = %d\n", pctrl->mlvds_cfg.clk_phase);
+		LCDPR("clk_phase = 0x%x\n", pctrl->mlvds_cfg.clk_phase);
 		LCDPR("phy_vswing = 0x%x\n", pctrl->mlvds_cfg.phy_vswing);
 		LCDPR("phy_preem = 0x%x\n", pctrl->mlvds_cfg.phy_preem);
 	} else if (pconf->basic.lcd_type == LCD_P2P) {
@@ -1246,9 +1241,10 @@ lcd_config_timing_check_end:
 int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 {
 	const struct device_node *np;
-	const char *str = "none";
+	const char *mode_str, *str;
 	unsigned int val, para[8];
-	int ret = 0;
+	char str_info[128];
+	int str_info_len = 0, ret = 0;
 
 	if (!pdrv->dev->of_node) {
 		LCDERR("dev of_node is null\n");
@@ -1268,12 +1264,12 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		pdrv->mode = LCD_MODE_TABLET;
 		break;
 	default:
-		ret = of_property_read_string(np, "mode", &str);
+		ret = of_property_read_string(np, "mode", &mode_str);
 		if (ret) {
 			LCDERR("[%d]: failed to get mode\n", pdrv->index);
 			return -1;
 		}
-		pdrv->mode = lcd_mode_str_to_mode(str);
+		pdrv->mode = lcd_mode_str_to_mode(mode_str);
 		break;
 	}
 
@@ -1316,8 +1312,6 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		}
 		break;
 	}
-	LCDPR("[%d]: detect mode: %s, fr_auto_policy: %d, key_valid: %d\n",
-	      pdrv->index, str, pdrv->fr_auto_policy, pdrv->key_valid);
 
 	ret = of_property_read_u32(np, "clk_path", &val);
 	if (ret) {
@@ -1338,24 +1332,25 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	}
 
 	ret = of_property_read_u32(np, "resume_type", &val);
-	if (ret) {
+	if (ret)
 		pdrv->resume_type = 1; /* default workqueue */
-	} else {
+	else
 		pdrv->resume_type = (unsigned char)val;
-		LCDPR("[%d]: detect resume_type: %d\n",
-		      pdrv->index, pdrv->resume_type);
-	}
 
 	ret = of_property_read_u32(np, "config_check_glb", &val);
-	if (ret) {
+	if (ret)
 		pdrv->config_check_glb = 0;
-	} else {
+	else
 		pdrv->config_check_glb = (unsigned char)val;
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: detect config_check_glb: %d\n",
-				pdrv->index, pdrv->config_check_glb);
-		}
-	}
+
+	str_info_len += sprintf(str_info + str_info_len, "fr_auto: %d, ",
+			pdrv->fr_auto_policy);
+	str_info_len += sprintf(str_info + str_info_len, "resume_type: 0x%x, ",
+			pdrv->resume_type);
+	sprintf(str_info + str_info_len, "cfg_chk_glb: %d, ", pdrv->config_check_glb);
+	LCDPR("[%d]: drv_ver: %s(%d-%s), lcd_mode: %s, key_valid: %d, %s\n",
+	      pdrv->index, LCD_DRV_VERSION, pdrv->data->chip_type, pdrv->data->chip_name,
+	      mode_str, pdrv->key_valid, str_info);
 
 	ret = of_property_read_u32_array(np, "display_timing_req_min", &para[0], 5);
 	if (ret) {
@@ -1405,9 +1400,6 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 				pdrv->fr_lock->ki, pdrv->fr_lock->kd,
 				pdrv->fr_lock->line_limit, pdrv->fr_lock->freq_limit);
 		}
-	} else {
-		pdrv->fr_lock_en = 0;
-		LCDPR("no fr_lock\n");
 	}
 
 	return 0;
@@ -1812,7 +1804,8 @@ static int lcd_optical_load_from_unifykey(struct aml_lcd_drv_s *pdrv)
 	ret = lcd_unifykey_get_size(key_str, &key_len);
 	if (ret < 0)
 		return -1;
-	LCDPR("[%d]: %s: find ukey: %s\n", pdrv->index, __func__, key_str);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s: find ukey: %s\n", pdrv->index, __func__, key_str);
 
 	para = kzalloc(key_len, GFP_KERNEL);
 	if (!para)
@@ -1911,7 +1904,8 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	struct phy_attr_s *phy = NULL;
 	unsigned int para[10], val;
 	const char *str;
-	int i, ret = 0;
+	char str_info[128];
+	int i, str_info_len = 0, ret = 0;
 
 	if (!pdrv->dev->of_node) {
 		LCDERR("[%d]: dev of_node is null\n", pdrv->index);
@@ -1940,15 +1934,10 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		str = "invalid";
 	}
 	pconf->basic.lcd_type = lcd_type_str_to_type(str);
-	LCDPR("load dts config: %s, lcd_type: %s(%d)\n",
-		pconf->basic.model_name, str, pconf->basic.lcd_type);
 
 	ret = of_property_read_u32(child, "config_check", &val);
-	if (ret == 0) {
+	if (ret == 0)
 		pconf->basic.config_check = val ? 0x3 : 0x2;
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("[%d]: find config_check: %d\n", pdrv->index, val);
-	}
 
 	ret = of_property_read_u32_array(child, "basic_setting", &para[0], 7);
 	if (ret) {
@@ -2065,44 +2054,48 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 
 	ret = of_property_read_u32(child, "custom_pinmux", &val);
 	if (ret) {
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("[%d]: failed to get custom_pinmux\n", pdrv->index);
 		ret = of_property_read_u32(child, "customer_pinmux", &val);
-		if (ret) {
+		if (ret)
 			pconf->custom_pinmux = 0;
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%d]: failed to get customer_pinmux\n", pdrv->index);
-		} else {
+		else
 			pconf->custom_pinmux = val;
-			LCDPR("[%d]: find custom_pinmux: %d\n",
-				pdrv->index, pconf->custom_pinmux);
-		}
 	} else {
 		pconf->custom_pinmux = val;
-		LCDPR("[%d]: find custom_pinmux: %d\n",
-			pdrv->index, pconf->custom_pinmux);
 	}
 
 	ret = of_property_read_u32(child, "fr_auto_disable", &val);
 	if (ret) {
 		ret = of_property_read_u32(child, "fr_auto_custom", &val);
-		if (ret) {
+		if (ret)
 			pconf->fr_auto_cus = 0;
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%d]: failed to get fr_auto_custom\n", pdrv->index);
-		} else {
+		else
 			pconf->fr_auto_cus = val;
-			LCDPR("[%d]: find fr_auto_custom: 0x%x\n",
-				pdrv->index, pconf->fr_auto_cus);
-		}
 	} else {
 		if (val)
 			pconf->fr_auto_cus = 0xff;
 		else
 			pconf->fr_auto_cus = 0;
-		LCDPR("[%d]: find fr_auto_disable: %d, fr_auto_cus: 0x%x\n",
-			pdrv->index, val, pconf->fr_auto_cus);
 	}
+
+	str_info_len += sprintf(str_info + str_info_len, "ppc:%d, ",
+			pconf->timing.ppc);
+	str_info_len += sprintf(str_info + str_info_len, "clk_mode:%d, ",
+			pconf->timing.clk_mode);
+	if (pconf->timing.pre_de_h || pconf->timing.pre_de_v) {
+		str_info_len += sprintf(str_info + str_info_len, "pre_de:%d,%d, ",
+				pconf->timing.pre_de_h, pconf->timing.pre_de_v);
+	}
+	str_info_len += sprintf(str_info + str_info_len, "cfg_chk:0x%x, ",
+			pconf->basic.config_check);
+	str_info_len += sprintf(str_info + str_info_len, "cus_pinmux:%d, ",
+			pconf->custom_pinmux);
+	sprintf(str_info + str_info_len, "afr_cus:0x%x", pconf->fr_auto_cus);
+
+	LCDPR("[%d]: load dts config: %s, %s, %dbit, %dx%d, %s\n",
+	      pdrv->index, pconf->basic.model_name,
+	      lcd_type_type_to_str(pconf->basic.lcd_type),
+	      pconf->basic.lcd_bits, ptiming->h_active, ptiming->v_active,
+	      str_info);
 
 	switch (pconf->basic.lcd_type) {
 	case LCD_RGB:
@@ -2599,7 +2592,8 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	struct phy_attr_s *phy = NULL;
 	union lcd_ctrl_config_u *pctrl = &pdrv->config.control;
 	unsigned int temp;
-	int ret = 0;
+	char str_info[128];
+	int str_info_len = 0, ret;
 
 	ret = lcd_unifykey_get_size(key_str, &key_len);
 	if (ret)
@@ -2617,8 +2611,6 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 
 	/* step 1: check header size */
 	lcd_header = (struct aml_lcd_unifykey_header_s *)para;
-	LCDPR("[%d]: unifykey version: 0x%04x\n",
-	      pdrv->index, lcd_header->version);
 	len = LCD_UKEY_DATA_LEN_V1; /*10+36+18+31+20*/
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		lcd_unifykey_header_print(para);
@@ -2648,10 +2640,6 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		((*(p + LCD_UKEY_SCREEN_WIDTH + 1)) << 8));
 	pconf->basic.screen_height = (*(p + LCD_UKEY_SCREEN_HEIGHT) |
 		((*(p + LCD_UKEY_SCREEN_HEIGHT + 1)) << 8));
-	LCDPR("load ukey config: %s, lcd_type: %s(%d)\n",
-		pconf->basic.model_name,
-		lcd_type_type_to_str(pconf->basic.lcd_type),
-		pconf->basic.lcd_type);
 
 	/* timing: 18byte */
 	ptiming = lcd_timing_alloc(pdrv);
@@ -2731,6 +2719,26 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	lcd_clk_frame_rate_init(ptiming);
 	lcd_config_timing_check(pdrv, ptiming);
 	lcd_default_to_basic_timing_init_config(pdrv);
+
+	str_info_len += sprintf(str_info + str_info_len, "ppc:%d, ",
+			pconf->timing.ppc);
+	str_info_len += sprintf(str_info + str_info_len, "clk_mode:%d, ",
+			pconf->timing.clk_mode);
+	if (pconf->timing.pre_de_h || pconf->timing.pre_de_v) {
+		str_info_len += sprintf(str_info + str_info_len, "pre_de:%d,%d, ",
+				pconf->timing.pre_de_h, pconf->timing.pre_de_v);
+	}
+	str_info_len += sprintf(str_info + str_info_len, "cfg_chk:0x%x, ",
+			pconf->basic.config_check);
+	str_info_len += sprintf(str_info + str_info_len, "cus_pinmux:%d, ",
+			pconf->custom_pinmux);
+	sprintf(str_info + str_info_len, "afr_cus:0x%x", pconf->fr_auto_cus);
+
+	LCDPR("[%d]: load ukey config: %s, %s, %dbit, %dx%d, %s\n",
+	      pdrv->index, pconf->basic.model_name,
+	      lcd_type_type_to_str(pconf->basic.lcd_type),
+	      pconf->basic.lcd_bits, ptiming->h_active, ptiming->v_active,
+	      str_info);
 
 	/* interface: 20byte */
 	switch (pconf->basic.lcd_type) {
@@ -2941,15 +2949,11 @@ int lcd_get_config(struct aml_lcd_drv_s *pdrv)
 			load_id = 1;
 		}
 	}
-	if (load_id) {
-		LCDPR("[%d]: %s from unifykey\n", pdrv->index, __func__);
-		pdrv->config_load = 1;
+	pdrv->config_load = load_id;
+	if (load_id)
 		ret = lcd_config_load_from_unifykey(pdrv, key_str);
-	} else {
-		LCDPR("[%d]: %s from dts\n", pdrv->index, __func__);
-		pdrv->config_load = 0;
+	else
 		ret = lcd_config_load_from_dts(pdrv);
-	}
 	if (ret)
 		return -1;
 
@@ -3266,8 +3270,6 @@ void lcd_clk_frame_rate_init(struct lcd_detail_timing_s *ptiming)
 
 	if (ptiming->pixel_clk == 0) /* default 0 for 60hz */
 		ptiming->pixel_clk = 60;
-	else
-		LCDPR("init pclk: %dHz\n", ptiming->pixel_clk);
 
 	h_period = ptiming->h_period;
 	v_period = ptiming->v_period;

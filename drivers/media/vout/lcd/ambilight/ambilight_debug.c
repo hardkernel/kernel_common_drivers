@@ -529,7 +529,7 @@ int amblt_debug_file_add(struct amblt_drv_s *amblt_drv)
 		goto err4;
 	}
 
-	AMBLTPR("%s: OK\n", __func__);
+	//AMBLTPR("%s: OK\n", __func__);
 	return 0;
 
 err4:

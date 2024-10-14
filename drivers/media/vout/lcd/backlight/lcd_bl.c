@@ -372,7 +372,7 @@ static void bl_pwm_ctrl_status_set(struct aml_bl_drv_s *bdrv, int status)
 		bl_pwm_ctrl(bconf->bl_pwm_combo1, status);
 		break;
 	default:
-		BLPR("invalid pwm control method\n");
+		break;
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
@@ -908,10 +908,6 @@ static void bl_config_print(struct aml_bl_drv_s *bdrv)
 		return;
 	}
 
-	BLPR("[%d]: name = %s, method = %s(%d)\n",
-	     bdrv->index, bconf->name,
-	     bl_method_type_to_str(bconf->method), bconf->method);
-
 	if ((lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) == 0)
 		return;
 
@@ -1028,7 +1024,8 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 	struct device_node *child;
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *pwm_combo0, *pwm_combo1;
-	int val;
+	char str_info[128];
+	int val, str_info_len = 0;
 	int ret = 0;
 
 	/* select backlight by index */
@@ -1038,7 +1035,6 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		return -1;
 	}
 	sprintf(bl_propname, "backlight_%d", bconf->index);
-	BLPR("[%d]: load: %s\n", bdrv->index, bl_propname);
 	child = of_get_child_by_name(bdrv->dev->of_node, bl_propname);
 	if (!child) {
 		BLERR("[%d]: failed to get %s\n", bdrv->index, bl_propname);
@@ -1063,16 +1059,8 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 
 		bdrv->brightness_bypass = ((para[1] >> BL_POLICY_BRIGHTNESS_BYPASS_BIT) &
 					   BL_POLICY_BRIGHTNESS_BYPASS_MASK);
-		if (bdrv->brightness_bypass) {
-			BLPR("[%d]: 0x%x: enable brightness_bypass\n",
-			     bdrv->index, para[1]);
-		}
 		bdrv->step_on_flag = ((para[1] >> BL_POLICY_POWER_ON_BIT) &
 				      BL_POLICY_POWER_ON_MASK);
-		if (bdrv->step_on_flag) {
-			BLPR("[%d]: 0x%x: bl_step_on_flag: %d\n",
-			     bdrv->index, para[1], bdrv->step_on_flag);
-		}
 	}
 
 	ret = of_property_read_u32_array(child, "bl_level_attr", &para[0], 4);
@@ -1096,6 +1084,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 	} else {
 		bconf->method = (val >= BL_CTRL_MAX) ? BL_CTRL_MAX : val;
 	}
+
 	ret = of_property_read_u32_array(child, "bl_power_attr", &para[0], 5);
 	if (ret) {
 		BLERR("[%d]: failed to get bl_power_attr\n", bdrv->index);
@@ -1117,24 +1106,34 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		bconf->power_off_delay = para[4];
 	}
 	ret = of_property_read_u32(child, "en_sequence_reverse", &val);
-	if (ret) {
+	if (ret)
 		bconf->en_sequence_reverse = 0;
-	} else {
+	else
 		bconf->en_sequence_reverse = val;
-		BLPR("[%d]: find en_sequence_reverse: %d\n", bdrv->index, val);
-	}
 
 	ret = of_property_read_u32(child, "bl_ldim_region_row_col", &para[0]);
 	if (ret) {
 		ret = of_property_read_u32(child, "bl_ldim_zone_row_col", &para[0]);
-		if (ret == 0) {
+		if (ret == 0)
 			bconf->ldim_flag = 1;
-			BLPR("[%d]: ldim_flag: %d\n", bdrv->index, bconf->ldim_flag);
-		}
 	} else {
 		bconf->ldim_flag = 1;
-		BLPR("[%d]: ldim_flag: %d\n", bdrv->index, bconf->ldim_flag);
 	}
+
+	str_info_len += sprintf(str_info + str_info_len, "bri_bypass:%d, ",
+			bdrv->brightness_bypass);
+	str_info_len += sprintf(str_info + str_info_len, "step_on_flag:%d, ",
+			bdrv->step_on_flag);
+	str_info_len += sprintf(str_info + str_info_len, "en_seq_rev:%d",
+			bconf->en_sequence_reverse);
+	if (bconf->ldim_flag) {
+		sprintf(str_info + str_info_len, ", ldim_flag:%d (%dx%d)",
+			bconf->ldim_flag, para[0], para[1]);
+	}
+	BLPR("[%d]: config from dts: %s: %s, method: %s(%d), %s\n",
+		bdrv->index, bl_propname, bconf->name,
+		bl_method_type_to_str(bconf->method),
+		bconf->method, str_info);
 
 	switch (bconf->method) {
 	case BL_CTRL_PWM:
@@ -1387,7 +1386,8 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *pwm_combo0, *pwm_combo1;
 	unsigned int level, tempfreq;
-	int ret;
+	char str_info[128];
+	int str_info_len = 0, ret;
 
 	if (!key_name)
 		return -1;
@@ -1408,12 +1408,8 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 
 	/* step 1: check header */
 	bl_header = (struct aml_lcd_unifykey_header_s *)para;
-	BLPR("[%d]: unifykey version: 0x%04x\n", bdrv->index, bl_header->version);
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
-		BLPR("unifykey header:\n");
-		BLPR("crc32             = 0x%08x\n", bl_header->crc32);
-		BLPR("data_len          = %d\n", bl_header->data_len);
-	}
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		lcd_unifykey_header_print(para);
 
 	/* step 2: check backlight parameters */
 	switch (bl_header->version) {
@@ -1426,7 +1422,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	}
 	ret = lcd_unifykey_len_check(key_len, len);
 	if (ret < 0) {
-		BLERR("[%d]: unifykey length is incorrect\n", bdrv->index);
+		BLERR("[%d]: ukey length is incorrect\n", bdrv->index);
 		kfree(para);
 		return -1;
 	}
@@ -1455,16 +1451,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	bdrv->brightness_bypass =
 		((level >> BL_POLICY_BRIGHTNESS_BYPASS_BIT) &
 		 BL_POLICY_BRIGHTNESS_BYPASS_MASK);
-	if (bdrv->brightness_bypass) {
-		BLPR("[%d]: 0x%x: enable brightness_bypass\n",
-		     bdrv->index, level);
-	}
-	bdrv->step_on_flag = ((level >> BL_POLICY_POWER_ON_BIT) &
-			      BL_POLICY_POWER_ON_MASK);
-	if (bdrv->step_on_flag) {
-		BLPR("[%d]: 0x%x: bl_step_on_flag: %d\n",
-		     bdrv->index, level, bdrv->step_on_flag);
-	}
+	bdrv->step_on_flag = ((level >> BL_POLICY_POWER_ON_BIT) & BL_POLICY_POWER_ON_MASK);
 
 	/* method: 8byte */
 	temp = *(p + LCD_UKEY_BL_METHOD);
@@ -1487,11 +1474,8 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		bconf->en_sequence_reverse = (*(p + LCD_UKEY_BL_CUST_VAL_0) |
 				((*(p + LCD_UKEY_BL_CUST_VAL_0 + 1)) << 8));
 		/* check ldim_flag */
-		BLPR("row: %d col: %d\n", *(p + LCD_UKEY_BL_LDIM_ROW), *(p + LCD_UKEY_BL_LDIM_COL));
-		if ((*(p + LCD_UKEY_BL_LDIM_ROW) > 0) && (*(p + LCD_UKEY_BL_LDIM_COL) > 0)) {
+		if ((*(p + LCD_UKEY_BL_LDIM_ROW) > 0) && (*(p + LCD_UKEY_BL_LDIM_COL) > 0))
 			bconf->ldim_flag = 1;
-			BLPR("[%d]: ldim_flag: %d\n", bdrv->index, bconf->ldim_flag);
-		}
 
 		/* load switch info */
 		bconf->bl_pwm_switch_port = *(p + LCD_UKEY_BL_CUST_VAL_1);
@@ -1502,6 +1486,21 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	} else {
 		bconf->en_sequence_reverse = 0;
 	}
+
+	str_info_len += sprintf(str_info + str_info_len, "bri_bypass:%d, ",
+			bdrv->brightness_bypass);
+	str_info_len += sprintf(str_info + str_info_len, "step_on_flag:%d, ",
+			bdrv->step_on_flag);
+	str_info_len += sprintf(str_info + str_info_len, "en_seq_rev:%d",
+			bconf->en_sequence_reverse);
+	if (bconf->ldim_flag) {
+		sprintf(str_info + str_info_len, ", ldim_flag:%d (%dx%d)",
+			bconf->ldim_flag,
+			*(p + LCD_UKEY_BL_LDIM_ROW), *(p + LCD_UKEY_BL_LDIM_COL));
+	}
+	BLPR("[%d]: config from ukey: %s, method: %s(%d), %s\n",
+		bdrv->index, bconf->name, bl_method_type_to_str(bconf->method), bconf->method,
+		str_info);
 
 	/* pwm: 24byte */
 	switch (bconf->method) {
@@ -1674,18 +1673,13 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		bconf->bl_pwm_switch->pwm_freq = bconf->bl_pwm_switch_freq;
 		bl_pwm_config_init(bconf->bl_pwm_switch);
 
-		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
-			BLPR("bl_pwm_default_port: %d\n", bconf->bl_pwm_default->pwm_port);
-			BLPR("bl_pwm_default_freq: %d\n", bconf->bl_pwm_default->pwm_freq);
-			BLPR("[%d]: bl_pwm_switch_port: %s(0x%x)\n",
-					bdrv->index, bl_pwm_num_to_str(bconf->bl_pwm_switch_port),
-					bconf->bl_pwm_switch_port);
-			BLPR("[%d]: bl_pwm_switch_freq: %d\n",
-				bdrv->index, bconf->bl_pwm_switch_freq);
-		}
+		BLPR("[%d]: pwm_switch port_freq: dft: %s(0x%x),%d, switch: %s(0x%x),%d\n",
+			bdrv->index, bl_pwm_num_to_str(bconf->bl_pwm_default->pwm_port),
+			bconf->bl_pwm_default->pwm_port, bconf->bl_pwm_default->pwm_freq,
+			bl_pwm_num_to_str(bconf->bl_pwm_switch_port),
+			bconf->bl_pwm_switch_port, bconf->bl_pwm_switch_freq);
 	} else {
 		bconf->bl_pwm_switch = NULL;
-		BLPR("no switch pwm port\n");
 	}
 
 	kfree(para);
@@ -1707,7 +1701,6 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 		if (ret < 0)
 			return -1;
 
-		BLPR("[%d]: %s from unifykey\n", bdrv->index, __func__);
 		bdrv->config_load = 1;
 		ret = bl_config_load_from_unifykey(bdrv, ukey_name);
 	} else {
@@ -4375,7 +4368,7 @@ static void aml_bl_config_probe_work(struct work_struct *p_work)
 					LCD_UNIFYKEY_RETRY_INTERVAL);
 				return;
 			}
-			BLERR("[%d]: key_init_flag=%d\n", bdrv->index, is_init);
+			BLERR("[%d]: key_init_flag=%d, timeout\n", bdrv->index, is_init);
 			goto err;
 		}
 		load_id = 1;
@@ -4441,7 +4434,8 @@ static void aml_bl_config_probe_work(struct work_struct *p_work)
 	bl_vsync_irq_init(bdrv);
 	bl_debug_file_creat(bdrv);
 
-	BLPR("[%d]: %s: ok\n", index, __func__);
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		BLPR("[%d]: %s: ok\n", index, __func__);
 	return;
 
 err:
@@ -4481,7 +4475,6 @@ static void bl_base_config_init(struct aml_bl_drv_s *bdrv)
 		temp = 0;
 	}
 	bdrv->key_valid = temp;
-	BLPR("[%d]: key_valid: %d\n", bdrv->index, bdrv->key_valid);
 }
 
 int aml_bl_index_add(int drv_index, int conf_index)
