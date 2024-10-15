@@ -1,0 +1,55 @@
+From 7deae5440428da33dbb4381d2b667986fd81a8e5 Mon Sep 17 00:00:00 2001
+From: Dezhen Wang <dezhen.wang@amlogic.com>
+Date: Tue, 15 Oct 2024 02:13:35 +0000
+Subject: [PATCH] scripts: 5.15 accommodate common drivers dir moved out from
+ 6.6 [1/1]
+
+PD#SWPL-178341
+
+Problem:
+5.15 accommodate common drivers dir moved out from 6.6
+make config setting for extra drivers
+
+Solution:
+add config setting
+
+Verify:
+local
+
+Change-Id: I64e3bfa9100d642e10472f4159c2a0556efad9af
+Signed-off-by: Dezhen Wang <dezhen.wang@amlogic.com>
+---
+ BUILD.bazel | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 0f5ceeeeac62..d53744c28ebc 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -16,6 +16,7 @@ load(
+     "merged_kernel_uapi_headers",
+ )
+ load(":modules.bzl", "get_gki_modules_list")
++load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+ 
+ package(
+     default_visibility = [
+@@ -801,3 +802,15 @@ ddk_headers(
+ 
+ load("//common:common_drivers/amlogic.bzl", "define_amlogic")
+ define_amlogic()
++
++config_setting(
++    name = "common_drivers_on_top_dir",
++    flag_values = {":common_drivers_on_top": "True"},
++    visibility = ["//visibility:public"],
++)
++
++bool_flag(
++    name = "common_drivers_on_top",
++    build_setting_default = False,
++    visibility = ["//visibility:public"],
++)
+-- 
+2.46.0
+
