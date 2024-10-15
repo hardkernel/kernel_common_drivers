@@ -9,6 +9,7 @@
 #include "meson_vpu_util.h"
 #include "meson_osd_scaler.h"
 #include "meson_osd_afbc.h"
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 static struct osd_scaler_reg_s osd_scaler_reg[HW_OSD_SCALER_NUM] = {
 	{
@@ -194,6 +195,58 @@ static struct osd_scaler_reg_s osd_scaler_s5_reg[HW_OSD_SCALER_NUM] = {
 		OSD4_PROC_SCO_H_START_END,
 		OSD4_PROC_SCO_V_START_END,
 	},
+};
+
+static struct osd_scaler_reg_s osd_scaler_s6_reg[HW_OSD_SCALER_NUM] = {
+	{
+		VPP_OSD_SCALE_COEF_IDX,
+		VPP_OSD_SCALE_COEF,
+		VPP_OSD_VSC_PHASE_STEP,
+		VPP_OSD_VSC_INI_PHASE,
+		VPP_OSD_VSC_CTRL0,
+		VPP_OSD_HSC_PHASE_STEP,
+		VPP_OSD_HSC_INI_PHASE,
+		VPP_OSD_HSC_CTRL0,
+		VPP_OSD_HSC_INI_PAT_CTRL,
+		VPP_OSD_SC_DUMMY_DATA,
+		VPP_OSD_SC_CTRL0,
+		VPP_OSD_SCI_WH_M1,
+		VPP_OSD_SCO_H_START_END,
+		VPP_OSD_SCO_V_START_END,
+	},
+	{
+		OSD2_SCALE_COEF_IDX,
+		OSD2_SCALE_COEF,
+		OSD2_VSC_PHASE_STEP,
+		OSD2_VSC_INI_PHASE,
+		OSD2_VSC_CTRL0,
+		OSD2_HSC_PHASE_STEP,
+		OSD2_HSC_INI_PHASE,
+		OSD2_HSC_CTRL0,
+		OSD2_HSC_INI_PAT_CTRL,
+		OSD2_SC_DUMMY_DATA,
+		OSD2_SC_CTRL0,
+		OSD2_SCI_WH_M1,
+		OSD2_SCO_H_START_END,
+		OSD2_SCO_V_START_END,
+	},
+	{
+		VIU2_OSD_SCALE_COEF_IDX,
+		VIU2_OSD_SCALE_COEF,
+		VIU2_OSD_VSC_PHASE_STEP,
+		VIU2_OSD_VSC_INI_PHASE,
+		VIU2_OSD_VSC_CTRL0,
+		VIU2_OSD_HSC_PHASE_STEP,
+		VIU2_OSD_HSC_INI_PHASE,
+		VIU2_OSD_HSC_CTRL0,
+		VIU2_OSD_HSC_INI_PAT_CTRL,
+		VIU2_OSD_SC_DUMMY_DATA,
+		VIU2_OSD_SC_CTRL0,
+		VIU2_OSD_SCI_WH_M1,
+		VIU2_OSD_SCO_H_START_END,
+		VIU2_OSD_SCO_V_START_END,
+	},
+	{}
 };
 #endif
 
@@ -739,11 +792,15 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	u32 vsc_double_line_mode;
 	u32 *coef_h, *coef_v;
 	u64 phase_step_v, phase_step_h;
+	u32 real_width_in, real_width_out;
 	bool scaler_enable;
 	int v_filter_mode_param = am_drm_param.osdscaler_v_filter_mode;
 	int h_filter_mode_param = am_drm_param.osdscaler_h_filter_mode;
 
-	if (width_in == width_out && height_in == height_out &&
+	real_width_in = width_in + scaler_state->input_width_offset;
+	real_width_out = width_out + scaler_state->output_width_offset;
+
+	if (real_width_in == real_width_out && height_in == height_out &&
 	    version > OSD_V2 && version < OSD_V7)
 		scaler_enable = false;
 	else
@@ -764,7 +821,7 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		reg_ops->rdma_write_reg(reg->vpp_osd_sc_ctrl0, 0);
 		vblk->init_done = 1;
 	}
-	if (version <= OSD_V2)
+	if (version <= OSD_V2 && vblk->index == MESON_OSD1)
 		phase_step_v = (u64)(height_in - 1) << OSD_ZOOM_HEIGHT_BITS;
 	else
 		phase_step_v = (u64)height_in << OSD_ZOOM_HEIGHT_BITS;
@@ -794,26 +851,25 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		vsc_bot_rpt_l0_num = 0;
 		vsc_bot_init_phase = 0;
 	}
-	if (version <= OSD_V2)
+	if (version <= OSD_V2 && vblk->index == MESON_OSD1)
 		vsc_top_init_rec_num++;
-	if (version <= OSD_V2 && scan_mode_out)
+	if (version <= OSD_V2 && scan_mode_out && vblk->index == MESON_OSD1)
 		vsc_bot_init_rec_num++;
 	phase_step_v <<= (OSD_ZOOM_TOTAL_BITS - OSD_ZOOM_HEIGHT_BITS);
 	phase_step_h = (u64)width_in << OSD_ZOOM_WIDTH_BITS;
 	do_div(phase_step_h, width_out);
 	phase_step_h <<= (OSD_ZOOM_TOTAL_BITS - OSD_ZOOM_WIDTH_BITS);
 	/*check coef*/
-
 	if (vsc_double_line_mode == 1) {
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_2POINT_BILINEAR];
 	} else if (width_out <= 720) {
-		if (width_in == width_out)
+		if (width_in <= width_out)
 			coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		else
 			coef_h = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
 
-		if (height_in == height_out)
+		if (height_in <= height_out)
 			coef_v = osd_scaler_filter_table[COEFS_BICUBIC];
 		else
 			coef_v = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
@@ -837,10 +893,10 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 
 	/*input size config*/
 	osd_sc_in_h_set(vblk, reg_ops, reg, height_in);
-	osd_sc_in_w_set(vblk, reg_ops, reg, width_in);
+	osd_sc_in_w_set(vblk, reg_ops, reg, real_width_in);
 
 	/*output size config*/
-	osd_sc_out_horz_set(vblk, reg_ops, reg, 0, width_out - 1);
+	osd_sc_out_horz_set(vblk, reg_ops, reg, 0, real_width_out - 1);
 	osd_sc_out_vert_set(vblk, reg_ops, reg, 0, height_out - 1);
 
 	/*phase step config*/
@@ -923,6 +979,12 @@ static void scaler_size_check(struct meson_vpu_block *vblk,
 			pipeline_state->scaler_param[vblk->index].output_height;
 		scaler_state->state_changed |= SCALER_OUTPUT_HEIGHT_CHANGED;
 	}
+
+	scaler_state->input_width_offset =
+			pipeline_state->scaler_param[vblk->index].input_width_offset;
+	scaler_state->output_width_offset =
+			pipeline_state->scaler_param[vblk->index].output_width_offset;
+	scaler_state->global = pipeline_state->scaler_param[vblk->index].global;
 }
 
 void scan_mode_check(struct meson_vpu_pipeline *pipeline,
@@ -983,8 +1045,14 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	/*todo:move afbc start to afbc block.*/
-	if (pipeline->osd_version < OSD_V7)
-		arm_fbc_start(mvps, state->sub->reg_ops);
+	if (pipeline->osd_version < OSD_V7) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (is_meson_s6_cpu() && vblk->index == 2)
+			s6_viu2_arm_fbc_start(mvps, state->sub->reg_ops);
+		else
+#endif
+			arm_fbc_start(mvps, state->sub->reg_ops);
+	}
 
 	if (!scaler_state) {
 		MESON_DRM_BLOCK("scaler or scaler_state is NULL!!\n");
@@ -1119,6 +1187,17 @@ static void s5_scaler_hw_init(struct meson_vpu_block *vblk)
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
 }
+
+static void s6_scaler_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
+
+	scaler->reg = &osd_scaler_s6_reg[vblk->index];
+	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
+	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
+
+	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
+}
 #endif
 
 struct meson_vpu_block_ops scaler_ops = {
@@ -1138,5 +1217,14 @@ struct meson_vpu_block_ops s5_scaler_ops = {
 	.disable = scaler_hw_disable,
 	.dump_register = scaler_dump_register,
 	.init = s5_scaler_hw_init,
+};
+
+struct meson_vpu_block_ops s6_scaler_ops = {
+	.check_state = scaler_check_state,
+	.update_state = scaler_set_state,
+	.enable = scaler_hw_enable,
+	.disable = scaler_hw_disable,
+	.dump_register = scaler_dump_register,
+	.init = s6_scaler_hw_init,
 };
 #endif

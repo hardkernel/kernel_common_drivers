@@ -31,6 +31,7 @@ struct {
 	TAG_INFO(MEDIA_SYNC),
 	TAG_INFO(DDR_BW),
 	TAG_INFO(DIM),
+	TAG_INFO(DRM),
 	{ NULL, 0 }
 };
 

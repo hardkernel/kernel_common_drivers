@@ -44,6 +44,7 @@ struct am_hdmi_tx {
 	int hdcp_mode;
 	/*hdcp auth result, HDCP_AUTH_UNKNOWN means havenot finished auth.*/
 	int hdcp_state;
+	int hdcp_rx_type;
 
 	int hdmitx_on;
 
@@ -69,10 +70,12 @@ struct am_hdmi_tx {
 	struct drm_property *dv_cap_property;
 	struct drm_property *hdcp_ver_prop;
 	struct drm_property *hdcp_mode_property;
+	struct drm_property *hdcp_topo_property;
 	struct drm_property *hdr_priority_prop;
 	struct drm_property *contenttype_cap_prop;
 	struct drm_property *allm_prop;
 	struct drm_property *ready_prop;
+	struct drm_property *type_prop;
 	/*
 	 * Whether the current edid is valid
 	 * 0:edid is invalid
@@ -85,6 +88,7 @@ struct am_hdmi_tx {
 	 * 1: SNPS chip need: SC2/S4/G12/SM1
 	 */
 	struct drm_property *hdcp_user_prop;
+	int hdmi_type;
 	struct drm_property *frac_rate_policy_prop;
 	/*
 	 * if HDMI plugin even once time, then set 1

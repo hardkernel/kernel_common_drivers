@@ -435,7 +435,7 @@ int am_meson_writeback_create(struct drm_device *drm)
 	/* register Connector */
 	drm_connector_helper_add(&wb_connector->base,
 			&am_writeback_connector_helper_funcs);
-	//KV_TODO: review
+
 	ret = drm_writeback_connector_init(drm, wb_connector,
 			&am_writeback_connector_funcs,
 			&am_writeback_encoder_helper_funcs,

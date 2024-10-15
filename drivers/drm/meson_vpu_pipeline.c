@@ -13,8 +13,11 @@
 
 #include "vpu-hw/meson_osd_afbc.h"
 #include "meson_vpu_pipeline.h"
+#include "meson_crtc.h"
 #include "meson_drv.h"
 #include "meson_vpu.h"
+static int flush_time = 3;
+static int rdma_table_flush_time = 1;
 
 #define MAX_LINKS 5
 #define MAX_PORTS 6
@@ -368,6 +371,11 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 	return 0;
 }
 
+void VPU_PIPELINE_RESET_INIT_DONE(struct meson_vpu_block *mvb)
+{
+	mvb->init_done = 0;
+}
+
 void VPU_PIPELINE_HW_INIT(struct meson_vpu_block *mvb)
 {
 	if (mvb->ops->init)
@@ -462,6 +470,9 @@ int vpu_pipeline_osd_check(struct meson_vpu_pipeline *pipeline,
 	struct meson_vpu_pipeline_state *mvps;
 
 	mvps = meson_vpu_pipeline_get_state(pipeline, state);
+	if (PTR_ERR(mvps) == -EDEADLK)
+		return -EDEADLK;
+
 	vpu_pipeline_planes_calc(pipeline, mvps);
 
 	DRM_DEBUG("check done--num_plane=%d.\n", mvps->num_plane);
@@ -542,6 +553,44 @@ int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 	DRM_DEBUG("check done--num_plane=%d.\n", mvps->num_plane);
 
 	return ret;
+}
+
+void vpu_pipeline_resume_init(struct meson_vpu_pipeline *pipeline)
+{
+	int i;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (pipeline->osds[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->osds[i]->base);
+	}
+
+	for (i = 0; i < pipeline->num_video; i++)
+		VPU_PIPELINE_RESET_INIT_DONE(&pipeline->video[i]->base);
+
+	for (i = 0; i < pipeline->num_afbc_osds; i++)
+		VPU_PIPELINE_RESET_INIT_DONE(&pipeline->afbc_osds[i]->base);
+
+	for (i = 0; i < MESON_MAX_SCALERS; i++) {
+		if (pipeline->scalers[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->scalers[i]->base);
+	}
+
+	VPU_PIPELINE_RESET_INIT_DONE(&pipeline->osdblend->base);
+
+	for (i = 0; i < MESON_MAX_HDRS; i++)
+		if (pipeline->hdrs[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->hdrs[i]->base);
+
+	for (i = 0; i < pipeline->num_postblend; i++)
+		VPU_PIPELINE_RESET_INIT_DONE(&pipeline->postblends[i]->base);
+
+	if (pipeline->slice2ppc)
+		VPU_PIPELINE_RESET_INIT_DONE(&pipeline->slice2ppc->base);
+
+	for (i = 0; i < pipeline->num_gfcd; i++) {
+		if (pipeline->gfcd[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->gfcd[i]->base);
+	}
 }
 
 void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
@@ -660,11 +709,13 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	struct meson_vpu_pipeline_state *new_mvps;
 	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
 
 	crtc_index = sub_pipeline->index;
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
 	new_mvsps = &new_mvps->sub_states[crtc_index];
+	amcrtc = pipeline->priv->crtcs[crtc_index];
 
 	affected_blocks = new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
@@ -694,6 +745,11 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 #endif
 
 	vpu_pipeline_append_finish_reg(crtc_index, sub_pipeline->reg_ops);
+
+	if (rdma_tbl[crtc_index].flag)
+		meson_drm_write_allregs2rdma(crtc_index);
+
+	rdma_tbl[crtc_index].flag = amcrtc->rdma_table_enable;
 
 	return 0;
 }
@@ -743,13 +799,14 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	int i;
 #endif
 
-	int crtc_index;
+	int crtc_index, j;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs, *old_mvbs;
 	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
 	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
 
 	crtc_index = sub_pipeline->index;
@@ -757,6 +814,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
 	old_mvsps = &old_mvps->sub_states[crtc_index];
 	new_mvsps = &new_mvps->sub_states[crtc_index];
+	amcrtc = pipeline->priv->crtcs[crtc_index];
 	new_mvps->global_afbc = 0;
 
 	DRM_DEBUG("old_enable_blocks: 0x%llx - %p, new_enable_blocks: 0x%llx - %p.\n",
@@ -766,6 +824,21 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	arm_fbc_check_error();
 
 	affected_blocks = old_mvsps->enable_blocks | new_mvsps->enable_blocks;
+
+	if (affected_blocks == 0) {
+		for (j = 0; j < MESON_MAX_BLOCKS; j++) {
+			DRM_DEBUG("Disabling blocks because of initial disabled status!\n");
+			mvb = vpu_blocks[j];
+			if (!mvb || mvb->type != MESON_BLK_VPPBLEND || mvb->index != crtc_index)
+				continue;
+
+			old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
+			old_mvbs->sub = &pipeline->subs[crtc_index];
+			if (mvb->ops && mvb->ops->disable)
+				mvb->ops->disable(mvb, old_mvbs);
+		}
+	}
+
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
 		if (mvb->type == MESON_BLK_VIDEO)
@@ -801,6 +874,11 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 #endif
 
 	vpu_pipeline_append_finish_reg(crtc_index, sub_pipeline->reg_ops);
+
+	if (rdma_tbl[crtc_index].flag)
+		meson_drm_write_allregs2rdma(crtc_index);
+
+	rdma_tbl[crtc_index].flag = amcrtc->rdma_table_enable;
 
 	return 0;
 }
@@ -1015,17 +1093,21 @@ void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 	int vdisplay, int vrefresh, int crtc_index)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	int vsync_active_begin, wait_cnt, cur_line, cur_col, line_threshold;
-	int flush_time_param = am_drm_param.flush_time;
+	int vsync_active_begin, wait_cnt, cur_line, cur_col, line_threshold, time;
 
 	/*for rdma, we need
 	 * 1. finish rdma table write before VACTIVE(last_VFP~VBP).
 	 * 2. wait rdma hw flush finish (flush time depends on aps clock.)
 	 * | VSYNC| VBackP | VACTIVE | VFrontP |...
 	 */
+	if (rdma_tbl[crtc_index].flag)
+		time = rdma_table_flush_time;
+	else
+		time = flush_time;
+
 	vsync_active_begin = vpu_pipeline_get_active_begin_line(pipeline, crtc_index);
 	vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col, crtc_index);
-	line_threshold = vdisplay * flush_time_param * vrefresh / 1000;
+	line_threshold = vdisplay * time * vrefresh / 1000;
 	wait_cnt = 0;
 	while (cur_line >= vdisplay + vsync_active_begin - line_threshold ||
 			cur_line <= vsync_active_begin) {

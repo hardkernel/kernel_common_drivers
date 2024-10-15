@@ -37,6 +37,7 @@
 
 /* 0 dummyl, 1 dummyp, 2 dummyi */
 static u32 dummy_venc_type;
+
 enum dummy_venc_chip_e {
 	DUMMY_VENC_DFT = 0,
 	DUMMY_VENC_SC2, /* 1 */
@@ -45,6 +46,7 @@ enum dummy_venc_chip_e {
 	DUMMY_VENC_S5,  /* 4, stb new single display */
 	DUMMY_VENC_S1A, /* 5 */
 	DUMMY_VENC_TXHD2, /* 6 */
+	DUMMY_VENC_T6D, /* 7 */
 	DUMMY_VENC_MAX,
 };
 
@@ -99,6 +101,7 @@ struct dummy_venc_driver_s {
 	unsigned char status;
 	unsigned char vout_valid;
 	unsigned char viu_sel;
+	unsigned char crtc_sel;
 	unsigned char vinfo_index;
 
 	unsigned char clk_gate_state;
@@ -135,7 +138,9 @@ static int dummy_encp_timing_flip_setup(char *str)
 	int ret;
 
 	ret = kstrtoint(str, 0, &dummyp_timing_flip);
-	return ret;
+	if (ret)
+		return ret;
+	return 1;
 }
 __setup("dummyp_timing_flip=", dummy_encp_timing_flip_setup);
 
@@ -773,12 +778,9 @@ static void dummy_encp_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 {
 	venc_drv->vinfo_index = 0xff;
 	venc_drv->vinfo = NULL;
+	venc_drv->viu_sel = BIT(0);
 	dummy_encp_vout_server.data = (void *)venc_drv;
 	vout_register_server(&dummy_encp_vout_server);
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	dummy_encp_vout2_server.data = (void *)venc_drv;
-	vout2_register_server(&dummy_encp_vout2_server);
-#endif
 }
 
 static void dummy_encp_vout_server_remove(void)
@@ -1140,10 +1142,12 @@ static struct vout_server_s dummy_enci_vout2_server = {
 
 static void dummy_enci_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 {
+	venc_drv->crtc_sel = BIT(0);
 	venc_drv->vinfo = &dummy_enci_vinfo;
 	dummy_enci_vout_server.data = (void *)venc_drv;
 	vout_register_server(&dummy_enci_vout_server);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	venc_drv->crtc_sel |= BIT(1);
 	dummy_enci_vout2_server.data = (void *)venc_drv;
 	vout2_register_server(&dummy_enci_vout2_server);
 #endif
@@ -1536,20 +1540,62 @@ static struct vout_server_s dummy_encl_vout3_server = {
 
 static void dummy_encl_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 {
+	char *connector0_type;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	char *connector1_type;
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	char *connector2_type;
+#endif
+	bool is_register = false;
+
+	venc_drv->crtc_sel = 0;
+
 	venc_drv->vinfo = &dummy_encl_vinfo;
 	if (venc_drv->vdata->venc_type == VENC_TYPE_ENCP)
 		venc_drv->vinfo->viu_mux = VIU_MUX_ENCP;
-	dummy_encl_vout_server.data = (void *)venc_drv;
-	vout_register_server(&dummy_encl_vout_server);
+
+	connector0_type = get_uboot_connector0_type();
+	if (strncmp("HDMI", connector0_type, 4) == 0) {
+		venc_drv->crtc_sel = BIT(0);
+		dummy_encl_vout_server.data = (void *)venc_drv;
+		vout_register_server(&dummy_encl_vout_server);
+		is_register = true;
+	}
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	dummy_encl_vout2_server.data = (void *)venc_drv;
-	vout2_register_server(&dummy_encl_vout2_server);
+	connector1_type = get_uboot_connector1_type();
+	if (strncmp("HDMI", connector1_type, 4) == 0) {
+		venc_drv->crtc_sel |= BIT(1);
+		dummy_encl_vout2_server.data = (void *)venc_drv;
+		vout2_register_server(&dummy_encl_vout2_server);
+		is_register = true;
+	}
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	dummy_encl_vout3_server.data = (void *)venc_drv;
-	vout3_register_server(&dummy_encl_vout3_server);
+	connector2_type = get_uboot_connector2_type();
+	if (strncmp("HDMI", connector2_type, 4) == 0) {
+		venc_drv->crtc_sel |= BIT(2);
+		dummy_encl_vout3_server.data = (void *)venc_drv;
+		vout3_register_server(&dummy_encl_vout3_server);
+		is_register = true;
+	}
 #endif
 
+	if (!is_register) {
+		venc_drv->crtc_sel |= BIT(0);
+		dummy_encl_vout_server.data = (void *)venc_drv;
+		vout_register_server(&dummy_encl_vout_server);
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		venc_drv->crtc_sel |= BIT(1);
+		dummy_encl_vout2_server.data = (void *)venc_drv;
+		vout2_register_server(&dummy_encl_vout2_server);
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+		venc_drv->crtc_sel |= BIT(2);
+		dummy_encl_vout3_server.data = (void *)venc_drv;
+		vout3_register_server(&dummy_encl_vout3_server);
+#endif
+	}
 }
 
 static void dummy_encl_vout_server_remove(void)
@@ -2196,6 +2242,22 @@ static struct dummy_venc_data_s dummy_venc_match_data_txhd2 = {
 	.enci_clk_gate_switch = NULL,
 	.encl_clk_gate_switch = NULL,
 };
+
+static struct dummy_venc_data_s dummy_venc_match_data_t6d = {
+	.vconf = NULL,
+
+	.chip_type = DUMMY_VENC_T6D,
+	.default_venc_index = 0,
+	.projection_valid = 1,
+	.venc_type = VENC_TYPE_ENCL,
+
+	.clktree_probe = NULL,
+	.clktree_remove = NULL,
+	.encp_clk_gate_switch = NULL,
+	.enci_clk_gate_switch = NULL,
+	.encl_clk_gate_switch = NULL,
+};
+
 #endif
 
 static const struct of_device_id dummy_venc_dt_match_table[] = {
@@ -2242,6 +2304,10 @@ static const struct of_device_id dummy_venc_dt_match_table[] = {
 		.compatible = "amlogic, dummy_venc_txhd2",
 		.data = &dummy_venc_match_data_txhd2,
 	},
+	{
+		.compatible = "amlogic, dummy_venc_t6d",
+		.data = &dummy_venc_match_data_t6d,
+	},
 #endif
 	{}
 };
@@ -2253,6 +2319,7 @@ static int meson_dummyl_bind(struct device *dev,
 
 	dummy_encl_drv->drm_instance.base.ver = MESON_DRM_CONNECTOR_V10;
 	if (bound_data->connector_component_bind) {
+		dummy_encl_drv->drm_instance.base.crtc_sel = dummy_encl_drv->crtc_sel;
 		dummy_encl_drv->drm_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_DUMMY_L,
@@ -2294,6 +2361,7 @@ static int meson_dummyp_bind(struct device *dev,
 
 	dummy_encp_drv->drm_instance_p.base.ver = MESON_DRM_CONNECTOR_V10;
 	if (bound_data->connector_component_bind) {
+		dummy_encp_drv->drm_instance_p.base.crtc_sel = dummy_encp_drv->crtc_sel;
 		dummy_encp_drv->drm_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_DUMMY_P,

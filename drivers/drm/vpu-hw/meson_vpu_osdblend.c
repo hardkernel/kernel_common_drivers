@@ -18,10 +18,6 @@
 #define BLEND_DIN_WIDTH_2_PIXEL_ALIGN 2
 #define BLEND_DIN_WIDTH_4_PIXEL_ALIGN 4
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static int osd_enable[MESON_MAX_OSDS] = {1, 0, 1, 0};
-#endif
-
 static struct osdblend_reg_s osdblend_reg = {
 	VIU_OSD_BLEND_CTRL,
 	VIU_OSD_BLEND_DIN0_SCOPE_H,
@@ -281,34 +277,20 @@ static void osd_dv_core_size_set_s5(u32 h_size, u32 v_size,
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-/* -1: invalid osd index
- *  0: osd is disabled
- *  1: osd is enabled
- */
-int osd_dv_get_osd_status(enum OSD_INDEX index)
-{
-	if (index < MESON_MAX_OSDS)
-		return osd_enable[index];
-	else
-		return -1;
-}
-#endif
-
 /*osd blend0 & blend1 4 din inputs premult flag config as 0 default*/
 void osd_blend01_premult_config(struct meson_vpu_block *vblk,
 				struct rdma_reg_ops *reg_ops,
-				struct osdblend_reg_s *reg)
+				struct osdblend_reg_s *reg, unsigned int val)
 {
-	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl, 0, 16, 4);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl, val, 16, 4);
 }
 
 /*osd blend2 2 inputs premult flag config as 1 default*/
 void osd_blend2_premult_config(struct meson_vpu_block *vblk,
 			       struct rdma_reg_ops *reg_ops,
-			       struct osdblend_reg_s *reg)
+			       struct osdblend_reg_s *reg, unsigned int val)
 {
-	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl, 3, 27, 2);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl, val, 27, 2);
 }
 
 /*osd blend dout0 output div en config as 1,alpha 9bit default*/
@@ -334,10 +316,65 @@ void osdblend_premult_config(struct meson_vpu_block *vblk,
 			     struct rdma_reg_ops *reg_ops,
 			     struct osdblend_reg_s *reg)
 {
-	osd_blend01_premult_config(vblk, reg_ops, reg);
-	osd_blend2_premult_config(vblk, reg_ops, reg);
+	osd_blend01_premult_config(vblk, reg_ops, reg, 0);
+	osd_blend2_premult_config(vblk, reg_ops, reg, 3);
 	osd_blend_dout0_div_config(vblk, reg_ops, reg);
 	osd_blend_dout1_div_config(vblk, reg_ops, reg);
+}
+
+void s7d_osdblend_premult_config(struct meson_vpu_block *vblk,
+			     struct rdma_reg_ops *reg_ops,
+			     struct osdblend_reg_s *reg)
+{
+	osd_blend01_premult_config(vblk, reg_ops, reg, 0xf);
+	osd_blend2_premult_config(vblk, reg_ops, reg, 0);
+	osd_blend_dout0_div_config(vblk, reg_ops, reg);
+	osd_blend_dout1_div_config(vblk, reg_ops, reg);
+}
+
+struct osd_global_alpha_s {
+	u32 offset;
+	u32 mask;
+};
+
+struct osd_global_alpha_s osd_global_alpha[] = {
+	{20, 0x1ff00000},
+	{11, 0x000ff800},
+	{0, 0},
+	{0, 0},
+};
+
+/*global alpha setting, osd1:bit[28:20] osd2:bit[19:11]*/
+void s7d_osdblend_global_alpha_set(struct meson_vpu_block *vblk,
+			  struct rdma_reg_ops *reg_ops,
+			  struct meson_vpu_pipeline_state *mvps)
+{
+	u32 val, global_alpha, core2_val;
+	int i;
+
+	val = meson_drm_read_reg(VIU_OSD_BLEND_DUMMY_ALPHA);
+	MESON_DRM_BLOCK("dummy alpha read val=0x%x", val);
+
+	/*
+	 *recovery the dummy alpha value.
+	 *core2_val is osdblend core2 dummy alpha value,
+	 *val = (((val & (0x7fff800)) << 2) | core2_val) is used to shift left 2bits
+	 *for the read value of dummy alpha, 0x7fff800 means just core0(bit11~19) and
+	 *core1(bit20~28) will be shifted, finally, the val will matched with real value.
+	 */
+	core2_val = val & 0x1ff;
+	val = (((val & (0x7fff800)) << 2) | core2_val);
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (mvps->plane_info[i].enable) {
+			global_alpha = mvps->plane_info[i].global_alpha >> 8;
+			if (global_alpha == 0xff)
+				global_alpha = 0x100;
+
+			val &= (~osd_global_alpha[i].mask);
+			val |= (global_alpha << osd_global_alpha[i].offset);
+		}
+	}
+	reg_ops->rdma_write_reg(VIU_OSD_BLEND_DUMMY_ALPHA, val);
 }
 
 enum osd_channel_e osd2channel(u8 osd_index)
@@ -400,6 +437,56 @@ static void osdblend_hw_update(struct meson_vpu_block *vblk,
 			    mvobs->input_height[OSD_SUB_BLEND1]);
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static void s7d_osdblend_hw_update(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osdblend_reg_s *reg,
+			       struct meson_vpu_osdblend_state *mvobs)
+{
+	/*din channel mux config*/
+	osd_din_channel_mux_set(vblk, reg_ops, reg,
+				mvobs->din_channel_mux[DIN0], DIN0);
+	osd_din_channel_mux_set(vblk, reg_ops, reg,
+				mvobs->din_channel_mux[DIN1], DIN1);
+	osd_din_channel_mux_set(vblk, reg_ops, reg,
+				mvobs->din_channel_mux[DIN2], DIN2);
+	osd_din_channel_mux_set(vblk, reg_ops, reg,
+				mvobs->din_channel_mux[DIN3], DIN3);
+
+	/*internal channel disable default*/
+	osd_din0_input_enable_set(vblk, reg_ops, reg,
+				  (mvobs->input_mask >> DIN0) & 0x1);
+	osd_din1_input_enable_set(vblk, reg_ops, reg,
+				  (mvobs->input_mask >> DIN1) & 0x1);
+	osd_din2_input_enable_set(vblk, reg_ops, reg,
+				  (mvobs->input_mask >> DIN2) & 0x1);
+	osd_din3_input_enable_set(vblk, reg_ops, reg,
+				  (mvobs->input_mask >> DIN3) & 0x1);
+
+	/*blend switch config*/
+	osd_din0_switch_set(vblk, reg_ops, reg, mvobs->din0_switch);
+	osd_din3_switch_set(vblk, reg_ops, reg, mvobs->din3_switch);
+	osd_blend1_dout_switch_set(vblk, reg_ops, reg, mvobs->blend1_switch);
+
+	/*scope config*/
+	osd_din0_scope_set(vblk, reg_ops, reg, mvobs->din_channel_scope[DIN0]);
+	osd_din1_scope_set(vblk, reg_ops, reg, mvobs->din_channel_scope[DIN1]);
+	osd_din2_scope_set(vblk, reg_ops, reg, mvobs->din_channel_scope[DIN2]);
+	osd_din3_scope_set(vblk, reg_ops, reg, mvobs->din_channel_scope[DIN3]);
+
+	/*premult config*/
+	s7d_osdblend_premult_config(vblk, reg_ops, reg);
+
+	/*blend0/blend1 size config*/
+	osd_blend0_size_set(vblk, reg_ops, reg,
+			    mvobs->input_width[OSD_SUB_BLEND0],
+			    mvobs->input_height[OSD_SUB_BLEND0]);
+	osd_blend1_size_set(vblk, reg_ops, reg,
+			    mvobs->input_width[OSD_SUB_BLEND1],
+			    mvobs->input_height[OSD_SUB_BLEND1]);
+}
+#endif
+
 static int osdblend_check_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
@@ -433,14 +520,14 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 			mvobs->input_osd_mask &= ~BIT(i);
 			continue;
 		}
+
 		mvobs->input_osd_mask |= BIT(i);
 		if (out_port[i] == OSD_LEND_OUT_PORT1) {
 			plane_index_port1[num_plane_port1] =
 				mvps->plane_index[i];
 			num_plane_port1++;
 		} else {
-			plane_index_port0[num_plane_port0] =
-				mvps->plane_index[i];
+			plane_index_port0[num_plane_port0] = mvps->plane_index[i];
 			num_plane_port0++;
 		}
 	}
@@ -496,8 +583,8 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	mvobs->input_mask = 0;
 	MESON_DRM_BLOCK("num_plane_port0=%d\n", num_plane_port0);
 	for (i = 0; i < num_plane_port0; i++) {
-		mvobs->input_mask |= 1 << i;
 		j = plane_index_port0[i];
+		mvobs->input_mask |= 1 << i;
 		mvobs->din_channel_mux[i] = osd2channel(j);
 		zorder[i] = mvps->plane_info[j].zorder;
 		/*blend size calc*/
@@ -509,9 +596,9 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	for (i = 0; i < num_plane_port0; i++) {
 		for (j = (1 + i); j < num_plane_port0; j++) {
 			if (zorder[i] > zorder[j]) {
-				swap(zorder[i], zorder[j]);
 				swap(mvobs->din_channel_mux[i],
-				     mvobs->din_channel_mux[j]);
+					mvobs->din_channel_mux[j]);
+				swap(zorder[i], zorder[j]);
 			}
 		}
 	}
@@ -558,12 +645,12 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 		mvobs->blend1_switch = 1;
 	else
 		mvobs->blend1_switch = 0;
+
 	/*scope check*/
 	for (i = 0; i < MAX_DIN_NUM; i++) {
 		if (mvobs->input_osd_mask & BIT(i))
 			memcpy(&mvobs->din_channel_scope[i],
-			       &mvps->osd_scope_pre[i],
-				sizeof(struct osd_scope_s));
+				&mvps->osd_scope_pre[i], sizeof(struct osd_scope_s));
 		else
 			memcpy(&mvobs->din_channel_scope[i],
 			       &scope_default,
@@ -593,6 +680,202 @@ static int txhd2_osdblend_check_state(struct meson_vpu_block *vblk,
 	return 0;
 }
 
+static int s7d_osdblend_check_state(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state,
+		struct meson_vpu_pipeline_state *mvps)
+{
+	struct meson_vpu_osdblend_state *mvobs;
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	int ret, num_planes;
+	u32 *out_port;
+	u32 i, j, m, n, num_plane_port0, num_plane_port1;
+	u32 plane_index_port0[MAX_DIN_NUM], plane_index_port1[MAX_DIN_NUM];
+	u32 zorder[MAX_DIN_NUM], max_height = 0, max_width = 0;
+	int delta_zorder[MAX_DIN_NUM] = {0};
+	bool delta_zorder_flag;
+	struct osd_scope_s scope_default = {0xffff, 0xffff, 0xffff, 0xffff};
+
+	mvobs = to_osdblend_state(state);
+	num_planes = mvps->num_plane;
+	out_port = mvps->dout_index;
+
+	if (state->checked)
+		return 0;
+
+	state->checked = true;
+
+	ret = 0;
+	num_plane_port0 = 0;
+	num_plane_port1 = 0;
+	MESON_DRM_BLOCK("%s check_state called.\n", vblk->name);
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (!mvps->plane_info[i].enable ||
+		    mvps->plane_info[i].crtc_index != 0) {
+			mvobs->input_osd_mask &= ~BIT(i);
+			continue;
+		}
+
+		mvobs->input_osd_mask |= BIT(i);
+		if (out_port[i] == OSD_LEND_OUT_PORT1) {
+			plane_index_port1[num_plane_port1] =
+				mvps->plane_index[i];
+			num_plane_port1++;
+		} else {
+			plane_index_port0[num_plane_port0] = mvps->plane_index[i];
+			num_plane_port0++;
+		}
+	}
+	/*check the unsupport case firstly*/
+	if (num_plane_port0 > OSD_LEND_MAX_IN_NUM_PORT0 ||
+	    num_plane_port1 > OSD_LEND_MAX_IN_NUM_PORT1) {
+		MESON_DRM_BLOCK("unsupport zorder %d\n", __LINE__);
+		return -1;
+	}
+	if (mvps->pipeline->osd_version <= OSD_V2 &&
+	    num_plane_port1) {
+		MESON_DRM_BLOCK("unsupport zorder %d\n", __LINE__);
+		return -1;
+	}
+	/*zorder check for one dout-port with multi plane*/
+	for (i = 0; i < num_plane_port1; i++) {
+		m = plane_index_port1[i];
+		for (j = 0; j < num_plane_port0; j++) {
+			n = plane_index_port0[j];
+			delta_zorder[0] = mvps->plane_info[m].zorder -
+				mvps->plane_info[n].zorder;
+			delta_zorder_flag = ((delta_zorder[0] < 0) !=
+				(delta_zorder[1] < 0));
+			if (num_plane_port0 >= 2 && j > 0 &&
+			    delta_zorder_flag) {
+				MESON_DRM_BLOCK("unsupport zorder %d\n", __LINE__);
+				return -1;
+			}
+			delta_zorder[1] = delta_zorder[0];
+			/*find the max zorder as dout port zorder*/
+			if (mvps->dout_zorder[OSD_LEND_OUT_PORT0] <
+				mvps->plane_info[n].zorder)
+				mvps->dout_zorder[OSD_LEND_OUT_PORT0] =
+					mvps->plane_info[n].zorder;
+		}
+		delta_zorder[2] = delta_zorder[0];
+		delta_zorder_flag = ((delta_zorder[2] < 0) !=
+			(delta_zorder[3] < 0));
+		if (num_plane_port1 >= 2 && i > 0 && delta_zorder_flag) {
+			MESON_DRM_BLOCK("unsupport zorder %d\n", __LINE__);
+			return -1;
+		}
+		delta_zorder[3] = delta_zorder[2];
+		if (mvps->dout_zorder[OSD_LEND_OUT_PORT1] <
+			mvps->plane_info[m].zorder)
+			mvps->dout_zorder[OSD_LEND_OUT_PORT1] =
+				mvps->plane_info[m].zorder;
+	}
+	/*
+	 *confirm the Din enable and channel mux and sub blend input size
+	 *according to input zorder and dout sel
+	 */
+	mvobs->input_mask = 0;
+	MESON_DRM_BLOCK("num_plane_port0=%d\n", num_plane_port0);
+	for (i = 0; i < num_plane_port0; i++) {
+		j = plane_index_port0[i];
+		if (osdblend->gfcd_global_alpha_policy) {
+			if (i == 0) {
+				mvobs->din_channel_mux[i + 1] = osd2channel(j);
+				mvobs->input_mask |= 1 << (i + 1);
+			} else if (i == 1) {
+				mvobs->din_channel_mux[i + 2] = osd2channel(j);
+				mvobs->input_mask |= 1 << (i + 2);
+			}
+		} else {
+			mvobs->input_mask |= 1 << i;
+			mvobs->din_channel_mux[i] = osd2channel(j);
+		}
+
+		zorder[i] = mvps->plane_info[j].zorder;
+		/*blend size calc*/
+		if (max_width < mvps->osd_scope_pre[j].h_end + 1)
+			max_width = mvps->osd_scope_pre[j].h_end + 1;
+		if (max_height < mvps->osd_scope_pre[j].v_end + 1)
+			max_height = mvps->osd_scope_pre[j].v_end + 1;
+	}
+	for (i = 0; i < num_plane_port0; i++) {
+		for (j = (1 + i); j < num_plane_port0; j++) {
+			if (zorder[i] > zorder[j]) {
+				if (osdblend->gfcd_global_alpha_policy) {
+					if (i == 0 && j == 1)
+						swap(mvobs->din_channel_mux[i + 1],
+							mvobs->din_channel_mux[j + 2]);
+				} else {
+					swap(mvobs->din_channel_mux[i],
+						mvobs->din_channel_mux[j]);
+				}
+				swap(zorder[i], zorder[j]);
+			}
+		}
+	}
+	MESON_DRM_BLOCK("num_plane_port1=%d\n", num_plane_port1);
+	for (i = 0; i < num_plane_port1; i++) {
+		m = MAX_DIN_NUM - i - 1;
+		mvobs->input_mask |= 1 << m;
+		j = plane_index_port1[i];
+		mvobs->din_channel_mux[m] = osd2channel(j);
+		zorder[i] = mvps->plane_info[j].zorder;
+		/*blend size calc*/
+		if (max_width < mvps->osd_scope_pre[j].h_end + 1)
+			max_width = mvps->osd_scope_pre[j].h_end + 1;
+		if (max_height < mvps->osd_scope_pre[j].v_end + 1)
+			max_height = mvps->osd_scope_pre[j].v_end + 1;
+	}
+	for (i = 0; i < num_plane_port1; i++) {
+		for (j = (1 + i); j < num_plane_port1; j++) {
+			if (zorder[i] > zorder[j]) {
+				swap(zorder[i], zorder[j]);
+				swap(mvobs->din_channel_mux[i],
+				     mvobs->din_channel_mux[j]);
+			}
+		}
+	}
+	for (i = 0; i < MAX_DIN_NUM; i++) {
+		MESON_DRM_BLOCK("mvobs->din_channel_mux[%d]=%d\n",
+			  i, mvobs->din_channel_mux[i]);
+		if (!mvobs->din_channel_mux[i])
+			mvobs->din_channel_mux[i] = OSD_CHANNEL_NUM;
+	}
+	/*osdblend switch check*/
+	if (mvps->plane_info[0].blend_bypass)
+		mvobs->din0_switch = 1;
+	else
+		mvobs->din0_switch = 0;
+	if ((mvobs->input_mask & (BIT(DIN2) | BIT(DIN3))) &&
+	    num_plane_port0 == 3 && num_plane_port1 == 1)
+		mvobs->din3_switch = 1;
+	else
+		mvobs->din3_switch = 0;
+	if ((mvobs->input_mask & BIT(DIN2)) &&
+	    num_plane_port1 == 2)
+		mvobs->blend1_switch = 1;
+	else
+		mvobs->blend1_switch = 0;
+
+	/*scope check*/
+	for (i = 0; i < MAX_DIN_NUM; i++) {
+		if (mvobs->input_osd_mask & BIT(i))
+			memcpy(&mvobs->din_channel_scope[i],
+				&mvps->osd_scope_pre[i], sizeof(struct osd_scope_s));
+		else
+			memcpy(&mvobs->din_channel_scope[i],
+			       &scope_default,
+				sizeof(struct osd_scope_s));
+	}
+	/*sub blend size check*/
+	mvobs->input_width[OSD_SUB_BLEND0] = max_width;
+	mvobs->input_width[OSD_SUB_BLEND1] = max_width;
+	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
+	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
+	MESON_DRM_BLOCK("%s check done.\n", vblk->name);
+	return 0;
+}
+
 #endif
 
 static void osdblend_set_state(struct meson_vpu_block *vblk,
@@ -616,6 +899,9 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 		return;
 	}
 
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
+
 	if (pipeline_state->pipeline->osd_version <= OSD_V5) {
 		mvobs->input_mask |= 5;
 		for (i = 0; i < MAX_DIN_NUM; i++) {
@@ -632,6 +918,11 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 
 		reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_CTRL, 4, 29, 3);
 	}
+
+	mvobs->input_width[OSD_SUB_BLEND0] += pipeline_state->osdblend_input_width_offset;
+	mvobs->input_width[OSD_SUB_BLEND1] += pipeline_state->osdblend_input_width_offset;
+	for (i = 0; i < MAX_DIN_NUM; i++)
+		mvobs->din_channel_scope[i].h_end += pipeline_state->osd_scope_width_offset[i];
 
 	#ifdef OSDBLEND_CHECK_METHOD_COMBINATION
 	osdblend_layer_set(vblk, state->sub->reg_ops,
@@ -672,6 +963,9 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	mvsps = &mvps->sub_states[0];
 
@@ -811,22 +1105,16 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(OSD_SYS_5MUX4_SEL, 0x1, 0, 20);
 	if (mvps->plane_info[0].enable) {
 		reg_ops->rdma_write_reg_bits(VIU_OSD1_MISC, 1, 17, 1);
-		osd_enable[OSD1_INDEX] = 1;
 		osd_dv_core_size_set_s5(mvsps->scaler_din_hsize[0],
 					mvsps->scaler_din_vsize[0], OSD1_INDEX,
 					reg_ops);
-	} else {
-		osd_enable[OSD1_INDEX] = 0;
 	}
 
 	if (mvps->plane_info[2].enable) {
 		reg_ops->rdma_write_reg_bits(VIU_OSD3_MISC, 1, 17, 1);
-		osd_enable[OSD3_INDEX] = 1;
 		osd_dv_core_size_set_s5(mvsps->scaler_din_hsize[2],
 					mvsps->scaler_din_vsize[2], OSD3_INDEX,
 					reg_ops);
-	} else {
-		osd_enable[OSD3_INDEX] = 0;
 	}
 
 	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
@@ -858,6 +1146,9 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	mvsps = &mvps->sub_states[state->sub->index];
 
@@ -1014,32 +1305,23 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 
 	if (mvps->plane_info[0].enable) {
 		reg_ops->rdma_write_reg_bits(VIU_OSD1_MISC, 1, 17, 1);
-		osd_enable[OSD1_INDEX] = 1;
 		osd_dv_core_size_set_s5(mvsps->scaler_din_hsize[0],
 					mvsps->scaler_din_vsize[0], OSD1_INDEX,
 					reg_ops);
-	} else {
-		osd_enable[OSD1_INDEX] = 0;
 	}
 
 	if (mvps->plane_info[1].enable) {
 		reg_ops->rdma_write_reg_bits(VIU_OSD2_MISC, 1, 17, 1);
-		osd_enable[OSD2_INDEX] = 1;
 		osd_dv_core_size_set_s5(mvsps->scaler_din_hsize[1],
 					mvsps->scaler_din_vsize[1], OSD2_INDEX,
 					reg_ops);
-	} else {
-		osd_enable[OSD2_INDEX] = 0;
 	}
 
 	if (mvps->plane_info[2].enable) {
 		reg_ops->rdma_write_reg_bits(VIU_OSD3_MISC, 1, 17, 1);
-		osd_enable[OSD3_INDEX] = 1;
 		osd_dv_core_size_set_s5(mvsps->scaler_din_hsize[2],
 					mvsps->scaler_din_vsize[2], OSD3_INDEX,
 					reg_ops);
-	} else {
-		osd_enable[OSD3_INDEX] = 0;
 	}
 
 	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
@@ -1050,11 +1332,93 @@ static void txhd2_osdblend_set_state(struct meson_vpu_block *vblk,
 				     struct meson_vpu_block_state *old_state)
 {
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 	/*osd path dout alpha divider, default = 0*/
 	reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_CTRL, 0, 0, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_CTRL1, 0, 0, 1);
 
 	MESON_DRM_BLOCK("%s set_state done.\n", vblk->name);
+}
+
+static void s7d_osdblend_set_state(struct meson_vpu_block *vblk,
+			       struct meson_vpu_block_state *state,
+			       struct meson_vpu_block_state *old_state)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	struct meson_vpu_pipeline *pipeline = osdblend->base.pipeline;
+	struct meson_vpu_osdblend_state *mvobs;
+	struct meson_vpu_pipeline_state *pipeline_state;
+	struct osdblend_reg_s *reg = osdblend->reg;
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	struct osd_scope_s scope_default = {0xffff, 0xffff, 0x0439, 0x043a};
+	int i = 0;
+
+	MESON_DRM_BLOCK("%s set_state called.\n", osdblend->base.name);
+	mvobs = to_osdblend_state(state);
+	pipeline_state = priv_to_pipeline_state(pipeline->obj.state);
+	if (!pipeline_state) {
+		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
+		return;
+	}
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
+
+	if (pipeline_state->pipeline->osd_version <= OSD_V5) {
+		mvobs->input_mask |= 5;
+		for (i = 0; i < MAX_DIN_NUM; i++) {
+			if (mvobs->din_channel_mux[i] == 0)
+				mvobs->din_channel_mux[i] = 4;
+		}
+
+		for (i = 0; i < MAX_DIN_NUM; i++) {
+			if (!(mvobs->input_osd_mask & BIT(i))) {
+				memcpy(&mvobs->din_channel_scope[i],
+					&scope_default, sizeof(struct osd_scope_s));
+			}
+		}
+
+		reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_CTRL, 4, 29, 3);
+	}
+
+	if (osdblend->gfcd_global_alpha_policy) {
+		mvobs->din_channel_mux[DIN0] = OSD_CHANNEL3;
+		mvobs->din_channel_scope[DIN2].h_start = 0x1fff;
+		mvobs->din_channel_scope[DIN2].h_end = 0x1fff;
+		mvobs->din_channel_scope[DIN2].v_start = 0x043a;
+		mvobs->din_channel_scope[DIN2].v_end = 0x0439;
+		mvobs->din_channel_mux[DIN2] = OSD_CHANNEL4;
+		mvobs->din_channel_scope[DIN3].h_start = 0x1fff;
+		mvobs->din_channel_scope[DIN3].h_end = 0x1fff;
+		mvobs->din_channel_scope[DIN3].v_start = 0x043a;
+		mvobs->din_channel_scope[DIN3].v_end = 0x0439;
+	}
+
+	mvobs->input_width[OSD_SUB_BLEND0] += pipeline_state->osdblend_input_width_offset;
+	mvobs->input_width[OSD_SUB_BLEND1] += pipeline_state->osdblend_input_width_offset;
+	for (i = 0; i < MAX_DIN_NUM; i++)
+		mvobs->din_channel_scope[i].h_end += pipeline_state->osd_scope_width_offset[i];
+
+	#ifdef OSDBLEND_CHECK_METHOD_COMBINATION
+	osdblend_layer_set(vblk, state->sub->reg_ops,
+			   reg, osdblend, pipeline_state);
+	#else
+	if (osdblend->gfcd_global_alpha_policy) {
+		s7d_osdblend_global_alpha_set(vblk, state->sub->reg_ops, pipeline_state);
+		s7d_osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
+	} else {
+		osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
+	}
+	#endif
+	/*osd dv core size same with blend0 size*/
+	if (vblk->pipeline->osd_version >= OSD_V1)
+		osd_dv_core_size_set(mvobs->input_width[OSD_SUB_BLEND0],
+				     mvobs->input_height[OSD_SUB_BLEND0],
+				     state->sub->reg_ops);
+
+	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
 }
 
 #endif
@@ -1156,13 +1520,15 @@ static void osdblend_dump_register(struct drm_printer *p,
 		reg_addr, value);
 }
 
-static void osdblend_hw_init(struct meson_vpu_block *vblk)
+static void osdblend_register_init(struct meson_vpu_block *vblk,
+		struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
 	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
 
-	osdblend->reg = &osdblend_reg;
+	if (vblk->init_done)
+		return;
 
 	/*dummy data/alpha config*/
 	osd_blend_dummy_data_set(vblk, reg_ops, osdblend->reg, dummy_data);
@@ -1170,6 +1536,16 @@ static void osdblend_hw_init(struct meson_vpu_block *vblk)
 
 	/*reset blend ctrl hold line*/
 	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", osdblend->base.name);
+}
+
+static void osdblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+
+	osdblend->reg = &osdblend_reg;
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
 }
@@ -1180,13 +1556,15 @@ static void txhd2_osdblend_hw_init(struct meson_vpu_block *vblk)
 	MESON_DRM_BLOCK("%s hw_init called.\n", vblk->name);
 }
 
-static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
+static void s5_osdblend_register_init(struct meson_vpu_block *vblk,
+		struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
 	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
 
-	osdblend->reg = &osdblend_s5_reg;
+	if (vblk->init_done)
+		return;
 
 	/*dummy data/alpha config*/
 	osd_blend_dummy_data_set(vblk, reg_ops, osdblend->reg, dummy_data);
@@ -1195,12 +1573,58 @@ static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
 	/*reset blend ctrl hold line*/
 	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 4, 29, 3);
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	register_osd_func(osd_dv_get_osd_status);
-#endif
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", osdblend->base.name);
+}
+
+static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+
+	osdblend->reg = &osdblend_s5_reg;
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
 }
+
+static void s7d_osdblend_register_init(struct meson_vpu_block *vblk,
+		struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
+	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
+
+	if (vblk->init_done)
+		return;
+
+	/*dummy data/alpha config*/
+	osd_blend_dummy_data_set(vblk, reg_ops, osdblend->reg, dummy_data);
+	reg_ops->rdma_write_reg(osdblend->reg->viu_osd_blend_dummy_data0, 0);
+
+	/* core0&core1 used for global alpha, range:0~0x100
+	 * core2 still is dummy alpha
+	 */
+	if (osdblend->gfcd_global_alpha_policy)
+		meson_drm_write_reg(osdblend->reg->viu_osd_blend_dummy_alpha, 0x10080000);
+
+	/*reset blend ctrl hold line*/
+	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", osdblend->base.name);
+}
+
+static void s7d_osdblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	struct meson_drm *priv = vblk->pipeline->priv;
+
+	osdblend->reg = &osdblend_reg;
+	osdblend->gfcd_global_alpha_policy =
+		!!(priv->of_conf.gfcd_mask & BIT(GFCD_GLOBAL_ALPHA));
+
+	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
+}
+
 #endif
 
 struct meson_vpu_block_ops osdblend_ops = {
@@ -1210,6 +1634,7 @@ struct meson_vpu_block_ops osdblend_ops = {
 	.disable = osdblend_hw_disable,
 	.dump_register = osdblend_dump_register,
 	.init = osdblend_hw_init,
+	.init_register = osdblend_register_init,
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -1229,6 +1654,7 @@ struct meson_vpu_block_ops s5_osdblend_ops = {
 	.disable = osdblend_hw_disable,
 	.dump_register = osdblend_dump_register,
 	.init = s5_osdblend_hw_init,
+	.init_register = s5_osdblend_register_init,
 };
 
 struct meson_vpu_block_ops t3x_osdblend_ops = {
@@ -1238,5 +1664,17 @@ struct meson_vpu_block_ops t3x_osdblend_ops = {
 	.disable = osdblend_hw_disable,
 	.dump_register = osdblend_dump_register,
 	.init = s5_osdblend_hw_init,
+	.init_register = s5_osdblend_register_init,
 };
+
+struct meson_vpu_block_ops s7d_osdblend_ops = {
+	.check_state = s7d_osdblend_check_state,
+	.update_state = s7d_osdblend_set_state,
+	.enable = osdblend_hw_enable,
+	.disable = osdblend_hw_disable,
+	.dump_register = osdblend_dump_register,
+	.init = s7d_osdblend_hw_init,
+	.init_register = s7d_osdblend_register_init,
+};
+
 #endif

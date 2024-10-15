@@ -78,12 +78,16 @@ struct am_meson_crtc_state {
 	u32 valid_brr;
 	/*brr mode string*/
 	char brr_mode[DRM_DISPLAY_MODE_LEN];
+	/*for nonblock commit, one commit do not wait flip done for preceding commits*/
+	bool nonblock_by_vblank;
 
 	int prev_vrefresh;
 	int prev_height;
 	int hdr_conversion_ctrl;
 	bool attr_changed;
 	bool brr_update;
+
+	bool seamless;
 };
 
 struct am_meson_crtc {
@@ -109,6 +113,7 @@ struct am_meson_crtc {
 	struct drm_property *hdr_conversion_ctrl_property;
 	struct drm_property *hdr_conversion_cap_property;
 	struct drm_property *drm_policy_property;
+	struct drm_property *nonblock_by_vblank_property;
 
 	/*debug*/
 	int dump_enable;
@@ -116,6 +121,7 @@ struct am_meson_crtc {
 	int dump_counts;
 	int dump_index;
 	char osddump_path[64];
+	bool rdma_table_enable;
 
 	/*present fence*/
 	struct am_meson_crtc_present_fence present_fence;
@@ -143,12 +149,15 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv,
 	int idx);
 int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
+u32 meson_crtc_mask(struct drm_device *dev);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
 			struct drm_vrr_mode_group *groups, int max_group);
 #endif
+#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
 int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
+#endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 void set_amdv_policy(int policy);

@@ -6,6 +6,8 @@
 #ifndef _MESON_OSD_GFCD_H_
 #define _MESON_OSD_GFCD_H_
 
+#define VPP_OSD_HDR_DIV_ALPHA                      0x1d7f
+
 #define GFCD_FRM_BGN                               0x5950
 #define GFCD_FRM_END                               0x5951
 #define GFCD_CLK_CTRL                              0x5952

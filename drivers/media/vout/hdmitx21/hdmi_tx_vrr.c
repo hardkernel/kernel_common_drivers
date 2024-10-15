@@ -1157,7 +1157,7 @@ ssize_t _vrr_cap_show(struct device *dev,
 static int _vrr_groups_show_(int _pos, char *buf)
 {
 #ifndef HDMI_NO_VERBOSE_INFO
-	struct drm_vrr_mode_group *groups;
+	struct hdmitx_vrr_mode_group *groups;
 	int i;
 	int j;
 	int pos = 0;
@@ -1253,7 +1253,7 @@ static bool is_rx_supported_vic(enum hdmi_vic brr_vic)
 /* refer to HDMI 2.1 Sink Capability Indication for QMS/GAME VRR */
 /* brr_vfreq unit: 100    23.976Hz -> 2397 */
 static void calc_vrr_range(struct rx_cap *prxcap,
-	struct drm_vrr_mode_group *group, u32 brr_vfreq)
+	struct hdmitx_vrr_mode_group *group, u32 brr_vfreq)
 {
 	bool qms;
 	bool qms_tfr_min;
@@ -1375,7 +1375,7 @@ static void calc_vrr_range(struct rx_cap *prxcap,
 	}
 }
 
-static void add_brr_vic_lists(struct drm_vrr_mode_group *group)
+static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 {
 	int i = 0;
 	enum hdmi_vic vic;
@@ -1423,7 +1423,7 @@ static void add_brr_vic_lists(struct drm_vrr_mode_group *group)
 	}
 }
 
-static void add_vic_to_group(enum hdmi_vic vic, struct drm_vrr_mode_group *group, bool log_en)
+static void add_vic_to_group(enum hdmi_vic vic, struct hdmitx_vrr_mode_group *group, bool log_en)
 {
 	const struct hdmi_timing *timing;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -1462,7 +1462,7 @@ static void add_vic_to_group(enum hdmi_vic vic, struct drm_vrr_mode_group *group
 		HDMITX_INFO("qms: qms range group %s\n", str_vics);
 }
 
-int drm_hdmitx_get_vrr_mode_group(struct drm_vrr_mode_group *group, int max_group)
+int drm_hdmitx_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_group)
 {
 	int i = 0, j = 0;
 	const struct hdmi_timing *timing;

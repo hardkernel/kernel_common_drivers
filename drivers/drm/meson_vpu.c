@@ -223,7 +223,7 @@ static void meson_init_policy_mask(struct meson_drm *private)
 	if (private->vpu_data->policy) {
 		policy = private->vpu_data->policy;
 		for (; *policy != MAX_POLICY_ID; policy++)
-			private->of_conf.drm_policy_mask = BIT(*policy);
+			private->of_conf.drm_policy_mask |= BIT(*policy);
 	}
 }
 
@@ -251,6 +251,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	meson_vpu_block_state_init(private, private->pipeline);
 
 	meson_of_init(dev, drm_dev, private);
+	meson_init_policy_mask(private);
 
 	ret = am_meson_plane_create(private);
 	if (ret) {
@@ -283,7 +284,6 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	vpu_pipeline_pre_init(pipeline, dev);
 	vpu_pipeline_init(pipeline);
-	meson_init_policy_mask(private);
 
 	/* HW config for different VPUs */
 	if (vpu_data && vpu_data->crtc_func.init_default_reg)
@@ -364,23 +364,6 @@ static const struct meson_vpu_data vpu_g12b_data = {
 	.dv_ops = &db_ops,
 	.postblend_ops = &g12b_postblend_ops,
 	.video_ops = &video_ops,
-};
-
-static const struct meson_vpu_data vpu_s7_data = {
-	.crtc_func = {
-		.reg_ops = common_reg_ops,
-	},
-	.pipe_ops = &g12a_vpu_pipeline_ops,
-	.osd_ops = &t7_osd_ops,
-	.afbc_ops = &s7_afbc_ops,
-	.scaler_ops = &scaler_ops,
-	.osdblend_ops = &osdblend_ops,
-	.hdr_ops = &hdr_ops,
-	.dv_ops = &db_ops,
-	.postblend_ops = &s7_postblend_ops,
-	.video_ops = &video_ops,
-	.osd_formats = &osd_formats_s1a,
-	.video_formats = &video_formats,
 };
 
 static const struct meson_vpu_data vpu_t7_data = {
@@ -466,13 +449,14 @@ static const struct meson_vpu_data vpu_s5_data = {
 	.afbc_ops = &s5_afbc_ops,
 	.scaler_ops = &s5_scaler_ops,
 	.osdblend_ops = &s5_osdblend_ops,
-	.hdr_ops = &hdr_ops,
+	.hdr_ops = &s5_hdr_ops,
 	.dv_ops = &db_ops,
 	.postblend_ops = &s5_postblend_ops,
 	.video_ops = &video_ops,
 	.slice2ppc_ops = &slice2ppc_ops,
 	.osd_formats = &osd_formats,
 	.video_formats = &video_formats,
+	.cached_regs = s5_reg_table_cached,
 	.enc_method = 1,
 	.slice_mode = 1,
 	.max_osdblend_width = 3840,
@@ -485,7 +469,7 @@ static const struct meson_vpu_data vpu_t3x_data = {
 		.reg_ops = common_reg_ops,
 	},
 	.pipe_ops = &s5_vpu_pipeline_ops,
-	.osd_ops = &s5_osd_ops,
+	.osd_ops = &t3x_osd_ops,
 	.afbc_ops = &t3x_afbc_ops,
 	.scaler_ops = &s5_scaler_ops,
 	.osdblend_ops = &t3x_osdblend_ops,
@@ -496,6 +480,7 @@ static const struct meson_vpu_data vpu_t3x_data = {
 	.slice2ppc_ops = &slice2ppc_ops,
 	.osd_formats = &osd_formats_t3x,
 	.video_formats = &video_formats,
+	.cached_regs = s5_reg_table_cached,
 	.enc_method = 1,
 	.slice_mode = 1,
 	.max_osdblend_width = 3840,
@@ -507,7 +492,7 @@ static const struct meson_vpu_data vpu_txhd2_data = {
 		.reg_ops = common_reg_ops,
 	},
 	.pipe_ops = &g12a_vpu_pipeline_ops,
-	.osd_ops = &osd_ops,
+	.osd_ops = &txhd2_osd_ops,
 	.afbc_ops = &afbc_ops,
 	.scaler_ops = &scaler_ops,
 	.osdblend_ops = &txhd2_osdblend_ops,
@@ -519,6 +504,24 @@ static const struct meson_vpu_data vpu_txhd2_data = {
 	.video_formats = &video_formats,
 };
 
+static const struct meson_vpu_data vpu_s7_data = {
+	.crtc_func = {
+		.reg_ops = common_reg_ops,
+	},
+	.pipe_ops = &g12a_vpu_pipeline_ops,
+	.osd_ops = &s7_osd_ops,
+	.afbc_ops = &s7_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &db_ops,
+	.postblend_ops = &s7_postblend_ops,
+	.video_ops = &video_ops,
+	.osd_formats = &osd_formats_s1a,
+	.video_formats = &video_formats,
+	.cached_regs = s7_reg_table_cached,
+};
+
 static const struct meson_vpu_data vpu_s7d_data = {
 		.crtc_func = {
 		.reg_ops = common_reg_ops,
@@ -528,7 +531,7 @@ static const struct meson_vpu_data vpu_s7d_data = {
 	.gfcd_ops = &gfcd_ops,
 	.afbc_ops = &s7d_afbc_ops,
 	.scaler_ops = &scaler_ops,
-	.osdblend_ops = &osdblend_ops,
+	.osdblend_ops = &s7d_osdblend_ops,
 	.hdr_ops = &s7d_hdr_ops,
 	.dv_ops = &db_ops,
 	.postblend_ops = &postblend_ops,
@@ -536,6 +539,46 @@ static const struct meson_vpu_data vpu_s7d_data = {
 	.osd_formats = &osd_formats_s7d,
 	.video_formats = &video_formats,
 	.policy = s7d_policy,
+	.has_gfcd = 1,
+};
+
+static const struct meson_vpu_data vpu_s6_data = {
+		.crtc_func = {
+		.reg_ops = common_reg_ops,
+		.pre_init = g12b_pipeline_pre_init,
+	},
+	.pipe_ops = &g12a_vpu_pipeline_ops,
+	.osd_ops = &s6_osd_ops,
+	.gfcd_ops = &gfcd_ops,
+	.afbc_ops = &s6_afbc_ops,
+	.scaler_ops = &s6_scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &s7d_hdr_ops,
+	.dv_ops = &db_ops,
+	.postblend_ops = &s6_postblend_ops,
+	.video_ops = &video_ops,
+	.osd_formats = &osd_formats_s7d,
+	.video_formats = &video_formats,
+	.policy = s7d_policy,
+	.has_gfcd = 1,
+};
+
+static const struct meson_vpu_data vpu_t6d_data = {
+	.crtc_func = {
+		.reg_ops = common_reg_ops,
+	},
+	.pipe_ops = &t7_vpu_pipeline_ops,
+	.osd_ops = &t6d_osd_ops,
+	.afbc_ops = &t3_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &db_ops,
+	.postblend_ops = &t6d_postblend_ops,
+	.video_ops = &video_ops,
+	.osd_formats = &osd_formats_t6d,
+	.video_formats = &video_formats,
+	.enc_method = 1,
 };
 #endif
 
@@ -544,7 +587,7 @@ static const struct meson_vpu_data vpu_s1a_data = {
 		.reg_ops = common_reg_ops,
 	},
 	.pipe_ops = &g12a_vpu_pipeline_ops,
-	.osd_ops = &osd_ops,
+	.osd_ops = &s1a_osd_ops,
 	.afbc_ops = &afbc_ops,
 	.scaler_ops = &scaler_ops,
 	.osdblend_ops = &osdblend_ops,
@@ -603,6 +646,10 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	  .data = &vpu_s7_data,},
 	{.compatible = "amlogic, meson-s7d-vpu",
 	  .data = &vpu_s7d_data,},
+	{.compatible = "amlogic, meson-s6-vpu",
+	  .data = &vpu_s6_data,},
+	{.compatible = "amlogic, meson-t6d-vpu",
+	 .data = &vpu_t6d_data,},
 #endif
 	{.compatible = "amlogic, meson-s1a-vpu",
 	  .data = &vpu_s1a_data,},

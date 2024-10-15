@@ -14,6 +14,7 @@
 #include "meson_drv.h"
 #include "meson_vpu_util.h"
 #include "meson_plane.h"
+#include "meson_drm_rdma.h"
 
 #define MESON_OSD1 0
 #define MESON_OSD2 1
@@ -43,6 +44,10 @@
 #define VP_MAP_STRUCT_SIZE	120
 #define BUFFER_NUM		4
 #define MAX_DFS_PATH_NUM 4
+
+#define MAX_CANVAS_NUM	3
+#define MAX_CANVAS_FIFO_NUM  4
+
 /*
  *according to reg description,scale down limit shold be 4bits=16
  *but test result is 10,it will display abnormal if bigger than 10.xx
@@ -76,8 +81,8 @@
 extern u32 frame_seq[MESON_MAX_OSDS];
 
 enum meson_policy_id {
-	GFCD_ODD_SIZE,
-	GFCD_GLOBAL_ALPHA,
+	GFCD_ODD_SIZE = 0,
+	GFCD_GLOBAL_ALPHA = 1,
 	HDR_BEFORE_BLEND,
 };
 
@@ -127,6 +132,8 @@ struct meson_vpu_block_ops {
 			struct meson_vpu_block_state *old_state);
 	void (*dump_register)(struct drm_printer *p, struct meson_vpu_block *vblk);
 	void (*init)(struct meson_vpu_block *vblk);
+	void (*init_register)(struct meson_vpu_block *vblk,
+			struct meson_vpu_block_state *state);
 	void (*fini)(struct meson_vpu_block *vblk);
 };
 
@@ -202,6 +209,9 @@ struct meson_vpu_osd_layer_info {
 	int dst_y;
 	u32 fb_w;
 	u32 fb_h;
+	u32 hdisplay;
+	u32 vdisplay;
+	u32 src_w_offset4hdr;
 	u32 zorder;
 	u32 byte_stride;
 	u32 pixel_format;
@@ -239,6 +249,11 @@ struct meson_vpu_osd {
 	int mif_acc_mode;
 	int viu2_hold_line;
 	u32 mali_src_en_switch;
+	const struct meson_drm_format_info **infos;
+	int format_swap;
+	DECLARE_KFIFO(canvas_q, u32, MAX_CANVAS_FIFO_NUM);
+	bool has_gfcd;
+	bool gfcd_global_alpha_policy;
 };
 
 struct osd_zorder_s {
@@ -309,12 +324,14 @@ struct meson_vpu_video_layer_info {
 	u32 fb_size[2];
 	u32 pixel_blend;
 	u32 crtc_index;
+	u32 rotation;
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
 	u32 vfm_mode;
 	bool is_uvm;
 	u32 status_changed;
 	int sec_en;
+	u32 signal_fmt;
 };
 
 struct meson_vpu_disable_work {
@@ -356,7 +373,7 @@ struct meson_vpu_video_state {
 	u32 alpha;
 	u32 global_alpha;
 	u32 dimm_color;
-	u32 phy_addr[2];
+	u64 phy_addr[2];
 	u32 pixel_format;
 	u32 zorder;
 	u32 byte_stride;
@@ -377,10 +394,12 @@ struct meson_vpu_video_state {
 	u32 pixel_blend;
 	u32 afbc_en;
 	u32 repeat_frame;
+	u32 rotation;
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
 	bool is_uvm;
 	int sec_en;
+	u32 signal_fmt;
 };
 
 struct meson_vpu_afbc {
@@ -416,12 +435,15 @@ struct meson_vpu_scaler_state {
 	u32 input_height;
 	u32 output_width;
 	u32 output_height;
+	u32 input_width_offset;
+	u32 output_width_offset;
 	u32 ratio_x;
 	u32 ratio_y;
 	u32 scan_mode_out;
 	u32 state_changed;
 	u32 free_scale_enable;
 	u32 scaler_filter_mode;
+	u32 global;
 };
 
 struct meson_vpu_scaler_param {
@@ -429,6 +451,8 @@ struct meson_vpu_scaler_param {
 	u32 input_height;
 	u32 output_width;
 	u32 output_height;
+	u32 input_width_offset;
+	u32 output_width_offset;
 
 	//u32 ratio_x;
 	//u32 ratio_y;
@@ -462,6 +486,7 @@ struct meson_vpu_scaler_param {
 struct meson_vpu_osdblend {
 	struct meson_vpu_block base;
 	struct osdblend_reg_s *reg;
+	bool gfcd_global_alpha_policy;
 };
 
 struct meson_vpu_osdblend_state {
@@ -650,6 +675,9 @@ struct meson_vpu_pipeline_state {
 	struct meson_vpu_scaler_param scaler_param[MESON_MAX_SCALERS];
 	/*pre_osd_scope is before DIN*/
 	struct osd_scope_s osd_scope_pre[MAX_DIN_NUM];
+	/*used for gfcd odd input width*/
+	u32 osd_scope_width_offset[MAX_DIN_NUM];
+	u32 osdblend_input_width_offset;
 	int vpp_scope_x;
 	int vpp_scope_y;
 
@@ -722,6 +750,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *pipeline,
 			struct drm_atomic_state *old_state);
 void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline);
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline);
+void vpu_pipeline_resume_init(struct meson_vpu_pipeline *pipeline);
 
 int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
 			int *vpos, int *hpos, int crtc_index);
@@ -763,10 +792,15 @@ struct meson_vpu_pipeline_state *
 meson_vpu_pipeline_get_new_state(struct meson_vpu_pipeline *pipeline,
 			     struct drm_atomic_state *state);
 void sort_osd_by_zorder(struct osd_zorder_s *din, u32 osd_num);
+const struct meson_drm_format_info *meson_drm_format_info(struct meson_vpu_block *vblk, u32 format,
+							  bool afbc_en);
 
 extern struct rdma_reg_ops common_reg_ops[3];
 extern struct rdma_reg_ops g12b_reg_ops[2];
 
+/*
+ * for g12a/s4/s4d/sc2 soc
+ */
 extern struct meson_vpu_block_ops video_ops;
 extern struct meson_vpu_block_ops osd_ops;
 extern struct meson_vpu_block_ops afbc_ops;
@@ -776,31 +810,67 @@ extern struct meson_vpu_block_ops hdr_ops;
 extern struct meson_vpu_block_ops db_ops;
 extern struct meson_vpu_block_ops postblend_ops;
 
+/*
+ * for g12b/sm1 soc with dual display
+ */
 extern struct meson_vpu_block_ops g12b_osd_ops;
 extern struct meson_vpu_block_ops g12b_postblend_ops;
+
+/*
+ * for t7/t3/t5w/t5m soc with multi encoder
+ */
 extern struct meson_vpu_block_ops t7_osd_ops;
 extern struct meson_vpu_block_ops t7_afbc_ops;
 extern struct meson_vpu_block_ops t7_hdr_ops;
 extern struct meson_vpu_block_ops t3_afbc_ops;
 extern struct meson_vpu_block_ops t7_postblend_ops;
 extern struct meson_vpu_block_ops t3_postblend_ops;
-extern struct meson_vpu_block_ops t3x_postblend_ops;
 
+/*
+ * for s5/t3x soc with slice block
+ */
 extern struct meson_vpu_block_ops s5_osd_ops;
 extern struct meson_vpu_block_ops s5_afbc_ops;
 extern struct meson_vpu_block_ops s5_scaler_ops;
+extern struct meson_vpu_block_ops s5_hdr_ops;
 extern struct meson_vpu_block_ops s5_osdblend_ops;
 extern struct meson_vpu_block_ops s5_postblend_ops;
 extern struct meson_vpu_block_ops slice2ppc_ops;
+extern struct meson_vpu_block_ops t3x_osd_ops;
 extern struct meson_vpu_block_ops t3x_osdblend_ops;
 extern struct meson_vpu_block_ops t3x_afbc_ops;
+extern struct meson_vpu_block_ops t3x_postblend_ops;
+
+/*
+ * for s1a/txhd2 soc
+ */
+extern struct meson_vpu_block_ops s1a_osd_ops;
+extern struct meson_vpu_block_ops txhd2_osd_ops;
+extern struct meson_vpu_block_ops txhd2_osdblend_ops;
+extern struct meson_vpu_block_ops txhd2_postblend_ops;
+extern struct meson_vpu_block_ops t6d_osd_ops;
+extern struct meson_vpu_block_ops t6d_postblend_ops;
+
+/*
+ * for s7 soc
+ */
+extern struct meson_vpu_block_ops s7_osd_ops;
 extern struct meson_vpu_block_ops s7_afbc_ops;
 extern struct meson_vpu_block_ops s7_postblend_ops;
 
+/*
+ * for s7d soc
+ */
 extern struct meson_vpu_block_ops gfcd_ops;
 extern struct meson_vpu_block_ops s7d_hdr_ops;
 extern struct meson_vpu_block_ops s7d_osd_ops;
 extern struct meson_vpu_block_ops s7d_afbc_ops;
+extern struct meson_vpu_block_ops s7d_osdblend_ops;
+
+extern struct meson_vpu_block_ops s6_osd_ops;
+extern struct meson_vpu_block_ops s6_scaler_ops;
+extern struct meson_vpu_block_ops s6_afbc_ops;
+extern struct meson_vpu_block_ops s6_postblend_ops;
 
 extern struct meson_vpu_block_ops txhd2_osdblend_ops;
 extern struct meson_vpu_block_ops txhd2_postblend_ops;
@@ -814,8 +884,13 @@ extern struct meson_plane_supported_formats osd_formats_t3x;
 extern struct meson_plane_supported_formats osd_formats_t5m;
 extern struct meson_plane_supported_formats osd_formats_s1a;
 extern struct meson_plane_supported_formats osd_formats_s7d;
+extern struct meson_plane_supported_formats osd_formats_t6d;
 extern struct meson_plane_supported_formats video_formats;
 
+extern u32 s5_reg_table_cached[VPU_CACHED_REG_TABLE_SIZE];
+extern u32 s7_reg_table_cached[VPU_CACHED_REG_TABLE_SIZE];
+
+extern struct meson_drm_rdma_table rdma_tbl[MESON_MAX_CRTC];
 extern u32 overwrite_reg[256];
 extern u32 overwrite_val[256];
 extern int overwrite_enable;

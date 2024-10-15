@@ -331,10 +331,10 @@ static void meson_cvbs_init_update_property(struct drm_device *drm_dev,
 int meson_cvbs_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
 {
-	struct meson_drm *priv = drm->dev_private;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	int ret = 0;
+	u32 crtc_mask = 0;
 
 	DRM_DEBUG("%s in[%d]\n", __func__, __LINE__);
 
@@ -347,8 +347,15 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 	encoder = &am_drm_cvbs->encoder;
 	connector = &am_drm_cvbs->base.connector;
 
-	/* Encoder */
-	encoder->possible_crtcs = priv->of_conf.crtc_masks[ENCODER_CVBS];
+	/*
+	 *Encoder possible_crtcs priority reference connector crtc_sel.
+	 */
+	crtc_mask = meson_crtc_mask(drm);
+	if (intf->crtc_sel)
+		encoder->possible_crtcs = intf->crtc_sel & crtc_mask;
+	else
+		encoder->possible_crtcs = BIT(0);
+
 	drm_encoder_helper_add(encoder, &am_cvbs_encoder_helper_funcs);
 
 	ret = drm_encoder_init(drm, encoder, &am_cvbs_encoder_funcs,

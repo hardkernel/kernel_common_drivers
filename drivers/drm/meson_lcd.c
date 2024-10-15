@@ -252,37 +252,33 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 		 meson_crtc_state->prev_vrefresh, vrefresh);
 
 	if (encoder->crtc->state->vrr_enabled) {
-		if (strcmp(meson_crtc_state->brr_mode, meson_old_crtc_state->brr_mode)) {
+		/*for keystone projector, switch loopback may change connector's crtc*/
+		if (strcmp(meson_crtc_state->brr_mode, meson_old_crtc_state->brr_mode) ||
+			encoder->crtc->state->connectors_changed ||
+			encoder->crtc->state->active_changed) {
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_START);
 			vout_func_set_vmode(amcrtc->vout_index, vmode);
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_FINISH);
 			meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "lcd");
-			DRM_INFO("vrr mode, use set_vmode\n");
 		}
 
 		if (vrefresh != meson_crtc_state->brr ||
-		    meson_crtc_state->prev_vrefresh != vrefresh) {
+		    meson_crtc_state->prev_vrefresh != vrefresh ||
+			encoder->crtc->state->connectors_changed ||
+			encoder->crtc->state->active_changed) {
 			lcd_frac_hint = find_frac_hint_by_fps(vrefresh);
 			vout_func_set_vframe_rate_hint(amcrtc->vout_index, lcd_frac_hint);
-			DRM_INFO("vrr mode, use set_vframe_rate_hint, %s-%s, %d-%d\n",
+			DRM_INFO("vrr mode, use set_vframe_rate_hint, %s-%s, %d-%d, %d-%d\n",
 				 meson_crtc_state->brr_mode, meson_old_crtc_state->brr_mode,
-				 meson_crtc_state->brr, lcd_frac_hint);
+				 meson_crtc_state->brr, lcd_frac_hint,
+				 encoder->crtc->state->connectors_changed,
+				 encoder->crtc->state->active_changed);
 		}
 
 		meson_crtc_state->prev_vrefresh = vrefresh;
 
-		return;
-	}
-
-	if (crtc->enabled && !crtc->state->active_changed &&
-	    meson_crtc_state->prev_height == mode->vdisplay &&
-	    meson_crtc_state->prev_vrefresh != vrefresh) {
-		lcd_frac_hint = find_frac_hint_by_fps(vrefresh);
-		vout_func_set_vframe_rate_hint(amcrtc->vout_index, lcd_frac_hint);
-		meson_crtc_state->prev_vrefresh = vrefresh;
-		DRM_INFO("skip set_vmode, use set_vframe_rate_hint\n");
 		return;
 	}
 
@@ -319,8 +315,8 @@ static void meson_panel_cal_brr(struct meson_panel *am_lcd,
 			  drm_mode_vrefresh(adj_mode));
 		if (group->width == adj_mode->hdisplay &&
 		    group->height == adj_mode->vdisplay &&
-		    group->vrr_min <= drm_mode_vrefresh(adj_mode) &&
-		    group->vrr_max >= drm_mode_vrefresh(adj_mode)) {
+		    group->vrr_min / VRR_DIV <= drm_mode_vrefresh(adj_mode) &&
+		    group->vrr_max / VRR_DIV >= drm_mode_vrefresh(adj_mode)) {
 			break;
 		}
 	}
@@ -329,11 +325,56 @@ static void meson_panel_cal_brr(struct meson_panel *am_lcd,
 	if (i != am_lcd->num_vrr_group) {
 		strncpy(crtc_state->brr_mode, group->modename, DRM_DISPLAY_MODE_LEN);
 		crtc_state->brr_mode[DRM_DISPLAY_MODE_LEN - 1] = '\0';
+		/*group->brr only used by lcd, not div 100*/
 		crtc_state->brr = group->brr;
 		crtc_state->valid_brr = 1;
 	} else {
 		DRM_ERROR("%s, get panel brr fail\n", adj_mode->name);
 	}
+}
+
+static
+int meson_encoder_vrr_change(struct drm_encoder *encoder,
+			     struct drm_atomic_state *state)
+{
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *new_state, *old_state;
+	struct drm_display_mode *new_mode, *old_mode;
+	struct am_meson_crtc_state *meson_crtc_state;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
+	if (!connector)
+		return 0;
+
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state)
+		return 0;
+
+	crtc = conn_state->crtc;
+	new_state = drm_atomic_get_new_crtc_state(state, crtc);
+	old_state = drm_atomic_get_old_crtc_state(state, crtc);
+
+	if (!new_state || !old_state) {
+		DRM_INFO("%s crtc state is NULL!\n", __func__);
+		return 0;
+	}
+	new_mode = &new_state->adjusted_mode;
+	old_mode = &old_state->adjusted_mode;
+	meson_crtc_state = to_am_meson_crtc_state(new_state);
+
+	if (new_state->vrr_enabled &&
+		new_mode->hdisplay == old_mode->hdisplay &&
+		new_mode->vdisplay == old_mode->vdisplay &&
+		!(new_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
+		meson_crtc_state->seamless = true;
+	} else {
+		meson_crtc_state->seamless = false;
+	}
+
+	DRM_DEBUG("[%s], seamless is %d\n", __func__, meson_crtc_state->seamless);
+	return meson_crtc_state->seamless;
 }
 
 static int meson_panel_encoder_atomic_check(struct drm_encoder *encoder,
@@ -345,8 +386,13 @@ static int meson_panel_encoder_atomic_check(struct drm_encoder *encoder,
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(crtc_state);
 
-	if (crtc_state->vrr_enabled)
+	if (!crtc_state->vrr_enabled)
+		memset(meson_crtc_state->brr_mode, 0, DRM_DISPLAY_MODE_LEN);
+
+	if (crtc_state->vrr_enabled || meson_crtc_state->uboot_mode_init)
 		meson_panel_cal_brr(am_lcd, meson_crtc_state, adj_mode);
+
+	meson_encoder_vrr_change(encoder, conn_state->state);
 	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
 	return 0;
 }
@@ -364,7 +410,6 @@ static const struct drm_encoder_funcs meson_panel_encoder_funcs = {
 int meson_panel_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
 {
-	struct meson_drm *priv = drm->dev_private;
 	struct drm_connector *connector = NULL;
 	struct drm_encoder *encoder = NULL;
 	struct meson_panel *panel_instance = NULL;
@@ -373,6 +418,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 	int connector_type = type;
 	int encoder_type = DRM_MODE_ENCODER_LVDS;
 	int ret = 0;
+	u32 crtc_mask = 0;
 
 	DRM_INFO("[%s]-[%d] called\n", __func__, __LINE__);
 
@@ -449,8 +495,15 @@ int meson_panel_dev_bind(struct drm_device *drm,
 			__func__, type, connector_name, connector_type, encoder_type);
 	}
 
-	/* Encoder */
-	encoder->possible_crtcs = priv->of_conf.crtc_masks[ENCODER_LCD];
+	/*
+	 *Encoder possible_crtcs priority reference connector crtc_sel.
+	 */
+	crtc_mask = meson_crtc_mask(drm);
+	if (intf->crtc_sel)
+		encoder->possible_crtcs = intf->crtc_sel & crtc_mask;
+	else
+		encoder->possible_crtcs = BIT(0);
+
 	drm_encoder_helper_add(encoder, &meson_panel_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_panel_encoder_funcs,
 			       encoder_type, "am_lcd_encoder");
@@ -539,7 +592,7 @@ int meson_panel_dev_unbind(struct drm_device *drm,
 int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
 			struct drm_vrr_mode_group *groups, int max_group)
 {
-	int ret, modes_cnt;
+	int ret, modes_cnt, i;
 	struct meson_panel *am_lcd = connector_to_meson_panel(connector);
 	struct meson_panel_dev *panel_dev = am_lcd->panel_dev;
 
@@ -550,6 +603,11 @@ int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
 	if (ret) {
 		DRM_ERROR("get vrr error or not support qms\n");
 		return 0;
+	}
+
+	for (i = 0; i < modes_cnt; i++) {
+		groups[i].vrr_min /= VRR_DIV;
+		groups[i].vrr_max /= VRR_DIV;
 	}
 
 	return modes_cnt;

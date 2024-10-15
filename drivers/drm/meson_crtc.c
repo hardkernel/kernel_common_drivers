@@ -11,11 +11,17 @@
 #include <linux/amlogic/gki_module.h>
 
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <vout/vout_serve/vout_func.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
 #include <enhancement/amvecm/amcsc.h>
+#include "meson_drm_rdma.h"
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DRM
+#include <trace/events/meson_atrace.h>
+#endif
 
 #define EOTF_RESERVED 23
 
@@ -59,7 +65,7 @@ static int gamma_boot_ctl(char *str)
 	else
 		gamma_ctl = 1;
 
-	return 0;
+	return 1;
 }
 
 __setup("gamma=", gamma_boot_ctl);
@@ -75,6 +81,17 @@ static bool dv_support(void)
 {
 	pr_err("NOT IMPLEMENTED\n");
 	return false;
+}
+
+u32 meson_crtc_mask(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	u32 crtc_mask = 0;
+
+	drm_for_each_crtc(crtc, dev)
+		crtc_mask |= drm_crtc_mask(crtc);
+
+	return crtc_mask;
 }
 
 static void set_eotf_by_property(struct am_meson_crtc_state *state)
@@ -163,6 +180,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->attr_changed = false;
 	new_state->brr_update = false;
 	new_state->brr = cur_state->brr;
+	new_state->seamless = false;
 	strncpy(new_state->brr_mode, cur_state->brr_mode, DRM_DISPLAY_MODE_LEN);
 	new_state->crtc_bgcolor_flag = cur_state->crtc_bgcolor_flag;
 	new_state->crtc_bgcolor = cur_state->crtc_bgcolor;
@@ -365,6 +383,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->drm_policy_property) {
 		*val = meson_crtc->priv->of_conf.drm_policy_mask;
 		return 0;
+	} else if (property == meson_crtc->nonblock_by_vblank_property) {
+		*val = crtc_state->nonblock_by_vblank;
+		return 0;
 	}
 
 	return ret;
@@ -403,6 +424,9 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->brr_update_property) {
 		crtc_state->brr_update = val;
 		return 0;
+	} else if (property == meson_crtc->nonblock_by_vblank_property) {
+		crtc_state->nonblock_by_vblank = val;
+		return 0;
 	}
 
 	return ret;
@@ -417,6 +441,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	struct meson_drm *priv = meson_crtc->priv;
 	struct meson_vpu_pipeline_state *mvps;
 	struct drm_private_state *obj_state;
+	int i;
 
 	obj_state = priv->pipeline->obj.state;
 	if (!obj_state) {
@@ -433,6 +458,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tvrr_enabled=%u\n", state->vrr_enabled);
 	drm_printf(p, "\t\tbrr_mode=%s\n", cstate->brr_mode);
 	drm_printf(p, "\t\tbrr=%u\n", cstate->brr);
+	drm_printf(p, "\t\tseamless=%d\n", cstate->seamless);
 	drm_printf(p, "\t\tuboot_mode_init=%u\n", cstate->uboot_mode_init);
 	drm_printf(p, "\t\tcrtc_hdr_policy:[%u,%u]\n",
 		cstate->crtc_hdr_process_policy,
@@ -450,6 +476,22 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
 	drm_printf(p, "\t\tdrm_policy_mask=%llu\n", priv->of_conf.drm_policy_mask);
+
+	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
+		drm_printf(p, "\t\tgfcd_afbc_enable=%u\n",
+			priv->of_conf.gfcd_afbc_enable);
+		drm_printf(p, "\t\tgfcd_mask=%u\n",
+			priv->of_conf.gfcd_mask);
+		drm_printf(p, "\t\tosdblend_input_width_offset=%u\n",
+			mvps->osdblend_input_width_offset);
+		for (i = 0; i < MAX_DIN_NUM; i++)
+			drm_printf(p, "\t\tosd_scope_width_offset[%u]=%u\n",
+				i, mvps->osd_scope_width_offset[i]);
+		for (i = 0; i < MESON_MAX_SCALERS; i++)
+			drm_printf(p, "\t\tscaler_width_offset[%u]=in:%u out:%u\n", i,
+				mvps->scaler_param[i].input_width_offset,
+				mvps->scaler_param[i].output_width_offset);
+	}
 }
 
 static const char * const pipe_crc_sources[] = {"vpp1", "NULL"};
@@ -687,12 +729,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		if (meson_crtc_state->uboot_mode_init)
 			mode |= VMODE_INIT_BIT_MASK;
 
-		if (crtc->state->vrr_enabled &&
-			adjusted_mode->hdisplay == old_mode->hdisplay &&
-			adjusted_mode->vdisplay == old_mode->vdisplay &&
-			!meson_crtc_state->attr_changed &&
-			!meson_crtc_state->brr_update &&
-			!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
+		if (meson_crtc_state->seamless) {
 			drm_crtc_vblank_on(crtc);
 			return;
 		}
@@ -716,9 +753,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 						struct drm_atomic_state *old_atomic_state)
 {
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct drm_crtc_state *old_crtc_state;
-	struct drm_display_mode *old_mode;
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(crtc->state);
 	enum vmode_e mode;
@@ -730,18 +765,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		return;
 	}
 
-	old_mode = &old_crtc_state->adjusted_mode;
 	drm_crtc_vblank_off(crtc);
-
-	if (crtc->state->vrr_enabled &&
-		adjusted_mode->hdisplay == old_mode->hdisplay &&
-		adjusted_mode->vdisplay == old_mode->vdisplay &&
-		!meson_crtc_state->attr_changed &&
-		!meson_crtc_state->brr_update &&
-		!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
-		DRM_INFO("%s, vrr enable, skip crtc disable\n", __func__);
-		return;
-	}
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -750,13 +774,20 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 	}
 
-	if ((meson_crtc_state->vmode & VMODE_MASK) == VMODE_LCD &&
-		!strstr(old_mode->name, "panel")) {
-		DRM_INFO("%s[%d], lcd skip setting null vmode\n", __func__,
-			 meson_crtc_state->vmode);
+	if (meson_crtc_state->seamless) {
+		DRM_INFO("skip set vmode to null\n");
 		return;
 	}
 
+#ifdef CONFIG_AMLOGIC_LCD
+	/*0=tv, 1=tablet, 2=invalid*/
+	if ((meson_crtc_state->vmode & VMODE_MASK) == VMODE_LCD &&
+		get_vout_lcd_mode(amcrtc->crtc_index) == 0) {
+		DRM_INFO("%s[%d], lcd skip setting null vmode\n",
+				 __func__, meson_crtc_state->vmode);
+		return;
+	}
+#endif
 	meson_crtc_state->vmode = VMODE_INVALID;
 	/* disable output by config null
 	 * Todo: replace or delete it if have new method
@@ -907,6 +938,10 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			#endif
 		}
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_BEGIN("crtc_flush");
+#endif
 	vpu_pipeline_prepare_update(amcrtc->pipeline,
 		crtc->mode.vdisplay, drm_mode_vrefresh(&crtc->mode), crtc_index);
 	if (!meson_crtc_state->uboot_mode_init) {
@@ -915,6 +950,9 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		vpu_pipeline_finish_update(pipeline, crtc_index);
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_END();
+#endif
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (crtc->state->event) {
@@ -1164,6 +1202,20 @@ static void meson_crtc_init_drm_policy_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_crtc_init_nonblock_by_vblank_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "nonblock_by_vblank");
+	if (prop) {
+		amcrtc->nonblock_by_vblank_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to nonblock by vblank property\n");
+	}
+}
+
 struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 {
 	struct am_meson_crtc *amcrtc;
@@ -1225,6 +1277,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 
 	amcrtc->get_scanout_position = meson_crtc_get_scanout_position;
 	amcrtc->force_crc_chk = 8;
+	amcrtc->rdma_table_enable = rdma_tbl[idx].flag;
 	atomic_set(&amcrtc->commit_num, 0);
 	mutex_init(&amcrtc->commit_mutex);
 	spin_lock_init(&amcrtc->present_fence.lock);
@@ -1239,6 +1292,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_hdr_conversion_cap_property(priv->drm, amcrtc);
 	meson_crtc_init_hdr_conversion_ctrl_property(priv->drm, amcrtc);
 	meson_crtc_init_drm_policy_property(priv->drm, amcrtc);
+	meson_crtc_init_nonblock_by_vblank_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;

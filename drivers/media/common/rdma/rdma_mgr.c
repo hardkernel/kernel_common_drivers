@@ -1200,6 +1200,30 @@ u32 rdma_read_reg(int handle, u32 adr)
 }
 EXPORT_SYMBOL(rdma_read_reg);
 
+u32 rdma_read_reg_write_table(int handle, u32 adr, bool *matched)
+{
+	int i;
+	u32 *write_table;
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+	u32 read_val = 0;
+
+	/* changed to read from rdma_table_adr to mirror for optimize */
+	write_table = ins->rdma_table_mirror;
+	for (i = (ins->rdma_write_count - 1);
+		i >= 0; i--) {
+		if (write_table[i << 1] == adr) {
+			read_val =
+				write_table[(i << 1) + 1];
+			*matched = true;
+			break;
+		}
+	}
+
+	return read_val;
+}
+EXPORT_SYMBOL(rdma_read_reg_write_table);
+
 int rdma_buffer_lock(int handle)
 {
 	int ret = 0;
@@ -1557,6 +1581,43 @@ s32 rdma_add_read_reg(int handle, u32 adr)
 	return -1;
 }
 EXPORT_SYMBOL(rdma_add_read_reg);
+
+int rdma_update_reg_buf(int handle, u32 *rdma_item, u32 count)
+{
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+	u32 adr, val;
+	int i;
+
+	if (ins->rdma_table_size == 0)
+		return -1;
+
+	if (!rdma_item || !count) {
+		pr_info("handle(%d) invalid parameters!\n", handle);
+		return -1;
+	}
+
+	for (i = 0; i < count; i++) {
+		adr = rdma_item[i << 1];
+		val = rdma_item[(i << 1) + 1];
+		if (rdma_check_conflict(handle, adr, NULL))
+			rdma_update_conflict(adr, val);
+	}
+
+	if (((count << 1) + 1) < (ins->rdma_table_size / sizeof(u32))) {
+		memcpy(ins->reg_buf, rdma_item, count * 2 * sizeof(u32));
+		ins->rdma_item_count = count;
+		if (debug_flag & 2) {
+			pr_info("%s: handle=%d rdma_item_count=%d\r\n",
+				__func__, handle, ins->rdma_item_count);
+		}
+	} else {
+		pr_info("handle%d update reg buf count=%d, overflow!\n", handle, count);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rdma_update_reg_buf);
 
 u32 *rdma_get_read_back_addr(int handle)
 {

@@ -358,6 +358,15 @@ int set_vout_mode(char *name)
 }
 EXPORT_SYMBOL(set_vout_mode);
 
+int get_vout_mode_cap(char *buf)
+{
+	if (!get_vout_disp_cap(buf))
+		sprintf(buf, "null\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(get_vout_mode_cap);
+
 static int set_vout_init_mode(void)
 {
 	enum vmode_e vmode;
@@ -645,7 +654,8 @@ static ssize_t vout_vinfo_show(const struct class *class,
 		       "    cur_enc_ppc:           %d\n"
 		       "    3d_info:               %d\n"
 		       "    cs:                    %d\n"
-		       "    cd:                    %d\n\n",
+		       "    cd:                    %d\n"
+		       "    vpp_post_out_color_fmt:%d\n\n",
 		       info->name, info->mode, info->frac,
 		       info->width, info->height, info->field_height,
 		       info->aspect_ratio_num, info->aspect_ratio_den,
@@ -657,7 +667,7 @@ static ssize_t vout_vinfo_show(const struct class *class,
 		       info->htotal, info->vtotal, info->video_clk,
 		       info->fr_adj_type, info->viu_color_fmt,
 		       info->viu_mux, info->cur_enc_ppc, info->info_3d,
-		       info->cs, info->cd);
+		       info->cs, info->cd, info->vpp_post_out_color_fmt);
 	len += sprintf(buf + len, "master_display_info:\n"
 		       "    present_flag          %d\n"
 		       "    features              0x%x\n"
@@ -1363,10 +1373,33 @@ static int get_connector0_type(char *str)
 		sprintf(connector0_type, "%s", str);
 
 	VOUTPR("connector0_type: %s\n", connector0_type);
-	return 0;
+	return 1;
 }
 
 __setup("connector0_type=", get_connector0_type);
+
+static int get_connector_type_to_compat(char *str)
+{
+	char *ret = NULL;
+
+	if (!str)
+		return 0;
+	if (connector0_type[0]) {
+		VOUTPR("bypass for connector0_type(%s) already set\n", connector0_type);
+		return 0;
+	}
+
+	snprintf(connector0_type, VMODE_NAME_LEN_MAX - 1, "%s", str);
+
+	ret = strstr(connector0_type, "_");
+	if (ret)
+		connector0_type[ret - connector0_type] = '-';
+
+	VOUTPR("connector_type(compact): %s\n", connector0_type);
+	return 1;
+}
+
+__setup("connector_type=", get_connector_type_to_compat);
 
 /*TODO: drm to disable display/mode sysfs set.*/
 void disable_vout_mode_set_sysfs(void)

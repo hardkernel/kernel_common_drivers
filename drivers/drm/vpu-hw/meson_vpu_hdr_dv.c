@@ -4,6 +4,9 @@
  */
 
 #include "meson_vpu_pipeline.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 
 static struct hdr_reg_s osd_hdr_reg[MESON_MAX_HDRS] = {
 	{
@@ -63,7 +66,8 @@ static void s7d_hdr_set_state(struct meson_vpu_block *vblk,
 
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 
-	hsize = mvps->plane_info[vblk->index].src_w;
+	hsize = mvps->plane_info[vblk->index].src_w +
+		mvps->plane_info[vblk->index].src_w_offset4hdr;
 	vsize = mvps->plane_info[vblk->index].src_h;
 
 	reg_ops->rdma_write_reg(reg->vpp_osd_in_size, hsize | (vsize << 16));
@@ -89,6 +93,50 @@ static void t7_hdr_set_state(struct meson_vpu_block *vblk,
 
 		MESON_DRM_BLOCK("%s set_state,input size:%u,%u.\n", hdr->base.name, hsize, vsize);
 		reg_ops->rdma_write_reg(reg->vpp_osd_in_size, hsize | (vsize << 16));
+	}
+	MESON_DRM_BLOCK("%s set_state called.\n", hdr->base.name);
+}
+
+static void hdr_dump_register(struct drm_printer *p, struct meson_vpu_block *vblk)
+{
+	int hdr_index;
+	u32 value, reg_addr;
+	char buff[16];
+	struct meson_vpu_hdr *hdr;
+	struct hdr_reg_s *reg;
+
+	hdr_index = vblk->index;
+	hdr = to_hdr_block(vblk);
+	reg = hdr->reg;
+
+	snprintf(buff, 16, "VPP_OSD%d", hdr_index + 1);
+
+	reg_addr = reg->vpp_osd_in_size;
+	value = meson_drm_read_reg(reg_addr);
+	drm_printf(p, "%s_%-35s\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+		"_IN_SIZE", reg_addr, value);
+}
+
+static void s5_hdr_set_state(struct meson_vpu_block *vblk,
+			  struct meson_vpu_block_state *state,
+			  struct meson_vpu_block_state *old_state)
+{
+	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
+	struct meson_vpu_pipeline *pipeline = hdr->base.pipeline;
+	//struct hdr_reg_s *reg = hdr->reg;
+	struct meson_vpu_pipeline_state *mvps, *old_mvps;
+
+	mvps = priv_to_pipeline_state(pipeline->obj.state);
+	old_mvps = meson_vpu_pipeline_get_old_state(pipeline, old_state->obj.state);
+	if (!old_mvps)
+		return;
+
+	if (vblk->index == HDR1_INDEX) {
+		//TODO
+	} else if (vblk->index == S5_HDR2_INDEX) {
+		if (mvps->plane_info[MESON_OSD3].enable &&
+			!old_mvps->plane_info[MESON_OSD3].enable)
+			MESON_DRM_BLOCK("state changed\n");
 	}
 	MESON_DRM_BLOCK("%s set_state called.\n", hdr->base.name);
 }
@@ -135,6 +183,7 @@ struct meson_vpu_block_ops hdr_ops = {
 struct meson_vpu_block_ops s7d_hdr_ops = {
 	.check_state = hdr_check_state,
 	.update_state = s7d_hdr_set_state,
+	.dump_register = hdr_dump_register,
 	.enable = hdr_enable,
 	.disable = hdr_disable,
 	.init = hdr_init,
@@ -146,6 +195,14 @@ struct meson_vpu_block_ops t7_hdr_ops = {
 	.enable = hdr_enable,
 	.disable = hdr_disable,
 	.init = t7_hdr_init,
+};
+
+struct meson_vpu_block_ops s5_hdr_ops = {
+	.check_state = hdr_check_state,
+	.update_state = s5_hdr_set_state,
+	.enable = hdr_enable,
+	.disable = hdr_disable,
+	.init = hdr_init,
 };
 
 static int db_check_state(struct meson_vpu_block *vblk,

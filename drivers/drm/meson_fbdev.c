@@ -33,6 +33,28 @@ static u32 rdma_chk_addr[] = {
 	VIU_OSD3_TCOLOR_AG3,
 };
 
+static size_t cal_fbdev_afbc_size(struct fb_info *info)
+{
+	size_t size;
+	u32 aligned_width, aligned_height, pixel_size;
+	u32 stride, buf_num, buf_size, block_count;
+
+	aligned_width = ALIGN(info->var.xres, AFBC_TILED_HEADERS_WIDEBLK_WIDTH_ALIGN);
+	aligned_height = ALIGN(info->var.yres, AFBC_TILED_HEADERS_WIDEBLK_HEIGHT_ALIGN);
+	pixel_size = info->var.bits_per_pixel / 8;
+	stride = aligned_width * pixel_size;
+	stride = ALIGN(stride, 64);
+	block_count = aligned_width / AFBC_PIXELS_PER_BLOCK *
+		aligned_height / AFBC_PIXELS_PER_BLOCK;
+	buf_size = stride * aligned_height +
+		ALIGN(block_count * AFBC_HEADER_BYTES_PER_BLOCKENTRY, AFBC_BODY_BYTE_ALIGNMENT);
+	buf_num = info->var.yres_virtual / info->var.yres;
+	buf_size = roundup(buf_size, BIT(CONFIG_CMA_ALIGNMENT) * PAGE_SIZE);
+	size = buf_size * buf_num;
+
+	return size;
+}
+
 static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 {
 	struct am_meson_fb *meson_fb;
@@ -40,7 +62,6 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	struct drm_framebuffer *fb = helper->fb;
 	struct drm_device *dev = helper->dev;
-	size_t size = info->screen_size;
 	struct am_meson_gem_object *meson_gem;
 	void *vaddr;
 	struct page **pages;
@@ -48,6 +69,12 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 	struct sg_page_iter piter;
 	pgprot_t pgprot;
 	int npages;
+	struct meson_drm *priv = dev->dev_private;
+	struct meson_of_conf *conf = &priv->of_conf;
+	size_t size = cal_fbdev_afbc_size(info);
+
+	if (!conf->afbc_aligned_size)
+		size = info->screen_size;
 
 	if (!fbdev->fb_gem) {
 		meson_gem = am_meson_gem_object_create(dev, 0, size);

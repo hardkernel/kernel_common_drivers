@@ -42,12 +42,17 @@ video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	vf_info->buffer_w = mvvs->fb_w;
 	vf_info->buffer_h = mvvs->fb_h;
 	vf_info->zorder = mvvs->zorder;
+	vf_info->byte_stride = mvvs->byte_stride;
+	vf_info->signal_fmt = mvvs->signal_fmt;
+	vf_info->rotation = mvvs->rotation;
 
-	MESON_DRM_BLOCK("dmabuf = %px, release_fence = %px\n",
+	MESON_DRM_BLOCK("non-uvm dmabuf = %px, release_fence = %px\n",
 					vf_info->dmabuf, vf_info->release_fence);
 	MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
 				vf_info->crop_x, vf_info->crop_y, vf_info->crop_w, vf_info->crop_h,
 				vf_info->buffer_w, vf_info->buffer_h);
+	MESON_DRM_BLOCK("byte_stride:%d, signal_fmt:%d\n",
+				vf_info->byte_stride, vf_info->signal_fmt);
 }
 
 static u32 video_type_get(u32 pixel_format)
@@ -74,11 +79,66 @@ static u32 video_type_get(u32 pixel_format)
 		vframe_type = VIDTYPE_VIU_444 | VIDTYPE_VIU_FIELD |
 				VIDTYPE_VIU_SINGLE_PLANE;
 		break;
+	case DRM_FORMAT_YUVX1010102:
+		vframe_type = VIDTYPE_VIU_444 | VIDTYPE_VIU_FIELD |
+				VIDTYPE_VIU_SINGLE_PLANE;
+		break;
 	default:
 		DRM_INFO("no support pixel format:0x%x\n", pixel_format);
 		break;
 	}
 	return vframe_type;
+}
+
+static u32 video_bitdepth_get(u32 pixel_format)
+{
+	u32 bitdepth_type = 0;
+
+	switch (pixel_format) {
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_VUY888:
+		bitdepth_type = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		break;
+	case DRM_FORMAT_YUVX1010102:
+		bitdepth_type = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+		break;
+	default:
+		bitdepth_type = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		DRM_INFO("no support pixel format:0x%x\n", pixel_format);
+		break;
+	}
+	return bitdepth_type;
+}
+
+static u32 video_signal_fmt_cov(u32 signal_fmt)
+{
+	u32 vframe_signal_fmt;
+
+	switch (signal_fmt) {
+	case SIGNAL_FMT_SDR:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_SDR;
+		break;
+	case SIGNAL_FMT_HDR10:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_HDR10;
+		break;
+	case SIGNAL_FMT_HDR10PRIME:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_HDR10PRIME;
+		break;
+	case SIGNAL_FMT_CUVA_HDR:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_HDR10PRIME;
+		break;
+	default:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_SDR;
+		DRM_INFO("%s default format:0x%x\n", __func__, vframe_signal_fmt);
+		break;
+	}
+
+	return vframe_signal_fmt;
 }
 
 static int bind_video_fence_vframe(struct meson_vpu_video *video,
@@ -301,6 +361,9 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	video->vfm_mode = plane_info->vfm_mode;
 	mvvs->dmabuf = plane_info->dmabuf;
 	mvvs->crtc_index = plane_info->crtc_index;
+	mvvs->rotation = plane_info->rotation;
+	mvvs->signal_fmt = video_signal_fmt_cov(plane_info->signal_fmt);
+
 	MESON_DRM_BLOCK("video->dmabuf-%px plane_info->dmabuf-%px\n",
 		video->dmabuf, plane_info->dmabuf);
 	if (video->dmabuf != plane_info->dmabuf) {
@@ -332,7 +395,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
 	struct video_display_frame_info_t vf_info;
 	struct vframe_s *vf = NULL, *dec_vf = NULL, *vfp = NULL;
-	u32 pixel_format, src_h, byte_stride, pic_w, pic_h;
+	u32 pixel_format, src_h, byte_stride, pic_w, pic_h, fb_h;
 	u32 recal_src_w, recal_src_h;
 	u64 phy_addr, phy_addr2 = 0;
 	int ret;
@@ -346,6 +409,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;
+	fb_h = mvvs->fb_h;
 	phy_addr = mvvs->phy_addr[0];
 	pixel_format = mvvs->pixel_format;
 	MESON_DRM_BLOCK("%s %d-%d-%llx", __func__, src_h, pixel_format, phy_addr);
@@ -411,8 +475,10 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			pic_h = vfp->height;
 		}
 
+		if (mvvs->rotation == DRM_MODE_ROTATE_180)
+			vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
+
 		if (video->vfm_mode) {
-			//struct dma_fence *old_fence = NULL;
 			vf_info.release_fence = video->fence;
 			vf_info.dmabuf = mvvs->dmabuf;
 			vf_info.dst_x = mvvs->dst_x;
@@ -426,6 +492,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.buffer_w = pic_w;
 			vf_info.buffer_h = pic_h;
 			vf_info.zorder = mvvs->zorder;
+			vf_info.rotation = mvvs->rotation;
 			vf_info.reserved[0] = 0;
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
 			vf_info.phy_addr[1] = mvvs->phy_addr[1];
@@ -439,8 +506,11 @@ static void video_set_state(struct meson_vpu_block *vblk,
 
 			dma_resv_unlock(vf_info.dmabuf->resv);
 
-			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px)\n",
-				vf_info.dmabuf, vf_info.release_fence);
+			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px-%d)\n",
+				vf_info.dmabuf, vf_info.release_fence,
+				vf_info.release_fence ?
+					kref_read(&vf_info.release_fence->refcount) : -1);
+
 			MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
 				vf_info.crop_x, vf_info.crop_y, vf_info.crop_w, vf_info.crop_h,
 				vf_info.buffer_w, vf_info.buffer_h);
@@ -473,9 +543,15 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.release_fence = video->fence;
 			video_vfm_convert_to_vfminfo(mvvs, &vf_info);
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
-			vf_info.phy_addr[1] = mvvs->phy_addr[1];
-			vf_info.reserved[0] = video_type_get(pixel_format);
-
+			if (pixel_format == DRM_FORMAT_NV12 ||
+			    pixel_format == DRM_FORMAT_NV21) {
+				if (!mvvs->phy_addr[1])
+					vf_info.phy_addr[1] = phy_addr + byte_stride * fb_h;
+				else
+					vf_info.phy_addr[1] = mvvs->phy_addr[1];
+			}
+			vf_info.type = video_type_get(pixel_format);
+			vf_info.bitdepth = video_bitdepth_get(pixel_format);
 			dma_resv_lock(vf_info.dmabuf->resv, NULL);
 
 			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
@@ -484,6 +560,11 @@ static void video_set_state(struct meson_vpu_block *vblk,
 							DMA_RESV_USAGE_READ);
 
 			dma_resv_unlock(vf_info.dmabuf->resv);
+			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px-%d)\n",
+				vf_info.dmabuf, vf_info.release_fence,
+				vf_info.release_fence ?
+					kref_read(&vf_info.release_fence->refcount) : -1);
+
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 			video_display_setframe(vblk->index, &vf_info, 0);
 #endif
@@ -491,7 +572,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			if (pixel_format == DRM_FORMAT_NV12 ||
 			    pixel_format == DRM_FORMAT_NV21) {
 				if (!mvvs->phy_addr[1])
-					phy_addr2 = phy_addr + byte_stride * src_h;
+					phy_addr2 = phy_addr + byte_stride * fb_h;
 				else
 					phy_addr2 = mvvs->phy_addr[1];
 			}
@@ -502,7 +583,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 				vf->height = mvvs->src_h;
 				vf->source_type = VFRAME_SOURCE_TYPE_OTHERS;
 				vf->source_mode = VFRAME_SOURCE_MODE_OTHERS;
-				vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+				vf->bitdepth = video_bitdepth_get(pixel_format);
 				vf->type = video_type_get(pixel_format);
 				vf->axis[0] = mvvs->dst_x;
 				vf->axis[1] = mvvs->dst_y;
@@ -523,6 +604,9 @@ static void video_set_state(struct meson_vpu_block *vblk,
 				 *support little endian is okay,could be removed.
 				 */
 				vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
+				if (mvvs->rotation == DRM_MODE_ROTATE_180)
+					vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
+
 				vf->plane_num = 1;
 				vf->canvas0_config[0].phy_addr = phy_addr;
 				vf->canvas0_config[0].width = byte_stride;
@@ -551,12 +635,13 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			}
 		}
 	}
+
 	if (!video->vfm_mode && video->fence && vf && !mvvs->repeat_frame)
 		bind_video_fence_vframe(video, video->fence,
 				mvvs->plane_index, vf);
 
-	MESON_DRM_BLOCK("plane_index=%d,HW-video=%d, byte_stride=%d\n",
-		  mvvs->plane_index, vblk->index, byte_stride);
+	MESON_DRM_BLOCK("plane_index=%d,HW-video=%d, byte_stride=%d, rotate:%d\n",
+		  mvvs->plane_index, vblk->index, byte_stride, mvvs->rotation);
 	MESON_DRM_BLOCK("phy_addr=0x%pa,phy_addr2=0x%pa, repeat_frame=%d\n",
 		  &phy_addr, &phy_addr2, mvvs->repeat_frame);
 	MESON_DRM_BLOCK("%s set_state done.\n", video->base.name);
@@ -584,21 +669,10 @@ static void video_hw_enable(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("%s enable done.\n", video->base.name);
 }
 
-static void video_disable_work_func(struct work_struct *works)
-{
-	struct meson_vpu_disable_work *worker = container_of(works,
-		struct meson_vpu_disable_work, work);
-#ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
-	video_display_setenable(worker->idx, 0);
-#endif
-	worker->video->video_enabled = 0;
-}
-
 static void video_hw_disable(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
-	struct meson_vpu_disable_work *worker;
 	struct meson_drm *priv;
 
 	if (!video) {
@@ -606,16 +680,15 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 		return;
 	}
 
-	worker = &video->worker;
 	priv = video->base.pipeline->priv;
 
 	if (video->vfm_mode) {
 		DRM_INFO("%s dmabuf(%px), release_fence(%px), video_name(%s)\n",
 			__func__, video->dmabuf, video->fence, video->base.name);
-		worker->idx = vblk->index;
-		worker->video = video;
-		if (video->disable_wq)
-			queue_work(video->disable_wq, &worker->work);
+#ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
+		video_display_setenable(vblk->index, 0);
+		video->video_enabled = 0;
+#endif
 		video->fence = NULL;
 		video->dmabuf = NULL;
 		priv->disable_video_plane = 1;
@@ -685,11 +758,6 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 	}
 
 	DRM_INFO("%s:vfm_mode = %d\n", __func__, video->vfm_mode);
-	if (video->vfm_mode) {
-		video->disable_wq = alloc_workqueue("disable_wq",
-				WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
-		INIT_WORK(&video->worker.work, video_disable_work_func);
-	}
 	MESON_DRM_BLOCK("%s:%s done.\n", __func__, video->base.name);
 }
 

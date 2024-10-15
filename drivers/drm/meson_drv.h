@@ -59,9 +59,6 @@ enum atomic_mode_type {
 };
 
 struct meson_of_conf {
-	/*for encoder: 0:hdmi 1:lcd 2:cvbs*/
-	u32 crtc_masks[ENCODER_MAX];
-
 	u32 vfm_mode;
 
 	u32 osd_afbc_mask;
@@ -71,15 +68,21 @@ struct meson_of_conf {
 
 	/*
 	 * this will be used as drm usage, one item occupy one bit.
-	 * bit0:
-	 * gfcd afbc flag, 1:enable 0:disable;
+	 * bit0: gfcd odd size
+	 * bit1: gfcd global alpha
+	 * bit2: hdr before blend
 	 */
 	u64 drm_policy_mask;
+
+	u8 gfcd_afbc_enable;
+	u8 gfcd_mask;
 
 	char *pref_mode;
 
 	/* force osd slice_mode: 1*/
 	u32 force_slice;
+	/* for fbdev size: 0:non-afbc align 1:afbc align*/
+	u32 afbc_aligned_size;
 };
 
 struct meson_drm_param {
@@ -139,6 +142,8 @@ struct meson_drm {
 	struct meson_drm_bound_data bound_data;
 
 	bool irq_enabled;
+	wait_queue_head_t wq_shut_ctrl;
+	bool shutdown_on;
 	bool compat_mode;
 	bool logo_show_done;
 	bool recovery_mode;
@@ -147,6 +152,9 @@ struct meson_drm {
 	u8 remove_get_vblank_timestamp;
 
 	u32 pxp_mode;
+
+	u32 creat_rdma_table;
+	ktime_t start;
 };
 
 /*component bind functions*/

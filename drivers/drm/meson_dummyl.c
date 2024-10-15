@@ -178,8 +178,8 @@ int meson_dummyl_dev_bind(struct drm_device *drm,
 	struct drm_encoder *encoder = NULL;
 	struct meson_dummyl *am_dummyl = NULL;
 	char *connector_name = "MESON-DUMMYL";
-	u32 i;
 	int ret = 0;
+	u32 crtc_mask = 0;
 
 	if (priv->dummyl_from_hdmitx) {
 		DRM_INFO("[%s]-[%d] dummy from hdmitx, skip register dummyl connector.\n",
@@ -197,10 +197,12 @@ int meson_dummyl_dev_bind(struct drm_device *drm,
 	am_dummyl->drm = drm;
 	am_dummyl->base.drm_priv = priv;
 	encoder = &am_dummyl->encoder;
-	/* Encoder */
-	for (i = 0; i < priv->pipeline->num_postblend; i++)
-		encoder->possible_crtcs |= BIT(i);
 
+	/*
+	 *Encoder possible_crtcs priority reference connector crtc_sel.
+	 */
+	crtc_mask = meson_crtc_mask(drm);
+	encoder->possible_crtcs = intf->crtc_sel & crtc_mask;
 	drm_encoder_helper_add(encoder, &meson_dummyl_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_dummyl_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, "am_dummyl_encoder");

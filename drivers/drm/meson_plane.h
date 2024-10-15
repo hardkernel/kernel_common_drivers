@@ -11,6 +11,8 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_rect.h>
+#include <drm/drm_blend.h>
 #include <uapi/amlogic/drm/meson_drm.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/meson_uvm_core.h>
@@ -26,6 +28,11 @@ struct am_meson_plane_state {
 	u32 sec_en;
 };
 
+struct am_meson_video_plane_state {
+	struct drm_plane_state base;
+	u32 signal_fmt;
+};
+
 enum meson_max_fb_enum {
 	FB_SIZE_1920x1080 = 0,
 	FB_SIZE_3840x2160,
@@ -34,6 +41,13 @@ enum meson_max_fb_enum {
 enum meson_plane_type {
 	OSD_PLANE = 0,
 	VIDEO_PLANE,
+};
+
+enum meson_video_signal_fmt_e {
+	SIGNAL_FMT_SDR = 0,
+	SIGNAL_FMT_HDR10 = 1,
+	SIGNAL_FMT_HDR10PRIME = 2,
+	SIGNAL_FMT_CUVA_HDR = 3,
 };
 
 struct am_osd_plane {
@@ -66,6 +80,8 @@ struct am_osd_plane {
 
 	/* sysfs debug*/
 	u16 pixel_blend_debug;
+	struct drm_rect adjust_src;
+	struct drm_rect adjust_dst;
 };
 
 struct am_video_plane {
@@ -75,10 +91,15 @@ struct am_video_plane {
 	struct dentry *plane_debugfs_dir;
 	int plane_index;
 	int plane_type;
+
+	struct drm_property *signal_fmt_property;
+
 	struct meson_vpu_pipeline *pipeline;
 	spinlock_t lock; //used for video plane dma_fence
 	u32 vfm_mode;
 	/*video exted*/
+	struct drm_rect adjust_src;
+	struct drm_rect adjust_dst;
 };
 
 struct meson_video_plane_fence_info {
@@ -103,6 +124,8 @@ struct meson_plane_supported_formats {
 	struct am_meson_plane_state, base)
 #define to_am_video_plane(x) container_of(x, \
 	struct am_video_plane, base)
+#define to_am_meson_video_plane_state(x) container_of(x, \
+	struct am_meson_video_plane_state, base)
 
 int am_meson_plane_create(struct meson_drm *priv);
 

@@ -508,15 +508,21 @@ meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 	state->global_afbc = 0;
 	state->vpp_scope_x = 0;
 	state->vpp_scope_y = 0;
+	state->osdblend_input_width_offset = 0;
 
-	for (i = 0; i < MESON_MAX_SCALERS; i++)
+	for (i = 0; i < MESON_MAX_SCALERS; i++) {
 		state->scaler_param[i].global = 0;
+		state->scaler_param[i].input_width_offset = 0;
+		state->scaler_param[i].output_width_offset = 0;
+	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (state->sub_states[0].more_60 && i == OSD3_SLICE1) {
 			info = &state->plane_info[i];
 			info->enable = 0;
 		}
+		state->osd_scope_width_offset[i] = 0;
+		state->plane_info[i].src_w_offset4hdr = 0;
 	}
 
 	return &state->obj;
@@ -564,6 +570,9 @@ meson_vpu_block_get_state(struct meson_vpu_block *block,
 		mvbs = priv_to_block_state(dps);
 		return mvbs;
 	} else {
+		if (PTR_ERR(dps) == -EDEADLK)
+			return ERR_PTR(-EDEADLK);
+
 		DRM_ERROR("vpu block state ERROR (%ld)\n", PTR_ERR(dps));
 	}
 
@@ -599,6 +608,9 @@ meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 		dps->state = state;
 		return priv_to_pipeline_state(dps);
 	} else {
+		if (PTR_ERR(dps) == -EDEADLK)
+			return ERR_PTR(-EDEADLK);
+
 		DRM_ERROR("vpu pipeline state ERROR (%ld)\n", PTR_ERR(dps));
 	}
 

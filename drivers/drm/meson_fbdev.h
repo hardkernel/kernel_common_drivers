@@ -16,6 +16,12 @@ void am_meson_drm_fbdev_fini(struct drm_device *dev);
 #define FBIO_WAITFORVSYNC          _IOW('F', 0x20, __u32)
 #define FBIO_WAITFORVSYNC_64       _IOW('F', 0x21, __u32)
 
+#define AFBC_PIXELS_PER_BLOCK            16
+#define AFBC_HEADER_BYTES_PER_BLOCKENTRY 16
+#define AFBC_BODY_BYTE_ALIGNMENT         1024
+#define AFBC_TILED_HEADERS_WIDEBLK_WIDTH_ALIGN         256
+#define AFBC_TILED_HEADERS_WIDEBLK_HEIGHT_ALIGN        64
+
 struct fb_dmabuf_export {
 	/*idx only used in legacy android implement, not used now.*/
 	__u32 buffer_idx;

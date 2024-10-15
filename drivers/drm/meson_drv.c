@@ -73,34 +73,12 @@ static int check_reboot_mode(char *str)
 		recovery_mode = 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 __setup("reboot_mode=", check_reboot_mode);
 
-// Todo: need owner to review
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 15606
-static void am_meson_fb_output_poll_changed(struct drm_device *dev)
-{
-#ifdef CONFIG_AMLOGIC_DRM_EMULATE_FBDEV
-	int i;
-	struct meson_drm_fbdev *fbdev;
-	struct meson_drm *priv = dev->dev_private;
-
-	for (i = 0; i < MESON_MAX_OSD; i++) {
-		fbdev = priv->osd_fbdevs[i];
-		if (fbdev)
-			drm_fb_helper_hotplug_event(&fbdev->base);
-	}
-#endif
-}
-#endif
-
 static const struct drm_mode_config_funcs meson_mode_config_funcs = {
-// Todo: need owner to review
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 15606
-	.output_poll_changed = am_meson_fb_output_poll_changed,
-#endif
 	.atomic_check        = drm_atomic_helper_check,
 	.atomic_commit       = meson_atomic_commit,
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
@@ -131,18 +109,24 @@ int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 	if (!connector)
 		return -ENOENT;
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
+	switch (connector->connector_type) {
+#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
+	case DRM_MODE_CONNECTOR_HDMIA:
 		num_group = am_meson_hdmi_get_vrr_range(dev, data, file_priv);
+		break;
+#endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	else if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
+	case DRM_MODE_CONNECTOR_LVDS:
 		num_group = am_meson_lcd_get_vrr_range(connector, groups->groups,
 						       MAX_VRR_MODE_GROUP);
+		break;
 #endif
-	else
+	default:
 		return -ENOENT;
+	}
 
 	if (!num_group) {
-		DRM_ERROR("get vrr error or not support qms\n");
+		DRM_DEBUG("get vrr error or not support qms\n");
 		return -EINVAL;
 	}
 
@@ -160,14 +144,8 @@ int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 
 static const struct drm_ioctl_desc meson_ioctls[] = {
 	#ifdef CONFIG_AMLOGIC_DRM_USE_ION
-// Todo: need owner to review
-#if CONFIG_AMLOGIC_KERNEL_VERSION > 15606
 	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
 			  DRM_AUTH | DRM_RENDER_ALLOW),
-#else
-	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
-			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
-#endif
 	#endif
 	DRM_IOCTL_DEF_DRV(MESON_ASYNC_ATOMIC, meson_async_atomic_ioctl,
 			  0),
@@ -188,7 +166,6 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 
 DEFINE_DRM_GEM_FOPS(meson_drm_fops);
 
-//KV_TODO: modify
 static struct drm_driver meson_driver = {
 	/*driver_features setting move to probe functions*/
 	.driver_features	= 0,
@@ -318,6 +295,8 @@ static int am_meson_drm_bind(struct device *dev)
 	priv->osd_occupied_index = -1;
 
 	dev_set_drvdata(dev, priv);
+	init_waitqueue_head(&priv->wq_shut_ctrl);
+	priv->shutdown_on = false;
 
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
 	ret = am_meson_gem_create(priv);
@@ -703,6 +682,7 @@ static int am_meson_drm_pm_suspend(struct device *dev)
 		DRM_INFO("%s: drm_atomic_helper_suspend fail\n", __func__);
 		return PTR_ERR(priv->state);
 	}
+
 	DRM_INFO("%s: done\n", __func__);
 	return 0;
 }
@@ -723,9 +703,16 @@ static int am_meson_drm_pm_resume(struct device *dev)
 		return 0;
 	}
 
+	/*
+	 *for save power consumption, suspend will turn off vpu power, we need to
+	 *do block register init again.
+	 */
+	vpu_pipeline_resume_init(priv->pipeline);
+
 	drm_atomic_helper_resume(drm, priv->state);
 	am_meson_drm_fb_resume(drm);
 	drm_kms_helper_poll_enable(drm);
+
 	DRM_INFO("%s: done\n", __func__);
 	return 0;
 }
@@ -738,11 +725,51 @@ static const struct dev_pm_ops am_meson_drm_pm_ops = {
 
 static void am_meson_drv_shutdown(struct platform_device *pdev)
 {
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_device *dev;
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *amcrtc;
+	struct meson_drm_thread *drm_thread;
 	struct meson_drm *priv;
+	int ret;
+	int i;
 
 	priv = dev_get_drvdata(&pdev->dev);
-	if (priv)
-		drm_atomic_helper_shutdown(priv->drm);
+	if (!priv) {
+		DRM_ERROR("%s: priv is NULL!\n", __func__);
+		return;
+	}
+
+	dev = priv->drm;
+
+	/* prevent drm_wait_vblank_ioctl on waiting event*/
+	drm_atomic_helper_shutdown(dev);
+
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
+
+	/* suspend atomic ioctl thread */
+	drm_for_each_crtc(crtc, dev) {
+		amcrtc = to_am_meson_crtc(crtc);
+		disable_irq(amcrtc->irq);
+	}
+
+	priv->shutdown_on = true;
+
+	/* prevent drm_wait_vblank_ioctl in its entry to avoid late lock */
+	dev->num_crtcs = 0;
+
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
+
+	/* flush kworker of commit thread and stop the thread */
+	DRM_INFO("%s: try to flush worker\n", __func__);
+	for (i = 0; i < priv->num_crtcs; i++) {
+		drm_thread = &priv->commit_thread[i];
+		if (drm_thread->thread) {
+			kthread_flush_worker(&drm_thread->worker);
+			kthread_stop(drm_thread->thread);
+			drm_thread->thread = NULL;
+		}
+	}
 }
 
 static struct platform_driver am_meson_drm_platform_driver = {

@@ -171,6 +171,20 @@ struct aml_lcd_drv_s *aml_lcd_get_driver(int index)
 }
 EXPORT_SYMBOL(aml_lcd_get_driver);
 
+unsigned char get_vout_lcd_mode(unsigned char vout_index)
+{
+	unsigned char i;
+	struct aml_lcd_drv_s *pdrv;
+
+	for (i = 0; i < 3; i++) {
+		pdrv = aml_lcd_get_driver(i);
+		if (pdrv && pdrv->viu_sel == vout_index)
+			return pdrv->mode;
+	}
+	return LCD_MODE_MAX;
+}
+EXPORT_SYMBOL(get_vout_lcd_mode);
+
 inline void lcd_queue_work(struct work_struct *work)
 {
 	if (lcd_workqueue)

@@ -685,6 +685,7 @@ struct aml_lcd_drv_s {
 	char vbyone_isr_name[10];
 	char output_name[30];
 	unsigned int vmode_update;
+	unsigned int crtc_sel;
 
 	struct lcd_data_s *data;
 	struct cdev cdev;
@@ -765,5 +766,6 @@ extern struct mutex lcd_power_mutex;
 
 void set_output_mute(bool on);
 int get_output_mute(void);
+unsigned char get_vout_lcd_mode(unsigned char vout_index);
 
 #endif

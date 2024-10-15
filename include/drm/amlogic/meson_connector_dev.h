@@ -37,6 +37,7 @@ struct drm_hdmitx_timing_para {
 
 struct meson_connector_dev {
 	int ver;
+	int crtc_sel;
 	/*copy from vout_op_s*/
 	struct vinfo_s *(*get_vinfo)(void *data);
 	int (*set_vmode)(enum vmode_e vmode, void *data);
@@ -112,7 +113,7 @@ struct meson_hdmitx_dev {
 
 	/*vrr apis*/
 	u32 (*get_vrr_cap)(void);
-	int (*get_vrr_mode_group)(struct drm_vrr_mode_group *groups, int max_group);
+	int (*get_vrr_mode_group)(struct hdmitx_vrr_mode_group *groups, int max_group);
 	int (*set_vframe_rate_hint)(int duration, void *data);
 
 	int (*get_hdmi_hdr_status)(void);
@@ -142,7 +143,7 @@ struct meson_dummyl_dev {
 };
 
 /*dummy_l specified type*/
-#define DRM_MODE_CONNECTOR_MESON_DUMMY_L  0x200
+#define DRM_MODE_CONNECTOR_MESON_DUMMY_L  200
 
 /*dummy_p specified struct*/
 struct meson_dummyp_dev {
@@ -150,7 +151,7 @@ struct meson_dummyp_dev {
 };
 
 /*dummy_p specified type*/
-#define DRM_MODE_CONNECTOR_MESON_DUMMY_P  0x201
+#define DRM_MODE_CONNECTOR_MESON_DUMMY_P  201
 
 #define to_meson_panel_dev(x)	container_of(x, struct meson_panel_dev, base)
 #define to_meson_dummyl_dev(x)	container_of(x, struct meson_dummyl_dev, base)
@@ -160,25 +161,29 @@ struct meson_dummyp_dev {
 
 /*amlogic extend connector type: for original type is not enough.
  *start from: 0xff,
- *extend connector: 0x100 ~ 0x1ff,
+ *extend connector: 99 ~ 202,
  *legacy panel type for non-drm: 0x1000 ~
+ *display service limit DRM connector type to range of u8 type
  */
-#define DRM_MODE_MESON_CONNECTOR_PANEL_START 0xff
-#define DRM_MODE_MESON_CONNECTOR_PANEL_END   0x1ff
+#define DRM_MODE_MESON_CONNECTOR_PANEL_START 99
+#define DRM_MODE_MESON_CONNECTOR_PANEL_END   150
+
+#define DRM_MODE_MESON_CONNECTOR_HDMI_START 159
+#define DRM_MODE_MESON_CONNECTOR_HDMI_END   190
 
 enum {
-	DRM_MODE_CONNECTOR_MESON_LVDS_A = 0x100,
-	DRM_MODE_CONNECTOR_MESON_LVDS_B = 0x101,
-	DRM_MODE_CONNECTOR_MESON_LVDS_C = 0x102,
+	DRM_MODE_CONNECTOR_MESON_LVDS_A = 100,
+	DRM_MODE_CONNECTOR_MESON_LVDS_B = 101,
+	DRM_MODE_CONNECTOR_MESON_LVDS_C = 102,
 
-	DRM_MODE_CONNECTOR_MESON_VBYONE_A = 0x110,
-	DRM_MODE_CONNECTOR_MESON_VBYONE_B = 0x111,
+	DRM_MODE_CONNECTOR_MESON_VBYONE_A = 110,
+	DRM_MODE_CONNECTOR_MESON_VBYONE_B = 111,
 
-	DRM_MODE_CONNECTOR_MESON_MIPI_A = 0x120,
-	DRM_MODE_CONNECTOR_MESON_MIPI_B = 0x121,
+	DRM_MODE_CONNECTOR_MESON_MIPI_A = 120,
+	DRM_MODE_CONNECTOR_MESON_MIPI_B = 121,
 
-	DRM_MODE_CONNECTOR_MESON_EDP_A = 0x130,
-	DRM_MODE_CONNECTOR_MESON_EDP_B = 0x131,
+	DRM_MODE_CONNECTOR_MESON_EDP_A = 130,
+	DRM_MODE_CONNECTOR_MESON_EDP_B = 131,
 };
 
 enum {
