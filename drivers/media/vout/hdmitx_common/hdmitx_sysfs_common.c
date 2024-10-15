@@ -355,26 +355,6 @@ PROCESS_END:
 }
 static DEVICE_ATTR_RW(edid);
 
-static ssize_t contenttype_cap_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-	struct rx_cap *prxcap = &global_tx_common->rxcap;
-
-	if (prxcap->cnc0)
-		pos += snprintf(buf + pos, PAGE_SIZE - pos, "graphics\n\r");
-	if (prxcap->cnc1)
-		pos += snprintf(buf + pos, PAGE_SIZE - pos, "photo\n\r");
-	if (prxcap->cnc2)
-		pos += snprintf(buf + pos, PAGE_SIZE - pos, "cinema\n\r");
-	if (prxcap->cnc3)
-		pos += snprintf(buf + pos, PAGE_SIZE - pos, "game\n\r");
-
-	return pos;
-}
-
-static DEVICE_ATTR_RO(contenttype_cap);
-
 static ssize_t _hdr_cap_show(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf,
@@ -804,7 +784,7 @@ static ssize_t phy_show(struct device *dev,
 
 static DEVICE_ATTR_RW(phy);
 
-static ssize_t contenttype_mode_show(struct device *dev,
+static ssize_t _contenttype_mode_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
@@ -828,7 +808,7 @@ static inline int com_str(const char *buf, const char *str)
 	return strncmp(buf, str, strlen(str)) == 0;
 }
 
-static ssize_t contenttype_mode_store(struct device *dev,
+static ssize_t _contenttype_mode_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
@@ -869,7 +849,93 @@ static ssize_t contenttype_mode_store(struct device *dev,
 	return count;
 }
 
+static ssize_t _allm_mode_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r",
+		global_tx_common->allm_mode);
+
+	return pos;
+}
+
+static ssize_t _llm_mode_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct rx_cap *prxcap = &global_tx_common->rxcap;
+
+	if (prxcap->allm)
+		return _allm_mode_show(dev, attr, buf);
+	if (prxcap->cnc3)
+		return _contenttype_mode_show(dev, attr, buf);
+	return pos;
+}
+
+static ssize_t _allm_mode_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf,
+			       size_t count)
+{
+	int mode = 0;
+
+	HDMITX_INFO("store allm_mode as %s\n", buf);
+
+	if (com_str(buf, "0"))
+		mode = 0;
+	else if (com_str(buf, "1"))
+		mode = 1;
+	else if (com_str(buf, "-1"))
+		mode = -1;
+
+	hdmitx_common_set_allm_mode(global_tx_common, mode);
+
+	return count;
+}
+
+static ssize_t _llm_mode_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rx_cap *prxcap = &global_tx_common->rxcap;
+
+	if (prxcap->allm)
+		return _allm_mode_store(dev, attr, buf, count);
+	if (prxcap->cnc3)
+		return _contenttype_mode_store(dev, attr, buf, count);
+	return count;
+}
+
+static ssize_t contenttype_mode_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return _llm_mode_show(dev, attr, buf);
+}
+
+static ssize_t contenttype_mode_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	return _llm_mode_store(dev, attr, buf, count);
+}
 static DEVICE_ATTR_RW(contenttype_mode);
+
+static ssize_t allm_mode_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	return _llm_mode_show(dev, attr, buf);
+}
+
+static ssize_t allm_mode_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf,
+			       size_t count)
+{
+	return _llm_mode_store(dev, attr, buf, count);
+}
+
+static DEVICE_ATTR_RW(allm_mode);
 
 /*
  * sync with hdmitx_common_get_vic_list()
@@ -1263,14 +1329,28 @@ static ssize_t fake_plug_store(struct device *dev,
 
 static DEVICE_ATTR_RW(fake_plug);
 
-static ssize_t allm_cap_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+static ssize_t _llm_cap_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	struct rx_cap *prxcap = &global_tx_common->rxcap;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r", prxcap->allm);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%d\n\r", prxcap->cnc3 || prxcap->allm);
 	return pos;
+}
+
+static ssize_t contenttype_cap_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	return _llm_cap_show(dev, attr, buf);
+}
+
+static DEVICE_ATTR_RO(contenttype_cap);
+
+static ssize_t allm_cap_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	return _llm_cap_show(dev, attr, buf);
 }
 
 static DEVICE_ATTR_RO(allm_cap);
@@ -1363,40 +1443,6 @@ static ssize_t support_3d_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RO(support_3d);
-
-static ssize_t allm_mode_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r",
-		global_tx_common->allm_mode);
-
-	return pos;
-}
-
-static ssize_t allm_mode_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf,
-			       size_t count)
-{
-	int mode = 0;
-
-	HDMITX_INFO("store allm_mode as %s\n", buf);
-
-	if (com_str(buf, "0"))
-		mode = 0;
-	else if (com_str(buf, "1"))
-		mode = 1;
-	else if (com_str(buf, "-1"))
-		mode = -1;
-
-	hdmitx_common_set_allm_mode(global_tx_common, mode);
-
-	return count;
-}
-
-static DEVICE_ATTR_RW(allm_mode);
 
 static ssize_t avmute_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
