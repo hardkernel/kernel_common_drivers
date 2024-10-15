@@ -36,6 +36,11 @@
 		#size-cells = <1>;
 		ranges;
 
+		ramdump_bl33z@00000000 {
+			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
 			reg = <0x0 0x80000>;
