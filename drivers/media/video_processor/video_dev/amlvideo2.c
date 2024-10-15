@@ -4875,6 +4875,47 @@ static void amlvideo2_sleep(struct amlvideo2_fh *fh)
 	/*try_to_freeze();*/
 }
 
+static int stop_vdin1_service(struct amlvideo2_node *node)
+{
+	struct amlvideo2_fh *fh = node->fh;
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+	struct vdin_v4l2_ops_s *vops = &node->vops;
+#endif
+	int ret = -1;
+
+	mutex_lock(&fh->mutex);
+	if (node->start_vdin_flag ||
+		node->r_type == AML_RECEIVER_NONE) {
+		if (amlvideo2_dbg_en)
+			pr_info("%s: stop tvin service.\n", __func__);
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+		if (IS_ERR_OR_NULL(vops)) {
+			mutex_unlock(&fh->mutex);
+			pr_info("%s amlvideo2 vdin ops is NULL\n", __func__);
+			return 0;
+		}
+		if (IS_ERR_OR_NULL(vops->stop_tvin_service)) {
+			mutex_unlock(&fh->mutex);
+			pr_info("%s amlvideo2 vdin stop_tvin_service is NULL\n", __func__);
+			return 0;
+		}
+
+		if (node->aml2_dev->node_id == 1 && node->vdin1_is_start) {
+			ret = vops->stop_tvin_service(node->vdin_device_num);
+			if (ret < 0) {
+				mutex_unlock(&fh->mutex);
+				pr_err("%s amlvideo2 vdin stop failed\n", __func__);
+				return 0;
+			}
+			node->vdin1_is_start = false;
+		}
+#endif
+	}
+
+	mutex_unlock(&fh->mutex);
+	return ret;
+}
+
 static int start_send_normal_frame(struct amlvideo2_fh *fh);
 static int amlvideo2_thread(void *data)
 {
@@ -4944,6 +4985,25 @@ static int amlvideo2_thread(void *data)
 				ret = start_send_normal_frame(fh);
 				if (ret < 0)
 					pr_err("start normal frame err.\n");
+				node->frame_inittime = 1;
+			}
+		} else {
+			if ((!get_video_enabled(0) &&
+				(node->porttype == TVIN_PORT_VIU1_VIDEO ||
+				node->porttype == TVIN_PORT_VIU1_WB0_VD1)) ||
+				(!get_video_enabled(1) &&
+				node->porttype == TVIN_PORT_VIU2_VD1)) {
+				is_black_frame = true;
+				stop_vdin1_service(node);
+				pr_info("send from normal to black.\n");
+				node->frame_inittime = 1;
+				ktime_get_ts64(&node->thread_ts1);
+#ifdef TEST_LATENCY
+				node->latency_info.cur_time = node->thread_ts1.tv_sec;
+				node->latency_info.cur_time_out = node->thread_ts1.tv_sec;
+				node->latency_info.total_latency = 0;
+				node->latency_info.total_latency_out = 0;
+#endif
 			}
 		}
 		amlvideo2_sleep(fh);
@@ -5989,7 +6049,6 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 	vinfo = amlvideo2_get_vinfo(node);
 #endif
-
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE || i != fh->type)
 		return -EINVAL;
 	ret = vb2_ioctl_streamon(file, priv, i);
@@ -6440,7 +6499,6 @@ static int start_send_normal_frame(struct amlvideo2_fh *fh)
 	node->vdin1_is_start = true;
 #endif
 start: node->frame_inittime = 1;
-	fh->is_streamed_on = 1;
 	/* frameinv_adjust = 0; */
 	/* frameinv = 0; */
 	/* tmp_vf = NULL; */
