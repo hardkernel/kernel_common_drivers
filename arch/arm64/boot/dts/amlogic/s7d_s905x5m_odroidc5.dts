@@ -1069,7 +1069,8 @@
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_z>;
+	pinctrl-0 = <&spi0_pins_sw>;
+	pinctrl-1 = <&spi0_pins>;
 };
 
 &fb {
