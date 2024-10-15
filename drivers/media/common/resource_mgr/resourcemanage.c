@@ -929,11 +929,15 @@ static bool resman_codec_mm_enough(struct resman_resource *resource,
 	if (!secure && (codec_mm_get_free_size() >> 20 < score)) {
 		enough = false;
 		dprintk(2, "free size 0x%x\n", codec_mm_get_free_size());
+		if (resman_debug)
+			dump_mem_infos_external();
 	} else if (secure && ((codec_mm_get_tvp_free_size() + codec_mm_get_free_size()) >> 20)
 			< score) {
 		enough = false;
 		dprintk(2, "free size 0x%x\n", codec_mm_get_tvp_free_size() +
 			+ codec_mm_get_free_size());
+		if (resman_debug)
+			dump_mem_infos_external();
 	}
 	return enough;
 }
@@ -1760,6 +1764,8 @@ static int resman_codec_mm_available(int issecure)
 			codec_mm_get_tvp_free_size()) >> 20;
 	}
 	dprintk(2, "avail %d\n", avail);
+	if (resman_debug)
+		dump_mem_infos_external();
 
 	return avail;
 }
