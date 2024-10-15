@@ -1,0 +1,75 @@
+From 8fd81e8b9a110ca51af4d62e5709681847403959 Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Thu, 21 Dec 2023 14:48:31 +0800
+Subject: [PATCH] mm: add CONFIG_AMLOGIC_LINUX_S_OPTIMIZE for kernel size
+optimize. [1/1]
+
+PD#SWPL-150034
+
+Problem:
+Kernel size is too big
+
+Solution:
+remove some configs
+
+Verify:
+local.
+
+Change-Id: I70a220179865d7367fdccfea72d9d0ef248c04d8
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ arch/arm/Kconfig           | 6 ++++++
+ arch/arm/Kconfig.platforms | 6 +++---
+ arch/arm/mm/Kconfig        | 2 +-
+ 3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index a867a7d967aa..5d9cf5a9bc8d 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -160,6 +160,12 @@ config ARM
+ 	  Europe.  There is an ARM Linux project with a web page at
+ 	  <http://www.arm.linux.org.uk/>.
+ 
++config AMLOGIC_LINUX_S_OPTIMIZE
++	bool "linux kernel size optimize"
++	default n
++	help
++	  Amlogic linux kernel size optimize
++
+ config ARM_HAS_GROUP_RELOCS
+ 	def_bool y
+ 	depends on !LD_IS_LLD || LLD_VERSION >= 140000
+diff --git a/arch/arm/Kconfig.platforms b/arch/arm/Kconfig.platforms
+index 845ab08e20a4..0dc1a12eaa88 100644
+--- a/arch/arm/Kconfig.platforms
++++ b/arch/arm/Kconfig.platforms
+@@ -61,9 +61,9 @@ config ARCH_VIRT
+ 	depends on ARCH_MULTI_V7
+ 	select ARM_AMBA
+ 	select ARM_GIC
+-	select ARM_GIC_V2M if PCI
+-	select ARM_GIC_V3
+-	select ARM_GIC_V3_ITS if PCI
++	select ARM_GIC_V2M if PCI && !AMLOGIC_LINUX_S_OPTIMIZE
++	select ARM_GIC_V3 if !AMLOGIC_LINUX_S_OPTIMIZE
++	select ARM_GIC_V3_ITS if PCI && !AMLOGIC_LINUX_S_OPTIMIZE
+ 	select ARM_PSCI
+ 	select HAVE_ARM_ARCH_TIMER
+ 
+diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
+index 2b6f50dd5478..1e9bcab46a45 100644
+--- a/arch/arm/mm/Kconfig
++++ b/arch/arm/mm/Kconfig
+@@ -416,7 +416,7 @@ config CPU_V7
+ 	select CPU_CP15_MPU if !MMU
+ 	select CPU_HAS_ASID if MMU
+ 	select CPU_PABRT_V7
+-	select CPU_SPECTRE if MMU
++	select CPU_SPECTRE if MMU && !AMLOGIC_LINUX_S_OPTIMIZE
+ 	select CPU_THUMB_CAPABLE
+ 	select CPU_TLB_V7 if MMU
+ 
+-- 
+2.42.0
+

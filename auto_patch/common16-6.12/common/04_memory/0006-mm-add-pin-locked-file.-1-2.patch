@@ -1,0 +1,283 @@
+From 05e2f1ae327402343dc7cfeeefc12abd19855efe Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Thu, 22 Sep 2022 17:25:35 +0800
+Subject: [PATCH] mm: pin locked file after fault. [1/2]
+
+PD#SWPL-95400
+
+Problem:
+If we pin a file in android, the whole data of this file
+will be loaded to DDR, but most of these data may not be
+used, this caused memory waste.
+
+Solution:
+delay mark mlocked flags for unevictable pages until
+it has been faulted.
+You can use following command to disable this function:
+echo 0 > /proc/sys/vm/shrink_unevictable
+
+Verify:
+sc2_ah212
+
+Change-Id: Idee502f29c0f28e467af7f47527de6e47f23bbd8
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ mm/gup.c     |  1 -
+ mm/memory.c  | 70 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/migrate.c |  7 ++++++
+ mm/mlock.c   | 10 ++++++++
+ mm/rmap.c    | 10 ++++++++
+ mm/vmscan.c  |  9 +++++++
+ 6 files changed, 106 insertions(+), 1 deletion(-)
+
+diff --git a/mm/gup.c b/mm/gup.c
+index a82890b46a36..45af8cfb4d76 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -24,7 +24,6 @@
+ 
+ #include <asm/mmu_context.h>
+ #include <asm/tlbflush.h>
+-
+ #include "internal.h"
+ 
+ struct follow_page_context {
+diff --git a/mm/memory.c b/mm/memory.c
+index 2382a4ec4318..8281ab728b7b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -87,6 +87,12 @@
+ #include <linux/uaccess.h>
+ #include <asm/tlb.h>
+ #include <asm/tlbflush.h>
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++#include <linux/amlogic/pin_file.h>
++#endif
++#ifdef CONFIG_AMLOGIC_MEM_DEBUG
++#include <linux/amlogic/mem_debug.h>
++#endif
+ 
+ #include "pgalloc-track.h"
+ #include "internal.h"
+@@ -5809,6 +5815,49 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++static bool __restore_locked_page(struct folio *folio, struct vm_area_struct *vma,
++			 unsigned long addr, void *arg)
++{
++	int ret;
++	pte_t old_pte, *pte;
++	spinlock_t *ptl;	/* pte lock */
++	struct page *page = folio_page(folio, 0);
++
++	if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
++		if (addr < vma->vm_start || addr >= vma->vm_end)
++			return -EFAULT;
++		if (!page_count(page))
++			return -EINVAL;
++
++		pte = get_locked_pte(vma->vm_mm, addr, &ptl);
++		if (!pte)
++			return true;
++		old_pte = *pte;
++		pte_unmap_unlock(pte, ptl);
++		/* already refaulted */
++		if (pte_valid(old_pte) && pte_pfn(old_pte) == page_to_pfn(page))
++			return true;
++
++		ret = insert_page(vma, addr, page, vma->vm_page_prot);
++		pr_debug("%s, restore page:%lx for addr:%lx, vma:%px, ret:%d, old_pte:%llx\n",
++			__func__,  page_to_pfn(page), addr, vma, ret,
++			(unsigned long long)pte_val(old_pte));
++		return ret ? false : true;
++	}
++	return true; /* keep loop */
++}
++
++static void restore_locked_page(struct page *page)
++{
++	struct rmap_walk_control rwc = {
++		.rmap_one = __restore_locked_page,
++	};
++
++	rmap_walk(page_folio(page), &rwc);
++}
++#endif
++
+ /*
+  * On entry, we hold either the VMA lock or the mmap_lock
+  * (FAULT_FLAG_VMA_LOCK tells you which).  If VM_FAULT_RETRY is set in
+@@ -5825,6 +5874,9 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
+ 		.flags = flags,
+ 		.pgoff = linear_page_index(vma, address),
+ 		.gfp_mask = __get_fault_gfp_mask(vma),
++	#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++		.pte = NULL,
++	#endif
+ 	};
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long vm_flags = vma->vm_flags;
+@@ -5914,7 +5966,25 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
+ 		}
+ 	}
+ 
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++	ret = handle_pte_fault(&vmf);
++	if (!ret) {
++		struct page *page = NULL;
++
++		page = aml_mlock_page_as_lock_mapping(vma, mm, &vmf, address);
++		if (page)
++			restore_locked_page(page);
++	}
++	return ret;
++#endif
++#ifdef CONFIG_AMLOGIC_MEM_DEBUG
++	ret = handle_pte_fault(&vmf);
++	if (!ret && vma->vm_flags & VM_LOCKED)
++		mlock_fault_size++;
++	return ret;
++#else
+ 	return handle_pte_fault(&vmf);
++#endif
+ }
+ 
+ /**
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 4c54d139100a..e6b1b5eeab78 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -48,6 +48,9 @@
+ #include <linux/amlogic/aml_cma.h>
+ #include <linux/delay.h>
+ #endif
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++#include <linux/amlogic/pin_file.h>
++#endif
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -1440,6 +1443,10 @@ static int migrate_folio_move(free_folio_t put_new_folio, unsigned long private,
+ 		put_anon_vma(anon_vma);
+ 	folio_unlock(src);
+ 	migrate_folio_done(src, reason);
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++	if (reason == MR_CONTIG_RANGE && rc == MIGRATEPAGE_SUCCESS)
++		aml_clear_pin_locked_file(folio_page(src, 0));
++#endif
+ 
+ 	return rc;
+ out:
+diff --git a/mm/mlock.c b/mm/mlock.c
+index e3e3dc2b2956..dafabb8c08ad 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -25,6 +25,9 @@
+ #include <linux/memcontrol.h>
+ #include <linux/mm_inline.h>
+ #include <linux/secretmem.h>
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++#include <linux/amlogic/pin_file.h>
++#endif
+ 
+ #include "internal.h"
+ 
+@@ -548,6 +551,9 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
+ 		tmp = vma->vm_end;
+ 		if (tmp > end)
+ 			tmp = end;
++	#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++		reset_page_vma_flags(vma, flags);
++	#endif
+ 		error = mlock_fixup(&vmi, vma, &prev, nstart, tmp, newflags);
+ 		if (error)
+ 			return error;
+@@ -600,6 +606,7 @@ static unsigned long count_mm_mlocked_page_nr(struct mm_struct *mm,
+ /*
+  * convert get_user_pages() return value to posix mlock() error
+  */
++#ifndef CONFIG_AMLOGIC_PIN_LOCKED_FILE_V2
+ static int __mlock_posix_error_return(long retval)
+ {
+ 	if (retval == -EFAULT)
+@@ -608,6 +615,7 @@ static int __mlock_posix_error_return(long retval)
+ 		retval = -EAGAIN;
+ 	return retval;
+ }
++#endif
+ 
+ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t flags)
+ {
+@@ -650,9 +658,11 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
+ 	if (error)
+ 		return error;
+ 
++#ifndef CONFIG_AMLOGIC_PIN_LOCKED_FILE_V2
+ 	error = __mm_populate(start, len, 0);
+ 	if (error)
+ 		return __mlock_posix_error_return(error);
++#endif
+ 	return 0;
+ }
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index a8797d1b3d49..a84140f5dee7 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -83,6 +83,10 @@
+ #include <trace/events/tlb.h>
+ #include <trace/events/migrate.h>
+ 
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++#include <linux/amlogic/pin_file.h>
++#endif
++
+ #include "internal.h"
+ 
+ static struct kmem_cache *anon_vma_cachep;
+@@ -850,7 +854,13 @@ static bool folio_referenced_one(struct folio *folio,
+ 		if (vma->vm_flags & VM_LOCKED) {
+ 			if (!folio_test_large(folio) || !pvmw.pte) {
+ 				/* Restore the mlock which got missed */
++			#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++				/* only keep refault pages */
++				if (aml_is_pin_locked_file(folio_page(folio, 0)))
++					mlock_vma_folio(folio, vma);
++			#else
+ 				mlock_vma_folio(folio, vma);
++			#endif
+ 				page_vma_mapped_walk_done(&pvmw);
+ 				pra->vm_flags |= VM_LOCKED;
+ 				return false; /* To break the loop */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index de31e4205d11..cd6aa634dab9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -67,6 +67,9 @@
+ #ifdef CONFIG_AMLOGIC_CMA
+ #include <linux/amlogic/aml_cma.h>
+ #endif
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++#include <linux/amlogic/pin_file.h>
++#endif
+ 
+ #include "internal.h"
+ #include "swap.h"
+@@ -1305,6 +1308,12 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+ 			enum ttu_flags flags = TTU_BATCH_FLUSH;
+ 			bool was_swapbacked = folio_test_swapbacked(folio);
+ 
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++			mapping = folio_mapping(folio);
++			if (test_bit(AS_LOCK_MAPPING, &mapping->flags) &&
++				!aml_is_pin_locked_file(folio_page(folio, 0)) && !folio_test_mlocked(folio))
++				flags |= TTU_IGNORE_MLOCK;
++#endif
+ 			if (folio_test_pmd_mappable(folio))
+ 				flags |= TTU_SPLIT_HUGE_PMD;
+ 			/*
+-- 
+2.42.0
+
