@@ -897,6 +897,26 @@
 			bias-pull-up;
 		};
 	};
+
+	spi0_pins: spicc0_pins {
+		mux {
+			groups = "spi_a_mosi_x8",
+					 "spi_a_miso_x9",
+					 "spi_a_ss0_x10",
+					 "spi_a_clk_x11";
+			function = "spi_a";
+		};
+	};
+
+	spi0_pins_sw: spicc0_pins_sw {
+		mux {
+			groups = "spi_a_mosi_x8",
+					 "spi_a_miso_x9",
+//					 "spi_a_ss0_x10",
+					 "spi_a_clk_x11";
+			function = "spi_a";
+		};
+	};
 }; /* end of periphs_pinctrl */
 
 &audio_data {
@@ -1054,7 +1074,8 @@
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_z>;
+	pinctrl-0 = <&spi0_pins_sw>;
+	pinctrl-1 = <&spi0_pins>;
 };
 
 &fb {
