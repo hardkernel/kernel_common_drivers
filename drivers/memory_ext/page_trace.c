@@ -966,6 +966,7 @@ static int fill_module_symbols(struct proc_node *node, struct ksymbol *sym)
 	loff_t off = 0;
 
 	ops = (struct proc_ops *)node->proc_ops;
+	f.f_cred = current_cred();
 	ret = ops->proc_open(NULL, &f);
 	if (ret) {
 		pr_info("open fail\n");
