@@ -33,6 +33,13 @@ struct u2p_aml_regs_v2 {
 	void __iomem	*u2p_r_v2[4];
 };
 
+struct u2p_aml_regs_m_v2 {
+	__le32 r0;
+	__le32 r1;
+	__le32 r2;
+	__le32 r3;
+};
+
 union u2p_r0_v2 {
 	/** raw register data */
 	u32 d32;
@@ -481,6 +488,44 @@ union phy_m31_r15 {
 	} b;
 };
 
+struct aml_usb3_phy {
+	struct usb_phy		phy;
+	struct device		*dev;
+	struct clk		*clk[3];
+	void __iomem	*cfg_reg;
+	void __iomem	*ctrl_reg;
+	void __iomem	*reset_reg;
+	void __iomem	*trim_reg;
+	phys_addr_t cfg_reg_phy;
+	phys_addr_t ctrl_reg_phy;
+	phys_addr_t reset_reg_phy;
+	phys_addr_t trim_reg_phy;
+	resource_size_t cfg_reg_size;
+	resource_size_t ctrl_reg_size;
+	resource_size_t reset_reg_size;
+	resource_size_t trim_reg_size;
+	u32 reset_level_shift;
+	u8 portnum;
+	u8 phy_id;
+	/* Reset static regs to default.
+	 * Edge trigger/level reset.
+	 */
+	u8 usb3_apb_reset_bit;
+	/* Reset dynamic regs to default.
+	 * Level  reset.
+	 */
+	u8 usb3_phy_reset_bit;
+	u8 usb3_controller_reset_bit;
+
+	u8 num_clk;
+	u32 ic_ver;
+	bool off;
+	bool pll_sw_cfg;
+	bool suspend;
+};
+
+#define	phy_to_amlusb3phy(p)	container_of((p), struct aml_usb3_phy, phy)
+
 void aml_new_usb3_get_phy(struct amlogic_usb_v2 *phy);
 void cr_bus_addr(unsigned int addr);
 int cr_bus_read(unsigned int addr);
@@ -488,8 +533,12 @@ void cr_bus_write(unsigned int addr, unsigned int data);
 
 int aml_new_otg_get_mode(void);
 int aml_new_usb_get_mode(void);
+
+int amlogic_crg_host_power(struct usb_phy *p, bool force, bool on);
 int amlogic_crg_device_usb2_init(u32 phy_id);
 int amlogic_crg_device_usb2_shutdown(u32 phy_id);
+int amlogic_crg_device_power(u32 phy_id, bool force, bool on);
+
 #ifdef CONFIG_AMLOGIC_USB3PHY
 void aml_new_otg_init(void);
 #endif

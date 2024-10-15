@@ -29,13 +29,15 @@
 #include <linux/phy/phy.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/android_kabi.h>
+#include <linux/amlogic/usb-v2.h>
 
 #include <linux/kthread.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include "../xhci_amlogic/xhci-meson.h"
 #include "../xhci_amlogic/xhci-plat-meson.h"
 
-static const struct aml_xhci_plat_priv crg_xhci_plat_priv = {
+static struct aml_xhci_plat_priv crg_xhci_plat_priv = {
 	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_RESET_ON_RESUME,
 };
 
@@ -87,11 +89,15 @@ static int crg_core_soft_reset(struct crg_drd *crg)
 	if (crg->usb3_phy)
 		usb_phy_init(crg->usb3_phy);
 
+	amlogic_crg_host_power(crg->usb2_phy, false, true);
+
 	return 0;
 }
 
 static void crg_core_exit(struct crg_drd	*crg)
 {
+	amlogic_crg_host_power(crg->usb2_phy, false, false);
+
 	if (crg->usb2_phy)
 		usb_phy_shutdown(crg->usb2_phy);
 	if (crg->usb3_phy)
@@ -113,6 +119,11 @@ static int crg_core_init(struct crg_drd *crg)
 
 	usb_phy_set_suspend(crg->usb2_phy, 0);
 	usb_phy_set_suspend(crg->usb3_phy, 0);
+
+	crg->super_speed_support = 0;
+	if (crg->usb3_phy)
+		if (crg->usb3_phy->flags == AML_USB3_PHY_ENABLE)
+			crg->super_speed_support = 1;
 
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -165,15 +176,9 @@ static int crg_core_get_phy(struct crg_drd *crg)
 {
 	struct device *dev = crg->dev;
 
-	crg->super_speed_support = 0;
-
 	crg->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 
 	crg->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
-
-	if (crg->usb3_phy)
-		if (crg->usb3_phy->flags == AML_USB3_PHY_ENABLE)
-			crg->super_speed_support = 1;
 
 	return 0;
 }
@@ -249,9 +254,10 @@ out:
 	return irq;
 }
 
+static struct property_entry	props[64];
 static int crg_host_init(struct crg_drd *crg)
 {
-	struct property_entry	props[4];
+	//struct property_entry	props[4];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	//struct resource		*res;
@@ -290,6 +296,39 @@ static int crg_host_init(struct crg_drd *crg)
 
 	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host");
 	props[prop_idx++] = PROPERTY_ENTRY_BOOL("usb2-lpm-disable");
+
+	if (is_meson_t5_cpu() || is_meson_t5d_cpu())
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-003");
+
+	if (is_meson_t7_cpu() || is_meson_t3_cpu()) {
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-007");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-010");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-014");
+	}
+	if (is_meson_t7_cpu() || is_meson_t3_cpu() ||
+		is_meson_t5_cpu() || is_meson_t5d_cpu() ||
+		is_meson_s4_cpu() || is_meson_s4d_cpu() ||
+		is_meson_s6_cpu())
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+
+	if (is_meson_s4_cpu() || is_meson_s4d_cpu())
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-009");
+
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-plug-died");
+
+	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+		is_meson_t5_cpu() || is_meson_t5d_cpu() ||
+		is_meson_s4_cpu() || is_meson_s4d_cpu())
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-011");
+
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-eproto");
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-016");
+
+	/* Some quirky devices take >2s to turn on Rterm and begin polling.
+	 * this leads to wait_for_connected timeout when resuming.
+	 */
+	if (crg->usb3_phy && crg->usb3_phy->label && !strcmp(crg->usb3_phy->label, "aml-usb3phy"))
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("resume_stuck_warm_reset");
 
 	if (prop_idx) {
 		ret = device_create_managed_software_node(&xhci->dev, props, NULL);
@@ -354,6 +393,8 @@ static int crg_probe(struct platform_device *pdev)
 	u32 tmp;
 	const void *prop;
 	unsigned int wr_outstanding_tune = 0;
+	unsigned int rd_outstanding_tune = 0;
+	unsigned int innakrty = 0;
 
 	mem = devm_kzalloc(dev, sizeof(*crg) + CRG_ALIGN_MASK, GFP_KERNEL);
 	if (!mem)
@@ -441,6 +482,11 @@ static int crg_probe(struct platform_device *pdev)
 		break;
 	}
 
+	prop = of_get_property(pdev->dev.of_node, "dma-64bit-support", NULL);
+	if (prop)
+		if (of_read_ulong(prop, 1))
+			crg_xhci_plat_priv.quirks &= (~XHCI_NO_64BIT_SUPPORT);
+
 	ret = crg_core_init_mode(crg);
 	if (ret)
 		goto err0;
@@ -448,11 +494,29 @@ static int crg_probe(struct platform_device *pdev)
 	prop = of_get_property(pdev->dev.of_node, "wr-outstanding-tune", NULL);
 	if (prop)
 		wr_outstanding_tune = of_read_ulong(prop, 1);
+	prop = of_get_property(pdev->dev.of_node, "rd-outstanding-tune", NULL);
+	if (prop)
+		rd_outstanding_tune = of_read_ulong(prop, 1);
 
 	if (wr_outstanding_tune) {
 		wr_outstanding_tune = readl((void __iomem *)((unsigned long)crg->regs + 0x210c));
 		wr_outstanding_tune &= (~0x7f000);
 		writel(wr_outstanding_tune, (void __iomem *)((unsigned long)crg->regs + 0x210c));
+	}
+
+	if (rd_outstanding_tune) {
+		tmp = readl((void __iomem *)((unsigned long)crg->regs + 0x210c));
+		tmp &= ~(u32)GENMASK(25, 19);
+		tmp |= rd_outstanding_tune << 19 & (u32)GENMASK(25, 19);
+		writel(tmp, (void __iomem *)((unsigned long)crg->regs + 0x210c));
+	}
+
+	prop = of_get_property(dev->of_node, "in-nak-rty", NULL);
+	if (prop) {
+		innakrty = of_read_ulong(prop, 1);
+		innakrty = (readl((void __iomem *)((unsigned long)crg->regs + 0x2110)) &
+					~(0xff << 13)) | (innakrty << 13);
+		writel(innakrty, (void __iomem *)((unsigned long)crg->regs + 0x2110));
 	}
 
 	pm_runtime_put(dev);
@@ -470,8 +534,8 @@ static void crg_shutdown(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	crg_core_exit(crg);
 	crg_host_exit(crg);
+	crg_core_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -487,12 +551,15 @@ static void crg_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	crg_host_exit(crg);
+	crg_core_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	clk_disable_unprepare(crg->general_clk);
+
+	return;
 }
 
 #ifdef CONFIG_PM
@@ -694,15 +761,35 @@ static struct platform_driver crg_host_driver = {
 	},
 };
 
+static int crg_driver_state;
 void crg_exit(void)
 {
+	pr_info("crg exit\n");
+	if (crg_driver_state != 1)
+		return;
+	crg_driver_state = 0;
 	platform_driver_unregister(&crg_driver);
 }
 EXPORT_SYMBOL_GPL(crg_exit);
 
 int crg_init(void)
 {
-	return platform_driver_register(&crg_driver);
+	int ret;
+
+	pr_info("crg init\n");
+	if (crg_driver_state != 0) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	ret = platform_driver_register(&crg_driver);
+	if (ret) {
+		pr_info("crg_driver register error %d, exit\n", ret);
+		goto exit;
+	}
+	crg_driver_state = 1;
+exit:
+	return ret;
 }
 EXPORT_SYMBOL_GPL(crg_init);
 

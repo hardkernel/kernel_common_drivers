@@ -249,9 +249,9 @@ static int amlogic_bc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int amlogic_bc_remove(struct platform_device *pdev)
+static void amlogic_bc_remove(struct platform_device *pdev)
 {
-	return 0;
+	return;
 }
 
 #ifdef CONFIG_PM_RUNTIME

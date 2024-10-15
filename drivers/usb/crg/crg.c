@@ -29,6 +29,7 @@
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
 #include <linux/android_kabi.h>
+#include <linux/amlogic/cpu_version.h>
 #include "../xhci_amlogic/xhci-meson.h"
 #include "../xhci_amlogic/xhci-plat-meson.h"
 
@@ -57,7 +58,7 @@ struct crg {
 	struct clk		*general_clk;
 };
 
-static const struct aml_xhci_plat_priv crg_xhci_plat_priv = {
+static struct aml_xhci_plat_priv crg_xhci_plat_priv = {
 	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_RESET_ON_RESUME,
 };
 
@@ -209,9 +210,11 @@ out:
 	return irq;
 }
 
+static struct property_entry	props[64];
+
 int crg_host_init(struct crg *crg)
 {
-	struct property_entry	props[4];
+	//struct property_entry	props[4];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	//struct resource		*res;
@@ -311,6 +314,7 @@ static int crg_probe(struct platform_device *pdev)
 	struct crg		*crg;
 	int			ret;
 	void			*mem;
+	const void *prop;
 
 	mem = devm_kzalloc(dev, sizeof(*crg) + CRG_ALIGN_MASK, GFP_KERNEL);
 	if (!mem)
@@ -385,6 +389,11 @@ static int crg_probe(struct platform_device *pdev)
 		break;
 	}
 
+	prop = of_get_property(pdev->dev.of_node, "dma-64bit-support", NULL);
+	if (prop)
+		if (of_read_ulong(prop, 1))
+			crg_xhci_plat_priv.quirks &= (~XHCI_NO_64BIT_SUPPORT);
+
 	ret = crg_core_init_mode(crg);
 	if (ret)
 		goto err0;
@@ -425,6 +434,7 @@ static void crg_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	clk_disable_unprepare(crg->general_clk);
+	return;
 }
 
 #ifdef CONFIG_PM

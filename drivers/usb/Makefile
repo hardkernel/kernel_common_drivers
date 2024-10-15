@@ -13,7 +13,7 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/crgdrdphy/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/usb2phy/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/usb3v2phy/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/usbc2phy/Makefile
-#include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/usb3v3phy/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/usb3v3phy/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/usbotg/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/cc/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/bc/Makefile

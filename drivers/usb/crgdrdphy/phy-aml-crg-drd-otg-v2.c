@@ -20,7 +20,7 @@
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
 #include <linux/amlogic/usbtype.h>
-#include "../phy/phy-aml-new-usb-v2.h"
+#include "phy-aml-crg-drd.h"
 #include "../usb_main.h"
 
 #include <linux/amlogic/gki_module.h>
@@ -443,6 +443,8 @@ static void amlogic_crg_otg_v2_remove(struct platform_device *pdev)
 		regulator_disable(phy->usb_regulator_ao3v3);
 	if (phy->usb_regulator_ao1v8)
 		regulator_disable(phy->usb_regulator_ao1v8);
+
+	return;
 }
 
 static void amlogic_crg_otg_v2_shutdown(struct platform_device *pdev)

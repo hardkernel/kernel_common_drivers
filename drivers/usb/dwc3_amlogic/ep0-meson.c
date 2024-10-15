@@ -226,19 +226,24 @@ void aml_dwc3_ep0_stall_and_restart(struct aml_dwc3 *dwc)
 
 	/* reinitialize physical ep1 */
 	dep = dwc->eps[1];
-	dep->flags = DWC3_EP_ENABLED;
+	dep->flags &= DWC3_EP_RESOURCE_ALLOCATED;
+	dep->flags |= DWC3_EP_ENABLED;
 
 	/* stall is always issued on EP0 */
 	dep = dwc->eps[0];
 	aml___dwc3_gadget_ep_set_halt(dep, 1, false);
-	dep->flags = DWC3_EP_ENABLED;
+	dep->flags &= DWC3_EP_RESOURCE_ALLOCATED;
+	dep->flags |= DWC3_EP_ENABLED;
 	dwc->delayed_status = false;
 
 	if (!list_empty(&dep->pending_list)) {
 		struct aml_dwc3_request	*req;
 
 		req = next_request(&dep->pending_list);
-		aml_dwc3_gadget_giveback(dep, req, -ECONNRESET);
+		if (!dwc->connected)
+			aml_dwc3_gadget_giveback(dep, req, -ESHUTDOWN);
+		else
+			aml_dwc3_gadget_giveback(dep, req, -ECONNRESET);
 	}
 
 	dwc->eps[0]->trb_enqueue = 0;
@@ -643,6 +648,7 @@ static int dwc3_ep0_set_config(struct aml_dwc3 *dwc, struct usb_ctrlrequest *ctr
 		return -EINVAL;
 
 	case USB_STATE_ADDRESS:
+		dwc3_gadget_start_config(dwc, 2);
 		aml_dwc3_gadget_clear_tx_fifos(dwc);
 
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);

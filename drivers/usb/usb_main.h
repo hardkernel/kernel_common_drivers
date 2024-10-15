@@ -5,6 +5,10 @@
 
 #ifndef _USB_MAIN_H__
 #define _USB_MAIN_H__
+#include <linux/debugfs.h>
+#include <linux/usb.h>
+
+extern struct dentry *amlogic_usb_debugfs_root;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_USBPHY)
 int __init amlogic_new_usb3_v2_driver_init(void);
@@ -28,14 +32,17 @@ static inline  int __init amlogic_new_usb2_v2_driver_init(void)
 
 #if IS_ENABLED(CONFIG_AMLOGIC_USB3PHY)
 int __init amlogic_new_otg_driver_init(void);
-/*int __init amlogic_new_usb3_v3_driver_init(void); */
+int __init amlogic_new_usb3_v3_driver_init(void);
 #else
 static inline  int __init amlogic_new_otg_driver_init(void)
 {
 	return -1;
 }
 
-/*static inline  int __init amlogic_new_usb3_v3_driver_init(void) {return 0;}*/
+static inline  int __init amlogic_new_usb3_v3_driver_init(void)
+{
+	return -1;
+}
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_USBPHYC2)
@@ -71,6 +78,7 @@ int __init amlogic_crg_drd_usb3_drv_init(void);
 int __init amlogic_crg_host_driver_init(void);
 int __init amlogic_usb3_m31_drv_init(void);
 int __init amlogic_usb2_m31_drv_init(void);
+int __init aml_usb3_phy_drv_init(void);
 int __init crg_otg_init(void);
 int __init crg_otg_v2_init(void);
 #else
@@ -109,6 +117,11 @@ static int __init amlogic_usb3_m31_drv_init(void)
 }
 
 static int __init amlogic_usb2_m31_drv_init(void)
+{
+	return -1;
+}
+
+static int __init aml_usb3_phy_drv_init(void)
 {
 	return -1;
 }

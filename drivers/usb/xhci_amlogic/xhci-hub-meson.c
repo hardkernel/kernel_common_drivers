@@ -448,38 +448,6 @@ u32 aml_xhci_port_state_to_neutral(u32 state)
 }
 EXPORT_SYMBOL_GPL(aml_xhci_port_state_to_neutral);
 
-/**
- * aml_xhci_find_slot_id_by_port() - Find slot id of a usb device on a roothub port
- * @hcd: pointer to hcd of the roothub
- * @xhci: pointer to xhci structure
- * @port: one-based port number of the port in this roothub.
- *
- * Return: Slot id of the usb device connected to the root port, 0 if not found
- */
-
-int aml_xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct aml_xhci_hcd *xhci,
-		u16 port)
-{
-	int slot_id;
-	int i;
-	enum usb_device_speed speed;
-
-	slot_id = 0;
-	for (i = 0; i < MAX_HC_SLOTS; i++) {
-		if (!xhci->devs[i] || !xhci->devs[i]->udev)
-			continue;
-		speed = xhci->devs[i]->udev->speed;
-		if (((speed >= USB_SPEED_SUPER) == (hcd->speed >= HCD_USB3))
-				&& xhci->devs[i]->fake_port == port) {
-			slot_id = i;
-			break;
-		}
-	}
-
-	return slot_id;
-}
-EXPORT_SYMBOL_GPL(aml_xhci_find_slot_id_by_port);
-
 /*
  * Stop device
  * It issues stop endpoint command for EP 0 to 30. And wait the last command
@@ -718,10 +686,8 @@ static void xhci_port_set_test_mode(struct aml_xhci_hcd *xhci,
 	temp |= test_mode << PORT_TEST_MODE_SHIFT;
 	writel(temp, port->addr + PORTPMSC);
 	xhci->test_mode = test_mode;
-  #if !IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	if (test_mode == USB_TEST_FORCE_ENABLE)
 		aml_xhci_start(xhci);
-  #endif
 }
 
 static int xhci_enter_test_mode(struct aml_xhci_hcd *xhci,
@@ -784,6 +750,42 @@ static int xhci_exit_test_mode(struct aml_xhci_hcd *xhci)
 	pm_runtime_allow(xhci_to_hcd(xhci)->self.controller);
 	xhci->test_mode = 0;
 	return aml_xhci_reset(xhci, XHCI_RESET_SHORT_USEC);
+}
+
+/**
+ * xhci_port_is_tunneled() - Check if USB3 connection is tunneled over USB4
+ * @xhci: xhci host controller
+ * @port: USB3 port to be checked.
+ *
+ * Some hosts can detect if a USB3 connection is native USB3 or tunneled over
+ * USB4. Intel hosts expose this via vendor specific extended capability 206
+ * eSS PORT registers TUNEN (tunnel enabled) bit.
+ *
+ * A USB3 device must be connected to the port to detect the tunnel.
+ *
+ * Return: link tunnel mode enum, USB_LINK_UNKNOWN if host is incapable of
+ * detecting USB3 over USB4 tunnels. USB_LINK_NATIVE or USB_LINK_TUNNELED
+ * otherwise.
+ */
+enum usb_link_tunnel_mode xhci_port_is_tunneled(struct aml_xhci_hcd *xhci,
+						struct aml_xhci_port *port)
+{
+	void __iomem *base;
+	u32 offset;
+
+	base = &xhci->cap_regs->hc_capbase;
+	offset = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_INTEL_SPR_SHADOW);
+
+	if (offset && offset <= XHCI_INTEL_SPR_ESS_PORT_OFFSET) {
+		offset = XHCI_INTEL_SPR_ESS_PORT_OFFSET + port->hcd_portnum * 0x20;
+
+		if (readl(base + offset) & XHCI_INTEL_SPR_TUNEN)
+			return USB_LINK_TUNNELED;
+		else
+			return USB_LINK_NATIVE;
+	}
+
+	return USB_LINK_UNKNOWN;
 }
 
 void aml_xhci_set_link_state(struct aml_xhci_hcd *xhci, struct aml_xhci_port *port,
@@ -932,7 +934,6 @@ static int xhci_handle_usb2_port_link_resume(struct aml_xhci_port *port,
 	struct aml_xhci_bus_state *bus_state;
 	struct aml_xhci_hcd	*xhci;
 	struct usb_hcd *hcd;
-	int slot_id;
 	u32 wIndex;
 
 	hcd = port->rhub->hcd;
@@ -988,13 +989,11 @@ static int xhci_handle_usb2_port_link_resume(struct aml_xhci_port *port,
 		spin_lock_irqsave(&xhci->lock, *flags);
 
 		if (time_left) {
-			slot_id = aml_xhci_find_slot_id_by_port(hcd, xhci,
-							    wIndex + 1);
-			if (!slot_id) {
+			if (!port->slot_id) {
 				aml_xhci_dbg(xhci, "slot_id is zero\n");
 				return -ENODEV;
 			}
-			aml_xhci_ring_device(xhci, slot_id);
+			aml_xhci_ring_device(xhci, port->slot_id);
 		} else {
 			int port_status = readl(port->addr);
 
@@ -1196,97 +1195,6 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	return status;
 }
 
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-static int xhci_test_suspend_resume(struct usb_hcd *hcd,
-				    u16 wIndex)
-{
-	struct aml_xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	unsigned long flags = 0;
-	u32 temp;
-	int slot_id;
-	//__le32 __iomem **port_array = xhci->usb2_ports;
-	struct aml_xhci_port *port;
-
-	/* xhci only supports test mode for usb2 ports */
-	port = xhci->usb2_rhub.ports[wIndex];
-	//temp = readl(port->addr + PORTPMSC);
-
-	/* 15 second delay per the test spec */
-	aml_xhci_err(xhci, "into suspend\n");
-	spin_lock_irqsave(&xhci->lock, flags);
-
-	/*suspend*/
-	temp = readl(port->addr);
-	if ((temp & PORT_PLS_MASK) != XDEV_U0) {
-		/* Resume the port to U0 first */
-		aml_xhci_set_link_state(xhci, port, XDEV_U0);
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		usleep_range(10000 - 1, 10000);
-		spin_lock_irqsave(&xhci->lock, flags);
-	}
-	/* In spec software should not attempt to suspend
-	 * a port unless the port reports that it is in the
-	 * enabled (PED = ‘1’,PLS < ‘3’) state.
-	 */
-	temp = readl(port->addr);
-	if ((temp & PORT_PE) == 0 || (temp & PORT_RESET) ||
-	    (temp & PORT_PLS_MASK) >= XDEV_U3) {
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		aml_xhci_warn(xhci, "USB core suspending device not in U0/U1/U2.\n");
-		return -1;
-	}
-
-	slot_id = aml_xhci_find_slot_id_by_port(hcd, xhci,
-					    wIndex + 1);
-	if (!slot_id) {
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		aml_xhci_warn(xhci, "slot_id is zero\n");
-		return -1;
-	}
-	/* unlock to execute stop endpoint commands */
-	spin_unlock_irqrestore(&xhci->lock, flags);
-	xhci_stop_device(xhci, slot_id, 1);
-	spin_lock_irqsave(&xhci->lock, flags);
-
-	aml_xhci_set_link_state(xhci, port, XDEV_U3);
-
-	spin_unlock_irqrestore(&xhci->lock, flags);
-	usleep_range(10000 - 1, 10000); /* wait device to enter */
-	spin_lock_irqsave(&xhci->lock, flags);
-
-	/* 15 second delay per the test spec */
-	spin_unlock_irqrestore(&xhci->lock, flags);
-	aml_xhci_err(xhci, "wait 15s\n");
-	msleep(15000);
-	aml_xhci_err(xhci, "into resume\n");
-	spin_lock_irqsave(&xhci->lock, flags);
-
-	temp = readl(port->addr);
-	aml_xhci_dbg(xhci, "clear USB_PORT_FEAT_SUSPEND\n");
-	aml_xhci_dbg(xhci, "PORTSC %04x\n", temp);
-	if (temp & PORT_RESET) {
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		return -1;
-	}
-	if ((temp & PORT_PLS_MASK) == XDEV_U3) {
-		if ((temp & PORT_PE) == 0) {
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			return -1;
-		}
-
-		aml_xhci_set_link_state(xhci, port, XDEV_RESUME);
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		msleep(20);
-		spin_lock_irqsave(&xhci->lock, flags);
-		aml_xhci_set_link_state(xhci, port, XDEV_U0);
-	}
-
-	aml_xhci_ring_device(xhci, slot_id);
-	spin_unlock_irqrestore(&xhci->lock, flags);
-	return 0;
-}
-#endif
-
 int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
@@ -1295,7 +1203,6 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	unsigned long flags;
 	u32 temp, status;
 	int retval = 0;
-	int slot_id;
 	struct aml_xhci_bus_state *bus_state;
 	u16 link_state = 0;
 	u16 wake_mask = 0;
@@ -1355,7 +1262,7 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			retval = -ENODEV;
 			break;
 		}
-		trace_aml_xhci_get_port_status(wIndex, temp);
+		trace_aml_xhci_get_port_status(port, temp);
 		status = xhci_get_port_status(hcd, bus_state, wIndex, temp,
 					      &flags);
 		if (status == 0xffffffff)
@@ -1425,15 +1332,13 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				goto error;
 			}
 
-			slot_id = aml_xhci_find_slot_id_by_port(hcd, xhci,
-							    portnum1);
-			if (!slot_id) {
+			if (!port->slot_id) {
 				aml_xhci_warn(xhci, "slot_id is zero\n");
 				goto error;
 			}
 			/* unlock to execute stop endpoint commands */
 			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_stop_device(xhci, slot_id, 1);
+			xhci_stop_device(xhci, port->slot_id, 1);
 			spin_lock_irqsave(&xhci->lock, flags);
 
 			aml_xhci_set_link_state(xhci, port, XDEV_U3);
@@ -1556,14 +1461,12 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 			if (link_state == USB_SS_PORT_LS_U3) {
 				int retries = 16;
-				slot_id = aml_xhci_find_slot_id_by_port(hcd, xhci,
-								    portnum1);
-				if (slot_id) {
+				if (port->slot_id) {
 					/* unlock to execute stop endpoint
 					 * commands */
 					spin_unlock_irqrestore(&xhci->lock,
 								flags);
-					xhci_stop_device(xhci, slot_id, 1);
+					xhci_stop_device(xhci, port->slot_id, 1);
 					spin_lock_irqsave(&xhci->lock, flags);
 				}
 				aml_xhci_set_link_state(xhci, port, USB_SS_PORT_LS_U3);
@@ -1623,28 +1526,6 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			temp |= PORT_U2_TIMEOUT(timeout);
 			writel(temp, port->addr + PORTPMSC);
 			break;
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-		case USB_PORT_FEAT_TEST:
-			/* 4.19.6 Port Test Modes (USB2 Test Mode) */
-			if (hcd->speed != HCD_USB2)
-				goto error;
-			if (test_mode > 6 || test_mode < 1)
-				goto error;
-
-			if (test_mode >= 1 && test_mode <= 4) {
-				retval = xhci_enter_test_mode(xhci,
-								  test_mode,
-								  wIndex, &flags);
-			} else if (test_mode == 5) {
-				xhci_port_set_test_mode(xhci,
-							test_mode, wIndex);
-			} else {
-				spin_unlock_irqrestore(&xhci->lock, flags);
-				retval = xhci_test_suspend_resume(hcd, wIndex);
-				spin_lock_irqsave(&xhci->lock, flags);
-			}
-			break;
-#else
 		case USB_PORT_FEAT_TEST:
 			/* 4.19.6 Port Test Modes (USB2 Test Mode) */
 			if (hcd->speed != HCD_USB2)
@@ -1655,7 +1536,6 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			retval = xhci_enter_test_mode(xhci, test_mode, wIndex,
 						      &flags);
 			break;
-#endif
 		default:
 			goto error;
 		}
@@ -1700,13 +1580,11 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			bus_state->port_c_suspend |= 1 << wIndex;
 
-			slot_id = aml_xhci_find_slot_id_by_port(hcd, xhci,
-					portnum1);
-			if (!slot_id) {
+			if (!port->slot_id) {
 				aml_xhci_dbg(xhci, "slot_id is zero\n");
 				goto error;
 			}
-			aml_xhci_ring_device(xhci, slot_id);
+			aml_xhci_ring_device(xhci, port->slot_id);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			bus_state->port_c_suspend &= ~(1 << wIndex);
@@ -1803,7 +1681,7 @@ int aml_xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 			retval = -ENODEV;
 			break;
 		}
-		trace_aml_xhci_hub_status_data(i, temp);
+		trace_aml_xhci_hub_status_data(ports[i], temp);
 
 		if ((temp & mask) != 0 ||
 			(bus_state->port_c_suspend & 1 << i) ||
@@ -1937,10 +1815,7 @@ retry:
 		if (!portsc_buf[port_index])
 			continue;
 		if (test_bit(port_index, &bus_state->bus_suspended)) {
-			int slot_id;
-
-			slot_id = aml_xhci_find_slot_id_by_port(hcd, xhci,
-							    port_index + 1);
+			int slot_id = ports[port_index]->slot_id;
 			if (slot_id) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				xhci_stop_device(xhci, slot_id, 1);
@@ -1993,7 +1868,6 @@ int aml_xhci_bus_resume(struct usb_hcd *hcd)
 	struct aml_xhci_bus_state *bus_state;
 	unsigned long flags;
 	int max_ports, port_index;
-	int slot_id;
 	int sret;
 	u32 next_state;
 	u32 temp, portsc;
@@ -2086,9 +1960,8 @@ int aml_xhci_bus_resume(struct usb_hcd *hcd)
 			continue;
 		}
 		aml_xhci_test_and_clear_bit(xhci, ports[port_index], PORT_PLC);
-		slot_id = aml_xhci_find_slot_id_by_port(hcd, xhci, port_index + 1);
-		if (slot_id)
-			aml_xhci_ring_device(xhci, slot_id);
+		if (ports[port_index]->slot_id)
+			aml_xhci_ring_device(xhci, ports[port_index]->slot_id);
 	}
 	(void) readl(&xhci->op_regs->command);
 

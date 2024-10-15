@@ -20,7 +20,7 @@
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
 #include <linux/amlogic/usbtype.h>
-#include "../phy/phy-aml-new-usb-v2.h"
+#include "phy-aml-crg-drd.h"
 
 struct usb_aml_regs_v2 usb_crg_drd_aml_regs[2];
 
@@ -245,7 +245,6 @@ static int amlogic_crg_drd_usb3_init(struct usb_phy *x)
 		}
 
 		phy->suspend_flag = 0;
-		return 0;
 	}
 
 	if (phy->phy.flags != AML_USB3_PHY_ENABLE)
@@ -551,6 +550,7 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 
 static void amlogic_crg_drd_usb3_remove(struct platform_device *pdev)
 {
+	return;
 }
 
 #ifdef CONFIG_PM_RUNTIME

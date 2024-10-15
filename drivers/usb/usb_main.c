@@ -20,17 +20,18 @@
 bool force_device_mode;
 module_param_named(otg_device, force_device_mode,
 		bool, 0644);
-
 static char otg_mode_string[2] = "0";
+struct dentry *amlogic_usb_debugfs_root;
+
 static int force_otg_mode(char *s)
 {
 	if (s)
-		sprintf(otg_mode_string, "%s", s);
-	if (strcmp(otg_mode_string, "0") == 0)
+		snprintf(otg_mode_string, 2, "%s", s);
+	if (strncmp(otg_mode_string, "0", 1) == 0)
 		force_device_mode = 0;
 	else
 		force_device_mode = 1;
-	return 0;
+	return 1;
 }
 __setup("otg_device=", force_otg_mode);
 
@@ -40,12 +41,24 @@ int get_otg_mode(void)
 }
 EXPORT_SYMBOL(get_otg_mode);
 
+static inline void __init amlogic_usb_debugfs_create_root(void)
+{
+	amlogic_usb_debugfs_root = debugfs_create_dir("amlogic", usb_debug_root);
+}
+
+//void __exit amlogic_usb_debugfs_remove_root(void)
+//{
+//	debugfs_remove_recursive(amlogic_usb_debugfs_root);
+//	amlogic_usb_debugfs_root = NULL;
+//}
+
 static int __init usb_main_init(void)
 {
 	pr_debug("### %s() start\n", __func__);
+	amlogic_usb_debugfs_create_root();
 	call_sub_init(amlogic_new_c2_usb2_v2_driver_init);//usbc2phy
 	call_sub_init(amlogic_new_c2_usb3_v2_driver_init);//usbc2phy
-	/*call_sub_init(amlogic_new_usb3_v3_driver_init); usb3v3phy */
+	call_sub_init(amlogic_new_usb3_v3_driver_init); //usb3v3phy
 	call_sub_init(amlogic_cc_driver_init);		//cc
 	call_sub_init(amlogic_bc_driver_init);		//bc
 
@@ -53,6 +66,8 @@ static int __init usb_main_init(void)
 	call_sub_init(amlogic_new_usb3_v2_driver_init);	//usb3v2phy/amlogic_usb3_v2_phy.ko
 	call_sub_init(amlogic_usb2_m31_drv_init);	//crgdrdphy/
 	call_sub_init(amlogic_usb3_m31_drv_init);	//crgdrdphy/
+	call_sub_init(aml_usb3_phy_drv_init);
+
 	call_sub_init(aml_xhci_hcd_init);
 	call_sub_init(aml_xhci_plat_init);
 	call_sub_init(aml_dwc3_init);

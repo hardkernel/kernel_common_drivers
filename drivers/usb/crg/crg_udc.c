@@ -33,6 +33,7 @@
 #include <linux/amlogic/usb-v2.h>
 #include <linux/usb/composite.h>
 #include <linux/configfs.h>
+#include <linux/suspend.h>
 
 #define CRG_MTP_WR 1
 #define MAX_PACKET_SIZE 1024
@@ -366,6 +367,10 @@ struct crg_gadget_dev {
 	u32 num_enabled_eps;
 
 	int connected;
+	bool async_cb_flag;
+	int suspend_scheme;
+#define SUSPEND_SCHEME_POWER_OFF_ONLY 0
+#define SUSPEND_SCHEME_REINIT 1
 
 	unsigned u2_RWE:1;
 	unsigned feature_u1_enable:1;
@@ -376,6 +381,11 @@ struct crg_gadget_dev {
 	int controller_type;
 	u32 phy_id;
 };
+
+static inline bool crg_udc_suspend_reinit(struct crg_gadget_dev *crg_udc)
+{
+	return crg_udc->suspend_scheme == SUSPEND_SCHEME_REINIT ? true : false;
+}
 
 struct gadget_info {
 	struct config_group group;
@@ -411,51 +421,58 @@ struct gadget_info {
 static struct crg_gadget_dev crg_udc_dev;
 static DECLARE_WAIT_QUEUE_HEAD(vbus_wait);
 
-static bool xfer_debug;
-module_param(xfer_debug, bool, 0644);
-MODULE_PARM_DESC(xfer_debug, "0 or 1");
+/* Protect against:
+ * crg_udc_driver register after register & unregister after unregister.
+ * pm_cb executed when not registered.
+ */
+static int crg_udc_driver_state;
+/* Protect against:
+ * Remove after remove: PM_HIBERNATION_PREPARE -> amlogic_crg_otg_work;
+ * Probe after probe : amlogic_crg_otg_work -> PM_POST_HIBERNATION.
+ */
+static int crg_udc_probe_state;
+/* Serialize init/exit&pm_cb. */
+DEFINE_MUTEX(crg_udc_driver_lock);
 
-static bool crg_debug = 1;
-module_param(crg_debug, bool, 0644);
-MODULE_PARM_DESC(crg_debug, "0 or 1");
+static bool crg_udc_xfer_debug;
+module_param(crg_udc_xfer_debug, bool, 0644);
+MODULE_PARM_DESC(crg_udc_xfer_debug, "0 or 1");
 
-static bool portsc_debug = 1;
-module_param(portsc_debug, bool, 0644);
-MODULE_PARM_DESC(portsc_debug, "0 or 1");
+static bool crg_udc_debug;
+module_param(crg_udc_debug, bool, 0644);
+MODULE_PARM_DESC(crg_udc_debug, "0 or 1");
+
+static bool crg_udc_portsc_debug;
+module_param(crg_udc_portsc_debug, bool, 0644);
+MODULE_PARM_DESC(crg_udc_portsc_debug, "0 or 1");
 
 #ifdef CRG_DUAL_ROLE
-static bool dr_udc_debug;
-module_param(dr_udc_debug, bool, 0644);
-MODULE_PARM_DESC(dr_udc_debug, "0 or 1");
+static bool crg_udc_dr_udc_debug;
+module_param(crg_udc_dr_udc_debug, bool, 0644);
+MODULE_PARM_DESC(crg_udc_dr_udc_debug, "0 or 1");
 #endif
 
 static bool eltest_flag;
 module_param(eltest_flag, bool, 0644);
 MODULE_PARM_DESC(eltest_flag, "0 or 1");
 
-#ifdef CRG_UDC_DEBUG
 #define xdebug(fmt...)					\
 do {									\
-	if (xfer_debug)					\
+	if (crg_udc_xfer_debug)					\
 		pr_err(fmt);			\
 } while (0)
 
 #define CRG_DEBUG(fmt...)				\
 do {									\
-	if (crg_debug)						\
+	if (crg_udc_debug)						\
 		pr_err(fmt);			\
 } while (0)
 
 #define pdebug(fmt...)					\
 do {									\
-	if (portsc_debug)					\
+	if (crg_udc_portsc_debug)					\
 		pr_err(fmt);			\
 } while (0)
-#else
-#define xdebug(fmt...)
-#define CRG_DEBUG(fmt...)
-#define pdebug(fmt...)
-#endif
 
 #define CRG_ERROR(fmt...) pr_err(fmt)
 
@@ -469,7 +486,10 @@ static struct usb_endpoint_descriptor crg_udc_ep0_desc = {
 
 void crg_gadget_hold(struct crg_udc_lock *lock)
 {
-	if (!lock->held) {
+	struct crg_gadget_dev *crg_udc =
+		container_of(lock, struct crg_gadget_dev, crg_gadget_lock);
+
+	if (!crg_udc_suspend_reinit(crg_udc) && !lock->held) {
 		__pm_stay_awake(lock->wakesrc);
 		lock->held = true;
 	}
@@ -477,7 +497,10 @@ void crg_gadget_hold(struct crg_udc_lock *lock)
 
 void crg_gadget_drop(struct crg_udc_lock *lock)
 {
-	if (lock->held) {
+	struct crg_gadget_dev *crg_udc =
+		container_of(lock, struct crg_gadget_dev, crg_gadget_lock);
+
+	if (!crg_udc_suspend_reinit(crg_udc) && lock->held) {
 		__pm_relax(lock->wakesrc);
 		lock->held = false;
 	}
@@ -550,8 +573,7 @@ static void setup_link_trb(struct transfer_trb_s *link_trb,
 	u32 dw = 0;
 
 	link_trb->dw0 = cpu_to_le32(lower_32_bits(next_trb));
-	/* link_trb->dw1 = cpu_to_le32(upper_32_bits(next_trb)); */
-	link_trb->dw1 = 0;
+	link_trb->dw1 = cpu_to_le32(upper_32_bits(next_trb));
 
 	link_trb->dw2 = 0;
 
@@ -727,7 +749,7 @@ static void crg_udc_epcx_setup(struct crg_udc_ep *udc_ep)
 	u32 dw;
 
 	CRG_DEBUG("crgudc->p_epcx %p, epcx %p\n", crg_udc->p_epcx, epcx);
-	CRG_DEBUG("DCI %d, sizeof ep_cx %ld\n", DCI, sizeof(struct ep_cx_s));
+	CRG_DEBUG("DCI %d, sizeof ep_cx %llu\n", DCI, (u64)sizeof(struct ep_cx_s));
 	CRG_DEBUG("desc epaddr = 0x%x\n", desc->bEndpointAddress);
 
 	/*corigine gadget dir should be opposite to host dir*/
@@ -782,8 +804,7 @@ static void crg_udc_epcx_setup(struct crg_udc_ep *udc_ep)
 	epcx->dw2 = cpu_to_le32(dw);
 
 	/* fill ep_dw3 */
-	/* dw = upper_32_bits(udc_ep->tran_ring_info.dma); */
-	dw = 0;
+	dw = upper_32_bits(udc_ep->tran_ring_info.dma);
 	epcx->dw3 = cpu_to_le32(dw);
 	/* wmb */
 	wmb();
@@ -811,8 +832,7 @@ static void crg_udc_epcx_update_dqptr(struct crg_udc_ep *udc_ep)
 	epcx->dw2 = cpu_to_le32(dw);
 
 	/* fill ep_dw3 */
-	/* dw = upper_32_bits(dqptaddr); */
-	dw = 0;
+	dw = upper_32_bits(dqptaddr);
 	epcx->dw3 = cpu_to_le32(dw);
 
 	cmd_param0 = (0x1 << udc_ep->DCI);
@@ -882,12 +902,11 @@ void setup_datastage_trb(struct crg_gadget_dev *crg_udc,
 {
 	u32 tmp;
 
-	CRG_DEBUG("dma = 0x%x, ", usb_req->dma);
-	CRG_DEBUG("buf = 0x%x, ", usb_req->buf);
+	CRG_DEBUG("dma = 0x%llx, ", (u64)usb_req->dma);
+	CRG_DEBUG("buf = 0x%px, ", usb_req->buf);
 
 	p_trb->dw0 = lower_32_bits(usb_req->dma);
-	/* p_trb->dw1 = upper_32_bits(usb_req->dma); */
-	p_trb->dw1 = 0;
+	p_trb->dw1 = upper_32_bits(usb_req->dma);
 
 	CRG_DEBUG("data_buf_ptr_lo = 0x%x, data_buf_ptr_hi = 0x%x\n",
 		p_trb->dw0, p_trb->dw1);
@@ -936,8 +955,7 @@ void setup_trb(struct crg_gadget_dev *crg_udc,
 	u32 tmp;
 
 	p_trb->dw0 = lower_32_bits(xfer_buf_addr);
-	/* p_trb->dw1 = upper_32_bits(xfer_buf_addr); */
-	p_trb->dw1 = 0;
+	p_trb->dw1 = upper_32_bits(xfer_buf_addr);
 
 	CRG_DEBUG("data_buf_ptr_lo = 0x%x, data_buf_ptr_hi = 0x%x\n",
 		p_trb->dw0, p_trb->dw1);
@@ -1755,7 +1773,7 @@ static int ep_halt(struct crg_udc_ep *udc_ep_ptr,
 			udc_ep_ptr->deq_pt = udc_ep_ptr->enq_pt;
 			udc_ep_ptr->tran_ring_full = false;
 
-			CRG_DEBUG("update deq_pt tp enq_pt 0x%x\n", udc_ep_ptr->deq_pt);
+			CRG_DEBUG("update deq_pt tp enq_pt %px\n", udc_ep_ptr->deq_pt);
 		}
 		/* clean up the request queue */
 		//nuke(udc_ep_ptr, -ECONNRESET); maybe we no need clean up the request queue
@@ -2046,7 +2064,8 @@ static void crg_udc_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 	udc_req_ptr = container_of(_req, struct crg_udc_request, usb_req);
 
-	WARN_ON(!atomic_xchg(&udc_req_ptr->used, 0));
+	if (!atomic_xchg(&udc_req_ptr->used, 0))
+		pr_info("%s frees freed.\n", __func__);
 	//kfree(udc_req_ptr);
 }
 
@@ -2292,19 +2311,21 @@ crg_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		 */
 	}
 #if CRG_MTP_WR
-	crg_issue_command(crg_udc, CRG_CMD_STOP_EP, 1 << DCI, 0);
-	do {
-		tmp = reg_read(&uccr->ep_running);
-	} while ((tmp & (1 << DCI)) != 0);
+	if (usb_endpoint_xfer_bulk(udc_ep_ptr->desc)) {
+		crg_issue_command(crg_udc, CRG_CMD_STOP_EP, 1 << DCI, 0);
+		do {
+			tmp = reg_read(&uccr->ep_running);
+		} while ((tmp & (1 << DCI)) != 0);
 
-	mdelay(10);
-	crg_udc_epcx_update_dqptr(udc_ep_ptr);
+		mdelay(10);
+		crg_udc_epcx_update_dqptr(udc_ep_ptr);
 
-	mdelay(10);
-	crg_issue_command(crg_udc, CRG_CMD_STOP_EP, 1 << DCI, 0);
-	do {
-		tmp = reg_read(&uccr->ep_running);
-	} while ((tmp & (1 << DCI)) != 0);
+		mdelay(10);
+		crg_issue_command(crg_udc, CRG_CMD_STOP_EP, 1 << DCI, 0);
+		do {
+			tmp = reg_read(&uccr->ep_running);
+		} while ((tmp & (1 << DCI)) != 0);
+	}
 #endif
 	CRG_DEBUG("End dequeue deq_pt = 0x%p, enq_pt = 0x%p\n",
 			udc_ep_ptr->deq_pt, udc_ep_ptr->enq_pt);
@@ -2526,8 +2547,7 @@ static int prepare_for_setup(struct crg_gadget_dev *crg_udc, unsigned long flags
 	cmd_param0 = (lower_32_bits(dqptaddr) &
 			CRG_CMD0_0_DQPTRLO_MASK) |
 			CRG_CMD0_0_DCS(udc_ep0_ptr->pcs);
-	/* cmd_param1 = upper_32_bits(dqptaddr); */
-	cmd_param1 = 0;
+	cmd_param1 = upper_32_bits(dqptaddr);
 	crg_issue_command(crg_udc,
 		CRG_CMD_INIT_EP0, cmd_param0, cmd_param1);
 
@@ -2617,8 +2637,8 @@ static int init_event_ring(struct crg_gadget_dev *crg_udc, int index)
 
 	udc_event->p_erst->seg_addr_lo =
 		lower_32_bits(udc_event->event_ring.dma);
-	/* udc_event->p_erst->seg_addr_hi = upper_32_bits(udc_event->event_ring.dma); */
-	udc_event->p_erst->seg_addr_hi = 0;
+	udc_event->p_erst->seg_addr_hi =
+		upper_32_bits(udc_event->event_ring.dma);
 	udc_event->p_erst->seg_size = cpu_to_le32(CRG_EVENT_RING_SIZE);
 	udc_event->p_erst->rsvd = 0;
 	/* wmb */
@@ -2635,15 +2655,13 @@ static int init_event_ring(struct crg_gadget_dev *crg_udc, int index)
 	/**************************/
 	reg_write(&uicr->erstsz, CRG_ERST_SIZE);
 	reg_write(&uicr->erstbalo, lower_32_bits(udc_event->erst.dma));
-	/* reg_write(&uicr->erstbahi, upper_32_bits(udc_event->erst.dma)); */
-	reg_write(&uicr->erstbahi, 0);
+	reg_write(&uicr->erstbahi, upper_32_bits(udc_event->erst.dma));
 	reg_write(&uicr->erdplo,
 		lower_32_bits(udc_event->event_ring.dma) | CRG_U3DC_ERDPLO_EHB);
-	/* reg_write(&uicr->erdphi, upper_32_bits(udc_event->event_ring.dma)); */
-	reg_write(&uicr->erdphi, 0);
+	reg_write(&uicr->erdphi, upper_32_bits(udc_event->event_ring.dma));
 
 	reg_write(&uicr->iman, (CRG_U3DC_IMAN_INT_EN | CRG_U3DC_IMAN_INT_PEND));
-	reg_write(&uicr->imod, (0L << 0) | (4000L << 0));
+	reg_write(&uicr->imod, (0L << 0) | (500L << 0));
 
 	return 0;
 }
@@ -2678,8 +2696,7 @@ static int init_device_context(struct crg_gadget_dev *crg_udc)
 
 	/*hw ops DCBAPLO DCBAPHI*/
 	reg_write(&uccr->dcbaplo, lower_32_bits(crg_udc->ep_cx.dma));
-	/* reg_write(&uccr->dcbaphi, upper_32_bits(crg_udc->ep_cx.dma)); */
-	reg_write(&uccr->dcbaphi, 0);
+	reg_write(&uccr->dcbaphi, upper_32_bits(crg_udc->ep_cx.dma));
 
 	CRG_DEBUG("dcbaplo[0x%p]=0x%x\n", &uccr->dcbaplo, reg_read(&uccr->dcbaplo));
 	CRG_DEBUG("dcbaphi[0x%p]=0x%x\n", &uccr->dcbaphi, reg_read(&uccr->dcbaphi));
@@ -2780,10 +2797,9 @@ static int init_ep0(struct crg_gadget_dev *crg_udc)
 	cmd_param0 = (lower_32_bits(udc_ep_ptr->tran_ring_info.dma) &
 			CRG_CMD0_0_DQPTRLO_MASK) |
 			CRG_CMD0_0_DCS(udc_ep_ptr->pcs);
-	/* cmd_param1 = upper_32_bits(udc_ep_ptr->tran_ring_info.dma); */
-	cmd_param1 = 0;
+	cmd_param1 = upper_32_bits(udc_ep_ptr->tran_ring_info.dma);
 
-	CRG_DEBUG("ep0 ring dma addr = 0x%llx\n", udc_ep_ptr->tran_ring_info.dma);
+	CRG_DEBUG("ep0 ring dma addr = 0x%llx\n", (u64)udc_ep_ptr->tran_ring_info.dma);
 
 	CRG_DEBUG("ep0 ring vaddr = 0x%p\n", udc_ep_ptr->tran_ring_info.vaddr);
 
@@ -3087,6 +3103,15 @@ static int crg_gadget_stop(struct usb_gadget *g)
 	return 0;
 }
 
+/* Prevent race between unbind & setup callback in bind. */
+static void crg_gadget_async_callbacks(struct usb_gadget *gadget, bool enable)
+{
+	struct crg_gadget_dev *crg_udc = &crg_udc_dev;
+
+	CRG_DEBUG("%s get state %d\n", __func__, enable);
+	crg_udc->async_cb_flag = enable;
+}
+
 static const struct usb_gadget_ops crg_gadget_ops = {
 	.get_frame		= crg_gadget_get_frame,
 	.wakeup			= crg_gadget_wakeup,
@@ -3094,6 +3119,7 @@ static const struct usb_gadget_ops crg_gadget_ops = {
 	.pullup			= crg_gadget_pullup,
 	.udc_start		= crg_gadget_start,
 	.udc_stop		= crg_gadget_stop,
+	.udc_async_callbacks = crg_gadget_async_callbacks,
 };
 
 static int init_ep_info(struct crg_gadget_dev *crg_udc)
@@ -3261,7 +3287,7 @@ get_status_error:
 	CRG_DEBUG("udc_req_ptr->usb_req.buf = 0x%p, value = 0x%x\n",
 		udc_req_ptr->usb_req.buf, *(u16 *)(udc_req_ptr->usb_req.buf));
 	CRG_DEBUG("udc_req_ptr->usb_req.dma = 0x%llx\n",
-		udc_req_ptr->usb_req.dma);
+		(u64)udc_req_ptr->usb_req.dma);
 
 	udc_ep_ptr = &crg_udc->udc_ep[0];
 
@@ -3745,6 +3771,16 @@ void crg_handle_setup_pkt(struct crg_gadget_dev *crg_udc,
 			DATA_STAGE_XFER :  DATA_STAGE_RECV;
 	}
 	spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
+	if (!crg_udc->async_cb_flag) {
+		CRG_ERROR("crg gadget setup pkt coming too quick!\n");
+		spin_lock_irqsave(&crg_udc->udc_lock, flags);
+		/* Complete any reqs on EP0 queue */
+		if (crg_udc->udc_ep[0].desc)
+			nuke(&crg_udc->udc_ep[0], -ESHUTDOWN, flags);
+		if (list_empty(&crg_udc->udc_ep[0].queue))
+			set_ep0_halt(crg_udc);
+		return;
+	}
 	if (crg_udc->gadget_driver->setup(&crg_udc->gadget, setup_pkt) < 0) {
 		spin_lock_irqsave(&crg_udc->udc_lock, flags);
 		set_ep0_halt(crg_udc);
@@ -4327,10 +4363,8 @@ int process_event_ring(struct crg_gadget_dev *crg_udc, int index, unsigned long 
 
 	/* update dequeue pointer */
 	erdp = event_trb_virt_to_dma(udc_event, udc_event->evt_dq_pt);
-	/* tmp =  upper_32_bits(erdp); */
-	tmp = 0;
-	/* reg_write(&uicr->erdphi, upper_32_bits(erdp)); */
-	reg_write(&uicr->erdphi, 0);
+	tmp =  upper_32_bits(erdp);
+	reg_write(&uicr->erdphi, upper_32_bits(erdp));
 	tmp = lower_32_bits(erdp);
 	tmp |= CRG_U3DC_ERDPLO_EHB;
 	reg_write(&uicr->erdplo, lower_32_bits(erdp | CRG_U3DC_ERDPLO_EHB));
@@ -4440,13 +4474,13 @@ static ssize_t udc_debug_store(struct device *_dev, struct device_attribute *att
 	if (ret) {
 		CRG_ERROR("is not in hex or decimal form.\n");
 	} else if (val == CRG_DEBUG_OFF) {
-		crg_debug = 0;
-		xfer_debug = 0;
-		portsc_debug = 0;
+		crg_udc_debug = 0;
+		crg_udc_xfer_debug = 0;
+		crg_udc_portsc_debug = 0;
 	} else if (val == CRG_DEBUG_ON) {
-		crg_debug = 1;
-		xfer_debug = 1;
-		portsc_debug = 1;
+		crg_udc_debug = 1;
+		crg_udc_xfer_debug = 1;
+		crg_udc_portsc_debug = 1;
 	} else {
 		CRG_ERROR("error\n");
 	}
@@ -4523,7 +4557,7 @@ MODULE_DEVICE_TABLE(of, of_crg_udc_match);
 
 static int crg_udc_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret = 0;
 	int i;
 	struct crg_gadget_dev *crg_udc;
 	int port_speed = USB_PORT_SPEED_DEFAULT;
@@ -4537,8 +4571,14 @@ static int crg_udc_probe(struct platform_device *pdev)
 	int retval = 0;
 	u32 phy_id = 1;
 	u32 version = 0;
+	u32 dma_64bit_support = 0;
 	unsigned long flags = 0;
 	struct device		*sysdev;
+
+	if (unlikely(crg_udc_probe_state != 0)) {
+		ret = -EINVAL;
+		goto err0;
+	}
 
 	memset(&crg_udc_dev, 0, sizeof(struct crg_gadget_dev));
 
@@ -4548,6 +4588,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 	spin_lock_init(&crg_udc->udc_lock);
 	platform_set_drvdata(pdev, crg_udc);
 
+	dev_set_name(&crg_udc->gadget.dev, "gadget");
 	crg_udc->gadget.ops = &crg_gadget_ops;
 	crg_udc->gadget.ep0 = &crg_udc->udc_ep[0].usb_ep;
 	crg_udc->gadget.dev.parent = &pdev->dev;
@@ -4576,18 +4617,29 @@ static int crg_udc_probe(struct platform_device *pdev)
 			}
 
 			retval = of_property_read_u32(of_node, "phy-reg", &p_phy_reg_addr);
-			if (retval < 0)
-				return -EINVAL;
+			if (retval < 0) {
+				ret = -EINVAL;
+				goto err0;
+			}
 
 			retval = of_property_read_u32(of_node, "phy-reg-size", &phy_reg_addr_size);
+			if (retval < 0) {
+				ret = -EINVAL;
+				goto err0;
+			}
+
+			retval = of_property_read_s32(of_node, "suspend-scheme",
+								&crg_udc->suspend_scheme);
 			if (retval < 0)
-				return -EINVAL;
+				crg_udc->suspend_scheme = SUSPEND_SCHEME_POWER_OFF_ONLY;
 
 			phy_reg_addr = devm_ioremap
 				(&pdev->dev, (resource_size_t)p_phy_reg_addr,
 					(unsigned long)phy_reg_addr_size);
-			if (!phy_reg_addr)
-				return -ENOMEM;
+			if (!phy_reg_addr) {
+				ret = -ENOMEM;
+				goto err0;
+			}
 
 			crg_udc->phy_reg_addr = phy_reg_addr;
 
@@ -4603,23 +4655,35 @@ static int crg_udc_probe(struct platform_device *pdev)
 				version = of_read_ulong(prop, 1);
 			else
 				version = 0;
-		}
+
+			prop = of_get_property(pdev->dev.of_node, "dma-64bit-support", NULL);
+			if (prop)
+				dma_64bit_support = of_read_ulong(prop, 1);
+			}
 	}
 
 	sysdev = &pdev->dev;
-	ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(32));
-	if (ret)
-		return ret;
 
-	if (!phy_reg_addr)
-		return -ENODEV;
+	if (dma_64bit_support)
+		ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
+	else
+		ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(32));
+
+	if (ret)
+		goto err0;
+
+	if (!phy_reg_addr) {
+		ret = -ENODEV;
+		goto err0;
+	}
 
 	pdev->id = phy_id;
 
 	if (crg_clk_enable_usb(pdev,
 		(unsigned long)phy_reg_addr, controller_type)) {
 		dev_err(&pdev->dev, "Set crg_udc PHY clock failed!\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err0;
 	}
 
 	if (controller_type != USB_M31)
@@ -4627,10 +4691,13 @@ static int crg_udc_probe(struct platform_device *pdev)
 	else
 		amlogic_crg_m31_phy_init(crg_udc);
 
+	amlogic_crg_device_power(phy_id, false, true);
+
 	crg_udc->mmio_phys_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!crg_udc->mmio_phys_base) {
 		dev_err(&pdev->dev, "missing memory resource\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err0;
 	}
 
 	crg_udc->mmio_virt_base = devm_ioremap
@@ -4638,7 +4705,8 @@ static int crg_udc_probe(struct platform_device *pdev)
 			resource_size(crg_udc->mmio_phys_base));
 	if (!crg_udc->mmio_virt_base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err0;
 	}
 
 	/* set controller device role*/
@@ -4646,7 +4714,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 		(reg_read(crg_udc->mmio_virt_base + 0x20FC) | 0x1));
 
 	if (version == 1) {
-		dev_err(&pdev->dev, "disable vbus detect.\n");
+		CRG_DEBUG("disable vbus detect.\n");
 		reg_write(crg_udc->mmio_virt_base + 0x2110,
 			(reg_read(crg_udc->mmio_virt_base + 0x2110) & (~0x1f)));
 	}
@@ -4655,7 +4723,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 		crg_udc->uicr[i] = crg_udc->mmio_virt_base +
 				CRG_UICR_OFFSET + i * CRG_UICR_STRIDE;
 
-		CRG_DEBUG("crg_udc->uicr[%d] = %x\n", i, crg_udc->uicr[i]);
+		CRG_DEBUG("crg_udc->uicr[%d] = %px\n", i, crg_udc->uicr[i]);
 	}
 	crg_udc->uccr = crg_udc->mmio_virt_base + CRG_UCCR_OFFSET;
 
@@ -4679,14 +4747,24 @@ static int crg_udc_probe(struct platform_device *pdev)
 	crg_gadget_irq_init(pdev);
 
 	ret = usb_add_gadget_udc(&pdev->dev, &crg_udc->gadget);
-	if (ret)
+	if (ret) {
+		ret = -1;
 		goto err0;
+	}
+
+	/* It is unable to set controller_cfg reg of the U2PHY
+	 * that has reg val reset feature before controller role switch.
+	 */
+	if (controller_type != USB_M31)
+		amlogic_crg_device_usb2_init(phy_id);
 
 	ret = device_create_file(&pdev->dev, &dev_attr_udc_debug);
-	if (ret)
-		goto err0;
+	if (ret) {
+		ret = -1;
+		goto errfile;
+	}
 
-	if (!crg_udc->crg_gadget_lock.wakesrc) {
+	if (!crg_udc->crg_gadget_lock.wakesrc && !crg_udc_suspend_reinit(crg_udc)) {
 		crg_udc->crg_gadget_lock.wakesrc =
 			wakeup_source_register(NULL, "crg-gadget-connect");
 		if (!crg_udc->crg_gadget_lock.wakesrc)
@@ -4695,13 +4773,16 @@ static int crg_udc_probe(struct platform_device *pdev)
 
 	/*g_vaddr = dma_alloc_coherent(crg_udc->dev,4096, &g_dma, */
 	/*	GFP_KERNEL);*/
-
 	g_device_phy_id = phy_id;
+	crg_udc_probe_state = 1;
+	return ret;
 
-	return 0;
-
+	/* TODO: add error resources release. */
+errfile:
+	usb_del_gadget_udc(&crg_udc->gadget);
 err0:
-	return -1;
+	/* Must not return -EPROBE_DEFER. */
+	return ret;
 }
 
 static void crg_udc_remove(struct platform_device *pdev)
@@ -4710,12 +4791,16 @@ static void crg_udc_remove(struct platform_device *pdev)
 	u32 tmp = 0;
 	struct crg_uccr *uccr;
 	int i = 0;
+	int ret = 0;
 
 	crg_udc = &crg_udc_dev;
-	uccr = crg_udc->uccr;
-	CRG_DEBUG("%s %d called\n", __func__, __LINE__);
 
-	crg_udc->device_state = USB_STATE_ATTACHED;
+	if (unlikely(crg_udc_probe_state != 1)) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	uccr = crg_udc->uccr;
 	crg_vbus_detect(crg_udc, 0);
 
 	device_remove_file(&pdev->dev, &dev_attr_udc_debug);
@@ -4727,6 +4812,8 @@ static void crg_udc_remove(struct platform_device *pdev)
 
 	usb_del_gadget_udc(&crg_udc->gadget);
 
+	crg_udc->device_state = USB_STATE_ATTACHED;
+
 	tmp = reg_read(&uccr->control);
 	tmp |= CRG_U3DC_CTRL_SWRST;
 	reg_write(&uccr->control, tmp);
@@ -4737,6 +4824,8 @@ static void crg_udc_remove(struct platform_device *pdev)
 
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
+
+	amlogic_crg_device_power(crg_udc->phy_id, false, false);
 
 	if (crg_udc->controller_type != USB_M31)
 		amlogic_crg_device_usb2_shutdown(g_device_phy_id);
@@ -4751,6 +4840,10 @@ static void crg_udc_remove(struct platform_device *pdev)
 		atomic_set(&g_udc_req_ptr[i].used, 0);
 
 	CRG_DEBUG("%s %d gadget remove\n", __func__, __LINE__);
+	crg_udc_probe_state = 0;
+
+err:
+	return;
 }
 
 static void crg_udc_shutdown(struct platform_device *pdev)
@@ -4761,10 +4854,13 @@ static void crg_udc_shutdown(struct platform_device *pdev)
 
 	crg_udc->device_state = USB_STATE_ATTACHED;
 	crg_vbus_detect(crg_udc, 0);
-	usb_del_gadget_udc(&crg_udc->gadget);
+
+	//usb_del_gadget_udc(&crg_udc->gadget);
 
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
+
+	amlogic_crg_device_power(crg_udc->phy_id, false, false);
 
 	if (crg_udc->controller_type != USB_M31)
 		amlogic_crg_device_usb2_shutdown(g_device_phy_id);
@@ -4817,7 +4913,11 @@ int crg_otg_write_UDC(const char *udc_name)
 	if (name[len - 1] == '\n')
 		name[len - 1] = '\0';
 
-	mutex_lock(&gi->lock);
+	//mutex_lock(&gi->lock);
+	if (mutex_trylock(&gi->lock) == 0) {
+		kfree(name);
+		return -EBUSY;
+	}
 
 	if (!strlen(name) || strcmp(name, "none") == 0) {
 		if (!gi->composite.gadget_driver.udc_name)
@@ -4850,6 +4950,63 @@ err:
 }
 EXPORT_SYMBOL_GPL(crg_otg_write_UDC);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+int crg_rewrite_otg_write_UDC(void)
+{
+	struct crg_gadget_dev *crg_udc;
+	struct gadget_info *gi;
+	struct usb_composite_dev *cdev;
+	char *name;
+	size_t len;
+	int ret;
+
+	crg_udc = &crg_udc_dev;
+	cdev = get_gadget_data(&crg_udc->gadget);
+	if (!cdev)
+		return -ENODEV;
+
+	gi = container_of(cdev, struct gadget_info, cdev);
+
+	if (!gi->composite.gadget_driver.udc_name)
+		return -1;
+
+	len = strlen(gi->composite.gadget_driver.udc_name);
+	name = kstrdup(gi->composite.gadget_driver.udc_name, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+	if (name[len - 1] == '\n')
+		name[len - 1] = '\0';
+
+	mutex_lock(&gi->lock);
+	ret = usb_gadget_unregister_driver(&gi->composite.gadget_driver);
+	if (ret)
+		goto err;
+	kfree(gi->composite.gadget_driver.udc_name);
+	gi->composite.gadget_driver.udc_name = NULL;
+	mutex_unlock(&gi->lock);
+
+	mdelay(50);
+	mutex_lock(&gi->lock);
+	if (!gi->composite.gadget_driver.udc_name) {
+		gi->composite.gadget_driver.udc_name = name;
+		ret = usb_gadget_register_driver(&gi->composite.gadget_driver);
+		if (ret) {
+			gi->composite.gadget_driver.udc_name = NULL;
+			goto err;
+		}
+	} else {
+		ret = -EBUSY;
+		goto err;
+	}
+	mutex_unlock(&gi->lock);
+	return 0;
+err:
+	mutex_unlock(&gi->lock);
+	kfree(name);
+	return ret;
+}
+#endif
+
 #ifdef CONFIG_PM
 static int crg_udc_suspend(struct device *dev)
 {
@@ -4858,10 +5015,14 @@ static int crg_udc_suspend(struct device *dev)
 
 	crg_udc = &crg_udc_dev;
 
+	if (crg_udc_suspend_reinit(crg_udc))
+		amlogic_crg_device_power(crg_udc->phy_id, crg_udc_suspend_reinit(crg_udc), false);
+
 	if (crg_udc->controller_type != USB_M31)
 		amlogic_crg_device_usb2_shutdown(crg_udc->phy_id);
 
 	crg_clk_disable_usb(pdev, (unsigned long)crg_udc->phy_reg_addr);
+
 	return 0;
 }
 
@@ -4871,6 +5032,7 @@ static int crg_udc_resume(struct device *dev)
 	struct crg_gadget_dev *crg_udc;
 
 	crg_udc = &crg_udc_dev;
+
 	crg_clk_enable_usb(pdev,
 			(unsigned long)crg_udc->phy_reg_addr,
 			crg_udc->controller_type);
@@ -4878,16 +5040,130 @@ static int crg_udc_resume(struct device *dev)
 	if (crg_udc->controller_type != USB_M31)
 		amlogic_crg_device_usb2_init(crg_udc->phy_id);
 
+	if (crg_udc_suspend_reinit(crg_udc))
+		amlogic_crg_device_power(crg_udc->phy_id, crg_udc_suspend_reinit(crg_udc), true);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	/* Actually the crg_rewrite_otg_write_UDC() is used to restart the controller
+	 * to workaround quirks emerge in suspend-resume stress test.
+	 * It is safe to skip it if the driver chooses to use resume-reinit scheme.
+	 */
+	if (crg_udc_suspend_reinit(crg_udc))
+		goto done;
+
+	crg_rewrite_otg_write_UDC();
+
+done:
+#endif
 	return 0;
+}
+
+static int crg_udc_freeze(struct device *dev)
+{
+	return 0;
+}
+
+static int crg_udc_restore(struct device *dev)
+{
+	return 0;
+}
+
+static int crg_udc_thaw(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	int ret = 0;
+
+	mutex_lock(&crg_udc_driver_lock);
+	if (crg_udc_driver_state != 1) {
+		pr_info("crg udc drv state:%d exit.\n", crg_udc_driver_state);
+		goto exit;
+	}
+	ret = crg_udc_probe(pdev);
+exit:
+	mutex_unlock(&crg_udc_driver_lock);
+	return ret;
+}
+
+static int crg_udc_pm_cb(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	struct crg_gadget_dev *crg_udc = &crg_udc_dev;
+	struct platform_device *pdev;
+
+	pr_info("%s called. pm_event:%lu.\n", __func__, pm_event);
+
+	mutex_lock(&crg_udc_driver_lock);
+	if (crg_udc_driver_state != 1) {
+		pr_info("crg udc drv state:%d exit.\n", crg_udc_driver_state);
+		goto exit;
+	}
+	pdev = to_platform_device(crg_udc->dev);
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		crg_udc_remove(pdev);
+		break;
+	case PM_POST_HIBERNATION:
+		crg_udc_probe(pdev);
+		break;
+	case PM_SUSPEND_PREPARE:
+		/* Removing gadget dev causes ep_poll_callback()->__pm_stay_awake().
+		 * Don't do it or the pm_wakeup_pending() will just fail.
+		 * Now we delay the de-init codes until the system is resumed.
+		 */
+		break;
+	case PM_POST_SUSPEND:
+		if (crg_udc_suspend_reinit(crg_udc)) {
+			crg_udc_remove(pdev);
+			crg_udc_probe(pdev);
+		}
+		break;
+	case PM_RESTORE_PREPARE:
+	case PM_POST_RESTORE:
+	default:
+		break;
+	}
+exit:
+	mutex_unlock(&crg_udc_driver_lock);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block crg_udc_pm_nb = {
+	.notifier_call = crg_udc_pm_cb,
+};
+
+static int crg_udc_pm_notifier_register(void)
+{
+	return register_pm_notifier(&crg_udc_pm_nb);
+}
+
+static int crg_udc_pm_notifier_unregister(void)
+{
+	return unregister_pm_notifier(&crg_udc_pm_nb);
 }
 #else
 #define crg_udc_suspend	NULL
 #define crg_udc_resume	NULL
+#define crg_udc_freeze	NULL
+#define crg_udc_thaw	NULL
+#define crg_udc_restore	NULL
+static inline int crg_udc_pm_notifier_register(void)
+{
+	return 0;
+}
+
+static inline int crg_udc_pm_notifier_unregister(void)
+{
+	return 0;
+}
 #endif
 
 static const struct dev_pm_ops crg_udc_pm_ops = {
 	.suspend = crg_udc_suspend,
 	.resume = crg_udc_resume,
+	.freeze = crg_udc_freeze,
+	.thaw = crg_udc_thaw,
+	.restore = crg_udc_restore,
 };
 
 static struct platform_driver crg_udc_driver = {
@@ -4898,24 +5174,51 @@ static struct platform_driver crg_udc_driver = {
 		.name		= "crg_udc",
 		.owner		= THIS_MODULE,
 		.pm			= &crg_udc_pm_ops,
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 		.of_match_table	= of_match_ptr(of_crg_udc_match),
 	},
+	.prevent_deferred_probe = true,
 };
 
+/* init&exit MUST be synchronous. i.e. device_block_probing must not be held */
 void crg_gadget_exit(void)
 {
-	CRG_ERROR("crg gadget exit\n");
-	if (!crg_udc_driver.driver.p)
-		return;
+	pr_info("crg gadget exit\n");
+	mutex_lock(&crg_udc_driver_lock);
+	if (crg_udc_driver_state != 1) {
+		pr_info("crg gadget not registered. exit\n");
+		goto exit;
+	}
+	crg_udc_driver_state = 0;
 	platform_driver_unregister(&crg_udc_driver);
+	crg_udc_pm_notifier_unregister();
+exit:
+	mutex_unlock(&crg_udc_driver_lock);
+	return;
 }
 EXPORT_SYMBOL_GPL(crg_gadget_exit);
 
 int crg_gadget_init(void)
 {
-	CRG_ERROR("crg gadget init\n");
+	int ret = 0;
 
-	return platform_driver_register(&crg_udc_driver);
+	pr_info("crg gadget init\n");
+	mutex_lock(&crg_udc_driver_lock);
+	if (crg_udc_driver_state != 0) {
+		pr_info("crg gadget already registered. exit\n");
+		ret = -EBUSY;
+		goto exit;
+	}
+	ret = platform_driver_register(&crg_udc_driver);
+	if (ret) {
+		pr_info("crg_udc_driver register error %d, exit\n", ret);
+		goto exit;
+	}
+	crg_udc_driver_state = 1;
+	crg_udc_pm_notifier_register();
+exit:
+	mutex_unlock(&crg_udc_driver_lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(crg_gadget_init);
 

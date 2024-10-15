@@ -19,13 +19,15 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
+#include <linux/suspend.h>
 #include <linux/amlogic/usbtype.h>
-#include "../phy/phy-aml-new-usb-v2.h"
+#include "phy-aml-crg-drd.h"
 #include "../usb_main.h"
 
 #include <linux/amlogic/gki_module.h>
 #define HOST_MODE	0
 #define DEVICE_MODE	1
+#define OTG_MODE	2
 
 static int UDC_exist_flag = -1;
 static char crg_UDC_name[128];
@@ -48,10 +50,25 @@ struct amlogic_crg_otg {
 	struct gpio_desc *usb_gpio_desc;
 	int vbus_power_pin;
 	int mode_work_flag;
+	int controller_type;
+	struct pm_reg {
+		/* host/device mode. */
+		union u2p_r0_v2 u2p_r0;
+		/* iddig irq state. */
+		union u2p_r2_v2 u2p_r2;
+		union u2p_r1_v2 usb_r1;
+	} pm_buf;
+	struct notifier_block pm_notifier;
+	u32 mode;
+#define HOST_MODE_MASK BIT(HOST_MODE)
+#define DEVICE_MODE_MASK BIT(DEVICE_MODE)
+#define OTG_MODE_MASK BIT(OTG_MODE)
+	struct dentry *debugfs_root;
 };
 
-static void set_mode
-	(unsigned long reg_addr, int mode, unsigned long phy3_addr);
+static int amlogic_crg_otg_pm_cb(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused);
 
 static void set_usb_vbus_power
 	(struct gpio_desc *usb_gd, int pin, char is_power_on)
@@ -93,12 +110,12 @@ static int amlogic_crg_otg_init(struct amlogic_crg_otg *phy)
 	return 0;
 }
 
-static void set_mode(unsigned long reg_addr, int mode, unsigned long phy3_addr)
+static void set_mode(struct amlogic_crg_otg *phy, u8 mode)
 {
 	struct u2p_aml_regs_v2 u2p_aml_regs;
 	union u2p_r0_v2 reg0;
 
-	u2p_aml_regs.u2p_r_v2[0] = (void __iomem *)((unsigned long)reg_addr);
+	u2p_aml_regs.u2p_r_v2[0] = (void __iomem *)((unsigned long)phy->usb2_phy_cfg);
 
 	reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
 	if (mode == DEVICE_MODE) {
@@ -109,35 +126,75 @@ static void set_mode(unsigned long reg_addr, int mode, unsigned long phy3_addr)
 		reg0.b.POR = 0;
 	}
 	writel(reg0.d32, u2p_aml_regs.u2p_r_v2[0]);
-
 	usleep_range(500, 600);
+
+	phy->mode &= ~(HOST_MODE_MASK | DEVICE_MODE_MASK);
+	phy->mode |= BIT(mode);
 }
 
-static void amlogic_crg_otg_work(struct work_struct *work)
+static int mode_show(struct seq_file *s, void *unused)
 {
-	struct amlogic_crg_otg *phy =
-		container_of(work, struct amlogic_crg_otg, work.work);
-	union u2p_r2_v2 reg2;
-	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
-	unsigned long phy3_addr = ((unsigned long)phy->phy3_cfg);
-	int ret;
+	struct amlogic_crg_otg *phy = s->private;
+	int cnt;
+	char tmp[8] = {'\0'};
+	char buf[16];
 
-	if (phy->mode_work_flag == 1) {
-		cancel_delayed_work_sync(&phy->set_mode_work);
-		phy->mode_work_flag = 0;
-	}
-	mutex_lock(phy->otg_mutex);
-	reg2.d32 = readl((void __iomem *)(reg_addr + 8));
-	if (reg2.b.iddig_curr == 0) {
-		/* to do*/
+	if (phy->mode & HOST_MODE_MASK)
+		cnt = sprintf(tmp, "%s", "host");
+	if (phy->mode & DEVICE_MODE_MASK)
+		cnt = sprintf(tmp, "%s", "device");
+	if (phy->mode & OTG_MODE_MASK)
+		cnt = sprintf(buf, "%s-%s\n", "otg", tmp);
+	else
+		cnt = sprintf(buf, "%s-%s\n", "notg", tmp);
+
+	seq_printf(s, "%s", buf);
+
+	return 0;
+}
+
+static int mode_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mode_show, inode->i_private);
+}
+
+static ssize_t mode_write(struct file *file,  const char __user *ubuf,
+			       size_t count, loff_t *ppos)
+{
+	struct seq_file         *s = file->private_data;
+	struct amlogic_crg_otg *phy = s->private;
+	u8 i_mode = (u8)-1;
+	int ret = -EINVAL;
+	char                    buf[32];
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return ret;
+
+	buf[count - 1] = '\0';
+
+	if (phy->mode & OTG_MODE_MASK)
+		return ret;
+
+	au2p_dbg(phy->dev, "%s %lu", buf, (unsigned long)count);
+
+	if (!strncmp("host", buf, count))
+		i_mode = HOST_MODE;
+
+	if (!strncmp("device", buf, count))
+		i_mode = DEVICE_MODE;
+
+	if (i_mode == (u8)-1 || phy->mode & BIT(i_mode))
+		return ret;
+
+	if (i_mode == HOST_MODE) {
 		crg_gadget_exit();
 		amlogic_m31_set_vbus_power(phy, 1);
-		set_mode(reg_addr, HOST_MODE, phy3_addr);
+		set_mode(phy, HOST_MODE);
 		crg_init();
-	} else {
-		/* to do*/
+		ret = count;
+	} else if (i_mode == DEVICE_MODE) {
 		crg_exit();
-		set_mode(reg_addr, DEVICE_MODE, phy3_addr);
+		set_mode(phy, DEVICE_MODE);
 		amlogic_m31_set_vbus_power(phy, 0);
 		crg_gadget_init();
 		if (UDC_exist_flag != 1) {
@@ -145,6 +202,102 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 			if (ret == 0 || ret == -EBUSY)
 				UDC_exist_flag = 1;
 		}
+		ret = count;
+	}
+
+	return ret;
+}
+
+static const struct file_operations mode_fops = {
+	.open			= mode_open,
+	.write          = mode_write,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
+void amlogic_crg_otg_debugfs_init(struct amlogic_crg_otg *phy)
+{
+	phy->debugfs_root =
+			debugfs_create_dir("crg-drd-otg", amlogic_usb_debugfs_root);
+
+	debugfs_create_file("mode", 0644, phy->debugfs_root, phy, &mode_fops);
+}
+
+//void amlogic_crg_otg_debugfs_exit(struct amlogic_crg_otg *phy)
+//{
+//	debugfs_remove_recursive(phy->debugfs_root);
+//	phy->debugfs_root = NULL;
+//}
+
+static void amlogic_crg_otg_work(struct work_struct *work)
+{
+	struct amlogic_crg_otg *phy =
+		container_of(work, struct amlogic_crg_otg, work.work);
+	union u2p_r2_v2 reg2;
+	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
+	int ret;
+	bool curr;
+
+	if (phy->mode_work_flag == 1) {
+		cancel_delayed_work_sync(&phy->set_mode_work);
+		phy->mode_work_flag = 0;
+	}
+	mutex_lock(phy->otg_mutex);
+	reg2.d32 = readl((void __iomem *)(reg_addr + 8));
+	curr = reg2.b.iddig_curr;
+	if (reg2.b.iddig_curr == 0) {
+		crg_gadget_exit();
+		amlogic_m31_set_vbus_power(phy, 1);
+		set_mode(phy, HOST_MODE);
+		crg_init();
+	} else {
+		crg_exit();
+		set_mode(phy, DEVICE_MODE);
+		amlogic_m31_set_vbus_power(phy, 0);
+		crg_gadget_init();
+		if (UDC_exist_flag != 1) {
+			ret = crg_otg_write_UDC(crg_UDC_name);
+			if (ret == 0 || ret == -EBUSY)
+				UDC_exist_flag = 1;
+		}
+	}
+
+	reg2.d32 = readl(phy->usb2_phy_cfg + 8);
+	reg2.b.usb_iddig_irq = 0;
+	/* PHY has reg val reset feature may reset otg related bits
+	 * to default. Restore reg bits we concern.
+	 */
+	reg2.b.iddig_curr = curr;
+	writel(reg2.d32, phy->usb2_phy_cfg + 8);
+	amlogic_crg_otg_init(phy);
+
+	au2p_dbg(phy->dev, "otg_work r0, r1, r2: 0x%x 0x%x 0x%x.\n",
+			readl(phy->usb2_phy_cfg),
+			readl(phy->usb2_phy_cfg + 4),
+			readl(phy->usb2_phy_cfg + 8));
+
+	mutex_unlock(phy->otg_mutex);
+}
+
+static void amlogic_crg_otg_set_m_work(struct work_struct *work)
+{
+	struct amlogic_crg_otg *phy =
+		container_of(work, struct amlogic_crg_otg, set_mode_work.work);
+	union u2p_r2_v2 reg2;
+	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
+
+	mutex_lock(phy->otg_mutex);
+	phy->mode_work_flag = 0;
+	reg2.d32 = readl((void __iomem *)(reg_addr + 8));
+	if (reg2.b.iddig_curr == 0) {
+		amlogic_m31_set_vbus_power(phy, 1);
+		set_mode(phy, HOST_MODE);
+		crg_init();
+	} else {
+		set_mode(phy, DEVICE_MODE);
+		amlogic_m31_set_vbus_power(phy, 0);
+		crg_gadget_init();
 	}
 	reg2.b.usb_iddig_irq = 0;
 	writel(reg2.d32, (void __iomem *)(reg_addr + 8));
@@ -160,7 +313,7 @@ static irqreturn_t amlogic_crgotg_detect_irq(int irq, void *dev)
 	reg2.b.usb_iddig_irq = 0;
 	writel(reg2.d32, (void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
 
-	schedule_delayed_work(&phy->work, msecs_to_jiffies(10));
+	schedule_delayed_work(&phy->work, msecs_to_jiffies(100));
 
 	return IRQ_HANDLED;
 }
@@ -188,8 +341,6 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	int gpio_vbus_power_pin = -1;
 	struct gpio_desc *usb_gd = NULL;
 	u32 val;
-	union usb_r5_v2 reg5;
-	unsigned long reg_addr;
 
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
 	if (gpio_name) {
@@ -245,7 +396,7 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 		udc_name = "fdd00000.crgudc2";
 	len = strlen(udc_name);
 	if (len >= 128) {
-		dev_info(&pdev->dev, "udc_name is too long: %d\n", len);
+		au2p_info(&pdev->dev, "udc_name is too long: %d\n", len);
 		return -EINVAL;
 	}
 	strncpy(crg_UDC_name, udc_name, len);
@@ -254,18 +405,16 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	if (controller_type == USB_OTG)
 		otg = 1;
 
-	dev_info(&pdev->dev, "controller_type is %d\n", controller_type);
-	dev_info(&pdev->dev, "crg_force_device_mode is %d\n", get_otg_mode());
-	dev_info(&pdev->dev, "otg is %d\n", otg);
-	dev_info(&pdev->dev, "udc_name: %s\n", crg_UDC_name);
-
-	dev_info(&pdev->dev, "phy2_mem:0x%lx, iomap phy2_base:0x%lx\n",
-		 (unsigned long)usb2_phy_mem,
-		 (unsigned long)usb2_phy_base);
-
-	dev_info(&pdev->dev, "phy3_mem:0x%lx, iomap phy3_base:0x%lx\n",
-		 (unsigned long)usb3_phy_mem,
-		 (unsigned long)usb3_phy_base);
+	au2p_info(&pdev->dev,
+				"controller_type is %d\n"
+				"crg_force_device_mode is %d\n"
+				"otg is %d\n"
+				"udc_name: %s\n"
+				"phy2_mem:0x%lx, iomap phy2_base:0x%lx\n"
+				"phy3_mem:0x%lx, iomap phy3_base:0x%lx\n",
+				controller_type,  get_otg_mode(), otg, crg_UDC_name,
+				(unsigned long)usb2_phy_mem, (unsigned long)usb2_phy_base,
+				(unsigned long)usb3_phy_mem, (unsigned long)usb3_phy_base);
 
 	phy->dev		= dev;
 	phy->usb2_phy_cfg	= usb2_phy_base;
@@ -273,6 +422,7 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	phy->vbus_power_pin = gpio_vbus_power_pin;
 	phy->usb_gpio_desc = usb_gd;
 	phy->mode_work_flag = 0;
+	phy->controller_type = controller_type;
 	phy->otg_mutex = kmalloc(sizeof(*phy->otg_mutex),
 				GFP_KERNEL);
 	mutex_init(phy->otg_mutex);
@@ -282,6 +432,9 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 
 	pm_runtime_enable(phy->dev);
+
+	phy->pm_notifier.notifier_call = amlogic_crg_otg_pm_cb;
+	register_pm_notifier(&phy->pm_notifier);
 
 	if (otg) {
 		retval = of_property_read_u32
@@ -313,7 +466,7 @@ NO_M31:
 				 IRQF_SHARED, "amlogic_botg_detect", phy);
 
 		if (retval) {
-			dev_err(&pdev->dev, "request of irq%d failed\n", irq);
+			au2p_err(&pdev->dev, "request of irq%d failed\n", irq);
 			retval = -EBUSY;
 			return retval;
 		}
@@ -323,43 +476,138 @@ NO_M31:
 
 	if (otg == 0) {
 		if (get_otg_mode() || controller_type == USB_DEVICE_ONLY) {
-			set_mode((unsigned long)phy->usb2_phy_cfg,
-				DEVICE_MODE, (unsigned long)phy->phy3_cfg);
+			set_mode(phy, DEVICE_MODE);
 			amlogic_m31_set_vbus_power(phy, 0);
 			crg_gadget_init();
 		} else if (controller_type == USB_HOST_ONLY) {
-			set_mode((unsigned long)phy->usb2_phy_cfg,
-				HOST_MODE, (unsigned long)phy->phy3_cfg);
+			set_mode(phy, HOST_MODE);
 			amlogic_m31_set_vbus_power(phy, 1);
 			crg_init();
 		}
 	} else {
-		reg_addr = ((unsigned long)phy->phy3_cfg);
-		reg5.d32 = readl((void __iomem *)(reg_addr + 0x14));
-		if (reg5.b.iddig_curr == 0) {
-			amlogic_m31_set_vbus_power(phy, 1);
-			set_mode(reg_addr, HOST_MODE,
-				(unsigned long)phy->phy3_cfg);
-			crg_init();
-		} else {
-			set_mode(reg_addr, DEVICE_MODE,
-				(unsigned long)phy->phy3_cfg);
-			amlogic_m31_set_vbus_power(phy, 0);
-			crg_gadget_init();
-		}
-		reg5.b.usb_iddig_irq = 0;
-		writel(reg5.d32, (void __iomem *)(reg_addr + 0x14));
+		/* The usb2_phy_cfg iddig bit is default 0 and may not change to 1 instantly
+		 * with otg connecter plugged at boot time. Defer the mode init here to avoid
+		 * excess host mode init.
+		 */
+		phy->mode_work_flag = 1;
+		phy->mode |= OTG_MODE_MASK;
+		INIT_DELAYED_WORK(&phy->set_mode_work, amlogic_crg_otg_set_m_work);
+		schedule_delayed_work(&phy->set_mode_work, msecs_to_jiffies(500));
 	}
+
+	amlogic_crg_otg_debugfs_init(phy);
 
 	return 0;
 }
 
 static void amlogic_crg_otg_remove(struct platform_device *pdev)
 {
+	//return;
+}
+
+static int amlogic_crg_otg_freeze(struct device *dev)
+{
+	return 0;
+}
+
+static int amlogic_crg_otg_thaw(struct device *dev)
+{
+	struct amlogic_crg_otg *phy = platform_get_drvdata(to_platform_device(dev));
+
+	writel(phy->pm_buf.usb_r1.d32, phy->phy3_cfg + 4);
+	writel(phy->pm_buf.u2p_r2.d32, phy->usb2_phy_cfg + 8);
+	writel(phy->pm_buf.u2p_r0.d32, phy->usb2_phy_cfg);
+
+	/* Don't resync here because device_block_probing is still held.
+	 * if hibernation fails,  PM_POST_HIBERNATION will handle.
+	 */
+	return 0;
+}
+
+static int amlogic_crg_otg_restore(struct device *dev)
+{
+	return 0;
+}
+
+static int amlogic_crg_otg_hibernation_prepare(struct amlogic_crg_otg *phy)
+{
+	union u2p_r2_v2 reg2;
+
+	reg2.d32 = readl((void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
+	phy->pm_buf.u2p_r2.d32 = reg2.d32;
+	/* Quiesce otg func: clear&disable hwirq, cancel works. */
+	if (phy->controller_type == USB_OTG) {
+		reg2.b.usb_iddig_irq = 0;
+		reg2.b.iddig_en0 = 0;
+		reg2.b.iddig_en1 = 0;
+		reg2.b.iddig_th = 0;
+		writel(reg2.d32, (void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
+		cancel_delayed_work_sync(&phy->work);
+	}
+
+	phy->pm_buf.u2p_r0.d32 = readl(phy->usb2_phy_cfg);
+	phy->pm_buf.usb_r1.d32 = readl(phy->phy3_cfg + 4);
+	return 0;
+}
+
+static int amlogic_crg_otg_post_hibernation(struct amlogic_crg_otg *phy)
+{
+	//union u2p_r2_v2 reg2;
+
+	//reg2.d32 = readl((void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
+	//pr_err("linestate: %d recover to %d\n",
+	//	reg2.b.iddig_curr, phy->pm_buf.u2p_r2.b.iddig_curr);
+
+	writel(phy->pm_buf.usb_r1.d32, phy->phy3_cfg + 4);
+	writel(phy->pm_buf.u2p_r2.d32, phy->usb2_phy_cfg + 8);
+	writel(phy->pm_buf.u2p_r0.d32, phy->usb2_phy_cfg);
+
+	/* During STD the idpin line state could lose sync with controller state even the
+	 * register has been restored. This happens when linestate changes after std but
+	 * before h-prepare which disables the irq, records linesate then cancels the unscheduled
+	 * role-switch irq work.
+	 * e.g.
+	 * If the otg plug is removed before h-prepare, the restored state remains as host
+	 * even when the otg plug is still removed.
+	 * Try to resync after restore.
+	 */
+	if (phy->controller_type == USB_OTG)
+		schedule_delayed_work(&phy->work, msecs_to_jiffies(100));
+
+	return 0;
+}
+
+/* crg_gadget_exit&crg_gadget_init should be synchronous to prevent racing with crg_udc_pm_cb.
+ * However dpm_prepare defer all probes until dpm_complete, the probe inside is still asynchronous.
+ * Avoid this by using pm_cb.
+ */
+static int amlogic_crg_otg_pm_cb(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	struct amlogic_crg_otg *phy =
+		container_of(notifier, struct amlogic_crg_otg, pm_notifier);
+
+	au2p_info(phy->dev, "%s called. pm_event:%lu.\n", __func__, pm_event);
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		amlogic_crg_otg_hibernation_prepare(phy);
+		break;
+	case PM_POST_HIBERNATION:
+		amlogic_crg_otg_post_hibernation(phy);
+		break;
+	case PM_SUSPEND_PREPARE:
+	case PM_POST_SUSPEND:
+	case PM_RESTORE_PREPARE:
+	case PM_POST_RESTORE:
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
 }
 
 #ifdef CONFIG_PM_RUNTIME
-
 static int amlogic_crg_otg_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -371,17 +619,20 @@ static int amlogic_crg_otg_runtime_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 static const struct dev_pm_ops amlogic_crg_otg_pm_ops = {
+#ifdef CONFIG_PM_RUNTIME
 	SET_RUNTIME_PM_OPS(amlogic_crg_otg_runtime_suspend,
 			   amlogic_crg_otg_runtime_resume,
 			   NULL)
+#endif
+	.freeze = amlogic_crg_otg_freeze,
+	.thaw = amlogic_crg_otg_thaw,
+	.restore = amlogic_crg_otg_restore,
 };
 
-#define DEV_PM_OPS     (&amlogic_new_otg_pm_ops)
-#else
-#define DEV_PM_OPS     NULL
-#endif
+#define DEV_PM_OPS     (&amlogic_crg_otg_pm_ops)
 
 #ifdef CONFIG_OF
 static const struct of_device_id amlogic_crg_otg_id_table[] = {
