@@ -7,6 +7,7 @@ dtb-y += i2c0.dtbo \
          pwm_c.dtbo \
          pwm_f.dtbo \
          spdif_a.dtbo \
+         spi0.dtbo \
          uart1.dtbo \
          uart1-with-ctsrts.dtbo \
          uart2.dtbo \
