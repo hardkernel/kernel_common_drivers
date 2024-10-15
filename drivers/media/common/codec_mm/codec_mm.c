@@ -1473,6 +1473,7 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	mem->phy_addr	= dma_handle;
 	mem->buffer_size = buf_size;
 	mem->from_flags	= AMPORTS_MEM_FLAGS_FROM_GET_FROM_COHERENT;
+	mem->alloced_jiffies = get_jiffies_64();
 
 	space = codec_mm_alloc_pre_check_in(mgt, mem->buffer_size, 0);
 	if (!space)
@@ -2536,6 +2537,89 @@ int get_string_segment(int size)
 		(size / LOG_LINE_MAX + 1);
 }
 
+void dump_mem_infos_external(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	struct codec_mm_s *mem = NULL;
+	unsigned long flags = 0;
+
+	pr_info("codec mem info:\n");
+
+	pr_info("\ttotal codec mem size:%d MB\n",
+			mgt->total_codec_mem_size / SZ_1M);
+
+	pr_info("\talloced size= %d MB\n",
+			mgt->total_alloced_size / SZ_1M);
+
+	pr_info("\tmax alloced: %d MB\n",
+			mgt->max_used_mem_size / SZ_1M);
+
+	pr_info("\tCMA:%d,RES:%d,TVP:%d,SYS:%d,COHER:%d,VMAPED:%d MB\n",
+		mgt->alloced_cma_size / SZ_1M,
+		mgt->alloced_res_size / SZ_1M,
+		mgt->tvp_pool.alloced_size / SZ_1M,
+		mgt->alloced_sys_size / SZ_1M,
+		mgt->alloced_from_coherent / SZ_1M,
+		(mgt->phys_vmaped_page_cnt << PAGE_SHIFT) / SZ_1M);
+
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	pr_info("\tRES_EXT:%d MB\n",
+		mgt->alloced_res_ext_size / SZ_1M);
+#endif
+
+	if (mgt->res_pool) {
+		pr_info("\t[%d]RES size:%d MB,alloced:%d MB free:%d MB\n",
+				AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED,
+				(int)(gen_pool_size(mgt->res_pool) / SZ_1M),
+				(int)(mgt->alloced_res_size / SZ_1M),
+				(int)(gen_pool_avail(mgt->res_pool) / SZ_1M));
+	}
+
+	pr_info("\t[%d]CMA size:%d MB:alloced: %d MB,free:%d MB\n",
+			AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA,
+			(int)(mgt->total_cma_size / SZ_1M),
+			(int)(mgt->alloced_cma_size / SZ_1M),
+			(int)((mgt->total_cma_size -
+			mgt->alloced_cma_size) / SZ_1M));
+
+	if (mgt->tvp_pool.slot_num > 0) {
+		pr_info("\t[%d]TVP size:%d MB,alloced:%d MB free:%d MB\n",
+				AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP,
+				(int)(mgt->tvp_pool.total_size / SZ_1M),
+				(int)(mgt->tvp_pool.alloced_size / SZ_1M),
+				(int)((mgt->tvp_pool.total_size -
+					mgt->tvp_pool.alloced_size) / SZ_1M));
+	}
+
+	if (mgt->cma_res_pool.slot_num > 0) {
+		pr_info("\t[%d]CMA_RES size:%d MB,alloced:%d MB free:%d MB\n",
+				AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES,
+				(int)(mgt->cma_res_pool.total_size / SZ_1M),
+				(int)(mgt->cma_res_pool.alloced_size / SZ_1M),
+				(int)((mgt->cma_res_pool.total_size -
+				mgt->cma_res_pool.alloced_size) / SZ_1M));
+	}
+
+	spin_lock_irqsave(&mgt->lock, flags);
+	if (!list_empty(&mgt->mem_list)) {
+		list_for_each_entry(mem, &mgt->mem_list, list) {
+			pr_info("\t[%d].%d:%s.%d,addr=0x%lx,size=%d,from=%d,cnt=%d,flags=%d,used:%u ms",
+				mem->mem_id,
+				mem->ins_id,
+				mem->owner[0] ? mem->owner[0] : "no",
+				mem->ins_buffer_id,
+				mem->phy_addr,
+				mem->buffer_size,
+				mem->from_flags,
+				atomic_read(&mem->use_cnt),
+				mem->flags, jiffies_to_msecs(get_jiffies_64() -
+				mem->alloced_jiffies)
+				);
+		}
+	}
+	spin_unlock_irqrestore(&mgt->lock, flags);
+}
+
 static void dump_mem_infos(struct seq_file *m)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
@@ -3026,8 +3110,7 @@ EXPORT_SYMBOL(codec_mm_get_total_size);
 int codec_mm_get_free_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	if (debug_mode & 0x40)
-		dump_mem_infos(NULL);
+
 	return codec_mm_get_total_size() -
 		mgt->tvp_pool.total_size  + mgt->tvp_pool.alloced_size -
 		mgt->total_alloced_size;
@@ -3037,8 +3120,7 @@ EXPORT_SYMBOL(codec_mm_get_free_size);
 int codec_mm_get_tvp_free_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	if (debug_mode & 0x20)
-		dump_mem_infos(NULL);
+
 	return mgt->tvp_pool.total_size -
 		mgt->tvp_pool.alloced_size;
 }
