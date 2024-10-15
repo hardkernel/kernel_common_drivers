@@ -27,7 +27,6 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/aml_tee/optee/optee.ko",
     "common_drivers/drivers/aml_tee/tee.ko",
     "common_drivers/drivers/char/hw_random/amlogic-rng.ko",
-    "common_drivers/drivers/clk/meson/amlogic-aoclk-g12a.ko",
     "common_drivers/drivers/clk/meson/amlogic-aoclk-soc-t5w.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-g12a.ko",
@@ -124,6 +123,7 @@ AMLOGIC_COMMON_MODULES = [
     "drivers/net/pcs/pcs_xpcs.ko",
     "drivers/regulator/gpio-regulator.ko",
     "drivers/regulator/pwm-regulator.ko",
+    "drivers/clk/clk-scmi.ko",
     "net/mac80211/mac80211.ko",
     "net/wireless/cfg80211.ko",
 ]

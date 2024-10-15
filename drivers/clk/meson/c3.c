@@ -197,7 +197,7 @@ static const struct clk_ops meson_pll_clk_no_ops = {};
  *           |
  *           ----- fclk_div7 = 286M
  */
-static struct clk_regmap c3_fixed_pll_vco = {
+static struct clk_regmap c3_fixed_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_FIXPLL_CTRL0,
@@ -214,14 +214,11 @@ static struct clk_regmap c3_fixed_pll_vco = {
 			.shift   = 16,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_FIXPLL_CTRL0,
 			.shift   = 12,
 			.width   = 3,
 		},
-#endif  /* CONFIG_ARM */
 		.l = {
 			.reg_off = ANACTRL_FIXPLL_CTRL0,
 			.shift   = 31,
@@ -232,38 +229,13 @@ static struct clk_regmap c3_fixed_pll_vco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.flags = CLK_MESON_PLL_READ_ONLY,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "fixed_pll_vco",
+		.name = "fixed_pll",
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&xtal_plltop.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap c3_fixed_pll = {
-#ifdef CONFIG_ARM
-
-#else
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_FIXPLL_CTRL0,
-		.shift = 12,
-		.width = 3,
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_READ_ONLY,
-	},
-#endif  /* CONFIG_ARM */
-	.hw.init = &(struct clk_init_data){
-		.name = "fixed_pll",
-#ifdef CONFIG_ARM
-		.ops = &meson_pll_clk_no_ops,
-#else
-		.ops = &clk_regmap_secure_v2_divider_ops,
-#endif  /* CONFIG_ARM */
-		.parent_hws = (const struct clk_hw *[]) {
-			&c3_fixed_pll_vco.hw,
 		},
 		.num_parents = 1,
 	},
@@ -495,36 +467,25 @@ static struct clk_regmap c3_fclk_div7 = {
 	},
 };
 
-#ifdef CONFIG_ARM
 static const struct pll_params_table c3_gp0_pll_params_table[] = {
-	PLL_PARAMS(150, 1, 1), /* DCO = 3600M, CLK_OUT = 1800M */
-	PLL_PARAMS(130, 1, 1), /* DCO = 3120M, CLK_OUT = 1560M */
-	PLL_PARAMS(192, 1, 2), /* DCO = 4608M, CLK_OUT = 1152M */
-	PLL_PARAMS(125, 1, 2), /* DCO = 3000M, CLK_OUT = 750M */
+	PLL_PARAMS_OD(150, 1, 1), /* DCO = 3600M, CLK_OUT = 1800M */
+	PLL_PARAMS_OD(130, 1, 1), /* DCO = 3120M, CLK_OUT = 1560M */
+	PLL_PARAMS_OD(192, 1, 2), /* DCO = 4608M, CLK_OUT = 1152M */
+	PLL_PARAMS_OD(125, 1, 2), /* DCO = 3000M, CLK_OUT = 750M */
 	{ /* sentinel */  },
 };
-#else
-static const struct pll_params_table c3_gp0_pll_params_table[] = {
-	PLL_PARAMS(150, 1), /* DCO = 3600M */
-	PLL_PARAMS(130, 1), /* DCO = 3120M */
-	PLL_PARAMS(192, 1), /* DCO = 4608M */
-	PLL_PARAMS(125, 1), /* DCO = 3000M */
-	{ /* sentinel */  },
-};
-#endif
+
 static const struct reg_sequence c3_gp0_init_regs[] = {
+	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x08000000 },
 	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x0 },
 	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x0 },
 	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x48681c00 },
 	{ .reg = ANACTRL_GP0PLL_CTRL4,  .def = 0x88770290 },
 	{ .reg = ANACTRL_GP0PLL_CTRL5,  .def = 0x3927200a },
-	{ .reg = ANACTRL_GP0PLL_CTRL6,	.def = 0x56540000, .delay_us = 10 },
-	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x080304fa },
-	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x380304fa, .delay_us = 10 },
-	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0X180304fa },
+	{ .reg = ANACTRL_GP0PLL_CTRL6,	.def = 0x56540000 }
 };
 
-static struct clk_regmap c3_gp0_pll_vco = {
+static struct clk_regmap c3_gp0_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_GP0PLL_CTRL0,
@@ -541,18 +502,15 @@ static struct clk_regmap c3_gp0_pll_vco = {
 			.shift   = 10,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_GP0PLL_CTRL0,
 			.shift   = 16,
 			.width   = 3,
 		},
-#endif  /* CONFIG_ARM */
 		.frac = {
 			.reg_off = ANACTRL_GP0PLL_CTRL1,
 			.shift   = 0,
-			.width   = 19,
+			.width   = 17,
 		},
 		.l = {
 			.reg_off = ANACTRL_GP0PLL_CTRL0,
@@ -565,71 +523,35 @@ static struct clk_regmap c3_gp0_pll_vco = {
 			.width   = 1,
 		},
 		.table = c3_gp0_pll_params_table,
+		.od_max = 5,
 		.init_regs = c3_gp0_init_regs,
 		.init_count = ARRAY_SIZE(c3_gp0_init_regs),
-		.flags = CLK_MESON_PLL_IGNORE_INIT,
+		.flags = CLK_MESON_PLL_FIXED_N |
+			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
+			 CLK_MESON_PLL_IGNORE_INIT,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "gp0_pll_vco",
-		.ops = &meson_clk_pll_v3_ops,
+		.name = "gp0_pll",
+		.ops = &meson_clk_pll_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&xtal_plltop.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
 	},
 };
 
-static struct clk_regmap c3_gp0_pll = {
-#ifdef CONFIG_ARM
-
-#else
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_GP0PLL_CTRL0,
-		.shift = 16,
-		.width = 3,
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ROUND_CLOSEST,
-	},
-#endif  /* CONFIG_ARM */
-	.hw.init = &(struct clk_init_data){
-		.name = "gp0_pll",
-#ifdef CONFIG_ARM
-		.ops = &meson_pll_clk_no_ops,
-#else
-		.ops = &clk_regmap_divider_ops,
-#endif  /* CONFIG_ARM */
-		.parent_hws = (const struct clk_hw *[]) {
-			&c3_gp0_pll_vco.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-
-/* gp Pll */
-
-#ifdef CONFIG_ARM
 static const struct pll_params_table c3_gp1_pll_params_table[] = {
-	PLL_PARAMS(150, 1, 1), /* DCO = 3600M, CLK_OUT = 1800M */
-	PLL_PARAMS(130, 1, 1), /* DCO = 3120M, CLK_OUT = 1560M */
-	PLL_PARAMS(192, 1, 2), /* DCO = 4608M, CLK_OUT = 1152M */
-	PLL_PARAMS(125, 1, 2), /* DCO = 3000M, CLK_OUT = 750M */
+	PLL_PARAMS_OD(150, 1, 1), /* DCO = 3600M, CLK_OUT = 1800M */
+	PLL_PARAMS_OD(130, 1, 1), /* DCO = 3120M, CLK_OUT = 1560M */
+	PLL_PARAMS_OD(192, 1, 2), /* DCO = 4608M, CLK_OUT = 1152M */
+	PLL_PARAMS_OD(125, 1, 2), /* DCO = 3000M, CLK_OUT = 750M */
 	{ /* sentinel */  },
 };
-#else
-static const struct pll_params_table c3_gp1_pll_params_table[] = {
-	PLL_PARAMS(150, 1), /* DCO = 3600M */
-	PLL_PARAMS(130, 1), /* DCO = 3120M */
-	PLL_PARAMS(192, 1), /* DCO = 4608M */
-	PLL_PARAMS(125, 1), /* DCO = 3000M */
-	{ /* sentinel */  },
-};
-#endif
 
 /*
  * gp pll = 1188M
  */
-static struct clk_regmap c3_gp1_pll_vco = {
+static struct clk_regmap c3_gp1_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_GP1PLL_CTRL0,
@@ -646,18 +568,10 @@ static struct clk_regmap c3_gp1_pll_vco = {
 			.shift   = 10,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_GP1PLL_CTRL0,
 			.shift   = 16,
 			.width   = 3,
-		},
-#endif  /* CONFIG_ARM */
-		.frac = {
-			.reg_off = ANACTRL_GP1PLL_CTRL1,
-			.shift   = 0,
-			.width   = 19,
 		},
 		.l = {
 			.reg_off = ANACTRL_GP1PLL_CTRL0,
@@ -670,86 +584,47 @@ static struct clk_regmap c3_gp1_pll_vco = {
 			.width   = 1,
 		},
 		.table = c3_gp1_pll_params_table,
+		.od_max = 5,
 		.smc_id = SECURE_PLL_CLK,
 		.secid_disable = SECID_GP1_DCO_PLL_DIS,
 		.secid = SECID_GP1_DCO_PLL,
+		.flags = CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "gp1_pll_vco",
+		.name = "gp1_pll",
 		.ops = &meson_secure_pll_v2_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&xtal_plltop.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap c3_gp1_pll = {
-#ifdef CONFIG_ARM
-
-#else
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_GP1PLL_CTRL0,
-		.shift = 16,
-		.width = 3,
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ROUND_CLOSEST,
-		.smc_id = SECURE_PLL_CLK,
-		.secid = SECID_GP1_PLL_OD,
-	},
-#endif  /* CONFIG_ARM */
-	.hw.init = &(struct clk_init_data){
-		.name = "gp1_pll",
-#ifdef CONFIG_ARM
-		.ops = &meson_pll_clk_no_ops,
-#else
-		.ops = &clk_regmap_secure_v2_divider_ops,
-#endif  /* CONFIG_ARM */
-		.parent_hws = (const struct clk_hw *[]) {
-			&c3_gp1_pll_vco.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
 /* hifi pll */
 /* pll 1536M */
 static const struct reg_sequence c3_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x08010496 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x38010496 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x0000ce40 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x08000000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL4, .def = 0x65771290 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL5, .def = 0x3927200a },
-	{ .reg = ANACTRL_HIFIPLL_CTRL6,	.def = 0x56540000, .delay_us = 50 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x18010496, .delay_us = 20 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL6,	.def = 0x56540000 }
 };
 
-#ifdef CONFIG_ARM
 static const struct pll_params_table c3_hifi_pll_params_table[] = {
-	PLL_PARAMS(150, 1, 1), /* DCO = 3600M, CLK_OUT = 1800M */
-	PLL_PARAMS(130, 1, 1), /* DCO = 3120M, CLK_OUT = 1560M */
-	PLL_PARAMS(192, 1, 2), /* DCO = 4608M, CLK_OUT = 1152M */
-	PLL_PARAMS(125, 1, 2), /* DCO = 3000M, CLK_OUT = 750M */
+	PLL_PARAMS_OD(150, 1, 1), /* DCO = 3600M, CLK_OUT = 1800M */
+	PLL_PARAMS_OD(130, 1, 1), /* DCO = 3120M, CLK_OUT = 1560M */
+	PLL_PARAMS_OD(192, 1, 2), /* DCO = 4608M, CLK_OUT = 1152M */
+	PLL_PARAMS_OD(125, 1, 2), /* DCO = 3000M, CLK_OUT = 750M */
 	{ /* sentinel */  },
 };
-#else
-static const struct pll_params_table c3_hifi_pll_params_table[] = {
-	PLL_PARAMS(150, 1), /* DCO = 3600M */
-	PLL_PARAMS(130, 1), /* DCO = 3120M */
-	PLL_PARAMS(192, 1), /* DCO = 4608M */
-	PLL_PARAMS(125, 1), /* DCO = 3000M */
-	{ /* sentinel */  },
-};
-#endif
 
 /*
  * hifi vco = 768M - 1536M
  * hifi pll: 12M - 1536M
  */
-static struct clk_regmap c3_hifi_pll_vco = {
+static struct clk_regmap c3_hifi_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
@@ -766,18 +641,15 @@ static struct clk_regmap c3_hifi_pll_vco = {
 			.shift   = 10,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
 			.shift   = 16,
 			.width   = 2,
 		},
-#endif  /* CONFIG_ARM */
 		.frac = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL1,
 			.shift   = 0,
-			.width   = 19,
+			.width   = 17,
 		},
 		.l = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
@@ -790,8 +662,11 @@ static struct clk_regmap c3_hifi_pll_vco = {
 			.width   = 1,
 		},
 		.table = c3_hifi_pll_params_table,
+		.od_max = 3,
 		.init_regs = c3_hifi_init_regs,
 		.init_count = ARRAY_SIZE(c3_hifi_init_regs),
+		.flags = CLK_MESON_PLL_FIXED_N |
+			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_vco",
@@ -804,54 +679,18 @@ static struct clk_regmap c3_hifi_pll_vco = {
 	},
 };
 
-static struct clk_regmap c3_hifi_pll = {
-#ifdef CONFIG_ARM
-
-#else
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_HIFIPLL_CTRL0,
-		.shift = 16,
-		.width = 2,
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ROUND_CLOSEST,
-	},
-#endif  /* CONFIG_ARM */
-	.hw.init = &(struct clk_init_data){
-		.name = "hifi_pll",
-#ifdef CONFIG_ARM
-		.ops = &meson_pll_clk_no_ops,
-#else
-		.ops = &clk_regmap_divider_ops,
-#endif  /* CONFIG_ARM */
-		.parent_hws = (const struct clk_hw *[]) {
-			&c3_hifi_pll_vco.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-
-#ifdef CONFIG_ARM
 static const struct pll_params_table c3_mclk_pll_params_table[] = {
-	PLL_PARAMS(99, 1, 1), /* VCO = 2376M, CLK_OUT = 1188M */
+	PLL_PARAMS_OD(99, 1, 1), /* VCO = 2376M, CLK_OUT = 1188M */
 	{ /* sentinel */  },
 };
-#else
-static const struct pll_params_table c3_mclk_pll_params_table[] = {
-	PLL_PARAMS(99, 1), /* VCO = 2376M */
-	{ /* sentinel */  },
-};
-#endif
+
 static const struct reg_sequence c3_mclk_init_regs[] = {
-	{ .reg = ANACTRL_MPLL_CTRL0,	.def = 0x20011063 },
-	{ .reg = ANACTRL_MPLL_CTRL0,	.def = 0x30011063 },
 	{ .reg = ANACTRL_MPLL_CTRL1,	.def = 0x1420500f },
-	{ .reg = ANACTRL_MPLL_CTRL2,	.def = 0x00023041 },
-	{ .reg = ANACTRL_MPLL_CTRL3,	.def = 0x18180000 },
-	{ .reg = ANACTRL_MPLL_CTRL0,	.def = 0x10011063 },
 	{ .reg = ANACTRL_MPLL_CTRL2,	.def = 0x00023001 },
+	{ .reg = ANACTRL_MPLL_CTRL3,	.def = 0x18180000 }
 };
 
-static struct clk_regmap c3_mclk_pll_vco = {
+static struct clk_regmap c3_mclk_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_MPLL_CTRL0,
@@ -868,14 +707,11 @@ static struct clk_regmap c3_mclk_pll_vco = {
 			.shift   = 16,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_MPLL_CTRL0,
 			.shift   = 12,
 			.width   = 3,
 		},
-#endif  /* CONFIG_ARM */
 		.l = {
 			.reg_off = ANACTRL_MPLL_CTRL0,
 			.shift   = 31,
@@ -886,46 +722,26 @@ static struct clk_regmap c3_mclk_pll_vco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.l_rst = {
+			.reg_off = ANACTRL_MPLL_CTRL2,
+			.shift   = 6,
+			.width   = 1,
+		},
 		.table = c3_mclk_pll_params_table,
+		.od_max = 4,
 		.init_regs = c3_mclk_init_regs,
 		.init_count = ARRAY_SIZE(c3_mclk_init_regs),
-		.flags = CLK_MESON_PLL_IGNORE_INIT,
+		.flags = CLK_MESON_PLL_FIXED_N |
+			 CLK_MESON_PLL_NOINIT_ENABLED,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "mclk_pll_vco",
+		.name = "mclk_pll",
 		.ops = &meson_clk_pll_v3_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&xtal_plltop.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap c3_mclk_pll = {
-#ifdef CONFIG_ARM
-
-#else
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_MPLL_CTRL0,
-		.shift = 12,
-		.width = 3,
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ROUND_CLOSEST |
-			 CLK_DIVIDER_ALLOW_ZERO,
-	},
-#endif  /* CONFIG_ARM */
-	.hw.init = &(struct clk_init_data){
-		.name = "mclk_pll",
-#ifdef CONFIG_ARM
-		.ops = &meson_pll_clk_no_ops,
-#else
-		.ops = &clk_regmap_divider_ops,
-#endif  /* CONFIG_ARM */
-		.parent_hws = (const struct clk_hw *[]) {
-			&c3_mclk_pll_vco.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -944,7 +760,7 @@ static struct clk_regmap c3_mclk_pll_clk = {
 			&c3_mclk_pll.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -965,7 +781,7 @@ static struct clk_regmap c3_mclk_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = mclk_clk_parent_names,
 		.num_parents = ARRAY_SIZE(mclk_clk_parent_names),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -990,7 +806,7 @@ static struct clk_regmap c3_mclk_0_div2 = {
 		.offset = ANACTRL_MPLL_CTRL4,
 		.shift = 2,
 		.width = 1,
-		.flags = CLK_DIVIDER_ALLOW_ZERO | CLK_DIVIDER_POWER_OF_TWO,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mclk_0_div2",
@@ -999,7 +815,7 @@ static struct clk_regmap c3_mclk_0_div2 = {
 			&c3_mclk_0_sel_out.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1030,7 +846,7 @@ static struct clk_regmap c3_mclk_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = mclk_clk_parent_names,
 		.num_parents = ARRAY_SIZE(mclk_clk_parent_names),
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1055,7 +871,7 @@ static struct clk_regmap c3_mclk_1_div2 = {
 		.offset = ANACTRL_MPLL_CTRL4,
 		.shift = 10,
 		.width = 1,
-		.flags = CLK_DIVIDER_ALLOW_ZERO | CLK_DIVIDER_POWER_OF_TWO,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mclk_1_div2",
@@ -1064,7 +880,7 @@ static struct clk_regmap c3_mclk_1_div2 = {
 			&c3_mclk_1_sel_out.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1087,45 +903,26 @@ static struct clk_regmap c3_mclk_1 = {
 /*
  * Internal sys pll emulation configuration parameters
  */
-
-#ifdef CONFIG_ARM
-
 static const struct pll_params_table c3_pll_params_table[] = {
-	PLL_PARAMS(133, 1, 1), /* VCO = 3192M; CLK_OUT = 1596M */
-	PLL_PARAMS(126, 1, 1), /* VCO = 3024M; CLK_OUT = 1512M */
-	PLL_PARAMS(125, 1, 1), /* VCO = 3000M; CLK_OUT = 1500M */
-	PLL_PARAMS(117, 1, 1), /* VCO = 2808M; CLK_OUT = 1404M */
-	PLL_PARAMS(100, 1, 1), /* VCO = 2400M; CLK_OUT = 1200M */
-	PLL_PARAMS(96, 1, 0), /* VCO = 2304M; CLK_OUT = 2304M */
-	PLL_PARAMS(88, 1, 0), /* VCO = 2112M; CLK_OUT = 2112M */
-	PLL_PARAMS(84, 1, 0), /* VCO = 2016M; CLK_OUT = 2016M */
-	PLL_PARAMS(80, 1, 0), /* VCO = 1920M; CLK_OUT = 1920M */
-	PLL_PARAMS(75, 1, 0), /* VCO = 1800M; CLK_OUT = 1800M */
-	PLL_PARAMS(71, 1, 0), /* VCO = 1704M; CLK_OUT = 1704M */
-	PLL_PARAMS(67, 1, 0), /* VCO = 1608M; CLK_OUT = 1608M */
+	PLL_PARAMS_OD(133, 1, 1), /* VCO = 3192M; CLK_OUT = 1596M */
+	PLL_PARAMS_OD(126, 1, 1), /* VCO = 3024M; CLK_OUT = 1512M */
+	PLL_PARAMS_OD(125, 1, 1), /* VCO = 3000M; CLK_OUT = 1500M */
+	PLL_PARAMS_OD(117, 1, 1), /* VCO = 2808M; CLK_OUT = 1404M */
+	PLL_PARAMS_OD(100, 1, 1), /* VCO = 2400M; CLK_OUT = 1200M */
+	PLL_PARAMS_OD(96, 1, 0), /* VCO = 2304M; CLK_OUT = 2304M */
+	PLL_PARAMS_OD(88, 1, 0), /* VCO = 2112M; CLK_OUT = 2112M */
+	PLL_PARAMS_OD(84, 1, 0), /* VCO = 2016M; CLK_OUT = 2016M */
+	PLL_PARAMS_OD(80, 1, 0), /* VCO = 1920M; CLK_OUT = 1920M */
+	PLL_PARAMS_OD(75, 1, 0), /* VCO = 1800M; CLK_OUT = 1800M */
+	PLL_PARAMS_OD(71, 1, 0), /* VCO = 1704M; CLK_OUT = 1704M */
+	PLL_PARAMS_OD(67, 1, 0), /* VCO = 1608M; CLK_OUT = 1608M */
 	{ /* sentinel */ }
 };
-#else
-static const struct pll_params_table c3_pll_params_table[] = {
-	PLL_PARAMS(133, 1), /* VCO = 3192M*/
-	PLL_PARAMS(126, 1), /* VCO = 3024M*/
-	PLL_PARAMS(125, 1), /* VCO = 3000M*/
-	PLL_PARAMS(117, 1), /* VCO = 2808M*/
-	PLL_PARAMS(100, 1), /* VCO = 2400M */
-	PLL_PARAMS(96, 1), /* VCO = 2304M*/
-	PLL_PARAMS(88, 1), /* VCO = 2112M */
-	PLL_PARAMS(84, 1), /* VCO = 2016M */
-	PLL_PARAMS(80, 1), /* VCO = 1920M */
-	PLL_PARAMS(75, 1), /* VCO = 1800M*/
-	PLL_PARAMS(71, 1), /* VCO = 1704M*/
-	PLL_PARAMS(67, 1), /* VCO = 1608M */
-	{ /* sentinel */ }
-};
-#endif
+
 /*
  * sys pll = 25M ~ 3200M
  */
-static struct clk_regmap c3_sys_pll_vco = {
+static struct clk_regmap c3_sys_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_SYSPLL_CTRL0,
@@ -1142,68 +939,38 @@ static struct clk_regmap c3_sys_pll_vco = {
 			.shift   = 16,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_SYSPLL_CTRL0,
 			.shift   = 12,
 			.width   = 3,
 		},
-#endif
 		.l = {
 			.reg_off = ANACTRL_SYSPLL_CTRL0,
 			.shift   = 31,
 			.width   = 1,
 		},
+		.rst = {
+			.reg_off = ANACTRL_SYSPLL_CTRL0,
+			.shift   = 29,
+			.width   = 1,
+		},
 		.table = c3_pll_params_table,
+		.od_max = 4,
 		.smc_id = SECURE_PLL_CLK,
 		.secid_disable = SECID_SYS_DCO_PLL_DIS,
 		.secid = SECID_SYS_DCO_PLL,
+		.flags = CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll_vco",
+		.name = "sys_pll",
 		.ops = &meson_secure_pll_v2_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&xtal_plltop.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
-
-#ifdef CONFIG_ARM
-static struct clk_regmap c3_sys_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&c3_sys_pll_vco.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-#else
-static struct clk_regmap c3_sys_pll = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_SYSPLL_CTRL0,
-		.shift = 12,
-		.width = 3,
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ROUND_CLOSEST,
-		.smc_id = SECURE_PLL_CLK,
-		.secid = SECID_SYS_PLL_OD,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll",
-		.ops =  &clk_regmap_secure_v2_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&c3_sys_pll_vco.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-#endif
 
 static struct clk_regmap c3_rtc_clk;
 
@@ -1224,7 +991,6 @@ static struct clk_regmap c3_sys_b_sel = {
 		.mask = 0x7,
 		.shift = 26,
 		.table = mux_table_sys_ab_clk_sel,
-		.flags = CLK_MUX_READ_ONLY,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_b_sel",
@@ -1276,7 +1042,6 @@ static struct clk_regmap c3_sys_a_sel = {
 		.mask = 0x7,
 		.shift = 10,
 		.table = mux_table_sys_ab_clk_sel,
-		.flags = CLK_MUX_READ_ONLY,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_a_sel",
@@ -1332,7 +1097,6 @@ static struct clk_regmap c3_sys_clk = {
 		.offset = SYS_CLK_CTRL0,
 		.mask = 0x1,
 		.shift = 15,
-		.flags = CLK_MUX_READ_ONLY,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_clk",
@@ -3366,7 +3130,6 @@ static struct clk_regmap dsi_phy_clk = {
 /* Array of all clocks provided by this provider */
 static struct clk_hw_onecell_data c3_hw_onecell_data = {
 	.hws = {
-		[CLKID_FIXED_PLL_VCO]		= &c3_fixed_pll_vco.hw,
 		[CLKID_FIXED_PLL]		= &c3_fixed_pll.hw,
 		[CLKID_FCLK50M_DIV40]		= &c3_fclk50_div40.hw,
 		[CLKID_FCLK50M]			= &c3_fclk50M.hw,
@@ -3382,11 +3145,8 @@ static struct clk_hw_onecell_data c3_hw_onecell_data = {
 		[CLKID_FCLK_DIV5]		= &c3_fclk_div5.hw,
 		[CLKID_FCLK_DIV7_DIV]		= &c3_fclk_div7_div.hw,
 		[CLKID_FCLK_DIV7]		= &c3_fclk_div7.hw,
-		[CLKID_GP0_PLL_VCO]		= &c3_gp0_pll_vco.hw,
 		[CLKID_GP0_PLL]			= &c3_gp0_pll.hw,
-		[CLKID_GP1_PLL_VCO]		= &c3_gp1_pll_vco.hw,
 		[CLKID_GP1_PLL]			= &c3_gp1_pll.hw,
-		[CLKID_MCLK_PLL_VCO]		= &c3_mclk_pll_vco.hw,
 		[CLKID_MCLK_PLL]		= &c3_mclk_pll.hw,
 		[CLKID_MCLK_PLL_CLK]		= &c3_mclk_pll_clk.hw,
 		[CLKID_MCLK_0_SEL]		= &c3_mclk_0_sel.hw,
@@ -3397,9 +3157,7 @@ static struct clk_hw_onecell_data c3_hw_onecell_data = {
 		[CLKID_MCLK_1_SEL_OUT]		= &c3_mclk_1_sel_out.hw,
 		[CLKID_MCLK_1_DIV2]		= &c3_mclk_1_div2.hw,
 		[CLKID_MCLK_1]			= &c3_mclk_1.hw,
-		[CLKID_HIFI_PLL_VCO]		= &c3_hifi_pll_vco.hw,
 		[CLKID_HIFI_PLL]		= &c3_hifi_pll.hw,
-		[CLKID_SYS_PLL_VCO]		= &c3_sys_pll_vco.hw,
 		[CLKID_SYS_PLL]			= &c3_sys_pll.hw,
 		[CLKID_SYS_B_SEL]		= &c3_sys_b_sel.hw,
 		[CLKID_SYS_B_DIV]		= &c3_sys_b_div.hw,
@@ -3878,7 +3636,6 @@ static struct clk_regmap *const c3_cpu_clk_regmaps[] = {
  * the clk_regmap init alone
  */
 static struct clk_regmap *const c3_pll_clk_regmaps[] = {
-	&c3_fixed_pll_vco,
 	&c3_fixed_pll,
 	&c3_fclk50M,
 	&c3_fclk_div2,
@@ -3887,11 +3644,8 @@ static struct clk_regmap *const c3_pll_clk_regmaps[] = {
 	&c3_fclk_div4,
 	&c3_fclk_div5,
 	&c3_fclk_div7,
-	&c3_gp1_pll_vco,
 	&c3_gp1_pll,
-	&c3_gp0_pll_vco,
 	&c3_gp0_pll,
-	&c3_mclk_pll_vco,
 	&c3_mclk_pll,
 	&c3_mclk_pll_clk,
 	&c3_mclk_0_sel,
@@ -3902,9 +3656,7 @@ static struct clk_regmap *const c3_pll_clk_regmaps[] = {
 	&c3_mclk_1_sel_out,
 	&c3_mclk_1_div2,
 	&c3_mclk_1,
-	&c3_hifi_pll_vco,
 	&c3_hifi_pll,
-	&c3_sys_pll_vco,
 	&c3_sys_pll,
 };
 

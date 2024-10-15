@@ -154,7 +154,7 @@ static struct clk_regmap a1_fixed_pll_dco = {
 		.frac = {
 			.reg_off = ANACTRL_FIXPLL_CTRL1,
 			.shift   = 0,
-			.width   = 19,
+			.width   = 17,
 		},
 		.l = {
 			.reg_off = ANACTRL_FIXPLL_CTRL0,
@@ -166,6 +166,7 @@ static struct clk_regmap a1_fixed_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.flags = CLK_MESON_PLL_READ_ONLY,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll_dco",
@@ -335,28 +336,18 @@ static struct clk_regmap a1_fclk_div7 = {
 	},
 };
 
-/* 614.4M */
 static const struct reg_sequence a1_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x01800000 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00001100 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x10022200 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x00301000 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x01f19480 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x11f19480, .delay_us = 10 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x15f11480, .delay_us = 40 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00001140 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00001100 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x01f18000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL1, .def = 0x0f900000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL2, .def = 0x00001100 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL3, .def = 0x100a1100 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL4, .def = 0x00302000 }
 };
 
-#ifdef CONFIG_ARM
 static const struct pll_params_table a1_hifi_pll_params_table[] = {
-	PLL_PARAMS(128, 5, 0), /* DCO = 614.4M */
+	PLL_PARAMS(40, 2), /* DCO = 491.52M */
+	PLL_PARAMS(37, 2), /* DCO = 451.584M */
 };
-#else
-static const struct pll_params_table a1_hifi_pll_params_table[] = {
-	PLL_PARAMS(128, 5), /* DCO = 614.4M */
-};
-#endif
 
 static struct clk_regmap a1_hifi_pll = {
 	.data = &(struct meson_clk_pll_data){
@@ -378,20 +369,31 @@ static struct clk_regmap a1_hifi_pll = {
 		.frac = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL1,
 			.shift   = 0,
-			.width   = 19,
+			.width   = 17,
 		},
 		.l = {
 			.reg_off = ANACTRL_HIFIPLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
+		.current_en = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift   = 26,
+			.width   = 1,
+		},
+		.l_detect = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL2,
+			.shift   = 6,
+			.width   = 1,
+		},
 		.table = a1_hifi_pll_params_table,
 		.init_regs = a1_hifi_init_regs,
 		.init_count = ARRAY_SIZE(a1_hifi_init_regs),
+		.flags = CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll",
-		.ops = &meson_clk_pll_v3_ops,
+		.ops = &meson_clk_pll_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&xtal_hifipll.hw
 		},
@@ -404,45 +406,6 @@ static struct clk_regmap a1_hifi_pll = {
  * the PLL parameter table is for hifi/sys pll.
  * Additional, there is no OD in A1 PLL.
  */
-#ifdef CONFIG_ARM
-static const struct pll_params_table a1_pll_params_table[] = {
-	PLL_PARAMS(32, 1, 0), /* DCO = 768M */
-	PLL_PARAMS(33, 1, 0), /* DCO = 792M */
-	PLL_PARAMS(34, 1, 0), /* DCO = 816M */
-	PLL_PARAMS(35, 1, 0), /* DCO = 840M */
-	PLL_PARAMS(36, 1, 0), /* DCO = 864M */
-	PLL_PARAMS(37, 1, 0), /* DCO = 888M */
-	PLL_PARAMS(38, 1, 0), /* DCO = 912M */
-	PLL_PARAMS(39, 1, 0), /* DCO = 936M */
-	PLL_PARAMS(40, 1, 0), /* DCO = 960M */
-	PLL_PARAMS(41, 1, 0), /* DCO = 984M */
-	PLL_PARAMS(42, 1, 0), /* DCO = 1008M */
-	PLL_PARAMS(43, 1, 0), /* DCO = 1032M */
-	PLL_PARAMS(44, 1, 0), /* DCO = 1056M */
-	PLL_PARAMS(45, 1, 0), /* DCO = 1080M */
-	PLL_PARAMS(46, 1, 0), /* DCO = 1104M */
-	PLL_PARAMS(47, 1, 0), /* DCO = 1128M */
-	PLL_PARAMS(48, 1, 0), /* DCO = 1152M */
-	PLL_PARAMS(49, 1, 0), /* DCO = 1176M */
-	PLL_PARAMS(50, 1, 0), /* DCO = 1200M */
-	PLL_PARAMS(51, 1, 0), /* DCO = 1224M */
-	PLL_PARAMS(52, 1, 0), /* DCO = 1248M */
-	PLL_PARAMS(53, 1, 0), /* DCO = 1272M */
-	PLL_PARAMS(54, 1, 0), /* DCO = 1296M */
-	PLL_PARAMS(55, 1, 0), /* DCO = 1320M */
-	PLL_PARAMS(56, 1, 0), /* DCO = 1344M */
-	PLL_PARAMS(57, 1, 0), /* DCO = 1368M */
-	PLL_PARAMS(58, 1, 0), /* DCO = 1392M */
-	PLL_PARAMS(59, 1, 0), /* DCO = 1416M */
-	PLL_PARAMS(60, 1, 0), /* DCO = 1440M */
-	PLL_PARAMS(61, 1, 0), /* DCO = 1464M */
-	PLL_PARAMS(62, 1, 0), /* DCO = 1488M */
-	PLL_PARAMS(63, 1, 0), /* DCO = 1512M */
-	PLL_PARAMS(64, 1, 0), /* DCO = 1536M */
-
-	{ /* sentinel */ },
-};
-#else
 static const struct pll_params_table a1_pll_params_table[] = {
 	PLL_PARAMS(32, 1), /* DCO = 768M */
 	PLL_PARAMS(33, 1), /* DCO = 792M */
@@ -480,21 +443,16 @@ static const struct pll_params_table a1_pll_params_table[] = {
 
 	{ /* sentinel */ },
 };
-#endif
 
 /*
  * Internal sys pll emulation configuration parameters
  */
 static const struct reg_sequence a1_sys_init_regs[] = {
+	{ .reg = ANACTRL_SYSPLL_CTRL0,  .def = 0x01f18000 },
 	{ .reg = ANACTRL_SYSPLL_CTRL1,	.def = 0x01800000 },
 	{ .reg = ANACTRL_SYSPLL_CTRL2,	.def = 0x00001100 },
 	{ .reg = ANACTRL_SYSPLL_CTRL3,	.def = 0x10022300 },
-	{ .reg = ANACTRL_SYSPLL_CTRL4,	.def = 0x00300000 },
-	{ .reg = ANACTRL_SYSPLL_CTRL0,  .def = 0x01f18440 },
-	{ .reg = ANACTRL_SYSPLL_CTRL0,  .def = 0x11f18440, .delay_us = 10 },
-	{ .reg = ANACTRL_SYSPLL_CTRL0,	.def = 0x15f18440, .delay_us = 40 },
-	{ .reg = ANACTRL_SYSPLL_CTRL2,	.def = 0x00001140 },
-	{ .reg = ANACTRL_SYSPLL_CTRL2,	.def = 0x00001100 },
+	{ .reg = ANACTRL_SYSPLL_CTRL4,	.def = 0x00300000 }
 };
 
 /*
@@ -517,24 +475,30 @@ static struct clk_regmap a1_sys_pll = {
 			.shift   = 10,
 			.width   = 5,
 		},
-		.frac = {
-			.reg_off = ANACTRL_SYSPLL_CTRL1,
-			.shift   = 0,
-			.width   = 19,
-		},
 		.l = {
 			.reg_off = ANACTRL_SYSPLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
+		.current_en = {
+			.reg_off = ANACTRL_SYSPLL_CTRL0,
+			.shift   = 26,
+			.width   = 1,
+		},
+		.l_detect = {
+			.reg_off = ANACTRL_SYSPLL_CTRL2,
+			.shift   = 6,
+			.width   = 1,
+		},
 		.table = a1_pll_params_table,
 		.init_regs = a1_sys_init_regs,
 		.init_count = ARRAY_SIZE(a1_sys_init_regs),
-		.flags = CLK_MESON_PLL_IGNORE_INIT
+		.flags = CLK_MESON_PLL_FIXED_N |
+			 CLK_MESON_PLL_NOINIT_ENABLED,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
-		.ops = &meson_clk_pll_v3_ops,
+		.ops = &meson_clk_pll_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
 		.flags = CLK_IGNORE_UNUSED,

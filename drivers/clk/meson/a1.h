@@ -89,7 +89,7 @@
 #define CPUCTRL_CLK_CTRL0		0x80
 #define CPUCTRL_CLK_CTRL1		0x84
 
-#include <dt-bindings/clock/a1-clkc.h>
+#include <dt-bindings/clock/amlogic,a1-clkc.h>
 #define NR_CLKS				(BASIC_BASE2 + 20)
 
 #endif /* __A1_H */

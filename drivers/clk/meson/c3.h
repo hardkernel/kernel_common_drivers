@@ -187,7 +187,7 @@
 #define EFUSE_LOCK                         ((0x0126  << 2))
 //========================================================================
 
-#include <dt-bindings/clock/c3-clkc.h>
+#include <dt-bindings/clock/amlogic,c3-clkc.h>
 #define NR_CLKS				(CLKID_END_BASE)
 
 #define SECURE_PLL_CLK			0x82000098

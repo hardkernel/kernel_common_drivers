@@ -6,6 +6,9 @@
 #ifndef __G12A_H
 #define __G12A_H
 
+int g12a_init(void);
+void g12a_exit(void);
+
 /*
  * Clock controller register offsets
  *

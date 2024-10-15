@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef __AMLOGIC_A4_SCMI_CLK_H
-#define __AMLOGIC_A4_SCMI_CLK_H
+#ifndef _DT_BINDINGS_CLOCK_A4_SCMI_CLK_H
+#define _DT_BINDINGS_CLOCK_A4_SCMI_CLK_H
 
 /*
  * CLKID index values
@@ -19,4 +19,4 @@
 #define CLKID_SYS_PLL_DIV16		7
 #define CLKID_CPU_CLK_DIV16		8
 
-#endif /* __AMLOGIC_A4_SCMI_CLK_H */
+#endif /* _DT_BINDINGS_CLOCK_A4_SCMI_CLK_H */

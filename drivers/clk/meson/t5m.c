@@ -20,65 +20,26 @@
 #include "t5m.h"
 #include <dt-bindings/clock/t5m-clkc.h>
 
-static const struct clk_ops meson_pll_clk_no_ops = {};
-
-/*
- * the sys pll DCO value should be 3G~6G,
- * otherwise the sys pll can not lock.
- * od is for 32 bit.
- */
-
-#ifdef CONFIG_ARM
 static const struct pll_params_table t5m_sys_pll_params_table[] = {
-	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=DCO/2=1200M*/
-	PLL_PARAMS(117, 1, 1), /*DCO=2808M OD=DCO/2=1404M*/
-	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=DCO/2=1500M*/
-	PLL_PARAMS(67, 1, 0),  /*DCO=1608M OD=DCO/1=1608M*/
-	PLL_PARAMS(71, 1, 0),  /*DCO=1704M OD=DCO/1=1704M*/
-	PLL_PARAMS(75, 1, 0),  /*DCO=1800M OD=DCO/1=1800M*/
-	PLL_PARAMS(159, 2, 0),  /*DCO=1908M OD=DCO/1=1908M*/
-	PLL_PARAMS(80, 1, 0),  /*DCO=1920M OD=DCO/1=1920M*/
-	PLL_PARAMS(84, 1, 0),  /*DCO=2016M OD=DCO/1=2016M*/
+	PLL_PARAMS_OD(100, 1, 1), /*DCO=2400M OD=DCO/2=1200M*/
+	PLL_PARAMS_OD(117, 1, 1), /*DCO=2808M OD=DCO/2=1404M*/
+	PLL_PARAMS_OD(125, 1, 1), /*DCO=3000M OD=DCO/2=1500M*/
+	PLL_PARAMS_OD(67, 1, 0),  /*DCO=1608M OD=DCO/1=1608M*/
+	PLL_PARAMS_OD(71, 1, 0),  /*DCO=1704M OD=DCO/1=1704M*/
+	PLL_PARAMS_OD(75, 1, 0),  /*DCO=1800M OD=DCO/1=1800M*/
+	PLL_PARAMS_OD(159, 2, 0),  /*DCO=1908M OD=DCO/1=1908M*/
+	PLL_PARAMS_OD(80, 1, 0),  /*DCO=1920M OD=DCO/1=1920M*/
+	PLL_PARAMS_OD(84, 1, 0),  /*DCO=2016M OD=DCO/1=2016M*/
 	{ /* sentinel */ }
 };
-#else
-static const struct pll_params_table t5m_sys_pll_params_table[] = {
-	/*
-	 *  The DCO range of syspll sys1pll on T5M is 1.6G-3.2G
-	 *  OD=0 div=1  1.6G - 3.2G
-	 *  OD=1 div=2  800M - 1.6G
-	 *  OD=2 div=4  400M - 800M
-	 *  OD=3 div=8  200M - 400M
-	 *  OD=4 div=16 100M - 200M
-	 */
-	PLL_PARAMS(100, 1), /*DCO=2400M OD=DCO/2=1200M*/
-	PLL_PARAMS(117, 1), /*DCO=2808M OD=DCO/2=1404M*/
-	PLL_PARAMS(125, 1), /*DCO=3000M OD=DCO/2=1500M*/
-	PLL_PARAMS(67, 1),  /*DCO=1608M OD=DCO/1=1608M*/
-	PLL_PARAMS(71, 1),  /*DCO=1704M OD=DCO/1=1704M*/
-	PLL_PARAMS(75, 1),  /*DCO=1800M OD=DCO/1=1800M*/
-	PLL_PARAMS(159, 2),  /*DCO=1908M OD=DCO/1=1908M*/
-	PLL_PARAMS(80, 1),  /*DCO=1920M OD=DCO/1=1920M*/
-	PLL_PARAMS(84, 1),  /*DCO=2016M OD=DCO/1=2016M*/
-	{ /* sentinel */ }
-};
-#endif
 
-#ifdef CONFIG_ARM
 static const struct pll_params_table t5m_sys1_pll_params_table[] = {
-	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=DCO/2=1200M*/
-	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=DCO/2=1500M*/
+	PLL_PARAMS_OD(100, 1, 1), /*DCO=2400M OD=DCO/2=1200M*/
+	PLL_PARAMS_OD(125, 1, 1), /*DCO=3000M OD=DCO/2=1500M*/
 	{ /* sentinel */ }
 };
-#else
-static const struct pll_params_table t5m_sys1_pll_params_table[] = {
-	PLL_PARAMS(100, 1), /*DCO=2400M OD=DCO/2=1200M*/
-	PLL_PARAMS(125, 1), /*DCO=3000M OD=DCO/2=1500M*/
-	{ /* sentinel */ }
-};
-#endif
 
-static struct clk_regmap t5m_sys_pll_dco = {
+static struct clk_regmap t5m_sys_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_SYS0PLL_CTRL0,
@@ -95,15 +56,11 @@ static struct clk_regmap t5m_sys_pll_dco = {
 			.shift   = 16,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_SYS0PLL_CTRL0,
 			.shift	 = 12,
 			.width	 = 3,
 		},
-#endif
-		.table = t5m_sys_pll_params_table,
 		.l = {
 			.reg_off = ANACTRL_SYS0PLL_CTRL0,
 			.shift   = 31,
@@ -114,12 +71,15 @@ static struct clk_regmap t5m_sys_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = t5m_sys_pll_params_table,
+		.od_max = 4,
 		.smc_id = SECURE_PLL_CLK,
 		.secid_disable = SECID_SYS0_DCO_PLL_DIS,
-		.secid = SECID_SYS0_DCO_PLL
+		.secid = SECID_SYS0_DCO_PLL,
+		.flags = CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll_dco",
+		.name = "sys_pll",
 		.ops = &meson_secure_pll_v2_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
@@ -133,7 +93,7 @@ static struct clk_regmap t5m_sys_pll_dco = {
 	},
 };
 
-static struct clk_regmap t5m_sys1_pll_dco = {
+static struct clk_regmap t5m_sys1_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_SYS1PLL_CTRL0,
@@ -150,14 +110,11 @@ static struct clk_regmap t5m_sys1_pll_dco = {
 			.shift   = 16,
 			.width   = 5,
 		},
-		/* od for 32bit */
-		/* set m, n, od in enable callback when set the same rate */
 		.od = {
 			.reg_off = ANACTRL_SYS1PLL_CTRL0,
 			.shift	 = 12,
 			.width	 = 3,
 		},
-		.table = t5m_sys1_pll_params_table,
 		.l = {
 			.reg_off = ANACTRL_SYS1PLL_CTRL0,
 			.shift   = 31,
@@ -168,12 +125,15 @@ static struct clk_regmap t5m_sys1_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = t5m_sys1_pll_params_table,
+		.od_max = 4,
 		.smc_id = SECURE_PLL_CLK,
 		.secid_disable = SECID_SYS1_DCO_PLL_DIS,
 		.secid = SECID_SYS1_DCO_PLL,
+		.flags = CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "sys1_pll_dco",
+		.name = "sys1_pll",
 		.ops = &meson_secure_pll_v2_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
@@ -196,121 +156,10 @@ static const struct clk_div_table t5m_pll_od_tab[] = {
 	{ /* sentinel */ }
 };
 
-#ifdef CONFIG_ARM
-/*
- * If DCO frequency is greater than 2.1G in 32bit,it will
- * overflow due to the callback .round_rate returns
- *  long (-2147483648 ~ +2147483647).
- * The OD output value is under 2G, For 32bit, the dco and
- * od should be described together to avoid overflow.
- * Beside, I have tried another methods but failed.
- * 1) change the freq unit to kHZ, it will crash (fixed xtal
- *   = 24000) and it will influences clock users.
- * 2) change the return value for .round_rate, a greater many
- *   code will be modified, related to whole CCF.
- * 3) dco pll using kHZ, other clock using HZ, when calculate pll
- *    it will be a lot of mass because of unit difference.
- *
- * Keep Consistent with 64bit, creat a Virtual clock for sys pll
- */
-static struct clk_regmap t5m_sys_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_sys_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys pll is used by cpu clock , it is initialized
-		 * to 1200M in bl2, CLK_IGNORE_UNUSED is needed to
-		 * prevent the system hang up which will be called
-		 * by clk_disable_unused
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
-	},
-};
-
-static struct clk_regmap t5m_sys1_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "sys1_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_sys1_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys1 pll may be initialized in the bootloader
-		 * CLK_IGNORE_UNUSED is needed to prevent the system
-		 * hang up which will be called by clk_disable_unused
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
-	},
-};
-#else
-static struct clk_regmap t5m_sys_pll = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_SYS0PLL_CTRL0,
-		.shift = 12,
-		.width = 3,
-		.table = t5m_pll_od_tab,
-		.smc_id = SECURE_PLL_CLK,
-		.secid = SECID_SYS0_PLL_OD
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll",
-		.ops = &clk_regmap_secure_v2_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_sys_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys pll is used for cpu frequency, the parent
-		 * rate needs to be modified
-		 * Register has the risk of being directly operated
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap t5m_sys1_pll = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_SYS1PLL_CTRL0,
-		.shift = 12,
-		.width = 3,
-		.table = t5m_pll_od_tab,
-		.smc_id = SECURE_PLL_CLK,
-		.secid = SECID_SYS1_PLL_OD
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sys1_pll",
-		.ops = &clk_regmap_secure_v2_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_sys1_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys pll is used for other module, the parent
-		 * rate needs to be modified
-		 * Register has the risk of being directly operated
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-#endif
-
-#ifdef CONFIG_ARM
-static const struct pll_params_table t5m_fix_pll_params_table[] = {
-	PLL_PARAMS(166, 1, 0), /*DCO=3984M OD=DCO/2=1992M*/
-	{ /* sentinel */ }
-};
-
-#else
 static const struct pll_params_table t5m_fix_pll_params_table[] = {
 	PLL_PARAMS(166, 1), /*DCO=3984M OD=DCO/2=1992M*/
 	{ /* sentinel */ }
 };
-#endif
 
 static struct clk_regmap t5m_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -334,11 +183,6 @@ static struct clk_regmap t5m_fixed_pll_dco = {
 			.shift   = 31,
 			.width   = 1,
 		},
-		.od = {
-			.reg_off = ANACTRL_FIXPLL_CTRL0,
-			.shift	 = 12,
-			.width	 = 3,
-		},
 		.rst = {
 			.reg_off = ANACTRL_FIXPLL_CTRL0,
 			.shift   = 29,
@@ -347,7 +191,8 @@ static struct clk_regmap t5m_fixed_pll_dco = {
 		.table = t5m_fix_pll_params_table,
 		.smc_id = SECURE_PLL_CLK,
 		.secid_disable = SECID_FIX_DCO_PLL_DIS,
-		.secid = SECID_FIX_DCO_PLL
+		.secid = SECID_FIX_DCO_PLL,
+		.flags = CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll_dco",
@@ -364,25 +209,6 @@ static struct clk_regmap t5m_fixed_pll_dco = {
 	},
 };
 
-#ifdef CONFIG_ARM
-static struct clk_regmap t5m_fixed_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "fixed_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_fixed_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys pll is used by cpu clock , it is initialized
-		 * to 1200M in bl2, CLK_IGNORE_UNUSED is needed to
-		 * prevent the system hang up which will be called
-		 * by clk_disable_unused
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
-	},
-};
-#else
 static struct clk_regmap t5m_fixed_pll = {
 	.data = &(struct clk_regmap_div_data) {
 		.offset = ANACTRL_FIXPLL_CTRL0,
@@ -407,7 +233,6 @@ static struct clk_regmap t5m_fixed_pll = {
 		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
 	},
 };
-#endif
 
 static struct clk_fixed_factor t5m_fclk_div2_div = {
 	.mult = 1,
@@ -567,20 +392,12 @@ static struct clk_regmap t5m_fclk_div2p5 = {
 	},
 };
 
-#ifdef CONFIG_ARM
 static const struct pll_params_table t5m_gp0_pll_table[] = {
-	PLL_PARAMS(128, 1, 2), /* DCO = 3072M OD = 2 PLL = 768M */
-	PLL_PARAMS(96, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
-	PLL_PARAMS(128, 1, 1), /* DCO = 3072M OD = 1 PLL = 1536M */
+	PLL_PARAMS_OD(128, 1, 2), /* DCO = 3072M OD = 2 PLL = 768M */
+	PLL_PARAMS_OD(96, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
+	PLL_PARAMS_OD(128, 1, 1), /* DCO = 3072M OD = 1 PLL = 1536M */
 	{ /* sentinel */  }
 };
-#else
-static const struct pll_params_table t5m_gp0_pll_table[] = {
-	PLL_PARAMS(128, 1), /* DCO = 3072M OD = 2 PLL = 768M */
-	PLL_PARAMS(96, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
-	{ /* sentinel */  }
-};
-#endif
 
 /*
  * Internal gp0 pll emulation configuration parameters
@@ -591,7 +408,7 @@ static const struct reg_sequence t5m_gp0_init_regs[] = {
 	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x090da200 },
 };
 
-static struct clk_regmap t5m_gp0_pll_dco = {
+static struct clk_regmap t5m_gp0_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_GP0PLL_CTRL0,
@@ -608,14 +425,11 @@ static struct clk_regmap t5m_gp0_pll_dco = {
 			.shift   = 16,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* for 32bit */
 		.od = {
 			.reg_off = ANACTRL_GP0PLL_CTRL0,
 			.shift	 = 10,
 			.width	 = 3,
 		},
-#endif
 		.l = {
 			.reg_off = ANACTRL_GP0PLL_CTRL0,
 			.shift   = 31,
@@ -627,11 +441,13 @@ static struct clk_regmap t5m_gp0_pll_dco = {
 			.width   = 1,
 		},
 		.table = t5m_gp0_pll_table,
+		.od_max = 4,
 		.init_regs = t5m_gp0_init_regs,
 		.init_count = ARRAY_SIZE(t5m_gp0_init_regs),
+		.flags = CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "gp0_pll_dco",
+		.name = "gp0_pll",
 		.ops = &meson_clk_pll_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
@@ -643,44 +459,6 @@ static struct clk_regmap t5m_gp0_pll_dco = {
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
-
-#ifdef CONFIG_ARM
-static struct clk_regmap t5m_gp0_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "gp0_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_gp0_pll_dco.hw
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-#else
-static struct clk_regmap t5m_gp0_pll = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_GP0PLL_CTRL0,
-		.shift = 10,
-		.width = 3,
-		.table = t5m_pll_od_tab,
-		.flags = CLK_DIVIDER_ROUND_CLOSEST,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "gp0_pll",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_gp0_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * gpo pll is directly used in other modules, and the
-		 * parent rate needs to be modified
-		 * Register has the risk of being directly operated.
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-#endif
 
 /* a55 cpu_clk, get the table from ucode */
 static const struct cpu_dyn_table t5m_cpu_dyn_table[] = {
@@ -901,7 +679,7 @@ static const struct pll_mult_range t5m_hifi_pll_mult_range = {
 	.max = 125,
 };
 
-static struct clk_regmap t5m_hifi_pll_dco = {
+static struct clk_regmap t5m_hifi_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
@@ -917,6 +695,11 @@ static struct clk_regmap t5m_hifi_pll_dco = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
 			.shift   = 0,
 			.width   = 8,
+		},
+		.od = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift   = 10,
+			.width   = 3,
 		},
 		.frac = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL1,
@@ -934,12 +717,14 @@ static struct clk_regmap t5m_hifi_pll_dco = {
 			.width   = 1,
 		},
 		.range = &t5m_hifi_pll_mult_range,
+		.od_max = 4,
 		.init_regs = t5m_hifi_init_regs,
 		.init_count = ARRAY_SIZE(t5m_hifi_init_regs),
-		.flags = CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
+		.flags = CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
+			 CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "hifi_pll_dco",
+		.name = "hifi_pll",
 		.ops = &meson_clk_pll_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
@@ -949,32 +734,13 @@ static struct clk_regmap t5m_hifi_pll_dco = {
 	},
 };
 
-static struct clk_regmap t5m_hifi_pll = {
-	.data = &(struct clk_regmap_div_data) {
-		.offset = ANACTRL_HIFIPLL_CTRL0,
-		.shift = 10,
-		.width = 3,
-		.table = t5m_pll_od_tab,
-		.flags = CLK_DIVIDER_ROUND_CLOSEST
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "hifi_pll",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_hifi_pll_dco.hw
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-
 static const struct reg_sequence t5m_hifi1_init_regs[] = {
 	{ .reg = ANACTRL_HIFI1PLL_CTRL1, .def = 0x03a00000 },
 	{ .reg = ANACTRL_HIFI1PLL_CTRL2, .def = 0x00040000 },
 	{ .reg = ANACTRL_HIFI1PLL_CTRL3, .def = 0x0b0da200 },
 };
 
-static struct clk_regmap t5m_hifi1_pll_dco = {
+static struct clk_regmap t5m_hifi1_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = ANACTRL_HIFI1PLL_CTRL0,
@@ -990,6 +756,11 @@ static struct clk_regmap t5m_hifi1_pll_dco = {
 			.reg_off = ANACTRL_HIFI1PLL_CTRL0,
 			.shift   = 0,
 			.width   = 8,
+		},
+		.od = {
+			.reg_off = ANACTRL_HIFI1PLL_CTRL0,
+			.shift   = 10,
+			.width   = 3,
 		},
 		.frac = {
 			.reg_off = ANACTRL_HIFI1PLL_CTRL1,
@@ -1012,32 +783,13 @@ static struct clk_regmap t5m_hifi1_pll_dco = {
 		.flags = CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "hifi1_pll_dco",
+		.name = "hifi1_pll",
 		.ops = &meson_clk_pll_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
-	},
-};
-
-static struct clk_regmap t5m_hifi1_pll = {
-	.data = &(struct clk_regmap_div_data) {
-		.offset = ANACTRL_HIFI1PLL_CTRL0,
-		.shift = 10,
-		.width = 3,
-		.table = t5m_pll_od_tab,
-		.flags = CLK_DIVIDER_ROUND_CLOSEST
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "hifi1_pll",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_hifi1_pll_dco.hw
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5091,9 +4843,7 @@ static MESON_t5m_SYS_GATE(t5m_sys_clk_tcon,		CLKCTRL_SYS_CLK_EN0_REG3, 12);
 /* Array of all clocks provided by this provider */
 static struct clk_hw_onecell_data t5m_hw_onecell_data = {
 	.hws = {
-		[CLKID_SYS_PLL_DCO]			= &t5m_sys_pll_dco.hw,
 		[CLKID_SYS_PLL]				= &t5m_sys_pll.hw,
-		[CLKID_SYS1_PLL_DCO]			= &t5m_sys1_pll_dco.hw,
 		[CLKID_SYS1_PLL]			= &t5m_sys1_pll.hw,
 		[CLKID_FIXED_PLL_DCO]			= &t5m_fixed_pll_dco.hw,
 		[CLKID_FIXED_PLL]			= &t5m_fixed_pll.hw,
@@ -5109,16 +4859,13 @@ static struct clk_hw_onecell_data t5m_hw_onecell_data = {
 		[CLKID_FCLK_DIV7]			= &t5m_fclk_div7.hw,
 		[CLKID_FCLK_DIV2P5_DIV]			= &t5m_fclk_div2p5_div.hw,
 		[CLKID_FCLK_DIV2P5]			= &t5m_fclk_div2p5.hw,
-		[CLKID_GP0_PLL_DCO]			= &t5m_gp0_pll_dco.hw,
 		[CLKID_GP0_PLL]				= &t5m_gp0_pll.hw,
 		[CLKID_CPU_DYN_CLK]			= &t5m_cpu_dyn_clk.hw,
 		[CLKID_CPU_CLK]				= &t5m_cpu_clk.hw,
 		[CLKID_DSU_DYN_CLK]			= &t5m_dsu_dyn_clk.hw,
 		[CLKID_DSU_PRE_CLK]			= &t5m_dsu_pre_clk.hw,
 		[CLKID_DSU_CLK]				= &t5m_dsu_clk.hw,
-		[CLKID_HIFI_PLL_DCO]			= &t5m_hifi_pll_dco.hw,
 		[CLKID_HIFI_PLL]			= &t5m_hifi_pll.hw,
-		[CLKID_HIFI1_PLL_DCO]			= &t5m_hifi1_pll_dco.hw,
 		[CLKID_HIFI1_PLL]			= &t5m_hifi1_pll.hw,
 		[CLKID_MPLL_50M_DIV]			= &t5m_mpll_50m_div.hw,
 		[CLKID_MPLL_50M]			= &t5m_mpll_50m.hw,
@@ -5688,9 +5435,7 @@ static struct clk_regmap *const t5m_cpu_clk_regmaps[] = {
 };
 
 static struct clk_regmap *const t5m_pll_clk_regmaps[] = {
-	&t5m_sys_pll_dco,
 	&t5m_sys_pll,
-	&t5m_sys1_pll_dco,
 	&t5m_sys1_pll,
 	&t5m_fixed_pll_dco,
 	&t5m_fixed_pll,
@@ -5700,11 +5445,8 @@ static struct clk_regmap *const t5m_pll_clk_regmaps[] = {
 	&t5m_fclk_div5,
 	&t5m_fclk_div7,
 	&t5m_fclk_div2p5,
-	&t5m_gp0_pll_dco,
 	&t5m_gp0_pll,
-	&t5m_hifi_pll_dco,
 	&t5m_hifi_pll,
-	&t5m_hifi1_pll_dco,
 	&t5m_hifi1_pll,
 	&t5m_mpll_50m,
 };

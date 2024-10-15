@@ -482,9 +482,9 @@
 		status = "disabled";
 		#io-channel-cells = <1>;
 		clocks = <&scmi_clk CLKID_OSC>,
-			 <&clkc CLKID_SYS_CLK_SAR_ADC>,
-			 <&clkc CLKID_SARADC>,
-			 <&clkc CLKID_SARADC_SEL>;
+			 <&clkc CLKID_SYS_SAR_ADC>,
+			 <&clkc CLKID_SAR_ADC>,
+			 <&clkc CLKID_SAR_ADC_MUX>;
 		clock-names = "clkin", "core",
 			      "adc_clk", "adc_sel";
 		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
@@ -568,7 +568,7 @@
 				compatible = "amlogic,meson-a4-spicc-v2";
 				reg = <0x0 0x50000 0x0 0x38>;
 				interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clkc CLKID_SYS_CLK_SPICC_0>,
+				clocks = <&clkc CLKID_SYS_SPICC_0>,
 					 <&clkc CLKID_SPICC0>;
 				clock-names = "sys", "spi";
 				assigned-clocks = <&clkc CLKID_SPICC0>;
@@ -582,7 +582,7 @@
 				compatible = "amlogic,meson-a4-spicc-v2";
 				reg = <0x0 0x50100 0x0 0x38>;
 				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clkc CLKID_SYS_CLK_SPICC_1>,
+				clocks = <&clkc CLKID_SYS_SPICC_1>,
 					 <&clkc CLKID_SPICC1>;
 				clock-names = "sys", "spi";
 				#address-cells = <1>;
@@ -595,8 +595,8 @@
 				reg = <0x0 0x58000 0x0 0x24>,
 					  <0x0 0x180 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_A_SEL>,
-						<&clkc CLKID_PWM_B_SEL>;
+				clocks = <&clkc CLKID_PWM_A_MUX>,
+						<&clkc CLKID_PWM_B_MUX>;
 				clock-names = "clkin0", "clkin1";
 				status = "disabled";
 			};
@@ -606,8 +606,8 @@
 				reg = <0x0 0x5a000 0x0 0x24>,
 					  <0x0 0x184 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_C_SEL>,
-						<&clkc CLKID_PWM_D_SEL>;
+				clocks = <&clkc CLKID_PWM_C_MUX>,
+						<&clkc CLKID_PWM_D_MUX>;
 				clock-names = "clkin0", "clkin1";
 				status = "disabled";
 			};
@@ -617,8 +617,8 @@
 				reg = <0x0 0x5c000 0x0 0x24>,
 					  <0x0 0x188 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_E_SEL>,
-						<&clkc CLKID_PWM_F_SEL>;
+				clocks = <&clkc CLKID_PWM_E_MUX>,
+						<&clkc CLKID_PWM_F_MUX>;
 				clock-names = "clkin0", "clkin1";
 				status = "okay";
 			};
@@ -628,8 +628,8 @@
 				reg = <0x0 0x5e000 0x0 0x24>,
 					  <0x0 0x18c 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_G_SEL>,
-						<&clkc CLKID_PWM_H_SEL>;
+				clocks = <&clkc CLKID_PWM_G_MUX>,
+						<&clkc CLKID_PWM_H_MUX>;
 				clock-names = "clkin0", "clkin1";
 				status = "disabled";
 			};
@@ -640,7 +640,7 @@
 				interrupts = <GIC_SPI 160 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_SYS_CLK_I2C_M_A>;
+				clocks = <&clkc CLKID_SYS_I2C_M_A>;
 				status = "disabled";
 			};
 
@@ -650,7 +650,7 @@
 				interrupts = <GIC_SPI 161 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_SYS_CLK_I2C_M_B>;
+				clocks = <&clkc CLKID_SYS_I2C_M_B>;
 				status = "disabled";
 			};
 
@@ -660,7 +660,7 @@
 				interrupts = <GIC_SPI 162 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_SYS_CLK_I2C_M_C>;
+				clocks = <&clkc CLKID_SYS_I2C_M_C>;
 				status = "disabled";
 			};
 
@@ -670,7 +670,7 @@
 				interrupts = <GIC_SPI 163 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_SYS_CLK_I2C_M_D>;
+				clocks = <&clkc CLKID_SYS_I2C_M_D>;
 				status = "disabled";
 			};
 
@@ -690,9 +690,9 @@
 				compatible = "amlogic,g12a-mdio-mux";
 				reg = <0x0 0x28000 0x0 0xa4>;
 
-				clocks = <&clkc CLKID_SYS_CLK_ETH_PHY>,
+				clocks = <&clkc CLKID_SYS_ETH_PHY>,
 					 <&xtal>,
-					 <&clkc CLKID_MPLL_50M>;
+					 <&clkc CLKID_FCLK50M>;
 				clock-names = "pclk", "clkin0", "clkin1";
 				mdio-parent-bus = <&mdio0>;
 				#address-cells = <1>;
@@ -784,7 +784,7 @@
 			usb-reset-bit = <4>;
 			reset-level = <0x40>;
 			pwr-ctl = <0>;
-			clocks = <&clkc CLKID_SYS_CLK_USB>;
+			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 			phy-id = <0>;
 			usb-phy-trim-reg = <0xfe010330>;
@@ -822,7 +822,7 @@
 			cpu-type = "gxl";
 			clock-src = "usb3.0";
 
-			clocks = <&clkc CLKID_SYS_CLK_USB>;
+			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 		};
 
@@ -847,7 +847,7 @@
 			usb-reset-bit = <4>;
 			reset-level = <0x40>;
 			pwr-ctl = <0>;
-			clocks = <&clkc CLKID_SYS_CLK_USB>;
+			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 			phy-id = <1>;
 			usb-phy-trim-reg = <0xfe010330>;
@@ -874,7 +874,7 @@
 			cpu-type = "gxl";
 			clock-src = "usb3.0";
 
-			clocks = <&clkc CLKID_SYS_CLK_USB>;
+			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 		};
 
@@ -888,7 +888,7 @@
 			port-speed = <3>; /** 0: default, high, 1: full */
 			phy-reg = <0xfe03a000>;
 			phy-reg-size = <0xa0>;
-			clocks = <&clkc CLKID_SYS_CLK_USB>;
+			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "usb_general";
 			phy-id = <1>;
 			version = <1>;
@@ -1047,9 +1047,9 @@
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			//power-domains = <&pwrdm PDID_A5_EMMC>;
-			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
-				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
-				 <&clkc CLKID_SD_EMMC_C_CLK>,
+			clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
+				<&clkc CLKID_SD_EMMC_C_MUX>,
+				 <&clkc CLKID_SD_EMMC_C>,
 				 <&scmi_clk CLKID_OSC>,
 				 <&clkc CLKID_GP0_PLL>,
 				 <&clkc CLKID_GP0_PLL>;
@@ -1079,8 +1079,8 @@
 			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			//clocks = <&clkc CLKID_SD_EMMC_B>,
-			//	<&clkc CLKID_SD_EMMC_B_CLK_MUX>,
-			//	 <&clkc CLKID_SD_EMMC_B_CLK>,
+			//	<&clkc CLKID_SD_EMMC_B_MUX>,
+			//	 <&clkc CLKID_SD_EMMC_B>,
 			//	 <&scmi_clk CLKID_OSC>,
 			//	 <&clkc CLKID_FCLK_DIV2>;
 			//clock-names = "core", "mux0", "mux1",
@@ -1098,9 +1098,9 @@
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			//power-domains = <&pwrdm PDID_A5_SDIOA>;
-			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCA>,
-				<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
-				 <&clkc CLKID_SD_EMMC_A_CLK>,
+			clocks = <&clkc CLKID_SYS_SD_EMMC_A>,
+				<&clkc CLKID_SD_EMMC_A_MUX>,
+				 <&clkc CLKID_SD_EMMC_A>,
 				 <&scmi_clk CLKID_OSC>,
 				 <&clkc CLKID_GP0_PLL>;
 			clock-names = "core", "mux0", "mux1",
@@ -1120,7 +1120,7 @@
 			reg = <0x0 0xfe08d000 0x0 0x200>;
 			interrupts = <GIC_SPI 175 IRQ_TYPE_EDGE_RISING>;
 			/* share gate of sysclk with EMMC_C */
-			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
+			clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
 					<&clkc CLKID_FCLK_DIV2>;
 			clock-names = "gate", "fdiv2pll";
 			nand_clk_ctrl = <0xfe08c000>;
@@ -1134,7 +1134,7 @@
 			reg = <0x0 0xfe08d000 0x0 0x200>,
 			      <0x0 0xfe08c000 0x0 0xc>,
 			      <0x0 0xfe010180 0x0 0x4>;
-			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
+			clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
 					<&clkc CLKID_FCLK_DIV2>;
 			clock-names = "gate", "fdiv2pll";
 			nand_clk_ctrl = <0xfe08c000>;
@@ -1151,9 +1151,9 @@
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			//power-domains = <&pwrdm PDID_A5_ETH>;
-			clocks = <&clkc CLKID_SYS_CLK_ETH_MAC>,
+			clocks = <&clkc CLKID_SYS_ETH_MAC>,
 				 <&clkc CLKID_FCLK_DIV2>,
-				 <&clkc CLKID_MPLL_50M>;
+				 <&clkc CLKID_FCLK50M>;
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
@@ -1173,7 +1173,7 @@
 			interrupts = <0 168 1>;
 			status = "disabled";
 			clocks = <&xtal
-				&clkc CLKID_SYS_CLK_UART_A>;
+				&clkc CLKID_SYS_UART_A>;
 			clock-names = "clk_uart",
 				"clk_gate";
 			fifosize = < 64 >;
@@ -1187,7 +1187,7 @@
 			reg = <0x0 0xfe07e000 0x0 0x18>;
 			interrupts = <0 171 1>;
 			clocks = <&xtal
-				&clkc CLKID_SYS_CLK_UART_D>;
+				&clkc CLKID_SYS_UART_D>;
 			clock-names = "clk_uart",
 					"clk_gate";
 			fifosize = < 64 >;
@@ -1201,7 +1201,7 @@
 			reg = <0x0 0xfe080000 0x0 0x18>;
 			interrupts = <0 172 1>;
 			clocks = <&xtal
-				&clkc CLKID_SYS_CLK_UART_E>;
+				&clkc CLKID_SYS_UART_E>;
 			clock-names = "clk_uart",
 					"clk_gate";
 			fifosize = < 64 >;
@@ -1404,7 +1404,7 @@
 		cal_coeff = <324 424 3159 9411>;
 		rtemp = <110000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc CLKID_TS_CLK>;
+		clocks = <&clkc CLKID_TS>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";

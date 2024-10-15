@@ -5,7 +5,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/clock/c3-clkc.h>
+#include <dt-bindings/clock/amlogic,c3-clkc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-c3-gpio.h>
 #include <dt-bindings/clock/amlogic,c3-audio-clk.h>

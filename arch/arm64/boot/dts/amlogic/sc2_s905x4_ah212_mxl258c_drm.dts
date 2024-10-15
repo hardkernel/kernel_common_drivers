@@ -468,7 +468,7 @@
  *		pinctrl-9 = <&iso7816_pin_data_m_2_l>;
  */
 
-		clocks = <&clkc CLKID_SC_CLK_GATE>;
+		clocks = <&clkc CLKID_SC>;
 		clock-names = "smartcard";
 		/* For NSK2 Smartcard
 		 * clocks = <&clkc CLKID_MPLL0>;

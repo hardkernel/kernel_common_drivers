@@ -20,41 +20,24 @@
 #include "txhd2.h"
 #include <dt-bindings/clock/txhd2-clkc.h>
 
-static const struct clk_ops meson_pll_clk_no_ops = {};
-
 /*
  * the sys pll DCO value should be 3G~6G,
  * otherwise the sys pll can not lock.
  * od is for 32 bit.
  */
 
-#ifdef CONFIG_ARM
 static const struct pll_params_table txhd2_sys_pll_params_table[] = {
-	PLL_PARAMS(42, 0, 0), /*DCO=1008M OD=1008M*/
-	PLL_PARAMS(50, 0, 0), /*DCO=1200M OD=1200M*/
-	PLL_PARAMS(54, 0, 0), /*DCO=1296M OD=1296M*/
-	PLL_PARAMS(58, 0, 0), /*DCO=1392M OD=1392M*/
-	PLL_PARAMS(59, 0, 0), /*DCO=1416M OD=1416M*/
-	PLL_PARAMS(61, 0, 0), /*DCO=1464M OD=1464M*/
-	PLL_PARAMS(62, 0, 0), /*DCO=1488M OD=1488M*/
-	PLL_PARAMS(63, 0, 0), /*DCO=1512M OD=1512M*/
-	PLL_PARAMS(67, 0, 0), /*DCO=1608M OD=1608M*/
+	PLL_PARAMS_OD(42, 0, 0), /*DCO=1008M OD=1008M*/
+	PLL_PARAMS_OD(50, 0, 0), /*DCO=1200M OD=1200M*/
+	PLL_PARAMS_OD(54, 0, 0), /*DCO=1296M OD=1296M*/
+	PLL_PARAMS_OD(58, 0, 0), /*DCO=1392M OD=1392M*/
+	PLL_PARAMS_OD(59, 0, 0), /*DCO=1416M OD=1416M*/
+	PLL_PARAMS_OD(61, 0, 0), /*DCO=1464M OD=1464M*/
+	PLL_PARAMS_OD(62, 0, 0), /*DCO=1488M OD=1488M*/
+	PLL_PARAMS_OD(63, 0, 0), /*DCO=1512M OD=1512M*/
+	PLL_PARAMS_OD(67, 0, 0), /*DCO=1608M OD=1608M*/
 	{ /* sentinel */ },
 };
-#else
-static const struct pll_params_table txhd2_sys_pll_params_table[] = {
-	PLL_PARAMS(42, 0), /*DCO=1008M OD=1008M*/
-	PLL_PARAMS(50, 0), /*DCO=1200M OD=1200M*/
-	PLL_PARAMS(54, 0), /*DCO=1296M OD=1296M*/
-	PLL_PARAMS(58, 0), /*DCO=1392M OD=1392M*/
-	PLL_PARAMS(59, 0), /*DCO=1416M OD=1416M*/
-	PLL_PARAMS(61, 0), /*DCO=1464M OD=1464M*/
-	PLL_PARAMS(62, 0), /*DCO=1488M OD=1488M*/
-	PLL_PARAMS(63, 0), /*DCO=1512M OD=1512M*/
-	PLL_PARAMS(67, 0), /*DCO=1608M OD=1608M*/
-	{ /* sentinel */ },
-};
-#endif
 
 static const struct reg_sequence txhd2_sys_pll_init_regs[] = {
 	{ .reg = HHI_SYS_PLL_CNTL0,	.def = 0x61000043 },
@@ -66,7 +49,7 @@ static const struct reg_sequence txhd2_sys_pll_init_regs[] = {
 	{ .reg = HHI_SYS_PLL_CNTL2,	.def = 0x00001100 },
 };
 
-static struct clk_regmap txhd2_sys_pll_dco = {
+static struct clk_regmap txhd2_sys_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = HHI_SYS_PLL_CNTL0,
@@ -83,17 +66,11 @@ static struct clk_regmap txhd2_sys_pll_dco = {
 			.shift   = 16,
 			.width   = 2,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = HHI_SYS_PLL_CNTL0,
 			.shift	 = 12,
 			.width	 = 2,
 		},
-#endif
-		.table = txhd2_sys_pll_params_table,
-		.init_regs = txhd2_sys_pll_init_regs,
-		.init_count = ARRAY_SIZE(txhd2_sys_pll_init_regs),
 		.l = {
 			.reg_off = HHI_SYS_PLL_CNTL0,
 			.shift   = 31,
@@ -109,10 +86,15 @@ static struct clk_regmap txhd2_sys_pll_dco = {
 			.shift   = 24,
 			.width   = 1,
 		},
-		.flags = CLK_MESON_PLL_POWER_OF_TWO,
+		.table = txhd2_sys_pll_params_table,
+		.od_max = 3,
+		.init_regs = txhd2_sys_pll_init_regs,
+		.init_count = ARRAY_SIZE(txhd2_sys_pll_init_regs),
+		.flags = CLK_MESON_PLL_POWER_OF_TWO |
+			 CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll_dco",
+		.name = "sys_pll",
 		.ops = &meson_clk_pll_v3_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
@@ -125,65 +107,6 @@ static struct clk_regmap txhd2_sys_pll_dco = {
 		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
 	},
 };
-
-#ifdef CONFIG_ARM
-/*
- * If DCO frequency is greater than 2.1G in 32bit,it will
- * overflow due to the callback .round_rate returns
- *  long (-2147483648 ~ +2147483647).
- * The OD output value is under 2G, For 32bit, the dco and
- * od should be described together to avoid overflow.
- * Beside, I have tried another methods but failed.
- * 1) change the freq unit to kHZ, it will crash (fixed xtal
- *   = 24000) and it will influences clock users.
- * 2) change the return value for .round_rate, a greater many
- *   code will be modified, related to whole CCF.
- * 3) dco pll using kHZ, other clock using HZ, when calculate pll
- *    it will be a lot of mass because of unit differences.
- *
- * Keep Consistent with 64bit, creat a Virtual clock for sys pll
- */
-static struct clk_regmap txhd2_sys_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&txhd2_sys_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys pll is used by cpu clock , it is initialized
-		 * to 1200M in bl2, CLK_IGNORE_UNUSED is needed to
-		 * prevent the system hang up which will be called
-		 * by clk_disable_unused
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
-	},
-};
-#else
-static struct clk_regmap txhd2_sys_pll = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = HHI_SYS_PLL_CNTL0,
-		.shift = 12,
-		.width = 2,
-		.flags = CLK_DIVIDER_POWER_OF_TWO,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&txhd2_sys_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys pll is used for cpu frequency, the parent
-		 * rate needs to be modified
-		 * Register has the risk of being directly operated
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-#endif
 
 static struct clk_regmap txhd2_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -212,6 +135,7 @@ static struct clk_regmap txhd2_fixed_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.flags = CLK_MESON_PLL_READ_ONLY,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll_dco",
@@ -490,25 +414,14 @@ static struct clk_regmap txhd2_mpll_50m = {
 	},
 };
 
-#ifdef CONFIG_ARM
 static const struct pll_params_table txhd2_gp0_pll_table[] = {
-	// PLL_PARAMS(48, 0, 2), /* DCO = 1152M OD = 2 PLL = 288M */
-	// PLL_PARAMS(62, 0, 1), /* DCO = 1488M OD = 1 PLL = 744M */
-	// PLL_PARAMS(48, 0, 0), /* DCO = 1152M OD = 0 PLL = 1152M */
-	PLL_PARAMS(62, 0, 0), /* DCO = 1488M OD = 0 PLL = 1488M */
+	// PLL_PARAMS_OD(48, 0, 2), /* DCO = 1152M OD = 2 PLL = 288M */
+	// PLL_PARAMS_OD(62, 0, 1), /* DCO = 1488M OD = 1 PLL = 744M */
+	// PLL_PARAMS_OD(48, 0, 0), /* DCO = 1152M OD = 0 PLL = 1152M */
+	PLL_PARAMS_OD(62, 0, 0), /* DCO = 1488M OD = 0 PLL = 1488M */
 
 	{ /* sentinel */  }
 };
-#else
-static const struct pll_params_table txhd2_gp0_pll_table[] = {
-	PLL_PARAMS(35, 0), /* DCO = 840M OD = 0 PLL = 840M */
-	PLL_PARAMS(33, 0), /* DCO = 792M OD = 0 PLL = 792M */
-	PLL_PARAMS(31, 0), /* DCO = 744M OD = 0 PLL = 744M */
-	PLL_PARAMS(32, 0), /* DCO = 768M OD = 0 PLL = 768M */
-	PLL_PARAMS(48, 0), /* DCO = 1152M OD = 0 PLL = 1152M */
-	{ /* sentinel */  }
-};
-#endif
 
 /*
  * Internal gp0 pll emulation configuration parameters
@@ -523,7 +436,7 @@ static const struct reg_sequence txhd2_gp0_init_regs[] = {
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x00001100 }
 };
 
-static struct clk_regmap txhd2_gp0_pll_dco = {
+static struct clk_regmap txhd2_gp0_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = HHI_GP0_PLL_CNTL0,
@@ -540,14 +453,11 @@ static struct clk_regmap txhd2_gp0_pll_dco = {
 			.shift   = 16,
 			.width   = 2,
 		},
-#ifdef CONFIG_ARM
-		/* for 32bit */
 		.od = {
 			.reg_off = HHI_GP0_PLL_CNTL0,
 			.shift	 = 12,
 			.width	 = 2,
 		},
-#endif
 		.l = {
 			.reg_off = HHI_GP0_PLL_CNTL0,
 			.shift   = 31,
@@ -564,12 +474,14 @@ static struct clk_regmap txhd2_gp0_pll_dco = {
 			.width   = 1,
 		},
 		.table = txhd2_gp0_pll_table,
+		.od_max = 3,
 		.init_regs = txhd2_gp0_init_regs,
 		.init_count = ARRAY_SIZE(txhd2_gp0_init_regs),
-		.flags = CLK_MESON_PLL_POWER_OF_TWO,
+		.flags = CLK_MESON_PLL_POWER_OF_TWO |
+			 CLK_MESON_PLL_FIXED_N,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "gp0_pll_dco",
+		.name = "gp0_pll",
 		.ops = &meson_clk_pll_v3_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
@@ -581,44 +493,6 @@ static struct clk_regmap txhd2_gp0_pll_dco = {
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
-
-#ifdef CONFIG_ARM
-static struct clk_regmap txhd2_gp0_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "gp0_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&txhd2_gp0_pll_dco.hw
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-#else
-static struct clk_regmap txhd2_gp0_pll = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = HHI_GP0_PLL_CNTL0,
-		.shift = 12,
-		.width = 3,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "gp0_pll",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&txhd2_gp0_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * gpo pll is directly used in other modules, and the
-		 * parent rate needs to be modified
-		 * Register has the risk of being directly operated.
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-#endif
 
 static const struct pll_mult_range txhd2__hifi_pll_mult_range = {
 	.min = 20,
@@ -638,7 +512,7 @@ static const struct reg_sequence txhd2_hifi_init_regs[] = {
 	{ .reg = HHI_HIFI_PLL_CNTL2,	.def = 0x09001900 },
 };
 
-static struct clk_regmap txhd2_hifi_pll_dco = {
+static struct clk_regmap txhd2_hifi_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = HHI_HIFI_PLL_CNTL0,
@@ -655,18 +529,15 @@ static struct clk_regmap txhd2_hifi_pll_dco = {
 			.shift   = 16,
 			.width   = 2,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = HHI_HIFI_PLL_CNTL0,
 			.shift	 = 12,
 			.width	 = 2,
 		},
-#endif
 		.frac = {
 			.reg_off = HHI_HIFI_PLL_CNTL3,
 			.shift   = 0,
-			.width   = 19,
+			.width   = 17,
 		},
 		.l = {
 			.reg_off = HHI_HIFI_PLL_CNTL0,
@@ -683,15 +554,17 @@ static struct clk_regmap txhd2_hifi_pll_dco = {
 			.shift   = 24,
 			.width   = 1,
 		},
-		.fixed_n = 3,
 		.range = &txhd2__hifi_pll_mult_range,
+		.od_max = 3,
 		.init_regs = txhd2_hifi_init_regs,
 		.init_count = ARRAY_SIZE(txhd2_hifi_init_regs),
-		.flags = CLK_MESON_PLL_ROUND_CLOSEST | CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
-			CLK_MESON_PLL_POWER_OF_TWO | CLK_MESON_PLL_FIXED_N
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST |
+			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
+			 CLK_MESON_PLL_POWER_OF_TWO,
+
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "hifi_pll_dco",
+		.name = "hifi_pll",
 		.ops = &meson_clk_pll_v3_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&txhd2_fclk_div5.hw
@@ -703,50 +576,6 @@ static struct clk_regmap txhd2_hifi_pll_dco = {
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
-
-#ifdef CONFIG_ARM
-static struct clk_regmap txhd2_hifi_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "hifi_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&txhd2_hifi_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys pll is used by cpu clock , it is initialized
-		 * to 1200M in bl2, CLK_IGNORE_UNUSED is needed to
-		 * prevent the system hang up which will be called
-		 * by clk_disable_unused
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
-	},
-};
-#else
-static struct clk_regmap txhd2_hifi_pll = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = HHI_HIFI_PLL_CNTL0,
-		.shift = 12,
-		.width = 2,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "hifi_pll",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&txhd2_hifi_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * hifi pll is directly used in other modules, and the
-		 * parent rate needs to be modified
-		 * Register has the risk of being directly operated.
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-#endif
 
 static const struct reg_sequence txhd2_hifi1_init_regs[] = {
 	{ .reg = HHI_HIFI1_PLL_CNTL0,	.def = 0x61030024 },
@@ -758,7 +587,7 @@ static const struct reg_sequence txhd2_hifi1_init_regs[] = {
 	{ .reg = HHI_HIFI1_PLL_CNTL2,	.def = 0x09001100 },
 };
 
-static struct clk_regmap txhd2_hifi1_pll_dco = {
+static struct clk_regmap txhd2_hifi1_pll = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
 			.reg_off = HHI_HIFI1_PLL_CNTL0,
@@ -775,18 +604,15 @@ static struct clk_regmap txhd2_hifi1_pll_dco = {
 			.shift   = 16,
 			.width   = 2,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = HHI_HIFI1_PLL_CNTL0,
 			.shift	 = 12,
 			.width	 = 2,
 		},
-#endif
 		.frac = {
 			.reg_off = HHI_HIFI1_PLL_CNTL3,
 			.shift   = 0,
-			.width   = 19,
+			.width   = 17,
 		},
 		.l = {
 			.reg_off = HHI_HIFI1_PLL_CNTL0,
@@ -803,15 +629,16 @@ static struct clk_regmap txhd2_hifi1_pll_dco = {
 			.shift   = 24,
 			.width   = 1,
 		},
-		.fixed_n = 3,
 		.range = &txhd2__hifi_pll_mult_range,
+		.od_max = 3,
 		.init_regs = txhd2_hifi1_init_regs,
 		.init_count = ARRAY_SIZE(txhd2_hifi1_init_regs),
-		.flags = CLK_MESON_PLL_ROUND_CLOSEST | CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
-			CLK_MESON_PLL_POWER_OF_TWO | CLK_MESON_PLL_FIXED_N
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST |
+			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
+			 CLK_MESON_PLL_POWER_OF_TWO
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "hifi1_pll_dco",
+		.name = "hifi1_pll",
 		.ops = &meson_clk_pll_v3_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&txhd2_fclk_div5.hw
@@ -823,50 +650,6 @@ static struct clk_regmap txhd2_hifi1_pll_dco = {
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
-
-#ifdef CONFIG_ARM
-static struct clk_regmap txhd2_hifi1_pll = {
-	.hw.init = &(struct clk_init_data){
-		.name = "hifi1_pll",
-		.ops = &meson_pll_clk_no_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&txhd2_hifi1_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * sys pll is used by cpu clock , it is initialized
-		 * to 1200M in bl2, CLK_IGNORE_UNUSED is needed to
-		 * prevent the system hang up which will be called
-		 * by clk_disable_unused
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
-	},
-};
-#else
-static struct clk_regmap txhd2_hifi1_pll = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = HHI_HIFI1_PLL_CNTL0,
-		.shift = 12,
-		.width = 2,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "hifi1_pll",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&txhd2_hifi1_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * hifi pll is directly used in other modules, and the
-		 * parent rate needs to be modified
-		 * Register has the risk of being directly operated.
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
-	},
-};
-#endif
 
 static const struct cpu_dyn_table txhd2_cpu_dyn_table[] = {
 	CPU_LOW_PARAMS(100000000, 1, 1, 9),
@@ -3078,13 +2861,9 @@ static struct clk_hw_onecell_data txhd2_hw_onecell_data = {
 		[CLKID_FCLK_DIV2P5]		= &txhd2_fclk_div2p5.hw,
 		[CLKID_MPLL_50M_DIV]		= &txhd2_mpll_50m_div.hw,
 		[CLKID_MPLL_50M]		= &txhd2_mpll_50m.hw,
-		[CLKID_SYS_PLL_DCO]		= &txhd2_sys_pll_dco.hw,
 		[CLKID_SYS_PLL]			= &txhd2_sys_pll.hw,
-		[CLKID_GP0_PLL_DCO]		= &txhd2_gp0_pll_dco.hw,
 		[CLKID_GP0_PLL]			= &txhd2_gp0_pll.hw,
-		[CLKID_HIFI_PLL_DCO]		= &txhd2_hifi_pll_dco.hw,
 		[CLKID_HIFI_PLL]		= &txhd2_hifi_pll.hw,
-		[CLKID_HIFI1_PLL_DCO]		= &txhd2_hifi1_pll_dco.hw,
 		[CLKID_HIFI1_PLL]		= &txhd2_hifi1_pll.hw,
 		[CLKID_CPU_CLK_DYN]		= &txhd2_cpu_dyn_clk.hw,
 		[CLKID_CPU_CLK]			= &txhd2_cpu_clk.hw,
@@ -3396,13 +3175,9 @@ static struct clk_regmap *const txhd2_cpu_clk_regmaps[] __initconst = {
 	&txhd2_fclk_div7,
 	&txhd2_fclk_div2p5,
 	&txhd2_mpll_50m,
-	&txhd2_sys_pll_dco,
 	&txhd2_sys_pll,
-	&txhd2_gp0_pll_dco,
 	&txhd2_gp0_pll,
-	&txhd2_hifi_pll_dco,
 	&txhd2_hifi_pll,
-	&txhd2_hifi1_pll_dco,
 	&txhd2_hifi1_pll,
 	&txhd2_cpu_dyn_clk,
 	&txhd2_cpu_clk,

@@ -110,7 +110,7 @@
 #define CPUCTRL_CLK_CTRL5		0x14
 #define CPUCTRL_CLK_CTRL6		0x18
 
-#include <dt-bindings/clock/c2-clkc.h>
+#include <dt-bindings/clock/amlogic,c2-clkc.h>
 #define NR_CLKS				(CLKID_END_BASE)
 
 #endif /* __C2_H */
