@@ -301,7 +301,10 @@ bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 		if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
 			return true;
 
-		if (devp->prop.dv_unique_drm_flag) {
+		if (vdin_dv_is_hw2(devp) && devp->prop.color_format == TVIN_YUV420 &&
+			devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT) {
+			devp->bypass_tunnel = true;
+		} else if (devp->prop.dv_unique_drm_flag) {
 			if ((devp->prop.color_format == TVIN_YUV420 ||
 				devp->prop.color_format == TVIN_YUV422) &&
 				devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT)
@@ -326,6 +329,32 @@ bool vdin_dv_is_sink_led(struct vdin_dev_s *devp)
 {
 	if (devp->dv.dv_flag && !devp->dv_is_not_std &&
 	    devp->prop.color_format == TVIN_RGB444)
+		return true;
+	else
+		return false;
+}
+
+bool vdin_dv_is_source_led(struct vdin_dev_s *devp)
+{
+	if (devp->dv.dv_flag && (devp->prop.color_format == TVIN_YUV422 ||
+		devp->prop.color_format == TVIN_YUV420) &&
+	    devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT)
+		return true;
+	else
+		return false;
+}
+
+bool vdin_dv_is_hw2(struct vdin_dev_s *devp)
+{
+	if (devp->dtdata->hw_ver != VDIN_HW_T3X && devp->prop.dv_unique_drm_flag)
+		return true;
+	else
+		return false;
+}
+
+bool vdin_dv_is_hw5(struct vdin_dev_s *devp)
+{
+	if (devp->dtdata->hw_ver == VDIN_HW_T3X && devp->prop.dv_unique_drm_flag)
 		return true;
 	else
 		return false;

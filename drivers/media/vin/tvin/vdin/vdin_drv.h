@@ -629,6 +629,7 @@ struct vdin_debug_s {
 	unsigned int dbg_sct_ctl;
 	unsigned int dbg_wrmif_444;
 	unsigned int dbg_de_interlanced_ctl;
+	unsigned int dbg_force_convert;
 	unsigned short scaling4h;/* for vertical scaling */
 	unsigned short scaling4w;/* for horizontal scaling */
 	unsigned short dest_cfmt;/* for color fmt conversion */
