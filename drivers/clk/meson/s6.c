@@ -7,7 +7,9 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/module.h>
+#ifdef CONFIG_AMLOGIC_CLK_DEBUG
 #include <linux/clkdev.h>
+#endif
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 
@@ -3998,10 +4000,6 @@ static struct clk_regmap eth_clk125m = {
 	},
 };
 
-static const struct clk_parent_data ts_parent_data[] = {
-	{ .fw_name = "xtal" }
-};
-
 static struct clk_regmap ts_div = {
 	.data = &(struct clk_regmap_div_data) {
 		.offset = CLKCTRL_TS_CLK_CTRL,
@@ -4011,7 +4009,9 @@ static struct clk_regmap ts_div = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "ts_div",
 		.ops = &clk_regmap_divider_ops,
-		.parent_data = ts_parent_data,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal"
+		},
 		.num_parents = 1,
 	},
 };
@@ -4807,7 +4807,7 @@ static struct clk_regmap gen_div = {
 static struct clk_regmap gen = {
 	.data = &(struct clk_regmap_gate_data) {
 		.offset = CLKCTRL_GEN_CLK_CTRL,
-		.bit_idx = 20,
+		.bit_idx = 11,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "gen",
@@ -4831,40 +4831,6 @@ struct clk_regmap _name = {                                           \
 		.ops = &clk_regmap_gate_ops,                          \
 		.parent_data = &(const struct clk_parent_data) {      \
 			.fw_name = "sys_clk"                          \
-		},                                                    \
-		.num_parents = 1,                                     \
-		.flags = CLK_IGNORE_UNUSED,                           \
-	},                                                            \
-}
-
-#define MESON_CLK_GATE_HW(_name, _reg, _bit, _parent_hw)              \
-struct clk_regmap _name = {                                           \
-	.data = &(struct clk_regmap_gate_data) {                      \
-		.offset = (_reg),                                     \
-		.bit_idx = (_bit),                                    \
-	},                                                            \
-	.hw.init = &(struct clk_init_data) {                          \
-		.name = #_name,                                       \
-		.ops = &clk_regmap_gate_ops,                          \
-		.parent_hws = (const struct clk_hw *[]) {             \
-			&(_parent_hw)                                 \
-		},                                                    \
-		.num_parents = 1,                                     \
-		.flags = CLK_IGNORE_UNUSED,                           \
-	},                                                            \
-}
-
-#define MESON_CLK_GATE_AXI_CLK(_name, _reg, _bit)                     \
-struct clk_regmap _name = {                                           \
-	.data = &(struct clk_regmap_gate_data) {                      \
-		.offset = (_reg),                                     \
-		.bit_idx = (_bit),                                    \
-	},                                                            \
-	.hw.init = &(struct clk_init_data) {                          \
-		.name = #_name,                                       \
-		.ops = &clk_regmap_gate_ops,                          \
-		.parent_data = &(const struct clk_parent_data) {      \
-			.fw_name = "axi_clk"                          \
 		},                                                    \
 		.num_parents = 1,                                     \
 		.flags = CLK_IGNORE_UNUSED,                           \
@@ -4908,6 +4874,24 @@ MESON_CLK_GATE_SYS_CLK(sys_usb2drd, CLKCTRL_SYS_CLK_EN0_REG1, 26);
 MESON_CLK_GATE_SYS_CLK(sys_pcie_phy, CLKCTRL_SYS_CLK_EN0_REG1, 27);
 MESON_CLK_GATE_SYS_CLK(sys_pcie_mac, CLKCTRL_SYS_CLK_EN0_REG1, 28);
 MESON_CLK_GATE_SYS_CLK(sys_i2c_m_a, CLKCTRL_SYS_CLK_EN0_REG1, 30);
+
+#define MESON_CLK_GATE_HW(_name, _reg, _bit, _parent_hw)              \
+struct clk_regmap _name = {                                           \
+	.data = &(struct clk_regmap_gate_data) {                      \
+		.offset = (_reg),                                     \
+		.bit_idx = (_bit),                                    \
+	},                                                            \
+	.hw.init = &(struct clk_init_data) {                          \
+		.name = #_name,                                       \
+		.ops = &clk_regmap_gate_ops,                          \
+		.parent_hws = (const struct clk_hw *[]) {             \
+			&(_parent_hw)                                 \
+		},                                                    \
+		.num_parents = 1,                                     \
+		.flags = CLK_IGNORE_UNUSED,                           \
+	},                                                            \
+}
+
 MESON_CLK_GATE_HW(sys_i2c_m_b, CLKCTRL_SYS_CLK_EN0_REG1, 31, sys_i2c_m_a.hw);
 MESON_CLK_GATE_HW(sys_i2c_m_c, CLKCTRL_SYS_CLK_EN0_REG2, 0, sys_i2c_m_a.hw);
 MESON_CLK_GATE_HW(sys_i2c_m_d, CLKCTRL_SYS_CLK_EN0_REG2, 1, sys_i2c_m_a.hw);
@@ -4937,6 +4921,24 @@ MESON_CLK_GATE_HW(sys_pwm_d, CLKCTRL_SYS_CLK_EN0_REG3, 4, sys_pwm_a.hw);
 MESON_CLK_GATE_HW(sys_pwm_c, CLKCTRL_SYS_CLK_EN0_REG3, 5, sys_pwm_a.hw);
 MESON_CLK_GATE_HW(sys_pwm_b, CLKCTRL_SYS_CLK_EN0_REG3, 6, sys_pwm_a.hw);
 MESON_CLK_GATE_SYS_CLK(sys_pwm_a, CLKCTRL_SYS_CLK_EN0_REG3, 7);
+
+#define MESON_CLK_GATE_AXI_CLK(_name, _reg, _bit)                     \
+struct clk_regmap _name = {                                           \
+	.data = &(struct clk_regmap_gate_data) {                      \
+		.offset = (_reg),                                     \
+		.bit_idx = (_bit),                                    \
+	},                                                            \
+	.hw.init = &(struct clk_init_data) {                          \
+		.name = #_name,                                       \
+		.ops = &clk_regmap_gate_ops,                          \
+		.parent_data = &(const struct clk_parent_data) {      \
+			.fw_name = "axi_clk"                          \
+		},                                                    \
+		.num_parents = 1,                                     \
+		.flags = CLK_IGNORE_UNUSED,                           \
+	},                                                            \
+}
+
 MESON_CLK_GATE_AXI_CLK(axi_ao_nic, CLKCTRL_AXI_CLK_EN0, 0);
 MESON_CLK_GATE_AXI_CLK(axi_sram, CLKCTRL_AXI_CLK_EN0, 1);
 MESON_CLK_GATE_AXI_CLK(axi_dev0_mmc, CLKCTRL_AXI_CLK_EN0, 2);
