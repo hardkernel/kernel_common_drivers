@@ -52,6 +52,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	ledtrig-gpio.ko
 	ledtrig-heartbeat.ko
 	ledtrig-oneshot.ko
+	aml-gpiomem.ko
 )
 
 VENDOR_MODULES_LOAD_FIRST_LIST=(
