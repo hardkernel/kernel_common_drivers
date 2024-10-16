@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/tee_demux.h>
 #include <linux/amlogic/cpu_version.h>
@@ -226,7 +227,6 @@ static ssize_t get_chip_version(char *buf)
 		total = sprintf(buf, "chip:%x-%x, dmx:%d\n", cpu_type, minor_type, version);
 
 	pr_dbg("version:%s", buf);
-
 	return total;
 }
 
@@ -986,6 +986,60 @@ static void aml_dvb_shutdown(struct platform_device *dev)
 	frontend_control_tsin_clk(0);
 }
 
+#ifdef CONFIG_HIBERNATION
+static int aml_dvb_restore(struct platform_device *pdev)
+{
+	int tsn_in_reg = 0;
+	int times = 0;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	pr_dbg("restore amlogic dvb driver [%s].\n", DVB_VERSION);
+	do {
+	} while (!tsout_get_ready() && times++ < 20);
+
+	frontend_probe(pdev);
+	if (tsn_in == INPUT_DEMOD)
+		tsn_in_reg = 1;
+
+	//set demod/local
+	demux_config_pipeline(tsn_in_reg, tsn_out);
+	frontend_config_ts_sid();
+	if (advb->ts_clone) {
+		if (cpu_type == MESON_CPU_MAJOR_ID_SC2) {
+			if (minor_type == 0xd)
+				tsn_source_force_set(INPUT_LOCAL);
+		} else {
+			tsn_source_force_set(INPUT_DEMOD);
+		}
+	}
+	pr_dbg("restore dvb done\n");
+	return 0;
+}
+
+static int aml_dvb_platform_freeze(struct device *dev)
+{
+	struct pinctrl *pin;
+
+	pin = devm_pinctrl_get_select(dev, "sleep");
+	dprint("dvb freeze\n");
+	return 0;
+}
+
+static int aml_dvb_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	aml_dvb_restore(pdev);
+	dprint("dvb restore\n");
+	return 0;
+}
+
+static const struct dev_pm_ops aml_dvb_pm_ops = {
+	.freeze = aml_dvb_platform_freeze,
+	.restore = aml_dvb_platform_restore,
+};
+#endif
+
 struct platform_driver aml_dvb_driver = {
 	.probe = aml_dvb_probe,
 	.remove = aml_dvb_remove,
@@ -997,6 +1051,9 @@ struct platform_driver aml_dvb_driver = {
 		   .owner = THIS_MODULE,
 #ifdef CONFIG_OF
 		   .of_match_table = aml_dvb_dt_match,
+#endif
+#ifdef CONFIG_HIBERNATION
+		.pm = &aml_dvb_pm_ops,
 #endif
 	}
 };
