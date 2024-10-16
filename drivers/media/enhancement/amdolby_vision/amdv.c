@@ -7867,7 +7867,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				vf->bitdepth, vf->source_type, vf->type);
 
 		/*check vsem_if_buf */
-		if (vsem_if_size &&
+		if (!dv_unique_drm && vsem_if_size &&
 			vsem_if_buf[0] != 0x81) {
 			/*not vsif, continue to check vsem*/
 			if (!(vsem_if_buf[0] == 0x7F &&
@@ -7918,14 +7918,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				else
 					src_chroma_format = 1;
 			}
-			if (vf->bitdepth & BITDEPTH_Y8) {
-				if (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL)
-					src_bdp = 8;
-				else
-					src_bdp = 12;
-			} else if (vf->bitdepth & BITDEPTH_Y10) {
-				src_bdp = 10;
-			}
+			src_bdp = 12;
 			src_format = FORMAT_DOVI_LL;
 			req.aux_size = 0;
 			req.aux_buf = NULL;
@@ -11291,6 +11284,8 @@ int amdv_wait_metadata_v1(struct vframe_s *vf)
 			else
 				check_format = FORMAT_DOVI;
 			ret = 0;
+		} else if (is_dv_unique_drm(vf)) {
+			check_format = FORMAT_DOVI_LL;
 		} else if (is_primesl_frame(vf)) {
 			check_format = FORMAT_PRIMESL;
 		} else if (is_hdr10_frame(vf)) {
@@ -11459,13 +11454,12 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 			else
 				check_format = FORMAT_DOVI;
 			ret = 0;
+		} else if (is_dv_unique_drm(vf)) {
+			check_format = FORMAT_DOVI_LL;
 		} else if (is_primesl_frame(vf)) {
 			check_format = FORMAT_PRIMESL;
 		} else if (is_hdr10_frame(vf)) {
-			if (is_dv_unique_drm(vf))
-				check_format = FORMAT_DOVI_LL;
-			else
-				check_format = FORMAT_HDR10;
+			check_format = FORMAT_HDR10;
 		} else if (is_hlg_frame(vf)) {
 			check_format = FORMAT_HLG;
 		} else if (is_hdr10plus_frame(vf)) {

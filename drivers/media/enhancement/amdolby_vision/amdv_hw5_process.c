@@ -2060,7 +2060,8 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			}
 			src_format = FORMAT_DOVI;
 		} else if (dv_unique_drm) {
-			if (vf->type & VIDTYPE_VIU_444) {
+			if ((vf->type & VIDTYPE_VIU_444) ||
+				(vf->type & VIDTYPE_RGB_444)) {
 				if (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL)
 					src_chroma_format = 3;
 				else
@@ -2614,7 +2615,6 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 	} else {
 		tv_hw5_setting->top1_stats.enable = false;
 	}
-
 	v_inst_info->src_format = src_format;
 	v_inst_info->input_mode = input_mode;
 	v_inst_info->video_width = w;
@@ -2722,13 +2722,12 @@ int amdv_wait_metadata_hw5(struct vframe_s *vf)
 		if (ret) {
 			check_format = FORMAT_DOVI;
 			ret = 0;
+		} else if (is_dv_unique_drm(vf)) {
+			check_format = FORMAT_DOVI_LL;
 		} else if (is_primesl_frame(vf)) {
 			check_format = FORMAT_PRIMESL;
 		} else if (is_hdr10_frame(vf)) {
-			if (is_dv_unique_drm(vf))
-				check_format = FORMAT_DOVI_LL;
-			else
-				check_format = FORMAT_HDR10;
+			check_format = FORMAT_HDR10;
 		} else if (is_hlg_frame(vf)) {
 			check_format = FORMAT_HLG;
 		} else if (is_hdr10plus_frame(vf)) {
