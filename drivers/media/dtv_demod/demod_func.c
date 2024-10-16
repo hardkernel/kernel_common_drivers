@@ -2360,7 +2360,11 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 					 AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
 					 ADC_2S_COMPLEMENT_WID);
-			front_write_bits(TEST_BUS, 1, DC_ARB_EN_BIT, DC_ARB_EN_WID);
+
+			/* T5M and after is set at tune. */
+			if (devp->data->hw_ver < DTVDEMOD_HW_T5M)
+				front_write_bits(TEST_BUS, 1, DC_ARB_EN_BIT, DC_ARB_EN_WID);
+
 			/* set cfg_agc_sel bit[20+0]: dtmb */
 			if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
 				demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x100000);

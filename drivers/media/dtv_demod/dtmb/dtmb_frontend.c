@@ -394,6 +394,9 @@ int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 	int times;
 	/*[0]: spectrum inverse(1),normal(0); [1]:if_frequency*/
 	unsigned int tuner_freq[2] = {0};
+	unsigned int front_0x38 = 0, front_0x39 = 0;
+	unsigned int abus_en_dly = 0, dc_arb_enable = 0;
+	int retry_count = 2;
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
@@ -417,6 +420,45 @@ int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 
 		if (is_meson_t3_cpu() && is_meson_rev_b())
 			t3_revb_set_ambus_state(false, false);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M)) {
+		front_0x38 = front_read_reg(DEMOD_FRONT_REG38);
+		front_0x39 = front_read_reg(DEMOD_FRONT_REG39);
+		PR_INFO("before 0x38 %#x, 0x39 %#x\n",
+				front_0x38, front_0x39);
+		dc_arb_enable = front_0x39 & 0x40000000;
+		if (dc_arb_enable) {
+			//0x39[29], enable abus_en delay logic
+			front_write_bits(DEMOD_FRONT_REG39, 0x1, 29, 1);
+			//0x39[30], set dc_arb_enable = 0
+			front_write_bits(DEMOD_FRONT_REG39, 0x0, 30, 1);
+
+			//0x38[31], when read abus_en_dly = 0,
+			//then continue the following flow of closing demod.
+			front_0x38 = front_read_reg(DEMOD_FRONT_REG38);
+			abus_en_dly = front_0x38 & 0x80000000;
+			PR_INFO("after 0x38 %#x, abus_en_dly %#x\n",
+					front_0x38, abus_en_dly);
+			while (abus_en_dly && retry_count--) {
+				msleep(20);
+				abus_en_dly = front_read_reg(DEMOD_FRONT_REG38) & 0x80000000;
+				PR_INFO("retry_count %d, 0x38 %#x\n", retry_count,
+					front_read_reg(DEMOD_FRONT_REG38));
+			}
+
+			//0x39[29], disable abus_en delay logic
+			front_write_bits(DEMOD_FRONT_REG39, 0x0, 29, 1);
+
+			if (abus_en_dly) {
+				PR_ERR("abus_en_dly ERROR!\n");
+
+				abus_en_dly = front_read_reg(DEMOD_FRONT_REG38) & 0x80000000;
+				PR_INFO("after disable abus_en_dly_en, abus_en_dly %#x\n",
+						abus_en_dly);
+			}
+		}
+
+		//0x39[30], set dc_arb_enable = 1
+		front_write_bits(DEMOD_FRONT_REG39, 0x1, 30, 1);
 	}
 
 	tuner_set_params(fe);

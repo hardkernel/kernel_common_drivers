@@ -185,6 +185,7 @@
 /*  V3.6.005 fix dvbs band scan progress issue */
 /*  V3.6.006 fix mplp init state */
 /*  V3.6.007 fix atsc signal check failed */
+/*  V3.6.008 fix ambus setting when enter dtmb */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -201,8 +202,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.007"
-#define DTVDEMOD_VER	"2024/10/15: fix atsc signal check failed"
+#define AMLDTVDEMOD_VER "V3.6.008"
+#define DTVDEMOD_VER	"2024/10/16: fix ambus setting when enter dtmb"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

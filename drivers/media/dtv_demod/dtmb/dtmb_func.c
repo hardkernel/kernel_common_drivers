@@ -408,23 +408,22 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 	if ((dtmb_reg_r_bch() - fec_bch_add) >= 50) {
 		PR_DTMB("%s\n", info1);
 
-		if (devp->data->hw_ver == DTVDEMOD_HW_T3 ||
-				devp->data->hw_ver == DTVDEMOD_HW_T5M) {
+		if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
 			value_before = dtmb_read_reg(0x7);
 			PR_INFO("dtmb set ddr\n");
 			dtmb_write_reg(0x7, 0x6ffffd);
 			//dtmb_write_reg(0x47, 0xed33221);
 			dtmb_write_reg_bits(0x47, 0x1, 22, 1);
 			dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+
+			msleep(20);
 		}
-		msleep(20);
 
 		sw_rst.b.ctrl_sw_rst = 1;
 		sw_rst.b.ctrl_sw_rst_noreg = 1;
 		dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 
-		if (devp->data->hw_ver == DTVDEMOD_HW_T3 ||
-				devp->data->hw_ver == DTVDEMOD_HW_T5M) {
+		if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
 			clear_ddr_bus_data(demod);
 			dtmb_write_reg(0x7, value_before);
 			dtmb_write_reg_bits(0x47, 0x0, 22, 1);
