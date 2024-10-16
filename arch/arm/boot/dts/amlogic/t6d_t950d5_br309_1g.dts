@@ -416,7 +416,7 @@
 		compatible = "amlogic,unifykey";
 		status = "okay";
 
-		unifykey-num = <13>;
+		unifykey-num = <14>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -430,6 +430,7 @@
 		unifykey-index-10 = <&keysn_10>;
 		unifykey-index-11 = <&keysn_11>;
 		unifykey-index-12 = <&keysn_12>;
+		unifykey-index-13 = <&keysn_13>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -495,6 +496,11 @@
 		};
 		keysn_12:key_12{
 			key-name = "oemkey";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_13:key_13{
+			key-name = "model_name";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
