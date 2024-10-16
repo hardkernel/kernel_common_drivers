@@ -6147,8 +6147,8 @@ static int amlvideo2_vb2ops_buffer_prepare(struct vb2_buffer *vb)
 
 	vb2_set_plane_payload(vb, 0, size);
 	if (amlvideo2_dbg_en & 0x10)
-		pr_info("buf prepare idx:%d bufs:%d planes:%d queue_cnt:%d, buf sts:%s\n",
-			vb->index, vb2_q->num_buffers,
+		pr_info("buf prepare idx:%d max_bufs:%d planes:%d queue_cnt:%d, buf sts:%s\n",
+			vb->index, vb2_q->max_num_buffers,
 			vb->num_planes, vb2_q->queued_count,
 			vb2_buf_sts_to_str(vb->state));
 
@@ -6266,7 +6266,7 @@ static int amlvideo2_v4l2_queue_init(struct amlvideo2_device *aml2_dev, struct v
 	vb2_q->ops = &amlvideo2_vb2ops;
 	vb2_q->mem_ops = &vb2_dma_contig_memops;
 	vb2_q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	vb2_q->min_buffers_needed = 1;
+	vb2_q->min_queued_buffers = 1;
 	vb2_q->lock = &aml2_dev->q_lock;
 
 	ret = vb2_queue_init(vb2_q);
@@ -7061,7 +7061,7 @@ static int __init amlvideo2_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-static int amlvideo2_drv_remove(struct platform_device *pdev)
+static void amlvideo2_drv_remove(struct platform_device *pdev)
 {
 	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
 	struct amlvideo2_device *vid_dev = container_of(v4l2_dev,
@@ -7075,7 +7075,6 @@ static int amlvideo2_drv_remove(struct platform_device *pdev)
 	v4l2_device_unregister(v4l2_dev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(vid_dev);
-	return 0;
 }
 
 static const struct of_device_id amlvideo2_dt_match[] = {
