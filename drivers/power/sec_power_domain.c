@@ -8,6 +8,9 @@
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/amlogic/power_domain.h>
+#include <linux/pm.h>
+#include <linux/syscore_ops.h>
+#include <linux/suspend.h>
 #include <dt-bindings/power/a1-pd.h>
 #include <dt-bindings/power/cx-pd.h>
 #include <dt-bindings/power/sc2-pd.h>
@@ -881,6 +884,73 @@ static struct sec_pm_domain_data c3_pm_domain_data __initdata = {
 
 #endif
 
+static int hib_enable;
+static struct genpd_onecell_data *sec_pd_onecell_data;
+
+static void pd_power_on(struct generic_pm_domain *genpd)
+{
+	struct gpd_link *link;
+	struct sec_pm_domain *pd = to_sec_pm_domain(genpd);
+
+	if (pwr_ctrl_status_psci_smc(pd->private_domain->pd_index) == 0)
+		return;
+
+	list_for_each_entry(link, &genpd->child_links, child_node) {
+		struct generic_pm_domain *parent = link->parent;
+
+		pd_power_on(parent);
+	}
+
+	sec_pm_domain_power_on(genpd);
+}
+
+static void restore_power_domain(void)
+{
+	int i;
+
+	for (i = 0; i < sec_pd_onecell_data->num_domains; i++) {
+		if (sec_pd_onecell_data->domains[i]->status == GENPD_STATE_ON)
+			pd_power_on(sec_pd_onecell_data->domains[i]);
+	}
+}
+
+static int pd_syscore_suspend(void)
+{
+	return 0;
+}
+
+static void pd_syscore_resume(void)
+{
+	if (hib_enable)
+		restore_power_domain();
+}
+
+static struct syscore_ops pd_syscore_ops = {
+	.suspend	= pd_syscore_suspend,
+	.resume		= pd_syscore_resume,
+};
+
+static int pd_pm_notify(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		hib_enable = 1;
+		break;
+	case PM_POST_HIBERNATION:
+		hib_enable = 0;
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block pd_pm_nb = {
+	.notifier_call = pd_pm_notify,
+};
+
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
@@ -888,7 +958,6 @@ static int sec_pd_probe(struct platform_device *pdev)
 	struct sec_pm_domain *pd;
 	int init_status;
 	const struct sec_pm_domain_data *match;
-	struct genpd_onecell_data *sec_pd_onecell_data;
 
 	match = of_device_get_match_data(&pdev->dev);
 	if (!match) {
@@ -964,6 +1033,14 @@ static int sec_pd_probe(struct platform_device *pdev)
 
 	ret = of_genpd_add_provider_onecell(pdev->dev.of_node,
 					    sec_pd_onecell_data);
+
+	/* register syscore ops to restore domain status at std */
+	register_syscore_ops(&pd_syscore_ops);
+	/*
+	 * register pm notify, distinguish between std and str, and ensure
+	 * that syscore_ops is called only when std is used.
+	 */
+	register_pm_notifier(&pd_pm_nb);
 
 	if (ret)
 		goto out;
