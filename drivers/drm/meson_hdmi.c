@@ -1278,6 +1278,14 @@ static int meson_hdmitx_get_hdcp_request(struct am_hdmi_tx *tx,
 	unsigned int hdcp_tx_type = tx_dev->get_tx_hdcp_cap();
 	unsigned int hdcp_rx_type = am_hdmi_info.hdcp_rx_type;
 
+	/*
+	 * for bootup case, some project not have tee notify to load hdcp key,
+	 * need to get rx_cap by hdmitx api.
+	 * for hotplug case, rx_cap is updated in hpd callback.
+	 */
+	if (hdcp_rx_type == 0)
+		hdcp_rx_type = tx_dev->get_rx_hdcp_cap();
+
 	DRM_INFO("%s usr_type: %d, hdcp cap: %d,%d\n",
 			__func__, request_type_mask,
 			hdcp_tx_type, hdcp_rx_type);

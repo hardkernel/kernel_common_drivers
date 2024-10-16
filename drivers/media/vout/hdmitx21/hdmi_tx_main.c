@@ -105,6 +105,7 @@ static void tee_comm_dev_unreg(struct hdmitx_dev *hdev);
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev);
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
+static void drm_hdmitx_start_hdcp_handler(struct work_struct *work);
 /*
  * Normally, after the HPD in or late resume, there will reading EDID, and
  * notify application to select a hdmi mode output. But during the mode
@@ -4946,6 +4947,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* hdcp related work scheduled in system workqueue */
 	INIT_DELAYED_WORK(&hdev->work_start_hdcp, hdmitx_start_hdcp_handler);
 	INIT_DELAYED_WORK(&hdev->work_up_hdcp_timeout, hdmitx_up_hdcp_timeout_handler);
+	/* for linux start hdcp */
+	INIT_DELAYED_WORK(&hdev->work_drm_start_hdcp, drm_hdmitx_start_hdcp_handler);
 	/* interrupt handler need to be scheduled in high priority */
 	hdev->hdmi_intr_wq = alloc_workqueue("hdmitx_intr_wq", WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
 	INIT_DELAYED_WORK(&hdev->work_internal_intr, hdmitx_top_intr_handler);
@@ -5333,18 +5336,13 @@ void __exit amhdmitx21_exit(void)
 
 /*************DRM connector API**************/
 /* hdcp functions */
-/*
- * should sync with hdmitx21_enable_hdcp() and hdmitx_start_hdcp_handler()
- * hdmi mode setting/hdcp enable or disable should be mutexed.
- * time delay may be needed after hdmi mode setting and before hdcp enable
- * so that hdcp auth is conducted under TV signal detection stable.
- */
-static void drm_hdmitx_hdcp_enable(int hdcp_type)
+static void drm_hdmitx_start_hdcp_handler(struct work_struct *work)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
+		struct hdmitx_dev, work_drm_start_hdcp);
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-	HDMITX_INFO("%s: %d\n", __func__, hdcp_type);
+	HDMITX_INFO("%s: %d\n", __func__, hdev->tx_comm.hdcp_mode);
 	if (!hdev->tx_comm.ready || !hdev->tx_comm.hpd_state) {
 		HDMITX_ERROR("%s hdmitx ready:%d. hpd: %d, skip hdcp auth\n",
 			__func__, hdev->tx_comm.ready, hdev->tx_comm.hpd_state);
@@ -5356,31 +5354,46 @@ static void drm_hdmitx_hdcp_enable(int hdcp_type)
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
-	switch (hdcp_type) {
+	switch (hdev->tx_comm.hdcp_mode) {
 	case HDCP_NULL:
 		HDMITX_ERROR("%s enabled HDCP_NULL\n", __func__);
 		break;
 	case HDCP_MODE14:
-		/*
-		 * hdcp1.4 auth may pass->fail->pass as hdmi signal detection
-		 * need some time on TV side, so need postpone auth time to
-		 * wait TV side signal detection stable
-		 */
-		msleep(100);
-		hdmitx21_ctrl_hdcp_gate(1, true);
-		hdev->tx_comm.hdcp_mode = 0x1;
-		hdcp_mode_set(1);
-		break;
 	case HDCP_MODE22:
-		hdmitx21_ctrl_hdcp_gate(2, true);
-		hdev->tx_comm.hdcp_mode = 0x2;
-		hdcp_mode_set(2);
+		hdmitx21_ctrl_hdcp_gate(hdev->tx_comm.hdcp_mode, true);
+		hdcp_mode_set(hdev->tx_comm.hdcp_mode);
 		break;
 	default:
-		HDMITX_ERROR("%s unknown hdcp %d\n", __func__, hdcp_type);
+		HDMITX_ERROR("%s unknown hdcp %d\n", __func__, hdev->tx_comm.hdcp_mode);
 		break;
 	};
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+}
+
+/*
+ * should sync with hdmitx21_enable_hdcp() and hdmitx_start_hdcp_handler()
+ * hdmi mode setting/hdcp enable or disable should be mutexed.
+ * time delay may be needed after hdmi mode setting and before hdcp enable
+ * so that hdcp auth is conducted under TV signal detection stable.
+ */
+static void drm_hdmitx_hdcp_enable(int hdcp_type)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
+	hdev->tx_comm.hdcp_mode = hdcp_type;
+	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+
+	/*
+	 * hdcp auth may pass->fail->pass as hdmi signal detection
+	 * need some time on TV side, so need postpone auth time to
+	 * wait TV side signal detection stable
+	 */
+	if (hdev->hdcp_debug_delay)
+		schedule_delayed_work(&hdev->work_drm_start_hdcp,
+			msecs_to_jiffies(hdev->hdcp_debug_delay));
+	else
+		schedule_delayed_work(&hdev->work_drm_start_hdcp, HZ / 4);
 }
 
 static void drm_hdmitx_hdcp_disable(void)
@@ -5388,6 +5401,7 @@ static void drm_hdmitx_hdcp_disable(void)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
+	cancel_delayed_work_sync(&hdev->work_drm_start_hdcp);
 	hdmitx21_disable_hdcp(hdev);
 	hdev->drm_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 	hdev->drm_hdcp.hdcp_fail_cnt = 0;

@@ -2790,6 +2790,10 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			return;
 		HDMITX_INFO("hdcp reauth: %lu\n", value);
 		hdmitx_reauth_request(value & 0xFF);
+	} else if (strncmp(tmpbuf, "hdcp_delay", 10) == 0) {
+		ret = kstrtoul(tmpbuf + 10, 10, &value);
+		HDMITX_INFO("hdcp_delay :%d\n", value);
+		hdev->hdcp_debug_delay = value;
 	}
 }
 
