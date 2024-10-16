@@ -2,17 +2,11 @@
 
 menu "Amlogic PCI Support"
 
-config AMLOGIC_PCI_HOST
-	bool "Amlogic PCI controller support"
+config AMLOGIC_PCIE
+	tristate "Amlogic PCIE controller support"
 	default n
 	help
-	  Amlogic PCI controller drivers support
-
-config AMLOGIC_PCI_EP
-	bool "Amlogic PCI endpoint support"
-	default n
-	help
-	  Amlogic PCI endpoint drivers support
+	  Amlogic PCIE controller drivers support
 
 source "$(COMMON_DRIVERS_DIR)/drivers/pci/controller/Kconfig"
 

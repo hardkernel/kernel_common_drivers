@@ -61,7 +61,6 @@ obj-$(CONFIG_AMLOGIC_AUDIO_BRIDGE)	+= audiobridge/
 obj-$(CONFIG_AMLOGIC_MEDIA_ALGORITHM)	+= algorithm/
 obj-y        				+= dvb/
 obj-$(CONFIG_AMLOGIC_DRM)		+= drm/
-obj-y              			+= pci/
 obj-$(CONFIG_AMLOGIC_LED)		+= led/
 obj-y              			+= firmware/
 obj-$(CONFIG_AMLOGIC_SOC_TIMESTAMP)	+= timestamp/

@@ -331,12 +331,6 @@ static int amlogic_pcie_parse_host_dt(struct amlogic_pcie_rc *rc)
 	struct device_node *node = dev->of_node;
 	int ret;
 
-	ret = of_property_read_u32(node, "phy-type",
-				   &amlogic->phy_type);
-	if (ret)
-		amlogic->phy_type = M31_PHY;
-	dev_dbg(amlogic->dev, "PCIE phy type is %d\n", amlogic->phy_type);
-
 	if (of_property_read_bool(node, "max-link-speed"))
 		of_property_read_u32(node, "max-link-speed",
 				     &amlogic->link_gen);
@@ -509,14 +503,12 @@ static int __maybe_unused amlogic_pcie_suspend_noirq(struct device *dev)
 
 	err = readl_poll_timeout(amlogic->pcictrl_base + PCIE_A_CTRL5, value,
 				 PCIE_LINK_STATE_CHECK(value, LTSSM_L1_IDLE) |
-				 PCIE_LINK_STATE_CHECK(value, LTSSM_L2_IDLE) |
-				 PCIE_LINK_STATE_CHECK(value, LTSSM_L0), 20,
-				 jiffies_to_msecs(5 * HZ));
-	if (err) {
-		dev_dbg(amlogic->dev, "PCIe link enter LP timeout!,LTSSM=0x%lx\n",
+				 PCIE_LINK_STATE_CHECK(value, LTSSM_L2_IDLE),
+				 2, 50 * USEC_PER_MSEC);
+	if (err)
+		dev_err(amlogic->dev,
+			"PCIe LP timeout!,LTSSM=0x%lx, PLS check pcie device suspend status\n",
 			((((value) >> 18)) & GENMASK(4, 0)));
-		return err;
-	}
 
 	amlogic_pcie_deinit_phys(amlogic);
 
@@ -719,33 +711,58 @@ static void amlogic_pcie_rc_remove(struct platform_device *pdev)
 	struct amlogic_pcie_rc *rc = platform_get_drvdata(pdev);
 	struct amlogic_pcie *amlogic = &rc->amlogic;
 
-	pci_stop_root_bus(rc->root_bus);
-	pci_remove_root_bus(rc->root_bus);
+	if (rc->root_bus) {
+		pci_stop_root_bus(rc->root_bus);
+		pci_remove_root_bus(rc->root_bus);
+	}
 	amlogic_pcie_free_irq_domain(rc);
 	amlogic_pcie_deinit_phys(amlogic);
 	amlogic_pcie_disable_clocks(amlogic);
 }
 
-static const struct of_device_id amlogic_pcie_of_match[] = {
+static void amlogic_pcie_shutdown(struct platform_device *pdev)
+{
+	struct amlogic_pcie *amlogic = platform_get_drvdata(pdev);
+
+	amlogic_pcie_deinit_phys(amlogic);
+
+	amlogic_pcie_disable_clocks(amlogic);
+}
+
+static const struct of_device_id amlogic_pcie_v3_of_match[] = {
 	{ .compatible = "amlogic, amlogic-pcie-v3", },
 	{ .compatible = "amlogic,amlogic-pcie-v3", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, amlogic_pcie_of_match);
+MODULE_DEVICE_TABLE(of, amlogic_pcie_v3_of_match);
 
-static struct platform_driver amlogic_pcie_driver = {
+static struct platform_driver amlogic_pcie_v3_driver = {
 	.driver = {
 		.suppress_bind_attrs = true,
 		.name = "amlogic-pcie-v3",
-		.of_match_table = amlogic_pcie_of_match,
+		.of_match_table = amlogic_pcie_v3_of_match,
 		.pm = &amlogic_pcie_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = amlogic_pcie_rc_probe,
 	.remove = amlogic_pcie_rc_remove,
+	.shutdown = amlogic_pcie_shutdown,
 };
 
-module_platform_driver(amlogic_pcie_driver);
+int __init aml_pcie_rc_v3_init(void)
+{
+	return platform_driver_register(&amlogic_pcie_v3_driver);
+}
 
-MODULE_AUTHOR("Amlogic Inc");
-MODULE_DESCRIPTION("Amlogic AXI PCIe Host driver");
-MODULE_LICENSE("GPL v2");
+void __exit aml_pcie_rc_v3_exit(void)
+{
+	platform_driver_unregister(&amlogic_pcie_v3_driver);
+}
+
+/*
+ * module_platform_driver(amlogic_pcie_driver);
+ *
+ * MODULE_AUTHOR("Amlogic Inc");
+ * MODULE_DESCRIPTION("Amlogic AXI PCIe Host driver");
+ * MODULE_LICENSE("GPL v2");
+ */
