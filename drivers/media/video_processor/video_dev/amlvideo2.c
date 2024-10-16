@@ -257,6 +257,12 @@ enum amlvideo2_source_type {
 	VDIN_10BIT_NORMAL,
 };
 
+enum aml_fill_frame_type_e {
+	AML_NORMAL = 0,
+	AML_HDCP_BLACK,
+	AML_MAX,
+};
+
 struct amlvideo2_fmt {
 	char *name;
 	u32 fourcc; /* v4l2 format id */
@@ -503,6 +509,7 @@ struct amlvideo2_fh {
 	unsigned int f_flags;
 	enum v4l2_buf_type type;
 	struct v4l2_fh fh;
+	enum aml_fill_frame_type_e fill_frame_type;
 };
 
 struct amlvideo2_output {
@@ -4320,7 +4327,10 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 #ifdef CONFIG_PM
 		node->could_suspend = false;
 #endif
-		if ((vf->type & VIDTYPE_INTERLACE_BOTTOM) ||
+		if (vf->type_ext & VIDTYPE_EXT_VDIN_HDCP) {
+			amlvideo2_ge2d_black_process(node->context,
+				&ge2d_config, &output);
+		} else if ((vf->type & VIDTYPE_INTERLACE_BOTTOM) ||
 			(vf->type & VIDTYPE_INTERLACE_TOP)) {
 			if (vf->type & VIDTYPE_VIU_FIELD) {
 				amlvideo2_ge2d_interlace_one_canvasaddr_process
@@ -4337,6 +4347,10 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 				src_canvas = amlvideo2_ge2d_pre_process
 					(vf, node->context, &ge2d_config, &output, node);
 		}
+		if (vf->type_ext & VIDTYPE_EXT_VDIN_HDCP)
+			fh->fill_frame_type = AML_HDCP_BLACK;
+		else
+			fh->fill_frame_type = AML_NORMAL;
 #ifdef CONFIG_PM
 		node->could_suspend = true;
 		if (atomic_read(&node->is_suspend))
@@ -4706,7 +4720,12 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 
 	spin_lock_irqsave(&dma_q->buff_list_lock, flags);
 	if (buf->vb2.vb2_buf.state == VB2_BUF_STATE_ACTIVE) {
-		buf->vb2.timecode.flags &= ~(1 << 0); //private: bit0 is 0 means normal frame
+		if (fh->fill_frame_type == AML_HDCP_BLACK) {
+			//private:bit1 is 1 means it is hdcp black frame
+			buf->vb2.timecode.flags = 0;
+			buf->vb2.timecode.flags |= (1 << 1);
+		}
+
 		vb2_buffer_done(&buf->vb2.vb2_buf, VB2_BUF_STATE_DONE);
 		list_del(&buf->list);
 	}
@@ -4821,7 +4840,9 @@ static int amlvideo2_thread_tick_black(struct amlvideo2_fh *fh)
 
 	spin_lock_irqsave(&dma_q->buff_list_lock, flags);
 	if (buf->vb2.vb2_buf.state == VB2_BUF_STATE_ACTIVE) {
-		buf->vb2.timecode.flags |= (1 << 0);  //private: bit0 is 1 means black frame
+		//private:bit0 is 1 means it is amlvideo2 create black frame
+		buf->vb2.timecode.flags = 0;
+		buf->vb2.timecode.flags |= (1 << 0);
 		vb2_buffer_done(&buf->vb2.vb2_buf, VB2_BUF_STATE_DONE);
 		list_del(&buf->list);
 	}
