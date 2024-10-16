@@ -978,7 +978,9 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct amlkt_alloc_param alloc_param;
 	struct amlkt_cfg_param cfg_param;
 	struct amlkt_set_key_param key_param;
+	struct amlkt_get_flag_param flag_param;
 	u32 handle = 0;
+	u32 key_sts = 0;
 	int ret = 0;
 
 	if (unlikely(!dev)) {
@@ -1073,6 +1075,28 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = aml_kt_invalidate(dev, handle);
 		if (ret != 0) {
 			KT_LOGE("aml_kt_invalidate failed retval=0x%08x\n", ret);
+			return -EFAULT;
+		}
+		break;
+	case AML_KT_GET_FLAG:
+		memset(&flag_param, 0, sizeof(flag_param));
+		if (copy_from_user(&flag_param, (void __user *)arg, sizeof(flag_param))) {
+			KT_LOGE("aml_kt_get_status copy_from_user error\n");
+			return -EFAULT;
+		}
+
+		ret = aml_kt_get_status(dev, flag_param.handle,
+				       &key_sts);
+		if (ret != 0) {
+			KT_LOGE("aml_kt_get_status failed retval=0x%08x\n", ret);
+			return -EFAULT;
+		}
+		memcpy(flag_param.key, &key_sts, sizeof(key_sts));
+
+		ret = copy_to_user((void __user *)arg, &flag_param,
+				   sizeof(flag_param));
+		if (unlikely(ret)) {
+			KT_LOGE("aml_kt_get_status copy_to_user error\n");
 			return -EFAULT;
 		}
 		break;

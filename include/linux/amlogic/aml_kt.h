@@ -76,6 +76,12 @@ struct amlkt_set_key_param {
 	__u32 key_len;
 };
 
+struct amlkt_get_flag_param {
+	__u32 handle;
+	__u32 key_len;
+	__u8 key[32];
+};
+
 #define IOCTL_MAGIC 'a'
 #define AML_KT_ALLOC _IOWR(IOCTL_MAGIC, 0, struct amlkt_alloc_param)
 #define AML_KT_CONFIG _IOW(IOCTL_MAGIC, 1, struct amlkt_cfg_param)
@@ -83,6 +89,7 @@ struct amlkt_set_key_param {
 #define AML_KT_HW_SET _IOWR(IOCTL_MAGIC, 3, __u32)
 #define AML_KT_FREE _IOW(IOCTL_MAGIC, 4, __u32)
 #define AML_KT_INVALIDATE _IOW(IOCTL_MAGIC, 5, __u32)
+#define AML_KT_GET_FLAG _IOWR(IOCTL_MAGIC, 6, struct amlkt_get_flag_param)
 
 #endif
 
