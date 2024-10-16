@@ -1,6 +1,8 @@
 # dtb-y += overlay.dtbo
 
-dtb-y += pwm_a.dtbo \
+dtb-y += i2c0.dtbo \
+         i2c1.dtbo \
+         pwm_a.dtbo \
          pwm_b.dtbo \
          pwm_c.dtbo \
          pwm_f.dtbo \
