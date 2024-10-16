@@ -316,7 +316,7 @@ pgprot_t (*aml_dma_pgprot)(struct device *dev, pgprot_t prot, unsigned long attr
 
 unsigned long aml_max_pfn;
 
-unsigned int aml_zone_dma_bits;
+u64 aml_zone_dma_limit;
 
 unsigned long (*aml_kallsyms_lookup_name)(const char *name);
 
@@ -1155,7 +1155,7 @@ static int aml_dma_direct_supported(struct device *dev, u64 mask)
 	 * part of the check.
 	 */
 	if (IS_ENABLED(CONFIG_ZONE_DMA))
-		min_mask = min_t(u64, min_mask, DMA_BIT_MASK(aml_zone_dma_bits));
+		min_mask = min_t(u64, min_mask, aml_zone_dma_limit);
 	return mask >= phys_to_dma_unencrypted(dev, min_mask);
 }
 
@@ -1386,7 +1386,7 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 
 	aml_max_pfn = *(unsigned long *)aml_kallsyms_lookup_name("max_pfn");
 
-	aml_zone_dma_bits = *(unsigned int *)aml_kallsyms_lookup_name("zone_dma_bits");
+	aml_zone_dma_limit = *(u64 *)aml_kallsyms_lookup_name("zone_dma_limit");
 	/* Record our private device structure */
 	platform_set_drvdata(pdev, smmu);
 
@@ -1466,7 +1466,6 @@ static void aml_smmu_device_remove(struct platform_device *pdev)
 {
 	struct aml_smmu_device *smmu = platform_get_drvdata(pdev);
 
-	iommu_device_unregister(&smmu->iommu);
 	iommu_device_sysfs_remove(&smmu->iommu);
 }
 
