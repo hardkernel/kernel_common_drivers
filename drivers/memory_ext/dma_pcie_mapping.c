@@ -482,7 +482,7 @@ static int aml_atomic_pool_expand(struct device *dev, struct gen_pool *pool,
 	int ret = -ENOMEM;
 
 	/* Cannot allocate larger than MAX_ORDER-1 */
-	order = min(get_order(pool_size), MAX_ORDER - 1);
+	order = min(get_order(pool_size), MAX_PAGE_ORDER - 1);
 
 	page = dma_alloc_from_contiguous(dev, 1 << order,
 						order, false);

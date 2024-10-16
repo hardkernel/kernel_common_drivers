@@ -67,9 +67,8 @@ EXPORT_SYMBOL(should_wakeup_kswap);
 
 void adjust_redzone_end(const void *ptr, size_t size, unsigned long *p_end)
 {
-	if (PageOwnerPriv1(virt_to_page(ptr))) { /* end of this page was freed */
+	if (folio_test_owner_priv_1(virt_to_folio(ptr)))
 		*p_end = (unsigned long)ptr + PAGE_ALIGN(size);
-	}
 }
 
 void *aml_slub_alloc_large(int node, size_t size, gfp_t flags, int order)
@@ -87,7 +86,7 @@ void *aml_slub_alloc_large(int node, size_t size, gfp_t flags, int order)
 
 		/* record how many pages in first page*/
 		__SetPageHead(page);
-		SetPageOwnerPriv1(page);	/* special flag */
+		folio_set_owner_priv_1(page_folio(page)); /* special flag */
 
 	#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 		fun = get_page_trace(page);
@@ -123,7 +122,7 @@ static void aml_slub_free_large(struct page *page, const void *obj)
 
 	if (page) {
 		__ClearPageHead(page);
-		ClearPageOwnerPriv1(page);
+		folio_clear_owner_priv_1(page_folio(page)); /* special flag */
 		nr_pages = page->index;
 		pr_debug("%s, page:%p, pages:%d, obj:%p\n",
 			__func__, page_address(page), nr_pages, obj);
@@ -156,7 +155,7 @@ int aml_free_nonslab_page(struct folio *folio, void *object)
 
 	mod_lruvec_page_state(folio_page(folio, 0), NR_SLAB_UNRECLAIMABLE_B,
 				-(nr_pages * PAGE_SIZE));
-	if (unlikely(PageOwnerPriv1(folio_page(folio, 0)))) {
+	if (unlikely(folio_test_owner_priv_1(folio))) {
 		aml_slub_free_large(folio_page(folio, 0), object);
 		return 1;
 	}

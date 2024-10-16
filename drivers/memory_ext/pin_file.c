@@ -47,7 +47,7 @@ struct page *aml_mlock_page_as_lock_mapping(struct vm_area_struct *vma,
 		ptep = pte_offset_map_lock(mm, vmf->pmd, address, &ptl);
 		pte  = *ptep;
 		page = vm_normal_page(vmf->vma, address, pte);
-		if (page && !PageMlocked(page)) {
+		if (page && !folio_test_mlocked(page_folio(page))) {
 			if (page->mapping && trylock_page(page)) {
 				pr_debug("fault on locked, new pte:%llx, addr:%lx, page:%lx, %lx, mapping:%px f:%lx\n",
 					(unsigned long long)pte_val(pte),
