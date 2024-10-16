@@ -1447,29 +1447,24 @@
 		/* refer to hdmi_tx_module.h */
 		ic_type = <15>;
 		hdmi_rext = <1300>; /* HDMI Rext resistor uses 1.3k ohm, not 1.5k */
-		reg =	<0x0 0x00000000 0x0 0x000>, /* reserved */
-			<0x0 0xff000000 0x0 0x40000>,
-			<0x0 0x00000000 0x0 0x000>, /* reserved */
-			<0x0 0xfe308000 0x0 0x8000>,
+		reg = <0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe300000 0x0 0x8000>,
+			<0x0 0xfe308000 0x0 0x8000>,
 			<0x0 0xfe032000 0x0 0x100>,
 			<0x0 0xfe008000 0x0 0x400>,
 			<0x0 0xfe00c000 0x0 0x800>,
 			<0x0 0xfe002000 0x0 0x400>,
 			<0x0 0xfe010000 0x0 0x100>,
 			<0x0 0xfe000000 0x0 0x2000>;
-		reg-names = "cbus",
-			    "vpu",
-			    "hiu",
-			    "hdmitxdwc",
-			    "hdmitxtop",
-			    "esm",
-			    "anactrl",
-			    "pwrctrl",
-			    "resetctrl",
-			    "sysctrl",
-			    "clkctrl";
-
+		reg-names = "vpu",
+			"hdmitxdwc",
+			"hdmitxtop",
+			"esm",
+			"anactrl",
+			"pwrctrl",
+			"resetctrl",
+			"sysctrl",
+			"clkctrl";
 		vend_data: vend_data{ /* Should modified by Customer */
 			vendor_name = "Amlogic"; /* Max Chars: 8 */
 			product_desc = "MBox Meson Ref"; /* Max Chars: 16 */

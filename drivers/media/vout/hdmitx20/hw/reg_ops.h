@@ -33,23 +33,34 @@ struct reg_map {
 };
 
 enum map_addr_idx_e {
-	CBUS_REG_IDX = 0,
-	VCBUS_REG_IDX,
-	HHI_REG_IDX,
-	HDMITX_REG_IDX, //DWC
-	HDMITX_SEC_REG_IDX, //TOP
-	ELP_ESM_REG_IDX,
-	/* new added in SC2 */
-	ANACTRL_REG_IDX,
-	PWRCTRL_REG_IDX,
-	RESETCTRL_REG_IDX,
-	SYSCTRL_REG_IDX,
-	CLKCTRL_REG_IDX,
-	PADCTRL_REG_IDX,
-	/* g12a add */
-	PERIPHS_REG_IDX,
-	AOBUS_REG_IDX,
-	REG_IDX_END
+	/* VPU */
+	VPU_REG_IDX = 0,
+	/* HDMITX_DWC */
+	HDMITX_SEC_REG_IDX = 1,
+	/* HDMITX_TOP */
+	HDMITX_REG_IDX = 2,
+	/* ESM */
+	ELP_ESM_REG_IDX = 3,
+	/* ANACTRL for SC2 and later SOCs */
+	ANACTRL_REG_IDX = 4,
+	/* HHICTRL for G12A and previous SOCs */
+	HHI_REG_IDX = 4,
+	/* PWRCTRL for SC2 and later SOCs */
+	PWRCTRL_REG_IDX = 5,
+	/* CBUS for G12A and previous SOCs */
+	CBUS_REG_IDX = 5,
+	/* RESETCTRL */
+	RESETCTRL_REG_IDX = 6,
+	/* SYSCTRL for SC2 and later SOCs */
+	SYSCTRL_REG_IDX = 7,
+	/* PERIPHS for G12A and previous SOCs */
+	PERIPHS_REG_IDX = 7,
+	/* CLKCTRL for SC2 and later SOCs */
+	CLKCTRL_REG_IDX = 8,
+	/* AOBUS for G12A and previous SOCs */
+	AOBUS_REG_IDX = 8,
+	PADCTRL_REG_IDX = 9,
+	REG_IDX_END = 10,
 };
 
 #define BASE_REG_OFFSET		24
@@ -57,13 +68,15 @@ enum map_addr_idx_e {
 #define CBUS_REG_ADDR(reg) \
 	((CBUS_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define VCBUS_REG_ADDR(reg) \
-	((VCBUS_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+	((VPU_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define HHI_REG_ADDR(reg) \
 	((HHI_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+/* HDMITX_DWC */
 #define HDMITX_SEC_REG_ADDR(reg) \
-	((HDMITX_SEC_REG_IDX << BASE_REG_OFFSET) + (reg))/*DWC*/
+	((HDMITX_SEC_REG_IDX << BASE_REG_OFFSET) + (reg))
+/* HDMITX_TOP */
 #define HDMITX_REG_ADDR(reg) \
-	((HDMITX_REG_IDX << BASE_REG_OFFSET) + (reg))/*TOP*/
+	((HDMITX_REG_IDX << BASE_REG_OFFSET) + (reg))
 #define ELP_ESM_REG_ADDR(reg) \
 	((ELP_ESM_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define ANACTRL_REG_ADDR(reg) \

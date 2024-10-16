@@ -32,7 +32,7 @@ int hdmitx_init_reg_map(struct platform_device *pdev)
 	struct resource res;
 	struct device_node *np = pdev->dev.of_node;
 
-	for (i = CBUS_REG_IDX; i < REG_IDX_END; i++) {
+	for (i = VPU_REG_IDX; i < REG_IDX_END; i++) {
 		if (of_address_to_resource(np, i, &res)) {
 			HDMITX_INFO("not get regbase index %d\n", i);
 			return 0;

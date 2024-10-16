@@ -33,16 +33,11 @@ static inline unsigned int get_msr_cts(void);
 static int dump_regs_show(struct seq_file *s, void *p)
 {
 	int i;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+	int chip_id = hdev->tx_hw.chip_data->chip_type;
 
-	if (reg_maps[HHI_REG_IDX].phy_addr) {
-		seq_puts(s, "\n--------HHI registers--------\n");
-		for (i = 0; i < 0x80; i++)
-			PR_BUS(HHI_REG_ADDR(i));
-		for (i = 0x80; i < 0x100; i++)
-			PR_BUS(HHI_REG_ADDR(i));
-	}
 
-	if (reg_maps[VCBUS_REG_IDX].phy_addr) {
+	if (reg_maps[VPU_REG_IDX].phy_addr) {
 		seq_puts(s, "\n--------ENCP registers--------\n");
 		for (i = 0x1b00; i < 0x1b80; i++)
 			PR_BUS(VCBUS_REG_ADDR(i));
@@ -58,36 +53,43 @@ static int dump_regs_show(struct seq_file *s, void *p)
 			PR_BUS(VCBUS_REG_ADDR(i));
 	}
 
-	if (reg_maps[CBUS_REG_IDX].phy_addr) {
-		seq_puts(s, "\n--------CBUS registers--------\n");
-		PR_BUS(P_AIU_HDMI_CLK_DATA_CTRL);
-		PR_BUS(P_ISA_DEBUG_REG0);
-	}
+	/* HHI and CBUS only exist on chips before SC2 */
+	if (chip_id < MESON_CPU_ID_SC2) {
+		if (reg_maps[HHI_REG_IDX].phy_addr) {
+			seq_puts(s, "\n--------HHI registers--------\n");
+			for (i = 0; i < 0x80; i++)
+				PR_BUS(HHI_REG_ADDR(i));
+			for (i = 0x80; i < 0x100; i++)
+				PR_BUS(HHI_REG_ADDR(i));
+		}
+		if (reg_maps[CBUS_REG_IDX].phy_addr) {
+			seq_puts(s, "\n--------CBUS registers--------\n");
+			PR_BUS(P_AIU_HDMI_CLK_DATA_CTRL);
+			PR_BUS(P_ISA_DEBUG_REG0);
+		}
 
-	if (reg_maps[ANACTRL_REG_IDX].phy_addr) {
-		seq_puts(s, "\n--------ANACTRL registers--------\n");
-		for (i = 0; i < 0xff; i++)
-			PR_BUS(ANACTRL_REG_ADDR(i));
+	} else {
+		if (reg_maps[ANACTRL_REG_IDX].phy_addr) {
+			seq_puts(s, "\n--------ANACTRL registers--------\n");
+			for (i = 0; i < 0xff; i++)
+				PR_BUS(ANACTRL_REG_ADDR(i));
+		}
+		if (reg_maps[PWRCTRL_REG_IDX].phy_addr) {
+			seq_puts(s, "\n--------PWRCTRL registers--------\n");
+			for (i = 0; i < 0xff; i++)
+				PR_BUS(PWRCTRL_REG_ADDR(i));
+		}
+		if (reg_maps[SYSCTRL_REG_IDX].phy_addr) {
+			seq_puts(s, "\n--------SYSCTRL registers--------\n");
+			for (i = 0; i < 0xff; i++)
+				PR_BUS(SYSCTRL_REG_ADDR(i));
+		}
+		if (reg_maps[CLKCTRL_REG_IDX].phy_addr) {
+			seq_puts(s, "\n--------CLKCTRL registers--------\n");
+			for (i = 0; i < 0xff; i++)
+				PR_BUS(CLKCTRL_REG_ADDR(i));
+		}
 	}
-
-	if (reg_maps[PWRCTRL_REG_IDX].phy_addr) {
-		seq_puts(s, "\n--------PWRCTRL registers--------\n");
-		for (i = 0; i < 0xff; i++)
-			PR_BUS(PWRCTRL_REG_ADDR(i));
-	}
-
-	if (reg_maps[SYSCTRL_REG_IDX].phy_addr) {
-		seq_puts(s, "\n--------SYSCTRL registers--------\n");
-		for (i = 0; i < 0xff; i++)
-			PR_BUS(SYSCTRL_REG_ADDR(i));
-	}
-
-	if (reg_maps[CLKCTRL_REG_IDX].phy_addr) {
-		seq_puts(s, "\n--------CLKCTRL registers--------\n");
-		for (i = 0; i < 0xff; i++)
-			PR_BUS(CLKCTRL_REG_ADDR(i));
-	}
-
 	seq_puts(s, "\n");
 
 	return 0;
