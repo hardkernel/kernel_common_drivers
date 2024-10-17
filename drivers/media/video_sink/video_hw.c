@@ -13066,14 +13066,13 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 		new_aisr_demo_xend = cur_dev->aisr_demo_xend;
 		new_aisr_demo_ystart = cur_dev->aisr_demo_ystart;
 		new_aisr_demo_yend = cur_dev->aisr_demo_yend;
-		if ((layer_info->layer_left || layer_info->layer_top ||
+		if (layer_info->layer_left || layer_info->layer_top ||
 			layer_info->layer_width < vinfo->width ||
-			layer_info->layer_height < vinfo->height) &&
-			(last_aisr_demo_xstart != new_aisr_demo_xstart ||
+			layer_info->layer_height < vinfo->height ||
+			last_aisr_demo_xstart != new_aisr_demo_xstart ||
 			last_aisr_demo_xend != new_aisr_demo_xend ||
 			last_aisr_demo_ystart != new_aisr_demo_ystart ||
-			last_aisr_demo_yend != new_aisr_demo_yend)
-			) {
+			last_aisr_demo_yend != new_aisr_demo_yend) {
 			/*demo window in black margin or not*/
 			if (new_aisr_demo_xend < layer_info->layer_left ||
 				new_aisr_demo_xstart > layer_info->layer_width ||
