@@ -62,7 +62,7 @@ bool on_vmap_stack(unsigned long sp,  struct stack_info *info)
 	if (info) {
 		info->low = low;
 		info->high = high;
-		info->type = STACK_TYPE_VMAP;
+		//info->type = STACK_TYPE_VMAP;
 	}
 
 	return true;
@@ -81,7 +81,7 @@ void dump_backtrace_entry_vmap(unsigned long ip, unsigned long fp,
 	 * we have to add necessary validation checking for fp.
 	 * The checking condition is borrowed from unwind_frame
 	 */
-	if (on_irq_stack(fp, sizeof(long), NULL) ||
+	if (on_irq_stack(fp, sizeof(long)) ||
 	    (fp >= low && fp <= high)) {
 		fp_size = *((unsigned long *)fp) - fp;
 		/* fp cross IRQ or vmap stack */
@@ -456,6 +456,15 @@ static int check_addr_up_flow(unsigned long addr)
 	return 0;
 }
 
+#if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
+static bool aml_dump_backtrace_entry(void *arg, unsigned long where)
+{
+	char *loglvl = arg;
+
+	pr_info("%s %pSb\n", loglvl, (void *)where);
+	return true;
+}
+#else
 static void dump_backtrace_entry(unsigned long ip, unsigned long fp,
 				 unsigned long sp)
 {
@@ -481,9 +490,15 @@ static void dump_backtrace_entry(unsigned long ip, unsigned long fp,
 		fp, fp_size, (void *)ip, (void *)ip);
 #endif
 }
+#endif
 
 static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 {
+#if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
+	//struct unwind_state frame;
+
+	arch_stack_walk(aml_dump_backtrace_entry, KERN_DEFAULT, current, NULL);
+#else
 	struct stackframe frame;
 	unsigned long sp;
 
@@ -515,7 +530,11 @@ static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 
 	#ifdef CONFIG_ARM64
 		dump_backtrace_entry(frame.pc, frame.fp, sp);
+	#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+		ret = unwind_next(&frame);
+	#else
 		ret = unwind_frame(current, &frame);
+	#endif
 	#elif defined(CONFIG_ARM)
 		dump_backtrace_entry(frame.pc, frame.fp, frame.sp);
 		ret = unwind_frame(&frame);
@@ -523,6 +542,7 @@ static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 		if (ret < 0)
 			break;
 	}
+#endif
 }
 
 static void check_sp_fault_again(struct pt_regs *regs)
@@ -692,6 +712,7 @@ void vmap_report_meminfo(struct seq_file *m)
 	tmp2 = kb * atomic_read(&vmap_fault_count);
 	tmp3 = kb * atomic_read(&vmap_pre_handle_count);
 
+	seq_printf(m, "Stack virtual:  %8ld kB\n", global_node_page_state(NR_KERNEL_STACK_KB));
 	seq_printf(m, "VmapStack:      %8ld kB\n", tmp1);
 	seq_printf(m, "VmapFault:      %8ld kB\n", tmp2);
 	seq_printf(m, "VmapPfault:     %8ld kB\n", tmp3);

@@ -36,9 +36,9 @@
 					 __GFP_ATOMIC | __GFP_REPEAT)
 
 #ifdef CONFIG_KASAN
-#define VMAP_CACHE_PAGE_ORDER		8
+#define VMAP_CACHE_PAGE_ORDER		9
 #else
-#define VMAP_CACHE_PAGE_ORDER		6
+#define VMAP_CACHE_PAGE_ORDER		CONFIG_AMLOGIC_VMAP_CACHE_PAGE_ORDER
 #endif
 #define VMAP_CACHE_PAGE			BIT(VMAP_CACHE_PAGE_ORDER)
 #define CACHE_MAINTAIN_DELAY		(HZ / 2)
@@ -55,7 +55,7 @@ struct aml_vmap {
 
 #ifdef CONFIG_ARM64
 struct stack_info;
-DECLARE_PER_CPU(unsigned long [IRQ_STACK_SIZE / sizeof(long)], irq_stack);
+DECLARE_PER_CPU_ALIGNED(unsigned long [IRQ_STACK_SIZE / sizeof(long)], irq_stack);
 DECLARE_PER_CPU(unsigned long [THREAD_SIZE / sizeof(long)], vmap_stack);
 bool on_vmap_stack(unsigned long sp,  struct stack_info *info);
 void dump_backtrace_entry_vmap(unsigned long ip, unsigned long fp,
@@ -86,6 +86,6 @@ extern pgd_t *idmap_pgd;
 #endif
 struct page *check_pte_exist(unsigned long addr);
 #ifdef CONFIG_KASAN
-void clear_pgds(unsigned long start, unsigned long end);
+void clear_shadow(u64 start, u64 end);
 #endif
 #endif /* __VMAP_STACK_H__ */
