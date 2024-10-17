@@ -1420,6 +1420,7 @@
 			card_type = <1>;
 			tx_delay = <22>;
 			mmc_debug_flag;
+			full-pwr-cycle;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 

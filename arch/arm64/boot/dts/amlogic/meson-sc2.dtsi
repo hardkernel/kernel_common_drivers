@@ -1467,6 +1467,7 @@
 			keep-power-in-suspend;
 			no-mmc;
 			no-sd;
+			full-pwr-cycle;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 

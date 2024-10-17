@@ -2290,83 +2290,6 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 	return 0;
 }
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static int emmc_data_alignment(struct mmc_host *mmc, int best_size)
-{
-	struct meson_host *host = mmc_priv(mmc);
-	u32 delay1 = readl(host->regs + SD_EMMC_DELAY1);
-	u32 delay2 = readl(host->regs + SD_EMMC_DELAY2);
-	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
-	u32 delay1_bak = delay1;
-	u32 delay2_bak = delay2;
-	u32 intf3_bak = intf3;
-	int line_x, i, err = 0, win_new, blksz = 512;
-	u32 d[8];
-
-	host->is_tuning = 1;
-	intf3 &= ~DS_SHT_M_MASK;
-	intf3 |= (host->win_start + 4) << __ffs(DS_SHT_M_MASK);
-	writel(intf3, host->regs + SD_EMMC_INTF3);
-	for (line_x = 0; line_x < 8; line_x++) {
-		for (i = 0; i < 20; i++) {
-			if (line_x < 5) {
-				delay1 += (1 << 6 * line_x);
-				writel(delay1, host->regs + SD_EMMC_DELAY1);
-			} else {
-				delay2 += (1 << 6 * (line_x - 5));
-				writel(delay2, host->regs + SD_EMMC_DELAY2);
-			}
-			err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
-						  host->blk_test, blksz, 40,
-						  MMC_PATTERN_NAME);
-			if (err) {
-				pr_info("[%s]adjust line_x[%d]:%d\n",
-					__func__, line_x, i);
-				d[line_x] = i;
-				delay1 = delay1_bak;
-				delay2 = delay2_bak;
-				writel(delay1_bak, host->regs + SD_EMMC_DELAY1);
-				writel(delay2_bak, host->regs + SD_EMMC_DELAY2);
-				break;
-			}
-		}
-		if (i == 20) {
-			pr_info("[%s][%d] return set default value",
-				__func__, __LINE__);
-			writel(delay1_bak, host->regs + SD_EMMC_DELAY1);
-			writel(delay2_bak, host->regs + SD_EMMC_DELAY2);
-			writel(intf3_bak, host->regs + SD_EMMC_INTF3);
-			host->is_tuning = 0;
-			return -1;
-		}
-	}
-	delay1 += (d[0] << 0) | (d[1] << 6) | (d[2] << 12) |
-		(d[3] << 18) | (d[4] << 24);
-	delay2 += (d[5] << 0) | (d[6] << 6) | (d[7] << 12);
-	writel(delay1, host->regs + SD_EMMC_DELAY1);
-	writel(delay2, host->regs + SD_EMMC_DELAY2);
-	pr_info("delay1:0x%x, delay2:0x%x\n",
-		readl(host->regs + SD_EMMC_DELAY1),
-		readl(host->regs + SD_EMMC_DELAY2));
-	intf3 &= ~DS_SHT_M_MASK;
-	writel(intf3, host->regs + SD_EMMC_INTF3);
-	win_new = emmc_ds_manual_sht(mmc);
-	if (win_new < best_size) {
-		pr_info("[%s][%d] win_new:%d < win_old:%d,set default!",
-			__func__, __LINE__, win_new, best_size);
-		writel(delay1_bak, host->regs + SD_EMMC_DELAY1);
-		writel(delay2_bak, host->regs + SD_EMMC_DELAY2);
-		writel(intf3_bak, host->regs + SD_EMMC_INTF3);
-		pr_info("intf3:0x%x, delay1:0x%x, delay2:0x%x\n",
-			readl(host->regs + SD_EMMC_INTF3),
-			readl(host->regs + SD_EMMC_DELAY1),
-			readl(host->regs + SD_EMMC_DELAY2));
-	}
-	host->is_tuning = 0;
-	return 0;
-}
-#endif
-
 static u32 set_emmc_cmd_delay(struct mmc_host *mmc, int send_status)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -2379,25 +2302,6 @@ static u32 set_emmc_cmd_delay(struct mmc_host *mmc, int send_status)
 	writel(delay2, host->regs + SD_EMMC_DELAY2);
 	return cmd_size;
 }
-
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static void __maybe_unused aml_emmc_hs400_revb(struct mmc_host *mmc)
-{
-	struct meson_host *host = mmc_priv(mmc);
-	u32 delay2 = 0;
-	int win_size = 0;
-
-	delay2 = readl(host->regs + SD_EMMC_DELAY2);
-	delay2 += (host->cmd_c << 24);
-	writel(delay2, host->regs + SD_EMMC_DELAY2);
-	pr_info("[%s], delay1: 0x%x, delay2: 0x%x\n",
-		__func__, readl(host->regs + SD_EMMC_DELAY1),
-		readl(host->regs + SD_EMMC_DELAY2));
-	win_size = emmc_ds_manual_sht(mmc);
-	emmc_data_alignment(mmc, win_size);
-	set_emmc_cmd_delay(mmc, 0);
-}
-#endif
 
 static void aml_emmc_hs400_tl1(struct mmc_host *mmc)
 {
@@ -3144,101 +3048,6 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	return -EINVAL;
 }
-
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-int __maybe_unused aml_emmc_hs200_tl1(struct mmc_host *mmc)
-{
-	struct meson_host *host = mmc_priv(mmc);
-	u32 vclkc = readl(host->regs + SD_EMMC_CLOCK);
-	struct para_e *para = &host->sd_mmc;
-	u32 clk_bak = 0;
-	u32 delay2 = 0, count = 0;
-	int i, j, txdelay, err = 0;
-	int retry_times = 0;
-
-	aml_sd_emmc_clktest(mmc);
-	clk_bak = vclkc;
-	vclkc &= ~CLK_TX_PHASE_MASK;
-	vclkc &= ~CLK_CORE_PHASE_MASK;
-	vclkc &= ~CLK_V3_TX_DELAY_MASK;
-	vclkc |= para->hs4.tx_phase << __ffs(CLK_TX_PHASE_MASK);
-	vclkc |= para->hs4.core_phase << __ffs(CLK_CORE_PHASE_MASK);
-	vclkc |= para->hs4.tx_delay << __ffs(CLK_V3_TX_DELAY_MASK);
-	txdelay = para->hs4.tx_delay;
-
-	writel(vclkc, host->regs + SD_EMMC_CLOCK);
-	pr_info("[%s][%d] clk config:0x%x\n",
-		__func__, __LINE__, readl(host->regs + SD_EMMC_CLOCK));
-
-	for (i = 0; i < 63; i++) {
-		retry_times = 0;
-		delay2 += (1 << 24);
-		writel(delay2, host->regs + SD_EMMC_DELAY2);
-retry:
-		err = emmc_eyetest_log(mmc, 9);
-		if (err)
-			continue;
-
-		count = __ffs(host->align[9]);
-		if ((count >= 14 && count <= 20) ||
-		    (count >= 48 && count <= 54)) {
-			if (retry_times != 3) {
-				retry_times++;
-				goto retry;
-			} else {
-				break;
-			}
-		}
-	}
-	if (i == 63) {
-		for (j = 0; j < 6; j++) {
-			txdelay++;
-			vclkc &= ~CLK_V3_TX_DELAY_MASK;
-			vclkc |= para->hs4.tx_delay <<
-				__ffs(CLK_V3_TX_DELAY_MASK);
-			pr_info("modify tx delay to %d\n", txdelay);
-			writel(vclkc, host->regs + SD_EMMC_CLOCK);
-			err = emmc_eyetest_log(mmc, 9);
-			if (err)
-				continue;
-			count = __ffs(host->align[9]);
-			if ((count >= 14 && count <= 20) ||
-			    (count >= 48 && count <= 54))
-				break;
-		}
-	}
-
-	host->cmd_c = (delay2 >> 24);
-	pr_info("cmd->u64eyet:0x%016llx\n", host->align[9]);
-	writel(0, host->regs + SD_EMMC_DELAY2);
-	writel(clk_bak, host->regs + SD_EMMC_CLOCK);
-
-	delay2 = 0;
-	for (i = 0; i < 63; i++) {
-		retry_times = 0;
-		delay2 += (1 << 24);
-		writel(delay2, host->regs + SD_EMMC_DELAY2);
-retry1:
-		err = emmc_eyetest_log(mmc, 9);
-		if (err)
-			continue;
-
-		count = __ffs(host->align[9]);
-		if (count >= 8 && count <= 56) {
-			if (retry_times != 3) {
-				retry_times++;
-				goto retry1;
-			} else {
-				break;
-			}
-		}
-	}
-
-	pr_info("[%s][%d] clk config:0x%x\n",
-		__func__, __LINE__, readl(host->regs + SD_EMMC_CLOCK));
-	return 0;
-}
-#endif
 
 static int intf3_scan(struct mmc_host *mmc, u32 opcode)
 {
@@ -4204,7 +4013,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		goto err_bounce_buf;
 	}
 
-	dev_dbg(host->dev, "host probe success!\n");
+	dev_notice(host->dev, "host probe success!\n");
 	return 0;
 
 err_bounce_buf:
@@ -4248,15 +4057,6 @@ static void meson_mmc_remove(struct platform_device *pdev)
 	mmc_free_host(host->mmc);
 }
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static const struct meson_mmc_data meson_gx_data = {
-	.tx_delay_mask	= CLK_V2_TX_DELAY_MASK,
-	.rx_delay_mask	= CLK_V2_RX_DELAY_MASK,
-	.always_on	= CLK_V2_ALWAYS_ON,
-	.adjust		= SD_EMMC_ADJUST,
-};
-#endif
-
 static const struct meson_mmc_data meson_axg_data = {
 	.tx_delay_mask	= CLK_V3_TX_DELAY_MASK,
 	.rx_delay_mask	= CLK_V3_RX_DELAY_MASK,
@@ -4265,12 +4065,6 @@ static const struct meson_mmc_data meson_axg_data = {
 };
 
 static const struct of_device_id meson_mmc_of_match[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	{ .compatible = "amlogic,meson-gx-mmc",		.data = &meson_gx_data },
-	{ .compatible = "amlogic,meson-gxbb-mmc",	.data = &meson_gx_data },
-	{ .compatible = "amlogic,meson-gxl-mmc",	.data = &meson_gx_data },
-	{ .compatible = "amlogic,meson-gxm-mmc",	.data = &meson_gx_data },
-#endif
 	{ .compatible = "amlogic,meson-axg-mmc",	.data = &meson_axg_data },
 	{}
 };
