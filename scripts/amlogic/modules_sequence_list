@@ -46,13 +46,6 @@ RAMDISK_MODULES_LOAD_LIST=(
 	aml_drm.ko
 	amlogic-amfc.ko
 	aml-erofs.ko
-	ledtrig-activity.ko
-	ledtrig-backlight.ko
-	ledtrig-default-on.ko
-	ledtrig-gpio.ko
-	ledtrig-heartbeat.ko
-	ledtrig-oneshot.ko
-	aml-gpiomem.ko
 )
 
 VENDOR_MODULES_LOAD_FIRST_LIST=(
