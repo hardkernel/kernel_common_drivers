@@ -328,7 +328,11 @@ static int task_interactive_score(struct task_struct *p, unsigned long weight, i
 	prio_score = (sched_task_high_prio - p->prio) * 10;
 
 	if (!ignore_wait) {
+#ifdef CONFIG_ANDROID_KABI_RESERVE
 		delta = rq_clock(rq_of(p->se.cfs_rq)) - p->android_kabi_reserved1;
+#else
+		delta = rq_clock(rq_of(p->se.cfs_rq));
+#endif
 		delta = delta >> 20;
 		wait_score = delta * 10; //wait 1ms = 10, 10ms = 100, 20ms = 200;
 
@@ -340,9 +344,15 @@ static int task_interactive_score(struct task_struct *p, unsigned long weight, i
 
 	score = weight_score + prio_score + wait_score + util_score;
 	if (sched_pick_next_task_debug)
+#ifdef CONFIG_ANDROID_KABI_RESERVE
 		aml_trace_printk("interactive_task: %s/%d score:%d/%d,%d,%d,%d, wait:%llu util=%lu\n",
 			     p->comm, p->pid, score, weight_score, prio_score, wait_score, util_score,
 			     p->android_kabi_reserved1, p->se.avg.util_avg);
+#else
+		aml_trace_printk("interactive_task: %s/%d score:%d/%d,%d,%d,%d, util=%lu\n",
+			     p->comm, p->pid, score, weight_score, prio_score, wait_score, util_score,
+			     p->se.avg.util_avg);
+#endif
 
 	return score;
 }
@@ -568,6 +578,7 @@ static void aml_place_entity(void *data, struct cfs_rq *cfs_rq, struct sched_ent
 
 static void __maybe_unused sched_show_task_hook(void *data, struct task_struct *p)
 {
+#ifdef CONFIG_ANDROID_KABI_RESERVE
 	pr_info("task:%s/%d on_cpu=%d prio=%d sum_exec_runtime=%llu runnable_avg=%lu util_avg=%lu wake=%llu in_cpu=%llu off_cpu=%llu sleep=%llu tick=%llu rcu_neset=%d\n",
 		p->comm, p->pid, p->on_cpu, p->prio,
 		p->se.sum_exec_runtime,
@@ -579,11 +590,20 @@ static void __maybe_unused sched_show_task_hook(void *data, struct task_struct *
 		p->android_kabi_reserved4,
 		p->android_kabi_reserved5,
 		p->rcu_read_lock_nesting);
+#else
+	pr_info("task:%s/%d on_cpu=%d prio=%d sum_exec_runtime=%llu runnable_avg=%lu util_avg=%lu rcu_neset=%d\n",
+		p->comm, p->pid, p->on_cpu, p->prio,
+		p->se.sum_exec_runtime,
+		p->se.avg.runnable_avg,
+		p->se.avg.util_avg,
+		p->rcu_read_lock_nesting);
+#endif
 }
 
 static void sched_switch_hook(void *data, bool mode, struct task_struct *prev,
 			      struct task_struct *next)
 {
+#ifdef CONFIG_ANDROID_KABI_RESERVE
 	unsigned long long now;
 
 	now = sched_clock();
@@ -591,17 +611,22 @@ static void sched_switch_hook(void *data, bool mode, struct task_struct *prev,
 	prev->android_kabi_reserved3 = now; //last off cpu time
 	if (prev->__state & TASK_INTERRUPTIBLE || prev->__state & TASK_UNINTERRUPTIBLE)
 		prev->android_kabi_reserved4 = now; //last sleep time
+#endif
 }
 
 static void enqueue_task_hook(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
+#ifdef CONFIG_ANDROID_KABI_RESERVE
 	if (p->__state == TASK_WAKING)
 		p->android_kabi_reserved1 = sched_clock(); //last wakeup time
+#endif
 }
 
 static void tick_entry_hook(void *data, struct rq *rq)
 {
+#ifdef CONFIG_ANDROID_KABI_RESERVE
 	current->android_kabi_reserved5 = sched_clock(); //last tick time
+#endif
 }
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
