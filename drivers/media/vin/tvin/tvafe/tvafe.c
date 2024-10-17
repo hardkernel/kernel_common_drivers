@@ -346,20 +346,6 @@ static int tvafe_work_mode(bool mode)
 	return 0;
 }
 
-u32 tvafe_smc_cmd_handler(u32 index, u32 value)
-{
-	struct arm_smccc_res res;
-
-	arm_smccc_smc(TVAFE_SMC_CMD, index,
-				value, 0, 0, 0, 0, 0, &res);
-	return (u32)((res.a0) & 0xffffffff);
-}
-
-static bool tvafe_cvbs_efuse_macrov_en(void)
-{
-	return tvafe_smc_cmd_handler(TVAFE_GET_MACROV_STS, 0);
-}
-
 static int tvafe_get_v_fmt(void)
 {
 	int fmt = 0;
@@ -383,6 +369,20 @@ static int tvafe_get_v_fmt(void)
 	return fmt;
 }
 #endif
+
+u32 tvafe_smc_cmd_handler(u32 index, u32 value)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TVAFE_SMC_CMD, index,
+				value, 0, 0, 0, 0, 0, &res);
+	return (u32)((res.a0) & 0xffffffff);
+}
+
+static bool tvafe_cvbs_efuse_macrov_en(void)
+{
+	return tvafe_smc_cmd_handler(TVAFE_GET_MACROV_STS, 0);
+}
 
 /*
  * tvafe bringup detect signal code
