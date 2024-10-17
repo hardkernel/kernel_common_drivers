@@ -600,7 +600,7 @@ void gx_pm_syscore_shutdown(void)
 	if (exit_reg && is_extd_resume_reason &&
 			clear_suspend_reason) {
 		val = readl_relaxed(exit_reg);
-		if ((val & clear_suspend_reason) == clear_suspend_reason)
+		if ((val & 0x7f) == clear_suspend_reason)
 			val &= ~clear_suspend_reason;
 		writel_relaxed(val, exit_reg);
 	}

@@ -183,6 +183,7 @@
 		status = "okay";
 		device_name = "aml_pm";
 		extend_resume_reason;
+		clear_suspend_reason = <9>; /* Clear netflix wakeup reason */
 		reg = <0x0 0xfe010288 0x0 0x4>, /*SYSCTRL_STATUS_REG2*/
 			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
 	};
@@ -207,7 +208,6 @@
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
 		dis_nb_cpus_in_shutdown;
-		clear_suspend_reason = <9>;
 		extend_reboot_reason; /* Support up to 128 reboot reasons*/
 		reg = <0x0 0xfe01037c 0x0 0x4>; /* SEC_AO_SEC_SD_CFG15 */
 		status = "okay";
