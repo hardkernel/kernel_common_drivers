@@ -137,7 +137,7 @@ union spicc_cfg_bus {
 		u32		null_ctl:1;
 		u32		dummy_ctl:1;
 		u32		read_turn_around:2;
-#define SPICC_READ_TURN_AROUND_DEFAULT	1
+#define SPICC_READ_TURN_AROUND_MAX	3
 
 		u32		keep_ss:1;
 		u32		cpha:1;
@@ -172,6 +172,13 @@ struct spicc_descriptor {
 	u64				rx_paddr;
 };
 
+struct spicc_descriptor_extra {
+	struct spicc_sg_link		*tx_ccsg;
+	struct spicc_sg_link		*rx_ccsg;
+	int				tx_ccsg_len;
+	int				rx_ccsg_len;
+};
+
 struct spicc_device {
 	struct spi_controller		*controller;
 	struct platform_device		*pdev;
@@ -191,9 +198,6 @@ struct spicc_device {
 #ifdef MESON_SPICC_HW_IF
 	void (*dirspi_complete)(void *context);
 	void *dirspi_context;
-	dma_addr_t			dirspi_tx_dma;
-	dma_addr_t			dirspi_rx_dma;
-	int				dirspi_len;
 	void __iomem			*trig_reg;
 	struct spicc_descriptor		*dirspi_desc;
 	dma_addr_t			dirspi_desc_paddr;
@@ -292,7 +296,7 @@ static inline unsigned long spicc_xfer_time_max(struct spicc_device *spicc,
 	unsigned long ms;
 
 	if (!spicc->actual_speed_hz)
-		return 0;
+		return 200;
 
 	ms = (8 * len) / (spicc->actual_speed_hz / 1000);
 	ms += ms + 20; /* some tolerance */
@@ -339,7 +343,7 @@ static int meson_spicc_config(struct spicc_device *spicc,
 		spicc->cfg_bus.b.ss_leading_gap = 5;
 		spicc->config_ss_trailing_gap = 1;
 		spicc->cfg_bus.b.tx_tuning = 0;
-		spicc->cfg_bus.b.rx_tuning = 7; /* 7 SCLK */
+		spicc->cfg_bus.b.rx_tuning = 0;
 		spicc->cfg_bus.b.dummy_ctl = 0;
 	}
 
@@ -350,7 +354,7 @@ static bool meson_spicc_can_dma(struct spi_controller *ctlr,
 				struct spi_device *spi,
 				struct spi_transfer *xfer)
 {
-	return (xfer->len > 128) ? true : false;
+	return true;
 }
 
 static void spicc_sg_xlate(struct sg_table *sgt, struct spicc_sg_link *ccsg)
@@ -382,16 +386,21 @@ static int nbits_to_lane[] = {
 };
 
 static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
-			struct spicc_descriptor *desc,
 			struct spi_transfer *xfer,
-			bool is_dma_mapped,
-			bool ccxfer_en)
+			struct spicc_descriptor *desc,
+			struct spicc_descriptor_extra *exdesc,
+			struct spicc_controller_data *cdata)
 {
 	int block_size, blocks;
-	struct spicc_transfer *ccxfer = ccxfer_en ?
-		container_of(xfer, struct spicc_transfer, xfer) : NULL;
-	struct device *dev = spicc->controller->dev.parent;
+	struct device *dev = &spicc->pdev->dev;
+	struct spicc_sg_link *ccsg;
+	int ccsg_len;
+	dma_addr_t paddr;
+	int ret;
 
+	memset(desc, 0, sizeof(*desc));
+	if (exdesc)
+		memset(exdesc, 0, sizeof(*exdesc));
 	spicc_set_speed(spicc, xfer->speed_hz);
 	desc->cfg_start.d32 = spicc->cfg_start.d32;
 	desc->cfg_bus.d32 = spicc->cfg_bus.d32;
@@ -402,118 +411,141 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 	desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_NONE;
 	desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_NONE;
 	desc->cfg_start.b.eoc = 0;
-	desc->cfg_bus.b.keep_ss = 1;
+	desc->cfg_bus.b.keep_ss = !xfer->cs_change;
 	desc->cfg_bus.b.null_ctl = 0;
-	if (ccxfer && ccxfer->dc_mode) {
-		desc->cfg_start.b.dc_level = ccxfer->dc_level;
-		desc->cfg_bus.b.read_turn_around = ccxfer->read_turn_around;
-		desc->cfg_bus.b.dc_mode = ccxfer->dc_mode - 1;
+	if (cdata && cdata->dc_mode) {
+		desc->cfg_start.b.dc_level = cdata->dc_level;
+		desc->cfg_bus.b.read_turn_around = min_t(unsigned int,
+					cdata->read_turn_around,
+					SPICC_READ_TURN_AROUND_MAX);
+		desc->cfg_bus.b.dc_mode = cdata->dc_mode - 1;
 	}
 
 	if (xfer->tx_buf || xfer->tx_dma) {
 		desc->cfg_bus.b.lane = nbits_to_lane[xfer->tx_nbits];
-		desc->cfg_start.b.op_mode = (ccxfer && ccxfer->dc_mode) ?
+		desc->cfg_start.b.op_mode = (cdata && cdata->dc_mode) ?
 			SPICC_OP_MODE_WRITE_CMD : SPICC_OP_MODE_WRITE;
 	}
 	if (xfer->rx_buf || xfer->rx_dma) {
 		desc->cfg_bus.b.lane = nbits_to_lane[xfer->rx_nbits];
-		desc->cfg_start.b.op_mode = (ccxfer && ccxfer->dc_mode) ?
+		desc->cfg_start.b.op_mode = (cdata && cdata->dc_mode) ?
 			SPICC_OP_MODE_READ_STS : SPICC_OP_MODE_READ;
 	}
 
 	if (desc->cfg_start.b.op_mode == SPICC_OP_MODE_READ_STS) {
 		desc->cfg_start.b.block_size = blocks;
 		desc->cfg_start.b.block_num = 1;
-	} else if ((block_size == 1) && (blocks > SPICC_BLOCK_MAX)) {
-		/* use 8byte + little_endian to transfer more than 1MB data */
-		desc->cfg_bus.b.little_endian_en = 1;
-		desc->cfg_start.b.block_size = 0;
-		blocks >>= 3;
-		blocks = min_t(int, blocks, SPICC_BLOCK_MAX);
-		desc->cfg_start.b.block_num = blocks;
 	} else {
 		desc->cfg_start.b.block_size = block_size & 0x7;
 		blocks = min_t(int, blocks, SPICC_BLOCK_MAX);
 		desc->cfg_start.b.block_num = blocks;
 	}
 
-	if (is_dma_mapped) {
-		if (xfer->tx_dma) {
-			desc->tx_paddr = xfer->tx_dma;
-			desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_MEM;
-		}
-		if (xfer->rx_dma) {
-			desc->rx_paddr = xfer->rx_dma;
-			desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_MEM;
-		}
-	} else if (ccxfer_en && (xfer->tx_sg.sgl || xfer->rx_sg.sgl)) {
-		if (xfer->tx_buf) {
-			ccxfer->tx_ccsg_len = xfer->tx_sg.nents * sizeof(struct spicc_sg_link);
-			ccxfer->tx_ccsg = dma_alloc_coherent(dev,
-					ccxfer->tx_ccsg_len,
-					(dma_addr_t *)&desc->tx_paddr,
-					GFP_KERNEL | GFP_DMA);
-			if (!ccxfer->tx_ccsg) {
-				spicc_err("alloc tx_ccsg failed\n");
-				return -ENOMEM;
-			}
-			spicc_sg_xlate(&xfer->tx_sg, ccxfer->tx_ccsg);
-			desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_SG;
+	if (xfer->tx_sg.nents && xfer->tx_sg.sgl) {
+		ccsg_len = xfer->tx_sg.nents * sizeof(struct spicc_sg_link);
+		ccsg = kzalloc(ccsg_len, GFP_KERNEL | GFP_DMA);
+		if (!ccsg) {
+			dev_err(dev, "alloc tx_ccsg failed\n");
+			return -ENOMEM;
 		}
 
-		if (xfer->rx_buf) {
-			ccxfer->rx_ccsg_len = xfer->rx_sg.nents * sizeof(struct spicc_sg_link);
-			ccxfer->rx_ccsg = dma_alloc_coherent(dev,
-					ccxfer->rx_ccsg_len,
-					(dma_addr_t *)&desc->rx_paddr,
-					GFP_KERNEL | GFP_DMA);
-			if (!ccxfer->rx_ccsg) {
-				if (ccxfer->tx_ccsg)
-					dma_free_coherent(dev,
-							ccxfer->tx_ccsg_len,
-							ccxfer->tx_ccsg,
-							(dma_addr_t)desc->tx_paddr);
-				spicc_err("alloc rx_ccsg failed\n");
-				return -ENOMEM;
-			}
-
-			spicc_sg_xlate(&xfer->rx_sg, ccxfer->rx_ccsg);
-			desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_SG;
-		}
-	} else {
-		if (xfer->tx_buf) {
-			xfer->tx_dma = dma_map_single(dev,
-					(void *)xfer->tx_buf,
-					xfer->len,
-					DMA_TO_DEVICE);
-			if (dma_mapping_error(dev, xfer->tx_dma)) {
-				dev_err(dev, "tx_dma map failed\n");
-				return -ENOMEM;
-			}
-			desc->tx_paddr = xfer->tx_dma;
-			desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_MEM;
+		spicc_sg_xlate(&xfer->tx_sg, ccsg);
+		paddr = dma_map_single(dev, (void *)ccsg,
+				       ccsg_len, DMA_TO_DEVICE);
+		ret = dma_mapping_error(dev, paddr);
+		if (ret) {
+			kfree(ccsg);
+			dev_err(dev, "tx ccsg map failed\n");
+			return ret;
 		}
 
-		if (xfer->rx_buf) {
-			xfer->rx_dma = dma_map_single(dev,
-					xfer->rx_buf,
-					xfer->len,
-					DMA_FROM_DEVICE);
-			if (dma_mapping_error(dev, xfer->rx_dma)) {
-				if (xfer->tx_buf)
-					dma_unmap_single(dev,
-							xfer->tx_dma,
-							xfer->len,
-							DMA_TO_DEVICE);
-				dev_err(dev, "rx_dma map failed\n");
-				return -ENOMEM;
+		desc->tx_paddr = paddr;
+		desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_SG;
+		exdesc->tx_ccsg = ccsg;
+		exdesc->tx_ccsg_len = ccsg_len;
+	} else if (xfer->tx_buf || xfer->tx_dma) {
+		paddr = xfer->tx_dma;
+		if (!paddr) {
+			paddr = dma_map_single(dev, (void *)xfer->tx_buf,
+					       xfer->len, DMA_TO_DEVICE);
+			ret = dma_mapping_error(dev, paddr);
+			if (ret) {
+				dev_err(dev, "tx buf map failed\n");
+				return ret;
 			}
-			desc->rx_paddr = xfer->rx_dma;
-			desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_MEM;
 		}
+		desc->tx_paddr = paddr;
+		desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_MEM;
+	}
+
+	if (xfer->rx_sg.nents && xfer->rx_sg.sgl) {
+		ccsg_len = xfer->rx_sg.nents * sizeof(struct spicc_sg_link);
+		ccsg = kzalloc(ccsg_len, GFP_KERNEL | GFP_DMA);
+		if (!ccsg) {
+			dev_err(dev, "alloc rx_ccsg failed\n");
+			return -ENOMEM;
+		}
+
+		spicc_sg_xlate(&xfer->rx_sg, ccsg);
+		paddr = dma_map_single(dev, (void *)ccsg,
+				       ccsg_len, DMA_TO_DEVICE);
+		ret = dma_mapping_error(dev, paddr);
+		if (ret) {
+			kfree(ccsg);
+			dev_err(dev, "rx ccsg map failed\n");
+			return ret;
+		}
+
+		desc->rx_paddr = paddr;
+		desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_SG;
+		exdesc->rx_ccsg = ccsg;
+		exdesc->rx_ccsg_len = ccsg_len;
+	} else if (xfer->rx_buf || xfer->rx_dma) {
+		paddr = xfer->rx_dma;
+		if (!paddr) {
+			paddr = dma_map_single(dev, xfer->rx_buf,
+					       xfer->len, DMA_FROM_DEVICE);
+			ret = dma_mapping_error(dev, paddr);
+			if (ret) {
+				dev_err(dev, "rx buf map failed\n");
+				return ret;
+			}
+		}
+		desc->rx_paddr = paddr;
+		desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_MEM;
 	}
 
 	return 0;
+}
+
+static void spicc_deconfig_desc_one_transfer(struct spicc_device *spicc,
+			struct spi_transfer *xfer,
+			struct spicc_descriptor *desc,
+			struct spicc_descriptor_extra *exdesc)
+{
+	struct device *dev = &spicc->pdev->dev;
+
+	if (desc->tx_paddr) {
+		if (desc->cfg_start.b.tx_data_mode == SPICC_DATA_MODE_SG) {
+			dma_unmap_single(dev, (dma_addr_t)desc->tx_paddr,
+					 exdesc->tx_ccsg_len, DMA_TO_DEVICE);
+			kfree(exdesc->tx_ccsg);
+		} else if (!xfer->tx_dma) {
+			dma_unmap_single(dev, (dma_addr_t)desc->tx_paddr,
+					 xfer->len, DMA_TO_DEVICE);
+		}
+	}
+
+	if (desc->rx_paddr) {
+		if (desc->cfg_start.b.rx_data_mode == SPICC_DATA_MODE_SG) {
+			dma_unmap_single(dev, (dma_addr_t)desc->rx_paddr,
+					 exdesc->rx_ccsg_len, DMA_TO_DEVICE);
+			kfree(exdesc->rx_ccsg);
+		} else if (!xfer->rx_dma) {
+			dma_unmap_single(dev, (dma_addr_t)desc->rx_paddr,
+					 xfer->len, DMA_FROM_DEVICE);
+		}
+	}
 }
 
 static void spicc_configure_last_desc(struct spicc_device *spicc,
@@ -534,133 +566,32 @@ static void spicc_configure_last_desc(struct spicc_device *spicc,
 	desc->cfg_start.b.eoc = 1;
 }
 
-static struct spicc_descriptor *spicc_create_desc_table
-			(struct spicc_device *spicc,
-			struct spi_message *msg,
-			dma_addr_t *paddr,
-			int *desc_len,
-			int *xfer_len)
+static void spicc_desc_pending(struct spicc_device *spicc,
+			       dma_addr_t desc_paddr,
+			       bool trig,
+			       bool irq_en)
 {
-	struct spi_transfer *xfer;
-	struct spicc_descriptor *desc, *desc_bk;
-	int desc_num = 0;
-	int len = 0;
-	struct spicc_controller_data *cdata = msg->spi->controller_data;
+	u32 desc_l, desc_h, cfg_spi;
 
-	/*calculate the desc num for all xfer */
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		len += xfer->len;
-		desc_num++;
-	}
-
-	/* additional descriptor to achieve a ss trailing gap */
-	if (spicc->config_ss_trailing_gap)
-		desc_num++;
-	*desc_len = sizeof(*desc) * desc_num;
-	desc = dma_alloc_coherent(spicc->controller->dev.parent,
-				  *desc_len, paddr, GFP_KERNEL | GFP_DMA);
-	desc_bk = desc;
-	*xfer_len = len;
-	if (!desc_num || !desc) {
-		spicc_err("alloc desc failed\n");
-		return NULL;
-	}
-
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		if (spicc_config_desc_one_transfer(spicc, desc, xfer,
-				msg->is_dma_mapped,
-				cdata ? cdata->ccxfer_en : 0))
-			return NULL;
-		desc++;
-	}
-
-	desc--;
-	spicc_configure_last_desc(spicc, desc);
-
-	return desc_bk;
-}
-
-static void spicc_destroy_desc_table(struct spicc_device *spicc,
-				     struct spicc_descriptor *desc_table,
-				     struct spi_message *msg,
-				     dma_addr_t paddr,
-				     int desc_len)
-{
-	struct device *dev = spicc->controller->dev.parent;
-	struct spicc_descriptor *desc = desc_table;
-	struct spi_transfer *xfer;
-	struct spicc_controller_data *cdata = msg->spi->controller_data;
-	bool ccxfer_en = cdata ? cdata->ccxfer_en : 0;
-	struct spicc_transfer *ccxfer;
-
-	if (!desc)
-		return;
-	if (msg->is_dma_mapped)
-		goto end;
-
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		if (ccxfer_en && (xfer->tx_sg.sgl || xfer->rx_sg.sgl)) {
-			ccxfer = container_of(xfer, struct spicc_transfer, xfer);
-			if (xfer->tx_buf) {
-				dma_free_coherent(dev,
-						ccxfer->tx_ccsg_len,
-						ccxfer->tx_ccsg,
-						(dma_addr_t)desc->tx_paddr);
-			}
-
-			if (xfer->rx_buf) {
-				dma_free_coherent(dev,
-						ccxfer->rx_ccsg_len,
-						ccxfer->rx_ccsg,
-						(dma_addr_t)desc->rx_paddr);
-			}
-		} else {
-			if (xfer->tx_buf)
-				dma_unmap_single(dev,
-						xfer->tx_dma,
-						xfer->len,
-						DMA_TO_DEVICE);
-
-			if (xfer->rx_buf)
-				dma_unmap_single(dev,
-						xfer->rx_dma,
-						xfer->len,
-						DMA_FROM_DEVICE);
-		}
-
-		desc++;
-	}
-
-end:
-	dma_free_coherent(dev, desc_len, desc_table, paddr);
-}
-
-static int spicc_xfer_desc(struct spicc_device *spicc,
-			 struct spicc_descriptor *desc_table,
-			 int xfer_len, dma_addr_t paddr)
-{
-	int ret;
-	unsigned long ms = spicc_xfer_time_max(spicc, xfer_len);
-
-	reinit_completion(&spicc->completion);
-	spicc_writel(spicc, SPICC_DESC_CHAIN_DONE, SPICC_REG_IRQ_ENABLE);
-	spicc_writel(spicc, spicc->cfg_spi.d32, SPICC_REG_CFG_SPI);
 #ifdef	CONFIG_ARCH_DMA_ADDR_T_64BIT
-	spicc_writel(spicc, (u64)paddr & 0xffffffff,
-		     SPICC_REG_DESC_LIST_L);
-	spicc_writel(spicc, ((u64)paddr >> 32) | SPICC_DESC_PENDING,
-		     SPICC_REG_DESC_LIST_H);
+	desc_l = (u64)desc_paddr & 0xffffffff;
+	desc_h = (u64)desc_paddr >> 32;
 #else
-	spicc_writel(spicc, paddr & 0xffffffff,
-		     SPICC_REG_DESC_LIST_L);
-	spicc_writel(spicc, SPICC_DESC_PENDING,
-		     SPICC_REG_DESC_LIST_H);
+	desc_l = desc_paddr & 0xffffffff;
+	desc_h = 0;
 #endif
-	ret = wait_for_completion_timeout(&spicc->completion,
-			spi_controller_is_slave(spicc->controller) ?
-			MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(ms));
 
-	return ret ? (spicc->status ? -EIO : 0) : -ETIMEDOUT;
+	cfg_spi = spicc->cfg_spi.d32;
+	if (trig)
+		cfg_spi |= HW_POS;
+	else
+		desc_h |= SPICC_DESC_PENDING;
+
+	spicc_writel(spicc, irq_en ? SPICC_DESC_CHAIN_DONE : 0,
+		     SPICC_REG_IRQ_ENABLE);
+	spicc_writel(spicc, cfg_spi, SPICC_REG_CFG_SPI);
+	spicc_writel(spicc, desc_l, SPICC_REG_DESC_LIST_L);
+	spicc_writel(spicc, desc_h, SPICC_REG_DESC_LIST_H);
 }
 
 static irqreturn_t meson_spicc_irq(int irq, void *data)
@@ -684,16 +615,6 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 #ifdef MESON_SPICC_HW_IF
 	if (spicc->dirspi_complete) {
 		spicc_sem_up_write(spicc);
-		if (spicc->dirspi_tx_dma)
-			dma_unmap_single(spicc->controller->dev.parent,
-					spicc->dirspi_tx_dma,
-					spicc->dirspi_len,
-					DMA_TO_DEVICE);
-		if (spicc->dirspi_rx_dma)
-			dma_unmap_single(spicc->controller->dev.parent,
-					spicc->dirspi_rx_dma,
-					spicc->dirspi_len,
-					DMA_FROM_DEVICE);
 		spicc->dirspi_complete(spicc->dirspi_context);
 		spicc->dirspi_complete = NULL;
 		return IRQ_HANDLED;
@@ -716,25 +637,80 @@ static int meson_spicc_transfer_one_message(struct spi_controller *ctlr,
 					    struct spi_message *msg)
 {
 	struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
-	struct spicc_descriptor *desc_table;
-	dma_addr_t paddr = 0;
-	int desc_len = 0, xfer_len = 0;
+	struct device *dev = &spicc->pdev->dev;
+	struct spicc_controller_data *cdata = msg->spi->controller_data;
+	unsigned long ms = spicc_xfer_time_max(spicc, msg->frame_length);
+	struct spi_transfer *xfer;
+	struct spicc_descriptor *descs, *desc;
+	struct spicc_descriptor_extra *exdescs, *exdesc;
+	dma_addr_t descs_paddr;
+	int desc_num = 0, descs_len;
 	int ret = -EIO;
 
-	msg->actual_length = 0;
 	if (!spicc_sem_down_read(spicc)) {
-		spicc_err("controller busy\n");
+		spi_finalize_current_message(ctlr);
+		dev_err(dev, "controller busy\n");
 		return -EBUSY;
 	}
 
-	desc_table = spicc_create_desc_table(spicc, msg, &paddr, &desc_len, &xfer_len);
-	if (desc_table) {
-		ret = spicc_xfer_desc(spicc, desc_table, xfer_len, paddr);
-		if (!ret)
-			msg->actual_length = xfer_len;
-		spicc_destroy_desc_table(spicc, desc_table, msg, paddr, desc_len);
+	/*calculate the desc num for all xfer */
+	list_for_each_entry(xfer, &msg->transfers, transfer_list)
+		desc_num++;
+	/* additional descriptor to achieve a ss trailing gap */
+	if (spicc->config_ss_trailing_gap)
+		desc_num++;
+
+	/* alloc descriptor/extra-descriptor table */
+	descs = kcalloc(desc_num, sizeof(*desc) + sizeof(*exdesc),
+			GFP_KERNEL | GFP_DMA);
+	if (!descs) {
+		spi_finalize_current_message(ctlr);
+		spicc_sem_up_write(spicc);
+		return -ENOMEM;
+	}
+	descs_len = sizeof(*desc) * desc_num;
+	exdescs = (struct spicc_descriptor_extra *)(descs + desc_num);
+
+	/* config descriptor for each xfer */
+	desc = descs;
+	exdesc = exdescs;
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		ret = spicc_config_desc_one_transfer(spicc, xfer,
+				desc++, exdesc++, cdata);
+		if (ret) {
+			dev_err(dev, "config descriptor failed\n");
+			goto end;
+		}
+	}
+	spicc_configure_last_desc(spicc, --desc);
+
+	descs_paddr = dma_map_single(dev, (void *)descs,
+				     descs_len, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, descs_paddr);
+	if (ret) {
+		dev_err(dev, "desc table map failed\n");
+		goto end;
 	}
 
+	reinit_completion(&spicc->completion);
+	spicc_desc_pending(spicc, descs_paddr, false, true);
+	if (wait_for_completion_timeout(&spicc->completion,
+			spi_controller_is_slave(spicc->controller) ?
+			MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(ms)))
+		ret = spicc->status ? -EIO : 0;
+	else
+		ret = -ETIMEDOUT;
+
+	dma_unmap_single(dev, descs_paddr, descs_len, DMA_TO_DEVICE);
+end:
+	desc = descs;
+	exdesc = exdescs;
+	list_for_each_entry(xfer, &msg->transfers, transfer_list)
+		spicc_deconfig_desc_one_transfer(spicc, xfer, desc++, exdesc++);
+	kfree(descs);
+
+	if (!ret)
+		msg->actual_length = msg->frame_length;
 	msg->status = ret;
 	spi_finalize_current_message(ctlr);
 	spicc_sem_up_write(spicc);
@@ -858,63 +834,53 @@ static int dirspi_async(struct spi_device *spi,
 			void (*complete)(void *context),
 			void *context)
 {
-	struct spicc_device *spicc = spi_controller_get_devdata(spi->controller);
+	struct spicc_device *spicc;
+	struct device *dev;
+	struct spi_transfer xfer;
 	int ret;
-	unsigned long ms = spicc_xfer_time_max(spicc, len);
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	dev = &spicc->pdev->dev;
+	if (!spicc->dirspi_desc) {
+		dev_err(dev, "no descriptor for dirspi\n");
+		return -ENOMEM;
+	}
+
+	if (!spicc_sem_down_read(spicc)) {
+		dev_err(dev, "controller busy\n");
+		return -EBUSY;
+	}
 
 	ret = meson_spicc_config(spicc, spi);
-	if (ret)
+	if (ret) {
+		spicc_sem_up_write(spicc);
 		return ret;
-
-	if (tx_dma) {
-		spicc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_MEM;
-		spicc->cfg_start.b.op_mode = SPICC_OP_MODE_WRITE;
-	} else {
-		spicc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_NONE;
 	}
 
-	if (rx_dma) {
-		spicc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_MEM;
-		spicc->cfg_start.b.op_mode = SPICC_OP_MODE_READ;
-	} else {
-		spicc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_NONE;
+	memset(&xfer, 0, sizeof(xfer));
+	xfer.tx_dma = tx_dma;
+	xfer.rx_dma = rx_dma;
+	xfer.len = len;
+	xfer.bits_per_word = spi->bits_per_word;
+	ret = spicc_config_desc_one_transfer(spicc, &xfer,
+			spicc->dirspi_desc, NULL, NULL);
+	if (ret) {
+		spicc_sem_up_write(spicc);
+		return ret;
 	}
-
-	spicc->cfg_bus.b.lane = SPICC_SINGLE_SPI;
-	spicc->cfg_start.b.block_size = (spi->bits_per_word >> 3) & 7;
-	spicc->cfg_start.b.block_num = len / (spi->bits_per_word >> 3);
-	spicc->cfg_start.b.eoc = 1;
-	spicc->cfg_bus.b.keep_ss = 0;
-	spicc->cfg_bus.b.null_ctl = 0;
+	spicc_configure_last_desc(spicc, spicc->dirspi_desc);
+	spicc_desc_pending(spicc, spicc->dirspi_desc_paddr, false,
+			   complete ? true : false);
 
 	spicc->dirspi_complete = complete;
 	spicc->dirspi_context = context;
-	spicc->dirspi_tx_dma = tx_dma;
-	spicc->dirspi_rx_dma = rx_dma;
-	spicc->dirspi_len = len;
-
-	if (!spicc_sem_down_read(spicc)) {
-		spicc_err("controller busy\n");
-		ret = -EBUSY;
-		goto end;
-	}
-
-	spicc_writel(spicc, complete ? SPICC_DESC_DONE : 0, SPICC_REG_IRQ_ENABLE);
-	spicc_writel(spicc, tx_dma, SPICC_REG_MEM_TX_ADDR_L);
-	spicc_writel(spicc, 0, SPICC_REG_MEM_TX_ADDR_H);
-	spicc_writel(spicc, rx_dma, SPICC_REG_MEM_RX_ADDR_L);
-	spicc_writel(spicc, 0, SPICC_REG_MEM_RX_ADDR_H);
-	spicc_writel(spicc, spicc->cfg_spi.d32, SPICC_REG_CFG_SPI);
-	spicc_writel(spicc, spicc->cfg_bus.d32, SPICC_REG_CFG_BUS);
-	spicc_writel(spicc, spicc->cfg_start.d32 | SPICC_DESC_PENDING, SPICC_REG_CFG_START);
-
 	if (complete)
 		return 1;
 
-	ret = spicc_wait_complete(spicc, SPICC_DESC_DONE, msecs_to_jiffies(ms));
+	ret = spicc_wait_complete(spicc, SPICC_DESC_CHAIN_DONE,
+			msecs_to_jiffies(spicc_xfer_time_max(spicc, len)));
 	spicc_sem_up_write(spicc);
 
-end:
 	return ret;
 }
 
@@ -1035,6 +1001,7 @@ static int dirspi_dma_trig(struct spi_device *spi,
 			   u8 src)
 {
 	struct spicc_device *spicc;
+	struct device *dev;
 	struct spicc_controller_data *cdata;
 	struct spi_transfer xfer;
 	u32 in_sel, delay = TRIG_DELAY_MIN;
@@ -1042,15 +1009,16 @@ static int dirspi_dma_trig(struct spi_device *spi,
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	spicc = spi_controller_get_devdata(spi->controller);
+	dev = &spicc->pdev->dev;
 	if (!spicc->dirspi_desc) {
-		dev_err(&spicc->pdev->dev, "no descriptor for dirspi\n");
+		dev_err(dev, "no descriptor for dirspi\n");
 		return -ENOMEM;
 	}
 
 	spicc_dma_trig_release(spicc);
 
 	if (!spicc_sem_down_read(spicc)) {
-		dev_err(&spicc->pdev->dev, "controller busy\n");
+		dev_err(dev, "controller busy\n");
 		return -EBUSY;
 	}
 
@@ -1065,24 +1033,14 @@ static int dirspi_dma_trig(struct spi_device *spi,
 	xfer.rx_dma = rx_dma;
 	xfer.len = len;
 	xfer.bits_per_word = spi->bits_per_word;
-	spicc_config_desc_one_transfer(spicc, spicc->dirspi_desc,
-				       &xfer, true, false);
+	ret = spicc_config_desc_one_transfer(spicc, &xfer,
+			spicc->dirspi_desc, NULL, NULL);
+	if (ret) {
+		spicc_sem_up_write(spicc);
+		return ret;
+	}
 	spicc_configure_last_desc(spicc, spicc->dirspi_desc);
-
-	spicc_writel(spicc, 0, SPICC_REG_IRQ_ENABLE);
-	spicc_writel(spicc, spicc->cfg_spi.d32 | HW_POS, SPICC_REG_CFG_SPI);
-
-#ifdef	CONFIG_ARCH_DMA_ADDR_T_64BIT
-	spicc_writel(spicc, (u64)spicc->dirspi_desc_paddr & 0xffffffff,
-		     SPICC_REG_DESC_LIST_L);
-	spicc_writel(spicc, ((u64)spicc->dirspi_desc_paddr >> 32),
-		     SPICC_REG_DESC_LIST_H);
-#else
-	spicc_writel(spicc, spicc->dirspi_desc_paddr & 0xffffffff,
-		     SPICC_REG_DESC_LIST_L);
-	spicc_writel(spicc, 0,
-		     SPICC_REG_DESC_LIST_H);
-#endif
+	spicc_desc_pending(spicc, spicc->dirspi_desc_paddr, true, false);
 
 	if (!IS_ERR_OR_NULL(spicc->trig_reg)) {
 		if (src == DMA_TRIG_VSYNC)
@@ -1106,7 +1064,7 @@ static int dirspi_dma_trig(struct spi_device *spi,
 
 	spicc_sem_up_write(spicc);
 	spicc->dirspi_status = DIRSPI_STA_READY;
-	dev_info(&spicc->pdev->dev, "init trig success\n");
+	dev_info(dev, "init trig success\n");
 
 	return 0;
 }
@@ -1185,6 +1143,8 @@ static struct clk *meson_spicc_divider_clk_get(struct spicc_device *spicc)
 	init.name = name;
 	init.ops = &clk_divider_ops;
 	init.flags = CLK_SET_RATE_PARENT;
+	if (of_property_read_bool(dev->of_node, "assigned-clock-rates"))
+		init.flags = 0;
 	init.parent_names = parent_names;
 	init.num_parents = 1;
 	div->hw.init = &init;

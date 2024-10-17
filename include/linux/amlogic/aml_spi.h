@@ -21,6 +21,13 @@ enum {
 #define CAP_DMA_TRIG_PWM_VS	BIT(2)
 #define CAP_TRIG_DELAY		BIT(3)
 
+#define DC_MODE_NONE		0
+#define DC_MODE_PIN		1
+#define DC_MODE_9BIT		2
+
+#define DC_LEVEL_LOW		0
+#define DC_LEVEL_HIGH		1
+
 struct spicc_controller_data {
 	unsigned int	controller_version;
 	unsigned int	controller_capabilities;
@@ -33,6 +40,9 @@ struct spicc_controller_data {
 	unsigned	tx_tuning:4;
 	unsigned	rx_tuning:4;
 	unsigned	dummy_ctl:1;
+	unsigned	dc_mode:2;
+	unsigned	dc_level:1;
+	unsigned int	read_turn_around:8;
 	unsigned int	dma_trig_delay;
 	void (*dirspi_start)(struct spi_device *spi);
 	void (*dirspi_stop)(struct spi_device *spi);
@@ -65,21 +75,5 @@ static inline bool is_spicc_capable(struct spicc_controller_data *cdata, unsigne
 {
 	return cdata->controller_capabilities & cap_type;
 }
-
-struct spicc_transfer {
-	struct spi_transfer xfer;
-	unsigned	dc_level:1;
-#define DC_LEVEL_LOW	0
-#define DC_LEVEL_HIGH	1
-	unsigned	read_turn_around:2;
-	unsigned	dc_mode:2;
-#define DC_MODE_NONE	0
-#define DC_MODE_PIN	1
-#define DC_MODE_9BIT	2
-	void		*tx_ccsg;
-	void		*rx_ccsg;
-	int		tx_ccsg_len;
-	int		rx_ccsg_len;
-};
 
 #endif

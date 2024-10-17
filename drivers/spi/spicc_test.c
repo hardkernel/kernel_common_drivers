@@ -158,7 +158,6 @@ ssize_t testdev_dump(struct test_device *testdev, char *buf)
 	len += snprintf(buf + len, PAGE_SIZE, "mode: 0x%x\n", spi->mode);
 	len += snprintf(buf + len, PAGE_SIZE, "bw: %d\n", spi->bits_per_word);
 	len += snprintf(buf + len, PAGE_SIZE, "use_dirspi: %d\n", cdata->use_dirspi);
-	len += snprintf(buf + len, PAGE_SIZE, "ccxfer_en: %d\n", cdata->ccxfer_en);
 	len += snprintf(buf + len, PAGE_SIZE, "timing_en: %d\n", cdata->timing_en);
 	len += snprintf(buf + len, PAGE_SIZE, "ss_leading_gap: %d\n", cdata->ss_leading_gap);
 	len += snprintf(buf + len, PAGE_SIZE, "ss_trailing_gap: %d\n", cdata->ss_trailing_gap);
@@ -270,8 +269,6 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	if (!spicc_getopt(argc, argv, "use_dirspi", &v, NULL, 10))
 		cdata->use_dirspi = v;
-	if (!spicc_getopt(argc, argv, "ccxfer_en", &v, NULL, 10))
-		cdata->ccxfer_en = v;
 	if (!spicc_getopt(argc, argv, "timing_en", &v, NULL, 10))
 		cdata->timing_en = v;
 	if (!spicc_getopt(argc, argv, "ss_leading_gap", &v, NULL, 10))
@@ -284,6 +281,12 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 		cdata->rx_tuning = v;
 	if (!spicc_getopt(argc, argv, "dummy", &v, NULL, 10))
 		cdata->dummy_ctl = v;
+	if (!spicc_getopt(argc, argv, "dc_mode", &v, NULL, 10))
+		cdata->dc_mode = v;
+	if (!spicc_getopt(argc, argv, "dc_level", &v, NULL, 10))
+		cdata->dc_level = v;
+	if (!spicc_getopt(argc, argv, "read_turn_around", &v, NULL, 10))
+		cdata->read_turn_around = v;
 	if (!spicc_getopt(argc, argv, "dma_trig_delay", &v, NULL, 10))
 		cdata->dma_trig_delay = v;
 
@@ -297,32 +300,17 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 int testdev_new_xfer(struct test_device *testdev, int argc, char *argv[])
 {
 	struct device *dev;
-	struct spicc_transfer *ccxfer;
 	struct spi_transfer *xfer;
 	char *data_str;
 	unsigned long v;
 	bool vm = false, coherent = false;
 
 	dev = testdev->spi->controller->dev.parent;
-	if (testdev->cdata.ccxfer_en) {
-		ccxfer = kzalloc(sizeof(*ccxfer), GFP_KERNEL);
-		xfer = &ccxfer->xfer;
-	} else {
-		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
-	}
+	xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
 	if (!spicc_getopt(argc, argv, "vm", NULL, NULL, 0))
 		vm = true;
 	if (!spicc_getopt(argc, argv, "coherent", NULL, NULL, 0))
 		coherent = true;
-	if (!testdev->cdata.ccxfer_en)
-		goto xfer_opt;
-	if (!spicc_getopt(argc, argv, "dc_level", &v, NULL, 10))
-		ccxfer->dc_level = v;
-	if (!spicc_getopt(argc, argv, "read_turn_around", &v, NULL, 10))
-		ccxfer->read_turn_around = v;
-	if (!spicc_getopt(argc, argv, "dc_mode", &v, NULL, 10))
-		ccxfer->dc_mode = v;
-xfer_opt:
 	if (!spicc_getopt(argc, argv, "speed", &v, NULL, 10))
 		xfer->speed_hz = v;
 	if (!spicc_getopt(argc, argv, "bw", &v, NULL, 10))
@@ -331,6 +319,8 @@ xfer_opt:
 		xfer->tx_nbits = v;
 	if (!spicc_getopt(argc, argv, "rxnbits", &v, NULL, 10))
 		xfer->rx_nbits = v;
+	if (!spicc_getopt(argc, argv, "cs_change", NULL, NULL, 0))
+		xfer->cs_change = true;
 	if (!spicc_getopt(argc, argv, "len", &v, NULL, 10))
 		xfer->len = v;
 	if (!xfer->len) {
@@ -417,15 +407,17 @@ void testdev_free_xfer(struct test_device *testdev)
 				kfree(xfer->rx_buf);
 		}
 
-		if (testdev->cdata.ccxfer_en)
-			xfer = (struct spi_transfer *)container_of(xfer,
-					struct spicc_transfer, xfer);
 		kfree(xfer);
 	}
 
 	spi_message_init(&testdev->msg);
 	testdev->nxfers = 0;
 	dev_info(dev, "all xfers free\n");
+}
+
+static void testdev_complete(void *arg)
+{
+	complete(arg);
 }
 
 int testdev_run(struct test_device *testdev, int argc, char *argv[])
@@ -437,6 +429,7 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 	char *data_str;
 	unsigned long v;
 	unsigned long t1, t2;
+	DECLARE_COMPLETION_ONSTACK(done);
 	int ret = -EIO;
 
 	spi = testdev->spi;
@@ -451,6 +444,27 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 			testdev_print_xfer(testdev);
 		} else {
 			dev_info(dev, "spi_sync test failed\n");
+		}
+	}
+
+	else if (cdata->dirspi_async &&
+		!spicc_getopt(argc, argv, "dirspi_async", NULL, NULL, 0)) {
+		xfer = testdev_get_current_xfer(testdev);
+		ret = cdata->dirspi_async(testdev->spi,
+					 xfer->tx_dma,
+					 xfer->rx_dma,
+					 xfer->len,
+					 testdev_complete,
+					 &done);
+		if (ret > 0) {
+			ret = wait_for_completion_timeout(&done, msecs_to_jiffies(200));
+			ret = ret ? 0 : -ETIMEDOUT;
+		}
+		if (!ret) {
+			dev_info(dev, "dirspi_async test success\n");
+			testdev_print_xfer(testdev);
+		} else {
+			dev_info(dev, "dirspi_async test failed\n");
 		}
 	}
 
