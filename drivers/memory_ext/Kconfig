@@ -83,7 +83,6 @@ config AMLOGIC_STACKPROTECTOR
 
 config AMLOGIC_VMAP
 	bool "Amlogic kernel stack"
-	depends on AMLOGIC_BREAK_GKI
 	depends on AMLOGIC_MEMORY_EXTEND
 	depends on AMLOGIC_STACKPROTECTOR
 	depends on !AMLOGIC_ARM_KASAN

@@ -484,7 +484,11 @@ static void dump_backtrace_entry(unsigned long ip, unsigned long fp,
 
 static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 {
+#if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
+	struct unwind_state frame;
+#else
 	struct stackframe frame;
+#endif
 	unsigned long sp;
 
 #ifdef CONFIG_ARM64
@@ -515,7 +519,11 @@ static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 
 	#ifdef CONFIG_ARM64
 		dump_backtrace_entry(frame.pc, frame.fp, sp);
+	#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+		ret = unwind_next(&frame);
+	#else
 		ret = unwind_frame(current, &frame);
+	#endif
 	#elif defined(CONFIG_ARM)
 		dump_backtrace_entry(frame.pc, frame.fp, frame.sp);
 		ret = unwind_frame(&frame);
