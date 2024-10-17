@@ -1156,7 +1156,9 @@ meson_nand_op_put_dma_safe_input_buf(const struct nand_op_instr *instr,
 	if (buf == instr->ctx.data.buf.in)
 		return;
 
-	memcpy(instr->ctx.data.buf.in, buf, instr->ctx.data.len);
+	if (instr->ctx.data.buf.in)
+		memcpy(instr->ctx.data.buf.in, buf, instr->ctx.data.len);
+
 	kfree(buf);
 }
 
@@ -2069,20 +2071,19 @@ err_mem:
 	return ret;
 }
 
-static int meson_nfc_remove(struct platform_device *pdev)
+static void meson_nfc_remove(struct platform_device *pdev)
 {
 	struct meson_nfc *nfc = platform_get_drvdata(pdev);
-	int ret;
+	int err_code;
 
-	ret = meson_nfc_nand_chip_cleanup(nfc);
-	if (ret)
-		return ret;
+	err_code = meson_nfc_nand_chip_cleanup(nfc);
+	WARN_ONCE(ret, "ret:%d mtd device unregister failed\n", ret);
 
 	meson_nfc_disable_clk(nfc);
 
 	platform_set_drvdata(pdev, NULL);
 
-	return 0;
+	return;
 }
 
 static struct platform_driver meson_nfc_driver = {
