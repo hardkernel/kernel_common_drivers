@@ -1835,10 +1835,16 @@ static void vd1_path_select(struct video_layer_s *layer,
 				/* bit9: 0: afbc0 to vd1, 1: afbc0 to di */
 				/* bit8: vd1 input is afbc, 1 vd1 input is di*/
 				/* bit8 = 1, bit9 = 1 */
-				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-					(VD1_AFBCD0_MISC_CTRL,
-					/* vd1 mif to di */
-					3, 8, 3);
+				if (video_is_meson_txhd2_cpu() || di_pre_link)
+					cur_dev->rdma_func[vpp_index].rdma_wr_bits
+						(VD1_AFBCD0_MISC_CTRL,
+						/* vd1 mif to di */
+						3, 8, 3);
+				else /* TODO: need check bit9 for t6d post-link */
+					cur_dev->rdma_func[vpp_index].rdma_wr_bits
+						(VD1_AFBCD0_MISC_CTRL,
+						/* vd1 mif to di */
+						1, 8, 3);
 				/* txhd2 not need set go filed*/
 			} else {
 				/* check di_vpp_out_en bit */
