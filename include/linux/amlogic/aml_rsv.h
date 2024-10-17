@@ -28,6 +28,9 @@
 #define POWER_ABNORMAL_FLAG	0x01
 #define ECC_ABNORMAL_FLAG	0x02
 
+#define BBT_START_BLOCK     20
+#define BBT_TOTAL_BLOCKS    4
+
 enum meson_rsv_blk_cnt {
 	NAND_RSV_INDEX = 0,
 	NAND_GAP_INDEX,
