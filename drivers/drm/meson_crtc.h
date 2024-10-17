@@ -74,6 +74,8 @@ struct am_meson_crtc_state {
 	/*basic refresh rate*/
 	u32 brr;
 	u32 valid_brr;
+	u32 vrr_type;
+	u32 game_rate;
 	/*brr mode string*/
 	char brr_mode[DRM_DISPLAY_MODE_LEN];
 	/*for nonblock commit, one commit do not wait flip done for preceding commits*/
@@ -115,6 +117,10 @@ struct am_meson_crtc {
 	/*vpu pipeline dolby core cap*/
 	struct drm_property *dv_support_info;
 	struct drm_property *crtc_max_out_property;
+
+	/* game vrr property */
+	struct drm_property *vrr_type_property;
+	struct drm_property *game_rate_property;
 
 	/*debug*/
 	int dump_enable;
