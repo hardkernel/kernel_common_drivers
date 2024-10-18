@@ -2017,8 +2017,9 @@ RESTART_ALL:
 				if (cur_super_debug)
 					pr_info("%s:amdv slice(%d) need w_in 4 aligned: w_temp=%d, crop:%d, %d, adjust crop left:%d\n",
 						__func__, slice_num,
-						w_temp, crop_left, crop_right, crop_left + 2);
-				crop_left += 2;
+						w_temp, crop_left, crop_right,
+						crop_left + w_temp % 4);
+				crop_left += w_temp % 4;
 			}
 		} else if (slice_num == 1) {
 			/* w_in must 2 aligned*/
