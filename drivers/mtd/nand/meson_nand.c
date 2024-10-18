@@ -2077,7 +2077,7 @@ static void meson_nfc_remove(struct platform_device *pdev)
 	int err_code;
 
 	err_code = meson_nfc_nand_chip_cleanup(nfc);
-	WARN_ONCE(ret, "ret:%d mtd device unregister failed\n", ret);
+	WARN_ONCE(err_code, "ret:%d mtd device unregister failed\n", err_code);
 
 	meson_nfc_disable_clk(nfc);
 
