@@ -63,20 +63,27 @@
 //2023.11.29 set main_port_open when resume
 //2023.12.12 t3x no open port limit when reboot
 //2024.01.04 fix soundless issue for 2.0 ip
+//2024.01.08 support to get AVI info
 //2024.01.10 optimize eq setting for 75m~115m frequency
+//2024.01.11 fix EMP DDR write out of bounds
+//2024.02.05 Fix t5d accessing illegal addresses
 //2024.02.21 fix t3x hbr audio clk not correct issue
+//2024.2.22 fix hdr flash
 //2024.03.04 fix repeat issue
+//2024.03.04 fix kernel panic on T7C without hdmirx
+//2024.3.15 fix arc port hpd changed frequently
 //2024.04.24 remove esd hpd
 //2024.07.04 optimize pcs reset flow
 //2024.07.10 correct 12g aud div
 //2024.08.15 add avi filmmaker flag
 //2024.08.28 add hdr10p licence detection
+//2024.08.29 support dolbyvision unique drm source-led
 //2024.08.30 disable hdcp when suspend
 //2024.09.18 remove warning print
 //2024.09.24 reduce rx boot print
 //2024.09.30 update fsm when update edid
 //2024.10.09 t3x/t7c hdmirx support std hibernate
-#define RX_VER0 "ver.2024/10/09"
+#define RX_DRV_VER "ver.2024/10/09"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -110,45 +117,6 @@
 #define BOOT_INFO_NUM			10
 #define BOOT_INFO_LEN			50
 
-/* fix 3d timing issue and panasonic 1080p */
-/* 0323: t3x bringup*/
-/* 0406 add t3x edid*/
-/* t3x top sw reset */
-/* t3x sw flow */
-/* 2-path-emp support */
-/* hdmirx set all ports hpd */
-/* select new api for clk msr */
-/* modify code and single dwork for t3x */
-/* correct phy trim value config method */
-/* merge project modifications back to trunk */
-/* optimize unnormal_format logic */
-/* 2023.5.12 fix silent issue, switch to FSM_HPD_LOW */
-/* 2023.05.15 optimize frl_rate monitor logic */
-/* 2023.5.22 modify edid delivery method */
-/* 2023.5.23 optimize color bar debug logic */
-/* 2023.5.30 hdmirx cts and hdcp */
-/* 2023.6.8  support black pattern for AV mute */
-/* I2C edid communication is stopped at 0x2 */
-/* play next song no sound */
-/* 2023.7.5 clear dv packet when no emp */
-/* 2023.7.12 txhd2 bring up debug */
-/* 2023.8.1 add ctrl of 5v wake up */
-/* 2023.08.14 modify the mapped emp buffer address*/
-/* 2023.8.25 fix 40M 192k 176k no sound */
-/* 2023.08.28 support FRL 3G3L & 6G3L */
-/* 2023.08.31 add vpp mute cnt */
-/* 2023.9.14 add support for 240p */
-/* 2023 09.28 add trim flow for txhd2 */
-/* 2023.10.8 t3x some compatibility problem */
-/* 2023.10.10 fix t3x frl audio problem */
-/* 2023.10.30 fix t3x clk msr fail */
-/* 2023.11.13 fix t3x irq issue */
-/* 2024.01.08 support to get AVI info */
-/* 2024.02.05 Fix t5d accessing illegal addresses */
-/* 2024.03.04 fix kernel panic on T7C without hdmirx */
-/* 2024.08.29 support dolbyvision unique drm source-led */
-#define RX_VER1 "ver.2024/08/29"
-
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
 #define TIME_1MS 1000000
@@ -156,30 +124,6 @@
 #define ESM_KILL_WAIT_TIMES 10
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
-
-/* hdmirx fix audio no sound */
-/* clear scdc with RX_HPD_C_CTRL_AON_IVCRX */
-/* collate t5m code */
-/* add aspect 4:3 */
-/* 2023.5.5 fix emp pkt parse error */
-/* 2023.05.09 core reset when afifo overflow */
-/* 2023.05.24 fix 1366*768 identify to 1360*768 */
-/* 2023.8.3 phy flow and aud pkt judge */
-/* 2023.08.01 add t3x poweroff */
-/* 2023.08.15 support black pattern for t7~t5w */
-/* 2023.08.18 fix YUV422 data lost issue */
-/* 2023.8.25 gcp avmute issue */
-/* 2023.08.28 fix t3x sound issue */
-/* 2023 09 27 reduce phy power */
-/* optimize afifo configuration */
-/* 2023.11.03 disable DDR access when suspend */
-/* 2023.12.1 fix trim value err when resume */
-/* 2023.12.06 fix resume panic issue */
-/* 2024.01.11 fix EMP DDR write out of bounds */
-/* 2023.1.11 fix timing lost */
-/* 2024.2.22 fix hdr flash */
-/* 2024.3.15 fix arc port hpd changed frequently */
-#define RX_VER2 "ver.2024/3/15"
 
 #define PFIFO_SIZE 256
 #define HDCP14_KEY_SIZE 368

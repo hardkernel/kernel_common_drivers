@@ -11,7 +11,7 @@
 #include <uapi/amlogic/hdmi_rx.h>
 
 /* 2024.08.27 Parse DRM & SPD packets during irq and update prop when no DRM & SPD packets */
-#define RX_PKTINFO_VER "ver.2024/08/27"
+#define RX_PKT_VER "ver.2024/08/27"
 
 #define K_ONEPKT_BUFF_SIZE		8
 #define K_PKT_REREAD_SIZE		2

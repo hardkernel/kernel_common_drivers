@@ -7231,9 +7231,11 @@ int hdmirx_debug(const char *buf, int size)
 		rx_debug_rd_reg(buf, tmpbuf, port);
 	} else if (tmpbuf[0] == 'v') {
 		rx_pr("------------------\n");
-		rx_pr("Hdmirx version0: %s\n", RX_VER0);
-		rx_pr("Hdmirx version1: %s\n", RX_VER1);
-		rx_pr("Hdmirx version2: %s\n", RX_VER2);
+		rx_pr("rx drv version: %s\n", RX_DRV_VER);
+		rx_pr("rx hw version: %s\n", RX_HW_VER);
+		rx_pr("rx pkt version: %s\n", RX_PKT_VER);
+		rx_pr("rx wrapper version: %s\n", RX_WRAPPER_VER);
+		rx_pr("rx edid version: %s\n", RX_EDID_H_VER);
 		rx_pr("------------------\n");
 	} else if (strncmp(input[0], "port0", 5) == 0) {
 		//hdmirx_open_port(E_PORT0, 0xff);
