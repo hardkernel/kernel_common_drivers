@@ -84,6 +84,7 @@ module_param(osd_gamut_conv_type, uint, 0664);
 MODULE_PARM_DESC(osd_gamut_conv_type, "\n osd_gamut_conv_type\n");
 
 static uint pre_gamut_conv_en;
+static unsigned int pre_max_output_lum_sdr;
 #endif
 signed int vd1_contrast_offset;
 
@@ -210,7 +211,7 @@ void hdr_vd3_off(enum vpp_index_e vpp_index)
 void hdr_vd1_iptmap(enum vpp_index_e vpp_index)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	enum hdr_process_sel cur_hdr_process;
+	enum hdr_process_sel cur_hdr_process = HDR_BYPASS;
 	int s5_silce_mode = get_s5_slice_mode();
 
 	if (s5_silce_mode == VD1_1SLICE) {
@@ -998,6 +999,11 @@ static uint customer_master_display_param[12] = {
 	/* content lumin and frame average */
 };
 
+static int force_customer_panel_lumin;
+module_param(force_customer_panel_lumin, int, 0664);
+MODULE_PARM_DESC(force_customer_panel_lumin, "\n force_customer_panel_lumin\n");
+
+static int pre_customer_panel_lumin = 380;
 static int customer_panel_lumin = 380;
 module_param(customer_panel_lumin, int, 0664);
 MODULE_PARM_DESC(customer_panel_lumin, "\n customer_panel_lumin\n");
@@ -4310,6 +4316,7 @@ int signal_type_changed(struct vframe_s *vf,
 	struct vframe_master_display_colour_s cus;
 	int ret;
 	u32 limit_full = 0;
+	u32 src_height = 0;
 
 	if (!vf)
 		return 0;
@@ -4357,7 +4364,11 @@ int signal_type_changed(struct vframe_s *vf,
 				| (1 << 0);	/* bt709 */
 		}
 	} else { /* for local play */
-		if (vf->height >= 720)
+		if (vf->type & VIDTYPE_COMPRESS)
+			src_height = vf->compHeight;
+		else
+			src_height = vf->height;
+		if (src_height >= 720)
 			default_signal_type =
 				/* HD default 709 limit */
 				  (1 << 29)	/* video available */
@@ -4447,13 +4458,13 @@ int signal_type_changed(struct vframe_s *vf,
 			change_flag |= SIG_PRI_INFO;
 	}
 	if (change_flag & SIG_PRI_INFO) {
-		pr_csc(1, "vd%d Master_display_colour changed %x flag %x.\n",
+		pr_csc(128, "vd%d Master_display_colour changed %x flag %x.\n",
 		       vd_path + 1, ret,
 		       p_cur->present_flag);
 		print_primaries_info(p_cur);
 	}
 	if (signal_type != cur_signal_type[vd_path]) {
-		pr_csc(1, "vd%d Signal type changed from 0x%x to 0x%x.\n",
+		pr_csc(128, "vd%d Signal type changed from 0x%x to 0x%x.\n",
 		       vd_path + 1,
 		       cur_signal_type[vd_path],
 		       signal_type);
@@ -4462,7 +4473,7 @@ int signal_type_changed(struct vframe_s *vf,
 	}
 
 	if (ext_signal_type != cur_ext_signal_type[vd_path]) {
-		pr_csc(1, "vd%d ext_Signal type changed from 0x%x to 0x%x.\n",
+		pr_csc(128, "vd%d ext_Signal type changed from 0x%x to 0x%x.\n",
 				vd_path + 1,
 				cur_ext_signal_type[vd_path],
 				ext_signal_type);
@@ -4471,7 +4482,7 @@ int signal_type_changed(struct vframe_s *vf,
 	}
 
 	if (pre_src_type[vd_path] != vf->source_type) {
-		pr_csc(1, "vd%d Signal source changed from 0x%x to 0x%x.\n",
+		pr_csc(128, "vd%d Signal source changed from 0x%x to 0x%x.\n",
 		       vd_path + 1, pre_src_type[vd_path], vf->source_type);
 		change_flag |= SIG_SRC_CHG;
 		pre_src_type[vd_path] = vf->source_type;
@@ -7665,6 +7676,9 @@ void hdr10_plus_process_update(int force_source_lumin,
 		panel_lumin = customer_panel_lumin;
 	}
 
+	if (force_customer_panel_lumin)
+		panel_lumin = customer_panel_lumin;
+
 	hdr10_plus_ootf_gen(panel_lumin,
 			    force_source_lumin,
 			    &hdr10pgen_param);
@@ -7972,7 +7986,7 @@ void update_hdr10_plus_pkt(bool enable,
 	if (vinfo && vinfo->mode != VMODE_HDMI)
 		return;
 
-	if (vinfo->vout_device) {
+	if (vinfo && vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
 			return;
@@ -8037,7 +8051,7 @@ void update_cuva_pkt(bool enable,
 	if (vinfo && vinfo->mode != VMODE_HDMI)
 		return;
 
-	if (vinfo->vout_device) {
+	if (vinfo && vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
 			return;
@@ -8104,7 +8118,7 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path,
 	if (vinfo && vinfo->mode != VMODE_HDMI)
 		return;
 
-	if (vinfo->vout_device) {
+	if (vinfo && vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
 			return;
@@ -8154,7 +8168,7 @@ void send_cuva_pkt(enum vd_path_e vd_path,
 	if (vinfo && vinfo->mode != VMODE_HDMI)
 		return;
 
-	if (vinfo->vout_device) {
+	if (vinfo && vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
 			return;
@@ -8977,6 +8991,10 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	    (video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS))
 		signal_change_flag |= SIG_FORCE_CHG;
 
+	source_format[VD1_PATH] = get_source_type(VD1_PATH, vpp_index);
+	source_format[VD2_PATH] = get_source_type(VD2_PATH, vpp_index);
+	source_format[VD3_PATH] = get_source_type(VD3_PATH, vpp_index);
+
 	if (is_amdv_on() &&
 	    (vd_path == VD1_PATH ||
 	    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)))
@@ -9008,9 +9026,6 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			signal_change_flag |= SIG_HDR_MODE;
 		}
 
-		source_format[VD1_PATH] = get_source_type(VD1_PATH, vpp_index);
-		source_format[VD2_PATH] = get_source_type(VD2_PATH, vpp_index);
-		source_format[VD3_PATH] = get_source_type(VD3_PATH, vpp_index);
 		get_cur_vd_signal_type(vd_path);
 #ifdef T7_BRINGUP_MULTI_VPP
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
@@ -9166,6 +9181,14 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		cur_primary_policy = get_primary_policy();
 	}
 
+	if (force_customer_panel_lumin &&
+		customer_panel_lumin != pre_customer_panel_lumin) {
+		pr_csc(4, "[%s] customer_panel_lumin changed from %d to %d.\n",
+			__func__, pre_customer_panel_lumin, customer_panel_lumin);
+		pre_customer_panel_lumin = customer_panel_lumin;
+		hdr10p_meta_updated = true;
+	}
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
 	    (get_cpu_type() != MESON_CPU_MAJOR_ID_TL1)) {
 		if (hdr_process_mode[vd_path] == PROC_HDR_TO_SDR &&
@@ -9246,6 +9269,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	struct vframe_master_display_colour_s *pa;
 	static bool amdv_enable;
 	int s5_silce_mode = get_s5_slice_mode();
+	unsigned int max_output_lum_sdr = 0;
 
 	if (vpp_index == VPP_TOP1)
 		vinfo = get_current_vinfo2();
@@ -9407,6 +9431,14 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	} else if (vf_rpt &&
 		(is_video_layer_on(vd_path) ||
 		video_layer_wait_on[vd_path])) {
+		max_output_lum_sdr = get_max_output_lum(0);
+		if (max_output_lum_sdr != pre_max_output_lum_sdr) {
+			video_process_flags[vd_path] |= PROC_FLAG_FORCE_PROCESS;
+			pre_max_output_lum_sdr = max_output_lum_sdr;
+			pr_csc(4, "max_output_lum_sdr changed = %d\n",
+				max_output_lum_sdr);
+		}
+
 		if ((video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS) ||
 		    cap_changed) {
 			if (video_process_status[vd_path] != HDR_MODULE_ON) {

@@ -2834,6 +2834,9 @@ int get_s5_slice_mode(void)
 
 void output_color_fmt_convert(int vpp_index)
 {
+	if (get_eye_pro_en())
+		return;
+
 	if (vinfo_hdmi_out_fmt()) {
 		mtx_setting_v2(POST_MTX, WR_DMA,
 			MATRIX_YUV709_RGB, MTX_ON, SLICE0, vpp_index);
@@ -3670,7 +3673,8 @@ void video_post_process(struct vframe_s *vf,
 					0, 1, 1, vpp_index);
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
 					0, 1, 1, vpp_index);
-				if (csc_type == VPP_MATRIX_YUV709F_RGB &&
+				if ((csc_type == VPP_MATRIX_YUV709F_RGB  ||
+					csc_type == VPP_MATRIX_YUV601F_RGB) &&
 					source_type[vd_path] != HDRTYPE_DOVI)
 					mtx_csc = MATRIX_YUV709F_RGB;
 				else

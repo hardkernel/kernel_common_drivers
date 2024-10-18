@@ -228,6 +228,9 @@ static unsigned int assist_cnt;/* ASSIST_SPARE8_REG1; */
  *2: bypass mode, vadj1 follow config for ui setting
  */
 static int dv_pq_bypass;
+module_param(dv_pq_bypass, int, 0664);
+MODULE_PARM_DESC(dv_pq_bypass, "\n dv_pq_bypass\n");
+
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /* 3d sync parts begin */
@@ -3456,8 +3459,10 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 		if (pq_cfg_cur.cm_en != pq_cfg.cm_en) {
 			pq_cfg_cur.cm_en = pq_cfg.cm_en;
 			if (pq_cfg.cm_en) {
-				amcm_enable(WR_VCB, 0);
-				cm_en = 1;
+				if (!cm_en) {
+					amcm_enable(WR_VCB, 0);
+					cm_en = 1;
+				}
 			} else {
 				amcm_disable(WR_VCB, 0);
 				cm_en = 0;
@@ -3925,6 +3930,7 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 	case DV_PQ_TV_BYPASS:
 		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
 		cfg.vadj1_en = pq_cfg.vadj1_en;
+		cfg.cm_en = pq_cfg.cm_en;
 		vpp_pq_ctrl_config(cfg, WR_DMA, vpp_index);
 		dv_pq_bypass = 3;
 		pr_amve_dbg("dv enable, for TV pq disable, dv_pq_bypass = %d\n",
@@ -3933,6 +3939,7 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 	case DV_PQ_STB_BYPASS:
 		cfg.sharpness0_en = pq_cfg.sharpness0_en;
 		cfg.sharpness1_en = pq_cfg.sharpness1_en;
+		cfg.cm_en = pq_cfg.cm_en;
 		cfg.dnlp_en = dv_cfg_bypass.dnlp_en;
 		cfg.cm_en = dv_cfg_bypass.cm_en;
 		cfg.vadj1_en = dv_cfg_bypass.vadj1_en;
@@ -3951,7 +3958,9 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 				dv_pq_bypass);
 		break;
 	case DV_PQ_CERT:
-		vpp_pq_ctrl_config(dv_cfg_bypass, WR_DMA, vpp_index);
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+		cfg.cm_en = pq_cfg.cm_en;
+		vpp_pq_ctrl_config(cfg, WR_DMA, vpp_index);
 		eye_proc(eye_protect.mtx_ep, 0, vpp_index);
 		dv_pq_bypass = 1;
 		pr_amve_dbg("dv certification mode, pq disable, dv_pq_bypass = %d\n",

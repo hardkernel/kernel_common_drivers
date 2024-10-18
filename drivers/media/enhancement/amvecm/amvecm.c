@@ -2307,7 +2307,10 @@ void pre_gma_update(struct pre_gamma_table_s *pre_gma_lut, int vpp_index)
 void eye_prot_update(struct eye_protect_s *eye_prot, int vpp_index)
 {
 	if (vecm_latch_flag2 & VPP_EYE_PROTECT_UPDATE) {
-		eye_proc(eye_prot->mtx_ep, eye_prot->en, vpp_index);
+		if (chip_type_id != chip_s5)
+			eye_proc(eye_prot->mtx_ep, eye_prot->en, vpp_index);
+		else
+			ve_eye_proc(eye_prot->mtx_ep, eye_prot->en, vpp_index);
 		vecm_latch_flag2 &= ~VPP_EYE_PROTECT_UPDATE;
 	}
 }
@@ -2771,15 +2774,15 @@ static void amvecm_overscan_process(struct vframe_s *vf,
 
 	if (!toggle_vf && !vf) {
 		amvecm_reset_overscan();
-		pr_amvecm_dbg("no vframe reset_overscan.\n");
+		/*pr_amvecm_dbg("no vframe reset_overscan.\n");*/
 	}
 
 	if (vf) {
 		amvecm_fresh_overscan(vf);
-		pr_amvecm_dbg("repeat vf fresh_overscan.\n");
+		/*pr_amvecm_dbg("repeat vf fresh_overscan.\n");*/
 	} else {
 		amvecm_reset_overscan();
-		pr_amvecm_dbg("no repeat vf reset_overscan.\n");
+		/*pr_amvecm_dbg("no repeat vf reset_overscan.\n");*/
 	}
 }
 

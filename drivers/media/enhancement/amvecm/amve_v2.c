@@ -97,6 +97,7 @@ MODULE_PARM_DESC(lc_overlap, "lc_overlap");
 
 static struct vd_proc_amvecm_info_t *vd_info;
 static int vi_hist_en;
+static int eye_proc_en;
 
 int get_slice_max(void)
 {
@@ -660,6 +661,168 @@ void mtx_setting_v2(enum vpp_matrix_e mtx_sel,
 	}
 
 	vpp_mtx_config_v2(&coef, mode, slice, mtx_sel, vpp_index);
+}
+
+int ve_mtx_mul_mtx(int (*mtx_a)[3], int (*mtx_b)[3], int (*mtx_out)[3])
+{
+	int i, j, k;
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++) {
+			mtx_out[i][j] = 0;
+			for (k = 0; k < 3; k++)
+				mtx_out[i][j] += mtx_a[i][k] * mtx_b[k][j];
+		}
+	}
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++)
+			mtx_out[i][j] = (mtx_out[i][j] + (1 << 9)) >> 10;
+	}
+
+	return 0;
+}
+
+int ve_mtx_multi(int mtx_ep[][4], int (*mtx_out)[3])
+{
+	int i, j;
+	int mtx_rgb[3][3] = {0};
+	int mtx_in[3][3] = {0};
+	int mtx_rgbto709l[3][3] = {
+		{187, 629, 63},
+		{-103, -346, 450},
+		{450, -409, -41},
+	};
+	int mtx_709ltorgb[3][3] = {
+		{1192, 0, 1836},
+		{1192, -218, -547},
+		{1192, 2166, 0},
+	};
+
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++)
+			pr_amve_v2("mtx_out[%d][%d] = %d\n",
+			i, j, mtx_ep[i][j]);
+	}
+
+	/* because use only one matrix, so Tr/Tg/Tb can not be used,
+	 * if add Tr/Tg/Tb in RGB out, need two matrix to workaround
+	 */
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 3; j++)
+			mtx_in[i][j] = mtx_ep[j][i];
+
+	ve_mtx_mul_mtx(mtx_in, mtx_709ltorgb, mtx_rgb);
+	ve_mtx_mul_mtx(mtx_rgbto709l, mtx_rgb, mtx_out);
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++)
+			pr_amve_v2("mtx_out[%d][%d] = 0x%x\n",
+			i, j, mtx_out[i][j]);
+	}
+	return 0;
+}
+
+void ve_eye_proc(int mtx_ep[][4], int mtx_on, int vpp_index)
+{
+	int i;
+	int slice_max = get_slice_max();
+	unsigned int temp;
+	unsigned int matrix_coef00_01 = 0;
+	unsigned int matrix_coef02_10 = 0;
+	unsigned int matrix_coef11_12 = 0;
+	unsigned int matrix_coef20_21 = 0;
+	unsigned int matrix_coef22 = 0;
+	unsigned int matrix_coef13_14 = 0;
+	unsigned int matrix_coef23_24 = 0;
+	unsigned int matrix_coef15_25 = 0;
+	unsigned int matrix_clip = 0;
+	unsigned int matrix_offset0_1 = 0;
+	unsigned int matrix_offset2 = 0;
+	unsigned int matrix_pre_offset0_1 = 0;
+	unsigned int matrix_pre_offset2 = 0;
+	unsigned int matrix_en_ctrl = 0;
+	int mtx_out[3][3] = {0};
+	int pre_offset[3] = {
+		-64, -512, -512
+	};
+
+	int offset[3] = {
+		64, 512, 512
+	};
+
+	if (vinfo_lcd_support())
+		return;
+
+	for (i = SLICE0; i < slice_max; i++) {
+		matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01 +
+			pst_reg_ofst[i];
+		matrix_coef02_10 = VPP_POST_MATRIX_COEF02_10 +
+			pst_reg_ofst[i];
+		matrix_coef11_12 = VPP_POST_MATRIX_COEF11_12 +
+			pst_reg_ofst[i];
+		matrix_coef20_21 = VPP_POST_MATRIX_COEF20_21 +
+			pst_reg_ofst[i];
+		matrix_coef22 = VPP_POST_MATRIX_COEF22 +
+			pst_reg_ofst[i];
+		matrix_coef13_14 = VPP_POST_MATRIX_COEF13_14 +
+			pst_reg_ofst[i];
+		matrix_coef23_24 = VPP_POST_MATRIX_COEF23_24 +
+			pst_reg_ofst[i];
+		matrix_coef15_25 = VPP_POST_MATRIX_COEF15_25 +
+			pst_reg_ofst[i];
+		matrix_clip = VPP_POST_MATRIX_CLIP +
+			pst_reg_ofst[i];
+		matrix_offset0_1 = VPP_POST_MATRIX_OFFSET0_1 +
+			pst_reg_ofst[i];
+		matrix_offset2 = VPP_POST_MATRIX_OFFSET2 +
+			pst_reg_ofst[i];
+		matrix_pre_offset0_1 = VPP_POST_MATRIX_PRE_OFFSET0_1 +
+			pst_reg_ofst[i];
+		matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2 +
+			pst_reg_ofst[i];
+		matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL +
+			pst_reg_ofst[i];
+
+		temp = VSYNC_READ_VPP_REG(matrix_en_ctrl);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_en_ctrl,
+			(temp & 0xfffffffe) | (mtx_on & 0x1), vpp_index);
+
+		if (!mtx_on)
+			continue;
+
+		ve_mtx_multi(mtx_ep, mtx_out);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01,
+			((mtx_out[0][0] & 0x1fff) << 16) |
+			(mtx_out[0][1] & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10,
+			((mtx_out[0][2] & 0x1fff) << 16) |
+			(mtx_out[1][0] & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12,
+			((mtx_out[1][1] & 0x1fff) << 16) |
+			(mtx_out[1][2] & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21,
+			((mtx_out[2][0] & 0x1fff) << 16) |
+			(mtx_out[2][1] & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22,
+			(mtx_out[2][2] & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1,
+			((offset[0] & 0x7ff) << 16) |
+			(offset[1] & 0x7ff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2,
+			(offset[2] & 0x7ff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1,
+			((pre_offset[0] & 0x7ff) << 16) |
+			(pre_offset[1] & 0x7ff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2,
+			(pre_offset[2] & 0x7ff), vpp_index);
+	}
+	eye_proc_en = mtx_on;
+}
+
+int get_eye_pro_en(void)
+{
+	return eye_proc_en;
 }
 
 void cm_top_ctl(enum wr_md_e mode, int en, int vpp_index)

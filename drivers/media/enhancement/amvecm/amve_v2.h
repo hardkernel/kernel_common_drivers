@@ -51,6 +51,8 @@ int ve_brightness_contrast_get(enum vadj_index_e vadj_idx);
 void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 	enum wr_md_e mode, enum vpp_slice_e slice,
 	enum vpp_matrix_e mtx_sel, int vpp_index);
+void ve_eye_proc(int mtx_ep[][4], int mtx_on, int vpp_index);
+int get_eye_pro_en(void);
 
 /*vpp module control*/
 void ve_vadj_ctl(enum wr_md_e mode, enum vadj_index_e vadj_idx, int en,

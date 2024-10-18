@@ -1120,6 +1120,7 @@ void lc_config(int enable,
 	unsigned int flag, flag_full;
 	int lc_en_ctrl = enable;
 	int in_sel;
+	unsigned int limit_full = 0;
 
 	h_num = LC_BLK_H_NUM;
 	v_num = LC_BLK_V_NUM;
@@ -1140,10 +1141,12 @@ void lc_config(int enable,
 
 	/* try to detect out of spec signal level */
 	flag_full = 0;
+	limit_full = (vf->signal_type >> 25) & 0x01;
 	if (detect_signal_range_en == 2 &&
 		chip_type_id != chip_t3x) {
 		flag_full = signal_detect(vp->vpp_gamma);
-		if (vf->type & VIDTYPE_RGB_444)
+		if (vf->type & VIDTYPE_RGB_444 ||
+			limit_full)
 			flag_full = 1;
 	} else {
 		flag_full = detect_signal_range_en;

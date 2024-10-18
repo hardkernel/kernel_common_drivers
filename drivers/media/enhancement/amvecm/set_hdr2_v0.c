@@ -1946,8 +1946,11 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	}
 
 	if (!hdr_mtx_param ||
-	    (!hdr_lut_param && mtx_sel == HDR_GAMUT_MTX))
+		(!hdr_lut_param && mtx_sel == HDR_GAMUT_MTX)) {
+		pr_csc(128, "%s: null return, mtx_sel = 0x%x\n",
+			__func__, mtx_sel);
 		return;
+	}
 
 	/* need change clock gate as freerun when mtx on directly, not rdma op */
 	/* Now only operate osd1/vd1/vd2 hdr core */
@@ -1977,6 +1980,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_clk_gate,
 				0, 0, 12, vpp_sel);
 	}
+
+	pr_csc(128, "%s: mtx_sel = 0x%x\n", __func__, mtx_sel);
 
 	if (mtx_sel == HDR_IN_MTX) {
 		for (i = 0; i < MTX_NUM_PARAM; i++)
@@ -2038,11 +2043,18 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	} else if (mtx_sel == HDR_GAMUT_MTX) {
 		u32 ogain_lut_148 = hdr_lut_param->ogain_lut[148];
 
+		pr_csc(128, "%s: p_sel = 0x%x, gmt_bit_mode = 0x%x, ogain_lut_148 = 0x%x\n",
+			__func__, hdr_mtx_param->p_sel,
+			hdr_mtx_param->gmt_bit_mode, ogain_lut_148);
+
 		for (i = 0; i < 9; i++)
 			gmut_coef[i / 3][i % 3] =
 				hdr_mtx_param->mtx_gamut[i];
 		/* TODO: use hdr_mtx_param->gmut_shift directly */
 		gmut_shift = calc_gmut_shift(hdr_mtx_param);
+
+		pr_csc(128, "%s: gmut_shift = 0x%x\n",
+			__func__, gmut_shift);
 
 		for (i = 0; i < 3; i++)
 			c_gain_lim_coef[i] =
@@ -2112,6 +2124,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				_log2((1 << OO_NOR) / ogain_lut_148)
 				- 1;
 			}
+			pr_csc(128, "%s: HDR_SDR adpscl_shift_1 = 0x%x\n",
+				__func__, adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & CUVA_SDR) {
 			if (hdr_mtx_param->gmt_bit_mode) {
 				adpscl_shift[0] =
@@ -2149,6 +2163,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				_log2((1 << OO_NOR) / ogain_lut_148)
 				- 1;
 			}
+			pr_csc(128, "%s: HLG_SDR adpscl_shift_1 = 0x%x\n",
+				__func__, adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & HDR10P_SDR) {
 			if (p_hdr10pgen_param)
 				scale_shift = _log2((1 << OO_NOR) /
@@ -2170,10 +2186,14 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] -= p_hdr10pgen_param->shift;
 				adpscl_shift[1] -= p_hdr10pgen_param->shift;
 			}
+			pr_csc(128, "%s: HDR10P_SDR adpscl_shift_1 = 0x%x\n",
+				__func__, adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & HDR_HLG) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR -
 			_log2((1 << OO_NOR) / ogain_lut_148);
+			pr_csc(128, "%s: HDR_HLG adpscl_shift_1 = 0x%x\n",
+				__func__, adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & SDR_GMT_CONVERT) {
 			if (hdr_mtx_param->gmt_bit_mode) {
 				scale_shift =
@@ -2188,6 +2208,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift - 1;
 				adpscl_shift[1] = OO_NOR - scale_shift - 1;
 			}
+			pr_csc(128, "%s: SDR_GMT_CONVERT adpscl_shift_1 = 0x%x\n",
+				__func__, adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel &
 			(CUVA_HDR | CUVAHLG_HDR | CUVAHLG_HLG)) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
@@ -2196,6 +2218,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift  - 2;
 			adpscl_shift[1] = OO_NOR -
 			_log2((1 << OO_NOR) / ogain_lut_148) - 2;
+			pr_csc(128, "%s: IPT_SDR adpscl_shift_1 = 0x%x\n",
+				__func__, adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & SDR_HDR) {
 			if (chip_cls_id == TV_CHIP && module_sel == VD1_HDR) {
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
@@ -2205,12 +2229,18 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 				adpscl_shift[1] = OO_NOR;
 			}
+			pr_csc(128, "%s: SDR_HDR adpscl_shift_1 = 0x%x\n",
+				__func__, adpscl_shift[1]);
+			pr_csc(128, "%s: chip_cls_id/module_sel = 0x%x/%x\n",
+				__func__, chip_cls_id, module_sel);
 		} else if (hdr_mtx_param->p_sel & HDR_HDR) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR - _log2((1 << OO_NOR) / 64);
 		} else {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR;
+			pr_csc(128, "%s: else adpscl_shift_1/p_sel = 0x%x/%x\n",
+				__func__, adpscl_shift[1], hdr_mtx_param->p_sel);
 		}
 
 		/*shift2 is not used, set default*/
@@ -3473,7 +3503,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		(module_sel == OSD3_HDR && vpp_index == VPP_TOP0)) &&
 		(get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T3)) {
-		pr_csc(12, "%s: module_sel = %d vpp_index = %d not match\n",
+		pr_csc(128, "%s: module_sel = %d vpp_index = %d not match\n",
 			__func__, module_sel, vpp_index);
 		return hdr_process_select;
 	}
@@ -3505,8 +3535,14 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		if (!osd_pic_en ||
 			chip_type_id != chip_t5m) {
 			/* VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0, vpp_sel); */
-			if (!is_amdv_on())
+			if (!is_amdv_on() || chip_cls_id == TV_CHIP) {
 				hdr_process_select |= RGB_OSD;
+				pr_csc(128, "%s: dv off proc sel or tv chip = 0x%x\n",
+					__func__, hdr_process_select);
+			} else {
+				pr_csc(128, "%s: dv on proc sel = 0x%x\n",
+					__func__, hdr_process_select);
+			}
 		}
 
 		/*for g12a/g12b osd blend shift rtl bug*/
@@ -4071,7 +4107,10 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				__func__, hdr_process_select);
 			pr_csc(128, "%s: RGB_OSD HDR_BYPASS, module_sel = %d\n",
 				__func__, module_sel);
-			if (hdr_process_select & RGB_VDIN) {
+			if ((hdr_process_select & RGB_VDIN) ||
+				(hdr_process_select & FULL_VDIN)) {
+				pr_csc(128, "%s: RGB_OSD HDR_BYPASS, rgb2ycbcrf_709\n",
+					__func__);
 				coeff_in = rgb2ycbcrf_709;
 				oft_pre_in = rgb2yuvfpre;
 				oft_post_in = rgb2yuvfpos;
@@ -4088,7 +4127,12 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					oft_post_in = rgb2yuvpos;
 				}
 			} else {
-				coeff_in = rgb2ycbcr_709;
+				if (is_meson_s5_cpu())
+					coeff_in = rgb2ycbcr_bt2020;
+				else
+					coeff_in = rgb2ycbcr_709;
+				pr_csc(128, "%s: RGB_OSD HDR_BYPASS, rgb2ycbcr_709\n",
+					__func__);
 				oft_pre_in = rgb2yuvpre;
 				oft_post_in = rgb2yuvpos;
 				oft_pre_out = bypass_pre;
@@ -4131,12 +4175,14 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			__func__, hdr_process_select, module_sel);
 		/* sdr process, always rgb osd here*/
 		if (hdr_process_select & RGB_OSD) {
+			pr_csc(128, "%s: RGB_OSD, bypass_coeff\n", __func__);
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
 			oft_pre_out = rgb2yuvpre;
 			oft_post_out = rgb2yuvpos;
 		} else {
+			pr_csc(128, "%s: RGB_OSD, ycbcr2rgb_709\n", __func__);
 			coeff_in = ycbcr2rgb_709;
 			oft_pre_in = yuv2rgbpre;
 			oft_post_in = yuv2rgbpos;
@@ -4451,10 +4497,23 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		     module_sel == VICP_HDR) &&
 		     !(hdr_process_select & RGB_VDIN)) {
 			coeff_in = ycbcr2rgb_709;
+
+			if (hdr_process_select & FULL_VDIN) {
+				coeff_in = ycbcrf2rgb_709;
+				oft_pre_in = yuvf2rgbpre;
+				oft_post_in = yuv2rgbpos;
+				pr_csc(128, "%s: SDR_HDR FULL_VDIN coeff_in ycbcrf2rgb_709\n",
+					__func__);
+			}
 		}
 
 		if (chip_cls_id == TV_CHIP &&
 			module_sel == VD1_HDR) {
+			if (hdr_process_select & FULL_VDIN) {
+				oft_pre_out = rgb2yuvfpre;
+				oft_post_out = rgb2yuvfpos;
+			}
+
 			for (i = 0; i < MTX_NUM_PARAM; i++) {
 				hdr_mtx_param.mtx_in[i] = coeff_in[i];
 				hdr_mtx_param.mtx_cgain[i] =
@@ -4470,6 +4529,24 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 						__func__, module_sel);
 				} else {
 					hdr_mtx_param.mtx_out[i] = rgb2ycbcr_709[i];
+				}
+
+				if (hdr_process_select & FULL_VDIN) {
+					hdr_mtx_param.mtx_out[i] = rgb2ycbcrf_709[i];
+					pr_csc(128,
+						"%s: SDR_HDR FULL_VDIN coeff_out rgb2ycbcrf_709\n",
+						__func__);
+
+					if (i < 3) {
+						hdr_mtx_param.mtxi_pre_offset[i] =
+							oft_pre_in[i];
+						hdr_mtx_param.mtxi_pos_offset[i] =
+							oft_post_in[i];
+						hdr_mtx_param.mtxo_pre_offset[i] =
+							oft_pre_out[i];
+						hdr_mtx_param.mtxo_pos_offset[i] =
+							oft_post_out[i];
+					}
 				}
 
 				if (i < 9 && !gmt_mtx)
@@ -5601,6 +5678,9 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 
 	if (disable_flush_flag)
 		return;
+
+	pr_csc(128, "%s: mtx_sel/mtx_csc = 0x%x/%x, mtx_on = %d\n",
+		__func__, mtx_sel, mtx_csc, mtx_on);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3X) {

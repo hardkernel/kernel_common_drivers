@@ -180,6 +180,9 @@ static u32 offset_addr(u32 addr)
 static inline void WRITE_VPP_REG(u32 reg,
 				 const u32 value)
 {
+	if (!reg)
+		return;
+
 	aml_write_vcbus_s(offset_addr(reg), value);
 }
 
@@ -191,6 +194,9 @@ static inline void WRITE_VPP_REG_S5(u32 reg,
 
 static inline u32 READ_VPP_REG(u32 reg)
 {
+	if (!reg)
+		return 0;
+
 	return aml_read_vcbus_s(offset_addr(reg));
 }
 
@@ -206,6 +212,9 @@ static inline void WRITE_VPP_REG_EX(u32 reg,
 	if (add_offset)
 		reg = offset_addr(reg);
 
+	if (!reg)
+		return;
+
 	aml_write_vcbus_s(reg, value);
 }
 
@@ -215,6 +224,9 @@ static inline u32 READ_VPP_REG_EX(u32 reg,
 	if (add_offset)
 		reg = offset_addr(reg);
 
+	if (!reg)
+		return 0;
+
 	return aml_read_vcbus_s(reg);
 }
 
@@ -223,6 +235,9 @@ static inline void WRITE_VPP_REG_BITS(u32 reg,
 		const u32 start,
 		const u32 len)
 {
+	if (!reg)
+		return;
+
 	aml_vcbus_update_bits_s(offset_addr(reg), value, start, len);
 }
 
@@ -242,6 +257,9 @@ static inline u32 READ_VPP_REG_BITS(u32 reg,
 {
 	u32 val;
 	u32 reg1 = offset_addr(reg);
+
+	if (!reg)
+		return 0;
 
 	val = ((aml_read_vcbus_s(reg1) >> (start)) & ((1L << (len)) - 1));
 

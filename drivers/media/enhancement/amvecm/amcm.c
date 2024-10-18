@@ -765,7 +765,7 @@ void amcm_enable(enum wr_md_e md, int vpp_index)
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_CFG_REG);
 		temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 		temp = (temp & (~0xc0000000)) | (1 << 30);
-		temp = (temp & (~0xff0000)) | (24 << 16);
+		temp = (temp & (~0xff0000)) | (1 << 16);
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_CFG_REG);
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp);
 
