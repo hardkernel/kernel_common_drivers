@@ -1716,6 +1716,25 @@ void aml_frddr_select_dst_ss(struct frddr *fr,
 		frddr_set_sharebuffer_enable(fr, dst, lvl, enable);
 }
 
+unsigned int aml_frddr_get_fifo_infos(struct frddr *fr,
+		unsigned int period_bytes, unsigned int one_ms_fifo_size)
+{
+	unsigned int normal_fifo_size = 0, final_fifo_size = 0;
+	/*tdm/spdif a or b/earc device
+	 *1. pcm data, 48k 2/4/8ch 16bit/32bit
+	 *2. dd/ddp or dts data, 48k 2ch 16bit
+	 *3. mat data, 192k 8ch 16bit
+	 */
+	/*
+	 * Contrast minimum of period, fifo depth and one_ms_fifo_size,
+	 * and set the value as half.
+	 */
+	normal_fifo_size = min(period_bytes, fr->chipinfo->fifo_depth);
+	final_fifo_size = min(normal_fifo_size, one_ms_fifo_size);
+
+	return final_fifo_size;
+}
+
 void aml_frddr_set_fifos(struct frddr *fr,
 		unsigned int depth, unsigned int threshold)
 {

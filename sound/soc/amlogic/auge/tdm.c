@@ -1434,6 +1434,7 @@ static int aml_tdm_prepare(struct snd_soc_component *component, struct snd_pcm_s
 	struct aml_tdm *p_tdm = runtime->private_data;
 	unsigned int start_addr, end_addr, int_addr;
 	unsigned int period, threshold;
+	unsigned int use_fifo_size = 0, one_ms_fifo_size = 0;
 
 	start_addr = runtime->dma_addr;
 	end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
@@ -1454,14 +1455,13 @@ static int aml_tdm_prepare(struct snd_soc_component *component, struct snd_pcm_s
 				tdm_sharebuffer_reset(p_tdm, runtime->channels);
 		}
 
-		/*
-		 * Contrast minimum of period and fifo depth,
-		 * and set the value as half.
-		 */
-		threshold = min(period, fr->chipinfo->fifo_depth);
-		threshold /= 2;
+		/* current define 1ms for reference fifo delay */
+		one_ms_fifo_size = runtime->rate * (runtime->frame_bits / 8) / 1000LL;
+		use_fifo_size = aml_frddr_get_fifo_infos(fr, period, one_ms_fifo_size);
+		threshold = use_fifo_size / 2;
+
 		/* Use all the fifo */
-		aml_frddr_set_fifos(fr, fr->chipinfo->fifo_depth, threshold);
+		aml_frddr_set_fifos(fr, use_fifo_size, threshold);
 
 		aml_frddr_set_buf(fr, start_addr, end_addr);
 		aml_frddr_set_intrpt(fr, int_addr);
