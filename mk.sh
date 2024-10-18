@@ -215,7 +215,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo args=${args}
 	set -x
 	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
-		if [[${GOOGLE_BAZEL_BUILD_COMMAND_LINE} =~ "--kasan" ]]; then
+		if [[ ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} =~ "--kasan" ]]; then
 			GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} \
 								--gki_build_config_fragment=//common_drivers:build.config.amlogic.fragment.bazel \
 								--allow_undeclared_modules"
