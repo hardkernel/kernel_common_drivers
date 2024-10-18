@@ -1115,25 +1115,27 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 
 	if (!layer)
 		return;
+
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	if (layer->layer_id == 1) {
 		if (vd_layer[1].vpp_index == VPP1)
 			info = get_current_vinfo2();
 	} else if (layer->layer_id == 2) {
-		if (vd_layer[1].vpp_index == VPP1)
+		if (vd_layer[2].vpp_index == VPP1)
 			info = get_current_vinfo2();
 	}
 #endif
 
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	if (layer->layer_id == 1) {
-		if (vd_layer[2].vpp_index == VPP2)
+		if (vd_layer[1].vpp_index == VPP2)
 			info = get_current_vinfo3();
 	} else if (layer->layer_id == 2) {
 		if (vd_layer[2].vpp_index == VPP2)
 			info = get_current_vinfo3();
 	}
 #endif
+
 	if (!info || info->mode == VMODE_INVALID)
 		return;
 
