@@ -126,7 +126,11 @@ out:
 
 int aml_dwc3_host_init(struct aml_dwc3 *dwc)
 {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	struct property_entry	props[8];
+#else
 	struct property_entry	props[6];
+#endif
 	struct platform_device	*xhci;
 	int			ret, irq;
 	int			prop_idx = 0;
@@ -140,8 +144,11 @@ int aml_dwc3_host_init(struct aml_dwc3 *dwc)
 	irq = dwc3_host_get_irq(dwc);
 	if (irq < 0)
 		return irq;
-
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	xhci = platform_device_alloc("xhci-hcd-meson", PLATFORM_DEVID_AUTO);
+#else
+	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
+#endif
 	if (!xhci) {
 		dev_err(dwc->dev, "couldn't allocate xHCI device\n");
 		return -ENOMEM;
@@ -181,6 +188,11 @@ int aml_dwc3_host_init(struct aml_dwc3 *dwc)
 	 */
 	if (DWC3_VER_IS_WITHIN(DWC3, ANY, 300A))
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("quirk-broken-port-ped");
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (dwc->super_speed_support)
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("super_speed_support");
+#endif
 
 	if (prop_idx) {
 		ret = device_create_managed_software_node(&xhci->dev, props, NULL);

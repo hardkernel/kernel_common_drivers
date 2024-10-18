@@ -37,6 +37,10 @@
 /* Section 5.3.3 - MaxPorts */
 #define MAX_HC_PORTS		127
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+#define XHCI_TRANS_ERRS_CNT		300
+#endif
+
 /*
  * xHCI register interface.
  * This corresponds to the eXtensible Host Controller Interface (xHCI)
@@ -694,6 +698,15 @@ struct aml_xhci_virt_ep {
 	int			next_frame_id;
 	/* Use new Isoch TRB layout needed for extended TBC support */
 	bool			use_extended_tbc;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	__u8  bendpointaddress;
+	struct work_struct stop_work;
+	int q_status_count;
+	struct usb_device *udev;
+	/*for xhci-crg-host-plug-died*/
+	struct timer_list	stop_cmd_queue_timer;
+	int slot_id;
+#endif
 };
 
 enum aml_xhci_overhead_type {
@@ -1387,10 +1400,25 @@ struct aml_xhci_scratchpad {
 struct aml_urb_priv {
 	int num_tds;
 	int num_tds_done;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	int need_event_data;
+	u8 need_div;
+	//unsigned char tmp_buf2[1024*8];
+	void *tmp_buf;
+	dma_addr_t tmp_dma;
+	u64 dst_dma[6];
+	u64 dst_buf[6];
+	struct urb		*urb;
+	int need_event_data_flag;
+#endif
 	struct aml_xhci_td	td[] __counted_by(num_tds);
 };
 
 /* Number of Event Ring segments to allocate, when amount is not specified. (spec allows 32k) */
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+#define	AML_ERST_NUM_SEGS	10
+#define	AML_HOST11_ERST_NUM_SEGS	32
+#endif
 #define	ERST_DEFAULT_SEGS	2
 /* Poll every 60 seconds */
 #define	POLL_TIMEOUT	60
@@ -1624,6 +1652,24 @@ struct aml_xhci_hcd {
 #define XHCI_ZHAOXIN_HOST	BIT_ULL(46)
 #define XHCI_WRITE_64_HI_LO	BIT_ULL(47)
 #define XHCI_CDNS_SCTX_QUIRK	BIT_ULL(48)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+#define XHCI_DISABLE_IDT	BIT_ULL(61)
+#define	XHCI_AML_SUPER_SPEED_SUPPORT	BIT_ULL(62)
+	unsigned long long	meson_quirks;
+#define XHCI_CRG_HOST_DELAY		BIT_ULL(1)
+#define XHCI_CRG_HOST_EPROTO	BIT_ULL(2)
+#define XHCI_CRG_HOST_003	BIT_ULL(3)
+#define XHCI_CRG_HOST_007	BIT_ULL(7)
+#define XHCI_CRG_HOST_008	BIT_ULL(8)
+#define XHCI_CRG_HOST_009	BIT_ULL(9)
+#define XHCI_CRG_HOST_010	BIT_ULL(10)
+#define XHCI_CRG_HOST_011	BIT_ULL(11)
+#define XHCI_CRG_HOST_014	BIT_ULL(14)
+#define XHCI_CRG_HOST_016	BIT_ULL(16)
+#define XHCI_CRG_HOST		BIT_ULL(19)
+
+	int xhci_trans_err_cnt;
+#endif
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
@@ -1762,6 +1808,10 @@ void aml_xhci_dbg_trace(struct aml_xhci_hcd *xhci, void (*trace)(struct va_forma
 /* xHCI memory management */
 void aml_xhci_mem_cleanup(struct aml_xhci_hcd *xhci);
 int aml_xhci_mem_init(struct aml_xhci_hcd *xhci, gfp_t flags);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+void xhci_free_stop_ep_timer(struct aml_xhci_hcd *xhci, int slot_id);
+void xhci_del_stop_ep_timer(struct aml_xhci_hcd *xhci, int slot_id);
+#endif
 void aml_xhci_free_virt_device(struct aml_xhci_hcd *xhci, int slot_id);
 int aml_xhci_alloc_virt_device(struct aml_xhci_hcd *xhci, int slot_id, struct usb_device *udev, gfp_t flags);
 int aml_xhci_setup_addressable_virt_dev(struct aml_xhci_hcd *xhci, struct usb_device *udev);
@@ -1965,12 +2015,23 @@ static inline struct aml_xhci_ring *xhci_urb_to_transfer_ring(struct aml_xhci_hc
  */
 static inline bool xhci_urb_suitable_for_idt(struct urb *urb)
 {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	struct usb_hcd	*hcd = bus_to_hcd(urb->dev->bus);
+	struct aml_xhci_hcd *xhci = hcd_to_xhci(hcd);
+#endif
+
 	if (!usb_endpoint_xfer_isoc(&urb->ep->desc) && usb_urb_dir_out(urb) &&
 	    usb_endpoint_maxp(&urb->ep->desc) >= TRB_IDT_MAX_SIZE &&
 	    urb->transfer_buffer_length <= TRB_IDT_MAX_SIZE &&
 	    !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP) &&
-	    !urb->num_sgs)
+	    !urb->num_sgs) {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if ((xhci->quirks & XHCI_DISABLE_IDT) &&
+			urb->transfer_buffer_length == 0)
+			return false;
+#endif
 		return true;
+	}
 
 	return false;
 }
@@ -2526,5 +2587,19 @@ static inline const char *xhci_decode_ep_context(char *str, u32 info,
 
 	return str;
 }
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+extern unsigned int db_wait;
+void xhci_start_stop_endpoint_work(struct aml_xhci_hcd *xhci,
+	int slot_id, unsigned int ep_index);
+int aml_xhci_stop_device(struct aml_xhci_hcd *xhci, int slot_id, int suspend);
+void aml_xhci_ring_device(struct aml_xhci_hcd *xhci, int slot_id);
+void aml_queue_trb(struct aml_xhci_hcd *xhci, struct aml_xhci_ring *ring,
+		bool more_trbs_coming,
+		u32 field1, u32 field2, u32 field3, u32 field4);
+int xhci_find_low_speed_dev(struct aml_xhci_hcd *xhci);
+void xhci_stop_endpoint_command_timer(struct timer_list *t);
+
+#endif
 
 #endif /* __LINUX_XHCI_HCD_H */

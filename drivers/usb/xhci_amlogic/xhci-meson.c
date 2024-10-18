@@ -38,6 +38,19 @@ static unsigned long long quirks;
 module_param(quirks, ullong, S_IRUGO);
 MODULE_PARM_DESC(quirks, "Bit flags for quirks to be enabled as default");
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+unsigned int db_wait;
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+struct usb_hub *aml_xhci_usb_hub_to_struct_hub(struct usb_device *hdev)
+{
+	if (!hdev || !hdev->actconfig || !hdev->maxchild)
+		return NULL;
+	return usb_get_intfdata(hdev->actconfig->interface[0]);
+}
+#endif
+
 static bool td_on_ring(struct aml_xhci_td *td, struct aml_xhci_ring *ring)
 {
 	struct aml_xhci_segment *seg = ring->first_seg;
@@ -158,6 +171,18 @@ int aml_xhci_start(struct aml_xhci_hcd *xhci)
 {
 	u32 temp;
 	int ret;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	struct usb_hcd *hcd;
+
+	if (xhci->meson_quirks & XHCI_CRG_HOST) {
+		hcd = xhci_to_hcd(xhci);
+		temp = readl(hcd->regs + 0x20b0);
+		temp |= 1 << 26;
+		writel(temp, hcd->regs + 0x20b0);
+		temp = readl(hcd->regs + 0x20b0);
+		temp = 0;
+	}
+#endif
 
 	temp = readl(&xhci->op_regs->command);
 	temp |= (CMD_RUN);
@@ -894,13 +919,28 @@ int aml_xhci_suspend(struct aml_xhci_hcd *xhci, bool do_wakeup)
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	u32			command;
 	u32			res;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	int i;
+#endif
 
 	if (!hcd->state)
 		return 0;
 
 	if (hcd->state != HC_STATE_SUSPENDED ||
-	    (xhci->shared_hcd && xhci->shared_hcd->state != HC_STATE_SUSPENDED))
+			xhci->shared_hcd->state != HC_STATE_SUSPENDED) {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (xhci->xhc_state & XHCI_STATE_DYING) {
+			aml_xhci_info(xhci, "-------xhci has been died-----\n");
+			return 0;
+		}
+#endif
 		return -EINVAL;
+	}
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_DELAY)
+		for (i = HCS_MAX_SLOTS(xhci->hcs_params1); i > 0; i--)
+			xhci_free_stop_ep_timer(xhci, i);
+#endif
 
 	/* Clear root port wake on bits if wakeup not allowed. */
 	xhci_disable_hub_port_wake(xhci, &xhci->usb3_rhub, do_wakeup);
@@ -1011,6 +1051,9 @@ int aml_xhci_resume(struct aml_xhci_hcd *xhci, pm_message_t msg)
 	bool			pending_portevent = false;
 	bool			suspended_usb3_devs = false;
 	bool			reinit_xhc = false;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	int i;
+#endif
 
 	if (!hcd->state)
 		return 0;
@@ -1018,6 +1061,11 @@ int aml_xhci_resume(struct aml_xhci_hcd *xhci, pm_message_t msg)
 	/* Wait a bit if either of the roothubs need to settle from the
 	 * transition into bus suspend.
 	 */
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_DELAY)
+		for (i = HCS_MAX_SLOTS(xhci->hcs_params1); i > 0; i--)
+			xhci_del_stop_ep_timer(xhci, i);
+#endif
 
 	if (time_before(jiffies, xhci->usb2_rhub.bus_state.next_statechange) ||
 	    time_before(jiffies, xhci->usb3_rhub.bus_state.next_statechange))
@@ -1581,6 +1629,25 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 		goto free_priv;
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_010) {
+		if (urb->dev->level != 1 && urb->dev->speed == USB_SPEED_SUPER &&
+			usb_urb_dir_in(urb) && urb->dev->bus->sg_tablesize > 0) {
+			urb_priv->need_div = 1;
+		}
+		urb_priv->urb = urb;
+	}
+
+	if (xhci->meson_quirks & XHCI_CRG_HOST_007) {
+		if (urb->dev->level >= 2 &&
+			urb->dev->speed == USB_SPEED_LOW &&
+			(usb_endpoint_xfer_int(&urb->ep->desc))) {
+			urb_priv->need_event_data = 1;
+			//aml_xhci_info(xhci, "007-########%s\n", __func__);
+		}
+	}
+#endif
+
 	slot_id = urb->dev->slot_id;
 
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
@@ -1687,6 +1754,10 @@ static int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct aml_xhci_virt_ep *ep;
 	struct aml_xhci_command *command;
 	struct aml_xhci_virt_device *vdev;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	int delay_stop;
+#endif
+
 
 	xhci = hcd_to_xhci(hcd);
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -1772,15 +1843,65 @@ static int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	 * the first cancellation to be handled.
 	 */
 	if (!(ep->ep_state & EP_STOP_CMD_PENDING)) {
+		ep->ep_state |= EP_STOP_CMD_PENDING;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (urb->dev->level == 1 &&
+			(xhci->meson_quirks & XHCI_CRG_HOST_011) &&
+			urb->ep && usb_endpoint_xfer_isoc(&urb->ep->desc) &&
+			urb->dev->descriptor.bDeviceClass == 0xef &&
+			urb->dev->speed == USB_SPEED_HIGH) {
+			delay_stop = 5;
+
+			ep->stop_cmd_queue_timer.expires = jiffies +
+				1 * delay_stop;
+			ep->slot_id = urb->dev->slot_id;
+			ep->ep_index = ep_index;
+			if (!timer_pending(&ep->stop_cmd_queue_timer))
+				add_timer(&ep->stop_cmd_queue_timer);
+			//aml_xhci_info(xhci, "host10 delay 5--ep=%d, slot=%d\n",
+				//ep_index, ep->slot_id);
+		} else if ((xhci->meson_quirks & XHCI_CRG_HOST_DELAY) &&
+			urb->ep && !usb_endpoint_xfer_control(&urb->ep->desc)) {
+			if (urb->dev->level == 1 &&
+				(xhci->meson_quirks & XHCI_CRG_HOST_011) &&
+				urb->ep && usb_endpoint_xfer_int(&urb->ep->desc) &&
+				urb->dev->descriptor.bDeviceClass == 0xef &&
+				urb->dev->speed == USB_SPEED_HIGH)
+				delay_stop = 30;
+			else
+				delay_stop = 20;
+
+			ep->stop_cmd_queue_timer.expires = jiffies +
+				1 * delay_stop;
+			ep->slot_id = urb->dev->slot_id;
+			ep->ep_index = ep_index;
+			if (!timer_pending(&ep->stop_cmd_queue_timer))
+				add_timer(&ep->stop_cmd_queue_timer);
+			//aml_xhci_info(xhci, "host001, delay=%d, ep=%d, slot=%d\n",
+			//delay_stop, ep_index, ep->slot_id);
+		} else {
+			command = aml_xhci_alloc_command(xhci, false, GFP_ATOMIC);
+			if (!command) {
+				ret = -ENOMEM;
+				goto done;
+			}
+			aml_xhci_queue_stop_endpoint(xhci, command, urb->dev->slot_id,
+						 ep_index, 0);
+			aml_xhci_ring_cmd_db(xhci);
+			//aml_xhci_info(xhci, "no delay---ep=%d, slot=%d\n",
+				//ep_index, urb->dev->slot_id);
+		}
+#else
 		command = aml_xhci_alloc_command(xhci, false, GFP_ATOMIC);
 		if (!command) {
 			ret = -ENOMEM;
 			goto done;
 		}
-		ep->ep_state |= EP_STOP_CMD_PENDING;
+		//ep->ep_state |= EP_STOP_CMD_PENDING;
 		aml_xhci_queue_stop_endpoint(xhci, command, urb->dev->slot_id,
 					 ep_index, 0);
 		aml_xhci_ring_cmd_db(xhci);
+#endif
 	}
 done:
 	spin_unlock_irqrestore(&xhci->lock, flags);
@@ -2808,14 +2929,42 @@ static int xhci_configure_endpoint(struct aml_xhci_hcd *xhci,
 	struct aml_xhci_input_control_ctx *ctrl_ctx;
 	struct aml_xhci_virt_device *virt_dev;
 	struct aml_xhci_slot_ctx *slot_ctx;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	int i;
+	struct aml_xhci_ring *ring;
+	struct usb_device *tmp_udev;
+#endif
 
 	if (!command)
 		return -EINVAL;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_003) {
+		if (udev->speed == USB_SPEED_FULL &&
+			udev->level == 1 && udev->state == USB_STATE_NOTATTACHED) {
+			db_wait  = 1;
+			for (i = 0; i < MAX_HC_SLOTS; i++) {
+				if (xhci->devs[i] && xhci->devs[i]->udev) {
+					tmp_udev = xhci->devs[i]->udev;
+					if (tmp_udev != udev) {
+						aml_xhci_info(xhci, "########aml_xhci_stop_device slot id =  %d\n",
+						tmp_udev->slot_id);
+						aml_xhci_stop_device(xhci, tmp_udev->slot_id, 1);
+					}
+				}
+			}
+			msleep(100);
+		}
+	}
+#endif
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		db_wait = 0;
+#endif
 		return -ESHUTDOWN;
 	}
 
@@ -2826,6 +2975,9 @@ static int xhci_configure_endpoint(struct aml_xhci_hcd *xhci,
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		aml_xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
 				__func__);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		db_wait = 0;
+#endif
 		return -ENOMEM;
 	}
 
@@ -2835,6 +2987,9 @@ static int xhci_configure_endpoint(struct aml_xhci_hcd *xhci,
 		aml_xhci_warn(xhci, "Not enough host resources, "
 				"active endpoint contexts = %u\n",
 				xhci->num_active_eps);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		db_wait = 0;
+#endif
 		return -ENOMEM;
 	}
 	if ((xhci->quirks & XHCI_SW_BW_CHECKING) && !ctx_change &&
@@ -2843,6 +2998,9 @@ static int xhci_configure_endpoint(struct aml_xhci_hcd *xhci,
 			xhci_free_host_resources(xhci, ctrl_ctx);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		aml_xhci_warn(xhci, "Not enough bandwidth\n");
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+				db_wait = 0;
+#endif
 		return -ENOMEM;
 	}
 
@@ -2865,13 +3023,106 @@ static int xhci_configure_endpoint(struct aml_xhci_hcd *xhci,
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		aml_xhci_dbg_trace(xhci,  trace_aml_xhci_dbg_context_change,
 				"FIXME allocate a new ring segment");
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		db_wait = 0;
+#endif
 		return -ENOMEM;
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	 /*Full speed device disconnect*/
+	if ((xhci->meson_quirks & XHCI_CRG_HOST_003) &&
+		(udev) && udev->speed == USB_SPEED_FULL && udev->level == 1 &&
+		 udev->state == USB_STATE_NOTATTACHED) {
+		for (i = 0; i < 31; i++) {
+			ring = xhci->devs[udev->slot_id]->eps[i].ring;
+			if (ring) {
+				aml_xhci_info(xhci, "#######aml_queue_trb i = %d####\n", i);
+				 aml_queue_trb(xhci, ring, 0,
+					ring->first_seg->trbs->generic.field[0],
+					ring->first_seg->trbs->generic.field[1],
+					ring->first_seg->trbs->generic.field[2],
+					(ring->first_seg->trbs->generic.field[3] & ~0x1) |
+					ring->cycle_state | TRB_IOC);
+
+				writel(DB_VALUE(i, 0), &xhci->dba->doorbell[udev->slot_id]);
+				mdelay(5);
+
+				aml_queue_trb(xhci, ring, 0,
+					 ring->first_seg->trbs->generic.field[0],
+					 ring->first_seg->trbs->generic.field[1],
+					 ring->first_seg->trbs->generic.field[2],
+					 (ring->first_seg->trbs->generic.field[3] & ~0x1) |
+					 ring->cycle_state | TRB_IOC);
+
+				writel(DB_VALUE(i, 0), &xhci->dba->doorbell[udev->slot_id]);
+				mdelay(5);
+
+				aml_queue_trb(xhci, ring, 0,
+					 ring->first_seg->trbs->generic.field[0],
+					 ring->first_seg->trbs->generic.field[1],
+					 ring->first_seg->trbs->generic.field[2],
+					 (ring->first_seg->trbs->generic.field[3] & ~0x1) |
+					 ring->cycle_state | TRB_IOC);
+
+				writel(DB_VALUE(i, 0), &xhci->dba->doorbell[udev->slot_id]);
+				mdelay(5);
+
+				aml_queue_trb(xhci, ring, 0,
+					 ring->first_seg->trbs->generic.field[0],
+					 ring->first_seg->trbs->generic.field[1],
+					 ring->first_seg->trbs->generic.field[2],
+					 (ring->first_seg->trbs->generic.field[3] & ~0x1) |
+					 ring->cycle_state | TRB_IOC);
+
+				writel(DB_VALUE(i, 0), &xhci->dba->doorbell[udev->slot_id]);
+				mdelay(5);
+
+				aml_queue_trb(xhci, ring, 0,
+					 ring->first_seg->trbs->generic.field[0],
+					 ring->first_seg->trbs->generic.field[1],
+					 ring->first_seg->trbs->generic.field[2],
+					 (ring->first_seg->trbs->generic.field[3] & ~0x1) |
+					 ring->cycle_state | TRB_IOC);
+
+				writel(DB_VALUE(i, 0), &xhci->dba->doorbell[udev->slot_id]);
+				mdelay(5);
+
+				aml_queue_trb(xhci, ring, 0,
+					 ring->first_seg->trbs->generic.field[0],
+					 ring->first_seg->trbs->generic.field[1],
+					 ring->first_seg->trbs->generic.field[2],
+					 (ring->first_seg->trbs->generic.field[3] & ~0x1) |
+					 ring->cycle_state | TRB_IOC);
+				 writel(DB_VALUE(i, 0), &xhci->dba->doorbell[udev->slot_id]);
+				 mdelay(5);
+				//break;
+			}
+		}
+	}
+#endif
 	aml_xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* Wait for the configure endpoint command to complete */
 	wait_for_completion(command->completion);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if ((xhci->meson_quirks & XHCI_CRG_HOST_003) &&
+		(udev) && udev->speed == USB_SPEED_FULL && udev->level == 1 &&
+		udev->state == USB_STATE_NOTATTACHED) {
+		db_wait  = 0;
+		for (i = 0; i < MAX_HC_SLOTS; i++) {
+			if (xhci->devs[i] && xhci->devs[i]->udev) {
+				if (xhci->devs[i]->udev != udev) {
+					aml_xhci_info(xhci, "########aml_xhci_ring_device slot id =  %d\n",
+					xhci->devs[i]->udev->slot_id);
+					aml_xhci_ring_device(xhci, xhci->devs[i]->udev->slot_id);
+				}
+			}
+		}
+	}
+#endif
 
 	if (!ctx_change)
 		ret = xhci_configure_endpoint_result(xhci, udev,
@@ -3710,6 +3961,252 @@ void aml_xhci_free_device_endpoint_resources(struct aml_xhci_hcd *xhci,
  * re-initialization during S3/S4. In this case, call aml_xhci_alloc_dev() to
  * re-allocate the device.
  */
+ /* used when updating an endpoint's URB list */
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+static DEFINE_SPINLOCK(xhci_hcd_urb_list_lock);
+
+static struct urb *xhci_usb_get_urb(struct urb *urb)
+{
+	if (urb)
+		kref_get(&urb->kref);
+	return urb;
+}
+
+static void xhci_usb_hcd_disable_endpoint(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	struct usb_hcd		*hcd;
+
+	might_sleep();
+	hcd = bus_to_hcd(udev->bus);
+	if (hcd->driver->endpoint_disable)
+		hcd->driver->endpoint_disable(hcd, ep);
+}
+
+static void xhci_usb_hcd_flush_endpoint(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	struct usb_hcd		*hcd;
+	struct urb		*urb;
+
+	if (!ep)
+		return;
+	might_sleep();
+	hcd = bus_to_hcd(udev->bus);
+
+	/* No more submits can occur */
+	spin_lock_irq(&xhci_hcd_urb_list_lock);
+rescan:
+	list_for_each_entry_reverse(urb, &ep->urb_list, urb_list) {
+		int	is_in;
+
+		if (urb->unlinked)
+			continue;
+		xhci_usb_get_urb(urb);
+		is_in = usb_urb_dir_in(urb);
+		spin_unlock(&xhci_hcd_urb_list_lock);
+
+		/* kick hcd */
+		//unlink1(hcd, urb, -ESHUTDOWN);
+		hcd->driver->urb_dequeue(hcd, urb, -ESHUTDOWN);
+		dev_dbg(hcd->self.controller,
+			"shutdown urb %pK ep%d%s-%s\n",
+			urb, usb_endpoint_num(&ep->desc),
+			is_in ? "in" : "out",
+			usb_ep_type_string(usb_endpoint_type(&ep->desc)));
+		usb_put_urb(urb);
+
+		/* list contents may have changed */
+		spin_lock(&xhci_hcd_urb_list_lock);
+		goto rescan;
+	}
+	spin_unlock_irq(&xhci_hcd_urb_list_lock);
+
+	/* Wait until the endpoint queue is completely empty */
+	while (!list_empty(&ep->urb_list)) {
+		spin_lock_irq(&xhci_hcd_urb_list_lock);
+
+		/* The list may have changed while we acquired the spinlock */
+		urb = NULL;
+		if (!list_empty(&ep->urb_list)) {
+			urb = list_entry(ep->urb_list.prev, struct urb,
+					urb_list);
+			xhci_usb_get_urb(urb);
+		}
+		spin_unlock_irq(&xhci_hcd_urb_list_lock);
+
+		if (urb) {
+			usb_kill_urb(urb);
+			usb_put_urb(urb);
+		}
+	}
+}
+
+static void xhci_usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr,
+		bool reset_hardware)
+{
+	unsigned int epnum = epaddr & USB_ENDPOINT_NUMBER_MASK;
+	struct usb_host_endpoint *ep;
+
+	if (!dev)
+		return;
+
+	if (usb_endpoint_out(epaddr)) {
+		ep = dev->ep_out[epnum];
+		if (reset_hardware && epnum != 0)
+			dev->ep_out[epnum] = NULL;
+	} else {
+		ep = dev->ep_in[epnum];
+		if (reset_hardware && epnum != 0)
+			dev->ep_in[epnum] = NULL;
+	}
+	if (ep) {
+		ep->enabled = 0;
+		xhci_usb_hcd_flush_endpoint(dev, ep);
+		if (reset_hardware)
+			xhci_usb_hcd_disable_endpoint(dev, ep);
+	}
+}
+
+static int xhci_hcd_alloc_bandwidth(struct usb_device *udev,
+		struct usb_host_config *new_config,
+		struct usb_host_interface *cur_alt,
+		struct usb_host_interface *new_alt)
+{
+	int num_intfs, i, j;
+	struct usb_host_interface *alt = NULL;
+	int ret = 0;
+	struct usb_hcd *hcd;
+	struct usb_host_endpoint *ep;
+
+	hcd = bus_to_hcd(udev->bus);
+	if (!hcd->driver->check_bandwidth)
+		return 0;
+
+	/* Configuration is being removed - set configuration 0 */
+	if (!new_config && !cur_alt) {
+		for (i = 1; i < 16; ++i) {
+			ep = udev->ep_out[i];
+			if (ep)
+				hcd->driver->drop_endpoint(hcd, udev, ep);
+			ep = udev->ep_in[i];
+			if (ep)
+				hcd->driver->drop_endpoint(hcd, udev, ep);
+		}
+		hcd->driver->check_bandwidth(hcd, udev);
+		return 0;
+	}
+	/* Check if the HCD says there's enough bandwidth.  Enable all endpoints
+	 * each interface's alt setting 0 and ask the HCD to check the bandwidth
+	 * of the bus.  There will always be bandwidth for endpoint 0, so it's
+	 * ok to exclude it.
+	 */
+	if (new_config) {
+		num_intfs = new_config->desc.bNumInterfaces;
+		/* Remove endpoints (except endpoint 0, which is always on the
+		 * schedule) from the old config from the schedule
+		 */
+		for (i = 1; i < 16; ++i) {
+			ep = udev->ep_out[i];
+			if (ep) {
+				ret = hcd->driver->drop_endpoint(hcd, udev, ep);
+				if (ret < 0)
+					goto reset;
+			}
+			ep = udev->ep_in[i];
+			if (ep) {
+				ret = hcd->driver->drop_endpoint(hcd, udev, ep);
+				if (ret < 0)
+					goto reset;
+			}
+		}
+		for (i = 0; i < num_intfs; ++i) {
+			struct usb_host_interface *first_alt;
+			int iface_num;
+
+			first_alt = &new_config->intf_cache[i]->altsetting[0];
+			iface_num = first_alt->desc.bInterfaceNumber;
+			/* Set up endpoints for alternate interface setting 0 */
+
+			alt = usb_find_alt_setting(new_config, iface_num, 0);
+			if (!alt)
+				/* No alt setting 0? Pick the first setting. */
+				alt = first_alt;
+
+			for (j = 0; j < alt->desc.bNumEndpoints; j++) {
+				ret = hcd->driver->add_endpoint(hcd, udev, &alt->endpoint[j]);
+				if (ret < 0)
+					goto reset;
+			}
+		}
+	}
+	if (cur_alt && new_alt) {
+		struct usb_interface *iface = usb_ifnum_to_if(udev,
+			cur_alt->desc.bInterfaceNumber);
+
+		if (!iface)
+			return -EINVAL;
+		if (iface->resetting_device) {
+			/*
+			 * The USB core just reset the device, so the xHCI host
+			 * and the device will think alt setting 0 is installed.
+			 * However, the USB core will pass in the alternate
+			 * setting installed before the reset as cur_alt.	Dig
+			 * out the alternate setting 0 structure, or the first
+			 * alternate setting if a broken device doesn't have alt
+			 * setting 0.
+			 */
+			cur_alt = usb_altnum_to_altsetting(iface, 0);
+			if (!cur_alt)
+				cur_alt = &iface->altsetting[0];
+		}
+
+		/* Drop all the endpoints in the current alt setting */
+		for (i = 0; i < cur_alt->desc.bNumEndpoints; i++) {
+			ret = hcd->driver->drop_endpoint(hcd, udev,
+				&cur_alt->endpoint[i]);
+			if (ret < 0)
+				goto reset;
+		}
+		/* Add all the endpoints in the new alt setting */
+		for (i = 0; i < new_alt->desc.bNumEndpoints; i++) {
+			ret = hcd->driver->add_endpoint(hcd, udev,
+				&new_alt->endpoint[i]);
+			if (ret < 0)
+				goto reset;
+		}
+	}
+	ret = hcd->driver->check_bandwidth(hcd, udev);
+reset:
+	if (ret < 0)
+		hcd->driver->reset_bandwidth(hcd, udev);
+	return ret;
+}
+
+static void xhci_usb_disable_device_endpoints(struct usb_device *dev, int skip_ep0)
+{
+	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
+	int i;
+
+	if (hcd->driver->check_bandwidth) {
+		/* First pass: Cancel URBs, leave endpoint pointers intact. */
+		for (i = skip_ep0; i < 16; ++i) {
+			xhci_usb_disable_endpoint(dev, i, false);
+			xhci_usb_disable_endpoint(dev, i + USB_DIR_IN, false);
+		}
+		/* Remove endpoints from the host controller internal state */
+		mutex_lock(hcd->bandwidth_mutex);
+		xhci_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
+		mutex_unlock(hcd->bandwidth_mutex);
+	}
+	/* Second pass: remove endpoint pointers */
+	for (i = skip_ep0; i < 16; ++i) {
+		xhci_usb_disable_endpoint(dev, i, true);
+		xhci_usb_disable_endpoint(dev, i + USB_DIR_IN, true);
+	}
+}
+#endif
+
 static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 		struct usb_device *udev)
 {
@@ -3737,6 +4234,16 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 		else
 			return -EINVAL;
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_016) {
+		if (udev->state == USB_STATE_CONFIGURED &&
+			udev->level > 1 &&
+			udev->speed == USB_SPEED_FULL) {
+			xhci_usb_disable_device_endpoints(udev, 1);
+		}
+	}
+#endif
 
 	if (virt_dev->tt_info)
 		old_active_eps = virt_dev->tt_info->active_eps;
@@ -3900,8 +4407,19 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	trace_aml_xhci_free_dev(slot_ctx);
 
 	/* Stop any wayward timer functions (which may grab the lock) */
-	for (i = 0; i < 31; i++)
+	for (i = 0; i < 31; i++) {
 		virt_dev->eps[i].ep_state &= ~EP_STOP_CMD_PENDING;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (xhci->meson_quirks & XHCI_CRG_HOST_DELAY) {
+			while (timer_pending(&virt_dev->eps[i].stop_cmd_queue_timer)) {
+				aml_xhci_info(xhci, "waiting stop ep=%d, slot_id=%d\n",
+					i, udev->slot_id);
+				usleep_range(500, 1000);
+			}
+			del_timer_sync(&virt_dev->eps[i].stop_cmd_queue_timer);
+		}
+#endif
+	}
 	virt_dev->udev = NULL;
 	aml_xhci_disable_slot(xhci, udev->slot_id);
 
@@ -4038,6 +4556,10 @@ int aml_xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	 * mass storage driver error handling.
 	 */
 	if (!aml_xhci_alloc_virt_device(xhci, slot_id, udev, GFP_NOIO)) {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (slot_id != 0)
+			udev->slot_id = slot_id;
+#endif
 		aml_xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
 		goto disable_slot;
 	}
@@ -5213,6 +5735,11 @@ int aml_xhci_gen_setup(struct usb_hcd *hcd, aml_xhci_get_quirks_t get_quirks)
 
 	xhci = hcd_to_xhci(hcd);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	/* CRG_SG_NUM */
+	if (xhci->meson_quirks & XHCI_CRG_HOST_010)
+		hcd->self.sg_tablesize = 4;
+#endif
 	if (!usb_hcd_is_primary_hcd(hcd)) {
 		xhci_hcd_init_usb3_data(xhci, hcd);
 		return 0;
@@ -5300,10 +5827,16 @@ int aml_xhci_gen_setup(struct usb_hcd *hcd, aml_xhci_get_quirks_t get_quirks)
 		return retval;
 	aml_xhci_dbg(xhci, "Called HCD init\n");
 
-	if (xhci_hcd_is_usb3(hcd))
+	if (xhci_hcd_is_usb3(hcd)) {
 		xhci_hcd_init_usb3_data(xhci, hcd);
-	else
+	} else {
 		xhci_hcd_init_usb2_data(xhci, hcd);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	/* CRG_SG_NUM */
+		if (xhci->meson_quirks & XHCI_CRG_HOST_010)
+			hcd->self.sg_tablesize = ~0;
+#endif
+	}
 
 	aml_xhci_info(xhci, "hcc params 0x%08x hci version 0x%x quirks 0x%016llx\n",
 		  xhci->hcc_params, xhci->hci_version, xhci->quirks);

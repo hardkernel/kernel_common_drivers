@@ -1382,7 +1382,9 @@ struct aml_dwc3 {
 	unsigned		sys_wakeup:1;
 	unsigned		wakeup_configured:1;
 	unsigned		suspended:1;
-
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	unsigned		super_speed_support:1;
+#endif
 	u16			imod_interval;
 
 	int			max_cfg_eps;

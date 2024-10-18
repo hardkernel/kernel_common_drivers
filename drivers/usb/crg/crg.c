@@ -220,6 +220,7 @@ int crg_host_init(struct crg *crg)
 	//struct resource		*res;
 	//struct platform_device	*crg_pdev = to_platform_device(crg->dev);
 	int			prop_idx = 0;
+	int cpu_type;
 
 	irq = crg_host_get_irq(crg);
 	if (irq < 0)
@@ -253,6 +254,55 @@ int crg_host_init(struct crg *crg)
 
 	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host");
 	props[prop_idx++] = PROPERTY_ENTRY_BOOL("usb2-lpm-disable");
+	cpu_type = get_cpu_type();
+	switch (cpu_type) {
+	case MESON_CPU_MAJOR_ID_T5:
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-003");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-011");
+		break;
+	case MESON_CPU_MAJOR_ID_T5D:
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-003");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-011");
+		break;
+	case MESON_CPU_MAJOR_ID_T7:
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-007");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-010");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-014");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+		break;
+	case MESON_CPU_MAJOR_ID_S4:
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-009");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-011");
+		break;
+	case MESON_CPU_MAJOR_ID_T3:
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-007");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-010");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-014");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-011");
+		break;
+	case MESON_CPU_MAJOR_ID_S4D:
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-009");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-011");
+		break;
+	case MESON_CPU_MAJOR_ID_T5W:
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-007");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-011");
+		break;
+	case MESON_CPU_MAJOR_ID_S6:
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+		break;
+	default:
+		break;
+	}
+
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-plug-died");
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-eproto");
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-016");
 
 	if (prop_idx) {
 		ret = device_create_managed_software_node(&xhci->dev, props, NULL);

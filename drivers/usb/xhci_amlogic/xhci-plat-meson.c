@@ -240,6 +240,9 @@ int aml_xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, con
 
 	/* imod_interval is the interrupt moderation value in nanoseconds. */
 	xhci->imod_interval = 40000;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	xhci->meson_quirks = 0;
+#endif
 
 	/* Iterate over all parent nodes for finding quirks */
 	for (tmpdev = &pdev->dev; tmpdev; tmpdev = tmpdev->parent) {
@@ -265,9 +268,44 @@ int aml_xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, con
 		if (device_property_read_bool(tmpdev, "xhci-skip-phy-init-quirk"))
 			xhci->quirks |= XHCI_SKIP_PHY_INIT;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (device_property_read_bool(tmpdev, "resume_stuck_warm_reset"))
+			xhci->quirks |= XHCI_MISSING_CAS;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host")) {
+			xhci->quirks |= XHCI_DISABLE_IDT;
+			xhci->meson_quirks |= XHCI_CRG_HOST;
+		}
+		if (device_property_read_bool(tmpdev, "super_speed_support"))
+			xhci->quirks |= XHCI_AML_SUPER_SPEED_SUPPORT;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-003"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_003;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-007"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_007;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-008"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_008;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-009"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_009;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-010"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_010;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-011"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_011;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-plug-died"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_DELAY;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-eproto"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_EPROTO;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-014"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_014;
+		if (device_property_read_bool(tmpdev, "xhci-crg-host-016"))
+			xhci->meson_quirks |= XHCI_CRG_HOST_016;
+#endif
+
 		device_property_read_u32(tmpdev, "imod-interval-ns",
 					 &xhci->imod_interval);
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	aml_xhci_info(xhci, "meson-quirks=0x%llx---\n", xhci->meson_quirks);
+#endif
 
 	/*
 	 * Drivers such as dwc3 manages PHYs themself (and rely on driver name

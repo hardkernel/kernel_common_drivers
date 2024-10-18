@@ -40,6 +40,10 @@
 
 #include "debug-meson.h"
 #include "../host/xhci-ext-caps.h"
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+#include <linux/amlogic/usbtype.h>
+static int dwc3_phy_init(struct aml_dwc3 *dwc);
+#endif
 
 #define DWC3_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 
@@ -301,6 +305,7 @@ u32 aml_dwc3_core_fifo_space(struct aml_dwc3_ep *dep, u8 type)
  * aml_dwc3_core_soft_reset - Issues core soft reset and PHY reset
  * @dwc: pointer to our context structure
  */
+#if !IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 int aml_dwc3_core_soft_reset(struct aml_dwc3 *dwc)
 {
 	u32		reg;
@@ -353,6 +358,93 @@ done:
 
 	return 0;
 }
+#else
+int aml_dwc3_core_soft_reset(struct aml_dwc3 *dwc)
+{
+	u32		reg;
+	int		ret;
+
+	/* Before Resetting PHY, put Core in Reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg |= DWC3_GCTL_CORESOFTRESET;
+	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
+
+	/* Assert USB3 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(0));
+	reg |= DWC3_GUSB3PIPECTL_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
+
+		/* Assert USB3 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(1));
+	reg |= DWC3_GUSB3PIPECTL_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(1), reg);
+
+	/* Assert USB2 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	reg |= DWC3_GUSB2PHYCFG_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(1));
+	reg |= DWC3_GUSB2PHYCFG_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(1), reg);
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(2));
+	reg |= DWC3_GUSB2PHYCFG_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(2), reg);
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(3));
+	reg |= DWC3_GUSB2PHYCFG_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(3), reg);
+
+	ret = dwc3_phy_init(dwc);
+	if (ret)
+		goto err_exit_ulpi;
+
+	usleep_range(1000, 1100);
+
+	/* Clear USB3 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(0));
+	reg &= ~DWC3_GUSB3PIPECTL_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
+
+		/* Clear USB3 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(1));
+	reg &= ~DWC3_GUSB3PIPECTL_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(1), reg);
+
+	/* Clear USB2 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	reg &= ~DWC3_GUSB2PHYCFG_PHYSOFTRST;
+	reg &= ~DWC3_GUSB2PHYCFG_SUSPHY;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+
+	/* Clear USB2 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(1));
+	reg &= ~DWC3_GUSB2PHYCFG_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(1), reg);
+
+	/* Clear USB2 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(2));
+	reg &= ~DWC3_GUSB2PHYCFG_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(2), reg);
+
+	/* Clear USB2 PHY reset */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(3));
+	reg &= ~DWC3_GUSB2PHYCFG_PHYSOFTRST;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(3), reg);
+
+	usleep_range(1000, 1100);
+
+	/* After PHYs are stable we can take Core out of reset state */
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg &= ~DWC3_GCTL_CORESOFTRESET;
+	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
+
+	return 0;
+err_exit_ulpi:
+	aml_dwc3_ulpi_exit(dwc);
+	return ret;
+}
+#endif
 
 /*
  * dwc3_frame_length_adjustment - Adjusts frame length if required
@@ -1340,10 +1432,11 @@ static int dwc3_core_init(struct aml_dwc3 *dwc)
 			goto err_exit_ulpi;
 		dwc->phys_ready = true;
 	}
-
+#if !IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	ret = dwc3_phy_init(dwc);
 	if (ret)
 		goto err_exit_ulpi;
+#endif
 
 	ret = aml_dwc3_core_soft_reset(dwc);
 	if (ret)
@@ -1504,6 +1597,13 @@ static int dwc3_core_get_phy(struct aml_dwc3 *dwc)
 		else
 			return dev_err_probe(dev, ret, "no usb2 phy configured\n");
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	dwc->super_speed_support = 0;
+	if (dwc->usb3_phy)
+		if (dwc->usb3_phy->flags == AML_USB3_PHY_ENABLE)
+			dwc->super_speed_support = 1;
+#endif
 
 	if (IS_ERR(dwc->usb3_phy)) {
 		ret = PTR_ERR(dwc->usb3_phy);
@@ -2275,6 +2375,38 @@ err_put_psy:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+static void dwc3_shutdown(struct platform_device *pdev)
+{
+	struct aml_dwc3	*dwc = platform_get_drvdata(pdev);
+
+	pm_runtime_get_sync(&pdev->dev);
+
+	dwc3_core_exit_mode(dwc);
+	aml_dwc3_debugfs_exit(dwc);
+
+	dwc3_core_exit(dwc);
+	aml_dwc3_ulpi_exit(dwc);
+
+	pm_runtime_allow(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+	/*
+	 * HACK: Clear the driver data, which is currently accessed by parent
+	 * glue drivers, before allowing the parent to suspend.
+	 */
+	platform_set_drvdata(pdev, NULL);
+	pm_runtime_set_suspended(&pdev->dev);
+
+	dwc3_free_event_buffers(dwc);
+
+	if (dwc->usb_psy)
+		power_supply_put(dwc->usb_psy);
+}
+
+#endif
+
 static void dwc3_remove(struct platform_device *pdev)
 {
 	struct aml_dwc3	*dwc = platform_get_drvdata(pdev);
@@ -2619,7 +2751,10 @@ MODULE_DEVICE_TABLE(acpi, dwc3_acpi_match);
 
 static struct platform_driver dwc3_driver = {
 	.probe		= dwc3_probe,
-	.remove_new	= dwc3_remove,
+	.remove		= dwc3_remove,
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	.shutdown	= dwc3_shutdown,
+#endif
 	.driver		= {
 		.name	= "dwc3-meson",
 		.of_match_table	= of_match_ptr(of_dwc3_match),
