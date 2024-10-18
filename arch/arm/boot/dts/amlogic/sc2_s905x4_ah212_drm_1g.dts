@@ -30,6 +30,7 @@
 		i2c4 = &i2c4;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
+		spi3 = &spifc;
 		tsensor0 = &p_tsensor;
 		tsensor1 = &d_tsensor;
 	};
@@ -1598,31 +1599,31 @@
 		spinand_partitions: spinand_partitions{
 			bootloader{
 				offset=<0x0 0x0>;
-				size=<0x0>;
+				size=<0x0 0x0>;
 			};
 			tpl{
 				offset=<0x0 0x0>;
-				size=<0x0>;
+				size=<0x0 0x0>;
 			};
 			logo{
 				offset=<0x0 0x0>;
-				size=<0x200000>;
+				size=<0x0 0x200000>;
 			};
 			recovery{
 				offset=<0x0 0x0>;
-				size=<0x1000000>;
+				size=<0x0 0x1000000>;
 			};
 			boot{
 				offset=<0x0 0x0>;
-				size=<0x1000000>;
+				size=<0x0 0x1000000>;
 			};
 			system{
 				offset=<0x0 0x0>;
-				size=<0x4000000>;
+				size=<0x0 0x4000000>;
 			};
 			data{
 				offset=<0xffffffff 0xffffffff>;
-				size=<0x0>;
+				size=<0x0 0x0>;
 			};
 		};
 	};
