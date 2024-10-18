@@ -101,9 +101,10 @@ static bool rdma_enable_vppx_pre[2];
 
 static char old_vmode_vpp[2][32];
 static char new_vmode_vpp[2][32];
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 static u32 vppx_vsync_pts_inc_scale[2];
 static u32 vppx_vsync_pts_inc_scale_base[2] = {1, 1};
-
+#endif
 static unsigned int debug_flag1;
 MODULE_PARM_DESC(debug_flag1, "\n debug_flag1\n");
 module_param(debug_flag1, uint, 0664);
@@ -478,10 +479,10 @@ exit:
 	vsync_cnt[vpp_index]++;
 	if (gvideo_recv_vpp[recv_id])
 		gvideo_recv_vpp[recv_id]->func->late_proc(gvideo_recv_vpp[recv_id]);
-
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 	videoqueue_pcrscr_update(vpp_index, vppx_vsync_pts_inc_scale[vpp_id],
 		vppx_vsync_pts_inc_scale_base[vpp_id]);
-
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	vsync_rdma_vppx_process(vpp_index);
 	rdma_enable_vppx_pre[vpp_id] = is_vsync_vppx_rdma_enable(vpp_index);
