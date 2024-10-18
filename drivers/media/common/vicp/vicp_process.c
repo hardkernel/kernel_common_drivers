@@ -490,14 +490,17 @@ static int get_presc_out_size(int presc_en, int presc_rate, int src_size)
 	return size;
 }
 
-static int get_phase_step(int presc_size, int dst_size)
+static u32 get_phase_step(int presc_size, int dst_size)
 {
-	int step = 0;
+	u32 step = 0;
+	u32 temp1 = 0, temp2 = 0;
 
-	if (presc_size > 2048)
-		step = ((presc_size << 18) / dst_size) << 2;
+	temp1 = (u32)presc_size;
+	temp2 = (u32)dst_size;
+	if (temp1 > 2048)
+		step = (temp1 << 18 / temp2) << 2;
 	else
-		step = (presc_size << 20) / dst_size;
+		step = (temp1 << 20) / temp2;
 
 	step = (step << 4);
 
