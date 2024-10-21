@@ -4521,7 +4521,6 @@ static int di_restore(struct device *dev)
 }
 
 /* must called after lcd */
-static unsigned int reg_rst[10];
 static int di_suspend(struct device *dev)
 {
 	struct di_dev_s *di_devp = NULL;
@@ -4532,19 +4531,6 @@ static int di_suspend(struct device *dev)
 	unsigned int ready_count = 0;
 	unsigned int sleep_count = 0;
 	struct di_ch_s *pch;
-
-	if (DIM_IS_ICS(T5W) || DIM_IS_IC(S7D)) {
-		reg_rst[0] = RD(DI_TOP_PRE_CTRL);
-		reg_rst[1] = RD(DI_TOP_POST_CTRL);
-		reg_rst[2] = RD(DI_ARB_CTRL);
-		reg_rst[3] = RD(DI_TOP_CTRL);
-		reg_rst[4] = RD(DI_ARB_AXIRD0_PROT);
-		reg_rst[5] = RD(DI_SUB_RDARB_UGT);
-		reg_rst[6] = RD(DI_SUB_ARB_DBG_CTRL);
-		reg_rst[7] = RD(DI_SUB_ARB_DBG_STAT);
-		reg_rst[8] = RD(DI_SUB_RDARB_LIMT0);
-		reg_rst[9] = RD(DI_SUB_WRARB_UGT);
-	}
 
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
@@ -4606,21 +4592,6 @@ static int di_resume(struct device *dev)
 		clk_set_rate(di_devp->vpu_clkb, dimp_get(edi_mp_clock_low_ratio));
 		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
 	}
-	if (DIM_IS_ICS(T5W) || DIM_IS_IC(S7D)) {
-		WR(DI_TOP_PRE_CTRL, reg_rst[0]);
-		WR(DI_TOP_POST_CTRL, reg_rst[1]);
-		WR(DI_ARB_CTRL, reg_rst[2]);
-		WR(DI_TOP_CTRL, reg_rst[3]);
-		WR(DI_ARB_AXIRD0_PROT, reg_rst[4]);
-		WR(DI_SUB_RDARB_UGT, reg_rst[5]);
-		WR(DI_SUB_ARB_DBG_CTRL, reg_rst[6]);
-		WR(DI_SUB_ARB_DBG_STAT, reg_rst[7]);
-		WR(DI_SUB_RDARB_LIMT0, reg_rst[8]);
-		WR(DI_SUB_WRARB_UGT, reg_rst[9]);
-	}
-
-	dimh_hw_init(dimp_get(edi_mp_pulldown_enable),
-		dimp_get(edi_mp_mcpre_en));
 
 	di_devp->flags &= ~DI_SUSPEND_FLAG;
 
