@@ -2370,11 +2370,30 @@ void rx_clr_gcp_avmute(u8 port)
 bool rx_is_need_edid_reset(u8 port)
 {
 	bool ret = false;
-	unsigned int sts;
+	unsigned int sts = 0;
 	unsigned int ddc_sts;
 	unsigned int ddc_offset;
 
-	sts = hdmirx_rd_top(TOP_EDID_GEN_STAT, port);
+	if (rx_info.chip_id != CHIP_ID_T3X) {
+		switch (port) {
+		case E_PORT0:
+			sts = hdmirx_rd_top(TOP_EDID_GEN_STAT, E_PORT0);
+			break;
+		case E_PORT1:
+			sts = hdmirx_rd_top(TOP_EDID_GEN_STAT_B, E_PORT1);
+			break;
+		case E_PORT2:
+			sts = hdmirx_rd_top(TOP_EDID_GEN_STAT_C, E_PORT2);
+			break;
+		case E_PORT3:
+			sts = hdmirx_rd_top(TOP_EDID_GEN_STAT_D, E_PORT3);
+			break;
+		default:
+			break;
+		}
+	} else {
+		sts = hdmirx_rd_top(TOP_EDID_GEN_STAT, port);
+	}
 	ddc_sts = (sts >> 20) & 0x1f;
 	ddc_offset = sts & 0x1ff;
 	if (ddc_offset != 0 && ddc_offset != 0xff)

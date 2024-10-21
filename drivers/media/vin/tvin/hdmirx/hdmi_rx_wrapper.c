@@ -56,6 +56,7 @@ static int sig_stable_err_max;
 static int err_cnt_sum_max;
 static int hpd_wait_max;
 static int hpd_wait_21_max;
+static int hpd_wait_512_max;
 static int sig_unstable_max;
 static int sig_unready_max;
 static int fps_unready_max;
@@ -430,6 +431,7 @@ void hdmirx_fsm_var_init(void)
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
 		hpd_wait_max = 74;
+		hpd_wait_512_max = 110;
 		sig_unstable_max = 20;
 		sig_unready_max = 0;
 		/* decreased to 2 */
@@ -2789,6 +2791,12 @@ bool rx_hpd_keep_low(u8 port)
 	if (rx[port].var.hpd_wait_cnt <= hpd_wait_max)
 		ret = true;
 
+	if ((edid_port_type[port] == EDID_TYPE_512_PLUS_512 ||
+		edid_port_type[port] == EDID_TYPE_256_PLUS_512) &&
+		rx[port].edid_type.edid_ver == EDID_V20) {
+		if (rx[port].var.hpd_wait_cnt <= hpd_wait_512_max)
+			ret = true;
+	}
 	if (rx_info.chip_id == CHIP_ID_T3X &&
 		(port == E_PORT2 || port == E_PORT3) &&
 		rx[port].var.hpd_wait_cnt <= hpd_wait_21_max)
@@ -3021,6 +3029,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(sig_stable_max, i++);
 	pr_var(hpd_wait_max, i++);
 	pr_var(hpd_wait_21_max, i++);
+	pr_var(hpd_wait_512_max, i++);
 	pr_var(sig_unstable_max, i++);
 	pr_var(sig_unready_max, i++);
 	pr_var(pow5v_max_cnt, i++);
@@ -3319,6 +3328,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(hpd_wait_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_21_max), &hpd_wait_21_max, value))
 		return pr_var(hpd_wait_21_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_512_max), &hpd_wait_512_max, value))
+		return pr_var(hpd_wait_512_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(log_level), &log_level, value))
 		return pr_var(log_level, index);
 	if (set_pr_var(tmpbuf, var_to_str(sig_unready_max), &sig_unready_max, value))

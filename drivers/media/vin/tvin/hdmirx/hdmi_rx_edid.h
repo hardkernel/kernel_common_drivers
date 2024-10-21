@@ -9,7 +9,8 @@
 /* 2024.07.04 do edid reset to clear segment for edid 512 by edid intr */
 //2024.07.18 fix hdmi repeater cert fail item
 //2024.08.28 default enable auto edid
-#define RX_EDID_H_VER "ver.2024/08/28"
+//2024.10.23 add clr edid seg
+#define RX_EDID_H_VER "ver.2024/10/23"
 
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128
@@ -872,6 +873,8 @@ extern unsigned int edid_select;
 extern u32 vsvdb_update_hpd_en;
 extern enum edid_delivery_mothed_e edid_delivery_mothed;
 extern unsigned int edid_reset_max;
+extern u8 edid_port_type[4];
+
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern u32 tx_hdr_priority;
 #endif

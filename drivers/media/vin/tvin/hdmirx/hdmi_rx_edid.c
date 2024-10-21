@@ -30,6 +30,7 @@ static char edid_buf1[EDID_BUF_SIZE] = {0};
 static char edid_buf2[EDID_BUF_SIZE] = {0};
 static char edid_buf3[EDID_BUF_SIZE] = {0};
 static char edid_buf4[EDID_BUF_SIZE] = {0};
+u8 edid_port_type[4];
 char edid_cur[EDID_SIZE] = {0};
 #ifdef CONFIG_AMLOGIC_HDMITX
 //0: hdmi repeater
@@ -514,6 +515,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 	port_num = (buf[0] & 0x0f) - 1;
 	edid_type = buf[0] >> 0x4;
 
+	edid_port_type[port_num] = edid_type;
 	if (hdmi_cec_en == 1) {
 		port_hpd_rst_flag |= 1 << port_num;
 		rx_set_port_hpd(port_num, 0);
