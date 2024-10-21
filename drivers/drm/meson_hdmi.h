@@ -39,6 +39,20 @@ struct meson_hdr_static_metadata {
 	u8 lumi_avg;
 };
 
+enum meson_color_attr_type {
+	COLOR_YCBCR420_12BIT = 0,
+	COLOR_YCBCR420_10BIT,
+	COLOR_YCBCR420_8BIT,
+	COLOR_YCBCR444_12BIT,
+	COLOR_YCBCR444_10BIT,
+	COLOR_YCBCR444_8BIT,
+	COLOR_YCBCR422_12BIT,
+	COLOR_RGB_12BIT,
+	COLOR_RGB_10BIT,
+	COLOR_RGB_8BIT,
+	COLOR_MAX_ATTR,
+};
+
 /* To differ hdr_info/hdr_info2 and dv_info/dv_info2 */
 enum hdmi_info_index {
 	hdmi_info_1 = 0,
@@ -120,7 +134,9 @@ struct am_hdmi_tx {
 	struct drm_property *sink_type_prop;
 	/* TV's real hdr capability that not changed by hdr_priority */
 	struct drm_property *hdr_cap_rx_prop;
-	struct drm_property *static_meta_property;
+	struct drm_property *static_meta_prop;
+	struct drm_property *allm_cap_prop;
+	struct drm_property *dc_cap_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
