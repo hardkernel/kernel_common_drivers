@@ -453,6 +453,7 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_RDMA		BIT(22)
 
 #define VDIN_ISR_MONITOR_CFMT		BIT(23)
+#define VDIN_ISR_MONITOR_SECURE		BIT(24)
 
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
 #define VDIN_DBG_CNTL_FLUSH	BIT(11)

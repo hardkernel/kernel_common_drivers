@@ -1339,6 +1339,49 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	//todo:more parameter initializations will be move here
 }
 
+static void vdin_get_secure_state(struct vdin_dev_s *devp)
+{
+	/* config secure_en by loopback port */
+	switch (devp->parm.port) {
+	case TVIN_PORT_VIU1_VIDEO:
+	case TVIN_PORT_VIU1_WB0_VD1:
+	case TVIN_PORT_VIU1_WB1_VD1:
+		devp->secure_en = get_secure_state(VD1_OUT);
+		break;
+
+	case TVIN_PORT_VIU1_WB0_VD2:
+	case TVIN_PORT_VIU1_WB1_VD2:
+		devp->secure_en = get_secure_state(VD2_OUT);
+		break;
+
+	case TVIN_PORT_VIU1_WB0_OSD1:
+	case TVIN_PORT_VIU1_WB1_OSD1:
+		devp->secure_en = get_secure_state(OSD1_VPP_OUT);
+		break;
+
+	case TVIN_PORT_VIU1_WB0_OSD2:
+	case TVIN_PORT_VIU1_WB1_OSD2:
+		devp->secure_en = get_secure_state(OSD2_VPP_OUT);
+		break;
+
+	case TVIN_PORT_VIU1_WB0_POST_BLEND:
+	case TVIN_PORT_VIU1_WB1_POST_BLEND:
+	case TVIN_PORT_VIU1_WB0_VPP:
+	case TVIN_PORT_VIU1_WB1_VPP:
+	case TVIN_PORT_VIU2_ENCL:
+	case TVIN_PORT_VIU2_ENCI:
+	case TVIN_PORT_VIU2_ENCP:
+		devp->secure_en = get_secure_state(POST_BLEND_OUT);
+		break;
+
+	default:
+		devp->secure_en = 0;
+		break;
+	}
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_SECURE)
+		pr_info("vdin1: secure_en=%d\n", devp->secure_en);
+}
+
 /*
  * 1. config canvas base on  canvas_config_mode
  *		0: canvas_config in driver probe
@@ -2157,46 +2200,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		return -1;
 	}
 
-#ifdef VDIN_ENALBE_NOTIFY_SECURITY
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	/* config secure_en by loopback port */
-	switch (devp->parm.port) {
-	case TVIN_PORT_VIU1_VIDEO:
-	case TVIN_PORT_VIU1_WB0_VD1:
-	case TVIN_PORT_VIU1_WB1_VD1:
-		devp->secure_en = get_secure_state(VD1_OUT);
-		break;
-
-	case TVIN_PORT_VIU1_WB0_VD2:
-	case TVIN_PORT_VIU1_WB1_VD2:
-		devp->secure_en = get_secure_state(VD2_OUT);
-		break;
-
-	case TVIN_PORT_VIU1_WB0_OSD1:
-	case TVIN_PORT_VIU1_WB1_OSD1:
-		devp->secure_en = get_secure_state(OSD1_VPP_OUT);
-		break;
-
-	case TVIN_PORT_VIU1_WB0_OSD2:
-	case TVIN_PORT_VIU1_WB1_OSD2:
-		devp->secure_en = get_secure_state(OSD2_VPP_OUT);
-		break;
-
-	case TVIN_PORT_VIU1_WB0_POST_BLEND:
-	case TVIN_PORT_VIU1_WB1_POST_BLEND:
-	case TVIN_PORT_VIU1_WB0_VPP:
-	case TVIN_PORT_VIU1_WB1_VPP:
-	case TVIN_PORT_VIU2_ENCL:
-	case TVIN_PORT_VIU2_ENCI:
-	case TVIN_PORT_VIU2_ENCP:
-		devp->secure_en = get_secure_state(POST_BLEND_OUT);
-		break;
-
-	default:
-		devp->secure_en = 0;
-		break;
-	}
-#endif
+	vdin_get_secure_state(devp);
 #endif
 	ret = vdin_start_dec(devp);
 	if (ret) {
@@ -3986,7 +3991,7 @@ static struct vf_entry *check_vdin_read_list(struct vdin_dev_s *devp)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void vdin_set_vfe_type(struct vdin_dev_s *devp, struct vf_entry *vfe)
 {
-	if (devp->matrix_pattern_mode)
+	if (devp->matrix_pattern_mode || devp->secure_en)
 		vfe->vf.type_ext |= VIDTYPE_EXT_VDIN_HDCP;
 	else
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_HDCP;
@@ -6427,7 +6432,6 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 #ifdef VDIN_ENALBE_NOTIFY_SECURITY
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	unsigned int i = 0;
-	struct vd_secure_info_s *vd_secure = NULL;
 #endif
 #endif
 
@@ -6451,51 +6455,9 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 				__func__, devp->tx_fmt, devp->vd1_fmt);
 		break;
 	case VIDEO_SECURE_TYPE_CHANGED:
-#ifdef VDIN_ENALBE_NOTIFY_SECURITY
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-		vd_secure = (struct vd_secure_info_s *)para;
-		if (!vd_secure || !(devp->flags & VDIN_FLAG_DEC_STARTED))
-			break;
-
-		/* config secure_en by loopback port */
-		switch (devp->parm.port) {
-		case TVIN_PORT_VIU1_VIDEO:
-		case TVIN_PORT_VIU1_WB0_VD1:
-		case TVIN_PORT_VIU1_WB1_VD1:
-			devp->secure_en = vd_secure[VD1_OUT].secure_enable;
-			break;
-
-		case TVIN_PORT_VIU1_WB0_VD2:
-		case TVIN_PORT_VIU1_WB1_VD2:
-			devp->secure_en = vd_secure[VD2_OUT].secure_enable;
-			break;
-
-		case TVIN_PORT_VIU1_WB0_OSD1:
-		case TVIN_PORT_VIU1_WB1_OSD1:
-			devp->secure_en = vd_secure[OSD1_VPP_OUT].secure_enable;
-			break;
-
-		case TVIN_PORT_VIU1_WB0_OSD2:
-		case TVIN_PORT_VIU1_WB1_OSD2:
-			devp->secure_en = vd_secure[OSD2_VPP_OUT].secure_enable;
-			break;
-
-		case TVIN_PORT_VIU1_WB0_POST_BLEND:
-		case TVIN_PORT_VIU1_WB1_POST_BLEND:
-		case TVIN_PORT_VIU1_WB0_VPP:
-		case TVIN_PORT_VIU1_WB1_VPP:
-		case TVIN_PORT_VIU2_ENCL:
-		case TVIN_PORT_VIU2_ENCI:
-		case TVIN_PORT_VIU2_ENCP:
-			devp->secure_en =
-				vd_secure[POST_BLEND_OUT].secure_enable;
-			break;
-
-		default:
-			devp->secure_en = 0;
-			break;
-		}
-
+		vdin_get_secure_state(devp);
+		#ifdef VDIN_ENALBE_NOTIFY_SECURITY
 		/* vdin already started, set secure mode dynamically */
 		if (devp->secure_en && !devp->mem_protected && !devp->set_canvas_manual) {
 			vdin_set_mem_protect(devp, 1);
@@ -6507,10 +6469,10 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 
 			vdin_set_mem_protect(devp, 0);
 		}
-#endif
+		#endif
 #else
 		if (vdin_dbg_en)
-			pr_info("%s VDIN_ENALBE_NOTIFY_SECURITY is not defined\n", __func__);
+			pr_info("%s CONFIG_AMLOGIC_MEDIA_SECURITY is not defined\n", __func__);
 #endif
 		break;
 
