@@ -21,7 +21,8 @@
 /* 2024.10.22 modify incorrect register config method in phy init */
 /* 2024.11.4 close override when 420 */
 /* 2024.11.06 fix specific pc no signal issue */
-#define RX_HW_VER "ver.2024/11/06"
+/* 2024.10.24 fix 420 display */
+#define RX_HW_VER "ver.2024/11/12"
 
 #define K_TEST_CHK_ERR_CNT
 

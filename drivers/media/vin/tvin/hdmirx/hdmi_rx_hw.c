@@ -2527,7 +2527,7 @@ void top_common_init(void)
 		data32 = 0;
 		data32 |= 0	<< 20;
 		data32 |= 0	<< 8;
-		data32 |= 0x0a	<< 0;
+		data32 |= 0x3 << 0;
 		hdmirx_wr_top_common(TOP_VID_CNTL2, data32);//to do
 	}
 
@@ -4236,7 +4236,7 @@ void cor_config(u8 port)
 	data8 |= (0 << 6);// [6]  rsvd
 	data8 |= (0 << 5);// [5]  reg_vdi_rx_dig_bypass
 	data8 |= (0 << 4);// [4]  reg_tmds_mode_inv
-	data8 |= (0 << 3);// [3]  reg_bypass_rx2tx_dsc_video
+	data8 |= (1 << 3);// [3]  reg_bypass_rx2tx_dsc_video
 	data8 |= (0 << 2);// [2]  rsvd
 	data8 |= (0 << 1);// [1]  rsvd
 	data8 |= (0 << 0);// [0]  reg_core_iso_en  TMDS core isolation enable
