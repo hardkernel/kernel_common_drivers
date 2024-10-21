@@ -761,6 +761,82 @@ static int get_hdcp_mode(void)
 	return hdcp_mode_flag;
 }
 
+static bool get_allm_cap(void)
+{
+	bool allm_cap_flag = 0;
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+
+	if (tx_comm->rxcap.allm)
+		allm_cap_flag = 1;
+	else
+		allm_cap_flag = 0;
+
+	return allm_cap_flag;
+}
+
+static int get_dc_cap(void)
+{
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+	struct rx_cap *prxcap = &tx_comm->rxcap;
+	const struct dv_info *dv =  &prxcap->dv_info;
+	const struct dv_info *dv2 = &prxcap->dv_info2;
+	int i, dc_cap_mask = 0;
+
+	/* DVI case, only rgb,8bit */
+	if (prxcap->ieeeoui != HDMI_IEEE_OUI) {
+		/* rgb,8bit */
+		dc_cap_mask |= BIT(COLOR_RGB_8BIT);
+		return dc_cap_mask;
+	}
+
+	if (prxcap->dc_36bit_420)
+		/* 420,12bit */
+		dc_cap_mask |= BIT(COLOR_YCBCR420_12BIT);
+	if (prxcap->dc_30bit_420)
+		/* 420,10bit */
+		dc_cap_mask |= BIT(COLOR_YCBCR420_10BIT);
+
+	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
+		if (prxcap->y420_vic[i]) {
+			/* 420,8bit */
+			dc_cap_mask |= BIT(COLOR_YCBCR420_8BIT);
+			break;
+		}
+	}
+
+	if (prxcap->native_Mode & (1 << 5)) {
+		if (prxcap->dc_y444) {
+			if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
+			    dv2->sup_10b_12b_444 == 0x2)
+				/* 444,12bit */
+				dc_cap_mask |= BIT(COLOR_YCBCR444_12BIT);
+			if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
+			    dv2->sup_10b_12b_444 == 0x1) {
+				/* 444,10bit */
+				dc_cap_mask |= BIT(COLOR_YCBCR444_10BIT);
+			}
+		}
+		/* 444,8bit */
+		dc_cap_mask |= BIT(COLOR_YCBCR444_8BIT);
+	}
+	/* y422, not check dc */
+	if (prxcap->native_Mode & (1 << 4))
+		/* 422,12bit */
+		dc_cap_mask |= BIT(COLOR_YCBCR422_12BIT);
+
+	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
+	    dv2->sup_10b_12b_444 == 0x2)
+		/* rgb,12bit */
+		dc_cap_mask |= BIT(COLOR_RGB_12BIT);
+	if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
+	    dv2->sup_10b_12b_444 == 0x1)
+		/* rgb,10bit */
+		dc_cap_mask |= BIT(COLOR_RGB_10BIT);
+	/* rgb,8bit */
+	dc_cap_mask |= BIT(COLOR_RGB_8BIT);
+	return dc_cap_mask;
+}
+
 static int am_hdmitx_connector_atomic_set_property
 	(struct drm_connector *connector,
 	struct drm_connector_state *state,
@@ -860,6 +936,12 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->hdcp_user_prop) {
 		*val = hdmitx_common_get_hdcp_user_state(tx_comm);
+		return 0;
+	} else if (property == am_hdmi->allm_cap_prop) {
+		*val = get_allm_cap();
+		return 0;
+	} else if (property == am_hdmi->dc_cap_prop) {
+		*val = get_dc_cap();
 		return 0;
 	}
 
@@ -2279,6 +2361,35 @@ static void meson_hdmitx_init_hdcp_user_prop(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_allm_cap_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "allm_cap");
+	if (prop) {
+		am_hdmi->allm_cap_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to init allm_cap property\n");
+	}
+}
+
+static void meson_hdmitx_init_dc_cap_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "dc_cap", 0, 1 << COLOR_MAX_ATTR);
+
+	if (prop) {
+		am_hdmi->dc_cap_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to init dc_cap property\n");
+	}
+}
+
 static void meson_hdmitx_hpd_cb(void *data)
 {
 	struct am_hdmi_tx *am_hdmi = (struct am_hdmi_tx *)data;
@@ -2439,6 +2550,8 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_ready_property(drm, am_hdmi);
 	meson_hdmitx_init_edid_valid_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_user_prop(drm, am_hdmi);
+	meson_hdmitx_init_allm_cap_property(drm, am_hdmi);
+	meson_hdmitx_init_dc_cap_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

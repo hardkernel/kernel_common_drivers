@@ -33,6 +33,20 @@ struct hdmitx_color_attr {
 	int bitdepth;
 };
 
+enum meson_color_attr_type {
+	COLOR_YCBCR420_12BIT = 0,
+	COLOR_YCBCR420_10BIT,
+	COLOR_YCBCR420_8BIT,
+	COLOR_YCBCR444_12BIT,
+	COLOR_YCBCR444_10BIT,
+	COLOR_YCBCR444_8BIT,
+	COLOR_YCBCR422_12BIT,
+	COLOR_RGB_12BIT,
+	COLOR_RGB_10BIT,
+	COLOR_RGB_8BIT,
+	COLOR_MAX_ATTR,
+};
+
 struct am_hdmi_tx {
 	struct meson_connector base;
 	struct drm_encoder encoder;
@@ -89,6 +103,8 @@ struct am_hdmi_tx {
 	 */
 	struct drm_property *hdcp_user_prop;
 	int hdmi_type;
+	struct drm_property *allm_cap_prop;
+	struct drm_property *dc_cap_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
