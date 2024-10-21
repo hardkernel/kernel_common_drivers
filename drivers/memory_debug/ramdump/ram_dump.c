@@ -75,7 +75,7 @@ static struct ramdump *ram;
 
 static void ramdump_parse_info(void)
 {
-#if !IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG)
+#if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
 	pr_info("%s, .text : 0x%px - 0x%px, pa(.text): 0x%lx\n",
 			__func__, (unsigned long *)_text,
 			(unsigned long *)_etext, (unsigned long)__pa_symbol(_text));
@@ -84,16 +84,9 @@ static void ramdump_parse_info(void)
 #endif
 
 #ifdef CONFIG_ARM64
-	pr_info("%s, kimage_vaddr: 0x%px, v2p: 0x%lx\n",
-			__func__, (unsigned long *)kimage_vaddr,
-			(unsigned long)__pa_symbol(kimage_vaddr));
-	pr_info("%s, KIMAGE_VADDR: 0x%px, v2p: 0x%lx\n",
-			__func__, (unsigned long *)KIMAGE_VADDR,
-			(unsigned long)__pa_symbol(KIMAGE_VADDR));
-	pr_info("%s, --kaslr 0x%lx\n", __func__, kaslr_offset());
-	pr_info("%s, -m kimage_voffset=0x%lx\n", __func__,
-			(unsigned long)kimage_vaddr - (unsigned long)__pa_symbol(kimage_vaddr));
+	pr_info("%s, -m kimage_voffset=0x%llx\n", __func__, kimage_voffset);
 	pr_info("%s, -m vabits_actual=%d\n", __func__, (unsigned int)vabits_actual);
+	//pr_info("%s, --kaslr 0x%lx\n", __func__, kaslr_offset());
 #endif
 }
 
@@ -220,14 +213,25 @@ static struct bin_attribute ramdump_attr = {
 };
 
 #ifdef CONFIG_ARM64
+/* arm64: kill flush_cache_all() 68234df4ea79
+ * Flush the whole D-cache.
+ * Corrupted registers: x0-x7, x9-x11
+ */
 noinline void ramdump_sync_data(void)
 {
-	/*
-	 * back port from old kernel version for function
-	 * flush_cache_all(), we need it for ram dump
-	 */
 	asm volatile
-		("mov	x12, x30\n"
+		("sub sp, sp, #0x60\n"			//save corrupted registers: x0-x7, x9-x11
+		"str x0, [sp]\n"
+		"str x1, [sp,#8]\n"
+		"str x2, [sp,#16]\n"
+		"str x3, [sp,#24]\n"
+		"str x4, [sp,#32]\n"
+		"str x5, [sp,#40]\n"
+		"str x6, [sp,#48]\n"
+		"str x7, [sp,#56]\n"
+		"str x9, [sp,#64]\n"
+		"str x10, [sp,#72]\n"
+		"str x11, [sp,#80]\n"
 		"dsb	sy\n"
 		"mrs	x0, clidr_el1\n"
 		"and	x3, x0, #0x7000000\n"
@@ -276,7 +280,19 @@ noinline void ramdump_sync_data(void)
 		"isb\n"
 		"mov	x0, #0\n"
 		"ic	ialluis\n"
-		"ret	x12\n");
+		"ldr x0, [sp]\n"			//restore corrupted registers: x0-x7, x9-x11
+		"ldr x1, [sp,#8]\n"
+		"ldr x2, [sp,#16]\n"
+		"ldr x3, [sp,#24]\n"
+		"ldr x4, [sp,#32]\n"
+		"ldr x5, [sp,#40]\n"
+		"ldr x6, [sp,#48]\n"
+		"ldr x7, [sp,#56]\n"
+		"ldr x9, [sp,#64]\n"
+		"ldr x10, [sp,#72]\n"
+		"ldr x11, [sp,#80]\n"
+		"add sp, sp, #0x60\n"
+		"ret\n");
 }
 #else
 noinline void ramdump_sync_data(void)
@@ -297,13 +313,20 @@ static void lazy_clear_work(struct work_struct *work)
 	struct list_head head, *pos, *next;
 	void *virt;
 	int order;
-	gfp_t flags = __GFP_NORETRY   |
-		      __GFP_NOWARN    |
-		      __GFP_MOVABLE;
+	gfp_t flags = __GFP_NORETRY		|
+					__GFP_NOWARN	|
+					__GFP_MOVABLE;
 	unsigned long clear = 0, size = 0, free = 0, tick;
+	unsigned long free_pages;
+	unsigned long target_size;
+
+	free_pages = global_zone_page_state(NR_FREE_PAGES);
+	pr_info("ramdump, Free pages available: %lu (%lu MB)\n",
+			free_pages, free_pages * PAGE_SIZE / 1024 / 1024);
+	target_size = (free_pages * 90) / 100 * PAGE_SIZE;
 
 	INIT_LIST_HEAD(&head);
-	order = MAX_ORDER - 3;
+	order = 7; /* alloc size = 128 * 4KB = 512KB*/
 	tick = sched_clock();
 	do {
 		page = alloc_pages(flags, order);
@@ -314,6 +337,8 @@ static void lazy_clear_work(struct work_struct *work)
 			memset(virt, 0, size);
 			clear += size;
 		}
+		if (clear > target_size)
+			break;
 	} while (page);
 	tick = sched_clock() - tick;
 
@@ -323,8 +348,8 @@ static void lazy_clear_work(struct work_struct *work)
 		__free_pages(page, order);
 		free += size;
 	}
-	pr_info("ramdump, clear:%lx, free:%lx, tick:%ld us\n",
-		clear, free, tick / 1000);
+	pr_info("ramdump, clear:%lu MB, free:%lu MB, tick:%ld ms\n",
+			clear / 1024 / 1024, free / 1024 / 1024, tick / 1000000);
 }
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
@@ -406,7 +431,8 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	if (!ram->disable) {
 		if (!ram->mem_base) {	/* No compressed data */
 			INIT_DELAYED_WORK(&ram->work, lazy_clear_work);
-			schedule_delayed_work(&ram->work, msecs_to_jiffies(60 * 1000));
+			schedule_delayed_work(&ram->work, msecs_to_jiffies(120 * 1000));
+			pr_info("%s, clear ddr 120s later.\n", __func__);
 		} else {		/* with compressed data */
 #ifdef	SAVE_DATA_BY_INIT_RC_SHELL
 			pr_info("%s, SAVE_DATA_BY_INIT_RC_SHELL\n", __func__);
@@ -455,7 +481,7 @@ err:
 	return -EINVAL;
 }
 
-static int ramdump_remove(struct platform_device *pdev)
+static void ramdump_remove(struct platform_device *pdev)
 {
 #ifdef SAVE_DATA_BY_INIT_RC_SHELL
 	sysfs_remove_bin_file(ram->kobj, &ramdump_attr);
@@ -463,7 +489,6 @@ static int ramdump_remove(struct platform_device *pdev)
 	kobject_put(ram->kobj);
 #endif
 	kfree(ram);
-	return 0;
 }
 
 #ifdef CONFIG_OF
