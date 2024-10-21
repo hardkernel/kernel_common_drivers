@@ -4508,19 +4508,6 @@ static void aml_xhci_disable_port(struct aml_xhci_hcd *xhci, struct usb_device *
 		usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
 		USB_REQ_CLEAR_FEATURE, USB_RT_PORT, USB_PORT_FEAT_ENABLE, port1,
 		NULL, 0, 1000);
-		usleep_range(4000, 8000);
-		port1 = udev->portnum | (USB_SS_PORT_LS_SS_DISABLED << 3);
-
-		usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
-			USB_REQ_SET_FEATURE, USB_RT_PORT, USB_PORT_FEAT_LINK_STATE, port1,
-			NULL, 0, 1000);
-		usleep_range(4000, 8000);
-
-		port1 = udev->portnum | (USB_SS_PORT_LS_RX_DETECT << 3);
-		usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
-			USB_REQ_SET_FEATURE, USB_RT_PORT, USB_PORT_FEAT_LINK_STATE, port1,
-			NULL, 0, 1000);
-		usleep_range(4000, 8000);
 	}
 }
 #endif
