@@ -1788,6 +1788,7 @@ static int vpp_set_filters_internal
 	u32 vinfo_width = 0, vinfo_height = 0;
 	u8 id = 0;
 	u8 vpp_index = 0;
+	bool is_comb_mode = false;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1841,6 +1842,10 @@ static int vpp_set_filters_internal
 #ifdef TV_REVERSE
 	reverse = input->reverse;
 #endif
+
+	/* VIDTYPE_VIU_444 or VIDTYPE_RGB_444 COMB_MODE */
+	if ((vf->type & VIDTYPE_COMPRESS) && (vf->type & VIDTYPE_COMB_MODE))
+		is_comb_mode = true;
 
 	if ((vf->type & VIDTYPE_MVC) ||
 	    (input->proc_3d_type & MODE_3D_ENABLE)) {
@@ -2059,8 +2064,22 @@ RESTART_ALL:
 		h_in -= crop_bottom;
 		v_crop_enable = true;
 	}
-	if (w_in > src_width_max)
+
+	force_dw = false;
+	if (is_comb_mode) {
+		next_frame_par->hscale_skip_count = 0;
+		/* over afbc ram size, need force no compress */
+		if (w_in > src_width_max) {
+			force_dw = true;
+			if (cur_super_debug)
+				pr_info("%s(line:%d): over afbcd src_width_max:%d win:%d\n",
+					__func__, __LINE__,
+					src_width_max, w_in);
+		}
+	} else if (w_in > src_width_max) {
 		next_frame_par->hscale_skip_count++;
+	}
+
 	if (h_in > src_height_max &&
 		(w_in * h_in > src_width_max * src_height_max))
 		next_frame_par->vscale_skip_count++;
@@ -2720,7 +2739,7 @@ RESTART:
 	 */
 	/* check vskip and hskip */
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
-	     !next_frame_par->hscale_skip_count) &&
+	     (!next_frame_par->hscale_skip_count && !is_comb_mode)) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
 		if (cur_dev->frm2fld_support)
 			screen_h = vinfo_height;
@@ -2752,14 +2771,14 @@ RESTART:
 			if (next_vskip <= MAX_VSKIP_COUNT) {
 				next_frame_par->vscale_skip_count = next_vskip;
 				goto RESTART;
-			} else {
+			} else if (!is_comb_mode) {
 				next_frame_par->hscale_skip_count = 1;
 				/* hskip =1, w_in must aligned */
 				if (w_in & 1)
 					goto RESTART;
 			}
 		} else if (skip == SPEED_CHECK_HSKIP &&
-			!force_skip_update) {
+			!force_skip_update && !is_comb_mode) {
 			next_frame_par->hscale_skip_count = 1;
 			/* hskip =1, w_in must aligned */
 			if (w_in & 1)
@@ -2773,7 +2792,7 @@ RESTART:
 	if (slice_num == 4 &&
 		w_in > 4096 &&
 		filter->vpp_hsc_start_phase_step > 0x9500000) {
-		force_dw = 1;
+		force_dw = true;
 		if (cur_super_debug)
 			pr_info("slice_num=%d, w_in=%d, h_phase_step:0x%x\n",
 				slice_num, w_in,
@@ -2829,6 +2848,8 @@ RESTART:
 			h_in = vf->height;
 			height_in = vf->height;
 		}
+		/* reset comb_mode because of non-afbc frame */
+		is_comb_mode = false;
 		next_frame_par->hscale_skip_count = 0;
 		next_frame_par->vscale_skip_count = 0;
 		if (vf->width && vf->compWidth)
@@ -2853,7 +2874,8 @@ RESTART:
 	if (get_force_skip_cnt(input->layer_id,
 		&force_vskip_cnt, &force_hskip_cnt)) {
 		next_frame_par->vscale_skip_count = force_vskip_cnt;
-		next_frame_par->hscale_skip_count = force_hskip_cnt;
+		if (!is_comb_mode)
+			next_frame_par->hscale_skip_count = force_hskip_cnt;
 		if (!force_skip_update) {
 			force_skip_update = true;
 			if (cur_super_debug)
@@ -5115,6 +5137,9 @@ static int vpp_set_filters_no_scaler_internal
 	bool afbc_support;
 	bool hskip_adjust = false;
 	bool src_crop_adjust = false;
+	bool is_comb_mode = false;
+	bool force_dw = false;
+	u32 src_width_max, src_height_max;
 
 	if (!input)
 		return vppfilter_fail;
@@ -5130,9 +5155,16 @@ static int vpp_set_filters_no_scaler_internal
 	video_layer_left = input->layer_left;
 	video_layer_width = input->layer_width;
 	video_layer_height = input->layer_height;
+	src_width_max = input->src_width_max;
+	src_height_max = input->src_height_max;
+
 #ifdef TV_REVERSE
 	reverse = input->reverse;
 #endif
+
+	/* VIDTYPE_VIU_444 or VIDTYPE_RGB_444 COMB_MODE */
+	if ((vf->type & VIDTYPE_COMPRESS) && (vf->type & VIDTYPE_COMB_MODE))
+		is_comb_mode = true;
 
 	if ((vf->type & VIDTYPE_MVC) ||
 	    (input->proc_3d_type & MODE_3D_ENABLE)) {
@@ -5218,6 +5250,25 @@ RESTART_ALL:
 				crop_right, crop_bottom,
 				w_in, h_in);
 	}
+
+	force_dw = false;
+	if (is_comb_mode) {
+		next_frame_par->hscale_skip_count = 0;
+		/* over afbc ram size, need force no compress */
+		if (w_in > src_width_max) {
+			force_dw = true;
+			if (cur_super_debug)
+				pr_info("%s(line:%d): over afbcd src_width_max:%d win:%d\n",
+					__func__, __LINE__,
+					src_width_max, w_in);
+		}
+	} else if (w_in > src_width_max) {
+		next_frame_par->hscale_skip_count++;
+	}
+
+	if (h_in > src_height_max &&
+	    (w_in * h_in > src_width_max * src_height_max))
+		next_frame_par->vscale_skip_count++;
 
 RESTART:
 	if (next_frame_par->hscale_skip_count && !hskip_adjust) {
@@ -5480,7 +5531,7 @@ RESTART:
 	 */
 	/* check vskip and hskip */
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
-	     !next_frame_par->hscale_skip_count) &&
+	     (!next_frame_par->hscale_skip_count && !is_comb_mode)) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
 		int skip = SPEED_CHECK_DONE;
 
@@ -5491,10 +5542,10 @@ RESTART:
 			if (next_vskip <= MAX_VSKIP_COUNT) {
 				next_frame_par->vscale_skip_count = next_vskip;
 				goto RESTART;
-			} else {
+			} else if (!is_comb_mode) {
 				next_frame_par->hscale_skip_count = 1;
 			}
-		} else if (skip == SPEED_CHECK_HSKIP) {
+		} else if (skip == SPEED_CHECK_HSKIP && !is_comb_mode) {
 			next_frame_par->hscale_skip_count = 1;
 		}
 	}
@@ -5513,7 +5564,8 @@ RESTART:
 		if ((vpp_flags & VPP_FLAG_FORCE_NO_COMPRESS) ||
 		    next_frame_par->vscale_skip_count > 1 ||
 		    !afbc_support ||
-		    force_no_compress)
+		    force_no_compress ||
+		    force_dw)
 			no_compress = true;
 	} else {
 		no_compress = false;
@@ -5540,6 +5592,7 @@ RESTART:
 			h_in = vf->height;
 			height_in = vf->height;
 		}
+		is_comb_mode = false;
 		next_frame_par->hscale_skip_count = 0;
 		next_frame_par->vscale_skip_count = 0;
 		if (vf->width && vf->compWidth)
