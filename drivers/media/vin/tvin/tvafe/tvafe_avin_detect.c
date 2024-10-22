@@ -34,6 +34,7 @@
 #include "tvafe_debug.h"
 #include "../tvin_global.h"
 #include "../vdin/vdin_sm.h"
+#include "tvafe_general.h"
 
 #define TVAFE_AVIN_CH1_MASK  BIT(0)
 #define TVAFE_AVIN_CH2_MASK  BIT(1)
@@ -1282,6 +1283,8 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 							TVAFE_AVIN_STATUS_IN;
 					state_changed = 1;
 					av2_plugin_state = 0;
+					if (avport_opened & 0x3)
+						tvafe_reset_module();
 					tvafe_pr_info("avin[1].status IN.\n");
 				/*port opened and plug in,enable clamp*/
 				/*sync tip close*/
@@ -1338,6 +1341,8 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 					TVAFE_AVIN_STATUS_IN;
 				state_changed = 1;
 				av1_plugin_state = 0;
+				if (avport_opened & 0x3)
+					tvafe_reset_module();
 				tvafe_pr_info("avin[0].status IN.\n");
 				/*port opened and plug in then enable clamp*/
 				/*sync tip close*/

@@ -593,6 +593,11 @@ static ssize_t debug_store(struct device *dev,
 		if (parm[1] && (kstrtouint(parm[1], 16, &val) == 0))
 			devp->tvafe_ratio_effect_cnt = val;
 		pr_info("[%s]tvafe_function_sel:%#x\n", __func__, devp->tvafe_function_sel);
+	} else if (!strncmp(parm[0], "reset", strlen("reset"))) {
+		if (parm[0][5] == '0')
+			tvafe_reset_module();
+		else if (parm[0][5] == '1')
+			tvafe_cvd2_hold_rst();
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}

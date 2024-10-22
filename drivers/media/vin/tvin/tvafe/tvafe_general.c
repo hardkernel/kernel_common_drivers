@@ -557,7 +557,7 @@ void tvafe_set_apb_bus_err_ctrl(void)
 /*
  * tvafe reset the whole module
  */
-static void tvafe_reset_module(void)
+void tvafe_reset_module(void)
 {
 	pr_info("%s: reset module\n", __func__);
 	W_APB_BIT(TVFE_RST_CTRL, 1, DCLK_RST_BIT, DCLK_RST_WID);
