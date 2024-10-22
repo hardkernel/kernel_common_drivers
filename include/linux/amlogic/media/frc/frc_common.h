@@ -24,15 +24,15 @@
 
 #ifndef ABS
 #define ABS(a)	({ \
-			typeof(a) _a = (a);\
+			int _a = (int)a;\
 			((_a) > 0 ? (_a) : -(_a));\
 		})
 #endif // ABS
 
 #ifndef DIV
 #define DIV(a, b) ({ \
-			typeof(a) _a = (a); \
-			typeof(b) _b = (b); \
+			int _a = (int)a; \
+			int _b = (int)b; \
 			_b == 0 ? 0 : _a / _b; \
 		})
 #endif // DIV

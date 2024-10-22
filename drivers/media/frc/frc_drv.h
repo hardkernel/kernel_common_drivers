@@ -140,8 +140,9 @@
 // frc_20240906 disable frc when out fr is 165hz
 // frc_20240913 frc_re_cfg_cnt set 0
 // frc_20240924 not set pre_vsync T5M
+// frc_20241016 frc disable when vsize change
 
-#define FRC_FW_VER			"2024-1016 frc disable when vsize change"
+#define FRC_FW_VER			"2024-1023 fix absolute value operation on unsigned int"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
