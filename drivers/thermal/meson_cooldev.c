@@ -15,7 +15,6 @@
 #include "cpucore_cooling.h"
 #include <linux/amlogic/gpucore_cooling.h>
 #include <linux/amlogic/gpu_cooling.h>
-#include <linux/amlogic/ddr_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
 #include <linux/cpu.h>
 
@@ -71,9 +70,8 @@ static int register_cool_dev(struct platform_device *pdev,
 	struct meson_cooldev *mcooldev = platform_get_drvdata(pdev);
 	struct cool_dev *cool = &mcooldev->cool_devs[index];
 	struct device_node *node;
-	int pp, coeff, i;
+	int pp, coeff;
 	const char *node_name;
-	char *ddrdata_name[2] = {"ddr_data", "gpu_data"};
 
 	pr_debug("meson_cdev index: %d %s\n", index, cool->device_type);
 
@@ -92,47 +90,6 @@ static int register_cool_dev(struct platform_device *pdev,
 		cool->np = node;
 
 		cool->cooling_dev = cpucore_cooling_register(cool->np, child);
-		break;
-	case COOL_DEV_TYPE_DDR:
-		node = of_find_node_by_name(NULL, node_name);
-		if (!node) {
-			pr_err("thermal: can't find node\n");
-			return -EINVAL;
-		}
-		cool->np = node;
-		cool->ddr_reg_cnt = of_property_count_u32_elems(child, "ddr_reg");
-		if (cool->ddr_reg_cnt < 1)
-			return -EINVAL;
-		cool->ddr_reg = devm_kzalloc(&pdev->dev, sizeof(u32) * cool->ddr_reg_cnt,
-			GFP_KERNEL);
-		cool->ddr_bits = devm_kzalloc(&pdev->dev, sizeof(u32) * 2 * cool->ddr_reg_cnt,
-			GFP_KERNEL);
-		cool->ddr_data = devm_kzalloc(&pdev->dev, sizeof(u32) * 20 * cool->ddr_reg_cnt,
-			GFP_KERNEL);
-
-		if (of_property_read_u32_array(child, "ddr_reg", cool->ddr_reg, cool->ddr_reg_cnt))
-			return -EINVAL;
-
-		if (of_property_read_u32(child, "ddr_status", &cool->ddr_status)) {
-			pr_err("thermal: read ddr reg_status failed\n");
-			return -EINVAL;
-		}
-
-		if (of_property_read_u32_array(child, "ddr_bits",
-					       cool->ddr_bits[0], 2 * cool->ddr_reg_cnt)) {
-			pr_err("thermal: read ddr_bits failed\n");
-			return -EINVAL;
-		}
-
-		for (i = 0; i < cool->ddr_reg_cnt; i++) {
-			if (of_property_read_u32_array(child, ddrdata_name[i],
-						       cool->ddr_data[i], cool->ddr_status)) {
-				pr_err("thermal: read ddr_data failed\n");
-				return -EINVAL;
-			}
-		}
-
-		cool->cooling_dev = ddr_cooling_register(cool->np, cool);
 		break;
 	/* GPU is KO, just save these parameters */
 	case COOL_DEV_TYPE_GPU_FREQ:

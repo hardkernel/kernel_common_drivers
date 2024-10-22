@@ -17,6 +17,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/mailbox/s1a-mbox.h>
 #include "meson-ir-map.dtsi"
 //#include "mesong12a-bifrost.dtsi"
@@ -1404,19 +1405,8 @@
 					node_name = "bifrost";
 					device_type = "gpufreq";
 				};
-				ddr_cool {
-					ddr_reg = <0xfe036648>;
-					ddr_status = <3>;
-					ddr_bits = <1 3>;
-					ddr_data = <0x0 0x1 0x3>;
-					node_name = "ddr_cool0";
-					device_type = "ddr";
-				};
 			};
 			cpucore_cool0:cpucore_cool0 {
-				#cooling-cells = <2>; /* min followed by max */
-			};
-			ddr_cool0:ddr_cool0 {
 				#cooling-cells = <2>; /* min followed by max */
 			};
 		};/*meson cooling devices end*/
@@ -1438,12 +1428,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				pddr_change: trip-point@2 {
-					temperature = <75000>;
-					hysteresis = <10000>;
-					type = "hot";
-				};
-				pcritical: trip-point@3 {
+				pcritical: trip-point@2 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -1456,11 +1441,6 @@
 					cooling-device = <&CPU0 0 4>;
 					contribution = <1024>;
 				};
-				ddr_cooling_map {
-					trip = <&pddr_change>;
-					cooling-device = <&ddr_cool0 0 2>;
-					contribution = <1024>;
-				};
 				//gpufreq_cooling_map {
 				//	trip = <&pcontrol>;
 				//	cooling-device = <&gpu 0 3>;
@@ -1469,6 +1449,20 @@
 			};
 		};
 	};/*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		status = "okay";
+		ddr {
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			caddr = <0xfe036648>;
+			caddr-mask = <1 3>;
+			cstep-val = <85000 95000 95000>;
+			caddr-val = <0x0 0x1 0x3>;
+			refresh-constant-value;
+		};
+	};
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";

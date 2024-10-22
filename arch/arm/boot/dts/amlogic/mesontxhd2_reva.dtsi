@@ -18,6 +18,7 @@
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include "meson-ir-map.dtsi"
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include <dt-bindings/reset/amlogic,meson-txhd2-reset.h>
 #include "mesongxbb-gpu-mali450.dtsi"
@@ -403,14 +404,6 @@
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			ddr_cool {
-				ddr_reg = <0xff6384b4>;
-				ddr_status = <3>;
-				ddr_bits = <8 15>;
-				ddr_data = <0x4c 0x26 0x13>;
-				node_name = "ddr_cool0";
-				device_type = "ddr";
-			};
 			cpucore_cool_cluster0 {
 				cluster_id = <0>;
 				node_name = "cpucore0";
@@ -421,9 +414,6 @@
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
-		};
-		ddr_cool0:ddr_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore0:cpucore0 {
 			#cooling-cells = <2>; /* min followed by max */
@@ -447,12 +437,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				pddr_change: trip-point@2 {
-					temperature = <90000>;
-					hysteresis = <10000>;
-					type = "hot";
-				};
-				pcritical: trip-point@3 {
+				pcritical: trip-point@2 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -464,11 +449,6 @@
 					cooling-device = <&CPU0 0 8>;
 					contribution = <1024>;
 				};
-				ddr_cooling_map {
-					trip = <&pddr_change>;
-					cooling-device = <&ddr_cool0 0 2>;
-					contribution = <1024>;
-				};
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
 					cooling-device = <&gpu 0 3>;
@@ -477,6 +457,53 @@
 			};
 		};
 	}; /*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		reg = <0xff800240 0x4>;
+		reg-names = "sip-addr";
+		sip-mask = <19 1>;
+		status = "okay";
+		ddr-sip {
+			particle = <SIP_PARTICLE>;
+			particle-flag = <DDR_SIP_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			caddr = <0xff6384b4>,
+				<0xff638224>;
+			caddr-mask = <0 16>,
+				     <0 32>;
+			cstep-val = <70000 75000 80000 85000>,
+				    <90000 95000 100000 105000>,
+				    <110000 115000 115000>;
+			caddr-val = <9616 0x28202820>,
+				    <7512 0x28202820>,
+				    <6010 0x18101810>,
+				    <4808 0x18101810>,
+				    <3756 0x18101810>,
+				    <3434 0x18101810>,
+				    <3004 0x18101810>,
+				    <2404 0x02010201>,
+				    <2002 0x02010201>,
+				    <1716 0x02010201>,
+				    <1502 0x02010201>;
+			refresh-constant-value;
+		};
+
+		ddr-nosip {
+			particle = <NOSIP_PARTICLE>;
+			particle-flag = <DDR_SIP_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			caddr = <0xff6384b4>,
+				<0xff638224>;
+			caddr-mask = <0 16>,
+				     <0 32>;
+			cstep-val = <70000>;
+			caddr-val = <9616 0x28202820>;
+			refresh-constant-value;
+		};
+	};
 
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";

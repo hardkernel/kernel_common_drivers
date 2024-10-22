@@ -18,7 +18,7 @@
 #include <linux/pm_domain.h>
 #include <linux/arm-smccc.h>
 #include <linux/amlogic/secmon.h>
-#include <linux/amlogic/ddr_cooling.h>
+#include "ddr_control.h"
 #include <linux/amlogic/meson_cooldev.h>
 #include <linux/debugfs.h>
 #include "thermal_core.h"
@@ -764,7 +764,6 @@ static void meson_thermal_hot_callback(struct thermal_zone_device *tz)
 {
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev;
-	struct ddr_cooling_device *ddr_cdev;
 	struct cpucore_cooling_device *cpucore_cdev;
 	u32 state_set, *last_state;
 	unsigned long state_get;
@@ -779,11 +778,6 @@ static void meson_thermal_hot_callback(struct thermal_zone_device *tz)
 			cpucore_cdev = cdev->devdata;
 			cpucore_cdev->temperature = tz->temperature;
 			last_state = &cpucore_cdev->setstep;
-			break;
-		case COOL_DEV_TYPE_DDR:
-			ddr_cdev = cdev->devdata;
-			ddr_cdev->temperature = tz->temperature;
-			last_state = &ddr_cdev->last_state;
 			break;
 		default:
 			continue;
@@ -1105,12 +1099,14 @@ static int __init meson_platdrv_init(void)
 	if (ret)
 		return ret;
 
+	platform_driver_register(&ddr_control_platdrv);
 	return platform_driver_register(&(meson_cooldev_platdrv));
 }
 
 static __exit void meson_platdrv_exit(void)
 {
 	platform_driver_unregister(&meson_cooldev_platdrv);
+	platform_driver_unregister(&ddr_control_platdrv);
 	platform_driver_unregister(&meson_tsensor_driver);
 }
 

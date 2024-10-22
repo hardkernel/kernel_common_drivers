@@ -18,6 +18,7 @@
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include <dt-bindings/firmware/amlogic,firmware.h>
 #include <dt-bindings/mailbox/t3-mbox.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 / {
@@ -2113,28 +2114,6 @@
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
-			ddr0_cool {
-				ddr_reg = <0xfe0364b4>;
-				ddr_status = <3>;
-				ddr_bits = <8 15>;
-				ddr_data = <0x4c 0x26 0x13>;
-				node_name = "ddr_cool0";
-				device_type = "ddr";
-			};
-			ddr1_cool {
-				ddr_reg = <0xfe0344b4>;
-				ddr_status = <3>;
-				ddr_bits = <8 15>;
-				ddr_data = <0x4c 0x26 0x13>;
-				node_name = "ddr_cool1";
-				device_type = "ddr";
-			};
-		};
-		ddr_cool0:ddr_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		ddr_cool1:ddr_cool1 {
-			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool0:cpucore_cool0 {
 			#cooling-cells = <2>;
@@ -2224,6 +2203,24 @@
 			};
 		};
 	};/*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		status = "okay";
+		ddr {
+			condition-type = <DDR_THERMAL>;
+			zone-name = "vpu_thermal";
+			caddr = <0xfe0364b4>,
+				<0xfe0344b4>;
+			caddr-mask = <8 8>,
+				     <8 8>;
+			cstep-val = <100000 110000 110000>;
+			caddr-val = <0x4c 0x4c>,
+				    <0x26 0x26>,
+				    <0x13 0x13>;
+			refresh-constant-value;
+		};
+	};
 
 	crg20: crg@fdd00000 {
 		compatible = "amlogic, crg";

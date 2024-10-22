@@ -1504,12 +1504,17 @@
 	free = <7680 24288 28528 32600 32768 36624>;
 };
 
-&thermal_zones {
-	soc_thermal: soc_thermal {
-		trips {
-			pddr_change: trip-point@2 {
-				temperature = <75000>;
-			};
-		};
+&ddr_control {
+	/delete-property/ reg-names;
+	/delete-node/ ddr-18nm;
+	/delete-node/ ddr-20nm;
+	ddr-20nm {
+		condition-type = <DDR_THERMAL>;
+		zone-name = "soc_thermal";
+		caddr = <0xff6384b4>;
+		caddr-mask = <8 8>;
+		cstep-val = <85000 95000 95000>;
+		caddr-val = <0x4c 0x26 0x13>;
+		refresh-constant-value;
 	};
 };

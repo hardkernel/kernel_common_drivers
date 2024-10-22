@@ -19,6 +19,7 @@
 #include "meson-ir-map.dtsi"
 #include "meson-valhall.dtsi"
 #include <dt-bindings/mailbox/t5m-mbox.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 
@@ -1972,36 +1973,6 @@
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
-			ddr0_cool {
-				ddr_reg = <0xfe0364b4 0xfe036648>;
-				ddr_status = <13>;
-				ddr_bits = <0 15>,<0 31>;
-				ddr_data = <12022 12022 12022 9616 7512 7512 6010
-				4808 4808 3756 3756 3004 1502 >;
-				gpu_data = <0x106c3033 0x106c3033 0x106c3033 0x106c3033
-					0x106c3033 0x106c3033 0x106c3033 0x106c3033 0x106c3033
-					0x106c3033 0x106c3033 0x106c3033 0x106c3033>;
-				node_name = "ddr_cool0";
-				device_type = "ddr";
-			};
-			ddr1_cool {
-				ddr_reg = <0xfe0344b4 0xfe034648>;
-				ddr_status = <13>;
-				ddr_bits = <0 15>,<0 31>;
-				ddr_data = <12022 12022 12022 9616 7512 7512 6010
-				4808 4808 3756 3756 3004 1502 >;
-				gpu_data = <0x106c3033 0x106c3033 0x106c3033 0x106c3033
-					0x106c3033 0x106c3033 0x106c3033 0x106c3033 0x106c3033
-					0x106c3033 0x106c3033 0x106c3033 0x106c3033>;
-				node_name = "ddr_cool1";
-				device_type = "ddr";
-			};
-		};
-		ddr_cool0:ddr_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		ddr_cool1:ddr_cool1 {
-			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool0:cpucore_cool0 {
 			#cooling-cells = <2>;
@@ -2025,12 +1996,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				cpu_hot: trip-point@2 {
-					temperature = <55000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				cpu_critical: trip-point@3 {
+				cpu_critical: trip-point@2 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -2045,16 +2011,6 @@
 				gpufreq_cooling_map {
 					trip = <&cpu_control>;
 					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-				ddr0_cooling_map {
-					trip = <&cpu_hot>;
-					cooling-device = <&ddr_cool0 0 THERMAL_NO_LIMIT>;
-					contribution = <1024>;
-				};
-				ddr1_cooling_map {
-					trip = <&cpu_hot>;
-					cooling-device = <&ddr_cool1 0 THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 			};
@@ -2083,6 +2039,35 @@
 			};
 		};
 	};/*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		status = "okay";
+		ddr {
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			caddr = <0xfe0364b4>,
+				<0xfe0344b4>,
+				<0xfe036648>,
+				<0xfe034648>;
+			caddr-mask = <0 16>,
+				     <0 16>,
+				     <0 32>,
+				     <0 32>;
+			cstep-val = <70000 75000 85000>,
+				    <90000 100000 110000>,
+				    <115000 115000>;
+			caddr-val = <12022 12022 0x106c3033 0x106c3033>,
+				    <9616  9616  0x106c3033 0x106c3033>,
+				    <7512  7512  0x106c3033 0x106c3033>,
+				    <6010  6010  0x106c3033 0x106c3033>,
+				    <4808  4808  0x106c3033 0x106c3033>,
+				    <3756  3756  0x106c3033 0x106c3033>,
+				    <3004  3004  0x106c3033 0x106c3033>,
+				    <1502  1502  0x106c3033 0x106c3033>;
+			refresh-constant-value;
+		};
+	};
 
 	crg30_otg: crg30otg@fe03a000 {
 		compatible = "amlogic, amlogic-crg-otg";
