@@ -795,7 +795,7 @@ function modules_install() {
 		dep_file=`find ${BAZEL_OUT} -name *.dep | grep "amlogic"`
 		cp ${dep_file} ${OUT_AMLOGIC_DIR}/modules/full_modules.dep
 		if [[ -n ${ANDROID_PROJECT} ]]; then
-			grep -E "^kernel\/" ${dep_file} > ${OUT_AMLOGIC_DIR}/modules/modules.dep
+			grep -E "^kernel\/|^common_drivers\/" ${dep_file} > ${OUT_AMLOGIC_DIR}/modules/modules.dep
 			for ext_module in ${EXT_MODULES_ANDROID_AUTO_LOAD}; do
 				cat ${dep_file} | cut -d ':' -f 1 | grep -n "${ext_module}" | cut -d ':' -f 1 | while read line; do
 					sed -n ${line}p ${dep_file} >> ${OUT_AMLOGIC_DIR}/modules/modules.dep
