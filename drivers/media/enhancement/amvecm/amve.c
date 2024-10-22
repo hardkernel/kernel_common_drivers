@@ -6286,16 +6286,39 @@ void osd_sharpness_demo_ctrl(void)
 
 void amve_lc_elc_ctrl(unsigned int enable)
 {
+	unsigned int matrix_coef00_01 = 0;
+	unsigned int matrix_coef11_12 = 0;
+	unsigned int matrix_coef22 = 0;
+	unsigned int matrix_pre_offset0_1 = 0;
+	unsigned int matrix_pre_offset2 = 0;
+	unsigned int matrix_en_ctrl = 0;
+
 	if (flag_lc_evc == enable)
 		return;
 
+	if (chip_cls_id == TV_CHIP) {
+		matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01;
+		matrix_coef11_12 = VPP_POST_MATRIX_COEF11_12;
+		matrix_coef22 = VPP_POST_MATRIX_COEF22;
+		matrix_pre_offset0_1 = VPP_POST_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
+	} else {
+		matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
+		matrix_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
+		matrix_coef22 = VPP_POST2_MATRIX_COEF22;
+		matrix_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
+	}
+
 	if (enable) {
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_EN_CTRL, 1, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_COEF00_01, lc_evc[0], 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_COEF11_12, lc_evc[1], 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_COEF22, lc_evc[2], 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_PRE_OFFSET0_1, lc_evc[3], 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_PRE_OFFSET2, lc_evc[4], 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_en_ctrl, 1, 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, lc_evc[0], 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, lc_evc[1], 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, lc_evc[2], 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, lc_evc[3], 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, lc_evc[4], 0);
 		flag_lc_evc = 1;
 
 		/*osd*/
@@ -6309,7 +6332,7 @@ void amve_lc_elc_ctrl(unsigned int enable)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1, 0, 0);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2, 0, 0);
 	} else {
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_EN_CTRL, 0, 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_en_ctrl, 0, 0);
 		flag_lc_evc = 0;
 
 		/*osd*/
