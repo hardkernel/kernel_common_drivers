@@ -5426,8 +5426,13 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 #ifdef HIS_TEMP
 	if (ppre->sgn_lv != EDI_SGN_4K &&
 	    !pch->ponly		&&
-	    queue_empty(channel, QUEUE_LOCAL_FREE))
+	    queue_empty(channel, QUEUE_LOCAL_FREE)) {
+		if (!is_progressive(vframe)) {
+			dbg_tsk("p: %d\n", pch->sumx.need_local);
+			pch->sumx.need_local = true;
+		}
 		return 35;
+	}
 #endif
 	if (di_que_list_count(channel, QUE_PRE_READY) >= DI_PRE_READY_LIMIT)
 		return 4;
