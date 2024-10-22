@@ -462,6 +462,11 @@ int tv_dv_core1_set(u64 *dma_data,
 	bool core1_on_flag = amdv_core1_on;
 	int runmode_cnt = amdv_on_count;
 
+	if ((force_vsync_id & 0x1F) > 0 && (force_vsync_id & 0x0F) < 4)
+		vpp_vsync_id = force_vsync_id & 0x0F;
+	else
+		vpp_vsync_id = get_vpp_vsync_index(0);
+
 	if (dolby_vision_on &&
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
 		return 0;
