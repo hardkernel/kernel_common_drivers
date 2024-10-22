@@ -1480,8 +1480,8 @@ void dim_sumx_set(struct di_ch_s *pch)
 	    psumx->b_in_free >= 2) {
 		if (psumx->need_local && psumx->b_pre_free)
 			bset(&pch->self_trig_need, 0);
-		else if (!psumx->need_local)
-			bset(&pch->self_trig_need, 0);
+		else if (psumx->need_local && !psumx->b_pre_free)
+			bclr(&pch->self_trig_need, 0);
 		else
 			bclr(&pch->self_trig_need, 0);
 	} else {
