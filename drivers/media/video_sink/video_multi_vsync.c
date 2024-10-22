@@ -568,8 +568,10 @@ int vout_notify_callback_viu2(struct notifier_block *block, unsigned long cmd,
 			strncpy(new_vmode_vpp[0], info->name,
 				sizeof(new_vmode_vpp[0]) - 1);
 		vd_layer_vpp[0].property_changed = true;
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 		vppx_vsync_pts_inc_scale[0] = info->sync_duration_den;
 		vppx_vsync_pts_inc_scale_base[0] = info->sync_duration_num;
+#endif
 		pr_info("new_vmode_vpp[0]: %s, %s\n",
 			new_vmode_vpp[0], old_vmode_vpp[0]);
 		break;
@@ -601,8 +603,10 @@ int vout_notify_callback_viu3(struct notifier_block *block, unsigned long cmd,
 			strncpy(new_vmode_vpp[1], info->name,
 				sizeof(new_vmode_vpp[1]) - 1);
 		vd_layer_vpp[1].property_changed = true;
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 		vppx_vsync_pts_inc_scale[1] = info->sync_duration_den;
 		vppx_vsync_pts_inc_scale_base[1] = info->sync_duration_num;
+#endif
 
 		pr_info("new_vmode_vpp[1]: %s: %s\n",
 			new_vmode_vpp[1], old_vmode_vpp[1]);
