@@ -112,9 +112,11 @@ static void meson_drm_handle_vpp_crc(struct am_meson_crtc *amcrtc)
 {
 	u32 crc;
 	struct drm_crtc *crtc = &amcrtc->base;
+	struct meson_vpu_pipeline *ppl = amcrtc->pipeline;
+	struct rdma_reg_ops *reg_ops = ppl->subs[0].reg_ops;
 
 	if (amcrtc->vpp_crc_enable && cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
-		crc = meson_vpu_read_reg(VPP_RO_CRCSUM);
+		crc = reg_ops->rdma_read_reg(VPP_RO_CRCSUM);
 		drm_crtc_add_crc_entry(crtc, true,
 				       drm_crtc_accurate_vblank_count(crtc),
 				       &crc);
@@ -165,6 +167,20 @@ static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
 	amcrtc->priv->pan_async_commit_ran = false;
 
 	return IRQ_HANDLED;
+}
+
+/*vpu mem power on/off*/
+void meson_vpu_power_config(enum vpu_mod_e mode, bool en)
+{
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *vpu_dev;
+
+	vpu_dev = vpu_dev_register(mode, "meson_drm");
+	if (en)
+		vpu_dev_mem_power_on(vpu_dev);
+	else
+		vpu_dev_mem_power_down(vpu_dev);
+#endif
 }
 
 static void am_meson_vpu_power_config(bool en)
@@ -225,6 +241,45 @@ static void meson_init_policy_mask(struct meson_drm *private)
 		for (; *policy != MAX_POLICY_ID; policy++)
 			private->of_conf.drm_policy_mask |= BIT(*policy);
 	}
+}
+
+static void osd_vpu_power_on(void)
+{
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *osd1_vpu_dev;
+	struct vpu_dev_s *osd2_vpu_dev;
+	struct vpu_dev_s *osd_scale_vpu_dev;
+
+	osd1_vpu_dev = vpu_dev_register(VPU_VIU_OSD1, "OSD1");
+	vpu_dev_mem_power_on(osd1_vpu_dev);
+	osd2_vpu_dev = vpu_dev_register(VPU_VIU_OSD2, "OSD2");
+	vpu_dev_mem_power_on(osd2_vpu_dev);
+	osd_scale_vpu_dev =
+		vpu_dev_register(VPU_VIU_OSD_SCALE, "OSD_SCALE");
+	vpu_dev_mem_power_on(osd_scale_vpu_dev);
+	if (1) {
+		struct vpu_dev_s *osd2_scale_vpu_dev;
+		struct vpu_dev_s *osd3_vpu_dev;
+		struct vpu_dev_s *blend34_vpu_dev;
+
+		osd2_scale_vpu_dev =
+			vpu_dev_register(VPU_VD2_OSD2_SCALE, "OSD2_SCALE");
+		vpu_dev_mem_power_on(osd2_scale_vpu_dev);
+		osd3_vpu_dev = vpu_dev_register(VPU_VIU_OSD3, "OSD3");
+		vpu_dev_mem_power_on(osd3_vpu_dev);
+		blend34_vpu_dev =
+			vpu_dev_register(VPU_OSD_BLD34, "BLEND34_SCALE");
+		vpu_dev_mem_power_on(blend34_vpu_dev);
+	}
+
+	if (1) {
+		struct vpu_dev_s *mali_afbc_vpu_dev;
+
+		mali_afbc_vpu_dev =
+			vpu_dev_register(VPU_MAIL_AFBCD, "MALI_AFBC");
+		vpu_dev_mem_power_on(mali_afbc_vpu_dev);
+	}
+#endif
 }
 
 static int am_meson_vpu_bind(struct device *dev,

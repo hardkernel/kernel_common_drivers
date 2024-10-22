@@ -709,6 +709,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	struct meson_vpu_pipeline_state *new_mvps;
 	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct rdma_reg_ops *reg_ops;
 	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
 
@@ -739,8 +740,12 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	if (overwrite_enable) {
-		for (i = 0; i < reg_num; i++)
-			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
+		for (i = 0; i < reg_num; i++) {
+			if (overwrite_crtc_idx[i] < MESON_MAX_CRTC) {
+				reg_ops = pipeline->subs[overwrite_crtc_idx[i]].reg_ops;
+				reg_ops->rdma_write_reg(overwrite_reg[i], overwrite_val[i]);
+			}
+		}
 	}
 #endif
 
@@ -806,6 +811,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
 	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct rdma_reg_ops *reg_ops;
 	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
 
@@ -868,8 +874,12 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	if (overwrite_enable) {
-		for (i = 0; i < reg_num; i++)
-			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
+		for (i = 0; i < reg_num; i++) {
+			if (overwrite_crtc_idx[i] < MESON_MAX_CRTC) {
+				reg_ops = pipeline->subs[overwrite_crtc_idx[i]].reg_ops;
+				reg_ops->rdma_write_reg(overwrite_reg[i], overwrite_val[i]);
+			}
+		}
 	}
 #endif
 

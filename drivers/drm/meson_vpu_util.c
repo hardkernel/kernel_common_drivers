@@ -30,39 +30,8 @@ static void meson_vpu_vsync_rdma_irq(void *arg)
 	vpu_pipeline_detect_reset(sub_pipeline);
 }
 
-static void meson_vpu1_vsync_rdma_irq(void *arg)
-{
-	struct meson_vpu_sub_pipeline *sub_pipeline = arg;
-
-	if (drm_vsync_rdma_handle[sub_pipeline->index] == -1)
-		return;
-
-	vpu_pipeline_check_finish_reg(sub_pipeline->index);
-	vpu_pipeline_detect_reset(sub_pipeline);
-}
-
-static void meson_vpu2_vsync_rdma_irq(void *arg)
-{
-	struct meson_vpu_sub_pipeline *sub_pipeline = arg;
-
-	if (drm_vsync_rdma_handle[sub_pipeline->index] == -1)
-		return;
-
-	vpu_pipeline_check_finish_reg(sub_pipeline->index);
-	vpu_pipeline_detect_reset(sub_pipeline);
-}
-
 static struct rdma_op_s meson_vpu_vsync_rdma_op = {
 	meson_vpu_vsync_rdma_irq,
-};
-
-static struct rdma_op_s meson_vpu1_vsync_rdma_op = {
-	meson_vpu1_vsync_rdma_irq,
-};
-
-static struct rdma_op_s meson_vpu2_vsync_rdma_op = {
-	meson_vpu2_vsync_rdma_irq,
-	NULL
 };
 
 void meson_vpu_reg_handle_register(void *arg)
@@ -71,22 +40,9 @@ void meson_vpu_reg_handle_register(void *arg)
 	u32 vpp_index = sub_pipeline->index;
 
 	if (drm_vsync_rdma_handle[vpp_index] == -1) {
-		if (vpp_index == 0) {
 			meson_vpu_vsync_rdma_op.arg = sub_pipeline;
 			drm_vsync_rdma_handle[vpp_index] = rdma_register(&meson_vpu_vsync_rdma_op,
 				NULL, MESON_VPU_RDMA_TABLE_SIZE);
-		}
-
-		if (vpp_index == 1) {
-			meson_vpu1_vsync_rdma_op.arg = sub_pipeline;
-			drm_vsync_rdma_handle[vpp_index] = rdma_register(&meson_vpu1_vsync_rdma_op,
-				NULL, MESON_VPU_RDMA_TABLE_SIZE);
-		}
-		if (vpp_index == 2) {
-			meson_vpu2_vsync_rdma_op.arg = sub_pipeline;
-			drm_vsync_rdma_handle[vpp_index] = rdma_register(&meson_vpu2_vsync_rdma_op,
-				NULL, MESON_VPU_RDMA_TABLE_SIZE);
-		}
 		meson_drm_rdma_init(sub_pipeline->pipeline->priv, vpp_index,
 			drm_vsync_rdma_handle[vpp_index]);
 	}
@@ -94,30 +50,30 @@ void meson_vpu_reg_handle_register(void *arg)
 	DRM_DEBUG("%s, vpp%d-%d\n", __func__, vpp_index, drm_vsync_rdma_handle[vpp_index]);
 }
 
+static u32 rdma_trigger_inputs[] = {
+	RDMA_TRIGGER_VSYNC_INPUT,
+	RDMA_TRIGGER_VPP1_VSYNC_INPUT,
+	RDMA_TRIGGER_VPP2_VSYNC_INPUT,
+};
+
 /*suggestion: call this after atomic done*/
 int meson_vpu_reg_vsync_config(u32 vpp_index)
 {
-	if (drm_vsync_rdma_handle[vpp_index] != -1) {
-		MESON_DRM_REG("%s, %d\n", __func__, vpp_index);
-		if (vpp_index == 0)
-			return rdma_config(drm_vsync_rdma_handle[vpp_index],
-					   RDMA_TRIGGER_VSYNC_INPUT);
-		else if (vpp_index == 1)
-			return rdma_config(drm_vsync_rdma_handle[vpp_index],
-					   RDMA_TRIGGER_VPP1_VSYNC_INPUT);
-		else if (vpp_index == 2)
-			return rdma_config(drm_vsync_rdma_handle[vpp_index],
-					   RDMA_TRIGGER_VPP2_VSYNC_INPUT);
-		else
-			return -1;
-	} else {
-		DRM_ERROR("Error: RDMA is not registered!");
+	if (vpp_index >= MESON_MAX_CRTC) {
+		DRM_ERROR("Invalid vpp index!");
+		return -1;
+	} else if (drm_vsync_rdma_handle[vpp_index] == -1) {
+		DRM_ERROR("RDMA is not registered!");
 		return -1;
 	}
+	MESON_DRM_REG("%s, %d\n", __func__, vpp_index);
+
+	return rdma_config(drm_vsync_rdma_handle[vpp_index],
+		rdma_trigger_inputs[vpp_index]);
 }
 #endif
 
-u32 meson_vpu_read_reg(u32 addr)
+static u32 meson_vpu_read_reg(u32 addr)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
@@ -133,7 +89,7 @@ u32 meson_vpu_read_reg(u32 addr)
 #endif
 }
 
-int meson_vpu_write_reg(u32 addr, u32 val)
+static int meson_vpu_write_reg(u32 addr, u32 val)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
@@ -150,7 +106,7 @@ int meson_vpu_write_reg(u32 addr, u32 val)
 #endif
 }
 
-int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
+static int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
@@ -168,13 +124,13 @@ int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 #endif
 }
 
-int meson_vpu_dummy_write_reg(u32 addr, u32 val)
+static int meson_vpu_dummy_write_reg(u32 addr, u32 val)
 {
 	MESON_DRM_REG("%s, 0x%x, 0x%x dummy_write\n", __func__, addr, val);
 	return 0;
 }
 
-int meson_vpu_dummy_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
+static int meson_vpu_dummy_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 {
 	MESON_DRM_REG("%s, 0x%x, 0x%x, %d, %d dummy_write\n", __func__, addr, val, start, len);
 	return 0;
@@ -212,7 +168,7 @@ static int meson_vpu1_write_reg(u32 addr, u32 val)
 #endif
 }
 
-int meson_vpu1_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
+static int meson_vpu1_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
@@ -241,7 +197,7 @@ static int meson_vpu1_write_reg_non_rdma(u32 addr, u32 val)
 	return 0;
 }
 
-int meson_vpu1_write_reg_bits_non_rdma(u32 addr, u32 val, u32 start, u32 len)
+static int meson_vpu1_write_reg_bits_non_rdma(u32 addr, u32 val, u32 start, u32 len)
 {
 	aml_vcbus_update_bits(addr, ((1 << len) - 1) << start, val << start);
 	return 0;
@@ -279,7 +235,7 @@ static int meson_vpu2_write_reg(u32 addr, u32 val)
 #endif
 }
 
-int meson_vpu2_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
+static int meson_vpu2_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
@@ -331,6 +287,14 @@ struct rdma_reg_ops g12b_reg_ops[2] = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+void *osd_secure_op[VPP_TOP_MAX] = {
+		meson_vpu_write_reg_bits,
+		meson_vpu1_write_reg_bits,
+		meson_vpu2_write_reg_bits,
+};
+#endif
+
 /** reg direct access without rdma **/
 u32 meson_drm_read_reg(u32 addr)
 {
@@ -350,71 +314,3 @@ void meson_drm_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 {
 	aml_vcbus_update_bits(addr, ((1 << len) - 1) << start, val << start);
 }
-
-/** canvas config  **/
-
-void meson_drm_canvas_config(u32 index, unsigned long addr, u32 width,
-			     u32 height, u32 wrap, u32 blkmode)
-{
-	canvas_config(index, addr, width, height, wrap, blkmode);
-}
-
-int meson_drm_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
-				      enum canvas_map_type_e type)
-{
-	return canvas_pool_alloc_canvas_table(owner, table, size, type);
-}
-
-/*vpu mem power on/off*/
-void meson_vpu_power_config(enum vpu_mod_e mode, bool en)
-{
-#ifdef CONFIG_AMLOGIC_VPU
-	struct vpu_dev_s *vpu_dev;
-
-	vpu_dev = vpu_dev_register(mode, "meson_drm");
-	if (en)
-		vpu_dev_mem_power_on(vpu_dev);
-	else
-		vpu_dev_mem_power_down(vpu_dev);
-#endif
-}
-
-void osd_vpu_power_on(void)
-{
-#ifdef CONFIG_AMLOGIC_VPU
-	struct vpu_dev_s *osd1_vpu_dev;
-	struct vpu_dev_s *osd2_vpu_dev;
-	struct vpu_dev_s *osd_scale_vpu_dev;
-
-	osd1_vpu_dev = vpu_dev_register(VPU_VIU_OSD1, "OSD1");
-	vpu_dev_mem_power_on(osd1_vpu_dev);
-	osd2_vpu_dev = vpu_dev_register(VPU_VIU_OSD2, "OSD2");
-	vpu_dev_mem_power_on(osd2_vpu_dev);
-	osd_scale_vpu_dev =
-		vpu_dev_register(VPU_VIU_OSD_SCALE, "OSD_SCALE");
-	vpu_dev_mem_power_on(osd_scale_vpu_dev);
-	if (1) {
-		struct vpu_dev_s *osd2_scale_vpu_dev;
-		struct vpu_dev_s *osd3_vpu_dev;
-		struct vpu_dev_s *blend34_vpu_dev;
-
-		osd2_scale_vpu_dev =
-			vpu_dev_register(VPU_VD2_OSD2_SCALE, "OSD2_SCALE");
-		vpu_dev_mem_power_on(osd2_scale_vpu_dev);
-		osd3_vpu_dev = vpu_dev_register(VPU_VIU_OSD3, "OSD3");
-		vpu_dev_mem_power_on(osd3_vpu_dev);
-		blend34_vpu_dev =
-			vpu_dev_register(VPU_OSD_BLD34, "BLEND34_SCALE");
-		vpu_dev_mem_power_on(blend34_vpu_dev);
-	}
-
-	if (1) {
-		struct vpu_dev_s *mali_afbc_vpu_dev;
-
-		mali_afbc_vpu_dev =
-			vpu_dev_register(VPU_MAIL_AFBCD, "MALI_AFBC");
-		vpu_dev_mem_power_on(mali_afbc_vpu_dev);
-	}
-#endif
-}
-

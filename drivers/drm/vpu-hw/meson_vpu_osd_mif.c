@@ -1593,9 +1593,6 @@ static void osd_secure_cb(u32 arg)
 {
 	// TODO
 }
-
-void *osd_secure_op[VPP_TOP_MAX] = {meson_vpu_write_reg_bits,
-		meson_vpu1_write_reg_bits, meson_vpu2_write_reg_bits};
 #endif
 
 static void osd_register_init(struct meson_vpu_block *vblk,

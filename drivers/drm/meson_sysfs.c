@@ -33,8 +33,9 @@ static const char crtc1_group_name[] = "crtc1";
 static const char crtc2_group_name[] = "crtc2";
 int crtc_index[MESON_MAX_POSTBLEND] = {0, 1, 2};
 u32 pages;
-u32 overwrite_reg[256];
-u32 overwrite_val[256];
+u32 *overwrite_reg;
+u32 *overwrite_val;
+u8 *overwrite_crtc_idx;
 int overwrite_enable;
 int reg_num;
 
@@ -167,6 +168,23 @@ static void parse_param(char *buf_orig, char **parm)
 	}
 }
 
+int init_overwrite(struct device *dev)
+{
+	if (!overwrite_reg)
+		overwrite_reg = devm_kcalloc(dev, sizeof(u32),
+				MESON_MAX_OVERWRITE_REG, GFP_KERNEL);
+
+	if (!overwrite_val)
+		overwrite_val = devm_kcalloc(dev, sizeof(u32),
+				MESON_MAX_OVERWRITE_REG, GFP_KERNEL);
+
+	if (!overwrite_crtc_idx)
+		overwrite_crtc_idx = devm_kcalloc(dev, sizeof(u8),
+				MESON_MAX_OVERWRITE_REG, GFP_KERNEL);
+
+	return 0;
+}
+
 static ssize_t debug_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -177,6 +195,8 @@ static ssize_t debug_show(struct device *dev, struct device_attribute *attr,
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"echo wv reg val > debug to overwrite the register\n");
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo wv reg val crtc_idx > debug to overwrite the reg on crtc\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"echo wvb reg val start lens > debug to overwrite the specific bits in register\n");
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"echo ow 1 > debug to enable overwrite register\n");
@@ -184,9 +204,12 @@ static ssize_t debug_show(struct device *dev, struct device_attribute *attr,
 		"\noverwrote status: %s\n", overwrite_enable ? "on" : "off");
 
 	if (overwrite_enable) {
+		init_overwrite(dev);
+
 		for (i = 0; i < reg_num; i++)
 			pos += snprintf(buf + pos, PAGE_SIZE - pos,
-			"reg[0x%04x]=0x%08x\n", overwrite_reg[i], overwrite_val[i]);
+			"reg[0x%04x]=0x%08x,crtc_idx:%d\n", overwrite_reg[i], overwrite_val[i],
+				overwrite_crtc_idx[i]);
 	}
 
 	return pos;
@@ -198,7 +221,7 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 	char dst_buf[64];
 	long val;
 	int i;
-	unsigned int reg_addr, reg_val, tmp_val, read_val, start, len;
+	unsigned int reg_addr, reg_val, crtc_idx = 0, tmp_val, read_val, start, len;
 	char *bufp, *parm[8] = {NULL};
 	int lens = strlen(buf);
 
@@ -210,6 +233,10 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 	dst_buf[lens] = '\0';
 	bufp = dst_buf;
 	parse_param(bufp, (char **)&parm);
+
+	if (strcmp(parm[0], "rv"))
+		init_overwrite(dev);
+
 	if (!strcmp(parm[0], "rv")) {
 		if (kstrtoul(parm[1], 16, &val) < 0)
 			return -EINVAL;
@@ -225,9 +252,26 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 
 		reg_val = val;
+
+		/*
+		 * optional crtc index parameter
+		 * default value: 0
+		 */
+		if (parm[3]) {
+			if (kstrtoul(parm[3], 16, &val) < 0)
+				return -EINVAL;
+
+			crtc_idx = val;
+			if (crtc_idx >= MESON_MAX_CRTC) {
+				DRM_INFO("Invalid crtc index! Use default 0\n");
+				crtc_idx = 0;
+			}
+		}
+
 		for (i = 0; i < reg_num; i++) {
 			if (overwrite_reg[i] == reg_addr) {
 				overwrite_val[i] = reg_val;
+				overwrite_crtc_idx[i] = crtc_idx;
 				return lens;
 			}
 		}
@@ -235,6 +279,7 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 		if (i == reg_num) {
 			overwrite_reg[i] = reg_addr;
 			overwrite_val[i] = reg_val;
+			overwrite_crtc_idx[i] = crtc_idx;
 			reg_num++;
 		}
 	} else if (!strcmp(parm[0], "ow")) {
@@ -245,6 +290,7 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 			for (i = 0; i < reg_num; i++) {
 				overwrite_val[i] = 0;
 				overwrite_val[i] = 0;
+				overwrite_crtc_idx[i] = 0;
 			}
 			reg_num = 0;
 		}

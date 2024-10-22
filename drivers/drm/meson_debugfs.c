@@ -418,15 +418,26 @@ static const struct file_operations meson_osd_read_port_fops = {
 static int meson_reg_debug_show(struct seq_file *sf, void *data)
 {
 	int i;
+	struct drm_crtc *crtc =	sf->private;
+	struct device *dev;
 
+	if (!crtc || !crtc->dev || !crtc->dev->dev) {
+		DRM_ERROR("null pointer error!\n");
+		return -EINVAL;
+	}
+
+	dev = crtc->dev->dev;
 	seq_puts(sf, "echo rv reg > debug to read the register\n");
 	seq_puts(sf, "echo wv reg val > debug to overwrite the register\n");
+	seq_puts(sf, "echo wv reg val crtc_idx > debug to overwrite the reg on crtc\n");
 	seq_puts(sf, "echo ow 1 > debug to enable overwrite register\n");
 	seq_printf(sf, "\noverwrote status: %s\n", overwrite_enable ? "on" : "off");
 	if (overwrite_enable) {
+		init_overwrite(dev);
 		for (i = 0; i < reg_num; i++)
-			seq_printf(sf, "reg[0x%04x]=0x%08x\n", overwrite_reg[i],
-				   overwrite_val[i]);
+			seq_printf(sf, "reg[0x%04x]=0x%08x,crtc_idx=%d\n", overwrite_reg[i],
+				   overwrite_val[i], overwrite_crtc_idx[i]);
+
 	}
 	//seq_printf(sf, "blank_enable: %d\n", amc->blank_enable);
 	return 0;
@@ -464,8 +475,18 @@ static ssize_t meson_reg_debug_write(struct file *file, const char __user *ubuf,
 	char buf[64];
 	long val;
 	int i;
-	unsigned int reg_addr, reg_val;
+	unsigned int reg_addr, reg_val, crtc_idx = 0;
 	char *bufp, *parm[8] = {NULL};
+	struct seq_file *sf = file->private_data;
+	struct drm_crtc *crtc =	sf->private;
+	struct device *dev;
+
+	if (!crtc || !crtc->dev || !crtc->dev->dev) {
+		DRM_ERROR("null pointer error!\n");
+		return -EINVAL;
+	}
+
+	dev = crtc->dev->dev;
 
 	if (len > sizeof(buf) - 1)
 		return -EINVAL;
@@ -477,6 +498,10 @@ static ssize_t meson_reg_debug_write(struct file *file, const char __user *ubuf,
 
 	bufp = buf;
 	parse_param(bufp, (char **)&parm);
+
+	if (strcmp(parm[0], "rv"))
+		init_overwrite(dev);
+
 	if (!strcmp(parm[0], "rv")) {
 		if (kstrtoul(parm[1], 16, &val) < 0)
 			return -EINVAL;
@@ -492,9 +517,22 @@ static ssize_t meson_reg_debug_write(struct file *file, const char __user *ubuf,
 			return -EINVAL;
 
 		reg_val = val;
+
+		/*
+		 * optional crtc index parameter
+		 * default value: 0
+		 */
+		if (parm[3]) {
+			if (kstrtoul(parm[3], 16, &val) < 0)
+				return -EINVAL;
+
+			crtc_idx = val;
+		}
+
 		for (i = 0; i < reg_num; i++) {
 			if (overwrite_reg[i] == reg_addr) {
 				overwrite_val[i] = reg_val;
+				overwrite_crtc_idx[i] = crtc_idx;
 				return len;
 			}
 		}
@@ -502,6 +540,7 @@ static ssize_t meson_reg_debug_write(struct file *file, const char __user *ubuf,
 		if (i == reg_num) {
 			overwrite_reg[i] = reg_addr;
 			overwrite_val[i] = reg_val;
+			overwrite_crtc_idx[i] = crtc_idx;
 			reg_num++;
 		}
 	} else if (!strcmp(parm[0], "ow")) {
