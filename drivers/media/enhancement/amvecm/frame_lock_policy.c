@@ -63,6 +63,10 @@ struct freesync_vsif_s freesync_vsif_data;
 struct freesync_vtem_s freesync_vtem_data;
 static unsigned int freesync_pb6_data_pre;
 
+static unsigned int hdr_low_latency;
+unsigned int vrr_line_hdr_50hz = 3000;
+unsigned int vrr_line_hdr_60hz = 2350;
+
 u8 freesync_ld_ctrl;
 
 static unsigned int lfc_support;
@@ -468,8 +472,16 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 		return ret;
 	}
 
-	if (frame_lock_lfc_mode_check() && frame_lock_lfc_rate_check(vf, vinfo)) {
+	if ((vf->signal_type == VRR_LATENCY_SIGNAL || vf->signal_type == VRR_HDR_SIGNAL) &&
+		((frame_sts.vrr_frame_cur == 50 && vinfo->std_duration == 100) ||
+		(frame_sts.vrr_frame_cur == 60 && vinfo->std_duration == 120))) {
+		ret = true;
 		frame_sts.vrr_frame_outof_range_cnt = 0;
+		frame_sts.vrr_lfc_mode = false;
+		hdr_low_latency = 1;
+	} else if (frame_lock_lfc_mode_check() && frame_lock_lfc_rate_check(vf, vinfo)) {
+		frame_sts.vrr_frame_outof_range_cnt = 0;
+		hdr_low_latency = 0;
 		if (lfc_support) {
 			frame_sts.vrr_lfc_mode = true;
 			ret =  true;
@@ -495,6 +507,7 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 			}
 		}
 		frame_sts.vrr_lfc_mode = false;
+		hdr_low_latency = 0;
 
 		if (frame_lock_debug & VRR_POLICY_DEBUG_RANGE_FLAG)
 			framelock_pr_info("%s fps_cur:%d o_min:%d o_max:%d outof_cnt:%d f_a_t:%d lfc:%d\n",
@@ -601,10 +614,12 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 			else
 				vrr_skip_frame_cnt = 15;
 			ret = FRAMELOCK_VLOCK;
+			hdr_low_latency = 0;
 		}
 	} else {
 		ret = FRAMELOCK_VLOCK;
 		vrr_skip_frame_cnt = 15;
+		hdr_low_latency = 0;
 	}
 	frame_sts.vrr_frame_sts = ret;
 
@@ -695,7 +710,12 @@ void vrrlock_process(struct vframe_s *vf,
 	if (!vinfo)
 		return;
 
-	if (((ret_hz == 50 || ret_hz == 100) && !frame_sts.vrr_policy) ||
+	if (hdr_low_latency) {
+		if (frame_sts.vrr_frame_cur == 50)
+			vdata.line_dly = vrr_line_hdr_50hz;
+		else if (frame_sts.vrr_frame_cur == 60)
+			vdata.line_dly = vrr_line_hdr_60hz;
+	} else if (((ret_hz == 50 || ret_hz == 100) && !frame_sts.vrr_policy) ||
 		vf->vf_vrr_param.vin_base_fps == 50 || vf->vf_vrr_param.vin_base_fps == 100) {
 		vdata.line_dly = vrr_delay_line_50hz;
 		if (frame_lock_debug & VRR_POLICY_LOCK_STATUS_DEBUG_FLAG)

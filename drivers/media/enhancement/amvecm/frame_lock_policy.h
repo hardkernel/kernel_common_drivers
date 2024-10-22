@@ -17,6 +17,9 @@
 #define FRAMELOCK_VLOCK      1
 #define FRAMELOCK_VRRLOCK    2
 
+#define VRR_HDR_SIGNAL       0X20091009
+#define VRR_LATENCY_SIGNAL   0X40010100
+
 struct vrr_sig_sts {
 	bool vrr_support;
 	bool vrr_lfc_mode;
