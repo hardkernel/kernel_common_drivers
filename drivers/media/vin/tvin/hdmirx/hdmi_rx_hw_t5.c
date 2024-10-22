@@ -505,7 +505,7 @@ void aml_hyper_gain_tuning(void)
 	u32 hyper_gain_0, hyper_gain_1, hyper_gain_2;
 
 	/* use HYPER_GAIN calibration instead of vga */
-	wr_reg_hhi_bits(T5_HHI_RX_PHY_DCHD_CNTL4, T5_EYE_STATUS_EN, 0x0);
+	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL4, T5_EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL3, T5_DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL2, T5_DFE_DBG_STL, 0x0);
 	usleep_range(100, 110);

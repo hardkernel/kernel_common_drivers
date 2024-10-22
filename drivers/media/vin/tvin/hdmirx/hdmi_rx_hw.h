@@ -18,7 +18,8 @@
 /* 2024.09.24 optimize getting phy trim value flow */
 /* 2024.09.26 modify frl training flow */
 /* 2024.10.10 optimize hdcp2.2 suspend flow */
-#define RX_HW_VER "ver.2024/10/08"
+/* 2024.10.22 modify incorrect register config method in phy init */
+#define RX_HW_VER "ver.2024/10/22"
 
 #define K_TEST_CHK_ERR_CNT
 
