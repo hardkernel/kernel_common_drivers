@@ -32,6 +32,7 @@ struct vdin_mmu_box {
 	const char *name;
 	int channel_id;
 	int tvp_mode;
+	int owner_id;
 	struct mutex mutex; /* box mutex */
 	struct list_head list;
 	struct sc_list_expand exp_sc_list;
@@ -41,6 +42,8 @@ struct vdin_mmu_box {
 #define MAX_KEEP_FRAME 4
 #define START_KEEP_ID 0x9
 #define MAX_KEEP_ID    (INT_MAX - 1)
+#define SCATTER_OWNER_NAME "vdin"
+#define SCATTER_KEEP_SIZE 25
 
 struct vdin_mmu_box_mgr {
 	int num;

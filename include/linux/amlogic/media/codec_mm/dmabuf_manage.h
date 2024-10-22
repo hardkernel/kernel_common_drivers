@@ -9,7 +9,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define AML_DMA_BUF_MANAGER_VERSION  1
+#define AML_DMA_BUF_MANAGER_VERSION  2
 #define VIDEODEC_DATA_MAX_LEN 256
 #define DMA_BUF_MANAGER_MAX_BUFFER_LEN 320
 
@@ -21,12 +21,6 @@ enum dmabuf_manage_type {
 	DMA_BUF_TYPE_VIDEODEC_ES,
 	DMA_BUF_TYPE_SECURE_VDEC,
 	DMA_BUF_TYPE_MAX
-};
-
-struct filter_info {
-	__u32 token;
-	__u32 filter_fd;
-	__u32 release;
 };
 
 struct dmabuf_dmx_sec_es_data {
@@ -52,6 +46,12 @@ struct secmem_block {
 	__u32 handle;
 };
 
+struct secmem_extend_block {
+	__u64 paddr;
+	__u64 size;
+	__u64 handle;
+};
+
 enum dmabuf_manage_videodec_type {
 	DMA_BUF_VIDEODEC_HDR10PLUS = 1
 };
@@ -71,7 +71,20 @@ struct dmabuf_manage_buffer {
 	__u32 flags;
 	__u32 extend;
 	union {
-		struct dmabuf_dmx_sec_es_data dmxes;
+		struct dmabuf_videodec_es_data vdecdata;
+		__u8 data[DMA_BUF_MANAGER_MAX_BUFFER_LEN];
+	} buffer;
+};
+
+struct dmabuf_manage_extend_buffer {
+	__u64 type;
+	__u64 fd;
+	__u64 paddr;
+	__u64 size;
+	__u64 handle;
+	__u64 flags;
+	__u64 extend;
+	union {
 		struct dmabuf_videodec_es_data vdecdata;
 		__u8 data[DMA_BUF_MANAGER_MAX_BUFFER_LEN];
 	} buffer;
@@ -85,6 +98,11 @@ struct dmabuf_manage_block {
 	__u32 handle;
 	__u32 type;
 	__u32 flags;
+	__u32 extend;
+	__u64 extend_paddr;
+	__u64 extend_size;
+	__u64 extend_handle;
+	__u64 extend_flags;
 	void *priv;
 };
 
@@ -94,14 +112,15 @@ struct secure_vdec_channel {
 };
 
 #define SECURE_HEAP_USER_TA_VERSION				3
-#define SECURE_HEAP_MAX_VERSION					4
+#define SECURE_HEAP_USER_TA_VERSION_EXTEND      4
+#define SECURE_HEAP_MAX_VERSION					5
 
 int dmabuf_manage_secure_pool_create(u32 id_high, u32 id_low, u32 block_size,
 	u32 version);
-phys_addr_t dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
+u64 dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
 	u32 version);
 int dmabuf_manage_secure_block_free(u32 id_high, u32 id_low,
-	phys_addr_t addr, u32 size, u32 version);
+	u64 addr, u32 size, u32 version);
 int dmabuf_manage_get_secure_heap_version(void);
 
 unsigned int dmabuf_manage_get_type(struct dma_buf *dbuf);
@@ -111,17 +130,42 @@ bool dmabuf_is_esbuf(struct dma_buf *dmabuf);
 
 #define DMABUF_MANAGE_IOC_MAGIC			'S'
 
-#define DMABUF_MANAGE_EXPORT_DMA		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1, int)
-#define DMABUF_MANAGE_GET_HANDLE		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 2, int)
-#define DMABUF_MANAGE_GET_PHYADDR		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 3, int)
-#define DMABUF_MANAGE_IMPORT_DMA		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 4, int)
-#define DMABUF_MANAGE_REGISTER_CHANNEL	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 5, int)
+#define DMABUF_MANAGE_EXPORT_DMA             _IOWR(DMABUF_MANAGE_IOC_MAGIC, 1, int)
+#define DMABUF_MANAGE_GET_HANDLE             _IOWR(DMABUF_MANAGE_IOC_MAGIC, 2, int)
+#define DMABUF_MANAGE_GET_PHYADDR            _IOWR(DMABUF_MANAGE_IOC_MAGIC, 3, int)
+#define DMABUF_MANAGE_IMPORT_DMA             _IOWR(DMABUF_MANAGE_IOC_MAGIC, 4, int)
+#define DMABUF_MANAGE_REGISTER_CHANNEL       _IOWR(DMABUF_MANAGE_IOC_MAGIC, 5, int)
 
-#define DMABUF_MANAGE_VERSION			_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1000, int)
-#define DMABUF_MANAGE_EXPORT_DMABUF		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1001, int)
-#define DMABUF_MANAGE_GET_DMABUFINFO	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1002, int)
-#define DMABUF_MANAGE_SET_FILTERFD		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1003, int)
-#define DMABUF_MANAGE_ALLOCDMABUF		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1004, int)
-#define DMABUF_MANAGE_FREEDMABUF		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1005, int)
+#define DMABUF_MANAGE_EXTEND_EXPORT_DMA \
+	 _IOWR(DMABUF_MANAGE_IOC_MAGIC, 6, struct secmem_extend_block)
+#define DMABUF_MANAGE_EXTEND_GET_HANDLE \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 7, struct secmem_extend_block)
+#define DMABUF_MANAGE_EXTEND_GET_PHYADDR \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 8, struct secmem_extend_block)
+#define DMABUF_MANAGE_EXTEND_IMPORT_DMA \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 9, long)
+#define DMABUF_MANAGE_EXTEND_REGISTER_CHANNEL \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 10, struct secure_vdec_channel)
+
+#define DMABUF_MANAGE_VERSION \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 100, struct dmabuf_manage_buffer)
+#define DMABUF_MANAGE_EXPORT_DMABUF \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 101, struct dmabuf_manage_buffer)
+#define DMABUF_MANAGE_GET_DMABUFINFO \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 102, struct dmabuf_manage_buffer)
+#define DMABUF_MANAGE_ALLOCDMABUF \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 104, struct dmabuf_manage_buffer)
+
+#define DMABUF_MANAGE_EXTEND_EXPORT_DMABUF \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 201, struct dmabuf_manage_extend_buffer)
+#define DMABUF_MANAGE_EXTEND_GET_DMABUFINFO \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 202, struct dmabuf_manage_extend_buffer)
+#define DMABUF_MANAGE_EXTEND_ALLOCDMABUF \
+	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 204, struct dmabuf_manage_extend_buffer)
+
+#define DMABUF_MANAGE_V_VERSION                _IOWR(DMABUF_MANAGE_IOC_MAGIC, 1000, int)
+#define DMABUF_MANAGE_V_EXPORT_DMABUF          _IOWR(DMABUF_MANAGE_IOC_MAGIC, 1001, int)
+#define DMABUF_MANAGE_V_GET_DMABUFINFO         _IOWR(DMABUF_MANAGE_IOC_MAGIC, 1002, int)
+#define DMABUF_MANAGE_V_ALLOCDMABUF            _IOWR(DMABUF_MANAGE_IOC_MAGIC, 1004, int)
 
 #endif /* _LINUX_DMABUF_MANAGE_H_ */
