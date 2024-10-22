@@ -243,7 +243,11 @@ static inline int DUR2PTS(int y)
 		x = 1920;
 	}
 
-	if ((x % 10) == 0) {
+	if (x == 667) {//144fps
+		var = 10000;
+	} else if (x == 582) {//165fps
+		var = 8727;
+	} else if ((x % 10) == 0) {
 		var = x * 15;
 	} else {
 		var = 12012;
