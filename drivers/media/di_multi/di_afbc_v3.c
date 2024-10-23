@@ -4348,6 +4348,7 @@ void dbg_afe_reg_v3(struct seq_file *s, enum EAFBC_ENC eidx)
 	int i;
 	unsigned int addr;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
+	unsigned int afbce_num;
 
 	seq_printf(s, "dump reg:afe[%d]\n", eidx);
 
@@ -4355,8 +4356,11 @@ void dbg_afe_reg_v3(struct seq_file *s, enum EAFBC_ENC eidx)
 		PR_ERR("%s:eidx[%d] overflow\n", __func__, eidx);
 		return;
 	}
-
-	for (i = 0; i < DIM_AFBCE_NUB; i++) {
+	if (DIM_IS_IC(T3X))
+		afbce_num = DIM_AFBCE_NUB;
+	else
+		afbce_num = DIM_NT3X_AFBCE_NUB;
+	for (i = 0; i < afbce_num; i++) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (DIM_IS_IC(T3X))
 			addr = reg_afbc_t3x_e[eidx][i];
