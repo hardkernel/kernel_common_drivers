@@ -905,6 +905,7 @@
 					 "spi_a_ss0_x10",
 					 "spi_a_clk_x11";
 			function = "spi_a";
+			drive-strength = <3>;
 		};
 	};
 
@@ -915,6 +916,7 @@
 //					 "spi_a_ss0_x10",
 					 "spi_a_clk_x11";
 			function = "spi_a";
+			drive-strength = <3>;
 		};
 	};
 }; /* end of periphs_pinctrl */
