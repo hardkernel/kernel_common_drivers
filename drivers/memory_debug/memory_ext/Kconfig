@@ -2,6 +2,7 @@
 
 config AMLOGIC_FILE_CACHE
 	bool "Amlogic file cache"
+	depends on MEMCG
 	default n
 	help
 	  Memory debug which statisticint filecache information.
