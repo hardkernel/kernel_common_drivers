@@ -1700,7 +1700,7 @@ struct meson_avin_data txhd2_data = {
 	.irq1_cnt  = CVBS_IRQ1_COUNTER,
 	.dc_level_adj = 3,
 	.vdc_level = 3,
-	.comp_level_adj = 3,
+	.comp_level_adj = 2,
 	.irq_filter = 1,
 };
 
@@ -1714,13 +1714,10 @@ struct meson_avin_data t6d_data = {
 	.irq1_cntl = IRQCTRL_CVBS_IRQ1_CNTL,
 	.irq0_cnt  = IRQCTRL_CVBS_IRQ0_COUNTER,
 	.irq1_cnt  = IRQCTRL_CVBS_IRQ1_COUNTER,
-	.dc_level_adj = 2,
+	.dc_level_adj = 3,
 	.vdc_level = 3,
-	.comp_level_adj = 3,
+	.comp_level_adj = 2,
 	.irq_filter = 1,
-	//.dc_level_adj = 4,
-	//.vdc_level = 0,
-	//.comp_level_adj = 3,
 };
 
 static const struct of_device_id tvafe_avin_dt_match[] = {
