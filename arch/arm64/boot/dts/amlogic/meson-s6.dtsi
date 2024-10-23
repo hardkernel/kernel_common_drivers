@@ -398,6 +398,13 @@
 		};
 	};
 
+	pdd_monitor {
+		compatible = "amlogic,pdd-monitor";
+		/* Trigger threshold voltage: 800 mV */
+		interrupts-extended = <&pdd 800>;
+		status = "okay";
+	};
+
 	hifidsp0: hifidsp0 {
 		compatible = "amlogic, hifidsp0";
 		status = "okay";

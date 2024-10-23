@@ -414,6 +414,13 @@
 		};
 	};
 
+	pdd_monitor {
+		compatible = "amlogic,pdd-monitor";
+		/* Trigger threshold voltage: 800 mV */
+		interrupts-extended = <&pdd 800>;
+		status = "okay";
+	};
+
 	shmem@50f7e00 {
 		compatible = "mmio-sram";
 		reg = <0x50f7e00 0x100>;

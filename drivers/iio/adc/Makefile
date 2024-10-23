@@ -22,4 +22,6 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_SARADC) += \
 	amlogic_saradc.o
 
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_PDD) += \
-	amlogic_pdd.o
+	amlogic_pdd.o \
+	amlogic_pdd_monitor.o
+
