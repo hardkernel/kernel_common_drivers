@@ -10742,6 +10742,20 @@ void resume_lut3d(int vpp_index)
 	}
 }
 
+void resume_lcd_gamma(int vpp_index)
+{
+	if (!pq_cfg.gamma_en)
+		return;
+
+	if (gamma_en) {
+		vpp_enable_lcd_gamma_table(0, 1, vpp_index);
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
+		pr_amvecm_dbg("amvecm: resume gamma\n");
+	}
+}
+
 void resume_hdr_clk_gate(void)
 {
 	if (chip_type_id != chip_t5w)
@@ -10816,6 +10830,10 @@ void resume_recovery_process(int vpp_index)
 		resume_wb(vpp_index);
 		resume_vadj2(vpp_index);
 		resume_lut3d(vpp_index);
+
+		if (chip_type_id == chip_t5w)
+			resume_lcd_gamma(vpp_index);
+
 		suspend_drv_status_set(false);
 		pr_info("amvecm: resume recovery vsync\n");
 	}
