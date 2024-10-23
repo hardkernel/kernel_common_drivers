@@ -25,14 +25,14 @@
 #include <linux/amlogic/slab_trace.h>
 #include <linux/jhash.h>
 #include "slab.h"
-#include <linux/slub_def.h>
+//#include <linux/slub_def.h>
 #include <asm/stacktrace.h>
 
 #define SLAB_TRACE_FLAG		(__GFP_ZERO | __GFP_NOFAIL | GFP_ATOMIC)
 
 static int slab_trace_filter = 64; /* not print size < slab_trace_filter */
 static LIST_HEAD(st_root);
-static int slab_trace_en __read_mostly;
+static int slab_trace_en  = 1;
 static struct kmem_cache *slab_trace_cache;
 static struct slab_stack_master *stm;
 static struct proc_dir_entry *d_slabtrace;
@@ -297,11 +297,6 @@ static u8 size_index[24] __ro_after_init = {
 	2,	/* 184 */
 	2	/* 192 */
 };
-
-static inline unsigned int size_index_elem(unsigned int bytes)
-{
-	return (bytes - 1) / 8;
-}
 
 /*
  * Find the kmem_cache structure that serves a given size of
