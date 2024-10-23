@@ -28,6 +28,7 @@
 #include "local_contrast.h"
 #include "am_dma_ctrl.h"
 #include "set_hdr2_v0.h"
+#include "arch/vpp_s5_hdr_regs.h"
 
 int multi_picture_case;
 module_param(multi_picture_case, int, 0644);
@@ -56,6 +57,14 @@ MODULE_PARM_DESC(dump_lc_curve, "dump_lc_curve for t3x");
 static int vev2_dbg;
 module_param(vev2_dbg, int, 0644);
 MODULE_PARM_DESC(vev2_dbg, "ve dbg after s5");
+
+int delay = 4;
+module_param(delay, int, 0664);
+MODULE_PARM_DESC(delay, "\n delay\n");
+
+int counter = 4;
+module_param(counter, int, 0664);
+MODULE_PARM_DESC(counter, "\n counter\n");
 
 #define pr_amve_v2(fmt, args...)\
 	do {\
@@ -138,7 +147,7 @@ static void ve_brightness_cfg(int val,
 	}
 
 	if (mode == WR_VCB)
-		WRITE_VPP_REG_BITS(reg, val, 8, 11);
+		WRITE_VPP_REG_BITS_S5(reg, val, 8, 11);
 	else if (mode == WR_DMA)
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, val, 8, 11, vpp_index);
 
@@ -176,7 +185,7 @@ static void ve_contrast_cfg(int val,
 	}
 
 	if (mode == WR_VCB)
-		WRITE_VPP_REG_BITS(reg, val, 0, 8);
+		WRITE_VPP_REG_BITS_S5(reg, val, 0, 8);
 	else if (mode == WR_DMA)
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, val, 0, 8, vpp_index);
 
@@ -215,7 +224,7 @@ static void ve_sat_hue_mab_cfg(int mab,
 	}
 
 	if (mode == WR_VCB)
-		WRITE_VPP_REG(reg_mab, mab);
+		WRITE_VPP_REG_S5(reg_mab, mab);
 	else if (mode == WR_DMA)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_mab, mab, vpp_index);
 
@@ -255,7 +264,7 @@ static void ve_sat_hue_mcd_cfg(int mcd,
 	}
 
 	if (mode == WR_VCB)
-		WRITE_VPP_REG(reg_mcd, mcd);
+		WRITE_VPP_REG_S5(reg_mcd, mcd);
 	else if (mode == WR_DMA)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_mcd, mcd, vpp_index);
 
@@ -2974,46 +2983,43 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	}
 }
 
-void ve_lc_stts_blk_cfg(unsigned int height,
-	unsigned int width, int h_num, int v_num, int rdma_mode,
-	int vpp_index)
+void ve_lc_stts_blk_cfg(struct lc_stts_config_s cfg_data,
+	unsigned int multi_slice_type, int rdma_mode, int vpp_index)
 {
-	int lc_reg;
+	int lc_reg = 0;
 	int row_start = 0;
 	int col_start = 0;
-	int blk_height, blk_width;
-	int data32;
-	int hend0, hend1, hend2, hend3, hend4, hend5, hend6;
-	int hend7, hend8, hend9, hend10, hend11;
-	int vend0, vend1, vend2, vend3, vend4, vend5, vend6, vend7;
+	int blk_height = 0, blk_width = 0;
+	int data32 = 0;
+	int hend0 = 0, hend1 = 0, hend2 = 0, hend3 = 0;
+	int hend4 = 0, hend5 = 0, hend6 = 0;
+	int hend7 = 0, hend8 = 0, hend9 = 0, hend10 = 0, hend11 = 0;
+	int vend0 = 0, vend1 = 0, vend2 = 0, vend3 = 0;
+	int vend4 = 0, vend5 = 0, vend6 = 0, vend7 = 0;
 	int row_start_s1 = 0;
 	int col_start_s1 = 0;
-	int hend0_s1, hend1_s1, hend2_s1, hend3_s1;
-	int hend4_s1, hend5_s1, hend6_s1, hend7_s1;
-	int hend8_s1, hend9_s1, hend10_s1, hend11_s1;
-	int vend0_s1, vend1_s1, vend2_s1, vend3_s1;
-	int vend4_s1, vend5_s1, vend6_s1, vend7_s1;
-	int slice_case = ve_multi_slice_case_get();
+	int blk_height_s1 = 0, blk_width_s1 = 0;
+	int hend0_s1 = 0, hend1_s1 = 0, hend2_s1 = 0, hend3_s1 = 0;
+	int hend4_s1 = 0, hend5_s1 = 0, hend6_s1 = 0, hend7_s1 = 0;
+	int hend8_s1 = 0, hend9_s1 = 0, hend10_s1 = 0, hend11_s1 = 0;
+	int vend0_s1 = 0, vend1_s1 = 0, vend2_s1 = 0, vend3_s1 = 0;
+	int vend4_s1 = 0, vend5_s1 = 0, vend6_s1 = 0, vend7_s1 = 0;
 
-	if (!h_num || !v_num) {
-		pr_amve_v2("%s: return when h_num = %d, v_num = %d\n",
-			__func__, h_num, v_num);
-		return;
+	pr_amve_v2("[%s] multi_slice_type %d\n",
+		__func__, multi_slice_type);
+	pr_amve_v2("[%s] size s0 h/v 0x%08x/0x%08x\n",
+		__func__, cfg_data.hsize[0], cfg_data.vsize[0]);
+	pr_amve_v2("[%s] num s0 h/v 0x%08x/0x%08x\n",
+		__func__, cfg_data.h_num[0], cfg_data.v_num[0]);
+	if (multi_slice_type == 1) {
+		pr_amve_v2("[%s] size s1 h/v 0x%08x/0x%08x\n",
+			__func__, cfg_data.hsize[1], cfg_data.vsize[1]);
+		pr_amve_v2("[%s] num s1 h/v 0x%08x/0x%08x\n",
+			__func__, cfg_data.h_num[1], cfg_data.v_num[1]);
 	}
 
-	if (h_num > 12)
-		h_num = 12;
-
-	if (v_num > 8)
-		v_num = 8;
-
-	if (multi_picture_case) {
-		width = width >> 1;
-		width += lc_overlap;
-	}
-
-	blk_height = height / v_num;
-	blk_width = width / h_num;
+	blk_height = cfg_data.vsize[0] / cfg_data.v_num[0];
+	blk_width = cfg_data.hsize[0] / cfg_data.h_num[0];
 
 	hend0 = col_start + blk_width - 1;
 	hend1 = hend0 + blk_width;
@@ -3022,7 +3028,7 @@ void ve_lc_stts_blk_cfg(unsigned int height,
 	hend4 = hend3 + blk_width;
 	hend5 = hend4 + blk_width;
 
-	if (slice_case) {
+	if (multi_slice_type == 1) {
 		hend6 = hend5;
 		hend7 = hend5;
 		hend8 = hend5;
@@ -3035,7 +3041,7 @@ void ve_lc_stts_blk_cfg(unsigned int height,
 		hend8 = hend7 + blk_width;
 		hend9 = hend8 + blk_width;
 		hend10 = hend9 + blk_width;
-		hend11 = width - 1;
+		hend11 = cfg_data.hsize[0] - 1;
 	}
 
 	vend0 = row_start + blk_height - 1;
@@ -3045,47 +3051,55 @@ void ve_lc_stts_blk_cfg(unsigned int height,
 	vend4 = vend3 + blk_height;
 	vend5 = vend4 + blk_height;
 	vend6 = vend5 + blk_height;
-	vend7 = height - 10;/*6;1;*/
+	vend7 = cfg_data.vsize[0] - 10;
 
-	if (slice_case)
-		col_start_s1 = lc_overlap;
+	if (multi_slice_type == 1) {
+		blk_height_s1 = cfg_data.vsize[1] / cfg_data.v_num[1];
+		blk_width_s1 = cfg_data.hsize[1] / cfg_data.h_num[1];
+		col_start_s1 = cfg_data.overlap[1];
 
-	hend0_s1 = col_start_s1 + blk_width - 1;
-	hend1_s1 = hend0_s1 + blk_width;
-	hend2_s1 = hend1_s1 + blk_width;
-	hend3_s1 = hend2_s1 + blk_width;
-	hend4_s1 = hend3_s1 + blk_width;
-	hend5_s1 = hend4_s1 + blk_width;
-
-	if (slice_case) {
+		hend0_s1 = col_start_s1 + blk_width_s1 - 1;
+		hend1_s1 = hend0_s1 + blk_width_s1;
+		hend2_s1 = hend1_s1 + blk_width_s1;
+		hend3_s1 = hend2_s1 + blk_width_s1;
+		hend4_s1 = hend3_s1 + blk_width_s1;
+		hend5_s1 = hend4_s1 + blk_width_s1;
 		hend6_s1 = hend5_s1;
 		hend7_s1 = hend5_s1;
 		hend8_s1 = hend5_s1;
 		hend9_s1 = hend5_s1;
 		hend10_s1 = hend5_s1;
 		hend11_s1 = hend5_s1;
-	} else {
-		hend6_s1 = hend5_s1 + blk_width;
-		hend7_s1 = hend6_s1 + blk_width;
-		hend8_s1 = hend7_s1 + blk_width;
-		hend9_s1 = hend8_s1 + blk_width;
-		hend10_s1 = hend9_s1 + blk_width;
-		hend11_s1 = width - 1;
-	}
 
-	vend0_s1 = row_start_s1 + blk_height - 1;
-	vend1_s1 = vend0_s1 + blk_height;
-	vend2_s1 = vend1_s1 + blk_height;
-	vend3_s1 = vend2_s1 + blk_height;
-	vend4_s1 = vend3_s1 + blk_height;
-	vend5_s1 = vend4_s1 + blk_height;
-	vend6_s1 = vend5_s1 + blk_height;
-	vend7_s1 = height - 10;/*6;1;*/
+		vend0_s1 = row_start_s1 + blk_height_s1 - 1;
+		vend1_s1 = vend0_s1 + blk_height_s1;
+		vend2_s1 = vend1_s1 + blk_height_s1;
+		vend3_s1 = vend2_s1 + blk_height_s1;
+		vend4_s1 = vend3_s1 + blk_height_s1;
+		vend5_s1 = vend4_s1 + blk_height_s1;
+		vend6_s1 = vend5_s1 + blk_height_s1;
+		vend7_s1 = cfg_data.vsize[1] - 10;
+	}
 
 	lc_reg = VPP_LC_STTS_HIST_REGION_IDX;
 	data32 = READ_VPP_REG_S5(lc_reg);
 	/*4:0 h_index and v_index lut start*/
-	data32 = 0xffffffe0 & data32;
+	data32 = 0xffff00e0 & data32;
+
+	if (multi_slice_type == 1) {
+		/*15:12 slice1 h_num*/
+		data32 = data32 | (6 << 12);
+		/*11:8 slice0 h_num*/
+		data32 = data32 | (6 << 8);
+	} else {
+		/*15:12 slice1 h_num*/
+		data32 = data32 | (0 << 12);
+		/*11:8 slice0 h_num*/
+		data32 = data32 | (8 << 8);
+		/*31 slice1 stts enable*/
+		data32 = data32 & 0x7fffffff;
+	}
+
 	if (rdma_mode)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
@@ -3226,19 +3240,9 @@ void ve_lc_stts_blk_cfg(unsigned int height,
 		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
-
-	lc_reg = VPP_LC_STTS_HIST_REGION_IDX;
-	data32 = READ_VPP_REG_S5(lc_reg);
-	/*4:0 h_index and v_index lut start*/
-	data32 = 0xffffffe0 & data32;
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
-	else
-		WRITE_VPP_REG_S5(lc_reg, data32);
 }
 
-void ve_lc_stts_en(int enable, int h_num,
-	unsigned int height, unsigned int width,
+void ve_lc_stts_en(int enable,
 	int pix_drop_mode, int eol_en, int hist_mode,
 	int lpf_en, int din_sel, int bitdepth,
 	int flag, int flag_full, int thd_black,
@@ -3247,39 +3251,14 @@ void ve_lc_stts_en(int enable, int h_num,
 	int i;
 	int slice_max;
 	int data32;
-	int slice0_hsize = width;
-	int slice1_hsize = width;
 	int slice_case = ve_multi_slice_case_get();
 	int lc_stts_en = enable;
 
 	if (slice_case || multi_picture_case) {
 		slice_max = get_slice_max();
-		slice0_hsize = (width >> 1) + lc_overlap_s0;
-		slice1_hsize = (width >> 1) + lc_overlap;
 	} else {
 		slice_max = SLICE1;
 	}
-
-	/*if (rdma_mode)*/
-	/*	VSYNC_WRITE_VPP_REG(VPP_LC_STTS_GCLK_CTRL0, 0x0);*/
-	/*else*/
-	/*	WRITE_VPP_REG_S5(VPP_LC_STTS_GCLK_CTRL0, 0x0);*/
-
-	data32 = ((height - 1) << 16) | (slice0_hsize - 1);
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS1_WIDTHM1_HEIGHTM1,
-			data32, vpp_index);
-	else
-		WRITE_VPP_REG_S5(VPP_LC_STTS1_WIDTHM1_HEIGHTM1,
-			data32);
-
-	data32 = ((height - 1) << 16) | (slice1_hsize - 1);
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS2_WIDTHM1_HEIGHTM1,
-			data32, vpp_index);
-	else
-		WRITE_VPP_REG_S5(VPP_LC_STTS2_WIDTHM1_HEIGHTM1,
-			data32);
 
 	for (i = SLICE0; i < slice_max; i++) {
 		if (flag == 0x3) {
@@ -3302,20 +3281,6 @@ void ve_lc_stts_en(int enable, int h_num,
 			data32, vpp_index);
 	else
 		WRITE_VPP_REG_BITS_S5(VPP_LC_STTS_CTRL0, din_sel, 3, 3);
-
-	if (slice_case || multi_picture_case) {
-		/*data32 = (width / 12) & 0xff;*/
-		data32 = width / 12 + width / 72 - 3;
-		if (data32 > 0xff)
-			data32 = 0xff;
-
-		data32 = (0x1 << 3) | (data32 << 16);
-		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL1,
-				data32, vpp_index);
-		else
-			WRITE_VPP_REG_S5(VPP_LC_STTS_CTRL1, data32);
-	}
 
 	/*lc lpf enable*/
 	if (lpf_en) {
@@ -3340,23 +3305,13 @@ void ve_lc_stts_en(int enable, int h_num,
 	/*lc input probe enable*/
 	/*VSYNC_WRITE_VPP_REG_BITS(VPP_LC_STTS_CTRL0, enable, 9, 2);*/
 
-	if (h_num > 12)
-		h_num = 12;
-
-	if (slice_case)
-		h_num = h_num >> 1;
-
 	data32 = READ_VPP_REG_S5(VPP_LC_STTS_HIST_REGION_IDX);
-	data32 = (data32 & 0x3fff00ff) | ((lc_stts_en & 0x3) << 30);
+	data32 = (data32 & 0x0c8fffff) | ((lc_stts_en & 0x3) << 30);
 	data32 = data32 | ((pix_drop_mode & 0x3) << 28);
 	data32 = data32 | ((eol_en & 0x3) << 24);
 	/*22: lc_hist_mode, 0 for y, 1 for maxrgb*/
 	data32 = data32 | ((hist_mode & 0x1) << 22);
 	data32 = data32 | ((lpf_en & 0x3) << 20);
-	/*15:12 slice1 h_num*/
-	data32 = data32 | (h_num << 12);
-	/*11:8 slice0 h_num*/
-	data32 = data32 | (h_num << 8);
 	pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
 		__func__, VPP_LC_STTS_HIST_REGION_IDX, data32);
 	if (rdma_mode)
@@ -3442,46 +3397,91 @@ void ve_lc_disable(int rdma_mode, int vpp_index)
 	int lc_reg;
 	int data32;
 
-	pr_amve_v2("[%s] vpp_index = %d\n", __func__, vpp_index);
-
 	lc_reg = VPP_LC_STTS_HIST_REGION_IDX;
 	data32 = READ_VPP_REG_S5(lc_reg);
-	data32 = data32 & 0x3fffffe0;
-	pr_amve_v2("[%s]: 0x%04x = 0x%08x\n", __func__, lc_reg, data32);
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
-	else
-		WRITE_VPP_REG_S5(lc_reg, data32);
+	if (data32 & 0xc0000000) {
+		data32 = data32 & 0x3fffffe0;
+		pr_amve_v2("[%s]: 0x%04x = 0x%08x\n", __func__, lc_reg, data32);
+		if (rdma_mode)
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
+		else
+			WRITE_VPP_REG_S5(lc_reg, data32);
+	}
 
 	/*slice 0*/
 	lc_reg = VPP_SRSHARP1_LC_TOP_CTRL + sr_sharp_reg_ofst[0];
-	WRITE_VPP_REG_BITS_S5(lc_reg, 0, 4, 1);
+	data32 = READ_VPP_REG_S5(lc_reg);
+	if (data32 & 0x10) {
+		pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
+			__func__, lc_reg, data32);
+		WRITE_VPP_REG_BITS_S5(lc_reg, 0, 4, 1);
+	}
 
 	lc_reg = VPP_LC1_CURVE_CTRL + lc_reg_ofst[0];
-	WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
+	if (rdma_mode) {
+		data32 = READ_VPP_REG_S5(lc_reg);
+		if (data32 & 0x1) {
+			data32 &= 0xfffffffe;
+			pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
+		}
+	} else {
+		WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
+	}
 
 	lc_reg = VPP_LC1_CURVE_RAM_CTRL + lc_reg_ofst[0];
-	WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
+	if (rdma_mode) {
+		data32 = READ_VPP_REG_S5(lc_reg);
+		if (data32 & 0x1) {
+			data32 &= 0xfffffffe;
+			pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
+		}
+	} else {
+		WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
+	}
 
 	/*slice 1*/
 	lc_reg = VPP_SRSHARP1_LC_TOP_CTRL + sr_sharp_reg_ofst[1];
-	WRITE_VPP_REG_BITS_S5(lc_reg, 0, 4, 1);
+	data32 = READ_VPP_REG_S5(lc_reg);
+	if (data32 & 0x10) {
+		pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
+			__func__, lc_reg, data32);
+		WRITE_VPP_REG_BITS_S5(lc_reg, 0, 4, 1);
+	}
 
 	lc_reg = VPP_LC1_CURVE_CTRL + lc_reg_ofst[1];
-	WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
+	if (rdma_mode) {
+		data32 = READ_VPP_REG_S5(lc_reg);
+		if (data32 & 0x1) {
+			data32 &= 0xfffffffe;
+			pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
+		}
+	} else {
+		WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
+	}
 
 	lc_reg = VPP_LC1_CURVE_RAM_CTRL + lc_reg_ofst[1];
-	WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
+	if (rdma_mode) {
+		data32 = READ_VPP_REG_S5(lc_reg);
+		if (data32 & 0x1) {
+			data32 &= 0xfffffffe;
+			pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
+		}
+	} else {
+		WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
+	}
 }
 
-void ve_lc_curve_ctrl_cfg(int enable,
-	unsigned int height, unsigned int width,
-	int h_num, int v_num, int rdma_mode,
+void ve_lc_curve_ctrl_cfg(int enable, int rdma_mode,
 	int vpp_index)
 {
-	unsigned int histvld_thrd;
-	unsigned int blackbar_mute_thrd;
-	unsigned int lmtrat_minmax;
 	int i;
 	int slice_max;
 	int lc_reg;
@@ -3492,13 +3492,6 @@ void ve_lc_curve_ctrl_cfg(int enable,
 	slice_max = get_slice_max();
 
 	for (i = SLICE0; i < slice_max; i++) {
-		lc_reg = VPP_LC1_CURVE_LMT_RAT + lc_reg_ofst[i];
-		tmp = READ_VPP_REG_S5(lc_reg);
-		lmtrat_minmax = (tmp >> 8) & 0xff;
-		tmp = (height * width) / (h_num * v_num);
-		histvld_thrd = (tmp * lmtrat_minmax) >> 10;
-		blackbar_mute_thrd = tmp >> 3;
-
 		if (!enable) {
 			lc_reg = VPP_LC1_CURVE_CTRL + lc_reg_ofst[i];
 			if (rdma_mode) {
@@ -3511,26 +3504,6 @@ void ve_lc_curve_ctrl_cfg(int enable,
 				WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
 			}
 		} else {
-			lc_reg = VPP_LC1_CURVE_HV_NUM + lc_reg_ofst[i];
-			if (rdma_mode)
-				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
-					(h_num << 8) | v_num, vpp_index);
-			else
-				WRITE_VPP_REG_S5(lc_reg, (h_num << 8) | v_num);
-
-			lc_reg = VPP_LC1_CURVE_HISTVLD_THRD + lc_reg_ofst[i];
-			if (rdma_mode)
-				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, histvld_thrd, vpp_index);
-			else
-				WRITE_VPP_REG_S5(lc_reg, histvld_thrd);
-
-			lc_reg = VPP_LC1_CURVE_BB_MUTE_THRD + lc_reg_ofst[i];
-			if (rdma_mode)
-				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, blackbar_mute_thrd,
-					vpp_index);
-			else
-				WRITE_VPP_REG_S5(lc_reg, blackbar_mute_thrd);
-
 			lc_reg = VPP_LC1_CURVE_CTRL + lc_reg_ofst[i];
 			if (rdma_mode) {
 				data32 = READ_VPP_REG_S5(lc_reg);
@@ -3559,11 +3532,8 @@ void ve_lc_top_cfg(int enable, int h_num, int v_num,
 	int slice_max;
 	int lc_reg;
 	unsigned int value;
-	int data32;
-	int sync_ctrl = 0; /*0: pre_frame, 1: cur_frame*/
 	int slice_case = ve_multi_slice_case_get();
 	unsigned int hsize_out, hwin_begin, hwin_end;
-	int lc_mapping_en = enable;
 
 	slice_max = get_slice_max();
 
@@ -3603,41 +3573,6 @@ void ve_lc_top_cfg(int enable, int h_num, int v_num,
 	/*lc curve mapping config*/
 	_lc_blk_bdry_cfg(height, width, h_num, v_num, rdma_mode, vpp_index);
 
-	/*slice 0*/
-	lc_reg = VPP_SRSHARP1_LC_TOP_CTRL + sr_sharp_reg_ofst[0];
-	/*lc enable need set at last*/
-	/*bit0: lc blend mode, default 1*/
-	data32 = READ_VPP_REG_S5(lc_reg);
-	data32 = (data32 & 0xfffe00ee) |
-		((lc_mapping_en & 0x1) << 4) |
-		(0x8 << 8) | (0x1 << 0) |
-		((sync_ctrl & 0x1) << 16);
-	/*pr_amve_v2("[%s]: mapping 0x%04x = 0x%08x\n",*/
-	/*	__func__, lc_reg, data32);*/
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
-	else
-		WRITE_VPP_REG_S5(lc_reg, data32);
-
-	/*slice 1*/
-	lc_reg = VPP_SRSHARP1_LC_TOP_CTRL + sr_sharp_reg_ofst[1];
-	data32 = READ_VPP_REG_S5(lc_reg);
-	slice_case = ve_multi_slice_case_get();
-	if (slice_case) {
-		data32 = (data32 & 0xfffe00ee) |
-		((lc_mapping_en & 0x1) << 4) |
-		(0x8 << 8) | (0x1 << 0) |
-		((sync_ctrl & 0x1) << 16);
-	} else {
-		data32 &= 0xfffe00ee;
-	}
-	/*pr_amve_v2("[%s]: mapping 0x%04x = 0x%08x\n",*/
-	/*	__func__, lc_reg, data32);*/
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
-	else
-		WRITE_VPP_REG_S5(lc_reg, data32);
-
 	for (i = SLICE0; i < slice_max; i++) {
 		if (flag == 0x3) {
 			/* bt601 use 601 matrix */
@@ -3660,6 +3595,73 @@ void ve_lc_top_cfg(int enable, int h_num, int v_num,
 				_lc_mtrx_set(OUTP_MTX, LC_MTX_RGB_YUV709L,
 					1, bitdepth, i);
 			}
+		}
+	}
+}
+
+void ve_lc_mapping_ctrl(int enable, int rdma_mode, int vpp_index)
+{
+	int lc_reg;
+	int data32;
+	int sync_ctrl = 0; /*0: pre_frame, 1: cur_frame*/
+	int slice_case = ve_multi_slice_case_get();
+	int lc_mapping_en = enable;
+
+	/*slice 0*/
+	lc_reg = VPP_SRSHARP1_LC_TOP_CTRL + sr_sharp_reg_ofst[0];
+	/*lc enable need set at last*/
+	/*bit0: lc blend mode, default 1*/
+	data32 = READ_VPP_REG_S5(lc_reg);
+	if (((data32 & 0x10) >> 4) != lc_mapping_en) {
+		if (!delay) {
+			pr_amve_v2("[%s]: pre mapping 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			data32 = (data32 & 0xfffe00ee) |
+				((lc_mapping_en & 0x1) << 4) |
+				(0x8 << 8) | (0x1 << 0) |
+				((sync_ctrl & 0x1) << 16);
+			pr_amve_v2("[%s]: mapping 0x%04x = 0x%08x, %d\n",
+				__func__, lc_reg, data32, lc_mapping_en);
+			if (rdma_mode)
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
+			else
+				WRITE_VPP_REG_S5(lc_reg, data32);
+
+			delay = counter;
+		} else {
+			delay--;
+		}
+	}
+
+	/*slice 1*/
+	lc_reg = VPP_SRSHARP1_LC_TOP_CTRL + sr_sharp_reg_ofst[1];
+	data32 = READ_VPP_REG_S5(lc_reg);
+	if (slice_case) {
+		if (((data32 & 0x10) >> 4) != lc_mapping_en) {
+			pr_amve_v2("[%s]: pre mapping 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			data32 = (data32 & 0xfffe00ee) |
+			((lc_mapping_en & 0x1) << 4) |
+			(0x8 << 8) | (0x1 << 0) |
+			((sync_ctrl & 0x1) << 16);
+			pr_amve_v2("[%s]: mapping 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			if (rdma_mode)
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
+			else
+				WRITE_VPP_REG_S5(lc_reg, data32);
+		}
+	} else {
+		if (((data32 & 0x10) >> 4) != 0) {
+			pr_amve_v2("[%s]: pre mapping 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			data32 &= 0xfffe00ee;
+			pr_amve_v2("[%s]: mapping 0x%04x = 0x%08x\n",
+				__func__, lc_reg, data32);
+			if (rdma_mode)
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
+			else
+				WRITE_VPP_REG_S5(lc_reg, data32);
 		}
 	}
 }
@@ -3984,12 +3986,13 @@ void ve_lc_curve_set(int init_flag,
 void ve_lc_base_init(void)
 {
 	int i;
-	int slice_max;
 	int lc_reg;
 
-	slice_max = get_slice_max();
+	for (i = SLICE0; i < SLICE2; i++) {
+		lc_reg = VPP_SRSHARP1_LC_TOP_CTRL +
+			sr_sharp_reg_ofst[i];
+		WRITE_VPP_REG_S5(lc_reg, 0x0);
 
-	for (i = SLICE0; i < slice_max; i++) {
 		lc_reg = VPP_SRSHARP1_LC_INPUT_MUX +
 			sr_sharp_reg_ofst[i];
 		/*lc input_ysel*/
@@ -4095,8 +4098,10 @@ void ve_lc_region_read(int blk_vnum, int blk_hnum,
 	unsigned int tmp, tmp1;
 	unsigned int cur_block;
 	unsigned int length;
+	int slice_case = ve_multi_slice_case_get();
 
-	if (!black_count || !curve_data || !hist_data)
+	if (!black_count || !curve_data || !hist_data ||
+		slice_case)
 		return;
 
 	slice_max = get_slice_max();
@@ -4181,10 +4186,10 @@ void ve_lc_total_en_ctrl(int enable, int rdma_mode, int vpp_index)
 	/*lc dma chnl enable*/
 	lc_reg = 0x27d6;
 	data32 = READ_VPP_REG_S5(lc_reg);
-	pr_info("[%s] before set 0x%04x data32 = 0x%08x\n",
+	pr_amve_v2("[%s] before set 0x%04x data32 = 0x%08x\n",
 		__func__, lc_reg, data32);
 	data32 |= (enable & 0x1) << 16;
-	pr_info("[%s] after set 0x%04x data32 = 0x%08x\n",
+	pr_amve_v2("[%s] after set 0x%04x data32 = 0x%08x\n",
 		__func__, lc_reg, data32);
 	if (rdma_mode)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
@@ -4205,13 +4210,182 @@ void ve_lc_total_en_ctrl(int enable, int rdma_mode, int vpp_index)
 	lc_reg = VPP_LC_STTS_HIST_REGION_IDX;
 	data32 = READ_VPP_REG_S5(lc_reg);
 	data32 = (data32 & 0x3fffffff) | ((lc_stts_enable & 0x3) << 30);
-	pr_info("[%s] stts 0x%04x = 0x%08x\n",
+	pr_amve_v2("[%s] stts 0x%04x = 0x%08x\n",
 		__func__, lc_reg, data32);
 	if (rdma_mode)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
 			data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
+}
+
+static unsigned int pre_pps_dout_hsize[2];
+static unsigned int pre_pps_dout_vsize[2];
+
+void ve_size_info_update(int vpp_index)
+{
+	int rdma_mode = 1;
+	int lc_reg;
+	int reg_offset;
+	int tmp;
+	int h_num = 12;
+	int v_num = 8;
+	int h_num_s1 = 12;
+	int v_num_s1 = 8;
+	unsigned int height;
+	unsigned int width;
+	unsigned int histvld_thrd;
+	unsigned int blackbar_mute_thrd;
+	unsigned int lmtrat_minmax;
+	unsigned int pps_dout_hsize[2];
+	unsigned int pps_dout_vsize[2];
+	unsigned int multi_slice_type = 0;
+	struct vd_proc_amvecm_info_t *vd_proc_info;
+	struct lc_stts_config_s stts_cfg_data;
+
+	if (chip_type_id != chip_t3x)
+		return;
+
+	vd_proc_info = get_vd_proc_amvecm_info();
+	pps_dout_hsize[0] = vd_proc_info->slice[0].pps_dout_hsize;
+	pps_dout_vsize[0] = vd_proc_info->slice[0].pps_dout_vsize;
+	pps_dout_hsize[1] = vd_proc_info->slice[1].pps_dout_hsize;
+	pps_dout_vsize[1] = vd_proc_info->slice[1].pps_dout_vsize;
+
+	if (pre_pps_dout_hsize[0] == pps_dout_hsize[0] &&
+		pre_pps_dout_vsize[0] == pps_dout_vsize[0] &&
+		pre_pps_dout_hsize[1] == pps_dout_hsize[1] &&
+		pre_pps_dout_vsize[1] == pps_dout_vsize[1])
+		return;
+
+	pr_amve_v2("[%s] vd_proc_info slice_num %d\n",
+		__func__, vd_proc_info->slice_num);
+	pr_amve_v2("[%s] vd_proc_info s0 pps_h/v 0x%08x/0x%08x\n",
+		__func__, pps_dout_hsize[0], pps_dout_vsize[0]);
+	pr_amve_v2("[%s] vd_proc_info s1 pps_h/v 0x%08x/0x%08x\n",
+		__func__, pps_dout_hsize[1], pps_dout_vsize[1]);
+
+	pre_pps_dout_hsize[0] = pps_dout_hsize[0];
+	pre_pps_dout_vsize[0] = pps_dout_vsize[0];
+	pre_pps_dout_hsize[1] = pps_dout_hsize[1];
+	pre_pps_dout_vsize[1] = pps_dout_vsize[1];
+
+	stts_cfg_data.hsize[0] = pps_dout_hsize[0];
+	stts_cfg_data.vsize[0] = pps_dout_vsize[0];
+	stts_cfg_data.h_num[0] = h_num;
+	stts_cfg_data.v_num[0] = v_num;
+
+	if (vd_proc_info->slice_num > 1) {
+		multi_slice_type = 1;
+		stts_cfg_data.hsize[1] = pps_dout_hsize[1];
+		stts_cfg_data.vsize[1] = pps_dout_vsize[1];
+		stts_cfg_data.h_num[1] = h_num_s1;
+		stts_cfg_data.v_num[1] = v_num_s1;
+		stts_cfg_data.overlap[1] = 32;
+	} else {
+		multi_slice_type = 0;
+	}
+
+	ve_lc_stts_blk_cfg(stts_cfg_data, multi_slice_type,
+		rdma_mode, vpp_index);
+
+	height = pps_dout_vsize[0];
+	width = pps_dout_hsize[0];
+	reg_offset = lc_reg_ofst[0];
+
+	lc_reg = VPP_LC1_CURVE_HV_NUM + reg_offset;
+	if (rdma_mode)
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
+			(h_num << 8) | v_num, vpp_index);
+	else
+		WRITE_VPP_REG_S5(lc_reg, (h_num << 8) | v_num);
+
+	lc_reg = VPP_LC1_CURVE_LMT_RAT + reg_offset;
+	tmp = READ_VPP_REG_S5(lc_reg);
+	lmtrat_minmax = (tmp >> 8) & 0xff;
+	tmp = (height * width) / (h_num * v_num);
+	histvld_thrd = (tmp * lmtrat_minmax) >> 10;
+	blackbar_mute_thrd = tmp >> 3;
+
+	lc_reg = VPP_LC1_CURVE_HISTVLD_THRD + reg_offset;
+	if (rdma_mode)
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, histvld_thrd, vpp_index);
+	else
+		WRITE_VPP_REG_S5(lc_reg, histvld_thrd);
+
+	lc_reg = VPP_LC1_CURVE_BB_MUTE_THRD + reg_offset;
+	if (rdma_mode)
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, blackbar_mute_thrd,
+			vpp_index);
+	else
+		WRITE_VPP_REG_S5(lc_reg, blackbar_mute_thrd);
+
+	tmp = ((height - 1) << 16) | (width - 1);
+	if (rdma_mode)
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS1_WIDTHM1_HEIGHTM1,
+			tmp, vpp_index);
+	else
+		WRITE_VPP_REG_S5(VPP_LC_STTS1_WIDTHM1_HEIGHTM1, tmp);
+
+	if (multi_slice_type) {
+		height = pps_dout_vsize[1];
+		width = pps_dout_hsize[1];
+		reg_offset = lc_reg_ofst[1];
+
+		lc_reg = VPP_LC1_CURVE_LMT_RAT + reg_offset;
+		tmp = READ_VPP_REG_S5(lc_reg);
+		lmtrat_minmax = (tmp >> 8) & 0xff;
+		tmp = (height * width) / (h_num_s1 * v_num_s1);
+		histvld_thrd = (tmp * lmtrat_minmax) >> 10;
+		blackbar_mute_thrd = tmp >> 3;
+
+		lc_reg = VPP_LC1_CURVE_HISTVLD_THRD + reg_offset;
+		if (rdma_mode)
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, histvld_thrd, vpp_index);
+		else
+			WRITE_VPP_REG_S5(lc_reg, histvld_thrd);
+
+		lc_reg = VPP_LC1_CURVE_BB_MUTE_THRD + reg_offset;
+		if (rdma_mode)
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, blackbar_mute_thrd,
+				vpp_index);
+		else
+			WRITE_VPP_REG_S5(lc_reg, blackbar_mute_thrd);
+
+		tmp = ((height - 1) << 16) | (width - 1);
+		if (rdma_mode)
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS2_WIDTHM1_HEIGHTM1,
+				tmp, vpp_index);
+		else
+			WRITE_VPP_REG_S5(VPP_LC_STTS2_WIDTHM1_HEIGHTM1, tmp);
+
+		/*tmp = (width / 12) & 0xff;*/
+		tmp = width / 12 + width / 72 - 3;
+		if (tmp > 0xff)
+			tmp = 0xff;
+
+		tmp = (0x1 << 3) | (tmp << 16);
+		if (rdma_mode)
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL1,
+				tmp, vpp_index);
+		else
+			WRITE_VPP_REG_S5(VPP_LC_STTS_CTRL1, tmp);
+	} else {
+		reg_offset = lc_reg_ofst[1];
+		lc_reg = VPP_LC1_CURVE_CTRL + reg_offset;
+		tmp = READ_VPP_REG_S5(lc_reg);
+		tmp &= 0xfffffffe;
+		pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
+			__func__, lc_reg, tmp);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, tmp, vpp_index);
+
+		lc_reg = VPP_LC1_CURVE_RAM_CTRL + reg_offset;
+		tmp = READ_VPP_REG_S5(lc_reg);
+		tmp &= 0xfffffffe;
+		pr_amve_v2("[%s]: 0x%04x = 0x%08x\n",
+			__func__, lc_reg, tmp);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, tmp, vpp_index);
+	}
 }
 
 void dump_lc_mapping_reg(void)

@@ -2859,6 +2859,14 @@ bool resume_mtx_flag_get(void)
 }
 #endif
 
+void amvecm_size_info_update(int vpp_index)
+{
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (chip_type_id == chip_t3x)
+		ve_size_info_update(vpp_index);
+#endif
+}
+
 int amvecm_on_vs(struct vframe_s *vf,
 		 struct vframe_s *toggle_vf,
 		 int flags,

@@ -1956,6 +1956,9 @@ s32 primary_render_frame(struct video_layer_s *layer,
 	}
 #endif
 	vd_s5_hw_set(layer, dispbuf, frame_par);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	amvecm_size_info_update(layer->vpp_index);
+#endif
 	vd_scaler_setting(layer, &layer->sc_setting);
 	aisr_scaler_setting(layer, &layer->aisr_sc_setting);
 	aisr_demo_axis_set(layer);

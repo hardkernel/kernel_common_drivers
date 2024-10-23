@@ -42,12 +42,16 @@
 #define N_DELAY 4
 /*hist bin num*/
 #define HIST_BIN 16
-#define LC_BLK_H_NUM 12
+#define LC_BLK_H_NUM 8
 #define LC_BLK_V_NUM 8
 
 int amlc_debug;
 module_param(amlc_debug, int, 0664);
 MODULE_PARM_DESC(amlc_debug, "\n amlc_debug\n");
+
+int lc_pr_lmt = 0x10;
+module_param(lc_pr_lmt, int, 0664);
+MODULE_PARM_DESC(lc_pr_lmt, "\n lc_pr_lmt\n");
 
 #define pr_amlc_dbg(fmt, args...)\
 	do {\
@@ -85,13 +89,9 @@ int dbg_monitor_ctrl;
 module_param(dbg_monitor_ctrl, int, 0664);
 MODULE_PARM_DESC(dbg_monitor_ctrl, "\n dbg_monitor_ctrl\n");
 
-int skip_num;
+int skip_num = 4;
 module_param(skip_num, int, 0664);
 MODULE_PARM_DESC(skip_num, "\n skip_num\n");
-
-int delay_num = 4;
-module_param(delay_num, int, 0664);
-MODULE_PARM_DESC(delay_num, "\n delay_num\n");
 
 int width_limit = 1900;
 int height_limit = 1050;
@@ -111,6 +111,9 @@ int invalid_blk = 2;
 int min_bv_percent_th = 331;
 /*control the refresh speed*/
 int alpha1 = 512;
+module_param(alpha1, int, 0664);
+MODULE_PARM_DESC(alpha1, "\n alpha1\n");
+
 int alpha2 = 512;
 int refresh_bit = 12;
 int ts = 6;
@@ -189,6 +192,7 @@ int tune_curve_en = 2;
 int detect_signal_range_en = 2;
 int detect_signal_range_threshold_black = 1600;
 int detect_signal_range_threshold_white = 3200;
+int cur_scene_change_flag;
 
 /*local contrast begin*/
 void lc_curve_get_blk_num(int *h_num, int *v_num)
@@ -1067,7 +1071,6 @@ void lc_disable(int rdma_mode, int vpp_index)
 	}
 
 	memset(lc_hist, 0, LC_HIST_SIZE * sizeof(int));
-	memset(lc_szcurve, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_cur, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_pre, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_pre_raw, 0, LC_CURV_SIZE * sizeof(int64_t));
@@ -1075,6 +1078,8 @@ void lc_disable(int rdma_mode, int vpp_index)
 	if (chip_type_id == chip_t3x) {
 		memset(lc_hist_slice1, 0, LC_HIST_SIZE * sizeof(int));
 		memset(lc_szcurve_slice1, 0, LC_CURV_SIZE * sizeof(int));
+	} else {
+		memset(lc_szcurve, 0, LC_CURV_SIZE * sizeof(int));
 	}
 
 	lc_en_chflg = 0x0;
@@ -1232,12 +1237,8 @@ void lc_config(int enable,
 			0, 0, 1, 1, in_sel,
 			bitdepth, flag, flag_full);
 	} else {
-		ve_lc_curve_ctrl_cfg(lc_en_ctrl,
-			height, width, h_num, v_num,
-			lc_rdma_mode, vpp_index);
-		ve_lc_stts_blk_cfg(height, width,
-			h_num, v_num, lc_rdma_mode, vpp_index);
-		ve_lc_stts_en(lc_en_ctrl, h_num, height, width,
+		ve_lc_curve_ctrl_cfg(lc_en_ctrl, lc_rdma_mode, vpp_index);
+		ve_lc_stts_en(lc_en_ctrl,
 			0, 0, 1, 1, 0,
 			bitdepth, flag, flag_full,
 			lc_tune_curve.lc_reg_thd_black,
@@ -1775,10 +1776,13 @@ int global_scene_change(int *curve_nodes_cur,
 			abs((frm_dif[N_DELAY - 1] / (valid_blk_num[N_DELAY - 1] + 1)) -
 			(frm_dif[N_DELAY - 2] / (valid_blk_num[N_DELAY - 2] + 1)));
 
-		if (scene_dif[N_DELAY - 1] > scene_change_th)
+		if (scene_dif[N_DELAY - 1] > scene_change_th) {
 			scene_change_flag = 1;
-		else
+			pr_amlc_dbg("%s scene_dif/scene_change_th = %d/%d\n",
+				__func__, scene_dif[N_DELAY - 1], scene_change_th);
+		} else {
 			scene_change_flag = 0;
+		}
 
 		/*debug*/
 		if (scene_dif[N_DELAY - 1] > scene_change_th && amlc_iir_debug_en) {
@@ -1815,6 +1819,17 @@ int cal_iir_alpha(int *refresh_alpha,
 	int addr_curv1;
 	int osd_local_p, osd_local_m;
 	int i, j, k;
+
+	if (chip_type_id == chip_t3x) {
+		for (i = 0; i < blk_vnum; i++) {
+			for (j = 0; j < blk_hnum; j++) {
+				addr_curv1 = (i * blk_hnum + j);
+				refresh_alpha[addr_curv1] = alpha1;/*normal iir*/
+			}
+		}
+
+		return 0;
+	}
 
 	/* 3.1 global scene change,highest priority */
 	if (scene_change_flag) {/*only use current curve*/
@@ -1991,7 +2006,12 @@ static void lc_fw_curve_iir(struct vframe_s *vf,
 		memset(osd_flag_cnt_above, 0, sizeof(int) * 2);
 		frm_cnt_below = 0;
 		frm_cnt_above = 0;
+		pr_amlc_dbg("%s scene_change_flag = %d\n",
+			__func__, scene_change_flag);
 	}
+
+	if (cur_scene_change_flag != scene_change_flag)
+		cur_scene_change_flag = scene_change_flag;
 
 	/* step 3: set tiir alpha based on different situation */
 	cal_iir_alpha(refresh_alpha,/*out*/
@@ -2120,6 +2140,7 @@ void lc_read_region(int blk_vnum, int blk_hnum,
 	unsigned int cur_block;
 	int *data_curve;
 	int *data_hist;
+	int prt_flag = 0;
 
 	if (chip_type_id != chip_t3x) {
 		_read_region(blk_vnum, blk_hnum);
@@ -2133,14 +2154,47 @@ void lc_read_region(int blk_vnum, int blk_hnum,
 			data_hist = lc_hist_slice1;
 		}
 
+		memcpy(lc_szcurve_slice1, lc_szcurve, LC_CURV_SIZE * sizeof(int));
+
 		ve_lc_region_read(blk_vnum, blk_hnum, slice,
 			&lc_tune_curve.lc_reg_black_count,
 			data_curve, data_hist);
 
-		if (amlc_debug == 0x80 && lc_hist_prcnt) {/*print curve data*/
-			pr_info("curve slice = %d\n", slice);
-			for (i = 0; i < 8 * 12 * 6; i++)
-				pr_info("[%d] %x\n", i, data_curve[i]);
+		for (i = 0; i < 8 * 12 * 6; i++) {
+			if (data_curve[i] - lc_szcurve_slice1[i] > lc_pr_lmt) {
+				prt_flag = 1;
+				break;
+			}
+		}
+
+		if (lc_hist_prcnt == 0x80 && prt_flag) {/*print curve data*/
+			pr_info("read back curve, curve slice = %d\n", slice);
+			for (i = 0; i < 4 * 6; i++) {
+				pr_info("0x%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x\n",
+					data_curve[24 * i], data_curve[24 * i + 1],
+					data_curve[24 * i + 2],
+					data_curve[24 * i + 3],
+					data_curve[24 * i + 4],
+					data_curve[24 * i + 5],
+					data_curve[24 * i + 6],
+					data_curve[24 * i + 7],
+					data_curve[24 * i + 8],
+					data_curve[24 * i + 9],
+					data_curve[24 * i + 10],
+					data_curve[24 * i + 11],
+					data_curve[24 * i + 12],
+					data_curve[24 * i + 13],
+					data_curve[24 * i + 14],
+					data_curve[24 * i + 15],
+					data_curve[24 * i + 16],
+					data_curve[24 * i + 17],
+					data_curve[24 * i + 18],
+					data_curve[24 * i + 19],
+					data_curve[24 * i + 20],
+					data_curve[24 * i + 21],
+					data_curve[24 * i + 22],
+					data_curve[24 * i + 23]);
+			}
 		}
 
 		/*part3: add tune curve node patch--by vlsi-guopan*/
@@ -2172,7 +2226,7 @@ void lc_read_region(int blk_vnum, int blk_hnum,
 		}
 	}
 
-	if (lc_hist_prcnt > 0)
+	if (lc_hist_prcnt > 0 && lc_hist_prcnt != 0x80)
 		lc_hist_prcnt--;
 }
 
@@ -2430,6 +2484,14 @@ int dbg_slice_flag;
 int dbg_hwin_begin;
 int dbg_hwin_end;
 int dbg_hsize_out;
+int dbg_ro;
+int dbg_stts_idx;
+int dbg_curve_ctrl;
+int dbg_curve_ram_ctrl;
+int dbg_mapping_top_ctrl;
+int dbg_curve_ctrl_s1;
+int dbg_curve_ram_ctrl_s1;
+int dbg_mapping_top_ctrl_s1;
 
 void dbg_monitor(struct vframe_s *vf,
 	unsigned int sps_h_en,
@@ -2485,10 +2547,66 @@ void dbg_monitor(struct vframe_s *vf,
 		dbg_hwin_end = hwin_end;
 		dbg_hsize_out = hsize_out;
 	}
+
+	value = READ_VPP_REG_S5(0x5aef);
+	if (value != dbg_ro) {
+		pr_info("[lc_monitor] ro: 0x%x -> 0x%x\n",
+			dbg_ro, value);
+		dbg_ro = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5ae9);
+	if (value != dbg_stts_idx) {
+		pr_info("[lc_monitor] stts_idx: 0x%x -> 0x%x\n",
+			dbg_stts_idx, value);
+		dbg_stts_idx = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5a40);
+	if (value != dbg_curve_ctrl) {
+		pr_info("[lc_monitor] curve_ctrl: 0x%x -> 0x%x\n",
+			dbg_curve_ctrl, value);
+		dbg_curve_ctrl = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5a70);
+	if (value != dbg_curve_ram_ctrl) {
+		pr_info("[lc_monitor] curve_ram_ctrl: 0x%x -> 0x%x\n",
+			dbg_curve_ram_ctrl, value);
+		dbg_curve_ram_ctrl = value;
+	}
+
+	value = READ_VPP_REG_S5(0x52c0);
+	if (value != dbg_mapping_top_ctrl) {
+		pr_info("[lc_monitor] mapping_top_ctrl: 0x%x -> 0x%x\n",
+			dbg_mapping_top_ctrl, value);
+		dbg_mapping_top_ctrl = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5a80);
+	if (value != dbg_curve_ctrl_s1) {
+		pr_info("[lc_monitor] curve_ctrl_s1: 0x%x -> 0x%x\n",
+			dbg_curve_ctrl_s1, value);
+		dbg_curve_ctrl_s1 = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5ab0);
+	if (value != dbg_curve_ram_ctrl_s1) {
+		pr_info("[lc_monitor] curve_ram_ctrl_s1: 0x%x -> 0x%x\n",
+			dbg_curve_ram_ctrl_s1, value);
+		dbg_curve_ram_ctrl_s1 = value;
+	}
+
+	value = READ_VPP_REG_S5(0x77c0);
+	if (value != dbg_mapping_top_ctrl_s1) {
+		pr_info("[lc_monitor] mapping_top_ctrl_s1: 0x%x -> 0x%x\n",
+			dbg_mapping_top_ctrl_s1, value);
+		dbg_mapping_top_ctrl_s1 = value;
+	}
 }
 
 void lc_process(struct vframe_s *vf,
-		unsigned int sps_h_en,
+	unsigned int sps_h_en,
 	unsigned int sps_v_en,
 	unsigned int sps_w_in,
 	unsigned int sps_h_in,
@@ -2496,17 +2614,10 @@ void lc_process(struct vframe_s *vf,
 	struct vpp_hist_param_s *vp)
 {
 	int blk_hnum, blk_vnum;
-	int multi_pic_flag;
+	int multi_pic_flag = 0;
 	int multi_slice_flag = 0;
 	int lc_bypass_th = 0;
-	static int frc_change_delay_cnt;
-	/*static int frc_status_changed;*/
-	static int frc_status_pre;
-	/*int frc_status_cur;*/
 	unsigned int height, width;
-
-	pr_amlc_dbg("12sps_h_en/sps_v_en/sps_w_in/sps_h_in/: %d/%d/%d/%d\n",
-		sps_h_en, sps_v_en, sps_w_in, sps_h_in);
 
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1 ||
 		chip_type_id == chip_s5 ||
@@ -2514,6 +2625,9 @@ void lc_process(struct vframe_s *vf,
 		chip_type_id == chip_s6 ||
 		lc_force_ctrl)
 		return;
+
+	if (amlc_debug == 0xf0)
+		monitor_lc_stts_overflow();
 
 	if (!lc_malloc_ok) {
 		pr_amlc_dbg("[%s] lc malloc fail\n", __func__);
@@ -2526,6 +2640,11 @@ void lc_process(struct vframe_s *vf,
 
 		if (dbg_monitor_ctrl)
 			dbg_monitor(vf, sps_h_en, sps_v_en, sps_w_in, sps_h_in);
+
+		if (multi_slice_flag || multi_pic_flag) {
+			lc_disable(lc_rdma_mode, vpp_index);
+			return;
+		}
 	}
 
 	if (chip_type_id == chip_t6d) {
@@ -2539,9 +2658,6 @@ void lc_process(struct vframe_s *vf,
 	if (!lc_en ||
 		(vf && width < width_limit && height < height_limit)) {
 		lc_disable(lc_rdma_mode, vpp_index);
-		pr_amlc_dbg("[%s] lc_en = %d\n", __func__, lc_en);
-		frc_status_pre = 0;
-		frc_change_delay_cnt = 0;
 		return;
 	}
 
@@ -2550,10 +2666,7 @@ void lc_process(struct vframe_s *vf,
 			lc_disable(lc_rdma_mode, vpp_index);
 			lc_bypass_flag = 0x0;
 			lc_flag = 0x0;
-			frc_status_pre = 0;
-			frc_change_delay_cnt = 0;
 		}
-		/*pr_amlc_dbg("[%s] vf is NULL\n", __func__);*/
 		return;
 	}
 
@@ -2575,7 +2688,6 @@ void lc_process(struct vframe_s *vf,
 
 	lc_config(lc_en, vf, sps_h_en, sps_v_en,
 		sps_w_in, sps_h_in, lc_bitdepth, vpp_index, vp);
-	pr_amlc_dbg("[%s] lc_config ok", __func__);
 
 	if (lc_bypass_flag <= 0) {
 		if (chip_type_id != chip_t3x) {
@@ -2594,17 +2706,14 @@ void lc_process(struct vframe_s *vf,
 
 	if (chip_type_id != chip_t3x) {
 		lc_curve_get_blk_num(&blk_hnum, &blk_vnum);
-		pr_amlc_dbg("[%s] lc_curve_get_blk_num ok", __func__);
 
 		/*get hist & curve node*/
 		if (!use_lc_curve_isr || !lc_curve_isr_defined)
 			lc_read_region(blk_vnum, blk_hnum, 0);
-		pr_amlc_dbg("[%s] lc_read_region ok", __func__);
 
 		/*do time domain iir*/
 		lc_fw_curve_iir(vf, lc_hist,
 			lc_szcurve, blk_vnum, blk_hnum);
-		pr_amlc_dbg("[%s] lc_fw_curve_iir ok", __func__);
 		if (lc_curve_prcnt > 0) { /*debug lc curve node*/
 			lc_prt_curve();
 			lc_curve_prcnt--;
@@ -2612,8 +2721,10 @@ void lc_process(struct vframe_s *vf,
 
 		if (set_lc_curve(0, 0, vpp_index))
 			pr_amlc_dbg("[%s] set lc curve fail\n", __func__);
-		pr_amlc_dbg("[%s] wanc", __func__);
 	} else {
+		if (!multi_slice_flag)
+			ve_lc_mapping_ctrl(lc_en, lc_rdma_mode, vpp_index);
+
 		ve_lc_blk_num_get(&blk_hnum, &blk_vnum, 0);
 
 		/*get hist & curve node*/
@@ -2625,9 +2736,7 @@ void lc_process(struct vframe_s *vf,
 		/*	pr_amlc_dbg("%s: use_lc_curve_isr/defined: %d/%d\n",*/
 		/*		__func__, use_lc_curve_isr, lc_curve_isr_defined);*/
 		/*}*/
-
-		if (!use_lc_curve_isr || !lc_curve_isr_defined)
-			lc_read_region(blk_vnum, blk_hnum, 0);
+		lc_read_region(blk_vnum, blk_hnum, 0);
 
 		/*do time domain iir*/
 		lc_fw_curve_iir(vf, lc_hist,
@@ -2649,9 +2758,6 @@ void lc_process(struct vframe_s *vf,
 			ve_lc_curve_set(0, 0, lc_szcurve, 0, vpp_index);
 			ve_lc_curve_set(0, 0, lc_szcurve_slice1, 1, vpp_index);
 		}
-
-		if (amlc_debug == 0xf0)
-			monitor_lc_stts_overflow();
 	}
 
 	if (amlc_debug == 0xc &&

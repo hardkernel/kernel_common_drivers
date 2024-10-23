@@ -501,6 +501,8 @@ extern enum output_format_e output_format;
 extern unsigned int osd_pic_en;
 extern unsigned int slt_en;
 
+void amvecm_size_info_update(int vpp_index);
+
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,
 		 int flags,

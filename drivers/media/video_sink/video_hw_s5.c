@@ -6178,6 +6178,11 @@ static void update_vd_proc_amvecm_info(struct vd_proc_s *vd_proc)
 				vd_proc_amvecm.slice[i].vsize =
 					vd_proc_pps->dout_vsize;
 			}
+
+			vd_proc_amvecm.slice[i].pps_dout_hsize =
+				vd_proc_pps->dout_hsize;
+			vd_proc_amvecm.slice[i].pps_dout_vsize =
+				vd_proc_pps->dout_vsize;
 		}
 		vd_proc_amvecm.slice[i].vd1_slice_in_hsize =
 			vd_proc_slice_info->vd1_slice_din_hsize[i];

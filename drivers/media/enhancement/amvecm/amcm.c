@@ -389,7 +389,8 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 				/*for slice1 sr*/
 				if (chip_type_id == chip_t3x &&
 					addr >= 0x5000 &&
-					addr <= 0x53ff) {
+					addr <= 0x53ff &&
+					addr != 0x52c0) {
 					if (pq_reg_wr_rdma)
 						VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr +
 							sr_addr_offset,
@@ -409,6 +410,10 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 					break;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+				if (chip_type_id == chip_t3x &&
+					(addr == 0x52c0 || addr == 0x77c0))
+					break;
+
 				if (addr == offset_addr(reg_sr)) {
 					if (!lc_en)
 						val = val & 0xffffffef;
