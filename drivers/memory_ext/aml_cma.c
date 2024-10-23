@@ -211,6 +211,8 @@ int (*aml_start_isolate_page_range)(unsigned long start_pfn, unsigned long end_p
 int (*aml_start_isolate_page_range)(unsigned long start_pfn, unsigned long end_pfn,
 			     unsigned int migratetype, int flags);
 #endif
+
+bool (*aml__kasan_unpoison_pages)(struct page *page, unsigned int order, bool init);
 #endif
 
 #ifdef CONFIG_PAGE_OWNER
@@ -617,6 +619,7 @@ void check_page_to_cma(struct compact_control *cc,
 #endif
 }
 
+#ifdef CONFIG_ARM64
 static int can_migrate_to_cma(struct folio *folio)
 {
 	struct address_space *mapping;
@@ -663,6 +666,7 @@ struct folio *get_compact_page(struct folio *src,
 	}
 	return dst;
 }
+#endif
 #endif
 
 /* cma alloc/free interface */
@@ -1254,6 +1258,229 @@ int in_cma_allocating(struct page *page)
 	return 0;
 }
 
+/* Look for a buddy that straddles start_pfn */
+static unsigned long aml_find_large_buddy(unsigned long start_pfn)
+{
+	int order = 0;
+	struct page *page;
+	unsigned long pfn = start_pfn;
+
+	while (!PageBuddy(page = pfn_to_page(pfn))) {
+		/* Nothing found */
+		if (++order > MAX_PAGE_ORDER)
+			return start_pfn;
+		pfn &= ~0UL << order;
+	}
+
+	/*
+	 * Found a preceding buddy, but does it straddle?
+	 */
+	if (pfn + (1 << buddy_order(page)) > start_pfn)
+		return pfn;
+
+	/* Nothing found */
+	return start_pfn;
+}
+
+#if IS_MODULE(CONFIG_AMLOGIC_CMA)
+static inline bool page_expected_state(struct page *page,
+					unsigned long check_flags)
+{
+	if (unlikely(atomic_read(&page->_mapcount) != -1))
+		return false;
+
+	if (unlikely((unsigned long)page->mapping |
+			page_ref_count(page) |
+#ifdef CONFIG_MEMCG
+			page->memcg_data |
+#endif
+#ifdef CONFIG_PAGE_POOL
+			((page->pp_magic & ~0x3UL) == PP_SIGNATURE) |
+#endif
+			(page->flags & check_flags)))
+		return false;
+
+	return true;
+}
+
+static inline bool should_skip_kasan_unpoison(gfp_t flags)
+{
+	/* Don't skip if a software KASAN mode is enabled. */
+	if (IS_ENABLED(CONFIG_KASAN_GENERIC) ||
+	    IS_ENABLED(CONFIG_KASAN_SW_TAGS))
+		return false;
+
+	/* Skip, if hardware tag-based KASAN is not enabled. */
+	if (!kasan_hw_tags_enabled())
+		return true;
+
+	/*
+	 * With hardware tag-based KASAN enabled, skip if this has been
+	 * requested via __GFP_SKIP_KASAN.
+	 */
+	return flags & __GFP_SKIP_KASAN;
+}
+
+static inline bool should_skip_init(gfp_t flags)
+{
+	/* Don't skip, if hardware tag-based KASAN is not enabled. */
+	if (!kasan_hw_tags_enabled())
+		return false;
+
+	/* For hardware tag-based KASAN, skip if requested. */
+	return (flags & __GFP_SKIP_ZERO);
+}
+
+static void kernel_init_pages(struct page *page, int numpages)
+{
+	int i;
+
+	/* s390's use of memset() could override KASAN redzones. */
+	kasan_disable_current();
+	for (i = 0; i < numpages; i++)
+		clear_highpage_kasan_tagged(page + i);
+	kasan_enable_current();
+}
+
+#ifdef CONFIG_KASAN
+static __always_inline bool aml_kasan_unpoison_pages(struct page *page,
+						 unsigned int order, bool init)
+{
+	if (kasan_enabled())
+		return aml__kasan_unpoison_pages(page, order, init);
+	return false;
+}
+#else
+static inline bool aml_kasan_unpoison_pages(struct page *page, unsigned int order,
+					bool init)
+{
+	return false;
+}
+#endif
+
+inline void post_alloc_hook(struct page *page, unsigned int order,
+				gfp_t gfp_flags)
+{
+	bool init = !want_init_on_free() && want_init_on_alloc(gfp_flags) &&
+			!should_skip_init(gfp_flags);
+	/*
+	 * cma alloc no __GFP_ZEROTAGS flags.
+	 * bool zero_tags = init && (gfp_flags & __GFP_ZEROTAGS);
+	 */
+	int i;
+
+	set_page_private(page, 0);
+	set_page_refcounted(page);
+
+	arch_alloc_page(page, order);
+	debug_pagealloc_map_pages(page, 1 << order);
+
+	/*
+	 * Page unpoisoning must happen before memory initialization.
+	 * Otherwise, the poison pattern will be overwritten for __GFP_ZERO
+	 * allocations and the page unpoisoning code will complain.
+	 */
+	kernel_unpoison_pages(page, 1 << order);
+
+	/*
+	 * As memory initialization might be integrated into KASAN,
+	 * KASAN unpoisoning and memory initializion code must be
+	 * kept together to avoid discrepancies in behavior.
+	 */
+
+	/*
+	 * If memory tags should be zeroed
+	 * (which happens only when memory should be initialized as well).
+	 */
+		/* Initialize both memory and memory tags. */
+		/* Take note that memory was initialized by the loop above. */
+	/* if (zero_tags) {
+	 *	for (i = 0; i != 1 << order; ++i)
+	 *		tag_clear_highpage(page + i);
+	 *
+	 *	init = false;
+	 *}
+	 */
+	if (!should_skip_kasan_unpoison(gfp_flags) &&
+	    aml_kasan_unpoison_pages(page, order, init)) {
+		/* Take note that memory was initialized by KASAN. */
+		if (kasan_has_integrated_init())
+			init = false;
+	} else {
+		/*
+		 * If memory tags have not been set by KASAN, reset the page
+		 * tags to ensure page_address() dereferencing does not fault.
+		 */
+		for (i = 0; i != 1 << order; ++i)
+			page_kasan_tag_reset(page + i);
+	}
+	/* If memory is still not initialized, initialize it now. */
+	if (init)
+		kernel_init_pages(page, 1 << order);
+
+	//set_page_owner(page, order, gfp_flags);
+	page_table_check_alloc(page, order);
+	pgalloc_tag_add(page, current, 1 << order);
+}
+
+static void aml_prep_compound_page(struct page *page, unsigned int order)
+{
+	int i;
+	int nr_pages = 1 << order;
+
+	__SetPageHead(page);
+	for (i = 1; i < nr_pages; i++)
+		prep_compound_tail(page, i);
+
+	prep_compound_head(page, order);
+}
+
+static void aml_prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+							unsigned int alloc_flags)
+{
+	post_alloc_hook(page, order, gfp_flags);
+
+	if (order && (gfp_flags & __GFP_COMP))
+		aml_prep_compound_page(page, order);
+
+	/*
+	 * page is set pfmemalloc when ALLOC_NO_WATERMARKS was necessary to
+	 * allocate the page. The expectation is that the caller is taking
+	 * steps that will free more memory. The caller should avoid the page
+	 * being used for !PFMEMALLOC purposes.
+	 */
+	if (alloc_flags & ALLOC_NO_WATERMARKS)
+		set_page_pfmemalloc(page);
+	else
+		clear_page_pfmemalloc(page);
+}
+
+static void aml_split_free_pages(struct list_head *list)
+{
+	int order;
+
+	for (order = 0; order < NR_PAGE_ORDERS; order++) {
+		struct page *page, *next;
+		int nr_pages = 1 << order;
+
+		list_for_each_entry_safe(page, next, &list[order], lru) {
+			int i;
+
+			post_alloc_hook(page, order, __GFP_MOVABLE);
+			if (!order)
+				continue;
+
+			split_page(page, order);
+
+			/* Add all subpages to the order-0 head, in sequence. */
+			list_del(&page->lru);
+			for (i = 0; i < nr_pages; i++)
+				list_add_tail(&page[i].lru, &list[0]);
+		}
+	}
+}
+#endif
+
 int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 			unsigned int migrate_type, gfp_t gfp_mask)
 {
@@ -1269,7 +1496,7 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 		.nr_migratepages = 0,
 		.order = -1,
 		.zone = page_zone(pfn_to_page(start)),
-		.mode = MIGRATE_SYNC,
+		.mode = gfp_mask & __GFP_NORETRY ? MIGRATE_ASYNC : MIGRATE_SYNC,
 		.ignore_skip_hint = true,
 		.no_set_skip_hint = true,
 		.gfp_mask = current_gfp_context(gfp_mask),
@@ -1281,16 +1508,13 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 	mutex_lock(&cma_mutex);
 #if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
-	ret = start_isolate_page_range(pfn_max_align_down(start),
-				       aml_pfn_max_align_up(end), migrate_type,
+	ret = start_isolate_page_range(start, end, migrate_type,
 				       0, gfp_mask);
 #elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
-	ret = start_isolate_page_range(pfn_max_align_down(start),
-				       aml_pfn_max_align_up(end), migrate_type,
+	ret = start_isolate_page_range(start, end, migrate_type,
 				       0, &failed_pfn);
 #else
-	ret = start_isolate_page_range(pfn_max_align_down(start),
-				       aml_pfn_max_align_up(end), migrate_type, 0);
+	ret = start_isolate_page_range(start, end, migrate_type, 0);
 #endif
 #else
 #if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
@@ -1308,7 +1532,7 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 #endif
 	if (ret < 0) {
 		cma_debug(1, NULL, "ret:%d\n", ret);
-		return ret;
+		goto done;
 	}
 
 	cur_alloc_start = start;
@@ -1336,14 +1560,14 @@ try_again:
 	}
 	cpus_read_unlock();
 
-	if (ret && ret != -EBUSY) {
+	if (ret && (ret != -EBUSY || (gfp_mask & __GFP_NORETRY))) {
 		cma_debug(1, NULL, "ret:%d\n", ret);
 		goto done;
 	}
 
 	ret = 0;
 	order = 0;
-	outer_start = start;
+	outer_start = aml_find_large_buddy(start);
 	while (!PageBuddy(pfn_to_page(outer_start))) {
 		if (++order >= NR_PAGE_ORDERS) {
 			outer_start = start;
@@ -1389,11 +1613,32 @@ try_again:
 		goto done;
 	}
 
-	/* Free head and tail (if any) */
-	if (start != outer_start)
-		aml_cma_free(outer_start, start - outer_start, 0);
-	if (end != outer_end)
-		aml_cma_free(end, outer_end - end, 0);
+	if (!(gfp_mask & __GFP_COMP)) {
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+		split_free_pages(cc.freepages);
+#else
+		aml_split_free_pages(cc.freepages);
+#endif
+		/* Free head and tail (if any) */
+		if (start != outer_start)
+			free_contig_range(outer_start, start - outer_start);
+		if (end != outer_end)
+			free_contig_range(end, outer_end - end);
+	} else if (start == outer_start && end == outer_end && is_power_of_2(end - start)) {
+		struct page *head = pfn_to_page(start);
+		int order = ilog2(end - start);
+
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+		check_new_pages(head, order);
+		prep_new_page(head, order, gfp_mask, 0);
+#else
+		aml_prep_new_page(head, order, gfp_mask, 0);
+#endif
+	} else {
+		ret = -EINVAL;
+		WARN(true, "PFN range: requested [%lu, %lu), allocated [%lu, %lu)\n",
+		     start, end, outer_start, outer_end);
+	}
 
 done:
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
@@ -1428,7 +1673,8 @@ static int __aml_cma_free_check(struct page *page, int order, unsigned int *cnt)
 			ref++;
 	}
 	if (ref) {
-		pr_info("%s, %d pages are still in use\n", __func__, ref);
+		pr_info("%s, %lx:%d pages are still in use\n",
+			__func__, page_to_pfn(page), ref);
 		*cnt += ref;
 		return -1;
 	}
@@ -1993,6 +2239,8 @@ static int __nocfi common_symbol_init(void *data)
 #ifdef CONFIG_PAGE_OWNER
 	aml__dump_owner = (void (*)(const struct page *page))get_symbol_addr("__dump_page_owner");
 #endif
+	aml__kasan_unpoison_pages = (bool (*)(struct page *page, unsigned int order,
+				bool init))get_symbol_addr("__kasan_unpoison_pages");
 	ret = register_kprobe(&kp_cma_alloc);
 	if (ret < 0) {
 		pr_err("register_kprobe:%s failed, returned %d\n",

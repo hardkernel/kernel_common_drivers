@@ -64,6 +64,13 @@ struct page *compaction_cma_alloc(struct page *migratepage,
 int cma_mmu_op(struct page *page, int count, bool set);
 int setup_cma_full_pagemap(unsigned long pfn, unsigned long count);
 
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+void split_free_pages(struct list_head *list);
+bool check_new_pages(struct page *page, unsigned int order);
+void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+		unsigned int alloc_flags);
+#endif
+
 /* check page in cma allocating process */
 int in_cma_allocating(struct page *page);
 
