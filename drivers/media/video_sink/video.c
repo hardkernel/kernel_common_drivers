@@ -150,6 +150,10 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #define RECEIVERPIP_NAME "videopip"
 #define RECEIVERPIP2_NAME "videopip2"
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+#include <linux/amlogic/media/vrr/vrr.h>
+#endif
+
 #define PARSE_MD_IN_ADVANCE 1
 
 #ifdef CONFIG_AML_VSYNC_FIQ_ENABLE
@@ -7509,7 +7513,11 @@ static ssize_t video_screen_mode_store(struct class *cla,
 		return -EINVAL;
 
 	if (mode < VIDEO_WIDEOPTION_MAX &&
-	    mode != layer->wide_mode) {
+		mode != layer->wide_mode) {
+		if (mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP)
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+			vrr_crop_update_delay_line(0, 0, 0, 0, VRR_DOT);
+#endif
 		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
 			pr_info("video_screen_mode sysfs:%d->%ld %s\n",
 				layer->wide_mode, mode, current->comm);

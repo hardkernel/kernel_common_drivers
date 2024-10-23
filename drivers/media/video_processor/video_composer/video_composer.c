@@ -4352,7 +4352,7 @@ static void video_composer_task(struct composer_dev *dev)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 		vrr_crop_update_delay_line(frame_info->crop_y, frame_info->dst_y,
-			frame_info->dst_w, frame_info->dst_h, 1);
+			frame_info->dst_w, frame_info->dst_h, VRR_AXIS);
 #endif
 
 		if (is_dec_vf) {

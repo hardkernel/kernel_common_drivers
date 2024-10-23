@@ -79,6 +79,15 @@ struct vrr_notifier_data_s {
 #define VRR_EVENT_LFC_OFF		BIT(6)
 #define VRR_EVENT_GET_STATE		BIT(7)
 
+/* **********************************
+ * LINE define
+ * **********************************
+ */
+/* check different type change display scale */
+#define VRR_CROP			1
+#define VRR_AXIS			2
+#define VRR_DOT				3
+
 /* ************************************************************* */
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 int aml_vrr_state(void);
@@ -132,7 +141,7 @@ static inline int aml_vrr_atomic_notifier_call_chain(unsigned long event,
 bool frame_lock_type_vrr_lock(void);
 unsigned int vrr_check_frame_rate_min_hz(void);
 void vrr_crop_update_delay_line(u32 line, u16 axis_y,
-u16 dst_w, u16 dst_h, u16 flag);
+u16 dst_w, u16 dst_h, u16 type);
 struct aml_vrr_drv_s *aml_vrr_drv_active_sel(void);
 unsigned int vrr_instead_vlock(void);
 

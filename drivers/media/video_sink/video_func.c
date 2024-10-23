@@ -1089,7 +1089,7 @@ void _set_video_crop(struct disp_info_s *layer, int *p)
 		if (layer->layer_id == 0) {
 			vd_layer[0].property_changed = true;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
-			vrr_crop_update_delay_line(layer->crop_top, 0, 0, 0, 0);
+			vrr_crop_update_delay_line(layer->crop_top, 0, 0, 0, VRR_CROP);
 #endif
 		} else if (layer->layer_id == 1) {
 			if (vd_layer[1].vpp_index == VPP0)

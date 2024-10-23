@@ -59,6 +59,9 @@ u32 pre_axis_y;
 unsigned int vrr_line_dly;
 u8 vrr_vpp_index;
 
+unsigned int line_change_type;
+unsigned int vrr_dot_line = 600;
+
 #define VRR_MNT_MAX      5
 static unsigned int vrr_mnt_table[VRR_MNT_MAX] = {
 	VPU_VENCP_STAT,
@@ -383,7 +386,12 @@ static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
 	else
 		temp = vrr_reg_getb(reg + offset, 8, 16);
 
-	vrr_line_dly = dst_line > 200 ? dst_line : vdrv->line_dly + crop_line;
+	if (line_change_type == VRR_DOT)
+		vrr_line_dly = vrr_dot_line;
+	else if (line_change_type == VRR_AXIS)
+		vrr_line_dly = dst_line;
+	else
+		vrr_line_dly = vdrv->line_dly + crop_line;
 
 	if (temp == vrr_line_dly)
 		return;
@@ -408,7 +416,7 @@ static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
 }
 
 void vrr_crop_update_delay_line(u32 line, u16 axis_y,
-			u16 dst_w, u16 dst_h, u16 flag)
+			u16 dst_w, u16 dst_h, u16 type)
 {
 	struct aml_vrr_drv_s *vdrv = NULL;
 
@@ -426,9 +434,17 @@ void vrr_crop_update_delay_line(u32 line, u16 axis_y,
 		return;
 	}
 
-	if (flag == 0) {
+	switch (type) {
+	case VRR_CROP:
 		crop_line = line;
-	} else if (flag == 1) {
+		if (crop_line != pre_line)
+			line_change_type = VRR_CROP;
+
+		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+			VRRPR("%s crop:%d pre:%d\n", __func__, crop_line, pre_line);
+		break;
+
+	case VRR_AXIS:
 		if (dst_h <= vdrv->vrr_dev->v_active && dst_h > 0 && axis_y > 0 &&
 			vdrv->vrr_dev->v_active >= dst_h + axis_y)
 			dst_line = (vdrv->vrr_dev->v_active - dst_h - axis_y) + 200;
@@ -437,14 +453,25 @@ void vrr_crop_update_delay_line(u32 line, u16 axis_y,
 			dst_line = axis_y + 200;
 		else
 			dst_line = 200;
+
+		if (dst_line != pre_dst_line) {
+			line_change_type = VRR_AXIS;
+			if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+				VRRPR("%s y:%d w:%d h:%d ac:%d dst:%d pre:%d\n",
+					__func__, axis_y, dst_w, dst_h, vdrv->vrr_dev->v_active,
+					dst_line, pre_dst_line);
+		}
+		break;
+
+	case VRR_DOT:
+		line_change_type = VRR_DOT;
+		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+			VRRPR("%s doy by dot change line!\n", __func__);
+		break;
+
+	default:
+		break;
 	}
-
-	//dst_line = (dst_h < 2160 && dst_h > 0 && axis_y >= 0 &&
-	//	(2160 - dst_h - axis_y) >= 0) ?
-	//	(2160 - dst_h - axis_y) + 200 : 200;
-
-	if (vrr_debug_print & VRR_DBG_PR_NORMAL)
-		VRRPR("%s crop:%d dst:%d\n", __func__, crop_line, dst_line);
 
 	if (!vdrv->enable) {
 		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
@@ -452,15 +479,11 @@ void vrr_crop_update_delay_line(u32 line, u16 axis_y,
 		return;
 	}
 
-	//crop_line = line;
-	//vrr_vpp_index = vpp_index;
-
-	if ((crop_line != pre_line && flag == 0) ||
-		(dst_line != pre_dst_line && flag == 1)) {
+	if (line_change_type) {
 		vrr_line_delay_update(vdrv);
 		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
-			VRRPR("%s flag:%d crop:%d->%d dst:%d->%d\n", __func__,
-				flag, pre_line, crop_line, pre_dst_line, dst_line);
+			VRRPR("%s type:%d crop:%d->%d dst:%d->%d\n", __func__,
+				type, pre_line, crop_line, pre_dst_line, dst_line);
 	}
 
 	pre_line = crop_line;
