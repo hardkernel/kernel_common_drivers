@@ -51,6 +51,8 @@ static inline void amlogic_saradc_driver_exit(void)
 #if IS_ENABLED(CONFIG_AMLOGIC_PDD)
 int amlogic_pdd_driver_init(void);
 void amlogic_pdd_driver_exit(void);
+int amlogic_pdd_monitor_driver_init(void);
+void amlogic_pdd_monitor_driver_exit(void);
 #else
 static inline int amlogic_pdd_driver_init(void)
 {
@@ -58,6 +60,15 @@ static inline int amlogic_pdd_driver_init(void)
 }
 
 static inline void amlogic_pdd_driver_exit(void)
+{
+}
+
+static inline int amlogic_pdd_monitor_driver_init(void)
+{
+	return 0;
+}
+
+static inline void amlogic_pdd_monitor_driver_exit(void)
 {
 }
 #endif
