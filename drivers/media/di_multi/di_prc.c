@@ -2181,6 +2181,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 	bool i_ret = false;
 //	struct di_mng_s *pbm = get_bufmng();
 //	ulong flags = 0;
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	while (reflesh) {
 		reflesh = false;
@@ -2280,6 +2281,25 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 				di_reg_setting(ch, vframe);
 				get_datal()->pre_vpp_set = false;
 				di_reg_setting_working(pch, vframe);
+			}
+			if (is_meson_g12a_cpu()	||
+			    is_meson_g12b_cpu()	||
+			    is_meson_tl1_cpu()	||
+			    is_meson_tm2_cpu()	||
+			    DIM_IS_IC(T5)	||
+			    DIM_IS_IC(T5DB)	||
+			    DIM_IS_IC(T5D)	||
+			    is_meson_sm1_cpu()	||
+			    DIM_IS_IC_EF(SC2)) {
+				#ifdef CLK_TREE_SUPPORT
+				if (clk_get_rate(de_devp->vpu_clkb) != de_devp->clkb_max_rate) {
+					PR_INF("%s: change vpu clkb from %ld ->%ld.\n",
+						__func__,
+						clk_get_rate(de_devp->vpu_clkb),
+						de_devp->clkb_max_rate);
+					clk_set_rate(de_devp->vpu_clkb, de_devp->clkb_max_rate);
+				}
+				#endif
 			}
 			/*this will cause first local buf not alloc*/
 			/*dim_bypass_first_frame(ch);*/
