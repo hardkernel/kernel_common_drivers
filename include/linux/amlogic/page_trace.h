@@ -42,7 +42,7 @@
 
 struct page;
 
-/* this struct should not larger than 32 bit */
+#ifdef CONFIG_ARM64
 struct page_trace {
 	union {
 		struct {
@@ -54,6 +54,20 @@ struct page_trace {
 		unsigned long ip_data;
 	};
 };
+#else
+/* this struct should not larger than 32 bit */
+struct page_trace {
+	union {
+		struct {
+			unsigned long ret_ip       :24;
+			unsigned long migrate_type : 3;
+			unsigned long module_flag  : 1;
+			unsigned long order        : 4;
+		};
+		unsigned long ip_data;
+	};
+};
+#endif
 
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 extern struct page_trace *trace_buffer;

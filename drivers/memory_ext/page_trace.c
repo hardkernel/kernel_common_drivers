@@ -23,9 +23,7 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/amlogic/page_trace.h>
-#if IS_ENABLED(CONFIG_AMLOGIC_CMA)
 #include <linux/amlogic/aml_cma.h>
-#endif
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 #include <trace/hooks/mm.h>
@@ -47,7 +45,7 @@
 #ifdef CONFIG_ARM64
 #define PAGE_TRACE_OFFSET	(_PAGE_END(CONFIG_ARM64_VA_BITS))
 #else
-#define PAGE_TRACE_OFFSET	0
+#define PAGE_TRACE_OFFSET	PAGE_OFFSET
 #endif
 
 static const char * const aml_migratetype_names[MIGRATE_TYPES] = {
@@ -112,20 +110,26 @@ static struct fun_symbol common_func[] = {
 	{"__folio_alloc",		1, 0},
 	{"kmem_cache_alloc",		1, 0},
 	{"__get_free_pages",		1, 0},
-	{"__kmalloc",			1, 0},
+	{"__kmalloc_noprof",		1, 0},
+	{"__kmalloc_large_noprof",	1, 0},
+	{"__kmalloc_large_node_noprof",	1, 0},
+	{"__kmalloc_node_track_caller_noprof",	1, 0},
+	{"__kmalloc_cache_noprof",		1, 0},
+	{"kmem_cache_alloc_node_noprof",	1, 0},
+	{"kmem_cache_alloc_lru_noprof",	1, 0},
+	{"__kmalloc_node_noprof",	1, 0},
+	{"__kmalloc_cache_node_noprof",	1, 0},
+	{"kmem_cache_alloc_noprof",	1, 0},
+	{"__cma_alloc",			1, 0},
 	{"cma_alloc",			1, 0},
 	{"dma_alloc_from_contiguous",	1, 0},
 	{"dma_alloc_contiguous",	1, 0},
-	{"alloc_slab_page",		1, 0},
-	{"aml_cma_alloc_post_hook",	1, 0},
 #ifdef CONFIG_ARM
 	{"__dma_alloc",			1, 0},
 	{"arm_dma_alloc",		1, 0},
 	{"__alloc_from_contiguous",	1, 0},
 	{"cma_allocator_alloc",		1, 0},
 #endif
-	{"__kmalloc_track_caller",	1, 0},
-	{"kmem_cache_alloc_trace",	1, 0},
 	{"alloc_pages_exact",		1, 0},
 	{"alloc_pages_exact_nid",	1, 0},
 	{"get_zeroed_page",		1, 0},
@@ -133,7 +137,6 @@ static struct fun_symbol common_func[] = {
 	{"__vmalloc_area_node",		1, 0},
 	{"sk_prot_alloc",		1, 0},
 	{"__alloc_skb",			1, 0},
-	{"__vmalloc_node_flags",	0, 0},
 	{"vzalloc",			1, 0},
 	{"vmalloc",			1, 0},
 	{"__vmalloc",			1, 0},
@@ -516,14 +519,10 @@ static int  sym_cmp(const void *x1, const void *x2)
 
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 static int match_common_caller(void *data, const char *name,
-				       struct module *module,
 				       unsigned long addr)
 {
 	int i, ret;
 	struct fun_symbol *s;
-
-	if (module)
-		return -1;
 
 	if (!strcmp(name, "_etext"))	/* end of text */
 		return -1;
@@ -544,94 +543,6 @@ static int match_common_caller(void *data, const char *name,
 				break;
 			}
 		}
-	}
-	return 0;
-}
-
-/* kallsyms_sym_address/kallsyms_expand_symbol/kallsyms_for_each_symbol are
- * copied from kallsyms.c
- */
-static unsigned long kallsyms_sym_addr(int idx)
-{
-	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
-		return kallsyms_addresses[idx];
-
-	/* values are unsigned offsets if --absolute-percpu is not in effect */
-	if (!IS_ENABLED(CONFIG_KALLSYMS_ABSOLUTE_PERCPU))
-		return kallsyms_relative_base + (u32)kallsyms_offsets[idx];
-
-	/* ...otherwise, positive offsets are absolute values */
-	if (kallsyms_offsets[idx] >= 0)
-		return kallsyms_offsets[idx];
-
-	/* ...and negative offsets are relative to kallsyms_relative_base - 1 */
-	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
-}
-
-static unsigned int kallsyms_expand_sym(unsigned int off,
-					char *result, size_t maxlen)
-{
-	int len, skipped_first = 0;
-	const char *tptr;
-	const u8 *data;
-
-	/* Get the compressed symbol length from the first symbol byte. */
-	data = &kallsyms_names[off];
-	len = *data;
-	data++;
-
-	/*
-	 * Update the offset to return the offset for the next symbol on
-	 * the compressed stream.
-	 */
-	off += len + 1;
-
-	/*
-	 * For every byte on the compressed symbol data, copy the table
-	 * entry for that byte.
-	 */
-	while (len) {
-		tptr = &kallsyms_token_table[kallsyms_token_index[*data]];
-		data++;
-		len--;
-
-		while (*tptr) {
-			if (skipped_first) {
-				if (maxlen <= 1)
-					goto tail;
-				*result = *tptr;
-				result++;
-				maxlen--;
-			} else {
-				skipped_first = 1;
-			}
-			tptr++;
-		}
-	}
-
-tail:
-	if (maxlen)
-		*result = '\0';
-
-	/* Return to offset to the next symbol. */
-	return off;
-}
-
-static int kallsyms_for_each_symbol(int (*fn)(void *, const char *,
-						     struct module *,
-						     unsigned long),
-					   void *data)
-{
-	char namebuf[KSYM_NAME_LEN];
-	unsigned long i;
-	unsigned int off;
-	int ret;
-
-	for (i = 0, off = 0; i < kallsyms_num_syms; i++) {
-		off = kallsyms_expand_sym(off, namebuf, ARRAY_SIZE(namebuf));
-		ret = fn(data, namebuf, NULL, kallsyms_sym_addr(i));
-		if (ret != 0)
-			return ret;
 	}
 	return 0;
 }
@@ -675,6 +586,11 @@ unsigned long unpack_ip(struct page_trace *trace)
 
 	if (trace->order == IP_INVALID)
 		return 0;
+
+#ifdef CONFIG_ARM
+	if (trace->module_flag)
+		text = MODULES_VADDR;
+#endif
 
 	return text + ((trace->ret_ip) << 2);
 }
@@ -1058,21 +974,6 @@ static int __nocfi match_common_caller(void)
 }
 #endif
 
-static int find_static_common_symbol(void *data)
-{
-	memset(common_caller, 0, sizeof(common_caller));
-#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-	kallsyms_for_each_symbol(match_common_caller, NULL);
-#else
-	match_common_caller();
-#endif
-	sort(common_caller, COMMON_CALLER_SIZE, sizeof(struct alloc_caller),
-		sym_cmp, NULL);
-	dump_common_caller();
-
-	return 0;
-}
-
 #endif
 #else
 /*
@@ -1156,6 +1057,21 @@ static int notrace aml_unwind_frame(struct task_struct *tsk, struct stackframe *
 #endif
 #endif
 
+static int find_static_common_symbol(void *data)
+{
+	memset(common_caller, 0, sizeof(common_caller));
+#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+	kallsyms_on_each_symbol(match_common_caller, NULL);
+#else
+	match_common_caller();
+#endif
+	sort(common_caller, COMMON_CALLER_SIZE, sizeof(struct alloc_caller),
+		sym_cmp, NULL);
+	dump_common_caller();
+
+	return 0;
+}
+
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
 unsigned long backtrace_pc, backtrace_skip;
 
@@ -1173,7 +1089,7 @@ static bool aml_dump_backtrace_entry(void *arg, unsigned long where)
 
 unsigned long __nocfi find_back_trace(void)
 {
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515 || defined(CONFIG_ARM)
 	struct stackframe frame;
 	int ret, step = 0;
 #endif
@@ -1218,7 +1134,9 @@ unsigned long __nocfi find_back_trace(void)
 	#endif
 		if (ret < 0)
 			return 0;
+	#ifdef CONFIG_ARM64
 		frame.pc = ptrauth_strip_kernel_insn_pac(frame.pc);
+	#endif
 		step++;
 		if (!is_common_caller(common_caller, frame.pc) && step > 1)
 			return frame.pc;
@@ -1355,10 +1273,26 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 	}
 }
 
+#ifdef CONFIG_ARM
+static inline int is_module_addr(unsigned long ip)
+{
+	if (ip >= MODULES_VADDR && ip < MODULES_END)
+		return 1;
+	return 0;
+}
+#endif
+
 unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 {
 	unsigned long text = PAGE_TRACE_OFFSET;
 	struct page_trace trace = {};
+
+#ifdef CONFIG_ARM
+	if (is_module_addr(ip)) {
+		text = MODULES_VADDR;
+		trace.module_flag = 1;
+	}
+#endif
 
 	trace.ret_ip = (ip - text) >> 2;
 	if (flag == __GFP_NO_CMA)
@@ -1367,10 +1301,8 @@ unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 		trace.migrate_type = aml_gfp_migratetype(flag);
 	trace.order = order;
 #if DEBUG_PAGE_TRACE
-	pr_debug("%s, base:%p, page:%lx, _ip:%x, o:%d, f:%x, ip:%lx\n",
-		 __func__, base, page_to_pfn(page),
-		 (*((unsigned long *)&trace)), order,
-		 flag, ip);
+	pr_info("%s, text: %lx, ip:%lx, o: %d, f: %x, ip:%lx, %ps\n", __func__,
+	       text, (*((unsigned long *)&trace)), order, flag, ip, (void *)ip);
 #endif
 	return *((unsigned long *)&trace);
 }
