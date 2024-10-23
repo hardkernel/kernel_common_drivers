@@ -18,6 +18,11 @@ _AMLOGIC_MODULES = [
 _EXT_MODULES = [
 ] + EXT_MODULES_ANDROID
 
+_AMLOGIC_MAKE_GOALS = [
+    "modules",
+    "dtbs",
+]
+
 def define_amlogic():
     define_common_amlogic(
         name = "amlogic",
@@ -32,4 +37,5 @@ def define_amlogic():
         module_grouping = False,
         kconfig_ext = ":Kconfig.ext",
         kconfig_ext_srcs = KCONFIG_EXT_SRCS,
+        make_goals = _AMLOGIC_MAKE_GOALS,
     )

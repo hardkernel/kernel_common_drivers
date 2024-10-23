@@ -6,6 +6,8 @@ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(
     "//build/kernel/kleaf:kernel.bzl",
+    "dtbo",
+    "initramfs",
     "kernel_abi",
     "kernel_abi_dist",
     "kernel_build",
@@ -95,9 +97,10 @@ def define_common_amlogic(
         collect_unstripped_modules = _COLLECT_UNSTRIPPED_MODULES,
         strip_modules = True,
         make_goals = make_goals,
-	kconfig_ext = kconfig_ext,
+        makefile = "//common:Makefile",
+        kconfig_ext = kconfig_ext,
         visibility = ["//visibility:public"],
-	)
+    )
 
     # enable ABI Monitoring
     # based on the instructions here:
@@ -126,18 +129,22 @@ def define_common_amlogic(
         kernel_modules = _kernel_modules,
     )
 
-    kernel_images(
-        name = name + "_images",
-        build_dtbo = True,
-        dtbo_srcs = [":" + name + "/" + e for e in dtbo_srcs],
-        build_initramfs = True,
-        kernel_build = name,
+    initramfs(
+        name = name + "_initramfs",
         kernel_modules_install = name + "_modules_install",
+        visibility = ["//visibility:private"],
+    )
+
+    dtbo(
+        name = name + "_dtbo",
+        srcs = [":" + name + "/" + e for e in dtbo_srcs],
+        kernel_build = name,
     )
 
     dist_targets = [
         name,
-        name + "_images",
+        name + "_initramfs",
+        name + "_dtbo",
         name + "_modules_install",
         # Mixed build: Additional GKI artifacts.
         "//common:kernel_aarch64",
