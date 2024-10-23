@@ -114,6 +114,7 @@ dtb-y += tm2_t962x3_ab301.dtb
 dtb-y += s7_pxp.dtb
 dtb-y += s7_s905y5_bh201.dtb
 dtb-y += s7_s905y5_bh201_linux.dtb
+dtb-y += s7_s905y5_bh201_linux_512m.dtb
 dtb-y += s7_s805x3_bp202_1g.dtb
 dtb-y += s7_s805x3_bp201_1g.dtb
 dtb-y += s7_s805x3_bp201_linux_1g.dtb
