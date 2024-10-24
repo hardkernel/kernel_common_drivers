@@ -1,4 +1,4 @@
-From 2c64e3481b5b81dbfd7edd82594e365acf817532 Mon Sep 17 00:00:00 2001
+From 8f4309de66a6e0f4f90392937698a6e9cf2c8ce5 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
 Subject: [PATCH] init: initialize the building framework of android-mainline
@@ -20,17 +20,18 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 ---
  .gitignore               |   3 +
  Kbuild                   |   3 +
- Makefile                 |  22 ++++++
+ Makefile                 |  23 ++++++
  drivers/Kconfig          |  61 +++++++++++++++
  scripts/checkpatch.pl    | 158 +++++++++++++++++++--------------------
  scripts/kconfig/Makefile |   9 ++-
- 6 files changed, 176 insertions(+), 80 deletions(-)
+ usr/include/Makefile     |   4 +
+ 7 files changed, 181 insertions(+), 80 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
-index c59dc60ba62e..43156b557910 100644
+index 56972adb5031..99d1c4ff15a1 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -171,3 +171,6 @@ sphinx_*/
+@@ -177,3 +177,6 @@ sphinx_*/
  
  # Rust analyzer configuration
  /rust-project.json
@@ -49,10 +50,10 @@ index 464b34a08f51..bd26c93f68ef 100644
 +obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/sound/
 +obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/samples/
 diff --git a/Makefile b/Makefile
-index 86bbe2bcce29..362356a8b2c2 100644
+index 40840308d90e..0d172fb4a63e 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -444,6 +444,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
+@@ -428,6 +428,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
  cross_compiling := 1
  endif
  
@@ -67,7 +68,7 @@ index 86bbe2bcce29..362356a8b2c2 100644
  KCONFIG_CONFIG	?= .config
  export KCONFIG_CONFIG
  
-@@ -834,6 +842,17 @@ endif # need-config
+@@ -818,6 +826,18 @@ endif # need-config
  
  KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
  
@@ -80,12 +81,13 @@ index 86bbe2bcce29..362356a8b2c2 100644
 +		-I$(srctree)/$(COMMON_DRIVERS_DIR)/include \
 +		-I$(srctree)/$(COMMON_DRIVERS_DIR)/include/uapi
 +KBUILD_CFLAGS += -Werror
++KBUILD_AFLAGS += -Wno-unused-command-line-argument
 +endif
 +
  ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
  KBUILD_CFLAGS += -O2
  KBUILD_RUSTFLAGS += -Copt-level=2
-@@ -1170,6 +1189,9 @@ ifeq ($(KBUILD_EXTMOD),)
+@@ -1161,6 +1181,9 @@ ifeq ($(KBUILD_EXTMOD),)
  endif
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)include/uapi
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)arch/$(SRCARCH)/include/uapi
@@ -166,10 +168,10 @@ index 7bdad836fc62..407bb559650a 100644
 +
  endmenu
 diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-index 2b812210b412..95fde1178a4f 100755
+index 4427572b2477..2913277bfddb 100755
 --- a/scripts/checkpatch.pl
 +++ b/scripts/checkpatch.pl
-@@ -59,7 +59,7 @@ my $configuration_file = ".checkpatch.conf";
+@@ -60,7 +60,7 @@ my $configuration_file = ".checkpatch.conf";
  my $max_line_length = 100;
  my $ignore_perl_version = 0;
  my $minimum_perl_version = 5.10.0;
@@ -178,7 +180,7 @@ index 2b812210b412..95fde1178a4f 100755
  my $spelling_file = "$D/spelling.txt";
  my $codespell = 0;
  my $codespellfile = "/usr/share/codespell/dictionary.txt";
-@@ -457,8 +457,8 @@ if ($tree) {
+@@ -460,8 +460,8 @@ if ($tree) {
  	}
  
  	if (!defined $root) {
@@ -189,7 +191,7 @@ index 2b812210b412..95fde1178a4f 100755
  	}
  }
  
-@@ -1148,7 +1148,7 @@ sub is_maintained_obsolete {
+@@ -1151,7 +1151,7 @@ sub is_maintained_obsolete {
  sub is_SPDX_License_valid {
  	my ($license) = @_;
  
@@ -198,7 +200,7 @@ index 2b812210b412..95fde1178a4f 100755
  
  	my $root_path = abs_path($root);
  	my $status = `cd "$root_path"; echo "$license" | scripts/spdxcheck.py -`;
-@@ -2861,7 +2861,7 @@ sub process {
+@@ -2868,7 +2868,7 @@ sub process {
  
  			$p1_prefix = $1;
  			if (!$file && $tree && $p1_prefix ne '' &&
@@ -207,7 +209,7 @@ index 2b812210b412..95fde1178a4f 100755
  				WARN("PATCH_PREFIX",
  				     "patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
  			}
-@@ -2885,10 +2885,10 @@ sub process {
+@@ -2892,10 +2892,10 @@ sub process {
  		}
  
  		if ($found_file) {
@@ -222,7 +224,7 @@ index 2b812210b412..95fde1178a4f 100755
  			if ($realfile =~ m@^(?:drivers/net/|net/|drivers/staging/)@) {
  				$check = 1;
  			} else {
-@@ -2903,8 +2903,8 @@ sub process {
+@@ -2910,8 +2910,8 @@ sub process {
  
  				if (($last_binding_patch != -1) &&
  				    ($last_binding_patch ^ $is_binding_patch)) {
@@ -233,7 +235,7 @@ index 2b812210b412..95fde1178a4f 100755
  				}
  			}
  
-@@ -2926,9 +2926,9 @@ sub process {
+@@ -2933,9 +2933,9 @@ sub process {
  				$commit_log_lines++;	#could be a $signature
  			}
  		} elsif ($has_commit_log && $commit_log_lines < 2) {
@@ -246,7 +248,7 @@ index 2b812210b412..95fde1178a4f 100755
  		}
  
  # Check if the commit log has what seems like a diff which can confuse patch
-@@ -3066,8 +3066,8 @@ sub process {
+@@ -3073,8 +3073,8 @@ sub process {
  			my ($email_name, $name_comment, $email_address, $comment) = parse_email($email);
  			my $suggested_email = format_email(($email_name, $name_comment, $email_address, $comment));
  			if ($suggested_email eq "") {
@@ -257,7 +259,7 @@ index 2b812210b412..95fde1178a4f 100755
  			} else {
  				my $dequoted = $suggested_email;
  				$dequoted =~ s/^"//;
-@@ -3243,11 +3243,11 @@ sub process {
+@@ -3261,11 +3261,11 @@ sub process {
  
  # Check for Gerrit Change-Ids not in any patch context
  		if ($realfile eq '' && !$has_patch_separator && $line =~ /^\s*change-id:/i) {
@@ -274,7 +276,7 @@ index 2b812210b412..95fde1178a4f 100755
  		}
  
  # Check if the commit log is in a possible stack dump
-@@ -3398,16 +3398,16 @@ sub process {
+@@ -3416,16 +3416,16 @@ sub process {
  		}
  
  # Check for added, moved or deleted files
@@ -301,7 +303,7 @@ index 2b812210b412..95fde1178a4f 100755
  
  # Check for adding new DT bindings not in schema format
  		if (!$in_commit_log &&
-@@ -3641,8 +3641,8 @@ sub process {
+@@ -3659,8 +3659,8 @@ sub process {
  			if ($needs_help &&
  			    $help_length < $min_conf_desc_length) {
  				my $stat_real = get_stat_real($linenr, $ln - 1);
@@ -312,7 +314,7 @@ index 2b812210b412..95fde1178a4f 100755
  			}
  		}
  
-@@ -3717,8 +3717,8 @@ sub process {
+@@ -3735,8 +3735,8 @@ sub process {
  				$compat3 =~ s/\,([a-z]*)[0-9]*\-/\,$1<\.\*>\-/;
  				`grep -Erq "$compat|$compat2|$compat3" $dt_path`;
  				if ( $? >> 8 ) {
@@ -323,7 +325,7 @@ index 2b812210b412..95fde1178a4f 100755
  				}
  
  				next if $compat !~ /^([a-zA-Z0-9\-]+)\,/;
-@@ -3761,10 +3761,10 @@ sub process {
+@@ -3779,10 +3779,10 @@ sub process {
  					     "Missing or malformed SPDX-License-Identifier tag in line $checklicenseline\n" . $herecurr);
  				} elsif ($rawline =~ /(SPDX-License-Identifier: .*)/) {
  					my $spdx_license = $1;
@@ -338,7 +340,7 @@ index 2b812210b412..95fde1178a4f 100755
  					if ($realfile =~ m@^Documentation/devicetree/bindings/@ &&
  					    $spdx_license !~ /GPL-2\.0(?:-only)? OR BSD-2-Clause/) {
  						my $msg_level = \&WARN;
-@@ -3787,8 +3787,8 @@ sub process {
+@@ -3805,8 +3805,8 @@ sub process {
  
  # check for embedded filenames
  		if ($rawline =~ /^\+.*\b\Q$realfile\E\b/) {
@@ -349,7 +351,7 @@ index 2b812210b412..95fde1178a4f 100755
  		}
  
  # check we are in a valid source file if not then ignore this hunk
-@@ -3951,34 +3951,34 @@ sub process {
+@@ -3969,34 +3969,34 @@ sub process {
  		}
  
  # check multi-line statement indentation matches previous line
@@ -412,7 +414,7 @@ index 2b812210b412..95fde1178a4f 100755
  
  # check for space after cast like "(int) foo" or "(struct foo) bar"
  # avoid checking a few false positives:
-@@ -6917,8 +6917,8 @@ sub process {
+@@ -6925,8 +6925,8 @@ sub process {
  						if (!defined($stat_real)) {
  							$stat_real = get_stat_real($linenr, $lc);
  						}
@@ -423,7 +425,7 @@ index 2b812210b412..95fde1178a4f 100755
  					}
  				}
  				if ($bad_specifier ne "") {
-@@ -7201,14 +7201,14 @@ sub process {
+@@ -7209,14 +7209,14 @@ sub process {
  		}
  
  # checks for new __setup's
@@ -466,6 +468,21 @@ index a0a0be38cbdc..2a49cccf2c37 100644
  
  configfiles = $(wildcard $(srctree)/kernel/configs/$(1) $(srctree)/arch/$(SRCARCH)/configs/$(1))
  all-config-fragments = $(call configfiles,*.config)
+diff --git a/usr/include/Makefile b/usr/include/Makefile
+index 771e32872b2a..7b73dfeb4c61 100644
+--- a/usr/include/Makefile
++++ b/usr/include/Makefile
+@@ -8,6 +8,10 @@
+ # We cannot go as far as adding -Wpedantic since it emits too many warnings.
+ UAPI_CFLAGS := -std=c90 -Wall -Werror=implicit-function-declaration
+ 
++ifdef CONFIG_AMLOGIC_DRIVER
++UAPI_CFLAGS += -Werror
++endif
++
+ # In theory, we do not care -m32 or -m64 for header compile tests.
+ # It is here just because CONFIG_CC_CAN_LINK is tested with -m32 or -m64.
+ UAPI_CFLAGS += $(filter -m32 -m64 --target=%, $(KBUILD_CFLAGS))
 -- 
 2.42.0
 
