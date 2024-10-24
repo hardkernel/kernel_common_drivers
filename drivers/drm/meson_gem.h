@@ -78,4 +78,5 @@ am_meson_gem_prime_import_sg_table(struct drm_device *dev,
 struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 						     struct dma_buf *dmabuf);
 
+u8 *am_meson_drm_vmap(ulong addr, u32 size, bool *bflg);
 #endif /* __AM_MESON_GEM_H */
