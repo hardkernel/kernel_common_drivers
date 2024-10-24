@@ -26,6 +26,7 @@
 #include <linux/amlogic/aml_cma.h>
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
+#include <linux/moduleparam.h>
 #include <trace/hooks/mm.h>
 
 #define DEBUG_PAGE_TRACE	0
@@ -104,7 +105,6 @@ static struct alloc_caller common_caller[COMMON_CALLER_SIZE];
  * be record in page trace, parse for back trace should keep from these
  * functions
  */
-#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 static struct fun_symbol common_func[] = {
 	{"__alloc_pages_noprof",	1, 0},
 	{"__folio_alloc",		1, 0},
@@ -124,6 +124,23 @@ static struct fun_symbol common_func[] = {
 	{"cma_alloc",			1, 0},
 	{"dma_alloc_from_contiguous",	1, 0},
 	{"dma_alloc_contiguous",	1, 0},
+	{"__kretprobe_trampoline_handler",	1, 0},
+	{"kretprobe_breakpoint_handler",	1, 0},
+	{"__kretprobe_trampoline",	1, 0},
+	{"__vmalloc_node_range_noprof",	1, 0},
+	{"__kvmalloc_node_noprof",	1, 0},
+	{"sk_alloc",			1, 0},
+	{"__folio_alloc_noprof",	1, 0},
+	{"do_debug_exception",		1, 0},
+	{"el1_dbg",			1, 0},
+	{"el1h_64_sync_handler",	1, 0},
+	{"el1h_64_sync",		1, 0},
+	{"do_pte_missing",		1, 0},
+	{"do_page_fault",		1, 0},
+	{"do_translation_fault",	1, 0},
+	{"do_mem_abort",		1, 0},
+	{"el0_da",			1, 0},
+	{"el1_abort",			1, 0},
 #ifdef CONFIG_ARM
 	{"__dma_alloc",			1, 0},
 	{"arm_dma_alloc",		1, 0},
@@ -174,7 +191,6 @@ static struct fun_symbol common_func[] = {
 #endif
 	{}		/* tail */
 };
-#endif
 
 /* ----------------------------------- */
 
@@ -191,7 +207,13 @@ static struct kprobe kp_lookup_off = {
 };
 
 static char sym_lookup_name[MAX_SYMBOL_LEN] = "kallsyms_lookup_name";
-unsigned long (*aml_kallsyms_lookup_name)(const char *name);
+unsigned long (*aml_syms_lookup)(const char *name);
+
+int (*aml_kallsyms_on_each_symbol)(int (*fn)(void *, const char *, unsigned long),
+			    void *data);
+
+void (*f_arch_stack_walk)(stack_trace_consume_fn consume_entry,
+		void *cookie, struct task_struct *task, struct pt_regs *regs);
 
 /* For each probe you need to allocate a kprobe structure */
 static struct kprobe kp_lookup_name = {
@@ -517,7 +539,6 @@ static int  sym_cmp(const void *x1, const void *x2)
 	return p1->func_start_addr < p2->func_start_addr ? 1 : -1;
 }
 
-#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 static int match_common_caller(void *data, const char *name,
 				       unsigned long addr)
 {
@@ -546,7 +567,6 @@ static int match_common_caller(void *data, const char *name,
 	}
 	return 0;
 }
-#endif
 
 static int is_common_caller(struct alloc_caller *caller, unsigned long pc)
 {
@@ -604,7 +624,7 @@ EXPORT_SYMBOL(unpack_ip);
  * We can only safely access per-cpu stacks from current in a non-preemptible
  * context.
  */
-#if !IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
+#if CONFIG_AMLOGIC_KERNEL_VERSION < 14515
 static bool aml_on_accessible_stack(const struct task_struct *tsk,
 				unsigned long sp, unsigned long size,
 				struct stack_info *info)
@@ -625,357 +645,7 @@ static bool aml_on_accessible_stack(const struct task_struct *tsk,
 
 	return false;
 }
-#endif
 
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
-#include <linux/proc_fs.h>
-
-static void (*f_arch_stack_walk)(stack_trace_consume_fn consume_entry,
-		void *cookie, struct task_struct *task, struct pt_regs *regs);
-
-struct ksymbol {
-	const char *name;
-	unsigned long data;
-};
-
-#define KSYM_FUN(sym)			\
-	{				\
-		.name = #sym,		\
-		.data = &f_##sym,	\
-	}
-
-#define KSYM_FUN2(sym)			\
-	{				\
-		.name = #sym,		\
-		.data = 0,		\
-	}
-
-#define KSYM_CFI(sym)			\
-	{				\
-		.name = #sym ".cfi_jt",	\
-		.data = &f_##sym,	\
-	}
-
-#define KSYM_OBJ(sym)			\
-	{				\
-		.name = #sym,		\
-		.data = &sym##_t,	\
-	}
-
-//KSYM_FUN2(unwind_next_frame_record),
-
-static struct ksymbol module_symbols[] = {
-	KSYM_FUN2(arch_stack_walk),
-	KSYM_FUN2(__kretprobe_trampoline_handler),
-	KSYM_FUN2(kretprobe_breakpoint_handler),
-	KSYM_FUN2(__alloc_pages_noprof),
-	KSYM_FUN2(cma_alloc),
-	KSYM_FUN2(dma_alloc_from_contiguous),
-	KSYM_FUN2(dma_alloc_contiguous),
-	KSYM_FUN2(sk_prot_alloc),
-	KSYM_FUN2(__alloc_skb),
-	KSYM_FUN2(kstrdup_const),
-	KSYM_FUN2(load_module),
-	KSYM_FUN2(___slab_alloc),
-	KSYM_FUN2(allocate_slab),
-	KSYM_FUN2(do_debug_exception),
-	KSYM_FUN2(el1_dbg),
-	KSYM_FUN2(el1h_64_sync_handler),
-	KSYM_FUN2(el1h_64_sync),
-	KSYM_FUN2(__kretprobe_trampoline),
-	KSYM_FUN2(kmem_cache_alloc_noprof),
-	KSYM_FUN2(kmem_cache_alloc_node_noprof),
-	KSYM_FUN2(__vmalloc_node_range_noprof),
-	KSYM_FUN2(__kmalloc_noprof),
-	KSYM_FUN2(kmem_cache_alloc_lru_noprof),
-	KSYM_FUN2(__kmalloc_node_noprof),
-	KSYM_FUN2(__kmalloc_node_track_caller_noprof),
-	KSYM_FUN2(__kvmalloc_node_noprof),
-	KSYM_FUN2(do_pte_missing),
-	KSYM_FUN2(do_page_fault),
-	KSYM_FUN2(do_translation_fault),
-	KSYM_FUN2(sk_alloc),
-	KSYM_FUN2(__kmalloc_cache_noprof),
-	KSYM_FUN2(do_mem_abort),
-	KSYM_FUN2(el0_da),
-	KSYM_FUN2(el1_abort),
-	KSYM_FUN2(__folio_alloc_noprof),
-	{}
-};
-
-/* see struct proc_dir_entry in fs/proc/internal.h */
-struct proc_node {
-	atomic_t in_use;
-	refcount_t refcnt;
-	struct list_head pde_openers;
-	spinlock_t pde_unload_lock;
-	struct completion *pde_unload_completion;
-	const struct inode_operations *proc_iops;
-	union {
-		const struct proc_ops *proc_ops;
-		const struct file_operations *proc_dir_ops;
-	};
-	const struct dentry_operations *proc_dops;
-	union {
-		const struct seq_operations *seq_ops;
-		int (*single_show)(struct seq_file *, void *);
-	};
-	proc_write_t write;
-	void *data;
-	unsigned int state_size;
-	unsigned int low_ino;
-	nlink_t nlink;
-	kuid_t uid;
-	kgid_t gid;
-	loff_t size;
-	struct proc_node *parent;
-	struct rb_root subdir;
-	struct rb_node subdir_node;
-	char *name;
-	umode_t mode;
-	u8 flags;
-	u8 namelen;
-	char inline_name[];
-} __randomize_layout;
-
-static struct proc_node *find_subnode(struct proc_node *parent, char *name)
-{
-	struct proc_node *pd = NULL;
-
-	pd = rb_entry_safe(rb_first(&parent->subdir), struct proc_node, subdir_node);
-	while (1) {
-		if (!pd)
-			break;
-		if (!strcmp(pd->name, name))
-			break;
-		pd = rb_entry_safe(rb_next(&pd->subdir_node), struct proc_node, subdir_node);
-	}
-	return pd;
-}
-
-static int name_cmpare(const char *name1, int len1, const char *name2, int len2)
-{
-	int cmp;
-
-	cmp = memcmp(name1, name2, min(len1, len2));
-	if (cmp == 0)
-		cmp = len1 - len2;
-	return cmp;
-}
-
-static int proc_handle(const struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return 0;
-}
-
-static struct ctl_table *disable_kstr_ptr(int *old)
-{
-	struct ctl_table tmp[] = {
-		{
-			.procname = "get_symbol",
-			.proc_handler = proc_handle,
-			.mode = 0666,
-			.data = NULL,
-		},
-	};
-	struct ctl_table_header *hdr, *head;
-	struct rb_node *node;
-	struct ctl_table *entry = NULL;
-	struct ctl_dir *dir;
-
-	hdr = register_sysctl("kernel", tmp);
-	if (!hdr) {
-		pr_err("%s, register failed\n", __func__);
-		return NULL;
-	}
-
-	dir = hdr->parent;
-	node = dir->root.rb_node;
-	while (node) {
-		struct ctl_node *ctl_node;
-		const char *procname;
-		int cmp;
-
-		ctl_node = rb_entry(node, struct ctl_node, node);
-		head = ctl_node->header;
-		entry = &head->ctl_table[ctl_node - head->node];
-		procname = entry->procname;
-
-		cmp = name_cmpare("perf_event_paranoid", 13, procname, strlen(procname));
-		if (cmp < 0)
-			node = node->rb_left;
-		else if (cmp > 0)
-			node = node->rb_right;
-		else
-			break;
-	}
-	unregister_sysctl_table(hdr);
-	if (entry) {
-		*old = *(int *)entry->data;
-		pr_debug("get entry:%px, %s, value:%d\n",
-			entry, entry->procname, *old);
-		*(int *)entry->data = 0;
-		return entry;
-	}
-	return NULL;
-}
-
-static int fill_symbol(char *line, struct ksymbol *sym)
-{
-	int finish = 2;
-	unsigned long value;
-	int ret, find = 0, len;
-
-	while (sym->name) {
-		if (sym->data) {
-			sym++;
-			continue;
-		} else {
-			finish = 0;
-		}
-
-		len = strlen(sym->name);
-		if (!strncmp(line + 19, sym->name, len)) {
-			if (line[19 + len + 1]) {	// not terminate
-				sym++;
-				continue;
-			}
-			line[16] = '\0';
-			ret = kstrtoul(line, 16, &value);
-			pr_debug("=======find sym:%lx %s\n", value, sym->name);
-			if (ret)
-				return ret;
-			sym->data = value;
-			find = 1;
-			break;
-		}
-		sym++;
-	}
-	if (finish == 2)
-		return 2;
-	return find;
-}
-
-static struct super_block _s = {};
-
-static struct inode _i = {
-	.i_sb = &_s,
-};
-
-static struct address_space _a = {
-	.host = &_i,
-};
-
-static struct file f = {
-	.f_mapping = &_a,
-	.f_inode = &_i,
-};
-
-static int fill_module_symbols(struct proc_node *node, struct ksymbol *sym)
-{
-	struct proc_ops *ops;
-	struct seq_file *s;
-	char line_buf[256] = {};
-	int ret = 0;
-	loff_t off = 0;
-
-	ops = (struct proc_ops *)node->proc_ops;
-	f.f_cred = current_cred();
-	ret = ops->proc_open(NULL, &f);
-	if (ret) {
-		pr_info("open fail\n");
-		return -1;
-	}
-	s = f.private_data;
-	s->op->start(s, &off);
-	s->buf = line_buf;
-	while (1) {
-		s->count = 0;
-		s->size  = sizeof(line_buf);
-		memset(line_buf, 0, sizeof(line_buf));
-		ret = s->op->show(s, NULL);
-		if (ret < 0) {
-			pr_info("read fail:%d\n", ret);
-			break;
-		}
-		s->count = 0;
-		pr_debug("line:%s", line_buf);
-		ret = fill_symbol(line_buf, sym);
-		if (ret == 2)
-			break;
-		s->op->next(s, NULL, &off);
-	}
-	s->buf = NULL;
-	ops->proc_release(NULL, &f);
-	return ret;
-}
-
-int symbol_fix(void)
-{
-	struct proc_dir_entry *entry;
-	struct proc_node *parent, *tmp;
-	const struct proc_ops temp = {};
-	struct ctl_table *kptr;
-	int ret = 0, old = -1;
-
-	entry = proc_create("get_symbol", 0444, NULL, &temp);
-	if (!entry) {
-		pr_err("%s, create proc failed\n", __func__);
-		return -1;
-	}
-	parent = ((struct proc_node *)entry)->parent;
-	if (!parent) {
-		pr_err("%s, NULL parent\n", __func__);
-		return -1;
-	}
-
-	kptr = disable_kstr_ptr(&old);
-	if (!kptr) {
-		pr_err("get kptr failed\n");
-		return -1;
-	}
-	tmp = find_subnode(parent, "kallsyms");
-	if (!tmp) {
-		pr_err("get kallsyms failed\n");
-		return -1;
-	}
-
-	ret = fill_module_symbols(tmp, module_symbols);
-
-	*(int *)kptr->data = old;
-
-	f_arch_stack_walk = (void (*)(stack_trace_consume_fn consume_entry, void *cookie,
-		struct task_struct *task, struct pt_regs *regs))module_symbols[0].data;
-
-	proc_remove(entry);
-
-	return 0;
-}
-
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
-static int __nocfi match_common_caller(void)
-{
-	int i;
-	struct ksymbol *s;
-	unsigned long addr;
-
-	for (i = 0; i < ARRAY_SIZE(module_symbols); i++) {
-		s = &module_symbols[i];
-		if (!s->name)
-			break;		/* end */
-		//addr = aml_kallsyms_lookup_name(s->name);
-		addr = s->data;
-		if (addr)
-			setup_common_caller(addr);
-	}
-	return 0;
-}
-#endif
-
-#endif
-#else
 /*
  * Unwind from one frame record (A) to the next frame record (B).
  *
@@ -1063,7 +733,8 @@ static int find_static_common_symbol(void *data)
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 	kallsyms_on_each_symbol(match_common_caller, NULL);
 #else
-	match_common_caller();
+	/* match_common_caller(); */
+	aml_kallsyms_on_each_symbol(match_common_caller, NULL);
 #endif
 	sort(common_caller, COMMON_CALLER_SIZE, sizeof(struct alloc_caller),
 		sym_cmp, NULL);
@@ -1075,12 +746,15 @@ static int find_static_common_symbol(void *data)
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
 unsigned long backtrace_pc, backtrace_skip;
 
+static int backtrace_skip_limit = 6;
+module_param(backtrace_skip_limit, int, 0644);
+
 static bool aml_dump_backtrace_entry(void *arg, unsigned long where)
 {
 	if (!is_common_caller(common_caller, where)) {
 		backtrace_pc = where;
 		backtrace_skip++;
-		if (backtrace_skip > 5)
+		if (backtrace_skip > backtrace_skip_limit)
 			return false;
 	}
 	return true;
@@ -1886,6 +1560,24 @@ static void __kprobes dump_header_handler_post(struct kprobe *p,
 
 	kfree(sum);
 }
+
+static void *get_symbol_addr(const char *symbol_name)
+{
+	struct kprobe kp = {
+		.symbol_name = symbol_name,
+	};
+	int ret;
+
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
+		pr_err("register_kprobe:%s failed, returned %d\n", symbol_name, ret);
+		return NULL;
+	}
+	pr_debug("symbol_name:%s addr=%px\n", symbol_name, kp.addr);
+	unregister_kprobe(&kp);
+
+	return kp.addr;
+}
 #endif
 
 static int __init page_trace_module_init(void)
@@ -1922,9 +1614,13 @@ static int __init page_trace_module_init(void)
 	}
 	pr_debug("kprobe lookup offset at %px\n", kp_lookup_name.addr);
 
-	aml_kallsyms_lookup_name = (unsigned long (*)(const char *name))kp_lookup_name.addr;
+	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
+	aml_kallsyms_on_each_symbol = (int (*)(int (*fn)(void *, const char *, unsigned long),
+				void *data))get_symbol_addr("kallsyms_on_each_symbol");
+	f_arch_stack_walk = (void (*)(stack_trace_consume_fn consume_entry, void *cookie,
+		struct task_struct *task, struct pt_regs *regs))aml_syms_lookup("arch_stack_walk");
 
-#if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
+#if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && !defined(CONFIG_ARM64)
 	if (symbol_fix()) {
 		pr_info("%s, %d\n", __func__, __LINE__);
 		return -EINVAL;
