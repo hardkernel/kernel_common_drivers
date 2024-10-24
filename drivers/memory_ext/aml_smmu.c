@@ -1492,10 +1492,10 @@ static struct platform_driver aml_smmu_driver = {
 };
 
 /* module_platform_driver(aml_smmu_driver); */
-int __init aml_smmu_init(void)
+static int __init aml_smmu_init(void)
 {
 	return platform_driver_register(&aml_smmu_driver);
 }
-/* core_initcall(aml_smmu_init); */
+core_initcall(aml_smmu_init);
 
 MODULE_LICENSE("GPL v2");
