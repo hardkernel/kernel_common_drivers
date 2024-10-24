@@ -1197,11 +1197,13 @@ static int amfc_remove(struct platform_device *pdev)
 
 void amfc_syscore_shutdown(void)
 {
+#if 0	// need always on
 	struct platform_device *pdev;
 
 	pdev = to_platform_device(amfc->dev);
 	amfc_remove(pdev);
 	pm_runtime_force_suspend(&pdev->dev);
+#endif
 }
 
 static struct syscore_ops amfc_syscore_ops = {
