@@ -487,6 +487,7 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 
 	amfc_map_addr(acl, sizeof(*acl), DMA_TO_DEVICE);
 
+again:
 	amfc_hw_write(3, AMFC_GL_CMD1_IRQCLR);
 	amfc_hw_write(virt_to_phys(acl) >> ADDR_SHIFT, AMFC_GL_CMD1_DESC_BASE_ADDR);
 	/* trigger with irq en */
@@ -512,7 +513,13 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 					 __func__, tick, cur, timeout);
 				show_regs(NULL);
 				show_acl(acl);
-				break;
+				if (cur - tick >= timeout * 10000) {
+					// init again and retry;
+					amfc_hw_init();
+					goto again;
+				} else {
+					break;
+				}
 			}
 		}
 		amfc->dtick = amfc_hw_read(AMFC_CMD1_TIME_MEASURE);
@@ -669,7 +676,7 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	}
 
 	amfc_map_addr(acl, sizeof(*acl), DMA_TO_DEVICE);
-
+again:
 	amfc_hw_write(3, AMFC_GL_CMD0_IRQCLR);
 	amfc_hw_write(virt_to_phys(acl) >> ADDR_SHIFT, AMFC_GL_CMD0_DESC_BASE_ADDR);
 	/* trigger with irq en */
@@ -695,7 +702,13 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 					 __func__, tick, cur, timeout);
 				show_regs(NULL);
 				show_acl(acl);
-				break;
+				if (cur - tick >= timeout * 10000) {
+					// init again and retry;
+					amfc_hw_init();
+					goto again;
+				} else {
+					break;
+				}
 			}
 		}
 		amfc->ctick = amfc_hw_read(AMFC_CMD0_TIME_MEASURE);
