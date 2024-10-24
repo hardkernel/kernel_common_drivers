@@ -506,7 +506,11 @@ static int codec_mm_cache_queue_produce
 
 	/* no producer, get page from slot/system */
 	while (alloced < num) {
+		int max_size_once = smgt->try_alloc_in_cma_page_cnt;
 		int try_num = MIN(CACHE_QUEUE_LEN - cache->queue->head, num - alloced);
+
+		if (is_2k_platform())
+			try_num = MIN(try_num, max_size_once);
 
 		ret = codec_mm_page_alloc_all_locked(smgt,
 					&cache->pages_list[cache->queue->head],
@@ -515,12 +519,12 @@ static int codec_mm_cache_queue_produce
 			break;
 		codec_mm_cache_queue_head_add(cache->queue, ret);
 		alloced += ret;
-	}
 
-	codec_mm_list_lock(smgt);
-	smgt->cached_pages += alloced;
-	ATRACE_COUNTER("mmu cache size", smgt->cached_pages);
-	codec_mm_list_unlock(smgt);
+		codec_mm_list_lock(smgt);
+		smgt->cached_pages += ret;
+		ATRACE_COUNTER("mmu cache size", smgt->cached_pages);
+		codec_mm_list_unlock(smgt);
+	}
 
 	return alloced;
 }
@@ -3240,9 +3244,7 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 					get_jiffies_64() + 2000 * HZ / 1000;
 			}
 		} else if ((smgt->cached_pages < smgt->keep_size_PAGE) ||
-			(smgt->force_cache_on &&/*on star cache*/
-			(smgt->total_page_num < smgt->force_cache_page_cnt))
-		) {/*first 500ms ,alloc double.*/
+			smgt->force_cache_on) {/*first 500ms ,alloc double.*/
 			int once_alloc = 1024;
 
 			mms = codec_mm_get_next_cache_scatter(smgt, NULL, 0);
@@ -3258,10 +3260,11 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 							smgt->total_page_num -
 							smgt->alloced_page_num;
 					}
+					if (once_alloc > smgt->force_cache_page_cnt)
+						once_alloc = smgt->force_cache_page_cnt;
 				}
+
 				need = codec_mm_queue_len(mms->queue) + once_alloc;
-				if (smgt->force_cache_on && need > smgt->force_cache_page_cnt)
-					need = smgt->force_cache_page_cnt;
 				if (need > mms->page_max_cnt)
 					need = mms->page_max_cnt;
 				if (need > codec_mm_queue_len(mms->queue)) {
