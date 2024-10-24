@@ -169,7 +169,9 @@ static int meson_gxbb_wdt_set_timeout(struct watchdog_device *wdt_dev,
 
 	wdt_dev->timeout = timeout;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	meson_gxbb_wdt_ping(wdt_dev);
+#endif
 
 	writel(tcnt, data->reg_base + GXBB_WDT_TCNT_REG);
 
@@ -567,18 +569,24 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	reset_by_soc = !(readl(data->reg_base + GXBB_WDT_CTRL1_REG) &
 			 GXBB_WDT_RST_SIG_EN);
 
+	wdt_dev = &data->wdt_dev;
+	/* Status sync */
+	ret = readl(data->reg_base + GXBB_WDT_CTRL_REG) & GXBB_WDT_CTRL_EN;
+	if (ret) {
+		set_bit(WDOG_HW_RUNNING, &wdt_dev->status);
+		dev_info(&pdev->dev, "Keep watchdog enabled\n");
+	}
+
 	/* Setup with 1ms timebase */
 	writel(((clk_get_rate(data->clk) / 1000) & GXBB_WDT_CTRL_DIV_MASK) |
 		(reset_by_soc << wdt_params->rst_shift) |
 		GXBB_WDT_CTRL_CLK_EN |
-		GXBB_WDT_CTRL_CLKDIV_EN,
+		GXBB_WDT_CTRL_CLKDIV_EN | ret,
 		data->reg_base + GXBB_WDT_CTRL_REG);
 #endif
 	meson_gxbb_wdt_set_timeout(&data->wdt_dev, data->wdt_dev.timeout);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	wdt_dev = &data->wdt_dev;
-
 	if (meson_gxbb_wdt_info.options & WDIOF_PRETIMEOUT) {
 		/* Configuration pretimeout */
 		meson_gxbb_wdt_set_pretimeout(wdt_dev, wdt_dev->pretimeout);
