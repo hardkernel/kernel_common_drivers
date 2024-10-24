@@ -690,12 +690,27 @@ static int am_meson_drm_pm_suspend(struct device *dev)
 	if (IS_ERR(priv->state)) {
 		am_meson_drm_fb_resume(drm);
 		drm_kms_helper_poll_enable(drm);
-		DRM_INFO("%s: drm_atomic_helper_suspend fail\n", __func__);
+		DRM_INFO("%s: drm_atomic_helper_suspend fail.\n", __func__);
 		return PTR_ERR(priv->state);
 	}
 
-	DRM_INFO("%s: done\n", __func__);
+	DRM_INFO("drm suspend done\n");
 	return 0;
+}
+
+static int am_meson_drm_pm_freeze(struct device *dev)
+{
+	int ret;
+
+	if (is_cma) {
+		am_meson_logo_cma_alloc(dev, 0);
+		am_meson_logo_cma_mem_reset_zero(&logo);
+	}
+
+	ret = am_meson_drm_pm_suspend(dev);
+
+	DRM_INFO("drm freeze done\n");
+	return ret;
 }
 
 static int am_meson_drm_pm_resume(struct device *dev)
@@ -724,14 +739,30 @@ static int am_meson_drm_pm_resume(struct device *dev)
 	am_meson_drm_fb_resume(drm);
 	drm_kms_helper_poll_enable(drm);
 
-	DRM_INFO("%s: done\n", __func__);
+	DRM_INFO("drm resume done\n");
 	return 0;
+}
+
+static int am_meson_drm_pm_restore(struct device *dev)
+{
+	int ret;
+
+	ret = am_meson_drm_pm_resume(dev);
+	if (is_cma)
+		am_meson_free_logo_memory();
+
+	DRM_INFO("drm restore done\n");
+	return ret;
 }
 #endif
 
 static const struct dev_pm_ops am_meson_drm_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(am_meson_drm_pm_suspend,
-				am_meson_drm_pm_resume)
+	.suspend = am_meson_drm_pm_suspend,
+	.resume = am_meson_drm_pm_resume,
+	.freeze = am_meson_drm_pm_freeze,
+	.thaw = am_meson_drm_pm_restore,
+	.poweroff = am_meson_drm_pm_suspend,
+	.restore = am_meson_drm_pm_restore,
 };
 
 static void am_meson_drv_shutdown(struct platform_device *pdev)

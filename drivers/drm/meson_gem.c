@@ -924,3 +924,47 @@ struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 	return drm_gem_prime_import(dev, dmabuf);
 }
 
+u8 *am_meson_drm_vmap(ulong addr, u32 size, bool *bflg)
+{
+	u8 *vaddr = NULL;
+	ulong phys = addr;
+	u32 offset = phys & ~PAGE_MASK;
+	u32 npages = PAGE_ALIGN(size) / PAGE_SIZE;
+	struct page **pages = NULL;
+	pgprot_t pgprot;
+	int i;
+
+	if (!PageHighMem(phys_to_page(phys)))
+		return phys_to_virt(phys);
+
+	if (offset)
+		npages++;
+
+	pages = kcalloc(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return NULL;
+
+	for (i = 0; i < npages; i++) {
+		pages[i] = phys_to_page(phys);
+		phys += PAGE_SIZE;
+	}
+
+	pgprot = PAGE_KERNEL;
+
+	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	if (!vaddr) {
+		pr_err("the phy(%lx) vmap fail, size: %d\n",
+		       addr - offset, npages << PAGE_SHIFT);
+		kfree(pages);
+		return NULL;
+	}
+
+	kfree(pages);
+
+	DRM_DEBUG("map high mem pa(%lx) to va(%p), size: %d\n",
+		  addr, vaddr + offset, npages << PAGE_SHIFT);
+	*bflg = true;
+
+	return vaddr + offset;
+}
+
