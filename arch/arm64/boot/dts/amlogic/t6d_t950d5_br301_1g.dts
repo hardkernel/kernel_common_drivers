@@ -130,13 +130,13 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/*
-			 * Scenario: Primary + Secondary + PIP
-			 * Total size: 174M
+			 * Scenario: DVB-T2 2K interlace HEVC
+			 * Total size: 106M
 			 * Note:
-			 *  setting to 168M if scatter_alloc_mode is 0.
-			 *  setting to 160M if scatter_alloc_mode is 1.
+			 *  setting to 108M if scatter_alloc_mode is 0.
+			 *  setting to 108M if scatter_alloc_mode is 1.
 			 */
-			size = <0x0 0xa000000>;
+			size = <0x0 0x6c00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
