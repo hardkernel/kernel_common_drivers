@@ -2829,11 +2829,11 @@ static void vdin_hist_tgt(struct vdin_dev_s *devp, struct vframe_s *vf)
 void vdin_drop_frame_info(struct vdin_dev_s *devp, char *info)
 {
 	if (skip_frame_debug)
-		pr_info("vdin%d[%d %d]:irq_flag:%d %s [%d %d],WL:%x WR:%x RL:%x RM:%x\n",
+		pr_info("vdin%d[%d %d]:irq_flag:%d %s [%d %d],WL:%d WR:%d RL:%d RM:%d(%d)\n",
 			devp->index, devp->irq_cnt, devp->frame_cnt, devp->vdin_irq_flag, info,
-			devp->irq_cnt, devp->frame_cnt,
-			devp->vfp->wr_list_size, devp->vfp->wr_mode_size,
-			devp->vfp->rd_list_size, devp->vfp->rd_mode_size);
+			devp->irq_cnt, devp->frame_cnt, devp->vfp->wr_list_size,
+			devp->vfp->wr_mode_size, devp->vfp->rd_list_size,
+			devp->vfp->rd_mode_size, atomic_read(&devp->vfp->buffer_cnt));
 }
 
 /* 0:check pass;others:check fail */
@@ -3051,6 +3051,13 @@ irqreturn_t vpu_crash_isr(int irq, void *dev_id)
 void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 				struct vf_entry *vfe, bool rdma_en)
 {
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+		pr_info("vdin%d,[%d %d],WL:%d WR:%d RL:%d RM:%d,next_vf:%d\n",
+			devp->index, devp->irq_cnt, devp->frame_cnt,
+			devp->vfp->wr_list_size, devp->vfp->wr_mode_size,
+			devp->vfp->rd_list_size, devp->vfp->rd_mode_size,
+			!vfe ? -1 : vfe->vf.index);
+
 	if (devp->afbce_mode == 0 || devp->double_wr) {
 		/* prepare for chroma canvas*/
 		if (vfe->vf.plane_num == 2)
@@ -3517,6 +3524,14 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_resume_hw_write(devp, 0);
 	}
 
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+		pr_info("vdin%d,[%d %d],WL:%d WR:%d RL:%d RM:%d,last_vf:%d,cur_vf:%d\n",
+			devp->index, devp->irq_cnt, devp->frame_cnt,
+			devp->vfp->wr_list_size, devp->vfp->wr_mode_size,
+			devp->vfp->rd_list_size, devp->vfp->rd_mode_size,
+			!devp->last_wr_vfe ? -1 : devp->last_wr_vfe->vf.index,
+			!devp->curr_wr_vfe ? -1 : devp->curr_wr_vfe->vf.index);
+
 	/* use RDMA and not game mode */
 	if (devp->last_wr_vfe && (devp->flags & VDIN_FLAG_RDMA_ENABLE) &&
 	    !(devp->game_mode & VDIN_GAME_MODE_1) &&
@@ -3756,7 +3771,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			spin_unlock_irqrestore(&devp->vfp->wr_lock, wr_list_flags);
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
 			vdin_drop_frame_info(devp, "sct no next wr vfe");
-			vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
 			goto irq_handled;
 		}
 		spin_unlock_irqrestore(&devp->vfp->wr_lock, wr_list_flags);
@@ -3770,11 +3784,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* vdin_drop_cnt++; no need skip frame,only drop one */
 		goto irq_handled;
 	}
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
-		pr_info("[%d %d]last_vf:%d,cur_vf:%d, next_vf:%d\n",
-		devp->irq_cnt, devp->frame_cnt,
-		!devp->last_wr_vfe ? -1 : devp->last_wr_vfe->vf.index,
-		devp->curr_wr_vfe->vf.index, next_wr_vfe->vf.index);
 
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
