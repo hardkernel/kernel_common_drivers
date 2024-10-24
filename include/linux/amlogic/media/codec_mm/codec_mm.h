@@ -105,6 +105,10 @@ struct codec_mm_s {
 	u32 tvp_handle;
 	struct list_head release_cb_list;
 	u32 release_cb_cnt;
+	u64 start_alloc_time;
+	u64 end_alloc_time;
+	u64 tee_set_start_time;
+	u64 tee_set_end_time;
 };
 
 struct codec_mm_cb_s;
