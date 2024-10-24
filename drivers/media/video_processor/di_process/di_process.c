@@ -687,6 +687,8 @@ static void di_process_task(struct di_process_dev *dev)
 		dp_print(dev->index, PRINT_OTHER, "drop count %d\n", drop_count);
 		buf_mgr_file_lock(uvm_di_mgr);
 		ret = di_get_ref_vf(file_vf, &vf_1, &vf_2, &file_1, &file_2);
+		if (ret)
+			dp_print(dev->index, PRINT_ERROR, "di_get_ref_vf failed.\n");
 		/*this time file_1 or file_2 has been free, it will panic when get file*/
 		if (drop_count == 1) {
 			if (vf_1 && file_1) {

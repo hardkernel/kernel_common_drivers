@@ -26,18 +26,21 @@ enum dec_type_t {
 	DEC_TYPE_V4L_DEC = 0,
 	DEC_TYPE_V4LVIDEO = 1,
 	DEC_TYPE_TVIN = 2,
+	DEC_TYPE_VDEC_CORE_I = 3,/*define for vdec core interlace*/
 	DEC_TYPE_MAX = 0xff,
 };
 
 struct vf_ref_t {
 	int index; /*0 1 2....*/
 	int frame_index; /*for debug*/
-	struct vframe_s *vf;
+	struct vframe_s *vf_p;
 	//struct vframe_s *src_vf;
+	struct vframe_s vf;
 	int ref_count; /*ref by other frame, */
 	int ref_number; /*ref by other frame*/
 	int ref_other_number;/*ref other  number*/
 	struct file *file;
+	struct file *file_ext;/*used for h264 decoder interlace*/
 	atomic_t on_use;
 	bool di_processed;
 	int buf_mgr_reset_id;
@@ -111,6 +114,17 @@ int buf_mgr_dq_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file);
  * @return     0 for  success, or fail type if < 0
  */
 int buf_mgr_q_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file);
+
+/**
+ * @brief  buf_mgr_q_checkin_dec  q buffer from hal need checkin vf info
+ *
+ * @param[in]  file    file
+ * @param[in]  file_ext    used for H264 interlace uvm_dma
+ *
+ * @return     0 for  success, or fail type if < 0
+ */
+int buf_mgr_q_checkin_dec(struct dp_buf_mgr_t *buf_mgr, struct file *file,
+	struct file *file_ext);
 
 /**
  * @brief  get_di_proc_enable  judge whether the di post is enable

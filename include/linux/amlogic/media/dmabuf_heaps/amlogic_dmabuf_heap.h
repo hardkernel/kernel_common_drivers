@@ -7,6 +7,7 @@
 #define AMLOGIC_DMABUF_HEAP_H
 
 #include <linux/miscdevice.h>
+#include <linux/dma-heap.h>
 
 #define DMABUF_FLAG_EXTEND_CACHED                  BIT(29)
 #define DMABUF_FLAG_EXTEND_MESON_HEAP              BIT(30)
@@ -42,6 +43,21 @@ struct meson_cma_heap_info {
 
 union meson_cma_heap_ioctl_arg {
 	struct meson_cma_heap_info info_data;
+};
+
+struct codec_mm_heap_buffer {
+	struct dma_heap *heap;
+	struct list_head attachments;
+	//lock for buffer access
+	struct mutex lock;
+	unsigned long len;
+	struct sg_table sg_table;
+	int vmap_cnt;
+	void *vaddr;
+	//struct deferred_freelist_item deferred_free;
+	bool uncached;
+	unsigned long heap_flags;
+	void *priv;
 };
 
 #define MESON_CMA_HEAP_IOC_MAGIC 'M'

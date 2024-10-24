@@ -20,21 +20,6 @@
 
 #define DMA_BUF_CODEC_MM "CODEC_MM_DMA_BUF"
 
-struct codec_mm_heap_buffer {
-	struct dma_heap *heap;
-	struct list_head attachments;
-	//lock for buffer access
-	struct mutex lock;
-	unsigned long len;
-	struct sg_table sg_table;
-	int vmap_cnt;
-	void *vaddr;
-	//struct deferred_freelist_item deferred_free;
-	bool uncached;
-	unsigned long heap_flags;
-	void *priv;
-};
-
 struct dma_heap_attachment {
 	struct device *dev;
 	struct sg_table *table;
