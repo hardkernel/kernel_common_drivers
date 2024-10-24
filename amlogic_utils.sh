@@ -48,17 +48,11 @@ function pre_defconfig_cmds() {
 		fi
 	fi
 
-	if [[ ${UPGRADE_PROJECT} == r || ${UPGRADE_PROJECT} == R ]]; then
-		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG_UPGRADE_R}
+	if [[ ${UPGRADE_PROJECT} == r || ${UPGRADE_PROJECT} == R || ${UPGRADE_PROJECT} == s || ${UPGRADE_PROJECT} == S || ${UPGRADE_PROJECT} == u || ${UPGRADE_PROJECT} == U ]]; then
+		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG_UPGRADE}
 	fi
 	if [[ ${UPGRADE_PROJECT} == p || ${UPGRADE_PROJECT} == P ]]; then
 		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG_UPGRADE_P}
-	fi
-	if [[ ${UPGRADE_PROJECT} == s || ${UPGRADE_PROJECT} == S ]]; then
-		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG_UPGRADE_S}
-	fi
-	if [[ ${UPGRADE_PROJECT} == u || ${UPGRADE_PROJECT} == U ]]; then
-		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG_UPGRADE_U}
 	fi
 
 	if [[ ${IN_BUILD_GKI_10} == 1 ]]; then
