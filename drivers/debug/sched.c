@@ -62,7 +62,7 @@ module_param(sched_rt_nice_prio, int, 0644);
 static unsigned long sched_rt_nice_gran = 4000000; //4ms
 module_param(sched_rt_nice_gran, ulong, 0644);
 
-static int sched_check_preempt_wakeup_enable = 1;
+static int sched_check_preempt_wakeup_enable;
 module_param(sched_check_preempt_wakeup_enable, int, 0644);
 
 static int sched_check_preempt_wakeup_debug;
@@ -72,7 +72,7 @@ module_param(sched_check_preempt_wakeup_debug, int, 0644);
 static unsigned long sched_check_preempt_wakeup_gran = 3000000;
 module_param(sched_check_preempt_wakeup_gran, ulong, 0644);
 
-static int sched_pick_next_task_enable = 1;
+static int sched_pick_next_task_enable;
 module_param(sched_pick_next_task_enable, int, 0644);
 
 static int sched_pick_next_task_debug;
