@@ -258,6 +258,13 @@ MODULE_PARM_DESC(sr_adapt_level, "\n sr_adapt_level\n");
 /*sharpness gain for ai pq*/
 int sr_gain[2];
 
+#define RDMA_TABLE_NUM_MAX 4
+#define MAX_REG_NUM 64
+
+static struct rdma_partition_ins_s pq_rdma_part_ins[RDMA_TABLE_NUM_MAX];
+bool pq_rdma_init;
+static bool use_rdma_part_tables = true;
+
 /* *********************************************************************** */
 /* *** VPP_FIQ-oriented functions **************************************** */
 /* *********************************************************************** */
@@ -6515,5 +6522,48 @@ void amve_lc_elc_ctrl(unsigned int enable)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1, 0, 0);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2, 0, 0);
 	}
+}
+
+void init_pq_rdma_part_ins(void)
+{
+	int i;
+
+	if (pq_rdma_init)
+		return;
+
+	for (i = 0; i < RDMA_TABLE_NUM_MAX; i++)
+		pq_rdma_part_ins[0].table_index = -1;
+
+	/*hdr table0*/
+	pq_rdma_part_ins[0].vpp_index = RDMA_VPP0;
+	pq_rdma_part_ins[0].table_index = AMVECM_PARTITION_TABLE_0;
+	pq_rdma_part_ins[0].flag = use_rdma_part_tables;
+	pq_rdma_part_ins[0].max_reg_cnt = 1000;
+	pq_rdma_part_ins[0].reg_range_check = false;
+	pq_rdma_part_ins[0].check_start_addr = 0x3800;
+	pq_rdma_part_ins[0].check_end_addr = 0x5b8f;
+	rdma_part_table_register(&pq_rdma_part_ins[0]);
+
+	/*sr lc table1*/
+	pq_rdma_part_ins[1].vpp_index = RDMA_VPP0;
+	pq_rdma_part_ins[1].table_index = AMVECM_PARTITION_TABLE_1;
+	pq_rdma_part_ins[1].flag = use_rdma_part_tables;
+	pq_rdma_part_ins[1].max_reg_cnt = 1000;
+	pq_rdma_part_ins[1].reg_range_check = false;
+	pq_rdma_part_ins[1].check_start_addr = 0x3800;
+	pq_rdma_part_ins[1].check_end_addr = 0x5b8f;
+	rdma_part_table_register(&pq_rdma_part_ins[1]);
+
+	/* vdaj2 gainoff...*/
+	pq_rdma_part_ins[2].vpp_index = RDMA_VPP0;
+	pq_rdma_part_ins[2].table_index = AMVECM_PARTITION_TABLE_2;
+	pq_rdma_part_ins[2].flag = use_rdma_part_tables;
+	pq_rdma_part_ins[2].max_reg_cnt = 1024;
+	pq_rdma_part_ins[2].reg_range_check = false;
+	pq_rdma_part_ins[2].check_start_addr = 0x3800;
+	pq_rdma_part_ins[2].check_end_addr = 0x5b8f;
+	rdma_part_table_register(&pq_rdma_part_ins[2]);
+
+	pq_rdma_init = true;
 }
 

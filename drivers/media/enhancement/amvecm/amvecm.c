@@ -16112,6 +16112,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	}
 	hdr_init(&amvecm_dev.hdr_d);
 #endif
+	init_pq_rdma_part_ins();
 	aml_vecm_dt_parse(devp, pdev);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
