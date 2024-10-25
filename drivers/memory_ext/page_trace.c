@@ -222,6 +222,7 @@ static struct kprobe kp_lookup_name = {
 
 /* ----------------------------------- */
 
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE_DIS)
 static char func_comp_alloc[NAME_MAX] = "compaction_alloc";
 static char func_alloc_pages[NAME_MAX] = "__alloc_pages_noprof";
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
@@ -378,6 +379,7 @@ static struct kretprobe free_ok_kretprobe = {
 	/* Probe up to 20 instances concurrently. */
 	.maxactive		= 20,
 };
+#endif
 #endif
 
 /* ----------------------------------- */
@@ -1641,7 +1643,7 @@ static int __init page_trace_module_init(void)
 	if (!trace_buffer)
 		return -ENOMEM;
 
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE_DIS)
 	comp_alloc_kretprobe.kp.symbol_name = func_comp_alloc;
 	ret = register_kretprobe(&comp_alloc_kretprobe);
 	if (ret < 0) {
@@ -1686,7 +1688,7 @@ static void __exit page_trace_module_exit(void)
 {
 	if (d_pagetrace)
 		proc_remove(d_pagetrace);
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE_DIS)
 	unregister_kprobe(&kp_lookup_off);
 	pr_debug("kprobe at %p unregistered\n", kp_lookup_off.addr);
 
