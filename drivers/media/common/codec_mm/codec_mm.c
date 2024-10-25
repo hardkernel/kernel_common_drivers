@@ -79,6 +79,18 @@ u32 tee_register_mem(u32 type, phys_addr_t pa, size_t size)
 	pr_info("no tee config\n");
 	return (-1);
 }
+
+u32 tee_sectbl_secmem_set(phys_addr_t start, size_t size, u32 secure)
+{
+	return -1;
+}
+
+u32 tee_sectbl_mem_map(phys_addr_t tbl0_sta, size_t tbl0_size, u32 tbl0_blk_size,
+	phys_addr_t tbl1_sta, size_t tbl1_size, u32 tbl1_blk_size)
+{
+	pr_info("no tee sectbl\n");
+	return -1;
+}
 #endif
 
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
@@ -3455,7 +3467,9 @@ int codec_mm_mgt_init(struct device *dev)
 		MESON_CPU_MAJOR_ID_G12A)
 		tvp_dynamic_increase_disable = 1;
 	default_tvp_4k_size = 0;
+#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 	set_secure_controller_mode(mgt);
+#endif
 	codec_mm_tvp_segment_init();
 	default_cma_res_size = mgt->total_cma_size;
 	mgt->global_memid = 0;
@@ -3762,6 +3776,7 @@ static int codec_mm_mem_dump(unsigned long addr, int isphy, int len)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 static void dump_tee_sectbl_info(void)
 {
 	u32 ret;
@@ -3794,6 +3809,7 @@ static void dump_tee_sectbl_bitmap(void)
 		pr_err("line%d 0x%08lx\n", i, *(mgt->tee_sectbl_bitmap + i));
 	pr_info("End dump tee sectbl bitmap\n");
 }
+#endif
 
 static ssize_t debug_store(struct class *class,
 		struct class_attribute *attr,
@@ -3840,12 +3856,14 @@ static ssize_t debug_store(struct class *class,
 	case 12:
 		dump_free_mem_infos(NULL, 0);
 		break;
+#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 	case 13:
 		dump_tee_sectbl_info();
 		break;
 	case 14:
 		dump_tee_sectbl_bitmap();
 		break;
+#endif
 	case 20: {
 		int cmd = 0, len = 0;
 		unsigned int addr;
