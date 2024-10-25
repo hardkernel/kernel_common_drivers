@@ -267,5 +267,7 @@ void sharpness_gain_update(int vpp_index);
 void osd_sharpness_init(void);
 void osd_sharpness_ctrl(unsigned int sel, unsigned int enable);
 void amvecm_vadj_enable(enum vadj_index_e vadj_idx, int enable);
+void init_pq_rdma_part_ins(void);
+
 #endif
 
