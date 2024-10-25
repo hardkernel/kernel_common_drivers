@@ -34,18 +34,18 @@ TRACE_EVENT(dmc_violation,
 	),
 
 	TP_fast_assign(
-		__assign_str(title, title);
+		__assign_str(title);
 		__entry->addr = addr;
 		__entry->status = status;
-		__assign_str(port, port);
-		__assign_str(sub, sub);
+		__assign_str(port);
+		__assign_str(sub);
 		__entry->rw = rw;
 		__entry->page_trace = pagetrace;
 		__entry->flags = flags;
 		__entry->time = time;
 	),
 
-	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d sb:%d lru:%d a:%ps t:%lld rw:%c%s",
+	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d lru:%d a:%ps t:%lld rw:%c%s",
 		  __entry->addr,
 		  read_violation_mem(__entry->addr, __entry->rw),
 		  __entry->status,
@@ -53,7 +53,6 @@ TRACE_EVENT(dmc_violation,
 		  __get_str(sub),
 		  __entry->flags,
 		  __entry->flags & PAGE_FLAGS_CHECK_AT_FREE ? 1 : 0,
-		  test_bit(PG_slab, &__entry->flags),
 		  test_bit(PG_lru, &__entry->flags),
 		  (void *)__entry->page_trace,
 		  __entry->time,

@@ -53,10 +53,10 @@
 #define IRQ_CLEAR		1
 
 #define DMC_RATELIMIT_BURST	30
-#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, slab, lru, trace, time, rw, title, rs)	\
+#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, lru, trace, time, rw, title, rs)	\
 ({															\
 	if (__ratelimit(rs))												\
-		pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, slab, lru, trace, time, rw, title);	\
+		pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, lru, trace, time, rw, title);	\
 })
 
 struct dmc_monitor *dmc_mon;
@@ -346,14 +346,13 @@ void show_violation_mem_printk(char *title, void *data)
 
 	static DEFINE_RATELIMIT_STATE(dmc_rs, HZ, DMC_RATELIMIT_BURST);
 
-	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d sb:%d lru:%d a:%ps t:%lld rw:%c%s\n",
+	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d lru:%d a:%ps t:%lld rw:%c%s\n",
 		mon_comm->addr, read_violation_mem(mon_comm->addr, mon_comm->rw),
 		mon_comm->status,
 		virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
 		virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
 		mon_comm->page_flags,
 		mon_comm->page_flags & PAGE_FLAGS_CHECK_AT_FREE ? 1 : 0,
-		test_bit(PG_slab, &mon_comm->page_flags),
 		test_bit(PG_lru, &mon_comm->page_flags),
 		(void *)dmc_unpack_ip(&mon_comm->trace),
 		mon_comm->time, mon_comm->rw, title, &dmc_rs);
@@ -1472,7 +1471,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	}
 }
 
-#if defined(CONFIG_AMLOGIC_USER_FAULT) && \
+#if IS_ENABLED(CONFIG_AMLOGIC_USER_FAULT) && \
 	defined(CONFIG_TRACEPOINTS) && \
 	defined(CONFIG_ANDROID_VENDOR_HOOKS)
 
@@ -1572,7 +1571,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		dmc_set_monitor(init_start_addr,
 				init_end_addr, init_dev_mask, 1);
 	}
-#if defined(CONFIG_AMLOGIC_USER_FAULT) && \
+#if IS_ENABLED(CONFIG_AMLOGIC_USER_FAULT) && \
 	defined(CONFIG_TRACEPOINTS) && \
 	defined(CONFIG_ANDROID_VENDOR_HOOKS)
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
@@ -1600,11 +1599,10 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dmc_monitor_remove(struct platform_device *pdev)
+static void dmc_monitor_remove(struct platform_device *pdev)
 {
 	class_unregister(&dmc_monitor_class);
 	dmc_mon = NULL;
-	return 0;
 }
 
 #ifdef CONFIG_OF

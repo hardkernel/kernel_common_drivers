@@ -19,6 +19,8 @@
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 #include <linux/timer.h>
+#include <linux/vmalloc.h>
+
 #include "ddr_bandwidth.h"
 #include "dmc.h"
 
@@ -1571,7 +1573,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ddr_bandwidth_remove(struct platform_device *pdev)
+static void ddr_bandwidth_remove(struct platform_device *pdev)
 {
 	if (aml_db) {
 		class_destroy(&aml_ddr_class);
@@ -1581,8 +1583,6 @@ static int ddr_bandwidth_remove(struct platform_device *pdev)
 		iounmap(aml_db->pll_reg);
 		aml_db = NULL;
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
