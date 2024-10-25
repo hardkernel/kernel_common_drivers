@@ -125,7 +125,7 @@ static int amlogic_pdd_monitor_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	priv = devm_kmalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
