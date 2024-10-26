@@ -41,7 +41,8 @@
 /* 20230609: chip bringup */
 /* 20230804: atv add filter format and set saturation fail */
 /* 20241007: wss function optimization */
-#define TVAFE_VER "20241007: wss function optimization"
+/* 20241105: fmt detection optimization */
+#define TVAFE_VER "20241105: fmt detection optimization"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
@@ -96,6 +97,7 @@ extern unsigned int force_nostd;
 #define TVAFE_DBG_ISR			BIT(4)
 #define TVAFE_DBG_SMR			BIT(8)
 #define TVAFE_DBG_SMR2			BIT(9)
+#define TVAFE_DBG_SMR3			BIT(10)
 #define TVAFE_DBG_NOSTD			BIT(12)
 #define TVAFE_DBG_NOSTD2		BIT(13)
 #define TVAFE_DBG_AUTO_VS		BIT(14)

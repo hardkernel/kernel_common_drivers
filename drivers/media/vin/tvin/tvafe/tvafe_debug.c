@@ -173,7 +173,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->acc358_cnt:%d\n",
 		hw->acc358_cnt);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->secam_detected:%d\n",
-		hw->secam_detected);
+		hw->secam_acd_sts);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->secam_phase:%d\n",
 		hw->secam_phase);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_358:%d\n", hw->fsc_358);
@@ -296,6 +296,8 @@ static ssize_t debug_store(struct device *dev,
 			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
 		} else if (!strncmp(buff + fmt_index, "secam", strlen("secam"))) {
 			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_SECAM;
+		} else if (!strncmp(buff + fmt_index, "n50", strlen("n50"))) {
+			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_NTSC_50;
 		} else if (!strncmp(buff + fmt_index, "null", strlen("null"))) {
 			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_NULL;
 		} else {
@@ -498,6 +500,21 @@ static ssize_t debug_store(struct device *dev,
 			goto tvafe_store_err;
 		pr_info("[tvafe..]%s: set try_fmt_max_av = %d\n",
 			__func__, try_fmt_max_av);
+	} else if (!strncmp(buff, "wait_av", strlen("wait_av"))) {
+		if (kstrtouint(parm[1], 10, &wait_cnt_max_av) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set wait_cnt_max_av = %d\n",
+			__func__, wait_cnt_max_av);
+	} else if (!strncmp(buff, "wait_atv", strlen("wait_atv"))) {
+		if (kstrtouint(parm[1], 10, &wait_cnt_max_atv) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set wait_cnt_max_atv = %d\n",
+			__func__, wait_cnt_max_atv);
+	} else if (!strncmp(buff, "try_secam", strlen("try_secam"))) {
+		if (kstrtouint(parm[1], 10, &try_atv_sceam_max) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set try_atv_sceam_max = %d\n",
+			__func__, wait_cnt_max_atv);
 	} else if (!strncmp(buff, "avout_en", strlen("avout_en"))) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &user_param->avout_en) < 0)

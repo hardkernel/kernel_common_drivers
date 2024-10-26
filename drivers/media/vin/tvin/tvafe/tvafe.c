@@ -826,7 +826,7 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 			pr_info("wss-maybe:%d-cnt:%d,%d\n", maybe_ratio,
 					count[maybe_ratio], has_interference_value);
 		if (maybe_ratio && !has_interference_value) {//not interference confirm wss value
-			if (tvafe->active_ratio != maybe_ratio)
+			if (tvafe->active_ratio != maybe_ratio && (tvafe_dbg_print & TVAFE_DBG_WSS))
 				pr_info("wss aspect_ratio:%d->%d,%d\n",
 					tvafe->aspect_ratio, maybe_ratio, aspect_ratio);
 			tvafe->aspect_ratio = TVIN_ASPECT_4x3_FULL;

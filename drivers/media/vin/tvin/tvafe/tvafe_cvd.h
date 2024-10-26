@@ -95,7 +95,7 @@ struct tvafe_cvd2_hw_data_s {
 	unsigned char acc3xx_cnt;
 	unsigned char acc358_cnt;
 	unsigned int noise_level;
-	bool secam_detected;
+	bool secam_acd_sts;
 	bool secam_phase;
 	bool fsc_358;
 	bool fsc_425;
@@ -184,6 +184,7 @@ struct tvafe_cvd2_s {
 	unsigned int smr_cnt;
 	unsigned int cvd_chroma_saturation;
 	unsigned int det_secam_cnt; //for secam detected error
+	unsigned int det_pal_cnt;
 	unsigned char hw_data_cur;
 	enum tvin_port_e vd_port;
 	enum tvin_sig_fmt_e config_fmt;
@@ -196,8 +197,8 @@ struct tvafe_cvd2_s {
 /* ******** GLOBAL FUNCTION CLAIM ******** */
 /* ********************************************* */
 int cvd_get_rf_strength(void);
-
-void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
+void tvafe_cvd2_rst(void);
+void tvafe_try_format(struct tvafe_cvd2_s *cvd2,
 		struct tvafe_cvd2_mem_s *mem, enum tvin_sig_fmt_e fmt);
 bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 		struct tvafe_cvd2_mem_s *mem, bool is_dec_start);
@@ -243,6 +244,10 @@ extern bool reinit_scan;
 
 extern unsigned int try_fmt_max_atv;
 extern unsigned int try_fmt_max_av;
+extern unsigned int wait_cnt_max_av;
+extern unsigned int wait_cnt_max_atv;
+extern unsigned int try_atv_sceam_max;
+
 
 #endif /* _TVAFE_CVD_H */
 

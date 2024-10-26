@@ -468,7 +468,7 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 	cvd2->vd_port = port;
 
 	/* set cvd2 default format to pal-i */
-	tvafe_cvd2_try_format(cvd2, mem, TVIN_SIG_FMT_CVBS_PAL_I);
+	tvafe_try_format(cvd2, mem, TVIN_SIG_FMT_CVBS_PAL_I);
 }
 
 void tvafe_enable_avout(enum tvin_port_e port, bool enable)
