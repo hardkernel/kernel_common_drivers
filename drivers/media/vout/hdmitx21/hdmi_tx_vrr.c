@@ -1227,13 +1227,16 @@ u32 drm_hdmitx_get_vrr_cap(void)
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	u32 vrr_cap = 0;
 
+	if (hdev->edid_mask_qms)
+		return 0;
+
 	if (prxcap->qms || prxcap->vrr_max || prxcap->vrr_min) {
 		vrr_cap |= prxcap->qms ? QMS_VRR_SUP : 0;
 		vrr_cap |= prxcap->vrr_min ? GAMING_VRR_SUP : 0;
 		return vrr_cap;
 	}
 
-	return false;
+	return 0;
 }
 
 static bool is_rx_supported_vic(enum hdmi_vic brr_vic)

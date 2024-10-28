@@ -2406,6 +2406,12 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_RESET_EDID, 0);
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_EDID_READ_DATA, 0);
 		return;
+	} else if (strncmp(tmpbuf, "maskqms", 7) == 0) {
+		if (tmpbuf[7] == '1')
+			hdev->edid_mask_qms = 1;
+		if (tmpbuf[7] == '0')
+			hdev->edid_mask_qms = 0;
+		HDMITX_DEBUG("mask edid qms %d\n", hdev->edid_mask_qms);
 	} else if (strncmp(tmpbuf, "i2c_reactive", 11) == 0) {
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_I2C_RESET, 0);
 		return;
