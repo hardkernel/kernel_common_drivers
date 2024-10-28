@@ -3208,10 +3208,10 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			toggle_mode = true;
 		}
 		if (debug_dolby & 0x400000)
-			pr_dv_dbg("no_compress %d, flag %x, type %x\n",
-					  vd_proc_info->no_compress, vf->flag, vf->type);
+			pr_dv_dbg("vd1 no_compress %d, flag %x, type %x\n",
+					  vd_proc_info->vd1_no_compress, vf->flag, vf->type);
 		/*afbc+dw two data path,dw is after detunnel,so no need dv detunnel*/
-		if (vd_proc_info->no_compress && (vf->type & VIDTYPE_COMPRESS))
+		if (vd_proc_info->vd1_no_compress && (vf->type & VIDTYPE_COMPRESS))
 			/*afbc on but vpp use dw*/
 			disable_detunnel = true;
 		/*only yuv data path,dw is after detunnel,so no need dv detunnel*/

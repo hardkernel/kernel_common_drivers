@@ -30,6 +30,8 @@ extern int debug_common_flag;
 #define DEBUG_FLAG_COMMON_PER_PREVSYNC     BIT(6)
 #define DEBUG_FLAG_COMMON_LCEVC    BIT(7)
 
+extern struct vd_proc_info_t vd_proc_amdv;
+
 u32 is_crop_left_odd(struct vpp_frame_par_s *frame_par);
 void get_pre_hscaler_para(u8 layer_id, int *ds_ratio, int *flt_num);
 void get_pre_vscaler_para(u8 layer_id, int *ds_ratio, int *flt_num);
