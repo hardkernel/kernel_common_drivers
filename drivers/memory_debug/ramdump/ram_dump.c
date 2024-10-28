@@ -333,7 +333,7 @@ static void lazy_clear_work(struct work_struct *work)
 	target_size = (free_pages * 90) / 100 * PAGE_SIZE;
 
 	INIT_LIST_HEAD(&head);
-	order = MAX_ORDER - 3;
+	order = 7; /* alloc size = 128 * 4KB = 512KB*/
 	tick = sched_clock();
 	do {
 		page = alloc_pages(flags, order);
