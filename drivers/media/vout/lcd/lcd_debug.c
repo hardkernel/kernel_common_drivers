@@ -580,7 +580,14 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	dt = &pconf->timing.act_timing;
 	lcd_detail_timing_print(dt, pr_buf, 0, pr_len);
 	n = lcd_debug_info_len(len + offset);
-	len += snprintf(buf + len, n, "\nact_timing based timing[%d]:\n%s\n", base_id, pr_buf);
+	len += snprintf(buf + len, n, "\nact_timing: based timing[%d]:\n%s\n", base_id, pr_buf);
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"pre_de_h %d, pre_de_v %d\n"
+		"hstart   %d, vstart   %d\n\n",
+		pconf->timing.pre_de_h, pconf->timing.pre_de_v,
+		pconf->timing.hstart, pconf->timing.vstart);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -638,7 +645,7 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 			if (!phy)
 				continue;
 			n = lcd_debug_info_len(len + offset);
-			len += snprintf((buf + len), n, "phy group[%d]%s:\n",
+			len += snprintf((buf + len), n, "phy_attr[%d]%s:\n",
 					i, phy == phy_cfg->act_phy ? "(active)" : "");
 
 			lcd_phy_attr_print(phy, phy_cfg->lane_num, buf_tmp, 0, 2048);

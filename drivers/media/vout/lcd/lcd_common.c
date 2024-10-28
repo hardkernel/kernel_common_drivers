@@ -841,8 +841,8 @@ int lcd_detail_timing_print(struct lcd_detail_timing_s *dt, char *buf, int offse
 
 	len = offset;
 	len += snprintf(buf + len, max_len - len - 1,
-			"ht:%04d(%04d ~ %04d), hact:%04d hbp:%d%s, hsw:%03d, hfp:%04d%s, hpol:%d\n"
-			"vt:%04d(%04d ~ %04d), vact:%04d vbp:%d%s, vsw:%03d, vfp:%04d%s, vpol:%d\n"
+			"ht:%4d(%4d ~ %4d), hact:%4d, hbp:%d%s, hsw:%2d, hfp:%3d%s, hpol:%d\n"
+			"vt:%4d(%4d ~ %4d), vact:%4d, vbp:%d%s, vsw:%2d, vfp:%3d%s, vpol:%d\n"
 			"lcd_bits:%d, cfmt:%d, fr_adj_type:%d, switch_type:0x%x\n"
 			"ss_level:%d, ss_mode:%d, ss_freq:%d, ss_force:%d\n"
 			"pclk:%d(%d ~ %d)\n"
@@ -871,12 +871,13 @@ int lcd_phy_cfg_print(struct phy_config_s *cfg, char *buf, int offset, int max_l
 
 	len = offset;
 	len += snprintf(buf + len, max_len - len - 1,
-			"state: %0d, lane_num: %d, group_num: %d, swap0: 0x%08x, swap1: 0x%08x\n"
-			"flag: 0x%x, ckdi: 0x%x, valid: 0x%x, ofst: 0x%x, mask: 0x%x\n"
-			"weakly_pd:0x%x, low_com:0x%x\n",
-			cfg->state, cfg->lane_num, cfg->group_num, cfg->ch_swap0, cfg->ch_swap1,
-			cfg->flag, cfg->ckdi, cfg->lane_valid, cfg->lane_offset, cfg->lane_mask,
-			cfg->weakly_pull_down, cfg->low_common_mode);
+			"state: %d, flag: 0x%x, lane_num: %d, nphys: %d\n"
+			"swap0: 0x%08x, swap1: 0x%08x, lane ofst: 0x%x, mask: 0x%x, valid: 0x%x\n"
+			"ckdi: 0x%x, weakly_pd: 0x%x, low_com: 0x%x\n",
+			cfg->state, cfg->flag, cfg->lane_num, cfg->group_num,
+			cfg->ch_swap0, cfg->ch_swap1,
+			cfg->lane_offset, cfg->lane_mask, cfg->lane_valid,
+			cfg->ckdi, cfg->weakly_pull_down, cfg->low_common_mode);
 
 	if (len >= max_len - 1)
 		return len - offset;
@@ -886,7 +887,7 @@ int lcd_phy_cfg_print(struct phy_config_s *cfg, char *buf, int offset, int max_l
 	for (i = 0; i < cfg->lane_num; i++) {
 		if (len >= max_len - 1)
 			return len - offset;
-		len += snprintf(buf + len, max_len - len - 1, "[%02d]  %d     %02d    0x%02x\n",
+		len += snprintf(buf + len, max_len - len - 1, "[%2d]  %d     %02d    0x%02x\n",
 				i, ch_ctrl[i].en, ch_ctrl[i].sel, ch_ctrl[i].phase_sel);
 	}
 	if (len >= max_len - 1)
@@ -920,7 +921,7 @@ int lcd_phy_attr_print(struct phy_attr_s *phy, u32 lane_num, char *buf, int offs
 		if (len >= max_len - 1)
 			return len - offset;
 		len += snprintf(buf + len, max_len - len - 1,
-				"[%02d]  0x%02x  0x%02x      [%02d]  0x%02x  0x%02x\n",
+				"[%2d]  0x%02x  0x%02x      [%2d]  0x%02x  0x%02x\n",
 				i, lane[i].amp, lane[i].preem, n, lane[n].amp, lane[n].preem);
 	}
 	if (len >= max_len - 1)

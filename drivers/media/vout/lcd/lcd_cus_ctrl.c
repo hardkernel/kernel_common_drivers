@@ -231,11 +231,11 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 {
 	struct lcd_detail_timing_s *ptiming;
 	struct lcd_timing_s *tims = &pdrv->config.timing;
-	unsigned int offset = 0, fr_size, tmg_size;
+	unsigned int offset = 0, fr_size, tmg_size = 0;
 	unsigned int temp;
 	int i, n, ret = 0, fr_cnt = 0, tmg_group_cnt = 0;
-	struct lcd_dfr_fr_s *fr;
-	struct lcd_dfr_timing_s *dfr_timing;
+	struct lcd_dfr_fr_s *fr = NULL;
+	struct lcd_dfr_timing_s *dfr_timing = NULL;
 
 	if (!tims->timings[0])
 		return -1;
@@ -244,19 +244,28 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 	offset += 1;
 	tmg_group_cnt = *(p + offset);
 	offset += 1;
-	fr_size = fr_cnt * sizeof(struct lcd_dfr_fr_s);
-	tmg_size = tmg_group_cnt * sizeof(struct lcd_dfr_timing_s);
-
-	if (!fr_cnt || !tmg_group_cnt)
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: fr_cnt: %d, tmg_group_cnt: %d\n",
+			pdrv->index, __func__, fr_cnt, tmg_group_cnt);
+	}
+	if (!fr_cnt) {
+		LCDERR("[%d]: %s: fr_cnt(%d) error!\n", pdrv->index, __func__, fr_cnt);
 		return 0;
+	}
+
+	fr_size = fr_cnt * sizeof(struct lcd_dfr_fr_s);
 
 	fr = kzalloc(fr_size, GFP_KERNEL);
 	if (!fr)
 		return -1;
-	dfr_timing = kzalloc(tmg_size, GFP_KERNEL);
-	if (!dfr_timing) {
-		kfree(fr);
-		return -1;
+
+	if (tmg_group_cnt) {
+		tmg_size = tmg_group_cnt * sizeof(struct lcd_dfr_timing_s);
+		dfr_timing = kzalloc(tmg_size, GFP_KERNEL);
+		if (!dfr_timing) {
+			kfree(fr);
+			return -1;
+		}
 	}
 
 	for (i = 0; i < fr_cnt; i++) {
@@ -304,7 +313,7 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 				ptiming->h_period * ptiming->v_period;
 		} else {
 			n = fr[i].timing_index - 1;
-			if (n >= tmg_group_cnt) {
+			if (n >= tmg_group_cnt || !dfr_timing) {
 				LCDERR("[%d]: %s: timing_index %d err, tmg_group_cnt %d\n",
 					pdrv->index, __func__, fr[i].timing_index, tmg_group_cnt);
 				ret = -1;
@@ -333,12 +342,14 @@ static int lcd_cus_ctrl_attr_parse_dfr_ukey(struct aml_lcd_drv_s *pdrv,
 	}
 
 	kfree(fr);
-	kfree(dfr_timing);
+	if (tmg_group_cnt)
+		kfree(dfr_timing);
 	return 0;
 
 parse_dfr_timing_err:
 	kfree(fr);
-	kfree(dfr_timing);
+	if (tmg_group_cnt)
+		kfree(dfr_timing);
 	return -1;
 }
 
