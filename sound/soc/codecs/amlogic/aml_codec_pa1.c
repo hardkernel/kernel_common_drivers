@@ -539,7 +539,7 @@ static int pa1_mixer_set_3D_Surround_params(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int tmp_data[PA1_FILTER_PARAM_SIZE + 2] = {0};
 	unsigned int *p_data = &tmp_data[0];
-	char tmp_string[PA1_FILTER_PARAM_BYTE];
+	char tmp_string[AED_3D_FILTER_PARAM_BYTE];
 	char *p_string = &tmp_string[0];
 	unsigned int *p = &PA1_3D_SURROUND_COEFF[0];
 	int num, i, band_id, addr;
@@ -547,11 +547,11 @@ static int pa1_mixer_set_3D_Surround_params(struct snd_kcontrol *kcontrol,
 
 	if (!val)
 		return -ENOMEM;
-	memcpy(p_string, val, PA1_FILTER_PARAM_BYTE);
+	memcpy(p_string, val, AED_3D_FILTER_PARAM_BYTE);
 
-	num = pa1_str2int(p_string, p_data, PA1_FILTER_PARAM_BYTE);
+	num = pa1_str2int(p_string, p_data, AED_3D_FILTER_PARAM_BYTE);
 	band_id = tmp_data[0];
-	if (num != (PA1_FILTER_PARAM_SIZE + 1) || band_id >= PA1_3D_SURROUND_BAND) {
+	if (num != (PA1_FILTER_PARAM_SIZE + 2) || band_id >= PA1_3D_SURROUND_BAND) {
 		pr_err("Error: parma_num = %d, band_id = %d\n",
 			num, tmp_data[0]);
 		return 0;
@@ -953,7 +953,7 @@ static const struct snd_kcontrol_new pa1_acodec_vol_control[] = {
 			pa1_mixer_aed_read, pa1_mixer_aed_write),
 
 	SND_SOC_BYTES_EXT("PA1 AED 3D Surround Parameters",
-			PA1_AED_FULLBAND_DRC_BYTES,
+			AED_3D_FILTER_PARAM_BYTE,
 			pa1_mixer_get_3D_Surround_params,
 			pa1_mixer_set_3D_Surround_params),
 
