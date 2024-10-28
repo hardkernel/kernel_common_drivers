@@ -112,7 +112,7 @@ static int ramoops_io_en_setup(char *buf)
 }
 __setup("ramoops_io_en=", ramoops_io_en_setup);
 
-int ramoops_io_dump;
+int ramoops_io_dump = 1;
 
 static int ramoops_io_dump_setup(char *buf)
 {
@@ -1220,7 +1220,8 @@ int __init aml_iotrace_init(void)
 	 * V4: iotrace read/write use vendor hooks
 	 *	   depends on 13-5.15-16 or 14-5.15-9
 	 * V5: modify iotrace data, delay free module init_layout memory
-	 * V6: add iotm support
+	 * V6: iotm_v1 support
+	 * V7: iotm_v2 support
 	 */
 	pr_info("iotrace V6\n");
 

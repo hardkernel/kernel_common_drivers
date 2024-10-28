@@ -22,3 +22,6 @@
 
 # aml_drm.ko
   drm_property_create_blob
+
+# amlogic-debug-iotrace.ko
+  of_find_all_nodes

@@ -43,9 +43,7 @@
 #include <linux/amlogic/aml_iotrace.h>
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
 #include <linux/amlogic/aml_iotm.h>
-#endif
 
 #include <sched.h>
 
@@ -195,9 +193,7 @@ static void __maybe_unused isr_in_hook(void *data, int irq, struct irqaction *ac
 		aml_pstore_write(AML_PSTORE_TYPE_IRQ, &rec, irqs_disabled(), 0);
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
-	iotm_sw_record_write(IOTM_SW_IRQ_IN, irq, 0);
-#endif
+	iotm_sw_record_write(IOTM_SW_IRQ_IN, 0, irq);
 
 	cpu = smp_processor_id();
 
@@ -246,9 +242,7 @@ static void __maybe_unused isr_out_hook(void *data, int irq, struct irqaction *a
 		aml_pstore_write(AML_PSTORE_TYPE_IRQ, &rec, irqs_disabled(), 0);
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
-	iotm_sw_record_write(IOTM_SW_IRQ_OUT, irq, 0);
-#endif
+	iotm_sw_record_write(IOTM_SW_IRQ_OUT, 0, irq);
 
 	now = sched_clock();
 	delta = now - isr_info->exec_start_time;
@@ -371,12 +365,10 @@ static void smc_in_hook(unsigned long smcid, unsigned long val, bool noret)
 		aml_pstore_write(AML_PSTORE_TYPE_SMC, &rec, irqs_disabled(), 0);
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
 	if (noret)
-		iotm_sw_record_write(IOTM_SW_SMC_NORET_IN, smcid, val);
+		iotm_sw_record_write(IOTM_SW_SMC_NORET_IN, val, smcid);
 	else
-		iotm_sw_record_write(IOTM_SW_SMC_IN, smcid, val);
-#endif
+		iotm_sw_record_write(IOTM_SW_SMC_IN, val, smcid);
 
 	if (noret)
 		return;
@@ -409,9 +401,7 @@ static void smc_out_hook(unsigned long smcid, unsigned long val)
 		aml_pstore_write(AML_PSTORE_TYPE_SMC, &rec, irqs_disabled(), 0);
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
-	iotm_sw_record_write(IOTM_SW_SMC_OUT, smcid, val);
-#endif
+	iotm_sw_record_write(IOTM_SW_SMC_OUT, val, smcid);
 
 	if (!initialized || !smc_check_en)
 		return;
@@ -1083,9 +1073,7 @@ static void __maybe_unused schedule_hook(void *data, struct task_struct *prev,
 
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
-	iotm_sw_record_write(IOTM_SW_SCHED, prev->pid, next->pid);
-#endif
+	iotm_sched_record_write(next->comm);
 }
 
 int debug_lockup_init(void)

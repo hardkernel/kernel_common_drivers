@@ -87,7 +87,7 @@ void free_iotrace_reserved_memory(void)
 		unsigned int iotm_ddr_size = 0;
 
 		/* exclude iotm_ddr_size in axi_mode. */
-		if (get_iotm_en_ddr_size(&iotm_ddr_size) && get_iotm_monitor_mode() == 0)
+		if (iotm_en_ddr_size_get(&iotm_ddr_size) && iotm_monitor_mode_get() == 0)
 			res.end = res.end - PAGE_ALIGN(iotm_ddr_size);
 #endif
 		aml_free_reserved_area(__va(res.start), __va(PAGE_ALIGN(res.end)), 0,

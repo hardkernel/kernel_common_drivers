@@ -216,9 +216,12 @@
 		compatible = "amlogic, iotm";
 		status = "okay";
 		/* a53_dbg: CSSYS_BASE_ADDR + iotm & coresight */
-		reg = <0x0 0xfe800000 0x0 0x8000>;
+		reg = <0x0 0xfe800000 0x0 0x8000>;/* a53_debug */
+		/* exclude software_write_record of a53_debug */
+		exclude-reg = <0xfe807044 0xfe807048>;
 		memory-region = <&debug_reserved>;
 		interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+		version = <1>;
 	};
 
 	pwrdm: power-domains {
