@@ -2,6 +2,9 @@
 
 dtb-y += i2c0.dtbo \
          i2c1.dtbo \
+         mcp2515.dtbo \
+         mcp2515_12mhz.dtbo \
+         mcp2515_16mhz.dtbo \
          pwm_a.dtbo \
          pwm_b.dtbo \
          pwm_c.dtbo \
