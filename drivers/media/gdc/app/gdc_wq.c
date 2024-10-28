@@ -163,8 +163,6 @@ static inline struct gdc_queue_item_s *find_an_item_from_pool(void)
 		}
 
 		pcontext->wq_state = GDC_STATE_RUNNING;
-		/* get this item and delete it from work_queue */
-		list_del(item);
 
 		/* if work_queue is empty, move process_queue head */
 		if (list_empty(&pcontext->work_queue))
@@ -303,6 +301,11 @@ int get_gdc_fw_version(void)
 }
 EXPORT_SYMBOL(get_gdc_fw_version);
 
+static inline int work_queue_no_space(struct gdc_context_s *queue)
+{
+	return list_empty(&queue->free_queue);
+}
+
 struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 {
 	struct gdc_context_s *gdc_work_queue;
@@ -402,11 +405,22 @@ EXPORT_SYMBOL(destroy_gdc_work_queue);
 
 void *gdc_prepare_item(struct gdc_context_s *wq)
 {
-	struct gdc_queue_item_s *pitem;
+	struct gdc_queue_item_s *pitem = NULL;
 
-	pitem = kmalloc(sizeof(*pitem), GFP_KERNEL);
-	if (!pitem)
+	if (work_queue_no_space(wq)) {
+		pitem = kzalloc(sizeof(*pitem), GFP_KERNEL);
+		if (!pitem)
+			return NULL;
+		spin_lock(&wq->lock);
+		list_add_tail(&pitem->list, &wq->free_queue);
+		spin_unlock(&wq->lock);
+	}
+
+	pitem = list_entry(wq->free_queue.next, struct gdc_queue_item_s, list);
+	if (IS_ERR_OR_NULL(pitem)) {
+		gdc_log(LOG_ERR, "@@%s:%d, failed\n", __func__, __LINE__);
 		return NULL;
+	}
 
 	memcpy(&pitem->cmd, &wq->cmd, sizeof(struct gdc_cmd_s));
 	memcpy(&pitem->dma_cfg, &wq->dma_cfg, sizeof(struct gdc_dma_cfg_t));
@@ -433,10 +447,13 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 	/* for block mode, notify item cmd done */
 	if (block_mode) {
 		pitem->cmd.wait_done_flag = 0;
-		wake_up_interruptible(&current_wq->cmd_complete);
-	} else {
-		kfree(pitem);
+		wake_up(&current_wq->cmd_complete);
 	}
+
+	/* move this item from work_queue to free queue */
+	spin_lock(&gdc_manager.event.sem_lock);
+	list_move_tail(&pitem->list, &current_wq->free_queue);
+	spin_unlock(&gdc_manager.event.sem_lock);
 
 	gdc_dev->is_idle[core_id] = 1;
 
@@ -502,7 +519,7 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 
 	gdc_log(LOG_DEBUG, "gdc add work\n");
 	spin_lock(&wq->lock);
-	list_add_tail(&pitem->list, &wq->work_queue);
+	list_move_tail(&pitem->list, &wq->work_queue);
 	spin_unlock(&wq->lock);
 	gdc_log(LOG_DEBUG, "gdc add work ok\n");
 	/* only read not need lock */
@@ -511,7 +528,7 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 
 	if (block) {
 		while (1) {
-			ret = wait_event_interruptible_timeout
+			ret = wait_event_timeout
 					(wq->cmd_complete,
 					 pitem->cmd.wait_done_flag == 0,
 					 msecs_to_jiffies(polling_ms));
@@ -527,7 +544,6 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 				}
 				continue;
 			}
-			kfree(pitem);
 			break;
 		}
 	}
