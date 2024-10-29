@@ -810,7 +810,7 @@ int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 
 		if (auto_qam)
 			dvbc_auto_fast(fe, delay, re_tune);
-
+		demod->auto_times = 0;
 		return ret;
 	}
 

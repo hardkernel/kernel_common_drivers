@@ -187,6 +187,7 @@
 /*  V3.6.007 fix atsc signal check failed */
 /*  V3.6.008 fix ambus setting when enter dtmb */
 /*  V3.6.009 fix demod error when locking SPLP 2K T2 signal */
+/*  V3.6.010 fix dvbc fast search flow */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -203,8 +204,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.009"
-#define DTVDEMOD_VER	"2024/11/05: fix demod error when locking SPLP 2K T2 signal"
+#define AMLDTVDEMOD_VER "V3.6.010"
+#define DTVDEMOD_VER	"2024/11/07: fix dvbc fast search flow"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
