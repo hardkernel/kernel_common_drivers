@@ -179,8 +179,6 @@ int aml_xhci_start(struct aml_xhci_hcd *xhci)
 		temp = readl(hcd->regs + 0x20b0);
 		temp |= 1 << 26;
 		writel(temp, hcd->regs + 0x20b0);
-		temp = readl(hcd->regs + 0x20b0);
-		temp = 0;
 	}
 #endif
 
