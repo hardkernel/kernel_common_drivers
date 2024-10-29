@@ -1107,7 +1107,7 @@ static int __nocfi __aml_check_pageblock_isolate(unsigned long pfn,
 			pfn++;
 		} else {
 			cma_debug(1, page, " isolate failed\n");
-			aml__dump_owner(page);
+			/* aml__dump_owner(page); */
 			break;
 		}
 	}
