@@ -1772,6 +1772,7 @@
 		status = "okay";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync";
+		low_latency = <1>;
 	};
 
 	lut_dma:lut_dma {
