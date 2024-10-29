@@ -1099,13 +1099,13 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		if (!video_is_meson_s7d_cpu())
 			rdma_wr_bits(vsr_reg->safa_pps_bot_vsc_init,
 				vsr_top->pi_safa_vsc_ini_phase, 0, 16);
-		rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
-			prev_en, 4, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
-			preh_en, 8, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-			postsc_en, 2, 1);
 	}
+	rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
+		prev_en, 4, 1);
+	rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
+		preh_en, 8, 1);
+	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+		postsc_en, 2, 1);
 	if (cur_dev->vsr_nonlinear_support &&
 		vsr_safa->nonlinear_4region_en) {
 		//Wr_reg_bits(SAFA_PPS_INTERP_EN_MODE,1,26,1);
