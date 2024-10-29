@@ -5278,7 +5278,7 @@ u8 rx_read_edid_offset(u8 port)
 
 	switch (rx_info.chip_id) {
 	case CHIP_ID_T3X:
-		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT, E_PORT0) & 0x1ff;
+		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT, port) & 0x1ff;
 		break;
 	case CHIP_ID_TXHD2:
 	case CHIP_ID_T5M:
@@ -5317,25 +5317,33 @@ void rx_edid_reset_handler(struct work_struct *work)
 	struct edid_delayed_work_data *dwd =
 		container_of(dw, struct edid_delayed_work_data, delayed_work);
 	int i;
+	bool rst_flg = true;
+	static u8 rst_cnt[E_PORT_NUM];
 
 	switch (dwd->state[dwd->port]) {
 	case EDID_WAIT_READ_DONE:
-		if (!rx_is_edid_seg(dwd->port))
-			break;
-		dwd->state[dwd->port] = EDID_WAIT_OTHER_PORT_IDLE;
+		if (rx_is_edid_read_done(dwd->port))
+			dwd->state[dwd->port] = EDID_WAIT_OTHER_PORT_IDLE;
 		break;
 	case EDID_WAIT_OTHER_PORT_IDLE:
 		for (i = 0; i < rx_info.port_num; i++) {
-			dwd->edid_offset_cur[i] = rx_read_edid_offset(i) & 0xff;
+			if (i == dwd->port)
+				continue;
+			dwd->edid_offset_cur[i] = rx_read_edid_offset(i) & 0x1ff;
 			if (dwd->edid_offset_cur[i] != 0)
-				break;
+				rst_flg = false;
 		}
-		if (i == rx_info.port_num) {
+		if (rst_flg || rst_cnt[dwd->port] >= EDID_RST_TIMEOUT) {
 			rx_edid_module_reset();
-			if (rx_read_edid_offset(dwd->port) != 0)
+			if (rx_read_edid_offset(dwd->port) == 0) {
+				edid_seg_flag[dwd->port] = 0;
+				dwd->state[dwd->port] = EDID_RESET_DONE;
+			} else {
 				rx_pr("edid reset fail\n");
-			edid_seg_flag[dwd->port] = 0;
-			dwd->state[dwd->port] = EDID_RESET_DONE;
+			}
+			rst_cnt[dwd->port] = 0;
+		} else {
+			rst_cnt[dwd->port]++;
 		}
 		break;
 	case EDID_RESET_DONE:

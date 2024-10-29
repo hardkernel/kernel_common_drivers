@@ -1011,7 +1011,7 @@ struct edid_delayed_work_data {
 	struct delayed_work delayed_work;
 	u8 port;
 	unsigned int state[E_PORT_NUM];
-	u8 edid_offset_cur[E_PORT_NUM];
+	u32 edid_offset_cur[E_PORT_NUM];
 };
 
 #define WHITE_LIST_SIZE 25

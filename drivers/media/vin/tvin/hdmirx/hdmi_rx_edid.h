@@ -10,7 +10,8 @@
 //2024.07.18 fix hdmi repeater cert fail item
 //2024.08.28 default enable auto edid
 //2024.10.23 add clr edid seg
-#define RX_EDID_H_VER "ver.2024/10/23"
+//2024.11.01 Optimize clear of edid segment
+#define RX_EDID_H_VER "ver.2024/11/01"
 
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128
@@ -25,6 +26,10 @@
 #define PORT_NUM		3
 #define LATENCY_MAX		254
 #define EDID_MAX_REFRESH_RATE 123 //No use for reference board
+
+/* for clear 512 edid segment */
+#define EDID_WAIT_STABLE_MAX 5
+#define EDID_RST_TIMEOUT 5
 
 /* CTA-861G Table 54~57 CTA data block tag codes */
 /* tag code 0x0: reserved */

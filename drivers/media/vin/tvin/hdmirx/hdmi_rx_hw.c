@@ -7733,9 +7733,10 @@ void aml_phy_get_def_trim_value(void)
 	}
 }
 
-bool rx_is_edid_seg(u8 port)
+bool rx_is_edid_read_done(u8 port)
 {
 	u32 temp = 0;
+	static u32 edid_stb_offset[E_PORT_NUM], cnt[E_PORT_NUM];
 
 	if (rx_info.chip_id == CHIP_ID_T3X) {
 		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT, port);
@@ -7757,7 +7758,19 @@ bool rx_is_edid_seg(u8 port)
 			break;
 		}
 	}
-	return temp == 0x10100;
+	if (temp != edid_stb_offset[port]) {
+		cnt[port] = 0;
+		edid_stb_offset[port] = temp;
+	} else {
+		cnt[port]++;
+	}
+
+	if (cnt[port] >= EDID_WAIT_STABLE_MAX) {
+		cnt[port] = 0;
+		return true;
+	} else {
+		return false;
+	}
 }
 
 void rx_i2c_mux_cfg(u8 port)
