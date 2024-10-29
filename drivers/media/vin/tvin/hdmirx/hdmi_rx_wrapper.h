@@ -29,6 +29,9 @@
 #define PHY_REQUEST_CLK_MAX	370000000
 #define TIMER_STATE_CHECK	(1 * HZ / 100)
 
+#define HPD_WAIT_NORMAL 74
+#define HPD_WAIT_21 110
+#define HPD_WAIT_512 110
 /* 2024.07.02 optimize suspend flow */
 /* 2024.07.19 optimize cts flow */
 /* 2024.08.22 Fix the issue of flashing green screen at the end of SDR playback */
@@ -39,7 +42,8 @@
 /* 2024.10.10 fix fem exit when open irq */
 /* 2024.10.11 fix dsc timing judge */
 /* 2024.10.12 reduce fsm print */
-#define RX_WRAPPER_VER "ver.2024/10/12"
+/* 2024.11.06 Adjust the HPD pull down time based on EDID type */
+#define RX_WRAPPER_VER "ver.2024/11/06"
 
 struct freq_ref_s {
 	bool interlace;

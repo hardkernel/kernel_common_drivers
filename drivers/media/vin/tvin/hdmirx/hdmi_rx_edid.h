@@ -11,7 +11,8 @@
 //2024.08.28 default enable auto edid
 //2024.10.23 add clr edid seg
 //2024.11.01 Optimize clear of edid segment
-#define RX_EDID_H_VER "ver.2024/11/01"
+//2024.11.06 get edid size and frl
+#define RX_EDID_H_VER "ver.2024/11/06"
 
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128
@@ -957,4 +958,6 @@ void rx_edid_reset_task(u8 port);
 void rx_get_edid_support(u8 port);
 void rx_print_edid_support(void);
 bool is_valid_edid_data(unsigned char *p_edid);
+u32 rx_get_edid_size(u8 port);
+bool is_support_frl(u8 port);
 #endif

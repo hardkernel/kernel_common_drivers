@@ -54,9 +54,6 @@ static int spec_dev_wait_cnt_max;
 static int sig_stable_max;
 static int sig_stable_err_max;
 static int err_cnt_sum_max;
-static int hpd_wait_max;
-static int hpd_wait_21_max;
-static int hpd_wait_512_max;
 static int sig_unstable_max;
 static int sig_unready_max;
 static int fps_unready_max;
@@ -116,6 +113,7 @@ int rs_err_chk;
 int err_cnt = 100;
 bool cts_ced_err_test;
 int edid_seg_flag[4];
+int hpd_wait_dbg;
 //static int auds_rcv_sts;
 //module_param(auds_rcv_sts, int, 0664);
 //MODULE_PARM_DESC(auds_rcv_sts, "auds_rcv_sts");
@@ -360,7 +358,6 @@ void hdmirx_fsm_var_init(void)
 		err_cnt_sum_max = 10;
 		/* increase time of hpd low, to avoid some source like */
 		/* MTK box/KaiboerH9 i2c communicate error */
-		hpd_wait_max = 74;
 		sig_unstable_max = 20;
 		sig_unready_max = 0;
 		diff_pixel_th = 2;
@@ -382,7 +379,6 @@ void hdmirx_fsm_var_init(void)
 		stable_check_lvl = 0x7cf;
 		pll_lock_max = 5;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 74;
 		sig_unstable_max = 20;
 		sig_unready_max = 0;
 		diff_pixel_th = 2;
@@ -405,7 +401,6 @@ void hdmirx_fsm_var_init(void)
 		stable_check_lvl = 0x17cf;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 74;
 		sig_unstable_max = 20;
 		sig_unready_max = 0;
 		diff_pixel_th = 2;
@@ -430,8 +425,6 @@ void hdmirx_fsm_var_init(void)
 		stable_check_lvl = 0x7c3;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 74;
-		hpd_wait_512_max = 110;
 		sig_unstable_max = 20;
 		sig_unready_max = 0;
 		/* decreased to 2 */
@@ -461,8 +454,6 @@ void hdmirx_fsm_var_init(void)
 		stable_check_lvl = 0x6c3;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 74;
-		hpd_wait_21_max = 110;
 		sig_unstable_max = 20;
 		sig_unready_max = 0;
 		/* decreased to 2 */
@@ -493,7 +484,6 @@ void hdmirx_fsm_var_init(void)
 		stable_check_lvl = 0x7c3;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 74;
 		sig_unstable_max = 20;
 		sig_unready_max = 0;
 		/* decreased to 2 */
@@ -2784,22 +2774,29 @@ void rx_cor_reset(u8 port)
 	}
 }
 
+int rx_get_hpd_wait(u8 port)
+{
+	int ret = hpd_wait_dbg;
+
+	if (is_support_frl(port))
+		ret += HPD_WAIT_21;
+	else if (rx_get_edid_size(port) == 256)
+		ret += HPD_WAIT_NORMAL;
+	else if (rx_get_edid_size(port) == 512)
+		ret += HPD_WAIT_512;
+	else
+		ret += HPD_WAIT_NORMAL;
+
+	return ret;
+}
+
 bool rx_hpd_keep_low(u8 port)
 {
 	bool ret = false;
+	int hpd_wait = 0;
 
-	if (rx[port].var.hpd_wait_cnt <= hpd_wait_max)
-		ret = true;
-
-	if ((edid_port_type[port] == EDID_TYPE_512_PLUS_512 ||
-		edid_port_type[port] == EDID_TYPE_256_PLUS_512) &&
-		rx[port].edid_type.edid_ver == EDID_V20) {
-		if (rx[port].var.hpd_wait_cnt <= hpd_wait_512_max)
-			ret = true;
-	}
-	if (rx_info.chip_id == CHIP_ID_T3X &&
-		(port == E_PORT2 || port == E_PORT3) &&
-		rx[port].var.hpd_wait_cnt <= hpd_wait_21_max)
+	hpd_wait = rx_get_hpd_wait(port);
+	if (rx[port].var.hpd_wait_cnt <= hpd_wait)
 		ret = true;
 
 	return ret;
@@ -3027,9 +3024,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(dwc_rst_wait_cnt_max, i++);
 	pr_var(spec_dev_wait_cnt_max, i++);
 	pr_var(sig_stable_max, i++);
-	pr_var(hpd_wait_max, i++);
-	pr_var(hpd_wait_21_max, i++);
-	pr_var(hpd_wait_512_max, i++);
+	pr_var(hpd_wait_dbg, i++);
 	pr_var(sig_unstable_max, i++);
 	pr_var(sig_unready_max, i++);
 	pr_var(pow5v_max_cnt, i++);
@@ -3324,12 +3319,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(spec_dev_wait_cnt_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(sig_stable_max), &sig_stable_max, value))
 		return pr_var(sig_stable_max, index);
-	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_max), &hpd_wait_max, value))
-		return pr_var(hpd_wait_max, index);
-	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_21_max), &hpd_wait_21_max, value))
-		return pr_var(hpd_wait_21_max, index);
-	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_512_max), &hpd_wait_512_max, value))
-		return pr_var(hpd_wait_512_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_dbg), &hpd_wait_dbg, value))
+		return pr_var(hpd_wait_dbg, index);
 	if (set_pr_var(tmpbuf, var_to_str(log_level), &log_level, value))
 		return pr_var(log_level, index);
 	if (set_pr_var(tmpbuf, var_to_str(sig_unready_max), &sig_unready_max, value))
@@ -7601,6 +7592,7 @@ void rx_hpd_monitor(void)
 {
 	static u8 hpd_wait_cnt[4];
 	u8 i;
+	int hpd_wait;
 
 	if (!hdmi_cec_en || hdmi_cec_en == 0xff)
 		return;
@@ -7612,8 +7604,9 @@ void rx_hpd_monitor(void)
 		port_hpd_rst_flag &= ~(1 << rx_info.main_port);
 
 	for (i = E_PORT0; i < rx_info.port_num; i++) {
+		hpd_wait = rx_get_hpd_wait(i);
 		if ((port_hpd_rst_flag & _BIT(i)) && rx[i].cur_5v_sts) {
-			if (hpd_wait_cnt[i]++ > hpd_wait_max) {
+			if (hpd_wait_cnt[i]++ > hpd_wait) {
 				rx_set_port_hpd(i, 1);
 				hpd_wait_cnt[i] = 0;
 				port_hpd_rst_flag &= 0xff & (~_BIT(i));

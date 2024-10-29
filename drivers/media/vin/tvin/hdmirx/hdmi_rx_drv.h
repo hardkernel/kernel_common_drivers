@@ -309,7 +309,6 @@ struct rx_var_param {
 	int hpd_wait_cnt;
 	/* increase time of hpd low, to avoid some source like */
 	/* MTK box/KaiboerH9 i2c communicate error */
-	int hpd_wait_max;
 	int sig_unstable_cnt;
 	int sig_unstable_max;
 	bool vic_check_en;

@@ -2507,6 +2507,23 @@ void edid_parse_cea_ext_block(u8 *p_edid,
 		edid_info->blk_parse_info.db_info[i].offset += blk_start_offset;
 }
 
+bool is_support_frl(u8 port)
+{
+	u8 *pedid = NULL;
+	u32 hf_vsdb_start, frl_rate;
+	bool ret = false;
+
+	pedid = rx_get_cur_used_edid(port);
+	hf_vsdb_start = rx_get_cea_tag_offset(pedid, HF_VENDOR_DB_TAG);
+	frl_rate = pedid[hf_vsdb_start + 7] >> 4;
+	if (frl_rate > 0 && frl_rate < 7)
+		ret = true;
+	else
+		ret = false;
+
+	return ret;
+}
+
 void rx_edid_parse(u8 *p_edid, struct edid_info_s *edid_info)
 {
 	if (!p_edid || !edid_info)
@@ -5063,6 +5080,21 @@ u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 		}
 	}
 	return checksum;
+}
+
+u32 rx_get_edid_size(u8 port)
+{
+	u32 blk_num = 0, index = 0;
+	u8 *pedid = NULL;
+
+	pedid = rx_get_cur_used_edid(port);
+	index = rx_get_cea_tag_offset(pedid, EXTENDED_HF_EEODB);
+	if (index)
+		blk_num = pedid[index + 2] + 1;
+	else
+		blk_num = pedid[126] + 1;
+
+	return blk_num * EDID_BLK_SIZE;
 }
 
 u_char *rx_get_cur_def_edid(u_char port)
