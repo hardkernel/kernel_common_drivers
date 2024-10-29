@@ -1928,7 +1928,7 @@ struct page *aml_cma_alloc(struct cma *cma, unsigned long count,
 	int ret = -ENOMEM;
 	int num_attempts = 0;
 	int max_retries = 5;
-	int dummy;
+	int dummy = 0;
 	unsigned long tick = 0;
 	unsigned long long in_tick, timeout;
 
