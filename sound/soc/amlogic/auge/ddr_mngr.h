@@ -29,7 +29,7 @@
 #define FIFO_DEPTH_512              0x200
 #define FIFO_DEPTH_256              0x100
 
-#define DDRMAX 4
+#define DDRMAX 5
 
 enum ddr_num {
 	DDR_A,
@@ -282,7 +282,6 @@ struct ddr_info {
 /* to ddrs */
 struct toddr *fetch_toddr_by_src(int toddr_src);
 struct toddr *aml_audio_register_toddr(struct device *dev,
-		struct aml_audio_controller *actrl,
 		irq_handler_t handler, void *data, int use_vad_toddr);
 int aml_audio_unregister_toddr(struct device *dev, void *data, int use_vad_toddr);
 void audio_toddr_irq_enable(struct toddr *to, bool en);
@@ -335,7 +334,6 @@ void aml_set_vad(bool enable, int module);
 struct frddr *fetch_frddr_by_src(int frddr_src);
 
 struct frddr *aml_audio_register_frddr(struct device *dev,
-		struct aml_audio_controller *actrl,
 		irq_handler_t handler, void *data, bool rvd_dst);
 int aml_audio_unregister_frddr(struct device *dev, void *data);
 int aml_frddr_set_buf(struct frddr *fr, unsigned int start,

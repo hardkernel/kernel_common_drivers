@@ -120,7 +120,7 @@ static int aml_pdm_filter_mode_get_enum(struct snd_kcontrol *kcontrol,
 	if (!p_pdm)
 		return 0;
 
-	ucontrol->value.enumerated.item[0] = p_pdm->filter_mode;
+	ucontrol->value.enumerated.item[0] = p_pdm->lpf_filter_mode;
 
 	return 0;
 }
@@ -134,7 +134,7 @@ static int aml_pdm_filter_mode_set_enum(struct snd_kcontrol *kcontrol,
 	if (!p_pdm)
 		return 0;
 
-	p_pdm->filter_mode = ucontrol->value.enumerated.item[0];
+	p_pdm->lpf_filter_mode = ucontrol->value.enumerated.item[0];
 
 	return 0;
 }
@@ -584,7 +584,7 @@ static int aml_pdm_open(struct snd_soc_component *component, struct snd_pcm_subs
 	runtime->private_data = p_pdm;
 
 	p_pdm->tddr = aml_audio_register_toddr
-		(dev, p_pdm->actrl, aml_pdm_isr_handler, substream, p_pdm->use_vad_toddr);
+		(dev, aml_pdm_isr_handler, substream, p_pdm->use_vad_toddr);
 	if (!p_pdm->tddr) {
 		ret = -ENXIO;
 		dev_err(dev, "failed to claim to ddr\n");
@@ -692,7 +692,7 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	unsigned int bitwidth;
 	unsigned int toddr_type, lsb;
 	struct toddr_fmt fmt;
-	unsigned int osr = 192, filter_mode, dclk_idx;
+	unsigned int osr = 192, lpf_filter_mode, hpf_filter_mode, dclk_idx;
 	struct pdm_info info;
 	int pdm_id;
 	struct toddr *to;
@@ -753,14 +753,14 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	if (p_pdm->islowpower) {
 		/* dclk for 768k */
 		dclk_idx = 2;
-		filter_mode = 4;
+		lpf_filter_mode = 4;
 		pdm_force_sysclk_to_oscin(true, pdm_id, p_pdm->chipinfo->vad_top);
 		if (vad_pdm_is_running())
 			vad_set_lowerpower_mode(true);
 
 	} else {
 		dclk_idx = p_pdm->dclk_idx;
-		filter_mode = p_pdm->filter_mode;
+		lpf_filter_mode = p_pdm->lpf_filter_mode;
 	}
 
 	/* filter for pdm */
@@ -774,12 +774,15 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	pr_info("%s, pdm_dclk:%d, osr:%d, rate:%d filter mode:%d\n",
+	hpf_filter_mode = p_pdm->hpf_filter_mode;
+
+	pr_info("%s, pdm_dclk:%d, osr:%d, rate:%d, LPF filter mode:%d, HPF filter mode:%d\n",
 		__func__,
 		pdm_dclkidx2rate(dclk_idx),
 		osr,
 		runtime->rate,
-		p_pdm->filter_mode);
+		p_pdm->lpf_filter_mode,
+		p_pdm->hpf_filter_mode);
 
 	info.bitdepth   = bitwidth;
 	info.channels   = runtime->channels;
@@ -789,10 +792,10 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	info.sample_count = pdm_get_sample_count(p_pdm->islowpower, dclk_idx);
 
 	aml_pdm_ctrl(&info, pdm_id);
-	aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, filter_mode, pdm_id);
+	aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, lpf_filter_mode, hpf_filter_mode, pdm_id);
 
-	if (p_pdm->chipinfo && p_pdm->chipinfo->truncate_data)
-		pdm_init_truncate_data(runtime->rate, pdm_id);
+	if (p_pdm->pdm_mute_time)
+		pdm_init_truncate_data(runtime->rate, pdm_id, p_pdm->pdm_mute_time);
 
 	return 0;
 }
@@ -866,7 +869,8 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 
 	clk_name = (char *)__clk_get_name(p_pdm->dclk_srcpll);
 	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
-		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID)  &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
 			pr_err("%s:set hifi pll\n", __func__);
 			if (p_pdm->syssrc_clk_rate)
 				clk_set_rate(p_pdm->dclk_srcpll, p_pdm->syssrc_clk_rate);
@@ -1283,7 +1287,8 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if ((!IS_ERR(p_pdm->dclk_srcpll)) && (aml_return_chip_id() == CLK_NOTIFY_CHIP_ID)) {
+	if ((!IS_ERR(p_pdm->dclk_srcpll)) && ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X))) {
 		p_pdm->clk_nb.notifier_call = aml_pdm_clock_notifier;
 		p_pdm->earc_use_48k = true;
 		ret = clk_notifier_register(p_pdm->dclk_srcpll, &p_pdm->clk_nb);
@@ -1301,13 +1306,18 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 		p_pdm->lane_mask_in = 0xf;
 	}
 
-	ret = of_property_read_u32(node, "filter_mode", &p_pdm->filter_mode);
+	ret = of_property_read_u32(node, "filter_mode", &p_pdm->lpf_filter_mode);
 	if (ret < 0) {
-		/* default set 1 */
-		p_pdm->filter_mode = 1;
+		/* default set 4 */
+		p_pdm->lpf_filter_mode = 4;
 	}
-	pr_debug("%s pdm filter mode from dts:%d\n",
-		__func__, p_pdm->filter_mode);
+	ret = of_property_read_u32(node, "hpf_filter_mode", &p_pdm->hpf_filter_mode);
+	if (ret < 0 || p_pdm->hpf_filter_mode < 0) {
+		/* default set 6: 120Hz for 48K */
+		p_pdm->hpf_filter_mode = 6;
+	}
+	pr_debug("%s pdm LPF filter mode: %d, HPF filter mode: %d\n",
+			__func__, p_pdm->lpf_filter_mode, p_pdm->hpf_filter_mode);
 
 	ret = of_property_read_u32(node, "train_sample_count",
 			&p_pdm->train_sample_count);
@@ -1322,6 +1332,13 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 		p_pdm->dclk_idx = 0;
 	pr_debug("%s pdm dclk id  from dts:%d\n",
 		__func__, p_pdm->dclk_idx);
+
+	ret = of_property_read_u32(node, "pdm_mute_time",
+			&p_pdm->pdm_mute_time);
+	if (ret < 0)
+		p_pdm->pdm_mute_time = 0;
+	pr_debug("%s pdm_mute_time  from dts:%d\n",
+		__func__, p_pdm->pdm_mute_time);
 
 	if (p_pdm->chipinfo->regulator) {
 		p_pdm->regulator_vcc3v3 = devm_regulator_get(dev, "pdm3v3");
@@ -1487,7 +1504,8 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 			p_pdm->force_lowpower);
 	}
 
-	if ((!IS_ERR(p_pdm->dclk_srcpll)) && (aml_return_chip_id() == CLK_NOTIFY_CHIP_ID)) {
+	if ((!IS_ERR(p_pdm->dclk_srcpll)) && ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X))) {
 		ret = clk_notifier_unregister(p_pdm->dclk_srcpll, &p_pdm->clk_nb);
 		if (ret)
 			return;

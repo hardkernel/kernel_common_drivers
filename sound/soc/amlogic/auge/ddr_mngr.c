@@ -110,7 +110,6 @@ static irqreturn_t aml_ddr_isr(int irq, void *devid)
 
 /* to DDRS */
 static struct toddr *register_toddr_l(struct device *dev,
-	struct aml_audio_controller *actrl,
 	irq_handler_t handler, void *data, int use_vad_toddr)
 {
 	struct toddr *to;
@@ -227,14 +226,12 @@ struct toddr *fetch_toddr_by_src(int toddr_src)
 }
 
 struct toddr *aml_audio_register_toddr(struct device *dev,
-	struct aml_audio_controller *actrl,
 	irq_handler_t handler, void *data, int use_vad_toddr)
 {
 	struct toddr *to = NULL;
 
 	mutex_lock(&ddr_mutex);
-	to = register_toddr_l(dev, actrl,
-		handler, data, use_vad_toddr);
+	to = register_toddr_l(dev, handler, data, use_vad_toddr);
 	mutex_unlock(&ddr_mutex);
 	return to;
 }
@@ -1229,7 +1226,6 @@ static void aml_check_vad(struct toddr *to, bool enable)
 
 /* from DDRS */
 static struct frddr *register_frddr_l(struct device *dev,
-	struct aml_audio_controller *actrl,
 	irq_handler_t handler, void *data, bool rvd_dst)
 {
 	struct frddr *from;
@@ -1338,13 +1334,12 @@ struct frddr *fetch_frddr_by_src(int frddr_src)
 }
 
 struct frddr *aml_audio_register_frddr(struct device *dev,
-	struct aml_audio_controller *actrl,
 	irq_handler_t handler, void *data, bool rvd_dst)
 {
 	struct frddr *fr = NULL;
 
 	mutex_lock(&ddr_mutex);
-	fr = register_frddr_l(dev, actrl, handler, data, rvd_dst);
+	fr = register_frddr_l(dev, handler, data, rvd_dst);
 	mutex_unlock(&ddr_mutex);
 	return fr;
 }
