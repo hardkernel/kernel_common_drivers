@@ -82,7 +82,7 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 		else
 			frac_precision = (u32)BIT(pll->frac.width);
 
-		frac_rate = (u64)parent_rate * frac;
+		frac_rate = div_u64((u64)parent_rate * frac, n);
 		rate += DIV_ROUND_UP_ULL(frac_rate, frac_precision);
 	}
 
@@ -224,13 +224,17 @@ static int meson_clk_get_pll_range_index(unsigned long rate,
 	     (index >= (1 << pll->n.width))))
 		return -EINVAL;
 
-	if (pll->flags & CLK_MESON_PLL_FIXED_N)
+	if (pll->flags & CLK_MESON_PLL_FIXED_N) {
 		if (pll->flags & CLK_MESON_PLL_POWER_OF_TWO)
 			*n = 0;
 		else
 			*n = 1;
-	else
-		*n = index;
+	} else {
+		if (pll->flags & CLK_MESON_PLL_POWER_OF_TWO)
+			*n = index;
+		else
+			*n = index + 1;
+	}
 
 	if (pll->flags & CLK_MESON_PLL_FIXED_EN0P5)
 		parent_rate = parent_rate >> 1;
