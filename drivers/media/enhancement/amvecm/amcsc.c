@@ -206,7 +206,7 @@ void hdr_vd3_off(enum vpp_index_e vpp_index)
 void hdr_vd1_iptmap(enum vpp_index_e vpp_index)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	enum hdr_process_sel cur_hdr_process;
+	enum hdr_process_sel cur_hdr_process = HDR_BYPASS;
 	int s5_silce_mode = get_s5_slice_mode();
 
 	if (s5_silce_mode == VD1_1SLICE) {
