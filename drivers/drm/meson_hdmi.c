@@ -332,7 +332,8 @@ static int meson_hdmitx_decide_color_attr
 	return 0;
 }
 
-static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connector *connector)
+static int meson_hdmitx_mode_probed_add(int count, int *vics,
+	struct drm_connector *connector, bool edid_vic)
 {
 	struct drm_display_mode *mode, *pref_mode = NULL;
 	struct drm_hdmitx_timing_para para;
@@ -389,7 +390,12 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connect
 			mode->clock >>= 1;
 		}
 
-		mode->hskew = 0;
+		/*use hskew to distinguish whether it's qms mode or edid mode*/
+		if (edid_vic)
+			mode->hskew = 1;
+		else
+			mode->hskew = 0;
+
 		mode->flags |= para.h_pol ?
 			DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
 
@@ -437,7 +443,7 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connect
 
 		drm_mode_probed_add(connector, mode);
 
-		DRM_DEBUG("add mode [%s]\n", mode->name);
+		DRM_DEBUG("add mode [%s] [%d]\n", mode->name, mode->hskew);
 	}
 
 	if (pref_mode)
@@ -451,7 +457,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	u32 vrr_cap = 0;
 	struct edid *edid;
 	int *vics;
-	int count = 0, count1 = 0, i = 0, j = 0;
+	int count = 0, count_qms = 0, i = 0, j = 0;
 	struct drm_display_mode *mode;
 	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
 	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
@@ -502,16 +508,16 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 		for (i = 0; i < num_group; i++) {
 			group = &groups[i];
 			for (j = 0; j < ARRAY_SIZE(group->qms_vic_lists); j++) {
-				tmp[count1] = group->qms_vic_lists[j];
+				tmp[count_qms] = group->qms_vic_lists[j];
 				DRM_DEBUG("%s__%d__%d__%zd\n", __func__,
-				__LINE__, tmp[count1],
+				__LINE__, tmp[count_qms],
 				ARRAY_SIZE(group->qms_vic_lists));
-				count1++;
+				count_qms++;
 			}
 		}
 
 		/*remove duplicate vics array variables*/
-		while (src  < count1) {
+		while (src  < count_qms) {
 			bool exist = false;
 
 			for (i = 0; i < count; i++) {
@@ -526,16 +532,16 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 				vrr_list[dst++] = tmp[src++];
 		}
 
-		count1 = dst;
+		count_qms = dst;
 	}
 
 	if (count) {
-		meson_hdmitx_mode_probed_add(count, vics, connector);
+		meson_hdmitx_mode_probed_add(count, vics, connector, true);
 		kfree(vics);
 	}
 
-	if (count1)
-		meson_hdmitx_mode_probed_add(count1, vrr_list, connector);
+	if (count_qms)
+		meson_hdmitx_mode_probed_add(count_qms, vrr_list, connector, false);
 
 	/*TODO:add dummy mode temp.*/
 	if (am_hdmitx->base.drm_priv->dummyl_from_hdmitx) {
@@ -557,7 +563,7 @@ end:
 	kfree(tmp);
 	kfree(groups);
 
-	return count + count1;
+	return count + count_qms;
 }
 
 /*   drm_display_mode	     :		 hdmi_format_para
