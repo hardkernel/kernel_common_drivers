@@ -692,7 +692,11 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 				fw->fw_ctrl |= FW_CTRL_BOOST_EN;
 			ldim_drv->dev_drv->boost_conf.en = (unsigned char)val1;
 		}
-		pr_info("boost_en = %d\n", ldim_drv->dev_drv->boost_conf.en);
+		pr_info("en = %d, mode=%d, i=%d:%d, i_val=%d:%d, kp=%d:%d\n",
+		ldim_drv->dev_drv->boost_conf.en, ldim_drv->dev_drv->boost_conf.mode,
+		ldim_drv->dev_drv->boost_conf.i_l100, ldim_drv->dev_drv->boost_conf.i_l32,
+		ldim_drv->dev_drv->boost_conf.i_l100_val, ldim_drv->dev_drv->boost_conf.i_l32_val,
+		ldim_drv->dev_drv->boost_conf.kp_l100, ldim_drv->dev_drv->boost_conf.kp_l32);
 	} else if (!strcmp(parm[0], "boost_mode")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -707,7 +711,11 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_drv->dev_drv->boost_conf.mode = (unsigned char)val1;
 			ldim_drv->fw->iparam[2] = (unsigned char)val1;
 		}
-		pr_info("boost_mode = %d\n", ldim_drv->dev_drv->boost_conf.mode);
+		pr_info("en = %d, mode=%d, i=%d:%d, i_val=%d:%d, kp=%d:%d\n",
+		ldim_drv->dev_drv->boost_conf.en, ldim_drv->dev_drv->boost_conf.mode,
+		ldim_drv->dev_drv->boost_conf.i_l100, ldim_drv->dev_drv->boost_conf.i_l32,
+		ldim_drv->dev_drv->boost_conf.i_l100_val, ldim_drv->dev_drv->boost_conf.i_l32_val,
+		ldim_drv->dev_drv->boost_conf.kp_l100, ldim_drv->dev_drv->boost_conf.kp_l32);
 	} else if (!strcmp(parm[0], "spiout_mode")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -1219,7 +1227,8 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 		if (!fw->oparam)
 			goto ldim_debug_store_err;
 
-		for (i = 0; i < FW_IPARAM_LEN; i++)
+		temp = FW_IPARAM_LEN + seg_size;
+		for (i = 0; i < temp; i++)
 			pr_info("oparam[%d]:0x%x\n", i, fw->oparam[i]);
 	} else {
 		pr_info("no support cmd!!!\n");

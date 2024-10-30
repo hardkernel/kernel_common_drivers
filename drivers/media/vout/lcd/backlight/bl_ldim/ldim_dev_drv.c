@@ -1275,23 +1275,28 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		LDIMERR("failed to get boost_conf\n");
 		dev_drv->boost_conf.en = 0;
 		dev_drv->boost_conf.mode = 0;
-		dev_drv->boost_conf.i_max = 0;
 		dev_drv->boost_conf.i_l100 = 0;
 		dev_drv->boost_conf.i_l32 = 0;
+		dev_drv->boost_conf.i_l100_val = 0;
+		dev_drv->boost_conf.i_l32_val = 0;
 		dev_drv->boost_conf.kp_l100 = 0;
 		dev_drv->boost_conf.kp_l32 = 0;
 	} else {
 		dev_drv->boost_conf.en = (unsigned char)temp[0];
 		dev_drv->boost_conf.mode = (unsigned char)temp[1];
-		dev_drv->boost_conf.i_max = (unsigned char)temp[2];
 		dev_drv->boost_conf.i_l100 = (unsigned short)temp[3];
 		dev_drv->boost_conf.i_l32 = (unsigned short)temp[4];
-		dev_drv->boost_conf.kp_l100 = (unsigned char)temp[5];
-		dev_drv->boost_conf.kp_l32 = (unsigned char)temp[6];
+		dev_drv->boost_conf.i_l100_val = (unsigned short)temp[5];
+		dev_drv->boost_conf.i_l32_val = (unsigned short)temp[6];
+		dev_drv->boost_conf.kp_l100 = (unsigned char)temp[7];
+		dev_drv->boost_conf.kp_l32 = (unsigned char)temp[8];
 	}
-	LDIMPR("boost_conf: en:%d, mode:%d, imax:%d, i_l100:%d, i_l32:%d, kp_l100:%d, kp_l32:%d\n",
+
+	LDIMPR("boost_conf: en:%d, mode:%d, i_l100: %d\n"
+		"i_l32:%d,i_l100_val:%d,i_l32_val:%d, kp_l100:%d, kp_l32:%d\n",
 		dev_drv->boost_conf.en, dev_drv->boost_conf.mode,
-		dev_drv->boost_conf.i_max, dev_drv->boost_conf.i_l100, dev_drv->boost_conf.i_l32,
+		dev_drv->boost_conf.i_l100, dev_drv->boost_conf.i_l32,
+		dev_drv->boost_conf.i_l100_val, dev_drv->boost_conf.i_l32_val,
 		dev_drv->boost_conf.kp_l100, dev_drv->boost_conf.kp_l32);
 
 	ret = of_property_read_string(child, "ldim_zone_mapping_path", &str);
@@ -1675,11 +1680,14 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_5 + 1)) << 8) |
 		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_5 + 2)) << 16) |
 		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_5 + 3)) << 24));
-	dev_drv->boost_conf.i_max = temp & 0xffff;
+	dev_drv->boost_conf.i_l100_val = temp & 0xffff;
+	dev_drv->boost_conf.i_l32_val = (temp >> 16) & 0xffff;
 
-	LDIMPR("boost_conf: en:%d, mode:%d, imax:%d, i_l100:%d, i_l32:%d, kp_l100:%d, kp_l32:%d\n",
+	LDIMPR("boost_conf: en:%d, mode:%d, i_l100: %d\n"
+		"i_l32:%d,i_l100_val:%d,i_l32_val:%d, kp_l100:%d, kp_l32:%d\n",
 		dev_drv->boost_conf.en, dev_drv->boost_conf.mode,
-		dev_drv->boost_conf.i_max, dev_drv->boost_conf.i_l100, dev_drv->boost_conf.i_l32,
+		dev_drv->boost_conf.i_l100, dev_drv->boost_conf.i_l32,
+		dev_drv->boost_conf.i_l100_val, dev_drv->boost_conf.i_l32_val,
 		dev_drv->boost_conf.kp_l100, dev_drv->boost_conf.kp_l32);
 
 	str = (const char *)(p + LCD_UKEY_LDIM_DEV_ZONE_MAP_PATH);
@@ -2350,6 +2358,23 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	if (ret)
 		goto ldim_dev_probe_func_fail1;
 
+	if (ldim_dev_drv.boost_conf.mode) {
+		if (ldim_drv->fw && ldim_drv->fw->iparam) {
+			ldim_drv->fw->iparam[2] = ldim_dev_drv.boost_conf.mode;
+			ldim_drv->fw->iparam[3] = ldim_dev_drv.boost_conf.i_l100;
+			ldim_drv->fw->iparam[4] = ldim_dev_drv.boost_conf.i_l32;
+			ldim_drv->fw->iparam[5] = ldim_dev_drv.boost_conf.i_l100_val;
+			ldim_drv->fw->iparam[6] = ldim_dev_drv.boost_conf.i_l32_val;
+			ldim_drv->fw->iparam[7] = ldim_dev_drv.boost_conf.kp_l100;
+			ldim_drv->fw->iparam[8] = ldim_dev_drv.boost_conf.kp_l32;
+			ldim_dev_drv.boost_conf.iset = &ldim_drv->fw->oparam[FW_IPARAM_LEN];
+
+			//default enable boost
+			if (ldim_dev_drv.boost_conf.en)
+				ldim_drv->fw->fw_ctrl |= FW_CTRL_BOOST_EN;
+		}
+	}
+
 	ldim_dev_drv.pwm_phase = ldim_dev_drv.ldim_pwm_config.pwm_phase;
 	ldim_dev_drv.pinmux_ctrl = ldim_pwm_pinmux_ctrl;
 	ldim_dev_drv.pwm_vs_update = ldim_pwm_vs_update;
@@ -2379,21 +2404,6 @@ static void ldim_dev_probe_func(struct work_struct *work)
 		(ulong)ldim_dev_drv.spi_tx_dma, (ulong)ldim_dev_drv.spi_rx_dma);
 	if (ldim_dev_drv.spi_sync == SPI_DMA_TRIG)
 		ldim_wr_vcbus(VPP_INT_LINE_NUM, ldim_dev_drv.spi_line_n);
-
-	if (ldim_dev_drv.boost_conf.mode) {
-		if (ldim_drv->fw && ldim_drv->fw->iparam) {
-			ldim_drv->fw->iparam[2] = ldim_dev_drv.boost_conf.mode;
-			ldim_drv->fw->iparam[3] = ldim_dev_drv.boost_conf.i_l100;
-			ldim_drv->fw->iparam[4] = ldim_dev_drv.boost_conf.i_l32;
-			ldim_drv->fw->iparam[5] = ldim_dev_drv.boost_conf.kp_l100;
-			ldim_drv->fw->iparam[6] = ldim_dev_drv.boost_conf.kp_l32;
-			ldim_drv->fw->iparam[7] = ldim_dev_drv.boost_conf.i_max;
-
-			//default enable boost
-			if (ldim_dev_drv.boost_conf.en)
-				ldim_drv->fw->fw_ctrl |= FW_CTRL_BOOST_EN;
-		}
-	}
 
 	/* init ldim function */
 	ldim_drv->init();

@@ -28,8 +28,9 @@
 /*20231108: remove ldim_off_vs_brightness */
 /*20231208: support spi dma trig interface */
 /*20240730: add fw iparam */
+/*20241030: add boost function */
 
-#define LDIM_DRV_VER    "20240730"
+#define LDIM_DRV_VER    "20241030"
 
 enum spi_sync_type_e {
 	SPI_SYNC	= 0x00,

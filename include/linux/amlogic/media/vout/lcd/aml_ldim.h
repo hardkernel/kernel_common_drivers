@@ -47,15 +47,17 @@ struct ldim_config_s {
 struct ldim_boost_s {
 	unsigned char en;
 	unsigned char mode;
-	unsigned short i_max;
 	unsigned short i_l100;
 	unsigned short i_l32;
+	unsigned short i_l100_val;
+	unsigned short i_l32_val;
 	unsigned char kp_l100;
 	unsigned char kp_l32;
 	unsigned char kp_cur;
 	unsigned short i_cur;
 	unsigned int apl;
 	unsigned int pre_apl;
+	int *iset;
 };
 
 #define LDIM_DEV_NAME_MAX    30

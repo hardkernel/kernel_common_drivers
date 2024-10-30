@@ -51,7 +51,7 @@ struct iw7039_s {
 	unsigned int reg_buf_size;
 	unsigned int tbuf_size;
 	unsigned int rbuf_size;
-	unsigned short iset;
+	int *iset;
 
 	unsigned short *reg_buf; /* local dimming driver smr api usage */
 
@@ -349,7 +349,7 @@ static int iw7039_hw_init_on(struct ldim_dev_driver_s *dev_drv)
 	iw7039_reg_write_all(dev_drv, 0xa0, temp, 1);
 
 	for (i = 0; i < 32; i++)
-		init_buf[i] = bl_iw7039->iset;
+		init_buf[i] = (unsigned short)bl_iw7039->iset[i];
 	iw7039_reg_write_all(dev_drv, 0x20, init_buf, 0x20);
 
 	for (i = 0; i < 32; i++)
@@ -436,7 +436,7 @@ static inline void ldim_data_mapping(struct aml_ldim_driver_s *ldim_drv, unsigne
 		}
 		k = (j / 32) * 96 + j % 32;
 		if (dev_drv->boost_conf.mode == 2) {
-			bl_iw7039->reg_buf[k] = ldim_drv->fw->oparam[i + FW_IPARAM_LEN] >> 2;
+			bl_iw7039->reg_buf[k] = bl_iw7039->iset[i];
 			bl_iw7039->reg_buf[k + 64] = val;
 		} else {//mode == 1
 			bl_iw7039->reg_buf[k] = iled * 1023 / 66;
@@ -582,7 +582,6 @@ static ssize_t iw7039_show(struct class *class, struct class_attribute *attr, ch
 				"reg_buf_size   = %d\n"
 				"tbuf_size      = %d\n"
 				"rbuf_size      = %d\n"
-				"iset      = 0x%x\n"
 				"en_on          = %d\n"
 				"en_off         = %d\n"
 				"cs_hold_delay  = %d\n"
@@ -596,7 +595,6 @@ static ssize_t iw7039_show(struct class *class, struct class_attribute *attr, ch
 				bl_iw7039->reg_buf_size,
 				bl_iw7039->tbuf_size,
 				bl_iw7039->rbuf_size,
-				bl_iw7039->iset,
 				dev_drv->en_gpio_on,
 				dev_drv->en_gpio_off,
 				dev_drv->cs_hold_delay,
@@ -635,7 +633,6 @@ static ssize_t iw7039_store(struct class *class, struct class_attribute *attr,
 		if (kstrtouint(buf, 0, &val) < 0)
 			goto iw7039_store_err;
 
-		bl_iw7039->iset = (unsigned short)val;
 		for (i = 0; i < 32; i++)
 			init_buf[i] = (unsigned short)val;
 		iw7039_reg_write_all(dev_drv, 0x20, init_buf, 0x20);
@@ -698,7 +695,7 @@ int ldim_dev_iw7039_probe(struct aml_ldim_driver_s *ldim_drv)
 	bl_iw7039->vsync_cnt = 0;
 	bl_iw7039->fault_cnt = 0;
 	bl_iw7039->dma_support = dev_drv->dma_support;
-	bl_iw7039->iset = 0x174;
+	bl_iw7039->iset = dev_drv->boost_conf.iset;
 
 	/* 32 channel each device */
 	bl_iw7039->reg_buf_size = 32 * dev_drv->chip_cnt * 3;
