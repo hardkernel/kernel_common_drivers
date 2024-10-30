@@ -3320,23 +3320,23 @@ void vdin_sw_reset_t3x(struct vdin_dev_s *devp)
 }
 
 /*
- *[0]:enable/disable;[1~31]:pattern mode 0/1/2/...
+ * mode:0-disable;1~4:pattern mode 0 ~ 3
  */
 void vdin_bist_t3x(struct vdin_dev_s *devp, unsigned int mode)
 {
 	unsigned int bist_en = 0, test_pat = 0;
 	unsigned int hblank = 0, vblank = 0, vde_start = 0;
 
-	if (!(mode & 0x1)) {
+	if (!mode) {
 		bist_en = 0;
 	} else {
-		bist_en = 1;
-		test_pat = (mode >> 1);
+		bist_en = 1;/* [0] */
+		test_pat = ((mode - 0) >> 1) & 0x3;/* [2:1] */
 		if (devp->h_active == 320) {
 			//320x240
-			hblank = 11;
-			vblank = 8;
-			vde_start = 2;
+			hblank = 11; /* [11:4]*/
+			vblank = 8;  /* [19:12] */
+			vde_start = 2; /* [22:20] */
 		} else {
 			//1920x1080
 			hblank = 128;//280;

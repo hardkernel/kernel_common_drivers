@@ -336,7 +336,7 @@ bool vdin_is_convert_to_nv21(u32 format_convert);
 bool vdin_is_convert_to_rgb(u32 format_convert);
 bool vdin_is_4k(struct vdin_dev_s *devp);
 void vdin_set_matrix_color(struct vdin_dev_s *devp);
-void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigned int pat);
+void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int pat);
 
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
@@ -365,7 +365,6 @@ bool vdin_check_freesync_state_chg(struct vdin_dev_s *devp);
 bool vdin_is_vrr_state_chg(struct vdin_dev_s *devp);
 bool vdin_is_qms_state_chg(struct vdin_dev_s *devp);
 void vdin_sw_reset(struct vdin_dev_s *devp);
-void vdin_bist(struct vdin_dev_s *devp, unsigned int mode);
 unsigned int vdin_calculate_common_divisor(unsigned int x, unsigned int y);
 int vdin_get_base_fr(struct vdin_dev_s *devp);
 bool vdin_is_3d_interlace_signal(struct vdin_dev_s *devp);

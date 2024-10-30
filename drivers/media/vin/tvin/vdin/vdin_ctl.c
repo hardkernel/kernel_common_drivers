@@ -4747,7 +4747,7 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 	devp->stamp = stamp;
 	devp->cycle  = cycle;
 
-	if ((cycle <= (devp->msr_clk_val / 1000)) ||
+	if ((cycle && (cycle <= (devp->msr_clk_val / 1000))) ||
 	    interval_value <= VDIN_INPUT_MAX_FPS) {
 		devp->stats.cycle_err_cnt_con++;
 		ret = true;
@@ -7767,8 +7767,8 @@ void vdin_set_matrix_color(struct vdin_dev_s *devp)
 		pr_info("%s offset:%d, md:%d\n", __func__, offset, mode);
 }
 
-/* only active under vdi6 loopback case */
-void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigned int pat)
+/* pat:0-disable;1~4:pattern mode 0 ~ 3 */
+void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int pat)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int de_start = 0x7;
@@ -7776,11 +7776,16 @@ void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigne
 	unsigned int h_blank = 0xff;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu() || is_meson_t3x_cpu())
+	if (is_meson_s5_cpu()) {
+		vdin_bist_s5(devp, pat);
 		return;
+	} else if (is_meson_t3x_cpu()) {
+		vdin_bist_t3x(devp, pat);
+		return;
+	}
 #endif
 
-	if (on_off) {
+	if (pat) {
 		wr_bits(offset, VDIN_ASFIFO_CTRL0, de_start,
 			VDI6_BIST_DE_START_BIT, VDI6_BIST_DE_START_WID);
 		wr_bits(offset, VDIN_ASFIFO_CTRL0, v_blank,
@@ -7789,7 +7794,7 @@ void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigne
 			VDI6_BIST_HBLANK_BIT, VDI6_BIST_HBLANK_WID);
 
 		/* 0:horizontal gray scale, 1:vertical gray scale, 2,3:random data */
-		wr_bits(offset, VDIN_ASFIFO_CTRL0, pat,
+		wr_bits(offset, VDIN_ASFIFO_CTRL0, pat - 1,
 			VDI6_BIST_SEL_BIT, VDI6_BIST_SEL_WID);
 		wr_bits(offset, VDIN_ASFIFO_CTRL0, 1,
 			VDI6_BIST_EN_BIT, VDI6_BIST_EN_WID);
@@ -7860,16 +7865,6 @@ void vdin_sw_reset(struct vdin_dev_s *devp)
 		wr_bits(0, VDIN_TOP_MISC, 1, 29, 1); //wrmif0
 		wr_bits(0, VDIN_TOP_MISC, 0, 29, 1); //wrmif0
 	}
-}
-
-void vdin_bist(struct vdin_dev_s *devp, unsigned int mode)
-{
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu())
-		vdin_bist_s5(devp, mode);
-	else if (is_meson_t3x_cpu())
-		vdin_bist_t3x(devp, mode);
-#endif
 }
 
 /* set base frame when vrr or freesync

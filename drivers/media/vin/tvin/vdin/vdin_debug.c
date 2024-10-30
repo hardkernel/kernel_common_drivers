@@ -3596,10 +3596,7 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			val = temp;
 
-		if (!(parm[2] && (kstrtouint(parm[2], 10, &temp) == 0)))
-			temp = 0;
-
-		vdin_set_bist_pattern(devp, val, temp);
+		vdin_set_bist_pattern(devp, val);
 	} else if (!strcmp(parm[0], "vdin1_hist_on_off")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			/*
@@ -3811,12 +3808,6 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_de_interlanced_ctl = temp;
 			pr_info("dbg_deinterlance_ctl:%#x\n", devp->debug.dbg_de_interlanced_ctl);
-		}
-	} else if (!strcmp(parm[0], "pattern")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			devp->debug.dbg_pattern = temp;
-			pr_info("dbg_pattern:%#x\n", devp->debug.dbg_pattern);
-			vdin_bist(devp, devp->debug.dbg_pattern);
 		}
 	} else if (!strcmp(parm[0], "vdin_drop_num")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {

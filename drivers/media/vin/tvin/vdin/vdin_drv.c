@@ -423,8 +423,9 @@ static void vdin_measure_clk_ctl(struct vdin_dev_s *devp, bool on_off)
 		g_vdin_msr_ctl.inuse &= ~(1 << devp->index);
 	}
 	if (vdin_dbg_en)
-		pr_info("%s(vdin%d),on_off:%d,inuse=0x%x\n", __func__, devp->index,
-			on_off, g_vdin_msr_ctl.inuse);
+		pr_info("%s(vdin%d),on_off:%d,inuse=0x%x,msr:%d hz,clk_en:%d\n",
+			__func__, devp->index, on_off, g_vdin_msr_ctl.inuse,
+			devp->msr_clk_val, g_vdin_msr_ctl.is_clk_enabled);
 	if (!g_vdin_msr_ctl.inuse && devp->msr_clk && g_vdin_msr_ctl.is_clk_enabled) {
 		clk_disable_unprepare(devp->msr_clk);
 		g_vdin_msr_ctl.is_clk_enabled = false;
@@ -2244,9 +2245,9 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 
 	/* vdin bist pattern */
 	if (devp->parm.port == TVIN_PORT_VIU1_WB1_VDIN_BIST)
-		vdin_set_bist_pattern(devp, 1, 1);
+		vdin_set_bist_pattern(devp, 2);
 	else
-		vdin_set_bist_pattern(devp, 0, 1);
+		vdin_set_bist_pattern(devp, 0);
 
 	/* for vdin0 loopback, already request irq in open */
 	if (devp->index == 0 && (devp->flags & VDIN_FLAG_ISR_REQ)) {
@@ -3324,7 +3325,7 @@ static void vdin_slt_test(struct vdin_dev_s *devp)
 			else
 				devp->debug.slt_test.vf_pass_cnt = 0;
 		} else {
-			stable_cnt = 30;
+			stable_cnt = 10;
 			if (devp->debug.slt_test.vf_last_crc == devp->vfp->last_last_vfe->vf.crc)
 				devp->debug.slt_test.vf_pass_cnt++;
 			else
@@ -3342,8 +3343,8 @@ static void vdin_slt_test(struct vdin_dev_s *devp)
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_INPUT)
 		pr_info("vdin%d,crc=[%#x %#x],cnt=[%d %d]\n",
-			devp->index,
-			devp->vfp->last_last_vfe->vf.crc, devp->debug.slt_test.vf_ori_crc,
+			devp->index, devp->debug.slt_test.vf_ori_crc,
+			!devp->vfp->last_last_vfe ? 0xdeaddeaf : devp->vfp->last_last_vfe->vf.crc,
 			devp->debug.slt_test.vf_pass_cnt, devp->debug.slt_test.vf_check_result);
 }
 
@@ -3558,8 +3559,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	/* use RDMA and not game mode */
 	if (devp->last_wr_vfe && (devp->flags & VDIN_FLAG_RDMA_ENABLE) &&
-	    !(devp->game_mode & VDIN_GAME_MODE_1) &&
-	    !(devp->game_mode & VDIN_GAME_MODE_2)) {
+	    !(devp->game_mode & VDIN_GAME_MODE_1_2)) {
 		/*dolby vision metadata process*/
 		if (dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK &&
 		    devp->dv.dv_config) {
@@ -3595,6 +3595,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		if (devp->vfp->skip_vf_num > 0)
 			vdin_vf_disp_mode_update(devp->last_wr_vfe, devp->vfp);
 
+		vdin_get_crc_val(&devp->last_wr_vfe->vf, devp);
 		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe, put_md);
 
 		devp->last_wr_vfe = NULL;
