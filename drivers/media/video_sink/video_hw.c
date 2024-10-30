@@ -7899,6 +7899,8 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 
 	if (!legacy_vpp) {
 		u32 set_value = 0;
+		u32 set_value1 = 0;
+		u32 set_value2 = 0;
 
 		/* for sr core0, put it between prebld & pps as default */
 		if (vd1_frame_par &&
@@ -8070,15 +8072,27 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				set_value |= VPP_POSTBLEND_EN;
 				set_value |= VPP_PREBLEND_EN;
 			}
+			if (!is_meson_t6d_cpu()) {
 			/* t5d bit 9:11 used by wm ctrl, chip after g12 not used bit 9:11, mask it*/
-			set_value &= 0xfffff1ff;
-			set_value |= (vpp_misc_save & 0xe00);
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_MISC + vpp_off,
-				set_value);
-			cur_dev->rdma_func[vpp_index].rdma_wr_bits
-				(VPP_MISC2 + vpp_off,
-				vd_layer[2].layer_alpha, 0, 9);
+				set_value &= 0xfffff1ff;
+				set_value |= (vpp_misc_save & 0xe00);
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_MISC + vpp_off,
+					set_value);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(VPP_MISC2 + vpp_off,
+					vd_layer[2].layer_alpha, 0, 9);
+			} else {
+				/*for t6d keystone,VPP_MISC bit27 set in uboot by vout*/
+				set_value1 = set_value & 0x7ffffff;
+				set_value2 = set_value & 0xf0000000;
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(VPP_MISC + vpp_off,
+					set_value1, 0, 27);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(VPP_MISC + vpp_off,
+					set_value2 >> 28, 28, 4);
+			}
 
 		}
 	}
