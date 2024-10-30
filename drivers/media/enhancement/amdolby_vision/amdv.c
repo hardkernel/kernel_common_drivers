@@ -8202,7 +8202,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 
 	if (vf && (debug_dolby & 8))
 		pr_dv_dbg("parse_metadata: vf %p(index %d), mode %d\n",
-			      vf, vf->omx_index, dolby_vision_mode);
+			      vf, vf->frame_index, dolby_vision_mode);
 
 	if (get_hdr_module_status(VD1_PATH, VPP_TOP0) != HDR_MODULE_ON &&
 	    check_format == FORMAT_SDR) {
@@ -9375,7 +9375,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				     dv_id + 1,
 				     vd_path + 1,
 				     dv_provider[vd_path], vf, vf->discard_dv_data,
-				     vf->omx_index, fmt,
+				     vf->frame_index, fmt,
 				     req.aux_buf,
 				     req.aux_size,
 				     req.dv_enhance_exist);
@@ -10018,7 +10018,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 
 	if (vf && (debug_dolby & 8))
 		pr_dv_dbg("[inst%d]parse_metadata: vf %p(index %d), mode %d\n",
-			  dv_id + 1, vf, vf->omx_index, dolby_vision_mode);
+			  dv_id + 1, vf, vf->frame_index, dolby_vision_mode);
 
 	if (get_hdr_module_status(VD1_PATH, VPP_TOP0) != HDR_MODULE_ON &&
 	    check_format == FORMAT_SDR) {
@@ -11026,7 +11026,7 @@ int amdv_wait_metadata_v1(struct vframe_s *vf)
 
 	if (vf && (debug_dolby & 8))
 		pr_dv_dbg("wait return %d, vf %p(index %d), core1_on %d\n",
-			      ret, vf, vf->omx_index, amdv_core1_on);
+			      ret, vf, vf->frame_index, amdv_core1_on);
 
 	return ret;
 }
@@ -11082,7 +11082,7 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 			if (ott_mode) {
 				if (debug_dolby & 8)
 					pr_dv_dbg("[inst%d]need wait,vf %p(index %d),%d/%d\n",
-						  dv_id + 1, vf, vf->omx_index,
+						  dv_id + 1, vf, vf->frame_index,
 						  setting_update_count, crc_count);
 				return 1;
 			}
@@ -11207,7 +11207,7 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 
 	if (vf && (debug_dolby & 8))
 		pr_dv_dbg("[inst%d]wait return %d, vf %p(index %d), core1_on %d\n",
-			     dv_id + 1, ret, vf, vf->omx_index,
+			     dv_id + 1, ret, vf, vf->frame_index,
 			     dv_core1[layer_id].core1_on);
 
 	return ret;
@@ -11251,7 +11251,7 @@ int amdv_update_metadata(struct vframe_s *vf, enum vd_path_e vd_path, bool drop_
 
 	/*clear dv_vf before render first frame */
 	if (!multi_dv_mode) {
-		if (vf && vf->omx_index == 0)
+		if (vf && vf->frame_index == 0)
 			amdv_clear_buf(dv_id);
 	}
 
@@ -11268,7 +11268,7 @@ int amdv_update_metadata(struct vframe_s *vf, enum vd_path_e vd_path, bool drop_
 			(top2_v_info.frame_count)++;
 			if (debug_dolby & 0x20000)
 				pr_dv_dbg("update frame_count %d, %px(index %d),ret %d\n",
-				top2_v_info.frame_count, vf, vf->omx_index, ret);
+				top2_v_info.frame_count, vf, vf->frame_index, ret);
 		} else {
 			frame_count++;
 		}
@@ -11836,7 +11836,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 	if (vf && (debug_dolby & 0x8)) {
 		disable_detunnel = (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL) ? true : false;
 		pr_dv_dbg("%s: vf %p(index %d), mode %d, core1_on %d, disable_detunnel %d\n",
-			     __func__, vf, vf->omx_index,
+			     __func__, vf, vf->frame_index,
 			     dolby_vision_mode, amdv_core1_on, disable_detunnel);
 	}
 
@@ -12716,7 +12716,7 @@ static int amdolby_vision_process_v2_stb
 
 	if (vf && (debug_dolby & 0x8))
 		pr_dv_dbg("%s:vf %p(index %d),mode %d,%x,core1_on %d %d,pri %d\n",
-		     __func__, vf, vf->omx_index,
+		     __func__, vf, vf->frame_index,
 		     dolby_vision_mode, dolby_vision_flags, dv_core1[0].core1_on,
 		     dv_core1[1].core1_on, pri_input);
 

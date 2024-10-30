@@ -70,7 +70,7 @@ static struct videosync_dev *vp_dev;
 static uint show_first_frame_nosync;
 static uint max_delata_time;
 
-static u32 cur_omx_index;
+static u32 cur_frame_index;
 
 #define PTS_32_PATTERN_DETECT_RANGE 10
 #define PTS_22_PATTERN_DETECT_RANGE 10
@@ -704,15 +704,15 @@ static ssize_t not_rendor_store(struct class *cla,
 	return count;
 }
 
-static ssize_t current_omx_index_show(struct class *cla,
+static ssize_t current_frame_index_show(struct class *cla,
 				      struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
-			"current cur_omx_index is %d\n",
-			cur_omx_index);
+			"current cur_frame_index is %d\n",
+			cur_frame_index);
 }
 
-static ssize_t current_omx_index_store(struct class *cla,
+static ssize_t current_frame_index_store(struct class *cla,
 				       struct class_attribute *attr,
 				       const char *buf, size_t count)
 {
@@ -724,7 +724,7 @@ static ssize_t current_omx_index_store(struct class *cla,
 		pr_info("ERROR converting %s to long int!\n", buf);
 		return ret;
 	}
-	cur_omx_index = tmp;
+	cur_frame_index = tmp;
 	return count;
 }
 
@@ -930,7 +930,7 @@ static CLASS_ATTR_RO(dump_get_put_framecount);
 static CLASS_ATTR_RO(dump_rect);
 static CLASS_ATTR_RW(audio_mode);
 static CLASS_ATTR_RW(not_rendor);
-static CLASS_ATTR_RW(current_omx_index);
+static CLASS_ATTR_RW(current_frame_index);
 static CLASS_ATTR_RW(vpts_align);
 static CLASS_ATTR_RW(first_frame_nosync);
 static CLASS_ATTR_RW(delata_time);
@@ -947,7 +947,7 @@ static struct attribute *videosync_class_attrs[] = {
 	&class_attr_dump_rect.attr,
 	&class_attr_audio_mode.attr,
 	&class_attr_not_rendor.attr,
-	&class_attr_current_omx_index.attr,
+	&class_attr_current_frame_index.attr,
 	&class_attr_vpts_align.attr,
 	&class_attr_first_frame_nosync.attr,
 	&class_attr_delata_time.attr,
@@ -1087,7 +1087,7 @@ static int set_omx_pts(u32 *p)
 	u32 session = p[5];
 	u32 dev_id = p[6];
 
-	cur_omx_index = frame_num;
+	cur_frame_index = frame_num;
 
 	if (dev_id < VIDEOSYNC_S_COUNT)
 		dev_s = &vp_dev->video_prov[dev_id];
@@ -1355,7 +1355,7 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 		return true;
 
 	if (dev_s->show_first_frame_nosync || show_first_frame_nosync) {
-		if (next_vf->omx_index == 0)
+		if (next_vf->frame_index == 0)
 			return true;
 	}
 	systime = ts_pcrscr_get(dev_s);
@@ -1365,7 +1365,7 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 
 	vp_print(dev_s->vf_receiver_name, PRINT_TIMESTAMP,
 		"sys_time=%u, vf->pts=%u, diff=%d, index=%d\n",
-		systime, pts, (int)(systime - pts), next_vf->omx_index);
+		systime, pts, (int)(systime - pts), next_vf->frame_index);
 	/* check video PTS discontinuity */
 	if (ts_pcrscr_enable_state(dev_s) > 0 &&
 	    enable_video_discontinue_report &&
@@ -1384,12 +1384,12 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 			 systime, next_vf->pts);
 		return true;
 	} else if ((dev_s->omx_pts + omx_pts_interval_upper < next_vf->pts) &&
-		   dev_s->omx_pts_set_index >= next_vf->omx_index) {
-		pr_info("videosync, omx_pts=%d omx_pts_set_index=%d pts=%d omx_index=%d\n",
+		   dev_s->omx_pts_set_index >= next_vf->frame_index) {
+		pr_info("videosync, omx_pts=%d omx_pts_set_index=%d pts=%d frame_index=%d\n",
 			dev_s->omx_pts,
 			dev_s->omx_pts_set_index,
 			next_vf->pts,
-			next_vf->omx_index);
+			next_vf->frame_index);
 		return true;
 	}
 #ifdef DDD

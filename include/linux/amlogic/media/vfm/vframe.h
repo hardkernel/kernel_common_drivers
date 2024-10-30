@@ -628,7 +628,7 @@ enum vdin_channel_id_e {
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
-	u32 omx_index;
+	u32 frame_index;
 	u32 type;
 	u32 type_ext;
 	u32 type_backup;
@@ -849,6 +849,7 @@ struct vframe_s {
 	u32 scatter_mem_size;
 	/*decoder set screen mode, vpp using this 1st priority*/
 	enum dec_set_screen_mode_t dec_set_screen_mode;
+	u32 decoder_instid;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1
