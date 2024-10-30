@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#define DEBUG
+/* #define DEBUG */
 #undef pr_fmt
 #define pr_fmt(fmt) "iec_info: " fmt
 
@@ -16,6 +16,11 @@
 const struct soc_enum audio_coding_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_coding_type_names),
 			audio_coding_type_names);
+
+const struct soc_enum spdifin_sample_rate_enum[] = {
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdifin_samplerate),
+			spdifin_samplerate),
+};
 
 bool audio_coding_is_lpcm(enum audio_coding_types coding_type)
 {
@@ -40,7 +45,6 @@ int audio_multi_clk(enum audio_coding_types coding_type)
 	else if (coding_type == AUDIO_CODING_TYPE_MULTICH_8CH_LPCM)
 		multi = 4;
 	else if (coding_type == AUDIO_CODING_TYPE_EAC3 ||
-		 coding_type == AUDIO_CODING_TYPE_DTS_HD ||
 		 coding_type == AUDIO_CODING_TYPE_MLP ||
 		 coding_type == AUDIO_CODING_TYPE_DTS_HD_MA ||
 		 coding_type == AUDIO_CODING_TYPE_AC3_LAYOUT_B)
@@ -85,7 +89,12 @@ static unsigned int iec_rate_to_csfs(unsigned int rate)
 	return csfs;
 }
 
-unsigned int iec_rate_from_csfs(unsigned int csfs)
+/* expand unsupport csfs asoundef.h */
+#define AML_IEC958_AES3_CON_FS_128000  (11 << 0)
+#define AML_IEC958_AES3_CON_FS_352800  (13 << 0)
+#define AML_IEC958_AES3_CON_FS_384000  (5 << 0)
+
+unsigned int iec_rate_from_csfs(unsigned int csfs, bool h)
 {
 	unsigned int rate = 0;
 
@@ -119,6 +128,18 @@ unsigned int iec_rate_from_csfs(unsigned int csfs)
 		break;
 	case IEC958_AES3_CON_FS_192000:
 		rate = 192000;
+		break;
+	case AML_IEC958_AES3_CON_FS_128000:
+		rate = 128000;
+		break;
+	case AML_IEC958_AES3_CON_FS_352800:
+		if (h)
+			rate = 705600;
+		else
+			rate = 352800;
+		break;
+	case AML_IEC958_AES3_CON_FS_384000:
+		rate = 384000;
 		break;
 	case IEC958_AES3_CON_FS_NOTID:
 		rate = 0;
@@ -254,7 +275,6 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type)
 	bool is_4x = false;
 
 	if (codec_type == AUD_CODEC_TYPE_EAC3 ||
-	    codec_type == AUD_CODEC_TYPE_DTS_HD ||
 	    codec_type == AUD_CODEC_TYPE_TRUEHD ||
 	    codec_type == AUD_CODEC_TYPE_DTS_HD_MA ||
 	    codec_type == AUD_CODEC_TYPE_AC3_LAYOUT_B) {
@@ -308,7 +328,6 @@ unsigned int mpll2dmac_clk_ratio_by_type(enum audio_coding_types coding_type)
 		ratio = 4;
 		break;
 	case AUDIO_CODING_TYPE_EAC3:
-	case AUDIO_CODING_TYPE_DTS_HD:
 	case AUDIO_CODING_TYPE_AC3_LAYOUT_B:
 		ratio = 4;
 		break;
@@ -462,6 +481,7 @@ void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 	aud_param.i2s_ch_mask = 0x1;
 	aud_param.aud_src_if = AUD_SRC_IF_SPDIF;
 
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (codec_type == AUD_CODEC_TYPE_AC3) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_AC_3,
 					 &aud_param);
@@ -486,19 +506,22 @@ void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
 					 &aud_param);
 	}
+#endif
 }
 
 /* notify hdmitx to prepare for changing audio format or settings */
 void notify_hdmitx_to_prepare(void)
 {
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	struct aud_para aud_param;
 
 	memset(&aud_param, 0, sizeof(aud_param));
 	aud_param.prepare = true;
 	aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
+#endif
 }
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21)
 unsigned int aml_audio_hdmiout_mute_flag;
 /* call HDMITX API to enable/disable internal audio out */
 int aml_get_hdmi_out_audio(struct snd_kcontrol *kcontrol,

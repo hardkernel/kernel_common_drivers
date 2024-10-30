@@ -150,6 +150,10 @@ void new_resample_enable(enum resample_idx id, bool enable, int channel)
 		if (get_resample_source(id) == EARCRX_DMAC &&
 		    channel > 2) {
 			chsync_enable = false;
+			if (get_resample_need_reset(id)) {
+				new_resample_update_bits(id, AUDIO_RSAMP_CTRL0, 0x3, 0x3);
+				new_resample_update_bits(id, AUDIO_RSAMP_CTRL0, 0x3, 0);
+			}
 		}
 		aml_resample_chsync_enable(id, chsync_enable);
 	}
@@ -506,7 +510,12 @@ void aml_resample_chsync_enable(enum resample_idx id, bool enable)
 	int offset =
 		EE_AUDIO_RSAMP_B_CHSYNC_CTRL - EE_AUDIO_RSAMP_A_CHSYNC_CTRL;
 	int reg = EE_AUDIO_RSAMP_A_CHSYNC_CTRL + offset * id;
+	unsigned int ch_sync_reg = 0;
 
+	ch_sync_reg = get_audioresample_ch_sync_reg(id);
+	/*ch_sync_reg can come from resample dts node*/
+	if (ch_sync_reg > 0)
+		reg = ch_sync_reg;
 	/* bit 31: enable */
 	audiobus_update_bits(reg,
 			     0x1 << 31,
@@ -518,7 +527,12 @@ void aml_resample_chsync_set(enum resample_idx id, int channel)
 	int offset =
 		EE_AUDIO_RSAMP_B_CHSYNC_CTRL - EE_AUDIO_RSAMP_A_CHSYNC_CTRL;
 	int reg = EE_AUDIO_RSAMP_A_CHSYNC_CTRL + offset * id;
+	unsigned int ch_sync_reg = 0;
 
+	ch_sync_reg = get_audioresample_ch_sync_reg(id);
+	/*ch_sync_reg can come from resample dts node*/
+	if (ch_sync_reg > 0)
+		reg = ch_sync_reg;
 	/* bit 0-7: chnum_max */
 	audiobus_update_bits(reg,
 			     0x7F << 0,

@@ -247,7 +247,7 @@ static int extn_open(struct snd_soc_component *component, struct snd_pcm_substre
 	struct extn *p_extn;
 	int ret = 0;
 
-	pr_info("asoc debug: %s-%d\n", __func__, __LINE__);
+	pr_debug("asoc debug: %s-%d\n", __func__, __LINE__);
 
 	p_extn = (struct extn *)dev_get_drvdata(dev);
 
@@ -447,11 +447,53 @@ static int arc_set_enable(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static const char *const arc_src_texts[] = {
+	"NULL", "spdif_a", "spdif_b", "NULL"
+};
+
+const struct soc_enum arc_src_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(arc_src_texts),
+	arc_src_texts);
+
+int arc_source_get_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = p_extn->arc_src;
+
+	return 0;
+}
+
+int arc_source_set_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
+	int src = ucontrol->value.enumerated.item[0];
+
+	if (!p_extn)
+		return 0;
+	if (src > 3) {
+		pr_err("bad parameter for arc src set\n");
+		return -1;
+	}
+	if (src == SPDIFA_TO_HDMIRX || src == SPDIFB_TO_HDMIRX)
+		arc_earc_source_select(src);
+	p_extn->arc_src = src;
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new extn_arc_controls[] = {
 	SOC_SINGLE_BOOL_EXT("HDMI ARC Switch",
 			    0,
 			    arc_get_enable,
 			    arc_set_enable),
+	SOC_ENUM_EXT("Audio spdif_arc source",
+				arc_src_enum,
+				arc_source_get_enum,
+				arc_source_set_enum),
+
 };
 
 static int extn_create_controls(struct snd_card *card,
@@ -518,16 +560,17 @@ static int extn_dai_prepare(struct snd_pcm_substream *substream,
 		enum toddr_src src = toddr_src_get();
 		struct toddr_fmt fmt;
 
-		if (bit_depth == 24)
+		if (bit_depth == 32)
+			toddr_type = 3;
+		else if (bit_depth == 24)
 			toddr_type = 4;
 		else
 			toddr_type = 0;
 
 		if (src == FRATV) {
-			/* Now tv supports 48k, 16bits */
-			if (bit_depth != 16 || runtime->rate != 48000) {
-				pr_err("not support sample rate:%d, bits:%d\n",
-					runtime->rate, bit_depth);
+			/* Now tv supports 48k */
+			if (runtime->rate != 48000) {
+				pr_err("not support sample rate:%d\n", runtime->rate);
 				return -EINVAL;
 			}
 
@@ -539,13 +582,6 @@ static int extn_dai_prepare(struct snd_pcm_substream *substream,
 			 */
 			/* fratv_src_select(1); */
 		} else if (src == FRHDMIRX) {
-			if (bit_depth == 32)
-				toddr_type = 3;
-			else if (bit_depth == 24)
-				toddr_type = 4;
-			else
-				toddr_type = 0;
-
 			if (p_extn->hdmirx_mode == HDMIRX_MODE_PAO) { /* PAO */
 				msb = 28 - 1 - 4;
 				lsb = (bit_depth == 16) ? 24 - bit_depth : 4;

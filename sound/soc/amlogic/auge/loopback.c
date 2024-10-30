@@ -159,6 +159,8 @@ struct loopback {
 	void *ref_src;
 	/*tdm_in lb select mclk*/
 	int tdmlb_mclk_sel;
+	int data_lb_rate;
+	int asrc_sel;
 };
 
 static struct loopback *loopback_priv[2];
@@ -375,12 +377,6 @@ static int datain_pdm_startup(struct loopback *p_loopback)
 	ret = clk_prepare_enable(p_loopback->pdm_sysclk);
 	if (ret) {
 		pr_err("Can't enable pcm pdm_sysclk clock: %d\n", ret);
-		goto err;
-	}
-
-	ret = clk_prepare_enable(p_loopback->pdm_dclk);
-	if (ret) {
-		pr_err("Can't enable pcm pdm_dclk clock: %d\n", ret);
 		goto err;
 	}
 
@@ -603,13 +599,16 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		lb_set_datalb_cfg(p_loopback->id,
 			&datalb_cfg,
 			p_loopback->chipinfo->multi_bits_lbsrcs,
-			p_loopback->chipinfo->use_resamplea);
+			p_loopback->chipinfo->use_resamplea,
+			p_loopback->asrc_sel);
 	}
 
 	tdminlb_set_format(p_loopback->lb_format == SND_SOC_DAIFMT_I2S);
 	tdminlb_set_lanemask_and_chswap(0x76543210,
 		p_loopback->datalb_lane_mask,
 		p_loopback->lb_lane_chmask);
+	tdminlb_set_slot_num(p_loopback->datalb_chnum,
+			p_loopback->lb_format == SND_SOC_DAIFMT_I2S);
 
 	src_str = tdmin_lb_src2str(p_loopback->datalb_src);
 	conf = p_loopback->chipinfo->tdmin_lb_srcs;
@@ -889,6 +888,12 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 
 			aml_toddr_enable(p_loopback->tddr, true);
 			/* loopback */
+			if (p_loopback->chipinfo && p_loopback->chipinfo->orig_channel_sync) {
+				loopback_data_orig_channel_sync(p_loopback->id,
+					p_loopback->datain_chnum, true);
+				loopback_data_insert_channel_sync(p_loopback->id,
+					p_loopback->datalb_chnum, true);
+			}
 			if (p_loopback->chipinfo)
 				lb_enable(p_loopback->id,
 					  true,
@@ -930,6 +935,12 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 		if (p_loopback->datalb_chnum > 0)
 			loopback_ref_src_trigger(p_loopback, ss->stream, false);
 
+		if (p_loopback->chipinfo && p_loopback->chipinfo->orig_channel_sync) {
+			loopback_data_orig_channel_sync(p_loopback->id,
+					p_loopback->datain_chnum, false);
+			loopback_data_insert_channel_sync(p_loopback->id,
+					p_loopback->datalb_chnum, false);
+		}
 		/* loopback */
 		if (p_loopback->chipinfo)
 			lb_enable(p_loopback->id,
@@ -960,6 +971,7 @@ static void datain_pdm_set_clk(struct loopback *p_loopback)
 {
 	unsigned int pdm_sysclk_srcpll_freq, pdm_dclk_srcpll_freq;
 	char *clk_name = NULL;
+	int ret = 0;
 
 	pdm_sysclk_srcpll_freq = clk_get_rate(p_loopback->pdm_sysclk_srcpll);
 	pdm_dclk_srcpll_freq = clk_get_rate(p_loopback->pdm_dclk_srcpll);
@@ -972,7 +984,8 @@ static void datain_pdm_set_clk(struct loopback *p_loopback)
 
 	clk_name = (char *)__clk_get_name(p_loopback->pdm_dclk_srcpll);
 	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
-		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
 			pr_info("hifipll set 1806336*1000\n");
 			if (p_loopback->syssrc_clk_rate)
 				clk_set_rate(p_loopback->pdm_dclk_srcpll,
@@ -1002,6 +1015,10 @@ static void datain_pdm_set_clk(struct loopback *p_loopback)
 	clk_set_rate(p_loopback->pdm_dclk,
 		pdm_dclkidx2rate(p_loopback->dclk_idx));
 
+	ret = clk_prepare_enable(p_loopback->pdm_dclk);
+	if (ret)
+		pr_err("Can't enable pcm pdm_dclk clock: %d\n", ret);
+
 	pr_info("pdm pdm_sysclk:%lu pdm_dclk:%lu\n",
 		clk_get_rate(p_loopback->pdm_sysclk),
 		clk_get_rate(p_loopback->pdm_dclk));
@@ -1015,7 +1032,6 @@ static int loopback_dai_hw_params(struct snd_pcm_substream *ss,
 	unsigned int rate, channels;
 	snd_pcm_format_t format;
 	int ret = 0;
-
 	rate = params_rate(params);
 	channels = params_channels(params);
 	format = params_format(params);
@@ -1055,6 +1071,8 @@ static int loopback_dai_hw_params(struct snd_pcm_substream *ss,
 		case TDMINLB_PAD_TDMINA:
 		case TDMINLB_PAD_TDMINB:
 		case TDMINLB_PAD_TDMINC:
+			if (p_loopback->data_lb_rate != rate && p_loopback->data_lb_rate > 0)
+				rate = p_loopback->data_lb_rate;
 			aml_tdm_hw_setting_init(p_loopback->ref_src, rate,
 				p_loopback->datalb_chnum, ss->stream);
 			break;
@@ -1112,7 +1130,25 @@ static int loopback_dai_set_fmt(struct snd_soc_dai *dai,
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);
 
 	pr_info("asoc %s, %#x, %p\n", __func__, fmt, p_loopback);
-
+	if (p_loopback->datain_chnum > 0) {
+		switch (p_loopback->datain_src) {
+		case DATAIN_TDMA:
+		case DATAIN_TDMB:
+		case DATAIN_TDMC:
+		case DATAIN_TDMD:
+			if (p_loopback->mic_src)
+				aml_tdm_set_fmt(p_loopback->mic_src, fmt, 1);
+		break;
+		case DATAIN_SPDIF:
+		break;
+		case DATAIN_PDM:
+		break;
+		case DATAIN_LOOPBACK:
+		break;
+		default:
+		break;
+		}
+	}
 	return 0;
 }
 
@@ -1561,6 +1597,11 @@ static int datalb_tdminlb_parse_of(struct device_node *node,
 		ret = 0;
 	}
 
+	ret = of_property_read_u32(node, "data_lb_rate",
+		&p_loopback->data_lb_rate);
+	if (ret)
+		pr_warn("failed to get data_lb_ratec\n");
+
 	return 0;
 err:
 	pr_err("%s, error:%d\n", __func__, ret);
@@ -1660,7 +1701,13 @@ static int loopback_parse_of(struct device_node *node,
 		ret = -EINVAL;
 		goto fail;
 	}
-
+	ret = of_property_read_u32(node, "asrc-sel",
+				   &p_loopback->asrc_sel);
+	if (ret < 0)
+		p_loopback->asrc_sel = 0;
+	else
+		pr_info("%s asrc asrc_sel from dts:%d\n",
+			__func__, p_loopback->asrc_sel);
 	ret = snd_soc_of_get_slot_mask(node, "datalb-lane-mask-in",
 		&p_loopback->datalb_lane_mask);
 	if (ret < 0) {
@@ -1734,14 +1781,16 @@ static int loopback_platform_probe(struct platform_device *pdev)
 	if (np_src) {
 		dev_src = of_find_device_by_node(np_src);
 		of_node_put(np_src);
-		p_loopback->mic_src = platform_get_drvdata(dev_src);
+		if (dev_src)
+			p_loopback->mic_src = platform_get_drvdata(dev_src);
 		pr_debug("%s(), mic_src found\n", __func__);
 	}
 	np_src = of_parse_phandle(node, "ref-src", 0);
 	if (np_src) {
 		dev_src = of_find_device_by_node(np_src);
 		of_node_put(np_src);
-		p_loopback->ref_src = platform_get_drvdata(dev_src);
+		if (dev_src)
+			p_loopback->ref_src = platform_get_drvdata(dev_src);
 		pr_debug("%s(), mic_src found\n", __func__);
 	}
 

@@ -522,7 +522,7 @@ int snd_card_add_kcontrols(struct snd_soc_card *card)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	int ret;
 
-	pr_info("%s card:%p\n", __func__, card);
+	pr_debug("%s card:%p\n", __func__, card);
 
 	ret = card_add_resample_kcontrols(card);
 	if (ret < 0) {

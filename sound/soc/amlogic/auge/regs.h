@@ -200,6 +200,40 @@ struct register_table {
 #define EE_AUDIO_TODDR_D_CHNUM_ID7         0x337
 #define EE_AUDIO_TODDR_D_CHSYNC_CTRL       0x33F
 
+#define EE_AUDIO_TODDR_E_CHNUM_ID0                 0x0340
+#define EE_AUDIO_TODDR_E_CHNUM_ID1                 0x0341
+#define EE_AUDIO_TODDR_E_CHNUM_ID2                 0x0342
+#define EE_AUDIO_TODDR_E_CHNUM_ID3                 0x0343
+#define EE_AUDIO_TODDR_E_CHNUM_ID4                 0x0344
+#define EE_AUDIO_TODDR_E_CHNUM_ID5                 0x0345
+#define EE_AUDIO_TODDR_E_CHNUM_ID6                 0x0346
+#define EE_AUDIO_TODDR_E_CHNUM_ID7                 0x0347
+#define EE_AUDIO_TODDR_E_CHSYNC_CTRL               0x034f
+
+#define EE_AUDIO_TODDR_E_CTRL0                     0x0240
+#define EE_AUDIO_TODDR_E_CTRL1                     0x0241
+#define EE_AUDIO_TODDR_E_START_ADDR                0x0242
+#define EE_AUDIO_TODDR_E_FINISH_ADDR               0x0243
+#define EE_AUDIO_TODDR_E_INT_ADDR                  0x0244
+#define EE_AUDIO_TODDR_E_STATUS1                   0x0245
+#define EE_AUDIO_TODDR_E_STATUS2                   0x0246
+#define EE_AUDIO_TODDR_E_START_ADDRB               0x0247
+#define EE_AUDIO_TODDR_E_FINISH_ADDRB              0x0248
+#define EE_AUDIO_TODDR_E_INIT_ADDR                 0x0249
+#define EE_AUDIO_TODDR_E_CTRL2                     0x024a
+
+#define EE_AUDIO_FRDDR_E_CTRL0                     0x0250
+#define EE_AUDIO_FRDDR_E_CTRL1                     0x0251
+#define EE_AUDIO_FRDDR_E_START_ADDR                0x0252
+#define EE_AUDIO_FRDDR_E_FINISH_ADDR               0x0253
+#define EE_AUDIO_FRDDR_E_INT_ADDR                  0x0254
+#define EE_AUDIO_FRDDR_E_STATUS1                   0x0255
+#define EE_AUDIO_FRDDR_E_STATUS2                   0x0256
+#define EE_AUDIO_FRDDR_E_START_ADDRB               0x0257
+#define EE_AUDIO_FRDDR_E_FINISH_ADDRB              0x0258
+#define EE_AUDIO_FRDDR_E_INIT_ADDR                 0x0259
+#define EE_AUDIO_FRDDR_E_CTRL2                     0x025a
+
 /*
  *	AUDIO FRDDR
  */
@@ -283,6 +317,8 @@ struct register_table {
 #define EE_AUDIO_LB_A_LB_CH_ID2            0xba
 #define EE_AUDIO_LB_A_LB_CH_ID3            0xbb
 #define EE_AUDIO_LB_A_STS                  0xbc
+#define EE_AUDIO_LB_A_CHSYNC_CTRL_INSERT   0xbd
+#define EE_AUDIO_LB_A_CHSYNC_CTRL_ORIG     0xbe
 
 #define EE_AUDIO_LB_B_CTRL0                0x230
 #define EE_AUDIO_LB_B_CTRL1                0x231
@@ -297,6 +333,8 @@ struct register_table {
 #define EE_AUDIO_LB_B_LB_CH_ID2            0x23a
 #define EE_AUDIO_LB_B_LB_CH_ID3            0x23b
 #define EE_AUDIO_LB_B_STS                  0x23c
+#define EE_AUDIO_LB_B_CHSYNC_CTRL_INSERT   0x23d
+#define EE_AUDIO_LB_B_CHSYNC_CTRL_ORIG     0x23e
 
 /*
  *	AUDIO TDM
@@ -1099,6 +1137,28 @@ struct register_table {
 #define AED_DRC_LOOPBACK_CNTL_B            0xdc
 #define AED_MDRC_CNTL_B                    0xdd
 #define AED_STATUS_REG                     0xde
+
+/*
+ * EQ DRC, the third version for T6D
+ */
+
+#define AEQ_COEF_ADDR                      (0x0)
+#define AEQ_COEF_DATA                      (0x1)
+#define AEQ_MIX0_LL                        (0x2)
+#define AEQ_MIX0_RL                        (0x3)
+#define AEQ_MIX0_LR                        (0x4)
+#define AEQ_MIX0_RR                        (0x5)
+#define AEQ_SOFT_REST                      (0x9)
+#define AED_STATUS_CTRL                    (0x10)
+#define AED_SEL                            (0x11)
+#define AED_EQ_VOLUME_VAL                  (0x12)
+#define AED_EQ_VOLUME_STEP_CNT             (0x13)
+#define AED_MUTE_CTRL                      (0x14)
+#define AEQ_DSP_VOL_DBG_SEL                (0x15)
+#define AED_CLIP_THD_V3                    (0x17)
+#define AEQ_RO_DSP_DBG                     (0x30)
+#define AEQ_RO_LM_RMS_OUT                  (0x31)
+#define AEQ_RO_DSP_ERR                     (0x32)
 
 /*
  * VAD, Voice activity detection

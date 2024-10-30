@@ -12,7 +12,7 @@
 #include "../regs.h"
 
 static const char *const mclk_parent_names[] = {
-	"hifi1_pll", "mpll1", "mpll2", "mpll3", "hifi_pll",
+	"xtal", "hifi_pll", "hifi1_pll", "rtc_clk", "NULL",
 	"fclk_div3", "fclk_div4", "fclk_div5"};
 
 static const char *const audioclk_parent_names[] = {
@@ -69,7 +69,7 @@ CLOCK_GATE(audio_earcrx, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 6, clk81);
 CLOCK_GATE(audio_resampleb_old, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 7, clk81);
 CLOCK_GATE(audio_locker, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 8, clk81);
 
-static struct clk_gate *txhd2_audio_clk_gates[] = {
+static struct clk_gate *t6d_audio_clk_gates[] = {
 	&audio_ddr_arb,
 	&audio_pdm,
 	&audio_tdmina,
@@ -115,7 +115,7 @@ static struct clk_gate *txhd2_audio_clk_gates[] = {
 };
 
 /* Array of all clocks provided by this provider */
-static struct clk_hw *txhd2_audio_clk_hws[] = {
+static struct clk_hw *t6d_audio_clk_hws[] = {
 	[CLKID_AUDIO_GATE_DDR_ARB]     = &audio_ddr_arb.hw,
 	[CLKID_AUDIO_GATE_PDM]         = &audio_pdm.hw,
 	[CLKID_AUDIO_GATE_TDMINA]      = &audio_tdmina.hw,
@@ -160,21 +160,21 @@ static struct clk_hw *txhd2_audio_clk_hws[] = {
 	[CLKID_AUDIO_GATE_LOCKER]      = &audio_locker.hw,
 };
 
-static int txhd2_clk_gates_init(struct clk **clks, void __iomem *iobase)
+static int t6d_clk_gates_init(struct clk **clks, void __iomem *iobase)
 {
 	int clkid;
 
-	if (ARRAY_SIZE(txhd2_audio_clk_gates) != MCLK_BASE) {
+	if (ARRAY_SIZE(t6d_audio_clk_gates) != MCLK_BASE) {
 		pr_err("check clk gates number\n");
 		return -EINVAL;
 	}
 
 	for (clkid = 0; clkid < MCLK_BASE; clkid++) {
 		unsigned long offset =
-			(unsigned long)txhd2_audio_clk_gates[clkid]->reg;
-		txhd2_audio_clk_gates[clkid]->reg =
+			(unsigned long)t6d_audio_clk_gates[clkid]->reg;
+		t6d_audio_clk_gates[clkid]->reg =
 			(void __iomem *)((unsigned long)iobase + offset);
-		clks[clkid] = clk_register(NULL, txhd2_audio_clk_hws[clkid]);
+		clks[clkid] = clk_register(NULL, t6d_audio_clk_hws[clkid]);
 		WARN_ON(IS_ERR_OR_NULL(clks[clkid]));
 	}
 
@@ -299,7 +299,7 @@ CLOCK_COM_DIV(earcrx_dmac,
 CLOCK_COM_GATE(earcrx_dmac,
 	AUD_ADDR_OFFSET(EE_AUDIO_EARCRX_DMAC_CLK_CTRL), 31);
 
-static int txhd2_clks_init(struct clk **clks, void __iomem *iobase)
+static int t6d_clks_init(struct clk **clks, void __iomem *iobase)
 {
 	IOMAP_COM_CLK(mclk_a, iobase);
 	clks[CLKID_AUDIO_MCLK_A] = REGISTER_CLK_COM(mclk_a);
@@ -407,8 +407,8 @@ static int txhd2_clks_init(struct clk **clks, void __iomem *iobase)
 	return 0;
 }
 
-struct audio_clk_init txhd2_audio_clks_init = {
+struct audio_clk_init t6d_audio_clks_init = {
 	.clk_num   = NUM_AUDIO_CLKS,
-	.clk_gates = txhd2_clk_gates_init,
-	.clks      = txhd2_clks_init,
+	.clk_gates = t6d_clk_gates_init,
+	.clks      = t6d_clks_init,
 };
