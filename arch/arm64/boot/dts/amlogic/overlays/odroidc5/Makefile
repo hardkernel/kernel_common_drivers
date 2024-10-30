@@ -1,6 +1,7 @@
 # dtb-y += overlay.dtbo
 
-dtb-y += i2c0.dtbo \
+dtb-y += dht11.dtbo \
+         i2c0.dtbo \
          i2c1.dtbo \
          mcp2515.dtbo \
          mcp2515_12mhz.dtbo \
