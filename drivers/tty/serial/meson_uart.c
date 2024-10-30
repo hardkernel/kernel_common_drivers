@@ -438,6 +438,12 @@ static void meson_uart_set_termios(struct uart_port *port,
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	baud = uart_get_baud_rate(port, termios, old, 2400, 4000000);
+	/* Should never happen, Just trick coverity detect */
+	if (baud == 0U) {
+		WARN_ON(1);
+		return;
+	}
+
 	meson_uart_change_speed(port, baud);
 
 	port->read_status_mask = AML_UART_RX_FIFO_OVERFLOW;
