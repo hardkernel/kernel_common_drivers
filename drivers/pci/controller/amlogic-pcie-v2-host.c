@@ -471,8 +471,9 @@ static int amlogic_pcie_assert_reset(struct amlogic_pcie *aml_pcie)
 		return ret;
 	}
 
-set_rst_reg:
+	return 0;
 
+set_rst_reg:
 	val = readl(aml_pcie->reset_base);
 	val &= ~((1 << aml_pcie->ctrl_rst_bit) | (1 << aml_pcie->phy_rst_bit) |
 		 (1 << aml_pcie->apb_rst_bit));
@@ -507,6 +508,8 @@ static int amlogic_pcie_deassert_reset(struct amlogic_pcie *aml_pcie)
 		dev_err(dev, "deassert ctrl_rst err %d\n", ret);
 		return ret;
 	}
+
+	return 0;
 
 set_rst_reg:
 

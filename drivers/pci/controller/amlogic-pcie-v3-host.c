@@ -331,9 +331,11 @@ static int amlogic_pcie_parse_host_dt(struct amlogic_pcie_rc *rc)
 	struct device_node *node = dev->of_node;
 	int ret;
 
-	if (of_property_read_bool(node, "max-link-speed"))
-		of_property_read_u32(node, "max-link-speed",
-				     &amlogic->link_gen);
+	if (of_property_read_bool(node, "max-link-speed")) {
+		ret = of_property_read_u32(node, "max-link-speed", &amlogic->link_gen);
+		if (ret)
+			dev_dbg(dev, "failed to get max-link-speed node\n");
+	}
 
 	if (link_speed)
 		amlogic->link_gen = link_speed;

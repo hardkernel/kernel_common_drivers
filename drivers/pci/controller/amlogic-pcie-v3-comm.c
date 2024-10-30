@@ -726,6 +726,8 @@ static int amlogic_pcie_set_reset_for_m31_phy(struct amlogic_pcie *amlogic, bool
 		return err;
 	}
 
+	return 0;
+
 set_rst_reg:
 	if (!set) {
 		val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
@@ -916,6 +918,8 @@ static int amlogic_pcie_set_reset_for_m31_combphy(struct amlogic_pcie *amlogic)
 		return err;
 	}
 
+	return 0;
+
 set_rst_reg:
 	val = readl(amlogic->rst_base + RESETCTRL0_OFFSET);
 	val &= ~(1 << amlogic->phy_rst_bit);
@@ -1089,6 +1093,8 @@ int amlogic_pcie_set_reset_for_aml_phy(struct amlogic_pcie *amlogic)
 		dev_err(dev, "assert pcie_rst7 err %d\n", err);
 		return err;
 	}
+
+	return 0;
 
 set_rst_reg:
 	if (!flag) {
