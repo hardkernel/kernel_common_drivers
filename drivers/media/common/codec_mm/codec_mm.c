@@ -41,7 +41,6 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_CPU_INFO)
 #include <linux/amlogic/media/registers/cpu_version.h>
 #else
-
 unsigned char get_meson_cpu_version(int level)
 {
 	return 0;
@@ -51,11 +50,13 @@ unsigned char get_meson_cpu_version(int level)
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEDIA_MODULE)
 #include <linux/amlogic/aml_cma.h>
 #endif
+#define CONFIG_CODEC_MM_EXT_POOL
 
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"
 #include "codec_mm_keeper_priv.h"
 #include "codec_mm_track_priv.h"
+#include "codec_mm_sys_priv.h"
 #include <linux/highmem.h>
 #include <linux/page-flags.h>
 #include <linux/vmalloc.h>
@@ -70,10 +71,6 @@ u32 tee_protect_tvp_mem(phys_addr_t start, size_t size, u32 *handle)
 }
 
 void tee_unprotect_tvp_mem(u32 handle)
-{
-}
-
-void tee_unprotect_mem(u32 handle)
 {
 }
 
@@ -95,11 +92,6 @@ struct mm_struct *aml_init_mm;
 struct device *codec_dev;
 
 #ifdef CONFIG_ARM64
-pte_t * (*aml__pte_offset_map)(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
-
-unsigned long (*aml_get_pfnblock_flags_mask)(const struct page *page,
-		unsigned long pfn, unsigned long mask);
-
 static void aml_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
@@ -128,9 +120,7 @@ static void aml_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			aml_mte_sync_tags(old_pte, pte);
 	}
 
-	/*
-	 * __check_racy_pte_update(mm, ptep, pte);
-	 */
+	__check_racy_pte_update(mm, ptep, pte);
 
 	set_pte(ptep, pte);
 }
@@ -141,7 +131,7 @@ static bool is_cma_page(struct page *page)
 
 	if (!page)
 		return false;
-	migrate_type = aml_get_pfnblock_flags_mask(page, page_to_pfn(page), MIGRATETYPE_MASK);
+	migrate_type = get_pageblock_migratetype(page);
 	if (is_migrate_cma(migrate_type) ||
 	    is_migrate_isolate(migrate_type)) {
 		return true;
@@ -173,7 +163,7 @@ int cma_mmu_op(struct page *page, int count, bool set)
 	}
 
 	if (!aml_init_mm || !aml_mte_sync_tags) {
-		pr_debug("%s, no cma mmu operation.\n", __func__);
+		pr_err("%s, no cma mmu operation.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -197,11 +187,11 @@ int cma_mmu_op(struct page *page, int count, bool set)
 		if (pmd_none(*pmd))
 			break;
 
-		pte = aml__pte_offset_map(pmd, addr, NULL);
+		pte = pte_offset_map(pmd, addr);
 		if (set)
 			aml_set_pte_at(mm, addr, pte, mk_pte(page, pgprot_tagged(PAGE_KERNEL)));
 		else
-			__pte_clear(mm, addr, pte);
+			pte_clear(mm, addr, pte);
 		pte_unmap(pte);
 	#ifdef CONFIG_ARM
 		pr_debug("%s, add:%lx, pgd:%p %x, pmd:%p %x, pte:%p %x\n",
@@ -224,6 +214,9 @@ int cma_mmu_op(struct page *page, int count, bool set)
 #endif
 #endif
 #include <linux/amlogic/cpu_version.h>
+
+static bool secure_mem_ctrl;
+static u32 secure_mem_align2n;
 
 #define TVP_POOL_NAME "TVP_POOL"
 #define CMA_RES_POOL_NAME "CMA_RES"
@@ -273,6 +266,10 @@ static void dump_mem_infos(struct seq_file *m);
 
 static int dump_free_mem_infos(void *buf, int size);
 static int secure_vdec_res_setup(struct reserved_mem *rmem);
+static int codec_mm_res_setup(struct reserved_mem *rmem);
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+static int codec_mm_res_ext_setup(struct reserved_mem *rmem);
+#endif
 
 static inline u32 codec_mm_align_up2n(u32 addr, u32 alg2n)
 {
@@ -435,6 +432,12 @@ struct codec_mm_mgt_s {
 	struct extpool_mgt_s tvp_pool;
 	struct extpool_mgt_s cma_res_pool;
 	struct reserved_mem rmem;
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	struct reserved_mem rmem_ext;
+	struct gen_pool *res_ext_pool;
+	int total_reserved_ext_size;
+	int alloced_res_ext_size;
+#endif
 	int total_codec_mem_size;
 	int total_alloced_size;
 	int total_cma_size;
@@ -470,6 +473,10 @@ struct codec_mm_mgt_s {
 	struct codec_state_node cs;
 	void *trk_h;
 	struct work_struct	tvp_alloc_wrk;
+	ulong *tee_sectbl_bitmap;
+	u32 tee_sectbl_size;
+	/* spin lock for sectbl bitmap update */
+	spinlock_t tee_sectbl_lock;
 };
 
 #define PHY_OFF() offsetof(struct codec_mm_s, phy_addr)
@@ -506,6 +513,34 @@ static struct codec_mm_mgt_s *get_mem_mgt(void)
 	}
 	return &mgt;
 };
+
+void set_sectbl_bitmap(ulong phy_addr, int buffer_size)
+{
+	unsigned long bitmap_no, bitmap_count;
+	unsigned long flags;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	bitmap_no = (phy_addr - cma_get_base(dev_get_cma_area(mgt->dev))) >> secure_mem_align2n;
+	bitmap_count = ALIGN(buffer_size, 1UL << secure_mem_align2n) >> secure_mem_align2n;
+
+	spin_lock_irqsave(&mgt->tee_sectbl_lock, flags);
+	bitmap_set(mgt->tee_sectbl_bitmap, bitmap_no, bitmap_count);
+	spin_unlock_irqrestore(&mgt->tee_sectbl_lock, flags);
+}
+
+void clear_sectbl_bitmap(ulong phy_addr, int buffer_size)
+{
+	unsigned long bitmap_no, bitmap_count;
+	unsigned long flags;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	bitmap_no = (phy_addr - cma_get_base(dev_get_cma_area(mgt->dev))) >> secure_mem_align2n;
+	bitmap_count = ALIGN(buffer_size, 1UL << secure_mem_align2n) >> secure_mem_align2n;
+
+	spin_lock_irqsave(&mgt->tee_sectbl_lock, flags);
+	bitmap_clear(mgt->tee_sectbl_bitmap, bitmap_no, bitmap_count);
+	spin_unlock_irqrestore(&mgt->tee_sectbl_lock, flags);
+}
 
 static void *codec_mm_extpool_alloc(struct extpool_mgt_s *tvp_pool,
 				    void **from_pool, int size)
@@ -860,6 +895,44 @@ void codec_mm_dev_set_dma_mask(u64 bits)
 }
 EXPORT_SYMBOL(codec_mm_dev_set_dma_mask);
 
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+static int codec_mm_alloc_first(struct codec_mm_mgt_s *mgt,
+							struct codec_mm_s *mem)
+{
+	if (!(mem->flags & CODEC_MM_FLAGS_RESERVED_EXT))
+		return 0;
+
+	if (mgt->total_reserved_ext_size > mem->buffer_size &&
+		  mem->align2n <= RESERVE_MM_ALIGNED_2N) {
+		int aligned_buffer_size = ALIGN(mem->buffer_size,
+			(1 << RESERVE_MM_ALIGNED_2N));
+		if (mem->flags & CODEC_MM_FLAGS_TVP)
+			// to do..
+			;
+		mem->mem_handle = (void *)gen_pool_alloc(mgt->res_ext_pool,
+						aligned_buffer_size);
+		mem->from_flags =
+			AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT;
+		if (mem->mem_handle) {
+			/*default is no map */
+			mem->vbuffer = NULL;
+			mem->phy_addr = (unsigned long)mem->mem_handle;
+			mem->buffer_size = aligned_buffer_size;
+			if (debug_mode & 0x10)
+				pr_info("alloc flags:%d,align=%d,pages:%d,s:%d\n",
+					mem->flags,
+					mem->align2n,
+					mem->page_count,
+					mem->buffer_size);
+			return 0;
+		} else {
+			return -ENOMEM;
+		}
+	}
+	return -ENOMEM;
+}
+#endif
+
 static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 {
 	int try_alloced_from_sys = 0;
@@ -887,11 +960,17 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 		(mem->page_count <= mgt->alloc_from_sys_pages_max);
 
 	int can_from_tvp = (mem->flags & CODEC_MM_FLAGS_TVP);
+
 	if (can_from_tvp) {
 		can_from_sys = 0;
 		can_from_res = 0;
 		can_from_cma = 0;
 	}
+
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	if (mem->flags & CODEC_MM_FLAGS_RESERVED_EXT)
+		return codec_mm_alloc_first(mgt, mem);
+#endif
 
 	have_space = codec_mm_alloc_pre_check_in(mgt, mem->buffer_size, mem->flags);
 	if (!have_space)
@@ -942,7 +1021,6 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 							  PAGE_SHIFT, false);
 			mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA;
 			if (mem->mem_handle) {
-				mem->vbuffer = mem->mem_handle;
 				mem->phy_addr =
 					page_to_phys((struct page *)mem->mem_handle);
 				if (!mgt->tvp_enable) {
@@ -951,6 +1029,10 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 						mem->page_count << PAGE_SHIFT,
 						DMA_FROM_DEVICE);
 				}
+				mem->vbuffer = (mem->flags &
+					CODEC_MM_FLAGS_CPU) ?
+					codec_mm_map_phyaddr(mem) :
+					NULL;
 #ifdef CONFIG_ARM64
 				if (mem->flags & CODEC_MM_FLAGS_CMA_CLEAR) {
 					/*dma_clear_buffer((struct page *)*/
@@ -983,7 +1065,7 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 		if (can_from_res) {
 			if (mgt->cma_res_pool.total_size > 0 &&
 			    (mgt->cma_res_pool.alloced_size +
-			    mem->buffer_size) < mgt->cma_res_pool.total_size) {
+			    mem->buffer_size) <= mgt->cma_res_pool.total_size) {
 				/*
 				 *from cma res first.
 				 */
@@ -1167,6 +1249,14 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 		if (!mgt->fastplay_enable && codec_mm_extpool_pool_release(&mgt->cma_res_pool) == 0)
 			pr_info("disable cma_res mem\n");
 	}
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	else if (mem->from_flags ==
+		AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT) {
+		gen_pool_free(mgt->res_ext_pool,
+				  (unsigned long)mem->mem_handle,
+				  mem->buffer_size);
+	}
+#endif
 	spin_lock_irqsave(&mgt->lock, flags);
 	if (!(mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR))
 		mgt->total_alloced_size -= mem->buffer_size;
@@ -1190,6 +1280,12 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 	} else if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES) {
 		mgt->cma_res_pool.alloced_size -= mem->buffer_size;
 	}
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	else if (mem->from_flags ==
+		AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT) {
+		mgt->alloced_res_ext_size -= mem->buffer_size;
+	}
+#endif
 
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP &&
@@ -1334,6 +1430,11 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES:
 		mgt->cma_res_pool.alloced_size += mem->buffer_size;
 		break;
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT:
+		mgt->alloced_res_ext_size += mem->buffer_size;
+		break;
+#endif
 	default:
 		pr_err("error alloc flags %d\n", mem->from_flags);
 	}
@@ -1482,16 +1583,8 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	spin_lock_irqsave(&mgt->lock, flags);
 
 	mem->mem_id = mgt->global_memid++;
-	if (s_cma) {
+	if (s_cma)
 		mgt->alloced_cma_size	+= buf_size;
-	} else if (s_res) {
-		if (mgt->cma_res_pool.total_size > 0)
-			mgt->cma_res_pool.total_size += buf_size;
-		else
-			mgt->alloced_res_size += buf_size;
-	} else {
-		mgt->alloced_sys_size	+= buf_size;
-	}
 	mgt->alloced_from_coherent	+= buf_size;
 	mgt->total_alloced_size		+= buf_size;
 	if (mgt->total_alloced_size > mgt->max_used_mem_size)
@@ -1531,13 +1624,6 @@ void codec_mm_dma_free_coherent(ulong handle)
 
 	if (mem->flags & 2)
 		mgt->alloced_cma_size	-= mem->buffer_size;
-	else if (mem->flags & 1)
-		if (mgt->cma_res_pool.total_size > 0)
-			mgt->cma_res_pool.total_size += mem->buffer_size;
-		else
-			mgt->alloced_res_size += mem->buffer_size;
-	else
-		mgt->alloced_sys_size	-= mem->buffer_size;
 	mgt->alloced_from_coherent	-= mem->buffer_size;
 	mgt->total_alloced_size		-= mem->buffer_size;
 	list_del(&mem->list);
@@ -1751,14 +1837,21 @@ static int codec_mm_tvp_pool_protect(struct extpool_mgt_s *tvp_pool)
 
 	for (i = 0; i < tvp_pool->slot_num; i++) {
 		if (tvp_pool->mm[i]->tvp_handle == -1) {
-			ret = tee_protect_tvp_mem
-				(tvp_pool->mm[i]->phy_addr,
-				tvp_pool->mm[i]->buffer_size,
-				&tvp_pool->mm[i]->tvp_handle);
-			pr_info("protect tvp %d %d ret %d %lx %x\n",
-				i, tvp_pool->mm[i]->tvp_handle, ret,
-				tvp_pool->mm[i]->phy_addr,
-				tvp_pool->mm[i]->buffer_size);
+			if (secure_mem_ctrl) {
+				ret = tee_sectbl_secmem_set(tvp_pool->mm[i]->phy_addr,
+					tvp_pool->mm[i]->buffer_size, 1);
+				set_sectbl_bitmap(tvp_pool->mm[i]->phy_addr,
+					tvp_pool->mm[i]->buffer_size);
+				tvp_pool->mm[i]->tvp_handle = i;
+			} else {
+				ret = tee_protect_tvp_mem
+					(tvp_pool->mm[i]->phy_addr,
+					tvp_pool->mm[i]->buffer_size,
+					&tvp_pool->mm[i]->tvp_handle);
+			}
+			pr_info("protect tvp %d %d ret %d %lx %x\n", i, tvp_pool->mm[i]->tvp_handle,
+				ret, tvp_pool->mm[i]->phy_addr, tvp_pool->mm[i]->buffer_size);
+
 			if (ret)
 				break;
 		} else {
@@ -1767,6 +1860,15 @@ static int codec_mm_tvp_pool_protect(struct extpool_mgt_s *tvp_pool)
 		}
 	}
 	return ret;
+}
+
+static bool codec_mm_from_reserved(int flags)
+{
+	if (flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES ||
+		flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED)
+		return true;
+
+	return false;
 }
 
 static int codec_mm_extpool_pool_release_inner(int slot_num_start,
@@ -1780,10 +1882,17 @@ static int codec_mm_extpool_pool_release_inner(int slot_num_start,
 		int slot_mem_size = 0;
 
 		if (gpool) {
-			if (tvp_pool->mm[i] && tvp_pool->mm[i]->tvp_handle > 0) {
+			if (tvp_pool->mm[i] && tvp_pool->mm[i]->tvp_handle >= 0) {
 				pr_info("unprotect tvp %d handle is %d\n", i,
 					tvp_pool->mm[i]->tvp_handle);
-				tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
+				if (secure_mem_ctrl) {
+					tee_sectbl_secmem_set(tvp_pool->mm[i]->phy_addr,
+						tvp_pool->mm[i]->buffer_size, 0);
+					clear_sectbl_bitmap(tvp_pool->mm[i]->phy_addr,
+						tvp_pool->mm[i]->buffer_size);
+				} else {
+					tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
+				}
 				tvp_pool->mm[i]->tvp_handle = -1;
 			}
 			slot_mem_size = gen_pool_size(gpool);
@@ -1791,8 +1900,7 @@ static int codec_mm_extpool_pool_release_inner(int slot_num_start,
 			if (tvp_pool->mm[i]) {
 				struct page *mm = tvp_pool->mm[i]->mem_handle;
 
-				if (tvp_pool->mm[i]->from_flags ==
-					AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+				if (codec_mm_from_reserved(tvp_pool->mm[i]->from_flags))
 					mm = phys_to_page((unsigned long)mm);
 				cma_mmu_op(mm,
 					   tvp_pool->mm[i]->page_count,
@@ -1824,8 +1932,7 @@ static int codec_mm_tvp_pool_alloc_by_type(struct extpool_mgt_s *tvp_pool,
 		if (mem) {
 			struct page *mm = mem->mem_handle;
 
-			if (mem->from_flags ==
-				AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+			if (codec_mm_from_reserved(mem->from_flags))
 				mm = phys_to_page((unsigned long)mm);
 			cma_mmu_op(mm, mem->page_count, 0);
 			ret = codec_mm_init_tvp_pool(tvp_pool, mem);
@@ -1853,6 +1960,11 @@ static int codec_mm_tvp_pool_alloc_by_type(struct extpool_mgt_s *tvp_pool,
 				CODEC_MM_FLAGS_RESERVED);
 
 		if (mem) {
+			struct page *mm = mem->mem_handle;
+
+			if (codec_mm_from_reserved(mem->from_flags))
+				mm = phys_to_page((unsigned long)mm);
+			cma_mmu_op(mm, mem->page_count, 0);
 			ret = codec_mm_init_tvp_pool(tvp_pool, mem);
 			if (ret < 0) {
 				codec_mm_release(mem, TVP_POOL_NAME);
@@ -2118,6 +2230,11 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 						CODEC_MM_FLAGS_RESERVED);
 
 			if (mem) {
+				struct page *mm = mem->mem_handle;
+
+				if (codec_mm_from_reserved(mem->from_flags))
+					mm = phys_to_page((unsigned long)mm);
+				cma_mmu_op(mm, mem->page_count, 0);
 				ret = codec_mm_init_tvp_pool(tvp_pool, mem);
 				if (ret < 0) {
 					codec_mm_release(mem, TVP_POOL_NAME);
@@ -2166,8 +2283,7 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 			if (mem) {
 				struct page *mm = mem->mem_handle;
 
-				if (mem->from_flags ==
-					AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+				if (codec_mm_from_reserved(mem->from_flags))
 					mm = phys_to_page((unsigned long)mm);
 				if (for_tvp) {
 					cma_mmu_op(mm,
@@ -2254,8 +2370,7 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 			if (tvp_pool->mm[i]) {
 				struct page *mm = tvp_pool->mm[i]->mem_handle;
 
-				if (tvp_pool->mm[i]->from_flags ==
-				    AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+				if (codec_mm_from_reserved(tvp_pool->mm[i]->from_flags))
 					mm = phys_to_page((unsigned long)mm);
 				cma_mmu_op(mm,
 					   tvp_pool->mm[i]->page_count,
@@ -2318,12 +2433,19 @@ static int codec_mm_tvp_pool_unprotect_and_release(struct extpool_mgt_s *tvp_poo
 
 				pr_info("unprotect tvp %d handle is %d\n",
 					i, tvp_pool->mm[i]->tvp_handle);
-				if (tvp_pool->mm[i]->tvp_handle > 0) {
-					tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
+				if (tvp_pool->mm[i]->tvp_handle >= 0) {
+					if (secure_mem_ctrl) {
+						tee_sectbl_secmem_set(tvp_pool->mm[i]->phy_addr,
+							tvp_pool->mm[i]->buffer_size, 0);
+						clear_sectbl_bitmap(tvp_pool->mm[i]->phy_addr,
+							tvp_pool->mm[i]->buffer_size);
+					} else {
+						tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
+					}
 					tvp_pool->mm[i]->tvp_handle = -1;
 				}
-				if (tvp_pool->mm[i]->from_flags ==
-					AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+
+				if (codec_mm_from_reserved(tvp_pool->mm[i]->from_flags))
 					mm = phys_to_page((unsigned long)mm);
 				cma_mmu_op(mm, tvp_pool->mm[i]->page_count, 1);
 				codec_mm_release(tvp_pool->mm[i], TVP_POOL_NAME);
@@ -2571,6 +2693,13 @@ static void dump_mem_infos(struct seq_file *m)
 		(mgt->phys_vmaped_page_cnt << PAGE_SHIFT) / SZ_1M);
 	pbuf += get_string_offset(&buf_len, &tsize, s);
 
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	s = snprintf(pbuf, buf_size - tsize,
+		"\tRES_EXT:%d MB\n",
+		mgt->alloced_res_ext_size / SZ_1M);
+	pbuf += get_string_offset(&buf_len, &tsize, s);
+#endif
+
 	if (mgt->res_pool) {
 		s = snprintf(pbuf, buf_size - tsize,
 				"\t[%d]RES size:%d MB,alloced:%d MB free:%d MB\n",
@@ -2712,6 +2841,32 @@ static int dump_free_mem_infos(void *buf, int size)
 	pr_info("total_free_size %x\n", total_free_size);
 	kfree(usedb);
 	return 0;
+}
+
+void set_secure_controller_mode(struct codec_mm_mgt_s *mgt)
+{
+	u32 temp[2] = { 0 };
+	int ret = of_property_read_u32_array(mgt->dev->of_node, "secure_ctrl_para",
+		temp, ARRAY_SIZE(temp));
+
+	if (ret)
+		return;
+
+	secure_mem_ctrl = temp[0];
+	if (secure_mem_ctrl) {
+		phys_addr_t cma_base = cma_get_base(dev_get_cma_area(mgt->dev));
+		ulong cma_size = cma_get_size(dev_get_cma_area(mgt->dev));
+
+		secure_mem_align2n = temp[1];
+		tee_sectbl_mem_map(cma_base, cma_size, 1 << secure_mem_align2n, 0, 0, 0);
+
+		mgt->tee_sectbl_size = (cma_size >> secure_mem_align2n) >> 3;
+		mgt->tee_sectbl_bitmap = vzalloc(ALIGN(mgt->tee_sectbl_size, 4));
+		spin_lock_init(&mgt->tee_sectbl_lock);
+
+		pr_info("codec_mm secure_mem_align2n is %d tee_sectbl_size is %d bytes\n",
+			secure_mem_align2n, mgt->tee_sectbl_size);
+	}
 }
 
 static void codec_mm_tvp_segment_init(void)
@@ -3179,12 +3334,39 @@ int codec_mm_mgt_init(struct device *dev)
 #endif
 	}
 
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	if (mgt->rmem_ext.size > 0) {
+		unsigned long aligned_addr;
+		int aligned_size;
+		/*mem aligned, */
+		mgt->res_ext_pool = gen_pool_create(RESERVE_MM_ALIGNED_2N, -1);
+		if (!mgt->res_ext_pool)
+			return -ENOMEM;
+		aligned_addr = ((unsigned long)mgt->rmem_ext.base +
+			((1 << RESERVE_MM_ALIGNED_2N) - 1)) &
+			(~((1 << RESERVE_MM_ALIGNED_2N) - 1));
+		aligned_size = mgt->rmem_ext.size -
+			(int)(aligned_addr - (unsigned long)mgt->rmem_ext.base);
+		ret = gen_pool_add(mgt->res_ext_pool,
+				 aligned_addr, aligned_size, -1);
+		if (ret < 0) {
+			gen_pool_destroy(mgt->res_ext_pool);
+			return -1;
+		}
+		pr_debug("add reserve ext memory %p(aligned %p) size=%x(aligned %x)\n",
+			 (void *)mgt->rmem_ext.base, (void *)aligned_addr,
+			 (int)mgt->rmem_ext.size, (int)aligned_size);
+		mgt->total_reserved_ext_size = aligned_size;
+	}
+#endif
+
 	mgt->total_cma_size = codec_mm_get_cma_size_int_byte(mgt->dev);
 	mgt->total_codec_mem_size += mgt->total_cma_size;
 	if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) <
 		MESON_CPU_MAJOR_ID_G12A)
 		tvp_dynamic_increase_disable = 1;
 	default_tvp_4k_size = 0;
+	set_secure_controller_mode(mgt);
 	codec_mm_tvp_segment_init();
 	default_cma_res_size = mgt->total_cma_size;
 	mgt->global_memid = 0;
@@ -3494,17 +3676,49 @@ static int codec_mm_mem_dump(unsigned long addr, int isphy, int len)
 	return 0;
 }
 
-static ssize_t debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t size)
+static void dump_tee_sectbl_info(void)
 {
-	unsigned int val;
+	u32 ret;
+	struct tee_sectbl_info tbl_info = { 0 };
+
+	if (!secure_mem_ctrl)
+		return;
+
+	ret = tee_sectbl_get_info(&tbl_info);
+	if (ret) {
+		pr_info("get tee_sectbl info fail ret %u\n", ret);
+		return;
+	}
+
+	pr_info("codec_mm tee_info addr 0x%llx size 0x%llx blk_size 0x%x secure_bits %u sectbl_crc 0x%x\n",
+		tbl_info.tbl0_sta, tbl_info.tbl0_size, tbl_info.tbl0_blk_size,
+		tbl_info.secure_bits, tbl_info.sectbl_crc);
+}
+
+static void dump_tee_sectbl_bitmap(void)
+{
+	int i;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	if (!secure_mem_ctrl)
+		return;
+
+	pr_info("Start dump tee sectbl bitmap\n");
+	for (i = 0; i < mgt->tee_sectbl_size / 4; i++)
+		pr_err("line%d 0x%08lx\n", i, *(mgt->tee_sectbl_bitmap + i));
+	pr_info("End dump tee sectbl bitmap\n");
+}
+
+static ssize_t debug_store(const struct class *class,
+		const struct class_attribute *attr,
+		const char *buf, size_t size)
+{
+	unsigned int val, tmp;
 	ssize_t ret;
 
 	val = -1;
-	/*ret = sscanf(buf, "%d", &val);*/
-	ret = kstrtoint(buf, 0, &val);
-	if (ret != 0)
+	ret = sscanf(buf, "%d %d", &val, &tmp);
+	if (ret == 0)
 		return -EINVAL;
 	switch (val) {
 	case 0:
@@ -3540,6 +3754,12 @@ static ssize_t debug_store(const struct class *class,
 	case 12:
 		dump_free_mem_infos(NULL, 0);
 		break;
+	case 13:
+		dump_tee_sectbl_info();
+		break;
+	case 14:
+		dump_tee_sectbl_bitmap();
+		break;
 	case 20: {
 		int cmd = 0, len = 0;
 		unsigned int addr;
@@ -3559,6 +3779,20 @@ static ssize_t debug_store(const struct class *class,
 		break;
 	case 200:
 		codec_mm_dbuf_walk(NULL);
+		break;
+	case 900: {
+			uint cmd, buffer_page_num, buffer_num, intrval_ms, times;
+			uint wait_size, tvp_mode;
+
+			ret = sscanf(buf, "%d %d %d %d %d %d %d",
+					&cmd, &times, &buffer_page_num, &buffer_num,
+					&intrval_ms, &wait_size, &tvp_mode);
+			pr_info("buf num:%d, page num:%d, intrval_ms:%d, times:%d, wait size:%d, tvp:%d\n",
+					buffer_num, buffer_page_num, intrval_ms,
+					times, wait_size, tvp_mode);
+			codec_mm_scatter_simu_thread_test(times, buffer_page_num, buffer_num,
+					intrval_ms, wait_size, tvp_mode);
+		}
 		break;
 	default:
 		pr_err("unknown cmd! %d\n", val);
@@ -4014,24 +4248,6 @@ unsigned long (*aml_syms_lookup)(const char *name);
 static struct kprobe kp_lookup_name = {
 	.symbol_name	= "kallsyms_lookup_name",
 };
-
-static void *get_symbol_addr(const char *symbol_name)
-{
-	struct kprobe kp = {
-	.symbol_name = symbol_name,
-	};
-	int ret;
-
-	ret = register_kprobe(&kp);
-	if (ret < 0) {
-		pr_err("register_kprobe:%s failed, returned %d\n", symbol_name, ret);
-		return NULL;
-	}
-	pr_debug("symbol_name:%s addr=%px\n", symbol_name, kp.addr);
-	unregister_kprobe(&kp);
-
-	return kp.addr;
-}
 #endif
 
 int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
@@ -4040,6 +4256,7 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	struct cma *cma = NULL;
 	struct page *page = NULL;
 #if defined(CONFIG_ARM64)
+	struct task_struct *task = NULL;
 	int ret;
 
 	ret = register_kprobe(&kp_lookup_name);
@@ -4052,12 +4269,18 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 
 	aml_init_mm = (struct mm_struct *)aml_syms_lookup("init_mm");
+	if (!aml_init_mm) {
+		rcu_read_lock();
+		for_each_process(task) {
+			if (task->pid == 1) {
+				aml_init_mm = task->active_mm;
+				break;
+			}
+		}
+		rcu_read_unlock();
+	}
 	aml_mte_sync_tags = (void (*)(pte_t old_pte, pte_t pte))aml_syms_lookup("mte_sync_tags");
-	pr_debug("aml_init_mm: %px, aml_mte_sync_tags: %px\n", aml_init_mm, aml_mte_sync_tags);
-	aml__pte_offset_map = (pte_t * (*)(pmd_t *pmd, unsigned long addr,
-				pmd_t *pmdvalp))get_symbol_addr("__pte_offset_map");
-	aml_get_pfnblock_flags_mask = (unsigned long (*)(const struct page *page,
-		unsigned long pfn, unsigned long mask))get_symbol_addr("get_pfnblock_flags_mask");
+	pr_info("aml_init_mm: %px, aml_mte_sync_tags: %px\n", aml_init_mm, aml_mte_sync_tags);
 #endif
 
 	cma = dev_get_cma_area(codec_dev);
@@ -4097,6 +4320,57 @@ bool is_2k_platform(void)
 	return false;
 }
 
+static inline void codec_mm_parse_reserved_mem(struct platform_device *pdev, char *name,
+	int (*vdec_res_setup)(struct reserved_mem *rmem))
+{
+	int r;
+	struct reserved_mem *mem = NULL;
+	int region_index = 0;
+	struct device_node *search_target = NULL;
+
+	while (1) {
+		search_target = of_parse_phandle(pdev->dev.of_node,
+						"memory-region",
+						region_index);
+		if (!search_target)
+			break;
+
+		if (!strcmp(search_target->name, name)) {
+			mem = of_reserved_mem_lookup(search_target);
+			if (mem) {
+				r = vdec_res_setup(mem);
+				if (r)
+					pr_err("%s vdec_res_setup res %x\n", name, r);
+				r = of_reserved_mem_device_init_by_idx(&pdev->dev,
+					pdev->dev.of_node, region_index);
+				if (r)
+					pr_err("%s vdec_res_setup device init failed\n", name);
+			}
+			break;
+		}
+		region_index++;
+	}
+}
+
+u32 codec_mm_get_property_from_dts(char *property_name)
+{
+	struct device_node *pnode = NULL;
+	u32 ret = -1;
+
+	pnode = of_find_node_by_name(NULL, "codec_mm");
+	if (!pnode) {
+		pr_info("not find codec_mm node\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32(pnode, property_name, &ret)) {
+		pr_info("read format in dts failed, ret = %d\n", ret);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 u64 codec_mm_managed_max_addr(void)
 {
 	u64 addr = 0;
@@ -4126,46 +4400,42 @@ u64 codec_mm_secure_vdec_max_addr(void)
 	return  sec_vdec_addr + sec_vdec_size;
 }
 
+static void prepare_full_pagemap(struct device_node *of_node)
+{
+#if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
+		IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
+		!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
+	u32 random = 0;
+	int ret;
+
+	if (!of_node)
+		return;
+
+	ret = of_property_read_u32(of_node, "random_access", &random);
+	if (!ret && random) {
+		if (kthread_run(get_mte_sync_tags_hook_kprobe, NULL,
+						"AML_CODEC_MM") == ERR_PTR(-ENOMEM)) {
+			pr_err("Failed to start kernel thread AML_CODEC_MM\n");
+		}
+	}
+
+#endif
+}
+
 static int codec_mm_probe(struct platform_device *pdev)
 {
 	int r;
-	struct reserved_mem *mem = NULL;
-	int secure_region_index = 0;
-	struct device_node *search_target = NULL;
 	struct codec_mm_mgt_s *mgt = NULL;
 
-	while (1) {
-		search_target = of_parse_phandle(pdev->dev.of_node,
-						"memory-region",
-						secure_region_index);
-		if (!search_target)
-			break;
-
-		if (!strcmp(search_target->name, "linux,secure_vdec_reserved")) {
-			mem = of_reserved_mem_lookup(search_target);
-			if (mem) {
-				r = secure_vdec_res_setup(mem);
-				if (r)
-					pr_err("secure_vdec_res_setup res %x\n", r);
-				r = of_reserved_mem_device_init_by_idx(&pdev->dev,
-					pdev->dev.of_node, secure_region_index);
-				if (r)
-					pr_err("secure_vdec_res_setup device init failed\n");
-			}
-			break;
-		}
-		secure_region_index++;
-	}
+	codec_mm_parse_reserved_mem(pdev, "linux,secure_vdec_reserved", secure_vdec_res_setup);
+	codec_mm_parse_reserved_mem(pdev, "linux,codec_mm_reserved", codec_mm_res_setup);
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	codec_mm_parse_reserved_mem(pdev, "linux,codec_mm_reserved_ext", codec_mm_res_ext_setup);
+#endif
 
 	mgt = get_mem_mgt();
-
 	pdev->dev.platform_data = mgt;
-	r = of_reserved_mem_device_init(&pdev->dev);
-	if (r == 0)
-		pr_debug("%s mem init done\n", __func__);
 
-	codec_mm_mgt_init(&pdev->dev);
-	codec_mm_dev_set_dma_mask(DMA_BIT_MASK(64));
 	r = class_register(&codec_mm_class);
 	if (r) {
 		pr_err("vdec class create fail.\n");
@@ -4173,9 +4443,11 @@ static int codec_mm_probe(struct platform_device *pdev)
 	}
 	r = of_reserved_mem_device_init(&pdev->dev);
 	if (r == 0)
-		pr_debug("codec_mm reserved memory probed done\n");
+		pr_debug("codec_mm cma memory probed done\n");
 
 	pr_info("%s ok\n", __func__);
+	codec_mm_mgt_init(&pdev->dev);
+	codec_mm_dev_set_dma_mask(DMA_BIT_MASK(64));
 
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
@@ -4191,11 +4463,10 @@ static int codec_mm_probe(struct platform_device *pdev)
 				  "trigger", codec_mm_trigger,
 				  CONFIG_FOR_RW | CONFIG_FOR_T);
 	codec_state_register(&mgt->cs, &codec_mm_cs_ops);
-#if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
-	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
-	kthread_run(get_mte_sync_tags_hook_kprobe, NULL, "AML_CODEC_MM");
-#endif
+
+	init_alloc_page_boost_task();
+	prepare_full_pagemap(pdev->dev.of_node);
+
 	return 0;
 }
 
@@ -4347,6 +4618,34 @@ static int __init secure_vdec_res_setup(struct reserved_mem *rmem)
 
 RESERVEDMEM_OF_DECLARE(secure_vdec_reserved, "amlogic, secure-vdec-reserved",
 			secure_vdec_res_setup);
+
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+static int codec_mm_reserved_ext_init(struct reserved_mem *rmem, struct device *dev)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	mgt->rmem_ext = *rmem;
+	pr_debug("%s %p->%p\n", __func__,
+		 (void *)mgt->rmem_ext.base,
+		 (void *)mgt->rmem_ext.base + mgt->rmem_ext.size);
+	return 0;
+}
+
+static const struct reserved_mem_ops codec_mm_rmem_ext_vdec_ops = {
+	.device_init = codec_mm_reserved_ext_init,
+};
+
+static int codec_mm_res_ext_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &codec_mm_rmem_ext_vdec_ops;
+	pr_debug("vdec: reserved mem setup\n");
+
+	return 0;
+}
+
+RESERVEDMEM_OF_DECLARE(codec_mm_reserved_ext, "amlogic, codec-mm-reserved_ext",
+			codec_mm_res_ext_setup);
+#endif
 
 module_param(debug_mode, uint, 0664);
 MODULE_PARM_DESC(debug_mode, "\n debug module\n");

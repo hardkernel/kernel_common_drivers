@@ -17,15 +17,15 @@
 #define CODEC_MM_FLAGS_CPU 2
 #define CODEC_MM_FLAGS_TVP 4
 
-#define CODEC_MM_FLAGS_RESERVED 0x100
+#define CODEC_MM_FLAGS_RESERVED		0x100
 #define CODEC_MM_FLAGS_CMA		0x200
-
 /*
  *alloc from cma first,
  *cma->then ..reserved.
  *for less memory fragment;
  */
-#define CODEC_MM_FLAGS_CMA_FIRST 0x400
+#define CODEC_MM_FLAGS_CMA_FIRST	0x400
+#define CODEC_MM_FLAGS_RESERVED_EXT	0x800
 
 /*
  *flags can used for DRM:
@@ -88,6 +88,7 @@ struct codec_mm_s {
 #define AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP 5
 #define AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES 6
 #define AMPORTS_MEM_FLAGS_FROM_GET_FROM_COHERENT 7
+#define AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT 8
 	int from_flags;
 	/*may can be shared on many user..*/
 	   /*decoder/di/ppmgr,*/
@@ -149,6 +150,7 @@ void codec_mm_unmap_phyaddr(u8 *vaddr);
 
 void codec_mm_dma_flush(void *vaddr, int size, enum dma_data_direction dir);
 void codec_mm_prealloc_tvp_pool(void);
+void dump_mem_infos_external(void);
 
 int codec_mm_get_total_size(void);
 int codec_mm_get_free_size(void);
@@ -176,6 +178,7 @@ int codec_mm_alloc_cma_size(void);
 	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
 int cma_mmu_op(struct page *page, int count, bool set);
 void codec_mm_dev_set_dma_mask(u64 bits);
+
 #else
 static inline int cma_mmu_op(struct page *page, int count, bool set)
 {

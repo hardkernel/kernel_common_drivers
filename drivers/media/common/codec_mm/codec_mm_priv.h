@@ -39,7 +39,6 @@ do {					\
 
 void dma_clear_buffer(struct page *page, size_t size);
 
-u32 codec_mm_get_sc_debug_mode(void);
 u32 codec_mm_get_keep_debug_mode(void);
 bool codec_mm_scatter_available_check(int size);
 void codec_mm_scatter_level_decrease(int size);
@@ -48,4 +47,5 @@ void codec_mm_set_min_linear_size(int min_mem_val);
 int codec_mm_get_min_linear_size(void);
 int codec_mm_get_scatter_watermark(void);
 bool is_2k_platform(void);
+u32 codec_mm_get_property_from_dts(char *property_name);
 #endif /**/

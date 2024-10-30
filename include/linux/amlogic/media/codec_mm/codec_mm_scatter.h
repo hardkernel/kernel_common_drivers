@@ -18,7 +18,18 @@
 #define SC_ALLOC_SYS_DMA32  BIT(0)
 #define SC_OWEN_NAME_LEN 8
 
+#define CACHE_QUEUE_LEN 16384
+
 #define PAGE_INDEX(page) ((page) >> PAGE_SHIFT)
+
+struct codec_mm_cache_queue {
+	int head;
+	int tail;
+	/* cache produce lock */
+	struct mutex head_lock;
+	/* cache consume lock */
+	spinlock_t tail_lock;
+};
 
 struct codec_mm_scatter {
 	void *manager;
@@ -27,11 +38,10 @@ struct codec_mm_scatter {
 	int page_cnt;		/*page num */
 	int page_tail;		/*last page in list */
 	int page_used;
-	/* spin lock */
-	spinlock_t lock;
+	struct codec_mm_cache_queue *queue;
 	atomic_t user_cnt;
 	unsigned long tofree_jiffies;
-	/* mutex lock */
+	/* user scatter mutex lock */
 	struct mutex mutex;
 	struct list_head list;	/*hold list. */
 };
