@@ -234,9 +234,8 @@ static int dsc_dec_probe(struct platform_device *pdev)
 	}
 	vdata = (struct dsc_dec_data_s *)match->data;
 	if (!vdata) {
-		DSC_DEC_PR("driver version: %s(%d-%s)\n",
-			DSC_DEC_DRV_VERSION, vdata->chip_type,
-			vdata->chip_name);
+		DSC_DEC_PR("vdata null, driver version: %s\n",
+			DSC_DEC_DRV_VERSION);
 		return -1;
 	}
 

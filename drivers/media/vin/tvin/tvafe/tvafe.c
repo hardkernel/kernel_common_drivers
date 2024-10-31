@@ -1930,7 +1930,7 @@ static struct resource tvafe_memobj;
 
 static int tvafe_drv_probe(struct platform_device *pdev)
 {
-	u32 ret = 0;
+	int ret = 0;
 	struct tvafe_dev_s *tdevp;
 	int size_io_reg;
 	/*const void *name;*/
@@ -2051,10 +2051,6 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 		tvafe_pr_err("Can't get pinmux data.\n");
 	}
 	tdevp->pinmux = &tvafe_pinmux;
-	if (!tdevp->pinmux) {
-		tvafe_pr_err("tvafe: no platform data!\n");
-		return -ENODEV;
-	}
 
 	if (of_get_property(pdev->dev.of_node, "pinctrl-names", NULL)) {
 		struct pinctrl *p = devm_pinctrl_get_select_default(&pdev->dev);
