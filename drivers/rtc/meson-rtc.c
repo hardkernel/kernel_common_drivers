@@ -94,7 +94,7 @@ static int meson_rtc_set_time(struct device *dev, struct rtc_time *tm)
 static int meson_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
-	u32 alarm_sec;
+	u32 alarm_sec = 0;
 	u32 reg_val;
 	time64_t alarm_sec64;
 
