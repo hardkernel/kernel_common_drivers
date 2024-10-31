@@ -964,15 +964,17 @@ static int aml_set_governor(struct thermal_zone_device *tz, struct thermal_gover
 static void aml_verify_governor(struct thermal_zone_device *tz, const char *name)
 {
 	struct thermal_governor *governor = tz->governor, *gov, *n;
+	char govname[128] = {0};
 
 	if (!strncasecmp(name, governor->name, THERMAL_NAME_LENGTH))
 		return;
 	mutex_lock(&tz->lock);
 	list_for_each_entry_safe(gov, n, &governor->governor_list, governor_list) {
-		if (!strncasecmp(name, gov->name, THERMAL_NAME_LENGTH)) {
-			aml_set_governor(tz, gov);
-			break;
-		}
+		sprint_symbol(govname, (unsigned long)(gov->name));
+		if (!strstr(govname, name))
+			continue;
+		aml_set_governor(tz, gov);
+		break;
 	}
 	mutex_unlock(&tz->lock);
 }
