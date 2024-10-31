@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <uapi/linux/sched/types.h>
 #include <asm/div64.h>
+#include <linux/vmalloc.h>
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
 #include <linux/amlogic/media/registers/cpu_version.h>
 

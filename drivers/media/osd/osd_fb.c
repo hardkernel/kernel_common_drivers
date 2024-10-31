@@ -32,6 +32,7 @@
 #include <linux/amlogic/ion.h>
 #include <linux/dma-map-ops.h>
 #include <linux/dma-buf.h>
+#include <linux/vmalloc.h>
 #include <linux/compat.h>
 //#include <linux/ion.h>
 #include <dev_ion.h>
@@ -6149,17 +6150,17 @@ failed1:
 	return ret;
 }
 
-static int osd_remove(struct platform_device *pdev)
+static void osd_remove(struct platform_device *pdev)
 {
 	struct fb_info *fbi;
 	int i;
 
 	osd_log_info("%s.\n", __func__);
 	if (!pdev)
-		return -ENODEV;
+		return;
 	if (osd_meson_dev.osd_ver == OSD_NONE) {
 		amlfb_virtual_remove(pdev);
-		return 0;
+		return;
 	}
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&early_suspend);
@@ -6201,7 +6202,6 @@ static int osd_remove(struct platform_device *pdev)
 			framebuffer_release(fbi);
 		}
 	}
-	return 0;
 }
 
 static void osd_shutdown(struct platform_device *pdev)
