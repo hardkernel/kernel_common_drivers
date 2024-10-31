@@ -1645,8 +1645,11 @@ int32_t dwc_otg_handle_common_intr(void *dev)
 		if (gintsts.b.wkupintr)
 			retval |= dwc_otg_handle_wakeup_detected_intr(core_if);
 
-		if (gintsts.b.usbsuspend)
+		if (gintsts.b.usbsuspend) {
+			lockdep_off();
 			retval |= dwc_otg_handle_usb_suspend_intr(core_if);
+			lockdep_on();
+		}
 
 #ifdef CONFIG_USB_DWC_OTG_LPM
 		if (gintsts.b.lpmtranrcvd)
