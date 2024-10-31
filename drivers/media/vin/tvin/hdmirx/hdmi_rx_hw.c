@@ -5712,6 +5712,8 @@ void hdmirx_config_video(u8 port)
 	/* for yuv422,bypass mode */
 	if (rx[port].cur.colorspace == E_COLOR_YUV422)
 		rx_cd_override(true, port);
+	else
+		rx_cd_override(false, port);
 	if (rx_info.chip_id >= CHIP_ID_T3X && port == rx_info.main_port) {
 		rx[port].emp_vid_idx = 1;
 		rx[port].emp_info = &rx_info.emp_buff_b;

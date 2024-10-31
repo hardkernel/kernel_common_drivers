@@ -19,7 +19,8 @@
 /* 2024.09.26 modify frl training flow */
 /* 2024.10.10 optimize hdcp2.2 suspend flow */
 /* 2024.10.22 modify incorrect register config method in phy init */
-#define RX_HW_VER "ver.2024/10/22"
+/* 2024.11.4 close override when 420 */
+#define RX_HW_VER "ver.2024/11/04"
 
 #define K_TEST_CHK_ERR_CNT
 
