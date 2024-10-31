@@ -509,7 +509,7 @@ static int meson_pm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void __exit meson_pm_remove(struct platform_device *pdev)
+static void meson_pm_remove(struct platform_device *pdev)
 {
 	if (debug_reg)
 		iounmap(debug_reg);

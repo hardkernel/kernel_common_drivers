@@ -906,9 +906,7 @@ static int codec_mm_alloc_first(struct codec_mm_mgt_s *mgt,
 		  mem->align2n <= RESERVE_MM_ALIGNED_2N) {
 		int aligned_buffer_size = ALIGN(mem->buffer_size,
 			(1 << RESERVE_MM_ALIGNED_2N));
-		if (mem->flags & CODEC_MM_FLAGS_TVP)
-			// to do..
-			;
+
 		mem->mem_handle = (void *)gen_pool_alloc(mgt->res_ext_pool,
 						aligned_buffer_size);
 		mem->from_flags =

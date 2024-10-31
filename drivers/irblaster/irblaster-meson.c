@@ -297,8 +297,9 @@ int meson_irblaster_send(struct irblaster_chip *chip,
 	for (i = 0; i < len; i++) {
 		sum_time += data[i];
 		if (irblaster_debug) {
-			if (irblaster_debug >= BLASTER_DEBUG_HIGH)
+			if (irblaster_debug >= BLASTER_DEBUG_HIGH) {
 				IROUTDebug("ir[%d] = %d\n", i, data[i]);
+			}
 			if (data[i] > (high_ct + low_ct)
 			   * BLASTER_TIMEBASE_COUNT)
 				long_len += DIV_ROUND_UP(data[i],
@@ -343,9 +344,10 @@ static irqreturn_t meson_blaster_interrupt(int irq, void *dev_id)
 {
 	struct meson_irblaster_dev *dev = dev_id;
 
-	if (irblaster_debug >= BLASTER_DEBUG_HIGH)
+	if (irblaster_debug >= BLASTER_DEBUG_HIGH) {
 		IROUTDebug("enter irq count = %d size = %d\n",
 			   dev->count, dev->buffer_size);
+	}
 	/*clear pending bit*/
 	writel_relaxed(readl_relaxed(dev->reg_base + AO_IR_BLASTER_ADDR3) &
 			(~BLASTER_FIFO_THD_PENDING),

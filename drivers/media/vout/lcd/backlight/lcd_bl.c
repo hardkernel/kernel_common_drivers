@@ -4265,7 +4265,7 @@ aml_bl_probe_err:
 	return -1;
 }
 
-static void __exit aml_bl_remove(struct platform_device *pdev)
+static void aml_bl_remove(struct platform_device *pdev)
 {
 	struct aml_bl_drv_s *bdrv = platform_get_drvdata(pdev);
 	int index;

@@ -95,13 +95,12 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			if (videocode == HDMI_95_3840x2160p30_16x9 ||
 			    videocode == HDMI_94_3840x2160p25_16x9 ||
 			    videocode == HDMI_93_3840x2160p24_16x9 ||
-			    videocode == HDMI_98_4096x2160p24_256x135)
+			    videocode == HDMI_98_4096x2160p24_256x135) {
 				hdmi_set_vend_spec_infofram(hdev, videocode);
-			else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
-				 (!hdev->flag_3dss))
+			} else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
+				 (!hdev->flag_3dss)) {
 				hdmi_set_vend_spec_infofram(hdev, 0);
-			else
-				;
+			}
 
 			if (hdev->tx_comm.allm_mode) {
 				hdmitx_common_setup_vsif_packet(&hdev->tx_comm, VT_ALLM, 1, NULL);

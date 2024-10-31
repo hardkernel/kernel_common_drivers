@@ -127,10 +127,9 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 				/* TODO */
 				hdmi_set_vend_spec_infofram(hdev, videocode);
 		} else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
-			 (!hdev->flag_3dss))
+			 (!hdev->flag_3dss)) {
 			hdmi_set_vend_spec_infofram(hdev, 0);
-		else
-			;
+		}
 		/* if TV support traditional SDR, then enable hdr.sdr packet by default */
 		if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) {
 			struct master_display_info_s data = {0};

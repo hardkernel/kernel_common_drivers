@@ -499,8 +499,6 @@ static ssize_t dmx_mutex_store(const struct class *class,
 	if (!strncmp(buf, "lock", 4)) {
 		if (mutex_lock_interruptible(&advb->mutex))
 			lock_err_status++;
-		else
-			;//pr_dbg("dmx_mutex lock\n");
 	} else if (!strncmp(buf, "unlock", 6)) {
 		mutex_unlock(&advb->mutex);
 		//pr_dbg("dmx_mutex unlock\n");

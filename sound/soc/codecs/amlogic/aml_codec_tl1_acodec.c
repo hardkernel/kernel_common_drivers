@@ -928,7 +928,7 @@ static int tl1_acodec_resume(struct snd_soc_component *component)
 	return 0;
 }
 
-const static struct snd_soc_component_driver soc_codec_dev_tl1_acodec = {
+static const struct snd_soc_component_driver soc_codec_dev_tl1_acodec = {
 	.probe = tl1_acodec_probe,
 	.remove = tl1_acodec_remove,
 	.suspend = tl1_acodec_suspend,

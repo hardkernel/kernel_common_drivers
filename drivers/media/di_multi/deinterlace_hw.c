@@ -251,8 +251,6 @@ static void crc_init(void)//debug crc init
 		return;
 	if (DIM_IS_IC_EF(SC2))
 		DIM_DI_WR_REG_BITS(DI_CRC_CHK0, 0x7, 0, 3);
-	else if ((DIM_IS_IC(T5)) || (DIM_IS_IC(T5D)))
-		;//test crc DIM_DI_WR_REG_BITS(DI_T5_CRC_CHK0, 0x7, 0, 3);
 }
 
 void dimh_init_field_mode(unsigned short height)

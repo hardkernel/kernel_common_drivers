@@ -1394,7 +1394,7 @@ fail_alloc_data_fail:
 	return ret;
 }
 
-static void __exit frc_remove(struct platform_device *pdev)
+static void frc_remove(struct platform_device *pdev)
 {
 	struct frc_dev_s *frc_devp = &frc_dev;
 

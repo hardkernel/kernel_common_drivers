@@ -11684,9 +11684,6 @@ void dim_recycle_post_back(unsigned int channel)
 
 //ary 2020-12-09		di_unlock_irqfiq_restore(irq_flag2);
 	}
-
-	if (di_cfg_top_get(EDI_CFG_KEEP_CLEAR_AUTO))
-		;//dim_post_keep_release_all_2free(channel);
 }
 
 /**********************************************/

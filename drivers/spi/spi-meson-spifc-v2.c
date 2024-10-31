@@ -253,7 +253,7 @@ struct meson_spifc {
 	struct mutex lock;
 	u32 clk_rate;
 #endif
-	struct spi_master *master;
+	struct spi_controller *master;
 	struct regmap *regmap;
 	struct clk *clk;
 	struct device *dev;
@@ -611,11 +611,11 @@ static int meson_spifc_din(struct meson_spifc *spifc,
  * @xfer:	the current SPI transfer
  * Return:	0 on success, a negative value on error
  */
-static int meson_spifc_transfer_one(struct spi_master *master,
+static int meson_spifc_transfer_one(struct spi_controller *master,
 				    struct spi_device *spi,
 				    struct spi_transfer *xfer)
 {
-	struct meson_spifc *spifc = spi_master_get_devdata(master);
+	struct meson_spifc *spifc = spi_controller_get_devdata(master);
 	int i, len, done = 0, ret = 0;
 	u8 *p = (u8 *)xfer->tx_buf;
 	bool last_xfer = spi_transfer_is_last(master, xfer);
@@ -930,7 +930,7 @@ static int meson_spifc_probe(struct platform_device *pdev)
 #ifdef CONFIG_MTD_SPI_NOR
 	struct device_node *np;
 #endif
-	struct spi_master *master = 0;
+	struct spi_controller *master = 0;
 	struct meson_spifc *spifc;
 	struct resource *res;
 	void __iomem *base;
@@ -1024,7 +1024,7 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	}
 
 	spifc->master = master;
-	spi_master_set_devdata(master, spifc);
+	spi_controller_set_devdata(master, spifc);
 	master->num_chipselect = 1;
 	master->dev.of_node = pdev->dev.of_node;
 	master->mode_bits = SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD;
@@ -1033,7 +1033,7 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	master->transfer_one = meson_spifc_transfer_one;
 	master->min_speed_hz = 1000000;
 	master->max_speed_hz = 200000000;
-	ret = devm_spi_register_master(spifc->dev, master);
+	ret = devm_spi_register_controller(spifc->dev, master);
 	if (ret) {
 		dev_err(spifc->dev, "failed to register spi master\n");
 		goto out_clk;
@@ -1044,12 +1044,12 @@ out_clk:
 	clk_disable_unprepare(spifc->clk);
 out_err:
 	if (master)
-		spi_master_put(master);
+		spi_controller_put(master);
 	devm_kfree(&pdev->dev, spifc);
 	return ret;
 }
 
-static int meson_spifc_remove(struct platform_device *pdev)
+static void meson_spifc_remove(struct platform_device *pdev)
 {
 	struct meson_spifc *spifc = platform_get_drvdata(pdev);
 
@@ -1060,7 +1060,6 @@ static int meson_spifc_remove(struct platform_device *pdev)
 #endif
 	pm_runtime_disable(&pdev->dev);
 
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1070,7 +1069,7 @@ static int meson_spifc_suspend(struct device *dev)
 	int ret = 0;
 
 	if (spifc->master) {
-		ret = spi_master_suspend(spifc->master);
+		ret = spi_controller_suspend(spifc->master);
 		if (ret)
 			return ret;
 	}
@@ -1095,7 +1094,7 @@ static int meson_spifc_resume(struct device *dev)
 	meson_spifc_hw_init(spifc);
 
 	if (spifc->master) {
-		ret = spi_master_resume(spifc->master);
+		ret = spi_controller_resume(spifc->master);
 		if (ret)
 			clk_disable_unprepare(spifc->clk);
 	}

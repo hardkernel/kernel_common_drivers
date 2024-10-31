@@ -4544,12 +4544,6 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		}
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "hdcp_type_policy", &val);
-		if (!ret) {
-			if (val == 2)
-				;
-			if (val == 1)
-				;
-		}
 
 		hdev->tx_comm.enc_idx = hdmitx_get_connector();
 		HDMITX_INFO("enc_idx %d\n", hdev->tx_comm.enc_idx);

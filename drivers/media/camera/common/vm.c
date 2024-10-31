@@ -43,11 +43,7 @@
 #include "vm.h"
 #include <linux/ctype.h>
 #include <linux/videodev2.h>
-#include <media/videobuf-core.h>
 #include <media/videobuf2-core.h>
-#include <media/videobuf-dma-contig.h>
-#include <media/videobuf-vmalloc.h>
-#include <media/videobuf-dma-sg.h>
 #include <linux/amlogic/media/v4l_util/videobuf-res.h>
 
 #include <linux/amlogic/media/utils/amlog.h>
@@ -60,7 +56,6 @@
 #include <linux/sizes.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_fdt.h>
-//#include <linux/dma-contiguous.h>
 #include <linux/dma-map-ops.h>
 #include <linux/cma.h>
 #include <linux/module.h>
@@ -2145,7 +2140,7 @@ static int vm_driver_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vm_drv_remove(struct platform_device *plat_dev)
+static void vm_drv_remove(struct platform_device *plat_dev)
 {
 	int i;
 	struct vm_device_s *vdevp;
@@ -2167,7 +2162,7 @@ static int vm_drv_remove(struct platform_device *plat_dev)
 	}
 
 	uninit_vm_device(plat_dev);
-	return 0;
+
 }
 
 static const struct of_device_id amlogic_vm_dt_match[] = {

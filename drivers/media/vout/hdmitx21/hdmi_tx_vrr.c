@@ -747,7 +747,7 @@ static void vrr_debug_info(const char *fmt, ...)
 		HDMITX_INFO("%s", temp);
 }
 
-const static struct mvrr_const_val *search_vrrconf_mconst(enum hdmi_vic brr_vic,
+static const struct mvrr_const_val *search_vrrconf_mconst(enum hdmi_vic brr_vic,
 	int duration)
 {
 	const struct mvrr_const_st **table_vic = NULL;
@@ -876,7 +876,7 @@ static bool is_vrrconf_changed(struct vrr_conf_para *cur,
 	return 0;
 }
 
-const static u16 vsync_tfr_table[TFR_MAX] = {
+static const u16 vsync_tfr_table[TFR_MAX] = {
 	[TFR_QMSVRR_INACTIVE] = 0,
 	[TFR_23P97] = 2398,
 	[TFR_24] = 2400,

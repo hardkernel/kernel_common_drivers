@@ -121,11 +121,6 @@ unsigned long audio_info_get(char *buf, unsigned long count,
 	arg.retcnt = (unsigned long)&retcnt;
 
 	ret = meson_trustzone_audio_info_get(&arg);
-
-	if (ret == 0)
-		MYPRT("[%s %d]: get licence!!!\n", __func__, __LINE__);
-	else
-		MYPRT("[%s:%d]: read error!!!\n", __func__, __LINE__);
 	return ret;
 }
 

@@ -183,9 +183,8 @@ static int amlogic_cc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int amlogic_cc_remove(struct platform_device *pdev)
+static void amlogic_cc_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 #ifdef CONFIG_PM_RUNTIME

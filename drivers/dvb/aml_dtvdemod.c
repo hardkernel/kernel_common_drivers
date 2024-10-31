@@ -625,9 +625,6 @@ int aml_get_dts_demod_config(struct device_node *node,
 			cfg->ts_remap_cnt = 0;
 		}
 
-		if (cfg->ts_remap_cnt)
-			;/* TODO: need init in dvb */
-
 	} else {
 		snprintf(buf, sizeof(buf), "fe%d_ts_header_bytes", index);
 		ret = of_property_read_u32(node, buf, &value);

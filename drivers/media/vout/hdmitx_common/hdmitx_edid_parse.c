@@ -1430,8 +1430,6 @@ static void hdmitx_edid_4k2k_parse(struct rx_cap *prxcap, u8 *dat,
 			store_cea_idx(prxcap, HDMI_93_3840x2160p24_16x9);
 		else if (*dat == 4)
 			store_cea_idx(prxcap, HDMI_98_4096x2160p24_256x135);
-		else
-			;
 		dat++;
 	}
 }

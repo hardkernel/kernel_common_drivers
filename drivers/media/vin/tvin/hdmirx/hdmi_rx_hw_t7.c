@@ -876,10 +876,6 @@ void aml_eq_cfg_t7(void)
 		/*udelay(100);*/
 		/* hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL0, */
 			/* _BIT(28), 1); */
-		if (rx_info.aml_phy.long_cable)
-			;/* aml_phy_long_cable_det_t7(); */
-		if (rx_info.aml_phy.vga_dbg)
-			;/* aml_vga_tuning_t7();*/
 	} else if (rx[port].phy.phy_bw == PHY_BW_2) {
 		if (rx_info.aml_phy.long_cable) {
 			/*1.5G should enable DFE first*/

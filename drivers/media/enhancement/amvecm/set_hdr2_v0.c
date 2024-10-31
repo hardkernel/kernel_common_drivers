@@ -6830,10 +6830,6 @@ int get_hdr_setting(enum hdr_module_sel module_sel,
 	if (op == HDR_FULL_SETTING)
 		ret = create_hdr_full_setting(module_sel,
 			hdr_process_select, hdr_params);
-	else if (op == HDR10P_CURVE_SETTING)
-		; /* not ready */
-	else if (op == HDR_TM_SETTING)
-		; /* not ready */
 #endif
 	return ret;
 }

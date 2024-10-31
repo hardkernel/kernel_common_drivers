@@ -677,10 +677,6 @@ void frc_debug_rdma_if(struct frc_dev_s *devp, const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "addr_val")) {
 		if (!parm[2])
 			goto exit;
-		if (kstrtoint(parm[1], 16, &val1))
-			;// val1 = val1 & 0xffff;
-		if (kstrtoint(parm[2], 16, &val2))
-			;//val2 = val2 & 0xffffffff;
 		pr_frc(0, "frc rdma addr:%x, val:%x\n", val1, val2);
 		frc_rdma_table_config(val1, val2);
 	} else if (!strcmp(parm[0], "rdma_en")) {

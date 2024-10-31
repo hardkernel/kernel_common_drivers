@@ -1204,10 +1204,6 @@ void aml_eq_cfg_t3x_20(u8 port)
 		/*udelay(100);*/
 		/* hdmirx_wr_bits_amlphy_t3x(HHI_RX_PHY_DCHD_CNTL0, */
 			/* _BIT(28), 1); */
-		if (rx_info.aml_phy.long_cable)
-			;/* aml_phy_long_cable_det_t3(); */
-		if (rx_info.aml_phy.vga_dbg)
-			;/* aml_vga_tuning_t3();*/
 	} else if (rx[port].phy.phy_bw == PHY_BW_2) {
 		if (rx_info.aml_phy.long_cable) {
 			/*1.5G should enable DFE first*/
@@ -3365,8 +3361,6 @@ void dump_aml_phy_sts_t3x_21(u8 port)
 	lan2_lock = (data32 >> 15) & 1;
 	lan3_lock = (data32 >> 31) & 1;
 	rx_pr("\nhdmirx phy status:\n");
-	if (rx[port].var.frl_rate == FRL_OFF)
-		;//rx_pr("data_rate=tmds-%d\n", tmds_clk_msr());
 	else if (rx[port].var.frl_rate == FRL_3G_3LANE)
 		rx_pr("data_rate=FRL_3G_3LANE\n");
 	else if (rx[port].var.frl_rate == FRL_6G_3LANE)

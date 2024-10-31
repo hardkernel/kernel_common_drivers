@@ -1559,7 +1559,7 @@ free_out:
 	return -1;
 }
 
-static int aml_cams_remove(struct platform_device *pdev)
+static void aml_cams_remove(struct platform_device *pdev)
 {
 	struct aml_cam_info_s *cam_dev;
 
@@ -1577,7 +1577,6 @@ static int aml_cams_remove(struct platform_device *pdev)
 	kfree(temp_cam);
 	temp_cam = NULL;
 
-	return 0;
 }
 
 static struct platform_driver aml_cams_prober_driver = {

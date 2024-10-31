@@ -38,7 +38,6 @@
 #include <linux/kthread.h>
 #include <linux/highmem.h>
 #include <linux/freezer.h>
-#include <media/videobuf-vmalloc.h>
 
 #include <linux/i2c.h>
 #include "plat_ctrl.h"

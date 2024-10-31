@@ -3402,11 +3402,12 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 	ATRACE_COUNTER("vsync_toggle_frame_pts", vf->pts);
 
 	diff_pts = vf->pts - last_pts;
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
 	if (last_pts && diff_pts < 90000)
 		ATRACE_COUNTER("vsync_toggle_frame_inc", diff_pts);
 	else
 		ATRACE_COUNTER("vsync_toggle_frame_inc", 0);  /* discontinue */
-
+#endif
 	last_pts = vf->pts;
 
 	frame_count++;

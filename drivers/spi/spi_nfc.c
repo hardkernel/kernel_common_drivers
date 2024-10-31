@@ -69,7 +69,7 @@
 #define SPI_NFC_BUF_SIZE	(DATA_BUF_SIZE + OOB_BUF_SIZE)
 
 struct spi_nfc {
-	struct spi_master *master;
+	struct spi_controller *master;
 	struct regmap *regmap[3];
 	struct clk *clk_gate;
 	struct clk *fix_div2_pll;
@@ -419,11 +419,11 @@ enum TRANSFER_STATE spi_nfc_get_current_handle_state(struct spi_transfer *xfer)
 	return xfer_state;
 }
 
-static int spi_nfc_transfer_one(struct spi_master *master,
+static int spi_nfc_transfer_one(struct spi_controller *master,
 				    struct spi_device *spi,
 				    struct spi_transfer *xfer)
 {
-	struct spi_nfc *spi_nfc = spi_master_get_devdata(master);
+	struct spi_nfc *spi_nfc = spi_controller_get_devdata(master);
 	u32 page_size = page_info_get_page_size();
 	unsigned long flags;
 	enum TRANSFER_STATE xfer_state;
@@ -603,7 +603,7 @@ static void spi_nfc_ecc_select(struct spi_nfc *spi_nfc,
 
 static int spi_nfc_probe(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *master;
 	struct spi_nfc *spi_nfc;
 	void __iomem *base;
 	int ret = 0, i;
@@ -614,7 +614,7 @@ static int spi_nfc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, master);
 
-	spi_nfc = spi_master_get_devdata(master);
+	spi_nfc = spi_controller_get_devdata(master);
 	spi_nfc->dev = &pdev->dev;
 	for (i = 0; i < 3; i++) {
 		base = devm_platform_ioremap_resource(pdev, i);
@@ -650,7 +650,7 @@ static int spi_nfc_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(spi_nfc->dev);
 	pm_runtime_enable(spi_nfc->dev);
 
-	ret = devm_spi_register_master(spi_nfc->dev, master);
+	ret = devm_spi_register_controller(spi_nfc->dev, master);
 	if (ret) {
 		dev_err(spi_nfc->dev, "failed to register spi master\n");
 		goto out_clk;
@@ -661,11 +661,11 @@ out_clk:
 	spi_nfc_disable_clk(spi_nfc);
 	pm_runtime_disable(spi_nfc->dev);
 out_err:
-	spi_master_put(master);
+	spi_controller_put(master);
 	return ret;
 }
 
-static int spi_nfc_remove(struct platform_device *pdev)
+static void spi_nfc_remove(struct platform_device *pdev)
 {
 	struct spi_nfc *spi_nfc = platform_get_drvdata(pdev);
 
@@ -674,7 +674,6 @@ static int spi_nfc_remove(struct platform_device *pdev)
 	spi_nfc_buffer_free(spi_nfc);
 	pm_runtime_disable(&pdev->dev);
 
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -684,7 +683,7 @@ static int spi_nfc_suspend(struct device *dev)
 	int ret = 0;
 
 	if (spi_nfc->master) {
-		ret = spi_master_suspend(spi_nfc->master);
+		ret = spi_controller_suspend(spi_nfc->master);
 		if (ret)
 			return ret;
 	}
@@ -707,7 +706,7 @@ static int spi_nfc_resume(struct device *dev)
 	}
 
 	if (spi_nfc->master) {
-		ret = spi_master_resume(spi_nfc->master);
+		ret = spi_controller_resume(spi_nfc->master);
 		if (ret)
 			clk_disable_unprepare(spi_nfc->clk_gate);
 	}

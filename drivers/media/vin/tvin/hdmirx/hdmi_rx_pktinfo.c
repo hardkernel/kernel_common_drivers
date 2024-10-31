@@ -878,8 +878,6 @@ void rx_pkt_get_spd_ex(void *pktinfo, u8 port)
 
 	pkt->pkttype = PKT_TYPE_INFOFRAME_SPD;
 	pkt->pkttype = hdmirx_rd_cor(SPDRX_TYPE_DP2_IVCRX, port);
-	if (pkt->pkttype != PKT_TYPE_INFOFRAME_SPD)
-		;//rx_pr("wrong SPD\n");
 	pkt->version = hdmirx_rd_cor(SPDRX_VERS_DP2_IVCRX, port);
 	pkt->length = hdmirx_rd_cor(SPDRX_LENGTH_DP2_IVCRX, port);
 	pkt->checksum = hdmirx_rd_cor(SPDRX_CHSUM_DP2_IVCRX, port);

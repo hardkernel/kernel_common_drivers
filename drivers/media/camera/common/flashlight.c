@@ -52,7 +52,7 @@ static ssize_t flashlight_ctrl_flag_store(const struct class *cla,
 static int flashlight_open(struct inode *inode, struct file *file);
 static int flashlight_release(struct inode *inode, struct file *file);
 static int flashlight_probe(struct platform_device *pdev);
-static int flashlight_remove(struct platform_device *pdev);
+static void flashlight_remove(struct platform_device *pdev);
 
 static struct platform_driver flashlight_driver = {
 	.probe = flashlight_probe, .remove = flashlight_remove, .driver = {
@@ -201,13 +201,13 @@ out:
 	return ret;
 }
 
-static int flashlight_remove(struct platform_device *pdev)
+static void flashlight_remove(struct platform_device *pdev)
 {
 	unregister_chrdev_region(flashlight_devno, 1);
 	class_unregister(&flashlight_class);
 	device_destroy(NULL, flashlight_devno);
 	cdev_del(flashlight_cdev);
-	return 0;
+
 }
 
 int set_flashlight(bool mode)

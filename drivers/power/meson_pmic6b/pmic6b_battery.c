@@ -956,13 +956,12 @@ static int pmic6b_bat_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pmic6b_bat_remove(struct platform_device *pdev)
+static void pmic6b_bat_remove(struct platform_device *pdev)
 {
 	struct pmic6b_bat *bat = platform_get_drvdata(pdev);
 
 	cancel_delayed_work(&bat->work);
 
-	return 0;
 }
 
 static const struct of_device_id pmic6b_bat_match_table[] = {

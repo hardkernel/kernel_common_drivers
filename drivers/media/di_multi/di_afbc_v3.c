@@ -3810,8 +3810,6 @@ static void afbc_input_sw(bool on)
 		dim_print("%s:reg=0x%x:sw=%d\n", __func__, reg_AFBC_ENABLE, on);
 		if (on)
 			reg_wrb(reg_AFBC_ENABLE, 1, 8, 1);
-		else
-			;//reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
 	}
 
 	if (pafd_ctr->en_set.b.mem) {

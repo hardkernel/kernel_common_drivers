@@ -435,7 +435,7 @@ static int a1_acodec_resume(struct snd_soc_component *component)
 	return 0;
 }
 
-const static struct snd_soc_component_driver soc_codec_dev_a1_acodec = {
+static const struct snd_soc_component_driver soc_codec_dev_a1_acodec = {
 	.probe = a1_acodec_probe,
 	.remove = a1_acodec_remove,
 	.suspend = a1_acodec_suspend,
@@ -651,11 +651,10 @@ static int aml_a1_acodec_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int aml_a1_acodec_remove(struct platform_device *pdev)
+static void aml_a1_acodec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
 
-	return 0;
 }
 
 static void aml_a1_acodec_shutdown(struct platform_device *pdev)

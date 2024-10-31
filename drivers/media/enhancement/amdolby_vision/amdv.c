@@ -18014,7 +18014,7 @@ fail_alloc_region:
 	return ret;
 }
 
-static void __exit amdolby_vision_remove(struct platform_device *pdev)
+static void amdolby_vision_remove(struct platform_device *pdev)
 {
 	struct amdolby_vision_dev_s *devp = &amdolby_vision_dev;
 	int i;

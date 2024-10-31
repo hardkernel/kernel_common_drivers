@@ -2382,10 +2382,9 @@ static ssize_t hdcp14_onoff_show(struct device *dev,
 {
 	int pos = 0;
 
-	if (rx_info.chip_id >= CHIP_ID_T7)
-		;//TODO
-	else
+	if (rx_info.chip_id < CHIP_ID_T7)
 		return sprintf(buf, "%s", (hdmirx_rd_dwc(DWC_HDCP_BKSV0) ? "1" : "0"));
+
 	return pos;
 }
 
@@ -4052,7 +4051,7 @@ fail_kmalloc_hdev:
 	return ret;
 }
 
-static int hdmirx_remove(struct platform_device *pdev)
+static void hdmirx_remove(struct platform_device *pdev)
 {
 	struct hdmirx_dev_s *hdevp;
 
@@ -4114,7 +4113,7 @@ static int hdmirx_remove(struct platform_device *pdev)
 	cdev_del(&hdevp->cdev);
 	kfree(hdevp);
 	rx_pr("hdmirx: driver removed ok.\n");
-	return 0;
+
 }
 
 #ifdef CONFIG_AMLOGIC_HDMITX
