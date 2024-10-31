@@ -4440,6 +4440,7 @@ static int codec_mm_probe(struct platform_device *pdev)
 
 	pr_info("%s ok\n", __func__);
 	codec_mm_mgt_init(&pdev->dev);
+	codec_mm_dev_set_dma_mask(DMA_BIT_MASK(64));
 
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
