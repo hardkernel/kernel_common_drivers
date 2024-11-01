@@ -6,7 +6,7 @@
 #include <linux/regmap.h>
 #include <linux/dma-mapping.h>
 #include "nfc.h"
-#include "page_info.h"
+#include "linux/amlogic/aml_pageinfo.h"
 #include <linux/amlogic/aml_spi_mem.h>
 
 struct regmap *nfc_regmap[3];

@@ -19,11 +19,12 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
+#include <linux/mtd/spinand.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/mtd/mtd.h>
 #include <linux/amlogic/aml_spi_mem.h>
+#include "linux/amlogic/aml_pageinfo.h"
 #include "nfc.h"
-#include "page_info.h"
 
 //#define __SPI_NFC_DEBUG__
 
@@ -93,21 +94,25 @@ struct spi_nand_id {
 
 struct spi_nfc *spi_nfc;
 
-void spi_nfc_set_ecc(u8 mode)
-{
-	if (spi_nfc)
-		spi_nfc->disable_host_ecc = mode;
-}
-EXPORT_SYMBOL_GPL(spi_nfc_set_ecc);
-
-u8 spi_nfc_need_infopage_force_hostecc(void)
+static u8 spi_nfc_need_infopage_force_hostecc(void)
 {
 	if (spi_nfc)
 		return spi_nfc->infopage_force_hostecc;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(spi_nfc_need_infopage_force_hostecc);
+
+static inline bool spi_nfc_disable_host_ecc(void)
+{
+	if (spi_nfc && !spi_nfc->disable_host_ecc)
+		return false;
+
+	if (spi_nfc && spi_nfc->infopage_force_hostecc &&
+	    page_info_get_state() == PAGE_INFO_DOING)
+		return false;
+
+	return true;
+}
 
 static struct spi_nand_id host_ecc_list[] = {
 	{0xc2, 0x14},	/* MX35LF1G24AD */
@@ -271,27 +276,30 @@ static const struct mtd_ooblayout_ops spi_nfc_ecc_ooblayout = {
 static void spi_nfc_mtd_info_prepare(struct spi_nfc *spi_nfc)
 {
 	struct mtd_info *mtd = spi_mem_get_mtd();
+	unsigned int n2m_cmd;
 
 	if (!mtd)
 		return;
 
-	page_info->dev_cfg0.page_size = mtd->writesize;
+	page_info_set_page_size(mtd->writesize);
 
-	if (spi_nfc->disable_host_ecc) {
-		page_info->host_cfg.n2m_cmd = N2M_RAW | mtd->writesize;
+	if (spi_nfc_disable_host_ecc()) {
+		n2m_cmd = N2M_RAW | mtd->writesize;
+		page_info_set_n2m_command(n2m_cmd);
 		return;
 	}
 
-	if (!page_info_get_block_size() || !GET_BCH_MODE(page_info->host_cfg.n2m_cmd)) {
-		page_info->host_cfg.n2m_cmd =
-			(DEFAULT_ECC_MODE & (~0x3F)) | mtd->writesize >> 9;
+	if (!page_info_get_block_size() ||
+	    !GET_BCH_MODE(page_info_get_n2m_command())) {
+		n2m_cmd = (DEFAULT_ECC_MODE & (~0x3F)) | mtd->writesize >> 9;
+		page_info_set_n2m_command(n2m_cmd);
 		if (!spi_nfc_need_infopage_force_hostecc()) {
 			mtd_set_ooblayout(mtd, &spi_nfc_ecc_ooblayout);
 			mtd->oobavail = mtd_ooblayout_count_freebytes(mtd);
 		}
 	}
 
-	SPI_NFC_DEBUG("page_size = 0x%x\n", page_info->dev_cfg0.page_size);
+	SPI_NFC_DEBUG("page_size = 0x%x\n", page_info_get_page_size());
 }
 
 static bool spi_nfc_is_buffer_dma_safe(const void *buffer)
@@ -385,7 +393,7 @@ static int spi_nfc_dma_xfer(struct spi_nfc *spi_nfc,
 	spi_nfc_mtd_info_prepare(spi_nfc);
 
 	SPI_NFC_DEBUG("flags = %lx user_buf = %p len = 0x%x disable_host_ecc = %d  %s\n",
-		       flags, user_buf, len, spi_nfc->disable_host_ecc,
+		       flags, user_buf, len, spi_nfc_disable_host_ecc(),
 		       (read) ? "read" : "write");
 
 	page_size = page_info_get_page_size();
@@ -398,7 +406,7 @@ static int spi_nfc_dma_xfer(struct spi_nfc *spi_nfc,
 	else
 		nfc_set_data_bus_width(0);
 
-	if (raw || spi_nfc->disable_host_ecc) {
+	if (raw || spi_nfc_disable_host_ecc()) {
 		buf = spi_nfc_get_dma_safe_buf(user_buf, len, read);
 		temp_buf = user_buf;
 		nfc_raw_size_ext_convert(len);
@@ -452,7 +460,7 @@ static int spi_nfc_dma_xfer(struct spi_nfc *spi_nfc,
 							   OOB_BUF_SIZE,
 							   DMA_FROM_DEVICE);
 
-	if (raw || spi_nfc->disable_host_ecc) {
+	if (raw || spi_nfc_disable_host_ecc()) {
 		DUMP_BUFFER(buf, len, len / 16, 16);
 		return 0;
 	}
@@ -501,7 +509,7 @@ static int spi_nfc_transfer_one(struct spi_master *master,
 		return NFC_SEND_CMD(p[0]);
 	case TRANSFER_STATE_DUMMY:
 	case TRANSFER_STATE_ADDR:
-		if (cache_op_running && !spi_nfc->disable_host_ecc) {
+		if (cache_op_running && !spi_nfc_disable_host_ecc()) {
 			p[0] = 0;
 			p[1] &= ~(1 << (fls(page_size) - 8));
 			cache_op_running = 0;
@@ -610,8 +618,10 @@ static int spi_nfc_prepare(struct spi_nfc *spi_nfc,
 			   struct platform_device *pdev)
 {
 	unsigned long clk_rate;
-	u8 *boot_info;
 	int ret;
+#if IS_ENABLED(CONFIG_AMLOGIC_MTD_COMMON)
+	u8 *boot_info;
+#endif
 
 	ret = spi_nfc_clk_init(spi_nfc, pdev);
 	if (ret)
@@ -621,6 +631,7 @@ static int spi_nfc_prepare(struct spi_nfc *spi_nfc,
 	if (ret)
 		return ret;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_MTD_COMMON)
 	boot_info = devm_kzalloc(spi_nfc->dev,
 				 MAX_BYTES_IN_BOOTINFO,
 				 GFP_KERNEL);
@@ -629,6 +640,7 @@ static int spi_nfc_prepare(struct spi_nfc *spi_nfc,
 
 	page_info_pre_init(boot_info, PAGE_INFO_V3);
 	page_info_initialize(DEFAULT_ECC_MODE, 0, 0);
+#endif
 
 	nfc_set_clock_and_timing(&clk_rate);
 

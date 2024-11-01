@@ -6,14 +6,13 @@
 #ifndef _PAGE_INFO_H_
 #define _PAGE_INFO_H_
 
-#include <linux/mtd/spinand.h>
+//#include <linux/mtd/spinand.h>
 #include <linux/mtd/mtd.h>
 #include <linux/amlogic/aml_pageinfo.h>
-#include "nfc.h"
+//#include "nfc.h"
 
 //#define __PXP_DEBUG__
 #define PAGEINFO_QUICK_INIT
-#define MAX_BYTES_IN_BOOTINFO	(512)
 
 #ifdef __PXP_DEBUG__
 #define NFC_Print(...)	pr_info(...)
@@ -37,7 +36,8 @@
 #define DUMP_BUFFER(buffer, size, loop, actual)
 #endif
 
-#define MAX_CLK_PROVIDER	13
+#define NAND_BOOT_MAX_PAGES (1024)
+
 #define PAGE_ERROR_MODE(mod, num)	((uint32_t)((((mod) << 16) | (num))))
 #define ERR_PAGE_INFO	PAGE_ERROR_MODE(1, 1)
 
@@ -127,7 +127,7 @@ struct boot_info {
 		 */
 		unsigned char enable_bbt;
 		/* decide usb update or gang programmer */
-		unsigned char is_gang_programer;
+		unsigned char is_gang_programmer;
 		/*bit15-0 xor bbt start block */
 		/*bit23-16 xor bbt block number */
 		/*bit31-24 xor bbt pages */
@@ -171,34 +171,6 @@ struct boot_info {
 		unsigned int boot_size;
 	} boot_layout;
 };
-
-/* *NOTE* Change the setting for different SOCs */
-// 2 << 20 : code1code0(10b')
-// 1 << 19 : rand enable
-// 1 << 17 : read, not write
-// 7 << 14 : ECC mode which is from 0 to 7; Maybe different setting here,
-//	   : such as 2 for AXG serials, 7 for g12a.
-//	   : 0->none
-//	   : 1->BCH8/512
-//	   : 2->BCH8/1024
-//	   : 3->BCH24/1024
-//	   : 4->BCH30/1024
-//	   : 5->BCH40/1024
-//	   : 6->BCH50/1024
-//	   : 7->BCH60/1024
-// 1 << 13 : short mode enable
-// 48 << 6 : ECC page size
-// 1 << 0  : ECC page number
-#define DEFAULT_ECC_MODE		\
-(					\
-	(2 << 20) |			\
-	(0 << 19) |			\
-	(1 << 17) |			\
-	(1 << 14) |			\
-	(0 << 13) |			\
-	(0 << 6) |			\
-	(1 << 0)			\
-)
 
 /*
  * The 2KB head of the buffer may be overwritten
@@ -277,8 +249,4 @@ unsigned int page_info_get_pages_in_boot(void);
 void page_info_initialize(unsigned int default_n2m,
 	unsigned char bus_width, unsigned char ca);
 int page_info_pre_init(u8 *boot_info, int version);
-#if IS_ENABLED(CONFIG_AMLOGIC_SPI_NFC)
-void spi_nfc_set_ecc(u8 mode);
-u8 spi_nfc_need_infopage_force_hostecc(void);
-#endif
 #endif

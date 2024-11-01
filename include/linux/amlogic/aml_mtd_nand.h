@@ -197,6 +197,7 @@ struct meson_nfc {
 		u32 fip_size;
 		u32 skip_bad_block;
 		u32 disa_irq_hand;
+		u32 common_pageinfo;
 	} param_from_dts;
 
 	struct pinctrl *nand_pinctrl;

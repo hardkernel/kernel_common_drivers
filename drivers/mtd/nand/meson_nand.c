@@ -24,6 +24,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/reboot.h>
 #include <linux/amlogic/key_manage.h>
+#include <linux/amlogic/aml_pageinfo.h>
 
 struct mtd_info *aml_mtd_info[NAND_MAX_DEVICE];
 u8 aml_mtd_devnum;
@@ -805,6 +806,7 @@ static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 	u8 boot_num;
 	int each_boot_pages, ecc_size, bch_mode;
 	u8 *oob_buf = nand->oob_poi;
+	u8 *info;
 	int i;
 	u64 ofs, tmp;
 	u32 remainder;
@@ -829,19 +831,27 @@ static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 	memset(meson_chip->info_buf, 0, nand->ecc.steps * PER_INFO_BYTE);
 	meson_nfc_set_user_byte(nand, oob_buf);
 
-	if (page % each_boot_pages == 0) {
-		meson_info_page0_prepare(nand, nand->data_buf);
-		nand->options |= NAND_NEED_SCRAMBLING; //setting randomizer
-
-		if (meson_chip->bch_mode != NFC_ECC_BCH_SHORT) {
-			meson_chip->bch_mode = NFC_ECC_BCH_SHORT;
-			nand->ecc.size = NAND_ECC_UNIT_SHORT;
-		}
-		memcpy(meson_chip->data_buf, nand->data_buf, mtd->writesize);
+	if (nfc->param_from_dts.common_pageinfo &&
+	    page_info_is_page(mtd, page)) {
+		info = page_info_post_init(aml_mtd_info[1], 0, 0, 0);
+		memset(meson_chip->data_buf, 0x00, mtd->writesize + mtd->oobsize);
+		memcpy(meson_chip->data_buf, info, get_page_info_size());
 		meson_nfc_write_page_sub(nand, page, 0);
-		nand->ecc.size = ecc_size;
-		meson_chip->bch_mode = bch_mode;
-		nand->options &= ~NAND_NEED_SCRAMBLING;
+	} else {
+		if (page % each_boot_pages == 0) {
+			meson_info_page0_prepare(nand, nand->data_buf);
+			nand->options |= NAND_NEED_SCRAMBLING; //setting randomizer
+
+			if (meson_chip->bch_mode != NFC_ECC_BCH_SHORT) {
+				meson_chip->bch_mode = NFC_ECC_BCH_SHORT;
+				nand->ecc.size = NAND_ECC_UNIT_SHORT;
+			}
+			memcpy(meson_chip->data_buf, nand->data_buf, mtd->writesize);
+			meson_nfc_write_page_sub(nand, page, 0);
+			nand->ecc.size = ecc_size;
+			meson_chip->bch_mode = bch_mode;
+			nand->options &= ~NAND_NEED_SCRAMBLING;
+		}
 	}
 
 	page++;
@@ -1027,7 +1037,7 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 	bch_mode = meson_chip->bch_mode;
 	dir = 1;
 
-	if (page % each_boot_pages == 0) {
+	if (!nfc->param_from_dts.common_pageinfo && page % each_boot_pages == 0) {
 		if (meson_chip->bch_mode == NFC_ECC_BCH_SHORT)
 			configure_data_w =
 			CMDRWGEN(DMA_DIR(dir),
@@ -1083,6 +1093,10 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 		}
 		meson_chip->bch_mode = bch_mode;
 		nand->ecc.size = ecc_size;
+	} else if (page_info_is_page(mtd, page)) {
+		ret = meson_nfc_read_page_hwecc(nand, buf, 1, page);
+		if (ret)
+			pr_err("read page info failed\n");
 	}
 
 	real_page = page;
@@ -1867,7 +1881,8 @@ const char *para_name[] = {
 	"fip_copies",
 	"fip_size",
 	"ship_bad_block",
-	"disa_irq_flag"
+	"disa_irq_flag",
+	"common_pageinfo"
 };
 
 static int prase_nand_parameter_from_dtb(struct meson_nfc *nfc,
@@ -1884,11 +1899,15 @@ static int prase_nand_parameter_from_dtb(struct meson_nfc *nfc,
 	memset(dts_param, 0, sizeof(dts_param));
 	for (i = 0; i < ARRAY_SIZE(para_name); i++) {
 		ret = of_property_read_u32(np, para_name[i], &dts_param[i]);
-		if (ret && strncmp(para_name[i], "spi_cfg", strlen("spi_cfg"))) {
-			pr_err("%s %d,please config para item %d in dts\n",
-				__func__, __LINE__, i);
+		if (ret &&
+		    (strncmp(para_name[i], "spi_cfg", strlen("spi_cfg")) &&
+		    strncmp(para_name[i], "common_pageinfo",
+		    strlen("common_pageinfo")))) {
+			pr_err("%s %d,please config para item %s in dts\n",
+				__func__, __LINE__, para_name[i]);
 			return ret;
 		}
+		ret = 0;
 	}
 	memcpy(&nfc->param_from_dts, dts_param, i * sizeof(u32));
 	pr_debug("bl_mode %s\n", nfc->param_from_dts.bl_mode ? "discrete" : "compact");
@@ -1899,6 +1918,7 @@ static int prase_nand_parameter_from_dtb(struct meson_nfc *nfc,
 	pr_debug("%s bad_block\n", nfc->param_from_dts.skip_bad_block ?
 		"skip" : "not skip");
 	pr_debug("disa_irq_hand vale: %d\n", nfc->param_from_dts.disa_irq_hand);
+	pr_debug("common_pageinfo: 0x%x\n", nfc->param_from_dts.common_pageinfo);
 
 	return ret;
 }
@@ -1947,6 +1967,7 @@ static int meson_nfc_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 nfc_base;
 	void __iomem *spi_cfg_vaddr;
+	u8 *boot_info;
 
 	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
@@ -2049,6 +2070,14 @@ static int meson_nfc_probe(struct platform_device *pdev)
 			ret = -EINVAL;
 			goto err_clk;
 		}
+	}
+
+	if (nfc->param_from_dts.common_pageinfo) {
+		boot_info = devm_kzalloc(dev, MAX_BYTES_IN_BOOTINFO, GFP_KERNEL);
+		if (!boot_info)
+			return -ENOMEM;
+		page_info_pre_init(boot_info, PAGE_INFO_V3);
+		page_info_initialize(DEFAULT_ECC_MODE, 0, 0);
 	}
 
 	ret = dma_set_mask(dev, DMA_BIT_MASK(32));
