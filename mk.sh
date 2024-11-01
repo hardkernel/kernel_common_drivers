@@ -226,6 +226,10 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 			GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} \
 								--gki_build_config_fragment=//common:common_drivers/build.config.amlogic.fragment.bazel \
 								--allow_undeclared_modules"
+			if [[ -z ${GKI_CONFIG} ]]; then
+				GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} --notrim \
+								--nokmi_symbol_list_strict_mode"
+			fi
 		fi
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}
 	elif [[ "${ABI}" -eq "1" ]]; then
