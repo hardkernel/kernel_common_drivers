@@ -4154,6 +4154,8 @@ static void misc_late_proc(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	/* vsync_rdma_config(); */
 RUN_FIRST_RDMA:
+	if (cur_dev->display_module != C3_DISPLAY_MODULE)
+		vpp_crc_result = vpp_crc_check(vpp_crc_en, VPP0);
 	vsync_rdma_process();
 	set_vd_pi_input_size();
 	enc_line = get_cur_enc_line();
@@ -4211,7 +4213,6 @@ RUN_FIRST_RDMA:
 #ifdef CONFIG_AMLOGIC_VPU
 		vpu_work_process();
 #endif
-		vpp_crc_result = vpp_crc_check(vpp_crc_en, VPP0);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	vpp_trace_field_state("VSYNC-END",
