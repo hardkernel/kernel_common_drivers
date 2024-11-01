@@ -187,6 +187,7 @@ struct video_composer_port_s {
 	struct device *class_dev;
 	struct device *pdev;
 	u32 video_render_index;
+	int vpu_dma_mask;
 };
 
 struct videocom_frame_s {
