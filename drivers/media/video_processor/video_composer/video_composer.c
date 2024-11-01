@@ -3930,10 +3930,17 @@ static int config_crop_param(struct composer_dev *dev,
 		frame_info->crop_y,
 		frame_info->crop_w,
 		frame_info->crop_h);
+	if (is_src_crop_valid(vf->src_crop))
+		vc_print(dev->index, PRINT_AXIS,
+			"src_crop: %d %d %d %d\n",
+			vf->src_crop.top,
+			vf->src_crop.left,
+			vf->src_crop.bottom,
+			vf->src_crop.right);
 
 	detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
 	if (is_dec_vf || is_v4l_vf) {
-		if ((vf->type_original & VIDTYPE_COMPRESS) != 0) {
+		if ((vf->type & VIDTYPE_COMPRESS) != 0) {
 			pic_w = vf->compWidth;
 			pic_h = vf->compHeight;
 		} else {
@@ -3974,11 +3981,27 @@ static int config_crop_param(struct composer_dev *dev,
 				- frame_info->crop_w
 				- frame_info->crop_x;
 			vc_print(dev->index, PRINT_AXIS,
-				"none-tunnel set vf crop:%d %d %d %d\n",
+				"none-tunnel set org vf crop:%d %d %d %d\n",
 				vf->crop[0],
 				vf->crop[1],
 				vf->crop[2],
 				vf->crop[3]);
+			if (is_src_crop_valid(vf->src_crop)) {
+				if (vf->type & VIDTYPE_COMPRESS) {
+					vf->crop[2] -= vf->src_crop.bottom;
+					vf->crop[3] -= vf->src_crop.right;
+					if ((int)vf->crop[2] < 0)
+						vf->crop[2] = 0;
+					if ((int)vf->crop[3] < 0)
+						vf->crop[3] = 0;
+				}
+				vc_print(dev->index, PRINT_AXIS,
+					"none-tunnel set final vf crop:%d %d %d %d\n",
+					vf->crop[0],
+					vf->crop[1],
+					vf->crop[2],
+					vf->crop[3]);
+			}
 		}
 	} else {
 		if (frame_info->type == 1) {

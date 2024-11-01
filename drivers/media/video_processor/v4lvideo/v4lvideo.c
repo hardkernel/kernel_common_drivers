@@ -2573,6 +2573,19 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if ((vf->type & VIDTYPE_COMPRESS) != 0) {
 		p->timecode.type = vf->compWidth;
 		p->timecode.flags = vf->compHeight;
+		if (is_src_crop_valid(vf->src_crop)) {
+			p->timecode.type -= vf->src_crop.right;
+			p->timecode.flags -= vf->src_crop.bottom;
+		v4l_print(dev->inst, PRINT_OTHER,
+			"v4lvideo: comp=%d*%d, src_crop=%d,%d,%d,%d, out%d*%d\n",
+			vf->compWidth, vf->compHeight,
+			vf->src_crop.top,
+			vf->src_crop.left,
+			vf->src_crop.bottom,
+			vf->src_crop.right,
+			p->timecode.type,
+			p->timecode.type);
+		}
 	} else {
 		p->timecode.type = vf->width;
 		p->timecode.flags = vf->height;

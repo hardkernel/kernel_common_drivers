@@ -706,9 +706,12 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 	}
 
 	if (pins->c.vfm_cp.type & VIDTYPE_COMPRESS) {
-		if (buffer->vf && is_src_crop_valid(buffer->vf->src_crop))
-			pins->c.vfm_cp.compHeight =
-				pins->c.vfm_cp.compHeight - pins->c.vfm_cp.src_crop.bottom;
+		if (buffer->vf && is_src_crop_valid(buffer->vf->src_crop)) {
+			pins->c.vfm_cp.compWidth -= pins->c.vfm_cp.src_crop.right;
+			pins->c.vfm_cp.compHeight -= pins->c.vfm_cp.src_crop.bottom;
+			pins->c.vfm_cp.src_crop.right = 0;
+			pins->c.vfm_cp.src_crop.bottom = 0;
+		}
 	}
 	plink_dct = dip_plink_check_ponly_dct(pch, &pins->c.vfm_cp);
 	dbg_poll("ins:plink_dct=%d,flg_q=%d\n", plink_dct, flg_q);

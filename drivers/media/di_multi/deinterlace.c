@@ -5799,6 +5799,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 #endif
 		if (vframe->type & VIDTYPE_COMPRESS) {
 			/* backup the original vf->width/height for bypass case */
+			if (vframe->src_crop.right || vframe->src_crop.bottom) {
+				vframe->compWidth -= vframe->src_crop.right;
+				vframe->compHeight -= vframe->src_crop.bottom;
+				vframe->src_crop.right = 0;
+				vframe->src_crop.bottom = 0;
+			}
 			cur_dw_width = vframe->width;
 			cur_dw_height = vframe->height;
 			vframe->width = vframe->compWidth;

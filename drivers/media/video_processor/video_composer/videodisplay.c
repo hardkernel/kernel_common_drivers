@@ -1673,6 +1673,37 @@ int video_display_setframe(int layer_index,
 	vf->crop[3] = frame_info->buffer_w
 		- frame_info->crop_w
 		- frame_info->crop_x;
+
+	vc_print(dev->index, PRINT_AXIS,
+		"org crop: %d %d %d %d\n", vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3]);
+	vc_print(dev->index, PRINT_AXIS,
+		"org w h: %d %d %d %d\n", vf->width, vf->height, vf->compWidth, vf->compHeight);
+	vc_print(dev->index, PRINT_AXIS,
+		"frame buffer: w:%d h:%d\n", frame_info->buffer_w, frame_info->buffer_h);
+	vc_print(dev->index, PRINT_AXIS,
+		"frame buffer: dst:%d %d %d %d\n", frame_info->dst_x, frame_info->dst_y,
+		frame_info->dst_w, frame_info->dst_h);
+
+	/*current all vf from non-tunnel, if vf from vt, should not reset vf->crop*/
+	if (is_src_crop_valid(vf->src_crop)) {
+		vc_print(dev->index, PRINT_AXIS,
+			"src_crop: %d %d %d %d\n",
+			vf->src_crop.top,
+			vf->src_crop.left,
+			vf->src_crop.bottom,
+			vf->src_crop.right);
+		if (vf->type & VIDTYPE_COMPRESS) {
+			vf->crop[2] -= vf->src_crop.bottom;
+			vf->crop[3] -= vf->src_crop.right;
+			if ((int)vf->crop[2] < 0)
+				vf->crop[2] = 0;
+			if ((int)vf->crop[3] < 0)
+				vf->crop[3] = 0;
+		}
+	}
+	vc_print(dev->index, PRINT_AXIS,
+		"final crop: %d %d %d %d\n", vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3]);
+
 	vf->zorder = frame_info->zorder;
 	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
