@@ -833,7 +833,11 @@ static int sec_pd_probe(struct platform_device *pdev)
 			init_status = private_pd->pd_status;
 
 		/* Initialize based on pd_status */
-		pm_genpd_init(&pd[i].base, NULL, init_status);
+		ret = pm_genpd_init(&pd[i].base, NULL, init_status);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to init domain %s\n", pd[i].base.name);
+			return ret;
+		}
 		sec_pd_onecell_data->domains[i] = &pd[i].base;
 	}
 
@@ -843,7 +847,12 @@ static int sec_pd_probe(struct platform_device *pdev)
 		if (!private_pd->pd_parent)
 			continue;
 
-		pm_genpd_add_subdomain(&pd[private_pd->pd_parent].base, &pd[i].base);
+		ret = pm_genpd_add_subdomain(&pd[private_pd->pd_parent].base, &pd[i].base);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add %s subdomain to parent %s\n",
+				pd[i].base.name, pd[private_pd->pd_parent].base.name);
+			return ret;
+		}
 	}
 
 	pd_dev_create_file(&pdev->dev, 0, sec_pd_onecell_data->num_domains,
