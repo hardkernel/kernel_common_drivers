@@ -1269,11 +1269,11 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 	u32 cs_width = 0, cs_height = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
 	ulong cs_addr = 0;
-#endif
 	unsigned	int	data32;
 	unsigned	int	bpp;
 	unsigned int	block_mode[] = {2, 4, 8, 16, 16, 32, 0, 24,
 					0, 0, 0, 0, 0, 0, 0, 0};
+#endif
 
 	src_dst->canvas_index = index;
 	if (ge2d_meson_dev.canvas_status == 0) {
@@ -1306,9 +1306,6 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 #else
 	}
 #endif
-#else
-	data32 = 0;
-#endif
 	index = (data32 >> 8) & 0xf;
 	bpp = block_mode[index]; /* OSD_BLK_MODE[8..11] */
 	ge2d_log_dbg("%d bpp\n", bpp);
@@ -1333,7 +1330,7 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 		    src_dst->ge2d_color_index == 0)
 			return -2;
 	}
-
+#endif
 	return 0;
 }
 
