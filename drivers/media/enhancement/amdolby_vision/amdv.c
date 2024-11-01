@@ -247,9 +247,12 @@ u32 force_best_pq;
 module_param(force_best_pq, uint, 0664);
 MODULE_PARM_DESC(force_best_pq, "\n force_best_pq\n");
 
-/*bit0: 0-> efuse, 1->no efuse; */
-/*bit1: 1->ko loaded*/
-/*bit2: 1-> value updated*/
+u32 force_yuv_range;/*0x11:full,0x10:limit*/
+
+/*bit0: 0->efuse, 1->no efuse;*/
+/*bit1: 1->ko loaded success*/
+/*bit2: 1->value updated*/
+/*bit3: 1->tv, 0->ott*/
 static int support_info;
 int get_dv_support_info(void)
 {
@@ -3220,6 +3223,7 @@ int is_policy_changed(void)
 #define signal_cuva ((vf->signal_type >> 31) & 1)
 #define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
 #define signal_transfer_characteristic ((vf->signal_type >> 8) & 0xff)
+#define signal_full_range ((vf->signal_type >> 25) & 0x1)
 
 bool vf_is_hlg(struct vframe_s *vf)
 {
@@ -3379,6 +3383,15 @@ bool is_primesl_frame(struct vframe_s *vf)
 bool is_cuva_frame(struct vframe_s *vf)
 {
 	if (signal_cuva)
+		return true;
+	return false;
+}
+
+bool is_fullrange_frame(struct vframe_s *vf)
+{
+	if (!vf)
+		return false;
+	if (signal_full_range)
 		return true;
 	return false;
 }
@@ -7438,6 +7451,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	bool vf_changed = true;
 	char *dvel_provider = NULL;
 	struct ambient_cfg_s *p_ambient = NULL;
+	enum cp_signal_range_enum yuv_range = SIGNAL_RANGE_SMPTE;
 
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
@@ -8814,6 +8828,14 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 
 	if (debug_dolby & 0x400)
 		do_gettimeofday(&start);
+
+	/*input yuv range for non-dv source*/
+	yuv_range = is_fullrange_frame(vf) ?
+		SIGNAL_RANGE_FULL : SIGNAL_RANGE_SMPTE;
+	if (force_yuv_range == 0x11)
+		yuv_range = SIGNAL_RANGE_FULL;
+	else if (force_yuv_range == 0x10)
+		yuv_range = SIGNAL_RANGE_SMPTE;
 	if (is_aml_stb_hdmimode()) {
 		/* generate core2/core3 setting */
 		flag = p_funcs_stb->control_path
@@ -8823,7 +8845,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			md_buf[current_id],
 			(src_format == FORMAT_DOVI) ? total_md_size : 0,
 			V_PRIORITY,
-			src_bdp, 0, SIGNAL_RANGE_SMPTE,
+			src_bdp, 0, yuv_range,
 			graphic_min,
 			graphic_max * 10000,
 			amdv_target_min,
@@ -8846,7 +8868,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 		md_buf[current_id],
 		(src_format == FORMAT_DOVI) ? total_md_size : 0,
 		pri_mode,
-		src_bdp, 0, SIGNAL_RANGE_SMPTE, /* bit/chroma/range */
+		src_bdp, 0, yuv_range, /* bit/chroma/range */
 		graphic_min,
 		graphic_max * 10000,
 		amdv_target_min,
@@ -10221,7 +10243,14 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 
 		dv_inst[dv_id].src_format = src_format;
 		dv_inst[dv_id].set_chroma_format = CP_P420;
-		dv_inst[dv_id].set_yuv_range = SIGNAL_RANGE_SMPTE;
+		/*input yuv range for non-dv source*/
+		dv_inst[dv_id].set_yuv_range = is_fullrange_frame(vf) ?
+			SIGNAL_RANGE_FULL : SIGNAL_RANGE_SMPTE;
+		if (force_yuv_range == 0x11)
+			dv_inst[dv_id].set_yuv_range = SIGNAL_RANGE_FULL;
+		else if (force_yuv_range == 0x10)
+			dv_inst[dv_id].set_yuv_range = SIGNAL_RANGE_SMPTE;
+
 		dv_inst[dv_id].color_format = CP_YUV;
 		/*set_bit_depth is used to calc Yuv2Rgb  for hdr/hlg/sdr case */
 		dv_inst[dv_id].set_bit_depth = 12;/*fixed 12bit, no use src_bdp*/
@@ -15546,6 +15575,11 @@ static ssize_t amdolby_vision_debug_store
 	} else if (!strcmp(parm[0], "force_toggle_once")) {
 		force_toggle_once = true;
 		pr_info("set force_toggle_once\n");
+	} else if (!strcmp(parm[0], "force_yuv_range")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		force_yuv_range = val;
+		pr_info("force_yuv_range 0x%x\n", force_yuv_range);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
