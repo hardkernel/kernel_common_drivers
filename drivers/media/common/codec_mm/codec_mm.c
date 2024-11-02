@@ -57,6 +57,7 @@ unsigned char get_meson_cpu_version(int level)
 #include "codec_mm_keeper_priv.h"
 #include "codec_mm_track_priv.h"
 #include "codec_mm_sys_priv.h"
+#include "codec_mm_prealloc_priv.h"
 #include <linux/highmem.h>
 #include <linux/page-flags.h>
 #include <linux/vmalloc.h>
@@ -409,6 +410,11 @@ u32 codec_mm_get_keep_debug_mode(void)
 	return debug_keep_mode;
 }
 EXPORT_SYMBOL(codec_mm_get_keep_debug_mode);
+
+bool codec_mm_get_secure_mem_ctrl(void)
+{
+	return secure_mem_ctrl;
+}
 
 static u32 default_tvp_size;
 static u32 default_tvp_4k_size;
@@ -1373,11 +1379,32 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 				  int align2n, int memflags)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	struct codec_mm_s *mem = kmalloc(sizeof(*mem), GFP_KERNEL);
+	struct codec_mm_s *mem;
 	int count;
 	int ret;
 	unsigned long flags;
 
+	if (secure_mem_ctrl && (memflags & CODEC_MM_FLAGS_TVP) &&
+		(memflags & CODEC_MM_FLAGS_FOR_TRY_PREALLOC)) {
+		mem = get_mms_from_hashtable(size, align2n);
+		if (mem) {
+			mem->owner[0] = owner;
+			mem->flags = memflags;
+
+			if (debug_mode & 0x20)
+				pr_err("mem_id [%d] %s alloc size %d used %d at 0x%lx from %d,2n:%d,flags:%d tvp_flag %d alloc time %llu us tee alloc %llu us\n",
+					mem->mem_id, owner, mem->buffer_size, size, mem->phy_addr,
+					mem->from_flags,
+					align2n,
+					memflags,
+					!!(memflags & CODEC_MM_FLAGS_TVP),
+					mem->end_alloc_time - mem->start_alloc_time,
+					mem->tee_set_end_time - mem->tee_set_start_time);
+			return mem;
+		}
+	}
+
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem) {
 		pr_err("not enough mem for struct codec_mm_s\n");
 		return NULL;
@@ -1394,6 +1421,9 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	} else { /*tvp not enabled*/
 		if (memflags & CODEC_MM_FLAGS_TVP) {
 			if (secure_mem_ctrl) {
+				if (debug_mode & 0x20)
+					pr_err("%s original size is %d align is %d memflags %d\n",
+						owner, size, align2n, memflags);
 				size = ALIGN(size, 1 << secure_mem_align2n);
 				align2n = secure_mem_align2n;
 			} else if (tvp_dynamic_increase_disable) {
@@ -1406,7 +1436,6 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	if ((memflags & CODEC_MM_FLAGS_FROM_MASK) == 0)
 		memflags |= CODEC_MM_FLAGS_DMA;
 
-	memset(mem, 0, sizeof(struct codec_mm_s));
 	mem->start_alloc_time = codec_mm_get_current_us();
 	mem->buffer_size = PAGE_ALIGN(size);
 	count = mem->buffer_size / PAGE_SIZE;
@@ -4952,6 +4981,7 @@ static int codec_mm_probe(struct platform_device *pdev)
 
 	init_alloc_page_boost_task();
 	prepare_full_pagemap(pdev->dev.of_node);
+	init_prealloc_boost_task();
 
 	return 0;
 }
