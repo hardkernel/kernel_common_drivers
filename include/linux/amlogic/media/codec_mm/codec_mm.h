@@ -40,6 +40,9 @@
  */
 #define CODEC_MM_FLAGS_CMA_CLEAR 0x10000
 
+/* for trying prealloc mem */
+#define CODEC_MM_FLAGS_FOR_TRY_PREALLOC  0x4000000
+
 /*
  *used in codec_mm owner.
  *don't not set on others.

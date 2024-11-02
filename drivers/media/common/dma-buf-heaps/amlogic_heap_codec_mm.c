@@ -397,7 +397,7 @@ static struct dma_buf *codec_mm_heap_do_allocate(struct dma_heap *heap,
 	int memflags = CODEC_MM_FLAGS_DMA;
 
 	if (heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
-		memflags = CODEC_MM_FLAGS_TVP;
+		memflags = CODEC_MM_FLAGS_TVP | CODEC_MM_FLAGS_FOR_TRY_PREALLOC;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
