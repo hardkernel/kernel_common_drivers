@@ -1673,6 +1673,14 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		aml_db->mali_port[1] = -1;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T6W
+	case DMC_TYPE_T6W:
+		band->ops = &t6w_ddr_bw_ops;
+		aml_db->channels = 8;
+		aml_db->mali_port[0] = 1;
+		aml_db->mali_port[1] = -1;
+		break;
+#endif
 	default:
 		pr_err("%s, Can't find ops for chip:%x\n", __func__, cpu);
 		return -1;
@@ -2721,7 +2729,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		aml_db->ops->get_freq(aml_db);
 
 	raw_spin_lock_init(&aml_db->lock);
-	aml_db->clock_count = DEFAULT_CLK_CNT;
+	aml_db->clock_count = aml_db->ops->get_freq(aml_db) / 100; /* default 100HZ */
 	aml_db->mode = MODE_DISABLE;
 	aml_db->threshold = DEFAULT_THRESHOLD * aml_db->bytes_per_cycle *
 			    (aml_db->clock_count / 10000);
@@ -2906,6 +2914,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-t6d",
 		.data = (void *)DMC_TYPE_T6D,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-t6w",
+		.data = (void *)DMC_TYPE_T6W,
 	},
 #endif
 	{

@@ -55,6 +55,7 @@
 #define DMC_TYPE_S7D			0x47
 #define DMC_TYPE_S6			0x48
 #define DMC_TYPE_T6D			0x49
+#define DMC_TYPE_T6W			0x4a
 
 #define DMC_READ			0
 #define DMC_WRITE			1
@@ -71,6 +72,30 @@ struct vpu_sub_desc {
 	char vpu_w0[MAX_NAME];
 	char vpu_w1[MAX_NAME];
 	unsigned char sub_id;
+};
+
+struct vpu_sub {
+	unsigned char id;
+	char *name;
+};
+
+struct vpu_sub_desc_v2 {
+	int vpu0_r_num;
+	int vpu0_w_num;
+	int vpu1_r_num;
+	int vpu1_w_num;
+	int vpu2_r_num;
+	int vpu2_w_num;
+	int vpu3_r_num;
+	int vpu3_w_num;
+	struct vpu_sub *vpu0_r;
+	struct vpu_sub *vpu0_w;
+	struct vpu_sub *vpu1_r;
+	struct vpu_sub *vpu1_w;
+	struct vpu_sub *vpu2_r;
+	struct vpu_sub *vpu2_w;
+	struct vpu_sub *vpu3_r;
+	struct vpu_sub *vpu3_w;
 };
 
 struct ddr_priority {
@@ -103,7 +128,8 @@ int ddr_find_port_priority(int cpu_type, struct ddr_priority **desc);
 int ddr_priority_rw(unsigned char port_id, int *priority_r,
 			int *priority_w, unsigned char control);
 
-int dmc_find_port_sub(int cpu_type, struct vpu_sub_desc **desc);
+struct dmc_monitor;
+int dmc_find_port_sub(struct dmc_monitor *mon, int cpu_type);
 char *vpu_to_sub_port(char *name, char rw, int sid, char *id_str);
 /*
  * This function used only during boot

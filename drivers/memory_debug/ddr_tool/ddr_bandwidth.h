@@ -345,6 +345,9 @@ extern struct ddr_bandwidth_ops s7_ddr_bw_ops;
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T6D
 extern struct ddr_bandwidth_ops t6d_ddr_bw_ops;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T6W
+extern struct ddr_bandwidth_ops t6w_ddr_bw_ops;
+#endif
 
 unsigned int aml_get_ddr_usage(void);
 

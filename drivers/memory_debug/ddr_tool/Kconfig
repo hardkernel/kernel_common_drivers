@@ -180,6 +180,16 @@ config AMLOGIC_DDR_BANDWIDTH_T6D
 		to get ddr total bandwidth, it can be used for
 		ddr DVFS/devfreq system.
 
+config AMLOGIC_DDR_BANDWIDTH_T6W
+	bool "Meson ddr bandwidth for T6W"
+	default n
+	depends on AMLOGIC_DDR_BANDWIDTH
+	help
+		This config enables ddr bandwidth measure for t6w.
+		If open it, this driver will export interface
+		to get ddr total bandwidth, it can be used for
+		ddr DVFS/devfreq system.
+
 config AMLOGIC_DMC_MONITOR
 	bool "Amlogic dmc monitor"
 	depends on AMLOGIC_DDR_TOOL
@@ -382,6 +392,17 @@ config AMLOGIC_DMC_MONITOR_T6D
 	default n
 	help
 		This config enables dmc monitor for t6d chip
+		DMC monitor for hardware connected to DMC master. Using it can
+		set up an address range and assign R/W permission for each
+		hardware. If hardware violated R/W permission, then interrupt
+		will generated and can help to debug memory pollution.
+
+config AMLOGIC_DMC_MONITOR_T6W
+	bool "Amlogic dmc monitor for T6W"
+	depends on AMLOGIC_DMC_MONITOR
+	default n
+	help
+		This config enables dmc monitor for t6w chip
 		DMC monitor for hardware connected to DMC master. Using it can
 		set up an address range and assign R/W permission for each
 		hardware. If hardware violated R/W permission, then interrupt

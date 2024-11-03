@@ -562,10 +562,10 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 	if (!port_name)
 		return NULL;
 
-	sid &= 0x1f;
 	if (strstr(port_name, "VPU")) {
 		name = vpu_to_sub_port(port_name, rw, sid, NULL);
 	} else if (strstr(port_name, "DEVICE")) {
+		sid &= 0x1f;
 		if (strstr(port_name, "DEVICE1"))
 			s_port = sid + PORT_MAJOR + 8;
 		else
@@ -578,6 +578,7 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 			}
 		}
 	} else if (strstr(to_ports(mid), "VGE")) {
+		sid &= 0x1f;
 		s_port = sid + PORT_MAJOR * 3;
 
 		for (i = 0; i < dmc_mon->port_num; i++) {
@@ -1719,6 +1720,11 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		mon->ops = &t6d_dmc_mon_ops;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_T6W
+	case DMC_TYPE_T6W:
+		mon->ops = &t6w_dmc_mon_ops;
+		break;
+#endif
 	default:
 		pr_err("%s, Can't find ops for chip:%x\n", __func__, chip);
 		break;
@@ -1768,11 +1774,10 @@ static void do_serror(void *data, struct pt_regs *regs, unsigned int esr, int *r
 
 static int __init dmc_monitor_probe(struct platform_device *pdev)
 {
-	int r = 0, ports, vpu_ports, i;
+	int r = 0, ports, i;
 	unsigned int tmp;
 	struct device_node *node;
 	struct ddr_port_desc *desc = NULL;
-	struct vpu_sub_desc *vpu_desc = NULL;
 	struct resource *res;
 
 	pr_info("dmc version:%s\n", DMC_VERSION);
@@ -1793,13 +1798,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	dmc_mon->port = desc;
 	get_dmc_ops(dmc_mon->chip, dmc_mon);
 
-	vpu_ports = dmc_find_port_sub(tmp, &vpu_desc);
-	if (vpu_ports < 0) {
-		dmc_mon->vpu_port = NULL;
-		dmc_mon->vpu_port_num = 0;
-	}
-	dmc_mon->vpu_port_num = vpu_ports;
-	dmc_mon->vpu_port = vpu_desc;
+	dmc_find_port_sub(dmc_mon, tmp);
 
 	node = pdev->dev.of_node;
 	r = of_property_read_u32(node, "reg_base", &tmp);
@@ -2021,6 +2020,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-t6d",
 		.data = (void *)DMC_TYPE_T6D,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-t6w",
+		.data = (void *)DMC_TYPE_T6W,
 	},
 #endif
 	{
