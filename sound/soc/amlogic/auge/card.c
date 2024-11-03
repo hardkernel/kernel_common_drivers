@@ -1655,10 +1655,16 @@ static int aml_card_platform_restore(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+	int state;
 
 	priv->av_mute_enable = 0;
 	priv->spk_mute_enable = 0;
 	aml_card_parse_gpios(pdev->dev.of_node, priv);
+
+	gpio_direction_input(priv->hp_jack.gpio.gpio);
+	state = gpiod_set_pull(gpio_to_desc(priv->hp_jack.gpio.gpio), GPIOD_PULL_DIS);
+	if (state)
+		pr_err("set hp_jack gpiod pull failed, ret %d\n", state);
 
 	return 0;
 }

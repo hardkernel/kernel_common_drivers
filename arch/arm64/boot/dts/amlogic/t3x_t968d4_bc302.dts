@@ -1671,8 +1671,10 @@
 
 &i2c1 {
 	status = "okay";
-	pinctrl-names="default";
+	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c1_pins1>;
+	pinctrl-1=<&i2c1_pins1_sleep>;
+
 	ad82128: ad82128@34 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
@@ -2037,7 +2039,7 @@
 				"GPIOH_16",
 				"GPIOH_17";
 			function = "gpio_periphs";
-			output-low;
+			input-enable;
 		};
 	};
 

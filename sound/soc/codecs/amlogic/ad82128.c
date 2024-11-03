@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
@@ -965,6 +966,8 @@ static void ad82128_i2c_shutdown(struct i2c_client *client)
 		return;
 
 	g_codec_count--;
+	if (g_codec_count < 0)
+		return;
 	if (!IS_ERR(g_reset_pin_desc[g_codec_count])) {
 		print_i2c_client_info(client,
 		"ad82128 shutdown, It will operate the gpio to power off");
@@ -981,6 +984,44 @@ static void ad82128_i2c_shutdown(struct i2c_client *client)
 	pr_info("ad82128 shutdown, count:%d\n", g_codec_count);
 
 }
+
+#ifdef CONFIG_HIBERNATION
+static int aml_ad82128_platform_restore(struct device *dev)
+{
+	struct ad82128_data *data = dev_get_drvdata(dev);
+
+	if (g_codec_count == 0) {
+		g_reset_pin_desc[0] = gpiod_get(dev,
+						"reset_pin", GPIOF_OUT_INIT_LOW);
+	}
+	ad82128_resume(data->component);
+	schedule_work(&data->work);
+	pr_info("%s\n", __func__);
+
+	return 0;
+}
+
+static int aml_ad82128_platform_freeze(struct device *dev)
+{
+	struct ad82128_data *data = dev_get_drvdata(dev);
+
+	cancel_work_sync(&data->work);
+	ad82128_suspend(data->component);
+	if (g_codec_count == 0)
+		gpiod_put(g_reset_pin_desc[g_codec_count]);
+	pr_info("%s\n", __func__);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_ad82128_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = aml_ad82128_platform_restore,
+	.freeze = aml_ad82128_platform_freeze,
+};
+#endif
 
 static const struct i2c_device_id ad82128_id[] = {
 	{ "ad82128", AD82128 },
@@ -1003,6 +1044,9 @@ static struct i2c_driver ad82128_i2c_driver = {
 	.driver = {
 		.name = "ad82128",
 		.of_match_table = of_match_ptr(ad82128_of_match),
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_ad82128_pm_ops,
+#endif
 	},
 	.probe = ad82128_probe,
 	.shutdown = ad82128_i2c_shutdown,
