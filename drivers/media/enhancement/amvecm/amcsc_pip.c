@@ -126,9 +126,10 @@ static const char *input_str[10] = {
 };
 
 /* output_format_e */
-static const char *output_str[10] = {
+static const char *output_str[11] = {
 	"UNKNOWN",
 	"709",
+	"709_HDR",
 	"2020",
 	"HDR",
 	"HDR+",

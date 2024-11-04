@@ -189,15 +189,16 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 		if (vinfo) {
 			if (vinfo->sync_duration_den)
 				sync_duration_num = vinfo->sync_duration_num /
-						    vinfo->sync_duration_den;
+					vinfo->sync_duration_den;
 			if (debug_dolby & 2)
-				pr_dv_dbg("vinfo %d %d %d %d %d %d\n",
-					     vinfo->width,
-					     vinfo->height,
-					     vinfo->field_height,
-					     vinfo->sync_duration_num,
-					     vinfo->sync_duration_den,
-					     sync_duration_num);
+				pr_dv_dbg("vinfo %d %d %d %d %d %d, graphics_h %d\n",
+					vinfo->width,
+					vinfo->height,
+					vinfo->field_height,
+					vinfo->sync_duration_num,
+					vinfo->sync_duration_den,
+					sync_duration_num,
+					graphics_h);
 			if (vinfo->width < 1280 &&
 				vinfo->height < 720 &&
 				vinfo->field_height < 720)
@@ -229,7 +230,7 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 			g_vpotch = 0x20;
 		}
 	} else if (is_aml_tm2_stbmode() || is_aml_t7_stbmode() ||
-		is_aml_sc2() || is_aml_s4d() || is_aml_s7d() || is_aml_s6()) {
+		is_aml_sc2() || is_aml_s4d()) {
 		if (vinfo) {
 			if (debug_dolby & 2)
 				pr_dv_dbg("vinfo %d %d %d, graphics_h %d\n",
@@ -241,6 +242,40 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 				vinfo->height < 720 &&
 				vinfo->field_height < 720)
 				g_vpotch = 0x60;
+			else if (vinfo->width <= 1920 &&
+				vinfo->height <= 1080 &&
+				vinfo->field_height <= 1080)
+				g_vpotch = 0x50;
+			else
+				g_vpotch = 0x20;
+
+			/* for 4k fb */
+			if (graphics_h > 1440)
+				g_vpotch = 0x15;
+
+			if (vinfo->width > 1920)
+				htotal_add = 0xc0;
+			else
+				htotal_add = 0x140;
+		} else {
+			g_vpotch = 0x20;
+		}
+	} else if (is_aml_s7d() || is_aml_s6()) {
+		if (vinfo) {
+			if (debug_dolby & 2)
+				pr_dv_dbg("vinfo %d %d %d, graphics_h %d\n",
+					vinfo->width,
+					vinfo->height,
+					vinfo->field_height,
+					graphics_h);
+			if (vinfo->width < 1280 &&
+				vinfo->height < 720 &&
+				vinfo->field_height < 720)
+				g_vpotch = 0x60;
+			else if (vinfo->width == 1280 &&
+				vinfo->height == 720 &&
+				vinfo->field_height == 720)
+				g_vpotch = 0x70;
 			else if (vinfo->width <= 1920 &&
 				vinfo->height <= 1080 &&
 				vinfo->field_height <= 1080)
