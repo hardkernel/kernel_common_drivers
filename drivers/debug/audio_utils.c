@@ -71,8 +71,7 @@ static ssize_t audio_utils_write(struct file *file, const char __user *buffer,
 				__free_page(page);
 				return -EINVAL;
 			}
-			count -= count;
-			write += count;
+			count = 0;
 		}
 		list_add_tail(&page->lru, &code_list);
 		kunmap(page);

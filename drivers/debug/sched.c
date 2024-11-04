@@ -666,7 +666,6 @@ void rebuild_sched_flag(void)
 			old_flags = sd->flags;
 			sd->flags &= ~SD_WAKE_AFFINE;
 			sd->flags |= (SD_BALANCE_WAKE | SD_BALANCE_NEWIDLE);
-			pr_info("cpu:%d sd:%px flags:%x->%x\n", cpu, sd, old_flags, sd->flags);
 		}
 	}
 }

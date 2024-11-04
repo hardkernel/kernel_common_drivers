@@ -351,8 +351,6 @@ void auto_dump_etb_buf(void)
 			iotm_trace[2] = read_data;
 			print_iotm_trace(iotm_trace);
 			break;
-		default:
-			break;
 		}
 	}
 }
