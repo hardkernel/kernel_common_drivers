@@ -1676,6 +1676,10 @@ void rx_set_irq_21(u8 enable, u8 port)
  */
 void rx_irq_en(u8 enable, u8 port)
 {
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	if (early_suspend_flag)
+		return;
+#endif
 	switch (rx_info.chip_id) {
 	case CHIP_ID_T3X:
 	case CHIP_ID_T5M:
@@ -1742,7 +1746,7 @@ void hdmirx_top_irq_en(u8 en, u8 port)
 			data32 |= top_irq_tab[IRQ_EMP_DONE];
 			data32 |= top_irq_tab[IRQ_T3X_EDID_AD];
 			//data32 |= top_irq_tab[IRQ_1618_STB];
-		} else if (rx_info.chip_id >= CHIP_ID_T7 &&
+		} else if (rx_info.chip_id >= CHIP_ID_T5D &&
 			rx_info.chip_id <= CHIP_ID_T6D) {
 			data32 |= top_irq_tab[IRQ_EMP_DONE];
 			data32 |= top_irq_tab[IRQ_EDID_AD3];
@@ -3313,6 +3317,9 @@ void hdcp22_clk_en(bool en)
 		else
 			/* TXLX:esm related clk bit3-5 */
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 3), 0x0, port);
+		if (rx_info.chip_id >= CHIP_ID_TM2)
+			//axi clk
+			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(1, 12), 0x0, port);
 	}
 }
 

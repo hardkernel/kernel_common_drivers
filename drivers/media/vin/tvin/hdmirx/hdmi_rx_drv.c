@@ -208,7 +208,7 @@ int gcp_mute_flag[4];
 //2.cec driver can't cover tx type which found by spd packet
 u32 edid_auto_sel = EDID_AUTO20; //default enable auto edid
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-static bool early_suspend_flag;
+bool early_suspend_flag;
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 struct notifier_block vrr_notify;
@@ -3555,17 +3555,17 @@ static void hdmirx_early_suspend(struct early_suspend *h)
 {
 	if (early_suspend_flag)
 		return;
-
 	early_suspend_flag = true;
+	del_timer_sync(&rx_info.hdmirx_dev->timer);
 	rx_irq_en(0, E_PORT0);
 	if (rx_info.chip_id == CHIP_ID_T3X) {
 		rx_irq_en(0, E_PORT1);
 		rx_irq_en(0, E_PORT2);
 		rx_irq_en(0, E_PORT3);
-		rx[rx_info.main_port].state = FSM_HPD_LOW;
-		sm_pause = 1;
 	}
+	hdmirx_output_en(false);
 	rx_phy_suspend();
+	rx_dig_clk_en(0);
 	rx_pr("%s- ok\n", __func__);
 }
 
@@ -3575,10 +3575,12 @@ static void hdmirx_late_resume(struct early_suspend *h)
 		return;
 
 	early_suspend_flag = false;
-	if (!rx[rx_info.main_port].resume_flag)
-		rx_phy_resume();
+	rx_dig_clk_en(1);
+	rx_phy_resume();
 	if (rx_info.chip_id == CHIP_ID_T3X)
 		sm_pause = 0;
+	if (!rx[rx_info.main_port].resume_flag)
+		add_timer(&rx_info.hdmirx_dev->timer);
 	rx_pr("%s- ok\n", __func__);
 };
 
@@ -4468,6 +4470,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	/* if early suspend not called, need to pw down phy here */
 	//if (!early_suspend_flag)
 //#endif
+	hdmirx_output_en(false);
 	rx_phy_suspend();
 	/* disable hdcp access on ddc */
 	rx_hdcp_access_on_ddc_en(false);
@@ -4475,8 +4478,8 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	 * clk source changed under suspend mode,
 	 * div must change together.
 	 */
-	rx_set_suspend_edid_clk(true);
 	rx_dig_clk_en(0);
+	rx_set_suspend_edid_clk(true);
 	rx_emp_hw_enable(false);
 	rx_info.suspend_flag = true;
 	rx_pr("hdmirx pm: suspend success\n");

@@ -84,6 +84,7 @@
 //2024.09.30 update fsm when update edid
 //2024.10.09 t3x/t7c hdmirx support std hibernate
 //2024.11.15 add protect for fsm
+//2024.11.29 optimize early suspend flow
 #define RX_DRV_VER "ver.2024/11/15"
 
 /*print type*/
@@ -1169,6 +1170,9 @@ extern int def_trim_value;
 extern u32 edid_auto_sel;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
+#endif
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+extern bool early_suspend_flag;
 #endif
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern struct notifier_block tx_notify;
