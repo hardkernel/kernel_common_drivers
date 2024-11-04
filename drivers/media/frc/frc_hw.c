@@ -3635,6 +3635,8 @@ void frc_in_sts_init(struct st_frc_in_sts *sts)
 	sts->frc_vsc_endp = 0;
 	sts->frc_hsc_startp = 0;
 	sts->frc_hsc_endp = 0;
+	sts->vd_h_size = 0;
+	sts->vd_v_size = 0;
 };
 
 void frc_chg_loss_slice_num(u8 num)

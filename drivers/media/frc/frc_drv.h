@@ -142,8 +142,9 @@
 // frc_20240924 not set pre_vsync T5M
 // frc_20241016 frc disable when vsize change
 // frc_20241023 fix absolute value operation on unsigned int
+// frc_20241022 frc add std flow
 
-#define FRC_FW_VER			"2024-1022 frc add std flow"
+#define FRC_FW_VER			"2024-1104 frc coverity"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
