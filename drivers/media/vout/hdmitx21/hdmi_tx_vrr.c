@@ -1417,7 +1417,7 @@ static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 		vsync = vic_timing->v_freq / 10;
 		if (vsync >= reduce_0p1_percent(group->vrr_min) &&
 			(vic_timing->v_freq / 10) <= group->vrr_max) {
-			if (i > MAX_QMS_GROUP_NUM) {
+			if (i >= MAX_QMS_GROUP_NUM) {
 				HDMITX_INFO("qms: vic list number over %d\n", MAX_QMS_GROUP_NUM);
 				continue;
 			}
