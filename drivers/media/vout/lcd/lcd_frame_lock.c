@@ -21,6 +21,8 @@ static inline int is_fr_change(struct aml_lcd_drv_s *pdrv)
 	struct aml_fr_lock_s *fr_lock = pdrv->fr_lock;
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 
+	if (!pt || !fr_lock || !cconf)
+		return 0;
 	if (fr_lock->base_dura_num != pt->sync_duration_num ||
 	   fr_lock->base_dura_den != pt->sync_duration_den ||
 	   fr_lock->pll_base_m != cconf->pll_m ||

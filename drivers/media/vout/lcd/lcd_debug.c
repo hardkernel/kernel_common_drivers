@@ -606,7 +606,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 			pconf->timing.pll_ctrl2, pconf->timing.div_ctrl2,
 			pconf->timing.clk_ctrl2);
 	}
-
+	kfree(pr_buf);
 	return len;
 }
 
@@ -3159,7 +3159,7 @@ static ssize_t lcd_debug_sw_vlock_show(struct device *dev, struct device_attribu
 	struct aml_fr_lock_s *fr_lock = NULL;
 	ssize_t len = 0;
 
-	if (!buf || !pdrv)
+	if (!pdrv)
 		return sprintf(buf, "null\n");
 
 	fr_lock = pdrv->fr_lock;

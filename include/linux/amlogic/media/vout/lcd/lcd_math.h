@@ -69,10 +69,12 @@ static inline long long lcd_s64_div(s64 num, s32 den)
 	s32 pn = 1;
 	s64 ret = 0;
 
+	if (den == 0)
+		return 0;
 	pn = ((num > 0) && (den > 0)) || ((num < 0) && (den < 0)) ? 1 : -1;
 
 	_num = num >= 0 ? num : -num;
-	_den = den >= 0 ? den : -den;
+	_den = den > 0 ? den : -den;
 	res = lcd_do_div(_num, _den);
 	ret = (s64)res * pn;
 

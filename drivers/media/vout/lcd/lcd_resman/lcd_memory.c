@@ -111,11 +111,14 @@ void lrm_resource_device_prepare(char *name)
 {
 	struct lrm_resource_device_list_s *res = NULL;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
-	if (!res || !name)
+	if (!name)
 		return;
 
-	strncpy(res->name, name, 32);
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return;
+
+	strscpy(res->name, name, 32);
 	spin_lock(&lrm_res_dev_lock);
 	list_add_tail(&res->list, &lrm_resource_device_list);
 	spin_unlock(&lrm_res_dev_lock);
@@ -299,8 +302,7 @@ phys_addr_t __lrm_phys_alloc(u32 size, u32 align, u32 dir, char *desc)
 	mem->info.size = PAGE_ALIGN(size);
 	mem->info.attr = 0;
 	if (desc)
-		strncpy(mem->info.name, desc, sizeof(mem->info.name));
-
+		strscpy(mem->info.name, desc, sizeof(mem->info.name));
 	align = ALIGN(align, PAGE_SIZE);
 	spin_lock_irqsave(&lrm->lock, flags);
 
@@ -540,7 +542,7 @@ void lrm_release_unused(void)
 	unsigned long flags = 0;
 
 	if (!lrm || lrm->no_map)
-		goto lrm_release_unused_exit;
+		return;
 
 	if (!lrm->free_unused) //for debug info
 		return;
