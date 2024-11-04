@@ -139,7 +139,8 @@ static int tdma_of_parse(struct mmc_host *mmc, u32 index)
 
 	mmc->caps |= MMC_CAP_4_BIT_DATA;
 	/* f_max is obtained from the optional "max-frequency" property */
-	device_property_read_u32(dev, "max-frequency", &mmc->f_max);
+	if (device_property_read_u32(dev, "max-frequency", &mmc->f_max) < 0)
+		dev_err(mmc->parent, "[%s] don't set max-freq\n", __func__);
 
 	if (index == MMC_MULT_DEV_SEQ_SDIO) {
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
@@ -1105,7 +1106,7 @@ tuning:
 		}
 	}
 
-	len += sprintf(adj_print + len, ">\n");
+	sprintf(adj_print + len, ">\n");
 	pr_debug("%s", host->adj_win);
 
 	find_best_win(mmc, rx_adj, clk_div, &best_s, &best_sz, true);
