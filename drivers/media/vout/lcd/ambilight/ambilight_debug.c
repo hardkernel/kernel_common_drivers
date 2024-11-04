@@ -85,7 +85,7 @@ static void amblt_data_sum_dump(struct amblt_drv_s *amblt_drv)
 			len += sprintf(print_buf + len, " %8d %8d %8d",
 				data->sum_r, data->sum_g, data->sum_b);
 			if (data->err)
-				len += sprintf(print_buf + len, " (x)");
+				sprintf(print_buf + len, " (x)");
 			pr_info("[x:%02d, y:%02d]: %s\n", x, y, print_buf);
 		}
 	}
@@ -118,7 +118,7 @@ static void amblt_data_avg_dump(struct amblt_drv_s *amblt_drv)
 			len += sprintf(print_buf + len, " %3d %3d %3d",
 				data->avg_r, data->avg_g, data->avg_b);
 			if (data->err)
-				len += sprintf(print_buf + len, " (x)");
+				sprintf(print_buf + len, " (x)");
 			pr_info("[x:%02d, y:%02d]: %s\n", x, y, print_buf);
 		}
 	}

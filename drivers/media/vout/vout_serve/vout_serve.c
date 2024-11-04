@@ -60,7 +60,7 @@ static unsigned int bist_mode;
 
 static struct vout_cdev_s *vout_cdev;
 static struct device *vout_dev;
-static unsigned int vsync_irq;
+static int vsync_irq;
 static unsigned int vs_meas_en;
 
 static bool disable_modesysfs;
@@ -1218,7 +1218,7 @@ static int aml_vout_probe(struct platform_device *pdev)
 
 static void aml_vout_remove(struct platform_device *pdev)
 {
-	if (vsync_irq)
+	if (vsync_irq > 0)
 		free_irq(vsync_irq, (void *)&vsync_irq);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND

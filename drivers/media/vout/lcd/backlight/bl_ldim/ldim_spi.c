@@ -338,6 +338,10 @@ static struct spi_driver ldim_spi_dev_driver = {
 
 int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 {
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	return -1;
+#else
 	struct spi_controller *ctlr;
 	struct spi_device *spi_device;
 	int ret;
@@ -347,12 +351,7 @@ int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 		return -1;
 	}
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-	ctlr = NULL;
-#else
 	ctlr = spi_busnum_to_master(dev_drv->spi_info->bus_num);
-#endif
 	if (!ctlr) {
 		LDIMERR("get busnum failed\n");
 		return -1;
@@ -376,6 +375,7 @@ int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 
 	LDIMPR("%s ok\n", __func__);
 	return 0;
+#endif
 }
 
 int ldim_spi_driver_remove(struct ldim_dev_driver_s *dev_drv)
