@@ -1000,7 +1000,7 @@ static struct clk_regmap t6d_axi_clk_0 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "axi_clk_0_div" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 	},
 };
 
@@ -1044,7 +1044,7 @@ static struct clk_regmap t6d_axi_clk_1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_names = (const char *[]){ "axi_clk_1_div" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 	},
 };
 
@@ -5107,6 +5107,14 @@ static struct platform_driver t6d_driver = {
 	},
 };
 
+#if IS_BUILTIN(CONFIG_AMLOGIC_COMMON_CLK_T6D)
+static int t6d_clkc_init(void)
+{
+	return platform_driver_register(&t6d_driver);
+}
+arch_initcall_sync(t6d_clkc_init);
+#else
 builtin_platform_driver(t6d_driver);
+#endif
 
 MODULE_LICENSE("GPL v2");
