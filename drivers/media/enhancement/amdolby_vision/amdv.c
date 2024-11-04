@@ -385,6 +385,9 @@ static unsigned int dv_graphic_blend_test;
 module_param(dv_graphic_blend_test, uint, 0664);
 MODULE_PARM_DESC(dv_graphic_blend_test, "\n dv_graphic_blend_test\n");
 
+static u32 graphic_max;
+static u32 last_graphic_max;
+
 static unsigned int dv_target_graphics_max[3][3] = {
 	{ 300, 375, 380 }, /* DV => DV/HDR/SDR */
 	{ 300, 375, 100 }, /* HDR =>  DV/HDR/SDR */
@@ -520,6 +523,7 @@ bool amdv_core1_on;
 u32 amdv_core1_on_cnt;
 uint amdv_on_count; /*for run mode*/
 u32 amdv_core2_on_cnt[2];
+bool boot_reset_core2_en = true;
 
 bool dv_core1_on[NUM_IPCORE1];
 u32 dv_core1_on_cnt[NUM_IPCORE1];
@@ -9545,8 +9549,6 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	u32 target_lumin_max = 0;
 	enum input_mode_enum input_mode = IN_MODE_OTT;
 	u32 graphic_min = 50; /* 0.0001 */
-	static u32 graphic_max = 100; /* 1 */
-	static u32 last_graphic_max = 100;
 	int ret_flags = 0;
 	static int bypass_frame = -1;
 	static int last_current_format;
@@ -13712,6 +13714,11 @@ static int amdolby_vision_process_v2_stb
 			}
 		}
 	}
+
+	if (is_aml_s6() && !boot_reset_core2_en) {
+		boot_reset_core2_en = true;
+		set_force_reset_core2(true, OSD1_INDEX);
+	}
 	if (dolby_vision_on && !dv_core1[0].core1_on &&
 	    !dv_core1[1].core1_on &&
 		((amdv_core2_on_cnt[0] &&
@@ -15033,6 +15040,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			new_m_dovi_setting.num_input = NUM_IPCORE1 + NUM_IPCORE2;
 			new_m_dovi_setting.num_video = NUM_IPCORE1;
 			new_m_dovi_setting.pri_input = pri_input;
+			new_m_dovi_setting.set_priority = G_PRIORITY;
 			invalid_m_dovi_setting.num_input = 0;
 
 			new_m_dovi_setting.output_ctrl_data = vmalloc(OUTPUT_CONTROL_DATA_SIZE);
@@ -16826,6 +16834,7 @@ unsigned int amdv_check_enable(void)
 	int uboot_dv_source_led_rgb = 0;
 	int uboot_dv_sink_led = 0;
 	const struct vinfo_s *vinfo = get_current_vinfo();
+	int sync_duration_num = 60;
 
 	/*first step: check tv mode, dv is disabled by default */
 	if (is_aml_tm2_tvmode() || is_aml_t7_tvmode() ||
@@ -16942,6 +16951,10 @@ unsigned int amdv_check_enable(void)
 					dolby_vision_status = DV_PROCESS;
 					dolby_vision_ll_policy =
 						DOLBY_VISION_LL_YUV422;
+					last_dolby_vision_ll_policy =
+						dolby_vision_ll_policy;
+					graphic_max = dv_target_graphics_LL_max_26[2][0];
+					last_graphic_max = graphic_max;
 					last_dst_format = FORMAT_DOVI;
 					pr_info("dovi enable in uboot and mode is LL 422\n");
 				} else if ((uboot_dv_mode ==
@@ -16955,6 +16968,10 @@ unsigned int amdv_check_enable(void)
 					dolby_vision_status = DV_PROCESS;
 					dolby_vision_ll_policy =
 						DOLBY_VISION_LL_RGB444;
+					last_dolby_vision_policy =
+						dolby_vision_ll_policy;
+					graphic_max = dv_target_graphics_LL_max_26[2][0];
+					last_graphic_max = graphic_max;
 					last_dst_format = FORMAT_DOVI;
 					pr_info("dovi enable in uboot and mode is LL RGB\n");
 				} else {
@@ -16970,6 +16987,12 @@ unsigned int amdv_check_enable(void)
 						dolby_vision_ll_policy = uboot_dv_sink_led ?
 							DOLBY_VISION_LL_DISABLE :
 							DOLBY_VISION_LL_YUV422;
+						last_dolby_vision_ll_policy =
+							dolby_vision_ll_policy;
+						graphic_max = uboot_dv_sink_led
+							? dv_target_graphics_max_26[2][1]
+							: dv_target_graphics_LL_max_26[2][1];
+						last_graphic_max = graphic_max;
 						pr_info("dovi enable in uboot and mode is HDR10, ll_policy %d\n",
 							dolby_vision_ll_policy);
 						last_dst_format = FORMAT_HDR10;
@@ -16984,6 +17007,12 @@ unsigned int amdv_check_enable(void)
 						dolby_vision_ll_policy = uboot_dv_sink_led ?
 							DOLBY_VISION_LL_DISABLE :
 							DOLBY_VISION_LL_YUV422;
+						last_dolby_vision_ll_policy =
+							dolby_vision_ll_policy;
+						graphic_max = uboot_dv_sink_led
+							? dv_target_graphics_max_26[2][2]
+							: dv_target_graphics_LL_max_26[2][2];
+						last_graphic_max = graphic_max;
 						pr_info("dovi enable in uboot and mode is SDR, ll_policy %d\n",
 							dolby_vision_ll_policy);
 						last_dst_format = FORMAT_SDR;
@@ -16996,12 +17025,27 @@ unsigned int amdv_check_enable(void)
 							DV_PROCESS;
 						dolby_vision_ll_policy =
 							DOLBY_VISION_LL_DISABLE;
+						last_dolby_vision_ll_policy =
+							dolby_vision_ll_policy;
+						graphic_max = dv_target_graphics_max_26[2][0];
+						last_graphic_max = graphic_max;
 						last_dst_format = FORMAT_DOVI;
 						pr_info("dovi enable in uboot and mode is DV ST, ll_policy %d\n",
 							dolby_vision_ll_policy);
 					}
 				}
 				amdv_target_mode = dolby_vision_mode;
+			}
+			if (vinfo) {
+				if (vinfo->sync_duration_den)
+					sync_duration_num = vinfo->sync_duration_num /
+						vinfo->sync_duration_den;
+				if (is_aml_s6() && vinfo->width == 1280 &&
+					vinfo->height == 720 &&
+					sync_duration_num <= 30)
+					boot_reset_core2_en = false;
+				pr_info("vinfo %d %d, sync_duration_num %d\n",
+					vinfo->width, vinfo->height, sync_duration_num);
 			}
 		} else {
 			/* core1a */
