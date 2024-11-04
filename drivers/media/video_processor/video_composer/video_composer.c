@@ -3401,7 +3401,7 @@ static void vframe_composer(struct composer_dev *dev)
 
 	if (dump_vframe != dev->vframe_dump_flag) {
 		if (is_dec_vf || is_v4l_vf) {
-			if (src_vf->type & VIDTYPE_COMPRESS)
+			if (src_vf && src_vf->type & VIDTYPE_COMPRESS)
 				vd_vframe_afbc_soft_decode(src_vf, 0);
 			else
 				dump_vf(dev->index, src_vf, 0);

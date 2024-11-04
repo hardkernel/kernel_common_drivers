@@ -1067,8 +1067,6 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		ktime_get_real_ts64(&ts);
 		vc_notify_msg_to_mediaproxy(vf, dev->index,
 			MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO, ts);
-		vc_print(dev->index, PRINT_OTHER,
-			 "set toggle time:%lld.%09ld\n", (long long)ts.tv_sec, ts.tv_nsec);
 #endif
 		continue_vsync_count[dev->index] = 0;
 		dev->last_vf_index = vf->frame_index;
@@ -1108,7 +1106,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 
 	if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
 		vc_print(dev->index, PRINT_OTHER,
-			"%s: enhance_vf=%px, type:0x%x, flag=0x%x, y_addr=0x%px, width=%d, height=%d\n",
+			"%s: enhance_vf=%px, type:0x%x, flag=0x%x, y_addr=0x%lx, width=%d, height=%d\n",
 			__func__,
 			vf,
 			vf->type,
@@ -1152,8 +1150,6 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 #ifdef CONFIG_AMLOGIC_MEDIA_PROXY
 	ktime_get_real_ts64(&ts);
 	vc_notify_msg_to_mediaproxy(vf, dev->index, MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO, ts);
-	vc_print(dev->index, PRINT_OTHER,
-		 "set singlefence time:%lld.%09ld\n", (long long)ts.tv_sec, ts.tv_nsec);
 #endif
 
 	if (dev->is_drm_enable) {
