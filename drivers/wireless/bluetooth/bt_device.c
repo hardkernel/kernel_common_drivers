@@ -144,7 +144,9 @@ static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 	} else {
 		set_usb_bt_power(0);
 	}
-#else
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_RFKILL_INIT_SW_UNBLOCK)
 	if (down_time)
 		msleep(down_time);
 #endif
@@ -172,7 +174,9 @@ static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
 	} else {
 		set_usb_bt_power(1);
 	}
-#else
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_RFKILL_INIT_SW_UNBLOCK)
 	if (up_time)
 		msleep(up_time);
 #endif
