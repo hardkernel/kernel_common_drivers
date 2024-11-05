@@ -714,5 +714,6 @@ struct db_aicolor_param_s {
 #define AMVECM_IOC_S_AI_COLOR_PARAM _IOW(_VE_CM, 0x8c, struct db_aicolor_param_s)
 #define AMVECM_IOC_S_SDR2HDR_CTRL   _IO(_VE_CM, 0x8d)
 #define AMVECM_IOC_G_CHIP_TYPE      _IOR(_VE_CM, 0x8e, int)
+#define AMVECM_IOC_G_CHIP_ClASS     _IOR(_VE_CM, 0x8f, int)
 
 #endif
