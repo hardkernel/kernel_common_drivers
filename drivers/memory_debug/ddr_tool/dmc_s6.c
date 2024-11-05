@@ -152,6 +152,7 @@ static void s6_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 
 	*vio_bit = DMC_VIO_PROT1 | DMC_VIO_PROT0;
 	port = (mon_comm->status >> 10) & 0x1f;
+	subport = mon_comm->status & 0x3ff;
 	if (port == 0x01 || port == 0x02 || port == 0x03)		//vpu
 		subport = mon_comm->status & 0xff;
 	if (port == 0x0e)						//device
@@ -235,6 +236,7 @@ static int s6_reg_analysis(char *input, char *output)
 		addr |= vio_reg2;
 
 		port = (vio_reg3 >> 10) & 0x1f;
+		subport = vio_reg3 & 0x3ff;
 		if (port == 0x01 || port == 0x02 || port == 0x03)		//vpu
 			subport = vio_reg3 & 0xff;
 		if (port == 0x0e)						//device
@@ -254,6 +256,7 @@ static int s6_reg_analysis(char *input, char *output)
 		addr |= vio_reg0;
 
 		port = (vio_reg1 >> 10) & 0x1f;
+		subport = vio_reg1 & 0x3ff;
 		if (port == 0x01 || port == 0x02 || port == 0x03)		//vpu
 			subport = vio_reg1 & 0xff;
 		if (port == 0x0e)						//device
