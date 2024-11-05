@@ -149,6 +149,7 @@ struct aml_tdm {
 	bool earc_use_48k;
 	int ext_amp_ws_inv;
 	int mixer_en;
+	int pcpd_timeout_cnt;
 };
 
 #define to_aml_tdm(x)   container_of(x, struct aml_tdm, clk_nb)
@@ -1040,6 +1041,60 @@ static int tdm_port_pcpd_detect_set(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+
+static int tdm_port_pcpd_timeout_sample_count_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.enumerated.item[0] = p_tdm->pcpd_timeout_cnt;
+
+	return 0;
+}
+
+static int tdm_port_pcpd_timeout_sample_count_set(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+	int value = ucontrol->value.enumerated.item[0];
+
+	if (!pc_pd) {
+		pr_err("%s:pcpd monitor null!\n", __func__);
+		return 0;
+	}
+
+	if (value < 0 || value > 0x20000) {
+		pr_err("%s:sample cnt error!\n", __func__);
+		return 0;
+	}
+
+	p_tdm->pcpd_timeout_cnt = value;
+	if (pc_pd)
+		aml_pcpd_monitor_timeout(pc_pd, p_tdm->pcpd_timeout_cnt);
+
+	return 0;
+}
+
+static int tdm_port_pcpd_timeout_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+
+	if (!pc_pd) {
+		pr_err("%s:pcpd monitor null!\n", __func__);
+		return 0;
+	}
+
+	ucontrol->value.enumerated.item[0] = pc_pd->pcpd_timeout;
+
+	return 0;
+}
+
 #endif
 
 static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
@@ -1109,28 +1164,46 @@ static const struct snd_kcontrol_new snd_tdm_d_controls[] = {
 };
 
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
-static const struct snd_kcontrol_new snd_pcpd_controls[] = {
+static const struct snd_kcontrol_new snd_pcpd_controls_a[] = {
 	SOC_SINGLE_EXT("Pc_Pd_Monitor_A Detect enable",
 				0, 0, 1, 0,
 				tdm_port_pcpd_detect_get,
 				tdm_port_pcpd_detect_set),
 
-	SOC_SINGLE_EXT("Pc_Pd_Monitor_B Detect enable",
-				0, 0, 1, 0,
-				tdm_port_pcpd_detect_get,
-				tdm_port_pcpd_detect_set),
-
-};
-
-static const struct snd_kcontrol_new snd_hdmirx_type_controls[] = {
 	SOC_ENUM_EXT("Pc_Pd_Monitor_A Audio Type",
 				hdmi_audio_type_enum,
 				hdmiin_audio_type_get_enum,
 				NULL),
+
+	SOC_SINGLE_EXT("Pc_Pd_Monitor_A TimeOut Sample Count",
+				0, 0, 0x20000, 0,
+				tdm_port_pcpd_timeout_sample_count_get,
+				tdm_port_pcpd_timeout_sample_count_set),
+	SOC_SINGLE_BOOL_EXT("Pc_Pd_Monitor_A TimeOut",
+				0,
+				tdm_port_pcpd_timeout_get,
+				NULL),
+
+};
+
+static const struct snd_kcontrol_new snd_pcpd_controls_b[] = {
+	SOC_SINGLE_EXT("Pc_Pd_Monitor_B Detect enable",
+				0, 0, 1, 0,
+				tdm_port_pcpd_detect_get,
+				tdm_port_pcpd_detect_set),
 	SOC_ENUM_EXT("Pc_Pd_Monitor_B Audio Type",
 				hdmi_audio_type_enum,
 				hdmiin_audio_type_get_enum,
 				NULL),
+	SOC_SINGLE_EXT("Pc_Pd_Monitor_B TimeOut Sample Count",
+				0, 0, 0x20000, 0,
+				tdm_port_pcpd_timeout_sample_count_get,
+				tdm_port_pcpd_timeout_sample_count_set),
+	SOC_SINGLE_BOOL_EXT("Pc_Pd_Monitor_B TimeOut",
+				0,
+				tdm_port_pcpd_timeout_get,
+				NULL),
+
 };
 #endif
 
@@ -2245,19 +2318,21 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	if (p_tdm->pcpd_monitor_src) {
 		struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
-
-		ret = snd_soc_add_dai_controls(cpu_dai,
-						&snd_pcpd_controls[pc_pd->pcpd_id],
-						1);
-		if (ret < 0)
-			pr_err("failed add snd pcpd monitor controls\n");
-
-		ret = snd_soc_add_dai_controls(cpu_dai,
-						&snd_hdmirx_type_controls[pc_pd->pcpd_id],
-						1);
-		if (ret < 0)
-			pr_err("failed add snd hdmirx_type controls\n");
+		if (pc_pd->pcpd_id == 0) {
+			ret = snd_soc_add_dai_controls(cpu_dai,
+				snd_pcpd_controls_a,
+				ARRAY_SIZE(snd_pcpd_controls_a));
+			if (ret < 0)
+				pr_err("failed add snd pcpd monitora controls\n");
+		} else if (pc_pd->pcpd_id == 1) {
+			ret = snd_soc_add_dai_controls(cpu_dai,
+				snd_pcpd_controls_b,
+				ARRAY_SIZE(snd_pcpd_controls_b));
+			if (ret < 0)
+				pr_err("failed add snd pcpd monitorb controls\n");
+		}
 	}
+
 #endif
 	return 0;
 }
