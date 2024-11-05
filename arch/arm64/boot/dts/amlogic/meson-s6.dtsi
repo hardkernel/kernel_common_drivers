@@ -662,8 +662,8 @@
 				reg = <0x0  0x58400 0x0 0x24>,
 					  <0x0  0x184 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_C_MUX>;
-				clock-names = "clkin0";
+				//clocks = <&clkc CLKID_PWM_C_MUX>;
+				//clock-names = "clkin0";
 				status = "disabled";
 			};
 
@@ -672,8 +672,8 @@
 				reg = <0x0 0x58600 0x0 0x24>,
 					  <0x0 0x184 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_D_MUX>;
-				clock-names = "clkin0";
+				//clocks = <&clkc CLKID_PWM_D_MUX>;
+				//clock-names = "clkin0";
 				status = "disabled";
 			};
 
@@ -682,8 +682,8 @@
 				reg = <0x0 0x58800 0x0 0x24>,
 					  <0x0 0x188 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_E_MUX>;
-				clock-names = "clkin0";
+				//clocks = <&clkc CLKID_PWM_E_MUX>;
+				//clock-names = "clkin0";
 				status = "disabled";
 			};
 
@@ -691,8 +691,8 @@
 				compatible = "amlogic,meson-pwm-tee";
 				reg = <0x0 0x58a00 0x0 0x24>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_F>;
-				clock-names = "clkin0";
+				//clocks = <&clkc CLKID_PWM_F>;
+				//clock-names = "clkin0";
 				tee_id = <5>;
 				status = "okay";
 			};
