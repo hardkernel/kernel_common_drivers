@@ -524,7 +524,7 @@ static int aml_dac_output_mode_set_enum
 	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 
 	aml_acodec->output_type = value;
-	am_acodec_reg_init(component);
+	output_mode_set(component, aml_acodec->chip_version);
 	return 0;
 }
 
