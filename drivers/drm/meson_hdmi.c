@@ -906,6 +906,7 @@ static int am_hdmitx_connector_atomic_set_property
 		to_am_hdmitx_connector_state(state);
 	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
 	struct hdmitx_color_attr *attr = &hdmitx_state->color_attr_para;
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
 
 	DRM_DEBUG("%s\n", __func__);
 	if (property == am_hdmi->update_attr_prop) {
@@ -932,6 +933,7 @@ static int am_hdmitx_connector_atomic_set_property
 		return 0;
 	} else if (property == am_hdmi->frac_rate_policy_prop) {
 		hdmitx_state->frac_rate_policy = val;
+		tx_comm->frac_rate_policy = val;
 		return 0;
 	}
 
