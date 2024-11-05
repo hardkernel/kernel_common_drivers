@@ -4367,6 +4367,11 @@ static long amvecm_ioctl(struct file *file,
 				tmp);
 		}
 		break;
+	case AMVECM_IOC_G_CHIP_ClASS:
+		argp = (void __user *)arg;
+		if (copy_to_user(argp, &chip_cls_id, sizeof(int)))
+			ret = -EFAULT;
+		break;
 #endif
 	default:
 		ret = -EINVAL;
