@@ -106,6 +106,7 @@ dtb-y += s7d_pxp.dtb
 dtb-y += s7d_s905x5m_bm201.dtb
 dtb-y += s7d_s905x5m_bm201_linux.dtb
 dtb-y += s7d_s905x5m_bm201_soundbar.dtb
+dtb-y += s7d_s905x5m_bm201_mxl258c.dtb
 dtb-y += s7d_s905x5m_bm202.dtb
 dtb-y += s7d_s905x5m_bm202_linux.dtb
 dtb-y += s7d_s905x5m_bm209.dtb
