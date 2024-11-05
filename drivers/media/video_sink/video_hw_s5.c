@@ -12724,7 +12724,8 @@ int _video_hw_init_s5(void)
 		set_frm_idx(VPP0, 1);
 		WRITE_VCBUS_REG(vd_proc_misc_reg->vd_proc_bypass_ctrl, 0x21);
 		set_frm_idx(VPP0, 0);
-		enable_mosaic_mode(VPP0, 0);
+		//enable_mosaic_mode(VPP0, 0);
+		WRITE_VCBUS_REG(VIU_VIU0_MISC, g_viu0_hold_line);
 		/* for mosaic mode, set holdline for sur_id = 1 */
 		WRITE_VCBUS_REG(S5_VIU_VD1_MISC, 0x100);
 	}
