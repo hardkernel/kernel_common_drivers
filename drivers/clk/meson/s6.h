@@ -71,8 +71,6 @@
 #define CLKCTRL_GEN_CLK_CTRL                       (0x005e  << 2)
 #define CLKCTRL_SAR_CLK_CTRL0                      (0x005f  << 2)
 #define CLKCTRL_PWM_CLK_AB_CTRL                    (0x0060  << 2)
-#define CLKCTRL_PWM_CLK_CD_CTRL                    (0x0061  << 2)
-#define CLKCTRL_PWM_CLK_EF_CTRL                    (0x0062  << 2)
 #define CLKCTRL_PWM_CLK_GH_CTRL                    (0x0063  << 2)
 #define CLKCTRL_PWM_CLK_IJ_CTRL                    (0x0064  << 2)
 #define CLKCTRL_AMFC_CLK_CTRL                      (0x0065  << 2)
