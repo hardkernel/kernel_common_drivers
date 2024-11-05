@@ -845,12 +845,10 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 
 	if (buf->flag & DI_FLAG_BUF_BY_PASS) {
 		di_bypass = true;
-		dev->di_module_bypass = true;
 		dp_print(dev->index, PRINT_OTHER, "%s: di bypass\n", __func__);
 	} else {
 		dev->fill_done_count++;
 		total_fill_done_count++;
-		dev->di_module_bypass = false;
 	}
 
 	if (!dev->first_out)
@@ -865,6 +863,12 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	if (buf->caller_mng.dummy) {
 		dev->first_out = true;
 		dp_print(dev->index, PRINT_OTHER, "dummy frame out\n");
+	} else {
+		if (di_bypass)
+			dev->di_module_bypass = true;
+		else
+			dev->di_module_bypass = false;
+
 	}
 
 	dp_print(dev->index, PRINT_OTHER,
