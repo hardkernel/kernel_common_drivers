@@ -807,23 +807,22 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 		return 0;
 	}
 
+	if (!buf->vf) {
+		dp_print(dev->index, PRINT_ERROR, "%s: vf is NULL\n", __func__);
+		return 0;
+	}
+
 	if (buf->flag & DI_FLAG_EOS)
 		dp_print(dev->index, PRINT_ERROR, "%s: eos\n", __func__);
 
 	if (buf->flag & DI_FLAG_BUF_BY_PASS) {
 		di_bypass = true;
-		dev->di_module_bypass = true;
 		dp_print(dev->index, PRINT_OTHER, "%s: di bypass\n", __func__);
 	} else {
 		dev->fill_done_count++;
 		total_fill_done_count++;
-		dev->di_module_bypass = false;
 	}
 
-	if (!buf->vf) {
-		dp_print(dev->index, PRINT_ERROR, "%s: vf is NULL\n", __func__);
-		return 0;
-	}
 	if (!dev->first_out)
 		dp_print(dev->index, PRINT_OTHER, "DI output first frame\n");
 
@@ -836,15 +835,14 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	if (buf->caller_mng.dummy) {
 		dev->first_out = true;
 		dp_print(dev->index, PRINT_OTHER, "dummy frame out\n");
+	} else {
+		if (di_bypass)
+			dev->di_module_bypass = true;
+		else
+			dev->di_module_bypass = false;
 	}
 
 	dropped = buf->caller_mng.dropped;
-
-	if (!di_bypass) {
-		dev->fill_done_count++;
-		total_fill_done_count++;
-	}
-
 	if (dropped && !buf->caller_mng.dummy && di_bypass) {
 		dp_print(dev->index, PRINT_OTHER, "%s: fput drop file %px\n",
 			__func__, buf->caller_mng.src_file);
