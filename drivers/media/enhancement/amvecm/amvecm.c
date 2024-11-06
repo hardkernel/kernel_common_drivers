@@ -535,12 +535,13 @@ static int hist_chl;
 
 static unsigned int cm_slice_idx;
 
-unsigned int osd_pic_en;
 unsigned int slt_lut3d_en;
+unsigned int slt_en;
+
+unsigned int osd_pic_en;
 module_param(osd_pic_en, uint, 0664);
 MODULE_PARM_DESC(osd_pic_en, "\n osd_pic_en\n");
 
-unsigned int slt_en;
 #define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
 #define MATRIX_5x3_COEF_SIZE 24
 
@@ -12689,12 +12690,13 @@ void amvecm_slt_sr_enable(void)
 		amve_sharpness_sub_ctrl(6, 1);
 	} else {
 		if (chip_type_id == chip_t3x) {
-			ve_sharpness_ctl(0, 1, 1, 0);
+			amvecm_sharpness_enable(0);
 		} else {
 			WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE, 1, 1, 1);
 			if (chip_type_id != chip_txhd2)
 				WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE, 1, 1, 1);
 		}
+
 		amvecm_sharpness_enable(2);
 		amvecm_sharpness_enable(8);
 		amvecm_sharpness_enable(10);
@@ -12760,20 +12762,26 @@ void amvecm_slt_lc_disable(void)
 
 void amvecm_slt_ble_enable(void)
 {
-	if (chip_type_id == chip_s5 || chip_type_id == chip_t3x)
+	if (chip_type_id == chip_s5 || chip_type_id == chip_t3x) {
 		ve_ble_ctl(0, 1, 0);
-	else
+		WRITE_VPP_REG(0x2e64, 0x4621201c);
+		WRITE_VPP_REG(0x2864, 0x4621201c);
+	} else {
 		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 3, 1);
-	WRITE_VPP_REG(VPP_BLACKEXT_CTRL, 0x4621201c);
+		WRITE_VPP_REG(VPP_BLACKEXT_CTRL, 0x4621201c);
+	}
 }
 
 void amvecm_slt_cc_enable(void)
 {
-	if (chip_type_id == chip_s5 || chip_type_id == chip_t3x)
+	if (chip_type_id == chip_s5 || chip_type_id == chip_t3x) {
 		ve_cc_ctl(0, 1, 0);
-	else
+		WRITE_VPP_REG(0x2e62, 0x02000c0d);
+		WRITE_VPP_REG(0x2862, 0x02000c0d);
+	} else {
 		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 4, 1);
-	WRITE_VPP_REG(VPP_CCORING_CTRL, 0x02000c0d);
+		WRITE_VPP_REG(VPP_CCORING_CTRL, 0x02000c0d);
+	}
 }
 
 void amvecm_slt_bs_enable(void)
@@ -12787,11 +12795,19 @@ void amvecm_slt_bs_enable(void)
 		WRITE_VPP_REG(VPP_BLUE_STRETCH_1, temp);
 		WRITE_VPP_REG(VPP_BLUE_STRETCH_2, 0x71007100);
 		WRITE_VPP_REG(VPP_BLUE_STRETCH_3, 0x62006200);
+	} else if (chip_type_id == chip_t3x) {
+		WRITE_VPP_REG(0x2e78, 0xe0100860);
+		WRITE_VPP_REG(0x2e79, 0x001f0020);
+		WRITE_VPP_REG(0x2e7a, 0x001f0020);
+		WRITE_VPP_REG(0x2e7b, 0x00100800);
+		WRITE_VPP_REG(0x2e7c, 0x00100800);
+		WRITE_VPP_REG(0x2878, 0xe0100860);
+		WRITE_VPP_REG(0x2879, 0x001f0020);
+		WRITE_VPP_REG(0x287a, 0x001f0020);
+		WRITE_VPP_REG(0x287b, 0x00100800);
+		WRITE_VPP_REG(0x287c, 0x00100800);
 	} else {
-		if (chip_type_id == chip_t3x)
-			ve_bs_ctl(0, 1, 0);
-		else
-			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 0, 1);
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 0, 1);
 		WRITE_VPP_REG(VPP_BLUE_STRETCH_1, 0x70400040);
 		WRITE_VPP_REG(VPP_BLUE_STRETCH_2, 0x71007100);
 		WRITE_VPP_REG(VPP_BLUE_STRETCH_3, 0x62006200);
@@ -12964,9 +12980,14 @@ void amvecm_list_module_status(void)
 	}
 
 	/*hdr*/
-	vd1_hdr_en = READ_VPP_REG_BITS(VD1_HDR2_CTRL + addr_offset_vd1, 13, 1);
-	vd2_hdr_en = READ_VPP_REG_BITS(VD2_HDR2_CTRL + addr_offset_vd2, 13, 1);
-
+	if (chip_type_id == chip_s5 ||
+		chip_type_id == chip_t3x) {
+		vd1_hdr_en = READ_VPP_REG_BITS(0x25a0, 13, 1);
+		vd2_hdr_en = READ_VPP_REG_BITS(0x3800, 13, 1);
+	} else {
+		vd1_hdr_en = READ_VPP_REG_BITS(VD1_HDR2_CTRL + addr_offset_vd1, 13, 1);
+		vd2_hdr_en = READ_VPP_REG_BITS(VD2_HDR2_CTRL + addr_offset_vd2, 13, 1);
+	}
 	/*cm*/
 	if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
@@ -13000,7 +13021,12 @@ void amvecm_list_module_status(void)
 	}
 
 	/*lc*/
-	lc_en = READ_VPP_REG_BITS(reg_lc, 4, 1);
+	if (chip_type_id == chip_t3x) {
+		reg_lc = 0x52c0;
+		lc_en = READ_VPP_REG_BITS(reg_lc, 4, 1);
+	} else {
+		lc_en = READ_VPP_REG_BITS(reg_lc, 4, 1);
+	}
 
 	/*dnlp*/
 	if (chip_type_id == chip_t3x) {
@@ -13032,26 +13058,31 @@ void amvecm_list_module_status(void)
 	}
 
 	/*ble black_ext*/
-	if (chip_type_id == chip_t3x)
-		black_ext_en = READ_VPP_REG_BITS(0x2862 + 0x600, 3, 1);
-	else
+	if (chip_type_id == chip_t3x) {
+		reg_ctrl = 0x2863 + 0x600;
+		black_ext_en = READ_VPP_REG_BITS(reg_ctrl, 3, 1);
+	} else {
 		black_ext_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 3, 1);
+	}
 
 	/*cc chroma_coring*/
-	if (chip_type_id == chip_s5)
-		chroma_coring_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 1);
-	else if (chip_type_id == chip_t3x)
-		chroma_coring_en = READ_VPP_REG_BITS(0x2862 + 0x600, 1, 1);
-	else
+	if (chip_type_id == chip_t3x) {
+		reg_ctrl = 0x2863 + 0x600;
+		chroma_coring_en = READ_VPP_REG_BITS(reg_ctrl, 1, 1);
+	} else {
 		chroma_coring_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 4, 1);
+	}
 
 	/*bs blue stretch*/
-	if (chip_type_id == chip_s5)
-		blue_stretch_en = READ_VPP_REG_BITS(VPP_BLUE_STRETCH_1, 31, 1);
-	else if (chip_type_id == chip_t3x)
-		blue_stretch_en = READ_VPP_REG_BITS(0x2878 + 0x600, 31, 1);
-	else
+	if (chip_type_id == chip_s5) {
+		reg_ctrl = 0x1dc0;
+		blue_stretch_en = READ_VPP_REG_BITS(reg_ctrl, 31, 1);
+	} else if (chip_type_id == chip_t3x) {
+		reg_ctrl = 0x2878 + 0x600;
+		blue_stretch_en = READ_VPP_REG_BITS(reg_ctrl, 31, 1);
+	} else {
 		blue_stretch_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 1);
+	}
 
 	/*vadj1*/
 	if (chip_type_id == chip_t3x) {
@@ -13067,6 +13098,9 @@ void amvecm_list_module_status(void)
 	/*vadj2*/
 	if (chip_type_id == chip_a4) {
 		vadj2_en = READ_VPP_REG_BITS(VOUT_VADJ_Y, 0, 1);
+	} else if (chip_type_id == chip_t3x) {
+		reg_ctrl = 0x2570;
+		vadj2_en = READ_VPP_REG_BITS(reg_ctrl, 0, 1);
 	} else {
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 			vadj2_en = READ_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1);
@@ -13075,11 +13109,16 @@ void amvecm_list_module_status(void)
 	}
 
 	/*3dlut*/
-	lut3d_en = READ_VPP_REG_BITS(VPP_LUT3D_CTRL, 0, 1);
+	if (chip_type_id == chip_t3x)
+		lut3d_en = READ_VPP_REG_BITS(0x2540, 0, 1);
+	else
+		lut3d_en = READ_VPP_REG_BITS(VPP_LUT3D_CTRL, 0, 1);
 
 	/*wb*/
 	if (chip_type_id == chip_a4)
 		wb_en = READ_VPP_REG_BITS(VOUT_GAINOFF_CTRL0, 31, 1);
+	else if (chip_type_id == chip_t3x)
+		wb_en = READ_VPP_REG_BITS(0x2550, 31, 1);
 	else
 		wb_en = READ_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 31, 1);
 
