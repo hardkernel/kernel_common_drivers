@@ -114,6 +114,7 @@ void hdmitx21_set_cts_sys_clk(struct hdmitx_dev *hdev);
 void hdmitx21_set_top_pclk(struct hdmitx_dev *hdev);
 void hdmitx21_set_hdcp_pclk(struct hdmitx_dev *hdev);
 void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev);
+bool hdmitx21_is_basic_clk_en(void);
 void set_frl_hpll_od(enum frl_rate_enum rate);
 void hdmitx_set_fpll(struct hdmitx_dev *hdev);
 void hdmitx_set_gp2pll(struct hdmitx_dev *hdev);

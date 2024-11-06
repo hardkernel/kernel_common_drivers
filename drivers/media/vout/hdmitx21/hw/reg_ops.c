@@ -45,7 +45,7 @@ int hdmitx21_init_reg_map(struct platform_device *pdev)
 		if (IS_ERR(reg21_maps[i].p))
 			return -ENOMEM;
 
-		pr_debug("Mapped PHY: 0x%x\n", reg21_maps[i].phy_addr);
+		HDMITX_DEBUG("Mapped PHY: 0x%x\n", reg21_maps[i].phy_addr);
 	}
 
 	return 0;

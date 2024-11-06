@@ -1132,13 +1132,13 @@ static int edid_parsingvfpdb(struct rx_cap *prxcap, u8 *buf)
 	    (svr >= 193 && svr <= 253)) {
 		prxcap->flag_vfpdb = 1;
 		prxcap->preferred_mode = svr;
-		pr_debug("preferred mode 0 srv %d\n", prxcap->preferred_mode);
+		HDMITX_DEBUG("preferred mode 0 srv %d\n", prxcap->preferred_mode);
 		return 1;
 	}
 	if (svr >= 129 && svr <= 144) {
 		prxcap->flag_vfpdb = 1;
 		prxcap->preferred_mode = prxcap->dtd[svr - 129].vic;
-		pr_debug("preferred mode 0 dtd %d\n", prxcap->preferred_mode);
+		HDMITX_DEBUG("preferred mode 0 dtd %d\n", prxcap->preferred_mode);
 		return 1;
 	}
 	return 0;
@@ -1208,21 +1208,21 @@ static void edid_parsingdolbyvsadb(struct rx_cap *prxcap, unsigned char *buf)
 	pos = 0;
 	length = buf[pos] & 0x1f;
 	if (length != 0x06)
-		pr_debug("%s[%d]: the length is %d, should be 6 bytes\n",
+		HDMITX_DEBUG("%s[%d]: the length is %d, should be 6 bytes\n",
 			__func__, __LINE__, length);
 
 	cap->length = length;
 	pos += 2;
 	ieeeoui = buf[pos] + (buf[pos + 1] << 8) + (buf[pos + 2] << 16);
 	if (ieeeoui != DOVI_IEEEOUI)
-		pr_debug("%s[%d]: the ieeeoui is 0x%x, should be 0x%x\n",
+		HDMITX_DEBUG("%s[%d]: the ieeeoui is 0x%x, should be 0x%x\n",
 			__func__, __LINE__, ieeeoui, DOVI_IEEEOUI);
 	cap->ieeeoui = ieeeoui;
 
 	pos += 3;
 	cap->dolby_vsadb_ver = buf[pos] & 0x7;
 	if (cap->dolby_vsadb_ver)
-		pr_debug("%s[%d]: the version is 0x%x, should be 0x0\n",
+		HDMITX_DEBUG("%s[%d]: the version is 0x%x, should be 0x0\n",
 			__func__, __LINE__, cap->dolby_vsadb_ver);
 
 	cap->spk_center = (buf[pos] >> 4) & 1;
@@ -1418,7 +1418,7 @@ static void hdmitx_edid_4k2k_parse(struct rx_cap *prxcap, u8 *dat,
 		return;
 
 	if (size > 4 || size == 0) {
-		pr_debug(EDID "4k2k in edid out of range, SIZE = %d\n", size);
+		HDMITX_DEBUG("4k2k in edid out of range, SIZE = %d\n", size);
 		return;
 	}
 	while (size--) {
@@ -1732,7 +1732,7 @@ static void hdmitx_edid_parse_hfscdb(struct rx_cap *prxcap,
 		prxcap->dsc_1p2 = 0;
 	if (prxcap->dsc_1p2) {
 		if (count < 13) {
-			pr_info(EDID "error: dsc_1p2 support, but dsc not complete\n");
+			HDMITX_INFO("error: dsc_1p2 support, but dsc not complete\n");
 			prxcap->dsc_1p2 = 0;
 			return;
 		}
@@ -2224,15 +2224,15 @@ static void dump_dtd_info(struct dtd *t)
 		return;
 
 	if (0) {
-		pr_debug(EDID "%s[%d]\n", __func__, __LINE__);
-		pr_debug(EDID "pixel_clock: %d\n", t->pixel_clock);
-		pr_debug(EDID "h_active: %d\n", t->h_active);
-		pr_debug(EDID "v_active: %d\n", t->v_active);
-		pr_debug(EDID "v_blank: %d\n", t->v_blank);
-		pr_debug(EDID "h_sync_offset: %d\n", t->h_sync_offset);
-		pr_debug(EDID "h_sync: %d\n", t->h_sync);
-		pr_debug(EDID "v_sync_offset: %d\n", t->v_sync_offset);
-		pr_debug(EDID "v_sync: %d\n", t->v_sync);
+		HDMITX_DEBUG("%s[%d]\n", __func__, __LINE__);
+		HDMITX_DEBUG("pixel_clock: %d\n", t->pixel_clock);
+		HDMITX_DEBUG("h_active: %d\n", t->h_active);
+		HDMITX_DEBUG("v_active: %d\n", t->v_active);
+		HDMITX_DEBUG("v_blank: %d\n", t->v_blank);
+		HDMITX_DEBUG("h_sync_offset: %d\n", t->h_sync_offset);
+		HDMITX_DEBUG("h_sync: %d\n", t->h_sync);
+		HDMITX_DEBUG("v_sync_offset: %d\n", t->v_sync_offset);
+		HDMITX_DEBUG("v_sync: %d\n", t->v_sync);
 	}
 }
 
@@ -2303,7 +2303,7 @@ next:
 		}
 		/* Select dtd0 */
 		prxcap->preferred_mode = prxcap->dtd[0].vic;
-		pr_debug(EDID "get dtd%d vic: %d\n",
+		HDMITX_DEBUG("get dtd%d vic: %d\n",
 			prxcap->dtd_idx, t->vic);
 		prxcap->dtd_idx++;
 		if (t->vic < HDMITX_VESA_OFFSET)
@@ -2389,7 +2389,7 @@ static void edid_descriptor_pmt(struct rx_cap *prxcap,
 	timing = hdmitx_mode_match_vesa_timing(t);
 	if (timing && (timing->vic < (HDMI_107_3840x2160p60_64x27 + 1))) {
 		prxcap->native_vic = timing->vic;
-		pr_debug("hdmitx: get PMT vic: %d\n", timing->vic);
+		HDMITX_DEBUG("hdmitx: get PMT vic: %d\n", timing->vic);
 	}
 	if (timing && timing->vic >= HDMITX_VESA_OFFSET)
 		store_vesa_idx(prxcap, timing->vic);
@@ -2701,7 +2701,7 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 		}
 	}
 
-	pr_debug(EDID "EDID Parser:\n");
+	HDMITX_DEBUG("EDID Parser:\n");
 
 	if (hdmitx_edid_check_data_valid(edid_check, edid_buf) == false) {
 		edid_set_fallback_mode(prxcap);
@@ -2735,7 +2735,7 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	if (!prxcap->flag_vfpdb &&
 	    prxcap->preferred_mode != prxcap->VIC[0] &&
 	    prxcap->number_of_dtd == 0) {
-		pr_debug(EDID "change preferred_mode from %d to %d\n",
+		HDMITX_DEBUG("change preferred_mode from %d to %d\n",
 			prxcap->preferred_mode,	prxcap->VIC[0]);
 		prxcap->preferred_mode = prxcap->VIC[0];
 	}
@@ -2777,10 +2777,10 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 
 	if (hdmitx_edid_search_IEEEOUI(&edid_buf[128])) {
 		prxcap->ieeeoui = HDMI_IEEE_OUI;
-		pr_debug(EDID "find IEEEOUT\n");
+		HDMITX_DEBUG("find IEEEOUT\n");
 	} else {
 		prxcap->ieeeoui = 0x0;
-		pr_debug(EDID "not find IEEEOUT\n");
+		HDMITX_DEBUG("not find IEEEOUT\n");
 	}
 
 	/* strictly DVI device judgement */
@@ -2788,7 +2788,7 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	if (hdmitx_edid_check_data_valid(edid_check, &edid_buf[0]) &&
 		!hdmitx_edid_search_IEEEOUI(&edid_buf[128])) {
 		prxcap->ieeeoui = 0x0;
-		pr_debug(EDID "sink is DVI device\n");
+		HDMITX_DEBUG("sink is DVI device\n");
 	} else {
 		prxcap->ieeeoui = HDMI_IEEE_OUI;
 	}
@@ -2917,9 +2917,9 @@ unsigned int hdmitx_edid_valid_block_num(unsigned char *edid_buf)
 		if (tmp_chksum != 0) {
 			valid_blk_no++;
 			if ((tmp_chksum & 0xff) == 0)
-				pr_debug(EDID "check sum valid\n");
+				HDMITX_DEBUG("check sum valid\n");
 			else
-				pr_warn(EDID "check sum invalid\n");
+				HDMITX_ERROR("check sum invalid\n");
 		}
 		tmp_chksum = 0;
 	}
@@ -2945,7 +2945,7 @@ void hdmitx_edid_print(u8 *edid_buf)
 	valid_blk_no = hdmitx_edid_valid_block_num(edid_buf);
 
 	if (valid_blk_no == 0) {
-		pr_debug(EDID "raw data are all zeroes\n");
+		HDMITX_DEBUG("raw data are all zeroes\n");
 	} else {
 		for (blk_idx = 0; blk_idx < valid_blk_no; blk_idx++)
 			hdmitx_edid_blk_print(&edid_buf[blk_idx * 128], blk_idx);

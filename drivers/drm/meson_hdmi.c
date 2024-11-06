@@ -270,7 +270,7 @@ static bool meson_hdmitx_test_color_attr(struct hdmitx_common *common,
 			build_hdmitx_attr_str(attr_str,
 				attr_list->colorformat, attr_list->bitdepth);
 			if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
-					attr_str, false, true)) {
+					attr_str, false)) {
 				DRM_INFO("%s success [%d]+[%d]\n", __func__,
 					attr_list->colorformat,
 					attr_list->bitdepth);
@@ -309,7 +309,7 @@ static int meson_hdmitx_decide_color_attr
 		build_hdmitx_attr_str(attr_str,
 			attr_list->colorformat, attr_list->bitdepth);
 		if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
-				attr_str, false, true)) {
+				attr_str, false)) {
 			attr->colorformat = attr_list->colorformat;
 			attr->bitdepth = attr_list->bitdepth;
 			DRM_DEBUG("%s get fmt attr [%d]+[%d]\n",
@@ -591,16 +591,15 @@ static enum drm_connector_status am_hdmitx_connector_detect
 		connector_status_connected : connector_status_disconnected;
 }
 
-static int get_hdr_info(void)
+static int _get_hdr_info(const struct hdr_info *hdr, enum hdmi_info_index hdr_info_index)
 {
 	int hdr_cap_value = 0;
 	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
-	const struct hdr_info *hdr = hdmitx_common_get_hdr_info();
 	const struct hdr10_plus_info *hdr10p = &hdr->hdr10plus_info;
 	unsigned int hdr_priority =  tx_comm->hdr_priority;
 
-	/*mask rx hdr capability*/
-	if (hdr_priority == 2)
+	/* just mask hdr_cap's hdr capability */
+	if (hdr_priority == 2 && hdr_info_index == hdmi_info_1)
 		return 0;
 
 	/*hdr10plugsupported*/
@@ -631,17 +630,31 @@ static int get_hdr_info(void)
 	return hdr_cap_value;
 }
 
-static int get_dv_info(void)
+static int get_hdr_info(void)
+{
+	enum hdmi_info_index hdr_info_index = hdmi_info_1;
+	const struct hdr_info *hdr = hdmitx_common_get_hdr_info();
+
+	return _get_hdr_info(hdr, hdr_info_index);
+}
+
+static int get_hdr_info_rx(void)
+{
+	enum hdmi_info_index hdr_info_index = hdmi_info_2;
+	const struct hdr_info *hdr = hdmitx_common_get_hdr_info_rx();
+
+	return _get_hdr_info(hdr, hdr_info_index);
+}
+
+static int __get_dv_info(const struct dv_info *dv, enum hdmi_info_index dv_info_index)
 {
 	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
 	unsigned int hdr_priority = tx_comm->hdr_priority;
-	const struct dv_info *dv = hdmitx_common_get_dv_info();
 	int dv_flag = 0;
 
-	if (dv->ieeeoui != DV_IEEE_OUI || hdr_priority) {
-		/*The Rx don't support DolbyVision*/
+	/* just mask dv_cap's dv capability */
+	if (hdr_priority && dv_info_index == hdmi_info_1)
 		return 0;
-	}
 
 	/*The Rx don't support DolbyVision*/
 	if (dv->ieeeoui != DV_IEEE_OUI || dv->block_flag != CORRECT)
@@ -723,6 +736,22 @@ static int get_dv_info(void)
 	return dv_flag;
 }
 
+static int get_dv_info(void)
+{
+	enum hdmi_info_index dv_info_index = hdmi_info_1;
+	const struct dv_info *dv = hdmitx_common_get_dv_info();
+
+	return __get_dv_info(dv, dv_info_index);
+}
+
+static int get_dv_info_rx(void)
+{
+	enum hdmi_info_index dv_info_index = hdmi_info_2;
+	const struct dv_info *dv = hdmitx_common_get_dv_info_rx();
+
+	return __get_dv_info(dv, dv_info_index);
+}
+
 static int hdcp_rx_ver(void)
 {
 	/* Detect RX support HDCP14
@@ -776,6 +805,16 @@ static int get_sink_type(void)
 	return sink_type_flag;
 }
 
+void get_metadata(struct meson_hdr_static_metadata *mHdrMetaDataValue)
+{
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+	const struct hdr_info hdrinfo = tx_comm->rxcap.hdr_info;
+
+	mHdrMetaDataValue->lumi_max = hdrinfo.lumi_max;
+	mHdrMetaDataValue->lumi_min = hdrinfo.lumi_min;
+	mHdrMetaDataValue->lumi_avg = hdrinfo.lumi_avg;
+}
+
 static int am_hdmitx_connector_atomic_set_property
 	(struct drm_connector *connector,
 	struct drm_connector_state *state,
@@ -827,6 +866,7 @@ static int am_hdmitx_connector_atomic_get_property
 	struct am_hdmitx_connector_state *hdmitx_state =
 		to_am_hdmitx_connector_state(state);
 	struct hdmitx_color_attr *attr = &hdmitx_state->color_attr_para;
+	struct meson_hdr_static_metadata mHdrMetaDataValue;
 
 	if (property == am_hdmi->update_attr_prop) {
 		*val = 0;
@@ -846,8 +886,14 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->hdr_cap_property) {
 		*val = get_hdr_info();
 		return 0;
+	} else if (property == am_hdmi->hdr_cap_rx_prop) {
+		*val = get_hdr_info_rx();
+		return 0;
 	} else if (property == am_hdmi->dv_cap_property) {
 		*val = get_dv_info();
+		return 0;
+	} else if (property == am_hdmi->dv_cap_rx_property) {
+		*val = get_dv_info_rx();
 		return 0;
 	} else if (property == am_hdmi->hdcp_ver_prop) {
 		*val = hdcp_rx_ver();
@@ -887,6 +933,12 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->sink_type_prop) {
 		*val = get_sink_type();
+		return 0;
+	} else if (property == am_hdmi->static_meta_property) {
+		get_metadata(&mHdrMetaDataValue);
+		hdmitx_state->metadata = drm_property_create_blob(connector->dev,
+			sizeof(mHdrMetaDataValue), &mHdrMetaDataValue);
+		*val = (hdmitx_state->metadata) ? hdmitx_state->metadata->base.id : 0;
 		return 0;
 	}
 
@@ -1224,6 +1276,14 @@ static int meson_hdmitx_get_hdcp_request(struct am_hdmi_tx *tx,
 	int type;
 	unsigned int hdcp_tx_type = drm_hdmitx_common_get_tx_hdcp_cap();
 	unsigned int hdcp_rx_type = am_hdmi_info.hdcp_rx_type;
+
+	/*
+	 * for bootup case, some project not have tee notify to load hdcp key,
+	 * need to get rx_cap by hdmitx api.
+	 * for hotplug case, rx_cap is updated in hpd callback.
+	 */
+	if (hdcp_rx_type == 0)
+		hdcp_rx_type = drm_hdmitx_common_get_rx_hdcp_cap();
 
 	DRM_INFO("%s usr_type: %d, hdcp cap: %d,%d\n",
 			__func__, request_type_mask,
@@ -1977,11 +2037,8 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_mode *adj_mode = &crtc_state->adjusted_mode;
 	char *modename = adj_mode->name;
 	struct hdmitx_common *common = am_hdmi_info.hdmitx_dev->hdmitx_common;
-	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc_state->crtc);
-	struct meson_drm *priv = amcrtc->priv;
 	u64 sequence_id = hdmitx_state->hcs.state_sequence_id;
 	int ret = 0;
-	bool do_valid = true;
 	char attr_str[HDMITX_ATTR_LEN_MAX];
 
 	/* do not atomic check if hpd is low*/
@@ -1995,12 +2052,6 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	meson_encoder_vrr_change(encoder, conn_state->state);
-
-	if (!am_hdmi_info.android_path ||
-		(crtc_state->vrr_enabled && !meson_crtc_state->attr_changed &&
-		!meson_crtc_state->brr_update &&
-		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)) || priv->pxp_mode)
-		do_valid = false;
 
 	DRM_DEBUG("%s[%d]: enter\n", __func__, __LINE__);
 
@@ -2020,9 +2071,7 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	build_hdmitx_attr_str(attr_str, attr->colorformat, attr->bitdepth);
 
 	ret = hdmitx_common_validate_mode_locked(common, &hdmitx_state->hcs,
-						 modename, attr_str,
-						 meson_crtc_state->valid_brr,
-						 do_valid);
+						 modename, attr_str, meson_crtc_state->valid_brr);
 	/*
 	 * ret == 0
 	 * mode and attr are supported, don't need to match mode and attr
@@ -2193,7 +2242,7 @@ static void meson_hdmitx_init_hdr_cap_property(struct drm_device *drm_dev,
 	struct drm_property *prop;
 
 	prop = drm_property_create_range(drm_dev, 0,
-			"hdr_cap", 0, 1023);
+			"hdr_cap", 0, 64);
 
 	if (prop) {
 		am_hdmi->hdr_cap_property = prop;
@@ -2209,13 +2258,29 @@ static void meson_hdmitx_init_dv_cap_property(struct drm_device *drm_dev,
 	struct drm_property *prop;
 
 	prop = drm_property_create_range(drm_dev, 0,
-			"dv_cap", 0, 1023);
+			"dv_cap", 0, 256);
 
 	if (prop) {
 		am_hdmi->dv_cap_property = prop;
 		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
 	} else {
 		DRM_ERROR("Failed to dv_cap property\n");
+	}
+}
+
+static void meson_hdmitx_init_dv_cap_rx_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"dv_cap_rx", 0, 256);
+
+	if (prop) {
+		am_hdmi->dv_cap_rx_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to dv_cap_rx property\n");
 	}
 }
 
@@ -2378,6 +2443,36 @@ static void meson_hdmitx_init_hdcp_user_prop(struct drm_device *drm_dev,
 		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
 	} else {
 		DRM_ERROR("Failed to init hdcp_user property\n");
+	}
+}
+
+static void meson_hdmitx_init_hdr_cap_rx_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"hdr_cap_rx", 0, 64);
+
+	if (prop) {
+		am_hdmi->hdr_cap_rx_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to hdr_cap_rx property\n");
+	}
+}
+
+static void meson_hdmitx_init_static_meta_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create(drm_dev, DRM_MODE_PROP_BLOB, "HDR_STATIC_META", 0);
+	if (prop) {
+		am_hdmi->static_meta_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to create hdr static metadata property\n");
 	}
 }
 
@@ -2581,9 +2676,12 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_colorspace_property(drm, am_hdmi);
 	meson_hdmitx_init_avmute_property(drm, am_hdmi);
 	meson_hdmitx_init_hdmi_hdr_status_property(drm, am_hdmi);
-	/*Getting hdr cap, similar to hdmitx sys hdr_cap node*/
+	/*Getting hdr cap, don't similar to hdmitx sys hdr_cap node*/
 	meson_hdmitx_init_hdr_cap_property(drm, am_hdmi);
+	meson_hdmitx_init_hdr_cap_rx_property(drm, am_hdmi);
+	meson_hdmitx_init_static_meta_property(drm, am_hdmi);
 	meson_hdmitx_init_dv_cap_property(drm, am_hdmi);
+	meson_hdmitx_init_dv_cap_rx_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_ver_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_mode_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_topo_property(drm, am_hdmi);

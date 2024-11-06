@@ -46,7 +46,7 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 	memset(ced, 0, sizeof(struct ced_cnt));
 
 	if (!hdev->tx_comm.rxcap.scdc_present)
-		pr_debug("ERR: SCDC not present, should not access SCDC\n");
+		HDMITX_DEBUG("ERR: SCDC not present, should not access SCDC\n");
 	chksum = 0;
 	for (i = 0; i < 7; i++) {
 		scdc_rd_sink(ERR_DET_0_L + i, &raw[i]);
@@ -84,7 +84,7 @@ int scdc_status_flags(struct hdmitx_dev *hdev)
 	u8 locked_st = 0;
 
 	if (!hdev->tx_comm.rxcap.scdc_present)
-		pr_debug("ERR: SCDC not present, should not access SCDC\n");
+		HDMITX_DEBUG("ERR: SCDC not present, should not access SCDC\n");
 
 	scdc_rd_sink(UPDATE_0, &st);
 	if (st & STATUS_UPDATE) {

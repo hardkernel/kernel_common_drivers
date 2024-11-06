@@ -793,7 +793,7 @@ void hdmitx21_pbist_config(struct hdmitx_dev *hdev, enum hdmi_vic vic, int reg_p
 		pr_err("not find hdmitx vic %d timing\n", vic);
 		return;
 	}
-	pr_debug("find hdmitx vic %d timing\n", vic);
+	HDMITX_DEBUG("find hdmitx vic %d timing\n", vic);
 	if (reg_pbist_en && (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
 			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D ||
 			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6))

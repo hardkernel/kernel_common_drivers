@@ -733,6 +733,7 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	if (connector0_type && (is_valid_hdmi(connector0_type) ||
 		(strncmp("TV", connector0_type, 2) == 0))) {
 		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout_server.name);
+		global_tx_common->viu_sel |= BIT(0);
 		vout_register_server(&hdmitx_vout_server);
 		is_register = true;
 	}
@@ -741,6 +742,7 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	if (connector1_type && (is_valid_hdmi(connector1_type) ||
 		(strncmp("TV", connector1_type, 2) == 0))) {
 		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout2_server.name);
+		global_tx_common->viu_sel |= BIT(1);
 		vout2_register_server(&hdmitx_vout2_server);
 		is_register = true;
 	}
@@ -750,6 +752,7 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	if (connector2_type && (is_valid_hdmi(connector2_type) ||
 		(strncmp("TV", connector2_type, 2) == 0))) {
 		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout3_server.name);
+		global_tx_common->viu_sel |= BIT(2);
 		vout3_register_server(&hdmitx_vout3_server);
 		is_register = true;
 	}
@@ -763,11 +766,14 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	 */
 	if (!is_register) {
 		HDMITX_INFO("vout register all valid server\n");
+		global_tx_common->viu_sel |= BIT(0);
 		vout_register_server(&hdmitx_vout_server);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		global_tx_common->viu_sel |= BIT(1);
 		vout2_register_server(&hdmitx_vout2_server);
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+		global_tx_common->viu_sel |= BIT(2);
 		vout3_register_server(&hdmitx_vout3_server);
 #endif
 	}
@@ -829,7 +835,7 @@ void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm)
 	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGIN);
 
 	tx_comm->tx_hw->hw_sequence_id = get_jiffies_64();
-	HDMITX_INFO("plugin sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
+	HDMITX_INFO("sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
 
 	/* SW: start rxsense check */
 	if (tx_comm->rxsense_policy) {
@@ -877,12 +883,12 @@ void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm)
 /* common work for plugout flow, witch should be done in lock */
 void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm)
 {
-	HDMITX_INFO(SYS "plugout\n");
+	HDMITX_INFO(SYS "hpd_low\n");
 	/* trace event */
 	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGOUT);
 
 	tx_comm->tx_hw->hw_sequence_id = 0;
-	HDMITX_INFO("plug out sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
+	HDMITX_INFO("sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
 
 	/* step1: disable output */
 	hdmitx_common_output_disable(tx_comm, true, true, true, tx_comm->forced_edid ? 0 : 1);

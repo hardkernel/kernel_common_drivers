@@ -1917,11 +1917,11 @@ static ssize_t rxsense_policy_store(struct device *dev,
 
 	if (isdigit(buf[0])) {
 		val = buf[0] - '0';
-		HDMITX_INFO(SYS "set rxsense_policy as %d\n", val);
+		HDMITX_INFO("set rxsense_policy as %d\n", val);
 		if (val == 0 || val == 1)
 			hdev->tx_comm.rxsense_policy = val;
 		else
-			HDMITX_INFO(SYS "only accept as 0 or 1\n");
+			HDMITX_INFO("only accept as 0 or 1\n");
 	}
 	if (hdev->tx_comm.rxsense_policy)
 		queue_delayed_work(hdev->tx_comm.rxsense_wq,
@@ -2039,11 +2039,11 @@ static ssize_t sspll_store(struct device *dev,
 
 	if (isdigit(buf[0])) {
 		val = buf[0] - '0';
-		HDMITX_INFO(SYS "set sspll : %d\n", val);
+		HDMITX_INFO("set sspll : %d\n", val);
 		if (val == 0 || val == 1)
 			hdev->sspll = val;
 		else
-			HDMITX_INFO(SYS "sspll only accept as 0 or 1\n");
+			HDMITX_INFO("sspll only accept as 0 or 1\n");
 	}
 
 	return count;
@@ -2076,7 +2076,7 @@ static ssize_t hdcp_type_policy_store(struct device *dev,
 		val = 2;
 	if (strncmp(buf, "-1", 2) == 0)
 		val = -1;
-	HDMITX_INFO(SYS "set hdcp_type_policy as %d\n", val);
+	HDMITX_INFO("set hdcp_type_policy as %d\n", val);
 	hdev->hdcp_type_policy = val;
 
 	return count;
@@ -2120,7 +2120,7 @@ static ssize_t hdcp_pwr_store(struct device *dev,
 
 	if (buf[0] == '1') {
 		hdev->hdcp_tst_sig = 1;
-		pr_debug(SYS "set hdcp_pwr 1\n");
+		HDMITX_DEBUG("set hdcp_pwr 1\n");
 	}
 
 	return count;
@@ -2137,7 +2137,7 @@ static ssize_t hdcp_pwr_show(struct device *dev,
 		pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
 			hdev->hdcp_tst_sig);
 		hdev->hdcp_tst_sig = 0;
-		pr_debug(SYS "restore hdcp_pwr 0\n");
+		HDMITX_DEBUG("restore hdcp_pwr 0\n");
 	}
 
 	return pos;
@@ -2258,7 +2258,7 @@ static ssize_t hdcp_mode_store(struct device *dev,
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return count;
 	}
-	HDMITX_INFO(SYS "hdcp: set mode as %s\n", buf);
+	HDMITX_INFO("hdcp: set mode as %s\n", buf);
 	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_MUX_INIT, 1);
 	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_GET_AUTH, 0);
 	if (strncmp(buf, "0", 1) == 0) {
@@ -3077,10 +3077,10 @@ static ssize_t reset_tv_hdcp_store(struct device *dev,
 	}
 	if (strncmp(buf, "1", 1) == 0) {
 		if (hdev->poll_rx_status_mtd == 0) {
-			pr_info("force poll rx_status to reset TV hdcp\n");
+			HDMITX_INFO("force poll rx_status to reset TV hdcp\n");
 			hdmitx_reset_tv_hdcp();
 		} else if (hdev->poll_rx_status_mtd == 1) {
-			pr_info("force read 1byte hdcp msg\n");
+			HDMITX_INFO("force read 1byte hdcp msg\n");
 			ddc_read_1byte(HDCP_SLAVE, HDCP2_RD_MSG, &data);
 		}
 	}
@@ -3259,7 +3259,7 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 	 * to continue plugin work.
 	 */
 	if (hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_HPD_GPI_ST, 0) == 0) {
-		HDMITX_INFO(SYS "plug out event come when plugin handle, abort handle\n");
+		HDMITX_INFO("plug out event come when plugin handle, abort handle\n");
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
@@ -3270,11 +3270,11 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 	 * plugin handler only once
 	 */
 	if (hdev->tx_comm.last_hpd_handle_done_stat == HDMI_TX_HPD_PLUGIN) {
-		HDMITX_INFO(SYS "warning: continuous plugin, should not happen!\n");
+		HDMITX_INFO("warning: continuous plugin, should not happen!\n");
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
-	HDMITX_INFO(SYS "plugin\n");
+	HDMITX_INFO("hpd_high\n");
 	hdmitx_process_plugin(hdev, false);
 
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -3314,7 +3314,7 @@ static void hdmitx_hpd_plugout_irq_handler(struct work_struct *work)
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
 	if (hdev->tx_comm.last_hpd_handle_done_stat == HDMI_TX_HPD_PLUGOUT) {
-		HDMITX_INFO(SYS "continuous plugout handler, ignore\n");
+		HDMITX_INFO("continuous plugout handler, ignore\n");
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
@@ -3403,16 +3403,16 @@ static int get_dt_vend_init_data(struct device_node *np,
 	ret = of_property_read_string(np, "vendor_name",
 				      (const char **)&vend->vendor_name);
 	if (ret)
-		HDMITX_INFO(SYS "not find vendor name\n");
+		HDMITX_INFO("not find vendor name\n");
 
 	ret = of_property_read_u32(np, "vendor_id", &vend->vendor_id);
 	if (ret)
-		HDMITX_INFO(SYS "not find vendor id\n");
+		HDMITX_INFO("not find vendor id\n");
 
 	ret = of_property_read_string(np, "product_desc",
 				      (const char **)&vend->product_desc);
 	if (ret)
-		HDMITX_INFO(SYS "not find product desc\n");
+		HDMITX_INFO("not find product desc\n");
 	return 0;
 }
 
@@ -3490,7 +3490,7 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	const char *hdmi_ver = NULL;
 
 	GET_HDMITX_VER(hdmi_ver);
-	HDMITX_INFO(SYS "Ver: %s\n", hdmi_ver);
+	HDMITX_INFO("Ver: %s\n", hdmi_ver);
 
 	hdmi_dev->hdtx_dev = NULL;
 
@@ -3558,12 +3558,12 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		hdev->pinctrl_default =
 			pinctrl_lookup_state(pdev->dev.pins->p, "default");
 		if (IS_ERR(hdev->pinctrl_default))
-			HDMITX_ERROR(SYS "no default of pinctrl state\n");
+			HDMITX_ERROR("no default of pinctrl state\n");
 
 		hdev->pinctrl_i2c =
 			pinctrl_lookup_state(pdev->dev.pins->p, "hdmitx_i2c");
 		if (IS_ERR(hdev->pinctrl_i2c))
-			pr_debug(SYS "no hdmitx_i2c of pinctrl state\n");
+			HDMITX_DEBUG("no hdmitx_i2c of pinctrl state\n");
 
 		pinctrl_select_state(pdev->dev.pins->p,
 				     hdev->pinctrl_default);
@@ -3609,7 +3609,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 				hdev->tx_hw.chip_data->chip_name = "tm2";
 			}
 		}
-		pr_debug(SYS "chip_type:%d chip_name:%s\n",
+		HDMITX_DEBUG("chip_type:%d chip_name:%s\n",
 			hdev->tx_hw.chip_data->chip_type,
 			hdev->tx_hw.chip_data->chip_name);
 
@@ -3617,14 +3617,14 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		ret = of_property_read_u32(pdev->dev.of_node, "hdmi_rext", &val);
 		hdev->hdmi_rext = val;
 		if (!ret)
-			HDMITX_INFO(SYS "hdmi_rext: %d\n", val);
+			HDMITX_INFO("hdmi_rext: %d\n", val);
 
 		/* Get dongle_mode information */
 		ret = of_property_read_u32(pdev->dev.of_node, "dongle_mode",
 					   &dongle_mode);
 		dongle_mode = !!hdev->tx_hw.dongle_mode;
 		if (!ret)
-			HDMITX_INFO(SYS "hdmitx_device.dongle_mode: %d\n",
+			HDMITX_INFO("hdmitx_device.dongle_mode: %d\n",
 				hdev->tx_hw.dongle_mode);
 		/* Get res_1080p information */
 		ret = of_property_read_u32(pdev->dev.of_node, "res_1080p",
@@ -3682,41 +3682,41 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "vend-data", &val);
 		if (ret)
-			HDMITX_INFO(SYS "not find match init-data\n");
+			HDMITX_INFO("not find match init-data\n");
 		if (ret == 0) {
 			handle = val;
 			init_data = of_find_node_by_phandle(handle);
 			if (!init_data)
-				HDMITX_INFO(SYS "not find device node\n");
+				HDMITX_INFO("not find device node\n");
 			hdev->config_data.vend_data =
 			kzalloc(sizeof(struct vendor_info_data), GFP_KERNEL);
 			if (!(hdev->config_data.vend_data))
-				HDMITX_INFO(SYS "not allocate memory\n");
+				HDMITX_INFO("not allocate memory\n");
 			ret = get_dt_vend_init_data
 			(init_data, hdev->config_data.vend_data);
 			if (ret)
-				HDMITX_INFO(SYS "not find vend_init_data\n");
+				HDMITX_INFO("not find vend_init_data\n");
 		}
 		/* Get power control */
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "pwr-ctrl", &val);
 		if (ret)
-			pr_debug(SYS "not find match pwr-ctl\n");
+			HDMITX_DEBUG("not find match pwr-ctl\n");
 		if (ret == 0) {
 			handle = val;
 			init_data = of_find_node_by_phandle(handle);
 			if (!init_data)
-				pr_debug(SYS "not find device node\n");
+				HDMITX_DEBUG("not find device node\n");
 			hdev->config_data.pwr_ctl =
 			kzalloc((sizeof(struct hdmi_pwr_ctl)) *
 			HDMI_TX_PWR_CTRL_NUM, GFP_KERNEL);
 			if (!hdev->config_data.pwr_ctl)
-				HDMITX_INFO(SYS "can not get pwr_ctl mem\n");
+				HDMITX_INFO("can not get pwr_ctl mem\n");
 			else
 				memset(hdev->config_data.pwr_ctl, 0,
 					sizeof(struct hdmi_pwr_ctl));
 			if (ret)
-				pr_debug(SYS "not find pwr_ctl\n");
+				HDMITX_DEBUG("not find pwr_ctl\n");
 		}
 		/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
 		ret = of_property_read_u32(pdev->dev.of_node, "hdcp_ctl_lvl",
@@ -3731,10 +3731,10 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 #else
 	hdmi_pdata = pdev->dev.platform_data;
 	if (!hdmi_pdata) {
-		HDMITX_INFO(SYS "not get platform data\n");
+		HDMITX_INFO("not get platform data\n");
 		r = -ENOENT;
 	} else {
-		HDMITX_INFO(SYS "get hdmi platform data\n");
+		HDMITX_INFO("get hdmi platform data\n");
 	}
 #endif
 	hdev->irq_hpd = platform_get_irq_byname(pdev, "hdmitx_hpd");
@@ -3743,7 +3743,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		       __func__);
 			return -ENXIO;
 	}
-	pr_debug(SYS "hpd irq = %d\n", hdev->irq_hpd);
+	HDMITX_DEBUG("hpd irq = %d\n", hdev->irq_hpd);
 
 	hdev->irq_viu1_vsync =
 		platform_get_irq_byname(pdev, "viu1_vsync");
@@ -3752,7 +3752,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		       __func__);
 		return -ENXIO;
 	}
-	pr_debug(SYS "viu1_vsync irq = %d\n", hdev->irq_viu1_vsync);
+	HDMITX_DEBUG("viu1_vsync irq = %d\n", hdev->irq_viu1_vsync);
 
 	return ret;
 }
@@ -3816,7 +3816,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	struct hdmitx_event_mgr *tx_uevent_mgr;
 	bool hpd_state;
 
-	pr_debug(SYS "%s start\n", __func__);
+	HDMITX_DEBUG("amhdmitx_probe_start\n");
 
 	hdev = devm_kzalloc(device, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
@@ -3851,7 +3851,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 			    "amhdmitx%d", MINOR(hdev->hdmitx_id));
 
 	if (!dev) {
-		HDMITX_ERROR(SYS "device_create create error\n");
+		HDMITX_ERROR("device_create create error\n");
 		class_destroy(hdmitx_class);
 		r = -EEXIST;
 		return r;
@@ -4004,11 +4004,11 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* notify to drm hdmi */
 	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
 
-	pr_debug(SYS "%s end\n", __func__);
 	/*everything is ready, create sysfs here.*/
 	hdmitx_sysfs_common_create(dev, &hdev->tx_comm, &hdev->tx_hw.base);
 	hdev->hdmi_init = 1;
 
+	HDMITX_DEBUG("amhdmitx_probe_end\n");
 	return r;
 }
 
@@ -4166,6 +4166,8 @@ static int amhdmitx_pm_resume(struct device *dev)
 const struct dev_pm_ops hdmitx20_pm = {
 	.suspend	= amhdmitx_pm_suspend,
 	.resume		= amhdmitx_pm_resume,
+	/* no application for now */
+	.restore    = NULL,
 };
 #endif
 
@@ -4206,7 +4208,7 @@ int  __init amhdmitx_init(void)
 
 void __exit amhdmitx_exit(void)
 {
-	HDMITX_INFO(SYS "%s\n", __func__);
+	HDMITX_INFO("amhdmitx_exit\n");
 	platform_driver_unregister(&amhdmitx_driver);
 }
 

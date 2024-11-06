@@ -274,7 +274,7 @@ static void set_hpll_clk_out(struct hdmitx20_hw *tx_hw, unsigned int clk)
 		break;
 	}
 
-	pr_debug("config HPLL done\n");
+	HDMITX_DEBUG("config HPLL done\n");
 }
 
 /* HERE MUST BE BIT OPERATION!!! */
@@ -456,7 +456,7 @@ static void set_hpll_od3_clk_div(struct hdmitx20_hw *tx_hw, int div_sel)
 	int shift_sel = 0;
 	unsigned int reg_vid_pll = P_HHI_VID_PLL_CLK_DIV;
 
-	pr_debug("%s[%d] div = %d\n", __func__, __LINE__, div_sel);
+	HDMITX_DEBUG("%s[%d] div = %d\n", __func__, __LINE__, div_sel);
 
 	if (tx_hw->chip_data->chip_type >= MESON_CPU_ID_SC2)
 		reg_vid_pll = P_CLKCTRL_VID_PLL_CLK_DIV;
@@ -1026,7 +1026,7 @@ next:
 	set_hpll_od2(tx_hw, p_enc[j].od2);
 	set_hpll_od3(tx_hw, p_enc[j].od3);
 	set_hpll_od3_clk_div(tx_hw, p_enc[j].vid_pll_div);
-	pr_debug("j = %d  vid_clk_div = %d\n", j, p_enc[j].vid_clk_div);
+	HDMITX_DEBUG("j = %d  vid_clk_div = %d\n", j, p_enc[j].vid_clk_div);
 	set_vid_clk_div(tx_hw, p_enc[j].vid_clk_div);
 	set_hdmi_tx_pixel_div(tx_hw, p_enc[j].hdmi_tx_pixel_div);
 

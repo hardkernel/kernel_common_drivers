@@ -134,14 +134,23 @@ void hdmitx21_set_default_clk(void)
 
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7)
 		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
+}
 
-	// Bring HDMITX MEM output of power down
-	hd21_set_reg_bits(PWRCTRL_MEM_PD11, 0, 8, 8);
-	// Bring out of reset
-	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
-	// Test after initial out of reset, cannot write to IP register, unless enable access
-	hdmitx21_wr_reg(INTR3_MASK_IVCTX, 0xff);
-	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, 1);
+bool hdmitx21_is_basic_clk_en(void)
+{
+	u32 data32;
+
+	/* cts_hdmitx_sys_clk gate */
+	data32 = hd21_read_reg(CLKCTRL_HDMI_CLK_CTRL);
+	if (!(data32 & BIT(8)))
+		return false;
+
+	/* cts_hdmitx_200m_clk and cts_hdmitx_prif_clk gate */
+	data32 = hd21_read_reg(CLKCTRL_HTX_CLK_CTRL0);
+	if (!(data32 & BIT(8)) || !(data32 & BIT(24)))
+		return false;
+
+	return true;
 }
 
 void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)
@@ -1062,17 +1071,18 @@ void set_hdmitx_s6_htx_pll(struct hdmitx_dev *hdev)
 	cs = para->cs;
 	cd = para->cd;
 	if (vic == HDMI_0_UNKNOWN) {
-		pr_info("%s[%d] not valid vic %d\n", __func__, __LINE__, vic);
+		HDMITX_INFO("%s[%d] not valid vic %d\n", __func__, __LINE__, vic);
 		return;
 	}
 
 	base_pixel_clk = para->timing.pixel_freq;
 	if (base_pixel_clk < 25175 || base_pixel_clk > 5940000) {
-		pr_info("%s[%d] not valid pixel clock %d\n", __func__, __LINE__, base_pixel_clk);
+		HDMITX_INFO("%s[%d] not valid pixel clock %d\n",
+				__func__, __LINE__, base_pixel_clk);
 		return;
 	}
 
-	pr_info("%s[%d] base_pixel_clk %d  cs %d  cd %d  frac_rate %d\n",
+	HDMITX_INFO("%s[%d] base_pixel_clk %d  cs %d  cd %d  frac_rate %d\n",
 		__func__, __LINE__, base_pixel_clk, cs, cd, frac_rate);
 	/* for legacy TMDS modes */
 	if (cs != HDMI_COLORSPACE_YUV422) {
@@ -1095,7 +1105,7 @@ void set_hdmitx_s6_htx_pll(struct hdmitx_dev *hdev)
 	base_pixel_clk = base_pixel_clk * 10; /* for tmds modes, here should multi 10 */
 	if (cs == HDMI_COLORSPACE_YUV420)
 		base_pixel_clk /= 2;
-	pr_info("%s[%d] calculate pixel_clk to %d\n", __func__, __LINE__, base_pixel_clk);
+	HDMITX_INFO("%s[%d] calculate pixel_clk to %d\n", __func__, __LINE__, base_pixel_clk);
 	if (base_pixel_clk > MAX_HTXPLL_VCO) {
 		pr_err("%s[%d] base_pixel_clk %d over MAX_HTXPLL_VCO %d\n",
 			__func__, __LINE__, base_pixel_clk, MAX_HTXPLL_VCO);

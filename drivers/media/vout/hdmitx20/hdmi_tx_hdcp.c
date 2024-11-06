@@ -937,8 +937,7 @@ int hdmitx_hdcp_init(struct hdmitx_dev *hdev)
 	struct dentry *entry;
 
 	hdev->tx_comm.drm_hdcp_ctrl_ops = &tx20_drm_hdcp_ctrl_ops;
-
-	pr_debug(HDCP "%s\n", __func__);
+	HDMITX_DEBUG_HDCP("hdcp_init\n");
 	if (!hdev->hdtx_dev) {
 		HDMITX_DEBUG_HDCP("exit for null device of hdmitx!\n");
 		return -ENODEV;

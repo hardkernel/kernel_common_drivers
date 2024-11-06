@@ -574,5 +574,8 @@ bool hdmitx21_edid_only_support_sd(struct hdmitx_dev *hdev);
 /* bool is_4k_sink(struct hdmitx_dev *hdev); */
 void hdmitx_clks_gate_ctrl(bool en);
 
+/* hdcp */
+void drm_hdmitx_start_hdcp_handler(struct work_struct *work);
+
 #endif /* __HDMI_TX_H__ */
 

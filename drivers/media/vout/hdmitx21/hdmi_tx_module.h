@@ -133,6 +133,7 @@ struct hdmitx_dev {
 	struct work_struct work_hdr;
 	struct work_struct work_hdr_unmute;
 	struct delayed_work work_start_hdcp;
+	struct delayed_work work_drm_start_hdcp;
 	struct vrr_device_s hdmitx_vrr_dev;
 	void *am_hdcp;
 	bool dw_hdcp22_cap;
@@ -188,6 +189,7 @@ struct hdmitx_dev {
 	u32 pxp_mode:1;
 	u32 aon_output:1; /* always output in bl30 */
 	u32 bist_lock:1;
+	u32 edid_mask_qms:1;
 	u32 fr_duration;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 
@@ -202,6 +204,7 @@ struct hdmitx_dev {
 	bool not_restart_hdcp;
 	unsigned long up_hdcp_timeout_sec;
 	struct delayed_work work_up_hdcp_timeout;
+	u32 hdcp_debug_delay;
 };
 
 struct hdmitx_dev *get_hdmitx21_device(void);

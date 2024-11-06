@@ -307,19 +307,19 @@ void hdmitx_reset_tv_hdcp(void)
 	int hdcpSize;
 	__u64 timeout;
 
-	pr_info("[hdcp22] reset hdcp2.2 of special TV\n");
+	HDMITX_INFO("[hdcp22] reset hdcp2.2 of special TV\n");
 	mutex_lock(&ddc_mutex);
 	timeout = get_jiffies_64() + msecs_to_jiffies(poll_status_ms);
 
 	while (time_before64(get_jiffies_64(), timeout)) {
-		/* pr_info("[hdcp22] Reading RxStatus..."); */
+		/* HDMITX_INFO("[hdcp22] Reading RxStatus..."); */
 
 		/* 2b-register, i2c controller can only do 1B or 8B reads */
 		if (!ddc_read_1byte_nolock(HDCP_SLAVE, HDCP2_RXSTATUS, &data1))
 			break;
 		if (!ddc_read_1byte_nolock(HDCP_SLAVE, HDCP2_RXSTATUS + 1, &data2))
 			break;
-		/* pr_info("[hdcp22] rx_status %02hhx:%02hhx\n", data1, data2); */
+		/* HDMITX_INFO("[hdcp22] rx_status %02hhx:%02hhx\n", data1, data2); */
 		hdcpSize = data1 | ((data2 & 3) << 8);
 		if (hdcpSize) {
 			pr_err("[hdcp22] forcely read 1 byte msg to reset and empty queue of RX\n");

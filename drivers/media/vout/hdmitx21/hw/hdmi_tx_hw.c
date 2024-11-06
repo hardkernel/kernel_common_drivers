@@ -234,7 +234,7 @@ EXPORT_SYMBOL(hdmitx21_ddc_hw_op);
 
 static void config_avmute(u32 val)
 {
-	pr_debug(HW "avmute set to %d\n", val);
+	HDMITX_DEBUG(HW "avmute set to %d\n", val);
 	switch (val) {
 	/* This code is required for proper generation of GCP's in ES1 */
 	case SET_AVMUTE:
@@ -381,12 +381,22 @@ void hdmitx21_sys_reset(void)
  */
 static bool hdmitx21_uboot_already_display(void)
 {
-/*	if (hdev->pxp_mode) */
-/*		return 0; */
+	bool tmds_pixel_clk_en = false;
+
+	/*
+	 * if (hdev->pxp_mode)
+	 *return 0;
+	 */
+	if (global_tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
+		tmds_pixel_clk_en = (hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL) & 0x7) == 0x7;
+	else
+		tmds_pixel_clk_en = (hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL) & 0x3) == 0x3;
+	if (!tmds_pixel_clk_en)
+		return false;
 
 	if (hd21_read_reg(ANACTRL_HDMIPHY_CTRL0))
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static enum hdmi_color_depth _get_colordepth(void)
@@ -495,6 +505,19 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 	}
 
 	HDMITX_INFO("%s%d\n", __func__, __LINE__);
+
+	if (!hdmitx21_is_basic_clk_en())
+		hdmitx21_set_default_clk();
+
+	/* Bring HDMITX MEM output of power down */
+	hd21_set_reg_bits(PWRCTRL_MEM_PD11, 0, 8, 8);
+	/* Bring out of reset */
+	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
+	/* Test after initial out of reset, cannot write to IP register, unless enable access */
+	hdmitx21_wr_reg(INTR3_MASK_IVCTX, 0xff);
+	/* enable access core reg */
+	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, 1);
+
 	if (!reset && hdmitx21_uboot_already_display()) {
 		HDMITX_INFO("uboot already enabled hdmitx\n");
 		/* enable fifo intr if uboot hdmitx output ready */
@@ -522,7 +545,6 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		hd21_set_reg_bits(PADCTRL_PIN_MUX_REGN, 1, 28, 4);
 	}
 
-	hdmitx21_set_default_clk();    // set MPEG, audio and default video
 	// [8]      hdcp_topology_err
 	// [7]      rxsense_fall
 	// [6]      rxsense_rise
@@ -1574,9 +1596,8 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 				else
 					hdmitx_dfm_cfg(2, 0);
 			}
-			pr_info("%s hc_active: %d, need full_bw: %d, tri_bytes_per_line: %d, dfm_type: %d\n",
-				__func__, hc_active, ret, tri_bytes_per_line, dfm_type);
-
+			HDMITX_INFO("%s hc_active: %d, full_bw: %d, tri_byte: %d, dfm_type: %d\n",
+					__func__, hc_active, ret, tri_bytes_per_line, dfm_type);
 		} else {
 			fifo_flow_enable_intrs(1);
 		}
@@ -2384,6 +2405,12 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_RESET_EDID, 0);
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_EDID_READ_DATA, 0);
 		return;
+	} else if (strncmp(tmpbuf, "maskqms", 7) == 0) {
+		if (tmpbuf[7] == '1')
+			hdev->edid_mask_qms = 1;
+		if (tmpbuf[7] == '0')
+			hdev->edid_mask_qms = 0;
+		HDMITX_DEBUG("mask edid qms %d\n", hdev->edid_mask_qms);
 	} else if (strncmp(tmpbuf, "i2c_reactive", 11) == 0) {
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_I2C_RESET, 0);
 		return;
@@ -2750,7 +2777,7 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdev->drm_hdcp.test_hdcp_disconnect();
 	} else if (strncmp(tmpbuf, "config_csc_en", 13) == 0) {
 		ret = kstrtoul(tmpbuf + 13, 0, &value);
-		pr_info("config_csc_en to %lu\n", value);
+		HDMITX_INFO("config_csc_en to %lu\n", value);
 
 		if (value == 0)
 			hdev->tx_comm.config_csc_en = false;
@@ -2768,6 +2795,10 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			return;
 		HDMITX_INFO("hdcp reauth: %lu\n", value);
 		hdmitx_reauth_request(value & 0xFF);
+	} else if (strncmp(tmpbuf, "hdcp_delay", 10) == 0) {
+		ret = kstrtoul(tmpbuf + 10, 10, &value);
+		HDMITX_INFO("hdcp_delay :%d\n", value);
+		hdev->hdcp_debug_delay = value;
 	}
 }
 
@@ -3145,7 +3176,7 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case CONF_EMP_PHY_ADDR:
 		break;
 	case CONF_HW_INIT:
-		hdmi_hwp_init(hdev, 1);
+		hdmi_hwp_init(hdev, argv);
 		break;
 	case CONFIG_CSC_EN:
 		if (argv == CSC_ENABLE)

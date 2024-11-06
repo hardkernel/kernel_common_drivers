@@ -642,8 +642,8 @@ void hdmitx_mode_print_hdmi_timing(const struct hdmi_timing *t)
 {
 	struct hdmi_timing alternate_t;
 
-	pr_warn("VIC Hactive Vactive I/P Htotal Hblank Vtotal Vblank Hfreq Vfreq Pfreq\n");
-	pr_warn("%s[%d] %d %d %c %d %d %d %d %d %d %d\n",
+	HDMITX_INFO("VIC Hactive Vactive I/P Htotal Hblank Vtotal Vblank Hfreq Vfreq Pfreq\n");
+	HDMITX_INFO("%s[%d] %d %d %c %d %d %d %d %d %d %d\n",
 		t->name, t->vic,
 		t->h_active, t->v_active,
 		(t->pi_mode) ? 'P' : 'I',
@@ -654,14 +654,14 @@ void hdmitx_mode_print_hdmi_timing(const struct hdmi_timing *t)
 		alternate_t = *t;
 		if (hdmitx_mode_update_timing(&alternate_t, 0) > 0 ||
 			hdmitx_mode_update_timing(&alternate_t, 1) > 0) {
-			pr_warn("Fraction mode:\n");
-			pr_warn("%d %d %d\n",
+			HDMITX_INFO("Fraction mode:\n");
+			HDMITX_INFO("%d %d %d\n",
 				t->h_freq, t->v_freq, t->pixel_freq);
 		}
 	}
 
-	pr_warn("\nVIC Hfront Hsync Hback Hpol Vfront Vsync Vback Vpol Ln\n");
-	pr_warn("%s[%d] %d %d %d %c %d %d %d %c %d\n",
+	HDMITX_INFO("\nVIC Hfront Hsync Hback Hpol Vfront Vsync Vback Vpol Ln\n");
+	HDMITX_INFO("%s[%d] %d %d %d %c %d %d %d %c %d\n",
 		t->name, t->vic,
 		t->h_front, t->h_sync, t->h_back,
 		(t->h_pol) ? 'P' : 'N',
@@ -669,31 +669,31 @@ void hdmitx_mode_print_hdmi_timing(const struct hdmi_timing *t)
 		(t->v_pol) ? 'P' : 'N',
 		t->v_sync_ln);
 
-	pr_warn("\nCheck Horizon parameter\n");
+	HDMITX_INFO("\nCheck Horizon parameter\n");
 	if (t->h_total != (t->h_active + t->h_blank))
-		pr_warn("VIC[%d] Ht[%d] != (Ha[%d] + Hb[%d])\n",
+		HDMITX_INFO("VIC[%d] Ht[%d] != (Ha[%d] + Hb[%d])\n",
 			t->vic, t->h_total,
 			t->h_active, t->h_blank);
 	if (t->h_blank != (t->h_front + t->h_sync + t->h_back))
-		pr_warn("VIC[%d] Hb[%d] != (Hf[%d] + Hs[%d] + Hb[%d])\n",
+		HDMITX_INFO("VIC[%d] Hb[%d] != (Hf[%d] + Hs[%d] + Hb[%d])\n",
 			t->vic, t->h_blank,
 			t->h_front, t->h_sync, t->h_back);
 
-	pr_warn("\nCheck Vertical parameter\n");
+	HDMITX_INFO("\nCheck Vertical parameter\n");
 	if (t->v_total != (t->v_active + t->v_blank))
-		pr_warn("VIC[%d] Vt[%d] != (Va[%d] + Vb[%d]\n",
+		HDMITX_INFO("VIC[%d] Vt[%d] != (Va[%d] + Vb[%d]\n",
 			t->vic, t->v_total, t->v_active,
 			t->v_blank);
 
 	if ((t->v_blank != (t->v_front + t->v_sync + t->v_back)) &&
 	    t->pi_mode == 1)
-		pr_warn("VIC[%d] Vb[%d] != (Vf[%d] + Vs[%d] + Vb[%d])\n",
+		HDMITX_INFO("VIC[%d] Vb[%d] != (Vf[%d] + Vs[%d] + Vb[%d])\n",
 			t->vic, t->v_blank,
 			t->v_front, t->v_sync, t->v_back);
 
 	if ((t->v_blank / 2 != (t->v_front + t->v_sync + t->v_back)) &&
 	    t->pi_mode == 0)
-		pr_warn("VIC[%d] Vb[%d] != (Vf[%d] + Vs[%d] + Vb[%d])\n",
+		HDMITX_INFO("VIC[%d] Vb[%d] != (Vf[%d] + Vs[%d] + Vb[%d])\n",
 			t->vic, t->v_blank, t->v_front,
 			t->v_sync, t->v_back);
 }

@@ -45,7 +45,7 @@ int hdmitx_init_reg_map(struct platform_device *pdev)
 		if (IS_ERR(reg_maps[i].p))
 			return -ENOMEM;
 
-		pr_debug("Mapped PHY: 0x%x\n", reg_maps[i].phy_addr);
+		HDMITX_DEBUG("Mapped PHY: 0x%x\n", reg_maps[i].phy_addr);
 	}
 
 	return 0;
@@ -85,7 +85,7 @@ unsigned int hd_read_reg(unsigned int addr)
 
 	struct hdmitx20_hw *tx20_hw = get_hdmitx20_hw_instance();
 
-	pr_debug(REG "Rd[0x%x] 0x%x\n", paddr, val);
+	HDMITX_DEBUG(REG "Rd[0x%x] 0x%x\n", paddr, val);
 
 	switch (tx20_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_TXLX:
@@ -112,7 +112,7 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 
 	struct hdmitx20_hw *tx20_hw = get_hdmitx20_hw_instance();
 
-	pr_debug(REG "Wr[0x%x] 0x%x\n", paddr, val);
+	HDMITX_DEBUG(REG "Wr[0x%x] 0x%x\n", paddr, val);
 
 	switch (tx20_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_TXLX:
@@ -153,7 +153,7 @@ unsigned int hdmitx_rd_reg_normal(unsigned int addr)
 
 	data = (unsigned int)((res.a0) & 0xffffffff);
 
-	pr_debug(REG "%s rd[0x%x] 0x%x\n", offset ? "DWC" : "TOP",
+	HDMITX_DEBUG(REG "%s rd[0x%x] 0x%x\n", offset ? "DWC" : "TOP",
 		 addr, data);
 	return data;
 }
@@ -217,7 +217,7 @@ void hdmitx_wr_reg_normal(unsigned int addr, unsigned int data)
 		      (unsigned long)addr, data,
 		      0, 0, 0, 0, 0, &res);
 
-	pr_debug("%s wr[0x%x] 0x%x\n", offset ? "DWC" : "TOP",
+	HDMITX_DEBUG("%s wr[0x%x] 0x%x\n", offset ? "DWC" : "TOP",
 		 addr, data);
 }
 

@@ -150,9 +150,9 @@ static int parse_hdmitx_boot_para(char *s)
 		offset = token_offset;
 	} while (token);
 
-	pr_debug("hdmitx_param:[color_attr]=[%s]\n",
+	HDMITX_DEBUG("hdmitx_param:[color_attr]=[%s]\n",
 		tx_params.color_attr);
-	pr_debug("hdmitx_param:[init_state]=[%x]\n",
+	HDMITX_DEBUG("hdmitx_param:[init_state]=[%x]\n",
 		tx_params.init_state);
 
 	return 0;
@@ -171,7 +171,7 @@ static int parse_hdmitx_fraction_rate(char *str)
 	else
 		tx_params.fraction_refreshrate = 1;
 
-	pr_debug("hdmitx_param:[fraction_rate]=[%d]\n",
+	HDMITX_DEBUG("hdmitx_param:[fraction_rate]=[%d]\n",
 		tx_params.fraction_refreshrate);
 
 	return 0;
@@ -197,7 +197,7 @@ static int parse_hdmitx_hdr_priority(char *str)
 
 	tx_params.hdr_mask = value;
 
-	pr_debug("hdmitx_param:[hdr_priority]=[%d]\n",
+	HDMITX_DEBUG("hdmitx_param:[hdr_priority]=[%d]\n",
 		tx_params.hdr_mask);
 	return 0;
 }
@@ -211,7 +211,7 @@ static int parse_hdmitx_checksum(char *str)
 	}
 
 	snprintf(tx_params.edid_chksum, sizeof(tx_params.edid_chksum), "%s", str);
-	pr_debug("hdmitx_param:[checksum]=[%s]\n", tx_params.edid_chksum);
+	HDMITX_DEBUG("hdmitx_param:[checksum]=[%s]\n", tx_params.edid_chksum);
 
 	return 0;
 }
@@ -228,7 +228,7 @@ static int hdmitx_config_csc_en(char *str)
 		tx_params.config_csc = true;
 	else
 		tx_params.config_csc = false;
-	pr_debug("config_csc_en:[config_csc_en]=[%d]\n", tx_params.config_csc);
+	HDMITX_DEBUG("config_csc_en:[config_csc_en]=[%d]\n", tx_params.config_csc);
 	return 0;
 }
 __setup("config_csc_en=", hdmitx_config_csc_en);
@@ -246,7 +246,7 @@ static int hdmitx_boot_edid_check(char *str)
 		(strncmp("2", str, 1) == 0) || (strncmp("3", str, 1) == 0)) {
 		val = str[0] - '0';
 		tx_params.edid_check = val;
-		pr_debug("hdmitx_param:[edid_check]=[%d]\n", val);
+		HDMITX_DEBUG("hdmitx_param:[edid_check]=[%d]\n", val);
 	}
 
 	return 0;
@@ -269,7 +269,7 @@ static int hdmitx_boot_dsc_policy(char *str)
 		(strncmp("4", str, 1) == 0)) {
 		val = str[0] - '0';
 		tx_params.dsc_policy = val;
-		pr_debug("hdmitx boot dsc_policy: %d\n", val);
+		HDMITX_DEBUG("hdmitx boot dsc_policy: %d\n", val);
 	} else {
 		/* default policy */
 		tx_params.dsc_policy = 0;

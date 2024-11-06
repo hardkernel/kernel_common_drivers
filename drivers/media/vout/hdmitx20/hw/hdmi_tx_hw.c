@@ -308,7 +308,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 
 static void config_avmute(unsigned int val)
 {
-	pr_debug(HW "avmute set to %d\n", val);
+	HDMITX_DEBUG(HW "avmute set to %d\n", val);
 	switch (val) {
 	case SET_AVMUTE:
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 1, 1, 1);
@@ -620,7 +620,7 @@ bool hdmitx_uboot_audio_en(void)
 	unsigned int data;
 
 	data = hdmitx_rd_reg(HDMITX_DWC_FC_PACKET_TX_EN);
-	pr_debug("%s[%d] data = 0x%x\n", __func__, __LINE__, data);
+	HDMITX_DEBUG("%s[%d] data = 0x%x\n", __func__, __LINE__, data);
 	if ((data & 1) || ((data >> 3) & 1))
 		return true;
 	else
@@ -3519,17 +3519,17 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		HDMITX_INFO("hdcp result: hdcp22: %d topo: %d, hdcp14: %d\n",
 			hdmitx_hdcp_opr(7), hdmitx_hdcp_opr(0xe), hdmitx_hdcp_opr(2));
 	} else if (strncmp(tmpbuf, "tv_hdcp_rst", 11) == 0) {
-		pr_info("force poll and reset TV hdcp\n");
+		HDMITX_INFO("force poll and reset TV hdcp\n");
 		hdmitx_reset_tv_hdcp();
 	} else if (strncmp(tmpbuf, "hdcp_msg", 8) == 0) {
-		pr_info("force read 1byte hdcp msg\n");
+		HDMITX_INFO("force read 1byte hdcp msg\n");
 		ddc_read_1byte(HDCP_SLAVE, HDCP2_RD_MSG, &data);
 	} else if (strncmp(tmpbuf, "poll_en", 7) == 0) {
 		if (tmpbuf[7] == '0')
 			hdev->en_poll_rx_status = false;
 		else
 			hdev->en_poll_rx_status = true;
-		pr_info("reset hdcp by poll rx_status workaround enable:%d\n",
+		HDMITX_INFO("reset hdcp by poll rx_status workaround enable:%d\n",
 			hdev->en_poll_rx_status);
 	} else if (strncmp(tmpbuf, "poll_rx_sts", 11) == 0) {
 		if (tmpbuf[11] == '0')

@@ -4130,7 +4130,7 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
-	HDMITX_INFO(SYS "plugin\n");
+	HDMITX_INFO(SYS "hpd_high\n");
 	hdmitx_process_plugin(hdev, false);
 
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -4372,11 +4372,11 @@ static int hdmitx_get_connector(void)
 	conn_types[1] = get_uboot_connector1_type();
 	conn_types[2] = get_uboot_connector2_type();
 	if (conn_types[0])
-		pr_info("%s[%d] %s\n", __func__, __LINE__, conn_types[0]);
+		HDMITX_INFO("%s[%d] %s\n", __func__, __LINE__, conn_types[0]);
 	if (conn_types[1])
-		pr_info("%s[%d] %s\n", __func__, __LINE__, conn_types[1]);
+		HDMITX_INFO("%s[%d] %s\n", __func__, __LINE__, conn_types[1]);
 	if (conn_types[2])
-		pr_info("%s[%d] %s\n", __func__, __LINE__, conn_types[2]);
+		HDMITX_INFO("%s[%d] %s\n", __func__, __LINE__, conn_types[2]);
 
 	for (j = 0; j < ARRAY_SIZE(conn_types); j++) {
 		type = conn_types[j];
@@ -4729,15 +4729,15 @@ static int hdmitx21_status_check(void *data)
 			continue;
 
 		if (!clk[0]) {
-			pr_debug("the clock[%d] is %d\n", idx[0], clk[0]);
+			HDMITX_DEBUG("the clock[%d] is %d\n", idx[0], clk[0]);
 			hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLK_DIV_RST, idx[0]);
-			pr_debug("reset the clock div for %d\n", idx[0]);
+			HDMITX_DEBUG("reset the clock div for %d\n", idx[0]);
 			HDMITX_INFO("the clock[%d] is %d\n", idx[0], meson_clk_measure(idx[0]));
 		}
 		if (!clk[1]) {
-			pr_debug("the clock[%d] is %d\n", idx[1], clk[1]);
+			HDMITX_DEBUG("the clock[%d] is %d\n", idx[1], clk[1]);
 			hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLK_DIV_RST, idx[1]);
-			pr_debug("reset the clock div for %d\n", idx[1]);
+			HDMITX_DEBUG("reset the clock div for %d\n", idx[1]);
 			HDMITX_INFO("the clock[%d] is %d\n", idx[1], meson_clk_measure(idx[1]));
 		}
 		/* resend the SCDC/DIV40 config */
@@ -4783,12 +4783,12 @@ static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev)
 		return;
 
 	if (!clk[0]) {
-		pr_debug("%s the clock[%d] is %d\n", __func__, idx[0], clk[0]);
+		HDMITX_DEBUG("%s the clock[%d] is %d\n", __func__, idx[0], clk[0]);
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLK_DIV_RST, idx[0]);
 		HDMITX_INFO("after reset the clock[%d] is %d\n", idx[0], meson_clk_measure(idx[0]));
 	}
 	if (!clk[1]) {
-		pr_debug("%s the clock[%d] is %d\n",  __func__, idx[1], clk[1]);
+		HDMITX_DEBUG("%s the clock[%d] is %d\n",  __func__, idx[1], clk[1]);
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLK_DIV_RST, idx[1]);
 		HDMITX_INFO("after reset the clock[%d] is %d\n", idx[1], meson_clk_measure(idx[1]));
 	}
@@ -4806,7 +4806,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	struct hdmitx_event_mgr *tx_event_mgr;
 	bool hpd_state;
 
-	pr_info("amhdmitx_probe_start\n");
+	HDMITX_INFO("amhdmitx_probe_start\n");
 
 	hdev = devm_kzalloc(device, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
@@ -4942,6 +4942,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* hdcp related work scheduled in system workqueue */
 	INIT_DELAYED_WORK(&hdev->work_start_hdcp, hdmitx_start_hdcp_handler);
 	INIT_DELAYED_WORK(&hdev->work_up_hdcp_timeout, hdmitx_up_hdcp_timeout_handler);
+	/* for linux start hdcp */
+	INIT_DELAYED_WORK(&hdev->work_drm_start_hdcp, drm_hdmitx_start_hdcp_handler);
 	/* interrupt handler need to be scheduled in high priority */
 	hdev->hdmi_intr_wq = alloc_workqueue("hdmitx_intr_wq", WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
 	INIT_DELAYED_WORK(&hdev->work_internal_intr, hdmitx_top_intr_handler);
@@ -5018,7 +5020,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdev->task = kthread_run(hdmitx21_status_check, (void *)hdev,
 				      "kthread_hdmist_check");
 
-	pr_debug("%s end\n", __func__);
 	/* everything is ready, create sysfs here */
 	hdmitx_sysfs_common_create(dev, &hdev->tx_comm, &hdev->tx_hw.base);
 	hdev->hdmi_init = 1;
@@ -5027,6 +5028,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6)
 		hdev->tx_hw.s7_clk_config = 1;
 
+	HDMITX_INFO("amhdmitx_probe_end\n");
 	return r;
 }
 
@@ -5187,7 +5189,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	 * required top register.
 	 */
 	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S7)
-		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_HW_INIT, 0);
+		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_HW_INIT, 1);
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, false);
 	/* need to update EDID in case TV changed during suspend */
@@ -5221,9 +5223,67 @@ static int amhdmitx_pm_resume(struct device *dev)
 	return amhdmitx_resume(pdev);
 }
 
+/*
+ * After suspend to disk and resume, only global/static values
+ * will be restored, HW registers will be cleared because of
+ * power down operations. When restore, it will not do
+ * probe if driver is insmod by ko instead of built-in.
+ * If hdmi HW reg/clk is not set in uboot, or even HW reg/clk
+ * is set in uboot, but powered down after enter kernel somehow,
+ * then need to do HW init again when pm restore.
+ */
+static int amhdmitx_pm_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+
+	HDMITX_INFO("%s restore\n", __func__);
+	mutex_lock(&tx_comm->hdmimode_mutex);
+	/*
+	 * if hdmitx init and display already, then should not do
+	 * HW init again as it may change clk settings, otherwise
+	 * need to do hw init as did in driver probe in case HW is
+	 * in power down or unknown state
+	 */
+	hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_HW_INIT, 0);
+	/*
+	 * after suspend to disk and before resume, it may change TV set,
+	 * need to update EDID/HPD/fmt_para by current HW status
+	 * as which did in driver probe
+	 */
+	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
+	if (tx_comm->hpd_state)
+		hdmitx_plugin_common_work(tx_comm);
+	else
+		hdmitx_plugout_common_work(tx_comm);
+
+	/* load fmt para from hw info */
+	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
+	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
+		tx_comm->ready = 1;
+	else
+		tx_comm->ready = 0;
+	/* rebuild fmt attr */
+	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para,
+		tx_comm->fmt_attr, sizeof(tx_comm->fmt_attr));
+	/* load init hdr state for HW info */
+	hdmitx_hdr_state_init(tx_comm);
+	hdmitx_common_notify_hpd_status(tx_comm, false);
+	mutex_unlock(&tx_comm->hdmimode_mutex);
+	/* in case TV set changed after suspend, need to update vinfo */
+	if (tx_comm->ready == 1)
+		hdmitx21_init_uboot_mode(VMODE_INIT_BIT_MASK);
+	/* notify to drm hdmi */
+	hdmitx_fire_drm_hpd_cb_unlocked(tx_comm);
+	return 0;
+}
+
 const struct dev_pm_ops hdmitx21_pm = {
 	.suspend	= amhdmitx_pm_suspend,
 	.resume		= amhdmitx_pm_resume,
+	.restore	= amhdmitx_pm_restore,
 };
 #endif
 
@@ -5249,7 +5309,7 @@ int  __init amhdmitx21_init(void)
 {
 	struct hdmitx_boot_param *param = get_hdmitx_boot_params();
 	if (param->init_state & INIT_FLAG_NOT_LOAD) {
-		pr_info("INIT_FLAG_NOT_LOAD");
+		HDMITX_INFO("INIT_FLAG_NOT_LOAD");
 		return 0;
 	}
 

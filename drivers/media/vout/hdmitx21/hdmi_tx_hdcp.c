@@ -1958,7 +1958,11 @@ static void hdcp_check_update_whandler(struct work_struct *w)
 		hdcptx_reset(p_hdcp);
 	}
 	if (p_hdcp->hdcptx_enabled) {
-		p_hdcp->hdcp_cap_ds = hdcp_check_ds_hdcp2ver(p_hdcp);
+		/* only read downstream hdcp version when hdcp2.2 is capable on source side */
+		if (get_hdcp2_lstore())
+			p_hdcp->hdcp_cap_ds = hdcp_check_ds_hdcp2ver(p_hdcp);
+		else
+			p_hdcp->hdcp_cap_ds = HDCP_VER_HDCP1X;
 		if (p_hdcp->hdcp_cap_ds != HDCP_VER_NONE) {
 			update_hdcp_state(p_hdcp, HDCP_STAT_AUTH);
 			hdcptx_auth_start(p_hdcp);
@@ -2156,6 +2160,40 @@ void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en)
 }
 
 /*************DRM connector API**************/
+void drm_hdmitx_start_hdcp_handler(struct work_struct *work)
+{
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
+		struct hdmitx_dev, work_drm_start_hdcp);
+
+	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
+	HDMITX_INFO("%s: %d\n", __func__, hdev->tx_comm.hdcp_mode);
+	if (!hdev->tx_comm.ready || !hdev->tx_comm.hpd_state) {
+		HDMITX_ERROR("%s hdmitx ready:%d. hpd: %d, skip hdcp auth\n",
+			__func__, hdev->tx_comm.ready, hdev->tx_comm.hpd_state);
+		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+		return;
+	}
+	if (hdev->frl_rate) {
+		HDMITX_INFO("%s hdcp enable for frl mode is on hdmitx side, skip here\n", __func__);
+		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+		return;
+	}
+	switch (hdev->tx_comm.hdcp_mode) {
+	case HDCP_NULL:
+		HDMITX_ERROR("%s enabled HDCP_NULL\n", __func__);
+		break;
+	case HDCP_MODE14:
+	case HDCP_MODE22:
+		hdmitx21_ctrl_hdcp_gate(hdev->tx_comm.hdcp_mode, true);
+		hdcp_mode_set(hdev->tx_comm.hdcp_mode);
+		break;
+	default:
+		HDMITX_ERROR("%s unknown hdcp %d\n", __func__, hdev->tx_comm.hdcp_mode);
+		break;
+	};
+	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+}
+
 /*hdcp functions*/
 /* should sync with hdmitx21_enable_hdcp() and hdmitx_start_hdcp_handler()
  * hdmi mode setting/hdcp enable or disable should be mutexed.
