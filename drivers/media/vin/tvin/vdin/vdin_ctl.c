@@ -7625,8 +7625,6 @@ enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
 			ret = VDIN_VRR_FREESYNC_PREMIUM;
 		else if (freesync_type == 3)
 			ret = VDIN_VRR_FREESYNC_PREMIUM_PRO;
-		else
-			ret = VDIN_VRR_FREESYNC;
 	} else {
 		ret = VDIN_VRR_OFF;
 	}

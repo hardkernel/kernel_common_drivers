@@ -2477,12 +2477,13 @@ static int vbi_probe(struct platform_device *pdev)
 	vbi_dev->slicer->buffer.data = NULL;
 	vbi_dev->slicer->state = VBI_STATE_FREE;
 
-	vbi_dev->vs_irq = platform_get_irq(pdev, 0);
-	if (vbi_dev->vs_irq < 0) {
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res) {
 		tvafe_pr_err("%s: can't get irq resource\n", __func__);
 		ret = -ENXIO;
 		goto fail_get_resource_irq;
 	}
+	vbi_dev->vs_irq = res->start;
 	snprintf(vbi_dev->irq_name, sizeof(vbi_dev->irq_name),
 			"vbi-irq");
 	tvafe_pr_info("vbi irq: %d\n", vbi_dev->vs_irq);

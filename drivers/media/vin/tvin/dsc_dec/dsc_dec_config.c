@@ -36,10 +36,11 @@ unsigned int calculate_tmg_havon_begin(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 		break;
 	}
 
-	if (dsc_dec_drv->pps_data.pic_width == 7680)
-		return havon_tmp + dsc_dec_drv->s0_de_dly + 50; // minus htotal need todo
-	else
-		return havon_tmp + dsc_dec_drv->s0_de_dly + 50;
+/*	if (dsc_dec_drv->pps_data.pic_width == 7680)
+ *		return havon_tmp + dsc_dec_drv->s0_de_dly + 50; // minus htotal need todo
+ *	else
+ */
+	return havon_tmp + dsc_dec_drv->s0_de_dly + 50;
 }
 
 //config 4k120hz rgb 8bpc 12bpp
@@ -899,7 +900,7 @@ void dsc_dec_clk_calculate(unsigned int integer, unsigned int frac)
 	unsigned int remain = 1;
 
 	if (integer < 3000) {
-		for (i = 0; i < 7; i++) { //7 is 24*(1<<7)>3000M
+		for (i = 1; i < 7; i++) { //7 is 24*(1<<7)>3000M
 			if ((integer << i) > 5000) {
 				od = i - 1;
 				break;

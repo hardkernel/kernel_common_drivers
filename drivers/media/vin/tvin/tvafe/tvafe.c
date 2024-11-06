@@ -1929,10 +1929,6 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 		tvafe_pr_err("Can't get pinmux data.\n");
 	}
 	tdevp->pinmux = &tvafe_pinmux;
-	if (!tdevp->pinmux) {
-		tvafe_pr_err("tvafe: no platform data!\n");
-		ret = -ENODEV;
-	}
 
 	if (of_get_property(pdev->dev.of_node, "pinctrl-names", NULL)) {
 		struct pinctrl *p = devm_pinctrl_get_select_default(&pdev->dev);

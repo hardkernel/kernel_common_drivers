@@ -132,6 +132,7 @@ static int tvafe_avin_dts_parse(struct platform_device *pdev)
 	int ret;
 	int i;
 	int value;
+	struct resource *res;
 	struct tvafe_avin_det_s *av_dev;
 
 	av_dev = platform_get_drvdata(pdev);
@@ -201,12 +202,13 @@ static int tvafe_avin_dts_parse(struct platform_device *pdev)
 	}
 	/* get irq no*/
 	for (i = 0; i < av_dev->device_num; i++) {
-		av_dev->dts_param.irq[i] = platform_get_irq(pdev, i);
-		if (av_dev->dts_param.irq[i] < 0) {
+		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
+		if (!res) {
 			tvafe_pr_err("%s: can't get avin(%d) irq resource\n",
 				__func__, i);
 			goto fail_get_resource_irq;
 		}
+		av_dev->dts_param.irq[i] = res->start;
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "function_select", &value);
