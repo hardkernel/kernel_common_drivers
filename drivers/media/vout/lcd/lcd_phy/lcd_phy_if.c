@@ -270,12 +270,12 @@ int lcd_phy_config_init(struct lcd_data_s *pdata)
 
 	switch (pdata->chip_type) {
 	case LCD_CHIP_AXG:
-		lcd_phy_ctrl = lcd_phy_config_init_axg();
+		lcd_phy_ctrl = lcd_phy_config_init_axg(pdata);
 		break;
 	case LCD_CHIP_G12A:
 	case LCD_CHIP_G12B:
 	case LCD_CHIP_SM1:
-		lcd_phy_ctrl = lcd_phy_config_init_g12();
+		lcd_phy_ctrl = lcd_phy_config_init_g12(pdata);
 		break;
 	case LCD_CHIP_TL1:
 	case LCD_CHIP_TM2:
@@ -283,32 +283,32 @@ int lcd_phy_config_init(struct lcd_data_s *pdata)
 		break;
 	case LCD_CHIP_T5:
 	case LCD_CHIP_T5D:
-		lcd_phy_ctrl = lcd_phy_config_init_t5();
+		lcd_phy_ctrl = lcd_phy_config_init_t5(pdata);
 		break;
 	case LCD_CHIP_T5W:
-		lcd_phy_ctrl = lcd_phy_config_init_t5w();
+		lcd_phy_ctrl = lcd_phy_config_init_t5w(pdata);
 		break;
 	case LCD_CHIP_T7:
-		lcd_phy_ctrl = lcd_phy_config_init_t7();
+		lcd_phy_ctrl = lcd_phy_config_init_t7(pdata);
 		break;
 	case LCD_CHIP_T3:
 	case LCD_CHIP_T5M:
-		lcd_phy_ctrl = lcd_phy_config_init_t3_t5m();
+		lcd_phy_ctrl = lcd_phy_config_init_t3_t5m(pdata);
 		break;
 	case LCD_CHIP_C3:
-		lcd_phy_ctrl = lcd_phy_config_init_c3();
+		lcd_phy_ctrl = lcd_phy_config_init_c3(pdata);
 		break;
 	case LCD_CHIP_T3X:
-		lcd_phy_ctrl = lcd_phy_config_init_t3x();
+		lcd_phy_ctrl = lcd_phy_config_init_t3x(pdata);
 		break;
 	case LCD_CHIP_TXHD2:
-		lcd_phy_ctrl = lcd_phy_config_init_txhd2();
+		lcd_phy_ctrl = lcd_phy_config_init_txhd2(pdata);
 		break;
 	case LCD_CHIP_S6:
-		lcd_phy_ctrl = lcd_phy_config_init_s6();
+		lcd_phy_ctrl = lcd_phy_config_init_s6(pdata);
 		break;
 	case LCD_CHIP_T6D:
-		lcd_phy_ctrl = lcd_phy_config_init_t6d();
+		lcd_phy_ctrl = lcd_phy_config_init_t6d(pdata);
 		break;
 	default:
 		break;

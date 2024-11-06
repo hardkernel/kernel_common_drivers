@@ -362,7 +362,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t6d = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_t6d(void)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t6d(struct lcd_data_s *pdata)
 {
 	cali_odt = lcd_phy_get_def_odt();
 	cali_bias = lcd_phy_get_def_bias();

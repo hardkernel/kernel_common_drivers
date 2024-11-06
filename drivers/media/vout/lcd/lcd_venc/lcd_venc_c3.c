@@ -176,7 +176,7 @@ static int lcd_venc_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
-int lcd_venc_op_init_c3(struct lcd_venc_op_s *venc_op)
+int lcd_venc_op_init_c3(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op)
 {
 	if (!venc_op)
 		return -1;

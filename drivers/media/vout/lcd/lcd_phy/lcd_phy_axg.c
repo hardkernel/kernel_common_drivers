@@ -85,7 +85,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_axg = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_axg(void)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_axg(struct lcd_data_s *pdata)
 {
 	return &lcd_phy_ctrl_axg;
 }

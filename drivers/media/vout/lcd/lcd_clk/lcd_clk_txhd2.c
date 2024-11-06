@@ -632,6 +632,7 @@ static struct lcd_clk_data_s lcd_clk_data_txhd2 = {
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable_txhd2,
 	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase_txhd2,
+	.clk_set_dummy = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.clk_reg_print = lcd_clk_reg_dump,

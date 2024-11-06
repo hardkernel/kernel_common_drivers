@@ -267,7 +267,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t3x = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_t3x(void)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t3x(struct lcd_data_s *pdata)
 {
 	phy_ctrl_p = &lcd_phy_ctrl_t3x;
 	return phy_ctrl_p;

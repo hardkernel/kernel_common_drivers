@@ -203,7 +203,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t7 = {
 	.phy_set_edp = lcd_edp_phy_set,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_t7(void)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t7(struct lcd_data_s *pdata)
 {
 	phy_ctrl_p = &lcd_phy_ctrl_t7;
 	return phy_ctrl_p;

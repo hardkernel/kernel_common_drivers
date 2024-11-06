@@ -452,21 +452,19 @@ static void lcd_venc_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag)
 {
 	unsigned int offset;
 
-	if (pdrv->data->chip_type == LCD_CHIP_T6D) {
-		offset = pdrv->data->offset_venc[pdrv->index];
+	offset = pdrv->data->offset_venc[pdrv->index];
 
-		if (flag) {
-			lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
-			lcd_vcbus_write(ENCL_TST_MDSEL + offset, 0);
-			lcd_vcbus_write(ENCL_TST_Y + offset, 0);
-			lcd_vcbus_write(ENCL_TST_CB + offset, 0);
-			lcd_vcbus_write(ENCL_TST_CR + offset, 0);
-			lcd_vcbus_write(ENCL_TST_EN + offset, 1);
-			lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
-		} else {
-			lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 1, 3, 1);
-			lcd_vcbus_write(ENCL_TST_EN + offset, 0);
-		}
+	if (flag) {
+		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
+		lcd_vcbus_write(ENCL_TST_MDSEL + offset, 0);
+		lcd_vcbus_write(ENCL_TST_Y + offset, 0);
+		lcd_vcbus_write(ENCL_TST_CB + offset, 0);
+		lcd_vcbus_write(ENCL_TST_CR + offset, 0);
+		lcd_vcbus_write(ENCL_TST_EN + offset, 1);
+		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
+	} else {
+		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 1, 3, 1);
+		lcd_vcbus_write(ENCL_TST_EN + offset, 0);
 	}
 }
 
@@ -677,7 +675,7 @@ static void lcd_venc_set_dummy_t6d(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
 }
 
-int lcd_venc_op_init_t7(struct lcd_venc_op_s *venc_op)
+int lcd_venc_op_init_t7(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op)
 {
 	if (!venc_op)
 		return -1;
@@ -697,7 +695,8 @@ int lcd_venc_op_init_t7(struct lcd_venc_op_s *venc_op)
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
 	venc_op->venc_reg_dump = lcd_venc_reg_dump;
-	venc_op->mute_set = lcd_venc_mute_set;
+	if (pdata->chip_type == LCD_CHIP_T6D)
+		venc_op->mute_set = lcd_venc_mute_set;
 
 	return 0;
 };

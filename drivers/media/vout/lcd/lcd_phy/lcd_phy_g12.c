@@ -79,7 +79,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_g12a = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_g12(void)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_g12(struct lcd_data_s *pdata)
 {
 	return &lcd_phy_ctrl_g12a;
 }

@@ -20,7 +20,7 @@ struct lcd_venc_op_s {
 	void (*venc_set_dummy)(struct aml_lcd_drv_s *pdrv);
 	void (*venc_change)(struct aml_lcd_drv_s *pdrv);
 	void (*venc_enable)(struct aml_lcd_drv_s *pdrv, int flag);
-	void (*mute_set)(struct aml_lcd_drv_s *pdrv, unsigned char flag);
+	void (*mute_set)(struct aml_lcd_drv_s *pdrv, unsigned char flag); //vsync latch
 	int (*get_venc_init_config)(struct aml_lcd_drv_s *pdrv);
 	void (*venc_vrr_recovery)(struct aml_lcd_drv_s *pdrv);
 	unsigned int (*get_encl_line_cnt)(struct aml_lcd_drv_s *pdrv);
@@ -29,10 +29,10 @@ struct lcd_venc_op_s {
 	int (*venc_reg_dump)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 };
 
-int lcd_venc_op_init_dft(struct lcd_venc_op_s *venc_op);
-int lcd_venc_op_init_t7(struct lcd_venc_op_s *venc_op);
-int lcd_venc_op_init_c3(struct lcd_venc_op_s *venc_op);
-int lcd_venc_op_init_t3x(struct lcd_venc_op_s *venc_op);
+int lcd_venc_op_init_dft(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op);
+int lcd_venc_op_init_t7(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op);
+int lcd_venc_op_init_c3(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op);
+int lcd_venc_op_init_t3x(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op);
 
 #endif
 

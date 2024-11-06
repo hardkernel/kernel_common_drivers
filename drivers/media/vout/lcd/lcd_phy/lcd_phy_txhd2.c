@@ -252,7 +252,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_txhd2 = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_txhd2(void)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_txhd2(struct lcd_data_s *pdata)
 {
 	return &lcd_phy_ctrl_txhd2;
 }

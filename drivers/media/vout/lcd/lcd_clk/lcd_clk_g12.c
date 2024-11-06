@@ -940,6 +940,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path1 = { //GP0
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable_gp0,
 	.mlvds_clk_phase_set = NULL,
+	.clk_set_dummy = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_g12a,
 	.clk_config_print = lcd_clk_config_print_g12a,
 	.clk_reg_print = lcd_clk_reg_dump,
