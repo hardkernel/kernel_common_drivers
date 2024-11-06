@@ -2152,11 +2152,6 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 		hdmitx_hw_cntl_misc(tx_hw, MISC_AUDIO_RESET, 1);
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 0, 0, 1);
 	mutex_unlock(&aud_mutex);
-	/*
-	 * audio compliance issue, for YAMAHA-TSR-700,
-	 * need delay more time 30ms when switch audio format
-	 */
-	usleep_range(30 * 1000, 30 * 1000 + 10);
 	audio_mute_op(audio_param->aud_output_en);
 	return 0;
 }
