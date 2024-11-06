@@ -925,7 +925,7 @@ int aml_xhci_suspend(struct aml_xhci_hcd *xhci, bool do_wakeup)
 		return 0;
 
 	if (hcd->state != HC_STATE_SUSPENDED ||
-			xhci->shared_hcd->state != HC_STATE_SUSPENDED) {
+		(xhci->shared_hcd && xhci->shared_hcd->state != HC_STATE_SUSPENDED)) {
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 		if (xhci->xhc_state & XHCI_STATE_DYING) {
 			aml_xhci_info(xhci, "-------xhci has been died-----\n");
