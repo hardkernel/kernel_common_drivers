@@ -2330,7 +2330,7 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 	val = pdrv->boot_ctrl->advanced_flag;
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_RGB:
-		pdrv->config.basic.lcd_bits = pdrv->boot_ctrl->lcd_bits;
+		pdrv->config.timing.act_timing.lcd_bits = pdrv->boot_ctrl->lcd_bits;
 		pdrv->config.control.rgb_cfg.de_valid = val & 0x1;
 		pdrv->config.control.rgb_cfg.sync_valid = (val >> 1) & 0x1;
 		break;

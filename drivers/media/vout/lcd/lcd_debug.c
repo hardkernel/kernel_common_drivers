@@ -538,7 +538,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"%s, %s %ubit, %dppc, %ux%u@%d.%02dHz\n",
 		pconf->basic.model_name,
 		lcd_type_type_to_str(pconf->basic.lcd_type),
-		pconf->basic.lcd_bits, pconf->timing.ppc,
+		pconf->timing.act_timing.lcd_bits, pconf->timing.ppc,
 		pconf->timing.act_timing.h_active, pconf->timing.act_timing.v_active,
 		(sync_duration / 100), (sync_duration % 100));
 
@@ -1248,7 +1248,7 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 				ptiming->v_active = val[1];
 				ptiming->h_period = val[2];
 				ptiming->v_period = val[3];
-				pconf->basic.lcd_bits = val[4];
+				ptiming->lcd_bits = val[4] * 3;
 				pr_info("set h_active=%d, v_active=%d\n", val[0], val[1]);
 				pr_info("set h_period=%d, v_period=%d\n", val[2], val[3]);
 				pr_info("set lcd_bits=%d\n", val[4]);
@@ -1261,7 +1261,7 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		} else if (buf[1] == 'i') { /* bit */
 			ret = sscanf(buf, "bit %d", &val[0]);
 			if (ret == 1) {
-				pconf->basic.lcd_bits = val[0];
+				ptiming->lcd_bits = val[0] * 3;
 				pr_info("set lcd_bits=%d\n", val[0]);
 				lcd_debug_config_update(pdrv);
 			} else {
@@ -1548,8 +1548,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 				ptiming->v_active = val[1];
 				ptiming->h_period = val[2];
 				ptiming->v_period = val[3];
-				ptiming->lcd_bits = val[4];
-				pconf->basic.lcd_bits = val[4];
+				ptiming->lcd_bits = val[4] * 3;
 				pr_info("change h_active=%d, v_active=%d\n", val[0], val[1]);
 				pr_info("change h_period=%d, v_period=%d\n", val[2], val[3]);
 				pr_info("change lcd_bits=%d\n", val[4]);
@@ -1562,7 +1561,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 		} else if (buf[1] == 'i') { /* bit */
 			ret = sscanf(buf, "bit %d", &val[0]);
 			if (ret == 1) {
-				pconf->basic.lcd_bits = val[4];
+				pconf->timing.act_timing.lcd_bits = val[4] * 3;
 				pr_info("change lcd_bits=%d\n", val[4]);
 				pconf->change_flag = 1;
 			} else {

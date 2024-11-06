@@ -1957,7 +1957,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	ptiming->v_active = para[1];
 	ptiming->h_period = para[2];
 	ptiming->v_period = para[3];
-	pconf->basic.lcd_bits = para[4];
+	ptiming->lcd_bits = para[4] * 3;
 	pconf->basic.screen_width = para[5];
 	pconf->basic.screen_height = para[6];
 
@@ -2001,7 +2001,6 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	ptiming->vsync_fp = ptiming->v_period - ptiming->v_active -
 			ptiming->vsync_width - ptiming->vsync_bp;
 	ptiming->vsync_pol = (unsigned short)(para[5]);
-	ptiming->lcd_bits = pconf->basic.lcd_bits;
 	ret = of_property_read_u32(child, "ppc_mode", &val);
 	if (ret)
 		pconf->timing.ppc = 1;
@@ -2094,7 +2093,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	LCDPR("[%d]: load dts config: %s, %s, %dbit, %dx%d, %s\n",
 	      pdrv->index, pconf->basic.model_name,
 	      lcd_type_type_to_str(pconf->basic.lcd_type),
-	      pconf->basic.lcd_bits, ptiming->h_active, ptiming->v_active,
+	      ptiming->lcd_bits, ptiming->h_active, ptiming->v_active,
 	      str_info);
 
 	switch (pconf->basic.lcd_type) {
@@ -2591,7 +2590,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
 	struct phy_attr_s *phy = NULL;
 	union lcd_ctrl_config_u *pctrl = &pdrv->config.control;
-	unsigned int temp;
+	unsigned int temp, lcd_bits = 0;
 	char str_info[128];
 	int str_info_len = 0, ret;
 
@@ -2635,7 +2634,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	pconf->basic.lcd_type = temp & 0x3f;
 	pconf->basic.config_check = (temp >> 6) & 0x3;
 	temp = *(p + LCD_UKEY_LCD_BITS_CFMT);
-	pconf->basic.lcd_bits = temp & 0x3f;
+	lcd_bits = (temp & 0x3f) * 3;
 	pconf->basic.screen_width = (*(p + LCD_UKEY_SCREEN_WIDTH) |
 		((*(p + LCD_UKEY_SCREEN_WIDTH + 1)) << 8));
 	pconf->basic.screen_height = (*(p + LCD_UKEY_SCREEN_HEIGHT) |
@@ -2702,7 +2701,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		((*(p + LCD_UKEY_PCLK_MAX + 3)) << 24));
 	ptiming->frame_rate_min = *(p + LCD_UKEY_FRAME_RATE_MIN);
 	ptiming->frame_rate_max = *(p + LCD_UKEY_FRAME_RATE_MAX);
-	ptiming->lcd_bits = pconf->basic.lcd_bits;
+	ptiming->lcd_bits = lcd_bits;
 
 	val = *(p + LCD_UKEY_CUST_VAL1);
 	pconf->timing.ppc = (val >> 4) & 0xf;
@@ -2737,7 +2736,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	LCDPR("[%d]: load ukey config: %s, %s, %dbit, %dx%d, %s\n",
 	      pdrv->index, pconf->basic.model_name,
 	      lcd_type_type_to_str(pconf->basic.lcd_type),
-	      pconf->basic.lcd_bits, ptiming->h_active, ptiming->v_active,
+	      ptiming->lcd_bits, ptiming->h_active, ptiming->v_active,
 	      str_info);
 
 	/* interface: 20byte */
@@ -3070,10 +3069,10 @@ void lcd_mlvds_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
-	lcd_bits = pconf->basic.lcd_bits;
+	lcd_bits = pconf->timing.act_timing.lcd_bits;
 	channel_num = pconf->control.mlvds_cfg.channel_num;
 	band_width = pconf->timing.act_timing.pixel_clk;
-	band_width = lcd_bits * 3 * band_width;
+	band_width = lcd_bits * band_width;
 	bit_rate = lcd_do_div(band_width, channel_num);
 	pconf->timing.bit_rate = bit_rate;
 
@@ -3093,7 +3092,7 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
-	lcd_bits = pconf->basic.lcd_bits;
+	lcd_bits = pconf->timing.act_timing.lcd_bits;
 	lane_num = pconf->control.p2p_cfg.lane_num;
 	band_width = pconf->timing.act_timing.pixel_clk;
 	p2p_type = pconf->control.p2p_cfg.p2p_type & 0x1f;
@@ -3102,31 +3101,31 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	case P2P_CEDS:
 	case P2P_EPI: /*24to28*/
 		if (clk_mode == LCD_CLK_MODE_DEPENDENCE)
-			band_width = band_width * 3 * lcd_bits;
+			band_width = band_width *  lcd_bits;
 		else //independence & dependence_adapt
-			band_width = band_width * (3 * lcd_bits + 4);
+			band_width = band_width * (lcd_bits + 4);
 		break;
 	case P2P_CHPI: /* 8/10 coding */
-		band_width = lcd_do_div((band_width * 3 * lcd_bits * 10), 8);
+		band_width = lcd_do_div((band_width * lcd_bits * 10), 8);
 		break;
 	case P2P_CSPI:
 	case P2P_ISP:
 	case P2P_CMPI: /*24to27*/
 		if (clk_mode == LCD_CLK_MODE_DEPENDENCE) {
-			band_width = band_width * 3 * lcd_bits;
+			band_width = band_width * lcd_bits;
 		} else { //independence & dependence_adapt
 			/* 8/9 coding */
-			band_width = lcd_do_div((band_width * 3 * lcd_bits * 9), 8);
+			band_width = lcd_do_div((band_width * lcd_bits * 9), 8);
 		}
 		break;
 	case P2P_USIT: /*9to10*/
 		if (clk_mode == LCD_CLK_MODE_DEPENDENCE)
-			band_width = band_width * 3 * lcd_bits;
+			band_width = band_width * lcd_bits;
 		else //independence & dependence_adapt
-			band_width = lcd_do_div((band_width * 3 * lcd_bits * 10), 9);
+			band_width = lcd_do_div((band_width * lcd_bits * 10), 9);
 		break;
 	default:
-		band_width = band_width * 3 * lcd_bits;
+		band_width = band_width * lcd_bits;
 		break;
 	}
 	bit_rate = lcd_do_div(band_width, lane_num);

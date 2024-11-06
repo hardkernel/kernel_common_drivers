@@ -262,18 +262,18 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 
 	ch_reg_idx  = pdrv->config.control.lvds_cfg.port_swap ? 0 : 4;
 	ch_reg_idx += pdrv->config.control.lvds_cfg.lane_reverse ? 0 : 2;
-	lcd_bits = pdrv->config.basic.lcd_bits;
-	if (lcd_bits == 10) {
+	lcd_bits = pdrv->config.timing.base_timing->lcd_bits;
+	if (lcd_bits == 30) {
 		valid_port0_s = 0;
 		valid_port0_e = 5;
 		valid_port1_s = 6;
 		valid_port1_e = 0xb;
-	} else if (lcd_bits == 6) {
+	} else if (lcd_bits == 18) {
 		valid_port0_s = 0;
 		valid_port0_e = 3;
 		valid_port1_s = 6;
 		valid_port1_e = 9;
-	} else { //8bit
+	} else { //24bit
 		valid_port0_s = 0;
 		valid_port0_e = 4;
 		valid_port1_s = 6;
@@ -314,17 +314,17 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 		}
 		break;
 	case LCD_CHIP_T3X:
-		if (lcd_bits == 10) {
+		if (lcd_bits == 30) {
 			valid_port0_s = 0;
 			valid_port0_e = 5;
 			valid_port1_s = 8;
 			valid_port1_e = 0xd;
-		} else if (lcd_bits == 6) {
+		} else if (lcd_bits == 18) {
 			valid_port0_s = 0;
 			valid_port0_e = 3;
 			valid_port1_s = 8;
 			valid_port1_e = 0xb;
-		} else { //8bit
+		} else { //24bit
 			valid_port0_s = 0;
 			valid_port0_e = 4;
 			valid_port1_s = 8;
@@ -860,11 +860,11 @@ void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 	phy_div = pdrv->config.control.vbyone_cfg.phy_div;
 	lane_num = pdrv->config.control.vbyone_cfg.lane_count;
 
-	if (pdrv->config.basic.lcd_bits == 6)
+	if (pdrv->config.timing.act_timing.lcd_bits == 18)
 		div_sel = 0;
-	else if (pdrv->config.basic.lcd_bits == 8)
+	else if (pdrv->config.timing.act_timing.lcd_bits == 24)
 		div_sel = 2;
-	else // pdrv->config.basic.lcd_bits == 10
+	else // pdrv->config.timing.act_timing.lcd_bits == 30
 		div_sel = 3;
 
 	switch (pdrv->data->chip_type) {
@@ -1021,9 +1021,9 @@ void lcd_mlvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	/* phy_div: 0=div6, 1=div 7, 2=div8, 3=div10 */
-	if (pdrv->config.basic.lcd_bits == 6)
+	if (pdrv->config.timing.act_timing.lcd_bits == 18)
 		div_sel = 0;
-	else // lcd_bits == 8
+	else // lcd_bits == 24
 		div_sel = 2;
 
 	switch (pdrv->data->chip_type) {
