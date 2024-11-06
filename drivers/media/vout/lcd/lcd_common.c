@@ -1335,9 +1335,6 @@ void lcd_enc_timing_init_config(struct aml_lcd_drv_s *pdrv)
 	}
 
 	ptiming = &pdrv->config.timing.act_timing;
-	memcpy(ptiming, pdrv->config.timing.base_timing, sizeof(struct lcd_detail_timing_s));
-	if (pconf->timing.ppc == 0)
-		pconf->timing.ppc = 1;
 	pconf->timing.enc_clk = pconf->timing.act_timing.pixel_clk / pconf->timing.ppc;
 	if (pdrv->config.timing.ppc > 1) {
 		LCDPR("[%d]: %s: ppc=%d, pixel_clk=%d, enc_clk=%d\n",
@@ -1393,6 +1390,18 @@ void lcd_enc_timing_init_config(struct aml_lcd_drv_s *pdrv)
 			pconf->timing.vs_hs_addr, pconf->timing.vs_he_addr,
 			pconf->timing.vs_vs_addr, pconf->timing.vs_ve_addr);
 	}
+}
+
+void lcd_base_to_enc_timing_init_config(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_detail_timing_s *ptiming;
+
+	ptiming = &pdrv->config.timing.act_timing;
+	memcpy(ptiming, pdrv->config.timing.base_timing, sizeof(struct lcd_detail_timing_s));
+	if (pdrv->config.timing.ppc == 0)
+		pdrv->config.timing.ppc = 1;
+
+	lcd_enc_timing_init_config(pdrv);
 }
 
 //h_timing change for multi ppc if needed

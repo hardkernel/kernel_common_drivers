@@ -187,7 +187,7 @@ void dptx_timing_update(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s 
 
 	lcd_clk_frame_rate_init(pconf->timing.dft_timing);
 	pconf->timing.base_timing = pconf->timing.dft_timing;
-	lcd_enc_timing_init_config(pdrv);
+	lcd_base_to_enc_timing_init_config(pdrv);
 	lcd_clk_generate_parameter(pdrv);
 }
 

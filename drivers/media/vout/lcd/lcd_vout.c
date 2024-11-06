@@ -864,18 +864,18 @@ static void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
 {
 	mutex_lock(&lcd_vout_mutex);
 
-	pdrv->status &= ~LCD_STATUS_ON;
+	pdrv->status &= ~LCD_STATUS_IF_ON;
 	lcd_power_ctrl(pdrv, 0);
 
 	lcd_delay_ms(500);
 
+	pdrv->status &= ~LCD_STATUS_ENCL_ON;
 	pdrv->driver_init_pre(pdrv);
-	lcd_power_ctrl(pdrv, 1);
-	pdrv->status |= LCD_STATUS_ON;
-	pdrv->config.change_flag = 0;
+	pdrv->status |= LCD_STATUS_ENCL_ON;
 
-	lcd_screen_restore(pdrv);
-	LCDPR("[%d]: clear mute\n", pdrv->index);
+	lcd_power_ctrl(pdrv, 1);
+	pdrv->status |= LCD_STATUS_IF_ON;
+	pdrv->config.change_flag = 0;
 
 	mutex_unlock(&lcd_vout_mutex);
 }
