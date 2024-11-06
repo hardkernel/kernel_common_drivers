@@ -102,7 +102,14 @@ function set_default_parameters_for_smarthome () {
 		OUTDIR=${ROOT_DIR}/out/kernel-${kernel_version}-64
 	elif [[ $ARCH == arm ]]; then
 		OUTDIR=${ROOT_DIR}/out/kernel-${kernel_version}-32
-		tool_args+=("LOADADDR=0x02008000")
+		CONFIGFILE=${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/configs/${DEFCONFIG}
+		echo "linux 32bit config file: ${CONFIGFILE}"
+		if [[ -f "${CONFIGFILE}" && `grep "CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET=y" "${CONFIGFILE}"` ]]; then
+			# DEFCONFIG: arch/arm/configs/meson64_a32_smarthome_defconfig OR amlogic_gx32_defconfig
+			tool_args+=("LOADADDR=0x02008000")
+		else
+			tool_args+=("LOADADDR=0x00208000")
+		fi
 	elif [[ $ARCH == riscv ]]; then
 		OUTDIR=${ROOT_DIR}/out/riscv-kernel-${kernel_version}-64
 	fi

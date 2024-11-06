@@ -1506,7 +1506,12 @@ export -f handle_input_parameters
 
 function set_default_parameters () {
 	if [ "${ARCH}" = "arm" ]; then
-		ARGS+=("LOADADDR=0x02008000")
+		CONFIGFILE=${ROOT_DIR}/${FRAGMENT_CONFIG}
+		if [[ -f "${CONFIGFILE}" && `grep "CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET=y" "${CONFIGFILE}"` ]]; then
+			ARGS+=("LOADADDR=0x02008000")
+		else
+			ARGS+=("LOADADDR=0x00208000")
+		fi
 	else
 		ARCH=arm64
 	fi
@@ -1844,7 +1849,14 @@ function set_default_parameters_for_32bit () {
 	export MKBOOTIMG_STAGING_DIR="${MODULES_STAGING_DIR}/mkbootimg_staging"
 	export OUT_AMLOGIC_DIR=$(readlink -m ${COMMON_OUT_DIR}/amlogic)
 
-	tool_args+=("LOADADDR=0x02008000")
+	CONFIGFILE=${ROOT_DIR}/${FRAGMENT_CONFIG}
+	echo "android 32bit config file: ${CONFIGFILE}"
+	if [[ -f "${CONFIGFILE}" && `grep "CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET=y" "${CONFIGFILE}"` ]]; then
+		# FRAGMENT_CONFIG: ./common_drivers/arch/arm/configs/amlogic_a32.fragment
+		tool_args+=("LOADADDR=0x02008000")
+	else
+		tool_args+=("LOADADDR=0x00208000")
+	fi
 	tool_args+=("DEPMOD=depmod")
 	tool_args+=("KCONFIG_EXT_MODULES_PREFIX=${KCONFIG_EXT_MODULES_PREFIX}")
 	tool_args+=("KCONFIG_EXT_PREFIX=${KCONFIG_EXT_PREFIX}")

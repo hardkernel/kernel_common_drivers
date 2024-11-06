@@ -1,4 +1,4 @@
-From 02bb2626cfcb73b85a5f5eaa74e235c5853a0e51 Mon Sep 17 00:00:00 2001
+From 5f56629b2527a0f0e385ea480e091adba27071e6 Mon Sep 17 00:00:00 2001
 From: "dongqing.li" <dongqing.li@amlogic.com>
 Date: Tue, 22 Oct 2024 11:21:32 +0000
 Subject: [PATCH] ramdump: set TEXT_OFFSET=0x02008000 for ker6.12-u32 [1/1]
@@ -32,26 +32,26 @@ Signed-off-by: dongqing.li <dongqing.li@amlogic.com>
  5 files changed, 37 insertions(+)
 
 diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index aafebf145738..745d23bd1fda 100644
+index aafebf145738..7f57731021f7 100644
 --- a/arch/arm/Makefile
 +++ b/arch/arm/Makefile
 @@ -168,6 +168,7 @@ endif
  textofs-$(CONFIG_ARCH_QCOM_RESERVE_SMEM) := 0x00208000
  textofs-$(CONFIG_ARCH_MESON) := 0x00208000
  textofs-$(CONFIG_ARCH_AXXIA) := 0x00308000
-+textofs-$(CONFIG_AMLOGIC_RAMDUMP) := 0x02008000
++textofs-$(CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET) := 0x02008000
  
  # Machine directory name.  This list is sorted alphanumerically
  # by CONFIG_* macro name.
 diff --git a/arch/arm/boot/Makefile b/arch/arm/boot/Makefile
-index ba9b9a802469..9635b21e6b29 100644
+index ba9b9a802469..868221feffa6 100644
 --- a/arch/arm/boot/Makefile
 +++ b/arch/arm/boot/Makefile
 @@ -12,6 +12,19 @@
  #
  OBJCOPYFLAGS	:=-O binary -R .comment -S
  
-+ifeq ($(CONFIG_AMLOGIC_RAMDUMP),y)
++ifeq ($(CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET),y)
 +zreladdr-y       += 0x02008000
 +params_phys-y    := 0x02000100
 +initrd_phys-y    := 0x02900000
@@ -68,14 +68,14 @@ index ba9b9a802469..9635b21e6b29 100644
  ifdef CONFIG_PHYS_OFFSET
  add_hex = $(shell printf 0x%x $$(( $(1) + $(2) )) )
 diff --git a/arch/arm/boot/compressed/head.S b/arch/arm/boot/compressed/head.S
-index 9f406e9c0ea6..2f05776c738f 100644
+index 9f406e9c0ea6..cc2ef4c29e1d 100644
 --- a/arch/arm/boot/compressed/head.S
 +++ b/arch/arm/boot/compressed/head.S
 @@ -309,7 +309,12 @@ not_angel:
  1:
  #endif /* CONFIG_USE_OF */
  		/* Determine final kernel image address. */
-+#ifdef CONFIG_AMLOGIC_RAMDUMP
++#ifdef CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET
 +		ldr	r3, =TEXT_OFFSET
 +		add	r4, r0, r3
 +#else
@@ -85,14 +85,14 @@ index 9f406e9c0ea6..2f05776c738f 100644
  		ldr	r4, =zreladdr
  #endif
 diff --git a/arch/arm/kernel/head.S b/arch/arm/kernel/head.S
-index 1ec35f065617..cf1ef680a6e7 100644
+index 1ec35f065617..2edd660fd8e3 100644
 --- a/arch/arm/kernel/head.S
 +++ b/arch/arm/kernel/head.S
 @@ -65,7 +65,12 @@ kernel_sec_end:
  	.popsection
  
  	.macro	pgtbl, rd, phys
-+#ifdef CONFIG_AMLOGIC_RAMDUMP
++#ifdef CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET
 +	ldr	r3, =TEXT_OFFSET
 +	add	\rd, \phys, r3
 +#else
@@ -105,7 +105,7 @@ index 1ec35f065617..cf1ef680a6e7 100644
  
  #ifndef CONFIG_XIP_KERNEL
  	adr_l	r8, _text			@ __pa(_text)
-+#ifdef CONFIG_AMLOGIC_RAMDUMP
++#ifdef CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET
 +	ldr	r3, =TEXT_OFFSET
 +	sub	r8, r8, r3
 +#else
