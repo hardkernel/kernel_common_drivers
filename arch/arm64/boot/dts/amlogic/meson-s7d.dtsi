@@ -947,6 +947,7 @@
 			clock-names = "gate", "fdiv2pll";
 			nand_clk_ctrl = <0xfe08c000>;
 			spi_cfg = <0xfe08d040>;
+			common_pageinfo = <1>;
 		};
 
 		spi_nfc: spi@fe08d000 {

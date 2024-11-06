@@ -910,6 +910,7 @@
 					 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "gate", "fdiv2pll";
 			nand_clk_ctrl = <0xfe08c000>;
+			common_pageinfo = <1>;
 		};
 
 		ethmac: ethernet@fe368000 {
