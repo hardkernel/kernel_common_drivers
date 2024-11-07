@@ -1886,10 +1886,10 @@
 
 &pwm_ef {
 	pinctrl-0 = <&pwm_f_pins1>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&pwm_f_pins1_sleep>;
+	pinctrl-names = "default", "sleep";
 	status = "okay";
 };
-
 &uart_A {
 	status = "okay";
 	uart-has-rtscts;

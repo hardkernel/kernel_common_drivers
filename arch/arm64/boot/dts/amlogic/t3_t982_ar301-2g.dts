@@ -1825,8 +1825,9 @@
 
 &pwm_ef {
 	pinctrl-0 = <&pwm_f_pins1>;
-	pinctrl-names = "default";
-	status = "disabled";
+	pinctrl-1 = <&pwm_f_pins1_sleep>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
 };
 
 &uart_A {
