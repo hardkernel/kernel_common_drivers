@@ -10593,9 +10593,6 @@ void resume_ve(void)
 
 void resume_cm(int vpp_index)
 {
-	if (!pq_cfg.cm_en)
-		return;
-
 	if (chip_type_id == chip_s7 ||
 		chip_type_id == chip_s7d)
 		return;
@@ -10605,16 +10602,20 @@ void resume_cm(int vpp_index)
 	else
 		amcm_disable(WR_DMA, vpp_index);
 
-	amregs_store.length = RECOVERY_REG_CM_MAX;
-	if (!(memcpy(amregs_store.am_reg, reg_cm_list,
-		RECOVERY_REG_CM_MAX * sizeof(struct am_reg_s))))
-		return;
+	pr_amvecm_dbg("amvecm: resume cm0\n");
 
-	cm_load_reg(&amregs_store);
+	if (pq_cfg.cm_en) {
+		amregs_store.length = RECOVERY_REG_CM_MAX;
+		if (!(memcpy(amregs_store.am_reg, reg_cm_list,
+			RECOVERY_REG_CM_MAX * sizeof(struct am_reg_s))))
+			return;
 
-	kfree(reg_cm_list);
-	reg_cm_list = NULL;
-	pr_amvecm_dbg("amvecm: resume cm\n");
+		cm_load_reg(&amregs_store);
+
+		kfree(reg_cm_list);
+		reg_cm_list = NULL;
+		pr_amvecm_dbg("amvecm: resume cm\n");
+	}
 }
 
 void resume_sr(void)
