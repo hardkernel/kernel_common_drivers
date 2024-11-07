@@ -620,6 +620,28 @@ struct db_aicolor_param_s {
 	int reg_hue_shift3;
 };
 
+enum ve_source_input_e {
+	SOURCE_INVALID = -1,
+	SOURCE_TV = 0,
+	SOURCE_AV1,
+	SOURCE_AV2,
+	SOURCE_YPBPR1,
+	SOURCE_YPBPR2,
+	SOURCE_HDMI1,
+	SOURCE_HDMI2,
+	SOURCE_HDMI3,
+	SOURCE_HDMI4,
+	SOURCE_VGA,
+	SOURCE_MPEG,
+	SOURCE_DTV,
+	SOURCE_SVIDEO,
+	SOURCE_IPTV,
+	SOURCE_DUMMY,
+	SOURCE_SPDIF,
+	SOURCE_ADTV,
+	SOURCE_MAX,
+};
+
 #define AMVECM_IOC_G_HIST_AVG			_IOW(_VE_CM, 0x22, struct ve_hist_s)
 #define AMVECM_IOC_VE_DNLP_EN			_IO(_VE_CM, 0x23)
 #define AMVECM_IOC_VE_DNLP_DIS			_IO(_VE_CM, 0x24)
