@@ -1096,14 +1096,27 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 		goto error;
 	for (i = 0; i < nbufs; i++) {
 		length = kcop->cop.dst[i].length;
+		/* coverity supposes krealloc() will free tmp_buf and return
+		 * tmp_buf as tmp_buf2. This is incorrect, since tmp_buf is
+		 * freed only when returned value(tmp_buf2) is NOT the same as
+		 * tmp_buf in krealloc()
+		 */
+		/* coverity[returned_null:SUPPRESS] */
 		tmp_buf2 = krealloc(tmp_buf, length, GFP_KERNEL | GFP_DMA);
-		if (!tmp_buf2) {
+		/* coverity supposes krealloc() will free tmp_buf and return
+		 * tmp_buf as tmp_buf2. This is incorrect, since tmp_buf is
+		 * freed only when returned value(tmp_buf2) is NOT the same as
+		 * tmp_buf in krealloc()
+		 */
+		/* coverity[use_after_free:SUPPRESS] */
+		if (ZERO_OR_NULL_PTR(tmp_buf2)) {
 			dbgp(2, "cannot allocate memory, size: %d\n", length);
 			rc = -ENOMEM;
 			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
 		tmp_buf = tmp_buf2;
+		/* coverity[var_deref_model:SUPPRESS] */
 		count = __copy_buffers_in(&src, length, &offset,
 					  tmp_buf, length);
 		if (unlikely(count != length)) {
@@ -1377,8 +1390,20 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 		goto error;
 	for (i = 0; i < nbufs; i++) {
 		length = kcop->cop.src[i].length;
+		/* coverity supposes krealloc() will free tmp_buf and return
+		 * tmp_buf as tmp_buf2. This is incorrect, since tmp_buf is
+		 * freed only when returned value(tmp_buf2) is NOT the same as
+		 * tmp_buf in krealloc()
+		 */
+		/* coverity[returned_null:SUPPRESS] */
 		tmp_buf2 = krealloc(tmp_buf, length, GFP_KERNEL | GFP_DMA);
-		if (!tmp_buf2) {
+		/* coverity supposes krealloc() will free tmp_buf and return
+		 * tmp_buf as tmp_buf2. This is incorrect, since tmp_buf is
+		 * freed only when returned value(tmp_buf2) is NOT the same as
+		 * tmp_buf in krealloc()
+		 */
+		/* coverity[use_after_free:SUPPRESS] */
+		if (ZERO_OR_NULL_PTR(tmp_buf2)) {
 			dbgp(2, "cannot allocate memory, size: %d\n", length);
 			rc = -ENOMEM;
 			mutex_unlock(&crypto_dd->lock);
@@ -1455,6 +1480,7 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
+		/* coverity[var_deref_model:SUPPRESS] */
 		count_dst = __copy_buffers_out(&dst, length,
 					       &offset_dst, tmp_buf);
 		if (unlikely(count_dst != length)) {
