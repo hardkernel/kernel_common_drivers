@@ -2264,6 +2264,9 @@ RESTART:
 		} else if (wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP) {
 			u32 r1, r2;
 
+			if (input->op_flag & OP_HAS_DI_LOCAL)
+				ratio_y = ratio_y * 2;
+
 			r1 = max(ratio_x, ratio_y);
 			r2 = (r1 << 8) / aspect_factor;
 
@@ -2281,6 +2284,8 @@ RESTART:
 				ratio_x = r1;
 				ratio_y = r2;
 			}
+			if (input->op_flag & OP_HAS_DI_LOCAL)
+				ratio_y = ratio_y / 2;
 		}
 	}
 
