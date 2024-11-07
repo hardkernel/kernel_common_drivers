@@ -304,12 +304,11 @@ struct match_data_s {
 #define VDIN_FLAG_V4L2_DEBUG            0x00020000
 /*flag for isr req&free*/
 #define VDIN_FLAG_ISR_REQ               0x00040000
+/* flag for rdma done in isr*/
+#define VDIN_FLAG_RDMA_DONE             0x00080000
 #define VDIN_FLAG_ISR_EN		0x00100000
 /*flag for get vdin1 hist start interface*/
 #define VDIN_FLAG_HIST_STARTED		0x00200000
-
-/* flag for rdma done in isr*/
-#define VDIN_FLAG_RDMA_DONE             0x00080000
 
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
@@ -669,6 +668,7 @@ struct vdin_debug_s {
 	unsigned char rgb_8f[3];
 	unsigned char rgb_8l[3];
 	unsigned int v4l2_buff_area;
+	bool invalid_input_en;
 };
 
 struct vdin_dv_s {

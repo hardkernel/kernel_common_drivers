@@ -4075,7 +4075,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	}
 
 	if (!vdin_is_input_valid(devp) &&
-		(devp->vdin_function_sel & VDIN_NOT_DATA_INPUT_DROP)) {
+		!(devp->debug.invalid_input_en)) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
 		vdin_drop_frame_info(devp, "no data input");
 		if (vdin_dbg_en & 0x10)

@@ -3560,6 +3560,15 @@ start_chk:
 		}
 		pr_info("bypass_pc_mode:%d pc_mode:%d\n",
 			devp->debug.bypass_pc_mode, vdin_pc_mode);
+	} else if (!strcmp(parm[0], "invalid_input_en")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp)
+				devp->debug.invalid_input_en = true;
+			else
+				devp->debug.invalid_input_en = false;
+		}
+		pr_info("invalid_input_en:%d\n",
+			devp->debug.invalid_input_en);
 	} else if (!strcmp(parm[0], "v4l2_buff_area")) {
 		/*
 		 * 0: codec_mm_cma area
