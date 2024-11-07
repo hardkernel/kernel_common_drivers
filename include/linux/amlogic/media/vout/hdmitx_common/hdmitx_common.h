@@ -20,6 +20,10 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_version.h>
 #include <linux/jiffies.h>
 #include <linux/amlogic/media/vout/dsc.h>
+#include <linux/amlogic/media/vrr/vrr.h>
+
+#define HDMITX20 20
+#define HDMITX21 21
 
 struct hdmitx_common_state {
 	struct hdmi_format_para para;
@@ -42,6 +46,11 @@ struct hdmitx_ctrl_ops {
 	void (*clear_pkt)(struct hdmitx_hw_common *tx_hw_base);
 	void (*disable_21_work)(void);
 	void (*disable_frl_work)(void);
+};
+
+struct hdcp_ctrl_ops {
+	void (*set_hdcp_mode)(struct hdmitx_common *tx_comm, const char *buf);
+	int (*get_hdcp_ver)(struct hdmitx_common *tx_comm, char *buf, int len);
 };
 
 struct drm_hdcp_ctrl_ops {
@@ -91,6 +100,7 @@ static const u8 dsc_max_slices_num[] = {
 struct hdmitx_common {
 	struct hdmitx_hw_common *tx_hw;
 	struct hdmitx_ctrl_ops *ctrl_ops;
+	struct hdcp_ctrl_ops *hdcp_ctrl_ops;
 	struct drm_hdcp_ctrl_ops *drm_hdcp_ctrl_ops;
 	struct connector_hpd_cb drm_hpd_cb;/*drm hpd notify*/
 
@@ -113,6 +123,8 @@ struct hdmitx_common {
 	 */
 	struct mutex hdmimode_mutex;
 	struct mutex valid_mutex;	/* check valid mode need mutex */
+	atomic_t kref_video_mute;
+	unsigned char vid_mute_op;
 
 	/* save the last plug out/in work done state */
 	enum hdmi_event_t last_hpd_handle_done_stat;
@@ -131,7 +143,6 @@ struct hdmitx_common {
 	 * 0 :IVCX chip don't need
 	 */
 	bool hdcp_user;
-
 	/*if hdmitx is in early suspend.*/
 	bool suspend_flag;
 	/*current hdcp mode, 2.1 or 1.4*/
@@ -157,7 +168,23 @@ struct hdmitx_common {
 
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	u32 frac_rate_policy;
+	/* Indicates spread spectrum, 1/on 0/off */
+	u32 sspll;
+	/* Indicates current status, HDMITX20/HDMITX21 */
+	int hdmi_init;
+	/*
+	 * for SONY-KD-55A8F TV, need to mute more frames(default 20 frames)
+	 * when switch DV(LL)->HLG
+	 */
+	int hdr_mute_frame;
+	/* vrr related*/
+	struct vrr_device_s hdmitx_vrr_dev;
 
+	bool pre_tmds_clk_div40;
+
+	u32 flag_3dfp:1;
+	u32 flag_3dtb:1;
+	u32 flag_3dss:1;
 	/* audio */
 	/* if switching from 48k pcm to 48k DD, the ACR/N parameter is same,
 	 * so there is no need to update ACR/N. but for mode change, different
@@ -214,6 +241,45 @@ struct hdmitx_common {
 	 * if value is not changed, the skip massive qms log
 	 */
 	u64 qms_log_id;
+
+	struct vsif_debug_save vsif_debug_info;
+	struct master_display_info_s drm_config_data;
+	struct hdr10plus_para hdr10p_config_data;
+	struct aud_para hdmiaud_config_data;
+	/* diff */
+#ifdef CONFIG_AMLOGIC_HDMITX
+	/* in board dts file, here can add
+	 * &amhdmitx {
+	 *     hdcp_type_policy = <1>;
+	 * };
+	 * 0 is default for NTS 0->1, 1 is fixed as 1, and 2 is fixed as 0
+	 */
+	/* -1, fixed 0; 0, NTS 0->1; 1, fixed 1 */
+	int hdcp_type_policy;
+	int hdcp_tst_sig;
+	struct hdcprp_topo *topo_info;
+	bool hdcp22_type;
+#endif
+#ifdef CONFIG_AMLOGIC_HDMITX21
+	enum hdmi_ll_mode ll_user_set_mode; /* ll setting: 0/AUTOMATIC, 1/Always OFF, 2/ALWAYS ON */
+	bool ll_enabled_in_auto_mode; /* ll_mode enabled in auto or not */
+
+	u32 aon_output:1; /* always output in bl30 */
+
+	u8 def_stream_type;
+	u32 is_passthrough_switch;
+	bool need_filter_hdcp_off;
+	u32 filter_hdcp_off_period;
+	bool not_restart_hdcp;
+	/* enable poll rx_status for workaround of special hdcp2.2 TV */
+	bool en_poll_rx_status;
+	/* poll rx_status workaround method:
+	 * 0: continuously poll rx_status(2bytes) for 300ms, default method
+	 * 1: read only 1 byte of hdcp msg
+	 */
+	u8 poll_rx_status_mtd;
+
+#endif
 };
 
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
@@ -296,6 +362,10 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 
 unsigned int hdmitx_get_frame_duration(void);
 
+/* hdcp api*/
+void hdmitx_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf);
+int hdmitx_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int len);
+
 /* drm hdcp api */
 int drm_hdmitx_common_hdcp_init(void);
 int drm_hdmitx_common_hdcp_exit(void);
@@ -360,6 +430,13 @@ void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm);
 void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_common *tx_comm);
 void set_dummy_dv_info(struct vout_device_s *vdev);
 void hdmitx_build_fmt_attr_str(struct hdmitx_common *tx_comm);
+void hdmitx_current_status(enum hdmitx_event_log_bits event);
+ssize_t hdcp_lstore_show(struct device *dev, struct device_attribute *attr,
+				char *buf);
+ssize_t hdcp_mode_show(struct device *dev, struct device_attribute *attr,
+			      char *buf);
+ssize_t hdcp_ver_show(struct device *dev, struct device_attribute *attr,
+			     char *buf);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 /*
@@ -408,4 +485,22 @@ enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
 
+/* hdmitx diff */
+#ifdef CONFIG_AMLOGIC_HDMITX
+#define HDCP_SLAVE	0x3a
+#define HDCP2_RD_MSG	0x80
+
+unsigned int get_hdcp22_base(void);
+bool is_hdcp22_stop_state(void);
+void hdmitx_reset_tv_hdcp(void);
+u32 ddc_read_1byte(u8 slave, uint8_t offset_addr, uint8_t *data);
+void hdmitx_hdcp_do_work(struct hdmitx_common *tx_comm);
+
+#endif
+#ifdef CONFIG_AMLOGIC_HDMITX21
+ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,
+	char *buf);
+void hdmi_tx_enable_ll_mode(bool enable);
+
+#endif
 #endif

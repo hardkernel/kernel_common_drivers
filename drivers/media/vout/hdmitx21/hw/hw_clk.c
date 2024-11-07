@@ -1149,7 +1149,7 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5) {
 		set_hdmitx_s5_htx_pll(hdev);
-		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
 		/* will overwrite the od already set in set_hdmitx_s5_htx_pll */
 		if (hdev->frl_rate)
@@ -1194,7 +1194,7 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 	}
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
 		set_hdmitx_s7_htx_pll(hdev);
-		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
 		if (hdev->tx_hw.s7_clk_config)
 			return;
@@ -1211,7 +1211,7 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 	}
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
 		set_hdmitx_s7d_htx_pll(hdev);
-		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
 		if (hdev->tx_hw.s7_clk_config)
 			return;
@@ -1229,7 +1229,7 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 	}
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) {
 		set_hdmitx_s6_htx_pll(hdev);
-		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
 		if (hdev->tx_hw.s7_clk_config) {
 			/* bit15
@@ -1254,7 +1254,7 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 	/* YUV 422 always use 24B mode */
 	if (cs == HDMI_COLORSPACE_YUV422)
 		cd = COLORDEPTH_24B;
-	if (hdev->flag_3dfp) {
+	if (hdev->tx_comm.flag_3dfp) {
 		p_enc = &setting_3dfp_enc_clk_val[0];
 		for (j = 0; j < sizeof(setting_3dfp_enc_clk_val)
 			/ sizeof(struct hw_enc_clk_val_group); j++) {
@@ -1334,7 +1334,7 @@ next:
 		tmp_clk.vid_pll_div, tmp_clk.vid_clk_div, tmp_clk.enc_div,
 		tmp_clk.fe_div, tmp_clk.pnx_div, tmp_clk.pixel_div);
 	set_hpll_clk_out(tmp_clk.hpll_clk_out);
-	if (cd == COLORDEPTH_24B && hdev->sspll)
+	if (cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 		set_hpll_sspll(vic);
 	set_hpll_od1(tmp_clk.od1);
 	set_hpll_od2(tmp_clk.od2);

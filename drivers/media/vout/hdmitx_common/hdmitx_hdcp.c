@@ -8,6 +8,7 @@
 /*!!Only one instance supported.*/
 static struct hdmitx_common *global_tx_common;
 
+/* use drm */
 int drm_hdmitx_common_hdcp_init(void)
 {
 	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
@@ -104,6 +105,21 @@ int drm_hdmitx_common_get_dw_hdcp_topo_info(void)
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_get_dw_hdcp_topo_info);
+/* use drm end */
+
+void hdmitx_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf)
+{
+	if (tx_comm && tx_comm->hdcp_ctrl_ops->set_hdcp_mode)
+		tx_comm->hdcp_ctrl_ops->set_hdcp_mode(tx_comm, buf);
+}
+
+int hdmitx_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int len)
+{
+	if (tx_comm && tx_comm->hdcp_ctrl_ops->get_hdcp_ver)
+		return tx_comm->hdcp_ctrl_ops->get_hdcp_ver(tx_comm, buf, len);
+	else
+		return -EINVAL;
+}
 
 void set_hdcp_common_instance(struct hdmitx_common *tx_comm)
 {

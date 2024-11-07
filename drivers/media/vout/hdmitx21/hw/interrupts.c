@@ -39,7 +39,7 @@ void hdmitx21_earc_hpdst(pf_callback cb)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	earc_hdmitx_hpdst = cb;
-	if (!hdev || !hdev->hdmi_init)
+	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX21)
 		return;
 	if (cb && hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO))
 		cb(true);
@@ -457,6 +457,12 @@ static irqreturn_t vrr_vsync_intr_handler(int irq, void *dev)
 static irqreturn_t vsync_intr_handler(int irq, void *dev)
 {
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
+
+	if (hdev->tx_comm.vid_mute_op != VIDEO_NONE_OP) {
+		hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+			CONF_VIDEO_MUTE_OP, hdev->tx_comm.vid_mute_op);
+		hdev->tx_comm.vid_mute_op = VIDEO_NONE_OP;
+	}
 
 	if (hdev->tx_comm.tx_hw->tmds_phy_op == TMDS_PHY_DISABLE) {
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base,

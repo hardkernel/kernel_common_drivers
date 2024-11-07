@@ -1120,7 +1120,7 @@ ssize_t _vrr_cap_show(struct device *dev,
 	int pos = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
-	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
+	struct vrr_device_s *vrr = &hdev->tx_comm.hdmitx_vrr_dev;
 
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"neg_mvrr: %d\n", prxcap->neg_mvrr);
@@ -1667,7 +1667,7 @@ void hdmitx_register_vrr(struct hdmitx_dev *hdev)
 	char *name = "hdmitx_vrr";
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	struct vinfo_s *vinfo;
-	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
+	struct vrr_device_s *vrr = &hdev->tx_comm.hdmitx_vrr_dev;
 
 	vinfo = hdmitx_get_curvinfo(NULL);
 	if (!vinfo || vinfo->mode != VMODE_HDMI)

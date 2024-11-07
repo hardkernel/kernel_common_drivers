@@ -10,7 +10,6 @@
 
 #define EDID_SLAVE	0x50
 	#define EDIDSEG_ADR	0x30
-#define HDCP_SLAVE	0x3a
 #define SCDC_SLAVE	0x54
 
 /* Little-Endian format */
@@ -61,7 +60,7 @@ enum hdcp_addr {
 	HDCP2_VERSION = 0x50,
 	HDCP2_WR_MSG = 0x60,
 	HDCP2_RXSTATUS = 0x70,
-	HDCP2_RD_MSG = 0x80,
+	//HDCP2_RD_MSG = 0x80,
 	HDCP2_DBG = 0xC0,
 };
 
@@ -86,6 +85,5 @@ void scdc_config(struct hdmitx_dev *hdev);
 void edid_read_head_8bytes(void);
 int scdc_status_flags(struct hdmitx_dev *hdev);
 void hdmitx_read_edid(unsigned char *rx_edid);
-void hdmitx_reset_tv_hdcp(void);
-u32 ddc_read_1byte(u8 slave, uint8_t offset_addr, uint8_t *data);
+
 #endif  /* __HDMI_TX_SCDC_H__ */

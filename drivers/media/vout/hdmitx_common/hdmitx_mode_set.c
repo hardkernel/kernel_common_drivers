@@ -159,11 +159,11 @@ void update_vinfo_from_formatpara(struct hdmitx_common *tx_comm)
 	calc_vinfo_from_hdmi_timing(&fmtpara->timing, vinfo);
 	/*
 	 * vinfo->info_3d = NON_3D;
-	 * if (hdev->flag_3dfp)
+	 * if (hdev->tx_comm.flag_3dfp)
 	 *	 vinfo->info_3d = FP_3D;
-	 * if (hdev->flag_3dtb)
+	 * if (hdev->tx_comm.flag_3dtb)
 	 *	 vinfo->info_3d = TB_3D;
-	 * if (hdev->flag_3dss)
+	 * if (hdev->tx_comm.flag_3dss)
 	 *	 vinfo->info_3d = SS_3D;
 	 */
 	/* dynamic info, always need set */
@@ -1005,3 +1005,8 @@ void hdmitx_ext_plugin_handler(void)
 	}
 }
 EXPORT_SYMBOL(hdmitx_ext_plugin_handler);
+
+void hdmitx_current_status(enum hdmitx_event_log_bits event)
+{
+	hdmitx_tracer_write_event(global_tx_common->tx_tracer, event);
+}

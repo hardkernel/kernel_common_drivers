@@ -85,33 +85,17 @@ struct hdmitx_dev {
 	struct work_struct work_hdr;
 	struct work_struct work_hdr_unmute;
 	struct delayed_work work_do_hdcp;
-	int hdmi_init;
 
 	/*hdcp */
 	struct timer_list hdcp_timer;
-	/* in board dts file, here can add
-	 * &amhdmitx {
-	 *     hdcp_type_policy = <1>;
-	 * };
-	 * 0 is default for NTS 0->1, 1 is fixed as 1, and 2 is fixed as 0
-	 */
-	/* -1, fixed 0; 0, NTS 0->1; 1, fixed 1 */
-	int hdcp_type_policy;
+
 	int hdcp_hpd_stick;	/* 1 not init & reset at plugout */
-	int hdcp_tst_sig;
+
 	unsigned int lstore;
 	unsigned char hdcp_max_exceed_state;
 	unsigned int hdcp_max_exceed_cnt;
-	bool hdcp22_type;
-	struct hdcprp_topo *topo_info;
+
 	struct drm_hdmitx_hdcp_cb drm_hdcp_cb;
-	/* enable poll rx_status for workaround of special hdcp2.2 TV */
-	bool en_poll_rx_status;
-	/* poll rx_status workaround method:
-	 * 0: continuously poll rx_status(2bytes) for 300ms, default method
-	 * 1: read only 1 byte of hdcp msg
-	 */
-	u8 poll_rx_status_mtd;
 	/*hdcp end*/
 
 	struct {
@@ -133,7 +117,6 @@ struct hdmitx_dev {
 
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
-	unsigned int sspll;
 
 	/*hdr/dv*/
 	enum hdmi_hdr_transfer hdr_transfer_feature;
@@ -148,18 +131,11 @@ struct hdmitx_dev {
 	bool hdmi_current_signal_sdr;
 	/*hdr/dv end*/
 
-	unsigned int flag_3dfp:1;
-	unsigned int flag_3dtb:1;
-	unsigned int flag_3dss:1;
 	unsigned int cedst_en:1; /* configure in DTS */
 	unsigned int bist_lock:1;
 
-	unsigned char vid_mute_op;
-	atomic_t kref_video_mute;
-
 	unsigned int hdmi_rext; /* Rext resistor */
 	struct hdmitx_clk_tree_s hdmitx_clk_tree;
-	bool pre_tmds_clk_div40;
 	/*hw members end*/
 
 	/*Platform related.*/
@@ -179,8 +155,6 @@ struct hdmitx_dev {
 /***********************************************************************
  *    hdmitx protocol level interface
  **********************************************************************/
-void hdmitx_current_status(enum hdmitx_event_log_bits event);
-
 extern struct aud_para hdmiaud_config_data;
 extern struct aud_para hsty_hdmiaud_config_data[8];
 extern unsigned int hsty_hdmiaud_config_loc, hsty_hdmiaud_config_num;
@@ -197,12 +171,16 @@ int hdmitx_set_audio(struct hdmitx_dev *hdmitx_device,
 struct hdmitx_dev *get_hdmitx_device(void);
 /* for hdmitx internal usage */
 void hdmitx_hdcp_status(int hdmi_authenticated);
-void hdmitx_hdcp_do_work(struct hdmitx_dev *hdev);
 
+/* for debug */
+void print_hsty_drm_config_data(void);
+void print_hsty_vsif_config_data(void);
+void print_hsty_hdr10p_config_data(void);
+void print_hsty_hdmiaud_config_data(void);
 /***********************************************************************
  *    hdmitx hardware level interface
  ***********************************************************************/
 void hdmitx_meson_init(struct hdmitx_dev *hdmitx_device);
-unsigned int get_hdcp22_base(void);
+
 void hdmitx20_video_mute_op(unsigned int flag);
 #endif

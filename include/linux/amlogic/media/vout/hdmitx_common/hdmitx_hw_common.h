@@ -122,6 +122,7 @@
 #define STAT_TX_PHY				(CMD_STAT_OFFSET + 0x30)
 #define STAT_TX_OUTPUT			(CMD_STAT_OFFSET + 0x31) /*if hdmitx have output*/
 #define STAT_TX_DSC_EN			(CMD_STAT_OFFSET + 0x32) /* if hdmitx have enable dsc */
+#define STAT_TX_CLKMSR			(CMD_STAT_OFFSET + 0x33)
 
 /***********************************************************************
  *             CONFIG CONTROL //cntlconfig
@@ -279,7 +280,8 @@ struct hdmitx_hw_common {
 
 	/* Audio/Video/System Status */
 	int (*getstate)(struct hdmitx_hw_common *tx_hw, u32 cmd, u32 arg);
-
+	/* get current clk */
+	ssize_t (*get_clk)(char *buf, int len);
 	/*validate if vic is supported by hw ip/phy*/
 	int (*validatemode)(struct hdmitx_hw_common *tx_hw, u32 vic, u32 max_refreshrate);
 	/*calc formatpara hw info config*/
@@ -291,6 +293,10 @@ struct hdmitx_hw_common {
 	void (*debugfun)(struct hdmitx_hw_common *tx_hw, const char *cmd_str);
 	int (*setdispmode)(struct hdmitx_hw_common *tx_hw);
 	u8 debug_hpd_lock;
+	/* dump packet information */
+	int (*pkt_dump)(char *buf, int len);
+	/* dump reg information */
+	int (*dump_debug_reg)(struct hdmitx_hw_common *tx_hw, char *buf, int len);
 
 	/* GPIO hpd/scl/sda members*/
 	int hdmitx_gpios_hpd;
@@ -299,6 +305,8 @@ struct hdmitx_hw_common {
 
 	/* hdcp repeater enable, such as on T7 platform */
 	u32 hdcp_repeater_en:1;
+	/* hdcp tx key */
+	u32 lstore;
 	/* soc/hdmitx driver capability */
 	struct tx_cap hdmi_tx_cap;
 	/* phy state */

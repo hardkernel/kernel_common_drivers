@@ -121,9 +121,9 @@ static DEFINE_MUTEX(hdcp_mutex);
  * TE doesn't respond to this re-auth, timeout and fail.
  */
 
-bool hdcp_need_control_by_upstream(struct hdmitx_dev *hdev)
+bool hdcp_need_control_by_upstream(struct hdmitx_hw_common *tx_hw)
 {
-	if (!hdev->tx_hw.base.hdcp_repeater_en)
+	if (!tx_hw->hdcp_repeater_en)
 		return false;
 
 	if (!get_rx_active_sts())
@@ -169,7 +169,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 		return;
 	}
 
-	if (hdev->lstore == 0) {
+	if (hdev->tx_hw.base.lstore == 0) {
 		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
 			/* enable hdcp gate */
 			hdmitx21_ctrl_hdcp_gate(2, true);
@@ -191,7 +191,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 				hdev->tx_comm.hdcp_mode = 0;
 			}
 		}
-	} else if (hdev->lstore & 0x2) {
+	} else if (hdev->tx_hw.base.lstore & 0x2) {
 		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
 			hdmitx21_ctrl_hdcp_gate(2, true);
 			hdev->tx_comm.hdcp_mode = 2;
@@ -202,7 +202,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 			rx_hdcp2_ver = 0;
 			hdev->tx_comm.hdcp_mode = 0;
 		}
-	} else if (hdev->lstore & 0x1) {
+	} else if (hdev->tx_hw.base.lstore & 0x1) {
 		if (hdev->frl_rate > FRL_NONE && hdev->frl_rate < FRL_RATE_MAX) {
 			hdev->tx_comm.hdcp_mode = 0;
 			pr_hdcp_info(L_0, "[%s] should not enable hdcp1.4 under FRL mode\n",
@@ -677,7 +677,7 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 					p_hdcp->csm_message.streamid_type = 0;
 				}
 				/* need to propagate the stream type sent by upstream side */
-				if (hdcp_need_control_by_upstream(hdev)) {
+				if (hdcp_need_control_by_upstream(&hdev->tx_hw.base)) {
 					if (p_hdcp->saved_upstream_type & 0x10) {
 						p_hdcp->csm_message.streamid_type =
 							p_hdcp->saved_upstream_type & 0xf;
@@ -735,7 +735,7 @@ static void hdcp_notify_rpt_info(struct work_struct *work)
 			 * the rcvid list of downstream repeater will be added to notify
 			 * list in assemble_ds_ksv_lists()
 			 */
-			if (hdcp_need_control_by_upstream(hdev)) {
+			if (hdcp_need_control_by_upstream(&hdev->tx_hw.base)) {
 				topo->rp_depth += 1;
 				topo->dev_count += 1;
 			}
@@ -758,7 +758,7 @@ static void hdcp_notify_rpt_info(struct work_struct *work)
 			 * the bksv of downstream repeater will be added to notify
 			 * list in assemble_ds_ksv_lists()
 			 */
-			if (hdcp_need_control_by_upstream(hdev)) {
+			if (hdcp_need_control_by_upstream(&hdev->tx_hw.base)) {
 				topo->rp_depth += 1;
 				topo->dev_count += 1;
 			}
@@ -903,7 +903,7 @@ void hdmitx21_rst_stream_type(struct hdcp_t *hdcp)
 
 	if (!hdcp)
 		return;
-	hdcp->csm_message.streamid_type = hdev->def_stream_type;
+	hdcp->csm_message.streamid_type = hdev->tx_comm.def_stream_type;
 }
 
 static void hdcp_stream_mute_whandler(struct work_struct *work)
@@ -2099,10 +2099,10 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 				/* if (hdmi21_authenticated) */
 					/* continue; */
 			/* } */
-			if (hdmi21_authenticated == 0 && hdev->need_filter_hdcp_off) {
-				for (count = 0; count < hdev->filter_hdcp_off_period * 10;
+			if (hdmi21_authenticated == 0 && hdev->tx_comm.need_filter_hdcp_off) {
+				for (count = 0; count < hdev->tx_comm.filter_hdcp_off_period * 10;
 					count++) {
-					if (!hdev->need_filter_hdcp_off) {
+					if (!hdev->tx_comm.need_filter_hdcp_off) {
 						pr_hdcp_info(L_0, "hdcptx: exit filtering, mode %d auth: %d\n",
 							hdev->tx_comm.hdcp_mode,
 							hdmi21_authenticated);
@@ -2115,8 +2115,8 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 				}
 				pr_hdcp_info(L_0, "%d, after filtering auth is: %d, time:%dms\n",
 					hdev->tx_comm.hdcp_mode, hdmi21_authenticated, count * 100);
-				if (hdmi21_authenticated && hdev->need_filter_hdcp_off) {
-					hdev->need_filter_hdcp_off = false;
+				if (hdmi21_authenticated && hdev->tx_comm.need_filter_hdcp_off) {
+					hdev->tx_comm.need_filter_hdcp_off = false;
 					pr_hdcp_info(L_0, "mode: %d, filtered auth: %d\n",
 						hdev->tx_comm.hdcp_mode,
 						hdmi21_authenticated);
@@ -2132,7 +2132,7 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 			/* if (hdmi21_authenticated) */
 				/* hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_3); */
 			/* self cleared after filter period expired */
-			hdev->need_filter_hdcp_off = false;
+			hdev->tx_comm.need_filter_hdcp_off = false;
 			auth_stat = hdmi21_authenticated;
 			pr_hdcp_info(L_0, "mode %d, auth: %d\n", hdev->tx_comm.hdcp_mode,
 				auth_stat);
@@ -2158,6 +2158,84 @@ void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en)
 	default:
 		break;
 	}
+}
+
+static void hdmitx21_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf)
+{
+	if (strncmp(buf, "f1", 2) == 0) {
+		if (tx_comm->efuse_dis_hdcp_tx14) {
+			HDMITX_ERROR("warning, efuse disable hdcptx14\n");
+			return;
+		}
+		hdmitx21_ctrl_hdcp_gate(1, true);
+		tx_comm->hdcp_mode = 0x1;
+		hdcp_mode_set(1);
+	}
+	if (strncmp(buf, "f2", 2) == 0) {
+		if (tx_comm->efuse_dis_hdcp_tx22) {
+			HDMITX_ERROR("warning, efuse disable hdcptx22\n");
+			return;
+		}
+		hdmitx21_ctrl_hdcp_gate(2, true);
+		tx_comm->hdcp_mode = 0x2;
+		hdcp_mode_set(2);
+	}
+	if (buf[0] == '0') {
+		tx_comm->hdcp_mode = 0x00;
+		hdcp_mode_set(0);
+		hdmitx21_ctrl_hdcp_gate(0, false);
+	}
+}
+
+static int hdmitx21_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int len)
+{
+	int pos = 0;
+
+	if (!tx_comm->hpd_state) {
+		HDMITX_INFO("%s: hpd low, just return 14\n", __func__);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n\r");
+		return pos;
+	}
+	if (rx_hdcp2_ver) {
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
+	} else {
+		/*
+		 * on hotplug case
+		 * note that, when do hdcp repeater1.4 CTS,
+		 * hdcp port access will affect item 3a-02 Irregular
+		 * procedure: (First part of authentication) HDCP port
+		 * access. Refer to hdcp1.4 cts spec: "If DUT does
+		 * not read an HDCP register past 4 seconds after
+		 * the previous attempt, then FAIL". after read hdcp
+		 * version soon after plugin(access failed as TE
+		 * not ack), our hdmitx side should keep retrying
+		 * in 4S. but source TE start hdcp auth with
+		 * hdmirx side too late(more than 4S), as hdcp auth
+		 * of hdmitx side is started by hdmirx side, it will
+		 * time out the access of hdcp port of 4 second.
+		 * so for repeater CTS, should not read hdcp version
+		 * whenever you want. Here add protect to only read
+		 * hdcp version when currently not in hdmirx channel.
+		 * special customer want to read downstream hdcp version
+		 * after hotplug, and only send 4K output when EDID
+		 * support 4K && support hdcp2.2. so add is_4k_sink()
+		 * decision, it won't affect hdcp repeater CTS.
+		 */
+		if (hdcp_need_control_by_upstream(tx_comm->tx_hw)/* && !is_4k_sink(hdev) */) {
+			HDMITX_INFO("%s: currently should not read hdcp version\n", __func__);
+		} else if (hdmitx21_get_hdcp_mode() == 0) {
+			if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+				pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
+				rx_hdcp2_ver = 1;
+			}
+			HDMITX_INFO("%s: hdev->tx_comm.hdcp_mode: 0, rx_hdcp2_ver = %d\n",
+				__func__, rx_hdcp2_ver);
+		}
+	}
+	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n\r");
+
+	return pos;
 }
 
 /*************DRM connector API**************/
@@ -2302,19 +2380,19 @@ static unsigned int drm_hdmitx_get_tx_hdcp_cap(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	if (!hdev || hdev->hdmi_init != 1)
+	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX21)
 		return 0;
 
-	if (hdev->lstore < 0x10) {
-		hdev->lstore = 0;
+	if (hdev->tx_hw.base.lstore < 0x10) {
+		hdev->tx_hw.base.lstore = 0;
 		if (get_hdcp2_lstore())
-			hdev->lstore |= HDCP_MODE22;
+			hdev->tx_hw.base.lstore |= HDCP_MODE22;
 		if (get_hdcp1_lstore())
-			hdev->lstore |= HDCP_MODE14;
+			hdev->tx_hw.base.lstore |= HDCP_MODE14;
 	}
 
-	HDMITX_DEBUG("%s tx hdcp [%d]\n", __func__, hdev->lstore);
-	return hdev->lstore & (HDCP_MODE14 | HDCP_MODE22);
+	HDMITX_DEBUG("%s tx hdcp [%d]\n", __func__, hdev->tx_hw.base.lstore);
+	return hdev->tx_hw.base.lstore & (HDCP_MODE14 | HDCP_MODE22);
 }
 
 unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
@@ -2383,8 +2461,8 @@ static unsigned char drm_hdmitx_get_hdcp_topo_info(void)
 	return hdcp22_topo;
 }
 
+/* drm hdcp apis */
 static struct drm_hdcp_ctrl_ops tx21_drm_hdcp_ctrl_ops = {
-	/* hdcp apis */
 	.hdcp_init = drm_hdmitx_hdcp_init,
 	.hdcp_exit = drm_hdmitx_hdcp_exit,
 	.hdcp_enable = drm_hdmitx_hdcp_enable,
@@ -2394,6 +2472,12 @@ static struct drm_hdcp_ctrl_ops tx21_drm_hdcp_ctrl_ops = {
 	.get_rx_hdcp_cap = drm_hdmitx_get_rx_hdcp_cap,
 	.register_hdcp_notify = drm_hdmitx_register_hdcp_notify,
 	.get_dw_hdcp_topo_info = drm_hdmitx_get_hdcp_topo_info,
+};
+
+/* HDCP API */
+static struct hdcp_ctrl_ops tx21_hdcp_ctrl_ops = {
+	.set_hdcp_mode = hdmitx21_set_hdcp_mode,
+	.get_hdcp_ver = hdmitx21_get_hdcp_ver,
 };
 
 int hdmitx21_hdcp_init(void)
@@ -2417,6 +2501,7 @@ int hdmitx21_hdcp_init(void)
 	p_hdcp->cont_smng_method = 0;
 	hdmitx21_rst_stream_type(p_hdcp);
 	hdev->tx_comm.drm_hdcp_ctrl_ops = &tx21_drm_hdcp_ctrl_ops;
+	hdev->tx_comm.hdcp_ctrl_ops = &tx21_hdcp_ctrl_ops;
 	p_hdcp->p_ksv_lists =
 		kmalloc((HDCP1X_MAX_TX_DEV_SRC + 1) * sizeof(struct hdcp_ksv_t), GFP_KERNEL);
 	p_hdcp->hdcp_wq = alloc_workqueue(DEVICE_NAME, WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
@@ -2484,7 +2569,7 @@ static long hdcp_comm_ioctl(struct file *file,
 			hdev->tx_comm.ready &&
 			hdmitx21_get_hdcp_mode() == 0) {
 			HDMITX_INFO("hdmi ready but hdcp not enabled, enable now\n");
-			if (hdcp_need_control_by_upstream(hdev)) {
+			if (hdcp_need_control_by_upstream(&hdev->tx_hw.base)) {
 				HDMITX_INFO("currently hdcp should started by upstream\n");
 			} else {
 				if (hdcp_key_store & BIT(1))

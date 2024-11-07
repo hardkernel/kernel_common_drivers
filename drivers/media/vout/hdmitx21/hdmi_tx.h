@@ -434,7 +434,7 @@ bool get_hdcp2_topo(void);
 void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev);
 void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev);
 void hdmitx21_rst_stream_type(struct hdcp_t *hdcp);
-bool hdcp_need_control_by_upstream(struct hdmitx_dev *hdev);
+bool hdcp_need_control_by_upstream(struct hdmitx_hw_common *tx_hw);
 u32 hdmitx21_get_hdcp_mode(void);
 void hdcptx_en_aes_dualpipe(bool en);
 void pr_hdcp_info(const char *fmt, ...);
@@ -458,8 +458,6 @@ u32 hdmitx_vrr_get_maxlncnt(void);
 int hdmitx_set_vrr_rate(int duration, void *data);
 void hdmitx_unregister_vrr(struct hdmitx_dev *hdev);
 void hdmitx_register_vrr(struct hdmitx_dev *hdev);
-ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,
-	char *buf);
 int hdmitx_dump_vrr_status(struct seq_file *s, void *p);
 void hdmitx_vrr_enable(void);
 void hdmitx_vrr_disable(void);

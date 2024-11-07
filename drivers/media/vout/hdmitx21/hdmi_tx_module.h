@@ -134,13 +134,9 @@ struct hdmitx_dev {
 	struct work_struct work_hdr_unmute;
 	struct delayed_work work_start_hdcp;
 	struct delayed_work work_drm_start_hdcp;
-	struct vrr_device_s hdmitx_vrr_dev;
 	void *am_hdcp;
 	bool dw_hdcp22_cap;
-	int hdmi_init;
 	int hpdmode;
-	bool pre_tmds_clk_div40;
-	u32 lstore;
 	struct hdmitx_infoframe infoframes;
 	struct hdmi_config_platform_data config_data;
 	enum hdmi_event_t hdmitx_event;
@@ -150,7 +146,6 @@ struct hdmitx_dev {
 	struct hdmitx_clk_tree_s hdmitx_clk_tree;
 	/*audio*/
 	struct aud_para cur_audio_param;
-	atomic_t kref_video_mute;
 	atomic_t kref_audio_mute;
 	/**/
 	u8 hpd_event; /* 1, plugin; 2, plugout */
@@ -168,9 +163,7 @@ struct hdmitx_dev {
 	enum vrr_type vrr_mode; /* 1: GAME-VRR, 2: QMS-VRR,  0: default no-VRR */
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
-	enum hdmi_ll_mode ll_user_set_mode; /* ll setting: 0/AUTOMATIC, 1/Always OFF, 2/ALWAYS ON */
-	bool ll_enabled_in_auto_mode; /* ll_mode enabled in auto or not */
-	u32 sspll;
+
 	/* configure for I2S: 8ch in, 2ch out */
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
 	enum hdmi_hdr_transfer hdr_transfer_feature;
@@ -183,11 +176,7 @@ struct hdmitx_dev {
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;
 	bool hdmi_current_signal_sdr;
-	u32 flag_3dfp:1;
-	u32 flag_3dtb:1;
-	u32 flag_3dss:1;
 	u32 pxp_mode:1;
-	u32 aon_output:1; /* always output in bl30 */
 	u32 bist_lock:1;
 	u32 edid_mask_qms:1;
 	u32 fr_duration;
@@ -197,11 +186,7 @@ struct hdmitx_dev {
 	struct drm_hdmitx_hdcp drm_hdcp;
 
 	struct miscdevice hdcp_comm_device;
-	u8 def_stream_type;
 	u32 arc_rx_en;
-	bool need_filter_hdcp_off;
-	u32 filter_hdcp_off_period;
-	bool not_restart_hdcp;
 	unsigned long up_hdcp_timeout_sec;
 	struct delayed_work work_up_hdcp_timeout;
 	u32 hdcp_debug_delay;
@@ -228,7 +213,6 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 int get21_hpd_state(void);
 void hdmitx21_hdcp_status(int hdmi_authenticated);
 struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing *t);
-extern struct aud_para hdmi21aud_config_data;
 /***********************************************************************
  *    hdmitx hardware level interface
  ***********************************************************************/

@@ -924,7 +924,7 @@ static void hdmitx_set_clk_(struct hdmitx_dev *hdev,
 	if (cs == HDMI_COLORSPACE_YUV422)
 		cd = COLORDEPTH_24B;
 
-	if (hdev->flag_3dfp) {
+	if (hdev->tx_comm.flag_3dfp) {
 		p_enc = &setting_3dfp_enc_clk_val[0];
 		for (j = 0; j < sizeof(setting_3dfp_enc_clk_val)
 			/ sizeof(struct hw_enc_clk_val_group); j++) {
@@ -1020,7 +1020,7 @@ next:
 	*test_clk = p_enc[j];
 	hdmitx_set_cts_sys_clk(tx_hw);
 	set_hpll_clk_out(tx_hw, p_enc[j].hpll_clk_out);
-	if (cd == COLORDEPTH_24B && hdev->sspll)
+	if (cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 		set_hpll_sspll(vic);
 	set_hpll_od1(tx_hw, p_enc[j].od1);
 	set_hpll_od2(tx_hw, p_enc[j].od2);

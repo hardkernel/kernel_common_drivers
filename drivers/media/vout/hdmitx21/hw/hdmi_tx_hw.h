@@ -39,8 +39,6 @@ struct hdmitx21_hw {
 	u8 s7_clk_config;
 };
 
-ssize_t _show21_clkmsr(char *buf);
-
 #define to_hdmitx21_hw(x)	container_of(x, struct hdmitx21_hw, base)
 
 #endif
