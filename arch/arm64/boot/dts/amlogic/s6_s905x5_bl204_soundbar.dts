@@ -365,7 +365,7 @@
 			};
 			tdmbcodec: codec {
 				prefix-names = "ad82128_c_30", "ad82128_c_31";
-				sound-dai = <&ad82128_30 &ad82128_31 &amlogic_codec>;
+				sound-dai = <&ad82128_30 &ad82128_31>;
 			};
 		};
 
@@ -1040,7 +1040,7 @@
 &i2c3 {
 	status = "okay";
 	pinctrl-names="default";
-	pinctrl-0=<&i2c3_pins2>;
+	pinctrl-0=<&i2c3_pins7>;
 	clock-frequency = <300000>; /* default 100k */
 
 	ad82128_30: ad82128_30@30 {
@@ -1675,10 +1675,6 @@
 	free = <7680 24288 28528 32600 32768 36624>;
 };
 
-&amlogic_codec {
-	tocodec_inout = <1>;
-	tdmout_index = <1>;
-};
 
 &pdma {
 		pinctrl-names = "pdm_pins";
