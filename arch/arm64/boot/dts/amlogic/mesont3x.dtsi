@@ -3562,6 +3562,7 @@
 		>;
 		clocks = <&clkc CLKID_CDAC_CLK>;
 		clock-names = "vdac_clk_gate";
+		auto_adj_en = <0xfe>;
 		cutwindow_val_h = <0 0 0 0 8>; /* level 0~4 */
 		cutwindow_val_v = <4 8 14 16 24>;  /* level 0~4 */
 	};
