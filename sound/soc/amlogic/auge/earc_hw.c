@@ -84,6 +84,9 @@ void earcrx_pll_refresh(struct regmap *top_map,
 			/* pll self reset */
 			mmio_update_bits(top_map, EARCRX_PLL_CTRL0,
 					 0x1 << 29, 0x1 << 29);
+
+			usleep_range(10, 20);
+
 			mmio_update_bits(top_map, EARCRX_PLL_CTRL0,
 					 0x1 << 29, 0x0 << 29);
 
