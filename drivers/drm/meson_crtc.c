@@ -823,6 +823,11 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	mvps = meson_vpu_pipeline_get_state(amcrtc->pipeline, crtc_state->state);
+	if (PTR_ERR(mvps) == -EDEADLK) {
+		DRM_DEBUG_ATOMIC("deadlock!\n");
+		return -EDEADLK;
+	}
+
 	mvsps = &mvps->sub_states[crtc->index];
 	mode = &crtc_state->mode;
 	if (mode->hdisplay > 4096 || mode->vdisplay > 2160)
