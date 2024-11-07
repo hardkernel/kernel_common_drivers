@@ -207,6 +207,8 @@ bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 #define DI_IC_ID_S5		(0x3a)// same with t3 linear
 #define DI_IC_ID_T3X		(0x3f)
 #define DI_IC_ID_S7D		(0x42)
+#define DI_IC_ID_T6D	(0x50) // base on t3 tmp
+
 #define DI_IC_ID_DEINTERLACE		(0xFF)
 
 #define DI_IC_REV_MAJOR		(0x0)
@@ -567,6 +569,7 @@ struct afd_ops_s {
 	void (*pvpp_sw_setting_op)(bool on, const struct reg_acc *op);
 	void (*pvpp_pre_check_dvfm)(void *ds_in, void *vfm);
 	u32 (*pvpp_en_pre_set)(void *ds_in, void *vfm, const struct reg_acc *op);
+	u32 (*set_rotation)(struct vframe_s *vfm_in, struct vframe_s *wr_vf);
 };
 
 enum EDI_MIFSM {

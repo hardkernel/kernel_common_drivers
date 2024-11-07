@@ -1351,6 +1351,12 @@ bool dcntr_set(const struct reg_acc *op_in)
 			       (pcfg->in.x_size >> 1));
 		pcfg->n_demo = 0;
 	}
+
+	if (dim_is_slt_mode()) {
+		op->bwr(DCTR_RAND_EN + off, 0, 0, 2);
+		op->bwr(DCTR_RAND_EN + off, 0, 4, 3);
+	}
+
 	if (pcfg->n_set) {
 		dbg_dctp("%s:set\n", __func__);
 		ret = dcntr_post(op);

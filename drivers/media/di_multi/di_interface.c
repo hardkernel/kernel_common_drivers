@@ -437,6 +437,11 @@ int new_create_instance(struct di_init_parm parm)
 		/*used local buffer to check s4 copy */
 		itf->tmode = EDIM_TMODE_3_PW_LOCAL;
 		itf->u.dinst.parm.work_mode = WORK_MODE_S4_DCOPY;
+
+	} else if (rotation_test_ins()) {
+		itf->tmode = EDIM_TMODE_3_PW_LOCAL;
+		itf->u.dinst.parm.work_mode = WORK_MODE_ROTATION;
+		itf->rotation_mode = 2;
 	}
 	//check ic:
 	if (itf->u.dinst.parm.work_mode == WORK_MODE_S4_DCOPY) {
@@ -445,6 +450,19 @@ int new_create_instance(struct di_init_parm parm)
 			return DI_ERR_UNSUPPORT;
 		}
 		PR_INF("S4 DW\n");
+	} else if (itf->u.dinst.parm.work_mode == WORK_MODE_ROTATION ||
+		itf->u.dinst.parm.work_mode == WORK_MODE_ROTATION_270) {
+		if (!DIM_IS_IC(T3)) {
+			PR_ERR("%s:rotation only support for t3\n", __func__);
+			return DI_ERR_UNSUPPORT;
+		}
+		if (itf->u.dinst.parm.work_mode == WORK_MODE_ROTATION ||
+			(!rotation_test_mode()))
+			itf->rotation_mode = 2;
+		else
+			itf->rotation_mode = 3;
+
+		PR_INF("T3 rotation:%d\n", itf->rotation_mode);
 	}
 
 	if (itf->u.dinst.parm.work_mode == WORK_MODE_PRE_POST) {
@@ -481,6 +499,13 @@ int new_create_instance(struct di_init_parm parm)
 			break;
 		}
 		#endif
+	} else if (itf->u.dinst.parm.work_mode == WORK_MODE_ROTATION) {
+		//only support local buffer:
+		if (itf->u.dinst.parm.buffer_mode == BUFFER_MODE_USE_BUF) {
+			PR_ERR("%s:rotation only support local buffer\n", __func__);
+			itf->u.dinst.parm.buffer_mode = BUFFER_MODE_ALLOC_BUF;
+		}
+		itf->tmode = EDIM_TMODE_3_PW_LOCAL;
 	} else {
 		PR_ERR("%s:wmode[%d]\n", __func__,
 		       itf->u.dinst.parm.work_mode);
@@ -510,15 +535,22 @@ int new_create_instance(struct di_init_parm parm)
 		itf->op_cfg_ch_set	= cfg_ch_set_for_s4_cp;
 		itf->flg_s4dw	= true;
 		pch->s4dw	= &dim_s4dw_def;
+	} else if (itf->u.dinst.parm.work_mode == WORK_MODE_ROTATION) {
+		itf->op_cfg_ch_set = cfg_ch_set_for_rotation;
+		itf->flg_rotation	= true;
+		pch->s4dw = NULL;
+
+		//pch->s4dw	= &dim_s4dw_def;
 	} else {
 		itf->op_cfg_ch_set	= cfg_ch_set;
 		itf->flg_s4dw	= false;
+		itf->flg_rotation	= false;
 		pch->s4dw	= NULL;
 	}
 	//cfg_ch_set(pch);
 	mutex_unlock(&pch->itf.lock_reg);
 	PR_INF("%s:ch[%d],tmode[%d]\n", "ins:create", ch, itf->tmode);
-	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);
+	dbg_reg("\tout:0x%x\n", itf->u.dinst.parm.output_format);
 	return ch;
 }
 
@@ -600,6 +632,8 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 
 	if (pintf->u.dinst.parm.work_mode == WORK_MODE_S4_DCOPY)
 		return s4dw_empty_input(pch, buffer);
+	if (pintf->u.dinst.parm.work_mode == WORK_MODE_ROTATION)
+		return rt_empty_input(pch, buffer);
 
 	#ifdef MARK_HIS
 	qued_ops.peek(pch, QUED_T_IS_FREE, &buf_index);
@@ -681,7 +715,8 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 
 	if (plink_dct) /* for plink */
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, bindex);
-	else if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+	else if (get_datal()->dct_op && ((dim_is_slt_mode() && pch->in_cnt != 1) ||
+		get_datal()->dct_op->is_en(pch)))
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, bindex);
 	else
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_CHECK, bindex);
@@ -870,8 +905,10 @@ int new_release_keep_buf(struct di_buffer *buffer)
 int set_buffer_num(unsigned int post, unsigned int pre)
 {
 	dbg_reg("%s:%d,%d\n", __func__, post, pre);
-	if (post)
+	if (post) {
 		cfgs(POST_NUB, post);
+		dim_set_postnum(post);
+	}
 	if (pre)
 		cfgs(PRE_NUB, pre);
 	return 0;

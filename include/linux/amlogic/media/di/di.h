@@ -28,6 +28,7 @@
 void dil_set_diff_ver_flag(unsigned int para);
 
 unsigned int dim_get_vpuclkb_ext(void);
+void dim_set_vpuclkb_ext(unsigned long clkrate);
 
 struct afbcd_info {
 	unsigned long head_addr;

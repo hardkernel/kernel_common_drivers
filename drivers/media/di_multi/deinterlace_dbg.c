@@ -270,9 +270,10 @@ void dump_mif_state_seq(struct DI_MIF_S *mif,
 		   mif->buf_crop_en,
 		   mif->buf_hsize,
 		   mif->block_mode);
-	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u]\n",
+	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u] hold_line[%u]\n",
 		   mif->bit_mode,
-		   mif->set_separate_en);
+		   mif->set_separate_en,
+		   mif->hold_line);	//2024-07-19
 	seq_printf(seq, "\tvideo_mode [%u] src_prog[%u]\n",
 		   mif->video_mode,
 		   mif->src_prog);
@@ -348,8 +349,8 @@ static void dump_mc_mif_state_seq(struct DI_MC_MIF_s *mc_mif,
 	seq_printf(seq, "\tlinear[%d],addr[0x%lx]\n",
 		   mc_mif->linear,
 		   mc_mif->addr);
-	seq_printf(seq, "\tper_bits[%d]\n",
-		   mc_mif->per_bits);
+	seq_printf(seq, "\tper_bits[%d] buf_hsize:%d\n",
+		   mc_mif->per_bits, mc_mif->buf_hsize);
 }
 
 void dim_dump_pre_stru(struct di_pre_stru_s *ppre)
@@ -1026,7 +1027,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	unsigned int tmpa[MAX_FIFO_SIZE]; /*new que*/
 	unsigned int psize; /*new que*/
 	struct di_hpre_s  *pre = get_hw_pre();
-	struct di_hpst_s *post = get_hw_pst();
+//	struct di_hpst_s *post = get_hw_pst();
 	char *splt = "---------------------------";
 	struct div2_mm_s *mm = dim_mm_get(channel);	/*mm-0705*/
 	struct di_ch_s *pch = get_chdata(channel);
@@ -1347,8 +1348,8 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		   get_reg_flag(channel));
 	seq_printf(seq, "%-15s=%s\n", "pre_state",
 		   dpre_state4_name_get(pre->pre_st));
-	seq_printf(seq, "%-15s=%s\n", "post_state",
-		   dpst_state_name_get(post->state));
+//	seq_printf(seq, "%-15s=%s\n", "post_state",
+//		   dpst_state_name_get(post->state));
 
 	seq_printf(seq, "%-15s=%d\n", "pre_get_sum",
 		   get_sum_g(channel));

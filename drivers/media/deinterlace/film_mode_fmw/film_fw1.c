@@ -502,62 +502,22 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 !IS_IC(dil_get_cpuver_flag(), S5) &&
 		 !IS_IC(dil_get_cpuver_flag(), S7D))) {
 		if (pPar->flm22_pd12chk_mode == 0)
-			pd22_diff12_chk =
-				((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <
-				(max_dif02 + pPar->flm22_diff02_add_th) &&
-				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) >
-				(max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) *
-				pPar->flm22_diff01_ratio / 16)) &&
-				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
-				pPar->flm22_diff01_th * 3 &&
-				(max(pd22_cnt_pre, pd22_cnt_cur) >
-				max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) ||
-				max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <
-				(max_dif02 - pPar->flm22_diff02_add_th)) &&
-				abs(pre_fld_motnum - glb_field_mot_num) <
-				min(pre_fld_motnum, glb_field_mot_num) *
-				pPar->flm22_glb_ratio / 8) ||
-				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 &&
-				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
-				nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+			pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < (max_dif02 + pPar->flm22_diff02_add_th) && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > (max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) * pPar->flm22_diff01_ratio / 16)) &&
+				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && (max(pd22_cnt_pre, pd22_cnt_cur) > max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) || max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <  (max_dif02 - pPar->flm22_diff02_add_th)) && abs(pre_fld_motnum - glb_field_mot_num) < min(pre_fld_motnum, glb_field_mot_num) * pPar->flm22_glb_ratio / 8) ||
+				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
 		else
-			pd22_diff12_chk =
-				((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <
-				(max_dif02 + pPar->flm22_diff02_add_th) &&
-				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) >
-				(max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) *
-				pPar->flm22_diff01_ratio / 16)) &&
-				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
-				pPar->flm22_diff01_th * 3 &&
-				max(pd22_cnt_pre, pd22_cnt_cur) >
-				max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) &&
-				abs(pre_fld_motnum - glb_field_mot_num) <
-				min(pre_fld_motnum, glb_field_mot_num) *
-				pPar->flm22_glb_ratio / 8) ||
-				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 &&
-				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
-				nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+			pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < (max_dif02 + pPar->flm22_diff02_add_th) && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > (max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) * pPar->flm22_diff01_ratio / 16)) &&
+				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && max(pd22_cnt_pre, pd22_cnt_cur) > max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) && abs(pre_fld_motnum - glb_field_mot_num) < min(pre_fld_motnum, glb_field_mot_num) * pPar->flm22_glb_ratio / 8) ||
+				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
 	} else {
-		pd22_diff12_chk =
-			((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < max_dif02 &&
-			(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > max_dif02 / 2) &&
-			abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
-			pPar->flm22_diff01_th * 3 &&
-			abs(pre_fld_motnum - glb_field_mot_num) < 10000) ||
-			(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 &&
-			abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
-			nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+		pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < max_dif02 && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > max_dif02 / 2) &&
+		abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && abs(pre_fld_motnum - glb_field_mot_num) < 10000) ||
+		(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
 	}
 #else
-		pd22_diff12_chk =
-			((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < max_dif02 &&
-			(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > max_dif02 / 2) &&
-			abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
-			pPar->flm22_diff01_th * 3 &&
-			abs(pre_fld_motnum - glb_field_mot_num) < 10000) ||
-			(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 &&
-			abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
-			nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+		pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < max_dif02 && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > max_dif02 / 2) &&
+		abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && abs(pre_fld_motnum - glb_field_mot_num) < 10000) ||
+		(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
 #endif
 	if ((pPar->quit_th_en >> 7) & 0x1) //for CVBS_rollingpaper
 		pd22_diff12_chk = 1;

@@ -3360,6 +3360,7 @@ void bufq_sct_rest(struct di_ch_s *pch)
 {
 	struct buf_que_s *pbufq;
 	int i;
+	unsigned int post_nub, sct_nub;
 
 	if (!pch) {
 		PR_ERR("%s:\n", __func__);
@@ -3370,6 +3371,14 @@ void bufq_sct_rest(struct di_ch_s *pch)
 
 	for (i = 0; i < QBF_SCT_Q_NUB; i++)
 		qbufp_restq(pbufq, i);
+
+	post_nub = cfgg(POST_NUB);
+	if ((post_nub) && post_nub <= POST_BUF_NUM)
+		sct_nub = post_nub;
+	else
+		sct_nub = DIM_SCT_NUB;
+
+	pbufq->nub_buf = sct_nub;
 
 	/* all to idle */
 	qbuf_in_all(pbufq, QBF_SCT_Q_IDLE);
@@ -3872,6 +3881,13 @@ static const struct di_meson_data  data_s7d = {
 	.ic_id	= DI_IC_ID_S7D,
 };
 
+static const struct di_meson_data  data_t6d = {
+	.name = "dim_t6d",//t5w sub_v=1,t3 costdown
+	.ic_id	= DI_IC_ID_T6D,
+	.support = IC_SUPPORT_PRE_VPP_LINK |
+		IC_SUPPORT_POST_VPP_LINK
+};
+
 #endif
 
 /* #ifdef CONFIG_USE_OF */
@@ -3911,6 +3927,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_t3x,
 	}, {	.compatible = "amlogic, dim-s7d",
 		.data = &data_s7d,
+	}, {	.compatible = "amlogic, dim-t6d",
+		.data = &data_t6d,
 #endif
 	}, {}
 };
@@ -4008,7 +4026,7 @@ static int dim_probe(struct platform_device *pdev)
 	else
 		pdata->ic_sub_ver = DI_IC_REV_MAJOR;
 
-	pr_debug("name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
+	PR_INF("name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
 	       pdata->mdata->ic_id, pdata->ic_sub_ver);
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -4057,14 +4075,30 @@ static int dim_probe(struct platform_device *pdev)
 
 	//di_pr_info("%s allocate rdma channel %d.\n", __func__,
 	//	   di_devp->rdma_handle);
-	if (DIM_IS_IC(S7D))
+	if (is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
+	    DIM_IS_IC(T5D)	||
+	    is_meson_sm1_cpu()	||
+	    DIM_IS_IC_EF(SC2))
 		dimp_set(edi_mp_clock_low_ratio, 18000000);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
 		clk_prepare_enable(di_devp->vpu_clkb);
-		if (DIM_IS_IC(S7D)) {
+		if (is_meson_g12a_cpu()	||
+		    is_meson_g12b_cpu()	||
+		    is_meson_tl1_cpu()	||
+		    is_meson_tm2_cpu()	||
+		    DIM_IS_IC(T5)	||
+		    DIM_IS_IC(T5DB)	||
+		    DIM_IS_IC(T5D)	||
+		    is_meson_sm1_cpu()	||
+		    DIM_IS_IC_EF(SC2)) {
 			if (dimp_get(edi_mp_clock_low_ratio)) {
 				clk_set_rate(di_devp->vpu_clkb,
 					dimp_get(edi_mp_clock_low_ratio));
@@ -4306,9 +4340,17 @@ static void dim_shutdown(struct platform_device *pdev)
 {
 	struct di_dev_s *di_devp = NULL;
 	int i;
+	int time_left = 0;
 
+	struct di_task *tsk = get_task();
 	di_devp = platform_get_drvdata(pdev);
+	tsk->shut_down_flag = 1;
+	task_send_ready(34);
 
+	time_left = wait_for_completion_timeout(&tsk->task_done,
+						msecs_to_jiffies(500));
+	if (!time_left)
+		PR_ERR("shut down:wait timeout\n");
 	for (i = 0; i < DI_CHANNEL_NUB; i++)
 		set_init_flag(i, false);
 
@@ -4371,16 +4413,20 @@ static int di_freeze(struct device *dev)
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
 	/*set clkb to low ratio*/
-	if (DIM_IS_IC(T5)	||
-	   DIM_IS_IC(T5DB)	||
-	   DIM_IS_IC(T5D)	||
-	   DIM_IS_IC(T3)	||
-	   DIM_IS_IC(T3X)) {
+	if (is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
+	    DIM_IS_IC(T5D)	||
+	    is_meson_sm1_cpu()	||
+	    DIM_IS_IC_EF(SC2)) {
 #ifdef CLK_TREE_SUPPORT
 		if (dimp_get(edi_mp_clock_low_ratio)) {
 			clk_set_rate(di_devp->vpu_clkb,
 				dimp_get(edi_mp_clock_low_ratio));
-			}
+		}
 #endif
 	}
 
@@ -4474,7 +4520,6 @@ static int di_restore(struct device *dev)
 }
 
 /* must called after lcd */
-static unsigned int reg_rst[10];
 static int di_suspend(struct device *dev)
 {
 	struct di_dev_s *di_devp = NULL;
@@ -4486,35 +4531,25 @@ static int di_suspend(struct device *dev)
 	unsigned int sleep_count = 0;
 	struct di_ch_s *pch;
 
-	if (DIM_IS_ICS(T5W) || DIM_IS_IC(S7D)) {
-		reg_rst[0] = RD(DI_TOP_PRE_CTRL);
-		reg_rst[1] = RD(DI_TOP_POST_CTRL);
-		reg_rst[2] = RD(DI_ARB_CTRL);
-		reg_rst[3] = RD(DI_TOP_CTRL);
-		reg_rst[4] = RD(DI_ARB_AXIRD0_PROT);
-		reg_rst[5] = RD(DI_SUB_RDARB_UGT);
-		reg_rst[6] = RD(DI_SUB_ARB_DBG_CTRL);
-		reg_rst[7] = RD(DI_SUB_ARB_DBG_STAT);
-		reg_rst[8] = RD(DI_SUB_RDARB_LIMT0);
-		reg_rst[9] = RD(DI_SUB_WRARB_UGT);
-	}
-
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
 	/*set clkb to low ratio*/
-		if (DIM_IS_IC(T5)	||
-		   DIM_IS_IC(T5DB)	||
-		   DIM_IS_IC(T5D)	||
-		   DIM_IS_IC(T3)	||
-		   DIM_IS_IC(T3X)	||
-		   DIM_IS_IC(S7D)) {
+	if (is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
+	    DIM_IS_IC(T5D)	||
+	    is_meson_sm1_cpu()	||
+	    DIM_IS_IC_EF(SC2)) {
 	#ifdef CLK_TREE_SUPPORT
-			if (dimp_get(edi_mp_clock_low_ratio)) {
-				clk_set_rate(di_devp->vpu_clkb,
-					dimp_get(edi_mp_clock_low_ratio));
-			}
-	#endif
+		if (dimp_get(edi_mp_clock_low_ratio)) {
+			clk_set_rate(di_devp->vpu_clkb,
+				dimp_get(edi_mp_clock_low_ratio));
 		}
+	#endif
+	}
 
 	di_clear_for_suspend(di_devp);
 
@@ -4556,21 +4591,6 @@ static int di_resume(struct device *dev)
 		clk_set_rate(di_devp->vpu_clkb, dimp_get(edi_mp_clock_low_ratio));
 		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
 	}
-	if (DIM_IS_ICS(T5W) || DIM_IS_IC(S7D)) {
-		WR(DI_TOP_PRE_CTRL, reg_rst[0]);
-		WR(DI_TOP_POST_CTRL, reg_rst[1]);
-		WR(DI_ARB_CTRL, reg_rst[2]);
-		WR(DI_TOP_CTRL, reg_rst[3]);
-		WR(DI_ARB_AXIRD0_PROT, reg_rst[4]);
-		WR(DI_SUB_RDARB_UGT, reg_rst[5]);
-		WR(DI_SUB_ARB_DBG_CTRL, reg_rst[6]);
-		WR(DI_SUB_ARB_DBG_STAT, reg_rst[7]);
-		WR(DI_SUB_RDARB_LIMT0, reg_rst[8]);
-		WR(DI_SUB_WRARB_UGT, reg_rst[9]);
-	}
-
-	dimh_hw_init(dimp_get(edi_mp_pulldown_enable),
-		dimp_get(edi_mp_mcpre_en));
 
 	di_devp->flags &= ~DI_SUSPEND_FLAG;
 

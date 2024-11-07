@@ -316,10 +316,16 @@ int dim_tb_detect(struct vframe_tb_s *vf, int data1, unsigned int ch)
 		      CANVAS_ADDR_NOWRAP,
 		      CANVAS_BLKMODE_LINEAR);
 	op->bwr(NRDSWR_CTRL, di_tb_canvas, 0, 8);
-	if (DIM_IS_IC_EF(T7))
-		di_mif1_linear_wr_cfgds
-			(pcfg->di_detect_buf[pcfg->di_tb_buff_wptr].paddr,
-			 NRDSWR_STRIDE, NRDSWR_BADDR);
+	if (DIM_IS_IC_EF(T7)) {
+		if (DIM_IS_IC(T6D))
+			di_mif1_linear_wr_cfgds
+				(pcfg->di_detect_buf[pcfg->di_tb_buff_wptr].paddr,
+				T6D_NRDSWMIF_CTRL3, T6D_NRDSWMIF_CTRL4);
+		else
+			di_mif1_linear_wr_cfgds
+				(pcfg->di_detect_buf[pcfg->di_tb_buff_wptr].paddr,
+				NRDSWR_STRIDE, NRDSWR_BADDR);
+	}
 	//dim_nr_ds_hw_ctrl(true);
 	dbg_tb("%s:e:ch[%d]dump %x frames start\n", __func__, ch,
 		pcfg->di_tb_buff_wptr);
@@ -1221,19 +1227,25 @@ void dim_nr_ds_hw_init(unsigned int width, unsigned int height, unsigned int ch)
 	v_step = height / height_out;
 
 	/*Switch MIF to NR_DS*/
-	op->bwr(VIUB_MISC_CTRL0, 3, 5, 2);
+	if (!DIM_IS_IC(T6D)) {
+		op->bwr(VIUB_MISC_CTRL0, 3, 5, 2);
+		op->bwr(NRDSWR_X, (width_out - 1), 0, 13);
+		op->bwr(NRDSWR_Y, (height_out - 1), 0, 13);
+		op->bwr(NRDSWR_CAN_SIZE, (height_out - 1), 0, 13);
+		op->bwr(NRDSWR_CAN_SIZE, (width_out - 1), 16, 13);
+		/* little endian */
+		op->bwr(NRDSWR_CAN_SIZE, 1, 13, 1);
+	} else {
+		op->bwr(T6D_NRDSWMIF_SCOPE_X, (width_out - 1), 16, 13);
+		op->bwr(T6D_NRDSWMIF_SCOPE_Y, (height_out - 1), 16, 13);
+		op->wr(T6D_NRDSWMIF_CTRL1, 2 << 8 | // burst_len = 2
+				1 << 6 | // little endian
+				1 << 0);// pack mode 4bit -> 128
+	}
 	/* config dsbuf_ocol*/
 	op->bwr(NR_DS_BUF_SIZE_REG, width_out, 0, 8);
 	/* config dsbuf_orow*/
 	op->bwr(NR_DS_BUF_SIZE_REG, height_out, 8, 8);
-
-	op->bwr(NRDSWR_X, (width_out - 1), 0, 13);
-	op->bwr(NRDSWR_Y, (height_out - 1), 0, 13);
-
-	op->bwr(NRDSWR_CAN_SIZE, (height_out - 1), 0, 13);
-	op->bwr(NRDSWR_CAN_SIZE, (width_out - 1), 16, 13);
-	/* little endian */
-	op->bwr(NRDSWR_CAN_SIZE, 1, 13, 1);
 
 	op->bwr(NR_DS_CTRL, v_step, 16, 6);
 	op->bwr(NR_DS_CTRL, h_step, 24, 6);

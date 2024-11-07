@@ -49,6 +49,7 @@ enum EAFBC_REG {
 };
 
 #define DIM_AFBCE_NUB	(46)//for sc2 add 5 register (39),T3X add 2(44)
+#define DIM_NT3X_AFBCE_NUB	(44)//for sc2 add 5 register (39),T3X add 2(44)
 #define DIM_AFBCE_UP_NUB	(21)
 
 /* afbce bytes index */

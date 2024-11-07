@@ -23,8 +23,6 @@
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 
-#include "di_data_l.h"
-
 #define CRC_COUNT_NUB		(20)
 #define CRC_NUB		(3)
 

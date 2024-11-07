@@ -91,15 +91,16 @@
 
 #define USED_LOCAL_BUF_MAX			3
 #define BYPASS_GET_MAX_BUF_NUM			9//4
+#define MAX_CRC_COUNT_NUM			(10)
 
 /* buffer management related */
 #define MAX_IN_BUF_NUM				(15)	/*change 4 to 8*/
 #define MAX_LOCAL_BUF_NUM			(5)//(7)
 #define MAX_LOCAL_BUF_NUM_REAL			(MAX_LOCAL_BUF_NUM << 1)
 //#define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
-#define POST_BUF_NUM				(20)
+#define POST_BUF_NUM				(25)
 #define MAX_POST_BUF_NUM			(POST_BUF_NUM + 3)//(11)	/*(5)*/ /* 16 */
-#define POST_BUF_NUM_DEF			(11)	//test only (POST_BUF_NUM)//
+#define POST_BUF_NUM_DEF			(21)	//test only (POST_BUF_NUM)//
 #define VFRAME_TYPE_IN				1
 #define VFRAME_TYPE_LOCAL			2
 #define VFRAME_TYPE_POST			3
@@ -371,8 +372,8 @@ struct di_buf_s {
 	unsigned int en_hf	: 1; //only flg post buffer
 	unsigned int hf_done	: 1; //
 	unsigned int is_plink : 1;
-
-	unsigned int rev2	: 16;
+	unsigned int rot	: 2; //2024-06-4
+	unsigned int rev2	: 14;
 	struct dsub_bufv_s	c;
 	unsigned int datacrc;
 	unsigned int nrcrc;
@@ -517,6 +518,9 @@ struct di_dev_s {
 	struct vpu_dev_s *dim_vpu_pd_post;
 	bool is_crc_ic;
 	unsigned int sub_v;
+	unsigned int di_pre_nrcrc[MAX_CRC_COUNT_NUM];
+	unsigned int getcrccount;
+	unsigned int setcrccount;
 #ifdef DIM_TB_DETECT
 	//unsigned int tb_detect;
 	unsigned int tb_detect_period;
@@ -788,6 +792,7 @@ void dim_rdma_exit(void);
 void dim_set_di_flag(void);
 void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev);
 unsigned int dim_get_vpu_clk_ext(void);
+void dim_set_vpu_clk_ext(unsigned long clkrate);
 bool dim_pre_link_state(void);
 bool dim_post_link_state(void);
 bool dim_get_vfm_info(struct afbcd_info *vfm_info);
@@ -876,6 +881,7 @@ extern unsigned int dbg_first_cnt_pre;
 extern spinlock_t plist_lock;
 extern spinlock_t lock_pvpp;
 extern unsigned int pldn_dly;
+extern bool di_reverse;
 
 void dim_dbg_pre_cnt(unsigned int channel, char *item);
 
@@ -957,6 +963,7 @@ struct di_buf_s *dim_get_buf(unsigned int channel,
 /*#define DI_DEBUG_POST_BUF_FLOW	(1)*/
 #define OPS_LV1		(1)
 //#define TEST_DISABLE_BYPASS_P	(1)
+//#define T6D_AFBC_TEST	(1)
 
 void sc2_dbg_set(unsigned int val);
 bool sc2_dbg_is_en_pre_irq(void);

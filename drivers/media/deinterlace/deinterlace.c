@@ -787,7 +787,7 @@ static int di_read_canvas_reverse(char *str)
 		overturn = false;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("video_reverse=", di_read_canvas_reverse);
 
@@ -3283,9 +3283,7 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 		di_mtnwr_mif->canvas_num = di_buf->mtn_canvas_idx;
 	}
 }
-
 static bool force_prog = true;
-
 module_param_named(force_prog, force_prog, bool, 0664);
 static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 {
@@ -9126,7 +9124,7 @@ int __init di_module_init(void)
 		goto fail_alloc_cdev_region;
 	}
 	di_pr_info("%s: major %d\n", __func__, MAJOR(di_devno));
-	di_clsp = class_create(CLASS_NAME);
+	di_clsp = class_create(THIS_MODULE, CLASS_NAME);
 	if (IS_ERR(di_clsp)) {
 		ret = PTR_ERR(di_clsp);
 		pr_err("%s: failed to create class\n", __func__);

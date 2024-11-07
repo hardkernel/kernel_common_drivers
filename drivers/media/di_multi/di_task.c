@@ -227,15 +227,16 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 
 	/*unreg->reg->release buf to di: the buf will not free until get new vf.
 	 *so FCC switch channel, the other two channel not work but also has di buffer.
-	 *We need free the buffer when EDI_TOP_STATE_REG_STEP1 (reg but no vf)
+	 *We need free the buffer when EDI_TOP_STATE_REG_STEP1 (reg but no vf).
+	 *di_backend also need di free release buf, so di_backend will set sts_keep to 1.
 	 */
 	mm = dim_mm_get(ch);
 	if (top_sts != EDI_TOP_STATE_IDLE &&
 	    top_sts != EDI_TOP_STATE_READY &&
 	    top_sts != EDI_TOP_STATE_BYPASS &&
 	    top_sts != EDI_TOP_STATE_PSTVPP_LINK &&
-	    (top_sts != EDI_TOP_STATE_REG_STEP1 || !mm->fcc_value ||
-	     !pch->sts_keep))
+	    !(top_sts == EDI_TOP_STATE_REG_STEP1 && mm->fcc_value) &&
+	    !(top_sts == EDI_TOP_STATE_REG_STEP1 && pch->sts_keep))
 		return;
 
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
@@ -325,6 +326,8 @@ restart:
 		if (try_to_freeze())
 			goto restart;
 
+		if (tsk->shut_down_flag)
+			break;
 		if (down_interruptible(&tsk->sem))
 			break;
 
@@ -345,6 +348,7 @@ restart:
 		task_self_trig();
 	}
 
+	complete(&tsk->task_done);
 	tsk->thread = NULL;
 	if (kthread_should_stop())
 		tsk->exit = 1;
@@ -428,6 +432,7 @@ int task_start(void)
 		PR_ERR("%s:can't get kfifo\n", __func__);
 		return -1;
 	}
+	init_completion(&tsk->task_done);
 	tsk->flg_cmd = true;
 
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {
@@ -680,9 +685,9 @@ bool mtsk_release_block(unsigned int ch, unsigned int cmd)
 	mtask_send_cmd(ch, &blk_cmd);
 	fcmd = &tsk->fcmd[ch];
 	cnt = 0;
-	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 200)) {
+	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 500)) {
 		/*wait 2s for finish*/
-		usleep_range(10000, 10001);
+		usleep_range(4000, 4001);
 		cnt++;
 	}
 	if (atomic_read(&fcmd->doing) > 0) {

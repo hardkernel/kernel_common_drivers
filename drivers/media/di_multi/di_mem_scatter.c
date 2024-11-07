@@ -421,6 +421,8 @@ void sct_sw_on(struct di_ch_s *pch,
 		PR_WARN("%s:box is exist\n", __func__);
 		return;
 	}
+
+	bufq_sct_rest(pch);
 	/*int*/
 	memset(&psct->sum, 0, sizeof(psct->sum));
 

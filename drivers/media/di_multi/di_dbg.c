@@ -454,13 +454,13 @@ void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
 	case EDBG_TIMER_REG_E:
 		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_REG_E] -
 			pch->dbg_data.ms_dbg[EDBG_TIMER_REG_B];
-		dbg_ev("reg:use[%llu]ms\n", udiff);
+		dbg_reg("reg:use[%llu]ms\n", udiff);
 		break;
 	case EDBG_TIMER_UNREG_E:
 
 		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E] -
 			pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B];
-		dbg_ev("unreg:use[%llu]ms\n", udiff);
+		dbg_reg("unreg:use[%llu]ms\n", udiff);
 		//dbg_ev("\tb[%llu]:e[%llu]\n",
 		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B],
 		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E]);
@@ -468,12 +468,12 @@ void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
 	case EDBG_TIMER_SEC_PRE_E:
 		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PRE_E] -
 			pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PRE_B];
-		dbg_ev("pre_sec:use[%llu]ms\n", udiff);
+		dbg_reg("pre_sec:use[%llu]ms\n", udiff);
 		break;
 	case EDBG_TIMER_SEC_PST_E:
 		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PST_E] -
 			pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PST_B];
-		dbg_ev("pst_sec:use[%llu]ms\n", udiff);
+		dbg_reg("pst_sec:use[%llu]ms\n", udiff);
 		break;
 	default:
 		break;
@@ -2549,7 +2549,7 @@ const struct di_dbg_func_s di_func_tab[] = {
 		"trig task", "no para"},
 	{EDI_DBG_F_02, dpre_dbg_f_trig,
 		"trig pre flow debug", "bit[4]:ddebug on/off;bi[3:0]:cnt"},
-	{EDI_DBG_F_03, dpst_dbg_f_trig,
+	{EDI_DBG_F_03, dbg_f_trig_task,
 		"trig post flow debug", "bit[4]:ddebug on/off;bi[3:0]:cnt"},
 	{EDI_DBG_F_04, hpst_dbg_power_ctr_trig,
 		"trig post power", "1: on; 0: off"},

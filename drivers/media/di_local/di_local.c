@@ -355,6 +355,13 @@ unsigned int dim_get_vpuclkb_ext(void)
 }
 EXPORT_SYMBOL(dim_get_vpuclkb_ext);
 
+void dim_set_vpuclkb_ext(unsigned long clkrate)
+{
+	if (dil_api && dil_api->set_vpu_clkb_ext)
+		return dil_api->set_vpu_clkb_ext(clkrate);
+}
+EXPORT_SYMBOL(dim_set_vpuclkb_ext);
+
 bool dim_get_pre_link(void)
 {
 	if (dil_api && dil_api->is_pre_link)

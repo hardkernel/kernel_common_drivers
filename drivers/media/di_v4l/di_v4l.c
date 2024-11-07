@@ -130,7 +130,7 @@ static void codec_dma_flush(char *buf_start, u32 buf_size)
 			   DMA_FROM_DEVICE);
 }
 
-uint32_t empty_input_done(struct di_buffer *buf)
+enum DI_ERRORTYPE empty_input_done(struct di_buffer *buf)
 {
 	struct di_v4l_dev *dev = NULL;
 	unsigned int tmp;
@@ -174,12 +174,11 @@ uint32_t empty_input_done(struct di_buffer *buf)
 	return 0;
 }
 
+#ifdef KERNEL_DUMP
 static void dump_yuv_data(struct di_v4l_dev *dev,
 			  struct vframe_s *vf, u32 index)
 {
-#ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
 	struct file *fp;
-	mm_segment_t fs;
 	char name_buf[DUMP_NAME_SIZE];
 	u32 write_size;
 	u32 phy_addr_y;
@@ -215,8 +214,6 @@ static void dump_yuv_data(struct di_v4l_dev *dev,
 	snprintf(name_buf, DUMP_NAME_SIZE, "/data/tmp/diout%d-%d-%d.raw",
 		 vf->width, vf->height, index);
 
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 	fp = filp_open(name_buf, O_WRONLY | O_CREAT, 0666);
 	if (IS_ERR(fp)) {
 		di_v4l_print(dev->index, PRINT_ERROR,
@@ -229,11 +226,10 @@ static void dump_yuv_data(struct di_v4l_dev *dev,
 		unmap_virt_from_phys(buffer_start);
 		filp_close(fp, NULL);
 	}
-	set_fs(fs);
-#endif
 }
+#endif
 
-uint32_t fill_output_done(struct di_buffer *buf)
+enum DI_ERRORTYPE fill_output_done(struct di_buffer *buf)
 {
 	struct di_v4l_dev *dev = NULL;
 
@@ -270,10 +266,10 @@ uint32_t fill_output_done(struct di_buffer *buf)
 
 	di_v4l_print(dev->index, PRINT_OTHER,
 		  "%s: index=%d\n", __func__, buf->vf->frame_index);
-
+#ifdef KERNEL_DUMP
 	if (dump_out)
 		dump_yuv_data(dev, buf->vf, dev->fill_done_count);
-
+#endif
 	if (!kfifo_put(&dev->di_output_di_q, buf))
 		di_v4l_print(dev->index, PRINT_ERROR, "%s:putfail\n", __func__);
 	return 0;
@@ -536,12 +532,12 @@ static ssize_t di_v4l_write(struct file *file, const char *buf,
 		}
 		dev->fill_frame_count++;
 		di_v4l_print(dev->index, PRINT_INFO,
-		"di_v4l_write__2\n");
+			"di_v4l_write__2\n");
 	}
 
 	if (dev->fill_frame_count == 3) {
 		while (1) {
-			if (dev->fill_frame_count > 7)
+			if (dev->fill_frame_count > 6)
 				break;
 			di_v4l_print(dev->index, PRINT_INFO,
 				"di_v4l_writecrc__5 start\n");
@@ -552,9 +548,11 @@ static ssize_t di_v4l_write(struct file *file, const char *buf,
 				//di_bufcrc->private_data = NULL;
 				di_bufcrc->flag = di_buf->flag;
 				di_bufcrc->vf = pvfcrc;
+#ifdef KERNEL_DUMP
 				if (dump_out)
 					dump_yuv_data(dev, di_bufcrc->vf,
 						      dev->fill_frame_count);
+#endif
 				ret = di_empty_input_buffer
 					(dev->di_index, di_bufcrc);
 				if (ret != 0)
@@ -571,7 +569,6 @@ static ssize_t di_v4l_write(struct file *file, const char *buf,
 			} else {
 				di_v4l_print(dev->index, PRINT_INFO,
 					"output_di_q\n");
-				//usleep(1000 * 5);
 			}
 		}
 	}
@@ -591,7 +588,7 @@ static long di_v4l_ioctl(struct file *file,
 			struct di_buffer *di_buf = NULL;
 
 			if (crc_info->done_flag[dev->fill_crc_count] &&
-			    dev->fill_frame_count > 7) {
+			    dev->fill_frame_count > 6) {
 				di_v4l_print(dev->index, PRINT_INFO,
 					"get crc ok\n");
 				put_user(crc_info->crcdata[dev->fill_crc_count],
@@ -649,16 +646,15 @@ static const struct file_operations di_v4l_fops = {
 	.poll = NULL,
 };
 
-static ssize_t print_flag_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t print_flag_show(struct class *class,
+				     struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", print_flag);
 }
 
-static ssize_t print_flag_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t print_flag_store(struct class *class,
+				      struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -672,16 +668,15 @@ static ssize_t print_flag_store(const struct class *class,
 	return count;
 }
 
-static ssize_t dump_out_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dump_out_show(struct class *class,
+				     struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", dump_out);
 }
 
-static ssize_t dump_out_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t dump_out_store(struct class *class,
+				      struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;

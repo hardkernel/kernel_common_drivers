@@ -37,6 +37,65 @@
 #include "nr_downscale.h"
 #include "register.h"
 
+void dim_vfm_2_vinfo(struct di_vinfo_s *vt, struct vframe_s *ori_vframe)
+{
+	if (!vt || !ori_vframe) {
+		PR_ERR("%s:no input\n", __func__);
+		return;
+	}
+	vt->vtype = ori_vframe->type;
+	vt->src_type = ori_vframe->source_type;
+	vt->trans_fmt = ori_vframe->trans_fmt;
+
+	if (COM_ME(ori_vframe->type, VIDTYPE_COMPRESS)) {
+		vt->h = ori_vframe->compWidth;
+		vt->v = ori_vframe->compHeight;
+	} else {
+		vt->h = ori_vframe->width;
+		vt->v = ori_vframe->height;
+	}
+}
+
+/****************************************
+ * compare current vframe info with last
+ * return
+ *	0. no change
+ *	1. video format change
+ *	2. scan mode change?
+ ****************************************/
+unsigned int dim_is_vinfo_chg(struct di_vinfo_s *v1, /* new*/
+							  struct di_vinfo_s *v2,
+							  bool prt_en)
+{
+	unsigned int ret = 0;
+
+	if (v1->src_type != v2->src_type			||
+	    !COM_M(DI_VFM_T_MASK_CHANGE, v1->vtype, v2->vtype)	||
+	    v1->v != v2->v					||
+	    v1->h != v2->h					||
+	    v1->trans_fmt != v2->trans_fmt) {
+		/* video format changed */
+		ret = 1;
+	} else if (!COM_M(VIDTYPE_VIU_FIELD, v1->vtype, v2->vtype))
+		/* just scan mode changed */
+		ret = 2;
+
+	if (ret && prt_en) {
+		PR_INF("%s:0x%x:%d x %d:%d > 0x%x:%d x %d:%d\n",
+			  "v chg",
+			  v2->vtype,
+			  v2->h,
+			  v2->v,
+			  v2->src_type,
+			  v1->vtype,
+			  v1->h,
+			  v1->v,
+			  v1->src_type);
+	}
+
+	return ret;
+}
+
 /****************************************
  * 1. copy curr to last
  * 2. set curr
@@ -214,7 +273,8 @@ enum EDI_SUB_ID pw_ch_next_count(enum EDI_SUB_ID channel)
 
 		if (get_reg_flag(lch)		&&
 		    !get_flag_trig_unreg(lch)	&&
-		    !is_bypss2_complete(lch)) {
+		    !is_bypss2_complete(lch) &&
+		    !dim_is_pre_disable(lch)) {
 			nch = lch;
 			break;
 		}
@@ -234,7 +294,8 @@ static bool pw_try_sw_ch_next_pre(enum EDI_SUB_ID channel)
 	nch = pw_ch_next_count(lst_ch);
 	if (!get_reg_flag(nch)		||
 	    get_flag_trig_unreg(nch)	||
-	    is_bypss2_complete(nch))
+	    is_bypss2_complete(nch) ||
+	    dim_is_pre_disable(nch))
 		return false;
 
 	pre->curr_ch = nch;

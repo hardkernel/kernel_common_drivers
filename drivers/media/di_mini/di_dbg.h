@@ -42,7 +42,7 @@ void ddbg_reg_save(unsigned int addr, unsigned int val,
 void dim_ddbg_mod_save(unsigned int mod,
 		       unsigned int ch,
 		       unsigned int cnt);
-void ddbg_sw(unsigned int mode, bool on);
+void ddbg_sw(enum EDI_LOG_TYPE mode, bool on);
 
 /********************************
  *time:

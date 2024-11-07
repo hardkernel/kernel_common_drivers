@@ -49,6 +49,7 @@ static const struct di_ext_ops di_ext = {
 	.pvpp_link_sw	= dpvpp_sw,
 	.pvpp_get_ins_id	= dpvpp_get_ins_id,
 	.get_vpu_clkb_ext	= dim_get_vpu_clk_ext,
+	.set_vpu_clkb_ext	= dim_set_vpu_clk_ext,
 	.is_pre_link		= dim_pre_link_state,
 	.is_post_link		= dim_post_link_state,
 	.set_buffer_num		= set_buffer_num,

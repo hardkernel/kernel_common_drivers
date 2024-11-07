@@ -963,6 +963,8 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 				edi_mp_prelink_hold_line, 8},
 	[edi_mp_force_422_8bit]	= {"force_422_8bit:8",
 				edi_mp_force_422_8bit, -1},
+	[edi_mp_mtnskip] = {"mtnskip:uint:0",
+			edi_mp_mtnskip, 0},
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/
@@ -1479,14 +1481,15 @@ void dim_sumx_set(struct di_ch_s *pch)
 	    psumx->b_in_free >= 2) {
 		if (psumx->need_local && psumx->b_pre_free)
 			bset(&pch->self_trig_need, 0);
-		else if (!psumx->need_local)
-			bset(&pch->self_trig_need, 0);
+		else if (psumx->need_local && !psumx->b_pre_free)
+			bclr(&pch->self_trig_need, 0);
 		else
 			bclr(&pch->self_trig_need, 0);
 	} else {
 		bclr(&pch->self_trig_need, 0);
 	}
-
+	if (di_is_pause(ch))
+		bclr(&pch->self_trig_need, 0);
 	if (pch->dbg_self_trig_need != pch->self_trig_need) {//debug only
 		dbg_tsk("trig_need:ch[%d],0x%x->0x%x:<%d,%d,%d><%d,%d>\n",
 			ch, pch->dbg_self_trig_need, pch->self_trig_need,
@@ -1707,6 +1710,7 @@ void dip_chst_process_ch(void)
 		case EDI_TOP_STATE_READY:
 			dip_itf_vf_op_polling(pch);
 			s4dw_parser_infor(pch);
+			rt_parser_infor(pch);
 			dip_itf_back_input(pch);
 //ary 2020-12-09			spin_lock_irqsave(&plist_lock, flags);
 			dim_post_keep_back_recycle(pch);
@@ -1882,6 +1886,7 @@ bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	struct di_mng_s *pbm = get_bufmng();
 	bool ret = false;
 	unsigned int cnt;
+	struct di_task *tsk = get_task();
 
 	if (!pch) {
 		//PR_ERR("%s:no pch\n", __func__);
@@ -1899,7 +1904,7 @@ bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	task_send_ready(6);
 
 	cnt = 0; /* 500us x 10 = 5ms */
-	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 10) {
+	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 10 && !tsk->shut_down_flag) {
 		usleep_range(500, 501);
 		cnt++;
 	}
@@ -1907,7 +1912,7 @@ bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	task_send_ready(7);
 
 	cnt = 0; /* 3ms x 2000 = 6s */
-	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 2000) {
+	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 2000  && !tsk->shut_down_flag) {
 		usleep_range(3000, 3001);
 		cnt++;
 	}
@@ -2029,9 +2034,11 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
+			if (get_datal()->dct_op)
+				get_datal()->dct_op->unreg_all();
 			di_unreg_setting(false);
 			dpre_init();
-			dpost_init();
+			dpost_unreg(ch);
 		}
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		ret = true;
@@ -2047,9 +2054,11 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {	//??
 			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
+			if (get_datal()->dct_op)
+				get_datal()->dct_op->unreg_all();
 			di_unreg_setting(false);
 			dpre_init();
-			dpost_init();
+			dpost_unreg(ch);
 		}
 		dbg_mem2("%s:link to idle\n", __func__);
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
@@ -2088,9 +2097,11 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg2,step2:\n", ch);
+			if (get_datal()->dct_op)
+				get_datal()->dct_op->unreg_all();
 			di_unreg_setting(false);
 			dpre_init();
-			dpost_init();
+			dpost_unreg(ch);
 		}
 		dbg_dbg("%s:in reg step2\n", __func__);
 		set_reg_flag(ch, false);
@@ -2130,9 +2141,11 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg3,step2:\n", ch);
+			if (get_datal()->dct_op)
+				get_datal()->dct_op->unreg_all();
 			di_unreg_setting(false);
 			dpre_init();
-			dpost_init();
+			dpost_unreg(ch);
 		}
 
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
@@ -2169,13 +2182,14 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 	bool i_ret = false;
 //	struct di_mng_s *pbm = get_bufmng();
 //	ulong flags = 0;
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	while (reflesh) {
 		reflesh = false;
 
 	chst = dip_chst_get(ch);
 
-	//dbg_reg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));
+	//dbg_dbg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));
 
 	switch (chst) {
 	case EDI_TOP_STATE_NOPROB:
@@ -2184,6 +2198,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 	case EDI_TOP_STATE_REG_STEP1:/*wait peek*/
 		dip_itf_vf_op_polling(pch);
 		s4dw_parser_infor(pch);
+		rt_parser_infor(pch);
 		vframe = nins_peekvfm(pch);
 
 		if (vframe) {
@@ -2221,7 +2236,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 				if (!get_reg_flag_all()) {
 					/*first channel reg*/
 					dpre_init();
-					dpost_init();
+					dpost_init(ch);
 					//get_dim_de_devp()->nrds_enable = 0;
 					//nrds cause pre-vpp link crash
 					di_reg_setting(ch, vframe);
@@ -2238,11 +2253,13 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		}
 		if (pch->itf.flg_s4dw && pch->s4dw)
 			pch->s4dw->reg_variable(pch, vframe);
+		else if (pch->itf.flg_rotation)
+			rt_reg_variable(pch, vframe);
 		else
 			di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
 		set_reg_setting(ch, true);
-
+		dpost_init(ch);
 		/*?how  about bypass ?*/
 		if (ppre->bypass_flag) {
 			/* complete bypass */
@@ -2250,7 +2267,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			if (!get_reg_flag_all()) {
 				/*first channel reg*/
 				dpre_init();
-				dpost_init();
+				//dpost_init(ch);
 				di_reg_setting(ch, vframe);
 				get_datal()->pre_vpp_set = false;
 			}
@@ -2261,10 +2278,29 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			if (!get_reg_flag_all()) {
 				/*first channel reg*/
 				dpre_init();
-				dpost_init();
+				//dpost_init(ch);
 				di_reg_setting(ch, vframe);
 				get_datal()->pre_vpp_set = false;
 				di_reg_setting_working(pch, vframe);
+			}
+			if (is_meson_g12a_cpu()	||
+			    is_meson_g12b_cpu()	||
+			    is_meson_tl1_cpu()	||
+			    is_meson_tm2_cpu()	||
+			    DIM_IS_IC(T5)	||
+			    DIM_IS_IC(T5DB)	||
+			    DIM_IS_IC(T5D)	||
+			    is_meson_sm1_cpu()	||
+			    DIM_IS_IC_EF(SC2)) {
+				#ifdef CLK_TREE_SUPPORT
+				if (clk_get_rate(de_devp->vpu_clkb) != de_devp->clkb_max_rate) {
+					PR_INF("%s: change vpu clkb from %ld ->%ld.\n",
+						__func__,
+						clk_get_rate(de_devp->vpu_clkb),
+						de_devp->clkb_max_rate);
+					clk_set_rate(de_devp->vpu_clkb, de_devp->clkb_max_rate);
+				}
+				#endif
 			}
 			/*this will cause first local buf not alloc*/
 			/*dim_bypass_first_frame(ch);*/
@@ -2706,9 +2742,19 @@ void do_table_cmd(struct do_table_s *pdo, enum EDO_TABLE_CMD cmd)
 	}
 }
 
-bool do_table_is_crr(struct do_table_s *pdo, unsigned int state)
+bool do_table_is_crr(const struct do_table_s *pdo, unsigned int state)
 {
 	if (pdo->op_crr == state)
+		return true;
+	return false;
+}
+
+bool do_table_is_wait(struct do_table_s *pdo)
+{
+	const struct do_table_ops_s *pcrr;
+
+	pcrr = pdo->ptab + pdo->op_crr;
+	if (pcrr->mark & K_DO_TABLE_IS_WAIT)
 		return true;
 	return false;
 }
@@ -3809,7 +3855,6 @@ struct dim_nins_s *nins_peek_pre(struct di_ch_s *pch)
 	if (!ret || !q_buf.qbc)
 		return NULL;
 	ins = (struct dim_nins_s *)q_buf.qbc;
-
 	return ins;
 }
 
@@ -3970,6 +4015,8 @@ struct dim_nins_s *nins_dct_get_bypass(struct di_ch_s *pch)
 	qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
 	ATRACE_COUNTER("dim_dct", 0);
 	//qbuf_dbg_checkid(pbufq, 2);
+	if (ret)
+		task_send_ready(33);
 
 	return ins;
 }
@@ -5221,8 +5268,10 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	struct dim_ndis_s *dis;
 	struct di_buffer *buffer;
 
+	dbg_post_ref("%s [0x%x]\n", __func__, di_buf->datacrc);
 	//dis = ndisq_peek(pch, QBF_NDIS_Q_IDLE);
 	dis = ndis_move(pch, QBF_NDIS_Q_IDLE, QBF_NDIS_Q_USED);
+	dbg_post_ref("%s [0x%x]\n", __func__, di_buf->datacrc);
 	if (!dis) {
 		PR_ERR("%s:no idle\n", __func__);
 		return false;
@@ -5316,6 +5365,7 @@ bool ndis_fill_ready(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	struct dim_itf_s *itf;
 	struct dev_vfm_s *pvfmc;
 
+	dbg_post_ref("%s [0x%x]\n", __func__, di_buf->datacrc);
 	ret = ndis_fill_ready_bypass(pch, di_buf);
 
 	if (!ret)
@@ -5610,7 +5660,9 @@ void dip_init_pq_ops(void)
 
 	/* hw l1 ops*/
 	if (IS_IC_EF(ic_id, SC2)) {
-		if (DIM_IS_IC(T3X))
+		if (DIM_IS_IC(T6D))
+			get_datal()->hop_l1 = &dim_ops_l1_v6_t6d;
+		else if (DIM_IS_IC(T3X))
 			get_datal()->hop_l1 = &dim_ops_l1_v5;
 		else if (IS_IC_EF(ic_id, T7))
 			get_datal()->hop_l1 = &dim_ops_l1_v4;
@@ -5692,6 +5744,11 @@ unsigned int dim_get_post_num(void)
 	return dim_post_num;
 }
 
+void dim_set_postnum(unsigned int num)
+{
+	dim_post_num = num;
+}
+
 void dim_set_post_num(struct di_ch_s *pch, unsigned int data)
 {
 	if (data)
@@ -5707,7 +5764,6 @@ void dim_slt_init(void)
 	dimp_set(edi_mp_pq_load_dbg, 1);
 	cfgs(KEEP_CLEAR_AUTO, 2);
 
-	di_decontour_disable(true);
 	PR_INF("%s:\n", __func__);
 }
 
@@ -5789,7 +5845,7 @@ bool di_hf_t_try_alloc(struct di_ch_s *pch)
 
 	get_datal()->hf_busy = true;
 	get_datal()->hf_owner = pch->ch_id;
-	PR_INF("hf:a:ch[%d]:alloc:ok\n", pch->ch_id);
+	dbg_reg("hf:a:ch[%d]:alloc:ok\n", pch->ch_id);
 	return true;
 }
 
@@ -5810,7 +5866,7 @@ void di_hf_t_release(struct di_ch_s *pch)
 		get_datal()->hf_src_cnt--;
 		pch->en_hf_buf = false;
 	}
-	PR_INF("hf:r:ch[%d]:cnt[%d]\n",
+	dbg_reg("hf:r:ch[%d]:cnt[%d]\n",
 		pch->ch_id,
 		get_datal()->hf_src_cnt);
 }
@@ -6053,6 +6109,7 @@ bool vf_2_subvf(struct dsub_vf_s *vfms, struct vframe_s *vfm)
 	vfms->fmt		= vfm->src_fmt.fmt;
 	vfms->sei_magic_code		= vfm->src_fmt.sei_magic_code;
 	vfms->duration		= vfm->duration;
+	vfms->fgs_valid		= vfm->fgs_valid;
 	return true;
 }
 
@@ -6088,6 +6145,7 @@ bool vf_from_subvf(struct vframe_s *vfm, struct dsub_vf_s *vfms)
 	vfm->src_fmt.fmt		= vfms->fmt;
 	vfm->src_fmt.sei_magic_code		= vfms->sei_magic_code;
 	vfm->duration = vfms->duration;
+	vfm->fgs_valid = vfms->fgs_valid;
 	return true;
 }
 
@@ -6554,7 +6612,8 @@ bool dip_prob(void)
 	dip_chst_init();
 
 	dpre_init();
-	dpost_init();
+//	dpost_init();
+	dim_p_pst_prob();
 
 	//dip_init_pq_ops();
 	/*dim_polic_prob();*/
@@ -6592,6 +6651,12 @@ void dip_exit(void)
 	#endif
 }
 
+void dip_prob_sct(struct di_ch_s *pch)
+{
+	bufq_sct_int(pch);
+	sct_prob(pch);
+}
+
 void dip_prob_ch(void)
 {
 	unsigned int ch;
@@ -6599,8 +6664,7 @@ void dip_prob_ch(void)
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		pch = get_chdata(ch);
-		bufq_sct_int(pch);
-		sct_prob(pch);
+		dip_prob_sct(pch);
 
 		/**/
 		bufq_nin_int(pch);
@@ -6862,7 +6926,7 @@ void di_q_unreg(struct di_ch_s *pch)
 	/* mem */
 	cnt = kfifo_len(&pch->fifo32[EDIM_QID_LMEM]);
 	if (cnt) {
-		PR_WARN("%s:mem nub:%d\n", __func__, cnt);
+		dbg_reg("%s:mem nub:%d\n", __func__, cnt);
 		kfifo_reset(&pch->fifo32[EDIM_QID_LMEM]);
 	}
 }
