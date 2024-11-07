@@ -62,7 +62,6 @@ obj-$(CONFIG_AMLOGIC_MEDIA_ALGORITHM)	+= algorithm/
 obj-y        				+= dvb/
 obj-$(CONFIG_AMLOGIC_DRM)		+= drm/
 obj-$(CONFIG_AMLOGIC_LED)		+= led/
-obj-y              			+= firmware/
 obj-$(CONFIG_AMLOGIC_SOC_TIMESTAMP)	+= timestamp/
 obj-$(CONFIG_AMLOGIC_SECKEY)		+= seckey/
 obj-$(CONFIG_AMLOGIC_USBCAM)		+= dvb_usbci/

@@ -407,7 +407,7 @@
 		memory-region = <&dsp_fw_reserved>;
 		reg-names = "base-reg",
 			    "health-reg",
-			    "dspsupport-reg",
+			    "device-support-reg",
 			    "shm-region",
 			    "ddrfw-region";
 		reg = <0xfe340018 0x114>, /*host base address*/
@@ -417,7 +417,18 @@
 		      <0x0 0x800000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA>;
 		clock-names = "dspa_clk";
-		pm-support = <1>; /*host support suspend/resume*/
+		/* bit0: pm_support_suspend
+		 * bit1: pm_support_always_on
+		 * bit2: pm_support_pwrctrl
+		 * bit3: pm_support_ffv
+		 */
+		pm-support = /bits/ 8 <0x2>;
+		/* host dsp support bit
+		 * efuse reg OTP_LIC23 bit[24]
+		 * 1: disable
+		 * 0: enable
+		 */
+		dsp-support-bit = <0x1000000>;
 		power-domains = <&pwrdm PDID_T3_DSPA>;
 		power-domain-names = "dspa";
 		mboxes = <&mbox_fifo T3_REE2DSPA_DSP>;
