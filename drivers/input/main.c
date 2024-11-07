@@ -11,6 +11,7 @@
 static int __init input_main_init(void)
 {
 	pr_debug("### %s() start\n", __func__);
+	call_sub_init(amlogic_watchkey_driver_init);
 	call_sub_init(meson_gpio_kp_init);
 	call_sub_init(meson_adc_kp_init);
 	call_sub_init(meson_ir_driver_init);
@@ -27,6 +28,7 @@ static void __exit input_main_exit(void)
 	meson_gpio_kp_exit();
 	meson_pmic6b_pwrkey_exit();
 	csk05_ts_exit();
+	amlogic_watchkey_driver_exit();
 }
 
 module_init(input_main_init);

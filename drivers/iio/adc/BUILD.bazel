@@ -44,5 +44,6 @@ ddk_module(
     visibility = ["//visibility:public"],
     deps = [
         "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+	"//common_drivers/drivers/input:amlogic-input",
     ],
 )

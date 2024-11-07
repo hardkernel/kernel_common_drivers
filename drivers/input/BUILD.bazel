@@ -33,6 +33,12 @@ ddk_module(
         "CONFIG_AMLOGIC_CKS05_TOUCH_KEYPADS": {
             True: ["keyboard/csk05_ts_5button.c"],
         },
+        "CONFIG_AMLOGIC_WATCHKEY": {
+            True: [
+                "watchkey/watch-key-core.c",
+                "watchkey/watch-key-of.c",
+            ],
+        },
     },
     hdrs = [
     ],

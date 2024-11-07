@@ -12,3 +12,4 @@ $(MODULE_NAME)-y = main.o
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/input/ir/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/input/keyboard/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/input/meson_pmic6b/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/input/watchkey/Makefile

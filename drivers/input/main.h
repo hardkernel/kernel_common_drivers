@@ -6,6 +6,20 @@
 #ifndef __INPUT_MAIN_H_
 #define __INPUT_MAIN_H_
 
+#if IS_ENABLED(CONFIG_AMLOGIC_WATCHKEY)
+int amlogic_watchkey_driver_init(void);
+void amlogic_watchkey_driver_exit(void);
+#else
+static inline int amlogic_watchkey_driver_init(void)
+{
+	return 0;
+}
+
+static inline void amlogic_watchkey_driver_exit(void)
+{
+}
+#endif
+
 #if IS_ENABLED(CONFIG_AMLOGIC_GPIO_KEY)
 int meson_gpio_kp_init(void);
 void meson_gpio_kp_exit(void);

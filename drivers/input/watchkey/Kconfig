@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+config AMLOGIC_WATCHKEY
+	bool "Amlogic watch key device support"
+	default n
+	help
+	  Watch-Key driver can monitor the status of keys from
+	  the beginning of power-on.
+
+	  Say Y here if you want to use the amlogic watch key.
