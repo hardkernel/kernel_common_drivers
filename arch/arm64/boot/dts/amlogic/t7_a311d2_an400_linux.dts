@@ -1340,8 +1340,9 @@
 
 &i2c1 {
 	status = "okay";
-	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
+	pinctrl-1=<&i2c1_pins1_sleep>;
+	pinctrl-names="default", "sleep";
 	clock-frequency = <100000>; /* default 100k */
 	sensor-i2c@6c {
 		compatible = "arm, i2c-sensor-ssub";
@@ -1371,9 +1372,9 @@
 
 &i2c2 {
 	status = "okay";
-	pinctrl-names = "default";//, "sleep"
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c2_pins3>;
-	//pinctrl-1 = <&i2c2_sleep_pins2>;
+	pinctrl-1 = <&i2c2_pins3_sleep>;
 	clock-frequency = <100000>; /* default 100k */
 	sensor-i2c@6c {
 		compatible = "arm, i2c-sensor";
@@ -1388,8 +1389,9 @@
 
 &i2c3 {
 	status = "okay";
-	pinctrl-names = "default";//, "sleep"
-	pinctrl-0 = <&i2c3_pins1>;
+	pinctrl-0=<&i2c3_pins1>;
+	pinctrl-1=<&i2c3_pins1_sleep>;
+	pinctrl-names="default", "sleep";
 	clock-frequency = <100000>; /* default 100k */
 	sensor-i2c@6c {
 		compatible = "arm, i2c-sensor-sub";
@@ -1404,9 +1406,9 @@
 
 &i2c5 {
 	status = "okay";
-	pinctrl-names = "default";//, "sleep"
-	pinctrl-0 = <&i2c5_pins1>;
-	//pinctrl-1 = <&i2c2_sleep_pins2>;
+	pinctrl-0=<&i2c5_pins1>;
+	pinctrl-1=<&i2c5_pins1_sleep>;
+	pinctrl-names="default", "sleep";
 	clock-frequency = <100000>; /* default 100k */
 };
 
