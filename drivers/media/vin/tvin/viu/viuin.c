@@ -962,15 +962,17 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	}
 
 	prop->dest_cfmt = devp->parm.dfmt;
-
-	prop->scaling4w = devp->parm.dest_h_active;
-	prop->scaling4h = devp->parm.dest_v_active;
-
-	prop->vs = v_cut_offset;
-	prop->ve = 0;
-	prop->hs = 0;
-	prop->he = 0;
 	prop->decimation_ratio = 0;
+
+	if (!prop->loopback_crop_en) {
+		prop->scaling4w = devp->parm.dest_h_active;
+		prop->scaling4h = devp->parm.dest_v_active;
+
+		prop->vs = v_cut_offset;
+		prop->ve = 0;
+		prop->hs = 0;
+		prop->he = 0;
+	}
 }
 
 static bool viu_check_frame_skip(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)

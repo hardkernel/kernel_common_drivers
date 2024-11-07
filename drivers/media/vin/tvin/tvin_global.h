@@ -577,6 +577,7 @@ struct tvin_sig_property_s {
 	struct tvin_3d_meta_data_s threed_info;
 	u8 dolby_vision;/*is signal dolby version 1:vsif 2:emp */
 	bool low_latency;/*is low latency dolby mode*/
+	bool loopback_crop_en; /*is loopback crop mode*/
 	u8 up_sample_en;/* 420+2ppc 420+4ppc need enable to 1 */
 	u32 fps;
 	u32 frame_rate;/* = fps x 100,for calculate duration*/

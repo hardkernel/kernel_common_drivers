@@ -1208,6 +1208,41 @@ static void vdin_dv_hw5_init(struct vdin_dev_s *devp)
 	}
 }
 
+static void vdin_is_crop_valid(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
+{
+	if (para->crop[0] || para->crop[1] ||
+		para->crop[2] || para->crop[3])
+		devp->prop.loopback_crop_en = true;
+	else
+		devp->prop.loopback_crop_en = false;
+
+	if (devp->prop.loopback_crop_en)
+		pr_info("vdin%d crop_en=%d top=%d, left=%d, width=%d, height=%d\n",
+			devp->index, devp->prop.loopback_crop_en,
+			para->crop[0], para->crop[1],
+			para->crop[2], para->crop[3]);
+}
+
+int vdin_crop_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
+{
+	vdin_is_crop_valid(devp, para);
+	if (devp->prop.loopback_crop_en) {
+		devp->prop.hs = para->crop[1];
+		devp->prop.he = para->h_active - para->crop[2] - para->crop[1];
+		devp->prop.vs = para->crop[0];
+		devp->prop.ve = para->v_active - para->crop[3] - para->crop[0];
+		devp->prop.scaling4w = para->crop[2];
+		devp->prop.scaling4h = para->crop[3];
+	} else {
+		if (devp->parm.dest_width != 0 ||
+			devp->parm.dest_height != 0) {
+			devp->prop.scaling4w = devp->parm.dest_width;
+			devp->prop.scaling4h = devp->parm.dest_height;
+		}
+	}
+	return 0;
+}
+
 static void vdin_scale_and_cutwin_handle(struct vdin_dev_s *devp)
 {
 	u32 vdin0_max_w_h;
@@ -1223,12 +1258,6 @@ static void vdin_scale_and_cutwin_handle(struct vdin_dev_s *devp)
 	    devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ) {
 		devp->prop.scaling4w = 3840;
 		devp->prop.scaling4h = 2160;
-	}
-
-	if (devp->parm.dest_width != 0 ||
-	    devp->parm.dest_height != 0) {
-		devp->prop.scaling4w = devp->parm.dest_width;
-		devp->prop.scaling4h = devp->parm.dest_height;
 	}
 
 	h_active = devp->fmt_info_p->h_active /
@@ -2074,6 +2103,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 
 	mutex_lock(&devp->fe_lock);
 	vdin_loopback_parm_adjust(devp, para);
+	vdin_crop_parm_adjust(devp, para);
 	fmt = devp->parm.info.fmt;
 	pr_info("[%s]port:0x%x,fmt:%d %d %d;active:%dx%d,%dx%d;fr:%d;sm:%d\n",
 		__func__, para->port, para->cfmt, fmt,
