@@ -611,13 +611,66 @@ retry:
 	if (ret) {
 		if (retry_cnt < 10) {
 			retry_cnt++;
-			pr_warn("%s: pll did not lock, retry %d\n", __func__,
-				retry_cnt);
+			pr_warn("%s: pll did not lock, retry %d\n",
+				clk_hw_get_name(hw), retry_cnt);
 			goto retry;
 		}
 	}
 
 	return ret;
+}
+
+static int meson_clk_pll_save_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	pll->saved_rate = meson_clk_pll_recalc_rate(hw,
+			    clk_hw_get_rate(clk_hw_get_parent(hw)));
+	pll->saved_is_enabled = meson_clk_pll_is_enabled(hw);
+
+	return 0;
+}
+
+static void meson_clk_pll_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	if (!meson_clk_pll_is_enabled(hw) && pll->init_count) {
+		meson_parm_write(clk->map, &pll->rst, 1);
+		regmap_multi_reg_write(clk->map, pll->init_regs,
+				pll->init_count);
+		meson_parm_write(clk->map, &pll->rst, 0);
+	}
+
+	meson_clk_pll_set_rate(hw, pll->saved_rate,
+			clk_hw_get_rate(clk_hw_get_parent(hw)));
+	if (pll->saved_is_enabled)
+		meson_clk_pll_enable(hw);
+	else
+		meson_clk_pll_disable(hw);
+}
+
+static int meson_clk_pcie_pll_save_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	pll->saved_is_enabled = meson_clk_pll_is_enabled(hw);
+
+	return 0;
+}
+
+static void meson_clk_pcie_pll_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	if (pll->saved_is_enabled)
+		meson_clk_pcie_pll_enable(hw);
+	else
+		meson_clk_pll_disable(hw);
 }
 
 /*
@@ -632,7 +685,9 @@ const struct clk_ops meson_clk_pcie_pll_ops = {
 	.determine_rate	= meson_clk_pll_determine_rate,
 	.is_enabled	= meson_clk_pll_is_enabled,
 	.enable		= meson_clk_pcie_pll_enable,
-	.disable	= meson_clk_pll_disable
+	.disable	= meson_clk_pll_disable,
+	.save_context	= meson_clk_pcie_pll_save_context,
+	.restore_context = meson_clk_pcie_pll_restore_context,
 };
 EXPORT_SYMBOL_GPL(meson_clk_pcie_pll_ops);
 
@@ -643,7 +698,9 @@ const struct clk_ops meson_clk_pll_ops = {
 	.set_rate	= meson_clk_pll_set_rate,
 	.is_enabled	= meson_clk_pll_is_enabled,
 	.enable		= meson_clk_pll_enable,
-	.disable	= meson_clk_pll_disable
+	.disable	= meson_clk_pll_disable,
+	.save_context	= meson_clk_pll_save_context,
+	.restore_context = meson_clk_pll_restore_context,
 };
 EXPORT_SYMBOL_GPL(meson_clk_pll_ops);
 
@@ -713,13 +770,30 @@ static int meson_secure_pll_v2_enable(struct clk_hw *hw)
 	return 0;
 }
 
+static void meson_secure_pll_v2_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	if (!meson_clk_pll_is_enabled(hw)) {
+		meson_secure_pll_v2_set_rate(hw, pll->saved_rate,
+					     clk_hw_get_rate(clk_hw_get_parent(hw)));
+		if (pll->saved_is_enabled)
+			meson_secure_pll_v2_enable(hw);
+		else
+			meson_secure_pll_v2_disable(hw);
+	}
+}
+
 const struct clk_ops meson_secure_pll_v2_ops = {
 	.recalc_rate	= meson_clk_pll_recalc_rate,
 	.determine_rate	= meson_clk_pll_determine_rate,
 	.set_rate	= meson_secure_pll_v2_set_rate,
 	.is_enabled	= meson_clk_pll_is_enabled,
 	.enable		= meson_secure_pll_v2_enable,
-	.disable	= meson_secure_pll_v2_disable
+	.disable	= meson_secure_pll_v2_disable,
+	.save_context	= meson_clk_pll_save_context,
+	.restore_context = meson_secure_pll_v2_restore_context,
 };
 EXPORT_SYMBOL_GPL(meson_secure_pll_v2_ops);
 
@@ -854,6 +928,19 @@ static int meson_clk_pll_v3_enable(struct clk_hw *hw)
 	return 0;
 }
 
+static void meson_clk_pll_v3_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	meson_clk_pll_v3_set_rate(hw, pll->saved_rate,
+				  clk_hw_get_rate(clk_hw_get_parent(hw)));
+	if (pll->saved_is_enabled)
+		meson_clk_pll_v3_enable(hw);
+	else
+		meson_clk_pll_disable(hw);
+}
+
 const struct clk_ops meson_clk_pll_v3_ops = {
 	/* walk the init regs each time when set a new rate,
 	 * init callback is not useful for v3 ops
@@ -863,7 +950,9 @@ const struct clk_ops meson_clk_pll_v3_ops = {
 	.set_rate	= meson_clk_pll_v3_set_rate,
 	.is_enabled	= meson_clk_pll_is_enabled,
 	.enable		= meson_clk_pll_v3_enable,
-	.disable	= meson_clk_pll_disable
+	.disable	= meson_clk_pll_disable,
+	.save_context	= meson_clk_pll_save_context,
+	.restore_context = meson_clk_pll_v3_restore_context,
 };
 EXPORT_SYMBOL_GPL(meson_clk_pll_v3_ops);
 const struct clk_ops meson_clk_pll_ro_ops = {

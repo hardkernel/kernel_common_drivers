@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/clkdev.h>
+#include <linux/syscore_ops.h>
+#include <linux/suspend.h>
 #include "clk-pll.h"
 #include "clk-regmap.h"
 #include "clk-cpu-dyndiv.h"
@@ -1219,7 +1221,7 @@ static struct clk_regmap t3x_rtc_clk = {
 static const struct cpu_dyn_table t3x_sys_clk_table[] = {
 	/* sys clk no need dyn_post_mux */
 	CPU_LOW_PARAMS(24000000, 0, 0, 0),
-	CPU_LOW_PARAMS(166666666, 3, 1, 2)
+	CPU_LOW_PARAMS(166666667, 3, 1, 2)
 };
 
 static const struct clk_parent_data t3x_sys_clk_sel[] = {
@@ -1673,7 +1675,7 @@ static struct clk_regmap t3x_dspa = {
 			&t3x_dspa_1.hw,
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -1872,7 +1874,8 @@ static struct clk_regmap t3x_vapb = {
 			&t3x_vapb_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -2711,7 +2714,8 @@ static struct clk_regmap t3x_vpu = {
 			&t3x_vpu_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_IGNORE_UNUSED |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3027,7 +3031,7 @@ static struct clk_regmap t3x_mali = {
 			&t3x_mali_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3153,7 +3157,8 @@ static struct clk_regmap t3x_vdec = {
 			&t3x_vdec_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3267,7 +3272,8 @@ static struct clk_regmap t3x_hcodec = {
 			&t3x_hcodec_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3384,7 +3390,8 @@ static struct clk_regmap t3x_hevc = {
 			&t3x_hevc_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3507,7 +3514,7 @@ static struct clk_regmap t3x_adla = {
 			&t3x_adla_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -5668,7 +5675,8 @@ static struct clk_regmap t3x_frc = {
 			&t3x_frc_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -5778,7 +5786,7 @@ static struct clk_regmap t3x_me = {
 			&t3x_me_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -5898,7 +5906,8 @@ static struct clk_regmap t3x_tsin_sel = {
 			&t3x_tsin_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -6640,7 +6649,6 @@ static struct clk_regmap *const t3x_clk_regmaps[] = {
 	&t3x_me_1_sel,
 	&t3x_me_1_div,
 	&t3x_me_1,
-	&t3x_me_1_sel,
 	&t3x_me,
 	&t3x_frc_0_sel,
 	&t3x_frc_0_div,
@@ -6648,7 +6656,6 @@ static struct clk_regmap *const t3x_clk_regmaps[] = {
 	&t3x_frc_1_sel,
 	&t3x_frc_1_div,
 	&t3x_frc_1,
-	&t3x_frc_1_sel,
 	&t3x_frc,
 	&t3x_demod_32k_clkin,
 	&t3x_demod_32k_div,
@@ -6800,6 +6807,54 @@ static int meson_t3x_dvfs_setup(struct platform_device *pdev)
 	return 0;
 }
 
+/* Distinguish between std and str, syscore_ops is no need called when str */
+static int hib_enable;
+
+static int meson_t3x_syscore_suspend(void)
+{
+	int ret = 0;
+
+	if (hib_enable) {
+		ret = clk_save_context();
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static void meson_t3x_syscore_resume(void)
+{
+	if (hib_enable)
+		clk_restore_context();
+}
+
+static struct syscore_ops meson_t3x_syscore_ops = {
+	.suspend	= meson_t3x_syscore_suspend,
+	.resume		= meson_t3x_syscore_resume,
+};
+
+static int meson_t3x_pm_notify(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		hib_enable = 1;
+		break;
+	case PM_POST_HIBERNATION:
+		hib_enable = 0;
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block meson_t3x_pm_nb = {
+	.notifier_call = meson_t3x_pm_notify,
+};
+
 static int meson_t3x_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -6861,8 +6916,20 @@ static int meson_t3x_probe(struct platform_device *pdev)
 
 	meson_t3x_dvfs_setup(pdev);
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   &t3x_hw_onecell_data);
+	if (ret)
+		return ret;
+
+	/* register syscore ops to save clk status at std */
+	register_syscore_ops(&meson_t3x_syscore_ops);
+	/*
+	 * register pm notify, distinguish between std and str, and ensure
+	 * that syscore_ops is called only when std is used.
+	 */
+	register_pm_notifier(&meson_t3x_pm_nb);
+
+	return ret;
 }
 
 static const struct of_device_id clkc_match_table[] = {

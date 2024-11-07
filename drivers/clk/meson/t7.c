@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/clkdev.h>
+#include <linux/syscore_ops.h>
+#include <linux/suspend.h>
 
 #include "clk-mpll.h"
 #include "clk-pll.h"
@@ -378,7 +380,7 @@ static const struct pll_params_table t7_gp0_pll_table[] = {
 	PLL_PARAMS_OD(141, 1, 2), /* DCO = 3384M OD = 2 PLL = 846M */
 	PLL_PARAMS_OD(132, 1, 2), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS_OD(248, 1, 3), /* DCO = 5952M OD = 3 PLL = 744M */
-	PLL_PARAMS_OD(96, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
+	PLL_PARAMS_OD(192, 1, 2), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 
@@ -1136,6 +1138,7 @@ static struct clk_fixed_factor t7_mpll_prediv = {
 };
 
 static const struct reg_sequence t7_mpll0_init_regs[] = {
+	{ .reg = ANACTRL_MPLL_CTRL0, .def = 0x00000543 },
 	{ .reg = ANACTRL_MPLL_CTRL2, .def = 0x40000033 }
 };
 
@@ -2024,7 +2027,7 @@ static struct clk_regmap t7_dspa_mux = {
 			&t7_dspa_b_gate.hw,
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -2136,7 +2139,7 @@ static struct clk_regmap t7_dspb_mux = {
 			&t7_dspb_b_gate.hw,
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3485,7 +3488,7 @@ static struct clk_regmap t7_mali_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t7_mali_parent_hws,
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3611,7 +3614,8 @@ static struct clk_regmap t7_vdec_mux = {
 			&t7_vdec_p1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3725,7 +3729,8 @@ static struct clk_regmap t7_hcodec_mux = {
 			&t7_hcodec_p1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3810,7 +3815,7 @@ static struct clk_regmap t7_hevcb_p1_div = {
 		.width = 7,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "hevc_p1_div",
+		.name = "hevcb_p1_div",
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&t7_hevcb_p1_mux.hw
@@ -3850,7 +3855,8 @@ static struct clk_regmap t7_hevcb_mux = {
 			&t7_hevcb_p1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3964,7 +3970,8 @@ static struct clk_regmap t7_hevcf_mux = {
 			&t7_hevcf_p1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4288,7 +4295,7 @@ static struct clk_regmap t7_mipi_csi_phy_clk = {
 			&t7_mipi_csi_phy1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4403,7 +4410,7 @@ static struct clk_regmap t7_vpu = {
 			&t7_vpu_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4612,7 +4619,8 @@ static struct clk_regmap t7_vpu_clkc_mux = {
 			&t7_vpu_clkc_p1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4735,7 +4743,8 @@ static struct clk_regmap t7_vapb = {
 			&t7_vapb_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4848,7 +4857,8 @@ static struct clk_regmap t7_gdcclk = {
 			&t7_gdcclk_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4977,7 +4987,8 @@ static struct clk_regmap t7_dewarpclk = {
 			&t7_dewarpclk_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -5113,7 +5124,7 @@ static struct clk_regmap t7_anakin = {
 			&t7_anakin_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -7898,6 +7909,54 @@ static int meson_t7_dvfs_setup(struct platform_device *pdev)
 	return 0;
 }
 
+/* Distinguish between std and str, syscore_ops is no need called when str */
+static int hib_enable;
+
+static int meson_t7_syscore_suspend(void)
+{
+	int ret = 0;
+
+	if (hib_enable) {
+		ret = clk_save_context();
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static void meson_t7_syscore_resume(void)
+{
+	if (hib_enable)
+		clk_restore_context();
+}
+
+static struct syscore_ops meson_t7_syscore_ops = {
+	.suspend	= meson_t7_syscore_suspend,
+	.resume		= meson_t7_syscore_resume,
+};
+
+static int meson_t7_pm_notify(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		hib_enable = 1;
+		break;
+	case PM_POST_HIBERNATION:
+		hib_enable = 0;
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block meson_t7_pm_nb = {
+	.notifier_call = meson_t7_pm_notify,
+};
+
 static int ignore_pll_init;
 
 module_param(ignore_pll_init, int, 0664);
@@ -7938,7 +7997,6 @@ static int meson_t7_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(t7_pll_clk_regmaps); i++)
 		t7_pll_clk_regmaps[i]->map = pll_map;
-	regmap_write(pll_map, ANACTRL_MPLL_CTRL0, 0x00000543);
 
 	mclk_data = t7_mclk_pll.data;
 	if (ignore_pll_init)
@@ -7968,8 +8026,20 @@ static int meson_t7_probe(struct platform_device *pdev)
 
 	meson_t7_dvfs_setup(pdev);
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   &t7_hw_onecell_data);
+	if (ret)
+		return ret;
+
+	/* register syscore ops to save clk status at std */
+	register_syscore_ops(&meson_t7_syscore_ops);
+	/*
+	 * register pm notify, distinguish between std and str, and ensure
+	 * that syscore_ops is called only when std is used.
+	 */
+	register_pm_notifier(&meson_t7_pm_nb);
+
+	return ret;
 }
 
 static const struct of_device_id clkc_match_table[] = {

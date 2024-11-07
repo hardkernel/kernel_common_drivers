@@ -21,6 +21,7 @@ struct meson_clk_cpu_dyn_data {
 	u8 table_cnt;
 	u8 secid_dyn_rd;
 	u8 secid_dyn;
+	unsigned long saved_rate;
 };
 
 #define CPU_LOW_PARAMS(_rate, _dyn_pre_mux, _dyn_post_mux, _dyn_div)	\

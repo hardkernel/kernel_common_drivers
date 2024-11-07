@@ -120,10 +120,41 @@ static int meson_clk_dualdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+static int meson_clk_dualdiv_save_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_dualdiv_data *dualdiv = meson_clk_dualdiv_data(clk);
+
+	dualdiv->saved_rate = meson_clk_dualdiv_recalc_rate(hw,
+		       clk_hw_get_rate(clk_hw_get_parent(hw)));
+
+	return 0;
+}
+
+static void meson_clk_dualdiv_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_dualdiv_data *dualdiv = meson_clk_dualdiv_data(clk);
+	unsigned long parent_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
+
+	/*
+	 * FIXME: If dualdiv clk is not configured, 32K table should not
+	 * be used to restore dualdiv clk.
+	 */
+	if (meson_clk_dualdiv_round_rate(hw, dualdiv->saved_rate, &parent_rate) !=
+	    dualdiv->saved_rate)
+		return;
+
+	meson_clk_dualdiv_set_rate(hw, dualdiv->saved_rate,
+				   clk_hw_get_rate(clk_hw_get_parent(hw)));
+}
+
 const struct clk_ops meson_clk_dualdiv_ops = {
 	.recalc_rate	= meson_clk_dualdiv_recalc_rate,
 	.round_rate	= meson_clk_dualdiv_round_rate,
 	.set_rate	= meson_clk_dualdiv_set_rate,
+	.save_context	= meson_clk_dualdiv_save_context,
+	.restore_context = meson_clk_dualdiv_restore_context,
 };
 EXPORT_SYMBOL_GPL(meson_clk_dualdiv_ops);
 

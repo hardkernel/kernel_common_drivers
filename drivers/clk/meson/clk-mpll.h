@@ -22,6 +22,7 @@ struct meson_clk_mpll_data {
 	unsigned int init_count;
 	spinlock_t *lock;				//
 	u8 flags;
+	unsigned long saved_rate;
 };
 
 #define CLK_MESON_MPLL_ROUND_CLOSEST	BIT(0)

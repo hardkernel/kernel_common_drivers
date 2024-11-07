@@ -155,6 +155,27 @@ static int mpll_init(struct clk_hw *hw)
 	return 0;
 }
 
+static int mpll_save_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
+
+	mpll->saved_rate = mpll_recalc_rate(hw,
+				clk_hw_get_rate(clk_hw_get_parent(hw)));
+
+	return 0;
+}
+
+static void mpll_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
+
+	mpll_init(hw);
+	mpll_set_rate(hw, mpll->saved_rate,
+		      clk_hw_get_rate(clk_hw_get_parent(hw)));
+}
+
 const struct clk_ops meson_clk_mpll_ro_ops = {
 	.recalc_rate	= mpll_recalc_rate,
 	.round_rate	= mpll_round_rate,
@@ -166,6 +187,8 @@ const struct clk_ops meson_clk_mpll_ops = {
 	.round_rate	= mpll_round_rate,
 	.set_rate	= mpll_set_rate,
 	.init		= mpll_init,
+	.save_context	= mpll_save_context,
+	.restore_context = mpll_restore_context,
 };
 EXPORT_SYMBOL_GPL(meson_clk_mpll_ops);
 

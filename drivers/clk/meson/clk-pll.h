@@ -73,6 +73,8 @@ struct meson_clk_pll_data {
 	u8 secid_disable;
 	u8 secid;
 	u16 flags;
+	unsigned long saved_rate;
+	int saved_is_enabled;
 };
 
 extern const struct clk_ops meson_clk_pll_ro_ops;

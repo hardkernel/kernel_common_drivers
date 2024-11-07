@@ -1121,7 +1121,6 @@ static const struct pll_params_table g12a_gp0_pll_table[] = {
  * Internal gp0 pll emulation configuration parameters
  */
 static const struct reg_sequence g12a_gp0_init_regs[] = {
-	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0x00000000 },
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x00000000 },
 	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x48681c00 },
 	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0x33771290 },
@@ -6369,6 +6368,7 @@ static int meson_g12a_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct meson_eeclkc_data *eeclkc_data;
 	const struct meson_g12a_data *g12a_data;
+	struct meson_clk_pll_data *hifi_pll_data;
 	struct clk *clk;
 	int ret;
 
@@ -6391,6 +6391,16 @@ static int meson_g12a_probe(struct platform_device *pdev)
 			return ret;
 		}
 #endif
+
+	/*
+	 * HACK: The G12A, G12B, and SM1 share the same driver, and SM1's
+	 * hifi_pll_dco has been initialized in the bootloader, and the kernel
+	 * does not need to repeat the configuration.
+	 */
+	if (eeclkc_data->hw_clks.hws == sm1_hw_clks) {
+		hifi_pll_data = (struct meson_clk_pll_data *)g12a_hifi_pll.data;
+		hifi_pll_data->flags |= CLK_MESON_PLL_NOINIT_ENABLED;
+	}
 
 	ret = meson_eeclkc_probe(pdev);
 	if (ret)
