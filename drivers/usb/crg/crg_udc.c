@@ -3771,17 +3771,14 @@ void crg_handle_setup_pkt(struct crg_gadget_dev *crg_udc,
 			(setup_pkt->bRequestType & USB_DIR_IN) ?
 			DATA_STAGE_XFER :  DATA_STAGE_RECV;
 	}
-	spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
+
 	if (!crg_udc->async_cb_flag) {
 		CRG_ERROR("crg gadget setup pkt coming too quick!\n");
-		spin_lock_irqsave(&crg_udc->udc_lock, flags);
-		/* Complete any reqs on EP0 queue */
-		if (crg_udc->udc_ep[0].desc)
-			nuke(&crg_udc->udc_ep[0], -ESHUTDOWN, flags);
-		if (list_empty(&crg_udc->udc_ep[0].queue))
-			set_ep0_halt(crg_udc);
+		set_ep0_halt(crg_udc);
 		return;
 	}
+
+	spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
 	if (crg_udc->gadget_driver->setup(&crg_udc->gadget, setup_pkt) < 0) {
 		spin_lock_irqsave(&crg_udc->udc_lock, flags);
 		set_ep0_halt(crg_udc);
@@ -4296,7 +4293,17 @@ int crg_udc_handle_event(struct crg_gadget_dev *crg_udc,
 			setup_tag = GETF(EVE_TRB_SETUP_TAG, event->dw3);
 			CRG_DEBUG("setup_pkt = 0x%p, setup_tag = 0x%x\n",
 				setup_pkt, setup_tag);
-			if (crg_udc->setup_status != WAIT_FOR_SETUP) {
+			/* It is racy that the setup_status may be reset to WAIT_FOR_SETUP
+			 * by crg_udc_reset() after releasing and acquiring the lock
+			 * before set_ep0_halt(), causing the book-keeping setup_status
+			 * loses sync with the actual ep0 setup status. The next setup pkt
+			 * may sneak in and may trigger the list_add double add BUG of the
+			 * private status_req.
+			 * Workaround it by checking whether the ep0 req list is empty before
+			 * handling the setup packet.
+			 */
+			if (crg_udc->setup_status != WAIT_FOR_SETUP ||
+				!list_empty(&crg_udc->udc_ep[0].queue)) {
 				/*previous setup packet hasn't
 				 * completed yet. Just ignore the prev setup
 				 */
