@@ -61,9 +61,9 @@ static int __init sound_soc_init(void)
 	call_sub_init(g12a_audio_pinctrl_init);
 #endif
 	call_sub_init(tdm_init);
-	call_sub_init(mixer_init);
 
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
+	call_sub_init(mixer_init);
 	call_sub_init(vad_drv_init);
 	call_sub_init(vad_dev_init);
 	call_sub_init(aud_sram_init);
@@ -88,8 +88,8 @@ static __exit void sound_soc_exit(void)
 	call_sub_exit(aud_sram_exit);
 	call_sub_exit(vad_dev_exit);
 	call_sub_exit(vad_drv_exit);
-#endif
 	call_sub_exit(mixer_exit);
+#endif
 	call_sub_exit(tdm_exit);
 	call_sub_exit(audio_pinctrl_exit);
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
