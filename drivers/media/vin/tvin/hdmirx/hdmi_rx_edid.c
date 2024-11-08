@@ -529,88 +529,124 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		switch (edid_type) {
 		case EDID_TYPE_256_PLUS_256:
 			memcpy(edid_buf1, buf + 1, 256);
-			memcpy(edid_buf1 + 512, buf + 257, 256);
-		break;
-		case EDID_TYPE_512_PLUS_512:
-			memcpy(edid_buf1, buf + 1, 512);
-			memcpy(edid_buf1 + 512, buf + 513, 512);
+			memcpy(edid_buf1 + 256, buf + 257, 256);
 		break;
 		case EDID_TYPE_256_PLUS_512:
 			memcpy(edid_buf1, buf + 1, 256);
-			memcpy(edid_buf1 + 512, buf + 257, size - 257);
+			memcpy(edid_buf1 + 256, buf + 257, size - 257);
+		break;
+		case EDID_TYPE_256_PLUS_256_PLUS_256:
+			memcpy(edid_buf1, buf + 1, 256);
+			memcpy(edid_buf1 + 256, buf + 257, 256);
+			memcpy(edid_buf1 + 768, buf + 513, 256);
+		break;
+		case EDID_TYPE_256_PLUS_512_PLUS_256:
+		case EDID_TYPE_256_PLUS_512_PLUS_512:
+			memcpy(edid_buf1, buf + 1, 256);
+			memcpy(edid_buf1 + 256, buf + 257, 512);
+			memcpy(edid_buf1 + 768, buf + 513, 256);
 		break;
 		default:
 			rx_pr("port 0 err edid_type\n");
 		}
 		if (!is_valid_edid_data(edid_buf1))
 			rx_pr("1.4 edid error\n");
-		if (!is_valid_edid_data(edid_buf1 + 512))
+		if (!is_valid_edid_data(edid_buf1 + 256))
+			rx_pr("2.1 edid error\n");
+		if (!is_valid_edid_data(edid_buf1 + 768))
 			rx_pr("2.0 edid error\n");
 	break;
 	case 1:
 		switch (edid_type) {
 		case EDID_TYPE_256_PLUS_256:
 			memcpy(edid_buf2, buf + 1, 256);
-			memcpy(edid_buf2 + 512, buf + 257, 256);
-		break;
-		case EDID_TYPE_512_PLUS_512:
-			memcpy(edid_buf2, buf + 1, 512);
-			memcpy(edid_buf2 + 512, buf + 513, 512);
+			memcpy(edid_buf2 + 256, buf + 257, 256);
 		break;
 		case EDID_TYPE_256_PLUS_512:
 			memcpy(edid_buf2, buf + 1, 256);
-			memcpy(edid_buf2 + 512, buf + 257, size - 257);
+			memcpy(edid_buf2 + 256, buf + 257, size - 257);
+		break;
+		case EDID_TYPE_256_PLUS_256_PLUS_256:
+			memcpy(edid_buf2, buf + 1, 256);
+			memcpy(edid_buf2 + 256, buf + 257, 256);
+			memcpy(edid_buf2 + 768, buf + 513, 256);
+		break;
+		case EDID_TYPE_256_PLUS_512_PLUS_256:
+		case EDID_TYPE_256_PLUS_512_PLUS_512:
+			memcpy(edid_buf2, buf + 1, 256);
+			memcpy(edid_buf2 + 256, buf + 257, 512);
+			memcpy(edid_buf2 + 768, buf + 513, 256);
 		break;
 		default:
 			rx_pr("port 1 err edid_type\n");
 		}
 		if (!is_valid_edid_data(edid_buf2))
 			rx_pr("1.4 edid error\n");
-		if (!is_valid_edid_data(edid_buf2 + 512))
+		if (!is_valid_edid_data(edid_buf2 + 256))
+			rx_pr("2.1 edid error\n");
+		if (!is_valid_edid_data(edid_buf2 + 768))
 			rx_pr("2.0 edid error\n");
 	break;
 	case 2:
 		switch (edid_type) {
 		case EDID_TYPE_256_PLUS_256:
 			memcpy(edid_buf3, buf + 1, 256);
-			memcpy(edid_buf3 + 512, buf + 257, 256);
-		break;
-		case EDID_TYPE_512_PLUS_512:
-			memcpy(edid_buf3, buf + 1, 512);
-			memcpy(edid_buf3 + 512, buf + 513, 512);
+			memcpy(edid_buf3 + 256, buf + 257, 256);
 		break;
 		case EDID_TYPE_256_PLUS_512:
 			memcpy(edid_buf3, buf + 1, 256);
-			memcpy(edid_buf3 + 512, buf + 257, size - 257);
+			memcpy(edid_buf3 + 256, buf + 257, size - 257);
+		break;
+		case EDID_TYPE_256_PLUS_256_PLUS_256:
+			memcpy(edid_buf3, buf + 1, 256);
+			memcpy(edid_buf3 + 256, buf + 257, 256);
+			memcpy(edid_buf3 + 768, buf + 513, 256);
+		break;
+		case EDID_TYPE_256_PLUS_512_PLUS_256:
+		case EDID_TYPE_256_PLUS_512_PLUS_512:
+			memcpy(edid_buf3, buf + 1, 256);
+			memcpy(edid_buf3 + 256, buf + 257, 512);
+			memcpy(edid_buf3 + 768, buf + 513, 256);
 		break;
 		default:
 			rx_pr("port 2 err edid_type\n");
 		}
 		if (!is_valid_edid_data(edid_buf3))
 			rx_pr("1.4 edid error\n");
-		if (!is_valid_edid_data(edid_buf3 + 512))
+		if (!is_valid_edid_data(edid_buf3 + 256))
+			rx_pr("2.1 edid error\n");
+		if (!is_valid_edid_data(edid_buf3 + 768))
 			rx_pr("2.0 edid error\n");
 	break;
 	case 3:
 		switch (edid_type) {
 		case EDID_TYPE_256_PLUS_256:
 			memcpy(edid_buf4, buf + 1, 256);
-			memcpy(edid_buf4 + 512, buf + 257, 256);
-		break;
-		case EDID_TYPE_512_PLUS_512:
-			memcpy(edid_buf4, buf + 1, 512);
-			memcpy(edid_buf4 + 512, buf + 513, 512);
+			memcpy(edid_buf4 + 256, buf + 257, 256);
 		break;
 		case EDID_TYPE_256_PLUS_512:
 			memcpy(edid_buf4, buf + 1, 256);
-			memcpy(edid_buf4 + 512, buf + 257, size - 257);
+			memcpy(edid_buf4 + 256, buf + 257, size - 257);
+		break;
+		case EDID_TYPE_256_PLUS_256_PLUS_256:
+			memcpy(edid_buf4, buf + 1, 256);
+			memcpy(edid_buf4 + 256, buf + 257, 256);
+			memcpy(edid_buf4 + 768, buf + 513, 256);
+		break;
+		case EDID_TYPE_256_PLUS_512_PLUS_256:
+		case EDID_TYPE_256_PLUS_512_PLUS_512:
+			memcpy(edid_buf4, buf + 1, 256);
+			memcpy(edid_buf4 + 256, buf + 257, 512);
+			memcpy(edid_buf4 + 768, buf + 513, 256);
 		break;
 		default:
 			rx_pr("port 3 err edid_type\n");
 		}
 		if (!is_valid_edid_data(edid_buf4))
 			rx_pr("1.4 edid error\n");
-		if (!is_valid_edid_data(edid_buf4 + 512))
+		if (!is_valid_edid_data(edid_buf4 + 256))
+			rx_pr("2.1 edid error\n");
+		if (!is_valid_edid_data(edid_buf4 + 768))
 			rx_pr("2.0 edid error\n");
 	break;
 	}
@@ -652,7 +688,7 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
 	if (!hf_vsdb_start)
 		return;
-	tag_len = (p_edid[hf_vsdb_start] & 0xf) + 1;
+	tag_len = (p_edid[hf_vsdb_start] & 0x1f) + 1;
 	if (log_level & EDID_LOG)
 		rx_pr("tag_len = %d", tag_len);
 	if (tag_len <= 9)
@@ -691,7 +727,7 @@ void rx_edid_update_allm_info(unsigned char *p_edid)
 	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
 	if (!hf_vsdb_start)
 		return;
-	tag_len = p_edid[hf_vsdb_start] & 0xf;
+	tag_len = p_edid[hf_vsdb_start] & 0x1f;
 	if (tag_len < 8 || allm_func_en == 0xff)
 		return;
 	if (log_level & EDID_LOG)
@@ -983,7 +1019,7 @@ bool is_edid_buff_normal(unsigned char port_id)
 enum edid_ver_e rx_parse_edid_ver(u8 *p_edid)
 {
 	if (rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG))
-		return EDID_V20;
+		return EDID_V21;
 	else
 		return EDID_V14;
 }
@@ -5099,24 +5135,27 @@ u32 rx_get_edid_size(u8 port)
 
 u_char *rx_get_cur_def_edid(u_char port)
 {
-	u8 offset = 0;
+	u32 edid_offset = 0;
 	enum edid_ver_e ver = get_edid_selection(port);
 
-	if (ver == EDID_V20)
-		offset = 1;
+	if (ver == EDID_V21)
+		edid_offset = 256;
+	else if (ver == EDID_V20)
+		edid_offset = 768;
 
+	memset(edid_cur, 0, EDID_SIZE);
 	switch (port) {
 	case 0:
-		memcpy(edid_cur, edid_buf1 + EDID_SIZE * offset, EDID_SIZE);
+		memcpy(edid_cur, edid_buf1 + edid_offset, ver == EDID_V21 ? 512 : 256);
 		break;
 	case 1:
-		memcpy(edid_cur, edid_buf2 + EDID_SIZE * offset, EDID_SIZE);
+		memcpy(edid_cur, edid_buf2 + edid_offset, ver == EDID_V21 ? 512 : 256);
 		break;
 	case 2:
-		memcpy(edid_cur, edid_buf3 + EDID_SIZE * offset, EDID_SIZE);
+		memcpy(edid_cur, edid_buf3 + edid_offset, ver == EDID_V21 ? 512 : 256);
 		break;
 	case 3:
-		memcpy(edid_cur, edid_buf4 + EDID_SIZE * offset, EDID_SIZE);
+		memcpy(edid_cur, edid_buf4 + edid_offset, ver == EDID_V21 ? 512 : 256);
 		break;
 	default:
 		break;
@@ -5215,6 +5254,9 @@ void rx_clr_edid_type(unsigned char port)
 		rx_pr("edid_auto_sel:%d, port:%d, cfg:%d\n",
 			edid_auto_sel, port, rx[port].edid_type.cfg);
 	switch (rx[port].edid_type.cfg) {
+	case EDID_V21:
+		rx[port].edid_type.edid_ver = EDID_V21;
+		break;
 	case EDID_V20:
 		rx[port].edid_type.edid_ver = EDID_V20;
 		break;
@@ -5222,11 +5264,11 @@ void rx_clr_edid_type(unsigned char port)
 		if (rx[port].tx_type == DEV_HDMI14)
 			rx[port].edid_type.edid_ver = EDID_V14;
 		else
-			rx[port].edid_type.edid_ver = EDID_V20;
+			rx[port].edid_type.edid_ver = EDID_V21;
 		break;
 	case EDID_AUTO14:
 		if (rx[port].tx_type == DEV_HDMI20)
-			rx[port].edid_type.edid_ver = EDID_V20;
+			rx[port].edid_type.edid_ver = EDID_V21;
 		else
 			rx[port].edid_type.edid_ver = EDID_V14;
 		break;
@@ -5254,8 +5296,8 @@ void edid_type_update(u8 port)
 	case EDID_AUTO14:
 		if ((edid_auto_sel & rx[port].edid_type.cfg) == 0)
 			break;
-		if (rx[port].tx_type == DEV_HDMI20 && rx[port].edid_type.edid_ver != EDID_V20) {
-			rx[port].edid_type.edid_ver = EDID_V20;
+		if (rx[port].tx_type == DEV_HDMI20 && rx[port].edid_type.edid_ver != EDID_V21) {
+			rx[port].edid_type.edid_ver = EDID_V21;
 			rx[port].edid_type.need_update = true;
 		}
 		break;
@@ -5269,8 +5311,8 @@ void edid_type_update(u8 port)
 			}
 		} else if (rx[port].tx_type == DEV_ABNORMAL_SCDC) {
 			if (port == rx_info.main_port) {
-				if (rx[port].edid_type.edid_ver != EDID_V20) {
-					rx[port].edid_type.edid_ver = EDID_V20;
+				if (rx[port].edid_type.edid_ver != EDID_V21) {
+					rx[port].edid_type.edid_ver = EDID_V21;
 					rx[port].edid_type.need_update = true;
 				}
 				rx[port].tx_type = DEV_HDMI20;
@@ -5281,8 +5323,8 @@ void edid_type_update(u8 port)
 				}
 			}
 		} else {
-			if (rx[port].edid_type.edid_ver != EDID_V20) {
-				rx[port].edid_type.edid_ver = EDID_V20;
+			if (rx[port].edid_type.edid_ver != EDID_V21) {
+				rx[port].edid_type.edid_ver = EDID_V21;
 				rx[port].edid_type.need_update = true;
 			}
 		}

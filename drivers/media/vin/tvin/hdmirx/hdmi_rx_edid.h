@@ -12,7 +12,8 @@
 //2024.10.23 add clr edid seg
 //2024.11.01 Optimize clear of edid segment
 //2024.11.06 get edid size and frl
-#define RX_EDID_H_VER "ver.2024/11/06"
+//2024.11.20 add new edid function
+#define RX_EDID_H_VER "ver.2024/11/20"
 
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128
@@ -119,6 +120,10 @@
 #define EDID_TYPE_256_PLUS_256 0
 #define EDID_TYPE_512_PLUS_512 1
 #define EDID_TYPE_256_PLUS_512 2
+#define EDID_TYPE_256_PLUS_256_PLUS_256 3
+#define EDID_TYPE_256_PLUS_512_PLUS_256 4
+#define EDID_TYPE_256_PLUS_512_PLUS_512 5
+
 #define END_OF_BLK(x) (((x) + 1) * EDID_BLK_SIZE - 1)
 
 enum edid_audio_format_e {
@@ -210,9 +215,10 @@ enum edid_list_e {
 
 enum edid_ver_e {
 	EDID_V14 = 0x0,
-	EDID_V20 = 0x1,
+	EDID_V21 = 0x1,
 	EDID_AUTO20 = 0x2,
-	EDID_AUTO14 = 0x4
+	EDID_AUTO14 = 0x4,
+	EDID_V20 = 0x8
 };
 
 enum edid_support_e {
