@@ -60,6 +60,12 @@
 
 #define PAGE_COUNT(x) (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
 
+#define SLOT_SIZE_DEF_1080P (4 * SZ_1M)
+#define SLOT_SIZE_DEF_4K (8 * SZ_1M)
+
+#define CACHED_SIZE_DEF_1080P (8 * SZ_1M)
+#define CACHED_SIZE_DEF_4K (20 * SZ_1M)
+
 u32 scatter_align_pages_size = 128;
 int scatter_swap_threshold_size = 20;
 
@@ -2515,10 +2521,9 @@ int codec_mm_scatter_alloc_want_pages_in(struct codec_mm_scatter_mgt *smgt,
 		}
 	}
 	codec_mm_scatter_unlock(mms);
-	if (smgt->cached_pages < smgt->keep_size_PAGE / 2) {
-		/*try alloc more cache.*/
+	if (smgt->cached_pages < smgt->keep_size_PAGE)
 		codec_mm_schedule_delay_work(smgt, 0, 1);
-	}
+
 	return 0;
 }
 
@@ -3091,7 +3096,7 @@ static void codec_mm_scatter_update_owner_config
 		g_scatter.keep_size_PAGE = max_keep_size >> PAGE_SHIFT;
 	else
 		g_scatter.keep_size_PAGE = is_2k_platform() ?
-			4 * SZ_1M >> PAGE_SHIFT : 20 * SZ_1M >> PAGE_SHIFT;
+			CACHED_SIZE_DEF_1080P >> PAGE_SHIFT : CACHED_SIZE_DEF_4K >> PAGE_SHIFT;
 }
 
 int codec_mm_scatter_owner_register(char *owner_name,
@@ -3607,13 +3612,14 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	spin_lock_init(&smgt->owner_list_lock);
 	smgt->tag = SMGT_IDENTIFY_TAG;
 	smgt->alloced_page_num = 0;
-	smgt->try_alloc_in_cma_page_cnt = (8 * 1024 * 1024) / PAGE_SIZE;
+	smgt->try_alloc_in_cma_page_cnt = is_2k_platform() ?
+		SLOT_SIZE_DEF_1080P >> PAGE_SHIFT : SLOT_SIZE_DEF_4K >> PAGE_SHIFT;
 	smgt->try_alloc_in_sys_page_cnt_max = MAX_SYS_BLOCK_PAGE;
 	smgt->try_alloc_in_sys_page_cnt = MAX_SYS_BLOCK_PAGE;
 	smgt->try_alloc_in_sys_page_cnt_min = MIN_SYS_BLOCK_PAGE;
 	smgt->reserved_block_mm_M = codec_mm_scatter_get_reserved_block_size();
 	smgt->keep_size_PAGE = is_2k_platform() ?
-			4 * SZ_1M >> PAGE_SHIFT : 20 * SZ_1M >> PAGE_SHIFT;
+		CACHED_SIZE_DEF_1080P >> PAGE_SHIFT : CACHED_SIZE_DEF_4K >> PAGE_SHIFT;
 	smgt->alloc_from_cma_first = 1;
 	smgt->enable_slot_from_sys = 0;
 	smgt->expected_slot_sid[0] = MAX_SID;
