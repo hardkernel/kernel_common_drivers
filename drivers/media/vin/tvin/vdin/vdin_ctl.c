@@ -2229,7 +2229,7 @@ static inline void vdin_set_hist_mux(struct vdin_dev_s *devp)
 	 */
 	/* use 11: form matrix1 din */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	wr_bits(devp->addr_offset, VDIN_HIST_CTRL, 3,
+	wr_bits(devp->addr_offset, VDIN_HIST_CTRL, 2,
 		HIST_HIST_DIN_SEL_BIT, HIST_HIST_DIN_SEL_WID);
 #endif
 	/*for project get vdin1 hist*/
@@ -3540,12 +3540,14 @@ void vdin_set_vframe_prop_info(struct vframe_s *vf,
 		bbar.right = vf->width - 1;
 	}
 
-	/* Update Histgram window with detected BlackBar window */
-	if (devp->hist_bar_enable)
-		vdin_set_histogram(offset, 0, vf->width - 1, 0, vf->height - 1);
-	else
-		vdin_set_histogram(offset, bbar.left, bbar.right,
-				   bbar.top, bbar.bottom);
+	if (!(devp->flags & VDIN_FLAG_HIST_STARTED) && devp->hw_core == VDIN_HW_CORE_LITE) {
+		/* Update Histgram window with detected BlackBar window */
+		if (devp->hist_bar_enable)
+			vdin_set_histogram(offset, 0, vf->width - 1, 0, vf->height - 1);
+		else
+			vdin_set_histogram(offset, bbar.left, bbar.right,
+					   bbar.top, bbar.bottom);
+	}
 
 	if (devp->black_bar_enable) {
 		vf->prop.bbar.top        = bbar.top;
@@ -3576,6 +3578,9 @@ void vdin_get_hist_gamma(struct vdin_dev_s *devp, unsigned short *hist_gamma)
 	unsigned int i;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (is_meson_s5_cpu() || is_meson_t3x_cpu())
+		return;
+
 	if (is_meson_txhd2_cpu() || is_meson_t6d_cpu())
 		offset = 0;
 #endif
@@ -3641,7 +3646,7 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 #endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* hist sub-module */
-	if (!(is_meson_txhd2_cpu() || is_meson_t6d_cpu())) {
+	if (!(devp->flags & VDIN_FLAG_HIST_STARTED) && devp->hw_core == VDIN_HW_CORE_LITE) {
 		vdin_set_histogram(devp->addr_offset, 0,
 				devp->h_active - 1, 0, devp->v_active - 1);
 		/* hist mux select */
@@ -4028,6 +4033,7 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 		/* write plane=2 420 hs/he ve/vs */
 		wr(offset, VDIN_WRMIF_CHRM_X, 0x00000000);
 		wr(offset, VDIN_WRMIF_CHRM_Y, 0x00000000);
+		wr_bits(offset, VDIN_LFIFO_CTRL, 0, 28, 1);//discard data disable
 		wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, 1, 1, 1);
 		wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, 0, 15, 1);
 	} else {
@@ -4043,28 +4049,30 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 	/* [    1] hist.win_en           = 1 */
 	/* [    0] hist.read_en          = 1 */
 	if (devp->dtdata->hw_ver == VDIN_HW_TXHD2) {
-		wr(offset, VDIN_ASFIFO_CTRL1, 0x80e4);
 		if (devp->vdin_function_sel & VDIN_MUX_VDIN0_HIST)
 			wr_bits(0, VDIN_TOP_MISC, 1, 24, 1);
 		else
 			wr_bits(0, VDIN_TOP_MISC, 0, 24, 1);
+		if (devp->hw_core == VDIN_HW_CORE_LITE) {
+			wr(offset, VDIN_ASFIFO_CTRL1, 0x80e4);
+			wr(0, VDIN_HIST_H_START_END, devp->h_active_org - 1);
+			wr(0, VDIN_HIST_V_START_END, devp->v_active_org - 1);
+		}
 	} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
-		wr(offset, VDIN_ASFIFO_CTRL1, 0xa0e4);
 		if (devp->vdin_function_sel & VDIN_MUX_VDIN0_HIST)
 			wr_bits(0, VDIN_TOP_MISC, 1, 12, 1);
 		else
 			wr_bits(0, VDIN_TOP_MISC, 0, 12, 1);
-		//wr(0, VDIN_HIST_CTRL, 0x00000009);
-		wr(0, VDIN_HIST_H_START_END, 0x0000077f);
-		wr(0, VDIN_HIST_V_START_END, 0x00000437);
+		if (devp->hw_core == VDIN_HW_CORE_LITE) {
+			wr(offset, VDIN_ASFIFO_CTRL1, 0xa0e4);
+			wr(0, VDIN_HIST_CTRL, 0x00000009);
+			wr(0, VDIN_HIST_H_START_END, devp->h_active_org - 1);
+			wr(0, VDIN_HIST_V_START_END, devp->v_active_org - 1);
+		}
 	} else {
-		wr(offset, VDIN_HIST_CTRL, 0x00000003);
-		/* [28:16] hist.win_hs		 = 0 */
-		/* [12: 0] hist.win_he		 = 0 */
-		wr(offset, VDIN_HIST_H_START_END, 0x00000000);
-		/* [28:16] hist.win_vs		 = 0 */
-		/* [12: 0] hist.win_ve		 = 0 */
-		wr(offset, VDIN_HIST_V_START_END, 0x00000000);
+		wr(offset, VDIN_HIST_CTRL, 0x00000009);
+		wr(offset, VDIN_HIST_H_START_END, devp->h_active_org - 1);
+		wr(offset, VDIN_HIST_V_START_END, devp->v_active_org - 1);
 	}
 
 	/* set VDIN_MEAS_CLK_CNTL, select XTAL clock */
@@ -4227,6 +4235,99 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 	vdin_clk_on_off(devp, false);
 }
 
+void vdin_get_hist_val(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp)
+{
+	unsigned int offset = devp->addr_offset;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (is_meson_s5_cpu()) {
+		vdin_get_hist_val_s5(devp, vdin1_hist_temp);
+		return;
+	} else if (is_meson_t3x_cpu()) {
+		vdin_get_hist_val_t3x(devp, vdin1_hist_temp);
+		return;
+	}
+#endif
+
+	if (devp->dtdata->hw_ver == VDIN_HW_TXHD2 || devp->dtdata->hw_ver == VDIN_HW_T6D)
+		offset = 0;
+
+	vdin1_hist_temp->width = (rd(offset, VDIN_HIST_H_START_END) & 0x1fff) + 1;
+	vdin1_hist_temp->height = (rd(offset, VDIN_HIST_V_START_END) & 0x1fff) + 1;
+	vdin1_hist_temp->sum = rd(offset, VDIN_HIST_SPL_VAL);
+}
+
+void vdin_hist_init(struct vdin_dev_s *devp)
+{
+	const struct vinfo_s *vinfo;
+	unsigned int offset = devp->addr_offset;
+	unsigned int hist_offset = devp->addr_offset;
+	enum vdin_matrix_csc_e	matrix_csc = VDIN_MATRIX_RGB_YUV709;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (is_meson_s5_cpu()) {
+		vdin_hist_init_s5(devp);
+		return;
+	} else if (is_meson_t3x_cpu()) {
+		vdin_hist_init_t3x(devp);
+		return;
+	}
+#endif
+	vinfo = get_current_vinfo();
+	if (!vinfo) {
+		pr_err("%s is NULL\n", __func__);
+		return;
+	}
+
+	if (devp->dtdata->hw_ver == VDIN_HW_TXHD2) {
+		hist_offset = 0;
+		if (devp->vdin_function_sel & VDIN_MUX_VDIN0_HIST)
+			wr_bits(0, VDIN_TOP_MISC, 1, 24, 1);
+		else
+			wr_bits(0, VDIN_TOP_MISC, 0, 24, 1);
+		wr_bits(offset, VDIN_LFIFO_CTRL, 1, 28, 1);//discard data enable
+	} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
+		hist_offset = 0;
+		if (devp->vdin_function_sel & VDIN_MUX_VDIN0_HIST)
+			wr_bits(0, VDIN_TOP_MISC, 1, 12, 1);
+		else
+			wr_bits(0, VDIN_TOP_MISC, 0, 12, 1);
+		wr_bits(offset, VDIN_LFIFO_CTRL, 1, 28, 1);//discard data enable
+	} else {
+		wr_bits(offset, VDIN_WR_CTRL2, 1,
+			DISCARD_BEF_LINE_FIFO_BIT, DISCARD_BEF_LINE_FIFO_WID);
+	}
+
+	wr_bits(offset, VDIN_LFIFO_CTRL, devp->dtdata->vdin1_line_buff_size,
+		LFIFO_BUF_SIZE_BIT, LFIFO_BUF_SIZE_WID);
+	wr(offset, VDIN_ASFIFO_CTRL1, 0x80e4); //vlsi
+	wr_bits(offset, VDIN_ASFIFO_CTRL1, 2, 0x12, 3);// matrix1 out
+	wr_bits(offset, VDIN_COM_CTRL0, 0x917, 0, 12); // VDIN_MUX_VIU1_WB0
+	wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
+		VDI6_ASFIFO_CTRL_BIT, VDI_ASFIFO_CTRL_WID); //0x136f
+	wr(offset, VDIN_INTF_WIDTHM1, vinfo->width - 1);
+
+	vdin_change_matrix1(offset, matrix_csc);
+
+	wr_bits(hist_offset, VDIN_HIST_CTRL, 0x9, 0, 7); //hist sampling site
+
+	/* win_hs */
+	wr_bits(hist_offset, VDIN_HIST_H_START_END, 0,
+		HIST_HSTART_BIT, HIST_HSTART_WID); //1231
+	/* win_he */
+	wr_bits(hist_offset, VDIN_HIST_H_START_END, vinfo->width - 1,
+		HIST_HEND_BIT, HIST_HEND_WID);
+	/* win_vs */
+	wr_bits(hist_offset, VDIN_HIST_V_START_END, 0,
+		HIST_VSTART_BIT, HIST_VSTART_WID); //1232
+	/* win_ve */
+	wr_bits(hist_offset, VDIN_HIST_V_START_END, vinfo->height - 1,
+		HIST_VEND_BIT, HIST_VEND_WID);
+	if (vdin_dbg_en)
+		pr_info("vdin%d hist,%dx%d\n",
+			devp->index, vinfo->width, vinfo->height);
+}
+
 /* vdin1 hist function can be used on the boot
  * Currently used for txhd2
  * 1 configure the hist function register ---vdin1_hw_hist_on_off
@@ -4235,7 +4336,6 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 void vdin1_hw_hist_on_off(struct vdin_dev_s *devp, bool on_off)
 {
 	const struct vinfo_s *vinfo;
-	unsigned int offset = devp->addr_offset;
 
 	vinfo = get_current_vinfo();
 	if (!vinfo) {
@@ -4243,66 +4343,46 @@ void vdin1_hw_hist_on_off(struct vdin_dev_s *devp, bool on_off)
 		return;
 	}
 
-	enum vdin_matrix_csc_e	  matrix_csc = VDIN_MATRIX_RGB_YUV709;
-
 	if (!devp->index) {
 		pr_err("only support vdin1 set\n");
 		return;
 	}
 
 	if (on_off) {
-		devp->h_active = vinfo->width;
-		devp->v_active = vinfo->height;
+		devp->h_active_org = vinfo->width;
+		devp->v_active_org = vinfo->height;
+		devp->h_active = devp->h_active_org;
+		devp->v_active = devp->v_active_org;
 		vdin_clk_on_off(devp, true);
-		if (devp->dtdata->hw_ver != VDIN_HW_T6D) {
-			devp->prop.scaling4w = 1280;
-			devp->prop.scaling4h = 720;
-			/* Getting luma values requires reading yuv images more accurately
-			 * Converting rgb to yuv requires csc(matrix) and hv_scaling to be turned on
-			 */
-			vdin_set_hscale(devp, devp->prop.scaling4w);
-			vdin_set_vscale(devp);
-		}
-
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
-			vdin_change_matrix1(offset, matrix_csc);
-		else
-			vdin_change_matrix0(offset, matrix_csc);
-		wr_bits(offset, VDIN_MATRIX_CTRL, 3,
-			VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID); //not open matrix prob
-		//usleep_range(50000, 60000);0x55554550
-		wr_bits(offset, VDIN_COM_CTRL0, 0x917, 0, 12); // 0x1302
-		wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
-			VDI6_ASFIFO_CTRL_BIT, VDI_ASFIFO_CTRL_WID); //0x136f
-		wr(offset, VDIN_ASFIFO_CTRL1, 0x80e4); //1309
-		if (devp->dtdata->hw_ver == VDIN_HW_T6D) //10: from matrix1 dout
-			wr_bits(offset, VDIN_ASFIFO_CTRL1, 2, 0x12, 3); //1309
-		//usleep_range(50000, 60000);
-
-		//width = vdin_get_active_h(devp);
-		//height =  vdin_get_active_v(devp);
-		wr(offset, VDIN_INTF_WIDTHM1, vinfo->width - 1);
-
-		//Register with vdin0 for vdin1 hist function
-		if (devp->dtdata->hw_ver == VDIN_HW_TXHD2 || devp->dtdata->hw_ver == VDIN_HW_T6D)
-			offset = 0;
-		wr_bits(offset, VDIN_HIST_CTRL, 0x9, 0, 7); //hist sampling site
-
-		/* win_hs */
-		wr_bits(offset, VDIN_HIST_H_START_END, 0,
-			HIST_HSTART_BIT, HIST_HSTART_WID); //1231
-		/* win_he */
-		wr_bits(offset, VDIN_HIST_H_START_END, vinfo->width - 1,
-			HIST_HEND_BIT, HIST_HEND_WID);
-		/* win_vs */
-		wr_bits(offset, VDIN_HIST_V_START_END, 0,
-			HIST_VSTART_BIT, HIST_VSTART_WID); //1232
-		/* win_ve */
-		wr_bits(offset, VDIN_HIST_V_START_END, vinfo->height - 1,
-			HIST_VEND_BIT, HIST_VEND_WID);
+		vdin_hist_init(devp);
 		usleep_range(40000, 50000);
 	} else {
 		vdin_clk_on_off(devp, false);
+	}
+}
+
+void vdin_ioctl_get_hist(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp)
+{
+	unsigned int i;
+	int ave;
+
+	vdin_get_hist_val(devp, vdin1_hist_temp);
+
+	ave = div_u64(vdin1_hist_temp->sum,
+		(vdin1_hist_temp->height * vdin1_hist_temp->width));
+	/* Convert limit to full format */
+	ave = (ave - 16) < 0 ? 0 : (ave - 16);
+	vdin1_hist_temp->ave = ave * 255 / (235 - 16);
+	if (vdin1_hist_temp->ave > 255)
+		vdin1_hist_temp->ave = 255;
+	vdin_get_hist_gamma(devp, vdin1_hist_temp->hist);
+	if (vdin_dbg_en & DBG_VDIN1_HIST) {
+		pr_info("sum:0x%lx, width:%d, height:%d ave:0x%x\n",
+			vdin1_hist_temp->sum,
+			vdin1_hist_temp->width, vdin1_hist_temp->height,
+			vdin1_hist_temp->ave);
+		for (i = 0; i < 64; i++)
+			pr_info("-:vdin1 hist[%d]=%d\n", i, vdin1_hist_temp->hist[i]);
 	}
 }
 

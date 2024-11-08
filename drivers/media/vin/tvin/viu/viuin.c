@@ -189,19 +189,13 @@ void viuin_select_loopback_path(void)
 {
 	/* set VPU_VIU_VDIN_IF_MUX_CTRL */
 	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL_T3X, 0x8080808);
-	/* set VPP_WRBAK_CTRL */
-	wr_viu(VPP_WR_BAK_CTRL, 0xff0006);
-	/* wrback hsync en */
-	//if (port >= TVIN_PORT_VIU1_VIDEO &&
-	//    port <= TVIN_PORT_VIU1_WB0_POST_BLEND) {
+	/* sel TVIN_PORT_VIU1_WB0_VPP */
+	wr_bits_viu(VPP_WR_BAK_CTRL, 6, 0, 4);
+	wr_bits_viu(VPP_WR_BAK_CTRL, 0xff, 16, 8);
 	wr_bits_viu(WR_BACK_MISC_CTRL, 1, 0, 1);/*vd0 hsync*/
 	wr_bits_viu(WR_BACK_MISC_CTRL, 0, 1, 1);/*vd1 hsync*/
-	//} else {
-	//	wr_bits_viu(WR_BACK_MISC_CTRL, 0xf, 0, 4);
-	//}
-	//if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M)) {
-	wr_viu(VIU_FRM_CTRL, 0x3000004);
-	//}
+	/* enable write back hsync */
+	wr_bits_viu(VIU_FRM_CTRL, 3, 24, 2);
 }
 EXPORT_SYMBOL(viuin_select_loopback_path);
 

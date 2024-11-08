@@ -161,5 +161,6 @@ void vdin_clr_write_done_t3x(struct vdin_dev_s *devp);
 unsigned int vdin_get_div_t3x(struct vdin_dev_s *devp);
 void vdin_set_scl_mode_t3x(struct vdin_dev_s *devp, bool on_off);
 void vdin_set_dsc_config_t3x(struct vdin_dev_s *devp, bool on_off);
-
+void vdin_get_hist_val_t3x(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp);
+void vdin_hist_init_t3x(struct vdin_dev_s *devp);
 #endif

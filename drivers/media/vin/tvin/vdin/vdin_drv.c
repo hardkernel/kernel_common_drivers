@@ -4560,37 +4560,6 @@ static int vdin_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-void vdin_ioctl_get_hist(struct vdin_dev_s *devp,
-					struct vdin_hist_s *vdin1_hist_temp)
-{
-	unsigned int i;
-	unsigned int offset = devp->addr_offset;
-	int ave;
-
-	vdin1_hist_temp->width = (rd(0, VDIN_HIST_H_START_END) & 0x1fff);
-	vdin1_hist_temp->height = (rd(0, VDIN_HIST_V_START_END) & 0x1fff);
-	if (is_meson_txhd2_cpu() || devp->dtdata->hw_ver == VDIN_HW_T6D)
-		vdin1_hist_temp->sum =  rd(0, VDIN_HIST_SPL_VAL);
-	else
-		vdin1_hist_temp->sum =  rd(offset, VDIN_HIST_SPL_VAL);
-	ave =
-		div_u64(vdin1_hist_temp->sum, (vdin1_hist_temp->height * vdin1_hist_temp->width));
-	/* Convert limit to full format */
-	ave = (ave - 16) < 0 ? 0 : (ave - 16);
-	vdin1_hist_temp->ave = ave * 255 / (235 - 16);
-	if (vdin1_hist_temp->ave > 255)
-		vdin1_hist_temp->ave = 255;
-	vdin_get_hist_gamma(devp, vdin1_hist_temp->hist);
-	if (vdin_dbg_en & DBG_VDIN1_HIST) {
-		pr_info("sum:0x%lx, width:%d, height:%d ave:0x%x\n",
-			vdin1_hist_temp->sum,
-			vdin1_hist_temp->width, vdin1_hist_temp->height,
-			vdin1_hist_temp->ave);
-		for (i = 0; i < 64; i++)
-			pr_info("-:vdin1 hist[%d]=%d\n", i, vdin1_hist_temp->hist[i]);
-	}
-}
-
 static int vdin_cmd_check(struct vdin_dev_s *devp, unsigned int cmd)
 {
 	if (devp->work_mode == VDIN_WORK_MD_V4L &&

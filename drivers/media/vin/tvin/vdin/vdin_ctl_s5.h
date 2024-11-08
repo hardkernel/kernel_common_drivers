@@ -82,5 +82,7 @@ void vdin_set_frame_mif_write_addr_s5(struct vdin_dev_s *devp,
 			unsigned int rdma_enable, struct vf_entry *vfe);
 void vdin_sw_reset_s5(struct vdin_dev_s *devp);
 void vdin_bist_s5(struct vdin_dev_s *devp, unsigned int mode);
+void vdin_get_hist_val_s5(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp);
+void vdin_hist_init_s5(struct vdin_dev_s *devp);
 #endif
 

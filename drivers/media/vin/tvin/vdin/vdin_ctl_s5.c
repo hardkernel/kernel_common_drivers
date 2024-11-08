@@ -1597,6 +1597,20 @@ void vdin_set_vframe_prop_info_s5(struct vframe_s *vf,
 	}
 }
 
+void vdin_get_hist_val_s5(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp)
+{
+	unsigned int offset = devp->addr_offset;
+
+	vdin1_hist_temp->width = (rd(offset, VDIN_LUMA_HIST_H_START_END) & 0x1fff) + 1;
+	vdin1_hist_temp->height = (rd(offset, VDIN_LUMA_HIST_V_START_END) & 0x1fff) + 1;
+	vdin1_hist_temp->sum =  rd(offset, VDIN_LUMA_HIST_SPL_VAL);
+}
+
+void vdin_hist_init_s5(struct vdin_dev_s *devp)
+{
+	//todo
+}
+
 void vdin_set_all_regs_s5(struct vdin_dev_s *devp)
 {
 	/* matrix sub-module */

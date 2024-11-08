@@ -384,4 +384,5 @@ unsigned int vdin_get_rx_avi_colorimetry(struct vdin_dev_s *devp, unsigned int c
 bool vdin_is_dv_supported(void);
 bool vdin_is_afbce_enabled(struct vdin_dev_s *devp);
 u32 vdin_matrix_range_chk(struct vdin_dev_s *devp);
+void vdin_hist_init(struct vdin_dev_s *devp);
 #endif
