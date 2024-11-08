@@ -2694,10 +2694,6 @@ void lc_process(struct vframe_s *vf,
 			set_lc_curve(1, 0, vpp_index);
 		} else {
 			ve_lc_curve_set(1, 0, lc_szcurve, 0, vpp_index);
-			if (multi_slice_flag)
-				ve_lc_curve_set(1, 0, lc_szcurve, 1, vpp_index);
-			else if (multi_pic_flag)
-				ve_lc_curve_set(1, 0, lc_szcurve_slice1, 1, vpp_index);
 		}
 
 		lc_bypass_flag++;
@@ -2722,8 +2718,7 @@ void lc_process(struct vframe_s *vf,
 		if (set_lc_curve(0, 0, vpp_index))
 			pr_amlc_dbg("[%s] set lc curve fail\n", __func__);
 	} else {
-		if (!multi_slice_flag)
-			ve_lc_mapping_ctrl(lc_en, lc_rdma_mode, vpp_index);
+		ve_lc_mapping_ctrl(lc_en, lc_rdma_mode, vpp_index);
 
 		ve_lc_blk_num_get(&blk_hnum, &blk_vnum, 0);
 
@@ -2741,23 +2736,13 @@ void lc_process(struct vframe_s *vf,
 		/*do time domain iir*/
 		lc_fw_curve_iir(vf, lc_hist,
 			lc_szcurve, blk_vnum, blk_hnum);
-		if (multi_pic_flag)
-			lc_fw_curve_iir(vf, lc_hist_slice1,
-				lc_szcurve_slice1, blk_vnum, blk_hnum);
 
 		if (lc_curve_prcnt > 0) { /*debug lc curve node*/
 			lc_prt_curve();
 			lc_curve_prcnt--;
 		}
 
-		if (!multi_pic_flag) {
-			ve_lc_curve_set(0, lc_demo_mode, lc_szcurve, 0, vpp_index);
-			if (multi_slice_flag)
-				ve_lc_curve_set(0, lc_demo_mode, lc_szcurve, 1, vpp_index);
-		} else {
-			ve_lc_curve_set(0, 0, lc_szcurve, 0, vpp_index);
-			ve_lc_curve_set(0, 0, lc_szcurve_slice1, 1, vpp_index);
-		}
+		ve_lc_curve_set(0, lc_demo_mode, lc_szcurve, 0, vpp_index);
 	}
 
 	if (amlc_debug == 0xc &&

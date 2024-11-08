@@ -4294,11 +4294,8 @@ void ve_size_info_update(int vpp_index)
 	reg_offset = lc_reg_ofst[0];
 
 	lc_reg = VPP_LC1_CURVE_HV_NUM + reg_offset;
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
-			(h_num << 8) | v_num, vpp_index);
-	else
-		WRITE_VPP_REG_S5(lc_reg, (h_num << 8) | v_num);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
+		(h_num << 8) | v_num, vpp_index);
 
 	lc_reg = VPP_LC1_CURVE_LMT_RAT + reg_offset;
 	tmp = READ_VPP_REG_S5(lc_reg);
@@ -4308,24 +4305,15 @@ void ve_size_info_update(int vpp_index)
 	blackbar_mute_thrd = tmp >> 3;
 
 	lc_reg = VPP_LC1_CURVE_HISTVLD_THRD + reg_offset;
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, histvld_thrd, vpp_index);
-	else
-		WRITE_VPP_REG_S5(lc_reg, histvld_thrd);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, histvld_thrd, vpp_index);
 
 	lc_reg = VPP_LC1_CURVE_BB_MUTE_THRD + reg_offset;
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, blackbar_mute_thrd,
-			vpp_index);
-	else
-		WRITE_VPP_REG_S5(lc_reg, blackbar_mute_thrd);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, blackbar_mute_thrd,
+		vpp_index);
 
 	tmp = ((height - 1) << 16) | (width - 1);
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS1_WIDTHM1_HEIGHTM1,
-			tmp, vpp_index);
-	else
-		WRITE_VPP_REG_S5(VPP_LC_STTS1_WIDTHM1_HEIGHTM1, tmp);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS1_WIDTHM1_HEIGHTM1,
+		tmp, vpp_index);
 
 	if (multi_slice_type) {
 		height = pps_dout_vsize[1];
@@ -4340,24 +4328,15 @@ void ve_size_info_update(int vpp_index)
 		blackbar_mute_thrd = tmp >> 3;
 
 		lc_reg = VPP_LC1_CURVE_HISTVLD_THRD + reg_offset;
-		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, histvld_thrd, vpp_index);
-		else
-			WRITE_VPP_REG_S5(lc_reg, histvld_thrd);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, histvld_thrd, vpp_index);
 
 		lc_reg = VPP_LC1_CURVE_BB_MUTE_THRD + reg_offset;
-		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, blackbar_mute_thrd,
-				vpp_index);
-		else
-			WRITE_VPP_REG_S5(lc_reg, blackbar_mute_thrd);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, blackbar_mute_thrd,
+			vpp_index);
 
 		tmp = ((height - 1) << 16) | (width - 1);
-		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS2_WIDTHM1_HEIGHTM1,
-				tmp, vpp_index);
-		else
-			WRITE_VPP_REG_S5(VPP_LC_STTS2_WIDTHM1_HEIGHTM1, tmp);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS2_WIDTHM1_HEIGHTM1,
+			tmp, vpp_index);
 
 		/*tmp = (width / 12) & 0xff;*/
 		tmp = width / 12 + width / 72 - 3;
@@ -4365,11 +4344,9 @@ void ve_size_info_update(int vpp_index)
 			tmp = 0xff;
 
 		tmp = (0x1 << 3) | (tmp << 16);
-		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL1,
-				tmp, vpp_index);
-		else
-			WRITE_VPP_REG_S5(VPP_LC_STTS_CTRL1, tmp);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL1,
+			tmp, vpp_index);
+
 	} else {
 		reg_offset = lc_reg_ofst[1];
 		lc_reg = VPP_LC1_CURVE_CTRL + reg_offset;
