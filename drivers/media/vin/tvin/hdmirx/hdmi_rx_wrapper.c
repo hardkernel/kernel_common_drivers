@@ -6780,7 +6780,7 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 		pos += snprintf(buf + pos, size - pos,
 			"mpll_div_clk: %d\n", rx[port].clk.mpll_clk);
 	pos += snprintf(buf + pos, size - pos,
-		"edid_select_ver: %s\n", rx[port].edid_type.cfg == EDID_V20 ? "2.0" : "1.4");
+		"edid_select_ver: %s\n", rx[port].edid_type.cfg == EDID_V21 ? "2.1" : "1.4");
 
 	pos += snprintf(buf + pos, size - pos,
 		"\n\nHDCP info\n\n");
@@ -6936,7 +6936,7 @@ void dump_video_status(u8 port)
 	rx_pr("0:14; 1:20; 2:Auto20; 4:Auto14\n");
 	rx_pr("edid_selected_ver: %d\n", rx[port].edid_type.cfg);
 	rx_pr("edid_cur_ver: %d\n", rx[port].edid_type.edid_ver);
-	rx_pr("edid_parse_ver: %s\n",  edid_ver == EDID_V20 ? "2.0" : "1.4");
+	rx_pr("edid_parse_ver: %s\n",  edid_ver == EDID_V21 ? "2.1" : "1.4");
 	rx_pr("edid status = %d\n",
 		is_valid_edid_data(rx_get_cur_used_edid(port)));
 	rx_pr("tx_type: %d\n", rx[port].tx_type);
