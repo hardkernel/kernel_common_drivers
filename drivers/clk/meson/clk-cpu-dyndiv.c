@@ -138,16 +138,22 @@ static int meson_clk_cpu_dyn_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_cpu_dyn_data *data = meson_clk_cpu_dyn_data(clk);
 	struct cpu_dyn_table *table = (struct cpu_dyn_table *)data->table;
+	struct cpu_dyn_table *parms = (struct cpu_dyn_table *)data->table;
 	struct arm_smccc_res res;
-	unsigned int nrate, i;
+	unsigned int nrate, i, min_diff = 0xffff;
 
+	/*if there is no expected rate in tables. Then use the most close rate parms*/
 	for (i = 0; i < data->table_cnt; i++) {
 		if (rate == table[i].rate) {
-			table = &table[i];
+			parms = &table[i];
+			break;
+		} else if (abs(rate - table[i].rate) < min_diff) {
+			parms = &table[i];
+			min_diff = abs(rate - table[i].rate);
 			break;
 		}
 	}
-	nrate = table->rate;
+	nrate = parms->rate;
 
 	/* For set more than 1G, need to set additional parent frequency */
 	if (nrate > 1000000000 && !strcmp(clk_hw_get_name(hw), "dsu_dyn_clk")) {
@@ -165,10 +171,11 @@ static int meson_clk_cpu_dyn_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (data->smc_id)
 		arm_smccc_smc(data->smc_id, data->secid_dyn,
-		      table->dyn_pre_mux, table->dyn_post_mux, table->dyn_div,
+		      parms->dyn_pre_mux, parms->dyn_post_mux, parms->dyn_div,
 		      0, 0, 0, &res);
 	else
-		meson_cpu_dyn_set(hw, table->dyn_pre_mux, table->dyn_post_mux, table->dyn_div);
+		meson_cpu_dyn_set(hw, parms->dyn_pre_mux,
+				parms->dyn_post_mux, parms->dyn_div);
 
 	return 0;
 }

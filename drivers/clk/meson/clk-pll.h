@@ -68,6 +68,7 @@ struct pll_params_table {
 #define CLK_MESON_PLL_FIXED_EN0P5			BIT(5)
 #define CLK_MESON_PLL_READ_ONLY				BIT(6)
 #define CLK_MESON_PLL_RSTN				BIT(7)
+#define CLK_MESON_PLL_IGNORE_RESTORE			BIT(8)
 
 struct meson_clk_pll_data {
 	struct parm en;

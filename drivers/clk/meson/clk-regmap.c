@@ -185,9 +185,11 @@ static void clk_regmap_div_restore_context(struct clk_hw *hw)
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct clk_regmap_div_data *div = clk_get_regmap_div_data(clk);
 
-	regmap_update_bits(clk->map, div->offset,
+	if (!(div->flags & CLK_DIVIDER_SECURE_IGNORE_RESTORE)) {
+		regmap_update_bits(clk->map, div->offset,
 			   clk_div_mask(div->width) << div->shift,
 			   div->saved_divider << div->shift);
+	}
 }
 
 static void clk_regmap_div_secure_v2_restore_context(struct clk_hw *hw)

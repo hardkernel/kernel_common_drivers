@@ -793,6 +793,9 @@ static void meson_clk_pll_restore_context(struct clk_hw *hw)
 		meson_parm_write(clk->map, &pll->rst, 0);
 	}
 
+	if (pll->flags & CLK_MESON_PLL_IGNORE_RESTORE)
+		return;
+
 	meson_clk_pll_set_rate(hw, pll->saved_rate,
 			clk_hw_get_rate(clk_hw_get_parent(hw)));
 	if (pll->saved_is_enabled)

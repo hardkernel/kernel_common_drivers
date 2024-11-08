@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/clkdev.h>
+#include <linux/syscore_ops.h>
+#include <linux/suspend.h>
 #include "clk-mpll.h"
 #include "clk-pll.h"
 #include "clk-regmap.h"
@@ -232,7 +234,8 @@ static struct clk_regmap t3_sys_pll = {
 		.width = 3,
 		.flags = CLK_DIVIDER_POWER_OF_TWO,
 		.smc_id = SECURE_PLL_CLK,
-		.secid = SECID_SYS0_PLL_OD
+		.secid = SECID_SYS0_PLL_OD,
+		.flags = CLK_DIVIDER_SECURE_IGNORE_RESTORE
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
@@ -257,7 +260,8 @@ static struct clk_regmap t3_sys1_pll = {
 		.width = 3,
 		.flags = CLK_DIVIDER_POWER_OF_TWO,
 		.smc_id = SECURE_PLL_CLK,
-		.secid = SECID_SYS1_PLL_OD
+		.secid = SECID_SYS1_PLL_OD,
+		.flags = CLK_DIVIDER_SECURE_IGNORE_RESTORE
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys1_pll",
@@ -743,6 +747,7 @@ static struct clk_regmap t3_gp1_pll_dco = {
 		 */
 		//.init_regs = t3_gp1_init_regs,
 		//.init_count = ARRAY_SIZE(t3_gp1_init_regs),
+		.flags = CLK_MESON_PLL_IGNORE_RESTORE,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll_dco",
@@ -764,7 +769,8 @@ static struct clk_regmap t3_gp1_pll = {
 		.shift = 12,
 		.width = 3,
 		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+			  CLK_DIVIDER_ROUND_CLOSEST |
+			  CLK_DIVIDER_SECURE_IGNORE_RESTORE),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll",
@@ -1313,6 +1319,7 @@ static struct clk_fixed_factor t3_mpll_prediv = {
 };
 
 static const struct reg_sequence t3_mpll0_init_regs[] = {
+	{ .reg = ANACTRL_MPLL_CTRL0, .def = 0x00000543 },
 	{ .reg = ANACTRL_MPLL_CTRL2, .def = 0x40000033 }
 };
 
@@ -1756,7 +1763,7 @@ static const struct cpu_dyn_table t3_axi_clk_table[] = {
 	/* axi clk no need dyn_post_mux */
 	CPU_LOW_PARAMS(24000000, 0, 0, 0),
 	/* switching 200M, cpu frequency needs switched to 1.2G first */
-	CPU_LOW_PARAMS(200000000, 5, 0, 1),
+	CPU_LOW_PARAMS(200000000, 4, 0, 1),
 	CPU_LOW_PARAMS(500000000, 3, 0, 0)
 };
 
@@ -2069,7 +2076,7 @@ static struct clk_regmap t3_dspa = {
 			&t3_dspa_1.hw,
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -2818,7 +2825,7 @@ static struct clk_regmap t3_mali = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t3_mali_parent_hws,
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3282,7 +3289,8 @@ static struct clk_regmap t3_vdec = {
 			&t3_vdec_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+				CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3396,7 +3404,8 @@ static struct clk_regmap t3_hcodec = {
 			&t3_hcodec_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+				CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3521,7 +3530,8 @@ static struct clk_regmap t3_hevcb = {
 			&t3_hevcb_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+				CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3635,7 +3645,8 @@ static struct clk_regmap t3_hevcf = {
 			&t3_hevcf_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+				CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3750,7 +3761,7 @@ static struct clk_regmap t3_vpu = {
 			&t3_vpu_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3838,7 +3849,8 @@ static struct clk_regmap t3_vpu_clkb = {
 			&t3_vpu_clkb_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+				CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -3959,7 +3971,8 @@ static struct clk_regmap t3_vpu_clkc = {
 			&t3_vpu_clkc_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+				CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4082,7 +4095,8 @@ static struct clk_regmap t3_vapb = {
 			&t3_vapb_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT |
+				CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -6928,6 +6942,54 @@ static int meson_t3_dvfs_setup(struct platform_device *pdev)
 	return 0;
 }
 
+/* Distinguish between std and str, syscore_ops is no need called when str */
+static int hib_enable;
+
+static int meson_t3_syscore_suspend(void)
+{
+	int ret = 0;
+
+	if (hib_enable) {
+		ret = clk_save_context();
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static void meson_t3_syscore_resume(void)
+{
+	if (hib_enable)
+		clk_restore_context();
+}
+
+static struct syscore_ops meson_t3_syscore_ops = {
+	.suspend	= meson_t3_syscore_suspend,
+	.resume		= meson_t3_syscore_resume,
+};
+
+static int meson_t3_pm_notify(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		hib_enable = 1;
+		break;
+	case PM_POST_HIBERNATION:
+		hib_enable = 0;
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block meson_t3_pm_nb = {
+	.notifier_call = meson_t3_pm_notify,
+};
+
 static int meson_t3_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -6962,7 +7024,6 @@ static int meson_t3_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(t3_pll_clk_regmaps); i++)
 		t3_pll_clk_regmaps[i]->map = pll_map;
-	regmap_write(pll_map, ANACTRL_MPLL_CTRL0, 0x00000543);
 
 	for (i = 0; i < t3_hw_onecell_data.num; i++) {
 		/* array might be sparse */
@@ -6988,8 +7049,20 @@ static int meson_t3_probe(struct platform_device *pdev)
 
 	meson_t3_dvfs_setup(pdev);
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   &t3_hw_onecell_data);
+	if (ret)
+		return ret;
+
+	/* register syscore ops to save clk status at std */
+	register_syscore_ops(&meson_t3_syscore_ops);
+	/*
+	 * register pm notify, distinguish between std and str, and ensure
+	 * that syscore_ops is called only when std is used.
+	 */
+	register_pm_notifier(&meson_t3_pm_nb);
+
+	return ret;
 }
 
 static const struct of_device_id clkc_match_table[] = {
