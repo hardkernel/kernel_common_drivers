@@ -17,7 +17,8 @@
 /* 20230615: solved demod not adc clock will crash */
 /* 20230705: change be311 config value */
 /* 20231114: S4D adjust adc clk config */
-#define ADC_VER "20231114: S4D adjust adc clk config"
+/* 20240902: TXHD2 configuration optimized */
+#define ADC_VER "20240902: TXHD2 configuration optimized"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
@@ -150,6 +151,7 @@ enum adc_chip_ver {
 	ADC_CHIP_T3X,
 	ADC_CHIP_TXHD2,
 	ADC_CHIP_S1A,
+	ADC_CHIP_T6D,
 };
 
 struct adc_reg_phy {

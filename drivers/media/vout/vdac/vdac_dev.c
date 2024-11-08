@@ -781,8 +781,7 @@ static void vdac_dev_enable(void)
 
 /* ********************************************************* */
 static ssize_t vdac_info_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
 
@@ -826,8 +825,7 @@ static const char *vdac_debug_usage_str = {
 };
 
 static ssize_t vdac_debug_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", vdac_debug_usage_str);
 }
@@ -851,9 +849,75 @@ static void vdac_parse_param(char *buf_orig, char **parm)
 	}
 }
 
+//sel:0 avin, sel:1 atv
+static void vdac_config_cvbsout(int sel)
+{
+	unsigned int cntl0_val = 0, cntl1_val = 0;
+
+	s_vdac_data->cdac_disable = 0;
+	switch (s_vdac_data->cpu_id) {
+	case VDAC_CPU_TL1:
+	case VDAC_CPU_TM2:
+	case VDAC_CPU_S1A:
+	case VDAC_CPU_G12AB:
+	case VDAC_CPU_SM1:
+	case VDAC_CPU_SC2:
+	case VDAC_CPU_S4:
+	case VDAC_CPU_S4D:
+	case VDAC_CPU_S7:
+	case VDAC_CPU_S7D:
+		//todo
+		break;
+	case VDAC_CPU_T5:
+	case VDAC_CPU_T5D:
+	case VDAC_CPU_T3:
+	case VDAC_CPU_T5W:
+		if (sel) {
+			cntl0_val = 0x00406801;
+			cntl1_val = 0xc0;
+		} else {
+			cntl0_val = 0x00407E01;
+			cntl1_val = 0x80;
+		}
+		break;
+	case VDAC_CPU_T5M:
+	case VDAC_CPU_T3X:
+		if (sel) {
+			cntl0_val = 0x00410a01;
+			cntl1_val = 0xc0;
+		} else {
+			cntl0_val = 0x00410901;
+			cntl1_val = 0x80;
+		}
+		break;
+	case VDAC_CPU_TXHD2:
+		if (sel) {
+			cntl0_val = 0x00411a82;
+			cntl1_val = 0xc0;
+		} else {
+			cntl0_val = 0x00411982;
+			cntl1_val = 0x80;
+		}
+		break;
+	case VDAC_CPU_T6D:
+		if (sel) {
+			cntl0_val = 0x00419a82;
+			cntl1_val = 0xc0;
+		} else {
+			cntl0_val = 0x00419982;
+			cntl1_val = 0x80;
+		}
+		break;
+	default:
+		break;
+	}
+	vdac_ana_reg_write(s_vdac_data->reg_cntl0, cntl0_val);
+	vdac_ana_reg_write(s_vdac_data->reg_cntl1, cntl1_val);
+}
+
 static ssize_t vdac_debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buff, size_t count)
+	const struct class_attribute *attr,
+	const char *buff, size_t count)
 {
 	char *buf_orig;
 	char *parm[3] = {NULL};
@@ -912,6 +976,13 @@ static ssize_t vdac_debug_store(const struct class *class,
 				pr_info("reg not match\n");
 			print_vdac_reg_value();
 		}
+	} else if (!strcmp(parm[0], "cvbsout")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &tmp) < 0)
+				goto vdac_store_err;
+		}
+		vdac_config_cvbsout(tmp);
+		pr_info("config cvbsout, sel:%d\n", tmp);
 	} else {
 		pr_info("invalid cmd\n");
 	}

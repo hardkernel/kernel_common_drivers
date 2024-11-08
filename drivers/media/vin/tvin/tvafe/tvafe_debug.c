@@ -59,6 +59,8 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		devp->tvafe.aspect_ratio);
 	tvafe_pr_info("tvafe_info_s->aspect_ratio_cnt:%d\n",
 		devp->tvafe.aspect_ratio_cnt);
+	tvafe_pr_info("tvafe_info_s->active_ratio:%d\n",
+		devp->tvafe.active_ratio);
 	/* tvafe_dev_s->tvin_parm_s struct info */
 	tvafe_pr_info("\n!!tvafe_dev_s->tvin_parm_s struct info:\n");
 	tvafe_pr_info("tvin_parm_s->index:%d\n", parm->index);
@@ -79,6 +81,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_s->cvd2_init_en:%d\n", cvd2->cvd2_init_en);
 	tvafe_pr_info("tvafe_cvd2_s->nonstd_detect_dis:%d\n",
 		cvd2->nonstd_detect_dis);
+	tvafe_pr_info("\n tvafe_cvd2_s->smr_cnt:%d\n", cvd2->smr_cnt);
 	/* tvin_parm_s->tvin_info_s struct info */
 	tvafe_pr_info("\n!!tvin_parm_s->tvin_info_s struct info:\n");
 	tvafe_pr_info("tvin_info_s->trans_fmt:0x%x\n", tvin_info->trans_fmt);
@@ -179,9 +182,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->noise_level:%d\n",
 		hw->noise_level);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->low_amp:%d\n", hw->low_amp);
-
-	tvafe_pr_info("\n tvafe_cvd2_info_s->smr_cnt:%d\n",
-		cvd2_info->smr_cnt);
+	tvafe_pr_info("tvafe_cvd2_hw_data_s->mv_state:%d\n", hw->mv_state);
 	tvafe_pr_info("tvafe_cvd2_info_s->isr_cnt:%d\n",
 		cvd2_info->isr_cnt);
 	tvafe_pr_info("tvafe_cvd2_info_s->unlock_cnt:%d\n\n",
@@ -238,6 +239,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("try_fmt_max_atv:%d\n", try_fmt_max_atv);
 	tvafe_pr_info("try_fmt_max_av:%d\n", try_fmt_max_av);
 	tvafe_pr_info("avout_en:%d\n", user_param->avout_en);
+	tvafe_pr_info("macrovision:%d\n", user_param->macrovision);
 	tvafe_pr_info("tvafe_function_sel:%#x\n", devp->tvafe_function_sel);
 	tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
 }
@@ -583,6 +585,19 @@ static ssize_t debug_store(struct device *dev,
 		if (parm[1] && (kstrtouint(parm[1], 16, &val) == 0))
 			devp->tvafe_function_sel = val;
 		pr_info("[%s]tvafe_function_sel:%#x\n", __func__, devp->tvafe_function_sel);
+	} else if (!strcmp(parm[0], "tvafe_dbg")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &val) == 0))
+			devp->tvafe_dbg = val;
+		pr_info("[%s]tvafe_function_sel:%#x\n", __func__, devp->tvafe_function_sel);
+	} else if (!strcmp(parm[0], "wss_valid_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &val) == 0))
+			devp->tvafe_ratio_effect_cnt = val;
+		pr_info("[%s]tvafe_function_sel:%#x\n", __func__, devp->tvafe_function_sel);
+	} else if (!strncmp(parm[0], "reset", strlen("reset"))) {
+		if (parm[0][5] == '0')
+			tvafe_reset_module();
+		else if (parm[0][5] == '1')
+			tvafe_cvd2_hold_rst();
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}

@@ -40,7 +40,8 @@
 /* 20230607: optimized snow config */
 /* 20230609: chip bringup */
 /* 20230804: atv add filter format and set saturation fail */
-#define TVAFE_VER "20230804: atv add filter format and set saturation fail"
+/* 20241007: wss function optimization */
+#define TVAFE_VER "20241007: wss function optimization"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
@@ -53,6 +54,10 @@
 #define TVAFE_PORT_AV2 0x2
 
 #define TVAFE_WSS_FUNCTION		BIT(0)
+/* smc main cmd */
+#define TVAFE_SMC_CMD	0x8200008e
+/* smc sub id */
+#define TVAFE_GET_MACROV_STS	1
 
 /************************************************************ */
 /* *** enum definitions ********************************************* */
@@ -66,7 +71,8 @@ struct tvafe_info_s {
 	struct tvin_parm_s parm;
 	struct tvafe_cvd2_s cvd2;
 	/*WSS INFO for av/atv*/
-	enum tvin_aspect_ratio_e aspect_ratio;
+	u8 aspect_ratio;
+	unsigned char	active_ratio;	/* active aspect ratio */
 	unsigned int aspect_ratio_cnt;
 };
 
@@ -78,6 +84,24 @@ struct tvafe_info_s {
 #define TVAFE_AUTO_PGA     BIT(5)
 #define TVAFE_AUTO_HS_MODE BIT(6)
 #define TVAFE_AUTO_VS_MODE BIT(7)
+
+extern bool disable_api;
+extern bool force_stable;
+extern bool tvafe_atv_search_channel;
+
+extern unsigned int force_nostd;
+
+#define TVAFE_DBG_NORMAL		BIT(0)
+#define TVAFE_DBG_ISR			BIT(4)
+#define TVAFE_DBG_SMR			BIT(8)
+#define TVAFE_DBG_SMR2			BIT(9)
+#define TVAFE_DBG_NOSTD			BIT(12)
+#define TVAFE_DBG_NOSTD2		BIT(13)
+#define TVAFE_DBG_AUTO_VS		BIT(14)
+#define TVAFE_DBG_AUTO_HS		BIT(15)
+#define TVAFE_DBG_WSS			BIT(16)
+#define TVAFE_DBG_HORSTP_REGBASE	BIT(17)
+extern unsigned int tvafe_dbg_print;
 
 struct tvafe_user_param_s {
 	unsigned int cutwindow_val_h[5];
@@ -107,6 +131,7 @@ struct tvafe_user_param_s {
 	unsigned int avout_en;
 	unsigned int nostd_bypass_iir;
 	unsigned int low_amp_level;
+	unsigned int macrovision;
 
 	/* debug */
 	unsigned int cutwin_test_en;
@@ -118,7 +143,7 @@ struct tvafe_user_param_s {
 
 /* tvafe device structure */
 struct tvafe_dev_s {
-	int	index;
+	unsigned int index;
 	dev_t devt;
 	struct cdev cdev;
 	struct device *dev;
@@ -152,6 +177,9 @@ struct tvafe_dev_s {
 	unsigned int frame_skip_enable;
 	unsigned int sizeof_tvafe_dev_s;
 	unsigned int tvafe_function_sel;
+	unsigned int tvafe_ratio_cnt;
+	unsigned int tvafe_ratio_effect_cnt;
+	u8 tvafe_dbg;
 };
 
 bool tvafe_get_snow_cfg(void);
@@ -172,24 +200,6 @@ int tvafe_pq_config_probe(struct meson_tvafe_data *tvafe_data);
 void cvd_set_shift_cnt(enum tvafe_cvd2_shift_cnt_e src, unsigned int val);
 unsigned int cvd_get_shift_cnt(enum tvafe_cvd2_shift_cnt_e src);
 int tvafe_bringup_detect_signal(struct tvafe_dev_s *devp, enum tvin_port_e port);
-
-extern bool disable_api;
-extern bool force_stable;
-extern bool tvafe_atv_search_channel;
-
-extern unsigned int force_nostd;
-
-#define TVAFE_DBG_NORMAL		BIT(0)
-#define TVAFE_DBG_ISR			BIT(4)
-#define TVAFE_DBG_SMR			BIT(8)
-#define TVAFE_DBG_SMR2			BIT(9)
-#define TVAFE_DBG_NOSTD			BIT(12)
-#define TVAFE_DBG_NOSTD2		BIT(13)
-#define TVAFE_DBG_AUTO_VS		BIT(14)
-#define TVAFE_DBG_AUTO_HS		BIT(15)
-#define TVAFE_DBG_WSS			BIT(16)
-#define TVAFE_DBG_HORSTP_REGBASE	BIT(17)
-extern unsigned int tvafe_dbg_print;
 
 #endif  /* _TVAFE_H */
 
