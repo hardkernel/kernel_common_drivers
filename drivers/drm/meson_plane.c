@@ -1057,12 +1057,24 @@ static int meson_video_plane_atomic_get_property(struct drm_plane *plane,
 {
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 	struct am_meson_video_plane_state *plane_state;
+	struct meson_vpu_pipeline *ppl = video_plane->pipeline;
+	struct meson_vpu_video *mvv = ppl->video[video_plane->plane_index];
+
 	int ret = 0;
 
 	plane_state = to_am_meson_video_plane_state(state);
 
 	if (property == video_plane->signal_fmt_property) {
 		*val = plane_state->signal_fmt;
+		return 0;
+	} else if (property == video_plane->video_cap_property) {
+		*val = mvv->video_cap;
+		return 0;
+	} else if (property == video_plane->video_src_min_size_property) {
+		*val = mvv->src_min_size;
+		return 0;
+	} else if (property == video_plane->video_src_max_size_property) {
+		*val =  mvv->src_max_size;
 		return 0;
 	}
 
@@ -2117,6 +2129,51 @@ static void meson_plane_add_rotation_reflect_property(struct drm_device *drm_dev
 	}
 }
 
+static void meson_video_create_video_cap_property(struct drm_device *drm_dev,
+		struct am_video_plane *video_plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"video_cap", 0, 0);
+	if (prop) {
+		video_plane->video_cap_property = prop;
+		drm_object_attach_property(&video_plane->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to create video_cap property\n");
+	}
+}
+
+static void meson_video_create_video_src_min_size_property(struct drm_device *drm_dev,
+		struct am_video_plane *video_plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"video_min_size", 0, 0);
+	if (prop) {
+		video_plane->video_src_min_size_property = prop;
+		drm_object_attach_property(&video_plane->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to create video_min_size property\n");
+	}
+}
+
+static void meson_video_create_video_src_max_size_property(struct drm_device *drm_dev,
+		struct am_video_plane *video_plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"video_max_size", 0, 0);
+	if (prop) {
+		video_plane->video_src_max_size_property = prop;
+		drm_object_attach_property(&video_plane->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to create video_max_size property\n");
+	}
+}
+
 struct drm_property *
 meson_create_signal_fmt_prop(struct drm_device *dev,
 			       unsigned int supported_filters)
@@ -2377,8 +2434,13 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 				BIT(SIGNAL_FMT_HDR10) |
 				BIT(SIGNAL_FMT_HDR10PRIME) |
 				BIT(SIGNAL_FMT_CUVA_HDR));
+
 	drm_plane_helper_add(plane, &am_video_helper_funcs);
-	DRM_DEBUG("video plane %d create done\n", i);
+
+	meson_video_create_video_cap_property(priv->drm, video_plane);
+	meson_video_create_video_src_min_size_property(priv->drm, video_plane);
+	meson_video_create_video_src_max_size_property(priv->drm, video_plane);
+	DRM_INFO("video plane %d create done\n", i);
 	return video_plane;
 }
 

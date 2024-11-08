@@ -724,11 +724,20 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 	int i;
+	u32 w, h;
 
 	if (!vblk || !video) {
 		MESON_DRM_BLOCK("%s break for NULL.\n", __func__);
 		return;
 	}
+
+	video->video_cap = video_get_layer_capability();
+
+	get_video_src_min_buffer(vblk->index, &w, &h);
+	video->src_min_size = w << 16 | h;
+
+	get_video_src_max_buffer(vblk->index, &w, &h);
+	video->src_max_size = w << 16 | h;
 
 	if (!video->vfm_mode) {
 		for (i = 0; i < MESON_MAX_VIDEO; i++)

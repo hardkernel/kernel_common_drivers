@@ -94,6 +94,10 @@ struct am_video_plane {
 
 	struct drm_property *signal_fmt_property;
 
+	struct drm_property *video_cap_property;
+	struct drm_property *video_src_min_size_property;
+	struct drm_property *video_src_max_size_property;
+
 	struct meson_vpu_pipeline *pipeline;
 	spinlock_t lock; //used for video plane dma_fence
 	u32 vfm_mode;

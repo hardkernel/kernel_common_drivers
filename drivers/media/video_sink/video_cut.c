@@ -3773,6 +3773,7 @@ u32 video_get_layer_capability(void)
 {
 	return layer_cap;
 }
+EXPORT_SYMBOL(video_get_layer_capability);
 
 int get_output_pcrscr_info(s32 *inc, u32 *base)
 {
@@ -9913,6 +9914,7 @@ int get_video_src_max_buffer(u8 layer_id,
 	*src_height = amvideo_meson_dev.src_height_max[layer_id];
 	return 0;
 }
+EXPORT_SYMBOL(get_video_src_max_buffer);
 
 int get_video_src_min_buffer(u8 layer_id,
 	u32 *src_width, u32 *src_height)
@@ -9923,6 +9925,7 @@ int get_video_src_min_buffer(u8 layer_id,
 	*src_height = 64;
 	return 0;
 }
+EXPORT_SYMBOL(get_video_src_min_buffer);
 
 static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 {

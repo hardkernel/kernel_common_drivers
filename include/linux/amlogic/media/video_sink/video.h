@@ -616,4 +616,9 @@ int register_vpp_postblend_info_func(void (*get_vpp_osd1_scope)
 int get_amdv_mode(void);
 #endif
 u32 get_vpp_vsync_index(u32 layerid);
+u32 video_get_layer_capability(void);
+int get_video_src_min_buffer(u8 layer_id,
+			u32 *src_width, u32 *src_height);
+int get_video_src_max_buffer(u8 layer_id,
+			u32 *src_width, u32 *src_height);
 #endif /* VIDEO_H */

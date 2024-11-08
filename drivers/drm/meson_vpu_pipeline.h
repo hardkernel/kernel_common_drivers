@@ -357,6 +357,19 @@ struct meson_vpu_video {
 	struct list_head vfm_node[MESON_MAX_VIDEO];
 	struct workqueue_struct *disable_wq;
 	struct meson_vpu_disable_work worker;
+
+	/* capability of video plane */
+	u32 video_cap;
+	/*
+	 * minimal source buffer size of video plane
+	 * returned in format "width<< 16 | height"
+	 */
+	u32 src_min_size;
+	/*
+	 * maximal source buffer size of video plane
+	 * returned in format "width<< 16 | height"
+	 */
+	u32 src_max_size;
 };
 
 struct meson_vpu_video_state {
