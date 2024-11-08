@@ -975,7 +975,7 @@ bool alloc_from_cma(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 	mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA;
 	if (mem->mem_handle) {
 		mem->phy_addr = page_to_phys((struct page *)mem->mem_handle);
-		if (!mgt->tvp_enable) {
+		if (!mgt->tvp_enable && !(mem->flags & CODEC_MM_FLAGS_TVP)) {
 			dma_sync_single_for_device(mgt->dev, mem->phy_addr,
 				mem->page_count << PAGE_SHIFT, DMA_FROM_DEVICE);
 		}
