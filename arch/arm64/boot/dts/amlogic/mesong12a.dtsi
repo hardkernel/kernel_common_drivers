@@ -69,6 +69,7 @@
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
+			dynamic-power-coefficient = <110>;
 			clock-latency = <50000>;
 			#cooling-cells = <2>;
 		};
@@ -1661,7 +1662,7 @@
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <1460>;
+			sustainable-power = <592>;
 			thermal-sensors = <&p_tsensor 0>;
 			trips {
 				pswitch_on: trip-point@0 {

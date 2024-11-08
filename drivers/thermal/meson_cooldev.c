@@ -127,7 +127,7 @@ static int register_cool_dev(struct platform_device *pdev,
 	}
 
 	if (IS_ERR(cool->cooling_dev)) {
-		pr_err("thermal: register %s failed\n", cool->device_type);
+		pr_debug("thermal: register %s failed\n", cool->device_type);
 		cool->cooling_dev = NULL;
 		return -EINVAL;
 	}

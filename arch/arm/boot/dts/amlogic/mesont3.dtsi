@@ -2135,7 +2135,7 @@
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <5160>;
+			sustainable-power = <2356>;
 			thermal-sensors = <&cpu_tsensor 0>;
 			trips {
 				cpu_switch_on: trip-point@0 {

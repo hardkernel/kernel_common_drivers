@@ -476,7 +476,7 @@ static int r1p1_tsensor_read(struct meson_tsensor_data *data)
 		pr_debug("%s  vall: %u, cnt: %u\n",
 			 __func__, value_all, cnt);
 	} else {
-		pr_info("%s  valid cnt is 0, tvalue:%d\n", __func__, tvalue);
+		pr_debug("%s  valid cnt is 0, tvalue:%d\n", __func__, tvalue);
 		tvalue = 0;
 	}
 	return tvalue;
@@ -737,7 +737,7 @@ static int meson_map_dt_data(struct platform_device *pdev)
 			of_thermal_destroy_one_zone(pdata->tsensor_id);
 			return -EINVAL;
 		}
-		pr_info("trim info = %x\n", data->trim_info);
+		pr_debug("trim info = %x\n", data->trim_info);
 	}
 
 	data->pdata = pdata;
