@@ -7,7 +7,9 @@
 #include <linux/kfifo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
 #include <linux/amlogic/media/resource_mgr/resourcemanage.h>
+#endif
 #include "hdmitx_log.h"
 
 #define HDMI_TRACE_SIZE (BIT(12)) /* 4k */
@@ -21,6 +23,7 @@ struct hdmitx_tracer {
 	struct work_struct uevent_work;
 };
 
+#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
 /* hdmitx diagnostic information reporting function, see SWPL-164722 for details
  * subModule
  *   11: EERORMONITOR_SUBMODULE_HDMITX
@@ -64,6 +67,7 @@ static void hdmitx_diagnostic_info(enum hdmitx_event_log_bits event)
 		break;
 	}
 }
+#endif
 
 const char *hdmitx_event_to_str(enum hdmitx_event_log_bits event)
 {
@@ -217,8 +221,9 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 
 	if (event & HDMITX_HDMI_ERROR_MASK)
 		HDMITX_ERROR("Record HDMI error: %s\n", hdmitx_event_to_str(event));
-
+#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
 	hdmitx_diagnostic_info(event);
+#endif
 	log_str = hdmitx_event_to_str(event);
 	ret = kfifo_in(&tracer->log_fifo, log_str, strlen(log_str));
 	if (!ret)
