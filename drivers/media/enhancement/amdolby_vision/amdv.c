@@ -11963,6 +11963,15 @@ void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 	int disp_h;
 	int disp_v;
 	struct vd_proc_info_t *p_vd;
+	int h;
+	int v;
+
+	if (!tv_dovi_setting)
+		return;
+
+	/*get ori size*/
+	h = tv_dovi_setting->core1_reg_lut[49] & 0xfff;
+	v = (tv_dovi_setting->core1_reg_lut[49] >> 13) & 0xfff;
 
 	if (vf->type & VIDTYPE_COMPRESS) {
 		if (is_src_crop_valid(vf->src_crop)) {
@@ -12045,10 +12054,10 @@ void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 
 				aoi_info[2][0] = aoi_info[2][0] > p_vd->vd1_crop_top ?
 					aoi_info[2][0] - p_vd->vd1_crop_top : 0;
-				aoi_info[2][1] = aoi_info[2][1] > p_vd->vd1_crop_bottom ?
-					aoi_info[2][1] - p_vd->vd1_crop_bottom : 0;
-				aoi_info[2][2] = aoi_info[2][2] > p_vd->vd1_crop_left ?
-					aoi_info[2][2] - p_vd->vd1_crop_left : 0;
+				aoi_info[2][1] = aoi_info[2][1] > p_vd->vd1_crop_left ?
+					aoi_info[2][1] - p_vd->vd1_crop_left : 0;
+				aoi_info[2][2] = aoi_info[2][2] > p_vd->vd1_crop_bottom ?
+					aoi_info[2][2] - p_vd->vd1_crop_bottom : 0;
 				aoi_info[2][3] = aoi_info[2][3] > p_vd->vd1_crop_right ?
 					aoi_info[2][3] - p_vd->vd1_crop_right : 0;
 
@@ -12058,10 +12067,10 @@ void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 						aoi_info[2][2], aoi_info[2][3]);
 			}
 
-			aoi_info[2][2] = disp_v - 1 > aoi_info[2][2] ?
-				disp_v - 1 - aoi_info[2][2] : disp_v - 1;
-			aoi_info[2][3] = disp_h - 1 > aoi_info[2][3] ?
-				disp_h - 1 - aoi_info[2][3] : disp_h - 1;
+			aoi_info[2][2] = v - 1 > aoi_info[2][2] ?
+				v - 1 - aoi_info[2][2] : v - 1;
+			aoi_info[2][3] = h - 1 > aoi_info[2][3] ?
+				h - 1 - aoi_info[2][3] : h - 1;
 
 			if (debug_dolby & 1)
 				pr_dv_dbg("final AOI axis %d %d %d %d\n",

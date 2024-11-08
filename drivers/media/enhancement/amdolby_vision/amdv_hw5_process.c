@@ -3523,6 +3523,8 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			}
 			if (tv_hw5_setting)
 				update_amdv_status(tv_hw5_setting->top2.src_format);
+			else if (load_fixed_setting)
+				update_amdv_status(FORMAT_SDR);
 			top2_v_info.tv_dovi_setting_change_flag = false;
 			if (tv_hw5_setting && last_tv_hw5_setting)
 				memcpy(last_tv_hw5_setting, tv_hw5_setting,
