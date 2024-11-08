@@ -564,7 +564,7 @@ static void t6d_postblend_set_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
 				struct meson_vpu_block_state *old_state)
 {
-	int i, crtc_index;
+	int crtc_index;
 	struct am_meson_crtc *amc;
 	struct meson_vpu_pipeline_state *mvps;
 
@@ -611,18 +611,11 @@ static void t6d_postblend_set_state(struct meson_vpu_block *vblk,
 						   VPP_OSD2);
 		}
 
-		for (i = 0; i < MESON_MAX_OSDS; i++) {
-			if (mvps->plane_info[i].enable &&
-			    mvps->plane_info[i].crtc_index == crtc_index &&
-			    mvps->plane_info[i].plane_index == 1) {
-				/*osd2 not bypass osdblend*/
-				reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x0, 4, 1);
-			}
-		}
-
 		vpp_chk_crc(vblk, reg_ops, amc);
 		osd1_blend_premult_set(vblk, reg_ops, reg);
 	} else {
+		/*keystone disable osd2 postmatrix*/
+		reg_ops->rdma_write_reg(OSD2_HDR2_MATRIXI_EN_CTRL, 0);
 		MESON_DRM_BLOCK("%s keystone vpp2.\n", postblend->base.name);
 	}
 
@@ -1389,17 +1382,23 @@ static void t6d_postblend_register_init(struct meson_vpu_block *vblk,
 	struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
-	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
 	int crtc_index = vblk->index;
+	struct am_meson_crtc *amc;
+	u32 *crtcmask_osd;
 
-	if (vblk->init_done)
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+	crtcmask_osd = amc->priv->of_conf.crtcmask_osd;
+
+	/*write only once to prevent rdma conflict*/
+	if (vblk->init_done || crtc_index == VPP1)
 		return;
 
-	independ_path_default_regs(vblk, vblk->pipeline->subs[0].reg_ops);
+	independ_path_default_regs(vblk, reg_ops);
 	reg_ops->rdma_write_reg_bits(PATH_START_SEL, 0x3, 20, 2);
 
 	/*osd2 bypass osdblend*/
-	if (crtc_index == 1)
+	if (crtcmask_osd[MESON_OSD2] == VPP1)
 		reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 4, 1);
 	vblk->init_done = 1;
 	MESON_DRM_BLOCK("%s register_init called.\n", postblend->base.name);
