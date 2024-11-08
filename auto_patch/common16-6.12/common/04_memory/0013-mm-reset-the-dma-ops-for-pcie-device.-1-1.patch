@@ -1,0 +1,51 @@
+From b2a96f014ab351a28db0aa5274d23278d9b3b393 Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Fri, 8 Nov 2024 15:38:03 +0800
+Subject: [PATCH 11/11] mm: reset the dma ops for pcie device. [1/1]
+
+PD#SWPL-103303
+
+Problem:
+meet the pcie whitelist.
+
+Solution:
+reset the dma ops for pcie device.
+
+Verify:
+build pass.
+
+Change-Id: I70d53aa94d827c0571555778248a17bd82d0b4d9
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ arch/arm/mm/dma-mapping.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index cf411dcf5bec..df96cd0336c4 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -34,6 +34,9 @@
+ #include <asm/mach/map.h>
+ #include <asm/system_info.h>
+ #include <asm/xen/xen-ops.h>
++#ifdef CONFIG_AMLOGIC_PCIE_DMA_OPS
++#include <linux/amlogic/dma_pcie_mapping.h>
++#endif
+ 
+ #include "dma.h"
+ #include "mm.h"
+@@ -1784,6 +1787,11 @@ void arch_setup_dma_ops(struct device *dev, bool coherent)
+ 	if (device_iommu_mapped(dev))
+ 		arm_setup_iommu_dma_ops(dev);
+ 
++#ifdef CONFIG_AMLOGIC_PCIE_DMA_OPS
++	if (dev->bus && dev->bus->name && !strcmp(dev->bus->name, "pci"))
++		set_dma_ops(dev, &aml_pcie_dma_ops);
++#endif
++
+ 	xen_setup_dma_ops(dev);
+ 	dev->archdata.dma_ops_setup = true;
+ }
+-- 
+2.42.0
+
