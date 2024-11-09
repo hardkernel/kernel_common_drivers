@@ -1887,29 +1887,28 @@ static void bl_delayed_on(struct work_struct *p_work)
 	bl_on_function(bdrv);
 }
 
-static int bl_lcd_on_notifier(struct notifier_block *nb,
-			      unsigned long event, void *data)
+void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv)
 {
-	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 	struct aml_bl_drv_s *bdrv;
 	unsigned long long local_time[2];
 
-	if ((event & LCD_EVENT_BL_ON) == 0)
-		return NOTIFY_DONE;
-
 	if (!pdrv)
-		return NOTIFY_DONE;
+		return;
 
 	local_time[0] = sched_clock();
 
 	bdrv = aml_bl_get_driver(pdrv->index);
 	if (aml_bl_check_driver(bdrv))
-		return NOTIFY_DONE;
+		return;
 	if (bdrv->probe_done == 0)
-		return NOTIFY_DONE;
+		return;
 
+	if (bdrv->state & BL_STATE_BL_ON) {
+		BLPR("[%d]: %s already on\n", bdrv->index, __func__);
+		return;
+	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("[%d]: %s: 0x%lx\n", bdrv->index, __func__, event);
+		BLPR("[%d]: %s\n", bdrv->index, __func__);
 
 	bdrv->on_request = 1;
 	/* lcd power on sequence control */
@@ -1929,32 +1928,29 @@ static int bl_lcd_on_notifier(struct notifier_block *nb,
 
 	local_time[1] = sched_clock();
 	pdrv->proc_time.bl_on_time = local_time[1] - local_time[0];
-
-	return NOTIFY_OK;
 }
 
-static int bl_lcd_off_notifier(struct notifier_block *nb,
-			       unsigned long event, void *data)
+void bl_lcd_off_ctrl(struct aml_lcd_drv_s *pdrv)
 {
-	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 	struct aml_bl_drv_s *bdrv;
 	unsigned long long local_time[2];
 
-	if ((event & LCD_EVENT_BL_OFF) == 0)
-		return NOTIFY_DONE;
-
 	if (!pdrv)
-		return NOTIFY_DONE;
+		return;
 	local_time[0] = sched_clock();
 
 	bdrv = aml_bl_get_driver(pdrv->index);
 	if (aml_bl_check_driver(bdrv))
-		return NOTIFY_DONE;
+		return;
 	if (bdrv->probe_done == 0)
-		return NOTIFY_DONE;
+		return;
 
+	if (!(bdrv->state & BL_STATE_BL_ON)) {
+		BLPR("[%d]: %s already off\n", bdrv->index, __func__);
+		return;
+	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("[%d]: %s: 0x%lx\n", bdrv->index, __func__, event);
+		BLPR("[%d]: %s\n", bdrv->index, __func__);
 
 	bdrv->on_request = 0;
 	bdrv->state &= ~BL_STATE_LCD_ON;
@@ -1967,19 +1963,7 @@ static int bl_lcd_off_notifier(struct notifier_block *nb,
 
 	local_time[1] = sched_clock();
 	pdrv->proc_time.bl_off_time = local_time[1] - local_time[0];
-
-	return NOTIFY_OK;
 }
-
-static struct notifier_block bl_lcd_on_nb = {
-	.notifier_call = bl_lcd_on_notifier,
-	.priority = LCD_PRIORITY_POWER_BL_ON,
-};
-
-static struct notifier_block bl_lcd_off_nb = {
-	.notifier_call = bl_lcd_off_notifier,
-	.priority = LCD_PRIORITY_POWER_BL_OFF,
-};
 
 static int bl_power_ctrl_notifier(struct notifier_block *nb,
 				  unsigned long event, void *data)
@@ -2439,12 +2423,6 @@ static void bl_notifier_init(void)
 {
 	int ret;
 
-	ret = aml_lcd_notifier_register(&bl_lcd_on_nb);
-	if (ret)
-		BLERR("register bl_lcd_on_nb failed\n");
-	ret = aml_lcd_notifier_register(&bl_lcd_off_nb);
-	if (ret)
-		BLERR("register bl_lcd_off_nb failed\n");
 	ret = aml_lcd_notifier_register(&bl_power_ctrl_nb);
 	if (ret)
 		BLERR("register bl_power_ctrl_nb failed\n");
@@ -2477,8 +2455,6 @@ static void bl_notifier_remove(void)
 	aml_lcd_notifier_unregister(&bl_lcd_test_nb);
 	aml_lcd_notifier_unregister(&bl_lcd_update_nb);
 	aml_lcd_notifier_unregister(&bl_power_ctrl_nb);
-	aml_lcd_notifier_unregister(&bl_lcd_on_nb);
-	aml_lcd_notifier_unregister(&bl_lcd_off_nb);
 }
 
 static void bl_pwm_port_update(struct aml_bl_drv_s *bdrv)

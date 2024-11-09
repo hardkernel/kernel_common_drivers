@@ -1408,7 +1408,7 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *child)
 {
 	struct lcd_power_ctrl_s *power_step = &pdrv->config.power;
-	int ret = 0;
+	int ret = 0, append_more = 1;
 	unsigned int para[5];
 	unsigned int val;
 	int i, j, temp;
@@ -1495,17 +1495,29 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_nod
 					      pdrv->config.timing.ss_mode);
 				}
 				break;
+			case LCD_POWER_TYPE_BACKLIGHT:
+			case LCD_POWER_TYPE_MUTE:
+				append_more = 0;
+				break;
 			default:
 				break;
 			}
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-				LCDPR("[%d]: power_on %d: type=%d, index=%d, value=%d, delay=%d\n",
-					pdrv->index, i, power_step->power_on_step[i].type,
-					power_step->power_on_step[i].index,
-					power_step->power_on_step[i].value,
-					power_step->power_on_step[i].delay);
-			}
 			i++;
+		}
+		if (append_more && i + 2 < LCD_PWR_STEP_MAX) {
+			power_step->power_on_step[i].type = LCD_POWER_TYPE_BACKLIGHT;
+			power_step->power_on_step[i].index = 0;
+			power_step->power_on_step[i].value = 1; //bl on
+			power_step->power_on_step[i].delay = 0;
+			i++;
+
+			power_step->power_on_step[i].type = LCD_POWER_TYPE_MUTE;
+			power_step->power_on_step[i].index = 0;
+			power_step->power_on_step[i].value = 0;//unmute
+			power_step->power_on_step[i].delay = pdrv->unmute_cnt;
+			i++;
+			power_step->power_on_step[i].type = LCD_POWER_TYPE_MAX;
+			power_step->power_on_step_max = i;
 		}
 	}
 
@@ -1514,9 +1526,11 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_nod
 		LCDPR("[%d]: failed to get power_off_step\n", pdrv->index);
 		power_step->power_off_step[0].type = LCD_POWER_TYPE_MAX;
 	} else {
+		append_more = 1;
 		i = 0;
 		while (i < LCD_PWR_STEP_MAX) {
 			power_step->power_off_step_max = i;
+
 			j = 4 * i;
 			ret = of_property_read_u32_index(child, "power_off_step", j, &val);
 			if (ret) {
@@ -1566,17 +1580,30 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_nod
 				lcd_extern_dev_index_add(pdrv->index, index);
 				break;
 #endif
+			case LCD_POWER_TYPE_BACKLIGHT:
+			case LCD_POWER_TYPE_MUTE:
+				append_more = 0;
+				break;
 			default:
 				break;
 			}
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-				LCDPR("[%d]: power_off %d: type=%d, index=%d, value=%d, delay=%d\n",
-					pdrv->index, i, power_step->power_off_step[i].type,
-					power_step->power_off_step[i].index,
-					power_step->power_off_step[i].value,
-					power_step->power_off_step[i].delay);
-			}
 			i++;
+		}
+		if (append_more && i + 2 < LCD_POWER_TYPE_MAX) {
+			for (i = i + 2; i >= 2; i--)
+				memcpy(&power_step->power_off_step[i],
+				       &power_step->power_off_step[i - 2],
+				       sizeof(struct lcd_power_step_s));
+			power_step->power_off_step_max += 2;
+			power_step->power_off_step[0].type  = LCD_POWER_TYPE_MUTE;
+			power_step->power_off_step[0].index = 0;
+			power_step->power_off_step[0].value = 1; //mute
+			power_step->power_off_step[0].delay = pdrv->mute_cnt;
+
+			power_step->power_off_step[1].type = LCD_POWER_TYPE_BACKLIGHT;
+			power_step->power_off_step[1].index = 0;
+			power_step->power_off_step[1].value = 0;//bl off
+			power_step->power_off_step[1].delay = 0;
 		}
 	}
 
@@ -1590,7 +1617,7 @@ static int lcd_power_load_from_unifykey(struct aml_lcd_drv_s *pdrv,
 	int i, j, temp;
 	unsigned char *p;
 	unsigned int index;
-	int ret;
+	int ret, append_more = 1;
 
 	/* power: (5byte * n) */
 	p = buf + len;
@@ -1639,25 +1666,34 @@ static int lcd_power_load_from_unifykey(struct aml_lcd_drv_s *pdrv,
 					      pdrv->config.timing.ss_mode);
 			}
 			break;
+		case LCD_POWER_TYPE_BACKLIGHT:
+		case LCD_POWER_TYPE_MUTE:
+			append_more = 0;
+			break;
 		default:
 			break;
-		}
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: %d: type=%d, index=%d, value=%d, delay=%d\n",
-			      pdrv->index, i,
-			      power_step->power_on_step[i].type,
-			      power_step->power_on_step[i].index,
-			      power_step->power_on_step[i].value,
-			      power_step->power_on_step[i].delay);
 		}
 		if (power_step->power_on_step[i].type >= LCD_POWER_TYPE_MAX)
 			break;
 		i++;
 	}
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: power_off step:\n", pdrv->index);
 	p += (5 * (i + 1));
+	if (append_more && i + 2 < LCD_PWR_STEP_MAX) {
+		power_step->power_on_step[i].type = LCD_POWER_TYPE_BACKLIGHT;
+		power_step->power_on_step[i].index = 0;
+		power_step->power_on_step[i].value = 1; //bl on
+		power_step->power_on_step[i].delay = 0;
+		i++;
+		power_step->power_on_step[i].type = LCD_POWER_TYPE_MUTE;
+		power_step->power_on_step[i].index = 0;
+		power_step->power_on_step[i].value = 0;//unmute
+		power_step->power_on_step[i].delay = pdrv->unmute_cnt;
+		i++;
+		power_step->power_on_step[i].type = LCD_POWER_TYPE_MAX;
+		power_step->power_on_step_max = i;
+	}
+
+	append_more = 1;
 	j = 0;
 	while (j < LCD_PWR_STEP_MAX) {
 		power_step->power_off_step_max = j;
@@ -1692,20 +1728,33 @@ static int lcd_power_load_from_unifykey(struct aml_lcd_drv_s *pdrv,
 			lcd_extern_dev_index_add(pdrv->index, index);
 			break;
 #endif
+		case LCD_POWER_TYPE_BACKLIGHT:
+		case LCD_POWER_TYPE_MUTE:
+			append_more = 0;
+			break;
 		default:
 			break;
-		}
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: %d: type=%d, index=%d, value=%d, delay=%d\n",
-			      pdrv->index, j,
-			      power_step->power_off_step[j].type,
-			      power_step->power_off_step[j].index,
-			      power_step->power_off_step[j].value,
-			      power_step->power_off_step[j].delay);
 		}
 		if (power_step->power_off_step[j].type >= LCD_POWER_TYPE_MAX)
 			break;
 		j++;
+	}
+
+	if (append_more && j + 2 < LCD_POWER_TYPE_MAX) {
+		for (i = j + 2; i >= 2; i--)
+			memcpy(&power_step->power_off_step[i],
+			       &power_step->power_off_step[i - 2],
+			       sizeof(struct lcd_power_step_s));
+		power_step->power_off_step_max += 2;
+		power_step->power_off_step[0].type  = LCD_POWER_TYPE_MUTE;
+		power_step->power_off_step[0].index = 0;
+		power_step->power_off_step[0].value = 1; //mute
+		power_step->power_off_step[0].delay = pdrv->mute_cnt;
+
+		power_step->power_off_step[1].type = LCD_POWER_TYPE_BACKLIGHT;
+		power_step->power_off_step[1].index = 0;
+		power_step->power_off_step[1].value = 0;//bl off
+		power_step->power_off_step[1].delay = 0;
 	}
 
 	return 0;

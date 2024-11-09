@@ -472,6 +472,8 @@ enum lcd_power_type_e {
 	LCD_POWER_TYPE_WAIT_GPIO,
 	LCD_POWER_TYPE_CLK_SS,
 	LCD_POWER_TYPE_TCON_SPI_DATA_LOAD,
+	LCD_POWER_TYPE_BACKLIGHT,           /* 7 */
+	LCD_POWER_TYPE_MUTE,                /* 8 */
 	LCD_POWER_TYPE_MAX,
 };
 
@@ -959,6 +961,8 @@ unsigned long long lcd_pll_freq_get(int index);
 void lcd_vlock_m_update(int index, unsigned int vlock_m);
 void lcd_vlock_frac_update(int index, unsigned int vlock_farc);
 int lcd_ss_enable(int index, unsigned int flag);
+void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv);
+void bl_lcd_off_ctrl(struct aml_lcd_drv_s *pdrv);
 
 extern struct mutex lcd_power_mutex;
 

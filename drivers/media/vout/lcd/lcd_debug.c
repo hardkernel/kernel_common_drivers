@@ -253,33 +253,13 @@ static int lcd_power_step_print(struct lcd_config_s *pconf, int status, char *bu
 
 		if (power_step->type >= LCD_POWER_TYPE_MAX)
 			break;
-		switch (power_step->type) {
-		case LCD_POWER_TYPE_CPU:
-		case LCD_POWER_TYPE_PMU:
-		case LCD_POWER_TYPE_WAIT_GPIO:
-		case LCD_POWER_TYPE_CLK_SS:
-			n = lcd_debug_info_len(len + offset);
-			len += snprintf((buf + len), n,
-				"%d: type=%d, index=%d, value=%d, delay=%d\n",
-				i, power_step->type, power_step->index,
-				power_step->value, power_step->delay);
-			break;
-		case LCD_POWER_TYPE_EXTERN:
-			n = lcd_debug_info_len(len + offset);
-			len += snprintf((buf + len), n,
-				"%d: type=%d, index=%d, delay=%d\n",
-				i, power_step->type, power_step->index,
-				power_step->delay);
-			break;
-		case LCD_POWER_TYPE_SIGNAL:
-			n = lcd_debug_info_len(len + offset);
-			len += snprintf((buf + len), n,
-				"%d: type=%d, delay=%d\n",
-				i, power_step->type, power_step->delay);
-			break;
-		default:
-			break;
-		}
+
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n,
+			"%d: type=%d, index=%d, value=%d, delay=%d\n",
+			i, power_step->type, power_step->index,
+			power_step->value, power_step->delay);
+
 		i++;
 	}
 

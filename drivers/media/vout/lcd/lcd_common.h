@@ -315,6 +315,8 @@ void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal);
 
 /* lcd driver */
+void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv);
+void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv);
 void lcd_proc_time_clear(struct aml_lcd_drv_s *pdrv);
 #ifdef CONFIG_AMLOGIC_LCD_TV
 void lcd_tv_vout_server_init(struct aml_lcd_drv_s *pdrv);
