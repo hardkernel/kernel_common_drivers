@@ -3361,7 +3361,9 @@ void dump_aml_phy_sts_t3x_21(u8 port)
 	lan2_lock = (data32 >> 15) & 1;
 	lan3_lock = (data32 >> 31) & 1;
 	rx_pr("\nhdmirx phy status:\n");
-	else if (rx[port].var.frl_rate == FRL_3G_3LANE)
+	//if (rx[port].var.frl_rate == FRL_OFF)
+		//rx_pr("data_rate=tmds-%d\n", tmds_clk_msr());
+	if (rx[port].var.frl_rate == FRL_3G_3LANE)
 		rx_pr("data_rate=FRL_3G_3LANE\n");
 	else if (rx[port].var.frl_rate == FRL_6G_3LANE)
 		rx_pr("data_rate=FRL_6G_3LANE\n");

@@ -1444,7 +1444,7 @@ static void hdcp2x_process_intr(u8 int_reg[])
 	/* 0x805 */
 	u8 cp2tx_intr2_st = int_reg[2];
 	/* 0x806 */
-	u8 cp2tx_intr3_st = int_reg[3];
+	/* u8 cp2tx_intr3_st = int_reg[3]; */
 	/* 0x80d */
 	u8 cp2tx_state = hdcp2x_get_state_st();
 	static int smng_times;
@@ -1546,6 +1546,9 @@ static void hdcp2x_process_intr(u8 int_reg[])
 			p_hdcp->ds_repeater = false;
 		}
 	}
+	/* if (cp2tx_intr3_st & BIT(4))
+	 *	;
+	 */
 	if (cp2tx_intr0_st & BIT(3)) {
 		if (p_hdcp->cont_smng_method == 0) {
 			/*

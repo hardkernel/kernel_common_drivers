@@ -1100,11 +1100,12 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			len = es_params->header.len - es_params->data_len;
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
-				if (!es_params->es_overflow)
+				if (!es_params->es_overflow) {
 					if (!(es_params->header.pts_dts_flag & 0x4) ||
 						(pout->type == AUDIO_TYPE &&
 						 es_params->header.len < audio_es_len_limit))
 						out_ts_cb_list(pout, ptmp, ret, 0, 0);
+				}
 				else
 					pr_dbg("audio data lost\n");
 				if (dump_es_cb) {
