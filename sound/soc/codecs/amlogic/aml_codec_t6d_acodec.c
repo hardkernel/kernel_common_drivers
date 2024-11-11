@@ -27,6 +27,9 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
 
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#include <linux/amlogic/pm.h>
+#endif
 #include "../../../soc/amlogic/auge/iomap.h"
 #include "../../../soc/amlogic/auge/regs.h"
 #include "aml_codec_t6d_acodec.h"
@@ -76,6 +79,9 @@ struct am_acodec_priv {
 	/*headphone and lineout output*/
 	int output_type;
 	int headphone_mute;
+	int suspend_ref;
+	int resume_ref;
+	int early_suspend;
 };
 
 enum meson_acodec_version {
@@ -987,6 +993,10 @@ static int am_acodec_suspend(struct snd_soc_component *component)
 	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	int i = 0;
 
+	if (aml_acodec && aml_acodec->suspend_ref > 0) {
+		aml_acodec->suspend_ref = 0;
+		return 0;
+	}
 	if (aml_acodec) {
 		for (i = 0; i < ARRAY_SIZE(t6d_acodec_init_list); i++)
 			aml_acodec->user_setting[i] = snd_soc_component_read(component,
@@ -1005,6 +1015,9 @@ static int am_acodec_resume(struct snd_soc_component *component)
 	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	int i = 0;
 
+	/*for str case, early suspend first execute */
+	if (aml_acodec && !aml_acodec->resume_ref)
+		aml_acodec->resume_ref = 1;
 	am_acodec_reset(component);
 	am_acodec_start_up(component);
 	am_acodec_reg_init(component);
@@ -1125,6 +1138,44 @@ static int am_acodec_set_toacodec(struct am_acodec_priv *aml_acodec)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+static void aml_acodec_early_suspend(struct early_suspend *h)
+{
+	struct platform_device *pdev = h->param;
+
+	if (pdev) {
+		struct am_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+
+		if (aml_acodec && aml_acodec->component) {
+			if (!aml_acodec->suspend_ref)
+				am_acodec_suspend(aml_acodec->component);
+			aml_acodec->suspend_ref = 1;
+		}
+	}
+}
+
+static void aml_acodec_early_resume(struct early_suspend *h)
+{
+	struct platform_device *pdev = h->param;
+
+	if (pdev) {
+		struct am_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+
+		if (aml_acodec && aml_acodec->component) {
+			if (!aml_acodec->resume_ref)
+				am_acodec_resume(aml_acodec->component);
+			aml_acodec->resume_ref = 0;
+			aml_acodec->suspend_ref = 0;
+		}
+	}
+}
+
+static struct early_suspend acodec_early_suspend_handler = {
+	.suspend = aml_acodec_early_suspend,
+	.resume  = aml_acodec_early_resume,
+};
+#endif
+
 static int aml_am_acodec_probe(struct platform_device *pdev)
 {
 	struct am_acodec_priv *aml_acodec;
@@ -1234,6 +1285,9 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "chip_version", &aml_acodec->chip_version);
 	if (ret < 0)
 		aml_acodec->chip_version = MESON_ACODEC_ID_VERSION_T6D;
+	ret = of_property_read_u32(pdev->dev.of_node, "early_suspend", &aml_acodec->early_suspend);
+	if (ret < 0)
+		aml_acodec->early_suspend = 0;
 	platform_set_drvdata(pdev, aml_acodec);
 
 	ret = devm_snd_soc_register_component
@@ -1244,6 +1298,13 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 		pr_info("%s call snd_soc_register_codec error\n", __func__);
 	else
 		pr_debug("%s over\n", __func__);
+
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	if (aml_acodec->early_suspend > 0) {
+		acodec_early_suspend_handler.param = pdev;
+		register_early_suspend(&acodec_early_suspend_handler);
+	}
+#endif
 
 	return ret;
 }
