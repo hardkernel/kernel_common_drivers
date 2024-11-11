@@ -32,6 +32,7 @@
 #include <linux/clk.h>
 #ifdef CONFIG_AMLOGIC_LCD
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #endif
 #include "arch/vpp_regs.h"
 #include "vlock.h"
@@ -482,16 +483,6 @@ void vlock_set_panel_pll_frac(struct stvlock_sig_sts *pvlock, u32 val)
 	}
 }
 
-void vlock_set_panel_ss(u32 onoff)
-{
-#ifdef CONFIG_AMLOGIC_LCD
-	if (onoff)
-		lcd_ss_enable(1);
-	else
-		lcd_ss_enable(0);
-#endif
-}
-
 enum vlock_enc_num_e get_cur_enc_mode(void)
 {
 	const struct vinfo_s *vinfo;
@@ -517,6 +508,20 @@ enum vlock_enc_num_e get_cur_enc_mode(void)
 	}
 
 	return enc_mux;
+}
+
+void vlock_set_panel_ss(u32 onoff)
+{
+	enum vlock_enc_num_e enc_mux = VLOCK_ENC0;
+
+	enc_mux = get_cur_enc_mode();
+
+#ifdef CONFIG_AMLOGIC_LCD
+	if (onoff)
+		lcd_ss_enable(enc_mux, 1);
+	else
+		lcd_ss_enable(enc_mux, 0);
+#endif
 }
 
 int __attribute__((weak))frc_is_on(void)
@@ -1054,10 +1059,17 @@ static void vlock_setting(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		if ((vf->type_original & VIDTYPE_TYPEMASK) &&
 		    !(vlock_mode & VLOCK_MODE_MANUAL_SOFT_ENC)) {
 			/*tl1 fix i problem*/
-			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
+			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1) {
 				input_hz = input_hz >> 1;
-			else
-				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck, 1, 28, 1);
+			} else {
+				if (input_hz > 0 && output_hz > 0 &&
+				  ((input_hz * 2 == output_hz) || (input_hz * 4 == output_hz)))
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL  + offset_vlck,
+							   0, 28, 1);
+				else
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL  + offset_vlck,
+							   1, 28, 1);
+			}
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if (input_hz > 0 && output_hz > 0 &&
@@ -1133,10 +1145,17 @@ static void vlock_setting(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		 *bit8~15:output freq
 		 */
 		if (vf->type_original & VIDTYPE_TYPEMASK) {
-			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
+			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1) {
 				input_hz = input_hz >> 1;
-			else
-				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck, 1, 28, 1);
+			} else {
+				if (input_hz > 0 && output_hz > 0 &&
+				    ((input_hz * 2 == output_hz) || (input_hz * 4 == output_hz)))
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck,
+							   0, 28, 1);
+				else
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck,
+							   1, 28, 1);
+			}
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if (input_hz > 0 && output_hz > 0 &&

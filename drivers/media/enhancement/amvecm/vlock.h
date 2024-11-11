@@ -329,8 +329,8 @@ extern u32 phase_en_after_frqlock;
 extern u32 vlock_ss_en;
 extern unsigned int hw_clk_ok;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-void lcd_ss_enable(bool flag);
-unsigned int lcd_ss_status(void);
+//void lcd_ss_enable(bool flag);
+//unsigned int lcd_ss_status(void);
 #endif
 int amvecm_hiu_reg_read(unsigned int reg, unsigned int *val);
 int amvecm_hiu_reg_write(unsigned int reg, unsigned int val);
@@ -352,7 +352,7 @@ void vlock_dt_match_init(struct vecm_match_data_s *pdata);
 void vlock_set_en(bool en);
 void vlock_set_phase(struct stvlock_sig_sts *vlock, u32 percent);
 void vlock_set_phase_en(struct stvlock_sig_sts *vlock, u32 en);
-int lcd_set_ss(unsigned int level, unsigned int freq, unsigned int mode);
+//int lcd_set_ss(unsigned int level, unsigned int freq, unsigned int mode);
 ssize_t vlock_debug_store(struct class *cla,
 			  struct class_attribute *attr,
 			  const char *buf, size_t count);
