@@ -112,6 +112,10 @@ struct aml_spdif {
 	bool earc_use_48k;
 	/* Standardization value by normal setting */
 	unsigned int standard_sysclk;
+
+	/* stream ready to read audio type */
+	bool rx_stable;
+	struct delayed_work rx_stable_dwork;
 };
 
 unsigned int get_spdif_source_l_config(int id)
@@ -482,8 +486,13 @@ static int spdifin_check_audio_type(void)
 static int spdifin_audio_type_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.enumerated.item[0] =
-		spdifin_check_audio_type();
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
+
+	if (p_spdif->rx_stable)
+		ucontrol->value.enumerated.item[0] = spdifin_check_audio_type();
+	else
+		ucontrol->value.enumerated.item[0] = ARRAY_SIZE(audio_type_texts) - 1;
 
 	return 0;
 }
@@ -1507,6 +1516,9 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			aml_toddr_enable(p_spdif->tddr, 1);
 			aml_spdif_enable(p_spdif->actrl,
 			    substream->stream, p_spdif->id, true);
+			if (p_spdif->id == 0)
+				schedule_delayed_work(&p_spdif->rx_stable_dwork,
+					msecs_to_jiffies(200));
 		}
 
 		break;
@@ -1539,7 +1551,10 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			aml_frddr_enable(p_spdif->fddr, 0);
 		} else {
 			bool toddr_stopped = false;
-
+			if (p_spdif->id == 0) {
+				cancel_delayed_work(&p_spdif->rx_stable_dwork);
+				p_spdif->rx_stable = false;
+			}
 			aml_spdif_enable(p_spdif->actrl,
 					substream->stream, p_spdif->id, false);
 			dev_dbg(substream->pcm->card->dev,
@@ -2088,6 +2103,14 @@ static int aml_spdif_parse_of(struct platform_device *pdev)
 	return 0;
 }
 
+static void rx_stable_dwork_func(struct work_struct *p_work)
+{
+	struct aml_spdif *p_spdif = container_of(to_delayed_work(p_work),
+			struct aml_spdif, rx_stable_dwork);
+
+	p_spdif->rx_stable = true;
+}
+
 static int aml_spdif_platform_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -2194,6 +2217,8 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 	spdif_priv[aml_spdif->id] = aml_spdif;
+	if (aml_spdif->id == 0)
+		INIT_DELAYED_WORK(&aml_spdif->rx_stable_dwork, rx_stable_dwork_func);
 
 	return 0;
 }

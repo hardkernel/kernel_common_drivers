@@ -209,7 +209,8 @@ static const char *const audio_type_texts[] = {
 	"DTS",
 	"DTS-HD",
 	"TRUEHD",
-	"PAUSE"
+	"PAUSE",
+	"NOT_READY"
 };
 
 /* current sample mode and its sample rate */
