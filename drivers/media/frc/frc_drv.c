@@ -104,6 +104,7 @@ struct hrtimer frc_hi_timer;  // timer
 static struct frc_dev_s frc_dev;
 
 int frc_dbg_en;
+EXPORT_SYMBOL(frc_dbg_en);
 struct platform_device *runtime_frc_dev;
 
 struct frc_dev_s *get_frc_devp(void)
@@ -251,8 +252,9 @@ static long frc_ioctl(struct file *file,
 			break;
 		}
 
-		pr_frc(1, "set memc_autoctrl:%d boot_timestamp_en%d boot_check%d\n",
-		data, devp->in_sts.boot_timestamp_en, devp->in_sts.boot_check_finished);
+		pr_frc(1, "set memc_autoctrl:%d boot_timestamp_en%d boot_chk:%d stats:%#X\n",
+			data, devp->in_sts.boot_timestamp_en,
+			devp->in_sts.boot_check_finished, devp->in_sts.st_flag);
 		if (data) {
 //			if (devp->in_sts.boot_timestamp_en &&
 //				!devp->in_sts.boot_check_finished) {
@@ -269,8 +271,9 @@ static long frc_ioctl(struct file *file,
 			}
 		} else {
 			devp->frc_sts.auto_ctrl = false;
-			//if (devp->frc_sts.state != FRC_STATE_BYPASS)
-				frc_change_to_state(FRC_STATE_DISABLE);
+			if (devp->frc_sts.state == FRC_STATE_ENABLE ||
+				devp->frc_sts.new_state == FRC_STATE_ENABLE)
+				frc_change_to_state(FRC_STATE_BYPASS);
 		}
 		break;
 
@@ -452,10 +455,12 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 {
 	struct frc_data_s *frc_data;
 	struct frc_fw_data_s *pfw_data;
+	struct frc_rdma_s *frc_rdma;
 	enum chip_id chip;
 
 	frc_data = (struct frc_data_s *)devp->data;
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	frc_rdma = get_frc_rdma();
 	chip = frc_data->match_data->chip;
 
 #define K_MEMC_CLK_DIS
@@ -550,8 +555,13 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 				devp->clk_me = clk_get(&devp->pdev->dev, "clk_me");
 				frc_clk_init(devp);
 			}
+			pr_frc(2, "cma_mem_alloced = %d\n", devp->buf.cma_mem_alloced);
 			if (!devp->buf.cma_mem_alloced)
 				frc_buf_alloc(devp);
+			/*T3X STD */
+			pr_frc(2, "frc_rdma->buf_alloced = %d\n", frc_rdma->buf_alloced);
+			if (!frc_rdma->buf_alloced)
+				frc_rdma_init();
 			set_frc_clk_disable(devp, 0);
 			frc_init_config(devp);
 			frc_buf_config(devp);
@@ -1061,10 +1071,15 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->dbg_force_en = 0;
 
 	devp->other1_flag = 0;
-	devp->other2_flag = 0;  // 25, 16;
+	if (get_chip_type() == ID_T5M)
+		devp->other2_flag = 2;
+	else
+		devp->other2_flag = 0;  // 25, 16;
 	devp->vlock_flag = 1;
 	devp->dbg_mvrd_mode = 8;
 	devp->dbg_mute_disable = 1;
+	devp->dbg_freq_disable = 1;
+	devp->dbg_dur0_disable = 1;
 	devp->test2 = 1;
 	/*input sts initial*/
 	devp->in_sts.have_vf_cnt = 0;
@@ -1137,6 +1152,11 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->ud_dbg.res2_dbg_en = 3;  // t3x_revB test
 	devp->ud_dbg.align_dbg_en = 0;  // t3x_revB test
 
+	devp->disable_h_size = FRC_DISABLE_H_SIZE;
+	devp->disable_v_size = FRC_DISABLE_V_SIZE;
+
+	devp->in_sts.high_freq_en = 1; //pps ajd default open
+
 	if (get_chip_type() == ID_T3X) {
 		devp->in_sts.boot_timestamp_en = 1;
 		devp->vpu_byp_frc_reg_addr = VIU_FRC_MISC;
@@ -1145,7 +1165,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	} else if (get_chip_type() == ID_T5M) {
 		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
 		devp->auto_n2m = 1;
-		devp->use_pre_vsync = PRE_VSYNC_120HZ;
+		devp->use_pre_vsync = PRE_VSYNC_NONE;
 	} else if (get_chip_type() == ID_T3) {
 		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
 		devp->auto_n2m = 0;
@@ -1173,8 +1193,9 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 		frc_devp->out_sts.vout_height = vinfo->height;
 	if (frc_devp->out_sts.vout_width != vinfo->width)
 		frc_devp->out_sts.vout_width = vinfo->width;
-	tmpframterate =
-	(vinfo->sync_duration_num * 100 / vinfo->sync_duration_den) / 100;
+	tmpframterate = vinfo->sync_duration_num / vinfo->sync_duration_den;
+	frc_devp->out_sts.out_framerate_frac =
+		(vinfo->sync_duration_num * 1000 / vinfo->sync_duration_den) % 1000;
 	if (frc_devp->out_sts.out_framerate != tmpframterate) {
 		frc_devp->out_sts.out_framerate = tmpframterate;
 		pfw_data->frc_top_type.frc_out_frm_rate =
@@ -1183,32 +1204,24 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 			frc_devp->out_sts.out_framerate;
 		if (frc_devp->auto_n2m == 1) {
 			if (frc_devp->out_sts.out_framerate > 90) {
-				frc_set_n2m(FRC_RATIO_1_2);
 				if ((frc_devp->use_pre_vsync & PRE_VSYNC_120HZ) ==
-					PRE_VSYNC_120HZ) {
-					set_vsync_2to1_mode(0);
-					set_pre_vsync_mode(1);
-				} else {
-					set_vsync_2to1_mode(1);
-					set_pre_vsync_mode(0);
-				}
+					PRE_VSYNC_120HZ)
+					frc_set_n2m(FRC_RATIO_1_2);
+				else
+					frc_set_n2m(FRC_RATIO_1_1);
 			} else if (frc_devp->out_sts.out_framerate < 70) {
 				if ((frc_devp->use_pre_vsync & PRE_VSYNC_060HZ) ==
-					PRE_VSYNC_060HZ) {
+					PRE_VSYNC_060HZ)
 					frc_set_n2m(FRC_RATIO_1_2);
-					set_vsync_2to1_mode(0);
-					set_pre_vsync_mode(1);
-				} else {
+				else
 					frc_set_n2m(FRC_RATIO_1_1);
-					set_vsync_2to1_mode(0);
-					set_pre_vsync_mode(0);
-				}
 			}
 		}
-		pr_frc(1, "vout:w-%d,h-%d,rate-%d\n",
+		pr_frc(1, "vout:w-%d,h-%d,rate-%d.%d\n",
 				frc_devp->out_sts.vout_width,
 				frc_devp->out_sts.vout_height,
-				frc_devp->out_sts.out_framerate);
+				frc_devp->out_sts.out_framerate,
+				frc_devp->out_sts.out_framerate_frac);
 	}
 }
 
@@ -1578,12 +1591,66 @@ static int frc_runtime_resume(struct device *dev)
 
 	return 0;
 }
+
+#ifdef CONFIG_HIBERNATION
+static int frc_freeze(struct device *dev)
+{
+	struct frc_dev_s *devp = NULL;
+
+	devp = get_frc_devp();
+	if (!devp)
+		return -1;
+	PR_FRC("call %s ...\n", __func__);
+
+	frc_change_to_state(FRC_STATE_BYPASS);
+	set_frc_enable(false);
+	set_frc_bypass(true);
+	frc_state_change_finish(devp);
+	set_frc_clk_disable(devp, 1);
+	frc_buf_release(devp);
+	devp->power_on_flag = false;
+
+	return 0;
+}
+
+static int frc_thaw(struct device *dev)
+{
+	PR_FRC("call %s ...\n", __func__);
+
+	return 0;
+}
+
+static int frc_restore(struct device *dev)
+{
+	struct frc_dev_s *devp = NULL;
+
+	devp = get_frc_devp();
+	if (!devp)
+		return -1;
+	PR_FRC("call %s ...\n", __func__);
+	frc_power_domain_ctrl(devp, 1);
+	if (!devp->power_on_flag)
+		devp->power_on_flag = true;
+	set_frc_bypass(ON);
+	devp->frc_sts.auto_ctrl = true;
+	devp->frc_sts.re_config = true;
+
+	return 0;
+}
+
+#endif
 #endif
 
 static const struct dev_pm_ops frc_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(frc_pm_suspend, frc_pm_resume)
 	SET_RUNTIME_PM_OPS(frc_runtime_suspend, frc_runtime_resume,
 			NULL)
+	.suspend = frc_pm_suspend,
+	.resume = frc_pm_resume,
+#ifdef CONFIG_HIBERNATION
+	.freeze = frc_freeze,
+	.thaw = frc_thaw,
+	.restore = frc_restore,
+#endif
 };
 
 static struct platform_driver frc_driver = {

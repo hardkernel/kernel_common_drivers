@@ -130,8 +130,21 @@
 // frc_20240626 frc cursor control debug
 // frc_20240704 fix frc clk latency err
 // frc_20240709 frc add crc debug
+// frc_20240708 frc adaptive n2m in t5m
+// frc_20240711 fix secure mode close frc abnormal
+// frc_20240729 open frc when slt test
+// frc_20240814 clr CTRL7 before frc enable
+// frc_20240815 frc handles NULL pointer call
+// frc_20240819 t5m dlg modify n2m to 1:1
+// frc_20240902 fix pps adjust abnormal (need test)
+// frc_20240906 disable frc when out fr is 165hz
+// frc_20240913 frc_re_cfg_cnt set 0
+// frc_20240924 not set pre_vsync T5M
+// frc_20241016 frc disable when vsize change
+// frc_20241023 fix absolute value operation on unsigned int
+// frc_20241022 frc add std flow
 
-#define FRC_FW_VER			"2024-0708 frc adaptive n2m in t5m"
+#define FRC_FW_VER			"2024-1104 frc coverity"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -201,8 +214,11 @@ extern int frc_dbg_en;
 
 #define FRC_HVSIZE_ALIGN_SIZE		16
 
-#define FRC_V_LIMIT			144
-#define FRC_H_LIMIT			128
+#define FRC_V_LIMIT			385
+#define FRC_H_LIMIT			385
+
+#define FRC_DISABLE_H_SIZE		1440
+#define FRC_DISABLE_V_SIZE		810
 
 /*bit number config*/
 #define FRC_MC_BITS_NUM			10
@@ -245,9 +261,12 @@ extern int frc_dbg_en;
 #define FRC_VD_FPS_30    30
 #define FRC_VD_FPS_25    25
 #define FRC_VD_FPS_24    24
-#define FRC_VD_FPS_120   120
 #define FRC_VD_FPS_100   100
+#define FRC_VD_FPS_120   120
 #define FRC_VD_FPS_144   144
+#define FRC_VD_FPS_165   165
+#define FRC_VD_FPS_200   200
+#define FRC_VD_FPS_240   240
 #define FRC_VD_FPS_288   288
 
 // ddr shift bits
@@ -482,6 +501,8 @@ struct st_frc_sts {
 	u32 state_transing;
 	u32 frame_cnt;
 	u8 changed_flag;
+	u8 vsize_changed;
+	u8 hsize_changed;
 	u32 vs_cnt;
 	u32 re_cfg_cnt;
 	u32 out_put_mode_changed;
@@ -530,6 +551,7 @@ struct st_frc_in_sts {
 	u8 frc_is_tvin;
 	u8 frc_source_chg;
 	u16 frc_vf_rate;
+	u16 frc_vf_rate_frac;
 	u32 frc_last_disp_count;
 
 	u32 frc_hd_start_lines;
@@ -551,10 +573,14 @@ struct st_frc_in_sts {
 	u8 frm_en;
 	u8 t3x_proc_size_chg;
 	u8 t3x_adj_mcdw_hv; // lower than FHD：0x2，v/2
+
+	u16 vd_h_size;
+	u16 vd_v_size;
 };
 
 struct st_frc_out_sts {
 	u16 out_framerate;
+	u16 out_framerate_frac;
 	u32 vout_height;
 	u32 vout_width;
 
@@ -783,10 +809,12 @@ struct frc_dev_s {
 	u32 dbg_vf_monitor;
 	u16 dbg_mvrd_mode;
 	u16 dbg_mute_disable;
+	u16 dbg_dur0_disable;
 	u8  little_win;
 	u8  vlock_flag;
 	u8  use_pre_vsync; /* bit_0:120hz_enable , bit_1: 60hz enable */
 	u8  test2;         /* test patch function*/
+	u8  dbg_freq_disable;
 
 	u8  prot_mode;
 	u8  no_ko_mode;
@@ -797,6 +825,9 @@ struct frc_dev_s {
 	u32 film_mode_det;/*0: hw detect, 1: sw detect*/
 	u32 auto_n2m;
 	u32 out_line;/*ctl mc out line for user*/
+
+	u16 disable_h_size;
+	u16 disable_v_size;
 
 	u32 vpu_byp_frc_reg_addr;
 

@@ -270,10 +270,12 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "vf_sts= %d, vf_type= 0x%x, signal_type= 0x%x, source_type= 0x%x\n",
 			devp->in_sts.vf_sts,
 			devp->in_sts.vf_type, devp->in_sts.signal_type, devp->in_sts.source_type);
-	pr_frc(0, "vf_rate= %d (duration= %d)\n", frc_check_vf_rate(devp->in_sts.duration, devp),
-				devp->in_sts.duration);
+	pr_frc(0, "vf_rate= %d.%d (duration= %d)\n", frc_check_vf_rate(devp->in_sts.duration, devp),
+				devp->in_sts.frc_vf_rate_frac, devp->in_sts.duration);
 	pr_frc(0, "vpu_int vs_duration= %dus timestamp= %ld\n",
 			devp->vs_duration, (ulong)devp->vs_timestamp);
+	pr_frc(0, "vpu_vd hsize= %d, vsize= %d\n",
+			devp->in_sts.vd_h_size, devp->in_sts.vd_v_size);
 	pr_frc(0, "frc_in vs_duration= %dus timestamp= %ld\n",
 	       devp->in_sts.vs_duration, (ulong)devp->in_sts.vs_timestamp);
 	pr_frc(0, "frc_in isr vs_cnt= %d, vs_tsk_cnt:%d, vd_mute cnt:%d\n",
@@ -290,9 +292,9 @@ void frc_status(struct frc_dev_s *devp)
 		devp->frc_sts.mc_undone_cnt, devp->frc_sts.vp_undone_cnt);
 	pr_frc(0, "frc_st vs_cnt:%d vf_repeat_cnt:%d vf_null_cnt:%d\n", devp->frc_sts.vs_cnt,
 				devp->in_sts.vf_repeat_cnt, devp->in_sts.vf_null_cnt);
-	pr_frc(0, "vout sync_duration_num= %d sync_duration_den= %d out_hz= %d\n",
+	pr_frc(0, "vout sync_duration_num= %d sync_duration_den= %d out_hz= %d.%d\n",
 			vinfo->sync_duration_num, vinfo->sync_duration_den,
-			vinfo->sync_duration_num / vinfo->sync_duration_den);
+			devp->out_sts.out_framerate, devp->out_sts.out_framerate_frac);
 	pr_frc(0, "film_mode= %d\n", frc_check_film_mode(devp));
 	pr_frc(0, "mc_fallback= %d\n", fw_data->frc_fw_alg_ctrl.frc_algctrl_u8mcfb);
 	pr_frc(0, "frm_buffer_num= %d\n", fw_data->frc_top_type.frc_fb_num);
@@ -1021,6 +1023,7 @@ ssize_t frc_debug_other_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "motion_ctrl\t=%d, read reg =0x%4x\n",
 			fw_data->frc_top_type.motion_ctrl, fw_data->reg_val[0].addr);
 	len += sprintf(buf + len, "task_run\t=%d\n", devp->task_run_method);
+	len += sprintf(buf + len, "freq_dis\t=%d\n", devp->dbg_freq_disable);
 	return len;
 }
 
@@ -1181,6 +1184,23 @@ void frc_debug_other_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			if (val1 >= 0 && val1 < 4)
 				devp->in_sts.t3x_adj_mcdw_hv = val1;
 		}
+	} else if (!strcmp(parm[0], "freq_dis")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->dbg_freq_disable = val1;
+	} else if (!strcmp(parm[0], "disable_size")) {
+		if (!parm[2])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->disable_h_size = (val1 > 3840) ? 3840 : val1;
+		if (kstrtoint(parm[2], 10, &val1) == 0)
+			devp->disable_v_size = (val1 > 2160) ? 2160 : val1;
+	} else if (!strcmp(parm[0], "dur_dis")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->dbg_dur0_disable = val1;
 	}
 exit:
 	kfree(buf_orig);

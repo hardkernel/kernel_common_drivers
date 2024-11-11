@@ -316,12 +316,12 @@ void set_frc_enable(u32 en)
 	frc_config_reg_value(en, BIT_0, &regdata_topctl_3f01);
 	WRITE_FRC_REG_BY_CPU(FRC_TOP_CTRL, regdata_topctl_3f01);
 	if (en == 1) {
+		if (READ_FRC_REG(FRC_REG_TOP_CTRL7) & 0xFFFFFFFF) {
+			PR_FRC("CTRL7 reset\n");
+			regdata_top_ctl_0007 = 0;
+			WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL7, regdata_top_ctl_0007);
+		}
 		if (chip == ID_T3X) {
-			if (READ_FRC_REG(FRC_REG_TOP_CTRL7) & 0xFFFFFFFF) {
-				PR_ERR("CTRL7 error\n");
-				regdata_top_ctl_0007 = 0;
-				WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL7, regdata_top_ctl_0007);
-			}
 			WRITE_FRC_REG_BY_CPU(FRC_AUTO_RST_SEL, 0x3c);
 			WRITE_FRC_REG_BY_CPU(FRC_SYNC_SW_RESETS, 0x3c);
 			WRITE_FRC_REG_BY_CPU(FRC_SYNC_SW_RESETS, 0);
@@ -552,24 +552,22 @@ void mc_undone_read(struct frc_dev_s *frc_devp)
 		return;
 	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
 		return;
-	if (frc_devp->ud_dbg.mcud_dbg_en) {
-		val = READ_FRC_REG(FRC_RO_MC_STAT);
-		mc_ud_flag = (val >> 12) & 0x1;
-		if (mc_ud_flag != 0) {
-			frc_devp->frc_sts.mc_undone_cnt = (val >> 16) & 0xfff;
-			frc_devp->ud_dbg.mc_undone_err = 1;
-			WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 1, 21, 1);
-			WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 0, 21, 1);
-		} else {
-			frc_devp->ud_dbg.mc_undone_err = 0;
-		}
-		if (frc_devp->ud_dbg.mc_undone_err == 1)
-			PR_ERR("mc_undo_vcnt= %d, isr_cnt=(%d,%d), vd_vs_cnt=%d\n",
-				frc_devp->frc_sts.mc_undone_cnt,
-				frc_devp->in_sts.vs_cnt,
-				frc_devp->out_sts.vs_cnt,
-				frc_devp->frc_sts.vs_cnt);
+	val = READ_FRC_REG(FRC_RO_MC_STAT);
+	mc_ud_flag = (val >> 12) & 0x1;
+	if (mc_ud_flag != 0) {
+		frc_devp->frc_sts.mc_undone_cnt += (val >> 16) & 0xfff;
+		frc_devp->ud_dbg.mc_undone_err = 1;
+		WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 1, 21, 1);
+		WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 0, 21, 1);
+	} else {
+		frc_devp->ud_dbg.mc_undone_err = 0;
 	}
+	if (frc_devp->ud_dbg.mc_undone_err == 1 && frc_devp->ud_dbg.mcud_dbg_en)
+		PR_ERR("mc_undo_vcnt= %d, isr_cnt=(%d,%d), vd_vs_cnt=%d\n",
+			frc_devp->frc_sts.mc_undone_cnt,
+			frc_devp->in_sts.vs_cnt,
+			frc_devp->out_sts.vs_cnt,
+			frc_devp->frc_sts.vs_cnt);
 }
 
 void vp_undone_read(struct frc_dev_s *frc_devp)
@@ -580,23 +578,21 @@ void vp_undone_read(struct frc_dev_s *frc_devp)
 		return;
 	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
 		return;
-	if (frc_devp->ud_dbg.vpud_dbg_en) {
-		vp_ud_flag = READ_FRC_REG(FRC_VP_TOP_STAT) & 0x03;
-		if (vp_ud_flag != 0) {
-			frc_devp->frc_sts.vp_undone_cnt++;
-			frc_devp->ud_dbg.vp_undone_err = vp_ud_flag;
-			WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 3, 0, 2);
-			WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 0, 0, 2);
-		} else {
-			frc_devp->ud_dbg.vp_undone_err = 0;
-		}
-		if (frc_devp->ud_dbg.vp_undone_err != 0)
-			PR_ERR("vp_err=%x, err_cnt=%d, outvs_cnt=%d, vd_vs_cnt:%d\n",
-				frc_devp->ud_dbg.vp_undone_err,
-				frc_devp->frc_sts.vp_undone_cnt,
-				frc_devp->out_sts.vs_cnt,
-				frc_devp->frc_sts.vs_cnt);
+	vp_ud_flag = READ_FRC_REG(FRC_VP_TOP_STAT) & 0x03;
+	if (vp_ud_flag != 0) {
+		frc_devp->frc_sts.vp_undone_cnt++;
+		frc_devp->ud_dbg.vp_undone_err = vp_ud_flag;
+		WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 3, 0, 2);
+		WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 0, 0, 2);
+	} else {
+		frc_devp->ud_dbg.vp_undone_err = 0;
 	}
+	if (frc_devp->ud_dbg.vp_undone_err != 0 && frc_devp->ud_dbg.vpud_dbg_en)
+		PR_ERR("vp_err=%x, err_cnt=%d, outvs_cnt=%d, vd_vs_cnt:%d\n",
+			frc_devp->ud_dbg.vp_undone_err,
+			frc_devp->frc_sts.vp_undone_cnt,
+			frc_devp->out_sts.vs_cnt,
+			frc_devp->frc_sts.vs_cnt);
 }
 
 const char * const mtx_str[] = {
@@ -2786,31 +2782,23 @@ void frc_frame_forcebuf_count(u8 forceidx)
 
 u16 frc_check_vf_rate(u16 duration, struct frc_dev_s *frc_devp)
 {
-	int i, getflag;
 	u16 framerate = 0;
+	u16 framerate_frac = 0;
 
 	/*duration: 1600(60fps) 1920(50fps) 3200(30fps) 3203(29.97)*/
 	/*3840(25fps) 4000(24fps) 4004(23.976fps)*/
-	i = 0;
-	getflag = 0;
-	while (i < FRAME_RATE_CNT) {
-		if (vf_rate_table[i].duration == duration) {
-			framerate = vf_rate_table[i].framerate;
-			getflag = 1;
-			break;
-		}
-		i++;
-	}
-	if (!getflag && duration > 333) {
+
+	if (duration) {
 		framerate = 96000 / duration;
-		getflag = 1;
+		framerate_frac = (96000 * 1000 / duration) % 1000;
 	}
-	if (getflag == 1 && framerate != frc_devp->in_sts.frc_vf_rate) {
-		pr_frc(2, "input vf rate changed [%d->%d, duration:%d].\n",
-			frc_devp->in_sts.frc_vf_rate, framerate,
-			duration);
+	if (framerate != frc_devp->in_sts.frc_vf_rate ||
+		framerate_frac != frc_devp->in_sts.frc_vf_rate_frac) {
+		pr_frc(2, "input vf rate changed [%d.%d->%d.%d, duration:%d].\n",
+			frc_devp->in_sts.frc_vf_rate, frc_devp->in_sts.frc_vf_rate_frac,
+			framerate, framerate_frac, duration);
 		frc_devp->in_sts.frc_vf_rate = framerate;
-		getflag = 0;
+		frc_devp->in_sts.frc_vf_rate_frac = framerate_frac;
 	}
 	return frc_devp->in_sts.frc_vf_rate;
 }
@@ -3049,7 +3037,7 @@ void frc_set_n2m(u8 ratio_value)
 			set_pre_vsync_mode(1);
 		} else {
 			set_vsync_2to1_mode((ratio_value > 0) ? 0 : 1);
-			set_pre_vsync_mode(0);
+			set_pre_vsync_mode(1);
 		}
 		if (ratio_value == FRC_RATIO_1_1)
 			devp->ud_dbg.res2_time_en = 3;
@@ -3149,11 +3137,14 @@ int get_chip_type(void)
 {
 	enum chip_id chip;
 	struct frc_dev_s *devp;
-	struct frc_data_s *frc_data;
+	struct frc_fw_data_s *pfw_data;
 
 	devp = get_frc_devp();
-	frc_data = (struct frc_data_s *)devp->data;
-	chip = frc_data->match_data->chip;
+	if (!devp || !devp->fw_data)
+		return 0;
+
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	chip = pfw_data->frc_top_type.chip;
 
 	if (chip == ID_T3)
 		return ID_T3;
@@ -3640,6 +3631,8 @@ void frc_in_sts_init(struct st_frc_in_sts *sts)
 	sts->frc_vsc_endp = 0;
 	sts->frc_hsc_startp = 0;
 	sts->frc_hsc_endp = 0;
+	sts->vd_h_size = 0;
+	sts->vd_v_size = 0;
 };
 
 void frc_chg_loss_slice_num(u8 num)

@@ -55,13 +55,17 @@
 #include <linux/amlogic/aml_iotrace.h>
 #endif
 
+#define SIZE_ALIG32(frm_hsize)   ((((frm_hsize) + 31) >> 5) << 5)
+#define SIZE_ALIG2(frm_hsize)   ((((frm_hsize) + 1) >> 1) << 1)
+
 int frc_enable_cnt = 1;
 int frc_disable_cnt = 1;
-int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt 3, 15*/
+int frc_re_cfg_cnt;/*need bigger than frc_disable_cnt 3, 15*/
 
 u32 secure_tee_handle;
 
 static int char_flash_check;
+static int notify_frc_signal_to_amvideo(int *char_flash_check);
 
 void frc_fw_initial(struct frc_dev_s *devp)
 {
@@ -241,6 +245,9 @@ void frc_isr_print_zero(struct frc_dev_s *devp)
 	devp->in_sts.vs_tsk_cnt = 0;
 	devp->in_sts.lost_tsk_cnt = 0;
 
+	devp->in_sts.vd_h_size = 0;
+	devp->in_sts.vd_v_size = 0;
+
 	devp->out_sts.vs_duration = 0;
 	devp->out_sts.vs_timestamp = 0;
 	devp->out_sts.vs_cnt = 0;
@@ -402,9 +409,9 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 	if (devp->in_sts.vs_cnt == 1) {
 		tmpreg_value = READ_FRC_REG(FRC_REG_OUT_FID);
 		if ((tmpreg_value  >> 8 & 0xFFF) != 0) {
-			PR_ERR("output buf error! 0x113:0x%8X, 0x102:0x%8X, ctl_7:0x%8X\n",
+			PR_ERR("output buf error! 0x113:0x%8X, 0x3f01:0x%8X, ctl_7:0x%8X\n",
 				tmpreg_value,
-				READ_FRC_REG(FRC_REG_PAT_POINTER),
+				READ_FRC_REG(FRC_TOP_CTRL),
 				READ_FRC_REG(FRC_REG_TOP_CTRL7));
 		}
 	}
@@ -565,8 +572,13 @@ static bool frc_osd_window_en(struct st_frc_in_sts *cur_in_sts)
 	if (get_chip_type() != ID_T3X)
 		return false;
 
-	if ((cur_in_sts->in_hsize < HSIZE_MAX_4K && cur_in_sts->in_hsize > HSIZE_MIN_4K) ||
-		(cur_in_sts->in_vsize < VSIZE_MAX_2K && cur_in_sts->in_vsize > VSIZE_MIN_2K))
+	if ((devp->out_sts.vout_width == WIDTH_4K && devp->out_sts.vout_height == HEIGHT_2K) &&
+		((cur_in_sts->in_hsize < HSIZE_MAX_4K && cur_in_sts->in_hsize > HSIZE_MIN_4K) ||
+		(cur_in_sts->in_vsize < VSIZE_MAX_2K && cur_in_sts->in_vsize > VSIZE_MIN_2K)))
+		return true;
+	else if ((devp->out_sts.vout_width == WIDTH_4K && devp->out_sts.vout_height == HEIGHT_1K) &&
+		((cur_in_sts->in_hsize < HSIZE_MAX_4K && cur_in_sts->in_hsize > HSIZE_MIN_4K) ||
+		(cur_in_sts->in_vsize < VSIZE_MAX_1K && cur_in_sts->in_vsize > VSIZE_MIN_1K)))
 		return true;
 	else if ((devp->out_sts.vout_width == WIDTH_2K && devp->out_sts.vout_height == HEIGHT_1K) &&
 		((cur_in_sts->in_hsize < HSIZE_MAX_2K && cur_in_sts->in_hsize > HSIZE_MIN_2K) ||
@@ -601,9 +613,15 @@ static void frc_disable_deal_diff_win(void)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
-	if (devp->out_sts.out_framerate > 60 &&
-		(devp->st_change == 1 || devp->st_change == 2)) {
-		return;
+	if (devp->out_sts.out_framerate > 60 && (devp->st_change == 1 || devp->st_change == 2)) {
+		if ((devp->frc_sts.vsize_changed || devp->frc_sts.hsize_changed) &&
+			(devp->frc_sts.state == FRC_STATE_ENABLE ||
+				devp->frc_sts.new_state == FRC_STATE_ENABLE)) {
+			pr_frc(2, "size changed, start disable frc\n");
+			frc_fast_disable_process();
+		} else {
+			return;
+		}
 	} else if (devp->frc_sts.state == FRC_STATE_ENABLE ||
 		devp->frc_sts.new_state == FRC_STATE_ENABLE) {
 		pr_frc(2, "start disable frc\n");
@@ -625,6 +643,16 @@ static void frc_disable_deal_n2m_change(void)
 		frc_change_to_state(FRC_STATE_BYPASS);
 		frc_state_change_finish(devp);
 	}
+}
+
+static int frc_set_window_dly_cnt(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (devp->out_sts.out_framerate <= FRC_VD_FPS_120)
+		return WINDOW_DELAY_CNT_120hz;
+	else
+		return WINDOW_DELAY_CNT_240hz;
 }
 
 const char * const frc_state_ary[] = {
@@ -715,7 +743,10 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	//enum frc_state_e cur_state = devp->frc_sts.state;
 	u32 cur_sig_in;
 	u32 tmpvalue;
+	int win_dly_cnt;
 	bool is_osd_window;
+	bool hsize_change;
+	bool vsize_change;
 	struct frc_fw_data_s *pfw_data;
 	struct frc_top_type_s *frc_top;
 	struct vinfo_s *vinfo = get_current_vinfo();
@@ -734,6 +765,9 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	devp->in_sts.frc_hsc_startp = cur_in_sts->frc_hsc_startp;
 	devp->in_sts.vf_index = cur_in_sts->vf_index;
 	devp->in_sts.vf = cur_in_sts->vf;
+	devp->in_sts.vd_h_size = cur_in_sts->vd_h_size;
+	devp->in_sts.vd_v_size = cur_in_sts->vd_v_size;
+
 	frc_top->inp_padding_xofst = devp->in_sts.frc_hsc_startp;
 	frc_top->inp_padding_yofst = devp->in_sts.frc_vsc_startp;
 	if (cur_in_sts->vf && cur_in_sts->vf->vc_private &&
@@ -757,15 +791,31 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		READ_FRC_REG(FRC_REG_OUT_INT_FLAG));
 	}
 
-	/* check h size change */
 	devp->in_sts.size_chged = 0;
 	devp->in_sts.t3x_proc_size_chg = 0;
+	devp->frc_sts.vsize_changed = 0;
+	devp->frc_sts.hsize_changed = 0;
+	hsize_change = 0;
+	vsize_change = 0;
+	if (devp->st_change == 1 && devp->in_sts.in_hsize != SIZE_ALIG32(cur_in_sts->in_hsize)) {
+		hsize_change = 1;
+		pr_frc(2, "in_hsize = %d cur_in_size_32 = %d\n",
+			devp->in_sts.in_hsize, SIZE_ALIG32(cur_in_sts->in_hsize));
+	}
+	if (devp->st_change == 1 &&
+		SIZE_ALIG2(devp->in_sts.in_vsize) != SIZE_ALIG2(cur_in_sts->in_vsize)) {
+		vsize_change = 1;
+		pr_frc(2, "in_vsize = %d cur_in_size_2 = %d\n",
+			devp->in_sts.in_vsize, cur_in_sts->in_vsize);
+	}
+	/* check h size change */
 	if (devp->in_sts.in_hsize != cur_in_sts->in_hsize) {
 		pr_frc(1, "hsize change (%d - %d)\n",
 			devp->in_sts.in_hsize, cur_in_sts->in_hsize);
 		devp->in_sts.in_hsize = cur_in_sts->in_hsize;
 		devp->in_sts.t3x_proc_size_chg = 1;
 		if (get_chip_type() == ID_T3X) {
+			devp->frc_sts.hsize_changed = hsize_change;
 			frc_disable_deal_diff_win();
 		} else if (devp->frc_sts.state == FRC_STATE_ENABLE && get_chip_type() == ID_T5M) {
 			pr_frc(2, "%s start disable frc", __func__);
@@ -795,7 +845,8 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 			devp->in_sts.in_vsize, cur_in_sts->in_vsize);
 		devp->in_sts.in_vsize = cur_in_sts->in_vsize;
 		devp->in_sts.t3x_proc_size_chg = 1;
-		if (get_chip_type() == ID_T3X && cur_in_sts->vf_sts) {
+		if (get_chip_type() == ID_T3X) {
+			devp->frc_sts.vsize_changed = vsize_change;
 			frc_disable_deal_diff_win();
 		} else if (devp->frc_sts.state == FRC_STATE_ENABLE && get_chip_type() == ID_T5M) {
 			pr_frc(2, "%s start disable frc", __func__);
@@ -925,10 +976,10 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	switch (devp->in_sts.vf_sts) {
 	case VFRAME_NO:
 		if (cur_sig_in == VFRAME_HAVE) {
+			win_dly_cnt = frc_set_window_dly_cnt();
 			if (devp->in_sts.have_vf_cnt++ >=
-				(frc_enable_cnt + (is_osd_window ? WINDOW_DELAY_CNT : 0))) {
+				(frc_enable_cnt + (is_osd_window ? win_dly_cnt : 0))) {
 				devp->in_sts.vf_sts = cur_sig_in;
-				//if (FRC_EVENT_VF_IS_GAME)
 				sts_change |= FRC_EVENT_VF_CHG_TO_HAVE;
 				devp->in_sts.have_vf_cnt = 0;
 				pr_frc(1, "FRC_EVENT_VF_CHG_TO_HAVE\n");
@@ -1007,6 +1058,8 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		no_input = true;
 	} else {
 		in_size = (cur_video_sts->nnhf_input_w << 16) + cur_video_sts->nnhf_input_h;
+		cur_in_sts.vd_h_size = cur_video_sts->nnhf_input_w;
+		cur_in_sts.vd_v_size = cur_video_sts->nnhf_input_h;
 	}
 	//} else if ((vd_regval & (BIT_0 | BIT_8)) == 0) {
 		//devp->in_sts.vf_null_cnt++;
@@ -1095,12 +1148,25 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					in_size & 0xFFFF);
 			}
 			no_input = true;
+		}  else if (cur_video_sts->frc_h_size <= devp->disable_h_size &&
+				cur_video_sts->frc_v_size <= devp->disable_h_size) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_INSIZE_ERR) !=
+						FRC_FLAG_INSIZE_ERR) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_INSIZE_ERR;
+				pr_frc(1, "video = err_insize size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
+			}
+			no_input = true;
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_INSIZE_ERR);
 		}
 
+		get_vout_info(devp);
 		if (devp->out_sts.out_framerate == FRC_VD_FPS_144 ||
+			devp->out_sts.out_framerate == FRC_VD_FPS_165 ||
 			devp->out_sts.out_framerate == FRC_VD_FPS_288) {
 			if ((devp->in_sts.st_flag & FRC_FLAG_LIMIT_FREQ) !=
 						FRC_FLAG_LIMIT_FREQ) {
@@ -1140,8 +1206,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		} else {
 			devp->in_sts.secure_mode = false;
 		}
-		//input security check
-		// frc_check_secure_mode(vf, devp); /*get secure mode will delay 10 frames*/
+
 		/*check vd status change*/
 		if (!no_input) {
 			frc_chk_vd_sts_chg(devp, vf);
@@ -1151,8 +1216,10 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 				frc_set_seamless_proc(0); // tvin close seamless
 		}
 
-		if (devp->in_sts.frc_vf_rate == FRC_VD_FPS_100 ||
-			devp->in_sts.frc_vf_rate == FRC_VD_FPS_120) {
+		if (((devp->in_sts.frc_vf_rate == FRC_VD_FPS_100 ||
+			devp->in_sts.frc_vf_rate == FRC_VD_FPS_120) &&
+			devp->out_sts.out_framerate <= FRC_VD_FPS_120) ||
+			devp->in_sts.frc_vf_rate > FRC_VD_FPS_120) {
 			if ((devp->in_sts.st_flag & FRC_FLAG_HIGH_FREQ) !=
 						FRC_FLAG_HIGH_FREQ) {
 				devp->in_sts.st_flag =
@@ -1161,7 +1228,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					in_size >> 16,
 					in_size & 0xFFFF);
 			}
-			no_input = true;
+			no_input = devp->dbg_freq_disable;
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_HIGH_FREQ);
@@ -1177,27 +1244,37 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					in_size & 0xFFFF);
 			}
 			if (vf->duration <= 1500)
-				no_input = true;
+				no_input = devp->dbg_dur0_disable;
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_ZERO_FREQ);
 		}
 	}
 
-	/*secure mode*/
+	/* secure mode chg
+	 * bug, frc on sec to no_sec or no_sec to sec
+	 */
 	if (devp->in_sts.secure_mode != devp->buf.secured &&
-		devp->buf.cma_mem_alloced) {
-		if (devp->in_sts.secure_mode == 0 &&
-			devp->buf.secured == 1) {
-			no_input = true;
-			frc_re_cfg_cnt = 0;  // need reopen instantly
-		}
-		// pr_frc(0, "sec chg _______\n");
-		// schedule_work(&devp->frc_secure_work);
-		// pr_frc(2, "frc_re_cfg_cnt:%d pre_secure_mode:%d\n",
-		// frc_re_cfg_cnt, devp->buf.secured);
-	} else {
-		frc_re_cfg_cnt = FRC_RE_CFG_CNT;
+		devp->buf.cma_mem_alloced && devp->frc_sts.state == FRC_STATE_ENABLE) {
+		no_input = true;
+		schedule_work(&devp->frc_secure_work);
+		pr_frc(2, "secure chg reopen\n");
+	}
+
+	/*
+	 * bug, close char-flash(pps adjust) when no_input is true
+	 */
+	if (devp->frc_sts.state != FRC_STATE_ENABLE && char_flash_check) {
+		char_flash_check = 0;
+		devp->in_sts.high_freq_flash = char_flash_check;
+		notify_frc_signal_to_amvideo(&char_flash_check);
+	}
+
+	if (!no_input &&  devp->frc_sts.auto_ctrl &&
+		devp->clk_state != FRC_CLOCK_NOR &&
+		devp->clk_state != FRC_CLOCK_XXX2NOR) {
+		devp->clk_state = FRC_CLOCK_XXX2NOR;
+		schedule_work(&devp->frc_clk_work);
 	}
 
 	if (no_input && (devp->control_0 & BIT_0) && get_chip_type() == ID_T5M)
@@ -1231,7 +1308,6 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 
 	if (frc_event)
 		pr_frc(1, "event = 0x%08x\n", frc_event);
-	pr_frc(2, "mc crc value = %x", READ_FRC_REG(0x3981));
 }
 
 void frc_state_change_finish(struct frc_dev_s *devp)
@@ -1498,14 +1574,16 @@ void frc_state_handle(struct frc_dev_s *devp)
 	if (state_changed) {
 		if (new_state == FRC_STATE_DISABLE) {
 			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
+				// schedule_work(&devp->frc_secure_work);
 				frc_frame_forcebuf_enable(0);
-				// devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
 				frc_clr_badedit_effect_before_enable();
 				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 1) {
+				devp->frc_sts.frame_cnt++;
 			} else {
 				devp->frc_sts.frame_cnt = 0;
+				schedule_work(&devp->frc_secure_work);
 				pr_frc(log, "stat_chg %s -> %s done\n",
 					frc_state_ary[cur_state],
 					frc_state_ary[new_state]);
@@ -1514,19 +1592,21 @@ void frc_state_handle(struct frc_dev_s *devp)
 		} else if (new_state == FRC_STATE_BYPASS) {
 			//first frame set enable off
 			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
+				// schedule_work(&devp->frc_secure_work);
 				frc_frame_forcebuf_enable(0);
-				// devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
 				frc_clr_badedit_effect_before_enable();
 				devp->frc_sts.frame_cnt++;
-			} else {
+			} else if (devp->frc_sts.frame_cnt == 1) {
 				//second frame set bypass on
 				set_frc_bypass(ON);
+				devp->frc_sts.frame_cnt++;
+			} else {
 				devp->frc_sts.frame_cnt = 0;
+				schedule_work(&devp->frc_secure_work);
 				pr_frc(log, "stat_chg %s->%s done\n",
-				       frc_state_ary[cur_state],
-				       frc_state_ary[new_state]);
+						frc_state_ary[cur_state],
+						frc_state_ary[new_state]);
 				frc_state_change_finish(devp);
 			}
 		} else {
@@ -1860,16 +1940,17 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 	if (state_changed) {
 		if (new_state == FRC_STATE_DISABLE) {
 			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
 				frc_frame_forcebuf_enable(0);
-				//devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
 				frc_clr_badedit_effect_before_enable();
 				devp->st_change = 2;
 				devp->frc_sts.frame_cnt++;
-			} else {
-				devp->frc_sts.frame_cnt = 0;
+			} else  if (devp->frc_sts.frame_cnt == 1) {
 				devp->st_change = 0;
+				devp->frc_sts.frame_cnt++;
+			} else {
+				schedule_work(&devp->frc_secure_work);
+				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "stat_chg %s -> %s done\n",
 					frc_state_ary[cur_state],
 					frc_state_ary[new_state]);
@@ -1878,20 +1959,19 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 		} else if (new_state == FRC_STATE_BYPASS) {
 			//first frame set enable off
 			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
-				frc_frame_forcebuf_enable(0);
-				//devp->frc_fw_pause = 1;
-				set_frc_enable(OFF);
-//				devp->need_bypass = 1;
-				set_frc_bypass(ON);
-				frc_clr_badedit_effect_before_enable();
 				devp->st_change = 2;
 				devp->frc_sts.frame_cnt++;
 			} else if (devp->frc_sts.frame_cnt == 1) {
+				frc_frame_forcebuf_enable(0);
+				//devp->frc_fw_pause = 1;
+				set_frc_enable(OFF);
+				set_frc_bypass(ON);
+				frc_clr_badedit_effect_before_enable();
 				devp->st_change = 0;
-				devp->need_bypass = 0;
 				devp->frc_sts.frame_cnt++;
 			} else {
+				schedule_work(&devp->frc_secure_work);
+				devp->need_bypass = 0;
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "stat_chg %s->%s done\n",
 				       frc_state_ary[cur_state],
@@ -2377,7 +2457,7 @@ void frc_char_flash_check(void)
 
 	if (!devp || !devp->probe_ok || !devp->fw_data)
 		return;
-	if (devp->in_sts.high_freq_en) {
+	if (!devp->in_sts.high_freq_en) {
 		if (devp->in_sts.high_freq_flash) {
 			char_flash_check = 0;
 			devp->in_sts.high_freq_flash = char_flash_check;
@@ -2509,44 +2589,6 @@ u16 frc_check_film_mode(struct frc_dev_s *frc_devp)
 	//	frc_top->film_mode  = EN_DRV_VIDEO;
 	return (u16)(frc_top->film_mode);
 }
-
-// void frc_check_secure_mode(struct vframe_s *vf, struct frc_dev_s *devp)
-// {
-// u32 temp;
-// enum chip_id chip;
-// static int secure_mode;
-
-// chip = get_chip_type();
-
-// if (chip == ID_T3) {
-// if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
-// VFRAME_FLAG_VIDEO_SECURE)
-// devp->in_sts.secure_mode = true;
-// else
-// devp->in_sts.secure_mode = false;
-// } else if (chip == ID_T5M || chip == ID_T3X) {
-// if (!sec_flag) {
-// temp = READ_FRC_REG(FRC_RO_FRM_SEC_STAT);
-// temp = (temp >> 16) & 0xf; // 1: input frame is security
-// if (temp)
-// devp->in_sts.secure_mode = true;
-// else
-// devp->in_sts.secure_mode = false;
-// } else {
-// if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
-// VFRAME_FLAG_VIDEO_SECURE)
-// devp->in_sts.secure_mode = true;
-// else
-// devp->in_sts.secure_mode = false;
-// }
-// }
-
-// if (secure_mode != devp->in_sts.secure_mode) {
-// pr_frc(0, "frc secure sts:%d, sec_flag:%d, chip:%d\n",
-// devp->in_sts.secure_mode, sec_flag, chip);
-// secure_mode = devp->in_sts.secure_mode;
-// }
-// }
 
 void frc_win_align_set(struct frc_dev_s *devp, u8 align_set)
 {

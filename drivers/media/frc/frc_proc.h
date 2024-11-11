@@ -23,16 +23,13 @@
 
 #define FRC_RE_CFG_CNT  0 //3
 
-#define WINDOW_DELAY_CNT 100
+#define WINDOW_DELAY_CNT_120hz 100
+#define WINDOW_DELAY_CNT_240hz 200
 
 enum vf_sts {
 	VFRAME_NO = 0,
 	VFRAME_HAVE = 1,
 };
-
-extern int frc_enable_cnt;
-extern int frc_disable_cnt;
-extern int frc_re_cfg_cnt;
 
 irqreturn_t frc_input_isr(int irq, void *dev_id);
 irqreturn_t frc_output_isr(int irq, void *dev_id);
