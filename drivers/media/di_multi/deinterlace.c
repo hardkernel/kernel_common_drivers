@@ -8364,6 +8364,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 				ppost->di_mtnprd_mif.buf_hsize = 0; //add for crop issue
 				ppost->di_mcvecrd_mif.buf_hsize = 0; //add for crop issue
 			}
+			dim_sc2_contr_pst(sc2_post_cfg, NULL);
 		}
 		pst->last_pst_size = ((di_width - 1) | ((di_height - 1) << 16));
 #ifdef DIM_OUT_NV21
