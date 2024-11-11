@@ -34,6 +34,8 @@ enum vpu_chip_e {
 	VPU_CHIP_TM2B,
 	VPU_CHIP_S7,
 	VPU_CHIP_S7D,
+	VPU_CHIP_S6,
+	VPU_CHIP_T6D,
 	VPU_CHIP_MAX,
 };
 
@@ -163,6 +165,13 @@ struct vpu_conf_s {
 	unsigned int *clk_vmod;
 	bool switch_gpl;
 	bool vpu_clk_en;
+	/*
+	 * vpu_overclock means whether hardware support vpu overclock
+	 * overclock_sel means whether software enable vpu overclock
+	 * 0: force disable 1: force enable 2: adaptable
+	 */
+	unsigned int vpu_overclock;
+	unsigned int overclock_sel;
 };
 
 /* VPU memory power down */
@@ -183,7 +192,9 @@ extern int vpu_reg_table_a4[];
 
 int vpu_chip_valid_check(void);
 
+unsigned long get_vpu_clk_freq(unsigned int clk_level);
 unsigned int get_vpu_clk_level_max_vmod(void);
+unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk);
 int vpu_clk_apply_dft(unsigned int clk_level);
 int vpu_clk_apply_c3(unsigned int clk_level);
 int set_vpu_clk(unsigned int vclk);

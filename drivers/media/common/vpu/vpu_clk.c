@@ -17,6 +17,7 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #include "vpu_reg.h"
 #include "vpu.h"
+#include <linux/amlogic/gki_module.h>
 
 unsigned int get_vpu_clk_level_max_vmod(void)
 {
@@ -46,6 +47,72 @@ static unsigned int get_vpu_clk_level(unsigned int video_clk)
 	}
 	clk_level = i;
 
+	return clk_level;
+}
+
+unsigned long get_vpu_clk_freq(unsigned int clk_level)
+{
+	unsigned int freq = 0;
+
+	if (clk_level < vpu_conf.data->clk_level_max)
+		freq = vpu_conf.data->clk_table[clk_level].freq;
+
+	return freq;
+}
+
+unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
+{
+	unsigned int clk_level = 0;
+
+	/*
+	 * vpu_overclock means whether hardware support vpu overclock
+	 * overclock_sel means whether software enable vpu overclock
+	 * 0: force disable 1: force enable 2: adaptable
+	 */
+	if (vpu_conf.data->chip_type == VPU_CHIP_T5M) {
+		if (vpu_conf.overclock_sel == 0) {
+			clk_level = 8;
+		} else if (vpu_conf.overclock_sel == 1) {
+			clk_level = 11;
+		} else if (vpu_conf.overclock_sel == 2) {
+			if (venc_clk <= 700000000) {
+				clk_level = 8;
+			} else if (venc_clk > 700000000 && venc_clk < 800000000) {
+				if (vpu_conf.vpu_overclock) {
+					clk_level = 11;
+				} else {
+					clk_level = 8;
+					VPUPR("do not support vpu overclock\n");
+				}
+			} else {
+				VPUERR("%s unknown video_clk:%d\n", __func__, venc_clk);
+			}
+		} else {
+			VPUERR("%s unknown overclock_sel:%d\n", __func__, vpu_conf.overclock_sel);
+		}
+	}
+	if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+		if (vpu_conf.overclock_sel == 0) {
+			clk_level = 11;
+		} else if (vpu_conf.overclock_sel == 1) {
+			clk_level = 12;
+		} else if (vpu_conf.overclock_sel == 2) {
+			if (venc_clk <= 720000000) {
+				clk_level = 11;
+			} else if (venc_clk > 720000000 && venc_clk < 820000000) {
+				if (vpu_conf.vpu_overclock) {
+					clk_level = 12;
+				} else {
+					clk_level = 11;
+					VPUPR("do not support vpu overclock\n");
+				}
+			} else {
+				VPUERR("%s unknown video_clk:%d\n", __func__, venc_clk);
+			}
+		} else {
+			VPUERR("%s unknown overclock_sel:%d\n", __func__, vpu_conf.overclock_sel);
+		}
+	}
 	return clk_level;
 }
 
@@ -93,6 +160,17 @@ static unsigned int get_vpu_clk_mux_id(void)
 
 	return mux_id;
 }
+
+static int get_vpu_overclock(char *str)
+{
+	int ret;
+
+	ret = kstrtoint(str, 0, &vpu_conf.vpu_overclock);
+	VPUPR("vpu_overclock=%d\n", vpu_conf.vpu_overclock);
+	return 1;
+}
+
+__setup("vpu_overclock=", get_vpu_overclock);
 
 unsigned int vpu_clk_get(void)
 {
@@ -308,15 +386,20 @@ int set_vpu_clk(unsigned int vclk)
 		return ret;
 	}
 #endif
-	if (clk_level >= 12) {
+	if (clk_level >= 14) {
 		ret = 7;
 		VPUERR("clk_level %d is invalid\n", clk_level);
 		return ret;
 	}
 
 	clk = vpu_clk_get();
+	if (vpu_debug_print_flag)
+		VPUPR("%s vclk:%d cur_clk:%d clk_level:%d\n",
+		      __func__, vclk, clk, clk_level);
 	if ((clk > (vpu_conf.data->clk_table[clk_level].freq + VPU_CLK_TOLERANCE)) ||
 	    (clk < (vpu_conf.data->clk_table[clk_level].freq - VPU_CLK_TOLERANCE))) {
+		if (vpu_debug_print_flag)
+			VPUPR("%s update clk_level:%d\n", __func__, clk_level);
 		vpu_conf.clk_level = clk_level;
 		if (vpu_conf.data->clk_apply)
 			ret = vpu_conf.data->clk_apply(clk_level);
@@ -337,31 +420,34 @@ void vpu_clktree_init_dft(struct device *dev)
 		(IS_ERR_OR_NULL(vpu_conf.vapb_clk1)) ||
 		(IS_ERR_OR_NULL(vpu_conf.vapb_clk))) {
 		vpu_conf.vapb_clk = devm_clk_get(dev, "vapb_clk");
-		if (IS_ERR_OR_NULL(vpu_conf.vapb_clk))
+		if (IS_ERR_OR_NULL(vpu_conf.vapb_clk)) {
 			VPUERR("%s: vapb_clk\n", __func__);
-		else
-			clk_prepare_enable(vpu_conf.vapb_clk);
+		} else {
+			ret = clk_prepare_enable(vpu_conf.vapb_clk);
+			if (ret)
+				VPUERR("%s: %d clk_prepare_enable error\n", __func__, __LINE__);
+		}
 	} else {
 		ret = clk_set_parent(vpu_conf.vapb_clk, vpu_conf.vapb_clk0);
 		if (ret)
 			VPUERR("%s: %d clk_set_parent error\n", __func__, __LINE__);
 
-		clk_prepare_enable(vpu_conf.vapb_clk);
+		ret = clk_prepare_enable(vpu_conf.vapb_clk);
+		if (ret)
+			VPUERR("%s: %d clk_prepare_enable error\n", __func__, __LINE__);
+
 		ret = clk_set_rate(vpu_conf.vapb_clk1, 50000000);
 		if (ret)
 			VPUERR("%s: clk_set_rate error\n", __func__);
 	}
 
 	vpu_conf.vpu_intr = devm_clk_get(dev, "vpu_intr_gate");
-	if (IS_ERR_OR_NULL(vpu_conf.vpu_intr))
+	if (IS_ERR_OR_NULL(vpu_conf.vpu_intr)) {
 		VPUERR("%s: vpu_intr_gate\n", __func__);
-	else
-		clk_prepare_enable(vpu_conf.vpu_intr);
-
-	if (vpu_conf.data->gp_pll_valid) {
-		vpu_conf.gp_pll = devm_clk_get(dev, "gp_pll");
-		if (IS_ERR_OR_NULL(vpu_conf.gp_pll))
-			VPUERR("%s: gp_pll\n", __func__);
+	} else {
+		ret = clk_prepare_enable(vpu_conf.vpu_intr);
+		if (ret)
+			VPUERR("%s: %d clk_prepare_enable error\n", __func__, __LINE__);
 	}
 
 	/* init & enable vpu_clk */
@@ -377,17 +463,24 @@ void vpu_clktree_init_dft(struct device *dev)
 		if (ret)
 			VPUERR("%s: %d clk_set_parent error\n", __func__, __LINE__);
 
-		clk_prepare_enable(vpu_conf.vpu_clk);
+		ret = clk_prepare_enable(vpu_conf.vpu_clk);
+		if (ret)
+			VPUERR("%s: %d clk_prepare_enable error\n", __func__, __LINE__);
 		vpu_conf.vpu_clk_en = true;
 	}
 }
 
 void vpu_clktree_init_c3(struct device *dev)
 {
+	int ret = 0;
+
 	/* init & enable vpu_clk */
 	vpu_conf.vpu_clk = devm_clk_get(dev, "vpu_clk");
-	if (IS_ERR_OR_NULL(vpu_conf.vpu_clk))
+	if (IS_ERR_OR_NULL(vpu_conf.vpu_clk)) {
 		VPUERR("%s: vpu_clk\n", __func__);
-	else
-		clk_prepare_enable(vpu_conf.vpu_clk);
+	} else {
+		ret = clk_prepare_enable(vpu_conf.vpu_clk);
+		if (ret)
+			VPUERR("%s: %d clk_prepare_enable error\n", __func__, __LINE__);
+	}
 }

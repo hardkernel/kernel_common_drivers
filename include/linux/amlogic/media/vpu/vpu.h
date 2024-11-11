@@ -168,6 +168,7 @@ unsigned int vpu_clk_get(void);
 unsigned int vpu_dev_clk_get(struct vpu_dev_s *vpu_dev);
 int vpu_dev_clk_request(struct vpu_dev_s *vpu_dev, unsigned int vclk);
 int vpu_dev_clk_release(struct vpu_dev_s *vpu_dev);
+int vpu_support_overclk(void);
 
 void vpu_dev_mem_power_on(struct vpu_dev_s *vpu_dev);
 void vpu_dev_mem_power_down(struct vpu_dev_s *vpu_dev);

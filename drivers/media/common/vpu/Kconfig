@@ -15,7 +15,7 @@ config AMLOGIC_VPU
 			and vpu clock gate.
 		All the video modules work on vpu domain.
 
-config AMLOGIC_VPU_CLK_DYNAMIC_ADJ
+config AMLOGIC_VPU_DYNAMIC_ADJ
 	bool "Amlogic VPU Clock Frequency Dynamic Adjust"
 	default n
 	depends on AMLOGIC_VPU
