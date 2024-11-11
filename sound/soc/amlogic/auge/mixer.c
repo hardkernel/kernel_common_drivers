@@ -408,6 +408,7 @@ const struct of_device_id aml_mixer_device_id[] = {
 		.compatible = "amlogic, t6d-mixer",
 		.data		= &t6d_mixer_chipinfo,
 	},
+	{},
 };
 
 static int aml_mixer_platform_probe(struct platform_device *pdev)
@@ -464,7 +465,6 @@ struct platform_driver aml_mixer_driver = {
 int __init mixer_init(void)
 {
 	return platform_driver_register(&aml_mixer_driver);
-	return 0;
 }
 
 void __exit mixer_exit(void)
