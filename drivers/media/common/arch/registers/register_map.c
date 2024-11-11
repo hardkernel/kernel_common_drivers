@@ -152,6 +152,21 @@ static struct codecio_device_data_s codecio_txhd2 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_TXHD2,
 };
 
+static struct codecio_device_data_s codecio_s7 = {
+	.cpu_id = MESON_CPU_MAJOR_ID_S7,
+};
+
+static struct codecio_device_data_s codecio_s7d = {
+	.cpu_id = MESON_CPU_MAJOR_ID_S7D,
+};
+
+static struct codecio_device_data_s codecio_s6 = {
+	.cpu_id = MESON_CPU_MAJOR_ID_S6,
+};
+
+static struct codecio_device_data_s codecio_t6d = {
+	.cpu_id = MESON_CPU_MAJOR_ID_T6D,
+};
 #endif
 #endif
 
@@ -290,6 +305,22 @@ static const struct of_device_id codec_io_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-txhd2, codec-io",
 		.data = &codecio_txhd2,
+	},
+	{
+		.compatible = "amlogic, meson-s7, codec-io",
+		.data = &codecio_s7,
+	},
+	{
+		.compatible = "amlogic, meson-s7d, codec-io",
+		.data = &codecio_s7d,
+	},
+	{
+		.compatible = "amlogic, meson-s6, codec-io",
+		.data = &codecio_s6,
+	},
+	{
+		.compatible = "amlogic, meson-t6d, codec-io",
+		.data = &codecio_t6d,
 	},
 #endif
 #endif
@@ -852,6 +883,9 @@ static int __init codec_io_probe(struct platform_device *pdev)
 	for (i = CODECIO_CBUS_BASE; i < CODECIO_BUS_MAX; i++) {
 		if (of_address_to_resource(pdev->dev.of_node, i, &res)) {
 			pr_debug("i=%d, skip ioremap\n", i);
+			codecio_reg_map[i] = 0;
+			codecio_reg_start[i] = 0;
+			continue;
 		}
 		if (res.start != 0) {
 			codecio_reg_map[i] =
