@@ -311,6 +311,8 @@ static void dp_put_file(struct di_process_dev *dev, struct file *file_vf)
 
 	dp_put_file_ext(dev->index, file_vf);
 	dev->fput_count++;
+	dp_print(dev->index, PRINT_OTHER, "%s:fput_count=%lld.\n",
+		__func__, dev->fput_count);
 }
 
 static int init_dummy_vf_param(struct di_process_dev *dev, struct vframe_s *src_vf)
@@ -406,43 +408,33 @@ static int init_dummy_vf_param(struct di_process_dev *dev, struct vframe_s *src_
 	return 0;
 }
 
-static int uninit_dummy_vf_param(struct di_process_dev *dev, struct di_buffer *buf)
+static int uninit_dummy_vf_param(struct di_process_dev *dev)
 {
-	if (!dev || !buf) {
+	if (!dev) {
 		pr_err("%s: param is invalid.\n", __func__);
 		return -EINVAL;
 	}
 
-	if (!buf->vf) {
-		dp_print(dev->index, PRINT_ERROR, "%s: NULL vf.\n", __func__);
-		return -EINVAL;
+	dp_print(dev->index, PRINT_OTHER, "free dummy frame alloc buf.\n");
+	if (dev->dummy_vf.hdr10p_data_buf) {
+		vfree(dev->dummy_vf.hdr10p_data_buf);
+		dev->dummy_vf.hdr10p_data_buf = NULL;
+	} else {
+		dp_print(dev->index, PRINT_OTHER, "no hdr10 data.\n");
 	}
 
-	buf->caller_mng.dummy = buf->vf->crop[2];
-	if (buf->caller_mng.dummy) {
-		dp_print(dev->index, PRINT_OTHER, "free dummy frame alloc buf.\n");
-		if (dev->dummy_vf.hdr10p_data_buf) {
-			vfree(dev->dummy_vf.hdr10p_data_buf);
-			dev->dummy_vf.hdr10p_data_buf = NULL;
-		} else {
-			dp_print(dev->index, PRINT_OTHER, "no hdr10 data.\n");
-		}
-
-		if (dev->dummy_vf.src_fmt.sei_ptr) {
-			vfree(dev->dummy_vf.src_fmt.sei_ptr);
-			dev->dummy_vf.src_fmt.sei_ptr = NULL;
-		} else {
-			dp_print(dev->index, PRINT_OTHER, "no sei data.\n");
-		}
-
-		if (dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr) {
-			vfree(dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr);
-			dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr = NULL;
-		} else {
-			dp_print(dev->index, PRINT_OTHER, "no ud data.\n");
-		}
+	if (dev->dummy_vf.src_fmt.sei_ptr) {
+		vfree(dev->dummy_vf.src_fmt.sei_ptr);
+		dev->dummy_vf.src_fmt.sei_ptr = NULL;
 	} else {
-		dp_print(dev->index, PRINT_OTHER, "not dummy vf.\n");
+		dp_print(dev->index, PRINT_OTHER, "no sei data.\n");
+	}
+
+	if (dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr) {
+		vfree(dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr);
+		dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr = NULL;
+	} else {
+		dp_print(dev->index, PRINT_OTHER, "no ud data.\n");
 	}
 
 	return 0;
@@ -580,21 +572,27 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 	di_buf->caller_mng.dummy = dummy;
 	di_buf->caller_mng.src_file = src_file;
 
-	/*tmp code, if di can copy caller_mng to dst di_buf, this code shold remove*/
-	vf->crop[0] = di_buf->caller_mng.queued;
-	vf->crop[1] = di_buf->caller_mng.dropped;
-	vf->crop[2] = di_buf->caller_mng.dummy;
 	vf->vc_private = (struct video_composer_private *)di_buf->caller_mng.src_file;
 
 	if (vf->type & VIDTYPE_FORCE_SIGN_IP_JOINT) {
 		vf->type &= ~VIDTYPE_FORCE_SIGN_IP_JOINT;
 		dp_print(dev->index, PRINT_OTHER, "rm IP_JOINT type\n");
 	}
+
+	dp_print(dev->index, PRINT_OTHER,
+		"%s: frame_index=%d, queued=%d, dropped=%d, dummy=%d, file:%px.\n",
+		__func__,
+		vf->frame_index,
+		di_buf->caller_mng.queued,
+		di_buf->caller_mng.dropped,
+		di_buf->caller_mng.dummy,
+		di_buf->caller_mng.src_file);
+
 	ret = di_empty_input_buffer(dev->di_index, di_buf);
 	if (ret != 0) {
 		di_buf->caller_mng.queued = false;
 		dp_print(dev->index, PRINT_ERROR,
-		"empty_input err: ret=%d, di_index=%d\n", ret, dev->di_index);
+			"%s err: ret=%d, di_index=%d\n", __func__, ret, dev->di_index);
 		return ret;
 	}
 	dev->empty_count++;
@@ -602,7 +600,10 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 
 	dp_print(dev->index, PRINT_OTHER,
 		"%s: frame_index=%d, empty_count = %lld, %d\n",
-		__func__, vf->frame_index, dev->empty_count, total_empty_count);
+		__func__,
+		vf->frame_index,
+		dev->empty_count,
+		total_empty_count);
 
 	return 0;
 }
@@ -773,38 +774,35 @@ static int di_process_thread(void *data)
 int process_di_done_buf(struct di_process_dev *dev, struct di_buffer *buf, bool is_emptydone)
 {
 	int ret = 0;
-	struct file *file_vf = NULL;
-	bool dropped;
 
-	dropped = buf->caller_mng.dropped;
-	file_vf = buf->caller_mng.src_file;
-
-	buf->caller_mng.queued = false;
-	uninit_dummy_vf_param(dev, buf);
+	if (buf->caller_mng.dummy)
+		uninit_dummy_vf_param(dev);
 
 	if (!kfifo_put(&dev->di_input_free_q, buf))
-		dp_print(dev->index, PRINT_ERROR,
-			"%s: put di_input_free_q fail\n", __func__);
+		dp_print(dev->index, PRINT_ERROR, "%s: put di_input_free_q fail\n", __func__);
 
-	if (!dropped) {
-		ret = di_processed_checkin(file_vf);
+	buf->caller_mng.queued = false;
+
+	if (!buf->caller_mng.dropped) {
+		ret = di_processed_checkin(buf->caller_mng.src_file);
 		if (ret)
-			dp_print(dev->index, PRINT_ERROR,
-				"%s: processed_checkin fail\n", __func__);
+			dp_print(dev->index, PRINT_ERROR, "%s: processed_checkin fail\n", __func__);
 
 		if (is_emptydone) {
-			dp_put_file(dev, file_vf);
+			dp_put_file(dev, buf->caller_mng.src_file);
 		} else {
 			/*bypass and di vf include dec vf, need put dec file after displayed*/
 			if ((buf->flag & DI_FLAG_BUF_BY_PASS) ||
 			   (buf->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) ||
 			   ((buf->vf->type & VIDTYPE_DI_PW) && (buf->vf->type & VIDTYPE_COMPRESS)))
-				dp_print(dev->index, PRINT_OTHER, "need use DW vf, not put %px.\n",
-					file_vf);
+				dp_print(dev->index, PRINT_OTHER,
+					"need use DW vf, not put %px.\n",
+					buf->caller_mng.src_file);
 			else
-				dp_put_file(dev, file_vf);
+				dp_put_file(dev, buf->caller_mng.src_file);
 		}
 	}
+
 	return ret;
 }
 
@@ -826,26 +824,26 @@ enum DI_ERRORTYPE dp_empty_input_done(struct di_buffer *buf)
 
 	dp_print(dev->index, PRINT_OTHER, "%s: buf->flag: 0x%x.\n", __func__, buf->flag);
 	if (buf->flag & DI_FLAG_EOS)
-		dp_print(dev->index, PRINT_ERROR,
-			"%s: eos\n", __func__);
+		dp_print(dev->index, PRINT_ERROR, "%s: eos\n", __func__);
 
 	if (buf->flag & DI_FLAG_BUF_BY_PASS) {
-		dp_print(dev->index, PRINT_OTHER,
-			"%s: di driver bypass\n", __func__);
+		dp_print(dev->index, PRINT_OTHER, "%s: di driver bypass\n", __func__);
 		return 0;
 	}
 
 	if (!buf->vf) {
-		dp_print(dev->index, PRINT_ERROR,
-			"%s: vf is NULL\n", __func__);
+		dp_print(dev->index, PRINT_ERROR, "%s: vf is NULL\n", __func__);
 		return 0;
 	}
 
-	/*tmp code, if di can copy caller_mng to dst di_buf, this code shold remove*/
-	buf->caller_mng.queued = buf->vf->crop[0];
-	buf->caller_mng.dropped = buf->vf->crop[1];
-	buf->caller_mng.dummy = buf->vf->crop[2];
-	buf->caller_mng.src_file = (struct file *)buf->vf->vc_private;
+	dp_print(dev->index, PRINT_OTHER,
+		"%s: frame_index=%d, queued=%d, dropped=%d, dummy=%d,file:%px.\n",
+		__func__,
+		buf->vf->frame_index,
+		buf->caller_mng.queued,
+		buf->caller_mng.dropped,
+		buf->caller_mng.dummy,
+		buf->caller_mng.src_file);
 
 	if (buf->caller_mng.dropped && !buf->caller_mng.dummy) {
 		dp_print(dev->index, PRINT_OTHER, "%s: fput drop file %px\n",
@@ -857,14 +855,13 @@ enum DI_ERRORTYPE dp_empty_input_done(struct di_buffer *buf)
 	total_empty_done_count++;
 
 	dp_print(dev->index, PRINT_OTHER,
-		  "%s: frame_index=%d, empty_done_count=%lld, total_empty_done_count=%d\n",
-		  __func__, buf->vf->frame_index,
-		  dev->empty_done_count,
-		  total_empty_done_count);
+		"%s: frame_index=%d, empty_done_count=%lld, total_empty_done_count=%d\n",
+		__func__,
+		buf->vf->frame_index,
+		dev->empty_done_count,
+		total_empty_done_count);
 
 	ret = process_di_done_buf(dev, buf, true);
-
-	/*here need release fence*/
 
 	return ret;
 }
@@ -908,11 +905,14 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	if (!dev->first_out)
 		dp_print(dev->index, PRINT_OTHER, "%s: DI output first frame\n", __func__);
 
-	/*tmp code, if di can copy caller_mng to dst di_buf, this code shold remove*/
-	buf->caller_mng.queued = buf->vf->crop[0];
-	buf->caller_mng.dropped = buf->vf->crop[1];
-	buf->caller_mng.dummy = buf->vf->crop[2];
-	buf->caller_mng.src_file = (struct file *)buf->vf->vc_private;
+	dp_print(dev->index, PRINT_OTHER,
+		"%s: frame_index=%d, queued=%d, dropped=%d, dummy=%d,file:%px.\n",
+		__func__,
+		buf->vf->frame_index,
+		buf->caller_mng.queued,
+		buf->caller_mng.dropped,
+		buf->caller_mng.dummy,
+		buf->caller_mng.src_file);
 
 	if (buf->caller_mng.dummy) {
 		dev->first_out = true;
@@ -926,10 +926,12 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	}
 
 	dp_print(dev->index, PRINT_OTHER,
-		  "%s: frame_index=%d, flag=%x, fill_done_count =%lld, %d\n",
-		  __func__, buf->vf->frame_index, buf->flag,
-		  dev->fill_done_count,
-		  total_fill_done_count);
+		"%s: frame_index=%d, flag=%x, fill_done_count =%lld, %d\n",
+		__func__,
+		buf->vf->frame_index,
+		buf->flag,
+		dev->fill_done_count,
+		total_fill_done_count);
 
 	if (buf->caller_mng.dropped) {
 		dp_print(dev->index, PRINT_OTHER, "%s:dropped\n", __func__);
@@ -954,7 +956,10 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	}
 	dp_print(dev->index, PRINT_OTHER,
 		"%s: dmabuf =%px, dmabuf->file =%px, private_data =%px, di_buffer=%px\n",
-		__func__, dmabuf, dmabuf->file, private_data, buf);
+		__func__,
+		dmabuf,
+		dmabuf->file,
+		private_data, buf);
 
 	private_data->vf = *buf->vf;
 	private_data->vf_p = (struct vframe_s *)buf;
@@ -1055,6 +1060,10 @@ static void di_input_free_q_init(struct di_process_dev *dev)
 
 	for (i = 0; i < DIPR_POOL_SIZE; i++) {
 		dev->di_input[i].caller_data = (void *)dev;
+		dev->di_input[i].caller_mng.dropped = false;
+		dev->di_input[i].caller_mng.dummy = false;
+		dev->di_input[i].caller_mng.queued = false;
+		dev->di_input[i].caller_mng.src_file = NULL;
 		//dev->di_input[i].index = i;
 		kfifo_put(&dev->di_input_free_q, &dev->di_input[i]);
 	}
@@ -1208,7 +1217,6 @@ static int di_process_uninit(struct di_process_dev *dev)
 {
 	int ret = 0;
 	int i = 0;
-	bool dropped;
 	struct di_buffer *buf;
 
 	dev->inited = false;
@@ -1233,8 +1241,7 @@ static int di_process_uninit(struct di_process_dev *dev)
 		if (buf->caller_mng.queued) {
 			dp_print(dev->index, PRINT_OTHER,
 				  "%s frame_index=%d\n", __func__, buf->vf->frame_index);
-			dropped = buf->caller_mng.dropped;
-			if (!dropped) {
+			if (!buf->caller_mng.dropped) {
 				ret = di_processed_checkin(buf->caller_mng.src_file);
 				if (ret != 0)
 					dp_print(dev->index, PRINT_ERROR,
@@ -1242,13 +1249,14 @@ static int di_process_uninit(struct di_process_dev *dev)
 				dp_put_file(dev, buf->caller_mng.src_file);
 			}
 
-			buf->caller_mng.queued = false;
-
-			uninit_dummy_vf_param(dev, buf);
+			if (buf->caller_mng.dummy)
+				uninit_dummy_vf_param(dev);
 
 			if (!kfifo_put(&dev->di_input_free_q, buf))
 				dp_print(dev->index, PRINT_ERROR,
 				"%s: put di_input_free_q fail\n", __func__);
+
+			buf->caller_mng.queued = false;
 		}
 	}
 
