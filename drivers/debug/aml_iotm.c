@@ -628,6 +628,9 @@ static int iotm_syscore_suspend(void)
 {
 	unsigned int iotm_ctrl_mode_val;
 
+	if (!iotm_supported)
+		return 0;
+
 	iotm_enabled = 0;
 	iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
 	iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_DISABLE;
@@ -638,13 +641,14 @@ static int iotm_syscore_suspend(void)
 
 static void iotm_syscore_resume(void)
 {
-	unsigned int iotm_ctrl_mode_val;
+	int ret;
 
-	iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
-	iotm_ctrl_mode_val |= (IOTM_CTRL_MODE_CAPU_ENABLE |
-			IOTM_CTRL_MODE_VAPB4_ENABLE | IOTM_CTRL_MODE_TRACE_ENABLE);
-	writel(iotm_ctrl_mode_val, iotm.cssys_base + IOTM_CTRL_MODE);
-	iotm_enabled = 1;
+	if (!iotm_supported)
+		return;
+
+	ret = iotm_coresight_init();
+	if (!ret)
+		iotm_enabled = 1;
 }
 
 static void iotm_syscore_shutdown(void)
