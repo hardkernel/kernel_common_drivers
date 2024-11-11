@@ -16,5 +16,6 @@
 #define S5_VIU_OSD3_MISC                              0x1a17
 #define S5_VIU_OSD4_MISC                              0x1a18
 #define VPU_LUT_DMA_SEC_IN                            0x2709
+#define T6D_VPU_LUT_DMA_SEC_IN                        0x272b
 
 #endif

@@ -3628,7 +3628,7 @@
 //Bit 13           reg_vf_sep_coef_en        // unsigned ,    RW, default = 0  default = 0x0 ,if true, vertical separated coef enable
 //Bit 12:10        reserved
 //Bit  9           reg_high_reso_en          // unsigned ,    RW, default = 0  default	= 0x0 ,default = 0x0 ,if true, use 9bit resolution coef, other use 8bit resolution coef
-//Bit  8: 7        reg_type_index            // unsigned ,    RW, default = 0  default	= 0x0 ,default = 0x0 ,type of index, 00: vertical coef, 01: vertical chroma coef: 10: horizontal coef, 11: resevered
+//Bit  8: 7        reg_type_index            // unsigned ,    RW, default = 0  default	= 0x0 ,default = 0x0 ,type of index, 00: vertical coef, 01: vertical chroma coef: 10: horizontal coef, 11: reserved
 //Bit  6: 0        reg_coef_index            // unsigned ,    RW, default = 0  default	= 0x0 ,coef	index
 #define S5_SCHN_SCALE_COEF                            0x4171
 //Bit 31:24        reg_coef0                 // signed ,    RW, default = 0  default	= 0x0 ,	coefficients for vertical filter and horizontal	filter

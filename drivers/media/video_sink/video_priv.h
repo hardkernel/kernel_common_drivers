@@ -292,6 +292,7 @@ struct video_dev_s {
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
 	u32 sr_in_size;
+	u8 share_afbc_with_di;
 	u8 sr0_support;
 	u8 sr1_support;
 	u8 is_tv_panel;
@@ -310,6 +311,7 @@ struct video_dev_s {
 	u8 frm2fld_support;
 	u8 display_device_cnt;
 	u8 dejaggy_support;
+	u8 vsr_nonlinear_support;
 };
 
 struct video_layer_s;
@@ -362,6 +364,7 @@ struct mif_pos_s {
 
 struct vsr_top_setting_s {
 	bool is_interlaced;
+	bool sharpness_en;
 	u32 vskip_cnt;
 	u32 hsize_in; //13 bits source pic hsize
 	u32 vsize_in; //13 bits source pic vsize
@@ -381,6 +384,7 @@ struct vsr_top_setting_s {
 };
 
 struct vsr_safa_setting_s {
+	u32 mode;//0:tv 4k 1:stb 2:tv 2k
 	u32 pre_hsize;//calc later
 	u32 pre_vsize;//calc later
 	u32 preh_en; //1 bits prehscaler en
@@ -389,6 +393,14 @@ struct vsr_safa_setting_s {
 	u32 prev_ratio; //2 bits prever ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
 	u32 postsc_en; //1 bits postscaler en
 	bool dejaggy_en;
+	/* nonlinear */
+	u32 nonlinear_4region_en;
+	u32 vpp_hf_start_phase_step;
+	u32 vpp_hsc_r1;
+	u32 vpp_hsc_r2;
+	u32 vpp_hsc_r3;
+	u32 vpp_hf_start_phase_slope;
+	u32 vpp_hf_end_phase_slope;
 };
 
 struct vsr_pi_setting_s {
@@ -585,6 +597,7 @@ struct video_layer_s {
 	struct hw_fg_reg_s fg_reg;
 	struct hw_pps_reg_s pps_reg;
 	struct hw_vsr_safa_reg_s vsr_safa_reg;
+	struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg;
 	struct hw_vpp_blend_reg_s vpp_blend_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -677,6 +690,7 @@ struct video_layer_s {
 	u8 cur_link_mode;
 	atomic_t disable_plink_done;
 
+	bool hscaler_8tap_enable_save;
 	bool mosaic_frame;
 	bool frc_n2m_1st_frame;
 	u8 plink_skip_cnt;
@@ -690,6 +704,23 @@ struct video_layer_s {
 	struct vframe_s *vf_top1;
 	u32 frc_h_size_pre;
 	u32 frc_v_size_pre;
+};
+
+struct video_lcevc_s {
+	bool preblend_en;
+	bool vd2_vd1_shared_vf;
+	bool lcevc_switch_normal;
+	bool lcevc_unreged;
+	struct vframe_s *enhance_vf;
+	u32 vd1_src_width;
+	u32 vd1_src_height;
+	u32 vd1_type;
+	u32 display_path_id;
+	u32 alpha;
+	u32 vf_lcevc_coeff0;
+	u32 vf_lcevc_coeff1;
+	u32 vd1_zorder;
+	u32 vd2_zorder;
 };
 
 struct video_save_s {
@@ -724,6 +755,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_S7_,
 	MESON_CPU_MAJOR_ID_S7D_,
 	MESON_CPU_MAJOR_ID_S6_,
+	MESON_CPU_MAJOR_ID_T6D_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -741,6 +773,7 @@ struct video_device_hw_s {
 	u8 vd1_vsr_safa_support;
 	u8 frm2fld_support;
 	u8 dejaggy_support;
+	u8 vsr_nonlinear_support;
 };
 
 struct amvideo_device_data_s {
@@ -774,6 +807,7 @@ struct amvideo_device_data_s {
 	struct video_device_hw_s dev_property;
 	u8 is_tv_panel;
 	u8 display_device_cnt;
+	u8 share_afbc_with_di;
 };
 
 struct pre_scaler_info {
@@ -790,6 +824,19 @@ struct pre_scaler_info {
 	u32 pre_vscaler_rate;
 	u32 pre_vscaler_coef[4];
 	u32 pre_vscaler_coef_set;
+};
+
+struct cur_line_info_t {
+	int enc_line_start;
+	u32 enc_num_start;
+	struct timeval start;
+	struct timeval end1;
+	struct timeval end2;
+	struct timeval end3;
+	struct timeval end4;
+	struct timeval toggle_end;
+	struct timeval swap_end;
+	struct timeval render_end;
 };
 
 enum {
@@ -837,6 +884,14 @@ extern u64 vsync_cnt[VPP_MAX];
 extern struct vpu_venc_regs_s venc_regs[VPP_NUM];
 extern u32 vpp_hold_line[VPP_MAX];
 extern u8 vsync_isr_cpuid;
+extern bool force_scaler_all;
+extern struct video_lcevc_s video_lcevc;
+extern bool lcevc_en;
+extern u32 lcevc_ctrl;
+extern u32 lcevc_coef_demo;
+extern uint int_hv_phase;
+extern uint int_hv_rpt_num;
+extern bool force_vpp_blend_update;
 
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
@@ -1002,6 +1057,7 @@ void get_slice_out_hsize_debug(int *debug, int *slice0_hsize,
 void set_slice_out_hsize_debug(int debug, int slice0_hsize,
 			       int slice1_hsize, int slice_w_max);
 void video_resume_hw_recovery(void);
+void vd2_postblend_update(const struct vinfo_s *vinfo, u8 vpp_index);
 
 /* from video.c */
 extern u32 osd_vpp_misc;
@@ -1047,6 +1103,7 @@ extern bool video_suspend;
 extern u32 video_suspend_cycle;
 extern int log_out;
 extern u32 debug_flag;
+extern u32 performance_debug;
 extern u32 bypass_pps;
 extern bool rdma_enable_pre;
 extern struct vpp_frame_par_s *cur_frame_par[MAX_VD_LAYER];
@@ -1056,7 +1113,7 @@ extern u32 video_info_change_status;
 extern u32 reference_zorder;
 extern u32 pi_enable;
 extern int aisr_demo_types[3];
-
+extern int aisr_demo_win;
 bool black_threshold_check(u8 id);
 bool black_threshold_check_s5(u8 id);
 extern atomic_t primary_src_fmt;
@@ -1098,6 +1155,7 @@ bool video_is_meson_s1a_cpu(void);
 bool video_is_meson_s7_cpu(void);
 bool video_is_meson_s7d_cpu(void);
 bool video_is_meson_s6_cpu(void);
+bool video_is_meson_t6d_cpu(void);
 void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
@@ -1141,6 +1199,7 @@ void set_vsr_scaler(struct vsr_setting_s *vsr);
 void s7d_vsr_default_init(void);
 void vsr_debug_mode_update(u32 debug_mode, struct vsr_setting_s *vsr);
 void dump_vd_vsr_safa_reg(void);
+void dump_vd_vsr_safa_nonlinear_reg(void);
 void pre_process_for_3d(struct vframe_s *vf);
 int get_vpu_urgent_info_t3(void);
 int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level);
@@ -1197,6 +1256,7 @@ int vpp_set_super_scaler_regs(struct video_layer_s *layer,
 			      int vpp_postblend_out_width,
 			      int vpp_postblend_out_height);
 void update_primary_fmt_event(void);
+void switch_from_lcevc_to_nonlcevc(bool unreg);
 void update_vd_amdv_info(struct video_layer_s *layer);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC

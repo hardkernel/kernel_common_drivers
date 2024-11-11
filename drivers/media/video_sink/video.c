@@ -56,6 +56,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-map-ops.h>
 #include <linux/sched.h>
+#include <linux/suspend.h>
 #include <linux/amlogic/media/video_sink/video_keeper.h>
 #include "video_priv.h"
 #include "video_reg.h"
@@ -613,10 +614,10 @@ int vpp_crc_result;
 /* viu2 vpp_crc */
 static u32 vpp_crc_viu2_en;
 /* source fmt string */
-const char *src_fmt_str[11] = {
+const char *src_fmt_str[12] = {
 	"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
 	"Dolby Vison", "Dolby Vison Low latency", "MVC",
-	"CUVA_HDR", "CUVA_HLG", "SDR_2020"
+	"CUVA_HDR", "CUVA_HLG", "SDR_2020", "HDR10_709_SOURCE"
 };
 
 atomic_t primary_src_fmt =
@@ -634,13 +635,20 @@ u32  video_mirror;
 bool vd1_vd2_mux;
 bool aisr_en;
 bool vsr_top_en;
+bool lcevc_en;
+u32 lcevc_ctrl;
+u32 lcevc_coef_demo = 1;
 u32 vsr_debug_mode;
+bool force_scaler_all;
 bool video_suspend;
 u32 video_suspend_cycle;
 int log_out;
+int aisr_demo_win = 1;
 u64 vsync_cnt[VPP_MAX] = {0, 0, 0};
 u8 vsync_isr_cpuid;
 u8 prevsync_isr_cpuid;
+static u32 lcevc_alpha = 0x80;
+
 #ifdef CONFIG_PM
 struct video_pm_state_s {
 	int event;
@@ -5411,6 +5419,17 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 {
 	irqreturn_t ret;
 
+	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC) {
+		struct timeval t;
+		static ulong last_time;
+		ulong cur_time;
+
+		do_gettimeofday(&t);
+		cur_time = t.tv_sec * 1000000 + t.tv_usec;
+		pr_info("vsync interval:%ldms\n", cur_time - last_time);
+		last_time = cur_time;
+	}
+
 	if (get_lowlatency_mode())
 		put_buffer_proc();
 	lowlatency_vsync_count++;
@@ -5438,6 +5457,17 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 static irqreturn_t vsync_pre_vsync_isr(int irq, void *dev_id)
 {
+	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC) {
+		struct timeval t;
+		static ulong last_time;
+		ulong cur_time;
+
+		do_gettimeofday(&t);
+		cur_time = t.tv_sec * 1000000 + t.tv_usec;
+		pr_info("pre vsync interval:%ldms\n", cur_time - last_time);
+		last_time = cur_time;
+	}
+
 	prevsync_isr_cpuid = smp_processor_id();
 	if (video_suspend && video_suspend_cycle >= 1) {
 		if (log_out)
@@ -11483,6 +11513,7 @@ static ssize_t hscaler_8tap_enable_store(const struct class *cla,
 	if (amvideo_meson_dev.has_hscaler_8tap[0] &&
 	    hscaler_8tap_en != hscaler_8tap_enable[0]) {
 		hscaler_8tap_enable[0] = hscaler_8tap_en;
+		vd_layer[0].hscaler_8tap_enable_save = hscaler_8tap_en;
 		vd_layer[0].property_changed = true;
 	}
 	return count;
@@ -11512,6 +11543,7 @@ static ssize_t pip_hscaler_8tap_enable_store
 	if (amvideo_meson_dev.has_hscaler_8tap[1] &&
 	    hscaler_8tap_en != hscaler_8tap_enable[1]) {
 		hscaler_8tap_enable[1] = hscaler_8tap_en;
+		vd_layer[1].hscaler_8tap_enable_save = hscaler_8tap_en;
 		if (vd_layer[1].vpp_index == VPP0) {
 			vd_layer[1].property_changed = true;
 		} else {
@@ -11546,6 +11578,7 @@ static ssize_t pip2_hscaler_8tap_enable_store
 	if (amvideo_meson_dev.has_hscaler_8tap[2] &&
 	    hscaler_8tap_en != hscaler_8tap_enable[2]) {
 		hscaler_8tap_enable[2] = hscaler_8tap_en;
+		vd_layer[2].hscaler_8tap_enable_save = hscaler_8tap_en;
 		if (vd_layer[2].vpp_index == VPP0) {
 			vd_layer[2].property_changed = true;
 		} else {
@@ -12169,11 +12202,15 @@ static ssize_t primary_src_fmt_show(const struct class *cla,
 	enum vframe_signal_fmt_e fmt;
 
 	fmt = (enum vframe_signal_fmt_e)atomic_read(&cur_primary_src_fmt);
-	if (fmt != VFRAME_SIGNAL_FMT_INVALID)
-		ret += sprintf(buf + ret, "src_fmt = %s\n",
-			src_fmt_str[fmt]);
-	else
-		ret += sprintf(buf + ret, "src_fmt = invalid\n");
+	if (fmt >= VFRAME_SIGNAL_FMT_MAX) {
+		pr_info("%s:fmt=%d is overflow!\n", __func__, fmt);
+	} else {
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+			ret += sprintf(buf + ret, "src_fmt = %s\n",
+				src_fmt_str[fmt]);
+		else
+			ret += sprintf(buf + ret, "src_fmt = invalid\n");
+	}
 	return ret;
 }
 
@@ -12590,6 +12627,31 @@ static ssize_t aisr_demo_en_store(const struct class *cla,
 	}
 	if (res != cur_dev->aisr_demo_en) {
 		cur_dev->aisr_demo_en = res;
+		vd_layer[0].property_changed = true;
+	}
+	return count;
+}
+
+static ssize_t aisr_demo_win_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "aisr_demo_win: %d\n", aisr_demo_win);
+}
+
+static ssize_t aisr_demo_win_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int ret;
+	int res;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != aisr_demo_win) {
+		aisr_demo_win = res;
 		vd_layer[0].property_changed = true;
 	}
 	return count;
@@ -13300,6 +13362,102 @@ static ssize_t vsr_debug_mode_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t force_scaler_all_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "force_scaler_all:%d\n", force_scaler_all);
+}
+
+static ssize_t force_scaler_all_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != force_scaler_all) {
+		force_scaler_all = res;
+		vd_layer[0].property_changed = true;
+		vd_layer[1].property_changed = true;
+		vd_layer[2].property_changed = true;
+		vd_layer_vpp[0].property_changed = true;
+		vd_layer_vpp[1].property_changed = true;
+	}
+	return count;
+}
+
+static ssize_t lcevc_en_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 60, "lcevc_ctrl:%d(0: disable; 1:enable; 2:only y)\n", lcevc_ctrl);
+}
+
+static ssize_t lcevc_en_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+
+	if (res != lcevc_ctrl) {
+		lcevc_ctrl = res;
+		if (lcevc_ctrl)
+			lcevc_en = true;
+		else
+			lcevc_en = false;
+		if (video_lcevc.vd2_vd1_shared_vf) {
+			if (lcevc_en)
+				video_lcevc.alpha = lcevc_alpha;
+			else
+				video_lcevc.alpha = 0x100;
+			vd_layer[1].property_changed = true;
+			force_vpp_blend_update = true;
+		}
+	}
+	return count;
+}
+
+static ssize_t lcevc_coef_demo_show(const struct class *cla,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, 80, "param:%d(0: default bicubic; 1:lcevc-stream coeff,2:manual)\n",
+		lcevc_coef_demo);
+}
+
+static ssize_t lcevc_coef_demo_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != lcevc_coef_demo) {
+		lcevc_coef_demo = res;
+		if (video_lcevc.vd2_vd1_shared_vf)
+			vd_layer[1].property_changed = true;
+	}
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -13810,6 +13968,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       aisr_demo_axis_show,
 	       aisr_demo_axis_store),
+	__ATTR(aisr_demo_win,
+	       0664,
+	       aisr_demo_win_show,
+	       aisr_demo_win_store),
 	__ATTR(power_ctrl,
 	       0664,
 	       power_ctrl_show,
@@ -13905,6 +14067,18 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		vsr_debug_mode_show,
 		vsr_debug_mode_store),
+	__ATTR(force_scaler_all,
+		0664,
+		force_scaler_all_show,
+		force_scaler_all_store),
+	__ATTR(lcevc_en,
+		0664,
+		lcevc_en_show,
+		lcevc_en_store),
+	__ATTR(lcevc_coef_demo,
+		0664,
+		lcevc_coef_demo_show,
+		lcevc_coef_demo_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -14014,7 +14188,7 @@ static int vpp_axis_reverse(char *str)
 		video_mirror = 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 __setup("video_reverse=", vpp_axis_reverse);
@@ -14703,6 +14877,7 @@ static struct amvideo_device_data_s amvideo_t5d_revb = {
 	.display_module = 0,
 	.max_vd_layers = 2,
 	.is_tv_panel = 1,
+	.share_afbc_with_di = 1,
 };
 
 static struct amvideo_device_data_s amvideo_t3 = {
@@ -15072,6 +15247,7 @@ static struct amvideo_device_data_s amvideo_txhd2 = {
 	.display_module = 0,
 	.max_vd_layers = 1,
 	.is_tv_panel = 1,
+	.share_afbc_with_di = 1,
 };
 
 static struct amvideo_device_data_s amvideo_s1a = {
@@ -15243,7 +15419,7 @@ static struct amvideo_device_data_s amvideo_s6 = {
 	.alpha_support[0] = 1,
 	.alpha_support[1] = 1,
 	.alpha_support[2] = 0,
-	.dv_support = 0,
+	.dv_support = 1,
 	.sr0_support = 0,
 	.sr1_support = 0,
 	.core_v_disable_width_max[0] = 4096,
@@ -15278,6 +15454,59 @@ static struct amvideo_device_data_s amvideo_s6 = {
 	.is_tv_panel = 0,
 };
 
+static struct amvideo_device_data_s amvideo_t6d = {
+	.cpu_type = MESON_CPU_MAJOR_ID_T6D_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 0,
+	.alpha_support[1] = 0,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = VSR_BEFORE_VE,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 2,
+	.has_pre_hscaler_ntap[1] = 2,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 2048,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 2048,
+	.src_height_max[0] = 1088,
+	.src_height_max[1] = 1088,
+	.src_height_max[2] = 1088,
+	.ofifo_size = 0x800,
+	.afbc_conv_lbuf_len[0] = 0x80,
+	.afbc_conv_lbuf_len[1] = 0x80,
+	.mif_linear = 1,
+	.display_module = T7_DISPLAY_MODULE,
+	.max_vd_layers = 2,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+	.is_tv_panel = 1,
+	.share_afbc_with_di = 1,
+};
 #endif
 
 static struct video_device_hw_s legcy_dev_property = {
@@ -15375,6 +15604,17 @@ static struct video_device_hw_s s6_dev_property = {
 	.dejaggy_support = 1,
 };
 
+static struct video_device_hw_s t6d_dev_property = {
+	.vd2_independ_blend_ctrl = 1,
+	.aisr_support = 0,
+	.prevsync_support = 0,
+	.sr_in_size = 0,
+	.sr01_num = 0,
+	.vd1_vsr_safa_support = 1,
+	.frm2fld_support = 0,
+	.vsr_nonlinear_support = 1,
+	.dejaggy_support = 1,
+};
 #endif
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -15456,6 +15696,10 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 	{
 		.compatible = "amlogic, amvideom-s6",
 		.data = &amvideo_s6,
+	},
+	{
+		.compatible = "amlogic, amvideom-t6d",
+		.data = &amvideo_t6d,
 	},
 #endif
 	{}
@@ -15609,6 +15853,15 @@ bool video_is_meson_s6_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_S6_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_t6d_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_T6D_)
 		return true;
 	else
 		return false;
@@ -15848,6 +16101,9 @@ static int amvideom_probe(struct platform_device *pdev)
 		memcpy(&amvideo_meson_dev.dev_property, &s6_dev_property,
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T6D_) {
+		memcpy(&amvideo_meson_dev.dev_property, &t6d_dev_property,
+		       sizeof(struct video_device_hw_s));
 		cur_dev->power_ctrl = true;
 #endif
 	} else {
@@ -16042,6 +16298,56 @@ static int amvideo_restore(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int video_pm_cb(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	pr_info("%s called. pm_event:%lu.\n", __func__, pm_event);
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		video_suspend = false;
+		break;
+	case PM_POST_HIBERNATION:
+		break;
+	case PM_SUSPEND_PREPARE:
+		break;
+	case PM_POST_SUSPEND:
+	case PM_RESTORE_PREPARE:
+	case PM_POST_RESTORE:
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block video_pm_nb = {
+	.notifier_call = video_pm_cb,
+};
+
+static int video_pm_notifier_register(void)
+{
+	return register_pm_notifier(&video_pm_nb);
+}
+
+static int video_pm_notifier_unregister(void)
+{
+	return unregister_pm_notifier(&video_pm_nb);
+}
+#else
+static int video_pm_notifier_register(void)
+{
+	return 0;
+}
+
+static int video_pm_notifier_unregister(void)
+{
+	return 0;
+}
+
+#endif
+
 static const struct dev_pm_ops amvideo_pm_ops = {
 	.freeze = amvideo_freeze,
 	.thaw = amvideo_thaw,
@@ -16197,6 +16503,7 @@ int __init video_init(void)
 
 	REG_PATH_CONFIGS("media.video", video_configs);
 	video_debugfs_init();
+	video_pm_notifier_register();
 	return 0;
  err5:
 	device_destroy(amvideo_class, MKDEV(AMVIDEO_MAJOR, 0));
@@ -16217,7 +16524,7 @@ int __init video_init(void)
 #endif
 	amvideo_unregister_client(&amvideo_notifier);
 	platform_driver_unregister(&amvideom_driver);
-
+	video_pm_notifier_unregister();
 	return r;
 }
 
@@ -16265,9 +16572,10 @@ void __exit video_exit(void)
 	class_unregister(amvideo_class);
 	class_unregister(amvideo_poll_class);
 	amvideo_unregister_client(&amvideo_notifier);
+	video_pm_notifier_unregister();
 }
 
-struct video_module_debug_s debug_video[51] = {
+struct video_module_debug_s debug_video[52] = {
 	{"new_frame_cnt", &new_frame_cnt, 1, 0},
 	{"vsync_count_start", &vsync_count_start, 1, 0},
 	{"pause_one_3d_fl_frame", &pause_one_3d_fl_frame, 1, 0},
@@ -16319,6 +16627,7 @@ struct video_module_debug_s debug_video[51] = {
 	{"osd_vpp1_bld_ctrl", &osd_vpp1_bld_ctrl, 1, 1},
 	{"osd_vpp2_bld_ctrl", &osd_vpp2_bld_ctrl, 1, 1},
 	{"debug_flag1", &debug_flag1, 1, 0},
+	{"lcevc_alpha", &lcevc_alpha, 1, 0},
 };
 
 //MODULE_DESCRIPTION("AMLOGIC video output driver");

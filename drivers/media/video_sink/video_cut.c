@@ -341,6 +341,10 @@ static int enable_video_discontinue_report = 1;
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
 static struct amvideocap_req *capture_frame_req;
 #endif
+bool force_scaler_all;
+bool lcevc_en;
+u32 lcevc_ctrl;
+u32 lcevc_coef_demo = 1;
 
 /*********************************************************/
 /* #define DUR2PTS(x) ((x) - ((x) >> 4)) */
@@ -495,10 +499,10 @@ int vpp_crc_result;
 /* viu2 vpp_crc */
 static u32 vpp_crc_viu2_en;
 /* source fmt string */
-const char *src_fmt_str[11] = {
+const char *src_fmt_str[12] = {
 	"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
 	"Dolby Vison", "Dolby Vison Low latency", "MVC",
-	"CUVA_HDR", "CUVA_HLG", "SDR_2020"
+	"CUVA_HDR", "CUVA_HLG", "SDR_2020", "HDR10_709_SOURCE"
 };
 
 atomic_t primary_src_fmt =
@@ -3566,10 +3570,13 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 	if (vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_DOVI)
 		clear_vframe_dovi_md_info(vf);
 
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	if (!is_hdr10plus_enable() && vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PLUS) {
 		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
-		pr_info("[%s] system not support hdr10+, treat as hdr10\n", __func__);
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("[%s] system not support hdr10+, treat as hdr10\n", __func__);
 	}
+#endif
 
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 		pr_info("[%s]fmt: %d, vf %p, sei %p\n", __func__, vf->src_fmt.fmt,
@@ -8132,6 +8139,7 @@ static ssize_t hscaler_8tap_enable_store(const struct class *cla,
 	if (amvideo_meson_dev.has_hscaler_8tap[0] &&
 	    hscaler_8tap_en != hscaler_8tap_enable[0]) {
 		hscaler_8tap_enable[0] = hscaler_8tap_en;
+		vd_layer[0].hscaler_8tap_enable_save = hscaler_8tap_en;
 		vd_layer[0].property_changed = true;
 	}
 	return count;
@@ -8161,6 +8169,7 @@ static ssize_t pip_hscaler_8tap_enable_store
 	if (amvideo_meson_dev.has_hscaler_8tap[1] &&
 	    hscaler_8tap_en != hscaler_8tap_enable[1]) {
 		hscaler_8tap_enable[1] = hscaler_8tap_en;
+		vd_layer[1].hscaler_8tap_enable_save = hscaler_8tap_en;
 		if (vd_layer[1].vpp_index == VPP0)
 			vd_layer[1].property_changed = true;
 	}
@@ -8636,11 +8645,15 @@ static ssize_t primary_src_fmt_show(const struct class *cla,
 	enum vframe_signal_fmt_e fmt;
 
 	fmt = (enum vframe_signal_fmt_e)atomic_read(&cur_primary_src_fmt);
-	if (fmt != VFRAME_SIGNAL_FMT_INVALID)
-		ret += sprintf(buf + ret, "src_fmt = %s\n",
-			src_fmt_str[fmt]);
-	else
-		ret += sprintf(buf + ret, "src_fmt = invalid\n");
+	if (fmt >= VFRAME_SIGNAL_FMT_MAX) {
+		pr_info("%s:fmt=%d is overflow!\n", __func__, fmt);
+	} else {
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+			ret += sprintf(buf + ret, "src_fmt = %s\n",
+				src_fmt_str[fmt]);
+		else
+			ret += sprintf(buf + ret, "src_fmt = invalid\n");
+	}
 	return ret;
 }
 
@@ -9409,7 +9422,7 @@ static int vpp_axis_reverse(char *str)
 		video_mirror = 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 __setup("video_reverse=", vpp_axis_reverse);

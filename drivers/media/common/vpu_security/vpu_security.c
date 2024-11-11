@@ -129,6 +129,25 @@ static struct vpu_sec_reg_s reg_v5[] = {
 	{VPU_LUT_DMA_SEC_IN, 1, 2, 1}  /* 15. DI FG */
 };
 
+static struct vpu_sec_reg_s reg_v6[] = {
+	{VIU_OSD1_PATH_CTRL,     1, 28, 1}, /* 00. OSD1 */
+	{VIU_OSD2_PATH_CTRL,     1, 28, 1}, /* 01. OSD2 */
+	{VIU_VD1_PATH_CTRL,      1, 28, 1}, /* 02. VD1 */
+	{VIU_VD2_PATH_CTRL,      1, 28, 1}, /* 03. VD2 */
+	{VIU_OSD3_PATH_CTRL,     1, 28, 1}, /* 04. OSD3 */
+	{0,                      1,  0, 1}, /* 05. VD AFBC, not used */
+	{VIU_VD1_PATH_CTRL,      1, 29, 1}, /* 06. DV */
+	{VIU_OSD4_PATH_CTRL,     1, 28, 1}, /* 07. OSD AFBC */
+	{VIU_FRM_CTRL,	         1, 26, 1}, /* 08. VPP_TOP */
+	{0,                      1, 0,  1}, /* 09. OSD4, not used */
+	{VIU_VD3_PATH_CTRL,      1, 28, 1}, /* 10. VD3 */
+	{VIU_FRM_CTRL,           1, 26, 1}, /* 11. VPP_TOP1 */
+	{VIU_FRM_CTRL,           1, 26, 1}, /* 12. VPP_TOP2 */
+	{T6D_VPU_LUT_DMA_SEC_IN, 1,  0, 1}, /* 13. VD1 FG */
+	{T6D_VPU_LUT_DMA_SEC_IN, 1,  1, 1}, /* 14. VD2 FG */
+	{T6D_VPU_LUT_DMA_SEC_IN, 1,  2, 1}  /* 15. DI FG */
+};
+
 static struct sec_dev_data_s vpu_security_sc2 = {
 	.version = VPU_SEC_V1,
 };
@@ -153,6 +172,10 @@ static struct sec_dev_data_s vpu_security_s5 = {
 
 static struct sec_dev_data_s vpu_security_s7 = {
 	.version = VPU_SEC_V5,
+};
+
+static struct sec_dev_data_s vpu_security_t6d = {
+	.version = VPU_SEC_V6,
 };
 #endif
 
@@ -183,6 +206,10 @@ static const struct of_device_id vpu_security_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-s7, vpu_security",
 		.data = &vpu_security_s7,
+	},
+	{
+		.compatible = "amlogic, meson-t6d, vpu_security",
+		.data = &vpu_security_t6d,
 	},
 #endif
 	{}
@@ -273,7 +300,14 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 		} else if (version == VPU_SEC_V5) {
 			reg_size = ARRAY_SIZE(reg_v5);
 			reg_item = &reg_v5[0];
+		} else if (version == VPU_SEC_V6) {
+			reg_size = ARRAY_SIZE(reg_v6);
+			reg_item = &reg_v6[0];
 		}
+		if (log_level & 1)
+			pr_info("line=%d, vpu secure bit 0x%x, reg_size=0x%x, bit_changed=0x%x\n",
+				__LINE__, change->current_val, reg_size,
+				change->bit_changed);
 
 		/* work through the array and write bit(s) */
 		for (i = 0; i < reg_size; i++) {
@@ -281,8 +315,14 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 				en = BIT(i) & change->current_val;
 				reg_val = en ? reg_item[i].en :
 					  (!reg_item[i].en);
+
 				if (!reg_item[i].reg)
 					continue;
+				if (log_level & 1)
+					pr_info("line=%d, vpu secure bit 0x%x, en=%d, reg_val=0x%x, reg=0x%x\n",
+						__LINE__, change->current_val, en,
+						reg_val,
+						reg_item[i].reg);
 				ins->reg_wr_op[vpp_index](reg_item[i].reg,
 							  reg_val,
 							  reg_item[i].start,
@@ -310,10 +350,19 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 	struct vd_secure_info_s vd_secure[MAX_SECURE_OUT];
 	bool vpp_top_en = 0;
 	struct vpu_sec_bit_s change;
+	u32 reg_vpp_index = vpp_index;
 
 	version = vpu_secure_version();
 	if (!is_vpu_secure_support())
 		return 0;
+
+	/* prevsync belongs to the screen corresponding to VPP_TOP,
+	 * but when updating the register, the RDMA channel of prevsync needs to be used.
+	 * Therefore, there are two variables: vpp_index and reg_vpp_index.
+	 */
+	if (vpp_index == VPP_PRE_VSYNC)
+		vpp_index = VPP_TOP;
+
 	switch (module) {
 	case OSD_MODULE:
 		if ((secure_src & OSD1_INPUT_SECURE) ||
@@ -332,7 +381,7 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			value = osd_secure[vpp_index] |
 				video_secure[vpp_index];
 			ins->secure_enable = 1;
-			ins->secure_status = value;
+
 			osd_secure_en[vpp_index] = 1;
 		} else {
 			/* OSD none secure */
@@ -340,9 +389,25 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			value = osd_secure[vpp_index] |
 				video_secure[vpp_index];
 			ins->secure_enable = 0;
-			ins->secure_status = value;
 			osd_secure_en[vpp_index] = 0;
 		}
+		if (version == VPU_SEC_V4) {
+			u32 temp;
+
+			if (value & VD1_INPUT_SECURE) {
+				if (is_meson_t3x_cpu())
+					temp = VD1_SLICE1_SECURE;
+				else
+					temp = VD1_SLICE1_SECURE |
+						VD1_SLICE2_SECURE |
+						VD1_SLICE3_SECURE;
+				value |= temp;
+				if (log_level & 4)
+					pr_info("line=%d,secure_enable=%d module=%d value=0x%x\n",
+						__LINE__, module, ins->secure_enable, value);
+				}
+		}
+		ins->secure_status = value;
 		break;
 	case VIDEO_MODULE:
 		if ((secure_src & VD2_FGRAIN_SECURE) ||
@@ -356,31 +421,33 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			video_secure[vpp_index] = secure_src;
 			value = video_secure[vpp_index] |
 				osd_secure[vpp_index];
-			if (version == VPU_SEC_V4) {
-				u32 temp;
-
-				if (value & VD1_INPUT_SECURE) {
-					if (is_meson_t3x_cpu())
-						temp = VD1_SLICE1_SECURE;
-					else
-						temp = VD1_SLICE1_SECURE |
-							VD1_SLICE2_SECURE |
-							VD1_SLICE3_SECURE;
-					value |= temp;
-				}
-			}
 			ins->secure_enable = 1;
-			ins->secure_status = value;
 			video_secure_en[vpp_index] = 1;
 		} else {
-			/* video module secure */
+			/* video module none secure */
 			video_secure[vpp_index] = secure_src;
 			value = video_secure[vpp_index] |
 				osd_secure[vpp_index];
 			ins->secure_enable = 0;
-			ins->secure_status = value;
 			video_secure_en[vpp_index] = 0;
 		}
+		if (version == VPU_SEC_V4) {
+			u32 temp;
+
+			if (value & VD1_INPUT_SECURE) {
+				if (is_meson_t3x_cpu())
+					temp = VD1_SLICE1_SECURE;
+				else
+					temp = VD1_SLICE1_SECURE |
+						VD1_SLICE2_SECURE |
+						VD1_SLICE3_SECURE;
+				value |= temp;
+				if (log_level & 4)
+					pr_info("line=%d,secure_enable=%d module=%d value=0x%x\n",
+						__LINE__, module, ins->secure_enable, value);
+				}
+		}
+		ins->secure_status = value;
 		break;
 	case DI_MODULE:
 		break;
@@ -424,14 +491,19 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			change.bit_changed =
 					value ^ value_save[vpp_index];
 			change.current_val = value;
-			secure_reg_update(ins, &change, vpp_index);
+			if (log_level & 1)
+				pr_info("line=%d,module=%d value=0x%x, value_save=0x%x, bit_changed=0x%x\n",
+					__LINE__, module, value, value_save[vpp_index],
+					change.bit_changed);
+			secure_reg_update(ins, &change, reg_vpp_index);
 			secure_update = 1;
 		}
 		value_save[vpp_index] = value;
 	}
 
-	if (log_level >= 2)
-		pr_info("vpu secure bit 0x%x\n", value);
+	if (log_level & 2)
+		pr_info("module=%d ,vpu secure bit 0x%x\n",
+			module, value);
 
 	secure_cfg = value_save[VPP_TOP] |
 			value_save[VPP_TOP_1] |

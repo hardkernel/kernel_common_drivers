@@ -353,13 +353,13 @@ struct video_module_debug_s {
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-extern struct video_module_debug_s debug_video[51];
+extern struct video_module_debug_s debug_video[52];
 #else
 extern struct video_module_debug_s debug_video[43];
 #endif
 extern struct video_module_debug_s debug_video_hw[9];
 extern struct video_module_debug_s debug_video_func[4];
-extern struct video_module_debug_s debug_vpp[49];
+extern struct video_module_debug_s debug_vpp[51];
 extern struct video_module_debug_s debug_video_hw_s5[7];
 
 enum rx_mute_type_e {
@@ -550,7 +550,7 @@ void vsync_notify_videosync(void);
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 void vsync_notify_videoqueue(u8 layer_id,
 	u32 vsync_pts_inc_scale, u32 vsync_pts_inc_scale_base);
-void videoqueue_pcrscr_update(s32 inc, u32 base);
+void videoqueue_pcrscr_update(u8 vpp_index, s32 inc, u32 base);
 #endif
 
 #ifdef CONFIG_AMLOGIC_VDETECT

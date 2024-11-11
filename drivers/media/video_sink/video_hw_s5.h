@@ -238,6 +238,9 @@ struct vd_proc_vd2_info_s {
 	u32 vd2_dout_x_start;
 	u32 vd2_dout_y_start;
 	u32 crop_left;
+	u32 crop_right;
+	u32 crop_top;
+	u32 crop_bottom;
 	bool no_compress;
 };
 
@@ -263,6 +266,9 @@ struct vd_proc_vd1_info_s {
 	u32 vd1_whole_hsize;
 	u32 vd1_whole_vsize;
 	u32 crop_left;
+	u32 crop_right;
+	u32 crop_top;
+	u32 crop_bottom;
 	u32 slice_out_calc;
 	u32 h_no_scale[SLICE_NUM];
 	bool no_compress;

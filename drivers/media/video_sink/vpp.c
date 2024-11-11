@@ -112,6 +112,8 @@ static uint test_pps_v_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
 static uint force_pps_hcoef_update;
 static uint force_pps_vcoef_update;
 static uint vpp_speed_factor = 0x110;
+static uint lcevc_table_coef[PPS_COEF_NUM] = {4, 33};
+
 uint load_pps_coef;
 MODULE_PARM_DESC(vpp_speed_factor, "\n vpp_speed_factor\n");
 module_param(vpp_speed_factor, uint, 0664);
@@ -127,6 +129,8 @@ module_param_array(test_pps_h_coef_8tap, uint, &pps_coef_8tap, 0664);
 MODULE_PARM_DESC(test_pps_h_coef_8tap, "\n test_pps_h_coef_8tap\n");
 module_param_array(test_pps_v_coef_8tap, uint, &pps_coef_8tap, 0664);
 MODULE_PARM_DESC(test_pps_v_coef_8tap, "\n test_pps_v_coef_8tap\n");
+uint int_hv_phase = 0xff;
+uint int_hv_rpt_num = 0xff;
 
 #define MAX_VD_LAYER 3
 static struct filter_info_s gfilter[MAX_VD_LAYER];
@@ -769,6 +773,7 @@ static void calculate_non_linear_ratio_T
 	next_frame_par->VPP_hsc_linear_startp = region1_hsize - 1;
 	next_frame_par->VPP_hsc_linear_endp =
 		region1_hsize + region2_hsize_B - 1;
+	vpp_filter->vpp_hsc_nonlinear_4region_en = true;
 }
 
 /*
@@ -789,6 +794,7 @@ static void calculate_non_linear_ratio_V
 	vpp_filter->vpp_hf_start_phase_slope = diff_ratio * 4 / width_out;
 	vpp_filter->vpp_hf_end_phase_slope =
 		vpp_filter->vpp_hf_start_phase_slope | 0x1000000;
+	vpp_filter->vpp_hsc_nonlinear_4region_en = true;
 }
 /*
  *We find that the minimum line the video can be scaled
@@ -848,6 +854,7 @@ static bool is_4k2k144hz_out(const struct vinfo_s *vinfo)
 		return false;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static u32 is_video_output_window_overlap(void)
 {
 	struct video_layer_s *layer = NULL;
@@ -905,7 +912,7 @@ static u32 is_video_output_window_overlap(void)
 				overlap_size = vdx_v_end - vd1_v_start + 1;
 		}
 	}
-	if (overlap_size)
+	if (overlap_size && super_debug)
 		pr_info("%s:, v overlap_size %d\n",
 			__func__, overlap_size);
 	return overlap_size;
@@ -925,9 +932,11 @@ static bool is_video_input_4k(u8 layer_id)
 		is_4k_input = true;
 	return is_4k_input;
 }
+#endif
 
 static bool is_vskip_adj_need(u8 layer_id)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct video_layer_s *layer = NULL;
 	struct vpp_frame_par_s *next_frame_par = NULL;
 
@@ -968,6 +977,7 @@ static bool is_vskip_adj_need(u8 layer_id)
 			}
 		}
 	}
+#endif
 	return false;
 }
 
@@ -1041,10 +1051,12 @@ static int vpp_process_speed_check
 			sync_duration_num =
 				sync_duration_num * 10 / frc_ratio;
 	} else {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if ((frc_enable || (slice_num == 2 &&
 			video_is_meson_t3x_cpu())) && layer_id == 0)
 			sync_duration_num = vinfo->sync_duration_num * 10 / frc_ratio;
 		else
+#endif
 			sync_duration_num = vinfo->sync_duration_num;
 		sync_duration_den = vinfo->sync_duration_den;
 	}
@@ -1623,8 +1635,8 @@ static int vpp_set_filters_internal
 	bool skip_policy_check = true;
 	u32 vskip_step;
 	s32 video_layer_global_offset_x, video_layer_global_offset_y;
-	u32 video_source_crop_top, video_source_crop_left;
-	u32 video_source_crop_bottom, video_source_crop_right;
+	s32 video_source_crop_top, video_source_crop_left;
+	s32 video_source_crop_bottom, video_source_crop_right;
 	u32 vpp_zoom_ratio, nonlinear_factor, nonlinear_t_factor;
 	u32 speed_check_width, speed_check_height;
 	s32 video_layer_top, video_layer_left;
@@ -1639,8 +1651,8 @@ static int vpp_set_filters_internal
 	s32 vpp_zoom_center_x, vpp_zoom_center_y;
 	u32 crop_ratio = 1;
 	u32 crop_left, crop_right, crop_top, crop_bottom;
-	u32 src_crop_top = 0, src_crop_left = 0;
-	u32 src_crop_right = 0, src_crop_bottom = 0;
+	s32 src_crop_top = 0, src_crop_left = 0;
+	s32 src_crop_right = 0, src_crop_bottom = 0;
 	u32 sar_width = 0, sar_height = 0;
 	bool ext_sar = false;
 	bool no_compress = false;
@@ -1659,8 +1671,10 @@ static int vpp_set_filters_internal
 	bool vd1s1_vd2_prebld_en = false;
 	u32 w_out, h_out;
 	u32 screen_h;
+	u32 vinfo_width = 0, vinfo_height = 0;
 	u8 id = 0;
 	u8 vpp_index = 0;
+	bool is_comb_mode = false;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1670,21 +1684,28 @@ static int vpp_set_filters_internal
 
 	id = input->layer_id;
 	vpp_index = vd_layer[id].vpp_index;
+	if (id == 1 && video_lcevc.preblend_en) {
+		vinfo_width = wid_out;
+		vinfo_height = height_out;
+	} else {
+		vinfo_width = vinfo->width;
+		vinfo_height = vinfo->height;
+	}
 
 	/* min = 0.95 x 1024 * height / width */
 	min_aspect_ratio_out =
 		((100 - screen_ar_threshold) << 10) / 100;
 	min_aspect_ratio_out =
-		(vinfo->height * min_aspect_ratio_out) / vinfo->width;
+		(vinfo_height * min_aspect_ratio_out) / vinfo_width;
 	/* max = 1.05 x 1024 * height / width */
 	max_aspect_ratio_out =
 		((100 + screen_ar_threshold) << 10) / 100;
 	max_aspect_ratio_out =
-		(vinfo->height * max_aspect_ratio_out) / vinfo->width;
+		(vinfo_height * max_aspect_ratio_out) / vinfo_width;
 
 	if (aspect_ratio_out <= max_aspect_ratio_out &&
 	    aspect_ratio_out >= min_aspect_ratio_out)
-		aspect_ratio_out = (vinfo->height << 10) / vinfo->width;
+		aspect_ratio_out = (vinfo_height << 10) / vinfo_width;
 
 	cur_filter = &gfilter[input->layer_id];
 	cur_custom_ar = input->custom_ar;
@@ -1708,6 +1729,10 @@ static int vpp_set_filters_internal
 	reverse = input->reverse;
 #endif
 
+	/* VIDTYPE_VIU_444 or VIDTYPE_RGB_444 COMB_MODE */
+	if ((vf->type & VIDTYPE_COMPRESS) && (vf->type & VIDTYPE_COMB_MODE))
+		is_comb_mode = true;
+
 	if ((vf->type & VIDTYPE_MVC) ||
 	    (input->proc_3d_type & MODE_3D_ENABLE)) {
 		video_source_crop_left = 0;
@@ -1719,6 +1744,14 @@ static int vpp_set_filters_internal
 		video_source_crop_right = input->crop_right;
 		video_source_crop_top = input->crop_top;
 		video_source_crop_bottom = input->crop_bottom;
+		if (video_source_crop_left < 0)
+			video_source_crop_left = 0;
+		if (video_source_crop_right < 0)
+			video_source_crop_right = 0;
+		if (video_source_crop_top < 0)
+			video_source_crop_top = 0;
+		if (video_source_crop_bottom < 0)
+			video_source_crop_bottom = 0;
 
 		if (is_src_crop_valid(vf->src_crop)) {
 			if (cur_super_debug)
@@ -1801,6 +1834,7 @@ static int vpp_set_filters_internal
 		video_layer_left >>= 1;
 		video_layer_top >>= 1;
 	}
+
 	/* t3x aisr enalbe out axis must even */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifdef CONFIG_AMLOGIC_UVM_CORE
@@ -1813,6 +1847,7 @@ static int vpp_set_filters_internal
 	}
 #endif
 #endif
+
 RESTART_ALL:
 	crop_left = video_source_crop_left / crop_ratio;
 	crop_right = video_source_crop_right / crop_ratio;
@@ -1873,8 +1908,9 @@ RESTART_ALL:
 				if (cur_super_debug)
 					pr_info("%s:amdv slice(%d) need w_in 4 aligned: w_temp=%d, crop:%d, %d, adjust crop left:%d\n",
 						__func__, slice_num,
-						w_temp, crop_left, crop_right, crop_left + 2);
-				crop_left += 2;
+						w_temp, crop_left, crop_right,
+						crop_left + w_temp % 4);
+				crop_left += w_temp % 4;
 			}
 		} else if (slice_num == 1) {
 			/* w_in must 2 aligned*/
@@ -1914,8 +1950,22 @@ RESTART_ALL:
 		h_in -= crop_bottom;
 		v_crop_enable = true;
 	}
-	if (w_in > src_width_max)
+
+	force_dw = false;
+	if (is_comb_mode) {
+		next_frame_par->hscale_skip_count = 0;
+		/* over afbc ram size, need force no compress */
+		if (w_in > src_width_max) {
+			force_dw = true;
+			if (cur_super_debug)
+				pr_info("%s(line:%d): over afbcd src_width_max:%d win:%d\n",
+					__func__, __LINE__,
+					src_width_max, w_in);
+		}
+	} else if (w_in > src_width_max) {
 		next_frame_par->hscale_skip_count++;
+	}
+
 	if (h_in > src_height_max &&
 		(w_in * h_in > src_width_max * src_height_max))
 		next_frame_par->vscale_skip_count++;
@@ -2100,7 +2150,7 @@ RESTART:
 
 		width_adj = roundup(video_width, 32);
 		//must 32 aligned
-		if (video_left + width_adj >= vinfo->width - 1) {
+		if (video_left + width_adj >= vinfo_width - 1) {
 			video_left = rounddown(video_left, 32);
 			if (video_left < 0)
 				video_left = 0;
@@ -2263,7 +2313,7 @@ RESTART:
 				next_frame_par->VPP_vd_start_lines_ = 0;
 			}
 			temp_height = min((video_top + video_height - 1),
-					  (vinfo->height - 1));
+					  (vinfo_height - 1));
 		} else {
 			if (start < video_top) {
 				temp = ((video_top - start) * ratio_y) >> 18;
@@ -2272,7 +2322,7 @@ RESTART:
 				next_frame_par->VPP_vd_start_lines_ = 0;
 			}
 			temp_height = min((video_top + video_height - 1),
-					  (vinfo->height - 1)) - video_top + 1;
+					  (vinfo_height - 1)) - video_top + 1;
 		}
 		temp = next_frame_par->VPP_vd_start_lines_ +
 			(temp_height * ratio_y >> 18);
@@ -2360,7 +2410,7 @@ RESTART:
 	 *[video_top, video_top+video_height-1]
 	 */
 	start = max(start, max(0, video_top));
-	end = min(end, min((s32)(vinfo->height - 1),
+	end = min(end, min((s32)(vinfo_height - 1),
 			   (s32)(video_top + video_height - 1)));
 
 	if (start >= end) {
@@ -2447,7 +2497,7 @@ RESTART:
 				next_frame_par->VPP_hd_start_lines_ = 0;
 			}
 			temp_width = min((video_left + video_width - 1),
-					 (vinfo->width - 1));
+					 (vinfo_width - 1));
 		} else {
 			if (start < video_left) {
 				temp = ((video_left - start) * ratio_x) >> 18;
@@ -2456,7 +2506,7 @@ RESTART:
 				next_frame_par->VPP_hd_start_lines_ = 0;
 			}
 			temp_width = min((video_left + video_width - 1),
-					 (vinfo->width - 1)) - video_left + 1;
+					 (vinfo_width - 1)) - video_left + 1;
 		}
 		temp = next_frame_par->VPP_hd_start_lines_ +
 			(temp_width * ratio_x >> 18);
@@ -2527,7 +2577,7 @@ RESTART:
 	 */
 	start = max(start, max(0, video_left));
 	end = min(end,
-		  min((s32)(vinfo->width - 1),
+		  min((s32)(vinfo_width - 1),
 		      (s32)(video_left + video_width - 1)));
 
 	if (start >= end) {
@@ -2543,6 +2593,7 @@ RESTART:
 
 		next_frame_par->VPP_hsc_endp = end;
 	}
+	next_frame_par->vpp_filter.vpp_hsc_nonlinear_4region_en = false;
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR &&
 	    end > start) {
 		calculate_non_linear_ratio_V
@@ -2574,12 +2625,12 @@ RESTART:
 	 */
 	/* check vskip and hskip */
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
-	     !next_frame_par->hscale_skip_count) &&
+	     (!next_frame_par->hscale_skip_count && !is_comb_mode)) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
 		if (cur_dev->frm2fld_support)
-			screen_h = vinfo->height;
+			screen_h = vinfo_height;
 		else
-			screen_h = vinfo->height >>
+			screen_h = vinfo_height >>
 			((vpp_flags & VPP_FLAG_INTERLACE_OUT) ? 1 : 0);
 		int skip = vpp_process_speed_check
 			(input->layer_id,
@@ -2606,14 +2657,14 @@ RESTART:
 			if (next_vskip <= MAX_VSKIP_COUNT) {
 				next_frame_par->vscale_skip_count = next_vskip;
 				goto RESTART;
-			} else {
+			} else if (!is_comb_mode) {
 				next_frame_par->hscale_skip_count = 1;
 				/* hskip =1, w_in must aligned */
 				if (w_in & 1)
 					goto RESTART;
 			}
 		} else if (skip == SPEED_CHECK_HSKIP &&
-			!force_skip_update) {
+			!force_skip_update && !is_comb_mode) {
 			next_frame_par->hscale_skip_count = 1;
 			/* hskip =1, w_in must aligned */
 			if (w_in & 1)
@@ -2627,7 +2678,7 @@ RESTART:
 	if (slice_num == 4 &&
 		w_in > 4096 &&
 		filter->vpp_hsc_start_phase_step > 0x9500000) {
-		force_dw = 1;
+		force_dw = true;
 		if (cur_super_debug)
 			pr_info("slice_num=%d, w_in=%d, h_phase_step:0x%x\n",
 				slice_num, w_in,
@@ -2656,6 +2707,9 @@ RESTART:
 	}
 
 	if (no_compress) {
+		u32 pi_enable_pre, pi_enable_adj;
+
+		pi_enable_pre = get_pi_enabled(input->layer_id);
 		if ((vpp_flags & VPP_FLAG_MORE_LOG) &&
 		    input->afbc_support && cur_super_debug)
 			pr_info
@@ -2664,6 +2718,7 @@ RESTART:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		adjust_video_slice_policy(input->layer_id, vf, no_compress);
 #endif
+		pi_enable_adj = get_pi_enabled(input->layer_id);
 		/* for VIDTYPE_COMPRESS, check if we can use double write
 		 * buffer when primary frame can not be scaled.
 		 */
@@ -2679,10 +2734,21 @@ RESTART:
 			h_in = vf->height;
 			height_in = vf->height;
 		}
+		/* reset comb_mode because of non-afbc frame */
+		is_comb_mode = false;
 		next_frame_par->hscale_skip_count = 0;
 		next_frame_par->vscale_skip_count = 0;
 		if (vf->width && vf->compWidth)
 			crop_ratio = vf->compWidth / vf->width;
+		/* double write case switch from pi_enalbe 0-> 1 */
+		if (pi_enable_adj && !pi_enable_pre) {
+			width_out >>= 1;
+			height_out >>= 1;
+			video_layer_width >>= 1;
+			video_layer_height >>= 1;
+			video_layer_left >>= 1;
+			video_layer_top >>= 1;
+		}
 		goto RESTART_ALL;
 	}
 
@@ -2694,7 +2760,8 @@ RESTART:
 	if (get_force_skip_cnt(input->layer_id,
 		&force_vskip_cnt, &force_hskip_cnt)) {
 		next_frame_par->vscale_skip_count = force_vskip_cnt;
-		next_frame_par->hscale_skip_count = force_hskip_cnt;
+		if (!is_comb_mode)
+			next_frame_par->hscale_skip_count = force_hskip_cnt;
 		if (!force_skip_update) {
 			force_skip_update = true;
 			if (cur_super_debug)
@@ -2912,6 +2979,13 @@ RESTART:
 			pre_scaler[input->layer_id].pre_hscaler_rate;
 		filter->vpp_hsc_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_hscaler_rate;
+		if (filter->vpp_hsc_nonlinear_4region_en &&
+			wide_mode == VIDEO_WIDEOPTION_NONLINEAR) {
+			filter->vpp_hf_start_phase_slope >>=
+				pre_scaler[input->layer_id].pre_hscaler_rate;
+			filter->vpp_hf_end_phase_slope =
+				filter->vpp_hf_start_phase_slope | 0x1000000;
+		}
 	} else if ((filter->vpp_hf_start_phase_step >= 0x2000000 &&
 	    filter->vpp_hsc_start_phase_step == filter->vpp_hf_start_phase_step &&
 	    pre_scaler_en) ||
@@ -2982,7 +3056,39 @@ RESTART:
 			pre_scaler[input->layer_id].pre_hscaler_ntap_set;
 	}
 	next_frame_par->VPP_hf_ini_phase_ = vpp_zoom_center_x & 0xff;
-
+	if (video_lcevc.vd2_vd1_shared_vf) {
+		switch (lcevc_coef_demo) {
+		case 0:
+			int_hv_phase = 0x0;
+			int_hv_rpt_num = 0x1;
+			break;
+		case 1:
+			int_hv_phase = 0xc000;
+			int_hv_rpt_num = 2;
+			break;
+		default:
+			break;
+		}
+	}
+	if (int_hv_phase != 0xff) {
+		next_frame_par->VPP_hf_ini_phase_ = int_hv_phase;
+		next_frame_par->VPP_vf_init_phase = int_hv_phase;
+		next_frame_par->vpp_vf_init_phase_load = true;
+	} else {
+		next_frame_par->vpp_vf_init_phase_load = false;
+	}
+	if (int_hv_rpt_num != 0xff) {
+		next_frame_par->vpp_hf_rpt_num = int_hv_rpt_num;
+		next_frame_par->vpp_vf_rpt_num = int_hv_rpt_num;
+		next_frame_par->vpp_vf_rpt_num_load = true;
+	} else {
+		next_frame_par->vpp_vf_rpt_num_load = false;
+	}
+	if (super_debug)
+		pr_info("rpt_num_load:%d, rpt_num=%d,%d\n",
+			next_frame_par->vpp_vf_rpt_num_load,
+			next_frame_par->vpp_hf_rpt_num,
+			next_frame_par->vpp_vf_rpt_num);
 	/* overwrite filter setting for interlace output*/
 	/* TODO: not reasonable when 4K input to 480i output */
 	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) && !cur_dev->frm2fld_support) {
@@ -3028,6 +3134,23 @@ RESTART:
 	}
 #endif
 
+	/* used lcevc stream coeff */
+	if (input->layer_id == 1 &&
+		video_lcevc.vd2_vd1_shared_vf &&
+		lcevc_coef_demo == 1) {
+		int i;
+
+		for (i = 0; i < 32; i++)
+			lcevc_table_coef[2 + i] = video_lcevc.vf_lcevc_coeff0;
+		lcevc_table_coef[2 + 32] = video_lcevc.vf_lcevc_coeff1;
+		filter->vpp_horz_coeff = lcevc_table_coef;
+		filter->vpp_vert_coeff = lcevc_table_coef;
+		if (load_pps_coef) {
+			horz_coef_print(input->layer_id, filter);
+			vert_coef_print(input->layer_id, filter);
+		}
+	}
+
 	if (force_pps_hcoef_update) {
 		if (hscaler_8tap_enable[input->layer_id])
 			filter->vpp_horz_coeff = test_pps_h_coef_8tap;
@@ -3046,21 +3169,9 @@ RESTART:
 	   cur_filter->last_horz_filter != filter->vpp_horz_filter) {
 		cur_filter->last_vert_filter = filter->vpp_vert_filter;
 		cur_filter->last_horz_filter = filter->vpp_horz_filter;
-		cur_filter->scaler_filter_cnt = 0;
-	} else {
-		cur_filter->scaler_filter_cnt++;
-	}
-	if (cur_filter->scaler_filter_cnt >=
-		scaler_filter_cnt_limit &&
-		(cur_filter->cur_vert_filter !=
-		filter->vpp_vert_filter ||
-		cur_filter->cur_horz_filter !=
-		filter->vpp_horz_filter)) {
-		cur_filter->cur_vert_filter = filter->vpp_vert_filter;
-		cur_filter->cur_horz_filter = filter->vpp_horz_filter;
-		cur_filter->scaler_filter_cnt = scaler_filter_cnt_limit;
 		ret = vppfilter_success_and_changed;
 	}
+
 	if (load_pps_coef &&
 	    (force_pps_hcoef_update ||
 	    force_pps_vcoef_update)) {
@@ -3070,8 +3181,8 @@ RESTART:
 
 	/* store the debug info for legacy */
 	if (input->layer_id == 0) {
-		cur_vert_filter = cur_filter->cur_vert_filter;
-		cur_horz_filter = cur_filter->cur_horz_filter;
+		cur_vert_filter = filter->vpp_vert_filter;
+		cur_horz_filter = filter->vpp_horz_filter;
 		cur_vert_chroma_filter = vert_chroma_filter;
 		cur_skip_line =
 			next_frame_par->vscale_skip_count;
@@ -4009,7 +4120,8 @@ static void vpp_set_super_scaler
 	 * todo:if you have better idea,you can improve it
 	 */
 	/* step1: judge core0&core1 vertical enable or disable*/
-	if (ver_sc_multiple_num >= 2 * SUPER_SCALER_V_FACTOR) {
+	if (ver_sc_multiple_num >= 2 * SUPER_SCALER_V_FACTOR ||
+		force_scaler_all) {
 		next_frame_par->supsc0_vert_ratio =
 			((src_width_limit < core0_v_enable_width_max) &&
 			(sr_support & SUPER_CORE0_SUPPORT)) ? 1 : 0;
@@ -4020,6 +4132,8 @@ static void vpp_set_super_scaler
 		if (next_frame_par->supsc0_vert_ratio &&
 		    (ver_sc_multiple_num < 4 * SUPER_SCALER_V_FACTOR))
 			next_frame_par->supsc1_vert_ratio = 0;
+		if (force_scaler_all)
+			next_frame_par->supsc0_vert_ratio = 1;
 		next_frame_par->supsc0_enable =
 			next_frame_par->supsc0_vert_ratio ? 1 : 0;
 		next_frame_par->supsc1_enable =
@@ -4032,9 +4146,10 @@ static void vpp_set_super_scaler
 	}
 
 	/* step2: judge core0&core1 horizontal enable or disable*/
-	if (hor_sc_multiple_num >= 2 &&
+	if ((hor_sc_multiple_num >= 2 &&
 	    (vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR &&
-	    vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR_T)) {
+	    vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR_T)) ||
+	    force_scaler_all) {
 		if (src_width_limit > core0_v_disable_width_max ||
 		    (src_width_limit > core0_v_enable_width_max &&
 		     next_frame_par->supsc0_vert_ratio) ||
@@ -4095,6 +4210,7 @@ static void vpp_set_super_scaler
 		next_frame_par->supsc0_hori_ratio = 0;
 		next_frame_par->supsc0_vert_ratio = 0;
 	}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* for t3x 2 slice mode */
 	if (video_is_meson_t3x_cpu() &&
 		slice_num == 2 &&
@@ -4111,7 +4227,7 @@ static void vpp_set_super_scaler
 		next_frame_par->supsc1_hori_ratio = 1;
 		next_frame_par->supsc1_vert_ratio = 1;
 	}
-
+#endif
 	if (cur_dev->aisr_enable) {
 		next_frame_par->supsc1_enable = 1;
 		next_frame_par->supsc1_hori_ratio = 1;
@@ -4891,8 +5007,8 @@ static int vpp_set_filters_no_scaler_internal
 	bool skip_policy_check = true;
 	u32 vskip_step;
 	s32 video_layer_global_offset_x, video_layer_global_offset_y;
-	u32 video_source_crop_top, video_source_crop_left;
-	u32 video_source_crop_bottom, video_source_crop_right;
+	s32 video_source_crop_top, video_source_crop_left;
+	s32 video_source_crop_bottom, video_source_crop_right;
 	s32 video_layer_top, video_layer_left;
 	s32 video_layer_width, video_layer_height;
 #ifdef TV_REVERSE
@@ -4907,6 +5023,9 @@ static int vpp_set_filters_no_scaler_internal
 	bool afbc_support;
 	bool hskip_adjust = false;
 	bool src_crop_adjust = false;
+	bool is_comb_mode = false;
+	bool force_dw = false;
+	u32 src_width_max, src_height_max;
 
 	if (!input)
 		return vppfilter_fail;
@@ -4922,9 +5041,16 @@ static int vpp_set_filters_no_scaler_internal
 	video_layer_left = input->layer_left;
 	video_layer_width = input->layer_width;
 	video_layer_height = input->layer_height;
+	src_width_max = input->src_width_max;
+	src_height_max = input->src_height_max;
+
 #ifdef TV_REVERSE
 	reverse = input->reverse;
 #endif
+
+	/* VIDTYPE_VIU_444 or VIDTYPE_RGB_444 COMB_MODE */
+	if ((vf->type & VIDTYPE_COMPRESS) && (vf->type & VIDTYPE_COMB_MODE))
+		is_comb_mode = true;
 
 	if ((vf->type & VIDTYPE_MVC) ||
 	    (input->proc_3d_type & MODE_3D_ENABLE)) {
@@ -4938,6 +5064,14 @@ static int vpp_set_filters_no_scaler_internal
 		video_source_crop_top = input->crop_top;
 		video_source_crop_bottom = input->crop_bottom;
 	}
+	if (video_source_crop_left < 0)
+		video_source_crop_left = 0;
+	if (video_source_crop_right < 0)
+		video_source_crop_right = 0;
+	if (video_source_crop_top < 0)
+		video_source_crop_top = 0;
+	if (video_source_crop_bottom < 0)
+		video_source_crop_bottom = 0;
 
 	next_frame_par->vscale_skip_count = 0;
 	next_frame_par->hscale_skip_count = 0;
@@ -5002,6 +5136,25 @@ RESTART_ALL:
 				crop_right, crop_bottom,
 				w_in, h_in);
 	}
+
+	force_dw = false;
+	if (is_comb_mode) {
+		next_frame_par->hscale_skip_count = 0;
+		/* over afbc ram size, need force no compress */
+		if (w_in > src_width_max) {
+			force_dw = true;
+			if (cur_super_debug)
+				pr_info("%s(line:%d): over afbcd src_width_max:%d win:%d\n",
+					__func__, __LINE__,
+					src_width_max, w_in);
+		}
+	} else if (w_in > src_width_max) {
+		next_frame_par->hscale_skip_count++;
+	}
+
+	if (h_in > src_height_max &&
+	    (w_in * h_in > src_width_max * src_height_max))
+		next_frame_par->vscale_skip_count++;
 
 RESTART:
 	if (next_frame_par->hscale_skip_count && !hskip_adjust) {
@@ -5264,7 +5417,7 @@ RESTART:
 	 */
 	/* check vskip and hskip */
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
-	     !next_frame_par->hscale_skip_count) &&
+	     (!next_frame_par->hscale_skip_count && !is_comb_mode)) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
 		int skip = SPEED_CHECK_DONE;
 
@@ -5275,10 +5428,10 @@ RESTART:
 			if (next_vskip <= MAX_VSKIP_COUNT) {
 				next_frame_par->vscale_skip_count = next_vskip;
 				goto RESTART;
-			} else {
+			} else if (!is_comb_mode) {
 				next_frame_par->hscale_skip_count = 1;
 			}
-		} else if (skip == SPEED_CHECK_HSKIP) {
+		} else if (skip == SPEED_CHECK_HSKIP && !is_comb_mode) {
 			next_frame_par->hscale_skip_count = 1;
 		}
 	}
@@ -5297,7 +5450,8 @@ RESTART:
 		if ((vpp_flags & VPP_FLAG_FORCE_NO_COMPRESS) ||
 		    next_frame_par->vscale_skip_count > 1 ||
 		    !afbc_support ||
-		    force_no_compress)
+		    force_no_compress ||
+		    force_dw)
 			no_compress = true;
 	} else {
 		no_compress = false;
@@ -5324,6 +5478,7 @@ RESTART:
 			h_in = vf->height;
 			height_in = vf->height;
 		}
+		is_comb_mode = false;
 		next_frame_par->hscale_skip_count = 0;
 		next_frame_par->vscale_skip_count = 0;
 		if (vf->width && vf->compWidth)
@@ -5526,13 +5681,13 @@ RERTY:
 	}
 	/* fro interlace:the height from vdin & decoder afbc will be half */
 	/* fro interlace:non-afbc is really interlaced */
-	if (vf->type & VIDTYPE_INTERLACE) {
+	if (vf->type & VIDTYPE_INTERLACE)
 		vpp_flags = VPP_FLAG_INTERLACE_IN;
-		next_frame_par->is_interlaced = true;
-	} else {
-		next_frame_par->is_interlaced = false;
-	}
 
+	if (vf->type_original & VIDTYPE_INTERLACE)
+		next_frame_par->is_interlaced = true;
+	else
+		next_frame_par->is_interlaced = false;
 	if (vf->ratio_control & DISP_RATIO_PORTRAIT_MODE)
 		vpp_flags |= VPP_FLAG_PORTRAIT_MODE;
 
@@ -5706,9 +5861,15 @@ RERTY:
 	next_frame_par->VPP_post_blend_vd_h_end_ = vinfo->width - 1;
 	next_frame_par->VPP_post_blend_h_size_ = vinfo->width;
 
-	dst_width = vinfo->width;
-	dst_height = vinfo->height;
-
+	if (input->layer_id == 1 &&
+		video_lcevc.preblend_en) {
+		/* vd2 is preblend, dst size equal vd1 input size */
+		dst_width = video_lcevc.vd1_src_width;
+		dst_height = video_lcevc.vd1_src_height;
+	} else {
+		dst_width = vinfo->width;
+		dst_height = vinfo->height;
+	}
 	if (input->op_flag & OP_HAS_DI_LOCAL) {
 		local_input.crop_top >>= 1;
 		local_input.crop_bottom >>= 1;
@@ -5748,7 +5909,8 @@ RERTY:
 		goto RERTY;
 	}
 
-	if (retry && ret == vppfilter_success)
+	if (retry && (ret == vppfilter_success ||
+		      ret == vppfilter_success_and_changed))
 		ret = vppfilter_success_and_switched;
 
 	/*config super scaler after set next_frame_par is calc ok for pps*/
@@ -5868,7 +6030,7 @@ void vpp_bypass_ratio_config(void)
 	}
 }
 
-struct video_module_debug_s debug_vpp[49] = {
+struct video_module_debug_s debug_vpp[51] = {
 	{"vpp_speed_factor", &vpp_speed_factor, 1, 0},
 	{"force_pps_hcoef_update", &force_pps_hcoef_update, 1, 0},
 	{"force_pps_vcoef_update", &force_pps_vcoef_update, 1, 0},
@@ -5919,5 +6081,7 @@ struct video_module_debug_s debug_vpp[49] = {
 	{"g_post_slice_num", &g_post_slice_num, 1, 0},
 	{"g_vpp1_bypass_slice1", &g_vpp1_bypass_slice1, 1, 0},
 	{"g_post_overlap_size", &g_post_overlap_size, 1, 0},
+	{"int_hv_phase", &int_hv_phase, 1, 0},
+	{"int_hv_rpt_num", &int_hv_rpt_num, 1, 0},
 };
 

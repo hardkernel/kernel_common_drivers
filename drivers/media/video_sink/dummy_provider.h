@@ -43,12 +43,14 @@ enum {
 	VP_FMT_NV21,
 	VP_FMT_NV12,
 	VP_FMT_RGB888,
-	VP_FMT_YUV444_PACKED
+	VP_FMT_YUV444_PACKED,
+	VP_FMT_AFBC,
 };
 
 enum {
 	VP_MEM_ION,
 	VP_MEM_DMABUF,
+	VP_MEM_DRIVER_CMA,
 };
 
 enum {
@@ -62,6 +64,7 @@ struct video_provider_device_s {
 	struct class *cla;
 	struct device *dev;
 	const struct vinfo_s *vinfo;
+	struct platform_device *pdev;
 };
 
 struct vp_frame_s {
@@ -71,11 +74,17 @@ struct vp_frame_s {
 	int height; /* frame height */
 	int format;
 	int endian;
+	int offset; /* for afbc data, offset = body start addr - head start addr */
 };
 
 struct vp_pool_s {
 	struct vframe_s vfm;
 	int used;
+};
+
+struct vp_cma_info {
+	struct page *alloc_page;
+	int alloc_len;
 };
 
 #define VIDEO_PROVIDER_IOC_MAGIC  'V'

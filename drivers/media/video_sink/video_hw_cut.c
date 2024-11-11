@@ -586,10 +586,10 @@ static const enum f2v_vphase_type_e vpp_phase_table[4][3] = {
 static const u8 skip_tab[6] = { 0x24, 0x04, 0x68, 0x48, 0x28, 0x08 };
 
 static bool video_mute_on;
-/* 0: off, 1: vpp mute 2:dv mute */
+/* 0: mute off, 1: mute on */
 static int video_mute_status;
 static bool output_mute_on;
-/* 0: off, 1: on */
+/* 0: mute off, 1: vpp mute on 2:dv mute on */
 static int output_mute_status;
 static int debug_flag_3d = 0xf;
 static  int vd1_matrix;
@@ -3371,6 +3371,17 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0,
 			VPP_PHASECTL_DOUBLELINE_BIT,
 			VPP_PHASECTL_DOUBLELINE_WID);
+		if (frame_par->vpp_vf_rpt_num_load)
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(vd_pps_reg->vd_vsc_phase_ctrl,
+				frame_par->vpp_vf_rpt_num,
+				VPP_PHASECTL_INIRPTNUMT_BIT,
+				VPP_PHASECTL_INIRPTNUM_WID);
+		if (frame_par->vpp_vf_init_phase_load)
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_pps_reg->vd_vsc_init_phase,
+				frame_par->VPP_vf_init_phase |
+				(frame_par->VPP_vf_init_phase << 16));
 		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_vert_coeff[1] & 0x4000;
 		if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
@@ -3763,7 +3774,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 				hsc_init_rev_num0 = 8;
 			} else {
 				hsc_init_rev_num0 = 4;
-				hsc_rpt_p0_num0 = 1;
+				hsc_rpt_p0_num0 = frame_par->vpp_hf_rpt_num;//1;
 			}
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(vd_pps_reg->vd_hsc_phase_ctrl,
@@ -3967,6 +3978,17 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0,
 			VPP_PHASECTL_DOUBLELINE_BIT,
 			VPP_PHASECTL_DOUBLELINE_WID);
+		if (frame_par->vpp_vf_rpt_num_load)
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(vd_pps_reg->vd_vsc_phase_ctrl,
+				frame_par->vpp_vf_rpt_num,
+				VPP_PHASECTL_INIRPTNUMT_BIT,
+				VPP_PHASECTL_INIRPTNUM_WID);
+		if (frame_par->vpp_vf_init_phase_load)
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_pps_reg->vd_vsc_init_phase,
+				frame_par->VPP_vf_init_phase |
+				(frame_par->VPP_vf_init_phase << 16));
 		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_vert_coeff[1] & 0x4000;
 		if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
@@ -5626,7 +5648,7 @@ static inline bool is_tv_panel(void)
 		return false;
 }
 
-static inline void mute_vpp(void)
+static inline void mute_video(void)
 {
 	u32 black_val;
 	u8 vpp_index = VPP0;
@@ -5634,52 +5656,27 @@ static inline void mute_vpp(void)
 	/*black_val = (0x0 << 20) | (0x0 << 10) | 0;*/ /* RGB */
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
 
-	if (is_tv_panel()) {
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_VD1_CLIP_MISC0,
-			black_val);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_VD1_CLIP_MISC1,
-			black_val);
-		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
-		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
-	} else {
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_CLIP_MISC0,
-			black_val);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_CLIP_MISC1,
-			black_val);
-		WRITE_VCBUS_REG(VPP_CLIP_MISC0, black_val);
-		WRITE_VCBUS_REG(VPP_CLIP_MISC1, black_val);
-	}
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(VPP_VD1_CLIP_MISC0,
+		black_val);
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(VPP_VD1_CLIP_MISC1,
+		black_val);
 }
 
-static inline void unmute_vpp(void)
+static inline void unmute_video(void)
 {
 	u8 vpp_index = VPP0;
 
-	if (is_tv_panel()) {
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_VD1_CLIP_MISC0,
-			(0x3ff << 20) |
-			(0x3ff << 10) |
-			0x3ff);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_VD1_CLIP_MISC1,
-			(0x0 << 20) |
-			(0x0 << 10) | 0x0);
-	} else {
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_CLIP_MISC0,
-			(0x3ff << 20) |
-			(0x3ff << 10) |
-			0x3ff);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_CLIP_MISC1,
-			(0x0 << 20) |
-			(0x0 << 10) | 0x0);
-	}
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(VPP_VD1_CLIP_MISC0,
+		(0x3ff << 20) |
+		(0x3ff << 10) |
+		0x3ff);
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(VPP_VD1_CLIP_MISC1,
+		(0x0 << 20) |
+		(0x0 << 10) | 0x0);
 }
 
 int set_video_mute_info(u32 owner, bool on)
@@ -5726,53 +5723,17 @@ void check_video_mute(void)
 {
 	check_video_mute_state();
 	if (video_mute_on) {
-		if (is_amdv_on()) {
-			if (is_tv_panel()) {
-				/*tv mode, mute vpp*/
-				if (video_mute_status != VIDEO_MUTE_ON_VPP) {
-					/* vpp black */
-					mute_vpp();
-					pr_info("DV: %s: VIDEO_MUTE_ON_VPP\n", __func__);
-				}
-				video_mute_status = VIDEO_MUTE_ON_VPP;
-			} else {
-				/* core 3 black */
-				if (video_mute_status != VIDEO_MUTE_ON_DV) {
-					amdv_set_toggle_flag(1);
-					pr_info("DOLBY: %s: VIDEO_MUTE_ON_DV\n", __func__);
-				}
-				video_mute_status = VIDEO_MUTE_ON_DV;
-			}
-		} else {
-			if (video_mute_status != VIDEO_MUTE_ON_VPP) {
-				mute_vpp();
-				pr_info("%s: VIDEO_MUTE_ON_VPP\n", __func__);
-			}
-			video_mute_status = VIDEO_MUTE_ON_VPP;
+		if (video_mute_status != VIDEO_MUTE_ON_VPP) {
+			mute_video();
+			pr_info("%s: VIDEO_MUTE_ON_VPP\n", __func__);
 		}
+		video_mute_status = VIDEO_MUTE_ON_VPP;
 	} else {
-		if (is_amdv_on()) {
-			if (is_tv_panel()) {
-				/*tv mode, unmute vpp*/
-				if (video_mute_status != VIDEO_MUTE_OFF) {
-					unmute_vpp();
-					pr_info("DV: %s: VIDEO_MUTE_OFF dv off\n", __func__);
-				}
-				video_mute_status = VIDEO_MUTE_OFF;
-			} else {
-				if (video_mute_status != VIDEO_MUTE_OFF) {
-					amdv_set_toggle_flag(2);
-					pr_info("DOLBY: %s: VIDEO_MUTE_OFF dv off\n", __func__);
-				}
-				video_mute_status = VIDEO_MUTE_OFF;
-			}
-		} else {
-			if (video_mute_status != VIDEO_MUTE_OFF) {
-				unmute_vpp();
-				pr_info("%s: VIDEO_MUTE_OFF vpp\n", __func__);
-			}
-			video_mute_status = VIDEO_MUTE_OFF;
+		if (video_mute_status != VIDEO_MUTE_OFF) {
+			unmute_video();
+			pr_info("%s: VIDEO_MUTE_OFF\n", __func__);
 		}
+		video_mute_status = VIDEO_MUTE_OFF;
 	}
 }
 
@@ -5814,18 +5775,35 @@ static inline void unmute_output(void)
 static void check_output_mute(void)
 {
 	if (output_mute_on) {
-		if (output_mute_status != VIDEO_MUTE_ON_VPP) {
-			/* vpp black */
-			mute_output();
-			pr_info("%s: VPP OUTPUT_MUTE_ON\n", __func__);
+		if (!is_tv_panel() && is_amdv_on()) {
+			/* core 3 black */
+			if (video_mute_status != VIDEO_MUTE_ON_DV) {
+				amdv_set_toggle_flag(1);
+				pr_info("%s: DOLBY VIDEO_MUTE_ON_DV\n", __func__);
+			}
+			video_mute_status = VIDEO_MUTE_ON_DV;
+		} else {
+			if (output_mute_status != VIDEO_MUTE_ON_VPP) {
+				/* vpp black */
+				mute_output();
+				pr_info("%s: VPP OUTPUT_MUTE_ON\n", __func__);
+			}
+			output_mute_status = VIDEO_MUTE_ON_VPP;
 		}
-		output_mute_status = VIDEO_MUTE_ON_VPP;
 	} else {
-		if (output_mute_status != VIDEO_MUTE_OFF) {
-			unmute_output();
-			pr_info("%s: VPP OUTPUT_MUTE_OFF vpp\n", __func__);
+		if (!is_tv_panel() && is_amdv_on()) {
+			if (video_mute_status != VIDEO_MUTE_OFF) {
+				amdv_set_toggle_flag(2);
+				pr_info("%s: DOLBY VIDEO_MUTE_OFF\n", __func__);
+			}
+			video_mute_status = VIDEO_MUTE_OFF;
+		} else {
+			if (output_mute_status != VIDEO_MUTE_OFF) {
+				unmute_output();
+				pr_info("%s: VPP OUTPUT_MUTE_OFF\n", __func__);
+			}
+			output_mute_status = VIDEO_MUTE_OFF;
 		}
-		output_mute_status = VIDEO_MUTE_OFF;
 	}
 }
 
@@ -8709,6 +8687,8 @@ void video_secure_set(u8 vpp_index)
 	int i;
 	u32 secure_src = 0;
 	u32 secure_enable = 0;
+	u32 video_enable = 0;
+	static bool disable_update = true;
 	struct video_layer_s *layer = NULL;
 
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
@@ -8733,8 +8713,18 @@ void video_secure_set(u8 vpp_index)
 			else if (layer->layer_id == 2)
 				secure_src |= VD3_INPUT_SECURE;
 		}
+		video_enable |= layer->enabled;
 	}
-	secure_config(VIDEO_MODULE, secure_src, vpp_index);
+	if (video_enable) {
+		secure_config(VIDEO_MODULE, secure_src, vpp_index);
+		disable_update = true;
+	} else {
+		if (disable_update) {
+			secure_config(VIDEO_MODULE, secure_src, vpp_index);
+			disable_update = false;
+		}
+	}
+
 #endif
 }
 
@@ -9176,6 +9166,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		glayer_info[i].layer_support = p_amvideo->layer_support[i];
 		glayer_info[i].alpha_support = p_amvideo->alpha_support[i];
 		hscaler_8tap_enable[i] = has_hscaler_8tap(i);
+		vd_layer[i].hscaler_8tap_enable_save = hscaler_8tap_enable[i];
 		pre_scaler[i].force_pre_scaler = 0;
 		pre_scaler[i].pre_hscaler_ntap_enable =
 			has_pre_hscaler_ntap(i);
@@ -9264,7 +9255,9 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	init_layer_canvas(&vd_layer[0], LAYER1_CANVAS_BASE_INDEX);
 	init_layer_canvas(&vd_layer[1], LAYER2_CANVAS_BASE_INDEX);
 	init_layer_canvas(&vd_layer[2], LAYER3_CANVAS_BASE_INDEX);
-
+	lcevc_en = true;
+	lcevc_ctrl = 1;
+	video_lcevc.alpha = 0x80;
 	return r;
 }
 

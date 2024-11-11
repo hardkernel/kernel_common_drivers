@@ -61,6 +61,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 
 #ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 struct video_layer_s vd_layer_vpp[2];
+
 bool is_vpp0(u8 layer_id)
 {
 	return true;
@@ -76,13 +77,13 @@ bool is_vpp2(u8 layer_id)
 	return false;
 }
 
-int is_in_vsync_isr_viu2(void)
+int is_in_vsync_isr_viu2(u8 cur_cpuid)
 {
 	return 0;
 }
 EXPORT_SYMBOL(is_in_vsync_isr_viu2);
 
-int is_in_vsync_isr_viu3(void)
+int is_in_vsync_isr_viu3(u8 cur_cpuid)
 {
 	return 0;
 }
@@ -100,7 +101,10 @@ static bool rdma_enable_vppx_pre[2];
 
 static char old_vmode_vpp[2][32];
 static char new_vmode_vpp[2][32];
-
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+static u32 vppx_vsync_pts_inc_scale[2];
+static u32 vppx_vsync_pts_inc_scale_base[2] = {1, 1};
+#endif
 unsigned int debug_flag1;
 
 bool is_vpp0(u8 layer_id)
@@ -473,7 +477,10 @@ exit:
 	vsync_cnt[vpp_index]++;
 	if (gvideo_recv_vpp[recv_id])
 		gvideo_recv_vpp[recv_id]->func->late_proc(gvideo_recv_vpp[recv_id]);
-
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+	videoqueue_pcrscr_update(vpp_index, vppx_vsync_pts_inc_scale[vpp_id],
+		vppx_vsync_pts_inc_scale_base[vpp_id]);
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	vsync_rdma_vppx_process(vpp_index);
 	rdma_enable_vppx_pre[vpp_id] = is_vsync_vppx_rdma_enable(vpp_index);
@@ -559,6 +566,8 @@ int vout_notify_callback_viu2(struct notifier_block *block, unsigned long cmd,
 			strncpy(new_vmode_vpp[0], info->name,
 				sizeof(new_vmode_vpp[0]) - 1);
 		vd_layer_vpp[0].property_changed = true;
+		vppx_vsync_pts_inc_scale[0] = info->sync_duration_den;
+		vppx_vsync_pts_inc_scale_base[0] = info->sync_duration_num;
 		pr_info("new_vmode_vpp[0]: %s, %s\n",
 			new_vmode_vpp[0], old_vmode_vpp[0]);
 		break;
@@ -590,6 +599,9 @@ int vout_notify_callback_viu3(struct notifier_block *block, unsigned long cmd,
 			strncpy(new_vmode_vpp[1], info->name,
 				sizeof(new_vmode_vpp[1]) - 1);
 		vd_layer_vpp[1].property_changed = true;
+		vppx_vsync_pts_inc_scale[1] = info->sync_duration_den;
+		vppx_vsync_pts_inc_scale_base[1] = info->sync_duration_num;
+
 		pr_info("new_vmode_vpp[1]: %s: %s\n",
 			new_vmode_vpp[1], old_vmode_vpp[1]);
 		break;

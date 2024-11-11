@@ -115,6 +115,7 @@ static struct vpp_post_s g_vpp_post;
 #define SIZE_ALIG16(frm_hsize)   ((((frm_hsize) + 15) >> 4) << 4)
 #define SIZE_ALIG8(frm_hsize)    ((((frm_hsize) + 7) >> 3) << 3)
 #define SIZE_ALIG4(frm_hsize)    ((((frm_hsize) + 3) >> 2) << 2)
+#define SIZE_ALIG2(frm_hsize)    ((((frm_hsize) + 1) >> 1) << 1)
 #define BYPASS_DV         BIT(0)
 #define BYPASS_HDR        BIT(1)
 #define BYAPSS_DETUNNEL   BIT(2)
@@ -200,8 +201,8 @@ static bool need_calc_slice_out_size(u32 dst_w, u32 slice, u32 *hsize)
 	u32 ret = false, factor = 100;
 	u32 slice0_sr_in_max_w = 0, slice1_sr_in_max_w = 0;
 	u32 slice0_sr_out_max_w = 0, slice1_sr_out_max_w = 0;
-	u32 slice0_hsize = SIZE_ALIG32(dst_w) / 2 * factor;
-	u32 slice1_hsize = (dst_w - SIZE_ALIG32(dst_w) / 2) * factor;
+	u32 slice0_hsize = SIZE_ALIG16(dst_w) / 2 * factor;
+	u32 slice1_hsize = (dst_w - SIZE_ALIG16(dst_w) / 2) * factor;
 	u32 src_w = vd_proc->vd_proc_vd1_info.vd1_src_din_hsize[0];
 	u32 overlap = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize;
 	u32 margin = 32 * factor;
@@ -251,7 +252,7 @@ static bool need_calc_slice_out_size(u32 dst_w, u32 slice, u32 *hsize)
 	if (slice1_hsize > slice1_sr_out_max_w) {
 		slice0_hsize += slice1_hsize - slice1_sr_out_max_w;
 		slice0_hsize /= factor;
-		slice0_hsize = SIZE_ALIG16(slice0_hsize);
+		slice0_hsize = SIZE_ALIG8(slice0_hsize);
 		slice0_sr_out_max_w = slice0_sr_in_max_w * 2;
 		/* check slice0 sr limit */
 		if (slice0_hsize > slice0_sr_out_max_w ||
@@ -293,14 +294,22 @@ static inline u32 slice_out_hsize(u32 slice,
 		hsize = frm_hsize;
 		break;
 	case 2:
-		if (cur_dev->sr01_num == 1 &&
-		    need_calc_slice_out_size(frm_hsize, slice, &hsize))
-			return hsize;
-		if (slice == slice_num - 1)
-			hsize = frm_hsize - SIZE_ALIG32(frm_hsize) *
-				(slice_num - 1) / slice_num;
-		else
-			hsize = SIZE_ALIG32(frm_hsize) / slice_num;
+		if (video_is_meson_s5_cpu()) {
+			if (cur_dev->sr01_num == 1 &&
+			    need_calc_slice_out_size(frm_hsize, slice, &hsize))
+				return hsize;
+			if (slice == slice_num - 1)
+				hsize = frm_hsize - SIZE_ALIG16(frm_hsize) *
+					(slice_num - 1) / slice_num;
+			else
+				hsize = SIZE_ALIG16(frm_hsize) / slice_num;
+		} else {
+			if (slice == slice_num - 1)
+				hsize = frm_hsize - SIZE_ALIG32(frm_hsize) *
+					(slice_num - 1) / slice_num;
+			else
+				hsize = SIZE_ALIG32(frm_hsize) / slice_num;
+		}
 		break;
 	case 4:
 		if (slice == slice_num - 1)
@@ -3179,7 +3188,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	u32 dst_w = 0, dst_h = 0;
 	u32 h_start = 0, v_start = 0;
 	u32 slice = 0, slice_num;
-	u32 crop_left = 0;
+	u32 crop_left = 0, crop_right = 0, crop_top = 0, crop_bottom = 0;
 	bool no_compress;
 	struct vd_proc_s *vd_proc = &g_vd_proc;
 	struct vpp_frame_par_s *cur_frame_par = layer->cur_frame_par;
@@ -3229,6 +3238,9 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	vpp_pre_vsc_en =
 		cur_frame_par->vpp_filter.vpp_pre_vsc_en;
 	crop_left = layer->mif_setting.start_x_lines;
+	crop_right = cur_frame_par->crop_right;
+	crop_top = cur_frame_par->crop_top;
+	crop_bottom = cur_frame_par->crop_bottom;
 	no_compress = cur_frame_par->nocomp;
 	/* need add some logic to set this var */
 	/* todo */
@@ -3275,6 +3287,9 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		vd_proc->vd1_used = 1;
 		vd_proc_vd1_info->no_compress = no_compress;
 		vd_proc_vd1_info->crop_left = crop_left;
+		vd_proc_vd1_info->crop_right = crop_right;
+		vd_proc_vd1_info->crop_top = crop_top;
+		vd_proc_vd1_info->crop_bottom = crop_bottom;
 		/* should be set here */
 		/* todo */
 		if (layer->slice_num == 1) {
@@ -3547,8 +3562,11 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		/* if 4 pic, todo */
 	} else if (layer->layer_id == 1) {
 		vd_proc->vd2_used = 1;
-		vd_proc_vd1_info->no_compress = no_compress;
+		vd_proc_vd2_info->no_compress = no_compress;
 		vd_proc_vd2_info->crop_left = crop_left;
+		vd_proc_vd2_info->crop_right = crop_right;
+		vd_proc_vd2_info->crop_top = crop_top;
+		vd_proc_vd2_info->crop_bottom = crop_bottom;
 		/* todo */
 		if (layer->pi_enable)
 			vd_proc_vd2_info->vd2_dout_dpsel = VD2_DOUT_PI;
@@ -6019,7 +6037,18 @@ static void update_vd_proc_amdv_info(struct vd_proc_s *vd_proc)
 	vd_proc_amdv.overlap_size = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize;
 	vd_proc_amdv.vd1_in_hsize = vd_proc->vd_proc_vd1_info.vd1_src_din_hsize[0];
 	vd_proc_amdv.vd1_in_vsize = vd_proc->vd_proc_vd1_info.vd1_src_din_vsize[0];
+	vd_proc_amdv.vd2_in_hsize = vd_proc->vd_proc_vd2_info.vd2_din_hsize;
+	vd_proc_amdv.vd2_in_vsize = vd_proc->vd_proc_vd2_info.vd2_din_vsize;
 	vd_proc_amdv.vd1_crop_left = vd_proc->vd_proc_vd1_info.crop_left;
+	vd_proc_amdv.vd1_crop_right = vd_proc->vd_proc_vd1_info.crop_right;
+	vd_proc_amdv.vd1_crop_top = vd_proc->vd_proc_vd1_info.crop_top;
+	vd_proc_amdv.vd1_crop_bottom = vd_proc->vd_proc_vd1_info.crop_bottom;
+	vd_proc_amdv.vd2_crop_left = vd_proc->vd_proc_vd2_info.crop_left;
+	vd_proc_amdv.vd2_crop_right = vd_proc->vd_proc_vd2_info.crop_right;
+	vd_proc_amdv.vd2_crop_top = vd_proc->vd_proc_vd2_info.crop_top;
+	vd_proc_amdv.vd2_crop_bottom = vd_proc->vd_proc_vd2_info.crop_bottom;
+	vd_proc_amdv.vd1_no_compress = vd_proc->vd_proc_vd1_info.no_compress;
+	vd_proc_amdv.vd2_no_compress = vd_proc->vd_proc_vd2_info.no_compress;
 	for (i = 0; i < vd_proc->vd_proc_vd1_info.slice_num; i++) {
 		/* slice input */
 		vd_proc_amdv.slice[i].hsize_amdv =
@@ -6143,6 +6172,11 @@ static void update_vd_proc_amvecm_info(struct vd_proc_s *vd_proc)
 				vd_proc_amvecm.slice[i].vsize =
 					vd_proc_pps->dout_vsize;
 			}
+
+			vd_proc_amvecm.slice[i].pps_dout_hsize =
+				vd_proc_pps->dout_hsize;
+			vd_proc_amvecm.slice[i].pps_dout_vsize =
+				vd_proc_pps->dout_vsize;
 		}
 		vd_proc_amvecm.slice[i].vd1_slice_in_hsize =
 			vd_proc_slice_info->vd1_slice_din_hsize[i];
@@ -12018,6 +12052,18 @@ void vpp1_post_blend_update_s5(const struct vinfo_s *vinfo)
 	update_vpp_post_amdv_info(VPP1, &g_vpp_post);
 }
 
+void vd2_postblend_update(const struct vinfo_s *vinfo, u8 vpp_index)
+{
+	bool force_flush = false;
+
+	force_flush |= update_vpp_vd2_input_info(vinfo, vpp_index);
+	if (vpp_index == VPP0 && force_flush) {
+		struct vpp0_post_s *vpp0_post = &g_vpp_post.vpp0_post;
+		/* cfg vpp_blend */
+		vpp_blend_vd2_set(vpp_index, &vpp0_post->vpp_post_blend);
+	}
+}
+
 struct vd_proc_s *get_vd_proc_info(void)
 {
 	return &g_vd_proc;
@@ -12068,11 +12114,15 @@ void set_video_slice_policy(struct video_layer_s *layer,
 		/* check output */
 		/* output: (4k-8k], input <= 4k */
 		if ((vinfo->width > 4096 && vinfo->height > 2160)) {
+			slice_num = 1;
 			pi_en = 1;
-		/* 4k 120hz */
-		} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
+		/* 4k 120hz || 4k1k240hz */
+		} else if ((vinfo->width > 1920 && vinfo->height > 1080 &&
 			(vinfo->sync_duration_num /
-			vinfo->sync_duration_den > 60)) {
+			vinfo->sync_duration_den > 60)) ||
+			(vinfo->width > 1920 && vinfo->height >= 1080 &&
+			(vinfo->sync_duration_num /
+			vinfo->sync_duration_den > 120))) {
 			if (vf->duration < 1500 ||
 				vinfo->sync_duration_num / vinfo->sync_duration_den == 144 ||
 				vinfo->sync_duration_num / vinfo->sync_duration_den == 288 ||
@@ -12089,10 +12139,13 @@ void set_video_slice_policy(struct video_layer_s *layer,
 				/* if vd1 mute internal by frc, unmute it */
 				if (get_video_mute_val(VPP_INTERNAL))
 					set_video_mute_info(VPP_INTERNAL, false);
-			} else {
+			} else if (video_is_meson_t3x_cpu()) {
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 				/* 4k120hz and frc_n2m_worked && aisr enable 1 slice */
 				/*frc_switch_flag : 0 or 2 force 2 slice valid*/
+				if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
+					pr_info("%s:line=%d, slice_num=%d\n",
+						__func__, __LINE__, slice_num);
 				if (frc_switch_flag == 0 || frc_switch_flag == 2) {
 					slice_num = 2;
 					/* temp set for current frame */
@@ -12118,8 +12171,10 @@ void set_video_slice_policy(struct video_layer_s *layer,
 				/* special call for frc mute */
 				check_video_mute();
 #else
-				layer->slice_num = 2;
+				slice_num = 2;
 #endif
+			} else if (video_is_meson_s5_cpu()) {
+				slice_num = 2;
 			}
 			if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
 				pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
@@ -12133,6 +12188,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			vinfo->height >= 1080 &&
 			(vinfo->sync_duration_num /
 			vinfo->sync_duration_den > 144)) {
+			/* 4k1k 288hz */
 			slice_num = 2;
 			if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
 				pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
@@ -12142,8 +12198,12 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
 				vd_layer[0].property_changed = true;
 			last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
+			if (get_video_mute_val(VPP_INTERNAL))
+				set_video_mute_info(VPP_INTERNAL, false);
 		} else {
 			slice_num = 1;
+			if (get_video_mute_val(VPP_INTERNAL))
+				set_video_mute_info(VPP_INTERNAL, false);
 		}
 slice_calc_exit:
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
@@ -12687,7 +12747,7 @@ void clear_vpu_venc_error(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 void vpu_set_frc_bypass(struct video_layer_s *layer)
 {
-	u32 bypass_flag = 0;
+	u32 bypass_flag;
 	u32 reg_1a1c;
 	u8 vpp_index = layer->vpp_index;
 
@@ -12697,23 +12757,24 @@ void vpu_set_frc_bypass(struct video_layer_s *layer)
 	bypass_flag = frc_bypass_signal();
 	if (bypass_flag == 0)
 		return;
+
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 
 	reg_1a1c = READ_VCBUS_REG(VIU_FRC_MISC);
-	if (bypass_flag == 1) {
-		reg_1a1c |= 1;
+
+	if ((bypass_flag == 1 && (reg_1a1c & 0x1) == 0) ||
+		(bypass_flag == 2 && (reg_1a1c & 0x1) == 1)) {
+		reg_1a1c = (reg_1a1c & 0xFFFFFFFE) | (bypass_flag & 0x1);
+
 		if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
-			pr_info("[VPU] bypass frc set 1\n");
-	} else {
-		reg_1a1c &= 0xFFFFFFFE;
-		if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
-			pr_info("[VPU] bypass frc set 0\n");
+			pr_info("[VPU] bypass frc set %d\n", bypass_flag & 0x1);
+		rdma_wr(VIU_FRC_MISC, reg_1a1c);
 	}
-	rdma_wr(VIU_FRC_MISC, reg_1a1c);
 }
 
 void update_frc_in_size_s5(struct video_layer_s *layer)
 {
+	bool size_changed = 0;
 	u32 switch_flag = 0;
 	int ret = 0;
 
@@ -12734,7 +12795,20 @@ void update_frc_in_size_s5(struct video_layer_s *layer)
 		layer->next_frame_par->frc_h_size = layer->next_frame_par->nnhf_input_w;
 	layer->next_frame_par->frc_v_size = layer->next_frame_par->nnhf_input_h;
 
-	if (!layer->frc_h_size_pre || switch_flag == 1) {
+	if (SIZE_ALIG32(layer->next_frame_par->frc_h_size) != SIZE_ALIG32(layer->frc_h_size_pre)) {
+		size_changed = 1;
+		if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
+			pr_info("%s:frc_h_size change %d->%d\n",
+				__func__, layer->frc_h_size_pre, layer->next_frame_par->frc_h_size);
+	}
+	if (SIZE_ALIG2(layer->next_frame_par->frc_v_size) != SIZE_ALIG2(layer->frc_v_size_pre)) {
+		size_changed = 1;
+		if (debug_common_flag & DEBUG_FLAG_COMMON_FRC)
+			pr_info("%s:frc_v_size change %d->%d\n",
+				__func__, layer->frc_v_size_pre, layer->next_frame_par->frc_v_size);
+	}
+
+	if (!layer->frc_h_size_pre || (switch_flag == 1 && !size_changed)) {
 		;
 	} else if (layer->next_frame_par->nnhf_input_w !=
 		layer->frc_h_size_pre ||
@@ -12897,7 +12971,8 @@ int _video_hw_init_s5(void)
 		set_frm_idx(VPP0, 1);
 		WRITE_VCBUS_REG(vd_proc_misc_reg->vd_proc_bypass_ctrl, 0x21);
 		set_frm_idx(VPP0, 0);
-		enable_mosaic_mode(VPP0, 0);
+		//enable_mosaic_mode(VPP0, 0);
+		WRITE_VCBUS_REG(VIU_VIU0_MISC, g_viu0_hold_line);
 		/* for mosaic mode, set holdline for sur_id = 1 */
 		WRITE_VCBUS_REG(S5_VIU_VD1_MISC, 0x100);
 	}
@@ -13097,6 +13172,7 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 		glayer_info[i].layer_support = p_amvideo->layer_support[i];
 		glayer_info[i].alpha_support = p_amvideo->alpha_support[i];
 		hscaler_8tap_enable[i] = has_hscaler_8tap(i);
+		vd_layer[i].hscaler_8tap_enable_save = hscaler_8tap_enable[i];
 		pre_scaler[i].force_pre_scaler = 0;
 		pre_scaler[i].pre_hscaler_ntap_enable =
 			has_pre_hscaler_ntap(i);
@@ -13261,6 +13337,9 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 	memcpy(&vd_layer_vpp[1], &vd_layer[2], sizeof(struct video_layer_s));
 	/* init vpp_post */
 	memset(&g_vpp_post, 0, sizeof(struct vpp_post_s));
+	lcevc_en = true;
+	lcevc_ctrl = 1;
+	video_lcevc.alpha = 0x80;
 	return r;
 }
 
