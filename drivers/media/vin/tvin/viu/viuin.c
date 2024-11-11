@@ -82,35 +82,35 @@
 #define VPP_MISC									0x1d26
 
 static unsigned int vsync_enter_line_curr;
-__module_param(vsync_enter_line_curr, uint, 0664);
+module_param(vsync_enter_line_curr, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_curr,
 		 "\n encoder process line num when enter isr.\n");
 
 static unsigned int vsync_enter_line_max;
-__module_param(vsync_enter_line_max, uint, 0664);
+module_param(vsync_enter_line_max, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_max,
 		 "\n max encoder process line num when enter isr.\n");
 
 static unsigned int vsync_enter_line_max_threshold = 10000;
-__module_param(vsync_enter_line_max_threshold, uint, 0664);
+module_param(vsync_enter_line_max_threshold, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_max_threshold,
 		 "\n max encoder process line num over threshold drop the frame.\n");
 
 static unsigned int vsync_enter_line_min_threshold = 10000;
-__module_param(vsync_enter_line_min_threshold, uint, 0664);
+module_param(vsync_enter_line_min_threshold, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_min_threshold,
 		 "\n max encoder process line num less threshold drop the frame.\n");
 static unsigned int vsync_enter_line_threshold_overflow_count;
-__module_param(vsync_enter_line_threshold_overflow_count, uint, 0664);
+module_param(vsync_enter_line_threshold_overflow_count, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_threshold_overflow_count,
 		 "\ncnt overflow encoder process line no over threshold drop the frame\n");
 
 static unsigned short v_cut_offset;
-__module_param(v_cut_offset, ushort, 0664);
+module_param(v_cut_offset, ushort, 0664);
 MODULE_PARM_DESC(v_cut_offset, "the cut window vertical offset for viuin");
 
 static unsigned short open_cnt;
-__module_param(open_cnt, ushort, 0664);
+module_param(open_cnt, ushort, 0664);
 MODULE_PARM_DESC(open_cnt, "open_cnt for vdin0/1");
 
 struct viuin_s {
@@ -557,7 +557,7 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 	case TVIN_PORT_VIU1_WB0_OSD1:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 3, 0, 4);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (is_meson_txhd2_cpu() && rd_bits_viu(VPP_MISC, 27, 1))
+		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu()) && rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
 #endif
 		break;
@@ -567,7 +567,7 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 	case TVIN_PORT_VIU1_WB0_POST_BLEND:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 5, 0, 4);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (is_meson_txhd2_cpu() && rd_bits_viu(VPP_MISC, 27, 1))
+		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu()) && rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
 #endif
 		break;
@@ -580,7 +580,7 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 		 */
 		wr_bits_viu(VPP_WR_BAK_CTRL, 0xff, 16, 8);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (is_meson_txhd2_cpu() && rd_bits_viu(VPP_MISC, 27, 1))
+		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu()) && rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
 #endif
 		break;
@@ -677,9 +677,7 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		pr_info("[viuin..]%s memcpy error.\n", __func__);
 		return -1;
 	}
-	/*open the venc to vdin path*/
-	pr_info("viu1_sel_venc: %d\n", rd_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 2));
-	pr_info("viu2_sel_venc: %d\n", rd_bits_viu(VPU_VIU_VENC_MUX_CTRL, 2, 2));
+
 	switch (rd_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 2)) {
 	case 0: /* ENCL */
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
@@ -816,7 +814,7 @@ static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* txhd2 keystone path close */
-	if (is_meson_txhd2_cpu() && rd_bits_viu(VPP_WR_BAK_CTRL, 11, 1))
+	if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu()) && rd_bits_viu(VPP_WR_BAK_CTRL, 11, 1))
 		wr_bits_viu(VPP_WR_BAK_CTRL, 0, 11, 1);
 #endif
 }
@@ -981,7 +979,7 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	prop->decimation_ratio = 0;
 }
 
-static bool viu_check_frame_skip(struct tvin_frontend_s *fe)
+static bool viu_check_frame_skip(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 
@@ -1018,7 +1016,7 @@ static int viuin_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void viuin_remove(struct platform_device *pdev)
+void viuin_remove(struct platform_device *pdev)
 {
 	struct viuin_s *devp = platform_get_drvdata(pdev);
 

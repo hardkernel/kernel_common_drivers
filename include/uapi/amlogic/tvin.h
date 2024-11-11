@@ -310,6 +310,7 @@ enum tvin_aspect_ratio_e {
 	TVIN_ASPECT_16x9_FULL,
 	TVIN_ASPECT_16x9_LB_CENTER,
 	TVIN_ASPECT_16x9_LB_TOP,
+	TVIN_ASPECT_NOT_VALID_VAL,
 	TVIN_ASPECT_MAX,
 };
 
@@ -504,6 +505,7 @@ enum vdin_vrr_mode_e {
 	VDIN_VRR_FREESYNC_PREMIUM,
 	VDIN_VRR_FREESYNC_PREMIUM_PRO,
 	VDIN_VRR_FREESYNC_PREMIUM_G_SYNC,
+	VDIN_VRR_LATENCY,
 	VDIN_VRR_NUM
 };
 
@@ -557,6 +559,7 @@ struct tvin_latency_s {
 	__u8 allm_mode; /* bit0:hdmi allm, bit1:dv allm*/
 	__u8 it_content;
 	enum tvin_cn_type_e cn_type;
+	__u8 fmm_flag;
 };
 
 /* only for keystone use begin */

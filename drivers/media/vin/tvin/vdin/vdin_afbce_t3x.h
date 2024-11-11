@@ -20,6 +20,6 @@ int vdin_afbce_read_write_down_flag_t3x(struct vdin_dev_s *devp);
 void vdin_afbce_soft_reset_t3x(struct vdin_dev_s *devp);
 void vdin_afbce_mode_update_t3x(struct vdin_dev_s *devp);
 //bool vdin_chk_is_comb_mode_t3x(struct vdin_dev_s *devp);
-void vdin_pause_afbce_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable);
+void vdin_pause_afbce_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en);
 #endif
 

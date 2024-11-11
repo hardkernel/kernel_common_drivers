@@ -201,6 +201,7 @@ void vdin_dma_flush(struct vdin_dev_s *devp, void *vaddr,
 void vdin_set_vframe_prop_info(struct vframe_s *vf,
 			       struct vdin_dev_s *devp);
 void vdin_get_crc_val(struct vframe_s *vf, struct vdin_dev_s *devp);
+u32 vdin_matrix_range_chk(struct vdin_dev_s *devp);
 void vdin_get_format_convert(struct vdin_dev_s *devp);
 enum vdin_format_convert_e
 	vdin_get_format_convert_matrix0(struct vdin_dev_s *devp);
@@ -242,11 +243,9 @@ void vdin_set_matrix(struct vdin_dev_s *devp);
 void vdin_select_matrix(struct vdin_dev_s *devp, unsigned char no,
 		      enum vdin_format_convert_e csc);
 bool vdin_check_cycle(struct vdin_dev_s *devp);
-bool vdin_write_done_check(unsigned int offset,
-			   struct vdin_dev_s *devp);
+bool vdin_write_done_check(struct vdin_dev_s *devp);
 void vdin_calculate_duration(struct vdin_dev_s *devp);
-void vdin_wr_reverse(unsigned int offset, bool h_reverse,
-		     bool v_reverse);
+void vdin_wr_reverse(struct vdin_dev_s *devp, bool h_reverse, bool v_reverse);
 void vdin_set_hv_scale(struct vdin_dev_s *devp);
 void vdin_set_bitdepth(struct vdin_dev_s *devp);
 void vdin_set_cm2(unsigned int offset, unsigned int w,
@@ -290,6 +289,8 @@ void vdin_set_source_mode(struct vdin_dev_s *devp, struct vframe_s *vf);
 void vdin_set_source_bitdepth(struct vdin_dev_s *devp,
 			      struct vframe_s *vf);
 void vdin_set_lossy_param(struct vdin_dev_s *devp, struct vframe_s *vf);
+void vdin_set_hdmi_channel_id(struct vdin_dev_s *devp, struct vframe_s *vf);
+
 void vdin_set_pixel_aspect_ratio(struct vdin_dev_s *devp,
 				 struct vframe_s *vf);
 void vdin_set_display_ratio(struct vdin_dev_s *devp,
@@ -331,6 +332,7 @@ enum tvin_color_fmt_range_e
 bool vdin_is_convert_to_444(u32 format_convert);
 bool vdin_is_convert_to_422(u32 format_convert);
 bool vdin_is_convert_to_nv21(u32 format_convert);
+bool vdin_is_convert_to_rgb(u32 format_convert);
 bool vdin_is_4k(struct vdin_dev_s *devp);
 void vdin_set_matrix_color(struct vdin_dev_s *devp);
 void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigned int pat);
@@ -356,7 +358,7 @@ void vdin_dv_desc_to_4448bit(struct vdin_dev_s *devp,
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp);
 void vdin_set_to_vpp_parm(struct vdin_dev_s *devp);
 void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool on_off);
-void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable);
+void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en);
 bool vdin_check_is_spd_data(struct vdin_dev_s *devp);
 bool vdin_check_freesync_state_chg(struct vdin_dev_s *devp);
 bool vdin_is_vrr_state_chg(struct vdin_dev_s *devp);
@@ -379,4 +381,7 @@ bool vdin_is_vrr_state(struct vdin_dev_s *devp);
 enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp);
 bool vdin_package_done_check_state(struct vdin_dev_s *devp);
 unsigned int vdin_get_rx_avi_colorimetry(struct vdin_dev_s *devp, unsigned int colorimetry);
+bool vdin_is_dv_supported(void);
+bool vdin_is_afbce_enabled(struct vdin_dev_s *devp);
+u32 vdin_matrix_range_chk(struct vdin_dev_s *devp);
 #endif

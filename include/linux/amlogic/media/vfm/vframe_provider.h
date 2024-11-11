@@ -64,6 +64,7 @@ struct provider_aux_req_s {
 	int low_latency;
 	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
 	enum vformat_e format;
+	unsigned int	is_dv_unique_drm;
 };
 
 struct provider_disp_mode_req_s {

@@ -63,22 +63,28 @@ struct tvin_state_machine_ops_s {
 	void (*get_sig_property)(struct tvin_frontend_s *fe,
 				 struct tvin_sig_property_s *prop,
 				 enum tvin_port_type_e port_type);
-	void (*get_sig_property2)(struct tvin_frontend_s *fe,
-				 struct tvin_sig_property_s *prop);
+	void (*get_spd_info)(struct tvin_frontend_s *fe,
+				 struct tvin_sig_property_s *prop, enum tvin_port_type_e port_type);
+	void (*get_hdr_info)(struct tvin_frontend_s *fe,
+				 struct tvin_sig_property_s *prop, enum tvin_port_type_e port_type);
 	void (*vga_set_param)(struct tvafe_vga_parm_s *vga_parm,
 			      struct tvin_frontend_s *fe);
 	void (*vga_get_param)(struct tvafe_vga_parm_s *vga_parm,
 			      struct tvin_frontend_s *fe);
-	bool (*check_frame_skip)(struct tvin_frontend_s *fe);
+	bool (*check_frame_skip)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 	bool (*get_secam_phase)(struct tvin_frontend_s *fe);
-	bool (*hdmi_dv_config)(bool en, struct tvin_frontend_s *fe);
-	bool (*hdmi_clr_vsync)(struct tvin_frontend_s *fe);
+	bool (*hdmi_dv_config)(bool en, struct tvin_frontend_s *fe,
+		enum tvin_port_type_e port_type);
+	bool (*hdmi_clr_vsync)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 	bool (*vdin_set_property)(struct tvin_frontend_s *fe);
 	void (*frontend_clr_value)(struct tvin_frontend_s *fe);
-	void (*hdmi_reset_pcs)(struct tvin_frontend_s *fe);
-	void (*hdmi_de_hactive)(bool en, struct tvin_frontend_s *fe);
-	bool (*hdmi_clr_pkts)(struct tvin_frontend_s *f);
-	bool (*hdmi_is_xbox_dev)(struct tvin_frontend_s *fe);
+	void (*hdmi_reset_pcs)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
+	void (*hdmi_de_hactive)(bool en, struct tvin_frontend_s *fe,
+		enum tvin_port_type_e port_type);
+	void (*hdmi_de_vactive)(bool en, struct tvin_frontend_s *fe,
+		enum tvin_port_type_e port_type);
+	bool (*hdmi_clr_pkts)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
+	bool (*hdmi_is_xbox_dev)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 };
 
 struct tvin_frontend_s {
@@ -91,6 +97,12 @@ struct tvin_frontend_s {
 	void *private_data;
 	unsigned int reserved;
 	struct list_head list;
+};
+
+enum hdmi_pkt_type_e {
+	PKT_TYPE_SPD = 0x83,
+	PKT_TYPE_DRM = 0x87,
+	PKT_TYPE_OTHER,
 };
 
 #define VDIN_FRONTEND_IDX	0x10
@@ -108,7 +120,8 @@ struct tvin_decoder_ops_s *tvin_get_fe_ops(enum tvin_port_e port, int index);
 struct tvin_state_machine_ops_s *tvin_get_sm_ops(enum tvin_port_e port,
 						 int index);
 void tvin_notify_vdin_skip_frame(unsigned int drop_num,  enum tvin_port_type_e port_type);
-void tvin_update_vdin_prop(u8 port_type);
+void tvin_update_vdin_prop(u8 port_type, u8 pkt_type);
+bool tvin_get_game_mode_status(u8 port_type);
 void viuin_select_loopback_path(void);
 void viuin_clear_loopback_path(void);
 void dsc_dec_en(bool on_off, struct dsc_pps_data_s *pps_data);

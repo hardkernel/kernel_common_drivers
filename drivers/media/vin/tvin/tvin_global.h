@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/vin/tvin/tvin_global.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __TVIN_GLOBAL_H
@@ -78,7 +65,7 @@ int tvafe_hiu_reg_write(unsigned int reg, unsigned int val);
 
 static inline u32 R_APB_REG(u32 reg)
 {
-	unsigned int val;
+	unsigned int val = 0;
 
 	tvafe_reg_read(reg, &val);
 	return val;
@@ -362,6 +349,7 @@ enum vpp_wrbak_src_e {
 /* Hs_cnt        Pixel_Clk(Khz/10) */
 
 enum tvin_ar_b3_b0_val_e {
+	TVIN_AR_NULL_VAL = 0x0,
 	TVIN_AR_14x9_LB_CENTER_VAL = 0x1,
 	TVIN_AR_14x9_LB_TOP_VAL = 0x2,
 	TVIN_AR_16x9_LB_TOP_VAL = 0x4,
@@ -563,6 +551,8 @@ struct tvin_sig_property_s {
 	/* for vdin matrix destination color fmt */
 	enum tvin_color_fmt_e	dest_cfmt;
 	enum tvin_aspect_ratio_e	aspect_ratio;
+	unsigned char		active_ratio;	/* active aspect ratio */
+	unsigned char		pic_aspect_ratio; /* picture aspect ratio */
 	unsigned int		dvi_info;
 	unsigned short		scaling4h;	/* for vscaler */
 	unsigned short		scaling4w;	/* for hscaler */
@@ -577,6 +567,7 @@ struct tvin_sig_property_s {
 	unsigned int		decimation_ratio;	/* for decimation */
 	unsigned int		colordepth; /* for color bit depth */
 	unsigned int		vdin_hdr_flag;
+	unsigned int		dv_unique_drm_flag;
 	unsigned int            vdin_vrr_flag;
 	enum tvin_color_fmt_range_e color_fmt_range;
 	struct tvin_hdr_info_s hdr_info;
@@ -587,7 +578,8 @@ struct tvin_sig_property_s {
 	u8 dolby_vision;/*is signal dolby version 1:vsif 2:emp */
 	bool low_latency;/*is low latency dolby mode*/
 	u8 up_sample_en;/* 420+2ppc 420+4ppc need enable to 1 */
-	u8 fps;
+	u32 fps;
+	u32 frame_rate;/* = fps x 100,for calculate duration*/
 	unsigned int skip_vf_num;/*skip pre vframe num*/
 	struct tvin_latency_s latency;
 	struct tvin_fmm_s filmmaker;
@@ -604,9 +596,10 @@ struct tvin_sig_property_s {
 	unsigned int hw_vic;
 	unsigned int avi_colorimetry;//hdmi avi colorimetry
 	unsigned int avi_ext_colorimetry;//hdmi avi ext_colorimetry
-	/* only use for loopback, 0=positvie, 1=negative */
+	/* only use for loopback, 0=positive, 1=negative */
 	unsigned int polarity_vs;
 	unsigned int hdcp_sts;	/* protected content src. 1:protected 0:not*/
+	unsigned int macrovision_sts;
 };
 
 #define TVAFE_VF_POOL_SIZE		6 /* 8 */

@@ -147,8 +147,10 @@
 /* 20230529: bringup for txhd2 */
 /* 20230608: vdin not clear ratio_control value */
 /* 20230720: set vdin urgent for txhd2 */
+/* 20240730: Change the vdin address access range to greater than 4GB, starting from s6 */
+/* 20230529: bringup for t6d */
 
-#define VDIN_VER "2023/07/20"
+#define VDIN_VER "2024/08/05"
 
 //#define T3X_PXP_BRINGUP
 //#define VDIN_BRINGUP_NO_VF
@@ -204,6 +206,8 @@ enum vdin_hw_ver_e {
 	VDIN_HW_TXHD2,
 	VDIN_HW_S7,
 	VDIN_HW_S7D,
+	VDIN_HW_S6,
+	VDIN_HW_T6D,
 };
 
 /* 20230607: game mode optimize and add debug */
@@ -350,6 +354,9 @@ struct match_data_s {
 #define VDIN_HV_REVERSE_EN		BIT(19) //for hv_reverse is disabled by default
 #define VDIN_AUTO_GAME_MODE		BIT(20)
 #define VDIN_AUTO_PC_MODE		BIT(21)
+#define VDIN_SET_DISPLAY_RATIO_TRANS	BIT(22) //vdin transparent transmission aspect ratio
+#define VDIN_MEM_MEMSET_EN      BIT(23)
+
 /* vdin_function_sel control bits end */
 
 #define VDIN_2K_SIZE			0x07800438 /* 0x780 = 1920 0x438 = 1080 */
@@ -390,6 +397,7 @@ enum vdin_wr_color_depth {
 	VDIN_WR_COLOR_DEPTH_FORCE_MEM_YUV422_TO_YUV444 = 0x20,
 };
 
+/* also works for 420 */
 #define VDIN_422_FULL_PK_EN			1
 #define VDIN_422_FULL_PK_DIS			0
 
@@ -445,6 +453,7 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_RDMA		BIT(22)
 
 #define VDIN_ISR_MONITOR_CFMT		BIT(23)
+#define VDIN_ISR_MONITOR_SECURE		BIT(24)
 
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
 #define VDIN_DBG_CNTL_FLUSH	BIT(11)
@@ -452,7 +461,7 @@ enum vdin_vf_put_md {
 #define CURRENT_FRAME_GET_PROP	BIT(0)
 
 //pattern 4 used for protect hdcp content,others for debug
-#define VDIN_HDCP_PATTERN	4
+#define VDIN_SECURE_PATTERN	4
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
@@ -544,6 +553,13 @@ static inline const char
 	}
 }
 
+struct vdin_measure_ctl_s {
+	bool is_clk_enabled;
+	struct mutex msr_lock;/* for measure clk control */
+	struct clk *msr_clk;
+	u32 inuse;
+};
+
 struct vdin_set_canvas_addr_s {
 	long paddr;
 	int  size;
@@ -587,6 +603,23 @@ struct vdin_vf_info {
 /***vdin_dbg_en control for print***/
 #define DBG_VDIN1_HIST		(BIT(1)) /*print vdin1 HIST_IOC */
 
+struct vdin_slt_test_s {
+	bool en;
+	bool vf_check_result;
+	u32 vf_ori_crc;
+	u32 vf_last_crc;
+	u32 vf_pass_cnt;
+};
+
+enum vdin_memset_dbg_flag {
+	YUV422_8B_FULL = 1,
+	YUV422_8B_LIMIT,
+	YUV422_10B_FULL,
+	YUV422_10B_LIMIT,
+	RGB_8B_FULL,
+	RGB_8B_LIMIT
+};
+
 /*******for debug **********/
 struct vdin_debug_s {
 	struct tvin_cutwin_s cutwin;
@@ -610,10 +643,11 @@ struct vdin_debug_s {
 	bool bypass_update_prop;
 	bool bypass_pc_mode;//bypass pc mode set
 	bool bypass_game_mode;//bypass game mode set
-	bool bypass_tunnel;
 	bool pause_mif_dec;
 	bool pause_afbce_dec;
 	bool bypass_filter_vsync;
+	bool force_bypass_tunnel;
+	bool conversion;
 	unsigned int sar_width;
 	unsigned int sar_height;
 	unsigned int ratio_control;
@@ -624,6 +658,17 @@ struct vdin_debug_s {
 	/* bit0:scl_mode;bit1:bypass dsc;bit2:bypass sc */
 	unsigned int dbg_dv_hw5;
 	unsigned int hconv_mode;
+	struct vdin_slt_test_s slt_test;
+	int vdin_memset_dbg_en;
+	int vdin_memset_en;
+	enum vdin_memset_dbg_flag flag;
+	unsigned char yuv422_10l[5];
+	unsigned char yuv422_10f[5];
+	unsigned char yuv422_8l[4];
+	unsigned char yuv422_8f[4];
+	unsigned char rgb_8f[3];
+	unsigned char rgb_8l[3];
+	unsigned int v4l2_buff_area;
 };
 
 struct vdin_dv_s {
@@ -850,7 +895,6 @@ struct vdin_dev_s {
 	struct mutex fe_lock;/*front end lock*/
 	struct clk *msr_clk;
 	unsigned int msr_clk_val;
-	bool vdin_clk_flag;/*vdin on_off msr clk flag*/
 
 	struct vdin_debug_s debug;
 	enum vdin_format_convert_e format_convert;
@@ -949,6 +993,7 @@ struct vdin_dev_s {
 	 *bit8: (1:discontinuous alloc way;0:continuous alloc way)
 	 */
 	unsigned int cma_config_flag;
+	unsigned int cma_config_flag_bak;
 #ifdef CONFIG_CMA
 	struct platform_device	*this_pdev;
 	struct page *venc_pages;
@@ -997,6 +1042,7 @@ struct vdin_dev_s {
 	unsigned int output_color_depth;
 	/* cut window config */
 	bool cut_window_cfg;
+	/* only supported when mif output */
 	bool auto_cut_window_en;
 	/*
 	 *0:vdin out limit range
@@ -1063,6 +1109,8 @@ struct vdin_dev_s {
 	bool h_skip_en;
 	bool v_skip_en;
 	bool dv_is_not_std;
+	bool bypass_tunnel;
+	bool baddr_en;/*0-use canvas;1-use phy addr*/
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;
@@ -1143,6 +1191,7 @@ struct vdin_dev_s {
 	unsigned int dbg_dump_frames;
 	unsigned int dbg_stop_dec_delay;
 	unsigned int vout_base_fps; /* get vinfo out base fps value */
+	unsigned int vin_base_fps; /*get vin base fps only vrr and freesync has this value*/
 	unsigned int vinfo_std_duration; /* get vinfo out real time fps value */
 	unsigned int vdin_std_duration; /* get in real time fps value */
 	unsigned int dbg_no_swap_en:1;
@@ -1277,6 +1326,7 @@ void vdin_game_mode_chg(struct vdin_dev_s *devp,
 void vdin_frame_lock_check(struct vdin_dev_s *devp, int state);
 void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev);
 void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en);
+void vdin_resume_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 void vdin_reg_dmc_notifier(unsigned int index);
 void vdin_unreg_dmc_notifier(unsigned int index);
 #endif /* __TVIN_VDIN_DRV_H */

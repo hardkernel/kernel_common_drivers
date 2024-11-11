@@ -37,9 +37,11 @@ static void vdin_v4l2_status(struct vdin_dev_s *devp)
 	pr_info("type:%d\n", devp->vb_queue.type);
 	pr_info("memory:%d(%s)\n", devp->vb_queue.memory,
 		vb2_memory_sts_to_str(devp->vb_queue.memory));
+	pr_info("max_num_buffers:%d\n", devp->vb_queue.max_num_buffers);
 	pr_info("queued_count:%d\n", devp->vb_queue.queued_count);
 	pr_info("streaming:%d\n", devp->vb_queue.streaming);
 	pr_info("buf_struct_size:%d\n", devp->vb_queue.buf_struct_size);
+	pr_info("min_queued_buffers:%d\n", devp->vb_queue.min_queued_buffers);
 	pr_info("v4l_en:%d\n", devp->dts_config.v4l_en);
 	pr_info("secure_flg:%d\n", devp->vdin_v4l2.secure_flg);
 

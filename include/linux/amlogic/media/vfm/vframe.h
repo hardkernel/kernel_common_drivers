@@ -410,6 +410,8 @@ struct vframe_pic_mode_s {
 #define BITDEPTH_MASK (BITDEPTH_YMASK | BITDEPTH_UMASK | BITDEPTH_VMASK)
 #define BITDEPTH_SAVING_MODE	0x1
 #define FULL_PACK_422_MODE		0x2
+/* t6d support */
+#define FULL_PACK_420_MODE		0x4
 
 struct codec_mm_box_s {
 	void    *mmu_box;
@@ -584,6 +586,11 @@ struct vf_aicolor_t {
 	s32 aicolor_value_index;
 	u32 nn_status;
 	struct timeval start_time;
+};
+
+struct vf_lcevc_t {
+	s16 k[2][8];
+	u32 len;
 };
 
 enum dec_set_screen_mode_t {
@@ -851,6 +858,8 @@ struct vframe_s {
 	enum vdin_channel_id_e vdin_channel_id;
 	/*decoder real used size*/
 	u32 scatter_mem_size;
+	struct vf_lcevc_t scaler_coeff;
+	u32 frame_irq_cnt;
 	/*decoder set screen mode, vpp using this 1st priority*/
 	enum dec_set_screen_mode_t dec_set_screen_mode;
 	u32 decoder_instid;

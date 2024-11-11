@@ -469,9 +469,10 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 			reqbufs->type, reqbufs->count);
 		//return 0;
 	}
-	if (reqbufs->count && reqbufs->count > VDIN_CANVAS_MAX_CNT) {
-		dprintk(0, "%s err,count=%d,out of range[%d]\n", __func__,
-			reqbufs->count, VDIN_CANVAS_MAX_CNT);
+	if (reqbufs->count && (reqbufs->count < devp->vb_queue.min_queued_buffers ||
+		reqbufs->count > VDIN_CANVAS_MAX_CNT)) {
+		dprintk(0, "%s err,count=%d,out of range[%d,%d]\n", __func__,
+			reqbufs->count, devp->vb_queue.min_queued_buffers, VDIN_CANVAS_MAX_CNT);
 		return -EINVAL;
 	}
 
@@ -494,6 +495,9 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 	vb_buf = to_vb2_v4l2_buffer(devp->vb_queue.bufs[i]);
 	vdin_buf = to_vdin_vb_buf(vb_buf);
 
+	/*check buffer*/
+	dprintk(1, "%s min_queued_buffers %d -end\n", __func__,
+		devp->vb_queue.min_queued_buffers);
 	return ret;
 }
 
@@ -650,10 +654,15 @@ static int vdin_vidioc_streamon(struct file *file, void *priv,
 	struct vdin_dev_s *devp = video_drvdata(file);
 	unsigned int ret = 0;
 
-	dprintk(2, "%s\n", __func__);
+	dprintk(2, "dbg enter %s\n", __func__);
 
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
+	if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE) {
+		dprintk(0, "%s failed with status=%d\n", __func__,
+			devp->parm.info.status);
+		return -EBUSY;
+	}
 
 	ret = vb2_ioctl_streamon(file, priv, i);
 	vdin_v4l2_start_tvin(devp);
@@ -1277,7 +1286,6 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		}
 	}
 
-	/* mipi-csi donot support state_machine */
 	if (devp->parm.port == TVIN_PORT_MIPI) {
 		if (devp->frontend && devp->frontend->sm_ops &&
 			devp->frontend->sm_ops->get_fmt)
@@ -1286,7 +1294,11 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		else
 			devp->parm.info.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
 	}
-
+	/* mipi-csi and loopback donot support state_machine */
+	if (devp->hw_core == VDIN_HW_CORE_LITE ||
+	    devp->parm.port == TVIN_PORT_MIPI) {
+		devp->parm.info.status = TVIN_SIG_STATUS_STABLE;
+	}
 	mutex_unlock(&devp->fe_lock);
 
 	dprintk(0, "%s current port:%#x(%s)\n", __func__,
@@ -1602,9 +1614,12 @@ static int vdin_vb2ops_queue_setup(struct vb2_queue *vq,
 		sizes[i] = devp->v4l2_fmt.fmt.pix_mp.plane_fmt[i].sizeimage;
 		dprintk(1, "plane %d, size %x\n", i, sizes[i]);
 		//if (devp->index == 0)
+		if (devp->debug.v4l2_buff_area == 0)
 			alloc_devs[i] = v4l_get_dev_from_codec_mm();/* codec_mm_cma area */
-			//alloc_devs[i] = &devp->this_pdev->dev;/* vdin0_cma area */
-			//alloc_devs[i] = &devp->dev;/* CMA reserved area */
+		else if (devp->debug.v4l2_buff_area == 1)
+			alloc_devs[i] = &devp->this_pdev->dev;/* vdin0_cma area */
+		else if (devp->debug.v4l2_buff_area == 2)
+			alloc_devs[i] = devp->dev;/* CMA reserved area */
 		//else
 			//alloc_devs[i] = &devp->this_pdev->dev;/* vdin1_cma area */
 	}
@@ -1629,8 +1644,8 @@ static int vdin_vb2ops_buffer_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 
 	queue = &devp->vb_queue;
-	dprintk(3, "buf prepare idx:%d planes:%d queue_cnt:%d, buf sts:%s\n",
-		vb->index,
+	dprintk(3, "buf prepare idx:%d bufs:%d planes:%d queue_cnt:%d, buf sts:%s\n",
+		vb->index, queue->max_num_buffers,
 		vb->num_planes, queue->queued_count,
 		vb2_buf_sts_to_str(vb->state));
 
@@ -1673,7 +1688,8 @@ static void vdin_vb2ops_buffer_queue(struct vb2_buffer *vb)
 
 	spin_unlock_irqrestore(&devp->list_head_lock, flags);
 	/* TODO: Update any DMA pointers if necessary */
-	dprintk(3, "queue_cnt:%d, after state:%s\n",
+	dprintk(3, "max_num_buf:%d, queue_cnt:%d, after state:%s\n",
+		devp->vb_queue.max_num_buffers,
 		devp->vb_queue.queued_count,
 		vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
 }
@@ -1753,8 +1769,8 @@ static int vdin_vb2ops_buf_init(struct vb2_buffer *vb)
 
 	dprintk(1, "%s idx:%d, type:0x%x, memory:0x%x, num_planes:%d\n",
 		__func__, vb->index, vb->type, vb->memory, vb->num_planes);
-	dprintk(1, "vb2q type:0x%x request id:%d\n", vb2q->type,
-		vb2q->queued_count);
+	dprintk(1, "vb2q type:0x%x num buffer:%d request id:%d\n", vb2q->type,
+		vb2q->max_num_buffers, vb2q->queued_count);
 
 	vb_buf = to_vb2_v4l2_buffer(vb);
 	vdin_buf = to_vdin_vb_buf(vb_buf);
@@ -1847,7 +1863,12 @@ static int vdin_v4l2_queue_init(struct vdin_dev_s *devp,
 	/*que->mem_ops = &vb2_dma_sg_memops;*/
 
 	que->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
-
+	/*
+	 * Assume that this DMA engine needs to have at least two buffers
+	 * available before it can be started. The start_streaming() op
+	 * won't be called until at least this many buffers are queued up.
+	 */
+	que->min_queued_buffers = 3;
 	/*
 	 * The serialization lock for the streaming ioctls. This is the same
 	 * as the main serialization lock, but if some of the non-streaming
@@ -1862,7 +1883,7 @@ static int vdin_v4l2_queue_init(struct vdin_dev_s *devp,
 	 * Since this driver can only do 32-bit DMA we must make sure that
 	 * the vb2 core will allocate the buffers in 32-bit DMA memory.
 	 */
-	que->gfp_flags = GFP_DMA32;
+	que->gfp_flags = GFP_KERNEL;
 
 	ret = vb2_queue_init(que);
 	if (ret < 0)
@@ -1923,7 +1944,7 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 	mutex_init(&devp->lock);
 	spin_lock_init(&devp->list_head_lock);
 
-	strscpy(video_dev->name, VDIN_V4L_DV_NAME, sizeof(video_dev->name));
+	strncpy(video_dev->name, VDIN_V4L_DV_NAME, sizeof(video_dev->name));
 	video_dev->fops = &vdin_v4l2_fops,
 	video_dev->ioctl_ops = &vdin_v4l2_ioctl_ops,
 	video_dev->release = vdin_vdev_release;
@@ -1959,17 +1980,17 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 	}
 
 	pl_dev->dev.dma_mask = &pl_dev->dev.coherent_dma_mask;
-	if (dma_set_coherent_mask(&pl_dev->dev, 0xffffffff) < 0)
+	if (dma_set_coherent_mask(&pl_dev->dev, DMA_BIT_MASK(36)) < 0)
 		dprintk(0, "dev set_coherent_mask fail\n");
 
-	if (dma_set_mask(&pl_dev->dev, 0xffffffff) < 0)
+	if (dma_set_mask(&pl_dev->dev, DMA_BIT_MASK(36)) < 0)
 		dprintk(0, "set dma mask fail\n");
 
 	video_dev->dev.dma_mask = &video_dev->dev.coherent_dma_mask;
-	if (dma_set_coherent_mask(&video_dev->dev, 0xffffffff) < 0)
+	if (dma_set_coherent_mask(&video_dev->dev, DMA_BIT_MASK(36)) < 0)
 		dprintk(0, "dev set_coherent_mask fail\n");
 
-	if (dma_set_mask(&video_dev->dev, 0xffffffff) < 0)
+	if (dma_set_mask(&video_dev->dev, DMA_BIT_MASK(36)) < 0)
 		dprintk(0, "set dma mask fail\n");
 
 	/*device node need attach device tree vdin dts tree*/
@@ -2087,7 +2108,7 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 
 	if (devp->parm.port == TVIN_PORT_MIPI) {
 		//vdin_cap_param.frame_rate = 30;
-		vdin_cap_param.cfmt = TVIN_YUV422;
+		vdin_cap_param.cfmt = TVIN_YUV444;
 		//vdin_cap_param.bt_path = BT_PATH_CSI2;
 		vdin_cap_param.hsync_phase = 1;
 		vdin_cap_param.vsync_phase = 1;

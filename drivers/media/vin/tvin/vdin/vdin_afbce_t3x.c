@@ -496,15 +496,20 @@ void vdin_afbce_set_next_frame_t3x(struct vdin_dev_s *devp,
 	vdin_afbce_clear_write_down_flag(devp);
 }
 
-void vdin_pause_afbce_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable)
+void vdin_pause_afbce_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		/* reg_afbce_path_en */
-		rdma_write_reg_bits(devp->rdma_handle, devp->addr_offset + VDIN0_CORE_CTRL, 0,
-				    AFBCE_EN_BIT, AFBCE_EN_WID);
-		rdma_write_reg_bits(devp->rdma_handle, devp->addr_offset + VDIN0_AFBCE_ENABLE, 0,
-				    AFBCE_EN_BIT, AFBCE_EN_WID);
+		rdma_write_reg_bits(devp->rdma_handle, devp->addr_offset + VDIN0_CORE_CTRL,
+			!pause_en, AFBCE_EN_BIT, AFBCE_EN_WID);
+		rdma_write_reg_bits(devp->rdma_handle, devp->addr_offset + VDIN0_AFBCE_ENABLE,
+			!pause_en, AFBCE_EN_BIT, AFBCE_EN_WID);
+	} else {
+		W_VCBUS_BIT(VDIN0_CORE_CTRL + devp->addr_offset,
+			!pause_en, AFBCE_EN_BIT, AFBCE_EN_WID);
+		W_VCBUS_BIT(VDIN0_AFBCE_ENABLE + devp->addr_offset,
+			!pause_en, AFBCE_EN_BIT, AFBCE_EN_WID);
 	}
 #endif
 	vdin_afbce_clear_write_down_flag_t3x(devp);

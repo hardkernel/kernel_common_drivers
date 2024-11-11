@@ -30,6 +30,13 @@
 /* Local Headers */
 #include "../tvin_frontend.h"
 #include "../tvin_format_table.h"
+#include "../tvafe/tvafe.h"
+#include "../tvafe/tvafe_regs.h"
+
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
+#include "tvafe_avin_detect.h"
+#endif
+
 #include "vdin_sm.h"
 #include "vdin_ctl.h"
 #include "vdin_drv.h"
@@ -54,7 +61,7 @@
 #define EXIT_PRESTABLE_MAX_CNT 50
 static struct tvin_sm_s sm_dev[VDIN_MAX_DEVS];
 
-static int sm_print_nosig;
+int sm_print_nosig;
 static int sm_print_notsup;
 static int sm_print_fmt_nosig;
 static int sm_print_fmt_chg;
@@ -102,73 +109,73 @@ static int nosig2_unstable_cnt = EXIT_NOSIG_MAX_CNT;
 bool manual_flag;
 
 u32 vdin_re_config = (RE_CONFIG_DV_EN | RE_CONFIG_HDR_EN);
-__module_param(vdin_re_config, int, 0664);
+module_param(vdin_re_config, int, 0664);
 MODULE_PARM_DESC(vdin_re_config, "vdin_re_config");
 
 u32 vdin_re_cfg_drop_cnt = 8;
-__module_param(vdin_re_cfg_drop_cnt, int, 0664);
+module_param(vdin_re_cfg_drop_cnt, int, 0664);
 MODULE_PARM_DESC(vdin_re_cfg_drop_cnt, "vdin_re_cfg_drop_cnt");
 
 //#ifdef DEBUG_SUPPORT
-__module_param(back_nosig_max_cnt, int, 0664);
+module_param(back_nosig_max_cnt, int, 0664);
 MODULE_PARM_DESC(back_nosig_max_cnt,
 		 "unstable enter no signal state max count");
 
-__module_param(atv_unstable_in_cnt, int, 0664);
+module_param(atv_unstable_in_cnt, int, 0664);
 MODULE_PARM_DESC(atv_unstable_in_cnt, "atv_unstable_in_cnt");
 
-__module_param(atv_unstable_out_cnt, int, 0664);
+module_param(atv_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_unstable_out_cnt, "atv_unstable_out_cnt");
 
-__module_param(hdmi_unstable_out_cnt, int, 0664);
+module_param(hdmi_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_unstable_out_cnt, "hdmi_unstable_out_cnt");
 
-__module_param(hdmi_stable_out_cnt, int, 0664);
+module_param(hdmi_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_stable_out_cnt, "hdmi_stable_out_cnt");
 
-__module_param(atv_stable_out_cnt, int, 0664);
+module_param(atv_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_stable_out_cnt, "atv_stable_out_cnt");
 
-__module_param(atv_stable_fmt_check_cnt, int, 0664);
+module_param(atv_stable_fmt_check_cnt, int, 0664);
 MODULE_PARM_DESC(atv_stable_fmt_check_cnt, "atv_stable_fmt_check_cnt");
 
-__module_param(atv_prestable_out_cnt, int, 0664);
+module_param(atv_prestable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_prestable_out_cnt, "atv_prestable_out_cnt");
 
-__module_param(other_stable_out_cnt, int, 0664);
+module_param(other_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(other_stable_out_cnt, "other_stable_out_cnt");
 
-__module_param(other_unstable_out_cnt, int, 0664);
+module_param(other_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(other_unstable_out_cnt, "other_unstable_out_cnt");
 
-__module_param(other_unstable_in_cnt, int, 0664);
+module_param(other_unstable_in_cnt, int, 0664);
 MODULE_PARM_DESC(other_unstable_in_cnt, "other_unstable_in_cnt");
 
-__module_param(nosig_in_cnt, int, 0664);
+module_param(nosig_in_cnt, int, 0664);
 MODULE_PARM_DESC(nosig_in_cnt, "nosig_in_cnt");
 //#endif
 
-__module_param(nosig2_unstable_cnt, int, 0664);
+module_param(nosig2_unstable_cnt, int, 0664);
 MODULE_PARM_DESC(nosig2_unstable_cnt, "nosig2_unstable_cnt");
 
 static int signal_status = TVIN_SIG_STATUS_NULL;
-__module_param(signal_status, int, 0664);
+module_param(signal_status, int, 0664);
 MODULE_PARM_DESC(signal_status, "signal_status");
 
 static unsigned int vdin_dv_chg_cnt = 1;
-__module_param(vdin_dv_chg_cnt, uint, 0664);
+module_param(vdin_dv_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_dv_chg_cnt, "vdin_dv_chg_cnt");
 
 static unsigned int vdin_hdr_chg_cnt = 1;
-__module_param(vdin_hdr_chg_cnt, uint, 0664);
+module_param(vdin_hdr_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_hdr_chg_cnt, "vdin_hdr_chg_cnt");
 
 static unsigned int vdin_vrr_chg_cnt = 1;
-__module_param(vdin_vrr_chg_cnt, uint, 0664);
+module_param(vdin_vrr_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_vrr_chg_cnt, "vdin_vrr_chg_cnt");
 
 static unsigned int vdin_qms_chg_cnt = 2;
-__module_param(vdin_qms_chg_cnt, uint, 0664);
+module_param(vdin_qms_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_qms_chg_cnt, "vdin_qms_chg_cnt");
 
 enum tvin_color_fmt_range_e
@@ -366,8 +373,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						temp,
 						devp->prop.latency.allm_mode);
 				if (sm_ops->hdmi_is_xbox_dev) {
-					if (sm_ops->hdmi_is_xbox_dev(devp->frontend) &&
-						!devp->dv.dv_flag &&
+					if (sm_ops->hdmi_is_xbox_dev(devp->frontend,
+						devp->port_type) && !devp->dv.dv_flag &&
 						!devp->pre_prop.latency.allm_mode)
 						devp->chg_drop_frame_cnt = vdin_re_cfg_drop_cnt;
 				}
@@ -435,14 +442,15 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		}
 
 		if (devp->pre_prop.fps != devp->prop.fps &&
-		    IS_HDMI_SRC(devp->parm.port)) {
-			if (devp->sg_chg_fps_cnt > 3) {
+		    IS_HDMI_SRC(devp->parm.port) && !vdin_is_vrr_state(devp)) {
+			if (devp->sg_chg_fps_cnt > 8) {
 				devp->sg_chg_fps_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_VS_FRQ;
 				pr_info("%s fps chg:(%d->%d)\n", __func__,
 					devp->pre_prop.fps, devp->prop.fps);
 				devp->pre_prop.fps = devp->prop.fps;
-				devp->parm.info.fps = devp->prop.fps;
+				//devp->parm.info.fps = devp->prop.fps;
+				devp->parm.info.fps = vdin_get_base_fr(devp);
 			}
 		} else {
 			devp->sg_chg_fps_cnt = 0;
@@ -547,7 +555,7 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 		return;
 	prop = &devp->prop;
 	sm_ops = devp->frontend->sm_ops;
-	if ((devp->flags & VDIN_FLAG_DEC_STARTED) &&
+	if ((devp->flags & VDIN_FLAG_DEC_STARTED) && !vdin_is_afbce_enabled(devp) &&
 	    sm_ops->get_sig_property && !devp->cut_window_cfg) {
 		sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
 		cur_vs = prop->vs;
@@ -598,11 +606,12 @@ void tvin_smr_init_counter(int index)
 
 u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e state)
 {
-	unsigned int signal_type = devp->parm.info.signal_type;
+	unsigned int signal_type = 0;
 	enum tvin_sg_chg_flg signal_chg = TVIN_SIG_CHG_NONE;
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct tvin_sig_property_s *prop;
 	unsigned int i;
+	u32 val = 0;
 
 	if (state < TVIN_SM_STATUS_PRESTABLE)
 		return TVIN_SIG_CHG_NONE;
@@ -653,6 +662,8 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 			/*devp->prop.vdin_hdr_flag = false;*/
 			signal_type &= ~(1 << 29);
 			signal_type &= ~(1 << 25);
+			val = vdin_matrix_range_chk(devp);
+			signal_type |= (val << 25);
 			/* default is bt709,if change need sync */
 			signal_type = ((1 << 16) |
 				       (signal_type & (~0xFF0000)));
@@ -684,6 +695,8 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 				devp->prop.vdin_hdr_flag = false;
 				signal_type &= ~(1 << 29);
 				signal_type &= ~(1 << 25);
+				val = vdin_matrix_range_chk(devp);
+				signal_type |= (val << 25);
 				/* default is bt709,if change need sync */
 				signal_type = ((1 << 16) |
 					(signal_type & (~0xFF0000)));
@@ -694,14 +707,9 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 	} else if (prop->hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_flag = false;
 		signal_type &= ~(1 << 29);
-		if (devp->prop.color_fmt_range == TVIN_RGB_FULL ||
-		    devp->prop.color_fmt_range == TVIN_YUV_FULL)
-			signal_type |= (1 << 25);
-		else if (devp->prop.color_fmt_range == TVIN_RGB_LIMIT ||
-			 devp->prop.color_fmt_range == TVIN_YUV_LIMIT)
-			signal_type &= ~(1 << 25);
-		else
-			signal_type &= ~(1 << 25);/* 0:limit */
+		signal_type &= ~(1 << 25);
+		val = vdin_matrix_range_chk(devp);
+		signal_type |= (val << 25);
 		/* default is bt709,if change need sync */
 		signal_type = ((1 << 16) | (signal_type & (~0xFF0000)));
 		signal_type = ((1 << 8) | (signal_type & (~0xFF00)));
@@ -726,9 +734,10 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 	}
 
 	if (sm_debug_enable & VDIN_SM_LOG_L_4)
-		pr_info("[sm.%d]dv:%d, hdr state:%d eotf:%d flag:%#x, vrr state:%d type:%#x\n",
+		pr_info("[sm.%d]dv:%d, hdr state:%d %d,eotf:%d flag:%#x,vrr state:%d type:%#x\n",
 			devp->index,
 			devp->prop.dolby_vision, devp->prop.hdr_info.hdr_state,
+			devp->prop.dv_unique_drm_flag,
 			devp->prop.hdr_info.hdr_data.eotf, devp->prop.vdin_hdr_flag,
 			devp->prop.vdin_vrr_flag, signal_type);
 
@@ -919,6 +928,15 @@ void tvin_smr(struct vdin_dev_s *devp)
 						devp->index);
 					sm_print_nosig = 1;
 				}
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
+				if (devp->dtdata->hw_ver == VDIN_HW_T3X &&
+					R_APB_BIT(TVFE_CLAMP_INTF,
+						CLAMP_EN_BIT, CLAMP_EN_WID) &&
+					av1_plugin_state == 0 &&
+					IS_TVAFE_SRC(port))
+					W_APB_BIT(TVFE_CLAMP_INTF, 0,
+						CLAMP_EN_BIT, CLAMP_EN_WID);
+#endif
 			}
 		} else {
 			if (IS_TVAFE_SRC(port))
@@ -1104,6 +1122,12 @@ void tvin_smr(struct vdin_dev_s *devp)
 						break;
 				}
 			}
+
+			if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property) {
+				sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
+				devp->parm.info.fps = prop->fps;
+			}
+
 			devp->fmt_info_p = (struct tvin_format_s *)tvin_get_fmt_info(info->fmt);
 			if (IS_HDMI_SRC(port)) {
 				/* for tvstart, do not judge VDIN_FLAG_DEC_STARTED */
@@ -1183,14 +1207,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_fmt_chg = 1;
 			}
 		}
-		/* dynamic adjust cut window for atv test */
-		if (IS_TVAFE_SRC(port))
-			vdin_auto_de_handler(devp);
-
-		if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property) {
-			sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
-			devp->parm.info.fps = prop->fps;
-		}
+		/* dynamic adjust cut window */
+		vdin_auto_de_handler(devp);
 
 		if (nosig || fmt_changed /* || !pll_lock */) {
 			++sm_p->state_cnt;

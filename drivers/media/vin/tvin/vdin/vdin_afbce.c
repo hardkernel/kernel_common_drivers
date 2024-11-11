@@ -59,11 +59,6 @@
 #include "vdin_afbce.h"
 #include "vdin_mem_scatter.h"
 
-bool vdin_is_afbce_enabled(struct vdin_dev_s *devp)
-{
-	return (devp->afbce_mode == 1 || devp->double_wr);
-}
-
 /* fixed config mif by default */
 void vdin_mif_config_init(struct vdin_dev_s *devp)
 {
@@ -243,20 +238,14 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 
 bool vdin_chk_is_comb_mode(struct vdin_dev_s *devp)
 {
-	enum vdin_format_convert_e vdin_out_fmt;
-	int reg_fmt444_rgb_en = false;
 	int reg_fmt444_comb = false;
 
-	vdin_out_fmt = devp->format_convert;
-	if (vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_RGB ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_GBR ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_BRG ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_RGB)
-		reg_fmt444_rgb_en = true;
+	if (devp->dtdata->hw_ver == VDIN_HW_T3X) /* No comb mode on t3x */
+		return false;
 
-	if ((vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
-	     vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_YUV444 || reg_fmt444_rgb_en) &&
-	     devp->h_active > 2048)
+	/* only set comb when 444 8bit output */
+	if (vdin_is_convert_to_444(devp->format_convert) &&
+		devp->source_bitdepth == 8)
 		reg_fmt444_comb = true;
 	else
 		reg_fmt444_comb = false;
@@ -394,16 +383,10 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 		reg_fmt444_rgb_en = 1;
 
 	reg_fmt444_comb = vdin_chk_is_comb_mode(devp);
-	if (vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_NV12 ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_NV21 ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_NV12 ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_NV21) {
+	if (vdin_is_convert_to_nv21(devp->format_convert)) {
 		reg_format_mode = 2;/*420*/
 	    bits_num = 12;
-	} else if ((vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
-		(vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
-		(vdin_out_fmt == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
-		(vdin_out_fmt == VDIN_FORMAT_CONVERT_BRG_YUV422)) {
+	} else if (vdin_is_convert_to_422(devp->format_convert)) {
 		reg_format_mode = 1;/*422*/
 	    bits_num = 16;
 	} else {
@@ -721,21 +704,21 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 	}
 }
 
-void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable)
+void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu()) {
-		vdin_pause_afbce_write_t3x(devp, rdma_enable);
+		vdin_pause_afbce_write_t3x(devp, rdma_enable, pause_en);
 		return;
 	}
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable)
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0,
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, !pause_en,
 				    AFBCE_EN_BIT, AFBCE_EN_WID);
 	else
-		W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
+		W_VCBUS_BIT(AFBCE_ENABLE, !pause_en, AFBCE_EN_BIT, AFBCE_EN_WID);
 #endif
 	vdin_afbce_clear_write_down_flag(devp);
 }
@@ -800,13 +783,13 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 	/* afbce_valid means can switch into afbce mode */
 	devp->afbce_valid = 0;
 	if (devp->afbce_flag & VDIN_AFBCE_EN) {
-		if (devp->h_active > 1920 && devp->v_active >= 1080) {
+		if (devp->h_active > 1920 || devp->v_active > 1080) {
 			if (devp->afbce_flag & VDIN_AFBCE_EN_4K)
 				devp->afbce_valid = 1;
-		} else if (devp->h_active > 1280 && devp->v_active > 720) {
+		} else if (devp->h_active > 1280 || devp->v_active > 720) {
 			if (devp->afbce_flag & VDIN_AFBCE_EN_1080P)
 				devp->afbce_valid = 1;
-		} else if (devp->h_active > 720 && devp->v_active > 576) {
+		} else if (devp->h_active > 720 || devp->v_active > 576) {
 			if (devp->afbce_flag & VDIN_AFBCE_EN_720P)
 				devp->afbce_valid = 1;
 		} else {

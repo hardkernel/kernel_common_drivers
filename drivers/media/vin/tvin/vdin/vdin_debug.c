@@ -37,9 +37,7 @@
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE
 #include <linux/amlogic/pixel_probe.h>
 #endif
-#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 #include <linux/amlogic/dmc_dev_access.h>
-#endif
 
 /* Local Headers */
 #include "../tvin_format_table.h"
@@ -1123,6 +1121,11 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		tvin_aspect_ratio_str(devp->prop.aspect_ratio),
 		devp->prop.aspect_ratio,
 		devp->prop.decimation_ratio, devp->prop.dvi_info);
+	pr_info("pic_aspect_ratio = %s(%d)\n",
+		tvin_aspect_ratio_str(devp->prop.pic_aspect_ratio),
+		devp->prop.pic_aspect_ratio);
+	pr_info("afd active-video = (%d)\n",
+		devp->prop.active_ratio);
 	pr_info("[pre->cur]:hs(%d->%d),he(%d->%d),vs(%d->%d),ve(%d->%d)\n",
 		devp->prop.pre_hs, devp->prop.hs,
 		devp->prop.pre_he, devp->prop.he,
@@ -1138,6 +1141,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("color_depth_config:0x%x\n", devp->color_depth_config);
 	pr_info("matrix_pattern_mode:0x%x\n", devp->matrix_pattern_mode);
 	pr_info("hdcp_sts:0x%x\n", devp->prop.hdcp_sts);
+	pr_info("macrovision_sts:0x%x\n", devp->prop.macrovision_sts);
 	pr_info("full_pack:%d\n", devp->full_pack);
 	pr_info("force_malloc_yuv_422_to_444:%d\n", devp->force_malloc_yuv_422_to_444);
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
@@ -1241,7 +1245,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 				devp->afbce_info->frame_body_size);
 		}
 	}
-	pr_info("dolby_input :  %d\n", devp->dv.dolby_input);
+	pr_info("dolby_input : %d,unique:%d\n", devp->dv.dolby_input,
+		devp->prop.dv_unique_drm_flag);
 	/*if (devp->cma_config_en != 1 || !(devp->cma_config_flag & 0x100))*/
 	/*	pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",*/
 	/*		(devp->mem_start +*/
@@ -1488,7 +1493,7 @@ static void vdin_dump_dts_debug_config(struct vdin_dev_s *devp)
 	pr_info("dbg_sel_mat:%d\n", devp->debug.dbg_sel_mat);
 	pr_info("vdin1_set_hdr_bypass:%d\n", devp->debug.vdin1_set_hdr_bypass);
 	pr_info("dbg_force_shrink_en:%d\n", devp->debug.dbg_force_shrink_en);
-	pr_info("bypass_tunnel:%d\n", devp->debug.bypass_tunnel);
+	pr_info("bypass_tunnel:%d\n", devp->bypass_tunnel);
 	pr_info("pause_mif_dec:%d\n", devp->debug.pause_mif_dec);
 	pr_info("pause_afbce_dec:%d\n", devp->debug.pause_afbce_dec);
 	pr_info("bypass_filter_vsync:%d\n", devp->debug.bypass_filter_vsync);
@@ -2059,10 +2064,33 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 	}
 #endif
 
-	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
+	if (devp->dtdata->hw_ver >= VDIN_HW_T7 && devp->dtdata->hw_ver != VDIN_HW_T6D) {
 		for (reg = VDIN_WR_BADDR_LUMA;
 		     reg <= VDIN_WR_STRIDE_CHROMA; reg++) {
 			pr_info("0x%04x = 0x%08x\n",
+				(reg + offset), rd(offset, reg));
+		}
+	} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
+		for (reg = VDIN_WRMIF_CTRL0;
+		     reg <= VDIN_WRMIF_LUMA_BADDR; reg++) {
+			pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
+				(reg + offset), rd(offset, reg));
+		}
+		pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
+			(VDIN_WRMIF_FRM_EN_CTRL + offset), rd(offset, VDIN_WRMIF_FRM_EN_CTRL));
+		for (reg = VDIN_WRMIF_LUMA_CTRL1;
+		     reg <= VDIN_WRMIF_RGBA_CTRL; reg++) {
+			pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
+				(reg + offset), rd(offset, reg));
+		}
+		for (reg = VDIN_WRMIF_LUMA_X;
+		     reg <= VDIN_WRMIF_LUMA_Y; reg++) {
+			pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
+				(reg + offset), rd(offset, reg));
+		}
+		for (reg = VDIN_WRMIF_CHRM_BADDR;
+		     reg <= VDIN_WRMIF_CHRM_CTRL1; reg++) {
+			pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
 				(reg + offset), rd(offset, reg));
 		}
 	}
@@ -2133,17 +2161,9 @@ int vdin_afbce_compression_ratio_monitor(struct vdin_dev_s *devp, struct vf_entr
 	if (src_size1)
 		ratio1 = dst_frame_size * 100 / src_size1;
 
-	if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444)
+	if (vdin_is_convert_to_444(devp->format_convert))
 		src_size2 = devp->h_active * devp->v_active * 3 * devp->source_bitdepth / 8;
-	else if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV12 ||
-			 devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV21 ||
-			 devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV12 ||
-			 devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)
+	else if (vdin_is_convert_to_nv21(devp->format_convert))
 		src_size2 =
 			devp->h_active * devp->v_active * 3 / 2 * devp->source_bitdepth / 8;
 	else
@@ -2332,6 +2352,71 @@ void vdin_dbg_access_reg(struct vdin_dev_s *devp, unsigned int update_site)
 	return;
 }
 #endif
+
+void vdin_memset_dbg(char *parm[], struct vdin_dev_s *devp)
+{
+	unsigned int temp = 0, i = 0;
+
+	if (parm[2] && kstrtouint(parm[2], 10, &temp) == 0) {
+		devp->debug.flag = (enum vdin_memset_dbg_flag)temp;
+		switch (devp->debug.flag) {
+		case YUV422_8B_FULL:
+			for (i = 0; i < 4; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.yuv422_8f[i] = temp;
+					pr_info("debug.yuv422_8f[%d] = 0x%02X\n",
+						i, devp->debug.yuv422_8f[i]);
+				}
+			}
+			break;
+		case YUV422_8B_LIMIT:
+			for (i = 0; i < 4; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.yuv422_8l[i] = temp;
+					pr_info("debug.yuv422_8l[%d] = 0x%02X\n",
+						i, devp->debug.yuv422_8l[i]);
+				}
+			}
+			break;
+		case YUV422_10B_FULL:
+			for (i = 0; i < 5; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.yuv422_10f[i] = temp;
+					pr_info("debug.yuv422_10f[%d] = 0x%02X\n",
+						i, devp->debug.yuv422_10f[i]);
+				}
+			}
+			break;
+		case YUV422_10B_LIMIT:
+			for (i = 0; i < 5; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.yuv422_10l[i] = temp;
+					pr_info("debug.yuv422_10l[%d] = 0x%02X\n",
+						i, devp->debug.yuv422_10l[i]);
+				}
+			}
+			break;
+		case RGB_8B_FULL:
+			for (i = 0; i < 3; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.rgb_8f[i] = temp;
+					pr_info("devp->debug.rgb_8f[%d] = 0x%02X\n",
+						i, devp->debug.rgb_8f[i]);
+				}
+			}
+			break;
+		case RGB_8B_LIMIT:
+			for (i = 0; i < 3; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.rgb_8l[i] = temp;
+					pr_info("devp->debug.rgb_8l[%d] = 0x%02X\n",
+						i, devp->debug.rgb_8l[i]);
+				}
+			}
+			break;
+		}
+	}
+}
 
 /*
  * 1.show the current frame rate
@@ -2789,14 +2874,15 @@ start_chk:
 				devp->debug.scaling4h = val;
 			if (kstrtoul(parm[3], 10, &val) == 0)
 				devp->debug.dest_cfmt = val;
-
 			devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+			devp->debug.conversion = true;
 			pr_info("enable manual conversion w = %u h = %u ",
 				devp->debug.scaling4w, devp->debug.scaling4h);
 			pr_info("dest_cfmt = %s.\n",
 				tvin_color_fmt_str(devp->debug.dest_cfmt));
 		} else {
 			devp->flags &= (~VDIN_FLAG_MANUAL_CONVERSION);
+			devp->debug.conversion = false;
 			pr_info("disable manual conversion w = %u h = %u ",
 				devp->debug.scaling4w, devp->debug.scaling4h);
 			pr_info("dest_cfmt = %s\n",
@@ -3068,8 +3154,10 @@ start_chk:
 		if (!parm[1]) {
 			pr_err("miss parameters .\n");
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
-			devp->dbg_no_wr_check = val;
-			pr_info("dbg_no_wr_check(%d):%d\n\n", devp->index,
+			devp->dbg_no_wr_check = (val & 0xf);
+			devp->dts_config.chk_write_done_en = (val >> 0xf);
+			pr_info("dbg_no_wr_check(%d):en:%d,chk:%d\n\n", devp->index,
+				devp->dts_config.chk_write_done_en,
 				devp->dbg_no_wr_check);
 		}
 	} else if (!strcmp(parm[0], "fr_ctl")) {
@@ -3322,12 +3410,11 @@ start_chk:
 	} else if (!strcmp(parm[0], "afbce_flag")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &temp) == 0) {
-				devp->dts_config.afbce_flag_cfg = temp;
-				pr_info("set afbce_flag: 0x%x\n",
-					devp->dts_config.afbce_flag_cfg);
+				devp->afbce_flag = temp;
+				pr_info("set afbce_flag: 0x%x\n", devp->afbce_flag);
 			}
 		} else {
-			pr_err("err.afbce_flag: 0x%x\n", devp->dts_config.afbce_flag_cfg);
+			pr_err("err.cur afbce_flag: 0x%x\n", devp->afbce_flag);
 		}
 	} else if (!strcmp(parm[0], "afbce_mode")) {
 		if (parm[2]) {
@@ -3426,7 +3513,9 @@ start_chk:
 			pr_info("t3x vf crc:0x%x\n", rd(devp->addr_offset, VDIN0_PP_CRC_OUT));
 		else
 #endif
-			pr_info("vf crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
+			pr_info("ro crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
+		if (devp->vfp && devp->vfp->last_last_vfe)
+			pr_info("vf crc:0x%x\n", devp->vfp->last_last_vfe->vf.crc);
 	} else if (!strcmp(parm[0], "game_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp) {
@@ -3471,6 +3560,15 @@ start_chk:
 		}
 		pr_info("bypass_pc_mode:%d pc_mode:%d\n",
 			devp->debug.bypass_pc_mode, vdin_pc_mode);
+	} else if (!strcmp(parm[0], "v4l2_buff_area")) {
+		/*
+		 * 0: codec_mm_cma area
+		 * 1: CMA reserved area
+		 * 2: vdin1_cma area
+		 */
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.v4l2_buff_area = temp;
+		pr_info("v4l2_buff_area: %d\n", devp->debug.v4l2_buff_area);
 	} else if (!strcmp(parm[0], "vrr_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			devp->vrr_mode = temp;
@@ -3499,7 +3597,7 @@ start_chk:
 			 * 0:off 1:enable
 			 */
 			if (temp) {
-				if (devp->index) {
+				if (devp->hw_core == VDIN_HW_CORE_LITE) {
 					viuin_select_loopback_path();
 					vdin1_hw_hist_on_off(devp, TRUE);
 					devp->flags |= VDIN_FLAG_HIST_STARTED;
@@ -3557,7 +3655,7 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0) &&
 			(kstrtouint(parm[2], 16, &val_tmp) == 0)) {
 			W_VCBUS(temp, val_tmp);
-			pr_info("write addr:%#x val:%#x(%#x)\n", temp, val_tmp, R_VCBUS(val_tmp));
+			pr_info("write addr:%#x val:%#x(%#x)\n", temp, val_tmp, R_VCBUS(temp));
 		}
 	} else if (!strcmp(parm[0], "wr_bit")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr) == 0) &&
@@ -3752,10 +3850,10 @@ start_chk:
 	} else if (!strcmp(parm[0], "bypass_tunnel")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
-				devp->debug.bypass_tunnel = true;
+				devp->debug.force_bypass_tunnel = true;
 			else
-				devp->debug.bypass_tunnel = false;
-			pr_info("bypass_tunnel:%d\n", devp->debug.bypass_tunnel);
+				devp->debug.force_bypass_tunnel = false;
+			pr_info("force_bypass_tunnel:%d\n", devp->debug.force_bypass_tunnel);
 		}
 	} else if (!strcmp(parm[0], "bypass_filter_vsync")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
@@ -3817,6 +3915,23 @@ start_chk:
 			pr_info("hconv_mode(%d):0x%x\n\n", devp->index,
 				devp->debug.hconv_mode);
 		}
+	} else if (!strcmp(parm[0], "set_buf_num")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->frame_buff_num = val;
+			devp->frame_buff_num_bak = val;
+			pr_info("vdin%d,buffer num:(%d)\n\n", devp->index,
+				devp->frame_buff_num);
+		}
+	} else if (!strcmp(parm[0], "vdin_mem_memset")) {
+		devp->debug.vdin_memset_dbg_en = 1;
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.vdin_memset_en = temp;
+		if (parm[2])
+			vdin_memset_dbg(parm, devp);
+		pr_info("vdin_mem_memset_flag = %d,vdin_memset_en = %d\n",
+			devp->debug.vdin_memset_dbg_en, devp->debug.vdin_memset_en);
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {
@@ -4185,6 +4300,59 @@ static ssize_t input_rate_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(input_rate);
 
+ssize_t slt_test_store(struct device *dev,
+		      struct device_attribute *attr,
+		      const char *buf, size_t len)
+{
+	char *buf_orig, *parm[48] = {NULL};
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+	long val = 0;
+
+	if (!buf)
+		return len;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	vdin_parse_param(buf_orig, (char **)&parm);
+
+	if (!strcmp(parm[0], "set_crc")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->debug.slt_test.vf_ori_crc = val;
+			pr_info("vdin%d:vf_ori_crc = 0x%x\n\n", devp->index,
+				devp->debug.slt_test.vf_ori_crc);
+		}
+	} else if (!strcmp(parm[0], "enable")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->debug.slt_test.en = !!val;
+			pr_info("vdin%d:en:%d,vf_ori_crc = 0x%x\n\n", devp->index,
+				devp->debug.slt_test.en, devp->debug.slt_test.vf_ori_crc);
+		}
+	} else if (!strcmp(parm[0], "state")) {
+		pr_info("vdin%d:en:%d,vf_ori_crc = 0x%x,chk:%d,cnt:%d\n", devp->index,
+			devp->debug.slt_test.en, devp->debug.slt_test.vf_ori_crc,
+			devp->debug.slt_test.vf_check_result, devp->debug.slt_test.vf_pass_cnt);
+	}
+
+	kfree(buf_orig);
+
+	return len;
+}
+
+static ssize_t slt_test_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+
+	if (devp->debug.slt_test.vf_check_result)
+		return sprintf(buf, "%s\n", "pass");
+	else
+		return sprintf(buf, "%s\n", "fail");
+}
+static DEVICE_ATTR_RW(slt_test);
+
 static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 {
 	int i, sum = 0;
@@ -4305,6 +4473,7 @@ int vdin_create_debug_files(struct device *dev)
 	ret = device_create_file(dev, &dev_attr_crop);
 	ret = device_create_file(dev, &dev_attr_snow_flag);
 	ret = device_create_file(dev, &dev_attr_input_rate);
+	ret = device_create_file(dev, &dev_attr_slt_test);
 #endif
 	return ret;
 }
@@ -4325,6 +4494,7 @@ void vdin_remove_debug_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_crop);
 	device_remove_file(dev, &dev_attr_snow_flag);
 	device_remove_file(dev, &dev_attr_input_rate);
+	device_remove_file(dev, &dev_attr_slt_test);
 #endif
 	device_remove_file(dev, &dev_attr_attr);
 	device_remove_file(dev, &dev_attr_sig_det);

@@ -49,20 +49,20 @@ static unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGHT;
 /* one frame max metadata size:32x280 bits = 1120bytes(0x460) */
 unsigned int dolby_size_byte = K_DV_META_BUFF_SIZE;
 
-__module_param(max_buf_num, uint, 0664);
+module_param(max_buf_num, uint, 0664);
 MODULE_PARM_DESC(max_buf_num, "vdin max buf num.\n");
 
-__module_param(min_buf_num, uint, 0664);
+module_param(min_buf_num, uint, 0664);
 MODULE_PARM_DESC(min_buf_num, "vdin min buf num.\n");
 
 #ifdef DEBUG_SUPPORT
-__module_param(max_buf_width, uint, 0664);
+module_param(max_buf_width, uint, 0664);
 MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
 
-__module_param(max_buf_height, uint, 0664);
+module_param(max_buf_height, uint, 0664);
 MODULE_PARM_DESC(max_buf_height, "vdin max buf height.\n");
 
-__module_param(dolby_size_byte, uint, 0664);
+module_param(dolby_size_byte, uint, 0664);
 MODULE_PARM_DESC(dolby_size_byte, "dolby_size_byte.\n");
 #endif
 
@@ -181,7 +181,7 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	if (devp->force_yuv444_malloc == 1) {
 		/* 4k is not support 10 bit mode in order to save memory */
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH &&
-		    !vdin_is_4k(devp))
+		    !(vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)))
 			devp->canvas_w = devp->h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
 			devp->canvas_w = devp->h_active * VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
@@ -323,9 +323,18 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 			devp->dtdata->hw_ver == VDIN_HW_S4D)
 			canvas_num = vdin_get_canvas_num(devp);
 		/* screencap case:end */
-		canvas_num = canvas_num / 2;
-		canvas_step = 2;
-		devp->canvas_w = h_active;
+		if (!devp->baddr_en) {
+			canvas_step = 2;
+			canvas_num = canvas_num / 2;
+		}
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
+			if (devp->dtdata->hw_ver == VDIN_HW_T6D)
+				devp->canvas_w = (h_active * 10) / 8;
+			else
+				devp->canvas_w = (h_active * 3) / 2;
+		} else {
+			devp->canvas_w = h_active;
+		}
 		break;
 	case VDIN_FORMAT_CONVERT_YUV_YUV422:
 	case VDIN_FORMAT_CONVERT_RGB_YUV422:
@@ -387,6 +396,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		devp->index, devp->format_convert, devp->source_bitdepth,
 		devp->double_wr, devp->full_pack);
 #endif
+	if (devp->baddr_en)
+		return;
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		devp->vf_mem_start[i] =
 			roundup(devp->vf_mem_start[i], devp->canvas_align);
@@ -421,6 +432,128 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 }
 
 #ifdef CONFIG_CMA
+
+void vdin_mem_memset(struct vdin_dev_s *devp)
+{
+	int highmem_flag = 0;
+	void *buf = NULL;
+	void *buf_1 = NULL;
+	unsigned int j = 0;
+	unsigned int cnt = 0;
+	int i = 0;
+	int h = 0;
+	int len = 0;
+	int byt_index = 0;
+	unsigned int count, span, width;
+	unsigned int frame_size = 0;
+	unsigned char *ptr = NULL;
+	unsigned char *p = NULL;
+	unsigned char yuv422_10l[5] = {0x1, 0x20, 0x10, 0x0, 0x2};/*limit 10bit YUV422 black*/
+	unsigned char yuv422_10f[5] = {0x0, 0x20, 0x0, 0x0, 0x2};/*full 10bit YUV422 black*/
+	unsigned char yuv422_8l[4] = {0x80, 0x10, 0x80, 0x10};/*limit 8bit YUV422 black*/
+	unsigned char yuv422_8f[4] = {0x80, 0x0, 0x80, 0x0};/*full 8bit YUV422 black*/
+	unsigned char byt_1[40] = {0};
+	unsigned char rgb_8f[3] = {0};/*full 8bit rgb black*/
+	unsigned char rgb_8l[3] = {0x10, 0x10, 0x10};/*limit 8bit rgb black*/
+	unsigned int yuv422_10l_len = ARRAY_SIZE(yuv422_10l);
+	unsigned int yuv422_8l_len = ARRAY_SIZE(yuv422_8l);
+	unsigned int rgb8_len = ARRAY_SIZE(rgb_8l);
+	unsigned int byt1_len = ARRAY_SIZE(byt_1);
+	u32 val;
+
+	if (!(devp->vdin_function_sel & VDIN_MEM_MEMSET_EN))
+		return;
+	if (!(vdin_is_convert_to_422(devp->format_convert) ||
+		vdin_is_convert_to_rgb(devp->format_convert)) ||
+		devp->hw_core == VDIN_HW_CORE_NORMAL) {
+		return;
+	}
+	if (devp->debug.vdin_memset_en != 1) {
+		memcpy(devp->debug.yuv422_8f, yuv422_8f, yuv422_8l_len);
+		memcpy(devp->debug.yuv422_8l, yuv422_8l, yuv422_8l_len);
+		memcpy(devp->debug.yuv422_10f, yuv422_10f, yuv422_10l_len);
+		memcpy(devp->debug.yuv422_10l, yuv422_10l, yuv422_10l_len);
+		memcpy(devp->debug.rgb_8f, rgb_8f, rgb8_len);
+		memcpy(devp->debug.rgb_8l, rgb_8l, rgb8_len);
+	}
+	val = vdin_matrix_range_chk(devp);
+	for (i = 0; i < devp->canvas_max_num; i++) {
+		if (devp->cma_config_flag & 0x100)
+			highmem_flag =
+				PageHighMem(phys_to_page(devp->vf_mem_start[0]));
+		else
+			highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
+		count = devp->canvas_h;
+		span = devp->canvas_active_w;
+		width = devp->canvas_w;
+		frame_size = count * width;
+		if (highmem_flag)
+			buf = vdin_vmap(devp->vf_mem_start[i], frame_size);
+		else
+			buf = phys_to_virt(devp->vf_mem_start[i]);
+		if (!buf)
+			return;
+		p = (unsigned char *)buf;
+		for (h = 0; h < count; h++) {
+			buf_1 = buf + h  * width;
+			ptr = (unsigned char *)buf_1;
+			if (vdin_is_convert_to_422(devp->format_convert) &&
+				devp->source_bitdepth == VDIN_COLOR_DEEPS_8BIT) {
+				for (j = 0; j < span; j += yuv422_8l_len) {
+					len = min(yuv422_8l_len, span - j);
+					if (val)
+						memcpy(ptr, devp->debug.yuv422_8f, len);
+					else
+						memcpy(ptr, devp->debug.yuv422_8l, len);
+					ptr += len;
+				}
+			} else if (vdin_is_convert_to_rgb(devp->format_convert) &&
+				devp->source_bitdepth == VDIN_COLOR_DEEPS_8BIT) {
+				for (j = 0; j < span; j += rgb8_len) {
+					len = min(rgb8_len, span - j);
+					if (val)
+						memcpy(ptr, devp->debug.rgb_8f, len);
+					else
+						memcpy(ptr, devp->debug.rgb_8l, len);
+					ptr += len;
+				}
+			} else if (vdin_is_convert_to_422(devp->format_convert) &&
+				devp->source_bitdepth == VDIN_COLOR_DEEPS_10BIT) {
+				while (j < 40) {
+					if (j > 0 && j % 8 == 0)
+						cnt--;
+					byt_index = cnt % yuv422_10l_len;
+					if (val)
+						byt_1[j] = devp->debug.yuv422_10f[byt_index];
+					else
+						byt_1[j] = devp->debug.yuv422_10l[byt_index];
+					j++;
+					cnt++;
+				}
+				for (j = 0; j < span; j += byt1_len) {
+					len = min(byt1_len, span - j);
+					memcpy(ptr, byt_1, len);
+					ptr += len;
+				}
+			}
+			if (devp->debug.vdin_memset_dbg_en == 1 && p) {
+				pr_info("%s:buf[%d], 8 byte\n", __func__, i);
+				for (j = 0; j < 10; j++)
+					pr_info("0x%02X ", p[j]);
+				pr_info("\n");
+				devp->debug.vdin_memset_dbg_en = 0;
+			}
+		}
+		vdin_dma_flush(devp, buf, frame_size, DMA_TO_DEVICE);
+		if (highmem_flag)
+			vdin_unmap_phyaddr(buf);
+		if (vdin_dbg_en & 0x10)
+			pr_info("vdin%d,buf[%d] mem_start = 0x%lx, mem_size = 0x%x, highmem_flag = %d, color_range = %d\n",
+				devp->index, i, devp->vf_mem_start[i],
+				devp->frame_size, highmem_flag, val);
+	}
+}
+
 /* need to be static for pointer use in codec_mm */
 static char vdin_name[6];
 
@@ -474,17 +607,13 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		h_size = max_buf_width;
 		v_size = max_buf_height;
 	}
-	if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444 ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG) {
+	if (vdin_is_convert_to_444(devp->format_convert)) {
 		/* 4k is not support 10 bit mode in order to save memory
 		 * up to 4k 444 8bit mode
 		 */
 		if (/*devp->source_bitdepth > VDIN_MIN_SOURCE_BIT_DEPTH &&*/
-		    !vdin_is_4k(devp) || (devp->dv_hw5.hw5_ctl & BIT3)) {
+		    !(vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) ||
+		    (devp->dv_hw5.hw5_ctl & BIT3)) {
 			h_size = roundup(h_size * VDIN_YUV444_10BIT_PER_PIXEL_BYTE,
 				devp->canvas_align);
 			devp->canvas_align_w = h_size / VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
@@ -493,20 +622,24 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->canvas_align);
 			devp->canvas_align_w = h_size / VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
 		}
-	} else if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV12) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV21) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV12) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)) {
-		h_size = roundup(h_size, devp->canvas_align);
+	} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
+		/* nv21/nv12 only t3x have 8/10/12 bit mode */
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
+			if (devp->dtdata->hw_ver == VDIN_HW_T6D)
+				h_size = roundup((h_size * 10) / 8, devp->canvas_align);
+			else
+				h_size = roundup((h_size * 3) / 2, devp->canvas_align);
+		} else {
+			h_size = roundup(h_size, devp->canvas_align);
+		}
 		devp->canvas_align_w = h_size;
 		/*todo change with canvas alloc!!*/
-		/* nv21/nv12 only have 8bit mode */
 	} else {
 		/* 422 mode, 4k up to 444 8bit mode,
 		 * other up to 10 bit mode
 		 */
 		if (devp->index == 0) {
-			if (vdin_is_4k(devp)) {
+			if (vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) {
 				/*up to 444 8bit*/
 				h_size = roundup(h_size * VDIN_YUV444_8BIT_PER_PIXEL_BYTE,
 						 devp->canvas_align);
@@ -559,8 +692,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	if (devp->afbce_valid)
 		mem_size += 1024 * 1658;
 
-	if (devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12 &&
-	    devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21)
+	if (vdin_is_convert_to_nv21(devp->format_convert))
 		mem_size = (mem_size * 3) / 2;
 	devp->vf_mem_size = PAGE_ALIGN(mem_size)/* + dolby_size_byte*/;
 	devp->vf_mem_size = roundup(devp->vf_mem_size, PAGE_SIZE);
@@ -764,7 +896,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				}
 				devp->vf_mem_start[i] = page_to_phys(devp->vf_venc_pages[i]);
 			}
-
 			if (vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
 					devp->index, i,	devp->vf_mem_start[i], frame_size);

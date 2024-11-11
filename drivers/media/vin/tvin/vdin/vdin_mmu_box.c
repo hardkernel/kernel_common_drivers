@@ -411,7 +411,7 @@ static int vdin_mmu_box_dump_all(void *buf, int size)
 
 static ssize_t
 box_dump_show(const struct class *class,
-		const struct class_attribute *attr, char *buf)
+		       const struct class_attribute *attr, char *buf)
 {
 	ssize_t ret = 0;
 

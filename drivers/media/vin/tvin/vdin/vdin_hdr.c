@@ -46,6 +46,9 @@ void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enabl
 	if (devp->dtdata->hw_ver != VDIN_HW_T7 || devp->index)
 		return;
 
+	if (devp->dv.dv_mem_allocated == 0 && en)
+		return;
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
@@ -190,6 +193,9 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
 	    !(devp->flags & VDIN_FLAG_ISR_EN))
 		return sts;
 
+	if (devp->dv.dv_mem_allocated == 0)
+		return IRQ_NONE;
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	src_dv_meta_vaddr = devp->dv.meta_data_raw_v_buffer0;
 	dst_dv_meta_vaddr = devp->dv.meta_data_raw_buffer1;
@@ -262,7 +268,8 @@ bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
 	    (is_amdv_stb_mode() && !is_hdmi_ll_as_hdr10())) &&
 	    (devp->prop.color_format == TVIN_YUV422 ||
 	     devp->prop.color_format == TVIN_YUV420) &&
-	     !devp->debug.bypass_tunnel)
+	     !devp->bypass_tunnel &&
+	     vdin_is_dv_supported())
 		return true;
 	else
 		return false;
@@ -283,24 +290,31 @@ bool vdin_dv_is_visf_data(struct vdin_dev_s *devp)
 		return false;
 }
 
-/* some device force send dv 444 source-led need convert to 422 and bypass detunnel
+/* dv standard judgment
  * return value:
- *	true: dv is not standard source-led
- *	false: dv is yuv422/420 12bit source-led
+ *	true: dv is nonstandard,use sdr path
+ *	false: dv is standard or need use dv path and bypass tunnel/detunnel
  */
 bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 {
-	if (devp->dv.dv_flag &&
-	    (devp->dv.low_latency || devp->prop.vtem_data.vrr_en)) {
-		if (devp->prop.color_format == TVIN_YUV422 &&
-		    devp->fmt_info_p->h_active >= 1280 &&
-		    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE)
-			return false;
-		else
+	if (devp->dv.dv_flag) {
+		if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
 			return true;
-	} else {
-		return false;
+
+		if (devp->prop.dv_unique_drm_flag) {
+			if ((devp->prop.color_format == TVIN_YUV420 ||
+				devp->prop.color_format == TVIN_YUV422) &&
+				devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT)
+				devp->bypass_tunnel = false;
+			else
+				devp->bypass_tunnel = true;
+		} else {
+			if (devp->prop.color_format == TVIN_YUV420)
+				/* dv 420 12bit: recognize as dv but drop 2-lsb */
+				devp->bypass_tunnel = true;
+		}
 	}
+	return false;
 }
 
 /* check signal is sink-led
