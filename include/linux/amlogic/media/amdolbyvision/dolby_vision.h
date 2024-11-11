@@ -186,11 +186,7 @@ bool is_aml_tvmode(void);
 void amdv_crc_clear(int flag);
 char *amdv_get_crc(u32 *len);
 void amdv_insert_crc(bool print);
-int amdv_check_hdr10(struct vframe_s *vf);
-int amdv_check_hlg(struct vframe_s *vf);
-int amdv_check_hdr10plus(struct vframe_s *vf);
-int amdv_check_primesl(struct vframe_s *vf);
-int amdv_check_cuva(struct vframe_s *vf);
+int amdv_check_format(struct vframe_s *vf);
 void tv_amdv_dma_table_modify
 	(u32 tbl_id, uint64_t value);
 void tv_amdv_efuse_info(void);

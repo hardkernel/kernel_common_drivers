@@ -4784,6 +4784,7 @@ EXPORT_SYMBOL(is_dovi_dual_layer_frame);
 int amdv_check_mvc(struct vframe_s *vf)
 {
 	int mode;
+	int ret = 0;
 
 	if (is_mvc_frame(vf) && dolby_vision_on) {
 		/* mvc source, but dovi enabled, need bypass dv */
@@ -4794,12 +4795,11 @@ int amdv_check_mvc(struct vframe_s *vf)
 			    AMDV_OUTPUT_MODE_BYPASS)
 				amdv_wait_on = true;
 			amdv_target_mode = mode;
-			return 1;
+			ret = 1;
 		}
 	}
-	return 0;
+	return ret;
 }
-EXPORT_SYMBOL(amdv_check_mvc);
 
 int amdv_check_hlg(struct vframe_s *vf)
 {
@@ -4819,7 +4819,6 @@ int amdv_check_hlg(struct vframe_s *vf)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(amdv_check_hlg);
 
 int amdv_check_hdr10plus(struct vframe_s *vf)
 {
@@ -4839,7 +4838,7 @@ int amdv_check_hdr10plus(struct vframe_s *vf)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(amdv_check_hdr10plus);
+
 
 int amdv_check_hdr10(struct vframe_s *vf)
 {
@@ -4859,7 +4858,7 @@ int amdv_check_hdr10(struct vframe_s *vf)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(amdv_check_hdr10);
+
 
 int amdv_check_primesl(struct vframe_s *vf)
 {
@@ -4879,7 +4878,7 @@ int amdv_check_primesl(struct vframe_s *vf)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(amdv_check_primesl);
+
 
 int amdv_check_cuva(struct vframe_s *vf)
 {
@@ -4899,7 +4898,16 @@ int amdv_check_cuva(struct vframe_s *vf)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(amdv_check_cuva);
+
+int amdv_check_format(struct vframe_s *vf)
+{
+	if (amdv_check_mvc(vf) || amdv_check_hdr10(vf) ||
+		amdv_check_hdr10plus(vf) || amdv_check_hlg(vf) ||
+		amdv_check_primesl(vf) || amdv_check_cuva(vf))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(amdv_check_format);
 
 void amdv_vf_put(struct vframe_s *vf)
 {
