@@ -61,7 +61,29 @@
 //2023.11.09 clr gcp write&the respective av mute related filed
 //2023.11.16 rm gb check when dvi input
 //2023.11.29 set main_port_open when resume
-#define RX_VER0 "ver.2023/11/29"
+//2023.12.12 t3x no open port limit when reboot
+//2024.01.04 fix soundless issue for 2.0 ip
+//2024.01.08 support to get AVI info
+//2024.01.10 optimize eq setting for 75m~115m frequency
+//2024.01.11 fix EMP DDR write out of bounds
+//2024.02.05 Fix t5d accessing illegal addresses
+//2024.02.21 fix t3x hbr audio clk not correct issue
+//2024.2.22 fix hdr flash
+//2024.03.04 fix repeat issue
+//2024.03.04 fix kernel panic on T7C without hdmirx
+//2024.3.15 fix arc port hpd changed frequently
+//2024.04.24 remove esd hpd
+//2024.07.04 optimize pcs reset flow
+//2024.07.10 correct 12g aud div
+//2024.08.15 add avi filmmaker flag
+//2024.08.28 add hdr10p licence detection
+//2024.08.29 support dolbyvision unique drm source-led
+//2024.08.30 disable hdcp when suspend
+//2024.09.18 remove warning print
+//2024.09.24 reduce rx boot print
+//2024.09.30 update fsm when update edid
+//2024.10.09 t3x/t7c hdmirx support std hibernate
+#define RX_DRV_VER "ver.2024/10/09"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -81,73 +103,29 @@
 #define IRQ_LOG		0x2000
 #define COR_LOG		0x4000
 #define DBG1_LOG    0x8000
+#define HDCP_IRQ_LOG 0x40000000
+#define PKT_IRQ_LOG 0x20000000
+
 
 #define EDID_DATA_LOG	0x20000
 #define RP_LOG		0x40000
 #define FRL_LOG		0x80000
 
-/* fix 3d timing issue and panasonic 1080p */
-/* 0323: t3x bringup*/
-/* 0406 add t3x edid*/
-/* t3x top sw reset */
-/* t3x sw flow */
-/* 2-path-emp support */
-/* hdmirx set all ports hpd */
-/* select new api for clk msr */
-/* modify code and single dwork for t3x */
-/* correct phy trim value config method */
-/* merge project modifications back to trunk */
-/* optimize unnormal_format logic */
-/* 2023.5.12 fix silent issue, switch to FSM_HPD_LOW */
-/* 2023.05.15 optimize frl_rate monitor logic */
-/* 2023.5.22 modify edid delivery method */
-/* 2023.5.23 optimize color bar debug logic */
-/* 2023.5.30 hdmirx cts and hdcp */
-/* 2023.6.8  support black pattern for AV mute */
-/* I2C edid communication is stopped at 0x2 */
-/* play next song no sound */
-/* 2023.7.5 clear dv packet when no emp */
-/* 2023.7.12 txhd2 bring up debug */
-/* 2023.8.1 add ctrl of 5v wake up */
-/* 2023.08.14 modify the mapped emp buffer address*/
-/* 2023.8.25 fix 40M 192k 176k no sound */
-/* 2023.08.28 support FRL 3G3L & 6G3L */
-/* 2023.08.31 add vpp mute cnt */
-/* 2023.9.14 add support for 240p */
-/* 2023 09.28 add trim flow for txhd2 */
-/* 2023.10.8 t3x some compatibility problem */
-/* 2023.10.10 fix t3x frl audio problem */
-/* 2023.10.30 fix t3x clk msr fail */
-/* 2023.11.13 fix t3x irq issue */
-#define RX_VER1 "ver.2023/11/13"
+#define FRAME_RATE_MIN 20
+#define FRAME_RATE_MAX 300
+
+#define BOOT_INFO_NUM			10
+#define BOOT_INFO_LEN			50
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
 #define TIME_1MS 1000000
 #define EDID_MIX_MAX_SIZE 64
-#define ESM_KILL_WAIT_TIMES 250
+#define ESM_KILL_WAIT_TIMES 10
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* hdmirx fix audio no sound */
-/* clear scdc with RX_HPD_C_CTRL_AON_IVCRX */
-/* collate t5m code */
-/* add aspect 4:3 */
-/* 2023.5.5 fix emp pkt parse error */
-/* 2023.05.09 core reset when afifo overflow */
-/* 2023.05.24 fix 1366*768 identify to 1360*768 */
-/* 2023.8.3 phy flow and aud pkt judge */
-/* 2023.08.01 add t3x poweroff */
-/* 2023.08.15 support black pattern for t7~t5w */
-/* 2023.08.18 fix YUV422 data lost issue */
-/* 2023.8.25 gcp avmute issue */
-/* 2023.08.28 fix t3x sound issue */
-/* 2023 09 27 reduce phy power */
-/* optimize afifo configuration */
-/* 2023.11.03 disable DDR access when suspend */
-#define RX_VER2 "ver.2023/11/03"
-
-#define PFIFO_SIZE 160
+#define PFIFO_SIZE 256
 #define HDCP14_KEY_SIZE 368
 
 /* sizeof(emp_buf) / sizeof(sizeof(struct pd_infoframe_s) + 1) = 1024/32 */
@@ -161,8 +139,10 @@
 #define EDID_DETECT_PORT  7
 #endif
 
-/* If HDCP_VERSION is 2.x, edid switch to 2.0 automatically */
-#define CONFIG_AMLOGIC_HDMIRX_EDID_AUTO
+#define PACKET_TYPE_MAX 256
+
+//for dump i2c_monitor data to file
+//#define I2C_MONITOR_DUMP_FILE
 
 enum chip_id_e {
 	CHIP_ID_NONE,
@@ -179,6 +159,7 @@ enum chip_id_e {
 	CHIP_ID_T5W,
 	CHIP_ID_T5M,
 	CHIP_ID_TXHD2,
+	CHIP_ID_T6D,
 	CHIP_ID_T3X,
 };
 
@@ -192,6 +173,7 @@ enum phy_ver_e {
 	PHY_VER_T5W,
 	PHY_VER_T5M,
 	PHY_VER_TXHD2,
+	PHY_VER_T6D,
 	PHY_VER_T3X,
 };
 
@@ -318,16 +300,15 @@ struct rx_var_param {
 	int dwc_rst_wait_cnt_max;
 	int sig_stable_cnt;
 	int sig_stable_max;
-	int sig_stable_err_cnt;
+	int sig_stable_err_cnt;//todo
 	int sig_stable_err_max;
 	int err_cnt_sum_max;
-	int flt_ready_cnt;
+	int fpll_ready_cnt;
+	int frl_lock_det_cnt;
 	//bool clk_debug_en;
 	int hpd_wait_cnt;
-	int special_wait_max;
 	/* increase time of hpd low, to avoid some source like */
 	/* MTK box/KaiboerH9 i2c communicate error */
-	int hpd_wait_max;
 	int sig_unstable_cnt;
 	int sig_unstable_max;
 	bool vic_check_en;
@@ -386,20 +367,26 @@ struct rx_var_param {
 	u8 dbg_ve;
 	/* after DE stable, start DE count */
 	bool de_stable;
-	u32 de_cnt;
-	u8 avi_chk_frames;
+	u32 check_dsc_de_cnt;
 	u32 avi_rcv_cnt;
 	bool force_pattern;
 	int frl_rate;
 	int fpll_stable_cnt;
+	int flt_update;
+	int lock;
 };
 
 struct rx_aml_phy {
+	u32 rterm_val;
+	bool rterm_flag;
+	u32 rterm_dts_lvl;
+	u8 rterm_dbg_lvl;
 	int dfe_en;
 	int ofst_en;
 	int cdr_mode;
 	int pre_int;
 	int pre_int_en;
+	int pre_int_21[4];
 	int phy_bwth;
 	int alirst_en;
 	int tap1_byp;
@@ -448,6 +435,11 @@ struct rx_aml_phy {
 	int cdr_fr_en_auto;
 	int hyper_gain_en;
 	int eye_height_min;
+	int tap0_err_check_en;
+	int buf_gain;
+	/* bit[3:0]:pll bw,bit[4:7]:phy bw, bit'8 enable bit */
+	u32 force_bw;
+	int eq_sslms_en;
 };
 
 struct rx_aml_phy_21 {
@@ -491,8 +483,10 @@ struct rx_video_info {
 	u32 frame_rate;
 	/** Interlaced */
 	bool interlaced;
-	/** Vertical offset */
-	u32 voffset;
+	/** Vertical begin */
+	u32 vbegin;
+	/** Vertical end */
+	u32 vend;
 	/** Vertical active */
 	u32 vactive;
 	/** Vertical total */
@@ -543,18 +537,14 @@ struct rx_video_info {
 #define DUMP_MODE_EMP	0
 #define DUMP_MODE_TMDS	1
 #define TMDS_BUFFER_SIZE	0x2000000 /*32M*/
-#define EMP_BUFFER_SIZE		0x1000	/*4k*/
+#define EMP_BUFFER_SIZE		0x800 //2k
 #define EMP_BUFF_MAX_PKT_CNT	32
 #define TMDS_DATA_BUFFER_SIZE	0x200000
 
 struct rx_edid_auto_mode {
-	enum hdcp_version_e hdcp_ver;
-	/* if edid ver is the same after switch
-	 * edid ver in UI, no need to update edid
-	 */
-	enum edid_ver_e edid_ver;
-	u8 hdmi5v_sts;
-	/* u8 hpd_sts; */
+	enum edid_ver_e edid_ver; //cur edid_ver
+	enum edid_ver_e cfg; //cfg from ui
+	bool need_update;
 };
 
 /**
@@ -628,13 +618,23 @@ struct vsi_info_s {
 
 //===============emp start
 struct vtem_info_s {
+	/* gaming-vrr & FVA */
 	u8 vrr_en;
+	u8 fva_factor_m1;
+
+	/* qms-vrr */
 	u8 m_const;
 	u8 qms_en;
-	u8 fva_factor_m1;
+	u32 next_tfr;
+
 	u8 base_vfront;
-	u8 rb;
 	u16 base_framerate;
+};
+
+struct cvtem_info_s {
+	bool dsc_flag;
+	u8 dsc_info[192];
+	u8 dsc_pkt_cnt;
 };
 
 struct sbtm_info_s {
@@ -662,6 +662,60 @@ struct dv_info_s {
 struct emp_dsf_st {
 	int pkt_cnt;
 	u8 *pkt_addr;
+};
+
+struct rx_dsc_rc_range_parameters {
+	u8 range_min_qp;
+	u8 range_max_qp;
+	signed char range_bpg_offset; /* only 6 bit signal variable */
+};
+
+struct rx_dsc_rc_parameter_set {
+	unsigned int rc_model_size;
+	u8 rc_edge_factor;
+	u8 rc_quant_incr_limit0;
+	u8 rc_quant_incr_limit1;
+	u8 rc_tgt_offset_hi;
+	u8 rc_tgt_offset_lo;
+	u8 rc_buf_thresh[14]; /* config value need note >> 6 */
+	struct rx_dsc_rc_range_parameters rc_range_parameters[15];
+};
+
+struct rx_dsc_pps_data_s {
+	u8 dsc_version_major;
+	u8 dsc_version_minor;
+	u8 pps_identifier;
+	u8 bits_per_component;
+	u8 line_buf_depth;
+	u8 block_pred_enable;
+	u8 convert_rgb;
+	u8 simple_422;
+	u8 vbr_enable;
+	unsigned int bits_per_pixel;
+	unsigned int pic_height;
+	unsigned int pic_width;
+	unsigned int slice_height;
+	unsigned int slice_width;
+	unsigned int chunk_size;
+	unsigned int initial_xmit_delay;
+	unsigned int initial_dec_delay;
+	u8 initial_scale_value;
+	unsigned int scale_increment_interval;
+	unsigned int scale_decrement_interval;
+	u8 first_line_bpg_offset;
+	unsigned int nfl_bpg_offset;
+	unsigned int slice_bpg_offset;
+	unsigned int initial_offset;
+	unsigned int final_offset;
+	u8 flatness_min_qp;
+	u8 flatness_max_qp;
+	struct rx_dsc_rc_parameter_set rc_parameter_set;
+	u8 native_420;
+	u8 native_422;
+	u8 second_line_bpg_offset;
+	unsigned int nsl_bpg_offset;
+	unsigned int second_line_offset_adj;
+	unsigned int hc_active_bytes;
 };
 
 //================emp end
@@ -739,6 +793,7 @@ struct clk_msr {
 
 struct emp_info_s {
 	unsigned int dump_mode;
+	void __iomem *hw_addr;
 	struct page *pg_addr;
 	phys_addr_t p_addr_a;
 	phys_addr_t p_addr_b;
@@ -757,6 +812,20 @@ struct emp_info_s {
 	u8 emp_content_type;
 	u8 data[128];
 	u8 data_ver;
+};
+
+enum i2c_sample_mode_e {
+	E_FUNC_SAMPLE,
+	E_I2C_WAVE_SAMPLE,
+	E_CEC_WAVE_SAMPLE,
+	E_BIST_MODE
+};
+
+struct i2c_info_s {
+	phys_addr_t phy_addr;
+	struct page *pg_addr;
+	enum i2c_sample_mode_e mode;
+	u32 addr_base;
 };
 
 struct spkts_rcvd_sts {
@@ -819,17 +888,21 @@ struct rx_info_s {
 	u8 vp_cor1_port;
 	bool boot_flag;
 	bool main_port_open;
-	bool sub_port_open;
 	bool pip_on;
+	bool hdr10p_en;
 	u8 vrr_min;
 	u8 vrr_max;
 	u32 arc_port;
 	bool arc_5vsts;
+	unsigned long timestamp;
 	struct rx_aml_phy aml_phy;
 	struct rx_aml_phy aml_phy_21;
 	struct emp_info_s emp_buff_a; //for vid0
 	struct emp_info_s emp_buff_b; //for vid1
+	struct i2c_info_s i2c_buff;
 	struct edid_capacity edid_cap;
+	bool suspend_flag;
+	u8 edid_update_done;
 };
 
 struct rx_s {
@@ -856,7 +929,8 @@ struct rx_s {
 	u16 wait_no_sig_cnt;
 	int aud_sr_stable_cnt;
 	int aud_sr_unstable_cnt;
-	unsigned long timestamp;
+	u32 last_sw_vic;
+	bool min_time_en;
 	unsigned long stable_timestamp;
 	unsigned long unready_timestamp;
 	/* info */
@@ -869,8 +943,12 @@ struct rx_s {
 	struct vtem_info_s vtem_info;
 	struct sbtm_info_s sbtm_info;
 	struct cuva_emds_s emp_cuva_info;
+	struct rx_dsc_pps_data_s dsc_pps_data;
 	bool vsif_fmm_flag;
+	bool avi_fmm_flag;
+	u8 drm_dv_flag;
 	struct dv_info_s emp_dv_info;
+	struct cvtem_info_s cvtem_info;
 	u8 emp_vid_idx;
 	struct emp_info_s *emp_info;
 	u8 emp_dsf_cnt;
@@ -883,8 +961,8 @@ struct rx_s {
 	/*struct pd_infoframe_s dbg_info;*/
 	struct phy_sts phy;
 	struct clk_msr clk;
-
 	enum edid_ver_e edid_ver;
+	u8 tx_type;
 	bool arc_5vsts;
 	u32 vsync_cnt;
 	bool vrr_en;
@@ -900,10 +978,14 @@ struct rx_s {
 	u8 last_hdcp22_state;
 	struct rx_aml_phy aml_phy;
 	struct rx_aml_phy aml_phy_21;
+	bool dsc_flag;
 	//struct spkts_rcvd_sts pkts_sts;
-	struct rx_edid_auto_mode edid_auto_mode;
+	struct rx_edid_auto_mode edid_type;
 	bool resume_flag;
 	bool spec_vendor_id;
+	u32 irq_err_cnt;
+	u32 de_err_cnt;
+	int pkt_mini_interval[PACKET_TYPE_MAX]; //unit:frame
 };
 
 struct reg_map {
@@ -924,11 +1006,50 @@ struct work_data {
 	u8 port;
 };
 
+struct edid_delayed_work_data {
+	struct delayed_work delayed_work;
+	u8 port;
+	unsigned int state[E_PORT_NUM];
+	u32 edid_offset_cur[E_PORT_NUM];
+};
+
+#define WHITE_LIST_SIZE 25
+enum spec_dev_e {
+	/* following devices need to switch to edid2.0 */
+	SPEC_DEV_PS5,
+	SPEC_DEV_XBOX,
+	SPEC_DEV_PS,
+	SPEC_DEV_XBOX_SERIES,
+	/* following devices need to get SPD earlier */
+	SPEC_DEV_PANASONIC,
+	SPEC_DEV_CNT
+};
+
+enum spec_dev_type_e {
+	DEV_UNKNOWN = 0x0,
+	DEV_HDMI20 = 0x1,
+	SPD_GET_EARLIER = 0x2,
+	DEV_HDMI14 = 0x4,
+	DEV_ABNORMAL_SCDC = 0x8
+};
+
+struct spec_dev_table_s {
+	enum spec_dev_type_e dev_type;
+	u8 spd_info[WHITE_LIST_SIZE];
+};
+
+struct edid_update_work_s {
+	struct work_struct work;
+	u8 port;
+};
+
 /* system */
 extern struct delayed_work	eq_dwork;
 extern struct workqueue_struct	*eq_wq;
 extern struct work_data     scdc_dwork;
 extern struct workqueue_struct *scdc_wq;
+extern struct work_data print_dwork;
+extern struct workqueue_struct	*print_wq;
 extern struct delayed_work	esm_dwork;
 extern struct workqueue_struct	*esm_wq;
 extern struct delayed_work	repeater_dwork;
@@ -944,27 +1065,37 @@ extern struct work_struct	aml_phy_dwork_port3;
 extern struct workqueue_struct	*aml_phy_wq_port3;
 extern struct work_struct     clkmsr_dwork;
 extern struct workqueue_struct *clkmsr_wq;
+extern struct edid_delayed_work_data edid_reset_work;
 extern struct work_struct     earc_hpd_dwork;
 extern struct workqueue_struct *earc_hpd_wq;
 extern struct workqueue_struct	*repeater_wq;
-extern struct work_struct     frl_train_dwork;
-extern struct workqueue_struct *frl_train_wq;
-extern struct work_struct     frl_train_1_dwork;
-extern struct workqueue_struct *frl_train_1_wq;
+extern struct edid_update_work_s edid_update_dwork;
+extern struct workqueue_struct *edid_update_wq;
+
+extern struct kthread_worker frl_worker;
+extern struct task_struct *frl_worker_task;
+extern struct kthread_work frl_work;
+
+extern struct kthread_worker frl1_worker;
+extern struct task_struct *frl1_worker_task;
+extern struct kthread_work frl1_work;
+
+extern wait_queue_head_t tx_wait_queue;
 
 extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;
 extern struct rx_s rx[4];
 extern struct rx_info_s rx_info;
-extern char boot_info[30][128];
+extern char boot_info[BOOT_INFO_NUM][BOOT_INFO_LEN];
+extern int boot_info_num;
 //extern struct phy_port_data aml_phy_dwork;
 //extern u8 port_idx;
 
 extern struct tvin_latency_s latency_info;
 extern struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
-extern int vrr_range_dynamic_update_en;
-extern int allm_update_en;
+extern u32 vrr_range_dynamic_update_en;
+extern u32 allm_update_en;
 
 void rx_tasklet_handler(unsigned long arg);
 void skip_frame(unsigned int cnt, u8 port, char *str);
@@ -983,7 +1114,7 @@ void hotplug_wait_query(void);
 void rx_send_hpd_pulse(u8 port);
 
 /* irq */
-void rx_irq_en(bool enable, u8 port);
+void rx_irq_en(u8 enable, u8 port);
 irqreturn_t irq_handler(int irq, void *params);
 irqreturn_t irq0_handler(int irq, void *params);
 irqreturn_t irq1_handler(int irq, void *params);
@@ -996,16 +1127,16 @@ void cecb_irq_handle(void);
 //extern int it_content;
 //extern int rgb_quant_range;
 //extern int yuv_quant_range;
-extern int en_4k_timing;
+extern u32 en_4k_timing;
 extern int cec_dev_en;
 extern bool dev_is_apple_tv_v2;
 extern u32 en_4096_2_3840;
-extern int en_4k_2_2k;
+extern u32 en_4k_2_2k;
 extern u32 ops_port;
-extern bool hdmi_cec_en;
+extern int hdmi_cec_en;
 extern int vdin_drop_frame_cnt;
-extern int rpt_edid_selection;
-extern int rpt_only_mode;
+extern u32 rpt_edid_selection;
+extern u32 rpt_only_mode;
 extern u32 vrr_func_en;
 extern u32 allm_func_en;
 /* debug */
@@ -1013,8 +1144,6 @@ extern bool hdcp_enable;
 extern int log_level;
 extern int sm_pause;
 extern int suspend_pddq_sel;
-extern int disable_port_num;
-extern int disable_port_en;
 extern bool video_stable_to_esm;
 extern u32 pwr_sts_to_esm;
 extern bool enable_hdcp22_esm_log;
@@ -1025,14 +1154,16 @@ extern bool hdcp22_stop_auth;
 extern bool hdcp22_esm_reset2;
 extern int esm_recovery_mode;
 extern u32 dbg_pkt;
-extern int disable_hdr;
+extern u32 disable_hdr;
 extern int rx_phy_level;
 extern int vdin_reset_pcs_en;
-extern int rx_5v_wake_up_en;
+extern u32 rx_5v_wake_up_en;
 extern char edid_cur[EDID_SIZE];
 extern int vpp_mute_cnt;
 extern int gcp_mute_cnt;
 extern int gcp_mute_flag[4];
+extern int def_trim_value;
+extern u32 edid_auto_sel;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
 #endif
@@ -1048,12 +1179,15 @@ u8 rx_get_port_type(u8 port);
 bool rx_is_pip_on(void);
 int rx_set_global_variable(const char *buf, int size);
 void rx_get_global_variable(const char *buf);
+int rx_sprintf(int *index, const char *format, ...);
 int rx_pr(const char *fmt, ...);
 unsigned int hdmirx_hw_dump_reg(unsigned char *buf, int size);
 unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port);
 unsigned int hdmirx_show_info_t3x(unsigned char *buf, int size);
 bool is_aud_fifo_error(void);
-bool is_aud_pll_error(void);
+bool is_aud_pll_error_20(void);
+bool is_aud_pll_error_21(void);
+
 int hdmirx_debug(const char *buf, int size);
 void dump_reg(u8 port);
 void dump_edid_reg(u32 size);
@@ -1078,6 +1212,12 @@ extern u8 rx_audio_block[MAX_AUDIO_BLK_LEN];
 void rx_is_hdcp22_support(void);
 int rx_hdcp22_send_uevent(int val);
 
+/* for cec set tx_type */
+void register_cec_rx_notify(cec_spd_callback callback);
+__weak void register_cec_rx_notify(cec_spd_callback callback)
+{
+	;
+}
 //#define RX_VER0 "ver.2021/06/21"
 //1. added colorspace detection
 //2. add afifo detection

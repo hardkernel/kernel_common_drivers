@@ -55,7 +55,8 @@
 #define T3X_HDMIRX20PHY_DCHA_MISC1		(0x006 << 2)
 	#define T3X_20_SQ_RSTN			_BIT(26)
 	#define T3X_20_VCO_TMDS_EN			_BIT(20)
-	#define T3X_20_RTERM_CNTL			MSK(4, 12)
+	#define RTERM_VAL_T3X_20			MSK(4, 12)
+	#define RTERM_FLAG_T3X_20	_BIT(0)
 #define T3X_HDMIRX20PHY_DCHA_MISC2		(0x007 << 2)
 	#define T3X_20_TMDS_VALID_SEL		_BIT(10)
 	#define T3X_20_PLL_CLK_SEL			_BIT(9)
@@ -81,10 +82,13 @@
 	#define SQ_RSTN	_BIT(23)
 	#define SQ_GATED	_BIT(29)
 #define T3X_HDMIRX21PHY_MISC2           (0x47 << 2)
+	#define RTERM_FLAG_T3X_21	_BIT(31)
+	#define RTERM_VAL_T3X_21	MSK(4, 0)
 #define T3X_HDMIRX21PHY_DCHA_AFE        (0x48 << 2)
 	#define HYPER_GAIN	MSK(4, 16)
 	#define BUF_BST		MSK(3, 28)
 	#define LEQ_POLE	MSK(3, 20)
+	#define BUF_GAIN	MSK(3, 24)
 #define T3X_HDMIRX21PHY_DCHA_DFE        (0x49 << 2)
 	#define VGA_GAIN	MSK(16, 0)
 	#define DFE_TAP_EN	MSK(9, 16)
@@ -133,6 +137,9 @@
 #define T3X_CLKCTRL_AUD21_PLL_CTRL3		(0x02ed  << 2)
 #define T3X_CLKCTRL_AUD21_PLL_STS		(0x02ee  << 2)
 
+/* i2c monitor reg */
+#define T3X_I2C_MONITOR_BASE			0x14000
+
 enum frl_train_sts_e {
 	E_FRL_TRAIN_START,
 	E_FRL_TRAIN_FINISH,
@@ -158,9 +165,12 @@ extern int dts_debug_flag_t3x_21;
 extern int rlevel_t3x_21;
 extern int rterm_trim_val_t3x_21;
 extern int rterm_trim_flag_t3x_21;
-extern int phy_term_lel_t3x_21;
 extern int tuning_cnt;
-
+extern int vga_tuning_min;
+extern int vga_tuning_max;
+extern int cal_phy_time;
+extern int pll_band;
+extern int cdr_bw;
 /*--------------------------function declare------------------*/
 /* T3X */
 void aml_phy_init_t3x(u8 port);
@@ -174,7 +184,6 @@ void aml_phy_switch_port_t3x(u8 port);
 void aml_phy_iq_skew_monitor_t3x(void);
 void get_val_t3x(char *temp, unsigned int val, int len);
 unsigned int rx_sec_hdcp_cfg_t3x(void);
-void rx_set_irq_t3x(bool en, u8 port);
 void rx_set_aud_output_t3x(u32 param, u8 port);
 void rx_sw_reset_t3x(int level, u8 port);
 void hdcp_init_t3x(u8 port);
@@ -187,20 +196,18 @@ void aml_phy_offset_cal_t3x(void);
 void quick_sort2_t3x_20(int arr[], int l, int r);
 void rx_pwrcntl_mem_pd_cfg(void);
 void rx_frl_train(u8 port);
-void rx_frl_train_handler(struct work_struct *work);
-void rx_frl_train_handler_1(struct work_struct *work);
-enum frl_train_sts_e rx_get_frl_train_sts(void);
-void rx_set_frl_train_sts(enum frl_train_sts_e sts);
+void rx_frl_train_handler(struct kthread_work *work);
+void rx_frl_train_handler_1(struct kthread_work *work);
+enum frl_train_sts_e rx_get_frl_train_sts(u8 port);
+void rx_set_frl_train_sts(enum frl_train_sts_e sts, u8 port);
 enum frl_rate_e hdmirx_get_frl_rate(u8 port);
-bool is_frl_train_finished(void);
+bool is_frl_train_finished(u8 port);
 void rx_long_bist_t3x(void);
 void rx_t3x_prbs(void);
 void dump_aud21_param(u8 port);
 void rx_21_fpll_cfg(int f_rate, u8 port);
 bool is_fpll_err(u8 port);
 void audio_setting_for_aud21(int frl_rate, u8 port);
-void frate_monitor(void);
-void frate_monitor1(void);
 void clk_init_cor_t3x(void);
 void rx_dig_clk_en_t3x(bool en);
 void rx_lts_2_flt_ready(u8 port);
@@ -215,11 +222,23 @@ bool s_tmds_transmission_detected(u8 port);
 bool hdmirx_flt_update_cleared_wait(u32 addr, u8 port);
 void hdmirx_vga_gain_tuning(u8 port);
 void rx_set_term_value_t3x(unsigned char port, bool value);
-void aml_phy_power_off_t3x_port0(void);
-void aml_phy_power_off_t3x_port1(void);
-void aml_phy_power_off_t3x_port2(void);
-void aml_phy_power_off_t3x_port3(void);
+void aml_phy_power_off_t3x_20(u8 port);
+void aml_phy_power_off_t3x_21(u8 port);
 void rx_cor_reset_t3x(u8 port);
+void cor_debug_t3x(u8 port);
+void clr_frl_fifo_status(u8 port);
+void rx_rcc_err_frl_config(u8 port);
+void rx_read_ecc_err(u8 port);
+bool is_fsm_ready_t3x(void);
+void rx_switch_to_self_hsync(u8 port, bool en);
+bool rx_is_switch_to_analog_clk(u8 port);
+void rx_switch_to_analog_clk(u8 port);
+void rx_clr_f_det(bool en, u8 port);
+void rx_mute_t3x(bool en, u8 port_type);
+
+bool rx_get_clkready_sts(u8 port);
+bool rx_get_valid_m_sts(u8 port);
+bool rx_is_power_off_t3x(u8 port);
 
 //void reset_pcs(void);
 

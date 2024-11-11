@@ -50,7 +50,8 @@
 #define T5M_HDMIRX20PHY_DCHA_MISC1		(0x006 << 2)
 	#define T5M_SQ_RSTN			_BIT(26)
 	#define T5M_VCO_TMDS_EN			_BIT(20)
-	#define T5M_RTERM_CNTL			MSK(4, 12)
+	#define RTERM_VAL_T5M	MSK(4, 12)
+	#define RTERM_FLAG_T5M	_BIT(4)
 #define T5M_HDMIRX20PHY_DCHA_MISC2		(0x007 << 2)
 	#define T5M_TMDS_VALID_SEL		_BIT(10)
 	#define T5M_PLL_CLK_SEL			_BIT(9)
@@ -78,18 +79,16 @@ void aml_phy_init_t5m(void);
 u32 aml_eq_eye_monitor_t5m(void);
 void dump_reg_phy_t5m(void);
 void dump_aml_phy_sts_t5m(void);
-void aml_phy_short_bist_t5m(void);
+int aml_phy_short_bist_t5m(void);
 bool aml_get_tmds_valid_t5m(void);
 void aml_phy_power_off_t5m(void);
 void aml_phy_switch_port_t5m(void);
 void aml_phy_iq_skew_monitor_t5m(void);
 void dump_vsi_reg_t5m(u8 port);
 unsigned int rx_sec_hdcp_cfg_t5m(void);
-void rx_set_irq_t5m(bool en, u8 port);
 void rx_set_aud_output_t5m(u32 param);
 void rx_sw_reset_t5m(int level);
 void hdcp_init_t5m(void);
-void aml_phy_get_trim_val_t5m(void);
 void comb_val_t5m(void (*p)(char *, unsigned int, int),
 	     char *type, unsigned int val_0, unsigned int val_1,
 		 unsigned int val_2, int len);
@@ -100,7 +99,9 @@ void bubble_sort(u32 *sort_array);
 void quick_sort2(int arr[], int l, int r);
 void clk_init_cor_t5m(void);
 void rx_dig_clk_en_t5m(bool en);
-
+void aml_phy_get_trim_val_t5m(void);
+void aml_phy_offset_cal_t5m(void);
+bool rx_check_tap0(void);
 /*function declare end*/
 
 #endif /*_HDMI_RX_T5M_H*/

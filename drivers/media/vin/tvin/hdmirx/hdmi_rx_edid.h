@@ -6,6 +6,14 @@
 #ifndef _HDMI_RX_EDID_H_
 #define _HDMI_RX_EDID_H_
 
+/* 2024.07.04 do edid reset to clear segment for edid 512 by edid intr */
+//2024.07.18 fix hdmi repeater cert fail item
+//2024.08.28 default enable auto edid
+//2024.10.23 add clr edid seg
+//2024.11.01 Optimize clear of edid segment
+//2024.11.06 get edid size and frl
+#define RX_EDID_H_VER "ver.2024/11/06"
+
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128
 #define EDID_SIZE			512
@@ -19,6 +27,10 @@
 #define PORT_NUM		3
 #define LATENCY_MAX		254
 #define EDID_MAX_REFRESH_RATE 123 //No use for reference board
+
+/* for clear 512 edid segment */
+#define EDID_WAIT_STABLE_MAX 5
+#define EDID_RST_TIMEOUT 5
 
 /* CTA-861G Table 54~57 CTA data block tag codes */
 /* tag code 0x0: reserved */
@@ -197,9 +209,10 @@ enum edid_list_e {
 };
 
 enum edid_ver_e {
-	EDID_V14,
-	EDID_V20,
-	EDID_AUTO
+	EDID_V14 = 0x0,
+	EDID_V20 = 0x1,
+	EDID_AUTO20 = 0x2,
+	EDID_AUTO14 = 0x4
 };
 
 enum edid_support_e {
@@ -758,7 +771,14 @@ enum hdmi_vic_e {
 	HDMI_5120x2880 = 113,
 	HDMI_2560x2880 = 114,
 	HDMI_720X240 = 115,
-	HDMI_RESERVED = 116,
+	HDMI_360x480i = 116,
+	HDMI_360x576i = 117,
+	HDMI_360x480p = 118,
+	HDMI_360x576p = 119,
+	HDMI_1440x480i60 = 120,
+	HDMI_1440x576i50 = 121,
+	HDMI_3840x1080p60 = 122,
+	HDMI_RESERVED = 123,
 	/* VIC 111~255: Reserved for the Future */
 
 	/* the following VICs are for y420 mode,
@@ -830,6 +850,25 @@ enum earc_cap_block_id {
 	EARC_CAP_BLOCK_ID_3 = 3
 };
 
+enum rx_edid_selection {
+	//rx default edid,product:tv+tx+none_cec
+	use_edid_def = 1,
+	//edid extraction,product:standard repeater
+	use_edid_repeater = 2,
+	//edid extraction,product:repeater+audio block passthrough
+	use_edid_repeater_sad_passthrough = 3,
+	//product:rx edid+audio block passthrough+secondary phyaddr
+	use_edid_def_sad_passthrough_secondary_phyaddr = 4,
+	//product:rx edid+secondary phyaddr
+	use_edid_def_secondary_phyaddr = 5,
+};
+
+enum edid_states_e {
+	EDID_WAIT_READ_DONE,
+	EDID_WAIT_OTHER_PORT_IDLE,
+	EDID_RESET_DONE,
+};
+
 extern u8 port_hpd_rst_flag;
 extern int edid_mode;
 extern int port_map;
@@ -840,9 +879,16 @@ extern unsigned int edid_select;
 extern u32 vsvdb_update_hpd_en;
 extern enum edid_delivery_mothed_e edid_delivery_mothed;
 extern unsigned int edid_reset_max;
+extern u8 edid_port_type[4];
+
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern u32 tx_hdr_priority;
 #endif
+//edid auto start
+void rx_clr_edid_type(unsigned char port);
+void edid_type_init(void);
+void edid_type_update(u8 port);
+//edid auto end
 int rx_set_hdr_lumi(unsigned char *data, int len);
 void rx_edid_physical_addr(int a, int b, int c, int d);
 unsigned char rx_parse_arc_aud_type(const unsigned char *buff);
@@ -878,6 +924,7 @@ void rx_modify_edid(unsigned char *buffer,
 void rx_edid_update_audio_info(unsigned char *p_edid,
 			       unsigned int len);
 bool is_ddc_idle(unsigned char port_id);
+void rx_edid_reset(u8 port);
 bool is_edid_buff_normal(unsigned char port_id);
 bool need_update_edid(u8 port);
 enum edid_ver_e get_edid_selection(u8 port);
@@ -898,14 +945,19 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 					unsigned char *audio_block);
 void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid);
 void rpt_edid_14_vs_db_extraction(unsigned char *p_edid);
-void rpt_edid_video_db_extraction(unsigned char *p_edid);
+void rpt_edid_multi_vdb_extraction(unsigned char *p_dest_edid, unsigned char *p_source_edid);
 void rpt_edid_audio_db_extraction(unsigned char *p_edid);
 void rpt_edid_colorimetry_db_extraction(unsigned char *p_edid);
 void rpt_edid_420_vdb_extraction(unsigned char *p_edid);
 void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid);
 void rpt_edid_extraction(unsigned char *p_edid);
+#endif
+void rx_edid_reset_handler(struct work_struct *work);
+void rx_edid_reset_task(u8 port);
+
 void rx_get_edid_support(u8 port);
 void rx_print_edid_support(void);
 bool is_valid_edid_data(unsigned char *p_edid);
-#endif
+u32 rx_get_edid_size(u8 port);
+bool is_support_frl(u8 port);
 #endif

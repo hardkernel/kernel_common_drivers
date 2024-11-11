@@ -34,11 +34,7 @@
 #include "hdmi_rx_wrapper.h"
 #include "hdmi_rx_hw_txhd2.h"
 
-/* FT trim flag:1-valid, 0-not valid */
-bool rterm_trim_flag_txhd2;
-/* FT trim value 4 bits */
-u32 rterm_trim_val_txhd2;
-/* for T5m */
+/* for Txhd2 */
 static const u32 phy_misc_txhd2[][2] = {
 		/*  0x18	0x1c	*/
 	{	 /* 24~35M */
@@ -47,7 +43,10 @@ static const u32 phy_misc_txhd2[][2] = {
 	{	 /* 37~75M */
 		0xffe400c0, 0x11e73003,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0xffe40080, 0x11e73002,
+	},
+	{	 /* 115~150M */
 		0xffe40080, 0x11e73002,
 	},
 	{	 /* 150~340M */
@@ -70,7 +69,10 @@ static const u32 phy_dcha_txhd2[][2] = {
 	{	 /* 35~75M */
 		0x00f77666, 0x40000b59,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0x00f77666, 0x40000359,
+	},
+	{	 /* 115~150M */
 		0x00f77666, 0x40000359,
 	},
 	{	 /* 150~340M */
@@ -94,11 +96,14 @@ static const u32 phy_dchd_txhd2[][2] = {
 	{	 /* 35~75M */
 		0x04000095, 0x30880060,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0x04000095, 0x30880065,
+	},
+	{	 /* 115~150M */
 		0x04000095, 0x30880069,
 	},
 	{	 /* 140~340M */
-		0x04080093, 0x30880069,
+		0x04080093, 0x30880469,
 	},
 	{	 /* 340~525M */
 		0x04080091, 0x30e00069,
@@ -644,9 +649,9 @@ void aml_phy_offset_cal_txhd2(void)
 	hdmirx_wr_amlphy(TXHD2_HDMIRX20PHY_DCHA_MISC2, 0x11c73220);
 	usleep_range(10, 20);
 	data32 = 0xffe00100;
-	if (rterm_trim_flag_txhd2) {
+	if (rx_info.aml_phy.rterm_flag) {
 		data32 = ((data32 & (~((0xf << 12) | 0x1))) |
-			(rterm_trim_val_txhd2 << 12) | rterm_trim_flag_txhd2);
+			(rx_info.aml_phy.rterm_val << 12) | rx_info.aml_phy.rterm_flag << 4);
 	}
 	hdmirx_wr_amlphy(TXHD2_HDMIRX20PHY_DCHA_MISC1, data32);
 	usleep_range(10, 20);
@@ -766,7 +771,8 @@ void get_eq_val_txhd2(void)
 	eq_boost0 = data32 & 0x1f;
 	eq_boost1 = (data32 >> 8)  & 0x1f;
 	eq_boost2 = (data32 >> 16)      & 0x1f;
-	rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
+	if (log_level & PHY_LOG)
+		rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 }
 
 /* check eq_boost1 & tap0 status */
@@ -997,7 +1003,7 @@ void dfe_tap0_pol_polling_txhd2(u32 pos_min_eh, u32 pos_avg_eh, u32 wst_ch)
 }
 
 //dfe tap polarity was set positive in initial setting matrix
-//dfe_tap_pol_polling is for polling tap polarity by the order positvie
+//dfe_tap_pol_polling is for polling tap polarity by the order positive
 //->interleave->negative->positive->positive
 //positive = (dchd_eq[20:19] = 2'b10), interleave = (dchd_eq[20:19] = 2'b00)
 //negative = (dchd_eq[20:19] = 2'b11)
@@ -1145,9 +1151,11 @@ void aml_enhance_eq_txhd2(void)
 		eq_boost0 = data32 & 0x1f;
 		eq_boost1 = (data32 >> 8)  & 0x1f;
 		eq_boost2 = (data32 >> 16)	& 0x1f;
-		rx_pr("after enhance eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
+		if (log_level & PHY_LOG)
+			rx_pr("after enhance eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 	} else {
-		rx_pr("no enhance eq\n");
+		if (log_level & PHY_LOG)
+			rx_pr("no enhance eq\n");
 	}
 }
 
@@ -1232,7 +1240,7 @@ void aml_eq_cfg_txhd2(void)
 	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_CDR, TXHD2_CDR_RSTB, 1);
 	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_CDR, TXHD2_CDR_EN, 1);
 	usleep_range(200, 210);
-	if (idx >= PHY_BW_2)
+	if (idx >= PHY_BW_3)
 		hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_EQ, TXHD2_EN_BYP_EQ, 0);
 	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_EQ, TXHD2_EQ_EN, 1);
 	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_EQ, TXHD2_EQ_RSTB, 1);
@@ -1265,6 +1273,12 @@ void aml_eq_cfg_txhd2(void)
 		/*udelay(100);*/
 		/* hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, */
 			/* _BIT(28), 1); */
+//		if (rx_info.aml_phy.long_cable) {
+//			;/* aml_phy_long_cable_det_t3(); */
+//		}
+//		if (rx_info.aml_phy.vga_dbg) {
+//			;/* aml_vga_tuning_t3();*/
+//		}
 	} else if (rx[port].phy.phy_bw == PHY_BW_2) {
 		if (rx_info.aml_phy.long_cable) {
 			/*1.5G should enable DFE first*/
@@ -1329,23 +1343,11 @@ void aml_eq_cfg_txhd2(void)
 
 void aml_phy_get_trim_val_txhd2(void)
 {
-	u32 data32;
-
-	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
-	if (dts_debug_flag == 0) {
-		data32 = hdmirx_rd_amlphy(TXHD2_HDMIRX20PHY_DCHA_MISC1);
-		rterm_trim_val_txhd2 = (data32 >> 12) & 0xf;
-		rterm_trim_flag_txhd2 = data32 & 0x1;
-	} else {
-		rlevel = phy_term_lel & 0xf;
-		if (rlevel > 15)
-			rlevel = 15;
-		rterm_trim_flag_txhd2 = dts_debug_flag;
-	}
-	if (rterm_trim_flag_txhd2) {
-		if (log_level & PHY_LOG)
-			rx_pr("rterm trim=0x%x\n", rterm_trim_val_txhd2);
-	}
+	if (rx_info.aml_phy.rterm_dbg_lvl)
+		rx_info.aml_phy.rterm_dts_lvl = rx_info.aml_phy.rterm_dbg_lvl;
+	if (rx_info.aml_phy.rterm_dts_lvl > 15)
+		rx_info.aml_phy.rterm_dts_lvl = 15;
+	rx_info.aml_phy.rterm_val = txhd2_rlevel[rx_info.aml_phy.rterm_dts_lvl];
 }
 
 void aml_phy_cfg_txhd2(void)
@@ -1393,11 +1395,10 @@ void aml_phy_cfg_txhd2(void)
 		if (rx_info.aml_phy.phy_debug_en &&
 			rx_info.aml_phy.misc1_value)
 			data32 = rx_info.aml_phy.misc1_value;
-		if (rterm_trim_flag_txhd2) {
-			if (dts_debug_flag)
-				rterm_trim_val_txhd2 = txhd2_rlevel[rlevel];
+		if (rx_info.aml_phy.rterm_flag) {
 			data32 = ((data32 & (~((0xf << 12) | 0x1))) |
-				(rterm_trim_val_txhd2 << 12) | rterm_trim_flag_txhd2);
+				(rx_info.aml_phy.rterm_val << 12) |
+				rx_info.aml_phy.rterm_flag << 4);
 		}
 		hdmirx_wr_amlphy(TXHD2_HDMIRX20PHY_DCHA_MISC1, data32);
 		usleep_range(5, 10);
@@ -1527,7 +1528,7 @@ void dump_aml_phy_sts_txhd2(void)
 	u32 sli0_ofst2, sli1_ofst2, sli2_ofst2;
 
 	/* rterm */
-	terminal = (hdmirx_rd_bits_amlphy(TXHD2_HDMIRX20PHY_DCHA_MISC1, TXHD2_RTERM_CNTL));
+	terminal = (hdmirx_rd_bits_amlphy(TXHD2_HDMIRX20PHY_DCHA_MISC1, RTERM_VAL_TXHD2));
 
 	/* eq_boost1 status */
 	/* mux_eye_en */
@@ -2029,130 +2030,6 @@ unsigned int rx_sec_hdcp_cfg_txhd2(void)
 	arm_smccc_smc(HDMI_RX_HDCP_CFG, 0, 0, 0, 0, 0, 0, 0, &res);
 
 	return (unsigned int)((res.a0) & 0xffffffff);
-}
-
-void rx_set_irq_txhd2(bool en, u8 port)
-{
-	u8 data8;
-
-	if (en) {
-		data8 = 0;
-		data8 |= 1 << 4; /* intr_new_unrec en */
-		data8 |= 1 << 2; /* intr_new_aud */
-		data8 |= 1 << 1; /* intr_spd */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8, port);
-
-		data8 = 0;
-		data8 |= 1 << 4; /* intr_cea_repeat_hf_vsi en */
-		data8 |= 1 << 3; /* intr_cea_new_hf_vsi en */
-		data8 |= 1 << 2; /* intr_cea_new_vsi */
-		hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, data8, port);
-
-		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0x25, port);
-		hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x03, port);//register_address: 0x1050
-		hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1051
-		hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1052
-		//must set 0.
-		hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0, port);//0x03);//register_address: 0x1053
-		hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1054
-		hdmirx_wr_cor(RX_INTR6_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1055
-		hdmirx_wr_cor(RX_INTR7_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1056
-		hdmirx_wr_cor(RX_INTR8_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1057
-		hdmirx_wr_cor(RX_INTR9_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1058
-
-		data8 = 0;
-		data8 |= 0 << 4; /* end of VSIF EMP data received */
-		data8 |= 0 << 3;
-		data8 |= 0 << 2;
-		hdmirx_wr_cor(RX_DEPACK2_INTR2_MASK_DP0B_IVCRX, data8, port);
-
-		//===for depack interrupt ====
-		//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3, port);
-		hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02, port);// int
-		//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00, port);//[1] reg_intr_polarity, default = 1
-		//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00, port);//interrupt mask
-		//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c, port);//interrupt mask
-		//hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20, port);//interrupt mask [5] acr
-
-		//HDCP irq
-		// encrypted sts changed
-		//hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 1, port);
-		// AKE init received
-		//hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 4, port);
-		// HDCP 2X_RX_ECC
-		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR_MASK, 1, port);
-	} else {
-		/* clear enable */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0, port);
-		/* clear status */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0, port);
-		/* clear status */
-		hdmirx_wr_cor(RX_DEPACK_INTR3_DP2_IVCRX, 0xff, port);
-		/* clear en */
-		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0, port);
-		/* clear status */
-		hdmirx_wr_cor(RX_GRP_INTR1_STAT_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0, port);//register_address: 0x1050
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR1_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0, port);//register_address: 0x1051
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR2_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0, port);//register_address: 0x1052
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR3_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0, port);//register_address: 0x1053
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0, port);//register_address: 0x1054
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR5_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR6_MASK_PWD_IVCRX, 0, port);//register_address: 0x1055
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR6_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR7_MASK_PWD_IVCRX, 0, port);//register_address: 0x1056
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR7_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR8_MASK_PWD_IVCRX, 0, port);//register_address: 0x1057
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR8_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR9_MASK_PWD_IVCRX, 0, port);//register_address: 0x1058
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR9_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_DEPACK2_INTR2_MASK_DP0B_IVCRX, 0, port);
-		/* clear status */
-		hdmirx_wr_cor(RX_DEPACK2_INTR2_DP0B_IVCRX, 0xff, port);
-		//===for depack interrupt ====
-		//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3, port);
-		//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02, port);// int
-		//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00, port);//[1] reg_intr_polarity, default = 1
-		/* clear status */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, 0xff, port);
-		//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00, port);//interrupt mask
-		//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c, port);//interrupt mask
-		//hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20, port);
-		//interrupt mask [5] acr
-
-		//HDCP irq
-		// encrypted sts changed
-		//hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 0, port);
-		// AKE init received
-		//hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 0, port);
-		// HDCP 2X_RX_ECC
-		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR_MASK, 0, port);
-	}
 }
 
 /*

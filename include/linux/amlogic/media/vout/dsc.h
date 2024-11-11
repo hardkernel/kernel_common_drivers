@@ -66,6 +66,13 @@ struct dsc_pps_data_s {
 	unsigned int nsl_bpg_offset;
 	unsigned int second_line_offset_adj;
 	unsigned int hc_active_bytes;
+	// for dsc parameter config
+	int htotal;
+	int fps;
+	int color_depth;
+	int color_fmt;
+	int vbegin;
+	int vend;
 };
 
 enum dsc_encode_mode {

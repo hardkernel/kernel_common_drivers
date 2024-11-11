@@ -8,6 +8,7 @@
 
 /* for CEC notify */
 typedef int (*cec_callback)(unsigned int pwr5v_sts);
+typedef void (*cec_spd_callback)(int port_id, int handle_type);
 
 int hdmirx_get_connect_info(void);
 int cec_set_dev_info(u8 dev_idx);

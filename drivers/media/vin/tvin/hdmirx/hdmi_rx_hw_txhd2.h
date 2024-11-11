@@ -50,7 +50,8 @@
 #define TXHD2_HDMIRX20PHY_DCHA_MISC1		(0x006 << 2)
 	#define TXHD2_SQ_RSTN			_BIT(26)
 	#define TXHD2_VCO_TMDS_EN			_BIT(20)
-	#define TXHD2_RTERM_CNTL			MSK(4, 12)
+	#define RTERM_VAL_TXHD2	MSK(4, 12)
+	#define RTERM_FLAG_TXHD2	_BIT(4)
 #define TXHD2_HDMIRX20PHY_DCHA_MISC2		(0x007 << 2)
 	#define TXHD2_TMDS_VALID_SEL		_BIT(10)
 	#define TXHD2_PLL_CLK_SEL			_BIT(9)
@@ -85,7 +86,6 @@ void aml_phy_switch_port_txhd2(void);
 void aml_phy_iq_skew_monitor_txhd2(void);
 void dump_vsi_reg_txhd2(u8 port);
 unsigned int rx_sec_hdcp_cfg_txhd2(void);
-void rx_set_irq_txhd2(bool en, u8 port);
 void rx_set_aud_output_txhd2(u32 param);
 void rx_sw_reset_txhd2(int level);
 void hdcp_init_txhd2(void);

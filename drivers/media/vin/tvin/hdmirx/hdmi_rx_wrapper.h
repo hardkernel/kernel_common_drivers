@@ -29,6 +29,22 @@
 #define PHY_REQUEST_CLK_MAX	370000000
 #define TIMER_STATE_CHECK	(1 * HZ / 100)
 
+#define HPD_WAIT_NORMAL 74
+#define HPD_WAIT_21 110
+#define HPD_WAIT_512 110
+/* 2024.07.02 optimize suspend flow */
+/* 2024.07.19 optimize cts flow */
+/* 2024.08.22 Fix the issue of flashing green screen at the end of SDR playback */
+/* 2024.08.30 fix hpd time too short */
+/* 2024.09.04 optimize drm pkt handle flow in irq */
+/* 2024.09.26 fix rx can not unmute on t3x */
+/* 2024.10.08 use irq to set fpll cfg */
+/* 2024.10.10 fix fem exit when open irq */
+/* 2024.10.11 fix dsc timing judge */
+/* 2024.10.12 reduce fsm print */
+/* 2024.11.06 Adjust the HPD pull down time based on EDID type */
+#define RX_WRAPPER_VER "ver.2024/11/06"
+
 struct freq_ref_s {
 	bool interlace;
 	u8 cd420;
@@ -43,7 +59,6 @@ enum fsm_states_e {
 	FSM_INIT,
 	FSM_HPD_LOW,
 	FSM_HPD_HIGH,
-	FSM_COR_RESET,
 	FSM_FRL_FLT_READY,
 	FLT_RX_LTS_3,
 	FLT_RX_LTS_P,
@@ -55,8 +70,9 @@ enum fsm_states_e {
 	FSM_PCS_RESET,
 	FSM_SIG_UNSTABLE,
 	FSM_SIG_WAIT_STABLE,
-	FSM_SIG_STABLE,
 	FSM_SIG_HOLD,
+	FSM_SIG_STABLE,
+	FSM_SIG_STABLE_TO_READY,
 	FSM_SIG_READY,
 	FSM_NULL,
 };
@@ -76,6 +92,7 @@ enum irq_flag_e {
 	IRQ_AUD_FLAG = 0x01,
 	IRQ_PACKET_FLAG = 0x02,
 	IRQ_PACKET_ERR = 0x04,
+	IRQ_AVI_CHG_FLAG = 0x8,
 };
 
 enum hdcp22_auth_state_e {
@@ -132,23 +149,32 @@ extern u32 vpp_mute_enable;
 extern u32 dbg_cs;
 extern int color_bar_debug_en;
 extern int port_debug_en;
-extern int flt_ready_max;
+extern int fpll_ready_max;
 extern int frl_debug_en;
+extern int rx_emp_dbg_en;
+extern int fsm_debug;
+extern int rs_err_chk;
+extern int err_cnt;
+extern int edid_seg_flag[4];
 
 enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port);
 void rx_mute_vpp(u8 port_type);
+void hdmirx_mute_vpp(bool en, u8 port);
 void rx_main_state_machine(void);
 void rx_port2_main_state_machine(void);
 void dump_audio_status(u8 port);
 void rx_nosig_monitor(u8 port);
 bool rx_is_nosig(u8 port);
 bool rx_is_sig_ready(u8 port);
-void hdmirx_open_port(u8 main_port, u8 sub_port);
+void hdmirx_open_main_port_t3x(u8 port);
+void hdmirx_open_main_port(u8 port);
+void hdmirx_open_sub_port(u8 port);
+void hdmirx_close_port_t3x(u8 port);
 void hdmirx_close_port(u8 port);
 bool is_clk_stable(u8 port);
 unsigned int rx_get_pll_lock_sts(void);
 unsigned int rx_get_scdc_clkrate_sts(u8 port);
-void set_scdc_cfg(int hpdlow, int pwr_provided, u8 port);
+void hdmirx_clr_scdc(bool en, u8 port);
 void fsm_restart(u8 port);
 void rx_5v_monitor(void);
 void rx_audio_pll_sw_update(void);
@@ -162,9 +188,13 @@ void rx_emp_data_capture(u8 port);
 void rx_tmds_data_capture(u8 port);
 void dump_state(int enable, u8 port);
 void hdmirx_init_params(u8 port);
-void edid_auto_mode_init(void);
-void rx_dwc_reset(u8 port);
+void rx_cor_reset(u8 port);
 void set_video_mute(u32 owner, bool on);
+u8 get_frame_interval_cnt(u8 cnt, u8 port);
+void rx_edid_update_handler(struct work_struct *dwork);
+void frate_monitor(void);
+void frate_monitor1(void);
+
 void __weak set_video_mute(u32 owner, bool on)
 {
 }
@@ -174,4 +204,8 @@ bool __weak get_video_mute_val(u32 owner)
 {
 	return false;
 }
+
+void rx_monitor_error_counter(u8 port);
+void rx_fsm_print_handler(struct work_struct *work);
+
 #endif

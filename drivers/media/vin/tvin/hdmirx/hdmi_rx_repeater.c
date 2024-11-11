@@ -34,31 +34,31 @@
 static unsigned char receive_edid[MAX_RECEIVE_EDID];
 int receive_edid_len = MAX_RECEIVE_EDID;
 MODULE_PARM_DESC(receive_edid, "\n receive_edid\n");
-__module_param_array(receive_edid, byte, &receive_edid_len, 0664);
+module_param_array(receive_edid, byte, &receive_edid_len, 0664);
 int tx_hpd_event;
 int edid_len;
 MODULE_PARM_DESC(edid_len, "\n edid_len\n");
-__module_param(edid_len, int, 0664);
+module_param(edid_len, int, 0664);
 bool new_edid;
 /*original bksv from device*/
 //unsigned char receive_hdcp[MAX_KSV_LIST_SIZE];
 //int hdcp_array_len = MAX_KSV_LIST_SIZE;
 //MODULE_PARM_DESC(receive_hdcp, "\n receive_hdcp\n");
-//__module_param_array(receive_hdcp, byte, &hdcp_array_len, 0664);
+//module_param_array(receive_hdcp, byte, &hdcp_array_len, 0664);
 int hdcp_len;
 int hdcp_repeat_depth;
 bool new_hdcp;
 bool start_auth_14;
 MODULE_PARM_DESC(start_auth_14, "\n start_auth_14\n");
-__module_param(start_auth_14, bool, 0664);
+module_param(start_auth_14, bool, 0664);
 
 bool repeat_plug;
 MODULE_PARM_DESC(repeat_plug, "\n repeat_plug\n");
-__module_param(repeat_plug, bool, 0664);
+module_param(repeat_plug, bool, 0664);
 
 int up_phy_addr;/*d c b a 4bit*/
 MODULE_PARM_DESC(up_phy_addr, "\n up_phy_addr\n");
-__module_param(up_phy_addr, int, 0664);
+module_param(up_phy_addr, int, 0664);
 int hdcp22_firm_switch_timeout;
 
 u8 ksvlist[10] = {
@@ -118,18 +118,28 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 
 	switch (value) {
 	case HDMITX_PLUG:
+		if (wait_event_interruptible_timeout(tx_wait_queue, !rx_info.suspend_flag,
+			msecs_to_jiffies(1000)) <= 0) {
+			ret = NOTIFY_STOP;
+			break;
+		}
 		if (log_level & EDID_LOG)
 			rx_pr("%s, HDMITX_PLUG\n", __func__);
 		if (p) {
 			rx_pr("update EDID from HDMITX\n");
 			rx_update_tx_edid_with_audio_block(p, rx_audio_block);
 		}
-		rx_irq_en(false, rx_info.main_port);
+		if (rpt_edid_selection == use_edid_def) {
+			ret = NOTIFY_OK;
+			break;
+		}
+		rx_irq_en(0, rx_info.main_port);
 		rx_set_cur_hpd(0, 4, rx_info.main_port);
 		if (!rx_info.main_port_open)
-			port_hpd_rst_flag = 7;
+			port_hpd_rst_flag = 0xf;
 		//if (hdmirx_repeat_support())
-		rx[rx_info.main_port].hdcp.repeat = true;
+		if (rx_info.chip_id == CHIP_ID_T7)
+			rx[rx_info.main_port].hdcp.repeat = true;
 		fsm_restart(rx_info.main_port);
 		ret = NOTIFY_OK;
 		break;
@@ -137,15 +147,17 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		if (log_level & EDID_LOG)
 			rx_pr("%s, HDMITX_UNPLUG, recover primary EDID\n",
 			      __func__);
-		rx[rx_info.main_port].hdcp.repeat = false;
+		if (rx_info.chip_id == CHIP_ID_T7)
+			rx[rx_info.main_port].hdcp.repeat = false;
 		if (rpt_only_mode == 1) {
 			rx_force_hpd_rxsense_cfg(0);
 		} else {
 			rx_update_tx_edid_with_audio_block(NULL, NULL);
 			hdmi_rx_top_edid_update();
-			hdcp_init_t7(rx_info.main_port);
+			if (rx_info.chip_id == CHIP_ID_T7)
+				hdcp_init_t7(rx_info.main_port);
 		}
-		//rx_irq_en(false, rx_info.main_port);
+		//rx_irq_en(0, rx_info.main_port);
 		//rx_set_cur_hpd(0, 4);
 		//fsm_restart();
 		ret = NOTIFY_OK;
@@ -154,10 +166,10 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		tx_hdr_priority = *((u32 *)p);
 		if (log_level & EDID_LOG)
 			rx_pr("tx_hdr_priority = %d\n", tx_hdr_priority);
-		rx_irq_en(false, rx_info.main_port);
+		rx_irq_en(0, rx_info.main_port);
 		rx_set_cur_hpd(0, 4, rx_info.main_port);
 		if (!rx_info.main_port_open)
-			port_hpd_rst_flag = 7;
+			port_hpd_rst_flag = 0xf;
 		fsm_restart(rx_info.main_port);
 		ret = NOTIFY_OK;
 		break;

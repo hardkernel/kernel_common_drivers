@@ -452,13 +452,28 @@ bool is_dfe_sts_ok_t5(void)
 /* long cable detection for <3G need to be change */
 void aml_phy_long_cable_det_t5(void)
 {
-	int tap2_0, tap2_1, tap2_2;
-	int tap2_max = 0;
+	int tap1_0, tap1_1, tap1_2;
 	u32 data32 = 0;
 	u8 port = rx_info.main_port;
 
 	if (rx[port].phy.phy_bw > PHY_BW_3)
 		return;
+	//new method via tap1
+	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL4, T5_EYE_STATUS_EN, 0x0);
+	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL3, T5_DBG_STS_SEL, 0x0);
+	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL2, T5_DFE_DBG_STL, 0x1);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy(T5_HHI_RX_PHY_DCHD_STAT);
+	tap1_0 = data32 & 0x3f;
+	tap1_1 = (data32 >> 8) & 0x3f;
+	tap1_2 = (data32 >> 16) & 0x3f;
+	if (rx[port].phy.phy_bw == PHY_BW_2 && (tap1_0 + tap1_1 + tap1_2) > 18) {
+		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL1, T5_EQ_BYP_VAL1, 0x12);
+		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL0, T5_EQ_ADP_MODE, 0);
+		usleep_range(10, 20);
+		rx_pr("long cable\n");
+	}
+	/* previous method via tpa2
 	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL4, T5_EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL3, T5_DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL2, T5_DFE_DBG_STL, 0x2);
@@ -468,7 +483,7 @@ void aml_phy_long_cable_det_t5(void)
 	tap2_1 = get_tap2_t5(((data32 >> 8) & 0x1f));
 	tap2_2 = get_tap2_t5(((data32 >> 16) & 0x1f));
 	if (rx[port].phy.phy_bw == PHY_BW_2) {
-		/*disable DFE*/
+		//disable DFE
 		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL2, T5_DFE_RST, 0);
 		tap2_max = 6;
 	} else if (rx[port].phy.phy_bw == PHY_BW_3) {
@@ -479,6 +494,7 @@ void aml_phy_long_cable_det_t5(void)
 		usleep_range(100, 1010);
 		rx_pr("long cable\n");
 	}
+	*/
 }
 
 /* aml_T5_HYPER_GAIN_tuning */
@@ -489,7 +505,7 @@ void aml_hyper_gain_tuning(void)
 	u32 hyper_gain_0, hyper_gain_1, hyper_gain_2;
 
 	/* use HYPER_GAIN calibration instead of vga */
-	wr_reg_hhi_bits(T5_HHI_RX_PHY_DCHD_CNTL4, T5_EYE_STATUS_EN, 0x0);
+	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL4, T5_EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL3, T5_DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL2, T5_DFE_DBG_STL, 0x0);
 	usleep_range(100, 110);
@@ -546,9 +562,11 @@ void aml_eq_retry_t5(void)
 
 void aml_dfe_en(void)
 {
+	u8 port = rx_info.main_port;
+
 	if (rx_info.aml_phy.dfe_en) {
 		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL2, T5_DFE_EN, 1);
-		if (rx_info.aml_phy.eq_hold)
+		if (rx_info.aml_phy.eq_hold && rx[port].phy.phy_bw >= PHY_BW_3)
 			hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL0, T5_EQ_EN, 0);
 		if (rx_info.aml_phy.eq_retry)
 			aml_eq_retry_t5();
@@ -576,9 +594,11 @@ void aml_phy_offset_cal_t5(void)
 	usleep_range(5, 10);
 
 	data32 = phy_misci_t5[idx][1];
-	if (rterm_trim_flag_t5)
-		data32 = ((data32 & (~((0xf << 12) | 0x1))) |
-			(rterm_trim_val_t5 << 12) | rterm_trim_flag_t5);
+	if (rx_info.aml_phy.rterm_flag) {
+		data32 &= (~(0xf << 12));
+		data32 |= (rx_info.aml_phy.rterm_val << 12);
+		data32 |= rx_info.aml_phy.rterm_flag << 0;
+	}
 	/* step2-0xd8 */
 	hdmirx_wr_amlphy(T5_HHI_RX_PHY_MISC_CNTL1, data32);
 	/*step2-0xe0*/
@@ -790,7 +810,8 @@ void get_eq_val(void)
 	eq_boost0 = data32 & 0x1f;
 	eq_boost1 = (data32 >> 8)  & 0x1f;
 	eq_boost2 = (data32 >> 16)      & 0x1f;
-	rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
+	if (log_level & PHY_LOG)
+		rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 }
 
 void aml_eq_cfg_t5(void)
@@ -818,38 +839,10 @@ void aml_eq_cfg_t5(void)
 	}
 	usleep_range(10000, 10100);
 	get_eq_val();
-	/*if (rx_info.aml_phy.eq_retry)*/
-		/*aml_eq_retry_t5();*/
-	if (rx[port].phy.phy_bw >= PHY_BW_4) {
-		/* step12 */
-		/* aml_dfe_en(); */
-		/* udelay(100); */
-	} else if (rx[port].phy.phy_bw == PHY_BW_3) {//3G
-		/* aml_dfe_en(); */
-		/*udelay(100);*/
-		/*t5 removed, tap1 min value*/
-		/* if (rx_info.aml_phy.tap1_byp) { */
-			/* aml_phy_tap1_byp_t5(); */
-			/* wr_reg_hhi_bits( */
-				/* T5_HHI_RX_PHY_DCHD_CNTL2, */
-				/* T5_DFE_EN, 0); */
-		/* } */
-		/*udelay(100);*/
-		/* wr_reg_hhi_bits(T5_HHI_RX_PHY_DCHD_CNTL0, */
-			/* _BIT(28), 1); */
-	} else if (rx[port].phy.phy_bw == PHY_BW_2) {
-		if (rx_info.aml_phy.long_cable) {
-			/*1.5G should enable DFE first*/
-			/* aml_dfe_en(); */
-			/* long cable detection*/
-			/* aml_phy_long_cable_det_t5();*/
-			/* 1.5G should disable DFE at the end*/
-			/* udelay(100); */
-			/* aml_dfe_en(); */
-		}
-	}
 	/* enable dfe for all frequency */
 	aml_dfe_en();
+	if (rx[port].phy.phy_bw == PHY_BW_2 && rx_info.aml_phy.long_cable)
+		aml_phy_long_cable_det_t5();
 	/*enable HYPER_GAIN calibration for 3G/1.5G/27M*/
 	if (rx[port].phy.phy_bw <= PHY_BW_3) {
 		aml_hyper_gain_tuning();
@@ -861,23 +854,11 @@ void aml_eq_cfg_t5(void)
 
 void aml_phy_get_trim_val_t5(void)
 {
-	u32 data32;
-
-	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
-	if (dts_debug_flag == 0) {
-		data32 = hdmirx_rd_amlphy(T5_HHI_RX_PHY_MISC_CNTL1);
-		rterm_trim_val_t5 = (data32 >> 12) & 0xf;
-		rterm_trim_flag_t5 = data32 & 0x1;
-	} else {
-		rlevel = phy_term_lel & 0xf;
-		if (rlevel > 15)
-			rlevel = 15;
-		rterm_trim_flag_t5 = dts_debug_flag;
-	}
-	if (rterm_trim_flag_t5) {
-		if (log_level & PHY_LOG)
-			rx_pr("rterm trim=0x%x\n", rterm_trim_val_t5);
-	}
+	if (rx_info.aml_phy.rterm_dbg_lvl)
+		rx_info.aml_phy.rterm_dts_lvl = rx_info.aml_phy.rterm_dbg_lvl;
+	if (rx_info.aml_phy.rterm_dts_lvl > 15)
+		rx_info.aml_phy.rterm_dts_lvl = 15;
+	rx_info.aml_phy.rterm_val = t5_t7_rlevel[rx_info.aml_phy.rterm_dts_lvl];
 }
 
 void aml_phy_cfg_t5(void)
@@ -904,11 +885,10 @@ void aml_phy_cfg_t5(void)
 		usleep_range(5, 10);
 		data32 = phy_misci_t5[idx][1];
 		aml_phy_get_trim_val_t5();
-		if (rterm_trim_flag_t5) {
-			if (dts_debug_flag)
-				rterm_trim_val_t5 = t5_t7_rlevel[rlevel];
-			data32 = ((data32 & (~((0xf << 12) | 0x1))) |
-				(rterm_trim_val_t5 << 12) | rterm_trim_flag_t5);
+		if (rx_info.aml_phy.rterm_flag) {
+			data32 &= (~(0xf << 12));
+			data32 |= (rx_info.aml_phy.rterm_val << 12);
+			data32 |= rx_info.aml_phy.rterm_flag << 0;
 		}
 		/* step2-0xd8 */
 		hdmirx_wr_amlphy(T5_HHI_RX_PHY_MISC_CNTL1, data32);
@@ -955,7 +935,6 @@ void aml_phy_cfg_t5(void)
 	data32 &= (~(1 << 10));
 	data32 &= (~(0x7 << 7));
 	data32 |= term_value;
-	data32 &= ~(disable_port_num & 0x07);
 	/* terminal en */
 	hdmirx_wr_amlphy(T5_HHI_RX_PHY_MISC_CNTL0, data32);
 	usleep_range(5, 10);

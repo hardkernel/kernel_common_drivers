@@ -26,6 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
 #include <linux/amlogic/clk_measure.h>
+#include <linux/amlogic/media/video_sink/video.h>
 
 /* Local Include */
 #include "hdmi_rx_repeater.h"
@@ -34,10 +35,6 @@
 #include "hdmi_rx_wrapper.h"
 #include "hdmi_rx_hw_t3x.h"
 
-/* FT trim flag:1-valid, 0-not valid */
-bool rterm_trim_flag_t3x;
-/* FT trim value 4 bits */
-u32 rterm_trim_val_t3x;
 int frl_scrambler_en = 1;
 /* 0=disable;1=3G3Lanes;2=6G3Lanes;3=6G4Lanes; */
 /* 4=8G4Lanes;5=10G4Lanes;6=12G4Lanes */
@@ -56,8 +53,70 @@ int fpll_sel = 1;
 /* bit'0 clk_ready, bit'1 overlap */
 int fpll_chk_lvl = 0x1;
 int valid_m_wait_max = 800;
+int vga_tuning_min = 0x21;
+int vga_tuning_max = 0x26;
+int cal_phy_time;
+int pll_band = 5;
+int cdr_bw = 4;
+
 enum frl_train_sts_e frl_train_sts = E_FRL_TRAIN_START;
-static int frate_flg;
+enum frl_train_sts_e frl_train_sts1 = E_FRL_TRAIN_START;
+
+u32 top_irq_mask_t3x[IRQ_TYPE_CNT] = {
+	_BIT(0),	//IRQ_AON_CTL = 0,
+	0,		//IRQ_EDID_SLT,
+	_BIT(1),	//IRQ_PWD_CTL,
+	_BIT(2),	//IRQ_PHY,
+	0,		//IRQ_5V_RISE0,
+	0,		//IRQ_5V_RISE1,
+	0,		//IRQ_5V_RISE2,
+	0,		//IRQ_5V_RISE3,
+	0,		//IRQ_5V_FALL0,
+	0,		//IRQ_5V_FALL1,
+	0,		//IRQ_5V_FALL2,
+	0,		//IRQ_5V_FALL3,
+	_BIT(6),	//IRQ_FMT_CHG,
+	_BIT(7),	//IRQ_COL_DEP,
+	0,		//IRQ_TMDS_STB,
+	_BIT(15),	//IRQ_HDCP_ST_RISE,
+	_BIT(16),	//IRQ_HDCP_ST_FALL,
+	_BIT(17),	//IRQ_HDCP_EN_RISE,
+	_BIT(18),	//IRQ_HDCP_EN_FALL,
+	0,		//IRQ_EDID_AD0,
+	0,		//IRQ_EDID_AD1,
+	0,		//IRQ_EDID_AD2,
+	0,		//IRQ_EDID_AD3,
+	0,		//IRQ_EDID_CFT0,
+	0,		//IRQ_EDID_CFT1,
+	0,		//IRQ_EDID_CFT2,
+	0,		//IRQ_EDID_CFT3,
+	0,		//IRQ_HDCP_SKP,
+	0,		//IRQ_HDCP_RND_ERR,
+	_BIT(10),	//IRQ_CAB_STB,
+	0,		//IRQ_TMDS_ALG,
+	_BIT(21),	//IRQ_EMP_DONE,
+	_BIT(22),	//IRQ_LAST_EMP,
+	_BIT(23),	//IRQ_DE_RISE,
+	_BIT(19),	//IRQ_SQOF_RISE,
+	_BIT(20),	//IRQ_SQOF_FALL,
+	_BIT(24),	//IRQ_AUD_CHG,
+	_BIT(25),	//IRQ_CDR_STB,
+	/* T3X */
+	_BIT(3),	//IRQ_T3X_5V_RISE,
+	_BIT(4),	//IRQ_T3X_5V_FALL,
+	_BIT(5),	//IRQ_T3X_EDID_AD,
+	_BIT(8),	//IRQ_T3X_20_STB,
+	_BIT(9),	//IRQ_T3X_21_STB,
+	_BIT(10),	//IRQ_PHY_STB,
+	_BIT(11),	//IRQ_PXL_STB,
+	_BIT(13),	//IRQ_1618_STB,
+	_BIT(25),	//IRQ_PLL_CHG0,
+	_BIT(26),	//IRQ_PLL_CHG1,
+	_BIT(27),	//IRQ_VS_RISE,
+	_BIT(28),	//IRQ_VALID_M_RISE,
+	_BIT(29),	//IRQ_VALID_M_FALL,
+	_BIT(30)	//IRQ_T3X_EDID_CFT,
+};
 
 /* for T3X 2.0 */
 static const u32 phy_misc_t3x_20[][2] = {
@@ -68,7 +127,10 @@ static const u32 phy_misc_t3x_20[][2] = {
 	{	 /* 37~75M */
 		0xffe000c0, 0x11c73003,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0xffe00080, 0x11c73002,
+	},
+	{	 /* 115~150M */
 		0xffe00080, 0x11c73002,
 	},
 	{	 /* 150~340M */
@@ -91,7 +153,10 @@ static const u32 phy_dcha_t3x_20[][2] = {
 	{	 /* 35~75M */
 		0x00f77666, 0x40100c59,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0x00f77666, 0x40100459,
+	},
+	{	 /* 115~150M */
 		0x00f77666, 0x40100459,
 	},
 	{	 /* 150~340M */
@@ -115,11 +180,14 @@ static const u32 phy_dchd_t3x_20[][2] = {
 	{	 /* 35~75M */
 		0x04000095, 0x30880060,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0x04000095, 0x30880065,
+	},
+	{	 /* 115~150M */
 		0x04000095, 0x30880069,
 	},
 	{	 /* 140~340M */
-		0x04080095, 0x30e80069,
+		0x04080095, 0x30e80469,
 	},
 	{	 /* 340~525M */
 		0x04080093, 0x30e00469,
@@ -640,6 +708,8 @@ void aml_dfe_en_t3x_20(u8 port)
 /* phy offset calibration based on different chip and board */
 void aml_phy_offset_cal_t3x_20(u8 port)
 {
+	u32 data32;
+
 	/* PHY */
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, 0x70080050, port);
 	usleep_range(10, 20);
@@ -651,7 +721,12 @@ void aml_phy_offset_cal_t3x_20(u8 port)
 	usleep_range(10, 20);
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, 0x11c73220, port);
 	usleep_range(10, 20);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, 0xffe00100, port);
+	data32 = 0xffe00100;
+	if (rx_info.aml_phy.rterm_flag) {
+		data32 = ((data32 & (~((0xf << 12) | 0x1))) |
+			(rx_info.aml_phy.rterm_val << 12) | rx_info.aml_phy.rterm_flag << 4);
+	}
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, data32, port);
 	usleep_range(10, 20);
 
 	/* PLL */
@@ -770,7 +845,8 @@ void get_eq_val_t3x_20(u8 port)
 	eq_boost0 = data32 & 0x1f;
 	eq_boost1 = (data32 >> 8)  & 0x1f;
 	eq_boost2 = (data32 >> 16)      & 0x1f;
-	rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
+	if (log_level & PHY_LOG)
+		rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 }
 
 /* check eq_boost1 & tap0 status */
@@ -1153,9 +1229,11 @@ void aml_enhance_eq_t3x_20(u8 port)
 		eq_boost0 = data32 & 0x1f;
 		eq_boost1 = (data32 >> 8)  & 0x1f;
 		eq_boost2 = (data32 >> 16)	& 0x1f;
-		rx_pr("after enhance eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
+		if (log_level & PHY_LOG)
+			rx_pr("after enhance eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 	} else {
-		rx_pr("no enhance eq\n");
+		if (log_level & PHY_LOG)
+			rx_pr("no enhance eq\n");
 	}
 }
 
@@ -1171,7 +1249,7 @@ void aml_eq_cfg_t3x_20(u8 port)
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, T3X_20_CDR_RSTB, 1, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, T3X_20_CDR_EN, 1, port);
 	usleep_range(200, 210);
-	if (idx >= PHY_BW_2)
+	if (idx >= PHY_BW_3)
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, T3X_20_EN_BYP_EQ, 0, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, T3X_20_EQ_EN, 1, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, T3X_20_EQ_RSTB, 1, port);
@@ -1204,6 +1282,12 @@ void aml_eq_cfg_t3x_20(u8 port)
 		/*udelay(100);*/
 		/* hdmirx_wr_bits_amlphy_t3x(HHI_RX_PHY_DCHD_CNTL0, */
 			/* _BIT(28), 1); */
+//		if (rx_info.aml_phy.long_cable) {
+//			;/* aml_phy_long_cable_det_t3(); */
+//		}
+//		if (rx_info.aml_phy.vga_dbg) {
+//			;/* aml_vga_tuning_t3();*/
+//		}
 	} else if (rx[port].phy.phy_bw == PHY_BW_2) {
 		if (rx_info.aml_phy.long_cable) {
 			/*1.5G should enable DFE first*/
@@ -1300,23 +1384,12 @@ void aml_eq_cfg_t3x_20(u8 port)
 
 void aml_phy_get_trim_val_t3x(void)
 {
-	u32 data32;
-
-	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
-	if (dts_debug_flag == 0) {
-		data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, E_PORT0); //todo
-		rterm_trim_val_t3x = (data32 >> 12) & 0xf;
-		rterm_trim_flag_t3x = data32 & 0x1;
-	} else {
-		rlevel = phy_term_lel & 0xf;
-		if (rlevel > 15)
-			rlevel = 15;
-		rterm_trim_flag_t3x = dts_debug_flag;
-	}
-	if (rterm_trim_flag_t3x) {
-		if (log_level & PHY_LOG)
-			rx_pr("rterm trim=0x%x\n", rterm_trim_val_t3x);
-	}
+	if (rx_info.aml_phy.rterm_dbg_lvl)
+		rx_info.aml_phy.rterm_dts_lvl =
+			rx_info.aml_phy.rterm_dbg_lvl;
+	if (rx_info.aml_phy.rterm_dts_lvl > 15)
+		rx_info.aml_phy.rterm_dts_lvl = 15;
+	rx_info.aml_phy.rterm_val = t3x_rlevel[rx_info.aml_phy.rterm_dts_lvl];
 }
 
 void aml_phy_cfg_t3x_20(u8 port)
@@ -1352,11 +1425,10 @@ void aml_phy_cfg_t3x_20(u8 port)
 		data32 = phy_misc_t3x_20[idx][0];
 		if (rx_info.aml_phy.phy_debug_en && rx_info.aml_phy.misc1_value)
 			data32 = rx_info.aml_phy.misc1_value;
-		if (rterm_trim_flag_t3x) {
-			if (dts_debug_flag)
-				rterm_trim_val_t3x = t3x_rlevel[rlevel];
+		if (rx_info.aml_phy.rterm_flag) {
 			data32 = ((data32 & (~((0xf << 12) | 0x1))) |
-				(rterm_trim_val_t3x << 12) | rterm_trim_flag_t3x);
+				(rx_info.aml_phy.rterm_val << 12) |
+				rx_info.aml_phy.rterm_flag << 4);
 		}
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, data32, port);
 		usleep_range(5, 10);
@@ -1459,10 +1531,10 @@ static const u32 phy_dcha_t3x_21[][4] = {
 		0x2340ffff, 0x05ff1a05, 0x51102000, 0x07f06555,
 	},
 	{	 /* FRL 10G */
-		0x2320ffff, 0x05ff1a05, 0x51102000, 0x07f06555,
+		0x7330bbbb, 0x05ff1a05, 0x51102000, 0x07f06555,
 	},
 	{	 /* FRL 12G */
-		0x2310bbbb, 0x05ff1a05, 0x51102000, 0x07f06555,
+		0x7330bbbb, 0x05ff1a05, 0x51102000, 0x07f06555,
 	},
 };
 
@@ -1513,36 +1585,30 @@ int dts_debug_flag_t3x_21;
 int rlevel_t3x_21;
 int rterm_trim_val_t3x_21;
 int rterm_trim_flag_t3x_21;
-int phy_term_lel_t3x_21;
 
 void aml_phy_get_trim_val_t3x_21(u8 port)
 {
-	u32 data32;
-
-	dts_debug_flag_t3x_21 = (phy_term_lel_t3x_21 >> 4) & 0x1;
-	if (dts_debug_flag_t3x_21 == 0) {
-		data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PHY_MISC2, port); //todo
-		rterm_trim_val_t3x_21 = (data32 >> 12) & 0xf;
-		rterm_trim_flag_t3x_21 = data32 & 0x1;
-	} else {
-		rlevel_t3x_21 = phy_term_lel_t3x_21 & 0xf;
-		if (rlevel_t3x_21 > 15)
-			rlevel_t3x_21 = 15;
-		rterm_trim_flag_t3x_21 = dts_debug_flag_t3x_21;
-	}
-	if (rterm_trim_flag_t3x_21) {
-		if (log_level & PHY_LOG)
-			rx_pr("rterm trim=0x%x\n", rterm_trim_val_t3x_21);
-	}
+	if (rx_info.aml_phy_21.rterm_dbg_lvl)
+		rx_info.aml_phy_21.rterm_dts_lvl =
+			rx_info.aml_phy_21.rterm_dbg_lvl;
+	if (rx_info.aml_phy_21.rterm_dts_lvl > 15)
+		rx_info.aml_phy_21.rterm_dts_lvl = 15;
+	rx_info.aml_phy_21.rterm_val = t3x_rlevel[rx_info.aml_phy.rterm_dts_lvl];
 }
 
 void aml_phy_offset_cal_t3x_21(int port)
 {
+	u32 data32;
 	/* rterm not enabled */
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC0, 0x01bcfff0, port);
 	/* squelch not enabled*/
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC1, 0x3077000f, port);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC2,  0x00005a00, port);
+	data32 = 0x00005a00;
+	if (rx_info.aml_phy_21.rterm_flag) {
+		data32 = ((data32 & (~(0xf | (0x1 << 31)))) |
+			(rx_info.aml_phy_21.rterm_val) | rx_info.aml_phy_21.rterm_flag << 31);
+	}
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC2,  data32, port);
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,  0x2300ffff, port);
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE,  0x05ff1a05, port);
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_PI,  0x51102000, port);
@@ -1590,7 +1656,7 @@ void rx_21_frl_phy_cfg(u8 port)
 	u32 data32 = 0;
 	u32 idx = rx[port].phy.phy_bw;
 
-	if (rx_info.aml_phy.pre_int) {
+	if (rx_info.aml_phy_21.pre_int_21[port]) {
 		if (rx_info.aml_phy_21.ofst_en) {
 			aml_phy_offset_cal_t3x_21(port);
 			usleep_range(1000, 1100);
@@ -1605,11 +1671,10 @@ void rx_21_frl_phy_cfg(u8 port)
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC1, phy_misc_t3x_21[idx][1], port);
 		aml_phy_get_trim_val_t3x_21(port);
 		data32 = phy_misc_t3x_21[idx][2];
-		if (rterm_trim_flag_t3x_21) {
-			if (dts_debug_flag_t3x_21)
-				rterm_trim_val_t3x_21 = t3x_rlevel[rlevel_t3x_21];
+		if (rx_info.aml_phy_21.rterm_flag) {
 			data32 = ((data32 & (~(0xf | (0x1 << 31)))) |
-			rterm_trim_val_t3x_21 | (rterm_trim_flag_t3x_21 << 31));
+				(rx_info.aml_phy_21.rterm_val) |
+				rx_info.aml_phy_21.rterm_flag << 31);
 		}
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC2, data32, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,  phy_dcha_t3x_21[idx][0], port);
@@ -1619,8 +1684,8 @@ void rx_21_frl_phy_cfg(u8 port)
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR,  phy_dchd_t3x_21[idx][0], port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ,  phy_dchd_t3x_21[idx][1], port);
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_MISC0, _BIT(22), 0x1, port);
-		if (!rx_info.aml_phy.pre_int_en)
-			rx_info.aml_phy.pre_int = 0;
+		if (!rx_info.aml_phy_21.pre_int_en)
+			rx_info.aml_phy_21.pre_int_21[port] = 0;
 	}
 	//rterm_en(dcha_misc0[22]) = 0x1
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, CDR_FR_EN, 0x0, port);
@@ -1833,6 +1898,9 @@ void aml_pll_bw_cfg_t3x_21(int f_rate, u8 port)
 	if (rx_info.aml_phy_21.eq_pole <= 0x7)
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, LEQ_POLE,
 			rx_info.aml_phy_21.eq_pole, port);
+	if (rx_info.aml_phy_21.buf_gain <= 0x7)
+		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, BUF_GAIN,
+			rx_info.aml_phy_21.buf_gain, port);
 
 }
 
@@ -1840,6 +1908,8 @@ void rx_21_frl_pll_cfg(int f_rate, u8 port)
 {
 	if (log_level & FRL_LOG)
 		rx_pr("port-%d f_rate=%d\n", port, f_rate);
+	int data32;
+
 	if (f_rate == FRL_3G_3LANE) {
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x05007d00, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x014810e6, port);
@@ -1879,7 +1949,9 @@ void rx_21_frl_pll_cfg(int f_rate, u8 port)
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x05202000, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x014817e6, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x00187d06, port);
-		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, 0xf0002dd3, port);
+		data32 = 0xf0002d03;
+		data32 |= (pll_band << 4);
+		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, data32, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL4, 0x55813041, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x00087d07, port);
 		usleep_range(10, 20);
@@ -1897,7 +1969,9 @@ void rx_21_frl_pll_cfg(int f_rate, u8 port)
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x05202800, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x014817e6, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x00187d06, port);
-		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, 0xf0002dd3, port);
+		data32 = 0xf0002d03;
+		data32 |= (pll_band << 4);
+		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, data32, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL4, 0x55813041, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x00187d07, port);
 		usleep_range(10, 20);
@@ -1912,7 +1986,7 @@ void rx_21_frl_pll_cfg(int f_rate, u8 port)
 		usleep_range(10, 20);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x45202807, port);
 	} else if (f_rate == FRL_12G_4LANE) {
-		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0500fa00, port);
+		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0700fa00, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x014810e6, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x0, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, 0x0, port);
@@ -1921,14 +1995,14 @@ void rx_21_frl_pll_cfg(int f_rate, u8 port)
 		usleep_range(10, 20);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x0, port);
 		usleep_range(10, 20);
-		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0500fa01, port);
+		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0700fa01, port);
 		usleep_range(10, 20);
-		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0500fa03, port);
+		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0700fa03, port);
 		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x014010e6, port);
 		usleep_range(10, 20);
-		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0500fa07, port);
+		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0700fa07, port);
 		usleep_range(10, 20);
-		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x4500fa07, port);
+		hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x4700fa07, port);
 	}
 	usleep_range(100, 110);
 }
@@ -1976,13 +2050,15 @@ void rx_21_eq_retry(u8 port)
 				usleep_range(10, 20);
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ,
 					EQ_RSTB, 0x1, port);
-				}
-			if (rx_info.aml_phy_21.eq_hold)
-				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ, EQ_MODE,
-					rx_info.aml_phy_21.eq_hold, port);
-			rx_21_eq_get_val(&eq_boost0, &eq_boost1, &eq_boost2, &eq_boost3, port);
-			rx_pr("eq_retry:0x%x-0x%x-0x%x-0x%x\n", eq_boost0, eq_boost1,
-				eq_boost2, eq_boost3);
+				mdelay(10);
+				if (rx_info.aml_phy_21.eq_hold)
+					hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ, EQ_MODE,
+						rx_info.aml_phy_21.eq_hold, port);
+				rx_21_eq_get_val(&eq_boost0, &eq_boost1,
+					&eq_boost2, &eq_boost3, port);
+				rx_pr("eq_retry:0x%x-0x%x-0x%x-0x%x\n", eq_boost0, eq_boost1,
+					eq_boost2, eq_boost3);
+			}
 		}
 	}
 }
@@ -2028,12 +2104,15 @@ void rx_21_eq_cfg(int f_rate, u8 port)
 	rx_21_eq_retry(port);
 	if (rx_info.aml_phy_21.dfe_en)
 		rx_21_dfe_en(port);
-	if (rx_info.aml_phy_21.vga_tune && rx[port].var.frl_rate == FRL_12G_4LANE)
+	if (rx_info.aml_phy_21.vga_tune &&
+		(rx[port].var.frl_rate == FRL_12G_4LANE ||
+		rx[port].var.frl_rate == FRL_10G_4LANE))
 		hdmirx_vga_gain_tuning(port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, CDR_LKDET_EN, 0x1, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, MUX_EYE_EN, 0x0, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ, MUX_BLOCK_SEL, 0x2, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, MUX_CDR_DBG_SEL, 0x1, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, MSK(4, 0), cdr_bw, port);
 	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PHY_DCH_STAT, port);
 	cdr0_int = data32 & 0x7f;
@@ -2107,6 +2186,11 @@ bool rx_get_overlap_sts(u8 port)
 bool rx_get_clkready_sts(u8 port)
 {
 	return hdmirx_rd_bits_cor(H21RXSB_STATUS_M42H_IVCRX, _BIT(1), port);
+}
+
+bool rx_get_valid_m_sts(u8 port)
+{
+	return hdmirx_rd_bits_cor(H21RXSB_STATUS_M42H_IVCRX, _BIT(0), port);
 }
 
 bool is_fpll_err(u8 port)
@@ -2756,9 +2840,9 @@ void aml_phy_init_t3x_20(u8 port)
 void aml_phy_init_t3x_21(u8 port)
 {
 	rx_21_frl_phy_cfg(port);
-	if (rx[port].state <= FSM_HPD_HIGH || rx[port].state == FSM_WAIT_CLK_STABLE)
-		return;
 	aml_pll_bw_cfg_t3x_21(rx[port].var.frl_rate, port);
+	if (rx[port].state <= FSM_FRL_FLT_READY || rx[port].state == FSM_WAIT_CLK_STABLE)
+		return;
 	rx_21_frl_pll_cfg(rx[port].var.frl_rate, port);
 	rx_21_eq_cfg(rx[port].var.frl_rate, port);
 	if (!fpll_sel)
@@ -2817,16 +2901,6 @@ void dump_reg_phy_t3x_21(u8 port)
 		hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, port));
 	rx_pr("RX21PHY_DCHD_EQ-0x134=0x%x\n",
 		hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ, port));
-	rx_pr("RX21PHY_PLL0-0x100=0x%x\n",
-		hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, port));
-	rx_pr("RX21PHY_PLL1-0x104=0x%x\n",
-		hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, port));
-	rx_pr("RX21PHY_PLL1-0x108=0x%x\n",
-		hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, port));
-	rx_pr("RX21PHY_PLL1-0x10c=0x%x\n",
-		hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, port));
-	rx_pr("RX21PHY_PLL1-0x110=0x%x\n",
-		hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PLL_CTRL4, port));
 }
 
 void dump_reg_phy_t3x(u8 port)
@@ -2913,7 +2987,7 @@ void dump_aml_phy_sts_t3x_20(u8 port)
 	u32 sli0_ofst2, sli1_ofst2, sli2_ofst2;
 
 	/* rterm */
-	terminal = (hdmirx_rd_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, T3X_20_RTERM_CNTL, port));
+	terminal = (hdmirx_rd_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, RTERM_VAL_T3X_20, port));
 
 	/* eq_boost1 status */
 	/* mux_eye_en */
@@ -3361,9 +3435,9 @@ void dump_aml_phy_sts_t3x_21(u8 port)
 	lan2_lock = (data32 >> 15) & 1;
 	lan3_lock = (data32 >> 31) & 1;
 	rx_pr("\nhdmirx phy status:\n");
-	//if (rx[port].var.frl_rate == FRL_OFF)
-		//rx_pr("data_rate=tmds-%d\n", tmds_clk_msr());
-	if (rx[port].var.frl_rate == FRL_3G_3LANE)
+	if (rx[port].var.frl_rate == FRL_OFF)
+		;//rx_pr("data_rate=tmds-%d\n", tmds_clk_msr());
+	else if (rx[port].var.frl_rate == FRL_3G_3LANE)
 		rx_pr("data_rate=FRL_3G_3LANE\n");
 	else if (rx[port].var.frl_rate == FRL_6G_3LANE)
 		rx_pr("data_rate=FRL_6G_3LANE\n");
@@ -3449,14 +3523,8 @@ bool aml_get_tmds_valid_t3x_21(u8 port)
 	u32 ret;
 
 	/* frl_debug todo */
-	if (rx[port].var.frl_rate && rx[port].state != FSM_SIG_READY)
+	if (rx[port].var.frl_rate)
 		return true;
-	if (rx[port].var.frl_rate) {
-		if ((abs(rx[port].clk.t_clk_pre - rx[port].clk.tclk) > 10))
-			return false;
-		else
-			return true;
-	}
 	/* digital tmds valid depends on PLL lock from analog phy. */
 	/* it is not necessary and T7 has not it */
 	/* tmds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01; */
@@ -3771,105 +3839,66 @@ void rx_set_term_value_t3x(unsigned char port, bool value)
 	}
 }
 
-void aml_phy_power_off_t3x_port0(void)
+void aml_phy_power_off_t3x_20(u8 port)
 {
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PLL_CTRL0, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PLL_CTRL1, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_AFE, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_DFE, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_STAT, 0x0, E_PORT0);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PLL_CTRL0, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PLL_CTRL1, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_AFE, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_DFE, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_STAT, 0x0, port);
 	//hdmirx_wr_amlphy_t3x(T3X_HDMIRX_EARCTX_CNTL0, 0x0, E_PORT0);
 	//hdmirx_wr_amlphy_t3x(T3X_HDMIRX_EARCTX_CNTL1, 0x0, E_PORT0);
 	//hdmirx_wr_amlphy_t3x(T3X_HDMIRX_ARC_CNTL, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX_PHY_PROD_TEST0, 0x0, E_PORT0);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX_PHY_PROD_TEST1, 0x0, E_PORT0);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX_PHY_PROD_TEST0, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX_PHY_PROD_TEST1, 0x0, port);
 }
 
-void aml_phy_power_off_t3x_port1(void)
-{
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PLL_CTRL0, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PLL_CTRL1, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_AFE, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_DFE, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_STAT, 0x0, E_PORT1);
-	//hdmirx_wr_amlphy_t3x(T3X_HDMIRX_EARCTX_CNTL0, 0x0, E_PORT1);
-	//hdmirx_wr_amlphy_t3x(T3X_HDMIRX_EARCTX_CNTL1, 0x0, E_PORT1);
-	//hdmirx_wr_amlphy_t3x(T3X_HDMIRX_ARC_CNTL, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX_PHY_PROD_TEST0, 0x0, E_PORT1);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX_PHY_PROD_TEST1, 0x0, E_PORT1);
-}
-
-void aml_phy_power_off_t3x_port2(void)
+void aml_phy_power_off_t3x_21(u8 port)
 {
 	/* power off phy and pll */
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL4, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC0, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC1, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC2, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_PI, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_CTRL, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, 0x0, E_PORT2);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ, 0x0, E_PORT2);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL4, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC0, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC1, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC2, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_PI, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_CTRL, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ, 0x0, port);
 	/* poweroff port C FPLL */
-	wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0, 0x0);
-	wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL1, 0x0);
-	wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL2, 0x0);
-	wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL3, 0x0);
-}
+	if (port == E_PORT2) {
+		wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0, 0x0);
+		wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL1, 0x0);
+		wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL2, 0x0);
+		wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL3, 0x0);
+	}
 
-void aml_phy_power_off_t3x_port3(void)
-{
-	/* power off phy and pll */
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL3, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL4, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC0, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC1, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC2, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_PI, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_CTRL, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, 0x0, E_PORT3);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ, 0x0, E_PORT3);
-	/* poweroff port D FPLL */
-	wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0, 0x0);
-	wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL1, 0x0);
-	wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL2, 0x0);
-	wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL3, 0x0);
+	if (port == E_PORT3) {
+		wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0, 0x0);
+		wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL1, 0x0);
+		wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL2, 0x0);
+		wr_reg_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL3, 0x0);
+	}
 }
 
 void aml_phy_power_off_t3x(u8 port)
 {
-	if (port == E_PORT0) {
-		aml_phy_power_off_t3x_port0();
-	} else if (port == E_PORT1) {
-		aml_phy_power_off_t3x_port1();
-	} else if (port == E_PORT2) {
-		aml_phy_power_off_t3x_port2();
-	} else if (port == E_PORT3) {
-		aml_phy_power_off_t3x_port3();
+	if (port <= E_PORT1) {
+		aml_phy_power_off_t3x_20(port);
+	} else if (port <= E_PORT3) {
+		aml_phy_power_off_t3x_21(port);
 	} else {
-		aml_phy_power_off_t3x_port0();
-		aml_phy_power_off_t3x_port1();
-		aml_phy_power_off_t3x_port2();
-		aml_phy_power_off_t3x_port3();
+		aml_phy_power_off_t3x_20(port);
+		aml_phy_power_off_t3x_21(port);
 	}
 }
 
@@ -3889,64 +3918,30 @@ void aml_phy_switch_port_t3x(u8 port)
 	u32 data32;
 
 	/* reset and select data port */
-	data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, port);
-	data32 &= (~(0xf << 24));
-	data32 |= ((1 << port) << 24);
-	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, data32, port);
-	hdmirx_wr_bits_top_common(TOP_PORT_SEL, MSK(4, 0), (1 << port));
-
-	switch (vpcore_debug) {
-	case 0:
-		if (port < 2) {
-			data32 = 0;
-			data32 |= (1 << (8 + port * 2));
-			data32 |= (1 << port);
-			hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, data32);
-			hdmirx_wr_top_common(HDMIRX_TOP_FSW_CLK_CNTL, 0x11);
-			hdmirx_wr_top_common(HDMIRX_TOP_SW_RESET_COMMON, 0);
-		} else {
-			data32 = 0;
-			data32 |= (1 << (9 + port * 2));
-			data32 |= (1 << (port + 4));
-			hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, data32);
-			hdmirx_wr_top_common(HDMIRX_TOP_FSW_CLK_CNTL, 0x12);
-			hdmirx_wr_top_common(HDMIRX_TOP_SW_RESET_COMMON, 0);
-		}
-		break;
-	case 1:
-		data32 = 0;
-		data32 |= (1 << (8 + port * 2));
-		data32 |= (1 << port);
-		hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, data32);
-		hdmirx_wr_top_common(HDMIRX_TOP_FSW_CLK_CNTL, 0x11);
-		hdmirx_wr_top_common(HDMIRX_TOP_SW_RESET_COMMON, 0);
-		break;
-	case 2:
-		data32 = 0;
-		data32 |= (1 << (9 + port * 2));
-		data32 |= (1 << (port + 4));
-		hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, data32);
-		hdmirx_wr_top_common(HDMIRX_TOP_FSW_CLK_CNTL, 0x12);
-		hdmirx_wr_top_common(HDMIRX_TOP_SW_RESET_COMMON, 0);
-		break;
-	case 3:
-		data32 = 0;
-		if (rx_is_pip_on() && rx_info.sub_port_open) {
-			data32 |= (1 << (8 + rx_info.sub_port * 2));
-			data32 |= (1 << rx_info.sub_port);
-		}
-		data32 |= (2 << (8 + rx_info.main_port * 2));
-		data32 |= (1 << (rx_info.main_port + 4));
-		hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, data32);
-		data32 = 0;
-		data32 |= (1 << (4 + rx_info.sub_port));
-		data32 |= (1 << (4 + rx_info.main_port));
-		data32 |= 3;
-		hdmirx_wr_top_common(HDMIRX_TOP_FSW_CLK_CNTL, data32);
-		hdmirx_wr_top_common(HDMIRX_TOP_SW_RESET_COMMON, 410);
-		hdmirx_wr_top_common(HDMIRX_TOP_SW_RESET_COMMON, 0);
-		break;
+	//data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, port);
+	//data32 &= (~(0xf << 24));
+	//data32 |= ((1 << port) << 24);
+	//hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, data32, port);
+	//hdmirx_wr_bits_top_common(TOP_PORT_SEL, MSK(4, 0), (1 << port));
+	data32 = 0;
+	if (rx_is_pip_on() && rx_info.sub_port != 0xff) {
+		data32 |= (1 << (8 + rx_info.sub_port * 2));
+		data32 |= (1 << rx_info.sub_port);
 	}
+	data32 |= (2 << (8 + rx_info.main_port * 2));
+	data32 |= (1 << (rx_info.main_port + 4));
+	hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, data32);
+
+	data32 = 0;
+	data32 |= (1 << (4 + rx_info.main_port));
+	if (rx_is_pip_on() && rx_info.sub_port != 0xff)
+		data32 |= (1 << (4 + rx_info.sub_port));
+	data32 |= 3;
+	hdmirx_wr_top_common(HDMIRX_TOP_FSW_CLK_CNTL, data32);
+
+	hdmirx_wr_top_common(HDMIRX_TOP_SW_RESET_COMMON, 0x19a);//todo
+	hdmirx_wr_top_common(HDMIRX_TOP_SW_RESET_COMMON, 0);
+
 }
 
 unsigned int rx_sec_hdcp_cfg_t3x(void)
@@ -3956,130 +3951,6 @@ unsigned int rx_sec_hdcp_cfg_t3x(void)
 	arm_smccc_smc(HDMI_RX_HDCP_CFG, 0, 0, 0, 0, 0, 0, 0, &res);
 
 	return (unsigned int)((res.a0) & 0xffffffff);
-}
-
-void rx_set_irq_t3x(bool en, u8 port)
-{
-	u8 data8;
-
-	if (en) {
-		data8 = 0;
-		data8 |= 1 << 4; /* intr_new_unrec en */
-		data8 |= 1 << 2; /* intr_new_aud */
-		data8 |= 1 << 1; /* intr_spd */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8, port);
-
-		data8 = 0;
-		data8 |= 1 << 4; /* intr_cea_repeat_hf_vsi en */
-		data8 |= 1 << 3; /* intr_cea_new_hf_vsi en */
-		data8 |= 1 << 2; /* intr_cea_new_vsi */
-		hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, data8, port);
-
-		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0x25, port);
-		hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x03, port);//register_address: 0x1050
-		hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1051
-		hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1052
-		//must set 0.
-		hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0, port);//0x03);//register_address: 0x1053
-		hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1054
-		hdmirx_wr_cor(RX_INTR6_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1055
-		hdmirx_wr_cor(RX_INTR7_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1056
-		hdmirx_wr_cor(RX_INTR8_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1057
-		hdmirx_wr_cor(RX_INTR9_MASK_PWD_IVCRX, 0x00, port);//register_address: 0x1058
-
-		data8 = 0;
-		data8 |= 0 << 4; /* end of VSIF EMP data received */
-		data8 |= 0 << 3;
-		data8 |= 0 << 2;
-		hdmirx_wr_cor(RX_DEPACK2_INTR2_MASK_DP0B_IVCRX, data8, port);
-
-		//===for depack interrupt ====
-		//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3, port);
-		hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02, port);// int
-		//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00, port);//[1] reg_intr_polarity, default = 1
-		//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00, port);//interrupt mask
-		//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c, port);//interrupt mask
-		//hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20, port);//interrupt mask
-
-		//HDCP irq
-		// encrypted sts changed
-		//hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 1, port);
-		// AKE init received
-		//hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 4, port);
-		// HDCP 2X_RX_ECC
-		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR_MASK, 1, port);
-	} else {
-		/* clear enable */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0, port);
-		/* clear status */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0, port);
-		/* clear status */
-		hdmirx_wr_cor(RX_DEPACK_INTR3_DP2_IVCRX, 0xff, port);
-		/* clear en */
-		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0, port);
-		/* clear status */
-		hdmirx_wr_cor(RX_GRP_INTR1_STAT_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0, port);//register_address: 0x1050
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR1_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0, port);//register_address: 0x1051
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR2_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0, port);//register_address: 0x1052
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR3_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0, port);//register_address: 0x1053
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0, port);//register_address: 0x1054
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR5_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR6_MASK_PWD_IVCRX, 0, port);//register_address: 0x1055
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR6_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR7_MASK_PWD_IVCRX, 0, port);//register_address: 0x1056
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR7_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR8_MASK_PWD_IVCRX, 0, port);//register_address: 0x1057
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR8_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_INTR9_MASK_PWD_IVCRX, 0, port);//register_address: 0x1058
-		/* clear status */
-		hdmirx_wr_cor(RX_INTR9_PWD_IVCRX, 0xff, port);
-		/* clear enable */
-		hdmirx_wr_cor(RX_DEPACK2_INTR2_MASK_DP0B_IVCRX, 0, port);
-		/* clear status */
-		hdmirx_wr_cor(RX_DEPACK2_INTR2_DP0B_IVCRX, 0xff, port);
-		//===for depack interrupt ====
-		//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3, port);
-		//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02, port);// int
-		//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00, port);//[1] reg_intr_polarity, default = 1
-		/* clear status */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, 0xff, port);
-		//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00, port);//interrupt mask
-		//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c, port);//interrupt mask
-		//hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20, port);
-		//interrupt mask [5] acr
-
-		//HDCP irq
-		// encrypted sts changed
-		//hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 0, port);
-		// AKE init received
-		//hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 0, port);
-		// HDCP 2X_RX_ECC
-		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR_MASK, 0, port);
-	}
 }
 
 /*
@@ -4097,8 +3968,9 @@ void rx_set_aud_output_t3x(u32 param, u8 port)
 		hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00, port);
 		hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10, port);
 		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80, port); //I2S
-		//hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 0);
-		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(4), 1, port);
+		/* bit'15 1-spdif, 0- hbr */
+		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 0, port);
+		hdmirx_wr_bits_top_common_1(TOP_ACR_CNTL2_T3X, _BIT(5), port);
 	} else {
 		hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00, port);
 		hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10, port);
@@ -4682,8 +4554,8 @@ int rx_lts_p_syn_detect(u8 frl_rate, u8 port)
 	hdmirx_wr_cor(H21RXSB_CTRL3_M42H_IVCRX, 0x09, port); //
 	//
 	//----hal_flt_rx_dpll_reset_toggle(port)
-	hdmirx_wr_cor(DPLL_CTRL2_DPLL_IVCRX, 0x2, port);
-	hdmirx_wr_cor(DPLL_CTRL2_DPLL_IVCRX, 0x2, port);
+	hdmirx_wr_bits_cor(DPLL_CTRL2_DPLL_IVCRX, _BIT(1), 1, port);
+	hdmirx_wr_bits_cor(DPLL_CTRL2_DPLL_IVCRX, _BIT(1), 1, port);
 	//
 	//----hal_flt_rx_hdmi2p1_lt_mode_set(port,false)
 	//(NONE)
@@ -4705,7 +4577,7 @@ void RX_LTS_P_FRL_START(u8 port)
 	data8 = hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, port);
 	hdmirx_wr_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, (data8 | 0x10), port);//frl_start
 	force_clk_stable = 1;
-	rx_set_frl_train_sts(E_FRL_TRAIN_FINISH);
+	rx_set_frl_train_sts(E_FRL_TRAIN_FINISH, port);
 }
 
 enum frl_rate_e hdmirx_get_frl_rate(u8 port)
@@ -4752,6 +4624,8 @@ void hal_flt_update_set(u8 port)
 void hdmi_tx_rx_frl_training_main(u8 port)
 {
 	rx[port].var.frl_rate = hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, port) & 0xf;
+	//hdmirx_wr_bits_cor(SCDCS_SRC_TEST_CONFIG_SCDC_IVCRX, _BIT(5), 1, port);
+	aml_phy_init_t3x(port);
 	hdmirx_wr_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, 0x0, port);//sink clear(=0) FRL_START
 	hdmirx_wr_cor(SCDCS_STATUS_FLAGS1_SCDC_IVCRX, 0x65, port); //
 	hdmirx_wr_cor(SCDCS_STATUS_FLAGS2_SCDC_IVCRX, 0x87, port); //
@@ -4761,6 +4635,11 @@ void hdmi_tx_rx_frl_training_main(u8 port)
 			rx_pr("polling time out a\n");
 	}
 	aml_phy_init_t3x(port);
+	mdelay(20);
+	hdmirx_wr_top(TOP_SW_RESET, 0x80, port);
+	hdmirx_wr_top(TOP_SW_RESET, 0, port);
+	hdmirx_wr_bits_cor(DPLL_CTRL2_DPLL_IVCRX, _BIT(1), 0, port);
+	hdmirx_wr_bits_cor(DPLL_CTRL2_DPLL_IVCRX, _BIT(1), 1, port);
 	rx_lts_3_err_detect(port);
 	RX_LTS_3_LTP_REQ_SEND_0000(port);
 	hal_flt_update_set(port);
@@ -4768,34 +4647,40 @@ void hdmi_tx_rx_frl_training_main(u8 port)
 		if (log_level & FRL_LOG)
 			rx_pr("polling time out b\n");
 	}
-	rx_set_frl_train_sts(E_FRL_TRAIN_FINISH);
+	rx_set_frl_train_sts(E_FRL_TRAIN_FINISH, port);
 }
 
-enum frl_train_sts_e rx_get_frl_train_sts(void)
+enum frl_train_sts_e rx_get_frl_train_sts(u8 port)
 {
-	return frl_train_sts;
+	if (port == E_PORT2)
+		return frl_train_sts;
+	else
+		return frl_train_sts1;
 }
 
-void rx_set_frl_train_sts(enum frl_train_sts_e sts)
+void rx_set_frl_train_sts(enum frl_train_sts_e sts, u8 port)
 {
-	frl_train_sts = sts;
+	if (port == E_PORT2)
+		frl_train_sts = sts;
+	else
+		frl_train_sts1 = sts;
 }
 
-bool is_frl_train_finished(void)
+bool is_frl_train_finished(u8 port)
 {
 	bool ret = false;
 
-	if (rx_get_frl_train_sts() == E_FRL_TRAIN_FINISH)
+	if (rx_get_frl_train_sts(port) == E_FRL_TRAIN_FINISH)
 		ret = true;
 	return ret;
 }
 
-void rx_frl_train_handler(struct work_struct *work)
+void rx_frl_train_handler(struct kthread_work *work)
 {
 	hdmi_tx_rx_frl_training_main(E_PORT2);
 }
 
-void rx_frl_train_handler_1(struct work_struct *work)
+void rx_frl_train_handler_1(struct kthread_work *work)
 {
 	hdmi_tx_rx_frl_training_main(E_PORT3);
 }
@@ -4803,11 +4688,11 @@ void rx_frl_train_handler_1(struct work_struct *work)
 void rx_frl_train(u8 port)
 {
 	if (port == E_PORT2) {
-		schedule_work(&frl_train_dwork);
-		rx_set_frl_train_sts(E_FRL_TRAIN_START);
+		kthread_queue_work(&frl_worker, &frl_work);
+		rx_set_frl_train_sts(E_FRL_TRAIN_START, port);
 	} else {
-		schedule_work(&frl_train_1_dwork);
-		rx_set_frl_train_sts(E_FRL_TRAIN_START);
+		kthread_queue_work(&frl1_worker, &frl1_work);
+		rx_set_frl_train_sts(E_FRL_TRAIN_START, port);
 	}
 }
 
@@ -4817,6 +4702,7 @@ void hdmirx_frl_config(u8 port)
 	u32 data32;
 	u32 frl_rate_sel;
 
+	hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x0, port);
 	/* new for t3x */
 	data32  = 0;
 	data32 |= (0 << 31); //[   31] update_man
@@ -5028,6 +4914,8 @@ void hdmirx_frl_config(u8 port)
 	data8  = 0;
 	data8 |= (0x1   << 0);  //[7:0] reg_lane_en_sel_scdcs_sb
 	hdmirx_wr_cor(H21RXSB_CTRL6_M42H_IVCRX, data8, port); //0x1568
+
+	hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(0), 0, port);
 }
 
 void rx_pwrcntl_mem_pd_cfg(void)
@@ -5459,7 +5347,7 @@ void audio_setting_for_aud21(int frl_rate, u8 port)
 		wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL1, 0x8);
 		//aud div
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_PI,
-		MSK(2, 12), 0x2, port);
+		MSK(2, 12), 0x3, port);
 		//Na
 		hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0,
 		_BIT(13), 1);
@@ -5565,100 +5453,6 @@ void dump_aud21_param(u8 port)
 	else
 		rx_pr("select clk_audpll21\n");
 	rx_pr("ana 4x = 0x%x\n", hdmirx_rd_top_common_1(TOP_ACR_CNTL2_T3X));
-}
-
-//for debug only
-int vm = 0xf;
-void valid_m_monitor(u8 port)
-{
-	int val_m = 0;
-
-	val_m = hdmirx_rd_cor(0x1525, port) & 0x1;
-	if (val_m != vm) {
-		vm = val_m;
-		if (log_level & FRL_LOG)
-			rx_pr("port-%d valid_m change to %d\n", port, val_m);
-	}
-}
-
-static int frate_flg = 0xf;
-void frate_monitor(void)
-{
-	u8 port = E_PORT2;
-
-	rx[port].var.frl_rate = hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, port) & 0xf;
-	if (rx[port].var.frl_rate != frate_flg) {
-		frate_flg = rx[port].var.frl_rate;
-		if (rx[port].var.frl_rate) {
-			if (fpll_chk_lvl & 0xf) {
-				cor_init(port);
-			} else if (((fpll_chk_lvl >> 4) & 0xf) == 0x1) {
-				hdmirx_hw_config(port);
-			} else if (((fpll_chk_lvl >> 4) & 0xf) == 0x2) {
-				if (rx[port].var.frl_rate) {
-					//frl_debug todo
-					hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x0, port);
-					hdmirx_wr_cor(H21RXSB_D2TH_M42H_IVCRX, 0x20, port);
-					hdmirx_wr_bits_cor(H21RXSB_GP1_REGISTER_M42H_IVCRX,
-						_BIT(3), 1, port);
-					//clk ready threshold
-					hdmirx_wr_cor(H21RXSB_DIFF1T_M42H_IVCRX, 0x20, port);
-				} else {
-					hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x10, port);
-					hdmirx_wr_cor(RX_H21_CTRL_PWD_IVCRX, 0x0, port);
-				}
-			}
-			if (rx[port].state > FSM_FRL_FLT_READY)
-				rx[port].state = FSM_FRL_FLT_READY;
-		} else {
-			if (rx[port].state > FSM_FRL_FLT_READY)
-				rx[port].state = FSM_WAIT_CLK_STABLE;
-		}
-		if (log_level & FRL_LOG)
-			rx_pr("port-%d frate change to %d\n", port, rx[port].var.frl_rate);
-	}
-	if (rx[port].var.frl_rate)
-		valid_m_monitor(port);
-}
-
-static int frate_flg1 = 0xf;
-void frate_monitor1(void)
-{
-	u8 port = E_PORT3;
-
-	rx[port].var.frl_rate = hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, port) & 0xf;
-	if (rx[port].var.frl_rate != frate_flg1) {
-		frate_flg1 = rx[port].var.frl_rate;
-		if (rx[port].var.frl_rate) {
-			if (fpll_chk_lvl & 0xf) {
-				cor_init(port);
-			} else if (((fpll_chk_lvl >> 4) & 0xf) == 0x1) {
-				hdmirx_hw_config(port);
-			} else if (((fpll_chk_lvl >> 4) & 0xf) == 0x2) {
-				if (rx[port].var.frl_rate) {
-					//frl_debug todo
-					hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x0, port);
-					hdmirx_wr_cor(H21RXSB_D2TH_M42H_IVCRX, 0x20, port);
-					hdmirx_wr_bits_cor(H21RXSB_GP1_REGISTER_M42H_IVCRX,
-						_BIT(3), 1, port);
-					//clk ready threshold
-					hdmirx_wr_cor(H21RXSB_DIFF1T_M42H_IVCRX, 0x20, port);
-				} else {
-					hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x10, port);
-					hdmirx_wr_cor(RX_H21_CTRL_PWD_IVCRX, 0x0, port);
-				}
-			}
-			if (rx[port].state > FSM_FRL_FLT_READY)
-				rx[port].state = FSM_FRL_FLT_READY;
-		} else {
-			if (rx[port].state > FSM_FRL_FLT_READY)
-				rx[port].state = FSM_WAIT_CLK_STABLE;
-		}
-		if (log_level & FRL_LOG)
-			rx_pr("port-%d frate change to %d\n", port, rx[port].var.frl_rate);
-	}
-	if (rx[port].var.frl_rate)
-		valid_m_monitor(port);
 }
 
 void clk_init_cor_t3x(void)
@@ -5791,14 +5585,14 @@ void hdmirx_vga_gain_tuning(u8 port)
 
 			tap0_0_def = hdmirx_rd_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,
 				MSK(4, 0), port);
-			if (dfe0_tap0 < 0x23 && !tap0_0_done) {
+			if (dfe0_tap0 < vga_tuning_min && !tap0_0_done) {
 				tap0_0_dec = graytodecimal_t3x(tap0_0_def);
 				tap0_0_dec += 1;
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,
 					MSK(4, 0), decimaltogray_t3x(tap0_0_dec), port);
 				if (tap0_0_dec == 15)
 					tap0_0_done = 1;
-			} else if (dfe0_tap0 > 0x28 && !tap0_0_done) {
+			} else if (dfe0_tap0 > vga_tuning_max && !tap0_0_done) {
 				tap0_0_dec = graytodecimal_t3x(tap0_0_def);
 				tap0_0_dec -= 1;
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,
@@ -5815,14 +5609,14 @@ void hdmirx_vga_gain_tuning(u8 port)
 			}
 			tap0_1_def = hdmirx_rd_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,
 			MSK(4, 4), port);
-			if (dfe1_tap0 < 0x23 && !tap0_1_done) {
+			if (dfe1_tap0 < vga_tuning_min && !tap0_1_done) {
 				tap0_1_dec = graytodecimal_t3x(tap0_1_def);
 				tap0_1_dec += 1;
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, MSK(4, 4),
 				    decimaltogray_t3x(tap0_1_dec), port);
 				if (tap0_1_dec == 15)
 					tap0_1_done = 1;
-			} else if (dfe1_tap0 > 0x28 && !tap0_1_done) {
+			} else if (dfe1_tap0 > vga_tuning_max && !tap0_1_done) {
 				tap0_1_dec = graytodecimal_t3x(tap0_1_def);
 				tap0_1_dec -= 1;
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, MSK(4, 4),
@@ -5838,14 +5632,14 @@ void hdmirx_vga_gain_tuning(u8 port)
 			}
 			tap0_2_def = hdmirx_rd_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,
 			MSK(4, 8), port);
-			if (dfe2_tap0 < 0x23 && !tap0_2_done) {
+			if (dfe2_tap0 < vga_tuning_min && !tap0_2_done) {
 				tap0_2_dec = graytodecimal_t3x(tap0_2_def);
 				tap0_2_dec += 1;
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, MSK(4, 8),
 				    decimaltogray_t3x(tap0_2_dec), port);
 				if (tap0_2_dec == 15)
 					tap0_2_done = 1;
-			} else if (dfe2_tap0 > 0x28 && !tap0_2_done) {
+			} else if (dfe2_tap0 > vga_tuning_max && !tap0_2_done) {
 				tap0_2_dec = graytodecimal_t3x(tap0_2_def);
 				tap0_2_dec -= 1;
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,
@@ -5861,14 +5655,14 @@ void hdmirx_vga_gain_tuning(u8 port)
 			}
 			tap0_3_def = hdmirx_rd_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE,
 			MSK(4, 12), port);
-			if (dfe3_tap0 < 0x23 && !tap0_3_done) {
+			if (dfe3_tap0 < vga_tuning_min && !tap0_3_done) {
 				tap0_3_dec = graytodecimal_t3x(tap0_3_def);
 				tap0_3_dec += 1;
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, MSK(4, 12),
 					decimaltogray_t3x(tap0_3_dec), port);
 				if (tap0_3_dec == 15)
 					tap0_3_done = 1;
-			} else if (dfe3_tap0 > 0x28 && !tap0_3_done) {
+			} else if (dfe3_tap0 > vga_tuning_max && !tap0_3_done) {
 				tap0_3_dec = graytodecimal_t3x(tap0_3_def);
 				tap0_3_dec -= 1;
 				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_AFE, MSK(4, 12),
@@ -5916,5 +5710,146 @@ void rx_cor_reset_t3x(u8 port)
 	hdmirx_wr_top(TOP_SW_RESET, 1, port);
 	udelay(1);
 	hdmirx_wr_top(TOP_SW_RESET, 0, port);
+}
+
+void clr_frl_fifo_status(u8 port)
+{
+	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX, 0xff, port);
+	udelay(1);
+	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX + 1, 0xff, port);
+	udelay(1);
+	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX + 2, 0xff, port);
+}
+
+void cor_debug_t3x(u8 port)
+{
+	hdmirx_wr_cor(VP_FDET_IRQ_MASK_VID_IVCRX, 0x80, port);
+	udelay(1);
+	hdmirx_wr_cor(VP_FDET_IRQ_MASK_VID_IVCRX + 1, 0x7, port);
+	udelay(1);
+	hdmirx_wr_cor(VP_FDET_IRQ_MASK_VID_IVCRX + 2, 0x0, port);
+	udelay(1);
+	hdmirx_wr_bits_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, _BIT(1), 1, port);
+}
+
+void rx_rcc_err_frl_config(u8 port)
+{
+	hdmirx_wr_bits_cor(DPLL_CTRL0_DPLL_IVCRX, MSK(3, 0), 0x7, port);
+	hdmirx_wr_bits_cor(DPLL_CTRL0_DPLL_IVCRX, MSK(3, 0), 0x0, port);
+	hdmirx_wr_cor(SCDCS_1S_IN_20MS_CNT_SCDC_IVCRX, err_cnt, port);
+	//hdmirx_wr_cor(SCDCS_CHR_ERRCNT_MAX0_SCDC_IVCRX, err_cnt, port);
+	//hdmirx_wr_cor(SCDCS_CHR_ERRCNT_MAX1_SCDC_IVCRX, 0x0, port);
+	hdmirx_wr_bits_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, _BIT(6), 0, port);
+}
+
+void rx_read_ecc_err(u8 port)
+{
+	u32 ch0, ch1, ch2, ch3;
+
+	rx_get_error_cnt(&ch0, &ch1, &ch2, &ch3, port);
+	if (rx[port].state >= FLT_RX_LTS_P) {
+		if (ch0 || ch1 || ch2 || ch3) {
+			rx_pr("port %d err cnt:%d,%d,%d,%d\n", port, ch0, ch1, ch2, ch3);
+			rx_pr("ced update flag 0x%x\n",
+			hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, port));
+		}
+	}
+}
+
+bool is_fsm_ready_t3x(void)
+{
+	return rx_info.chip_id == CHIP_ID_T3X &&
+		hdmi_cec_en != 0xff && rx_info.edid_update_done == 0xf;
+}
+
+bool rx_is_power_off_t3x(u8 port)
+{
+	if (port <= E_PORT1)
+		return hdmirx_rd_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC1, port) == 0;
+	else
+		return hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PHY_MISC0, port) == 0;
+}
+
+void rx_switch_to_self_hsync(u8 port, bool en)
+{
+	//hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), 1, port);
+	hdmirx_wr_bits_cor(RX_PWD_CTRL_PWD_IVCRX, _BIT(3), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL1_PWD_IVCRX, _BIT(5), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL1_PWD_IVCRX, _BIT(7), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL2_PWD_IVCRX, _BIT(2), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL1_PWD_IVCRX, _BIT(5), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL1_PWD_IVCRX, _BIT(7), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL2_PWD_IVCRX, _BIT(2), en, port);
+	//hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), 0, port);
+}
+
+bool rx_is_switch_to_analog_clk(u8 port)
+{
+	//to do, now only 4k120 100 yuv 420 has this problem.
+	if (rx[port].cur.vactive == 2160 &&
+		rx[port].cur.hactive == 1920 &&
+		rx[port].pre.colorspace == E_COLOR_YUV420 &&
+		rx[port].pre.colordepth == 12 &&
+		(rx[port].pre.frame_rate / 100 >= 98 &&
+		rx[port].pre.frame_rate / 100 <= 122))
+		return true;
+	else
+		return false;
+}
+
+void rx_switch_to_analog_clk(u8 port)
+{
+	hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(0), 1, port);
+	if (port == E_PORT2)
+		hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0,
+		MSK(3, 13), 0x2);
+	else
+		hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0,
+		MSK(3, 13), 0x2);
+}
+
+void rx_clr_f_det(bool en, u8 port)
+{
+	hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), en, port);
+}
+
+void rx_mute_t3x(bool en, u8 port_type)
+{
+	if (rx_info.chip_id != CHIP_ID_T3X)
+		return;
+	if (en) {
+		if (port_type == TVIN_PORT_MAIN) {
+			rx_mute_dual_video_rdma(E_RX_MUTE, E_RX_NA);
+			if (tvin_get_game_mode_status(port_type))
+				rx_mute_dual_video_vcbus(E_RX_MUTE, E_RX_NA);
+			if (log_level & VIDEO_LOG)
+				rx_pr("main port mute\n");
+		} else if (port_type == TVIN_PORT_SUB) {
+			rx_mute_dual_video_rdma(E_RX_NA, E_RX_MUTE);
+			rx_mute_dual_video_vcbus(E_RX_NA, E_RX_MUTE);
+			if (log_level & VIDEO_LOG)
+				rx_pr("sub port mute\n");
+		} else {
+			rx_mute_dual_video_rdma(E_RX_NA, E_RX_NA);
+			if (tvin_get_game_mode_status(port_type))
+				rx_mute_dual_video_vcbus(E_RX_MUTE, E_RX_NA);
+			rx_mute_dual_video_vcbus(E_RX_NA, E_RX_NA);
+		}
+	} else {
+		if (port_type == TVIN_PORT_MAIN) {
+			rx_mute_dual_video_rdma(E_RX_UNMUTE, E_RX_NA);
+			rx_mute_dual_video_vcbus(E_RX_UNMUTE, E_RX_NA);
+			if (log_level & VIDEO_LOG)
+				rx_pr("main port unmute\n");
+		} else if (port_type == TVIN_PORT_SUB) {
+			rx_mute_dual_video_rdma(E_RX_NA, E_RX_UNMUTE);
+			rx_mute_dual_video_vcbus(E_RX_NA, E_RX_UNMUTE);
+			if (log_level & VIDEO_LOG)
+				rx_pr("sub port unmute\n");
+		} else {
+			rx_mute_dual_video_rdma(E_RX_NA, E_RX_NA);
+			rx_mute_dual_video_vcbus(E_RX_NA, E_RX_NA);
+		}
+	}
 }
 

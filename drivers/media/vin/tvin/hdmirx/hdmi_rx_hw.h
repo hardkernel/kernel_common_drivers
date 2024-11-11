@@ -6,6 +6,22 @@
 #ifndef __HDMI_RX_HW_H__
 #define __HDMI_RX_HW_H__
 
+/* 2024.07.02 disable audio monitor when no audio sample rate */
+/* 2024.07.05 only set the corresponding port term */
+/* 2024.07.10 Separate registers for top_init, cor_init */
+/* 2024.07.22 Set colordepth to 12 when colorspace is YUV422 */
+/* 2024.07.31 hdcp2.2 repeater enabled for t7 only */
+/* 2024.08.06 optimize phy bandwidth definition */
+/* 2024.08.22 modify hdcp_rx22 definition type */
+/* 2024.08.24 disable tap0 error checking function */
+/* 2024.09.13 optimize t5m bist & slt flow */
+/* 2024.09.24 optimize getting phy trim value flow */
+/* 2024.09.26 modify frl training flow */
+/* 2024.10.10 optimize hdcp2.2 suspend flow */
+/* 2024.10.22 modify incorrect register config method in phy init */
+/* 2024.11.4 close override when 420 */
+#define RX_HW_VER "ver.2024/11/04"
+
 #define K_TEST_CHK_ERR_CNT
 
 /**
@@ -21,6 +37,10 @@
 #define _BIT(n)			MSK(1, (n))
 #define MHz	1000000
 #define KHz	1000
+
+#define IRQ_EN_ALL	3
+#define IRQ_EN_EDID 2
+#define IRQ_EN_HDCP 1
 
 #define HHI_GCLK_MPEG0			(0x50  <<  2) /* (0xC883C000 + 0x140) */
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* (0xC883C000 + 0x200)  */
@@ -55,6 +75,9 @@
 #define ANACTL_AUD_PLL_CNTL2	(0xa1 * 4)
 #define ANACTL_AUD_PLL_CNTL3	(0xa2 * 4)
 #define ANACTL_AUD_PLL_STS		(0xa3 * 4)
+#define ANACTL_VDAC_CTRL0			(0xb0 * 4)
+#define ANACTL_VDAC_CTRL1			(0xb1 * 4)
+
 #define ANACTL_AUD_PLL4X_CNTL		(0xa4 * 4)
 #define ANACTL_AUD_PLL_CNTL0_21		(0x02ea * 4)
 #define ANACTL_AUD_PLL_CNTL1_21		(0x02eb * 4)
@@ -213,7 +236,7 @@
 #define TOP_EDID_RAM_OVR7_DATA           0x024
 #define TOP_EDID_GEN_STAT_B              0x025
 #define TOP_EDID_GEN_STAT_C              0x026
-#define TOP_EDID_GEN_STAT_D              0x027
+#define TOP_EDID_GEN_STAT_D              0x031
 /* tl1 */
 #define TOP_CHAN_SWITCH_0				0x028
 #define TOP_TMDS_ALIGN_CNTL0			0x029
@@ -512,6 +535,7 @@
 #define DWC_HDMI_STS             (0x0BCUL)
 /** Current deep color mode */
 #define		DCM_CURRENT_MODE		MSK(4, 28)
+#define	DCM_CURRENT_MODE_UNDEC	0
 /** Deep color mode, 24 bit */
 #define		DCM_CURRENT_MODE_24b	4
 /** Deep color mode, 30 bit */
@@ -1182,6 +1206,9 @@
 #define MISCI_COMMON_RST				_BIT(10)
 #define HHI_HDMIRX_PHY_MISC_CNTL1		(0xd8 << 2)
 #define MISCI_MANUAL_MODE				_BIT(22)
+#define RTERM_VAL_TL1	MSK(10, 12)
+#define RTERM_FLAG_TL1	_BIT(0)
+#define RTERM_FLAG_EFUSE	_BIT(0)
 #define HHI_HDMIRX_PHY_MISC_CNTL2		(0xe0 << 2)
 	/*[4:5] in trim,[6:7] im trim*/
 #define HHI_HDMIRX_PHY_DCHD_CNTL0		(0xe5 << 2)
@@ -1218,7 +1245,7 @@
 #define HDCP14_RX_SETKEY		0x8200002d
 #define HDMIRX_WR_SEC_TOP_NEW	0x8200008c
 #define HDMIRX_RSV0				0x8200008d
-#define HDMIRX_RSV1				0x8200008e
+//#define HDMIRX_RSV1				0x8200008e
 #define HDMIRX_RSV2				0x8200008f
 #define HDMIRX_RSV3				0x82000091
 #define HDMI_RX_HDCP_CFG		0x820000aa
@@ -1273,6 +1300,7 @@
 #define COR_VSYNC_LOW_COUNT_HI      0x1899
 #define COR_VSYNC_HIGH_COUNT_LO     0x189A
 #define COR_VSYNC_HIGH_COUNT_HI     0x189B
+#define COR_VSYNC_VBACK_COUNT_EVEN     0x189E
 
 /*t7/t3*/
 #define RX_CLK_CTRL			(0x4A << 2)
@@ -1286,6 +1314,8 @@
 /* add for t3x, for emp */
 #define RX_CLK_CTRL4		(0x4E << 2)
 	#define AXI_CLK_EN				_BIT(8)
+#define CLKCTRL_SYS_CLK_EN0_REG0	(0x11 << 2)
+#define CLKCTRL_SYS_CLK_EN0_REG1	(0x12 << 2)
 #define CLKCTRL_SYS_CLK_EN0_REG2	(0x13 << 2)
 
 /*t5w*/
@@ -1631,6 +1661,7 @@
 #define  RX_DEPACK_INTR0_MASK_DP2_IVCRX        0x00001131
 #define RX_DEPACK_INTR1_DP2_IVCRX        0x00001132
 #define  RX_DEPACK_INTR1_MASK_DP2_IVCRX        0x00001133
+#define INTR2_BIT0_AVI		0x1
 #define INTR2_BIT1_SPD		0x2
 #define INTR2_BIT2_AUD		0x4
 #define INTR2_BIT4_UNREC	0x10
@@ -3120,6 +3151,50 @@
 #define SR_DLL_CDR_ST_DPHY_IVCRX	0x000070f1
 #define SARAH_CKDT_CTL_DPHY_IVCRX	0x000070fd
 
+#define I2C_MONITOR_SMP_START		(rx_info.i2c_buff.addr_base + (0x000 << 2))
+#define I2C_MONITOR_SMP_SEL		(rx_info.i2c_buff.addr_base + (0x001 << 2))
+#define I2C_MONITOR_SMP_CNTL		(rx_info.i2c_buff.addr_base + (0x002 << 2))
+#define I2C_MONITOR_SMP_FLT		(rx_info.i2c_buff.addr_base + (0x003 << 2))
+#define I2C_MONITOR_SMP_FLT_HPD		(rx_info.i2c_buff.addr_base + (0x004 << 2))
+#define I2C_MONITOR_SMP_I2C_TIMEOUT_TH	(rx_info.i2c_buff.addr_base + (0x005 << 2))
+#define I2C_MONITOR_SMP_CLK		(rx_info.i2c_buff.addr_base + (0x006 << 2))
+#define I2C_MONITOR_DDR_START_ADDR	(rx_info.i2c_buff.addr_base + (0x007 << 2))
+#define I2C_MONITOR_DDR_END_ADDR	(rx_info.i2c_buff.addr_base + (0x008 << 2))
+#define I2C_MONITOR_DDR_CNTL		(rx_info.i2c_buff.addr_base + (0x009 << 2))
+#define I2C_MONITOR_INTR_MASK		(rx_info.i2c_buff.addr_base + (0x00a << 2))
+#define I2C_MONITOR_DDR_WPTR		(rx_info.i2c_buff.addr_base + (0x00b << 2))
+#define I2C_MONITOR_DDR_BOUND_CNT	(rx_info.i2c_buff.addr_base + (0x00c << 2))
+#define I2C_MONITOR_AXI_CMD_PENDING	(rx_info.i2c_buff.addr_base + (0x00d << 2))
+#define I2C_MONITOR_SMP_STATUS		(rx_info.i2c_buff.addr_base + (0x00e << 2))
+#define I2C_MONITOR_SMP_I2C_BUSY_CNT	(rx_info.i2c_buff.addr_base + (0x00f << 2))
+#define I2C_MONITOR_AXI_STATUS		(rx_info.i2c_buff.addr_base + (0x010 << 2))
+#define I2C_MONITOR_INTR_STATUS		(rx_info.i2c_buff.addr_base + (0x011 << 2))
+#define I2C_MONITOR_AXI_CMD_CNT		(rx_info.i2c_buff.addr_base + (0x012 << 2))
+
+enum i2c_trigger_mode_e {
+	E_HW_TRIGGER,
+	E_SW_TRIGGER
+};
+
+enum i2c_dump_mode_e {
+	E_ABNORMAL_START0 = 0x1,
+	E_ABNORMAL_START1 = 0x2,
+	E_ABNORMAL_STOP = 0x4,
+	E_I2C_TIMEOUT = 0x8,
+	E_HPD_CHANGE = 0x10,
+	E_DUMP_ALL = 0x1f
+};
+
+enum i2c_data_type_e {
+	E_DATA,
+	E_START_DATA,
+	E_STOP_DATA,
+	E_START_DATA_STOP,
+	E_STOP_ABNORMAL,
+	E_START_ABNORMAL,
+	E_TIME_OUT
+};
+
 enum measure_clk_top_e {
 	TOP_HDMI_TMDSCLK = 0,
 	TOP_HDMI_CABLECLK,
@@ -3139,10 +3214,11 @@ enum measure_clk_src_e {
 enum phy_frq_band {
 	PHY_BW_0 = 0,	/*45Mhz*/
 	PHY_BW_1,		/*77Mhz*/
-	PHY_BW_2,		/*155Mhz*/
-	PHY_BW_3,		/*340Mhz*/
-	PHY_BW_4,		/*525Mhz*/
-	PHY_BW_5,		/*600Mhz*/
+	PHY_BW_2,		/*115Mhz*/
+	PHY_BW_3,		/*155Mhz*/
+	PHY_BW_4,		/*340Mhz*/
+	PHY_BW_5,		/*525Mhz*/
+	PHY_BW_6,		/*600Mhz*/
 	PHY_BW_NULL = 0xf,
 };
 
@@ -3165,6 +3241,64 @@ enum frl_rate_e {
 	FRL_12G_4LANE,
 };
 
+enum top_irq_type_e {
+	IRQ_AON_CTL = 0,	//RX Controller always on interrupt
+	IRQ_EDID_SLT = 1,	//edid_addr_intr for the selected port
+	IRQ_PWD_CTL,		//RX Controller power down interrupt
+	IRQ_PHY,		//RX PHY digital interrupt
+	IRQ_5V_RISE0,		//Port A 5v rise
+	IRQ_5V_RISE1,		//Port B 5v rise
+	IRQ_5V_RISE2,		//Port C 5v rise
+	IRQ_5V_RISE3,		//Port D 5v rise
+	IRQ_5V_FALL0,		//Port A 5v fall
+	IRQ_5V_FALL1,		//Port B 5v fall
+	IRQ_5V_FALL2,		//Port C 5v fall
+	IRQ_5V_FALL3,		//Port D 5v fall
+	IRQ_FMT_CHG,		//video data format change
+	IRQ_COL_DEP = 13,	//video data color_depth change
+	IRQ_TMDS_STB,		//tmds_clk measure stable/unstable status change
+	IRQ_HDCP_ST_RISE,	//hdcp auth start rise
+	IRQ_HDCP_ST_FALL,	//hdcp auth start fall
+	IRQ_HDCP_EN_RISE,	//hdcp_enc_state_rise
+	IRQ_HDCP_EN_FALL,	//hdcp_enc_state_fall
+	IRQ_EDID_AD0,		//edid_addr_intr for the port A
+	IRQ_EDID_AD1,		//edid_addr_intr for the port B
+	IRQ_EDID_AD2,		//edid_addr_intr for the port C
+	IRQ_EDID_AD3,		//edid_addr_intr for the port D
+	IRQ_EDID_CFT0,		//edid_bus_conflict for port A
+	IRQ_EDID_CFT1,		//edid_bus_conflict for port B
+	IRQ_EDID_CFT2,		//edid_bus_conflict for port C
+	IRQ_EDID_CFT3,		//edid_bus_conflict for port D
+	IRQ_HDCP_SKP = 27,	//HRX_HDCP22 SKP port signal nonce_rfrsh rise
+	IRQ_HDCP_RND_ERR,	//Error generating random number to HRX_HDCP22
+	IRQ_CAB_STB,		//cable clk measure stable/unstable status change
+	IRQ_TMDS_ALG,		//tmds alignment stable/unstable status change
+	IRQ_EMP_DONE,		//EMP field end at DE rise
+	IRQ_LAST_EMP,		//last EMP packet received
+	IRQ_DE_RISE,		//DE rise edge
+	IRQ_SQOF_RISE,		//hdmirx sqofclk rise
+	IRQ_SQOF_FALL,		//hdmirx sqofclk fall
+	IRQ_AUD_CHG,		//audio pll clk chg
+	IRQ_CDR_STB,		//cdr clk measure stable/unstable status change
+	/* ----T3X---- */
+	IRQ_T3X_5V_RISE,
+	IRQ_T3X_5V_FALL,
+	IRQ_T3X_EDID_AD,	//edid address interrupt
+	IRQ_T3X_20_STB,		//hrx_tmds20_clk measure stable/unstable status change
+	IRQ_T3X_21_STB,		//hrx_tmds21_clk measure stable/unstable status change
+	IRQ_PHY_STB,		//cts_phy_clk measure stable/unstable status change
+	IRQ_PXL_STB,		//cts_pixel_clk measure stable/unstable status change
+	IRQ_1618_STB,		//cts_cdr_1618_clk measure stable/unstable status change
+	IRQ_PLL_CHG0,		//hrx_pll_lock_flog edge
+	IRQ_PLL_CHG1,
+	IRQ_VS_RISE,		//vsync rise edge
+	IRQ_VALID_M_RISE,	//hdmirx_21_valid_m_rise
+	IRQ_VALID_M_FALL,	//hdmirx_21_valid_m_fall
+	IRQ_T3X_EDID_CFT,	//edid bus conflict rise edge
+	/* ----T3X---- */
+	IRQ_TYPE_CNT = 52
+};
+
 struct apll_param {
 	unsigned int bw;
 	unsigned int M;
@@ -3175,6 +3309,12 @@ struct apll_param {
 	unsigned int od2_div;
 	unsigned int aud_div;
 };
+
+extern u32 top_irq_tab[];
+extern u32 top_irq_mask_tl1[];
+extern u32 top_irq_mask_t7[];
+extern u32 top_irq_mask_t5m[];
+extern u32 top_irq_mask_t3x[];
 
 extern u32 t5_t7_rlevel[];
 extern u32 tl1_tm2_reg360[];
@@ -3205,16 +3345,12 @@ extern int clock_lock_th;
 extern int scdc_force_en;
 extern u32 hdcp_hpd_ctrl_en;
 extern int eq_dbg_lvl;
-extern int phy_term_lel;
-extern bool phy_tdr_en;
 extern char emp_buf[2][1024];
 extern char pre_emp_buf[2][1024];
 extern int hdcp22_on;
 extern int hdcp14_on;
-extern int hdcp22_kill_esm;
+extern bool hdcp22_kill_esm;
 extern bool hpd_to_esm;
-extern u32 term_cal_val;
-extern u32 phy_trim_val;
 extern u32 hdcp22_reauth_enable;
 extern int i2c_err_cnt[4];
 extern u32 rx_ecc_err_thres;
@@ -3222,11 +3358,6 @@ extern u32 rx_ecc_err_frames;
 extern u32 ddc_dbg_en;
 extern int dbg_port;
 extern int kill_esm_fail;
-extern u32 rterm_trim_val_t5;
-extern u32 rterm_trim_flag_t5;
-extern u32 rterm_trim_val_t7;
-extern u32 rterm_trim_flag_t7;
-extern unsigned int rlevel;
 extern u32 dts_debug_flag;
 extern u32 afifo_overflow_cnt;
 extern u32 afifo_underflow_cnt;
@@ -3236,8 +3367,12 @@ extern int frl_scrambler_en;
 extern u32 frl_sync_cnt;
 extern int force_clk_stable;
 extern int audio_debug;
+extern int edid_auto_debug;
 extern int clk_msr_param;
 extern int fpll_clk_sel;
+/* i2c monitor */
+extern int sda_filter;
+extern int clk_div;
 void hdmirx_set_vp_mapping(enum colorspace_e cs, u8 port);
 void rx_get_best_eq_setting(u8 port);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
@@ -3261,6 +3396,7 @@ void hdmirx_wr_top_common(unsigned int addr, unsigned int data);
 unsigned int hdmirx_rd_top_common(unsigned int addr);
 void hdmirx_wr_edid(unsigned int addr, unsigned int data);
 unsigned int hdmirx_rd_edid(unsigned int addr);
+u32 hdmirx_rd_bits_top(u16 addr, u32 mask, u8 port);
 void hdmirx_wr_bits_top(unsigned int addr,
 			unsigned int mask,
 			unsigned int value, u8 port);
@@ -3331,6 +3467,8 @@ void rx_hdcp_init(void);
 void hdmirx_phy_pddq(unsigned int enable);
 void rx_get_video_info(u8 port);
 void hdmirx_set_video_mute(bool mute, u8 port);
+void rx_clr_gcp_avmute(u8 port);
+void hdmirx_config_compress_video(u8 port);
 void hdmirx_config_video(u8 port);
 void hdmirx_config_audio(u8 port);
 void set_dv_ll_mode(bool en, u8 port);
@@ -3378,10 +3516,7 @@ void rx_get_audio_N_CTS(u32 *N, u32 *CTS, u8 port);
 void rx_run_eq(u8 port);
 bool rx_eq_done(u8 port);
 bool is_tmds_valid(u8 port);
-void hdmirx_top_irq_en(int en, int lvl, u8 port);
-void rx_phy_rt_cal(void);
-bool is_ft_trim_done(void);
-void aml_phy_get_trim_val(void);
+void hdmirx_top_irq_en(u8 en, u8 port);
 unsigned int rx_set_hdcp14_secure_key(void);
 bool rx_clr_tmds_valid(u8 port);
 void rx_set_suspend_edid_clk(bool en);
@@ -3390,7 +3525,7 @@ void aml_phy_init_handler_port1(struct work_struct *work);
 void aml_phy_init_handler_port2(struct work_struct *work);
 void aml_phy_init_handler_port3(struct work_struct *work);
 bool is_tmds_clk_stable(u8 port);
-void rx_phy_short_bist(u8 port);
+int rx_phy_short_bist(u8 port);
 void aml_phy_iq_skew_monitor(void);
 void aml_eq_eye_monitor(u8 port);
 void aml_phy_power_off(void);
@@ -3398,6 +3533,7 @@ void rx_dig_clk_en(bool en);
 void rx_clr_scdc(u8 port);
 void scdc_dwork_handler(struct work_struct *work);
 void rx_mute_vpp(u8 port);
+void rx_cd_override(bool override_en, u8 port);
 
 /* tl1 tl2 extern */
 void dump_reg_phy_tl1_tm2(void);
@@ -3424,13 +3560,14 @@ u32 rd_reg_clk_ctl(u32 offset);
 
 unsigned int hdmirx_rd_amlphy(unsigned int addr);
 unsigned int hdmirx_rd_amlphy_t3x(unsigned int addr, u8 port);
-void hdmirx_irq_hdcp_enable(bool enable, u8 port);
 u8 rx_get_avmute_sts(u8 port);
+void wr_reg_ana_ctl(u32 offset, u32 val);
 u8 hdmirx_rd_cor(u32 addr, u8 port);
 void hdmirx_wr_cor(u32 addr, u8 data, u8 port);
 bool hdmirx_poll_cor(u32 addr, u8 exp_data, u8 mask, u32 max_try, u8 port);
 u8 hdmirx_rd_bits_cor(u32 addr, u32 mask, u8 port);
 void hdmirx_wr_bits_cor(u32 addr, u32 mask, u8 value, u8 port);
+void hdmirx_wr_top_common_1(u32 addr, u32 data);
 
 void rx_hdcp_22_sent_reauth(u8 port);
 void rx_hdcp_14_sent_reauth(u8 port);
@@ -3474,6 +3611,9 @@ void rx_set_color_bar(bool en, unsigned int lvl, u8 port);
 void reset_pcs(u8 port);
 bool is_earc_hpd_low(void);
 void rx_mute_vpp(u8 port);
+void aml_phy_get_def_trim_value(void);
+bool rx_is_edid_read_done(u8 port);
+void rx_i2c_mux_cfg(u8 port);
 
 /* t3x  */
 void hdmi_tx_rx_frl_training_main(u8 port);
@@ -3485,5 +3625,14 @@ void cor_init(u8 port);
 void vdin_set_black_pattern(bool mute);
 void rx_set_term_value(unsigned char port, bool value);
 void rx_emp_hw_enable(bool enable);
+bool rx_is_need_edid_reset(u8 port);
+
+bool rx_is_phy_power_off(u8 port);
+void rx_hdcp_access_on_ddc_en(bool en);
+
+/* i2c monitor */
+void rx_i2c_dbg_monitor(void);
+void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod);
+void rx_i2c_dump(void);
 
 #endif

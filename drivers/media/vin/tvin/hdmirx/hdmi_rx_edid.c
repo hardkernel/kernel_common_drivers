@@ -22,6 +22,7 @@
 #include "hdmi_rx_drv.h"
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_hw.h"
+#include "hdmi_rx_wrapper.h"
 
 enum edid_delivery_mothed_e edid_delivery_mothed;
 /* buff to store downstream EDID or EDID load from bin */
@@ -29,6 +30,7 @@ static char edid_buf1[EDID_BUF_SIZE] = {0};
 static char edid_buf2[EDID_BUF_SIZE] = {0};
 static char edid_buf3[EDID_BUF_SIZE] = {0};
 static char edid_buf4[EDID_BUF_SIZE] = {0};
+u8 edid_port_type[4];
 char edid_cur[EDID_SIZE] = {0};
 #ifdef CONFIG_AMLOGIC_HDMITX
 //0: hdmi repeater
@@ -39,6 +41,9 @@ u32 tx_hdr_priority;
 unsigned char tx_vic_list[31] = { 0 };
 unsigned char def_vic_list[31] = { 0 };
 static unsigned char edid_tx[EDID_SIZE];
+//hdmi repeater cert item HF2-31
+//if no intersection between 420vdb, it should remove dc_36bit_420 dc_30bit_420 in vshf
+static bool vshf_dc_30_36_420_support = true;
 #endif
 
 u8 need_support_atmos_bit = 0xff;
@@ -59,7 +64,7 @@ u8 port_hpd_rst_flag;
 int port_map;
 
 MODULE_PARM_DESC(port_map, "\n port_map\n");
-__module_param(port_map, int, 0664);
+module_param(port_map, int, 0664);
 
 /*
  * 1:reset hpd after atmos edid update
@@ -429,6 +434,8 @@ bool is_valid_edid_data(unsigned char *p_edid)
 {
 	bool ret = false;
 
+	if (!p_edid)
+		return ret;
 	if (p_edid[0] == 0 &&
 		p_edid[1] == 0xff &&
 		p_edid[2] == 0xff &&
@@ -507,12 +514,15 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 
 	port_num = (buf[0] & 0x0f) - 1;
 	edid_type = buf[0] >> 0x4;
-	rx_pr("port%d edid size %d\n", port_num, size);
 
-	if (hdmi_cec_en) {
+	edid_port_type[port_num] = edid_type;
+	if (hdmi_cec_en == 1) {
 		port_hpd_rst_flag |= 1 << port_num;
 		rx_set_port_hpd(port_num, 0);
-		rx_pr("port%d_hpd_low\n", port_num);
+	}
+	if (size < 257) {
+		rx_pr("Incomplete edid\n");
+		return;
 	}
 	switch (port_num) {
 	case 0:
@@ -527,7 +537,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		break;
 		case EDID_TYPE_256_PLUS_512:
 			memcpy(edid_buf1, buf + 1, 256);
-			memcpy(edid_buf1 + 512, buf + 257, 512);
+			memcpy(edid_buf1 + 512, buf + 257, size - 257);
 		break;
 		default:
 			rx_pr("port 0 err edid_type\n");
@@ -549,7 +559,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		break;
 		case EDID_TYPE_256_PLUS_512:
 			memcpy(edid_buf2, buf + 1, 256);
-			memcpy(edid_buf2 + 512, buf + 257, 512);
+			memcpy(edid_buf2 + 512, buf + 257, size - 257);
 		break;
 		default:
 			rx_pr("port 1 err edid_type\n");
@@ -571,7 +581,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		break;
 		case EDID_TYPE_256_PLUS_512:
 			memcpy(edid_buf3, buf + 1, 256);
-			memcpy(edid_buf3 + 512, buf + 257, 512);
+			memcpy(edid_buf3 + 512, buf + 257, size - 257);
 		break;
 		default:
 			rx_pr("port 2 err edid_type\n");
@@ -593,7 +603,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		break;
 		case EDID_TYPE_256_PLUS_512:
 			memcpy(edid_buf4, buf + 1, 256);
-			memcpy(edid_buf4 + 512, buf + 257, 512);
+			memcpy(edid_buf4 + 512, buf + 257, size - 257);
 		break;
 		default:
 			rx_pr("port 3 err edid_type\n");
@@ -604,7 +614,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 			rx_pr("2.0 edid error\n");
 	break;
 	}
-	rx_pr("EDID port%d - size %d\n", port_num, size);
+	rx_sprintf(&boot_info_num, "EDID port%d - size %d\n", port_num, size);
 	if (log_level & EDID_LOG) {
 		for (i = 0; i * 16 < size; i++) {
 			for (j = 0; j < 16; j++)
@@ -619,7 +629,7 @@ void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 {
 	//if (hdmirx_repeat_support())
 		//return;
-
+#ifdef CONFIG_AMLOGIC_HDMITX
 	if (tx_hdr_priority == 1) {
 		//remove DV
 		edid_rm_db_by_tag(p_edid, EXTENDED_VSVDB_TAG);
@@ -629,6 +639,7 @@ void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 		edid_rm_db_by_tag(p_edid, VSVDB_HDR10P_TAG);
 		edid_rm_db_by_tag(p_edid, VSVDB_DV_TAG);
 	}
+#endif
 }
 
 void rx_edid_update_vrr_info(unsigned char *p_edid)
@@ -641,27 +652,24 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
 	if (!hf_vsdb_start)
 		return;
-	tag_len = (p_edid[hf_vsdb_start] & 0xf);
+	tag_len = (p_edid[hf_vsdb_start] & 0xf) + 1;
 	if (log_level & EDID_LOG)
 		rx_pr("tag_len = %d", tag_len);
-	if (tag_len < 9)
+	if (tag_len <= 9)
 		return;
 
 	if (vrr_func_en) {
-		if (rx_info.vrr_min == 0 || rx_info.vrr_max == 0)
+		if (rx_info.vrr_min == 0)
 			return;
 		p_edid[hf_vsdb_start + 9] = rx_info.vrr_min;
-		p_edid[hf_vsdb_start + 10] = rx_info.vrr_max;
+		p_edid[hf_vsdb_start + 10] =
+			rx_info.vrr_max >= 100 ? rx_info.vrr_max : 0;
 		if (log_level & EDID_LOG)
 			rx_pr("modify vrr min = %d, vrr_max = %d\n",
 				  rx_info.vrr_min, rx_info.vrr_max);
 	} else {
 		edid_rm_db_by_tag(p_edid, VSDB_FREESYNC_TAG);
 		rx_pr("hf_vsdb_start = %d", hf_vsdb_start);
-		tag_len = (p_edid[hf_vsdb_start] & 0xf) + 1;
-		rx_pr("tag_len = %d", tag_len);
-		if (tag_len < 9)
-			return;
 		p_edid[hf_vsdb_start] = 0x68;
 		p_edid[hf_vsdb_start + 8] &= 0x02;
 		for (i = hf_vsdb_start + 9; i < 254 - tag_len + 9; i++)
@@ -894,6 +902,13 @@ bool rx_edid_cal_phy_addr(u_int up_addr,
 	return flag;
 }
 
+void rx_edid_reset(u8 port)
+{
+	if (!rx_is_need_edid_reset(port))
+		return;
+	rx_edid_module_reset();
+}
+
 bool is_ddc_idle(unsigned char port_id)
 {
 	unsigned int sts;
@@ -975,20 +990,7 @@ enum edid_ver_e rx_parse_edid_ver(u8 *p_edid)
 
 enum edid_ver_e get_edid_selection(u8 port)
 {
-	u_char tmp_slt = edid_select >> (4 * port);
-	enum edid_ver_e edid_slt = EDID_V14;
-
-	if (tmp_slt & 0x2) {
-		if (rx[port].edid_auto_mode.hdcp_ver == HDCP_VER_22)
-			edid_slt = EDID_V20;
-		else
-			edid_slt = EDID_V14;
-	} else if (tmp_slt & 0x1) {
-		edid_slt = EDID_V20;
-	} else {
-		edid_slt = EDID_V14;
-	}
-	return edid_slt;
+	return rx[port].edid_type.edid_ver;
 }
 
 /* @func: seek dd+ atmos bit
@@ -1243,8 +1245,7 @@ bool need_update_edid(u8 port)
 	 * edid version is set to auto, still need to
 	 * update edid on port open
 	 */
-	if (rx_info.chip_id <= CHIP_ID_TL1 ||
-	    (edid_select >> (port * 4)) == 0x2)
+	if (rx_info.chip_id <= CHIP_ID_TL1)
 		ret = true;
 
 	return ret;
@@ -1409,7 +1410,7 @@ static void get_edid_standard_timing(unsigned char *buff,
 				     unsigned int length,
 				     struct edid_info_s *edid_info)
 {
-	unsigned char  i, img_aspect_ratio;
+	unsigned int  i, img_aspect_ratio;
 	int hactive_pixel, vactive_pixel, refresh_rate;
 	int asp_ratio[] = {
 		80 * 10 / 16,
@@ -2506,6 +2507,23 @@ void edid_parse_cea_ext_block(u8 *p_edid,
 		edid_info->blk_parse_info.db_info[i].offset += blk_start_offset;
 }
 
+bool is_support_frl(u8 port)
+{
+	u8 *pedid = NULL;
+	u32 hf_vsdb_start, frl_rate;
+	bool ret = false;
+
+	pedid = rx_get_cur_used_edid(port);
+	hf_vsdb_start = rx_get_cea_tag_offset(pedid, HF_VENDOR_DB_TAG);
+	frl_rate = pedid[hf_vsdb_start + 7] >> 4;
+	if (frl_rate > 0 && frl_rate < 7)
+		ret = true;
+	else
+		ret = false;
+
+	return ret;
+}
+
 void rx_edid_parse(u8 *p_edid, struct edid_info_s *edid_info)
 {
 	if (!p_edid || !edid_info)
@@ -3131,6 +3149,7 @@ void rx_blk_index_print(struct cta_blk_parse_info *blk_info)
 		rx_data_blk_index_print(&blk_info->db_info[i]);
 }
 
+#ifdef CONFIG_AMLOGIC_HDMITX
 void rx_edid_physical_addr(int a, int b, int c, int d)
 {
 	//tx_hpd_event = E_RCV;
@@ -3147,6 +3166,7 @@ void rx_edid_physical_addr(int a, int b, int c, int d)
 	rx_pr("\nup_phy_addr = %x\n", up_phy_addr);
 }
 EXPORT_SYMBOL(rx_edid_physical_addr);
+#endif
 
 unsigned char rx_get_cea_dtd_size(unsigned char *cur_edid, unsigned int size)
 {
@@ -3195,6 +3215,52 @@ unsigned char rx_edid_total_free_size(unsigned char *cur_edid,
 		      size - dtd_block_offset - 1);
 	/* free size except checksum */
 	return (size - dtd_block_offset - 1);
+}
+
+/* extract data block with certain tag from block buf */
+u8 *data_blk_extract(u8 *p_buf, u16 tagid)
+{
+	unsigned int index = 0;
+	u8 tag_length;
+	u16 tag_code;
+
+	if (!p_buf)
+		return NULL;
+	//TODO: for 512byte edid
+	while (index < EDID_BLK_SIZE) {
+		/* Get the tag and length */
+		tag_code = rx_get_tag_code(p_buf + index);
+		tag_length = BLK_LENGTH(p_buf[index]);
+		if (tagid == tag_code)
+			return &p_buf[index];
+		index += tag_length + 1;
+	}
+	return NULL;
+}
+
+/* extract data block with certain tag from EDID */
+u8 *edid_tag_extract(u8 *p_edid, u16 tagid)
+{
+	unsigned int index = EDID_EXT_BLK_OFF;
+	u8 tag_length;
+	u16 tag_code;
+	unsigned char max_offset;
+
+	if (!p_edid)
+		return NULL;
+	 /* check if a cea extension block */
+	if (p_edid[126]) {
+		index += 4;
+		max_offset = p_edid[130] + EDID_EXT_BLK_OFF;
+		while (index < max_offset) {
+			tag_code = rx_get_tag_code(p_edid + index);
+			tag_length = BLK_LENGTH(p_edid[index]);
+			if (tag_code == tagid)
+				return &p_edid[index];
+			index += tag_length + 1;
+		}
+	}
+	return NULL;
 }
 
 bool rx_set_earc_cap_ds(unsigned char *data, unsigned int len)
@@ -3271,27 +3337,6 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data, unsigned char 
 }
 EXPORT_SYMBOL(rx_update_tx_edid_with_audio_block);
 #endif
-
-/* extract data block with certain tag from block buf */
-u8 *data_blk_extract(u8 *p_buf, u16 tagid)
-{
-	unsigned int index = 0;
-	u8 tag_length;
-	u16 tag_code;
-
-	if (!p_buf)
-		return NULL;
-	//TODO: for 512byte edid
-	while (index < EDID_BLK_SIZE) {
-		/* Get the tag and length */
-		tag_code = rx_get_tag_code(p_buf + index);
-		tag_length = BLK_LENGTH(p_buf[index]);
-		if (tagid == tag_code)
-			return &p_buf[index];
-		index += tag_length + 1;
-	}
-	return NULL;
-}
 
 bool get_edid_support(u8 port, enum edid_support_e func)
 {
@@ -3695,6 +3740,7 @@ void edid_rm_db_by_idx(u8 *p_edid, u8 blk_idx)
 	}
 }
 
+#ifdef CONFIG_AMLOGIC_HDMITX
 static void rpt_edid_extension_num_extraction(unsigned char *p_edid)
 {
 	u_int i;
@@ -3788,6 +3834,11 @@ void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 		hf_vsdb_tx.dc_36bit_420 & hf_vsdb_def.dc_36bit_420;
 	hf_vsdb_dest.dc_30bit_420 =
 		hf_vsdb_tx.dc_30bit_420 & hf_vsdb_def.dc_30bit_420;
+	if (!vshf_dc_30_36_420_support) {
+		hf_vsdb_dest.dc_36bit_420 = 0;
+		hf_vsdb_dest.dc_30bit_420 = 0;
+		vshf_dc_30_36_420_support = true;
+	}
 	hf_vsdb_dest.qms_tfr_max = hf_vsdb_tx.qms_tfr_max & hf_vsdb_def.qms_tfr_max;
 	hf_vsdb_dest.qms = hf_vsdb_tx.qms & hf_vsdb_def.qms;
 	hf_vsdb_dest.m_delta = hf_vsdb_tx.m_delta & hf_vsdb_def.m_delta;
@@ -3850,11 +3901,69 @@ _end:
 	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_def - hf_vsdb_dest.len;
 }
 
+//hdmi repeater cert phyaddr test rule
+//sink phyaddr  --- source phyaddr(Repeater_PA_Increment)
+//	1.0.0.0   --- 1.M.0.0
+//	2.0.0.0   --- 2.M.0.0
+//	2.3.0.0   --- 2.3.M.0
+//	3.4.5.0   --- 3.4.5.M
+//	1.1.1.1   --- F.F.F.F
+//	F.F.F.F   --- F.F.F.F
+static void edid_secondaryphyaddr(unsigned char *p_edid_dest, unsigned char *p_edid_src)
+{
+	u8 src_vsdb_offset = 0;
+	u8 def_vsdb_offset = 0;
+	struct vsdb_s vsdb_src, vsdb_def, vsdb_dest;
+	u8 *p_vsdb_src = (u8 *)&vsdb_src;
+	u8 *p_vsdb_def = (u8 *)&vsdb_def;
+
+	src_vsdb_offset = rx_get_cea_tag_offset(p_edid_src, VENDOR_TAG);
+	if (!src_vsdb_offset)
+		rx_pr("src_vsdb_offset error\n");
+	def_vsdb_offset = rx_get_cea_tag_offset(p_edid_dest, VENDOR_TAG);
+	if (!def_vsdb_offset)
+		rx_pr("def_vsdb_offset error\n");
+	memcpy(p_vsdb_src + 4, &p_edid_src[src_vsdb_offset + 4], 2);
+	memcpy(p_vsdb_def + 4, &p_edid_dest[def_vsdb_offset + 4], 2);
+	if (vsdb_src.a == 0) {
+		vsdb_dest.b = vsdb_def.b;
+		vsdb_dest.a = vsdb_def.a;
+		vsdb_dest.d = vsdb_def.d;
+		vsdb_dest.c = vsdb_def.c;
+	} else if (vsdb_src.b == 0) {
+		vsdb_dest.b = vsdb_def.a;
+		vsdb_dest.a = vsdb_src.a;
+		vsdb_dest.d = 0;
+		vsdb_dest.c = 0;
+	} else if (vsdb_src.c == 0) {
+		vsdb_dest.b = vsdb_src.b;
+		vsdb_dest.a = vsdb_src.a;
+		vsdb_dest.d = 0;
+		vsdb_dest.c = vsdb_def.a;
+	} else if (vsdb_src.d == 0) {
+		vsdb_dest.b = vsdb_src.b;
+		vsdb_dest.a = vsdb_src.a;
+		vsdb_dest.d = vsdb_def.a;
+		vsdb_dest.c = vsdb_src.c;
+	} else {
+		vsdb_dest.b = 0xf;
+		vsdb_dest.a = 0xf;
+		vsdb_dest.d = 0xf;
+		vsdb_dest.c = 0xf;
+	}
+	p_vsdb_def = (u8 *)&vsdb_dest;
+	memcpy(&p_edid_dest[def_vsdb_offset + 4], p_vsdb_def + 4, 2);
+	if (log_level & EDID_LOG)
+		rx_pr("dest addr:0x%x 0x%x",
+			p_edid_dest[def_vsdb_offset + 4], p_edid_dest[def_vsdb_offset + 5]);
+}
+
 void rpt_edid_14_vs_db_extraction(unsigned char *p_edid)
 {
 	u8 vsdb_start = 0;
 	u8 tx_vsdb_start = 0;
 	struct vsdb_s vsdb_tx, vsdb_def, vsdb_dest;
+	u8 *p_vsdb_dest = (u8 *)&vsdb_dest;
 	u8 tag_len_tx, tag_len_def, i, j, k;
 	u8 tx_hdmi_vic[4] = {0};
 	u8 def_hdmi_vic[4] = {0};
@@ -3921,9 +4030,15 @@ _end1:
 	memcpy(&vsdb_tx, edid_tx + tx_vsdb_start, tag_len_tx + 1);
 	//TX edid parsing
 	i = 5;
-	if (tag_len_tx <= i) {
+	if (tag_len_tx < i) {
+		if (log_level & EDID_LOG)
+			rx_pr("vsdb length error\n");
+		return;
+	}
+	if (tag_len_tx == i) {
 		if (log_level & EDID_LOG)
 			rx_pr("vsdb only physcal address info\n");
+		edid_secondaryphyaddr(p_edid, edid_tx);
 		return;
 	}
 	i = 8;
@@ -3967,51 +4082,8 @@ _end2:
 	vsdb_dest.ieee_first = vsdb_tx.ieee_first;
 	vsdb_dest.ieee_second = vsdb_tx.ieee_second;
 	vsdb_dest.ieee_third = vsdb_tx.ieee_third;
-	vsdb_dest.b = vsdb_tx.b;
-	vsdb_dest.a = vsdb_tx.a;
-	vsdb_dest.d = vsdb_tx.d;
-	vsdb_dest.c = vsdb_tx.c;
-	if (vsdb_tx.a == 0) {
-		vsdb_dest.b = vsdb_def.b;
-		vsdb_dest.a = vsdb_def.a;
-		vsdb_dest.d = vsdb_def.d;
-		vsdb_dest.c = vsdb_def.c;
-		if (log_level & EDID_LOG)
-			rx_pr("err, use def err %x%x%x%x",
-				  vsdb_def.a, vsdb_def.b, vsdb_def.c, vsdb_def.d);
-	} else if (vsdb_tx.b == 0) {
-		vsdb_dest.b = vsdb_def.a;
-		vsdb_dest.a = vsdb_tx.a;
-		vsdb_dest.d = 0;
-		vsdb_dest.c = 0;
-		if (log_level & EDID_LOG)
-			rx_pr("dest physical address:%x%x%x%x",
-				  vsdb_tx.a, vsdb_tx.b, vsdb_tx.c, vsdb_tx.d);
-	} else if (vsdb_tx.c == 0) {
-		vsdb_dest.b = vsdb_tx.b;
-		vsdb_dest.a = vsdb_tx.a;
-		vsdb_dest.d = 0;
-		vsdb_dest.c = vsdb_def.a;
-		if (log_level & EDID_LOG)
-			rx_pr("dest physical address:%x%x%x%x",
-				  vsdb_tx.a, vsdb_tx.b, vsdb_tx.c, vsdb_tx.d);
-	} else if (vsdb_tx.d == 0) {
-		vsdb_dest.b = vsdb_tx.b;
-		vsdb_dest.a = vsdb_tx.a;
-		vsdb_dest.d = vsdb_def.a;
-		vsdb_dest.c = vsdb_tx.c;
-		if (log_level & EDID_LOG)
-			rx_pr("dest physical address:%x%x%x%x",
-				  vsdb_tx.a, vsdb_tx.b, vsdb_tx.c, vsdb_tx.d);
-	} else {
-		vsdb_dest.b = vsdb_tx.b;
-		vsdb_dest.a = vsdb_tx.a;
-		vsdb_dest.d = vsdb_tx.d;
-		vsdb_dest.c = vsdb_tx.c;
-		if (log_level & EDID_LOG)
-			rx_pr("err, use tx address:%x%x%x%x",
-				  vsdb_def.a, vsdb_def.b, vsdb_def.c, vsdb_def.d);
-	}
+	edid_secondaryphyaddr(p_edid, edid_tx);
+	memcpy(p_vsdb_dest + 4, &p_edid[vsdb_start + 4], 2);
 	if (vsdb_dest.len <= 5)
 		return;
 	vsdb_dest.dvi_dual = vsdb_tx.dvi_dual & vsdb_def.dvi_dual;
@@ -4156,7 +4228,7 @@ _end3:
 	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_def - vsdb_dest.len;
 }
 
-void rpt_edid_video_db_extraction(unsigned char *p_edid)
+void rpt_edid_video_db_extraction(unsigned char *p_dest_edid, unsigned char *p_source_edid)
 {
 	u8 vdb_start = 0;
 	u8 tx_vdb_start = 0;
@@ -4166,31 +4238,31 @@ void rpt_edid_video_db_extraction(unsigned char *p_edid)
 	u8 i, j, tag_len_dest = 0;
 	u8 native_cnt = 0;
 
-	if (!p_edid)
+	if (!p_dest_edid)
 		return;
 
-	vdb_start = rx_get_cea_tag_offset(p_edid, VIDEO_TAG);
+	vdb_start = rx_get_cea_tag_offset(p_dest_edid, VIDEO_TAG);
 	if (!vdb_start) {
 		//abnormal condition, only for errordebug
 		rx_pr("unsupported vdb!!\n");
 		return;
 	}
-	tag_len_def = p_edid[vdb_start] & 0x1f;
+	tag_len_def = p_dest_edid[vdb_start] & 0x1f;
 	memset(def_vic_list, 0, 31);
-	memcpy(def_vic_list, p_edid + vdb_start + 1, tag_len_def);
+	memcpy(def_vic_list, p_dest_edid + vdb_start + 1, tag_len_def);
 	for (i = 0; i < tag_len_def; i++) {
 		if (def_vic_list[i] >= 129 && def_vic_list[i] <= 192)
 			def_vic_list[i] = def_vic_list[i] & 0x7f;
 	}
-	tx_vdb_start = rx_get_cea_tag_offset(edid_tx, VIDEO_TAG);
+	tx_vdb_start = rx_get_cea_tag_offset(p_source_edid, VIDEO_TAG);
 	if (!tx_vdb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no vdb\n");
 		return;
 	}
-	tag_len_tx = edid_tx[tx_vdb_start] & 0x1f;
+	tag_len_tx = p_source_edid[tx_vdb_start] & 0x1f;
 	memset(tx_vic_list, 0, 31);
-	memcpy(tx_vic_list, edid_tx + tx_vdb_start + 1, tag_len_tx);
+	memcpy(tx_vic_list, p_source_edid + tx_vdb_start + 1, tag_len_tx);
 	for (i = 0; i < tag_len_tx; i++) {
 		if (tx_vic_list[i] >= 129 && tx_vic_list[i] <= 192) {
 			tx_vic_list[i] = tx_vic_list[i] & 0x7f;
@@ -4215,14 +4287,87 @@ void rpt_edid_video_db_extraction(unsigned char *p_edid)
 	}
 	if (log_level & EDID_LOG)
 		rx_pr("vdb_size = %d\n", tag_len_dest);
-	p_edid[vdb_start] = (VIDEO_TAG << 5) + tag_len_dest;
-	memcpy(p_edid + vdb_start + 1, vdb_dest, tag_len_dest);
+	p_dest_edid[vdb_start] = (VIDEO_TAG << 5) + tag_len_dest;
+	memcpy(p_dest_edid + vdb_start + 1, vdb_dest, tag_len_dest);
 	for (i = vdb_start + tag_len_dest + 1; i < 255 - tag_len_def + tag_len_dest; i++)
-		p_edid[i] = p_edid[i + tag_len_def - tag_len_dest];
+		p_dest_edid[i] = p_dest_edid[i + tag_len_def - tag_len_dest];
 	for (; i < 255; i++)
-		p_edid[i] = 0;
+		p_dest_edid[i] = 0;
 	/* dtd offset modify */
-	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_def - tag_len_dest;
+	p_dest_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_def - tag_len_dest;
+}
+
+//this function implement single or multi vdb extraction
+//(9-3)hdmi repeater cert center use multi vdb ref edid to test block1 VDB
+void rpt_edid_multi_vdb_extraction(unsigned char *p_dest_edid, unsigned char *p_source_edid)
+{
+	u8 vdb_start = 0;
+	u8 i = 0;
+	u8 p_dest_tmp[EDID_SIZE];
+	u8 p_source_tmp[EDID_SIZE];
+	u8 vdb_dest[128];
+	u8 vdb_size = 0;
+
+	memcpy(p_source_tmp, p_source_edid, EDID_SIZE);
+	while (edid_tag_extract(p_source_tmp, VIDEO_TAG)) {
+		i++;
+		memcpy(p_dest_tmp, p_dest_edid, EDID_SIZE);
+		rpt_edid_video_db_extraction(p_dest_tmp, p_source_tmp);
+		//remove vdb after extract once
+		edid_rm_db_by_tag(p_source_tmp, VIDEO_TAG);
+		if (!edid_tag_extract(p_source_tmp, VIDEO_TAG) && i == 1) {
+			vdb_start = rx_get_cea_tag_offset(p_dest_tmp, VIDEO_TAG);
+			vdb_size = BLK_LENGTH(p_dest_tmp[vdb_start]);
+			memcpy(&vdb_dest[1], &p_dest_tmp[vdb_start + 1], vdb_size);
+//hdmi repeater cert item(9-3 basic format support requirements), test block0 dtd timing
+//modify suggestion from cert center:
+//1.if there is no intersection between dtd resolution,
+//can fill in the intersection resolution of VDB
+//2.we could fill in VIC1(640*480) to dtd,all rx product should support it.
+//we choose solution 2 to pass this item, when VDB not include VIC1 after VDB extraction,
+//it should fill in VIC1 to VDB for match block0 dtd timing(VIC1).
+//if can not pass this item, it should modify block0 dtd from rx edid.bin
+			for (i = 0; i < vdb_size; i++) {
+				if (vdb_dest[1 + i] == HDMI_640x480p60)
+					break;
+			}
+			if (vdb_size == i) {
+				vdb_size += 1;
+				vdb_dest[0] = VIDEO_TAG << 5 | vdb_size;
+				vdb_dest[vdb_size] = HDMI_640x480p60;//add VIC1
+				splice_data_blk_to_edid(p_dest_tmp, &vdb_dest[0], VIDEO_TAG);
+			}
+			memcpy(p_dest_edid, p_dest_tmp, EDID_SIZE);
+			return;
+		}
+		//capture all vdb block
+		vdb_start = rx_get_cea_tag_offset(p_dest_tmp, VIDEO_TAG);
+		memcpy(&vdb_dest[1 + vdb_size], &p_dest_tmp[vdb_start + 1],
+			BLK_LENGTH(p_dest_tmp[vdb_start]));
+		vdb_size += BLK_LENGTH(p_dest_tmp[vdb_start]);
+		if (log_level & EDID_LOG)
+			rx_pr("found multi vdb:%d start:0x%x blk_length:%d\n", i, vdb_start,
+				BLK_LENGTH(p_dest_tmp[vdb_start]));
+	}
+	vdb_dest[0] = VIDEO_TAG << 5 | vdb_size;
+//hdmi repeater cert item(9-3 basic format support requirements), test block0 dtd timing
+//modify suggestion from cert center:
+//1.if there is no intersection between dtd resolution,
+//can fill in the intersection resolution of VDB
+//2.we could fill in VIC1(640*480) to dtd,all rx product should support it.
+//we choose solution 2 to pass this item, when VDB not include VIC1 after VDB extraction,
+//it should fill in VIC1 to VDB for match block0 dtd timing(VIC1).
+//if can not pass this item, it should modify block0 dtd from rx edid.bin
+	for (i = 0; i < vdb_size; i++) {
+		if (vdb_dest[1 + i] == HDMI_640x480p60)
+			break;
+	}
+	if (vdb_size == i) {
+		vdb_size += 1;
+		vdb_dest[0] = VIDEO_TAG << 5 | vdb_size;
+		vdb_dest[vdb_size] = HDMI_640x480p60;//add VIC1
+	}
+	splice_data_blk_to_edid(p_dest_edid, &vdb_dest[0], VIDEO_TAG);
 }
 
 void rpt_edid_audio_db_extraction(unsigned char *p_edid)
@@ -4232,6 +4377,11 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 	struct edid_audio_block_t adb_tx[10], adb_def[10], adb_dest[10];
 	u8 tag_len_tx, tag_len_def;
 	u8 i, j, tag_len_dest = 0;
+	//some device such as arc, it's edid include several same audio format
+	//can not judge which format is the best format when extract rx edid
+	//when found tx edid has duplicat audio format,just use rx audio format
+	int tx_duplicate_audio_format = 0;
+	int tx_audio_format = 0;
 
 	if (!p_edid)
 		return;
@@ -4265,7 +4415,15 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 	for (i = 0; i < tag_len_def / 3; i++) {
 		for (j = 0; j < tag_len_tx / 3; j++) {
 			if (adb_tx[j].format_code == adb_def[i].format_code) {
+				if (tx_audio_format & (1 << adb_tx[j].format_code)) {
+					if (log_level & EDID_LOG)
+						rx_pr("skip same audio format %d",
+							adb_tx[j].format_code);
+					tx_duplicate_audio_format |= (1 << adb_tx[j].format_code);
+					break;
+				}
 				adb_dest[tag_len_dest / 3].format_code = adb_tx[j].format_code;
+				tx_audio_format |= (1 << adb_tx[j].format_code);
 				//max channel
 				if (adb_def[i].max_channel >
 						adb_tx[j].max_channel)
@@ -4312,8 +4470,20 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 			}
 		}
 	}
+	//recover duplicate audio format to rx format
+	for (i = 0; i < tag_len_dest / 3; i++) {
+		if (tx_duplicate_audio_format & (1 << adb_dest[i].format_code)) {
+			for (j = 0; j < tag_len_def / 3; j++) {
+				if (adb_dest[i].format_code == adb_def[j].format_code) {
+					memcpy(&adb_dest[i], &adb_def[j],
+							sizeof(struct edid_audio_block_t));
+					break;
+				}
+			}
+		}
+	}
 	if (log_level & EDID_LOG)
-		rx_pr("adb_size = %d\n", tag_len_dest);
+		rx_pr("adb_size = %d %d %d\n", tag_len_dest, tag_len_def, tag_len_tx);
 	p_edid[adb_start] = (AUDIO_TAG << 5) + tag_len_dest;
 	memcpy(p_edid + adb_start + 1, adb_dest, tag_len_dest);
 	for (i = adb_start + tag_len_dest + 1; i < 255 - tag_len_def + tag_len_dest; i++)
@@ -4467,6 +4637,9 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 				k++;
 				break;
 			}
+	//no dest 420vic list, need remove dc_36bit_420 dc_30bit_420 in vshf
+	if (k == 0)
+		vshf_dc_30_36_420_support = false;
 	if (def_cmdb_len) {
 		vdb_start = rx_get_cea_tag_offset(p_edid, VIDEO_TAG);
 		if (!vdb_start && (log_level & EDID_LOG))
@@ -4827,14 +5000,32 @@ void rpt_edid_update_stand_timing(u8 *p_edid)
 	}
 }
 
+static void edid_sad_passthrough(unsigned char *p_edid_dest, unsigned char *p_edid_src)
+{
+	u8 adb_start = 0;
+
+	adb_start = rx_get_cea_tag_offset(p_edid_src, AUDIO_TAG);
+	if (adb_start) {
+		edid_rm_db_by_tag(p_edid_dest, AUDIO_TAG);
+		/* place tv aud data blk to blk index = 0x1 */
+		splice_data_blk_to_edid(p_edid_dest, &p_edid_src[adb_start], 0x01);
+	}
+}
+
 void rpt_edid_extraction(unsigned char *p_edid)
 {
 	if (!is_valid_edid_data(edid_tx))
 		return;
-	if (rpt_edid_selection == 1)//use tx edid
-		p_edid = edid_tx;
-	else if (rpt_edid_selection == 2)//use def edid
+	if (rpt_edid_selection == use_edid_def_secondary_phyaddr) {
+		edid_secondaryphyaddr(p_edid, edid_tx);
 		return;
+	} else if (rpt_edid_selection == use_edid_def_sad_passthrough_secondary_phyaddr) {
+		edid_sad_passthrough(p_edid, edid_tx);
+		edid_secondaryphyaddr(p_edid, edid_tx);
+		return;
+	} else if (rpt_edid_selection == use_edid_def) {
+		return;
+	}
 
 	//block0
 	rpt_edid_update_stand_timing(p_edid);
@@ -4854,24 +5045,29 @@ void rpt_edid_extraction(unsigned char *p_edid)
 	 * Data Blocks in the E-EDID prior to forwarding
 	 */
 	rpt_edid_rm_hf_eeodb(p_edid);
-	rpt_edid_video_db_extraction(p_edid);
-	rpt_edid_audio_db_extraction(p_edid);
+	rpt_edid_multi_vdb_extraction(p_edid, edid_tx);
+	//OTT-56704 need pass through tv audio block
+	if (rpt_edid_selection == use_edid_repeater_sad_passthrough)
+		edid_sad_passthrough(p_edid, edid_tx);
+	else
+		rpt_edid_audio_db_extraction(p_edid);
 	rpt_edid_14_vs_db_extraction(p_edid);
-	rpt_edid_hf_vs_db_extraction(p_edid);
 	rpt_edid_420_vdb_extraction(p_edid);
+	rpt_edid_hf_vs_db_extraction(p_edid);
 	rpt_edid_colorimetry_db_extraction(p_edid);
 	rpt_edid_hdr_static_db_extraction(p_edid);
 	rpt_edid_vsv_hdr10plus_extraction(p_edid);
 	rpt_edid_vsg_freesync_extraction(p_edid);
 	rpt_edid_vsv_db_extraction(p_edid);
 }
+#endif
 
 u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 {
 	u_int i;
 	u_int checksum = 0;
-	u8 start = blk_num * EDID_BLK_SIZE;
-	u8 end = END_OF_BLK(blk_num);
+	u32 start = blk_num * EDID_BLK_SIZE;
+	u32 end = END_OF_BLK(blk_num);
 
 	if (!pedid)
 		return 0;
@@ -4884,6 +5080,21 @@ u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 		}
 	}
 	return checksum;
+}
+
+u32 rx_get_edid_size(u8 port)
+{
+	u32 blk_num = 0, index = 0;
+	u8 *pedid = NULL;
+
+	pedid = rx_get_cur_used_edid(port);
+	index = rx_get_cea_tag_offset(pedid, EXTENDED_HF_EEODB);
+	if (index)
+		blk_num = pedid[index + 2] + 1;
+	else
+		blk_num = pedid[126] + 1;
+
+	return blk_num * EDID_BLK_SIZE;
 }
 
 u_char *rx_get_cur_def_edid(u_char port)
@@ -4980,7 +5191,9 @@ bool hdmi_rx_top_edid_update(void)
 			rx_edid_update_vrr_info(pedid);
 		if (allm_update_en)
 			rx_edid_update_allm_info(pedid);
+#ifdef CONFIG_AMLOGIC_HDMITX
 		rpt_edid_extraction(pedid);
+#endif
 		for (j = 0; j <= ext_blk_num; ++j)
 			pedid[END_OF_BLK(j)] = rx_edid_calc_cksum(pedid, j);
 		for (j = 0; j < EDID_SIZE; j++)
@@ -4990,5 +5203,187 @@ bool hdmi_rx_top_edid_update(void)
 	if (log_level & EDID_LOG)
 		rx_print_edid_support();
 	return true;
+}
+
+void rx_clr_edid_type(unsigned char port)
+{
+	if (port >= rx_info.port_num)
+		return;
+
+	rx[port].edid_type.need_update = false;
+	if (log_level & EDID_LOG)
+		rx_pr("edid_auto_sel:%d, port:%d, cfg:%d\n",
+			edid_auto_sel, port, rx[port].edid_type.cfg);
+	switch (rx[port].edid_type.cfg) {
+	case EDID_V20:
+		rx[port].edid_type.edid_ver = EDID_V20;
+		break;
+	case EDID_AUTO20:
+		if (rx[port].tx_type == DEV_HDMI14)
+			rx[port].edid_type.edid_ver = EDID_V14;
+		else
+			rx[port].edid_type.edid_ver = EDID_V20;
+		break;
+	case EDID_AUTO14:
+		if (rx[port].tx_type == DEV_HDMI20)
+			rx[port].edid_type.edid_ver = EDID_V20;
+		else
+			rx[port].edid_type.edid_ver = EDID_V14;
+		break;
+	case EDID_V14:
+	default:
+		rx[port].edid_type.edid_ver = EDID_V14;
+		break;
+	}
+}
+
+void edid_type_init(void)
+{
+	unsigned char i = 0;
+
+	for (i = 0; i < rx_info.port_num; i++)
+		rx_clr_edid_type(i);
+}
+
+void edid_type_update(u8 port)
+{
+	switch (rx[port].edid_type.cfg) {
+	case EDID_V14:
+	case EDID_V20:
+		break;
+	case EDID_AUTO14:
+		if ((edid_auto_sel & rx[port].edid_type.cfg) == 0)
+			break;
+		if (rx[port].tx_type == DEV_HDMI20 && rx[port].edid_type.edid_ver != EDID_V20) {
+			rx[port].edid_type.edid_ver = EDID_V20;
+			rx[port].edid_type.need_update = true;
+		}
+		break;
+	case EDID_AUTO20:
+		if ((edid_auto_sel & rx[port].edid_type.cfg) == 0)
+			break;
+		if (rx[port].tx_type == DEV_HDMI14) {
+			if (rx[port].edid_type.edid_ver != EDID_V14) {
+				rx[port].edid_type.edid_ver = EDID_V14;
+				rx[port].edid_type.need_update = true;
+			}
+		} else if (rx[port].tx_type == DEV_ABNORMAL_SCDC) {
+			if (port == rx_info.main_port) {
+				if (rx[port].edid_type.edid_ver != EDID_V20) {
+					rx[port].edid_type.edid_ver = EDID_V20;
+					rx[port].edid_type.need_update = true;
+				}
+				rx[port].tx_type = DEV_HDMI20;
+			} else {
+				if (rx[port].edid_type.edid_ver != EDID_V14) {
+					rx[port].edid_type.edid_ver = EDID_V14;
+					rx[port].edid_type.need_update = true;
+				}
+			}
+		} else {
+			if (rx[port].edid_type.edid_ver != EDID_V20) {
+				rx[port].edid_type.edid_ver = EDID_V20;
+				rx[port].edid_type.need_update = true;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	if (rx[port].edid_type.need_update) {
+		edid_update_dwork.port = port;
+		schedule_work(&edid_update_dwork.work);
+		rx[port].edid_type.need_update = false;
+	}
+}
+
+void rx_edid_reset_task(u8 port)
+{
+	edid_reset_work.port = port;
+	edid_reset_work.state[port] = EDID_WAIT_READ_DONE;
+	schedule_delayed_work(&edid_reset_work.delayed_work, msecs_to_jiffies(40));
+}
+
+u8 rx_read_edid_offset(u8 port)
+{
+	u32 temp = 0;
+
+	switch (rx_info.chip_id) {
+	case CHIP_ID_T3X:
+		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT, port) & 0x1ff;
+		break;
+	case CHIP_ID_TXHD2:
+	case CHIP_ID_T5M:
+	case CHIP_ID_TL1:
+	case CHIP_ID_TM2:
+	case CHIP_ID_T5:
+	case CHIP_ID_T5D:
+	case CHIP_ID_T7:
+	case CHIP_ID_T3:
+	case CHIP_ID_T5W:
+	default:
+		switch (port) {
+		case E_PORT0:
+			temp = hdmirx_rd_top(TOP_EDID_GEN_STAT, E_PORT0) & 0x1ff;
+			break;
+		case E_PORT1:
+			temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_B, E_PORT1) & 0x1ff;
+			break;
+		case E_PORT2:
+			temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_C, E_PORT2) & 0x1ff;
+			break;
+		case E_PORT3:
+			temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_D, E_PORT3) & 0x1ff;
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+	return temp;
+}
+
+void rx_edid_reset_handler(struct work_struct *work)
+{
+	struct delayed_work *dw = container_of(work, struct delayed_work, work);
+	struct edid_delayed_work_data *dwd =
+		container_of(dw, struct edid_delayed_work_data, delayed_work);
+	int i;
+	bool rst_flg = true;
+	static u8 rst_cnt[E_PORT_NUM];
+
+	switch (dwd->state[dwd->port]) {
+	case EDID_WAIT_READ_DONE:
+		if (rx_is_edid_read_done(dwd->port))
+			dwd->state[dwd->port] = EDID_WAIT_OTHER_PORT_IDLE;
+		break;
+	case EDID_WAIT_OTHER_PORT_IDLE:
+		for (i = 0; i < rx_info.port_num; i++) {
+			if (i == dwd->port)
+				continue;
+			dwd->edid_offset_cur[i] = rx_read_edid_offset(i) & 0x1ff;
+			if (dwd->edid_offset_cur[i] != 0)
+				rst_flg = false;
+		}
+		if (rst_flg || rst_cnt[dwd->port] >= EDID_RST_TIMEOUT) {
+			rx_edid_module_reset();
+			if (rx_read_edid_offset(dwd->port) == 0) {
+				edid_seg_flag[dwd->port] = 0;
+				dwd->state[dwd->port] = EDID_RESET_DONE;
+			} else {
+				rx_pr("edid reset fail\n");
+			}
+			rst_cnt[dwd->port] = 0;
+		} else {
+			rst_cnt[dwd->port]++;
+		}
+		break;
+	case EDID_RESET_DONE:
+		break;
+	default:
+		break;
+	}
+	if (edid_seg_flag[dwd->port])
+		schedule_delayed_work(&edid_reset_work.delayed_work, msecs_to_jiffies(40));
 }
 
