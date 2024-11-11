@@ -20,6 +20,14 @@ struct cm_port_s {
 	int cm_data_port[4];
 };
 
+struct lc_stts_config_s {
+	unsigned int hsize[2];
+	unsigned int vsize[2];
+	unsigned int h_num[2];
+	unsigned int v_num[2];
+	unsigned int overlap[2];
+};
+
 int get_slice_max(void);
 
 struct cm_port_s get_cm_port(void);
@@ -51,6 +59,8 @@ int ve_brightness_contrast_get(enum vadj_index_e vadj_idx);
 void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 	enum wr_md_e mode, enum vpp_slice_e slice,
 	enum vpp_matrix_e mtx_sel, int vpp_index);
+void ve_eye_proc(int mtx_ep[][4], int mtx_on, int vpp_index);
+int get_eye_pro_en(void);
 
 /*vpp module control*/
 void ve_vadj_ctl(enum wr_md_e mode, enum vadj_index_e vadj_idx, int en,
@@ -89,11 +99,10 @@ void ve_dnlp_set(ulong *data);
 void ve_dnlp_ctl(int enable);
 void ve_dnlp_sat_set(unsigned int value, int vpp_index);
 
-void ve_lc_stts_blk_cfg(unsigned int height,
-	unsigned int width, int h_num, int v_num, int rdma_mode,
+void ve_lc_stts_blk_cfg(struct lc_stts_config_s cfg_data,
+	unsigned int multi_slice_type, int rdma_mode,
 	int vpp_index);
-void ve_lc_stts_en(int enable, int h_num,
-	unsigned int height, unsigned int width,
+void ve_lc_stts_en(int enable,
 	int pix_drop_mode, int eol_en, int hist_mode,
 	int lpf_en, int din_sel, int bitdepth,
 	int flag, int flag_full, int thd_black,
@@ -101,12 +110,12 @@ void ve_lc_stts_en(int enable, int h_num,
 void ve_lc_blk_num_get(int *h_num, int *v_num,
 	int slice);
 void ve_lc_disable(int rdma_mode, int vpp_index);
-void ve_lc_curve_ctrl_cfg(int enable,
-	unsigned int height, unsigned int width,
-	int h_num, int v_num, int rdma_mode, int vpp_index);
+void ve_lc_curve_ctrl_cfg(int enable, int rdma_mode,
+	int vpp_index);
 void ve_lc_top_cfg(int enable, int h_num, int v_num,
 	unsigned int height, unsigned int width, int bitdepth,
 	int flag, int flag_full, int rdma_mode, int vpp_index);
+void ve_lc_mapping_ctrl(int enable, int rdma_mode, int vpp_index);
 void ve_lc_sat_lut_set(int *data);
 void ve_lc_ymin_lmt_set(int *data);
 void ve_lc_ymax_lmt_set(int *data);
@@ -141,6 +150,8 @@ void mtx_setting_v2(enum vpp_matrix_e mtx_sel,
 	enum mtx_csc_e mtx_csc,
 	int mtx_on,
 	enum vpp_slice_e slice, int vpp_index);
+int post_pre_gamma_get(enum vpp_slice_e slice, int start, int len);
+void ve_size_info_update(int vpp_index);
 
 #endif
 #endif

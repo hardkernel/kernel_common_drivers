@@ -168,6 +168,12 @@ void bls_set(void)
 	int yuv_in[3] = {0}, yuv_o[3] = {0};
 	int bitdepth = BITDEPTH;
 	struct bls_par *bls_param;
+	int lut3d_points;
+
+	if (chip_type_id == chip_t6d)
+		lut3d_points = LUT3D_POINTS9;
+	else
+		lut3d_points = LUT3D_POINTS;
 
 	bls_param = get_bls_par();
 	if (!bls_param->bls_proc) {
@@ -177,10 +183,10 @@ void bls_set(void)
 
 	vpp_lut3d_table_init(-1, -1, -1);
 
-	for (d0 = 0; d0 < 17; d0++) {
-		for (d1 = 0; d1 < 17; d1++) {
-			for (d2 = 0; d2 < 17; d2++) {
-				index = d0 * 289 + d1 * 17 + d2;
+	for (d0 = 0; d0 < lut3d_points; d0++) {
+		for (d1 = 0; d1 < lut3d_points; d1++) {
+			for (d2 = 0; d2 < lut3d_points; d2++) {
+				index = d0 * lut3d_points * lut3d_points + d1 * lut3d_points + d2;
 				ori_in[0] = plut3d[index * 3 + 0];
 				ori_in[1] = plut3d[index * 3 + 1];
 				ori_in[2] = plut3d[index * 3 + 2];
@@ -206,7 +212,7 @@ void bls_set(void)
 				plut3d[index * 3 + 2] = rgb_o[2];
 				if (bls_debug && d0 == idx_r && d1 == idx_g) {
 					if (idx_b < 0)
-						/*print 17 point*/
+						/*print 17 or 9 point*/
 						pr_info("d0 = %d, d1 = %d, d2 = %d. ori_in[3]: %d, %d, %d. yuv_in[3]: %d, %d, %d. yuv_o[3] = %d, %d, %d. rgb_o[3]: %d, %d, %d\n",
 							d0, d1, d2,
 							ori_in[0], ori_in[1], ori_in[2],

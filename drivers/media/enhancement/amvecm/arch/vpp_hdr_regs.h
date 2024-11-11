@@ -102,6 +102,17 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD1_HDR2_HIST_CTRL                 0x383d
 #define VD1_HDR2_HIST_H_START_END          0x383e
 #define VD1_HDR2_HIST_V_START_END          0x383f
+#define VD1_OGAIN_LUT1_ADDR_PORT           0x3840
+#define VD1_OGAIN_LUT1_DATA_PORT           0x3841
+#define VD1_HDR2_GMUT_COMP0                0x3844
+#define VD1_HDR2_GMUT_COMP1                0x3845
+#define VD1_HDR2_GMUT_COMP2                0x3846
+#define VD1_HDR2_GMUT_COMP3                0x3847
+#define VD1_HDR2_GMUT_COMP4                0x3848
+#define VD1_HDR2_GMUT_COMP5                0x3849
+#define VD1_HDR2_GMUT_COMP6                0x384a
+#define VD1_HDR2_GMUT_COMP7                0x384b
+#define VD1_HDR2_GMUT_COMP8                0x384c
 
 #define VD2_HDR2_CTRL                      0x3850
 #define VD2_HDR2_CLK_GATE                  0x3851
@@ -168,6 +179,17 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD2_HDR2_HIST_CTRL                 0x388d
 #define VD2_HDR2_HIST_H_START_END          0x388e
 #define VD2_HDR2_HIST_V_START_END          0x388f
+#define VD2_OGAIN_LUT1_ADDR_PORT           0x3890
+#define VD2_OGAIN_LUT1_DATA_PORT           0x3891
+#define VD2_HDR2_GMUT_COMP0                0x3894
+#define VD2_HDR2_GMUT_COMP1                0x3895
+#define VD2_HDR2_GMUT_COMP2                0x3896
+#define VD2_HDR2_GMUT_COMP3                0x3897
+#define VD2_HDR2_GMUT_COMP4                0x3898
+#define VD2_HDR2_GMUT_COMP5                0x3899
+#define VD2_HDR2_GMUT_COMP6                0x389a
+#define VD2_HDR2_GMUT_COMP7                0x389b
+#define VD2_HDR2_GMUT_COMP8                0x389c
 
 // vd3 to do, use correct register address
 #define VD3_HDR2_CTRL                      0x5930
@@ -234,6 +256,8 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD3_HDR2_HIST_CTRL                 0x596d
 #define VD3_HDR2_HIST_H_START_END          0x596e
 #define VD3_HDR2_HIST_V_START_END          0x596f
+#define VD3_OGAIN_LUT1_ADDR_PORT           0x5970
+#define VD3_OGAIN_LUT1_DATA_PORT           0x5971
 
 // end of vd3 part for t7
 // osd1 hdr
@@ -300,6 +324,22 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define OSD1_HDR2_HIST_CTRL                 0x38dd
 #define OSD1_HDR2_HIST_H_START_END          0x38de
 #define OSD1_HDR2_HIST_V_START_END          0x38df
+
+//osd1 pq
+#define OSD1_PQ_MATRIX_COEF00_01            0x38f0
+#define OSD1_PQ_MATRIX_COEF02_10            0x38f1
+#define OSD1_PQ_MATRIX_COEF11_12            0x38f2
+#define OSD1_PQ_MATRIX_COEF20_21            0x38f3
+#define OSD1_PQ_MATRIX_COEF22               0x38f4
+#define OSD1_PQ_MATRIX_COEF13_14            0x38f5
+#define OSD1_PQ_MATRIX_COEF23_24            0x38f6
+#define OSD1_PQ_MATRIX_COEF15_25            0x38f7
+#define OSD1_PQ_MATRIX_CLIP                 0x38f8
+#define OSD1_PQ_MATRIX_OFFSET0_1            0x38f9
+#define OSD1_PQ_MATRIX_OFFSET2              0x38fa
+#define OSD1_PQ_MATRIX_PRE_OFFSET0_1        0x38fb
+#define OSD1_PQ_MATRIX_EN_CTRL              0x38fc
+#define OSD1_PQ_MATRIX_PRE_OFFSET2          0x38fd
 
 /* osd2 hdr  */
 /* t7 do not have osd2 hdr, t3 only have MATRIXI. */

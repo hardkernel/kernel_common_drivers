@@ -576,11 +576,20 @@ void ve_dnlp_calculate_reg(void)
 		for (i = 0; i < 32; i++) {
 			ve_dnlp_reg_v2[i] = 0;
 			cur = i << 1;
-			for (j = 0; j < 2; j++) {
-				data = ve_dnlp_lpf[cur + j] << 2;
-				if (data > 1023)
-					data = 1023;
-				ve_dnlp_reg_v2[i] |= data << (j << 4);
+
+			data = ve_dnlp_lpf[cur] << 2;
+			if (data > 1023)
+				data = 1023;
+			ve_dnlp_reg_v2[i] |= data;
+
+			data = ve_dnlp_lpf[cur + 1] << 2;
+			if (data > 1023)
+				data = 1023;
+			if (chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d) {
+				ve_dnlp_reg_v2[i] |= data << 12;
+			} else {
+				ve_dnlp_reg_v2[i] |= data << 16;
 			}
 		}
 	} else {

@@ -213,6 +213,10 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 	struct am_reg_s *dejaggy_reg;
 	unsigned int addr_tmp = 0;
 	unsigned int sr_addr_offset = 0x2500;
+	unsigned int reg_sr = SRSHARP1_LC_TOP_CTRL;
+
+	if (chip_type_id == chip_t6d)
+		reg_sr = VPP_LC_MODE;
 
 	dejaggy_reg = sr0_dej_setting[DEJAGGY_LEVEL - 1].am_reg;
 #endif
@@ -220,6 +224,13 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 		mask = p->am_reg[i].mask;
 		val = p->am_reg[i].val;
 		addr = p->am_reg[i].addr;
+
+		if (addr == 0) {
+			pr_amcm_dbg("\n[%s] i=%d, mask=%d, val=%d, p length=%d\n",
+				__func__, i, mask, val, p->length);
+			continue;
+		}
+
 		skip = skip_pq_ctrl_load(&p->am_reg[i]);
 		if (skip != 0)
 			mask &= ~skip;
@@ -378,7 +389,8 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 				/*for slice1 sr*/
 				if (chip_type_id == chip_t3x &&
 					addr >= 0x5000 &&
-					addr <= 0x53ff) {
+					addr <= 0x53ff &&
+					addr != 0x52c0) {
 					if (pq_reg_wr_rdma)
 						VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr +
 							sr_addr_offset,
@@ -388,13 +400,21 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 							sr_addr_offset,
 							p->am_reg[i].val);
 				}
+
+				if (chip_type_id == chip_s6 ||
+					chip_type_id == chip_s7d)
+					aipq_base_peaking_param(addr, mask, val);
 #endif
 			} else {
 				if (addr == VPP_MISC)
 					break;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-				if (addr == offset_addr(SRSHARP1_LC_TOP_CTRL)) {
+				if (chip_type_id == chip_t3x &&
+					(addr == 0x52c0 || addr == 0x77c0))
+					break;
+
+				if (addr == offset_addr(reg_sr)) {
 					if (!lc_en)
 						val = val & 0xffffffef;
 				}
@@ -460,6 +480,26 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 			}
 			break;
 /* #endif */
+		case REG_TYPE_OSD_SHARPNESS:
+			if (mask == 0xffffffff) {
+				if (pq_reg_wr_rdma)
+					VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr, val, 0, vpp_index);
+				else
+					WRITE_VPP_REG(addr, val);
+			} else {
+				if (pq_reg_wr_rdma) {
+					temp = READ_VPP_REG(addr);
+					VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr,
+						(temp & (~mask)) |
+						(val & mask), 0, vpp_index);
+				} else {
+					temp = READ_VPP_REG(addr);
+					WRITE_VPP_REG(addr,
+						(temp & (~mask)) |
+						(val & mask));
+				}
+			}
+			break;
 		default:
 			break;
 		}
@@ -730,7 +770,7 @@ void amcm_enable(enum wr_md_e md, int vpp_index)
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_CFG_REG);
 		temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 		temp = (temp & (~0xc0000000)) | (1 << 30);
-		temp = (temp & (~0xff0000)) | (24 << 16);
+		temp = (temp & (~0xff0000)) | (1 << 16);
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_CFG_REG);
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp);
 
@@ -1192,6 +1232,15 @@ static int amvecm_regmap_info(struct am_regs_s *p)
 			break;
 		case REG_TYPE_VCBUS:
 			pr_info("%s:%-3d vcbus: 0x%-4x=0x%-8x (%-5u)=(%-10u)",
+				__func__, i, p->am_reg[i].addr,
+				(p->am_reg[i].val & p->am_reg[i].mask),
+				p->am_reg[i].addr,
+				(p->am_reg[i].val & p->am_reg[i].mask));
+			pr_info(" mask=%-8x(%u)\n",	p->am_reg[i].mask,
+				p->am_reg[i].mask);
+			break;
+		case REG_TYPE_OSD_SHARPNESS:
+			pr_info("%s:%-3d osd: 0x%-4x=0x%-8x (%-5u)=(%-10u)",
 				__func__, i, p->am_reg[i].addr,
 				(p->am_reg[i].val & p->am_reg[i].mask),
 				p->am_reg[i].addr,

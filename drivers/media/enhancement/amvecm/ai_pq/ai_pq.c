@@ -30,6 +30,7 @@
 #include "../cm2_adj.h"
 #include "../reg_helper.h"
 #include "../amve.h"
+#include "../arch/vpp_s7d_sr_regs.h"
 
 unsigned int aipq_debug;
 module_param(aipq_debug, uint, 0664);
@@ -349,16 +350,38 @@ int peaking_scene_process(int offset, int enable)
 	static int slower_num[4];
 
 	/*sr0 hp,bp gain*/
-	base_val[0] = adap_param->peaking_param.sr0_hp_final_gain;
-	base_val[1] = adap_param->peaking_param.sr0_bp_final_gain;
-	/*sr1 hp,bp gain*/
-	base_val[2] = adap_param->peaking_param.sr1_hp_final_gain;
-	base_val[3] = adap_param->peaking_param.sr1_bp_final_gain;
+	if (chip_type_id == chip_s6 ||
+		chip_type_id == chip_s7d) {
+		base_val[0] = adap_param->peaking_param.sr0_final_pgains;
+		base_val[1] = adap_param->peaking_param.sr0_final_ngains;
+	} else {
+		base_val[0] = adap_param->peaking_param.sr0_hp_final_gain;
+		base_val[1] = adap_param->peaking_param.sr0_bp_final_gain;
+	}
+
+	/*sr1 hp,bp gain ,s6/s7d sr0 dgain,cgian*/
+	if (chip_type_id == chip_s6 ||
+		chip_type_id == chip_s7d) {
+		base_val[2] = adap_param->peaking_param.sr0_final_dgains;
+		base_val[3] = adap_param->peaking_param.sr0_final_cgains;
+	} else {
+		base_val[2] = adap_param->peaking_param.sr1_hp_final_gain;
+		base_val[3] = adap_param->peaking_param.sr1_bp_final_gain;
+	}
+
+	pr_aipq_dbg("%s, base_val[0]=%d, base_val[1]=%d, base_val[2]=%d, base_val[3]=%d\n",
+		__func__, base_val[0], base_val[1], base_val[2], base_val[3]);
+
 	adap_param->satur_param.offset = offset;
 
 	if (!enable || !(aipq_en & (1 << PEAKING_SCENE))) {
-		set_sharpness_gain(base_val[0] << 8 | base_val[1],
-			base_val[2] << 8 | base_val[3]);
+		if (chip_type_id == chip_s6 ||
+		chip_type_id == chip_s7d)
+			set_sharpness_gain(base_val[0] << 8 | base_val[1] |
+				base_val[2] << 24 | base_val[3] << 16, 0);
+		else
+			set_sharpness_gain(base_val[0] << 8 | base_val[1],
+				base_val[2] << 8 | base_val[3]);
 		first_frame = 1;
 		return 0;
 	}
@@ -421,8 +444,13 @@ int peaking_scene_process(int offset, int enable)
 		}
 	}
 
-	set_sharpness_gain(reg_val[0] << 8 | reg_val[1],
-		reg_val[2] << 8 | reg_val[3]);
+	if (chip_type_id == chip_s6 ||
+		chip_type_id == chip_s7d)
+		set_sharpness_gain(reg_val[0] << 8 | reg_val[1] |
+				reg_val[2] << 24 | reg_val[3] << 16, 0);
+	else
+		set_sharpness_gain(reg_val[0] << 8 | reg_val[1],
+			reg_val[2] << 8 | reg_val[3]);
 
 	return 0;
 }
@@ -679,6 +707,10 @@ int adaptive_param_init(void)
 	adap_param->peaking_param.offset = 0;
 	adap_param->peaking_param.sr0_hp_final_gain = 0;
 	adap_param->peaking_param.sr0_bp_final_gain = 0;
+	adap_param->peaking_param.sr0_final_pgains = 0;
+	adap_param->peaking_param.sr0_final_ngains = 0;
+	adap_param->peaking_param.sr0_final_dgains = 0;
+	adap_param->peaking_param.sr0_final_cgains = 0;
 	adap_param->peaking_param.sr1_hp_final_gain = 0;
 	adap_param->peaking_param.sr1_bp_final_gain = 0;
 
@@ -713,6 +745,25 @@ int aipq_base_peaking_param(unsigned int reg,
 		adap_param->peaking_param.sr1_bp_final_gain =
 			value & 0xff;
 	}
+
+	if (reg == offset_addr(VPP_PK_FINAL_GAIN) &&
+		(mask & 0xffff) == 0xffff) {
+		adap_param->peaking_param.sr0_final_dgains =
+			(value >> 24) & 0xff;
+		adap_param->peaking_param.sr0_final_cgains =
+			(value >> 16) & 0xff;
+		adap_param->peaking_param.sr0_final_pgains =
+			(value >> 8) & 0xff;
+		adap_param->peaking_param.sr0_final_ngains =
+			value & 0xff;
+	}
+
+	pr_aipq_dbg("%s, sr0_pgains = %d, sr0_ngains = %d, dgains = %d, cgains = %d\n",
+		__func__, adap_param->peaking_param.sr0_final_pgains,
+		adap_param->peaking_param.sr0_final_ngains,
+		adap_param->peaking_param.sr0_final_dgains,
+		adap_param->peaking_param.sr0_final_cgains);
+
 	return 0;
 }
 

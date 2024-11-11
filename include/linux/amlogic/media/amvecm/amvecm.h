@@ -188,6 +188,7 @@
 #define HDR_OUTPUT_MODE_CUVA_HLG				5
 #define HDR_OUTPUT_MODE_SDR						6
 #define HDR_OUTPUT_MODE_BYPASS					7
+#define LC_EVC_SIZE  5
 
 //48-56hz gm_tb[1][3]
 //57-64hz gm_tb[2][3]
@@ -355,7 +356,8 @@ enum chip_type {
 	chip_a4,
 	chip_sc2,
 	chip_s7d,
-	chip_s6
+	chip_s6,
+	chip_t6d
 };
 
 enum chip_cls_e {
@@ -431,6 +433,31 @@ enum vadj_index_e {
 	VE_VADJ2
 };
 
+enum pq_module_e {
+	pq_module_vpp_pq = 0,
+	pq_module_dnlp,
+	pq_module_cm,
+	pq_module_wb,
+	pq_module_pre_gamma,
+	pq_module_gamma,/*5*/
+	pq_module_lc,
+	pq_module_black_ext,
+	pq_module_chroma_cor,
+	pq_module_dither,
+	pq_module_3dlut,/*10*/
+	pq_module_vadj1,
+	pq_module_vadj2,
+	pq_module_sharpness,
+	pq_module_sr_peaking,
+	pq_module_sr_lcti,/*15*/
+	pq_module_sr_theta,
+	pq_module_sr_deband,
+	pq_module_sr_dejaggy,
+	pq_module_sr_dering,
+	pq_module_sr_drlpf,/*20*/
+	pq_module_module_max,
+};
+
 /*flag:
  *bit 0: brigtness
  *bit 1: contrast
@@ -473,6 +500,9 @@ extern enum chip_cls_e chip_cls_id;
 extern enum output_format_e output_format;
 
 extern unsigned int osd_pic_en;
+extern unsigned int slt_en;
+
+void amvecm_size_info_update(int vpp_index);
 
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,
@@ -527,6 +557,7 @@ enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
 
 int amvecm_set_saturation_hue(int mab, enum wr_md_e mode, int vpp_index);
 void amvecm_saturation_hue_update(int offset_val);
+void amvecm_update_module_status(void);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);
@@ -557,6 +588,7 @@ int vinfo_hdmi_out_fmt(void);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 int cm_force_update_flag(void);
 int get_lum_ave(void);
+extern int flag_lc_evc;
 
 enum demo_module_e {
 	E_DEMO_SR = 0,/*SHARPNESS/DEJAGGY/DNLP/LC*/
@@ -603,6 +635,7 @@ struct gamma_data_s *get_gm_data(void);
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
 extern unsigned int ai_color_enable;
+void amve_lc_elc_ctrl(unsigned int enable);
 
 int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 void resume_recovery_process(int vpp_index);
@@ -619,6 +652,8 @@ extern int vsize_in;
 void amve_safa_demo_ctrl(unsigned int enable);
 void osd_sharpness_size_ctrl(void);
 void osd_sharpness_demo_ctrl(void);
+
+bool is_hdr10plus_enable(void);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool is_amdv_enable(void);
@@ -649,5 +684,6 @@ enum vpp_matrix_ext_csc_e {
 	VPP_MATRIX_BT_2100,
 };
 
+extern struct vpp_mtx_info_s mtx_info;
 #endif /* AMVECM_H */
 

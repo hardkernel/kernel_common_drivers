@@ -42,12 +42,16 @@
 #define N_DELAY 4
 /*hist bin num*/
 #define HIST_BIN 16
-#define LC_BLK_H_NUM 12
+#define LC_BLK_H_NUM 8
 #define LC_BLK_V_NUM 8
 
 int amlc_debug;
 module_param(amlc_debug, int, 0664);
 MODULE_PARM_DESC(amlc_debug, "\n amlc_debug\n");
+
+int lc_pr_lmt = 0x10;
+module_param(lc_pr_lmt, int, 0664);
+MODULE_PARM_DESC(lc_pr_lmt, "\n lc_pr_lmt\n");
 
 #define pr_amlc_dbg(fmt, args...)\
 	do {\
@@ -85,13 +89,9 @@ int dbg_monitor_ctrl;
 module_param(dbg_monitor_ctrl, int, 0664);
 MODULE_PARM_DESC(dbg_monitor_ctrl, "\n dbg_monitor_ctrl\n");
 
-int skip_num;
+int skip_num = 4;
 module_param(skip_num, int, 0664);
 MODULE_PARM_DESC(skip_num, "\n skip_num\n");
-
-int delay_num = 4;
-module_param(delay_num, int, 0664);
-MODULE_PARM_DESC(delay_num, "\n delay_num\n");
 
 int width_limit = 1900;
 int height_limit = 1050;
@@ -111,6 +111,9 @@ int invalid_blk = 2;
 int min_bv_percent_th = 331;
 /*control the refresh speed*/
 int alpha1 = 512;
+module_param(alpha1, int, 0664);
+MODULE_PARM_DESC(alpha1, "\n alpha1\n");
+
 int alpha2 = 512;
 int refresh_bit = 12;
 int ts = 6;
@@ -189,6 +192,7 @@ int tune_curve_en = 2;
 int detect_signal_range_en = 2;
 int detect_signal_range_threshold_black = 1600;
 int detect_signal_range_threshold_white = 3200;
+int cur_scene_change_flag;
 
 /*local contrast begin*/
 void lc_curve_get_blk_num(int *h_num, int *v_num)
@@ -222,22 +226,42 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 
 	switch (mtx_sel) {
 	case INP_MTX:
-		matrix_coef00_01 = SRSHARP1_LC_YUV2RGB_MAT_0_1;
-		matrix_coef02_10 = SRSHARP1_LC_YUV2RGB_MAT_2_3;
-		matrix_coef11_12 = SRSHARP1_LC_YUV2RGB_MAT_4_5;
-		matrix_coef20_21 = SRSHARP1_LC_YUV2RGB_MAT_6_7;
-		matrix_coef22 = SRSHARP1_LC_YUV2RGB_MAT_8;
-		matrix_pre_offset0_1 = SRSHARP1_LC_YUV2RGB_OFST;
-		matrix_clip = SRSHARP1_LC_YUV2RGB_CLIP;
+		if (chip_type_id == chip_t6d) {
+			matrix_coef00_01 = VPP_YUV2RGB_MAT_0;
+			matrix_coef02_10 = VPP_YUV2RGB_MAT_1;
+			matrix_coef11_12 = VPP_YUV2RGB_MAT_2;
+			matrix_coef20_21 = VPP_YUV2RGB_MAT_3;
+			matrix_coef22 = VPP_YUV2RGB_MAT_F;
+			matrix_pre_offset0_1 = VPP_LC_YUV2RGB_OFSET;
+			matrix_clip = VPP_LC_YUV2RGB_CLIP;
+		} else {
+			matrix_coef00_01 = SRSHARP1_LC_YUV2RGB_MAT_0_1;
+			matrix_coef02_10 = SRSHARP1_LC_YUV2RGB_MAT_2_3;
+			matrix_coef11_12 = SRSHARP1_LC_YUV2RGB_MAT_4_5;
+			matrix_coef20_21 = SRSHARP1_LC_YUV2RGB_MAT_6_7;
+			matrix_coef22 = SRSHARP1_LC_YUV2RGB_MAT_8;
+			matrix_pre_offset0_1 = SRSHARP1_LC_YUV2RGB_OFST;
+			matrix_clip = SRSHARP1_LC_YUV2RGB_CLIP;
+		}
 		break;
 	case OUTP_MTX:
-		matrix_coef00_01 = SRSHARP1_LC_RGB2YUV_MAT_0_1;
-		matrix_coef02_10 = SRSHARP1_LC_RGB2YUV_MAT_2_3;
-		matrix_coef11_12 = SRSHARP1_LC_RGB2YUV_MAT_4_5;
-		matrix_coef20_21 = SRSHARP1_LC_RGB2YUV_MAT_6_7;
-		matrix_coef22 = SRSHARP1_LC_RGB2YUV_MAT_8;
-		matrix_offset0_1 = SRSHARP1_LC_RGB2YUV_OFST;
-		matrix_clip = SRSHARP1_LC_RGB2YUV_CLIP;
+		if (chip_type_id == chip_t6d) {
+			matrix_coef00_01 = VPP_RGB2YUV_MAT_0;
+			matrix_coef02_10 = VPP_RGB2YUV_MAT_1;
+			matrix_coef11_12 = VPP_RGB2YUV_MAT_2;
+			matrix_coef20_21 = VPP_RGB2YUV_MAT_3;
+			matrix_coef22 = VPP_RGB2YUV_MAT_F;
+			matrix_offset0_1 = VPP_LC_RGB2YUV_OFSET;
+			matrix_clip = VPP_LC_RGB2YUV_CLIP;
+		} else {
+			matrix_coef00_01 = SRSHARP1_LC_RGB2YUV_MAT_0_1;
+			matrix_coef02_10 = SRSHARP1_LC_RGB2YUV_MAT_2_3;
+			matrix_coef11_12 = SRSHARP1_LC_RGB2YUV_MAT_4_5;
+			matrix_coef20_21 = SRSHARP1_LC_RGB2YUV_MAT_6_7;
+			matrix_coef22 = SRSHARP1_LC_RGB2YUV_MAT_8;
+			matrix_offset0_1 = SRSHARP1_LC_RGB2YUV_OFST;
+			matrix_clip = SRSHARP1_LC_RGB2YUV_CLIP;
+		}
 		break;
 	case STAT_MTX:
 		matrix_coef00_01 = LC_STTS_MATRIX_COEF00_01;
@@ -264,17 +288,32 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	switch (mtx_csc) {
 	case LC_MTX_RGB_YUV601L:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x01070204);
-			WRITE_VPP_REG(matrix_coef02_10, 0x00641f68);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1ed601c2);
-			WRITE_VPP_REG(matrix_coef20_21, 0x01c21e87);
-			WRITE_VPP_REG(matrix_coef22, 0x00001fb7);
-			if (bitdepth == 10) {
-				WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
-				WRITE_VPP_REG(matrix_clip, 0x3ff);
+			if (chip_type_id == chip_t6d) {
+				WRITE_VPP_REG(matrix_coef00_01, 0x02040107);
+				WRITE_VPP_REG(matrix_coef02_10, 0x1f680064);
+				WRITE_VPP_REG(matrix_coef11_12, 0x01c21ed6);
+				WRITE_VPP_REG(matrix_coef20_21, 0x1e8701c2);
+				WRITE_VPP_REG(matrix_coef22, 0x1fb70000);
+				if (bitdepth == 10) {
+					WRITE_VPP_REG(matrix_offset0_1, 0x0200040);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+				} else {
+					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
+					WRITE_VPP_REG(matrix_clip, 0xfff);
+				}
 			} else {
-				WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
-				WRITE_VPP_REG(matrix_clip, 0xfff);
+				WRITE_VPP_REG(matrix_coef00_01, 0x01070204);
+				WRITE_VPP_REG(matrix_coef02_10, 0x00641f68);
+				WRITE_VPP_REG(matrix_coef11_12, 0x1ed601c2);
+				WRITE_VPP_REG(matrix_coef20_21, 0x01c21e87);
+				WRITE_VPP_REG(matrix_coef22, 0x00001fb7);
+				if (bitdepth == 10) {
+					WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
+					WRITE_VPP_REG(matrix_clip, 0x3ff);
+				} else {
+					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
+					WRITE_VPP_REG(matrix_clip, 0xfff);
+				}
 			}
 		} else if (mtx_sel & STAT_MTX) {
 			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
@@ -307,18 +346,36 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 						      0x04a80812);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
 				} else {
-					WRITE_VPP_REG(matrix_coef00_01,
+					if (chip_type_id == chip_t6d) {
+						WRITE_VPP_REG(matrix_coef00_01,
+						      0x000004A8);
+						WRITE_VPP_REG(matrix_coef02_10,
+						      0x04a80662);
+						WRITE_VPP_REG(matrix_coef11_12,
+						      0x1cbf1e70);
+						WRITE_VPP_REG(matrix_coef20_21,
+						      0x081204a8);
+						WRITE_VPP_REG(matrix_coef22, 0x0);
+					} else {
+						WRITE_VPP_REG(matrix_coef00_01,
 						      0x012a0000);
-					WRITE_VPP_REG(matrix_coef02_10,
+						WRITE_VPP_REG(matrix_coef02_10,
 						      0x198012a);
-					WRITE_VPP_REG(matrix_coef11_12,
+						WRITE_VPP_REG(matrix_coef11_12,
 						      0xf9c0f30);
-					WRITE_VPP_REG(matrix_coef20_21,
+						WRITE_VPP_REG(matrix_coef20_21,
 						      0x12a0204);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+						WRITE_VPP_REG(matrix_coef22, 0x0);
+					}
 				}
-				WRITE_VPP_REG(matrix_pre_offset0_1, 0x00400200);
-				WRITE_VPP_REG(matrix_clip, 0x3ff);
+
+				if (chip_type_id == chip_t6d) {
+					WRITE_VPP_REG(matrix_pre_offset0_1, 0x0200040);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+				} else {
+					WRITE_VPP_REG(matrix_pre_offset0_1, 0x00400200);
+					WRITE_VPP_REG(matrix_clip, 0x3ff);
+				}
 			} else {
 				if (cpu_after_eq_t7()) {
 					WRITE_VPP_REG(matrix_coef00_01,
@@ -368,17 +425,32 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_RGB_YUV709L:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
-			WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
-			WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
-			WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
-			if (bitdepth == 10) {
-				WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
-				WRITE_VPP_REG(matrix_clip, 0x3ff);
+			if (chip_type_id == chip_t6d) {
+				WRITE_VPP_REG(matrix_coef00_01, 0x027500bb);
+				WRITE_VPP_REG(matrix_coef02_10, 0x1f99003f);
+				WRITE_VPP_REG(matrix_coef11_12, 0x01c21ea6);
+				WRITE_VPP_REG(matrix_coef20_21, 0x1e6701c2);
+				WRITE_VPP_REG(matrix_coef22, 0x1fd7);
+				if (bitdepth == 10) {
+					WRITE_VPP_REG(matrix_offset0_1, 0x200040);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+				} else {
+					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
+					WRITE_VPP_REG(matrix_clip, 0xfff);
+				}
 			} else {
-				WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
-				WRITE_VPP_REG(matrix_clip, 0xfff);
+				WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
+				WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
+				WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
+				WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
+				WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
+				if (bitdepth == 10) {
+					WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
+					WRITE_VPP_REG(matrix_clip, 0x3ff);
+				} else {
+					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
+					WRITE_VPP_REG(matrix_clip, 0xfff);
+				}
 			}
 		} else if (mtx_sel & STAT_MTX) {
 			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
@@ -411,18 +483,35 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 						      0x04A80876);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
 				} else {
-					WRITE_VPP_REG(matrix_coef00_01,
+					if (chip_type_id == chip_t6d) {
+						WRITE_VPP_REG(matrix_coef00_01,
+						      0x000004A8);
+						WRITE_VPP_REG(matrix_coef02_10,
+						      0x04A8072C);
+						WRITE_VPP_REG(matrix_coef11_12,
+						      0x1DDD1F26);
+						WRITE_VPP_REG(matrix_coef20_21,
+						      0x087604A8);
+						WRITE_VPP_REG(matrix_coef22, 0x0);
+					} else {
+						WRITE_VPP_REG(matrix_coef00_01,
 						      0x012a0000);
-					WRITE_VPP_REG(matrix_coef02_10,
+						WRITE_VPP_REG(matrix_coef02_10,
 						      0x01cb012a);
-					WRITE_VPP_REG(matrix_coef11_12,
+						WRITE_VPP_REG(matrix_coef11_12,
 						      0x1fc90f77);
-					WRITE_VPP_REG(matrix_coef20_21,
+						WRITE_VPP_REG(matrix_coef20_21,
 						      0x012a021d);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+						WRITE_VPP_REG(matrix_coef22, 0x0);
+					}
 				}
-				WRITE_VPP_REG(matrix_pre_offset0_1, 0x400200);
-				WRITE_VPP_REG(matrix_clip, 0x3ff);
+				if (chip_type_id == chip_t6d) {
+					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200040);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+				} else {
+					WRITE_VPP_REG(matrix_pre_offset0_1, 0x400200);
+					WRITE_VPP_REG(matrix_clip, 0x3ff);
+				}
 			} else {
 				WRITE_VPP_REG(matrix_coef00_01,
 						     0x04A80000);
@@ -451,17 +540,32 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_RGB_YUV709:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x00da02dc);
-			WRITE_VPP_REG(matrix_coef02_10, 0x004a1f8a);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1e760200);
-			WRITE_VPP_REG(matrix_coef20_21, 0x02001e2f);
-			WRITE_VPP_REG(matrix_coef22, 0x00001fd1);
-			if (bitdepth == 10) {
-				WRITE_VPP_REG(matrix_offset0_1, 0x200);
-				WRITE_VPP_REG(matrix_clip, 0x3ff);
+			if (chip_type_id == chip_t6d) {
+				WRITE_VPP_REG(matrix_coef00_01, 0x02dc00da);
+				WRITE_VPP_REG(matrix_coef02_10, 0x1f8a004a);
+				WRITE_VPP_REG(matrix_coef11_12, 0x02001e76);
+				WRITE_VPP_REG(matrix_coef20_21, 0x1e2f0200);
+				WRITE_VPP_REG(matrix_coef22, 0x1fd10000);
+				if (bitdepth == 10) {
+					WRITE_VPP_REG(matrix_offset0_1, 0x200000);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+				} else {
+					WRITE_VPP_REG(matrix_offset0_1, 0x800);
+					WRITE_VPP_REG(matrix_clip, 0xfff);
+				}
 			} else {
-				WRITE_VPP_REG(matrix_offset0_1, 0x800);
-				WRITE_VPP_REG(matrix_clip, 0xfff);
+				WRITE_VPP_REG(matrix_coef00_01, 0x00da02dc);
+				WRITE_VPP_REG(matrix_coef02_10, 0x004a1f8a);
+				WRITE_VPP_REG(matrix_coef11_12, 0x1e760200);
+				WRITE_VPP_REG(matrix_coef20_21, 0x02001e2f);
+				WRITE_VPP_REG(matrix_coef22, 0x00001fd1);
+				if (bitdepth == 10) {
+					WRITE_VPP_REG(matrix_offset0_1, 0x200);
+					WRITE_VPP_REG(matrix_clip, 0x3ff);
+				} else {
+					WRITE_VPP_REG(matrix_offset0_1, 0x800);
+					WRITE_VPP_REG(matrix_clip, 0xfff);
+				}
 			}
 		} else if (mtx_sel & STAT_MTX) {
 			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
@@ -494,18 +598,35 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 						      0x0400076d);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
 				} else {
-					WRITE_VPP_REG(matrix_coef00_01,
+					if (chip_type_id == chip_t6d) {
+						WRITE_VPP_REG(matrix_coef00_01,
+						      0x00000400);
+						WRITE_VPP_REG(matrix_coef02_10,
+						      0x0400064d);
+						WRITE_VPP_REG(matrix_coef11_12,
+						      0x1e211f41);
+						WRITE_VPP_REG(matrix_coef20_21,
+						      0x076d0400);
+						WRITE_VPP_REG(matrix_coef22, 0x0);
+					} else {
+						WRITE_VPP_REG(matrix_coef00_01,
 						      0x01000000);
-					WRITE_VPP_REG(matrix_coef02_10,
+						WRITE_VPP_REG(matrix_coef02_10,
 						      0x01930100);
-					WRITE_VPP_REG(matrix_coef11_12,
+						WRITE_VPP_REG(matrix_coef11_12,
 						      0x1fd01f88);
-					WRITE_VPP_REG(matrix_coef20_21,
+						WRITE_VPP_REG(matrix_coef20_21,
 						      0x010001db);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+						WRITE_VPP_REG(matrix_coef22, 0x0);
+					}
 				}
-				WRITE_VPP_REG(matrix_pre_offset0_1, 0x200);
-				WRITE_VPP_REG(matrix_clip, 0x3ff);
+				if (chip_type_id == chip_t6d) {
+					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200000);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+				} else {
+					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200);
+					WRITE_VPP_REG(matrix_clip, 0x3ff);
+				}
 			} else {
 				if (cpu_after_eq_t7()) {
 					WRITE_VPP_REG(matrix_coef00_01,
@@ -723,46 +844,113 @@ static void lc_curve_ctrl_config(int enable,
 static void lc_blk_bdry_config(unsigned int height, unsigned int width)
 {
 	unsigned int value;
+	unsigned int reg_hid0 = SRSHARP1_LC_CURVE_BLK_HIDX_0_1;
+	unsigned int reg_hid1 = SRSHARP1_LC_CURVE_BLK_HIDX_2_3;
+	unsigned int reg_hid2 = SRSHARP1_LC_CURVE_BLK_HIDX_4_5;
+	unsigned int reg_hid3 = SRSHARP1_LC_CURVE_BLK_HIDX_6_7;
+	unsigned int reg_hid4 = SRSHARP1_LC_CURVE_BLK_HIDX_8_9;
+	unsigned int reg_hid5 = SRSHARP1_LC_CURVE_BLK_HIDX_10_11;
+	unsigned int reg_hid6 = SRSHARP1_LC_CURVE_BLK_HIDX_12;
+
+	unsigned int reg_vid0 = SRSHARP1_LC_CURVE_BLK_VIDX_0_1;
+	unsigned int reg_vid1 = SRSHARP1_LC_CURVE_BLK_VIDX_2_3;
+	unsigned int reg_vid2 = SRSHARP1_LC_CURVE_BLK_VIDX_4_5;
+	unsigned int reg_vid3 = SRSHARP1_LC_CURVE_BLK_VIDX_6_7;
+	unsigned int reg_vid4 = SRSHARP1_LC_CURVE_BLK_VIDX_8;
+
+	if (chip_type_id == chip_t6d) {
+		reg_hid0 = VPP_LC_BLK_HIDX_0;
+		reg_hid1 = VPP_LC_BLK_HIDX_1;
+		reg_hid2 = VPP_LC_BLK_HIDX_2;
+		reg_hid3 = VPP_LC_BLK_HIDX_3;
+		reg_hid4 = VPP_LC_BLK_HIDX_4;
+		reg_hid5 = VPP_LC_BLK_HIDX_5;
+		reg_hid6 = VPP_LC_BLK_HIDX_F;
+
+		reg_vid0 = VPP_LC_BLK_VIDX_0;
+		reg_vid1 = VPP_LC_BLK_VIDX_1;
+		reg_vid2 = VPP_LC_BLK_VIDX_2;
+		reg_vid3 = VPP_LC_BLK_VIDX_3;
+		reg_vid4 = VPP_LC_BLK_VIDX_F;
+	}
 
 	width /= 12;
 	height /= 8;
 
-	/*lc curve mapping block IDX default 4k panel*/
-	value = width & GET_BITS(0, 14);
-	value |= (0 << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_HIDX_0_1, value);
-	value = (width * 3) & GET_BITS(0, 14);
-	value |= ((width * 2) << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_HIDX_2_3, value);
-	value = (width * 5) & GET_BITS(0, 14);
-	value |= ((width * 4) << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_HIDX_4_5, value);
-	value = (width * 7) & GET_BITS(0, 14);
-	value |= ((width * 6) << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_HIDX_6_7, value);
-	value = (width * 9) & GET_BITS(0, 14);
-	value |= ((width * 8) << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_HIDX_8_9, value);
-	value = (width * 11) & GET_BITS(0, 14);
-	value |= ((width * 10) << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_HIDX_10_11, value);
-	value = width & GET_BITS(0, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_HIDX_12, value);
+	if (chip_type_id == chip_t6d) {
+		value = (0 << 16) & GET_BITS(0, 14);
+		value |= (width << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid0, value);
+		value = (width * 2) & GET_BITS(0, 14);
+		value |= ((width * 3) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid1, value);
+		value = (width * 4) & GET_BITS(0, 14);
+		value |= ((width * 5) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid2, value);
+		value = (width * 6) & GET_BITS(0, 14);
+		value |= ((width * 7) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid3, value);
+		value = (width * 8) & GET_BITS(0, 14);
+		value |= ((width * 9) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid4, value);
+		value = (width * 10) & GET_BITS(0, 14);
+		value |= ((width * 11) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid5, value);
+		value = (width * 12) & GET_BITS(0, 14);
+		WRITE_VPP_REG(reg_hid6, value);
 
-	value = height & GET_BITS(0, 14);
-	value |= (0 << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_VIDX_0_1, value);
-	value = (height * 3) & GET_BITS(0, 14);
-	value |= ((height * 2) << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_VIDX_2_3, value);
-	value = (height * 5) & GET_BITS(0, 14);
-	value |= ((height * 4) << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_VIDX_4_5, value);
-	value = (height * 7) & GET_BITS(0, 14);
-	value |= ((height * 6) << 16) & GET_BITS(16, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_VIDX_6_7, value);
-	value = height & GET_BITS(0, 14);
-	WRITE_VPP_REG(SRSHARP1_LC_CURVE_BLK_VIDX_8, value);
+		value = (0 << 16) & GET_BITS(0, 14);
+		value |= (height << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_vid0, value);
+		value = (height * 2) & GET_BITS(0, 14);
+		value |= ((height * 3) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_vid1, value);
+		value = (height * 4) & GET_BITS(0, 14);
+		value |= ((height * 5) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_vid2, value);
+		value = (height * 6) & GET_BITS(0, 14);
+		value |= ((height * 7) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_vid3, value);
+		value = (height * 8) & GET_BITS(0, 14);
+		WRITE_VPP_REG(reg_vid4, value);
+	} else {
+			/*lc curve mapping block IDX default 4k panel*/
+		value = width & GET_BITS(0, 14);
+		value |= (0 << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid0, value);
+		value = (width * 3) & GET_BITS(0, 14);
+		value |= ((width * 2) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid1, value);
+		value = (width * 5) & GET_BITS(0, 14);
+		value |= ((width * 4) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid2, value);
+		value = (width * 7) & GET_BITS(0, 14);
+		value |= ((width * 6) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid3, value);
+		value = (width * 9) & GET_BITS(0, 14);
+		value |= ((width * 8) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid4, value);
+		value = (width * 11) & GET_BITS(0, 14);
+		value |= ((width * 10) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_hid5, value);
+		value = width & GET_BITS(0, 14);
+		WRITE_VPP_REG(reg_hid6, value);
+
+		value = height & GET_BITS(0, 14);
+		value |= (0 << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_vid0, value);
+		value = (height * 3) & GET_BITS(0, 14);
+		value |= ((height * 2) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_vid1, value);
+		value = (height * 5) & GET_BITS(0, 14);
+		value |= ((height * 4) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_vid2, value);
+		value = (height * 7) & GET_BITS(0, 14);
+		value |= ((height * 6) << 16) & GET_BITS(16, 14);
+		WRITE_VPP_REG(reg_vid3, value);
+		value = height & GET_BITS(0, 14);
+		WRITE_VPP_REG(reg_vid4, value);
+	}
 }
 
 static void lc_top_config(int enable, int h_num, int v_num,
@@ -775,41 +963,81 @@ static void lc_top_config(int enable, int h_num, int v_num,
 		bitdepth, flag, flag_full);
 
 	if (chip_type_id != chip_t3x) {
-		/*lcinput_ysel*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 4, 3);
-		/*lcinput_csel*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 0, 3);
+		if (chip_type_id == chip_t6d) {
+			/*lcinput_ysel*/
+			WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 4, 3);
+			/*lcinput_csel*/
+			WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 0, 3);
 
-		/*lc ram write h num*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_HV_NUM, h_num, 8, 5);
-		/*lc ram write v num*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_HV_NUM, v_num, 0, 5);
+			/*lc ram write h num*/
+			WRITE_VPP_REG_BITS(VPP_LC_BLK_HV_NUM, h_num, 8, 8);
+			/*lc ram write v num*/
+			WRITE_VPP_REG_BITS(VPP_LC_BLK_HV_NUM, v_num, 0, 8);
 
-		/*lc hblank*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 8, 8, 8);
-		/*lc blend mode,default 1*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 1, 0, 1);
-		/*lc curve mapping  config*/
-		lc_blk_bdry_config(height, width);
-		/*LC sync ctl*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 16, 1);
-		/*lc enable need set at last*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, enable, 4, 1);
+			/*lc hblank*/
+//			WRITE_VPP_REG_BITS(VPP_LC_MODE, 8, 8, 8);
+			/*lc blend mode,default 1*/
+			WRITE_VPP_REG_BITS(VPP_LC_MODE, 1, 0, 1);
+			/*lc curve mapping  config*/
+			lc_blk_bdry_config(height, width);
+			/*LC sync ctl*/
+			WRITE_VPP_REG_BITS(VPP_LC_MODE, 0, 8, 1);
+			/*lc enable need set at last*/
+			WRITE_VPP_REG_BITS(VPP_LC_MODE, enable, 4, 1);
 
-		if (flag == 0x3) {
-			/* bt601 use 601 matrix */
-			lc_mtx_set(INP_MTX, LC_MTX_YUV601L_RGB, 1, bitdepth);
-			lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV601L, 1, bitdepth);
-		} else {
-			/* all other cases use 709 by default */
-			/* to do, should we handle bg2020 separately? */
-			/* for special signal, keep full range to avoid clipping */
-			if (flag_full == 1) {
-				lc_mtx_set(INP_MTX, LC_MTX_YUV709_RGB, 1, bitdepth);
-				lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709, 1, bitdepth);
+			if (flag == 0x3) {
+				/* bt601 use 601 matrix */
+				lc_mtx_set(INP_MTX, LC_MTX_YUV601L_RGB, 1, bitdepth);
+				lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV601L, 1, bitdepth);
 			} else {
-				lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
-				lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
+				/* all other cases use 709 by default */
+				/* to do, should we handle bg2020 separately? */
+				/* for special signal, keep full range to avoid clipping */
+				if (flag_full == 1) {
+					lc_mtx_set(INP_MTX, LC_MTX_YUV709_RGB, 1, bitdepth);
+					lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709, 1, bitdepth);
+				} else {
+					lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
+					lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
+				}
+			}
+		} else {
+			/*lcinput_ysel*/
+			WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 4, 3);
+			/*lcinput_csel*/
+			WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 0, 3);
+
+			/*lc ram write h num*/
+			WRITE_VPP_REG_BITS(SRSHARP1_LC_HV_NUM, h_num, 8, 5);
+			/*lc ram write v num*/
+			WRITE_VPP_REG_BITS(SRSHARP1_LC_HV_NUM, v_num, 0, 5);
+
+			/*lc hblank*/
+			WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 8, 8, 8);
+			/*lc blend mode,default 1*/
+			WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 1, 0, 1);
+			/*lc curve mapping  config*/
+			lc_blk_bdry_config(height, width);
+			/*LC sync ctl*/
+			WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 16, 1);
+			/*lc enable need set at last*/
+			WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, enable, 4, 1);
+
+			if (flag == 0x3) {
+				/* bt601 use 601 matrix */
+				lc_mtx_set(INP_MTX, LC_MTX_YUV601L_RGB, 1, bitdepth);
+				lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV601L, 1, bitdepth);
+			} else {
+				/* all other cases use 709 by default */
+				/* to do, should we handle bg2020 separately? */
+				/* for special signal, keep full range to avoid clipping */
+				if (flag_full == 1) {
+					lc_mtx_set(INP_MTX, LC_MTX_YUV709_RGB, 1, bitdepth);
+					lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709, 1, bitdepth);
+				} else {
+					lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
+					lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
+				}
 			}
 		}
 	} else {
@@ -820,9 +1048,14 @@ static void lc_top_config(int enable, int h_num, int v_num,
 
 void lc_disable(int rdma_mode, int vpp_index)
 {
+	unsigned int reg_ctrl = SRSHARP1_LC_TOP_CTRL;
+
+	if (chip_type_id == chip_t6d)
+		reg_ctrl = VPP_LC_MODE;
+
 	if (chip_type_id != chip_t3x) {
 		/*lc enable need set at last*/
-		WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 4, 1);
+		WRITE_VPP_REG_BITS(reg_ctrl, 0, 4, 1);
 		WRITE_VPP_REG_BITS(LC_CURVE_CTRL, 0, 0, 1);
 		WRITE_VPP_REG_BITS(LC_CURVE_RAM_CTRL, 0, 0, 1);
 		/*lc hist stts enable*/
@@ -838,7 +1071,6 @@ void lc_disable(int rdma_mode, int vpp_index)
 	}
 
 	memset(lc_hist, 0, LC_HIST_SIZE * sizeof(int));
-	memset(lc_szcurve, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_cur, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_pre, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_pre_raw, 0, LC_CURV_SIZE * sizeof(int64_t));
@@ -846,6 +1078,8 @@ void lc_disable(int rdma_mode, int vpp_index)
 	if (chip_type_id == chip_t3x) {
 		memset(lc_hist_slice1, 0, LC_HIST_SIZE * sizeof(int));
 		memset(lc_szcurve_slice1, 0, LC_CURV_SIZE * sizeof(int));
+	} else {
+		memset(lc_szcurve, 0, LC_CURV_SIZE * sizeof(int));
 	}
 
 	lc_en_chflg = 0x0;
@@ -891,6 +1125,7 @@ void lc_config(int enable,
 	unsigned int flag, flag_full;
 	int lc_en_ctrl = enable;
 	int in_sel;
+	unsigned int limit_full = 0;
 
 	h_num = LC_BLK_H_NUM;
 	v_num = LC_BLK_V_NUM;
@@ -911,10 +1146,12 @@ void lc_config(int enable,
 
 	/* try to detect out of spec signal level */
 	flag_full = 0;
+	limit_full = (vf->signal_type >> 25) & 0x01;
 	if (detect_signal_range_en == 2 &&
 		chip_type_id != chip_t3x) {
 		flag_full = signal_detect(vp->vpp_gamma);
-		if (vf->type & VIDTYPE_RGB_444)
+		if (vf->type & VIDTYPE_RGB_444 ||
+			limit_full)
 			flag_full = 1;
 	} else {
 		flag_full = detect_signal_range_en;
@@ -987,7 +1224,8 @@ void lc_config(int enable,
 	width = sps_w_in;
 	height = sps_h_in;
 
-	if (chip_type_id == chip_txhd2)
+	if (chip_type_id == chip_txhd2 ||
+		chip_type_id == chip_t6d)
 		in_sel = 5;
 	else
 		in_sel = 4;
@@ -999,12 +1237,8 @@ void lc_config(int enable,
 			0, 0, 1, 1, in_sel,
 			bitdepth, flag, flag_full);
 	} else {
-		ve_lc_curve_ctrl_cfg(lc_en_ctrl,
-			height, width, h_num, v_num,
-			lc_rdma_mode, vpp_index);
-		ve_lc_stts_blk_cfg(height, width,
-			h_num, v_num, lc_rdma_mode, vpp_index);
-		ve_lc_stts_en(lc_en_ctrl, h_num, height, width,
+		ve_lc_curve_ctrl_cfg(lc_en_ctrl, lc_rdma_mode, vpp_index);
+		ve_lc_stts_en(lc_en_ctrl,
 			0, 0, 1, 1, 0,
 			bitdepth, flag, flag_full,
 			lc_tune_curve.lc_reg_thd_black,
@@ -1225,72 +1459,83 @@ static int set_lc_curve(int binit, int bcheck, int vpp_index)
 	unsigned int hvtemp;
 	int rflag;
 	int temp, temp1;
+	unsigned int reg_ctrl = SRSHARP1_LC_MAP_RAM_CTRL;
+	unsigned int reg_addr = SRSHARP1_LC_MAP_RAM_ADDR;
+	unsigned int reg_data = SRSHARP1_LC_MAP_RAM_DATA;
+	unsigned int reg_num = SRSHARP1_LC_HV_NUM;
+
+	if (chip_type_id == chip_t6d) {
+		reg_ctrl = VPP_LC_MAP_RAM_CTRL;
+		reg_addr = VPP_LC_MAP_RAM_ADDR;
+		reg_data = VPP_LC_MAP_RAM_DATA;
+		reg_num = VPP_LC_BLK_HV_NUM;
+	}
 
 	rflag = 0;
-	hvtemp = READ_VPP_REG(SRSHARP1_LC_HV_NUM);
+	hvtemp = READ_VPP_REG(reg_num);
 	h_num = (hvtemp >> 8) & 0x1f;
 	v_num = hvtemp & 0x1f;
 
 	/*data sequence: ymin/minBv/pkBv/maxBv/ymaxv/ypkBv*/
 	if (binit) {
-		WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
-		WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_ADDR, 0);
+		WRITE_VPP_REG(reg_ctrl, 1);
+		WRITE_VPP_REG(reg_addr, 0);
 		for (i = 0; i < h_num * v_num; i++) {
-			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA,
+			WRITE_VPP_REG(reg_data,
 				(0 | (0 << 10) | (512 << 20)));
-			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA,
+			WRITE_VPP_REG(reg_data,
 				(1023 | (1023 << 10) | (512 << 20)));
 		}
-		WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
+		WRITE_VPP_REG(reg_ctrl, 0);
 	} else {
-		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_LC_MAP_RAM_CTRL, 1,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctrl, 1,
 			vpp_index);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_LC_MAP_RAM_ADDR, 0,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_addr, 0,
 			vpp_index);
 		if (lc_demo_mode)
 			lc_demo_wr_curve(h_num, v_num, vpp_index);
 		else
 			for (i = 0; i < h_num * v_num; i++) {
-				VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_LC_MAP_RAM_DATA,
+				VSYNC_WRITE_VPP_REG_VPP_SEL(reg_data,
 					lc_szcurve[6 * i + 0] |
 					(lc_szcurve[6 * i + 1] << 10) |
 					(lc_szcurve[6 * i + 2] << 20),
 					vpp_index);
-				VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_LC_MAP_RAM_DATA,
+				VSYNC_WRITE_VPP_REG_VPP_SEL(reg_data,
 					lc_szcurve[6 * i + 3] |
 					(lc_szcurve[6 * i + 4] << 10) |
 					(lc_szcurve[6 * i + 5] << 20),
 					vpp_index);
 			}
-		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_LC_MAP_RAM_CTRL, 0,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctrl, 0,
 			vpp_index);
 	}
 
 	if (bcheck) {
 		if (binit) {
-			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
-			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_ADDR,
+			WRITE_VPP_REG(reg_ctrl, 1);
+			WRITE_VPP_REG(reg_addr,
 				0 | (1 << 31));
 			for (i = 0; i < h_num * v_num; i++) {
-				temp = READ_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA);
+				temp = READ_VPP_REG(reg_data);
 				if (temp != (0 | (0 << 10) | (512 << 20)))
 					rflag = (2 * i + 0) | (1 << 31);
-				temp = READ_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA);
+				temp = READ_VPP_REG(reg_data);
 				if (temp != (1023 | (1023 << 10) | (512 << 20)))
 					rflag = (2 * i + 1) | (1 << 31);
 			}
-			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
+			WRITE_VPP_REG(reg_ctrl, 0);
 		} else {
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_LC_MAP_RAM_CTRL, 1,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctrl, 1,
 				vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_LC_MAP_RAM_ADDR,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_addr,
 				0 | (1 << 31), vpp_index);
 			if (lc_demo_mode)
 				rflag = lc_demo_check_curve(h_num, v_num);
 			else
 				for (i = 0; i < h_num * v_num; i++) {
 					temp =
-					READ_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA);
+					READ_VPP_REG(reg_data);
 					temp1 =
 					lc_szcurve[6 * i + 0] |
 					(lc_szcurve[6 * i + 1] << 10) |
@@ -1299,7 +1544,7 @@ static int set_lc_curve(int binit, int bcheck, int vpp_index)
 						rflag =
 						(2 * i + 0) | (1 << 31);
 					temp =
-					READ_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA);
+					READ_VPP_REG(reg_data);
 					temp1 =
 					lc_szcurve[6 * i + 3] |
 					(lc_szcurve[6 * i + 4] << 10) |
@@ -1308,7 +1553,7 @@ static int set_lc_curve(int binit, int bcheck, int vpp_index)
 						rflag =
 						(2 * i + 1) | (1 << 31);
 				}
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_LC_MAP_RAM_CTRL, 0,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctrl, 0,
 				vpp_index);
 		}
 	}
@@ -1531,10 +1776,13 @@ int global_scene_change(int *curve_nodes_cur,
 			abs((frm_dif[N_DELAY - 1] / (valid_blk_num[N_DELAY - 1] + 1)) -
 			(frm_dif[N_DELAY - 2] / (valid_blk_num[N_DELAY - 2] + 1)));
 
-		if (scene_dif[N_DELAY - 1] > scene_change_th)
+		if (scene_dif[N_DELAY - 1] > scene_change_th) {
 			scene_change_flag = 1;
-		else
+			pr_amlc_dbg("%s scene_dif/scene_change_th = %d/%d\n",
+				__func__, scene_dif[N_DELAY - 1], scene_change_th);
+		} else {
 			scene_change_flag = 0;
+		}
 
 		/*debug*/
 		if (scene_dif[N_DELAY - 1] > scene_change_th && amlc_iir_debug_en) {
@@ -1571,6 +1819,17 @@ int cal_iir_alpha(int *refresh_alpha,
 	int addr_curv1;
 	int osd_local_p, osd_local_m;
 	int i, j, k;
+
+	if (chip_type_id == chip_t3x) {
+		for (i = 0; i < blk_vnum; i++) {
+			for (j = 0; j < blk_hnum; j++) {
+				addr_curv1 = (i * blk_hnum + j);
+				refresh_alpha[addr_curv1] = alpha1;/*normal iir*/
+			}
+		}
+
+		return 0;
+	}
 
 	/* 3.1 global scene change,highest priority */
 	if (scene_change_flag) {/*only use current curve*/
@@ -1747,7 +2006,12 @@ static void lc_fw_curve_iir(struct vframe_s *vf,
 		memset(osd_flag_cnt_above, 0, sizeof(int) * 2);
 		frm_cnt_below = 0;
 		frm_cnt_above = 0;
+		pr_amlc_dbg("%s scene_change_flag = %d\n",
+			__func__, scene_change_flag);
 	}
+
+	if (cur_scene_change_flag != scene_change_flag)
+		cur_scene_change_flag = scene_change_flag;
 
 	/* step 3: set tiir alpha based on different situation */
 	cal_iir_alpha(refresh_alpha,/*out*/
@@ -1876,6 +2140,7 @@ void lc_read_region(int blk_vnum, int blk_hnum,
 	unsigned int cur_block;
 	int *data_curve;
 	int *data_hist;
+	int prt_flag = 0;
 
 	if (chip_type_id != chip_t3x) {
 		_read_region(blk_vnum, blk_hnum);
@@ -1889,14 +2154,47 @@ void lc_read_region(int blk_vnum, int blk_hnum,
 			data_hist = lc_hist_slice1;
 		}
 
+		memcpy(lc_szcurve_slice1, lc_szcurve, LC_CURV_SIZE * sizeof(int));
+
 		ve_lc_region_read(blk_vnum, blk_hnum, slice,
 			&lc_tune_curve.lc_reg_black_count,
 			data_curve, data_hist);
 
-		if (amlc_debug == 0x80 && lc_hist_prcnt) {/*print curve data*/
-			pr_info("curve slice = %d\n", slice);
-			for (i = 0; i < 8 * 12 * 6; i++)
-				pr_info("[%d] %x\n", i, data_curve[i]);
+		for (i = 0; i < 8 * 12 * 6; i++) {
+			if (data_curve[i] - lc_szcurve_slice1[i] > lc_pr_lmt) {
+				prt_flag = 1;
+				break;
+			}
+		}
+
+		if (lc_hist_prcnt == 0x80 && prt_flag) {/*print curve data*/
+			pr_info("read back curve, curve slice = %d\n", slice);
+			for (i = 0; i < 4 * 6; i++) {
+				pr_info("0x%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x/%x\n",
+					data_curve[24 * i], data_curve[24 * i + 1],
+					data_curve[24 * i + 2],
+					data_curve[24 * i + 3],
+					data_curve[24 * i + 4],
+					data_curve[24 * i + 5],
+					data_curve[24 * i + 6],
+					data_curve[24 * i + 7],
+					data_curve[24 * i + 8],
+					data_curve[24 * i + 9],
+					data_curve[24 * i + 10],
+					data_curve[24 * i + 11],
+					data_curve[24 * i + 12],
+					data_curve[24 * i + 13],
+					data_curve[24 * i + 14],
+					data_curve[24 * i + 15],
+					data_curve[24 * i + 16],
+					data_curve[24 * i + 17],
+					data_curve[24 * i + 18],
+					data_curve[24 * i + 19],
+					data_curve[24 * i + 20],
+					data_curve[24 * i + 21],
+					data_curve[24 * i + 22],
+					data_curve[24 * i + 23]);
+			}
 		}
 
 		/*part3: add tune curve node patch--by vlsi-guopan*/
@@ -1928,7 +2226,7 @@ void lc_read_region(int blk_vnum, int blk_hnum,
 		}
 	}
 
-	if (lc_hist_prcnt > 0)
+	if (lc_hist_prcnt > 0 && lc_hist_prcnt != 0x80)
 		lc_hist_prcnt--;
 }
 
@@ -1964,6 +2262,15 @@ void lc_init(int bitdepth)
 	unsigned int height, width;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	int i, tmp, tmp1, tmp2;
+	unsigned int reg_sat0 = SRSHARP1_LC_SAT_LUT_0_1;
+	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
+	unsigned int adr = 16;
+
+	if (chip_type_id == chip_t6d) {
+		reg_sat0 = VPP_LC_SATUR_LUT_0;
+		reg_sat = VPP_LC_SATUR_LUT_F;
+		adr = 12;
+	}
 
 	tune_nodes_patch_init();
 	lc_bitdepth = bitdepth;
@@ -2053,9 +2360,15 @@ void lc_init(int bitdepth)
 		/*default LC low parameters*/
 		WRITE_VPP_REG(LC_CURVE_CONTRAST_LH, 0x000b000b);
 		WRITE_VPP_REG(LC_CURVE_CONTRAST_SCL_LH, 0x00000b0b);
-		WRITE_VPP_REG(LC_CURVE_MISC0, 0x00023028);
+		if (chip_type_id == chip_t6d)
+			WRITE_VPP_REG(LC_CURVE_MISC0, 0x13038);
+		else
+			WRITE_VPP_REG(LC_CURVE_MISC0, 0x00023028);
 		WRITE_VPP_REG(LC_CURVE_YPKBV_RAT, 0x8cc0c060);
-		WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x00000b3a);
+		if (chip_type_id == chip_t6d)
+			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x0c60);
+		else
+			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x00000b3a);
 
 		if (cpu_after_eq_t7()) {
 			WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1, 0x0030005d);
@@ -2130,11 +2443,11 @@ void lc_init(int bitdepth)
 		for (i = 0; i < 31 ; i++) {
 			tmp1 = *(lc_satur_off + 2 * i);
 			tmp2 = *(lc_satur_off + 2 * i + 1);
-			tmp = ((tmp1 & 0xfff) << 16) | (tmp2 & 0xfff);
-			WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i, tmp);
+			tmp = ((tmp1 & 0xfff) << adr) | (tmp2 & 0xfff);
+			WRITE_VPP_REG(reg_sat0 + i, tmp);
 		}
 		tmp = (*(lc_satur_off + 62)) & 0xfff;
-		WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_62, tmp);
+		WRITE_VPP_REG(reg_sat, tmp);
 		/*end*/
 
 		if (set_lc_curve(1, 0, 0))
@@ -2171,6 +2484,14 @@ int dbg_slice_flag;
 int dbg_hwin_begin;
 int dbg_hwin_end;
 int dbg_hsize_out;
+int dbg_ro;
+int dbg_stts_idx;
+int dbg_curve_ctrl;
+int dbg_curve_ram_ctrl;
+int dbg_mapping_top_ctrl;
+int dbg_curve_ctrl_s1;
+int dbg_curve_ram_ctrl_s1;
+int dbg_mapping_top_ctrl_s1;
 
 void dbg_monitor(struct vframe_s *vf,
 	unsigned int sps_h_en,
@@ -2226,10 +2547,66 @@ void dbg_monitor(struct vframe_s *vf,
 		dbg_hwin_end = hwin_end;
 		dbg_hsize_out = hsize_out;
 	}
+
+	value = READ_VPP_REG_S5(0x5aef);
+	if (value != dbg_ro) {
+		pr_info("[lc_monitor] ro: 0x%x -> 0x%x\n",
+			dbg_ro, value);
+		dbg_ro = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5ae9);
+	if (value != dbg_stts_idx) {
+		pr_info("[lc_monitor] stts_idx: 0x%x -> 0x%x\n",
+			dbg_stts_idx, value);
+		dbg_stts_idx = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5a40);
+	if (value != dbg_curve_ctrl) {
+		pr_info("[lc_monitor] curve_ctrl: 0x%x -> 0x%x\n",
+			dbg_curve_ctrl, value);
+		dbg_curve_ctrl = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5a70);
+	if (value != dbg_curve_ram_ctrl) {
+		pr_info("[lc_monitor] curve_ram_ctrl: 0x%x -> 0x%x\n",
+			dbg_curve_ram_ctrl, value);
+		dbg_curve_ram_ctrl = value;
+	}
+
+	value = READ_VPP_REG_S5(0x52c0);
+	if (value != dbg_mapping_top_ctrl) {
+		pr_info("[lc_monitor] mapping_top_ctrl: 0x%x -> 0x%x\n",
+			dbg_mapping_top_ctrl, value);
+		dbg_mapping_top_ctrl = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5a80);
+	if (value != dbg_curve_ctrl_s1) {
+		pr_info("[lc_monitor] curve_ctrl_s1: 0x%x -> 0x%x\n",
+			dbg_curve_ctrl_s1, value);
+		dbg_curve_ctrl_s1 = value;
+	}
+
+	value = READ_VPP_REG_S5(0x5ab0);
+	if (value != dbg_curve_ram_ctrl_s1) {
+		pr_info("[lc_monitor] curve_ram_ctrl_s1: 0x%x -> 0x%x\n",
+			dbg_curve_ram_ctrl_s1, value);
+		dbg_curve_ram_ctrl_s1 = value;
+	}
+
+	value = READ_VPP_REG_S5(0x77c0);
+	if (value != dbg_mapping_top_ctrl_s1) {
+		pr_info("[lc_monitor] mapping_top_ctrl_s1: 0x%x -> 0x%x\n",
+			dbg_mapping_top_ctrl_s1, value);
+		dbg_mapping_top_ctrl_s1 = value;
+	}
 }
 
 void lc_process(struct vframe_s *vf,
-		unsigned int sps_h_en,
+	unsigned int sps_h_en,
 	unsigned int sps_v_en,
 	unsigned int sps_w_in,
 	unsigned int sps_h_in,
@@ -2237,13 +2614,9 @@ void lc_process(struct vframe_s *vf,
 	struct vpp_hist_param_s *vp)
 {
 	int blk_hnum, blk_vnum;
-	int multi_pic_flag;
+	int multi_pic_flag = 0;
 	int multi_slice_flag = 0;
 	int lc_bypass_th = 0;
-	static int frc_change_delay_cnt;
-	/*static int frc_status_changed;*/
-	static int frc_status_pre;
-	/*int frc_status_cur;*/
 	unsigned int height, width;
 
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1 ||
@@ -2252,6 +2625,9 @@ void lc_process(struct vframe_s *vf,
 		chip_type_id == chip_s6 ||
 		lc_force_ctrl)
 		return;
+
+	if (amlc_debug == 0xf0)
+		monitor_lc_stts_overflow();
 
 	if (!lc_malloc_ok) {
 		pr_amlc_dbg("[%s] lc malloc fail\n", __func__);
@@ -2264,6 +2640,16 @@ void lc_process(struct vframe_s *vf,
 
 		if (dbg_monitor_ctrl)
 			dbg_monitor(vf, sps_h_en, sps_v_en, sps_w_in, sps_h_in);
+
+		if (multi_slice_flag || multi_pic_flag) {
+			lc_disable(lc_rdma_mode, vpp_index);
+			return;
+		}
+	}
+
+	if (chip_type_id == chip_t6d) {
+		sps_h_in = 1080;
+		sps_w_in = 1920;
 	}
 
 	height = sps_h_in << sps_v_en;
@@ -2272,9 +2658,6 @@ void lc_process(struct vframe_s *vf,
 	if (!lc_en ||
 		(vf && width < width_limit && height < height_limit)) {
 		lc_disable(lc_rdma_mode, vpp_index);
-		pr_amlc_dbg("[%s] lc_en = %d\n", __func__, lc_en);
-		frc_status_pre = 0;
-		frc_change_delay_cnt = 0;
 		return;
 	}
 
@@ -2283,10 +2666,7 @@ void lc_process(struct vframe_s *vf,
 			lc_disable(lc_rdma_mode, vpp_index);
 			lc_bypass_flag = 0x0;
 			lc_flag = 0x0;
-			frc_status_pre = 0;
-			frc_change_delay_cnt = 0;
 		}
-		/*pr_amlc_dbg("[%s] vf is NULL\n", __func__);*/
 		return;
 	}
 
@@ -2342,6 +2722,9 @@ void lc_process(struct vframe_s *vf,
 		if (set_lc_curve(0, 0, vpp_index))
 			pr_amlc_dbg("[%s] set lc curve fail\n", __func__);
 	} else {
+		if (!multi_slice_flag)
+			ve_lc_mapping_ctrl(lc_en, lc_rdma_mode, vpp_index);
+
 		ve_lc_blk_num_get(&blk_hnum, &blk_vnum, 0);
 
 		/*get hist & curve node*/
@@ -2353,9 +2736,7 @@ void lc_process(struct vframe_s *vf,
 		/*	pr_amlc_dbg("%s: use_lc_curve_isr/defined: %d/%d\n",*/
 		/*		__func__, use_lc_curve_isr, lc_curve_isr_defined);*/
 		/*}*/
-
-		if (!use_lc_curve_isr || !lc_curve_isr_defined)
-			lc_read_region(blk_vnum, blk_hnum, 0);
+		lc_read_region(blk_vnum, blk_hnum, 0);
 
 		/*do time domain iir*/
 		lc_fw_curve_iir(vf, lc_hist,
@@ -2377,9 +2758,6 @@ void lc_process(struct vframe_s *vf,
 			ve_lc_curve_set(0, 0, lc_szcurve, 0, vpp_index);
 			ve_lc_curve_set(0, 0, lc_szcurve_slice1, 1, vpp_index);
 		}
-
-		if (amlc_debug == 0xf0)
-			monitor_lc_stts_overflow();
 	}
 
 	if (amlc_debug == 0xc &&

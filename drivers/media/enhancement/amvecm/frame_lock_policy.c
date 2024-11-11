@@ -61,7 +61,15 @@ struct freesync_vsif_s freesync_vsif_data;
 struct freesync_vtem_s freesync_vtem_data;
 static unsigned int freesync_pb6_data_pre;
 
+static unsigned int hdr_low_latency;
+unsigned int vrr_line_hdr_50hz = 3000;
+unsigned int vrr_line_hdr_60hz = 2350;
+
 u8 freesync_ld_ctrl;
+
+static unsigned int lfc_support;
+
+static int lock_flag;
 
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = false,
@@ -96,7 +104,7 @@ void frame_lock_set_vrr_support_flag(bool support_flag)
 
 void frame_lock_param_config(struct device_node *node)
 {
-	unsigned int val;
+	unsigned int val = 0;
 	int ret;
 
 	ret = of_property_read_u32(node, "vrr_priority", &val);
@@ -462,10 +470,23 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 		return ret;
 	}
 
-	if (frame_lock_lfc_mode_check() && frame_lock_lfc_rate_check(vf, vinfo)) {
+	if ((vf->signal_type == VRR_LATENCY_SIGNAL || vf->signal_type == VRR_HDR_SIGNAL) &&
+		((frame_sts.vrr_frame_cur == 50 && vinfo->std_duration == 100) ||
+		(frame_sts.vrr_frame_cur == 60 && vinfo->std_duration == 120))) {
+		ret = true;
 		frame_sts.vrr_frame_outof_range_cnt = 0;
-		frame_sts.vrr_lfc_mode = true;
-		ret =  true;
+		frame_sts.vrr_lfc_mode = false;
+		hdr_low_latency = 1;
+	} else if (frame_lock_lfc_mode_check() && frame_lock_lfc_rate_check(vf, vinfo)) {
+		frame_sts.vrr_frame_outof_range_cnt = 0;
+		hdr_low_latency = 0;
+		if (lfc_support) {
+			frame_sts.vrr_lfc_mode = true;
+			ret =  true;
+		} else {
+			frame_sts.vrr_lfc_mode = false;
+			ret =  false;
+		}
 	} else {
 		if (frame_sts.vrr_frame_cur >= frame_sts.vrr_frame_out_fps_min &&
 			frame_sts.vrr_frame_cur <= frame_sts.vrr_frame_out_fps_max) {
@@ -484,6 +505,7 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 			}
 		}
 		frame_sts.vrr_lfc_mode = false;
+		hdr_low_latency = 0;
 
 		if (frame_lock_debug & VRR_POLICY_DEBUG_RANGE_FLAG)
 			framelock_pr_info("%s fps_cur:%d o_min:%d o_max:%d outof_cnt:%d f_a_t:%d lfc:%d\n",
@@ -516,7 +538,7 @@ static unsigned int frame_lock_check_input_hz(struct vframe_s *vf)
 	else if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI &&
 		 (vrrlock_support & VRRLOCK_SUP_MODE)) {
 		if (duration != 0)
-			ret_hz = (96000 + 100) / duration;
+			ret_hz = (96000 + duration / 2) / duration;
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 	   (vrrlock_support & VRRLOCK_SUPPORT_CVBS)) {
 		ret_hz = 0;
@@ -582,22 +604,86 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 	if (frame_sts.vrr_en) {
 		if (frame_lock_frame_rate_check(vf, vinfo) &&
 			frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt &&
-			vrr_skip_frame_cnt == 0) {
+			vrr_skip_frame_cnt == 0 && frame_sts.vrr_frame_cur != 0) {
 			ret = FRAMELOCK_VRRLOCK;
 		} else {
 			if (vrr_skip_frame_cnt != 0)
 				vrr_skip_frame_cnt--;
 			else
-				vrr_skip_frame_cnt = 5;
+				vrr_skip_frame_cnt = 15;
 			ret = FRAMELOCK_VLOCK;
+			hdr_low_latency = 0;
 		}
 	} else {
 		ret = FRAMELOCK_VLOCK;
 		vrr_skip_frame_cnt = 15;
+		hdr_low_latency = 0;
 	}
 	frame_sts.vrr_frame_sts = ret;
 
 	return ret;
+}
+
+unsigned int vrr_low_latency(unsigned int time, int flag)
+{
+	unsigned int low_latency = 0;
+	struct vrr_notifier_data_s vdata;
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	memset(&vdata, 0, sizeof(struct vrr_notifier_data_s));
+
+	if (!vinfo)
+		return 0;
+
+	if (frame_sts.vrr_lfc_mode) {
+		if (flag >= 10)
+			low_latency = (vdata.line_dly / vinfo->vtotal) * time + time;
+		else
+			low_latency = (vdata.line_dly / vinfo->vtotal) * time + time * 2;
+	} else {
+		if (flag >= 10)
+			low_latency = (vdata.line_dly / vinfo->vtotal) * time;
+		else
+			low_latency = (vdata.line_dly / vinfo->vtotal) * time + time;
+	}
+
+	if (frame_lock_debug & VRR_POLICY_VARIANCE_FLAG)
+		framelock_pr_info("%s vrr_latency:%d lfc:%d line:%d vtotal:%d\n",
+			__func__, low_latency, frame_sts.vrr_lfc_mode,
+			vdata.line_dly, vinfo->vtotal);
+
+	return low_latency;
+}
+
+unsigned int game_mode_low_latency(void)
+{
+	unsigned int low_latency = 0;
+	unsigned int out_time = 0;
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	if (!vinfo)
+		return 0;
+
+	out_time = 1000000 / (vinfo->sync_duration_num / vinfo->sync_duration_den);
+
+	if ((vlock_get_phlock_flag() && vlock_get_vlock_flag()) ||
+		frame_lock_vrr_lock_status())
+		lock_flag++;
+	else
+		lock_flag = 0;
+
+	if (frame_sts.vrr_frame_lock_type == FRAMELOCK_VRRLOCK)
+		low_latency = vrr_low_latency(out_time, lock_flag);
+	else if (frame_sts.vrr_frame_lock_type == FRAMELOCK_VLOCK)
+		low_latency = vlock_low_latency(out_time, lock_flag);
+
+	if (frame_lock_debug & VRR_POLICY_VARIANCE_FLAG)
+		framelock_pr_info("%s low_latency:%d flag:%d out_time:%d\n",
+			__func__, low_latency, lock_flag, out_time);
+
+	return low_latency;
 }
 
 void vrrlock_process(struct vframe_s *vf,
@@ -607,7 +693,7 @@ void vrrlock_process(struct vframe_s *vf,
 	u32 cur_frame_rate = frame_sts.vrr_frame_cur;
 	struct vrr_notifier_data_s vdata;
 	struct vinfo_s *vinfo = NULL;
-	int state;
+	int state = 0;
 	unsigned int ret_hz = 0;
 	unsigned int duration = 0;
 
@@ -622,14 +708,20 @@ void vrrlock_process(struct vframe_s *vf,
 	if (!vinfo)
 		return;
 
-	if ((ret_hz == 50 || ret_hz == 100) && !frame_sts.vrr_policy) {
+	if (hdr_low_latency) {
+		if (frame_sts.vrr_frame_cur == 50)
+			vdata.line_dly = vrr_line_hdr_50hz;
+		else if (frame_sts.vrr_frame_cur == 60)
+			vdata.line_dly = vrr_line_hdr_60hz;
+	} else if (((ret_hz == 50 || ret_hz == 100) && !frame_sts.vrr_policy) ||
+		vf->vf_vrr_param.vin_base_fps == 50 || vf->vf_vrr_param.vin_base_fps == 100) {
 		vdata.line_dly = vrr_delay_line_50hz;
 		if (frame_lock_debug & VRR_POLICY_LOCK_STATUS_DEBUG_FLAG)
 			framelock_pr_info("%s vdata.line_dly:%d\n",
 				__func__, vdata.line_dly);
 	} else {
 		if (vf->compWidth * 9 == vf->compHeight * 16)
-			vdata.line_dly = vrr_delay_line;
+			vdata.line_dly = vrr_delay_line + line;
 		else if (vinfo->height == 2160)
 			vdata.line_dly =
 			(vf->compHeight < vinfo->height &&
@@ -725,9 +817,9 @@ void vrrlock_process(struct vframe_s *vf,
 			vdata.line_dly,
 			vrr_delay_line_pre,
 			line);
-		framelock_pr_info("spd_max:%d spd_min:%d\n",
+		framelock_pr_info("spd_max:%d spd_min:%d line:%d\n",
 			freesync_vsif_data.freesync_max_fps,
-			freesync_vsif_data.freesync_min_fps);
+			freesync_vsif_data.freesync_min_fps, line);
 	}
 
 	vrr_delay_line_pre = vdata.line_dly;
@@ -784,6 +876,7 @@ void frame_lock_process(struct vframe_s *vf,
 	}
 
 	frame_lock_parse_spd_data(vf);
+	game_mode_low_latency();
 
 	frame_sts.vrr_frame_pre_sts = frame_sts.vrr_frame_lock_type;
 	frame_sts.vrr_policy_pre = frame_sts.vrr_policy;
@@ -844,7 +937,12 @@ unsigned int vrr_check_frame_rate_min_hz(void)
 
 unsigned int vrr_instead_vlock(void)
 {
-	return vrr_priority;
+	unsigned int ret = 0;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	ret = vrr_priority;
+#endif
+
+	return ret;
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -899,6 +997,11 @@ ssize_t frame_lock_debug_store(const struct class *cla,
 		freesync_ld_ctrl = val;
 		frame_lock_local_dimming_ctrl(freesync_ld_ctrl);
 		pr_info("\n freesync_ld_ctrl = %d\n", freesync_ld_ctrl);
+	} else if (!strncmp(parm[0], "lfc_support", 11)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		lfc_support = val;
+		pr_info("\n lfc_support = %d\n", lfc_support);
 	} else {
 		pr_info("\n frame lock debug cmd invalid\n");
 	}

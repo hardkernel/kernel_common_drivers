@@ -415,6 +415,8 @@ struct slice_info {
 	u32 vd1_slice_in_hsize;
 	u32 vd1_slice_in_vsize;
 	u32 vd1_overlap;
+	u32 pps_dout_hsize;
+	u32 pps_dout_vsize;
 };
 
 struct vppx_post_info_t {

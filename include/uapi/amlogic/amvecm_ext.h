@@ -394,7 +394,8 @@ enum vpp_matrix_e {
 	POST_MTX = 0x4,
 	VPP1_POST2_MTX = 0x8,
 	VPP2_POST2_MTX = 0x10,
-	OSD_MTX = 0x20,
+	OSD1_HDR_MTX = 0x20,
+	OSD1_PQ_MTX = 0x30,
 	VPP_OSD1_MTX = 0x40,
 	VPP_OSD2_MTX = 0x41,
 	OSD_BLEDN_D0_MTX = 0x80,
@@ -712,5 +713,6 @@ struct db_aicolor_param_s {
 #define AMVECM_IOC_AI_COLOR_EN      _IO(_VE_CM, 0x8b)
 #define AMVECM_IOC_S_AI_COLOR_PARAM _IOW(_VE_CM, 0x8c, struct db_aicolor_param_s)
 #define AMVECM_IOC_S_SDR2HDR_CTRL   _IO(_VE_CM, 0x8d)
+#define AMVECM_IOC_G_CHIP_TYPE      _IOR(_VE_CM, 0x8e, int)
 
 #endif

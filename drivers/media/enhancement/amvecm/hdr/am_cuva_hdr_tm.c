@@ -377,4 +377,16 @@ int cuva_hdr_dbg(void)
 
 	return 0;
 }
+
+unsigned int get_max_output_lum(unsigned int type)
+{
+	unsigned int ret = 0;
+
+	if (!type)
+		ret = max_output_lum[0];
+	else
+		ret = max_output_lum[1];
+
+	return ret;
+}
 #endif

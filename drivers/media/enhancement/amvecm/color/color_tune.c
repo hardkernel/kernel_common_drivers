@@ -73,31 +73,45 @@ EXPORT_SYMBOL(get_ct_func);
 void color_lut_init(unsigned int en)
 {
 	int i, j, k;
+	int lut3d_single_sz;
+	int lut3d_points;
+	int points_double;
+	int step;
 
 	if (!en)
 		return;
 
-	plut = kzalloc(4913 * sizeof(int) * 3, GFP_KERNEL);
-	plut_out = kzalloc(4913 * sizeof(unsigned int) * 3, GFP_KERNEL);
+	if (chip_type_id == chip_t6d) {
+		lut3d_single_sz = LUT3D_SINGLE_SIZE9;
+		lut3d_points = LUT3D_POINTS9;
+	} else {
+		lut3d_single_sz = LUT3D_SINGLE_SIZE;
+		lut3d_points = LUT3D_POINTS;
+	}
+	points_double = lut3d_points * lut3d_points;
+	step = 1024 / (lut3d_points - 1);
+
+	plut = kzalloc(lut3d_single_sz * sizeof(int) * 3, GFP_KERNEL);
+	plut_out = kzalloc(lut3d_single_sz * sizeof(unsigned int) * 3, GFP_KERNEL);
 
 	if (!plut || !plut_out) {
 		pr_info("plut for rgbcmy 3dlut kmalloc fail\n");
 		return;
 	}
 
-	for (i = 0; i < 17; i++)
-		for (j = 0; j < 17; j++)
-			for (k = 0; k < 17; k++) {
-				plut[17 * 17 * i + 17 * j + k][0] = i * 64;
-				plut[17 * 17 * i + 17 * j + k][1] = j * 64;
-				plut[17 * 17 * i + 17 * j + k][2] = k * 64;
+	for (i = 0; i < lut3d_points; i++)
+		for (j = 0; j < lut3d_points; j++)
+			for (k = 0; k < lut3d_points; k++) {
+				plut[points_double * i + lut3d_points * j + k][0] = i * step;
+				plut[points_double * i + lut3d_points * j + k][1] = j * step;
+				plut[points_double * i + lut3d_points * j + k][2] = k * step;
 
-				if (plut[17 * 17 * i + 17 * j + k][0] > 1023)
-					plut[17 * 17 * i + 17 * j + k][0] = 1023;
-				if (plut[17 * 17 * i + 17 * j + k][1] > 1023)
-					plut[17 * 17 * i + 17 * j + k][1] = 1023;
-				if (plut[17 * 17 * i + 17 * j + k][2] > 1023)
-					plut[17 * 17 * i + 17 * j + k][2] = 1023;
+				if (plut[points_double * i + lut3d_points * j + k][0] > 1023)
+					plut[points_double * i + lut3d_points * j + k][0] = 1023;
+				if (plut[points_double * i + lut3d_points * j + k][1] > 1023)
+					plut[points_double * i + lut3d_points * j + k][1] = 1023;
+				if (plut[points_double * i + lut3d_points * j + k][2] > 1023)
+					plut[points_double * i + lut3d_points * j + k][2] = 1023;
 			}
 }
 

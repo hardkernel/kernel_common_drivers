@@ -194,6 +194,9 @@ static int vlock_protect_min;
 static int vlock_manual;
 static int vlock_frc_is_on;
 
+static unsigned int vlock_game;
+static unsigned int pre_vlock_game;
+
 struct reg_map vlock_reg_maps[REG_MAP_END] = {0};
 
 struct vlk_reg_map_tab regmap_tab_tm2[] = {
@@ -676,6 +679,8 @@ static unsigned int vlock_check_input_hz(struct vframe_s *vf)
 			ret_hz = 100;
 		else if (diff(ret_hz, 120) <= 1)
 			ret_hz = 120;
+		else if (diff(ret_hz, 165) <= 1)
+			ret_hz = 165;
 		else if (diff(ret_hz, 240) <= 1)
 			ret_hz = 240;
 		else if (diff(ret_hz, 288) <= 1)
@@ -715,6 +720,8 @@ static unsigned int vlock_check_output_hz(unsigned int sync_duration_num,
 		ret_hz = 120;
 	else if (tempHz == 14400)
 		ret_hz = 144;
+	else if (tempHz == 16500)
+		ret_hz = 165;
 	else if (tempHz == 24000)
 		ret_hz = 240;
 	else if (tempHz == 28800)
@@ -1333,10 +1340,15 @@ static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 	u32 m_f_reg_value, pll_m, pll_f;
 	u32 offset_vlck = pvlock->offset_vlck;
 	u32 offset_enc = pvlock->offset_encl;
+	struct vinfo_s *vinfo = NULL;
 
 	/* VLOCK_CNTL_EN disable */
 	vlock_enable(pvlock, 0);
 	vlock_vmode_check(pvlock);
+
+	vinfo = get_current_vinfo();
+	if (!vinfo)
+		return;
 
 	m_f_reg_value = READ_VPP_REG(VPU_VLOCK_RO_M_INT_FRAC + offset_vlck);
 	if (IS_AUTO_PLL_MODE(vlock_mode)) {
@@ -1383,6 +1395,8 @@ static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 	}
 	if (IS_ENC_MODE(vlock_mode)) {
 		pvlock->err_accum = 0;
+		//pvlock->org_enc_pixel_num = vinfo->htotal - 1;
+		pvlock->org_enc_line_num = vinfo->vtotal - 1;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (chip_type_id == chip_t3x) {
 			WRITE_VPP_REG_BITS(pvlock->enc_video_mode_adv_addr + offset_enc, 0, 19, 1);
@@ -3313,6 +3327,24 @@ void vlock_process(struct vframe_s *vf,
 	if (!pvlock)
 		return;
 
+	if (!vf)
+		return;
+
+	if (vf->flag & VFRAME_FLAG_GAME_MODE)
+		vlock_game = 1;
+	else
+		vlock_game = 0;
+
+	if (!vlock_game && pre_vlock_game == 1 &&
+		pvlock->input_hz == pvlock->output_hz && pvlock->output_hz == 120) {
+		vlock_set_sts_by_frame_lock(false);
+		pvlock->fsm_sts = VLOCK_STATE_NULL;
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("%s game:%d pre_game:%d in:%d out:%d\n",
+				__func__, vlock_game, pre_vlock_game,
+				pvlock->input_hz, pvlock->output_hz);
+	}
+
 	if (probe_ok == 0 || !vlock_en || !cur_video_sts) {
 		if (vlock_debug & VLOCK_DEBUG_INFO) {
 			pr_info("%s probe_ok:%d vlock_en:%d\n",
@@ -3341,6 +3373,8 @@ void vlock_process(struct vframe_s *vf,
 			return;
 		}
 	}
+
+	pre_vlock_game = vlock_game;
 
 	if (vlock_debug & VLOCK_DEBUG_FLASH)
 		pr_info("%s: idx = %d, addr = 0x%x, org_enc_line_num = %d, pre_enc_max_line = %d\n",
@@ -3719,6 +3753,43 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 	return 0;
 }
 
+unsigned int vlock_low_latency(unsigned int time, int flag)
+{
+	unsigned int low_latency = 0;
+	enum vlock_enc_num_e enc_mux = VLOCK_ENC0;
+	struct stvlock_sig_sts *pvlock;
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	enc_mux = get_cur_enc_mode();
+	pvlock = vlock_tab[enc_mux];
+#ifdef VLOCK_DEBUG_ENC_IDX
+	pvlock = vlock_tab[VLOCK_DEBUG_ENC_IDX];
+#endif
+
+	if (!vinfo || !pvlock)
+		return 0;
+
+	if (pvlock->output_hz == pvlock->input_hz) {
+		if (flag >= 60)
+			low_latency = (pvlock->phlock_percent * time) / 100;
+		else
+			low_latency = (pvlock->phlock_percent * time) / 100 + time;
+	} else if (pvlock->output_hz == pvlock->input_hz * 2) {
+		if (flag >= 60)
+			low_latency = (pvlock->phlock_percent * time * 2) / 100 + time;
+		else
+			low_latency = (pvlock->phlock_percent * time) / 100 + time * 2;
+	} else if (pvlock->output_hz == pvlock->input_hz * 4) {
+		low_latency = (pvlock->phlock_percent * time * 4) / 100 + time * 4;
+	}
+
+	if (vlock_debug & VLOCK_DEBUG_INFO)
+		pr_info("%s vlock_latency:%d\n", __func__, low_latency);
+
+	return low_latency;
+}
+
 int phlock_phase_config(char *str)
 {
 	unsigned char *ptr = str;
@@ -3739,7 +3810,7 @@ int phlock_phase_config(char *str)
 			pvlock->video_inverse = 0;
 		}
 	}
-	return 0;
+	return 1;
 }
 __setup("video_reverse=", phlock_phase_config);
 
