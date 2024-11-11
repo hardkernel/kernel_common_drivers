@@ -2596,6 +2596,8 @@ unsigned int DIM_VSC_RD_MPG_BT(unsigned int addr,
 #define NR2_RO_POLAR3_M2					(0x2da1)
 #define NR2_RO_POLAR3_P2					(0x2da2)
 #define NR2_RO_POLAR3_32					(0x2da3)
+#define XLR_CTRL							(0x3730)
+
 /* txl end */
 
 #define VPU_VD1_MMC_CTRL					(0x2703)

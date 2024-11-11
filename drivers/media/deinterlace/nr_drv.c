@@ -2335,6 +2335,17 @@ static int dnr_prm_init(DNR_PRM_t *pPrm)
 }
 
 static DEVICE_ATTR(dnr_param, 0664, dnr_param_show, dnr_param_store);
+static void xlr_debug(bool enable, const struct reg_acc *op)
+{
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
+	/*debug XLR 2024-11-11*/
+	op->bwr(XLR_CTRL, enable, 21, 1);
+	op->bwr(XLR_CTRL, enable, 22, 1);
+}
 
 static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 {
@@ -2365,7 +2376,6 @@ static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 		op->bwr(NR2_SW_EN, value, 4, 1);
 		op->bwr(DNR_CTRL, value, 16, 1);
 	}
-
 	if (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) {
 		Wr_reg_bits(NR4_TOP_CTRL, value, 1, 1);
 		Wr_reg_bits(NR2_SW_EN, value, 4, 2);
@@ -2414,6 +2424,11 @@ static ssize_t nr_dbg_store(struct device *dev,
 			nr_demo_mode(false, &dio_pre_regset);
 			pr_info("nr demo disable\n");
 		}
+	} else if (!strcmp(parm[0], "xlr")) {
+		if (!strcmp(parm[1], "on"))
+			xlr_debug(true, &dio_pre_regset);
+		if (!strcmp(parm[1], "off"))
+			xlr_debug(false, &dio_pre_regset);
 	}
 
 	kfree(buf_orig);

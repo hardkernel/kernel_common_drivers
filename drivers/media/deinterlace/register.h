@@ -188,6 +188,9 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 #define DI_HDR2_HIST_H_START_END			0x37ae
 #define DI_HDR2_HIST_V_START_END			0x37af
 
+/*XLR*/
+#define   XLR_CTRL						0x3730
+
 /* DI SCALE */
 #define DI_SCO_FIFO_CTRL				0x374e
 #define DI_SC_TOP_CTRL					0x374f
