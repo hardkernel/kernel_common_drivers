@@ -11,6 +11,7 @@ struct dsc_pid_table {
 	int id;
 	int used;
 	int valid;
+	char multi2;
 	char scb00;
 	char scb_user;
 	char scb_out;
@@ -73,6 +74,7 @@ enum DEMOD_TSIN_SEL_E {
 /*****************************************************/
 /*****************************************************/
 unsigned int tsout_get_ready(void);
+unsigned int tsout_config_save_junk(int flag);
 void tsout_config_sid_table(u32 sid, u32 begin, u32 length);
 void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
 			u32 buffer_id, int sid, int sec_level);
@@ -90,13 +92,14 @@ unsigned int dsc_get_status(int dsc_type);
 unsigned int dsc_get_ready(int dsc_type);
 void dsc_config_ready(int dsc_type);
 void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type);
+void dsc_config_multi2_round(int multi2_index, unsigned char round);
+void dsc_config_multi2_syskey(int multi2_index, unsigned char syskey[32]);
 
 /*****************************************************/
 /*****************************************************/
 /*****************************************************/
-//void rdma_config_enable(u8 chan_id, int enable,
 void rdma_config_enable(struct chan_id *pchan, int enable,
-			unsigned int desc, unsigned int total_size,
+			unsigned long desc, unsigned int total_size,
 			unsigned int len, unsigned int pack_len);
 void rdma_config_ready(u8 chan_id);
 void rdma_clean(u8 chan_id);
@@ -106,7 +109,7 @@ void rdma_config_sync_num(unsigned int sync_num);
 unsigned int rdma_get_status(u8 chan_id);
 unsigned int rdma_get_len(u8 chan_id);
 unsigned int rdma_get_rd_len(u8 chan_id);
-unsigned int rdma_get_ptr(u8 chan_id);
+u64 rdma_get_rptr(u8 chan_id);
 unsigned int rdma_get_pkt_sync_status(u8 chan_id);
 unsigned int rdma_get_ready(u8 chan_id);
 unsigned int rdma_get_err(void);
@@ -119,13 +122,12 @@ unsigned int rdma_get_cfg_fifo(void);
 /*****************************************************/
 /*****************************************************/
 void wdma_clean(u8 chan_id);
-//void wdma_config_enable(u8 chan_id, int enable,
 void wdma_config_enable(struct chan_id *pchan, int enable,
-			unsigned int desc, unsigned int total_size,
+			unsigned long desc, unsigned int total_size,
 			int sid, int pid, int sec_level);
 
 void wdam_config_ready(u8 chan_id);
-unsigned int wdma_get_wptr(u8 chan_id);
+u64 wdma_get_wptr(u8 chan_id);
 unsigned int wdma_get_wcmdcnt(u8 chan_id);
 unsigned int wdma_get_active(u8 chan_id);
 unsigned int wdma_get_done(u8 chan_id);
@@ -152,11 +154,12 @@ void demod_config_tsin_invert(u8 port, u8 invert);
 void demod_config_in(u8 port, u8 wire_type);
 void demod_config_fifo(u8 port, u16 fifo_th);
 //for s4d clear clk mux, using tsinA clk
-void demod_config_tsind_clk(u8 b);
+void demod_config_tsin_clk(int port, u8 b);
 void demod_config_tsinb_clk(u8 v);
 
 /*****************************************************/
 /*****************************************************/
 /*****************************************************/
 void sc2_dump_register(void);
+int sc2_control_debug(int direct, char *param_name, int *param_value);
 #endif

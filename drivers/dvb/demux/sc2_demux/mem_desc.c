@@ -12,6 +12,9 @@
 #include <linux/fs.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
+#include <linux/cma.h>
+#include <linux/dma-map-ops.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include <linux/highmem.h>
 
@@ -43,31 +46,22 @@ static struct chan_id chan_id_table_r[R_MAX_MEM_CHAN_NUM];
 	dprintk(LOG_ERROR, debug_mem_desc, "mem_desc:" fmt, ## args)
 #define pr_dbg(fmt, args...)     \
 	dprintk(LOG_DBG, debug_mem_desc, "mem_desc:" fmt, ## args)
-
-MODULE_PARM_DESC(debug_mem_desc, "\n\t\t Enable debug mem desc information");
-static int debug_mem_desc;
-__module_param(debug_mem_desc, int, 0644);
-
-MODULE_PARM_DESC(loop_desc, "\n\t\t Enable loop mem desc information");
-static int loop_desc = 0x1;
-__module_param(loop_desc, int, 0644);
+#define pr_dbg_mem(fmt, args...)     \
+	do {\
+		if (debug_mem_desc == 2)\
+			dprintk(LOG_DBG, 1, "mem_desc:" fmt, ## args);\
+	} while (0)
 
 #define DEFAULT_RCH_SYNC_NUM	8
-static int rch_sync_num_last = -1;
-
-MODULE_PARM_DESC(rch_sync_num, "\n\t\t Enable loop mem desc information");
-static int rch_sync_num = DEFAULT_RCH_SYNC_NUM;
-__module_param(rch_sync_num, int, 0644);
-
 #define BEN_LEVEL_SIZE			(512 * 1024)
 
-MODULE_PARM_DESC(dmc_keep_alive, "\n\t\t Enable keep dmc alive");
+static int rch_sync_num_last = -1;
+static int rch_sync_num = DEFAULT_RCH_SYNC_NUM;
 static int dmc_keep_alive;
-__module_param(dmc_keep_alive, int, 0644);
-
-MODULE_PARM_DESC(write_timeout_ms, "\n\t\t write timeout default 1s");
 static int write_timeout_ms = 1000;
-__module_param(write_timeout_ms, int, 0644);
+static int debug_mem_desc;
+static int loop_desc = 0x1;
+static int pvr_memory_reserved;
 
 struct mem_cache {
 	unsigned long start_virt;
@@ -160,6 +154,7 @@ static int cache_init(int cache_level)
 		flags = CODEC_MM_FLAGS_DMA_CPU;
 		buf_page_num = PAGE_ALIGN(total_size) / PAGE_SIZE;
 
+		pr_dbg_mem("%s size:%d\n", __func__, total_size);
 		second_cache->start_phys =
 		    codec_mm_alloc_for_dma("dmx_cache", buf_page_num,
 					4 + PAGE_SHIFT, flags);
@@ -169,6 +164,7 @@ static int cache_init(int cache_level)
 			dprint("%s second cache fail\n", __func__);
 			return -1;
 		}
+		pr_dbg_mem("%s size:%d alloc finish\n", __func__, total_size);
 		second_cache->start_virt =
 		(unsigned long)codec_mm_phys_to_virt(second_cache->start_phys);
 		if (IS_ERR_OR_NULL((const void *)second_cache->start_phys)) {
@@ -177,12 +173,15 @@ static int cache_init(int cache_level)
 			dprint("phys to virt addr failed\n");
 			return -1;
 		}
+		pr_dbg_mem("%s size:%d done\n", __func__, total_size);
 	}
 	return 0;
 }
 
-static void cache_destroy(int cache_level)
+static int cache_destroy(int cache_level)
 {
+	int ret = -1;
+
 	if (cache_level == 0 && first_cache) {
 		dma_free_coherent(aml_get_device(),
 			first_cache->elem_size * first_cache->elem_count,
@@ -191,12 +190,15 @@ static void cache_destroy(int cache_level)
 		vfree(first_cache);
 		first_cache = NULL;
 		dprint_i("clear first cache done\n");
+		ret = 0;
 	} else if (cache_level == 1 && second_cache) {
 		codec_mm_free_for_dma("dmx_cache", second_cache->start_phys);
 		vfree(second_cache);
 		second_cache = NULL;
 		dprint_i("clear second cache done\n");
+		ret = 0;
 	}
+	return ret;
 }
 
 static int cache_get_block(struct mem_cache *cache,
@@ -277,11 +279,17 @@ static int cache_free(int len, unsigned long phys_mem)
 
 int cache_clear(void)
 {
+	int ret0 = -1;
+	int ret1 = -1;
+
 	if (first_cache && first_cache->used_count == 0)
-		cache_destroy(0);
+		ret0 = cache_destroy(0);
 	if (second_cache && second_cache->used_count == 0)
-		cache_destroy(1);
-	return 0;
+		ret1 = cache_destroy(1);
+	if (!ret0 && !ret1)
+		return 0;
+	else
+		return -1;
 }
 
 int cache_adjust(int cache0_count, int cache1_count)
@@ -368,19 +376,21 @@ static int dmc_range_init(struct dmc_range *range, int sec_level)
 
 	buf_page_num = PAGE_ALIGN(len) / PAGE_SIZE;
 
+	pr_dbg_mem("%s size:%d\n", __func__, len);
 	buf_start =
 	    codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
 	if (!buf_start) {
 		dprint("%s fail\n", __func__);
 		return -1;
 	}
+	pr_dbg_mem("%s size:%d alloc finish\n", __func__, len);
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 	if (IS_ERR_OR_NULL((const void *)buf_start_virt)) {
 		codec_mm_free_for_dma("dmx", buf_start);
 		dprint("phys to virt addr failed\n");
 		return -1;
 	}
-	pr_dbg("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
+	pr_dbg_mem("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
 		buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0, len);
 	codec_mm_dma_flush((void *)buf_start_virt, len, DMA_TO_DEVICE);
@@ -435,6 +445,7 @@ static int dmc_range_get_block(struct dmc_range *range, unsigned int len,
 {
 	struct mem_region *header = range->region_list;
 	struct mem_region *temp = NULL;
+	int keep_4k_align = 0;
 
 	while (header) {
 		if (header->len == len &&
@@ -470,6 +481,14 @@ static int dmc_range_get_block(struct dmc_range *range, unsigned int len,
 	range->region_list = temp;
 	range->free_len -= len;
 	range->free_start_phy += len;
+	keep_4k_align = range->free_start_phy % (4 * 1024);
+	if (keep_4k_align) {
+		keep_4k_align = 4 * 1024 - keep_4k_align;
+		if (range->free_len > keep_4k_align) {
+			range->free_len -= keep_4k_align;
+			range->free_start_phy += keep_4k_align;
+		}
+	}
 	range->ref++;
 
 	*p_virt = temp->start_virt;
@@ -510,10 +529,15 @@ static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 
 	num = mem->total_size / DMC_MEM_DEFAULT_SIZE;
 	if (num >= mem->range_num || num >= 3) {
-		for (i = 0; i < mem->range_num; i++)
-			temp[i].size = mem->total_size / mem->range_num;
+		if (mem->total_size == 66 * 1024 * 1024) {
+			temp[0].size = 44 * 1024 * 1024;
+			temp[1].size = 22 * 1024 * 1024;
+		} else {
+			for (i = 0; i < mem->range_num; i++)
+				temp[i].size = mem->total_size / mem->range_num;
+		}
 	} else {
-		if (num == 1) {
+		if (num == 1 || num == 0) {
 			temp[0].size = mem->total_size;
 		} else {
 			temp[0].size = mem->total_size - DMC_MEM_DEFAULT_SIZE;
@@ -689,8 +713,88 @@ int dmc_mem_dump_info(char *buf)
 	return total;
 }
 
+/**
+ * dma_alloc_from_contiguous_dmx() - allocate pages from contiguous area
+ * @dev:   Pointer to device for which the allocation is performed.
+ * @count: Requested number of pages.
+ * @align: Requested alignment of pages (in PAGE_SIZE order).
+ * @no_warn: Avoid printing message about failed allocation.
+ *
+ * This function allocates memory buffer for specified device. It uses
+ * device specific contiguous memory area if available or the default
+ * global one. Requires architecture specific dev_get_cma_area() helper
+ * function.
+ */
+struct page *dma_alloc_from_contiguous_dmx(struct device *dev, size_t count,
+				       unsigned int align, bool no_warn)
+{
+	if (align > CONFIG_CMA_ALIGNMENT)
+		align = CONFIG_CMA_ALIGNMENT;
+
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+	if (no_warn)
+		return cma_alloc(dev_get_cma_area(dev), count, align, GFP_KERNEL | __GFP_NOWARN);
+	else
+		return cma_alloc(dev_get_cma_area(dev), count, align, GFP_KERNEL);
+#else
+	return cma_alloc(dev_get_cma_area(dev), count, align, no_warn);
+#endif
+}
+
+/**
+ * dma_release_from_contiguous_dmx() - release allocated pages
+ * @dev:   Pointer to device for which the pages were allocated.
+ * @pages: Allocated pages.
+ * @count: Number of allocated pages.
+ *
+ * This function releases memory allocated by dma_alloc_from_contiguous().
+ * It returns false when provided pages do not belong to contiguous area and
+ * true otherwise.
+ */
+bool dma_release_from_contiguous_dmx(struct device *dev, struct page *pages,
+				 int count)
+{
+	return cma_release(dev_get_cma_area(dev), pages, count);
+}
+
+int _alloc_buff_cma(unsigned int len,	unsigned long *vir_mem, unsigned long *phy_mem)
+{
+	struct page *pages;
+	int count;
+	unsigned long virt_tmp;
+	unsigned long phy_tmp;
+
+	count = PAGE_ALIGN(len) / PAGE_SIZE;
+	pages = dma_alloc_from_contiguous_dmx(aml_get_device(), count, 4 + PAGE_SHIFT, 0);
+	if (pages) {
+		virt_tmp = (unsigned long)page_address(pages);
+		phy_tmp = page_to_phys(pages);
+		if (virt_tmp == 0 || phy_tmp == 0) {
+			dprint_i("%s transfer fail\n", __func__);
+			return -1;
+		}
+		*vir_mem = virt_tmp;
+		*phy_mem = phy_tmp;
+		return 0;
+	}
+	return -1;
+}
+
+void _free_buff_cma(unsigned long phy_buf, unsigned int len)
+{
+	struct page *pages;
+	bool ret;
+	int count;
+
+	pages = phys_to_page(phy_buf);
+	count = PAGE_ALIGN(len) / PAGE_SIZE;
+	ret = dma_release_from_contiguous_dmx(aml_get_device(), pages, count);
+	if (!ret)
+		dprint_i("dma_release_from_contiguous fail\n");
+}
+
 int _alloc_buff(unsigned int len, int sec_level,
-		unsigned long *vir_mem, unsigned long *phy_mem)
+		unsigned long *vir_mem, unsigned long *phy_mem, int format)
 {
 	int flags = 0;
 	int buf_page_num = 0;
@@ -722,6 +826,21 @@ int _alloc_buff(unsigned int len, int sec_level,
 		*phy_mem = buf_start;
 		return 0;
 	}
+	if (pvr_memory_reserved &&
+		format == DVR_FORMAT) {
+		iret = _alloc_buff_cma(len, &buf_start_virt, &buf_start);
+		if (iret == 0) {
+			dprint("init cma phy:0x%lx, virt:0x%lx, len:%d\n",
+				(unsigned long)buf_start, (unsigned long)buf_start_virt, len);
+			memset((char *)buf_start_virt, 0xa5, len);
+
+			*vir_mem = buf_start_virt;
+			*phy_mem = buf_start;
+			return 0;
+		}
+		dprint("%s cma fail, len:0x%0x\n", __func__, len);
+		return -1;
+	}
 
 	if (len < BEN_LEVEL_SIZE)
 		flags = CODEC_MM_FLAGS_DMA_CPU;
@@ -730,19 +849,21 @@ int _alloc_buff(unsigned int len, int sec_level,
 
 	buf_page_num = PAGE_ALIGN(len) / PAGE_SIZE;
 
+	pr_dbg_mem("%s size:%d\n", __func__, len);
 	buf_start =
 	    codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
 	if (!buf_start) {
 		dprint("%s fail\n", __func__);
 		return -1;
 	}
+	pr_dbg_mem("%s size:%d alloc finish\n", __func__, len);
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 	if (IS_ERR_OR_NULL((const void *)buf_start_virt)) {
 		codec_mm_free_for_dma("dmx", buf_start);
 		dprint("phys to virt addr failed\n");
 		return -1;
 	}
-	pr_dbg("init phy:0x%lx, virt:0x%lx, len:%d\n",
+	pr_dbg_mem("init phy:0x%lx, virt:0x%lx, len:%d\n",
 			buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0xa5, len);
 
@@ -752,20 +873,26 @@ int _alloc_buff(unsigned int len, int sec_level,
 	return 0;
 }
 
-void _free_buff(unsigned long buf, unsigned int len, int sec_level)
+void _free_buff(unsigned long vir_mem, unsigned long phy_mem,
+					unsigned int len, int sec_level, int format)
 {
 	int iret = 0;
 
 	if (sec_level) {
-		dmc_mem_free(buf, len, sec_level);
+		dmc_mem_free(phy_mem, len, sec_level);
 		return;
 	}
 
-	iret = cache_free(len, buf);
+	iret = cache_free(len, phy_mem);
 	if (iret == 0)
 		return;
 
-	codec_mm_free_for_dma("dmx", buf);
+	if (pvr_memory_reserved &&
+		format == DVR_FORMAT) {
+		_free_buff_cma(phy_mem, len);
+		return;
+	}
+	codec_mm_free_for_dma("dmx", phy_mem);
 }
 
 static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
@@ -793,8 +920,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 			pr_dbg("use sec phy mem:0x%lx, virt:0x%lx size:0x%x\n",
 					mem_phy, mem, mem_size);
 		} else {
-			ret = _alloc_buff(mem_size, sec_level, &mem,
-				&mem_phy);
+			ret = _alloc_buff(mem_size, sec_level, &mem, &mem_phy, pchan->format);
 			if (ret != 0) {
 				dprint("%s malloc fail\n", __func__);
 				return -1;
@@ -804,9 +930,9 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 		}
 	}
 	ret =
-	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy);
+	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy, pchan->format);
 	if (ret != 0) {
-		_free_buff(mem_phy, mem_size, sec_level);
+		_free_buff(mem, mem_phy, mem_size, sec_level, pchan->format);
 		dprint("%s malloc 2 fail\n", __func__);
 		return -1;
 	}
@@ -817,7 +943,10 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	pchan->memdescs = (union mem_desc *)memdescs;
 	pchan->memdescs_phy = memdescs_phy;
 
-	pchan->memdescs->bits.address = mem_phy;
+	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+		pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+							((mem_phy >> 32) & 0x3) : 0;
+	pchan->memdescs->bits.address_low = mem_phy & 0xFFFFFFFF;
 	pchan->memdescs->bits.byte_length = mem_size;
 	pchan->memdescs->bits.loop = loop_desc;
 	pchan->memdescs->bits.eoc = 1;
@@ -825,7 +954,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	dma_sync_single_for_device(aml_get_device(),
 		pchan->memdescs_phy, sizeof(union mem_desc), DMA_TO_DEVICE);
 	pr_dbg("flush mem descs to ddr\n");
-	pr_dbg("%s mem_desc phy addr 0x%x, memdescs:0x%lx\n", __func__,
+	pr_dbg("%s mem_desc phy addr 0x%lx, memdescs:0x%lx\n", __func__,
 	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
 
 	/*mem from secure os, don't operate this memory*/
@@ -841,11 +970,13 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 static void _bufferid_free_desc_mem(struct chan_id *pchan)
 {
 	if (pchan->mem && pchan->sec_size == 0)
-		_free_buff((unsigned long)pchan->mem_phy,
-			   pchan->mem_size, pchan->sec_level);
+		_free_buff((unsigned long)pchan->mem,
+				(unsigned long)pchan->mem_phy,
+			   pchan->mem_size, pchan->sec_level, pchan->format);
 	if (pchan->memdescs)
-		_free_buff((unsigned long)pchan->memdescs_phy,
-			   sizeof(union mem_desc), 0);
+		_free_buff((unsigned long)pchan->memdescs,
+				(unsigned long)pchan->memdescs_phy,
+			   sizeof(union mem_desc), 0, pchan->format);
 	pchan->mem = 0;
 	pchan->mem_phy = 0;
 	pchan->mem_size = 0;
@@ -856,7 +987,7 @@ static void _bufferid_free_desc_mem(struct chan_id *pchan)
 	pchan->sec_size = 0;
 }
 
-static int _bufferid_alloc_chan_w_for_es(struct chan_id **pchan,
+static int _bufferid_alloc_chan_w_for_es(struct bufferid_attr *attr, struct chan_id **pchan,
 					 struct chan_id **pchan1)
 {
 	int i = 0;
@@ -871,6 +1002,8 @@ static int _bufferid_alloc_chan_w_for_es(struct chan_id **pchan,
 			pchan1_tmp->used = 1;
 			pchan_tmp->is_es = 1;
 			pchan1_tmp->is_es = 1;
+			pchan_tmp->format = attr->format;
+			pchan1_tmp->format = attr->format;
 			*pchan = pchan_tmp;
 			*pchan1 = pchan1_tmp;
 			break;
@@ -884,7 +1017,7 @@ static int _bufferid_alloc_chan_w_for_es(struct chan_id **pchan,
 	return -1;
 }
 
-static int _bufferid_alloc_chan_w_for_ts(struct chan_id **pchan)
+static int _bufferid_alloc_chan_w_for_ts(struct bufferid_attr *attr, struct chan_id **pchan)
 {
 	int i = 0;
 	struct chan_id *pchan_tmp;
@@ -893,6 +1026,7 @@ static int _bufferid_alloc_chan_w_for_ts(struct chan_id **pchan)
 		pchan_tmp = &chan_id_table_w[i];
 		if (pchan_tmp->used == 0) {
 			pchan_tmp->used = 1;
+			pchan_tmp->format = attr->format;
 			break;
 		}
 	}
@@ -902,17 +1036,18 @@ static int _bufferid_alloc_chan_w_for_ts(struct chan_id **pchan)
 	return 0;
 }
 
-static int _bufferid_alloc_chan_r_for_ts(struct chan_id **pchan, u8 req_id)
+static int _bufferid_alloc_chan_r_for_ts(struct bufferid_attr *attr, struct chan_id **pchan)
 {
 	struct chan_id *pchan_tmp;
 
-	if (req_id >= R_MAX_MEM_CHAN_NUM)
+	if (attr->req_id >= R_MAX_MEM_CHAN_NUM)
 		return -1;
-	pchan_tmp = &chan_id_table_r[req_id];
+	pchan_tmp = &chan_id_table_r[attr->req_id];
 	if (pchan_tmp->used == 1)
 		return -1;
 
 	pchan_tmp->used = 1;
+	pchan_tmp->format = attr->format;
 	*pchan = pchan_tmp;
 	return 0;
 }
@@ -1001,12 +1136,12 @@ int SC2_bufferid_alloc(struct bufferid_attr *attr,
 	pr_dbg("%s enter\n", __func__);
 
 	if (attr->mode == INPUT_MODE)
-		return _bufferid_alloc_chan_r_for_ts(pchan, attr->req_id);
+		return _bufferid_alloc_chan_r_for_ts(attr, pchan);
 
 	if (attr->is_es)
-		return _bufferid_alloc_chan_w_for_es(pchan, pchan1);
+		return _bufferid_alloc_chan_w_for_es(attr, pchan, pchan1);
 	else
-		return _bufferid_alloc_chan_w_for_ts(pchan);
+		return _bufferid_alloc_chan_w_for_ts(attr, pchan);
 }
 
 /**
@@ -1020,6 +1155,7 @@ int SC2_bufferid_dealloc(struct chan_id *pchan)
 	pr_dbg("%s enter\n", __func__);
 	_bufferid_free_desc_mem(pchan);
 	pchan->is_es = 0;
+	pchan->format = 0;
 	pchan->used = 0;
 	return 0;
 }
@@ -1065,7 +1201,7 @@ int SC2_bufferid_set_sec_mem(struct chan_id *pchan,
  */
 int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid)
 {
-	unsigned int tmp;
+	u64 tmp = 0;
 
 	if (pchan->enable == enable)
 		return 0;
@@ -1074,19 +1210,19 @@ int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid)
 
 	pchan->enable = enable;
 
-	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-	pr_dbg("WCH_ADDR, buffer id:%d, desc_phy:0x%x, addr:0x%x, length:%d\n",
-			pchan->id, tmp,
-			pchan->memdescs->bits.address,
+	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+		tmp = pchan->memdescs->bits.address_high;
+	tmp = (tmp << 32) + pchan->memdescs->bits.address_low;
+	pr_dbg("WCH_ADDR, buffer id:%d, desc_phy:0x%lx, addr:0x%llx, length:%d\n",
+			pchan->id, pchan->memdescs_phy, tmp,
 			pchan->memdescs->bits.byte_length);
-	//wdma_config_enable(pchan->id, enable, tmp, pchan->mem_size);
-	wdma_config_enable(pchan, enable, tmp, pchan->mem_size,
+	wdma_config_enable(pchan, enable, pchan->memdescs_phy, pchan->mem_size,
 		sid, pid, pchan->sec_level);
 
 	pr_dbg("######wdma start###########\n");
 	pr_dbg("err:0x%0x, active:%d\n", wdma_get_err(pchan->id),
 	       wdma_get_active(pchan->id));
-	pr_dbg("wptr:0x%0x\n", wdma_get_wptr(pchan->id));
+	pr_dbg("wptr:0x%0llx\n", wdma_get_wptr(pchan->id));
 	pr_dbg("wr_len:0x%0x\n", wdma_get_wr_len(pchan->id, NULL));
 	pr_dbg("######wdma end###########\n");
 
@@ -1158,6 +1294,7 @@ int SC2_bufferid_read_header_again(struct chan_id *pchan, char **pread)
 	return 0;
 }
 
+/*0:no pts; -1: has pts, not newest; 16: newest pts*/
 int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
 {
 	unsigned int w_offset = 0;
@@ -1195,6 +1332,8 @@ int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
 		*pread = (char *)pchan->mem + pts_mem_offset;
 		pchan->pts_newest_r_offset = w_offset;
 		return buf_len;
+	} else if (w_offset != pchan->r_offset) {
+		return -1;
 	}
 	return 0;
 }
@@ -1239,23 +1378,11 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
 					pchan->mem_phy + pchan->r_offset :
 					pchan->mem + pchan->r_offset);
 			pchan->r_offset += data_len;
+			pchan->r_offset = pchan->r_offset % pchan->mem_size;
 		} else {
 			unsigned int part1_len = 0;
 
 			part1_len = pchan->mem_size - pchan->r_offset;
-			if (part1_len == 0) {
-				data_len = min(w_offset, buf_len);
-				pchan->r_offset = 0;
-				if (!is_secure)
-					dma_sync_single_for_cpu(aml_get_device(),
-							(dma_addr_t)
-							(pchan->mem_phy +
-							 pchan->r_offset),
-							data_len,
-							DMA_FROM_DEVICE);
-				pchan->r_offset += data_len;
-				return data_len;
-			}
 			data_len = min(part1_len, buf_len);
 			*pread = (char *)(is_secure ?
 					pchan->mem_phy + pchan->r_offset :
@@ -1318,9 +1445,8 @@ int SC2_bufferid_move_read_rp(struct chan_id *pchan, unsigned int len, int flag)
 int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		       unsigned int count, int isphybuf, int pack_len)
 {
-	unsigned int len;
 	unsigned int ret;
-	unsigned int tmp;
+	unsigned long tmp;
 	unsigned int times = 0;
 	struct dmx_sec_ts_data *ts_data;
 	int total = count;
@@ -1349,8 +1475,11 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 #ifdef CHECK_PACKET_ALIGNM
 		check_packet_alignm(ts_data->buf_start, ts_data->buf_end, pack_len);
 #endif
-		tmp = (unsigned long)ts_data->buf_start & 0xFFFFFFFF;
-		pchan->memdescs->bits.address = tmp;
+		tmp = (unsigned long)ts_data->buf_start;
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+								((tmp >> 32) & 0x3) : 0;
+		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		pchan->memdescs->bits.byte_length =
 			ts_data->buf_end - ts_data->buf_start;
 
@@ -1396,15 +1525,9 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 			pchan->memdescs_phy, sizeof(union mem_desc),
 			DMA_TO_DEVICE);
 
-//			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
-		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-		len = pchan->memdescs->bits.byte_length;
-		//rdma_config_enable(pchan->id, 1, tmp, count, len);
-
-		rdma_config_enable(pchan, 1, tmp, count, len, pack_len);
+		total = pchan->memdescs->bits.byte_length;
+		rdma_config_enable(pchan, 1, pchan->memdescs_phy, count, total, pack_len);
 		pr_dbg("%s isphybuf\n", __func__);
-		/*it will exit write loop*/
-		total = len;
 	} else {
 		if (dump_input_cb)
 			dump_input_cb(pchan->id, -1, DMX_DUMP_INPUT_TYPE, (char *)buf,
@@ -1413,7 +1536,11 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		dma_sync_single_for_device(aml_get_device(),
 			(dma_addr_t)buf_phys, total, DMA_TO_DEVICE);
 
-		pchan->memdescs->bits.address = (u32)(unsigned long)buf_phys;
+		tmp = (unsigned long)buf_phys;
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+								((tmp >> 32) & 0x3) : 0;
+		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		//set desc mem ==len for trigger data transfer.
 		pchan->memdescs->bits.byte_length = total;
 		dma_sync_single_for_device(aml_get_device(),
@@ -1424,14 +1551,12 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 
 		pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
 		       (*(char *)(pchan->mem)), total);
-		pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
-		       (*(unsigned int *)(pchan->memdescs)),
-		       (*((unsigned int *)(pchan->memdescs) + 1)));
+		pr_dbg("%s, desc data:0x%0lx 0x%0lx\n", __func__,
+		       (*(unsigned long *)(pchan->memdescs)),
+		       (*((unsigned long *)(pchan->memdescs) + 1)));
 
 		pchan->enable = 1;
-		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-		//rdma_config_enable(pchan->id, 1, tmp,
-		rdma_config_enable(pchan, 1, tmp,
+		rdma_config_enable(pchan, 1, pchan->memdescs_phy,
 				   pchan->mem_size, total, pack_len);
 	}
 	prev_time_nsec = ktime_to_ns(ktime_get());
@@ -1451,12 +1576,11 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
 		       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
 	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
-	pr_dbg("ptr:0x%0x\n", rdma_get_ptr(pchan->id));
+	pr_dbg("ptr:0x%0llx\n", rdma_get_rptr(pchan->id));
 	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
 	pr_dbg("#######rdma##########\n");
 
 	/*disable */
-	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
 	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
 	rdma_clean(pchan->id);
 
@@ -1478,8 +1602,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		       unsigned int count, int isphybuf, int pack_len)
 {
-	unsigned int len;
-	unsigned int tmp;
+	unsigned long tmp;
 	unsigned int times = 0;
 	struct dmx_sec_ts_data *ts_data;
 	int total = count;
@@ -1500,8 +1623,11 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 #ifdef CHECK_PACKET_ALIGNM
 		check_packet_alignm(ts_data->buf_start, ts_data->buf_end, pack_len);
 #endif
-		tmp = (unsigned long)ts_data->buf_start & 0xFFFFFFFF;
-		pchan->memdescs->bits.address = tmp;
+		tmp = (unsigned long)ts_data->buf_start;
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+								((tmp >> 32) & 0x3) : 0;
+		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		pchan->memdescs->bits.byte_length =
 			ts_data->buf_end - ts_data->buf_start;
 
@@ -1509,21 +1635,19 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 			pchan->memdescs_phy, sizeof(union mem_desc),
 			DMA_TO_DEVICE);
 
-//			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
-		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-		len = pchan->memdescs->bits.byte_length;
-		//rdma_config_enable(pchan->id, 1, tmp, count, len);
-
-		rdma_config_enable(pchan, 1, tmp, count, len, pack_len);
+		total = pchan->memdescs->bits.byte_length;
+		rdma_config_enable(pchan, 1, pchan->memdescs_phy, count, total, pack_len);
 		pr_dbg("%s isphybuf\n", __func__);
-		/*it will exit write loop*/
-		total = len;
 	} else {
 		if (dump_input_cb)
 			dump_input_cb(pchan->id, -1, DMX_DUMP_INPUT_TYPE, (char *)buf,
 				total, &dump_input_head);
 
-		pchan->memdescs->bits.address = (u32)(unsigned long)buf_phys;
+		tmp = (unsigned long)buf_phys;
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+								((tmp >> 32) & 0x3) : 0;
+		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		//set desc mem ==len for trigger data transfer.
 		pchan->memdescs->bits.byte_length = total;
 		dma_sync_single_for_device(aml_get_device(),
@@ -1539,9 +1663,7 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 			   (*((unsigned int *)(pchan->memdescs) + 1)));
 
 		pchan->enable = 1;
-		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-		//rdma_config_enable(pchan->id, 1, tmp,
-		rdma_config_enable(pchan, 1, tmp,
+		rdma_config_enable(pchan, 1, pchan->memdescs_phy,
 				   pchan->mem_size, total, pack_len);
 	}
 	return count;
@@ -1565,7 +1687,6 @@ int SC2_bufferid_non_block_write_status(struct chan_id *pchan)
 int SC2_bufferid_non_block_write_free(struct chan_id *pchan)
 {
 	/*disable */
-	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
 	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
 	rdma_clean(pchan->id);
 
@@ -1580,7 +1701,6 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	unsigned int len;
 	unsigned int ret;
 	char *p;
-	unsigned int tmp;
 	int i = 0;
 	unsigned int times = 0;
 	unsigned long virt = 0;
@@ -1618,7 +1738,10 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	dma_sync_single_for_device(aml_get_device(),
 		phys, len, DMA_TO_DEVICE);
 
-	pchan->memdescs->bits.address = phys;
+	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+		pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+							((phys >> 32) & 0x3) : 0;
+	pchan->memdescs->bits.address_low = phys & 0xFFFFFFFF;
 	//set desc mem ==len for trigger data transfer.
 	pchan->memdescs->bits.byte_length = len;
 	dma_sync_single_for_device(aml_get_device(),
@@ -1632,9 +1755,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	       (*((unsigned int *)(pchan->memdescs) + 1)));
 
 	pchan->enable = 1;
-	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-	//rdma_config_enable(pchan->id, 1, tmp,
-	rdma_config_enable(pchan, 1, tmp, len, len, 188);
+	rdma_config_enable(pchan, 1, pchan->memdescs_phy, len, len, 188);
 
 	do {
 	} while (!rdma_get_done(pchan->id));
@@ -1649,12 +1770,11 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
 	       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
 	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
-	pr_dbg("ptr:0x%0x\n", rdma_get_ptr(pchan->id));
+	pr_dbg("ptr:0x%0llx\n", rdma_get_rptr(pchan->id));
 	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
 	pr_dbg("#######rdma##########\n");
 
 	/*disable */
-	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
 	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
 	rdma_clean(pchan->id);
 
@@ -1682,3 +1802,39 @@ int SC2_add_dump_cb(struct list_head *node, dmx_dump_cb cb)
 	return 0;
 }
 
+int mem_desc_debug(int direct, char *param_name, int *param_value)
+{
+	if (direct) {
+		if (!strncmp(param_name, "rch_sync_num", strlen("rch_sync_num")))
+			rch_sync_num = *param_value;
+		else if (!strncmp(param_name, "dmc_keep_alive", strlen("dmc_keep_alive")))
+			dmc_keep_alive = *param_value;
+		else if (!strncmp(param_name, "write_timeout_ms", strlen("write_timeout_ms")))
+			write_timeout_ms = *param_value;
+		else if (!strncmp(param_name, "debug_mem_desc", strlen("debug_mem_desc")))
+			debug_mem_desc = *param_value;
+		else if (!strncmp(param_name, "loop_desc", strlen("loop_desc")))
+			loop_desc = *param_value;
+		else if (!strncmp(param_name, "pvr_memory_reserved", strlen("pvr_memory_reserved")))
+			pvr_memory_reserved = *param_value;
+		else
+			return -EINVAL;
+	} else {
+		if (!strncmp(param_name, "rch_sync_num", strlen("rch_sync_num")))
+			*param_value = rch_sync_num;
+		else if (!strncmp(param_name, "dmc_keep_alive", strlen("dmc_keep_alive")))
+			*param_value = dmc_keep_alive;
+		else if (!strncmp(param_name, "write_timeout_ms", strlen("write_timeout_ms")))
+			*param_value = write_timeout_ms;
+		else if (!strncmp(param_name, "debug_mem_desc", strlen("debug_mem_desc")))
+			*param_value = debug_mem_desc;
+		else if (!strncmp(param_name, "loop_desc", strlen("loop_desc")))
+			*param_value = loop_desc;
+		else if (!strncmp(param_name, "pvr_memory_reserved", strlen("pvr_memory_reserved")))
+			*param_value = pvr_memory_reserved;
+		else
+			return -EINVAL;
+	}
+
+	return 0;
+}

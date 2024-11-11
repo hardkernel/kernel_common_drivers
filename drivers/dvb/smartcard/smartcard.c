@@ -225,22 +225,11 @@ static const struct of_device_id smc_dt_match[] = {
 	{},
 };
 
-MODULE_PARM_DESC(atr_hold_off, "\n\t\t atr_holdoff");
 static int atr_hold_off = 1;
-__module_param(atr_hold_off, int, 0644);
-
-MODULE_PARM_DESC(cwt_det_enable, "\n\t\t cwt_det_en");
 static int cwt_det_enable;
-__module_param(cwt_det_enable, int, 0644);
-MODULE_PARM_DESC(btw_det_enable, "\n\t\t btw_det_en");
 static int btw_det_enable;
-__module_param(btw_det_enable, int, 0644);
-MODULE_PARM_DESC(etu_msr_enable, "\n\t\t etu_msr_en");
 static int etu_msr_enable;
-__module_param(etu_msr_enable, int, 0644);
-MODULE_PARM_DESC(clock_source_, "\n\t\t clock_source");
 static int clock_source_;
-__module_param(clock_source_, int, 0644);
 
 #define NO_HOT_RESET
 /*#define DISABLE_RECV_INT*/
@@ -624,10 +613,66 @@ static ssize_t debug_store(struct device *dev,
 }
 #endif
 
+static ssize_t smc_params_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret = 0, total = 0;
+
+	mutex_lock(&smc_lock);
+	ret = sprintf(buf, "atr_hold_off:%d\n", atr_hold_off);
+	total += ret;
+	ret = sprintf(buf + total, "cwt_det_enable:%d\n", cwt_det_enable);
+	total += ret;
+	ret = sprintf(buf + total, "btw_det_enable:%d\n", btw_det_enable);
+	total += ret;
+	ret = sprintf(buf + total, "etu_msr_enable:%d\n", etu_msr_enable);
+	total += ret;
+	ret = sprintf(buf + total, "clock_source_:%d\n", clock_source_);
+	total += ret;
+	mutex_unlock(&smc_lock);
+
+	return total;
+}
+
+static ssize_t smc_params_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	char param_name[32];
+	int param_value = 0, ret = 0;
+
+	mutex_lock(&smc_lock);
+	ret = sscanf(buf, "%s %d", param_name, &param_value);
+	if (ret != 2)
+		goto error_handle;
+
+	if (!strncmp(param_name, "atr_hold_off", strlen("atr_hold_off")))
+		atr_hold_off = param_value;
+	else if (!strncmp(param_name, "cwt_det_enable", strlen("cwt_det_enable")))
+		cwt_det_enable = param_value;
+	else if (!strncmp(param_name, "btw_det_enable", strlen("btw_det_enable")))
+		btw_det_enable = param_value;
+	else if (!strncmp(param_name, "etu_msr_enable", strlen("etu_msr_enable")))
+		etu_msr_enable = param_value;
+	else if (!strncmp(param_name, "clock_source_", strlen("clock_source_")))
+		clock_source_ = param_value;
+	else
+		goto error_handle;
+
+	pr_inf("%s\n", buf);
+	mutex_unlock(&smc_lock);
+	return size;
+
+error_handle:
+	mutex_unlock(&smc_lock);
+	return -EINVAL;
+}
+
 DEVICE_ATTR_RW(smc_gpio_pull);
 DEVICE_ATTR_RW(ctrl_5v3v);
 DEVICE_ATTR_RW(freq);
 DEVICE_ATTR_RW(div_smc);
+DEVICE_ATTR_RW(smc_params);
 #ifdef MEM_DEBUG
 DEVICE_ATTR_RW(debug);
 #endif
@@ -639,6 +684,7 @@ static struct attribute *smc_attrs[] = {
 	SMC_ATTR(ctrl_5v3v),
 	SMC_ATTR(freq),
 	SMC_ATTR(div_smc),
+	SMC_ATTR(smc_params),
 
 #ifdef MEM_DEBUG
 	SMC_ATTR(debug),

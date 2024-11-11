@@ -186,7 +186,7 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 			u8 cb_id, bool is_sec);
 
-struct out_elem *ts_output_find_dvr(int sid);
+struct out_elem *ts_output_find_dvr(int sid, int sec_level);
 
 int ts_output_sid_debug(void);
 int ts_output_dump_info(char *buf);
@@ -207,4 +207,5 @@ int ts_output_get_wp(struct out_elem *pout, unsigned int *wp);
 int ts_output_get_meminfo(struct out_elem *pout, unsigned int *size,
 	unsigned long *mem, unsigned long *mem_phy);
 int ts_output_dump_clone_info(char *buf);
+int ts_output_debug(int direct, char *param_name, int *param_value);
 #endif

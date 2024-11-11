@@ -89,14 +89,8 @@ static int ts_clone_init_flag;
 #define pr_dbg(fmt, args...)   \
 	dprintk(LOG_DBG, debug_ts_clone, "clone:" fmt, ## args)
 
-MODULE_PARM_DESC(debug_ts_clone, "\n\t\t Enable ts clone debug information");
 static int debug_ts_clone;
-__module_param(debug_ts_clone, int, 0644);
-
-MODULE_PARM_DESC(clone_buf_size, "\n\t\t Configure ts clone buffer size");
-//about 2.5MB
 static int clone_buf_size = 14000 * 188;
-__module_param(clone_buf_size, int, 0644);
 
 static int _ts_clone_open_output(struct demod_ts_clone_parent *node)
 {
@@ -162,7 +156,7 @@ static int _ts_clone_find_input(struct list_head  *head, struct in_elem *input, 
 }
 
 static int _ts_clone_add_input(struct list_head  *head,
-	struct in_elem *input, int demod_source, int dmx_id)
+	struct in_elem *input, int demod_source, int dmx_id, unsigned int rp)
 {
 	struct demod_ts_clone_child *demod_input;
 	struct dvr_ts_clone_child *dvr_input;
@@ -176,6 +170,7 @@ static int _ts_clone_add_input(struct list_head  *head,
 		memset(demod_input, 0, sizeof(*demod_input));
 		demod_input->dmx_id = dmx_id;
 		demod_input->input = input;
+		demod_input->rp = rp;
 		INIT_LIST_HEAD(&demod_input->node);
 
 		list_add_tail(&demod_input->node, head);
@@ -293,6 +288,7 @@ static int _ts_clone_remove_dvr_source(void *dvr_node)
 static int _ts_clone_demod_connect(int dmx_id, int source, struct in_elem *input)
 {
 	int i = 0;
+	unsigned int rp = 0;
 
 	pr_dbg("%s dmx_id:%d connect num:%d source:%d input:%d start\n",
 		__func__, dmx_id, demod_connect_num, source, input->id);
@@ -308,8 +304,10 @@ static int _ts_clone_demod_connect(int dmx_id, int source, struct in_elem *input
 					return 0;
 				}
 			}
+			if (demod_ts_info[i].ts_output)
+				ts_output_get_wp(demod_ts_info[i].ts_output, &rp);
 			if (_ts_clone_add_input(&demod_ts_info[i].child_head,
-						input, 1, dmx_id) == 0) {
+						input, 1, dmx_id, rp) == 0) {
 				demod_connect_num++;
 				demod_ts_info[i].child_num++;
 				mod_timer(&ts_clone_task_tmp.clone_timer,
@@ -362,14 +360,14 @@ static int _ts_clone_dvr_connect(int dmx_id, int source, struct in_elem *input)
 			mutex_unlock(&dvr_mutex);
 			return 0;
 		}
-		if (_ts_clone_add_input(&node->child_head, input, 0, dmx_id) == 0)
+		if (_ts_clone_add_input(&node->child_head, input, 0, dmx_id, 0) == 0)
 			node->child_num++;
 		mutex_unlock(&dvr_mutex);
 		return 0;
 	}
 	node = _ts_clone_add_dvr_source(source);
 	if (node) {
-		if (_ts_clone_add_input(&node->child_head, input, 0, dmx_id) == 0)
+		if (_ts_clone_add_input(&node->child_head, input, 0, dmx_id, 0) == 0)
 			node->child_num++;
 		mutex_unlock(&dvr_mutex);
 		return 0;
@@ -853,4 +851,33 @@ int ts_clone_dump_info(char *buf)
 	buf += r;
 	total += r;
 	return total;
+}
+
+/**
+ * ts_clone_debug
+ * \param direct: 1 for set param value, 0 for get param value
+ * \param param_name: param name
+ * \param param_value: param value
+ * \retval 0:success.
+ * \retval -1:fail.
+ */
+int ts_clone_debug(int direct, char *param_name, int *param_value)
+{
+	if (direct) {
+		if (!strncmp(param_name, "debug_ts_clone", strlen("debug_ts_clone")))
+			debug_ts_clone = *param_value;
+		else if (!strncmp(param_name, "clone_buf_size", strlen("clone_buf_size")))
+			clone_buf_size = *param_value;
+		else
+			return -EINVAL;
+	} else {
+		if (!strncmp(param_name, "debug_ts_clone", strlen("debug_ts_clone")))
+			*param_value = debug_ts_clone;
+		else if (!strncmp(param_name, "clone_buf_size", strlen("clone_buf_size")))
+			*param_value = clone_buf_size;
+		else
+			return -EINVAL;
+	}
+
+	return 0;
 }

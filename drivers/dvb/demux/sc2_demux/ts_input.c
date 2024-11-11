@@ -24,9 +24,7 @@ static struct in_elem ts_input_table[MAX_INPUT_NUM];
 #define pr_dbg(fmt, args...)   \
 	dprintk(LOG_DBG, debug_input, "ts_input:" fmt, ## args)
 
-MODULE_PARM_DESC(debug_input, "\n\t\t Enable demux input information");
-static int debug_input;
-__module_param(debug_input, int, 0644);
+int debug_input;
 
 /**
  * ts_input_init
@@ -78,6 +76,8 @@ struct in_elem *ts_input_open(int id)
 		dprint("%s id:%d invalid\n", __func__, id);
 		return NULL;
 	}
+
+	memset(&attr, 0, sizeof(attr));
 	attr.mode = INPUT_MODE;
 	attr.req_id = id;
 	ret = SC2_bufferid_alloc(&attr, &ts_input_table[id].pchan, NULL);
@@ -235,3 +235,27 @@ int ts_input_write_empty(struct in_elem *elem, int pid)
 }
 #endif
 
+/**
+ * ts_input_debug
+ * \param direct: 1 for set param value, 0 for get param value
+ * \param param_name: param name
+ * \param param_value: param value
+ * \retval 0:success.
+ * \retval -1:fail.
+ */
+int ts_input_debug(int direct, char *param_name, int *param_value)
+{
+	if (direct) {
+		if (!strncmp(param_name, "debug_input", strlen("debug_input")))
+			debug_input = *param_value;
+		else
+			return -EINVAL;
+	} else {
+		if (!strncmp(param_name, "debug_input", strlen("debug_input")))
+			*param_value = debug_input;
+		else
+			return -EINVAL;
+	}
+
+	return 0;
+}

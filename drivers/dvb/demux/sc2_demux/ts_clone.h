@@ -62,4 +62,15 @@ int ts_clone_disconnect(int dmx_id, int source, struct in_elem *input);
  * \retval :len
  */
 int ts_clone_dump_info(char *buf);
+
+/**
+ * ts_clone_debug
+ * \param direct: 1 for set param value, 0 for get param value
+ * \param param_name: param name
+ * \param param_value: param value
+ * \retval 0:success.
+ * \retval -1:fail.
+ */
+int ts_clone_debug(int direct, char *param_name, int *param_value);
+
 #endif

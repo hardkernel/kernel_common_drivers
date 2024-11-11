@@ -46,15 +46,12 @@
 #define pr_dbg(fmt, args...)   \
 	dprintk(LOG_DBG, debug_dvb, "dvb:" fmt, ## args)
 
-MODULE_PARM_DESC(debug_dvb, "\n\t\t Enable demux debug information");
-static int debug_dvb;
-__module_param(debug_dvb, int, 0644);
-
 #define CARD_NAME "amlogic-dvb"
 #define DVB_VERSION "V2.02"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+static int debug_dvb;
 static struct aml_dvb aml_dvb_device;
 static int dmx_dev_num;
 static int tsn_in;
@@ -605,18 +602,60 @@ static ssize_t demod_out_store(const struct class *class,
 	return count;
 }
 
+static ssize_t dvb_debug_show(const struct class *class,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	int ret = 0, total = 0, param_value = 0;
+
+	ret = sprintf(buf, "debug_dvb:%d\n", debug_dvb);
+	total += ret;
+	frontend_debug(0, "debug_frontend", &param_value);
+	ret = sprintf(buf + total, "debug_frontend:%d\n", param_value);
+	total += ret;
+	aml_dsc_debug(0, "debug_dsc", &param_value);
+	ret = sprintf(buf + total, "debug_dsc:%d\n", param_value);
+	total += ret;
+
+	return total;
+}
+
+static ssize_t dvb_debug_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	char param_name[32];
+	int param_value = 0, ret = 0;
+
+	ret = sscanf(buf, "%s %d", param_name, &param_value);
+	if (ret != 2)
+		return -EINVAL;
+
+	if (!strncmp(param_name, "debug_dvb", strlen("debug_dvb")))
+		debug_dvb = param_value;
+	else if (!strncmp(param_name, "debug_frontend", strlen("debug_frontend")))
+		frontend_debug(1, param_name, &param_value);
+	else if (!strncmp(param_name, "debug_dsc", strlen("debug_dsc")))
+		aml_dsc_debug(1, param_name, &param_value);
+	else
+		return -EINVAL;
+
+	pr_dbg("%s\n", buf);
+	return size;
+}
+
 static CLASS_ATTR_RW(ts_setting);
 static CLASS_ATTR_RW(get_pcr);
 static CLASS_ATTR_RO(dmx_setting);
 static CLASS_ATTR_RO(dsc_setting);
 static CLASS_ATTR_RO(dmx_ver);
-
 static CLASS_ATTR_RW(tsn_source);
 static CLASS_ATTR_RW(tso_source);
 static CLASS_ATTR_RW(tsn_loop);
 static CLASS_ATTR_RW(dmc_mem);
 static CLASS_ATTR_RW(dmx_mutex);
 static CLASS_ATTR_RW(demod_out);
+static CLASS_ATTR_RW(dvb_debug);
 
 static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_ts_setting.attr,
@@ -630,6 +669,7 @@ static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_dmx_ver.attr,
 	&class_attr_dmx_mutex.attr,
 	&class_attr_demod_out.attr,
+	&class_attr_dvb_debug.attr,
 	NULL
 };
 
@@ -892,7 +932,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		if (tsn_in == INPUT_DEMOD)
 			advb->dmx[i]->sid = advb->ts[advb->dmx[i]->ts_index].ts_sid;
 		else
-			advb->dmx[i]->sid = -1;
+			advb->dmx[i]->sid = 0;
 		advb->dmx[i]->hw_source = hw_source;
 		ret = dmx_init(advb->dmx[i], padater);
 		if (ret)
@@ -912,7 +952,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	if (class_register(&aml_stb_class) < 0)
 		goto INIT_ERR;
 	dmx_regist_dmx_class();
-
+	ts_clone_probe(pdev);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 	register_tsync_callbackfunc(TSYNC_AMLDMX_PCR_GET, demux_get_pcr);
 #endif

@@ -11,6 +11,7 @@ int frontend_probe(struct platform_device *pdev);
 int frontend_remove(void);
 void frontend_config_ts_sid(void);
 int frontend_control_tsin_clk(int state);
+int frontend_debug(int direct, char *param_name, int *param_value);
 
 ssize_t ts_setting_show(const struct class *class,
 			const struct class_attribute *attr,

@@ -19,6 +19,7 @@ int init_demux_addr(struct platform_device *pdev);
 
 void aml_sys_write(unsigned int reg, unsigned int val);
 int aml_sys_read(unsigned int reg);
+int dvb_reg_debug(int direct, char *param_name, int *param_value);
 
 #define WRITE_CBUS_REG(_r, _v)   aml_write_self((_r), _v)
 #define READ_CBUS_REG(_r)        aml_read_self((_r))

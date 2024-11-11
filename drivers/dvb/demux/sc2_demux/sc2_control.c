@@ -35,14 +35,66 @@ enum es_on_off {
 #define pr_dbg(fmt, args...)     \
 	dprintk(LOG_DBG, debug_register, "sc2 control:" fmt, ## args)
 
-MODULE_PARM_DESC(debug_register,
-		 "\n\t\t Enable sc2 register debug information");
 static int debug_register;
-__module_param(debug_register, int, 0644);
+
+static unsigned int dma_wch_base;
+static unsigned int dma_ctrl_base;
+static unsigned int dma_ch_width;
+
+unsigned int get_dma_wch_base(void)
+{
+	if (!dma_wch_base) {
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			dma_wch_base = 0x2000;
+		else
+			dma_wch_base = 0x1000;
+		pr_dbg("%s dma_wch_base:0x%0x\n", __func__, dma_wch_base);
+	}
+	return dma_wch_base;
+}
+
+unsigned int get_dma_ctrl_base(void)
+{
+	if (!dma_ctrl_base) {
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			dma_ctrl_base = 0x1000;
+		else
+			dma_ctrl_base = 0x2000;
+		pr_dbg("%s dma_ctrl_base:0x%0x\n", __func__, dma_ctrl_base);
+	}
+	return dma_ctrl_base;
+}
+
+unsigned int get_dma_ch_width(void)
+{
+	if (!dma_ch_width) {
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			dma_ch_width = 0x40;
+		else
+			dma_ch_width = 0x20;
+		pr_dbg("%s dma_ch_width:0x%0x\n", __func__, dma_ch_width);
+	}
+	return dma_ch_width;
+}
 
 unsigned int tsout_get_ready(void)
 {
 	return READ_CBUS_REG(PID_RDY);
+}
+
+unsigned int tsout_config_save_junk(int flag)
+{
+	union OUT_CFG_FIELD data;
+	u32 cfg_addr = OUT_CFG;
+
+	data.b.sys_freq = 0x18;
+	if (flag)
+		data.b.cfg_save_junk = 1;
+	else
+		data.b.cfg_save_junk = 0;
+
+	WRITE_CBUS_REG(cfg_addr, data.data);
+	return 0;
 }
 
 static void tee_tsout_config_sid_table(u32 sid, u32 begin, u32 length)
@@ -390,6 +442,10 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	unsigned int hi_addr = 0;
 	unsigned int lo_value = 0;
 	unsigned int hi_value = 0;
+	unsigned int scb_out_shift_bits = 0;
+	unsigned int scb_as_is = 0;
+	unsigned int scb_out_for_odd = 0;
+	unsigned int scb_out_for_all_or_even = 0;
 
 	pr_dbg("%s dsc_type:%d, pid_entry:%d, sid:%d\n",
 	       __func__, dsc_type, pid_entry->id, pid_entry->sid);
@@ -412,13 +468,38 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	    (pid_entry->kte_odd << LO_KTE_ODD) |
 	    (pid_entry->algo << LO_ALGO) |
 	    ((pid_entry->pid & 0xFFF) << LO_PID_PART1);
+
+	/*for 5 dmx ver, scb out set dividually,
+	 *scb_out for even scb, scb_out_for_odd for odd scb
+	 *so should compatible with low version
+	 */
+	if (pid_entry->scb_as_is == 0) {
+		scb_as_is = 0;
+		scb_out_for_odd = pid_entry->scb_out;
+		scb_out_for_all_or_even = pid_entry->scb_out;
+	} else if (pid_entry->scb_as_is == 1) {
+		scb_as_is = 1;
+		scb_out_for_odd = 0;
+		scb_out_for_all_or_even = 0;
+	} else if (pid_entry->scb_as_is == 2) {
+		scb_as_is = 0;
+		scb_out_for_odd = pid_entry->scb_out & 0x3;
+		scb_out_for_all_or_even = (pid_entry->scb_out & 0xC) >> 2;
+	} else {
+		dprint_i("error scb_as_is %d\n", pid_entry->scb_as_is);
+	}
+	pr_dbg("%s scb_out_shift_bits:0x%0x\n", __func__, scb_out_shift_bits);
+
 	hi_value = ((pid_entry->pid >> 12) & 0x1) << HI_PID_PART2 |
 	    (pid_entry->sid << HI_SID) |
 	    (pid_entry->even_00_iv << HI_EVEN_00_IV) |
 	    (pid_entry->odd_iv << HI_ODD_IV) |
-	    (pid_entry->scb_as_is << HI_SCB_AS_IS) |
-	    (pid_entry->scb_out << HI_SCB_OUT) |
-	    (pid_entry->scb00 << HI_SCB00) | (pid_entry->valid << HI_VALID);
+	    (scb_as_is << HI_SCB_AS_IS) |
+	    (scb_out_for_all_or_even << HI_SCB_OUT) |
+	    (scb_out_for_odd << HI_SCB_OUT_ODD) |
+	    (pid_entry->scb00 << HI_SCB00) |
+	    (pid_entry->multi2 << HI_MULTI2) |
+	    (pid_entry->valid << HI_VALID);
 	WRITE_CBUS_REG(lo_addr, lo_value);
 	WRITE_CBUS_REG(hi_addr, hi_value);
 
@@ -427,28 +508,63 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	dsc_config_ready(dsc_type);
 }
 
-//void rdma_config_enable(u8 chan_id, int enable,
+void dsc_config_multi2_round(int multi2_index, unsigned char round)
+{
+	unsigned int addr = TSN_MULTI2_ROUNDS;
+	unsigned int value, mask;
+
+	pr_dbg("%s multi2_index:%d round:%d\n", __func__, multi2_index, (int)round);
+	value = READ_CBUS_REG(addr);
+	pr_dbg("%s TSN_MULTI2_ROUNDS old value:0x%0x\n", __func__, value);
+	mask = ~(0xffU << (multi2_index * 8 + 16));
+	pr_dbg("%s mask:0x%0x\n", __func__, mask);
+	value = (value & mask) | ((unsigned int)round << (multi2_index * 8 + 16));
+	pr_dbg("%s TSN_MULTI2_ROUNDS new value:0x%0x\n", __func__, value);
+	WRITE_CBUS_REG(addr, value);
+}
+
+void dsc_config_multi2_syskey(int multi2_index, unsigned char syskey[32])
+{
+	unsigned int addr = TSN_MULTI2_SYSKEY;
+	unsigned int value = 0;
+	int i = 0;
+
+	pr_dbg("%s multi2_index:%d\n", __func__, multi2_index);
+	for (i = 0; i < 32; i += 4) {
+		value = syskey[i] + (syskey[i + 1] << 8) +
+			(syskey[i + 2] << 16) + (syskey[i + 3] << 24);
+		WRITE_CBUS_REG(addr + multi2_index * 32 + i, value);
+	}
+}
+
 void rdma_config_enable(struct chan_id *pchan, int enable,
-			unsigned int desc, unsigned int total_size,
+			unsigned long desc, unsigned int total_size,
 			unsigned int len, unsigned int pack_len)
 {
 	u32 data = 0;
+	u64 tmp = 0;
 
 	if (enable) {
-		WRITE_CBUS_REG(TS_DMA_RCH_ADDR(pchan->id), desc);
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			WRITE_CBUS_REG(TS_DMA_RCH_ADDR_HIGH(pchan->id),
+				(sizeof(unsigned long) == 8) ? ((desc >> 32) & 0x3) : 0);
+		WRITE_CBUS_REG(TS_DMA_RCH_ADDR_LOW(pchan->id), desc & 0xFFFFFFFF);
 		WRITE_CBUS_REG(TS_DMA_RCH_LEN(pchan->id), len);
-		pr_dbg("%s desc:0x%0x\n", __func__, desc);
+		pr_dbg("%s desc:0x%0lx\n", __func__, desc);
 		pr_dbg("%s total_size:0x%0x\n", __func__, len);
 
 		data = pack_len << RCH_CFG_READ_LEN;
 		data |= pack_len << RCH_CFG_PACKET_LEN;
 		data |= 1 << RCH_CFG_ENABLE;
 		WRITE_CBUS_REG(TS_DMA_RCH_EACH_CFG(pchan->id), data);
+
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			tmp = pchan->memdescs->bits.address_high;
+		tmp = (tmp << 32) + pchan->memdescs->bits.address_low;
 		pr_dbg("%s addr:0x%0x data:0x%0x\n", __func__,
 		       TS_DMA_RCH_EACH_CFG(pchan->id), data);
-		pr_dbg("%s, output address:0x%x, len:%d\n", __func__,
-				pchan->memdescs->bits.address,
-				pchan->memdescs->bits.byte_length);
+		pr_dbg("%s, output address:0x%llx, len:%d\n", __func__,
+				tmp, pchan->memdescs->bits.byte_length);
 	} else {
 		data = READ_CBUS_REG(TS_DMA_RCH_EACH_CFG(pchan->id));
 
@@ -473,9 +589,15 @@ unsigned int rdma_get_rd_len(u8 chan_id)
 	return READ_CBUS_REG(TS_DMA_RCH_RD_LEN(chan_id));
 }
 
-unsigned int rdma_get_ptr(u8 chan_id)
+u64 rdma_get_rptr(u8 chan_id)
 {
-	return READ_CBUS_REG(TS_DMA_RCH_PTR(chan_id));
+	u64 rdma_ptr = 0;
+
+	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+		rdma_ptr = READ_CBUS_REG(TS_DMA_RCH_PTR_HIGH(chan_id)) & 0x3;
+	rdma_ptr = (rdma_ptr << 32) + READ_CBUS_REG(TS_DMA_RCH_PTR_LOW(chan_id));
+
+	return rdma_ptr;
 }
 
 unsigned int rdma_get_pkt_sync_status(u8 chan_id)
@@ -641,15 +763,15 @@ void wdam_config_ready(u8 chan_id)
 	WRITE_CBUS_REG(TS_DMA_WCH_READY(chan_id), 1);
 }
 
-//void wdma_config_enable(u8 chan_id, int enable,
 void wdma_config_enable(struct chan_id *pchan, int enable,
-			unsigned int desc, unsigned int total_size,
+			unsigned long desc, unsigned int total_size,
 			int sid, int pid, int sec_level)
 {
 	int times = 0;
 	unsigned int cnt = 0;
 	struct tee_dmx_dma_desc_param param = {0};
 	int ret = -1;
+	u64 tmp = 0;
 
 	if (enable) {
 		do {
@@ -673,13 +795,18 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 					(void *)&param, sizeof(param));
 			pr_dbg("[demux] %s ret:%d\n", __func__, ret);
 		} else {
-			WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), desc);
+			if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+				WRITE_CBUS_REG(TS_DMA_WCH_ADDR_HIGH(pchan->id),
+					(sizeof(unsigned long) == 8) ? ((desc >> 32) & 0x3) : 0);
+			WRITE_CBUS_REG(TS_DMA_WCH_ADDR_LOW(pchan->id), desc & 0xFFFFFFFF);
 			WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), total_size);
 
-			pr_dbg("%s, output address:0x%x, len:%d\n", __func__,
-					pchan->memdescs->bits.address,
-					pchan->memdescs->bits.byte_length);
-			pr_dbg("%s desc:0x%0x\n", __func__, desc);
+			if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+				tmp = pchan->memdescs->bits.address_high;
+			tmp = (tmp << 32) + pchan->memdescs->bits.address_low;
+			pr_dbg("%s, output address:0x%llx, len:%d\n", __func__,
+					tmp, pchan->memdescs->bits.byte_length);
+			pr_dbg("%s desc:0x%0lx\n", __func__, desc);
 			pr_dbg("%s total_size:0x%0x\n", __func__, total_size);
 		}
 	} else {
@@ -700,7 +827,9 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 					(void *)&param, sizeof(param));
 			pr_dbg("[demux] %s ret:%d\n", __func__, ret);
 		} else {
-			WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), 0);
+			if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+				WRITE_CBUS_REG(TS_DMA_WCH_ADDR_HIGH(pchan->id), 0);
+			WRITE_CBUS_REG(TS_DMA_WCH_ADDR_LOW(pchan->id), 0);
 			WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), 0);
 		}
 
@@ -713,6 +842,8 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 		if (cnt)
 			msleep(20);
 		wdma_clean(pchan->id);
+		/*wait the hw can't output*/
+		usleep_range(700, 800);
 		//delay
 //              while (times ++ < 500);
 		pr_dbg("%s wptr:0x%0x\n", __func__,
@@ -721,9 +852,15 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 	}
 }
 
-unsigned int wdma_get_wptr(u8 chan_id)
+u64 wdma_get_wptr(u8 chan_id)
 {
-	return READ_CBUS_REG(TS_DMA_WCH_PTR(chan_id));
+	u64 wdma_ptr = 0;
+
+	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+		wdma_ptr = READ_CBUS_REG(TS_DMA_WCH_PTR_HIGH(chan_id)) & 0x3;
+	wdma_ptr = (wdma_ptr << 32) + READ_CBUS_REG(TS_DMA_WCH_PTR_LOW(chan_id));
+
+	return wdma_ptr;
 }
 
 unsigned int wdma_get_wcmdcnt(u8 chan_id)
@@ -899,15 +1036,15 @@ void demod_config_in(u8 port, u8 wire_type)
 	pr_dbg("%s data:0x%0x\n", __func__, data);
 }
 
-void demod_config_tsind_clk(u8 b)
+void demod_config_tsin_clk(int port, u8 b)
 {
 	unsigned int data = 0;
 
-	data = READ_CBUS_REG(DEMOD_PATH_CTRL(3));
+	data = READ_CBUS_REG(DEMOD_PATH_CTRL(port));
 
 	data &= ~(0x1 << PATH_CTRL_RSVD2);
 
-	WRITE_CBUS_REG(DEMOD_PATH_CTRL(3), data);
+	WRITE_CBUS_REG(DEMOD_PATH_CTRL(port), data);
 }
 
 void demux_config_pipeline(int tsn_in, int tsn_out)
@@ -981,17 +1118,26 @@ void sc2_dump_register(void)
 		lo_addr = TSN_BASE_ADDR + i * 8;
 		hi_addr = TSN_BASE_ADDR + i * 8 + 4;
 		lo_data = READ_CBUS_REG(lo_addr);
-		hi_data = READ_CBUS_REG(lo_addr);
+		hi_data = READ_CBUS_REG(hi_addr);
 		if (hi_data & (0x1 << HI_VALID))
 			dprint_i("pid table:%d, 0x%0x %0x\n",
 				 i, lo_data, hi_data);
 	}
+
+	data = READ_CBUS_REG(TSN_MULTI2_ROUNDS);
+	dprint_i("multi2 rounds: 0x%0x\n", data);
+
+	for (i = 0; i < 64; i += 4) {
+		data = READ_CBUS_REG(TSN_MULTI2_SYSKEY + i);
+		dprint_i("addr: 0x%0x, multi2 syskey: 0x%0x\n", i, data);
+	}
+
 	dprint_i("**************dsc tsd************\n");
 	for (i = 0; i < 64; i++) {
 		lo_addr = TSD_BASE_ADDR + i * 8;
 		hi_addr = TSD_BASE_ADDR + i * 8 + 4;
 		lo_data = READ_CBUS_REG(lo_addr);
-		hi_data = READ_CBUS_REG(lo_addr);
+		hi_data = READ_CBUS_REG(hi_addr);
 		if (hi_data & (0x1 << HI_VALID))
 			dprint_i("pid table:%d, 0x%0x %0x\n",
 				 i, lo_data, hi_data);
@@ -1001,7 +1147,7 @@ void sc2_dump_register(void)
 		lo_addr = TSE_BASE_ADDR + i * 8;
 		hi_addr = TSE_BASE_ADDR + i * 8 + 4;
 		lo_data = READ_CBUS_REG(lo_addr);
-		hi_data = READ_CBUS_REG(lo_addr);
+		hi_data = READ_CBUS_REG(hi_addr);
 		if (hi_data & (0x1 << HI_VALID))
 			dprint_i("pid table:%d, 0x%0x %0x\n",
 				 i, lo_data, hi_data);
@@ -1035,8 +1181,14 @@ void sc2_dump_register(void)
 		else
 			continue;
 
-		data = READ_CBUS_REG(TS_DMA_RCH_ADDR(i));
-		dprint_i("rch_adr:0x%0x ", data);
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6)) {
+			hi_data = READ_CBUS_REG(TS_DMA_RCH_ADDR_HIGH(i));
+			lo_data = READ_CBUS_REG(TS_DMA_RCH_ADDR_LOW(i));
+			dprint_i("rch_adr:0x%0x %0x\n", hi_data, lo_data);
+		} else {
+			lo_data = READ_CBUS_REG(TS_DMA_RCH_ADDR_LOW(i));
+			dprint_i("rch_adr:0x%0x\n", lo_data);
+		}
 
 		data = READ_CBUS_REG(TS_DMA_RCH_LEN(i));
 		dprint_i("rch_len:0x%0x ", data);
@@ -1044,9 +1196,32 @@ void sc2_dump_register(void)
 		data = READ_CBUS_REG(TS_DMA_RCH_RD_LEN(i));
 		dprint_i("rch_rd_len:0x%0x ", data);
 
-		data = READ_CBUS_REG(TS_DMA_RCH_PTR(i));
-		dprint_i("rch_ptr:0x%0x ", data);
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6)) {
+			hi_data = READ_CBUS_REG(TS_DMA_RCH_PTR_HIGH(i));
+			lo_data = READ_CBUS_REG(TS_DMA_RCH_PTR_LOW(i));
+			dprint_i("rch_ptr:0x%0x %0x\n", hi_data, lo_data);
+		} else {
+			lo_data = READ_CBUS_REG(TS_DMA_RCH_PTR_LOW(i));
+			dprint_i("rch_ptr:0x%0x\n", lo_data);
+		}
 	}
 
 	dprint_i("**************wdma************\n");
+}
+
+int sc2_control_debug(int direct, char *param_name, int *param_value)
+{
+	if (direct) {
+		if (!strncmp(param_name, "debug_register", strlen("debug_register")))
+			debug_register = *param_value;
+		else
+			return -EINVAL;
+	} else {
+		if (!strncmp(param_name, "debug_register", strlen("debug_register")))
+			*param_value = debug_register;
+		else
+			return -EINVAL;
+	}
+
+	return 0;
 }

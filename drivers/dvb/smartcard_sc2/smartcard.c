@@ -239,58 +239,19 @@ static const struct of_device_id smc_dt_match[] = {
 #define smc_dt_match NULL
 #endif
 
-MODULE_PARM_DESC(smc0_irq, "\n\t\t Irq number of smartcard0");
 static int smc0_irq = -1;
-__module_param(smc0_irq, int, 0644);
-
-MODULE_PARM_DESC(smc0_reset, "\n\t\t Reset GPIO pin of smartcard0");
-//static int smc0_reset = -1;
-__module_param(smc0_reset, int, 0644);
-
-MODULE_PARM_DESC(atr_delay, "\n\t\t atr delay");
 //static int atr_delay;
-__module_param(atr_delay, int, 0644);
-
-MODULE_PARM_DESC(atr_holdoff, "\n\t\t atr_holdoff");
 static int atr_holdoff = 1;
-__module_param(atr_holdoff, int, 0644);
-
-MODULE_PARM_DESC(cwt_det_en, "\n\t\t cwt_det_en");
 static int cwt_det_en;
-__module_param(cwt_det_en, int, 0644);
-MODULE_PARM_DESC(btw_det_en, "\n\t\t btw_det_en");
 static int btw_det_en;
-__module_param(btw_det_en, int, 0644);
-MODULE_PARM_DESC(etu_msr_en, "\n\t\t etu_msr_en");
 static int etu_msr_en;
-__module_param(etu_msr_en, int, 0644);
-MODULE_PARM_DESC(clock_source, "\n\t\t clock_source");
 static int clock_source;
-__module_param(clock_source, int, 0644);
-
-MODULE_PARM_DESC(atr_timeout, "\n\t\t atr_timeout");
 static int atr_timeout = 200000;
-__module_param(atr_timeout, int, 0644);
-
-MODULE_PARM_DESC(atr1_timeout, "\n\t\t atr1_timeout");
 static int atr1_timeout = 1000000;
-__module_param(atr1_timeout, int, 0644);
-
-MODULE_PARM_DESC(atr_reset, "\n\t\t atr_reset");
 static int atr_reset = 1;
-__module_param(atr_reset, int, 0644);
-
-MODULE_PARM_DESC(bwt_time, "\n\t\t bwt_time");
 static int bwt_time = BWT_BASE_DEFAULT;
-__module_param(bwt_time, int, 0644);
-
-MODULE_PARM_DESC(atr_clk_mux, "\n\t\t atr_clk_mux");
 static int atr_clk_mux = ATR_CLK_MUX_DEFAULT;
-__module_param(atr_clk_mux, int, 0644);
-
-MODULE_PARM_DESC(atr_final_tcnt, "\n\t\t atr_final_tcnt");
 static int atr_final_tcnt = ATR_FINAL_TCNT_DEFAULT;
-__module_param(atr_final_tcnt, int, 0644);
 
 #define NO_HOT_RESET
 /*#define DISABLE_RECV_INT*/
@@ -1008,6 +969,90 @@ static ssize_t pins_mode_store(const struct class *class,
 	return count;
 }
 
+static ssize_t smc_params_show(const struct class *class,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	int ret = 0, total = 0;
+
+	mutex_lock(&smc_lock);
+	ret = sprintf(buf, "smc0_irq:%d\n", smc0_irq);
+	total += ret;
+	ret = sprintf(buf + total, "atr_holdoff:%d\n", atr_holdoff);
+	total += ret;
+	ret = sprintf(buf + total, "cwt_det_en:%d\n", cwt_det_en);
+	total += ret;
+	ret = sprintf(buf + total, "btw_det_en:%d\n", btw_det_en);
+	total += ret;
+	ret = sprintf(buf + total, "etu_msr_en:%d\n", etu_msr_en);
+	total += ret;
+	ret = sprintf(buf + total, "clock_source:%d\n", clock_source);
+	total += ret;
+	ret = sprintf(buf + total, "atr_timeout:%d\n", atr_timeout);
+	total += ret;
+	ret = sprintf(buf + total, "atr1_timeout:%d\n", atr1_timeout);
+	total += ret;
+	ret = sprintf(buf + total, "atr_reset:%d\n", atr_reset);
+	total += ret;
+	ret = sprintf(buf + total, "bwt_time:%d\n", bwt_time);
+	total += ret;
+	ret = sprintf(buf + total, "atr_clk_mux:%d\n", atr_clk_mux);
+	total += ret;
+	ret = sprintf(buf + total, "atr_final_tcnt:%d\n", atr_final_tcnt);
+	total += ret;
+	mutex_unlock(&smc_lock);
+
+	return total;
+}
+
+static ssize_t smc_params_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	char param_name[32];
+	int param_value = 0, ret = 0;
+
+	mutex_lock(&smc_lock);
+	ret = sscanf(buf, "%s %d", param_name, &param_value);
+	if (ret != 2)
+		goto error_handle;
+
+	if (!strncmp(param_name, "smc0_irq", strlen("smc0_irq")))
+		smc0_irq = param_value;
+	else if (!strncmp(param_name, "atr_holdoff", strlen("atr_holdoff")))
+		atr_holdoff = param_value;
+	else if (!strncmp(param_name, "cwt_det_en", strlen("cwt_det_en")))
+		cwt_det_en = param_value;
+	else if (!strncmp(param_name, "btw_det_en", strlen("btw_det_en")))
+		btw_det_en = param_value;
+	else if (!strncmp(param_name, "etu_msr_en", strlen("etu_msr_en")))
+		etu_msr_en = param_value;
+	else if (!strncmp(param_name, "clock_source", strlen("clock_source")))
+		clock_source = param_value;
+	else if (!strncmp(param_name, "atr_timeout", strlen("atr_timeout")))
+		atr_timeout = param_value;
+	else if (!strncmp(param_name, "atr1_timeout", strlen("atr1_timeout")))
+		atr1_timeout = param_value;
+	else if (!strncmp(param_name, "atr_reset", strlen("atr_reset")))
+		atr_reset = param_value;
+	else if (!strncmp(param_name, "bwt_time", strlen("bwt_time")))
+		bwt_time = param_value;
+	else if (!strncmp(param_name, "atr_clk_mux", strlen("atr_clk_mux")))
+		atr_clk_mux = param_value;
+	else if (!strncmp(param_name, "atr_final_tcnt", strlen("atr_final_tcnt")))
+		atr_final_tcnt = param_value;
+	else
+		goto error_handle;
+
+	pr_inf("%s\n", buf);
+	mutex_unlock(&smc_lock);
+	return size;
+
+error_handle:
+	mutex_unlock(&smc_lock);
+	return -EINVAL;
+}
+
 static CLASS_ATTR_RW(gpio_pull);
 static CLASS_ATTR_RW(ctrl_5v3v);
 static CLASS_ATTR_RW(freq);
@@ -1017,6 +1062,7 @@ static CLASS_ATTR_WO(enable_reset);
 static CLASS_ATTR_WO(enable_cmd);
 static CLASS_ATTR_WO(enable_clk);
 static CLASS_ATTR_RW(pins_mode);
+static CLASS_ATTR_RW(smc_params);
 #ifdef MEM_DEBUG
 static CLASS_ATTR_RW(debug);
 #endif
@@ -1031,6 +1077,7 @@ static struct attribute *smc_class_attrs[] = {
 	&class_attr_enable_cmd.attr,
 	&class_attr_enable_clk.attr,
 	&class_attr_pins_mode.attr,
+	&class_attr_smc_params.attr,
 
 #ifdef MEM_DEBUG
 	&class_attr_debug.attr,
@@ -1137,7 +1184,7 @@ static void smc_mp0_clk_set(int clk)
 			data |= 0x500 + 400000 / clk - 1;
 
 		sc2_write_sys(SMARTCARD_CLK_CTRL, data);
-		pr_info("%s S5 data:0x%0x\n", __func__, data);
+		pr_dbg("%s S5 data:0x%0x\n", __func__, data);
 		return;
 	} else if (cpu_type == MESON_CPU_MAJOR_ID_T5M) {
 		data &= 0xFFF00000;
@@ -1151,7 +1198,7 @@ static void smc_mp0_clk_set(int clk)
 			data |= 0x500 + 400000 / clk - 1;
 
 		sc2_write_sys(SMARTCARD_CLK_CTRL, data);
-		pr_info("%s T5M data:0x%0x\n", __func__, data);
+		pr_dbg("%s T5M data:0x%0x\n", __func__, data);
 		return;
 	}
 	data &= 0xFFFFF900;
@@ -1165,7 +1212,7 @@ static void smc_mp0_clk_set(int clk)
 		data |= 500000 / clk - 1;
 
 	sc2_write_sys(SMARTCARD_CLK_CTRL, data);
-	pr_info("%s other data:0x%0x\n", __func__, data);
+	pr_dbg("%s other data:0x%0x\n", __func__, data);
 }
 
 static void smc_clk_enable(int enable)
@@ -1194,7 +1241,7 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	struct smccard_hw_reg5 *reg5;
 	unsigned long freq_cpu = 0;
 
-	pr_info("hw set param\n");
+	pr_dbg("hw set param\n");
 	if (smc->param.freq == 0 || smc->param.d == 0) {
 		pr_error("hw set param, freq or d = 0 invalid\n");
 		return 0;
@@ -1234,13 +1281,13 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	reg0->etu_divider = smc->param.f / smc->param.d - 1;
 #endif
 	SMC_WRITE_REG(REG0, v);
-	pr_info("REG0: 0x%08lx\n", v);
-	pr_info("f	  :%d\n", smc->param.f);
-	pr_info("d	  :%d\n", smc->param.d);
-	pr_info("freq	:%d\n", smc->param.freq);
+	pr_dbg("REG0: 0x%08lx\n", v);
+	pr_dbg("f	  :%d\n", smc->param.f);
+	pr_dbg("d	  :%d\n", smc->param.d);
+	pr_dbg("freq	:%d\n", smc->param.freq);
 
 	v = SMC_READ_REG(REG1);
-	pr_info("REG1: 0x%08lx\n", v);
+	pr_dbg("REG1: 0x%08lx\n", v);
 
 	v = SMC_READ_REG(REG2);
 	reg2 = (struct smccard_hw_reg2 *)&v;
@@ -1261,25 +1308,25 @@ static int smc_hw_set_param(struct smc_dev *smc)
 		reg2->clk_sel = clock_source;
 	/*reg2->pulse_irq = 0; */
 	SMC_WRITE_REG(REG2, v);
-	pr_info("REG2: 0x%08lx\n", v);
-	pr_info("recv_inv:%d\n", smc->param.recv_invert);
-	pr_info("recv_lsb:%d\n", smc->param.recv_lsb_msb);
-	pr_info("recv_par:%d\n", smc->param.recv_parity);
-	pr_info("recv_npa:%d\n", smc->param.recv_no_parity);
-	pr_info("xmit_inv:%d\n", smc->param.xmit_invert);
-	pr_info("xmit_lsb:%d\n", smc->param.xmit_lsb_msb);
-	pr_info("xmit_par:%d\n", smc->param.xmit_parity);
-	pr_info("xmit_rep:%d\n", smc->param.xmit_repeat_dis);
-	pr_info("xmit_try:%d\n", smc->param.xmit_retries);
+	pr_dbg("REG2: 0x%08lx\n", v);
+	pr_dbg("recv_inv:%d\n", smc->param.recv_invert);
+	pr_dbg("recv_lsb:%d\n", smc->param.recv_lsb_msb);
+	pr_dbg("recv_par:%d\n", smc->param.recv_parity);
+	pr_dbg("recv_npa:%d\n", smc->param.recv_no_parity);
+	pr_dbg("xmit_inv:%d\n", smc->param.xmit_invert);
+	pr_dbg("xmit_lsb:%d\n", smc->param.xmit_lsb_msb);
+	pr_dbg("xmit_par:%d\n", smc->param.xmit_parity);
+	pr_dbg("xmit_rep:%d\n", smc->param.xmit_repeat_dis);
+	pr_dbg("xmit_try:%d\n", smc->param.xmit_retries);
 	if (t5w_smartcard)
-		pr_info("clk_tcnt:%d freq_cpu:%ld\n", reg2->clk_tcnt, freq_cpu);
+		pr_dbg("clk_tcnt:%d freq_cpu:%ld\n", reg2->clk_tcnt, freq_cpu);
 
 	v = SMC_READ_REG(REG5);
 	reg5 = (struct smccard_hw_reg5 *)&v;
 	reg5->cwt_detect_en = cwt_det_en;
 	reg5->bwt_base_time_gnt = bwt_time;
 	SMC_WRITE_REG(REG5, v);
-	pr_info("REG5: 0x%08lx\n", v);
+	pr_dbg("REG5: 0x%08lx\n", v);
 
 	v = SMC_READ_REG(REG6);
 	reg6 = (struct smccard_hw_reg6 *)&v;
@@ -1289,11 +1336,11 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	reg6->N_parameter = smc->param.n;
 
 	SMC_WRITE_REG(REG6, v);
-	pr_inf("REG6: 0x%08lx\n", v);
-	pr_inf("N	  :%d\n", smc->param.n);
-	pr_inf("cwi	 :%d\n", smc->param.cwi);
-	pr_inf("bgt	 :%d\n", smc->param.bgt);
-	pr_inf("bwi	 :%d\n", smc->param.bwi);
+	pr_dbg("REG6: 0x%08lx\n", v);
+	pr_dbg("N	  :%d\n", smc->param.n);
+	pr_dbg("cwi	 :%d\n", smc->param.cwi);
+	pr_dbg("bgt	 :%d\n", smc->param.bgt);
+	pr_dbg("bwi	 :%d\n", smc->param.bwi);
 
 	return 0;
 }
@@ -1352,7 +1399,7 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 			freq_cpu = 500000;
 			break;
 		}
-		pr_info("SMC CLK SOURCE - %luKHz\n", freq_cpu);
+		pr_dbg("SMC CLK SOURCE - %luKHz\n", freq_cpu);
 	} else {
 		if (!smartcard_mpll0)
 			clk_set_rate(aml_smartcard_clk, smc->param.freq * 1000);
@@ -1389,10 +1436,10 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	if (smartcard_mpll0)
 		smc_mp0_clk_set(smc->param.freq);
 
-	pr_info("REG0: 0x%08lx\n", v);
-	pr_info("f	  :%d\n", smc->param.f);
-	pr_info("d	  :%d\n", smc->param.d);
-	pr_info("freq	:%d\n", smc->param.freq);
+	pr_dbg("REG0: 0x%08lx\n", v);
+	pr_dbg("f	  :%d\n", smc->param.f);
+	pr_dbg("d	  :%d\n", smc->param.d);
+	pr_dbg("freq	:%d\n", smc->param.freq);
 
 	v = SMC_READ_REG(REG1);
 	reg1 = (struct smc_answer_t0_rst *)&v;
@@ -1403,7 +1450,7 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg1->etu_clk_sel = ETU_CLK_SEL;
 	reg1->atr_reset = atr_reset;
 	SMC_WRITE_REG(REG1, v);
-	pr_info("REG1: 0x%08lx\n", v);
+	pr_dbg("REG1: 0x%08lx\n", v);
 
 	v = SMC_READ_REG(REG2);
 	reg2 = (struct smccard_hw_reg2 *)&v;
@@ -1424,18 +1471,18 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 		reg2->clk_sel = clock_source;
 	/*reg2->pulse_irq = 0; */
 	SMC_WRITE_REG(REG2, v);
-	pr_info("REG2: 0x%08lx\n", v);
-	pr_info("recv_inv:%d\n", smc->param.recv_invert);
-	pr_info("recv_lsb:%d\n", smc->param.recv_lsb_msb);
-	pr_info("recv_par:%d\n", smc->param.recv_parity);
-	pr_info("recv_npa:%d\n", smc->param.recv_no_parity);
-	pr_info("xmit_inv:%d\n", smc->param.xmit_invert);
-	pr_info("xmit_lsb:%d\n", smc->param.xmit_lsb_msb);
-	pr_info("xmit_par:%d\n", smc->param.xmit_parity);
-	pr_info("xmit_rep:%d\n", smc->param.xmit_repeat_dis);
-	pr_info("xmit_try:%d\n", smc->param.xmit_retries);
+	pr_dbg("REG2: 0x%08lx\n", v);
+	pr_dbg("recv_inv:%d\n", smc->param.recv_invert);
+	pr_dbg("recv_lsb:%d\n", smc->param.recv_lsb_msb);
+	pr_dbg("recv_par:%d\n", smc->param.recv_parity);
+	pr_dbg("recv_npa:%d\n", smc->param.recv_no_parity);
+	pr_dbg("xmit_inv:%d\n", smc->param.xmit_invert);
+	pr_dbg("xmit_lsb:%d\n", smc->param.xmit_lsb_msb);
+	pr_dbg("xmit_par:%d\n", smc->param.xmit_parity);
+	pr_dbg("xmit_rep:%d\n", smc->param.xmit_repeat_dis);
+	pr_dbg("xmit_try:%d\n", smc->param.xmit_retries);
 	if (t5w_smartcard)
-		pr_info("clk_tcnt:%d freq_cpu:%ld\n", reg2->clk_tcnt, freq_cpu);
+		pr_dbg("clk_tcnt:%d freq_cpu:%ld\n", reg2->clk_tcnt, freq_cpu);
 
 	v = SMC_READ_REG(INTR);
 	reg_int = (struct smc_interrupt_reg *)&v;
@@ -1450,7 +1497,7 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg_int->rst_expired_int_mask = 1;
 	reg_int->card_detect_int_mask = 0;
 	SMC_WRITE_REG(INTR, v | 0x03FF);
-	pr_info("INTR: 0x%08lx\n", v);
+	pr_dbg("INTR: 0x%08lx\n", v);
 
 	v = SMC_READ_REG(REG5);
 	reg5 = (struct smccard_hw_reg5 *)&v;
@@ -1459,7 +1506,7 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg5->etu_msr_en = etu_msr_en;
 	reg5->bwt_base_time_gnt = bwt_time;
 	SMC_WRITE_REG(REG5, v);
-	pr_info("REG5: 0x%08lx\n", v);
+	pr_dbg("REG5: 0x%08lx\n", v);
 
 	v = SMC_READ_REG(REG6);
 	reg6 = (struct smccard_hw_reg6 *)&v;
@@ -1469,11 +1516,11 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg6->bwi = smc->param.bwi;
 
 	SMC_WRITE_REG(REG6, v);
-	pr_info("REG6: 0x%08lx\n", v);
-	pr_info("N	  :%d\n", smc->param.n);
-	pr_info("cwi	 :%d\n", smc->param.cwi);
-	pr_info("bgt	 :%d\n", smc->param.bgt);
-	pr_info("bwi	 :%d\n", smc->param.bwi);
+	pr_dbg("REG6: 0x%08lx\n", v);
+	pr_dbg("N	  :%d\n", smc->param.n);
+	pr_dbg("cwi	 :%d\n", smc->param.cwi);
+	pr_dbg("bgt	 :%d\n", smc->param.bgt);
+	pr_dbg("bwi	 :%d\n", smc->param.bwi);
 
 	/*use new recv_fifo_count(8bits) to void overflow(4bits) issue*/
 	v = SMC_READ_REG(REG8);
@@ -2638,7 +2685,7 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 		smc->pin_clk_pinmux_reg = value;
 		pr_info("%s: 0x%x\n", buf, smc->pin_clk_pinmux_reg);
 	} else {
-		pr_error("cannot find resource \"%s\"\n", buf);
+//		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 	smc->pin_clk_pinmux_bit = -1;
 	snprintf(buf, sizeof(buf), "smc%d_clk_pinmux_bit", id);
@@ -2647,7 +2694,7 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 		smc->pin_clk_pinmux_bit = value;
 		pr_info("%s: 0x%x\n", buf, smc->pin_clk_pinmux_bit);
 	} else {
-		pr_error("cannot find resource \"%s\"\n", buf);
+//		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 	smc->pin_clk_oen_reg = -1;
 	snprintf(buf, sizeof(buf), "smc%d_clk_oen_reg", id);
@@ -2656,7 +2703,7 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 		smc->pin_clk_oen_reg = value;
 		pr_info("%s: 0x%x\n", buf, smc->pin_clk_oen_reg);
 	} else {
-		pr_error("cannot find resource \"%s\"\n", buf);
+//		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 
 	smc->pin_clk_out_reg = -1;
@@ -2666,7 +2713,7 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 		smc->pin_clk_out_reg = value;
 		pr_info("%s: 0x%x\n", buf, smc->pin_clk_out_reg);
 	} else {
-		pr_error("cannot find resource \"%s\"\n", buf);
+//		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 
 	smc->pin_clk_oebit = -1;
@@ -2676,7 +2723,7 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 		smc->pin_clk_oebit = value;
 		pr_info("%s: 0x%x\n", buf, smc->pin_clk_oebit);
 	} else {
-		pr_error("cannot find resource \"%s\"\n", buf);
+//		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 	smc->pin_clk_oubit = -1;
 	snprintf(buf, sizeof(buf), "smc%d_clk_oubit", id);
@@ -2685,7 +2732,7 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 		smc->pin_clk_oubit = value;
 		pr_info("%s: 0x%x\n", buf, smc->pin_clk_oubit);
 	} else {
-		pr_error("cannot find resource \"%s\"\n", buf);
+//		pr_error("cannot find resource \"%s\"\n", buf);
 	}
 #ifdef DET_FROM_PIO
 	smc->detect_pin = NULL;

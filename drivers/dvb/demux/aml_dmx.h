@@ -16,6 +16,7 @@
 #include "demux.h"
 #include "dvbdev.h"
 #include <dmxdev.h>
+#include <linux/platform_device.h>
 
 struct sw_demux_ts_feed {
 	struct dmx_ts_feed ts_feed;
@@ -31,6 +32,7 @@ struct sw_demux_ts_feed {
 	int format;
 	int temi_index;
 	struct dump_node *dump;
+	struct list_head node;
 };
 
 struct sw_demux_sec_filter {
@@ -53,6 +55,7 @@ struct sw_demux_sec_feed {
 	int check_crc;
 	int type;
 	int state;
+	struct list_head node;
 };
 
 struct pid_node {
@@ -95,11 +98,14 @@ struct aml_dmx {
 	struct swdmx_ts_parser *tsp;
 
 	int used_feed_num;
-	int ts_feed_num;
-	struct sw_demux_ts_feed *ts_feed;
+//	int ts_feed_num;
+//	struct sw_demux_ts_feed *ts_feed;
+	struct list_head ts_feed_list;
 
-	int sec_feed_num;
-	struct sw_demux_sec_feed *section_feed;
+//	int sec_feed_num;
+//	struct sw_demux_sec_feed *section_feed;
+
+	struct list_head section_feed_list;
 
 	struct list_head frontend_list;
 
@@ -137,7 +143,7 @@ struct aml_dmx {
 	struct list_head pid_head;
 
 	/* check whether the input pack are aligned */
-	char last_pack[CACHE_ALIGNMENT_LEN];
+	char *last_pack;
 	int last_len;
 };
 
@@ -150,4 +156,5 @@ int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,
 		u64 *stc, unsigned int *base);
 int dmx_get_pcr(struct dmx_demux *dmx, unsigned int num,	u64 *pcr);
 int check_dmx_filter_buff(struct dmx_ts_feed *feed, int req_len);
+int ts_clone_probe(struct platform_device *pdev);
 #endif

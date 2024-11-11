@@ -32,4 +32,5 @@ void dsc_release(struct aml_dsc *dsc);
 int dsc_set_source(int id, int source);
 int dsc_set_sid(int id, int sid);
 int dsc_dump_info(char *buf);
+int aml_dsc_debug(int direct, char *param_name, int *param_value);
 #endif

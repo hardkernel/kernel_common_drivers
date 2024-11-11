@@ -45,6 +45,7 @@
 #define DSC_STATE_FREE      0
 #define DSC_STATE_READY     3
 #define DSC_STATE_GO        4
+#define DSC_OPEN_TIMES		32
 
 struct dsc_channel {
 	struct aml_dsc *dsc;
@@ -59,16 +60,25 @@ struct dsc_channel {
 	int pid;
 	char loop;
 	enum ca_sc2_algo_type algo;
+	int multi2_index;
+	struct file *file;
 	struct dsc_channel *next;
 };
 
+struct multi2_manage {
+	int ref;
+	struct ca_multi2_params multi2_params;
+};
+
 #define MAX_DSC_PID_TABLE_NUM		(64)
+#define MULTI2_SUM			(2)
 
 static struct dsc_pid_table dsc_tsn_pid_table[MAX_DSC_PID_TABLE_NUM];
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static struct dsc_pid_table dsc_tsd_pid_table[MAX_DSC_PID_TABLE_NUM];
 static struct dsc_pid_table dsc_tse_pid_table[MAX_DSC_PID_TABLE_NUM];
 #endif
+static struct multi2_manage multi2_sets[MULTI2_SUM] = {0};
 
 #define dprint_i(fmt, args...)   \
 	dprintk(LOG_ERROR, debug_dsc, fmt, ## args)
@@ -77,10 +87,7 @@ static struct dsc_pid_table dsc_tse_pid_table[MAX_DSC_PID_TABLE_NUM];
 #define pr_dbg(fmt, args...)   \
 	dprintk(LOG_DBG, debug_dsc, "dsc:" fmt, ## args)
 
-MODULE_PARM_DESC(debug_dsc, "\n\t\t Enable dsc information");
 static int debug_dsc;
-__module_param(debug_dsc, int, 0644);
-
 static int s_init_flag;
 static unsigned int global_ch_id;
 
@@ -130,9 +137,11 @@ static struct dsc_pid_table *_get_dsc_pid_table(int index, int dsc_type)
 	return &table[index];
 }
 
-static int _malloc_dsc_table_index(int dsc_type)
+static int _malloc_dsc_table_index(int dsc_type, int sid, int pid)
 {
 	int i = 0;
+	int k = 0;
+	int free_count = 0;
 	struct dsc_pid_table *table;
 
 	if (dsc_type == CA_DSC_COMMON_TYPE)
@@ -147,7 +156,22 @@ static int _malloc_dsc_table_index(int dsc_type)
 		return -1;
 #endif
 
-	for (i = 0; i < MAX_DSC_PID_TABLE_NUM; i++) {
+	if (pid != -1) {
+		for (i = 0; i < MAX_DSC_PID_TABLE_NUM; i++) {
+			if (table[i].used == 1 &&
+				table[i].sid == sid &&
+				table[i].pid == pid) {
+				k = i;
+			} else {
+				if (i > k && table[i].used == 0)
+					free_count++;
+			}
+		}
+		if (free_count == 0)
+			k = 0;
+	}
+
+	for (i = k; i < MAX_DSC_PID_TABLE_NUM; i++) {
 		if (table[i].used == 0) {
 			table[i].used = 1;
 			table[i].valid = 0;
@@ -237,7 +261,7 @@ static struct dsc_channel *_get_chan_from_list(struct aml_dsc *dsc, int id)
 	return NULL;
 }
 
-static int _dsc_chan_alloc(struct aml_dsc *dsc,
+static int _dsc_chan_alloc(struct aml_dsc *dsc, struct file *file,
 			   unsigned int pid, int algo, int dsc_type,
 			   unsigned int *ca_index, char loop)
 {
@@ -267,8 +291,9 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	ch->pid = pid;
 	ch->dsc_type = dsc_type;
 	ch->algo = algo;
+	ch->multi2_index = -1;
 
-	index = _malloc_dsc_table_index(dsc_type);
+	index = _malloc_dsc_table_index(dsc_type, ch->sid, pid);
 	if (index == -1) {
 		dprint("%s _malloc_dsc_table_index fail\n", __func__);
 		vfree(ch);
@@ -277,6 +302,7 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	ch->state = DSC_STATE_READY;
 	ch->index = index;
 	ch->index00 = -1;
+	ch->file = file;
 	ch->next = NULL;
 	ch->id = global_ch_id;
 
@@ -287,7 +313,7 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	return 0;
 }
 
-static void _dsc_chan_free(struct dsc_channel *ch)
+static void _dsc_chan_free(struct dsc_channel *ch, struct file *file)
 {
 	struct aml_dsc *dsc = (struct aml_dsc *)ch->dsc;
 
@@ -296,6 +322,10 @@ static void _dsc_chan_free(struct dsc_channel *ch)
 	if (ch->state == DSC_STATE_FREE)
 		return;
 
+	if (file && ch->file != file) {
+		pr_dbg("not same file, don't operate\n");
+		return;
+	}
 	_remove_chan_from_list(dsc, ch);
 
 	_free_dsc_table_index(ch->index, ch->dsc_type);
@@ -303,6 +333,9 @@ static void _dsc_chan_free(struct dsc_channel *ch)
 		_free_dsc_table_index(ch->index00, ch->dsc_type);
 		ch->index00 = -1;
 	}
+
+	if (ch->multi2_index >= 0 && multi2_sets[ch->multi2_index].ref > 0)
+		multi2_sets[ch->multi2_index].ref--;
 
 	vfree(ch);
 	pr_dbg("%s exit\n", __func__);
@@ -343,7 +376,7 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 
 	if (parity == CA_KEY_00_TYPE || parity == CA_KEY_00_IV_TYPE) {
 		if (ch->index00 == -1) {
-			ch->index00 = _malloc_dsc_table_index(ch->dsc_type);
+			ch->index00 = _malloc_dsc_table_index(ch->dsc_type, -1, -1);
 			if (ch->index00 == -1) {
 				dprint("%s _malloc_dsc_table_index fail\n",
 				       __func__);
@@ -505,7 +538,87 @@ static int _dvb_dsc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
+static enum ca_sc2_algo_type _transition_algo(enum ca_sc2_algo_type algo_input)
+{
+	enum ca_sc2_algo_type algo_output;
+
+	pr_dbg("%s algo_input:%d\n", __func__, algo_input);
+	switch (algo_input) {
+	case CA_ALGO_MULTI2:
+		algo_output = algo_input;
+		break;
+	default:
+		algo_output = algo_input + 1;
+		break;
+	}
+
+	pr_dbg("%s algo_output:%d\n", __func__, algo_output);
+	return algo_output;
+}
+
+static int _alloc_multi2_set(struct dsc_channel *ch, unsigned char round,
+				unsigned char syskey[32])
+{
+	struct dsc_pid_table *ptmp = NULL;
+	int i = 0;
+
+	pr_dbg("%s new round:%d syskey[0]:0x%02x syskey[31]:0x%02x\n",
+		__func__, round, syskey[0], syskey[31]);
+	for (i = 0; i < MULTI2_SUM; i++) {
+		pr_dbg("%s i:%d multi2_sets[i].ref:%d\n", __func__, i, multi2_sets[i].ref);
+		pr_dbg("%s multi2_sets[i].multi2_params.round:%d\n",
+			__func__, multi2_sets[i].multi2_params.round);
+		pr_dbg("%s multi2_sets[i].multi2_params.syskey[0]:0x%02x\n",
+			__func__, multi2_sets[i].multi2_params.syskey[0]);
+		pr_dbg("%s multi2_sets[i].multi2_params.syskey[31]:0x%02x\n",
+			__func__, multi2_sets[i].multi2_params.syskey[31]);
+		if (multi2_sets[i].ref > 0 &&
+			round == multi2_sets[i].multi2_params.round &&
+			(memcmp(syskey, multi2_sets[i].multi2_params.syskey, 32) == 0)) {
+			multi2_sets[i].ref++;
+			ch->multi2_index = i;
+			pr_dbg("%s found a multi2 set with same params, ch->multi2_index:%d\n",
+				__func__, ch->multi2_index);
+			break;
+		}
+	}
+
+	if (ch->multi2_index < 0) {
+		for (i = 0; i < MULTI2_SUM; i++) {
+			if (multi2_sets[i].ref == 0) {
+				multi2_sets[i].multi2_params.round = round;
+				memcpy(multi2_sets[i].multi2_params.syskey, syskey, 32);
+				multi2_sets[i].ref++;
+				ch->multi2_index = i;
+				pr_dbg("%s found an unused multi2 set, ch->multi2_index:%d\n",
+					__func__, ch->multi2_index);
+				break;
+			}
+		}
+	}
+
+	pr_dbg("%s ch->multi2_index:%d\n", __func__, ch->multi2_index);
+	if (ch->multi2_index < 0) {
+		dprint("%s no available multi2 set\n", __func__);
+		return -1;
+	}
+
+	ptmp = _get_dsc_pid_table(ch->index, ch->dsc_type);
+	if (!ptmp) {
+		dprint("%s _get_dsc_pid_table fail\n", __func__);
+		return -1;
+	}
+
+	ptmp->multi2 = ch->multi2_index;
+	if (ptmp->valid)
+		dsc_config_pid_table(ptmp, ch->dsc_type);
+
+	dsc_config_multi2_round(ch->multi2_index, round);
+	dsc_config_multi2_syskey(ch->multi2_index, syskey);
+	return 0;
+}
+
+static int handle_desc_ext(struct aml_dsc *dsc, struct file *file, struct ca_sc2_descr_ex *d)
 {
 	int ret = -EINVAL;
 
@@ -537,9 +650,9 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				break;
 			}
 
-			ret = _dsc_chan_alloc(dsc,
+			ret = _dsc_chan_alloc(dsc, file,
 					      d->params.alloc_params.pid & 0x1FFF,
-					      d->params.alloc_params.algo + 1,
+					      _transition_algo(d->params.alloc_params.algo),
 					      d->params.alloc_params.dsc_type,
 					      &d->params.alloc_params.ca_index,
 					      d->params.alloc_params.loop);
@@ -556,7 +669,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			ch = _get_chan_from_list(dsc,
 						 d->params.free_params.ca_index);
 			if (ch)
-				_dsc_chan_free(ch);
+				_dsc_chan_free(ch, NULL);
 
 			ret = 0;
 		}
@@ -569,7 +682,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			ch = _get_chan_from_list(dsc,
 						 d->params.key_params.ca_index);
 			if (ch) {
-				pr_dbg("%s KEY parity:%d, index:%d\n",
+				pr_dbg("%s KEY parity:%d, index:0x%0x\n",
 				       __func__,
 				       d->params.key_params.parity,
 				       d->params.key_params.key_index);
@@ -602,6 +715,12 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				       __func__,
 				       d->params.scb_params.ca_scb,
 				       d->params.scb_params.ca_scb_as_is);
+				if (get_dmx_version() < 5 &&
+					d->params.scb_params.ca_scb_as_is >= 2) {
+					dprint("invalid ca_scb_as_is, not support\n");
+					ret = -1;
+					break;
+				}
 				ret = _dsc_chan_set_scb(ch,
 							d->params.scb_params.ca_scb,
 							d->params.scb_params.ca_scb_as_is);
@@ -618,7 +737,35 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				       __func__,
 				       d->params.algo_params.algo);
 				ret = _dsc_chan_set_algo(ch,
-						d->params.algo_params.algo + 1);
+					_transition_algo(d->params.algo_params.algo));
+			}
+		}
+		break;
+	case CA_SET_EXTEND:{
+			struct dsc_channel *ch;
+
+			ch = _get_chan_from_list(dsc, d->params.extend_params.ca_index);
+			if (ch) {
+				pr_dbg("%s type:%d\n",
+				       __func__, d->params.extend_params.type);
+				if (d->params.extend_params.type == CA_EXTEND_MULTI2_SYSKEY) {
+					struct ca_multi2_params multi2_params;
+					__u64 extend_params_addr =
+						d->params.extend_params.params_addr_high;
+					extend_params_addr = (extend_params_addr << 32) +
+						d->params.extend_params.params_addr_low;
+					ret = copy_from_user(&multi2_params,
+						(void __user *)(unsigned long)extend_params_addr,
+						sizeof(multi2_params));
+					if (ret) {
+						dprint("copy_from_user error\n");
+						ret = -EFAULT;
+						break;
+					}
+
+					ret = _alloc_multi2_set(ch, multi2_params.round,
+								multi2_params.syskey);
+				}
 			}
 		}
 		break;
@@ -667,7 +814,7 @@ static int _dvb_dsc_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 		}
 	case CA_SC2_SET_DESCR_EX:{
 			ret =
-			    handle_desc_ext(dsc,
+			    handle_desc_ext(dsc, file,
 					    (struct ca_sc2_descr_ex *)parg);
 			break;
 		}
@@ -758,7 +905,7 @@ static int _dvb_dsc_release(struct inode *inode, struct file *file)
 		ch = ptmp;
 		ptmp = ptmp->next;
 		if (ch)
-			_dsc_chan_free(ch);
+			_dsc_chan_free(ch, file);
 	}
 
 	mutex_unlock(&dsc->mutex);
@@ -795,9 +942,9 @@ static const struct file_operations dvb_dsc_fops = {
 
 static struct dvb_device dvbdev_dsc = {
 	.priv = NULL,
-	.users = 1,
-	.readers = 1,
-	.writers = 1,
+	.users = DSC_OPEN_TIMES,
+	.readers = DSC_OPEN_TIMES,
+	.writers = DSC_OPEN_TIMES,
 	.fops = &dvb_dsc_fops,
 };
 
@@ -826,6 +973,8 @@ int dsc_set_sid(int id, int sid)
 
 	if (!advb->dsc[id])
 		return -1;
+	if (advb->dsc[id]->sid == sid)
+		return 0;
 	advb->dsc[id]->sid = sid;
 	dsc = advb->dsc[id];
 	if (dsc->dev) {
@@ -875,6 +1024,9 @@ static char *get_algo_str(int algo)
 	case CA_ALGO_S17_ECB_CLR_END:
 	case CA_ALGO_S17_ECB_CTS:
 		str = "s17";
+		break;
+	case CA_ALGO_MULTI2:
+		str = "multi2";
 		break;
 	default:
 		str = "none";
@@ -1015,4 +1167,21 @@ int dsc_dump_info(char *buf)
 		mutex_unlock(&dsc->mutex);
 	}
 	return total;
+}
+
+int aml_dsc_debug(int direct, char *param_name, int *param_value)
+{
+	if (direct) {
+		if (!strncmp(param_name, "debug_dsc", strlen("debug_dsc")))
+			debug_dsc = *param_value;
+		else
+			return -EINVAL;
+	} else {
+		if (!strncmp(param_name, "debug_dsc", strlen("debug_dsc")))
+			*param_value = debug_dsc;
+		else
+			return -EINVAL;
+	}
+
+	return 0;
 }

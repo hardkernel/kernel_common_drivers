@@ -90,4 +90,14 @@ int ts_input_non_block_write_status(struct in_elem *elem);
  */
 int ts_input_non_block_write_free(struct in_elem *elem);
 
+/**
+ * ts_input_debug
+ * \param direct: 1 for set param value, 0 for get param value
+ * \param param_name: param name
+ * \param param_value: param value
+ * \retval 0:success.
+ * \retval -1:fail.
+ */
+int ts_input_debug(int direct, char *param_name, int *param_value);
+
 #endif

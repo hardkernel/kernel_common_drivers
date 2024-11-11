@@ -22,10 +22,7 @@
 #define dprint(fmt, args...)     \
 	dprintk(LOG_ERROR, debug_rw, "reg:" fmt, ## args)
 
-MODULE_PARM_DESC(debug_rw, "\n\t\t Enable rw information");
 static int debug_rw;
-__module_param(debug_rw, int, 0644);
-
 static void *p_hw_base;
 static void *p_sys_base;
 
@@ -151,5 +148,22 @@ int init_demux_addr(struct platform_device *pdev)
 			dprint("can't set pcr clk gate\n");
 		}
 	}
+	return 0;
+}
+
+int dvb_reg_debug(int direct, char *param_name, int *param_value)
+{
+	if (direct) {
+		if (!strncmp(param_name, "debug_rw", strlen("debug_rw")))
+			debug_rw = *param_value;
+		else
+			return -EINVAL;
+	} else {
+		if (!strncmp(param_name, "debug_rw", strlen("debug_rw")))
+			*param_value = debug_rw;
+		else
+			return -EINVAL;
+	}
+
 	return 0;
 }

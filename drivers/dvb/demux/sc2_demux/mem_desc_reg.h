@@ -6,8 +6,13 @@
 #ifndef _MEM_DESC_REG_H_
 #define _MEM_DESC_REG_H_
 
+unsigned int get_dma_wch_base(void);
+unsigned int get_dma_ctrl_base(void);
+unsigned int get_dma_ch_width(void);
+
 #define TS_DMA_RCH_BASE (SECURE_BASE + 0x4000)
-#define TS_DMA_WCH_BASE (SECURE_BASE + 0x4000 + 0x1000)
+#define TS_DMA_WCH_BASE (SECURE_BASE + 0x4000 + get_dma_wch_base())
+#define TS_DMA_CTRL_BASE (SECURE_BASE + 0x4000 + get_dma_ctrl_base())
 
 /******************************EACH RCH CONFIG***********************/
 /*READY bit define*/
@@ -16,7 +21,7 @@
  * Write 1 to release read channel.default 0
  */
 #define TS_DMA_RCH_READY(i) (TS_DMA_RCH_BASE \
-		+ (i) * 0x20 + 0)
+		+ (i) * get_dma_ch_width() + 0)
 
 /*STATUS bit define*/
 #define RCH_STATUS_READ_CMD_CUR_CHAN_NUM	0
@@ -28,7 +33,7 @@
 #define RCH_STATUS_READ_FIFO_LEVEL          16
 /*read fifo level*/
 #define TS_DMA_RCH_STATUS(i) (TS_DMA_RCH_BASE \
-		+ (i) * 0x20 + 4)
+		+ (i) * get_dma_ch_width() + 4)
 
 /*CFG bit define*/
 #define RCH_CFG_READ_LEN					0
@@ -41,31 +46,35 @@
 #define RCH_CFG_DONE						28
 /*no used*/
 #define TS_DMA_RCH_EACH_CFG(i)	(TS_DMA_RCH_BASE \
-		+ (i) * 0x20 + 8)
+		+ (i) * get_dma_ch_width() + 8)
 
 /*ADDR bit define */
 #define RCH_DESC_ADDR						0
 /*First descriptor address*/
-#define TS_DMA_RCH_ADDR(i)	(TS_DMA_RCH_BASE \
-		+ (i) * 0x20 + 0xc)
+#define TS_DMA_RCH_ADDR_LOW(i)	(TS_DMA_RCH_BASE \
+		+ (i) * get_dma_ch_width() + 0xc)
+#define TS_DMA_RCH_ADDR_HIGH(i)	(TS_DMA_RCH_BASE \
+		+ (i) * get_dma_ch_width() + 0x24)
 
 /*LEN bit define*/
 #define RCH_TOTAL_BYTES						0
 /*Totally bytes for the TS*/
 #define TS_DMA_RCH_LEN(i)	(TS_DMA_RCH_BASE \
-		+ (i) * 0x20 + 0x10)
+		+ (i) * get_dma_ch_width() + 0x10)
 
 /*RD LEN bit define*/
 #define RCH_READ_DATA_NUM					0
 /*Amount of read data, read only for debug*/
 #define TS_DMA_RCH_RD_LEN(i)	(TS_DMA_RCH_BASE \
-		+ (i) * 0x20 + 0x14)
+		+ (i) * get_dma_ch_width() + 0x14)
 
 /*PTR bit define*/
 #define RCH_READ_ADDR						0
 /*Read addr pointer, read only for debug*/
-#define TS_DMA_RCH_PTR(i)	(TS_DMA_RCH_BASE \
-		+ (i) * 0x20 + 0x18)
+#define TS_DMA_RCH_PTR_LOW(i)	(TS_DMA_RCH_BASE \
+		+ (i) * get_dma_ch_width() + 0x18)
+#define TS_DMA_RCH_PTR_HIGH(i)	(TS_DMA_RCH_BASE \
+		+ (i) * get_dma_ch_width() + 0x28)
 
 /*PKT SYNC STATUS bit define*/
 #define RCH_LAST_PKT_SYNC_CNT               0
@@ -81,17 +90,17 @@
 #define RCH_CUR_TS_SID                      20
 /*current ts sid*/
 #define TS_DMA_RCH_PKT_SYNC_STATUS(i) (TS_DMA_RCH_BASE \
-		+ (i) * 0x20 + 0x1C)
+		+ (i) * get_dma_ch_width() + 0x1C)
 
-#define TS_DMA_RCH_DONE			(TS_DMA_RCH_BASE + 0x204c)
-#define TS_DMA_RCH_CLEAN		(TS_DMA_RCH_BASE + 0x2024)
+#define TS_DMA_RCH_DONE			(TS_DMA_CTRL_BASE + 0x4c)
+#define TS_DMA_RCH_CLEAN		(TS_DMA_CTRL_BASE + 0x24)
 
-#define TS_DMA_RCH_ACTIVE		(TS_DMA_RCH_BASE + 0x2038)
+#define TS_DMA_RCH_ACTIVE		(TS_DMA_CTRL_BASE + 0x38)
 
-#define TS_DMA_RCH_RDES_ERR		(TS_DMA_RCH_BASE + 0x2060)
-#define TS_DMA_RCH_RDES_LEN_ERR	(TS_DMA_RCH_BASE + 0x2064)
+#define TS_DMA_RCH_RDES_ERR		(TS_DMA_CTRL_BASE + 0x60)
+#define TS_DMA_RCH_RDES_LEN_ERR	(TS_DMA_CTRL_BASE + 0x64)
 
-#define TS_DMA_RCH_CFG			(TS_DMA_RCH_BASE + 0x20ac)
+#define TS_DMA_RCH_CFG			(TS_DMA_CTRL_BASE + 0xac)
 
 /******************************EACH WCH CONFIG***********************/
 /*READY bit define*/
@@ -100,49 +109,52 @@
  *Write 1 to release read channel
  */
 #define TS_DMA_WCH_READY(i)	(TS_DMA_WCH_BASE \
-		+ (i) * 0x20 + 0)
+		+ (i) * get_dma_ch_width() + 0)
 
 /*DEBUG bit define*/
 #define WCH_DEBUG_CHECK_SEMAPHORE			0
 /*Debug*/
 #define TS_DMA_WCH_DEBUG(i)	(TS_DMA_WCH_BASE \
-		+ (i) * 0x20 + 4)
+		+ (i) * get_dma_ch_width() + 4)
 
 /*addr bit define*/
 #define WCH_DESC_ADDR						0
 /*First descriptor address*/
-#define TS_DMA_WCH_ADDR(i)	(TS_DMA_WCH_BASE + (i) * 0x20 \
+#define TS_DMA_WCH_ADDR_LOW(i)	(TS_DMA_WCH_BASE + (i) * get_dma_ch_width() \
 		+ 0xc)
+#define TS_DMA_WCH_ADDR_HIGH(i)	(TS_DMA_WCH_BASE + (i) * get_dma_ch_width() \
+		+ 0x24)
 
 /*wch len bit define*/
 #define WCH_TOTAL_BYTES						0
 /*Totally bytes for the TS*/
-#define TS_DMA_WCH_LEN(i)	(TS_DMA_WCH_BASE + (i) * 0x20 \
+#define TS_DMA_WCH_LEN(i)	(TS_DMA_WCH_BASE + (i) * get_dma_ch_width() \
 		+ 0x10)
 
 /*wch w len bit define*/
 #define WCH_WRITE_DATA_NUM					0
  /*DEBUG*/
-#define TS_DMA_WCH_WR_LEN(i) (TS_DMA_WCH_BASE + (i) * 0x20 + 0x14)
+#define TS_DMA_WCH_WR_LEN(i) (TS_DMA_WCH_BASE + (i) * get_dma_ch_width() + 0x14)
 /*wch ptr bit define*/
 #define WCH_WRITE_ADDR						0
 /*Write addr pointer, read only for debug*/
-#define TS_DMA_WCH_PTR(i)	(TS_DMA_WCH_BASE + (i) * 0x20 + 0x18)
+#define TS_DMA_WCH_PTR_LOW(i)	(TS_DMA_WCH_BASE + (i) * get_dma_ch_width() + 0x18)
+#define TS_DMA_WCH_PTR_HIGH(i)	(TS_DMA_WCH_BASE + (i) * get_dma_ch_width() + 0x28)
 /*cmd cnt bit define*/
 #define WCH_CMD_CNT                         0
 /*The counter of wr cmd is on-going*/
-#define TS_DMA_WCH_CMD_CNT(i)	(TS_DMA_WCH_BASE + (i) * 0x20 + 0x1C)
+#define TS_DMA_WCH_CMD_CNT(i)	(TS_DMA_WCH_BASE + (i) * get_dma_ch_width() + 0x1C)
 /*CFG bit define*/
 #define WCH_CFG_CLEAR						25
-#define TS_DMA_WCH_CFG(i)	(TS_DMA_WCH_BASE + (i) * 0x20 + 0x8)
-#define TS_DMA_WCH_INT_MASK			(TS_DMA_RCH_BASE + 0x2004)
-#define TS_DMA_WCH_CLEAN_BATCH		(TS_DMA_RCH_BASE + 0x2014)
-#define TS_DAM_WCH_CLEAN			(TS_DMA_RCH_BASE + 0x2028)
-#define TS_DMA_WCH_ACTIVE			(TS_DMA_RCH_BASE + 0x203c)
-#define TS_DMA_WCH_DONE				(TS_DMA_RCH_BASE + 0x2050)
-#define TS_DMA_WCH_ERR				(TS_DMA_RCH_BASE + 0x2068)
-#define TS_DMA_WCH_BATCH_END		(TS_DMA_RCH_BASE + 0x2078)
-#define TS_DMA_WCH_EOC_DONE			(TS_DMA_RCH_BASE + 0x2088)
-#define TS_DMA_WCH_RESP_ERR			(TS_DMA_RCH_BASE + 0x2098)
-#define TS_DMA_WCH_CFG_FAST_MODE	(TS_DMA_RCH_BASE + 0x20b0)
+#define TS_DMA_WCH_CFG(i)	(TS_DMA_WCH_BASE + (i) * get_dma_ch_width() + 0x8)
+#define TS_DMA_WCH_INT_MASK			(TS_DMA_CTRL_BASE + 0x4)
+#define TS_DMA_WCH_CLEAN_BATCH		(TS_DMA_CTRL_BASE + 0x14)
+#define TS_DAM_WCH_CLEAN			(TS_DMA_CTRL_BASE + 0x28)
+#define TS_DMA_WCH_ACTIVE			(TS_DMA_CTRL_BASE + 0x3c)
+#define TS_DMA_WCH_DONE				(TS_DMA_CTRL_BASE + 0x50)
+#define TS_DMA_WCH_ERR				(TS_DMA_CTRL_BASE + 0x68)
+#define TS_DMA_WCH_BATCH_END		(TS_DMA_CTRL_BASE + 0x78)
+#define TS_DMA_WCH_EOC_DONE			(TS_DMA_CTRL_BASE + 0x88)
+#define TS_DMA_WCH_RESP_ERR			(TS_DMA_CTRL_BASE + 0x98)
+#define TS_DMA_WCH_CFG_FAST_MODE	(TS_DMA_CTRL_BASE + 0xb0)
 #endif

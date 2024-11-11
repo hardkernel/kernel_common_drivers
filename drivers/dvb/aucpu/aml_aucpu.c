@@ -1136,10 +1136,48 @@ static ssize_t aucpu_status_show(const struct class *class,
 	return pbuf - buf;
 }
 
+static ssize_t aucpu_debug_show(const struct class *class,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	int ret = 0, total = 0;
+
+	ret = sprintf(buf, "print_level:%d\n", print_level);
+	total += ret;
+	ret = sprintf(buf + total, "dbg_level:%d\n", dbg_level);
+	total += ret;
+
+	return total;
+}
+
+static ssize_t aucpu_debug_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	char param_name[32];
+	int param_value = 0, ret = 0;
+
+	ret = sscanf(buf, "%s %d", param_name, &param_value);
+	if (ret != 2)
+		return -EINVAL;
+
+	if (!strncmp(param_name, "print_level", strlen("print_level")))
+		print_level = param_value;
+	else if (!strncmp(param_name, "dbg_level", strlen("dbg_level")))
+		dbg_level = param_value;
+	else
+		return -EINVAL;
+
+	aucpu_pr(LOG_INFO, "%s\n", buf);
+	return size;
+}
+
 static CLASS_ATTR_RO(aucpu_status);
+static CLASS_ATTR_RW(aucpu_debug);
 
 static struct attribute *aucpu_class_attrs[] = {
 	&class_attr_aucpu_status.attr,
+	&class_attr_aucpu_debug.attr,
 	NULL
 };
 
@@ -1276,7 +1314,7 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 		pctx->aucpu_reg.base =
 			(ulong)ioremap(res->start,
 			resource_size(res));
-		pctx->aucpu_reg.size = res->end - res->start;
+		pctx->aucpu_reg.size = resource_size(res);
 
 		aucpu_pr(LOG_DEBUG,
 			 "aucpu base address get from platfor");
@@ -1442,10 +1480,5 @@ static s32 __init aucpu_mem_setup(struct reserved_mem *rmem)
 	aucpu_pr(LOG_DEBUG, "Aucpu reserved mem setup.\n");
 	return 0;
 }
-
-__module_param(print_level, uint, 0664);
-MODULE_PARM_DESC(print_level, "\n print_level\n");
-__module_param(dbg_level, uint, 0664);
-MODULE_PARM_DESC(dbg_level, "\n dbg_level\n");
 
 RESERVEDMEM_OF_DECLARE(aml_aucpu, "aml, Aucpu-mem", aucpu_mem_setup);

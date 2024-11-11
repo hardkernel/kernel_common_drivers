@@ -18,6 +18,8 @@
 #define HI_SCB_AS_IS        19
 #define HI_SCB_OUT          20
 #define HI_SCB00            22
+#define HI_SCB_OUT_ODD      23
+#define HI_MULTI2           25
 #define HI_VALID            31
 
 #define TSD_PID_READY		(SECURE_BASE + 0x2000)
@@ -25,8 +27,10 @@
 #define TSD_BASE_ADDR		(SECURE_BASE + 0x2000 + 0x10)
 
 #define TSN_PID_READY		(SECURE_BASE + 0x2400)
+#define TSN_MULTI2_ROUNDS	(SECURE_BASE + 0x2400 + 0x8)
 #define TSN_PID_STATUS		(SECURE_BASE + 0x2400 + 0xc)
 #define TSN_BASE_ADDR		(SECURE_BASE + 0x2400 + 0x10)
+#define TSN_MULTI2_SYSKEY	(SECURE_BASE + 0x2400 + 0x300)
 
 #define TSE_PID_READY		(SECURE_BASE + 0x2800)
 #define TSE_PID_STATUS		(SECURE_BASE + 0x2800 + 0xc)

@@ -10,6 +10,7 @@
 #include <linux/dvb/aml_dmx_ext.h>
 #include "demux.h"
 
+int dmabuf_debug(int direct, char *param_name, int *param_value);
 int dma_buf_get_fd(struct dmx_dma_buf_info *info, struct dmx_demux *dmx);
 int dma_buf_get_info(struct dmx_dma_buf_info *info);
 

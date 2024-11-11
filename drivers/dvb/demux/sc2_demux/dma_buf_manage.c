@@ -13,7 +13,7 @@
 #define dprintk(level, fmt, arg...)						\
 	do {									\
 		if (dmabuf_manage_debug >= (level))						\
-			pr_info("dmabuf_manage: %s: " fmt, __func__, ## arg);\
+			pr_info("demux_dmabuf_manage: %s: " fmt, __func__, ## arg);\
 	} while (0)
 
 #define pr_dbg(fmt, args ...)  dprintk(6, fmt, ## args)
@@ -34,9 +34,24 @@ struct dmabuf_manage_block {
 	void *dmx;
 };
 
-MODULE_PARM_DESC(dmabuf_manage_debug, "\n\t\t set dma buf debug level");
 static int dmabuf_manage_debug = 1;
-__module_param(dmabuf_manage_debug, int, 0644);
+
+int dmabuf_debug(int direct, char *param_name, int *param_value)
+{
+	if (direct) {
+		if (!strncmp(param_name, "dmabuf_manage_debug", strlen("dmabuf_manage_debug")))
+			dmabuf_manage_debug = *param_value;
+		else
+			return -EINVAL;
+	} else {
+		if (!strncmp(param_name, "dmabuf_manage_debug", strlen("dmabuf_manage_debug")))
+			*param_value = dmabuf_manage_debug;
+		else
+			return -EINVAL;
+	}
+
+	return 0;
+}
 
 static int dmabuf_manage_attach(struct dma_buf *dbuf, struct dma_buf_attachment *attachment)
 {
@@ -171,8 +186,10 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 	if (es->buf_rp >= es->buf_start && es->buf_rp <= es->buf_end && demux) {
 		rp_info.rp_phy = es->buf_rp;
 		demux_ext = container_of(demux, struct dmx_demux_ext, dmx);
-		if (demux_ext && demux_ext->decode_info)
+		if (demux_ext && demux_ext->decode_info) {
 			demux_ext->decode_info(demux, &rp_info);
+			pr_dbg("decode_info rp_phy:0x%x\n", rp_info.rp_phy);
+		}
 	}
 
 	pr_dbg("dma release handle:0x%x, paddr:0x%llx, size:0x%x\n",
@@ -243,7 +260,7 @@ static struct dma_buf *get_dmabuf(struct dmabuf_manage_block *block,
 	exp_info.size = block->size;
 	exp_info.flags = flags;
 	exp_info.priv = (void *)&block->dmxes;
-	exp_info.exp_name = "dmabuf_manage";
+	exp_info.exp_name = "demux_dmabuf_manage";
 
 	dbuf = dma_buf_export(&exp_info);
 	if (IS_ERR_OR_NULL(dbuf))

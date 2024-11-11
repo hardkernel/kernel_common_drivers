@@ -128,6 +128,9 @@ static int aml_key_config(struct aml_kt_dev *dev, struct key_config key_cfg)
 	case KEY_ALGO_SM4:
 		key_cfg.key_algo = AML_KT_ALGO_SM4;
 		break;
+	case KEY_ALGO_MULTI2:
+		key_cfg.key_algo = AML_KT_ALGO_MULTI2;
+		break;
 	default:
 		LOGE("%s, %d invalid algo\n", __func__, __LINE__);
 		ret = KT_ERROR;
