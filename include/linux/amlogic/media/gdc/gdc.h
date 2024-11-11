@@ -122,6 +122,7 @@ struct gdc_cmd_s {
 	/* endian setting */
 	u32 in_endian;
 	u32 out_endian;
+	u32 uvswap_enable;
 };
 
 struct gdc_context_s {
@@ -148,7 +149,10 @@ struct gdc_context_s {
 	struct list_head free_queue;
 	wait_queue_head_t cmd_complete;
 	int gdc_request_exit;
+	struct completion process_complete;
+	int wq_state;
 	spinlock_t lock; /* for get and release item. */
+	struct mutex destroy_lock;
 };
 
 /* format type and format bit width mask
@@ -198,6 +202,7 @@ struct gdc_phy_setting {
 	u32 use_sec_mem; /* secure mem access */
 	u32 in_endian;
 	u32 out_endian;
+	u32 uvswap_enable;
 };
 
 struct firmware_load_s {

@@ -42,5 +42,6 @@ enum aml_plane {
 /* void vf_inqueue(struct vframe_s *vf, const char *receiver); */
 void get_vdx_axis(u32 index, int *buf);
 void get_vdx_real_axis(u32 index, int *buf);
+u32 get_video_enabled(u8 layer_id);
 
 #endif /* AMLVIDEO2_H_ */

@@ -15,14 +15,14 @@
  * more details.
  *
  */
-
+#include <linux/vmalloc.h>
 #include <linux/file.h>
 #include <linux/mutex.h>
 #include <linux/time.h>
 #include <linux/sched/clock.h>
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
-#include <linux/vmalloc.h>
+
 #include <linux/sync_file.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -367,7 +367,7 @@ struct vf_ref_t *get_ref1_from_list(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_
 
 	if (!atomic_read(&buf_mgr->ref_list[i].on_use)) {
 		dp_buf_print(buf_mgr, PRINT_ERROR,
-			"on_use is false i=%d, index=%d, vf_ref->frame_index=%d, frame_index=%d\n",
+			"get ref1 fail: i=%d, index=%d, vf_ref->frame_index=%d, frame_index=%d\n",
 			i, buf_mgr->ref_list[i].index,
 			vf_ref->frame_index, vf_ref->vf->frame_index);
 		print_all_in_ref_list(buf_mgr);

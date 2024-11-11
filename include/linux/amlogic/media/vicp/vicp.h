@@ -70,9 +70,12 @@ struct vicp_device_data_s {
 	bool film_grain_support;
 	bool cr_lossy_support;
 	bool ddr16_support;
+	u64 reg_addr_base;
+	bool enhance_sec_support;
 };
 
 struct vicp_clock_config_s {
+	int enable;
 	int clk_count;
 	struct clk *clk_gate;
 	int gate_rate;
@@ -81,17 +84,17 @@ struct vicp_clock_config_s {
 };
 
 struct output_axis_s {
-	u32 left;
-	u32 top;
-	u32 width;
-	u32 height;
+	int left;
+	int top;
+	int width;
+	int height;
 };
 
 struct crop_info_s {
-	u32 left;
-	u32 top;
-	u32 width;
-	u32 height;
+	int left;
+	int top;
+	int width;
+	int height;
 };
 
 struct data_option_s {
@@ -123,7 +126,7 @@ struct dma_data_config_s {
 struct input_data_param_s {
 	bool is_vframe;
 	struct vframe_s *data_vf;
-	struct dma_data_config_s *data_dma;
+	struct dma_data_config_s data_dma;
 };
 
 struct output_data_param_s {

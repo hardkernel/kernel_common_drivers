@@ -32,6 +32,7 @@
 #include "vicp_log.h"
 #include "vicp_reg.h"
 #include "vicp_hardware.h"
+#include "vicp_module.h"
 #include "vicp_process.h"
 
 #define ZOOM_BITS       20
@@ -42,11 +43,6 @@ struct completion vicp_rdma_done;
 static int rdma_done_count;
 static ulong rdma_buf_phy_addr;
 static int current_dump_flag;
-static u32 last_input_w, last_input_h, last_input_fmt, last_input_bit_depth;
-static u32 last_fbcinput_en;
-static u32 last_output_w, last_output_h, last_output_fbcfmt, last_output_miffmt;
-static u32 last_fbcoutput_en, last_mifoutput_en;
-static u32 last_output_begin_v, last_output_begin_h, last_output_end_v, last_output_end_h;
 static struct vicp_device_data_s vicp_dev;
 static u32 dump_reg_start, dump_reg_end;
 
@@ -353,88 +349,123 @@ void set_vid_cmpr_hdr(struct vid_cmpr_hdr_s config)
 	return vicp_hdr_set(vicp_hdr, config.hdr2_en, config.input_sig_fmt, config.output_sig_fmt);
 }
 
-static void set_vid_cmpr_fgrain(struct vid_cmpr_fgrain_s fgrain)
+static void set_vid_cmpr_fgrain(struct vid_cmpr_top_s *vid_cmpr_top)
 {
-	struct vicp_fgrain_ctrl_reg_s fgrain_ctrl_reg;
 	int window_v_bgn, window_v_end, window_h_bgn, window_h_end;
 	u8 *temp_addr;
 	int data_size = 0, i = 0;
+	int fg_10bit_mode = 1, fg_path_sel = 0, fg_block_mode = 0;
+	struct vicp_fgrain_ctrl_reg_s fgrain_ctrl_reg;
+	struct vicp_fgrain_alone_mode_ctrl_reg_s alone_ctrl_reg;
+	struct vicp_fgrain_post_ctrl_reg_s post_ctrl_reg;
+	u32 value = 0;
 
 	if (!vicp_dev.film_grain_support) {
 		vicp_print(VICP_INFO, "don't support film grain.\n");
 		return;
 	}
 
+	if (!vid_cmpr_top) {
+		vicp_print(VICP_INFO, "%s: NULL param..\n", __func__);
+		return;
+	}
+
 	if (print_flag & VICP_FGRAIN) {
 		pr_info("vicp: ##########fgrain config##########\n");
-		pr_info("vicp: fgrain enable = %d.\n", fgrain.enable);
-		pr_info("vicp: fgrain is_afbc = %d.\n", fgrain.is_afbc);
-		pr_info("vicp: fgrain fmt: %d, depth: %d.\n", fgrain.color_fmt, fgrain.color_depth);
-		pr_info("vicp: fgrain fgs_table_adr: 0x%llx.\n", fgrain.fgs_table_adr);
-		pr_info("vicp: fgrain window: %d %d %d %d.\n", fgrain.start_x, fgrain.end_x,
-			fgrain.start_y, fgrain.end_y);
+		pr_info("vicp: fgrain enable = %d.\n", vid_cmpr_top->film_grain_en);
+		pr_info("vicp: fgrain is_afbc = %d.\n", vid_cmpr_top->src_compress);
+		pr_info("vicp: fgrain fmt: %d, depth: %d.\n",
+			vid_cmpr_top->src_fmt_mode, vid_cmpr_top->src_compbits);
+		pr_info("vicp: fgrain fgs_table_adr: 0x%llx.\n", vid_cmpr_top->film_lut_addr);
+		pr_info("vicp: fgrain window: %d %d %d %d.\n",
+			vid_cmpr_top->src_win_bgn_h, vid_cmpr_top->src_win_end_h,
+			vid_cmpr_top->src_win_bgn_v, vid_cmpr_top->src_win_end_v);
 		pr_info("vicp: #################################.\n");
 	};
 
-	memset(&fgrain_ctrl_reg, 0, sizeof(struct vicp_fgrain_ctrl_reg_s));
-	if (!fgrain.enable)//off fgrain
-		return set_fgrain_control(fgrain_ctrl_reg);
-
-	fgrain_ctrl_reg.sync_ctrl = 0;
-	fgrain_ctrl_reg.dma_st_clr = 0;
-	fgrain_ctrl_reg.hold4dma_scale = 0;
-	fgrain_ctrl_reg.hold4dma_tbl = 0;
-	fgrain_ctrl_reg.cin_uv_swap = 0;
-	fgrain_ctrl_reg.cin_rev = 0;
-	fgrain_ctrl_reg.yin_rev = 0;
-	fgrain_ctrl_reg.use_par_apply_fgrain = 0;
-	if (fgrain.is_afbc == 0) {
-		fgrain_ctrl_reg.fgrain_last_ln_mode = 1;
-		fgrain_ctrl_reg.fgrain_ext_imode = 1;
-	} else {
-		fgrain_ctrl_reg.fgrain_last_ln_mode = 0;
-		fgrain_ctrl_reg.fgrain_ext_imode = 1;
+	if (vid_cmpr_top->film_grain_en == 0) {
+		vicp_reg_set_bits(VID_CMPR_AFBCDM_FGRAIN_CTRL, 0, 0, 10);
+		return;
 	}
-	fgrain_ctrl_reg.fgrain_use_sat4bp = 0;
+
+	if (vid_cmpr_top->film_grain_en >> 1) {//post en
+		fg_path_sel = 1;
+		fg_block_mode = 0;
+	} else {//pre_en
+		fg_path_sel = 0;
+		fg_block_mode = vid_cmpr_top->src_compress;
+	}
+
+	if  (fg_block_mode) {
+		window_v_bgn = (vid_cmpr_top->src_win_bgn_v) / 4 * 4;
+		window_v_end = (vid_cmpr_top->src_win_end_v + 3) / 4 * 4 - 4;
+		window_h_bgn = (vid_cmpr_top->src_win_bgn_h) / 32 * 32;
+		window_h_end = (vid_cmpr_top->src_win_end_h + 1 + 31) / 32 * 32 - 32;
+
+	} else {
+		window_v_bgn = vid_cmpr_top->src_win_bgn_v;
+		window_v_end = vid_cmpr_top->src_win_end_v;
+		window_h_bgn = vid_cmpr_top->src_win_bgn_h;
+		window_h_end = vid_cmpr_top->src_win_end_h;
+	}
+
+	memset(&fgrain_ctrl_reg, 0, sizeof(struct vicp_fgrain_ctrl_reg_s));
+	fgrain_ctrl_reg.fgrain_glb_en = 1;
+	fgrain_ctrl_reg.fgrain_loc_en = 1;
+	fgrain_ctrl_reg.block_mode = fg_block_mode;
+	fgrain_ctrl_reg.rev_mode = 0;
+	fgrain_ctrl_reg.comp_bits = fg_10bit_mode;
+	fgrain_ctrl_reg.fmt_mode = vid_cmpr_top->src_fmt_mode;
+	if (fg_block_mode) {
+		fgrain_ctrl_reg.fgrain_ext_imode = !fg_path_sel;
+		fgrain_ctrl_reg.fgrain_last_ln_mode = 0;
+	} else {
+		fgrain_ctrl_reg.fgrain_ext_imode = 0;
+		fgrain_ctrl_reg.fgrain_last_ln_mode = !fg_path_sel;
+	}
 	fgrain_ctrl_reg.apply_c_mode = 1;
 	fgrain_ctrl_reg.fgrain_tbl_sign_mode = 1;
 	fgrain_ctrl_reg.fgrain_tbl_ext_mode = 1;
-	fgrain_ctrl_reg.fmt_mode = fgrain.color_fmt;
-	if (fgrain.color_depth == 8)
-		fgrain_ctrl_reg.comp_bits = 0;
-	else if (fgrain.color_depth == 10)
-		fgrain_ctrl_reg.comp_bits = 1;
-	else
-		fgrain_ctrl_reg.comp_bits = 2;
-	fgrain_ctrl_reg.rev_mode = 0;
-	fgrain_ctrl_reg.block_mode = fgrain.is_afbc;
-	fgrain_ctrl_reg.fgrain_loc_en = 1;
-	fgrain_ctrl_reg.fgrain_glb_en = 1;
 	set_fgrain_control(fgrain_ctrl_reg);
-
-	if (fgrain.is_afbc == 0) {//rdmif
-		window_v_bgn = fgrain.start_y;
-		window_v_end = fgrain.end_y;
-		window_h_bgn = fgrain.start_x;
-		window_h_end = fgrain.end_x;
-	} else {//afbcd
-		window_v_bgn = (fgrain.start_y) / 4 * 4;
-		window_v_end = (fgrain.end_y + 3) / 4 * 4 - 4;
-		window_h_bgn = (fgrain.start_x) / 32 * 32;
-		window_h_end = (fgrain.end_x + 1 + 31) / 32 * 32 - 32;
-	}
 
 	set_fgrain_window_v(window_v_bgn, window_v_end);
 	set_fgrain_window_h(window_h_bgn, window_h_end);
-	set_fgrain_slice_window_h(0, window_h_end - window_h_bgn);
+
+	memset(&alone_ctrl_reg, 0, sizeof(struct vicp_fgrain_alone_mode_ctrl_reg_s));
+	alone_ctrl_reg.debug_demo_inverse = 0;
+	alone_ctrl_reg.debug_demo_en = 0;
+	alone_ctrl_reg.final_gain_1 = 16;
+	alone_ctrl_reg.final_gain_0 = 16;
+	alone_ctrl_reg.lut_up_mode = 1;
+	alone_ctrl_reg.alone_mode = fg_path_sel;
+	set_fgrain_alone_mode_control(alone_ctrl_reg);
+
+	set_fgrain_path_control(fg_path_sel);
+
+	memset(&post_ctrl_reg, 0, sizeof(struct vicp_fgrain_post_ctrl_reg_s));
+	post_ctrl_reg.hsize = window_h_end - window_h_bgn + 1;
+	post_ctrl_reg.post_gclk_ctrl = 0;
+	post_ctrl_reg.sync_ctrl = 0;
+	post_ctrl_reg.use_inp_mode = 0;
+	post_ctrl_reg.mode_422to444 = 0;
+	post_ctrl_reg.mode_444to422 = 0;
+	post_ctrl_reg.inp_422 = 0;
+	post_ctrl_reg.post_en = fg_path_sel;
+	set_fgrain_post_control(post_ctrl_reg);
+
+	set_fgrain_slice_window_h(0, window_h_end);
 
 	data_size = FILM_GRAIN_LUT_DATA_SIZE * sizeof(int);
-	temp_addr = codec_mm_vmap(fgrain.fgs_table_adr, data_size);
-	codec_mm_dma_flush(temp_addr, data_size * sizeof(int), DMA_FROM_DEVICE);
+	temp_addr = codec_mm_vmap(vid_cmpr_top->film_lut_addr, data_size);
+	codec_mm_dma_flush(temp_addr, data_size, DMA_FROM_DEVICE);
 
-	for (i = 0; i < FILM_GRAIN_LUT_DATA_SIZE; i++)
-		set_fgrain_lut_data(*(u32 *)(temp_addr + i));
+	for (i = 0; i < FILM_GRAIN_LUT_DATA_SIZE; i++) {
+		value = *((u32 *)temp_addr + i);
+		set_fgrain_lut_data(value);
+	}
 	codec_mm_unmap_phyaddr(temp_addr);
+
+	set_fgrain_ppconv_size(vid_cmpr_top->src_hsize, vid_cmpr_top->src_vsize);
 }
 
 static int get_presc_out_size(int presc_en, int presc_rate, int src_size)
@@ -459,14 +490,17 @@ static int get_presc_out_size(int presc_en, int presc_rate, int src_size)
 	return size;
 }
 
-static int get_phase_step(int presc_size, int dst_size)
+static u32 get_phase_step(int presc_size, int dst_size)
 {
-	int step = 0;
+	u32 step = 0;
+	u32 temp1 = 0, temp2 = 0;
 
-	if (presc_size > 2048)
-		step = ((presc_size << 18) / dst_size) << 2;
+	temp1 = (u32)presc_size;
+	temp2 = (u32)dst_size;
+	if (temp1 > 2048)
+		step = (temp1 << 18 / temp2) << 2;
 	else
-		step = (presc_size << 20) / dst_size;
+		step = (temp1 << 20) / temp2;
 
 	step = (step << 4);
 
@@ -971,6 +1005,20 @@ void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_s
 			hz_yc_ratio = 0;
 	}
 
+	memset(&cfmt_control, 0, sizeof(struct vicp_afbcd_cfmt_control_reg_s));
+	cfmt_control.cfmt_h_ini_phase = afbcd->hz_ini_phase;
+	cfmt_control.cfmt_h_rpt_p0_en = afbcd->hz_rpt_fst0_en;
+	cfmt_control.cfmt_h_yc_ratio = hz_yc_ratio;
+	cfmt_control.cfmt_h_en = hfmt_en;
+	cfmt_control.cfmt_v_phase0_nrpt_en = 1;
+	cfmt_control.cfmt_v_rpt_line0_en = afbcd->vt_rpt_fst0_en;
+	cfmt_control.cfmt_v_ini_phase = afbcd->vt_ini_phase;
+	cfmt_control.cfmt_v_phase_step = (16 >> vt_yc_ratio);
+	cfmt_control.cfmt_v_en = vfmt_en;
+	set_afbcd_colorformat_control(cfmt_control);
+	set_afbcd_colorformat_w(fmt_size_h, (fmt_size_h >> hz_yc_ratio));
+	set_afbcd_colorformat_h(uv_vsize_in);
+
 	if (afbcd->lossy_compress.compress_mode == LOSSY_COMPRESS_MODE_QUAN_LUMA) {
 		lossy_luma_en = 1;
 		lossy_chrm_en = 0;
@@ -992,21 +1040,6 @@ void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_s
 		lossy_chrm_en = 0;
 		fix_cr_en = 0;
 	}
-
-	memset(&cfmt_control, 0, sizeof(struct vicp_afbcd_cfmt_control_reg_s));
-	cfmt_control.cfmt_h_ini_phase = afbcd->hz_ini_phase;
-	cfmt_control.cfmt_h_rpt_p0_en = afbcd->hz_rpt_fst0_en;
-	cfmt_control.cfmt_h_yc_ratio = hz_yc_ratio;
-	cfmt_control.cfmt_h_en = hfmt_en;
-	cfmt_control.cfmt_v_phase0_nrpt_en = 1;
-	cfmt_control.cfmt_v_rpt_line0_en = afbcd->vt_rpt_fst0_en;
-	cfmt_control.cfmt_v_ini_phase = afbcd->vt_ini_phase;
-	cfmt_control.cfmt_v_phase_step = (16 >> vt_yc_ratio);
-	cfmt_control.cfmt_v_en = vfmt_en;
-	set_afbcd_colorformat_control(cfmt_control);
-	set_afbcd_colorformat_w(fmt_size_h, (fmt_size_h >> hz_yc_ratio));
-	set_afbcd_colorformat_h(uv_vsize_in);
-
 	memset(&quant_control, 0, sizeof(struct vicp_afbcd_quant_control_reg_s));
 	quant_control.lossy_chrm_en = lossy_chrm_en;
 	quant_control.lossy_luma_en = lossy_luma_en;
@@ -1503,7 +1536,7 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_s *wr_mif, int wrmif_en)
 	wrmif_control.rgb_mode = rgb_mode;
 	wrmif_control.h_conv = 0;
 	wrmif_control.v_conv = 0;
-	wrmif_control.swap_cbcr = wr_mif->swap_cbcr;/*1 NV12, 0 NV21*/
+	wrmif_control.swap_cbcr = 0;//wr_mif->swap_cbcr;/*1 NV12, 0 NV21*/
 	wrmif_control.urgent = 0;
 	wrmif_control.word_limit = 4;
 	wrmif_control.data_ext_ena = 0;
@@ -1572,6 +1605,7 @@ static void set_vid_cmpr_security(bool sec_en)
 
 	if (sec_en) {
 		input_sec = 1;
+		dma_sec = 1;
 	} else {
 		dma_sec = 0;
 		mmu_sec = 0;
@@ -1581,6 +1615,24 @@ static void set_vid_cmpr_security(bool sec_en)
 	return set_security_enable(dma_sec, mmu_sec, input_sec);
 }
 
+static void set_vid_cmpr_crc(int rotation_en)
+{
+	struct vicp_crc_reg_t crc_reg;
+
+	memset(&crc_reg, 0, sizeof(struct vicp_crc_reg_t));
+
+	if (rotation_en) {
+		crc_reg.crc_check_en = 3;
+		crc_reg.crc_start = 3;
+		crc_reg.crc_sec_sel = 0;
+	} else {
+		crc_reg.crc_check_en = 1;
+		crc_reg.crc_start = 1;
+		crc_reg.crc_sec_sel = 0;
+	}
+
+	return set_crc_control(crc_reg);
+}
 static void dump_yuv(int flag, struct vframe_s *vframe)
 {
 #ifdef CONFIG_AMLOGIC_ENABLE_VIDEO_PIPELINE_DUMP_DATA
@@ -1615,25 +1667,37 @@ static void dump_yuv(int flag, struct vframe_s *vframe)
 #endif
 }
 
-static int get_input_color_bitdepth(struct vframe_s *vf)
+static int get_input_color_bitdepth(struct vframe_s *vf, bool need_use_dw)
 {
 	int bitdepth = 0;
+	int ret = 0;
 
 	if (IS_ERR_OR_NULL(vf)) {
 		vicp_print(VICP_ERROR, "%s: NULL param.\n", __func__);
 		return -1;
 	}
 
-	if (vf->bitdepth & BITDEPTH_Y9)
-		bitdepth = 9;
-	else if (vf->bitdepth & BITDEPTH_Y10)
-		bitdepth = 10;
-	else if (vf->bitdepth & BITDEPTH_Y12)
-		bitdepth = 12;
-	else
-		bitdepth = 8;
+	vicp_print(VICP_INFO, "bitdepth:0x%x, bitdepth_dw:0x%x.\n", vf->bitdepth, vf->bitdepth_dw);
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+	    vf->source_type == VFRAME_SOURCE_TYPE_CVBS) {
+		if ((vf->type & VIDTYPE_COMPRESS) && need_use_dw)
+			bitdepth = vf->bitdepth_dw;
+		else
+			bitdepth = vf->bitdepth;
+	} else {
+		bitdepth = vf->bitdepth;
+	}
 
-	return bitdepth;
+	if (bitdepth & BITDEPTH_Y9)
+		ret = 9;
+	else if (bitdepth & BITDEPTH_Y10)
+		ret = 10;
+	else if (bitdepth & BITDEPTH_Y12)
+		ret = 12;
+	else
+		ret = 8;
+
+	return ret;
 }
 
 static int get_input_color_format(struct vframe_s *vf)
@@ -1645,8 +1709,10 @@ static int get_input_color_format(struct vframe_s *vf)
 		return -1;
 	}
 
+	vicp_print(VICP_INFO, "type:0x%x.\n", vf->type);
 	/*0:yuv444 1:yuv422 2:yuv420 */
-	if (vf->type & VIDTYPE_VIU_444)
+	if ((vf->type & VIDTYPE_VIU_444) ||
+		(vf->type & VIDTYPE_RGB_444))
 		format = 0;
 	else if (vf->type & VIDTYPE_VIU_422)
 		format = 1;
@@ -1656,10 +1722,24 @@ static int get_input_color_format(struct vframe_s *vf)
 	return format;
 }
 
+static bool is_dv_input(struct vframe_s *vf)
+{
+	bool ret = false;
+
+	if (IS_ERR_OR_NULL(vf)) {
+		vicp_print(VICP_ERROR, "%s: NULL param.\n", __func__);
+		return -1;
+	}
+
+	if (vf->signal_type & (1 << 30))
+		ret = true;
+
+	return ret;
+}
+
 static void set_vid_cmpr_basic_param(struct vid_cmpr_top_s *vid_cmpr_top)
 {
 	u32 buf_h, buf_v;
-	struct vid_cmpr_fgrain_s fgrain;
 
 	if (IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
@@ -1677,21 +1757,7 @@ static void set_vid_cmpr_basic_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_CR, vid_cmpr_top->rdmif_canvas0_addr2);
 	}
 
-	memset(&fgrain, 0, sizeof(struct vid_cmpr_fgrain_s));
-	if (vid_cmpr_top->film_grain_en) {
-		fgrain.enable = true;
-		fgrain.start_x = vid_cmpr_top->src_win_bgn_h;
-		fgrain.end_x = vid_cmpr_top->src_win_end_h;
-		fgrain.start_y = vid_cmpr_top->src_win_bgn_v;
-		fgrain.end_y = vid_cmpr_top->src_win_end_v;
-		fgrain.is_afbc = vid_cmpr_top->src_compress;
-		fgrain.color_fmt = vid_cmpr_top->src_fmt_mode;
-		fgrain.color_depth = vid_cmpr_top->src_compbits;
-		fgrain.fgs_table_adr = vid_cmpr_top->film_lut_addr;
-	} else {
-		fgrain.enable = false;
-	}
-	set_vid_cmpr_fgrain(fgrain);
+	set_vid_cmpr_fgrain(vid_cmpr_top);
 
 	if (vid_cmpr_top->wrmif_en == 1) {
 		set_wrmif_path_enable(1);
@@ -1726,7 +1792,6 @@ static void set_vid_cmpr_basic_param(struct vid_cmpr_top_s *vid_cmpr_top)
 static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 {
 	struct vid_cmpr_afbcd_s vid_cmpr_afbcd;
-	struct vid_cmpr_fgrain_s fgrain;
 	struct vid_cmpr_scaler_s vid_cmpr_scaler;
 	struct vid_cmpr_afbce_s vid_cmpr_afbce;
 
@@ -1771,7 +1836,8 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		else
 			vid_cmpr_afbcd.fmt444_comb = 0;
 
-		if (!(vid_cmpr_top->src_vf->type & VIDTYPE_VIU_422))
+		if (vid_cmpr_top->src_vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			!(vid_cmpr_top->src_vf->type & VIDTYPE_DI_PW))
 			vid_cmpr_afbcd.dos_uncomp = 1;
 		else
 			vid_cmpr_afbcd.dos_uncomp = 0;
@@ -1806,7 +1872,7 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 			vid_cmpr_afbcd.v_skip_uv = 0;
 		}
 		vid_cmpr_afbcd.rev_mode = vid_cmpr_top->rot_rev_mode;
-		vid_cmpr_afbcd.def_color_y = 0x00 << (vid_cmpr_top->src_compbits - 8);
+		vid_cmpr_afbcd.def_color_y = 0x3ff;/*<< (vid_cmpr_top->src_compbits - 8);*/
 		vid_cmpr_afbcd.def_color_u = 0x80 << (vid_cmpr_top->src_compbits - 8);
 		vid_cmpr_afbcd.def_color_v = 0x80 << (vid_cmpr_top->src_compbits - 8);
 		vid_cmpr_afbcd.win_bgn_h = vid_cmpr_top->src_win_bgn_h;
@@ -1875,15 +1941,21 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 
 		if (vid_cmpr_top->src_vf) {
 			type = vid_cmpr_top->src_vf->type;
-			if (type & VIDTYPE_TYPEMASK) {
-				/* interlace source */
+			vicp_print(VICP_INFO, "%s: type=0x%x.\n", __func__, type);
+			if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
 				is_interlace = true;
 				vid_cmpr_rmif.src_field_mode = 1;
-				if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP)
-					vid_cmpr_rmif.output_field_num = 0;
-				else
-					vid_cmpr_rmif.output_field_num = 1;
+				vid_cmpr_rmif.output_field_num = 0;
+			} else if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_BOTTOM) {
+				is_interlace = true;
+				vid_cmpr_rmif.src_field_mode = 1;
+				vid_cmpr_rmif.output_field_num = 1;
+			} else {
+				is_interlace = false;
+				vid_cmpr_rmif.src_field_mode = 0;
+				vid_cmpr_rmif.output_field_num = 1;
 			}
+
 		}
 
 		vid_cmpr_rmif.stride_y = vid_cmpr_top->canvas_width[0];
@@ -1894,21 +1966,7 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_vid_cmpr_rmif(&vid_cmpr_rmif, 0, 2);
 	}
 
-	memset(&fgrain, 0, sizeof(struct vid_cmpr_fgrain_s));
-	if (vid_cmpr_top->film_grain_en) {
-		fgrain.enable = true;
-		fgrain.start_x = vid_cmpr_top->src_win_bgn_h;
-		fgrain.end_x = vid_cmpr_top->src_win_end_h;
-		fgrain.start_y = vid_cmpr_top->src_win_bgn_v;
-		fgrain.end_y = vid_cmpr_top->src_win_end_v;
-		fgrain.is_afbc = vid_cmpr_top->src_compress;
-		fgrain.color_fmt = vid_cmpr_top->src_fmt_mode;
-		fgrain.color_depth = vid_cmpr_top->src_compbits;
-		fgrain.fgs_table_adr = vid_cmpr_top->film_lut_addr;
-	} else {
-		fgrain.enable = false;
-	}
-	set_vid_cmpr_fgrain(fgrain);
+	set_vid_cmpr_fgrain(vid_cmpr_top);
 
 	if (!scaler_en)
 		scaler_enable = 0;
@@ -1919,7 +1977,7 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 	config_scaler_param(is_interlace, vid_cmpr_top, &vid_cmpr_scaler);
 	set_input_size(vid_cmpr_scaler.din_vsize, vid_cmpr_scaler.din_hsize);
 	set_vid_cmpr_scale(scaler_enable, &vid_cmpr_scaler);
-	set_output_size(vid_cmpr_top->out_vsize_in, vid_cmpr_top->out_hsize_in);
+	set_output_size(vid_cmpr_scaler.dout_vsize, vid_cmpr_scaler.dout_hsize);
 
 	if (!hdr_en)
 		vid_cmpr_top->hdr_config.hdr2_en = 0;
@@ -2004,8 +2062,8 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		vid_cmpr_afbce.reg_format_mode = vid_cmpr_top->out_reg_format_mode;
 		vid_cmpr_afbce.reg_compbits_y = vid_cmpr_top->out_reg_compbits;
 		vid_cmpr_afbce.reg_compbits_c = vid_cmpr_top->out_reg_compbits;
-		vid_cmpr_afbce.hsize_in = vid_cmpr_top->out_hsize_in;
-		vid_cmpr_afbce.vsize_in = vid_cmpr_top->out_vsize_in;
+		vid_cmpr_afbce.hsize_in = vid_cmpr_scaler.dout_hsize;
+		vid_cmpr_afbce.vsize_in = vid_cmpr_scaler.dout_vsize;
 		vid_cmpr_afbce.hsize_bgnd = vid_cmpr_top->out_hsize_bgnd;
 		vid_cmpr_afbce.vsize_bgnd = vid_cmpr_top->out_vsize_bgnd;
 		vid_cmpr_afbce.enc_win_bgn_h = vid_cmpr_top->out_win_bgn_h;
@@ -2031,9 +2089,54 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 	set_top_holdline();
 }
 
+int vicp_crc0_check(int check_val)
+{
+	int reg_val = 0;
+
+	reg_val = read_vicp_reg(VID_CMPR_CRC0_OUT);
+	vicp_print(VICP_INFO, "%s: reg_val0 is 0x%x.\n", __func__, reg_val);
+	if (reg_val != check_val)
+		return 1;
+	else
+		return 0;
+}
+
+int vicp_crc1_check(int chroma_en, int chroma_check, int lumma_check)
+{
+	int reg_val = 0;
+	int check_val = 3;
+	int ret = 0;
+
+	if (chroma_en == 0) {
+		reg_val = read_vicp_reg(VID_CMPR_CRC1_0_OUT);
+		vicp_print(VICP_INFO, "%s: reg_val1 is 0x%x.\n", __func__, reg_val);
+		if (reg_val != lumma_check)
+			check_val &= ~(1 << 1);
+	} else if (chroma_en == 1) {
+		reg_val = read_vicp_reg(VID_CMPR_CRC1_1_OUT);
+		vicp_print(VICP_INFO, "%s: reg_val2 is 0x%x.\n", __func__, reg_val);
+		if (reg_val != chroma_check)
+			check_val &= ~(1 << 2);
+	} else {
+		vicp_print(VICP_ERROR, "%s: invalid config.\n", __func__);
+		check_val = 0;
+	}
+
+	if ((check_val & 3) != 3) {
+		pr_info("%s failed: check_val = 0x%x.\n", __func__, check_val);
+		ret = 1;
+	} else {
+		pr_info("%s success.\n", __func__);
+		ret = 0;
+	}
+
+	return ret;
+}
+
 void vicp_device_init(struct vicp_device_data_s device)
 {
 	vicp_dev = device;
+	vicp_reg_addr_base_init(device.reg_addr_base);
 }
 
 int vicp_process_config(struct vicp_data_config_s *data_config,
@@ -2069,6 +2172,12 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		if ((input_area + 15) / output_area >> 4)
 			need_use_dw = true;
 
+		if (is_dv_input(data_config->input_data.data_vf)) {
+			vicp_print(VICP_INFO, "%s: dv input(0x%x).\n",
+				__func__, data_config->input_data.data_vf->signal_type);
+			need_use_dw = true;
+		}
+
 		if (data_config->input_data.data_vf->type & VIDTYPE_COMPRESS)
 			is_fbc_exist = true;
 
@@ -2076,11 +2185,17 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			vicp_print(VICP_INFO, "%s: use fbc vframe.\n", __func__);
 			input_vframe = data_config->input_data.data_vf;
 			vid_cmpr_top->src_compress = 1;
-			vid_cmpr_top->src_hsize = input_vframe->compWidth;
-			vid_cmpr_top->src_vsize = input_vframe->compHeight;
+			if (data_config->data_option.crop_info.width <= 0 ||
+				data_config->data_option.crop_info.height <= 0) {
+				vicp_print(VICP_INFO, "%s: invalid crop param.\n", __func__);
+				vid_cmpr_top->src_hsize = input_vframe->compWidth;
+				vid_cmpr_top->src_vsize = input_vframe->compHeight;
+			} else {
+				vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+				vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+			}
 			vid_cmpr_top->src_head_baddr = input_vframe->compHeadAddr;
 			vid_cmpr_top->src_body_baddr = input_vframe->compBodyAddr;
-			vid_cmpr_top->src_compbits = get_input_color_bitdepth(input_vframe);
 
 			if (input_vframe->type & VIDTYPE_COMPRESS_LOSS &&
 			    input_vframe->vf_lossycomp_param.lossy_mode == 1) {
@@ -2109,8 +2224,20 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 
 			vid_cmpr_top->src_compress = 0;
 			temp_compress_param.compress_mode = LOSSY_COMPRESS_MODE_OFF;
-			vid_cmpr_top->src_hsize = input_vframe->width;
-			vid_cmpr_top->src_vsize = input_vframe->height;
+			if (data_config->data_option.crop_info.width <= 0 ||
+				data_config->data_option.crop_info.height <= 0) {
+				vid_cmpr_top->src_hsize = input_vframe->width;
+				vid_cmpr_top->src_vsize = input_vframe->height;
+			} else {
+				vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+				vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+
+				if (is_fbc_exist) {
+					vid_cmpr_top->src_hsize = vid_cmpr_top->src_hsize >> 2;
+					vid_cmpr_top->src_vsize = vid_cmpr_top->src_vsize >> 2;
+				}
+			}
+
 			vid_cmpr_top->src_head_baddr = 0;
 			vid_cmpr_top->src_body_baddr = 0;
 			vid_cmpr_top->rdmif_canvas0_addr0 =
@@ -2135,18 +2262,10 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 				vid_cmpr_top->canvas_width[2] =
 					canvas_get_width(input_vframe->canvas0Addr >> 16 & 0xff);
 			}
-
-			if (is_fbc_exist)
-				vid_cmpr_top->src_compbits = 8;
-			else
-				vid_cmpr_top->src_compbits = get_input_color_bitdepth(input_vframe);
 		}
 		vid_cmpr_top->src_vf = input_vframe;
 		vid_cmpr_top->src_fmt_mode = get_input_color_format(input_vframe);
-		vid_cmpr_top->src_win_bgn_h = 0;
-		vid_cmpr_top->src_win_end_h = vid_cmpr_top->src_hsize - 1;
-		vid_cmpr_top->src_win_bgn_v = 0;
-		vid_cmpr_top->src_win_end_v = vid_cmpr_top->src_vsize - 1;
+		vid_cmpr_top->src_compbits = get_input_color_bitdepth(input_vframe, need_use_dw);
 		if (input_vframe->flag & VFRAME_FLAG_VIDEO_LINEAR)
 			vid_cmpr_top->src_endian = 1;
 		else
@@ -2164,7 +2283,10 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		}
 
 		if (input_vframe->fgs_valid && input_vframe->fgs_table_adr) {
-			vid_cmpr_top->film_grain_en = 1;
+			if (vid_cmpr_top->src_fmt_mode == 0)
+				vid_cmpr_top->film_grain_en = 3;
+			else
+				vid_cmpr_top->film_grain_en = 1;
 			vid_cmpr_top->film_lut_addr = input_vframe->fgs_table_adr;
 			input_vframe->fgs_valid = false;
 		} else {
@@ -2177,11 +2299,17 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			current_dump_flag = dump_yuv_flag;
 		}
 	} else {
-		input_dma = data_config->input_data.data_dma;
+		input_dma = &data_config->input_data.data_dma;
 		vid_cmpr_top->src_compress = 0;
 		temp_compress_param.compress_mode = LOSSY_COMPRESS_MODE_OFF;
-		vid_cmpr_top->src_hsize = input_dma->data_width;
-		vid_cmpr_top->src_vsize = input_dma->data_height;
+		if (data_config->data_option.crop_info.width <= 0 ||
+			data_config->data_option.crop_info.height <= 0) {
+			vid_cmpr_top->src_hsize = input_dma->data_width;
+			vid_cmpr_top->src_vsize = input_dma->data_height;
+		} else {
+			vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+			vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+		}
 		vid_cmpr_top->src_fmt_mode = input_dma->color_format;
 		vid_cmpr_top->src_compbits = input_dma->color_depth;
 		vid_cmpr_top->rdmif_canvas0_addr0 = input_dma->buf_addr;
@@ -2207,10 +2335,6 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			vicp_print(VICP_ERROR, "unsupport fmt %d\n", input_dma->color_format);
 		}
 
-		vid_cmpr_top->src_win_bgn_h = 0;
-		vid_cmpr_top->src_win_end_h = vid_cmpr_top->src_hsize - 1;
-		vid_cmpr_top->src_win_bgn_v = 0;
-		vid_cmpr_top->src_win_end_v = vid_cmpr_top->src_vsize - 1;
 		vid_cmpr_top->src_endian = input_dma->endian;
 		vid_cmpr_top->src_block_mode = 0;
 		vid_cmpr_top->hdr_config.hdr2_en = 0;
@@ -2218,6 +2342,12 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		vid_cmpr_top->film_grain_en = 0;
 		vid_cmpr_top->film_lut_addr = 0;
 	}
+	vid_cmpr_top->src_win_bgn_h = data_config->data_option.crop_info.left;
+	vid_cmpr_top->src_win_end_h = data_config->data_option.crop_info.left
+		+ vid_cmpr_top->src_hsize - 1;
+	vid_cmpr_top->src_win_bgn_v = data_config->data_option.crop_info.top;
+	vid_cmpr_top->src_win_end_v = data_config->data_option.crop_info.top
+		+ vid_cmpr_top->src_vsize - 1;
 
 	vid_cmpr_top->src_lossy_compress = temp_compress_param;
 	if (!fgrain_en)
@@ -2275,7 +2405,10 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 	else
 		vid_cmpr_top->out_shrk_en = 1;
 	vid_cmpr_top->out_shrk_mode = data_config->data_option.shrink_mode;
-	vid_cmpr_top->skip_mode = data_config->data_option.skip_mode;
+	if (vid_cmpr_top->src_hsize < 1920)
+		vid_cmpr_top->skip_mode = VICP_SKIP_MODE_OFF;
+	else
+		vid_cmpr_top->skip_mode = data_config->data_option.skip_mode;
 
 	rotation = data_config->data_option.rotation_mode;
 	if (rotation == VICP_ROTATION_90) {
@@ -2348,13 +2481,15 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 	int i = 0;
 	u8 *temp_addr;
 	int buffer_size;
-	bool is_need_update_all = false;
 
 	vicp_print(VICP_INFO, "enter %s, rdma_en is %d.\n", __func__, vid_cmpr_top->rdma_enable);
 	if (IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: NULL param, please check.\n", __func__);
 		return -1;
 	}
+
+	if (vicp_dev.enhance_sec_support)
+		set_enhance_sec_enable(enhance_sec_en);
 
 	set_vid_cmpr_rdma_config(vid_cmpr_top->rdma_enable, vid_cmpr_top->src_count,
 		vid_cmpr_top->src_num);
@@ -2369,6 +2504,7 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_vid_cmpr_all_param(vid_cmpr_top);
 		set_module_start(1);
 		set_afbce_start(1);
+		set_vid_cmpr_crc(vid_cmpr_top->out_rot_en);
 		vicp_rdma_end(get_current_vicp_rdma_buf());
 		if (vid_cmpr_top->src_num + 1 == vid_cmpr_top->src_count) {
 			init_completion(&vicp_rdma_done);
@@ -2409,39 +2545,6 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 			rdma_buf_phy_addr = 0;
 		}
 	} else {
-		if (last_input_w != vid_cmpr_top->src_hsize ||
-			last_input_h != vid_cmpr_top->src_vsize ||
-			last_input_fmt != vid_cmpr_top->src_fmt_mode ||
-			last_input_bit_depth != vid_cmpr_top->src_compbits ||
-			last_fbcinput_en != vid_cmpr_top->src_compress ||
-			last_output_w != vid_cmpr_top->out_hsize_bgnd ||
-			last_output_h != vid_cmpr_top->out_vsize_bgnd ||
-			last_output_miffmt != vid_cmpr_top->wrmif_fmt_mode ||
-			last_output_fbcfmt != vid_cmpr_top->out_reg_format_mode ||
-			last_fbcoutput_en != vid_cmpr_top->out_afbce_enable ||
-			last_mifoutput_en != vid_cmpr_top->wrmif_en ||
-			last_output_begin_v != vid_cmpr_top->out_win_bgn_v ||
-			last_output_end_v != vid_cmpr_top->out_win_end_v ||
-			last_output_begin_h != vid_cmpr_top->out_win_bgn_h ||
-			last_output_end_h != vid_cmpr_top->out_win_end_h) {
-			is_need_update_all = true;
-			last_input_w = vid_cmpr_top->src_hsize;
-			last_input_h = vid_cmpr_top->src_vsize;
-			last_input_fmt = vid_cmpr_top->src_fmt_mode;
-			last_input_bit_depth = vid_cmpr_top->src_compbits;
-			last_fbcinput_en = vid_cmpr_top->src_compress;
-			last_output_w = vid_cmpr_top->out_hsize_bgnd;
-			last_output_h = vid_cmpr_top->out_vsize_bgnd;
-			last_output_miffmt = vid_cmpr_top->wrmif_fmt_mode;
-			last_output_fbcfmt = vid_cmpr_top->out_reg_format_mode;
-			last_fbcoutput_en = vid_cmpr_top->out_afbce_enable;
-			last_mifoutput_en = vid_cmpr_top->wrmif_en;
-			last_output_begin_v = vid_cmpr_top->out_win_bgn_v;
-			last_output_end_v = vid_cmpr_top->out_win_end_v;
-			last_output_begin_h = vid_cmpr_top->out_win_bgn_h;
-			last_output_end_h = vid_cmpr_top->out_win_end_h;
-		}
-
 		if (print_flag & VICP_INFO) {
 			pr_info("vicp: ##########basic param##########\n");
 			pr_info("vicp: input: w:%d, h:%d, fmt:%d, bitdepth:%d, src_compress:%d.\n",
@@ -2473,12 +2576,13 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_afbce_path_enable(1);
 		set_module_enable(1);
 		set_module_reset();
-		if (is_need_update_all)
+		if (!debug_reg_en)
 			set_vid_cmpr_all_param(vid_cmpr_top);
 		else
 			set_vid_cmpr_basic_param(vid_cmpr_top);
 		set_module_start(1);
 		set_afbce_start(1);
+		set_vid_cmpr_crc(vid_cmpr_top->out_rot_en);
 		time = wait_for_completion_timeout(&vicp_proc_done, msecs_to_jiffies(200));
 		if (!time) {
 			vicp_print(VICP_ERROR, "vicp_task wait isr timeout\n");
@@ -2521,6 +2625,8 @@ int  vicp_process(struct vicp_data_config_s *data_config)
 		return -1;
 	}
 
+	vicp_runtime_pwr(1);
+
 	memset(&vid_cmpr_top, 0, sizeof(struct vid_cmpr_top_s));
 	ret = vicp_process_config(data_config, &vid_cmpr_top);
 	if (ret < 0) {
@@ -2535,6 +2641,7 @@ int  vicp_process(struct vicp_data_config_s *data_config)
 
 	vicp_process_reset();
 	mutex_unlock(&vicp_mutex);
+	vicp_runtime_pwr(0);
 
 	return  0;
 }

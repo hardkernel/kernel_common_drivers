@@ -15,9 +15,7 @@
  * more details.
  *
  */
-
 #include <linux/vmalloc.h>
-
 #include "di_proc_file.h"
 #include "di_proc_buf_mgr_internal.h"
 

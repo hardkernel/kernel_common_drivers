@@ -22,7 +22,8 @@ bool is_vicp_supported(void)
 
 	cpu_type = get_cpu_type();
 	if (cpu_type == MESON_CPU_MAJOR_ID_S5 ||
-		cpu_type == MESON_CPU_MAJOR_ID_T3X)
+		cpu_type == MESON_CPU_MAJOR_ID_T3X ||
+		cpu_type == MESON_CPU_MAJOR_ID_S6)
 		return true;
 	else
 		return false;
@@ -48,10 +49,10 @@ enum vicp_rotation_mode_e map_rotationmode_from_vc_to_vicp(int rotation_vc)
 	return rotation;
 }
 
-int config_vicp_input_data(struct vframe_s *vf, ulong addr, int stride, int width, int height,
-	int endian, int color_fmt, int color_depth, struct input_data_param_s *input_data)
+int config_vicp_input_data(struct vframe_s *vf, ulong addr, int width, int height,
+	int stride_w, int stride_y, int endian, int color_fmt, int color_depth,
+	struct input_data_param_s *input_data)
 {
-	struct dma_data_config_s dma_data;
 
 	if (IS_ERR_OR_NULL(input_data)) {
 		pr_info("%s: NULL param, please check.\n", __func__);
@@ -64,20 +65,24 @@ int config_vicp_input_data(struct vframe_s *vf, ulong addr, int stride, int widt
 		input_data->data_vf = vf;
 	} else {
 		input_data->is_vframe = false;
+		if (stride_w > width)
+			input_data->data_dma.buf_stride_w = stride_w;
+		else
+			input_data->data_dma.buf_stride_w = width;
 
-		memset(&dma_data, 0, sizeof(struct dma_data_config_s));
-		dma_data.buf_addr = addr;
-		dma_data.buf_stride_w = stride;
-		dma_data.buf_stride_h = stride;
-		dma_data.data_width = width;
-		dma_data.data_height = height;
-		dma_data.color_format = color_fmt;
-		dma_data.color_depth = color_depth;
-		dma_data.plane_count = 2;
-		dma_data.endian = endian;
-		dma_data.need_swap_cbcr = 0;
+		if (stride_y > height)
+			input_data->data_dma.buf_stride_h = stride_y;
+		else
+			input_data->data_dma.buf_stride_h = height;
 
-		input_data->data_dma = &dma_data;
+		input_data->data_dma.buf_addr = addr;
+		input_data->data_dma.data_width = width;
+		input_data->data_dma.data_height = height;
+		input_data->data_dma.color_format = color_fmt;
+		input_data->data_dma.color_depth = color_depth;
+		input_data->data_dma.plane_count = 2;
+		input_data->data_dma.endian = endian;
+		input_data->data_dma.need_swap_cbcr = 0;
 	}
 
 	return 0;

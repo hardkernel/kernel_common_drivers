@@ -390,6 +390,8 @@ int config_dewarp_vframe(struct composer_vf_para *vframe_para,
 		vframe_para->src_buf_stride1 = vf->canvas0_config[1].width;
 		vframe_para->src_vf_angle = common_para->input_para.transform;
 		vframe_para->src_endian = vf->canvas0_config[0].endian;
+		if (vf->type & VIDTYPE_VIU_NV12)
+			vframe_para->uvswap_enable = 1;
 
 		vframe_para->dst_vf_width = pic_info_out->align_w;
 		vframe_para->dst_vf_height = pic_info_out->align_h;
@@ -427,7 +429,7 @@ int config_dewarp_vframe(struct composer_vf_para *vframe_para,
 	}
 
 	if (dewarp_print) {
-		pr_info("vc:[%d]: src_vf: addr0:0x%x, addr1:0x%x, width:%d, height:%d, format:%d ",
+		pr_info("vc:[%d]: src_vf: addr0:0x%lx, addr1:0x%lx, width:%d, height:%d, format:%d ",
 			call_index,
 			vframe_para->src_buf_addr0,
 			vframe_para->src_buf_addr1,
@@ -482,6 +484,7 @@ int dewarp_data_composer(struct dewarp_composer_para *param, bool is_tvp)
 				* AXI_WORD_ALIGN(gdc_config.out_height);
 	gdc_config.config_paddr = param->fw_load.phys_addr;
 	gdc_config.config_size = param->fw_load.size_32bit; /* in 32bit */
+	gdc_config.uvswap_enable = param->vf_para->uvswap_enable;
 	if (param->vf_para->is_tvp)
 		gdc_config.use_sec_mem = 1; /* secure mem access */
 	else

@@ -804,6 +804,7 @@ int aipq_getinfo(void *arg, char *buf)
 				return -ENOMEM;
 			}
 		}
+		aipq_info->frame_index = vf->frame_index;
 		memset(&output, 0, sizeof(struct ge2d_output_t));
 		output.width = aipq_info->nn_input_frame_width;
 		output.height = aipq_info->nn_input_frame_height;
@@ -815,7 +816,6 @@ int aipq_getinfo(void *arg, char *buf)
 			aipq_print(PRINT_ERROR, "ge2d output RGB24 err\n");
 			return -EINVAL;
 		}
-		aipq_info->frame_index = vf->frame_index;
 		do_gettimeofday(&end_time);
 		cost_time = (1000000 * (end_time.tv_sec - begin_time.tv_sec)
 			+ (end_time.tv_usec - begin_time.tv_usec)) / 1000;

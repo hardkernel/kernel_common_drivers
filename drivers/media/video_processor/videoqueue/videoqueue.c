@@ -224,7 +224,11 @@ static inline int DUR2PTS(int y)
 		x = 1920;
 	}
 
-	if ((x % 10) == 0) {
+	if (x == 667) {//144fps
+		var = 10000;
+	} else if (x == 582) {//165fps
+		var = 8727;
+	} else if ((x % 10) == 0) {
 		var = x * 15;
 	} else {
 		var = 12012;
@@ -299,7 +303,7 @@ static void file_pop_display_q(struct video_queue_dev *dev,
 		}
 		k--;
 		if (k < 0) {
-			vq_print(dev->inst, P_ERROR, "can find vf in display_q\n");
+			vq_print(dev->inst, P_FENCE, "can't find vf in display_q\n");
 			break;
 		}
 	}
@@ -324,7 +328,7 @@ static void file_pop_out2vt_q(struct video_queue_dev *dev, struct file *recycle_
 		}
 		i--;
 		if (i < 0) {
-			vq_print(dev->inst, P_ERROR, "can find vf in out2vt_q\n");
+			vq_print(dev->inst, P_FENCE, "can't find vf in out2vt_q\n");
 			break;
 		}
 	}
@@ -823,21 +827,41 @@ static int do_file_thread(struct video_queue_dev *dev)
 		else
 			vq_print(dev->inst, P_OTHER, "no consumer\n");
 
-		dev->total_put_count++;
-		if (vf->type & VIDTYPE_DI_PW)
-			dev->di_put_count++;
-		vq_print(dev->inst, P_OTHER, "put: frame_index=%d\n", vf->frame_index);
-
-		ret = vf_put(vf, dev->vf_receiver_name);
-		if (ret) {
-			vq_print(dev->inst, P_ERROR, "put: FAIL\n");
+		if (dev->di_backend_en) {
+			while (1) {
+				ret = vt_dequeue_buffer(dev->dev_session, dev->tunnel_id,
+					&free_file, &fence_file);
+				if (ret) {
+					vq_print(dev->inst, P_OTHER, "dequeue all buf.\n");
+					dev->queue_count = 0;
+					dev->dq_count = 0;
+					break;
+				}
+				ret  = buf_mgr_q_checkin(dev->dp_buf_mgr, free_file);
+				if (ret)
+					vq_print(dev->inst, P_ERROR, "q_checkin vt fail.\n");
+			}
+			ret = buf_mgr_q_checkin(dev->dp_buf_mgr, ready_file);
+			if (ret)
+				vq_print(dev->inst, P_ERROR, "q_checkin fail.\n");
+		} else {
+			dev->total_put_count++;
 			if (vf->type & VIDTYPE_DI_PW)
-				dim_post_keep_cmd_release2(vf);
+				dev->di_put_count++;
+			vq_print(dev->inst, P_OTHER, "put: frame_index=%d\n", vf->frame_index);
+
+			ret = vf_put(vf, dev->vf_receiver_name);
+			if (ret) {
+				vq_print(dev->inst, P_ERROR, "put: FAIL\n");
+				if (vf->type & VIDTYPE_DI_PW)
+					dim_post_keep_cmd_release2(vf);
+			}
+			mutex_lock(&dev->mutex_file);
+			if (!kfifo_put(&dev->file_q, ready_file))
+				vq_print(dev->inst, P_ERROR, "file_q is full\n");
+			mutex_unlock(&dev->mutex_file);
 		}
-		mutex_lock(&dev->mutex_file);
-		if (!kfifo_put(&dev->file_q, ready_file))
-			vq_print(dev->inst, P_ERROR, "file_q is full\n");
-		mutex_unlock(&dev->mutex_file);
+
 		return -1;
 	}
 
@@ -2164,11 +2188,9 @@ static int video_queue_probe(struct platform_device *pdev)
 		pr_err("videoqueue: error %d while loading driver\n", ret);
 		goto error1;
 	}
-/*
- *#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
- *	resman_register_debug_callback("Display_VQ", set_vq_config);
- *#endif
- */
+#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
+	resman_register_debug_callback("Display_VQ", set_vq_config);
+#endif
 	return 0;
 error1:
 	unregister_chrdev(VIDEOQUEUE_MAJOR, videoqueue_DEVICE_NAME);

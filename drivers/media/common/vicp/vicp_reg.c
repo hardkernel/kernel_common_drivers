@@ -19,11 +19,14 @@
 #include <linux/io.h>
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/media/registers/regs/ao_regs.h>
+#include <linux/amlogic/tee.h>
 #include <linux/amlogic/power_domain.h>
 #include "vicp_reg.h"
 #include "vicp_log.h"
 
 #define VICPBUS_REG_ADDR(reg) ((reg) << 2)
+
+static u64 reg_addr_base;
 
 struct vicp_afbce_reg_s vicp_afbce_reg_array[VICP_SUPPORT_CHIP_MAX] = {
 	{
@@ -117,11 +120,80 @@ struct vicp_afbce_reg_s vicp_afbce_reg_array[VICP_SUPPORT_CHIP_MAX] = {
 		T3X_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_X,
 		T3X_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_Y,
 		T3X_VID_CMPR_AFBCE_MMU_RMIF_RO_STAT,
+	},
+	{
+		S6_VID_CMPR_AFBCE_ENABLE,
+		S6_VID_CMPR_AFBCE_MODE,
+		S6_VID_CMPR_AFBCE_SIZE_IN,
+		S6_VID_CMPR_AFBCE_BLK_SIZE_IN,
+		S6_VID_CMPR_AFBCE_HEAD_BADDR,
+		S6_VID_CMPR_AFBCE_MIF_SIZE,
+		S6_VID_CMPR_AFBCE_PIXEL_IN_HOR_SCOPE,
+		S6_VID_CMPR_AFBCE_PIXEL_IN_VER_SCOPE,
+		S6_VID_CMPR_AFBCE_CONV_CTRL,
+		S6_VID_CMPR_AFBCE_MIF_HOR_SCOPE,
+		S6_VID_CMPR_AFBCE_MIF_VER_SCOPE,
+		S6_VID_CMPR_AFBCE_STAT1,
+		S6_VID_CMPR_AFBCE_STAT2,
+		S6_VID_CMPR_AFBCE_FORMAT,
+		S6_VID_CMPR_AFBCE_MODE_EN,
+		S6_VID_CMPR_AFBCE_DWSCALAR,
+		S6_VID_CMPR_AFBCE_DEFCOLOR_1,
+		S6_VID_CMPR_AFBCE_DEFCOLOR_2,
+		S6_VID_CMPR_AFBCE_QUANT_ENABLE,
+		S6_VID_CMPR_AFBCE_IQUANT_LUT_1,
+		S6_VID_CMPR_AFBCE_IQUANT_LUT_2,
+		S6_VID_CMPR_AFBCE_IQUANT_LUT_3,
+		S6_VID_CMPR_AFBCE_IQUANT_LUT_4,
+		S6_VID_CMPR_AFBCE_RQUANT_LUT_1,
+		S6_VID_CMPR_AFBCE_RQUANT_LUT_2,
+		S6_VID_CMPR_AFBCE_RQUANT_LUT_3,
+		S6_VID_CMPR_AFBCE_RQUANT_LUT_4,
+		S6_VID_CMPR_AFBCE_YUV_FORMAT_CONV_MODE,
+		S6_VID_CMPR_AFBCE_DUMMY_DATA,
+		S6_VID_CMPR_AFBCE_CLR_FLAG,
+		S6_VID_CMPR_AFBCE_STA_FLAGT,
+		S6_VID_CMPR_AFBCE_MMU_NUM,
+		S6_VID_CMPR_AFBCE_PIP_CTRL,
+		S6_VID_CMPR_AFBCE_ROT_CTRL,
+		S6_VID_CMPR_AFBCE_DIMM_CTRL,
+		S6_VID_CMPR_AFBCE_BND_DEC_MISC,
+		S6_VID_CMPR_AFBCE_RD_ARB_MISC,
+		S6_VID_CMPR_AFBCE_MMU_RMIF_CTRL1,
+		S6_VID_CMPR_AFBCE_MMU_RMIF_CTRL2,
+		S6_VID_CMPR_AFBCE_MMU_RMIF_CTRL3,
+		S6_VID_CMPR_AFBCE_MMU_RMIF_CTRL4,
+		S6_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_X,
+		S6_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_Y,
+		S6_VID_CMPR_AFBCE_MMU_RMIF_RO_STAT,
 	}
 };
 
 struct vicp_lossy_compress_reg_s vicp_loss_reg_array[VICP_SUPPORT_CHIP_MAX] = {
 	{
+	},
+	{
+		T3X_VID_CMPR_AFBCE_LOSS_CTRL,
+		T3X_VID_CMPR_AFBCE_LOSS_BURST_NUM,
+		T3X_VID_CMPR_AFBCE_LOSS_RC,
+		T3X_VID_CMPR_AFBCE_LOSS_RC_FIFO_THD,
+		T3X_VID_CMPR_AFBCE_LOSS_RC_FIFO_BUGET,
+		T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_0,
+		T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_1,
+		T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_2,
+		T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_3,
+		T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_BUGET_0,
+		T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_BUGET_1,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_L_0,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_COUNT_0,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_L_1,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_COUNT_1,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_L_2,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_COUNT_2,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_H_0,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_H_1,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_MAX_ERROR_0,
+		T3X_VID_CMPR_AFBCE_LOSS_RO_MAX_ERROR_1,
 	},
 	{
 		T3X_VID_CMPR_AFBCE_LOSS_CTRL,
@@ -200,6 +272,44 @@ void vicp_vcbus_write(u32 reg, u32 val)
 #endif
 }
 
+u32 vicp_reg_tee_read(u32 reg)
+{
+	u32 addr = 0;
+	u32 val = 0;
+
+	addr = VICPBUS_REG_ADDR(reg);
+	tee_read_reg_bits(reg_addr_base + addr, &val, 0, 32);
+
+	return val;
+}
+
+void vicp_reg_tee_write(u32 reg, u32 val)
+{
+	u32 addr = 0;
+
+	addr = VICPBUS_REG_ADDR(reg);
+	tee_write_reg_bits(reg_addr_base + addr, val, 0, 32);
+}
+
+void vicp_reg_tee_set_bits(u32 reg, const u32 value, const u32 start, const u32 len)
+{
+	u32 addr = 0;
+
+	addr = VICPBUS_REG_ADDR(reg);
+	tee_write_reg_bits(reg_addr_base + addr, value, start, len);
+}
+
+u32 vicp_reg_tee_get_bits(u32 reg, const u32 start, const u32 len)
+{
+	u32 addr = 0;
+	u32 val = 0;
+
+	addr = VICPBUS_REG_ADDR(reg);
+	tee_read_reg_bits(reg_addr_base + addr, &val, start, len);
+
+	return val;
+}
+
 u32 vicp_reg_get_bits(u32 reg, const u32 start, const u32 len)
 {
 	u32 val;
@@ -227,6 +337,11 @@ u64 vicp_reg_read_addr(u64 addr)
 	val = readl((void __iomem *)(phys_to_virt(addr)));
 
 	return (val & 0xffffffff);
+}
+
+void vicp_reg_addr_base_init(u64 addr)
+{
+	reg_addr_base = addr;
 }
 
 u32 vicp_reg_array_init(enum vicp_support_chip_e chip, enum vicp_module_e module, void *array)

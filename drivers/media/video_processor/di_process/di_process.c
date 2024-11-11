@@ -24,12 +24,11 @@
 #include <linux/uaccess.h>
 #include <linux/file.h>
 #include <uapi/linux/sched/types.h>
+#include <linux/amlogic/meson_uvm_core.h>
 #include <linux/sched/clock.h>
 #include <linux/sync_file.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
-
-#include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/aml_sync_api.h>
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #include <linux/compat.h>
@@ -59,6 +58,9 @@ static u32 q_dropped = 1;
 static u32 di_pre_buf_count = 4;
 static u32 di_post_buf_count = 4;
 static u32 di_pre_buf_count_postlink = 7;
+static u32 compression_ratio_limit;
+static u32 di_rotate[DI_INSTANCE_COUNT];
+static u32 di_force_rotate;
 
 static DEFINE_MUTEX(di_process_mutex);
 
@@ -301,6 +303,17 @@ void dp_put_file_ext(int dev_index, struct file *file_vf)
 }
 EXPORT_SYMBOL(dp_put_file_ext);
 
+static void dp_put_file(struct di_process_dev *dev, struct file *file_vf)
+{
+	if (!file_vf) {
+		pr_err("file is NULL!!!\n");
+		return;
+	}
+
+	dp_put_file_ext(dev->index, file_vf);
+	dev->fput_count++;
+}
+
 static int init_dummy_vf_param(struct di_process_dev *dev, struct vframe_s *src_vf)
 {
 	struct userdata_param_t *userdata = NULL;
@@ -436,17 +449,6 @@ static int uninit_dummy_vf_param(struct di_process_dev *dev, struct di_buffer *b
 	return 0;
 }
 
-static void dp_put_file(struct di_process_dev *dev, struct file *file_vf)
-{
-	if (!file_vf) {
-		pr_err("file is NULL!!!\n");
-		return;
-	}
-
-	dp_put_file_ext(dev->index, file_vf);
-	dev->fput_count++;
-}
-
 int get_received_frame_free_index(struct di_process_dev *dev)
 {
 	int i = 0;
@@ -549,8 +551,8 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 	total_empty_count++;
 
 	dp_print(dev->index, PRINT_OTHER,
-		"di_empty_input_buffer frame_index=%d, empty_count = %lld, %d\n",
-		vf->frame_index, dev->empty_count, total_empty_count);
+		"%s: frame_index=%d, empty_count = %lld, %d\n",
+		__func__, vf->frame_index, dev->empty_count, total_empty_count);
 
 	return 0;
 }
@@ -716,7 +718,7 @@ static int di_process_thread(void *data)
 }
 
 /*empty done and fill done when di internal bypass*/
-int process_empty_done_buf(struct di_process_dev *dev, struct di_buffer *buf)
+int process_di_done_buf(struct di_process_dev *dev, struct di_buffer *buf, bool is_emptydone)
 {
 	int ret = 0;
 	struct file *file_vf = NULL;
@@ -738,13 +740,17 @@ int process_empty_done_buf(struct di_process_dev *dev, struct di_buffer *buf)
 			dp_print(dev->index, PRINT_ERROR,
 				"%s: processed_checkin fail\n", __func__);
 
-		/*bypass and di vf include dec vf, need put dec file after displayed*/
-		if (!(buf->flag & DI_FLAG_BUF_BY_PASS) &&
-			!(buf->vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) {
+		if (is_emptydone) {
 			dp_put_file(dev, file_vf);
 		} else {
-			dp_print(dev->index, PRINT_OTHER, "bypass or double vf, not put %px\n",
-				file_vf);
+			/*bypass and di vf include dec vf, need put dec file after displayed*/
+			if ((buf->flag & DI_FLAG_BUF_BY_PASS) ||
+			   (buf->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) ||
+			   ((buf->vf->type & VIDTYPE_DI_PW) && (buf->vf->type & VIDTYPE_COMPRESS)))
+				dp_print(dev->index, PRINT_OTHER, "need use DW vf, not put %px.\n",
+					file_vf);
+			else
+				dp_put_file(dev, file_vf);
 		}
 	}
 	return ret;
@@ -804,7 +810,7 @@ enum DI_ERRORTYPE dp_empty_input_done(struct di_buffer *buf)
 		  dev->empty_done_count,
 		  total_empty_done_count);
 
-	ret = process_empty_done_buf(dev, buf);
+	ret = process_di_done_buf(dev, buf, true);
 
 	/*here need release fence*/
 
@@ -816,8 +822,8 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	struct di_process_dev *dev = NULL;
 	struct dma_buf *dmabuf;
 	struct file_private_data *private_data = NULL;
-	bool dropped = false;
 	bool di_bypass = false;
+	struct vframe_s *dec_vf = NULL;
 
 	if (!buf) {
 		pr_err("%s: di_buffer is NULL\n", __func__);
@@ -830,18 +836,22 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 		return 0;
 	}
 
+	if (!buf->vf) {
+		dp_print(dev->index, PRINT_ERROR, "%s: vf is NULL\n", __func__);
+		return 0;
+	}
+
 	if (buf->flag & DI_FLAG_EOS)
 		dp_print(dev->index, PRINT_ERROR, "%s: eos\n", __func__);
 
 	if (buf->flag & DI_FLAG_BUF_BY_PASS) {
 		di_bypass = true;
 		dp_print(dev->index, PRINT_OTHER, "%s: di bypass\n", __func__);
+	} else {
+		dev->fill_done_count++;
+		total_fill_done_count++;
 	}
 
-	if (!buf->vf) {
-		dp_print(dev->index, PRINT_ERROR, "%s: vf is NULL\n", __func__);
-		return 0;
-	}
 	if (!dev->first_out)
 		dp_print(dev->index, PRINT_OTHER, "%s: DI output first frame\n", __func__);
 
@@ -854,19 +864,12 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	if (buf->caller_mng.dummy) {
 		dev->first_out = true;
 		dp_print(dev->index, PRINT_OTHER, "dummy frame out\n");
-	}
+	} else {
+		if (di_bypass)
+			dev->di_module_bypass = true;
+		else
+			dev->di_module_bypass = false;
 
-	dropped = buf->caller_mng.dropped;
-
-	if (!di_bypass) {
-		dev->fill_done_count++;
-		total_fill_done_count++;
-	}
-
-	if (dropped && !buf->caller_mng.dummy && di_bypass) {
-		dp_print(dev->index, PRINT_OTHER, "%s: fput drop file %px\n",
-			__func__, buf->caller_mng.src_file);
-		fput(buf->caller_mng.src_file);
 	}
 
 	dp_print(dev->index, PRINT_OTHER,
@@ -875,14 +878,18 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 		  dev->fill_done_count,
 		  total_fill_done_count);
 
-	if (dropped) {
+	if (buf->caller_mng.dropped) {
 		dp_print(dev->index, PRINT_OTHER, "%s:dropped\n", __func__);
-		if (di_bypass)
-			process_empty_done_buf(dev, buf);
-		else
+		if (di_bypass) {
+			if (!buf->caller_mng.dummy)
+				fput(buf->caller_mng.src_file);
+			process_di_done_buf(dev, buf, false);
+		} else {
 			queue_outbuf_to_di(dev, buf);
+		}
 		return 0;
 	}
+
 	if (!kfifo_get(&dev->file_wait_q, &dmabuf)) {
 		dp_print(dev->index, PRINT_ERROR, "get file wait fail!!!\n");
 		return -EINVAL;
@@ -898,6 +905,20 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 
 	private_data->vf = *buf->vf;
 	private_data->vf_p = (struct vframe_s *)buf;
+
+	if ((buf->vf->type & VIDTYPE_DI_PW) && (buf->vf->type & VIDTYPE_COMPRESS)) {
+		dp_print(dev->index, PRINT_OTHER, "need use dec vf.\n");
+		dec_vf = get_vf_from_file(dev, buf->caller_mng.src_file);
+		if (dec_vf) {
+			private_data->vf_ext = *dec_vf;
+			private_data->vf_ext_p = dec_vf;
+			private_data->vf.vf_ext = &private_data->vf_ext;
+			private_data->vf.flag |= VFRAME_FLAG_DOUBLE_FRAM;
+		} else {
+			dp_print(dev->index, PRINT_ERROR, "%s: decoder buf is NULL.\n", __func__);
+		}
+	}
+
 	if (di_bypass)
 		private_data->flag = V4LVIDEO_FLAG_DI_BYPASS;
 	else
@@ -906,13 +927,17 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	private_data->is_keep = true;
 
 	if (di_bypass) {
-		process_empty_done_buf(dev, buf);
+		process_di_done_buf(dev, buf, false);
 	} else {
+		dp_print(dev->index, PRINT_OTHER, "%s:rotate=%d.\n", __func__, dev->di_do_rotate);
+		if (dev->di_do_rotate)
+			private_data->vf.type_ext |= VIDTYPE_EXT_DI_DO_ROTATE;
 		/*not bypass and di vf include dec vf, need get dec file*/
 		dp_print(dev->index, PRINT_OTHER,
 			"%s: has dec vf, vf=%px, file=%px\n",
 			__func__, buf->vf, buf->caller_mng.src_file);
-		if (buf->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+		if ((buf->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) ||
+			((buf->vf->type & VIDTYPE_DI_PW) && (buf->vf->type & VIDTYPE_COMPRESS))) {
 			dp_get_file_ext(dev, buf->caller_mng.src_file);
 			update_di_process_state(buf->caller_mng.src_file);
 		} else {
@@ -1009,8 +1034,6 @@ static void receive_q_uninit(struct di_process_dev *dev)
 
 static int di_process_init(struct di_process_dev *dev)
 {
-	struct sched_param param = {.sched_priority = 2};
-
 	dev->di_index = -1;
 
 	dev->di_parm.work_mode = WORK_MODE_PRE_POST;
@@ -1019,7 +1042,16 @@ static int di_process_init(struct di_process_dev *dev)
 	dev->di_parm.ops.empty_input_done = dp_empty_input_done;
 	dev->di_parm.ops.fill_output_done = dp_fill_output_done;
 	dev->di_parm.caller_data = (void *)dev;
-	dev->di_parm.buffer_keep = 0;
+	dev->di_parm.buffer_keep = 1;
+
+	if (di_rotate[dev->index] == DI_BACKEND_TRANSFORM_90) {
+		dev->di_parm.work_mode = WORK_MODE_ROTATION;
+		dev->di_do_rotate = 1;
+	} else if (di_rotate[dev->index] == DI_BACKEND_TRANSFORM_270) {
+		dev->di_parm.work_mode = WORK_MODE_ROTATION_270;
+		dev->di_do_rotate = 1;
+	}
+
 	dev->di_index = di_create_instance(dev->di_parm);
 	if (dev->di_index < 0) {
 		dp_print(dev->index, PRINT_ERROR,
@@ -1044,12 +1076,12 @@ static int di_process_init(struct di_process_dev *dev)
 	dev->fence_creat_count = 0;
 	dev->fence_release_count = 0;
 
-	dev->kthread = NULL;
-	dev->thread_need_stop = false;
 	dev->last_dec_type = DEC_TYPE_MAX;
 	dev->last_instance_id = 0xFFFFFFFF;
 	dev->last_buf_mgr_reset_id = 0xFFFFFFFF;
 	dev->last_frame_index = 0xFFFFFFFF;
+	dev->last_vf.type = 0;
+	dev->di_module_bypass = false;
 	dev->first_out = false;
 	dev->q_dummy_frame_done = false;
 	dev->last_frame_bypass = false;
@@ -1057,22 +1089,7 @@ static int di_process_init(struct di_process_dev *dev)
 
 	receive_q_init(dev);
 	di_input_free_q_init(dev);
-
 	file_q_init(dev);
-
-	init_waitqueue_head(&dev->wq);
-
-	dev->kthread = kthread_create(di_process_thread,
-				      dev, dev->port->name);
-	if (IS_ERR(dev->kthread)) {
-		pr_err("di_process_thread creat failed\n");
-		return -ENOMEM;
-	}
-
-	if (sched_setscheduler(dev->kthread, SCHED_FIFO, &param))
-		dp_print(dev->index, PRINT_ERROR, "Could not set realtime priority.\n");
-
-	wake_up_process(dev->kthread);
 
 	return 0;
 }
@@ -1085,25 +1102,6 @@ static int di_process_uninit(struct di_process_dev *dev)
 	struct di_buffer *buf;
 
 	dev->inited = false;
-
-	if (dev->kthread) {
-		dev->thread_need_stop = true;
-		kthread_stop(dev->kthread);
-		wake_up_interruptible(&dev->wq);
-		dev->kthread = NULL;
-		dev->thread_need_stop = false;
-	}
-
-	while (1) {
-		i++;
-		if (dev->thread_stopped)
-			break;
-		usleep_range(9000, 10000);
-		if (i > WAIT_THREAD_STOPPED_TIMEOUT) {
-			pr_err("wait thread timeout\n");
-			break;
-		}
-	}
 
 	if (dev->di_index >= 0) {
 		ret = di_destroy_instance(dev->di_index);
@@ -1124,8 +1122,13 @@ static int di_process_uninit(struct di_process_dev *dev)
 			dp_print(dev->index, PRINT_OTHER,
 				  "%s frame_index=%d\n", __func__, buf->vf->frame_index);
 			dropped = buf->caller_mng.dropped;
-			if (!dropped)
+			if (!dropped) {
+				ret = di_processed_checkin(buf->caller_mng.src_file);
+				if (ret != 0)
+					dp_print(dev->index, PRINT_ERROR,
+						" uninit not empty done buf failed.\n");
 				dp_put_file(dev, buf->caller_mng.src_file);
+			}
 
 			buf->caller_mng.queued = false;
 
@@ -1186,6 +1189,82 @@ static int di_process_set_tvp(struct di_process_dev *dev, bool is_tvp)
 	return 0;
 }
 
+static bool check_vf_compression_ratio(struct di_process_dev *dev, struct vframe_s *vf)
+{
+	bool ret = false;
+	int src_size = 0, estimated_size = 0;
+
+	if (!dev || !vf) {
+		pr_err("%s: param is invalid.\n", __func__);
+		return ret;
+	}
+
+	if (!(vf->type & VIDTYPE_COMPRESS)) {
+		dp_print(dev->index, PRINT_OTHER, "not compress, no need check.\n");
+		return false;
+	}
+
+	if (vf->type & VIDTYPE_VIU_422)
+		src_size = vf->compWidth * vf->compHeight * 8 * 2;
+	else if (vf->type & VIDTYPE_VIU_444)
+		src_size = vf->compWidth * vf->compHeight * 8 * 3;
+	else//default or 420
+		src_size = vf->compWidth * vf->compHeight * 8 * 3 / 2;
+
+	if (vf->bitdepth & BITDEPTH_Y10)
+		src_size = src_size / 10;
+	else
+		src_size = src_size / 8;
+
+	dp_print(dev->index, PRINT_OTHER,
+		"scatter_size:%d, src_size:%d, compression_ratio:%d.\n",
+		vf->scatter_mem_size, src_size, compression_ratio_limit);
+
+	estimated_size = src_size * compression_ratio_limit / 100;
+	if (vf->scatter_mem_size < estimated_size)
+		ret = true;
+	else
+		ret = false;
+
+	return ret;
+}
+
+static bool check_need_do_di(struct di_process_dev *dev, struct vframe_s *vf)
+{
+	bool need_do_di = true;
+
+	if (!dev || !vf) {
+		pr_err("%s: param is invalid.\n", __func__);
+		return need_do_di;
+	}
+
+	/*over compression ratio*/
+	if (check_vf_compression_ratio(dev, vf)) {
+		dp_print(dev->index, PRINT_OTHER, "over compression ratio, bypass di.\n");
+		need_do_di = false;
+	}
+
+	/*lcevc no need do di*/
+	if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+		dp_print(dev->index, PRINT_OTHER, "lcevc mode,no need do di.\n");
+		need_do_di = false;
+	}
+
+	/*game mode no need do di*/
+	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+		dp_print(dev->index, PRINT_OTHER, "game mode,no need do di.\n");
+		need_do_di = false;
+	}
+
+	/*low latency mode no need do di*/
+	if (vf->fence) {
+		dp_print(dev->index, PRINT_OTHER, "low latency mode,no need do di.\n");
+		need_do_di = false;
+	}
+
+	return need_do_di;
+}
+
 static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t *frame_info)
 {
 	int i;
@@ -1195,11 +1274,11 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	int out_fd;
 	int out_fence_fd;
 	struct file_private_data *private_data = NULL;
-	int ret;
 	u32 is_repeat = false;
 	u32 frame_index = 0;
 	u32 max_width_new = 0, max_width_last = 0;
 	bool ip_switch = false, tvp_switch = false;
+	bool need_do_dummy = false;
 
 	if (!dev || !frame_info) {
 		pr_err("%s: param is invalid.\n", __func__);
@@ -1223,14 +1302,49 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	vf = get_vf_from_file(dev, file_vf);
 	if (!vf) {
 		dp_print(dev->index, PRINT_OTHER, "fd no vf, bypass\n");
-		ret = -EINVAL;
-		goto error1;
+		dp_put_file(dev, file_vf);
+		return -EINVAL;
 	}
+
+	if (di_force_rotate)
+		frame_info->transform = di_force_rotate;
 
 	dp_print(dev->index, PRINT_OTHER,
 		"%s: len =%d, fd=%d, frame_index=%d, file_vf=%px, file_count=%ld\n",
 		__func__, kfifo_len(&dev->receive_q), frame_info->in_fd, vf->frame_index,
 		 file_vf, file_count(file_vf));
+
+	if ((vf->type & VIDTYPE_COMPRESS) &&
+		di_rotate[dev->index] != frame_info->transform) {
+		switch (frame_info->transform) {
+		case DI_BACKEND_TRANSFORM_90:
+			di_rotate[dev->index] = DI_BACKEND_TRANSFORM_90;
+			break;
+		case DI_BACKEND_TRANSFORM_270:
+			di_rotate[dev->index] = DI_BACKEND_TRANSFORM_270;
+			break;
+		default:
+			di_rotate[dev->index] = 0;
+			break;
+		}
+		dp_print(dev->index, PRINT_ERROR,
+			"%s: di need do rotate %d,need reset!!!\n",
+			__func__, di_rotate[dev->index]);
+		dp_put_file(dev, file_vf);
+		return 2;
+	}
+
+	if (!check_need_do_di(dev, vf)) {
+		frame_info->out_fd = -1;
+		frame_info->out_fence_fd = -1;
+		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+		frame_info->frame_index = vf->frame_index;
+		frame_info->need_bypass = true;
+		dev->last_file = file_vf;
+
+		dp_put_file(dev, file_vf);
+		return 0;
+	}
 
 	/*vf need check tvp switch*/
 	if (dev->last_vf.type == 0) {
@@ -1243,26 +1357,24 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		}
 	} else {
 		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) && !dev->di_is_tvp) {
-			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to tvp.\n");
+			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to tvp.\n");
 			tvp_switch = true;
 		} else if (!(vf->flag & VFRAME_FLAG_VIDEO_SECURE) && dev->di_is_tvp) {
-			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to non-tvp.\n");
+			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to non-tvp.\n");
 			tvp_switch = true;
 		} else {
 			tvp_switch = false;
 		}
 
-		/*need check I/P switch when vpp pre link*/
-		if (dim_get_pre_link()) {
-			if ((vf->type & VIDTYPE_INTERLACE) && !dev->cur_is_i) {
-				dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to I.\n");
-				ip_switch = true;
-			} else if (!(vf->type & VIDTYPE_INTERLACE) && dev->cur_is_i) {
-				dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to P.\n");
-				ip_switch = true;
-			} else {
-				ip_switch = false;
-			}
+		/*need check I/P switch*/
+		if ((vf->type & VIDTYPE_INTERLACE) && !dev->cur_is_i) {
+			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to I.\n");
+			ip_switch = true;
+		} else if (!(vf->type & VIDTYPE_INTERLACE) && dev->cur_is_i) {
+			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to P.\n");
+			ip_switch = true;
+		} else {
+			ip_switch = false;
 		}
 
 		if (tvp_switch || ip_switch) {
@@ -1291,21 +1403,28 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	max_width_new = vf->compWidth >= vf->width ? vf->compWidth : vf->width;
 	max_width_last = dev->last_vf.compWidth >= dev->last_vf.width
 		? dev->last_vf.compWidth : dev->last_vf.width;
-	if ((!(dev->last_vf.type & VIDTYPE_INTERLACE) && (vf->type & VIDTYPE_INTERLACE)) ||
-		(max_width_last <= 1920 && max_width_new > 1920) ||
-		(max_width_last > 1920 && max_width_new <= 1920)) {
+	if (!(dev->last_vf.type & VIDTYPE_INTERLACE) && (vf->type & VIDTYPE_INTERLACE)) {
 		dp_print(dev->index, PRINT_OTHER, "fmt change\n");
-		if (dev->first_out) {
-			dev->first_out = false;
-			dev->q_dummy_frame_done = false;
-		}
+		need_do_dummy = true;
+	}
+
+	if (!dim_get_pre_link() &&
+		((max_width_last <= 1920 && max_width_new > 1920) ||
+		(max_width_last > 1920 && max_width_new <= 1920))) {
+		dp_print(dev->index, PRINT_OTHER, "input size change\n");
+		need_do_dummy = true;
+	}
+
+	if (dev->first_out && need_do_dummy) {
+		dev->first_out = false;
+		dev->q_dummy_frame_done = false;
 	}
 
 	frame_index = vf->frame_index;
 	dev->last_vf = *vf;
 
 	if (!dev->first_out) {
-		dp_print(dev->index, PRINT_OTHER, "not first out.\n");
+		dp_print(dev->index, PRINT_OTHER, "dummy frame has not been output yet.\n");
 		dev->last_frame_bypass = true;
 		if (dev->q_dummy_frame_done) {
 			frame_info->out_fd = -1;
@@ -1356,7 +1475,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			dev->dummy_vf1.vf_ud_param.magic_code = 0;
 			dev->dummy_vf1.src_fmt.sei_magic_code = 0;
 
-			if (dim_get_post_link()) {
+			if (dim_get_post_link() || dim_get_pre_link()) {
 				dev->dummy_vf1.type &= ~0x2;
 			} else {
 				dev->dummy_vf1.type &= ~VIDTYPE_TYPEMASK;
@@ -1407,13 +1526,26 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		is_repeat = true;
 		out_fence_fd = -1;
 	} else {
-		i = get_received_frame_free_index(dev);
+		if (dev->di_module_bypass && vf->type & VIDTYPE_INTERLACE) {
+			frame_info->out_fd = -1;
+			frame_info->out_fence_fd = -1;
+			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+			frame_info->frame_index = vf->frame_index;
+			frame_info->need_bypass = true;
+			dev->last_file = file_vf;
 
+			dp_print(dev->index, PRINT_OTHER, "di bypass.\n");
+			dp_put_file(dev, file_vf);
+			return 0;
+		}
+
+		i = get_received_frame_free_index(dev);
 		if (!kfifo_get(&dev->file_free_q, &dmabuf)) {
 			dp_print(dev->index, PRINT_ERROR, "peek free dma_buf fail!!!\n");
-			ret = -EINVAL;
-			goto error1;
+			dp_put_file(dev, file_vf);
+			return -EINVAL;
 		}
+
 		private_data = di_proc_get_file_private_data(dmabuf->file, true);
 
 		//private_data->vf = *vf;
@@ -1422,6 +1554,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		private_data->vf.index_disp = vf->index_disp;
 		private_data->file = file_vf;
 		frame_index = vf->frame_index;
+
+		out_fence_fd = dp_timeline_create_fence(dev);
 
 		if (!kfifo_put(&dev->file_wait_q, dmabuf))
 			dp_print(dev->index, PRINT_ERROR, "put file_wait fail\n");
@@ -1436,8 +1570,6 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			dp_print(dev->index, PRINT_ERROR, "put ready fail\n");
 
 		wake_up_interruptible(&dev->wq);
-
-		out_fence_fd = dp_timeline_create_fence(dev);
 	}
 
 	frame_info->out_fence_fd = out_fence_fd;
@@ -1462,11 +1594,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	dev->last_file = file_vf;
 	dev->last_dmabuf = dmabuf;
 	dev->last_frame_bypass = false;
-	return 0;
 
-error1:
-	dp_put_file(dev, file_vf);
-	return ret;
+	return 0;
 }
 
 static int di_process_q_output(struct di_process_dev *dev, u32 fd)
@@ -1477,8 +1606,7 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 	struct dma_buf *dmabuf;
 	struct vframe_s *vf;
 	int frame_index = -1;
-
-	dp_print(dev->index, PRINT_OTHER, "%s: fd = %d\n", __func__, fd);
+	bool need_put_dw = false;
 
 	file_vf = fget(fd);
 	if (!file_vf) {
@@ -1491,11 +1619,11 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 	}
 	total_get_count++;
 	dp_print(dev->index, PRINT_OTHER,
-		"%s: file_vf=%px, file_vf->private_data=%px\n",
-		__func__, file_vf, file_vf->private_data);
+		"%s: fd=%d, file_vf=%px, file_vf->private_data=%px\n",
+		__func__, fd, file_vf, file_vf->private_data);
 
 	private_data = di_proc_get_file_private_data(file_vf, false);
-	if (!private_data) {
+	if (!private_data || !private_data->vf_p) {
 		dp_print(dev->index, PRINT_ERROR,
 			"%s: private_data null, put file=%px.\n",
 			__func__, file_vf);
@@ -1505,23 +1633,37 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 	}
 	/*if di bypass, not need queue di_buffer to di, it is input di_buffer*/
 	if (private_data->flag & V4LVIDEO_FLAG_DI_V3) {
-		di_p = (struct di_buffer *)(private_data->vf_p);
 		dp_print(dev->index, PRINT_OTHER,
 			"%s: no bypss need put file=%px.\n",
 			__func__, private_data->file);
+		di_p = (struct di_buffer *)(private_data->vf_p);
 		/*di vf has dec vf, need put dec file*/
-		if (di_p->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+		if (di_p->vf) {
 			/*decoder vf maybe free, so should not to use vf struct*/
-			vf = di_p->vf->vf_ext;
-			if (vf && private_data->file)
-				dp_put_file(dev, private_data->file);
-			else
-				dp_print(dev->index, PRINT_ERROR,
-					"%s: has dec vf, but vf/file is null vf=%px.\n",
-					__func__, vf);
-			private_data->file = NULL;
+			if (di_p->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+				need_put_dw = true;
+				vf = di_p->vf->vf_ext;
+			} else if ((di_p->vf->type & VIDTYPE_DI_PW) &&
+				(di_p->vf->type & VIDTYPE_COMPRESS)) {
+				need_put_dw = true;
+				vf = private_data->vf_ext_p;
+			} else {
+				need_put_dw = false;
+				vf = NULL;
+			}
+
+			if (need_put_dw) {
+				if (vf && private_data->file) {
+					frame_index = vf->frame_index;
+					dp_put_file(dev, private_data->file);
+				} else {
+					dp_print(dev->index, PRINT_ERROR,
+						"%s: has dec vf, but vf/file is null vf=%px.\n",
+						__func__, vf);
+				}
+				private_data->file = NULL;
+			}
 		}
-		frame_index = di_p->vf->frame_index;
 		queue_outbuf_to_di(dev, di_p);
 	} else if (private_data->flag & V4LVIDEO_FLAG_DI_BYPASS) {
 		/*di bypass, need put dec file*/
@@ -1610,6 +1752,7 @@ static int di_process_open(struct inode *inode, struct file *file)
 	struct di_process_dev *dev;
 	struct di_process_port_s *port;
 	int index;
+	struct sched_param param = {.sched_priority = 2};
 
 	index = iminor(inode);
 	pr_info("%s iminor(inode) =%d\n", __func__, index);
@@ -1643,6 +1786,19 @@ static int di_process_open(struct inode *inode, struct file *file)
 
 	mutex_unlock(&di_process_mutex);
 
+	dev->thread_need_stop = false;
+	init_waitqueue_head(&dev->wq);
+	dev->kthread = kthread_create(di_process_thread, dev, dev->port->name);
+	if (IS_ERR(dev->kthread)) {
+		pr_err("di_process_thread creat failed\n");
+		return -ENOMEM;
+	}
+
+	if (sched_setscheduler(dev->kthread, SCHED_FIFO, &param))
+		dp_print(dev->index, PRINT_ERROR, "Could not set realtime priority.\n");
+
+	wake_up_process(dev->kthread);
+
 	return 0;
 }
 
@@ -1650,12 +1806,31 @@ static int di_process_release(struct inode *inode, struct file *file)
 {
 	struct di_process_dev *dev = file->private_data;
 	struct di_process_port_s *port = dev->port;
-	int ret = 0;
+	int ret = 0, i = 0;
 
 	pr_info("di process release\n");
 
 	if (iminor(inode) >= di_process_instance_num)
 		return -ENODEV;
+
+	if (dev->kthread) {
+		dev->thread_need_stop = true;
+		kthread_stop(dev->kthread);
+		wake_up_interruptible(&dev->wq);
+		dev->kthread = NULL;
+		dev->thread_need_stop = false;
+	}
+
+	while (1) {
+		i++;
+		if (dev->thread_stopped)
+			break;
+		usleep_range(9000, 10000);
+		if (i > WAIT_THREAD_STOPPED_TIMEOUT) {
+			pr_err("wait thread timeout\n");
+			break;
+		}
+	}
 
 	if (dev->inited) {
 		dp_print(dev->index, PRINT_ERROR,
@@ -1903,6 +2078,53 @@ static ssize_t di_pre_buf_count_postlink_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t compression_ratio_limit_show(const struct class *class,
+				      const struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", compression_ratio_limit);
+}
+
+static ssize_t compression_ratio_limit_store(const struct class *cla,
+
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	compression_ratio_limit = tmp;
+	return count;
+}
+
+static ssize_t di_force_rotate_show(const struct class *class,
+				      const struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", di_force_rotate);
+}
+
+static ssize_t di_force_rotate_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	di_force_rotate = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(total_get_count);
 static CLASS_ATTR_RO(total_put_count);
@@ -1918,6 +2140,8 @@ static CLASS_ATTR_RW(q_dropped);
 static CLASS_ATTR_RW(di_pre_buf_count);
 static CLASS_ATTR_RW(di_post_buf_count);
 static CLASS_ATTR_RW(di_pre_buf_count_postlink);
+static CLASS_ATTR_RW(compression_ratio_limit);
+static CLASS_ATTR_RW(di_force_rotate);
 
 static struct attribute *di_process_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -1935,6 +2159,8 @@ static struct attribute *di_process_class_attrs[] = {
 	&class_attr_di_pre_buf_count.attr,
 	&class_attr_di_post_buf_count.attr,
 	&class_attr_di_pre_buf_count_postlink.attr,
+	&class_attr_compression_ratio_limit.attr,
+	&class_attr_di_force_rotate.attr,
 	NULL
 };
 

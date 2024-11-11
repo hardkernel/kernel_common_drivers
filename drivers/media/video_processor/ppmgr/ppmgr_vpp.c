@@ -1240,10 +1240,10 @@ static int get_source_type(struct vframe_s *vf)
 static int get_input_format(struct vframe_s *vf)
 {
 	int format = GE2D_FORMAT_M24_YUV420;
-	enum ppmgr_source_type soure_type;
+	enum ppmgr_source_type source_type;
 
-	soure_type = (enum ppmgr_source_type)get_source_type(vf);
-	switch (soure_type) {
+	source_type = (enum ppmgr_source_type)get_source_type(vf);
+	switch (source_type) {
 	case DECODER_8BIT_NORMAL:
 		if (vf->type & VIDTYPE_VIU_422)
 			format = GE2D_FORMAT_S16_YUV422;

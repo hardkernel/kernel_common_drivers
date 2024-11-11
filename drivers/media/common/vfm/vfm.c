@@ -442,7 +442,7 @@ static void vfm_init(void)
 	char def_dvhdmiin_chain[] = "dv_vdin amvideo";
 
 	char tvpath_pip_id[VFM_NAME_LEN] = "tvpath_pip";
-	char tvpath_pip_chain[] = "vdin2 dimulti.1 videoqueue.1";
+	char tvpath_pip_chain[] = "vdin2 dimulti.2 videoqueue.1";
 	int i;
 
 	for (i = 0; i < VFM_MAP_COUNT; i++)

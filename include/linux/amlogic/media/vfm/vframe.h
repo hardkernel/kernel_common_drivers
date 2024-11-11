@@ -67,6 +67,7 @@
 #define VIDTYPE_EXT_BYPASS_DETUNNEL	0x4
 #define VIDTYPE_EXT_VDIN_HDCP		0x8
 #define VIDTYPE_EXT_LCEVC		0x10
+#define VIDTYPE_EXT_DI_DO_ROTATE	0x20
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
@@ -344,7 +345,8 @@ enum vframe_signal_fmt_e {
 	VFRAME_SIGNAL_FMT_CUVA_HDR = 8,
 	VFRAME_SIGNAL_FMT_CUVA_HLG = 9,
 	VFRAME_SIGNAL_FMT_SDR_2020 = 10,
-	VFRAME_SIGNAL_FMT_MAX = 11
+	VFRAME_SIGNAL_FMT_HDR10_709_SOURCE  = 11,
+	VFRAME_SIGNAL_FMT_MAX = 12
 };
 
 #define SEI_MAGIC_CODE 0x53656920 /* SEI */
@@ -598,6 +600,12 @@ enum dec_set_screen_mode_t {
 	VIDEO_OPTION_NORMAL = 1,
 };
 
+enum dec_fence_status_t {
+	DEC_FENCE_INVALID = 0,
+	DEC_FENCE_SUCCESS = 1,
+	DEC_FENCE_ERR = 2,
+};
+
 #define VF_UD_MAX_SIZE 5120 /* 5K size */
 #define UD_MAGIC_CODE 0x55445020 /* UDP */
 #define is_ud_param_valid(ud) ((ud.magic_code) == UD_MAGIC_CODE)
@@ -805,6 +813,7 @@ struct vframe_s {
 	u32 codec_vfmt;
 	/*for di process NR and cts, storage dec vf*/
 	void *vf_ext;
+	void *enhance_vf;
 	u32 di_cm_cnt;
 	u32 dwHeadAddr;
 	u32 dwBodyAddr;
@@ -862,6 +871,7 @@ struct vframe_s {
 	u32 frame_irq_cnt;
 	/*decoder set screen mode, vpp using this 1st priority*/
 	enum dec_set_screen_mode_t dec_set_screen_mode;
+	enum dec_fence_status_t dec_fence_status;
 	u32 decoder_instid;
 	struct vf_vrr_param_s vf_vrr_param;
 } /*vframe_t */;

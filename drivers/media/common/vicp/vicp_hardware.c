@@ -9,6 +9,7 @@
 #include "vicp_rdma.h"
 
 static u32 rdma_enable_flag;
+static u32 enhance_sec_flag;
 
 static int pps_lut_tap8[33][8] = {{0, 0, 0, 128, 0, 0, 0, 0},
 			{-1, 1, 0, 127, 2, -1, 1, -1},
@@ -113,14 +114,21 @@ static int pps_lut_tap4_s11[33][4] =  {{0, 512, 0, 0},
 
 static struct vicp_afbce_reg_s afbce_reg;
 static struct vicp_lossy_compress_reg_s lossy_compress_reg;
+static enum meson_cpuid_type_e meson_cpuid;
 
 void init_vicp_module_reg(enum meson_cpuid_type_e cpuid)
 {
+	meson_cpuid = cpuid;
+
 	if (cpuid == MESON_CPU_MAJOR_ID_S5) {
 		vicp_reg_array_init(VICP_SUPPORT_CHIP_S5, VICP_MODULE_AFBCE, &afbce_reg);
 	} else if (cpuid == MESON_CPU_MAJOR_ID_T3X) {
-		vicp_reg_array_init(VICP_SUPPORT_CHIP_t3X, VICP_MODULE_AFBCE, &afbce_reg);
-		vicp_reg_array_init(VICP_SUPPORT_CHIP_t3X, VICP_MODULE_LOSSY_COMPRESS,
+		vicp_reg_array_init(VICP_SUPPORT_CHIP_T3X, VICP_MODULE_AFBCE, &afbce_reg);
+		vicp_reg_array_init(VICP_SUPPORT_CHIP_T3X, VICP_MODULE_LOSSY_COMPRESS,
+			&lossy_compress_reg);
+	} else if (cpuid == MESON_CPU_MAJOR_ID_S6) {
+		vicp_reg_array_init(VICP_SUPPORT_CHIP_S6, VICP_MODULE_AFBCE, &afbce_reg);
+		vicp_reg_array_init(VICP_SUPPORT_CHIP_S6, VICP_MODULE_LOSSY_COMPRESS,
 			&lossy_compress_reg);
 	} else {
 		vicp_print(VICP_ERROR, "%s: this chip don't support vicp.\n", __func__);
@@ -139,7 +147,10 @@ void set_module_start(u32 is_start)
 
 void set_module_reset(void)
 {
-	return write_vicp_reg_bits(VID_CMPR_SW_RESETS, 1, 15, 1);
+	if (meson_cpuid == MESON_CPU_MAJOR_ID_S6)
+		write_vicp_reg_bits(S6_VID_CMPR_RESET, 1, 0, 1);
+	else
+		write_vicp_reg_bits(VID_CMPR_SW_RESETS, 1, 15, 1);
 }
 
 void set_rdma_start(u32 input_count)
@@ -1234,6 +1245,17 @@ void set_security_enable(u32 dma_en, u32 mmu_en, u32 input_en)
 	return write_vicp_reg(VID_CMPR_SEC_CTRL, value);
 }
 
+void set_crc_control(struct vicp_crc_reg_t crc_reg)
+{
+	u32 value = 0;
+
+	value = ((crc_reg.crc_sec_sel & 0x3) << 8) |
+		((crc_reg.crc_start & 0x3) << 4) |
+		((crc_reg.crc_check_en & 0x3) << 0);
+
+	return write_vicp_reg(VID_CMPR_CRC_CTRL, value);
+}
+
 void set_fgrain_control(struct vicp_fgrain_ctrl_reg_s fgrain_ctrl_reg)
 {
 	u32 value = 0;
@@ -1280,6 +1302,41 @@ void set_fgrain_window_v(u32 begain, u32 end)
 	return write_vicp_reg(VID_CMPR_AFBCDM_FGRAIN_WIN_V, value);
 }
 
+void set_fgrain_alone_mode_control(struct vicp_fgrain_alone_mode_ctrl_reg_s alone_ctrl_reg)
+{
+	u32 value = 0;
+
+	value = ((alone_ctrl_reg.debug_demo_inverse & 0x1) << 25) |
+		((alone_ctrl_reg.debug_demo_en & 0x1) << 24) |
+		((alone_ctrl_reg.final_gain_1 & 0xff) << 16) |
+		((alone_ctrl_reg.final_gain_0 & 0xff) << 8) |
+		((alone_ctrl_reg.lut_up_mode & 0x1) << 1) |
+		((alone_ctrl_reg.alone_mode & 0x1));
+
+	return write_vicp_reg(VID_CMPR_AFBCDM_FGRAIN_ALONE_MODE_CTRL, value);
+}
+
+void set_fgrain_path_control(u32 is_enable)
+{
+	return write_vicp_reg_bits(VID_CMPR_FGRAIN_PATH_CTRL, is_enable, 0, 1);
+}
+
+void set_fgrain_post_control(struct vicp_fgrain_post_ctrl_reg_s post_ctrl_reg)
+{
+	u32 value = 0;
+
+	value = ((post_ctrl_reg.hsize & 0x1fff) << 16) |
+		((post_ctrl_reg.post_gclk_ctrl & 0xf) << 8) |
+		((post_ctrl_reg.sync_ctrl & 0x1) << 7) |
+		((post_ctrl_reg.use_inp_mode & 0x1) << 6) |
+		((post_ctrl_reg.mode_422to444 & 0x3) << 4) |
+		((post_ctrl_reg.mode_444to422 & 0x3) << 2) |
+		((post_ctrl_reg.inp_422 & 0x1) << 1) |
+		((post_ctrl_reg.post_en & 0x1));
+
+	return write_vicp_reg(VID_CMPR_FGRAIN_POST_CTRL, value);
+}
+
 void set_fgrain_slice_window_h(u32 begain, u32 end)
 {
 	u32 value = 0;
@@ -1294,8 +1351,29 @@ void set_fgrain_lut_data(u32 val)
 	return write_vicp_reg(VID_CMPR_FGRAIN_LUT_DATA, val);
 }
 
+void set_fgrain_ppconv_size(u32 size_h, u32 size_v)
+{
+	u32 value = 0;
+
+	value = ((size_v & 0x3fff) << 16) | ((size_h & 0x3fff) << 0);
+
+	return write_vicp_reg(VID_CMPR_AFBCDM_VDTOP_CTRL1, value);
+}
+
+void set_enhance_sec_enable(u32 enable)
+{
+	enhance_sec_flag = enable;
+	if (enable)
+		write_vicp_reg(VID_CMPR_SEC_MODE_CTRL, 0xa);
+	else
+		write_vicp_reg(VID_CMPR_SEC_MODE_CTRL, 0x5);
+}
+
 int read_vicp_reg(u32 reg)
 {
+	if (enhance_sec_flag)
+		return vicp_reg_tee_read(reg);
+
 	return vicp_reg_read(reg);
 }
 
@@ -1303,6 +1381,9 @@ void write_vicp_reg(u32 reg, u32 val)
 {
 	struct rdma_buf_type_s *buf = NULL;
 	vicp_print(VICP_DUMP_REG, "%s: set reg 0x%04x with 0x%08x\n", __func__, reg, val);
+
+	if (enhance_sec_flag)
+		return vicp_reg_tee_write(reg, val);
 
 	if (rdma_enable_flag) {
 		buf = get_current_vicp_rdma_buf();
@@ -1313,11 +1394,26 @@ void write_vicp_reg(u32 reg, u32 val)
 	}
 }
 
+int read_vicp_reg_bits(u32 reg, const u32 start, const u32 len)
+{
+	u32 value = 0;
+
+	if (enhance_sec_flag)
+		value = vicp_reg_tee_get_bits(reg, start, len);
+	else
+		value = vicp_reg_get_bits(reg, start, len);
+
+	return value;
+}
+
 void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 len)
 {
 	struct rdma_buf_type_s *buf = NULL;
 	vicp_print(VICP_DUMP_REG, "%s: set reg 0x%04x from %d to %d bit with 0x%08x\n",
 		__func__, reg, start, (start + len - 1), value);
+
+	if (enhance_sec_flag)
+		return vicp_reg_tee_set_bits(reg, value, start, len);
 
 	if (rdma_enable_flag) {
 		buf = get_current_vicp_rdma_buf();

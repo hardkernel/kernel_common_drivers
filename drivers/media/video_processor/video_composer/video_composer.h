@@ -96,6 +96,14 @@ extern int actual_delay_count[MAX_VD_LAYERS];
 	})
 #endif // MAX
 
+#ifndef MIN
+#define MIN(a, b) ({ \
+			typeof(a) _a = a; \
+			typeof(b) _b = b; \
+			_a < _b ? _a : _b; \
+		})
+#endif // MIN
+
 enum vc_transform_t {
 	/* flip source image horizontally */
 	VC_TRANSFORM_FLIP_H = 1,
@@ -164,6 +172,14 @@ enum com_dev_choice {
 	COMPOSER_WITH_MAX,
 };
 
+enum vc_fence_status {
+	VC_FENCE_INVALID = 0,
+	VC_FENCE_DEC_ERR,
+	VC_FENCE_RELEASED,
+	VC_FENCE_NORMAL,
+	VC_FENCE_WAIT,
+};
+
 struct video_composer_port_s {
 	const char *name;
 	u32 index;
@@ -171,6 +187,7 @@ struct video_composer_port_s {
 	struct device *class_dev;
 	struct device *pdev;
 	u32 video_render_index;
+	int vpu_dma_mask;
 };
 
 struct videocom_frame_s {
@@ -249,6 +266,7 @@ struct composer_dev {
 	struct completion task_done;
 	struct dst_buf_t dst_buf[BUFFER_LEN];
 	struct vframe_s dma_vf[DMA_BUF_COUNT];
+	struct vframe_s enhance_vf[DMA_BUF_COUNT];
 	u32 drop_frame_count;
 	struct received_frames_t last_frames;
 	struct timeval start_time;
@@ -256,6 +274,7 @@ struct composer_dev {
 	u32 vinfo_h;
 	u32 composer_buf_w;
 	u32 composer_buf_h;
+	bool kfifo_need_initialize;
 	bool need_rotate;
 	bool is_sideband;
 	bool need_empty_ready;
@@ -272,7 +291,7 @@ struct composer_dev {
 	u32 video_render_index;
 	u32 vframe_dump_flag;
 	u32 pre_pat_trace;
-	u32 pattern[5];
+	u32 pattern[6];
 	u32 pattern_enter_cnt;
 	u32 pattern_exit_cnt;
 	u32 pattern_detected;
@@ -289,6 +308,8 @@ struct composer_dev {
 	u64 output_duration;
 	u32 nn_mode_flag;
 	struct vf_aiface_t *aiface_buf;
+	u64 fence_wait_time_total;
+	u32 fence_wait_count;
 };
 
 struct capability_info_t {
@@ -298,6 +319,11 @@ struct capability_info_t {
 	u32 max_w;
 	u32 max_h;
 	u32 reserved[10];
+};
+
+struct mediaproxy_info_t {
+	void *k_producer_session;
+	char k_producer_name[32];
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'
@@ -322,9 +348,16 @@ void vc_private_q_init(struct composer_dev *dev);
 void vc_private_q_recycle(struct composer_dev *dev,
 	struct video_composer_private *vc_private);
 struct video_composer_private *vc_private_q_pop(struct composer_dev *dev);
+int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag);
 void debug_vc_print_flag(const char *module, int debug_flags);
 void debug_vc_transform(const char *module, int debug_flags);
 void debug_vc_force_composer(const char *module, int debug_flags);
 void debug_vc_get_count(const char *module, int debug_flags);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+int media_proxy_produce_deinit(void *handle);
+int media_proxy_produce_init(void **handle, char *modulename, u32 msg_type);
+int notify_msg_to_mediaproxy(void *handle, int num, void *data);
+#endif
 
 #endif /* VIDEO_COMPOSER_H */

@@ -48,12 +48,14 @@
 #include <linux/amlogic/media/resource_mgr/resourcemanage.h>
 #include "../../gdc/inc/api/gdc_api.h"
 #include "../common/video_pp_common.h"
+#include "../../common/uvm/meson_uvm_lcevc_processor.h"
+#include <linux/amlogic/media/media_proxy/AmlVideoUserdata.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #include <linux/amlogic/media/di/di_interface.h>
 #include <linux/amlogic/media/di/di.h>
 #endif
-
 #include "videodisplay.h"
+
 #define VIDEO_COMPOSER_VERSION "1.0"
 
 #define VIDEO_COMPOSER_NAME_SIZE 32
@@ -66,7 +68,7 @@
 
 #define ADDR_VALUE_8G    0x200000000
 
-static u32 use_low_latency;
+u32 use_low_latency;
 MODULE_PARM_DESC(use_low_latency, "\n use_low_latency\n");
 module_param(use_low_latency, uint, 0664);
 
@@ -116,6 +118,10 @@ static u32 vicp_shrink_mode = 1; /*0 2x, 1 4x, 2 8x*/
 static u32 force_comp_w;
 static u32 force_comp_h;
 static u32 lossy_compress_rate;//0: 100% copress; 1: 67% compress; 2: 83% compress
+static u32 enable_frc_pattern;
+static enum vc_fence_status last_buffer_status;
+static struct vframe_s *last_normal_vf;
+static struct composer_dev *dev_array[MAX_VD_LAYERS];
 
 u32 vd_pulldown_level = 2;
 u32 vd_max_hold_count = 300;
@@ -128,6 +134,7 @@ u32 vd_test_fps[MAX_VD_LAYERS];
 u64 vd_test_fps_val[MAX_VD_LAYERS] = {1, 1, 1};
 u64 vd_test_vsync_val[MAX_VD_LAYERS] = {1, 1, 1};
 u32 dewarp_load_flag; /*0 dynamic load, 1 load bin file*/
+u32 new_afr_pulldown;
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -219,7 +226,7 @@ static void vd_dump_vf(struct vframe_s *vf)
 #endif
 }
 
-static int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag)
+int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag)
 {
 	int ret, i, j, y_size, free_cnt;
 	short *planes[4];
@@ -477,6 +484,22 @@ void debug_vc_get_count(const char *module, int debug_flags)
 }
 EXPORT_SYMBOL(debug_vc_get_count);
 
+static void detect_vf_type(struct frame_info_t *frame_info, struct file *file_vf,
+	bool *is_dec_vf_ptr, bool *is_v4l_vf_ptr)
+{
+	if (!is_dec_vf_ptr || !is_v4l_vf_ptr) {
+		pr_info("is_dec_vf or is_v4l_vf err.\n");
+		return;
+	}
+	if (frame_info->source_type == SOURCE_HWC_CREAT_ION) {
+		*is_dec_vf_ptr = false;
+		*is_v4l_vf_ptr = false;
+		return;
+	}
+	*is_dec_vf_ptr = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+	*is_v4l_vf_ptr = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+}
+
 static void *video_timeline_create(struct composer_dev *dev)
 {
 	const char *tl_name = "videocomposer_timeline_0";
@@ -531,6 +554,90 @@ static void video_timeline_increase(struct composer_dev *dev,
 		dev->fence_release_count);
 }
 
+static void video_timeline_update(struct composer_dev *dev, struct vframe_s *vf)
+{
+	int normal_frame_count = 0;
+	struct vframe_s *new_display_vf;
+	enum vc_fence_status buffer_status;
+	bool rendered;
+	int repeat_count;
+
+	if (!vf)
+		return;
+
+	rendered = vf->rendered;
+	repeat_count = vf->repeat_count;
+
+	switch (vf->dec_fence_status) {
+	case DEC_FENCE_SUCCESS:
+		vc_print(dev->index, PRINT_FENCE,
+			"%s: dec fence success, ready to put dec fence:%px\n",
+			__func__, vf->fence);
+		dma_fence_put(vf->fence);
+		if (last_buffer_status == VC_FENCE_DEC_ERR)
+			buffer_status = VC_FENCE_RELEASED;
+		else if (rendered)
+			buffer_status = VC_FENCE_NORMAL;
+		else
+			buffer_status = VC_FENCE_WAIT;
+		break;
+	case DEC_FENCE_INVALID:
+		if (rendered)
+			buffer_status = VC_FENCE_NORMAL;
+		else
+			buffer_status = VC_FENCE_WAIT;
+		break;
+	case DEC_FENCE_ERR:
+		buffer_status = VC_FENCE_DEC_ERR;
+		break;
+	default:
+		buffer_status = VC_FENCE_INVALID;
+		break;
+	}
+
+	switch (buffer_status) {
+	case VC_FENCE_DEC_ERR:
+		//release the normal vf when the first error vf appears
+		if (last_normal_vf == current_display_vf) {
+			new_display_vf = NULL;
+		} else {
+			last_normal_vf = current_display_vf;
+			new_display_vf = last_normal_vf;
+		}
+		if (new_display_vf && new_display_vf->dec_fence_status == DEC_FENCE_SUCCESS) {
+			normal_frame_count = 1 + new_display_vf->repeat_count;
+			vc_print(dev->index, PRINT_OTHER,
+				"err vf, need drop frame_index:%d, count:%d",
+				new_display_vf->frame_index, normal_frame_count);
+		}
+		vc_print(dev->index, PRINT_OTHER,
+			"put: frame_index:%d error, fence released\n",
+			vf->frame_index);
+		video_timeline_increase(dev, repeat_count + normal_frame_count +
+			1 + dev->drop_frame_count);
+		dev->drop_frame_count = 0;
+		break;
+	case VC_FENCE_RELEASED:
+		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
+			 "put: frame_index: %d, err frame already put fence\n", vf->frame_index);
+		break;
+	case VC_FENCE_NORMAL:
+		video_timeline_increase(dev, repeat_count
+					+ 1 + dev->drop_frame_count);
+		dev->drop_frame_count = 0;
+		break;
+	case VC_FENCE_WAIT:
+		dev->drop_frame_count += repeat_count + 1;
+		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
+			 "put: drop repeat_count=%d\n", repeat_count);
+		break;
+	default:
+		vc_print(dev->index, PRINT_ERROR, "error, fence status unknown\n");
+		break;
+	}
+	last_buffer_status = buffer_status;
+}
+
 static int vc_init_ge2d_buffer(struct composer_dev *dev, bool is_tvp, size_t usage)
 {
 	int i, flags;
@@ -582,7 +689,7 @@ static int vc_init_ge2d_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
 				buf_size / PAGE_SIZE, 0, flags);
 		vc_print(dev->index, PRINT_ERROR,
-			 "%s: cma memory is %x , size is  %x\n",
+			 "%s: cma memory is %lx , size is  %x\n",
 			 ports[dev->index].name,
 			 (unsigned int)dev->dst_buf[i].phy_addr,
 			 (unsigned int)buf_size);
@@ -652,9 +759,9 @@ static int vc_init_dewarp_buffer(struct composer_dev *dev, bool is_tvp, size_t u
 			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
 				buf_size / PAGE_SIZE, 0, flags);
 		vc_print(dev->index, PRINT_ERROR,
-			 "%s: cma memory is %x , size is  %x\n",
+			 "%s: cma memory is %lx , size is  %x\n",
 			 ports[dev->index].name,
-			 (unsigned int)dev->dst_buf[i].phy_addr,
+			 (unsigned long)dev->dst_buf[i].phy_addr,
 			 (unsigned int)buf_size);
 
 		if (dev->dst_buf[i].phy_addr == 0) {
@@ -757,7 +864,7 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 
 		dev->dst_buf[i].phy_addr = buf_addr;
 		vc_print(dev->index, PRINT_ERROR,
-			"%s: cma memory is 0x%x , size is 0x%x.\n",
+			"%s: cma memory is 0x%lx , size is 0x%x.\n",
 			ports[dev->index].name, dev->dst_buf[i].phy_addr, buf_size);
 
 		dev->dst_buf[i].index = i;
@@ -876,9 +983,9 @@ static void video_composer_uninit_buffer(struct composer_dev *dev)
 	dev->buffer_status = UNINITIAL;
 	for (i = 0; i < BUFFER_LEN; i++) {
 		if (dev->dst_buf[i].phy_addr != 0) {
-			pr_info("%s: cma free addr is %x\n",
+			pr_info("%s: cma free addr is %lx\n",
 				ports[dev->index].name,
-				(unsigned int)dev->dst_buf[i].phy_addr);
+				(unsigned long)dev->dst_buf[i].phy_addr);
 			codec_mm_free_for_dma(ports[dev->index].name,
 					      dev->dst_buf[i].phy_addr);
 			dev->dst_buf[i].phy_addr = 0;
@@ -906,7 +1013,7 @@ static struct file_private_data *vc_get_file_private(struct composer_dev *dev,
 #endif
 
 	if (!file_vf) {
-		pr_err("vc: get_file_private_data fail\n");
+		vc_print(dev->index, PRINT_ERROR, "get_file_private_data fail\n");
 		return NULL;
 	}
 #ifdef CONFIG_AMLOGIC_V4L_VIDEO3
@@ -1111,6 +1218,13 @@ static void display_q_uninit(struct composer_dev *dev)
 					 "vc: unit repeat_count=%d, frame_index=%d\n",
 					 repeat_count,
 					 dis_vf->frame_index);
+				if (dis_vf->fence &&
+					dis_vf->dec_fence_status == DEC_FENCE_SUCCESS) {
+					vc_print(dev->index, PRINT_FENCE,
+						 "vc: unit put fence=%px\n",
+						 dis_vf->fence);
+					dma_fence_put(dis_vf->fence);
+				}
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
 					total_put_count++;
@@ -1246,8 +1360,7 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 			return NULL;
 
 		if (!vf->vc_private) {
-			vc_print(dev->index, PRINT_OTHER,
-				"peek: vf->vc_private is NULL\n");
+			vc_print(dev->index, PRINT_OTHER, "peek: vf->vc_private is NULL\n");
 			return vf;
 		}
 
@@ -1392,7 +1505,6 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	int repeat_count;
 	int frame_index;
 	int index_disp;
-	bool rendered;
 	bool is_composer;
 	bool is_mosaic_22;
 	int i;
@@ -1407,7 +1519,6 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	repeat_count = vf->repeat_count;
 	frame_index = vf->frame_index;
 	index_disp = vf->index_disp;
-	rendered = vf->rendered;
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
 	is_mosaic_22 = vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
 
@@ -1452,6 +1563,11 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 		src_frame_index[0] = vd_prepare->src_frame->frame_index;
 		dst_frame_index[0] = vd_prepare->dst_frame.frame_index;
 		vd_prepare_data_q_put(dev, vd_prepare);
+		if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+			vc_print(dev->index, PRINT_OTHER, "put enhance vf:%px\n", vf->enhance_vf);
+			if (!kfifo_put(&dev->free_q, vf->enhance_vf))
+				vc_print(dev->index, PRINT_ERROR, "put free_q is full\n");
+		}
 	} else if (is_mosaic_22) {
 		vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
 		for (i = 0; i < 4; i++) {
@@ -1484,15 +1600,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	}
 
 	//all the vframe param used must beforce fence release
-	if (rendered) {
-		video_timeline_increase(dev, repeat_count
-					+ 1 + dev->drop_frame_count);
-		dev->drop_frame_count = 0;
-	} else {
-		dev->drop_frame_count += repeat_count + 1;
-		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
-			 "put: drop repeat_count=%d\n", repeat_count);
-	}
+	video_timeline_update(dev, vf);
 
 	if (!is_composer && !is_mosaic_22) {
 		for (i = 0; i <= repeat_count; i++) {
@@ -1568,6 +1676,9 @@ static u32 need_switch_buffer(struct dst_buf_t *buf, bool is_tvp, struct compose
 {
 	int flags, ret;
 	bool vicp_fbc_out_en = false;
+	u32 *virt_addr = NULL;
+	u32 temp_body_addr;
+	u32 offset_body_addr;
 
 	if (IS_ERR_OR_NULL(buf) || IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: NULL param.\n", __func__);
@@ -1585,13 +1696,13 @@ static u32 need_switch_buffer(struct dst_buf_t *buf, bool is_tvp, struct compose
 		vicp_fbc_out_en = true;
 
 	if (buf->phy_addr > 0) {
-		vc_print(dev->index, PRINT_OTHER, "free buffer 0x%x\n", buf->phy_addr);
+		vc_print(dev->index, PRINT_OTHER, "free buffer 0x%lx\n", buf->phy_addr);
 		codec_mm_free_for_dma(ports[dev->index].name, buf->phy_addr);
 	}
 
 	buf->phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
 					buf->buf_size / PAGE_SIZE, 0, flags);
-	vc_print(dev->index, PRINT_ERROR, "%s: alloc buffer 0x%x\n", __func__, buf->phy_addr);
+	vc_print(dev->index, PRINT_ERROR, "%s: alloc buffer 0x%lx\n", __func__, buf->phy_addr);
 
 	if (vicp_fbc_out_en) {
 		buf->afbc_body_addr = buf->phy_addr + buf->dw_size;
@@ -1600,10 +1711,18 @@ static u32 need_switch_buffer(struct dst_buf_t *buf, bool is_tvp, struct compose
 		if (buf->afbc_table_addr > 0) {
 			vc_print(dev->index, PRINT_OTHER, "%s: free table buffer 0x%lx\n", __func__,
 				buf->afbc_table_addr);
-			codec_mm_free_for_dma(ports[dev->index].name, buf->afbc_table_addr);
+			codec_mm_dma_free_coherent(buf->afbc_table_handle);
 		}
-		buf->afbc_table_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
-					buf->afbc_table_size / PAGE_SIZE, 0, flags);
+		virt_addr = (u32 *)codec_mm_dma_alloc_coherent(&buf->afbc_table_handle,
+			&buf->afbc_table_addr, buf->afbc_table_size, dev->port->name);
+		temp_body_addr = buf->afbc_body_addr & 0xffffffff;
+		memset(virt_addr, 0, buf->afbc_table_size);
+		for (offset_body_addr = 0; offset_body_addr < buf->afbc_body_size;
+			offset_body_addr += 4096) {
+			*virt_addr = ((offset_body_addr + temp_body_addr) >> 12) & 0x000fffff;
+			virt_addr++;
+		}
+
 		vc_print(dev->index, PRINT_ERROR, "%s: alloc buffer 0x%lx\n", __func__,
 			buf->afbc_table_addr);
 	}
@@ -1971,7 +2090,6 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 	struct vframe_s *src_vf = NULL;
 	struct file *file_vf = NULL;
 	bool is_dec_vf = false, is_v4l_vf = false;
-	u32 crop_w, crop_h;
 
 	if (IS_ERR_OR_NULL(dev) || IS_ERR_OR_NULL(received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -1991,11 +2109,8 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 	vframe_para.dst_vf_width = dewarp_rotate_width;
 	vframe_para.dst_vf_height = dewarp_rotate_height;
 	vframe_para.src_vf_angle = frame_info.transform;
-	crop_w = frame_info.crop_w;
-	crop_h = frame_info.crop_h;
 	file_vf = received_frames->file_vf[0];
-	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+	detect_vf_type(&frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
 
 	if (is_dec_vf || is_v4l_vf) {
 		src_vf = get_vf_from_file(dev, file_vf, true);
@@ -2004,22 +2119,9 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 			vframe_para.src_vf_format = NV12;
 		} else {
 			vframe_para.src_vf_format = get_dewarp_format(dev->index, src_vf);
-			if (crop_w > 0 || crop_h > 0) {
-				if (src_vf->type & VIDTYPE_COMPRESS) {
-					crop_w = vframe_para.src_vf_width *
-						src_vf->width / src_vf->compWidth;
-					crop_h = vframe_para.src_vf_height *
-						src_vf->width / src_vf->compWidth;
-				}
-				if (crop_w != src_vf->width || crop_h != src_vf->height)
-					return false;
-			}
 		}
 	} else {
 		vframe_para.src_vf_format = NV12;
-		if ((crop_w > 0 || crop_h > 0) &&
-			(crop_w != frame_info.buffer_w || crop_h != frame_info.buffer_h))
-			return false;
 	}
 	dev->dewarp_para.vf_para = &vframe_para;
 	if (dev->need_rotate && is_dewarp_supported(dev->index, dev->dewarp_para.vf_para))
@@ -2169,6 +2271,7 @@ static int video_wait_file_fence(struct composer_dev *dev,
 	struct dma_fence *fence_obj = NULL;
 	int ret = 1;
 	u64 timestamp;
+	u64 time_cost;
 
 	if (!IS_ERR_OR_NULL(fence_file)) {
 		sync_file = (struct sync_file *)fence_file->private_data;
@@ -2195,10 +2298,21 @@ static int video_wait_file_fence(struct composer_dev *dev,
 			return 0;
 		}
 
+		time_cost = local_clock() - timestamp;
+		dev->fence_wait_time_total += time_cost;
+		dev->fence_wait_count++;
+		if (dev->fence_wait_count == 100) {
+			vc_print(dev->index, PRINT_FENCE,
+				"wait fence avg=%lldns\n",
+				div64_u64(dev->fence_wait_time_total, dev->fence_wait_count));
+				dev->fence_wait_count = 0;
+				dev->fence_wait_time_total = 0;
+		}
+
 		vc_print(dev->index, PRINT_FENCE,
 			 "wait fence, state: %d, wait cost time:%lldms\n",
 			 ret,
-			 div64_u64((local_clock() - timestamp), 1000000));
+			 div64_u64(time_cost, 1000000));
 	}
 
 	fput(fence_file);
@@ -2435,7 +2549,8 @@ static void check_composer_buffer_status(struct composer_dev *dev, bool is_tvp,
 			vc_print(dev->index, PRINT_ERROR, "free small buffer success.\n");
 		dst_buf->phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
 						buf_size / PAGE_SIZE, 0, flags);
-		vc_print(dev->index, PRINT_ERROR, "%s:alloc big buffer success,addr:0x%x size:%d\n",
+		vc_print(dev->index, PRINT_ERROR,
+			"%s:alloc big buffer success,addr:0x%lx size:%d\n",
 			__func__, dst_buf->phy_addr, buf_size);
 	}
 
@@ -2462,6 +2577,45 @@ static void check_composer_buffer_status(struct composer_dev *dev, bool is_tvp,
 	dst_buf->buf_h = buf_height;
 	dst_buf->buf_size = buf_size;
 	dst_buf->is_tvp = is_tvp;
+}
+
+static int get_output_duration(struct composer_dev *dev)
+{
+	int duration = 0;
+
+	if (IS_ERR_OR_NULL(dev)) {
+		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
+		return 1600;
+	}
+
+	if (dev->output_duration > 0 && dev->output_duration < 24)
+		duration = 4004;
+	else if (dev->output_duration == 24)
+		duration = 4000;
+	else if (dev->output_duration == 25)
+		duration = 3840;
+	else if (dev->output_duration > 25 && dev->output_duration < 30)
+		duration = 3203;
+	else if (dev->output_duration == 30)
+		duration = 3200;
+	else if (dev->output_duration == 50)
+		duration = 1920;
+	else if (dev->output_duration > 50 && dev->output_duration < 60)
+		duration = 1601;
+	else if (dev->output_duration == 60)
+		duration = 1600;
+	else if (dev->output_duration == 100)
+		duration = 960;
+	else if (dev->output_duration > 100 && dev->output_duration < 120)
+		duration = 801;
+	else if (dev->output_duration == 120)
+		duration = 800;
+	else if (dev->output_duration == 240)
+		duration = 400;
+	else
+		duration = 1600;
+
+	return duration;
 }
 
 static void vframe_composer(struct composer_dev *dev)
@@ -2493,7 +2647,6 @@ static void vframe_composer(struct composer_dev *dev)
 	struct composer_info_t *composer_info;
 	bool is_dec_vf = false, is_v4l_vf = false;
 	bool is_tvp = false;
-	bool need_dw = false;
 	bool is_fixtunnel = false;
 	struct composer_vf_para vframe_para;
 	struct vicp_data_config_s data_config;
@@ -2511,6 +2664,11 @@ static void vframe_composer(struct composer_dev *dev)
 	struct output_axis out_axis[MXA_LAYER_COUNT] = {0};
 	struct file *fence_file;
 	bool has_fence;
+	u32 transform_tmp;
+	u32 dewarp_crop_top = 0, dewarp_crop_left = 0;
+	u32 dewarp_crop_bottom = 0, dewarp_crop_right = 0;
+	u32 dewarp_src_w, dewarp_src_h;
+	u32 dewarp_dst_w, dewarp_dst_h;
 
 	if (IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -2523,7 +2681,6 @@ static void vframe_composer(struct composer_dev *dev)
 		return;
 
 	choose_composer_device(dev, received_frames_tmp);
-
 	is_tvp = received_frames_tmp->is_tvp;
 	temp_file = received_frames_tmp->file_vf[0];
 #ifdef CONFIG_AMLOGIC_UVM_CORE
@@ -2551,7 +2708,7 @@ static void vframe_composer(struct composer_dev *dev)
 	dst_buf = to_dst_buf(dst_vf);
 	composer_info = &dst_buf->componser_info;
 	memset(composer_info, 0, sizeof(struct composer_info_t));
-
+	memset(&common_para, 0, sizeof(struct composer_common_para));
 	while (1) {
 		if (!kfifo_get(&dev->receive_q, &received_frames)) {
 			vc_print(dev->index, PRINT_ERROR, "com: get failed\n");
@@ -2656,26 +2813,43 @@ static void vframe_composer(struct composer_dev *dev)
 
 	for (i = 0; i < count; i++) {
 		file_vf = received_frames->file_vf[vf_dev[i]];
-		fence_file = received_frames->fence_file[vf_dev[i]];
-		if (video_wait_file_fence(dev, fence_file) == 0)
-			continue;
-
+		if (i != 0) {
+			fence_file = received_frames->fence_file[vf_dev[i]];
+			if (video_wait_file_fence(dev, fence_file) == 0)
+				continue;
+		}
 		vframe_info_cur = vframe_info[vf_dev[i]];
 		if (!vframe_info_cur) {
 			vc_print(dev->index, PRINT_ERROR, "vframe_info_cur NULL\n");
 			return;
 		}
-		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
-		if (vframe_info_cur->transform != 0 || count != 1)
-			need_dw = true;
 
+		vc_print(dev->index, PRINT_AXIS,
+			 "=========frame info:==========\n");
+		vc_print(dev->index, PRINT_AXIS,
+			 "frame axis x,y,w,h: %d %d %d %d\n",
+			 vframe_info_cur->dst_x, vframe_info_cur->dst_y,
+			 vframe_info_cur->dst_w, vframe_info_cur->dst_h);
+		vc_print(dev->index, PRINT_AXIS,
+			 "frame crop t,l,w,h: %d %d %d %d\n",
+			 vframe_info_cur->crop_y, vframe_info_cur->crop_x,
+			 vframe_info_cur->crop_w, vframe_info_cur->crop_h);
+		vc_print(dev->index, PRINT_AXIS,
+			 "frame buffer Width X Height: %d X %d\n",
+			 vframe_info_cur->buffer_w, vframe_info_cur->buffer_h);
+		vc_print(dev->index, PRINT_AXIS,
+			 "frame buffer stride Width X Height: %d X %d\n",
+			 vframe_info_cur->reserved[0], vframe_info_cur->reserved[1]);
+		vc_print(dev->index, PRINT_AXIS,
+			 "===============================\n");
+
+		detect_vf_type(vframe_info_cur, file_vf, &is_dec_vf, &is_v4l_vf);
 		if (vframe_info_cur->source_type == SOURCE_DTV_FIX_TUNNEL)
 			is_fixtunnel = true;
 
 		if (is_dec_vf || is_v4l_vf) {
 			vc_print(dev->index, PRINT_OTHER, "%s dma buffer is vf\n", __func__);
-			src_vf = get_vf_from_file(dev, file_vf, need_dw);
+			src_vf = get_vf_from_file(dev, file_vf, true);
 			if (!src_vf) {
 				vc_print(dev->index, PRINT_ERROR, "get vf NULL\n");
 				continue;
@@ -2692,10 +2866,29 @@ static void vframe_composer(struct composer_dev *dev)
 				vf_dev[i], vframe_info_cur->fd, addr);
 		}
 
-		crop_info.left = vframe_info_cur->crop_x;
-		crop_info.top = vframe_info_cur->crop_y;
-		crop_info.width = vframe_info_cur->crop_w;
-		crop_info.height = vframe_info_cur->crop_h;
+		if (src_vf && is_src_crop_valid(src_vf->src_crop)) {
+			crop_info.left = MAX(vframe_info_cur->crop_x, src_vf->src_crop.left);
+			crop_info.top = MAX(vframe_info_cur->crop_y, src_vf->src_crop.top);
+			if (!(src_vf->type_original & VIDTYPE_COMPRESS)) {
+				crop_info.width = MIN(vframe_info_cur->crop_w, src_vf->width -
+					src_vf->src_crop.left - src_vf->src_crop.right);
+				crop_info.height = MIN(vframe_info_cur->crop_h, src_vf->height -
+					src_vf->src_crop.top - src_vf->src_crop.bottom);
+			} else {
+				crop_info.width = MIN(vframe_info_cur->crop_w, src_vf->compWidth -
+					src_vf->src_crop.left - src_vf->src_crop.right);
+				crop_info.height = MIN(vframe_info_cur->crop_h, src_vf->compHeight -
+					src_vf->src_crop.top - src_vf->src_crop.bottom);
+			}
+		} else {
+			crop_info.left = vframe_info_cur->crop_x;
+			crop_info.top = vframe_info_cur->crop_y;
+			crop_info.width = vframe_info_cur->crop_w;
+			crop_info.height = vframe_info_cur->crop_h;
+		}
+
+		vc_print(dev->index, PRINT_AXIS, "crop_info: left %d, top %d, width %d height %d\n",
+			crop_info.left, crop_info.top, crop_info.width, crop_info.height);
 
 		dst_axis = output_axis_adjust(dev, vframe_info_cur);
 		display_axis.left = dst_axis.left * dst_buf->buf_w / dev->vinfo_w;
@@ -2754,9 +2947,10 @@ static void vframe_composer(struct composer_dev *dev)
 			memset(&data_config, 0, sizeof(struct vicp_data_config_s));
 			config_vicp_input_data(src_vf,
 					addr,
-					dst_buf->buf_w,
-					dst_buf->buf_w,
-					dst_buf->buf_h,
+					vframe_info_cur->buffer_w,
+					vframe_info_cur->buffer_h,
+					vframe_info_cur->reserved[0],
+					vframe_info_cur->reserved[1],
 					1,
 					VICP_COLOR_FORMAT_YUV420,
 					8,
@@ -2816,6 +3010,7 @@ static void vframe_composer(struct composer_dev *dev)
 			data_config.data_option.output_axis.top = display_axis.top;
 			data_config.data_option.output_axis.width = display_axis.width;
 			data_config.data_option.output_axis.height = display_axis.height;
+
 			data_config.data_option.shrink_mode =
 				(enum vicp_shrink_mode_e)vicp_shrink_mode;
 			if (count > 1)
@@ -2850,8 +3045,20 @@ static void vframe_composer(struct composer_dev *dev)
 				&src_data);
 			if (ret < 0)
 				continue;
-
-			dev->ge2d_para.angle = vframe_info_cur->transform;
+			transform_tmp = vframe_info_cur->transform;
+			if (src_vf && src_vf->flag & VFRAME_FLAG_MIRROR_H) {
+				if (transform_tmp & VC_TRANSFORM_FLIP_H)
+					transform_tmp &= ~VC_TRANSFORM_FLIP_H;
+				else
+					transform_tmp |= VC_TRANSFORM_FLIP_H;
+			}
+			if (src_vf && src_vf->flag & VFRAME_FLAG_MIRROR_V) {
+				if (transform_tmp & VC_TRANSFORM_FLIP_V)
+					transform_tmp &= ~VC_TRANSFORM_FLIP_V;
+				else
+					transform_tmp |= VC_TRANSFORM_FLIP_V;
+			}
+			dev->ge2d_para.angle = transform_tmp;
 			dev->ge2d_para.position_left = display_axis.left;
 			dev->ge2d_para.position_top = display_axis.top;
 			dev->ge2d_para.position_width = display_axis.width;
@@ -2861,11 +3068,16 @@ static void vframe_composer(struct composer_dev *dev)
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "ge2d composer failed\n");
 		}
+		src_vf = NULL;
 	}
+
+	src_vf = common_para.input_para.vframe;
+	if (src_vf)
+		dst_vf->ready_jiffies64 = src_vf->ready_jiffies64;
 
 	for (i = 0; i < count; i++) {
 		if (!input_vf[i] || out_axis[i].width == 0 || out_axis[i].height == 0) {
-			vc_print(dev->index, PRINT_ERROR, "invalid aiface param.\n");
+			vc_print(dev->index, PRINT_AIFACE, "invalid aiface param.\n");
 			break;
 		}
 
@@ -2943,9 +3155,9 @@ static void vframe_composer(struct composer_dev *dev)
 		return;
 	}
 	if (vframe_info_cur->transform == VC_TRANSFORM_FLIP_H_ROT_90)
-		dst_vf->flag |= VFRAME_FLAG_MIRROR_H;
-	if (vframe_info_cur->transform == VC_TRANSFORM_FLIP_V_ROT_90)
 		dst_vf->flag |= VFRAME_FLAG_MIRROR_V;
+	if (vframe_info_cur->transform == VC_TRANSFORM_FLIP_V_ROT_90)
+		dst_vf->flag |= VFRAME_FLAG_MIRROR_H;
 
 	if (debug_axis_pip) {
 		dst_vf->axis[0] = 0;
@@ -3087,6 +3299,76 @@ static void vframe_composer(struct composer_dev *dev)
 			dst_vf->canvas0_config[1].height = dst_vf->canvas0_config[0].height >> 1;
 		}
 	}
+
+	if (dev->dev_choice == COMPOSER_WITH_DEWARP &&
+		(vframe_info_cur->crop_w > 0 || vframe_info_cur->crop_h > 0)) {
+		if (src_vf) {
+			//uvm
+			if (src_vf->type & VIDTYPE_COMPRESS) {
+				dewarp_src_w = src_vf->compWidth;
+				dewarp_src_h = src_vf->compHeight;
+			} else {
+				dewarp_src_w = src_vf->width;
+				dewarp_src_h = src_vf->height;
+			}
+			vc_print(dev->index, PRINT_DEWARP,
+				"src_vf: compWidth:%d compHeight:%d w:%d h:%d.\n",
+				src_vf->compWidth,
+				src_vf->compHeight,
+				src_vf->width,
+				src_vf->height);
+		} else {
+			//dma
+			dewarp_src_w = vframe_info_cur->buffer_w;
+			dewarp_src_h = vframe_info_cur->buffer_h;
+		}
+
+		if (src_vf && is_src_crop_valid(src_vf->src_crop)) {
+			dewarp_crop_top =
+				MAX(vframe_info_cur->crop_y, src_vf->src_crop.top);
+			dewarp_crop_left =
+				MAX(vframe_info_cur->crop_x, src_vf->src_crop.left);
+			dewarp_crop_bottom = MAX(dewarp_src_h - vframe_info_cur->crop_y
+				- vframe_info_cur->crop_h, src_vf->src_crop.bottom);
+			dewarp_crop_right = MAX(dewarp_src_w - vframe_info_cur->crop_x
+				- vframe_info_cur->crop_w, src_vf->src_crop.right);
+		} else {
+			dewarp_crop_top = vframe_info_cur->crop_y;
+			dewarp_crop_left = vframe_info_cur->crop_x;
+			dewarp_crop_bottom = dewarp_src_h - vframe_info_cur->crop_y
+				- vframe_info_cur->crop_h;
+			dewarp_crop_right = dewarp_src_w - vframe_info_cur->crop_x
+				- vframe_info_cur->crop_w;
+		}
+		dewarp_dst_w = common_para.output_para.pic_info.align_w;
+		dewarp_dst_h = common_para.output_para.pic_info.align_h;
+
+		if (vframe_info_cur->transform == VC_TRANSFORM_ROT_270) {
+			dst_vf->crop[0] = dewarp_crop_right * dewarp_dst_h / dewarp_src_w;
+			dst_vf->crop[1] = dewarp_crop_top * dewarp_dst_w / dewarp_src_h;
+			dst_vf->crop[2] = dewarp_crop_left * dewarp_dst_h / dewarp_src_w;
+			dst_vf->crop[3] = dewarp_crop_bottom * dewarp_dst_w / dewarp_src_h;
+		} else if (vframe_info_cur->transform == VC_TRANSFORM_ROT_180) {
+			dst_vf->crop[0] = dewarp_crop_bottom * dewarp_dst_h / dewarp_src_h;
+			dst_vf->crop[1] = dewarp_crop_right * dewarp_dst_w / dewarp_src_w;
+			dst_vf->crop[2] = dewarp_crop_top * dewarp_dst_h / dewarp_src_h;
+			dst_vf->crop[3] = dewarp_crop_left * dewarp_dst_w / dewarp_src_w;
+		} else if (vframe_info_cur->transform == VC_TRANSFORM_ROT_90 ||
+					vframe_info_cur->transform == VC_TRANSFORM_FLIP_H_ROT_90 ||
+					vframe_info_cur->transform == VC_TRANSFORM_FLIP_V_ROT_90) {
+			dst_vf->crop[0] = dewarp_crop_left * dewarp_dst_h / dewarp_src_w;
+			dst_vf->crop[1] = dewarp_crop_bottom * dewarp_dst_w / dewarp_src_h;
+			dst_vf->crop[2] = dewarp_crop_right * dewarp_dst_h / dewarp_src_w;
+			dst_vf->crop[3] = dewarp_crop_top * dewarp_dst_w / dewarp_src_h;
+		}
+		vc_print(dev->index, PRINT_DEWARP,
+			"dst_vf->crop: top:%d left:%d bottom:%d right:%d.\n",
+			dst_vf->crop[0],
+			dst_vf->crop[1],
+			dst_vf->crop[2],
+			dst_vf->crop[3]);
+	}
+
 	vc_print(dev->index, PRINT_DEWARP,
 		"canvas0_addr: 0x%lx, canvas0_w: %d, canvas0_h: %d.\n",
 		dst_vf->canvas0_config[0].phy_addr,
@@ -3099,6 +3381,10 @@ static void vframe_composer(struct composer_dev *dev)
 		dst_vf->canvas0_config[1].height);
 	dst_vf->repeat_count = 0;
 	dst_vf->composer_info = composer_info;
+	if (count == 1 && src_vf)
+		dst_vf->duration = src_vf->duration;
+	else
+		dst_vf->duration = get_output_duration(dev);
 
 	if (dev->last_dst_vf)
 		dev->last_dst_vf->repeat_count += drop_count;
@@ -3110,7 +3396,7 @@ static void vframe_composer(struct composer_dev *dev)
 
 	if (dump_vframe != dev->vframe_dump_flag) {
 		if (is_dec_vf || is_v4l_vf) {
-			if (src_vf->type & VIDTYPE_COMPRESS)
+			if (src_vf && src_vf->type & VIDTYPE_COMPRESS)
 				vd_vframe_afbc_soft_decode(src_vf, 0);
 			else
 				dump_vf(dev->index, src_vf, 0);
@@ -3183,6 +3469,17 @@ static void video_wait_decode_fence(struct composer_dev *dev,
 		return;
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_COUNTER("video_composer_wait_Dec_fence_frame_index", vf->frame_index);
+	ATRACE_COUNTER("video_composer_wait_Dec_fence_frame_index", 0);
+	ATRACE_COUNTER("video_composer_wait_Dec_fence_timestamp",
+		div_u64(vf->timestamp, 1000000000));
+	ATRACE_COUNTER("video_composer_wait_Dec_fence_timestamp", 0);
+#endif
+
+	vc_print(dev->index, PRINT_FENCE, "%s: frame_index=%d, timestamp:%lld.\n",
+		__func__, vf->frame_index, div_u64(vf->timestamp, 1000000000));
+
 	fence_tmp = vf->fence;
 	if (fence_tmp) {
 		u64 timestamp = local_clock();
@@ -3192,7 +3489,13 @@ static void video_wait_decode_fence(struct composer_dev *dev,
 			 "%s, fence %lx, state: %d, wait cost time: %lld ns\n",
 			 __func__, (ulong)fence_tmp, ret,
 			 local_clock() - timestamp);
-		vf->fence = NULL;
+		ret = dma_fence_get_status(fence_tmp);
+		if (ret > 0)
+			vf->dec_fence_status = DEC_FENCE_SUCCESS;
+		else if (ret < 0)
+			vf->dec_fence_status = DEC_FENCE_ERR;
+		else
+			vc_print(dev->index, PRINT_ERROR, "dec error, fence timeout\n");
 	} else {
 		vc_print(dev->index, PRINT_FENCE,
 			 "decoder fence is NULL\n");
@@ -3401,9 +3704,406 @@ static bool check_mosaic_22(struct composer_dev *dev, struct received_frames_t *
 	return true;
 }
 
+static struct vframe_s *get_enhance_vf_pointer(struct composer_dev *dev,
+	struct vframe_s *vf)
+{
+	int i;
+	struct vframe_s *enhance_vf;
+
+	if (dev->kfifo_need_initialize) {
+		vc_print(dev->index, PRINT_QUEUE_STATUS, "init buffer free_q for lcevc\n");
+		dev->kfifo_need_initialize = false;
+		for (i = 0; i < DMA_BUF_COUNT; i++) {
+			if (!kfifo_put(&dev->free_q, &dev->enhance_vf[i]))
+				vc_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
+		}
+	}
+
+	if (!kfifo_get(&dev->free_q, &enhance_vf)) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "task: free_q is empty, can not provide enhance_vf\n");
+		enhance_vf = NULL;
+	} else {
+		vc_print(dev->index, PRINT_OTHER,
+			 "task: get_enhance_vf:%px\n", enhance_vf);
+		memcpy(enhance_vf, vf, sizeof(struct vframe_s));
+	}
+
+	return enhance_vf;
+}
+
+static struct  uvm_lcevc_frame_info *vc_get_lcevc_data(struct composer_dev *dev,
+						     struct file *file_vf)
+{
+	struct uvm_lcevc_hook_data *hook_data;
+	struct uvm_lcevc_frame_info *lcevc_data;
+	struct uvm_hook_mod *uhmod;
+
+	if (!file_vf) {
+		vc_print(dev->index, PRINT_ERROR, "vc get lcevc data fail\n");
+		return NULL;
+	}
+
+	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
+				 PROCESS_LCEVC);
+	if (!uhmod) {
+		vc_print(dev->index, PRINT_OTHER, "%s:dma file file_private_data is NULL 1\n",
+			__func__);
+		return NULL;
+	}
+
+	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+		vc_print(dev->index, PRINT_ERROR, "%s: dma file file_private_data is NULL 2\n",
+			__func__);
+		return NULL;
+	}
+	hook_data = uhmod->arg;
+	lcevc_data = &hook_data->lcevc_vframe;
+	uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
+			 PROCESS_LCEVC);
+
+	return lcevc_data;
+}
+
+static bool set_vf_lcevc_data(struct composer_dev *dev,
+	struct vframe_s *enhance_vf, struct uvm_lcevc_frame_info *lcevc_data)
+{
+	int len, i;
+
+	if (!enhance_vf || !lcevc_data)
+		return false;
+	enhance_vf->width = lcevc_data->width;
+	enhance_vf->height = lcevc_data->height;
+	enhance_vf->canvas0Addr = -1;
+	enhance_vf->canvas0_config[0].phy_addr = lcevc_data->y_physical_addr;
+	enhance_vf->canvas1Addr = -1;
+	enhance_vf->canvas0_config[1].phy_addr = lcevc_data->uv_physical_addr;
+
+	enhance_vf->canvas0_config[0].width = lcevc_data->stride;
+	enhance_vf->canvas0_config[0].height = enhance_vf->height;
+	enhance_vf->canvas0_config[1].width = lcevc_data->stride;
+	enhance_vf->canvas0_config[1].height = enhance_vf->canvas0_config[0].height;
+
+	enhance_vf->plane_num = 1;
+	enhance_vf->type = VIDTYPE_VIU_FIELD
+		| VIDTYPE_VIU_422
+		| VIDTYPE_VIU_SINGLE_PLANE;
+	enhance_vf->flag = VFRAME_FLAG_VIDEO_LINEAR
+		| VFRAME_FLAG_VIDEO_COMPOSER
+		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+	enhance_vf->type_ext = VIDTYPE_EXT_LCEVC;
+	enhance_vf->bitdepth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10 | FULL_PACK_422_MODE;
+	memcpy(&enhance_vf->scaler_coeff, &lcevc_data->upsample_kernel, sizeof(struct vf_lcevc_t));
+	len = enhance_vf->scaler_coeff.len;
+	vc_print(dev->index, PRINT_INDEX_DISP, "task: coeff len:%d", len);
+	for (i = 0; i < len; i++) {
+		vc_print(dev->index, PRINT_INDEX_DISP,
+				"task: coeff[%d] %d %d\n",
+				i,
+				enhance_vf->scaler_coeff.k[0][i],
+				enhance_vf->scaler_coeff.k[1][i]);
+	}
+	vc_print(dev->index, PRINT_INDEX_DISP,
+		"task: enhance_vf width:%d, height:%d, enhance_vf yuv addr:%px\n",
+		enhance_vf->width,
+		enhance_vf->height,
+		(void *)enhance_vf->canvas0_config[0].phy_addr);
+
+	return true;
+}
+
+static bool detect_composer_usage(struct composer_dev *dev,
+	struct received_frames_t *received_frames, bool *need_composer_ptr, bool *mosaic_22_ptr)
+{
+	struct vframe_s *vf = NULL;
+	int count;
+	u32 frame_transform = 0;
+	struct file *file_vf = NULL;
+	struct frames_info_t *frames_info = NULL;
+	struct frame_info_t *frame_info = NULL;
+	bool is_dec_vf = false, is_v4l_vf = false;
+
+	count = received_frames->frames_info.frame_count;
+	if (count == 1) {
+		if ((dev->index == 0 && force_composer) ||
+		    (dev->index == 1 && force_composer_pip))
+			*need_composer_ptr = true;
+		frame_transform =
+			received_frames->frames_info.frame_info[0].transform;
+		if (frame_transform == VC_TRANSFORM_ROT_90 ||
+			frame_transform == VC_TRANSFORM_ROT_180 ||
+			frame_transform == VC_TRANSFORM_ROT_270 ||
+			frame_transform == VC_TRANSFORM_FLIP_H_ROT_90 ||
+			frame_transform == VC_TRANSFORM_FLIP_V_ROT_90) {
+			*need_composer_ptr = true;
+			dev->need_rotate = true;
+		} else {
+			dev->need_rotate = false;
+		}
+	} else {
+		dev->need_rotate = false;
+		if (check_mosaic_22(dev, received_frames)) {
+			*need_composer_ptr = false;
+			*mosaic_22_ptr = true;
+		} else {
+			*need_composer_ptr = true;
+		}
+	}
+
+	frames_info = &received_frames->frames_info;
+	frame_info = frames_info->frame_info;
+	file_vf = received_frames->file_vf[0];
+	if (!file_vf) {
+		vc_print(dev->index, PRINT_ERROR, "file_vf is NULL\n");
+		return false;
+	}
+	detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
+
+	if (is_dec_vf || is_v4l_vf) {
+		vf = get_vf_from_file(dev, file_vf, false);
+		if (!vf) {
+			vc_print(dev->index, PRINT_ERROR, "get NULL vf!!\n");
+			return false;
+		}
+	}
+	if (vf && (vf->type & VIDTYPE_DI_PW || vf->di_flag & DI_FLAG_DI_PVPPLINK)) {
+		vc_print(dev->index, PRINT_OTHER, "di_vf=%px type_ext=%x.\n", vf, vf->type_ext);
+		if (vf->type_ext & VIDTYPE_EXT_DI_DO_ROTATE && count == 1) {
+			*need_composer_ptr = false;
+			dev->need_rotate = false;
+			vc_print(dev->index, PRINT_OTHER, "di already do rotate, vc needn't do.\n");
+		}
+	}
+
+	if (dev->output_duration >= 240 && dev->vinfo_w > 1920 && !*need_composer_ptr) {
+		if (vf && (vf->flag & VFRAME_FLAG_GAME_MODE)) {
+			vc_print(dev->index, PRINT_OTHER, "game mode no need force composer.\n");
+			return true;
+		}
+		vc_print(dev->index, PRINT_AXIS, "fps > 240, need composer.\n");
+		if (is_dec_vf || is_v4l_vf) {
+			vc_print(dev->index, PRINT_OTHER,
+					 "%s vf_height:%d vf_com_height:%d\n",
+					 __func__, vf->height, vf->compHeight);
+			if (vf->height > 1088 || vf->compHeight > 1088)
+				*need_composer_ptr = true;
+		} else {
+			vc_print(dev->index, PRINT_OTHER,
+				"%s: frame_info->height:%d\n",
+				 __func__, frame_info->buffer_h);
+			if (frame_info->buffer_h > 1088)
+				*need_composer_ptr = true;
+		}
+	}
+	return true;
+}
+
+static int config_crop_param(struct composer_dev *dev,
+	struct received_frames_t *received_frames, struct vframe_s *vf)
+{
+	u32 pic_w;
+	u32 pic_h;
+	bool is_dec_vf = false, is_v4l_vf = false;
+	struct frames_info_t *frames_info = NULL;
+	struct frame_info_t *frame_info = NULL;
+	struct file *file_vf = NULL;
+
+	if (!dev || !received_frames || !vf) {
+		pr_info("vc: %s: NULL param.\n", __func__);
+		return -1;
+	}
+
+	frames_info = &received_frames->frames_info;
+	frame_info = frames_info->frame_info;
+	file_vf = received_frames->file_vf[0];
+	if (!file_vf)
+		return -1;
+
+	vc_print(dev->index, PRINT_AXIS,
+		"frame_info crop: x y w h %d %d %d %d\n",
+		frame_info->crop_x,
+		frame_info->crop_y,
+		frame_info->crop_w,
+		frame_info->crop_h);
+
+	detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
+	if (is_dec_vf || is_v4l_vf) {
+		if ((vf->type_original & VIDTYPE_COMPRESS) != 0) {
+			pic_w = vf->compWidth;
+			pic_h = vf->compHeight;
+		} else {
+			pic_w = vf->width;
+			pic_h = vf->height;
+		}
+		vc_print(dev->index, PRINT_AXIS, "pic_w: %d, pic_h: %d.\n", pic_w, pic_h);
+		if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
+			vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
+			vf->crop[0] = frame_info->crop_y;
+			vf->crop[1] = frame_info->crop_x;
+			vf->crop[2] = frame_info->crop_y +
+				frame_info->crop_h;
+			vf->crop[3] = frame_info->crop_x +
+				frame_info->crop_w;
+			vc_print(dev->index, PRINT_AXIS,
+				"tunnel set vf crop:%d %d %d %d\n",
+				vf->crop[0],
+				vf->crop[1],
+				vf->crop[2],
+				vf->crop[3]);
+		} else if ((pic_w > MAX(frame_info->reserved[0], frame_info->buffer_w)) ||
+			(pic_h > MAX(frame_info->reserved[1], frame_info->buffer_h))) {
+			/*omx receive w*h is small than actual w*h;such as 8k*/
+			vf->crop[0] = 0;
+			vf->crop[1] = 0;
+			vf->crop[2] = 0;
+			vf->crop[3] = 0;
+			vc_print(dev->index, PRINT_AXIS,
+				"crop info is error!\n");
+		} else {
+			vf->crop[0] = frame_info->crop_y;
+			vf->crop[1] = frame_info->crop_x;
+			vf->crop[2] = pic_h
+				- frame_info->crop_h
+				- frame_info->crop_y;
+			vf->crop[3] = pic_w
+				- frame_info->crop_w
+				- frame_info->crop_x;
+			vc_print(dev->index, PRINT_AXIS,
+				"none-tunnel set vf crop:%d %d %d %d\n",
+				vf->crop[0],
+				vf->crop[1],
+				vf->crop[2],
+				vf->crop[3]);
+		}
+	} else {
+		if (frame_info->type == 1) {
+			vf->crop[0] = frame_info->crop_y;
+			vf->crop[1] = frame_info->crop_x;
+			vf->crop[2] = frame_info->buffer_h
+				- frame_info->crop_h
+				- frame_info->crop_y;
+			vf->crop[3] = frame_info->buffer_w
+				- frame_info->crop_w
+				- frame_info->crop_x;
+		} else {
+			vf->crop[0] = 0;
+			vf->crop[1] = 0;
+			vf->crop[2] = 0;
+			vf->crop[3] = 0;
+		}
+	}
+
+	return 0;
+}
+
+static int config_ai_param(struct composer_dev *dev,
+	struct received_frames_t *received_frames, struct vframe_s *vf)
+{
+	struct frames_info_t *frames_info = NULL;
+	struct frame_info_t *frame_info = NULL;
+	struct file *file_vf = NULL;
+	struct vf_nn_sr_t *srout_data = NULL;
+	u32 nn_status;
+	struct vf_aiface_t *aiface_info = NULL;
+	struct vf_aicolor_t *aicolor_info = NULL;
+
+	if (!dev || !received_frames || !vf || !vf->vc_private) {
+		pr_info("vc: %s: NULL param.\n", __func__);
+		return -1;
+	}
+
+	frames_info = &received_frames->frames_info;
+	frame_info = frames_info->frame_info;
+	file_vf = received_frames->file_vf[0];
+	if (!file_vf)
+		return -1;
+
+	if (vf->hf_info && !nn_bypass)
+		srout_data = vc_get_hfout_data(dev, file_vf);
+	if (srout_data) {
+		video_wait_sr_fence(dev, srout_data->fence);
+		nn_status = srout_data->nn_status;
+		if (vf->hf_info->phy_addr != 0 &&
+			vf->hf_info->width != 0 &&
+			vf->hf_info->height != 0 &&
+			(nn_status == NN_WAIT_DOING ||
+			nn_status == NN_START_DOING ||
+			nn_status == NN_DONE)) {
+			vf->vc_private->srout_data = srout_data;
+			vf->vc_private->flag |= VC_FLAG_AI_SR;
+		}
+	}
+
+	aiface_info = aiface_info_adjust(dev,
+					file_vf,
+					vf->frame_index,
+					frame_info->dst_x,
+					frame_info->dst_y,
+					frame_info->dst_w,
+					frame_info->dst_h);
+	if (aiface_info) {
+		vf->vc_private->aiface_info = aiface_info;
+		vf->vc_private->flag |= VC_FLAG_AI_FACE;
+		vc_print(dev->index, PRINT_AIFACE,
+			"frame_index = %d, aiface_value_count = %d.\n",
+			vf->frame_index, aiface_info->aiface_value_count);
+	}
+
+	aicolor_info = vc_get_aicolor_info(dev, file_vf);
+	if (aicolor_info) {
+		nn_status = aicolor_info->nn_status;
+		if (nn_status == NN_WAIT_DOING ||
+			nn_status == NN_START_DOING ||
+			nn_status == NN_DONE) {
+			vf->vc_private->aicolor_info = aicolor_info;
+			vf->vc_private->flag |= VC_FLAG_AI_COLOR;
+		}
+	}
+
+	return 0;
+}
+
+static void set_frc_pattern(struct composer_dev *dev, struct vframe_s *vf)
+{
+	int duration;
+
+	if (!vf->vc_private)
+		return;
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER) {
+		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_1_1;
+		new_afr_pulldown = 0;
+		vc_print(dev->index, PRINT_OTHER, "%s:HDMI mode, FRC full function", __func__);
+		return;
+	}
+
+	duration = find_nearest_duration(dev, vf->duration);
+	switch (duration) {
+	case 3200:
+	case 3203:
+	case 3840:
+		if (check_frc_n2m_status())
+			new_afr_pulldown = 1;
+		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_1_2;
+		break;
+	case 4000:
+	case 4004:
+		if (check_frc_n2m_status())
+			new_afr_pulldown = 1;
+		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_2_5;
+		break;
+	default:
+		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_BYPASS;
+		break;
+	}
+	vc_print(dev->index, PRINT_OTHER, "%s: set frc mode:%d\n",
+		__func__, vf->vc_private->frc_operation_mode);
+}
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
+	struct vframe_s *enhance_vf = NULL;
 	struct file *file_vf = NULL;
 	struct file *fence_file = NULL;
 	struct frame_info_t *frame_info = NULL;
@@ -3416,22 +4116,17 @@ static void video_composer_task(struct composer_dev *dev)
 	unsigned long phy_addr;
 	u64 time_us64;
 	struct vframe_s *vf_ext = NULL;
-	u32 pic_w;
-	u32 pic_h;
 	bool is_dec_vf = false, is_v4l_vf = false, is_repeat_vf = false;
-	struct vf_nn_sr_t *srout_data = NULL;
-	struct video_composer_private *vc_private;
-	u32 nn_status;
 	u64 delay_time1;
 	u64 delay_time2;
 	u64 now_time;
 	struct vd_prepare_s *vd_prepare = NULL;
 	size_t usage = 0;
 	bool do_mosaic_22 = false;
-	struct vf_aiface_t *aiface_info = NULL;
-	struct vf_aicolor_t *aicolor_info = NULL;
+	struct uvm_lcevc_frame_info *lcevc_data;
 	bool enable_prelink = false;
 	unsigned int ds_ratio = 0;
+	int ret = 0;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -3447,33 +4142,20 @@ static void video_composer_task(struct composer_dev *dev)
 	count = received_frames->frames_info.frame_count;
 	time_us64 = received_frames->time_us64;
 
-	if (count == 1) {
-		if ((dev->index == 0 && force_composer) ||
-		    (dev->index == 1 && force_composer_pip))
-			need_composer = true;
-		frame_transform =
-			received_frames->frames_info.frame_info[0].transform;
-		if (frame_transform == VC_TRANSFORM_ROT_90 ||
-			frame_transform == VC_TRANSFORM_ROT_180 ||
-			frame_transform == VC_TRANSFORM_ROT_270 ||
-			frame_transform == VC_TRANSFORM_FLIP_H_ROT_90 ||
-			frame_transform == VC_TRANSFORM_FLIP_V_ROT_90) {
-			need_composer = true;
-			dev->need_rotate = true;
-		}
-	} else {
-		if (check_mosaic_22(dev, received_frames)) {
-			need_composer = false;
-			do_mosaic_22 = true;
-		} else {
-			need_composer = true;
-		}
+	if (count == 1)
+		frame_transform = received_frames->frames_info.frame_info[0].transform;
+
+	fence_file = received_frames->fence_file[0];
+	if (video_wait_file_fence(dev, fence_file) == 0)
+		return;
+
+	if (!detect_composer_usage(dev, received_frames, &need_composer, &do_mosaic_22)) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "task: fail to get need_composer status.\n");
+		return;
 	}
 
 	if (!need_composer && !do_mosaic_22) {
-		fence_file = received_frames->fence_file[0];
-		if (video_wait_file_fence(dev, fence_file) == 0)
-			return;
 		frames_info = &received_frames->frames_info;
 		frame_info = frames_info->frame_info;
 		phy_addr = received_frames->phy_addr[0];
@@ -3488,46 +4170,26 @@ static void video_composer_task(struct composer_dev *dev)
 			vc_print(dev->index, PRINT_ERROR, "file_vf is NULL\n");
 			return;
 		}
-		is_dec_vf =
-		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf =
-		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+
+		detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
 		/*check repeat vframe*/
 		if (dev->last_file == file_vf && (is_dec_vf || is_v4l_vf))
 			is_repeat_vf = true;
 
-		if (frame_info->type == 0) {
-			if (is_dec_vf || is_v4l_vf)
-				vf = get_vf_from_file(dev, file_vf, false);
-			vc_print(dev->index, PRINT_OTHER,
-				 "%s type 0 is vf\n", __func__);
+		if (is_dec_vf || is_v4l_vf) {
+			vf = get_vf_from_file(dev, file_vf, false);
 			if (!vf) {
-				vc_print(dev->index, PRINT_ERROR,
-					 "%s get vf is NULL\n", __func__);
+				vc_print(dev->index, PRINT_ERROR, "%s get vf is NULL\n", __func__);
 				return;
 			}
-			video_wait_decode_fence(dev, vf);
-		} else if (frame_info->type == 1) {
-			if (is_dec_vf || is_v4l_vf) {
-				vf = get_vf_from_file(dev, file_vf, false);
-				vc_print(dev->index, PRINT_OTHER,
-					 "%s dma is vf\n", __func__);
-				if (!vf) {
-					vc_print(dev->index, PRINT_ERROR,
-						 "%s get vf is NULL\n",
-						 __func__);
-					return;
-				}
+			if (!is_repeat_vf)
 				video_wait_decode_fence(dev, vf);
-			} else {
-				vc_print(dev->index, PRINT_OTHER,
-					 "%s dma buffer not vf\n", __func__);
-			}
+		} else {
+			vc_print(dev->index, PRINT_OTHER, "%s dma buffer not vf\n", __func__);
 		}
 
 		if (!kfifo_get(&dev->receive_q, &received_frames)) {
-			vc_print(dev->index, PRINT_ERROR,
-				 "task: get failed\n");
+			vc_print(dev->index, PRINT_ERROR, "task: get failed\n");
 			return;
 		}
 
@@ -3544,8 +4206,7 @@ static void video_composer_task(struct composer_dev *dev)
 
 			if (is_dec_vf || is_v4l_vf) {
 				if (!vf) {
-					vc_print(dev->index, PRINT_ERROR,
-						 "vf is NULL\n");
+					vc_print(dev->index, PRINT_ERROR, "vf is NULL\n");
 					return;
 				}
 				vd_prepare->src_frame = vf;
@@ -3556,103 +4217,34 @@ static void video_composer_task(struct composer_dev *dev)
 				vd_prepare->src_frame->file_vf = file_vf;
 			}
 		}
-
 		vf = &vd_prepare->dst_frame;
-
 		vf->axis[0] = frame_info->dst_x;
 		vf->axis[1] = frame_info->dst_y;
 		vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
 		vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
 		vf->composer_info = NULL;
 
-		vc_print(dev->index, PRINT_AXIS,
-			"frame_info crop: x y w h %d %d %d %d\n",
-			frame_info->crop_x,
-			frame_info->crop_y,
-			frame_info->crop_w,
-			frame_info->crop_h);
-		if (is_dec_vf || is_v4l_vf) {
-			if ((vf->type & VIDTYPE_COMPRESS) != 0) {
-				if (is_src_crop_valid(vf->src_crop)) {
-					pic_w = vf->compWidth -
-						vf->src_crop.left - vf->src_crop.right;
-					pic_h = vf->compHeight -
-						vf->src_crop.top - vf->src_crop.bottom;
-				} else {
-					pic_w = vf->compWidth;
-					pic_h = vf->compHeight;
-				}
-			} else {
-				pic_w = vf->width;
-				pic_h = vf->height;
-			}
-			if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
-				vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
-				vf->crop[0] = frame_info->crop_y;
-				vf->crop[1] = frame_info->crop_x;
-				vf->crop[2] = frame_info->crop_y +
-					frame_info->crop_h;
-				vf->crop[3] = frame_info->crop_x +
-					frame_info->crop_w;
-				vc_print(dev->index, PRINT_AXIS,
-					"tunnel set vf crop:%d %d %d %d\n",
-					vf->crop[0],
-					vf->crop[1],
-					vf->crop[2],
-					vf->crop[3]);
-			} else if ((pic_w > MAX(frame_info->reserved[0], frame_info->buffer_w)) ||
-				(pic_h > MAX(frame_info->reserved[1], frame_info->buffer_h))) {
-				/*omx receive w*h is small than actual w*h;such as 8k*/
-				vf->crop[0] = 0;
-				vf->crop[1] = 0;
-				vf->crop[2] = 0;
-				vf->crop[3] = 0;
-				vc_print(dev->index, PRINT_AXIS,
-					"crop info is error!\n");
-			} else {
-				vf->crop[0] = frame_info->crop_y;
-				vf->crop[1] = frame_info->crop_x;
-				vf->crop[2] = pic_h
-					- frame_info->crop_h
-					- frame_info->crop_y;
-				vf->crop[3] = pic_w
-					- frame_info->crop_w
-					- frame_info->crop_x;
-				vc_print(dev->index, PRINT_AXIS,
-					"none-tunnel set vf crop:%d %d %d %d\n",
-					vf->crop[0],
-					vf->crop[1],
-					vf->crop[2],
-					vf->crop[3]);
-			}
-		} else {
-			if (frame_info->type == 1) {
-				vf->crop[0] = frame_info->crop_y;
-				vf->crop[1] = frame_info->crop_x;
-				vf->crop[2] = frame_info->buffer_h
-					- frame_info->crop_h
-					- frame_info->crop_y;
-				vf->crop[3] = frame_info->buffer_w
-					- frame_info->crop_w
-					- frame_info->crop_x;
-			} else {
-				vf->crop[0] = 0;
-				vf->crop[1] = 0;
-				vf->crop[2] = 0;
-				vf->crop[3] = 0;
-			}
-		}
+		ret = config_crop_param(dev, received_frames, vf);
+		if (ret)
+			vc_print(dev->index, PRINT_ERROR, "config crop param failed.\n");
+
 		vf->zorder = frames_info->disp_zorder;
 		vf->file_vf = file_vf;
 		//vf->zorder = 1;
 		vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 			| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 		//mirror frame
-		if (frame_transform == VC_TRANSFORM_FLIP_H)
-			vf->flag |= VFRAME_FLAG_MIRROR_H;
-		else if (frame_transform == VC_TRANSFORM_FLIP_V)
-			vf->flag |= VFRAME_FLAG_MIRROR_V;
-
+		if (frame_transform == VC_TRANSFORM_FLIP_H) {
+			if (vf->flag & VFRAME_FLAG_MIRROR_H)
+				vf->flag &= ~VFRAME_FLAG_MIRROR_H;
+			else
+				vf->flag |= VFRAME_FLAG_MIRROR_H;
+		} else if (frame_transform == VC_TRANSFORM_FLIP_V) {
+			if (vf->flag & VFRAME_FLAG_MIRROR_V)
+				vf->flag &= ~VFRAME_FLAG_MIRROR_V;
+			else
+				vf->flag |= VFRAME_FLAG_MIRROR_V;
+		}
 		vf->pts_us64 = time_us64;
 		vf->disp_pts = 0;
 
@@ -3680,54 +4272,33 @@ static void video_composer_task(struct composer_dev *dev)
 			vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 			vf->canvas0Addr = -1;
 			vf->canvas0_config[0].phy_addr = phy_addr;
-			if (frame_info->buffer_w > frame_info->reserved[0]) {
-				if (frame_info->buffer_format == YUV444) {
-					vf->canvas0_config[0].width = frame_info->buffer_w * 3;
-					vc_print(dev->index, PRINT_OTHER,
-						"frame_info->buffer_w * 3\n");
-				} else {
-					vf->canvas0_config[0].width = frame_info->buffer_w;
-				}
-				vc_print(dev->index, PRINT_PATTERN,
-					 "buffer_w(%d) > deal_w(%d)\n",
-					 frame_info->buffer_w,
-					 frame_info->reserved[0]);
-			} else {
-				if (frame_info->buffer_format == YUV444) {
-					vf->canvas0_config[0].width = frame_info->reserved[0] * 3;
-					vc_print(dev->index, PRINT_OTHER,
-						"frame_info->reserved[0] * 3\n");
-				} else {
-					vf->canvas0_config[0].width = frame_info->reserved[0];
-				}
-				vc_print(dev->index, PRINT_PATTERN,
-					 "buffer_w: %d, deal_w: %d\n",
-					 frame_info->buffer_w,
-					 frame_info->reserved[0]);
+
+			vc_print(dev->index, PRINT_PATTERN,
+				"buffer: format = %d, w*h = %d*%d, deal: w*h = %d*%d.\n",
+				frame_info->buffer_format,
+				frame_info->buffer_w,
+				frame_info->buffer_h,
+				frame_info->reserved[0],
+				frame_info->reserved[1]);
+			if (frame_info->buffer_w > frame_info->reserved[0])
+				vf->canvas0_config[0].width = frame_info->buffer_w;
+			else
+				vf->canvas0_config[0].width = frame_info->reserved[0];
+			if (frame_info->buffer_format == YUV444) {
+				vc_print(dev->index, PRINT_OTHER, "buffer_format_t YUV444\n");
+				vf->canvas0_config[0].width *= 3;
 			}
-			if (frame_info->buffer_h > frame_info->reserved[1]) {
-				vf->canvas0_config[0].height =
-						frame_info->buffer_h;
-				vc_print(dev->index, PRINT_PATTERN,
-					 "buffer_h(%d) > deal_h(%d)\n",
-					 frame_info->buffer_h,
-					 frame_info->reserved[1]);
-			} else {
-				vf->canvas0_config[0].height =
-						frame_info->reserved[1];
-				vc_print(dev->index, PRINT_PATTERN,
-					 "buffer_h: %d, deal_h: %d\n",
-					 frame_info->buffer_h,
-					 frame_info->reserved[1]);
-			}
+
+			if (frame_info->buffer_h > frame_info->reserved[1])
+				vf->canvas0_config[0].height = frame_info->buffer_h;
+			else
+				vf->canvas0_config[0].height = frame_info->reserved[1];
+
 			vf->canvas1Addr = -1;
 			vf->canvas0_config[1].phy_addr = phy_addr
-				+ vf->canvas0_config[0].width
-				* vf->canvas0_config[0].height;
-			vf->canvas0_config[1].width =
-				vf->canvas0_config[0].width;
-			vf->canvas0_config[1].height =
-				vf->canvas0_config[0].height;
+				+ vf->canvas0_config[0].width * vf->canvas0_config[0].height;
+			vf->canvas0_config[1].width = vf->canvas0_config[0].width;
+			vf->canvas0_config[1].height = vf->canvas0_config[0].height;
 			vf->width = frame_info->buffer_w;
 			vf->height = frame_info->buffer_h;
 #ifdef CONFIG_AMLOGIC_UVM_CORE
@@ -3741,7 +4312,6 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->type = VIDTYPE_VIU_SINGLE_PLANE
 					| VIDTYPE_VIU_FIELD
 					| VIDTYPE_VIU_444;
-				vc_print(dev->index, PRINT_OTHER, "buffer_format_t YUV444\n");
 			} else {
 				vf->plane_num = 2;
 				vf->type = VIDTYPE_PROGRESSIVE
@@ -3750,11 +4320,10 @@ static void video_composer_task(struct composer_dev *dev)
 			}
 			if (usage == UVM_USAGE_IMAGE_PLAY)
 				vf->type |= VIDTYPE_PIC;
-			vf->bitdepth =
-				BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+			vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		}
 		vc_print(dev->index, PRINT_AXIS,
-			 "axis: %d %d %d %d\ncrop: %d %d %d %d\n",
+			 "axis: %d %d %d %d, crop: %d %d %d %d\n",
 			 vf->axis[0], vf->axis[1], vf->axis[2], vf->axis[3],
 			 vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3]);
 		vc_print(dev->index, PRINT_AXIS,
@@ -3763,7 +4332,7 @@ static void video_composer_task(struct composer_dev *dev)
 		vc_print(dev->index, PRINT_AXIS,
 			 "=========frame info:==========\n");
 		vc_print(dev->index, PRINT_AXIS,
-			 "frame aixs x,y,w,h: %d %d %d %d\n",
+			 "frame axis x,y,w,h: %d %d %d %d\n",
 			 frame_info->dst_x, frame_info->dst_y,
 			 frame_info->dst_w, frame_info->dst_h);
 		vc_print(dev->index, PRINT_AXIS,
@@ -3780,12 +4349,8 @@ static void video_composer_task(struct composer_dev *dev)
 		if (is_dec_vf) {
 			/* copy to uvm vf */
 			vf_ext = vf->uvm_vf;
-		} else if (is_v4l_vf) {
-			if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
-				vf_ext = vf->vf_ext;
-				if (!vf_ext)
-					vc_print(dev->index, PRINT_ERROR, "vf_ext is null\n");
-			}
+		} else if (is_v4l_vf && vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+			vf_ext = vf->vf_ext;
 		}
 
 		if (vf_ext) {
@@ -3801,6 +4366,8 @@ static void video_composer_task(struct composer_dev *dev)
 			vf_ext->dec_set_screen_mode = vf->dec_set_screen_mode;
 			vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 				| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+		} else {
+			vc_print(dev->index, PRINT_OTHER, "no vf_ext.\n");
 		}
 
 		if (is_repeat_vf) {
@@ -3811,48 +4378,35 @@ static void video_composer_task(struct composer_dev *dev)
 				 vf->frame_index);
 		} else {
 			if (is_dec_vf || is_v4l_vf) {
-				if (vf->hf_info && !nn_bypass)
-					srout_data =
-						vc_get_hfout_data(dev, file_vf);
-				if (srout_data)
-					video_wait_sr_fence(dev, srout_data->fence);
-				vc_private = vc_private_q_pop(dev);
-				if (srout_data && vc_private && vf->hf_info) {
-					nn_status = srout_data->nn_status;
-					if (vf->hf_info->phy_addr != 0 &&
-						vf->hf_info->width != 0 &&
-						vf->hf_info->height != 0 &&
-						(nn_status == NN_WAIT_DOING ||
-						nn_status == NN_START_DOING ||
-						nn_status == NN_DONE)) {
-						vc_private->srout_data = srout_data;
-						vc_private->flag |= VC_FLAG_AI_SR;
-					}
+				vf->vc_private = vc_private_q_pop(dev);
+				if (vf->vc_private)
+					vf->vc_private->src_vf = vd_prepare->src_frame;
+
+				/*only vd0 support ai feature*/
+				if (dev->video_render_index == 0) {
+					ret = config_ai_param(dev, received_frames, vf);
+					if (ret)
+						vc_print(dev->index, PRINT_ERROR,
+							"config ai param failed");
+					if (enable_frc_pattern)
+						set_frc_pattern(dev, vf);
 				}
-				vc_private->src_vf = vd_prepare->src_frame;
-				vf->vc_private = vc_private;
-				aiface_info = aiface_info_adjust(dev,
-								file_vf,
-								vf->frame_index,
-								frame_info->dst_x,
-								frame_info->dst_y,
-								frame_info->dst_w,
-								frame_info->dst_h);
-				if (aiface_info) {
-					vf->vc_private->aiface_info = aiface_info;
-					vf->vc_private->flag |= VC_FLAG_AI_FACE;
-					vc_print(dev->index, PRINT_AIFACE,
-						"frame_index = %d, aiface_value_count = %d.\n",
-						vf->frame_index, aiface_info->aiface_value_count);
-				}
-				aicolor_info = vc_get_aicolor_info(dev, file_vf);
-				if (aicolor_info) {
-					nn_status = aicolor_info->nn_status;
-					if (nn_status == NN_WAIT_DOING ||
-						nn_status == NN_START_DOING ||
-						nn_status == NN_DONE) {
-						vf->vc_private->aicolor_info = aicolor_info;
-						vc_private->flag |= VC_FLAG_AI_COLOR;
+				if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+					lcevc_data = vc_get_lcevc_data(dev, file_vf);
+					if (!lcevc_data)
+						vc_print(dev->index, PRINT_ERROR,
+							"task: lcevc data is NULL!\n");
+					else
+						enhance_vf = get_enhance_vf_pointer(dev, vf);
+					if (set_vf_lcevc_data(dev, enhance_vf, lcevc_data)) {
+						vf->enhance_vf = enhance_vf;
+						enhance_vf = vf;
+						vf = vf->enhance_vf;
+						vf->enhance_vf = enhance_vf;
+					} else {
+						vc_print(dev->index, PRINT_ERROR,
+							"task: set lcevc data failed\n");
+						vf->type_ext &= ~VIDTYPE_EXT_LCEVC;
 					}
 				}
 			}
@@ -3867,9 +4421,7 @@ static void video_composer_task(struct composer_dev *dev)
 						 "total: time1=%lld,  time2=%lld\n",
 						 delay_time1, delay_time2);
 				if (delay_time1 > 1000)
-					vc_print(dev->index, PRINT_PATTERN,
-						 "too time1=%lld, time2=%lld\n",
-						 delay_time1, delay_time2);
+					vc_print(dev->index, PRINT_PATTERN, "delay too long.\n");
 			}
 
 			if (!(vf->type & VIDTYPE_VIU_FIELD) &&
@@ -3913,7 +4465,8 @@ static void video_composer_task(struct composer_dev *dev)
 			dev->vframe_dump_flag = dump_vframe;
 		}
 		atomic_set(&received_frames->on_use, false);
-		if (use_low_latency && dev->index == 0)
+		if ((use_low_latency || (is_dec_vf && vf->flag & VFRAME_FLAG_GAME_MODE)) &&
+			dev->index == 0)
 			proc_lowlatency_frame(0);
 	} else if (do_mosaic_22) {
 		vframe_do_mosaic_22(dev);
@@ -4184,14 +4737,10 @@ static void set_frames_info(struct composer_dev *dev,
 
 	for (j = 0; j < frames_info->frame_count; j++) {
 		if (frames_info->frame_info[j].type == 2) {
-			vc_print(dev->index, PRINT_OTHER,
-				 "sideband:i=%d,z=%d\n",
-				 i,
-				 frames_info->disp_zorder);
 			ready_len = kfifo_len(&dev->ready_q);
 			vc_print(dev->index, PRINT_OTHER,
-				 "sideband: ready_len =%d\n",
-				 ready_len);
+				"sideband: zorder=%d, ready_len =%d\n",
+				frames_info->disp_zorder, ready_len);
 			frames_info->frame_info[j].composer_fen_fd = -1;
 			sideband_type = frames_info->frame_info[j].sideband_type;
 			axis[0] = frames_info->frame_info[j].dst_x;
@@ -4224,14 +4773,12 @@ static void set_frames_info(struct composer_dev *dev,
 				set_sideband_type(sideband_type, 0);
 			}
 		}
-		vc_print(dev->index, PRINT_ERROR,
-			 "sideband_type =%d\n", sideband_type);
+		vc_print(dev->index, PRINT_OTHER, "sideband_type =%d\n", sideband_type);
 		dev->select_path_done = true;
 	}
 	if (current_is_sideband) {
 		if (frames_info->frame_count > 1)
-			vc_print(dev->index, PRINT_ERROR,
-				 "sideband count not 1\n");
+			vc_print(dev->index, PRINT_ERROR, "sideband count not 1\n");
 		return;
 	}
 
@@ -4239,14 +4786,11 @@ static void set_frames_info(struct composer_dev *dev,
 	    dev->received_count == 0) {
 		if (dev->is_sideband && !current_is_sideband) {
 			set_vdx_blackout_policy(dev->index, 1);
-			vc_print(dev->index, PRINT_OTHER,
-				 "sideband to non\n");
+			vc_print(dev->index, PRINT_OTHER, "sideband to none sideband\n");
 		}
 		dev->is_sideband = false;
 		disable_video_layer(dev, 0);
-		sprintf(render_layer,
-			"video_render.%d",
-			dev->video_render_index);
+		sprintf(render_layer, "video_render.%d", dev->video_render_index);
 		set_video_path_select(render_layer, dev->index);
 	}
 	dev->is_sideband = false;
@@ -4275,12 +4819,13 @@ static void set_frames_info(struct composer_dev *dev,
 		if (i == FRAMES_INFO_POOL_SIZE) {
 			j++;
 			if (j > WAIT_READY_Q_TIMEOUT) {
-				pr_err("receive_q is full, wait timeout!\n");
+				vc_print(dev->index, PRINT_ERROR,
+					"receive_q is full, wait timeout!\n");
 				return;
 			}
 			usleep_range(1000 * receive_wait,
 				     1000 * (receive_wait + 1));
-			pr_err("receive_q is full!!! need wait =%d\n", j);
+			vc_print(dev->index, PRINT_ERROR, "receive_q is full, need wait =%d\n", j);
 			continue;
 		} else {
 			break;
@@ -4296,18 +4841,16 @@ static void set_frames_info(struct composer_dev *dev,
 
 		if (!IS_ERR_OR_NULL(fence_file))
 			sync_file = (struct sync_file *)fence_file->private_data;
-		else
-			vc_print(dev->index, PRINT_FENCE, "creat fence_file is NULL\n");
 
 		if (!IS_ERR_OR_NULL(sync_file))
 			fence_obj = sync_file->fence;
-		else
-			vc_print(dev->index, PRINT_FENCE, "creat sync_file is NULL\n");
 
-		if (fence_obj) {
+		if (fence_obj)
 			vc_print(dev->index, PRINT_FENCE, "creat sync_file=%px, seqno=%lld\n",
 					sync_file, fence_obj->seqno);
-		}
+		else
+			vc_print(dev->index, PRINT_FENCE, "fence file is NULL\n");
+
 		if (!IS_ERR_OR_NULL(fence_file))
 			fput(fence_file);
 	}
@@ -4317,7 +4860,6 @@ static void set_frames_info(struct composer_dev *dev,
 			frames_info->frame_info[j].transform = transform;
 	}
 
-	dev->received_frames[i].frames_info = *frames_info;
 	dev->received_frames[i].frames_num = dev->received_count;
 	dev->received_frames[i].time_us64 = time_us64;
 
@@ -4347,8 +4889,7 @@ static void set_frames_info(struct composer_dev *dev,
 		dev->received_frames[i].fence_file[j] = fence_file;
 
 		type = frames_info->frame_info[j].type;
-		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+		detect_vf_type(&frames_info->frame_info[j], file_vf, &is_dec_vf, &is_v4l_vf);
 
 		vc_print(dev->index, PRINT_FENCE,
 			"receive:file=%px, dma=%px, file_fd=%d, file_count=%ld\n",
@@ -4386,6 +4927,8 @@ static void set_frames_info(struct composer_dev *dev,
 
 			vc_print(dev->index, PRINT_FENCE, "%s: vf:%px, vf_ext:%px,timestamp:%lld\n",
 				__func__, vf, vf->vf_ext, div_u64(vf->timestamp, 1000000000));
+
+			memcpy(frames_info->frame_info[j].reserved1, &vf, sizeof(vf));
 
 			if (((reset_drop >> dev->index) & 1) ||
 			    last_index[dev->index][j] > vf->frame_index) {
@@ -4454,6 +4997,7 @@ static void set_frames_info(struct composer_dev *dev,
 			vc_print(dev->index, PRINT_ERROR, "unsupport type.\n");
 		}
 	}
+	dev->received_frames[i].frames_info = *frames_info;
 	dev->received_frames[i].is_tvp = is_tvp;
 	atomic_set(&dev->received_frames[i].on_use, true);
 	dev->received_count++;
@@ -4522,6 +5066,10 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->select_path_done = false;
 	dev->vd_prepare_last = NULL;
 	dev->dev_choice = COMPOSER_WITH_UNINITIAL;
+	dev->kfifo_need_initialize = true;
+	dev->fence_wait_time_total = 0;
+	dev->fence_wait_count = 0;
+	dev_array[dev->index] = dev;
 	init_completion(&dev->task_done);
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
@@ -4535,11 +5083,9 @@ static int video_composer_init(struct composer_dev *dev)
 	sprintf(render_layer, "video_render.%d", dev->video_render_index);
 	set_video_path_select(render_layer, dev->index);
 	dev_get_vinfo(dev);
-/*
- *#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
- *	resman_register_debug_callback("Display_VC", set_vc_config);
- *#endif
- */
+#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
+	resman_register_debug_callback("Display_VC", set_vc_config);
+#endif
 	return ret;
 }
 
@@ -4597,6 +5143,7 @@ static int video_composer_uninit(struct composer_dev *dev)
 				- dev->fence_release_count);
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
+	dev_array[dev->index] = NULL;
 	video_display_para_reset(dev->index);
 
 	if (dev->aiface_buf) {
@@ -4616,13 +5163,10 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 	if (val == 0)
 		dev->composer_enabled = false;
 
-	vc_print(dev->index, PRINT_ERROR,
-		 "vc: set enable index=%d, val=%d\n",
-		 dev->index, val);
+	vc_print(dev->index, PRINT_ERROR, "set enable index=%d, val=%d\n", dev->index, val);
 
 	if (dev->enable_composer == val) {
-		pr_err("vc: set_enable repeat set dev->index =%d,val=%d\n",
-		       dev->index, val);
+		vc_print(dev->index, PRINT_ERROR, "set_enable repeat, dev index =%d\n", dev->index);
 		return ret;
 	}
 	dev->enable_composer = val;
@@ -4635,7 +5179,7 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 	}
 
 	if (ret != 0)
-		pr_err("vc: set failed\n");
+		vc_print(dev->index, PRINT_ERROR, "%s failed\n", __func__);
 	else
 		if (val)
 			dev->composer_enabled = true;
@@ -5769,6 +6313,157 @@ static ssize_t lossy_compress_rate_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t enable_frc_pattern_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 80,
+			"current print_close is %d\n",
+			enable_frc_pattern);
+}
+
+static ssize_t enable_frc_pattern_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	enable_frc_pattern = tmp;
+	return count;
+}
+
+static ssize_t buffer_status_show(const struct class *cla,
+	const struct class_attribute *attr, char *buf)
+{
+	int i, j;
+	int len = 0;
+	int ret = 0;
+	ssize_t count = 0;
+	int buffer_count = 0;
+	struct received_frames_t *frames[8];
+	struct vframe_s *buffer[8];
+
+	for (i = 0; i < MAX_VD_LAYERS; i++) {
+		if (!dev_array[i])
+			continue;
+		count += sprintf(buf + count, "layer[%d]:  vinfo: %d * %d\n", i,
+			dev_array[i]->vinfo_w, dev_array[i]->vinfo_h);
+		count += sprintf(buf + count, "----------------------------\n");
+		len = kfifo_len(&dev_array[i]->receive_q);
+		ret = kfifo_out_peek(&dev_array[i]->receive_q, frames, len);
+		if (ret != len) {
+			pr_err("Failed to peek data from kfifo\n");
+			return count;
+		}
+		for (j = 0; j < len; j++) {
+			memcpy(&buffer[j], frames[j]->frames_info.frame_info[0].reserved1,
+				sizeof(buffer[0]));
+			if (buffer[j] && (buffer[j]->type & VIDTYPE_DI_PW ||
+				buffer[j]->di_flag & DI_FLAG_DI_PVPPLINK))
+				buffer_count++;
+		}
+		count += sprintf(buf + count, "di hold buffer count:%d\n", buffer_count);
+		buffer_count = 0;
+		for (j = 0; j < len; j++) {
+			if (buffer[j] && (buffer[j]->type & VIDTYPE_DI_PW ||
+				buffer[j]->di_flag & DI_FLAG_DI_PVPPLINK)) {
+				if (buffer[j]->vf_ext)
+					buffer[j] = buffer[j]->vf_ext;
+				count += sprintf(buf + count,
+					"\t(receive_q)frame_index: %d\n",
+					buffer[j]->frame_index);
+				count += sprintf(buf + count, "\t\ttimestamp:%llu\n",
+					(unsigned long long)buffer[j]->timestamp);
+				count += sprintf(buf + count,
+					"\t\ty_addr: 0x%lx  uv_addr:0x%lx  width: %d height:%d\n",
+					buffer[j]->canvas0_config[0].phy_addr,
+					buffer[j]->canvas0_config[1].phy_addr,
+					buffer[j]->width,
+					buffer[j]->height);
+				buffer[j] = NULL;
+			} else {
+				buffer_count++;
+			}
+		}
+		count += sprintf(buf + count, "\nvc hold buffer count: %d\n",
+			buffer_count + kfifo_len(&dev_array[i]->ready_q));
+		buffer_count = 0;
+		for (j = 0; j < len; j++) {
+			if (buffer[j]) {
+				count += sprintf(buf + count,
+					"\t%d:(receive_q)frame_index: %d\n",
+					buffer_count, buffer[j]->frame_index);
+				count += sprintf(buf + count, "\t\ttimestamp:%llu\n",
+					(unsigned long long)buffer[j]->timestamp);
+				count += sprintf(buf + count,
+					"\t\ty_addr: 0x%lx  uv_addr:0x%lx  width: %d height:%d\n",
+					buffer[j]->canvas0_config[0].phy_addr,
+					buffer[j]->canvas0_config[1].phy_addr,
+					buffer[j]->width,
+					buffer[j]->height);
+				buffer_count++;
+			}
+		}
+
+		len = kfifo_len(&dev_array[i]->ready_q);
+		ret = kfifo_out_peek(&dev_array[i]->ready_q, buffer, len);
+		if (ret != len) {
+			pr_err("Failed to peek data from kfifo\n");
+			return count;
+		}
+		for (j = 0; j < len; j++) {
+			if (buffer[j] && buffer[j]->vf_ext && (buffer[j]->type & VIDTYPE_DI_PW ||
+				buffer[j]->di_flag & DI_FLAG_DI_PVPPLINK))
+				buffer[j] = buffer[j]->vf_ext;
+			count += sprintf(buf + count,
+				"\t%d:(ready_q)frame_index: %d\n",
+				buffer_count + j, buffer[j]->frame_index);
+			count += sprintf(buf + count, "\t\ttimestamp:%llu\n",
+				(unsigned long long)buffer[j]->timestamp);
+			count += sprintf(buf + count,
+				"\t\ty_addr: 0x%lx  uv_addr:0x%lx  width: %d height:%d\n",
+				buffer[j]->canvas0_config[0].phy_addr,
+				buffer[j]->canvas0_config[1].phy_addr,
+				buffer[j]->width,
+				buffer[j]->height);
+		}
+		len = kfifo_len(&dev_array[i]->display_q);
+		ret = kfifo_out_peek(&dev_array[i]->display_q, buffer, len);
+		if (ret != len) {
+			pr_err("Failed to peek data from kfifo\n");
+			return count;
+		}
+		count += sprintf(buf + count, "\nvpp hold buffer count:%d\n", len);
+		for (j = 0; j < len; j++) {
+			if (buffer[j] && buffer[j]->vf_ext && (buffer[j]->type & VIDTYPE_DI_PW ||
+				buffer[j]->di_flag & DI_FLAG_DI_PVPPLINK))
+				buffer[j] = buffer[j]->vf_ext;
+
+			count += sprintf(buf + count,
+				"\t%d:(display_q)frame_index: %d\n",
+				j, buffer[j]->frame_index);
+			count += sprintf(buf + count, "\t\ttimestamp:%llu\n",
+				(unsigned long long)buffer[j]->timestamp);
+			count += sprintf(buf + count,
+				"\t\ty_addr: 0x%lx  uv_addr:0x%lx  width: %d height:%d\n",
+				buffer[j]->canvas0_config[0].phy_addr,
+				buffer[j]->canvas0_config[1].phy_addr,
+				buffer[j]->width,
+				buffer[j]->height);
+		}
+		count += sprintf(buf + count, "\nfree_q(internal buffer):%d\n",
+			kfifo_len(&dev_array[i]->free_q));
+	}
+	count += sprintf(buf + count, "\n");
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -5818,6 +6513,8 @@ static CLASS_ATTR_RW(force_comp_h);
 static CLASS_ATTR_RW(vd_test_fps);
 static CLASS_ATTR_RW(dewarp_load_flag);
 static CLASS_ATTR_RW(lossy_compress_rate);
+static CLASS_ATTR_RW(enable_frc_pattern);
+static CLASS_ATTR_RO(buffer_status);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -5869,10 +6566,26 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_vd_test_fps.attr,
 	&class_attr_dewarp_load_flag.attr,
 	&class_attr_lossy_compress_rate.attr,
+	&class_attr_enable_frc_pattern.attr,
+	&class_attr_buffer_status.attr,
 	NULL
 };
 
 ATTRIBUTE_GROUPS(video_composer_class);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+struct mediaproxy_info_t mediaproxy_display_info[] = {
+	{
+		.k_producer_name = "video_composer0"
+	},
+	{
+		.k_producer_name = "video_composer1"
+	},
+	{
+		.k_producer_name = "video_composer2"
+	},
+};
+#endif
 
 static struct class video_composer_class = {
 	.name = "video_composer",
@@ -5920,6 +6633,33 @@ static int video_composer_probe(struct platform_device *pdev)
 		st->class_dev = device_create(&video_composer_class, NULL,
 					      MKDEV(VIDEO_COMPOSER_MAJOR, i),
 					      NULL, ports[i].name);
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "vpu_dma_mask", &st->vpu_dma_mask);
+		if (ret) {
+			pr_err("video_composer don't find vpu_dma_mask\n");
+			st->vpu_dma_mask = 0;
+		}
+		if (st->vpu_dma_mask) {
+			ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(36));
+			if (ret < 0) {
+				pr_err("dma_set_coherent_mask fail\n");
+				goto error1;
+			}
+			ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
+			if (ret < 0) {
+				pr_err("dma_set_mask fail\n");
+				goto error1;
+			}
+		}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+		if (!mediaproxy_display_info[i].k_producer_session) {
+			media_proxy_produce_init(&mediaproxy_display_info[i].k_producer_session,
+				mediaproxy_display_info[i].k_producer_name,
+				MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO |
+				MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO);
+		}
+#endif
 	}
 	pr_debug("%s num=%d\n", __func__, video_composer_instance_num);
 	return ret;
@@ -5968,6 +6708,15 @@ int __init video_composer_module_init(void)
 
 void __exit video_composer_module_exit(void)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	int i;
+
+	for (i = 0; i < video_composer_instance_num; i++) {
+		if (mediaproxy_display_info[i].k_producer_session)
+			media_proxy_produce_deinit(mediaproxy_display_info[i].k_producer_session);
+	}
+#endif
+
 	platform_driver_unregister(&video_composer_driver);
 }
 

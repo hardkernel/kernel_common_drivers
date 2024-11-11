@@ -15,9 +15,7 @@
  * more details.
  *
  */
-
 #include <linux/vmalloc.h>
-
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/utils/am_com.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
@@ -28,6 +26,7 @@
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/video_processor/video_pp_common.h>
 #include "videodisplay.h"
+#include <linux/amlogic/media/media_proxy/AmlVideoUserdata.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 #include <linux/amlogic/media/frc/frc_common.h>
 #endif
@@ -52,13 +51,19 @@ static u32 vsync_pts_inc_scale_base[MAX_VD_LAYERS];
 
 #define PATTERN_32_DETECT_RANGE 7
 #define PATTERN_22_DETECT_RANGE 7
+#define PATTERN_11_DETECT_RANGE 6
 #define PATTERN_22323_DETECT_RANGE 5
 #define PATTERN_44_DETECT_RANGE 5
 #define PATTERN_55_DETECT_RANGE 5
 
+#define ROTATION_180_DEGREES BIT(2)
+
+static void vc_vf_put(struct vframe_s *vf, void *op_arg);
+
 /*if add new patten, need change dev->patten[X]*/
 enum video_refresh_pattern {
-	PATTERN_32 = 0,
+	PATTERN_11 = 0,
+	PATTERN_32,
 	PATTERN_22,
 	PATTERN_22323,
 	PATTERN_44,
@@ -122,6 +127,24 @@ void vsync_notify_video_composer(u8 layer_id,
 	}
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+static void vc_notify_msg_to_mediaproxy(struct vframe_s *vf, int index,
+	int event, struct timespec64 ts)
+{
+	struct aml_video_user_data msg;
+
+	memset(&msg, 0, sizeof(struct aml_video_user_data));
+	msg.data.frame_info.bitstreamid = div64_u64(vf->timestamp, 1000000000);
+	msg.data.frame_info.vd_instid = index;
+	msg.data.frame_info.decoder_instid = vf->decoder_instid;
+	msg.data.frame_info.frame_index = vf->frame_index;
+	msg.data.frame_info.time = 1000000000L * ts.tv_sec + ts.tv_nsec;
+	msg.message_type = event;
+
+	notify_msg_to_mediaproxy(mediaproxy_display_info[index].k_producer_session, 1, &msg);
+}
+#endif
+
 static bool vd_vf_is_tvin(struct vframe_s *vf)
 {
 	if (!vf)
@@ -134,14 +157,14 @@ static bool vd_vf_is_tvin(struct vframe_s *vf)
 	return false;
 }
 
-static bool frc_n2m_worked(void)
+bool check_frc_n2m_status(void)
 {
 	bool ret = false;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 		/* frc_get_n2m_setting 1 : n2m is 1:1; 2 :n2m is 1:2 */
 		/* frc_is_on() 1: means frc really worked */
-		if ((frc_get_n2m_setting() == 2) && frc_is_on())
+		if ((frc_get_n2m_setting() >= 2) && frc_is_on())
 			ret = true;
 #endif
 	return ret;
@@ -311,19 +334,23 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 	if (pattern >= MAX_NUM_PATTERNS)
 		return;
 
-	if (pattern == PATTERN_32) {
-		factor1 = 3;
-		factor2 = 2;
-		pattern_range = PATTERN_32_DETECT_RANGE;
+	if (pattern == PATTERN_11) {
+		factor1 = 1;
+		factor2 = 1;
+		pattern_range = PATTERN_11_DETECT_RANGE;
 	} else if (pattern == PATTERN_22) {
 		factor1 = 2;
 		factor2 = 2;
 		pattern_range =  PATTERN_22_DETECT_RANGE;
-	}  else if (pattern == PATTERN_44) {
+	} else if (pattern == PATTERN_32) {
+		factor1 = 3;
+		factor2 = 2;
+		pattern_range =  PATTERN_32_DETECT_RANGE;
+	} else if (pattern == PATTERN_44) {
 		factor1 = 4;
 		factor2 = 4;
 		pattern_range =  PATTERN_44_DETECT_RANGE;
-	}  else if (pattern == PATTERN_55) {
+	} else if (pattern == PATTERN_55) {
 		factor1 = 5;
 		factor2 = 5;
 		pattern_range =  PATTERN_55_DETECT_RANGE;
@@ -346,13 +373,24 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 			}
 		}
 	} else if (dev->pattern[pattern] == pattern_range) {
-		if (pattern == PATTERN_22 &&
+		if (pattern == PATTERN_11 &&
+			patten_trace[dev->index] == 2 &&
+			dev->pre_pat_trace == 1 &&
+			vf->frame_index == dev->last_vf_index + 1) {
+			patten_trace[dev->index] = 1;
+			vc_print(dev->index, PRINT_PATTERN,
+				"patten_11: video %d:%d mode force unbroken, pre_pat=%d, %d, index=%d, %d\n",
+				factor1, factor2, dev->pre_pat_trace,
+				patten_trace[dev->index],
+				vf->frame_index, dev->last_vf_index);
+			return;
+		} else if (pattern == PATTERN_22 &&
 			patten_trace[dev->index] == 3 &&
 			dev->pre_pat_trace == 2 &&
 			vf->frame_index == dev->last_vf_index + 1) {
 			patten_trace[dev->index] = 2;
 			vc_print(dev->index, PRINT_PATTERN,
-				"patten: video %d:%d mode force unbroken, pre_pat=%d, %d, index=%d, %d\n",
+				"patten_22: video %d:%d mode force unbroken, pre_pat=%d, %d, index=%d, %d\n",
 				factor1, factor2, dev->pre_pat_trace,
 				patten_trace[dev->index],
 				vf->frame_index, dev->last_vf_index);
@@ -365,7 +403,8 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 			factor1, factor2, dev->pre_pat_trace, patten_trace[dev->index],
 			vf->frame_index, dev->last_vf_index);
 	} else {
-		vc_print(dev->index, PRINT_PATTERN, "invalid case, reset to 0.\n");
+		vc_print(dev->index, PRINT_PATTERN,
+			"pattern:%d invalid case, reset to 0.\n", pattern);
 		dev->pattern[pattern] = 0;
 	}
 }
@@ -507,13 +546,36 @@ static void vd_vsync_video_pattern_53(struct composer_dev *dev, struct vframe_s 
 	}
 }
 
+static void vd_vsync_video_pattern_11120(struct composer_dev *dev, struct vframe_s *vf)
+{
+	int i = 0, sum = 0, ave = 0;
+
+	for (i = 0; i < PATTEN_FACTOR_MAX; i++)
+		sum += dev->patten_factor[i];
+
+	ave = sum / PATTEN_FACTOR_MAX;
+	if (ave == 1) {
+		dev->pattern_detected = PATTERN_11;
+		dev->pattern[PATTERN_11] = PATTERN_11_DETECT_RANGE;
+		dev->pattern_enter_cnt++;
+		vc_print(dev->index, PRINT_PATTERN, "%s: video 11 mode detected\n", __func__);
+	} else {
+		vc_print(dev->index, PRINT_PATTERN, "%s: not 11 mode.\n", __func__);
+	}
+}
+
 static void vsync_video_pattern(struct composer_dev *dev, struct vframe_s *vf)
 {
+	vd_vsync_video_pattern(dev, PATTERN_11, vf);
 	vd_vsync_video_pattern(dev, PATTERN_32, vf);
 	vd_vsync_video_pattern(dev, PATTERN_22, vf);
 	vd_vsync_video_pattern_22323(dev, vf);
 	vd_vsync_video_pattern(dev, PATTERN_44, vf);
 	vd_vsync_video_pattern(dev, PATTERN_55, vf);
+	if (dev->pattern_detected != PATTERN_11 ||
+		(dev->pattern_detected == PATTERN_11 &&
+			dev->pattern[PATTERN_11] != PATTERN_11_DETECT_RANGE))
+		vd_vsync_video_pattern_11120(dev, vf);
 	if (dev->pattern_detected != PATTERN_22 ||
 		(dev->pattern_detected == PATTERN_22 &&
 			dev->pattern[PATTERN_22] != PATTERN_22_DETECT_RANGE))
@@ -542,6 +604,11 @@ static inline int vd_perform_pulldown(struct composer_dev *dev,
 		return -1;
 
 	switch (dev->pattern_detected) {
+	case PATTERN_11:
+		pattern_range =  PATTERN_11_DETECT_RANGE;
+		expected_prev_interval = 1;
+		expected_curr_interval = 1;
+		break;
 	case PATTERN_32:
 		pattern_range = PATTERN_32_DETECT_RANGE;
 		switch (dev->pre_pat_trace) {
@@ -625,7 +692,7 @@ static inline int vd_perform_pulldown(struct composer_dev *dev,
 	return 0;
 }
 
-static int find_nearest_duration(struct composer_dev *dev, int duration_val)
+int find_nearest_duration(struct composer_dev *dev, int duration_val)
 {
 	int min = INT_MAX;
 	int duration_arr[11] = {800, 801, 960, 1600, 1601, 1920, 3200, 3203, 3840, 4000, 4004};
@@ -653,6 +720,8 @@ static bool pulldown_support_vf(struct composer_dev *dev, u32 duration_val)
 
 	duration = find_nearest_duration(dev, duration_val);
 
+	if (new_afr_pulldown)
+		support = true;
 	if (vsync_pts_inc_scale[dev->index] == 1 &&
 		vsync_pts_inc_scale_base[dev->index] == 48) {
 		/*48hz for 24fps 23.976fps*/
@@ -660,8 +729,8 @@ static bool pulldown_support_vf(struct composer_dev *dev, u32 duration_val)
 			support = true;
 	} else if (vsync_pts_inc_scale[dev->index] == 1 &&
 		vsync_pts_inc_scale_base[dev->index] == 50) {
-		/*50hz for 25fps*/
-		if (duration == 3840)
+		/*50hz for 25fps 50fps*/
+		if (duration == 3840 || duration == 1920)
 			support = true;
 	} else if (vsync_pts_inc_scale[dev->index] == 1001 &&
 		vsync_pts_inc_scale_base[dev->index] == 60000) {
@@ -700,6 +769,7 @@ static bool pulldown_support_vf(struct composer_dev *dev, u32 duration_val)
 			duration == 1600)
 			support = true;
 	}
+
 	return support;
 }
 
@@ -734,7 +804,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 		if (get_lowlatency_mode())
 			return vf;
 
-		if (dev->index == 0 && frc_n2m_worked())
+		if (dev->index == 0 && is_meson_t3x_cpu() && check_frc_n2m_status())
 			aisr_delay_vsync = 1;
 		else
 			aisr_delay_vsync = 0;
@@ -761,6 +831,8 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 			if (vsync_index + 1 >= vsync_count[dev->index])
 				return NULL;
 		}
+		if (vf->flag & VFRAME_FLAG_GAME_MODE)
+			return vf;
 
 		input_fps = vf->duration * 15;
 		get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);
@@ -833,7 +905,8 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 					"peek: vsync_index: %d, vsync_count:%d, frame_index=%d\n",
 					vf->vc_private->vsync_index, vsync_count[dev->index],
 					vf->frame_index);
-				if (vsync_index + 1 >= vsync_count[dev->index])
+				if (vsync_index + 1 >= vsync_count[dev->index] &&
+					dev->pattern_detected != PATTERN_11)
 					expired = false;
 			}
 			expired_tmp = expired;
@@ -881,6 +954,9 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 	struct vframe_s *vf = NULL;
 	u32 vsync_index_diff = 0;
 	bool enable_prelink = false;
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	struct timespec64 ts;
+#endif
 
 	if (kfifo_get(&dev->ready_q, &vf)) {
 		if (!vf)
@@ -903,7 +979,6 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 		enable_prelink = dim_get_pre_link();
 #endif
-
 		if (vf->vc_private) {
 			vsync_index_diff = vf->vc_private->vsync_index - dev->last_vsync_index;
 			dev->last_vsync_index = vf->vc_private->vsync_index;
@@ -961,11 +1036,22 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 "get:canvas_w: %d, canvas_h: %d\n",
 			  vf->canvas0_config[0].width, vf->canvas0_config[0].height);
 
-
 		if (vf->vc_private) {
 			vf->vc_private->last_disp_count = continue_vsync_count[dev->index];
 			actual_delay_count[dev->index] = vsync_count[dev->index]
 				- vf->vc_private->vsync_index + 1;
+		}
+
+		if (vf->dec_fence_status == DEC_FENCE_SUCCESS) {
+			vc_print(dev->index, PRINT_OTHER,
+				"%s: normal vframe, frame_index:%d fence:%px\n",
+				__func__, vf->frame_index, vf->fence);
+			dma_fence_get(vf->fence);
+		} else if (vf->dec_fence_status == DEC_FENCE_ERR) {
+			vc_print(dev->index, PRINT_OTHER, "error vframe, frame_index:%d\n",
+			       vf->frame_index);
+			vc_vf_put(vf, (void *)dev);
+			return NULL;
 		}
 
 		if (dev->enable_pulldown) {
@@ -978,6 +1064,11 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			patten_trace[dev->index] = 0;
 		}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+		ktime_get_real_ts64(&ts);
+		vc_notify_msg_to_mediaproxy(vf, dev->index,
+			MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO, ts);
+#endif
 		continue_vsync_count[dev->index] = 0;
 		dev->last_vf_index = vf->frame_index;
 		current_display_vf = vf;
@@ -998,10 +1089,14 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 {
 	int repeat_count;
 	struct file *file_vf;
+	struct vframe_s *display_vf = vf;
 	struct composer_dev *dev = (struct composer_dev *)op_arg;
 	struct vd_prepare_s *vd_prepare_tmp;
 	struct mbp_buffer_info_t *mpb_buf = NULL;
 	bool enable_prelink = false;
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	struct timespec64 ts;
+#endif
 
 	if (!vf)
 		return;
@@ -1009,6 +1104,21 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	enable_prelink = dim_get_pre_link();
 #endif
+
+	if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+		vc_print(dev->index, PRINT_OTHER,
+			"%s: enhance_vf=%px, type:0x%x, flag=0x%x, y_addr=0x%lx, width=%d, height=%d\n",
+			__func__,
+			vf,
+			vf->type,
+			vf->flag,
+			vf->canvas0_config[0].phy_addr,
+			vf->width,
+			vf->height);
+		vf = vf->enhance_vf;
+		display_vf = vf->enhance_vf;
+		vf->rendered = display_vf->rendered;
+	}
 
 	vc_print(dev->index, PRINT_OTHER,
 		"%s: prelink_en=%d, vf=%px(%px), frame_index=%d, vf_type=0x%x, vf_flag=0x%x, vf->timestamp: %lld.\n",
@@ -1037,6 +1147,11 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 		vf->canvas0_config[1].phy_addr,
 		vf->width,
 		vf->height);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	ktime_get_real_ts64(&ts);
+	vc_notify_msg_to_mediaproxy(vf, dev->index, MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO, ts);
+#endif
 
 	if (dev->is_drm_enable) {
 		if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
@@ -1086,7 +1201,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 			"%s: frame_index=%d, put_count=%lld.\n",
 			__func__, vf->frame_index, dev->fput_count);
 	} else {
-		vf_pop_display_q(dev, vf);
+		vf_pop_display_q(dev, display_vf);
 		videocomposer_vf_put(vf, op_arg);
 	}
 
@@ -1427,33 +1542,6 @@ static int video_display_uninit(int layer_index)
 	return ret;
 }
 
-static unsigned long get_dma_phy_addr(struct dma_buf *dbuf,
-					struct composer_dev *dev)
-{
-	unsigned long phy_addr = 0;
-	struct sg_table *table = NULL;
-	struct page *page = NULL;
-	struct dma_buf_attachment *attach = NULL;
-
-	if (IS_ERR_OR_NULL(dbuf) || IS_ERR_OR_NULL(dev)) {
-		vc_print(dev->index, PRINT_ERROR,
-			 "%s: param is NULL.\n",
-			 __func__);
-		return 0;
-	}
-
-	attach = dma_buf_attach(dbuf, dev->port->pdev);
-	if (IS_ERR(attach))
-		return 0;
-
-	table = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-	page = sg_page(table->sgl);
-	phy_addr = PFN_PHYS(page_to_pfn(page));
-	dma_buf_unmap_attachment(attach, table, DMA_BIDIRECTIONAL);
-	dma_buf_detach(dbuf, attach);
-	return phy_addr;
-}
-
 int video_display_setenable(int layer_index, int is_enable)
 {
 	int ret = 0;
@@ -1611,13 +1699,15 @@ int video_display_setframe(int layer_index,
 	}
 
 	if (!(is_dec_vf || is_v4l_vf)) {
+		if (frame_info->rotation & ROTATION_180_DEGREES)
+			vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
+
 		vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 		vf->plane_num = 1;
 		vf->canvas0Addr = -1;
-		vf->canvas0_config[0].phy_addr =
-			get_dma_phy_addr(frame_info->dmabuf, dev);
+		vf->canvas0_config[0].phy_addr = frame_info->phy_addr[0];
 		vf->canvas0_config[0].width =
-			frame_info->buffer_w;
+			frame_info->byte_stride;
 		vf->canvas0_config[0].height =
 			frame_info->buffer_h;
 		vc_print(dev->index, PRINT_PATTERN,
@@ -1627,12 +1717,12 @@ int video_display_setframe(int layer_index,
 		vf->canvas0_config[0].endian = 0;
 		vf->canvas1Addr = -1;
 
-		if ((frame_info->reserved[0] & VIDTYPE_VIU_NV12) ||
-			(frame_info->reserved[0] & VIDTYPE_VIU_NV21)) {
+		if ((frame_info->type & VIDTYPE_VIU_NV12) ||
+			(frame_info->type & VIDTYPE_VIU_NV21)) {
 			phy_addr2 = frame_info->phy_addr[1];
 			vf->plane_num = 2;
 			vf->canvas0_config[1].phy_addr = phy_addr2;
-			vf->canvas0_config[1].width = frame_info->buffer_w;
+			vf->canvas0_config[1].width = frame_info->byte_stride;
 			vf->canvas0_config[1].height = frame_info->buffer_h / 2;
 			vf->canvas0_config[1].block_mode =
 				CANVAS_BLKMODE_LINEAR;
@@ -1643,9 +1733,9 @@ int video_display_setframe(int layer_index,
 
 		vf->width = frame_info->buffer_w;
 		vf->height = frame_info->buffer_h;
-		vf->type = frame_info->reserved[0];
-		vf->bitdepth =
-			BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		vf->src_fmt.fmt = (enum vframe_signal_fmt_e)frame_info->signal_fmt;
+		vf->type = frame_info->type;
+		vf->bitdepth = frame_info->bitdepth;
 	}
 
 	dev->last_file = (struct file *)frame_info->dmabuf;
@@ -1662,7 +1752,8 @@ int video_display_setframe(int layer_index,
 	}
 	ready_count = kfifo_len(&dev->ready_q);
 	vc_print(layer_index, PRINT_OTHER, "%s: ready_q count is %d.\n", __func__, ready_count);
-
+	if (use_low_latency && dev->index == 0)
+		proc_lowlatency_frame(0);
 	return 0;
 }
 EXPORT_SYMBOL(video_display_setframe);

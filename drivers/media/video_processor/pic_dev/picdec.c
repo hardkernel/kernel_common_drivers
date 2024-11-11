@@ -40,11 +40,7 @@
 #include <linux/platform_device.h>
 #include "picdec.h"
 #include <linux/videodev2.h>
-//#include <media/videobuf-core.h>
 #include <media/videobuf2-core.h>
-//#include <media/videobuf-dma-contig.h>
-//#include <media/videobuf-vmalloc.h>
-//#include <media/videobuf-dma-sg.h>
 #if defined(CONFIG_AMLOGIC_MEDIA_VDIN)
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
 #endif

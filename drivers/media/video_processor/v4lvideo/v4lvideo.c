@@ -573,7 +573,10 @@ void v4lvideo_keep_vf(struct file *file)
 		}
 		vf_p = vf_ext_p;
 	}
-
+	if (!vf_p) {
+		v4l_print(inst_id, PRINT_ERROR, "%s error: vf is NULL", __func__);
+		return;
+	}
 	if (vf_p->type & VIDTYPE_SCATTER)
 		type = MEM_TYPE_CODEC_MM_SCATTER;
 
@@ -860,10 +863,10 @@ static int get_source_type(struct vframe_s *vf)
 static int get_input_format(struct vframe_s *vf)
 {
 	int format = GE2D_FORMAT_M24_YUV420;
-	enum vframe_source_type soure_type;
+	enum vframe_source_type source_type;
 
-	soure_type = get_source_type(vf);
-	switch (soure_type) {
+	source_type = get_source_type(vf);
+	switch (source_type) {
 	case DECODER_8BIT_NORMAL:
 		if (vf->type & VIDTYPE_VIU_422)
 			format = GE2D_FORMAT_S16_YUV422;
@@ -1294,6 +1297,11 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 	/*
 	 * GE2D copy for non-compress
 	 */
+	if (vf->width > v4l_data->width || vf->height > v4l_data->height) {
+		pr_err("%s: none-afbc video WxH larger than buffer WxH.\n", __func__);
+		return;
+	}
+
 	is_10bit = vf->bitdepth & BITDEPTH_Y10;
 	di_mode = vf->type & VIDTYPE_DI_PW;
 	if (is_10bit && !di_mode) {
@@ -1535,7 +1543,10 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 			(struct file_private_data *)(file_vf->private_data);
 		return file_private_data;
 	}
-
+	if (!file_vf->private_data) {
+		pr_err("v4lvideo: private_data is null\n");
+		return NULL;
+	}
 	if (!dmabuf_is_uvm((struct dma_buf *)file_vf->private_data)) {
 		pr_err("v4lvideo: dma file private data is not uvm\n");
 		return NULL;
