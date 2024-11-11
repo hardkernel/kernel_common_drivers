@@ -3041,14 +3041,8 @@ static int amvideo_early_proc(u8 layer_id)
 	if (is_amdv_enable() && vf &&
 		(vd1_path_id == VFM_PATH_AMVIDEO ||
 		 vd1_path_id == VFM_PATH_DEF ||
-		 vd1_path_id == VFM_PATH_AUTO)) {
-		amdv_check_mvc(vf);
-		amdv_check_hdr10(vf);
-		amdv_check_hdr10plus(vf);
-		amdv_check_hlg(vf);
-		amdv_check_primesl(vf);
-		amdv_check_cuva(vf);
-	}
+		 vd1_path_id == VFM_PATH_AUTO))
+		amdv_check_format(vf);
 #endif
 
 	pts_process();
@@ -3367,13 +3361,8 @@ static struct vframe_s *do_pipx_toggle_frame
 	if (((vd1_path_id == VFM_PATH_PIP || is_multi_dv_mode()) ||
 		vd1_path_id == VFM_PATH_PIP2) &&
 		vf &&
-	    is_amdv_enable()) {
-		amdv_check_hdr10(vf);
-		amdv_check_hdr10plus(vf);
-		amdv_check_hlg(vf);
-		amdv_check_primesl(vf);
-		amdv_check_cuva(vf);
-	}
+	    is_amdv_enable())
+		amdv_check_format(vf);
 #endif
 	while (vf && !video_suspend) {
 		if (!vf->frame_dirty) {

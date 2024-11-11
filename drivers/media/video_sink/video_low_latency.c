@@ -192,14 +192,8 @@ static int lowlatency_vsync(u8 instance_id)
 	if (is_amdv_enable() && vf &&
 		(vd1_path_id == VFM_PATH_AMVIDEO ||
 		 vd1_path_id == VFM_PATH_DEF ||
-		 vd1_path_id == VFM_PATH_AUTO)) {
-		amdv_check_mvc(vf);
-		amdv_check_hdr10(vf);
-		amdv_check_hdr10plus(vf);
-		amdv_check_hlg(vf);
-		amdv_check_primesl(vf);
-		amdv_check_cuva(vf);
-	}
+		 vd1_path_id == VFM_PATH_AUTO))
+		amdv_check_format(vf);
 
 	if (cur_vd1_path_id != vd1_path_id) {
 		char *provider_name = NULL;

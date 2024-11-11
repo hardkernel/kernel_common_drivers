@@ -633,14 +633,8 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		struct provider_aux_req_s req;
 		u32 i, bl_cnt = 0xffffffff;
 
-		if (vf) {
-			amdv_check_mvc(vf);
-			amdv_check_hdr10(vf);
-			amdv_check_hdr10plus(vf);
-			amdv_check_hlg(vf);
-			amdv_check_primesl(vf);
-			amdv_check_cuva(vf);
-		}
+		if (vf)
+			amdv_check_format(vf);
 
 		fmt = get_vframe_src_fmt(vf);
 		if ((fmt == VFRAME_SIGNAL_FMT_DOVI ||
