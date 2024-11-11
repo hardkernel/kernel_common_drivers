@@ -41,7 +41,6 @@
 #include "cam_probe_s6.h"
 
 static struct aml_cam_info_s *temp_cam;
-static char gpio_label[64] = "camera";
 
 static int aml_camera_read_buff(struct i2c_adapter *adapter,
 				unsigned short dev_addr, char *buf,
@@ -1171,7 +1170,7 @@ static int fill_cam_dev(struct device_node *p_node,
 	cam_dev->cam_vdd = of_get_named_gpio(p_node, "camvdd-gpios", 0);
 	pr_info("cam_dev->cam_vdd = %d\n", cam_dev->cam_vdd);
 	if (gpio_is_valid(cam_dev->cam_vdd)) {
-		ret = gpio_request(cam_dev->cam_vdd, gpio_label);
+		ret = gpio_request(cam_dev->cam_vdd, NULL);
 		if (ret < 0) {
 			pr_info("aml_cam_init cam_vdd request failed\n");
 		} else {
@@ -1190,7 +1189,7 @@ static int fill_cam_dev(struct device_node *p_node,
 		pr_info("%s: failed to map gpio_pwdn !\n", cam_dev->name);
 		goto err_out;
 	}
-	ret = gpio_request(cam_dev->pwdn_pin, gpio_label);
+	ret = gpio_request(cam_dev->pwdn_pin, NULL);
 	if (ret < 0)
 		pr_info("aml_cam_init pwdn_pin request failed\n");
 
@@ -1200,7 +1199,7 @@ static int fill_cam_dev(struct device_node *p_node,
 		pr_info("%s: failed to map gpio_rst !\n", cam_dev->name);
 		goto err_out;
 	}
-	ret = gpio_request(cam_dev->rst_pin, gpio_label);
+	ret = gpio_request(cam_dev->rst_pin, NULL);
 	if (ret < 0)
 		pr_info("aml_cam_init rst_pin request failed\n");
 
