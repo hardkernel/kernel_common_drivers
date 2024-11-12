@@ -30,10 +30,27 @@
 //#include "di_pqa.h"
 #include "di_dd.h"
 
-#define DI_CHANNEL_NUB	(4)
-#define DI_CHANNEL_MAX  (4)
+#define _DI_CHANNEL_NUM_1 CONFIG_DI_CHANNEL_NUM_1
+#define _DI_CHANNEL_NUM_2 CONFIG_DI_CHANNEL_NUM_2
 
-#define DI_PLINK_CN_NUB	(4)
+#if CONFIG_DI_CHANNEL_NUM_1 > 0
+#define DI_CHANNEL_NUB	1
+#define DI_CHANNEL_MAX	1
+#define DI_PLINK_CN_NUB	1
+#else
+#define DI_CHANNEL_NUB	4
+#define DI_CHANNEL_MAX	4
+#define DI_PLINK_CN_NUB	4
+#endif
+
+#if CONFIG_DI_CHANNEL_NUM_2 > 0
+#undef DI_CHANNEL_NUB
+#undef DI_CHANNEL_MAX
+#undef DI_PLINK_CN_NUB
+#define DI_CHANNEL_NUB	2
+#define DI_CHANNEL_MAX	2
+#define DI_PLINK_CN_NUB	2
+#endif
 
 /* for vfm mode limit input vf */
 #define DIM_K_VFM_IN_LIMIT		(2)

@@ -197,11 +197,19 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_1]  = {"tmode1",
 			EDI_CFG_TMODE_1,
-			2,
+#if _DI_CHANNEL_NUM_1 > 0
+			0,
+#else
+			DI_CHANNEL_NUB - 2,
+#endif
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_2]  = {"tmode2",
 			EDI_CFG_TMODE_2,
+#if _DI_CHANNEL_NUM_1 > 0
+			1,
+#else
 			2,
+#endif
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_3]  = {"tmode3",
 			EDI_CFG_TMODE_3,
@@ -2479,13 +2487,6 @@ bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 
 	return ret;
 }
-
-const unsigned int di_ch2mask_table[DI_CHANNEL_MAX] = {
-	DI_BIT0,
-	DI_BIT1,
-	DI_BIT2,
-	DI_BIT3,
-};
 
 /****************************************
  *bit control
