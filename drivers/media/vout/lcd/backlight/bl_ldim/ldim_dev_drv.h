@@ -33,10 +33,13 @@ int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv);
 int ldim_spi_driver_remove(struct ldim_dev_driver_s *dev_drv);
 
 /* ldim global api */
+void ldim_gpio_probe(struct ldim_dev_driver_s *dev_drv, int index);
 void ldim_gpio_set(struct ldim_dev_driver_s *dev_drv, int index, int value);
 unsigned int ldim_gpio_get(struct ldim_dev_driver_s *dev_drv, int index);
 void ldim_set_duty_pwm(struct bl_pwm_config_s *ld_pwm);
 void ldim_pwm_off(struct bl_pwm_config_s *ld_pwm);
+
+int ldim_dev_get_config(struct ldim_dev_driver_s *dev_drv, struct device_node *np, int index);
 
 /* ldim dev api */
 int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv);

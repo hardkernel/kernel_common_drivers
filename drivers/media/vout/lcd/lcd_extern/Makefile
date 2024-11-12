@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN) += vout/lcd/lcd_extern/lcd_extern.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN) += vout/lcd/lcd_extern/lcd_extern_config.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN) += vout/lcd/lcd_extern/ext_i2c_dev.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN) += vout/lcd/lcd_extern/ext_spi_dev.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN) += vout/lcd/lcd_extern/ext_func.o

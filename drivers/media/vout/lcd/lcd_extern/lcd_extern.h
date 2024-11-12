@@ -37,6 +37,12 @@ void spi_gpio_off(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *ede
 int lcd_extern_spi_write(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev,
 			unsigned char *buf, int len);
 
+void lcd_extern_config_update(struct lcd_extern_driver_s *edrv,
+			      struct lcd_extern_dev_s *edev);
+int lcd_extern_add_dev(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev);
+struct lcd_extern_dev_s *lcd_extern_dev_malloc(int dev_index);
+void lcd_extern_dev_free(struct lcd_extern_dev_s *edev);
+int lcd_extern_config_load(struct lcd_extern_driver_s *edrv, int *ext_index_lut, int dev_cnt);
 void lcd_extern_gpio_probe(struct lcd_extern_driver_s *edrv, unsigned char index);
 void lcd_extern_gpio_unregister(struct lcd_extern_driver_s *edrv, int index);
 void lcd_extern_gpio_set(struct lcd_extern_driver_s *edrv, unsigned char index, int value);

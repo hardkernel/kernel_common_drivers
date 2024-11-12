@@ -21,6 +21,48 @@
 static struct lcd_extern_i2c_dev_s *i2c_device[LCD_EXT_I2C_DEV_MAX];
 static unsigned int i2c_dev_cnt;
 
+static struct lcd_i2c_match_s lcd_i2c_match_table[] = {
+	{LCD_EXT_I2C_BUS_0,   "i2c_0"},
+	{LCD_EXT_I2C_BUS_1,   "i2c_1"},
+	{LCD_EXT_I2C_BUS_2,   "i2c_2"},
+	{LCD_EXT_I2C_BUS_3,   "i2c_3"},
+	{LCD_EXT_I2C_BUS_4,   "i2c_4"},
+	{LCD_EXT_I2C_BUS_0,   "i2c_a"},
+	{LCD_EXT_I2C_BUS_1,   "i2c_b"},
+	{LCD_EXT_I2C_BUS_2,   "i2c_c"},
+	{LCD_EXT_I2C_BUS_3,   "i2c_d"},
+	{LCD_EXT_I2C_BUS_4,   "i2c_ao"},
+	{LCD_EXT_I2C_BUS_0,   "i2c_bus_0"},
+	{LCD_EXT_I2C_BUS_1,   "i2c_bus_1"},
+	{LCD_EXT_I2C_BUS_2,   "i2c_bus_2"},
+	{LCD_EXT_I2C_BUS_3,   "i2c_bus_3"},
+	{LCD_EXT_I2C_BUS_4,   "i2c_bus_4"},
+	{LCD_EXT_I2C_BUS_0,   "i2c_bus_a"},
+	{LCD_EXT_I2C_BUS_1,   "i2c_bus_b"},
+	{LCD_EXT_I2C_BUS_2,   "i2c_bus_c"},
+	{LCD_EXT_I2C_BUS_3,   "i2c_bus_d"},
+	{LCD_EXT_I2C_BUS_4,   "i2c_bus_ao"},
+	{LCD_EXT_I2C_BUS_MAX, "invalid"}
+};
+
+unsigned char aml_lcd_i2c_bus_get_str(const char *str)
+{
+	unsigned char i2c_bus = LCD_EXT_I2C_BUS_MAX;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lcd_i2c_match_table); i++) {
+		if (strcmp(lcd_i2c_match_table[i].bus_str, str) == 0) {
+			i2c_bus = lcd_i2c_match_table[i].bus_id;
+			break;
+		}
+	}
+
+	if (i2c_bus == LCD_EXT_I2C_BUS_MAX)
+		LCDERR("%s: invalid i2c_bus: %s\n", __func__, str);
+
+	return i2c_bus;
+}
+
 struct lcd_extern_i2c_dev_s *lcd_extern_get_i2c_device(unsigned char addr)
 {
 	struct lcd_extern_i2c_dev_s *i2c_dev = NULL;

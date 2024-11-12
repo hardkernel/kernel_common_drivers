@@ -80,6 +80,7 @@ struct ldim_dev_driver_s {
 	unsigned char *spi_tx_buf;
 	unsigned char *spi_rx_buf;
 	unsigned int pwm_phase;
+	int use_ctrl_cs;
 	int cs_hold_delay;
 	int cs_clk_delay;
 	int en_gpio;

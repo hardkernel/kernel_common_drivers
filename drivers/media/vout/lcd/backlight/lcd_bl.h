@@ -17,6 +17,12 @@ static inline unsigned int bl_do_div(unsigned long long num, unsigned int den)
 	return (unsigned int)val;
 }
 
+char *bl_method_type_to_str(int type);
+int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pdev, int load_id,
+		int level_bootup);
+
+int aml_bl_index_get(int drv_index);
+void bl_gpio_probe(struct aml_bl_drv_s *bdrv, int index);
 int bl_pwm_init_config_probe(struct bl_data_s *bdata);
 enum bl_pwm_port_e bl_pwm_str_to_num(const char *str);
 char *bl_pwm_num_to_str(unsigned int num);

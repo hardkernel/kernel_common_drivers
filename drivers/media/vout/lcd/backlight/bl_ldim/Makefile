@@ -9,6 +9,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_BL_LDIM) += vout/lcd/backlight/bl_ldim/ldi
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_BL_LDIM) += vout/lcd/backlight/bl_ldim/ldim_mem.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_BL_LDIM) += vout/lcd/backlight/bl_ldim/ldim_reg.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_BL_LDIM) += vout/lcd/backlight/bl_ldim/ldim_dev_drv.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_BL_LDIM) += vout/lcd/backlight/bl_ldim/ldim_dev_config.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_BL_LDIM) += vout/lcd/backlight/bl_ldim/ldim_spi.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_BL_LDIM) += vout/lcd/backlight/bl_ldim/global_bl.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_BL_LDIM_OB3350) += vout/lcd/backlight/bl_ldim/ob3350_bl.o
