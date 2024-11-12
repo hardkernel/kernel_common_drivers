@@ -778,6 +778,9 @@ struct ge2d_queue_item_s {
 	struct ge2d_cmd_s cmd;
 	struct ge2d_config_s config;
 	struct ge2d_item_flag_s flag;
+	ktime_t time_add_queue;
+	ktime_t time_start_process;
+	ktime_t time_process_done;
 };
 
 struct ge2d_context_s {
@@ -793,6 +796,7 @@ struct ge2d_context_s {
 	int				queue_need_recycle;
 	int				ge2d_request_exit;
 	spinlock_t		lock;	/* for get and release item. */
+	int ge2d_state;
 };
 
 struct ge2d_event_s {
@@ -813,7 +817,7 @@ struct ge2d_manager_s {
 	struct ge2d_event_s event;
 	struct aml_dma_buffer *buffer;
 	int irq_num;
-	int ge2d_state;
+	// int ge2d_state;
 	int process_queue_state;
 	int probe;
 	struct platform_device *pdev;

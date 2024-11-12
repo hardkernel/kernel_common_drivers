@@ -26,6 +26,9 @@
 #include "ge2d_log.h"
 #include "ge2d_dmabuf.h"
 
+ktime_t time_sync_cache_start;
+ktime_t time_sync_cache_end;
+
 static void clear_dma_buffer(struct aml_dma_buffer *buffer, int index);
 
 static void *aml_mm_vmap(phys_addr_t phys, unsigned long size)
@@ -538,6 +541,7 @@ int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg)
 	struct device *dev = NULL;
 	enum dma_data_direction dir;
 
+	time_sync_cache_start = ktime_get();
 	if (!cfg || cfg->fd < 0 || !cfg->dev) {
 		pr_err("%s: error input param\n", __func__);
 		return -EINVAL;
@@ -564,10 +568,19 @@ int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg)
 		goto map_attach_err;
 	}
 
+	time_sync_cache_end = ktime_get();
 	cfg->dbuf = dbuf;
 	cfg->attach = d_att;
 	cfg->sg = sg;
 	ge2d_log_dbg("%s, dbuf=0x%p\n", __func__, dbuf);
+	if (ge2d_log_level) {
+		ktime_t diff_time;
+		int time_ms = 0;
+
+		diff_time = ktime_sub(time_sync_cache_end, time_sync_cache_start);
+		time_ms = ktime_to_ms(diff_time);
+		ge2d_log_dbg("%s, ge2d sync cache cost time %d ms\n", __func__, time_ms);
+	}
 	return 0;
 
 map_attach_err:
@@ -667,18 +680,35 @@ void ge2d_dma_buffer_unmap(struct aml_dma_cfg *cfg)
 	ge2d_log_dbg("%s, dbuf=0x%p\n", __func__, dbuf);
 }
 
+static bool is_module_dmabuf(struct dma_buf *dmabuf)
+{
+	bool ret = false;
+
+	if (dmabuf->ops && dmabuf->ops == &ge2d_dmabuf_ops)
+		ret = true;
+
+	return ret;
+}
+
 void ge2d_dma_buffer_dma_flush(struct device *dev, int fd)
 {
 	struct dma_buf *dmabuf;
 	struct aml_dma_buf_priv *buf_priv;
 	struct aml_dma_buf *buf;
 
+	time_sync_cache_start = ktime_get();
 	ge2d_log_dbg("%s fd=%d\n", __func__, fd);
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR_OR_NULL(dmabuf)) {
 		pr_err("dma_buf_get failed\n");
 		return;
 	}
+	if (!is_module_dmabuf(dmabuf)) {
+		ge2d_log_dbg("%s, dmabuf=0x%p is not allocated by this module\n",
+			     __func__, dmabuf);
+		goto put;
+	}
+
 	buf_priv = dmabuf->priv;
 	buf = buf_priv->aml_buf;
 	if (!buf) {
@@ -688,6 +718,16 @@ void ge2d_dma_buffer_dma_flush(struct device *dev, int fd)
 	if (buf->size > 0 && buf->dev == dev)
 		dma_sync_single_for_device(buf->dev, buf->dma_addr,
 					   buf->size, DMA_TO_DEVICE);
+	time_sync_cache_end = ktime_get();
+	if (ge2d_log_level) {
+		ktime_t diff_time;
+		int time_ms = 0;
+
+		diff_time = ktime_sub(time_sync_cache_end, time_sync_cache_start);
+		time_ms = ktime_to_ms(diff_time);
+		ge2d_log_dbg("%s, ge2d sync cache cost time %d ms\n", __func__, time_ms);
+	}
+put:
 	dma_buf_put(dmabuf);
 }
 
@@ -703,6 +743,12 @@ void ge2d_dma_buffer_cache_flush(struct device *dev, int fd)
 		pr_err("dma_buf_get failed\n");
 		return;
 	}
+	if (!is_module_dmabuf(dmabuf)) {
+		ge2d_log_dbg("%s, dmabuf=0x%p is not allocated by this module\n",
+			     __func__, dmabuf);
+		goto put;
+	}
+
 	buf_priv = dmabuf->priv;
 	buf = buf_priv->aml_buf;
 	if (!buf) {
@@ -712,6 +758,7 @@ void ge2d_dma_buffer_cache_flush(struct device *dev, int fd)
 	if (buf->size > 0 && buf->dev == dev)
 		dma_sync_single_for_cpu(buf->dev, buf->dma_addr,
 					buf->size, DMA_FROM_DEVICE);
+put:
 	dma_buf_put(dmabuf);
 }
 

@@ -1247,7 +1247,8 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg, u32 mask)
 		unsigned int hsc_div_length;
 
 		if (ge2d_meson_dev.chip_type < MESON_CPU_MAJOR_ID_G12B ||
-			ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_S1A)
+			ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_S1A ||
+			ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6D)
 			hsc_div_length = (120 << 24) / cfg->hsc_phase_step;
 		else
 			hsc_div_length = (124 << 24) / cfg->hsc_phase_step;
