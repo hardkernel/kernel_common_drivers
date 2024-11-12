@@ -58,9 +58,6 @@
 #include "video_common.h"
 #include "video_safa_reg.h"
 
-#ifdef CONFIG_AMLOGIC_MEDIA_VRR
-#include <linux/amlogic/media/vrr/vrr.h>
-#endif
 #include "vpp_pq.h"
 #include "vpp_post_s5.h"
 
@@ -2290,10 +2287,6 @@ RESTART:
 		next_frame_par->crop_top = crop_top;
 		next_frame_par->crop_bottom = crop_bottom;
 	}
-
-#ifdef CONFIG_AMLOGIC_MEDIA_VRR
-	vrr_crop_update_delay_line(crop_top, vpp_index);
-#endif
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->VPP_vd_start_lines_ &= ~1;

@@ -56,6 +56,9 @@
 #endif
 #include "videodisplay.h"
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+#include <linux/amlogic/media/vrr/vrr.h>
+#endif
 #define VIDEO_COMPOSER_VERSION "1.0"
 
 #define VIDEO_COMPOSER_NAME_SIZE 32
@@ -4345,6 +4348,11 @@ static void video_composer_task(struct composer_dev *dev)
 			 vf->canvas0_config[0].height);
 		vc_print(dev->index, PRINT_AXIS,
 			 "===============================\n");
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+		vrr_crop_update_delay_line(frame_info->crop_y, frame_info->dst_y,
+			frame_info->dst_w, frame_info->dst_h, VRR_AXIS);
+#endif
 
 		if (is_dec_vf) {
 			/* copy to uvm vf */

@@ -82,6 +82,9 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 #include <linux/amlogic/aml_iotrace.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+#include <linux/amlogic/media/vrr/vrr.h>
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
@@ -1084,6 +1087,9 @@ void _set_video_crop(struct disp_info_s *layer, int *p)
 	    new_b != last_b || new_r != last_r) {
 		if (layer->layer_id == 0) {
 			vd_layer[0].property_changed = true;
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+			vrr_crop_update_delay_line(layer->crop_top, 0, 0, 0, VRR_CROP);
+#endif
 		} else if (layer->layer_id == 1) {
 			if (vd_layer[1].vpp_index == VPP0)
 				vd_layer[1].property_changed = true;
