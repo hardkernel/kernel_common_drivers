@@ -17,7 +17,8 @@ enum media_message_type {
 	MEDIA_VIDEO_ERROR_EVENT      = (1 << 5),   // 100000
 	MEDIA_VIDEO_METRICS_FRAME_DECODED_INFO    = (1 << 6),	// 1000000
 	MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO     = (1 << 7),	// 10000000
-	MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO = (1 << 8)	// 10000 0000
+	MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO = (1 << 8),	// 1 0000 0000
+	MEDIA_VIDEO_CC_INFO = (1 << 9)	// 10 0000 0000
 };
 
 enum video_block_type {
@@ -83,6 +84,35 @@ struct frame_msg_info {
 	s64 reserved[10];
 };
 
+/*
+ * size
+ * the buf size value of ptr
+ * ptr
+ * the buffer data ptr.
+ */
+struct cc_buffer_info {
+	u32 size;
+	long long ptr;
+};
+
+struct aml_buffer_info {
+	u32 message_type;
+	union {
+		struct cc_buffer_info buf_info;
+	} data;
+};
+
+/*
+ * size
+ * the buf size value of ptr
+ * ptr
+ * the buffer data ptr.
+ */
+struct buffer_info {
+	u32 size;
+	void *ptr;
+};
+
 struct aml_video_user_data {
 	u32 message_type;
 	u32 data_size;
@@ -94,6 +124,7 @@ struct aml_video_user_data {
 	struct video_statistics_info statistics_info;
 	struct video_error_info  error_info;
 	struct frame_msg_info frame_info;
+	struct buffer_info buf_info;
 	} data;
 };
 

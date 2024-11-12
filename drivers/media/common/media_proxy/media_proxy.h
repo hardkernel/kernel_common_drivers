@@ -27,13 +27,18 @@
 #define MAX_SESSION 16
 
 #define READ_TIME_OUT   100   /* Time to wait for read in millisecond */
+#define MAX_BUFFER_INFO_SIZE (1024 * 6)
+
 
 #define MEDIAPROXY_MAGIC 'm'
 #define MEDIAPROXY_CONNECT _IOW(MEDIAPROXY_MAGIC, 0, int)
 #define MEDIAPROXY_DISCONNECT _IOW(MEDIAPROXY_MAGIC, 1, int)
-#define MEDIAPROXY_GET_CONSUMER_COUNT _IOW(MEDIAPROXY_MAGIC, 2, int)
-#define MEDIAPROXY_MSG_TYPE__SUBSCRIBE _IOW(MEDIAPROXY_MAGIC, 3, int)
+#define MEDIAPROXY_GET_CONSUMER_COUNT _IOWR(MEDIAPROXY_MAGIC, 2, int)
+#define MEDIAPROXY_MSG_TYPE_SUBSCRIBE _IOW(MEDIAPROXY_MAGIC, 3, int)
 #define MEDIAPROXY_SET_FIFO_LEN _IOW(MEDIAPROXY_MAGIC, 4, int)
+#define MEDIAPROXY_SET_VDEC_ID _IOW(MEDIAPROXY_MAGIC, 5, int)
+#define MEDIAPROXY_INJECT_BUF_INFO   _IOW(MEDIAPROXY_MAGIC, 6, struct aml_buffer_info)
+#define MEDIAPROXY_GET_BUF_INFO   _IOWR(MEDIAPROXY_MAGIC, 7, struct aml_buffer_info)
 
 #define MP_ROLE_STRING(role) \
 	(((role) == MP_ROLE_PRODUCER) ? "producer" : \
@@ -57,12 +62,15 @@ union mediaproxy_ioctl_args {
 	enum mp_role_e role;
 	u32 subscribe_msg_type;
 	u32 fifo_len;
+	u32 vdec_id;
 };
 
 struct mediaproxy_fifo {
 	u32 subscribe_msg_type;
 	enum mp_fifo_state_e state;
 	char module_name[STR_MAX_SIZE];
+	u32  vdec_id;
+	wait_queue_head_t rw_queue;
 	DECLARE_KFIFO_PTR(msg_kfifo, struct aml_video_user_data);
 };
 
@@ -78,6 +86,8 @@ struct mediaproxy_fifo {
  * a pointer to the producers/consumers session array within the dev
  * msg_kfifo
  * the FIFO in the session is used to store message data
+ * vdec_id
+ * the video decoder id of cc data
  */
 struct mediaproxy_session {
 	int session_id;
@@ -88,6 +98,7 @@ struct mediaproxy_session {
 	struct mediaproxy_session **session_entry;
 	int fifo_idx;
 	int fifo_len;
+	int vdec_id;
 	DECLARE_KFIFO_PTR(msg_kfifo, struct aml_video_user_data);
 };
 
@@ -123,7 +134,6 @@ struct mediaproxy_dev {
 	struct mediaproxy_fifo *c_fifo[MAX_SESSION];
 	struct mutex p_lock;/* mutex lock for producer. */
 	struct mutex c_lock;/* mutex lock for consumer. */
-	wait_queue_head_t read_queue;
 	wait_queue_head_t transfer_queue;
 };
 
