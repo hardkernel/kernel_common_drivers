@@ -642,7 +642,7 @@ static int aml_cpufreq_probe(struct platform_device *pdev)
 	if (count == 0)
 		goto out;
 
-	clusterdata = devm_kmalloc(&pdev->dev, sizeof(*clusterdata) * count, GFP_KERNEL);
+	clusterdata = devm_kzalloc(&pdev->dev, sizeof(*clusterdata) * count, GFP_KERNEL);
 	if (!clusterdata)
 		goto out;
 
