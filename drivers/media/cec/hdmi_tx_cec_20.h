@@ -305,5 +305,22 @@ enum cec_device_menu_state_e {
 	DEVICE_MENU_INACTIVE,
 };
 
+//cec spd handle
+struct spd_device_info {
+	unsigned int handle_type;
+	unsigned int vendor_id;
+	char osd_name[16];
+	struct list_head spd_info_list;
+};
+
+struct current_spd_device_info {
+	unsigned char log_addr;
+	unsigned int phy_addr;
+	unsigned char port_id;
+	unsigned int vendor_id;
+	bool is5v;
+	char osd_name[16];
+};
+
 #endif
 

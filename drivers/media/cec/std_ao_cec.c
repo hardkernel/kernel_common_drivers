@@ -44,6 +44,8 @@
 #include <linux/poll.h>
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/mailbox_client.h>
+#include <linux/mailbox_controller.h>
 #include <linux/amlogic/aml_mbox.h>
 #include <linux/amlogic/pm.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -79,10 +81,7 @@ static unsigned char rx_msg[MAX_MSG];
 static unsigned char rx_len;
 static unsigned int  new_msg;
 static bool pin_status;
-
-static unsigned int cec_ver_cnt;
-static unsigned int cec_ver_cnt_max = 1;
-static unsigned int wait_notify_ms = 100;
+struct mbox_chan *cec_mbox_chan;
 
 struct st_ao_cec {
 #ifdef CONFIG_CEC_NOTIFIER
@@ -156,18 +155,9 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 	/* clr CEC lock bit */
 	hdmirx_cec_write(DWC_CEC_LOCK, 0);
 	CEC_INFO("%s", msg_log_buf);
-
-	#ifdef CEC_FREEZE_WAKE_UP
-	if (is_pm_s2idle_mode())
-		*out_len = len;
-	else
-	#endif
-	{
-		if (cec_message_op(msg, len))
-			*out_len = len;
-		else
-			*out_len = 0;
-	}
+	//driver handle some msg for special case
+	cec_message_op(msg, len);
+	*out_len = len;
 	pin_status = 1;
 	return 0;
 }
@@ -178,7 +168,6 @@ void cecb_irq_handle(void)
 	u32 lock;
 	int shift = 0;
 	struct delayed_work *dwork;
-	unsigned int wait_ms = 0;
 
 	intr_cec = cecb_irq_stat();
 
@@ -186,16 +175,11 @@ void cecb_irq_handle(void)
 	if (intr_cec != 0)
 		cecb_clear_irq(intr_cec);
 	else
-		dprintk(L_2, "err cec int_sts:0\n");
+		dprintk(L_2, "err cec intsts:0\n");
 
-	dprintk(L_2, "cecb int_sts:0x%x\n", intr_cec);
+	dprintk(L_2, "cecb intsts:0x%x\n", intr_cec);
 	if (cec_dev->plat_data->ee_to_ao)
 		shift = 16;
-	if (cec_ver_cnt == cec_ver_cnt_max) {
-		wait_ms = wait_notify_ms;
-		CEC_INFO("%s wait: %dms\n", __func__, wait_notify_ms);
-	}
-
 	/* TX DONE irq, increase tx buffer pointer */
 	if (intr_cec == CEC_IRQ_TX_DONE) {
 		cec_tx_result = CEC_FAIL_NONE;
@@ -204,11 +188,11 @@ void cecb_irq_handle(void)
 		if (std_ao_cec.common_queue)
 			queue_delayed_work(cec_dev->cec_rx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(20));
 		else
 			queue_delayed_work(cec_dev->cec_tx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(20));
 		complete(&cec_dev->tx_ok);
 	}
 
@@ -242,13 +226,14 @@ void cecb_irq_handle(void)
 		if (std_ao_cec.common_queue)
 			queue_delayed_work(cec_dev->cec_rx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		else
 			queue_delayed_work(cec_dev->cec_tx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		complete(&cec_dev->tx_ok);
 	}
+
 	/* The CEC driver should always process the transmit
 	 * interrupts first before handling the receive
 	 * interrupt. The framework expects to see the
@@ -348,12 +333,6 @@ static int ceca_rx_irq_handle(unsigned char *msg, unsigned char *len)
 static void ceca_tx_irq_handle(void)
 {
 	unsigned int tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
-	unsigned int wait_ms = 0;
-
-	if (cec_ver_cnt == cec_ver_cnt_max) {
-		wait_ms = wait_notify_ms;
-		CEC_INFO("%s wait: %dms\n", __func__, wait_notify_ms);
-	}
 
 	cec_tx_result = -1;
 	switch (tx_status) {
@@ -364,11 +343,11 @@ static void ceca_tx_irq_handle(void)
 		if (std_ao_cec.common_queue)
 			queue_delayed_work(cec_dev->cec_rx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		else
 			queue_delayed_work(cec_dev->cec_tx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		break;
 
 	case TX_BUSY:
@@ -378,11 +357,11 @@ static void ceca_tx_irq_handle(void)
 		if (std_ao_cec.common_queue)
 			queue_delayed_work(cec_dev->cec_rx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		else
 			queue_delayed_work(cec_dev->cec_tx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		break;
 
 	case TX_ERROR:
@@ -397,11 +376,11 @@ static void ceca_tx_irq_handle(void)
 		if (std_ao_cec.common_queue)
 			queue_delayed_work(cec_dev->cec_rx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		else
 			queue_delayed_work(cec_dev->cec_tx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		break;
 
 	case TX_IDLE:
@@ -411,11 +390,11 @@ static void ceca_tx_irq_handle(void)
 		if (std_ao_cec.common_queue)
 			queue_delayed_work(cec_dev->cec_rx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		else
 			queue_delayed_work(cec_dev->cec_tx_event_wq,
 					   &std_ao_cec.work_cec_tx,
-					   msecs_to_jiffies(wait_ms));
+					   msecs_to_jiffies(0));
 		break;
 	default:
 		break;
@@ -461,6 +440,7 @@ static bool check_physical_addr_valid(int timeout)
 			break;
 		if (phy_addr_test)
 			break;
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		/* physical address for box */
 		if (get_hpd_state() &&
 		    get_hdmitx_phy_addr() &&
@@ -470,6 +450,9 @@ static bool check_physical_addr_valid(int timeout)
 		} else {
 			break;
 		}
+#else
+		break;
+#endif
 	}
 	if (timeout <= 0)
 		return false;
@@ -481,7 +464,6 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_
 {
 	int ret = -1;
 	int t;
-	int retry = 2;
 	unsigned int cec_sel;
 
 	mutex_lock(&cec_dev->cec_tx_mutex);
@@ -503,7 +485,7 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_
 	 *	address already set. Must clear it before poll again
 	 * self polling mode
 	 */
-	if (is_poll_message(msg[0]))
+	if (cec_sel == CEC_A && is_poll_message(msg[0]))
 		cec_clear_all_logical_addr(cec_sel);
 
 	/*
@@ -524,9 +506,6 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_
 	/* make sure we got valid physical address */
 	if (len >= 2 && msg[1] == CEC_OC_REPORT_PHYSICAL_ADDRESS)
 		check_physical_addr_valid(3);
-
-try_again:
-	reinit_completion(&cec_dev->tx_ok);
 	/*
 	 * CEC controller won't ack message if it is going to send
 	 * state. If we detect cec line is low during waiting signal
@@ -535,13 +514,16 @@ try_again:
 	 */
 	if (cec_dev->sw_chk_bus) {
 		if (check_conflict()) {
-			CEC_ERR("bus conflict too long\n");
+			CEC_ERR("bus conflict too long,retry\n");
+			std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
+			queue_delayed_work(cec_dev->cec_tx_event_wq,
+				&std_ao_cec.work_cec_tx,
+				msecs_to_jiffies(0));
 			mutex_unlock(&cec_dev->cec_tx_mutex);
 			return CEC_FAIL_BUSY;
 		}
 	}
 	/* for std cec, driver never retry itself */
-	retry = 0;
 	if (cec_sel == CEC_B)
 		ret = cecb_trigger_tx(msg, len, signal_free_time);
 	else
@@ -549,45 +531,13 @@ try_again:
 	if (ret < 0) {
 		/* we should increase send idx if busy */
 		CEC_ERR("tx busy\n");
-		if (retry > 0) {
-			retry--;
-			msleep(100 + (get_random_u32() & 0x07) * 10);
-			dprintk(L_2, "retry0 %d\n", retry);
-			goto try_again;
-		}
+		std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
+		queue_delayed_work(cec_dev->cec_tx_event_wq,
+			&std_ao_cec.work_cec_tx,
+			msecs_to_jiffies(0));
 		mutex_unlock(&cec_dev->cec_tx_mutex);
 		return CEC_FAIL_BUSY;
 	}
-	cec_tx_result = -1;
-	ret = wait_for_completion_timeout(&cec_dev->tx_ok, t);
-	if (ret <= 0) {
-		/* timeout or interrupt */
-		if (ret == 0) {
-			CEC_ERR("tx timeout\n");
-			cec_hw_reset(cec_sel);
-		}
-		ret = CEC_FAIL_OTHER;
-	} else {
-		ret = cec_tx_result;
-	}
-	if (ret != CEC_FAIL_NONE && ret != CEC_FAIL_NACK) {
-		if (retry > 0) {
-			retry--;
-			msleep(100 + (get_random_u32() & 0x07) * 10);
-			dprintk(L_2, "retry1 %d\n", retry);
-			goto try_again;
-		}
-	}
-
-	if (cec_sel == CEC_A) {
-		last_cec_msg->last_result = ret;
-		if (ret == CEC_FAIL_NACK) {
-			memcpy(last_cec_msg->msg, msg, len);
-			last_cec_msg->len = len;
-			last_cec_msg->last_jiffies = jiffies;
-		}
-	}
-
 	dprintk(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
 	mutex_unlock(&cec_dev->cec_tx_mutex);
 	return ret;
@@ -926,16 +876,15 @@ static void cec_task(struct work_struct *work)
 }
 
 /******************** cec class interface *************************/
-static ssize_t device_type_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t device_type_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%ld\n", cec_dev->dev_type);
 }
 
-static ssize_t device_type_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t device_type_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	unsigned int type;
 
@@ -947,9 +896,8 @@ static ssize_t device_type_store(const struct class *class,
 	return count;
 }
 
-static ssize_t menu_language_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t menu_language_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	char a, b, c;
 
@@ -959,9 +907,9 @@ static ssize_t menu_language_show(const struct class *class,
 	return sprintf(buf, "%c%c%c\n", a, b, c);
 }
 
-static ssize_t menu_language_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t menu_language_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	char a, b, c;
 
@@ -973,16 +921,14 @@ static ssize_t menu_language_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vendor_id_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vendor_id_show(const struct class *cla,
+			      const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->cec_info.vendor_id);
 }
 
-static ssize_t vendor_id_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vendor_id_store(const struct class *cla, const struct class_attribute *attr,
+			       const char *buf, size_t count)
 {
 	unsigned int id;
 
@@ -992,36 +938,32 @@ static ssize_t vendor_id_store(const struct class *class,
 	return count;
 }
 
-static ssize_t port_num_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t port_num_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", cec_dev->port_num);
 }
 
-static ssize_t dump_reg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dump_reg_show(const struct class *cla,
+			     const struct class_attribute *attr, char *b)
 {
-	return dump_cecrx_reg(b);
+	return dump_cec_reg(b);
 }
 
-static ssize_t arc_port_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t arc_port_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->arc_port);
 }
 
-static ssize_t osd_name_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t osd_name_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", cec_dev->cec_info.osd_name);
 }
 
-static ssize_t port_seq_store(const struct class *class,
-			const struct class_attribute *attr,
+static ssize_t port_seq_store(const struct class *cla,
+			      const struct class_attribute *attr,
 			      const char *buf, size_t count)
 {
 	unsigned int seq;
@@ -1034,21 +976,21 @@ static ssize_t port_seq_store(const struct class *class,
 	return count;
 }
 
-static ssize_t port_seq_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t port_seq_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->port_seq);
 }
 
-static ssize_t port_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t port_status_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	unsigned int tmp;
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	unsigned int tx_hpd;
 
 	tx_hpd = get_hpd_state();
+#endif
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
 		tmp = tx_hpd;
 		return sprintf(buf, "%x\n", tmp);
@@ -1057,14 +999,16 @@ static ssize_t port_status_show(const struct class *class,
 	CEC_INFO("TOP_HPD_PWR5V:%x\n", tmp);
 	tmp >>= 20;
 	tmp &= 0xf;
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	tmp |= (tx_hpd << 16);
+#endif
 	return sprintf(buf, "%x\n", tmp);
 }
 
-static ssize_t pin_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pin_status_show(const struct class *cla,
+			       const struct class_attribute *attr, char *buf)
 {
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	unsigned int tx_hpd;
 	char p;
 
@@ -1086,20 +1030,22 @@ static ssize_t pin_status_show(const struct class *class,
 	} else {
 		return sprintf(buf, "%s\n", pin_status ? "ok" : "fail");
 	}
+#else
+	return sprintf(buf, "%s\n", pin_status ? "ok" : "fail");
+#endif
 }
 
-static ssize_t physical_addr_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t physical_addr_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	unsigned int tmp = cec_dev->phy_addr;
 
 	return sprintf(buf, "%04x\n", tmp);
 }
 
-static ssize_t physical_addr_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t physical_addr_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	int addr;
 
@@ -1117,16 +1063,14 @@ static ssize_t physical_addr_store(const struct class *class,
 	return count;
 }
 
-static ssize_t dbg_en_show(const struct class *class,
-			const struct class_attribute *attr,
-			   char *buf)
+static ssize_t dbg_en_show(const struct class *cla,
+			   const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_msg_dbg_en);
 }
 
-static ssize_t dbg_en_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t dbg_en_store(const struct class *cla, const struct class_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int en;
 
@@ -1140,9 +1084,8 @@ static ssize_t dbg_en_store(const struct class *class,
 	return count;
 }
 
-static ssize_t cmd_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t cmd_store(const struct class *cla, const struct class_attribute *attr,
+			 const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1169,9 +1112,8 @@ static ssize_t cmd_store(const struct class *class,
 	return count;
 }
 
-static ssize_t cmda_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t cmda_store(const struct class *cla, const struct class_attribute *attr,
+			  const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1197,9 +1139,8 @@ static ssize_t cmda_store(const struct class *class,
 	return count;
 }
 
-static ssize_t cmdb_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t cmdb_store(const struct class *cla, const struct class_attribute *attr,
+			  const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1226,25 +1167,22 @@ static ssize_t cmdb_store(const struct class *class,
 }
 
 /* extracted wakeup info for TV */
-static ssize_t wake_up_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t wake_up_show(const struct class *cla,
+			    const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", *((unsigned int *)&cec_dev->wakeup_data));
 }
 
 /* wakeup reason, 0x8 means wakeup by CEC msg */
-static ssize_t wake_up_reason_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t wake_up_reason_show(const struct class *cla,
+			    const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->wakeup_reason);
 }
 
 /* primary one touch play message of wakeup */
-static ssize_t wake_up_otp_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t wake_up_otp_show(const struct class *cla,
+			    const struct class_attribute *attr, char *buf)
 {
 	unsigned char i = 0;
 	int pos = 0;
@@ -1256,9 +1194,8 @@ static ssize_t wake_up_otp_show(const struct class *class,
 }
 
 /* primary active source msg of wakeup */
-static ssize_t wake_up_as_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t wake_up_as_show(const struct class *cla,
+			    const struct class_attribute *attr, char *buf)
 {
 	unsigned char i = 0;
 	int pos = 0;
@@ -1269,9 +1206,8 @@ static ssize_t wake_up_as_show(const struct class *class,
 	return pos;
 }
 
-static ssize_t fun_cfg_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t fun_cfg_store(const struct class *cla, const struct class_attribute *attr,
+			     const char *bu, size_t count)
 {
 	int cnt, val;
 
@@ -1286,26 +1222,23 @@ static ssize_t fun_cfg_store(const struct class *class,
 	return count;
 }
 
-static ssize_t fun_cfg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t fun_cfg_show(const struct class *cla,
+			    const struct class_attribute *attr, char *buf)
 {
 	unsigned int reg = cec_config(0, 0);
 
 	return sprintf(buf, "0x%x\n", reg & 0xff);
 }
 
-static ssize_t cec_version_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t cec_version_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	/*CEC_INFO("driver date:%s\n", CEC_DRIVER_VERSION);*/
 	return sprintf(buf, "%d\n", cec_dev->cec_info.cec_version);
 }
 
-static ssize_t log_addr_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t log_addr_store(const struct class *cla, const struct class_attribute *attr,
+			      const char *bu, size_t count)
 {
 	int cnt, val;
 
@@ -1320,16 +1253,14 @@ static ssize_t log_addr_store(const struct class *class,
 	return count;
 }
 
-static ssize_t log_addr_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t log_addr_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "0x%x\n", cec_dev->cec_info.log_addr);
 }
 
-static ssize_t dbg_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t dbg_store(const struct class *cla, const struct class_attribute *attr,
+			 const char *bu, size_t count)
 {
 	const char *delim = " ";
 	char *token;
@@ -1403,7 +1334,7 @@ static ssize_t dbg_store(const struct class *class,
 	} else if (token && strncmp(token, "dump", 4) == 0) {
 		token = kmalloc(2048, GFP_KERNEL);
 		if (token) {
-			dump_cecrx_reg(token);
+			dump_cec_reg(token);
 			CEC_ERR("%s\n", token);
 			kfree(token);
 		}
@@ -1519,18 +1450,6 @@ static ssize_t dbg_store(const struct class *class,
 			return count;
 		cec_dev->sw_chk_bus = !!addr;
 		CEC_ERR("sw_chk_bus enable: %d\n", cec_dev->sw_chk_bus);
-	} else if (token && strncmp(token, "cec_ver_cnt_max", 15) == 0) {
-		token = strsep(&cur, delim);
-		if (!token || kstrtouint(token, 10, &addr) < 0)
-			return count;
-		cec_ver_cnt_max = addr;
-		CEC_ERR("cec_ver_cnt_max: %d\n", cec_ver_cnt_max);
-	} else if (token && strncmp(token, "wait_notify_ms", 14) == 0) {
-		token = strsep(&cur, delim);
-		if (!token || kstrtouint(token, 10, &addr) < 0)
-			return count;
-		wait_notify_ms = addr;
-		CEC_ERR("wait_notify_ms: %d\n", wait_notify_ms);
 	} else if (token && strncmp(token, "need_rx_uevent", 14) == 0) {
 		token = strsep(&cur, delim);
 		if (!token || kstrtouint(token, 10, &addr) < 0)
@@ -1576,17 +1495,15 @@ static ssize_t dbg_store(const struct class *class,
 	return count;
 }
 
-static ssize_t dbg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dbg_show(const struct class *cla,
+			const struct class_attribute *attr, char *buf)
 {
 	/*CEC_INFO(" %s\n", __func__);*/
 	return 0;
 }
 
-static ssize_t port_info_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t port_info_show(const struct class *cla,
+			const struct class_attribute *attr, char *buf)
 {
 	unsigned char i = 0;
 	int pos = 0;
@@ -1625,9 +1542,8 @@ static ssize_t port_info_show(const struct class *class,
  * bit[3~0] stands for HDMIRX PCB port D~A,
  * bit value 1: plug, 0: unplug
  */
-static ssize_t conn_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t conn_status_show(const struct class *cla,
+			const struct class_attribute *attr, char *buf)
 {
 	unsigned int tmp = 0;
 
@@ -1708,9 +1624,9 @@ static struct attribute *aocec_class_attrs[] = {
 
 ATTRIBUTE_GROUPS(aocec_class);
 static struct class aocec_class = {
-	.name		= CEC_DEV_NAME,
-	.class_groups	= aocec_class_groups,
-	.devnode	= aml_cec_class_devnode,
+	.name = CEC_DEV_NAME,
+	.class_groups = aocec_class_groups,
+	.devnode = aml_cec_class_devnode,
 };
 
 /************************ cec high level code *****************************/
@@ -1738,7 +1654,6 @@ static void aocec_late_resume(struct early_suspend *h)
 #endif
 
 #ifdef CONFIG_OF
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct cec_platform_data_s cec_gxl_data = {
 	.chip_id = CEC_CHIP_GXL,
@@ -1839,8 +1754,7 @@ static const struct cec_platform_data_s cec_sm1_data = {
 
 static const struct cec_platform_data_s cec_tm2_data = {
 	.chip_id = CEC_CHIP_TM2,
-	/* don't check */
-	.line_reg = 0xff,
+	.line_reg = 0,/*line_reg=0:AO_GPIO_I*/
 	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
@@ -1897,7 +1811,6 @@ static const struct cec_platform_data_s cec_t7_data = {
 	.share_io = true,
 	.reg_tab_group = cec_reg_group_a1,
 };
-#endif
 
 static const struct cec_platform_data_s cec_s4_data = {
 	.chip_id = CEC_CHIP_S4,
@@ -1911,20 +1824,6 @@ static const struct cec_platform_data_s cec_s4_data = {
 	.reg_tab_group = cec_reg_group_a1,
 };
 
-/* s1a based on s4d */
-static const struct cec_platform_data_s cec_s1a_data = {
-	.chip_id = CEC_CHIP_S1A,
-	.line_reg = 0xff,/*don't check*/
-	.line_bit = 3,
-	.ee_to_ao = 1,
-	.ceca_sts_reg = 1,
-	.ceca_ver = CECA_NONE,
-	.cecb_ver = CECB_VER_3,
-	.share_io = true,
-	.reg_tab_group = cec_reg_group_a1,
-};
-
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const struct cec_platform_data_s cec_t3_data = {
 	.chip_id = CEC_CHIP_T3,
 	.line_reg = 0xff,/*don't check*/
@@ -1949,60 +1848,7 @@ static const struct cec_platform_data_s cec_t5w_data = {
 	.reg_tab_group = cec_reg_group_old,
 };
 
-/* based on t3, only has CEC_B */
-static const struct cec_platform_data_s cec_t5m_data = {
-	.chip_id = CEC_CHIP_T5M,
-	.line_reg = 0xff,/*don't check*/
-	.line_bit = 0,
-	.ee_to_ao = 1,
-	.ceca_sts_reg = 0,
-	.ceca_ver = CECA_NONE,
-	.cecb_ver = CECB_VER_3,
-	.share_io = false,
-	.reg_tab_group = cec_reg_group_a1,
-};
-
-static const struct cec_platform_data_s cec_s5_data = {
-	.chip_id = CEC_CHIP_S5,
-	.line_reg = 0xff,/*don't check*/
-	.line_bit = 0,
-	.ee_to_ao = 1,
-	.ceca_sts_reg = 0,
-	.ceca_ver = CECA_NONE,
-	.cecb_ver = CECB_VER_3,
-	.share_io = true,
-	.reg_tab_group = cec_reg_group_a1,
-};
-
-/* based on t3, only has CEC_B */
-static const struct cec_platform_data_s cec_t3x_data = {
-	.chip_id = CEC_CHIP_T3X,
-	.line_reg = 0xff,/*don't check*/
-	.line_bit = 0,
-	.ee_to_ao = 1,
-	.ceca_sts_reg = 0,
-	.ceca_ver = CECA_NONE,
-	.cecb_ver = CECB_VER_3,
-	.share_io = false,
-	.reg_tab_group = cec_reg_group_a1,
-};
-
-/* based on t5m, only has CEC_B */
-static const struct cec_platform_data_s cec_txhd2_data = {
-	.chip_id = CEC_CHIP_TXHD2,
-	.line_reg = 0xff,/*don't check*/
-	.line_bit = 0,
-	.ee_to_ao = 1,
-	.ceca_sts_reg = 0,
-	.ceca_ver = CECA_NONE,
-	.cecb_ver = CECB_VER_3,
-	.share_io = false,
-	.reg_tab_group = cec_reg_group_old,
-};
-#endif
-
 static const struct of_device_id aml_cec_dt_match[] = {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, amlogic-aocec",
@@ -2057,16 +1903,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 		.compatible = "amlogic, aocec-t7",
 		.data = &cec_t7_data,
 	},
-#endif
 	{
 		.compatible = "amlogic, aocec-s4",
 		.data = &cec_s4_data,
 	},
-	{
-		.compatible = "amlogic, aocec-s1a",
-		.data = &cec_s1a_data,
-	},
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	{
 		.compatible = "amlogic, aocec-t3",
 		.data = &cec_t3_data,
@@ -2075,23 +1915,6 @@ static const struct of_device_id aml_cec_dt_match[] = {
 		.compatible = "amlogic, aocec-t5w",
 		.data = &cec_t5w_data,
 	},
-	{
-		.compatible = "amlogic, aocec-t5m",
-		.data = &cec_t5m_data,
-	},
-	{
-		.compatible = "amlogic, aocec-s5",
-		.data = &cec_s5_data,
-	},
-	{
-		.compatible = "amlogic, aocec-t3x",
-		.data = &cec_t3x_data,
-	},
-	{
-		.compatible = "amlogic, aocec-txhd2",
-		.data = &cec_txhd2_data,
-	},
-#endif
 	{}
 };
 #endif
@@ -2192,6 +2015,9 @@ static int ao_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	}
 	cec_config2_phyaddr(cec_dev->phy_addr, 1);
 	cec_hw_init();
+	//below This adapt for LGE SocTS
+	if (!adap->is_configured)
+		adap->log_addrs.num_log_addrs = 1;
 	return 0;
 }
 
@@ -2234,6 +2060,8 @@ static int ao_cec_set_log_addr(struct cec_adapter *adap, u8 logical_addr)
 		logical_addr == CEC_PLAYBACK_DEVICE_2_ADDR ||
 		logical_addr == CEC_PLAYBACK_DEVICE_3_ADDR) {
 		cec_dev->dev_type = CEC_PLAYBACK_DEVICE_1_ADDR;
+	} else if (logical_addr == CEC_AUDIO_SYSTEM_ADDR) {
+		cec_dev->dev_type = CEC_AUDIO_SYSTEM_ADDR;
 	} else {
 		cec_dev->dev_type = CEC_PLAYBACK_DEVICE_1_ADDR;
 		CEC_ERR("cec_adapter logic_addr abnormal\n");
@@ -2272,10 +2100,6 @@ static int ao_cec_transmit(struct cec_adapter *adap, u8 attempts,
 		return -1;
 	dprintk(L_2, "%s signal_free_time: %x, attempts: %d\n",
 		__func__, signal_free_time, attempts);
-	if (is_get_cec_ver_msg(msg->msg, msg->len))
-		cec_ver_cnt++;
-	else
-		cec_ver_cnt = 0;
 	cec_ll_tx(msg->msg, msg->len, signal_free_time);
 
 	return 0;
@@ -2288,9 +2112,6 @@ static int ao_cec_transmit(struct cec_adapter *adap, u8 attempts,
 void aml_adap_status(struct cec_adapter *adap, struct seq_file *file)
 {
 	cec_status();
-	CEC_ERR("cec_ver_cnt: %d\n", cec_ver_cnt);
-	CEC_ERR("cec_ver_cnt_max: %d\n", cec_ver_cnt_max);
-	CEC_ERR("wait_notify_ms: %d\n", wait_notify_ms);
 	CEC_ERR("common_queue: %d\n", std_ao_cec.common_queue);
 	CEC_ERR("adapt_log_addr_valid: %d\n", std_ao_cec.adapt_log_addr_valid);
 }
@@ -2349,7 +2170,6 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	unsigned char a, b, c, d;
 	u16 phy_addr = 0;
 	struct vsdb_phyaddr *tx_phy_addr = get_hdmitx_phy_addr();
-	unsigned int is_ee_cec;
 
 	if (!node || !node->name) {
 		pr_err("%s no devtree node\n", __func__);
@@ -2434,13 +2254,10 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	}
 
 	/* if using EE CEC */
-	r = of_property_read_u32(node, "ee_cec", &is_ee_cec);
-	if (r) {
-		CEC_ERR("not find 'ee_cec'\n");
+	if (of_property_read_bool(node, "ee_cec"))
+		ee_cec = CEC_B;
+	else
 		ee_cec = CEC_A;
-	} else {
-		ee_cec = !!is_ee_cec;
-	}
 	CEC_ERR("using cec:%d\n", ee_cec);
 	/* pinmux set */
 	if (of_get_property(node, "pinctrl-names", NULL)) {
@@ -2784,7 +2601,6 @@ static int aml_aocec_probe(struct platform_device *pdev)
 					      &cec_dev->cec_wk_as_msg[1]);
 	}
 #endif
-	cec_debug_fs_init();
 	cec_irq_enable(true);
 	/* not check signal free time by default
 	 * otherwise it easily fail at
@@ -2792,8 +2608,8 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	 * There were 87 messages in the receive queue for 68 transmits
 	 * int_sts:0x11 and irq_flg:INITIATOR
 	 */
-	cec_dev->chk_sig_free_time = false;
-	cec_dev->sw_chk_bus = false;
+	cec_dev->chk_sig_free_time = true;
+	cec_dev->sw_chk_bus = true;
 	std_ao_cec.adapt_log_addr_valid = false;
 	/* std linux cec not need uevent, for back */
 	std_ao_cec.need_rx_uevent = false;
@@ -2848,6 +2664,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	}
 #endif
 #endif
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (get_hpd_state() &&
 	    tx_phy_addr &&
 	    tx_phy_addr->valid == 1) {
@@ -2860,6 +2677,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 				phy_addr,
 				false);
 	}
+#endif
 	CEC_ERR("%s success end\n", __func__);
 	cec_dev->probe_finish = true;
 	return 0;
@@ -2908,7 +2726,7 @@ tag_cec_devm_err:
 	return ret;
 }
 
-static int aml_aocec_remove(struct platform_device *pdev)
+static void aml_aocec_remove(struct platform_device *pdev)
 {
 #ifdef CONFIG_CEC_NOTIFIER
 #ifdef CONFIG_AMLOGIC_DRM_HDMI
@@ -2961,8 +2779,6 @@ static int aml_aocec_remove(struct platform_device *pdev)
 	unregister_chrdev(cec_dev->cec_info.dev_no, CEC_DEV_NAME);
 	class_unregister(&aocec_class);
 	kfree(cec_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -3032,11 +2848,6 @@ static int aml_cec_suspend_noirq(struct device *dev)
 	} else {
 	#endif
 	{
-		if (cec_dev->cec_num > ENABLE_ONE_CEC)
-			cec_clear_all_logical_addr(CEC_B);
-		else
-			cec_clear_all_logical_addr(ee_cec);
-
 		if (!IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
 			ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);
 	}
@@ -3058,7 +2869,7 @@ static void cec_get_wk_msg(void)
 	int i = 0;
 
 	memset(cec_dev->cec_wk_otp_msg, 0, sizeof(cec_dev->cec_wk_otp_msg));
-	aml_mbox_transfer_data(mbox_chan, MBOX_CMD_GET_CEC_OTP_MSG,
+	aml_mbox_transfer_data(cec_mbox_chan, MBOX_CMD_GET_CEC_OTP_MSG,
 				  NULL, 0, cec_dev->cec_wk_otp_msg,
 				  sizeof(cec_dev->cec_wk_otp_msg), MBOX_SYNC);
 	CEC_INFO("cec_wk_otp_msg len: %x\n", cec_dev->cec_wk_otp_msg[0]);
@@ -3074,9 +2885,9 @@ static void cec_get_wk_msg(void)
 	}
 
 	memset(cec_dev->cec_wk_as_msg, 0, sizeof(cec_dev->cec_wk_as_msg));
-	aml_mbox_transfer_data(mbox_chan, MBOX_CMD_GET_CEC_AS_MSG,
-				  NULL, 0, cec_dev->ec_wk_as_msg,
-				  sizeof(cec_dev->ec_wk_as_msg), MBOX_SYNC);
+	aml_mbox_transfer_data(cec_mbox_chan, MBOX_CMD_GET_CEC_AS_MSG,
+				  NULL, 0, cec_dev->cec_wk_as_msg,
+				  sizeof(cec_dev->cec_wk_as_msg), MBOX_SYNC);
 	CEC_INFO("cec_wk_as_msg len: %x\n", cec_dev->cec_wk_as_msg[0]);
 	for (i = 0; i < cec_dev->cec_wk_as_msg[0]; i++)
 		CEC_INFO("cec_wk_as_msg[%d] %02x\n", i,

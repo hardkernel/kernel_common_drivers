@@ -143,18 +143,9 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 	/* clr CEC lock bit */
 	hdmirx_cec_write(DWC_CEC_LOCK, 0);
 	CEC_PRINT("%s", msg_log_buf);
-
-	#ifdef CEC_FREEZE_WAKE_UP
-	if (is_pm_s2idle_mode())
-		*out_len = len;
-	else
-	#endif
-	{
-		if (cec_message_op(msg, len))
-			*out_len = len;
-		else
-			*out_len = 0;
-	}
+	//driver handle some msg for special case
+	cec_message_op(msg, len);
+	*out_len = len;
 	pin_status = 1;
 	return 0;
 }
@@ -362,6 +353,7 @@ static irqreturn_t ceca_isr(int irq, void *dev_instance)
 /* --------end of AOCEC (CECA)-------- */
 static bool check_physical_addr_valid(int timeout)
 {
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	while (timeout > 0) {
 		if (cec_dev->dev_type == CEC_TV_ADDR)
 			break;
@@ -377,6 +369,7 @@ static bool check_physical_addr_valid(int timeout)
 			break;
 		}
 	}
+#endif
 	if (timeout <= 0)
 		return false;
 	return true;
@@ -870,16 +863,15 @@ static void cec_wakeup_task(struct work_struct *work)
 }
 
 /******************** cec class interface *************************/
-static ssize_t device_type_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t device_type_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%ld\n", cec_dev->dev_type);
 }
 
-static ssize_t device_type_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t device_type_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	unsigned int type;
 
@@ -891,9 +883,8 @@ static ssize_t device_type_store(const struct class *class,
 	return count;
 }
 
-static ssize_t menu_language_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t menu_language_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	char a, b, c;
 
@@ -903,9 +894,9 @@ static ssize_t menu_language_show(const struct class *class,
 	return sprintf(buf, "%c%c%c\n", a, b, c);
 }
 
-static ssize_t menu_language_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t menu_language_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	char a, b, c;
 
@@ -917,16 +908,14 @@ static ssize_t menu_language_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vendor_id_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vendor_id_show(const struct class *cla,
+			      const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->cec_info.vendor_id);
 }
 
-static ssize_t vendor_id_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vendor_id_store(const struct class *cla, const struct class_attribute *attr,
+			       const char *buf, size_t count)
 {
 	unsigned int id;
 
@@ -936,37 +925,33 @@ static ssize_t vendor_id_store(const struct class *class,
 	return count;
 }
 
-static ssize_t port_num_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t port_num_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", cec_dev->port_num);
 }
 
-static ssize_t dump_reg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *b)
+static ssize_t dump_reg_show(const struct class *cla,
+			     const struct class_attribute *attr, char *b)
 {
 	return dump_cec_reg(b);
 }
 
-static ssize_t arc_port_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t arc_port_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->arc_port);
 }
 
-static ssize_t osd_name_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t osd_name_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", cec_dev->cec_info.osd_name);
 }
 
-static ssize_t port_seq_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t port_seq_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	unsigned int seq;
 
@@ -975,21 +960,22 @@ static ssize_t port_seq_store(const struct class *class,
 
 	CEC_ERR("port_seq:%x\n", seq);
 	cec_dev->port_seq = seq;
+	//tv product need to handle special tx
+	cec_spd_info_init();
 	return count;
 }
 
-static ssize_t port_seq_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t port_seq_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->port_seq);
 }
 
-static ssize_t port_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t port_status_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	unsigned int tmp;
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	unsigned int tx_hpd;
 
 	tx_hpd = get_hpd_state();
@@ -997,18 +983,21 @@ static ssize_t port_status_show(const struct class *class,
 		tmp = tx_hpd;
 		return sprintf(buf, "%x\n", tmp);
 	}
+#endif
 	tmp = hdmirx_rd_top(TOP_HPD_PWR5V);
 	CEC_INFO("TOP_HPD_PWR5V:%x\n", tmp);
 	tmp >>= 20;
 	tmp &= 0xf;
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	tmp |= (tx_hpd << 16);
+#endif
 	return sprintf(buf, "%x\n", tmp);
 }
 
-static ssize_t pin_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pin_status_show(const struct class *cla,
+			       const struct class_attribute *attr, char *buf)
 {
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	unsigned int tx_hpd;
 	char p;
 
@@ -1030,20 +1019,22 @@ static ssize_t pin_status_show(const struct class *class,
 	} else {
 		return sprintf(buf, "%s\n", pin_status ? "ok" : "fail");
 	}
+#else
+	return sprintf(buf, "%s\n", pin_status ? "ok" : "fail");
+#endif
 }
 
-static ssize_t physical_addr_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t physical_addr_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	unsigned int tmp = cec_dev->phy_addr;
 
 	return sprintf(buf, "%04x\n", tmp);
 }
 
-static ssize_t physical_addr_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t physical_addr_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	int addr;
 
@@ -1060,16 +1051,14 @@ static ssize_t physical_addr_store(const struct class *class,
 	return count;
 }
 
-static ssize_t dbg_en_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dbg_en_show(const struct class *cla,
+			   const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", cec_msg_dbg_en);
 }
 
-static ssize_t dbg_en_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t dbg_en_store(const struct class *cla, const struct class_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int en;
 
@@ -1083,9 +1072,8 @@ static ssize_t dbg_en_store(const struct class *class,
 	return count;
 }
 
-static ssize_t cmd_store(const struct class *cla,
-			const struct class_attribute *attr,
-			const char *bu, size_t count)
+static ssize_t cmd_store(const struct class *cla, const struct class_attribute *attr,
+			 const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1112,9 +1100,8 @@ static ssize_t cmd_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t cmda_store(const struct class *cla,
-			const struct class_attribute *attr,
-			const char *bu, size_t count)
+static ssize_t cmda_store(const struct class *cla, const struct class_attribute *attr,
+			  const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1140,9 +1127,8 @@ static ssize_t cmda_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t cmdb_store(const struct class *cla,
-			const struct class_attribute *attr,
-			const char *bu, size_t count)
+static ssize_t cmdb_store(const struct class *cla, const struct class_attribute *attr,
+			  const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1168,16 +1154,14 @@ static ssize_t cmdb_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t wake_up_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t wake_up_show(const struct class *cla,
+			    const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", *((unsigned int *)&cec_dev->wakeup_data));
 }
 
-static ssize_t fun_cfg_store(const struct class *cla,
-			const struct class_attribute *attr,
-			const char *bu, size_t count)
+static ssize_t fun_cfg_store(const struct class *cla, const struct class_attribute *attr,
+			     const char *bu, size_t count)
 {
 	int cnt, val;
 
@@ -1194,26 +1178,23 @@ static ssize_t fun_cfg_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t fun_cfg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t fun_cfg_show(const struct class *cla,
+			    const struct class_attribute *attr, char *buf)
 {
 	unsigned int reg = cec_config(0, 0);
 
 	return sprintf(buf, "0x%x\n", reg & 0xff);
 }
 
-static ssize_t cec_version_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t cec_version_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	/*CEC_INFO("driver date:%s\n", CEC_DRIVER_VERSION);*/
 	return sprintf(buf, "%d\n", cec_dev->cec_info.cec_version);
 }
 
-static ssize_t log_addr_store(const struct class *cla,
-			const struct class_attribute *attr,
-			const char *bu, size_t count)
+static ssize_t log_addr_store(const struct class *cla, const struct class_attribute *attr,
+			      const char *bu, size_t count)
 {
 	int cnt, val;
 
@@ -1228,16 +1209,14 @@ static ssize_t log_addr_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t log_addr_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t log_addr_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "0x%x\n", cec_dev->cec_info.log_addr);
 }
 
-static ssize_t dbg_store(const struct class *cla,
-			const struct class_attribute *attr,
-			const char *bu, size_t count)
+static ssize_t dbg_store(const struct class *cla, const struct class_attribute *attr,
+			 const char *bu, size_t count)
 {
 	const char *delim = " ";
 	char *token;
@@ -1430,6 +1409,22 @@ static ssize_t dbg_store(const struct class *cla,
 			return count;
 		cec_dev->cec_log_en = addr;
 		CEC_ERR("cec_log_en: %d\n", cec_dev->cec_log_en);
+	}  else if (token && strncmp(token, "spd_init", 8) == 0) {
+		cec_spd_info_init();
+	}  else if (token && strncmp(token, "spd_add", 7) == 0) {
+		unsigned int handle_type;
+		unsigned int vendor_id;
+
+		token = strsep(&cur, "@");
+		if (!token || kstrtouint(token, 16, &handle_type) < 0)
+			return count;
+		token = strsep(&cur, "@");
+		if (!token || kstrtouint(token, 16, &vendor_id) < 0)
+			return count;
+		CEC_INFO("spd_add:%d 0x%x %s", handle_type, vendor_id, cur);
+		cec_add_spd_info(handle_type, vendor_id, cur);
+	}  else if (token && strncmp(token, "spd_dump", 8) == 0) {
+		cec_dump_spd_info();
 	} else {
 		if (token)
 			CEC_ERR("no cmd:%s, supported list:\n", token);
@@ -1457,17 +1452,15 @@ static ssize_t dbg_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t dbg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dbg_show(const struct class *cla,
+			const struct class_attribute *attr, char *buf)
 {
 	/*CEC_INFO(" %s\n", __func__);*/
 	return 0;
 }
 
-static ssize_t port_info_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t port_info_show(const struct class *cla,
+			const struct class_attribute *attr, char *buf)
 {
 	unsigned char i = 0;
 	int pos = 0;
@@ -1506,9 +1499,8 @@ static ssize_t port_info_show(const struct class *class,
  * bit[3~0] stands for HDMIRX PCB port D~A,
  * bit value 1: plug, 0: unplug
  */
-static ssize_t conn_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t conn_status_show(const struct class *cla,
+			const struct class_attribute *attr, char *buf)
 {
 	unsigned int tmp = 0;
 
@@ -1521,9 +1513,8 @@ static ssize_t conn_status_show(const struct class *class,
 	return sprintf(buf, "0x%x\n", tmp);
 }
 
-static ssize_t dump_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dump_status_show(const struct class *cla,
+			const struct class_attribute *attr, char *buf)
 {
 	return dump_cec_status(buf);
 }
@@ -1664,6 +1655,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		 * judgement hpd, the hpd is written as 1 again in the plugin, so the phy addr will
 		 * report a wrong value. Therefore, after judgement hpd, and get the phy addr
 		 */
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		if (cec_dev->dev_type != CEC_TV_ADDR) {
 			if (get_hpd_state() == 0) {
 				cec_dev->phy_addr = 0xffff;
@@ -1677,6 +1669,9 @@ static long hdmitx_cec_ioctl(struct file *f,
 		} else {
 			cec_dev->phy_addr = 0;
 		}
+#else
+		cec_dev->phy_addr = 0;
+#endif
 
 		/*don't use ioctrl cmd to update phy addr reg,it will be updated when plug in*/
 //		if (!phy_addr_test) {
@@ -1837,7 +1832,11 @@ static long hdmitx_cec_ioctl(struct file *f,
 			else
 				tmp = 0;
 		} else {
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 			tmp = get_hpd_state();
+#else
+			tmp = 0;
+#endif
 		}
 		/*CEC_ERR("port id:%d, sts:%d\n", a, tmp);*/
 		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
@@ -2024,9 +2023,9 @@ static struct attribute *aocec_class_attrs[] = {
 
 ATTRIBUTE_GROUPS(aocec_class);
 static struct class aocec_class = {
-	.name		= CEC_DEV_NAME,
-	.class_groups	= aocec_class_groups,
-	.devnode	= aml_cec_class_devnode,
+	.name = CEC_DEV_NAME,
+	.class_groups = aocec_class_groups,
+	.devnode = aml_cec_class_devnode,
 };
 
 static const struct file_operations hdmitx_cec_fops = {
@@ -2227,7 +2226,6 @@ static const struct cec_platform_data_s cec_t7_data = {
 	.share_io = true,
 	.reg_tab_group = cec_reg_group_a1,
 };
-#endif
 
 static const struct cec_platform_data_s cec_s4_data = {
 	.chip_id = CEC_CHIP_S4,
@@ -2238,6 +2236,43 @@ static const struct cec_platform_data_s cec_s4_data = {
 	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_3,
 	.share_io = true,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+static const struct cec_platform_data_s cec_s7_data = {
+	.chip_id = CEC_CHIP_S7,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+#endif
+
+static const struct cec_platform_data_s cec_s7d_data = {
+	.chip_id = CEC_CHIP_S7D,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+static const struct cec_platform_data_s cec_s6_data = {
+	.chip_id = CEC_CHIP_S6,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
 	.reg_tab_group = cec_reg_group_a1,
 };
 
@@ -2329,6 +2364,19 @@ static const struct cec_platform_data_s cec_txhd2_data = {
 	.share_io = false,
 	.reg_tab_group = cec_reg_group_old,
 };
+
+static const struct cec_platform_data_s cec_t6d_data = {
+	.chip_id = CEC_CHIP_T6D,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
 #endif
 
 static const struct of_device_id aml_cec_dt_match[] = {
@@ -2387,11 +2435,22 @@ static const struct of_device_id aml_cec_dt_match[] = {
 		.compatible = "amlogic, aocec-t7",
 		.data = &cec_t7_data,
 	},
-#endif
-
 	{
 		.compatible = "amlogic, aocec-s4",
 		.data = &cec_s4_data,
+	},
+	{
+		.compatible = "amlogic, aocec-s7",
+		.data = &cec_s7_data,
+	},
+#endif
+	{
+		.compatible = "amlogic, aocec-s7d",
+		.data = &cec_s7d_data,
+	},
+	{
+		.compatible = "amlogic, aocec-s6",
+		.data = &cec_s6_data,
 	},
 	{
 		.compatible = "amlogic, aocec-s1a",
@@ -2421,6 +2480,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-txhd2",
 		.data = &cec_txhd2_data,
+	},
+	{
+		.compatible = "amlogic, aocec-t6d",
+		.data = &cec_t6d_data,
 	},
 #endif
 	{}
@@ -2459,6 +2522,7 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 		/* struct ao_cec_dev, work_hdmitx_plug); */
 	unsigned int tmp = 0;
 	unsigned int phy_addr = 0xffff;
+	unsigned char port_id = 0;
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	tmp |= (get_hpd_state() << 4);
 #endif
@@ -2482,6 +2546,17 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 		}
 	} else {
 		cec_dev->phy_addr = 0;
+		char i;
+
+		for (i = 0; i < 4; i++) {
+			port_id = (cec_dev->port_seq >> i * 4) & 0xF;
+			if (!(tmp & (1 << i))) {
+				//plug out
+				delete_current_spd_info(port_id * 0x1000);
+			} else {
+				update_current_spd_5v(i, true);
+			}
+		}
 	}
 
 	cec_set_uevent(HDMI_PLUG_EVENT, tmp);
@@ -2503,8 +2578,9 @@ static void cec_func_init(unsigned int cec_func_config)
 
 	if (!(cec_func_config & CEC_FUNC_CFG_CEC_ON))
 		cec_func &= ~(CEC_FUNC_CFG_CEC_ON);
-	if (!(cec_func_config & CEC_FUNC_CFG_AUTO_POWER_ON))
-		cec_func &= ~(CEC_FUNC_CFG_AUTO_POWER_ON);
+	//default cfg enalbe all function
+//	if (!(cec_func_config & CEC_FUNC_CFG_AUTO_POWER_ON))
+//		cec_func &= ~(CEC_FUNC_CFG_AUTO_POWER_ON);
 	cec_config(cec_func, 1);
 }
 
@@ -3255,7 +3331,26 @@ static int aml_cec_resume_noirq(struct device *dev)
 	return 0;
 }
 
+static int aml_cec_pm_freeze_noirq(struct device *dev)
+{
+	struct pinctrl *pin;
+
+	//it will check pinctrl state when pinctrl restore pinmux
+	//freeze -- sleep   restore -- default
+	pin = devm_pinctrl_get_select(dev, "cec_pin_sleep");
+	return 0;
+}
+
+static int aml_cec_pm_restore_noirq(struct device *dev)
+{
+	pinctrl_pm_select_default_state(dev);
+	aml_cec_resume_noirq(dev);
+	return 0;
+}
+
 static const struct dev_pm_ops aml_cec_pm = {
+	.freeze_noirq = aml_cec_pm_freeze_noirq,
+	.restore_noirq = aml_cec_pm_restore_noirq,
 	.prepare  = aml_cec_pm_prepare,
 	.complete = aml_cec_pm_complete,
 	.suspend_noirq = aml_cec_suspend_noirq,
