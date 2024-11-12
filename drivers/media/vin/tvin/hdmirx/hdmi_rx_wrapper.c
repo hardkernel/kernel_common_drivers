@@ -7625,6 +7625,8 @@ void hdmirx_timer_t3x(void)
 	if (is_fsm_ready_t3x()) {
 		if (!sm_pause) {
 			for (port = E_PORT0; port < E_PORT_NUM; port++) {
+				if ((rx_info.edid_update_done & (1 << port)) != 1)
+					continue;
 				if (rx_info.main_port_open)
 					rx_nosig_monitor(port);
 				rx_clk_rate_monitor(port);

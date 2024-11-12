@@ -1947,6 +1947,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 			fsm_restart(port_idx);
 		if (hdmi_cec_en == 1 && rx_info.boot_flag)
 			rx_force_hpd_rxsense_cfg(1);
+		rx_info.edid_update_done |= 0xf;
 		rx_pr("*update edid*\n");
 		break;
 	case HDMI_IOC_EDID_UPDATE_WITH_PORT:
