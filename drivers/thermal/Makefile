@@ -9,7 +9,7 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_COOLDEV) += meson_cooldev.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_CPUCORE_THERMAL) += cpucore_cooling.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_GPU_THERMAL) += gpu_cooling.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_GPUCORE_THERMAL) += gpucore_cooling.o
-$(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_THERMAL) += ddr_cooling.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_THERMAL) += ddr_cooling.o ddr_params.o ddr_control.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_THERMAL) += media_cooling.o
 
 PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
