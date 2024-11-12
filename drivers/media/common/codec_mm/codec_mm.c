@@ -274,7 +274,7 @@ static u32 secure_mem_align2n;
 /* the maximum size allowed to be reserved for a record */
 #define LOG_LINE_MAX		(CONSOLE_LOG_MAX - PREFIX_MAX)
 
-static void dump_mem_infos(struct seq_file *m);
+static int dump_mem_infos(struct seq_file *m, char *buf);
 
 static int dump_free_mem_infos(void *buf, int size);
 static int secure_vdec_res_setup(struct reserved_mem *rmem);
@@ -1446,7 +1446,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		pr_err("mem flags %d %d, %d\n",
 		       memflags, mem->flags, align2n);
 		kfree(mem);
-		dump_mem_infos(NULL);
+		dump_mem_infos(NULL, NULL);
 		if (mgt->tvp_enable)
 			dump_tvp_pool_info();
 		return NULL;
@@ -2762,7 +2762,7 @@ void dump_mem_infos_external(void)
 	spin_unlock_irqrestore(&mgt->lock, flags);
 }
 
-static void dump_mem_infos(struct seq_file *m)
+static int dump_mem_infos(struct seq_file *m, char *buf)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	struct codec_mm_s *mem = NULL;
@@ -2897,7 +2897,18 @@ static void dump_mem_infos(struct seq_file *m)
 	for (i = 0; i < segment_count; i++)
 		cs_printf(m, "%s", alloc_buf + i * LOG_LINE_MAX);
 
+	if (buf) {
+		if (buf_len > PAGE_SIZE - 1)
+			buf_len = PAGE_SIZE - 1;
+
+		strncpy(buf, alloc_buf, buf_len);
+		buf[buf_len] = '\0';
+	} else {
+		buf_len = 0;
+	}
+
 	vfree(alloc_buf);
+	return buf_len;
 }
 
 int codec_mm_alloc_cma_size(void)
@@ -3484,7 +3495,7 @@ int codec_mm_enough_for_size(int size, int with_wait, int mem_flags)
 		if (have_mem)
 			return 1;
 		if (debug_mode & 0x20)
-			dump_mem_infos(NULL);
+			dump_mem_infos(NULL, NULL);
 		msleep(50);
 		return 0;
 	}
@@ -3604,10 +3615,7 @@ static int __init amstream_test_init(void)
 static ssize_t codec_mm_dump_show(struct class *class,
 				  struct class_attribute *attr, char *buf)
 {
-	size_t ret = 0;
-
-	dump_mem_infos(NULL);
-	return ret;
+	return (ssize_t)dump_mem_infos(NULL, buf);
 }
 
 static ssize_t codec_mm_scatter_dump_show(struct class *class,
@@ -3930,7 +3938,7 @@ static ssize_t debug_store(struct class *class,
 		codec_mm_keeper_free_all_keep(1);
 		break;
 	case 11:
-		dump_mem_infos(NULL);
+		dump_mem_infos(NULL, NULL);
 		break;
 	case 12:
 		dump_free_mem_infos(NULL, 0);
@@ -4342,7 +4350,7 @@ int codec_mm_cs_show(struct seq_file *m, struct codec_state_node *cs)
 	seq_printf(m, "\n #### Show %s status ####\n", cs->ops->name);
 
 	seq_puts(m, "\n **** Dump linear buffer alloc status ****\n");
-	dump_mem_infos(m);
+	dump_mem_infos(m, NULL);
 
 	if (buf) {
 		seq_puts(m, "\n **** Dump scatter buffer alloc status ****\n");
