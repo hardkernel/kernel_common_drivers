@@ -969,6 +969,20 @@
 //Bit 28:16  p2i_line_length  // unsigned  , default = 780  ve_line_length
 //Bit 15:13  reserved
 //Bit 12:0   p2i_pic_height   // unsigned  , default = 438  ve_pic_height
+#define T6D_SAFA_PPS_SAD_FLAT_THD                      0x5140
+//Bit 31:24        reserved
+//Bit 23:16        reg_sad_flat_th2          // unsigned ,    RW, default = 10
+//Bit 15: 8        reg_sad_flat_th1          // unsigned ,    RW, default = 10
+//Bit  7: 0        reg_sad_flat_th0          // unsigned ,    RW, default = 3
+#define T6D_SAFA_PPS_DIR_MIN_IDX_VALID                 0x5126
+//Bit 31:13        reserved
+//Bit 12           reg_delta_chk_min_idx_valid // unsigned ,    RW, default = 0
+//Bit 11: 9        reserved
+//Bit  8           reg_dir_hist_chk_min_idx_valid // unsigned ,    RW, default = 1
+//Bit  7: 5        reserved
+//Bit  4           reg_dir_dif_chk_min_idx_valid // unsigned ,    RW, default = 1
+//Bit  3: 1        reserved
+//Bit  0           reg_beta_chk_min_idx_valid // unsigned ,    RW, default = 0
 
 #define S6_SAFA_PPS_CNTL_SCALE_COEF_IDX_LUMA          0x5190
 #define S6_SAFA_PPS_CNTL_SCALE_COEF_LUMA              0x5191
