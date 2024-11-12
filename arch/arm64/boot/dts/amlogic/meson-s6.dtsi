@@ -21,6 +21,7 @@
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include <dt-bindings/firmware/amlogic,firmware.h>
 #include <dt-bindings/mailbox/s6-mbox.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include "meson-ir-map.dtsi"
 #include "meson-valhall.dtsi"
@@ -1632,6 +1633,82 @@
 				};
 			};
 		};/*meson cooling devices end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		reg = <0 0xfe036c14 0 0x4>,
+		      <0 0xfe036ca8 0 0x4>;
+		reg-names = "type-addr",
+			    "freq-addr";
+		type-mask = <8 8>;
+		freq-mask = <0 16>;
+		status = "okay";
+		lpddr4 {
+			particle = <LPDDR4_PARTICLE>;
+			particle-flag = <DDR_TYPE_FLAG>;
+			condition-type = <DDR_DMC>;
+			freq-divisor = <1 4>;
+			dmc-reg = <0xfe036760>,
+				  <0xfe036760>,
+				  <0xfe036ab0>,
+				  <0xfe036ab0>;
+			dmc-mask = <0 3>,
+				   <8 3>,
+				   <0 3>,
+				   <8 3>;
+			caddr = <0xfe0364b4>,
+				<0xfe0365b4>;
+			caddr-mask = <0 16>,
+				     <0 16>;
+			caddr-val = <15600 7800>,
+				    <15600 7800>,
+				    <7800  3900>,
+				    <3900  1950>,
+				    <1950  975>,
+				    <975   488>,
+				    <487   244>,
+				    <263   132>;
+			dmc-init = <0xfe036678 0x4>,
+				   <0xfe036674 0x80000100>;
+		};
+
+		lpddr5 {
+			particle = <LPDDR5_PARTICLE>;
+			particle-flag = <DDR_TYPE_FLAG>;
+			condition-type = <DDR_DMC>;
+			freq-divisor = <1 1>;
+			dmc-reg = <0xfe036760>,
+				  <0xfe036760>,
+				  <0xfe036ab0>,
+				  <0xfe036ab0>;
+			dmc-mask = <0 5>,
+				   <8 5>,
+				   <0 5>,
+				   <8 5>;
+			caddr = <0xfe0364b4>,
+				<0xfe0365b4>;
+			caddr-mask = <0 16>,
+				     <0 16>;
+			caddr-val = <31200 15600>,
+				    <31200 15600>,
+				    <23400 11700>,
+				    <15600 7800>,
+				    <12870 6435>,
+				    <9750  4875>,
+				    <7800  3900>,
+				    <6630  3315>,
+				    <5070  2535>,
+				    <3900  1950>,
+				    <2730  1365>,
+				    <1950  975>,
+				    <975   488>,
+				    <731   366>,
+				    <487   244>,
+				    <487   244>;
+			dmc-init = <0xfe036678 0x4>,
+				   <0xfe036674 0x80000100>;
+		};
+	};
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";

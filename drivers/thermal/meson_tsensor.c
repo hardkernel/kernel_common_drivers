@@ -26,6 +26,7 @@
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
 #include "cpucore_cooling.h"
+#include "ddr_control.h"
 #include <linux/reset.h>
 #include <linux/amlogic/gki_module.h>
 
@@ -1163,12 +1164,14 @@ static int __init meson_platdrv_init(void)
 	if (ret)
 		return ret;
 	platform_driver_register(&aml_indmc_sensor_platdrv);
+	platform_driver_register(&ddr_control_platdrv);
 	return platform_driver_register(&(meson_cooldev_platdrv));
 }
 
 static __exit void meson_platdrv_exit(void)
 {
 	platform_driver_unregister(&meson_cooldev_platdrv);
+	platform_driver_register(&ddr_control_platdrv);
 	platform_driver_unregister(&meson_tsensor_driver);
 }
 
