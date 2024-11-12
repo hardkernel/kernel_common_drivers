@@ -14556,6 +14556,8 @@ int video_hw_init(void)
 		/* set vd2 scaler fifo max */
 		WRITE_VCBUS_REG(VD2_SCO_FIFO_CTRL, 0xffff0800);
 	}
+	if (cur_dev->vd1_vsr_safa_support)
+		vsr_default_init();
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_register(VIDEO_MODULE, 0, video_secure_op, vpp_secure_cb);
 #endif

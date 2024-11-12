@@ -1388,11 +1388,20 @@ void s7d_vsr_default_init(void)
 	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_6, 0x46494b4e);
 	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_7, 0x41424344);
 	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_F, 0x00000040);
+}
 
+void vsr_default_init(void)
+{
 	/*
 	 *SAFA_PPS_DIR_MIN_IDX_VALID bit0 set 1 to enhanced interpolation
 	 */
-	WRITE_VCBUS_REG_BITS(SAFA_PPS_DIR_MIN_IDX_VALID, 1, 0, 1);
+	if (video_is_meson_s7d_cpu() ||
+		video_is_meson_s6_cpu())
+		WRITE_VCBUS_REG_BITS(SAFA_PPS_DIR_MIN_IDX_VALID, 1, 0, 1);
+	if (video_is_meson_t6d_cpu()) {
+		WRITE_VCBUS_REG_BITS(T6D_SAFA_PPS_DIR_MIN_IDX_VALID, 1, 0, 1);
+		WRITE_VCBUS_REG_BITS(T6D_SAFA_PPS_SAD_FLAT_THD, 0x18, 0, 8);
+	}
 }
 
 void vsr_debug_mode_update(u32 debug_mode, struct vsr_setting_s *vsr)
