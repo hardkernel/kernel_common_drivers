@@ -360,6 +360,31 @@
 		status = "disabled";
 	};
 
+	multi-di {
+		compatible = "amlogic, dim-s7d";
+		status = "okay";
+		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
+		flag_cma = <4>;	//<1>;
+		//memory-region = <&di_reserved>;
+		//memory-region = <&di_cma_reserved>;
+		interrupts = <0 203 1
+				0 202 1>;
+		interrupt-names = "pre_irq", "post_irq";
+		clocks = <&clkc CLKID_VPU_CLKB>,
+			<&clkc CLKID_VPU>;
+		clock-names = "vpu_clkb",
+			"vpu_mux";
+		clock-range = <334 667>;
+		/* buffer-size = <3621952>;(yuv422 8bit) */
+		buffer-size = <4074560>;/*yuv422 fullpack*/
+		/* reserve-iomap = "true"; */
+		/* if enable nr10bit, set nr10bit-support to 1 */
+		post-wr-support = <1>;
+		nr10bit-support = <1>;
+		nrds-enable = <1>;
+		post_nub = <10>;
+	};
+
 	thermal-zones {
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
@@ -408,31 +433,6 @@
 			};
 		};
 	};/*thermal zone end*/
-
-	multi-di {
-		compatible = "amlogic, dim-s7d";
-		status = "okay";
-		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
-		flag_cma = <4>;	//<1>;
-		//memory-region = <&di_reserved>;
-		//memory-region = <&di_cma_reserved>;
-		interrupts = <0 203 1
-				0 202 1>;
-		interrupt-names = "pre_irq", "post_irq";
-		clocks = <&clkc CLKID_VPU_CLKB>,
-			<&clkc CLKID_VPU>;
-		clock-names = "vpu_clkb",
-			"vpu_mux";
-		clock-range = <334 667>;
-		/* buffer-size = <3621952>;(yuv422 8bit) */
-		buffer-size = <4074560>;/*yuv422 fullpack*/
-		/* reserve-iomap = "true"; */
-		/* if enable nr10bit, set nr10bit-support to 1 */
-		post-wr-support = <1>;
-		nr10bit-support = <1>;
-		nrds-enable = <1>;
-		post_nub = <10>;
-	};
 
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-s4";
@@ -952,7 +952,7 @@
 		reg = <0x5b>;
 		status = "disabled";
 		reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		platform = <4>;
+		platform = <10>;
 
 		led1 {
 			default_colors = <0 0 0>;
@@ -1316,10 +1316,6 @@
 
 &vcodec_dos_dev {
 	compatible = "amlogic, cpu-major-id-s7-805x3";
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &drm_subsystem {

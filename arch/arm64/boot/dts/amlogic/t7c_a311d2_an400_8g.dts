@@ -218,8 +218,14 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x6+3840x2160x4x3+3840x2160x4x4(whiteboard)round up 4M align */
-			size = <0x0 0x12c00000>;
+			/* primary display: (2160p RGBA afbc) * 3 = 105M
+			 * secondary display: (1080p RGBA afbc) * 6 = 54M
+			 * white board: (2160p RGBA afbc) * 3 = 105M
+			 * virtual display: (1080p RGB) * 4 + (1080p RGBA) * 18
+			 *	= 24 + 144 = 168M (for vdin and output buffer)
+			 * total: 105 + 54 + 105 + 168 = 432M
+			 */
+			size = <0x0 0x1b000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -241,7 +247,7 @@
 			/* normally,3840x2160 yuv420 8bit and 4 buffers
 			 * 3840x2160x1.5x4 = 48 M
 			 */
-			size = <0x0 0x3000000>;
+			size = <0x0 0x9000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -1836,11 +1842,11 @@
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
-	sd_uhs-sdr104;
+	sd-uhs-sdr104;
 	max-frequency = <200000000>;
 
 	disable-wp;
-
+	use_intf3_tuning;
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&sd_3v3>;

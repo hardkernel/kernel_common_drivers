@@ -1236,8 +1236,8 @@
 		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
 		src-clk-freq = <491520000>;
-		suspend-clk-off = <1>;
 		status = "okay";
+		suspend-clk-off = <1>;
 	};
 
 	extn:extn {

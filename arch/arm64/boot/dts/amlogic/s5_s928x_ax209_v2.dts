@@ -123,11 +123,10 @@
 		/*};*/
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3e800000 0x0 0x800000>;
+			reg = <0x0 0x3e800000 0x0 0x800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -152,9 +151,10 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0 0x0B000000>;
+			size = <0x0 0x400000>;
 			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  POST PROCESS MANAGER */
@@ -204,7 +204,7 @@
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x3000000>;
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};

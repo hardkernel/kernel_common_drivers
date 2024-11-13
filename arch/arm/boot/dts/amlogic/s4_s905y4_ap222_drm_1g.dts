@@ -79,9 +79,8 @@
 			compatible = "shared-dma-pool";
 			/*reusable;*/
 			no-map;
-			size = <0x3400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x05000000 0x3400000>;
+			reg = <0x05000000 0x3400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -687,13 +686,13 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "standby", "vol+", "vol-";
+		key_name = "vol-", "vol+", "power";
 		key_num = <3>;
 		io-channels = <&saradc 0>;
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
-		key_code = <116 115 114>;
-		key_val = <20 910 630>; //val=voltage/1800mV*1023
+		key_code = <114 115 116>;
+		key_val = <630 910 20>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40>;
 	};
 
@@ -855,14 +854,15 @@
 		dai-tdm-lane-slot-mask-out = <1 0>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_MPLL0>;
-		clock-names = "mclk", "clk_srcpll";
+		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdm_a
 			&tdm_d0_pins
 			&tdm_d1_pins
 			&tdma_clk_pins>;
-
+		src-clk-freq = <1179648000>;
 		status = "okay";
 	};
 
@@ -1564,10 +1564,6 @@
 		&dvfs666_cfg
 		&dvfs850_cfg
 		&dvfs850_cfg>;
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &amlvecm {

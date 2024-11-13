@@ -75,7 +75,7 @@
 			compatible = "shared-dma-pool";
 			/*reusable;*/
 			no-map;
-			alignment = <0x0 0x400000>;
+			alignment = <0x0 0x100000>;
 			reg = <0x0 0x05000000 0x0 0x2400000>;
 		};
 
@@ -955,8 +955,8 @@
 		compatible = "amlogic,aw9523b_led";
 		reg = <0x5b>;
 		status = "okay";
-		//reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		platform = <4>;
+		// reset-gpio = <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
+		platform = <10>;
 
 		led1 {
 			default_colors = <0 0 0>;
@@ -1316,10 +1316,6 @@
 &uart_A {
 	status = "okay";
 	uart-has-rtscts;
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &drm_subsystem {

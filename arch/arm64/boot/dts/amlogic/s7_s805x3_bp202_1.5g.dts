@@ -1133,6 +1133,8 @@
 };
 
 &ethmac {
+	pinctrl-0 = <&eth_led_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
@@ -1248,10 +1250,6 @@
 
 &vcodec_dos_dev {
 	compatible = "amlogic, cpu-major-id-s7-805x3";
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &drm_subsystem {

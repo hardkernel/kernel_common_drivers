@@ -52,7 +52,7 @@
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@0x08400000 {
 			compatible = "ramoops";
-			reg = <0x0 0x08400000 0x0 0x00100000>;
+			reg = <0x08400000 0x00100000>;
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
@@ -713,13 +713,13 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "standby", "vol+", "vol-";
+		key_name = "vol-", "vol+", "power";
 		key_num = <3>;
 		io-channels = <&saradc 0>;
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
-		key_code = <116 115 114>;
-		key_val = <0 512 891>; //val=voltage/1800mV*1023
+		key_code = <114 115 116>;
+		key_val = <630 910 20>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40>;
 	};
 
@@ -1469,7 +1469,6 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
-	keep-alive = <1>;
 };
 
 &ir {

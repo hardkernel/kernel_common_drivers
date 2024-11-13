@@ -88,8 +88,7 @@
 		};
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			/* keep sync with fb */
 			/* fox example:logo_addr = "0x3f800000"*/
 			alignment = <0x400000>;
@@ -129,7 +128,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x01400000>;
+			size = <0x00c00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x30000000>;
 		};
@@ -459,7 +458,6 @@
 		key_code = <116 114 115 28 139 466 174>;
 		key_val = <0 143 266 389 507 143 266>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40 40 40 40 40>;
-		mboxes = <&mbox_pl T5W_REE2AO_KEYPAD>;
 	};
 
 	/* Audio Related start */

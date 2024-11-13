@@ -482,7 +482,6 @@
 		key_code = <114 115 116>;
 		key_val = <630 910 20>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40>;
-		mboxes = <&mbox_fifo SC2_REE2AO_KEYPAD>;
 	};
 
 	unifykey{
@@ -892,7 +891,7 @@
 		reg = <0x5b>;
 		status = "okay";
 		// reset-gpio = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
-		platform = <4>;
+		platform = <10>;
 
 		led3 {
 			default_colors = <0 0 0>;

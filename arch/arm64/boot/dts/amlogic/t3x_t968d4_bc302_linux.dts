@@ -92,7 +92,6 @@
 			compatible = "shared-dma-pool";
 			/*reusable;*/
 			no-map;
-			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
 			reg = <0x0 0x05000000 0x0 0x3400000>;
 		};
@@ -114,6 +113,12 @@
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			reg = <0x0 0x3e800000 0x0 0x800000>;
+		};
+
+		lcd_cma_reserved:linux,lcd-reserved {
+			compatible = "amlogic, lcd_rsvd";
+			reg = <0x0 0x5e800000 0x0 0x00a80000>;
+			tcon-size = <0 0x00a02840>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -181,12 +186,6 @@
 			no-map;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-		};
-
-		lcd_cma_reserved:linux,lcd-reserved {
-			compatible = "amlogic, lcd_rsvd";
-			reg = <0x0 0x5e800000 0x0 0x00a80000>;
-			tcon-size = <0 0x00a02840>;
 		};
 
 		/* codec shared reserved */
@@ -617,6 +616,7 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <2>;
+		vrr_range_dynamic_update_en = <1>;
 		/* for 2.2R:0x8, for 5.1R:0x6 */
 		term_lvl = <0x8>;
 		term_lvl_t3x_21 = <0x8>;
@@ -1083,30 +1083,20 @@
 		support_4k = <1>;
 	};
 
-	gpio_keypad{
-		compatible = "amlogic, gpio_keypad";
-		status = "disabled";
-		scan_period = <20>;
-		key_num = <2>;
-		key_name = "bluetooth", "mute";
-		key_code = <600 SW_MUTE_DEVICE>;
-		key_type = <EV_KEY EV_SW>;
-		//key-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH
-		//	     &gpio GPIOA_7 GPIO_ACTIVE_HIGH>;
-		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
-	};
-
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
-		status = "disabled";
-		key_name = "key_a", "key_b", "key_c";
-		key_num = <3>;
-		io-channels = <&saradc 0>;
-		io-channel-names = "key-chan-0";
-		key_chan = <0 0 0>;
-		key_code = <141 114 115>;
-		key_val = <900 511 0>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40>;
+		status = "okay";
+		key_name = "power", "vol-", "vol+", "ok", "menu", "source", "exit";
+		key_num = <7>;
+		io-channels = <&saradc SARADC_CH1>, <&saradc SARADC_CH2>;
+		io-channel-names = "key-chan-1", "key-chan-2";
+		key_chan = <SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1
+			    SARADC_CH2 SARADC_CH2>;
+		key_code = <KEY_POWER KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER KEY_MENU
+			    KEY_FN_F1 KEY_EXIT>;
+		/* key_val = voltage / 1800mV * 1023 */
+		key_val = <0 143 266 389 507 143 266>;
+		key_tolerance = <40 40 40 40 40 40 40>;
 	};
 
 	vddao3v3_reg: fixed@vddao3v3_reg {
@@ -1254,7 +1244,7 @@
 		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <3>;
-		suspend-clk-off = <1>;
+
 		clocks = <&clkaudio CLKID_AUDIO_GATE_TDMIND
 				&clkaudio CLKID_AUDIO_GATE_TDMOUTD
 				&clkaudio CLKID_AUDIO_MCLK_D
@@ -1263,6 +1253,7 @@
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "gate_in", "gate_out", "mclk",
 					"mclk_pad", "clk_srcpll", "clk_src_cd";
+		suspend-clk-off = <1>;
 		src-clk-freq = <491520000>;
 		status = "okay";
 	};
@@ -1671,8 +1662,10 @@
 
 &i2c1 {
 	status = "okay";
-	pinctrl-names="default";
+	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c1_pins1>;
+	pinctrl-1=<&i2c1_pins1_sleep>;
+
 	ad82128: ad82128@34 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
@@ -1725,6 +1718,10 @@
 				<&a76_single_opp_table3>;
 };
 
+&vdac {
+	cdac_disable = <1>;
+};
+
 &csiphy2 {
 	port {
 		csiphy2_ep: endpoint {
@@ -1751,41 +1748,6 @@
 
 &isp3 {
 	memory-region = <&camera_cma_reserved>;
-};
-
-&i2c2 {
-	status = "okay";
-	clock-frequency = <100000>;
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_pins3>;
-
-	lcd_extern_i2c0: lcd_extern_i2c@29 {
-		compatible = "lcd_ext, i2c";
-		dev_name = "i2c_HV650LS";
-		reg = <0x29>;
-		status = "okay";
-	};
-
-	lcd_extern_i2c1: lcd_extern_i2c@33 {
-		compatible = "lcd_ext, i2c";
-		dev_name = "i2c_CS602";
-		reg = <0x33>;
-		status = "okay";
-	};
-
-	lcd_extern_i2c2: lcd_extern_i2c@20 {
-		compatible = "lcd_ext, i2c";
-		dev_name = "i2c_CS901";
-		reg = <0x20>;
-		status = "okay";
-	};
-
-	lcd_extern_i2c3: lcd_extern_i2c@36 {
-		compatible = "lcd_ext, i2c";
-		dev_name = "i2c_CS603";
-		reg = <0x36>;
-		status = "okay";
-	};
 };
 
 /* SDIO */
@@ -1877,12 +1839,43 @@
 //	vqmmc-supply = <&vddio_c>;
 };
 
-&vdac {
-	cdac_disable = <1>;
+&i2c2 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names="default";
+	pinctrl-0=<&i2c2_pins3>;
+
+	lcd_extern_i2c0: lcd_extern_i2c@29 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_HV650LS";
+		reg = <0x29>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c1: lcd_extern_i2c@33 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS602";
+		reg = <0x33>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c2: lcd_extern_i2c@20 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS901";
+		reg = <0x20>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c3: lcd_extern_i2c@36 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS603";
+		reg = <0x36>;
+		status = "okay";
+	};
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &ethmac {
@@ -2190,13 +2183,14 @@
 };
 
 &amlvecm {
-	status = "disabled";
+	status = "okay";
 	gamma_en = <0>;/*1:enable ;0:disable*/
 	wb_en = <0>;/*1:enable ;0:disable*/
 	cm_en = <0>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
-	vlock_en = <0>;/*1:enable;0:disable*/
+	vlock_en = <1>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
+	vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/
 	/*vlock work mode:
 	 *bit0:auto ENC
 	 *bit1:auto PLL
@@ -2207,6 +2201,8 @@
 	 */
 	 vlock_pll_m_limit = <1>;
 	 vlock_line_limit = <2>;
+	 interrupts = <0 103 1>;
+	 interrupt-names = "lc_curve";
 };
 
 &aml_wifi{

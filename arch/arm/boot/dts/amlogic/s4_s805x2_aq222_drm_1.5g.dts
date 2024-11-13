@@ -720,13 +720,13 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "standby", "vol+", "vol-";
+		key_name = "vol-", "vol+", "power";
 		key_num = <3>;
 		io-channels = <&saradc 0>;
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
-		key_code = <116 115 114>;
-		key_val = <20 910 630>; //val=voltage/1800mV*1023
+		key_code = <114 115 116>;
+		key_val = <630 910 20>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40>;
 	};
 
@@ -1603,10 +1603,6 @@
 		&dvfs666_cfg
 		&dvfs800_cfg
 		&dvfs800_cfg>;
-};
-
-&cma_shrinker {
-	free = <3840 24288 28528 32600 32768 36624>;
 };
 
 &amlvecm {

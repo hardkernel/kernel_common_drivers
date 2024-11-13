@@ -108,8 +108,7 @@
 		/*};*/
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			reg = <0x0 0x3e800000 0x0 0x800000>;
@@ -147,6 +146,7 @@
 			size = <0x0 0x400000>;
 			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  POST PROCESS MANAGER */
@@ -237,11 +237,23 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			/* up to 3840x2160 yuv420 8bit and 4 buffers
+			 * 3840x2160x4 = 48 M
 			 */
 			//size = <0x0 0x0>;
-			size = <0x0 0x01400000>;
+			size = <0x0 0x03000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		/*  amlvideo2_1 CMA pool */
+		amlvideo2_1_cma_reserved:linux,amlvideo2_1_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 3840x2160 yuv420 8bit and 4 buffers
+			 * 3840x2160x1.5x4 = 48 M
+			 */
+			size = <0x0 0x3000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -606,10 +618,10 @@
 				"fclk_div4",
 				"fclk_div5";
 		hdmirx_id = <0>;
-		vrr_range_dynamic_update_en = <1>;
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <2>;
+		vrr_range_dynamic_update_en = <1>;
 		/* for 2.2R:0x8, for 5.1R:0x6 */
 		term_lvl = <0x8>;
 		term_lvl_t3x_21 = <0x8>;
@@ -1064,9 +1076,11 @@
 	amlvideo2_1 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
+		memory-region = <&amlvideo2_1_cma_reserved>;
 		status = "okay";
 		amlvideo2_id = <1>;
-		cma_mode = <1>;
+		cma_mode = <0>;
+		support_4k = <1>;
 	};
 
 	adc_keypad {
@@ -1300,9 +1314,9 @@
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "gate_in", "gate_out", "mclk",
 					"mclk_pad", "clk_srcpll", "clk_src_cd";
+		suspend-clk-off = <1>;
 		src-clk-freq = <491520000>;
 		status = "okay";
-		suspend-clk-off = <1>;
 	};
 
 	pdm:pdm {

@@ -1134,6 +1134,7 @@
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
 	bus-width = <8>;
+	cap-sd-highspeed;
 	cap-mmc-highspeed;
 //	cap-mmc-hw-reset;
 	max-frequency = <50000000>;

@@ -952,7 +952,7 @@
 		reg = <0x5b>;
 		status = "disabled";
 		reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		platform = <4>;
+		platform = <10>;
 
 		led1 {
 			default_colors = <0 0 0>;
@@ -1304,7 +1304,8 @@
 
 &pwm_e {
 	pinctrl-0 = <&pwm_e_pins1>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&pwm_e_pins1_sleep>;
+	pinctrl-names = "default","sleep";
 	status = "okay";
 };
 
@@ -1315,10 +1316,6 @@
 
 &vcodec_dos_dev {
 	compatible = "amlogic, cpu-major-id-s7-805x3";
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &drm_subsystem {

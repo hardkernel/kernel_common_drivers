@@ -81,7 +81,7 @@
 
 		secmon_reserved: linux,secmon {
 			compatible = "shared-dma-pool";
-			reusable;
+			no-map;
 			size = <0x400000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x05000000 0x400000>;
@@ -99,6 +99,16 @@
 			compatible = "amlogic, lcd_rsvd";
 			reg = <0x2c000000 0x00a80000>;
 			tcon-size = <0x00a02840>;
+		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x800000>;
+			alignment = <0x400000>;
+			linux,cma-default;
+			alloc-ranges = <0x00000000 0x30000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -168,9 +178,12 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 88M */
-			alloc-ranges = <0x00000000 0x30000000>;
-			size = <0x3400000>;
+			/* maximum size of fbdev and wayland-drm backend
+			 * fbdev: 2 * (number of /dev/fbx device) buffers
+			 * wayland-drm: 4 buffers for westeros or 2 buffers for weston,
+			 *   3 buffers for direct display(enabled on weston)
+			 */
+			size = <0x3800000>;
 			alignment = <0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
@@ -428,7 +441,6 @@
 		key_code = <116 114 115 28 139 466 174>;
 		key_val = <0 143 266 389 507 143 266>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40 40 40 40 40>;
-		mboxes = <&mbox_pl T5W_REE2AO_KEYPAD>;
 	};
 
 	/* Audio Related start */

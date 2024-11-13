@@ -1607,10 +1607,6 @@
 		&dvfs800_cfg>;
 };
 
-&cma_shrinker {
-	free = <3840 24288 28528 32600 32768 36624>;
-};
-
 &amlvecm {
 	compatible = "amlogic, vecm";
 	dev_name = "aml_vecm";

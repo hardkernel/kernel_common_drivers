@@ -81,18 +81,16 @@
 			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
 		};
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
+			reg = <0x0 0x7f800000 0x0 0x800000>;
 		};
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0 0x3400000>;
 			alignment = <0x0 0x400000>;
-			no-kernel-map;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
@@ -199,40 +197,6 @@
 			label="sys_led";
 			gpios=<&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
 			default-state ="on";
-		};
-	};
-
-	bt-dev{
-		compatible = "amlogic, aml-bt";
-		dev_name = "bt-dev";
-		status = "okay";
-		reset-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
-		hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
-	};
-
-	wifi{
-		compatible = "amlogic, aml-wifi";
-		dev_name = "aml_wifi";
-		status = "okay";
-		interrupt-gpios = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-		irq_trigger_type = "IRQF_TRIGGER_LOW";
-		power_on-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_HIGH>;
-		wifi_static_buf = <1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pwm_e_pins>;
-		pwm_config = <&wifi_pwm_conf>;
-	};
-
-	wifi_pwm_conf:wifi_pwm_conf{
-		pwm_channel1_conf {
-			pwms = <&pwm_ef MESON_PWM_0 30541 0>;
-			duty-cycle = <15270>;
-			times = <10>;
-		};
-		pwm_channel2_conf {
-			pwms = <&pwm_ef MESON_PWM_2 30500 0>;
-			duty-cycle = <15250>;
-			times = <12>;
 		};
 	};
 
@@ -367,20 +331,12 @@
 		clocks = <&clkc CLKID_24M_CLK_GATE>;
 		clock-names = "g12a_24m";
 		cam_0{
+			status = "okay";
 			cam_name = "ov5640";
-			front_back = <0>;
 			camera-i2c-bus = <&i2c2>;
 			camvdd-gpios = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
 			gpio_pwdn-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
 			gpio_rst-gpios = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
-			mirror_flip = <1>;
-			vertical_flip = <1>;
-			spread_spectrum = <0>;
-			bt_path = "csi";
-			interface = "mipi";
-			clk_channel = "a";
-			bt_path_count = <1>;
-			status = "okay";
 		};
 	};
 
@@ -1985,6 +1941,18 @@
 			reg = <0x0 0xffffffff>;
 		};
 	};
+};
+
+&aml_wifi{
+	status = "okay";
+	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
+	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
+};
+
+&aml_bt {
+	status = "okay";
+	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
 
 &pcie_A {

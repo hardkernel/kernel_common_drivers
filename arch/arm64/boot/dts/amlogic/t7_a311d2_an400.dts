@@ -118,8 +118,7 @@
 		/*};*/
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			reg = <0x0 0x3f800000 0x0 0x800000>;
@@ -1650,12 +1649,6 @@
 	memory-region = <&adapt_cma_reserved>;
 };
 
-&ir {
-	status = "disabled";
-	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
-};
-
 &spifc {
 	status = "disabled";
 	spi-nor@0 {
@@ -1937,7 +1930,8 @@
 &ir {
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&remote_pins_sleep>;
+	pinctrl-names = "default", "sleep";
 };
 
 &amlvecm {
@@ -1974,15 +1968,12 @@
 
 &pwm_ab {
 	pinctrl-0 = <&pwm_a_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&pwm_a_pins_sleep>;
+	pinctrl-names = "default", "sleep";
 	status = "okay";
 };
 
 &pwm_ef {
-	status = "okay";
-};
-
-&irblaster {
 	status = "okay";
 };
 
@@ -1996,8 +1987,9 @@
 };
 
 &pwmao_cd {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pwm_ao_d_pins>;
+	pinctrl-1 = <&pwm_ao_d_pins_sleep>;
 	status = "okay";
 };
 

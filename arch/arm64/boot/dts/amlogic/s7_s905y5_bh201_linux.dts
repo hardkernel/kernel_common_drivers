@@ -340,6 +340,31 @@
 		status = "disabled";
 	};
 
+	multi-di {
+		compatible = "amlogic, dim-s7d";
+		status = "okay";
+		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
+		flag_cma = <4>;	//<1>;
+		//memory-region = <&di_reserved>;
+		//memory-region = <&di_cma_reserved>;
+		interrupts = <0 203 1
+				0 202 1>;
+		interrupt-names = "pre_irq", "post_irq";
+		clocks = <&clkc CLKID_VPU_CLKB>,
+			<&clkc CLKID_VPU>;
+		clock-names = "vpu_clkb",
+			"vpu_mux";
+		clock-range = <334 667>;
+		/* buffer-size = <3621952>;(yuv422 8bit) */
+		buffer-size = <4074560>;/*yuv422 fullpack*/
+		/* reserve-iomap = "true"; */
+		/* if enable nr10bit, set nr10bit-support to 1 */
+		post-wr-support = <1>;
+		nr10bit-support = <1>;
+		nrds-enable = <1>;
+		post_nub = <10>;
+	};
+
 	thermal-zones {
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
@@ -372,7 +397,7 @@
 			cooling-maps {
 				cpufreq_cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&CPU0 0 4>;
+					cooling-device = <&CPU0 0 6>;
 					contribution = <1024>;
 				};
 				gpufreq_cooling_map {
@@ -388,31 +413,6 @@
 			};
 		};
 	};/*thermal zone end*/
-
-	multi-di {
-		compatible = "amlogic, dim-s7d";
-		status = "okay";
-		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
-		flag_cma = <4>;	//<1>;
-		//memory-region = <&di_reserved>;
-		//memory-region = <&di_cma_reserved>;
-		interrupts = <0 203 1
-				0 202 1>;
-		interrupt-names = "pre_irq", "post_irq";
-		clocks = <&clkc CLKID_VPU_CLKB>,
-			<&clkc CLKID_VPU>;
-		clock-names = "vpu_clkb",
-			"vpu_mux";
-		clock-range = <334 667>;
-		/* buffer-size = <3621952>;(yuv422 8bit) */
-		buffer-size = <4074560>;/*yuv422 fullpack*/
-		/* reserve-iomap = "true"; */
-		/* if enable nr10bit, set nr10bit-support to 1 */
-		post-wr-support = <1>;
-		nr10bit-support = <1>;
-		nrds-enable = <1>;
-		post_nub = <10>;
-	};
 
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-s4";
@@ -971,6 +971,14 @@
 	status = "okay";
 };
 
+&tdma {
+	pinctrl-names = "tdm_pins";
+	pinctrl-0 = <&tdm_a
+		&tdm_d0_pins
+		&tdm_d1_pins
+		&tdma_clk_pins>;
+};
+
 &pinctrl_audio {
 	tdm_d0_pins: tdm_d0_pin {
 		mux {
@@ -995,6 +1003,18 @@
 };
 
 &periphs_pinctrl {
+	tdm_a: tdm_a {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+			groups = "tdm_sclk0",
+				"tdm_fs0",
+				"tdm_d0",
+
+				/* Disable for NSK2 Smartcard */
+				"tdm_d1";
+
+			function = "tdm";
+		};
+	};
 	dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
 			groups = "tsin_a_sop",
@@ -1144,9 +1164,8 @@
 	pinctrl-names = "nand_norb_mod","nand_cs_only";
 	pinctrl-0 = <&all_nand_pins>;
 	pinctrl-1 = <&nand_cs_pins>;
-	bl2ex_8_copies;
 	bl_mode = <1>;
-	fip_copies = <2>;
+	fip_copies = <4>;
 	fip_size = <0x200000>;
 	ship_bad_block = <1>;
 	disa_irq_flag = <1>;
@@ -1287,10 +1306,6 @@
 &uart_A {
 	status = "okay";
 	uart-has-rtscts;
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &drm_subsystem {

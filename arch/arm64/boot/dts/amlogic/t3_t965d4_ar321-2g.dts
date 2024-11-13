@@ -966,6 +966,7 @@
 		compatible = "amlogic, vbi";
 		status = "okay";
 		interrupts = <0 210 1>;
+		flag_cma = <1>;/*1:share with codec_mm;0:kzalloc*/
 	};
 
 	aml_frc {
@@ -1225,17 +1226,18 @@
 		 * 4: spdifout_b;
 		 */
 		samesource_sel = <3>;
-
+		suspend-clk-off = <1>;
 		/* In for ACODEC_ADC */
 		/* tdmin-src-name = "acodec_adc"; */
 		tdmin-src-name = "hdmirx";
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
+
 		ctrl_gain = <1>;
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
 		status = "okay";
-		suspend-clk-off = <1>;
+
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/
@@ -1256,9 +1258,9 @@
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
 		src-clk-freq = <491520000>;
+		suspend-clk-off = <1>;
 		tdmin-src-name = "hdmirx";
 		status = "okay";
-		suspend-clk-off = <1>;
 	};
 
 	pdm:pdm {
@@ -1283,6 +1285,7 @@
 
 		/* mode 0~4, default:1 */
 		filter_mode = <1>;
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1307,9 +1310,9 @@
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
 		pinctrl-0 = <&spdifout_z>;
 		pinctrl-1 = <&spdifout_z_mute>;
-		suspend-clk-off = <1>;
-		samesource_sel = <5>;
 
+		samesource_sel = <5>;
+		suspend-clk-off = <1>;
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 		status = "okay";
@@ -1368,7 +1371,7 @@
 
 	asrca:resample@0 {
 		compatible = "amlogic, t5-resample-a";
-		clocks = <&clkc CLKID_MPLL1
+		clocks = <&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_MCLK_B
 			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
@@ -1394,7 +1397,7 @@
 
 	asrcb:resample@1 {
 		compatible = "amlogic, t5-resample-b";
-		clocks = <&clkc CLKID_MPLL3
+		clocks = <&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_MCLK_F
 			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
@@ -1436,6 +1439,8 @@
 		 * 1: in kernel space
 		 */
 		level = <1>;
+		mic-src = <&pdm>;
+		wakeup_sample_rate = <16000>;
 
 		status = "okay";
 	};
@@ -1525,7 +1530,7 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
+		datain_chnum = <0>;
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
@@ -1552,8 +1557,9 @@
 }; /* end of audiobus */
 
 &earc {
-	status = "okay";
+	earctx_port = <1>;
 	suspend-clk-off = <1>;
+	status = "okay";
 };
 
 &audio_data {
@@ -1623,32 +1629,6 @@
 	//};
 
 };
-
-/* SD card */
-//&sd_emmc_b {
-//	status = "okay";
-//	pinctrl-0 = <&sd_all_pins>;
-//	pinctrl-1 = <&sd_1bit_pins>;
-//	pinctrl-2 = <&sd_clk_gate_pins>;
-//	pinctrl-names = "sd_default",
-//			"sd_1bit_pins",
-//			"clk-gate";
-//	bus-width = <4>;
-//	cap-sd-highspeed;
-////	sd-uhs-sdr12;
-////	sd-uhs-sdr25;
-////	sd-uhs-sdr50;
-////	sd_uhs-sdr104;
-//	max-frequency = <200000000>;
-//
-//	disable-wp;
-////	amlogic,dram-access-quirk;
-//
-//	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
-//	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-//	//vmmc-supply = <&vddao_3v3>;
-//	//vqmmc-supply = <&emmc_1v8>;
-//};
 
 &sd_emmc_c {
 	status = "okay";
@@ -1753,8 +1733,9 @@
 	cm_en = <1>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
-        ct_3dlut = <0>;
+	ct_3dlut = <0>;
 	vlock_mode = <0x8>;
+	vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/
 	/*vlock work mode:
 	 *bit0:auto ENC
 	 *bit1:auto PLL

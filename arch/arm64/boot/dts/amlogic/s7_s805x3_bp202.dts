@@ -1094,9 +1094,8 @@
 	pinctrl-names = "nand_norb_mod","nand_cs_only";
 	pinctrl-0 = <&all_nand_pins>;
 	pinctrl-1 = <&nand_cs_pins>;
-	bl2ex_8_copies;
 	bl_mode = <1>;
-	fip_copies = <2>;
+	fip_copies = <4>;
 	fip_size = <0x200000>;
 	ship_bad_block = <1>;
 	disa_irq_flag = <1>;
@@ -1240,10 +1239,6 @@
 
 &vcodec_dos_dev {
 	compatible = "amlogic, cpu-major-id-s7-805x3";
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &drm_subsystem {

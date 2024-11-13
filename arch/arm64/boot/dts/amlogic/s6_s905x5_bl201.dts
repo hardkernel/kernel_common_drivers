@@ -1572,10 +1572,6 @@
 	uart-has-rtscts;
 };
 
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
-};
-
 &amlogic_codec {
 	tocodec_inout = <1>;
 	tdmout_index = <1>;

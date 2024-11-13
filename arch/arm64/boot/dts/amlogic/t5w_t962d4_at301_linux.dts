@@ -78,27 +78,16 @@
 			reg = <0x0 0x04e00000 0x0 0x100000>;
 		};
 
-		secmon_reserved:linux,secmon {
+		secmon_reserved: linux,secmon {
 			compatible = "shared-dma-pool";
-			/*reusable;*/
 			no-map;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
 		};
 
-		dsp_fw_reserved:linux,dsp_fw {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* for sync of dsp fw, fix it to 0x30000000*/
-			size = <0x0 0x00800000>;
-			alignment = <0x0 0x00400000>;
-			alloc-ranges = <0x0 0x30000000 0x0 0x00800000>;
-		};
-
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			/* keep sync with fb */
 			/* fox example:logo_addr = "0x3f800000"*/
 			alignment = <0x0 0x400000>;
@@ -111,24 +100,14 @@
 			tcon-size = <0 0x00a02840>;
 		};
 
-		ion_cma_reserved:linux,ion-dev {
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x0>;
+			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-		};
-		/* secure ion for gpu, advice size is 80M */
-		ion_secure_reserved:linux,ion-secure {
-			compatible = "amlogic, ion-secure-mem";
-			no-map;
-			size = <0x0 0x0>;
-			alignment = <0x0 0x400000>;
-		};
-		ion_fb_reserved:linux,ion-fb {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x0>;
-			alignment = <0x0 0x400000>;
+			linux,cma-default;
+			alloc-ranges = <0x0 0x00000000 0x0 0x30000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -176,6 +155,7 @@
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
+
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
@@ -210,38 +190,6 @@
 			alignment = <0x0 0x400000>;
 		};
 
-		picdec_cma_reserved:linux,picdec {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x0>;
-			alignment = <0x0 0x0>;
-			linux,contiguous-region;
-		};
-
-		frc_cma_reserved:linux,frc_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* frc:size need 4M alignment
-			 * 1080P 16 buffer:88Mhz (0x5800000)
-			 * 4k 16 buffer:348Mhz (0x15c00000)
-			 * 400Mhz (0x19000000)
-			 * 384Mhz (0x18000000)
-			 * 368Mhz (0x17000000)
-			 */
-			size = <0x0 0x0a000000>;
-			alignment = <0x0 0x400000>;
-			linux,contiguous-region;
-			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
-		};
-
-		frc_rdma_reserved:linux,frc_rdma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* frc rdma reserved*/
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
-		};
-
 		/*ldc_mem_reserved:linux,ldc_mem {
 		 *	compatible = "shared-dma-pool";
 		 *	reusable;
@@ -249,24 +197,6 @@
 		 *	alignment = <0x0 0x400000>;
 		 *};
 		 */
-
-		/* global autoconfigured region for contiguous allocations */
-		linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x800000>;
-			alignment = <0x0 0x400000>;
-			linux,cma-default;
-		};
-
-		pcie_dma_ops_mm:linux,pcie_dma_ops {
-			compatible = "shared-dma-pool";
-			status = "disabled";
-			reusable;
-			size = <0x0 0x5000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
-		};
 	};
 
 	vddio_3v3_reg: fixedregulator@5{
@@ -749,6 +679,8 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <1>;
 		arc_port = <1>;
+		/* for 2.2R:0x8, for 5.1R:0x6 */
+		term_lvl = <0x8>;
 		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
@@ -770,48 +702,6 @@
 			0x0 0xff688000 0x0 0x18000
 			0x0 0xff646000 0x0 0x1fff
 			0x0 0xfe008280 0x0 0xb4>;
-	};
-
-	multi-di {
-		//status = "okay";
-		/***************************************************
-		 * memory: default is 4
-		 *	0:use reserved;
-		 *	1:use cma;
-		 *	2:use cma as reserved
-		 *  4:use codec mem
-		 ***************************************************/
-		flag_cma = <4>;//t5d unsupport 4K,di 1CH need 42M
-		//memory-region = <&di_cma_reserved>;
-		/***************************************************
-		 * clock-range: <min max>
-		 *	default: <334 667>
-		 ***************************************************/
-		//clock-range = <334 667>;
-		/***************************************************
-		 * en_4k: t5d not support 4k
-		 ***************************************************/
-		en_4k = <1>;
-		keep_dec_vf = <2>;
-		po_fmt = <6>;
-		/***************************************************
-		 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
-		 * local 7*4075520 = 28
-		 * post 11*5222400 = 56
-		 ***************************************************/
-		post_nub = <11>;
-		/***************************************************
-		 * 0:not support
-		 * bit 0: for 4k
-		 * bit 1: for 1080p
-		 ***************************************************/
-		alloc_sct = <1>;
-		/***************************************************
-		 * hf: default is 0 (T7/T3/SC2/S4 new path)
-		 * 0:not enable;
-		 * 1: enable
-		 ***************************************************/
-		hf = <0>;
 	};
 
 	aml_dtv_demod {
@@ -1604,6 +1494,7 @@
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
+	vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/
 	/*vlock work mode:
 	 *bit0:auto ENC
 	 *bit1:auto PLL

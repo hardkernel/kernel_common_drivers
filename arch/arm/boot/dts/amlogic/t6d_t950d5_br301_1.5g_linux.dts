@@ -101,7 +101,6 @@
 			size = <0x3000000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
-			status = "okay";
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -174,10 +173,10 @@
 		regulator-always-on;
 	};
 
-	vcc3v3_reg: fixed@vcc3v3_reg {
+	vddio3v3_reg: fixed@vddio3v3_reg {
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "VCC_3V3";
+		regulator-name = "VDDIO_3.3V";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		pinctrl-names = "default";
@@ -191,37 +190,37 @@
 	vddao1v8_reg: fixed@vddao1v8_reg {
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "VDDAO_1V8";
+		regulator-name = "VDDAO_1V8/VDDIO_B";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	vdd18_boot_reg: fixed@vdd18_boot_reg {
-		vin-supply = <&vcc3v3_reg>;
+	vddio_m_reg: fixed@afe3v3_reg {
+		vin-supply = <&vddio3v3_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "VDD18_BOOT";
+		regulator-name = "VDDIO_M";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	avdd1v8_reg: fixed@avdd1v8_reg {
-		vin-supply = <&vddao3v3_reg>;
+	afe1v8_reg: fixed@afe1v8_reg {
+		vin-supply = <&afe3v3_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "AVDD1V8";
+		regulator-name = "AFE_1V8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	vdd3v3_reg: fixed@vdd3v3_reg {
+	afe3v3_reg: fixed@afe3v3_reg {
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "VDD_3V3";
+		regulator-name = "AFE_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		pinctrl-names = "default";
@@ -233,21 +232,11 @@
 	};
 
 	enet3v3_reg: fixed@enet3v3_reg {
-		vin-supply = <&vdd3v3_reg>;
+		vin-supply = <&afe3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "AVDD33_ENET";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	wifi_5v_reg: fixed@wifi_5v_reg {
-		compatible = "regulator-fixed";
-		vin-supply = <&vcc5v_reg>;
-		regulator-name = "WIFI_5V";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
@@ -270,6 +259,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &secure_vdec_reserved>;
 		dev_name = "codec_mm";
+		status = "okay";
 		/* secure memory controller para <switch  align_2n> */
 		secure_ctrl_para = <1 16>;
 		/*
@@ -403,12 +393,12 @@
 		key_num = <7>;
 		io-channels = <&saradc SARADC_CH1>, <&saradc SARADC_CH2>;
 		io-channel-names = "key-chan-1", "key-chan-2";
-		key_chan = <SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1
-			    SARADC_CH2 SARADC_CH2 SARADC_CH2>;
-		key_code = <KEY_POWER KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER
-			    KEY_MENU KEY_FN_F1 KEY_EXIT>;
+		key_chan = <SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1
+			    SARADC_CH2 SARADC_CH2>;
+		key_code = <KEY_POWER KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER KEY_MENU
+			    KEY_FN_F1 KEY_EXIT>;
 		/* key_val = voltage / 1800mV * 1023 */
-		key_val = <0 143 266 389 0 143 266>;
+		key_val = <0 143 266 389 507 143 266>;
 		key_tolerance = <40 40 40 40 40 40 40>;
 	};
 
@@ -564,10 +554,13 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+		spk_mute-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_LOW>;
+		spk_mute_sleep_time = <800>;
+
 		/* headphone insert det */
 		aml-audio-card,hp-det-gpio = <&gpio_analog CDAC_IOUT GPIO_ACTIVE_LOW>;
 
-		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 149 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
 		aml-audio-card,dai-link@0 {
@@ -624,8 +617,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				prefix-names = "AMP", "AMP1";
-				sound-dai = <&tas5707_1b &tas5707_1d &acodec>;
+				prefix-names = "AMP";
+				sound-dai = </*&ad82120b*/ &acodec>;
 			};
 		};
 
@@ -782,14 +775,20 @@
 		fe_num = <1>;
 		fe0_demod = "internal";
 
-		tuner_num = <1>; // tuner number, multi tuner support
-
-		tuner0_name = "rt710_tuner";
+		tuner_num = <2>; // tuner number, multi tuner support
+		tuner0_name = "r842_tuner";
 		tuner0_i2c_adap = <&i2c0>;
-		tuner0_i2c_addr = <0xF4>; // 8 bits
-		tuner0_xtal = <0>;       // 0: 16MHz, 1: 24MHz
+		tuner0_i2c_addr = <0xF6>; // 8 bits
+		tuner0_xtal = <1>;       // 0: 16MHz, 1: 24MHz
 		tuner0_xtal_mode = <0>;  // NO_SHARE_XTAL(0), SLAVE_XTAL_SHARE(3)
-		tuner0_xtal_cap = <30>;
+		tuner0_xtal_cap = <38>;
+
+		tuner1_name = "rt710_tuner";
+		tuner1_i2c_adap = <&i2c0>;
+		tuner1_i2c_addr = <0xF4>; // 8 bits
+		tuner1_xtal = <0>;       // 0: 16MHz, 1: 24MHz
+		tuner1_xtal_mode = <0>;  // NO_SHARE_XTAL(0), SLAVE_XTAL_SHARE(3)
+		tuner1_xtal_cap = <30>;
 	};
 
 	dvb-demux {
@@ -1111,6 +1110,8 @@
 };
 
 &usb_phy21{
+	gpio-vbus-power = "GPIOC_10";
+	gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
 	portnum = <1>;
 	status = "okay";
 };
@@ -1138,7 +1139,7 @@
 };
 
 &crg20_otg{
-	controller-type = <3>; /* 0~3: normal, host, device, otg */
+	controller-type = <1>; /* 0~3: normal, host, device, otg */
 	status = "okay";
 };
 
@@ -1186,7 +1187,7 @@
 
 &dcon_led {
 	status = "okay";
-	led_number = <1>;
+	led_number = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&dcon_led_pins1>;
 	// polarity-inversed;
@@ -1203,20 +1204,13 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins1>;
-	clock-frequency = <300000>; /* default 100k */
-	tas5707_1b: tas5707_1b@1b {
-		compatible = "ti,tas5707";
+	clock-frequency = <300000>;
+	ad82120b: ad82120b@6c {
+		compatible = "ESMT,ad82120b";
 		#sound-dai-cells = <0>;
-		reg = <0x1b>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 0>;
-	};
-	tas5707_1d: tas5707_1d@1d {
-		compatible = "ti,tas5707";
-		#sound-dai-cells = <0>;
-		reg = <0x1d>;
-		status = "okay";
-		//reset_pin = <&gpio GPIOF_2 0>;
+		reset_pin-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		reg = <0x6c>;
+		status = "disabled";
 	};
 };
 
@@ -1276,14 +1270,8 @@
 };
 
 &tdmb {
-	clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkc CLKID_HIFI_PLL
-				&clkc CLKID_HIFI1_PLL
-				&clkaudio CLKID_AUDIO_MCLK_PAD0>;
-	clock-names = "mclk", "clk_srcpll", "clk_src_cd", "mclk_pad";
 	pinctrl-names = "tdm_pins","tdmout_a_gpio";
 	pinctrl-0 = <
-			&mclk_1_pin
 			&tdmb_pin
 			&tdm_d0_pins
 			&tdmb_clk_pins>;

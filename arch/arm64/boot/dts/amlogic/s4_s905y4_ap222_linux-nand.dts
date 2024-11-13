@@ -142,6 +142,7 @@
 			/* ion_codec_mm max can alloc size 80M*/
 			size = <0x0 0x21C00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x50000000>;
 			linux,contiguous-region;
 		};
 
@@ -188,6 +189,7 @@
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 	};
 	codec_mm {
@@ -705,13 +707,13 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "standby", "vol+", "vol-";
+		key_name = "vol-", "vol+", "power";
 		key_num = <3>;
 		io-channels = <&saradc 0>;
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
-		key_code = <116 115 114>;
-		key_val = <20 910 630>; //val=voltage/1800mV*1023
+		key_code = <114 115 116>;
+		key_val = <630 910 20>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40>;
 	};
 

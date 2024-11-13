@@ -4,7 +4,6 @@
  */
 
 /dts-v1/;
-
 #include "mesont6d.dtsi"
 #include "hdr10plus.dtsi"
 #include "mesont6d_drm.dtsi"
@@ -48,7 +47,7 @@
 		/* global autoconfigured region for contiguous allocations */
 		ramdump_bl33z@00000000 {
 			reg = <0x0 0x1800000>; /* 0 ~ 24M */
-			status = "disabled";
+			status = "disabled"; /* disabled as default */
 		};
 
 		ramoops@0x06300000 {
@@ -102,7 +101,6 @@
 			size = <0x3000000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "okay";
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -129,14 +127,19 @@
 			size = <0xc00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "okay";
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M*/
-			size = <0xD000000>;
+			/*
+			 * Scenario: DVB-T2 2K interlace HEVC
+			 * Total size: 106M
+			 * Note:
+			 *  setting to 108M if scatter_alloc_mode is 0.
+			 *  setting to 108M if scatter_alloc_mode is 1.
+			 */
+			size = <0x6c00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 			linux,contiguous-region;

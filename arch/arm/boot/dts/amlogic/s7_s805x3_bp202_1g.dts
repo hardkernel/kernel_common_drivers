@@ -1240,10 +1240,6 @@
 	compatible = "amlogic, cpu-major-id-s7-805x3";
 };
 
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
-};
-
 &drm_subsystem {
 	fbdev_sizes = <1280 720 1280 1440 32>;
 };

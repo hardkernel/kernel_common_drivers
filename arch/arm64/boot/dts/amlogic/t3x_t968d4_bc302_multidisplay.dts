@@ -634,6 +634,7 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <2>;
+		vrr_range_dynamic_update_en = <1>;
 		/* for 2.2R:0x8, for 5.1R:0x6 */
 		term_lvl = <0x8>;
 		term_lvl_t3x_21 = <0x8>;
@@ -1684,8 +1685,10 @@
 
 &i2c1 {
 	status = "okay";
-	pinctrl-names="default";
+	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c1_pins1>;
+	pinctrl-1=<&i2c1_pins1_sleep>;
+
 	ad82128: ad82128@34 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
@@ -2205,6 +2208,7 @@
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
+	vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/
 	/*vlock work mode:
 	 *bit0:auto ENC
 	 *bit1:auto PLL

@@ -218,6 +218,13 @@
 		};
 	};
 
+	smmu: aml_smmu {
+		compatible = "amlogic,smmu";
+		status = "disable";
+		#iommu-cells = <1>;
+		memory-region = <&pcie_dma_ops_mm>;
+	};
+
 	gpio_leds {
 		compatible = "gpio-leds";
 		status = "okay";
@@ -226,13 +233,6 @@
 			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
-	};
-
-	smmu: aml_smmu {
-		compatible = "amlogic,smmu";
-		status = "disable";
-		#iommu-cells = <1>;
-		memory-region = <&pcie_dma_ops_mm>;
 	};
 
 	main_12v: fixregulator@1 {
@@ -1114,7 +1114,7 @@
 		 */
 		level = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	loopbacka:loopback@0 {
@@ -1555,6 +1555,8 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
+	mac_wol = <1>;
+	mdns_wkup = <1>;
 };
 
 &ir {
