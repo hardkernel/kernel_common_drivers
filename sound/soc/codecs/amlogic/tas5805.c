@@ -1263,6 +1263,43 @@ static void tas5805m_i2c_shutdown(struct i2c_client *i2c)
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 }
 
+#ifdef CONFIG_HIBERNATION
+static int aml_tas5805m_platform_restore(struct device *dev)
+{
+	struct tas5805m_priv *data = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (data->pdata->reset_pin > 0) {
+		ret = devm_gpio_request_one(dev, data->pdata->reset_pin,
+							GPIOF_OUT_INIT_LOW,
+							"tas5805m-reset-pin");
+		if (ret < 0)
+			return -1;
+	}
+	tas5805m_snd_resume(data->component);
+
+	return 0;
+}
+
+static int aml_tas5805m_platform_freeze(struct device *dev)
+{
+	struct tas5805m_priv *data = dev_get_drvdata(dev);
+
+	tas5805m_snd_suspend(data->component);
+	devm_gpio_free(dev, data->pdata->reset_pin);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_tas5805m_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = aml_tas5805m_platform_restore,
+	.freeze = aml_tas5805m_platform_freeze,
+};
+#endif
+
 static const struct i2c_device_id tas5805m_i2c_id[] = {
 	{"tas5805",},
 	{}
@@ -1285,8 +1322,11 @@ static struct i2c_driver tas5805m_i2c_driver = {
 	.shutdown = tas5805m_i2c_shutdown,
 	.id_table = tas5805m_i2c_id,
 	.driver = {
-		   .name = TAS5805M_DRV_NAME,
-		   .of_match_table = tas5805m_of_match,
+			.name = TAS5805M_DRV_NAME,
+			.of_match_table = tas5805m_of_match,
+#ifdef CONFIG_HIBERNATION
+			.pm = &meson_tas5805m_pm_ops,
+#endif
 		   },
 };
 

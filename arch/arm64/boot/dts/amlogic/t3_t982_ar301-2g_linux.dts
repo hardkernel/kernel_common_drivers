@@ -1732,7 +1732,7 @@
 				"GPIOH_16",
 				"GPIOH_17";
 			function = "gpio_periphs";
-			output-low;
+			input-enable;
 		};
 	};
 
