@@ -121,12 +121,14 @@ static int meson_vrtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int meson_vrtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
-	time64_t local_alarm;
+	time64_t local_alarm = 0;
 	struct timespec64 boot_time;
 
-	ktime_get_boottime_ts64(&boot_time);
-	local_alarm = vrtc->alarm_time - div64_u64(jiffies - last_jiffies, HZ)
-		+ vrtc_init_date + boot_time.tv_sec;
+	if (vrtc->enabled) {
+		ktime_get_boottime_ts64(&boot_time);
+		local_alarm = vrtc->alarm_time - div64_u64(jiffies - last_jiffies, HZ)
+			      + vrtc_init_date + boot_time.tv_sec;
+	}
 	rtc_time64_to_tm(local_alarm, &alarm->time);
 	alarm->enabled = vrtc->enabled;
 
