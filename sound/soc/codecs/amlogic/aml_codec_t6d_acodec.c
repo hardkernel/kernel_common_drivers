@@ -380,6 +380,7 @@ static void single_mode_headphone_set(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, ACODEC_3, 0x3 << DRIVER_MODE_SEL,
 							0x00 << DRIVER_MODE_SEL);
 	drop_pop_mode_1(component);
+	output_pin_enable(component, aml_acodec->lineout_pin, 0);
 	output_pin_enable(component, aml_acodec->headphone_pin, 1);
 }
 
@@ -393,6 +394,7 @@ static void single_mode_lineout_set(struct snd_soc_component *component)
 							0 << HEADPHONE_MODE);
 	snd_soc_component_update_bits(component, ACODEC_3, 0x3 << DRIVER_MODE_SEL,
 							0x00 << DRIVER_MODE_SEL);
+	output_pin_enable(component, aml_acodec->headphone_pin, 0);
 	output_pin_enable(component, aml_acodec->lineout_pin, 1);
 }
 
