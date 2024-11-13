@@ -1,4 +1,5 @@
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki.aarch64
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 
 COMMON_DRIVERS_DIR=../common_drivers
 . ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project/build.config.project
@@ -8,7 +9,7 @@ COMMON_DRIVERS_DIR=../common_drivers
 
 echo "Base Kernel parm: LTO=${LTO} GKI_CONFIG=${GKI_CONFIG} ANDROID_PROJECT=${ANDROID_PROJECT} FATLOAD=${FATLOAD} KASAN=${KASAN} CHECK_GKI_20=${CHECK_GKI_20}"
 
-DEFCONFIG=amlogic_gki_defconfig
+# DEFCONFIG=amlogic_gki_defconfig
 function pre_defconfig_cmds() {
 	KCONFIG_DEFCONFIG=${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/${DEFCONFIG}
 	local temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`

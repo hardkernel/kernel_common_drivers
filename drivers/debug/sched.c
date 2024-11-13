@@ -211,9 +211,9 @@ out_unlock:
 	rcu_read_unlock();
 }
 
-static void aml_check_preempt_wakeup(void *data, struct rq *rq, struct task_struct *p, bool *preempt, bool *nopreempt,
-				     int wake_flags, struct sched_entity *se, struct sched_entity *pse,
-				     int next_buddy_marked, unsigned int granularity)
+static void aml_check_preempt_wakeup(void *data, struct rq *rq, struct task_struct *p,
+					bool *preempt, bool *nopreempt, int wake_flags,
+					struct sched_entity *se, struct sched_entity *pse)
 {
 	struct task_struct *curr = rq->curr;
 	unsigned long delta_exec = curr->se.sum_exec_runtime - curr->se.prev_sum_exec_runtime;
@@ -493,7 +493,7 @@ int aml_sched_init(void)
 {
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
 	register_trace_android_rvh_select_task_rq_rt(aml_select_rt_nice, NULL);
-	register_trace_android_rvh_check_preempt_wakeup(aml_check_preempt_wakeup, NULL);
+	register_trace_android_rvh_check_preempt_wakeup_fair(aml_check_preempt_wakeup, NULL);
 	register_trace_android_rvh_replace_next_task_fair(aml_pick_next_task, NULL);
 #endif
 

@@ -1,0 +1,30 @@
+From 63a1f8e12fa75ff2aac1a4e5dd1ae13bed88e9ee Mon Sep 17 00:00:00 2001
+From: "qinglin.li" <qinglin.li@amlogic.com>
+Date: Wed, 13 Nov 2024 13:32:29 +0800
+Subject: [PATCH] clang-tools: modify android.bp to android_bp [1/1]
+
+PD#SWPL-190713
+
+Problem:
+modify android.bp to android_bp
+
+Solution:
+modify android.bp to android_bp
+
+Verify:
+local
+
+Change-Id: I841ac28523d434f7801311e2e6d8d66693f42302
+Signed-off-by: qinglin.li <qinglin.li@amlogic.com>
+---
+ Android.bp => Android_bp | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ rename Android.bp => Android_bp (100%)
+
+diff --git a/Android.bp b/Android_bp
+similarity index 100%
+rename from Android.bp
+rename to Android_bp
+-- 
+2.42.0
+

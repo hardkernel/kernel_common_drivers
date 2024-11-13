@@ -83,7 +83,8 @@ u32 tee_register_mem(u32 type, phys_addr_t pa, size_t size)
 
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
+	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
+	IS_ENABLED(CONFIG_CODEC_NEED_TODO)
 /* aml_media is ko can't use cma_mmu_op() func */
 void (*aml_mte_sync_tags)(pte_t old_pte, pte_t pte);
 
@@ -4166,7 +4167,8 @@ CODEC_STATE_RO(codec_mm);
 
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
+	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
+	IS_ENABLED(CONFIG_CODEC_NEED_TODO)
 #ifdef CONFIG_ARM64
 static int tvp_clear_cma_pagemap(unsigned long pfn, unsigned long count)
 {
@@ -4402,7 +4404,9 @@ static void prepare_full_pagemap(struct device_node *of_node)
 {
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 		IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-		!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
+		!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
+		IS_ENABLED(CONFIG_CODEC_NEED_TODO)
+
 	u32 random = 0;
 	int ret;
 
@@ -4449,7 +4453,8 @@ static int codec_mm_probe(struct platform_device *pdev)
 
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
+	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
+	IS_ENABLED(CONFIG_CODEC_NEED_TODO)
 	codec_dev = &pdev->dev;
 #endif
 	codec_mm_scatter_mgt_init(&pdev->dev);

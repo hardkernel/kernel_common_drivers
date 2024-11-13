@@ -175,7 +175,8 @@ void codec_mm_memset(ulong phys, u32 val, u32 size);
 int codec_mm_alloc_cma_size(void);
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
+	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
+	IS_ENABLED(CONFIG_CODEC_NEED_TODO)
 int cma_mmu_op(struct page *page, int count, bool set);
 void codec_mm_dev_set_dma_mask(u64 bits);
 

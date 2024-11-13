@@ -13,13 +13,14 @@ KCONFIG_EXT_MODULES_PREFIX=$(realpath ${ROOT_DIR} --relative-to ${KERNEL_DIR})/
 BUILD_INITRAMFS=1
 LZ4_RAMDISK=1
 DEFCONFIG=amlogic_gki10_defconfig
+COMMON_DRIVERS_DIR=../common_drivers
 
 GKI_CHECK_CONFIG_WHITE_LIST="
 	CONFIG_STMMAC_ETH
 "
 
 function pre_defconfig_cmds() {
-	KCONFIG_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}
+	KCONFIG_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/${DEFCONFIG}
 	local temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
 
 	if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
@@ -88,7 +89,7 @@ export -f pre_defconfig_cmds
 PRE_DEFCONFIG_CMDS=pre_defconfig_cmds
 
 function post_defconfig_cmds() {
-	rm -f ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}
+	rm -f ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/${DEFCONFIG}
 }
 export -f post_defconfig_cmds
 POST_DEFCONFIG_CMDS=post_defconfig_cmds

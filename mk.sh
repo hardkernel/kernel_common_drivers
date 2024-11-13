@@ -199,7 +199,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo "]"					>> ${PROJECT_DIR}/dtb.bzl
 
 	if [[ "${GKI_CONFIG}" != "gki_20" || -n ${KASAN} || -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
-		args="${args} --gki_build_config_fragment=//common_drivers:build.config.amlogic.fragment.bazel"
+		args="${args} --gki_build_config_fragment=//common_drivers:amlogic_build_config_fragment"
 	fi
 
 	if [[ ${GKI_CONFIG} != gki_20 || -n ${KASAN} || -n ${CHECK_GKI_20} ]]; then
@@ -217,7 +217,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
 		if [[ ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} =~ "--kasan" ]]; then
 			GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} \
-								--gki_build_config_fragment=//common_drivers:build.config.amlogic.fragment.bazel \
+								--gki_build_config_fragment=//common_drivers:amlogic_build_config_fragment \
 								--allow_undeclared_modules"
 		fi
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}

@@ -1,4 +1,4 @@
-From ec439950f1721234ad596efd678c6a9decf12862 Mon Sep 17 00:00:00 2001
+From 710db7eecd0c98123b4744e62c616ad0329bd277 Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Thu, 20 Jan 2022 15:09:43 +0800
 Subject: [PATCH] mm: add pagetrace support [1/2]
@@ -76,7 +76,7 @@ index 5f74d1a59ccd..b67415191db1 100644
  #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
  #define LAST_CPUPID_PGOFF	(ZONES_PGOFF - LAST_CPUPID_WIDTH)
 diff --git a/mm/compaction.c b/mm/compaction.c
-index a2b16b08cbbf..2c13877a6e3c 100644
+index 5dd5a8121919..6de276c69e94 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
 @@ -26,6 +26,10 @@
@@ -90,7 +90,7 @@ index a2b16b08cbbf..2c13877a6e3c 100644
  #ifdef CONFIG_COMPACTION
  /*
   * Fragmentation score check interval for proactive compaction purposes.
-@@ -1867,6 +1871,9 @@ static struct folio *compaction_alloc_noprof(struct folio *src, unsigned long da
+@@ -1874,6 +1878,9 @@ static struct folio *compaction_alloc_noprof(struct folio *src, unsigned long da
  	}
  	dst = (struct folio *)freepage;
  
@@ -140,10 +140,10 @@ index 4ba5607aaf19..78152a90b64d 100644
  	kmem_cache_init();
  	/*
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 888dc526b440..ed6bb3f5c8c4 100644
+index f25765b20ab7..4ab44ea8ee54 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -60,6 +60,10 @@
+@@ -63,6 +63,10 @@
  #include "shuffle.h"
  #include "page_reporting.h"
  
@@ -151,10 +151,10 @@ index 888dc526b440..ed6bb3f5c8c4 100644
 +#include <linux/amlogic/page_trace.h>
 +#endif
 +
- /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
- typedef int __bitwise fpi_t;
+ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
  
-@@ -1145,6 +1149,9 @@ __always_inline bool free_pages_prepare(struct page *page,
+@@ -1151,6 +1155,9 @@ __always_inline bool free_pages_prepare(struct page *page,
  
  	debug_pagealloc_unmap_pages(page, 1 << order);
  
@@ -164,7 +164,7 @@ index 888dc526b440..ed6bb3f5c8c4 100644
  	return true;
  }
  
-@@ -4663,6 +4670,9 @@ unsigned long alloc_pages_bulk_noprof(gfp_t gfp, int preferred_nid,
+@@ -4670,6 +4677,9 @@ unsigned long alloc_pages_bulk_noprof(gfp_t gfp, int preferred_nid,
  		else
  			page_array[nr_populated] = page;
  		nr_populated++;
@@ -174,7 +174,7 @@ index 888dc526b440..ed6bb3f5c8c4 100644
  	}
  
  	pcp_spin_unlock(pcp);
-@@ -4754,6 +4764,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+@@ -4761,6 +4771,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
  
  	trace_mm_page_alloc(page, order, alloc_gfp, ac.migratetype);
  	kmsan_alloc_page(page, order, alloc_gfp);

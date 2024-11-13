@@ -1218,7 +1218,7 @@ static int aml_smmu_device_dt_probe(struct platform_device *pdev,
 	return ret;
 }
 
-void set_dma_ops_hook(void *data, struct device *dev, u64 dma_base, u64 size)
+void set_dma_ops_hook(void *data, struct device *dev)
 {
 	set_dma_ops(dev, &aml_pcie_dma_ops);
 }

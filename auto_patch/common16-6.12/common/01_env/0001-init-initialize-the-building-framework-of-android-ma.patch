@@ -1,4 +1,4 @@
-From 8f4309de66a6e0f4f90392937698a6e9cf2c8ce5 Mon Sep 17 00:00:00 2001
+From 06a622e493b3ded068cc1d1ee8924089e43d793f Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
 Subject: [PATCH] init: initialize the building framework of android-mainline
@@ -50,7 +50,7 @@ index 464b34a08f51..bd26c93f68ef 100644
 +obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/sound/
 +obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/samples/
 diff --git a/Makefile b/Makefile
-index 40840308d90e..0d172fb4a63e 100644
+index 379bfc260c17..3c29b9d49b3c 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -428,6 +428,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
@@ -68,7 +68,7 @@ index 40840308d90e..0d172fb4a63e 100644
  KCONFIG_CONFIG	?= .config
  export KCONFIG_CONFIG
  
-@@ -818,6 +826,18 @@ endif # need-config
+@@ -819,6 +827,18 @@ endif # need-config
  
  KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
  
@@ -87,7 +87,7 @@ index 40840308d90e..0d172fb4a63e 100644
  ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
  KBUILD_CFLAGS += -O2
  KBUILD_RUSTFLAGS += -Copt-level=2
-@@ -1161,6 +1181,9 @@ ifeq ($(KBUILD_EXTMOD),)
+@@ -1162,6 +1182,9 @@ ifeq ($(KBUILD_EXTMOD),)
  endif
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)include/uapi
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)arch/$(SRCARCH)/include/uapi
@@ -449,7 +449,7 @@ index 4427572b2477..2913277bfddb 100755
  # check for pointless casting of alloc functions
  		if ($line =~ /\*\s*\)\s*$allocFunctions\b/) {
 diff --git a/scripts/kconfig/Makefile b/scripts/kconfig/Makefile
-index a0a0be38cbdc..2a49cccf2c37 100644
+index a0a0be38cbdc..6f152a620cf1 100644
 --- a/scripts/kconfig/Makefile
 +++ b/scripts/kconfig/Makefile
 @@ -99,7 +99,14 @@ else
@@ -459,9 +459,9 @@ index a0a0be38cbdc..2a49cccf2c37 100644
 -	$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
 +# config cannot be used here to mark AMLOGIC modifications
 +# support two config directory, arch/$(SRCARCH)/configs/ and $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/configs/
-+	$(if $(wildcard $(srctree)/arch/$(SRCARCH)/configs/$@), \
-+		$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig), \
-+		$(Q)$< $(silent) --defconfig=$(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/configs/$@ $(Kconfig))
++	$(if $(wildcard $(srctree)/$(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/configs/$@), \
++		$(Q)$< $(silent) --defconfig=$(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/configs/$@ $(Kconfig), \
++		$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig))
 +# else
 +#	$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
 +# endif

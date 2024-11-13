@@ -1,4 +1,4 @@
-From ca751fb540e2859197b039b552d68f0811013afe Mon Sep 17 00:00:00 2001
+From fc3eaa8a03fe147c039131bfd9a4923e1fea89f4 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Wed, 20 Dec 2023 20:02:32 +0800
 Subject: [PATCH] mm: autopatch: add user fault debug support. [1/2]
@@ -170,10 +170,10 @@ index ab01b51de559..a19cae85cc53 100644
  #endif
  #ifndef CONFIG_KUSER_HELPERS
 diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-index 740e11ccd44c..e2b558e8b15b 100644
+index 7c16cb0e73dc..2c2e7b2b58aa 100644
 --- a/arch/arm64/kernel/process.c
 +++ b/arch/arm64/kernel/process.c
-@@ -56,6 +56,9 @@
+@@ -58,6 +58,9 @@
  #include <asm/stacktrace.h>
  #include <asm/switch_to.h>
  #include <asm/system_misc.h>
@@ -183,7 +183,7 @@ index 740e11ccd44c..e2b558e8b15b 100644
  
  #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
  #include <linux/stackprotector.h>
-@@ -213,6 +216,10 @@ void __show_regs(struct pt_regs *regs)
+@@ -215,6 +218,10 @@ void __show_regs(struct pt_regs *regs)
  		top_reg = 29;
  	}
  
@@ -194,7 +194,7 @@ index 740e11ccd44c..e2b558e8b15b 100644
  	show_regs_print_info(KERN_DEFAULT);
  	print_pstate(regs);
  
-@@ -239,6 +246,9 @@ void __show_regs(struct pt_regs *regs)
+@@ -241,6 +248,9 @@ void __show_regs(struct pt_regs *regs)
  
  		pr_cont("\n");
  	}
@@ -205,12 +205,12 @@ index 740e11ccd44c..e2b558e8b15b 100644
  
  void show_regs(struct pt_regs *regs)
 diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
-index 9e22683aa921..3f73b37710c6 100644
+index 99767f3beb85..4856111145e3 100644
 --- a/arch/arm64/kernel/traps.c
 +++ b/arch/arm64/kernel/traps.c
-@@ -49,6 +49,10 @@
- #include <asm/system_misc.h>
- #include <asm/sysreg.h>
+@@ -51,6 +51,10 @@
+ 
+ #include <trace/hooks/traps.h>
  
 +#ifdef CONFIG_AMLOGIC_USER_FAULT
 +#include <linux/amlogic/user_fault.h>
@@ -219,7 +219,7 @@ index 9e22683aa921..3f73b37710c6 100644
  static bool __kprobes __check_eq(unsigned long pstate)
  {
  	return (pstate & PSR_Z_BIT) != 0;
-@@ -147,7 +151,11 @@ pstate_check_t * const aarch32_opcode_cond_checks[16] = {
+@@ -149,7 +153,11 @@ pstate_check_t * const aarch32_opcode_cond_checks[16] = {
  	__check_gt, __check_le, __check_al, __check_al
  };
  
@@ -231,7 +231,7 @@ index 9e22683aa921..3f73b37710c6 100644
  
  static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
  {
-@@ -248,9 +256,16 @@ static void arm64_show_signal(int signo, const char *str)
+@@ -250,9 +258,16 @@ static void arm64_show_signal(int signo, const char *str)
  	struct pt_regs *regs = task_pt_regs(tsk);
  
  	/* Leave if the signal won't be shown */
@@ -248,7 +248,7 @@ index 9e22683aa921..3f73b37710c6 100644
  		return;
  
  	pr_info("%s[%d]: unhandled exception: ", tsk->comm, task_pid_nr(tsk));
-@@ -261,6 +276,12 @@ static void arm64_show_signal(int signo, const char *str)
+@@ -263,6 +278,12 @@ static void arm64_show_signal(int signo, const char *str)
  	print_vma_addr(KERN_CONT " in ", regs->pc);
  	pr_cont("\n");
  	__show_regs(regs);
@@ -261,7 +261,7 @@ index 9e22683aa921..3f73b37710c6 100644
  }
  
  void arm64_force_sig_fault(int signo, int code, unsigned long far,
-@@ -866,6 +887,10 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned long esr)
+@@ -882,6 +903,10 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned long esr)
  	current->thread.fault_address = 0;
  	current->thread.fault_code = esr;
  
@@ -273,12 +273,12 @@ index 9e22683aa921..3f73b37710c6 100644
  			      "Bad EL0 synchronous exception");
  }
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 451ba7cbd5ad..f167ad77cda3 100644
+index 1ca51225f511..97b68a80adca 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
-@@ -43,6 +43,10 @@
- #include <asm/tlbflush.h>
- #include <asm/traps.h>
+@@ -46,6 +46,10 @@
+ 
+ #include <trace/hooks/fault.h>
  
 +#ifdef CONFIG_AMLOGIC_USER_FAULT
 +#include <linux/amlogic/user_fault.h>

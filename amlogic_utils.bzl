@@ -4,6 +4,8 @@ load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_pkg//pkg:install.bzl", "pkg_install")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 load(
     "//build/kernel/kleaf:kernel.bzl",
     "dtbo",
@@ -93,6 +95,9 @@ def define_common_amlogic(
         build_config = build_config,
         # Enable mixed build.
         base_kernel = "//common:kernel_aarch64_download_or_build",
+        # defconfig = "//common:arch/arm64/configs/gki_defconfig",
+        # pre_defconfig_fragments = ["arch/arm64/configs/amlogic_gki.fragment"],
+        # check_defconfig = "disabled",
         kmi_symbol_list = kmi_symbol_list,
         collect_unstripped_modules = _COLLECT_UNSTRIPPED_MODULES,
         strip_modules = True,
@@ -141,21 +146,24 @@ def define_common_amlogic(
         kernel_build = name,
     )
 
-    dist_targets = [
-        name,
-        name + "_initramfs",
-        name + "_dtbo",
-        name + "_modules_install",
-        # Mixed build: Additional GKI artifacts.
-        "//common:kernel_aarch64",
-        "//common:kernel_aarch64_additional_artifacts",
-        name + "_merged_kernel_uapi_headers",
-    ]
+    pkg_files(
+        name = name + "_dist_files",
+        srcs = [
+            name,
+            name + "_initramfs",
+            name + "_dtbo",
+            name + "_modules_install",
+            name + "_merged_kernel_uapi_headers",
+            # Mixed build: Additional GKI artifacts.
+            "//common:kernel_aarch64",
+            "//common:kernel_aarch64_additional_artifacts",
+        ],
+        strip_prefix = strip_prefix.files_only(),
+        visibility = ["//visibility:private"],
+    )
 
-    copy_to_dist_dir(
+    pkg_install(
         name = name + "_dist",
-        data = dist_targets,
-        dist_dir = dist_dir,
-        flat = True,
-        log = "info",
+        srcs = [":" + name + "_dist_files"],
+        destdir = "out/android16-6.12/dist",
     )
