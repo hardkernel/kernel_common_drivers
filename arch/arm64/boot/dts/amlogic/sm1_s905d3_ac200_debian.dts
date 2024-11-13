@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesonsm1.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesonsm1_ac200-panel.dtsi"
 #include "mesonsm1_drm_dual_disp.dtsi"
 #include "partition_debian_linux.dtsi"

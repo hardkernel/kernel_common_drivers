@@ -800,10 +800,6 @@ static void amdolby_vision_proc
 				(disp_vf_1, frame_size_1,
 				 disp_vf_2, frame_size_2,
 				 toggle_mode_1, toggle_mode_2, pps_state);
-
-		/*update setting according to vd1*/
-		if (!is_aml_hw5())
-			amdv_update_setting(disp_vf_1);
 	}
 }
 #endif
@@ -1886,6 +1882,9 @@ s32 primary_render_frame(struct video_layer_s *layer,
 
 	config_vd_pps
 		(layer, &layer->sc_setting, vinfo);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		update_vd_amdv_info(layer);
+#endif
 	config_vd_blend
 		(layer, &layer->bld_setting);
 
@@ -2113,6 +2112,9 @@ s32 vdx_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 
 	config_vd_pps
 		(layer, &layer->sc_setting, vinfo);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		update_vd_amdv_info(layer);
+#endif
 	vd_s5_hw_set(layer, dispbuf, frame_par);
 	vd_scaler_setting
 		(layer, &layer->sc_setting);
@@ -4119,7 +4121,7 @@ static void do_vd1_swap_frame(u8 layer_id,
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (is_amdv_on())
-			new_src_fmt = get_amdv_src_format(VD1_PATH);
+			new_src_fmt = get_amdv_src_format(VD1_PATH, vd_layer[0].dispbuf);
 		else
 #endif
 			new_src_fmt =

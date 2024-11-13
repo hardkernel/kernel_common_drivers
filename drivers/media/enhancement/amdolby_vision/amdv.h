@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "20240205"
+#define DRIVER_VER "20241112"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -116,6 +116,24 @@
 
 #define HLG_MIN 1310
 #define HLG_MAX 262144000
+
+#define CP_FLAG_CHANGE_CFG		0x000001
+#define CP_FLAG_CHANGE_MDS		0x000002
+#define CP_FLAG_CHANGE_MDS_CFG		0x000004
+#define CP_FLAG_CHANGE_GD		0x000010
+#define CP_FLAG_CHANGE_GD_OLD		0x000008
+#define CP_FLAG_CHANGE_AB		0x000020
+#define CP_FLAG_CHANGE_TC		0x000100
+#define CP_FLAG_CHANGE_TC_OLD		0x000010
+#define CP_FLAG_CHANGE_TC2		0x000200
+#define CP_FLAG_CHANGE_TC2_OLD		0x000020
+#define CP_FLAG_CHANGE_L2NL		0x000400
+#define CP_FLAG_CHANGE_L2NL_OLD		0x000040
+#define CP_FLAG_CHANGE_3DLUT		0x000800
+#define CP_FLAG_CHANGE_3DLUT_OLD	0x000080
+#define CP_FLAG_CONST_TC		0x100000
+#define CP_FLAG_CONST_TC2		0x200000
+#define CP_FLAG_CHANGE_ALL		0xffffffff
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
@@ -544,7 +562,7 @@ struct m_dovi_setting_s {
 	u32 mode_changed;
 	enum signal_format_enum dst_format;
 
-	/*private info for each instance*/
+	/*private info for vd1 core1a + vd2 core1b*/
 	struct private_info_s input[NUM_IPCORE1 + NUM_IPCORE2];
 
 	/*only used for graphic*/
@@ -701,6 +719,17 @@ struct backlight_info {
 	bool set_flag;
 };
 
+struct m_fixed_setting_s {
+	struct dovi_setting_video_s core1[NUM_IPCORE1];
+	struct dm_reg_ipcore2 dm_reg2;
+	struct dm_reg_ipcore3 dm_reg3;
+	struct dm_lut_ipcore dm_lut2;
+	/* for dovi output */
+	struct md_reg_ipcore3 md_reg3;
+	/* for hdr10 output */
+	struct hdr10_infoframe hdr_info;
+};
+
 #define MAX_BL_COUNT 30
 #define PREFIX_SEI_NUT_NAL 39
 #define SUFFIX_SEI_NUT_NAL 40
@@ -845,7 +874,7 @@ extern bool force_set_lut;
 extern int use_target_lum_from_cfg;
 extern s16 brightness_off[8][2];
 extern bool disable_aoi;
-extern u32 aoi_info[2][4];
+extern u32 aoi_info[3][4];
 extern int debug_disable_aoi;
 extern bool update_aoi_info;
 extern int debug_dma_start_line;
@@ -910,6 +939,7 @@ extern struct tv_hw5_setting_s *tv_hw5_setting;
 extern struct tv_hw5_setting_s *invalid_hw5_setting;
 extern struct tv_hw5_setting_s *last_tv_hw5_setting;
 extern u32 hw5_reg_from_file;
+extern bool load_fixed_setting;
 extern u32 test_dv;
 extern struct video_inst_s top1_v_info;/*video info*/
 extern struct video_inst_s top2_v_info;/*video info*/
@@ -973,6 +1003,9 @@ extern bool bypass_detunnel;
 extern u32 lightsense_test_mode;
 extern u32 hlg_max;
 extern u32 hlg_min;
+extern u64 *core1_reg_lut;
+extern bool efuse_mode;
+extern bool efuse_checked;
 extern unsigned int bypass_core1a_composer;
 extern unsigned int bypass_core1b_composer;
 extern unsigned int core1_bypass;
@@ -1306,6 +1339,7 @@ bool is_cuva_frame(struct vframe_s *vf);
 bool is_hdr10plus_frame(struct vframe_s *vf);
 bool vf_is_hlg(struct vframe_s *vf);
 bool vf_is_hdr10_plus(struct vframe_s *vf);
+bool vf_signal_type_is_hdr10plus(struct vframe_s *vf);
 bool vf_is_hdr10(struct vframe_s *vf);
 bool is_dv_standard_es(int dvel, int mflag, int width);
 void calculate_crc(void);
@@ -1314,6 +1348,7 @@ void update_src_format(enum signal_format_enum src_format, struct vframe_s *vf);
 int amdv_policy_process(struct vframe_s *vf, int *mode, enum signal_format_enum src_format);
 int is_graphics_output_off(void);
 void update_aoi_flag(struct vframe_s *vf, u32 display_size);
+void handle_aoi(u32 hsize, u32 vsize);
 void dump_tv_setting
 	(void *p_setting,
 	 int frame_cnt, int debug_flag);
@@ -1345,6 +1380,8 @@ void dolby5_bypass_ctrl(unsigned int en);
 int load_reg_and_lut_file(char *fw_name, void **dst_buf);
 void read_txt_to_buf(char *reg_txt, void *reg_buf, int reg_num, bool is_reg);
 void read_top1_pic_to_buf(char *reg_txt, void *buf, int num, bool flag_64bit);
+void read_tv1614_reg_lut_to_buf(char *reg_txt, void *reg_buf, int reg_num);
+void read_stb26_reg_lut_to_buf(char *reg_txt, struct m_fixed_setting_s *setting, bool core3_md);
 int dma_lut_init(void);
 void dma_lut_uninit(void);
 int dma_lut_write(void);
@@ -1372,6 +1409,7 @@ u32 get_top1_onoff(void);
 void fixed_buf_config(void);
 bool is_dv_unique_drm(struct vframe_s *vf);
 void dump_top1_frame(int force_w, int force_h);
+void copy_fixed_setting(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_get_video_latency_for_gd1(void);
 #endif

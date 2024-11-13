@@ -254,7 +254,7 @@ static void get_top1_vd_info(struct vframe_s *vf,
 	}
 
 	if (debug_dolby & 0x80000) {
-		pr_info("vf %px,w,h:%d,%d,cw,ch:%d,%d,%d,%d,%d,%d,%d,%d,type:0x%x,%x,flag %x,bdp:%d,p:%d,addr:%lx,%lx,%lx,b %d\n",
+		pr_info("vf %px,w,h:%d,%d,cw,ch:%d,%d,%d,%d,%d,%d,%d,%d,type:0x%x,%x,flag %x,bdp:%d,%d,%d,p:%d,addr:%lx,%lx,%lx,b %d\n",
 			vf,
 			top1_vd_info->width,
 			top1_vd_info->height,
@@ -269,6 +269,8 @@ static void get_top1_vd_info(struct vframe_s *vf,
 			vf->type,
 			top1_vd_info->type,
 			vf->flag,
+			vf->bitdepth,
+			vf->bitdepth_dw,
 			top1_vd_info->bitdepth,
 			top1_vd_info->plane,
 			top1_vd_info->canvasaddr[0],
@@ -1190,6 +1192,7 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 		req.aux_size = 0;
 		req.dv_enhance_exist = 0;
 		req.low_latency = 0;
+		req.is_dv_unique_drm = 0;
 		vf_notify_provider_by_name("dv_vdin",
 					   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 					   (void *)&req);
@@ -1246,6 +1249,7 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 				}
 			}
 		}
+		dv_unique_drm = is_dv_unique_drm(vf);
 
 		/* w/t vsif and no dv_vsem */
 		if (vf->vsif.size && !dv_vsem) {
@@ -1262,17 +1266,41 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 						vsem_if_buf[i + 6],	vsem_if_buf[i + 7]);
 				}
 			}
+		}  else if (dv_unique_drm && !dv_vsem) { /* dv unique drm and no dv_vsem */
+			memset(vsem_if_buf, 0, VSEM_IF_BUF_SIZE);
+			if (force_hdmin_fmt >= 3 && force_hdmin_fmt <= 9) {
+				memcpy(vsem_if_buf, force_drm, 32);
+				vsem_if_size = 32;
+			} else if (vf->drm_if.size > 0 && vf->drm_if.addr) {
+				memcpy(vsem_if_buf, vf->drm_if.addr, vf->drm_if.size);
+				vsem_if_size = vf->drm_if.size;
+			}
+			if (debug_dolby & 4) {
+				pr_info("drm size = %d\n", vf->drm_if.size);
+				for (i = 0; i < vsem_if_size; i += 8) {
+					pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+						vsem_if_buf[i],
+						vsem_if_buf[i + 1],
+						vsem_if_buf[i + 2],
+						vsem_if_buf[i + 3],
+						vsem_if_buf[i + 4],
+						vsem_if_buf[i + 5],
+						vsem_if_buf[i + 6],
+						vsem_if_buf[i + 7]);
+				}
+			}
 		}
 		if ((debug_dolby & 1) && (dv_vsem || vsem_if_size))
-			pr_dv_dbg("vdin get %s:%d, md:%p %d,ll:%d,bit %x,type %x\n",
-				dv_vsem ? "vsem" : "vsif",
+			pr_dv_dbg("vdin get %s:%d, md:%p %d,ll:%d, unique:%d, bit %x,type %x\n",
+				dv_vsem ? "vsem" : dv_unique_drm ? "drm" : "vsif",
 				dv_vsem ? vsem_size : vsem_if_size,
 				req.aux_buf, req.aux_size,
 				req.low_latency,
+				req.is_dv_unique_drm,
 				vf->bitdepth, vf->source_type);
 
 		/*check vsem_if_buf */
-		if (vsem_if_size &&
+		if (!dv_unique_drm && vsem_if_size &&
 			vsem_if_buf[0] != 0x81) {
 			/*not vsif, continue to check vsem*/
 			if (!(vsem_if_buf[0] == 0x7F &&
@@ -1308,6 +1336,10 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 				       req.aux_buf, req.aux_size);
 			}
 			src_format = FORMAT_DOVI;
+		} else if (dv_unique_drm) {
+			src_format = FORMAT_DOVI_LL;
+			req.aux_size = 0;
+			req.aux_buf = NULL;
 		} else {
 			src_format =  tv_hw5_setting->top1.src_format;
 			p_mdc =	&vf->prop.master_display_colour;
@@ -1808,7 +1840,7 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 	u32 w = 0xffff;
 	u32 h = 0xffff;
 	int meta_flag_bl = 1;
-	int src_chroma_format = 0;
+	int src_chroma_format = 0; /* 0:CF_P420, 1:CF_UYVY, 2:CF_P444, 3:CF_I444*/
 	int src_bdp = 12;
 	bool video_frame = false;
 	int i;
@@ -1883,6 +1915,7 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 		req.aux_size = 0;
 		req.dv_enhance_exist = 0;
 		req.low_latency = 0;
+		req.is_dv_unique_drm = 0;
 		vf_notify_provider_by_name("dv_vdin",
 					   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 					   (void *)&req);
@@ -1981,11 +2014,12 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			}
 		}
 		if ((debug_dolby & 1) && (dv_vsem || vsem_if_size))
-			pr_dv_dbg("vdin get %s:%d, md:%p %d,ll:%d,bit %x,type %x %x\n",
-				dv_vsem ? "vsem" : "vsif",
+			pr_dv_dbg("vdin get %s:%d, md:%p %d,ll:%d, unique:%d, bit %x,type %x %x\n",
+				dv_vsem ? "vsem" : dv_unique_drm ? "drm" : "vsif",
 				dv_vsem ? vsem_size : vsem_if_size,
 				req.aux_buf, req.aux_size,
 				req.low_latency,
+				req.is_dv_unique_drm,
 				vf->bitdepth, vf->source_type, vf->type);
 
 		/*check vsem_if_buf */
@@ -2025,40 +2059,53 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 				       req.aux_buf, req.aux_size);
 			}
 			src_format = FORMAT_DOVI;
+		} else if (dv_unique_drm) {
+			if (vf->type & VIDTYPE_VIU_444) {
+				if (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL)
+					src_chroma_format = 3;
+				else
+					src_chroma_format = 1;
+			}
+			if (vf->bitdepth & BITDEPTH_Y8) {
+				if (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL)
+					src_bdp = 8;
+				else
+					src_bdp = 12;
+			} else if (vf->bitdepth & BITDEPTH_Y10) {
+				src_bdp = 10;
+			}
+			src_format = FORMAT_DOVI_LL;
+			req.aux_size = 0;
+			req.aux_buf = NULL;
 		} else {
 			if (toggle_mode == 2)
 				src_format =  tv_hw5_setting->top2.src_format;
 			if (vf->type & VIDTYPE_VIU_422)
-				src_chroma_format = 1;/*CF_UYVY*/
-			if (dv_unique_drm) {
-				src_format = FORMAT_DOVI_LL;
-				input_mode = IN_MODE_HDMI;
-				src_chroma_format = 3;/*CF_I444*/
-				src_bdp = 8;
-				req.aux_size = 0;
-				req.aux_buf = NULL;
-			} else {
-				p_mdc =	&vf->prop.master_display_colour;
-				if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
-					src_format = FORMAT_HDR10;
-					/* prepare parameter from hdmi for hdr10 */
-					p_mdc->luminance[0] *= 10000;
-					prepare_hdr10_param
-						(p_mdc, &v_inst_info->hdr10_param);
-					req.dv_enhance_exist = 0;
-					src_bdp = 10;
-				}
-				if (src_format != FORMAT_DOVI &&
-					(is_hlg_frame(vf) || force_hdmin_fmt == 2)) {
-					src_format = FORMAT_HLG;
-					src_bdp = 10;
-				}
-				if (src_format == FORMAT_SDR && force_sdr10 == 1)
-					src_format = FORMAT_SDR10;
-
-				if (src_format == FORMAT_SDR10)
-					src_bdp = 10;
+				src_chroma_format = 1;
+			else if (vf->type & VIDTYPE_VIU_444)
+				src_chroma_format = 3;
+			else
+				src_chroma_format = 0;
+			p_mdc =	&vf->prop.master_display_colour;
+			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
+				src_format = FORMAT_HDR10;
+				/* prepare parameter from hdmi for hdr10 */
+				p_mdc->luminance[0] *= 10000;
+				prepare_hdr10_param
+					(p_mdc, &v_inst_info->hdr10_param);
+				req.dv_enhance_exist = 0;
+				src_bdp = 10;
 			}
+			if (src_format != FORMAT_DOVI &&
+				(is_hlg_frame(vf) || force_hdmin_fmt == 2)) {
+				src_format = FORMAT_HLG;
+				src_bdp = 10;
+			}
+			if (src_format == FORMAT_SDR && force_sdr10 == 1)
+				src_format = FORMAT_SDR10;
+
+			if (src_format == FORMAT_SDR10)
+				src_bdp = 10;
 		}
 		if ((debug_dolby & 4) && req.aux_size) {
 			pr_dv_dbg("metadata(%d):\n", req.aux_size);
@@ -2182,6 +2229,8 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 				if (get_vframe_src_fmt(vf) ==
 				    VFRAME_SIGNAL_FMT_HDR10PRIME)
 					src_format = FORMAT_PRIMESL;
+				else if (load_fixed_setting)
+					src_format = FORMAT_SDR;
 				else
 					meta_flag_bl =
 					parse_sei_and_meta_hw5
@@ -3105,6 +3154,7 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 	u32 h_ori;
 	u32 v_ori;
 	struct vd_proc_info_t *vd_proc_info;
+	unsigned int reg_value;
 
 	if (!is_aml_tvmode())
 		return -1;
@@ -3115,10 +3165,10 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 	vf = vf_top2;
 
 	if (vf && (debug_dolby & 0x8))
-		pr_dv_dbg("proc:vf %px %px(index %d),mode %d,on %d %d,size %d %d,type %x,flag %x\n",
+		pr_dv_dbg("proc:vf %px %px(index %d),mode %d,on %d %d,size %d %d,type %x, type_ext %x, flag %x\n",
 			     vf_top1, vf_top2, vf->frame_index, dolby_vision_mode,
 			     top1_info.core_on, top2_info.core_on,
-			     h_size, v_size, vf->type, vf->flag);
+			     h_size, v_size, vf->type, vf->type_ext, vf->flag);
 	else if ((debug_dolby & 0x20000))
 		pr_dv_dbg("proc: mode %d,on %d %d,size %d %d\n",
 			     dolby_vision_mode,
@@ -3162,15 +3212,19 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			toggle_mode = true;
 		}
 		if (debug_dolby & 0x400000)
-			pr_dv_dbg("no_compress %d, flag %x, type %x\n",
-					  vd_proc_info->no_compress, vf->flag, vf->type);
+			pr_dv_dbg("vd1 no_compress %d, flag %x, type %x\n",
+					  vd_proc_info->vd1_no_compress, vf->flag, vf->type);
 		/*afbc+dw two data path,dw is after detunnel,so no need dv detunnel*/
-		if (vd_proc_info->no_compress && (vf->type & VIDTYPE_COMPRESS))
+		if (vd_proc_info->vd1_no_compress && (vf->type & VIDTYPE_COMPRESS))
 			/*afbc on but vpp use dw*/
 			disable_detunnel = true;
-		/*else if	(!(vf->type & VIDTYPE_COMPRESS))*/
-			/*only yuv data path,dw is after detunnel,so no need dv detunnel*/
+		/*only yuv data path,dw is after detunnel,so no need dv detunnel*/
+		/*else if (!(vf->type & VIDTYPE_COMPRESS))*/
 			/*disable_detunnel = true;*/
+		/*for unique dv rgb/yuv444,8/10/12bit and yuv420,8/10bit: no need dv detunnel*/
+		/*for unique dv yuv420/422,12bit: need dv detunnel*/
+		else if (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL)
+			disable_detunnel = true;
 		else
 			disable_detunnel = false;
 	}
@@ -3365,6 +3419,35 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 		top2_v_info.tv_dovi_setting_change_flag = false;
 		return 0;
 	}
+
+	if (load_fixed_setting) {
+		if (!efuse_checked) {
+			reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
+			if ((reg_value & 0x10000) == 0)
+				efuse_mode = 0;
+			else
+				efuse_mode = 1;
+			efuse_checked = true;
+		}
+		if (efuse_mode) {
+			pr_info("dv efuse!\n");
+			return 0;
+		}
+		/*read crc for slt test*/
+		if (VSYNC_RD_DV_REG(DOLBY5_CORE2_CRC_CNTRL) == 0)
+			VSYNC_WR_DV_REG(DOLBY5_CORE2_CRC_CNTRL, 1);
+		if (debug_dolby & 0x8)
+			pr_info("read crc %x %x, %x %x\n",
+			READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
+			READ_VPP_DV_REG(0x250b),/*vpp crc*/
+			READ_VPP_DV_REG(VPU_DOLBY_WRAP_CTRL),
+			READ_VPP_DV_REG(T3X_VD1_S0_DV_BYPASS_CTRL));
+
+		/*for slt, for toggle each vsync*/
+		if (vf)
+			dolby_vision_flags |= FLAG_TOGGLE_FRAME;
+	}
+
 	if (update_top2_control_path_flag) {
 		amdv_hw5_control_path(vf, vd_proc_info);
 		update_top2_control_path_flag = false;
@@ -3444,6 +3527,8 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			}
 			if (tv_hw5_setting)
 				update_amdv_status(tv_hw5_setting->top2.src_format);
+			else if (load_fixed_setting)
+				update_amdv_status(FORMAT_SDR);
 			top2_v_info.tv_dovi_setting_change_flag = false;
 			if (tv_hw5_setting && last_tv_hw5_setting)
 				memcpy(last_tv_hw5_setting, tv_hw5_setting,

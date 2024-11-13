@@ -22,6 +22,7 @@
 
 extern unsigned int debug_common_flag;
 extern unsigned int aisr_size_threshold;
+extern struct vd_proc_info_t vd_proc_amdv;
 
 #define DEBUG_FLAG_COMMON_FRC      BIT(0)
 #define DEBUG_FLAG_COMMON_AISR     BIT(1)

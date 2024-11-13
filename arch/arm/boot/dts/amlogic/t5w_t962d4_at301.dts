@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont5w.dtsi"
+#include "hdr10plus.dtsi"
 #include "partition_mbox_ab_gpt_from_dts.dtsi"
 #include "mesont5w_at301-panel.dtsi"
 #include "mesont5w_drm.dtsi"

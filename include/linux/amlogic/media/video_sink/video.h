@@ -434,12 +434,23 @@ struct vpp_post_info_t {
 
 struct vd_proc_info_t {
 	bool vd2_prebld_4k120_en;
-	bool no_compress;
+	bool vd1_no_compress;
+	bool vd2_no_compress;
 	u8 slice_num;
 	u32 overlap_size_amdvin;
 	u32 overlap_size;
 	u32 vd1_in_hsize;
 	u32 vd1_in_vsize;
+	u32 vd2_in_hsize;
+	u32 vd2_in_vsize;
+	u32 vd1_crop_left;
+	u32 vd1_crop_right;
+	u32 vd1_crop_top;
+	u32 vd1_crop_bottom;
+	u32 vd2_crop_left;
+	u32 vd2_crop_right;
+	u32 vd2_crop_top;
+	u32 vd2_crop_bottom;
 	struct slice_info slice[VD_SLICE_NUM];
 };
 

@@ -99,11 +99,11 @@ static u32 g_viu0_hold_line;
 static struct vd_proc_s g_vd_proc;
 struct vpp_post_reg_s vpp_post_reg;
 struct vd_proc_reg_s vd_proc_reg;
+struct vd_proc_info_t vd_proc_amdv;
 static u32 vpp_ofifo_size_s5 = 0x800;
 static u32 conv_lbuf_len_s5[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
 static u32 g_bypass_module = 5;
 static struct vpp_post_info_t vpp_post_amdv;
-static struct vd_proc_info_t vd_proc_amdv;
 static struct vd_proc_amvecm_info_t vd_proc_amvecm;
 static bool vd1_pi_input_size_update;
 static bool vd2_pi_input_size_update;
@@ -6019,7 +6019,7 @@ static void update_vd_proc_amdv_info(struct vd_proc_s *vd_proc)
 	vd_proc_amdv.overlap_size = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize;
 	vd_proc_amdv.vd1_in_hsize = vd_proc->vd_proc_vd1_info.vd1_src_din_hsize[0];
 	vd_proc_amdv.vd1_in_vsize = vd_proc->vd_proc_vd1_info.vd1_src_din_vsize[0];
-	vd_proc_amdv.no_compress = vd_proc->vd_proc_vd1_info.no_compress;
+	vd_proc_amdv.vd1_crop_left = vd_proc->vd_proc_vd1_info.crop_left;
 	for (i = 0; i < vd_proc->vd_proc_vd1_info.slice_num; i++) {
 		/* slice input */
 		vd_proc_amdv.slice[i].hsize_amdv =
@@ -6036,11 +6036,6 @@ static void update_vd_proc_amdv_info(struct vd_proc_s *vd_proc)
 			vd_proc_amdv.slice[i].scaler_in_hsize =
 			vd_proc->vd_proc_unit[i].vd_proc_pps.din_hsize;
 	}
-}
-
-struct vd_proc_info_t *get_vd_proc_amdv_info(void)
-{
-	return &vd_proc_amdv;
 }
 
 static void update_vpp_post_amdv_info(u8 vpp_index, struct vpp_post_s *vpp_post)

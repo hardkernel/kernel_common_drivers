@@ -1197,6 +1197,7 @@ int vpp_set_super_scaler_regs(struct video_layer_s *layer,
 			      int vpp_postblend_out_width,
 			      int vpp_postblend_out_height);
 void update_primary_fmt_event(void);
+void update_vd_amdv_info(struct video_layer_s *layer);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {

@@ -168,11 +168,11 @@ static void hdr_proc(struct vframe_s *vf,
 
 	/* RGB / YUV vdin input handling  prepare extra op code or info */
 	if (vf && vf->type & VIDTYPE_RGB_444 && !is_amdv_on() &&
-		get_amdv_src_format(VD1_PATH) != HDRTYPE_DOVI)
+		get_amdv_src_format(VD1_PATH, vf) != HDRTYPE_DOVI)
 		hdr_process_select |= RGB_VDIN;
 
 	if (limit_full && !is_amdv_on() &&
-		get_amdv_src_format(VD1_PATH) != HDRTYPE_DOVI)
+		get_amdv_src_format(VD1_PATH, vf) != HDRTYPE_DOVI)
 		hdr_process_select |= FULL_VDIN;
 	/* RGB / YUV input handling */
 
@@ -327,7 +327,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 		/* get current dolby_vision_mode */
 		dv_policy = get_amdv_policy();
 		dv_mode = get_amdv_target_mode();
-		dv_format = get_amdv_src_format(vd_path);
+		dv_format = get_amdv_src_format(vd_path, vf);
 		dv_hdr_policy = get_amdv_hdr_policy(vf);
 	}
 #endif
@@ -817,7 +817,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 		/* get current dolby_vision_mode */
 		dv_policy = get_amdv_policy();
 		dv_mode = get_amdv_target_mode();
-		dv_format = get_amdv_src_format(vd_path);
+		dv_format = get_amdv_src_format(vd_path, vf);
 		dv_hdr_policy = get_amdv_hdr_policy(vf);
 	}
 #endif

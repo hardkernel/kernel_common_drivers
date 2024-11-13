@@ -187,7 +187,7 @@ void enable_osd_path(int on, int shadow_mode);
 void tv_amdv_config(int config);
 void amdv_update_pq_config
 	(char *pq_config_buf);
-int amdv_update_setting(struct vframe_s *vf);
+int amdv_update_setting(void);
 bool is_amdv_stb_mode(void);
 bool is_aml_tvmode(void);
 void amdv_crc_clear(int flag);
@@ -217,7 +217,7 @@ void update_graphic_width_height(unsigned int width,
 int get_amdv_policy(void);
 void set_amdv_policy(int policy);
 int get_amdv_ll_policy(void);
-int get_amdv_src_format(enum vd_path_e vd_path);
+int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf);
 bool is_amdv_el_disable(void);
 bool is_dovi_dual_layer_frame(struct vframe_s *vf);
 void amdv_set_provider(char *prov_name, enum vd_path_e vd_layer);
@@ -260,6 +260,7 @@ bool get_idk_need_pps(void);
 int get_amdv_apo_enable(void);
 void set_amdv_apo_enable(bool enable);
 
+u32 *get_core2_lut(void);
 #define AMDV_UPDATE_OSD_MODE 0x00000001
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 int amdv_notifier_call_chain(unsigned long val, void *v);

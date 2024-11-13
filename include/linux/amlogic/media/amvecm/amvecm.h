@@ -652,6 +652,7 @@ extern int vsize_in;
 void amve_safa_demo_ctrl(unsigned int enable);
 void osd_sharpness_size_ctrl(void);
 void osd_sharpness_demo_ctrl(void);
+bool is_hdr10plus_enable(void);
 
 bool is_hdr10plus_enable(void);
 
@@ -665,7 +666,7 @@ void amdv_set_toggle_flag(int flag);
 int get_dv_support_info(void);
 bool support_multi_core1(void);
 bool is_hdmi_ll_as_hdr10(void);
-int get_amdv_src_format(enum vd_path_e vd_path);
+int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf);
 #endif
 
 enum vpp_matrix_ext_csc_e {

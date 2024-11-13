@@ -969,7 +969,7 @@ void set_amdv_mode(int mode)
 {
 }
 
-int get_amdv_src_format(enum vd_path_e vd_path)
+int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf)
 {
 	return 0;
 }
@@ -13504,6 +13504,48 @@ void update_primary_fmt_event(void)
 	vpu_delay_work_flag |= VPU_PRIMARY_FMT_CHANGED;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static void init_vd_proc_amdv_info(void)
+{
+	memset(&vd_proc_amdv, 0, sizeof(struct vd_proc_info_t));
+	vd_proc_amdv.slice_num = 1;
+}
+
+void update_vd_amdv_info(struct video_layer_s *layer)
+{
+	struct vpp_frame_par_s *cur_frame_par;
+	s32 src_w = 0, src_h = 0, dst_w = 0, dst_h = 0;
+
+	cur_frame_par = layer->cur_frame_par;
+	if (!cur_frame_par)
+		return;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		src_w = cur_frame_par->video_input_w << cur_frame_par->supsc0_hori_ratio;
+		src_h = cur_frame_par->video_input_h << cur_frame_par->supsc0_vert_ratio;
+		dst_w = cur_frame_par->VPP_hsc_endp - cur_frame_par->VPP_hsc_startp + 1;
+		dst_h = cur_frame_par->VPP_vsc_endp - cur_frame_par->VPP_vsc_startp + 1;
+	}
+	if (layer->layer_id == 0) {
+		vd_proc_amdv.vd1_in_hsize = src_w;
+		vd_proc_amdv.vd1_in_vsize = src_h;
+		vd_proc_amdv.vd1_crop_left = cur_frame_par->crop_left;
+		vd_proc_amdv.vd1_crop_right = cur_frame_par->crop_right;
+		vd_proc_amdv.vd1_crop_top = cur_frame_par->crop_top;
+		vd_proc_amdv.vd1_crop_bottom = cur_frame_par->crop_bottom;
+		vd_proc_amdv.vd1_no_compress = cur_frame_par->nocomp;
+	}
+	if (layer->layer_id == 1) {
+		vd_proc_amdv.vd2_in_hsize = src_w;
+		vd_proc_amdv.vd2_in_vsize = src_h;
+		vd_proc_amdv.vd2_crop_left = cur_frame_par->crop_left;
+		vd_proc_amdv.vd2_crop_right = cur_frame_par->crop_right;
+		vd_proc_amdv.vd2_crop_top = cur_frame_par->crop_top;
+		vd_proc_amdv.vd2_crop_bottom = cur_frame_par->crop_bottom;
+		vd_proc_amdv.vd2_no_compress = cur_frame_par->nocomp;
+	}
+}
+#endif
 /*********************************************************
  * Init APIs
  *********************************************************/
@@ -14604,6 +14646,9 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	init_layer_canvas(&vd_layer[0], LAYER1_CANVAS_BASE_INDEX);
 	init_layer_canvas(&vd_layer[1], LAYER2_CANVAS_BASE_INDEX);
 	init_layer_canvas(&vd_layer[2], LAYER3_CANVAS_BASE_INDEX);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	init_vd_proc_amdv_info();
+#endif
 	/* vd_layer_vpp is for multiple vpp */
 	memcpy(&vd_layer_vpp[0], &vd_layer[1], sizeof(struct video_layer_s));
 	memcpy(&vd_layer_vpp[1], &vd_layer[2], sizeof(struct video_layer_s));

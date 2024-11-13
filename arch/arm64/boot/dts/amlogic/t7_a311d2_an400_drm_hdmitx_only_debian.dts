@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont7.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesont7_drm.dtsi"
 //#include "partition_normal_PR_32.dtsi"
 #include "partition_debian_linux.dtsi"

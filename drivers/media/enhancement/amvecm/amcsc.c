@@ -7432,7 +7432,7 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vd_path == VD1_PATH &&
 	    is_amdv_enable() &&
-	    get_amdv_src_format(vd_path)
+	    get_amdv_src_format(vd_path, NULL)
 	    == HDRTYPE_DOVI)
 		return HDRTYPE_DOVI;
 #endif

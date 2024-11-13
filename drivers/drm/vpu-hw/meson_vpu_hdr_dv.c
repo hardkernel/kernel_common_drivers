@@ -8,6 +8,12 @@
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+static bool core2c_update_lut = true;
+/*module_param(core2c_update_lut, bool, 0664);*/
+/*MODULE_PARM_DESC(core2c_update_lut, "core2c_update_lut");*/
+#endif
+
 static struct hdr_reg_s osd_hdr_reg[MESON_MAX_HDRS] = {
 	{
 		VPP_OSD1_IN_SIZE,
@@ -125,6 +131,13 @@ static void s5_hdr_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_pipeline *pipeline = hdr->base.pipeline;
 	//struct hdr_reg_s *reg = hdr->reg;
 	struct meson_vpu_pipeline_state *mvps, *old_mvps;
+	u32 hsize, vsize;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	u32 *p_core2_lut = NULL;
+	u32 lut_count = 256 * 5;
+	u32 i;
+#endif
 
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	old_mvps = meson_vpu_pipeline_get_old_state(pipeline, old_state->obj.state);
@@ -135,8 +148,34 @@ static void s5_hdr_set_state(struct meson_vpu_block *vblk,
 		//TODO
 	} else if (vblk->index == S5_HDR2_INDEX) {
 		if (mvps->plane_info[MESON_OSD3].enable &&
-			!old_mvps->plane_info[MESON_OSD3].enable)
+			!old_mvps->plane_info[MESON_OSD3].enable) {
 			MESON_DRM_BLOCK("state changed\n");
+
+			hsize = mvps->plane_info[MESON_OSD3].src_w;
+			vsize = mvps->plane_info[MESON_OSD3].src_h;
+			MESON_DRM_BLOCK("%s set_state,input size:%u,%u.\n",
+				hdr->base.name, hsize, vsize);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			p_core2_lut =  get_core2_lut();
+			MESON_DRM_BLOCK("p_core2_lut %px\n", p_core2_lut);
+
+			if (p_core2_lut && is_amdv_enable() && core2c_update_lut) {
+				/*bit3=1,disable latch*/
+				reg_ops->rdma_write_reg(S5_CORE2C_DMA_CTRL, 0x1409);
+
+				for (i = 0; i < lut_count; i += 4) {
+					reg_ops->rdma_write_reg(S5_CORE2C_DMA_PORT,
+						p_core2_lut[i + 3]);
+					reg_ops->rdma_write_reg(S5_CORE2C_DMA_PORT,
+						p_core2_lut[i + 2]);
+					reg_ops->rdma_write_reg(S5_CORE2C_DMA_PORT,
+						p_core2_lut[i + 1]);
+					reg_ops->rdma_write_reg(S5_CORE2C_DMA_PORT,
+						p_core2_lut[i]);
+				}
+			}
+#endif
+		}
 	}
 	MESON_DRM_BLOCK("%s set_state called.\n", hdr->base.name);
 }

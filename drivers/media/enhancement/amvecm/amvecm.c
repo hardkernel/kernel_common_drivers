@@ -1259,17 +1259,17 @@ static ssize_t amvecm_slt_vl_lock_st_store(const struct class *cla,
 }
 
 static ssize_t amvecm_enable_hdr10plus_show
-	(const struct class *cla,
-	const struct class_attribute *attr,
-	char *buf)
+	 (const struct class *cla,
+	  const struct class_attribute *attr,
+	  char *buf)
 {
 	return sprintf(buf, "%d\n", enable_hdr10plus);
 }
 
 static ssize_t amvecm_enable_hdr10plus_store
-	(const struct class *cla,
-	const struct class_attribute *attr,
-	const char *buf, size_t count)
+	 (const struct class *cla,
+	  const struct class_attribute *attr,
+	  const char *buf, size_t count)
 {
 	size_t r;
 	int value = 0;

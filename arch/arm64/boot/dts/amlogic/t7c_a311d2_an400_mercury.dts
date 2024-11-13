@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont7c.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesont7c_drm.dtsi"
 #include "partition_mbox_ab.dtsi"
 #include <dt-bindings/input/input.h>
