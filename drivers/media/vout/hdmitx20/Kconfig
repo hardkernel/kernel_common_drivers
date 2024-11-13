@@ -6,7 +6,7 @@
 menu "Amlogic HDMITX Module"
 
 config AMLOGIC_HDMITX
-	bool "AMLOGIC HDMITX driver"
+	bool "AMLOGIC HDMITX20 driver"
 	select AMLOGIC_HDMITX_COMMON
 	default n
 	help
