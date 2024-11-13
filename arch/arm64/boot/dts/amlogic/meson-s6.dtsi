@@ -1537,6 +1537,12 @@
 			0x0 0xfe000000 0x0 0x4a0>; /* clk reg */
 	};
 
+	vout_sys: vout_sys {
+		compatible = "amlogic, vout_sys_serve";
+		status = "okay";
+		reg = <0x0 0xfe01029c 0x0 0x4>;
+	};
+
 	vdac {
 		compatible = "amlogic, vdac-s4d";
 		status = "disabled";
