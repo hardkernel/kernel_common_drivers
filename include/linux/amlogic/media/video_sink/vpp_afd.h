@@ -60,9 +60,11 @@ struct afd_in_param {
 	unsigned int screen_w;
 	unsigned int screen_h;
 	enum E_AFD_SOURCE_TYPE_T source_type;
-	enum E_AFD_CROP_T crop_type;
+	enum E_AFD_CROP_T user_crop_type;
 	u32 afd_info;
 	struct crop_rect_s src_crop;
+	struct crop_rect_s user_crop;
+	u32 select_mode;
 	struct pos_rect_s disp_info;
 	struct ar_fraction_s video_ar;
 	struct ar_fraction_s screen_ar;

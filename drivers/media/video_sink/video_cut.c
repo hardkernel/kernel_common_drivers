@@ -7868,6 +7868,16 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 			layer_info->mirror);
 		len += sprintf(buf + len, "reverse: %s\n",
 			layer_info->reverse ? "true" : "false");
+		len += sprintf(buf + len, "src_crop_valid: %s\n",
+			is_src_crop_valid(layer_info->src_crop) ? "true" : "false");
+		len += sprintf(buf + len, "src_crop_top:%d\n",
+			layer_info->src_crop.top);
+		len += sprintf(buf + len, "src_crop_left:%d\n",
+			layer_info->src_crop.left);
+		len += sprintf(buf + len, "src_crop_bottom:%d\n",
+			layer_info->src_crop.bottom);
+		len += sprintf(buf + len, "src_crop_right:%d\n",
+			layer_info->src_crop.right);
 		if (layer_info->afd_enable) {
 			len += sprintf(buf + len, "afd: enable\n");
 			len += sprintf(buf + len, "afd_pos: %d %d %d %d\n",
@@ -8917,6 +8927,44 @@ ssize_t line_n_num_store(const struct class *cla, const struct class_attribute *
 	return count;
 }
 
+static ssize_t crop_select_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	static const char * const select_mode_str[] = {
+		"default", "source only"
+	};
+
+	if (crop_select_mode < ARRAY_SIZE(select_mode_str)) {
+		return sprintf(buf, "%d:%s\n",
+			crop_select_mode,
+			select_mode_str[crop_select_mode]);
+	} else {
+		return sprintf(buf, "NA\n");
+	}
+}
+
+static ssize_t crop_select_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned long mode;
+	int ret = 0;
+
+	ret = kstrtoul(buf, 0, (unsigned long *)&mode);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (mode < CROP_SEL_MAX &&
+	    mode != crop_select_mode) {
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("crop_select_mode sysfs:%d->%ld %s\n",
+				crop_select_mode, mode, current->comm);
+		crop_select_mode = mode;
+		vd_layer[0].property_changed = true;
+	}
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -9314,6 +9362,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		line_n_num_show,
 		line_n_num_store),
+	__ATTR(crop_select,
+		0664,
+		crop_select_show,
+		crop_select_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

@@ -6605,8 +6605,12 @@ static bool is_vframe_changed
 		return true;
 	if (cur_vf && new_vf &&
 	    (((cur_vf->type & VIDTYPE_COMPRESS) &&
-	      (cur_vf->compWidth != new_vf->compWidth ||
-	       cur_vf->compHeight != new_vf->compHeight)) ||
+	      ((cur_vf->compWidth != new_vf->compWidth ||
+	       cur_vf->compHeight != new_vf->compHeight) ||
+	       (cur_vf->flag & VFRAME_FLAG_COMPOSER_DONE) !=
+	       (new_vf->flag & VFRAME_FLAG_COMPOSER_DONE))) ||
+	    (cur_vf->flag & VFRAME_FLAG_FIX_TUNNEL) !=
+	    (new_vf->flag & VFRAME_FLAG_FIX_TUNNEL) ||
 	    (cur_vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) !=
 	    (new_vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ||
 	     cur_vf->bufWidth != new_vf->bufWidth ||
@@ -6621,7 +6625,17 @@ static bool is_vframe_changed
 	     cur_vf->ratio_control != new_vf->ratio_control ||
 	     ((cur_vf->type_backup & VIDTYPE_INTERLACE) !=
 	      (new_vf->type_backup & VIDTYPE_INTERLACE)) ||
-	     cur_vf->type != new_vf->type))
+	     cur_vf->type != new_vf->type ||
+	     ((is_src_crop_valid(cur_vf->src_crop) &&
+	     is_src_crop_valid(new_vf->src_crop) &&
+	     (cur_vf->src_crop.top != new_vf->src_crop.top ||
+	     cur_vf->src_crop.left != new_vf->src_crop.left ||
+	     cur_vf->src_crop.bottom != new_vf->src_crop.bottom ||
+	     cur_vf->src_crop.right != new_vf->src_crop.right)) ||
+	     (is_src_crop_valid(cur_vf->src_crop) &&
+	     !is_src_crop_valid(new_vf->src_crop)) ||
+	     (!is_src_crop_valid(cur_vf->src_crop) &&
+	     is_src_crop_valid(new_vf->src_crop)))))
 		return true;
 
 	if (cur_vf && new_vf) {
@@ -7036,8 +7050,7 @@ u32 *get_canvase_tbl(u8 layer_id)
 }
 
 static int update_afd_param(u8 id,
-	struct vframe_s *vf,
-	const struct vinfo_s *vinfo)
+	struct vframe_s *vf, const struct vinfo_s *vinfo, u32 crop_mode)
 {
 	struct afd_in_param in_p;
 	struct afd_out_param out_p;
@@ -7095,6 +7108,41 @@ static int update_afd_param(u8 id,
 		in_p.ud_param = (void *)&vf->vf_ud_param.ud_param;
 		in_p.ud_param_size = vf->vf_ud_param.ud_param.buf_len; /* data_size? */
 	}
+
+	/* porting from roku project */
+	in_p.user_crop_type = AFD_CROP_INVALID;
+	/* CROP_SEL_DEF or CROP_SEL_SRC without src_crop*/
+	if (crop_mode == CROP_SEL_DEF) {
+		if (vf->ratio_control & DISP_RATIO_ADAPTED_PICMODE) {
+			in_p.user_crop.top = vf->pic_mode.vs;
+			in_p.user_crop.bottom = vf->pic_mode.ve;
+			in_p.user_crop.left = vf->pic_mode.hs;
+			in_p.user_crop.right = vf->pic_mode.he;
+			in_p.user_crop_type = AFD_CROP_DB;
+		} else {
+			in_p.user_crop.top = layer_info->crop_top;
+			in_p.user_crop.bottom = layer_info->crop_bottom;
+			in_p.user_crop.left = layer_info->crop_left;
+			in_p.user_crop.right = layer_info->crop_right;
+			in_p.user_crop_type = AFD_CROP_SYSFS;
+		}
+	}
+	if (is_src_crop_valid(vf->src_crop)) {
+		if (vf->type & VIDTYPE_COMPRESS) {
+			in_p.src_crop.top = vf->src_crop.top;
+			in_p.src_crop.left = vf->src_crop.left;
+			in_p.src_crop.bottom = vf->src_crop.bottom;
+			in_p.src_crop.right = vf->src_crop.right;
+		} else {
+			in_p.src_crop.top = vf->src_crop.top;
+			in_p.src_crop.left = vf->src_crop.left;
+		}
+	}
+
+	if (crop_mode < CROP_SEL_MAX)
+		in_p.select_mode = crop_mode;
+	else
+		in_p.select_mode = CROP_SEL_DEF;
 
 	in_p.disp_info.x_start = layer_info->layer_left;
 	in_p.disp_info.x_end =
@@ -7397,6 +7445,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	bool is_mvc = false;
 	u8 layer_id;
 	struct vframe_s *vf_ext = NULL;
+	u32 cur_crop_select = crop_select_mode;
 
 	if (!vf)
 		return vppfilter_fail;
@@ -7427,7 +7476,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	}
 
 	if (is_afd_available(layer_id)) {
-		if (update_afd_param(layer_id, vf, vinfo) > 0)
+		if (update_afd_param(layer_id, vf, vinfo, cur_crop_select) > 0)
 			layer->property_changed = true;
 	}
 
@@ -7558,6 +7607,9 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		//glayer_info[layer_id].mirror = mirror;
 		glayer_info[layer_id].proc_3d_type =
 			process_3d_type;
+		memcpy(&glayer_info[layer_id].src_crop, &vf->src_crop,
+			sizeof(struct src_crop_s));
+		glayer_info[layer_id].select_mode = cur_crop_select;
 
 		if (layer->force_switch_mode == 1)
 			op_flag |= OP_FORCE_SWITCH_VF;

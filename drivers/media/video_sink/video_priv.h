@@ -1114,6 +1114,9 @@ extern u32 reference_zorder;
 extern u32 pi_enable;
 extern int aisr_demo_types[3];
 extern int aisr_demo_win;
+extern u32 crop_select_mode;
+
+bool is_crop_from_vf(u32 s_type);
 bool black_threshold_check(u8 id);
 bool black_threshold_check_s5(u8 id);
 extern atomic_t primary_src_fmt;

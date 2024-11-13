@@ -1656,8 +1656,6 @@ static int vpp_set_filters_internal
 	s32 vpp_zoom_center_x, vpp_zoom_center_y;
 	u32 crop_ratio = 1;
 	u32 crop_left, crop_right, crop_top, crop_bottom;
-	s32 src_crop_top = 0, src_crop_left = 0;
-	s32 src_crop_right = 0, src_crop_bottom = 0;
 	u32 sar_width = 0, sar_height = 0;
 	bool ext_sar = false;
 	bool no_compress = false;
@@ -1669,7 +1667,6 @@ static int vpp_set_filters_internal
 	bool afbc_support;
 	bool crop_adjust = false;
 	bool hskip_adjust = false;
-	bool src_crop_adjust = false;
 	bool force_dw = false, force_skip_update = false;
 	bool force_skip_adj = false;
 	u32 force_vskip_cnt = 0, force_hskip_cnt = 0, slice_num = 0;
@@ -1749,6 +1746,7 @@ static int vpp_set_filters_internal
 		video_source_crop_right = input->crop_right;
 		video_source_crop_top = input->crop_top;
 		video_source_crop_bottom = input->crop_bottom;
+
 		if (video_source_crop_left < 0)
 			video_source_crop_left = 0;
 		if (video_source_crop_right < 0)
@@ -1758,30 +1756,40 @@ static int vpp_set_filters_internal
 		if (video_source_crop_bottom < 0)
 			video_source_crop_bottom = 0;
 
-		if (is_src_crop_valid(vf->src_crop)) {
-			if (cur_super_debug)
-				pr_info("%s:vf src crop(%d/%d/%d/%d)\n", __func__,
-					vf->src_crop.top, vf->src_crop.left,
-					vf->src_crop.bottom, vf->src_crop.right);
-			if (vf->type_original & VIDTYPE_COMPRESS) {
-				src_crop_top = vf->src_crop.top;
-				src_crop_left = vf->src_crop.left;
-				src_crop_bottom = vf->src_crop.bottom;
-				src_crop_right = vf->src_crop.right;
-			} else {
-				src_crop_top = vf->src_crop.top;
-				src_crop_left = vf->src_crop.left;
+		/* AFD calculation will apply all crop parameters */
+		/* Only apply other crop parameters under non-AFD case */
+		/* apply src crop and user crop together */
+		if (!(vpp_flags & VPP_FLAG_FORCE_NO_SRC_CROP)) {
+			s32 src_crop_top = 0, src_crop_left = 0;
+			s32 src_crop_right = 0, src_crop_bottom = 0;
+
+			if (is_src_crop_valid(input->src_crop)) {
+				if (cur_super_debug)
+					pr_info("%s:vf src crop(%d/%d/%d/%d)\n", __func__,
+						vf->src_crop.top, vf->src_crop.left,
+						vf->src_crop.bottom, vf->src_crop.right);
+				if (vf->type & VIDTYPE_COMPRESS) {
+					src_crop_top = vf->src_crop.top;
+					src_crop_left = vf->src_crop.left;
+					src_crop_bottom = vf->src_crop.bottom;
+					src_crop_right = vf->src_crop.right;
+				} else {
+					src_crop_top = vf->src_crop.top;
+					src_crop_left = vf->src_crop.left;
+				}
 			}
+			video_source_crop_top += src_crop_top;
+			video_source_crop_left += src_crop_left;
+			video_source_crop_bottom += src_crop_bottom;
+			video_source_crop_right += src_crop_right;
 		}
-		video_source_crop_top =
-			max(video_source_crop_top, src_crop_top);
-		video_source_crop_left =
-			max(video_source_crop_left, src_crop_left);
-		video_source_crop_bottom =
-			max(video_source_crop_bottom, src_crop_bottom);
-		video_source_crop_right =
-			max(video_source_crop_right, src_crop_right);
+		if (cur_super_debug)
+			pr_info("%s:line=%d, video_source_crop(%d/%d/%d/%d)\n",
+				__func__, __LINE__,
+				video_source_crop_top, video_source_crop_left,
+				video_source_crop_bottom, video_source_crop_right);
 	}
+
 	next_frame_par->crop_top = 0;
 	next_frame_par->crop_bottom = 0;
 	next_frame_par->crop_top_adjust = 0;
@@ -1876,26 +1884,12 @@ RESTART_ALL:
 		}
 	}
 	#endif
-	if (src_crop_adjust) {
-		w_in = width_in - src_crop_right;
-		h_in = height_in - src_crop_bottom;
-		crop_left = 0;
-		crop_right = 0;
-		crop_top = 0;
-		crop_bottom = 0;
-		if (cur_super_debug)
-			pr_info("%s:org src(%d, %d), adj src(%d, %d), vf crop: %d, %d\n",
-				__func__, width_in, height_in,
-				w_in, h_in,
-				src_crop_right, src_crop_bottom);
-	} else {
-		if (cur_super_debug)
-			pr_info("%s:w_in/h_in(%d, %d), crop: %d, %d, %d, %d\n",
-				__func__,
-				w_in, h_in,
-				crop_left, crop_right,
-				crop_top, crop_bottom);
-	}
+	if (cur_super_debug)
+		pr_info("%s:w_in/h_in(%d, %d), crop: %d, %d, %d, %d\n",
+			__func__,
+			w_in, h_in,
+			crop_left, crop_right,
+			crop_top, crop_bottom);
 
 	if (is_amdv_on()) {
 		int w_temp;
@@ -2761,6 +2755,7 @@ RESTART:
 			video_layer_left >>= 1;
 			video_layer_top >>= 1;
 		}
+		/* TODO: re-calc src_crop value for dw buffer */
 		goto RESTART_ALL;
 	}
 
@@ -5030,12 +5025,10 @@ static int vpp_set_filters_no_scaler_internal
 	int ret = vppfilter_success;
 	u32 crop_ratio = 1;
 	u32 crop_left, crop_right, crop_top, crop_bottom;
-	u32 src_crop_right, src_crop_bottom;
 	bool no_compress = false;
 	u32 cur_super_debug = 0;
 	bool afbc_support;
 	bool hskip_adjust = false;
-	bool src_crop_adjust = false;
 	bool is_comb_mode = false;
 	bool force_dw = false;
 	u32 src_width_max, src_height_max;
@@ -5086,6 +5079,19 @@ static int vpp_set_filters_no_scaler_internal
 	if (video_source_crop_bottom < 0)
 		video_source_crop_bottom = 0;
 
+	if (!(vpp_flags & VPP_FLAG_FORCE_NO_SRC_CROP)) {
+		if (is_src_crop_valid(input->src_crop)) {
+			if (vf->type & VIDTYPE_COMPRESS) {
+				video_source_crop_top += vf->src_crop.top;
+				video_source_crop_left += vf->src_crop.left;
+				video_source_crop_bottom += vf->src_crop.bottom;
+				video_source_crop_right += vf->src_crop.right;
+			} else {
+				video_source_crop_top += vf->src_crop.top;
+				video_source_crop_left += vf->src_crop.left;
+			}
+		}
+	}
 	next_frame_par->vscale_skip_count = 0;
 	next_frame_par->hscale_skip_count = 0;
 	next_frame_par->nocomp = false;
@@ -5105,11 +5111,6 @@ RESTART_ALL:
 	crop_right = video_source_crop_right / crop_ratio;
 	crop_top = video_source_crop_top / crop_ratio;
 	crop_bottom = video_source_crop_bottom / crop_ratio;
-
-	if (src_crop_adjust) {
-		w_in = width_in - src_crop_right;
-		h_in = height_in - src_crop_bottom;
-	}
 
 	if (likely(w_in >
 		(crop_left + crop_right)) &&
@@ -5497,16 +5498,6 @@ RESTART:
 		if (vf->width && vf->compWidth)
 			crop_ratio = vf->compWidth / vf->width;
 		goto RESTART_ALL;
-	} else {
-		if (vf->type & VIDTYPE_COMPRESS &&
-			is_src_crop_valid(vf->src_crop) &&
-			!src_crop_adjust) {
-			/* src crop top/left will always be 0 */
-			src_crop_bottom = vf->src_crop.bottom;
-			src_crop_right = vf->src_crop.right;
-			src_crop_adjust = true;
-			goto RESTART_ALL;
-		}
 	}
 
 	if ((skip_policy & 0xf0) && skip_policy_check) {
@@ -5731,7 +5722,16 @@ RERTY:
 	if (!local_input.pps_support)
 		wide_mode = VIDEO_WIDEOPTION_NORMAL;
 
-	if (local_input.afd_enable && !(disable_adapted & DISABLE_ADAPTIVE_AR)) {
+	if ((vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
+		(vf->flag & VFRAME_FLAG_FIX_TUNNEL)) {
+		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		local_input.crop_top = vf->crop[0];
+		local_input.crop_left = vf->crop[1];
+		local_input.crop_bottom = vf->crop[2];
+		local_input.crop_right = vf->crop[3];
+		vpp_flags |= VPP_FLAG_FORCE_NO_SRC_CROP;
+	} else if (local_input.afd_enable &&
+		!(disable_adapted & DISABLE_ADAPTIVE_AR)) {
 		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		local_input.crop_top = local_input.afd_crop.top;
 		local_input.crop_left = local_input.afd_crop.left;
@@ -5756,16 +5756,13 @@ RERTY:
 				local_input.afd_crop.left,
 				local_input.afd_crop.bottom,
 				local_input.afd_crop.right);
-		vpp_flags |= VPP_FLAG_FORCE_AFD_ENABLE;
-	}
-
-	if ((vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
-		(vf->flag & VFRAME_FLAG_FIX_TUNNEL)) {
-		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
-		local_input.crop_top = vf->crop[0];
-		local_input.crop_left = vf->crop[1];
-		local_input.crop_bottom = vf->crop[2];
-		local_input.crop_right = vf->crop[3];
+		vpp_flags |= VPP_FLAG_FORCE_NO_SRC_CROP;
+	} else if (local_input.select_mode == CROP_SEL_SRC) {
+		/* when CROP_SEL_SRC and src crop valid set crop 0 */
+		local_input.crop_top = 0;
+		local_input.crop_left = 0;
+		local_input.crop_bottom = 0;
+		local_input.crop_right = 0;
 	}
 
 	if (local_input.layer_left == 0 &&
