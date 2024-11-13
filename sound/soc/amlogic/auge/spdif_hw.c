@@ -52,41 +52,84 @@ void aml_spdif_enable(struct aml_audio_controller *actrl,
 	}
 }
 
-int aml_spdif_out_get_mute(struct aml_audio_controller *actrl, int index)
+int aml_spdif_out_get_mute(struct aml_audio_controller *actrl, int index, int gain_ver)
 {
 	unsigned int offset, reg;
+	bool mute, gain_mute = false;
 
 	offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
 	reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
-	return !!(aml_audiobus_read(actrl, reg) & (0x3 << 21));
+	mute = !!(aml_audiobus_read(actrl, reg) & (0x3 << 21));
+
+	if (gain_ver == GAIN_VER3) {
+		/* gain enable is mute state */
+		offset = EE_AUDIO_SPDIFOUT_B_GAIN_EN - EE_AUDIO_SPDIFOUT_GAIN_EN;
+		reg = EE_AUDIO_SPDIFOUT_GAIN_EN + offset * index;
+		gain_mute = !!(aml_audiobus_read(actrl, reg) & 0xf);
+	}
+
+	return mute || gain_mute;
 }
 
 /* only mute reg, keep get data from frddr */
 void aml_spdif_out_mute(struct aml_audio_controller *actrl,
-	int index, bool is_mute)
+	int index, bool is_mute, int gain_ver)
 {
-	int mute_lr = 0;
 	unsigned int offset, reg;
 
-	if (is_mute)
-		mute_lr = 0x3;
+	if (gain_ver == GAIN_VER3) {
+		unsigned int offset1, reg1;
 
-	offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
-	reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
+		offset = EE_AUDIO_SPDIFOUT_B_GAIN_EN - EE_AUDIO_SPDIFOUT_GAIN_EN;
+		reg = EE_AUDIO_SPDIFOUT_GAIN_EN + offset * index;
 
-	aml_audiobus_update_bits(actrl, reg, 0x3 << 21, mute_lr << 21);
+		offset1 = EE_AUDIO_SPDIFOUT_B_GAIN0 - EE_AUDIO_SPDIFOUT_GAIN0;
+		reg1 = EE_AUDIO_SPDIFOUT_GAIN0 + offset * index;
+
+		if (is_mute) {
+			/* set gain enable 1, and gain value 0 */
+			aml_audiobus_write(actrl, reg, 0xf);
+			aml_audiobus_write(actrl, reg1, 0);
+		} else {
+			/* set gain enable 0 gain value 255 */
+			aml_audiobus_write(actrl, reg, 0);
+			aml_audiobus_write(actrl, reg1, 0xffffffff);
+		}
+	} else {
+		int mute_lr = 0;
+
+		if (is_mute)
+			mute_lr = 0x3;
+
+		offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
+		reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
+
+		aml_audiobus_update_bits(actrl, reg, 0x3 << 21, mute_lr << 21);
+	}
 }
 
 /* for stream trigger, need stop get data from frddr,
  * otherwise, it will channel swap from tdm 8 channels.
  */
-void aml_spdifout_mute_without_actrl(int index, bool start, bool is_mute)
+void aml_spdifout_mute_without_actrl(int index, bool start, bool is_mute, int gain_ver)
 {
 	unsigned int offset, reg;
 	int mute_lr = 0;
 
-	if (is_mute)
+	if (is_mute) {
 		mute_lr = 0x3;
+	} else {
+		if (gain_ver == GAIN_VER3) {
+			/* unmute case, set gain enable 0 and gain value as 255 */
+			offset = EE_AUDIO_SPDIFOUT_B_GAIN_EN - EE_AUDIO_SPDIFOUT_GAIN_EN;
+			reg = EE_AUDIO_SPDIFOUT_GAIN_EN + offset * index;
+			audiobus_write(reg, 0);
+
+			offset = EE_AUDIO_SPDIFOUT_B_GAIN0 - EE_AUDIO_SPDIFOUT_GAIN0;
+			reg = EE_AUDIO_SPDIFOUT_GAIN0 + offset * index;
+			audiobus_write(reg, 0xffffffff);
+		}
+	}
 
 	offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
 	reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;

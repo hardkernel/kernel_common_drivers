@@ -3,6 +3,12 @@
 #ifndef __AML_REGS_H_
 #define __AML_REGS_H_
 
+enum {
+	GAIN_VER1 = 1,
+	GAIN_VER2 = 2,
+	GAIN_VER3 = 3,
+};
+
 enum clk_sel {
 	MASTER_A,
 	MASTER_B,
@@ -689,6 +695,10 @@ struct register_table {
 #define EE_AUDIO_SPDIFOUT_B_CHSTSA         0x1b1
 #define EE_AUDIO_SPDIFOUT_B_CHSTSB         0x1b2
 #define EE_AUDIO_SPDIFOUT_B_MUTE_VAL       0x1b3
+#define EE_AUDIO_SPDIFOUT_B_GAIN2          0x1b4
+#define EE_AUDIO_SPDIFOUT_B_GAIN3          0x1b5
+#define EE_AUDIO_SPDIFOUT_B_GAIN_EN        0x1b6
+#define EE_AUDIO_SPDIFOUT_B_GAIN_CTRL      0x1b7
 
 /*
  *	AUDIO LOCKER

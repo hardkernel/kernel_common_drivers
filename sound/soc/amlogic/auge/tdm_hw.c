@@ -10,7 +10,6 @@
 
 #include "tdm_hw.h"
 #include "iomap.h"
-#include "tdm_gain_version.h"
 #include <linux/amlogic/media/registers/cpu_version.h>
 
 #define MST_CLK_INVERT_PH0_PAD_BCLK       BIT(0)
