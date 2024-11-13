@@ -20,6 +20,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/arm-smccc.h>
+#include <linux/amlogic/secure_pwm_i2c.h>
 #endif
 
 /* Meson I2C register map */
@@ -44,7 +46,6 @@
 #define REG_CTRL_CLKDIVEXT_SHIFT 28
 #define REG_CTRL_CLKDIVEXT_MASK	GENMASK(29, 28)
 #ifdef CONFIG_AMLOGIC_MODIFY
-#define REG_FULL_MASK		GENMASK(31, 0)
 /* keep the same with I2C_TIMEOUT_MS */
 #define MESON_I2C_PM_TIMEOUT	500
 #define	DIV_FACTOR		3
@@ -67,6 +68,11 @@ enum {
 	STATE_IDLE,
 	STATE_READ,
 	STATE_WRITE,
+};
+
+struct meson_i2c_data {
+	bool tee;
+	u32 tee_id;
 };
 
 /**
@@ -111,8 +117,21 @@ struct meson_i2c {
 	unsigned int		frequency;
 	int retain_fastmode;
 	int irq;
+	bool is_runtime_sleep;
 #endif
+	struct meson_i2c_data		*data;
 };
+
+static void meson_i2c_writel(struct meson_i2c *i2c, u32 data, int reg)
+{
+	struct arm_smccc_res res;
+
+	if (i2c->data->tee)
+		arm_smccc_smc(SECURE_PWM_I2C, SECID_I2C, i2c->data->tee_id,
+			reg, data, 0, 0, 0, &res);
+	else
+		writel(data, i2c->regs + reg);
+}
 
 static void meson_i2c_set_mask(struct meson_i2c *i2c, int reg, u32 mask,
 			       u32 val)
@@ -122,7 +141,7 @@ static void meson_i2c_set_mask(struct meson_i2c *i2c, int reg, u32 mask,
 	data = readl(i2c->regs + reg);
 	data &= ~mask;
 	data |= val & mask;
-	writel(data, i2c->regs + reg);
+	meson_i2c_writel(i2c, data, reg);
 }
 
 static void meson_i2c_reset_tokens(struct meson_i2c *i2c)
@@ -303,8 +322,8 @@ static void meson_i2c_put_data(struct meson_i2c *i2c, char *buf, int len)
 	for (i = 4; i < min(8, len); i++)
 		wdata1 |= *buf++ << ((i - 4) * 8);
 
-	writel(wdata0, i2c->regs + REG_TOK_WDATA0);
-	writel(wdata1, i2c->regs + REG_TOK_WDATA1);
+	meson_i2c_writel(i2c, wdata0, REG_TOK_WDATA0);
+	meson_i2c_writel(i2c, wdata1, REG_TOK_WDATA1);
 
 	dev_dbg(i2c->dev, "%s: data %08x %08x len %d\n", __func__,
 		wdata0, wdata1, len);
@@ -332,9 +351,8 @@ static void meson_i2c_prepare_xfer(struct meson_i2c *i2c)
 
 	if (i2c->last && i2c->pos + i2c->count >= i2c->msg->len)
 		meson_i2c_add_token(i2c, TOKEN_STOP);
-
-	writel(i2c->tokens[0], i2c->regs + REG_TOK_LIST0);
-	writel(i2c->tokens[1], i2c->regs + REG_TOK_LIST1);
+	meson_i2c_writel(i2c, i2c->tokens[0], REG_TOK_LIST0);
+	meson_i2c_writel(i2c, i2c->tokens[1], REG_TOK_LIST1);
 }
 
 static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
@@ -401,7 +419,7 @@ static void meson_i2c_do_start(struct meson_i2c *i2c, struct i2c_msg *msg)
 	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, GENMASK(7, 0),
 			   (unsigned int)((msg->addr << 1) & GENMASK(7, 0)));
 #else
-	writel(msg->addr << 1, i2c->regs + REG_SLAVE_ADDR);
+	meson_i2c_writel(i2c, msg->addr << 1, REG_SLAVE_ADDR);
 #endif
 	meson_i2c_add_token(i2c, TOKEN_START);
 	meson_i2c_add_token(i2c, token);
@@ -419,14 +437,6 @@ static int meson_i2c_xfer_msg(struct meson_i2c *i2c, struct i2c_msg *msg,
 	i2c->count = 0;
 	i2c->error = 0;
 
-	if ((readl(i2c->regs + REG_CTRL) & REG_SCL_LEVEL) == 0 &&
-		(readl(i2c->regs + REG_CTRL) & REG_SDA_LEVEL) == 0) {
-		/*
-		 * I2C bus is error
-		 */
-		dev_dbg(i2c->dev, "I2C BUS is Error, No pull up register\n");
-		return -ENXIO;
-	}
 	meson_i2c_reset_tokens(i2c);
 
 	flags = (msg->flags & I2C_M_IGNORE_NAK) ? REG_CTRL_ACK_IGNORE : 0;
@@ -478,8 +488,18 @@ static int meson_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	ret = pm_runtime_get_sync(i2c->dev);
 	if (ret < 0)
 		goto out;
-	meson_i2c_set_clk_div(i2c);
+#else
+	clk_enable(i2c->clk);
 #endif
+	if ((readl(i2c->regs + REG_CTRL) & REG_SCL_LEVEL) == 0 &&
+		(readl(i2c->regs + REG_CTRL) & REG_SDA_LEVEL) == 0) {
+		/*
+		 * I2C bus is error
+		 */
+		dev_dbg(i2c->dev, "I2C BUS is Error, No pull up register\n");
+		return -ENXIO;
+	}
+
 	for (i = 0; i < num; i++) {
 		ret = meson_i2c_xfer_msg(i2c, msgs + i, i == num - 1);
 		if (ret)
@@ -548,11 +568,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	struct meson_i2c *i2c;
 	struct resource *mem;
 	struct i2c_timings timings;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	int irq, ret, i = 0;
-#else
 	int irq, ret = 0;
-#endif
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct meson_i2c), GFP_KERNEL);
 	if (!i2c)
@@ -564,6 +580,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 
 	if (fwnode_property_present(&np->fwnode, "retain-fast-mode"))
 		i2c->retain_fastmode = 1;
+	i2c->data = (struct meson_i2c_data *)of_device_get_match_data(&pdev->dev);
 #endif
 	i2c->dev = &pdev->dev;
 	platform_set_drvdata(pdev, i2c);
@@ -580,6 +597,15 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	i2c->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(i2c->regs))
 		return PTR_ERR(i2c->regs);
+	if (i2c->data->tee) {
+		/* get i2c tee_id property */
+		ret = of_property_read_u32(pdev->dev.of_node, "tee_id",
+				   &i2c->data->tee_id);
+		if (ret) {
+			dev_err(&pdev->dev, "not config tee_id\n");
+			return ret;
+		}
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -623,14 +649,6 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		pm_runtime_disable(i2c->dev);
 		return ret;
 	}
-	/*
-	 * When the i2c controller has been used in U-boot, it may affect
-	 * kernel i2c driver
-	 * should instead of reset i2c controller later.
-	 * only reset divider related registers.
-	 */
-	for (i = 0; i < 1; i++)
-		meson_i2c_set_mask(i2c, REG_CTRL + 4 * i, REG_FULL_MASK, 0);
 
 	/* speed sysfs */
 	ret = meson_i2c_speed_debug(&pdev->dev);
@@ -647,13 +665,6 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	 * Ensure that the bit is set to 0 after probe
 	 */
 	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START, 0);
-
-	ret = i2c_add_adapter(&i2c->adap);
-	if (ret < 0) {
-		clk_unprepare(i2c->clk);
-		return ret;
-	}
-
 #ifdef CONFIG_AMLOGIC_MODIFY
 	meson_i2c_set_clk_div(i2c);
 	pm_runtime_mark_last_busy(i2c->dev);
@@ -661,6 +672,13 @@ static int meson_i2c_probe(struct platform_device *pdev)
 #else
 	meson_i2c_set_clk_div(i2c, timings.bus_freq_hz);
 #endif
+	ret = i2c_add_adapter(&i2c->adap);
+	if (ret < 0) {
+#ifndef CONFIG_AMLOGIC_MODIFY
+		clk_unprepare(i2c->clk);
+#endif
+		return ret;
+	}
 
 	return 0;
 }
@@ -680,6 +698,7 @@ static void meson_i2c_remove(struct platform_device *pdev)
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
 }
 #else
 static void meson_i2c_remove(struct platform_device *pdev)
@@ -691,55 +710,113 @@ static void meson_i2c_remove(struct platform_device *pdev)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static int __maybe_unused meson_i2c_runtime_suspend(struct device *dev)
+static int meson_i2c_put(struct meson_i2c *i2c)
 {
-	struct meson_i2c *i2c = (struct meson_i2c *)dev_get_drvdata(dev);
-
 	disable_irq(i2c->irq);
-	pinctrl_pm_select_sleep_state(dev);
-	clk_disable(i2c->clk);
-	clk_unprepare(i2c->clk);
+	pinctrl_pm_select_sleep_state(i2c->dev);
+	clk_disable_unprepare(i2c->clk);
 
 	return 0;
 }
 
-static int __maybe_unused meson_i2c_runtime_resume(struct device *dev)
+static int meson_i2c_regain(struct meson_i2c *i2c)
 {
-	struct meson_i2c *i2c = (struct meson_i2c *)dev_get_drvdata(dev);
-	int ret, i;
+	int ret;
 
-	ret = clk_prepare(i2c->clk);
+	ret = clk_prepare_enable(i2c->clk);
 	if (ret < 0) {
-		dev_err(dev, "can not prepare clock\n");
+		dev_err(i2c->dev, "can not enable clock\n");
 		return ret;
 	}
-	ret = clk_enable(i2c->clk);
-	if (ret < 0) {
-		dev_err(dev, "can not enable clock\n");
-		return ret;
-	}
-	pinctrl_pm_select_default_state(dev);
+	pinctrl_pm_select_default_state(i2c->dev);
 	enable_irq(i2c->irq);
 
-	/*
-	 * i2c power domain may off, init i2c work clock again
-	 * it is better to init again the controller here.
-	 */
-	for (i = 0; i < 1; i++)
-		meson_i2c_set_mask(i2c, REG_CTRL + 4 * i, REG_FULL_MASK, 0);
-
 	return 0;
+}
+
+#ifdef CONFIG_HIBERNATION
+static int meson_i2c_freeze(struct device *dev)
+{
+	int ret;
+	struct meson_i2c *i2c = (struct meson_i2c *)dev_get_drvdata(dev);
+
+	if (i2c->is_runtime_sleep)
+		return 0;
+	ret = meson_i2c_put(i2c);
+
+	return ret;
+}
+
+static int meson_i2c_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int meson_i2c_restore(struct device *dev)
+{
+	int ret;
+	struct meson_i2c *i2c = (struct meson_i2c *)dev_get_drvdata(dev);
+
+	if (i2c->is_runtime_sleep)
+		return 0;
+	ret = meson_i2c_regain(i2c);
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START, 0);
+	meson_i2c_set_clk_div(i2c);
+
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int __maybe_unused meson_i2c_runtime_suspend(struct device *dev)
+{
+	int ret;
+	struct meson_i2c *i2c = (struct meson_i2c *)dev_get_drvdata(dev);
+
+	ret = meson_i2c_put(i2c);
+	i2c->is_runtime_sleep = true;
+
+	return ret;
+}
+
+static int __maybe_unused meson_i2c_runtime_resume(struct device *dev)
+{
+	int ret;
+	struct meson_i2c *i2c = (struct meson_i2c *)dev_get_drvdata(dev);
+
+	ret = meson_i2c_regain(i2c);
+	i2c->is_runtime_sleep = false;
+
+	return ret;
 }
 
 static const struct dev_pm_ops meson_i2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(meson_i2c_runtime_suspend,
 			   meson_i2c_runtime_resume, NULL)
+#ifdef CONFIG_HIBERNATION
+	.freeze		= meson_i2c_freeze,
+	.thaw		= meson_i2c_thaw,
+	.restore	= meson_i2c_restore,
+#endif
 };
 #endif
 
+static struct meson_i2c_data i2c_tee_data = {
+	.tee = true,
+};
+
+static struct meson_i2c_data i2c_normal_data = {
+	.tee = false,
+};
+
 static const struct of_device_id meson_i2c_match[] = {
-	{ .compatible = "amlogic,meson-i2c" },
+	{	.compatible = "amlogic,meson-i2c",
+		.data = &i2c_normal_data
+	},
+	{
+		.compatible = "amlogic,meson-tee-i2c",
+		.data = &i2c_tee_data
+	},
 	{},
 };
 
