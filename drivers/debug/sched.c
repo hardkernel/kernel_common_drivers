@@ -25,11 +25,13 @@
 #include <linux/sched/cputime.h>
 #include <linux/sched/sysctl.h>
 #include <sched.h>
+#include <linux/sched/topology.h>
 
 #include <trace/hooks/sched.h>
 #include <trace/hooks/dtask.h>
 #include <trace/events/sched.h>
 #include <trace/events/meson_atrace.h>
+#include "lockup.h"
 
 #define SCHED_LAST_WAKEUP_TIME     android_vendor_data1[0]
 #define SCHED_LAST_IN_CPU_TIME     android_vendor_data1[1]
@@ -470,6 +472,23 @@ static void tick_entry_hook(void *data, struct rq *rq)
 }
 #endif
 
+void rebuild_sched_flag(void)
+{
+	int cpu, old_flags;
+	struct sched_domain *sd;
+
+	for_each_possible_cpu(cpu) {
+		rcu_read_lock();
+		for_each_domain(cpu, sd) {
+			old_flags = sd->flags;
+			sd->flags &= ~SD_WAKE_AFFINE;
+			sd->flags |= (SD_BALANCE_WAKE | SD_BALANCE_NEWIDLE);
+		}
+		rcu_read_unlock();
+	}
+}
+EXPORT_SYMBOL(rebuild_sched_flag);
+
 int aml_sched_init(void)
 {
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
@@ -484,6 +503,7 @@ int aml_sched_init(void)
 	register_trace_android_rvh_tick_entry(tick_entry_hook, NULL);
 	register_trace_android_vh_sched_show_task(sched_show_task_hook, NULL);
 #endif
+	rebuild_sched_flag();
 
 	return 0;
 }

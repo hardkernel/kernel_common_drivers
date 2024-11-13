@@ -16,6 +16,7 @@ enum debug_hook_type {
 };
 
 void pr_lockup_info(int lock_cpu);
+void rebuild_sched_flag(void);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_TEST)
 extern int smc_long_debug;
