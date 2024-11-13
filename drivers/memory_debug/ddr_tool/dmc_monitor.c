@@ -38,7 +38,7 @@
 #include <asm/module.h>
 #include <linux/mmzone.h>
 #include <trace/hooks/traps.h>
-#include <linux/amlogic/dmc_dev_access.h>
+#include <linux/amlogic/aml_ddr_tool.h>
 #include <linux/sched/cputime.h>
 #include <linux/sched/clock.h>
 #include <linux/string.h>
@@ -47,16 +47,16 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.5"
+#define DMC_VERSION		"1.8.1"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
 
 #define DMC_RATELIMIT_BURST	30
-#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, lru, trace, time, rw, title, rs)	\
-({															\
-	if (__ratelimit(rs))												\
-		pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, lru, trace, time, rw, title);	\
+#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title, rs)	\
+({														\
+	if (__ratelimit(rs))											\
+		pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title);	\
 })
 
 struct dmc_monitor *dmc_mon;
@@ -104,7 +104,7 @@ static int early_dmc_param(char *buf)
 	pr_info("%s, buf:%s, %lx-%lx, %lx, %lx\n",
 		__func__, buf, s_addr, e_addr, mask, debug);
 
-	return 0;
+	return 1;
 }
 __setup("dmc_monitor=", early_dmc_param);
 
@@ -121,7 +121,7 @@ static int early_dmc_filter(char *buf)
 	snprintf(dmc_filter_early_buf, 1024, "%s", buf);
 	pr_info("dmc_filter, buf:%s\n", buf);
 
-	return 0;
+	return 1;
 }
 __setup("dmc_filter=", early_dmc_filter);
 
@@ -156,7 +156,7 @@ static int early_dmc_irq_thread(char *buf)
 			init_dmc_irq_thread_en, init_dmc_irq_check_ns,
 			init_dmc_irq_ratio, init_dmc_irq_usleep, init_thread_recheck_ns);
 
-	return 0;
+	return 1;
 }
 __setup("dmc_irq_thread=", early_dmc_irq_thread);
 
@@ -311,7 +311,46 @@ static unsigned long dmc_unpack_ip(struct page_trace *trace)
 #endif
 EXPORT_SYMBOL(dmc_get_page_trace);
 
-unsigned long read_violation_mem(unsigned long addr, char rw)
+void dmc_vio_check_page(void *data)
+{
+	unsigned long vio_bit = 0;
+	struct page *page;
+	struct page_trace *trace;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
+#if defined(CONFIG_ARM64) || IS_ENABLED(CONFIG_AMLOGIC_DMC_MONITOR_BREAK_GKI)
+	if (!pfn_is_map_memory(__phys_to_pfn(mon_comm->addr))) {
+#else
+	if (!pfn_valid(__phys_to_pfn(mon_comm->addr))) {
+#endif
+		mon_comm->trace.ip_data = IP_INVALID;
+		mon_comm->page_flags = 0;
+
+		if (dmc_mon->ops && dmc_mon->ops->vio_to_port)
+			dmc_mon->ops->vio_to_port(data, &vio_bit);
+
+		if (PHYS_PFN(mon_comm->addr) > get_num_physpages()) {
+			pr_crit("DMC WARNING: access out of DDR, addr:%lx, port:%s, sub:%s, rw:%c, s=%08lx\n",
+					mon_comm->addr,
+					virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
+					virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
+					mon_comm->rw,
+					mon_comm->status);
+			if (mon_comm->rw == 'w')
+				panic("DMC Trigger, write overflow ddr");
+		}
+	} else {
+		page = phys_to_page(mon_comm->addr);
+		trace = dmc_find_page_base(page);
+		if (trace)
+			mon_comm->trace = *trace;
+		else
+			mon_comm->trace.ip_data = IP_INVALID;
+		mon_comm->page_flags = page->flags & PAGEFLAGS_MASK;
+	}
+}
+
+unsigned long __no_sanitize_address read_violation_mem(unsigned long addr, char rw)
 {
 	struct page *page;
 	unsigned long *p, *q;
@@ -347,15 +386,15 @@ void show_violation_mem_printk(char *title, void *data)
 
 	static DEFINE_RATELIMIT_STATE(dmc_rs, HZ, DMC_RATELIMIT_BURST);
 
-	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d lru:%d a:%ps t:%lld rw:%c%s\n",
+	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%psi(%d) t:%lld rw:%c%s\n",
 		mon_comm->addr, read_violation_mem(mon_comm->addr, mon_comm->rw),
 		mon_comm->status,
 		virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
 		virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
 		mon_comm->page_flags,
-		mon_comm->page_flags & PAGE_FLAGS_CHECK_AT_FREE ? 1 : 0,
 		test_bit(PG_lru, &mon_comm->page_flags),
 		(void *)dmc_unpack_ip(&mon_comm->trace),
+		(&mon_comm->trace)->order,
 		mon_comm->time, mon_comm->rw, title, &dmc_rs);
 }
 
@@ -369,6 +408,7 @@ void show_violation_mem_trace_event(char *title, void *data)
 				mon_comm->status, port, sub,
 				mon_comm->rw,
 				dmc_unpack_ip(&mon_comm->trace),
+				(&mon_comm->trace)->order,
 				mon_comm->page_flags,
 				mon_comm->time);
 }
@@ -433,6 +473,7 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 	if (!port_name)
 		return NULL;
 
+	sid &= 0x1f;
 	if (strstr(port_name, "VPU")) {
 		name = vpu_to_sub_port(port_name, rw, sid, NULL);
 	} else if (strstr(port_name, "DEVICE")) {
@@ -443,7 +484,16 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 
 		for (i = 0; i < dmc_mon->port_num; i++) {
 			if (dmc_mon->port[i].port_id == s_port) {
-				name =  dmc_mon->port[i].port_name;
+				name = dmc_mon->port[i].port_name;
+				break;
+			}
+		}
+	} else if (strstr(to_ports(mid), "VGE")) {
+		s_port = sid + PORT_MAJOR * 3;
+
+		for (i = 0; i < dmc_mon->port_num; i++) {
+			if (dmc_mon->port[i].port_id == s_port) {
+				name = dmc_mon->port[i].port_name;
 				break;
 			}
 		}
@@ -809,7 +859,6 @@ static void serror_dump_dmc_reg(void)
 				pr_emerg("%.*s", offset, buf + i);
 			i += offset;
 		}
-		pr_emerg("\n");
 	}
 }
 
@@ -1449,6 +1498,11 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		mon->mon_number = 2;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_S6
+	case DMC_TYPE_S6:
+		mon->ops = &s6_dmc_mon_ops;
+		break;
+#endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_TXHD2
 	case DMC_TYPE_TXHD2:
 		mon->ops = &txhd2_dmc_mon_ops;
@@ -1464,6 +1518,17 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		mon->ops = &a4_dmc_mon_ops;
 		mon->configs |= DMC_DEVICE_8BIT;
 		mon->mon_number = 1;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_S7
+	case DMC_TYPE_S7:
+	case DMC_TYPE_S7D:
+		mon->ops = &s7_dmc_mon_ops;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_T6D
+	case DMC_TYPE_T6D:
+		mon->ops = &t6d_dmc_mon_ops;
 		break;
 #endif
 	default:
@@ -1548,7 +1613,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (res) {
 			dmc_mon->mon_comm[i].io_base = res->start;
-			dmc_mon->mon_comm[i].io_mem = ioremap(res->start, res->end - res->start);
+			dmc_mon->mon_comm[i].io_mem = ioremap(res->start, resource_size(res));
 		}
 	}
 
@@ -1558,6 +1623,10 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		dmc_mon = NULL;
 		return -EINVAL;
 	}
+
+	/* clear reg before set it */
+	if (dmc_mon->ops && dmc_mon->ops->disable)
+		dmc_mon->ops->disable(dmc_mon);
 
 	if (init_dmc_debug)
 		dmc_mon->debug = init_dmc_debug;
@@ -1584,6 +1653,16 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	register_trace_android_rvh_do_serror(do_serror, NULL);
 #endif
 #endif
+	/* clear prot vio reg */
+	for (i = 0; i < dmc_mon->mon_number; i++) {
+		if (dmc_mon->ops && dmc_mon->ops->handle_irq)
+			dmc_mon->ops->handle_irq(dmc_mon, &dmc_mon->mon_comm[i], IRQ_CLEAR);
+	}
+
+	/* check dmc sec reg*/
+	if (dmc_mon->ops && dmc_mon->ops->reg_control)
+		dmc_mon->ops->reg_control(NULL, 'c', NULL);
+	serror_dump_dmc_reg();
 
 	if (dmc_mon->debug & DMC_DEBUG_SUSPEND) {
 		if (dmc_irq_set(node, 1, 0) < 0)
@@ -1591,12 +1670,6 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	} else {
 		if (dmc_irq_set(node, 1, 1) < 0)
 			pr_emerg("request dmc irq failed\n");
-	}
-
-	if (dmc_mon->debug & DMC_DEBUG_SERROR) {
-		if (dmc_mon->ops && dmc_mon->ops->reg_control)
-			dmc_mon->ops->reg_control(NULL, 'c', NULL);
-		serror_dump_dmc_reg();
 	}
 
 	return 0;
@@ -1718,6 +1791,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 		.data = (void *)DMC_TYPE_S5,
 	},
 	{
+		.compatible = "amlogic,dmc_monitor-s6",
+		.data = (void *)DMC_TYPE_S6,
+	},
+	{
 		.compatible = "amlogic,dmc_monitor-t3x",
 		.data = (void *)DMC_TYPE_T3X,
 	},
@@ -1732,6 +1809,18 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-a5",
 		.data = (void *)DMC_TYPE_A5,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-s7",
+		.data = (void *)DMC_TYPE_S7,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-s7d",
+		.data = (void *)DMC_TYPE_S7D,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-t6d",
+		.data = (void *)DMC_TYPE_T6D,
 	},
 #endif
 	{

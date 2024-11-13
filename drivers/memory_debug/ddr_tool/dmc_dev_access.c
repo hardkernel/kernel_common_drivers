@@ -8,7 +8,14 @@
 #include <linux/slab.h>
 #include "ddr_port.h"
 #include "dmc_monitor.h"
-#include <linux/amlogic/dmc_dev_access.h>
+#include <linux/amlogic/aml_ddr_tool.h>
+
+#define MAX_NAME	15
+struct dmc_notifier_list {
+	char port_name[MAX_NAME];
+	char port_id;
+	struct list_head list;
+};
 
 static BLOCKING_NOTIFIER_HEAD(dmc_dev_access_nofitier_chain);
 static LIST_HEAD(dmc_dev_access_list);

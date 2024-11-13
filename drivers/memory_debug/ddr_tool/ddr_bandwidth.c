@@ -21,37 +21,17 @@
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 
+#include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/aml_ddr_tool.h>
 #include "ddr_bandwidth.h"
 #include "dmc.h"
 
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DDR_BW
 #include <trace/events/meson_atrace.h>
 
-static const char chann_names0[][50] = {
-	"ddr_bw ch 0 (MB/S)",
-	"ddr_bw ch 1 (MB/S)",
-	"ddr_bw ch 2 (MB/S)",
-	"ddr_bw ch 3 (MB/S)",
-	"ddr_bw ch 4 (MB/S)",
-	"ddr_bw ch 5 (MB/S)",
-	"ddr_bw ch 6 (MB/S)",
-	"ddr_bw ch 7 (MB/S)",
-};
-
-static char chann_names1[][50] = {
-	"ddr_bw0 ch 0 (MB/S)",
-	"ddr_bw0 ch 1 (MB/S)",
-	"ddr_bw0 ch 2 (MB/S)",
-	"ddr_bw0 ch 3 (MB/S)",
-	"ddr_bw0 ch 4 (MB/S)",
-	"ddr_bw0 ch 5 (MB/S)",
-	"ddr_bw0 ch 6 (MB/S)",
-	"ddr_bw0 ch 7 (MB/S)",
-};
-
 #define PXP_DEBUG	1
 #if PXP_DEBUG
-static unsigned long pxp_debug_freq;
+static unsigned long pxp_debug_dmc_freq, pxp_debug_ddr_freq;
 #endif
 
 // #define DEBUG
@@ -60,6 +40,22 @@ static unsigned long pxp_debug_freq;
 static struct hrtimer ddr_hrtimer_timer;
 
 struct ddr_bandwidth *aml_db;
+
+static int init_ots_level = -1;
+static int ots_level_setup(char *str)
+{
+	int val;
+
+	if (kstrtoint(str, 10, &val)) {
+		pr_info("invalid ots_level: %s\n", str);
+		return 1;
+	}
+
+	init_ots_level = val;
+
+	return 1;
+}
+__setup("ots_level=", ots_level_setup);
 
 /* run time should be short */
 static enum hrtimer_restart  ddr_hrtimer_handler(struct hrtimer *timer)
@@ -70,6 +66,7 @@ static enum hrtimer_restart  ddr_hrtimer_handler(struct hrtimer *timer)
 					ktime_set(0, aml_db->increase_tool.t_ns),
 					HRTIMER_MODE_REL);
 	memset(aml_db->increase_tool.buf_addr + index, 0, aml_db->increase_tool.once_size);
+
 	index += aml_db->increase_tool.once_size;
 	if ((index + aml_db->increase_tool.once_size) > T_BUF_SIZE)
 		index = 0;
@@ -110,6 +107,13 @@ static int ddr_width_is_16bit(struct ddr_bandwidth *db)
 	return 0;
 }
 
+static int ddr_width_is_64bit(struct ddr_bandwidth *db)
+{
+	if (db && (db->soc_feature & DDR_WIDTH_IS_64BIT))
+		return 1;
+	return 0;
+}
+
 static int dmc_is_asymmetry(struct ddr_bandwidth *db)
 {
 	if (db && (db->soc_feature & DMC_ASYMMETRY))
@@ -122,18 +126,18 @@ static void cal_ddr_usage_single(struct ddr_bandwidth *db)
 	u64 mul, mbw; /* avoid overflow */
 	int i, j;
 	unsigned long cnt, freq = 0;
+	char label[] = "ddr_bw  total (MB/S)";
+	char chann_names[] = "ddr_bw0 ch 0 (MB/S)";
 
 	cnt  = db->clock_count;
 
 	for (i = 0; i < db->dmc_number; i++) {
-		char label[] = "ddr_bw  total (MB/S)";
-
-		/* mbw = ((freq * 2) * 2 * (data_bus_width/8)) */
-		freq = db->data_extern[i].freq;
-		mbw = (u64)freq * db->data_extern[i].data_bus_width / 2;
+		/* mbw = (ddr_freq * 2 * (data_bus_width/8)) */
+		freq = db->data_extern[i].ddr_freq;
+		mbw = (u64)freq * (db->data_extern[i].data_bus_width >> 2);
 		mbw /= 1024;
 		mul  = db->data_extern[i].dg.all_grant;
-		mul *= freq;
+		mul *= db->data_extern[i].dmc_freq;
 		mul /= 1024;
 		do_div(mul, cnt);
 		if (mul >= mbw) {
@@ -147,7 +151,7 @@ static void cal_ddr_usage_single(struct ddr_bandwidth *db)
 		db->data_extern[i].cur_sample.tick = sched_clock();
 		for (j = 0; j < db->channels; j++) {
 			mul  =  db->data_extern[i].dg.channel_grant[j];
-			mul *= freq;
+			mul *= db->data_extern[i].dmc_freq;
 			mul /= 1024;
 			do_div(mul, cnt);
 			db->data_extern[i].cur_sample.bandwidth[j] = mul;
@@ -177,12 +181,13 @@ static void cal_ddr_usage_single(struct ddr_bandwidth *db)
 		db->data_extern[i].avg.sample_count++;
 
 		label[6] = '0' + i;
-
+		chann_names[6] = '0' + i;
 		ATRACE_COUNTER(label, db->data_extern[i].prev_sample.total_bandwidth / 1000);
 
 		for (j = 0; j < db->channels; j++) {
-			chann_names1[j][6] = '0' + i;
-			ATRACE_COUNTER(chann_names1[j],
+			/* ddr_bw<i> ch <j> (MB/S) */
+			chann_names[11] = '0' + j;
+			ATRACE_COUNTER(chann_names,
 					db->data_extern[i].prev_sample.bandwidth[j] / 1000);
 		}
 
@@ -194,6 +199,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 {
 	u64 mul = 0, mul_tmp = 0, mbw = 0; /* avoid overflow */
 	unsigned long i, cnt, freq = 0, flags;
+	char chann_names[] = "ddr_bw ch 0 (MB/S)";
 
 	if (db->mode == MODE_AUTODETECT) { /* ignore mali bandwidth */
 		static int count;
@@ -221,61 +227,47 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		}
 		return;
 	}
-#if PXP_DEBUG
-	if (pxp_debug_freq) {
-		freq = pxp_debug_freq;
-	} else {
-		if (db->ops && db->ops->get_freq)
-			freq = db->ops->get_freq(db);
-	}
-#else
-	if (db->ops && db->ops->get_freq)
-		freq = db->ops->get_freq(db);
-#endif
+
 	cnt  = db->clock_count;
 
-	if (freq) {
+	if (db->dmc_freq && db->ddr_freq) {
 		/* calculate in KB */
 		if (dmc_is_asymmetry(aml_db)) {
 			for (i = 0; i < db->dmc_number; i++) {
-				freq = db->data_extern[i].freq;
-				mbw += (u64)freq * db->data_extern[i].data_bus_width / 2;
+				freq = db->data_extern[i].ddr_freq;
+				mbw += (u64)freq * (db->data_extern[i].data_bus_width >> 2);
 			}
-
 		} else {
-			/* ddr data bus width = dmc bus width * dmc number.
-			 * After s4 soc, not register to distinguish ddr data bus width,
-			 * default ereryone dmc bus width is 32, but p1 and s5 is 16.
-			 */
+			/* theoretic max bandwidth =  ddr_freq * 2 * width / 8 */
 			if (ddr_width_is_16bit(db))
-				mbw = (u64)freq * db->bytes_per_cycle * db->dmc_number / 2;
-			else
-				mbw = (u64)freq * db->bytes_per_cycle * db->dmc_number;
+				mbw = (u64)db->ddr_freq * 2 * 2;
+			else if (ddr_width_is_64bit(db))
+				mbw = (u64)db->ddr_freq * 2 * 8;
+			else /* default is 32 */
+				mbw = (u64)db->ddr_freq * 2 * 4;
 		}
 		if (!mbw) {
-			pr_emerg("warning: theoretic max bandwidth is zer0\n");
+			pr_emerg("warning: theoretic max bandwidth is zero\n");
 			return;
 		}
 		mbw /= 1024;	/* theoretic max bandwidth */
 
 		if (dmc_is_asymmetry(aml_db)) {
 			for (i = 0; i < db->dmc_number; i++) {
-				freq = db->data_extern[i].freq;
 				mul_tmp = db->data_extern[i].dg.all_grant;
-				mul_tmp *= freq;
+				mul_tmp *= db->data_extern[i].dmc_freq;
 				mul += mul_tmp;
 			}
 
 		} else {
 			mul = dg->all_grant;
-			mul *= freq;
+			mul *= db->dmc_freq;
 		}
 		mul /= 1024;
 		do_div(mul, cnt);
 		if (mul >= mbw) {
 			/* sample may overflow if irq tick changed, ignore it */
-			pr_emerg("%s, bandwidth:%lld large than max :%lld\n",
-				 __func__, mul, mbw);
+			pr_emerg("%s, bandwidth:%lld large than max :%lld\n", __func__, mul, mbw);
 			//return;
 		}
 		db->cur_sample.total_bandwidth = mul;
@@ -285,7 +277,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		db->cur_sample.tick = sched_clock();
 		for (i = 0; i < db->channels; i++) {
 			mul  = dg->channel_grant[i];
-			mul *= freq;
+			mul *= db->dmc_freq;
 			mul /= 1024;
 			do_div(mul, cnt);
 			db->cur_sample.bandwidth[i] = mul;
@@ -314,12 +306,14 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	}
 	db->avg.sample_count++;
 
-	ATRACE_COUNTER("ddr_bw total (MB/S)",
-			db->prev_sample.total_bandwidth / 1000);
+	ATRACE_COUNTER("ddr_bw total (MB/S)", db->prev_sample.total_bandwidth / 1000);
 
-	for (i = 0; i < db->channels; i++)
-		ATRACE_COUNTER(chann_names0[i],
-				db->prev_sample.bandwidth[i] / 1000);
+	for (i = 0; i < db->channels; i++) {
+		/*  ddr_bw ch <i> (MB/S) */
+		chann_names[11] = '0' + i;
+		ATRACE_COUNTER(chann_names, db->prev_sample.bandwidth[i] / 1000);
+	}
+
 
 	db->prev_sample = db->cur_sample;
 
@@ -358,28 +352,14 @@ void aml_get_all_channel_grant(u64 *channel_grant)
 {
 	u64 mul = 0;
 	int i;
-	unsigned long freq = 0;
 
-	if (aml_db) {
-#if PXP_DEBUG
-		if (pxp_debug_freq) {
-			freq = pxp_debug_freq;
-		} else {
-			if (aml_db->ops && aml_db->ops->get_freq)
-				freq = aml_db->ops->get_freq(aml_db);
-		}
-#else
-		if (aml_db->ops && aml_db->ops->get_freq)
-			freq = aml_db->ops->get_freq(aml_db);
-#endif
-		if (freq) {
-			for (i = 0; i < aml_db->channels; i++) {
-				mul = aml_db->avg.avg_port[i];
-				mul *= aml_db->clock_count;
-				mul *= 1024;
-				do_div(mul, freq);
-				channel_grant[i] = mul;
-			}
+	if (aml_db && aml_db->dmc_freq) {
+		for (i = 0; i < aml_db->channels; i++) {
+			mul = aml_db->avg.avg_port[i];
+			mul *= aml_db->clock_count;
+			mul *= 1024;
+			do_div(mul, aml_db->dmc_freq);
+			channel_grant[i] = mul;
 		}
 	}
 }
@@ -454,6 +434,235 @@ static int format_port(char *buf, u64 port_mask)
 	return size;
 }
 
+static int dmc_port_set_byte(struct ddr_bandwidth *db, int port, int ch)
+{
+	int i, t;
+	u64 cur;
+
+	cur = db->port[ch];
+	for (i = 0; i < 3; i++) {
+		t = cur & 0xff;
+		cur >>= 8;
+		if (!t)
+			break;
+	}
+	if (i >= 3) {
+		pr_err("each channel only support 3 ports\n");
+		return -ERANGE;
+	}
+	port &= 0xff;
+	db->port[ch] = (db->port[ch] | (port << (i * 8)));
+	return 0;
+}
+
+int get_bus_num(void)
+{
+	return aml_db->bus_num;
+}
+EXPORT_SYMBOL(get_bus_num);
+
+int get_bus_ots_value(int bus)
+{
+	if (bus >= aml_db->bus_num)
+		return -1;
+	if (!aml_db->ops->outstanding)
+		return -1;
+
+	return aml_db->ops->outstanding(aml_db, bus, 0, OUTSTANDING_GET);
+}
+EXPORT_SYMBOL(get_bus_ots_value);
+
+int set_bus_ots_by_value(int bus, int value)
+{
+	if (bus >= aml_db->bus_num)
+		return -1;
+
+	if (!aml_db->ops->outstanding)
+		return -1;
+
+	aml_db->ops->outstanding(aml_db, bus, value, OUTSTANDING_SET);
+	return 0;
+}
+EXPORT_SYMBOL(set_bus_ots_by_value);
+
+int set_bus_ots_by_level(int bus, unsigned int level)
+{
+	unsigned int val;
+
+	if (bus >= aml_db->bus_num)
+		return -1;
+
+	if (level >= aml_db->ost.levels.count)
+		return -1;
+
+	if (!aml_db->ops->outstanding)
+		return -1;
+
+	val = aml_db->ost.levels.value[level];
+	aml_db->ops->outstanding(aml_db, bus, val, OUTSTANDING_SET);
+
+	return 0;
+}
+EXPORT_SYMBOL(set_bus_ots_by_level);
+
+int get_ots_level(void)
+{
+	return aml_db->ost.levels.cur_level;
+}
+EXPORT_SYMBOL(get_ots_level);
+
+int set_all_ots_by_level(unsigned int level)
+{
+	int i;
+
+	aml_db->ost.levels.cur_level = level;
+
+	for (i = 0; i < aml_db->bus_num; i++)
+		set_bus_ots_by_level(i, level);
+
+	return 0;
+}
+EXPORT_SYMBOL(set_all_ots_by_level);
+
+static ssize_t outstanding_display(char *buf)
+{
+	ssize_t len = 0;
+	int i, j, count;
+	char c;
+
+	/* show usage */
+	len += sprintf(buf + len, "Usage: echo <bus> <value> > ots\n");
+	len += sprintf(buf + len, "parm:\n\tbus:\tbus_num or ignore(set all bus)\n");
+	len += sprintf(buf + len, "\tvalue:\tlevel_num or reg_val or -1(default val)\n");
+
+	/* show levels list */
+	len += sprintf(buf + len, "\nOutstanding levels list: cur_level:%d\n",
+						aml_db->ost.levels.cur_level);
+	for (i = 0; i < aml_db->ost.levels.count; i++) {
+		if (i == aml_db->ost.levels.cur_level)
+			c = '>';
+		else
+			c = ' ';
+		len += sprintf(buf + len, "%c[%2d]:\t0x%08x\n", c, i, aml_db->ost.levels.value[i]);
+	}
+
+	/* show bus outstanding */
+	len += sprintf(buf + len, "\noutstanding bit[ 7: 0]: read  hold release num\t");
+	len += sprintf(buf + len, "bit[15: 8]: read  hold num\n");
+	len += sprintf(buf + len, "outstanding bit[23:16]: write hold release num\t");
+	len += sprintf(buf + len, "bit[31:24]: write hold num\n");
+	len += sprintf(buf + len, " bus\toutstanding (default)\thosts\n");
+	for (i = 0; i < aml_db->bus_num; i++) {
+		count = 0;
+		for (j = 0, c = 0; j < aml_db->real_ports; j++) {
+			if (aml_db->port_desc[j].bus == i) {
+				count++;
+				if (count == 1) {
+					len += sprintf(buf + len, " [%2d]\t0x%08x (0x%08x)\t%s",
+						i,
+						get_bus_ots_value(i),
+						aml_db->ost.regs[i].def_val,
+						aml_db->port_desc[j].port_name);
+				} else if (count == 2 || ((count - 1) % 6 == 0)) {
+					len += sprintf(buf + len, "\n\t\t\t\t%s ",
+							aml_db->port_desc[j].port_name);
+				} else {
+					len += sprintf(buf + len, "%s ",
+							aml_db->port_desc[j].port_name);
+				}
+			}
+		}
+		if (count)
+			len += sprintf(buf + len, "\n");
+	}
+	return len;
+}
+
+static ssize_t ots_show(const struct class *cla,
+			 const struct class_attribute *attr, char *buf)
+{
+	return outstanding_display(buf);
+}
+
+static ssize_t ots_store(const struct class *cla,
+			  const struct class_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int bus, i;
+	long long val;
+
+	if (sscanf(buf, "%d %lli", &bus, &val) != 2) {
+		bus = -1;
+		if (kstrtoll(buf, 0, &val)) {
+			pr_info("invalid input:%s\n", buf);
+			return count;
+		}
+	}
+
+	if (bus < 0) {
+		for (i = 0; i < aml_db->bus_num; i++) {
+			if (val >= 0 && val <= aml_db->ost.levels.count) {
+				aml_db->ost.levels.cur_level = val;
+				set_bus_ots_by_level(i, val);
+			} else {
+				aml_db->ost.levels.cur_level = -1;
+				set_bus_ots_by_value(i, val);
+			}
+		}
+	} else {
+		if (val >= 0 && val <= aml_db->ost.levels.count)
+			set_bus_ots_by_level(bus, val);
+		else
+			set_bus_ots_by_value(bus, val);
+	}
+
+	return count;
+}
+static CLASS_ATTR_RW(ots);
+
+static ssize_t ots_level_show(const struct class *cla,
+			 const struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+	int i;
+	char c;
+
+	/* show levels list */
+	len += sprintf(buf + len, "Outstanding levels list: cur_level:%d\n",
+						aml_db->ost.levels.cur_level);
+	for (i = 0; i < aml_db->ost.levels.count; i++) {
+		if (i == aml_db->ost.levels.cur_level)
+			c = '>';
+		else
+			c = ' ';
+		len += sprintf(buf + len, "%c[%2d]:\t0x%08x\n", c, i, aml_db->ost.levels.value[i]);
+	}
+
+	return len;
+}
+
+static ssize_t ots_level_store(const struct class *cla,
+			  const struct class_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int level, val;
+
+	if (sscanf(buf, "%d %x", &level, &val) == 2) {
+		aml_db->ost.levels.value[level] = val;
+		return count;
+	}
+
+	if (kstrtouint(buf, 0, &level)) {
+		pr_info("invalid input: %s\n", buf);
+		return -EINVAL;
+	}
+
+	set_all_ots_by_level(level);
+
+	return count;
+}
+static CLASS_ATTR_RW(ots_level);
+
 static ssize_t port_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
@@ -478,26 +687,6 @@ static ssize_t port_show(const struct class *class,
 	return s;
 }
 
-static int dmc_port_set_byte(struct ddr_bandwidth *db, int port, int ch)
-{
-	int i, t;
-	u64 cur;
-
-	cur = db->port[ch];
-	for (i = 0; i < 3; i++) {
-		t = cur & 0xff;
-		cur >>= 8;
-		if (!t)
-			break;
-	}
-	if (i >= 3) {
-		pr_err("each channel only support 3 ports\n");
-		return -ERANGE;
-	}
-	port &= 0xff;
-	db->port[ch] = (db->port[ch] | (port << (i * 8)));
-	return 0;
-}
 
 static ssize_t port_store(const struct class *class,
 			const struct class_attribute *attr,
@@ -900,11 +1089,12 @@ static ssize_t freq_store(const struct class *class,
 			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
-	unsigned int freq = 0;
+	unsigned long ddr_freq = 0, dmc_freq = 0;
 
-	if (kstrtoint(buf, 10, &freq))
+	if (sscanf(buf, "%ld-%ld", &ddr_freq, &dmc_freq) != 2)
 		return count;
-	pxp_debug_freq = freq;
+	pxp_debug_ddr_freq = ddr_freq;
+	pxp_debug_dmc_freq = dmc_freq;
 	return count;
 }
 
@@ -914,24 +1104,33 @@ static ssize_t freq_show(const struct class *class,
 {
 	int i = 0;
 	size_t s = 0;
-	unsigned long clk = 0;
 
-	if (pxp_debug_freq) {
-		clk = pxp_debug_freq;
-		s += sprintf(buf + s, "%ld MHz\n", clk / 1000000);
-	} else {
-		if (aml_db->ops && aml_db->ops->get_freq)
-			clk = aml_db->ops->get_freq(aml_db);
-
+	if (pxp_debug_dmc_freq && pxp_debug_ddr_freq) {
+		aml_db->ddr_freq = pxp_debug_ddr_freq;
+		aml_db->dmc_freq = pxp_debug_dmc_freq;
 		if (dmc_is_asymmetry(aml_db)) {
 			for (i = 0; i < aml_db->dmc_number; i++) {
-				s += sprintf(buf + s, "DMC%d: %ld MHz\n", i,
-					aml_db->data_extern[i].freq / 1000000);
+				aml_db->data_extern[i].ddr_freq = pxp_debug_ddr_freq;
+				aml_db->data_extern[i].dmc_freq = pxp_debug_dmc_freq;
 			}
-		} else {
-			s += sprintf(buf + s, "%ld MHz\n", clk / 1000000);
 		}
+	} else {
+		if (aml_db->ops && aml_db->ops->get_freq)
+			aml_db->ops->get_freq(aml_db);
 	}
+
+	if (dmc_is_asymmetry(aml_db)) {
+		for (i = 0; i < aml_db->dmc_number; i++) {
+			s += sprintf(buf + s, "DMC%d: DMC_FREQ %ld MHz, DDR_FREQ %ld MHz\n", i,
+				aml_db->data_extern[i].dmc_freq / 1000000,
+				aml_db->data_extern[i].ddr_freq / 1000000);
+		}
+	} else {
+		s += sprintf(buf + s, "DMC_FREQ %ld MHz, DDR_FREQ %ld MHz\n",
+				aml_db->dmc_freq / 1000000,
+				aml_db->ddr_freq / 1000000);
+	}
+
 	return s;
 }
 static CLASS_ATTR_RW(freq);
@@ -1242,6 +1441,8 @@ static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_usage_stat.attr,
 	&class_attr_name_of_ports.attr,
 	&class_attr_increase_tool.attr,
+	&class_attr_ots.attr,
+	&class_attr_ots_level.attr,
 #if DDR_BANDWIDTH_DEBUG
 	&class_attr_dump_reg.attr,
 	&class_attr_smc_rw.attr,
@@ -1328,6 +1529,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->channels     = 8;
 		band->dmc_number   = 2;
 		band->soc_feature |= DDR_DEVICE_8BIT;
+		band->soc_feature |= DDR_WIDTH_IS_64BIT;
 		band->mali_port[0] = 3; /* port3: mali */
 		band->mali_port[1] = 4;
 		break;
@@ -1336,7 +1538,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->channels     = 8;
 		band->dmc_number   = 4;
 		band->soc_feature |= DDR_DEVICE_8BIT;
-		band->soc_feature |= DDR_WIDTH_IS_16BIT;
+		band->soc_feature |= DDR_WIDTH_IS_64BIT;
 		band->mali_port[0] = 3; /* port3: mali */
 		band->mali_port[1] = 4;
 		break;
@@ -1392,7 +1594,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->channels     = 8;
 		band->dmc_number   = 4;
 		band->soc_feature |= DDR_DEVICE_8BIT;
-		band->soc_feature |= DDR_WIDTH_IS_16BIT;
+		band->soc_feature |= DDR_WIDTH_IS_64BIT;
 		band->mali_port[0] = 4;
 		band->mali_port[1] = -1;
 		break;
@@ -1402,6 +1604,15 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->dmc_number   = 2;
 		band->soc_feature |= DDR_DEVICE_8BIT;
 		band->mali_port[0] = 4; /* port3: mali */
+		band->mali_port[1] = -1;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S6
+	case DMC_TYPE_S6:
+		band->ops          = &s6_ddr_bw_ops;
+		band->channels     = 24;
+		band->dmc_number   = 1;
+		band->mali_port[0] = 12;
 		band->mali_port[1] = -1;
 		break;
 #endif
@@ -1427,6 +1638,23 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->ops = &a4_ddr_bw_ops;
 		aml_db->channels = 8;
 		aml_db->mali_port[0] = -1;
+		aml_db->mali_port[1] = -1;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S7
+	case DMC_TYPE_S7:
+	case DMC_TYPE_S7D:
+		band->ops = &s7_ddr_bw_ops;
+		aml_db->channels = 8;
+		aml_db->mali_port[0] = 12;
+		aml_db->mali_port[1] = -1;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T6D
+	case DMC_TYPE_T6D:
+		band->ops = &t6d_ddr_bw_ops;
+		aml_db->channels = 8;
+		aml_db->mali_port[0] = 1;
 		aml_db->mali_port[1] = -1;
 		break;
 #endif
@@ -1532,7 +1760,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	for (i = 0; i < aml_db->dmc_number; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, io_idx);
 		if (res) {
-			base = ioremap(res->start, res->end - res->start);
+			base = ioremap(res->start, resource_size(res));
 			switch (i) {
 			case 0:
 				aml_db->ddr_reg1 = base;
@@ -1564,7 +1792,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		if (dmc_pll_is_sec(aml_db)) {
 			aml_db->pll_reg = (void *)res->start;
 		} else {
-			base = ioremap(res->start, res->end - res->start);
+			base = ioremap(res->start, resource_size(res));
 			aml_db->pll_reg = (void *)base;
 		}
 	} else {
@@ -1588,6 +1816,9 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	else
 		aml_db->freq_reg = (void *)ioremap(freq_reg, 4);
 #endif
+	if (aml_db->ops && aml_db->ops->get_freq)
+		aml_db->ops->get_freq(aml_db);
+
 	spin_lock_init(&aml_db->lock);
 	aml_db->clock_count = DEFAULT_CLK_CNT;
 	aml_db->mode = MODE_DISABLE;
@@ -1596,6 +1827,10 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 
 	if (!aml_db->ops->config_port)
 		return -EINVAL;
+
+	aml_db->ost.levels.cur_level = init_ots_level;
+	if (aml_db->ops && aml_db->ops->outstanding_init)
+		aml_db->ops->outstanding_init(aml_db);
 
 	r = class_register(&aml_ddr_class);
 	if (r)
@@ -1736,6 +1971,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 		.data = (void *)DMC_TYPE_S5,
 	},
 	{
+		.compatible = "amlogic,ddr-bandwidth-s6",
+		.data = (void *)DMC_TYPE_S6,
+	},
+	{
 		.compatible = "amlogic,ddr-bandwidth-t3x",
 		.data = (void *)DMC_TYPE_T3X,
 	},
@@ -1750,6 +1989,18 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-a5",
 		.data = (void *)DMC_TYPE_A5,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-s7",
+		.data = (void *)DMC_TYPE_S7,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-s7d",
+		.data = (void *)DMC_TYPE_S7D,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-t6d",
+		.data = (void *)DMC_TYPE_T6D,
 	},
 #endif
 	{

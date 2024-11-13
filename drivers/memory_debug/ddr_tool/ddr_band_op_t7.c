@@ -207,6 +207,13 @@ static unsigned long t7_get_dmc_freq_quick(struct ddr_bandwidth *db)
 		freq = ((((freq * m) / n) >> od1) / od_div) * 1000;
 	}
 
+	db->dmc_freq = freq;
+
+	if (db->cpu_type == DMC_TYPE_P1)
+		db->ddr_freq = db->dmc_freq * 4;
+	else
+		db->ddr_freq = db->dmc_freq * 2;
+
 	return freq;
 }
 

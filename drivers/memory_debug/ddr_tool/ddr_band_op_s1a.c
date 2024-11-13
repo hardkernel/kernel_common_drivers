@@ -117,12 +117,10 @@ static void s1a_dmc_range_config(struct ddr_bandwidth *db, int channel,
 
 static unsigned long s1a_get_dmc_freq_quick(struct ddr_bandwidth *db)
 {
-	unsigned long freq;
+	db->ddr_freq = readl(db->pll_reg) * 1000000;
+	db->dmc_freq = db->ddr_freq >> 1;
 
-	freq = readl(db->pll_reg) * 1000000;
-	freq = freq >> 1;
-
-	return freq;
+	return db->dmc_freq;
 }
 
 static void s1a_dmc_bandwidth_enable(struct ddr_bandwidth *db)

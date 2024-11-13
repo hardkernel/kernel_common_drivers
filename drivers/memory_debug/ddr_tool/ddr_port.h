@@ -26,28 +26,35 @@
 
 #define DMC_TYPE_G12A			0x28
 #define DMC_TYPE_G12B			0x29
+#define DMC_TYPE_GXLX2			0x2A
 #define DMC_TYPE_SM1			0x2B
 #define DMC_TYPE_A1			0x2C
 #define DMC_TYPE_TL1			0x2E
 #define DMC_TYPE_TM2			0x2F
 #define DMC_TYPE_C1			0x30
-#define DMC_TYPE_C2			0x31
 #define DMC_TYPE_SC2			0x32
+#define DMC_TYPE_C2			0x33
 #define DMC_TYPE_T5			0x34
 #define DMC_TYPE_T5D			0x35
 #define DMC_TYPE_T7			0x36
 #define DMC_TYPE_S4			0x37
 #define DMC_TYPE_T3			0x38
 #define DMC_TYPE_P1			0x39
+#define DMC_TYPE_S4D			0x3A
 #define DMC_TYPE_T5W			0x3B
 #define DMC_TYPE_A5			0x3C
 #define DMC_TYPE_C3			0x3D
 #define DMC_TYPE_S5			0x3E
+#define DMC_TYPE_GXLX3			0x3F
 #define DMC_TYPE_A4			0x40
 #define DMC_TYPE_T5M			0x41
 #define DMC_TYPE_T3X			0x42
 #define DMC_TYPE_TXHD2			0x44
 #define DMC_TYPE_S1A			0x45
+#define DMC_TYPE_S7			0x46
+#define DMC_TYPE_S7D			0x47
+#define DMC_TYPE_S6			0x48
+#define DMC_TYPE_T6D			0x49
 
 #define DMC_READ			0
 #define DMC_WRITE			1
@@ -55,6 +62,7 @@
 struct ddr_port_desc {
 	char port_name[MAX_NAME];
 	unsigned char port_id;
+	unsigned char bus;
 };
 
 struct vpu_sub_desc {

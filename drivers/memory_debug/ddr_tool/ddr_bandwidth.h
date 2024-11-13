@@ -16,11 +16,12 @@
 #define DEFAULT_XTAL_FREQ		24000000UL
 
 #define DMC_QOS_IRQ			BIT(30)
-#define MAX_CHANNEL			8
+#define MAX_CHANNEL			24
 #define MAX_DMC_NUM			4
 
 /* for soc_feature */
-#define DMC_ASYMMETRY		BIT(4)
+#define DMC_ASYMMETRY		BIT(5)
+#define DDR_WIDTH_IS_64BIT	BIT(4)
 #define DDR_WIDTH_IS_16BIT	BIT(3)
 #define DDR_DEVICE_8BIT		BIT(2)
 #define PLL_IS_SEC		BIT(1)
@@ -108,6 +109,11 @@
 #define DDR_PRIORITY_DEBUG		BIT(31)
 #define DDR_PRIORITY_POWER		BIT(30)
 
+enum outstanding_type {
+	OUTSTANDING_SET = 1,
+	OUTSTANDING_GET,
+};
+
 struct ddr_bandwidth;
 
 struct ddr_grant {
@@ -126,7 +132,10 @@ struct ddr_bandwidth_ops {
 	int  (*handle_irq)(struct ddr_bandwidth *db, struct ddr_grant *dg);
 	void (*bandwidth_enable)(struct ddr_bandwidth *db);
 	unsigned long (*get_freq)(struct ddr_bandwidth *db);
-#if	DDR_BANDWIDTH_DEBUG
+	int (*outstanding)(struct ddr_bandwidth *db, int bus,
+					int value, enum outstanding_type type);
+	int (*outstanding_init)(struct ddr_bandwidth *db);
+#if DDR_BANDWIDTH_DEBUG
 	int (*dump_reg)(struct ddr_bandwidth *db, char *buf);
 #endif
 };
@@ -148,7 +157,8 @@ struct ddr_avg_bandwidth {
 
 struct ddr_data_extern {
 	char data_bus_width;
-	unsigned long freq;
+	unsigned long ddr_freq;
+	unsigned long dmc_freq;
 	unsigned int usage_stat[10];
 	struct ddr_grant dg;
 	struct ddr_bandwidth_sample cur_sample;
@@ -169,6 +179,22 @@ struct ddr_increase_tool {
 	u64 t_ns;
 };
 
+struct outstanding_reg {
+	unsigned int offset;
+	unsigned int def_val;
+};
+
+struct outstanding_level {
+	char count;
+	int cur_level;
+	unsigned int *value;
+};
+
+struct ddr_outstanding {
+	struct outstanding_level levels;
+	struct outstanding_reg *regs;
+};
+
 struct ddr_bandwidth {
 	unsigned short cpu_type;
 	unsigned short real_ports;
@@ -178,6 +204,7 @@ struct ddr_bandwidth {
 	char soc_feature;		/* some special feature of it */
 	int mali_port[2];
 	int stat_flag;
+	int bus_num;
 	unsigned int ddr_priority_num;
 	unsigned int threshold;
 	unsigned int irq_num;
@@ -185,6 +212,8 @@ struct ddr_bandwidth {
 	unsigned int channels;
 	unsigned int dmc_number;
 	unsigned int usage_stat[10];
+	unsigned long ddr_freq;
+	unsigned long dmc_freq;
 	spinlock_t lock;		/* lock for usage statistics */
 	struct ddr_bandwidth_sample cur_sample;
 	struct ddr_bandwidth_sample max_sample;
@@ -205,6 +234,7 @@ struct ddr_bandwidth {
 	struct ddr_bandwidth_ops *ops;
 	struct work_struct work_bandwidth;
 	struct ddr_increase_tool increase_tool;
+	struct ddr_outstanding ost;
 };
 
 extern struct ddr_bandwidth *aml_db;
@@ -238,6 +268,9 @@ extern struct ddr_bandwidth_ops t5m_ddr_bw_ops;
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S5
 extern struct ddr_bandwidth_ops s5_ddr_bw_ops;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S6
+extern struct ddr_bandwidth_ops s6_ddr_bw_ops;
+#endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_TXHD2
 extern struct ddr_bandwidth_ops txhd2_ddr_bw_ops;
 #endif
@@ -246,6 +279,12 @@ extern struct ddr_bandwidth_ops s1a_ddr_bw_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_A4
 extern struct ddr_bandwidth_ops a4_ddr_bw_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S7
+extern struct ddr_bandwidth_ops s7_ddr_bw_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T6D
+extern struct ddr_bandwidth_ops t6d_ddr_bw_ops;
 #endif
 
 unsigned int aml_get_ddr_usage(void);

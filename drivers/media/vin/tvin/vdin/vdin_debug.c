@@ -37,7 +37,7 @@
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE
 #include <linux/amlogic/pixel_probe.h>
 #endif
-#include <linux/amlogic/dmc_dev_access.h>
+#include <linux/amlogic/aml_ddr_tool.h>
 
 /* Local Headers */
 #include "../tvin_format_table.h"

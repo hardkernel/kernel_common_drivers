@@ -128,6 +128,7 @@ unsigned int get_all_dev_mask(void);
  */
 unsigned long dmc_prot_rw(void  __iomem *base, long off, unsigned long value, int rw);
 
+void dmc_vio_check_page(void *data);
 char *to_ports(int id);
 char *to_sub_ports_name(int mid, int sid, char rw);
 int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit);
@@ -167,6 +168,9 @@ extern struct dmc_mon_ops t5m_dmc_mon_ops;
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S5
 extern struct dmc_mon_ops s5_dmc_mon_ops;
 #endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_S6
+extern struct dmc_mon_ops s6_dmc_mon_ops;
+#endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_TXHD2
 extern struct dmc_mon_ops txhd2_dmc_mon_ops;
 #endif
@@ -175,6 +179,12 @@ extern struct dmc_mon_ops s1a_dmc_mon_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_A4
 extern struct dmc_mon_ops a4_dmc_mon_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_S7
+extern struct dmc_mon_ops s7_dmc_mon_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_T6D
+extern struct dmc_mon_ops t6d_dmc_mon_ops;
 #endif
 
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR
@@ -201,6 +211,20 @@ static inline struct page_trace *dmc_find_page_base(struct page *page)
 }
 
 static inline unsigned long dmc_get_page_trace(struct page *page)
+{
+	return 0;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+void dmc_dev_access(unsigned char id, unsigned long addr, unsigned long size);
+int show_dmc_notifier_list(char *buf);
+#else
+static inline void dmc_dev_access(unsigned char id, unsigned long addr, unsigned long size)
+{
+}
+
+static inline int show_dmc_notifier_list(char *buf)
 {
 	return 0;
 }
