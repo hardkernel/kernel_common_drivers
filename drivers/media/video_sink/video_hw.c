@@ -10070,10 +10070,7 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 			axis[3] = pic_axis[i][3];
 
 			_set_video_window(&g_mosaic_frame[i].virtual_layer_info, axis);
-			if (mosaic_vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-				mosaic_vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
-				mosaic_vf->source_type != VFRAME_SOURCE_TYPE_TUNER &&
-				mosaic_vf->source_type != VFRAME_SOURCE_TYPE_HWC)
+			if (is_crop_from_vf(mosaic_vf->source_type))
 				_set_video_crop(&g_mosaic_frame[i].virtual_layer_info,
 					mosaic_vf->crop);
 			if (mosaic_vf->flag & VFRAME_FLAG_MIRROR_H)
@@ -10498,8 +10495,7 @@ u32 *get_canvase_tbl(u8 layer_id)
 }
 
 static int update_afd_param(u8 id,
-	struct vframe_s *vf,
-	const struct vinfo_s *vinfo)
+	struct vframe_s *vf, const struct vinfo_s *vinfo, u32 crop_mode)
 {
 	struct afd_in_param in_p;
 	struct afd_out_param out_p;
@@ -10549,7 +10545,6 @@ static int update_afd_param(u8 id,
 			in_p.video_ar.numerator = in_p.video_w;
 			in_p.video_ar.denominator = in_p.video_h;
 		}
-
 		if (in_p.video_ar.numerator * 9 == in_p.video_ar.denominator * 16) {
 			in_p.video_ar.numerator = 16;
 			in_p.video_ar.denominator = 9;
@@ -10564,20 +10559,39 @@ static int update_afd_param(u8 id,
 	}
 
 	/* porting from roku project */
-	in_p.crop_type = AFD_CROP_INVALID;
-	if (vf->ratio_control & DISP_RATIO_ADAPTED_PICMODE) {
-		in_p.src_crop.top = vf->pic_mode.vs;
-		in_p.src_crop.bottom = vf->pic_mode.ve;
-		in_p.src_crop.left = vf->pic_mode.hs;
-		in_p.src_crop.right = vf->pic_mode.he;
-		in_p.crop_type = AFD_CROP_DB;
-	} else {
-		in_p.src_crop.top = layer_info->crop_top;
-		in_p.src_crop.bottom = layer_info->crop_bottom;
-		in_p.src_crop.left = layer_info->crop_left;
-		in_p.src_crop.right = layer_info->crop_right;
-		in_p.crop_type = AFD_CROP_SYSFS;
+	in_p.user_crop_type = AFD_CROP_INVALID;
+	/* CROP_SEL_DEF or CROP_SEL_SRC without src_crop*/
+	if (crop_mode == CROP_SEL_DEF) {
+		if (vf->ratio_control & DISP_RATIO_ADAPTED_PICMODE) {
+			in_p.user_crop.top = vf->pic_mode.vs;
+			in_p.user_crop.bottom = vf->pic_mode.ve;
+			in_p.user_crop.left = vf->pic_mode.hs;
+			in_p.user_crop.right = vf->pic_mode.he;
+			in_p.user_crop_type = AFD_CROP_DB;
+		} else {
+			in_p.user_crop.top = layer_info->crop_top;
+			in_p.user_crop.bottom = layer_info->crop_bottom;
+			in_p.user_crop.left = layer_info->crop_left;
+			in_p.user_crop.right = layer_info->crop_right;
+			in_p.user_crop_type = AFD_CROP_SYSFS;
+		}
 	}
+	if (is_src_crop_valid(vf->src_crop)) {
+		if (vf->type & VIDTYPE_COMPRESS) {
+			in_p.src_crop.top = vf->src_crop.top;
+			in_p.src_crop.left = vf->src_crop.left;
+			in_p.src_crop.bottom = vf->src_crop.bottom;
+			in_p.src_crop.right = vf->src_crop.right;
+		} else {
+			in_p.src_crop.top = vf->src_crop.top;
+			in_p.src_crop.left = vf->src_crop.left;
+		}
+	}
+
+	if (crop_mode < CROP_SEL_MAX)
+		in_p.select_mode = crop_mode;
+	else
+		in_p.select_mode = CROP_SEL_DEF;
 
 	in_p.disp_info.x_start = layer_info->layer_left;
 	in_p.disp_info.x_end =
@@ -10924,6 +10938,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	u8 layer_id;
 	bool aisr_update = false;
 	struct vframe_s *vf_ext = NULL;
+	u32 cur_crop_select = crop_select_mode;
 
 	if (!vf)
 		return vppfilter_fail;
@@ -10956,7 +10971,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	}
 
 	if (is_afd_available(layer_id)) {
-		if (update_afd_param(layer_id, vf, vinfo) > 0)
+		if (update_afd_param(layer_id, vf, vinfo, cur_crop_select) > 0)
 			layer->property_changed = true;
 	}
 
@@ -11094,6 +11109,9 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		//glayer_info[layer_id].mirror = mirror;
 		glayer_info[layer_id].proc_3d_type =
 			process_3d_type;
+		memcpy(&glayer_info[layer_id].src_crop, &vf->src_crop,
+			sizeof(struct src_crop_s));
+		glayer_info[layer_id].select_mode = cur_crop_select;
 
 		if (layer->force_switch_mode == 1)
 			op_flag |= OP_FORCE_SWITCH_VF;

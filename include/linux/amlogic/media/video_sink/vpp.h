@@ -42,7 +42,7 @@ extern struct sr_info_s sr_info;
 #define VPP_FLAG_FORCE_SWITCH_VF     0x00400000
 #define VPP_FLAG_FORCE_NOT_SWITCH_VF 0x00800000
 #define VPP_FLAG_FORCE_NO_OFFSET	 0x00000004
-#define VPP_FLAG_FORCE_AFD_ENABLE	 0x00000002
+#define VPP_FLAG_FORCE_NO_SRC_CROP	 0x00000002
 #define VPP_FLAG_FROM_TOGGLE_FRAME   0x00000001
 
 #define IDX_H           (2 << 8)
@@ -62,6 +62,12 @@ extern struct sr_info_s sr_info;
 #define H_MIRROR   1
 #define V_MIRROR   2
 #define HV_MIRROR  3 /* HV_MIRROR = H_MIRROR | V_MIRROR */
+
+enum E_CROP_SEL_T {
+	CROP_SEL_DEF = 0,
+	CROP_SEL_SRC = 1,
+	CROP_SEL_MAX = 2
+};
 
 #ifndef CONFIG_AMLOGIC_VOUT
 #define VMODE_CVBS 1
@@ -271,6 +277,8 @@ struct disp_info_s {
 	bool afd_enable;
 	struct crop_rect_s afd_crop;
 	struct pos_rect_s afd_pos;
+	enum E_CROP_SEL_T select_mode;
+	struct src_crop_s src_crop;
 };
 
 enum select_scaler_path_e {
