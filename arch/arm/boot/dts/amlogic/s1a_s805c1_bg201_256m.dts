@@ -637,6 +637,8 @@
 	fd650: fd650 {
 		compatible = "amlogic,fd650";
 		status = "okay";
+		// mboxes = <&mbox_fifo S1A_REE2AO_FD650>;
+		//use-bl30-ctrl = <1>;
 		sda-gpios = <&gpio GPIOD_3 GPIO_ACTIVE_HIGH>;
 		scl-gpios =  <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
 		fd650-gpio,delay-us = <1>;

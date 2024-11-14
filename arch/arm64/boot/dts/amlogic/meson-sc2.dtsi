@@ -376,6 +376,16 @@
 		reg = <0x00 0xfe026000 0x00 0x48>;
 	};
 
+	gpio_leds {
+		compatible = "gpio-leds";
+		status = "okay";
+		pwr_led {
+			label = "pwr_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
 	hifidsp0: hifidsp0 {
 		compatible = "amlogic, hifidsp0";
 		status = "okay";
