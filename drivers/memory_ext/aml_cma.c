@@ -715,7 +715,7 @@ struct folio *get_compact_page(struct folio *src,
 
 	can_to_cma = can_migrate_to_cma(src);
 	if (!can_to_cma) {
-		list_for_each_entry_safe(page, next, &cc->freepages, lru) {
+		list_for_each_entry_safe(page, next, &cc->freepages[0], lru) {
 			if (!cma_page(page)) {
 				list_del(&page->lru);
 				cc->nr_freepages--;
@@ -727,7 +727,7 @@ struct folio *get_compact_page(struct folio *src,
 			return NULL;
 		dst = page_folio(page);
 	} else {
-		dst = list_entry(cc->freepages.next, struct folio, lru);
+		dst = list_entry(cc->freepages[0].next, struct folio, lru);
 		list_del(&dst->lru);
 		cc->nr_freepages--;
 	}

@@ -73,49 +73,13 @@ early_param("slab_trace", early_slab_trace_param);
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 #ifdef CONFIG_ARM64
-static int notrace unwind_recover_return_address(struct unwind_state *state)
-{
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (state->task->ret_stack &&
-	    state->pc == (unsigned long)return_to_handler) {
-		unsigned long orig_pc;
-
-		orig_pc = ftrace_graph_ret_addr(state->task, NULL, state->pc,
-						(void *)state->fp);
-		if (WARN_ON_ONCE(state->pc == orig_pc))
-			return -EINVAL;
-		state->pc = orig_pc;
-	}
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-
-#ifdef CONFIG_KRETPROBES
-	if (is_kretprobe_trampoline(state->pc)) {
-		state->pc = kretprobe_find_ret_addr(state->task,
-						    (void *)state->fp,
-						    &state->kr_cur);
-	}
-#endif /* CONFIG_KRETPROBES */
-
-	return 0;
-}
-
 static int notrace unwind_next(struct unwind_state *state)
 {
-	struct task_struct *tsk = state->task;
-	unsigned long fp = state->fp;
 	int err;
 
-	/* Final frame; nothing to unwind */
-	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
-		return -ENOENT;
-
 	err = unwind_next_frame_record(state);
-	if (err)
-		return err;
 
-	state->pc = ptrauth_strip_kernel_insn_pac(state->pc);
-
-	return unwind_recover_return_address(state);
+	return err;
 }
 #endif
 #endif
@@ -145,7 +109,6 @@ int save_obj_stack(unsigned long *stack, int depth)
 #endif
 #if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
 	frame.stack = stackinfo_get_unknown();
-	frame.task = current;
 #elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	frame.task = current;
 #else
@@ -713,7 +676,7 @@ static int slabtrace_show(struct seq_file *m, void *arg)
 	struct slab_trace_group *group;
 	unsigned long ticks, group_time = 0, funcs = 0;
 
-	alloc = stm->stack_cnt + 200;
+	alloc = stm->stack_cnt + 500;
 	sum   = vzalloc(sizeof(*sum) * alloc);
 	if (!sum)
 		return -ENOMEM;
