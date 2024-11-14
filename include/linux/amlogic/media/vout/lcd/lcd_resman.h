@@ -5,6 +5,7 @@
 
 #ifndef _AML_LCD_RESMAN_H
 #define _AML_LCD_RESMAN_H
+#include <linux/amlogic/media/vout/lcd/json_parse.h>
 
 #define LRMPR(fmt, args...)     pr_info("lcd: " fmt "", ## args)
 #define LRMERR(fmt, args...)    pr_err("lcd: error: " fmt "", ## args)
@@ -39,8 +40,10 @@ unsigned char *lcd_transmit_mem_get(char *name, u32 *size);
 void lcd_transmit_mem_release(char *name);
 
 /*lcd_panel*/
+struct json_parse_s *get_panel_jsp(int index);
 int is_ukey_in_param_mem(void);
 unsigned char *panel_param_mem_get(const char *name, u32 *len);
+unsigned char get_lcd_panel_file_type(int index);
 int lcd_panel_file_pre_proc(void);
 
 #endif

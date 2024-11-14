@@ -127,8 +127,6 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 void ldim_gpio_probe(struct ldim_dev_driver_s *dev_drv, int index)
 {
 	struct bl_gpio_s *ld_gpio;
-	const char *str;
-	int ret;
 
 	if (index >= BL_GPIO_NUM_MAX) {
 		LDIMERR("gpio index %d, exit\n", index);
@@ -140,15 +138,6 @@ void ldim_gpio_probe(struct ldim_dev_driver_s *dev_drv, int index)
 			LDIMPR("gpio %s[%d] is already registered\n", ld_gpio->name, index);
 		return;
 	}
-
-	/* get gpio name */
-	ret = of_property_read_string_index(dev_drv->dev->of_node,
-					    "ldim_dev_gpio_names", index, &str);
-	if (ret) {
-		LDIMERR("failed to get ldim_dev_gpio_names: %d\n", index);
-		str = "unknown";
-	}
-	strcpy(ld_gpio->name, str);
 
 	/* init gpio flag */
 	ld_gpio->probe_flag = 1;

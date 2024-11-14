@@ -116,8 +116,6 @@ struct aml_bl_drv_s *aml_bl_get_driver(int index)
 void bl_gpio_probe(struct aml_bl_drv_s *bdrv, int index)
 {
 	struct bl_gpio_s *bl_gpio;
-	const char *str;
-	int ret;
 
 	if (index >= BL_GPIO_NUM_MAX) {
 		BLERR("gpio index %d, exit\n", index);
@@ -131,15 +129,6 @@ void bl_gpio_probe(struct aml_bl_drv_s *bdrv, int index)
 		}
 		return;
 	}
-
-	/* get gpio name */
-	ret = of_property_read_string_index(bdrv->dev->of_node,
-					    "bl_gpio_names", index, &str);
-	if (ret) {
-		BLERR("failed to get bl_gpio_names: %d\n", index);
-		str = "unknown";
-	}
-	strcpy(bl_gpio->name, str);
 
 	/* init gpio flag */
 	bl_gpio->probe_flag = 1;
@@ -3399,43 +3388,16 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 	}
 }
 
-static void aml_bl_config_probe_work(struct work_struct *p_work)
+int bl_config_load_post(struct aml_bl_drv_s *bdrv)
 {
-	struct delayed_work *d_work;
-	struct aml_bl_drv_s *bdrv;
+	int ret = 0;
 #ifdef BL_BRIGHTNESS_METER
 	struct bl_metrics_config_s *meter_conf = NULL;
 #endif
 	struct backlight_properties props;
 	struct backlight_device *bldev;
-	bool is_init;
 	char bl_name[10];
-	int index, load_id;
-	int ret;
-
-	d_work = container_of(p_work, struct delayed_work, work);
-	bdrv = container_of(d_work, struct aml_bl_drv_s, config_probe_dly_work);
-
-	index = bdrv->index;
-	if (bdrv->key_valid) {
-		is_init = lcd_unifykey_init_get();
-		if (!is_init) {
-			if (bdrv->retry_cnt++ < LCD_UNIFYKEY_WAIT_TIMEOUT) {
-				lcd_queue_delayed_work(&bdrv->config_probe_dly_work,
-					LCD_UNIFYKEY_RETRY_INTERVAL);
-				return;
-			}
-			BLERR("[%d]: key_init_flag=%d, timeout\n", bdrv->index, is_init);
-			goto err;
-		}
-		load_id = 1;
-	} else {
-		load_id = 0;
-	}
-
-	ret = bl_config_load(bdrv, bdrv->pdev, load_id, bl_level_bootup[bdrv->index]);
-	if (ret)
-		goto err;
+	int index = bdrv->index;
 
 	bl_pwm_mapping_init(bdrv);
 
@@ -3493,22 +3455,44 @@ static void aml_bl_config_probe_work(struct work_struct *p_work)
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
 		BLPR("[%d]: %s: ok\n", index, __func__);
-	return;
+	return 0;
 
 err:
-	/* free drvdata */
-	platform_set_drvdata(bdrv->pdev, NULL);
-	/* free drv */
-	kfree(bdrv);
-	bl_drv[index] = NULL;
-	bl_drv_init_state &= ~(1 << index);
-	BLPR("[%d]: %s: failed\n", index, __func__);
+	return -1;
+}
+
+static void aml_bl_config_probe_work(struct work_struct *p_work)
+{
+	struct delayed_work *d_work;
+	struct aml_bl_drv_s *bdrv;
+	bool is_init;
+
+	d_work = container_of(p_work, struct delayed_work, work);
+	bdrv = container_of(d_work, struct aml_bl_drv_s, config_probe_dly_work);
+
+	is_init = lcd_unifykey_init_get();
+	if (!is_init) {
+		if (bdrv->retry_cnt++ < LCD_UNIFYKEY_WAIT_TIMEOUT) {
+			lcd_queue_delayed_work(&bdrv->config_probe_dly_work,
+				LCD_UNIFYKEY_RETRY_INTERVAL);
+			return;
+		}
+		BLERR("[%d]: key_init_flag=%d, config failed\n", bdrv->index, is_init);
+	}
+
+	if (bl_config_load(bdrv, bdrv->pdev, bl_level_bootup[bdrv->index])) {
+		platform_set_drvdata(bdrv->pdev, NULL);
+		kfree(bdrv);
+		bl_drv[bdrv->index] = NULL;
+		bl_drv_init_state &= ~(1 << bdrv->index);
+	}
 }
 
 static void bl_base_config_load(struct aml_bl_drv_s *bdrv)
 {
 	unsigned int temp;
-	int ret;
+	int ret, i, cnt = 0;
+	const char *bl_gpio[BL_GPIO_NUM_MAX];
 
 	bdrv->pinmux_flag = 0xff;
 	bdrv->bconf.level_default = 128;
@@ -3532,6 +3516,11 @@ static void bl_base_config_load(struct aml_bl_drv_s *bdrv)
 		temp = 0;
 	}
 	bdrv->key_valid = temp;
+
+	cnt = of_property_read_string_array(bdrv->dev->of_node, "bl_gpio_names",
+					    bl_gpio, BL_GPIO_NUM_MAX);
+	for (i = 0; i < cnt; i++)
+		strncpy(bdrv->bconf.bl_gpio[i].name, bl_gpio[i], LCD_CPU_GPIO_NAME_MAX);
 }
 
 int aml_bl_index_add(int drv_index, int conf_index)
@@ -3564,10 +3553,10 @@ int aml_bl_index_get(int drv_index)
 
 static int aml_bl_probe(struct platform_device *pdev)
 {
-	struct aml_bl_drv_s *bdrv;
+	struct aml_bl_drv_s *bdrv = NULL;
 	const struct of_device_id *match;
 	int index = 0;
-	int ret;
+	int ret = 0;
 
 	bl_global_init_once();
 
@@ -3614,13 +3603,29 @@ static int aml_bl_probe(struct platform_device *pdev)
 	bl_pwm_init_config_probe(bdrv->data);
 	bl_base_config_load(bdrv);
 
-	INIT_DELAYED_WORK(&bdrv->config_probe_dly_work, aml_bl_config_probe_work);
-	lcd_queue_delayed_work(&bdrv->config_probe_dly_work, 0);
+	if (lcd_bl_check_config_load(bdrv)) {
+		BLERR("lcd_bl_check_config_load error\n");
+		goto aml_bl_probe_err;
+	}
+
+	if (bdrv->config_load == LCD_CONFIG_UKEY && !lcd_unifykey_init_get()) {
+		INIT_DELAYED_WORK(&bdrv->config_probe_dly_work, aml_bl_config_probe_work);
+		lcd_queue_delayed_work(&bdrv->config_probe_dly_work, 0);
+	} else {
+		ret = bl_config_load(bdrv, bdrv->pdev, bl_level_bootup[bdrv->index]);
+		if (ret)
+			goto aml_bl_probe_err;
+	}
 
 	BLPR("[%d]: probe OK, init_state:0x%x\n", index, bl_drv_init_state);
 	return 0;
 
 aml_bl_probe_err:
+	if (bdrv) {
+		platform_set_drvdata(bdrv->pdev, NULL);
+		kfree(bdrv);
+		bl_drv[index] = NULL;
+	}
 	bl_drv_init_state &= ~(1 << index);
 	BLPR("[%d]: %s failed\n", index, __func__);
 	return -1;

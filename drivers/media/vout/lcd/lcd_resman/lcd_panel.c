@@ -38,8 +38,14 @@
 #include <linux/mm.h>
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/media/vout/lcd/json_parse.h>
+
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 #include <linux/amlogic/media/vout/lcd/lcd_math.h>
+
+static struct json_parse_s panel_jsp[3];
+
+static unsigned char glcd_panel_file_type[3] = {0, 0, 0};
 
 #define PANEL_PARAM_KEY_SIZE 64
 #define PANEL_PARAM_HEAD_SIZE PANEL_PARAM_KEY_SIZE
@@ -91,10 +97,72 @@ unsigned char *panel_param_mem_get(const char *name, u32 *len)
 	return NULL;
 }
 
+unsigned char get_lcd_panel_file_type(int index)
+{
+	return index < 3 ? glcd_panel_file_type[index] : 0;
+}
+
+void set_lcd_panel_file_type(int index, unsigned char type)
+{
+	glcd_panel_file_type[index] = type;
+}
+
+struct json_parse_s *get_panel_jsp(int index)
+{
+	return &panel_jsp[index];
+}
+
+static int lcd_panel_json_init_try_mem(struct json_parse_s *jsp, unsigned char *mem)
+{
+#define JSON_PANEL_HANDLE_HEAD_SIZE (32)
+		struct json_panel_handle_head_s {
+			unsigned int size;
+			unsigned int json_cnt;
+			unsigned int js_len;
+			unsigned int json_start;
+			unsigned int js_start;
+			unsigned char rsvd[JSON_PANEL_HANDLE_HEAD_SIZE - 20];
+		} *head; //parse memory handled from uboot
+
+	if (!mem)
+		return -1;
+
+	head = (struct json_panel_handle_head_s *)mem;
+
+	jsp->json_cnt =  head->json_cnt;
+	jsp->js_len   = head->js_len;
+	jsp->js       = kzalloc(jsp->js_len, GFP_KERNEL);
+	jsp->root     = kcalloc(jsp->json_cnt, sizeof(*jsp->root), GFP_KERNEL);
+	jsp->json_max = jsp->json_cnt;
+	jsp->js_max = jsp->js_len;
+	if (!jsp->js || !jsp->root) {
+		json_deinit(jsp);
+		return -1;
+	}
+	memcpy(jsp->root, mem + head->json_start, jsp->json_cnt * sizeof(*jsp->root));
+	memcpy(jsp->js, mem + head->js_start, jsp->js_len);
+
+	return 0;
+}
+
+static int lcd_panel_json_init_try_file(struct json_parse_s *jsp, unsigned char *panel_file)
+{
+	if (json_init(jsp, JSON_STR_MAX, JSON_NODE_MAX) < 0)
+		return -1;
+	if (!json_parse(jsp, (char *)panel_file, 32 * 1024)) {
+		json_deinit(jsp);
+		return -1;
+	}
+	return 0;
+}
+
 int lcd_panel_file_pre_proc(void)
 {
+	char name[32];
 	unsigned char *mem;
-	unsigned int i = 0, size, _crc32;
+	unsigned int size, _crc32;
+	struct json_parse_s *jsp;
+	int ret = -1, i = 0;
 	struct panel_param_head_s *head;
 	struct panel_param_key_s *key;
 
@@ -127,6 +195,42 @@ int lcd_panel_file_pre_proc(void)
 			LRMPR("[%d]: size;0x%x, mem_ofst:0x%x, name:%s\n",
 				i, key->size, key->mem_pos, key->name);
 		}
+	}
+
+	for (i = 0; i < 3; i++) {
+		jsp = get_panel_jsp(i);
+		json_deinit(jsp);
+		jsp->status = JSON_STATUS_NO_FILE;
+
+		snprintf(name, 31, "panel%d_jsp", i);
+		mem = panel_param_mem_get(name, &size);
+		if (mem) {
+			ret = lcd_panel_json_init_try_mem(jsp, mem);
+			if (ret) {
+				jsp->status = JSON_STATUS_ERROR;
+			} else {
+				jsp->status = JSON_STATUS_OK;
+				set_lcd_panel_file_type(i, PANEL_FILE_JSON);
+			}
+			LRMPR("%s panel%d_jsp init %s\n", __func__, i, ret ? "fail" : "ok");
+			continue;
+		}
+
+		snprintf(name, 31, "panel%d_json", i);
+		mem = panel_param_mem_get(name, &size);
+		if (mem) {
+			ret = lcd_panel_json_init_try_file(jsp, mem);
+			if (ret) {
+				jsp->status = JSON_STATUS_ERROR;
+			} else {
+				jsp->status = JSON_STATUS_OK;
+				set_lcd_panel_file_type(i, PANEL_FILE_JSON);
+			}
+			LRMPR("%s panel%d_json init %s\n", __func__, i, ret ? "fail" : "ok");
+			continue;
+		}
+
+		//ini
 	}
 
 	return 0;

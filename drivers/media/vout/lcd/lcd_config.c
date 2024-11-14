@@ -32,27 +32,24 @@
 #include "lcd_common.h"
 #include "lcd_reg.h"
 #include "lcd_clk/lcd_clk_config.h"
+#include "lcd_tcon_swpdf.h"
 
 /* **********************************
  * lcd type
  * **********************************
  */
-struct lcd_type_match_s {
-	char *name;
-	enum lcd_type_e type;
-};
 
-static struct lcd_type_match_s lcd_type_match_table[] = {
-	{"rgb",      LCD_RGB},
-	{"lvds",     LCD_LVDS},
-	{"vbyone",   LCD_VBYONE},
-	{"mipi",     LCD_MIPI},
-	{"minilvds", LCD_MLVDS},
-	{"p2p",      LCD_P2P},
-	{"edp",      LCD_EDP},
-	{"bt656",    LCD_BT656},
-	{"bt1120",   LCD_BT1120},
-	{"invalid",  LCD_TYPE_MAX},
+static struct num_str_s lcd_type_match_table[] = {
+	{LCD_RGB,      "rgb"},
+	{LCD_LVDS,     "lvds"},
+	{LCD_VBYONE,   "vbyone"},
+	{LCD_MIPI,     "mipi"},
+	{LCD_MLVDS,    "minilvds"},
+	{LCD_P2P,      "p2p"},
+	{LCD_EDP,      "edp"},
+	{LCD_BT656,    "bt656"},
+	{LCD_BT1120,   "bt1120"},
+	{LCD_TYPE_MAX, "invalid"},
 };
 
 int lcd_type_str_to_type(const char *str)
@@ -61,8 +58,8 @@ int lcd_type_str_to_type(const char *str)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(lcd_type_match_table); i++) {
-		if (!strcmp(str, lcd_type_match_table[i].name)) {
-			type = lcd_type_match_table[i].type;
+		if (!strcmp(str, lcd_type_match_table[i].str)) {
+			type = lcd_type_match_table[i].num;
 			break;
 		}
 	}
@@ -71,12 +68,12 @@ int lcd_type_str_to_type(const char *str)
 
 char *lcd_type_type_to_str(int type)
 {
-	char *name = lcd_type_match_table[LCD_TYPE_MAX].name;
+	char *name = lcd_type_match_table[LCD_TYPE_MAX].str;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(lcd_type_match_table); i++) {
-		if (type == lcd_type_match_table[i].type) {
-			name = lcd_type_match_table[i].name;
+		if (type == lcd_type_match_table[i].num) {
+			name = lcd_type_match_table[i].str;
 			break;
 		}
 	}
@@ -259,7 +256,10 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	const char *mode_str, *str;
 	unsigned int val, para[8];
 	char str_info[128];
-	int str_info_len = 0, ret = 0;
+	int str_info_len = 0;
+	int ret = 0, cnt = 0, i = 0;
+	const char *lcd_gpio[LCD_CPU_GPIO_NUM_MAX];
+
 
 	if (!pdrv->dev->of_node) {
 		LCDERR("dev of_node is null\n");
@@ -416,6 +416,10 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 				pdrv->fr_lock->line_limit, pdrv->fr_lock->freq_limit);
 		}
 	}
+	cnt = of_property_read_string_array(pdrv->dev->of_node, "lcd_cpu_gpio_names",
+					    lcd_gpio, LCD_CPU_GPIO_NUM_MAX);
+	for (i = 0; i < cnt; i++)
+		strncpy(pdrv->config.power.cpu_gpio[i].name, lcd_gpio[i], LCD_CPU_GPIO_NAME_MAX);
 
 	return 0;
 }
@@ -1962,6 +1966,939 @@ load_from_unifykey_exit:
 	return ret;
 }
 
+/* json parse =================================================================================== */
+
+static struct num_str_s p2p_type_name[] = {
+	{P2P_CEDS, "CEDS"},
+	{P2P_CMPI, "CMPI"},
+	{P2P_ISP,  "ISP"},
+	{P2P_EPI,  "EPI"},
+	{P2P_CHPI, "CHPI"},
+	{P2P_CSPI, "CSPI"},
+	{P2P_USIT, "USIT"},
+	{P2P_MAX,  "Invalid"}
+};
+
+static struct num_str_s vmode_switch_name[] = {
+	{LCD_VMODE_SWITCH_NONE,  "NONE"},
+	{LCD_VMODE_SWITCH_FULL,  "FULL"},
+	{LCD_VMODE_SWITCH_LIMIT, "LIMIT"},
+	{LCD_VMODE_SWITCH_MIN,   "MIN"},
+};
+
+struct color_fmt_info_s color_fmt_info[] = {
+	{CFMT_RGB565,         16, "RGB565"},
+	{CFMT_RGB_6bit,       18, "RGB_6bit"},
+	{CFMT_RGB_8bit,       24, "RGB_8bit"},
+	{CFMT_RGB_10bit,      30, "RGB_10bit"},
+	{CFMT_RGB_12bit,      36, "RGB_12bit"},
+	{CFMT_YCbCr422_8bit,  16, "YCbCr422_8bit"},
+	{CFMT_YCbCr422_10bit, 20, "YCbCr422_10bit"},
+	{CFMT_YCbCr422_12bit, 24, "YCbCr422_12bit"},
+	{CFMT_YCbCr444_8bit,  24, "YCbCr444_8bit"},
+	{CFMT_YCbCr444_10bit, 30, "YCbCr444_10bit"},
+	{CFMT_YCbCr444_12bit, 36, "YCbCr444_12bit"},
+	{CFMT_YCbCr420_8bit,  12, "YCbCr420_8bit"},
+	{CFMT_YCbCr420_10bit, 15, "YCbCr420_10bit"},
+	{CFMT_YCbCr420_12bit, 18, "YCbCr420_12bit"},
+};
+
+static int panel_str2fmt(const char *str, unsigned char *cfmt, unsigned char *bits)
+{
+	unsigned int i = 0;
+
+	if (!str)
+		return -1;
+	for (i = 0; i < ARRAY_SIZE(color_fmt_info); i++) {
+		if (strcmp(str, color_fmt_info[i].name) == 0) {
+			*cfmt = color_fmt_info[i].cfmt;
+			*bits = color_fmt_info[i].bits;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+__maybe_unused static int path_name_compose(const char *path, const char *name, char *path_name)
+{
+	char *p1;
+	const char *p2;
+	int len1, len2, len, back = 0, k;
+
+	if (!path || !name || !path_name)
+		return -1;
+
+	p2 = name;
+	len2 = strlen(name);
+	if (name[0] == '/') {//absolute path, ignore path
+		strcpy(path_name, name);
+		path_name[len2 + 1] = '\0';
+		return 0;
+	} else if (name[0] == '.' && name[1] == '/') {
+		back = 0;
+		p2 += 2;
+	} else if (p2[0] == '.' && p2[1] == '.' && p2[2] == '/') {
+		while (len2 > 0 && p2[0] == '.' && p2[1] == '.' && p2[2] == '/') {
+			p2 += 3;
+			len2 -= 3;
+			back++;
+		}
+	}
+
+	if (len2 <= 0) {
+		path_name[0] = '\0';
+		return -1;
+	}
+
+	p1 = path_name;
+	len1 = strlen(path);
+	len = len1;
+	memcpy(path_name, path, len);
+	path_name[len] = '\0';
+	if (path_name[len - 1] != '/') {
+		path_name[len] = '/';
+		len += 1;
+		path_name[len] = '\0';
+	}
+	back += 1;
+
+	for (k = len - 1; k > 0; k--) {
+		if (p1[k] == '/')
+			back--;
+		if (back == 0) {
+			memcpy(p1 + k + 1, p2, len2);
+			len = k + len2 + 1;
+			p1[len] = '\0';
+			return 0;
+		}
+	}
+	return -1;
+}
+
+static int lcd_panel_parse_basic(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	struct json_s *json, *child;
+	const char *str = NULL;
+	struct lcd_basic_s *cfg = &pdrv->config.basic;
+
+	json = json_path_to_node(jsp, jsp->root, "/basic");
+	if (!json) {
+		LCDERR("find /basic\n");
+		return -1;
+	}
+
+	str = json_get_obj_str(jsp, json, "model_name", "invalid");
+	sprintf(cfg->model_name, "%s", str ? str : "invalid");
+
+	str = json_get_obj_str(jsp, json, "interface", "invalid");
+	cfg->lcd_type = lcd_type_str_to_type(str);
+
+	cfg->config_check = json_get_obj_u32(jsp, json, "config_check", 1);
+	pdrv->config.custom_pinmux = json_get_obj_u32(jsp, json, "custom_pinmux", 0);
+
+	child = json_get_object_child(jsp, json, "screen_size");
+	cfg->screen_width = json_get_arr_u32(jsp, child, 0, 16);
+	cfg->screen_height = json_get_arr_u32(jsp, child, 1, 9);
+
+	return 0;
+}
+
+static int lcd_panel_parse_timing(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	struct json_s *parent, *child, *child2;
+	const char *str = NULL;
+	char strtmp[64];
+	int cnt = 1, i = 0, bits = 8;
+	struct lcd_detail_timing_s *dt;
+	struct lcd_timing_s *tims = &pdrv->config.timing;
+
+	parent = json_path_to_node(jsp, jsp->root, "/timing");
+	if (!parent) {
+		LCDERR("find /timing\n");
+		return -1;
+	}
+	tims->ppc      = json_get_obj_u32(jsp, parent, "ppc_mode", 1);
+	tims->clk_mode = json_get_obj_u32(jsp, parent, "clk_mode", LCD_CLK_MODE_DEPENDENCE);
+	tims->pll_flag = json_get_obj_u32(jsp, parent, "pll_flag", 1);
+
+	parent         = json_get_object_child(jsp, parent, "pre_de");
+	tims->pre_de_h = json_get_arr_u32(jsp, parent, 0, 0);
+	tims->pre_de_v = json_get_arr_u32(jsp, parent, 1, 0);
+
+	parent = json_path_to_node(jsp, jsp->root, "/timing/timing");
+	cnt = json_get_array_size(jsp, parent);
+	if (cnt <= 0) {
+		LCDERR("/timing/timing error\n");
+		return -1;
+	}
+
+	for (i = 0; i < cnt; i++) {
+		if (tims->num_timings >= LCD_MAX_NUM_TIMINGS)
+			break;
+		child = json_get_array_child(jsp, parent, i);
+		if (!child) {
+			LCDPR("fail find  timing[%d]\n", i);
+			break;
+		}
+		dt = lcd_timing_alloc(pdrv);
+		if (!dt)
+			break;
+
+		if (dt != tims->timings[0])
+			memcpy(dt, tims->timings[0], sizeof(*dt));
+		else
+			memset(dt, 0, sizeof(*dt));
+
+		dt->fr_adjust_type = json_get_obj_u32(jsp, child, "fr_adj_type",
+						      dt->fr_adjust_type);
+		dt->lcd_bits = 24;
+		dt->cfmt = CFMT_RGB_8bit;
+		bits = json_get_obj_u32(jsp, child, "lcd_bits", 8);
+		str = json_get_obj_str(jsp, child, "color_fmt", NULL);
+		if (strcmp(str, "RGB565"))
+			snprintf(strtmp, 63, "%s_%dbit", str, bits);
+		else
+			snprintf(strtmp, 63, "%s", str);
+
+		panel_str2fmt(strtmp, &dt->cfmt, &dt->lcd_bits);
+		str = json_get_obj_str(jsp, child, "mode_switch_type", NULL);
+		dt->switch_type = strnum_get_num(str, vmode_switch_name,
+						 ARRAY_SIZE(vmode_switch_name),
+						 LCD_VMODE_SWITCH_NONE);
+
+		child2 = json_get_object_child(jsp, child, "timing");
+		if (!child2 && dt == tims->timings[0]) {
+			LCDPR("fail find  timing[0]->timing\n");
+			lcd_timing_free_last(pdrv);
+			return -1;
+		}
+		if (!child2) {
+			LCDPR("fail find  timing[%d]->timing\n", i);
+			continue;
+		}
+		dt->h_period    = json_get_arr_u32(jsp, child2, 0, dt->h_period);
+		dt->h_active    = json_get_arr_u32(jsp, child2, 1, dt->h_active);
+		dt->hsync_width = json_get_arr_u32(jsp, child2, 2, dt->hsync_width);
+		dt->hsync_bp    = json_get_arr_u32(jsp, child2, 3, dt->hsync_bp);
+		dt->hsync_pol   = json_get_arr_u32(jsp, child2, 4, dt->hsync_pol);
+		dt->v_period    = json_get_arr_u32(jsp, child2, 5, dt->v_period);
+		dt->v_active    = json_get_arr_u32(jsp, child2, 6, dt->v_active);
+		dt->vsync_width = json_get_arr_u32(jsp, child2, 7, dt->vsync_width);
+		dt->vsync_bp    = json_get_arr_u32(jsp, child2, 8, dt->vsync_bp);
+		dt->vsync_pol   = json_get_arr_u32(jsp, child2, 9, dt->vsync_pol);
+		dt->hsync_fp = dt->h_period - dt->h_active - dt->hsync_width - dt->hsync_bp;
+		dt->vsync_fp = dt->v_period - dt->v_active - dt->vsync_width - dt->vsync_bp;
+
+		child2 = json_get_object_child(jsp, child, "period_range");
+		if (child2) {
+			dt->h_period_min = json_get_arr_u32(jsp, child2, 0, dt->h_period_min);
+			dt->h_period_max = json_get_arr_u32(jsp, child2, 1, dt->h_period_max);
+			dt->v_period_min = json_get_arr_u32(jsp, child2, 2, dt->v_period_min);
+			dt->v_period_max = json_get_arr_u32(jsp, child2, 3, dt->v_period_max);
+		}
+
+		child2 = json_get_object_child(jsp, child, "pclk_range");
+		if (child2) {
+			dt->pclk_min  = json_get_arr_u32(jsp, child2, 0, dt->pclk_min);
+			dt->pclk_max  = json_get_arr_u32(jsp, child2, 1, dt->pclk_max);
+			dt->pixel_clk = json_get_arr_u32(jsp, child2, 2, dt->pixel_clk);
+		}
+
+		child2 = json_get_object_child(jsp, child, "fr_range");
+		if (child2) {
+			dt->frame_rate_min = json_get_arr_u32(jsp, child2, 0, dt->frame_rate_min);
+			dt->frame_rate_max = json_get_arr_u32(jsp, child2, 1, dt->frame_rate_max);
+		}
+
+		child2 = json_get_object_child(jsp, child, "ssc");
+		if (child2) {
+			dt->ss_level = json_get_obj_u32(jsp, child2, "level", 0);
+			dt->ss_freq  = json_get_obj_u32(jsp, child2, "freq", 0);
+			dt->ss_mode  = json_get_obj_u32(jsp, child2, "mode", 0);
+			dt->ss_force = json_get_obj_u32(jsp, child2, "force", 0);
+		}
+
+		lcd_clk_frame_rate_init(dt);
+		lcd_config_timing_check(pdrv, dt);
+	}
+	tims->dft_timing = tims->timings[0];
+	lcd_default_to_basic_timing_init_config(pdrv);
+
+	return 0;
+}
+
+static int lcd_panel_parse_phy(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	struct json_s *parent, *child, *child2;
+	const char *str = NULL;
+	int cnt = 1, cnt2, i = 0, k;
+	struct phy_config_s *phy_cfg;
+	struct phy_attr_s *phy;
+	struct ss_config_s *ss;
+
+	parent = json_get_object_child(jsp, jsp->root, "phy");
+	if (!parent) {
+		LCDERR("find /phy\n");
+		return -1;
+	}
+
+	phy_cfg = &pdrv->config.phy_cfg;
+	phy = lcd_phy_alloc(pdrv);
+	if (!phy) { //phy_cfg->phys[0] default phy
+		LCDERR("%s dft phy alloc failed\n", __func__);
+		return -1;
+	}
+	memset(phy, 0, sizeof(*phy));
+	phy_cfg->act_phy = phy_cfg->phys[0];
+	lcd_phy_param_preset(pdrv);
+	lcd_lane_map_preset(pdrv);
+
+	phy_cfg->lane_num = json_get_obj_u32(jsp, parent, "lane_num", phy_cfg->lane_num);
+	child = json_get_object_child(jsp, parent, "ch_sel");
+	if (child) {
+		cnt = json_get_array_size(jsp, child);
+		cnt = lcd_s32_constraint(cnt, 0, phy_cfg->lane_num);
+		for (i = 0; i < cnt; i++)
+			phy_cfg->ch_ctrl[i].sel = json_get_arr_u32(jsp, child, i, i);
+	}
+	phy_cfg->bypass_resample = json_get_obj_u32(jsp, child, "bypass_resample", 1);
+	child = json_get_object_child(jsp, parent, "pn_swap");
+	if (child) {
+		cnt = json_get_array_size(jsp, child);
+		cnt = lcd_s32_constraint(cnt, 0, phy_cfg->lane_num);
+		for (i = 0; i < cnt; i++)
+			phy_cfg->ch_ctrl[i].pn_swap = json_get_arr_u32(jsp, child, i, 0);
+	}
+
+	child = json_get_object_child(jsp, parent, "phase_sel");
+	if (child) {
+		cnt = json_get_array_size(jsp, child);
+		cnt = lcd_s32_constraint(cnt, 0, phy_cfg->lane_num);
+		for (i = 0; i < cnt; i++)
+			phy_cfg->ch_ctrl[i].phase_sel = json_get_arr_u32(jsp, child, i, 0xff);
+	}
+
+	parent = json_get_object_child(jsp, parent, "attr");
+	cnt = json_get_array_size(jsp, parent);
+	if (cnt <= 0) {
+		LCDPR("not find phy attr, use dft\n");
+		return 0;
+	}
+
+	for (i = 0; i < cnt; i++) {
+		child = json_get_array_child(jsp, parent, i);
+		if (!child) {
+			LCDPR("fail to find attr[%d]\n", i);
+			return 0;
+		}
+		if (i != 0) {
+			phy = lcd_phy_alloc(pdrv);
+			if (!phy) {
+				LCDPR("%s phy[%d] alloc fail, ignore it\n", __func__, i);
+				return 0;
+			}
+			memcpy(phy, phy_cfg->phys[0], sizeof(*phy));
+		}
+
+		str = json_get_obj_str(jsp, child, "mode", NULL);
+		phy->cv_mode   = (str && (strcmp(str, "voltage") == 0)) ? PHY_VMODE : PHY_CMODE;
+		phy->phy_clk   = json_get_obj_u32(jsp, child, "phy_clk", 0);
+		phy->vcm       = json_get_obj_u32(jsp, child, "vcm", phy->vcm);
+		phy->odt       = json_get_obj_u32(jsp, child, "odt", phy->odt);
+		phy->ref_bias  = json_get_obj_u32(jsp, child, "bias", phy->ref_bias);
+		phy->vswing    = json_get_obj_u32(jsp, child, "vswing", phy->vswing);
+		phy->clk_phase = json_get_obj_u32(jsp, child, "clk_phase", phy->clk_phase);
+
+		child2 = json_get_object_child(jsp, child, "ssc");
+		if (child2) {
+			ss = &phy->ss;
+			ss->level = json_get_obj_u32(jsp, child2, "level", ss->level);
+			ss->freq  = json_get_obj_u32(jsp, child2, "freq", ss->freq);
+			ss->mode  = json_get_obj_u32(jsp, child2, "mode", ss->mode);
+		}
+
+		child2 = json_get_object_child(jsp, child, "ch_preem");
+		if (child2) {
+			cnt2 = json_get_array_size(jsp, child2);
+			cnt2 = lcd_s32_constraint(cnt2, 0, phy_cfg->lane_num);
+			for (k = 0; k < cnt2; k++)
+				phy->lane[k].preem = json_get_arr_u32(jsp, child2, k,
+								     phy->lane[k].preem);
+		}
+
+		child2 = json_get_object_child(jsp, child, "ch_amp");
+		if (child2) {
+			cnt2 = json_get_array_size(jsp, child2);
+			cnt2 = lcd_s32_constraint(cnt2, 0, phy_cfg->lane_num);
+			for (k = 0; k < cnt2; k++)
+				phy->lane[k].amp = json_get_arr_u32(jsp, child2, k,
+								     phy->lane[k].amp);
+		}
+	}
+
+	return 0;
+}
+
+static int lcd_panel_parse_interface(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	struct json_s *parent;
+	struct lvds_config_s   *lvds;
+	struct vbyone_config_s *vx1;
+	struct dsi_config_s    *mipi;
+	struct mlvds_config_s  *mlvds;
+	struct p2p_config_s    *p2p;
+	union lcd_ctrl_config_u *cfg;
+	int type, lcd_bits = pdrv->config.timing.base_timing->lcd_bits;
+	const char *str;
+	unsigned int *nums = NULL, nums_size = 0, cnt = 0, i = 0;
+
+	parent = json_get_object_child(jsp, jsp->root, "interface");
+	if (!parent) {
+		LCDERR("find /interface\n");
+		return -1;
+	}
+
+	cfg = &pdrv->config.control;
+	type = pdrv->config.basic.lcd_type;
+	switch (type) {
+	case LCD_LVDS:
+		lvds = &cfg->lvds_cfg;
+		str = json_get_obj_str(jsp, parent, "lvds_fmt", NULL);
+		lvds->lvds_repack  = (str && strcmp(str, "VESA") == 0) ? 1 : 0;
+		if (lvds->lvds_repack)
+			lvds->lvds_repack = (lcd_bits == 30) ? 2 : (lcd_bits == 18) ? 0 : 1;
+		lvds->dual_port    = json_get_obj_u32(jsp, parent, "dual_port", 1);
+		lvds->pn_swap      = json_get_obj_u32(jsp, parent, "pn_swap", 0);
+		break;
+	case LCD_VBYONE:
+		vx1 = &cfg->vbyone_cfg;
+		vx1->lane_count  = json_get_obj_u32(jsp, parent, "lane_num", 8);
+		vx1->region_num  = json_get_obj_u32(jsp, parent, "region", 2);
+		vx1->color_fmt   = 4;
+		vx1->byte_mode   = (lcd_bits + 7) >> 3;
+		vx1->vsync_intr_en  = json_get_obj_u32(jsp, parent, "vsync_isr", 3);
+		vx1->intr_en        = json_get_obj_u32(jsp, parent, "vx1_isr", 1);
+		vx1->hw_filter_time = json_get_obj_u32(jsp, parent, "filter_time", 0);
+		vx1->hw_filter_cnt  = json_get_obj_u32(jsp, parent, "filter_cnt", 0);
+		break;
+	case LCD_P2P:
+		p2p = &cfg->p2p_cfg;
+		p2p->lane_num = json_get_obj_u32(jsp, parent, "lane_num", 0);
+		str = json_get_obj_str(jsp, parent, "protocol", "Invalid");
+		p2p->p2p_type = strnum_get_num(str, p2p_type_name, ARRAY_SIZE(p2p_type_name),
+					       P2P_MAX);
+		break;
+	case LCD_MLVDS:
+		mlvds = &cfg->mlvds_cfg;
+		mlvds->channel_num  = json_get_obj_u32(jsp, parent, "lane_num", 0);
+		break;
+	case LCD_MIPI:
+		mipi = &cfg->mipi_cfg;
+		mipi->lane_num = json_get_obj_u32(jsp, parent, "data_lane", 0);
+		mipi->bit_rate_max = json_get_obj_u32(jsp, parent, "bit_rate_max", 0);
+		mipi->operation_mode_init =
+				json_get_obj_u32(jsp, parent, "operation_mode_init", 0);
+		mipi->operation_mode_display =
+				json_get_obj_u32(jsp, parent, "operation_mode_display", 0);
+		mipi->video_mode_type = json_get_obj_u32(jsp, parent, "video_mode", 0);
+		mipi->clk_always_hs = json_get_obj_u32(jsp, parent, "clk_always_HS", 0);
+		mipi->check_en = 0;
+		mipi->check_reg = 0xff;
+		mipi->check_cnt = 0;
+		kfree(mipi->dsi_init_on);
+		kfree(mipi->dsi_init_off);
+		mipi->dsi_init_on = NULL;
+		mipi->dsi_init_off = NULL;
+
+		str = json_get_obj_str(jsp, parent, "init_on", NULL);
+		if (!str) {
+			LCDERR("not find mipi init_on\n");
+			return -1;
+		}
+
+		nums_size = (strlen(str) + 1) * sizeof(unsigned int);
+		nums = kmalloc(nums_size, GFP_KERNEL);
+		if (!nums) {
+			LCDERR("no memory to save nums\n");
+			return -1;
+		}
+
+		memset(nums, 0, nums_size);
+		cnt = string_to_numbers(str, nums);
+		mipi->dsi_init_on = kcalloc(cnt, sizeof(unsigned char), GFP_KERNEL);
+		if (!mipi->dsi_init_on) {
+			LCDERR("no memory to save init_on data\n");
+			kfree(nums);
+			return -1;
+		}
+		for (i = 0; i < cnt; i++)
+			mipi->dsi_init_on[i] = nums[i];
+
+		kfree(nums);
+		nums = NULL;
+
+		str = json_get_obj_str(jsp, parent, "init_off", NULL);
+		if (!str) {
+			LCDERR("not find mipi init_off\n");
+			kfree(nums);
+			kfree(mipi->dsi_init_on);
+			mipi->dsi_init_on = NULL;
+			return -1;
+		}
+
+		nums_size = (strlen(str) + 1) * sizeof(unsigned int);
+		nums = kmalloc(nums_size, GFP_KERNEL);
+		if (!nums) {
+			LCDERR("no memory to save nums\n");
+			return -1;
+		}
+
+		memset(nums, 0, nums_size);
+		cnt = string_to_numbers(str, nums);
+		mipi->dsi_init_off = kcalloc(cnt, sizeof(unsigned char), GFP_KERNEL);
+		if (!mipi->dsi_init_off) {
+			LCDERR("no memory to save init_off data\n");
+			kfree(nums);
+			return -1;
+		}
+		for (i = 0; i < cnt; i++)
+			mipi->dsi_init_off[i] = nums[i];
+
+		kfree(nums);
+		nums = NULL;
+
+		break;
+	default:
+		LCDERR("can't match valid interface\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+struct num_str_s power_type[] = {
+	{LCD_POWER_TYPE_CPU,                "gpio"},
+	{LCD_POWER_TYPE_PMU,                "pmu"},
+	{LCD_POWER_TYPE_SIGNAL,             "interface"},
+	{LCD_POWER_TYPE_EXTERN,             "extern"},
+	{LCD_POWER_TYPE_WAIT_GPIO,          "wait_gpio"},
+	{LCD_POWER_TYPE_TCON_SPI_DATA_LOAD, "tcon_spi"},
+	{LCD_POWER_TYPE_BACKLIGHT,          "backlight"},
+	{LCD_POWER_TYPE_MUTE,               "mute"}
+};
+
+static int lcd_gpio_name_to_index(struct aml_lcd_drv_s *pdrv, const char *name)
+{
+	int i = 0;
+
+	for (i = 0; i < LCD_CPU_GPIO_NUM_MAX; i++)
+		if (!strcmp(pdrv->config.power.cpu_gpio[i].name, name))
+			return i;
+
+	return LCD_CPU_GPIO_NUM_MAX;
+}
+
+static int lcd_panel_parse_power(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	struct json_s *parent, *child;
+	int cnt = 1, i = 0;
+	struct lcd_power_ctrl_s *cfg = &pdrv->config.power;
+	struct lcd_power_step_s *step;
+	const char *str;
+
+	parent = json_path_to_node(jsp, jsp->root, "/power_sequence/on");
+	cnt = json_get_array_size(jsp, parent);
+	if (cnt <= 0) {
+		LCDERR("invalid /power_sequence/on\n");
+		return -1;
+	}
+
+	cnt = lcd_s32_constraint(cnt, 0, LCD_PWR_STEP_MAX);
+	for (i = 0; i < cnt; i++) {
+		child = json_get_array_child(jsp, parent, i);
+		if (!child)
+			return -1;
+
+		step = &cfg->power_on_step[i];
+
+		step->delay = json_get_arr_u32(jsp, child, 3, 0);
+		step->value = json_get_arr_u32(jsp, child, 2, 0);
+		str         = json_get_arr_str(jsp, child, 0, NULL);
+		step->type = strnum_get_num(str, power_type, ARRAY_SIZE(power_type),
+					    LCD_POWER_TYPE_MAX);
+
+		switch (step->type) {
+		case LCD_POWER_TYPE_CPU:
+		case LCD_POWER_TYPE_WAIT_GPIO:
+			str = json_get_arr_str(jsp, child, 1, NULL);
+			step->index = lcd_gpio_name_to_index(pdrv, str);
+			if (step->index < LCD_CPU_GPIO_NUM_MAX)
+				lcd_cpu_gpio_probe(pdrv, step->index);
+			break;
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN
+		case LCD_POWER_TYPE_EXTERN:
+			step->index = 0xff;
+			str = json_get_arr_str(jsp, child, 1, NULL);
+			if (str && !strncmp(str, "lcd_ext_dev", 11))
+				if (kstrtou32(str + 11, 10, &step->index))
+					step->index = 0xff;
+
+			if (step->index < 255) {
+				lcd_resource_add(pdrv, LCD_RES_EXTERN, step->index);
+				lcd_extern_dev_index_add(pdrv->index, step->index);
+			}
+			break;
+#endif
+		case LCD_POWER_TYPE_MUTE:
+			pdrv->unmute_cnt = step->value;
+			break;
+		default:
+			break;
+		}
+	}
+	cfg->power_on_step[i].type = 0xff;
+	if (lcd_debug_print_flag) {
+		LCDPR("init on:\n");
+		for (i = 0; i < cnt; i++) {
+			step = &cfg->power_on_step[i];
+			LCDPR("step[%d]: type=%d, index=%d, value=%d, delay=%d\n",
+				i, step->type, step->index, step->value, step->delay);
+		}
+	}
+
+	parent = json_path_to_node(jsp, jsp->root, "/power_sequence/off");
+	cnt = json_get_array_size(jsp, parent);
+	if (cnt <= 0) {
+		LCDERR("/power_sequence/off\n");
+		return -1;
+	}
+
+	cnt = lcd_s32_constraint(cnt, 0, LCD_PWR_STEP_MAX);
+	for (i = 0; i < cnt; i++) {
+		child = json_get_array_child(jsp, parent, i);
+		if (!child)
+			return -1;
+
+		step = &cfg->power_off_step[i];
+		step->delay = json_get_arr_u32(jsp, child, 3, 0);
+		step->value = json_get_arr_u32(jsp, child, 2, 0);
+		str	    = json_get_arr_str(jsp, child, 0, NULL);
+		step->type = strnum_get_num(str, power_type, ARRAY_SIZE(power_type),
+					    LCD_POWER_TYPE_MAX);
+
+		switch (step->type) {
+		case LCD_POWER_TYPE_CPU:
+		case LCD_POWER_TYPE_WAIT_GPIO:
+			str = json_get_arr_str(jsp, child, 1, NULL);
+			step->index = lcd_gpio_name_to_index(pdrv, str);
+			if (step->index < LCD_CPU_GPIO_NUM_MAX)
+				lcd_cpu_gpio_probe(pdrv, step->index);
+			break;
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN
+		case LCD_POWER_TYPE_EXTERN:
+			step->index = 0xff;
+			str = json_get_arr_str(jsp, child, 1, NULL);
+			if (str && !strncmp(str, "lcd_ext_dev", 11))
+				if (kstrtou32(str + 11, 10, &step->index))
+					step->index = 0xff;
+
+			if (step->index < 255) {
+				lcd_resource_add(pdrv, LCD_RES_EXTERN, step->index);
+				lcd_extern_dev_index_add(pdrv->index, step->index);
+			}
+			break;
+#endif
+		case LCD_POWER_TYPE_MUTE:
+			pdrv->mute_cnt = step->value;
+			break;
+		default:
+			break;
+		}
+	}
+	cfg->power_off_step[i].type = 0xff;
+
+	if (lcd_debug_print_flag) {
+		LCDPR("init off:\n");
+		for (i = 0; i < cnt; i++) {
+			step = &cfg->power_off_step[i];
+			LCDPR("step[%d]: type=%d, index=%d, value=%d, delay=%d\n",
+				i, step->type, step->index, step->value, step->delay);
+		}
+	}
+
+	return 0;
+}
+
+static int lcd_panel_parse_vlock(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	struct json_s *parent;
+	unsigned int *param = pdrv->config.vlock_param;
+
+	param[0] = LCD_VLOCK_PARAM_BIT_UPDATE;
+	parent = json_get_object_child(jsp, jsp->root, "vlock");
+	if (!parent)
+		return -1;
+
+	param[0] |= LCD_VLOCK_PARAM_BIT_VALID;
+	param[1] = json_get_obj_u32(jsp, parent, "en", 0);
+	param[2] = json_get_obj_u32(jsp, parent, "mode", 0);
+	param[3] = json_get_obj_u32(jsp, parent, "pll_m_limit", 0);
+	param[4] = json_get_obj_u32(jsp, parent, "line_limit", 0);
+
+	if (lcd_debug_print_flag)
+		LCDPR("vlock: en:%d, mode:%d, pll_m_limit:%d, line_limit:%d\n",
+			param[1], param[2], param[3], param[4]);
+
+	return 0;
+}
+
+static int lcd_panel_parse_optical(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	struct json_s *parent, *child;
+	struct lcd_optical_info_s *opt = &pdrv->config.optical;
+
+	parent = json_get_object_child(jsp, jsp->root, "optical");
+	if (!parent)
+		return -1;
+
+	child = json_get_object_child(jsp, parent, "primaries");
+
+	opt->features = json_get_obj_u32(jsp, parent, "feature", 0);
+	opt->hdr_support = json_get_obj_u32(jsp, parent, "hdr_support", 0);
+	opt->ldim_support = json_get_obj_u32(jsp, parent, "ldim_support", 0);
+	opt->white_point_x = json_get_obj_u32(jsp, parent, "white_point_x", 1024);
+	opt->white_point_y = json_get_obj_u32(jsp, parent, "white_point_y", 1024);
+	opt->luma_min = json_get_obj_u32(jsp, parent, "luma_min", 16);
+	opt->luma_max = json_get_obj_u32(jsp, parent, "luma_max", 235);
+	opt->luma_avg = json_get_obj_u32(jsp, parent, "luma_avg", 128);
+	opt->luma_peak = json_get_obj_u32(jsp, parent, "luma_peak", 235);
+
+	if (child) {
+		opt->primaries_b_x = json_get_arr_u32(jsp, child, 0, 0);
+		opt->primaries_b_y = json_get_arr_u32(jsp, child, 1, 0);
+		opt->primaries_g_x = json_get_arr_u32(jsp, child, 2, 0);
+		opt->primaries_g_y = json_get_arr_u32(jsp, child, 3, 0);
+		opt->primaries_r_x = json_get_arr_u32(jsp, child, 4, 0);
+		opt->primaries_r_y = json_get_arr_u32(jsp, child, 5, 0);
+	}
+	lcd_optical_vinfo_update(pdrv);
+
+	return 0;
+}
+
+static int lcd_panel_parse_swpdf(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	s32 pat_cnt, blk_cnt = 0, act_cnt = 0, i = 0, k = 0;
+	u32 x, y, w, h, reg, mask, val, bus, mat[4], th[2];
+	struct swpdf_s *pdf = get_swpdf();
+	struct swpdf_pat_s *pat = NULL;
+	struct json_s *parent, *thres_node, *pat_node;
+	struct json_s *blk_parent, *blk_node, *act_parent, *act_node;
+
+	parent = json_get_object_child(jsp, jsp->root, "sw_pdf");
+	if (!parent || !json_get_obj_u32(jsp, parent, "en", 0)) {
+		LCDPR("no sw_pdf find\n");
+		return 0;
+	}
+
+	parent = json_get_object_child(jsp, parent, "pattern");
+	pat_cnt = json_get_array_size(jsp, parent);
+	if (!parent || pat_cnt <= 0) {
+		LCDPR("error pattern\n");
+		return 0;
+	}
+
+	lcd_swpdf_init(pdrv);
+	for (i = 0; i < pat_cnt; i++) {
+		pat_node = json_get_array_child(jsp, parent, 0);
+		if (!pat_node)
+			continue;
+
+		thres_node = json_get_object_child(jsp, parent, "threshold");
+		if (thres_node)
+			continue;
+
+		blk_parent = json_get_object_child(jsp, parent, "block");
+		blk_cnt = json_get_array_size(jsp, blk_parent);
+		if (!blk_parent || blk_cnt <= 0)
+			continue;
+
+		act_parent = json_get_object_child(jsp, parent, "act");
+		act_cnt = json_get_array_size(jsp, act_parent);
+		if (!act_parent || act_cnt <= 0)
+			continue;
+
+		th[0] = json_get_arr_u32(jsp, thres_node, 0, 4096);
+		th[1] = json_get_arr_u32(jsp, thres_node, 0, 0);
+		pat = swpdf_pat_create_add(pdf, th[0], th[1]);
+		if (!pat) {
+			LCDPR("swpdf pat_%d fail: blk_cnt:%d, act_cnt:%d thres: %d-%d",
+				i, blk_cnt, act_cnt, th[0], th[1]);
+			continue;
+		}
+		for (k = 0; k < blk_cnt; k++) {
+			blk_node = json_get_array_child(jsp, blk_parent, k);
+			if (!blk_node)
+				continue;
+
+			x = json_get_arr_u32(jsp, blk_node, 0, 0);
+			y = json_get_arr_u32(jsp, blk_node, 1, 0);
+			w = json_get_arr_u32(jsp, blk_node, 2, 0);
+			h = json_get_arr_u32(jsp, blk_node, 3, 0);
+			mat[0] = json_get_arr_u32(jsp, blk_node, 4, 0);
+			mat[1] = json_get_arr_u32(jsp, blk_node, 5, 0);
+			mat[2] = json_get_arr_u32(jsp, blk_node, 6, 0);
+			mat[3] = json_get_arr_u32(jsp, blk_node, 7, 0);
+
+			if (!swpdf_block_create_add(pat, x, y, w, h, mat))
+				LCDPR("blk:[%d, %d, %d, %d] mat:[%08x, %08x, %08x, %08x]\n",
+					x, y, w, h, mat[0], mat[1], mat[2], mat[3]);
+		}
+
+		for (k = 0; k < act_cnt; k++) {
+			act_node = json_get_array_child(jsp, act_parent, k);
+			if (!act_node)
+				continue;
+
+			reg = json_get_arr_u32(jsp, act_node, 0, 0);
+			mask = json_get_arr_u32(jsp, act_node, 1, 0);
+			val = json_get_arr_u32(jsp, act_node, 2, 0);
+			bus = json_get_arr_u32(jsp, act_node, 3, 0);
+
+			if (!swpdf_act_create_add(pat, reg, mask, val, bus))
+				LCDPR("add act: reg=0x%x, mask=0x%x, val=0x%x\n",
+					reg, mask, val);
+		}
+		if (pdrv->status & LCD_STATUS_IF_ON)
+			swpdf_act_pat(pat, SWPDF_ACT_RD_DFT);
+		pdrv->config.customer_sw_pdf |= 1 << i;
+	}
+
+	return 0;
+}
+
+static int lcd_panel_parse_swpol(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
+{
+	return 0;
+}
+
+int lcd_config_load_from_json(struct aml_lcd_drv_s *pdrv, unsigned char *panel_file)
+{
+	int index = 0, ret = -1;
+	struct json_parse_s *jsp;
+	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_detail_timing_s *pt = NULL;
+
+	index = pdrv->index;
+	jsp = get_panel_jsp(index);
+
+	if (jsp->status != JSON_STATUS_OK)
+		return -1;
+
+	/*parse basic*/
+	ret = lcd_panel_parse_basic(jsp, pdrv);
+	if (ret < 0)
+		goto parse_end;
+
+	/*parse timing*/
+	ret = lcd_panel_parse_timing(jsp, pdrv);
+	if (ret < 0)
+		goto parse_end;
+
+	/*parse interface*/
+	ret = lcd_panel_parse_interface(jsp, pdrv);
+	if (ret < 0)
+		goto parse_end;
+
+	/*parse phy*/
+	ret = lcd_panel_parse_phy(jsp, pdrv);
+	if (ret < 0)
+		goto parse_end;
+
+	/*parse power sequence*/
+	ret = lcd_panel_parse_power(jsp, pdrv);
+	if (ret < 0)
+		goto parse_end;
+
+	/*parse vlock*/
+	lcd_panel_parse_vlock(jsp, pdrv);
+
+	/*parse sw_pdf*/
+	lcd_panel_parse_swpdf(jsp, pdrv);
+
+	/*parse sw_pol,   todo*/
+	lcd_panel_parse_swpol(jsp, pdrv);
+
+	/*parse hdr*/
+	lcd_panel_parse_optical(jsp, pdrv);
+
+	//lcd_panel_parse_data(jsp, pdrv);
+
+#ifdef CONFIG_AML_LCD_BACKLIGHT
+	aml_bl_index_add(pdrv->index, 0);
+#endif
+
+	pt = pconf->timing.base_timing;
+	LCDPR("[%d]:%s %s, %s, %dbit, %dx%d, clk_mode:%d, cfg_chk:0x%x, cus_pinmux:%d\n",
+	      pdrv->index, __func__, pconf->basic.model_name,
+	      lcd_type_type_to_str(pconf->basic.lcd_type),
+	      pt ? pt->lcd_bits : 0, pt ? pt->h_active : 0, pt ? pt->v_active : 0,
+	      pconf->timing.clk_mode, pconf->basic.config_check, pconf->custom_pinmux);
+
+parse_end:
+	return ret;
+}
+
+unsigned char lcd_panel_config_load_detect(int index, int key_valid)
+{
+	unsigned char load = LCD_CONFIG_NONE;
+	unsigned char file_type = PANEL_FILE_INVILD;
+
+	file_type = get_lcd_panel_file_type(index);
+	load = lcd_get_dbg_source();
+	if (load != LCD_CONFIG_NONE) {
+		switch (load) {
+		case LCD_CONFIG_DTS:
+			break;
+		case LCD_CONFIG_UKEY:
+			if (!key_valid)
+				load = LCD_CONFIG_NONE;
+			break;
+		case LCD_CONFIG_FILE:
+			if (file_type != PANEL_FILE_JSON && file_type != PANEL_FILE_INI)
+				load = LCD_CONFIG_NONE;
+			break;
+		default:
+			load = LCD_CONFIG_NONE;
+		}
+		return load;
+	}
+
+	if (file_type == PANEL_FILE_INI || file_type == PANEL_FILE_JSON) {
+		load = LCD_CONFIG_FILE;
+	} else {
+		if (key_valid)
+			load = LCD_CONFIG_UKEY;
+		else
+			load = LCD_CONFIG_DTS;
+	}
+
+	return load;
+}
+
+int lcd_check_config_load(struct aml_lcd_drv_s *drv)
+{
+	drv->config_load = lcd_panel_config_load_detect(drv->index, drv->key_valid);
+	if (drv->config_load == LCD_CONFIG_NONE) {
+		LCDERR("[%d] config_load_check error: config_load:%d, key_valid:%d",
+			drv->index, drv->config_load, drv->key_valid);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int lcd_config_load_init(struct aml_lcd_drv_s *pdrv)
 {
 	if (pdrv->config.basic.config_check & 0x2)
@@ -1993,8 +2930,11 @@ static int lcd_config_load_init(struct aml_lcd_drv_s *pdrv)
 int lcd_get_config(struct aml_lcd_drv_s *pdrv)
 {
 	char key_str[10];
-	int load_id = 0;
-	int ret;
+	int ret = -1;
+	unsigned char file_type = PANEL_FILE_INVILD;
+	static const char *const strs[] = {[LCD_CONFIG_DTS] = "dts",
+			[LCD_CONFIG_UKEY] = "unifykey",
+			[LCD_CONFIG_FILE] = "file"};
 
 	memset(key_str, 0, 10);
 	if (pdrv->index == 0)
@@ -2002,21 +2942,25 @@ int lcd_get_config(struct aml_lcd_drv_s *pdrv)
 	else
 		sprintf(key_str, "lcd%d", pdrv->index);
 
-	if (pdrv->key_valid) {
-		ret = lcd_unifykey_check(key_str);
-		if (ret < 0) {
-			load_id = 0;
-			LCDERR("[%d]: %s: can't find key %s\n",
-			       pdrv->index, __func__, key_str);
-		} else {
-			load_id = 1;
-		}
-	}
-	pdrv->config_load = load_id;
-	if (load_id)
-		ret = lcd_config_load_from_unifykey(pdrv, key_str);
-	else
+	switch (pdrv->config_load) {
+	case LCD_CONFIG_DTS:
 		ret = lcd_config_load_from_dts(pdrv);
+		break;
+	case LCD_CONFIG_UKEY:
+		ret = lcd_config_load_from_unifykey(pdrv, key_str);
+		break;
+	case LCD_CONFIG_FILE:
+		file_type = get_lcd_panel_file_type(pdrv->index);
+		if (file_type == PANEL_FILE_JSON)
+			ret = lcd_config_load_from_json(pdrv, NULL);
+		else if (file_type == PANEL_FILE_INI)
+			ret = -1; //todo
+		break;
+	default:
+		ret = -1;
+		break;
+	}
+	LCDPR("[%d]: %s from %s\n", pdrv->index, __func__, strs[pdrv->config_load]);
 	if (ret)
 		return -1;
 

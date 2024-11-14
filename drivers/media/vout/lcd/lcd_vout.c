@@ -129,6 +129,11 @@ static struct ioctl_phy_config_s ioctl_phy_config = {
 	.preem_level = 0,
 };
 
+int lcd_get_dbg_source(void)
+{
+	return lcd_debug_ctrl_config.debug_para_source;
+}
+
 static struct aml_lcd_drv_s *lcd_driver_add(int index)
 {
 	struct aml_lcd_drv_s *pdrv = NULL;
@@ -2371,7 +2376,10 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 		}
 	}
 
-	if (pdrv->key_valid && !lcd_unifykey_init_get()) {
+	if (lcd_check_config_load(pdrv))
+		return -1;
+	if (pdrv->config_load == LCD_CONFIG_UKEY && !lcd_unifykey_init_get()) {
+		INIT_DELAYED_WORK(&pdrv->config_probe_dly_work, lcd_config_probe_work);
 		lcd_queue_delayed_work(&pdrv->config_probe_dly_work, 0);
 	} else {
 		ret = lcd_mode_probe(pdrv);
@@ -2719,7 +2727,6 @@ static int lcd_probe(struct platform_device *pdev)
 		goto lcd_probe_err_1;
 
 	spin_lock_init(&pdrv->isr_lock);
-	INIT_DELAYED_WORK(&pdrv->config_probe_dly_work, lcd_config_probe_work);
 	INIT_WORK(&pdrv->late_resume_work, lcd_lata_resume_work);
 	INIT_WORK(&pdrv->mode_switch_on_work, lcd_mode_switch_on_work);
 	INIT_DELAYED_WORK(&pdrv->init_on_delayed_work, lcd_init_on_delayed_work);

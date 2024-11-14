@@ -37,8 +37,8 @@ static struct ext_cdev_s *ext_cdev;
 static unsigned char ext_global_init_flag;
 static unsigned int ext_drv_init_state;
 
-static int lcd_ext_dev_cnt[LCD_MAX_DRV];
-static int lcd_ext_index_lut[LCD_MAX_DRV][LCD_EXTERN_DEV_MAX];
+int lcd_ext_dev_cnt[LCD_MAX_DRV];
+int lcd_ext_index_lut[LCD_MAX_DRV][LCD_EXTERN_DEV_MAX];
 static struct lcd_extern_driver_s *ext_driver[LCD_MAX_DRV];
 
 struct lcd_extern_driver_s *lcd_extern_get_driver(int drv_index)
@@ -1388,8 +1388,7 @@ static int aml_lcd_extern_probe(struct platform_device *pdev)
 	edrv->pdev = pdev;
 	edrv->dev_cnt = 0;
 
-	ret = lcd_extern_config_load(edrv, lcd_ext_index_lut[edrv->index],
-			lcd_ext_dev_cnt[edrv->index]);
+	ret = lcd_extern_config_load(edrv);
 	if (ret)
 		goto lcd_extern_probe_err;
 

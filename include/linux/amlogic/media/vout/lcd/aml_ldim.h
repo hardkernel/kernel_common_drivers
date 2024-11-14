@@ -68,6 +68,7 @@ struct ldim_dev_driver_s {
 	char name[LDIM_DEV_NAME_MAX];
 	char pinmux_name[LDIM_DEV_NAME_MAX];
 	unsigned char key_valid;
+	unsigned char config_load;
 	unsigned char type;
 	unsigned char dma_support;
 	unsigned char dma_trig_data_ready;
@@ -232,6 +233,7 @@ struct aml_ldim_driver_s *aml_ldim_get_driver(void);
 char aml_ldim_get_bbd_state(void);
 int aml_ldim_get_config_dts(struct device_node *child);
 int aml_ldim_get_config_unifykey(unsigned char *buf);
+int aml_ldim_get_config_json(int panel_id);
 int aml_ldim_probe(struct platform_device *pdev);
 int aml_ldim_remove(void);
 

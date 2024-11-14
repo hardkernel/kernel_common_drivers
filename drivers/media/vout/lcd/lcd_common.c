@@ -35,6 +35,70 @@
 #include "lcd_reg.h"
 #include "lcd_clk/lcd_clk_config.h"
 
+int strnum_get_num(const char *str, struct num_str_s *arr, int size_arr, int dft)
+{
+	int i = 0;
+
+	if (!str || !arr)
+		return -1;
+
+	for (i = 0; i < size_arr; i++) {
+		if (strcmp(str, arr[i].str) == 0)
+			return arr[i].num;
+	}
+	return -1;
+}
+
+char *strnum_get_str(int num, struct num_str_s *arr, int size_arr, char *dft)
+{
+	int i = 0;
+
+	if (!arr)
+		return NULL;
+
+	for (i = 0; i < size_arr; i++) {
+		if (num == arr[i].num)
+			return arr[i].str;
+	}
+	return NULL;
+}
+
+int string_to_numbers(const char *str, unsigned int nums[])
+{
+	int item_ind = 0, i = 0;
+	char *token = NULL;
+	char *tmp_buf = NULL;
+	int str_len = strlen(str);
+	unsigned int temp = 0;
+
+	if (!str)
+		return 0;
+
+	tmp_buf = kmalloc(str_len + 1, GFP_KERNEL);
+	if (!tmp_buf)
+		return -1;
+
+	strcpy(tmp_buf, str);
+	tmp_buf[str_len] = '\0';
+	token = tmp_buf;
+	while (i <= str_len) {
+		if (tmp_buf[i] == ',' || i == str_len) {
+			while (*token <= ' ')
+				token++;
+			tmp_buf[i] = '\0';
+			if (!kstrtouint(token, 0, &temp))
+				nums[item_ind++] = temp;
+			else
+				return 0;
+			token = tmp_buf + i + 1;
+		}
+		i++;
+	}
+	kfree(tmp_buf);
+
+	return item_ind;
+}
+
 void lcd_delay_us(int us)
 {
 	if (!us)
@@ -138,13 +202,6 @@ void lcd_unmap_phyaddr(u8 *vaddr)
 void lcd_cpu_gpio_probe(struct aml_lcd_drv_s *pdrv, unsigned int index)
 {
 	struct lcd_cpu_gpio_s *cpu_gpio;
-	const char *str;
-	int ret;
-
-	if (!pdrv->dev->of_node) {
-		LCDERR("[%d]: %s: dev of_node is null\n", pdrv->index, __func__);
-		return;
-	}
 
 	if (index >= LCD_CPU_GPIO_NUM_MAX) {
 		LCDERR("[%d]: gpio index %d, exit\n", pdrv->index, index);
@@ -158,15 +215,6 @@ void lcd_cpu_gpio_probe(struct aml_lcd_drv_s *pdrv, unsigned int index)
 		}
 		return;
 	}
-
-	/* get gpio name */
-	ret = of_property_read_string_index(pdrv->dev->of_node, "lcd_cpu_gpio_names", index, &str);
-	if (ret) {
-		LCDERR("[%d]: failed to get lcd_cpu_gpio_names: %d\n",
-		       pdrv->index, index);
-		str = "unknown";
-	}
-	strcpy(cpu_gpio->name, str);
 
 	/* init gpio flag */
 	cpu_gpio->probe_flag = 1;

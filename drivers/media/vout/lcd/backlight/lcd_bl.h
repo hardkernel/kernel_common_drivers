@@ -18,8 +18,10 @@ static inline unsigned int bl_do_div(unsigned long long num, unsigned int den)
 }
 
 char *bl_method_type_to_str(int type);
-int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pdev, int load_id,
-		int level_bootup);
+int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pdev, int level_bootup);
+
+int bl_config_load_post(struct aml_bl_drv_s *bdrv);
+int lcd_bl_check_config_load(struct aml_bl_drv_s *drv);
 
 int aml_bl_index_get(int drv_index);
 void bl_gpio_probe(struct aml_bl_drv_s *bdrv, int index);

@@ -840,6 +840,16 @@ struct aml_fr_lock_s {
 	struct s32_slide_filter_s ft_time;
 };
 
+#define LCD_CONFIG_NONE 0
+#define LCD_CONFIG_DTS  1
+#define LCD_CONFIG_UKEY 2
+#define LCD_CONFIG_FILE 3
+#define LCD_CONFIG_BSP  4
+
+#define PANEL_FILE_INVILD  0
+#define PANEL_FILE_INI     1
+#define PANEL_FILE_JSON    2
+
 struct aml_lcd_drv_s {
 	unsigned int index;
 	unsigned int status;
@@ -954,6 +964,7 @@ struct aml_lcd_drv_s {
 #endif
 };
 
+int lcd_get_dbg_source(void);
 struct aml_lcd_drv_s *aml_lcd_get_driver(int index);
 void lcd_resource_ready(int drv_index, unsigned int res_type, unsigned int res_index);
 

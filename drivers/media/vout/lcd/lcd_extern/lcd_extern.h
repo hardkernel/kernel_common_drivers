@@ -19,7 +19,8 @@
 #define EXTERR(fmt, args...)    pr_info("lcd extern: error: " fmt "", ## args)
 
 #define LCD_EXTERN_DRIVER	"lcd_extern"
-
+extern int lcd_ext_dev_cnt[LCD_MAX_DRV];
+extern int lcd_ext_index_lut[LCD_MAX_DRV][LCD_EXTERN_DEV_MAX];
 /* common API */
 #ifdef CONFIG_USE_OF
 struct device_node *aml_lcd_extern_get_dts_child(struct lcd_extern_driver_s *edrv, int index);
@@ -42,7 +43,8 @@ void lcd_extern_config_update(struct lcd_extern_driver_s *edrv,
 int lcd_extern_add_dev(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev);
 struct lcd_extern_dev_s *lcd_extern_dev_malloc(int dev_index);
 void lcd_extern_dev_free(struct lcd_extern_dev_s *edev);
-int lcd_extern_config_load(struct lcd_extern_driver_s *edrv, int *ext_index_lut, int dev_cnt);
+int lcd_ext_check_config_load(struct lcd_extern_driver_s *drv);
+int lcd_extern_config_load(struct lcd_extern_driver_s *edrv);
 void lcd_extern_gpio_probe(struct lcd_extern_driver_s *edrv, unsigned char index);
 void lcd_extern_gpio_unregister(struct lcd_extern_driver_s *edrv, int index);
 void lcd_extern_gpio_set(struct lcd_extern_driver_s *edrv, unsigned char index, int value);

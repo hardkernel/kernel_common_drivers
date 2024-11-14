@@ -1056,6 +1056,31 @@ int aml_ldim_get_config_unifykey(unsigned char *buf)
 	return 0;
 }
 
+int aml_ldim_get_config_json(int panel_id)
+{
+	struct json_parse_s *jsp;
+	struct json_s *parent;
+
+	jsp = get_panel_jsp(panel_id);
+	if (jsp->status != JSON_STATUS_OK) {
+		BLPR("panel%d json not ready\n", panel_id);
+		return -1;
+	}
+
+	parent = json_path_to_node(jsp, jsp->root, "/backlight/basic_info/ldim_row_col");
+	if (!parent) {
+		BLPR("failed find /backlight/basic_info/ldim_row_col\n");
+		return -1;
+	}
+
+	ldim_config.dev_index = 0;
+	ldim_config.seg_row = json_get_arr_u32(jsp, parent, 0, 0);
+	ldim_config.seg_col = json_get_arr_u32(jsp, parent, 1, 0);
+	LDIMPR("%s row:%d, col: %d\n", __func__, ldim_config.seg_row, ldim_config.seg_col);
+
+	return 0;
+}
+
 void aml_ldim_rmem_info(void)
 {
 	pr_info("reserved mem info:\n"

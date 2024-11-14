@@ -10,7 +10,7 @@
 #include <linux/spi/spi.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include "../lcd_bl.h"
-
+extern struct bl_gpio_s ldim_gpio[BL_GPIO_NUM_MAX];
 int ldim_spi_dma_cycle_align_byte(int size);
 
 /* ldim spi api*/

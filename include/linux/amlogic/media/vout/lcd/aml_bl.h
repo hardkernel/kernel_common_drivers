@@ -206,7 +206,7 @@ struct aml_bl_drv_s {
 	unsigned int index;
 	unsigned int key_valid;
 	unsigned int retry_cnt;
-	unsigned int config_load;
+	unsigned char config_load;
 	unsigned int state;
 	unsigned int level;
 	unsigned int level_brightness;

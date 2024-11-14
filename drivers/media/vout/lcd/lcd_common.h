@@ -80,17 +80,47 @@
 /* 20240909: update phy tuning: get real state from register */
 /* 20240923: support reserved memory to transmit panel parameter to kernel */
 /* 20241023: optimize mute/unmute flow */
-#define LCD_DRV_VERSION    "20241023"
+/* 20241127: add lcd config json parse driver */
+#define LCD_DRV_VERSION    "20241127"
+
+#define CFMT_RGB565          0x05
+#define CFMT_RGB_6bit        0x06
+#define CFMT_RGB_8bit        0x08
+#define CFMT_RGB_10bit       0x0a
+#define CFMT_RGB_12bit       0x0c
+#define CFMT_YCbCr422_8bit   0x18
+#define CFMT_YCbCr422_10bit  0x1a
+#define CFMT_YCbCr422_12bit  0x1c
+#define CFMT_YCbCr444_8bit   0x28
+#define CFMT_YCbCr444_10bit  0x2a
+#define CFMT_YCbCr444_12bit  0x2c
+#define CFMT_YCbCr420_8bit   0x38
+#define CFMT_YCbCr420_10bit  0x3a
+#define CFMT_YCbCr420_12bit  0x3c
+
+struct color_fmt_info_s {
+	unsigned int cfmt;
+	unsigned char bits;
+	char name[32];
+};
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
 extern int lcd_vout_serve_bypass;
 extern struct mutex lcd_tcon_dbg_mutex;
 
+struct num_str_s {
+	int  num;
+	char str[32];
+};
+
 unsigned int str_add_vmode(char *buf, unsigned char newline,
 		unsigned short width, unsigned short height, unsigned short fr);
 
 /* lcd common */
+int string_to_numbers(const char *str, unsigned int nums[]);
+int strnum_get_num(const char *str, struct num_str_s *arr, int size_arr, int dft);
+char *strnum_get_str(int num, struct num_str_s *arr, int size_arr, char *dft);
 void lcd_dbg_mem_dump(void *addr, size_t size);
 void lcd_delay_us(int us);
 void lcd_delay_ms(int ms);
@@ -124,6 +154,8 @@ unsigned int lcd_config_timing_check(struct aml_lcd_drv_s *pdrv,
 				     struct lcd_detail_timing_s *ptiming);
 int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv);
 void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv);
+unsigned char lcd_panel_config_load_detect(int index, int key_valid);
+int lcd_check_config_load(struct aml_lcd_drv_s *drv);
 int lcd_get_config(struct aml_lcd_drv_s *pdrv);
 void lcd_optical_vinfo_update(struct aml_lcd_drv_s *pdrv);
 
@@ -313,6 +345,7 @@ int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv);
 int lcd_venc_config_init(struct lcd_data_s *pdata);
 void lcd_screen_black(struct aml_lcd_drv_s *pdrv);
 void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
+
 void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal);
 
 /* lcd driver */
