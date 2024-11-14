@@ -28,6 +28,8 @@
 #include <asm/sections.h>
 #include <linux/moduleparam.h>
 #include <trace/hooks/mm.h>
+#include <trace/events/kmem.h>
+#include <linux/mm_types.h>
 
 #define DEBUG_PAGE_TRACE	0
 
@@ -222,164 +224,23 @@ static struct kprobe kp_lookup_name = {
 
 /* ----------------------------------- */
 
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE_DIS)
-static char func_comp_alloc[NAME_MAX] = "compaction_alloc";
-static char func_alloc_pages[NAME_MAX] = "__alloc_pages_noprof";
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-static char func_free_prep[NAME_MAX] = "free_pages_prepare";
-#else
-static char func_free_prep[NAME_MAX] = "free_pcp_prepare";
-#endif
-static char func_free_ok[NAME_MAX] = "__free_pages_ok";
-
-/* per-instance private data */
-struct kretp_data {
-	struct page *page;
-	gfp_t gfp;
-	unsigned int order;
-	unsigned long count;
-};
-
-/* Here we use the entry_handler to timestamp function entry */
-static int comp_alloc_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+static void __maybe_unused page_free_callback(void *data, struct page *page,
+		unsigned int order)
 {
-	struct kretp_data *data;
-
-	data = (struct kretp_data *)ri->data;
-	data->page = (struct page *)regs->regs[0];
-	return 0;
+	reset_page_trace(page, order);
 }
 
-NOKPROBE_SYMBOL(comp_alloc_entry_handler);
-
-static int alloc_pages_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+static void __maybe_unused page_alloc_callback(void *data, struct page *page,
+			unsigned int order, gfp_t gfp_flags, int migratetype)
 {
-	struct kretp_data *data;
-
-	data = (struct kretp_data *)ri->data;
-	data->gfp = (gfp_t)regs->regs[0];
-	data->order = (unsigned int)regs->regs[1];
-	return 0;
+	set_page_trace(page, order, gfp_flags, NULL);
 }
 
-NOKPROBE_SYMBOL(alloc_pages_entry_handler);
-
-static int free_prep_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+static void __maybe_unused migrate_folio_callback(void *data, struct folio *old_folio,
+			struct folio *new_folio)
 {
-	struct kretp_data *data;
-
-	data = (struct kretp_data *)ri->data;
-	data->page = (struct page *)regs->regs[0];
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-	data->order = (unsigned int)regs->regs[2];
-#else
-	data->order = (unsigned int)regs->regs[1];
-#endif
-	return 0;
+	replace_page_trace(folio_page(new_folio, 0), folio_page(old_folio, 0));
 }
-
-NOKPROBE_SYMBOL(free_prep_entry_handler);
-
-static int free_ok_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	struct kretp_data *data;
-
-	data = (struct kretp_data *)ri->data;
-	data->page = (struct page *)regs->regs[0];
-	data->order = (unsigned int)regs->regs[1];
-	return 0;
-}
-
-NOKPROBE_SYMBOL(free_ok_entry_handler);
-
-/*
- * Return-probe handler: Log the return value and duration. Duration may turn
- * out to be zero consistently, depending upon the granularity of time
- * accounting on the platform.
- */
-static int comp_alloc_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-//	unsigned long retval = regs_return_value(regs);
-	struct page *ret_page = (struct page *)regs_return_value(regs);
-	struct kretp_data *data = (struct kretp_data *)ri->data;
-
-	replace_page_trace(ret_page, data->page);
-
-	return 0;
-}
-
-NOKPROBE_SYMBOL(comp_alloc_ret_handler);
-
-static int alloc_pages_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-//	unsigned long retval = regs_return_value(regs);
-	struct page *ret_page = (struct page *)regs_return_value(regs);
-	struct kretp_data *data = (struct kretp_data *)ri->data;
-
-	set_page_trace(ret_page, data->order, data->gfp, NULL);
-
-	return 0;
-}
-
-NOKPROBE_SYMBOL(alloc_pages_ret_handler);
-
-static int free_prep_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	bool retval = (bool)regs_return_value(regs);
-	struct kretp_data *data = (struct kretp_data *)ri->data;
-
-	if (retval)
-		reset_page_trace(data->page, data->order);
-
-	return 0;
-}
-
-NOKPROBE_SYMBOL(free_prep_ret_handler);
-
-static int free_ok_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	struct kretp_data *data = (struct kretp_data *)ri->data;
-
-	if (PageBuddy(data->page))
-		reset_page_trace(data->page, data->order);
-
-	return 0;
-}
-
-NOKPROBE_SYMBOL(free_ok_ret_handler);
-
-static struct kretprobe comp_alloc_kretprobe = {
-	.handler		= comp_alloc_ret_handler,
-	.entry_handler		= comp_alloc_entry_handler,
-	.data_size		= sizeof(struct kretp_data),
-	/* Probe up to 20 instances concurrently. */
-	.maxactive		= 20,
-};
-
-static struct kretprobe alloc_pages_kretprobe = {
-	.handler		= alloc_pages_ret_handler,
-	.entry_handler		= alloc_pages_entry_handler,
-	.data_size		= sizeof(struct kretp_data),
-	/* Probe up to 20 instances concurrently. */
-	.maxactive		= 20,
-};
-
-static struct kretprobe free_prep_kretprobe = {
-	.handler		= free_prep_ret_handler,
-	.entry_handler		= free_prep_entry_handler,
-	.data_size		= sizeof(struct kretp_data),
-	/* Probe up to 20 instances concurrently. */
-	.maxactive		= 20,
-};
-
-static struct kretprobe free_ok_kretprobe = {
-	.handler		= free_ok_ret_handler,
-	.entry_handler		= free_ok_entry_handler,
-	.data_size		= sizeof(struct kretp_data),
-	/* Probe up to 20 instances concurrently. */
-	.maxactive		= 20,
-};
-#endif
 #endif
 
 /* ----------------------------------- */
@@ -1468,12 +1329,6 @@ static const struct proc_ops pagetrace_proc_ops = {
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 struct page_summary *dump_sum;
 
-static char sym_dump_header[32] = "dump_header";
-
-static struct kprobe kp_dump_header = {
-	.symbol_name	= sym_dump_header,
-};
-
 static void show_page_trace2(struct zone *zone,
 		struct pagetrace_summary *pt_sum)
 {
@@ -1522,8 +1377,7 @@ static void show_page_trace2(struct zone *zone,
 	pr_info("------------------------------\n");
 }
 
-static void __kprobes dump_header_handler_post(struct kprobe *p,
-				struct pt_regs *regs, unsigned long flags)
+static void __maybe_unused oom_panic_callback(void *data, struct oom_control *oc, int *retc)
 {
 	struct zone *zone;
 	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
@@ -1636,53 +1490,26 @@ static int __init page_trace_module_init(void)
 	page_trace_mem_init();
 
 	dump_sum = vzalloc(size);
-	kp_dump_header.post_handler = dump_header_handler_post;
-	ret = register_kprobe(&kp_dump_header);
-	if (ret < 0) {
-		pr_err("register_kprobe failed, returned %d\n", ret);
-		return ret;
-	}
+	ret = register_trace_android_vh_oom_check_panic(oom_panic_callback, NULL);
+	if (ret < 0)
+		pr_err("register_trace_android_vh_oom_check_page fail ret=%d\n", ret);
 #endif
 
 	if (!trace_buffer)
 		return -ENOMEM;
 
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE_DIS)
-	comp_alloc_kretprobe.kp.symbol_name = func_comp_alloc;
-	ret = register_kretprobe(&comp_alloc_kretprobe);
-	if (ret < 0) {
-		pr_err("register_kretprobe failed, returned %d\n", ret);
-		return ret;
-	}
-	pr_debug("Planted return probe at %s: %px\n",
-			comp_alloc_kretprobe.kp.symbol_name, comp_alloc_kretprobe.kp.addr);
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
+	ret = register_trace_mm_page_alloc(page_alloc_callback, NULL);
+	if (ret < 0)
+		pr_err("register_trace_mm_page_alloc fail ret=%d\n", ret);
 
-	alloc_pages_kretprobe.kp.symbol_name = func_alloc_pages;
-	ret = register_kretprobe(&alloc_pages_kretprobe);
-	if (ret < 0) {
-		pr_err("register_kretprobe failed, returned %d\n", ret);
-		return ret;
-	}
-	pr_debug("Planted return probe at %s: %px\n",
-			alloc_pages_kretprobe.kp.symbol_name, alloc_pages_kretprobe.kp.addr);
+	ret = register_trace_mm_page_free(page_free_callback, NULL);
+	if (ret < 0)
+		pr_err("register_trace_mm_page_free fail ret=%d\n", ret);
 
-	free_prep_kretprobe.kp.symbol_name = func_free_prep;
-	ret = register_kretprobe(&free_prep_kretprobe);
-	if (ret < 0) {
-		pr_err("register_kretprobe failed, returned %d\n", ret);
-		return ret;
-	}
-	pr_debug("Planted return probe at %s: %px\n",
-			free_prep_kretprobe.kp.symbol_name, free_prep_kretprobe.kp.addr);
-
-	free_ok_kretprobe.kp.symbol_name = func_free_ok;
-	ret = register_kretprobe(&free_ok_kretprobe);
-	if (ret < 0) {
-		pr_err("register_kretprobe failed, returned %d\n", ret);
-		return ret;
-	}
-	pr_debug("Planted return probe at %s: %px\n",
-			free_ok_kretprobe.kp.symbol_name, free_ok_kretprobe.kp.addr);
+	ret = register_trace_android_vh_look_around_migrate_folio(migrate_folio_callback, NULL);
+	if (ret < 0)
+		pr_err("register_trace migrate page fail ret=%d\n", ret);
 #endif
 
 	return 0;
@@ -1692,34 +1519,19 @@ static void __exit page_trace_module_exit(void)
 {
 	if (d_pagetrace)
 		proc_remove(d_pagetrace);
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE_DIS)
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 	unregister_kprobe(&kp_lookup_off);
 	pr_debug("kprobe at %p unregistered\n", kp_lookup_off.addr);
 
 	unregister_kprobe(&kp_lookup_name);
 	pr_debug("kprobe at %p unregistered\n", kp_lookup_name.addr);
 
-	unregister_kprobe(&kp_dump_header);
-	pr_debug("kprobe at %p unregistered\n", kp_dump_header.addr);
-
-	unregister_kretprobe(&comp_alloc_kretprobe);
-	pr_debug("kretprobe at %p unregistered\n", comp_alloc_kretprobe.kp.addr);
-
-	unregister_kretprobe(&alloc_pages_kretprobe);
-	pr_debug("kretprobe at %p unregistered\n", alloc_pages_kretprobe.kp.addr);
-
-	unregister_kretprobe(&free_prep_kretprobe);
-	pr_debug("kretprobe at %p unregistered\n", free_prep_kretprobe.kp.addr);
-
-	unregister_kretprobe(&free_ok_kretprobe);
-	pr_debug("kretprobe at %p unregistered\n", free_ok_kretprobe.kp.addr);
-
-	if (!trace_buffer)
-		vfree(trace_buffer);
-
 	if (!dump_sum)
 		vfree(dump_sum);
 #endif
+	if (!trace_buffer)
+		vfree(trace_buffer);
+
 }
 module_init(page_trace_module_init);
 module_exit(page_trace_module_exit);
