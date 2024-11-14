@@ -118,8 +118,6 @@ int meson_panel_get_modes(struct drm_connector *connector)
 			priv->recovery_dst_ctrl = true;
 			strncpy(recovery.name, modes[i].name, DRM_DISPLAY_MODE_LEN);
 			modes[i] = recovery;
-		} else {
-			priv->recovery_dst_ctrl = false;
 		}
 
 		for (i = 0; i < modes_cnt; i++) {
