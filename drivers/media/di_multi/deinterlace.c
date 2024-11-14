@@ -5923,7 +5923,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			}
 		}
 		if (di_reverse && (!is_progressive(vframe)) &&
-			(DIM_IS_IC(T5DB) || DIM_IS_IC(T5))) {
+			(DIM_IS_IC(T5DB) || DIM_IS_IC(T5) || DIM_IS_IC(T6D))) {
 			if ((vframe->type & VIDTYPE_TYPEMASK) ==
 			    VIDTYPE_INTERLACE_TOP) {
 				vframe->type &= (~VIDTYPE_TYPEMASK);

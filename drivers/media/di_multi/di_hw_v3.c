@@ -5318,7 +5318,12 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		(vt_phase_step << 1) |     //vt phase step (3.4)
 		(vfmt_en << 0)             //vt enable
 		);
-
+	if (DIM_IS_IC(T6D) && mif_index == DI_MIF0_ID_INP) {
+		if (di_reverse && cfgg(EN_POST_LINK))
+			DIM_RDMA_WR_BITS(reg[MIF_GEN_REG2], 3, 2, 2);
+		else
+			DIM_RDMA_WR_BITS(reg[MIF_GEN_REG2], 0, 2, 2);
+	}
 	op->wr(off + reg[MIF_FMT_W],    (y_length << 16) |
 		//hz format width
 	       (c_length << 0)); //vt format width
@@ -6023,7 +6028,10 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 				di_mif->luma_x_start0 = 0;
 				di_mif->luma_x_end0 =
 					di_buf->vframe->width - 1;
-				di_mif->luma_y_start0 = 0;
+				if (di_reverse && DIM_IS_IC(T6D))
+					di_mif->luma_y_start0 = 1;
+				else
+					di_mif->luma_y_start0 = 0;
 				di_mif->luma_y_end0 =
 					di_buf->vframe->height - 1;
 				di_mif->chroma_x_start0 = 0;
@@ -6038,8 +6046,15 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 				di_mif->luma_x_start0 = 0;
 				di_mif->luma_x_end0 =
 					di_buf->vframe->width - 1;
-				di_mif->luma_y_start0 = 1;
-				di_mif->luma_y_end0 =
+				if (di_reverse && DIM_IS_IC(T6D))
+					di_mif->luma_y_start0 = 0;
+				else
+					di_mif->luma_y_start0 = 1;
+				if (di_reverse && DIM_IS_IC(T6D))
+					di_mif->luma_y_end0 =
+					di_buf->vframe->height - 1 - 1;
+				else
+					di_mif->luma_y_end0 =
 					di_buf->vframe->height - 1;
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
