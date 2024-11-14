@@ -3413,7 +3413,7 @@
 		double_write_en;
 		/* dbg_no_wr_check; */
 		/* vdin v4l2 */
-		v4l_support_en = <0>;
+		v4l_support_en;
 		v4l_vd_num = <70>;
 		/* v4l2 capability */
 		driver   = "vdinvideo";
@@ -3485,8 +3485,8 @@
 		/* urgent_en; */
 		double_write_en;
 		/* vdin v4l2 */
-		v4l_support_en = <0>;
-		v4l_vd_num = <70>;
+		v4l_support_en;
+		v4l_vd_num = <72>;
 		/* v4l2 capability */
 		driver   = "vdinvideo";
 		bus_info = "vdin1 v4l2";
@@ -3517,11 +3517,11 @@
 		vdin_export_id = <1>;
 		tv_bit_mode = <0x15>;
 		/* vdin v4l2 */
-		v4l_support_en = <0>;
+		v4l_support_en;
 		v4l_vd_num = <71>;
 		/* v4l2 capability */
 		driver   = "vdinvideo";
-		bus_info = "vdin1 v4l2";
+		bus_info = "vdin2 v4l2";
 		version  = <0x20220120>;
 		/* fe_ports refer to tvin.h */
 		fe_ports = <0x0000a002   /* WB0_VD1 */

@@ -1301,8 +1301,9 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	}
 	mutex_unlock(&devp->fe_lock);
 
-	dprintk(0, "%s current port:%#x(%s)\n", __func__,
-		devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur));
+	dprintk(0, "%s vdin%d,current port:%#x(%s),status:%d\n", __func__, devp->index,
+		devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur),
+		devp->parm.info.status);
 	return 0;
 }
 
@@ -1471,7 +1472,7 @@ static int vdin_v4l2_open(struct file *file)
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	dprintk(0, "%s\n", __func__);
+	dprintk(0, "%s,vdin%d\n", __func__, devp->index);
 	/*dump_stack();*/
 	devp->afbce_flag_backup = devp->afbce_flag;
 
@@ -1967,10 +1968,10 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 
 	ret = of_property_read_u32(pl_dev->dev.of_node, "v4l_vd_num",
 			&v4l_vd_num);
-	dprintk(1, "vdin%d,ret = %d,v4l_vd_num=%d\n",
-		devp->index, ret, v4l_vd_num);
 	if (ret)
 		v4l_vd_num = VDIN_VD_NUMBER + (devp->index);
+	dprintk(0, "vdin%d,ret = %d,v4l_vd_num=/dev/video%d\n",
+		devp->index, ret, v4l_vd_num);
 
 	ret = video_register_device(video_dev, VFL_TYPE_VIDEO,
 			v4l_vd_num);
