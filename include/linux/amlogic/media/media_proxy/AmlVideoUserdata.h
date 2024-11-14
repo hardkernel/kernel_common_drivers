@@ -10,7 +10,7 @@
 enum media_message_type {
 	MEDIA_MESSAGE_TYPE_INVALID    = 0,
 	MEDIA_VDEC_CONNECTED          = (1 << 0),  // 0001
-	MEDIA_VIDEO_FRIST_OUT_FRAME_INFO   = (1 << 1),// 0010
+	MEDIA_VIDEO_FIRST_OUT_FRAME_INFO   = (1 << 1),// 0010
 	MEDIA_VIDEO_INPUT_INFO       = (1 << 2),  // 0100
 	MEDIA_VIDEO_OUTPUT_INFO      = (1 << 3),  // 1000
 	MEDIA_VIDEO_STATISTIC_INFO   = (1 << 4),  // 10000
