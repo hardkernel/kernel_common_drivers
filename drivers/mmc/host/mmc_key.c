@@ -35,8 +35,8 @@
 #include <linux/device.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
-
 #include <linux/amlogic/key_manage.h>
+
 #include <linux/amlogic/aml_sd.h>
 #include "mmc_common.h"
 
@@ -537,7 +537,7 @@ int32_t emmc_key_read(u8 *buffer,
 	u64  addr = 0;
 	u32  size = 0;
 	int blk, cnt;
-	unsigned char *dst;
+	unsigned char *dst = NULL;
 	struct mmc_card *card = mmc_card_key;
 	int bit = card->csd.read_blkbits;
 

@@ -27,18 +27,18 @@
 #define aml_card_type_sdio(c)		((c)->card_type == CARD_TYPE_SDIO)
 #define aml_card_type_non_sdio(c)	((c)->card_type == CARD_TYPE_NON_SDIO)
 
-#define EMMC_CMD_FALLING_SML		BIT(0)
-#define EMMC_CMD_RISING_SML		BIT(1)
-#define EMMC_CMD_CORE_CLK_SML		BIT(2)
-#define EMMC_CMD_SD_CLK_SML		BIT(3)
+#define EMMC_CMD_FALLING_SML BIT(0)
+#define EMMC_CMD_RISING_SML BIT(1)
+#define EMMC_CMD_CORE_CLK_SML BIT(2)
+#define EMMC_CMD_SD_CLK_SML BIT(3)
 
-#define EMMC_CMD_LINE_DELAY_MODE	BIT(0)
-#define EMMC_CMD_RX_DELAY_MODE		BIT(1)
+#define EMMC_CMD_LINE_DELAY_MODE BIT(0)
+#define EMMC_CMD_RX_DELAY_MODE BIT(1)
 
 /* flag is "@ML" */
 #define TUNED_FLAG            0x004C4D40
-/* version is "V1" */
-#define TUNED_VERSION         0x00003156
+/* version is "V3" */
+#define TUNED_VERSION         0x00003356
 /* magic is 0x00487e44 */
 #define TUNED_MAGIC           0x00487e44
 
@@ -61,16 +61,26 @@ struct para_e {
 	struct mmc_phase sdr;
 };
 
-#define LATCHING_RXPHASE 0
-#define LATCHING_TXPHASE 1
-#define LATCHING_FIXADJ 2
+#define LATCHING_RXPHASE    0
+#define LATCHING_TXPHASE    1
+#define LATCHING_FIXADJ     2
+#define MMC_HOST_V8         8
+#define MMC_HOST_VERSION(h)        ((h)->data->version)
 
+#define MMC_SRAM_DESC_BUF_OFF(h)   ((h)->data->sram_off)
+
+#define MMC_SRAM_DATA_BUF_OFF(h)   ((h)->data->data_off)
+#define MMC_SRAM_DATA_BUF_LEN(h)   ((h)->data->data_size)
 struct meson_mmc_data {
 	unsigned int tx_delay_mask;
 	unsigned int rx_delay_mask;
 	unsigned int always_on;
 	unsigned int adjust;
 	u8 latching_mode;
+	u8 version;
+	unsigned int sram_off;
+	unsigned int data_off;
+	unsigned int data_size;
 };
 
 enum aml_host_bus_fsm { /* Host bus fsm status */
@@ -91,6 +101,11 @@ struct sd_emmc_desc {
 	u32 cmd_data;
 	u32 cmd_resp;
 };
+
+#define SG_VALID            BIT(0)
+#define SG_EOC              BIT(1)
+#define SG_LENGTH_MASK      GENMASK(31, 16)
+#define SG_LENGTH_MAX       (64 * 1024)
 
 struct meson_mmc_hole {
 	u8 start;
@@ -123,15 +138,16 @@ struct aml_tuning_para {
 	unsigned int busmode;
 	unsigned int update;
 	int temperature;
+	long long clk;
 	long long checksum;
 
 };
 
 struct meson_host {
-	struct	device		*dev;
-	struct	meson_mmc_data *data;
-	struct	mmc_host	*mmc;
-	struct	mmc_command	*cmd;
+	struct device		*dev;
+	struct meson_mmc_data *data;
+	struct mmc_host	*mmc;
+	struct mmc_command	*cmd;
 	struct delayed_work dtbkey;
 	void __iomem *regs;
 	void __iomem *pin_mux_base;
@@ -152,12 +168,16 @@ struct meson_host {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_clk_gate;
+	struct pinctrl_state *pins_sleep;
 
 	unsigned int bounce_buf_size;
 	void *bounce_buf;
 	dma_addr_t bounce_dma_addr;
 	struct sd_emmc_desc *descs;
 	dma_addr_t descs_dma_addr;
+	unsigned int desc_buf_size;
+	u32 *sg_descs;
+	dma_addr_t sg_descs_dma_addr;
 
 	int irq;
 
@@ -180,12 +200,14 @@ struct meson_host {
 	struct meson_mmc_hole hole[3];
 	u8 fix_hole;
 	u64 align[10];
+	char cmd_retune;
 	unsigned int win_start;
 	u8 *blk_test;
 	u8 *adj_win;
 	unsigned int cmd_c;
 	int cd_irq;
 	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
+	void (*pre_dma)(struct mmc_host *mmc, u32 cmd_cfg, struct mmc_command *cmd);
 	int is_uart;
 	int sd_uart_init;
 	int first_temp_index;
@@ -201,6 +223,7 @@ struct meson_host {
 	bool ignore_desc_busy;
 	bool use_intf3_tuning;
 	bool enable_hwcq;
+	bool enable_inline_crypto;
 	int flags;
 	spinlock_t lock; /* lock for claim and bus ops */
 	bool src_clk_cfg_done;
@@ -211,6 +234,7 @@ struct meson_host {
 	unsigned int f_min;
 	unsigned int f_max;
 	struct completion drv_completion;
+	unsigned int vendor_id;
 };
 
 struct amlsd_platform {
@@ -304,6 +328,7 @@ enum wifi_clk_table_e {
 	WIFI_CLOCK_TABLE_8822BS = 0,
 	WIFI_CLOCK_TABLE_8822CS = 1,
 	WIFI_CLOCK_TABLE_QCA6174 = 2,
+	WIFI_CLOCK_TABLE_8822ES = 3,
 	WIFI_CLOCK_TABLE_MAX,
 };
 
@@ -392,6 +417,12 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define   RESP_PN BIT(29)
 #define   RESP_DS BIT(30)
 
+#define SD_EMMC_ADDR64 0xA0
+#define   DESC_ADDR64_MASK GENMASK(7, 0)
+#define   DATA_ADDR64_MASK GENMASK(15, 8)
+#define   RESP_ADDR64_MASK GENMASK(23, 16)
+#define   BUS64 BIT(24)
+
 #define SD_EMMC_START 0x40
 #define   START_DESC_INIT BIT(0)
 #define   START_DESC_BUSY BIT(1)
@@ -445,13 +476,20 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define SD_EMMC_CMD_RSP2 0x64
 #define SD_EMMC_CMD_RSP3 0x68
 
+#define SD_EMMC_CURR_CFG 0x70
+#define SD_EMMC_NEXT_CFG 0x80
+
 #define SD_EMMC_RXD 0x94
 #define SD_EMMC_TXD 0x94
 #define SD_EMMC_LAST_REG SD_EMMC_TXD
 
 #define SD_EMMC_SRAM_DESC_BUF_OFF 0x200
-#define SD_EMMC_SRAM_DATA_BUF_LEN 1024
 #define SD_EMMC_SRAM_DATA_BUF_OFF 0x400
+#define SD_EMMC_SRAM_DATA_BUF_LEN 1024
+#define SD_EMMC_SRAM_DESC_BUF_OFF_V8 0x400
+#define SD_EMMC_SRAM_DATA_BUF_OFF_V8 0x800
+#define SD_EMMC_SRAM_DATA_BUF_LEN_V8 2048
+
 #define SD_EMMC_MAX_SEGS 256
 #define SD_EMMC_MAX_REQ_SIZE (128 * 1024)
 #define SD_EMMC_MAX_SEG_SIZE (64 * 1024)
@@ -482,7 +520,8 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define CMD_CFG_RESP_NUM BIT(22)
 #define CMD_CFG_DATA_NUM BIT(23)
 #define CMD_CFG_CMD_INDEX_MASK GENMASK(29, 24)
-#define CMD_CFG_ERROR BIT(30)
+
+#define CMD_CFG_LINK  BIT(30)
 #define CMD_CFG_OWNER BIT(31)
 
 #define CMD_DATA_MASK GENMASK(31, 2)
@@ -503,7 +542,7 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define	MMC_RANDOM_OFFSET		((SZ_1M * (36 + 7)) / 512)
 #define	MMC_DTB_NAME			"dtb"
 #define	MMC_DTB_OFFSET			((SZ_1M * (36 + 4)) / 512)
-#define CALI_BLK_CNT	40
+#define CALI_BLK_CNT	80
 #define CALI_HS_50M_ADJUST	0
 #define EMMC_SDIO_CLOCK_FELD	0Xffff
 #define MMC_PM_TIMEOUT	(2000)
@@ -524,6 +563,7 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define SD_EMMC_FIXED_ADJ_HS200
 #define EMMC_CMD_WIN_MAX_SIZE	50
 #define EMMC_CMD_WIN_FULL_SIZE	64
+#define CMD_TUNING_RETRIES 6
 
 #define DBG_COMMON        BIT(0)
 #define DBG_HS200         BIT(1)
@@ -544,7 +584,15 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define RESULT_UNSUP_CARD               3
 
 /* Host attributes */
-#define AML_USE_64BIT_DMA        BIT(0)
+#define AML_CQE_64BIT_DMA        BIT(0)
+#define AML_NONCQE_64BIT_DMA     BIT(1)
+
+/* Set to 1 for no timeout */
+#define SD_EMMC_CMD_NO_TIMEOUT 1
+/* Set to 32.768s for max timeout */
+#define SD_EMMC_CMD_MAX_TIMEOUT (32768)
+/* Port from block.c */
+#define MMC_EXTRACT_INDEX_FROM_ARG(x) (((x) & 0x00FF0000) >> 16)
 
 #endif /*__AML_SD_H__*/
 

@@ -57,7 +57,8 @@ struct mmc_gpio {
 static struct wifi_clk_table wifi_clk[WIFI_CLOCK_TABLE_MAX] = {
 	{"8822BS", 0, 0xb822, 167000000},
 	{"8822CS", 0, 0xc822, 167000000},
-	{"qca6174", 0, 0x50a, 167000000}
+	{"qca6174", 0, 0x50a, 167000000},
+	{"8822ES", 0, 0xa822, 167000000},
 };
 
 static inline u32 aml_mv_dly1_nommc(u32 x)
@@ -2749,7 +2750,8 @@ err_core_clk:
 	clk_disable_unprepare(host->core_clk);
 free_host:
 	dev_notice(host->dev, "host probe failed!\n");
-	mmc_free_host(mmc);
+	if (mmc)
+		mmc_free_host(mmc);
 	return ret;
 }
 
