@@ -42,6 +42,7 @@
 #include <linux/pwm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/pinctrl/consumer.h>
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <linux/amlogic/pwm-meson.h>
@@ -917,6 +918,67 @@ static struct regmap_config meson_pwm_regmap_config = {
 };
 #endif
 
+#ifdef CONFIG_HIBERNATION
+static int meson_pwm_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct meson_pwm *meson = platform_get_drvdata(pdev);
+	int i;
+
+	pinctrl_pm_select_sleep_state(dev);
+	for (i = 0; i < PWM_REG_NUMS; i++) {
+		if (i == PWM_REG_NUMS - 1 && meson->data->extern_clk)//read clock reg
+			meson->regs_restore[i] = readl(meson->ext_clk_base);
+		else
+			meson->regs_restore[i] = readl(meson->base + 4 * i);
+		pr_debug("pwm freeze, reg%d: 0x%x\n", i, meson->regs_restore[i]);
+	}
+
+	return 0;
+}
+
+static int meson_pwm_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int meson_pwm_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct meson_pwm *meson = platform_get_drvdata(pdev);
+	int i;
+
+	pinctrl_pm_select_default_state(dev);
+	for (i = 0; i < PWM_REG_NUMS; i++) {
+		if (i == PWM_REG_NUMS - 1 && meson->data->extern_clk)// restore clock reg
+			writel(meson->regs_restore[i], meson->ext_clk_base);
+		else
+			writel(meson->regs_restore[i], meson->base + 4 * i);
+		pr_debug("pwm restore, reg%d: 0x%x\n", i, meson->regs_restore[i]);
+	}
+
+	return 0;
+}
+
+static int meson_pwm_pm_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int meson_pwm_pm_resume(struct device *dev)
+{
+	return 0;
+}
+
+const struct dev_pm_ops meson_pwm_pm = {
+	.freeze		= meson_pwm_freeze,
+	.thaw		= meson_pwm_thaw,
+	.restore	= meson_pwm_restore,
+	.suspend	= meson_pwm_pm_suspend,
+	.resume		= meson_pwm_pm_resume,
+};
+#endif
+
 static int meson_pwm_probe(struct platform_device *pdev)
 {
 	struct meson_pwm *meson;
@@ -1023,13 +1085,16 @@ static struct platform_driver meson_pwm_driver = {
 	.driver = {
 		.name = "meson-pwm",
 		.of_match_table = meson_pwm_matches,
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_pwm_pm,
+#endif
 	},
 	.probe = meson_pwm_probe,
 	.remove = meson_pwm_remove,
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-static int __init meson_pwm_init(void)
+int __init meson_pwm_init(void)
 {
 	const struct of_device_id *match_id;
 	int ret;
@@ -1040,17 +1105,16 @@ static int __init meson_pwm_init(void)
 	return ret;
 }
 
-static void __exit meson_pwm_exit(void)
+void __exit meson_pwm_exit(void)
 {
 	platform_driver_unregister(&meson_pwm_driver);
 }
 
-fs_initcall_sync(meson_pwm_init);
 #else
 module_platform_driver(meson_pwm_driver);
-#endif
 module_exit(meson_pwm_exit);
 
+#endif
 MODULE_DESCRIPTION("Amlogic Meson PWM Generator driver");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
 MODULE_LICENSE("Dual BSD/GPL");
