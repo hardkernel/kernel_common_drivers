@@ -1101,7 +1101,7 @@ static struct clk_regmap ceca_clk = {
 
 static struct clk_regmap cecb_dual_clkin = {
 	.data = &(struct clk_regmap_gate_data) {
-		.offset = CLKCTRL_CECA_CTRL0,
+		.offset = CLKCTRL_CECB_CTRL0,
 		.bit_idx = 31,
 	},
 	.hw.init = &(struct clk_init_data) {
