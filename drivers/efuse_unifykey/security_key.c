@@ -263,13 +263,17 @@ int __init security_key_init(struct platform_device *pdev)
 
 #if IS_ENABLED(CONFIG_ARM)
 	ofdts_node = of_find_node_by_name(NULL, "linux,secmon");
-	if (!ofdts_node)
-		return -EINVAL;
-
-	if (of_property_read_bool(ofdts_node, "no-map"))
-		pfn_valid_flag = 0;
-	else
-		pfn_valid_flag = 1;
+	if (!ofdts_node) {
+		if (pfn_valid(__phys_to_pfn(phy_in)))
+			pfn_valid_flag = 1;
+		else
+			pfn_valid_flag = 0;
+	} else {
+		if (of_property_read_bool(ofdts_node, "no-map"))
+			pfn_valid_flag = 0;
+		else
+			pfn_valid_flag = 1;
+	}
 #endif
 
 	/*
