@@ -2769,7 +2769,7 @@ static void amvecm_overscan_process(struct vframe_s *vf,
 			amvecm_fresh_overscan(toggle_vf);
 		else if (vf)
 			amvecm_fresh_overscan(vf);
-		pr_amvecm_dbg("CSC_FLAG_CHECK_OUTPUT fresh_overscan.\n");
+		/*pr_amvecm_dbg("CSC_FLAG_CHECK_OUTPUT fresh_overscan.\n");*/
 		return;
 	}
 
@@ -3551,6 +3551,9 @@ static long amvecm_ioctl(struct file *file,
 	struct color_tune_parm_s ct_param;
 	struct db_aicolor_param_s db_aicolor_param;
 	int lut3d_single_sz;
+	struct hdr_parameter_reg_s hdr_customer_reg_data;
+	struct hdr_mtrx_data_s hdr_mtrx_data;
+	struct hdr_gamut_data_s hdr_gamut_data;
 #endif
 
 	if (debug_amvecm & 2)
@@ -4624,6 +4627,48 @@ static long amvecm_ioctl(struct file *file,
 		argp = (void __user *)arg;
 		if (copy_to_user(argp, &chip_cls_id, sizeof(int)))
 			ret = -EFAULT;
+		break;
+	case AMVECM_IOC_S_HDR_TOP_CTRL_MODE:
+		if (copy_from_user(&tmp,
+			(void __user *)arg, sizeof(int))) {
+			ret = -EFAULT;
+		} else {
+			set_hdr_top_ctrl_mode(tmp);
+			force_toggle();
+		}
+		break;
+	case AMVECM_IOC_S_HDR_PARAM_REG:
+		if (copy_from_user(&hdr_customer_reg_data,
+			(void __user *)arg,
+			sizeof(struct hdr_parameter_reg_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("hdr_parameter_reg cp from usr failed\n");
+		} else {
+			set_hdr_parameter_reg(&hdr_customer_reg_data);
+			force_toggle();
+		}
+		break;
+	case AMVECM_IOC_S_HDR_GAMUT_COEF:
+		if (copy_from_user(&hdr_gamut_data,
+			(void __user *)arg,
+			sizeof(struct hdr_gamut_data_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("hdr_gamut_data cp from usr failed\n");
+		} else {
+			set_hdr_gamut_coef(&hdr_gamut_data);
+			force_toggle();
+		}
+		break;
+	case AMVECM_IOC_S_HDR_MTRX_COEF:
+		if (copy_from_user(&hdr_mtrx_data,
+			(void __user *)arg,
+			sizeof(struct hdr_mtrx_data_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("hdr_mtrx_data cp from usr failed\n");
+		} else {
+			set_hdr_mtrx_coef(&hdr_mtrx_data);
+			force_toggle();
+		}
 		break;
 #endif
 	default:
@@ -7911,6 +7956,32 @@ static ssize_t amvecm_hdr_tmo_store(struct class *cla,
 	return 0;
 }
 
+static ssize_t amvecm_hdr_param_show(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t amvecm_hdr_param_store(struct class *cla,
+	struct class_attribute *attr, const char *buf, size_t count)
+{
+	char *buf_orig, *param[5] = {NULL};
+
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return -ENOMEM;
+
+	parse_param_amvecm(buf_orig, (char **)&param);
+	hdr10_param_dbg(param);
+	force_toggle();
+
+	kfree(buf_orig);
+	return count;
+}
+
 static ssize_t amvecm_pc_mode_show(struct class *cla,
 				   struct class_attribute *attr,
 				   char *buf)
@@ -10912,6 +10983,15 @@ static const char *amvecm_debug_usage_str = {
 	"echo vpp_mtx post_12 yuv2rgb > /sys/class/amvecm/debug; 12bit post mtx\n"
 	"echo vpp_mtx vd1_12 rgb2yuv > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
 	"echo vpp_mtx vd1_12 yuv2rgb > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
+	"echo hdr_top_ctrl_mode val > /sys/class/amvecm/debug;\n"
+	"-->val=0:drv ctrl, 1:parameter only, 2:gamut mtrx only\n"
+	"-->3:in+out mtrx, 4:in+out+gamut mtrx, 5:parameter and mtrx\n"
+	"echo gamut coef string > /sys/class/amvecm/debug; string=9*4 bytes coef hex\n"
+	"echo gamut get_coef_str > /sys/class/amvecm/debug\n"
+	"echo hdr_mtrx in coef string > /sys/class/amvecm/debug; string=15*4 bytes coef hex\n"
+	"echo hdr_mtrx in get_coef_str > /sys/class/amvecm/debug\n"
+	"echo hdr_mtrx out coef string > /sys/class/amvecm/debug; string=15*4 bytes coef hex\n"
+	"echo hdr_mtrx out get_coef_str > /sys/class/amvecm/debug\n"
 #endif
 	"echo bitdepth 10/12/other-num > /sys/class/amvecm/debug; config data path\n"
 	"echo datapath_config param1(D) param2(D) > /sys/class/amvecm/debug; config data path\n"
@@ -10958,6 +11038,13 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	struct vinfo_s *vinfo = get_current_vinfo();
 	enum vd_path_e vd_path = VD1_PATH;
 	enum lut_dma_wr_id_e dma_wr_id = EN_DMA_WR_ID_LC_STTS_0;
+	int coef[15] = {0};
+	int char_count = 0;
+	char char_val[5] = {0};
+	char *stemp = NULL;
+	unsigned int string_len = 0;
+	struct hdr_mtrx_data_s hdr_mtrx_data;
+	struct hdr_gamut_data_s hdr_gamut_data;
 #endif
 
 	if (!buf)
@@ -12503,6 +12590,177 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		default:
 			break;
 		}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	} else if (!strcmp(parm[0], "hdr_top_ctrl_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		set_hdr_top_ctrl_mode((int)val);
+		force_toggle();
+	} else if (!strcmp(parm[0], "gamut")) {
+		if (!parm[1])
+			goto free_buf;
+
+		if (!strcmp(parm[1], "coef")) {
+			/*parm[2] coef data (9 * 4 Bytes)*/
+			string_len = strlen(parm[2]);
+			if (string_len != 9 * 4) {
+				pr_info("data length %d is not 36 Bytes.\n",
+					string_len);
+				goto free_buf;
+			}
+
+			/*data should be hex character*/
+			for (i = 0; i < string_len; i++) {
+				if ((parm[2][i] - '0') < 10 ||
+					(parm[2][i] | 0x20) - 'a' < 6)
+					continue;
+
+				pr_info("error char, not hex.\n");
+				goto free_buf;
+			}
+
+			char_count = (strlen(parm[2]) + 2) / 4;
+			if (char_count < 9) {
+				pr_info("coef_count = %d, not enough\n", char_count);
+				goto free_buf;
+			} else {
+				char_count = 9;
+			}
+
+			memset(&hdr_gamut_data,
+				0, sizeof(struct hdr_gamut_data_s));
+
+			for (i = 0; i < char_count; i++) {
+				char_val[0] = parm[2][4 * i + 0];
+				char_val[1] = parm[2][4 * i + 1];
+				char_val[2] = parm[2][4 * i + 2];
+				char_val[3] = parm[2][4 * i + 3];
+				char_val[4] = '\0';
+				if (kstrtol(char_val, 16, &val) < 0) {
+					pr_info("error parsing data.\n");
+					goto free_buf;
+				}
+				hdr_gamut_data.coef[i] = val;
+			}
+
+			set_hdr_gamut_coef(&hdr_gamut_data);
+			force_toggle();
+			pr_info("set hdr_gamut coef data success.\n");
+		} else if (!strcmp(parm[1], "get_coef_str")) {
+			stemp = kmalloc(20, GFP_KERNEL);
+			if (!stemp)
+				goto free_buf;
+
+			memset(&hdr_gamut_data,
+				0, sizeof(struct hdr_gamut_data_s));
+			get_hdr_gamut_coef(&hdr_gamut_data);
+
+			for (i = 0; i < 9; i++)
+				d_convert_str(hdr_gamut_data.coef[i],
+					i, stemp, 4, 16);
+
+			pr_info("hdr_gamut coef_str: %s\n", stemp);
+			kfree(stemp);
+		}
+	} else if (!strcmp(parm[0], "hdr_mtrx")) {
+		if (!parm[1])
+			goto free_buf;
+
+		memset(&hdr_mtrx_data, 0, sizeof(struct hdr_mtrx_data_s));
+
+		if (!strcmp(parm[1], "in"))
+			hdr_mtrx_data.mtrx_type = MATRIX_MODE_IN;
+		else if (!strcmp(parm[1], "out"))
+			hdr_mtrx_data.mtrx_type = MATRIX_MODE_OUT;
+		else
+			goto free_buf;
+
+		if (!strcmp(parm[2], "coef")) {
+			/*parm[3] coef data (15 * 4 Bytes)*/
+			string_len = strlen(parm[3]);
+			if (string_len != 15 * 4) {
+				pr_info("data length %d is not 60 Bytes.\n",
+					string_len);
+				goto free_buf;
+			}
+
+				/*data should be hex character*/
+			for (i = 0; i < string_len; i++) {
+				if ((parm[3][i] - '0') < 10 ||
+					(parm[3][i] | 0x20) - 'a' < 6)
+					continue;
+
+				pr_info("error char, not hex.\n");
+				goto free_buf;
+			}
+
+			char_count = (strlen(parm[3]) + 2) / 4;
+			if (char_count < 15) {
+				pr_info("coef_count = %d, not enough\n", char_count);
+				goto free_buf;
+			} else {
+				char_count = 15;
+			}
+
+			memset(coef, 0, sizeof(coef));
+
+			for (i = 0; i < char_count; i++) {
+				char_val[0] = parm[3][4 * i + 0];
+				char_val[1] = parm[3][4 * i + 1];
+				char_val[2] = parm[3][4 * i + 2];
+				char_val[3] = parm[3][4 * i + 3];
+				char_val[4] = '\0';
+				if (kstrtol(char_val, 16, &val) < 0) {
+					pr_info("error parsing data.\n");
+					goto free_buf;
+				}
+				coef[i] = val;
+			}
+
+			for (i = 0; i < 15; i++) {
+				if (i < 9)
+					hdr_mtrx_data.coef[i] = coef[i];
+				else if (i < 12)
+					hdr_mtrx_data.pos_offset[i - 9] = coef[i];
+				else
+					hdr_mtrx_data.pre_offset[i - 12] = coef[i];
+			}
+
+			set_hdr_mtrx_coef(&hdr_mtrx_data);
+			force_toggle();
+			pr_info("set hdr_mtrx data success.\n");
+		} else if (!strcmp(parm[2], "get_coef_str")) {
+			stemp = kmalloc(20, GFP_KERNEL);
+			if (!stemp)
+				goto free_buf;
+
+			get_hdr_mtrx_coef(&hdr_mtrx_data);
+
+			for (i = 0; i < 15; i++) {
+				if (i < 9)
+					coef[i] = hdr_mtrx_data.coef[i];
+				else if (i < 12)
+					coef[i] = hdr_mtrx_data.pos_offset[i - 9];
+				else
+					coef[i] = hdr_mtrx_data.pre_offset[i - 12];
+			}
+
+			for (i = 0; i < 15; i++)
+				d_convert_str(coef[i], i, stemp, 4, 16);
+
+			pr_info("hdr_mtrx coef_str: %s\n", stemp);
+			kfree(stemp);
+		}
+	} else if (!strcmp(parm[0], "eo_y_lut_hdr_sdr_tool_write")) {
+		set_hdr_top_ctrl_mode(6);
+		force_toggle();
+	} else if (!strcmp(parm[0], "oo_y_lut_hdr_sdr_tool_write")) {
+		set_hdr_top_ctrl_mode(7);
+		force_toggle();
+	} else if (!strcmp(parm[0], "oe_y_lut_hdr_sdr_tool_write")) {
+		set_hdr_top_ctrl_mode(8);
+		force_toggle();
+#endif
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -14938,6 +15196,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(enable_hdr10plus, 0644,
 		amvecm_enable_hdr10plus_show,
 		amvecm_enable_hdr10plus_store),
+	__ATTR(hdr_param_dbg, 0644,
+		amvecm_hdr_param_show,
+		amvecm_hdr_param_store),
 #endif
 	__ATTR_NULL
 };

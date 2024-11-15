@@ -244,5 +244,13 @@ struct hdr_gmt_comp_param_s {
 
 void hdr_lut1_param_debug(int offset, int sel_val, int para_val);
 void hdr_gmut_comp_debug(int offset, int sel_val, int comp_val);
+void set_hdr_top_ctrl_mode(int mode);
+void set_hdr_mtrx_coef(struct hdr_mtrx_data_s *data);
+void get_hdr_mtrx_coef(struct hdr_mtrx_data_s *data);
+void set_hdr_gamut_coef(struct hdr_gamut_data_s *data);
+void get_hdr_gamut_coef(struct hdr_gamut_data_s *data);
+void set_hdr_parameter_reg(struct hdr_parameter_reg_s *data);
+void get_hdr_parameter_reg(struct hdr_parameter_reg_s *data);
+int hdr10_param_dbg(char **parm);
 #endif
 #endif

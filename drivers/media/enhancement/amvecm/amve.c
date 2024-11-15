@@ -6133,9 +6133,9 @@ void amve_vsr_config_update(struct vframe_s *vf, int vpp_index)
 			}
 		}
 
-		pr_amve_dbg("\n[%s] vf->type_original = %x,cur_vsr_cfg=%d\n",
-				__func__, vf->type_original, cur_vsr_cfg);
-
+		/*pr_amve_dbg("\n[%s] vf->type_original = %x,cur_vsr_cfg=%d\n",
+		 *		__func__, vf->type_original, cur_vsr_cfg);
+		 */
 		if (cur_vsr_cfg != pre_vsr_cfg) {
 			pr_amve_dbg("\n[%s] set OK %d-->%d, w_in=%d\n",
 				__func__, pre_vsr_cfg, cur_vsr_cfg, width_in);
