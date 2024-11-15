@@ -1375,22 +1375,22 @@ static void vdin_get_secure_state(struct vdin_dev_s *devp)
 	case TVIN_PORT_VIU1_VIDEO:
 	case TVIN_PORT_VIU1_WB0_VD1:
 	case TVIN_PORT_VIU1_WB1_VD1:
-		devp->secure_en = get_secure_state(VD1_OUT);
+		devp->secure_video = get_secure_state(VD1_OUT);
 		break;
 
 	case TVIN_PORT_VIU1_WB0_VD2:
 	case TVIN_PORT_VIU1_WB1_VD2:
-		devp->secure_en = get_secure_state(VD2_OUT);
+		devp->secure_video = get_secure_state(VD2_OUT);
 		break;
 
 	case TVIN_PORT_VIU1_WB0_OSD1:
 	case TVIN_PORT_VIU1_WB1_OSD1:
-		devp->secure_en = get_secure_state(OSD1_VPP_OUT);
+		devp->secure_video = get_secure_state(OSD1_VPP_OUT);
 		break;
 
 	case TVIN_PORT_VIU1_WB0_OSD2:
 	case TVIN_PORT_VIU1_WB1_OSD2:
-		devp->secure_en = get_secure_state(OSD2_VPP_OUT);
+		devp->secure_video = get_secure_state(OSD2_VPP_OUT);
 		break;
 
 	case TVIN_PORT_VIU1_WB0_POST_BLEND:
@@ -1400,15 +1400,15 @@ static void vdin_get_secure_state(struct vdin_dev_s *devp)
 	case TVIN_PORT_VIU2_ENCL:
 	case TVIN_PORT_VIU2_ENCI:
 	case TVIN_PORT_VIU2_ENCP:
-		devp->secure_en = get_secure_state(POST_BLEND_OUT);
+		devp->secure_video = get_secure_state(POST_BLEND_OUT);
 		break;
 
 	default:
-		devp->secure_en = 0;
+		devp->secure_video = 0;
 		break;
 	}
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_SECURE)
-		pr_info("vdin1: secure_en=%d\n", devp->secure_en);
+		pr_info("secure_video=%d\n", devp->secure_video);
 }
 
 /*
@@ -4030,7 +4030,7 @@ static struct vf_entry *check_vdin_read_list(struct vdin_dev_s *devp)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void vdin_set_vfe_type(struct vdin_dev_s *devp, struct vf_entry *vfe)
 {
-	if (devp->matrix_pattern_mode || devp->secure_en)
+	if (devp->matrix_pattern_mode || devp->secure_video)
 		vfe->vf.type_ext |= VIDTYPE_EXT_VDIN_HDCP;
 	else
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_HDCP;
@@ -4108,9 +4108,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		!(devp->debug.invalid_input_en)) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
 		vdin_drop_frame_info(devp, "no data input");
-		if (vdin_dbg_en & 0x10)
-			devp->frame_drop_num = 6;
-		goto irq_handled;
 	}
 
 	/* protect mem will fail sometimes due to no res from tee module */

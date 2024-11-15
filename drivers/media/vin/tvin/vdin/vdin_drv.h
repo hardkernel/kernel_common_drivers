@@ -935,6 +935,7 @@ struct vdin_dev_s {
 	/* save secure handle */
 	unsigned int secure_handle;
 	bool secure_en;
+	bool secure_video;
 	bool mem_protected;
 	unsigned int vf_mem_size;
 	unsigned int vf_mem_size_small;/* double write use */
