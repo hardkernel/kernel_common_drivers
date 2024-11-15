@@ -1157,7 +1157,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 				msleep(spk_mute_sleep_time);
 			else
 				msleep(200);
-			if (!priv->spk_mute_flag || !priv->spk_mute_enable)
+			if (!priv->spk_mute_flag)
 				gpio_direction_output(priv->spk_mute_gpio,
 					(active_low) ? GPIOF_OUT_INIT_HIGH :
 					GPIOF_OUT_INIT_LOW);
