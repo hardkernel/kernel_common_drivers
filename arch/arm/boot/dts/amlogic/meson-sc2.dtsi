@@ -320,6 +320,8 @@
 		regulator-max-microvolt = <1049000>;
 		regulator-always-on;
 		max-duty-cycle = <1500>;
+		amlogic,vsel-step = <3>;
+		amlogic,usleep-time = <200>;
 		/* Voltage Duty-Cycle */
 		voltage-table = <1049000 0>,
 				<1039000 3>,
