@@ -240,6 +240,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	export DIST_DIR=$(readlink -m ${DIST_DIR:-${COMMON_OUT_DIR}/dist})
 	source ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/amlogic_utils.sh
 
+	sed -i '/common_drivers/d' $DIST_DIR/system_dlkm.modules.load
 	bazel_extra_cmds
 	if [[ -n ${COPY_DEV_CONFIGS} ]]; then
 		for config_name in ${COPY_DEV_CONFIGS}; do
