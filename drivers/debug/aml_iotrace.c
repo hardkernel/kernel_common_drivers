@@ -725,6 +725,11 @@ static void record_print_buf(struct iotrace_record *rec, enum aml_pstore_type_id
 	unsigned long sec = 0, us = 0;
 	unsigned long long time = rec->time;
 
+	if (rec->type >= ARRAY_SIZE(record_name)) {
+		sprintf(buf, "Unknown Record Type:%d", rec->type);
+		return;
+	}
+
 	do_div(time, 1000);
 	us = (unsigned long)do_div(time, 1000000);
 	sec = (unsigned long)time;
