@@ -3631,6 +3631,11 @@ bool rx_is_need_edid_reset(u8 port);
 
 bool rx_is_phy_power_off(u8 port);
 void rx_hdcp_access_on_ddc_en(bool en);
+u32 rd_reg_clk_ctl(u32 offset);
+void wr_reg_clk_ctl(u32 offset, u32 val);
+u32 rd_reg_ana_ctl(u32 offset);
+void wr_reg_ana_ctl(u32 offset, u32 val);
+void wr_bits_reg_ana_ctl(u32 addr, u32 mask, u32 value);
 
 /* i2c monitor */
 void rx_i2c_dbg_monitor(void);

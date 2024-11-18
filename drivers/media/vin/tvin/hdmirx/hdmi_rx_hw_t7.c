@@ -2379,3 +2379,116 @@ void rx_dig_clk_en_t7(bool en)
 	hdmirx_wr_bits_clk_ctl(RX_CLK_CTRL3, METER_CLK_EN, en);
 }
 
+void rx_aud_pll_ctl_t7(bool en, u8 port)
+{
+	int tmp = 0;
+
+	if (en) {
+		tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+		tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+		wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+		/* AUD_CLK=N/CTS*TMDS_CLK */
+		hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x40001540);
+		/* use mpll */
+		tmp = 0;
+		tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
+		hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL2_T7, tmp);
+		/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
+		hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL3_T7,
+			rx[port].phy.aud_div);
+		if (log_level & AUDIO_LOG)
+			rx_pr("aud div=%d\n", rd_reg_hhi(HHI_AUD_PLL_CNTL3));
+		hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x60001540);
+		if (log_level & AUDIO_LOG)
+			rx_pr("audio pll lock:0x%x\n",
+				  hdmirx_rd_amlphy(HHI_AUD_PLL_CNTL_I_T7));
+		rx_audio_pll_sw_update();
+		hdmirx_audio_fifo_rst(port);
+	} else {
+		/* disable pll, into reset mode */
+		hdmirx_audio_disabled(port);
+		hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x0);
+		tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+		tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+		wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+	}
+}
+
+void rx_aud_pll_ctl_t3(bool en, u8 port)
+{
+	int tmp = 0;
+
+	if (en) {
+		tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+		tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+		wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+		/* AUD_CLK=N/CTS*TMDS_CLK */
+		wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x40001540);
+		/* use mpll */
+		tmp = 0;
+		tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
+		wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, tmp);
+		/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
+		wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3,
+			rx[port].phy.aud_div);
+		if (log_level & AUDIO_LOG)
+			rx_pr("aud div=%d\n",
+				rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3));
+		wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x60001540);
+		if (log_level & AUDIO_LOG)
+			/* t3 audio pll lock bit: top reg acr_cntl_stat bit'31 */
+			rx_pr("audio pll lock:0x%x\n",
+				  (hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31));
+		rx_audio_pll_sw_update();
+		hdmirx_audio_fifo_rst(port);
+	} else {
+		/* disable pll, into reset mode */
+		hdmirx_audio_disabled(port);
+		wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
+		tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+		tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+		wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+	}
+}
+
+void rx_aud_pll_ctl_t5w(bool en, u8 port)
+{
+	int tmp = 0;
+
+	if (en) {
+		tmp = rd_reg_clk_ctl(RX_CLK_CTRL2_T5W);
+		/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
+		tmp |= (1 << 8);
+		wr_reg_clk_ctl(RX_CLK_CTRL2_T5W, tmp);
+		/* AUD_CLK=N/CTS*TMDS_CLK */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40001540);
+		/* use mpll */
+		tmp = 0;
+		/* 0:tmds_clk 1:ref_clk 2:mpll_clk */
+		tmp |= 2 << 2;
+		wr_reg_hhi(HHI_AUD_PLL_CNTL2, tmp);
+		/* cntl3 2:0 0=1*cts 1=2*cts */
+		/* 010=4*cts 011=8*cts */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL3, rx[port].phy.aud_div);
+		if (log_level & AUDIO_LOG)
+			rx_pr("aud div=%d\n",
+			rd_reg_hhi(ANACTL_AUD_PLL_CNTL3));
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
+		if (log_level & AUDIO_LOG) {
+			/* pll lock bit:*/
+			/*top reg acr_cntl_stat bit'31 */
+			tmp = hdmirx_rd_top_common(TOP_ACR_CNTL_STAT);
+			rx_pr("apll lock:0x%x\n", (tmp >> 31));
+		}
+		rx_audio_pll_sw_update();
+		hdmirx_audio_fifo_rst(port);
+	} else {
+		/* disable pll, into reset mode */
+		hdmirx_audio_disabled(port);
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x0);
+		tmp = rd_reg_clk_ctl(RX_CLK_CTRL2_T5W);
+		/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
+		tmp &= ~(1 << 8);
+		wr_reg_clk_ctl(RX_CLK_CTRL2_T5W, tmp);
+	}
+}

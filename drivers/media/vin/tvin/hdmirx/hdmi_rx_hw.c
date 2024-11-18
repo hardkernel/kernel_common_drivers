@@ -93,7 +93,6 @@ int pd_fifo_start_cnt = 0x8;
 int hdcp22_on;
 int audio_debug = 1;
 int edid_auto_debug;
-int vpcore1_select = 1;
 int clk_msr_param = 200;
 int fpll_clk_sel;
 MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
@@ -4766,326 +4765,43 @@ bool is_aud_pll_error_21(void)
  */
 void rx_aud_pll_ctl(bool en, u8 port)
 {
-	int tmp = 0;
-	/*u32 od, od2;*/
-
-	if (rx_is_pip_on() && port == rx_info.sub_port) {
-		rx_pr("%s sub_port mute\n", __func__);
-		return;
-	}
-	if (rx_info.chip_id >= CHIP_ID_TL1) {
-		if (rx_info.chip_id == CHIP_ID_T7) {
-			if (en) {
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-				/* AUD_CLK=N/CTS*TMDS_CLK */
-				hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x40001540);
-				/* use mpll */
-				tmp = 0;
-				tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
-				hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL2_T7, tmp);
-				/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
-				hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL3_T7,
-					rx[port].phy.aud_div);
-				if (log_level & AUDIO_LOG)
-					rx_pr("aud div=%d\n", rd_reg_hhi(HHI_AUD_PLL_CNTL3));
-				hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x60001540);
-				if (log_level & AUDIO_LOG)
-					rx_pr("audio pll lock:0x%x\n",
-						  hdmirx_rd_amlphy(HHI_AUD_PLL_CNTL_I_T7));
-				rx_audio_pll_sw_update();
-				hdmirx_audio_fifo_rst(port);
-			} else {
-				/* disable pll, into reset mode */
-				hdmirx_audio_disabled(port);
-				hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x0);
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-			}
-		} else if (rx_info.chip_id == CHIP_ID_T3 ||
-			rx_info.chip_id == CHIP_ID_T5M) {
-			if (en) {
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-				/* AUD_CLK=N/CTS*TMDS_CLK */
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x40001540);
-				/* use mpll */
-				tmp = 0;
-				tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
-				if (rx[port].phy.pll_bw == PLL_BW_1)
-					tmp |= 7 << 9;
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, tmp);
-				/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3,
-					rx[port].phy.aud_div);
-				if (log_level & AUDIO_LOG)
-					rx_pr("aud div=%d\n",
-						rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3));
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x60001540);
-				if (log_level & AUDIO_LOG)
-					/* t3 audio pll lock bit: top reg acr_cntl_stat bit'31 */
-					rx_pr("audio pll lock:0x%x\n",
-						  (hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31));
-				rx_audio_pll_sw_update();
-				hdmirx_audio_fifo_rst(port);
-			} else {
-				/* disable pll, into reset mode */
-				hdmirx_audio_disabled(port);
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-			}
-		} else if (rx_info.chip_id == CHIP_ID_T6D) {
-			if (en) {
-				tmp = rd_reg_ana_ctl(ANACTL_VDAC_CTRL0);
-				tmp |= (1 << 7);
-				wr_reg_ana_ctl(ANACTL_VDAC_CTRL0, tmp);
-				tmp = rd_reg_ana_ctl(ANACTL_VDAC_CTRL0);
-				tmp |= (1 << 5);
-				wr_reg_ana_ctl(ANACTL_VDAC_CTRL0, tmp);
-				wr_bits_reg_ana_ctl(ANACTL_VDAC_CTRL0, _BIT(5), 0);
-				wr_reg_ana_ctl(ANACTL_VDAC_CTRL1, 0);
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-				/* AUD_CLK=N/CTS*TMDS_CLK */
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x20000000);
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x60008000);
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, 0x80b);
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, 0x89b);
-				if (rx[port].phy.pll_bw == PLL_BW_4)
-					wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, 0x90);
-				/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3,
-					rx[port].phy.aud_div);
-				if (log_level & AUDIO_LOG)
-					rx_pr("aud div=%d\n",
-						rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3));
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x40004000);
-				if (log_level & AUDIO_LOG)
-					/* t3 audio pll lock bit: top reg acr_cntl_stat bit'31 */
-					rx_pr("audio pll lock:0x%x\n",
-						  (hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31));
-				rx_audio_pll_sw_update();
-				hdmirx_audio_fifo_rst(port);
-			} else {
-				/* disable pll, into reset mode */
-				hdmirx_audio_disabled(port);
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-			}
-		} else if (rx_info.chip_id == CHIP_ID_T5W) {
-			if (en) {
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2_T5W);
-				/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
-				tmp |= (1 << 8);
-				wr_reg_clk_ctl(RX_CLK_CTRL2_T5W, tmp);
-				/* AUD_CLK=N/CTS*TMDS_CLK */
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40001540);
-				/* use mpll */
-				tmp = 0;
-				/* 0:tmds_clk 1:ref_clk 2:mpll_clk */
-				tmp |= 2 << 2;
-				wr_reg_hhi(HHI_AUD_PLL_CNTL2, tmp);
-				/* cntl3 2:0 0=1*cts 1=2*cts */
-				/* 010=4*cts 011=8*cts */
-				wr_reg_hhi(HHI_AUD_PLL_CNTL3, rx[port].phy.aud_div);
-				if (log_level & AUDIO_LOG)
-					rx_pr("aud div=%d\n",
-					rd_reg_hhi(ANACTL_AUD_PLL_CNTL3));
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
-				if (log_level & AUDIO_LOG) {
-					/* pll lock bit:*/
-					/*top reg acr_cntl_stat bit'31 */
-					tmp = hdmirx_rd_top_common(TOP_ACR_CNTL_STAT);
-					rx_pr("apll lock:0x%x\n", (tmp >> 31));
-				}
-				rx_audio_pll_sw_update();
-				hdmirx_audio_fifo_rst(port);
-			} else {
-				/* disable pll, into reset mode */
-				hdmirx_audio_disabled(port);
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x0);
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2_T5W);
-				/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
-				tmp &= ~(1 << 8);
-				wr_reg_clk_ctl(RX_CLK_CTRL2_T5W, tmp);
-			}
-		} else if (rx_info.chip_id == CHIP_ID_TXHD2) {
-			if (en) {
-				tmp = rd_reg_hhi(HHI_VDAC_CNTL0);
-				tmp |= (1 << 7);
-				tmp |= (1 << 11);
-				wr_reg_hhi(HHI_VDAC_CNTL0, tmp);
-				tmp = rd_reg_hhi(TXHD2_PWR_CTL);
-				tmp |= (1 << 1);
-				wr_reg_hhi(TXHD2_PWR_CTL, tmp);
-
-				tmp = rd_reg_clk_ctl(CLK_MUX_TXHD2);
-				/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
-				tmp |= (1 << 8);
-				wr_reg_clk_ctl(CLK_MUX_TXHD2, tmp);
-
-				/* AUD_CLK=N/CTS*TMDS_CLK */
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
-				/* use mpll */
-				tmp = 0;
-				/* 2:tmds_clk 1:ref_clk 0:mpll_clk */
-				if (rx[port].phy.pll_bw == 0)
-					tmp = 0xc80;
-				else if (rx[port].phy.pll_bw == 1)
-					tmp = 0x80;
-				else
-					tmp = 0x88;
-				wr_reg_hhi(HHI_AUD_PLL_CNTL2, tmp);
-				/* cntl3 2:0 0=1*cts 1=2*cts */
-				/* 010=4*cts 011=8*cts */
-				wr_reg_hhi(HHI_AUD_PLL_CNTL3, rx[port].phy.aud_div);
-				if (log_level & AUDIO_LOG)
-					rx_pr("aud div=%d\n",
-					rd_reg_hhi(HHI_AUD_PLL_CNTL3));
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40005540);
-				if (log_level & AUDIO_LOG) {
-					/* pll lock bit:*/
-					/*top reg acr_cntl_stat bit'31 */
-					tmp = hdmirx_rd_top_common(TOP_ACR_CNTL_STAT);
-					rx_pr("apll lock:0x%x\n", (tmp >> 31));
-				}
-				rx_audio_pll_sw_update();
-				hdmirx_audio_fifo_rst(port);
-			} else {
-				hdmirx_audio_disabled(port);
-				tmp = rd_reg_clk_ctl(CLK_MUX_TXHD2);
-				/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
-				tmp &= ~(1 << 8);
-				wr_reg_clk_ctl(CLK_MUX_TXHD2, tmp);
-			}
-		} else if (rx_info.chip_id >= CHIP_ID_T3X) {
-			if (en) {
-				if (port == rx_info.main_port && vpcore1_select) {//to do
-					/* switch to core1 no sound */
-					tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-					tmp |= (1 << 24);
-					tmp &= ~(1 << 25);
-					wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-					wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0, 0x40001540);
-					/* 0:tmds_clk 1:ref_clk 2:mpll_clk */
-					wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL1,
-					rx[port].phy.aud_div_1);
-					wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL3,
-						rx[port].phy.aud_div);
-					if (rx[port].var.frl_rate) {
-						audio_setting_for_aud21(rx[port].var.frl_rate,
-						port);
-					} else {
-						hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_PI,
-							MSK(2, 12), 0x0, port);
-						hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0,
-							_BIT(13), 0);
-						hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL2,
-							_BIT(19), 0);
-					}
-					//wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0, 0x6000d540);
-					hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0,
-						_BIT(14), 1);
-					hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0,
-						_BIT(29), 1);
-					if (rx[port].var.frl_rate) {
-						tmp = hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2,
-							port);
-						hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2,
-							(tmp | (1 << 30)), port);
-					} else {
-						hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2,
-							0, port);
-					}
-					rx_audio_pll_sw_update();
-					hdmirx_audio_fifo_rst(port);
-				} else if (!vpcore1_select) {
-					tmp = hdmirx_rd_top_common(HDMIRX_TOP_FSW_CNTL);
-					tmp |= _BIT(8 + port * 2);
-					hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, tmp);
-					tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-					tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-					wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-					/* AUD_CLK=N/CTS*TMDS_CLK */
-					wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x40001540);
-					/* use mpll */
-					tmp = 0;
-					tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
-					wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, tmp);
-					/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
-					wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3,
-						rx[port].phy.aud_div);
-					if (log_level & AUDIO_LOG)
-						rx_pr("aud div=%d\n",
-							rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3));
-					wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x60001540);
-					tmp = hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31;
-					if (log_level & AUDIO_LOG)
-						rx_pr("audio pll lock:0x%x\n", tmp);
-					rx_audio_pll_sw_update();
-					hdmirx_audio_fifo_rst(port);
-				}
-			} else {
-				/* disable pll, into reset mode */
-				hdmirx_audio_disabled(port);
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-				tmp &= ~(1 << 24);
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-			}
-		} else {
-			if (en) {
-				/* AUD_CLK=N/CTS*TMDS_CLK */
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40001540);
-				/* use mpll */
-				tmp = 0;
-				tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
-				wr_reg_hhi(HHI_AUD_PLL_CNTL2, tmp);
-				/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
-				wr_reg_hhi(HHI_AUD_PLL_CNTL3, rx[port].phy.aud_div);
-
-				if (log_level & AUDIO_LOG)
-					rx_pr("aud div=%d\n", rd_reg_hhi(HHI_AUD_PLL_CNTL3));
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
-				if (log_level & AUDIO_LOG)
-					rx_pr("audio pll lock:0x%x\n",
-					      rd_reg_hhi(HHI_AUD_PLL_CNTL_I));
-				/*rx_audio_pll_sw_update();*/
-			} else {
-				/* disable pll, into reset mode */
-				hdmirx_audio_disabled(port);
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x0);
-			}
-		}
-	} else {
-		if (en) {
-			rx_audio_bandgap_en();
-			tmp = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
-			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x20000000);
-			/* audio pll div depends on input freq */
-			wr_reg_hhi(HHI_AUD_PLL_CNTL6, (tmp >> 9 & 3) << 28);
-			/* audio pll div fixed to N/CTS as below*/
-			/* wr_reg_hhi(HHI_AUD_PLL_CNTL6, 0x40000000); */
-			wr_reg_hhi(HHI_AUD_PLL_CNTL5, 0x0000002e);
-			wr_reg_hhi(HHI_AUD_PLL_CNTL4, 0x30000000);
-			wr_reg_hhi(HHI_AUD_PLL_CNTL3, 0x00000000);
-			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40000000);
-			wr_reg_hhi(HHI_ADC_PLL_CNTL4, 0x805);
-			rx_audio_pll_sw_update();
-			hdmirx_audio_fifo_rst(port);
-			/*External_Mute(0);*/
-		} else {
-			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x20000000);
-		}
+	switch (rx_info.chip_id) {
+	case CHIP_ID_TL1:
+	case CHIP_ID_TM2:
+	case CHIP_ID_T5:
+	case CHIP_ID_T5D:
+		rx_aud_pll_ctl_tl1(en, port);
+		break;
+	case CHIP_ID_T3:
+		rx_aud_pll_ctl_t3(en, port);
+		break;
+	case CHIP_ID_T7:
+		rx_aud_pll_ctl_t7(en, port);
+		break;
+	case CHIP_ID_T5W:
+		rx_aud_pll_ctl_t5w(en, port);
+		break;
+	case CHIP_ID_T5M:
+		rx_aud_pll_ctl_t5m(en, port);
+		break;
+	case CHIP_ID_TXHD2:
+		rx_aud_pll_ctl_txhd2(en, port);
+		break;
+	case CHIP_ID_T3X:
+		rx_aud_pll_ctl_t3x(en, port);
+		break;
+	case CHIP_ID_T6D:
+		rx_aud_pll_ctl_t6d(en, port);
+		break;
+	case CHIP_ID_TXL:
+	case CHIP_ID_TXLX:
+	case CHIP_ID_GXTVBB:
+	case CHIP_ID_TXHD:
+		rx_aud_pll_ctl_txlx(en, port);
+		break;
+	default:
+		rx_pr("%s error\n", __func__);
+		break;
 	}
 }
 

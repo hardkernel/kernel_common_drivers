@@ -239,7 +239,7 @@ void rx_mute_t3x(bool en, u8 port_type);
 bool rx_get_clkready_sts(u8 port);
 bool rx_get_valid_m_sts(u8 port);
 bool rx_is_power_off_t3x(u8 port);
-
+void rx_aud_pll_ctl_t3x(bool en, u8 port);
 //void reset_pcs(void);
 
 /*function declare end*/

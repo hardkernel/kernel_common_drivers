@@ -58,6 +58,7 @@ int vga_tuning_max = 0x26;
 int cal_phy_time;
 int pll_band = 5;
 int cdr_bw = 4;
+int vpcore1_select = 1;
 
 enum frl_train_sts_e frl_train_sts = E_FRL_TRAIN_START;
 enum frl_train_sts_e frl_train_sts1 = E_FRL_TRAIN_START;
@@ -5851,3 +5852,88 @@ void rx_mute_t3x(bool en, u8 port_type)
 	}
 }
 
+void rx_aud_pll_ctl_t3x(bool en, u8 port)
+{
+	int tmp = 0;
+
+	if (rx_is_pip_on() && port == rx_info.sub_port) {
+		rx_pr("%s sub_port mute\n", __func__);
+		return;
+	}
+
+	if (en) {
+		if (port == rx_info.main_port && vpcore1_select) {//to do
+			/* switch to core1 no sound */
+			tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+			tmp |= (1 << 24);
+			tmp &= ~(1 << 25);
+			wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+			wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0, 0x40001540);
+			/* 0:tmds_clk 1:ref_clk 2:mpll_clk */
+			wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL1,
+			rx[port].phy.aud_div_1);
+			wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL3,
+				rx[port].phy.aud_div);
+			if (rx[port].var.frl_rate) {
+				audio_setting_for_aud21(rx[port].var.frl_rate,
+				port);
+			} else {
+				hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_PI,
+					MSK(2, 12), 0x0, port);
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0,
+					_BIT(13), 0);
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL2,
+					_BIT(19), 0);
+			}
+			//wr_reg_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0, 0x6000d540);
+			hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0,
+				_BIT(14), 1);
+			hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_AUD21_PLL_CTRL0,
+				_BIT(29), 1);
+			if (rx[port].var.frl_rate) {
+				tmp = hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2,
+					port);
+				hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2,
+					(tmp | (1 << 30)), port);
+			} else {
+				hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL2,
+					0, port);
+			}
+			rx_audio_pll_sw_update();
+			hdmirx_audio_fifo_rst(port);
+		} else if (!vpcore1_select) {
+			tmp = hdmirx_rd_top_common(HDMIRX_TOP_FSW_CNTL);
+			tmp |= _BIT(8 + port * 2);
+			hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, tmp);
+			tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+			tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+			wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+			/* AUD_CLK=N/CTS*TMDS_CLK */
+			wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x40001540);
+			/* use mpll */
+			tmp = 0;
+			tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
+			wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, tmp);
+			/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
+			wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3,
+				rx[port].phy.aud_div);
+			if (log_level & AUDIO_LOG)
+				rx_pr("aud div=%d\n",
+					rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3));
+			wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x60001540);
+			tmp = hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31;
+			if (log_level & AUDIO_LOG)
+				rx_pr("audio pll lock:0x%x\n", tmp);
+			rx_audio_pll_sw_update();
+			hdmirx_audio_fifo_rst(port);
+		}
+	} else {
+		/* disable pll, into reset mode */
+		hdmirx_audio_disabled(port);
+		wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
+		tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+		tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+		tmp &= ~(1 << 24);
+		wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+	}
+}
