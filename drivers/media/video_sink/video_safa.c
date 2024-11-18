@@ -1011,8 +1011,6 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			filt_num_c = 4;
 
 		//reg config
-		rdma_wr_bits(vsr_reg->safa_pps_sr_422_en,
-			input_422_en, 0, 1);
 		rdma_wr(vsr_reg->safa_pps_pre_scale,
 			(4 << 16) |
 			(filt_num_c << 12) |
@@ -1100,6 +1098,8 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			rdma_wr_bits(vsr_reg->safa_pps_bot_vsc_init,
 				vsr_top->pi_safa_vsc_ini_phase, 0, 16);
 	}
+	rdma_wr_bits(vsr_reg->safa_pps_sr_422_en,
+			input_422_en, 0, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
 		prev_en, 4, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
