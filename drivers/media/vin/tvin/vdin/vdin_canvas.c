@@ -924,7 +924,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		}
 
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
-		if (devp->secure_en) {
+		/* Secure memory is supported in projector scenario */
+		if (devp->secure_en && devp->set_canvas_manual) {
 			devp->secure_handle = 0;
 			res = tee_protect_mem_by_type(TEE_MEM_TYPE_VDIN,
 						      devp->mem_start,
