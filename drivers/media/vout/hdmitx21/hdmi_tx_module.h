@@ -179,7 +179,6 @@ struct hdmitx_dev {
 	enum hdmi_hdr_color hdr_color_feature;
 	/* 0: sdr 1:standard HDR 2:non standard 3:HLG*/
 	u32 colormetry;
-	u32 dv_src_feature;
 	u32 sdr_hdr_feature;
 	u32 hdr10plus_feature;
 	enum eotf_type hdmi_current_eotf_type;
