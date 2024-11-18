@@ -263,6 +263,13 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
  */
 bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
 {
+	if (dv_dbg_log & DV_DEBUG_NORMAL)
+		pr_info("%s:vdin%d,dv:%d,stb:%d %d;bypass:%d,cfmt:%d,uni_drm:%d\n",
+			__func__, devp->index, devp->dv.dv_flag,
+			is_amdv_stb_mode(), is_hdmi_ll_as_hdr10(),
+			devp->bypass_tunnel, devp->prop.color_format,
+			devp->prop.dv_unique_drm_flag);
+
 	if (devp->dv.dv_flag && /* && (devp->dv.low_latency) */ /* && is_amdv_enable() */
 	    (!(is_amdv_stb_mode() && cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) ||
 	    (is_amdv_stb_mode() && !is_hdmi_ll_as_hdr10())) &&
@@ -297,6 +304,11 @@ bool vdin_dv_is_visf_data(struct vdin_dev_s *devp)
  */
 bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 {
+	if (dv_dbg_log & DV_DEBUG_NORMAL)
+		pr_info("%s:vdin%d,dv:%d,cfmt:%d,depth:%d,drm:%d\n", __func__,
+			devp->index, devp->dv.dv_flag, devp->prop.color_format,
+			devp->prop.colordepth, devp->prop.dv_unique_drm_flag);
+
 	if (devp->dv.dv_flag) {
 		if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
 			return true;

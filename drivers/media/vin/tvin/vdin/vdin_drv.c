@@ -975,8 +975,9 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 	index = devp->index;
 	/* const struct tvin_format_s *fmt_info = tvin_get_fmt_info(fmt); */
 	if (vdin_dbg_en)
-		pr_info("vdin.%d vframe initial information table: (%d of %d)\n",
-			index, p->size, p->max_size);
+		pr_info("%s vdin.%d : (%d of %d);1-[%d %d]\n", __func__,
+			index, p->size, p->max_size,
+			devp->dv_is_not_std, devp->bypass_tunnel);
 
 	for (i = 0; i < p->size; ++i) {
 		master = vf_get_master(p, i);
@@ -1125,9 +1126,9 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		slave->vf.source_mode = vf->source_mode;
 		slave->vf.bitdepth = vf->bitdepth;
 		if (vdin_dbg_en)
-			pr_info("\t%2d: 0x%2x %ux%u, duration = %u\n",
+			pr_info("\t%2d: 0x%2x %ux%u, duration = %u;type(%#x,%#x)\n",
 				vf->index, vf->canvas0Addr, vf->width,
-				vf->height, vf->duration);
+				vf->height, vf->duration, vf->type, vf->type_ext);
 	}
 }
 
@@ -3178,7 +3179,7 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		vfe->vf.flag &= ~VFRAME_FLAG_ALLM_MODE;
 
 	if (devp->mem_type == VDIN_MEM_TYPE_SCT)
-		vfe->vf.type_ext = VIDTYPE_EXT_VDIN_SCATTER;
+		vfe->vf.type_ext |= VIDTYPE_EXT_VDIN_SCATTER;
 	else
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_SCATTER;
 	vfe->vf.frame_irq_cnt = devp->irq_cnt;
