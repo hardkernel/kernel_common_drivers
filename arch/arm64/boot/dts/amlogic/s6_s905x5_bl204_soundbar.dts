@@ -1048,7 +1048,7 @@
 		#sound-dai-cells = <0>;
 		reg = <0x30>;
 		status = "okay";
-		reset_pin-gpios = <&gpio GPIOA_8 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		reset_pin-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
 	};
 
 	ad82128_31: ad82128_31@31 {
