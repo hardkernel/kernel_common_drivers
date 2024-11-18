@@ -627,16 +627,18 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	 * if currently output 8bit, and EDID don't support Y422, and config_csc_en is 0,
 	 * switch to SDR output; if hdr_8bit_en is 1, switch to HDR output
 	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
-		if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
-			hdev->hdr_transfer_feature = T_BT709;
-			hdev->hdr_color_feature = C_BT709;
-			hdev->colormetry = 0;
-			schedule_work(&hdev->work_hdr);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_SDR);
-			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
-			return;
+	if (data) {
+		if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
+			if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
+				hdev->hdr_transfer_feature = T_BT709;
+				hdev->hdr_color_feature = C_BT709;
+				hdev->colormetry = 0;
+				schedule_work(&hdev->work_hdr);
+				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
+						HDMITX_HDR_MODE_SDR);
+				spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+				return;
+			}
 		}
 	}
 
@@ -1251,13 +1253,15 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 	 * if currently output 8bit, and EDID don't support Y422, and config_csc_en is 0,
 	 * switch to SDR output; if hdr_8bit_en is 1, switch to HDR output
 	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
-		if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
-			hdev->hdr_transfer_feature = T_BT709;
-			hdev->hdr_color_feature = C_BT709;
-			hdev->colormetry = 0;
-			schedule_work(&hdev->work_hdr);
-			return;
+	if (data) {
+		if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
+			if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
+				hdev->hdr_transfer_feature = T_BT709;
+				hdev->hdr_color_feature = C_BT709;
+				hdev->colormetry = 0;
+				schedule_work(&hdev->work_hdr);
+				return;
+			}
 		}
 	}
 	if (hsty_hdr10p_config_loc > 7)
