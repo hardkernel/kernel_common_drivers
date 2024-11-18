@@ -694,7 +694,7 @@ static int vc_init_ge2d_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 		vc_print(dev->index, PRINT_ERROR,
 			 "%s: cma memory is %lx , size is  %x\n",
 			 ports[dev->index].name,
-			 (unsigned int)dev->dst_buf[i].phy_addr,
+			 dev->dst_buf[i].phy_addr,
 			 (unsigned int)buf_size);
 
 		if (dev->dst_buf[i].phy_addr == 0) {
