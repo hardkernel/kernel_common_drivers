@@ -30,7 +30,6 @@ void cma_page_count_update(long size);
 void aml_cma_alloc_pre_hook(int *dummy, int count, unsigned long *tick);
 void aml_cma_alloc_post_hook(int *dummy, int count, struct page *page,
 			     unsigned long tick, int ret);
-void aml_cma_release_hook(int a, struct page *p);
 struct page *get_cma_page(struct zone *zone, unsigned int order);
 unsigned long compact_to_free_cma(struct zone *zone);
 bool can_use_cma(gfp_t gfp_flags);
