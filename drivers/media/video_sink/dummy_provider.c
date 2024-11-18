@@ -38,16 +38,26 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+#include <linux/amlogic/media/video_sink/video.h>
+#endif
 
 /* Local Headers */
 #include "video_priv.h"
 #include "dummy_provider.h"
 
 static struct video_provider_device_s video_provider_device;
+
 static struct vframe_provider_s vp_vfm_prov;
 static struct vp_pool_s vp_pool[VP_VFM_POOL_SIZE];
 static s32 fill_ptr, get_ptr, put_ptr;
 static int vp_canvas_table[VP_VFM_POOL_SIZE];
+
+static struct vframe_provider_s vp_vfm_prov_pip;
+static struct vp_pool_s vp_pool_pip[VP_VFM_POOL_SIZE];
+static s32 fill_ptr_pip, get_ptr_pip, put_ptr_pip;
+static int vp_canvas_table_pip[VP_VFM_POOL_SIZE];
+
 static DEFINE_SPINLOCK(lock);
 static struct vp_cma_info cma_info;
 unsigned int dummy_video_log_level;
@@ -69,12 +79,20 @@ static inline u32 index2canvas(u32 index)
 	return vp_canvas_table[index];
 }
 
-static int has_unused_pool(void)
+static inline u32 index2canvas_pip(u32 index)
+{
+	return vp_canvas_table_pip[index];
+}
+
+static int has_unused_pool(int patch_id)
 {
 	int i;
+	struct vp_pool_s *pool = vp_pool;
 
+	if (patch_id == 1)
+		pool = vp_pool_pip;
 	for (i = 0; i < VP_VFM_POOL_SIZE; i++) {
-		if (vp_pool[i].used == 0)
+		if (pool[i].used == 0)
 			return i;
 	}
 	return -1;
@@ -127,6 +145,14 @@ static struct vframe_s *vp_vfm_peek(void *op_arg)
 	return &vp_pool[get_ptr].vfm;
 }
 
+static struct vframe_s *vp_vfm_peek_pip(void *op_arg)
+{
+	vp_dbg2("%s (%d).\n", __func__, get_ptr_pip);
+	if (get_ptr_pip == fill_ptr_pip)
+		return NULL;
+	return &vp_pool_pip[get_ptr_pip].vfm;
+}
+
 static struct vframe_s *vp_vfm_get(void *op_arg)
 {
 	struct vframe_s *vf;
@@ -141,12 +167,26 @@ static struct vframe_s *vp_vfm_get(void *op_arg)
 	return vf;
 }
 
+static struct vframe_s *vp_vfm_get_pip(void *op_arg)
+{
+	struct vframe_s *vf;
+
+	vp_dbg2("%s (%d).\n", __func__, get_ptr_pip);
+
+	if (get_ptr_pip == fill_ptr_pip)
+		return NULL;
+	vf = &vp_pool_pip[get_ptr_pip].vfm;
+	INCPTR(get_ptr_pip);
+
+	return vf;
+}
+
 static void vp_vfm_put(struct vframe_s *vf, void *op_arg)
 {
 	int i;
 	int canvas_addr;
 
-	vp_dbg2("%s.\n", __func__);
+	vp_dbg2("%s %p.\n", __func__, vf);
 
 	if (!vf)
 		return;
@@ -166,7 +206,39 @@ static void vp_vfm_put(struct vframe_s *vf, void *op_arg)
 	}
 }
 
+static void vp_vfm_put_pip(struct vframe_s *vf, void *op_arg)
+{
+	int i;
+	int canvas_addr;
+
+	vp_dbg2("%s %p.\n", __func__, vf);
+
+	if (!vf)
+		return;
+	INCPTR(put_ptr_pip);
+
+	if (put_ptr_pip == fill_ptr_pip) {
+		vp_info("pip buffer%d is being in use, skip\n", fill_ptr_pip);
+		return;
+	}
+
+	for (i = 0; i < VP_VFM_POOL_SIZE; i++) {
+		canvas_addr = index2canvas_pip(i);
+		if (vf->canvas0Addr == (canvas_addr & 0xff)) {
+			vp_pool_pip[i].used = 0;
+			vp_dbg("******recycle buffer index : %d ******\n", i);
+		}
+	}
+}
+
 static int vp_event_cb(int type, void *data, void *private_data)
+{
+	vp_dbg2("%s type(0x%x).\n", __func__, type);
+
+	return 0;
+}
+
+static int vp_event_cb_pip(int type, void *data, void *private_data)
 {
 	vp_dbg2("%s type(0x%x).\n", __func__, type);
 
@@ -195,6 +267,28 @@ static int vp_vfm_states(struct vframe_states *states, void *op_arg)
 	return 0;
 }
 
+static int vp_vfm_states_pip(struct vframe_states *states, void *op_arg)
+{
+	int i;
+	unsigned long flags;
+
+	vp_dbg2("%s %d.\n", __func__, __LINE__);
+
+	if (!states) {
+		vp_err("vframe_states is NULL");
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&lock, flags);
+	states->vf_pool_size = VP_VFM_POOL_SIZE;
+	i = fill_ptr_pip - get_ptr_pip;
+	if (i < 0)
+		i += VP_VFM_POOL_SIZE;
+	states->buf_avail_num = i;
+	spin_unlock_irqrestore(&lock, flags);
+	return 0;
+}
+
 static const struct vframe_operations_s vp_vfm_ops = {
 	.peek = vp_vfm_peek,
 	.get = vp_vfm_get,
@@ -203,10 +297,24 @@ static const struct vframe_operations_s vp_vfm_ops = {
 	.vf_states = vp_vfm_states,
 };
 
+static const struct vframe_operations_s vp_vfm_ops_pip = {
+	.peek = vp_vfm_peek_pip,
+	.get = vp_vfm_get_pip,
+	.put = vp_vfm_put_pip,
+	.event_cb = vp_event_cb_pip,
+	.vf_states = vp_vfm_states_pip,
+};
+
 static void video_provider_release_path(void)
 {
 	vf_unreg_provider(&vp_vfm_prov);
 	vfm_map_remove(VP_VFPATH_ID);
+}
+
+static void video_provider_release_path_pip(void)
+{
+	vf_unreg_provider(&vp_vfm_prov_pip);
+	vfm_map_remove(VP_VFPATH_ID_PIP);
 }
 
 static int video_provider_creat_path(void)
@@ -230,6 +338,32 @@ static int video_provider_creat_path(void)
 	if (ret < 0) {
 		vp_err("notify receiver error\n");
 		video_provider_release_path();
+	}
+
+	return ret;
+}
+
+static int video_provider_creat_path_pip(void)
+{
+	int ret = -1;
+	char path_id[] = VP_VFPATH_ID_PIP;
+	char path_chain[] = VP_VFPATH_CHAIN_PIP;
+
+	if (vfm_map_add(path_id, path_chain) < 0) {
+		vp_err("video_provider map creation failed\n");
+		return -ENOMEM;
+	}
+
+	vf_provider_init(&vp_vfm_prov_pip, VIDEO_PROVIDER_NAME_PIP,
+		&vp_vfm_ops_pip, NULL);
+	ret = vf_reg_provider(&vp_vfm_prov_pip);
+	if (ret < 0)
+		vp_info("pip vfm path is already created\n");
+	ret = vf_notify_receiver(VIDEO_PROVIDER_NAME_PIP,
+					VFRAME_EVENT_PROVIDER_START, NULL);
+	if (ret < 0) {
+		vp_err("pip notify receiver error\n");
+		video_provider_release_path_pip();
 	}
 
 	return ret;
@@ -265,6 +399,36 @@ static int canvas_table_alloc(void)
 	return 0;
 }
 
+static int canvas_table_alloc_pip(void)
+{
+	int i;
+
+	for (i = 0; i < VP_VFM_POOL_SIZE; i++) {
+		if (vp_canvas_table_pip[i])
+			break;
+	}
+
+	/* alloc 2 * VP_VFM_POOL_SIZE for multi planes */
+	if (i == VP_VFM_POOL_SIZE) {
+		u32 canvas_table[VP_VFM_POOL_SIZE * 2];
+
+		if (canvas_pool_alloc_canvas_table("video_provider_pip",
+						canvas_table,
+						VP_VFM_POOL_SIZE * 2,
+						CANVAS_MAP_TYPE_1)) {
+			pr_err("pip %s allocate canvas error.\n", __func__);
+			return -ENOMEM;
+		}
+		for (i = 0; i < VP_VFM_POOL_SIZE; i++)
+			vp_canvas_table_pip[i] = (canvas_table[2 * i] |
+						(canvas_table[2 * i + 1] << 8));
+	} else {
+		vp_info("pip canvas_table is already alloced");
+	}
+
+	return 0;
+}
+
 static void canvas_table_release(void)
 {
 	int i;
@@ -285,25 +449,58 @@ static void canvas_table_release(void)
 	}
 }
 
+static void canvas_table_release_pip(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(vp_canvas_table_pip); i++) {
+		if (vp_canvas_table_pip[i]) {
+			if (vp_canvas_table_pip[i] & 0xff)
+				canvas_pool_map_free_canvas
+					(vp_canvas_table_pip[i] & 0xff);
+			if ((vp_canvas_table_pip[i] >> 8) & 0xff)
+				canvas_pool_map_free_canvas
+					((vp_canvas_table_pip[i] >> 8) & 0xff);
+			if ((vp_canvas_table_pip[i] >> 16) & 0xff)
+				canvas_pool_map_free_canvas
+					((vp_canvas_table_pip[i] >> 16) & 0xff);
+		}
+		vp_canvas_table_pip[i] = 0;
+	}
+}
+
 static int video_provider_open(struct inode *inode, struct file *file)
 {
 	int ret = -1;
 
 	_video_set_disable(VIDEO_DISABLE_FORNEXT);
+	video_set_global_output(0, 1);
+	_videopip_set_disable(1, VIDEO_DISABLE_FORNEXT);
+	video_set_global_output(1, 1);
 
 	ret = video_provider_creat_path();
-	if (ret < 0) {
-		vp_err("video_provider_creat_path failed\n");
+	if (ret < 0)
 		return -ENOMEM;
-	}
+
+	ret = video_provider_creat_path_pip();
+	if (ret < 0)
+		return -ENOMEM;
 
 	ret = canvas_table_alloc();
+	if (ret < 0)
+		return ret;
+
+	ret = canvas_table_alloc_pip();
 	if (ret < 0)
 		return ret;
 
 	fill_ptr = 0;
 	get_ptr = 0;
 	put_ptr = 0;
+
+	fill_ptr_pip = 0;
+	get_ptr_pip = 0;
+	put_ptr_pip = 0;
 
 	return 0;
 }
@@ -395,6 +592,8 @@ static int get_fram_phyaddr(struct vp_frame_s *frame_info, unsigned long *addr)
 static int set_vfm_type(struct vp_frame_s *frame_info,
 				struct vframe_s *vf, int *bpp)
 {
+	int _format = 0, _depth = 0;
+
 	if (!frame_info || !vf || !bpp) {
 		vp_info("%s-%d vf error\n", __func__, __LINE__);
 		return -EINVAL;
@@ -421,14 +620,92 @@ static int set_vfm_type(struct vp_frame_s *frame_info,
 		*bpp = 24;
 		break;
 	case VP_FMT_AFBC:
-		vf->type = VIDTYPE_COMPRESS | VIDTYPE_VIU_NV12 | VIDTYPE_SCATTER;
-		vf->bitdepth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+		/* 0:YUV444 1:YUV422 2:YUV420 3:RGB */
+		switch (frame_info->afbc_format) {
+		case 0:
+			_format = VIDTYPE_VIU_444;
+			break;
+		case 1:
+			_format = VIDTYPE_VIU_422;
+			break;
+		case 2:
+			_format = VIDTYPE_VIU_NV12;
+			break;
+		case 3:
+			_format = VIDTYPE_RGB_444;
+			break;
+		default:
+			vp_err("%s wrong afbc format:%d\n", __func__,
+			       frame_info->afbc_format);
+			break;
+		}
+		/* 0:8bit 1:10 2:12bit */
+		switch (frame_info->bit_depth) {
+		case 0:
+			_depth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+			break;
+		case 1:
+			_depth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+			break;
+		case 2:
+			_depth = BITDEPTH_Y12 | BITDEPTH_U12 | BITDEPTH_V12;
+			break;
+		default:
+			vp_err("%s wrong afbc bit depth:%d\n", __func__,
+			       frame_info->bit_depth);
+			break;
+		}
+		vf->type = VIDTYPE_COMPRESS | _format | VIDTYPE_SCATTER;
+		vf->bitdepth = _depth;
+		vf->source_type = VFRAME_SOURCE_TYPE_HDMI;
+		break;
+	case VP_FMT_AFRC:
+		/* 0:YUV444 1:YUV422 2:YUV420 3:RGB */
+		switch (frame_info->afrc_format) {
+		case 0:
+			_format = VIDTYPE_VIU_444;
+			break;
+		case 1:
+			_format = VIDTYPE_VIU_422;
+			break;
+		case 2:
+			_format = VIDTYPE_VIU_NV12;
+			break;
+		case 3:
+			_format = VIDTYPE_RGB_444;
+			break;
+		default:
+			vp_err("%s wrong afrc format:%d\n", __func__,
+			       frame_info->afrc_format);
+			break;
+		}
+		/* 0:8bit 1:10 2:12bit */
+		switch (frame_info->bit_depth) {
+		case 0:
+			_depth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+			break;
+		case 1:
+			_depth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+			break;
+		case 2:
+			_depth = BITDEPTH_Y12 | BITDEPTH_U12 | BITDEPTH_V12;
+			break;
+		default:
+			vp_err("%s wrong afrc bit depth:%d\n", __func__,
+			       frame_info->bit_depth);
+			break;
+		}
+		vf->type = VIDTYPE_COMPRESS | _format | VIDTYPE_SCATTER;
+		vf->type_ext |= VIDTYPE_EXT_AFRC_COMPRESS;
+		vf->bitdepth = _depth;
 		vf->source_type = VFRAME_SOURCE_TYPE_HDMI;
 		break;
 	default:
 		vp_info("%s-%d vf error\n", __func__, __LINE__);
 		return -EINVAL;
 	}
+	if (frame_info->luma_only)
+		vf->type_ext |= VIDTYPE_EXT_LUMA_ONLY;
 	switch (frame_info->endian) {
 	case VP_BIG_ENDIAN:
 		vf->flag &= ~VFRAME_FLAG_VIDEO_LINEAR;
@@ -469,7 +746,7 @@ static int set_vfm_type(struct vp_frame_s *frame_info,
 	return 0;
 }
 
-static int set_vfm_info_from_frame(struct vp_frame_s *frame_info)
+static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 {
 	int ret = -1;
 	int index;
@@ -477,13 +754,24 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info)
 	struct vframe_s *new_vf;
 	int bpp;
 	unsigned int canvas_width;
+	int header_y_size, header_c_size, body_y_size, body_c_size;
+	int table_y_size, table_c_size, target_byte = 32;
+	int header_size, table_size, body_size;
+	struct vp_pool_s *pool = vp_pool;
+	s32 fill = fill_ptr;
+	int *canvas_table = vp_canvas_table;
 
-	index = has_unused_pool();
+	if (path_id == 1) {
+		pool = vp_pool_pip;
+		fill = fill_ptr_pip;
+		canvas_table = vp_canvas_table_pip;
+	}
+	index = has_unused_pool(path_id);
 	if (index < 0) {
-		vp_info("no buffer available, need post ASAP\n");
+		vp_info("path_id:%d no buffer available, need post ASAP\n", path_id);
 		return -ENOMEM;
 	}
-	memset(&vp_pool[fill_ptr], 0, sizeof(struct vp_pool_s));
+	memset(&pool[fill], 0, sizeof(struct vp_pool_s));
 
 	if (frame_info->mem_type == VP_MEM_DRIVER_CMA) {
 		if (!cma_info.alloc_page)
@@ -495,7 +783,7 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info)
 			return ret;
 	}
 
-	new_vf = &vp_pool[fill_ptr].vfm;
+	new_vf = &pool[fill].vfm;
 	ret = set_vfm_type(frame_info, new_vf, &bpp);
 	if (ret < 0)
 		return ret;
@@ -508,24 +796,24 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info)
 	switch (frame_info->format) {
 	case VP_FMT_NV21:
 	case VP_FMT_NV12:
-		canvas_config(vp_canvas_table[fill_ptr] & 0xff,
+		canvas_config(canvas_table[fill] & 0xff,
 				addr,
 				canvas_width, frame_info->height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		addr += canvas_width * frame_info->height;
-		canvas_config((vp_canvas_table[fill_ptr] >> 8) & 0xff,
+		canvas_config((canvas_table[fill] >> 8) & 0xff,
 				addr,
 				canvas_width, frame_info->height / 2,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		new_vf->canvas0Addr = vp_canvas_table[fill_ptr];
+		new_vf->canvas0Addr = canvas_table[fill];
 		break;
 	case VP_FMT_RGB888:
 	case VP_FMT_YUV444_PACKED:
-		canvas_config(vp_canvas_table[fill_ptr] & 0xff,
+		canvas_config(canvas_table[fill] & 0xff,
 				addr,
 				canvas_width, frame_info->height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		new_vf->canvas0Addr = vp_canvas_table[fill_ptr] & 0xff;
+		new_vf->canvas0Addr = canvas_table[fill] & 0xff;
 		break;
 	case VP_FMT_AFBC:
 		new_vf->compWidth    = frame_info->width;
@@ -535,26 +823,132 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info)
 		vp_dbg("afbc compHeadAddr:0x%lx compBodyAddr:0x%lx\n",
 		       new_vf->compHeadAddr, new_vf->compBodyAddr);
 		break;
+	case VP_FMT_AFRC:
+		new_vf->compWidth    = frame_info->width;
+		new_vf->compHeight   = frame_info->height;
+
+		header_y_size = frame_info->width * frame_info->height * 8;
+		header_y_size /= (16 * 4);
+		body_y_size = (frame_info->width * frame_info->height * target_byte);
+		body_y_size /= (16 * 4);
+		if (new_vf->type & VIDTYPE_VIU_444 ||
+		    new_vf->type & VIDTYPE_RGB_444) {
+			header_c_size = 2 * header_y_size;
+			body_c_size = 2 * body_y_size;
+		} else if (new_vf->type & VIDTYPE_VIU_422) {
+			header_c_size = header_y_size;
+			body_c_size = body_y_size;
+		} else if (new_vf->type & VIDTYPE_VIU_NV12) {
+			header_c_size = header_y_size / 2;
+			body_c_size = body_y_size / 2;
+		} else {
+			vp_err("unsupported vf->type:0x%x\n", new_vf->type);
+			return -EINVAL;
+		}
+		table_y_size = (body_y_size / PAGE_SIZE) * 4;
+		table_c_size = (body_c_size / PAGE_SIZE) * 4;
+
+		header_size = header_y_size + header_c_size;
+		table_size = table_y_size + table_c_size;
+		body_size = body_y_size + body_c_size;
+
+		new_vf->afrc_info.luma_head_addr = addr;
+		new_vf->afrc_info.luma_body_addr = addr + header_size + table_size;
+		new_vf->afrc_info.luma_dict_en = 0;
+		new_vf->afrc_info.luma_comp_target = 32;
+		new_vf->afrc_info.luma_header_en = 1;
+
+		new_vf->afrc_info.chrm_head_addr = addr + header_y_size;
+		new_vf->afrc_info.chrm_body_addr = addr + header_size + table_size +
+						body_y_size;
+		new_vf->afrc_info.chrm_dict_en = 0;
+		new_vf->afrc_info.chrm_comp_target = 32;
+		new_vf->afrc_info.chrm_header_en = 1;
+
+		new_vf->afrc_info.mmu_mode_en = 1;
+		new_vf->afrc_info.mmu_page_mode = 0;
+		new_vf->afrc_info.mmu_baddr0 = addr + header_size;
+		new_vf->afrc_info.mmu_baddr1 = addr + header_size + table_y_size;
+		vp_dbg("afrc size info (header:%d %d)(table:%d %d)(body:%d %d)\n",
+		       header_y_size, header_c_size,
+		       table_y_size, table_c_size,
+		       body_y_size, body_c_size);
+		vp_dbg("afrc struct info (luma:0x%llx 0x%llx %d %d %d)(chroma:0x%llx 0x%llx %d %d %d)(table:%d %d 0x%x 0x%x)\n",
+		       /* luma */
+		       new_vf->afrc_info.luma_head_addr,
+		       new_vf->afrc_info.luma_body_addr,
+		       new_vf->afrc_info.luma_dict_en,
+		       new_vf->afrc_info.luma_comp_target,
+		       new_vf->afrc_info.luma_header_en,
+		       /* chroma */
+		       new_vf->afrc_info.chrm_head_addr,
+		       new_vf->afrc_info.chrm_body_addr,
+		       new_vf->afrc_info.chrm_dict_en,
+		       new_vf->afrc_info.chrm_comp_target,
+		       new_vf->afrc_info.chrm_header_en,
+		       /* table(mmu) */
+		       new_vf->afrc_info.mmu_mode_en,
+		       new_vf->afrc_info.mmu_page_mode,
+		       new_vf->afrc_info.mmu_baddr0,
+		       new_vf->afrc_info.mmu_baddr1);
+		break;
 	default:
 		vp_err("unsupported format to canvas_config\n");
 		return -EINVAL;
 	}
 	new_vf->width  = frame_info->width;
 	new_vf->height = frame_info->height;
-	new_vf->index = fill_ptr;
+	new_vf->index = fill;
 	new_vf->duration_pulldown = 0;
 	new_vf->pts = 0;
 	new_vf->pts_us64 = 0;
 	new_vf->ratio_control = 0;
 
-	INCPTR(fill_ptr);
+	return 0;
+}
+
+static int set_vfm_info_from_frame_lcevc(struct vp_lcevc_frame_s *lcevc_info)
+{
+	struct vframe_s *new_vf, *enhance_vf;
+	int ret = -1;
+
+	ret = set_vfm_info_from_frame(&lcevc_info->residual, 0);
+	if (ret < 0)
+		return ret;
+	ret = set_vfm_info_from_frame(&lcevc_info->base, 1);
+	if (ret < 0)
+		return ret;
+
+	new_vf = &vp_pool[fill_ptr].vfm;
+	enhance_vf = &vp_pool_pip[fill_ptr_pip].vfm;
+
+	new_vf->type_ext |= VIDTYPE_EXT_LCEVC;
+	new_vf->enhance_vf = enhance_vf;
+	new_vf->scaler_coeff.k[0][0] = -2900;
+	new_vf->scaler_coeff.k[0][1] = 16384;
+	new_vf->scaler_coeff.k[0][2] = 2900;
+	new_vf->scaler_coeff.k[0][3] = 0;
+
+	new_vf->scaler_coeff.k[1][0] = 0;
+	new_vf->scaler_coeff.k[1][1] = 2900;
+	new_vf->scaler_coeff.k[1][2] = 16384;
+	new_vf->scaler_coeff.k[1][3] = -2900;
 
 	return 0;
 }
 
 static void post_frame(void)
 {
+	INCPTR(fill_ptr);
 	vf_notify_receiver(VIDEO_PROVIDER_NAME,
+				VFRAME_EVENT_PROVIDER_VFRAME_READY,
+				NULL);
+}
+
+static void post_frame_pip(void)
+{
+	INCPTR(fill_ptr_pip);
+	vf_notify_receiver(VIDEO_PROVIDER_NAME_PIP,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY,
 				NULL);
 }
@@ -565,11 +959,13 @@ static long video_provider_ioctl(struct file *filp, unsigned int cmd,
 	long ret = 0;
 	void __user *argp = (void __user *)args;
 	struct vp_frame_s frame_info;
+	struct vp_frame_s *f1, *f2;
+	struct vp_lcevc_frame_s lcevc_info;
 
 	switch (cmd) {
 	case VIDEO_PROVIDER_IOCTL_RENDER:
 		if (!copy_from_user(&frame_info, argp, sizeof(frame_info))) {
-			vp_dbg("render: canvas index 0x%x\n",
+			vp_dbg("    render main: canvas index 0x%x\n",
 			       vp_canvas_table[fill_ptr]);
 			vp_dbg("   frame format: %d\n", frame_info.format);
 			vp_dbg("    frame width: %d\n", frame_info.width);
@@ -578,7 +974,11 @@ static long video_provider_ioctl(struct file *filp, unsigned int cmd,
 			vp_dbg("frame shared_fd: %d\n", frame_info.shared_fd);
 			vp_dbg("   frame endian: %d\n", frame_info.endian);
 			vp_dbg("         offset: 0x%x\n", frame_info.offset);
-			ret = set_vfm_info_from_frame(&frame_info);
+			vp_dbg("    afbc format: 0x%x\n", frame_info.afbc_format);
+			vp_dbg("    afrc format: 0x%x\n", frame_info.afrc_format);
+			vp_dbg("      bit_depth: 0x%x\n", frame_info.bit_depth);
+			vp_dbg("      luma_only: 0x%x\n", frame_info.luma_only);
+			ret = set_vfm_info_from_frame(&frame_info, 0);
 		} else {
 			ret = -EINVAL;
 		}
@@ -586,6 +986,52 @@ static long video_provider_ioctl(struct file *filp, unsigned int cmd,
 	case VIDEO_PROVIDER_IOCTL_POST:
 		vp_dbg("post: canvas index 0x%x\n", vp_canvas_table[get_ptr]);
 		post_frame();
+		break;
+	case VIDEO_PROVIDER_IOCTL_RENDER_PIP:
+		if (!copy_from_user(&frame_info, argp, sizeof(frame_info))) {
+			vp_dbg("     render pip: canvas index 0x%x\n",
+			       vp_canvas_table_pip[fill_ptr_pip]);
+			vp_dbg("   frame format: %d\n", frame_info.format);
+			vp_dbg("    frame width: %d\n", frame_info.width);
+			vp_dbg("   frame height: %d\n", frame_info.height);
+			vp_dbg(" frame mem_type: %d\n", frame_info.mem_type);
+			vp_dbg("frame shared_fd: %d\n", frame_info.shared_fd);
+			vp_dbg("   frame endian: %d\n", frame_info.endian);
+			vp_dbg("         offset: 0x%x\n", frame_info.offset);
+			vp_dbg("    afbc format: 0x%x\n", frame_info.afbc_format);
+			vp_dbg("    afrc format: 0x%x\n", frame_info.afrc_format);
+			vp_dbg("      bit_depth: 0x%x\n", frame_info.bit_depth);
+			vp_dbg("      luma_only: 0x%x\n", frame_info.luma_only);
+			ret = set_vfm_info_from_frame(&frame_info, 1);
+		} else {
+			ret = -EINVAL;
+		}
+		break;
+	case VIDEO_PROVIDER_IOCTL_POST_PIP:
+		vp_dbg("post pip: canvas index 0x%x\n", vp_canvas_table_pip[get_ptr_pip]);
+		post_frame_pip();
+		break;
+	case VIDEO_PROVIDER_IOCTL_RENDER_LCEVC:
+		if (!copy_from_user(&lcevc_info, argp, sizeof(lcevc_info))) {
+			vp_dbg("   render lcevc: canvas index 0x%x 0x%x\n",
+			       vp_canvas_table[fill_ptr], vp_canvas_table_pip[fill_ptr_pip]);
+			f1 = &lcevc_info.residual;
+			f2 = &lcevc_info.base;
+			vp_dbg("   frame format: %d %d\n", f1->format, f2->format);
+			vp_dbg("    frame width: %d %d\n", f1->width, f2->width);
+			vp_dbg("   frame height: %d %d\n", f1->height, f2->height);
+			vp_dbg(" frame mem_type: %d %d\n", f1->mem_type, f2->mem_type);
+			vp_dbg("frame shared_fd: %d %d\n", f1->shared_fd, f2->shared_fd);
+			vp_dbg("   frame endian: %d %d\n", f1->endian, f2->endian);
+			vp_dbg("         offset: 0x%x 0x%x\n", f1->offset, f2->offset);
+			vp_dbg("    afbc format: 0x%x 0x%x\n", f1->afbc_format, f2->afbc_format);
+			vp_dbg("    afrc format: 0x%x 0x%x\n", f1->afrc_format, f2->afrc_format);
+			vp_dbg("      bit_depth: 0x%x 0x%x\n", f1->bit_depth, f2->bit_depth);
+			vp_dbg("      luma_only: 0x%x 0x%x\n", f1->luma_only, f2->luma_only);
+			ret = set_vfm_info_from_frame_lcevc(&lcevc_info);
+		} else {
+			ret = -EINVAL;
+		}
 		break;
 	default:
 		vp_err("%s-%d, para err\n", __func__, __LINE__);
@@ -667,9 +1113,15 @@ static void memory_cma_release(void)
 
 static int video_provider_release(struct inode *inode, struct file *file)
 {
-	video_provider_release_path();
-	canvas_table_release();
+	_video_set_disable(VIDEO_DISABLE_NORMAL);
+	video_set_global_output(0, 0);
+	_videopip_set_disable(1, VIDEO_DISABLE_NORMAL);
+	video_set_global_output(1, 0);
 
+	video_provider_release_path();
+	video_provider_release_path_pip();
+	canvas_table_release();
+	canvas_table_release_pip();
 	if (cma_info.alloc_page && cma_info.alloc_len)
 		memory_cma_release();
 

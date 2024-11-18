@@ -14,8 +14,11 @@ extern unsigned int dummy_video_log_level;
 
 #define VIDEO_PROVIDER_NAME "dummy_video"
 #define VP_VFPATH_ID    "dummy_video"
-
 #define VP_VFPATH_CHAIN "dummy_video amvideo"
+
+#define VIDEO_PROVIDER_NAME_PIP "dummy_videopip"
+#define VP_VFPATH_ID_PIP    "dummy_videopip"
+#define VP_VFPATH_CHAIN_PIP "dummy_videopip videopip"
 
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -45,6 +48,7 @@ enum {
 	VP_FMT_RGB888,
 	VP_FMT_YUV444_PACKED,
 	VP_FMT_AFBC,
+	VP_FMT_AFRC,
 };
 
 enum {
@@ -75,6 +79,15 @@ struct vp_frame_s {
 	int format;
 	int endian;
 	int offset; /* for afbc data, offset = body start addr - head start addr */
+	int afbc_format;
+	int afrc_format;
+	int bit_depth;
+	int luma_only; /* only use the luma data from YUV */
+};
+
+struct vp_lcevc_frame_s {
+	struct vp_frame_s residual;
+	struct vp_frame_s base;
 };
 
 struct vp_pool_s {
@@ -91,5 +104,12 @@ struct vp_cma_info {
 #define VIDEO_PROVIDER_IOCTL_RENDER   _IOW(VIDEO_PROVIDER_IOC_MAGIC, 0x00, \
 						struct vp_frame_s)
 #define VIDEO_PROVIDER_IOCTL_POST     _IO(VIDEO_PROVIDER_IOC_MAGIC, 0x01)
+
+#define VIDEO_PROVIDER_IOCTL_RENDER_PIP   _IOW(VIDEO_PROVIDER_IOC_MAGIC, 0x02, \
+						struct vp_frame_s)
+#define VIDEO_PROVIDER_IOCTL_POST_PIP     _IO(VIDEO_PROVIDER_IOC_MAGIC, 0x03)
+
+#define VIDEO_PROVIDER_IOCTL_RENDER_LCEVC   _IOW(VIDEO_PROVIDER_IOC_MAGIC, 0x04, \
+						struct vp_lcevc_frame_s)
 
 #endif
