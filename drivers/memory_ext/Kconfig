@@ -93,6 +93,15 @@ config AMLOGIC_VMAP
 		AMLOGIC_MEMORY_EXTEND. This config only opened
 		on 64 bit platform.
 
+config AMLOGIC_VMAP_CACHE_PAGE_ORDER
+	int "Amlogic kernel stack cache page order"
+	depends on AMLOGIC_VMAP
+	default "8"
+	help
+		This config is used to set vmap stack cache
+		page order, default order is 8, some projects
+		can be modified appropriately.
+
 config AMLOGIC_USER_FAULT
 	tristate "Amlogic user fault helper"
 	default n
