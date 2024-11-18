@@ -38,7 +38,8 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, 0);
 			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, db, hb);
 		} else {
-			HDMITX_INFO("skip vsif for non-4k mode.\n");
+			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, NULL, NULL);
+			HDMITX_INFO("clear vsif for non-4k mode.\n");
 			return -EINVAL;
 		}
 		break;

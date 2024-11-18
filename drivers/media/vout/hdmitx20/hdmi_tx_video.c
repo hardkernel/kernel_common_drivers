@@ -27,8 +27,6 @@
 #define AVI_INFOFRAMES_LENGTH     0x0D
 
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device);
-static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
-					enum hdmi_vic videocode);
 
 static void hdmi_tx_construct_avi_packet(struct hdmi_format_para *video_param,
 					 char *AVI_DB)
@@ -96,10 +94,13 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			    videocode == HDMI_94_3840x2160p25_16x9 ||
 			    videocode == HDMI_93_3840x2160p24_16x9 ||
 			    videocode == HDMI_98_4096x2160p24_256x135)
-				hdmi_set_vend_spec_infofram(hdev, videocode);
+				hdmitx_common_setup_vsif_packet(&hdev->tx_comm,
+					VT_HDMI14_4K, 1, NULL);
 			else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
 				 (!hdev->flag_3dss))
-				hdmi_set_vend_spec_infofram(hdev, 0);
+				/* For non-4kx2k mode setting */
+				hdmitx_common_setup_vsif_packet(&hdev->tx_comm,
+					VT_HDMI14_4K, 0, NULL);
 			else
 				;
 
@@ -117,54 +118,6 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 	hdmitx_set_spd_info(hdev);
 
 	return ret;
-}
-
-/* TODO: merge in hdmitx_common_setup_vsif_packet() */
-static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
-					enum hdmi_vic videocode)
-{
-	int i;
-	unsigned char VEN_DB[6];
-	unsigned char VEN_HB[3];
-	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
-
-	VEN_HB[0] = 0x81;
-	VEN_HB[1] = 0x01;
-	VEN_HB[2] = 0x5;
-
-	if (videocode == 0) {	   /* For non-4kx2k mode setting */
-		hdmitx_hw_set_packet(tx_hw_base, HDMI_PACKET_VEND, NULL, VEN_HB);
-		return;
-	}
-
-	if (hdev->tx_comm.rxcap.dv_info.block_flag == CORRECT ||
-	    hdev->dv_src_feature == 1) {	   /* For dolby */
-		return;
-	}
-
-	for (i = 0; i < 0x6; i++)
-		VEN_DB[i] = 0;
-	VEN_DB[0] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
-	VEN_DB[1] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
-	VEN_DB[2] = GET_OUI_BYTE2(HDMI_IEEE_OUI);
-	VEN_DB[3] = 0x00;    /* 4k x 2k  Spec P156 */
-
-	if (videocode == HDMI_95_3840x2160p30_16x9) {
-		VEN_DB[3] = 0x20;
-		VEN_DB[4] = 0x1;
-	} else if (videocode == HDMI_94_3840x2160p25_16x9) {
-		VEN_DB[3] = 0x20;
-		VEN_DB[4] = 0x2;
-	} else if (videocode == HDMI_93_3840x2160p24_16x9) {
-		VEN_DB[3] = 0x20;
-		VEN_DB[4] = 0x3;
-	} else if (videocode == HDMI_98_4096x2160p24_256x135) {
-		VEN_DB[3] = 0x20;
-		VEN_DB[4] = 0x4;
-	} else {
-		;
-	}
-	hdmitx_hw_set_packet(tx_hw_base, HDMI_PACKET_VEND, VEN_DB, VEN_HB);
 }
 
 int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)

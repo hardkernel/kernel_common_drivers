@@ -1003,14 +1003,12 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		switch (type) {
 		case EOTF_T_DOLBYVISION:
 			len = 0x18;
-			hdev->dv_src_feature = 1;
 			break;
 		case EOTF_T_HDR10:
 		case EOTF_T_SDR:
 		case EOTF_T_NULL:
 		default:
 			len = 0x05;
-			hdev->dv_src_feature = 0;
 			break;
 		}
 
@@ -1100,18 +1098,6 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			data = &para;
 		len = 0x1b;
 
-		switch (type) {
-		case EOTF_T_DOLBYVISION:
-		case EOTF_T_LL_MODE:
-			hdev->dv_src_feature = 1;
-			break;
-		case EOTF_T_HDR10:
-		case EOTF_T_SDR:
-		case EOTF_T_NULL:
-		default:
-			hdev->dv_src_feature = 0;
-			break;
-		}
 		VEN_HB[2] = len;
 		VEN_DB2[0] = 0x46;
 		VEN_DB2[1] = 0xd0;
