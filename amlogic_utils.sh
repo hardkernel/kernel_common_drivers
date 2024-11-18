@@ -795,10 +795,10 @@ function modules_install() {
 		dep_file=`find ${BAZEL_OUT} -name *.dep | grep "amlogic"`
 		cp ${dep_file} ${OUT_AMLOGIC_DIR}/modules/full_modules.dep
 		if [[ -n ${ANDROID_PROJECT} ]]; then
-			grep -E "^kernel\/|^common_drivers\/" ${dep_file} > ${OUT_AMLOGIC_DIR}/modules/modules.dep
+			grep -E "^kernel\/|^common_drivers\/" ${dep_file} > ${OUT_AMLOGIC_DIR}/modules/modules1.dep
 			for ext_module in ${EXT_MODULES_ANDROID_AUTO_LOAD}; do
 				cat ${dep_file} | cut -d ':' -f 1 | grep -n "${ext_module}" | cut -d ':' -f 1 | while read line; do
-					sed -n ${line}p ${dep_file} >> ${OUT_AMLOGIC_DIR}/modules/modules.dep
+					sed -n ${line}p ${dep_file} >> ${OUT_AMLOGIC_DIR}/modules/modules1.dep
 				done
 			done
 
@@ -813,8 +813,17 @@ function modules_install() {
 				fi
 			done
 		else
-			cp ${dep_file} ${OUT_AMLOGIC_DIR}/modules/modules.dep
+			cp ${dep_file} ${OUT_AMLOGIC_DIR}/modules/modules1.dep
 		fi
+
+		touch ${OUT_AMLOGIC_DIR}/modules/modules.dep
+		while read module; do
+			module=${module##*/}
+			sed -n "/${module}:/p" ${OUT_AMLOGIC_DIR}/modules/modules1.dep >> ${OUT_AMLOGIC_DIR}/modules/modules.dep
+			sed -i "/${module}:/d" ${OUT_AMLOGIC_DIR}/modules/modules1.dep
+		done < ${DIST_DIR}/modules.load
+		cat ${OUT_AMLOGIC_DIR}/modules/modules1.dep >> ${OUT_AMLOGIC_DIR}/modules/modules.dep
+		rm ${OUT_AMLOGIC_DIR}/modules/modules1.dep
 	else
 		local MODULES_ROOT_DIR=$(echo ${MODULES_STAGING_DIR}/lib/modules/*)
 		pushd ${MODULES_ROOT_DIR}
@@ -844,16 +853,25 @@ function modules_install() {
 		done
 
 		if [[ -n ${ANDROID_PROJECT} ]]; then				# internal build modules
-			grep -E "^kernel\/|^${common_drivers}\/" modules.dep > ${OUT_AMLOGIC_DIR}/modules/modules.dep
+			grep -E "^kernel\/|^${common_drivers}\/" modules.dep > ${OUT_AMLOGIC_DIR}/modules/modules2.dep
 			dep_file=modules.dep
 			for ext_module in ${EXT_MODULES_ANDROID_AUTO_LOAD}; do
 				cat ${dep_file} | cut -d ':' -f 1 | grep -n "${ext_module}" | cut -d ':' -f 1 | while read line; do
-					sed -n ${line}p ${dep_file} >> ${OUT_AMLOGIC_DIR}/modules/modules.dep
+					sed -n ${line}p ${dep_file} >> ${OUT_AMLOGIC_DIR}/modules/modules2.dep
 				done
 			done
 		else								# all modules, include external modules
-			cp modules.dep ${OUT_AMLOGIC_DIR}/modules
+			cp modules.dep ${OUT_AMLOGIC_DIR}/modules/modules2.dep
 		fi
+
+		touch ${OUT_AMLOGIC_DIR}/modules/modules.dep
+		while read module; do
+			module=${module##*/}
+			sed -n "/${module}:/p" ${OUT_AMLOGIC_DIR}/modules/modules2.dep >> ${OUT_AMLOGIC_DIR}/modules/modules.dep
+			sed -i "/${module}:/d" ${OUT_AMLOGIC_DIR}/modules/modules2.dep
+		done < ${COMMON_OUT_DIR}/common/modules.order  #remake modules.dep with modules.order
+		cat ${OUT_AMLOGIC_DIR}/modules/modules2.dep >> ${OUT_AMLOGIC_DIR}/modules/modules.dep
+		rm ${OUT_AMLOGIC_DIR}/modules/modules2.dep
 		popd
 	fi
 	pushd ${OUT_AMLOGIC_DIR}/modules
