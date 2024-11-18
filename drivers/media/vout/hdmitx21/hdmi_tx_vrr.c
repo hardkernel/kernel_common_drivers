@@ -723,12 +723,12 @@ static u32 reduce_0p1_percent(u32 value)
  */
 static int vrr_dbg_vframe = -1;
 MODULE_PARM_DESC(vrr_dbg_vframe, "\n vrr_dbg_vframe\n");
-__module_param(vrr_dbg_vframe, int, 0644);
+module_param(vrr_dbg_vframe, int, 0644);
 
 /* verbose log mode */
 static int vrr_verbose;
 MODULE_PARM_DESC(vrr_verbose, "\n vrr_verbose\n");
-__module_param(vrr_verbose, int, 0644);
+module_param(vrr_verbose, int, 0644);
 
 static void vrr_debug_info(const char *fmt, ...)
 {

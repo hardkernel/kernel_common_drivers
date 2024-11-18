@@ -585,7 +585,7 @@ void hdmitx21_s5_clk_div_rst(u32 clk_idx)
  * it's necessary for register access of hdmitx top
  */
 static int s5_gate_bit_mask = 0xffc7f;
-__module_param(s5_gate_bit_mask, int, 0644);
+module_param(s5_gate_bit_mask, int, 0644);
 MODULE_PARM_DESC(s5_gate_bit_mask, "for s5_gate_bit_mask");
 
 void hdmitx_s5_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)

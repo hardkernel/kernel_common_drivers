@@ -298,7 +298,7 @@ static void pps_data_map(u8 *body, struct dsc_pps_data_s *pps,
 
 static int emp_verbose;
 MODULE_PARM_DESC(emp_verbose, "\n emp_verbose\n");
-__module_param(emp_verbose, int, 0644);
+module_param(emp_verbose, int, 0644);
 
 /* send DSC packet */
 void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
@@ -387,7 +387,7 @@ void hdmitx_dsc_cvtem_pkt_disable(void)
 
 static int emp_no;
 MODULE_PARM_DESC(emp_no, "\n emp_no\n");
-__module_param(emp_no, int, 0644);
+module_param(emp_no, int, 0644);
 
 irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev)
 {

@@ -255,7 +255,7 @@ void set21_hpll_sspll_s7(enum hdmi_vic vic)
  * it's necessary for register access of hdmitx top
  */
 static int gate_bit_mask = 0x01c7f;
-__module_param(gate_bit_mask, int, 0644);
+module_param(gate_bit_mask, int, 0644);
 MODULE_PARM_DESC(gate_bit_mask, "for gate_bit_mask");
 
 void hdmitx_s7_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)

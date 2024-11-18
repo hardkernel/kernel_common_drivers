@@ -1269,7 +1269,7 @@ static void vpu_hdmi_set_matrix_ycbcr2rgb(void)
 }
 
 static int dfm_type = -1;
-__module_param(dfm_type, int, 0644);
+module_param(dfm_type, int, 0644);
 MODULE_PARM_DESC(dfm_type, "for dfm debug");
 
 /* set to 1 only for cvtem packet test */
@@ -1331,7 +1331,7 @@ static void vpu_hdmi_set_matrix_rgb2ycbcr(void)
 }
 
 static int CSC_type = 1;
-__module_param(CSC_type, int, 0644);
+module_param(CSC_type, int, 0644);
 MODULE_PARM_DESC(CSC_type, "for choose VPU_HDMI_if function");
 
 static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)

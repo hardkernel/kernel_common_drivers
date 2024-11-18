@@ -975,5 +975,5 @@ void hdmitx_hdcp_exit(struct hdmitx_dev *hdev)
 }
 
 MODULE_PARM_DESC(hdmi_authenticated, "\n hdmi_authenticated\n");
-__module_param(hdmi_authenticated, int, 0444);
+module_param(hdmi_authenticated, int, 0444);
 
