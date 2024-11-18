@@ -124,6 +124,7 @@ enum vc_transform_t {
 enum buffer_format_t {
 	NV21 = 0,
 	YUV444 = 1,
+	YUV444_10BIT = 2,
 };
 
 struct frame_info_t {
