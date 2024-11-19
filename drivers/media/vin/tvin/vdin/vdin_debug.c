@@ -4293,25 +4293,26 @@ static ssize_t input_rate_show(struct device *dev,
 		if (devp->irq_cnt > 2 && devp->cycle != 0) {
 			tmp_msr_clk_val = (u64)devp->msr_clk_val * 1000;
 			tmp = vdin_do_div(tmp_msr_clk_val, devp->cycle);
-			if (tmp > devp->parm.info.fps * 1000) {
+			if (tmp > (devp->parm.info.fps + 1) * 1000) {
 				if (vdin_dbg_en)
 					pr_info("invalid input_rate:%d.%03d,fps:%d\n",
-						(input_rate / 1000), (input_rate % 1000),
-						devp->parm.info.fps);
+						(tmp / 1000), (tmp % 1000), devp->parm.info.fps);
 			} else {
 				input_rate = tmp;
 			}
-			return sprintf(buf, "%d.%03d\n",
-				 (input_rate / 1000), (input_rate % 1000));
 		} else {
-			input_rate = devp->parm.info.fps * 1000;
-			return sprintf(buf, "%d.000\n", (input_rate / 1000));
+			if (devp->prop.vtem_data.qms_en)
+				input_rate = devp->prop.vtem_data.next_tfr;
+			else
+				input_rate = devp->parm.info.fps * 1000;
 		}
 	} else {
 		input_rate = 60000;//unstable default 60hz
-		return sprintf(buf, "%d.000\n", (input_rate / 1000));
 	}
+	return sprintf(buf, "%d.%03d\n",
+		 (input_rate / 1000), (input_rate % 1000));
 }
+
 static DEVICE_ATTR_RO(input_rate);
 
 ssize_t slt_test_store(struct device *dev,
