@@ -30,7 +30,6 @@
 #include "hw/hdmi_tx_reg.h"
 #include "hdmi_tx.h"
 #include <../../vin/tvin/hdmirx/hdmi_rx_repeater.h>
-#include "hdmi_tx_ext.h"
 #include "hdmi_tx_module.h"
 
 #define TEE_HDCP_IOC_START _IOW('P', 0, int)

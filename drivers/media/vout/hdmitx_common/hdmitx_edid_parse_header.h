@@ -27,8 +27,8 @@
 
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/vout/hdmi_tx_repeater.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_log.h"
 #include "hdmitx_check_valid.h"
 

@@ -29,7 +29,7 @@
 #include <linux/timekeeping.h>
 #include <linux/gpio.h>
 #include <linux/amlogic/media/vout/vinfo.h>
-#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
 #include "mach_reg.h"

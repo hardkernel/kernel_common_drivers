@@ -28,7 +28,7 @@
 #include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/cpu_version.h>
 
-#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 #include <linux/amlogic/cpu_version.h>
 #ifdef CONFIG_AMLOGIC_ZAPPER_CUT

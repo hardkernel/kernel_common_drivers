@@ -8,6 +8,7 @@
 #include <linux/printk.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
+#include <linux/amlogic/media/vout/hdmi_tx_repeater.h>
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>

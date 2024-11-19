@@ -460,18 +460,6 @@ ssize_t hdcp_mode_show(struct device *dev, struct device_attribute *attr,
 ssize_t hdcp_ver_show(struct device *dev, struct device_attribute *attr,
 			     char *buf);
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-/*
- * HDR10plus is only supported by OTT when is_hdr10plus_enable is true
- * add weak function declaration to prevent compilation errors
- */
-bool is_hdr10plus_enable(void);
-__weak bool is_hdr10plus_enable(void)
-{
-	return false;
-}
-#endif
-
 /* work for bootup when hpd is high */
 void hdmitx_bootup_plugin_work(struct hdmitx_common *tx_comm);
 /* common work for plugin/resume, which is done in lock */
@@ -523,5 +511,67 @@ void hdmitx_hdcp_do_work(struct hdmitx_common *tx_comm);
 ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,
 	char *buf);
 #endif
+
+/*
+ * below are extern functions declaration
+ * only for hdmitx20/21 module internally
+ */
+typedef void (*pf_callback)(bool st);
+
+#ifdef CONFIG_AMLOGIC_HDMITX
+	void hdmitx_earc_hpdst(pf_callback cb);
+#else
+	#define hdmitx_earc_hpdst NULL
+#endif
+
+#ifdef CONFIG_AMLOGIC_HDMITX21
+	void hdmitx21_earc_hpdst(pf_callback cb);
+#else
+	#define hdmitx21_earc_hpdst NULL
+#endif
+
+#ifdef CONFIG_AMLOGIC_HDMITX
+/* hdmitx20 external interface */
+int hdmitx20_event_notifier_regist(struct notifier_block *nb);
+int hdmitx20_event_notifier_unregist(struct notifier_block *nb);
+int get_hdmitx20_init(void);
+int get20_hpd_state(void);
+struct vsdb_phyaddr *get_hdmitx20_phy_addr(void);
+#endif
+
+#ifdef CONFIG_AMLOGIC_HDMITX21
+/* hdmitx21 external interface */
+int hdmitx21_event_notifier_regist(struct notifier_block *nb);
+int hdmitx21_event_notifier_unregist(struct notifier_block *nb);
+int get_hdmitx21_init(void);
+int get21_hpd_state(void);
+struct vsdb_phyaddr *get_hdmitx21_phy_addr(void);
+#endif
+
+int get_hpd_state(void);
+int hdmitx_event_notifier_regist(struct notifier_block *nb);
+int hdmitx_event_notifier_unregist(struct notifier_block *nb);
+struct vsdb_phyaddr *get_hdmitx_phy_addr(void);
+int register_earcrx_callback(pf_callback callback);
+void unregister_earcrx_callback(void);
+
+/*
+ * HDMI TX output enable, such as ACRPacket/AudInfo/AudSample
+ * enable: 1, normal output; 0: disable output
+ */
+void hdmitx_ext_set_audio_output(int enable);
+
+/*
+ * return Audio output status
+ * 1: normal output status; 0: output disabled
+ */
+int hdmitx_ext_get_audio_status(void);
+
+/*!!DEPRECATED API, DONT USE!!*/
+void get_attr(char attr[16]);
+void setup_attr(const char *buf);
+
+/* for eARC audio call */
+void hdmitx_ext_plugin_handler(void);
 
 #endif

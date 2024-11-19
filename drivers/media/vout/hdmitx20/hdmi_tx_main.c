@@ -47,7 +47,6 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 #include <linux/amlogic/media/sound/aout_notify.h>
 #endif
-#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_audio.h>
 #include <linux/of_gpio.h>

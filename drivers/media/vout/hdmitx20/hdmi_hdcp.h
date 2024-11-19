@@ -6,7 +6,7 @@
 #ifndef __HDMI_HDCP_H__
 #define __HDMI_HDCP_H__
 #include <linux/wait.h>
-#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 
 struct hdcp_obs_val {
 	unsigned char obs0;

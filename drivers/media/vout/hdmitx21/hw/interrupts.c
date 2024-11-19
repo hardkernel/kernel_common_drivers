@@ -24,7 +24,7 @@
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
 #include <linux/gpio.h>
-#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "common.h"
 
 static void intr2_sw_handler(struct intr_t *);

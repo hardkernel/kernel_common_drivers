@@ -9,13 +9,6 @@ ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX21) += vout/hdmitx21/hdmi_tx_vrr.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX21) += vout/hdmitx21/hdmi_tx_frl.o
 endif
-ifdef CONFIG_AMLOGIC_HDMITX21
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX21) += vout/hdmitx21/hdmi_tx_ext.o
-else
-ifdef CONFIG_AMLOGIC_HDMITX
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx21/hdmi_tx_ext.o
-endif
-endif
 
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx_common
 

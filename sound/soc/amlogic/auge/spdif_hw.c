@@ -14,7 +14,7 @@
 #include "ddr_mngr.h"
 #include "spdif.h"
 
-#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
 void aml_spdifin_chnum_en(struct aml_audio_controller *actrl,

@@ -31,7 +31,6 @@
 #include "common.h"
 #include "hdmi_tx_hw.h"
 #include "enc_clk_config.h"
-#include "../hdmi_tx_ext.h"
 #include <linux/amlogic/clk_measure.h>
 #include "../hdmi_tx.h"
 #include "../../hdmitx_common/hdmitx_compliance.h"
@@ -3255,6 +3254,7 @@ static void hdmitx21_vp_conf(unsigned char color_depth, unsigned char output_col
 	hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
 }
 
+#define IT_CONTENT		1
 static void hdmi_tx_enable_ll_mode(bool enable)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();

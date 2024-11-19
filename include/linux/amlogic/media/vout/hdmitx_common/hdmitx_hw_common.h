@@ -191,8 +191,6 @@ enum {
 	SET_CT_CINEMA = 4,
 };
 
-#define IT_CONTENT		1
-
 enum hdmi_ll_mode {
 	HDMI_LL_MODE_AUTO = 0,
 	HDMI_LL_MODE_DISABLE,

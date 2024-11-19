@@ -43,11 +43,9 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 #include <linux/amlogic/media/sound/aout_notify.h>
 #endif
-#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/vrr/vrr.h>
 
 #include "hdmi_tx_module.h"
-#include "hdmi_tx_ext.h"
 #include "hdmi_tx.h"
 #include "hdmi_config.h"
 #include "hw/hdmi_tx_ddc.h"
