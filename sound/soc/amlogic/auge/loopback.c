@@ -1129,7 +1129,7 @@ static int loopback_dai_set_fmt(struct snd_soc_dai *dai,
 {
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);
 
-	pr_info("asoc %s, %#x, %p\n", __func__, fmt, p_loopback);
+	dev_dbg(p_loopback->dev, "asoc %s, %#x, %p\n", __func__, fmt, p_loopback);
 	if (p_loopback->datain_chnum > 0) {
 		switch (p_loopback->datain_src) {
 		case DATAIN_TDMA:
@@ -1158,9 +1158,7 @@ static int loopback_dai_set_sysclk(struct snd_soc_dai *dai,
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);
 
 	p_loopback->sysclk_freq = freq;
-	pr_info("\n%s, %d, %d, %d\n",
-		__func__,
-		clk_id, freq, dir);
+	dev_dbg(p_loopback->dev, "%s, %d, %d, %d\n", __func__, clk_id, freq, dir);
 
 	return 0;
 }
@@ -1600,7 +1598,7 @@ static int datalb_tdminlb_parse_of(struct device_node *node,
 	ret = of_property_read_u32(node, "data_lb_rate",
 		&p_loopback->data_lb_rate);
 	if (ret)
-		pr_warn("failed to get data_lb_ratec\n");
+		dev_dbg(&pdev->dev, "failed to get data_lb_rate\n");
 
 	return 0;
 err:

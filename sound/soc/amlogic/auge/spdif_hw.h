@@ -52,11 +52,6 @@ void spdif_set_channel_status0(int spdif_id, unsigned int status0);
 void spdifin_set_channel_status(int ch, int bits);
 
 void aml_spdifout_select_aed(bool enable, int spdifout_id);
-
-void aml_spdifout_get_aed_info(int spdifout_id,
-			       int *bitwidth,
-			       int *frddrtype);
-
 void enable_spdif_to_hdmitx_clk(bool enable);
 void enable_spdif_to_hdmitx_dat(bool enable);
 void enable_spdifout_to_hdmitx(int separated);

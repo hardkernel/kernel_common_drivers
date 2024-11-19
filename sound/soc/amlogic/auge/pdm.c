@@ -1255,7 +1255,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 
 	p_pdm->xtal_clk = devm_clk_get(&pdev->dev, "xtal");
 	if (IS_ERR(p_pdm->xtal_clk)) {
-		dev_info(&pdev->dev,
+		dev_dbg(&pdev->dev,
 			"Can't retrieve xtal_clk clock\n");
 	}
 
@@ -1278,7 +1278,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 
 	p_pdm->clk_src_cd = devm_clk_get(&pdev->dev, "clk_src_cd");
 	if (IS_ERR(p_pdm->clk_src_cd))
-		dev_warn(&pdev->dev, "no clk_src_cd clock for 44k case\n");
+		dev_dbg(&pdev->dev, "no clk_src_cd clock for 44k case\n");
 	ret = snd_soc_of_get_slot_mask(node, "lane-mask-in",
 				       &p_pdm->lane_mask_in);
 	if (!ret) {

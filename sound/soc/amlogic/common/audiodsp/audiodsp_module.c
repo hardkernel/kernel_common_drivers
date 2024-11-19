@@ -280,10 +280,10 @@ static ssize_t ac3_drc_control_show(const struct class *class,
 		"CUSTOM_0", "CUSTOM_1", "LINE", "RF" };
 	char *pbuf = buf;
 
-	pr_info("\tdd+ drc mode : %s\n", drcmode[ac3_drc_control & 0x3]);
-	pr_info("\tdd+ drc high cut scale : %d%%\n",
+	pr_debug("\tdd+ drc mode : %s\n", drcmode[ac3_drc_control & 0x3]);
+	pr_debug("\tdd+ drc high cut scale : %d%%\n",
 		(ac3_drc_control >> DRC_HIGH_CUT_BIT) & 0xff);
-	pr_info("\tdd+ drc low boost scale : %d%%\n",
+	pr_debug("\tdd+ drc low boost scale : %d%%\n",
 		(ac3_drc_control >> DRC_LOW_BST_BIT) & 0xff);
 	pbuf += sprintf(pbuf, "%d\n", ac3_drc_control);
 	return pbuf - buf;

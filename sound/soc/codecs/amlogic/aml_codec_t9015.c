@@ -302,7 +302,7 @@ static int aml_T9015_hw_params(struct snd_pcm_substream *substream,
 static int aml_T9015_audio_set_bias_level(struct snd_soc_component *component,
 					  enum snd_soc_bias_level level)
 {
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -340,12 +340,11 @@ static int aml_T9015_audio_reset(struct snd_soc_component *component)
 	struct aml_T9015_audio_priv *T9015_audio =
 		snd_soc_component_get_drvdata(component);
 
-	if (T9015_audio && !IS_ERR(T9015_audio->rst)) {
-		pr_info("call standard reset interface\n");
+	if (T9015_audio && !IS_ERR(T9015_audio->rst))
 		reset_control_reset(T9015_audio->rst);
-	} else {
+	else
 		pr_info("no call standard reset interface\n");
-	}
+
 	return 0;
 }
 
@@ -601,7 +600,7 @@ static int aml_T9015_audio_codec_probe(struct platform_device *pdev)
 	struct t9015_acodec_chipinfo *p_chipinfo;
 	struct regmap *regmap;
 
-	dev_info(&pdev->dev, "%s\n", __func__);
+	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	T9015_audio = devm_kzalloc(&pdev->dev,
 				   sizeof(struct aml_T9015_audio_priv),
@@ -648,8 +647,7 @@ static int aml_T9015_audio_codec_probe(struct platform_device *pdev)
 			     "ch1_sel",
 			     &T9015_audio->ch1_sel);
 
-	pr_info("T9015 acodec tdmout index:%d\n",
-		T9015_audio->tdmout_index);
+	dev_dbg(&pdev->dev, "T9015 acodec tdmout index:%d\n", T9015_audio->tdmout_index);
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &soc_codec_dev_aml_T9015_audio,

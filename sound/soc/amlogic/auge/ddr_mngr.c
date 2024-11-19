@@ -23,7 +23,6 @@
 
 #include "resample.h"
 #include "resample_hw.h"
-#include "effects_hw.h"
 #include "effects_hw_v2.h"
 #include "effects_v2.h"
 #include "vad.h"
@@ -1815,12 +1814,6 @@ static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 			aml_audiobus_update_bits(actrl,
 				reg, 0x1 << 3, enable << 3);
 		}
-	} else if (aed_version == VERSION1) {
-		if (enable) {
-			/* frddr type and bit depth for AED */
-			aml_aed_format_set(fr->dest);
-		}
-		aed_src_select(enable, fr->dest, fr->fifo_id);
 	}
 }
 
@@ -2586,36 +2579,38 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	toddr_vad.irq = platform_get_irq_byname(pdev, "toddr_vad");
-	if (toddr_vad.irq > 0) {
-		static struct regmap_config regmap_config = {
-				.reg_bits = 32,
-				.val_bits = 32,
-				.reg_stride = 4,
-		};
+	if (p_ddr_chipinfo->vad_to_srcs) {
+		toddr_vad.irq = platform_get_irq_byname(pdev, "toddr_vad");
+		if (toddr_vad.irq > 0) {
+			static struct regmap_config regmap_config = {
+					.reg_bits = 32,
+					.val_bits = 32,
+					.reg_stride = 4,
+			};
 
-		res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res_mem)
-			return -ENOENT;
-		regs = ioremap(res_mem->start, resource_size(res_mem));
-		if (IS_ERR(regs))
-			return PTR_ERR(regs);
+			res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+			if (!res_mem)
+				return -ENOENT;
+			regs = ioremap(res_mem->start, resource_size(res_mem));
+			if (IS_ERR(regs))
+				return PTR_ERR(regs);
 
-		regmap_config.max_register = resource_size(res_mem) - 4;
-		regmap_config.name =
-			devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s-%s", node->name, name);
+			regmap_config.max_register = resource_size(res_mem) - 4;
+			regmap_config.name =
+				devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s-%s", node->name, name);
 
-		if (!regmap_config.name)
-			return -ENOMEM;
+			if (!regmap_config.name)
+				return -ENOMEM;
 
-		toddr_vad.reg_map = devm_regmap_init_mmio(&pdev->dev, regs, &regmap_config);
-		if (IS_ERR(toddr_vad.reg_map)) {
-			dev_err(&pdev->dev, "toddr vad regmap failed\n");
-			return -EINVAL;
+			toddr_vad.reg_map = devm_regmap_init_mmio(&pdev->dev, regs, &regmap_config);
+			if (IS_ERR(toddr_vad.reg_map)) {
+				dev_err(&pdev->dev, "toddr vad regmap failed\n");
+				return -EINVAL;
+			}
+			toddr_vad.chipinfo = p_ddr_chipinfo;
+			toddr_vad.actrl = actrl;
+			return 0;
 		}
-		toddr_vad.chipinfo = p_ddr_chipinfo;
-		toddr_vad.actrl = actrl;
-		return 0;
 	}
 
 	for (i = 0; i < p_ddr_chipinfo->toddr_num; i++) {
@@ -2627,7 +2622,7 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		toddrs[i].chipinfo   = p_ddr_chipinfo;
 		toddrs[i].actrl      = actrl;
 
-		pr_debug("ddr_manager: %d, irqs toddr %d\n", i, toddrs[i].irq);
+		dev_dbg(&pdev->dev, "ddr_manager: %d, irqs toddr %d\n", i, toddrs[i].irq);
 
 		if (toddrs[i].irq <= 0) {
 			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
@@ -2644,7 +2639,7 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		frddrs[i].chipinfo   = p_ddr_chipinfo;
 		frddrs[i].actrl      = actrl;
 
-		dev_info(&pdev->dev, "%d, irqs frddr %d\n", i, frddrs[i].irq);
+		dev_dbg(&pdev->dev, "%d, irqs frddr %d\n", i, frddrs[i].irq);
 
 		if (frddrs[i].irq <= 0) {
 			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
