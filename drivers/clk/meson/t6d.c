@@ -1960,14 +1960,15 @@ static struct clk_regmap t6d_mali = {
 	},
 };
 
-static u32 mux_table_vdec[] = { 0, 1, 2, 3, 4};
+static u32 mux_table_vdec[] = { 0, 1, 2, 3, 4, 6};
 
 static const struct clk_hw *t6d_vdec_parent_hws[] = {
 	&t6d_fclk_div2p5.hw,
 	&t6d_fclk_div3.hw,
 	&t6d_fclk_div4.hw,
 	&t6d_fclk_div5.hw,
-	&t6d_fclk_div7.hw
+	&t6d_fclk_div7.hw,
+	&t6d_gp0_pll.hw
 };
 
 static struct clk_regmap t6d_hevcb_0_sel = {
