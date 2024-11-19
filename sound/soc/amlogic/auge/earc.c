@@ -62,15 +62,15 @@ static DEFINE_MUTEX(earc_mutex);
 u8 default_rx_cds[] = {
 	0x01,/* Capabilities Data Structure Version = 0x1 */
 	0x01,/* BLOCK_ID = 0x1, Selected CTA-861-G Descriptors */
-	0x1B,/* PAYLOAD_LENGTH */
+	0x18,/* PAYLOAD_LENGTH */
 	/* Data Block Header Byte,
 	 * Tag Code bit 5-7 = 0x1,
 	 * Audio Data Block(include one or more Short Audio Descriptors)
-	 * Length of following data block payload(in bytes) bit 0-4 = 0x18
+	 * Length of following data block payload(in bytes) bit 0-4 = 0xc
 	 */
-	0x2F,
+	0x2c,
 	/* L-PCM: 32k, 44.1k, 48k, 8 channel, 16 and 24 bit */
-	0x09, 0x7f, 0x05,
+	/* 0x09, 0x7f, 0x05,*//* not support multi pcm */
 	/* L-PCM: 32k, 44.1k, 48k, 88.2k, 96k, 176.4k, 192k, 2 channel, 16 and 24 bit */
 	0x0f, 0x07, 0x05,
 	0x67, 0x04, 0x03,/* MAT */
