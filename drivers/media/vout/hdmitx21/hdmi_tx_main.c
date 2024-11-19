@@ -4704,15 +4704,16 @@ static int hdmitx21_status_check(void *data)
 			continue;
 
 		if (!clk[0]) {
-			pr_debug("the clock[%d] is %d\n", idx[0], clk[0]);
+			HDMITX_DEBUG("the clock[%d] is %d\n", idx[0], clk[0]);
 			hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLK_DIV_RST, idx[0]);
-			pr_debug("reset the clock div for %d\n", idx[0]);
+			HDMITX_DEBUG("reset the clock div for %d\n", idx[0]);
 			HDMITX_INFO("the clock[%d] is %d\n", idx[0], meson_clk_measure(idx[0]));
+			HDMITX_INFO("the clock[%d] is %d\n", idx[2], meson_clk_measure(idx[2]));
 		}
 		if (!clk[1]) {
-			pr_debug("the clock[%d] is %d\n", idx[1], clk[1]);
+			HDMITX_DEBUG("the clock[%d] is %d\n", idx[1], clk[1]);
 			hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLK_DIV_RST, idx[1]);
-			pr_debug("reset the clock div for %d\n", idx[1]);
+			HDMITX_DEBUG("reset the clock div for %d\n", idx[1]);
 			HDMITX_INFO("the clock[%d] is %d\n", idx[1], meson_clk_measure(idx[1]));
 		}
 		/* resend the SCDC/DIV40 config */
