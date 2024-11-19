@@ -1196,6 +1196,7 @@ void aisr_demo_enable(void);
 void aisr_demo_axis_set(struct video_layer_s *layer);
 void aisr_reshape_output(u32 enable);
 void set_vsr_scaler(struct vsr_setting_s *vsr);
+void set_dither_mode(int dither_mode);
 void s7d_vsr_default_init(void);
 void vsr_default_init(void);
 void vsr_debug_mode_update(u32 debug_mode, struct vsr_setting_s *vsr);
