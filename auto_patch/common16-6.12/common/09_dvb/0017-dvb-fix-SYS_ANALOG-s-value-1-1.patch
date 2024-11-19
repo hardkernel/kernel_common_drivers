@@ -1,0 +1,39 @@
+From 27ca96b47d01556117a093a476b97f0fc3eff0ec Mon Sep 17 00:00:00 2001
+From: "min.yang" <min.yang@amlogic.com>
+Date: Tue, 19 Nov 2024 13:48:14 +0800
+Subject: [PATCH] dvb: fix SYS_ANALOG 's value [1/1]
+
+PD#SWPL-193212
+
+Problem:
+there is one more delivery system
+'SYS_DVBC2'in kernel 6.6
+
+Solution:
+modify  SYS_ANALOG 's value
+
+Verify:
+compile pass
+
+Change-Id: Icd5df4c93672c3b3f1ec8f3b761642260897ab2d
+Signed-off-by: min.yang <min.yang@amlogic.com>
+---
+ include/uapi/linux/dvb/aml_fe_ext.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/uapi/linux/dvb/aml_fe_ext.h b/include/uapi/linux/dvb/aml_fe_ext.h
+index d78cffb39b07..f6e8f20c9019 100644
+--- a/include/uapi/linux/dvb/aml_fe_ext.h
++++ b/include/uapi/linux/dvb/aml_fe_ext.h
+@@ -66,7 +66,7 @@ struct fe_blind_scan_parameters {
+ #define DTV_DELIVERY_SUB_SYSTEM			116
+ #define AML_DTV_MAX_COMMAND		DTV_DELIVERY_SUB_SYSTEM
+
+-#define SYS_ANALOG		(SYS_DVBC_ANNEX_C + 1)
++#define SYS_ANALOG		(SYS_DVBC2 + 1)
+
+ enum fe_ofdm_mode {
+ 	OFDM_DVBT,
+--
+2.42.0
+

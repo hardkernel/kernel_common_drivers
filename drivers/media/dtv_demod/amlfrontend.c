@@ -106,7 +106,7 @@ static int cci_thread;
 __module_param(dvb_tuner_delay, int, 0644);
 MODULE_PARM_DESC(dvb_atsc_count, "dvb_tuner_delay");
 
-#define END_SYS_DELIVERY	19
+#define END_SYS_DELIVERY	20
 const char *name_fe_delivery_system[] = {
 	"UNDEFINED",
 	"DVBC_ANNEX_A",
@@ -127,7 +127,8 @@ const char *name_fe_delivery_system[] = {
 	"DVBT2",
 	"TURBO",
 	"DVBC_ANNEX_C",
-	"ANALOG",	/*19*/
+	"DVBC2",
+	"ANALOG",	/*20*/
 };
 
 const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys)
