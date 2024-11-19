@@ -77,16 +77,16 @@ static void ramdump_parse_info(void)
 {
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
 	pr_info("%s, .text : 0x%px - 0x%px, pa(.text): 0x%lx\n",
-			__func__, (unsigned long *)_text,
-			(unsigned long *)_etext, (unsigned long)__pa_symbol(_text));
-	pr_info("%s, -m kimage_voffset=0x%px\n",
-			__func__, (unsigned long)_text - (unsigned long)__pa_symbol(_text));
+		__func__, (unsigned long *)_text,
+		(unsigned long *)_etext, (unsigned long)__pa_symbol(_text));
 #endif
 
 #ifdef CONFIG_ARM64
 	pr_info("%s, -m kimage_voffset=0x%llx\n", __func__, kimage_voffset);
 	pr_info("%s, -m vabits_actual=%d\n", __func__, (unsigned int)vabits_actual);
-	//pr_info("%s, --kaslr 0x%lx\n", __func__, kaslr_offset());
+#if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
+	pr_info("%s, --kaslr 0x%lx\n", __func__, kaslr_offset());
+#endif
 #endif
 }
 
