@@ -1148,6 +1148,7 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 	struct osd_zorder_s osdblend_t3x_din[MESON_MAX_OSDS] = {
 		{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}
 	};
+	bool has_x_reverse;
 
 	MESON_DRM_BLOCK("%s set_state called.\n", osdblend->base.name);
 	mvobs = to_osdblend_state(state);
@@ -1156,6 +1157,10 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
+
+	has_x_reverse =
+		(mvps->plane_info[OSD3_SLICE1].rotation & DRM_MODE_REFLECT_X) &&
+		(mvps->plane_info[OSD1_SLICE0].rotation & DRM_MODE_REFLECT_X);
 
 	if (vblk->ops->init_register)
 		vblk->ops->init_register(vblk, state);
@@ -1314,7 +1319,13 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 	if (mvps->plane_info[2].crtc_index == 0) {
 		if (mvsps->more_60) {
 			reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 1, 4, 2);
-			reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 3, 10, 4);
+			if (!has_x_reverse) {
+				reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 3, 10, 4);
+			} else {
+				reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 3, 6, 4);
+				reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 1, 10, 4);
+			}
+
 		} else {
 			// bypass slice and go blend
 			reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 2, 4, 2);
