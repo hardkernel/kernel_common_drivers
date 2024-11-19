@@ -639,6 +639,8 @@ int aisr_demo_win = 1;
 u64 vsync_cnt[VPP_MAX] = {0, 0, 0};
 u8 vsync_isr_cpuid;
 u8 prevsync_isr_cpuid;
+int dither_mode;
+
 #ifdef CONFIG_PM
 struct video_pm_state_s {
 	int event;
@@ -12938,6 +12940,33 @@ static ssize_t vsr_debug_mode_store(struct class *cla,
 	return count;
 }
 
+static ssize_t dither_mode_show(struct class *cla,
+			struct class_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, 40, "dither_mode:%d\n",
+		dither_mode);
+}
+
+static ssize_t dither_mode_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != dither_mode) {
+		dither_mode = res;
+		set_dither_mode(dither_mode);
+	}
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -13535,6 +13564,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		vsr_debug_mode_show,
 		vsr_debug_mode_store),
+	__ATTR(dither_mode,
+		0664,
+		dither_mode_show,
+		dither_mode_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
