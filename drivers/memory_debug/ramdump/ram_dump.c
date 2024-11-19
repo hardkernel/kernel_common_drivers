@@ -75,12 +75,10 @@ static struct ramdump *ram;
 
 static void ramdump_parse_info(void)
 {
-#if !IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG)
+#if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
 	pr_info("%s, .text : 0x%px - 0x%px, pa(.text): 0x%lx\n",
 			__func__, (unsigned long *)_text,
 			(unsigned long *)_etext, (unsigned long)__pa_symbol(_text));
-	pr_info("%s, -m kimage_voffset=0x%px\n",
-			__func__, (unsigned long)_text - (unsigned long)__pa_symbol(_text));
 #endif
 
 #ifdef CONFIG_ARM64
