@@ -1288,6 +1288,14 @@ void set_vsr_scaler(struct vsr_setting_s *vsr)
 	}
 }
 
+void set_dither_mode(int dither_mode)
+{
+	if (video_is_meson_s7d_cpu()) {
+		WRITE_VCBUS_REG_BITS(VPP_VSR_DITHER_MODE,
+			(dither_mode & 0x3), 0, 2);
+	}
+}
+
 #ifdef lut_data_load
 static void load_9x9_lut(u32 reg, int *lut_coef)
 {
