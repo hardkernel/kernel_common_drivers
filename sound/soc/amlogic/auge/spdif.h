@@ -21,4 +21,5 @@ int spdif_set_audio_clk(int id,	struct clk *clk_src,
 int spdifout_get_lane_mask_version(int id);
 unsigned int spdif_get_codec(int id);
 unsigned int get_spdif_source_l_config(int id);
+void aml_spdifout_enable(int spdif_id, bool is_enable, bool reenable);
 #endif

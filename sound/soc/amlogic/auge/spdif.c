@@ -147,6 +147,26 @@ static const struct snd_pcm_hardware aml_spdif_hardware = {
 	.channels_max = 32,
 };
 
+void aml_spdifout_enable(int spdif_id, bool is_enable, bool reenable)
+{
+	struct aml_spdif *p_spdif = spdif_priv[spdif_id];
+	int spdif_reg_mute = 0;
+
+	if (!is_enable)
+		aml_spdifout_mute_without_actrl(p_spdif->id, false, true,
+			p_spdif->chipinfo->gain_ver);
+
+	spdifout_enable(spdif_id, is_enable, reenable);
+
+	if (is_enable) {
+		udelay(9);
+		if (p_spdif->spdif_soft_mute)
+			spdif_reg_mute =  p_spdif->mute;
+		aml_spdifout_mute_without_actrl(p_spdif->id, true, spdif_reg_mute,
+			p_spdif->chipinfo->gain_ver);
+	}
+}
+
 static void aml_spdif_out_reset(unsigned int spdif_id)
 {
 	aml_audio_reset(spdif_priv[spdif_id]->chipinfo->out_reset_reg_offset,

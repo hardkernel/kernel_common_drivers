@@ -94,6 +94,12 @@ void aml_spdif_out_mute(struct aml_audio_controller *actrl,
 			/* set gain enable 0 gain value 255 */
 			aml_audiobus_write(actrl, reg, 0);
 			aml_audiobus_write(actrl, reg1, 0xffffffff);
+
+			/* need reg unmute */
+			offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
+			reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
+
+			aml_audiobus_update_bits(actrl, reg, 0x3 << 21, 0 << 21);
 		}
 	} else {
 		int mute_lr = 0;
