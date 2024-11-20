@@ -148,7 +148,7 @@ static int logo_setup(char *str)
 		str2lower(option);
 		logo_info_init(option);
 	}
-	return 0;
+	return 1;
 }
 
 static int get_logo_width(char *str)
@@ -157,7 +157,7 @@ static int get_logo_width(char *str)
 
 	ret = kstrtoint(str, 0, &logo_info.fb_width);
 	pr_info("logo_info.fb_width=%d\n", logo_info.fb_width);
-	return 0;
+	return 1;
 }
 
 static int get_logo_height(char *str)
@@ -166,7 +166,7 @@ static int get_logo_height(char *str)
 
 	ret = kstrtoint(str, 0, &logo_info.fb_height);
 	pr_info("logo_info.fb_height=%d\n", logo_info.fb_height);
-	return 0;
+	return 1;
 }
 
 static u32 display_bpp;
@@ -177,7 +177,7 @@ static int logo_display_bpp_setup(char *str)
 
 	ret = kstrtoint(str, 0, &display_bpp);
 	pr_info("logo_info.bpp=%d\n", display_bpp);
-	return 0;
+	return 1;
 }
 
 u32 get_logo_fb_width(void)
@@ -223,7 +223,8 @@ int set_osd_logo_freescaler(void)
 	 * if viu1 interface(such as hdmi) is unplugged when booting.
 	 * the viu2 display device will be used for viu1 after booting.
 	 */
-	if (osd_hw.osd_meson_dev.has_viu2 || osd_dev_hw.has_multi_vpp)
+	if (osd_hw.osd_meson_dev.has_viu2 ||
+		osd_hw.osd_meson_dev.has_new_viu2 || osd_dev_hw.has_multi_vpp)
 		if (index >= LOGO_DEV_VIU2_OSD0)
 			index = LOGO_DEV_OSD0;
 

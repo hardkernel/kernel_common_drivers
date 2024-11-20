@@ -39,7 +39,6 @@
 #include "osd_fb.h"
 #include "osd_backup.h"
 #include "osd_log.h"
-#include "osd_fb.h"
 #include <linux/amlogic/media/registers/register_map.h>
 
 #define RDMA_TABLE_INTERNAL_COUNT 512
@@ -2079,9 +2078,16 @@ int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 	}
 
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
-	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
-	    !osd_dev_hw.multi_afbc_core)
-		write_reg_internal(output_index, VPU_MAFBC_COMMAND, 1);
+		osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
+		!osd_dev_hw.multi_afbc_core) {
+		u32 vpu_mafbc_command = 0;
+
+		if (output_index == VIU1)
+			vpu_mafbc_command = VPU_MAFBC_COMMAND;
+		else if (output_index == VIU2)
+			vpu_mafbc_command = VPU_MAFBC2_COMMAND;
+		write_reg_internal(output_index, vpu_mafbc_command, 1);
+	}
 
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
@@ -2320,8 +2326,9 @@ static int osd_rdma_init(void)
 		osd_rdma_handle[0]);
 	record_rdma_addr_reg(VPP0, osd_rdma_handle[0]);
 
-	if (osd_hw.osd_meson_dev.has_vpp1 &&
-	   osd_hw.display_dev_cnt == 2) {
+	if ((osd_hw.osd_meson_dev.has_vpp1 ||
+		osd_hw.osd_meson_dev.has_new_viu2) &&
+		osd_hw.display_dev_cnt == 2) {
 		/* vpp1 used then register rdma channel */
 		osd_rdma_handle[1] = rdma_register(&osd_rdma_vpp1_op,
 						NULL, PAGE_SIZE);

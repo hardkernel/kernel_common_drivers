@@ -58,7 +58,7 @@ static void osd_debug_dump_value(void)
 	osd_log_info("--- OSD ---\n");
 	osd_log_info("bot_type: %d\n", hwpara->bot_type);
 	osd_log_info("field_out_en: %d\n", hwpara->field_out_en[VIU1]);
-	if (osd_hw.osd_meson_dev.has_viu2)
+	if (osd_hw.osd_meson_dev.has_viu2 || osd_hw.osd_meson_dev.has_new_viu2)
 		osd_log_info("field_out_en: %d\n", hwpara->field_out_en[VIU2]);
 
 	if (hwpara->osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
@@ -321,7 +321,9 @@ static void osd_debug_dump_register_all(void)
 			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		}
 		/* avoid crash for reading viu2 osd regs */
-		if (!osd_hw.powered[count - 1] && osd_hw.osd_meson_dev.has_viu2)
+		if (!osd_hw.powered[count - 1] &&
+			(osd_hw.osd_meson_dev.has_viu2 ||
+			osd_hw.osd_meson_dev.has_new_viu2))
 			count--;
 	}
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL) {
@@ -452,7 +454,7 @@ static void osd_debug_dump_register_all(void)
 	}
 
 	if (osd_hw.osd_meson_dev.cpu_id >= __MESON_CPU_MAJOR_ID_G12B) {
-		if (osd_hw.osd_meson_dev.has_viu2 &&
+		if ((osd_hw.osd_meson_dev.has_viu2 || osd_hw.osd_meson_dev.has_new_viu2) &&
 		    osd_hw.powered[osd_hw.osd_meson_dev.viu2_index]) {
 			reg = VPP2_MISC;
 			osd_log_info("reg[0x%x]: 0x%08x\n",
@@ -597,6 +599,40 @@ static void osd_debug_dump_register_all(void)
 		reg = hw_osd_reg_slice2ppc.osd_sys_pad_v_size;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = hw_osd_reg_slice2ppc.osd_sys_2slice_hwin_cut;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+	}
+
+	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_S6) {
+		osd_log_info("--- viu2 osd scaler ---\n");
+		reg = VIU2_OSD_VSC_PHASE_STEP;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_VSC_INI_PHASE;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_VSC_CTRL0;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_HSC_PHASE_STEP;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_HSC_INI_PHASE;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_HSC_CTRL0;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_HSC_INI_PAT_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_SC_DUMMY_DATA;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_SC_CTRL0;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_SCI_WH_M1;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_SCO_H_START_END;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_SCO_V_START_END;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_DB_FLT_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_SCALE_COEF_IDX;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU2_OSD_SCALE_COEF;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 	}
 }
