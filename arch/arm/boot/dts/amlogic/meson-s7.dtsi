@@ -81,7 +81,7 @@
 		};
 	};
 
-	shmem@050f7e00 {
+	shmem {
 		compatible = "mmio-sram";
 		reg = <0x050f7e00 0x100>;
 		#address-cells = <1>;
