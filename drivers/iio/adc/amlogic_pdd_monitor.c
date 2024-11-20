@@ -115,6 +115,15 @@ static int amlogic_pdd_monitor_probe(struct platform_device *pdev)
 	int ret;
 	struct amlogic_pdd_monitor *priv;
 
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	init_waitqueue_head(&priv->waitq);
+	priv->status = 0;
+
+	dev_set_drvdata(&pdev->dev, priv);
+
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq)
 		return dev_err_probe(dev, -EINVAL, "Failed to map interrupts\n");
@@ -125,13 +134,6 @@ static int amlogic_pdd_monitor_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	init_waitqueue_head(&priv->waitq);
-	priv->status = 0;
-
 	priv->miscdev.fops = &pdd_monitor_fops;
 	priv->miscdev.minor = MISC_DYNAMIC_MINOR;
 	priv->miscdev.name = "pdd-monitor";
@@ -139,8 +141,6 @@ static int amlogic_pdd_monitor_probe(struct platform_device *pdev)
 	ret = misc_register(&priv->miscdev);
 	if (ret)
 		return dev_err_probe(dev, ret, "Unable to register misc device\n");
-
-	dev_set_drvdata(&pdev->dev, priv);
 
 	return 0;
 }
