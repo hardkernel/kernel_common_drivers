@@ -42,6 +42,12 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		ramdump_bl33z@0 {
+			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			no-map;
@@ -549,8 +555,8 @@
 		io-channel-names = "key-chan-2";
 		key_chan = <2 2 2 2>;
 		key_code = <141 114 115 28>;
-		key_val = <0 252 468 684>; // Unit: millivolt
-		key_tolerance = <70 70 70 70>; // Unit: millivolt
+		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40>;
 	};
 
 	sensor0 {
@@ -1165,11 +1171,11 @@
 		compatible = "spi-nand";
 		status = "okay";
 		reg = <0>;
-		spi-max-frequency = <24000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
+		spi-max-frequency = <83000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 		bl_mode = <2>; /* advance mode */
-		fip_copies = <4>;
+		fip_copies = <2>;
 		info_p_mode = <1>; /* Info page on page 0 */
 		partition = <&snand_partitions>;
 		snand_partitions: snand_partitions{
@@ -1235,7 +1241,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins1>;
-	//cs-gpios = <&gpio GPIOA_14 GPIO_ACTIVE_LOW>;
+	//cs-gpios = <&gpio GPIOA_14 0>;
 };
 
 &freertos {
@@ -1244,22 +1250,4 @@
 
 &lcd {
 	status = "disabled";
-};
-
-&sd_emmc_c
-{
-	status = "okay";
-	pinctrl-0 = <&emmc_pins>;
-	pinctrl-1 = <&emmc_clk_gate_pins>;
-	pinctrl-2 = <&emmc_pins_sleep>;
-	pinctrl-names = "default", "clk-gate", "sleep";
-	cap-mmc-highspeed;
-	non-removable;
-	//mmc-run-pxp;
-	//mmc-ddr-1_8v;
-	/delete-property/ mmc-hs200-1_8v;
-	/delete-property/ mmc-hs400-1_8v;
-	max-frequency = <50000000>;
-	disable-wp;
-	bus-width = <8>;
 };

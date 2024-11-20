@@ -949,7 +949,7 @@
 };
 
 &amhdmitx {
-	status = "okay";
+	status = "disabled";
 	hdcp_ctl_lvl = <1>;
 };
 
@@ -1279,7 +1279,7 @@
 		 */
 		level = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	loopbacka:loopback@0 {

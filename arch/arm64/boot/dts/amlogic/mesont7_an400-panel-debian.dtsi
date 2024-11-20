@@ -11,12 +11,9 @@
 		mode = "tablet";
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		clocks = <&clkc CLKID_MIPI_DSI_A
-			&clkc CLKID_DSI0_PHY_GATE
-			&clkc CLKID_DSI_A_MEAS_GATE>;
-		clock-names = "dsi_host_gate",
-			"dsi_phy_gate",
-			"dsi_meas";
+		clocks = <&clkc CLKID_MIPI_DSI_A>, <&clkc CLKID_DSI0_PHY_GATE>,
+			 <&clkc CLKID_DSI_A_MEAS_GATE>;
+		clock-names = "dsi_host_gate", "dsi_phy_gate", "dsi_meas";
 		reg = <0x0 0xfe018000 0x0 0x60     /* combo dphy */
 			0x0 0xfe0b0000 0x0 0x10b0  /* edp_a host */
 			0x0 0xfe074000 0x0 0x400   /* mipi_dsi_a host */
@@ -44,6 +41,13 @@
 			&gpio GPIOY_6 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOY_0","GPIOY_4","GPIOY_6";
 
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
+
 		lvds_0{
 			model_name = "768p-vfreq";
 			interface = "lvds"; /*lcd_interface(lvds, vbyone)*/
@@ -53,18 +57,15 @@
 				8      /*lcd_bits*/
 				698 392>; /*screen_widht, screen_height*/
 			range_setting = <
-				1460 2000 /*h_period_min, max */
-				784 1015  /*v_period_min, max */
+				1506 2000 /*h_period_min, max */
+				805 1015  /*v_period_min, max */
 				50000000 85000000>; /*pclk_min, max*/
 			lcd_timing = <
 				56 64 0   /*hs_width, hs_bp, hs_pol*/
-				3  28 0>; /*vs_width, vs_bp, vs_pol*/
+				3  17 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				15 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				15 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -95,18 +96,15 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -140,18 +138,15 @@
 				10     /*lcd_bits*/
 				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2790 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2790 /*v_period_min, max*/
 				552000000 632000000>; /*pclk_min,max*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
 				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -185,18 +180,15 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -230,18 +222,15 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -275,18 +264,15 @@
 				10     /*lcd_bits */
 				160 90>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -321,17 +307,14 @@
 				8      /*lcd_bits*/
 				344 193>; /*screen_widht, screen_height*/
 			range_setting = <
-				2080 2720 /*h_period min, max*/
-				1100 1380 /*v_period min, max*/
+				2132 2720 /*h_period min, max*/
+				1120 1380 /*v_period min, max*/
 				133940000 156000000>; /*pclk_min, max*/
 			lcd_timing = <
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
-				5  30  0>; /*vs_width, vs_bp, vs_pol*/
+				5  20  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
+				0 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
@@ -373,15 +356,12 @@
 				47250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				300 /*bit_rate_max(MHz)*/
-				0 /*factor(*100, default 0 for auto)*/
+				0 /*unused*/
 				1 /*operation_mode_init(0=video, 1=command)*/
 				0 /*operation_mode_display(0=video, 1=command)*/
-				2 /*
-				   *video_mode_type
-				   *(0=sync_pulse,1=sync_event,2=burst)
-				   */
+				2 /*video_mode_type: 0=sync_pulse,1=sync_event,2=burst)*/
 				1 /*clk_always_hs(0=disable,1=enable)*/
-				0>; /*phy_switch(0=auto,1=standard,2=slow)*/
+				0>; /*unused*/
 
 			/* dsi_init: data_type, num, data... */
 			dsi_init_on = <0x05 1 0x11
@@ -420,20 +400,17 @@
 			lcd_timing = <40 60 0 /*hs_width,hs_bp,hs_pol*/
 				5 20 0>; /*vs_width,vs_bp,vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				74250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				550 /*bit_rate_max(MHz)*/
-				0 /*factor(*100, default 0 for auto)*/
+				0 /*unused*/
 				1 /*operation_mode_init(0=video, 1=command)*/
 				0 /*operation_mode_display(0=video, 1=command)*/
-				0 /*
-				   *video_mode_type
-				   *(0=sync_pulse,1=sync_event,2=burst)
-				   */
+				0 /*video_mode_type: 0=sync_pulse,1=sync_event,2=burst)*/
 				1 /*clk_always_hs(0=disable,1=enable)*/
-				0>; /*phy_switch(0=auto,1=standard,2=slow)*/
+				0>; /*unused*/
 				/* dsi_init: data_type, num, data... */
 			dsi_init_on = <
 				0x05 1 0x11
@@ -509,7 +486,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_E";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -528,7 +505,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_E";
-			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -624,6 +601,7 @@
 			spi_max_frequency = <1000000>; /* unit: hz */
 			spi_mode = <0>; /* mode: 0, 1, 2, 3 */
 			spi_dma_support = <1>;
+			spi_line_n = <50>;/*spi dma trig*/
 			spi_cs_delay = <10  /* hold_high_delay */
 				100>; /* clk_cs_delay (unit: us) */
 			en_gpio_on_off = <0 /* ldim_dev-gpios index */
@@ -781,6 +759,7 @@
 			spi_max_frequency = <3000000>; /* unit: hz */
 			spi_mode = <2>; /* mode: 0, 1, 2, 3 */
 			spi_dma_support = <1>;
+			spi_line_n = <50>;/*spi dma trig*/
 			spi_cs_delay = <10  /* hold_high_delay */
 				100>; /* clk_cs_delay (unit: us) */
 			en_gpio_on_off = <0 /* ldim_dev-gpios index */
@@ -829,12 +808,9 @@
 		mode = "tablet";
 		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		clocks = <&clkc CLKID_MIPI_DSI_B
-			&clkc CLKID_DSI1_PHY_GATE
-			&clkc CLKID_DSI_B_MEAS_GATE>;
-		clock-names = "dsi_host_gate",
-			"dsi_phy_gate",
-			"dsi_meas";
+		clocks = <&clkc CLKID_MIPI_DSI_B>, <&clkc CLKID_DSI1_PHY_GATE>,
+			 <&clkc CLKID_DSI_B_MEAS_GATE>;
+		clock-names = "dsi_host_gate", "dsi_phy_gate", "dsi_meas";
 		reg = <0x0 0xfe018000 0x0 0x60     /* combo dphy */
 			0x0 0xfe0b2000 0x0 0x10b0  /* edp_b host */
 			0x0 0xfe072000 0x0 0x400   /* mipi_dsi_b host */
@@ -861,6 +837,13 @@
 			&gpio GPIOY_6 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOY_14","GPIOY_6";
 
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
+
 		lvds_0{
 			model_name = "768p-vfreq";
 			interface = "lvds"; /*lcd_interface(lvds, vbyone)*/
@@ -870,18 +853,15 @@
 				8      /*lcd_bits*/
 				698 392>; /*screen_widht, screen_height*/
 			range_setting = <
-				1460 2000 /*h_period_min, max */
-				784 1015  /*v_period_min, max */
+				1506 2000 /*h_period_min, max */
+				805 1015  /*v_period_min, max */
 				50000000 85000000>; /*pclk_min, max*/
 			lcd_timing = <
 				56 64 0   /*hs_width, hs_bp, hs_pol*/
-				3  28 0>; /*vs_width, vs_bp, vs_pol*/
+				3  17 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				15 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				15 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -912,18 +892,15 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -957,18 +934,15 @@
 				10     /*lcd_bits*/
 				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2790 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2790 /*v_period_min, max*/
 				552000000 632000000>; /*pclk_min,max*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
 				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1002,18 +976,15 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1026,7 +997,8 @@
 				3>; /*vbyone_vsync_intr_enable*/
 			phy_attr=<0x8 0xf>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
-
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 20  /*panel power on*/
@@ -1047,18 +1019,15 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1071,7 +1040,8 @@
 				3>; /*vbyone_vsync_intr_enable*/
 			phy_attr=<0x8 0xf>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
-
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 20  /*panel power on*/
@@ -1093,17 +1063,14 @@
 				8      /*lcd_bits*/
 				344 193>; /*screen_widht, screen_height*/
 			range_setting = <
-				2080 2720 /*h_period min, max*/
-				1100 1380 /*v_period min, max*/
+				2132 2720 /*h_period min, max*/
+				1120 1380 /*v_period min, max*/
 				133940000 156000000>; /*pclk_min, max*/
 			lcd_timing = <
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
-				5  30  0>; /*vs_width, vs_bp, vs_pol*/
+				5  20  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
+				0 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
@@ -1149,15 +1116,12 @@
 				47250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				300 /*bit_rate_max(MHz)*/
-				0 /*factor(*100, default 0 for auto)*/
+				0 /*unused*/
 				1 /*operation_mode_init(0=video, 1=command)*/
 				0 /*operation_mode_display(0=video, 1=command)*/
-				2 /*
-				   *video_mode_type
-				   *(0=sync_pulse,1=sync_event,2=burst)
-				   */
+				2 /*video_mode_type: 0=sync_pulse,1=sync_event,2=burst)*/
 				1 /*clk_always_hs(0=disable,1=enable)*/
-				0>; /*phy_switch(0=auto,1=standard,2=slow)*/
+				0>; /*unused*/
 
 			/* dsi_init: data_type, num, data... */
 			dsi_init_on = <0x05 1 0x11
@@ -1196,20 +1160,17 @@
 			lcd_timing = <40 60 0 /*hs_width,hs_bp,hs_pol*/
 				5 20 0>; /*vs_width,vs_bp,vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				74250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				550 /*bit_rate_max(MHz)*/
-				0 /*factor(*100, default 0 for auto)*/
+				0 /*unused*/
 				1 /*operation_mode_init(0=video, 1=command)*/
 				0 /*operation_mode_display(0=video, 1=command)*/
-				0 /*
-				   *video_mode_type
-				   *(0=sync_pulse,1=sync_event,2=burst)
-				   */
+				0 /*video_mode_type: 0=sync_pulse,1=sync_event,2=burst)*/
 				1 /*clk_always_hs(0=disable,1=enable)*/
-				0>; /*phy_switch(0=auto,1=standard,2=slow)*/
+				0>; /*unused*/
 				/* dsi_init: data_type, num, data... */
 			dsi_init_on = <
 				0x05 1 0x11
@@ -1283,7 +1244,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_F";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -1302,7 +1263,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_F";
-			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <0 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -1337,6 +1298,13 @@
 		lcd_cpu-gpios = <&gpio GPIOY_14 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOY_14";
 
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
+
 		lvds_0{
 			model_name = "1080p-vfreq";
 			interface = "lvds"; /*lcd_interface(lvds, vbyone)*/
@@ -1346,18 +1314,15 @@
 				8      /*lcd_bits */
 				941 529>; /*screen_widht, screen_height*/
 			range_setting = <
-				2060 2650  /*h_period_min,max*/
-				1100 1480  /*v_period_min,max*/
+				2132 2650  /*h_period_min,max*/
+				1120 1480  /*v_period_min,max*/
 				120000000 160000000>; /*pclk_min,max*/
 			lcd_timing = <
 				44 148 0  /*hs_width, hs_bp, hs_pol*/
-				5  30 0>; /*vs_width, vs_bp, vs_pol*/
+				5  20 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -1388,17 +1353,14 @@
 				8      /*lcd_bits*/
 				941 529>; /*screen_widht, screen_height*/
 			range_setting = <
-				2080 2720 /*h_period min, max*/
-				1100 1380 /*v_period min, max*/
+				2132 2720 /*h_period min, max*/
+				1120 1380 /*v_period min, max*/
 				133940000 156000000>; /*pclk_min, max*/
 			lcd_timing = <
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
-				5  30  0>; /*vs_width, vs_bp, vs_pol*/
+				5  20  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
@@ -1409,7 +1371,8 @@
 				0 /*port_swap*/
 				0>; /*lane_reverse*/
 			phy_attr=<0x8 0xf>; /*vswing_level, preem_level*/
-
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 50  /*panel power on*/

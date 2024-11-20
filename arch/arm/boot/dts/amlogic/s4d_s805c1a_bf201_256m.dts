@@ -9,6 +9,7 @@
 #include "hdr10plus.dtsi"
 #include "mesons4d_drm.dtsi"
 #include <dt-bindings/input/input.h>
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	model = "Amlogic";
@@ -622,8 +623,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0>;
 		key_code = <115 114>;
-		key_val = <1601 897>; // Unit: millivolt
-		key_tolerance = <70 70>; // Unit: millivolt
+		key_val = <910 510>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40>;
 	};
 
 	gpio_keypad{
@@ -1082,14 +1083,6 @@
 	fip_size = <0x280000>;
 	bl2ex_2_copies;
 
-	rsv_dts_config;
-	rsv_block_num = <14>;
-	rsv_gap_block_num = <4>;
-	rsv_bbt_block_num = <4>;
-	rsv_env_block_num = <0>;
-	rsv_key_block_num = <4>;
-	rsv_dtb_block_num = <0>;
-
 	ship_bad_block = <1>;
 	disa_irq_flag = <1>;
 	nand@bootloader {
@@ -1162,6 +1155,33 @@
 			reg = <0x0 0xffffffff>;
 		};
 	};
+
+	rsv_partition {
+		node0 {
+			label = "nrsv";
+			block_cnt = <14>;
+		};
+		node1 {
+			label = "ngap";
+			block_cnt = <4>;
+		};
+		node2 {
+			label = "nbbt";
+			block_cnt = <4>;
+		};
+		node3 {
+			label = "nenv";
+			block_cnt = <0>;
+		};
+		node4 {
+			label = "nkey";
+			block_cnt = <4>;
+		};
+		node5 {
+			label = "ndtb";
+			block_cnt = <0>;
+		};
+	};
 };
 
 &saradc {
@@ -1179,13 +1199,15 @@
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_x>;
-	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOX_10 0>;
 };
 
 &spifc {
@@ -1212,7 +1234,7 @@
 
 &amhdmitx {
 	res_1080p = <1>;
-	status = "okay";
+	status = "disabled";
     /* hdcp ctrl 0: sysctrl, 1: drv, 2: linux app */
 	hdcp_ctl_lvl = <1>;
 };
@@ -1268,7 +1290,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
@@ -1303,10 +1325,6 @@
 		&dvfs666_cfg
 		&dvfs800_cfg
 		&dvfs800_cfg>;
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &drm_subsystem {

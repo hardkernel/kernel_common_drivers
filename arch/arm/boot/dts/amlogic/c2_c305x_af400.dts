@@ -42,6 +42,12 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		ramdump_bl33z@0 {
+			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			/*reusable;*/
@@ -197,6 +203,16 @@
 	lens: lens {
 		compatible = "soc, lens";
 		status = "okay";
+	};
+
+	ircut: ircut {
+		compatible = "amlogic, aml-ircut";
+		status = "okay";
+		ircut-gpio = <&gpio GPIOA_10 GPIO_ACTIVE_HIGH
+				&gpio GPIOA_12 GPIO_ACTIVE_HIGH>;
+		ircut-sequence = "init: 1=1,w=200,1=0,w=1000,0=1,w=200,0=0,w=1000",
+				"enable: 1=1,w=200,1=0,w=1000,0=0",
+				"disable: 0=1,w=200,0=0,w=1000,1=0";
 	};
 
 	sdcard_power: regulator-sdcard {
@@ -413,29 +429,29 @@
 		status = "okay";
 	};
 	/* Audio Related end */
-	/* to check
-	 *wifivbat_power: regulator-wifivbat {
-	 *	compatible = "regulator-fixed";
-	 *	regulator-name = "WIFIVBAT_POWER";
-	 *	vin-supply = <&vddao3v3_reg>;
-	 *	regulator-min-microvolt = <3300000>;
-	 *	regulator-max-microvolt = <3300000>;
-	 *	gpio = <&gpio GPIOD_13 GPIO_ACTIVE_HIGH>;
-	 *	enable-active-high;
-	 *	regulator-boot-on;
-	 *	regulator-always-on;
-	 *};
-
-	 *vddio_wf: regulator_wfio {
-	 *	compatible = "regulator-fixed";
-	 *	regulator-name = "VDDIO_WF";
-	 *	vin-supply = <&vddao1v8_reg>;
-	 *	regulator-min-microvolt = <1800000>;
-	 *	regulator-max-microvolt = <1800000>;
-	 *	regulator-boot-on;
-	 *	regulator-always-on;
-	 *};
-	 */
+/* to check
+ *	wifivbat_power: regulator-wifivbat {
+ *		compatible = "regulator-fixed";
+ *		regulator-name = "WIFIVBAT_POWER";
+ *		vin-supply = <&vddao3v3_reg>;
+ *		regulator-min-microvolt = <3300000>;
+ *		regulator-max-microvolt = <3300000>;
+ *		gpio = <&gpio GPIOD_13 GPIO_ACTIVE_HIGH>;
+ *		enable-active-high;
+ *		regulator-boot-on;
+ *		regulator-always-on;
+ *	};
+ *
+ *	vddio_wf: regulator_wfio {
+ *		compatible = "regulator-fixed";
+ *		regulator-name = "VDDIO_WF";
+ *		vin-supply = <&vddao1v8_reg>;
+ *		regulator-min-microvolt = <1800000>;
+ *		regulator-max-microvolt = <1800000>;
+ *		regulator-boot-on;
+ *		regulator-always-on;
+ *	};
+ */
 
 	gpio_keypad{
 		compatible = "amlogic, gpio_keypad";
@@ -599,8 +615,8 @@
 		io-channel-names = "key-chan-2";
 		key_chan = <2 2 2 2>;
 		key_code = <141 114 115 28>;
-		key_val = <0 252 468 684>; // Unit: millivolt
-		key_tolerance = <70 70 70 70>; // Unit: millivolt
+		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40>;
 	};
 };
 
@@ -850,7 +866,7 @@
 	};
 
 	aed:effect {
-		compatible = "amlogic, snd-effect-v4";
+		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
 			&clkc CLKID_FCLK_DIV3
@@ -937,6 +953,16 @@
 	/* Audio Related end */
 };
 
+&dwc2_a {
+	status = "disabled";
+	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+	controller-type = <3>;
+};
+
+&dwc3 {
+	status = "disabled";
+};
+
 &usb2_phy_v2 {
 	status = "okay";
 	portnum = <1>;
@@ -960,16 +986,6 @@
 };
 
 &uart_B {
-	status = "okay";
-};
-
-&dwc2_a {
-	status = "okay";
-	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
-	controller-type = <3>;
-};
-
-&dwc3 {
 	status = "okay";
 };
 
@@ -1218,14 +1234,14 @@
 };
 
 &saradc {
-	status = "okay";
+	status = "disabled";
 };
 
 &spicc1 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins1>;
-	cs-gpios = <&gpio GPIOA_14 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOA_14 0>;
 };
 
 &freertos {

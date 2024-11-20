@@ -17,7 +17,6 @@
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include <dt-bindings/reset/amlogic,meson-t5d-reset.h>
 #include <dt-bindings/power/t5-pd.h>
-#include <dt-bindings/thermal/ddr-params.h>
 #include "meson-ir-map.dtsi"
 #include <dt-bindings/mailbox/t5d-mbox.h>
 
@@ -370,8 +369,8 @@
 			0xff644000 0x40     /* pwrctrl */
 			0xff900000 0x40000>; /* vcbus */
 		clk_level = <5>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
-		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 5: 333.3M    6: 400.0M */
 	};
 
 	meson_uvm{
@@ -658,7 +657,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio_ao GPIOD_10 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
+		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
@@ -1390,22 +1389,22 @@
 		status = "disabled";
 		compatible = "amlogic,meson-axg-mmc";
 		reg = <0xffe07000 0x800>,
-				<0xff64625c 0x4>,
-				<0xff6346c0 0x4>;
+			<0xff64625c 0x4>,
+			<0xff6346c0 0x4>;
 		interrupts = <GIC_SPI 191 IRQ_TYPE_EDGE_RISING>;
 		clocks = <&clkc CLKID_CLK81_SD_EMMC_C>,
-				<&clkc CLKID_SD_EMMC_C_MUX>,
-				<&clkc CLKID_SD_EMMC_C_GATE>,
-				<&xtal>,
-				<&clkc CLKID_FCLK_DIV2>,
-				<&clkc CLKID_GP0_PLL>;
+			<&clkc CLKID_SD_EMMC_C_MUX>,
+			<&clkc CLKID_SD_EMMC_C_GATE>,
+			<&xtal>,
+			<&clkc CLKID_GP0_PLL>,
+			<&clkc CLKID_GP0_PLL>;
 
 		clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 		card_type = <1>;
 		tx_delay = <10>;
 		//save_para = <1>;
-		src_clk_rate = <1152000000>;
+		src_clk_rate = <768000000>;
 		compute_cmd_delay = <0>;
 		compute_coef = <0>;
 		mmc_debug_flag;
@@ -1727,6 +1726,20 @@
 			0xff646000 0x4a0>; /* clk reg */
 	};
 
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
+		status = "okay";
+	};
+
+	vout_mux: vout_mux {
+		compatible = "amlogic, vout_mux";
+		status = "okay";
+		clocks = <&clkc CLKID_FCLK_DIV5>,
+			<&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "vdin_meas_clk";
+	};
+
 	vout: vout {
 		compatible = "amlogic, vout";
 		status = "okay";
@@ -1795,7 +1808,7 @@
 		status = "okay";
 		reg = <0xff638000 0x400
 		       0xff638c00 0x100>;
-		interrupts = <0 52 1>;
+		interrupts = <0 52 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "ddr_bandwidth";
 	};
 
@@ -1805,7 +1818,7 @@
 		memory-region = <&dmc_reserved>;
 		reg = <0xff638280 0x100>;
 		reg_base = <0xff639000>;
-		interrupts = <GIC_SPI 52 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	efusecheck: efusecheck{
@@ -1870,6 +1883,15 @@
 		status = "okay";
 	};
 
+	aml_mkl: aml_mkl {
+		compatible = "amlogic,aml_mkl";
+		reg = <0xff630000 0x180>;
+		kl_type = <0>;
+		kl_vid_type = <0>;
+		kl_offset = <0x80 0x100>;
+		status = "okay";
+	};
+
 	cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-t5d";
 	};
@@ -1897,6 +1919,25 @@
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
+			ddrtype_reg = <0xff6388b0>;
+			ddr_cool {
+				ddr_reg = <0xff6384b4 0xff638648>;
+				ddr_status = <13>;
+				ddr_bits = <8 15>, <0 8>;
+				ddr_data = <152 152 152 120 94 76 76 60 60 46 46 38 18>;
+				gpu_data = <0x33 0x33 0x33 0x33 0x33 0x33 0x33 0x33 0x33
+					0x33 0x33 0x33 0x33>;
+				node_name = "ddr_cool0";
+				device_type = "ddr";
+			};
+			ddr_cool_20nm {
+				ddr_reg = <0xff6384b4>;
+				ddr_status = <3>;
+				ddr_bits = <8 15>;
+				ddr_data = <0x4c 0x26 0x13>;
+				node_name = "ddr_cool1";
+				device_type = "ddr";
+			};
 			cpucore_cool_cluster0 {
 				cluster_id = <0>;
 				node_name = "cpucore0";
@@ -1908,6 +1949,12 @@
 				device_type = "gpufreq";
 			};
 		};
+		ddr_cool0:ddr_cool0 {
+			#cooling-cells = <2>; /* min followed by max */
+		};
+		ddr_cool1:ddr_cool1 {
+			#cooling-cells = <2>; /* min followed by max */
+		};
 		cpucore0:cpucore0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
@@ -1917,7 +1964,7 @@
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <1057>;
+			sustainable-power = <1027>;
 			thermal-sensors = <&p_tsensor 0>;
 			trips {
 				pswitch_on: trip-point@0 {
@@ -1930,7 +1977,17 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				pcritical: trip-point@2 {
+				pddr_change: trip-point@2 {
+					temperature = <55000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				pddr_change1: trip-point@3 {
+					temperature = <90000>;
+					hysteresis = <10000>;
+					type = "hot";
+				};
+				pcritical: trip-point@4 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -1942,6 +1999,16 @@
 					cooling-device = <&CPU0 0 8>;
 					contribution = <1024>;
 				};
+				ddr_cooling_map {
+					trip = <&pddr_change>;
+					cooling-device = <&ddr_cool0 0 12>;
+					contribution = <1024>;
+				};
+				ddr_cooling_map1 {
+					trip = <&pddr_change1>;
+					cooling-device = <&ddr_cool1 0 2>;
+					contribution = <1024>;
+				};
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
 					cooling-device = <&gpu 0 3>;
@@ -1950,48 +2017,6 @@
 			};
 		};
 	}; /*thermal zone end*/
-
-	ddr_control: ddr_control {
-		compatible = "amlogic, ddr-control";
-		reg = <0xff6388b0 0x4>;
-		reg-names = "process-addr";
-		process-mask = <8 8>;
-		status = "okay";
-
-		ddr-18nm {
-			particle = <DDR_18NM_PARTICLE>;
-			particle-flag = <DDR_PROCESS_FLAG>;
-			condition-type = <DDR_THERMAL>;
-			zone-name = "soc_thermal";
-			caddr = <0xff6384b4>,
-				<0xff638648>;
-			caddr-mask = <8 8>,
-				     <0 8>;
-			cstep-val = <70000 75000 80000 90000>,
-				    <100000 110000 115000 115000>;
-			caddr-val = <152 0x33>,
-				    <120 0x33>,
-				    <94  0x33>,
-				    <76  0x33>,
-				    <60  0x33>,
-				    <46  0x33>,
-				    <38  0x33>,
-				    <18  0x33>;
-			refresh-constant-value;
-		};
-
-		ddr-20nm {
-			particle = <DDR_20NM_PARTICLE>;
-			particle-flag = <DDR_PROCESS_FLAG>;
-			condition-type = <DDR_THERMAL>;
-			zone-name = "soc_thermal";
-			caddr = <0xff6384b4>;
-			caddr-mask = <8 8>;
-			cstep-val = <100000 110000 110000>;
-			caddr-val = <0x4c 0x26 0x13>;
-			refresh-constant-value;
-		};
-	};
 
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
@@ -2232,7 +2257,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-up;
-			drive-strength-microamp = <3000>;
+			drive-strength-microamp = <4000>;
 		};
 	};
 
@@ -2241,7 +2266,7 @@
 			groups = "GPIOB_8";
 			function = "gpio_periphs";
 			bias-pull-down;
-			drive-strength-microamp = <3000>;
+			drive-strength-microamp = <4000>;
 		};
 	};
 
@@ -2260,7 +2285,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-up;
-			drive-strength-microamp = <3000>;
+			drive-strength-microamp = <4000>;
 		};
 	};
 
@@ -2270,7 +2295,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-down;
-			drive-strength-microamp = <3000>;
+			drive-strength-microamp = <4000>;
 		};
 	};
 

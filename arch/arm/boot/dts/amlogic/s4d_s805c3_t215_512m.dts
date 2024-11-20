@@ -675,8 +675,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
 		key_code = <116 115 114>;
-		key_val = <35 1601 1109>; // Unit: millivolt
-		key_tolerance = <70 70 70>; // Unit: millivolt
+		key_val = <20 910 630>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
 	};
 
 	gpio_keypad{
@@ -1454,7 +1454,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_x>;
-	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOX_10 0>;
 };
 
 &spifc {
@@ -1481,7 +1481,7 @@
 
 &amhdmitx {
 	res_1080p = <1>;
-	status = "okay";
+	status = "disabled";
     /* hdcp ctrl 0: sysctrl, 1: drv, 2: linux app */
 	hdcp_ctl_lvl = <1>;
 };
@@ -1537,7 +1537,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
@@ -1571,10 +1571,6 @@
 		&dvfs666_cfg
 		&dvfs800_cfg
 		&dvfs800_cfg>;
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &drm_subsystem {

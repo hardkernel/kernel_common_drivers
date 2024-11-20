@@ -173,6 +173,7 @@
 			clock-names = "ts_comp";
 			power-domains = <&pwrdm PDID_CX_I2C>;
 			#thermal-sensor-cells = <1>;
+			cust_governor = "power_allocator";
 		};
 
 		sd_emmc_c: emmc@fe012000 {
@@ -748,6 +749,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "snps,dwmac-mdio";
+				status = "disabled";
 			};
 		};
 
@@ -1096,7 +1098,7 @@
 
 	dwc3: dwc3@ff400000 {
 		compatible = "snps,dwc3-meson";
-		status = "disable";
+		status = "disabled";
 		reg = <0x0 0xff400000 0x0 0x100000>;
 		interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
 		dr_mode = "host";
@@ -1114,7 +1116,7 @@
 
 	dwc2_a: dwc2_a@ff500000 {
 		compatible = "amlogic,dwc2";
-		status = "disable";
+		status = "disabled";
 		device_name = "dwc2_a";
 		reg = <0x0 0xff500000 0x0 0x40000>;
 		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
@@ -1469,7 +1471,7 @@
 
 	hifidsp0: hifidsp0 {
 		compatible = "amlogic, hifidsp0";
-		status = "okay";
+		status = "disabled";
 		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved0>;
 		reg-names = "base-reg",
@@ -1493,7 +1495,7 @@
 
 	hifidsp1: hifidsp1 {
 		compatible = "amlogic, hifidsp1";
-		status = "okay";
+		status = "disabled";
 		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved1>;
 		reg-names = "base-reg",

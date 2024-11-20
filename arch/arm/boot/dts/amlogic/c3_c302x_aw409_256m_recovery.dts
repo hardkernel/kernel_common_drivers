@@ -42,13 +42,19 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		ramdump_bl33z@0 {
+			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			no-map;
-			size = <0x100000>;
+			size = <0x900000>;
 			alignment = <0x100000>;
 			//alloc-ranges =  <0x05000000 0x8000000>;
-			reg = <0x07F00000 0x100000>;
+			reg = <0x0F700000 0x900000>;
 		};
 		nna_cma_reserved: linux,nna_cma {
 			compatible = "shared-dma-pool";
@@ -135,7 +141,7 @@
 			compatible = "shared-dma-pool";
 			//reusable;
 			size = <0x1000000>;
-			alignment = <0x400000>;
+			alignment = <0x100000>;
 			no-map;
 			status = "disabled";
 		};
@@ -145,7 +151,7 @@
 			reusable;
 			size = <0x400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x05000000 0x7F00000>;
+			alloc-ranges = <0x05000000 0x7E00000>;
 			linux,cma-default;
 		};
 
@@ -549,8 +555,8 @@
 		io-channel-names = "key-chan-2";
 		key_chan = <2 2 2 2>;
 		key_code = <141 114 115 28>;
-		key_val = <0 252 468 684>; // Unit: millivolt
-		key_tolerance = <70 70 70 70>; // Unit: millivolt
+		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40>;
 	};
 
 	sensor0 {
@@ -1165,11 +1171,11 @@
 		compatible = "spi-nand";
 		status = "okay";
 		reg = <0>;
-		spi-max-frequency = <24000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
+		spi-max-frequency = <83000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 		bl_mode = <2>; /* advance mode */
-		fip_copies = <4>;
+		fip_copies = <2>;
 		info_p_mode = <1>; /* Info page on page 0 */
 		partition = <&snand_partitions>;
 		snand_partitions: snand_partitions{
@@ -1235,7 +1241,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins1>;
-	//cs-gpios = <&gpio GPIOA_14 GPIO_ACTIVE_LOW>;
+	//cs-gpios = <&gpio GPIOA_14 0>;
 };
 
 &freertos {

@@ -11,41 +11,31 @@
 		mode = "tablet";
 		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		clocks = <&clkc CLKID_FCLK_DIV5
-				&clkc CLKID_CTS_TCON_PLL_CLK>;
-		clock-names = "fclk_div5",
-				"clk_tcon";
+
 		reg = <0x0 0xfe380000 0x0 0xd000   /* tcon */
 			0x0 0xfe004000 0x0 0x70    /* periphs */
 			0x0 0xfe002000 0x0 0xa0    /* reset */
 			0x0 0xfe0a6000 0x0 0x80>;  /* combo_dphy */
 		interrupts = <0 115 1
 			0 113 1
-			0 100 1
-			0 242 1>;
-		interrupt-names = "vsync","vsync2","vbyone","tcon";
-		pinctrl-names = "vbyone","vbyone_off",
-				"tcon_p2p","tcon_p2p_usit","tcon_p2p_off",
-				"ST6451D06-3","ST6451D06-3_off",
-				"ST5461D18-2","ST5461D18-2_off";
+			0 100 1>;
+		interrupt-names = "vsync","vsync2","vbyone";
+		pinctrl-names = "vbyone","vbyone_off";
 		pinctrl-0 = <&lcd_vbyone_a_pins>;
 		pinctrl-1 = <&lcd_vbyone_a_off_pins>;
-		pinctrl-2 = <&lcd_tcon_p2p_pins>;
-		pinctrl-3 = <&lcd_tcon_p2p_usit_pins>;
-		pinctrl-4 = <&lcd_tcon_p2p_off_pins>;
-		pinctrl-5 = <&ST6451D06_3_pins>;
-		pinctrl-6 = <&ST6451D06_3_off_pins>;
-		pinctrl-7 = <&ST5461D18_2_pins>;
-		pinctrl-8 = <&ST5461D18_2_off_pins>;
-		memory-region = <&lcd_tcon_reserved>;
-
 		/* power type:(0=cpu_gpio, 2=signal, 3=extern, 0xff=ending) */
 		/* power index:(gpios_index, or extern_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
-		lcd_cpu-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH
-				&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
+		lcd_cpu-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH &gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOH_7", "GPIOH_3";
+
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
 
 		lvds_0{
 			model_name = "1080p-vfreq";
@@ -56,15 +46,15 @@
 				8      /*lcd_bits */
 				941 529>; /*screen_widht, screen_height*/
 			range_setting = <
-				2060 2650  /*h_period_min,max*/
-				1100 1480  /*v_period_min,max*/
+				2132 2650  /*h_period_min,max*/
+				1120 1480  /*v_period_min,max*/
 				120000000 160000000>; /*pclk_min,max*/
 			lcd_timing = <
 				44 148 0  /*hs_width, hs_bp, hs_pol*/
-				5  36 0>; /*vs_width, vs_bp, vs_pol*/
+				5  20 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
 				2 /*fr_adj_type: 0=clk 1=htotal 2=vtotal 3=auto_range 4=hdmi*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -96,12 +86,12 @@
 				8      /*lcd_bits*/
 				941 529>; /*screen_widht, screen_height*/
 			range_setting = <
-				2080 2720 /*h_period min, max*/
-				1100 1380 /*v_period min, max*/
+				2132 2720 /*h_period min, max*/
+				1120 1380 /*v_period min, max*/
 				133940000 156000000>; /*pclk_min, max*/
 			lcd_timing = <
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
-				5  36  0>; /*vs_width, vs_bp, vs_pol*/
+				5  20  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
 				4 /*fr_adj_type: 0=clk 1=htotal 2=vtotal 3=auto_range 4=hdmi*/
 				0 /*clk_ss_level */
@@ -114,7 +104,8 @@
 				0 /*port_swap*/
 				0>; /*lane_reverse*/
 			phy_attr=<0x3 0>; /*vswing_level, preem_level*/
-
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 50   /*panel power*/
@@ -135,16 +126,16 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
-				6  81 0>; /*vs_width, vs_bp, vs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <1>;
 			clk_attr = <
-				1 /*fr_adj_type: 0=clk 1=htotal 2=vtotal 3=auto_range 4=hdmi*/
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk 1=htotal 2=vtotal 3=auto_range 4=hdmi*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -155,7 +146,7 @@
 			vbyone_intr_enable = <
 				1 /*vbyone_intr_enable */
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -178,19 +169,16 @@
 				10     /*lcd_bits*/
 				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2790 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2790 /*v_period_min, max*/
 				552000000 632000000>; /*pclk_min,max*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
-				6  81  0>; /*vs_width, vs_bp, vs_pol*/
+				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <1>;
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -201,7 +189,7 @@
 			vbyone_intr_enable = <
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -224,19 +212,16 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
-				6  81 0>; /*vs_width, vs_bp, vs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <1>;
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -247,9 +232,10 @@
 			vbyone_intr_enable = <
 				1 /*vbyone_intr_enable */
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
-
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 500   /*panel power*/
@@ -270,19 +256,16 @@
 				10     /*lcd_bits*/
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2790 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2790 /*v_period_min, max*/
 				552000000 632000000>; /*pclk_min,max*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
-				6  81  0>; /*vs_width, vs_bp, vs_pol*/
+				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <1>;
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -293,9 +276,10 @@
 			vbyone_intr_enable = <
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
-
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 500   /*panel power*/
@@ -316,18 +300,15 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -338,7 +319,12 @@
 			vbyone_intr_enable = <
 				1 /*vbyone_intr_enable */
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x8 0xf>; /* vswing_level, preem_level */
+			phy_attr=<0x8 0xf>;
+
+			phy_adv_attr=<0x100a 0 0x2f 0 0x2>; /*flag, vswing, vcm, bias, odt*/
+			phy_lane_ctrl = </*bit[31:16]amp, bit[15:0]preem*/
+				0x000000e7 0x000000e7 0x000000e7 0x000000e7
+				0x000000e7 0x000000e7 0x000000e7 0x000000e7>;
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
@@ -360,8 +346,8 @@
 				10     /*lcd_bits*/
 				695 391>; /*screen_widht, screen_height*/
 			range_setting = <
-				4096 4800 /*h_period_min, max*/
-				2196 6750 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 6750 /*v_period_min, max*/
 				540000000 600000000>; /*pclk_min,max*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
@@ -369,7 +355,7 @@
 			ppc_mode = <2>;
 			clk_attr = <
 				255 /*(0=clk, 1=htotal, 2=vtotal, 3=auto_range, 4=hdmi_mode)*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				120>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -380,7 +366,7 @@
 			vbyone_intr_enable = <
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -404,7 +390,7 @@
 				695 391>; /*screen_widht, screen_height*/
 			range_setting = <
 				4096 4800 /*h_period_min, max*/
-				2196 6750 /*v_period_min, max*/
+				2231 6750 /*v_period_min, max*/
 				540000000 600000000>; /*pclk_min,max*/
 			lcd_timing = <
 				32 200 0   /*hs_width, hs_bp, hs_pol*/
@@ -412,7 +398,7 @@
 			ppc_mode = <2>;
 			clk_attr = <
 				255 /*(0=clk, 1=htotal, 2=vtotal, 3=auto_range, 4=hdmi_mode)*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				144>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -423,7 +409,7 @@
 			vbyone_intr_enable = <
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x8 5>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -446,19 +432,16 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
-				6  81 0>; /*vs_width, vs_bp, vs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <2>;
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -469,7 +452,7 @@
 			vbyone_intr_enable = <
 				1 /*vbyone_intr_enable */
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -492,19 +475,16 @@
 				10     /*lcd_bits*/
 				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2790 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2790 /*v_period_min, max*/
 				552000000 632000000>; /*pclk_min,max*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
-				6  81  0>; /*vs_width, vs_bp, vs_pol*/
+				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <2>;
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -515,7 +495,7 @@
 			vbyone_intr_enable = <
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -538,19 +518,16 @@
 				10     /*lcd_bits */
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
-				6  81 0>; /*vs_width, vs_bp, vs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <2>;
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -561,9 +538,10 @@
 			vbyone_intr_enable = <
 				1 /*vbyone_intr_enable */
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
-
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 500   /*panel power*/
@@ -584,19 +562,16 @@
 				10     /*lcd_bits*/
 				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2790 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2790 /*v_period_min, max*/
 				552000000 632000000>; /*pclk_min,max*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
-				6  81  0>; /*vs_width, vs_bp, vs_pol*/
+				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <2>;
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -607,7 +582,59 @@
 			vbyone_intr_enable = <
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
+			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
+			/* power step: type, index, value, delay(ms) */
+			power_on_step = <
+				0 0 1 500   /*panel power*/
+				2 0 0 10 /*signal enable*/
+				0xff 0 0 0>; /*ending*/
+			power_off_step = <
+				2 0 0 10  /*signal disable*/
+				0 0 0 500   /*panel power*/
+				0xff 0 0 0>; /*ending*/
+			backlight_index = <0xff>;
+		};
+		vbyone_11{
+			model_name = "1region_var_res";
+			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
+			basic_setting = <
+				3840 2160 /*h_active, v_active*/
+				4400 2250 /*h_period, v_period*/
+				10     /*lcd_bits */
+				160 90>; /*screen_widht, screen_height*/
+			lcd_timing = <
+				33 477 0  /*hs_width, hs_bp, hs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
+			clk_attr = <
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
+				1 /*clk_auto_generate*/
+				594000000>; /*pixel_clk(unit in Hz)*/
+			vbyone_attr = <
+				8 /*lane_count*/
+				1 /*region_num*/
+				4 /*byte_mode*/
+				4>; /*color_fmt*/
+			vbyone_intr_enable = <
+				1 /*vbyone_intr_enable */
+				3>; /*vbyone_vsync_intr_enable*/
+			cus_ctrl_0_attr = <0x02 0x03>;
+			// 2560x1440p
+			/* H(period active sync bp pol) V(...) lcd_bits width height dft_pclk */
+			extend_tmg_0 = <2720 2560 60 40  0 1481 1440 5 20 0 8 344 193 241700000>;
+			extend_tmg_0_range_setting = <2720 2720 1481 1870 241700000 241700000>;
+			// 1080p
+			extend_tmg_1 = <2200 1920 44 148 0 1125 1080 4  5 0 8 344 193 148500000>;
+			extend_tmg_1_range_setting = <2200 2200 1125 1421 148500000 148500000>;
+			// 720p
+			extend_tmg_2 = <1650 1280 40 220 0 750  720  5 20 0 8 344 193  74250000>;
+			// 480p
+			extend_tmg_3 = <858  720  62 60  0 525  480  6 30 0 8 344 193  27027000>;
+
+			phy_attr=<7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -622,103 +649,6 @@
 			backlight_index = <0xff>;
 		};
 
-		p2p_0{
-			model_name = "p2p_ceds";
-			interface = "p2p"; /*lcd_interface
-					    *(lvds, vbyone, minilvds, p2p)
-					    */
-			basic_setting = <
-				3840 2160 /*h_active, v_active*/
-				5000 2250 /*h_period, v_period*/
-				8     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
-			range_setting = <
-				4240 5100 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
-				480000000 624000000>; /*pclk_min, max*/
-			lcd_timing = <
-				16 29 0  /*hs_width, hs_bp, hs_pol*/
-				6  65 0>; /*vs_width, vs_bp, vs_pol*/
-			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				3 /*clk_ss_level*/
-				1 /*clk_auto_generate*/
-				0>; /*pixel_clk(unit in Hz)*/
-			p2p_attr = <
-				0x0  /* p2p_type:
-				      *  0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
-				      *  0x10=chpi, 0x11=cspi, 0x12=usit
-				      */
-				12 /* channel_num */
-				0x76543210 /* channel_sel0 */
-				0xba98   /* channel_sel1 */
-				0   /* pn_swap */
-				0>; /* bit_swap */
-			phy_attr=<0x5 1>; /* vswing_level, preem_level */
-
-			/* power step: type, index, value, delay(ms) */
-			power_on_step = <
-				0 0 1 20 /*panel power on*/
-				3 0 0 200 /* extern init voltage */
-				2 0 0 10  /*signal enable*/
-				0xff 0 0 0>; /*ending*/
-			power_off_step = <
-				2 0 0 10 /*signal disable*/
-				0 0 0 100 /*panel power off*/
-				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
-		};
-		p2p_1{
-			model_name = "p2p_cspi";
-			interface = "p2p"; /*lcd_interface
-					    *(lvds, vbyone, minilvds, p2p)
-					    */
-			basic_setting = <
-				3840 2160 /*h_active, v_active*/
-				5000 2250 /*h_period, v_period*/
-				8     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
-			range_setting = <
-				4240 5100 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
-				480000000 624000000>; /*pclk_min, max*/
-			lcd_timing = <
-				16 29 0  /*hs_width, hs_bp, hs_pol*/
-				6  65 0>; /*vs_width, vs_bp, vs_pol*/
-			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				3 /*clk_ss_level*/
-				1 /*clk_auto_generate*/
-				0>; /*pixel_clk(unit in Hz)*/
-			p2p_attr = <
-				0x11  /* p2p_type:
-				       *  0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
-				       *  0x10=chpi, 0x11=cspi, 0x12=usit
-				       */
-				12 /* channel_num */
-				0x76543210 /* channel_sel0 */
-				0xba98   /* channel_sel1 */
-				0   /* pn_swap */
-				0>; /* bit_swap */
-			phy_attr=<0x5 1>; /* vswing_level, preem_level */
-
-			/* power step: type, index, value, delay(ms) */
-			power_on_step = <
-				0 0 1 20 /*panel power on*/
-				2 0 0 10  /*signal enable*/
-				0xff 0 0 0>; /*ending*/
-			power_off_step = <
-				2 0 0 10 /*signal disable*/
-				0 0 0 100 /*panel power off*/
-				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
-		};
 		ports {
 			port {
 				#address-cells = <1>;
@@ -776,7 +706,7 @@
 		compatible = "amlogic, backlight-t3x";
 		status = "okay";
 		index = <0>;
-		key_valid = <1>;
+		key_valid = <0>;
 		pinctrl-names = "pwm_on","pwm_vs_on",
 				"pwm_off";
 		pinctrl-0 = <&pwm_d_pins4>;
@@ -806,7 +736,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_D";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -824,7 +754,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /* on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_VS";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				2 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -1125,10 +1055,7 @@
 		mode = "tablet";
 		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		clocks = <&clkc CLKID_FCLK_DIV5
-				&clkc CLKID_CTS_TCON_PLL_CLK>;
-		clock-names = "fclk_div5",
-				"clk_tcon";
+
 		reg = <0x0 0xfe380000 0x0 0xd000   /* tcon */
 			0x0 0xfe004000 0x0 0x70    /* periphs */
 			0x0 0xfe002000 0x0 0xa0  /* reset */
@@ -1148,8 +1075,15 @@
 		lcd_cpu-gpios = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOH_3";
 
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
+
 		vbyone_0{
-			model_name = "public_2region_1ppc";
+			model_name = "2region_1ppc";
 			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
 			basic_setting = <
 				3840 2160 /*h_active, v_active*/
@@ -1157,16 +1091,16 @@
 				10     /*lcd_bits */
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
-				6  81 0>; /*vs_width, vs_bp, vs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <1>;
 			clk_attr = <
 				2 /*fr_adj_type: 0=clk 1=htotal 2=vtotal 3=auto_range 4=hdmi*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1177,7 +1111,7 @@
 			vbyone_intr_enable = <
 				1 /*vbyone_intr_enable */
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -1190,7 +1124,7 @@
 			backlight_index = <0>;
 		};
 		vbyone_1{
-			model_name = "public_1region_1ppc";
+			model_name = "1region_1ppc";
 			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
 			basic_setting = <
 				3840 2160 /*h_active, v_active*/
@@ -1198,16 +1132,16 @@
 				10     /*lcd_bits*/
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2790 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2790 /*v_period_min, max*/
 				552000000 632000000>; /*pclk_min,max*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
-				6  81  0>; /*vs_width, vs_bp, vs_pol*/
+				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <1>;
 			clk_attr = <
 				2 /*fr_adj_type: 0=clk 1=htotal 2=vtotal 3=auto_range 4=hdmi*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1218,7 +1152,7 @@
 			vbyone_intr_enable = <
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -1231,7 +1165,7 @@
 			backlight_index = <0>;
 		};
 		vbyone_2{
-			model_name = "public_2region_HDMI_1ppc";
+			model_name = "2region_HDMI_1ppc";
 			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
 			basic_setting = <
 				3840 2160 /*h_active, v_active*/
@@ -1240,11 +1174,11 @@
 				16 9>; /*screen_widht, screen_height*/
 			lcd_timing = <
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
-				6  81 0>; /*vs_width, vs_bp, vs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <1>;
 			clk_attr = <
 				0xff /*fr_adj_type: 0=clk 1=htotal 2=vtotal 3=auto_range 4=hdmi*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1255,9 +1189,10 @@
 			vbyone_intr_enable = <
 				1 /*vbyone_intr_enable */
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
-
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				2 0 0 10  /*signal enable*/
@@ -1268,7 +1203,7 @@
 			backlight_index = <0>;
 		};
 		vbyone_3{
-			model_name = "public_1region_HDMI_1ppc";
+			model_name = "1region_HDMI_1ppc";
 			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
 			basic_setting = <
 				3840 2160 /*h_active, v_active*/
@@ -1277,11 +1212,11 @@
 				160 90>; /*screen_widht, screen_height*/
 			lcd_timing = <
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
-				6  81  0>; /*vs_width, vs_bp, vs_pol*/
+				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			ppc_mode = <1>;
 			clk_attr = <
 				0xff /*fr_adj_type: 0=clk 1=htotal 2=vtotal 3=auto_range 4=hdmi*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1292,7 +1227,61 @@
 			vbyone_intr_enable = <
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			phy_attr=<0x7 4>; /* vswing_level, preem_level */
+			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
+			//vlock_attr: <vlock_en vlock_mode pll_m limit line_limit>
+			vlock_attr = <0 4 0 3>;
+			/* power step: type, index, value, delay(ms) */
+			power_on_step = <
+				2 0 0 10 /*signal enable*/
+				0xff 0 0 0>; /*ending*/
+			power_off_step = <
+				2 0 0 10  /*signal disable*/
+				0xff 0 0 0>; /*ending*/
+			backlight_index = <0>;
+		};
+		vbyone_4{
+			model_name = "1region_var_res";
+			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
+			basic_setting = <
+				3840 2160 /*h_active, v_active*/
+				4400 2250 /*h_period, v_period*/
+				10     /*lcd_bits */
+				160 90>; /*screen_widht, screen_height*/
+			lcd_timing = <
+				33 477 0  /*hs_width, hs_bp, hs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
+			range_setting = <
+				4370 4800 /*h_period_min, max*/
+				2246 2790 /*v_period_min, max*/
+				552000000 632000000>; /*pclk_min,max*/
+			clk_attr = <
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
+				1 /*clk_auto_generate*/
+				594000000>; /*pixel_clk(unit in Hz)*/
+			vbyone_attr = <
+				8 /*lane_count*/
+				1 /*region_num*/
+				4 /*byte_mode*/
+				4>; /*color_fmt*/
+			vbyone_intr_enable = <
+				1 /*vbyone_intr_enable */
+				3>; /*vbyone_vsync_intr_enable*/
+			cus_ctrl_0_attr = <0x02 0x03>;
+			// 2560x1440p
+			/* H(period active sync bp pol) V(...) lcd_bits width height dft_pclk */
+			extend_tmg_0 = <2720 2560 60 40  0 1481 1440 5 20 0 8 344 193 241700000>;
+			extend_tmg_0_range_setting = <2720 2720 1481 1870 241700000 241700000>;
+			// 1080p
+			extend_tmg_1 = <2200 1920 44 148 0 1125 1080 4  5 0 8 344 193 148500000>;
+			extend_tmg_1_range_setting = <2200 2200 1125 1421 148500000 148500000>;
+			// 720p
+			extend_tmg_2 = <1650 1280 40 220 0 750  720  5 20 0 8 344 193  74250000>;
+			// 480p
+			extend_tmg_3 = <858  720  62 60  0 525  480  6 30 0 8 344 193  27027000>;
+
+			phy_attr=<7 4>; /* vswing_level, preem_level */
 			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
@@ -1302,7 +1291,7 @@
 			power_off_step = <
 				2 0 0 10  /*signal disable*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0>;
+			backlight_index = <0xff>;
 		};
 
 		ports {

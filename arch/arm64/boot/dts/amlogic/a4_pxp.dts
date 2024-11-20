@@ -1243,7 +1243,7 @@
 };
 
 &ethmac {
-	status = "okay";
+	status = "disabled";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
 };

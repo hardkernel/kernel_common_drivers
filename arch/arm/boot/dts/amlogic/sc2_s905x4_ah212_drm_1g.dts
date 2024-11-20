@@ -226,7 +226,17 @@
 		memory-region = <&pcie_dma_ops_mm>;
 	};
 
-	main_12v: fixed@main_12v {
+	gpio_leds {
+		compatible = "gpio-leds";
+		status = "okay";
+		pwr_led {
+			label = "pwr_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	main_12v: fixregulator@1 {
 		compatible = "regulator-fixed";
 		regulator-name = "12V";
 		regulator-min-microvolt = <12000000>;
@@ -1110,7 +1120,7 @@
 		 */
 		level = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	loopbacka:loopback@0 {
@@ -1551,6 +1561,8 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
+	mac_wol = <1>;
+	mdns_wkup = <1>;
 };
 
 &ir {

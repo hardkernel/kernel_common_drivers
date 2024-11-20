@@ -4,7 +4,6 @@
  */
 
 #include <dt-bindings/display/meson-drm-ids.h>
-#include "meson-s4d.dtsi"
 
 / {
 	drm_amhdmitx: drm-amhdmitx {
@@ -54,8 +53,8 @@
 		reg-names = "base", "hhi", "dmc";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "viu-vsync";
-		clocks = <&clkc CLKID_VPU_CLKC_MUX>;
-		clock-names = "vpu_clkc";
+		//clocks = <&clkc CLKID_VPU_CLKC_MUX>;
+		//clock-names = "vpu_clkc";
 		dma-coherent;
 		vpu_out: port@1 {
 			#address-cells = <1>;

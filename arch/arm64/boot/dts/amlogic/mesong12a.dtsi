@@ -230,8 +230,8 @@
 		storage_version = <0x8200006C>;
 	};
 
-	mbox_pl1: mbox_pl1@0xfffe7400 {
-		status = "okay";
+	mbox_pl1: mbox_pl1@fffe7400 {
+		status = "disabled";
 		compatible = "amlogic, g12a-mbox-pl";
 		reg = <0x0 0xfffe7600 0x0 0x200>,   // m4 rx buf
 		      <0x0 0xff63c41c 0x0 0x4>,     // m4 rx set addr
@@ -250,7 +250,7 @@
 		#mbox-cells = <1>;
 	};
 
-	mbox_pl0: mbox_pl0@0xfffe7000 {
+	mbox_pl0: mbox_pl0@fffe7000 {
 		status = "okay";
 		compatible = "amlogic, g12a-mbox-pl-old";
 		reg = <0x0 0xfffe7200 0x0 0x200>,   // aocpu tx buf
@@ -355,7 +355,7 @@
 			"vpu_clk1",
 			"vpu_clk";
 		clk_level = <8>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
 	};
 
@@ -548,7 +548,7 @@
 		compatible = "amlogic, ram_dump";
 		status = "okay";
 		reg = <0x0 0xFF6345E0 0x0 4>;
-		reg-names = "PREG_STICKY_REG8";
+		reg-names = "SYSCTRL_STICKY_REG6";
 		store_device = "data";
 	};
 
@@ -586,6 +586,7 @@
 		clocks = <&clkc CLKID_TS>; /* CLKID_TS_COMP>;*/
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	d_tsensor: d_tsensor@ff800228 {
@@ -923,7 +924,7 @@
 		};/* end of ion_dev*/
 
 		audiobus: audiobus@ff642000 {
-			compatible = "amlogic, audio-controller", "simple-bus";
+			compatible = "amlogic, axg-audio-controller", "simple-bus";
 			reg = <0x0 0xff642000 0x0 0x2000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -933,6 +934,9 @@
 				compatible = "amlogic, g12a-audio-clocks";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0xb0>;
+			};
+			pinctrl_audio: pinctrl {
+				compatible = "amlogic, g12a-audio-pinctrl";
 			};
 			ddr_manager {
 				compatible = "amlogic, g12a-audio-ddr-manager";
@@ -956,7 +960,7 @@
 
 			interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 5 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 21 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 53 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 19 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 25 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 18 IRQ_TYPE_EDGE_RISING
@@ -1143,22 +1147,32 @@
 		 * 10:G12A 11:G12B
 		 */
 		ic_type = <10>;
-		reg = <0x0 0xff900000 0x0 0x40000>,
-			<0x0 0xff600000 0x0 0x8000>,
-			<0x0 0xff608000 0x0 0x4000>,
-			<0x0 0xffe01000 0x0 0x100>,
+		reg =	<0x0 0xffd00000 0x0 0x100000>,
+			<0x0 0xff900000 0x0 0x40000>,
 			<0x0 0xff63c000 0x0 0x2000>,
-			<0x0 0xffd00000 0x0 0x100000>,
+			<0x0 0xff608000 0x0 0x4000>, //TOP
+			<0x0 0xff600000 0x0 0x8000>, //DWC reverse
+			<0x0 0xffe01000 0x0 0x100>,  //ESM
+			<0x0 0x00000000 0x0 0x000>,	/* reserved */
+			<0x0 0x00000000 0x0 0x000>,	/* reserved */
 			<0x0 0xffd00000 0x0 0x1100>,
+			<0x0 0x00000000 0x0 0x000>,	/* reserved */
+			<0x0 0x00000000 0x0 0x0000>,/* reserved */
+			<0x0 0x00000000 0x0 0x0000>, /* reserved */
 			<0x0 0xff634400 0x0 0x2000>,
 			<0x0 0xff800000 0x0 0x100000>;
-		reg-names = "vpu",
-			"hdmitxdwc",
-			"hdmitxtop",
-			"esm",
-			"hiu",
-			"cbus",
-			"resetctrl",
+		reg-names = "cbus",
+			    "vpu",
+			    "hiu",
+			    "hdmitxdwc",
+			    "hdmitxtop",
+			    "esm",
+			    "anactrl",
+			    "pwrctrl",
+			    "resetctrl",
+			    "sysctrl",
+			    "clkctrl",
+			"padctrl",
 			"periphs",
 			"aobus";
 		vend_data: vend_data{ /* Should modified by Customer */
@@ -1231,10 +1245,8 @@
 		/*cma_size = <16>;*/
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
-		/*clocks = <&clock CLK_FPLL_DIV5>,
-		 *	<&clock CLK_VDIN_MEAS_CLK>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
 	};
 	vdin1: vdin1 {
@@ -1245,10 +1257,8 @@
 		flag_cma = <100>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 85 1>;
 		rdma-irq = <4>;
-		/*clocks = <&clock CLK_FPLL_DIV5>,
-		 *	<&clock CLK_VDIN_MEAS_CLK>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
 	};
 
@@ -1276,6 +1286,11 @@
 		//	"vpu_clkc";
 
 		fr_policy = <0>;
+	};
+
+	vout_mux: vout_mux {
+		compatible = "amlogic, vout_mux";
+		status = "okay";
 	};
 
 	dummy_venc: dummy_venc {
@@ -1375,6 +1390,12 @@
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
+		status = "okay";
+	};
+
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
 		status = "okay";
 	};
 

@@ -6,7 +6,8 @@
 /dts-v1/;
 
 #include "mesontxhd2_reva.dtsi"
-#include "meson_txhd2-panel.dtsi"
+#include "hdr10plus.dtsi"
+#include "mesontxhd2_panel.dtsi"
 #include "partition_mbox_normal_txhd2_P_32.dtsi"
 #include "mesontxhd2_audio.dtsi"
 / {
@@ -220,10 +221,15 @@
 		#size-cells = <1>;
 		ranges;
 
+		ramdump_bl33z@0 {
+			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		/* global autoconfigured region for contiguous allocations */
-		ramoops@7400000 {
+		ramoops@6700000 {
 			compatible = "ramoops";
-			reg = <0x07400000 0x00100000>;
+			reg = <0x06700000 0x00100000>;
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
@@ -253,14 +259,14 @@
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			no-map;
-			alignment = <0x400000>;
-			reg = <0x05000000 0x02400000>;
+			alignment = <0x100000>;
+			reg = <0x05000000 0x01700000>;
 		};
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "shared-dma-pool";
-			size = <0x0 0x0>;
+			size = <0x0>;
 		};
 
 		picdec_cma_reserved:linux,picdec {
@@ -293,10 +299,10 @@
 			reg = <0x3f800000 0x400000>;
 		};
 
-		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "amlogic, lcd_tcon";
-			reg = <0x3f000000 0x00800000>;
-			no-map;
+		lcd_cma_reserved:linux,lcd-reserved {
+			compatible = "amlogic, lcd_rsvd";
+			reg = <0x3f000000 0x00410000>;
+			tcon-size = <0x00402840>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -307,7 +313,7 @@
 		 * 1920x1080x2x5 = 20 M
 		 */
 		/*	size = <0x0 0x01400000>;*/
-		/*	alignment = <0x0 0x400000>;*/
+		/*	alignment = <0x400000>;*/
 		/*};*/
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
@@ -315,10 +321,10 @@
 			reusable;
 			/* up to 1280x720 yuv422 8bit and 4 buffers
 			 * 1280x720x2x4 = 8 M
-			 * size = <0x0 0x800000>;
+			 * size = <0x800000>;
 			 */
-			size = <0x0 0x0>;
-			alignment = <0x0 0x400000>;
+			size = <0x0>;
+			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f000000>;
 		};
 
@@ -345,6 +351,15 @@
 			no-map;
 			size = <0x400000>;
 			alignment = <0x100000>;
+		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x400000>;
+			alignment = <0x400000>;
+			linux,cma-default;
 		};
 	};
 
@@ -424,7 +439,7 @@
 		#address-cells=<1>;
 		#size-cells=<1>;
 		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
-		status = "okay";
+		status = "disabled";
 		pinctrl-names = "hdmirx_pins";
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux>;
 		repeat = <0>;
@@ -453,6 +468,8 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <1>;
 		arc_port = <1>;
+		/* for 2.2R:0x8, for 5.1R:0x6 */
+		term_lvl = <0x6>;
 		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
@@ -666,6 +683,8 @@
 		status = "okay";
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
+		/*all NV21 1:720P 2:1080P 3:4K*/
+		codec_mm_alloc = <1>;
 	};
 
 	/* for external keypad */
@@ -680,13 +699,14 @@
 			    SARADC_CH3 SARADC_CH3>;
 		key_code = <KEY_POWER KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER KEY_MENU
 			    KEY_FN_F1 KEY_EXIT>;
-		key_val = <0 252 468 684 892 252 468>; // Unit: millivolt
-		key_tolerance = <70 70 70 70 70 70 70>; // Unit: millivolt
+		/* key_val = voltage / 1800mV * 1023 */
+		key_val = <0 143 266 389 507 143 266>;
+		key_tolerance = <40 40 40 40 40 40 40>;
 	};
 
 	atv-demod {
 		compatible = "amlogic, atv-demod";
-		status = "okay";
+		status = "disabled";
 		btsc_sap_mode = <1>;
 		interrupts = <0 236 1>;
 		//pinctrl-names="atvdemod_agc_pins";
@@ -946,7 +966,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_c>;
-	cs-gpios = <&gpio GPIOC_7 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
 	assigned-clocks = <&clkc CLKID_SPICC0>;
 	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2>;
 	assigned-clock-rates = <200000000>;

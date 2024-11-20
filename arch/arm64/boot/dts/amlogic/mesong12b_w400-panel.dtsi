@@ -11,18 +11,11 @@
 		index = <0>;
 		fr_auto_policy = <2>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		clocks = <&clkc CLKID_MIPI_DSI_HOST
-				&clkc CLKID_MIPI_DSI_PHY
-				&clkc CLKID_DSI_MEAS
-				&clkc CLKID_VCLK2_ENCL
-				&clkc CLKID_VCLK2_VENCL
-				&clkc CLKID_GP0_PLL>;
-		clock-names = "dsi_host_gate",
-						"dsi_phy_gate",
-						"dsi_meas",
-						"encl_top_gate",
-						"encl_int_gate",
-						"gp0_pll";
+		clocks = <&clkc CLKID_MIPI_DSI_HOST>, <&clkc CLKID_MIPI_DSI_PHY>,
+			 <&clkc CLKID_DSI_MEAS>, <&clkc CLKID_VCLK2_ENCL>,
+			 <&clkc CLKID_VCLK2_VENCL>, <&clkc CLKID_GP0_PLL>;
+		clock-names = "dsi_host_gate", "dsi_phy_gate", "dsi_meas",
+			      "encl_top_gate", "encl_int_gate", "gp0_pll";
 		reg = <0x0 0xffd07000 0x0 0x400    /* dsi_host */
 			0x0 0xff644000 0x0 0x200>; /* dsi_phy */
 		interrupts = <0 3 1
@@ -39,6 +32,13 @@
 		lcd_cpu-gpios = <&gpio GPIOZ_9 GPIO_ACTIVE_HIGH
 				&gpio GPIOZ_8 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOZ_9","GPIOZ_8";
+
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
 
 		mipi_0{
 			model_name = "TL070WSH27";
@@ -59,15 +59,12 @@
 				47250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				300 /*bit_rate_max(MHz)*/
-				0 /*factor(*100, default 0 for auto)*/
+				0 /*unused*/
 				1 /*operation_mode_init(0=video, 1=command)*/
 				0 /*operation_mode_display(0=video, 1=command)*/
-				2 /*
-				   *video_mode_type
-				   *(0=sync_pulse,1=sync_event,2=burst)
-				   */
+				2 /*video_mode_type: 0=sync_pulse,1=sync_event,2=burst)*/
 				1 /*clk_always_hs(0=disable,1=enable)*/
-				0>; /*phy_switch(0=auto,1=standard,2=slow)*/
+				0>; /*unused*/
 
 			/* dsi_init: data_type, num, data... */
 			dsi_init_on = <0x05 1 0x11

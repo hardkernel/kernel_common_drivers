@@ -5,7 +5,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/clock/amlogic,c3-clkc.h>
+#include <dt-bindings/clock/c3-clkc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-c3-gpio.h>
 #include <dt-bindings/clock/amlogic,c3-audio-clk.h>
@@ -17,7 +17,6 @@
 #include "meson-ir-map.dtsi"
 #include <dt-bindings/power/c3-pd.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
-#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -283,6 +282,7 @@
 			clocks = <&clkc CLKID_TS>;
 			clock-names = "ts_comp";
 			#thermal-sensor-cells = <1>;
+			cust_governor = "power_allocator";
 		};
 
 		sd_emmc_c: mmc@fe08c000 {
@@ -982,8 +982,19 @@
 				device_type = "cpucore";
 				node_name = "cpucore0";
 			};
+			ddr_cool {
+				ddr_reg = <0xfe0364b4>;
+				ddr_status = <3>;
+				ddr_bits = <8 15>;
+				ddr_data = <0x4c 0x26 0x13>;
+				node_name = "ddr_cool0";
+				device_type = "ddr";
+			};
 		};
 		cpucore0:cpucore0 {
+			#cooling-cells = <2>;
+		};
+		ddr_cool0:ddr_cool0 {
 			#cooling-cells = <2>;
 		};
 	};
@@ -1006,7 +1017,12 @@
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				pcritical: trip-point@2 {
+				phot: trip-point@2 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				pcritical: trip-point@3 {
 					temperature = <105000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -1018,21 +1034,12 @@
 					cooling-device = <&cpu0 0 8>;
 					contribution = <1024>;
 				};
+				ddr_cooling_map {
+					trip = <&phot>;
+					cooling-device = <&ddr_cool0 0 THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
 			};
-		};
-	};
-
-	ddr_control: ddr_control {
-		compatible = "amlogic, ddr-control";
-		status = "okay";
-		ddr {
-			condition-type = <DDR_THERMAL>;
-			zone-name = "thermal";
-			caddr = <0xfe0364b4>;
-			caddr-mask = <8 8>;
-			cstep-val = <90000 95000 95000>;
-			caddr-val = <0x4c 0x26 0x13>;
-			refresh-constant-value;
 		};
 	};
 
@@ -1516,6 +1523,14 @@
 		method = "smc";
 	};
 
+	ram-dump {
+		compatible = "amlogic, ram_dump";
+		status = "okay";
+		reg = <0xFE005AD8 0x4>;
+		reg-names = "SYSCTRL_STICKY_REG6";
+		store_device = "data";
+	};
+
 	secmon {
 		compatible = "amlogic, secmon";
 		memory-region = <&secmon_reserved>;
@@ -1917,8 +1932,8 @@
 		clocks = <&clkc CLKID_VOUT_MCLK>;
 		clock-names = "vpu_clk";
 		clk_level = <5>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
-		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 5: 333.3M */
 	};
 
 	vclk_serve: vclk_serve {
@@ -2620,7 +2635,7 @@
 				"GPIOC_4",
 				"GPIOC_5";
 			function = "gpio_periphs";
-			input-enable;
+			output-low;
 			bias-disable;
 		};
 	};

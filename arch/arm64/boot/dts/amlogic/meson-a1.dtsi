@@ -888,6 +888,7 @@
 		compatible = "snps,dwc3-meson";
 		reg = <0x0 0xff400000 0x0 0x100000>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
 		dr_mode = "host";
 		maximum-speed = "high-speed";
 		snps,dis_u2_susphy_quirk;
@@ -903,7 +904,7 @@
 
 	dwc2_a: dwc2_a@ff500000 {
 		compatible = "amlogic,dwc2";
-		status = "disable";
+		status = "disabled";
 		device_name = "dwc2_a";
 		reg = <0x0 0xff500000 0x0 0x40000>;
 		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;

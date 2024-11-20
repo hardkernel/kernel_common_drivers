@@ -705,6 +705,14 @@
 		#clock-cells = <0>;
 	};
 
+	ram-dump {
+		compatible = "amlogic, ram_dump";
+		status = "okay";
+		reg = <0xFE005AD8 0x4>;
+		reg-names = "SYSCTRL_STICKY_REG6";
+		store_device = "data";
+	};
+
 	secmon {
 		compatible = "amlogic, secmon";
 		no-memory;

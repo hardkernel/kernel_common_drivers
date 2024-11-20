@@ -242,13 +242,6 @@
 		//test_my_added_keyname { };
 	};//End provisionkey
 
-	cma_shrinker: cma_shrinker {
-		compatible = "amlogic, cma-shrinker";
-		status = "okay";
-		adj  = <0 100 200 250 900 950>;
-		free = <8192 12288 16384 24576 28672 32768>;
-	};
-
 	securitykey {
 		compatible = "aml, securitykey";
 		storage_query = <0x82000060>;
@@ -1613,24 +1606,28 @@
 		/* refer to hdmi_tx_module.h */
 		ic_type = <15>;
 		hdmi_rext = <1300>; /* HDMI Rext resistor uses 1.3k ohm, not 1.5k */
-		reg = <0xff000000 0x40000>,
-			<0xfe300000 0x8000>,
+		reg =	<0x00000000 0x000>, /* reserved */
+			<0xff000000 0x40000>,
+			<0x00000000 0x000>, /* reserved */
 			<0xfe308000 0x8000>,
+			<0xfe300000 0x8000>,
 			<0xfe032000 0x100>,
 			<0xfe008000 0x400>,
 			<0xfe00c000 0x800>,
 			<0xfe002000 0x400>,
 			<0xfe010000 0x100>,
 			<0xfe000000 0x2000>;
-		reg-names = "vpu",
-			"hdmitxdwc",
-			"hdmitxtop",
-			"esm",
-			"anactrl",
-			"pwrctrl",
-			"resetctrl",
-			"sysctrl",
-			"clkctrl";
+		reg-names = "cbus",
+			    "vpu",
+			    "hiu",
+			    "hdmitxdwc",
+			    "hdmitxtop",
+			    "esm",
+			    "anactrl",
+			    "pwrctrl",
+			    "resetctrl",
+			    "sysctrl",
+			    "clkctrl";
 
 		vend_data: vend_data{ /* Should modified by Customer */
 			vendor_name = "Amlogic"; /* Max Chars: 8 */
@@ -1810,7 +1807,7 @@
 				"vpu_clk1",
 				"vpu_clk";
 		clk_level = <8>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
 	};
 
@@ -1902,6 +1899,7 @@
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	meson_cooldev: meson-cooldev@0 {
@@ -2045,6 +2043,8 @@
 		interrupts = <0 212 1>;
 		rdma-irq = <4>;
 		vdin_id = <1>;
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		/* vdin v4l2 */
 		v4l_support_en = <0>;
 		v4l_vd_num = <71>;
@@ -2764,7 +2764,6 @@
 		mux {
 			groups = "pwm_e_x";
 			function = "pwm_e";
-			drive-strength-microamp = <500>;
 		};
 	};
 
@@ -2931,8 +2930,8 @@
 &gpu{
 	reg =   <0xFE400000 0x04000>, /*mali APB bus base address*/
 		<0xFE002000 0x01000>, /*reset register*/
-		<0xFF800000 0x01000>, /*aobus TODO update*/
-		<0xFF63c000 0x01000>, /*hiubus for clk cntl*/
+		<0x0 0x0>, /*aobus TODO update*/
+		<0xFE000000 0x01000>, /*hiubus for clk cntl*/
 		<0xFE002000 0x01000>; /*reset register*/
 
 	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;

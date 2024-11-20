@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include <dt-bindings/clock/amlogic,s5-clkc.h>
+#include <dt-bindings/clock/s5-clkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/s5-pd.h>
@@ -16,6 +16,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/mailbox/s5-mbox.h>
+#include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include "meson-ir-map.dtsi"
 #include "meson-valhall.dtsi"
 //#include <dt-bindings/memory/meson-p1-sid-map.h>
@@ -340,13 +341,6 @@
 		KEY_PROVISION_XXX { };
 		//test_my_added_keyname { };
 	};//End provisionkey
-
-	cma_shrinker: cma_shrinker {
-		compatible = "amlogic, cma-shrinker";
-		status = "disabled";
-		adj  = <0 100 200 250 900 950>;
-		free = <8192 12288 16384 24576 28672 32768>;
-	};
 
 	xtal: xtal-clk {
 		compatible = "fixed-clock";
@@ -1568,7 +1562,7 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
-			src_clk_rate = <1536000000>;
+			src_clk_rate = <1152000000>;
 			mmc_debug_flag;
 			ignore_desc_busy;
 			tx_delay = <20>;
@@ -1645,7 +1639,7 @@
 			tx-fifo-depth = <2048>;
 			/*1:inphy; 2:exphy;*/
 			internal_phy = <2>;
-			cali_val = <0xC0000>;
+			cali_val = <0x80000>;
 			mboxes = <&mbox_fifo S5_REE2AO_ETH>;
 			status = "disabled";
 
@@ -1998,6 +1992,7 @@
 		en_4k = <0>;
 		alloc_sct = <0>;
 		po_fmt = <0>;
+		post_nub = <21>;
 		/***************************************************
 		 * t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11
@@ -2245,15 +2240,33 @@
 		memory-region = <&vc9000e_reserved>;
 		dev_name = "vc9000e";
 		status = "okay";
-		interrupts = <GIC_SPI 157 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 158 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 159 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "vc9000e_irq0", "vc9000e_irq1", "vc9000e_irq1";
-		power-domains = <&pwrdm PDID_S5_VC9000E>;
-		clock-names = "vers_sys_clk", "vers_core_clk", "vers_aclk";
 		clocks = <&clkc CLKID_SYS_CLK_VC9000E>,
-				<&clkc CLKID_VC9000E_CORE>,
-				<&clkc CLKID_VC9000E_AXI>;
+			<&clkc CLKID_VC9000E_CORE>,
+			<&clkc CLKID_VC9000E_AXI>;
+		clock-names = "vers_sys_clk",
+			"vers_core_clk",
+			"vers_aclk";
+		interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 157 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 158 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 159 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vc9000e_active_irq",
+			"vc9000e_irq0",
+			"vc9000e_irq1",
+			"vc9000e_irq2";
+		power-domains = <&pwrdm PDID_S5_VC9000E>;
+		reset-names = "vc9000e_areset", "vc9000e_core_rst", "vc9000e_apb_reset";
+		resets = <&reset RESET_VC9000E_ARESET>,
+			<&reset RESET_VC9000E_CORE>,
+			<&reset RESET_VC9000E_APB>;
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		/* use cbus space for reset_ctrl*/
+		reg = <0x0 0xfe380000 0x0 0x10000>,
+			<0x0 0xfe08e000 0x0 0x2000>;
+		reg-names = "vc9000e_core",
+			"vc9000e_top";
 	};
 
 	vpu: vpu {
@@ -2273,7 +2286,7 @@
 				"vpu_clk1",
 				"vpu_clk";
 		clk_level = <8>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
 	};
 
@@ -2317,6 +2330,12 @@
 		status = "okay";
 		reg = <0x0 0xfe008000 0x0 0x300    /* ana reg */
 			0x0 0xfe000000 0x0 0xc00>; /* clk reg */
+	};
+
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
+		status = "okay";
 	};
 
 	vout_mux: vout_mux {
@@ -2381,6 +2400,7 @@
 		power-domains = <&pwrdm PDID_S5_MALI_TOP>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_GPU>;
+		cust_governor = "power_allocator";
 	};
 
 	a55_tsensor: a55_tsensor@fe022000 {
@@ -2397,6 +2417,7 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_A55>;
+		cust_governor = "power_allocator";
 	};
 
 	vpu_tsensor: vpu_tsensor@fe0a2000 {
@@ -2707,8 +2728,8 @@
 				/*"vpu_crash_int",*/
 				/*"write_done_int"*/;
 		rdma-irq = <2>;
-//		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
-//		clock-names = "fclk_div5", "cts_vdin_meas_clk";
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VIN_MEAS>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
 		/*vdin write mem color depth support:
 		 * bit0:support 8bit
@@ -2758,10 +2779,8 @@
 		interrupts = <0 117 1>,<0 120 1>;
 		interrupt-names = "vsync_int","write_done_int";
 		rdma-irq = <4>;
-//		clocks = <&clock CLK_FPLL_DIV5>,
-//			<&clock CLK_VDIN_MEAS_CLK>;
-//		clock-names = "fclk_div5", "cts_vdin_meas_clk";
-
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VIN_MEAS>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
 		tv_bit_mode = <0x15>;
 		/* vdin v4l2 */
@@ -3048,8 +3067,8 @@
 	gpu_opp_table: gpu_opp_table {
 		compatible = "operating-points-v2";
 
-		opp-285 {
-			opp-hz = /bits/ 64 <285714281>;
+		opp-250 {
+			opp-hz = /bits/ 64 <250000000>;
 			opp-microvolt = <1150>;
 		};
 		opp-400 {

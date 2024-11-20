@@ -1152,7 +1152,7 @@
 };
 
 &saradc {
-	status = "okay";
+	status = "disabled";
 };
 
 &ir {
@@ -1267,7 +1267,7 @@
 &ethmac {
 	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 	phy-mode = "rgmii";
 	phy-handle = <&external_phy>;
 	amlogic,tx-delay-ns = <2>;

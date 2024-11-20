@@ -8,9 +8,10 @@
 #include "mesont3x.dtsi"
 #include "hdr10plus.dtsi"
 #include "partition_mbox_ab.dtsi"
-#include "mesont3x_drm.dtsi"
 #include "mesont3x_pxp-panel.dtsi"
+#include "mesont3x_drm.dtsi"
 #include <dt-bindings/input/input.h>
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	model = "Amlogic";
@@ -25,8 +26,6 @@
 		serial1 = &uart_A;
 		serial2 = &uart_C;
 		serial3 = &uart_D;
-		serial4 = &uart_E;
-		serial5 = &uart_F;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -121,10 +120,10 @@
 			reg = <0x0 0x3e800000 0x0 0x800000>;
 		};
 
-		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "amlogic, lcd_tcon";
-			reg = <0x0 0x5e800000 0x0 0x00c00000>;
-			no-map;
+		lcd_cma_reserved:linux,lcd-reserved {
+			compatible = "amlogic, lcd_rsvd";
+			reg = <0x0 0x5e800000 0x0 0x00a80000>;
+			tcon-size = <0 0x00a02840>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -164,6 +163,7 @@
 		camera_cma_reserved:linux,camera_cma {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			size = <0x0 0x0>;
 			//size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
@@ -175,6 +175,7 @@
 			//size = <0x0 0x0>;
 			size = <0x0 0x5000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -256,15 +257,12 @@
 			reusable;
 			/* frc:size need 4M alignment
 			 * 1080P 16 buffer:88Mhz (0x5800000)
-			 * 4k 16 buffer:348Mhz (0x15c00000)
-			 * 400Mhz (0x19000000)
-			 * 384Mhz (0x18000000)
-			 * 368Mhz (0x17000000)
+			 * 4k 16 buffer:312Mhz (0x13800000)
 			 */
-			size = <0x0 0xd400000>; // reserved 212M
+			size = <0x0 0xd400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 
@@ -279,6 +277,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
+		random_access = <1>;
 		status = "okay";
 	};
 
@@ -316,7 +315,7 @@
 	};
 
 	multi-di {
-		//status = "okay";
+		status = "disabled";
 		/***************************************************
 		 * memory: default is 4
 		 *	0:use reserved;
@@ -512,10 +511,11 @@
 		#address-cells=<1>;
 		#size-cells=<1>;
 		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
-		status = "okay";
-		pinctrl-names = "hdmirx_pins";
+		status = "disabled";
+		pinctrl-names = "hdmirx_pins", "sleep";
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 			&hdmirx_c_mux &hdmirx_d_mux>;
+		pinctrl-1 = <&hdmirx_pin_sleep>;
 		repeat = <0>;
 		//power-domains = <&pwrdm PDID_T7_HDMIRX>;
 		interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH
@@ -547,7 +547,9 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <2>;
-		phy_term_lel_t3x_21 = <0x10>;
+		/* for 2.2R:0x8, for 5.1R:0x6 */
+		term_lvl = <0x8>;
+		term_lvl_t3x_21 = <0x8>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
 		/* MAP_ADDR_MODULE_CBUS */
@@ -566,7 +568,7 @@
 			0x0 0x0 0x0 0x0
 			0x0 0x0 0x0 0x0
 			0x0 0xfe390000 0x0 0x20000
-			0x0 0xfe000000 0x0 0x1fff
+			0x0 0xfe000000 0x0 0x15000
 			0x0 0xfe008000 0x280 0x334>;
 	};
 
@@ -582,7 +584,7 @@
 		interrupts = <GIC_SPI 83 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
-		status = "okay";
+		status = "disabled";
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
@@ -789,17 +791,19 @@
 	};
 
 	amdolby_vision {
-		compatible = "amlogic, dolby_vision_s5";
+		compatible = "amlogic, dolby_vision_t3x";
 		dev_name = "aml_amdolby_vision_driver";
-		status = "disabled";
-		tv_mode = <0>;/*1:enable ;0:disable*/
-		multi_core1 = <1>;
+		status = "okay";
+		tv_mode = <1>;/*1:enable ;0:disable*/
+		multi_core1 = <0>;
+		interrupts = <GIC_SPI 107 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "viu1_dolby_int";
 	};
 
 	aml_frc {
 		compatible = "amlogic, t3x_frc";
 		dev_name = "aml_frc";
-		status = "okay";
+		status = "disabled";
 		frc_en = <1>;/*1:enable ;0:disable*/
 		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
 		interrupts = <GIC_SPI 323 IRQ_TYPE_EDGE_RISING
@@ -814,7 +818,7 @@
 		power-domain-names = "frc-top";
 		reg = <0x0 0xFF850000 0x0 0x30000 /*frc reg*/
 		       0x0 0xFE000000 0x0 0x300
-		       0x0 0xFF000000 0x0 0x10000>; /*frc clk reg*/
+		       0x0 0xFF800000 0x0 0x40000>; /*vpu_reg*/
 		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
 	};
 
@@ -855,7 +859,7 @@
 
 	atv-demod {
 		compatible = "amlogic, atv-demod";
-		status = "okay";
+		status = "disabled";
 		btsc_sap_mode = <1>;
 		interrupts = <0 93 1>;
 		pinctrl-names="atvdemod_agc_pins";
@@ -926,7 +930,7 @@
 		dmxdev_num = <0x11>;
 
 		tsn_from = "demod";
-
+		ts_clone = <0x0>;
 		/*single demod setting */
 		ts1_sid = <0x21>;
 		ts1 = "parallel";
@@ -1031,8 +1035,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
 		key_code = <141 114 115>;
-		key_val = <1584 899 0>; // Unit: millivolt
-		key_tolerance = <70 70 70>; // Unit: millivolt
+		key_val = <900 511 0>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
 	};
 
 	vdd4_2v5_reg: fixedregulator@vdd4_2v5_reg {
@@ -1157,7 +1161,7 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
-
+		src-clk-freq = <491520000>;
 		/* enable control gain */
 		ctrl_gain = <1>;
 		status = "okay";
@@ -1193,7 +1197,7 @@
 		samesource_sel = <3>;
 		/* In for ACODEC_ADC */
 		/* tdmin-src-name = "acodec_adc"; */
-		tdmin-src-name = "hdmirx";
+		tdmin-src-name = "hdmirx_b";
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 
@@ -1202,6 +1206,7 @@
 
 		/* enable control gain */
 		ctrl_gain = <1>;
+		src-clk-freq = <491520000>;
 
 		/* pcpd_monitor*/
 		pcpd_monitor_src = <&pcpd_monitor_a>;
@@ -1221,12 +1226,12 @@
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <2>;
-
+		tdmin-src-name = "hdmirx_b";
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
-
+		src-clk-freq = <491520000>;
 		/* enable control gain */
 		ctrl_gain = <1>;
 		status = "okay";
@@ -1248,6 +1253,7 @@
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "gate_in", "gate_out", "mclk",
 					"mclk_pad", "clk_srcpll", "clk_src_cd";
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -1258,11 +1264,13 @@
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
 			&clkc CLKID_HIFI_PLL
+			&clkc CLKID_HIFI1_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1>;
 		clock-names = "gate",
 			"sysclk_srcpll",
 			"dclk_srcpll",
+			"clk_src_cd",
 			"pdm_dclk",
 			"pdm_sysclk";
 #if 0
@@ -1335,17 +1343,6 @@
 		status = "okay";
 	};
 
-	extn:extn {
-		compatible = "amlogic, t7-snd-extn";
-		#sound-dai-cells = <0>;
-
-		interrupts =
-				<GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "irq_frhdmirx";
-
-		status = "disabled";
-	};
-
 	aed:effect {
 		compatible = "amlogic, snd-effect-v4";
 		#sound-dai-cells = <0>;
@@ -1374,9 +1371,10 @@
 	asrc_a: resample@0 {
 		compatible = "amlogic, t5-resample-a";
 		clocks = <&clkc CLKID_HIFI_PLL
+			&clkc CLKID_HIFI1_PLL
 			&clkaudio CLKID_AUDIO_MCLK_B
 			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
-		clock-names = "resample_pll", "resample_src", "resample_clk";
+		clock-names = "resample_pll", "clk_src_cd", "resample_src", "resample_clk";
 
 		/*same with toddr_src
 		 *	TDMIN_A,    0
@@ -1401,9 +1399,10 @@
 	asrc_b: resample@1 {
 		compatible = "amlogic, t5-resample-b";
 		clocks = <&clkc CLKID_HIFI_PLL
+			&clkc CLKID_HIFI1_PLL
 			&clkaudio CLKID_AUDIO_MCLK_F
 			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
-		clock-names = "resample_pll", "resample_src", "resample_clk";
+		clock-names = "resample_pll", "clk_src_cd", "resample_src", "resample_clk";
 		src-clk-freq = <491520000>;
 
 		/*this resample is only used for loopback_A.*/
@@ -1565,11 +1564,11 @@
 
 &earc {
 	suspend-clk-off = <1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &crg21_otg {
-	status = "okay";
+	status = "disabled";
 	controller-type = <1>;
 	gpio-vbus-power = "GPIOM_21";
 	gpios = <&gpio GPIOM_21 GPIO_ACTIVE_HIGH>;
@@ -1577,17 +1576,17 @@
 
 &crg20 {
 	compatible = "amlogic, crg-host-drd";
-	status = "okay";
+	status = "disabled";
 };
 
 &crg31 {
 	compatible = "amlogic, crg-host-drd";
-	status = "okay";
+	status = "disabled";
 };
 
 &crg30_drd {
 	compatible = "amlogic, crg-drd";
-	status = "okay";
+	status = "disabled";
 };
 
 &usb2_m31_0_phy {
@@ -1677,7 +1676,7 @@
 };
 
 &i2c2 {
-	status = "okay";
+	status = "disabled";
 	clock-frequency = <100000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_pins3>;
@@ -1810,7 +1809,10 @@
 &ir {
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&remote_pins_sleep>;
+	pinctrl-names = "default", "sleep";
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &spifc {
@@ -2106,7 +2108,7 @@
 };
 
 &i2c0 {
-	status = "okay";
+	status = "disabled";
 	clock-frequency = <300000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_pins1>;
@@ -2133,7 +2135,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	//interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOD_11  GPIO_ACTIVE_HIGH>;
 };

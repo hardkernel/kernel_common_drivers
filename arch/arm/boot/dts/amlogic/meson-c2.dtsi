@@ -5,7 +5,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/clock/amlogic,c2-clkc.h>
+#include <dt-bindings/clock/c2-clkc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-c2-gpio.h>
 #include <dt-bindings/clock/a1-audio-clk.h>
@@ -262,6 +262,7 @@
 			clock-names = "ts_comp";
 			power-domains = <&pwrdm PDID_CX_I2C>;
 			#thermal-sensor-cells = <1>;
+			cust_governor = "power_allocator";
 		};
 
 	/*
@@ -1283,6 +1284,14 @@
 		clock-frequency = <24000000>;
 		clock-output-names = "xtal";
 		#clock-cells = <0>;
+	};
+
+	ram-dump {
+		compatible = "amlogic, ram_dump";
+		status = "okay";
+		reg = <0xFE005AD8 0x4>;
+		reg-names = "SYSCTRL_STICKY_REG6";
+		store_device = "data";
 	};
 
 	secmon {

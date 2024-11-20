@@ -9,38 +9,41 @@
 /*
  * CLKID index values
  */
-#define CLKID_FIXED_PLL_DCO			0
-#define CLKID_SYS_PLL				1
-#define CLKID_FIXED_PLL				2
-#define CLKID_GP0_PLL				3
-#define CLKID_HIFI_PLL				4
-#define CLKID_FCLK_DIV2_DIV			5
-#define CLKID_FCLK_DIV3_DIV			6
-#define CLKID_FCLK_DIV4_DIV			7
-#define CLKID_FCLK_DIV5_DIV			8
-#define CLKID_FCLK_DIV7_DIV			9
-#define CLKID_FCLK_DIV2P5_DIV			10
-#define CLKID_FCLK_DIV2				11
-#define CLKID_FCLK_DIV3				12
-#define CLKID_FCLK_DIV4				13
-#define CLKID_FCLK_DIV5				14
-#define CLKID_FCLK_DIV7				15
-#define CLKID_FCLK_DIV2P5			16
-#define CLKID_PRE_MPLL				17
-#define CLKID_MPLL0_DIV				18
-#define CLKID_MPLL1_DIV				19
-#define CLKID_MPLL2_DIV				20
-#define CLKID_MPLL3_DIV				21
-#define CLKID_MPLL0				22
-#define CLKID_MPLL1				23
-#define CLKID_MPLL2				24
-#define CLKID_MPLL3				25
-#define CLKID_CPU_DYN_CLK			26
-#define CLKID_CPU_CLK				27
-#define CLKID_MPLL_50M_DIV			28
-#define CLKID_MPLL_50M				29
+#define CLKID_SYS_PLL_DCO			0
+#define CLKID_FIXED_PLL_DCO			1
+#define CLKID_GP0_PLL_DCO			2
+#define CLKID_HIFI_PLL_DCO			3
+#define CLKID_SYS_PLL				4
+#define CLKID_FIXED_PLL				5
+#define CLKID_GP0_PLL				6
+#define CLKID_HIFI_PLL				7
+#define CLKID_FCLK_DIV2_DIV			8
+#define CLKID_FCLK_DIV3_DIV			9
+#define CLKID_FCLK_DIV4_DIV			10
+#define CLKID_FCLK_DIV5_DIV			11
+#define CLKID_FCLK_DIV7_DIV			12
+#define CLKID_FCLK_DIV2P5_DIV			13
+#define CLKID_FCLK_DIV2				14
+#define CLKID_FCLK_DIV3				15
+#define CLKID_FCLK_DIV4				16
+#define CLKID_FCLK_DIV5				17
+#define CLKID_FCLK_DIV7				18
+#define CLKID_FCLK_DIV2P5			19
+#define CLKID_PRE_MPLL				20
+#define CLKID_MPLL0_DIV				21
+#define CLKID_MPLL1_DIV				22
+#define CLKID_MPLL2_DIV				23
+#define CLKID_MPLL3_DIV				24
+#define CLKID_MPLL0				25
+#define CLKID_MPLL1				26
+#define CLKID_MPLL2				27
+#define CLKID_MPLL3				28
+#define CLKID_CPU_DYN_CLK			29
+#define CLKID_CPU_CLK				30
+#define CLKID_MPLL_50M_DIV			31
+#define CLKID_MPLL_50M				32
 
-#define GATE_BASE0				30
+#define GATE_BASE0				33
 #define CLKID_CLK81_DDR				(GATE_BASE0 + 0)
 #define CLKID_CLK81_DOS				(GATE_BASE0 + 1)
 #define CLKID_CLK81_ETH_PHY			(GATE_BASE0 + 2)

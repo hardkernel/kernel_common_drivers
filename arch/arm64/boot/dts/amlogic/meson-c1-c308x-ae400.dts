@@ -163,7 +163,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
-		status = "okay";
+		status = "disabled";
 	};
 
 	main_12v: regulator-main_12v {
@@ -384,7 +384,7 @@
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
-
+		status = "disabled";
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 
@@ -763,8 +763,8 @@
 		io-channel-names = "key-chan-2";
 		key_chan = <2 2 2 2>;
 		key_code = <141 114 115 28>;
-		key_val = <0 252 468 684>; // Unit: millivolt
-		key_tolerance = <70 70 70 70>; // Unit: millivolt
+		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40>;
 	};
 };
 
@@ -968,8 +968,9 @@
 
 &i2c2 {
 	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_master_pins2>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c2_master_pins2>;
+	pinctrl-1 = <&i2c2_master_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
 	sensor-i2c@6c {
 		compatible = "arm, i2c-sensor";
@@ -1228,13 +1229,13 @@
 };
 
 &dwc2_a {
-	status = "okay";
+	status = "disabled";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <3>;
 };
 
 &dwc3 {
-	status = "okay";
+	status = "disabled";
 };
 
 &usb2_phy_v2 {
@@ -1329,14 +1330,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins1>;
-	cs-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOA_8 0>;
 };
 
 &spicc1 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins1>;
-	cs-gpios = <&gpio GPIOA_14 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOA_14 0>;
 };
 
 &uart_A {
@@ -1358,7 +1359,7 @@
 };
 
 &ethmac {
-	status = "okay";
+	status = "disabled";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
 };
@@ -1368,7 +1369,7 @@
 };
 
 &saradc {
-	status = "okay";
+	status = "disabled";
 	vref-supply = <&vcc_1v8>;
 };
 

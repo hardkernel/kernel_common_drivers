@@ -51,6 +51,12 @@
 			ftrace-size = <0x80000>;
 			pmsg-size = <0x20000>;
 		};
+
+		dmc_reserved:linux,dmc_monitor {
+			compatible = "amlogic,dmc_monitor-reserved";
+			reg = <0x0 0x0 0x0 0x80000>;
+		};
+
 		debug_reserved:linux,iotrace {
 			compatible = "amlogic, iotrace";
 			reg = <0x0 0x04f00000 0x0 0x00100000>;
@@ -73,12 +79,6 @@
 			alloc-ranges = <0x0 0x05000000 0x0 0x2400000>;
 		};
 
-		bl40_fw_reserved:linux,bl40 {
-			compatible = "amlogic, mfh";
-			size = <0x0 0x0080000>;
-			reg = <0x0 0x41000000  0x0 0x0080000>;
-		};
-
 		logo_reserved:linux,meson-fb {
 			compatible = "amlogic, meson-fb";
 			alignment = <0x0 0x400000>;
@@ -95,6 +95,11 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+		};
+		bl40_fw_reserved:linux,bl40 {
+			compatible = "amlogic, mfh";
+			size = <0x0 0x0080000>;
+			reg = <0x0 0x41000000  0x0 0x0080000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -167,7 +172,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
 		};
 	};
@@ -186,28 +191,9 @@
 		compatible = "gpio-leds";
 		status = "okay";
 
-		net_red {
-			label="net_red";
-			gpios=<&gpio GPIOA_14 GPIO_ACTIVE_LOW>;
-			default-state ="on";
-		};
-
-		net_green {
-			label="net_green";
-			gpios=<&gpio GPIOA_15 GPIO_ACTIVE_HIGH>;
-			default-state ="on";
-		};
-
-		remote_led {
-			label = "remote_led";
-			gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>;
-			default-state = "off";
-			linux,default-trigger = "rc_feedback";
-		};
-
 		sys_led {
 			label="sys_led";
-			gpios=<&gpio_ao GPIOAO_11 GPIO_ACTIVE_LOW>;
+			gpios=<&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
 			default-state ="on";
 		};
 	};
@@ -304,12 +290,40 @@
 		cma_mode = <1>;
 	};
 
+	gpio_keypad {
+		compatible = "amlogic, gpio_keypad";
+		status = "disabled";
+		scan_period = <20>;
+		key_num = <2>;
+		key_name = "bluetooth", "mute";
+		key_code = <600 SW_MUTE_DEVICE>;
+		key_type = <EV_KEY EV_SW>;
+		key-gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_HIGH
+			     &gpio_ao GPIOE_2 GPIO_ACTIVE_HIGH>;
+		/* 0:polling mode, 1:irq mode */
+		detect_mode = <0>;
+	};
+
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "disabled";
+		key_name = "vol-", "vol+", "power";
+		key_num = <3>;
+		io-channels = <&saradc SARADC_CH0>;
+		io-channel-names = "key-chan-0";
+		key_chan = <SARADC_CH0 SARADC_CH0 SARADC_CH0>;
+		key_code = <KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_POWER>;
+		/* val = voltage / 1800mV * 1023 */
+		key_val = <630 910 20>;
+		key_tolerance = <40 40 40>;
+	};
+
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
 		status = "okay";
 
-		fe_num = <2>;
+		fe_num = <1>;
 		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c2>;
 		fe0_demod_i2c_addr = <0xD8>;
@@ -339,10 +353,12 @@
 		tuner1_name = "av2018_tuner";
 	};
 
-	demux {
+	dvb-demux {
 		compatible = "amlogic, dvb-demux";
 		dev_name = "dvb-demux";
 		status = "okay";
+
+		dmx =<&demux>;
 
 		ts0 = "serial";
 		ts0_control = <0x800>;
@@ -352,20 +368,6 @@
 		ts1_control = <0x800>;
 		ts1_invert = <0>;
 
-		interrupts = <0 23 1
-		0 5 1
-		0 53 1
-		0 19 1
-		0 25 1
-		0 18 1
-		0 24 1>;
-		interrupt-names = "demux0_irq",
-		"demux1_irq",
-		"demux2_irq",
-		"dvr0_irq",
-		"dvr1_irq",
-		"dvrfill0_fill",
-		"dvrfill1_flush";
 		pinctrl-names = "s_ts0", "s_ts1";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
 		pinctrl-1 = <&dvb_s_ts1_pins>;
@@ -807,28 +809,31 @@
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
-			mclk-fs = <512>;
+			mclk-fs = <64>;
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
-			//bitclock-master = <&tdmacodec>;
-			//frame-master = <&tdmacodec>;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
+			/* master mode */
+			bitclock-master = <&aml_tdma>;
+			frame-master = <&aml_tdma>;
+			/* slave mode */
+			/*
+			 * bitclock-master = <&tdmacodec>;
+			 * frame-master = <&tdmacodec>;
 			 */
 			suffix-name = "alsaPORT-pcm";
 			tdmacpu: cpu {
 				sound-dai = <&aml_tdma>;
 				dai-tdm-slot-tx-mask =
-							<1 1 1 1 1 1 1 1>;
+							<1>;
 				dai-tdm-slot-rx-mask =
-							<1 1 1 1 1 1 1 1>;
-				dai-tdm-slot-num = <8>;
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <24576000>;
+							<1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <16>;
+				system-clock-frequency = <512000>;
 			};
 			tdmacodec: codec {
-				sound-dai = <&dummy_codec &dummy_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -897,7 +902,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&aml_pdm>;
 			};
@@ -1049,10 +1054,45 @@
 };
 
 &i2c3 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <100000>; /* default 100k */
+
+	/* for led */
+	tlc59116: tlc59116@60 {
+		compatible = "amlogic,tlc59116_led";
+		reg = <0x60>;
+		status = "okay";
+
+		led0 {
+			default_colors = <0 0 0>;
+			r_io_number = <0>;
+			g_io_number = <10>;
+			b_io_number = <5>;
+		};
+
+		led1 {
+			default_colors = <0 0 0>;
+			r_io_number = <1>;
+			g_io_number = <11>;
+			b_io_number = <6>;
+		};
+
+		led2 {
+			default_colors = <0 0 0>;
+			r_io_number = <2>;
+			g_io_number = <12>;
+			b_io_number = <7>;
+		};
+
+		led3 {
+			default_colors = <0 0 0>;
+			r_io_number = <3>;
+			g_io_number = <13>;
+			b_io_number = <8>;
+		};
+	};
 
 	/* for ref board */
 	ad82584f_62: ad82584f_62@31 {
@@ -1084,13 +1124,16 @@
 		compatible = "amlogic, g12a-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1>;
-		dai-tdm-oe-lane-slot-mask-out = <1 0>;
+		dai-tdm-lane-slot-mask-out = <1 0>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmout_a &tdmin_a>;
+		pinctrl-0 = <&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
 	};
 
 	aml_tdmb: tdmb {
@@ -1100,14 +1143,12 @@
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkc CLKID_MPLL1
-				&clkc CLKID_MPLL0
-				&clkaudio CLKID_AUDIO_SPDIFOUT_CTRL>;
-		clock-names = "mclk", "clk_srcpll",
-			"samesource_srcpll", "samesource_clk";
+				&clkc CLKID_MPLL1>;
+		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
+		/* 0: mclk_0; 1: mclk_1 */
+		/* mclk_pad = <0>; */
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1129,14 +1170,15 @@
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		#dai-tdm-lane-slot-mask-out = <1 0 1 1>;
 		#dai-tdm-lane-oe-slot-mask-in = <0 0 0 0>;
-		dai-tdm-lane-oe-slot-mask-out = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <2>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmc_mclk &tdmout_c &tdmin_c>;
-		mclk_pad = <1>;  /* 0: mclk_0; 1: mclk_1 */
+		 /* 0: mclk_0; 1: mclk_1 */
+		/*mclk_pad = <1>;*/
 	};
 
 	tdmlb: tdm@3 {
@@ -1202,7 +1244,7 @@
 	aml_spdif_b: spdif_b {
 		compatible = "amlogic, g12a-snd-spdif-b";
 		#sound-dai-cells = <0>;
-		clocks = <&clkc CLKID_MPLL0 /*CLKID_HIFI_PLL*/
+		clocks = <&clkc CLKID_MPLL2 /*CLKID_HIFI_PLL*/
 				&clkaudio CLKID_AUDIO_SPDIFOUTB
 				&clkaudio CLKID_AUDIO_SPDIFOUTB_CTRL>;
 		clock-names = "sysclk",
@@ -1237,8 +1279,8 @@
 			&clkc CLKID_MPLL3
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
-			&clkc CLKID_MPLL0
-			&clkaudio CLKID_AUDIO_MCLK_A>;
+			&clkc CLKID_MPLL1
+			&clkaudio CLKID_AUDIO_MCLK_B>;
 		clock-names = "pdm_gate",
 			"pdm_sysclk_srcpll",
 			"pdm_dclk_srcpll",
@@ -1255,10 +1297,10 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
-		datain_chmask = <0xf>;
+		datain_chnum = <0>;
+		datain_chmask = <0x3>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 0 1 0>;
+		datain-lane-mask-in = <1 0 0 0>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -1328,18 +1370,12 @@
 }; /* end of audiobus */
 
 &pinctrl_periphs {
-	tdmout_a: tdmout_a {
-		mux { /* GPIOX_11, GPIOX_10, GPIOX_9 */
+	tdm_a_pins: tdm_a_pins {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_9, GPIOX_8 */
 			groups = "tdm_a_sclk",
 				"tdm_a_fs",
-				"tdm_a_dout0";
-			function = "tdm_a";
-		};
-	};
-
-	tdmin_a: tdmin_a {
-		mux { /* GPIOX_8 */
-			groups = "tdm_a_din1";
+				"tdm_a_dout0",
+				"tdm_a_din1";
 			function = "tdm_a";
 		};
 	};
@@ -1404,27 +1440,24 @@
 	};
 
 	/* GPIOH_4 */
-	spdifout: spdifout {
-		mux {
-			groups = "spdif_out_h";
-			function = "spdif_out";
-		};
-	};
+	//spdifout: spdifout {
+	//	mux {
+	//		groups = "spdif_out_h";
+	//		function = "spdif_out";
+	//	};
+	//};
 
-	spdifout_a_mute: spdifout_a_mute {
-		mux { /* GPIOH_4 */
-			groups = "GPIOH_4";
-			function = "gpio_periphs";
-		};
-	};
+	//spdifout_a_mute: spdifout_a_mute {
+	//	mux { /* GPIOH_4 */
+	//		groups = "GPIOH_4";
+	//		function = "gpio_periphs";
+	//	};
+	//};
 
 	pdmin: pdmin {
-		mux { /* gpioa_5, gpioa_6, gpioa_7, gpioa_8, gpioa_9*/
-			groups = "pdm_din0_a",
-			/*"pdm_din1_a",*/
-			"pdm_din2_a",
-			/*"pdm_din3_a",*/
-			"pdm_dclk_a";
+		mux { /* GPIOC_0, GPIOC_4 */
+			groups = "pdm_din0_c",
+				"pdm_dclk_c";
 			function = "pdm";
 		};
 	};
@@ -1441,29 +1474,56 @@
 
 };/* end of pinctrl_periphs */
 
+&pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdma_oe";
+			function = "tdmouta_lane1";
+		};
+	};
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdma_oe";
+			function = "tdmina_lane0";
+		};
+	};
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+};
+
 &pinctrl_aobus {
-	/*gpiao_10*/
-	/*spdifout: spdifout {			  */
-	/*	mux {						  */
-	/*		groups = "spdif_out_ao";  */
-	/*		function = "spdif_out_ao";*/
-	/*	};							  */
-	/*};							  */
+	spdifout: spdifout {
+		mux { /* GPIOAO_10 */
+			groups = "spdif_ao_out";
+			function = "spdif_ao_out";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOAO_10 */
+			groups = "GPIOAO_10";
+			function = "gpio_aobus";
+		};
+	};
 
 	dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
-			groups = "tsin_a_sop_ao",
-			"tsin_a_valid_ao",
-			"tsin_a_clk_ao",
-			"tsin_a_din0_ao";
-			function = "tsin_a_ao";
+			groups = "tsin_ao_asop",
+			"tsin_ao_a_valid",
+			"tsin_ao_aclk",
+			"tsin_ao_adin0";
+			function = "tsin_ao_a";
 		};
 	};
 
 };  /* end of pinctrl_aobus */
 
 &amhdmitx {
-	status = "okay";
+	status = "disabled";
 };
 
 &drm_vpu {
@@ -1497,13 +1557,13 @@
 &usb3_phy_v2 {
 	status = "okay";
 	portnum = <1>;
-	otg = <0>;
+	otg = <1>;
 };
 
 &dwc2_a {
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
-	controller-type = <1>;
+	controller-type = <3>;
 };
 
 &ethmac {
@@ -1705,7 +1765,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
@@ -1739,5 +1799,5 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_c>;
-	cs-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_HIGH>;
 };

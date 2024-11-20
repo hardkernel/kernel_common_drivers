@@ -1166,8 +1166,7 @@
 		amlogic_codec:t9015{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, s4_codec_T9015";
-			reg = <0x0 0xFE01A000 0x0 0x2000>, <0x0 0xFE330740 0x0 0x4>;
-			reg-names = "acodec", "to_acodec";
+			reg = <0x0 0xFE01A000 0x0 0x2000>;
 			tocodec_inout = <2>;
 			tdmout_index = <2>;
 			ch0_sel = <0>;
@@ -1617,24 +1616,29 @@
 		/* refer to hdmi_tx_module.h */
 		ic_type = <15>;
 		hdmi_rext = <1300>; /* HDMI Rext resistor uses 1.3k ohm, not 1.5k */
-		reg = <0x0 0xff000000 0x0 0x40000>,
-			<0x0 0xfe300000 0x0 0x8000>,
+		reg =	<0x0 0x00000000 0x0 0x000>, /* reserved */
+			<0x0 0xff000000 0x0 0x40000>,
+			<0x0 0x00000000 0x0 0x000>, /* reserved */
 			<0x0 0xfe308000 0x0 0x8000>,
+			<0x0 0xfe300000 0x0 0x8000>,
 			<0x0 0xfe032000 0x0 0x100>,
 			<0x0 0xfe008000 0x0 0x400>,
 			<0x0 0xfe00c000 0x0 0x800>,
 			<0x0 0xfe002000 0x0 0x400>,
 			<0x0 0xfe010000 0x0 0x100>,
 			<0x0 0xfe000000 0x0 0x2000>;
-		reg-names = "vpu",
-			"hdmitx_dwc",
-			"hdmitx_top",
-			"esm",
-			"anactrl",
-			"pwrctrl",
-			"resetctrl",
-			"sysctrl",
-			"clkctrl";
+		reg-names = "cbus",
+			    "vpu",
+			    "hiu",
+			    "hdmitx_dwc",
+			    "hdmitx_top",
+			    "esm",
+			    "anactrl",
+			    "pwrctrl",
+			    "resetctrl",
+			    "sysctrl",
+			    "clkctrl";
+
 		vend_data: vend_data{ /* Should modified by Customer */
 			vendor_name = "Amlogic"; /* Max Chars: 8 */
 			product_desc = "MBox Meson Ref"; /* Max Chars: 16 */
@@ -1823,7 +1827,7 @@
 				"vpu_clk1",
 				"vpu_clk";
 		clk_level = <8>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
 	};
 
@@ -1917,6 +1921,7 @@
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	meson_cooldev: meson-cooldev@0 {
@@ -2060,6 +2065,8 @@
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 212 1>;
 		rdma-irq = <4>;
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
 		/* vdin v4l2 */
 		v4l_support_en = <0>;
@@ -2806,6 +2813,7 @@
 		mux {
 			groups = "pwm_e_x";
 			function = "pwm_e";
+			drive-strength-microamp = <500>;
 		};
 	};
 
@@ -2973,8 +2981,8 @@
 	operating-points-v2 = <&gpu_opp_table>;
 	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
 		<0 0xFE002000 0 0x01000>, /*reset register*/
-		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/
-		<0 0xFF63c000 0 0x01000>, /*hiubus for clk cntl*/
+		<0 0 0 0>, /*aobus TODO update*/
+		<0 0xFE000000 0 0x01000>, /*hiubus for clk cntl*/
 		<0 0xFE002000 0 0x01000>; /*reset register*/
 
 	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;

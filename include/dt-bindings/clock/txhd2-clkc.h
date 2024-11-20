@@ -9,30 +9,34 @@
 /*
  * CLKID index values
  */
-#define CLKID_SYS_PLL			0
-#define CLKID_FIXED_PLL_DCO		1
-#define CLKID_FIXED_PLL			2
-#define CLKID_FCLK_DIV2_DIV		3
-#define CLKID_FCLK_DIV2			4
-#define CLKID_FCLK_DIV3_DIV		5
-#define CLKID_FCLK_DIV3			6
-#define CLKID_FCLK_DIV4_DIV		7
-#define CLKID_FCLK_DIV4			8
-#define CLKID_FCLK_DIV5_DIV		9
-#define CLKID_FCLK_DIV5			10
-#define CLKID_FCLK_DIV7_DIV		11
-#define CLKID_FCLK_DIV7			12
-#define CLKID_FCLK_DIV2P5_DIV		13
-#define CLKID_FCLK_DIV2P5		14
-#define CLKID_GP0_PLL			15
-#define CLKID_HIFI_PLL			16
-#define CLKID_MPLL_50M_DIV		17
-#define CLKID_MPLL_50M			18
-#define CLKID_CPU_CLK_DYN		19
-#define CLKID_CPU_CLK			20
-#define CLKID_HIFI1_PLL			21
+#define CLKID_SYS_PLL_DCO		0
+#define CLKID_SYS_PLL			1
+#define CLKID_FIXED_PLL_DCO		2
+#define CLKID_FIXED_PLL			3
+#define CLKID_FCLK_DIV2_DIV		4
+#define CLKID_FCLK_DIV2			5
+#define CLKID_FCLK_DIV3_DIV		6
+#define CLKID_FCLK_DIV3			7
+#define CLKID_FCLK_DIV4_DIV		8
+#define CLKID_FCLK_DIV4			9
+#define CLKID_FCLK_DIV5_DIV		10
+#define CLKID_FCLK_DIV5			11
+#define CLKID_FCLK_DIV7_DIV		12
+#define CLKID_FCLK_DIV7			13
+#define CLKID_FCLK_DIV2P5_DIV		14
+#define CLKID_FCLK_DIV2P5		15
+#define CLKID_GP0_PLL_DCO		16
+#define CLKID_GP0_PLL			17
+#define CLKID_HIFI_PLL_DCO		18
+#define CLKID_HIFI_PLL			19
+#define CLKID_MPLL_50M_DIV		20
+#define CLKID_MPLL_50M			21
+#define CLKID_CPU_CLK_DYN		22
+#define CLKID_CPU_CLK			23
+#define CLKID_HIFI1_PLL_DCO		24
+#define CLKID_HIFI1_PLL			25
 
-#define VIDEO_BASE			22
+#define VIDEO_BASE			26
 #define CLKID_VDEC_0_SEL		(VIDEO_BASE + 0)
 #define CLKID_VDEC_0_DIV		(VIDEO_BASE + 1)
 #define CLKID_VDEC_0			(VIDEO_BASE + 2)

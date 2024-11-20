@@ -7,11 +7,12 @@
 
 #include "mesont7c.dtsi"
 #include "hdr10plus.dtsi"
-#include "mesont7c_drm.dtsi"
 //#include "partition_normal_linux.dtsi"
 #include "partition_debian_linux.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel-debian.dtsi"
+#include "mesont7c_drm.dtsi"
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "t7c_a311d2_an400-hdmitx-only";
@@ -120,7 +121,6 @@
 
 		logo_reserved:linux,meson-fb {
 			compatible = "amlogic, meson-fb";
-			reusable;
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			reg = <0x0 0x3f800000 0x0 0x800000>;
@@ -164,7 +164,7 @@
 		camera_cma_reserved:linux,camera_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			status = "okay";
+			status = "disabled";
 			size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -214,6 +214,7 @@
 			reusable;
 			size = <0x0 0x12C00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -221,6 +222,7 @@
 			/* 1920x1080x4x6 round up 4M align */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -274,6 +276,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
+		random_access = <1>;
 		status = "okay";
 	};
 
@@ -502,10 +505,11 @@
 		#address-cells=<1>;
 		#size-cells=<1>;
 		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
-		status = "okay";
-		pinctrl-names = "hdmirx_pins";
+		status = "disabled";
+		pinctrl-names = "hdmirx_pins", "sleep";
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 			&hdmirx_c_mux>;
+		pinctrl-1 = <&hdmirx_pin_sleep>;
 		repeat = <0>;
 		power-domains = <&pwrdm PDID_T7_HDMIRX>;
 		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
@@ -808,7 +812,7 @@
 		/*GPIOT-19 conflict with audio speaker */
 		status = "disabled";
 
-		fe_num = <2>;
+		fe_num = <1>;
 		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c5>;
 		fe0_demod_i2c_addr = <0xD8>;
@@ -896,8 +900,8 @@
 		io-channel-names = "key-chan-2";
 		key_chan = <2 2 2 2>;
 		key_code = <141 114 115 28>;
-		key_val = <0 252 468 684>; // Unit: millivolt
-		key_tolerance = <70 70 70 70>; // Unit: millivolt
+		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40>;
 	};
 
 	gpio_keypad{
@@ -911,6 +915,144 @@
 		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
+
+	vbat: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc5v_reg: fixedregulator@1{
+		compatible = "regulator-fixed";
+		vin-supply = <&vbat>;
+		regulator-name = "VCC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio GPIOH_1 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao3v3_reg: fixedregulator@2{
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd1v8_reg: fixedregulator@3{
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddio_ao18_reg: fixedregulator@2_1{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-name = "VDDAO_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddio_3v3_reg: fixedregulator@2_2{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-name = "VDDIO_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	sd_3v3: sdcard-regulator-consumer_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "SD_3V3: SD/TF.";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;  /* 0R */
+		enable-active-low;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddio_c: sdcard-regulator-consumer_1v8_3v3 {
+		compatible = "regulator-gpio";
+		vin-supply = <&vddio_3v3_reg>;
+		regulator-name = "VDDIO_C: SD/TF";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio GPIOE_2 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+
+		/* Based on P200 schematics, signal CARD_1.8V/3.3V_CTR */
+		states = <1800000 1
+			  3300000 0>;
+	};
+
+	vccq1v1_reg: fixedregulator@4{
+		compatible = "regulator-fixed";
+		vin-supply = <&vbat>;
+		regulator-name = "VDDQ_1V1";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddqlp0v6_1v1_reg: fixedregulator@5{
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDQLP_0V6_1V1";
+		regulator-min-microvolt = <600000>;
+		regulator-max-microvolt = <600000>;
+		gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd_ddr_reg: fixedregulator@6{
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_DDR";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		// use by vdd_ddr pwm
+		//gpio = <&gpio GPIOE_6 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 };
 
 &audiobus {
@@ -923,9 +1065,10 @@
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_MPLL0>;
-		clock-names = "mclk", "clk_srcpll";
-
+		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+		src-clk-freq = <491520000>;
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdm_a_pins
 			&tdm_d0_pins
@@ -948,9 +1091,11 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 				&clkaudio CLKID_AUDIO_MCLK_PAD1
+				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "mclk_pad", "clk_srcpll";
+		clock-names = "mclk", "mclk_pad", "clk_srcpll", "clk_src_cd";
 
+		src-clk-freq = <491520000>;
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&mclk_1_pins
 			&tdm_b_pins
@@ -993,8 +1138,10 @@
 		dai-tdm-clk-sel = <2>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_MPLL2>;
-		clock-names = "mclk", "clk_srcpll";
+		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+		src-clk-freq = <491520000>;
 		tdmin-src-name = "hdmirx";
 		i2s2hdmi = <1>;
 
@@ -1011,9 +1158,10 @@
 		clocks = <&clkaudio CLKID_AUDIO_GATE_TDMOUTD
 			&clkaudio CLKID_AUDIO_MCLK_D
 			&clkaudio CLKID_AUDIO_MCLK_PAD3
+			&clkc CLKID_HIFI_PLL
 			&clkc CLKID_MPLL3>;
 		clock-names = "gate_out","mclk",
-					"mclk_pad","clk_srcpll";
+					"mclk_pad","clk_srcpll", "clk_src_cd";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdm_d_pins
 			&tdmd_clk_pins>;
@@ -1031,15 +1179,17 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
+			&clkc CLKID_HIFI_PLL
 			&clkc CLKID_MPLL3
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1>;
 		clock-names = "gate",
 			"sysclk_srcpll",
 			"dclk_srcpll",
+			"clk_src_cd",
 			"pdm_dclk",
 			"pdm_sysclk";
-
+		src-clk-freq = <491520000>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin_pins>;
 
@@ -1055,14 +1205,16 @@
 		compatible = "amlogic, tm2-revb-snd-spdif-a";
 		#sound-dai-cells = <0>;
 
-		clocks = <&clkc CLKID_MPLL0
+		clocks = <&clkc CLKID_HIFI_PLL
+				&clkc CLKID_MPLL0
 				&clkc CLKID_FCLK_DIV4
 				&clkaudio CLKID_AUDIO_GATE_SPDIFIN
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_A
 				&clkaudio CLKID_AUDIO_SPDIFIN
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "sysclk", "fixed_clk", "gate_spdifin",
+		clock-names = "sysclk", "clk_src_cd", "fixed_clk", "gate_spdifin",
 				"gate_spdifout", "clk_spdifin", "clk_spdifout";
+		src-clk-freq = <491520000>;
 		interrupts =
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
@@ -1080,12 +1232,14 @@
 	spdifb:spdif@1 {
 		compatible = "amlogic, tm2-revb-snd-spdif-b";
 		#sound-dai-cells = <0>;
-		clocks = <&clkc CLKID_MPLL2 /*CLKID_HIFI_PLL*/
+
+		clocks = <&clkc CLKID_HIFI_PLL
+				&clkc CLKID_MPLL2 /*CLKID_HIFI_PLL*/
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_B
 				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
-		clock-names = "sysclk",
+		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
-
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -1161,7 +1315,7 @@
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	vad:vad {
@@ -1206,10 +1360,10 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_MPLL3
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
-			&clkc CLKID_MPLL3
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_MCLK_A>;
 		clock-names = "pdm_gate",
 			"pdm_sysclk_srcpll",
@@ -1227,7 +1381,7 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
+		datain_chnum = <0>;
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
@@ -1251,7 +1405,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
-
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -1486,8 +1640,8 @@
 	non-removable;
 	disable-wp;
 
-	//vmmc-supply = <&vddao_3v3>;
-	//vqmmc-supply = <&vddio_ao1v8>;
+	//vmmc-supply = <&sd_3v3>;
+	//vqmmc-supply = <&vddio_c>;
 
 	brcmf: wifi@1 {
 		reg = <1>;
@@ -1506,18 +1660,18 @@
 			"clk-gate";
 	bus-width = <4>;
 	cap-sd-highspeed;
-//	sd-uhs-sdr12;
-//	sd-uhs-sdr25;
-//	sd-uhs-sdr50;
-//	sd_uhs-sdr104;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 	max-frequency = <200000000>;
 
 	disable-wp;
-
+	use_intf3_tuning;
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-	//vmmc-supply = <&vddao_3v3>;
-	//vqmmc-supply = <&emmc_1v8>;
+	vmmc-supply = <&sd_3v3>;
+	vqmmc-supply = <&vddio_c>;
 };
 
 &sd_emmc_c {
@@ -1537,8 +1691,8 @@
 	disable-wp;
 
 //	mmc-pwrseq = <&emmc_pwrseq>;
-//	vmmc-supply = <&vddao_3v3>;
-//	vqmmc-supply = <&vddao_1v8>;
+//	vmmc-supply = <&sd_3v3>;
+//	vqmmc-supply = <&vddio_c>;
 };
 
 &saradc {
@@ -1589,6 +1743,8 @@
 	status = "disabled";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &spifc {
@@ -1602,14 +1758,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins>;
-	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_HIGH>;
 };
 
 &spicc3 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc3_pins>;
-	cs-gpios = <&gpio GPIOT_9 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOT_9 0>;
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";
 		status = "okay";
@@ -1634,7 +1790,7 @@
 };
 
 &drm_vpu {
-	status = "okay";
+	status = "disabled";
 	logo_addr = "0x3f800000";
 };
 
@@ -1648,6 +1804,11 @@
 	vrr_type = <2>; /* 1: GAME-VRR, 2: QMS-VRR */
 	hdmi_repeater = <1>;
 	hdcp_ctl_lvl = <1>;
+};
+
+&aocec {
+	status = "okay";
+	port_num = <1>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
@@ -1881,7 +2042,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };

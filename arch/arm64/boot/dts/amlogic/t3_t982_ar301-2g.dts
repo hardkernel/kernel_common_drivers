@@ -8,8 +8,8 @@
 #include "mesont3.dtsi"
 #include "hdr10plus.dtsi"
 #include "partition_mbox_ab.dtsi"
-#include "mesont3_drm.dtsi"
 #include "mesont3_ar301-panel.dtsi"
+#include "mesont3_drm.dtsi"
 
 / {
 	amlogic-dt-id = "t3_t982_ar301-2g";
@@ -96,10 +96,10 @@
 			reg = <0x0 0x7f800000 0x0 0x800000>;
 		};
 
-		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "amlogic, lcd_tcon";
-			reg = <0x0 0x3ec00000 0x0 0x00c00000>;
-			no-map;
+		lcd_cma_reserved:linux,lcd-reserved {
+			compatible = "amlogic, lcd_rsvd";
+			reg = <0x0 0x3ec00000 0x0 0x00a80000>;
+			tcon-size = <0 0x00a02840>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -150,6 +150,7 @@
 			/* ion_codec_mm max can alloc size 80M*/
 			size = <0x0 0x1BC00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x50000000>;
 			linux,contiguous-region;
 		};
 
@@ -306,7 +307,7 @@
 	};
 
 	multi-di {
-		//status = "okay";
+		status = "disabled";
 		/***************************************************
 		 * memory: default is 4
 		 *	0:use reserved;
@@ -358,8 +359,8 @@
 		key_chan = <SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1
 			SARADC_CH2 SARADC_CH2 SARADC_CH2>;
 		key_code = <116 114 115 28 139 466 174>;
-		key_val = <0 252 468 684 0 252 468>; // Unit: millivolt
-		key_tolerance = <70 70 70 70 70 70 70>; // Unit: millivolt
+		key_val = <0 143 266 389 0 143 266>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40 40 40 40>;
 	};
 
 	unifykey {
@@ -566,7 +567,7 @@
 		#address-cells=<1>;
 		#size-cells=<1>;
 		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
-		status = "okay";
+		status = "disabled";
 		pinctrl-names = "hdmirx_pins";
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 			&hdmirx_c_mux>;
@@ -595,6 +596,8 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <1>;
 		arc_port = <1>;
+		/* for 2.2R:0x8, for 5.1R:0x6 */
+		term_lvl = <0x8>;
 		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
@@ -620,7 +623,7 @@
 
 	atv-demod {
 		compatible = "amlogic, atv-demod";
-		status = "okay";
+		status = "disabled";
 		btsc_sap_mode = <1>;
 		interrupts = <0 94 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
@@ -674,7 +677,7 @@
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-t3";
 		dev_name = "aml_dtv_demod";
-		status = "okay";
+		status = "disabled";
 		//diseqc_name = "sgm_41286";
 		pinctrl-names="if_agc_pins", "diseqc_out", "rf_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
@@ -917,12 +920,13 @@
 		compatible = "amlogic, vbi";
 		status = "okay";
 		interrupts = <0 210 1>;
+		flag_cma = <1>;/*1:share with codec_mm;0:kzalloc*/
 	};
 
 	aml_frc {
 		compatible = "amlogic, t3_frc";
 		dev_name = "aml_frc";
-		status = "okay";
+		status = "disabled";
 		frc_en = <1>;/*1:enable ;0:disable*/
 		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
 		interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING
@@ -937,7 +941,7 @@
 		power-domain-names = "frc-top","frc-me","frc-mc";
 		reg = <0x0 0xFF050000 0x0 0x30000 /*frc reg*/
 		       0x0 0xFE000000 0x0 0x300
-		       0x0 0xFF000000 0x0 0x10000>; /*frc clk reg*/
+		       0x0 0xFF000000 0x0 0x40000>; /*vpu_reg*/
 		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
 	};
 
@@ -971,18 +975,59 @@
 
 }; /* end of / */
 
+&thermal_zones {
+	vpu_thermal {
+		trips {
+			vpu_switch_on: trip-point@0 {
+				temperature = <85000>;
+				hysteresis = <5000>;
+				type = "passive";
+			};
+			vpu_control: trip-point@1 {
+				temperature = <95000>;
+				hysteresis = <5000>;
+				type = "passive";
+			};
+			ddr_hot: trip-point@2 {
+				temperature = <90000>;
+				hysteresis = <10000>;
+				type = "hot";
+			};
+			vpu_critical {
+				temperature = <115000>;
+				hysteresis = <1000>;
+				type = "critical";
+			};
+		};
+		cooling-maps {
+			ddr0_cooling_map {
+				trip = <&ddr_hot>;
+				cooling-device = <&ddr_cool0 0 2>;
+				contribution = <1024>;
+			};
+			ddr1_cooling_map {
+				trip = <&ddr_hot>;
+				cooling-device = <&ddr_cool1 0 2>;
+				contribution = <1024>;
+			};
+		};
+	};
+};
+
 &i2c0 {
 	status = "okay";
 	clock-frequency = <300000>;
-	pinctrl-names="default";
+	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c0_pins1>;
+	pinctrl-1=<&i2c0_pins1_sleep>;
 };
 
 &i2c2 {
 	status = "okay";
 	clock-frequency = <100000>;
-	pinctrl-names="default";
+	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c2_pins2>;
+	pinctrl-1=<&i2c2_pins2_sleep>;
 
 	lcd_extern_i2c0: lcd_extern_i2c@29 {
 		compatible = "lcd_ext, i2c";
@@ -1150,7 +1195,7 @@
 
 		/* mode 0~4, default:1 */
 		filter_mode = <1>;
-
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1205,7 +1250,7 @@
 		interrupts =
 				<GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "irq_frhdmirx";
-
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1422,8 +1467,9 @@
 }; /* end of audiobus */
 
 &earc {
+	earctx_port = <1>;
 	suspend-clk-off = <1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &audio_data {
@@ -1460,67 +1506,6 @@
 	status = "okay";
 	v4l_support_en = <0>;
 };
-
-/* SDIO */
-//&sd_emmc_a {
-//	status = "disabled";
-//	pinctrl-0 = <&sdio_pins>;
-//	pinctrl-1 = <&sdio_clk_gate_pins>;
-//	pinctrl-names = "default", "clk-gate";
-//	#address-cells = <1>;
-//	#size-cells = <0>;
-//
-//	bus-width = <4>;
-//	cap-sd-highspeed;
-//	sd-uhs-sdr50;
-//	sd_uhs-sdr104;
-//	max-frequency = <200000000>;
-//
-//	non-removable;
-//	disable-wp;
-//
-//	//vmmc-supply = <&vddao_3v3>;
-//	//vqmmc-supply = <&vddio_ao1v8>;
-//
-//	brcmf: wifi@1 {
-//		reg = <1>;
-//		compatible = "brcm,bcm4329-fmac";
-//	};
-//};
-/* SD Wifi*/
-/*
- *&sd_emmc_b {
- *	status = "okay";
- *	pinctrl-0 = <&sd_all_pins>;
- * //	pinctrl-1 = <&sd_1bit_pins>;
- *	pinctrl-1 = <&sd_clk_gate_pins>;
- *	pinctrl-names = "default",
- *	//		"sd_1bit_pins",
- *			"clk-gate";
- *	bus-width = <4>;
- *	cap-sd-highspeed;
- *	sd-uhs-sdr12;
- *	sd-uhs-sdr25;
- *	sd-uhs-sdr50;
- *	sd-uhs-sdr104;
- *	max-frequency = <200000000>;
- *
- *	non-removable;
- *	disable-wp;
- * //	amlogic,dram-access-quirk;
- *
- * //	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
- *	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
- *	//vmmc-supply = <&vddao_3v3>;
- *	//vqmmc-supply = <&emmc_1v8>;
- *
- * //	brcmf: wifi@1 {
- * //		reg = <1>;
- * //		compatible = "brcm,bcm4329-fmac";
- * //	};
- *
- *};
- */
 
 /* SD card */
 &sd_emmc_b {
@@ -1643,12 +1628,12 @@
 &ir {
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&remote_pins_sleep>;
+	pinctrl-names = "default", "sleep";
 };
 
-
 &saradc {
-	status = "okay";
+	status = "disabled";
 };
 
 &amlvecm {
@@ -1676,11 +1661,11 @@
 };
 
 &crg20 {
-	status = "okay";
+	status = "disabled";
 };
 
 &crg30 {
-	status = "okay";
+	status = "disabled";
 };
 
 &usb2_phy_v2 {
@@ -1717,8 +1702,9 @@
 
 &i2c1 {
 	status = "okay";
-	pinctrl-names="default";
+	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c1_pins1>;
+	pinctrl-1=<&i2c1_pins1_sleep>;
 
 	tas5805: tas5805@2e {
 		compatible = "ti,tas5805";
@@ -1779,8 +1765,9 @@
 
 &pwm_ef {
 	pinctrl-0 = <&pwm_f_pins1>;
-	pinctrl-names = "default";
-	status = "disabled";
+	pinctrl-1 = <&pwm_f_pins1_sleep>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
 };
 
 &uart_A {
@@ -1789,7 +1776,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	power_on-gpios = <&gpio   GPIOC_11  GPIO_ACTIVE_HIGH>;
 	disable-wifi-32k;
 };
@@ -1803,14 +1790,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
-	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
 };
 
 &spicc1 {	//for UWB/LocalDimm
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
-	cs-gpios = <&gpio GPIOH_24 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOH_24 GPIO_ACTIVE_HIGH>;
 	cs2clk-us = <2>;
 	clk2cs-us = <12>;
 };
@@ -1819,7 +1806,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins>;
-	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
 };
 
 &meson_suspend {

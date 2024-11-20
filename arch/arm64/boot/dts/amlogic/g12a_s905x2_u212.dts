@@ -90,12 +90,6 @@
 			alloc-ranges = <0x0 0x05000000 0x0 0x2400000>;
 		};
 
-		bl40_fw_reserved:linux,bl40 {
-			compatible = "amlogic, mfh";
-			size = <0x0 0x0080000>;
-			reg = <0x0 0x41000000  0x0 0x0080000>;
-		};
-
 		logo_reserved:linux,meson-fb {
 			compatible = "amlogic, meson-fb";
 			alignment = <0x0 0x400000>;
@@ -112,6 +106,11 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+		};
+		bl40_fw_reserved:linux,bl40 {
+			compatible = "amlogic, mfh";
+			size = <0x0 0x0080000>;
+			reg = <0x0 0x41000000  0x0 0x0080000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -184,7 +183,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
 		};
 	};
@@ -877,7 +876,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&aml_pdm>;
 			};
@@ -1433,7 +1432,7 @@
 };  /* end of pinctrl_aobus */
 
 &amhdmitx {
-	status = "okay";
+	status = "disabled";
 };
 
 &drm_vpu {
@@ -1655,7 +1654,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
@@ -1689,5 +1688,5 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_c>;
-	cs-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_HIGH>;
 };

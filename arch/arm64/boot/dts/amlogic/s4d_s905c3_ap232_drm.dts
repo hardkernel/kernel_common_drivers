@@ -141,7 +141,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x21C00000>;
+			size = <0x0 0x16C00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -175,10 +175,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			/* up to 720p yuv420 8bit and 4 buffers
+			 * 1280x720x1.5x4 = 8 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
@@ -721,8 +721,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
 		key_code = <116 115 114>;
-		key_val = <35 1601 1109>; // Unit: millivolt
-		key_tolerance = <70 70 70>; // Unit: millivolt
+		key_val = <20 910 630>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
 	};
 
 	gpio_keypad{
@@ -1456,7 +1456,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_x>;
-	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOX_10 0>;
 };
 
 &spifc {
@@ -1482,7 +1482,7 @@
 };
 
 &amhdmitx {
-	status = "okay";
+	status = "disabled";
 };
 
 &drm_amhdmitx {
@@ -1535,7 +1535,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };

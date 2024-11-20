@@ -1247,7 +1247,7 @@
 };
 
 &saradc {
-	status = "okay";
+	status = "disabled";
 };
 
 &ir {
@@ -1361,7 +1361,7 @@
 };
 
 &ethmac {
-	status = "okay";
+	status = "disabled";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
 };

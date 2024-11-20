@@ -388,7 +388,7 @@
 			"vpu_clk1",
 			"vpu_clk";
 		clk_level = <8>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
 	};
 
@@ -630,6 +630,7 @@
 		clocks = <&clkc CLKID_TS>; /* CLKID_TS_COMP>;*/
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	d_tsensor: d_tsensor@ff800228 {
@@ -651,7 +652,7 @@
 		compatible = "amlogic, ram_dump";
 		status = "disabled";
 		reg = <0x0 0xFF6345E0 0x0 4>;
-		reg-names = "PREG_STICKY_REG8";
+		reg-names = "SYSCTRL_STICKY_REG6";
 		store_device = "data";
 	};
 
@@ -958,7 +959,7 @@
 		};/* end of ion_dev*/
 
 		audiobus: audiobus@ff642000 {
-			compatible = "amlogic, audio-controller", "simple-bus";
+			compatible = "amlogic, axg-audio-controller", "simple-bus";
 			status = "okay";
 			reg = <0x0 0xff642000 0x0 0x2000>;
 			#address-cells = <2>;
@@ -1151,11 +1152,11 @@
 		status = "disabled";
 		vend-data = <&vend_data>;
 		pinctrl-names="default", "hdmitx_i2c";
+		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
+		pinctrl-1=<&hdmitx_hpd_gpio &i2c3_master_pins1>;
 		hdmitx-gpios-hpd = <&gpio GPIOH_2 0>;
 		hdmitx-gpios-scl = <&gpio GPIOH_1 0>;
 		hdmitx-gpios-sda = <&gpio GPIOH_0 0>;
-		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
-		pinctrl-1=<&hdmitx_hpd_gpio &i2c3_master_pins1>;
 		clocks = <&clkc CLKID_VCLK2_ENCI
 			&clkc CLKID_VCLK2_VENCI0
 			&clkc CLKID_VCLK2_VENCI1
@@ -1175,22 +1176,32 @@
 		 * 10:G12A 11:G12B
 		 */
 		ic_type = <11>;
-		reg = <0x0 0xff900000 0x0 0x40000>,
-			<0x0 0xff600000 0x0 0x8000>,
-			<0x0 0xff608000 0x0 0x4000>,
-			<0x0 0xffe01000 0x0 0x100>,
+		reg =	<0x0 0xffd00000 0x0 0x100000>,
+			<0x0 0xff900000 0x0 0x40000>,
 			<0x0 0xff63c000 0x0 0x2000>,
-			<0x0 0xffd00000 0x0 0x100000>,
+			<0x0 0xff608000 0x0 0x4000>, //TOP
+			<0x0 0xff600000 0x0 0x8000>, //DWC reverse
+			<0x0 0xffe01000 0x0 0x100>,  //ESM
+			<0x0 0x00000000 0x0 0x000>,	/* reserved */
+			<0x0 0x00000000 0x0 0x000>,	/* reserved */
 			<0x0 0xffd00000 0x0 0x1100>,
+			<0x0 0x00000000 0x0 0x000>,	/* reserved */
+			<0x0 0x00000000 0x0 0x0000>,/* reserved */
+			<0x0 0x00000000 0x0 0x0000>, /* reserved */
 			<0x0 0xff634400 0x0 0x2000>,
 			<0x0 0xff800000 0x0 0x100000>;
-		reg-names = "vpu",
-			"hdmitxdwc",
-			"hdmitxtop",
-			"esm",
-			"hiu",
-			"cbus",
-			"resetctrl",
+		reg-names = "cbus",
+			    "vpu",
+			    "hiu",
+			    "hdmitxdwc",
+			    "hdmitxtop",
+			    "esm",
+			    "anactrl",
+			    "pwrctrl",
+			    "resetctrl",
+			    "sysctrl",
+			    "clkctrl",
+			"padctrl",
 			"periphs",
 			"aobus";
 		vend_data: vend_data{ /* Should modified by Customer */
@@ -1285,10 +1296,8 @@
 		/*cma_size = <16>;*/
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
-		/*clocks = <&clkc CLKID_FCLK_DIV5>,
-		 *	<&clkc CLK_CLKID_VDIN_MEAS_GATE>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
 	};
 	vdin1: vdin1 {
@@ -1299,10 +1308,8 @@
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 85 1>;
 		rdma-irq = <4>;
-		/*clocks = <&clkc CLKID_FCLK_DIV5>,
-		 *	<&clkc CLK_CLKID_VDIN_MEAS_GATE>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
 	};
 
@@ -1571,7 +1578,7 @@
 		reg = <0x0 0xffe07000 0x0 0x800>,
 			<0x0 0xffe07000 0x0 0x800>,
 			<0x0 0xffe07000 0x0 0x800>;
-		interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 191 IRQ_TYPE_EDGE_RISING>;
 			//interrupts = <0 191 1>;
 		clocks = <&clkc CLKID_SD_EMMC_C>,
 				<&clkc CLKID_SD_EMMC_C_CLK0_SEL>,
@@ -1581,6 +1588,9 @@
 				<&clkc CLKID_FCLK_DIV2P5>;
 		clock-names = "core","mux0","mux1","clkin0","clkin1","clkin2";
 		tx_delay = <16>;
+		//ignore_desc_busy;
+		hs4_core_phase = <0>;
+		hs4_tx_phase = <0>;
 		card_type = <1>;
 		mmc_debug_flag;
 		disable-wp;
@@ -1946,8 +1956,8 @@
 		temper-buf-size = <24>;
 		clocks = <&clkc CLKID_MIPI_ISP_CLK>,
 			<&clkc CLKID_MIPI_CSI_PHY_CLK0>;
-		clock-names = "cts_mipi_isp_clk_composite",
-			"cts_mipi_csi_phy_clk0_composite";
+		clock-names = "cts_mipi_isp_clk",
+			"cts_mipi_csi_phy_clk0";
 		link-device = <&isp_sc>;
 	};
 

@@ -8,8 +8,8 @@
 #include "mesont3x.dtsi"
 #include "hdr10plus.dtsi"
 #include "partition_mbox_ab.dtsi"
-#include "mesont3x_drm.dtsi"
 #include "mesont3x_pxp-panel.dtsi"
+#include "mesont3x_drm.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -146,6 +146,7 @@
 		camera_cma_reserved:linux,camera_cma {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			size = <0x0 0x0>;
 			//size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
@@ -230,12 +231,9 @@
 			reusable;
 			/* frc:size need 4M alignment
 			 * 1080P 16 buffer:88Mhz (0x5800000)
-			 * 4k 16 buffer:348Mhz (0x15c00000)
-			 * 400Mhz (0x19000000)
-			 * 384Mhz (0x18000000)
-			 * 368Mhz (0x17000000)
+			 * 4k 16 buffer:312Mhz (0x13800000)
 			 */
-			size = <0x0 0xd400000>; // reserved 212M
+			size = <0x0 0xd400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
@@ -253,6 +251,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
+		random_access = <1>;
 		status = "okay";
 	};
 
@@ -521,7 +520,9 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <1>;
-		phy_term_lel_t3x_21 = <0x10>;
+		/* for 2.2R:0x8, for 5.1R:0x6 */
+		term_lvl = <0x8>;
+		term_lvl_t3x_21 = <0x8>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
 		/* MAP_ADDR_MODULE_CBUS */
@@ -540,7 +541,7 @@
 			0x0 0x0 0x0 0x0
 			0x0 0x0 0x0 0x0
 			0x0 0xfe390000 0x0 0x20000
-			0x0 0xfe000000 0x0 0x1fff
+			0x0 0xfe000000 0x0 0x15000
 			0x0 0xfe008000 0x280 0x334>;
 	};
 
@@ -778,7 +779,7 @@
 		power-domain-names = "frc-top";
 		reg = <0x0 0xFF850000 0x0 0x30000 /*frc reg*/
 		       0x0 0xFE000000 0x0 0x300
-		       0x0 0xFF000000 0x0 0x10000>; /*frc clk reg*/
+		       0x0 0xFF800000 0x0 0x40000>; /*vpu_reg*/
 		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
 	};
 
@@ -937,8 +938,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
 		key_code = <141 114 115>;
-		key_val = <1584 899 0>; // Unit: millivolt
-		key_tolerance = <70 70 70>; // Unit: millivolt
+		key_val = <900 511 0>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
 	};
 
 	vdd4_2v5_reg: fixedregulator@vdd4_2v5_reg {
@@ -1205,17 +1206,6 @@
 		//		"gate_spdifout", "clk_spdifout";
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
-		status = "disabled";
-	};
-
-	extn:extn {
-		compatible = "amlogic, t7-snd-extn";
-		#sound-dai-cells = <0>;
-
-		interrupts =
-				<GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "irq_frhdmirx";
-
 		status = "disabled";
 	};
 

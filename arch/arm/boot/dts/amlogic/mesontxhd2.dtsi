@@ -19,9 +19,10 @@
 #include "meson-ir-map.dtsi"
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
-#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/reset/amlogic,meson-txhd2-reset.h>
 #include "mesongxbb-gpu-mali450.dtsi"
+#include <dt-bindings/leds/leds-meson.h>
+
 
 / {
 	cpus:cpus {
@@ -289,7 +290,7 @@
 
 	ram-dump {
 		compatible = "amlogic, ram_dump";
-		status = "disabled";
+		status = "okay";
 		reg = <0xFF6345E0   0x4>;
 		reg-names = "SYSCTRL_STICKY_REG6";
 		store_device = "data";
@@ -368,12 +369,36 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_PLL>;
+		cust_governor = "power_allocator";
 	};
 
 	meson_cooldev: meson-cooldev@0 {
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
+			ddr_cool {
+				ddr_reg = <0xff6384b4 0xff638224>; /*ddr gpu*/
+				ddr_status = <13>;
+				ddr_bits = <0 15>,
+							<0 31>;
+				ddr_data = <9616 9616 9616 7512 6010 4808 3756
+				3434 3004 2404 2002 1716 1502 >;
+				gpu_data = <0x28202820 0x28202820 0x28202820 0x28202820
+					0x18101810 0x18101810 0x18101810 0x18101810 0x18101810
+					0x02010201 0x02010201 0x02010201 0x02010201>;
+				ddr_data1 = <9616 9616 9616 7512 6010 4808 3756
+				3434 3004 2404 2002 1716 1502>;
+				gpu_data1 = <0x28202820 0x28202820 0x28202820 0x28202820
+					0x18101810 0x18101810 0x18101810 0x18101810 0x18101810
+					0x02010201 0x02010201 0x02010201 0x02010201>;
+				ddr_data2 = <9616 9616 9616 7512 6010 4808 3756
+				3434 3004 2404 2002 1716 1502>;
+				gpu_data2 = <0x28202820 0x28202820 0x28202820 0x28202820
+					0x18101810 0x18101810 0x18101810 0x18101810 0x18101810
+					0x02010201 0x02010201 0x02010201 0x02010201>;
+				node_name = "ddr_cool0";
+				device_type = "ddr";
+			};
 			cpucore_cool {
 				cluster_core_num = <3>;
 				cluster_cores = <1 2 3>;
@@ -385,13 +410,23 @@
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
+			media_cool {
+				node_name = "media_cool0";
+				device_type = "media";
+			};
+		};
+		ddr_cool0:ddr_cool0 {
+			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore:cpucore {
 			#cooling-cells = <2>; /* min followed by max */
 		};
+		media_cool0:media_cool0 {
+			#cooling-cells = <2>;
+		};
 	};/*meson cooling devices end*/
 
-	thermal-zones {
+	thermal_zones: thermal-zones {
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
@@ -408,12 +443,22 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				pcritical: trip-point@2 {
+				pddr_change: trip-point@2 {
+					temperature = <55000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				pcritical: trip-point@3 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
-				pcpucore: trip-point@3 {
+				pmedia_change: trip-point@4 {
+					temperature = <85000>;
+					hysteresis = <10000>;
+					type = "hot";
+				};
+				pcpucore: trip-point@5 {
 					temperature = <95000>;
 					hysteresis = <10000>;
 					type = "hot";
@@ -425,9 +470,19 @@
 					cooling-device = <&CPU0 0 5>;
 					contribution = <1024>;
 				};
+				ddr_cooling_map {
+					trip = <&pddr_change>;
+					cooling-device = <&ddr_cool0 0 2>;
+					contribution = <1024>;
+				};
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
 					cooling-device = <&gpu 0 3>;
+					contribution = <1024>;
+				};
+				media_cooling_map {
+					trip = <&pmedia_change>;
+					cooling-device = <&media_cool0 0 2>;
 					contribution = <1024>;
 				};
 				cpucore_cooling_map {
@@ -438,53 +493,6 @@
 			};
 		};
 	}; /*thermal zone end*/
-
-	ddr_control: ddr_control {
-		compatible = "amlogic, ddr-control";
-		reg = <0xff800240 0x4>;
-		reg-names = "sip-addr";
-		sip-mask = <19 1>;
-		status = "okay";
-		ddr-sip {
-			particle = <SIP_PARTICLE>;
-			particle-flag = <DDR_SIP_FLAG>;
-			condition-type = <DDR_THERMAL>;
-			zone-name = "soc_thermal";
-			caddr = <0xff6384b4>,
-				<0xff638224>;
-			caddr-mask = <0 16>,
-				     <0 32>;
-			cstep-val = <70000 75000 80000 85000>,
-				    <90000 95000 100000 105000>,
-				    <110000 115000 115000>;
-			caddr-val = <9616 0x28202820>,
-				    <7512 0x28202820>,
-				    <6010 0x18101810>,
-				    <4808 0x18101810>,
-				    <3756 0x18101810>,
-				    <3434 0x18101810>,
-				    <3004 0x18101810>,
-				    <2404 0x02010201>,
-				    <2002 0x02010201>,
-				    <1716 0x02010201>,
-				    <1502 0x02010201>;
-			refresh-constant-value;
-		};
-
-		ddr-nosip {
-			particle = <NOSIP_PARTICLE>;
-			particle-flag = <DDR_SIP_FLAG>;
-			condition-type = <DDR_THERMAL>;
-			zone-name = "soc_thermal";
-			caddr = <0xff6384b4>,
-				<0xff638224>;
-			caddr-mask = <0 16>,
-				     <0 32>;
-			cstep-val = <70000>;
-			caddr-val = <9616 0x28202820>;
-			refresh-constant-value;
-		};
-	};
 
 	single_cpu_opp_table0: single_cpu_opp_table0 {
 		compatible = "operating-points-v2";
@@ -808,7 +816,7 @@
 
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
-		status = "okay";
+		status = "disabled";
 	};
 
 	ddr_bandwidth {
@@ -862,7 +870,7 @@
 
 	aml_wifi: aml_wifi {
 		compatible = "amlogic, aml-wifi";
-		status = "okay";
+		status = "disabled";
 		interrupt-gpios = <&gpio_ao  GPIOAO_4  GPIO_ACTIVE_HIGH>;
 		power_on-gpios = <&gpio_ao   GPIOAO_5  GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
@@ -990,7 +998,7 @@
 		>;
 		clocks = <&clkc CLKID_CDAC_CLK>;
 		clock-names = "vdac_clk_gate";
-		cutwindow_val_h = <0 0 0 0 8>; /* level 0~4 */
+		cutwindow_val_h = <0 0 0 0 24>; /* level 0~4 */
 		cutwindow_val_v = <4 8 14 16 24>;  /* level 0~4 */
 	};
 
@@ -1002,7 +1010,7 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "okay";
+		status = "disabled";
 		select = "disable"; /* disable/apao */
 		interrupts = <GIC_SPI 208 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names="jtag_a_pins", "jtag_b_pins";
@@ -1074,8 +1082,8 @@
 			0xff644000 0x40     /* pwrctrl */
 			0xff900000 0x40000>; /* vcbus */
 		clk_level = <6>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
-		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 5: 333.3M    6: 400.0M */
 	};
 
 	meson_fb: fb {
@@ -1152,7 +1160,7 @@
 		 * bit9:use 10bit at 4k_50/60hz_10bit
 		 * bit10: support 10bit when double write
 		 */
-		tv_bit_mode = <0x235>;
+		tv_bit_mode = <0x215>;
 		/* afbce_bit_mode: (amlogic frame buff compression encoder)
 		 * bit0 -- enable afbce
 		 * bit1 -- enable afbce compression-lossy
@@ -1193,12 +1201,10 @@
 		interrupt-names = "vsync_int"/*, "vpu_crash_int",*/
 				/*"write_done_int"*/;
 		rdma-irq = <4>;
-		/*clocks = <&clock CLK_FPLL_DIV5>,
-		 *	<&clock CLK_VDIN_MEAS_CLK>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
 		vdin_id = <1>;
 		tv_bit_mode = <0x15>;
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
+			clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		/* vdin v4l2 */
 		v4l_support_en = <0>;
 		v4l_vd_num = <71>;
@@ -1475,6 +1481,8 @@
 				compatible = "amlogic,led_unipolar_ctrl";
 				reg = <0x1000 0x88>;
 				interrupts = <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
+				led-mode = <LED_MESON_GRB>;
+				led_number = <2>;
 				status = "disabled";
 			};
 
@@ -1535,7 +1543,7 @@
 
 			pwm_AO_cd: pwm@2000 {
 				compatible = "amlogic,meson-g12a-ao-pwm-cd";
-				reg = <0x7000 0x20>;
+				reg = <0x2000 0x20>;
 				#pwm-cells = <3>;
 				clocks = <&xtal>,
 					<&xtal>,
@@ -1629,6 +1637,7 @@
 			compatible = "amlogic,aml_txlx_dma";
 			reg = <0xff63e000 0x48>;
 			interrupts = <0 180 1>;
+			status = "disabled";
 
 			aml_aes {
 				compatible = "amlogic,aes_g12a_dma";
@@ -1691,6 +1700,8 @@
 			mmc_debug_flag;
 			tx_delay = <32>;
 			src_clk_rate = <1488000000>;
+			mmc-hs400-enhanced-strobe;
+			sd-clock-sample;
 		//  resets = <&reset RESET_SD_EMMC_C>;
 		};
 
@@ -1710,7 +1721,7 @@
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
 			dis-thred-enhance = <0x2>;/**t7-0x38:bit[26-27]**/
-			analog_process_nm = <22>;
+			pll-version = <1>;
 			version = <3>;
 			phy0-reset-level-bit = <16>;
 			usb-reset-bit = <2>;
@@ -1755,7 +1766,7 @@
 			clock-src = "usb3.0";
 			clocks = <&clkc CLKID_CLK81_USB_GENERAL>;
 			clock-names = "crg_general";
-			wr-outstanding-tune = <1>;
+			wr-outstanding-tune = <0>;
 		};
 
 		crg_udc_2: crgudc2@ff690000 {
@@ -1791,7 +1802,7 @@
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
 			dis-thred-enhance = <0x2>;/**t7-0x38:bit[26-27]**/
-			analog_process_nm = <22>;
+			pll-version = <1>;
 			version = <3>;
 			phy0-reset-level-bit = <17>;
 			phy1-reset-level-bit = <18>;
@@ -2163,6 +2174,12 @@
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
+		status = "okay";
+	};
+
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
 		status = "okay";
 	};
 

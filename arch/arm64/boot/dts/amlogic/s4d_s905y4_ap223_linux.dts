@@ -10,6 +10,7 @@
 #include "mesons4d_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "s4d_s905y4_ap223";
@@ -92,7 +93,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x8000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
@@ -105,14 +106,18 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1080p STB androidT size 56M */
-			size = <0x0 0x3800000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p STB androidT size 88M */
-			size = <0x0 0x5800000>;
+			/* maximum size of fbdev and wayland-drm backend
+			 * fbdev: 2 * (number of /dev/fbx device) buffers
+			 * wayland-drm: 4 buffers for westeros or 2 buffers for weston,
+			 *   3 buffers for direct display(enabled on weston)
+			 */
+			size = <0x0 0x3000000>;
 			alignment = <0x0 0x400000>;
 		};
 		/*di CMA pool */
@@ -714,8 +719,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
 		key_code = <116 115 114>;
-		key_val = <35 1601 1109>; // Unit: millivolt
-		key_tolerance = <70 70 70>; // Unit: millivolt
+		key_val = <20 910 630>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
 	};
 
 	gpio_keypad{
@@ -1441,13 +1446,15 @@
 	status = "disabled";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_x>;
-	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOX_10 0>;
 };
 
 &spifc {
@@ -1473,7 +1480,7 @@
 };
 
 &amhdmitx {
-	status = "okay";
+	status = "disabled";
 	/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
 	hdcp_ctl_lvl = <1>;
 };
@@ -1528,7 +1535,7 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };

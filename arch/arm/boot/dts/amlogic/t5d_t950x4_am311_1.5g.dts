@@ -37,6 +37,12 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		ramdump_bl33z@0 {
+			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@7400000 {
 			compatible = "ramoops";
@@ -45,16 +51,6 @@
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
 			pmsg-size = <0x20000>;
-		};
-
-		debug_reserved:linux,iotrace {
-			compatible = "amlogic, iotrace";
-			reg = <0x04f00000 0x00100000>;
-			io-size = <0x1b000>;
-			sched-size = <0x2000>;
-			irq-size = <0x1000>;
-			smc-size = <0x1000>;
-			misc-size = <0x1000>;
 		};
 
 		dmc_reserved:linux,dmc_monitor {
@@ -76,10 +72,10 @@
 			reg = <0x3f800000 0x800000>;
 		};
 
-		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "amlogic, lcd_tcon";
-			reg = <0x3f000000 0x00800000>;
-			no-map;
+		lcd_cma_reserved:linux,lcd-reserved {
+			compatible = "amlogic, lcd_rsvd";
+			reg = <0x3f000000 0x00510000>;
+			tcon-size = <0x00502840>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -100,7 +96,7 @@
 			size = <0x0>;
 			/*alignment = <0x100000>;*/
 			//no-map;
-			alloc-ranges = <0x0 0x3f000000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -108,14 +104,14 @@
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f000000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f000000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 		/* secure ion for gpu, advice size is 80M */
 		ion_secure_reserved:linux,ion-secure {
@@ -135,9 +131,10 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 36M */
-			size = <0x2400000>;
+			/* 720p TV androidU size 12M */
+			size = <0xc00000>;
 			alignment = <0x400000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -154,9 +151,9 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x2x4  =16 M */
-			size = <0x1400000>;
+			size = <0x0c00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f000000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/* demod_reserved:linux,demod {
@@ -174,7 +171,7 @@
 		 *	// 40M
 		 *	size = <0x02800000>;
 		 *	alignment = <0x400000>;
-		 *	alloc-ranges = <0x0 0x3f000000>;
+		 *	alloc-ranges = <0x0 0x30000000>;
 		 *};
 		 */
 
@@ -227,6 +224,15 @@
 			alignment = <0x0>;
 			linux,contiguous-region;
 		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x400000>;
+			alignment = <0x400000>;
+			linux,cma-default;
+		};
 	}; /* end of reserved-memory */
 	galcore {
 		status = "disabled";
@@ -276,12 +282,14 @@
 		 * post_nub: default is 9
 		 ***************************************************/
 		//post_nub = <9>;
+		post-wr-support = <0>;
+		postlink_en = <1>;
 	};
 
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-t5d-revB";
 		dev_name = "aml_dtv_demod";
-		status = "okay";
+		status = "disabled";
 		diseqc_name = "sgm_41286";
 		pinctrl-names="if_agc_pins", "diseqc_out", "rf_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
@@ -511,9 +519,15 @@
 		add_asyncfifo = <1>;
 
 		/*"parallel","serial","disable"*/
+		ts1 = "parallel";
+		ts1_control = <0>;
+		ts1_invert = <0>;
+		ts1_csa_enable = <0>;
+
 		ts2 = "parallel";
 		ts2_control = <0>;
 		ts2_invert = <0>;
+		ts2_csa_enable = <1>;
 
 		clocks = <&clkc CLKID_CLK81_DEMUX
 		&clkc CLKID_CLK81_AHB_ARB0
@@ -643,7 +657,7 @@
 		 * bit8:use 8bit  at 4k_50/60hz_10bit
 		 * bit9:use 10bit at 4k_50/60hz_10bit
 		 */
-		tv_bit_mode = <0x235>;
+		tv_bit_mode = <0x215>;
 		/* afbce_bit_mode: (amlogic frame buff compression encoder)
 		 * bit0 -- enable afbce
 		 * bit1 -- enable afbce compression-lossy
@@ -763,8 +777,8 @@
 		key_chan = <SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1
 			SARADC_CH2 SARADC_CH2 SARADC_CH2>;
 		key_code = <116 114 115 28 139 466 174>;
-		key_val = <0 252 468 684 0 252 468>; // Unit: millivolt
-		key_tolerance = <70 70 70 70 70 70 70>; // Unit: millivolt
+		key_val = <0 143 266 389 0 143 266>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40 40 40 40>;
 	};
 
 	unifykey {
@@ -959,7 +973,7 @@
 		#address-cells=<1>;
 		#size-cells=<1>;
 		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
-		status = "okay";
+		status = "disabled";
 		pinctrl-names = "hdmirx_pins";
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 			&hdmirx_c_mux>;
@@ -1258,13 +1272,14 @@
 	status = "okay";
 	pinctrl-names = "default", "clk-gate";
 	pinctrl-0 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
-	pinctrl-0 = <&emmc_clk_gate_pins>;
+	pinctrl-1 = <&emmc_clk_gate_pins>;
+
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	//mmc-ddr-1_8v;
-	//mmc-hs200-1_8v;
-	//mmc-hs400-1_8v;
-	max-frequency = <50000000>;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
 	hs4_core_phase = <0>;
@@ -1372,7 +1387,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
-	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio GPIOH_8 0>;
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";
 		status = "disabled";
@@ -1472,22 +1487,17 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	power_on-gpios  = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
 };
 
-&ddr_control {
-	/delete-property/ reg-names;
-	/delete-node/ ddr-18nm;
-	/delete-node/ ddr-20nm;
-	ddr-20nm {
-		condition-type = <DDR_THERMAL>;
-		zone-name = "soc_thermal";
-		caddr = <0xff6384b4>;
-		caddr-mask = <8 8>;
-		cstep-val = <85000 95000 95000>;
-		caddr-val = <0x4c 0x26 0x13>;
-		refresh-constant-value;
+&thermal_zones {
+	soc_thermal: soc_thermal {
+		trips {
+			pddr_change1: trip-point@3 {
+				temperature = <75000>;
+			};
+		};
 	};
 };
 

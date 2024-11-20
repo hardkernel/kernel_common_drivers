@@ -1908,7 +1908,7 @@
 			status = "okay";
 		};
 
-		audiobus: audiobus@FE330000 {
+		audiobus: audiobus@330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0x0 0xFE330000 0x0 0x3000>;
 			#address-cells = <2>;
@@ -1927,22 +1927,24 @@
 			};
 			ddr_manager {
 				compatible =
-					"amlogic, t5-audio-ddr-manager";
+					"amlogic, t3-audio-ddr-manager";
 				interrupts = <
 					GIC_SPI 32 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 33 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 34 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 45 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 40 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 36 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 37 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 38 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 46 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 47 IRQ_TYPE_EDGE_RISING
 				>;
 				interrupt-names =
 					"toddr_a", "toddr_b", "toddr_c",
-					"toddr_d",
+					"toddr_d","toddr_e",
 					"frddr_a", "frddr_b", "frddr_c",
-					"frddr_d";
+					"frddr_d","frddr_e";
 				status = "okay";
 			};
 
@@ -2041,7 +2043,7 @@
 			reg = <0x0 0xfe39c000 0x0 0x10c>;
 			#address-cells = <2>;
 			#size-cells = <2>;
-
+			status = "disabled";
 			reg-names = "hdmirx-arc";
 		};
 
@@ -2479,7 +2481,7 @@
 
 	multi-di {
 		compatible = "amlogic, dim-t7";
-		status = "okay";
+		status = "disabled";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
@@ -2766,7 +2768,7 @@
 
 	vpu: vpu {
 		compatible = "amlogic, vpu-t7";
-		status = "okay";
+		status = "disabled";
 		reg =	<0x0 0xfe000000 0x0 0x100    /* clk */
 			 0x0 0xfe00c000 0x0 0x70     /* pwrctrl */
 			 0x0 0xff000000 0x0 0xa000>; /* vcbus */
@@ -2781,7 +2783,7 @@
 				"vpu_clk1",
 				"vpu_clk";
 		clk_level = <8>;
-		/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
+		/* 0: 24M       1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
 	};
 
@@ -2836,24 +2838,24 @@
 
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux-t7";
-		status = "okay";
+		status = "disabled";
 		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
 		clock-names = "fclk_div5", "vdin_meas_clk";
 	};
 
 	vout: vout {
 		compatible = "amlogic, vout";
-		status = "okay";
+		status = "disabled";
 	};
 
 	vout2: vout2 {
 		compatible = "amlogic, vout2";
-		status = "okay";
+		status = "disabled";
 	};
 
 	vout3: vout3 {
 		compatible = "amlogic, vout3";
-		status = "okay";
+		status = "disabled";
 	};
 
 	vrr0: vrr0 {
@@ -2910,6 +2912,7 @@
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	a53_tsensor: a53_tsensor@fe022000 {
@@ -2924,6 +2927,7 @@
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	gpu_tsensor: gpu_tsensor@fe094000 {
@@ -2973,7 +2977,7 @@
 
 	vpu_tsensor: vpu_tsensor@fe098000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "okay";
+		status = "disabled";
 		reg = <0x0 0xfe098000 0x0 0x50>;
 		tsensor_id = <6>;
 		cal_type = <0x11>;
@@ -3290,10 +3294,8 @@
 		interrupt-names = "vsync_int"/*, "vpu_crash_int",*/
 				/*"write_done_int"*/;
 		rdma-irq = <4>;
-		/*clocks = <&clock CLK_FPLL_DIV5>,
-		 *	<&clock CLK_VDIN_MEAS_CLK>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
 		tv_bit_mode = <0x15>;
 		/* vdin v4l2 */
@@ -3352,7 +3354,7 @@
 	vpu_security {
 		compatible = "amlogic, meson-t7, vpu_security";
 		dev_name = "amlogic-vpu-security";
-		status = "okay";
+		status = "disabled";
 		interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vpu_security";
 	};
@@ -4731,7 +4733,7 @@
 	operating-points-v2 = <&gpu_opp_table>;
 	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
 		<0 0xFE002000 0 0x01000>, /*reset register*/
-		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/
+		<0 0 0 0>, /*aobus TODO update*/
 		<0 0xFE000000 0 0x01000>, /*hiubus for clk cntl*/
 		<0 0xFE002000 0 0x01000>; /*reset register*/
 
