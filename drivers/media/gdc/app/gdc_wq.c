@@ -162,8 +162,7 @@ static inline struct gdc_queue_item_s *find_an_item_from_pool(void)
 			goto unlock;
 		}
 
-		/* get this item and delete it from work_queue */
-		list_del(item);
+		pcontext->wq_state = GDC_STATE_RUNNING;
 
 		/* if work_queue is empty, move process_queue head */
 		if (list_empty(&pcontext->work_queue))
@@ -302,6 +301,11 @@ int get_gdc_fw_version(void)
 }
 EXPORT_SYMBOL(get_gdc_fw_version);
 
+static inline int work_queue_no_space(struct gdc_context_s *queue)
+{
+	return list_empty(&queue->free_queue);
+}
+
 struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 {
 	struct gdc_context_s *gdc_work_queue;
@@ -328,6 +332,8 @@ struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 	init_waitqueue_head(&gdc_work_queue->cmd_complete);
 	mutex_init(&gdc_work_queue->d_mutext);
 	spin_lock_init(&gdc_work_queue->lock);  /* for process lock. */
+	init_completion(&gdc_work_queue->process_complete);
+	mutex_init(&gdc_work_queue->destroy_lock);
 
 	/* put this process queue  into manager queue list. */
 	/* maybe process queue is changing . */
@@ -341,31 +347,12 @@ struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 }
 EXPORT_SYMBOL(create_gdc_work_queue);
 
-static int queue_busy_on_core_id(struct gdc_context_s *gdc_work_queue)
-{
-	struct gdc_context_s *busy_wq = NULL;
-	struct gdc_queue_item_s *busy_item = NULL;
-	u32 dev_type = gdc_work_queue->cmd.dev_type;
-	int i;
-
-	for (i = 0; i < CORE_NUM; i++) {
-		busy_item = GDC_DEV_T(dev_type)->current_item[i];
-		if (busy_item)
-			busy_wq = busy_item->context;
-		if (busy_wq == gdc_work_queue)
-			break;
-	}
-
-	return (i >= CORE_NUM ? -1 : i);
-}
-
 int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue)
 {
 	struct gdc_queue_item_s *pitem, *tmp;
 	struct list_head		*head;
 	int empty, timeout = 0;
 	struct completion *process_com = NULL;
-	int core_index;
 
 	if (gdc_work_queue) {
 		/* first detach it from the process queue,then delete it . */
@@ -375,18 +362,22 @@ int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue)
 		empty = list_empty(&gdc_manager.process_queue);
 		spin_unlock(&gdc_manager.event.sem_lock);
 
-		core_index = queue_busy_on_core_id(gdc_work_queue);
-		if (core_index >= 0) {
+		mutex_lock(&gdc_work_queue->destroy_lock);
+		if (gdc_work_queue->wq_state == GDC_STATE_RUNNING) {
 			process_com =
-				&gdc_manager.event.process_complete[core_index];
+				&gdc_work_queue->process_complete;
 			gdc_work_queue->gdc_request_exit = 1;
+			mutex_unlock(&gdc_work_queue->destroy_lock);
 			timeout = wait_for_completion_timeout
 					(process_com, msecs_to_jiffies(500));
 			if (!timeout)
 				gdc_log(LOG_ERR, "wait timeout\n");
 			/* condition so complex ,simplify it . */
 			gdc_manager.last_wq = NULL;
-		} /* else we can delete it safely. */
+		} else {
+			mutex_unlock(&gdc_work_queue->destroy_lock);
+		}
+		/* we can delete it safely. */
 
 		head = &gdc_work_queue->work_queue;
 		list_for_each_entry_safe(pitem, tmp, head, list) {
@@ -414,11 +405,22 @@ EXPORT_SYMBOL(destroy_gdc_work_queue);
 
 void *gdc_prepare_item(struct gdc_context_s *wq)
 {
-	struct gdc_queue_item_s *pitem;
+	struct gdc_queue_item_s *pitem = NULL;
 
-	pitem = kmalloc(sizeof(*pitem), GFP_KERNEL);
-	if (!pitem)
+	if (work_queue_no_space(wq)) {
+		pitem = kzalloc(sizeof(*pitem), GFP_KERNEL);
+		if (!pitem)
+			return NULL;
+		spin_lock(&wq->lock);
+		list_add_tail(&pitem->list, &wq->free_queue);
+		spin_unlock(&wq->lock);
+	}
+
+	pitem = list_entry(wq->free_queue.next, struct gdc_queue_item_s, list);
+	if (IS_ERR_OR_NULL(pitem)) {
+		gdc_log(LOG_ERR, "@@%s:%d, failed\n", __func__, __LINE__);
 		return NULL;
+	}
 
 	memcpy(&pitem->cmd, &wq->cmd, sizeof(struct gdc_cmd_s));
 	memcpy(&pitem->dma_cfg, &wq->dma_cfg, sizeof(struct gdc_dma_cfg_t));
@@ -445,10 +447,13 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 	/* for block mode, notify item cmd done */
 	if (block_mode) {
 		pitem->cmd.wait_done_flag = 0;
-		wake_up_interruptible(&current_wq->cmd_complete);
-	} else {
-		kfree(pitem);
+		wake_up(&current_wq->cmd_complete);
 	}
+
+	/* move this item from work_queue to free queue */
+	spin_lock(&gdc_manager.event.sem_lock);
+	list_move_tail(&pitem->list, &current_wq->free_queue);
+	spin_unlock(&gdc_manager.event.sem_lock);
 
 	gdc_dev->is_idle[core_id] = 1;
 
@@ -457,8 +462,13 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 		up(&gdc_manager.event.cmd_in_sem);
 
 	/* if context is tring to exit */
-	if (current_wq->gdc_request_exit)
-		complete(&gdc_manager.event.process_complete[core_id]);
+	mutex_lock(&current_wq->destroy_lock);
+	if (current_wq && list_empty(&current_wq->work_queue)) {
+		if (current_wq->gdc_request_exit)
+			complete(&current_wq->process_complete);
+		current_wq->wq_state = GDC_STATE_IDLE;
+	}
+	mutex_unlock(&current_wq->destroy_lock);
 }
 
 u32 gdc_time_cost(struct gdc_queue_item_s *pitem)
@@ -509,7 +519,7 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 
 	gdc_log(LOG_DEBUG, "gdc add work\n");
 	spin_lock(&wq->lock);
-	list_add_tail(&pitem->list, &wq->work_queue);
+	list_move_tail(&pitem->list, &wq->work_queue);
 	spin_unlock(&wq->lock);
 	gdc_log(LOG_DEBUG, "gdc add work ok\n");
 	/* only read not need lock */
@@ -518,7 +528,7 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 
 	if (block) {
 		while (1) {
-			ret = wait_event_interruptible_timeout
+			ret = wait_event_timeout
 					(wq->cmd_complete,
 					 pitem->cmd.wait_done_flag == 0,
 					 msecs_to_jiffies(polling_ms));
@@ -534,7 +544,6 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 				}
 				continue;
 			}
-			kfree(pitem);
 			break;
 		}
 	}
@@ -544,16 +553,12 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 
 int gdc_wq_init(void)
 {
-	int i;
-
 	gdc_log(LOG_INFO, "init gdc device\n");
 
 	/* prepare bottom half */
 	spin_lock_init(&gdc_manager.event.sem_lock);
 	sema_init(&gdc_manager.event.cmd_in_sem, 1);
 	init_completion(&gdc_manager.event.d_com);
-	for (i = 0; i < CORE_NUM; i++)
-		init_completion(&gdc_manager.event.process_complete[i]);
 	/* coverity[Data race condition] init not need lock */
 	INIT_LIST_HEAD(&gdc_manager.process_queue);
 	gdc_manager.last_wq = NULL;

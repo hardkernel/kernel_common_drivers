@@ -104,7 +104,7 @@ static void gdc_endian_config(struct gdc_cmd_s *gdc_cmd, u32 core_id)
 	if (dev_type == ARM_GDC)
 		return;
 
-	if (gdc_debug_enable) {
+	if (gdc_endian_debug_enable) {
 		gdc_datain_swap_64bit_write(gdc_in_swap_64bit, core_id);
 		gdc_dataout_swap_64bit_write(gdc_out_swap_64bit, core_id);
 
@@ -193,6 +193,24 @@ static void gdc_endian_config(struct gdc_cmd_s *gdc_cmd, u32 core_id)
 			"in_swap_64bit:%d out_swap_64_bit:%d in_swap_endian:%d, out_swap_endian:%d",
 			in_swap_64bit, out_swap_64bit,
 			in_swap_endian, out_swap_endian);
+	}
+}
+
+static void gdc_uvswap_config(struct gdc_cmd_s *gdc_cmd, u32 core_id)
+{
+	u32 dev_type = gdc_cmd->dev_type;
+
+	if (dev_type == ARM_GDC)
+		return;
+
+	if (gdc_uvswap_debug_enable) {
+		gdc_uv_swap_write(gdc_uv_swap_enable, core_id);
+	} else {
+		u32 uv_swap_enable = 0;
+
+		uv_swap_enable = gdc_cmd->uvswap_enable;
+		gdc_uv_swap_write(uv_swap_enable, core_id);
+		gdc_log(LOG_DEBUG, "uv_swap_enable%d\n", uv_swap_enable);
 	}
 }
 
@@ -314,6 +332,7 @@ int gdc_process(struct gdc_cmd_s *gdc_cmd,
 		set_ext_8g_msb(dma_cfg, 2);
 
 	gdc_endian_config(gdc_cmd, core_id);
+	gdc_uvswap_config(gdc_cmd, core_id);
 	gdc_start(gdc_cmd, core_id);
 
 	return 0;
