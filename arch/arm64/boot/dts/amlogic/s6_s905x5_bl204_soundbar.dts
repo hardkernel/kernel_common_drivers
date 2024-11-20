@@ -1190,10 +1190,10 @@
 &tdmc {
 	dai-tdm-lane-slot-mask-in = <1 0 0 0>;
 	dai-tdm-lane-slot-mask-out = <1 1 1 1>;
-	dai-tdm-clk-sel = <1>;
+	dai-tdm-clk-sel = <2>;
 
-	clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-			&clkaudio CLKID_AUDIO_MCLK_PAD1
+	clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+			&clkaudio CLKID_AUDIO_MCLK_PAD2
 			&clkc CLKID_HIFI_PLL
 			&clkc CLKID_HIFI1_PLL>;
 	clock-names = "mclk",  "mclk_pad", "clk_srcpll", "clk_src_cd";
