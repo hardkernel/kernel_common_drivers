@@ -487,7 +487,7 @@
 		clkfreq-khz = <1002000>;
 	};
 
-	shmem@50f7e00 {
+	shmem {
 		compatible = "mmio-sram";
 		reg = <0x0 0x50f6000 0x0 0x100>;
 		#address-cells = <1>;
