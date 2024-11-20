@@ -10137,7 +10137,8 @@ void vlock_clk_config(struct amvecm_dev_s *devp, struct device *dev)
 		return;
 
 	if (chip_type_id == chip_s5 ||
-		chip_cls_id == AD_CHIP)
+		chip_cls_id == AD_CHIP ||
+		chip_cls_id == STB_CHIP)
 		return;
 
 	vlock_reg_config(dev);
