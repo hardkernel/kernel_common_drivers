@@ -1583,6 +1583,8 @@ static void frddr_set_sharebuffer_enable(struct frddr *fr,  int dst, int lvl, bo
 
 	aml_audiobus_update_bits(actrl, reg, s_m, s_v);
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
+/*remove mixer same source*/
+/*
 	if (aml_get_mixer_is_exist(fr)) {
 		if (lvl == 1)
 			aml_audiobus_update_bits(actrl, reg, 1 << 12, 0 << 12);
@@ -1592,6 +1594,7 @@ static void frddr_set_sharebuffer_enable(struct frddr *fr,  int dst, int lvl, bo
 	}
 	if (aml_get_mixer_is_exist(fr) && !aml_check_aed_module(dst))
 		mixer_demux_sel(dst);
+*/
 #endif
 }
 
