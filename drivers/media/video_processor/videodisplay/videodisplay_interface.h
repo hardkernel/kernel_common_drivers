@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/video_processor/video_composer/videodisplay.h
+ * drivers/amlogic/media/video_processor/video_composer/videodisplay_interface.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -16,31 +16,23 @@
  *
  */
 
-#ifndef VIDEO_DISPLAY_H
-#define VIDEO_DISPLAY_H
+#ifndef VIDEODISPLAY_INTERFACE_H
+#define VIDEODISPLAY_INTERFACE_H
 
-#include "video_composer.h"
-
-/* disable video_display mode */
-#define VIDEO_DISPLAY_ENABLE_NONE    0
-#define VIDEO_DISPLAY_ENABLE_NORMAL  1
-
-#define MAX_VIDEO_COMPOSER_INSTANCE_NUM 3
-
-extern u32 vd_pulldown_level;
-extern u32 vd_max_hold_count;
-extern u32 vd_set_frame_delay[];
-extern struct vframe_s *current_display_vf;
-extern u32 vpp_drop_count;
-extern u32 use_low_latency;
-extern u32 new_afr_pulldown;
-extern u32 vd_test_fps[MAX_VD_LAYERS];
-extern u64 vd_test_fps_val[MAX_VD_LAYERS];
-extern u64 vd_test_vsync_val[MAX_VD_LAYERS];
-extern struct video_composer_port_s ports[];
-#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
-extern struct mediaproxy_info_t mediaproxy_display_info[];
-#endif
+#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/mutex.h>
+#include <linux/videodev2.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
+#include <linux/delay.h>
+#include <linux/kfifo.h>
+#include <linux/dma-buf.h>
+#include <linux/dma-mapping.h>
 
 struct video_display_frame_info_t {
 	struct dma_buf *dmabuf;
@@ -94,14 +86,14 @@ struct mbd_video_frame_info_t {
 	u32 reserved[10];
 };
 
-int video_display_create_path(struct composer_dev *dev);
-int video_display_release_path(struct composer_dev *dev);
-void vd_prepare_data_q_put(struct composer_dev *dev,
-			struct vd_prepare_s *vd_prepare);
-struct vd_prepare_s *vd_prepare_data_q_get(struct composer_dev *dev);
-int vd_render_index_get(struct composer_dev *dev);
-void video_display_para_reset(int layer_index);
-int find_nearest_duration(struct composer_dev *dev, int duration_val);
-bool check_frc_n2m_status(void);
+int video_display_setenable(int layer_index, int is_enable);
+int video_display_setframe(int layer_index,
+			struct video_display_frame_info_t *frame_info,
+			int flags);
+int mbd_video_display_setframe(int layer_index,
+			struct mbd_video_frame_info_t *frame_info,
+			int flags);
+void vsync_notify_videodisplay(u8 layer_id, u32 vpp_vsync_pts_inc_scale,
+			u32 vpp_vsync_pts_inc_scale_base);
 
 #endif

@@ -1804,6 +1804,12 @@
 		status = "okay";
 	};
 
+	videodisplay {
+		compatible = "amlogic, videodisplay";
+		dev_name = "videodisplay";
+		status = "okay";
+	};
+
 	di_process {
 		compatible = "amlogic, di_process";
 		dev_name = "di_process";

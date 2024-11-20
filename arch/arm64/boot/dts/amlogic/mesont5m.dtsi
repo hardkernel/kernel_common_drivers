@@ -1183,6 +1183,12 @@
 			status = "okay";
 		};
 
+		videodisplay {
+			compatible = "amlogic, videodisplay";
+			dev_name = "videodisplay";
+			status = "okay";
+		};
+
 		acodec:codec {
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t5w_acodec";

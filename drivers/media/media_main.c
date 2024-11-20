@@ -88,6 +88,7 @@ static int __init media_main_init(void)
 	call_sub_init(tsync_module_init);
 	call_sub_init(tsync_pcr_init);
 	call_sub_init(video_composer_module_init);
+	call_sub_init(videodisplay_module_init);
 	call_sub_init(meson_videotunnel_init);
 	call_sub_init(vdetect_init);
 	call_sub_init(videoqueue_init);

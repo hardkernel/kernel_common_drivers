@@ -3200,6 +3200,11 @@ static int vdx_misc_early_proc(u8 layer_id,
 				vsync_pts_inc_scale,
 				pts_inc_scale_base);
 #endif
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+			vsync_notify_videodisplay(layer_id,
+				vsync_pts_inc_scale,
+				pts_inc_scale_base);
+#endif
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 			vsync_notify_videoqueue(layer_id,
 				vsync_pts_inc_scale,
@@ -3211,6 +3216,11 @@ static int vdx_misc_early_proc(u8 layer_id,
 		if (layer_id != 0 && !post_vsync_notify) {
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 			vsync_notify_video_composer(layer_id,
+				vsync_pts_inc_scale,
+				vsync_pts_inc_scale_base);
+#endif
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+			vsync_notify_videodisplay(layer_id,
 				vsync_pts_inc_scale,
 				vsync_pts_inc_scale_base);
 #endif
@@ -3230,6 +3240,11 @@ static int vdx_misc_early_proc(u8 layer_id,
 					vsync_pts_inc_scale,
 					vsync_pts_inc_scale_base / 2);
 #endif
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+				vsync_notify_videodisplay(layer_id,
+					vsync_pts_inc_scale,
+					vsync_pts_inc_scale_base / 2);
+#endif
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 				vsync_notify_videoqueue(layer_id,
 					vsync_pts_inc_scale,
@@ -3239,6 +3254,11 @@ static int vdx_misc_early_proc(u8 layer_id,
 			} else {
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 				vsync_notify_video_composer(layer_id,
+					vsync_pts_inc_scale,
+					vsync_pts_inc_scale_base);
+#endif
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+				vsync_notify_videodisplay(layer_id,
 					vsync_pts_inc_scale,
 					vsync_pts_inc_scale_base);
 #endif
@@ -3252,6 +3272,11 @@ static int vdx_misc_early_proc(u8 layer_id,
 		/* always postvsync case for no n2m */
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 			vsync_notify_video_composer(layer_id,
+				vsync_pts_inc_scale,
+				vsync_pts_inc_scale_base);
+#endif
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+			vsync_notify_videodisplay(layer_id,
 				vsync_pts_inc_scale,
 				vsync_pts_inc_scale_base);
 #endif
@@ -5248,6 +5273,11 @@ void pre_vsync_process(void)
 	if (cur_dev->vsync_2to1_enable && frc_n2m_worked()) {
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 		vsync_notify_video_composer(0,
+			vsync_pts_inc_scale,
+			vsync_pts_inc_scale_base / 2);
+#endif
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+		vsync_notify_videodisplay(0,
 			vsync_pts_inc_scale,
 			vsync_pts_inc_scale_base / 2);
 #endif

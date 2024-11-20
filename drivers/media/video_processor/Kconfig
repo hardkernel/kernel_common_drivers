@@ -27,6 +27,7 @@ source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videotunnel/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videoqueue/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/common/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/di_process/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videodisplay/Kconfig"
 endif
 
 endmenu

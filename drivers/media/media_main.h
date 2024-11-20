@@ -396,6 +396,16 @@ static inline int video_composer_module_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+int videodisplay_module_init(void);
+#else
+static inline int videodisplay_module_init(void)
+{
+	return 0;
+}
+
+#endif
+
 #ifdef CONFIG_AMLOGIC_VIDEO_TUNNEL
 int meson_videotunnel_init(void);
 void meson_videotunnel_exit(void);

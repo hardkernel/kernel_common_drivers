@@ -49,4 +49,5 @@
 #define VICP_MAJOR              (31 + (AML_BASE))
 #define DI_PROCESS_MAJOR	(32 + (AML_BASE))
 #define AML_DHP_MAJOR		(33 + (AML_BASE))
+#define VIDEODISPLAY_MAJOR	(34 + (AML_BASE))
 #endif
