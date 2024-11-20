@@ -198,6 +198,7 @@
 			mmc_debug_flag;
 			fixadj_have_hole;
 			//resets = <&reset RESET_SD_EMMC_C>;
+			full-pwr-cycle;
 			no-sdio;
 			no-sd;
 		};

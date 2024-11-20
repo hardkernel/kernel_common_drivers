@@ -1169,6 +1169,7 @@
 				 <&clkc CLKID_GP1_PLL>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
+			full-pwr-cycle;
 			no-sdio;
 			no-sd;
 			card_type = <1>;

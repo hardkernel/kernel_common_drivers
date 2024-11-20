@@ -1573,6 +1573,7 @@
 			ignore_desc_busy;
 			tx_delay = <20>;
 			nwr_cnt = <12>;
+			full-pwr-cycle;
 			no-sdio;
 			no-sd;
 		//	supports-cqe;

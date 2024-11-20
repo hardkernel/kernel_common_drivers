@@ -537,7 +537,7 @@ int32_t emmc_key_read(u8 *buffer,
 	u64  addr = 0;
 	u32  size = 0;
 	int blk, cnt;
-	unsigned char *dst = NULL;
+	unsigned char *dst;
 	struct mmc_card *card = mmc_card_key;
 	int bit = card->csd.read_blkbits;
 

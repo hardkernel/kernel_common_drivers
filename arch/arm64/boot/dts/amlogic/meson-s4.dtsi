@@ -1344,6 +1344,9 @@
 			mmc_debug_flag;
 			tx_delay = <10>;
 			src_clk_rate = <1179648000>;
+			full-pwr-cycle;
+			no-sd;
+			no-sdio;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 

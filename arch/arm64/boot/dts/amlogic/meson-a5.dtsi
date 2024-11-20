@@ -948,7 +948,7 @@
 			ignore_desc_busy;
 			mmc_debug_flag;
 			src_clk_rate = <1152000000>;
-		//	enable-ctrl-power;
+			full-pwr-cycle;
 			no-sd;
 			no-sdio;
 		//	resets = <&reset RESET_SD_EMMC_C>;

@@ -42,10 +42,6 @@
 /* magic is 0x00487e44 */
 #define TUNED_MAGIC           0x00487e44
 
-#define MMC_DEVICES_NUM 2
-#define MMC_MULT_DEV_SEQ_SD 1
-#define MMC_MULT_DEV_SEQ_SDIO 2
-
 struct mmc_phase {
 	unsigned int core_phase;
 	unsigned int tx_phase;
@@ -107,11 +103,6 @@ struct sd_emmc_desc {
 #define SG_LENGTH_MASK      GENMASK(31, 16)
 #define SG_LENGTH_MAX       (64 * 1024)
 
-struct meson_mmc_hole {
-	u8 start;
-	u8 size;
-};
-
 struct hs400_para {
 	unsigned int delay1;
 	unsigned int delay2;
@@ -154,7 +145,6 @@ struct meson_host {
 	void __iomem *clk_tree_base;
 	struct resource *res[3];
 	struct clk *core_clk;
-	struct clk *tx_clk;
 	struct clk *mmc_clk;
 	struct clk *mux[3];
 	struct clk *mux_div;
@@ -184,32 +174,15 @@ struct meson_host {
 	bool vqmmc_enabled;
 	struct para_e sd_mmc;
 	char is_tuning;
-	unsigned int delay_cell;
 	bool needs_pre_post_req;
 	int sd_sdio_switch_volat_done;
 	int irq_sdio_sleep;
 	int sdio_irqen;
-	unsigned int emmc_boot_base;
-	u32 pin_mux_val;
-	u32 clk_tree_val;
-	u32 host_clk_val;
 	int debug_flag;
 	unsigned int card_type;
-	unsigned int card_insert;
-	u8 fixadj_have_hole;
-	struct meson_mmc_hole hole[3];
-	u8 fix_hole;
-	u64 align[10];
-	char cmd_retune;
-	unsigned int win_start;
 	u8 *blk_test;
 	u8 *adj_win;
-	unsigned int cmd_c;
-	int cd_irq;
-	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
 	void (*pre_dma)(struct mmc_host *mmc, u32 cmd_cfg, struct mmc_command *cmd);
-	int is_uart;
-	int sd_uart_init;
 	int first_temp_index;
 	int cur_temp_index;
 	int compute_cmd_delay;
@@ -226,95 +199,10 @@ struct meson_host {
 	bool enable_inline_crypto;
 	int flags;
 	spinlock_t lock; /* lock for claim and bus ops */
-	bool src_clk_cfg_done;
-	bool tdma;
 	bool sd_clk_sample;
 	struct dentry *debugfs_root;
 	struct clk *src_clk;
-	unsigned int f_min;
-	unsigned int f_max;
-	struct completion drv_completion;
 	unsigned int vendor_id;
-};
-
-struct amlsd_platform {
-	struct meson_host *host;
-	struct mmc_host *mmc;
-	struct list_head sibling;
-	struct para_e sd_mmc;
-	u32 ocr_avail;
-	u32 port;
-	u32 debug_flag;
-	unsigned long req_rate;
-	struct clk *src_clk;
-	struct pinctrl_state *pins_default;
-	struct pinctrl_state *pins_clk_gate;
-	unsigned char timing;
-	bool vqmmc_enabled;
-	bool auto_clk;
-	bool ddr;
-	bool ignore_desc_busy;
-	unsigned int card_insert;
-	int is_uart;
-	unsigned int src_clk_rate;
-	char is_tuning;
-	struct delayed_work cd_detect;
-	unsigned int caps;
-	unsigned int caps2;
-	unsigned int pm_caps;
-	unsigned int card_capacity;
-	unsigned int tx_phase;
-	unsigned int tx_delay;
-	unsigned int runtime;
-	unsigned int save_para;
-	unsigned int co_phase;
-	unsigned int f_min;
-	unsigned int f_max;
-	unsigned int clkc;
-	unsigned int clk2;
-	unsigned int clkc_w;
-	unsigned int ctrl;
-	unsigned int adj;
-	unsigned int dly1;
-	unsigned int dly2;
-	unsigned int intf3;
-	unsigned int win_start;
-	unsigned int irq_sdio_sleep;
-	unsigned int clock;
-	/* signalling voltage (1.8V or 3.3V) */
-	unsigned char signal_voltage;
-	int	bus_width;
-	int	bl_len;
-	int	stop_clk;
-
-	unsigned int irq_cd;
-	unsigned int gpio_cd;
-	unsigned int gpio_cd_level;
-	unsigned int gpio_cd_sta;
-	unsigned int gpio_power;
-	unsigned int power_mode;
-	unsigned int no_sduart;
-	unsigned int scan_val;
-	unsigned int vol_switch;
-	unsigned int vol_switch_18;
-	unsigned int vol_switch_delay;
-	unsigned int gpio_ro;
-	unsigned int gpio_trigger;
-	unsigned int gpio_dat3;
-	unsigned int hw_reset;
-	unsigned int jtag_pin;
-	int is_sduart;
-	unsigned int card_in_delay;
-	bool is_in;
-	/* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD),
-	 * 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card,
-	 * 5:NON sdio device(means sd/mmc card), other:reserved
-	 */
-	unsigned int card_type;
-	unsigned int max_blk_count;
-	unsigned int max_blk_size;
-	unsigned int max_req_size;
-	unsigned int max_seg_size;
 };
 
 struct wifi_clk_table {
@@ -339,14 +227,6 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 extern struct mmc_host *sdio_host;
 
 #define   DRIVER_NAME "meson-gx-mmc"
-#define   G12A_DRIVER_NAME "meson-g12a-mmc"
-
-#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
-void mmc_sd_update_cmdline_timing(void *data, struct mmc_card *card, int *err);
-void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
-#define SD_CMD_TIMING mmc_sd_update_cmdline_timing
-#define SD_DATA_TIMING mmc_sd_update_dataline_timing
-#endif
 
 #define	  SD_EMMC_CLOCK 0x0
 #define   CLK_DIV_MASK GENMASK(5, 0)
@@ -356,9 +236,6 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define   CLK_RX_PHASE_MASK GENMASK(13, 12)
 #define   CLK_PHASE_0 0
 #define   CLK_PHASE_180 2
-#define   CLK_V2_TX_DELAY_MASK GENMASK(19, 16)
-#define   CLK_V2_RX_DELAY_MASK GENMASK(23, 20)
-#define   CLK_V2_ALWAYS_ON BIT(24)
 
 #define   CLK_V3_TX_DELAY_MASK GENMASK(21, 16)
 #define   CLK_V3_RX_DELAY_MASK GENMASK(27, 22)
@@ -369,13 +246,6 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define   CLK_TX_DELAY_MASK(h)    ((h)->data->tx_delay_mask)
 #define   CLK_RX_DELAY_MASK(h)    ((h)->data->rx_delay_mask)
 #define   CLK_ALWAYS_ON(h)        ((h)->data->always_on)
-
-#define SD_EMMC_DELAY 0x4
-
-#define SD_EMMC_ADJUST 0x8
-#define   ADJUST_ADJ_DELAY_MASK GENMASK(21, 16)
-#define   ADJUST_DS_EN BIT(15)
-#define   ADJUST_ADJ_EN BIT(13)
 
 #define SD_EMMC_DELAY1 0x4
 #define SD_EMMC_DELAY2 0x8

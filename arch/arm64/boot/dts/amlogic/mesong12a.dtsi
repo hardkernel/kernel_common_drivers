@@ -1518,6 +1518,7 @@
 		init_core_phase = <3>;
 		hs2_core_phase = <3>;
 		mmc_debug_flag;
+		full-pwr-cycle;
 		no-sdio;
 		no-sd;
 	};

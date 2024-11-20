@@ -1169,6 +1169,7 @@
 			compute_cmd_delay = <0>;
 			compute_coef = <0>;
 			mmc_debug_flag;
+			full-pwr-cycle;
 			no-sdio;
 			no-sd;
 			/* 1:mmc card(include eMMC),

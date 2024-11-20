@@ -35,7 +35,6 @@
 #include <mmc_ops.h>
 #include <linux/time.h>
 #include <linux/random.h>
-#include <linux/gpio/consumer.h>
 #include <linux/sched/clock.h>
 #include <linux/debugfs.h>
 #include "mmc_key.h"
@@ -45,15 +44,6 @@
 #include <linux/amlogic/gki_module.h>
 
 #include "meson-cqhci.h"
-
-struct mmc_gpio {
-	struct gpio_desc *ro_gpio;
-	struct gpio_desc *cd_gpio;
-	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
-	char *ro_label;
-	char *cd_label;
-	u32 cd_debounce_delay_ms;
-};
 
 struct wifi_clk_table wifi_clk[WIFI_CLOCK_TABLE_MAX] = {
 	{"8822BS", 0, 0xb822, 167000000},
@@ -372,7 +362,7 @@ int mmc_write_internal(struct mmc_card *card, unsigned int dev_addr,
 	return mmc_transfer(card, dev_addr, blocks, buf, 1);
 }
 
-static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
+static unsigned int meson_mmc_get_timeout_msecs(const struct mmc_data *data)
 {
 	unsigned int timeout = data->timeout_ns / NSEC_PER_MSEC;
 
@@ -384,7 +374,7 @@ static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
 	return min(timeout, 32768U); /* max. 2^15 ms */
 }
 
-static unsigned int meson_mmc_get_cmd_timeout_msecs(struct mmc_command *cmd)
+static unsigned int meson_mmc_get_cmd_timeout_msecs(const struct mmc_command *cmd)
 {
 	unsigned int timeout = cmd->busy_timeout;
 
@@ -547,8 +537,7 @@ static void pxp_clk_set(struct meson_host *host, unsigned long rate)
 	pr_info("clock reg:0x%x, rate:%lu\n", readl(host->regs + SD_EMMC_CLOCK), rate);
 }
 
-static int no_pxp_clk_set(struct meson_host *host, struct mmc_ios *ios,
-						unsigned long rate)
+static int no_pxp_clk_set(struct meson_host *host, const struct mmc_ios *ios, unsigned long rate)
 {
 	int ret = 0;
 	struct clk *src_clk = NULL;
@@ -853,7 +842,6 @@ static unsigned int aml_sd_emmc_clktest(struct mmc_host *mmc)
 	vcfg = readl(host->regs + SD_EMMC_CFG);
 	vcfg |= (1 << 23);
 	writel(vcfg, host->regs + SD_EMMC_CFG);
-	host->delay_cell = delay_cell;
 	return count;
 }
 
@@ -1008,7 +996,7 @@ static unsigned long _test_fixed_adj(struct mmc_host *mmc,
 		pr_debug("%s: rx_tuning_result[%d] = %d\n",
 				mmc_hostname(mmc), adj + i, nmatch);
 	}
-	len += sprintf(adj_print + len, ">\n");
+	sprintf(adj_print + len, ">\n");
 	pr_debug("%s", host->adj_win);
 
 	return fixed_adj_map;
@@ -2018,7 +2006,7 @@ static int emmc_eyetest_log(struct mmc_host *mmc, u32 line_x)
 	u32 eyetest_out0 = 0, eyetest_out1 = 0;
 	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
 	int retry = 3;
-	u64 tmp = 0;
+	u64 tmp = 0, align;
 	u32 blksz = 512;
 
 	pr_debug("delay1: 0x%x , delay2: 0x%x, line_x: %d\n",
@@ -2066,11 +2054,11 @@ RETRY:
 	intf3 &= ~EYETEST_ON;
 	writel(intf3, host->regs + SD_EMMC_INTF3);
 	writel(0, host->regs + SD_EMMC_V3_ADJUST);
-	host->align[line_x] = ((tmp | eyetest_out1) << 32) | eyetest_out0;
+	align = ((tmp | eyetest_out1) << 32) | eyetest_out0;
 	pr_debug("d1:0x%x,d2:0x%x,u64eyet:0x%016llx,l_x:%d\n",
 		 readl(host->regs + SD_EMMC_DELAY1),
 		 readl(host->regs + SD_EMMC_DELAY2),
-		 host->align[line_x], line_x);
+		 align, line_x);
 	return 0;
 }
 
@@ -2102,11 +2090,7 @@ static int single_read_scan(struct mmc_host *mmc, u8 opcode,
 
 static void emmc_show_cmd_window(char *str, int repeat_times)
 {
-	int pre_status = 0;
-	int status = 0;
-	int single = 0;
-	int start = 0;
-	int i;
+	int pre_status = 0, status = 0, single = 0, start = 0, i;
 
 	pr_info(">>>>>>>>>>>>>>scan command window>>>>>>>>>>>>>>>\n");
 	for (i = 0; i < 64; i++) {
@@ -2313,7 +2297,7 @@ static unsigned int tl1_emmc_line_timing(struct mmc_host *mmc)
 	delay1 = (count << 0) | (count << 6) | (count << 12) |
 		(count << 18) | (count << 24);
 	delay2 = (count << 0) | (count << 6) | (count << 12) |
-		(host->cmd_c << 24);
+		(0 << 24);
 	writel(delay1, host->regs + SD_EMMC_DELAY1);
 	writel(delay2, host->regs + SD_EMMC_DELAY2);
 	pr_debug("[%s], delay1: 0x%x, delay2: 0x%x\n",
@@ -2371,8 +2355,6 @@ static int emmc_test_bus(struct mmc_host *mmc)
 
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 				  host->blk_test, blksz, 40, MMC_MAGIC_NAME);
-	if (err)
-		goto _out;
 
 _out:
 	/* get cmd index from curr desc & next desc */
@@ -2446,8 +2428,6 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 			best_start = cur_start;
 			best_size = cur_size;
 		}
-		cur_start = -1;
-		cur_size = -1;
 	}
 	intf3 &= ~DS_SHT_M_MASK;
 	intf3 &= ~DS_SHT_EXP_MASK;
@@ -3482,152 +3462,6 @@ int sdio_get_vendor(void)
 }
 EXPORT_SYMBOL(sdio_get_vendor);
 
-static struct pinctrl * __must_check aml_pinctrl_select(struct meson_host *host,
-							const char *name)
-{
-	struct pinctrl *p = host->pinctrl;
-	struct pinctrl_state *s;
-	int ret = 1;
-
-	if (!p) {
-		dev_err(host->dev, "%s NULL POINT!!\n", __func__);
-		return ERR_PTR(ret);
-	}
-
-	s = pinctrl_lookup_state(p, name);
-	if (IS_ERR(s)) {
-		pr_err("lookup %s fail\n", name);
-		devm_pinctrl_put(p);
-		return ERR_CAST(s);
-	}
-
-	ret = pinctrl_select_state(p, s);
-	if (ret < 0) {
-		pr_err("select %s fail\n", name);
-		devm_pinctrl_put(p);
-		return ERR_PTR(ret);
-	}
-	return p;
-}
-
-static int aml_uart_switch(struct meson_host *host, bool on)
-{
-	struct pinctrl *pc;
-	char *name[2] = {
-		"sd_to_ao_uart_pins",
-		"ao_to_sd_uart_pins",
-	};
-
-	pc = aml_pinctrl_select(host, name[on]);
-	return on;
-}
-
-static int aml_is_sduart(struct meson_host *host)
-{
-	int in = 0, i;
-	int high_cnt = 0, low_cnt = 0;
-	u32 vstat = 0;
-
-	if (host->is_uart)
-		return 0;
-	//if (!host->sd_uart_init) {
-	//	aml_uart_switch(host, 0);
-	//} else {
-	//	in = (readl(host->pin_mux_base) & DATA3_PINMUX_MASK) >>
-	//		__ffs(DATA3_PINMUX_MASK);
-	//	if (in == 2)
-	//		return 1;
-	//	else
-	//		return 0;
-	//}
-	for (i = 0; ; i++) {
-		mdelay(1);
-		vstat = readl(host->regs + SD_EMMC_STATUS) & 0xffffffff;
-		if (vstat & 0x80000) {
-			high_cnt++;
-			low_cnt = 0;
-		} else {
-			low_cnt++;
-			high_cnt = 0;
-		}
-		if (high_cnt > 100 || low_cnt > 100)
-			break;
-	}
-	if (low_cnt > 100)
-		in = 1;
-	return in;
-}
-
-static int aml_is_card_insert(struct mmc_gpio *ctx)
-{
-	int ret = 0, in_count = 0, out_count = 0, i;
-
-	if (ctx->cd_gpio) {
-		for (i = 0; i < 200; i++) {
-			ret = gpiod_get_value(ctx->cd_gpio);
-			if (ret)
-				out_count++;
-			in_count++;
-			if (out_count > 100 || in_count > 100)
-				break;
-		}
-		if (out_count > 100)
-			ret = 1;
-		else if (in_count > 100)
-			ret = 0;
-	}
-//        if (ctx->override_cd_active_level)
-  //              ret = !ret; /* reverse, so ---- 0: no inserted  1: inserted */
-
-	return ret;
-}
-
-int meson_mmc_cd_detect(struct mmc_host *mmc)
-{
-	int gpio_val, val, ret;
-	struct meson_host *host = mmc_priv(mmc);
-	struct mmc_gpio *ctx = mmc->slot.handler_priv;
-
-	gpio_val = aml_is_card_insert(ctx);
-	dev_dbg(host->dev, "card %s\n", gpio_val ? "OUT" : "IN");
-	mmc->trigger_card_event = true;
-	if (!gpio_val) {//card insert
-		if (host->card_insert)
-			return 0;
-		host->card_insert = 1;
-		val = aml_is_sduart(host);
-		dev_notice(host->dev, " %s insert\n", val ? "UART" : "SDCARD");
-		if (val) {//uart insert
-			host->is_uart = 1;
-			aml_uart_switch(host, 1);
-			mmc->caps &= ~MMC_CAP_4_BIT_DATA;
-			host->pins_default = pinctrl_lookup_state(host->pinctrl,
-								  "sd_1bit_pins");
-			if (IS_ERR(host->pins_default)) {
-				ret = PTR_ERR(host->pins_default);
-				return ret;
-			}
-		} else {//sdcard insert
-			aml_uart_switch(host, 0);
-			mmc->caps |= MMC_CAP_4_BIT_DATA;
-			host->pins_default = pinctrl_lookup_state(host->pinctrl,
-								  "sd_default");
-		}
-	} else { //card out
-		if (!host->card_insert)
-			return 0;
-		if (host->is_uart) {
-			host->is_uart = 0;
-			devm_free_irq(mmc->parent, host->cd_irq, mmc);
-		}
-		host->card_insert = 0;
-		aml_uart_switch(host, 0);
-	}
-	if (!host->is_uart)
-		mmc_detect_change(mmc, msecs_to_jiffies(200));
-	return 0;
-}
-
 static void scan_emmc_tx_win(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -4340,19 +4174,8 @@ static int caps2_setup(char *p)
 
 __setup("meson-gx-mmc.caps2_quirks=", caps2_setup);
 
-int __init meson_mmc_init(void)
-{
-	return platform_driver_register(&meson_mmc_driver);
-}
+module_platform_driver(meson_mmc_driver);
 
-void __exit meson_mmc_exit(void)
-{
-	platform_driver_unregister(&meson_mmc_driver);
-}
-
-//__module_param(caps2_quirks, charp, 0444);
-//MODULE_PARM_DESC(caps2_quirks, "Force certain caps2.");
-
-//MODULE_DESCRIPTION("Amlogic S905*/GX*/AXG SD/eMMC driver");
-//MODULE_AUTHOR("Kevin Hilman <khilman@baylibre.com>");
-//MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Amlogic S905*/GX*/AXG SD/eMMC driver");
+MODULE_AUTHOR("Kevin Hilman <khilman@baylibre.com>");
+MODULE_LICENSE("GPL v2");

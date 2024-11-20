@@ -1314,6 +1314,9 @@
 			mmc_debug_flag;
 			ignore_desc_busy;
 			tx_delay = <16>;
+			full-pwr-cycle;
+			no-sdio;
+			no-sd;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 

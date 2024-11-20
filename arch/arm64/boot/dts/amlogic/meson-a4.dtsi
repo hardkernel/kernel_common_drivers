@@ -1063,6 +1063,7 @@
 			tx_delay = <0x8>;
 			hs4_core_phase = <0x3>;
 			src_clk_rate = <1152000000>;
+			full-pwr-cycle;
 			no-sd;
 			no-sdio;
 			//nwr_cnt = <12>;

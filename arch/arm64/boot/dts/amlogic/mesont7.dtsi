@@ -2110,6 +2110,7 @@
 			ignore_desc_busy;
 			tx_delay = <16>;
 			nwr_cnt = <12>;
+			full-pwr-cycle;
 			no-sd;
 			no-sdio;
 		//	resets = <&reset RESET_SD_EMMC_C>;
