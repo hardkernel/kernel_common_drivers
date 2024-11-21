@@ -100,6 +100,20 @@
 			tcon-size = <0 0x00a02840>;
 		};
 
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
+		};
+
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";

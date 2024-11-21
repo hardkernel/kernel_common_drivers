@@ -1208,7 +1208,6 @@
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "gate_in", "gate_out", "mclk",
 					"mclk_pad", "clk_srcpll", "clk_src_cd";
-		suspend-clk-off = <1>;
 		src-clk-freq = <491520000>;
 		status = "okay";
 	};
