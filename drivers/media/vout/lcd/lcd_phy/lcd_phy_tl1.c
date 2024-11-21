@@ -214,12 +214,10 @@ static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_mlvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct mlvds_config_s *mlvds_conf;
 	unsigned int bypass = 1, cntl14 = 0;
 
-	mlvds_conf = &pdrv->config.control.mlvds_cfg;
 	if (status) {
-		bypass = (mlvds_conf->clk_phase >> 12) & 0x1;
+		bypass = pdrv->config.phy_cfg.bypass_resample;
 		cntl14 = 0xff2027e0;
 		lcd_phy_common_update(pdrv, cntl14);
 	}

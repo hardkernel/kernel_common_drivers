@@ -1716,6 +1716,10 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 					pctrl->mlvds_cfg.clk_phase,
 					pctrl->mlvds_cfg.pn_swap,
 					pctrl->mlvds_cfg.bit_swap);
+				pdrv->config.phy_cfg.bypass_resample =
+							(pctrl->mlvds_cfg.clk_phase >> 12) & 1;
+				pdrv->config.phy_cfg.act_phy->clk_phase =
+							pctrl->mlvds_cfg.clk_phase & 0xfff;
 				lcd_mlvds_phy_ckdi_config(pdrv);
 				ptiming = &pconf->timing.act_timing;
 				lcd_debug_change_clk_change(pdrv, ptiming->pixel_clk);
@@ -3633,6 +3637,8 @@ static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute
 		if (kstrtouint(parm[1], 16, &mlvds_conf->clk_phase))
 			goto lcd_mlvds_debug_store_err;
 		pr_info("set mlvds clk_phase: 0x%x\n", mlvds_conf->clk_phase);
+		pdrv->config.phy_cfg.bypass_resample = (mlvds_conf->clk_phase >> 12) & 1;
+		pdrv->config.phy_cfg.act_phy->clk_phase = mlvds_conf->clk_phase & 0xfff;
 		lcd_mlvds_clk_phase_set(pdrv);
 	} else if (strcmp(parm[0], "help") == 0) {
 		lcd_mlvds_debug_type = MLVDS_DEBUG_HELP;
@@ -3666,6 +3672,8 @@ static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute
 			mlvds_conf->channel_sel0, mlvds_conf->channel_sel1,
 			mlvds_conf->clk_phase,
 			mlvds_conf->pn_swap, mlvds_conf->bit_swap);
+		pdrv->config.phy_cfg.bypass_resample = (mlvds_conf->clk_phase >> 12) & 1;
+		pdrv->config.phy_cfg.act_phy->clk_phase = mlvds_conf->clk_phase & 0xfff;
 		lcd_mlvds_phy_ckdi_config(pdrv);
 		lcd_debug_config_update(pdrv);
 	}

@@ -293,7 +293,7 @@ static int lcd_set_mlvds_clk_phase(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int phase_value;
 
-	phase_value = pdrv->config.control.mlvds_cfg.clk_phase & 0xfff;
+	phase_value = pdrv->config.phy_cfg.act_phy->clk_phase;
 	lcd_ana_setb(HHI_TCON_PLL_CNTL1, (phase_value & 0xf), 24, 4);
 	lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((phase_value >> 4) & 0xf), 28, 4);
 	lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((phase_value >> 8) & 0xf), 24, 4);
