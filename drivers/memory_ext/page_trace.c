@@ -127,23 +127,16 @@ static struct fun_symbol common_func[] = {
 	{"cma_alloc",			1, 0},
 	{"dma_alloc_from_contiguous",	1, 0},
 	{"dma_alloc_contiguous",	1, 0},
-	{"__kretprobe_trampoline_handler",	1, 0},
-	{"kretprobe_breakpoint_handler",	1, 0},
-	{"__kretprobe_trampoline",	1, 0},
+	{"__traceiter_android_vh_cma_alloc_bypass",	1, 0},
+	{"__dma_direct_alloc_pages",	1, 0},
 	{"__vmalloc_node_range_noprof",	1, 0},
 	{"__kvmalloc_node_noprof",	1, 0},
+	{"kmalloc_reserve",		1, 0},
+	{"kvmemdup",			1, 0},
+	{"devm_kmalloc",		1, 0},
 	{"sk_alloc",			1, 0},
+	{"__netdev_alloc_skb",		1, 0},
 	{"__folio_alloc_noprof",	1, 0},
-	{"do_debug_exception",		1, 0},
-	{"el1_dbg",			1, 0},
-	{"el1h_64_sync_handler",	1, 0},
-	{"el1h_64_sync",		1, 0},
-	{"do_pte_missing",		1, 0},
-	{"do_page_fault",		1, 0},
-	{"do_translation_fault",	1, 0},
-	{"do_mem_abort",		1, 0},
-	{"el0_da",			1, 0},
-	{"el1_abort",			1, 0},
 #ifdef CONFIG_ARM
 	{"__dma_alloc",			1, 0},
 	{"arm_dma_alloc",		1, 0},
@@ -166,6 +159,7 @@ static struct fun_symbol common_func[] = {
 	{"kmalloc_order",		1, 0},
 	{"kmalloc_order_trace",		1, 0},
 	{"aml_slub_alloc_large",	1, 0},
+	{"___kmalloc_large_node",	1, 0},
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 	{"alloc_pages_ret_handler",	1, 0},
 	{"comp_alloc_ret_handler",	1, 0},
@@ -610,7 +604,7 @@ static int find_static_common_symbol(void *data)
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
 unsigned long backtrace_pc, backtrace_skip;
 
-static int backtrace_skip_limit = 6;
+static int backtrace_skip_limit = 3;
 module_param(backtrace_skip_limit, int, 0644);
 
 static bool aml_dump_backtrace_entry(void *arg, unsigned long where)
@@ -797,6 +791,11 @@ static int aml_gfp_migratetype(const gfp_t gfp_flags)
 	return (gfp_flags & AML_GFP_MOVABLE_MASK) >> AML_GFP_MOVABLE_SHIFT;
 }
 
+static int before_pagetrace_memory(void)
+{
+	return 0;
+}
+
 static void __init set_init_page_trace(struct page *page, unsigned int order, gfp_t flag)
 {
 	unsigned long text;
@@ -804,7 +803,7 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 	struct page_trace trace = {0}, *base;
 
 	if (page && trace_buffer) {
-		ip = (unsigned long)set_page_trace;
+		ip = (unsigned long)before_pagetrace_memory;
 		text = PAGE_TRACE_OFFSET;
 
 		trace.ret_ip = (ip - text) >> 2;
