@@ -50,77 +50,18 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/set_memory.h>
+#include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 
 #include "arm-smmu-v3.h"
-
-struct aml_smmu_ll_queue {
-	union {
-		u64			val;
-		struct {
-			u32		prod;
-			u32		cons;
-		};
-		struct {
-			atomic_t	prod;
-			atomic_t	cons;
-		} atomic;
-		u8			__pad[SMP_CACHE_BYTES];
-	} ____cacheline_aligned_in_smp;
-	u32				max_n_shift;
-};
-
-struct aml_smmu_queue {
-	struct aml_smmu_ll_queue	llq;
-	int				irq; /* Wired interrupt */
-
-	__le64				*base;
-	dma_addr_t			base_dma;
-	u64				q_base;
-
-	size_t				ent_dwords;
-
-	u32 __iomem			*prod_reg;
-	u32 __iomem			*cons_reg;
-};
-
-struct aml_smmu_cmdq {
-	struct aml_smmu_queue		q;
-	atomic_long_t			*valid_map;
-	atomic_t			owner_prod;
-	atomic_t			lock;
-};
-
-struct aml_smmu_evtq {
-	struct aml_smmu_queue		q;
-	u32				max_stalls;
-};
-
-struct aml_smmu_priq {
-	struct aml_smmu_queue		q;
-};
-
-/* High-level stream table and context descriptor structures */
-struct aml_smmu_strtab_l1_desc {
-	u8				span;
-
-	__le64				*l2ptr;
-	dma_addr_t			l2ptr_dma;
-};
-
-struct aml_smmu_strtab_cfg {
-	__le64				*strtab;
-	dma_addr_t			strtab_dma;
-	struct aml_smmu_strtab_l1_desc	*l1_desc;
-	unsigned int			num_l1_ents;
-
-	u64				strtab_base;
-	u32				strtab_base_cfg;
-};
 
 /* An SMMUv3 instance */
 /* come from drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h */
 struct aml_smmu_device {
 	struct device			*dev;
+	struct device			*impl_dev;
+	const struct arm_smmu_impl_ops	*impl_ops;
+
 	void __iomem			*base;
 	void __iomem			*page1;
 
@@ -155,25 +96,29 @@ struct aml_smmu_device {
 	struct iommu_device		iommu;
 
 	struct rb_root			streams;
-	struct mutex			streams_mutex; /* native code */
+	struct mutex			streams_mutex;
 };
 
 struct aml_iommu_group {
 	struct kobject kobj;
 	struct kobject *devices_kobj;
 	struct list_head devices;
+	struct xarray pasid_array;
 	struct mutex mutex;
-	struct blocking_notifier_head notifier;
 	void *iommu_data;
 	void (*iommu_data_release)(void *iommu_data);
 	char *name;
 	int id;
 	struct iommu_domain *default_domain;
+	struct iommu_domain *blocking_domain;
 	struct iommu_domain *domain;
 	struct list_head entry;
+	unsigned int owner_cnt;
+	void *owner;
 };
 
 struct aml_iommu_group *aml_global_group;
+static const struct dma_map_ops aml_pcie_dma_ops;
 
 static struct iommu_device *aml_smmu_add_device(struct device *dev)
 {
@@ -183,6 +128,10 @@ static struct iommu_device *aml_smmu_add_device(struct device *dev)
 static int aml_smmu_of_xlate(struct device *dev, const struct of_phandle_args *args)
 {
 	dev->iommu_group = (struct iommu_group *)aml_global_group;
+#ifdef CONFIG_ARCH_HAS_DMA_OPS
+	dev->dma_ops = &aml_pcie_dma_ops;
+#endif
+
 	return 0;
 }
 
@@ -272,7 +221,9 @@ enum dma_sync_target {
 			((val) & ((align) - 1)))
 
 /* default to 32MB */
-#define AML_IO_TLB_DEFAULT_SIZE (64UL << 20)
+/* #define AML_IO_TLB_DEFAULT_SIZE (64UL << 20) */
+#define AML_IO_TLB_ATOMIC_SIZE (4UL << 20)
+size_t default_size;
 
 /*
  * Maximum allowable number of contiguous slabs to map,
@@ -325,10 +276,6 @@ static struct kprobe kp_lookup_name = {
 	.symbol_name	= "kallsyms_lookup_name",
 };
 
-static struct kprobe kp_iommu_ops_fwnode = {
-	.symbol_name	= "iommu_ops_from_fwnode",
-};
-
 static struct kprobe kp_iommu_probe_device = {
 	.symbol_name	= "iommu_probe_device",
 };
@@ -364,6 +311,7 @@ static unsigned long io_tlb_nslabs;
  * The number of used IO TLB block
  */
 static unsigned long io_tlb_used;
+static unsigned long max_used_slots;
 
 /*
  * This is a free list describing the number of free entries available from
@@ -531,6 +479,8 @@ not_found:
 	return (phys_addr_t)DMA_MAPPING_ERROR;
 found:
 	io_tlb_used += nslots;
+	if (io_tlb_used > max_used_slots)
+		max_used_slots = io_tlb_used;
 	spin_unlock_irqrestore(&io_tlb_lock, flags);
 
 	/*
@@ -722,11 +672,15 @@ static struct device *aml_dma_dev;
  */
 static void __nocfi pcie_swiotlb_init(struct device *dma_dev)
 {
-	size_t default_size = AML_IO_TLB_DEFAULT_SIZE;
+	/* size_t default_size = AML_IO_TLB_DEFAULT_SIZE; */
 	unsigned char *vstart;
 	unsigned long bytes;
 	dma_addr_t paddr = 0;
 
+	if (!default_size) {
+		pr_err("swiotlb size init zero.\n");
+		return;
+	}
 	if (!io_tlb_nslabs) {
 		io_tlb_nslabs = (default_size >> IO_TLB_SHIFT);
 		io_tlb_nslabs = ALIGN(io_tlb_nslabs, IO_TLB_SEGSIZE);
@@ -1246,20 +1200,6 @@ static u32 aml_tee_protect_mem_by_type(u32 type,
 	return res.a0;
 }
 
-static struct fwnode_handle *smmu_fwnode;
-
-static int aml_iommu_device_register(struct iommu_device *iommu,
-			  const struct iommu_ops *ops, struct device *hwdev)
-{
-	iommu->ops = ops;
-	if (hwdev) {
-		iommu->fwnode = dev_fwnode(hwdev);
-		smmu_fwnode = iommu->fwnode;
-	}
-
-	return 0;
-}
-
 static void *get_symbol_addr(const char *symbol_name)
 {
 	struct kprobe kp = {
@@ -1276,25 +1216,6 @@ static void *get_symbol_addr(const char *symbol_name)
 	unregister_kprobe(&kp);
 
 	return kp.addr;
-}
-
-const struct iommu_ops *aml_iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
-{
-	return &aml_smmu_ops;
-}
-
-static int __nocfi __kprobes iommu_ops_fwnode_handler_post(struct kprobe *p, struct pt_regs *regs)
-{
-	struct fwnode_handle *fwnode = (struct fwnode_handle *)regs->regs[0];
-
-	if (fwnode && fwnode == smmu_fwnode) {
-		instruction_pointer_set(regs, (unsigned long)aml_iommu_ops_from_fwnode);
-
-		//no need continue do single-step
-		return 1;
-	} else {
-		return 0;
-	}
 }
 
 const struct iommu_ops *aml_iommu_probe_device(struct fwnode_handle *fwnode)
@@ -1315,6 +1236,8 @@ static int __nocfi __kprobes iommu_probe_device_handler_post(struct kprobe *p, s
 		return 0;
 	}
 }
+
+static struct reserved_mem *g_rmem1;
 
 static int __nocfi aml_smmu_symbol_init(void *data)
 {
@@ -1362,12 +1285,6 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 				unsigned long attrs))get_symbol_addr("dma_pgprot");
 #endif
 
-	kp_iommu_ops_fwnode.pre_handler = iommu_ops_fwnode_handler_post;
-	ret = register_kprobe(&kp_iommu_ops_fwnode);
-	if (ret < 0) {
-		pr_err("register_kprobe fwnode failed, returned %d\n", ret);
-		return ret;
-	}
 	kp_iommu_probe_device.pre_handler = iommu_probe_device_handler_post;
 	ret = register_kprobe(&kp_iommu_probe_device);
 	if (ret < 0) {
@@ -1395,7 +1312,7 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	if (ret)
 		return ret;
 
-	ret = aml_iommu_device_register(&smmu->iommu, &aml_smmu_ops, dev);
+	ret = iommu_device_register(&smmu->iommu, &aml_smmu_ops, dev);
 	if (ret) {
 		dev_err(dev, "Failed to register iommu\n");
 		return ret;
@@ -1428,24 +1345,53 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 		return -1;
 	}
 
+	g_rmem1 = rmem;
+	default_size = rmem->size - AML_IO_TLB_ATOMIC_SIZE;
 	pcie_swiotlb_init(dev);
 	aml_dma_atomic_pool_init(dev);
-
-#ifdef CONFIG_ANDROID_VENDOR_HOOKS
-	register_trace_android_rvh_iommu_setup_dma_ops(set_dma_ops_hook, NULL);
-#endif
 
 	aml_global_group = kzalloc(sizeof(*aml_global_group), GFP_KERNEL);
 	if (!aml_global_group)
 		return -1;
+	mutex_init(&aml_global_group->mutex);
 
 	return 0;
 }
+
+static int d_smmu_show(struct seq_file *m, void *arg)
+{
+	char *buf = kzalloc(256, GFP_KERNEL);
+
+	if (!buf)
+		return -1;
+
+	/* update only once */
+	sprintf(buf, "total %lu (slots), used %lu (slots), max: %lu\n",
+			io_tlb_nslabs, io_tlb_used, max_used_slots);
+	seq_printf(m, "%s\n", buf);
+
+	kfree(buf);
+
+	return 0;
+}
+
+static int d_smmu_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, d_smmu_show, NULL);
+}
+
+static const struct proc_ops d_smmu_ops = {
+	.proc_open	= d_smmu_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
 
 static int __nocfi aml_smmu_device_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device *dev = &pdev->dev;
+	struct proc_dir_entry *d_smmu;
 
 	if (dev->of_node) {
 		ret = aml_smmu_device_dt_probe(pdev, NULL);
@@ -1459,6 +1405,12 @@ static int __nocfi aml_smmu_device_probe(struct platform_device *pdev)
 
 	kthread_run(aml_smmu_symbol_init, (void *)pdev, "AML_CMA_TASK");
 
+	d_smmu = proc_create("smmu_debug", 0444, NULL, &d_smmu_ops);
+	if (IS_ERR_OR_NULL(d_smmu)) {
+		pr_err("%s, create proc failed\n", __func__);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -1469,10 +1421,33 @@ static void aml_smmu_device_remove(struct platform_device *pdev)
 	iommu_device_sysfs_remove(&smmu->iommu);
 }
 
-static void aml_smmu_device_shutdown(struct platform_device *pdev)
+#if CONFIG_PM_SLEEP
+static int aml_smmu_device_resume_noirq(struct device *dev)
 {
-	aml_smmu_device_remove(pdev);
+	int ret = 0;
+	u32 handle;
+
+	if (g_rmem1) {
+		dev_info(dev, "tee protect memory: %lu MiB at 0x%lx\n",
+			(unsigned long)g_rmem1->size / SZ_1M, (unsigned long)g_rmem1->base);
+		ret = aml_tee_protect_mem_by_type(TEE_MEM_TYPE_PCIE,
+						  g_rmem1->base, g_rmem1->size, &handle);
+		if (ret) {
+			dev_err(dev, "pcie tee mem protect fail: 0x%x\n", ret);
+			return -1;
+			}
+	} else {
+		dev_err(dev, "Can't get reserve memory region\n");
+		return -1;
+	}
+
+	return 0;
 }
+
+static const struct dev_pm_ops aml_smmu_pm_ops = {
+	.restore_noirq = aml_smmu_device_resume_noirq,
+};
+#endif
 
 static const struct of_device_id aml_smmu_of_match[] = {
 	{ .compatible = "amlogic,smmu", },
@@ -1485,10 +1460,12 @@ static struct platform_driver aml_smmu_driver = {
 		.name			= "aml_smmu",
 		.of_match_table		= of_match_ptr(aml_smmu_of_match),
 		.suppress_bind_attrs	= true,
+#if CONFIG_PM_SLEEP
+		.pm = &aml_smmu_pm_ops,
+#endif
 	},
 	.probe	= aml_smmu_device_probe,
 	.remove	= aml_smmu_device_remove,
-	.shutdown = aml_smmu_device_shutdown,
 };
 
 /* module_platform_driver(aml_smmu_driver); */
