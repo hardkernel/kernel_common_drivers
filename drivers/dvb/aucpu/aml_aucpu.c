@@ -515,19 +515,15 @@ static bool do_debug_work_in(struct aucpu_ctx_t *pctx)
 
 	trace = ReadAucpuRegister(DBG_REG_STAGE);
 	if (trace != pctx->aucpu_trace_debug) {
-		aucpu_pr(LOG_ERROR, "aucpu trace orig 0x%x now 0x%x",
+		aucpu_pr(LOG_INFO, "aucpu_trace_debug orig:0x%x now:0x%x",
 			 pctx->aucpu_trace_debug, trace);
-		aucpu_pr(LOG_ERROR, "--stage value %d line %d\n",
-			 trace >> 16, trace & 0xffff);
 		pctx->aucpu_trace_debug = trace;
 	}
 
 	trace = ReadAucpuRegister(DBG_REG_ERROR);
 	if (trace != pctx->aucpu_trace_error) {
-		aucpu_pr(LOG_ERROR, "aucpu trace error orig 0x%x now 0x%x",
+		aucpu_pr(LOG_INFO, "aucpu_trace_error orig:0x%x now:0x%x",
 			 pctx->aucpu_trace_error, trace);
-		aucpu_pr(LOG_ERROR, "--Err value %d line %d\n",
-			 trace >> 16, trace & 0xffff);
 		pctx->aucpu_trace_error = trace;
 	}
 	// get latest  debuf buffer wrptr
@@ -1404,7 +1400,14 @@ ERROR_PROVE_DEVICE:
 
 static s32 aucpu_probe(struct platform_device *pdev)
 {
-	return aucpu_init_try(pdev);
+	// not load aucpu firmware in probe because file system is not ready
+	// return aucpu_init_try(pdev);
+
+	if (!aucpu_pdev)
+		aucpu_pdev = pdev;
+	load_firmware_status = AUCPU_ERROR_NOT_IMPLEMENTED;
+	aucpu_pr(LOG_DEBUG, "aucpu_probe\n");
+	return 0;
 }
 
 static void aucpu_remove(struct platform_device *pdev)
