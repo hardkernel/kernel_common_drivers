@@ -32,6 +32,8 @@
 #include <linux/amlogic/media/di/di_interface.h>
 #include <linux/amlogic/media/di/di.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
+#include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/codec_mm/codec_mm_keeper.h>
 
 #include "di_proc_buf_mgr_internal.h"
 
@@ -44,6 +46,7 @@
 
 extern u32 dp_buf_mgr_print_flag;
 extern u32 di_proc_enable;
+#define IS_DI_PSTLINK(di_flag) ((di_flag) & DI_FLAG_DI_PSTVPPLINK)
 
 enum di_backend_transform_t {
 	DI_BACKEND_TRANSFORM_90 = 4,
@@ -79,6 +82,13 @@ struct received_frame_t {
 	bool dummy;
 };
 
+struct di_out_buf_t {
+	int index;
+	atomic_t on_use;
+	struct di_buffer *di_buf;
+	struct file_private_data *private_data;
+};
+
 struct di_process_dev {
 	u32 index;
 	struct di_process_port_s *port;
@@ -102,6 +112,8 @@ struct di_process_dev {
 	DECLARE_KFIFO(di_input_free_q, struct di_buffer *, DIPR_POOL_SIZE);
 	DECLARE_KFIFO(file_free_q, struct dma_buf *, DIPR_POOL_SIZE);
 	DECLARE_KFIFO(file_wait_q, struct dma_buf *, DIPR_POOL_SIZE);
+	struct di_out_buf_t di_out_buf[DIPR_POOL_SIZE];
+	DECLARE_KFIFO(di_out_q, struct di_out_buf_t *, DIPR_POOL_SIZE);
 	struct file *last_file;
 	struct dma_buf *last_dmabuf;
 	struct dma_buf *out_dmabuf[DIPR_POOL_SIZE];

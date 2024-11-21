@@ -221,10 +221,15 @@ bool mm_codec_alloc(const char *owner, size_t count,
 	if (cma_mode == 4 && !istvp)
 		flags = CODEC_MM_FLAGS_CMA_FIRST |
 			CODEC_MM_FLAGS_CPU;
-	o->addr = codec_mm_alloc_for_dma(owner,
-					 count,
+	o->mem_handle = codec_mm_alloc(owner,
+					 count << PAGE_SHIFT,
 					 0,
 					 flags);
+	if (!o->mem_handle) {
+		PR_ERR("%s: failed\n", __func__);
+		return false;
+	}
+	o->addr = o->mem_handle->phy_addr;
 	if (o->addr == 0) {
 		PR_ERR("%s: failed\n", __func__);
 		return false;
@@ -269,13 +274,13 @@ bool dim_mm_alloc(int cma_mode, size_t count, struct dim_mm_s *o,
 bool dim_mm_release(int cma_mode,
 		    struct page *pages,
 		    int count,
-		    unsigned long addr)
+		    struct codec_mm_s *mm)
 {
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	bool ret = true;
 
 	if (cma_mode == 3 || cma_mode == 4)
-		codec_mm_free_for_dma(DEVICE_NAME, addr);
+		codec_mm_release(mm, DEVICE_NAME);
 	else
 		ret = dma_release_from_contiguous(&de_devp->pdev->dev,
 						  pages,
@@ -302,6 +307,7 @@ bool cma_alloc_blk_block(struct dim_mm_blk_s *blk_buf,
 	}
 	blk_buf->pages	= omm.ppage;
 	blk_buf->mem_start	= omm.addr;
+	blk_buf->mem_handle	= omm.mem_handle;
 	blk_buf->flg.b.page	= size_page;
 	blk_buf->flg_alloc	= true;
 	return true;
@@ -318,10 +324,11 @@ void cma_release_blk_block(struct dim_mm_blk_s *blk_buf,
 	dim_mm_release_api(cma_type,
 			   blk_buf->pages,
 			   blk_buf->flg.b.page,
-			   blk_buf->mem_start);
+			   blk_buf->mem_handle);
 	blk_buf->pages = NULL;
 	blk_buf->flg.d32 = 0;
 	blk_buf->flg_alloc = false;
+	blk_buf->mem_handle = NULL;
 }
 
 unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
@@ -337,6 +344,7 @@ unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
 	if (!ret) /*failed*/
 		return 0;
 	mmt->mem_start = omm.addr;
+	mmt->mem_handle = omm.mem_handle;
 	mmt->total_pages = omm.ppage;
 	return 1;
 }
@@ -353,10 +361,11 @@ static bool dim_cma_release_total(void)
 	}
 	ret = dim_mm_release(cfgg(MEM_FLAG), mmt->total_pages,
 			     mmt->mem_size >> PAGE_SHIFT,
-			     mmt->mem_start);
+			     mmt->mem_handle);
 	if (ret) {
 		mmt->total_pages = NULL;
 		mmt->mem_start = 0;
+		mmt->mem_handle = NULL;
 		mmt->mem_size = 0;
 		lret = true;
 	} else {
@@ -380,11 +389,11 @@ bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o,
 bool dim_mm_release_api(int cma_mode,
 			struct page *pages,
 			int count,
-			unsigned long addr)
+			struct codec_mm_s *mm)
 {
 	bool ret = false;
 #ifdef CONFIG_CMA
-	ret = dim_mm_release(cma_mode, pages, count, addr);
+	ret = dim_mm_release(cma_mode, pages, count, mm);
 #endif
 	return ret;
 }
@@ -668,7 +677,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 					     blk_buf->pages,
 					     //blk_buf->size_page,
 					     blk_buf->flg.b.page,
-					     blk_buf->mem_start);
+					     blk_buf->mem_handle);
 			if (ret) {
 				dbg_mem2("blk r:%d:st[0x%lx] size_p[0x%x]\n",
 					 blk_buf->header.index,
@@ -749,7 +758,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 					     blk_buf->pages,
 					     //blk_buf->size_page,
 					     blk_buf->flg.b.page,
-					     blk_buf->mem_start);
+					     blk_buf->mem_handle);
 			if (ret) {
 				dbg_mem2("blk r:%d:st[0x%lx] size_p[0x%x]\n",
 					 blk_buf->header.index,
@@ -826,6 +835,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 
 			blk_buf->mem_start	= omm.addr;
 			blk_buf->pages		= omm.ppage;
+			blk_buf->mem_handle	= omm.mem_handle;
 			blk_buf->flg.d32	= cmd->flg.d32;
 			//blk_buf->size_page	= cmdbyte->b.page;
 

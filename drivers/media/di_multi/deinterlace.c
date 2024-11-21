@@ -6760,6 +6760,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	di_buf->vframe->private_data = di_buf;
 	di_buf->vframe->canvas0Addr = di_buf->nr_canvas_idx;
 	di_buf->vframe->canvas1Addr = di_buf->nr_canvas_idx;
+	di_buf->vframe->mem_handle = di_buf->blk_buf->mem_handle;
 	//if (di_buf->vframe->width == 3840 && di_buf->vframe->height == 2160)
 	if (ppre->sgn_lv == EDI_SGN_4K) {
 		di_buf->is_4k = 1;

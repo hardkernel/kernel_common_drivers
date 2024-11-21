@@ -7120,7 +7120,7 @@ static int hf_release_clear_one_buf(struct dim_mng_hf_s *hmng,
 	rret = dim_mm_release_api(cfgg(MEM_FLAG),
 		hf_buff->pages,
 		hf_buff->cnt,
-		hf_buff->mem_start);
+		hf_buff->mem_handle);
 	if (rret) {
 		back_index = hf_buff->index;
 		memset(hf_buff, 0, sizeof(*hf_buff));
@@ -7277,6 +7277,7 @@ bool dim_mng_hf_alloc(struct di_ch_s *pch,
 		hfmng_q_put(EMNG_Q_IDLE, hf_buff);
 	} else {
 		hf_buff->mem_start = omm.addr;
+		hf_buff->mem_handle = omm.mem_handle;
 		hf_buff->cnt = hf_size >> PAGE_SHIFT;
 		hf_buff->pages = omm.ppage;
 

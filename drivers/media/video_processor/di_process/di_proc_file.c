@@ -18,6 +18,12 @@
 
 #include "di_proc_file.h"
 #include "di_proc_buf_mgr_internal.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+#include <linux/amlogic/media/di/di_interface.h>
+#endif
+#include <linux/amlogic/media/codec_mm/codec_mm_keeper.h>
+
+#define IS_DI_PSTLINK(di_flag) ((di_flag) & DI_FLAG_DI_PSTVPPLINK)
 
 static int di_proc_file_print(int debug_flag, const char *fmt, ...)
 {
@@ -63,7 +69,13 @@ static void di_proc_vf_free(struct file_private_data *file_private_data)
 				di_proc_file_print(PRINT_ERROR,
 					"free: di has dec vf, but dec vf/file is null.\n");
 		}
-		if (vf && (!(vf->di_flag & DI_FLAG_DI_PVPPLINK))) {
+		if (vf && vf->di_flag && IS_DI_PSTLINK(vf->di_flag) &&
+			file_private_data->keep_id > 0) {
+			/*postlink need free keeped local buf*/
+			codec_mm_keeper_unmask_keeper(file_private_data->keep_id, 0);
+			di_proc_file_print(PRINT_OTHER,
+				"free keep: keep_id=%d\n", file_private_data->keep_id);
+		} else  if (vf && (!(vf->di_flag & DI_FLAG_DI_PVPPLINK))) {
 			buf = (struct di_buffer *)file_private_data->private2;
 			if (!buf) {
 				di_proc_file_print(PRINT_OTHER, "%s: buf is NULL.\n", __func__);

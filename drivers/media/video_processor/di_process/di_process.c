@@ -477,6 +477,57 @@ int get_received_frame_free_index(struct di_process_dev *dev)
 	return i;
 }
 
+int get_di_out_buf_free_index(struct di_process_dev *dev)
+{
+	int i = 0;
+	int j = 0;
+
+	while (1) {
+		for (i = 0; i < DIPR_POOL_SIZE; i++) {
+			if (!atomic_read(&dev->di_out_buf[i].on_use))
+				break;
+		}
+		if (i == DIPR_POOL_SIZE) {
+			j++;
+			if (j > WAIT_READY_Q_TIMEOUT) {
+				dp_print(dev->index, PRINT_ERROR,
+					"di_out_buf is full, wait timeout!\n");
+				return -1;
+			}
+			usleep_range(1000 * MAX_RECEIVE_WAIT_TIME,
+				     1000 * (MAX_RECEIVE_WAIT_TIME + 1));
+			dp_print(dev->index, PRINT_ERROR,
+				"di_out_buf is full!!! need wait =%d\n", j);
+			continue;
+		} else {
+			break;
+		}
+	}
+	return i;
+}
+
+static void pop_di_out_q(struct di_process_dev *dev, struct di_buffer *di_buf)
+{
+	struct di_out_buf_t *di_out_buf = NULL;
+	int i = kfifo_len(&dev->di_out_q);
+
+	while (kfifo_len(&dev->di_out_q) > 0) {
+		if (kfifo_get(&dev->di_out_q, &di_out_buf)) {
+			if (di_buf == di_out_buf->di_buf) {
+				atomic_set(&di_out_buf->on_use, false);
+				break;
+			}
+			if (!kfifo_put(&dev->di_out_q, di_out_buf))
+				dp_print(dev->index, PRINT_ERROR, "di_out_q is full!\n");
+		}
+		i--;
+		if (i < 0) {
+			dp_print(dev->index, PRINT_ERROR, "can find di_buf in di_out_q\n");
+			break;
+		}
+	}
+}
+
 static int check_dropped(struct di_process_dev *dev, struct uvm_di_mgr_t *uvm_di_mgr,
 	struct vframe_s *vf)
 {
@@ -559,6 +610,8 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 static void queue_outbuf_to_di(struct di_process_dev *dev, struct di_buffer *di_buf)
 {
 	di_fill_output_buffer(dev->di_index, di_buf);
+
+	pop_di_out_q(dev, di_buf);
 
 	dev->fill_count++;
 	total_fill_count++;
@@ -823,6 +876,7 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	struct file_private_data *private_data = NULL;
 	bool di_bypass = false;
 	struct vframe_s *dec_vf = NULL;
+	int di_out_index;
 
 	if (!buf) {
 		pr_err("%s: di_buffer is NULL\n", __func__);
@@ -942,6 +996,13 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 		} else {
 			dp_print(dev->index, PRINT_OTHER, "no dw vf.\n");
 		}
+
+		di_out_index = get_di_out_buf_free_index(dev);
+		atomic_set(&dev->di_out_buf[di_out_index].on_use, true);
+		dev->di_out_buf[di_out_index].di_buf = buf;
+		dev->di_out_buf[di_out_index].private_data = private_data;
+		if (!kfifo_put(&dev->di_out_q, &dev->di_out_buf[di_out_index]))
+			dp_print(dev->index, PRINT_ERROR, "put di_out_q fail\n");
 	}
 
 	dp_timeline_increase(dev, 1);
@@ -1031,6 +1092,55 @@ static void receive_q_uninit(struct di_process_dev *dev)
 	}
 }
 
+static void di_out_q_init(struct di_process_dev *dev)
+{
+	int i = 0;
+
+	INIT_KFIFO(dev->di_out_q);
+	kfifo_reset(&dev->di_out_q);
+
+	for (i = 0; i < DIPR_POOL_SIZE; i++) {
+		dev->di_out_buf[i].index = i;
+		dev->di_out_buf[i].di_buf = NULL;
+		atomic_set(&dev->di_out_buf[i].on_use, false);
+	}
+}
+
+static void di_out_q_uninit(struct di_process_dev *dev)
+{
+	int i = 0;
+	struct di_out_buf_t *di_out_buf = NULL;
+	struct vframe_s *vf;
+	int keep_id;
+
+	dp_print(dev->index, PRINT_OTHER, "unit di_out_q len=%d\n",
+		 kfifo_len(&dev->di_out_q));
+	while (kfifo_len(&dev->di_out_q) > 0) {
+		if (kfifo_get(&dev->di_out_q, &di_out_buf)) {
+			vf = di_out_buf->di_buf->vf;
+			if (vf && vf->di_flag && IS_DI_PSTLINK(vf->di_flag)) {
+				keep_id = codec_mm_keeper_mask_keep_mem(vf->mem_handle,
+					MEM_TYPE_CODEC_MM);
+				if (keep_id > 0) {
+					dp_print(dev->index, PRINT_OTHER,
+						"keep ok id=%d, mem_handle=%px\n",
+						keep_id, vf->mem_handle);
+					di_out_buf->private_data->keep_id = keep_id;
+				} else {
+					dp_print(dev->index, PRINT_ERROR,
+						"keep fail id=%d\n", keep_id);
+				}
+			}
+		}
+	}
+
+	for (i = 0; i < DIPR_POOL_SIZE; i++) {
+		dev->di_out_buf[i].index = i;
+		dev->di_out_buf[i].di_buf = NULL;
+		atomic_set(&dev->di_out_buf[i].on_use, false);
+	}
+}
+
 static int di_process_init(struct di_process_dev *dev)
 {
 	dev->di_index = -1;
@@ -1089,6 +1199,7 @@ static int di_process_init(struct di_process_dev *dev)
 	receive_q_init(dev);
 	di_input_free_q_init(dev);
 	file_q_init(dev);
+	di_out_q_init(dev);
 
 	return 0;
 }
@@ -1101,6 +1212,8 @@ static int di_process_uninit(struct di_process_dev *dev)
 	struct di_buffer *buf;
 
 	dev->inited = false;
+
+	di_out_q_uninit(dev);
 
 	if (dev->di_index >= 0) {
 		ret = di_destroy_instance(dev->di_index);

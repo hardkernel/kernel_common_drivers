@@ -1472,6 +1472,7 @@ struct dim_mm_t_s {
 	unsigned long	mem_start;
 	unsigned int	mem_size;
 	struct page	*total_pages;
+	struct codec_mm_s *mem_handle;
 };
 
 struct di_mm_st_s {
@@ -1756,6 +1757,7 @@ struct dim_sub_mem_s {
 	unsigned long	mem_start;
 	struct page	*pages;
 	unsigned int	cnt;
+	struct codec_mm_s *mem_handle;
 };
 
 #define DIM_BLK_NUB	25 /* buf number*/
@@ -1777,6 +1779,7 @@ struct dim_mm_blk_s {
 	struct dim_sub_mem_s	*hf_buff;
 	bool	flg_hf;
 	atomic_t	p_ref_mem;
+	struct codec_mm_s *mem_handle;
 };
 
 /*que buf block end*/
