@@ -22,5 +22,6 @@ struct bt_dev_data {
 };
 
 int sdio_get_vendor(void);
+void host_wake_bt(int bit);
 
 #endif

@@ -58,6 +58,7 @@ char *btmac;
 //core_param(btmac, btmac, charp, 0644);
 module_param(btmac, charp, 0644);
 static struct class *bt_addr_class;
+struct bt_dev_data global_pdata;
 static int btwake_evt;
 static int btirq_flag;
 static int btpower_evt;
@@ -74,6 +75,18 @@ static int distinguish_module(void)
 
 	return 0;
 }
+
+void host_wake_bt(int bit)
+{
+	pr_info("%s bit : %d\n", __func__, bit);
+	if (bit == 0)
+		gpio_direction_output(global_pdata.gpio_hostwake,
+				global_pdata.power_low_level);
+	else if (bit == 1)
+		gpio_direction_output(global_pdata.gpio_hostwake,
+				!global_pdata.power_low_level);
+}
+EXPORT_SYMBOL(host_wake_bt);
 
 static ssize_t value_show(struct class *cls,
 	struct class_attribute *attr, char *_buf)
@@ -579,6 +592,7 @@ static int bt_probe(struct platform_device *pdev)
 	ret = class_create_file(bt_addr_class, &class_attr_value);
 
 	bt_device_init(pdata);
+	memcpy(&global_pdata, pdata, sizeof(struct bt_dev_data));
 
 	/* default to bluetooth off */
 	/* rfkill_switch_all(RFKILL_TYPE_BLUETOOTH, 1); */
