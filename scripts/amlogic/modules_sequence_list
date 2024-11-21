@@ -79,6 +79,7 @@ COMMON_GKI_MODULES_LIST=(
 	r8153_ecm.ko
 	rtl8150.ko
 	usbnet.ko
+	cdc-acm.ko
 )
 
 GKI_MODULES_LOAD_WHITE_LIST=(
