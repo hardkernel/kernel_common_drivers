@@ -177,7 +177,7 @@ int host_logbuff_start(struct host_module *host)
 
 	// wait for remote mcu boot up
 	msleep(100);
-	ret = aml_mbox_transfer_data(host->mbox_chan, MBOX_CMD_HIFI5_SYSLOG_START,
+	ret = aml_mbox_transfer_data(host->mbox_chan_to_dev, MBOX_CMD_HIFI5_SYSLOG_START,
 					data, sizeof(data), &rbuf, sizeof(rbuf),
 						MBOX_SYNC);
 	if (ret < 0) {

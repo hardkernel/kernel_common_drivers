@@ -4,7 +4,7 @@
 
 MODULE_NAME = amlogic-host
 obj-$(CONFIG_AMLOGIC_HOST_DRIVER)	= $(MODULE_NAME).o
-$(MODULE_NAME)-$(CONFIG_AMLOGIC_HOST_DRIVER)		+= host.o sysfs.o host_poll.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_HOST_DRIVER)		+= host.o sysfs.o host_poll.o host_report.o
 
 PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
