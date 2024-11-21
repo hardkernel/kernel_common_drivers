@@ -34,7 +34,6 @@
 		i2c3 = &i2c2;
 		i2c4 = &i2c3;
 		spi0 = &spicc0;
-		spi1 = &spifc;
 		tsensor0 = &p_tsensor;
 	};
 
