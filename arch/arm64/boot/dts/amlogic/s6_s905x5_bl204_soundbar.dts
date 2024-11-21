@@ -347,7 +347,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-i2s2hdmi";
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -382,7 +382,7 @@
 			bitclock-master = <&tdmccodec>;
 			frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s";
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -453,18 +453,17 @@
 			};
 		};
 
-		/* aml-audio-card,dai-link@7 {
-		 *	mclk-fs = <256>;
-		 *	suffix-name = "alsaPORT-earc";
-		 *	cpu {
-		 *		sound-dai = <&earc>;
-		 *		system-clock-frequency = <12288000>;
-		 *	};
-		 *	codec {
-		 *		sound-dai = <&dummy_codec>;
-		 *	};
-		 *};
-		 */
+		aml-audio-card,dai-link@7 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 	};
 
 	cvbsout {
@@ -518,7 +517,7 @@
 		fe0_i2c_adap_id = <&i2c5>;
 		fe0_demod_i2c_addr = <0xD8>;
 		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		//fe0_reset_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 		fe0_reset_dir = <0>; //0: out, 1: in.
 		fe0_ant_poweron_value = <1>;
 		fe0_ant_power_gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
@@ -561,8 +560,8 @@
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
 
-		pinctrl-names = "s_ts0";
-		pinctrl-0 = <&dvb_s_ts0_pins>;
+		//pinctrl-names = "s_ts0";
+		//pinctrl-0 = <&dvb_s_ts0_pins>;
 	};
 
 	ionvideo {
@@ -1172,6 +1171,7 @@
 };
 
 &earc {
+	hdmitx_5v-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -1207,7 +1207,7 @@
 
 &spdifa {
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		pinctrl-0 = <&spdif_out_a_h4_pins>;
+		pinctrl-0 = <&spdif_out_a_h4_pins &spdifin_h>;
 		pinctrl-1 = <&spdif_out_a_h4_mute_pins>;
 };
 

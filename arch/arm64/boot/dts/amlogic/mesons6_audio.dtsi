@@ -565,6 +565,13 @@
 			output-low;
 		};
 	};
+
+	spdifin_h: spdifin_h {
+		mux {/* GPIOH_5 */
+			groups = "spdif_in_h";
+			function = "spdif_in";
+		};
+	};
 };
 
 &pinctrl_audio {
