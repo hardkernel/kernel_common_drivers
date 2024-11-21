@@ -1952,7 +1952,8 @@ void __nocfi show_page(struct page *page)
 		page->flags & 0xffffffff,
 		folio_mapcount(page_folio(page)), folio_ref_count(page_folio(page)),
 		page->private, page->index, (void *)trace);
-	aml__dump_owner(page);
+	if (cma_debug_level == 5)
+		aml__dump_owner(page);
 	if (cma_debug_level > 4 && !irqs_disabled())
 		rmap_walk_vma(page);
 }
@@ -2191,7 +2192,7 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 		 * may blocked on some pages, relax CPU and try later.
 		 */
 		if ((sched_clock() - in_tick) >= timeout) {
-			if (timeout_count > 20) {
+			if (timeout_count > 100) {
 				pr_err("cma: %s alloc too long %lx ,%lx\n",
 					cma->name, pfn, count);
 				cma_debug_level = 6;
