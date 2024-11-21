@@ -151,6 +151,7 @@ int __init aml_xhci_plat_init(void);
 void __exit aml_xhci_plat_exit(void);
 int __init aml_xhci_hcd_init(void);
 void __exit aml_xhci_hcd_fini(void);
+int __init dwc_otg_init(void);
 #if IS_ENABLED(CONFIG_USB_DWC3)
 
 int __init aml_dwc3_init(void);

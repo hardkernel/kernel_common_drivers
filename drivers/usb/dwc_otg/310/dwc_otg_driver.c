@@ -155,7 +155,7 @@ struct dwc_otg_driver_module_params {
 	int32_t otg_ver;
 	int32_t adp_enable;
 	int32_t host_only;
-	s32 eltest_flag;
+	s32 dwc_otg_eltest_flag;
 };
 
 static struct dwc_otg_driver_module_params dwc_otg_module_params = {
@@ -242,7 +242,7 @@ static struct dwc_otg_driver_module_params dwc_otg_module_params = {
 	.ahb_single = 1,
 	.otg_ver = -1,
 	.adp_enable = -1,
-	.eltest_flag = -1,
+	.dwc_otg_eltest_flag = -1,
 };
 
 bool dwc_force_device_mode;
@@ -631,7 +631,7 @@ static void amlogic_device_detect_work(struct work_struct *work)
 	static u32 sofstop_flag;
 	dsts_data_t dsts;
 
-	if (dwc_otg_module_params.eltest_flag == 1) {
+	if (dwc_otg_module_params.dwc_otg_eltest_flag == 1) {
 		dsts.d32 = DWC_READ_REG32(&dev_global_regs->dsts);
 		if (otgdev->core_if->dev_if->suspend_no != 1 && dsts.b.suspsts != 1) {
 			dsts.d32 = DWC_READ_REG32(&dev_global_regs->dsts);
@@ -1585,7 +1585,7 @@ int __init dwc_otg_init(void)
 	return platform_driver_register(&dwc_otg_driver);
 }
 
-late_initcall(dwc_otg_init);
+//late_initcall(dwc_otg_init);
 
 MODULE_DESCRIPTION(DWC_DRIVER_DESC);
 MODULE_AUTHOR("Synopsys Inc.");
@@ -1833,8 +1833,8 @@ module_param_named(adp_enable, dwc_otg_module_params.adp_enable, int, 0444);
 MODULE_PARM_DESC(adp_enable, "ADP Enable 0=ADP Disabled 1=ADP Enabled");
 module_param_named(otg_ver, dwc_otg_module_params.otg_ver, int, 0444);
 MODULE_PARM_DESC(otg_ver, "OTG revision supported 0=OTG 1.3 1=OTG 2.0");
-module_param_named(eltest_flag, dwc_otg_module_params.eltest_flag, int, 0644);
-MODULE_PARM_DESC(eltest_flag, "EL test=1");
+module_param_named(dwc_otg_eltest_flag, dwc_otg_module_params.dwc_otg_eltest_flag, int, 0644);
+MODULE_PARM_DESC(dwc_otg_eltest_flag, "EL test=1");
 
 /** @page "Module Parameters"
  *

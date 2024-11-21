@@ -4,8 +4,11 @@
 # Makefile for DWC_otg Highspeed USB controller driver
 #
 
-MODULE_NAME	= dwc_otg
-obj-$(CONFIG_AMLOGIC_USB_DWC_OTG_HCD) += $(MODULE_NAME).o
+# MODULE_NAME	= dwc_otg
+# obj-$(CONFIG_AMLOGIC_USB_DWC_OTG_HCD) += $(MODULE_NAME).o
+# PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
+# PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
+# ccflags-y += $(PR_FMT_DEFINE)
 
 COMMON_PORT	= common_port
 BUS_INTERFACE = -DLM_INTERFACE
