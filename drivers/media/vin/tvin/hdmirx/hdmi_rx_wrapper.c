@@ -3134,6 +3134,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(phy_pddq_en, i++);
 	pr_var(long_cable_best_setting, i++);
 	pr_var(port_map, i++);
+	pr_var(phy_addr_map, i++);
 	pr_var(skip_frame_cnt, i++);
 	pr_var(vdin_drop_frame_cnt, i++);
 	pr_var(atmos_edid_update_hpd_en, i++);
@@ -6977,21 +6978,25 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 	pos += snprintf(buf + pos, size - pos,
 		"\n\nCapacity info\n\n");
 	pos += snprintf(buf + pos, size - pos,
-		"support vrr: %d\n", rx_info.edid_cap.vrr);
+		"support vrr: %d\n", rx[port].edid_cap.vrr);
 	pos += snprintf(buf + pos, size - pos,
-		"support allm: %d\n", rx_info.edid_cap.allm);
+		"support allm: %d\n", rx[port].edid_cap.allm);
 	pos += snprintf(buf + pos, size - pos,
-		"support HF_DB: %d\n", rx_info.edid_cap.hf_db);
+		"support qms: %d\n", rx[port].edid_cap.qms);
 	pos += snprintf(buf + pos, size - pos,
-		"support DV_DB: %d\n", rx_info.edid_cap.dv_db);
+		"support 4k: %d\n", rx[port].edid_cap.timing_4k);
 	pos += snprintf(buf + pos, size - pos,
-		"support HDR10P_DB: %d\n", rx_info.edid_cap.hdr10p_db);
+		"support HF_DB: %d\n", rx[port].edid_cap.hf_db);
 	pos += snprintf(buf + pos, size - pos,
-		"support HDR_STATIC_DB: %d\n", rx_info.edid_cap.hdr_static_db);
+		"support DV_DB: %d\n", rx[port].edid_cap.vsdv_db);
 	pos += snprintf(buf + pos, size - pos,
-		"support HDR_DYNAMIC_DB: %d\n", rx_info.edid_cap.hdr_dynamic_db);
+		"support HDR10P_DB: %d\n", rx[port].edid_cap.hdr10p_db);
 	pos += snprintf(buf + pos, size - pos,
-		"support FREESYNC_DB: %d\n", rx_info.edid_cap.freesync_db);
+		"support HDR_STATIC_DB: %d\n", rx[port].edid_cap.hdr_static_db);
+	pos += snprintf(buf + pos, size - pos,
+		"support HDR_DYNAMIC_DB: %d\n", rx[port].edid_cap.hdr_dynamic_db);
+	pos += snprintf(buf + pos, size - pos,
+		"support FREESYNC_DB: %d\n", rx[port].edid_cap.freesync_db);
 
 	if (port == E_PORT0)
 		pos += snprintf(buf + pos, size - pos,
@@ -7130,7 +7135,7 @@ void dump_video_status(u8 port)
 		is_valid_edid_data(rx_get_cur_used_edid(port)));
 	rx_pr("tx_type: %d\n", rx[port].tx_type);
 	if (log_level & EDID_LOG)
-		rx_print_edid_support();
+		rx_print_edid_support(port);
 }
 
 void dump_audio_status(u8 port)
@@ -7259,7 +7264,7 @@ int hdmirx_debug(const char *buf, int size)
 	char *token;
 	char *cur;
 	int cnt = 0;
-	struct edid_info_s edid_info;
+	struct edid_info_s *edid_info;
 	u8 port = 0;
 	u_char *pedid = NULL;
 	struct emp_info_s *emp_p = NULL;
@@ -7373,10 +7378,14 @@ int hdmirx_debug(const char *buf, int size)
 	} else if (strncmp(tmpbuf, "parse_edid", 10) == 0) {
 		//if (tmpbuf[10] == '1')
 			//pedid = rx_get_cur_def_edid(rx_info.main_port);
-		memset(&edid_info, 0, sizeof(struct edid_info_s));
-		rx_edid_parse(pedid, &edid_info);
-		rx_edid_parse_print(&edid_info);
-		rx_blk_index_print(&edid_info.cea_ext_info.blk_parse_info);
+		edid_info = kzalloc(sizeof(*edid_info), GFP_KERNEL);
+		if (!edid_info) {
+			rx_pr("no enough space for edid_info\n");
+			return 0;
+		}
+		if (rx_edid_parse(pedid, edid_info))
+			rx_edid_parse_print(edid_info);
+		kfree(edid_info);
 	} else if (strncmp(tmpbuf, "splice_db", 9) == 0) {
 		if (kstrtou32(tmpbuf + 9, 16, &value) < 0)
 			return -EINVAL;

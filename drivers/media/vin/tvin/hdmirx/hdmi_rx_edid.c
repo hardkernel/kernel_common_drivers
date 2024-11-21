@@ -66,6 +66,9 @@ int port_map;
 MODULE_PARM_DESC(port_map, "\n port_map\n");
 module_param(port_map, int, 0664);
 
+int phy_addr_map;
+u8 cta_flag[4] = {0};
+
 /*
  * 1:reset hpd after atmos edid update
  * 0:not reset hpd after atmos edid update
@@ -234,6 +237,53 @@ const char *hdmi_fmt[] = {
 	"HDMI_3840x2160p30_64x27",
 	"HDMI_3840x2160p50_64x27",
 	"HDMI_3840x2160p60_64x27",
+	"HDMI_1280x720p48_16x9",
+	"HDMI_1280x720p48_64x27",
+	"HDMI_1680x720p48_64x27",
+	"HDMI_1920x1080p48_16x9",
+	"HDMI_1920x1080p48_64x27",
+	"HDMI_2560x1080p48_64x27",
+	"HDMI_3840x2160p48_16x9",
+	"HDMI_4096x2160p48_256x135",
+	"HDMI_3840x2160p48_64x27",
+	"HDMI_3840x2160p100_16x9",
+	"HDMI_3840x2160p120_16x9",
+	"HDMI_3840x2160p100_64x27",
+	"HDMI_3840x2160p120_64x27",
+	"HDMI_5120x2160p24_64x27",
+	"HDMI_5120x2160p25_64x27",
+	"HDMI_5120x2160p30_64x27",
+	"HDMI_5120x2160p48_64x27",
+	"HDMI_5120x2160p50_64x27",
+	"HDMI_5120x2160p60_64x27",
+	"HDMI_5120x2160p100_64x27",
+	"HDMI_5120x2160p120_64x27",
+	"HDMI_7680x4320p24_16x9",
+	"HDMI_7680x4320p25_16x9",
+	"HDMI_7680x4320p30_16x9",
+	"HDMI_7680x4320p48_16x9",
+	"HDMI_7680x4320p50_16x9",
+	"HDMI_7680x4320p60_16x9",
+	"HDMI_7680x4320p100_16x9",
+	"HDMI_7680x4320p120_16x9",
+	"HDMI_7680x4320p24_64x27",
+	"HDMI_7680x4320p25_64x27",
+	"HDMI_7680x4320p30_64x27",
+	"HDMI_7680x4320p48_64x27",
+	"HDMI_7680x4320p50_64x27",
+	"HDMI_7680x4320p60_64x27",
+	"HDMI_7680x4320p100_64x27",
+	"HDMI_7680x4320p120_64x27",
+	"HDMI_10240x4320p24_64x27",
+	"HDMI_10240x4320p25_64x27",
+	"HDMI_10240x4320p30_64x27",
+	"HDMI_10240x4320p48_64x27",
+	"HDMI_10240x4320p50_64x27",
+	"HDMI_10240x4320p60_64x27",
+	"HDMI_10240x4320p100_64x27",
+	"HDMI_10240x4320p120_64x27",
+	"HDMI_4096x4320p100_256x135",
+	"HDMI_4096x4320p120_256x135",
 	"HDMI_RESERVED",
 };
 
@@ -259,6 +309,56 @@ const char *_3d_structure[] = {
 	"Resrvd",
 	"Resrvd",
 	"Side-by-Side(Half) with all quincunx sub-sampling",
+};
+
+const char *speaker_place[] = {
+	"Front Left",
+	"Front Right",
+	"Front Center",
+	"Low Frequency Effects 1",
+	"Back Left",
+	"Back Right",
+	"Front Left of Center",
+	"Front Right of Center",
+	"Back Center",
+	"Low Frequency Effects 2",
+	"Side Left",
+	"Side Right",
+	"Top Front Left",
+	"Top Front Right",
+	"Top Front Center",
+	"Top Center",
+	"Top Back Left",
+	"Top Back Right",
+	"Top Side Left",
+	"Top Side Right",
+	"Top Back Center",
+	"Bottom Front Center",
+	"Bottom Front Left",
+	"Bottom Front Right",
+	"Front Left Wide",
+	"Front Right Wide",
+	"Left Surround",
+	"Right Surround",
+};
+
+const char *aspect_ratio[] = {
+	"1:1",
+	"5:4",
+	"4:3",
+	"15:9",
+	"16:9",
+	"16:10",
+	"64:27",
+	"256:135",
+	"Calculated by Hactive and Vactive",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
 };
 
 const char *_3d_detail_x[] = {
@@ -346,6 +446,10 @@ static struct cta_blk_pair cta_blk[] = {
 		.blk_name = "VSVDB_HDR10P",
 	},
 	{
+		.tag_code = VSDB_FREESYNC_TAG,
+		.blk_name = "FREESYNC_DB",
+	},
+	{
 		.tag_code = EXTENDED_VDDDB_TAG,
 		.blk_name = "VESA_Display_Device_DB",
 	},
@@ -392,6 +496,34 @@ static struct cta_blk_pair cta_blk[] = {
 	{
 		.tag_code = EXTENDED_IFDB_TAG,
 		.blk_name = "Infoframe_DB",
+	},
+	{
+		.tag_code = (USE_EXTENDED_TAG << 8) | HDMI_ADB_TAG,
+		.blk_name = "HDMI Audio (Multi-Stream/3D)",
+	},
+	{
+		.tag_code = (USE_EXTENDED_TAG << 8) | SBTM_TAG,
+		.blk_name = "SBTM_DB",
+	},
+	{
+		.tag_code = (USE_EXTENDED_TAG << 8) | HF_EEODB,
+		.blk_name = "EEODB_DB",
+	},
+	{
+		.tag_code = (USE_EXTENDED_TAG << 8) | SCDB_TAG,
+		.blk_name = "Sink_Capabilities_DB",
+	},
+	{
+		.tag_code = (USE_EXTENDED_TAG << 8) | T7VTDB_TAG,
+		.blk_name = "T7VT_DB",
+	},
+	{
+		.tag_code = (USE_EXTENDED_TAG << 8) | T8VTDB_TAG,
+		.blk_name = "T8VT_DB",
+	},
+	{
+		.tag_code = (USE_EXTENDED_TAG << 8) | T10VTDB_TAG,
+		.blk_name = "T10VT_DB",
 	},
 	{
 		.tag_code = TAG_MAX,
@@ -535,6 +667,54 @@ bool is_edid_size_valid(u8 type, int size)
 	return ret;
 }
 
+void update_edid_type_cfg(unsigned int val)
+{
+	int i;
+	/* PCB port number for UI HDMI1/2/3/4 */
+	unsigned char pos[E_PORT_NUM] = {0};
+
+	for (i = 0; i < E_PORT_NUM; i++) {
+		switch ((phy_addr_map >> (i * 4)) & 0xF) {
+		case 1:
+			pos[0] = i;
+			break;
+		case 2:
+			pos[1] = i;
+			break;
+		case 3:
+			pos[2] = i;
+			break;
+		case 4:
+			pos[3] = i;
+			break;
+		default:
+			break;
+		}
+	}
+	/* edid select for portD/C/B/A */
+	rx[0].edid_type.cfg = (enum edid_ver_e)(val & 0xF);
+	rx[1].edid_type.cfg = (enum edid_ver_e)((val >> 4) & 0xF);
+	rx[2].edid_type.cfg = (enum edid_ver_e)((val >> 8) & 0xF);
+	rx[3].edid_type.cfg = (enum edid_ver_e)((val >> 12) & 0xF);
+	edid_type_init();
+}
+
+static void get_edid_phy_addr(u8 *edid, u8 port)
+{
+	int addr = 0;
+	struct data_block_location_s ret;
+
+	if (!edid)
+		return;
+
+	ret = rx_get_cea_tag_offset(edid, VENDOR_TAG);
+	if (ret.num != 0) {
+		addr = edid[ret.pos[0] + 4] >> 4;
+		phy_addr_map &= ~(0xf << port * 4);
+		phy_addr_map |= addr << port * 4;
+	}
+}
+
 void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 {
 	u8 port_num;
@@ -574,7 +754,6 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		port_hpd_rst_flag |= 1 << port_num;
 		rx_set_port_hpd(port_num, 0);
 	}
-
 	if (size > sizeof(edid_buf1) + 1) {
 		rx_pr("edid size overflow\n");
 		size = sizeof(edid_buf1) + 1;
@@ -654,6 +833,11 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		rx_pr("port %d: 2.1 edid error\n", port_num);
 	if (!is_valid_edid_data(edid_buf + 768))
 		rx_pr("port %d: 2.0 edid error\n", port_num);
+	get_edid_phy_addr(edid_buf, port_num);
+	if (port_num == rx_info.port_num - 1 && !update_edid_type) {
+		update_edid_type = true;
+		update_edid_type_cfg(edid_select);
+	}
 	rx_sprintf(&boot_info_num, "EDID port%d - size %d\n", port_num, size);
 	if (log_level & EDID_LOG) {
 		for (i = 0; i * 16 < size; i++) {
@@ -686,10 +870,14 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 {
 	u_int hf_vsdb_start = 0;
 	u8 tag_len;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
-	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	if (ret.num < 1)
+		return;
+	hf_vsdb_start = ret.pos[ret.num - 1];
 	if (!hf_vsdb_start)
 		return;
 
@@ -718,10 +906,14 @@ void rx_edid_update_allm_info(unsigned char *p_edid)
 {
 	u_int hf_vsdb_start = 0;
 	u8 tag_len;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
-	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	if (ret.num < 1)
+		return;
+	hf_vsdb_start = ret.pos[ret.num - 1];
 	if (!hf_vsdb_start)
 		return;
 	tag_len = p_edid[hf_vsdb_start] & 0x1f;
@@ -747,10 +939,14 @@ void rx_edid_update_qms_info(unsigned char *p_edid)
 {
 	u_int hf_vsdb_start = 0;
 	u8 tag_len;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
-	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	if (ret.num < 1)
+		return;
+	hf_vsdb_start = ret.pos[ret.num - 1];
 	if (!hf_vsdb_start)
 		return;
 	tag_len = p_edid[hf_vsdb_start] & 0x1f;
@@ -778,6 +974,62 @@ unsigned int rx_exchange_bits(unsigned int value)
 	value = (((value >> 4) & 0xF00) | (value & 0xF0FF));
 	value = ((value & 0x0FFF) | (temp << 4));
 	return value;
+}
+
+bool get_basic_dtd_data(u8 *p_edid, struct edid_info_s *edid_info)
+{
+	unsigned int htotal;
+	unsigned int vtotal;
+	bool ret = false;
+
+	if (!p_edid)
+		return 0;
+
+	if (p_edid[0x36] == 0 && p_edid[0x37] == 0) {
+		rx_pr("descriptor1 is not a DTD!\n");
+		goto _dtd2;
+	}
+	ret = true;
+	edid_info->descriptor1.pixel_clk = (p_edid[0x36] + (p_edid[0x37] << 8)) / 100;
+	edid_info->descriptor1.hactive = p_edid[0x38] + (((p_edid[0x3A] >> 4) & 0xF) << 8);
+	edid_info->descriptor1.vactive = p_edid[0x3B] + (((p_edid[0x3D] >> 4) & 0xF) << 8);
+	edid_info->descriptor1.hblank = ((p_edid[0x3A] & 0xF) << 8) + p_edid[0x39];
+	edid_info->descriptor1.vblank = ((p_edid[0x3D] & 0xF) << 8) + p_edid[0x3C];
+	edid_info->descriptor1.hfront = p_edid[0x3E] | ((p_edid[0x41] & 0xC0) << 8);
+	edid_info->descriptor1.hsync_width = p_edid[0x3F] | ((p_edid[0x41] & 0x30) << 8);
+	edid_info->descriptor1.vfront = (p_edid[0x40] >> 4) | ((p_edid[0x41] & 0xC) << 8);
+	edid_info->descriptor1.vsync_width = (p_edid[0x40] & 0xF) | ((p_edid[0x41] & 0x3) << 8);
+	htotal = edid_info->descriptor1.hactive + edid_info->descriptor1.hblank;
+	vtotal = edid_info->descriptor1.vactive + edid_info->descriptor1.vblank;
+	edid_info->descriptor1.htotal =
+		edid_info->descriptor1.hactive + edid_info->descriptor1.hblank;
+	edid_info->descriptor1.vtotal =
+		edid_info->descriptor1.vactive + edid_info->descriptor1.vblank;
+	edid_info->descriptor1.framerate =
+		edid_info->descriptor1.pixel_clk * 1000 / htotal * 1000 / vtotal;
+
+_dtd2:
+	if (p_edid[0x48] == 0 && p_edid[0x49] == 0) {
+		rx_pr("descriptor2 is not a DTD!\n");
+		return ret;
+	}
+	ret = true;
+	edid_info->descriptor2.pixel_clk = (p_edid[0x48] + (p_edid[0x49] << 8)) / 100;
+	edid_info->descriptor2.hactive = p_edid[0x4A] + (((p_edid[0x4C] >> 4) & 0xF) << 8);
+	edid_info->descriptor2.vactive = p_edid[0x4D] + (((p_edid[0x4F] >> 4) & 0xF) << 8);
+	edid_info->descriptor2.hblank = ((p_edid[0x4C] & 0xF) << 8) + p_edid[0x4B];
+	edid_info->descriptor2.vblank = ((p_edid[0x4F] & 0xF) << 8) + p_edid[0x4E];
+	edid_info->descriptor2.hfront = p_edid[0x50] | ((p_edid[0x53] & 0xC0) << 8);
+	edid_info->descriptor2.hsync_width = p_edid[0x51] | ((p_edid[0x53] & 0x30) << 8);
+	edid_info->descriptor2.vfront = (p_edid[0x52] >> 4) | ((p_edid[0x53] & 0xC) << 8);
+	edid_info->descriptor2.vsync_width = (p_edid[0x52] & 0xF) | ((p_edid[0x53] & 0x3) << 8);
+	htotal = edid_info->descriptor2.hactive + edid_info->descriptor2.hblank;
+	vtotal = edid_info->descriptor2.vactive + edid_info->descriptor2.vblank;
+	edid_info->descriptor2.htotal = htotal;
+	edid_info->descriptor2.vtotal = vtotal;
+	edid_info->descriptor2.framerate =
+		edid_info->descriptor2.pixel_clk * 1000 / htotal * 1000 / vtotal;
+	return ret;
 }
 
 u16 rx_get_tag_code(u_char *edid_data)
@@ -826,29 +1078,18 @@ u16 rx_get_tag_code(u_char *edid_data)
 
 u_int rx_get_ceadata_offset(u_char *cur_edid, u_char *addition)
 {
-	int i;
-	u16 type;
-	unsigned char max_offset;
+	u16 tag;
+	struct data_block_location_s ret;
 
 	if (!cur_edid || !addition)
 		return 0;
 
-	type = rx_get_tag_code(addition);
-	i = EDID_DEFAULT_START;/*block check start index*/
-	max_offset = cur_edid[130] + EDID_EXT_BLK_OFF;
-
-	while (i < max_offset) {
-		if (type == rx_get_tag_code(cur_edid + i)) {
-			if (log_level & EDID_LOG)
-				rx_pr("type: %#x, start addr: %#x\n", type, i);
-			return i;
-		}
-		i += (1 + (*(cur_edid + i) & 0x1f));
-	}
-	return 0;
+	tag = rx_get_tag_code(addition);
+	ret = rx_get_cea_tag_offset(cur_edid, tag);
+	return ret.pos[0];
 }
 
-u_int rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code)
+u_int rx_get_eeodb(u8 *cur_edid)
 {
 	int i;
 	unsigned char max_offset;
@@ -861,28 +1102,68 @@ u_int rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code)
 	max_offset = cur_edid[130] + EDID_EXT_BLK_OFF;
 
 	while (i < max_offset) {
-		if (tag_code == rx_get_tag_code(cur_edid + i)) {
-			if (log_level & EDID_LOG)
-				rx_pr("tag: %#x, start addr: %#x\n", tag_code, i);
+		if (rx_get_tag_code(cur_edid + i) == EXTENDED_HF_EEODB)
 			return i;
-		}
 		i += (1 + (*(cur_edid + i) & 0x1f));
 	}
-	if (log_level & EDID_LOG)
-		rx_pr("tag: %#x, start addr: %#x\n", tag_code, i);
 
 	return 0;
 }
 
-int rx_edid_free_size(u8 *cur_edid, int size)
+struct data_block_location_s rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code)
+{
+	int i, j;
+	u16 max_offset;
+	u8 cta_num;
+	struct data_block_location_s ret;
+
+	memset(&ret, 0, sizeof(struct data_block_location_s));
+	if (!cur_edid || !cur_edid[126])
+		return ret;
+	if (!is_valid_edid_data(cur_edid))
+		return ret;
+
+	cta_num = rx_edid_cta_blk_num(cur_edid);
+	for (j = 1; j <= cta_num; ++j) {
+		i = EDID_BLK_SIZE * j + 4;
+		max_offset = cur_edid[j * EDID_BLK_SIZE + 2] + EDID_BLK_SIZE * j;
+		while (i < max_offset) {
+			if (tag_code == rx_get_tag_code(cur_edid + i)) {
+				if (log_level & EDID_LOG)
+					rx_pr("find tag: %#x, start addr: %#x\n", tag_code, i);
+				ret.pos[ret.num] = i;
+				ret.num++;
+				if (ret.num >= 10)
+					break;
+			}
+			i += (1 + (*(cur_edid + i) & 0x1f));
+		}
+	}
+	if (log_level & EDID_LOG)
+		rx_pr("no tag: %#x\n", tag_code);
+	return ret;
+}
+
+bool is_cta_blk(u8 *cur_edid)
+{
+	bool ret = false;
+
+	if (!cur_edid)
+		return ret;
+	if (cur_edid[0] == 2 && cur_edid[1] == 3)
+		ret = true;
+
+	return ret;
+}
+
+int rx_get_cta_free_size(u8 *cur_edid, unsigned int size)
 {
 	int block_start;
 
-	if (cur_edid == 0)
+	if (!cur_edid || !is_cta_blk(cur_edid))
 		return -1;
 	/*get description offset*/
-	block_start = cur_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET];
-	block_start += EDID_BLOCK1_OFFSET;
+	block_start = cur_edid[EDID_DESCRIP_OFFSET];
 	if (log_level & EDID_LOG)
 		rx_pr("%s block_start:%d\n", __func__, block_start);
 	/*find the empty data index*/
@@ -898,7 +1179,7 @@ int rx_edid_free_size(u8 *cur_edid, int size)
 		rx_pr("%s block_start end:%d\n", __func__, block_start);
 	/*compute the free size*/
 	if (block_start <= size - 1)
-		return (size - block_start - 1);
+		return size - block_start - 1;
 	else
 		return -1;
 }
@@ -914,12 +1195,14 @@ bool rx_edid_cal_phy_addr(u_int up_addr,
 	u_int vsdb_offset = 0;
 	u_int i;
 	bool flag = false;
+	struct data_block_location_s ret;
 
 	if (!(pedid && phy_offset && phy_addr))
 		return flag;
 
 	/* find phy addr offset */
-	vsdb_offset = rx_get_cea_tag_offset(pedid, VENDOR_TAG);
+	ret = rx_get_cea_tag_offset(pedid, VENDOR_TAG);
+	vsdb_offset = ret.pos[0];
 	if (vsdb_offset == 0x0)
 		return flag;
 
@@ -1039,7 +1322,10 @@ bool is_edid_buff_normal(unsigned char port_id)
 
 enum edid_ver_e rx_parse_edid_ver(u8 *p_edid)
 {
-	if (rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG))
+	struct data_block_location_s ret;
+
+	ret = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	if (ret.num > 0)
 		return EDID_V21;
 	else
 		return EDID_V14;
@@ -1124,43 +1410,20 @@ EXPORT_SYMBOL(rx_get_atmos_flag);
 
 unsigned char get_atmos_offset(unsigned char *p_edid)
 {
-	unsigned char max_offset = 0;
-	unsigned char tag_offset = 0;
-	unsigned char tag_data = 0;
-	unsigned char aud_length = 0;
-	unsigned char i = 0;
 	unsigned char ret = 0;
-
-	max_offset = p_edid[130] + 128;
-	tag_offset = 132;
-	do {
-		tag_data = p_edid[tag_offset];
-		if ((tag_data & 0xE0) == 0x20) {
-			if (log_level & EDID_LOG)
-				rx_pr("audio_");
-			aud_length = tag_data & 0x1F;
-			break;
-		}
-		tag_offset += (tag_data & 0x1F) + 1;
-	} while (tag_offset < max_offset);
-
-	for (i = 0; i < aud_length; i += 3) {
-		if (p_edid[tag_offset + 1 + i] >> 3 == 10) {
-			ret = tag_offset + 1 + i + 2;
-			break;
-		}
-	}
 	return ret;
 }
 
 u_char rx_edid_get_aud_sad(u_char *sad_data)
 {
 	u8 port = rx_info.main_port; //todo
+	struct data_block_location_s ret;
 
 	if (rx_info.chip_id == CHIP_ID_NONE)
 		return 0;
 	u_char *pedid = rx_get_cur_used_edid(port);
-	u_char offset = rx_get_cea_tag_offset(pedid, AUDIO_TAG);
+	ret = rx_get_cea_tag_offset(pedid, AUDIO_TAG);
+	u_char offset = ret.pos[0];
 	u_char len = 0;
 
 	if (!sad_data || !offset)
@@ -1312,20 +1575,14 @@ void rx_edid_print_vic_fmt(unsigned char i,
 {
 	/* CTA-861-G: Table-18 */
 	/* SVD = 128, 254, 255 are reserved */
-	if (hdmi_vic >= 1 && hdmi_vic <= 64) {
+	if (hdmi_vic >= 1 && hdmi_vic <= 127) {
 		rx_pr("\tSVD#%2d: vic(%3d), format: %s\n",
 		      i + 1, hdmi_vic, hdmi_fmt[hdmi_vic]);
-	} else if (hdmi_vic >= 65 && hdmi_vic <= 107) {
+	} else if (hdmi_vic >= 193 && hdmi_vic <= 219) {
 		/* from first new set */
 		rx_pr("\tSVD#%2d: vic(%3d), format: %s\n",
-		      i + 1, hdmi_vic, hdmi_fmt[hdmi_vic]);
-	} else if (hdmi_vic >= 108 && hdmi_vic <= 127) {
-		/* from first new set: 8bit VIC */
-	} else if (hdmi_vic >= 129 && hdmi_vic <= 192) {
-		hdmi_vic &= 0x7F;
-		rx_pr("\tSVD#%2d: vic(%3d), native format: %s\n",
-		      i + 1, hdmi_vic, hdmi_fmt[hdmi_vic]);
-	} else if (hdmi_vic >= 193 && hdmi_vic <= 253) {
+		      i + 1, hdmi_vic, hdmi_fmt[hdmi_vic - 65]);
+	} else if (hdmi_vic >= 220 && hdmi_vic <= 253) {
 		/* from second new set: 8bit VIC */
 	}
 }
@@ -1425,7 +1682,40 @@ static void get_edid_manufacture_date(unsigned char *buff,
 static void get_edid_display_parameters(unsigned char *buff,
 					unsigned char start,
 					struct edid_info_s *edid_info)
-{}
+{
+	if (!edid_info || !buff)
+		return;
+	if (buff[start] & 0x80) {
+		edid_info->display_param.video_signal =
+			1;
+		edid_info->display_param.color_bit_depth =
+			buff[start] & 0x70;
+		edid_info->display_param.digital_support =
+			buff[start] & 0xf;
+	} else {
+		edid_info->display_param.video_signal =
+			0;
+		edid_info->display_param.signal_level_standard =
+			buff[start] & 0x60;
+		edid_info->display_param.video_setup =
+			buff[start] & 0x10;
+		edid_info->display_param.sync_type =
+			buff[start] & 0xe;
+		edid_info->display_param.serrations =
+			buff[start] & 0x1;
+	}
+
+	edid_info->display_param.horizontal_val = buff[start + 1];
+	edid_info->display_param.vertical_val = buff[start + 2];
+	edid_info->display_param.gamma = buff[start + 3];
+
+	edid_info->display_param.display_power =
+		(buff[start + 4] & 0xe0) >> 5;
+	edid_info->display_param.display_color_type =
+		(buff[start + 4] & 0x18) >> 3;
+	edid_info->display_param.other_feature =
+		buff[start + 4] & 0x7;
+}
 
 /* Color Characteristics. Color Characteristics provides information about
  * the display device's chromaticity and color temperature parameters
@@ -1435,7 +1725,42 @@ static void get_edid_display_parameters(unsigned char *buff,
 static void get_edid_color_characteristics(unsigned char *buff,
 					   unsigned char start,
 					   struct edid_info_s *edid_info)
-{}
+{
+	if (!edid_info || !buff)
+		return;
+	edid_info->color_chara.red_x =
+		((buff[start] & 0x40) >> 6) |
+		((buff[start] & 0x80) >> 6) |
+		(buff[start + 2] << 2);
+	edid_info->color_chara.red_y =
+		((buff[start] & 0x10) >> 4) |
+		((buff[start] & 0x20) >> 4) |
+		(buff[start + 3] << 2);
+	edid_info->color_chara.green_x =
+		((buff[start] & 0x4) >> 2) |
+		((buff[start] & 0x8) >> 2) |
+		(buff[start + 4] << 2);
+	edid_info->color_chara.green_y =
+		((buff[start] & 0x1) >> 0) |
+		((buff[start] & 0x2) >> 0) |
+		(buff[start + 5] << 2);
+	edid_info->color_chara.blue_x =
+		((buff[start + 1] & 0x40) >> 6) |
+		((buff[start + 1] & 0x80) >> 6) |
+		(buff[start + 6] << 2);
+	edid_info->color_chara.blue_y =
+		((buff[start + 1] & 0x10) >> 4) |
+		((buff[start + 1] & 0x20) >> 4) |
+		(buff[start + 7] << 2);
+	edid_info->color_chara.white_x =
+		((buff[start + 1] & 0x4) >> 2) |
+		((buff[start + 1] & 0x8) >> 2) |
+		(buff[start + 8] << 2);
+	edid_info->color_chara.white_y =
+		((buff[start + 1] & 0x1) >> 0) |
+		((buff[start + 1] & 0x2) >> 0) |
+		(buff[start + 9] << 2);
+}
 
 /* established timings are computer display timings recognized by VESA.
  * offset 0x23~0x25
@@ -1573,12 +1898,7 @@ void edid_parse_block0(u8 *p_edid, struct edid_info_s *edid_info)
 	/* standard timing offset 0x26~0x35*/
 	get_edid_standard_timing(p_edid, 0x26, 16, edid_info);
 	/* best resolution: hactive*vactive*/
-	edid_info->descriptor1.hactive =
-		p_edid[0x38] + (((p_edid[0x3A] >> 4) & 0xF) << 8);
-	edid_info->descriptor1.vactive =
-		p_edid[0x3B] + (((p_edid[0x3D] >> 4) & 0xF) << 8);
-	edid_info->descriptor1.pixel_clk =
-		(p_edid[0x37] << 8) + p_edid[0x36];
+	get_basic_dtd_data(p_edid, edid_info);
 	/* monitor name */
 	get_edid_monitor_name(p_edid, 0x36, edid_info);
 	get_edid_range_limits(p_edid, 0x36, edid_info);
@@ -1591,15 +1911,44 @@ static void get_edid_video_data(unsigned char *buff,
 				unsigned char len,
 				struct cta_blk_parse_info *edid_info)
 {
-	unsigned char i;
+	unsigned char i, num;
 
 	if (!buff || !edid_info)
 		return;
-	edid_info->video_db.svd_num = len;
+	edid_info->contain_vdb = true;
+	num = edid_info->video_db_num;
+	edid_info->video_db[num].svd_num = len;
 	for (i = 0; i < len; i++) {
-		edid_info->video_db.hdmi_vic[i] =
+		edid_info->video_db[num].hdmi_vic[i] =
 			buff[i + start];
 	}
+	edid_info->video_db_num++;
+}
+
+static void get_edid_basic_audio_data(int start,
+				enum edid_audio_format_e fmt,
+				unsigned char *buff,
+				struct cta_blk_parse_info *edid_info)
+{
+	u8 i;
+
+	i = edid_info->audio_db_num;
+	edid_info->audio_db[i].sad[fmt].max_channel =
+				(buff[start] & 0x7);
+	if (buff[start + 1] & 0x40)
+		edid_info->audio_db[i].sad[fmt].usr.ssr.freq_192khz = 1;
+	if (buff[start + 1] & 0x20)
+		edid_info->audio_db[i].sad[fmt].usr.ssr.freq_176_4khz = 1;
+	if (buff[start + 1] & 0x10)
+		edid_info->audio_db[i].sad[fmt].usr.ssr.freq_96khz = 1;
+	if (buff[start + 1] & 0x08)
+		edid_info->audio_db[i].sad[fmt].usr.ssr.freq_88_2khz = 1;
+	if (buff[start + 1] & 0x04)
+		edid_info->audio_db[i].sad[fmt].usr.ssr.freq_48khz = 1;
+	if (buff[start + 1] & 0x02)
+		edid_info->audio_db[i].sad[fmt].usr.ssr.freq_44_1khz = 1;
+	if (buff[start + 1] & 0x01)
+		edid_info->audio_db[i].sad[fmt].usr.ssr.freq_32khz = 1;
 }
 
 static void get_edid_audio_data(unsigned char *buff,
@@ -1608,34 +1957,21 @@ static void get_edid_audio_data(unsigned char *buff,
 				struct cta_blk_parse_info *edid_info)
 {
 	enum edid_audio_format_e fmt;
-	int i = start;
+	int i = start, num;
 	struct pcm_t *pcm;
 
 	if (!buff || !edid_info)
 		return;
+	edid_info->contain_adb = true;
+	num = edid_info->audio_db_num;
 	do {
 		fmt = (buff[i] & 0x78) >> 3;/* bit6~3 */
-		edid_info->audio_db.aud_fmt_sup[fmt] = 1;
+		edid_info->audio_db[num].aud_fmt_sup[fmt] = 1;
 		/* CEA-861F page 82: audio data block*/
 		switch (fmt) {
 		case AUDIO_FORMAT_LPCM:
-			pcm = &edid_info->audio_db.sad[fmt].bit_rate.pcm;
-			edid_info->audio_db.sad[fmt].max_channel =
-				(buff[i] & 0x7);
-			if (buff[i + 1] & 0x40)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_192khz = 1;
-			if (buff[i + 1] & 0x20)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_176_4khz = 1;
-			if (buff[i + 1] & 0x10)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_96khz = 1;
-			if (buff[i + 1] & 0x08)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_88_2khz = 1;
-			if (buff[i + 1] & 0x04)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_48khz = 1;
-			if (buff[i + 1] & 0x02)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_44_1khz = 1;
-			if (buff[i + 1] & 0x01)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_32khz = 1;
+			pcm = &edid_info->audio_db[num].sad[fmt].bit_rate.pcm;
+			get_edid_basic_audio_data(i, fmt, buff, edid_info);
 			if (buff[i + 2] & 0x04)
 				pcm->size_24bit = 1;
 			if (buff[i + 2] & 0x02)
@@ -1653,23 +1989,8 @@ static void get_edid_audio_data(unsigned char *buff,
 		case AUDIO_FORMAT_AAC:
 		case AUDIO_FORMAT_DTS:
 		case AUDIO_FORMAT_ATRAC:
-			edid_info->audio_db.sad[fmt].max_channel =
-				(buff[i] & 0x07);
-			if (buff[i + 1] & 0x40)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_192khz = 1;
-			if (buff[i + 1] & 0x20)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_176_4khz = 1;
-			if (buff[i + 1] & 0x10)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_96khz = 1;
-			if (buff[i + 1] & 0x08)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_88_2khz = 1;
-			if (buff[i + 1] & 0x04)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_48khz = 1;
-			if (buff[i + 1] & 0x02)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_44_1khz = 1;
-			if (buff[i + 1] & 0x01)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_32khz = 1;
-			edid_info->audio_db.sad[fmt].bit_rate.others =
+			get_edid_basic_audio_data(i, fmt, buff, edid_info);
+			edid_info->audio_db[num].sad[fmt].bit_rate.others =
 				buff[i + 2];
 			break;
 		/* for audio format code 9~13:
@@ -1680,45 +2001,15 @@ static void get_edid_audio_data(unsigned char *buff,
 		case AUDIO_FORMAT_DTSHD:
 		case AUDIO_FORMAT_MAT:
 		case AUDIO_FORMAT_DST:
-			edid_info->audio_db.sad[fmt].max_channel =
-				(buff[i] & 0x07);
-			if (buff[i + 1] & 0x40)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_192khz = 1;
-			if (buff[i + 1] & 0x20)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_176_4khz = 1;
-			if (buff[i + 1] & 0x10)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_96khz = 1;
-			if (buff[i + 1] & 0x08)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_88_2khz = 1;
-			if (buff[i + 1] & 0x04)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_48khz = 1;
-			if (buff[i + 1] & 0x02)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_44_1khz = 1;
-			if (buff[i + 1] & 0x01)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_32khz = 1;
-			edid_info->audio_db.sad[fmt].bit_rate.others = buff[i + 2];
+			get_edid_basic_audio_data(i, fmt, buff, edid_info);
+			edid_info->audio_db[num].sad[fmt].bit_rate.others = buff[i + 2];
 			break;
 		/* audio format code 14:
 		 * last 3 bits of byte3: profile
 		 */
 		case AUDIO_FORMAT_WMAPRO:
-			edid_info->audio_db.sad[fmt].max_channel =
-				(buff[i] & 0x07);
-			if (buff[i + 1] & 0x40)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_192khz = 1;
-			if (buff[i + 1] & 0x20)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_176_4khz = 1;
-			if (buff[i + 1] & 0x10)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_96khz = 1;
-			if (buff[i + 1] & 0x08)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_88_2khz = 1;
-			if (buff[i + 1] & 0x04)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_48khz = 1;
-			if (buff[i + 1] & 0x02)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_44_1khz = 1;
-			if (buff[i + 1] & 0x01)
-				edid_info->audio_db.sad[fmt].usr.ssr.freq_32khz = 1;
-			edid_info->audio_db.sad[fmt].bit_rate.others = buff[i + 2];
+			get_edid_basic_audio_data(i, fmt, buff, edid_info);
+			edid_info->audio_db[num].sad[fmt].bit_rate.others = buff[i + 2];
 			break;
 		/* case 15: audio coding extension coding type */
 		default:
@@ -1726,6 +2017,98 @@ static void get_edid_audio_data(unsigned char *buff,
 		}
 		i += 3; /*next audio fmt*/
 	} while (i < (start + len));
+	edid_info->audio_db_num++;
+}
+
+static void get_speaker_allocation_data(unsigned char *buff,
+				  unsigned char start,
+				  struct speaker_alloc_db_s *sadb)
+{
+	int i;
+
+	if (!buff || !sadb)
+		return;
+	for (i = 1; i <= 0x80; i = i << 1) {
+		switch (buff[start] & i) {
+		case 0x80:
+			sadb->flw_frw = 1;
+			break;
+		case 0x40:
+			// according to CTA-861-H, rlc/rrc has been deprecated.
+			// rlc_rrc is same to bl_br.
+			//edid_info->speaker_alloc.rlc_rrc = 1;
+			break;
+		case 0x20:
+			sadb->flc_frc = 1;
+			break;
+		case 0x10:
+			sadb->bc = 1;
+			break;
+		case 0x08:
+			sadb->bl_br = 1;
+			break;
+		case 0x04:
+			sadb->fc = 1;
+			break;
+		case 0x02:
+			sadb->lfe1 = 1;
+			break;
+		case 0x01:
+			sadb->fl_fr = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	for (i = 1; i <= 0x80; i = i << 1) {
+		switch (buff[start + 1] & i) {
+		case 0x80:
+			sadb->tpsil_tpsir = 1;
+			break;
+		case 0x40:
+			sadb->sil_sir = 1;
+			break;
+		case 0x20:
+			sadb->tpbc = 1;
+			break;
+		case 0x10:
+			sadb->lfe2 = 1;
+			break;
+		case 0x08:
+			sadb->ls_rs = 1;
+			break;
+		case 0x04:
+			sadb->tpfc = 1;
+			break;
+		case 0x02:
+			sadb->tpc = 1;
+			break;
+		case 0x01:
+			sadb->tpfl_tpfr = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	for (i = 1; i <= 0x8; i = i << 1) {
+		switch (buff[start + 2] & i) {
+		case 0x8:
+			// according to CTA-861-H, tpls/tprs has been deprecated.
+			//edid_info->speaker_alloc.tpls_tprs = 1;
+			break;
+		case 0x4:
+			sadb->btfl_btfr = 1;
+			break;
+		case 0x2:
+			sadb->btfc = 1;
+			break;
+		case 0x1:
+			sadb->tpbl_tpbr = 1;
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static void get_edid_speaker_data(unsigned char *buff,
@@ -1733,68 +2116,51 @@ static void get_edid_speaker_data(unsigned char *buff,
 				  unsigned char len,
 				  struct cta_blk_parse_info *edid_info)
 {
-	int i;
-
 	if (!buff || !edid_info)
 		return;
+	edid_info->contain_sadb = true;
 	/* speaker allocation is 3 bytes long*/
 	if (len != 3) {
 		rx_pr("invalid length for speaker allocation data block: %d\n",
 		      len);
 		return;
 	}
-	for (i = 1; i <= 0x80; i = i << 1) {
-		switch (buff[start] & i) {
-		case 0x80:
-			edid_info->speaker_alloc.flw_frw = 1;
-			break;
-		case 0x40:
-			edid_info->speaker_alloc.rlc_rrc = 1;
-			break;
-		case 0x20:
-			edid_info->speaker_alloc.flc_frc = 1;
-			break;
-		case 0x10:
-			edid_info->speaker_alloc.rc = 1;
-			break;
-		case 0x08:
-			edid_info->speaker_alloc.rl_rr = 1;
-			break;
-		case 0x04:
-			edid_info->speaker_alloc.fc = 1;
-			break;
-		case 0x02:
-			edid_info->speaker_alloc.lfe = 1;
-			break;
-		case 0x01:
-			edid_info->speaker_alloc.fl_fr = 1;
-			break;
-		default:
-			break;
-		}
+	get_speaker_allocation_data(buff, start, &edid_info->speaker_alloc);
+}
+
+static void get_edid_fsdb(unsigned char *buff,
+			  unsigned char start,
+			  unsigned char len,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u32 ieee_oui;
+	u8 i, payload_len;
+
+	if (!buff || !edid_info)
+		return;
+	ieee_oui = buff[start + 2] << 16 |
+		   buff[start + 1] << 8 |
+		   buff[start];
+	payload_len = len - 3;
+	if (ieee_oui != 0x00001a) {
+		rx_pr("invalid freesync ieee oui\n");
+		return;
 	}
-	for (i = 1; i <= 0x4; i = i << 1) {
-		switch (buff[start + 1] & i) {
-		case 0x4:
-			edid_info->speaker_alloc.fch = 1;
-			break;
-		case 0x2:
-			edid_info->speaker_alloc.tc = 1;
-			break;
-		case 0x1:
-			edid_info->speaker_alloc.flh_frh = 1;
-			break;
-		default:
-			break;
-		}
+	if (payload_len > 28) {
+		rx_pr("invalid freesync payload length\n");
+		return;
 	}
+	edid_info->contain_fsdb = true;
+	edid_info->fsdb.payload_len = payload_len;
+	for (i = 0; i < payload_len; ++i)
+		edid_info->fsdb.payload[i] = buff[start + 3 + i];
 }
 
 /* if is valid vsdb, then return 1
  * if is valid hf-vsdb, then return 2
  * if is invalid db, then return 0
  */
-static int get_edid_vsdb(unsigned char *buff,
+static void get_edid_vs14(unsigned char *buff,
 			 unsigned char start,
 			 unsigned char len,
 			 struct cta_blk_parse_info *edid_info)
@@ -1809,10 +2175,9 @@ static int get_edid_vsdb(unsigned char *buff,
 	unsigned char _3d_struct;
 	unsigned char _2d_vic_order_offset;
 	unsigned char temp_3d_len;
-	int ret = 0;
 
 	if (!buff || !edid_info)
-		return 0;
+		return;
 	/* basic 5 bytes; others: extension fields */
 	//coverity fixed
 	//if (len < 5) {
@@ -1822,15 +2187,10 @@ static int get_edid_vsdb(unsigned char *buff,
 	ieee_oui = (buff[start + 2] << 16) |
 		   (buff[start + 1] << 8) |
 		   buff[start];
-	if (ieee_oui != 0x000C03 &&
-	    ieee_oui != 0xC45DD8) {
+	if (ieee_oui != 0x000C03) {
 		rx_pr("invalid IEEE OUI\n");
-		return 0;
-	} else if (ieee_oui == 0xC45DD8) {
-		ret = 2;
-		goto hf_vsdb;
+		return;
 	}
-	ret = 1;
 	edid_info->vsdb.ieee_first = ieee_oui & 0xff;
 	edid_info->vsdb.ieee_second = ieee_oui >> 8 & 0xff;
 	edid_info->vsdb.ieee_third = ieee_oui >> 16 & 0xff;
@@ -1865,7 +2225,7 @@ static int get_edid_vsdb(unsigned char *buff,
 	if (edid_info->vsdb.latency_fields_present) {
 		if (len < 10) {
 			rx_pr("invalid vsdb len for latency: %d\n", len);
-			return 0;
+			return;
 		}
 		edid_info->vsdb.video_latency = buff[start + 8];
 		edid_info->vsdb.audio_latency = buff[start + 9];
@@ -1882,7 +2242,7 @@ static int get_edid_vsdb(unsigned char *buff,
 			rx_pr("i_latency_fields should not be set\n");
 		} else if (len < 12) {
 			rx_pr("invalid vsdb len for i_latency: %d\n", len);
-			return 0;
+			return;
 		}
 		edid_info->vsdb.interlaced_video_latency = buff[start + 10];
 		edid_info->vsdb.interlaced_audio_latency = buff[start + 11];
@@ -1908,7 +2268,7 @@ static int get_edid_vsdb(unsigned char *buff,
 		 */
 		if (len < _3d_present_offset + 2) {
 			rx_pr("invalid vsdb length for hdmi video: %d\n", len);
-			return 0;
+			return;
 		}
 		edid_info->vsdb._3d_present =
 			(buff[start + _3d_present_offset] >> 7) & 0x1;
@@ -1926,13 +2286,13 @@ static int get_edid_vsdb(unsigned char *buff,
 		if (hdmi_vic_len > 4) {
 			rx_pr("invalid hdmi vic len: %d\n",
 			      edid_info->vsdb.hdmi_vic_len);
-			return 0;
+			return;
 		}
 
 		/* HDMI_VIC_LEN may be 0 */
 		if (len < hdmi_vic_offset + hdmi_vic_len) {
 			rx_pr("invalid length for 4k2k: %d\n", len);
-			return 0;
+			return;
 		}
 		for (i = 0; i < hdmi_vic_len; i++) {
 			if (buff[start + hdmi_vic_offset + i] == 1)
@@ -1952,7 +2312,7 @@ static int get_edid_vsdb(unsigned char *buff,
 		/* there may be additional 0 present after 3D info  */
 		if (len < _3d_struct_all_offset + hdmi_3d_len) {
 			rx_pr("invalid vsdb length for 3d: %d\n", len);
-			return 0;
+			return;
 		}
 		/* 3d_multi_present: hdmi1.4 spec page155:
 		 * 0: neither structure or mask present,
@@ -2011,7 +2371,6 @@ static int get_edid_vsdb(unsigned char *buff,
 				if (temp_3d_len > hdmi_3d_len) {
 					rx_pr("invalid len for 3d_detail: %d\n",
 					      len);
-					ret = 0;
 					break;
 				}
 			} else {
@@ -2020,107 +2379,239 @@ static int get_edid_vsdb(unsigned char *buff,
 			}
 		}
 		edid_info->vsdb._2d_vic_num = j;
-		return ret;
 	}
-	return ret;
-hf_vsdb:
-	/* hdmi spec2.0 Table10-6 */
-	//if (len < 4) {
-		//rx_pr("invalid HF_VSDB length: %d!\n", len);
-		//return 0;
-	//}
+}
+
+static void get_edid_hfdb(unsigned char *buff,
+			 unsigned char start,
+			 unsigned char len,
+			 struct hf_s *hf_db)
+{
+	hf_db->version =
+		buff[start + 3];
+	hf_db->max_tmds_rate =
+		buff[start + 4];
+	//pb3
+	hf_db->scdc_present =
+		(buff[start + 5] >> 7) & 0x1;
+	hf_db->rr_cap =
+		(buff[start + 5] >> 6) & 0x1;
+	hf_db->cable_status =
+		(buff[start + 5] >> 5) & 0x1;
+	hf_db->ccbpci =
+		(buff[start + 5] >> 4) & 0x1;
+	hf_db->lte_340m_scramble =
+		(buff[start + 5] >> 3) & 0x1;
+	hf_db->independ_view =
+		(buff[start + 5] >> 2) & 0x1;
+	hf_db->dual_view =
+		(buff[start + 5] >> 1) & 0x1;
+	hf_db->_3d_osd_disparity =
+		buff[start + 5] & 0x1;
+	//pb4
+	hf_db->max_frl_rate =
+		(buff[start + 6] >> 4) & 0x0f;
+	hf_db->uhd_vic =
+		(buff[start + 6] >> 3) & 0x1;
+	hf_db->dc_48bit_420 =
+		(buff[start + 6] >> 2) & 0x1;
+	hf_db->dc_36bit_420 =
+		(buff[start + 6] >> 1) & 0x1;
+	hf_db->dc_30bit_420 =
+		buff[start + 6] & 0x1;
+	//pb5
+	if (len <= 8)
+		return;
+	hf_db->fapa_end_extended =
+		(buff[start + 7] >> 7) & 0x1;
+	hf_db->qms =
+		(buff[start + 7] >> 6) & 0x1;
+	hf_db->m_delta =
+		(buff[start + 7] >> 5) & 0x1;
+	hf_db->cinema_vrr =
+		(buff[start + 7] >> 4) & 0x1;
+	hf_db->neg_mvrr =
+		(buff[start + 7] >> 3) & 0x1;
+	hf_db->fva =
+		(buff[start + 7] >> 2) & 0x1;
+	hf_db->allm =
+		(buff[start + 7] >> 1) & 0x1;
+	hf_db->fapa_start_location =
+		buff[start + 7] & 0x1;
+	//pb6
+	if (len <= 9)
+		return;
+	hf_db->vrr_max_hi =
+		(buff[start + 8] >> 6) & 0x03;
+	hf_db->vrr_min =
+		(buff[start + 8]) & 0x3f;
+	//pb7
+	hf_db->vrr_max_lo =
+		buff[start + 9];
+	//pb8
+	if (len <= 11)
+		return;
+	hf_db->dsc_1p2 =
+		(buff[start + 10] >> 7) & 0x1;
+	hf_db->dsc_native_420 =
+		(buff[start + 10] >> 6) & 0x1;
+	hf_db->qms_tfr_max =
+		(buff[start + 10] >> 5) & 0x1;
+	hf_db->qms_tfr_min =
+		(buff[start + 10] >> 4) & 0x1;
+	hf_db->dsc_all_bpp =
+		(buff[start + 10] >> 3) & 0x1;
+	hf_db->dsc_16bpc =
+		(buff[start + 10] >> 2) & 0x1;
+	hf_db->dsc_12bpc =
+		(buff[start + 10] >> 1) & 0x1;
+	hf_db->dsc_10bpc =
+		buff[start + 10] & 0x1;
+	//pb9
+	hf_db->dsc_max_frl_rate =
+		(buff[start + 11] >> 4) & 0xf;
+	hf_db->dsc_max_slices =
+		(buff[start + 11]) & 0xf;
+	//pb10
+	hf_db->dsc_total_chunk_kbytes =
+		(buff[start + 12]) & 0x3f;
+}
+
+static void get_edid_hf_vsdb(unsigned char *buff,
+			 unsigned char start,
+			 unsigned char len,
+			 struct cta_blk_parse_info *edid_info)
+{
+	unsigned int ieee_oui;
+
+	if (!buff || !edid_info)
+		return;
+	if (len < 7 || len > 13) {
+		rx_pr("invalid hf_vsdb\n");
+		return;
+	}
+	ieee_oui = (buff[start + 2] << 16) |
+		   (buff[start + 1] << 8) |
+		   buff[start];
+	if (ieee_oui != 0xC45DD8) {
+		rx_pr("invalid IEEE OUI\n");
+		return;
+	}
 	edid_info->contain_hf_vsdb = true;
 	edid_info->hf_vsdb.ieee_first = ieee_oui & 0xff;
 	edid_info->hf_vsdb.ieee_second = ieee_oui >> 8 & 0xff;
 	edid_info->hf_vsdb.ieee_third = ieee_oui >> 16 & 0xff;
-	edid_info->hf_vsdb.version =
-		buff[start + 3];
-	edid_info->hf_vsdb.max_tmds_rate =
-		buff[start + 4];
-	//pb3
-	edid_info->hf_vsdb.scdc_present =
-		(buff[start + 5] >> 7) & 0x1;
-	edid_info->hf_vsdb.rr_cap =
-		(buff[start + 5] >> 6) & 0x1;
-	edid_info->hf_vsdb.cable_status =
-		(buff[start + 5] >> 5) & 0x1;
-	edid_info->hf_vsdb.ccbpci =
-		(buff[start + 5] >> 4) & 0x1;
-	edid_info->hf_vsdb.lte_340m_scramble =
-		(buff[start + 5] >> 3) & 0x1;
-	edid_info->hf_vsdb.independ_view =
-		(buff[start + 5] >> 2) & 0x1;
-	edid_info->hf_vsdb.dual_view =
-		(buff[start + 5] >> 1) & 0x1;
-	edid_info->hf_vsdb._3d_osd_disparity =
-		buff[start + 5] & 0x1;
-	//pb4
-	edid_info->hf_vsdb.max_frl_rate =
-		(buff[start + 6] >> 4) & 0x0f;
-	edid_info->hf_vsdb.uhd_vic =
-		(buff[start + 6] >> 3) & 0x1;
-	edid_info->hf_vsdb.dc_48bit_420 =
-		(buff[start + 6] >> 2) & 0x1;
-	edid_info->hf_vsdb.dc_36bit_420 =
-		(buff[start + 6] >> 1) & 0x1;
-	edid_info->hf_vsdb.dc_30bit_420 =
-		buff[start + 6] & 0x1;
-	//pb5
-	if (len <= 8)
-		return ret;
-	edid_info->hf_vsdb.qms_tfr_max =
-		(buff[start + 7] >> 7) & 0x1;
-	edid_info->hf_vsdb.qms =
-		(buff[start + 7] >> 6) & 0x1;
-	edid_info->hf_vsdb.m_delta =
-		(buff[start + 7] >> 5) & 0x1;
-	edid_info->hf_vsdb.qms_tfr_min =
-		(buff[start + 7] >> 4) & 0x1;
-	edid_info->hf_vsdb.neg_mvrr =
-		(buff[start + 7] >> 3) & 0x1;
-	edid_info->hf_vsdb.fva =
-		(buff[start + 7] >> 2) & 0x1;
-	edid_info->hf_vsdb.allm =
-		(buff[start + 7] >> 1) & 0x1;
-	edid_info->hf_vsdb.fapa_start_location =
-		buff[start + 7] & 0x1;
-	//pb6
-	if (len <= 9)
-		return ret;
-	edid_info->hf_vsdb.vrr_max_hi =
-		(buff[start + 8] >> 6) & 0x03;
-	edid_info->hf_vsdb.vrr_min =
-		(buff[start + 8]) & 0x3f;
-	//pb7
-	edid_info->hf_vsdb.vrr_max_lo =
-		buff[start + 9];
-	//pb8
-	if (len <= 11)
-		return ret;
-	edid_info->hf_vsdb.dsc_1p2 =
-		(buff[start + 10] >> 7) & 0x1;
-	edid_info->hf_vsdb.dsc_native_420 =
-		(buff[start + 10] >> 6) & 0x1;
-	edid_info->hf_vsdb.fapa_end_extended =
-		(buff[start + 10] >> 5) & 0x1;
-	edid_info->hf_vsdb.rsv_0 =
-		(buff[start + 10] >> 4) & 0x1;
-	edid_info->hf_vsdb.dsc_all_bpp =
-		(buff[start + 10] >> 3) & 0x1;
-	edid_info->hf_vsdb.dsc_16bpc =
-		(buff[start + 10] >> 2) & 0x1;
-	edid_info->hf_vsdb.dsc_12bpc =
-		(buff[start + 10] >> 1) & 0x1;
-	edid_info->hf_vsdb.dsc_10bpc =
-		buff[start + 10] & 0x1;
-	//pb9
-	edid_info->hf_vsdb.dsc_max_frl_rate =
-		(buff[start + 11] >> 4) & 0xf;
-	edid_info->hf_vsdb.dsc_max_slices =
-		(buff[start + 11]) & 0xf;
-	//pb10
-	edid_info->hf_vsdb.dsc_total_chunk_kbytes =
-		(buff[start + 11]) & 0x3f;
+	get_edid_hfdb(buff, start, len, &edid_info->hf_vsdb.hf_db);
+}
+
+static void get_edid_hf_scdb(unsigned char *buff,
+			 unsigned char start,
+			 unsigned char len,
+			 struct cta_blk_parse_info *edid_info)
+{
+	if (!buff || !edid_info)
+		return;
+	if (len < 7 || len > 13) {
+		rx_pr("invalid hf_scdb\n");
+		return;
+	}
+	edid_info->contain_hf_scdb = true;
+	edid_info->hf_scdb.resved0 = buff[start];
+	edid_info->hf_scdb.resved1 = buff[start + 1];
+	get_edid_hfdb(buff, start - 1, len, &edid_info->hf_scdb.hf_db);
+}
+
+static void get_edid_hf_sbtm(unsigned char *buff,
+			 unsigned char start,
+			 unsigned char len,
+			 struct cta_blk_parse_info *edid_info)
+{
+	if (!buff || !edid_info)
+		return;
+
+	edid_info->contain_hf_sbtm = true;
+	edid_info->hf_sbtm.drdm_ind = (buff[start] & 0x80) >> 7;
+	edid_info->hf_sbtm.grdm_support = (buff[start] & 0x60) >> 5;
+	edid_info->hf_sbtm.max_sbtm_ver = buff[start] & 0xf;
+	if (!edid_info->hf_sbtm.drdm_ind)
+		return;
+	edid_info->hf_sbtm.gamut = (buff[start + 1] & 0xc0) >> 6;
+	edid_info->hf_sbtm.max_rgb = (buff[start + 1] & 0x20) >> 5;
+	edid_info->hf_sbtm.use_hgig_drdm = (buff[start + 1] & 0x10) >> 4;
+	edid_info->hf_sbtm.hgig_cat_drdm_sel = buff[start + 1] & 0x7;
+	if (!edid_info->hf_sbtm.gamut) {
+		edid_info->hf_sbtm.red_x_low = buff[start + 2];
+		edid_info->hf_sbtm.red_x_high = buff[start + 3];
+		edid_info->hf_sbtm.red_y_low = buff[start + 4];
+		edid_info->hf_sbtm.red_y_high = buff[start + 5];
+		edid_info->hf_sbtm.green_x_low = buff[start + 6];
+		edid_info->hf_sbtm.green_x_high = buff[start + 7];
+		edid_info->hf_sbtm.green_y_low = buff[start + 8];
+		edid_info->hf_sbtm.green_y_high = buff[start + 9];
+		edid_info->hf_sbtm.blue_x_low = buff[start + 10];
+		edid_info->hf_sbtm.blue_x_high = buff[start + 11];
+		edid_info->hf_sbtm.blue_y_low = buff[start + 12];
+		edid_info->hf_sbtm.blue_y_high = buff[start + 13];
+		edid_info->hf_sbtm.white_x_low = buff[start + 14];
+		edid_info->hf_sbtm.white_x_high = buff[start + 15];
+		edid_info->hf_sbtm.white_y_low = buff[start + 16];
+		edid_info->hf_sbtm.white_y_high = buff[start + 17];
+	} else {
+		start -= 16;
+	}
+	if (edid_info->hf_sbtm.use_hgig_drdm)
+		return;
+	edid_info->hf_sbtm.min_bright_10 = buff[start + 18];
+	edid_info->hf_sbtm.peak_bright_100 = buff[start + 19];
+	edid_info->hf_sbtm.p0_mant = (buff[start + 20] & 0xfc) >> 2;
+	edid_info->hf_sbtm.p0_exp = buff[start + 20] & 0x3;
+	edid_info->hf_sbtm.peak_bright_p0 = buff[start + 21];
+	edid_info->hf_sbtm.p1_mant = (buff[start + 22] & 0xfc) >> 2;
+	edid_info->hf_sbtm.p1_exp = buff[start + 22] & 0x3;
+	edid_info->hf_sbtm.peak_bright_p1 = buff[start + 23];
+	edid_info->hf_sbtm.p2_mant = (buff[start + 24] & 0xfc) >> 2;
+	edid_info->hf_sbtm.p2_exp = buff[start + 24] & 0x3;
+	edid_info->hf_sbtm.peak_bright_p2 = buff[start + 25];
+	edid_info->hf_sbtm.p3_mant = (buff[start + 26] & 0xfc) >> 2;
+	edid_info->hf_sbtm.p3_exp = buff[start + 26] & 0x3;
+	edid_info->hf_sbtm.peak_bright_p3 = buff[start + 27];
+}
+
+static int get_edid_vsdb(unsigned char *buff,
+			 unsigned char start,
+			 unsigned char len,
+			 struct cta_blk_parse_info *edid_info)
+{
+	u32 ieee_oui, ret;
+
+	if (!buff || !edid_info)
+		return 0;
+	if (len < 5)
+		return 0;
+	edid_info->contain_vsdb = true;
+	/* basic 5 bytes; others: extension fields */
+	//coverity fixed
+	//if (len < 5) {
+		//rx_pr("invalid VSDB length: %d!\n", len);
+		//return 0;
+	//}
+	ieee_oui = (buff[start + 2] << 16) |
+		   (buff[start + 1] << 8) |
+		   buff[start];
+	switch (ieee_oui) {
+	case 0x000C03:
+		ret = VENDOR_TAG;
+		break;
+	case 0xC45DD8:
+		ret = HF_VENDOR_DB_TAG;
+		break;
+	case 0x00001A:
+		ret = VSDB_FREESYNC_TAG;
+		break;
+	default:
+		ret = 0;
+		break;
+	}
 	return ret;
 }
 
@@ -2147,7 +2638,62 @@ static void get_edid_vcdb(unsigned char *buff,
 	edid_info->vcdb.s_CE = buff[start] & 0x3;
 }
 
-static void get_edid_dv_data(unsigned char *buff,
+static void get_edid_hdr10p_data(unsigned char *buff,
+			  unsigned char start,
+			  unsigned char len,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u32 ieee_oui;
+
+	if (!buff || !edid_info)
+		return;
+	if (len != 4) {
+		rx_pr("invalid HDR10P\n");
+		return;
+	}
+	ieee_oui = buff[start + 2] << 16 |
+		   buff[start + 1] << 8 |
+		   buff[start];
+	if (ieee_oui != 0x90848b) {
+		rx_pr("invalid HDR10P ieee oui:\n");
+		return;
+	}
+	edid_info->contain_hdr10p = true;
+	edid_info->hdr10pdb.hdr10p_ver = buff[start + 3] & 3;
+	edid_info->hdr10pdb.full_frame_peak = (buff[start + 3] >> 2) & 3;
+	edid_info->hdr10pdb.peak = buff[start + 3] >> 4;
+}
+
+static void get_edid_dvsa_data(unsigned char *buff,
+			     unsigned char start,
+			     unsigned char len,
+			     struct cta_blk_parse_info *edid_info)
+{
+	u32 ieee_oui;
+
+	if (!buff || !edid_info)
+		return;
+	if (len != 6) {
+		rx_pr("invalid dvsa\n");
+		return;
+	}
+	ieee_oui = buff[start + 2] << 16 |
+		   buff[start + 1] << 8 |
+		   buff[start];
+	if (ieee_oui != 0x00D046) {
+		rx_pr("invalid DV ieee oui\n");
+		return;
+	}
+	edid_info->contain_vsadb = true;
+	edid_info->dv_vsadb.version = buff[start + 3] & 0x7;
+	edid_info->dv_vsadb.headphone = (buff[start + 3] & 0x80) >> 7;
+	edid_info->dv_vsadb.center = (buff[start + 3] & 0x10) >> 4;
+	edid_info->dv_vsadb.surround = (buff[start + 3] & 0x20) >> 5;
+	edid_info->dv_vsadb.height = (buff[start + 3] & 0x40) >> 6;
+	edid_info->dv_vsadb.func = buff[start + 4] & 0x1;
+}
+
+static void get_edid_dvsv_data(unsigned char *buff,
 			     unsigned char start,
 			     unsigned char len,
 			     struct cta_blk_parse_info *edid_info)
@@ -2158,8 +2704,9 @@ static void get_edid_dv_data(unsigned char *buff,
 		return;
 	if (len != 0xE - 1 &&
 	    len != 0x19 - 1 &&
-	    len != 0xB - 1) {
-		rx_pr("invalid length for dolby vision vsvdb:%d\n",
+	    len != 0xB - 1 &&
+	    len != 0x5 - 1) {
+		rx_pr("invalid length for DV vsvdb:%d\n",
 		      len);
 		return;
 	}
@@ -2167,16 +2714,21 @@ static void get_edid_dv_data(unsigned char *buff,
 		   buff[start + 1] << 8 |
 		   buff[start];
 	if (ieee_oui != 0x00D046) {
-		rx_pr("invalid dolby vision ieee oui\n");
+		rx_pr("invalid DV ieee oui\n");
 		return;
 	}
+	edid_info->dv_vsvdb.length = len + 1;
 	edid_info->contain_vsvdb = true;
 	edid_info->dv_vsvdb.ieee_oui = ieee_oui;
 	edid_info->dv_vsvdb.version = buff[start + 3] >> 5;
 	if (edid_info->dv_vsvdb.version == 0x0) {
 		/* length except extend code */
+		if (len == 0x5 - 1) {
+			rx_pr("other DV version\n");
+			return;
+		}
 		if (len != 0x19 - 1) {
-			rx_pr("invalid length for dolby vision ver0\n");
+			rx_pr("invalid length for DV ver0\n");
 			return;
 		}
 		edid_info->dv_vsvdb.sup_global_dimming =
@@ -2212,36 +2764,97 @@ static void get_edid_dv_data(unsigned char *buff,
 	} else if (edid_info->dv_vsvdb.version == 0x1) {
 		/*length except extend code*/
 		if (len == 0xB - 1) {
-			/* todo: vsvdb v1-12 */
-			rx_pr("vsvdb v1-12 todo\n");
+			edid_info->dv_vsvdb.DM_version =
+				(buff[start + 3] >> 2) & 0x7;
+			edid_info->dv_vsvdb.sup_yuv422_12bit =
+				buff[start + 3] & 0x1;
+			edid_info->dv_vsvdb.sup_2160p60hz =
+				(buff[start + 3] >> 1) & 0x1;
+			edid_info->dv_vsvdb.sup_global_dimming =
+				buff[start + 4] & 0x1;
+			edid_info->dv_vsvdb.colorimetry =
+				buff[start + 5] & 0x1;
+			edid_info->dv_vsvdb.low_latency =
+				buff[start + 6] & 0x3;
+			edid_info->dv_vsvdb.target_max_lum =
+				(buff[start + 4] >> 1) & 0x7F;
+			edid_info->dv_vsvdb.target_min_lum =
+				(buff[start + 5] >> 1) & 0x7F;
+			edid_info->dv_vsvdb.Rx =
+				(buff[start + 9] >> 3) & 0x1f;
+			edid_info->dv_vsvdb.Ry =
+				(buff[start + 7] & 0x1) +
+				((buff[start + 8] & 0x1) << 1) +
+				((buff[start + 9] & 0x7) << 2);
+			edid_info->dv_vsvdb.Gx =
+				(buff[start + 7] >> 1) & 0x7f;
+			edid_info->dv_vsvdb.Gy =
+				(buff[start + 8] >> 1) & 0x7f;
+			edid_info->dv_vsvdb.Bx =
+				(buff[start + 6] >> 5) & 0x7;
+			edid_info->dv_vsvdb.By =
+				(buff[start + 6] >> 2) & 0x7;
+		} else if (len == 0xE - 1) {
+			edid_info->dv_vsvdb.DM_version =
+				(buff[start + 3] >> 2) & 0x7;
+			edid_info->dv_vsvdb.sup_2160p60hz =
+				(buff[start + 3] >> 1) & 0x1;
+			edid_info->dv_vsvdb.sup_yuv422_12bit =
+				buff[start + 3] & 0x1;
+			edid_info->dv_vsvdb.target_max_lum =
+				(buff[start + 4] >> 1) & 0x7F;
+			edid_info->dv_vsvdb.sup_global_dimming =
+				buff[start + 4] & 0x1;
+			edid_info->dv_vsvdb.target_min_lum =
+				(buff[start + 5] >> 1) & 0x7F;
+			edid_info->dv_vsvdb.colorimetry =
+				buff[start + 5] & 0x1;
+			edid_info->dv_vsvdb.Rx = buff[start + 7];
+			edid_info->dv_vsvdb.Ry = buff[start + 8];
+			edid_info->dv_vsvdb.Gx = buff[start + 9];
+			edid_info->dv_vsvdb.Gy = buff[start + 10];
+			edid_info->dv_vsvdb.Bx = buff[start + 11];
+			edid_info->dv_vsvdb.By = buff[start + 12];
+		} else {
+			rx_pr("invalid length for DV ver1\n");
 			return;
-		} else if (len != 0xE - 1) {
-			rx_pr("invalid length for dolby vision ver1\n");
+		}
+	} else if (edid_info->dv_vsvdb.version == 0x2) {
+		if (len != 0xb - 1) {
+			rx_pr("invalid length for DV ver2\n");
 			return;
 		}
 		edid_info->dv_vsvdb.DM_version =
 			(buff[start + 3] >> 2) & 0x7;
+		edid_info->dv_vsvdb.sup_yuv422_12bit =
+			buff[start + 3] & 0x1;
 		edid_info->dv_vsvdb.sup_2160p60hz =
 			(buff[start + 3] >> 1) & 0x1;
-		edid_info->dv_vsvdb.sup_yuv422_12bit =
-			buff[start + 3] & 1;
-		edid_info->dv_vsvdb.target_max_lum =
-			(buff[start + 4] >> 1) & 0x7F;
 		edid_info->dv_vsvdb.sup_global_dimming =
-			buff[start + 4] & 0x1;
-		edid_info->dv_vsvdb.target_min_lum =
-			(buff[start + 5] >> 1) & 0x7F;
-		edid_info->dv_vsvdb.colorimetry =
-			buff[start + 5] & 0x1;
-		edid_info->dv_vsvdb.Rx = buff[start + 7];
-		edid_info->dv_vsvdb.Ry = buff[start + 8];
-		edid_info->dv_vsvdb.Gx = buff[start + 9];
-		edid_info->dv_vsvdb.Gy = buff[start + 10];
-		edid_info->dv_vsvdb.Bx = buff[start + 11];
-		edid_info->dv_vsvdb.By = buff[start + 12];
-	} else if (edid_info->dv_vsvdb.version == 0x2) {
-		/* todo: vdvdb v2 */
-		rx_pr("vsvdb v2 todo\n");
+			(buff[start + 4] >> 2) & 0x1;
+		edid_info->dv_vsvdb.backlt_min_luma =
+			buff[start + 4] & 0x3;
+		edid_info->dv_vsvdb.interface =
+			buff[start + 5] & 0x3;
+		edid_info->dv_vsvdb.sup_10b_12b_444 =
+			((buff[start + 6] & 0x1) << 1) +
+			(buff[start + 7] & 0x1);
+		edid_info->dv_vsvdb.tminPQ =
+			(buff[start + 4] >> 3) & 0x1f;
+		edid_info->dv_vsvdb.tmaxPQ =
+			(buff[start + 5] >> 3) & 0x1f;
+		edid_info->dv_vsvdb.Rx =
+			(buff[start + 8] >> 3) & 0x1f;
+		edid_info->dv_vsvdb.Ry =
+			(buff[start + 9] >> 3) & 0x1f;
+		edid_info->dv_vsvdb.Gx =
+			(buff[start + 6] >> 1) & 0x7f;
+		edid_info->dv_vsvdb.Gy =
+			(buff[start + 7] >> 1) & 0x7f;
+		edid_info->dv_vsvdb.Bx =
+			buff[start + 8] & 0x7;
+		edid_info->dv_vsvdb.By =
+			buff[start + 9] & 0x7;
 	}
 }
 
@@ -2267,6 +2880,10 @@ static void get_edid_colorimetry_data(unsigned char *buff,
 	edid_info->color_db.sycc601 = (buff[start] >> 2) & 0x1;
 	edid_info->color_db.xvycc709 = (buff[start] >> 1) & 0x1;
 	edid_info->color_db.xvycc601 = buff[start] & 0x1;
+	edid_info->color_db.dci_p3 = (buff[start + 1] >> 7) & 0x1;
+	edid_info->color_db.bt2100_ictcp = (buff[start + 1] >> 6) & 0x1;
+	edid_info->color_db.srgb = (buff[start + 1] >> 5) & 0x1;
+	edid_info->color_db.defaultrgb = (buff[start + 1] >> 4) & 0x1;
 
 	edid_info->color_db.MD3 = (buff[start + 1] >> 3) & 0x1;
 	edid_info->color_db.MD2 = (buff[start + 1] >> 2) & 0x1;
@@ -2274,7 +2891,7 @@ static void get_edid_colorimetry_data(unsigned char *buff,
 	edid_info->color_db.MD0 = buff[start + 1] & 0x1;
 }
 
-static void get_hdr_data(unsigned char *buff,
+static void get_edid_static_hdr_data(unsigned char *buff,
 			 unsigned char start,
 			 unsigned char len,
 			 struct cta_blk_parse_info *edid_info)
@@ -2298,6 +2915,37 @@ static void get_hdr_data(unsigned char *buff,
 		edid_info->hdr_db.hdr_lum_avg = buff[start + 3];
 	if (len > 4)
 		edid_info->hdr_db.hdr_lum_min = buff[start + 4];
+}
+
+static void get_edid_dynamic_hdr_data(unsigned char *buff,
+			 unsigned char start,
+			 unsigned char len,
+			 struct cta_blk_parse_info *edid_info)
+{
+	u8 i = 0, j;
+	u8 offset, length = 0;
+
+	if (!buff || !edid_info)
+		return;
+	edid_info->contain_hdr_dy = true;
+	while (length < len) {
+		edid_info->hdr_dy_db.hdr_sup[i].len = buff[start + length];
+		edid_info->hdr_dy_db.hdr_sup[i].type =
+			buff[start + length + 2] << 8 | buff[start + length + 1];
+		if (edid_info->hdr_dy_db.hdr_sup[i].type != 3) {
+			offset = 4;
+			edid_info->hdr_dy_db.hdr_sup[i].flag = buff[start + length + 3];
+		} else {
+			offset = 3;
+		}
+		for (j = 0; j <= edid_info->hdr_dy_db.hdr_sup[i].len - offset; ++j)
+			edid_info->hdr_dy_db.hdr_sup[i].field[j] =
+				buff[start + length + offset + j];
+		edid_info->hdr_dy_db.hdr_sup[i].field_len = j;
+		length += edid_info->hdr_dy_db.hdr_sup[i].len + 1;
+		++i;
+	}
+	edid_info->hdr_dy_db.num = i;
 }
 
 static void get_edid_y420_vid_data(unsigned char *buff,
@@ -2350,7 +2998,7 @@ static void get_edid_y420_cap_map_data(unsigned char *buff,
 	for (i = 0; (i < len * 8) && (i < 31); i++) {
 		if ((bit_map >> i) & 0x1) {
 			edid_info->y420_cmdb_vic[i] =
-				edid_info->video_db.hdmi_vic[i];
+				edid_info->video_db[0].hdmi_vic[i];
 		}
 	}
 }
@@ -2372,13 +3020,71 @@ static void get_edid_vsadb(unsigned char *buff,
 		rx_pr("no valid IEEE OUI, len:%d\n", len);
 		return;
 	}
-	edid_info->contain_vsadb = true;
 	edid_info->vsadb_ieee =
 		buff[start] |
 		(buff[start + 1] << 8) |
 		(buff[start + 2] << 16);
+	if (edid_info->vsadb_ieee == 0x00D046) {
+		get_edid_dvsa_data(buff, start, len, edid_info);
+		return;
+	}
+	edid_info->contain_vsadb = true;
 	for (i = 0; i < len - 3; i++)
 		edid_info->vsadb_payload[i] = buff[start + 3 + i];
+}
+
+static void get_edid_hdmi_aud(unsigned char *buff,
+			  unsigned char start,
+			  unsigned char len,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u8 i;
+
+	if (!buff || !edid_info)
+		return;
+	if (len < 3 || len > 23) {
+		rx_pr("invalid hdmi audio\n");
+		return;
+	}
+	edid_info->contain_hdmi_aud = true;
+	edid_info->hdmi_adb.sup_ms_nonmixed = (buff[start] & 0x4) >> 2;
+	edid_info->hdmi_adb.max_stream_cnt = buff[start] & 0x3;
+	edid_info->hdmi_adb.num_3d_ad = buff[start + 1] & 0x7;
+	for (i = 0; i < edid_info->hdmi_adb.num_3d_ad; ++i) {
+		edid_info->hdmi_adb.hdmi_3d_ad[i].format =
+			buff[start + 2 + i * 4] & 0xf;
+		edid_info->hdmi_adb.hdmi_3d_ad[i].max_channel_num =
+			buff[start + 3 + i * 4] & 0x1f;
+		edid_info->hdmi_adb.hdmi_3d_ad[i].freq_192khz =
+			(buff[start + 4 + i * 4] & 0x40) >> 6;
+		edid_info->hdmi_adb.hdmi_3d_ad[i].freq_176_4khz =
+			(buff[start + 4 + i * 4] & 0x20) >> 5;
+		edid_info->hdmi_adb.hdmi_3d_ad[i].freq_96khz =
+			(buff[start + 4 + i * 4] & 0x10) >> 4;
+		edid_info->hdmi_adb.hdmi_3d_ad[i].freq_88_2khz =
+			(buff[start + 4 + i * 4] & 0x8) >> 3;
+		edid_info->hdmi_adb.hdmi_3d_ad[i].freq_48khz =
+			(buff[start + 4 + i * 4] & 0x4) >> 2;
+		edid_info->hdmi_adb.hdmi_3d_ad[i].freq_44_1khz =
+			(buff[start + 4 + i * 4] & 0x2) >> 1;
+		edid_info->hdmi_adb.hdmi_3d_ad[i].freq_32khz =
+			buff[start + 4 + i * 4] & 0x1;
+		if (edid_info->hdmi_adb.hdmi_3d_ad[i].format == 1) {
+			edid_info->hdmi_adb.hdmi_3d_ad[i].bit24 =
+				(buff[start + 5 + i * 4] & 0x4) >> 2;
+			edid_info->hdmi_adb.hdmi_3d_ad[i].bit20 =
+				(buff[start + 5 + i * 4] & 0x2) >> 1;
+			edid_info->hdmi_adb.hdmi_3d_ad[i].bit16 =
+				buff[start + 5 + i * 4] & 0x1;
+		} else {
+			edid_info->hdmi_adb.hdmi_3d_ad[i].format_value =
+				buff[start + 5 + i * 4];
+		}
+	}
+	if (edid_info->hdmi_adb.num_3d_ad > 0) {
+		edid_info->hdmi_adb.acat = (buff[start + 6 + i * 4 + 3] & 0xf0) >> 4;
+		get_speaker_allocation_data(buff, start + 6 + i * 4, &edid_info->hdmi_adb.sadb);
+	}
 }
 
 static void get_edid_rcdb(unsigned char *buff,
@@ -2386,6 +3092,50 @@ static void get_edid_rcdb(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
+	if (!buff || !edid_info)
+		return;
+	if (len < 5 || len > 11) {
+		rx_pr("invalid rcdb\n");
+		return;
+	}
+	edid_info->contain_rcdb = true;
+	edid_info->rcdb.display = (buff[start] & 0x80) >> 7;
+	edid_info->rcdb.speaker = (buff[start] & 0x40) >> 6;
+	edid_info->rcdb.sld = (buff[start] & 0x20) >> 5;
+	edid_info->rcdb.speaker_cnt = buff[start] & 0x1f;
+
+	edid_info->rcdb.sadb.flw_frw = (buff[start + 1] & 0x80) >> 7;
+	edid_info->rcdb.sadb.flc_frc = (buff[start + 1] & 0x20) >> 5;
+	edid_info->rcdb.sadb.bc = (buff[start + 1] & 0x10) >> 4;
+	edid_info->rcdb.sadb.bl_br = (buff[start + 1] & 0x8) >> 3;
+	edid_info->rcdb.sadb.fc = (buff[start + 1] & 0x4) >> 2;
+	edid_info->rcdb.sadb.lfe1 = (buff[start + 1] & 0x2) >> 1;
+	edid_info->rcdb.sadb.fl_fr = buff[start + 1] & 0x1;
+
+	edid_info->rcdb.sadb.tpsil_tpsir = (buff[start + 2] & 0x80) >> 7;
+	edid_info->rcdb.sadb.sil_sir = (buff[start + 2] & 0x40) >> 6;
+	edid_info->rcdb.sadb.tpbc = (buff[start + 2] & 0x20) >> 5;
+	edid_info->rcdb.sadb.lfe2 = (buff[start + 2] & 0x10) >> 4;
+	edid_info->rcdb.sadb.ls_rs = (buff[start + 2] & 0x8) >> 3;
+	edid_info->rcdb.sadb.tpfc = (buff[start + 2] & 0x4) >> 2;
+	edid_info->rcdb.sadb.tpc = (buff[start + 2] & 0x2) >> 1;
+	edid_info->rcdb.sadb.tpfl_tpfr = buff[start + 2] & 0x1;
+
+	edid_info->rcdb.sadb.btfl_btfr = (buff[start + 3] & 0x4) >> 2;
+	edid_info->rcdb.sadb.btfc = (buff[start + 3] & 0x2) >> 1;
+	edid_info->rcdb.sadb.tpbl_tpbr = buff[start + 3] & 0x1;
+	if (edid_info->rcdb.sld) {
+		edid_info->rcdb.x_max = buff[start + 4];
+		edid_info->rcdb.y_max = buff[start + 5];
+		edid_info->rcdb.z_max = buff[start + 6];
+	} else {
+		start -= 3;
+	}
+	if (edid_info->rcdb.display) {
+		edid_info->rcdb.display_x = buff[start + 7];
+		edid_info->rcdb.display_y = buff[start + 8];
+		edid_info->rcdb.display_z = buff[start + 9];
+	}
 }
 
 static void get_edid_sldb(unsigned char *buff,
@@ -2393,6 +3143,273 @@ static void get_edid_sldb(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
+	u8 i = 0, length = 0;
+
+	if (!buff || !edid_info)
+		return;
+	edid_info->contain_sldb = true;
+	while (length < len) {
+		edid_info->sldb.sldb_des[i].coord =
+			(buff[start + length] & 0x40) >> 6;
+		edid_info->sldb.sldb_des[i].active =
+			(buff[start + length] & 0x20) >> 5;
+		edid_info->sldb.sldb_des[i].channel_idx =
+			buff[start + length] & 0x1f;
+		edid_info->sldb.sldb_des[i].speaker_id =
+			buff[start + length + 1] & 0x1f;
+		if (edid_info->sldb.sldb_des[i].coord) {
+			edid_info->sldb.sldb_des[i].x =
+				buff[start + length + 2];
+			edid_info->sldb.sldb_des[i].y =
+				buff[start + length + 3];
+			edid_info->sldb.sldb_des[i].z =
+				buff[start + length + 4];
+			length += 5;
+		} else {
+			length += 2;
+		}
+		++i;
+	}
+	edid_info->sldb.len = i;
+}
+
+static void get_edid_vfpdb(unsigned char *buff,
+			  unsigned char start,
+			  unsigned char len,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u8 i;
+
+	if (!buff || !edid_info)
+		return;
+	edid_info->contain_vfpdb = true;
+	edid_info->vfpdb.num = len;
+	for (i = 0; i < len; ++i)
+		edid_info->vfpdb.svr[i] = buff[start + i];
+}
+
+static void get_edid_ifdb(unsigned char *buff,
+			  unsigned char start,
+			  unsigned char len,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u8 i = 0, j = 0;
+	u8 desc_pos = 0, type;
+	u8 pay_len, k;
+
+	if (!buff || !edid_info)
+		return;
+	if (len < 4 - 1) {
+		rx_pr("invalid ifdb length: %d!\n", len);
+		return;
+	}
+	edid_info->contain_ifdb = true;
+	edid_info->info_db.vsif_num = buff[start + 1];
+	pay_len = (buff[start] & 0xe0) >> 5;
+	desc_pos = start + pay_len + 2;
+	edid_info->info_db.payload_len = pay_len;
+	for (k = 0; k < pay_len; ++k)
+		edid_info->info_db.payload[k] = buff[start + k + 2];
+
+	while (i + j < edid_info->info_db.vsif_num) {
+		type = buff[desc_pos] & 0x1f;
+		pay_len = (buff[desc_pos] & 0xe0) >> 5;
+		if (type == 0x1) {
+			edid_info->info_db.short_vs_info[i].payload_len = pay_len;
+
+			edid_info->info_db.short_vs_info[i].ieee_oui =
+				buff[desc_pos + 1] |
+				(buff[desc_pos + 2] << 8) |
+				(buff[desc_pos + 3] << 16);
+			for (k = 0; k < pay_len; ++k)
+				edid_info->info_db.short_vs_info[i].payload[k] =
+					buff[desc_pos + 4 + k];
+			desc_pos += 4 + pay_len;
+			++i;
+		} else {
+			edid_info->info_db.short_info[j].type_code = type;
+			edid_info->info_db.short_info[j].payload_len = pay_len;
+			for (k = 0; k < pay_len; ++k)
+				edid_info->info_db.short_info[j].payload[k] =
+					buff[desc_pos + 1 + k];
+			desc_pos += 1 + pay_len;
+			++j;
+		}
+	}
+}
+
+static void get_edid_t7vtdb(unsigned char *buff,
+			  unsigned char start,
+			  unsigned char len,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u32 htotal, vtotal;
+	u8 num;
+
+	if (!buff || !edid_info)
+		return;
+	if (len < 20 || len > 27) {
+		rx_pr("invalid t7vtdb\n");
+		return;
+	}
+	edid_info->contain_t7vtdb = true;
+	num = edid_info->t7vtdbdb_num;
+	edid_info->t7vtdb[num].t7_m = (buff[start] & 0x70) >> 4;
+	edid_info->t7vtdb[num].dsc_pt = (buff[start] & 0x8) >> 3;
+	edid_info->t7vtdb[num].block_revision = buff[start] & 0x7;
+	edid_info->t7vtdb[num].pixel_clk = buff[start + 1] |
+		buff[start + 2] << 8 |
+		buff[start + 3] << 16;
+	edid_info->t7vtdb[num].t7y420 = (buff[start + 4] & 0x80) >> 7;
+	edid_info->t7vtdb[num]._3d_sup = (buff[start + 4] & 0x60) >> 5;
+	edid_info->t7vtdb[num].t7il = (buff[start + 4] & 0x10) >> 4;
+	edid_info->t7vtdb[num].t7_aspect_ratio = buff[start + 4] & 0xf;
+	edid_info->t7vtdb[num].hactive = (buff[start + 5] |
+		buff[start + 6] << 8) + 1;
+	edid_info->t7vtdb[num].hblank = (buff[start + 7] |
+		buff[start + 8] << 8) + 1;
+	edid_info->t7vtdb[num].hoffset = (buff[start + 9] |
+		(buff[start + 10] & 0x7f) << 8) + 1;
+	edid_info->t7vtdb[num].t7hsp = (buff[start + 10] & 0x80) >> 7;
+	edid_info->t7vtdb[num].hsync_width = (buff[start + 11] |
+		buff[start + 12] << 8) + 1;
+	edid_info->t7vtdb[num].vactive = (buff[start + 13] |
+		buff[start + 14] << 8) + 1;
+	edid_info->t7vtdb[num].vblank = (buff[start + 15] |
+		buff[start + 16]) + 1;
+	edid_info->t7vtdb[num].voffset = (buff[start + 17] |
+		(buff[start + 18] & 0x7f) << 8) + 1;
+	edid_info->t7vtdb[num].t7vsp = (buff[start + 18] & 0x80) >> 7;
+	edid_info->t7vtdb[num].vsync_width = (buff[start + 19] |
+		buff[start + 20] << 8) + 1;
+	htotal = edid_info->t7vtdb[num].hblank + edid_info->t7vtdb[num].hactive;
+	vtotal = edid_info->t7vtdb[num].vactive + edid_info->t7vtdb[num].vblank;
+	edid_info->t7vtdb[num].fresh_rate = edid_info->t7vtdb[num].pixel_clk * 1000
+		/ htotal / vtotal;
+	edid_info->t7vtdbdb_num++;
+}
+
+static void get_edid_t8vtdb(unsigned char *buff,
+			  unsigned char start,
+			  unsigned char len,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u8 i, offset, num;
+
+	if (!buff || !edid_info)
+		return;
+	if (len < 2 - 1) {
+		rx_pr("invalid t8vtdb length: %d!\n", len);
+		return;
+	}
+	edid_info->contain_t8vtdb = true;
+	num = edid_info->t8vtdbdb_num;
+	edid_info->t8vtdb[num].code_tyoe = (buff[start] & 0xc0) >> 6;
+	edid_info->t8vtdb[num].t8y420 = (buff[start] & 0x20) >> 5;
+	edid_info->t8vtdb[num].tcs = (buff[start] & 0x8) >> 3;
+	edid_info->t8vtdb[num].revision = buff[start] & 0x7;
+	offset = edid_info->t8vtdb[num].tcs == 1 ? 2 : 1;
+	edid_info->t8vtdb[num].timing_num = (len - 1) / offset;
+	++start;
+	if (offset == 1) {
+		for (i = 0; i < edid_info->t8vtdb[num].timing_num; ++i)
+			edid_info->t8vtdb[num].dmt_timing[i] = buff[start + i];
+	} else {
+		for (i = 0; i < edid_info->t8vtdb[num].timing_num; ++i) {
+			edid_info->t8vtdb[num].dmt_timing[i] = (buff[start + 1] << 8) | buff[start];
+			start += 2;
+		}
+	}
+	edid_info->t8vtdbdb_num++;
+}
+
+static void get_edid_t10vtdb(unsigned char *buff,
+			  unsigned char start,
+			  unsigned char len,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u8 i = 0, length = 1, num;
+
+	if (!buff || !edid_info)
+		return;
+	if (len < 2) {
+		rx_pr("invalid t10vtdb\n");
+		return;
+	}
+	edid_info->contain_t10vtdb = true;
+	num = edid_info->t10vtdbdb_num;
+	edid_info->t10vtdb[num].t10_m = (buff[start] & 0x70) >> 4;
+	edid_info->t10vtdb[num].block_revision = buff[start] & 0x7;
+	while (length < len) {
+		edid_info->t10vtdb[num].t10_desc[i].t10_y420 =
+			(buff[start + length] & 0x80) >> 7;
+		edid_info->t10vtdb[num].t10_desc[i]._3d_sup =
+			(buff[start + length] & 0x60) >> 5;
+		edid_info->t10vtdb[num].t10_desc[i].vrhb =
+			(buff[start + length] & 0x10) >> 4;
+		edid_info->t10vtdb[num].t10_desc[i].timing_formula =
+			buff[start + length] & 0x7;
+		edid_info->t10vtdb[num].t10_desc[i].hactive =
+			buff[start + length + 1] |
+			buff[start + length + 2] << 8;
+		edid_info->t10vtdb[num].t10_desc[i].vactive =
+			buff[start + length + 3] |
+			buff[start + length + 4] << 8;
+		if (edid_info->t10vtdb[num].t10_m)
+			edid_info->t10vtdb[num].t10_desc[i].fresh_rate =
+				(buff[start + length + 5] |
+				(buff[start + length + 6] & 0x3) << 8) + 1;
+		else
+			edid_info->t10vtdb[num].t10_desc[i].fresh_rate =
+				buff[start + length + 5];
+		length += edid_info->t10vtdb[num].t10_m == 1 ? 7 : 6;
+		++i;
+	}
+	edid_info->t10vtdb[num].desc_num = i;
+	edid_info->t10vtdbdb_num++;
+}
+
+static void get_cta_dtd_data(unsigned char *buff,
+			  unsigned char start,
+			  struct cta_blk_parse_info *edid_info)
+{
+	u8 i;
+
+	if (!buff || !edid_info)
+		return;
+	for (i = 0; i < 15; ++i) {
+		start += i * 18;
+		if (start > 127 - 18 ||
+			(buff[start] == 0 && buff[start + 1] == 0))
+			break;
+		edid_info->dtd[i].pixel_clk =
+			(buff[start] + (buff[start + 1] << 8)) / 100;
+		edid_info->dtd[i].hactive =
+			buff[start + 2] + (((buff[start + 4] >> 4) & 0xF) << 8);
+		edid_info->dtd[i].hblank =
+			((buff[start + 4] & 0xF) << 8) + buff[start + 3];
+		edid_info->dtd[i].htotal =
+			edid_info->dtd[i].hactive + edid_info->dtd[i].hblank;
+		edid_info->dtd[i].vactive =
+			buff[start + 5] + (((buff[start + 7] >> 4) & 0xF) << 8);
+		edid_info->dtd[i].vblank =
+			((buff[start + 7] & 0xF) << 8) + buff[start + 6];
+		edid_info->dtd[i].vtotal =
+			edid_info->dtd[i].vactive + edid_info->dtd[i].vblank;
+		edid_info->dtd[i].hfront =
+			buff[start + 8] | ((buff[start + 11] & 0xc0) << 8);
+		edid_info->dtd[i].hsync_width =
+			buff[start + 9] | ((buff[start + 11] & 0x30) << 8);
+		edid_info->dtd[i].vfront =
+			(buff[start + 10] >> 4) | ((buff[start + 11] & 0xc) << 8);
+		edid_info->dtd[i].vsync_width =
+			(buff[start + 10] & 0xf) | ((buff[start + 11] & 0x3) << 8);
+		edid_info->dtd[i].framerate =
+			edid_info->dtd[i].pixel_clk * 1000 /
+			edid_info->dtd[i].htotal * 1000 /
+			edid_info->dtd[i].vtotal;
+	}
+	edid_info->dtd_num = i;
 }
 
 /* parse multi block data buff */
@@ -2452,11 +3469,33 @@ void parse_cta_data_block(u8 *p_blk_buff,
 					    index + 1,
 					    data_blk_len,
 					    blk_parse_info);
-			if (ret == 2)
+			switch (ret) {
+			case VENDOR_TAG:
+				get_edid_vs14(p_blk_buff,
+					    index + 1,
+					    data_blk_len,
+					    blk_parse_info);
+				break;
+			case HF_VENDOR_DB_TAG:
+				get_edid_hf_vsdb(p_blk_buff,
+					    index + 1,
+					    data_blk_len,
+					    blk_parse_info);
 				blk_parse_info->db_info[i].tag_code =
-					tag_code + HF_VSDB_OFFSET;
-			else if (ret == 0)
-				rx_pr("illegal VSDB\n");
+					HF_VENDOR_DB_TAG;
+				break;
+			case VSDB_FREESYNC_TAG:
+				get_edid_fsdb(p_blk_buff,
+					    index + 1,
+					    data_blk_len,
+					    blk_parse_info);
+				blk_parse_info->db_info[i].tag_code =
+					VSDB_FREESYNC_TAG;
+				break;
+			default:
+				rx_pr("invalid VSDB\n");
+				break;
+			}
 			break;
 		case VDTCDB_TAG:
 			break;
@@ -2475,10 +3514,21 @@ void parse_cta_data_block(u8 *p_blk_buff,
 					      blk_parse_info);
 				break;
 			case VSVDB_TAG:
-				get_edid_dv_data(p_blk_buff,
-						 index + 2,
-						 data_blk_len - 1,
-						 blk_parse_info);
+				/* hdr10p and dv video have same tag code */
+				if (p_blk_buff[index + 2] == 0x8b) {
+					/* todohrd10p*/
+					blk_parse_info->db_info[i].tag_code =
+						VSVDB_HDR10P_TAG;
+					get_edid_hdr10p_data(p_blk_buff,
+							 index + 2,
+							 data_blk_len - 1,
+							 blk_parse_info);
+				} else {
+					get_edid_dvsv_data(p_blk_buff,
+							 index + 2,
+							 data_blk_len - 1,
+							 blk_parse_info);
+				}
 				break;
 			case CDB_TAG:
 				get_edid_colorimetry_data(p_blk_buff,
@@ -2487,7 +3537,13 @@ void parse_cta_data_block(u8 *p_blk_buff,
 							  blk_parse_info);
 				break;
 			case HDR_STATIC_TAG:
-				get_hdr_data(p_blk_buff,
+				get_edid_static_hdr_data(p_blk_buff,
+					     index + 2,
+					     data_blk_len - 1,
+					     blk_parse_info);
+				break;
+			case HDR_DYNAMIC_TAG:
+				get_edid_dynamic_hdr_data(p_blk_buff,
 					     index + 2,
 					     data_blk_len - 1,
 					     blk_parse_info);
@@ -2507,12 +3563,45 @@ void parse_cta_data_block(u8 *p_blk_buff,
 				get_edid_vsadb(p_blk_buff, index + 2,
 					       data_blk_len - 1, blk_parse_info);
 				break;
+			case HDMI_ADB_TAG:
+				get_edid_hdmi_aud(p_blk_buff, index + 2,
+					       data_blk_len - 1, blk_parse_info);
+				break;
 			case RCDB_TAG:
 				get_edid_rcdb(p_blk_buff, index + 2,
 					      data_blk_len - 1, blk_parse_info);
 				break;
 			case SLDB_TAG:
 				get_edid_sldb(p_blk_buff, index + 2,
+					      data_blk_len - 1, blk_parse_info);
+				break;
+			case VFPDB_TAG:
+				get_edid_vfpdb(p_blk_buff, index + 2,
+					      data_blk_len - 1, blk_parse_info);
+				break;
+			case SCDB_TAG:
+				/* index + 1 applicable to hf_db*/
+				get_edid_hf_scdb(p_blk_buff, index + 2,
+					      data_blk_len - 1, blk_parse_info);
+				break;
+			case SBTM_TAG:
+				get_edid_hf_sbtm(p_blk_buff, index + 2,
+					      data_blk_len - 1, blk_parse_info);
+				break;
+			case IFDB_TAG:
+				get_edid_ifdb(p_blk_buff, index + 2,
+					      data_blk_len - 1, blk_parse_info);
+				break;
+			case T7VTDB_TAG:
+				get_edid_t7vtdb(p_blk_buff, index + 2,
+					      data_blk_len - 1, blk_parse_info);
+				break;
+			case T8VTDB_TAG:
+				get_edid_t8vtdb(p_blk_buff, index + 2,
+					      data_blk_len - 1, blk_parse_info);
+				break;
+			case T10VTDB_TAG:
+				get_edid_t10vtdb(p_blk_buff, index + 2,
 					      data_blk_len - 1, blk_parse_info);
 				break;
 			default:
@@ -2558,17 +3647,53 @@ void edid_parse_cea_ext_block(u8 *p_edid,
 	parse_cta_data_block(&p_edid[blk_start_offset],
 			     data_blk_total_len,
 			     &edid_info->blk_parse_info);
-
+	/*dtd*/
+	get_cta_dtd_data(p_edid, max_offset, &edid_info->blk_parse_info);
 	for (i = 0; i < edid_info->blk_parse_info.data_blk_num; i++)
 		edid_info->blk_parse_info.db_info[i].offset += blk_start_offset;
+
+	edid_info->free_size = rx_get_cta_free_size(p_edid, EDID_BLK_SIZE);
+	edid_info->total_free_size = rx_edid_total_free_size(p_edid, EDID_BLK_SIZE);
+	edid_info->dtd_size = rx_get_cea_dtd_size(p_edid, EDID_BLK_SIZE);
+}
+
+u8 rx_edid_ext_blk_num(u8 *pedid)
+{
+	u32 blk_num = 0, index = 0;
+
+	if (!pedid)
+		return 0;
+	index = rx_get_eeodb(pedid);
+	if (index)
+		blk_num = pedid[index + 2];
+	else
+		blk_num = pedid[126];
+
+	return blk_num;
+}
+
+u8 rx_edid_cta_blk_num(u8 *p_edid)
+{
+	u8 blk_num, i, cta_num = 0;
+
+	if (!p_edid)
+		return 0;
+	blk_num = rx_edid_ext_blk_num(p_edid);
+	for (i = 1; i <= blk_num; ++i) {
+		if (p_edid[EDID_BLK_SIZE * i] == 0x2)
+			cta_num++;
+	}
+	return cta_num;
 }
 
 bool is_support_frl(u8 *pedid, u8 port)
 {
 	u32 hf_vsdb_start;
 	bool frl_rate, ret = false;
+	struct data_block_location_s data_block;
 
-	hf_vsdb_start = rx_get_cea_tag_offset(pedid, HF_VENDOR_DB_TAG);
+	data_block = rx_get_cea_tag_offset(pedid, HF_VENDOR_DB_TAG);
+	hf_vsdb_start = data_block.pos[0];
 	frl_rate = pedid[hf_vsdb_start + 7] >> 4;
 	if (frl_rate) {
 		if (rx_info.chip_id == CHIP_ID_T3X &&
@@ -2585,36 +3710,268 @@ bool is_support_frl(u8 *pedid, u8 port)
 	return ret;
 }
 
-void rx_edid_parse(u8 *p_edid, struct edid_info_s *edid_info)
+bool rx_edid_parse(u8 *p_edid, struct edid_info_s *edid_info)
 {
 	if (!p_edid || !edid_info)
-		return;
+		return false;
+	if (!is_valid_edid_data(p_edid)) {
+		rx_pr("can't parse invalid edid\n");
+		return false;
+	}
+	memset(cta_flag, 0, sizeof(cta_flag));
+	edid_info->extension_block_cnt = rx_edid_ext_blk_num(p_edid);
+	rx_pr("extension_block_cnt = %d\n", edid_info->extension_block_cnt);
 	edid_parse_block0(p_edid, edid_info);
-	edid_parse_cea_ext_block(p_edid + EDID_EXT_BLK_OFF,
-				 &edid_info->cea_ext_info);
+	if (edid_info->extension_block_cnt > 0 && p_edid[EDID_EXT_BLK_OFF] == 0x2) {
+		edid_parse_cea_ext_block(p_edid + EDID_EXT_BLK_OFF,
+			&edid_info->cea_ext_info);
+		cta_flag[1] = 1;
+	}
+	if (edid_info->extension_block_cnt > 1 && p_edid[EDID_EXT_BLK_OFF * 2] == 0x2) {
+		edid_parse_cea_ext_block(p_edid + EDID_EXT_BLK_OFF * 2,
+			&edid_info->cea_ext_info1);
+		cta_flag[2] = 1;
+	}
+	if (edid_info->extension_block_cnt > 2 && p_edid[EDID_EXT_BLK_OFF * 3] == 0x2) {
+		edid_parse_cea_ext_block(p_edid + EDID_EXT_BLK_OFF * 3,
+			&edid_info->cea_ext_info2);
+		cta_flag[3] = 1;
+	}
 
-	edid_info->free_size =
-		rx_edid_free_size(p_edid, 256);
-	edid_info->total_free_size =
-		rx_edid_total_free_size(p_edid, 256);
-	edid_info->dtd_size =
-		rx_get_cea_dtd_size(p_edid, 256);
+	return true;
+}
+
+static void rx_print_display_param(struct basic_display_param *param)
+{
+	u8 sync_type = param->sync_type;
+	u8 display_power = param->display_power;
+	u8 other_feature = param->other_feature;
+
+	rx_pr("\n");
+	rx_pr("****Display param****\n");
+	/* video input define */
+	if (param->video_signal) {
+		rx_pr("Digital video input\n");
+		if (param->color_bit_depth == 0x7)
+			rx_pr("reserved color bit depth\n");
+		else if (param->color_bit_depth == 0x0)
+			rx_pr("color bit depth is undefined\n");
+		else
+			rx_pr("%d bits per primary color\n",
+				4 + param->color_bit_depth * 2);
+		switch (param->digital_support) {
+		case 0:
+			rx_pr("Digital interface is not defined\n");
+			break;
+		case 1:
+			rx_pr("DVI is supported\n");
+			break;
+		case 2:
+			rx_pr("HDMI-a is supported\n");
+			break;
+		case 3:
+			rx_pr("HDMI-b is supported\n");
+			break;
+		case 4:
+			rx_pr("MDDI is supported\n");
+			break;
+		case 5:
+			rx_pr("DisplayPort is supported\n");
+			break;
+		default:
+			rx_pr("Reserved feature\n");
+			break;
+		}
+	} else {
+		rx_pr("Analog video input\n");
+		rx_pr("Video : Sync : Total is\n");
+		switch (param->signal_level_standard) {
+		case 0:
+			rx_pr("0.700 : 0.300 : 1.000\n");
+			break;
+		case 1:
+			rx_pr("0.714 : 0.286 : 1.000\n");
+			break;
+		case 2:
+			rx_pr("1.000 : 0.400 : 1.400\n");
+			break;
+		case 3:
+			rx_pr("0.700 : 0.000 : 0.700\n");
+			break;
+		default:
+			break;
+		}
+
+		if (param->video_setup)
+			rx_pr("Blank Level = Black Level\n");
+		else
+			rx_pr("Blank-to-Black setup or pedestal\n");
+
+		if (sync_type & 0x4)
+			rx_pr("Separate Sync H&V Signals are supported\n");
+		else
+			rx_pr("Separate Sync H&V Signals are not supported\n");
+		if (sync_type & 0x2)
+			rx_pr("Composite Sync Signal on Horizontal is supported\n");
+		else
+			rx_pr("Composite Sync Signal on Horizontal is not supported\n");
+		if (sync_type & 0x1)
+			rx_pr("Composite Sync Signal on Green Video is supported\n");
+		else
+			rx_pr("Composite Sync Signal on Green Video is not supported\n");
+
+		if (param->serrations)
+			rx_pr("Composite Sync Signal on Vertical Sync is supported\n");
+		else
+			rx_pr("Composite Sync Signal on Vertical Sync is not supported\n");
+	}
+	/*  Horizontal and Vertical Screen Size or Aspect Ratio */
+	if (param->horizontal_val == 0 && param->vertical_val == 0)
+		rx_pr("the screen size or aspect ratio are unknown or undefined\n");
+	else if (param->horizontal_val == 0)
+		rx_pr("Aspect Ratio(Portrait):%d\n", param->vertical_val);
+	else if (param->vertical_val == 0)
+		rx_pr("Aspect Ratio(Landscape):%d\n", param->horizontal_val);
+	else
+		rx_pr("horizontal size:%d cm, vertical size:%d cm\n",
+			param->horizontal_val, param->vertical_val);
+	/* GAMMA */
+	rx_pr("NOTE:stored val = (gamma * 100) - 100\n");
+	if (param->gamma == 0xff)
+		rx_pr("gamma shall be stored in an extension block\n");
+	else
+		rx_pr("gamma is %d / 100\n", param->gamma + 100);
+	/* support feature */
+	if (display_power & 0x4)
+		rx_pr("Standby Mode is supported\n");
+	else
+		rx_pr("Standby Mode is not supported\n");
+	if (display_power & 0x2)
+		rx_pr("Suspend Mode is supported\n");
+	else
+		rx_pr("Suspend Mode is not supported\n");
+	if (display_power & 0x1)
+		rx_pr("Very Low Power is supported\n");
+	else
+		rx_pr("Very Low Power is not supported\n");
+
+	if (param->video_signal) {
+		switch (param->display_color_type) {
+		case 0:
+			rx_pr("support RGB444.\n");
+			break;
+		case 1:
+			rx_pr("support RGB444 & YUV444.\n");
+			break;
+		case 2:
+			rx_pr("support RGB444 & YUV422.\n");
+			break;
+		case 3:
+			rx_pr("support RGB444 & YUV444 & YUV422.\n");
+			break;
+		default:
+			break;
+		}
+	} else {
+		switch (param->display_color_type) {
+		case 0:
+			rx_pr("color type:Monochrome or Grayscale display.\n");
+			break;
+		case 1:
+			rx_pr("color type:RGB color display.\n");
+			break;
+		case 2:
+			rx_pr("color type:non-RGB color display.\n");
+			break;
+		default:
+			rx_pr("Display Color Type is Undefined\n");
+			break;
+		}
+	}
+	if (other_feature & 0x4)
+		rx_pr("sRGB is default color space\n");
+	else
+		rx_pr("sRGB is not default color space\n");
+	if (other_feature & 0x2) {
+		rx_pr("Preferred Timing Mode includes the native pixel format");
+		rx_pr("and preferred refresh rate of the display device\n");
+	} else {
+		rx_pr("Preferred Timing Mode not includes the native pixel format");
+		rx_pr("and preferred refresh rate of the display device\n");
+	}
+	if (other_feature & 0x1)
+		rx_pr("Defalit GTF is supported\n");
+	else
+		rx_pr("Defalit GTF is not supported\n");
+}
+
+//static double rx_cal_color_characteristic(u16 color)
+//{
+//	double ret = 0.0;
+//	int bit_pos = 10;
+//	for (; color != 0; color >>= 1) {
+//		if (color & 1)
+//			ret += (1 << -bit_pos);
+//		--bit_pos;
+//	}
+//	return ret;
+//}
+
+static void rx_print_color_characteristic
+	(struct color_characteristic *color_chara)
+{
+	if (!color_chara)
+		return;
+	rx_pr("\n");
+	rx_pr("****Color characteristic****\n");
+	rx_pr("NOTE:from bit9~bit0, val = sum(bitx * 2^(x - 10))\n");
+	rx_pr("red_x: %d\n", color_chara->red_x);
+	rx_pr("red_y: %d\n", color_chara->red_y);
+	rx_pr("green_x: %d\n", color_chara->green_x);
+	rx_pr("green_y: %d\n", color_chara->green_y);
+	rx_pr("blue_x: %d\n", color_chara->blue_x);
+	rx_pr("blue_y: %d\n", color_chara->blue_y);
+	rx_pr("white_x: %d\n", color_chara->white_x);
+	rx_pr("white_y: %d\n", color_chara->white_y);
+}
+
+static void rx_parse_print_dtd(struct detailed_timing_desc *dtd)
+{
+	if (!dtd)
+		return;
+	rx_pr("\n");
+	rx_pr("****CTA DTD****\n");
+	rx_pr("\thactive: %d\n", dtd->hactive);
+	rx_pr("\thblank: %d\n", dtd->hblank);
+	rx_pr("\thfront: %d\n", dtd->hfront);
+	rx_pr("\thsync_width: %d\n", dtd->hsync_width);
+	rx_pr("\thtotal: %d\n", dtd->htotal);
+	rx_pr("\tvactive: %d\n", dtd->vactive);
+	rx_pr("\tvblank: %d\n", dtd->vblank);
+	rx_pr("\tvfront: %d\n", dtd->vfront);
+	rx_pr("\tvsync_width: %d\n", dtd->vsync_width);
+	rx_pr("\tvtotal: %d\n", dtd->vtotal);
+	rx_pr("\tpix clk: %dMHz\n", dtd->pixel_clk);
+	rx_pr("\tframe rate: %d\n", dtd->framerate);
 }
 
 void rx_parse_blk0_print(struct edid_info_s *edid_info)
 {
 	if (!edid_info)
 		return;
+	rx_pr("\n");
 	rx_pr("****EDID Basic Block****\n");
 	rx_pr("manufacturer_name: %s\n", edid_info->manufacturer_name);
 	rx_pr("product code: 0x%04x\n", edid_info->product_code);
 	rx_pr("serial_number: 0x%08x\n", edid_info->serial_number);
 	rx_pr("product week: %d\n", edid_info->product_week);
 	rx_pr("product year: %d\n", edid_info->product_year);
-	rx_pr("descriptor1.hactive: %d\n", edid_info->descriptor1.hactive);
-	rx_pr("descriptor1.vactive: %d\n", edid_info->descriptor1.vactive);
-	rx_pr("descriptor1.pix clk: %dKHz\n",
-	      edid_info->descriptor1.pixel_clk * 10);
+	rx_print_display_param(&edid_info->display_param);
+	rx_print_color_characteristic(&edid_info->color_chara);
+	rx_pr("Descriptor1:\n");
+	rx_parse_print_dtd(&edid_info->descriptor1);
+	rx_pr("Descriptor2:\n");
+	rx_parse_print_dtd(&edid_info->descriptor2);
 	rx_pr("monitor name: %s\n", edid_info->monitor_name);
 	rx_pr("max support pixel clock: %dMhz\n",
 	      edid_info->max_sup_pixel_clk);
@@ -2629,6 +3986,7 @@ void rx_parse_print_vdb(struct video_db_s *video_db)
 
 	if (!video_db)
 		return;
+	rx_pr("\n");
 	rx_pr("****Video Data Block****\n");
 	rx_pr("support SVD list:\n");
 	for (i = 0; i < video_db->svd_num; i++) {
@@ -2644,6 +4002,7 @@ void rx_parse_print_adb(struct audio_db_s *audio_db)
 
 	if (!audio_db)
 		return;
+	rx_pr("\n");
 	rx_pr("****Audio Data Block****\n");
 	for (fmt = AUDIO_FORMAT_LPCM; fmt <= AUDIO_FORMAT_WMAPRO; fmt++) {
 		if (audio_db->aud_fmt_sup[fmt]) {
@@ -2677,6 +4036,20 @@ void rx_parse_print_adb(struct audio_db_s *audio_db)
 				(fmt <= AUDIO_FORMAT_ATRAC)) {
 				rx_pr("\tmax bit rate: %dkHz\n",
 				      bit_rate->others * 8);
+			} else if (fmt == AUDIO_FORMAT_DDP) {
+				if (bit_rate->others & 0x1)
+					rx_pr("\tSupport Dolby Atmos decoding\n");
+				else if (bit_rate->others & 0x2)
+					rx_pr("\tSupport Dolby Atmos acmod28\n");
+			} else if (fmt == AUDIO_FORMAT_MAT) {
+				if (bit_rate->others & 0x1)
+					rx_pr("\tsupport Dolby trueHD\n");
+				else
+					rx_pr("\tsupport Dolby trueHD, object audio PCM\n");
+				if (bit_rate->others & 0x2)
+					rx_pr("\trequired by the Dolby MAT 2.x decoder\n");
+				else
+					rx_pr("\tnot required by the Dolby MAT 2.x decoder\n");
 			} else {
 				rx_pr("\tformat dependent value: 0x%x\n",
 				      bit_rate->others);
@@ -2685,34 +4058,138 @@ void rx_parse_print_adb(struct audio_db_s *audio_db)
 	}
 }
 
+static void rx_parse_print_sadb(struct speaker_alloc_db_s *spk_alloc)
+{
+	if (!spk_alloc)
+		return;
+	rx_pr("\n");
+	rx_pr("****Speaker Allocation Data Block****\n");
+	if (spk_alloc->flw_frw)
+		rx_pr("\tFLW/FRW\n");
+	if (spk_alloc->flc_frc)
+		rx_pr("\tFLC/FRC\n");
+	if (spk_alloc->bc)
+		rx_pr("\tBC\n");
+	if (spk_alloc->bl_br)
+		rx_pr("\tBL/BR\n");
+	if (spk_alloc->fc)
+		rx_pr("\tFC\n");
+	if (spk_alloc->lfe1)
+		rx_pr("\tLFE1\n");
+	if (spk_alloc->fl_fr)
+		rx_pr("\tFL/FR\n");
+
+	if (spk_alloc->tpsil_tpsir)
+		rx_pr("\tTpSiL/TpSiR\n");
+	if (spk_alloc->sil_sir)
+		rx_pr("\tSiL/SiR\n");
+	if (spk_alloc->tpbc)
+		rx_pr("\tTpBC\n");
+	if (spk_alloc->lfe2)
+		rx_pr("\tLFE2\n");
+	if (spk_alloc->ls_rs)
+		rx_pr("\tLS/RS\n");
+	if (spk_alloc->tpfc)
+		rx_pr("\tTpFC\n");
+	if (spk_alloc->tpc)
+		rx_pr("\tTpC\n");
+	if (spk_alloc->tpfl_tpfr)
+		rx_pr("\tTpFL/TpFR\n");
+
+	if (spk_alloc->tpbl_tpbr)
+		rx_pr("\tTpBL/TpBR\n");
+	if (spk_alloc->btfc)
+		rx_pr("\tBtFC\n");
+	if (spk_alloc->btfl_btfr)
+		rx_pr("\tBtFL/BtFR\n");
+}
+
 /* may need extend spker alloc */
 void rx_parse_print_spk_alloc(struct speaker_alloc_db_s *spk_alloc)
 {
 	if (!spk_alloc)
 		return;
-	rx_pr("****Speaker Allocation Data Block****\n");
-	if (spk_alloc->flw_frw)
-		rx_pr("FLW/FRW\n");
-	if (spk_alloc->rlc_rrc)
-		rx_pr("RLC/RRC\n");
-	if (spk_alloc->flc_frc)
-		rx_pr("FLC/FRC\n");
-	if (spk_alloc->rc)
-		rx_pr("RC\n");
-	if (spk_alloc->rl_rr)
-		rx_pr("RL/RR\n");
-	if (spk_alloc->fc)
-		rx_pr("FC\n");
-	if (spk_alloc->lfe)
-		rx_pr("LFE\n");
-	if (spk_alloc->fl_fr)
-		rx_pr("FL/FR\n");
-	if (spk_alloc->fch)
-		rx_pr("FCH\n");
-	if (spk_alloc->tc)
-		rx_pr("TC\n");
-	if (spk_alloc->flh_frh)
-		rx_pr("FLH_FRH\n");
+	rx_parse_print_sadb(spk_alloc);
+}
+
+void rx_parse_print_hdmi_aud(struct hdmi_adb_s *hdmi_adb)
+{
+	u8 i;
+
+	if (!hdmi_adb)
+		return;
+	rx_pr("\n");
+	rx_pr("****HDMI Audio (Multi-Stream/3D)****\n");
+	rx_pr("\tSupports MS NonMixed: %d\n", hdmi_adb->sup_ms_nonmixed);
+	switch (hdmi_adb->max_stream_cnt) {
+	case 0:
+		rx_pr("\tSink does not support Multi-Stream Audio\n");
+		break;
+	case 1:
+		rx_pr("\tSink supports Multi-Stream Audio with 2 audio streams\n");
+		break;
+	case 2:
+		rx_pr("\t Sink supports Multi-Stream Audio with 2 or 3 audio streams\n");
+		break;
+	case 3:
+		rx_pr("\t Sink supports Multi-Stream Audio with 2, 3, or 4 audio streams\n");
+		break;
+	default:
+		break;
+	}
+	for (i = 0; i < hdmi_adb->num_3d_ad; ++i) {
+		rx_pr("\tDescriptor %d:\n", i);
+		if (hdmi_adb->hdmi_3d_ad[i].format == 1) {
+			rx_pr("\tFormat Code: L-PCM Audio\n");
+			rx_pr("\tbit rate:\n");
+			if (hdmi_adb->hdmi_3d_ad[i].bit24)
+				rx_pr("\t24 bit\n");
+			if (hdmi_adb->hdmi_3d_ad[i].bit20)
+				rx_pr("\t20 bit\n");
+			if (hdmi_adb->hdmi_3d_ad[i].bit16)
+				rx_pr("\t16 bit\n");
+		} else if (hdmi_adb->hdmi_3d_ad[i].format == 9) {
+			rx_pr("\tFormat Code: One Bit Audio\n");
+			rx_pr("\tFormat Code Dependent Value: %d\n",
+				hdmi_adb->hdmi_3d_ad[i].format_value);
+		}
+		rx_pr("\tMax Number of Channels: %d\n",
+			hdmi_adb->hdmi_3d_ad[i].max_channel_num + 1);
+		if (hdmi_adb->hdmi_3d_ad[i].freq_192khz)
+			rx_pr("\tSupport 192kHz\n");
+		if (hdmi_adb->hdmi_3d_ad[i].freq_176_4khz)
+			rx_pr("\tSupport 176.4kHz\n");
+		if (hdmi_adb->hdmi_3d_ad[i].freq_96khz)
+			rx_pr("\tSupport 96kHz\n");
+		if (hdmi_adb->hdmi_3d_ad[i].freq_88_2khz)
+			rx_pr("\tSupport 88.2kHz\n");
+		if (hdmi_adb->hdmi_3d_ad[i].freq_48khz)
+			rx_pr("\tSupport 48kHz\n");
+		if (hdmi_adb->hdmi_3d_ad[i].freq_44_1khz)
+			rx_pr("\tSupport 44.1kHz\n");
+		if (hdmi_adb->hdmi_3d_ad[i].freq_32khz)
+			rx_pr("\tSupport 32kHz\n");
+		rx_pr("\n");
+	}
+	switch (hdmi_adb->acat) {
+	case 0:
+		rx_pr("\tAudio Channel Allocation Type: Not support\n");
+		break;
+	case 1:
+		rx_pr("\tAudio Channel Allocation Type: 10.2 channels\n");
+		break;
+	case 2:
+		rx_pr("\tAudio Channel Allocation Type: 22.2 channels\n");
+		break;
+	case 3:
+		rx_pr("\tAudio Channel Allocation Type: 30.2 channels\n");
+		break;
+	default:
+		rx_pr("\tAudio Channel Allocation Type: Reserved\n");
+		break;
+	}
+	if (hdmi_adb->num_3d_ad > 0)
+		rx_parse_print_sadb(&hdmi_adb->sadb);
 }
 
 void rx_parse_print_vsdb(struct cta_blk_parse_info *edid_info)
@@ -2727,12 +4204,9 @@ void rx_parse_print_vsdb(struct cta_blk_parse_info *edid_info)
 	if (!edid_info)
 		return;
 
-	svd_num = edid_info->video_db.svd_num;
+	svd_num = edid_info->video_db[0].svd_num;
+	rx_pr("\n");
 	rx_pr("****Vender Specific Data Block****\n");
-	rx_pr("IEEE OUI: %06X%x%xma\n",
-	      edid_info->vsdb.ieee_third,
-	      edid_info->vsdb.ieee_second,
-	      edid_info->vsdb.ieee_first);
 	rx_pr("phy addr: %d.%d.%d.%d\n",
 	      edid_info->vsdb.a, edid_info->vsdb.b,
 	      edid_info->vsdb.c, edid_info->vsdb.d);
@@ -2818,7 +4292,7 @@ void rx_parse_print_vsdb(struct cta_blk_parse_info *edid_info)
 		}
 		rx_pr("For SVDs:\n");
 		for (i = 0; (i < svd_num) && (i < 16); i++) {
-			hdmi_vic = edid_info->video_db.hdmi_vic[i];
+			hdmi_vic = edid_info->video_db[0].hdmi_vic[i];
 			if ((edid_info->vsdb._3d_mask_15_0 >> i) & 0x1)
 				rx_edid_print_vic_fmt(i, hdmi_vic);
 		}
@@ -2833,7 +4307,7 @@ void rx_parse_print_vsdb(struct cta_blk_parse_info *edid_info)
 		_3d_struct =
 			edid_info->vsdb._2d_vic[i]._3d_struct;
 		hdmi_vic =
-			edid_info->video_db.hdmi_vic[_2d_vic_order];
+			edid_info->video_db[0].hdmi_vic[_2d_vic_order];
 		rx_edid_print_vic_fmt(_2d_vic_order, hdmi_vic);
 		rx_pr("\t\t3d format: %s\n", _3d_structure[_3d_struct]);
 		if (_3d_struct >= 0x8 && _3d_struct <= 0xF) {
@@ -2845,100 +4319,393 @@ void rx_parse_print_vsdb(struct cta_blk_parse_info *edid_info)
 	}
 }
 
+static void rx_parse_print_hf(struct hf_s *hf_db)
+{
+	rx_pr("hf-db version: %d\n",
+	      hf_db->version);
+	rx_pr("max_tmds_rate: %dMHz\n",
+	      hf_db->max_tmds_rate * 5);
+	rx_pr("scdc_present: %d\n",
+	      hf_db->scdc_present);
+	rx_pr("rr_cap: %d\n",
+	      hf_db->rr_cap);
+	rx_pr("cable_status: %d\n",
+	      hf_db->cable_status);
+	rx_pr("ccbpci: %d\n",
+	      hf_db->ccbpci);
+	rx_pr("lte_340m_scramble: %d\n",
+	      hf_db->lte_340m_scramble);
+	rx_pr("independ_view: %d\n",
+	      hf_db->independ_view);
+	rx_pr("dual_view: %d\n",
+	      hf_db->dual_view);
+	rx_pr("_3d_osd_disparity: %d\n",
+	      hf_db->_3d_osd_disparity);
+	//pb4
+	switch (hf_db->max_frl_rate) {
+	case 0:
+		rx_pr("not support FRL\n");
+		break;
+	case 1:
+		rx_pr("max_frl_rate: 3G3L\n");
+		break;
+	case 2:
+		rx_pr("max_frl_rate: 6G3L\n");
+		break;
+	case 3:
+		rx_pr("max_frl_rate: 6G4L\n");
+		break;
+	case 4:
+		rx_pr("max_frl_rate: 8G4L\n");
+		break;
+	case 5:
+		rx_pr("max_frl_rate: 10G4L\n");
+		break;
+	case 6:
+		rx_pr("max_frl_rate: 12G4L\n");
+		break;
+	default:
+		rx_pr("max_frl_rate: reserved\n");
+		break;
+	}
+	rx_pr("uhd_vic: %d\n",
+	      hf_db->uhd_vic);
+	rx_pr("48bit 420 endode: %d\n",
+	      hf_db->dc_48bit_420);
+	rx_pr("36bit 420 endode: %d\n",
+	      hf_db->dc_36bit_420);
+	rx_pr("30bit 420 endode: %d\n",
+	      hf_db->dc_30bit_420);
+	//pb5
+	rx_pr("fapa_end_extended: %d\n",
+	      hf_db->fapa_end_extended);
+	rx_pr("qms: %d\n",
+	      hf_db->qms);
+	rx_pr("m_delta: %d\n",
+	      hf_db->m_delta);
+	rx_pr("cinema_vrr: %d\n",
+	      hf_db->cinema_vrr);
+	rx_pr("neg_mvrr: %d\n",
+	      hf_db->neg_mvrr);
+	rx_pr("fva: %d\n",
+	      hf_db->fva);
+	rx_pr("allm: %d\n",
+	      hf_db->allm);
+	rx_pr("fapa_start_location: %d\n",
+	      hf_db->fapa_start_location);
+	//pb6
+	rx_pr("vrr_min: %d, 0 means not support Gaming-VRR\n",
+	      hf_db->vrr_min);
+	//pb7
+	rx_pr("vrr_max: %d, 0 represents BRR\n",
+	      (hf_db->vrr_max_hi << 8) + hf_db->vrr_max_lo);
+	//pb8
+	rx_pr("dsc_1p2: %d\n",
+	      hf_db->dsc_1p2);
+	rx_pr("dsc_native_420: %d\n",
+	      hf_db->dsc_native_420);
+	rx_pr("qms_tfr_max: %d\n",
+	      hf_db->qms_tfr_max);
+	rx_pr("qms_tfr_min: %d\n",
+	      hf_db->qms_tfr_min);
+	rx_pr("dsc_all_bpp: %d\n",
+	      hf_db->dsc_all_bpp);
+	rx_pr("dsc_16bpc: %d\n",
+	      hf_db->dsc_16bpc);
+	rx_pr("dsc_12bpc: %d\n",
+	      hf_db->dsc_12bpc);
+	rx_pr("dsc_10bpc: %d\n",
+	      hf_db->dsc_10bpc);
+	//pb9
+	switch (hf_db->dsc_max_frl_rate) {
+	case 0:
+		rx_pr("not support dsc_max_frl_rate\n");
+		break;
+	case 1:
+		rx_pr("dsc_max_frl_rate: 3G\n");
+		break;
+	case 2:
+		rx_pr("dsc_max_frl_rate: 6G3L\n");
+		break;
+	case 3:
+		rx_pr("dsc_max_frl_rate: 6G4L\n");
+		break;
+	case 4:
+		rx_pr("dsc_max_frl_rate: 8G\n");
+		break;
+	case 5:
+		rx_pr("dsc_max_frl_rate: 10G\n");
+		break;
+	case 6:
+		rx_pr("dsc_max_frl_rate: 12G\n");
+		break;
+	default:
+		rx_pr("dsc_max_frl_rate: reserved\n");
+		break;
+	}
+	switch (hf_db->dsc_max_slices) {
+	case 0:
+		rx_pr("not support dsc_max_slices\n");
+		break;
+	case 1:
+		rx_pr("dsc_max_slices: 1 slice and 340MHz/KSliceAdjust\n");
+		break;
+	case 2:
+		rx_pr("dsc_max_slices: 2 slice and 340MHz/KSliceAdjust\n");
+		break;
+	case 3:
+		rx_pr("dsc_max_slices: 4 slice and 340MHz/KSliceAdjust\n");
+		break;
+	case 4:
+		rx_pr("dsc_max_slices: 8 slice and 340MHz/KSliceAdjust\n");
+		break;
+	case 5:
+		rx_pr("dsc_max_slices: 8 slice and 400MHz/KSliceAdjust\n");
+		break;
+	case 6:
+		rx_pr("dsc_max_slices: 12 slice and 400MHz/KSliceAdjust\n");
+		break;
+	case 7: //refer to hdmi2.1a, this is 16 slices and 400MHz/KSliceAdjust
+		rx_pr("dsc_max_slices: 12 slice and 600MHz/KSliceAdjust\n");
+		break;
+	}
+	rx_pr("dsc_max_slices: %d\n", hf_db->dsc_max_slices);
+	//pb10
+	rx_pr("dsc_total_chunk_kbytes: %d\n",
+	      1024 * (hf_db->dsc_total_chunk_kbytes + 1));
+}
+
 void rx_parse_print_hf_vsdb(struct hf_vsdb_s *hf_vsdb)
 {
 	if (!hf_vsdb)
 		return;
+	rx_pr("\n");
 	rx_pr("****HF-VSDB****\n");
 	rx_pr("IEEE OUI: %06X%X%X\n",
 	      hf_vsdb->ieee_first,
 	      hf_vsdb->ieee_second,
 	      hf_vsdb->ieee_third);
-	rx_pr("hf-vsdb version: %d\n",
-	      hf_vsdb->version);
-	rx_pr("max_tmds_rate: %dMHz\n",
-	      hf_vsdb->max_tmds_rate * 5);
-	rx_pr("scdc_present: %d\n",
-	      hf_vsdb->scdc_present);
-	rx_pr("rr_cap: %d\n",
-	      hf_vsdb->rr_cap);
-	rx_pr("cable_status: %d\n",
-	      hf_vsdb->cable_status);
-	rx_pr("ccbpci: %d\n",
-	      hf_vsdb->ccbpci);
-	rx_pr("lte_340m_scramble: %d\n",
-	      hf_vsdb->lte_340m_scramble);
-	rx_pr("independ_view: %d\n",
-	      hf_vsdb->independ_view);
-	rx_pr("dual_view: %d\n",
-	      hf_vsdb->dual_view);
-	rx_pr("_3d_osd_disparity: %d\n",
-	      hf_vsdb->_3d_osd_disparity);
-	//pb4
-	rx_pr("max_frl_rate: %d\n",
-	      hf_vsdb->max_frl_rate);
-	rx_pr("uhd_vic: %d\n",
-	      hf_vsdb->uhd_vic);
-	rx_pr("48bit 420 endode: %d\n",
-	      hf_vsdb->dc_48bit_420);
-	rx_pr("36bit 420 endode: %d\n",
-	      hf_vsdb->dc_36bit_420);
-	rx_pr("30bit 420 endode: %d\n",
-	      hf_vsdb->dc_30bit_420);
-	//pb5
-	rx_pr("qms_tfr_max: %d\n",
-	      hf_vsdb->qms_tfr_max);
-	rx_pr("qms: %d\n",
-	      hf_vsdb->qms);
-	rx_pr("m_delta: %d\n",
-	      hf_vsdb->m_delta);
-	rx_pr("qms_tfr_min: %d\n",
-	      hf_vsdb->qms_tfr_min);
-	rx_pr("neg_mvrr: %d\n",
-	      hf_vsdb->neg_mvrr);
-	rx_pr("fva: %d\n",
-	      hf_vsdb->fva);
-	rx_pr("allm: %d\n",
-	      hf_vsdb->allm);
-	rx_pr("fapa_start_location: %d\n",
-	      hf_vsdb->fapa_start_location);
-	//pb6
-	rx_pr("vrr_max_hi: %d\n",
-	      hf_vsdb->vrr_max_hi);
-	rx_pr("vrr_min: %d\n",
-	      hf_vsdb->vrr_min);
-	//pb7
-	rx_pr("vrr_max_lo: %d\n",
-	      hf_vsdb->vrr_max_lo);
-	//pb8
-	rx_pr("dsc_1p2: %d\n",
-	      hf_vsdb->dsc_1p2);
-	rx_pr("dsc_native_420: %d\n",
-	      hf_vsdb->dsc_native_420);
-	rx_pr("fapa_end_extended: %d\n",
-	      hf_vsdb->fapa_end_extended);
-	rx_pr("dsc_all_bpp: %d\n",
-	      hf_vsdb->dsc_all_bpp);
-	rx_pr("dsc_16bpc: %d\n",
-	      hf_vsdb->dsc_16bpc);
-	rx_pr("dsc_12bpc: %d\n",
-	      hf_vsdb->dsc_12bpc);
-	rx_pr("dsc_10bpc: %d\n",
-	      hf_vsdb->dsc_10bpc);
-	//pb9
-	rx_pr("dsc_max_frl_rate: %d\n",
-	      hf_vsdb->dsc_max_frl_rate);
-	rx_pr("dsc_max_slices: %d\n",
-	      hf_vsdb->dsc_max_slices);
-	//pb10
-	rx_pr("dsc_total_chunk_kbytes: %d\n",
-	      hf_vsdb->dsc_total_chunk_kbytes);
+	rx_parse_print_hf(&hf_vsdb->hf_db);
+}
+
+void rx_parse_print_hf_scdb(struct hf_scdb_s *hf_scdb)
+{
+	if (!hf_scdb)
+		return;
+	rx_pr("\n");
+	rx_pr("****HF-SCDB****\n");
+	rx_parse_print_hf(&hf_scdb->hf_db);
+}
+
+void rx_parse_print_hf_sbtm(struct hf_sbtm_s *hf_sbtm)
+{
+	if (!hf_sbtm)
+		return;
+	rx_pr("\n");
+	rx_pr("****HF-SBTM****\n");
+	rx_pr("drdm_ind:%d\n", hf_sbtm->drdm_ind);
+	rx_pr("grdm_support:\n");
+	switch (hf_sbtm->grdm_support) {
+	case 0:
+		rx_pr("\tNot Supported\n");
+		break;
+	case 1:
+		rx_pr("\tSDR-range General RDM format\n");
+		break;
+	case 2:
+		rx_pr("\tHDR General RDM format\n");
+		break;
+	default:
+		rx_pr("\tReserved\n");
+		break;
+	}
+	rx_pr("max_sbtm_ver:%d\n", hf_sbtm->max_sbtm_ver);
+	if (!hf_sbtm->drdm_ind)
+		return;
+	rx_pr("max_rgb:%d\n", hf_sbtm->max_rgb);
+	rx_pr("use_hgig_drdm:%d\n", hf_sbtm->use_hgig_drdm);
+	rx_pr("gamut:");
+	switch (hf_sbtm->gamut) {
+	case 0:
+		rx_pr("\tIN EDID\n");
+		break;
+	case 1:
+		rx_pr("\tREC_ITU_R_BT_709\n");
+		break;
+	case 2:
+		rx_pr("\tSMPTE_ST_2113\n");
+		break;
+	case 3:
+		rx_pr("\tREC_ITU_R_BT_2020\n");
+		break;
+	default:
+		break;
+	}
+	rx_pr("hgig_cat_drdm_sel:");
+	switch (hf_sbtm->hgig_cat_drdm_sel) {
+	case 0:
+		rx_pr("\tNot Used\n");
+		break;
+	case 1:
+		rx_pr("\tnumPB = 0, PBpct[0] = 100, PBnits[0] = 600 cd/m^2,");
+		rx_pr("MinNits = 0.1 cd/m^2\n");
+		break;
+	case 2:
+		rx_pr("\tnumPB = 1, PBpct[0] = 10, PBnits[0] = 1000 cd/m^2,");
+		rx_pr("PBpct[1] = 100, PBnits[1] = 600 cd/m^2, MinNits = 0.1 cd/m^2\n");
+		break;
+	case 3:
+		rx_pr("\tnumPB = 1, PBpct[0] = 10, PBnits[0] = 4000 cd/m^2,");
+		rx_pr("PBpct[1] = 100, PBnits[1] = 600 cd/m^2, MinNits = 0.1 cd/m^2\n");
+		break;
+	case 4:
+		rx_pr("\tnumPB = 1, PBpct[0] = 10, PBnits[0] = 10000 cd/m^2,");
+		rx_pr("PBpct[1] = 100, PBnits[1] = 600 cd/m^2, MinNits = 0 cd/m^2\n");
+		break;
+	default:
+		break;
+	}
+	if (!hf_sbtm->gamut) {
+		rx_pr("red_x:%d\n", (hf_sbtm->red_x_high << 8) + hf_sbtm->red_x_low);
+		rx_pr("red_y:%d\n", (hf_sbtm->red_y_high << 8) + hf_sbtm->red_y_low);
+		rx_pr("green_x:%d\n", (hf_sbtm->green_x_high << 8) + hf_sbtm->green_x_low);
+		rx_pr("green_y:%d\n", (hf_sbtm->green_y_high << 8) + hf_sbtm->green_y_low);
+		rx_pr("blue_x:%d\n", (hf_sbtm->blue_x_high << 8) + hf_sbtm->blue_x_low);
+		rx_pr("blue_y:%d\n", (hf_sbtm->blue_y_high << 8) + hf_sbtm->blue_y_low);
+		rx_pr("white_x:%d\n", (hf_sbtm->white_x_high << 8) + hf_sbtm->white_x_low);
+		rx_pr("white_y:%d\n", (hf_sbtm->white_y_high << 8) + hf_sbtm->white_y_low);
+	}
+	if (hf_sbtm->use_hgig_drdm)
+		return;
+	rx_pr("min_bright_10:%d\n", hf_sbtm->min_bright_10);
+	rx_pr("peak_bright_100:%d\n", hf_sbtm->peak_bright_100);
+	rx_pr("p0_mant:%d\n", hf_sbtm->p0_mant);
+	rx_pr("p0_exp:%d\n", hf_sbtm->p0_exp);
+	rx_pr("peak_bright_p0:%d\n", hf_sbtm->peak_bright_p0);
+	rx_pr("p1_mant:%d\n", hf_sbtm->p1_mant);
+	rx_pr("p1_exp:%d\n", hf_sbtm->p1_exp);
+	rx_pr("peak_bright_p1:%d\n", hf_sbtm->peak_bright_p1);
+	rx_pr("p2_mant:%d\n", hf_sbtm->p2_mant);
+	rx_pr("p2_exp:%d\n", hf_sbtm->p2_exp);
+	rx_pr("peak_bright_p2:%d\n", hf_sbtm->peak_bright_p2);
+	rx_pr("p3_mant:%d\n", hf_sbtm->p3_mant);
+	rx_pr("p3_exp:%d\n", hf_sbtm->p3_exp);
+	rx_pr("peak_bright_p3:%d\n", hf_sbtm->peak_bright_p3);
+}
+
+void rx_parse_print_sldb(struct sldb_s *sldb)
+{
+	u8 i;
+
+	if (!sldb)
+		return;
+	rx_pr("\n");
+	rx_pr("****Speaker Location Data Block****\n");
+	rx_pr("SLDB has %d descriptop:\n", sldb->len);
+	for (i = 0; i < sldb->len; ++i) {
+		rx_pr("Descriptor %d\n", i);
+		rx_pr("\tcoord:%d\n", sldb->sldb_des[i].coord);
+		rx_pr("\tactive:%d\n", sldb->sldb_des[i].active);
+		rx_pr("\tchannel id:%d\n",
+			sldb->sldb_des[i].channel_idx);
+		rx_pr("\tspeaker id:%d, %s\n",
+			sldb->sldb_des[i].speaker_id,
+			speaker_place[sldb->sldb_des[i].speaker_id]);
+		if (sldb->sldb_des[i].coord) {
+			rx_pr("\tcoord x:%d\n", sldb->sldb_des[i].x);
+			rx_pr("\tcoord y:%d\n", sldb->sldb_des[i].y);
+			rx_pr("\tcoord z:%d\n", sldb->sldb_des[i].z);
+		}
+	}
+}
+
+void rx_parse_print_vfpdb(struct vfpdb_s *vfpdb)
+{
+	u8 i, svr = 0;
+
+	if (!vfpdb)
+		return;
+	rx_pr("\n");
+	rx_pr("****Video Format Preference Data Block****\n");
+	rx_pr("VFPDB has %d svr\n", vfpdb->num);
+	for (i = 0; i < vfpdb->num; ++i) {
+		svr = vfpdb->svr[i];
+		if (svr == 0 || svr == 128 || svr == 255)
+			continue;
+		else if (svr >= 1 && svr <= 127)
+			rx_edid_print_vic_fmt(i, svr);
+		else if (svr >= 129 && svr <= 144)
+			rx_pr("\tDTD%d\n", svr - 128);
+		else if (svr >= 145 && svr <= 160)
+			rx_pr("\tth Type VII or Type X Video Timing Data Block\n");
+		else if (svr >= 161 && svr <= 192)
+			continue;
+		else if (svr >= 193 && svr <= 253)
+			rx_edid_print_vic_fmt(i, svr);
+		else if (svr == 254)
+			rx_pr("\tDisplayID Type VIII Video Timing Data Block\n");
+	}
+}
+
+void rx_parse_print_rcdb(struct rcdb_s *rcdb)
+{
+	if (!rcdb)
+		return;
+	rx_pr("\n");
+	rx_pr("****Room Configuration Data Block****\n");
+	rx_pr("display:%d\n", rcdb->display);
+	rx_pr("speaker:%d\n", rcdb->speaker);
+	if (rcdb->speaker)
+		rx_pr("speaker_cnt:%d\n", rcdb->speaker_cnt + 1);
+	else
+		rx_pr("speaker_cnt:0\n");
+	rx_pr("sld:%d\n", rcdb->sld);
+	rx_pr("SPM:\n");
+	rx_pr("\tflw_frw:%d\n", rcdb->sadb.flw_frw);
+	rx_pr("\tflc_frc:%d\n", rcdb->sadb.flc_frc);
+	rx_pr("\tbc:%d\n", rcdb->sadb.bc);
+	rx_pr("\tbl_br:%d\n", rcdb->sadb.bl_br);
+	rx_pr("\tfc:%d\n", rcdb->sadb.fc);
+	rx_pr("\tlfe1:%d\n", rcdb->sadb.lfe1);
+	rx_pr("\tfl_fr:%d\n", rcdb->sadb.fl_fr);
+	rx_pr("\ttpsil_tpsir:%d\n", rcdb->sadb.tpsil_tpsir);
+	rx_pr("\tsil_sir:%d\n", rcdb->sadb.sil_sir);
+	rx_pr("\ttpbc:%d\n", rcdb->sadb.tpbc);
+	rx_pr("\tlfe2:%d\n", rcdb->sadb.lfe2);
+	rx_pr("\tls_rs:%d\n", rcdb->sadb.ls_rs);
+	rx_pr("\ttpfc:%d\n", rcdb->sadb.tpfc);
+	rx_pr("\ttpc:%d\n", rcdb->sadb.tpc);
+	rx_pr("\ttpfl_tpfr:%d\n", rcdb->sadb.tpfl_tpfr);
+	rx_pr("\tbtfl_btfr:%d\n", rcdb->sadb.btfl_btfr);
+	rx_pr("\tbtfc:%d\n", rcdb->sadb.btfc);
+	rx_pr("\ttpbl_tpbr:%d\n", rcdb->sadb.tpbl_tpbr);
+	if (rcdb->sld) {
+		rx_pr("x_max: %d dm\n", rcdb->x_max);
+		rx_pr("y_max: %d dm\n", rcdb->y_max);
+		rx_pr("z_max: %d dm\n", rcdb->z_max);
+	} else {
+		rx_pr("x_max: 32 dm\n");
+		rx_pr("y_max: 32 dm\n");
+		rx_pr("z_max: 16 dm\n");
+	}
+	if (rcdb->display) {
+		rx_pr("bit7 is sign bit; bit6 is integer portion; bit5~0 is fractional portion\n");
+		rx_pr("display_x: 0x%x dm\n", rcdb->display_x);
+		rx_pr("display_y: 0x%x dm\n", rcdb->display_y);
+		rx_pr("display_z: 0x%x dm\n", rcdb->display_z);
+	} else {
+		rx_pr("bit7 is sign bit; bit6 is integer portion; bit5~0 is fractional portion\n");
+		rx_pr("display_x: 0x00 dm\n");
+		rx_pr("display_y: 0x40 dm\n");
+		rx_pr("display_z: 0x00 dm\n");
+	}
 }
 
 void rx_parse_print_vcdb(struct video_cap_db_s *vcdb)
 {
 	if (!vcdb)
 		return;
+	rx_pr("\n");
 	rx_pr("****Video Cap Data Block****\n");
 	rx_pr("YCC Quant Range:\n");
 	if (vcdb->quanti_range_ycc)
@@ -3005,45 +4772,144 @@ void rx_parse_print_vcdb(struct video_cap_db_s *vcdb)
 	}
 }
 
-void rx_parse_print_vsvdb(struct dv_vsvdb_s *dv_vsvdb)
+void rx_parse_print_dvsadb(struct dv_vsadb_s *dv_vsadb)
+{
+	if (!dv_vsadb)
+		return;
+	rx_pr("\n");
+	rx_pr("****Dolby Vendor Specific Audio****\n");
+	if (dv_vsadb->version == 0)
+		rx_pr("\tversion: %d\n", dv_vsadb->version);
+	else
+		rx_pr("\tversion: reserved\n");
+	if (dv_vsadb->headphone)
+		rx_pr("\tHeadphone playback only\n");
+	if (dv_vsadb->center)
+		rx_pr("\tCenter speaker zone present\n");
+	if (dv_vsadb->surround)
+		rx_pr("\tSurround speaker zone present\n");
+	if (dv_vsadb->height)
+		rx_pr("\tHeight speaker zone present\n");
+	if (dv_vsadb->func)
+		rx_pr("\tRefer to Dolby MAT short audio descriptors\n");
+	else
+		rx_pr("\tSupports Dolby MAT PCM 48kHz only, not support Dolby TrueHD\n");
+}
+
+void rx_parse_print_dvsvdb(struct dv_vsvdb_s *dv_vsvdb)
 {
 	if (!dv_vsvdb)
 		return;
-	rx_pr("****VSVDB(dolby vision)****\n");
-	rx_pr("IEEE_OUI: %06X\n",
+	rx_pr("\n");
+	rx_pr("****Dolby Vendor Specific Video****\n");
+	rx_pr("\tIEEE_OUI: %06X\n",
 	      dv_vsvdb->ieee_oui);
-	rx_pr("vsvdb version: %d\n",
+	rx_pr("\tvsvdb version: %d\n",
 	      dv_vsvdb->version);
-	rx_pr("sup_global_dimming: %d\n",
+	rx_pr("\tsup_global_dimming: %d\n",
 	      dv_vsvdb->sup_global_dimming);
-	rx_pr("sup_2160p60hz: %d\n",
+	rx_pr("\tsup_2160p60hz: %d\n",
 	      dv_vsvdb->sup_2160p60hz);
-	rx_pr("sup_yuv422_12bit: %d\n",
+	rx_pr("\tsup_yuv422_12bit: %d\n",
 	      dv_vsvdb->sup_yuv422_12bit);
-	rx_pr("Rx: 0x%x\n", dv_vsvdb->Rx);
-	rx_pr("Ry: 0x%x\n", dv_vsvdb->Ry);
-	rx_pr("Gx: 0x%x\n", dv_vsvdb->Gx);
-	rx_pr("Gy: 0x%x\n", dv_vsvdb->Gy);
-	rx_pr("Bx: 0x%x\n", dv_vsvdb->Bx);
-	rx_pr("By: 0x%x\n", dv_vsvdb->By);
+	rx_pr("\tRx: 0x%x\n", dv_vsvdb->Rx);
+	rx_pr("\tRy: 0x%x\n", dv_vsvdb->Ry);
+	rx_pr("\tGx: 0x%x\n", dv_vsvdb->Gx);
+	rx_pr("\tGy: 0x%x\n", dv_vsvdb->Gy);
+	rx_pr("\tBx: 0x%x\n", dv_vsvdb->Bx);
+	rx_pr("\tBy: 0x%x\n", dv_vsvdb->By);
 	if (dv_vsvdb->version == 0) {
-		rx_pr("target max pq: 0x%x\n",
+		rx_pr("\tWx: 0x%x\n", dv_vsvdb->Wx);
+		rx_pr("\tWy: 0x%x\n", dv_vsvdb->Wy);
+		rx_pr("\ttarget max pq: 0x%x\n",
 		      dv_vsvdb->tmaxPQ);
-		rx_pr("target min pq: 0x%x\n",
+		rx_pr("\ttarget min pq: 0x%x\n",
 		      dv_vsvdb->tminPQ);
-		rx_pr("dm_major_ver: 0x%x\n",
+		rx_pr("\tdm_major_ver: 0x%x\n",
 		      dv_vsvdb->dm_major_ver);
-		rx_pr("dm_minor_ver: 0x%x\n",
+		rx_pr("\tdm_minor_ver: 0x%x\n",
 		      dv_vsvdb->dm_minor_ver);
 	} else if (dv_vsvdb->version == 1) {
-		rx_pr("DM_version: 0x%x\n",
+		rx_pr("\tDM_version: 0x%x\n",
 		      dv_vsvdb->DM_version);
-		rx_pr("target_max_lum: 0x%x\n",
+		if (dv_vsvdb->length == 0xb) {
+			rx_pr("\tLow_latency:\n");
+			switch (dv_vsvdb->low_latency) {
+			case 0:
+				rx_pr("\tOnly Standard\n");
+				break;
+			case 1:
+				rx_pr("\tStandard + Low_Latency\n");
+				break;
+			default:
+				rx_pr("\tReserved\n");
+				break;
+			}
+		}
+		rx_pr("\ttarget_max_lum: 0x%x\n",
 		      dv_vsvdb->target_max_lum);
-		rx_pr("target_min_lum: 0x%x\n",
+		rx_pr("\ttarget_min_lum: 0x%x\n",
 		      dv_vsvdb->target_min_lum);
-		rx_pr("colorimetry: 0x%x\n",
+		rx_pr("\tcolorimetry: 0x%x\n",
 		      dv_vsvdb->colorimetry);
+	} else if (dv_vsvdb->version == 2) {
+		rx_pr("\tDM_version: 0x%x\n",
+		      dv_vsvdb->DM_version);
+		rx_pr("\tbacklt_min_luma:\n");
+		switch (dv_vsvdb->backlt_min_luma) {
+		case 0:
+			rx_pr("\t25cd/m^2\n");
+			break;
+		case 1:
+			rx_pr("\t50cd/m^2\n");
+			break;
+		case 2:
+			rx_pr("\t75cd/m^2\n");
+			break;
+		case 3:
+			rx_pr("\t100cd/m^2\n");
+			break;
+		default:
+			break;
+		}
+		rx_pr("\tinterface:\n");
+		switch (dv_vsvdb->interface) {
+		case 0:
+			rx_pr("\tLow_Latency\n");
+			break;
+		case 1:
+			rx_pr("\tLow_Latency + Low_Latency_HDMI\n");
+			break;
+		case 2:
+			rx_pr("\tStandard + Low_Latency\n");
+			break;
+		case 3:
+			rx_pr("\tStandard + Low_Latency + Low_Latency_HDMI\n");
+			break;
+		default:
+			break;
+		}
+		rx_pr("\tsupports_10b_12b_444:\n");
+		switch (dv_vsvdb->sup_10b_12b_444) {
+		case 0:
+			rx_pr("\tNot support\n");
+			break;
+		case 1:
+			rx_pr("\t10bit\n");
+			break;
+		case 2:
+			rx_pr("\t12bit\n");
+			break;
+		case 3:
+			rx_pr("\tReserved\n");
+			break;
+		default:
+			break;
+		}
+		rx_pr("\ttarget_max_pq_v2: 0x%x\n",
+		      dv_vsvdb->tmaxPQ);
+		rx_pr("\ttarget_min_pq_v2: 0x%x\n",
+		      dv_vsvdb->tminPQ);
 	}
 }
 
@@ -3051,8 +4917,13 @@ void rx_parse_print_cdb(struct colorimetry_db_s *color_db)
 {
 	if (!color_db)
 		return;
+	rx_pr("\n");
 	rx_pr("****Colorimetry Data Block****\n");
 	rx_pr("supported colorimetry:\n");
+	if (color_db->bt2100_ictcp)
+		rx_pr("\tBT2100_ICtCp\n");
+	if (color_db->dci_p3)
+		rx_pr("\tDCI_P3\n");
 	if (color_db->BT2020_RGB)
 		rx_pr("\tBT2020_RGB\n");
 	if (color_db->BT2020_YCC)
@@ -3069,6 +4940,11 @@ void rx_parse_print_cdb(struct colorimetry_db_s *color_db)
 		rx_pr("\txvycc709\n");
 	if (color_db->xvycc601)
 		rx_pr("\txvycc601\n");
+	if (color_db->srgb)
+		rx_pr("\tsRGB\n");
+	if (color_db->defaultrgb)
+		rx_pr("\tdefaultRGB\n");
+
 
 	rx_pr("supported colorimetry metadata:\n");
 	if (color_db->MD3)
@@ -3078,13 +4954,14 @@ void rx_parse_print_cdb(struct colorimetry_db_s *color_db)
 	if (color_db->MD1)
 		rx_pr("\tMD1\n");
 	if (color_db->MD0)
-		rx_pr("\tMD0\n");
+		rx_pr("\tIDO-defined gamut-related metadata\n");
 }
 
 void rx_parse_print_hdr_static(struct hdr_db_s *hdr_db)
 {
 	if (!hdr_db)
 		return;
+	rx_pr("\n");
 	rx_pr("****HDR Static Metadata Data Block****\n");
 	rx_pr("eotf_hlg: %d\n",
 	      hdr_db->eotf_hlg);
@@ -3107,12 +4984,59 @@ void rx_parse_print_hdr_static(struct hdr_db_s *hdr_db)
 		      hdr_db->hdr_lum_min);
 }
 
+void rx_parse_print_hdr_dynamic(struct hdr_dy_db_s *hdr_dy)
+{
+	u8 i, j;
+	u8 version, sl_hdr_mode_sup;
+	char buffer[15];
+	int offset;
+
+	if (!hdr_dy)
+		return;
+	rx_pr("\n");
+	rx_pr("****HDR Dynamic Metadata Data Block****\n");
+	for (i = 0; i < hdr_dy->num; ++i) {
+		rx_pr("Supported Type %d:\n", i);
+		memset(buffer, 0, 15);
+		offset = 0;
+		for (j = 0; j < hdr_dy->hdr_sup[i].field_len; ++j)
+			offset += sprintf(buffer + offset, "%02x", hdr_dy->hdr_sup[i].field[j]);
+		version = hdr_dy->hdr_sup[i].flag & 0xf;
+		switch (hdr_dy->hdr_sup[i].type) {
+		case 1:
+			rx_pr("\tType 1[CTA-861-G, Annex R]\n");
+			rx_pr("\ttype_1_hdr_metadata_version: %d\n", version);
+			break;
+		case 2:
+			rx_pr("\tType 2[ETSI TS 103 433]\n");
+			rx_pr("\ts_103_433_spec_version: %d\n", version);
+			sl_hdr_mode_sup = (hdr_dy->hdr_sup[i].flag & 0x70) >> 4;
+			rx_pr("\tsl_hdr_mode_sup: %d\n", sl_hdr_mode_sup);
+			break;
+		case 3:
+			rx_pr("\tType 3[ITU-T H.265]\n");
+			break;
+		case 4:
+			rx_pr("\tType 4[CTA-861-G, Annex S]\n");
+			rx_pr("\type_4_hdr_metadata_version: %d\n", version);
+			break;
+		case 0x100:
+			rx_pr("\tgraphics_overlay_flag_version: %d\n", version);
+			break;
+		default:
+			break;
+		}
+		rx_pr("\tFields:0x%s\n", buffer);
+	}
+}
+
 void rx_parse_print_y420vdb(struct cta_blk_parse_info *edid_info)
 {
 	unsigned char i;
 
 	if (!edid_info)
 		return;
+	rx_pr("\n");
 	rx_pr("****Y420 Video Data Block****\n");
 	for (i = 0; i < edid_info->y420_vic_len; i++)
 		rx_edid_print_vic_fmt(i, edid_info->y420_vdb_vic[i]);
@@ -3125,6 +5049,7 @@ void rx_parse_print_y420cmdb(struct cta_blk_parse_info *edid_info)
 
 	if (!edid_info)
 		return;
+	rx_pr("\n");
 	rx_pr("****Yc420 capability map Data Block****\n");
 	if (edid_info->y420_all_vic) {
 		rx_pr("all vic support y420\n");
@@ -3137,10 +5062,257 @@ void rx_parse_print_y420cmdb(struct cta_blk_parse_info *edid_info)
 	}
 }
 
+void rx_parse_print_hdr10p(struct cta_blk_parse_info *edid_info)
+{
+	if (!edid_info)
+		return;
+	rx_pr("\n");
+	rx_pr("****HDR10P Data Block****\n");
+	rx_pr("Application version:%d\n", edid_info->hdr10pdb.hdr10p_ver);
+	rx_pr("Full Frame Peak Luminance Index:%d\n", edid_info->hdr10pdb.full_frame_peak);
+	rx_pr("Peak Luminance Index:%d\n", edid_info->hdr10pdb.peak);
+}
+
+void rx_parse_print_fsdb(struct freesync_db_s *fs_db)
+{
+	u8 i;
+	char buffer[FSDB_PAYLOAD_LEN + 1];
+	int offset = 0;
+
+	if (!fs_db)
+		return;
+	memset(buffer, 0, FSDB_PAYLOAD_LEN + 1);
+	rx_pr("\n");
+	rx_pr("****Freesync Data Block****\n");
+	for (i = 0; i < fs_db->payload_len; i++)
+		offset += sprintf(buffer + offset, "%02x", fs_db->payload[i]);
+	rx_pr("freesync payload: 0x%s\n", buffer);
+}
+
+void rx_parse_print_ifdb(struct info_db_s *if_db)
+{
+	u8 i, j;
+	char buffer[IFDB_PAYLOAD_LEN + 1];
+	int offset = 0;
+
+	if (!if_db)
+		return;
+	rx_pr("\n");
+	rx_pr("****InfoFrame Data Block****\n");
+	rx_pr("VSIF num: %d\n", if_db->vsif_num);
+	rx_pr("payload_len: %d\n", if_db->payload_len);
+	memset(buffer, 0, IFDB_PAYLOAD_LEN + 1);
+	for (j = 0; j < if_db->payload_len; j++)
+		offset += sprintf(buffer + offset, "%02x", if_db->payload[j]);
+
+	rx_pr("header payload: %s\n", buffer);
+
+	for (i = 0; i < 31; ++i) {
+		if (if_db->short_info[i].type_code == 0)
+			break;
+		rx_pr("short_info[%d] payload length:%d\n", i,
+			if_db->short_info[i].payload_len);
+		memset(buffer, 0, IFDB_PAYLOAD_LEN + 1);
+		offset = 0;
+		for (j = 0; j < if_db->short_info[i].payload_len; j++)
+			offset += sprintf(buffer + offset, "%02x",
+				if_db->short_info[i].payload[j]);
+
+		switch (if_db->short_info[i].type_code) {
+		case 2:
+			rx_pr("\tSupport AVI\n");
+			break;
+		case 3:
+			rx_pr("\tSupport SPD\n");
+			break;
+		case 4:
+			rx_pr("\tSupport Audio\n");
+			break;
+		case 5:
+			rx_pr("\tSupport MEPG\n");
+			break;
+		case 6:
+			rx_pr("\tSupport NTSC VBI\n");
+			break;
+		case 7:
+			rx_pr("\tOthers\n");
+			break;
+		default:
+			break;
+		}
+		rx_pr("\tpayload: %s\n", buffer);
+	}
+	for (i = 0; i < 31; ++i) {
+		if (if_db->short_vs_info[i].ieee_oui == 0)
+			break;
+		memset(buffer, 0, IFDB_PAYLOAD_LEN + 1);
+		offset = 0;
+		rx_pr("short_vs_info[%d] payload length:%d\n", j,
+			if_db->short_vs_info[i].payload_len);
+		for (j = 0; j < if_db->short_info[i].payload_len; j++)
+			offset += sprintf(buffer + offset, "%02x",
+				if_db->short_vs_info[i].payload[j]);
+
+		switch (if_db->short_vs_info[i].ieee_oui) {
+		case 0x00d046:
+			rx_pr("\tSupport DV video db\n");
+			break;
+		case 0x90848b:
+			rx_pr("\tSupport HDR10P db\n");
+			break;
+		case 0x000c03:
+			rx_pr("\tSupport VS HDMI1.4b db\n");
+			break;
+		case 0xc45dd8:
+			rx_pr("\tSupport HF db\n");
+			break;
+		case 0x00001a:
+			rx_pr("\tSupport freesync db\n");
+			break;
+		default:
+			break;
+		}
+		rx_pr("\tpayload: %s\n", buffer);
+	}
+}
+
+static void rx_parse_print_3d_sup(u8 sup)
+{
+	rx_pr("\t3D support:");
+	switch (sup) {
+	case 0:
+		rx_pr("\tShall always be displayed in mono\n");
+		break;
+	case 1:
+		rx_pr("\tShall always be displayed in stereo\n");
+		break;
+	case 2:
+		rx_pr("\tShall be displayed in mono or stereo, depending on a user action\n");
+		break;
+	default:
+		rx_pr("\tReserved\n");
+		break;
+	}
+}
+
+void rx_parse_print_t7vtdb(struct t7vtdb_s *t7vfdb)
+{
+	if (!t7vfdb)
+		return;
+
+	rx_pr("\n");
+	rx_pr("****DisplayID Type VII Video Timing Data Block****\n");
+	rx_pr("NOTE:In CTA-861, Descriptor length shall be 20\n");
+	rx_pr("DSC pass-through support shall be 0\n");
+	rx_pr("Block revision shall be 010b\n");
+	rx_pr("\tDescriptor length: %d\n", 20 + t7vfdb->t7_m);
+	rx_pr("\tDSC pass-through support: %d\n", t7vfdb->dsc_pt);
+	rx_pr("\tBlock revision: %d\n", t7vfdb->block_revision);
+	rx_pr("\tPixel clock: %dKHz\n", t7vfdb->pixel_clk);
+	if (t7vfdb->t7y420)
+		rx_pr("\tSupport RGB and Y420\n");
+	else
+		rx_pr("\tNot support Y420\n");
+	rx_parse_print_3d_sup(t7vfdb->_3d_sup);
+	if (t7vfdb->t7il)
+		rx_pr("\tTiming is interlaced\n");
+	else
+		rx_pr("\tTiming is progressive\n");
+	rx_pr("\tAspect ratio: %s\n", aspect_ratio[t7vfdb->t7_aspect_ratio]);
+	rx_pr("\tHactive: %d\n", t7vfdb->hactive);
+	rx_pr("\tHblank: %d\n", t7vfdb->hblank);
+	rx_pr("\tHfront porch: %d\n", t7vfdb->hoffset);
+	rx_pr("\tHsync width: %d\n", t7vfdb->hsync_width);
+	if (t7vfdb->t7hsp)
+		rx_pr("\tHorizontal sync polarity: positive\n");
+	else
+		rx_pr("\tHorizontal sync polarity: negative\n");
+	if (t7vfdb->t7vsp)
+		rx_pr("\tVertical sync polarity: positive\n");
+	else
+		rx_pr("\tVertical sync polarity: negative\n");
+	rx_pr("\tVactive: %d\n", t7vfdb->vactive);
+	rx_pr("\tVblank: %d\n", t7vfdb->vblank);
+	rx_pr("\tVfront porch: %d\n", t7vfdb->voffset);
+	rx_pr("\tVsync width: %d\n", t7vfdb->vsync_width);
+	rx_pr("\tRefresh rate: %d\n", t7vfdb->fresh_rate);
+}
+
+void rx_parse_print_t8vtdb(struct t8vtdb_s *t8vfdb)
+{
+	u8 i;
+
+	if (!t8vfdb)
+		return;
+	rx_pr("\n");
+	rx_pr("****DisplayID Type VIII Video Timing Data Block****\n");
+	if (t8vfdb->code_tyoe == 0)
+		rx_pr("\tuse DMT timing\n");
+	rx_pr("\tcode size is %d bytes\n", t8vfdb->tcs == 1 ? 2 : 1);
+	rx_pr("\tYCbCr420 supported: %d\n", t8vfdb->t8y420);
+	for (i = 0; i < t8vfdb->timing_num; ++i)
+		rx_pr("\tDTM Timing Code: %d\n", t8vfdb->dmt_timing[i]);
+}
+
+void rx_parse_print_t10vtdb(struct t10vtdb_s *t10vtdb)
+{
+	u8 i;
+
+	if (!t10vtdb)
+		return;
+	rx_pr("\n");
+	rx_pr("****DisplayID Type X Video Timing Data Block****\n");
+	rx_pr("\tDescriptor length: %d\n", 6 + t10vtdb->t10_m);
+	rx_pr("\tBlock revision: %d\n", t10vtdb->block_revision);
+	for (i = 0; i < t10vtdb->desc_num; ++i) {
+		rx_pr("\tDescriptor %d:\n", i);
+		switch (t10vtdb->t10_desc[i].timing_formula) {
+		case 0:
+			rx_pr("\tFormula: v1.2 standard timing\n");
+			rx_pr("\tCVT Algorithm: Reserved\n");
+			break;
+		case 1:
+			rx_pr("\tFormula: v1.1 reduced-blanking(RB1)\n");
+			rx_pr("\tCVT Algorithm: Reserved\n");
+			break;
+		case 2:
+			rx_pr("\tFormula: v1.2 reduced-blanking(RB2)\n");
+			if (t10vtdb->t10_desc[i].vrhb)
+				rx_pr("\tCVT Algorithm: Support refresh Rate x 1000/1001\n");
+			else
+				rx_pr("\tCVT Algorithm: Not support refresh Rate x 1000/1001\n");
+			break;
+		case 3:
+			rx_pr("\tFormula: v1.3 reduced-blanking(RB3)\n");
+			if (t10vtdb->t10_desc[i].vrhb)
+				rx_pr("\tCVT Algorithm: Horizontal Blank is 160 pixels\n");
+			else
+				rx_pr("\tCVT Algorithm: Horizontal Blank is 80 pixels\n");
+			break;
+		default:
+			rx_pr("\tFormula: Reserved\n");
+			rx_pr("\tCVT Algorithm: Reserved\n");
+			break;
+		}
+		if (t10vtdb->t10_desc[i].t10_y420)
+			rx_pr("\tSupport RGB and Y420\n");
+		else
+			rx_pr("\tNot support Y420\n");
+		rx_parse_print_3d_sup(t10vtdb->t10_desc[i]._3d_sup);
+		rx_pr("\tHactive: %d\n", t10vtdb->t10_desc[i].hactive + 1);
+		rx_pr("\tVactive: %d\n", t10vtdb->t10_desc[i].vactive + 1);
+		rx_pr("\tRefresh rate: %d\n", t10vtdb->t10_desc[i].fresh_rate + 1);
+		rx_pr("\n");
+	}
+}
+
 void rx_cea_ext_parse_print(struct cea_ext_parse_info *cea_ext_info)
 {
+	u8 i;
+
 	if (!cea_ext_info)
 		return;
+	rx_pr("\n");
 	rx_pr("****CEA Extension Block Header****\n");
 	rx_pr("cea_tag: 0x%x\n", cea_ext_info->cea_tag);
 	rx_pr("cea_revision: 0x%x\n", cea_ext_info->cea_revision);
@@ -3151,37 +5323,92 @@ void rx_cea_ext_parse_print(struct cea_ext_parse_info *cea_ext_info)
 	rx_pr("ycc422_sup: %d\n", cea_ext_info->ycc422_sup);
 	rx_pr("native_dtd_num: %d\n", cea_ext_info->native_dtd_num);
 
-	rx_parse_print_vdb(&cea_ext_info->blk_parse_info.video_db);
-	rx_parse_print_adb(&cea_ext_info->blk_parse_info.audio_db);
-	rx_parse_print_spk_alloc(&cea_ext_info->blk_parse_info.speaker_alloc);
-	rx_parse_print_vsdb(&cea_ext_info->blk_parse_info);
+	if (cea_ext_info->blk_parse_info.contain_vdb) {
+		for (i = 0; i < cea_ext_info->blk_parse_info.video_db_num; ++i)
+			rx_parse_print_vdb(&cea_ext_info->blk_parse_info.video_db[i]);
+	}
+	if (cea_ext_info->blk_parse_info.contain_adb) {
+		for (i = 0; i < cea_ext_info->blk_parse_info.audio_db_num; ++i)
+			rx_parse_print_adb(&cea_ext_info->blk_parse_info.audio_db[i]);
+	}
+	if (cea_ext_info->blk_parse_info.contain_sadb)
+		rx_parse_print_spk_alloc(&cea_ext_info->blk_parse_info.speaker_alloc);
+	if (cea_ext_info->blk_parse_info.contain_vsdb)
+		rx_parse_print_vsdb(&cea_ext_info->blk_parse_info);
 	if (cea_ext_info->blk_parse_info.contain_hf_vsdb)
 		rx_parse_print_hf_vsdb(&cea_ext_info->blk_parse_info.hf_vsdb);
+	if (cea_ext_info->blk_parse_info.contain_hf_scdb)
+		rx_parse_print_hf_scdb(&cea_ext_info->blk_parse_info.hf_scdb);
+	if (cea_ext_info->blk_parse_info.contain_hf_sbtm)
+		rx_parse_print_hf_sbtm(&cea_ext_info->blk_parse_info.hf_sbtm);
 	if (cea_ext_info->blk_parse_info.contain_vcdb)
 		rx_parse_print_vcdb(&cea_ext_info->blk_parse_info.vcdb);
+	if (cea_ext_info->blk_parse_info.contain_rcdb)
+		rx_parse_print_rcdb(&cea_ext_info->blk_parse_info.rcdb);
+	if (cea_ext_info->blk_parse_info.contain_sldb)
+		rx_parse_print_sldb(&cea_ext_info->blk_parse_info.sldb);
 	if (cea_ext_info->blk_parse_info.contain_cdb)
 		rx_parse_print_cdb(&cea_ext_info->blk_parse_info.color_db);
+	if (cea_ext_info->blk_parse_info.contain_hdmi_aud)
+		rx_parse_print_hdmi_aud(&cea_ext_info->blk_parse_info.hdmi_adb);
 	if (cea_ext_info->blk_parse_info.contain_vsvdb)
-		rx_parse_print_vsvdb(&cea_ext_info->blk_parse_info.dv_vsvdb);
+		rx_parse_print_dvsvdb(&cea_ext_info->blk_parse_info.dv_vsvdb);
+	if (cea_ext_info->blk_parse_info.contain_vsadb)
+		rx_parse_print_dvsadb(&cea_ext_info->blk_parse_info.dv_vsadb);
 	if (cea_ext_info->blk_parse_info.contain_hdr_db)
 		rx_parse_print_hdr_static(&cea_ext_info->blk_parse_info.hdr_db);
+	if (cea_ext_info->blk_parse_info.contain_hdr_dy)
+		rx_parse_print_hdr_dynamic(&cea_ext_info->blk_parse_info.hdr_dy_db);
 	if (cea_ext_info->blk_parse_info.contain_y420_vdb)
 		rx_parse_print_y420vdb(&cea_ext_info->blk_parse_info);
+	if (cea_ext_info->blk_parse_info.contain_hdr10p)
+		rx_parse_print_hdr10p(&cea_ext_info->blk_parse_info);
 	if (cea_ext_info->blk_parse_info.contain_y420_cmdb)
 		rx_parse_print_y420cmdb(&cea_ext_info->blk_parse_info);
+	if (cea_ext_info->blk_parse_info.contain_ifdb)
+		rx_parse_print_ifdb(&cea_ext_info->blk_parse_info.info_db);
+	if (cea_ext_info->blk_parse_info.contain_fsdb)
+		rx_parse_print_fsdb(&cea_ext_info->blk_parse_info.fsdb);
+	if (cea_ext_info->blk_parse_info.contain_vfpdb)
+		rx_parse_print_vfpdb(&cea_ext_info->blk_parse_info.vfpdb);
+	if (cea_ext_info->blk_parse_info.contain_t7vtdb) {
+		for (i = 0; i < cea_ext_info->blk_parse_info.t7vtdbdb_num; ++i)
+			rx_parse_print_t7vtdb(&cea_ext_info->blk_parse_info.t7vtdb[i]);
+	}
+	if (cea_ext_info->blk_parse_info.contain_t8vtdb) {
+		for (i = 0; i < cea_ext_info->blk_parse_info.t8vtdbdb_num; ++i)
+			rx_parse_print_t8vtdb(&cea_ext_info->blk_parse_info.t8vtdb[i]);
+	}
+	if (cea_ext_info->blk_parse_info.contain_t10vtdb) {
+		for (i = 0; i < cea_ext_info->blk_parse_info.t10vtdbdb_num; ++i)
+			rx_parse_print_t10vtdb(&cea_ext_info->blk_parse_info.t10vtdb[i]);
+	}
+	for (i = 0; i < cea_ext_info->blk_parse_info.dtd_num; ++i)
+		rx_parse_print_dtd(&cea_ext_info->blk_parse_info.dtd[i]);
+}
+
+static void rx_edid_print_cta(struct cea_ext_parse_info *cea_ext_info, u8 cta_pos)
+{
+	if (cta_pos >= sizeof(cta_flag) || cta_flag[cta_pos] == 0)
+		return;
+	rx_cea_ext_parse_print(cea_ext_info);
+	rx_blk_index_print(&cea_ext_info->blk_parse_info);
+	rx_pr("CEA ext blk free size: %d\n", cea_ext_info->free_size);
+	rx_pr("CEA ext blk total free size(include dtd size): %d\n",
+	      cea_ext_info->total_free_size);
+	rx_pr("CEA ext blk dtd size: %d\n", cea_ext_info->dtd_size);
+	rx_pr("\n");
 }
 
 void rx_edid_parse_print(struct edid_info_s *edid_info)
 {
 	if (!edid_info)
 		return;
-	rx_parse_blk0_print(edid_info);
-	rx_cea_ext_parse_print(&edid_info->cea_ext_info);
 
-	rx_pr("CEA ext blk free size: %d\n", edid_info->free_size);
-	rx_pr("CEA ext blk total free size(include dtd size): %d\n",
-	      edid_info->total_free_size);
-	rx_pr("CEA ext blk dtd size: %d\n", edid_info->dtd_size);
+	rx_parse_blk0_print(edid_info);
+	rx_edid_print_cta(&edid_info->cea_ext_info, 1);
+	rx_edid_print_cta(&edid_info->cea_ext_info1, 2);
+	rx_edid_print_cta(&edid_info->cea_ext_info2, 3);
 }
 
 void rx_data_blk_index_print(struct cta_data_blk_info *db_info)
@@ -3202,6 +5429,7 @@ void rx_blk_index_print(struct cta_blk_parse_info *blk_info)
 
 	if (!blk_info)
 		return;
+	rx_pr("\n");
 	rx_pr("****CTA Data Block Index****\n");
 	rx_pr("%-7s\t %-7s\t %-30s\t %-10s\t %s\n",
 	      "blk_idx", "blk_tag", "blk_name",
@@ -3237,9 +5465,7 @@ unsigned char rx_get_cea_dtd_size(unsigned char *cur_edid, unsigned int size)
 	if (!cur_edid)
 		return 0;
 	/* get description offset */
-	dtd_block_offset =
-		cur_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET];
-	dtd_block_offset += EDID_BLOCK1_OFFSET;
+	dtd_block_offset = cur_edid[EDID_DESCRIP_OFFSET];
 	if (log_level & EDID_LOG)
 		rx_pr("%s dtd offset start:%d\n", __func__, dtd_block_offset);
 	/* dtd first two bytes are pixel clk != 0 */
@@ -3268,14 +5494,12 @@ unsigned char rx_edid_total_free_size(unsigned char *cur_edid,
 	if (!cur_edid)
 		return 0;
 	/* get description offset */
-	dtd_block_offset =
-		cur_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET];
-	dtd_block_offset += EDID_BLOCK1_OFFSET;
+	dtd_block_offset = cur_edid[EDID_DESCRIP_OFFSET];
 	if (log_level & EDID_LOG)
 		rx_pr("%s total free size: %d\n", __func__,
 		      size - dtd_block_offset - 1);
 	/* free size except checksum */
-	return (size - dtd_block_offset - 1);
+	return size - dtd_block_offset - 1;
 }
 
 /* extract data block with certain tag from block buf */
@@ -3399,17 +5623,88 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data, unsigned char 
 EXPORT_SYMBOL(rx_update_tx_edid_with_audio_block);
 #endif
 
+bool rx_edid_support_4k(u8 *p_edid)
+{
+	unsigned int hactive, i, j, len, pos, vic;
+	unsigned int offset = 0, cta_num;
+	struct data_block_location_s ret;
+
+	cta_num = rx_edid_cta_blk_num(p_edid);
+	for (i = 0; i <= 7; i++) {
+		if (p_edid[0x26 + i * 2] != 0x01 && p_edid[0x27 + i * 2] != 0x01) {
+			hactive = (p_edid[0x26 + i * 2] + 31) * 8;
+			if (hactive >= 3840)
+				return true;
+		}
+	}
+	//descriptor1
+	if (p_edid[0x36] != 0 || p_edid[0x37] != 0) {
+		hactive = p_edid[0x38] + (((p_edid[0x3A] >> 4) & 0xF) << 8);
+		if (hactive >= 3840)
+			return true;
+	}
+	//descriptor2
+	if (p_edid[0x48] != 0 || p_edid[0x49] != 0) {
+		hactive = p_edid[0x4A] + (((p_edid[0x4C] >> 4) & 0xF) << 8);
+		if (hactive >= 3840)
+			return true;
+	}
+	//vdb
+	i = 0;
+	ret = rx_get_cea_tag_offset(p_edid, VIDEO_TAG);
+	while (i++ < ret.num) {
+		if (ret.pos[i] == 0)
+			break;
+		len = p_edid[ret.pos[i]] & 0x1F;
+		for (j = 0; j < len; ++j) {
+			vic = p_edid[ret.pos[j] + j + 1] & 0x7f;
+			if ((vic >= 93 && vic <= 107) ||
+				(vic >= 114 && vic <= 120) ||
+				vic == 218 || vic == 219)
+				return true;
+		}
+	}
+
+	//dtd
+	for (i = 1; i <= cta_num; ++i) {
+		offset = p_edid[128 * i + 2];
+		pos = 128 * i + offset;
+		while (pos + 18 < 128 * i + 127) {
+			if (p_edid[pos] == 0 && p_edid[pos + 1] == 0)
+				break;
+			hactive = p_edid[pos + 2] + (((p_edid[pos + 4] >> 4) & 0xF) << 8);
+			if (hactive >= 3840)
+				return true;
+			pos += 18;
+		}
+	}
+	//other
+	i = 0;
+	ret = rx_get_cea_tag_offset(p_edid, T7VTDB_TAG);
+	while (i++ < ret.num) {
+		if (ret.pos[i] == 0)
+			break;
+		hactive = p_edid[ret.pos[i] + 7] + (p_edid[ret.pos[i] + 8] << 8) + 1;
+		if (hactive >= 3840)
+			return true;
+	}
+
+	return false;
+}
+
 bool get_edid_support(u8 port, enum edid_support_e func)
 {
 	u32 hf_vsdb_start = 0;
 	u8 tag_len = 0;
 	u_char *edid_buf = NULL;
+	struct data_block_location_s ret;
 
 	edid_buf = rx_get_cur_used_edid(port);
 	if (!edid_buf)
 		return false;
 	if (func < HF_DB) {
-		hf_vsdb_start = rx_get_cea_tag_offset(edid_buf, HF_VENDOR_DB_TAG);
+		ret = rx_get_cea_tag_offset(edid_buf, HF_VENDOR_DB_TAG);
+		hf_vsdb_start = ret.pos[0];
 		if (!hf_vsdb_start)
 			return false;
 		tag_len = edid_buf[hf_vsdb_start] & 0x1f;
@@ -3418,7 +5713,7 @@ bool get_edid_support(u8 port, enum edid_support_e func)
 	case HF_VRR:
 		if (tag_len < 9)
 			return false;
-		else
+		if (edid_buf[hf_vsdb_start  + 9] > 0)
 			return true;
 		break;
 	case HF_ALLM:
@@ -3427,30 +5722,44 @@ bool get_edid_support(u8 port, enum edid_support_e func)
 		if (edid_buf[hf_vsdb_start  + 8] & 0x2)
 			return true;
 		break;
-	case HF_DB:
-		if (data_blk_extract(edid_buf + EDID_BLK_SIZE + 4, HF_VENDOR_DB_TAG))
+	case HF_QMS:
+		if (tag_len < 8)
+			return false;
+		if (edid_buf[hf_vsdb_start  + 8] & 0x40)
 			return true;
 		break;
-	case DV_DB:
-		if (data_blk_extract(edid_buf + EDID_BLK_SIZE + 4, VSVDB_DV_TAG))
+	case HF_DB:
+		ret = rx_get_cea_tag_offset(edid_buf, HF_VENDOR_DB_TAG);
+		if (ret.num > 0)
+			return true;
+		break;
+	case VSDV_DB:
+		ret = rx_get_cea_tag_offset(edid_buf, VSVDB_DV_TAG);
+		if (ret.num > 0)
 			return true;
 		break;
 	case HDR10P_DB:
-		if (data_blk_extract(edid_buf + EDID_BLK_SIZE + 4, VSVDB_HDR10P_TAG))
+		ret = rx_get_cea_tag_offset(edid_buf, VSVDB_HDR10P_TAG);
+		if (ret.num > 0)
 			return true;
 		break;
 	case HDR_STATIC_DB:
-		if (data_blk_extract(edid_buf + EDID_BLK_SIZE + 4, HDR_STATIC_TAG))
+		ret = rx_get_cea_tag_offset(edid_buf, EXTENDED_HDR_STATIC_TAG);
+		if (ret.num > 0)
 			return true;
 		break;
 	case HDR_DYNAMIC_DB:
-		if (data_blk_extract(edid_buf + EDID_BLK_SIZE + 4, HDR_DYNAMIC_TAG))
+		ret = rx_get_cea_tag_offset(edid_buf, EXTENDED_HDR_DYNAMIC_TAG);
+		if (ret.num > 0)
 			return true;
 		break;
 	case FREESYNC_DB:
-		if (data_blk_extract(edid_buf + EDID_BLK_SIZE + 4, VSDB_FREESYNC_TAG))
+		ret = rx_get_cea_tag_offset(edid_buf, VSDB_FREESYNC_TAG);
+		if (ret.num > 0)
 			return true;
 		break;
+	case TIMING_4K:
+		return rx_edid_support_4k(edid_buf);
 	default:
 		break;
 	}
@@ -3540,27 +5849,24 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 	u8 diff_len = 0;
 	u16 tag_code = 0;
 	u8 tag_offset = 0;
-
+	u8 block_pos = 1;
 	int free_size = 0;
 	u8 total_free_size = 0;
-	u8 dtd_size = 0;
 	u8 free_space_off;
 	u32 i = 0;
-	struct cea_ext_parse_info cea_ext;
+	u32 blk_end, edid_size;
+	struct cea_ext_parse_info *cea_ext;
 	u8 num;
 
 	if (!p_edid || !add_buf)
 		return;
 
-	free_size = rx_edid_free_size(p_edid, 256);
-	if (free_size < 0) {
-		rx_pr("wrong edid\n");
-		return;
-	}
-	total_free_size =
-		rx_edid_total_free_size(p_edid, 256);
-	dtd_size = rx_get_cea_dtd_size(p_edid, 256);
+	edid_size = rx_get_edid_size(p_edid);
 
+	total_free_size =
+		rx_edid_total_free_size(p_edid + EDID_BLK_SIZE * block_pos,
+		EDID_BLK_SIZE);
+	blk_end = EDID_BLK_SIZE * (block_pos + 1) - 1;
 	tag_code = (add_buf[0] >> 5) & 0x7;
 	if (tag_code == USE_EXTENDED_TAG)
 		tag_code = (tag_code << 8) | add_buf[1];
@@ -3569,28 +5875,39 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 
 	/* if (!tag_data_blk) { */
 	if (tag_offset == 0) {
+		cea_ext = kzalloc(sizeof(*cea_ext), GFP_KERNEL);
+		if (!cea_ext)
+			return;
 		/* not find the data blk, add it to edid */
 		add_db_len = BLK_LENGTH(add_buf[0]) + 1;
 		edid_parse_cea_ext_block(p_edid + EDID_EXT_BLK_OFF,
-					 &cea_ext);
+					 cea_ext);
 		/* decide to add db after which data blk */
-		num = cea_ext.blk_parse_info.data_blk_num;
+		num = cea_ext->blk_parse_info.data_blk_num;
 
 		if (blk_idx >= num)
 			/* add after the last data blk */
 			tag_offset =
-				cea_ext.blk_parse_info.db_info[num - 1].offset +
-				cea_ext.blk_parse_info.db_info[num - 1].blk_len;
+				cea_ext->blk_parse_info.db_info[num - 1].offset +
+				cea_ext->blk_parse_info.db_info[num - 1].blk_len;
 		else
 			/* insert in blk_idx */
 			tag_offset =
-				cea_ext.blk_parse_info.db_info[blk_idx].offset;
+				cea_ext->blk_parse_info.db_info[blk_idx].offset;
 		tag_offset += EDID_BLOCK1_OFFSET;
+		kfree(cea_ext);
+		//block_pos:Select which block to add
+		for (; block_pos < edid_size / EDID_BLK_SIZE; ++block_pos) {
+			free_size = rx_get_cta_free_size(p_edid + EDID_BLK_SIZE * block_pos,
+				EDID_BLK_SIZE);
+			if (add_db_len <= free_size)
+				break;
+		}
 		if (add_db_len <= free_size) {
 			/* move data behind added data block, except checksum */
-			for (i = 0; i < 255 - tag_offset - add_db_len; i++)
-				p_edid[255 - i - 1] =
-					p_edid[255 - i - 1 - add_db_len];
+			for (i = 0; i < blk_end - tag_offset - add_db_len; i++)
+				p_edid[blk_end - i - 1] =
+					p_edid[blk_end - i - 1 - add_db_len];
 		} else if (en_take_dtd_space) {
 			if (add_db_len > total_free_size) {
 				rx_pr("no enough space for splicing3, abort\n");
@@ -3603,21 +5920,21 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 			 */
 			if (add_db_len <= free_size + DETAILED_TIMING_LEN) {
 				free_space_off =
-					255 - free_size - DETAILED_TIMING_LEN;
+					blk_end - free_size - DETAILED_TIMING_LEN;
 				memset(&p_edid[free_space_off], 0,
 				       DETAILED_TIMING_LEN);
 			} else {
 				free_space_off =
-					255 - free_size - 2 * DETAILED_TIMING_LEN;
+					blk_end - free_size - 2 * DETAILED_TIMING_LEN;
 				memset(&p_edid[free_space_off], 0,
 				       2 * DETAILED_TIMING_LEN);
 			}
 			/* move data behind current data
 			 * block, except checksum
 			 */
-			for (i = 0; i < 255 - tag_offset - add_db_len; i++)
-				p_edid[255 - i - 1] =
-					p_edid[255 - i - 1 - add_db_len];
+			for (i = 0; i < blk_end - tag_offset - add_db_len; i++)
+				p_edid[blk_end - i - 1] =
+					p_edid[blk_end - i - 1 - add_db_len];
 		} else {
 			rx_pr("no enough space for splicing4, abort\n");
 			return;
@@ -3637,20 +5954,20 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 			/* move data behind current data
 			 * block, except checksum
 			 */
-			for (i = 0; i < 255 - tag_offset - tag_db_len; i++)
+			for (i = 0; i < blk_end - tag_offset - tag_db_len; i++)
 				p_edid[tag_offset + i + add_db_len] =
 					p_edid[tag_offset + i + tag_db_len];
 			/* need clear the new free space to 0 */
 			free_size += (tag_db_len - add_db_len);
-			free_space_off = 255 - free_size;
+			free_space_off = blk_end - free_size;
 			memset(&p_edid[free_space_off], 0, free_size);
 		} else if (add_db_len - tag_db_len <= free_size) {
 			/* move data behind current data
 			 * block, except checksum
 			 */
-			for (i = 0; i < 255 - tag_offset - add_db_len; i++)
-				p_edid[255 - i - 1] =
-					p_edid[255 - i - 1 - (add_db_len - tag_db_len)];
+			for (i = 0; i < blk_end - tag_offset - add_db_len; i++)
+				p_edid[blk_end - i - 1] =
+					p_edid[blk_end - i - 1 - (add_db_len - tag_db_len)];
 		} else if (en_take_dtd_space) {
 			diff_len = add_db_len - tag_db_len;
 			if (diff_len > total_free_size) {
@@ -3664,21 +5981,21 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 			 */
 			if (diff_len <= free_size + DETAILED_TIMING_LEN) {
 				free_space_off =
-					255 - free_size - DETAILED_TIMING_LEN;
+					blk_end - free_size - DETAILED_TIMING_LEN;
 				memset(&p_edid[free_space_off], 0,
 				       DETAILED_TIMING_LEN);
 			} else {
 				free_space_off =
-					255 - free_size - 2 * DETAILED_TIMING_LEN;
+					blk_end - free_size - 2 * DETAILED_TIMING_LEN;
 				memset(&p_edid[free_space_off], 0,
 				       2 * DETAILED_TIMING_LEN);
 			}
 			/* move data behind current data
 			 * block, except checksum
 			 */
-			for (i = 0; i < 255 - tag_offset - add_db_len; i++)
-				p_edid[255 - i - 1] =
-					p_edid[255 - i - 1 - (add_db_len - tag_db_len)];
+			for (i = 0; i < blk_end - tag_offset - add_db_len; i++)
+				p_edid[blk_end - i - 1] =
+					p_edid[blk_end - i - 1 - (add_db_len - tag_db_len)];
 		} else {
 			rx_pr("no enough space for splicing2, abort\n");
 			return;
@@ -3691,7 +6008,7 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 	}
 	if (log_level & EDID_DATA_LOG) {
 		rx_pr("++++edid data after splice:\n");
-		for (i = 128; i < 256; i++)
+		for (i = 128 * block_pos; i < 128 * (block_pos + 1); i++)
 			pr_cont("%02x", p_edid[i]);
 		rx_pr("\n");
 	}
@@ -3728,26 +6045,33 @@ void splice_tag_db_to_edid(u8 *p_edid, u8 *add_buf,
 void edid_rm_db_by_tag(u8 *p_edid, u16 tagid)
 {
 	int tag_offset;
-	unsigned char tag_len;
+	u8 tag_len, cta_blk;
 	unsigned int i;
+	u16 end_pos;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
-	tag_offset = rx_get_cea_tag_offset(p_edid, tagid);
+	//remove first block
+	ret = rx_get_cea_tag_offset(p_edid, tagid);
+	tag_offset = ret.pos[0];
+	cta_blk = tag_offset / EDID_BLK_SIZE;
 	if (!tag_offset) {
 		rx_pr("no this data blk in edid\n");
 		return;
 	}
 	tag_len = BLK_LENGTH(p_edid[tag_offset]) + 1;
-	for (i = tag_offset; i < 255 - tag_len; i++)
+	end_pos = (1 + cta_blk) * EDID_BLK_SIZE - 1;
+	for (i = tag_offset; i < end_pos - tag_len; i++)
 		p_edid[i] = p_edid[i + tag_len];
 	/* clear new free space to zero */
-	memset(&p_edid[i + 1], 0, tag_len);
+	memset(&p_edid[i], 0, tag_len);
 	/* dtd offset modify */
-	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len;
+	p_edid[EDID_BLOCK1_OFFSET * cta_blk + EDID_DESCRIP_OFFSET] -= tag_len;
 	if (log_level & EDID_DATA_LOG) {
-		rx_pr("++++edid data after rm db by tag:\n");
-		for (i = 128; i < 256; i++)
+		rx_pr("++++edid data after rm db by %s:\n", rx_get_cta_blk_name(tagid));
+		rx_pr("tag_offset:%d, tag_len:%d\n", tag_offset, tag_len);
+		for (i = 128 * cta_blk; i < 128 * (cta_blk + 1); i++)
 			pr_cont("%02x", p_edid[i]);
 		rx_pr("\n");
 	}
@@ -3758,26 +6082,31 @@ void edid_rm_db_by_tag(u8 *p_edid, u16 tagid)
  */
 void edid_rm_db_by_idx(u8 *p_edid, u8 blk_idx)
 {
-	struct cea_ext_parse_info ext_blk_info;
+	struct cea_ext_parse_info *ext_blk_info;
 	int tag_offset;
 	unsigned char tag_len;
 	unsigned int i;
 
 	if (!p_edid)
 		return;
+	ext_blk_info = kzalloc(sizeof(*ext_blk_info), GFP_KERNEL);
+	if (!ext_blk_info)
+		return;
 	edid_parse_cea_ext_block(p_edid + EDID_EXT_BLK_OFF,
-				 &ext_blk_info);
-	if (blk_idx >= ext_blk_info.blk_parse_info.data_blk_num) {
+				 ext_blk_info);
+	if (blk_idx >= ext_blk_info->blk_parse_info.data_blk_num) {
 		rx_pr("no this index data blk in edid\n");
+		kfree(ext_blk_info);
 		return;
 	}
 	tag_offset = EDID_EXT_BLK_OFF +
-		ext_blk_info.blk_parse_info.db_info[blk_idx].offset;
+		ext_blk_info->blk_parse_info.db_info[blk_idx].offset;
 	tag_len =
-		ext_blk_info.blk_parse_info.db_info[blk_idx].blk_len;
+		ext_blk_info->blk_parse_info.db_info[blk_idx].blk_len;
 	/* move data behind the removed data block
 	 * forward, except checksum & free size
 	 */
+	kfree(ext_blk_info);
 	for (i = tag_offset; i < 255 - tag_len; i++)
 		p_edid[i] = p_edid[i + tag_len];
 	/* clear new free space to zero */
@@ -3829,11 +6158,13 @@ void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 	u8 tx_hf_vsdb_start = 0;
 	struct hf_vsdb_s hf_vsdb_tx, hf_vsdb_def, hf_vsdb_dest;
 	u8 tag_len_tx, tag_len_def, i;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
 
-	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	hf_vsdb_start = ret.pos[0];
 	if (!hf_vsdb_start) {
 		rx_pr("unsupported hf-vsdb!!!\n");
 		return;
@@ -3841,7 +6172,8 @@ void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 	tag_len_def = p_edid[hf_vsdb_start] & 0x1f;
 	memcpy(&hf_vsdb_def, p_edid + hf_vsdb_start, tag_len_def + 1);
 
-	tx_hf_vsdb_start = rx_get_cea_tag_offset(edid_tx, HF_VENDOR_DB_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, HF_VENDOR_DB_TAG);
+	tx_hf_vsdb_start = ret.pos[0];
 	if (!tx_hf_vsdb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no hf-vsdb\n");
@@ -3852,94 +6184,110 @@ void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 	memcpy(&hf_vsdb_tx, edid_tx + tx_hf_vsdb_start, tag_len_tx + 1);
 
 	hf_vsdb_dest.tag = hf_vsdb_tx.tag;
-	hf_vsdb_dest.version = hf_vsdb_tx.version;
+	hf_vsdb_dest.hf_db.version = hf_vsdb_tx.hf_db.version;
 	hf_vsdb_dest.len = tag_len_tx > tag_len_def ? tag_len_def : tag_len_tx;
 	if (hf_vsdb_dest.len < 7)
 		rx_pr("hfvsdb size err\n");
 	hf_vsdb_dest.ieee_first = hf_vsdb_tx.ieee_first;
 	hf_vsdb_dest.ieee_second = hf_vsdb_tx.ieee_second;
 	hf_vsdb_dest.ieee_third = hf_vsdb_tx.ieee_third;
-	if (hf_vsdb_def.max_tmds_rate > hf_vsdb_tx.max_tmds_rate)
-		hf_vsdb_dest.max_tmds_rate = hf_vsdb_tx.max_tmds_rate;
+	if (hf_vsdb_def.hf_db.max_tmds_rate > hf_vsdb_tx.hf_db.max_tmds_rate)
+		hf_vsdb_dest.hf_db.max_tmds_rate = hf_vsdb_tx.hf_db.max_tmds_rate;
 	else
-		hf_vsdb_dest.max_tmds_rate = hf_vsdb_def.max_tmds_rate;
+		hf_vsdb_dest.hf_db.max_tmds_rate = hf_vsdb_def.hf_db.max_tmds_rate;
 
-	hf_vsdb_dest.scdc_present = hf_vsdb_tx.scdc_present & hf_vsdb_def.scdc_present;
-	hf_vsdb_dest.rr_cap = hf_vsdb_tx.rr_cap & hf_vsdb_def.rr_cap;
-	hf_vsdb_dest.cable_status = hf_vsdb_tx.cable_status & hf_vsdb_def.cable_status;
-	hf_vsdb_dest.ccbpci = hf_vsdb_tx.ccbpci & hf_vsdb_def.ccbpci;
-	hf_vsdb_dest.lte_340m_scramble =
-		hf_vsdb_tx.lte_340m_scramble & hf_vsdb_def.lte_340m_scramble;
-	hf_vsdb_dest.independ_view =
-		hf_vsdb_tx.independ_view & hf_vsdb_def.independ_view;
-	hf_vsdb_dest.dual_view = hf_vsdb_tx.dual_view & hf_vsdb_def.dual_view;
-	hf_vsdb_dest._3d_osd_disparity =
-		hf_vsdb_tx._3d_osd_disparity & hf_vsdb_def._3d_osd_disparity;
-	if (hf_vsdb_def.max_frl_rate > hf_vsdb_tx.max_frl_rate)
-		hf_vsdb_dest.max_frl_rate = hf_vsdb_tx.max_frl_rate;
+	hf_vsdb_dest.hf_db.scdc_present =
+		hf_vsdb_tx.hf_db.scdc_present & hf_vsdb_def.hf_db.scdc_present;
+	hf_vsdb_dest.hf_db.rr_cap = hf_vsdb_tx.hf_db.rr_cap & hf_vsdb_def.hf_db.rr_cap;
+	hf_vsdb_dest.hf_db.cable_status =
+		hf_vsdb_tx.hf_db.cable_status & hf_vsdb_def.hf_db.cable_status;
+	hf_vsdb_dest.hf_db.ccbpci = hf_vsdb_tx.hf_db.ccbpci & hf_vsdb_def.hf_db.ccbpci;
+	hf_vsdb_dest.hf_db.lte_340m_scramble =
+		hf_vsdb_tx.hf_db.lte_340m_scramble & hf_vsdb_def.hf_db.lte_340m_scramble;
+	hf_vsdb_dest.hf_db.independ_view =
+		hf_vsdb_tx.hf_db.independ_view & hf_vsdb_def.hf_db.independ_view;
+	hf_vsdb_dest.hf_db.dual_view =
+		hf_vsdb_tx.hf_db.dual_view & hf_vsdb_def.hf_db.dual_view;
+	hf_vsdb_dest.hf_db._3d_osd_disparity =
+		hf_vsdb_tx.hf_db._3d_osd_disparity & hf_vsdb_def.hf_db._3d_osd_disparity;
+	if (hf_vsdb_def.hf_db.max_frl_rate > hf_vsdb_tx.hf_db.max_frl_rate)
+		hf_vsdb_dest.hf_db.max_frl_rate = hf_vsdb_tx.hf_db.max_frl_rate;
 	else
-		hf_vsdb_dest.max_frl_rate = hf_vsdb_def.max_frl_rate;
-	hf_vsdb_dest.uhd_vic = hf_vsdb_tx.uhd_vic & hf_vsdb_def.uhd_vic;
-	hf_vsdb_dest.dc_48bit_420 =
-		hf_vsdb_tx.dc_48bit_420 & hf_vsdb_def.dc_48bit_420;
-	hf_vsdb_dest.dc_36bit_420 =
-		hf_vsdb_tx.dc_36bit_420 & hf_vsdb_def.dc_36bit_420;
-	hf_vsdb_dest.dc_30bit_420 =
-		hf_vsdb_tx.dc_30bit_420 & hf_vsdb_def.dc_30bit_420;
+		hf_vsdb_dest.hf_db.max_frl_rate = hf_vsdb_def.hf_db.max_frl_rate;
+	hf_vsdb_dest.hf_db.uhd_vic =
+		hf_vsdb_tx.hf_db.uhd_vic & hf_vsdb_def.hf_db.uhd_vic;
+	hf_vsdb_dest.hf_db.dc_48bit_420 =
+		hf_vsdb_tx.hf_db.dc_48bit_420 & hf_vsdb_def.hf_db.dc_48bit_420;
+	hf_vsdb_dest.hf_db.dc_36bit_420 =
+		hf_vsdb_tx.hf_db.dc_36bit_420 & hf_vsdb_def.hf_db.dc_36bit_420;
+	hf_vsdb_dest.hf_db.dc_30bit_420 =
+		hf_vsdb_tx.hf_db.dc_30bit_420 & hf_vsdb_def.hf_db.dc_30bit_420;
 	if (!vshf_dc_30_36_420_support) {
-		hf_vsdb_dest.dc_36bit_420 = 0;
-		hf_vsdb_dest.dc_30bit_420 = 0;
+		hf_vsdb_dest.hf_db.dc_36bit_420 = 0;
+		hf_vsdb_dest.hf_db.dc_30bit_420 = 0;
 		vshf_dc_30_36_420_support = true;
 	}
-	hf_vsdb_dest.qms_tfr_max = hf_vsdb_tx.qms_tfr_max & hf_vsdb_def.qms_tfr_max;
-	hf_vsdb_dest.qms = hf_vsdb_tx.qms & hf_vsdb_def.qms;
-	hf_vsdb_dest.m_delta = hf_vsdb_tx.m_delta & hf_vsdb_def.m_delta;
-	hf_vsdb_dest.qms_tfr_min = hf_vsdb_tx.qms_tfr_min & hf_vsdb_def.qms_tfr_min;
-	hf_vsdb_dest.neg_mvrr = hf_vsdb_tx.neg_mvrr & hf_vsdb_def.neg_mvrr;
-	hf_vsdb_dest.fva = hf_vsdb_tx.fva & hf_vsdb_def.fva;
-	hf_vsdb_dest.allm = hf_vsdb_tx.allm & hf_vsdb_def.allm;
-	hf_vsdb_dest.fapa_start_location =
-		hf_vsdb_tx.fapa_start_location & hf_vsdb_def.fapa_start_location;
+	hf_vsdb_dest.hf_db.qms_tfr_max =
+		hf_vsdb_tx.hf_db.qms_tfr_max & hf_vsdb_def.hf_db.qms_tfr_max;
+	hf_vsdb_dest.hf_db.qms = hf_vsdb_tx.hf_db.qms & hf_vsdb_def.hf_db.qms;
+	hf_vsdb_dest.hf_db.m_delta =
+		hf_vsdb_tx.hf_db.m_delta & hf_vsdb_def.hf_db.m_delta;
+	hf_vsdb_dest.hf_db.qms_tfr_min =
+		hf_vsdb_tx.hf_db.qms_tfr_min & hf_vsdb_def.hf_db.qms_tfr_min;
+	hf_vsdb_dest.hf_db.neg_mvrr =
+		hf_vsdb_tx.hf_db.neg_mvrr & hf_vsdb_def.hf_db.neg_mvrr;
+	hf_vsdb_dest.hf_db.fva = hf_vsdb_tx.hf_db.fva & hf_vsdb_def.hf_db.fva;
+	hf_vsdb_dest.hf_db.allm = hf_vsdb_tx.hf_db.allm & hf_vsdb_def.hf_db.allm;
+	hf_vsdb_dest.hf_db.fapa_start_location =
+		hf_vsdb_tx.hf_db.fapa_start_location & hf_vsdb_def.hf_db.fapa_start_location;
 	if (hf_vsdb_dest.len < 10)
 		goto _end;
-	if (hf_vsdb_def.vrr_min > hf_vsdb_tx.vrr_min)
-		hf_vsdb_dest.vrr_min = hf_vsdb_tx.vrr_min;
+	if (hf_vsdb_def.hf_db.vrr_min > hf_vsdb_tx.hf_db.vrr_min)
+		hf_vsdb_dest.hf_db.vrr_min = hf_vsdb_tx.hf_db.vrr_min;
 	else
-		hf_vsdb_dest.vrr_min = hf_vsdb_def.vrr_min;
-	if (((hf_vsdb_def.vrr_max_lo + hf_vsdb_def.vrr_max_hi) << 8) >
-		((hf_vsdb_tx.vrr_max_lo + hf_vsdb_tx.vrr_max_hi) << 8)) {
-		hf_vsdb_dest.vrr_max_lo = hf_vsdb_tx.vrr_max_lo;
-		hf_vsdb_dest.vrr_max_hi = hf_vsdb_tx.vrr_max_hi;
+		hf_vsdb_dest.hf_db.vrr_min = hf_vsdb_def.hf_db.vrr_min;
+	if (((hf_vsdb_def.hf_db.vrr_max_lo + hf_vsdb_def.hf_db.vrr_max_hi) << 8) >
+		((hf_vsdb_tx.hf_db.vrr_max_lo + hf_vsdb_tx.hf_db.vrr_max_hi) << 8)) {
+		hf_vsdb_dest.hf_db.vrr_max_lo = hf_vsdb_tx.hf_db.vrr_max_lo;
+		hf_vsdb_dest.hf_db.vrr_max_hi = hf_vsdb_tx.hf_db.vrr_max_hi;
 	} else {
-		hf_vsdb_dest.vrr_max_lo = hf_vsdb_def.vrr_max_lo;
-		hf_vsdb_dest.vrr_max_hi = hf_vsdb_def.vrr_max_hi;
+		hf_vsdb_dest.hf_db.vrr_max_lo = hf_vsdb_def.hf_db.vrr_max_lo;
+		hf_vsdb_dest.hf_db.vrr_max_hi = hf_vsdb_def.hf_db.vrr_max_hi;
 	}
 	if (hf_vsdb_dest.len < 13)
 		goto _end;
-	hf_vsdb_dest.dsc_1p2 = hf_vsdb_tx.dsc_1p2 & hf_vsdb_def.dsc_1p2;
-	hf_vsdb_dest.dsc_native_420 =
-		hf_vsdb_tx.dsc_native_420 & hf_vsdb_def.dsc_native_420;
-	hf_vsdb_dest.dsc_all_bpp = hf_vsdb_tx.dsc_all_bpp & hf_vsdb_def.dsc_all_bpp;
-	hf_vsdb_dest.dsc_16bpc = hf_vsdb_tx.dsc_16bpc & hf_vsdb_def.dsc_16bpc;
-	hf_vsdb_dest.dsc_12bpc = hf_vsdb_tx.dsc_12bpc & hf_vsdb_def.dsc_12bpc;
-	hf_vsdb_dest.dsc_10bpc = hf_vsdb_tx.dsc_10bpc & hf_vsdb_def.dsc_10bpc;
+	hf_vsdb_dest.hf_db.dsc_1p2 =
+		hf_vsdb_tx.hf_db.dsc_1p2 & hf_vsdb_def.hf_db.dsc_1p2;
+	hf_vsdb_dest.hf_db.dsc_native_420 =
+		hf_vsdb_tx.hf_db.dsc_native_420 & hf_vsdb_def.hf_db.dsc_native_420;
+	hf_vsdb_dest.hf_db.dsc_all_bpp =
+		hf_vsdb_tx.hf_db.dsc_all_bpp & hf_vsdb_def.hf_db.dsc_all_bpp;
+	hf_vsdb_dest.hf_db.dsc_16bpc =
+		hf_vsdb_tx.hf_db.dsc_16bpc & hf_vsdb_def.hf_db.dsc_16bpc;
+	hf_vsdb_dest.hf_db.dsc_12bpc =
+		hf_vsdb_tx.hf_db.dsc_12bpc & hf_vsdb_def.hf_db.dsc_12bpc;
+	hf_vsdb_dest.hf_db.dsc_10bpc =
+		hf_vsdb_tx.hf_db.dsc_10bpc & hf_vsdb_def.hf_db.dsc_10bpc;
 
-	if (hf_vsdb_def.dsc_max_frl_rate > hf_vsdb_tx.dsc_max_frl_rate)
-		hf_vsdb_dest.dsc_max_frl_rate = hf_vsdb_tx.dsc_max_frl_rate;
+	if (hf_vsdb_def.hf_db.dsc_max_frl_rate > hf_vsdb_tx.hf_db.dsc_max_frl_rate)
+		hf_vsdb_dest.hf_db.dsc_max_frl_rate = hf_vsdb_tx.hf_db.dsc_max_frl_rate;
 	else
-		hf_vsdb_dest.dsc_max_frl_rate = hf_vsdb_def.dsc_max_frl_rate;
-	if (hf_vsdb_def.dsc_max_slices > hf_vsdb_tx.dsc_max_slices)
-		hf_vsdb_dest.dsc_max_slices = hf_vsdb_tx.dsc_max_slices;
+		hf_vsdb_dest.hf_db.dsc_max_frl_rate = hf_vsdb_def.hf_db.dsc_max_frl_rate;
+	if (hf_vsdb_def.hf_db.dsc_max_slices > hf_vsdb_tx.hf_db.dsc_max_slices)
+		hf_vsdb_dest.hf_db.dsc_max_slices = hf_vsdb_tx.hf_db.dsc_max_slices;
 	else
-		hf_vsdb_dest.dsc_max_slices = hf_vsdb_def.dsc_max_slices;
+		hf_vsdb_dest.hf_db.dsc_max_slices = hf_vsdb_def.hf_db.dsc_max_slices;
 
-	if (hf_vsdb_def.dsc_total_chunk_kbytes > hf_vsdb_tx.dsc_total_chunk_kbytes)
-		hf_vsdb_dest.dsc_total_chunk_kbytes = hf_vsdb_tx.dsc_total_chunk_kbytes;
+	if (hf_vsdb_def.hf_db.dsc_total_chunk_kbytes >
+			hf_vsdb_tx.hf_db.dsc_total_chunk_kbytes)
+		hf_vsdb_dest.hf_db.dsc_total_chunk_kbytes =
+			hf_vsdb_tx.hf_db.dsc_total_chunk_kbytes;
 	else
-		hf_vsdb_dest.dsc_total_chunk_kbytes = hf_vsdb_def.dsc_total_chunk_kbytes;
+		hf_vsdb_dest.hf_db.dsc_total_chunk_kbytes =
+			hf_vsdb_def.hf_db.dsc_total_chunk_kbytes;
 
-	hf_vsdb_dest.fapa_end_extended =
-		hf_vsdb_tx.fapa_end_extended & hf_vsdb_def.fapa_end_extended;
+	hf_vsdb_dest.hf_db.fapa_end_extended =
+		hf_vsdb_tx.hf_db.fapa_end_extended & hf_vsdb_def.hf_db.fapa_end_extended;
 
 _end:
 	//p_edid[hf_vsdb_start] = 0x60 + hf_vsdb_dest.len;
@@ -3968,11 +6316,14 @@ static void edid_secondaryphyaddr(unsigned char *p_edid_dest, unsigned char *p_e
 	struct vsdb_s vsdb_src, vsdb_def, vsdb_dest;
 	u8 *p_vsdb_src = (u8 *)&vsdb_src;
 	u8 *p_vsdb_def = (u8 *)&vsdb_def;
+	struct data_block_location_s ret;
 
-	src_vsdb_offset = rx_get_cea_tag_offset(p_edid_src, VENDOR_TAG);
+	ret = rx_get_cea_tag_offset(p_edid_src, VENDOR_TAG);
+	src_vsdb_offset = ret.pos[0];
 	if (!src_vsdb_offset)
 		rx_pr("src_vsdb_offset error\n");
-	def_vsdb_offset = rx_get_cea_tag_offset(p_edid_dest, VENDOR_TAG);
+	ret = rx_get_cea_tag_offset(p_edid_dest, VENDOR_TAG);
+	def_vsdb_offset = ret.pos[0];
 	if (!def_vsdb_offset)
 		rx_pr("def_vsdb_offset error\n");
 	memcpy(p_vsdb_src + 4, &p_edid_src[src_vsdb_offset + 4], 2);
@@ -4019,6 +6370,7 @@ void rpt_edid_14_vs_db_extraction(unsigned char *p_edid)
 	u8 tag_len_tx, tag_len_def, i, j, k;
 	u8 tx_hdmi_vic[4] = {0};
 	u8 def_hdmi_vic[4] = {0};
+	struct data_block_location_s ret;
 
 	memset(&vsdb_tx, 0, sizeof(struct vsdb_s));
 	memset(&vsdb_def, 0, sizeof(struct vsdb_s));
@@ -4026,7 +6378,8 @@ void rpt_edid_14_vs_db_extraction(unsigned char *p_edid)
 	if (!p_edid)
 		return;
 
-	vsdb_start = rx_get_cea_tag_offset(p_edid, VENDOR_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, VENDOR_TAG);
+	vsdb_start = ret.pos[0];
 	if (!vsdb_start) {
 		//abnormal condition, only for errordebug
 		rx_pr("unsupported vsdb!!\n");
@@ -4071,7 +6424,8 @@ void rpt_edid_14_vs_db_extraction(unsigned char *p_edid)
 		//unsupport 3d format by default
 	}
 _end1:
-	tx_vsdb_start = rx_get_cea_tag_offset(edid_tx, VENDOR_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, VENDOR_TAG);
+	tx_vsdb_start = ret.pos[0];
 	if (!tx_vsdb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no vsdb\n");
@@ -4289,11 +6643,13 @@ void rpt_edid_video_db_extraction(unsigned char *p_dest_edid, unsigned char *p_s
 	u8 tag_len_tx, tag_len_def;
 	u8 i, j, tag_len_dest = 0;
 	u8 native_cnt = 0;
+	struct data_block_location_s ret;
 
 	if (!p_dest_edid)
 		return;
 
-	vdb_start = rx_get_cea_tag_offset(p_dest_edid, VIDEO_TAG);
+	ret = rx_get_cea_tag_offset(p_dest_edid, VIDEO_TAG);
+	vdb_start = ret.pos[0];
 	if (!vdb_start) {
 		//abnormal condition, only for errordebug
 		rx_pr("unsupported vdb!!\n");
@@ -4306,7 +6662,8 @@ void rpt_edid_video_db_extraction(unsigned char *p_dest_edid, unsigned char *p_s
 		if (def_vic_list[i] >= 129 && def_vic_list[i] <= 192)
 			def_vic_list[i] = def_vic_list[i] & 0x7f;
 	}
-	tx_vdb_start = rx_get_cea_tag_offset(p_source_edid, VIDEO_TAG);
+	ret = rx_get_cea_tag_offset(p_source_edid, VIDEO_TAG);
+	tx_vdb_start = ret.pos[0];
 	if (!tx_vdb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no vdb\n");
@@ -4359,6 +6716,7 @@ void rpt_edid_multi_vdb_extraction(unsigned char *p_dest_edid, unsigned char *p_
 	u8 p_source_tmp[EDID_SIZE];
 	u8 vdb_dest[128];
 	u8 vdb_size = 0;
+	struct data_block_location_s ret;
 
 	memcpy(p_source_tmp, p_source_edid, EDID_SIZE);
 	while (edid_tag_extract(p_source_tmp, VIDEO_TAG)) {
@@ -4368,7 +6726,8 @@ void rpt_edid_multi_vdb_extraction(unsigned char *p_dest_edid, unsigned char *p_
 		//remove vdb after extract once
 		edid_rm_db_by_tag(p_source_tmp, VIDEO_TAG);
 		if (!edid_tag_extract(p_source_tmp, VIDEO_TAG) && i == 1) {
-			vdb_start = rx_get_cea_tag_offset(p_dest_tmp, VIDEO_TAG);
+			ret = rx_get_cea_tag_offset(p_dest_tmp, VIDEO_TAG);
+			vdb_start = ret.pos[0];
 			vdb_size = BLK_LENGTH(p_dest_tmp[vdb_start]);
 			memcpy(&vdb_dest[1], &p_dest_tmp[vdb_start + 1], vdb_size);
 //hdmi repeater cert item(9-3 basic format support requirements), test block0 dtd timing
@@ -4393,7 +6752,8 @@ void rpt_edid_multi_vdb_extraction(unsigned char *p_dest_edid, unsigned char *p_
 			return;
 		}
 		//capture all vdb block
-		vdb_start = rx_get_cea_tag_offset(p_dest_tmp, VIDEO_TAG);
+		ret = rx_get_cea_tag_offset(p_dest_tmp, VIDEO_TAG);
+		vdb_start = ret.pos[0];
 		memcpy(&vdb_dest[1 + vdb_size], &p_dest_tmp[vdb_start + 1],
 			BLK_LENGTH(p_dest_tmp[vdb_start]));
 		vdb_size += BLK_LENGTH(p_dest_tmp[vdb_start]);
@@ -4434,11 +6794,13 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 	//when found tx edid has duplicat audio format,just use rx audio format
 	int tx_duplicate_audio_format = 0;
 	int tx_audio_format = 0;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
 
-	adb_start = rx_get_cea_tag_offset(p_edid, AUDIO_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, AUDIO_TAG);
+	adb_start = ret.pos[0];
 	if (!adb_start) {
 		//abnormal condition, only for errordebug
 		rx_pr("unsupported adb!!\n");
@@ -4451,7 +6813,8 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 		return;
 	}
 	memcpy((u8 *)adb_def, p_edid + adb_start + 1, tag_len_def);
-	tx_adb_start = rx_get_cea_tag_offset(edid_tx, AUDIO_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, AUDIO_TAG);
+	tx_adb_start = ret.pos[0];
 	if (!tx_adb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no adb\n");
@@ -4553,11 +6916,13 @@ void rpt_edid_colorimetry_db_extraction(unsigned char *p_edid)
 	u8 colorimetry_tx[2], colorimetry_def[2], colorimetry_dest[2];
 	u8 def_tag_len = 0;
 	u8 i = 0;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
 
-	db_start = rx_get_cea_tag_offset(p_edid, EXTENDED_CDB_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, EXTENDED_CDB_TAG);
+	db_start = ret.pos[0];
 	if (!db_start) {
 		//abnormal condition, only for errordebug
 		if (log_level & EDID_LOG)
@@ -4567,7 +6932,8 @@ void rpt_edid_colorimetry_db_extraction(unsigned char *p_edid)
 		def_tag_len = 3;
 		memcpy(colorimetry_def, p_edid + db_start + 2, 2);
 	}
-	tx_db_start = rx_get_cea_tag_offset(edid_tx, EXTENDED_CDB_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, EXTENDED_CDB_TAG);
+	tx_db_start = ret.pos[0];
 	if (!tx_db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no colorimetry\n");
@@ -4602,12 +6968,14 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 	u8 k = 0;
 	u8 l = 0;
 	u32 cmdb_map = 0;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
 
 	//420cmdb
-	_420_cmdb_start = rx_get_cea_tag_offset(p_edid, EXTENDED_Y420CMDB_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, EXTENDED_Y420CMDB_TAG);
+	_420_cmdb_start = ret.pos[0];
 	if (_420_cmdb_start) {
 		def_cmdb_len = (p_edid[_420_cmdb_start]) & 0x1f;
 		if (def_cmdb_len > 5) {
@@ -4626,7 +6994,8 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 		}
 	}
 	//420vdb
-	_420_vdb_start = rx_get_cea_tag_offset(p_edid, EXTENDED_Y420VDB_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, EXTENDED_Y420VDB_TAG);
+	_420_vdb_start = ret.pos[0];
 	if (_420_vdb_start) {
 		def_420_vdb_len = (p_edid[_420_vdb_start]) & 0x1f;
 		if (j + def_420_vdb_len - 1 > 31) {
@@ -4644,7 +7013,8 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 	//TX EDID parsing
 	//420cmdb
 	j = 0;
-	tx_420_cmdb_start = rx_get_cea_tag_offset(edid_tx, EXTENDED_Y420CMDB_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, EXTENDED_Y420CMDB_TAG);
+	tx_420_cmdb_start = ret.pos[0];
 	if (tx_420_cmdb_start) {
 		tx_cmdb_len = (edid_tx[tx_420_cmdb_start]) & 0x1f;
 		if (tx_cmdb_len > 5) {
@@ -4665,7 +7035,8 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 		}
 	}
 	//420vdb
-	tx_420_vdb_start = rx_get_cea_tag_offset(edid_tx, EXTENDED_Y420VDB_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, EXTENDED_Y420VDB_TAG);
+	tx_420_vdb_start = ret.pos[0];
 	if (tx_420_vdb_start) {
 		tx_420_vdb_len = (edid_tx[tx_420_vdb_start]) & 0x1f;
 		if (j + tx_420_vdb_len - 1 > 31) {
@@ -4693,7 +7064,8 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 	if (k == 0)
 		vshf_dc_30_36_420_support = false;
 	if (def_cmdb_len) {
-		vdb_start = rx_get_cea_tag_offset(p_edid, VIDEO_TAG);
+		ret = rx_get_cea_tag_offset(p_edid, VIDEO_TAG);
+		vdb_start = ret.pos[0];
 		if (!vdb_start && (log_level & EDID_LOG))
 			rx_pr("cannot find vdb\n");
 		def_vdb_len = p_edid[vdb_start] & 0x1f;
@@ -4753,9 +7125,8 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 end1:
 		if (def_420_vdb_len) {
 			if (new_420vdb_list[0] && l) {
-				_420_vdb_start =
-					rx_get_cea_tag_offset(p_edid,
-						EXTENDED_Y420VDB_TAG);
+				ret = rx_get_cea_tag_offset(p_edid, EXTENDED_Y420VDB_TAG);
+				_420_vdb_start = ret.pos[0];
 				p_edid[_420_vdb_start] = (USE_EXTENDED_TAG << 5) + l + 1;
 				memcpy(p_edid + _420_vdb_start + 2, new_420vdb_list, l);
 				for (i = _420_vdb_start + l + 1;
@@ -4795,10 +7166,12 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 	u8 tx_len = 0;
 	u8 def_len = 0;
 	u8 i;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
-	db_start = rx_get_cea_tag_offset(p_edid, EXTENDED_HDR_STATIC_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, EXTENDED_HDR_STATIC_TAG);
+	db_start = ret.pos[0];
 	if (!db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("unsupported HDR!!\n");
@@ -4807,7 +7180,8 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 		def_len = (p_edid[db_start]) & 0x1f;
 		memcpy(def_db, p_edid + db_start + 2, def_len - 1);
 	}
-	tx_db_start = rx_get_cea_tag_offset(edid_tx, EXTENDED_HDR_STATIC_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, EXTENDED_HDR_STATIC_TAG);
+	tx_db_start = ret.pos[0];
 	if (!tx_db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no HDR!!\n");
@@ -4840,18 +7214,21 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 void rpt_edid_vsv_hdr10plus_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
 
-	db_start = rx_get_cea_tag_offset(p_edid, VSVDB_HDR10P_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, VSVDB_HDR10P_TAG);
+	db_start = ret.pos[0];
 	if (!db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("rx no vsv hdr10+!!\n");
 		return;
 	}
 
-	db_start = rx_get_cea_tag_offset(edid_tx, VSVDB_HDR10P_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, VSVDB_HDR10P_TAG);
+	db_start = ret.pos[0];
 	if (!db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("tx no vsv hdr10+, need remove rx vsv hdr10+\n");
@@ -4865,11 +7242,13 @@ void rpt_edid_vsv_db_extraction(unsigned char *p_edid)
 	u8 tx_db_start = 0;
 	u8 tx_len = 0;
 	u8 db_version;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
 
-	db_start = rx_get_cea_tag_offset(p_edid, VSVDB_DV_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, VSVDB_DV_TAG);
+	db_start = ret.pos[0];
 	if (!db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("rx no vsvdb!!\n");
@@ -4888,7 +7267,8 @@ void rpt_edid_vsv_db_extraction(unsigned char *p_edid)
 	p_edid[db_start + 8] &= 0xFE; //remove 444 12bit
 	p_edid[db_start + 9] &= 0xFE; //remove 444 10bit
 
-	tx_db_start = rx_get_cea_tag_offset(edid_tx, VSVDB_DV_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, VSVDB_DV_TAG);
+	tx_db_start = ret.pos[0];
 	if (!tx_db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("tx no vsvdb!!,need remove rx vsvdb\n");
@@ -4899,18 +7279,21 @@ void rpt_edid_vsv_db_extraction(unsigned char *p_edid)
 void rpt_edid_vsg_freesync_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
+	struct data_block_location_s ret;
 
 	if (!p_edid)
 		return;
 
-	db_start = rx_get_cea_tag_offset(p_edid, VSDB_FREESYNC_TAG);
+	ret = rx_get_cea_tag_offset(p_edid, VSDB_FREESYNC_TAG);
+	db_start = ret.pos[0];
 	if (!db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("rx no vsg freesync!!\n");
 		return;
 	}
 
-	db_start = rx_get_cea_tag_offset(edid_tx, VSDB_FREESYNC_TAG);
+	ret = rx_get_cea_tag_offset(edid_tx, VSDB_FREESYNC_TAG);
+	db_start = ret.pos[0];
 	if (!db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("tx no vsg freesync, need remove rx vsg freesync\n");
@@ -4918,89 +7301,37 @@ void rpt_edid_vsg_freesync_extraction(unsigned char *p_edid)
 	}
 }
 
-bool get_dtd_data(u8 *p_edid, struct edid_info_s *edid_info)
-{
-	unsigned int pixel_clk;
-	unsigned int hactive;
-	unsigned int vactive;
-	unsigned int hblank;
-	unsigned int vblank;
-	unsigned int htotal;
-	unsigned int vtotal;
-	bool ret = false;
-
-	if (!p_edid)
-		return 0;
-
-	if (p_edid[0x36] == 0 && p_edid[0x37] == 0) {
-		rx_pr("descriptor1 is not a DTD!\n");
-		goto _dtd2;
-	}
-	ret = true;
-	edid_info->descriptor1.pixel_clk = (p_edid[0x36] + (p_edid[0x37] << 8)) / 100;
-	pixel_clk = edid_info->descriptor1.pixel_clk;
-	edid_info->descriptor1.hactive = p_edid[0x38] + (((p_edid[0x3A] >> 4) & 0xF) << 8);
-	hactive = edid_info->descriptor1.hactive;
-	edid_info->descriptor1.vactive = p_edid[0x3B] + (((p_edid[0x3D] >> 4) & 0xF) << 8);
-	vactive = edid_info->descriptor1.vactive;
-	edid_info->descriptor1.hblank = ((p_edid[0x3A] & 0xF) << 8) + p_edid[0x39];
-	hblank = edid_info->descriptor1.hblank;
-	edid_info->descriptor1.vblank = ((p_edid[0x3D] & 0xF) << 8) + p_edid[0x3C];
-	vblank = edid_info->descriptor1.vblank;
-	htotal = hactive + hblank;
-	vtotal = vactive + vblank;
-	edid_info->descriptor1.framerate = pixel_clk * 1000 / htotal * 1000 / vtotal;
-
-_dtd2:
-	if (p_edid[0x48] == 0 && p_edid[0x49] == 0) {
-		rx_pr("descriptor2 is not a DTD!\n");
-		return ret;
-	}
-	ret = true;
-	edid_info->descriptor2.pixel_clk = (p_edid[0x48] + (p_edid[0x49] << 8)) / 100;
-	pixel_clk = edid_info->descriptor2.pixel_clk;
-	edid_info->descriptor2.hactive = p_edid[0x4A] + (((p_edid[0x4C] >> 4) & 0xF) << 8);
-		hactive = edid_info->descriptor2.hactive;
-	edid_info->descriptor2.vactive = p_edid[0x4D] + (((p_edid[0x4F] >> 4) & 0xF) << 8);
-	    vactive = edid_info->descriptor2.vactive;
-
-	edid_info->descriptor2.hblank = ((p_edid[0x4C] & 0xF) << 8) + p_edid[0x4B];
-	hblank = edid_info->descriptor2.hblank;
-	edid_info->descriptor2.vblank = ((p_edid[0x4F] & 0xF) << 8) + p_edid[0x4E];
-	vblank = edid_info->descriptor2.vblank;
-	htotal = hactive + hblank;
-	vtotal = vactive + vblank;
-	edid_info->descriptor2.framerate = pixel_clk * 1000 / htotal * 1000 / vtotal;
-	return ret;
-}
-
 void rpt_edid_update_dtd(u8 *p_edid)
 {
 	int i;
 	bool checksum_update = false;
-	struct edid_info_s edid_info;
+	struct edid_info_s *edid_info;
 	//default 1080P dtd
 	u8 def_dtd[18] = {0x02, 0x3A, 0x80, 0x18, 0x71, 0x38, 0x2D, 0x40, 0x58,
 					  0x2C, 0x45, 0x00, 0x40, 0x84, 0x63, 0x00, 0x00, 0x1E};
-
-	if (!get_dtd_data(p_edid, &edid_info))
+	edid_info = kzalloc(sizeof(*edid_info), GFP_KERNEL);
+	if (!edid_info)
 		return;
-	if (edid_info.descriptor2.pixel_clk > MAX_PIXEL_CLK ||
-		edid_info.descriptor2.hactive > MAX_H_ACTIVE ||
-		edid_info.descriptor2.vactive > MAX_V_ACTIVE ||
-		edid_info.descriptor2.framerate > MAX_FRAME_RATE) {
+	if (!get_basic_dtd_data(p_edid, edid_info)) {
+		kfree(edid_info);
+		return;
+	}
+	if (edid_info->descriptor2.pixel_clk > MAX_PIXEL_CLK ||
+		edid_info->descriptor2.hactive > MAX_H_ACTIVE ||
+		edid_info->descriptor2.vactive > MAX_V_ACTIVE ||
+		edid_info->descriptor2.framerate > MAX_FRAME_RATE) {
 		//clear to reserved
-		edid_info.descriptor2.pixel_clk = 0;
+		edid_info->descriptor2.pixel_clk = 0;
 		for (i = 0; i < 18; i++)
 			p_edid[0x48 + i] = 0;
 		p_edid[0x4b] = 0x11;
 		checksum_update = true;
 	}
-	if (edid_info.descriptor1.pixel_clk > MAX_PIXEL_CLK ||
-		edid_info.descriptor1.hactive > MAX_H_ACTIVE ||
-		edid_info.descriptor1.vactive > MAX_V_ACTIVE ||
-		edid_info.descriptor1.framerate > MAX_FRAME_RATE) {
-		if (edid_info.descriptor2.pixel_clk) {
+	if (edid_info->descriptor1.pixel_clk > MAX_PIXEL_CLK ||
+		edid_info->descriptor1.hactive > MAX_H_ACTIVE ||
+		edid_info->descriptor1.vactive > MAX_V_ACTIVE ||
+		edid_info->descriptor1.framerate > MAX_FRAME_RATE) {
+		if (edid_info->descriptor2.pixel_clk) {
 			//first dtd = second dtd
 			for (i = 0; i < 18; i++)
 				p_edid[0x36 + i] = p_edid[0x48 + i];
@@ -5011,6 +7342,7 @@ void rpt_edid_update_dtd(u8 *p_edid)
 		}
 		checksum_update = true;
 	}
+	kfree(edid_info);
 	if (checksum_update) {
 		p_edid[127] = 0;
 		for (i = 0; i < 127; i++) {
@@ -5029,10 +7361,11 @@ void get_edid_standard_timing_info(u8 *p_edid, struct edid_standard_timing *edid
 		return;
 
 	for (i = 0; i <= 7; i++) {
-		if (p_edid[0x26 + i * 2] != 0x01 && p_edid[0x27 + i * 2] != 0x01)
+		if (p_edid[0x26 + i * 2] != 0x01 && p_edid[0x27 + i * 2] != 0x01) {
 			edid_st_info->refresh_rate[i] = (int)(p_edid[0x27 + i * 2] & 0x3F) + 60;
-		edid_st_info->h_active[i] = ((int)(p_edid[0x26 + i * 2]) + 31) * 8;
-		edid_st_info->aspect_ratio[i]  = (int)((p_edid[0x27 + i * 2] >> 5) & 0x03);
+			edid_st_info->h_active[i] = ((int)(p_edid[0x26 + i * 2]) + 31) * 8;
+			edid_st_info->aspect_ratio[i]  = (int)((p_edid[0x27 + i * 2] >> 5) & 0x03);
+		}
 	}
 }
 
@@ -5055,8 +7388,10 @@ void rpt_edid_update_stand_timing(u8 *p_edid)
 static void edid_sad_passthrough(unsigned char *p_edid_dest, unsigned char *p_edid_src)
 {
 	u8 adb_start = 0;
+	struct data_block_location_s ret;
 
-	adb_start = rx_get_cea_tag_offset(p_edid_src, AUDIO_TAG);
+	ret = rx_get_cea_tag_offset(p_edid_src, AUDIO_TAG);
+	adb_start = ret.pos[0];
 	if (adb_start) {
 		/* place tv aud data blk to blk index = 0x1 */
 		splice_data_blk_to_edid(p_edid_dest, &p_edid_src[adb_start], 0x01);
@@ -5136,12 +7471,17 @@ u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 u32 rx_get_edid_size(u8 *pedid)
 {
 	u32 blk_num = 0, index = 0;
+	struct data_block_location_s ret;
 
-	index = rx_get_cea_tag_offset(pedid, EXTENDED_HF_EEODB);
+	ret = rx_get_cea_tag_offset(pedid, EXTENDED_HF_EEODB);
+	index = ret.pos[0];
 	if (index)
 		blk_num = pedid[index + 2] + 1;
 	else
 		blk_num = pedid[126] + 1;
+
+	if (!blk_num)
+		blk_num = 2;
 
 	return blk_num * EDID_BLK_SIZE;
 }
@@ -5173,6 +7513,7 @@ u_char *rx_get_cur_def_edid(u_char port)
 	default:
 		break;
 	}
+
 	return edid_cur;
 }
 
@@ -5191,29 +7532,33 @@ u_char *rx_get_cur_used_edid(u_char port)
 	return &edid_cur[0];
 }
 
-void rx_print_edid_support(void)
+void rx_print_edid_support(u8 port)
 {
-	rx_pr("****Capacity info****\n");
-	rx_pr("support vrr: %d\n", rx_info.edid_cap.vrr);
-	rx_pr("support allm: %d\n", rx_info.edid_cap.allm);
-	rx_pr("support HF_DB: %d\n", rx_info.edid_cap.hf_db);
-	rx_pr("support DV_DB: %d\n", rx_info.edid_cap.dv_db);
-	rx_pr("support HDR10P_DB: %d\n", rx_info.edid_cap.hdr10p_db);
-	rx_pr("support HDR_STATIC_DB: %d\n", rx_info.edid_cap.hdr_static_db);
-	rx_pr("support HDR_DYNAMIC_DB: %d\n", rx_info.edid_cap.hdr_dynamic_db);
-	rx_pr("support FREESYNC_DB: %d\n", rx_info.edid_cap.freesync_db);
+	rx_pr("****port %d Capacity info****\n", port);
+	rx_pr("support vrr: %d\n", rx[port].edid_cap.vrr);
+	rx_pr("support allm: %d\n", rx[port].edid_cap.allm);
+	rx_pr("support qms: %d\n", rx[port].edid_cap.qms);
+	rx_pr("support 4k: %d\n", rx[port].edid_cap.timing_4k);
+	rx_pr("support HF_DB: %d\n", rx[port].edid_cap.hf_db);
+	rx_pr("support DV_DB: %d\n", rx[port].edid_cap.vsdv_db);
+	rx_pr("support HDR10P_DB: %d\n", rx[port].edid_cap.hdr10p_db);
+	rx_pr("support HDR_STATIC_DB: %d\n", rx[port].edid_cap.hdr_static_db);
+	rx_pr("support HDR_DYNAMIC_DB: %d\n", rx[port].edid_cap.hdr_dynamic_db);
+	rx_pr("support FREESYNC_DB: %d\n", rx[port].edid_cap.freesync_db);
 }
 
 void rx_get_edid_support(u8 port)
 {
-	rx_info.edid_cap.vrr |= get_edid_support(port, HF_VRR);
-	rx_info.edid_cap.allm |= get_edid_support(port, HF_ALLM);
-	rx_info.edid_cap.hf_db |= get_edid_support(port, HF_DB);
-	rx_info.edid_cap.dv_db |= get_edid_support(port, DV_DB);
-	rx_info.edid_cap.hdr10p_db |= get_edid_support(port, HDR10P_DB);
-	rx_info.edid_cap.hdr_static_db |= get_edid_support(port, HDR_STATIC_DB);
-	rx_info.edid_cap.hdr_dynamic_db |= get_edid_support(port, HDR_DYNAMIC_DB);
-	rx_info.edid_cap.freesync_db |= get_edid_support(port, FREESYNC_DB);
+	rx[port].edid_cap.vrr = get_edid_support(port, HF_VRR);
+	rx[port].edid_cap.allm = get_edid_support(port, HF_ALLM);
+	rx[port].edid_cap.qms = get_edid_support(port, HF_QMS);
+	rx[port].edid_cap.hf_db = get_edid_support(port, HF_DB);
+	rx[port].edid_cap.vsdv_db = get_edid_support(port, VSDV_DB);
+	rx[port].edid_cap.hdr10p_db = get_edid_support(port, HDR10P_DB);
+	rx[port].edid_cap.hdr_static_db = get_edid_support(port, HDR_STATIC_DB);
+	rx[port].edid_cap.hdr_dynamic_db = get_edid_support(port, HDR_DYNAMIC_DB);
+	rx[port].edid_cap.freesync_db = get_edid_support(port, FREESYNC_DB);
+	rx[port].edid_cap.timing_4k = get_edid_support(port, TIMING_4K);
 }
 
 bool hdmi_rx_top_edid_update(void)
@@ -5221,11 +7566,10 @@ bool hdmi_rx_top_edid_update(void)
 	u_char *pedid = NULL;
 	u_int i = 0;
 	u_int j = 0;
-	u8 ext_blk_num;
+	u8 ext_blk_num = 1;
 	static int edid_reset_cnt;
 
 	rx_edid_module_reset();
-	memset(&rx_info.edid_cap, 0, sizeof(struct edid_capacity));
 	while (edid_reset_cnt <= edid_reset_max)
 		edid_reset_cnt++;
 	edid_reset_cnt = 0;
@@ -5235,15 +7579,20 @@ bool hdmi_rx_top_edid_update(void)
 			rx_pr("port-%d edid err!\n", i);
 			return false;
 		}
+		memset(&rx[i].edid_cap, 0, sizeof(struct edid_capacity));
 		rx[i].edid_size = rx_get_edid_size(pedid);
 		rx[i].sup_frl = is_support_frl(pedid, i);
-		ext_blk_num = pedid[126];
+		ext_blk_num = rx[i].edid_size / EDID_BLK_SIZE - 1;
+		if (log_level & EDID_LOG)
+			rx_pr("ext block = %d\n", ext_blk_num);
 		rx_edid_update_hdr_dv_info(pedid);
 		rx_edid_update_sad(pedid);
 		rx_edid_update_vsvdb(pedid, recv_vsvdb, recv_vsvdb_len);
 		rx_edid_update_vrr_info(pedid);
 		rx_edid_update_allm_info(pedid);
 		rx_edid_update_qms_info(pedid);
+		if (log_level & EDID_DATA_LOG)
+			rx_pr("update port:%d\n", i);
 #ifdef CONFIG_AMLOGIC_HDMITX
 		rpt_edid_extraction(pedid);
 #endif
@@ -5252,9 +7601,9 @@ bool hdmi_rx_top_edid_update(void)
 		for (j = 0; j < EDID_SIZE; j++)
 			hdmirx_wr_top(edid_addr[i] + j, pedid[j], i);
 		rx_get_edid_support(i);
+		if (log_level & EDID_LOG)
+			rx_print_edid_support(i);
 	}
-	if (log_level & EDID_LOG)
-		rx_print_edid_support();
 	return true;
 }
 

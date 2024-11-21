@@ -247,6 +247,7 @@ u32 rpt_edid_selection;
 /* disable hdr function in dts */
 u32 disable_hdr;
 
+bool update_edid_type = true;
 int rx_phy_level = 1;
 int def_trim_value;
 static struct notifier_block aml_hdcp22_pm_notifier = {
@@ -3139,6 +3140,8 @@ static ssize_t info_show(struct device *dev,
 			 char *buf)
 {
 	int pos = 0;
+	struct edid_info_s *edid_info;
+	u_char *pedid = NULL;
 
 	u8 port = rx_info.main_port;
 
@@ -3148,7 +3151,15 @@ static ssize_t info_show(struct device *dev,
 		for (port = E_PORT0; port < rx_info.port_num; port++)
 			pos += hdmirx_show_info(buf + strlen(buf), PAGE_SIZE, port);
 	}
-
+	pedid = rx_get_cur_used_edid(port);
+	edid_info = kzalloc(sizeof(*edid_info), GFP_KERNEL);
+	if (!edid_info) {
+		rx_pr("no enough space for edid_info\n");
+		return 0;
+	}
+	if (rx_edid_parse(pedid, edid_info))
+		rx_edid_parse_print(edid_info);
+	kfree(edid_info);
 	return pos;
 }
 
@@ -3241,9 +3252,6 @@ static ssize_t edid_select_store(struct device *dev,
 {
 	int ret;
 	unsigned int tmp = 0;
-	int i;
-	/* PCB port number for UI HDMI1/2/3/4 */
-	unsigned char pos[E_PORT_NUM] = {0};
 
 	//edid selection for UI HDMI4/3/2/1, eg 0x0120
 	//4: auto default 20
@@ -3254,47 +3262,12 @@ static ssize_t edid_select_store(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	if (!port_map) {
-		edid_select = tmp;
-		rx[0].edid_type.cfg = (enum edid_ver_e)(tmp & 0xF);
-		rx[1].edid_type.cfg = (enum edid_ver_e)((tmp >> 4) & 0xF);
-		rx[2].edid_type.cfg = (enum edid_ver_e)((tmp >> 8) & 0xF);
-		rx[3].edid_type.cfg = (enum edid_ver_e)((tmp >> 12) & 0xF);
-		/*rx_pr("without port_map edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n",*/
-			/*tmp, edid_select);*/
-		edid_type_init();
-		return count;
-	}
-	for (i = 0; i < E_PORT_NUM; i++) {
-		switch ((port_map >> (i * 4)) & 0xF) {
-		case 1:
-			pos[0] = i;
-			break;
-		case 2:
-			pos[1] = i;
-			break;
-		case 3:
-			pos[2] = i;
-			break;
-		case 4:
-			pos[3] = i;
-			break;
-		default:
-			break;
-		}
-	}
-	/* edid select for portD/C/B/A */
-	edid_select = 0;
-	rx[0].edid_type.cfg = (enum edid_ver_e)(tmp & 0xF);
-	edid_select |= rx[0].edid_type.cfg << (pos[0] * 4);
-	rx[1].edid_type.cfg = (enum edid_ver_e)((tmp >> 4) & 0xF);
-	edid_select |= rx[1].edid_type.cfg << (pos[1] * 4);
-	rx[2].edid_type.cfg = (enum edid_ver_e)((tmp >> 8) & 0xF);
-	edid_select |= rx[2].edid_type.cfg << (pos[2] * 4);
-	rx[3].edid_type.cfg = (enum edid_ver_e)((tmp >> 12) & 0xF);
-	edid_select |= rx[3].edid_type.cfg << (pos[3] * 4);
-	/*rx_pr("edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n", tmp, edid_select);*/
-	edid_type_init();
+	edid_select = tmp;
+	if (!phy_addr_map)
+		update_edid_type = false;
+	else
+		update_edid_type_cfg(tmp);
+
 	return count;
 }
 

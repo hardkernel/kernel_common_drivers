@@ -914,14 +914,17 @@ struct spkts_rcvd_sts {
 };
 
 struct edid_capacity {
-	bool vrr;
-	bool allm;
-	bool hf_db;
-	bool dv_db;
-	bool hdr10p_db;
-	bool hdr_static_db;
-	bool hdr_dynamic_db;
-	bool freesync_db;
+	u32 vrr:1;
+	u32 allm:1;
+	u32 qms:1;
+	u32 hf_db:1;
+	u32 vsdv_db:1;
+	u32 hdr10p_db:1;
+	u32 hdr_static_db:1;
+	u32 hdr_dynamic_db:1;
+	u32 freesync_db:1;
+	u32 timing_4k:1;
+	u32 rsvd:22;
 };
 
 enum e_colorimetry {
@@ -977,7 +980,6 @@ struct rx_info_s {
 	struct emp_info_s emp_buff_a; //for vid0
 	struct emp_info_s emp_buff_b; //for vid1
 	struct i2c_info_s i2c_buff;
-	struct edid_capacity edid_cap;
 	bool suspend_flag;
 	u8 edid_update_done;
 	bool timer_flag;
@@ -1077,6 +1079,7 @@ struct rx_s {
 	int pkt_mini_interval[PACKET_TYPE_MAX]; //unit:frame
 	int dump_aud_cnt;
 	struct hdmirx_phy_status_s phy_sts;
+	struct edid_capacity edid_cap;
 };
 
 struct reg_map {
@@ -1269,7 +1272,7 @@ extern u32 edid_auto_sel;
 extern int audio_dump_frame;
 extern struct edid_timer_data edid_timer;
 extern ktime_t interval;
-
+extern bool update_edid_type;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
 #endif
