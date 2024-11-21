@@ -30,6 +30,7 @@
 #include <trace/hooks/mm.h>
 #include <trace/events/kmem.h>
 #include <linux/mm_types.h>
+#include <linux/oom.h>
 
 #define DEBUG_PAGE_TRACE	0
 
@@ -1329,6 +1330,12 @@ static const struct proc_ops pagetrace_proc_ops = {
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 struct page_summary *dump_sum;
 
+static char sym_show_mem[32] = "__show_mem";
+
+static struct kprobe kp_oom = {
+		.symbol_name	= sym_show_mem,
+};
+
 static void show_page_trace2(struct zone *zone,
 		struct pagetrace_summary *pt_sum)
 {
@@ -1377,11 +1384,18 @@ static void show_page_trace2(struct zone *zone,
 	pr_info("------------------------------\n");
 }
 
-static void __maybe_unused oom_panic_callback(void *data, struct oom_control *oc, int *retc)
+/*
+ * static void __maybe_unused oom_panic_callback(void *data, struct oom_control *oc, int *retc)
+ */
+static void __kprobes oom_panic_callback(struct kprobe *p,
+				struct pt_regs *regs, unsigned long flags)
 {
 	struct zone *zone;
 	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
 	struct pagetrace_summary *sum;
+	struct oom_control oc = {
+		.gfp_mask = GFP_KERNEL,
+	};
 
 	if (!trace_buffer) {
 		pr_info("page trace not enabled\n");
@@ -1419,6 +1433,8 @@ static void __maybe_unused oom_panic_callback(void *data, struct oom_control *oc
 	pr_info("==============================\n");
 
 	kfree(sum);
+
+	dump_tasks(&oc);
 }
 
 static void *get_symbol_addr(const char *symbol_name)
@@ -1490,9 +1506,17 @@ static int __init page_trace_module_init(void)
 	page_trace_mem_init();
 
 	dump_sum = vzalloc(size);
-	ret = register_trace_android_vh_oom_check_panic(oom_panic_callback, NULL);
+
+	kp_oom.post_handler = oom_panic_callback;
+	ret = register_kprobe(&kp_oom);
 	if (ret < 0)
-		pr_err("register_trace_android_vh_oom_check_page fail ret=%d\n", ret);
+		pr_err("register_kprobe failed, returned %d\n", ret);
+
+	/*
+	 * ret = register_trace_android_vh_oom_check_panic(oom_panic_callback, NULL);
+	 * if (ret < 0)
+	 *	pr_err("register_trace_android_vh_oom_check_page fail ret=%d\n", ret);
+	 */
 #endif
 
 	if (!trace_buffer)
