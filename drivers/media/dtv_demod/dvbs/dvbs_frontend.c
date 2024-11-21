@@ -960,14 +960,22 @@ static int calc_ave(int *val_arr, int cnt, unsigned int mode, int par)
 	need_order = (mode >> 31) & 1 ? 0 : 1;
 	mode = mode & 0x7FFFFFFF;
 
-	if (!val_arr || cnt <= 0 || mode > 2)
+	if (!val_arr)
 		return 0;
+
+	if (cnt <= 0 || mode > 2)
+		return val_arr[0];
 
 	if (mode != 0 && par <= 0)
-		return 0;
+		return val_arr[0];
 
-	if (mode == 1 && (par * 2) >= cnt)
-		return 0;
+	if (mode == 1 && (par * 2) >= cnt) {
+		tot = 0;
+		for (i = 0; i < cnt; i++)
+			tot += val_arr[i];
+
+		return tot / cnt;
+	}
 
 	tot = 0;
 	calc_cnt = cnt;
@@ -1086,7 +1094,7 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 	snr[times++ % 8] = dvbs_get_quality();
 	//PR_DVBS("calc_ave cnt:%d ==>%d, %d, %d, %d, %d, %d, %d, %d<==\n",
 	//	cnt, snr[0], snr[1], snr[2], snr[3], snr[4], snr[5], snr[6], snr[7]);
-	demod->real_para.snr = calc_ave(snr, 8, 1, 1);
+	demod->real_para.snr = calc_ave(snr, times >= 8 ? 8 : times, 1, 1);
 	PR_DVBS("calc snr %d dBx10\n", demod->real_para.snr);
 
 	dvbs_get_modulation_coderate(&demod->real_para.modulation,
