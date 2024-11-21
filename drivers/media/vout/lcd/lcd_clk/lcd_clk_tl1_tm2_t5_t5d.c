@@ -1468,12 +1468,14 @@ static struct lcd_clk_data_s lcd_clk_data_txhd2 = {
 	.prbs_test = lcd_clk_prbs_test_txhd2,
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 void lcd_clk_config_chip_init_tl1(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
 {
 	cconf->data = &lcd_clk_data_tl1;
 	cconf->pll_od_fb = lcd_clk_data_tl1.pll_od_fb;
 	cconf->clk_path_change = NULL;
 }
+#endif
 
 void lcd_clk_config_chip_init_tm2(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
 {

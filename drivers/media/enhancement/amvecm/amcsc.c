@@ -5619,7 +5619,6 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 				       RGB709_to_YUV709l_coeff,
 				       CSC_ON);
 	}
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 		/* turn vd1 matrix on */
 		vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
@@ -5642,7 +5641,6 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
-#endif
 	/*vpp matrix mux write*/
 	vpp_set_mtx_en_write();
 	return need_adjust_contrast_saturation;
@@ -5942,7 +5940,6 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 				       RGB709_to_YUV709l_coeff,
 				       CSC_ON);
 	}
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 		/* turn vd1 matrix on */
 		vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
@@ -5965,7 +5962,6 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
 	}
-#endif
 	/*vpp matrix mux write*/
 	vpp_set_mtx_en_write();
 	return need_adjust_contrast_saturation;
