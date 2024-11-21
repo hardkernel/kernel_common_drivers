@@ -200,8 +200,6 @@ char *vf_get_receiver_name(const char *provider_name);
 static int vdin_get_video_reverse(char *str)
 {
 	unsigned char *ptr = str;
-
-	pr_info("%s: bootargs is %s.\n", __func__, str);
 	if (strstr(ptr, "1"))
 		panel_reverse = 1;
 	return 1;
@@ -2087,6 +2085,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		if (devp->hv_reverse_en && panel_reverse) {
 			devp->parm.h_reverse = 1;
 			devp->parm.v_reverse = 1;
+			if (vdin_dbg_en)
+				pr_info("panel_reverse = %d\n", panel_reverse);
 		} else {
 			devp->parm.h_reverse = 0;
 			devp->parm.v_reverse = 0;
@@ -4388,9 +4388,6 @@ static int vdin_open(struct inode *inode, struct file *file)
 
 			if (ret)
 				pr_err("err:req vs irq fail\n");
-			else
-				pr_info("vdin%d req vs irq %d\n",
-					devp->index, devp->irq);
 		}
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 		    devp->vpu_crash_irq > 0) {
@@ -4425,9 +4422,6 @@ static int vdin_open(struct inode *inode, struct file *file)
 					  (void *)devp);
 			if (ret)
 				pr_err("err:req meta_wr_done_irq fail\n");
-			else
-				pr_info("vdin%d req meta_wr_done_irq\n",
-					devp->index);
 		}
 #endif
 	}
@@ -5759,6 +5753,8 @@ static int vdin_add_cdev(struct cdev *cdevp,
 	cdev_init(cdevp, fops);
 	cdevp->owner = THIS_MODULE;
 	ret = cdev_add(cdevp, devno, 1);
+	if (ret)
+		pr_err("%s: failed!!!\n", __func__);
 	return ret;
 }
 
@@ -5891,6 +5887,8 @@ int vdin_create_dev_class_files(struct device *dev)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	vdin_v4l2_create_device_files(dev);
 #endif
+	if (ret < 0)
+		pr_err("%s: failed\n", __func__);
 	return ret;
 }
 
@@ -6002,7 +6000,6 @@ int vdin_get_irq_from_dts(struct platform_device *pdev,
 
 	snprintf(devp->irq_name, sizeof(devp->irq_name),
 		 "vdin%d-irq", devp->index);
-	pr_info("%s=%d\n", devp->irq_name, devp->irq);
 
 	/* get vpu crash irq number */
 	if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
@@ -6011,8 +6008,6 @@ int vdin_get_irq_from_dts(struct platform_device *pdev,
 		snprintf(devp->vpu_crash_irq_name,
 			 sizeof(devp->vpu_crash_irq_name),
 			 "vpu_crash_int");
-		pr_info("%s=%d\n", devp->vpu_crash_irq_name,
-			devp->vpu_crash_irq);
 	}
 
 	/*
@@ -6036,7 +6031,6 @@ int vdin_get_irq_from_dts(struct platform_device *pdev,
 	snprintf(devp->wr_done_irq_name,
 		 sizeof(devp->wr_done_irq_name),
 		 "vdin%d_wr_done", devp->index);
-	pr_info("%s %s=%d\n", __func__, devp->wr_done_irq_name, devp->wr_done_irq);
 
 	/* only for t7 dv vdin2 meta write done irq*/
 	if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
@@ -6046,14 +6040,12 @@ int vdin_get_irq_from_dts(struct platform_device *pdev,
 		snprintf(devp->vdin2_meta_wr_done_irq_name,
 			 sizeof(devp->vdin2_meta_wr_done_irq_name),
 			 "meta_wr_done_int");
-		pr_info("%s=%d\n", devp->vdin2_meta_wr_done_irq_name,
-			devp->vdin2_meta_wr_done_irq);
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "rdma-irq", &devp->rdma_irq);
 	if (ret) {
-		pr_err("don't find  match rdma irq, disable rdma\n");
+		pr_err("don't find match rdma irq, disable rdma\n");
 		devp->rdma_irq = 0;
 	}
 
@@ -6607,13 +6599,12 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "vdin_id", &devp->index);
 	if (ret) {
-		pr_err("don't find  vdin id.\n");
+		pr_err("don't find vdin id.\n");
 		goto fail_get_resource_irq;
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "vdin_export_id", &devp->index_export);
 	if (ret) {
-		pr_info("don't find vdin_export_id.\n");
 		devp->index_export = devp->index;
 		if (devp->index)
 			devp->hw_core = VDIN_HW_CORE_LITE;
@@ -6638,37 +6629,32 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		devp->rdma_handle = rdma_register(&vdin_rdma_op[devp->index],
 						NULL, RDMA_TABLE_SIZE);
 	else
-		pr_info("vdin%d: rdma not register\n", devp->index);
+		pr_info("vdin%d: rdma_register failed\n", devp->index);
 #endif
 
 	/* create cdev and register with sysfs */
 	ret = vdin_add_cdev(&devp->cdev, &vdin_fops, devp->index_export);
-	if (ret) {
-		pr_err("%s: failed to add cdev. !!!!!!!!!!\n", __func__);
+	if (ret)
 		goto fail_add_cdev;
-	}
+
 	devp->dev = vdin_create_device(&pdev->dev, devp->index);
 	if (IS_ERR_OR_NULL(devp->dev)) {
-		pr_err("%s: failed to create device. or dev=NULL\n", __func__);
+		pr_err("vdin_create_device failed\n");
 		ret = PTR_ERR(devp->dev);
 		goto fail_create_device;
 	}
 
 	ret = vdin_create_dev_class_files(devp->dev);
-	if (ret < 0) {
-		pr_err("%s: fail to create vdin attribute files.\n", __func__);
+	if (ret < 0)
 		goto fail_create_dev_file;
-	}
 
 	/*got the dt match data*/
 	of_id = of_match_device(vdin_dt_match, &pdev->dev);
 	if (!of_id) {
-		pr_err("%s: of_match_device get fail\n", __func__);
+		pr_err("%s: of_match_device failed\n", __func__);
 		goto fail_create_dev_file;
 	}
 	devp->dtdata = of_id->data;
-	pr_info("chip:%s hw_ver:%d\n", devp->dtdata->name,
-		devp->dtdata->hw_ver);
 
 #ifdef CONFIG_CMA
 	if (!use_reserved_mem) {
@@ -6676,7 +6662,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 					   "flag_cma",
 					   &devp->cma_config_flag);
 		if (ret) {
-			pr_err("don't find  match flag_cma\n");
+			pr_err("match flag_cma failed\n");
 			devp->cma_config_flag = 0;
 		}
 		devp->cma_config_flag_bak = devp->cma_config_flag;
@@ -6685,7 +6671,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 						   "cma_size",
 						   &devp->cma_mem_size);
 			if (ret)
-				pr_err("don't find  match cma_size\n");
+				pr_err("match cma_size failed\n");
 			else
 				devp->cma_mem_size *= SZ_1M;
 		} else {
@@ -6710,10 +6696,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	if (!(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)) {
 		ret = of_reserved_mem_device_init(&pdev->dev);
 		if (ret)
-			pr_info("vdin[%d] memory resource undefined!!\n", devp->index);
+			pr_debug("vdin%d reserved_mem not defined\n", devp->index);
 	}
 
-	pr_info("vdin(%d) dma mask\n", devp->index);
 	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 	if (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(36)) < 0)
 		pr_info("dev set_coherent_mask fail\n");
@@ -6842,7 +6827,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/* create vf pool */
 	devp->vfp = vf_pool_alloc(VDIN_CANVAS_MAX_CNT);
 	if (!devp->vfp) {
-		pr_err("%s: fail to alloc vf pool.\n", __func__);
+		pr_err("%s: vf_pool_alloc failed\n", __func__);
 		goto fail_alloc_vf_pool;
 	}
 	devp->vfp->priv = (void *)devp;
@@ -6878,14 +6863,11 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		clk = clk_get(&pdev->dev, "xtal");
 		devp->msr_clk = clk_get(&pdev->dev, "cts_vid_lock_clk");
 		if (IS_ERR(clk) || IS_ERR(devp->msr_clk)) {
-			pr_err("%s: vdin cannot get msr clk !!!\n", __func__);
 			clk = NULL;
 			devp->msr_clk = NULL;
 		} else {
 			clk_set_parent(devp->msr_clk, clk);
 			devp->msr_clk_val = clk_get_rate(devp->msr_clk);
-			pr_info("%s: vdin msr clock is %d MHZ\n", __func__,
-				devp->msr_clk_val / 1000000);
 		}
 #endif
 	} else {
@@ -6893,17 +6875,11 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		unsigned int clk_rate;
 
 		fclk_div5 = clk_get(&pdev->dev, "fclk_div5");
-		if (IS_ERR(fclk_div5)) {
-			pr_err("vdin%d get fclk_div5 err\n", devp->index);
-		} else {
+		if (!IS_ERR(fclk_div5))
 			clk_rate = clk_get_rate(fclk_div5);
-			pr_info("%s: fclk_div5 is %d MHZ\n", __func__,
-				clk_rate / 1000000);
-		}
+
 		devp->msr_clk = clk_get(&pdev->dev, "cts_vdin_meas_clk");
 		if (IS_ERR(devp->msr_clk)) {
-			pr_err("%s: vdin%d cannot get msr clk !!!\n",
-				__func__, devp->index);
 			fclk_div5 = NULL;
 			devp->msr_clk = NULL;
 			devp->msr_clk_val = 50000000;
@@ -6911,15 +6887,12 @@ static int vdin_drv_probe(struct platform_device *pdev)
 			if (!IS_ERR(fclk_div5))
 				clk_set_parent(devp->msr_clk, fclk_div5);
 			if (is_meson_t3x_cpu()) {
-				clk_set_rate(devp->msr_clk, 100000000);
-				devp->msr_clk_val = clk_get_rate(devp->msr_clk) / 2;
+				if (!clk_set_rate(devp->msr_clk, 100000000))
+					devp->msr_clk_val = clk_get_rate(devp->msr_clk) / 2;
 			} else {
-				clk_set_rate(devp->msr_clk, 50000000);
-				devp->msr_clk_val = clk_get_rate(devp->msr_clk);
+				if (!clk_set_rate(devp->msr_clk, 50000000))
+					devp->msr_clk_val = clk_get_rate(devp->msr_clk);
 			}
-			pr_info("%s: vdin[%d] clock is %d MHZ\n",
-				__func__, devp->index,
-				devp->msr_clk_val / 1000000);
 		}
 	}
 	/* register vpu clk control interface */
@@ -6973,7 +6946,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	if (!devp->index)
 		vout_register_client(&vdin_get_vinfo_notifier);
 
-	pr_info("%s: driver initialized ok\n", __func__);
+	pr_info("%s: vdin%d (hw_core=%d) probe ok\n", __func__, devp->index, devp->hw_core);
 	return 0;
 
 fail_alloc_vf_pool:
@@ -7190,13 +7163,12 @@ static struct platform_driver vdin_driver = {
 int __init vdin_drv_init(void)
 {
 	int ret = 0;
-
 	ret = alloc_chrdev_region(&vdin_devno, 0, VDIN_MAX_DEVS, VDIN_DEV_NAME);
 	if (ret < 0) {
 		pr_err("%s: failed to allocate major number\n", __func__);
 		goto fail_alloc_cdev_region;
 	}
-	pr_info("%s: major %d ver:%s\n", __func__, MAJOR(vdin_devno), VDIN_VER);
+	pr_info("%s: start (ver: %s)\n", __func__, VDIN_VER);
 
 	vdin_class = class_create(VDIN_CLS_NAME);
 	if (IS_ERR_OR_NULL(vdin_class)) {

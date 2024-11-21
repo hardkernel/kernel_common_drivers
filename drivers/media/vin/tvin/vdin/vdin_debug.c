@@ -1449,10 +1449,13 @@ static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void vdin_dump_count(struct vdin_dev_s *devp)
 {
-	pr_info("irq_cnt: %d\n", devp->irq_cnt);
-	pr_info("vpu crash irq: %d\n", devp->vpu_crash_cnt);
-	pr_info("write done irq: %d,check:%d,afbce[%d %d],wmif[%d %d]\n",
-		devp->stats.wr_done_irq_cnt, devp->stats.write_done_check,
+	pr_info("irq id:%d, cnt: %d\n", devp->irq, devp->irq_cnt);
+	pr_info("vpu crash irq id:%d, cnt:%d\n", devp->vpu_crash_irq, devp->vpu_crash_cnt);
+	pr_info("write done irq id:%d, cnt:%d\n", devp->wr_done_irq, devp->stats.wr_done_irq_cnt);
+	pr_info("vdin2_meta_wr_done_irq id:%d, cnt:%d\n",
+		devp->vdin2_meta_wr_done_irq, devp->stats.meta_wr_done_irq_cnt);
+	pr_info("check:%d,afbce[%d %d],wmif[%d %d]\n",
+		devp->stats.write_done_check,
 		devp->stats.afbce_normal_cnt, devp->stats.afbce_abnormal_cnt,
 		devp->stats.wmif_normal_cnt, devp->stats.wmif_abnormal_cnt);
 	pr_info("put_frame_cnt:%d\n", devp->put_frame_cnt);
@@ -2518,9 +2521,9 @@ static ssize_t attr_store(struct device *dev,
 				devp->cma_config_flag);
 		}
 	} else if (!strcmp(parm[0], "irq_en")) {
-		if (!parm[1])
+		if (!parm[1]) {
 			pr_err("miss parameters .\n");
-		if (kstrtol(parm[1], 10, &val) == 0) {
+		} else if (kstrtol(parm[1], 10, &val) == 0) {
 			if (val)
 				enable_irq(devp->irq);
 			else
@@ -4760,10 +4763,8 @@ void vdin_debugfs_init(struct vdin_dev_s *devp)
 
 	nub = devp->index;
 
-	if (nub > 0) {
-		pr_info("%s only support debug vdin0 %d\n", __func__, nub);
+	if (nub > 0)
 		return;
-	}
 
 	if (devp->dbg_root)
 		return;

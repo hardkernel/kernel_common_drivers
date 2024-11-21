@@ -246,8 +246,8 @@ enum vdin_irq_flg_e {
 };
 
 /*
- * t3x,vdin0/vdin1:normal core;vdin2:lite core
- * before t3x,vdin0:normal core;vdin1:lite core
+ * t3x, vdin0/vdin1: normal core; vdin2: lite core
+ * except for t3x, vdin0: normal core; vdin1: lite core
  */
 enum vdin_hw_core_type_e {
 	VDIN_HW_CORE_NORMAL = 0,
@@ -455,9 +455,6 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_CFMT		BIT(23)
 #define VDIN_ISR_MONITOR_SECURE		BIT(24)
 
-#define VDIN_DBG_CNTL_IOCTL	BIT(10)
-#define VDIN_DBG_CNTL_FLUSH	BIT(11)
-
 #define CURRENT_FRAME_GET_PROP	BIT(0)
 
 //pattern 4 used for protect hdcp content,others for debug
@@ -588,7 +585,9 @@ struct vdin_vf_info {
 #define DBG_SCT_CTL_DIS			(BIT(0)) /* disable sct memory */
 #define DBG_SCT_CTL_NO_FREE_TAIL	(BIT(1)) /* do not free tail */
 #define DBG_SCT_CTL_NO_FREE_WR_LIST	(BIT(2)) /* do not free vf mem in wr list */
+
 #define DBG_REG_LENGTH			10
+
 #define DBG_REG_START_READ		(BIT(0))
 #define DBG_REG_START_WRITE		(BIT(1))
 #define DBG_REG_START_SET_BIT		(BIT(2))
@@ -602,6 +601,8 @@ struct vdin_vf_info {
 
 /***vdin_dbg_en control for print***/
 #define DBG_VDIN1_HIST		(BIT(1)) /*print vdin1 HIST_IOC */
+#define VDIN_DBG_CNTL_IOCTL	(BIT(10))
+#define VDIN_DBG_CNTL_FLUSH	(BIT(11))
 
 struct vdin_slt_test_s {
 	bool en;
