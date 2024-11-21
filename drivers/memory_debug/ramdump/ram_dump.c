@@ -46,10 +46,37 @@
 #include <trace/hooks/debug.h>
 #include <linux/panic_notifier.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
+#include <linux/of_device.h>
+#include <linux/dma-mapping.h>
+#include <linux/delay.h>
+#ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
+#include "../../crypto/aml-crypto-dma.h"
+#endif
+
+#ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
+struct ramdump_dma_info {
+	u32 rsv_base;               // Reserved base address for memory dump
+	u32 rsv_size;               // Reserved size for memory dump
+	void __iomem *reg_base;     // DMA register base address (from dts)
+	void __iomem *reg_virt_t0;  // DMA register for TX ready
+	void __iomem *reg_virt_sts0;// DMA register for TX status
+	struct dma_dsc *dsc;        // DMA descriptor buffer pointer
+	dma_addr_t paddr;           // Physical address of descriptor buffer
+	struct device *dev;         // Pointer to the device structure
+};
+
+struct ramdump_dma_info dma_t;
+#define DMA_STS0_READY          0xf
+#define DMA_EOC_FLAG            0x2
+#define REG_OFFSET_T0           (TXLX_DMA_T0)
+#define REG_OFFSET_STS0         (TXLX_DMA_STS0)
+#endif
 
 static unsigned long ramdump_base;
 static unsigned long ramdump_size;
 static bool ramdump_disable			=	1;
+void __iomem *cfg_sticky_reg;   // REG_MDUMP_CPUBOOT_STATUS
 
 #define WAIT_TIMEOUT		(40ULL * 1000 * 1000 * 1000)
 #define SAVE_DATA_BY_INIT_RC_SHELL			1
@@ -362,6 +389,144 @@ static void flush_all_cache_hook(void *data, struct pt_regs *regs)
 	ramdump_sync_data();
 	pr_info("ramdump: ONLINE CPU-%d flush cache finish.\n", cpu);
 }
+#endif
+
+#ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
+static int ramdump_dma_init(struct device *dev)
+{
+	struct device_node *node;
+	struct reserved_mem *rmem;
+	struct resource res;
+
+	/* find dts node: /reserved-memory/ramdump_bl33z */
+	node = of_find_node_by_name(NULL, "ramdump_bl33z");
+	if (!node) {
+		pr_err("%s, Failed to find node ramdump_bl33z\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!of_device_is_available(node))
+		return -ENODEV;
+
+	rmem = of_reserved_mem_lookup(node);
+	if (rmem) {
+		dma_t.rsv_base = rmem->base;
+		dma_t.rsv_size = rmem->size;
+		pr_info("%s, ramdump DMA area: 0x%08x ~ 0x%08x (%d MB)\n",
+			__func__, rmem->base, rmem->base + rmem->size, rmem->size / (1 << 20));
+	} else {
+		pr_err("%s, Failed to get resource from node ramdump_bl33z.\n", __func__);
+		return -EINVAL;
+	}
+
+	/* find dts node: /aml_dma */
+	node = of_find_node_by_name(NULL, "aml_dma");
+	if (!node) {
+		pr_err("%s, Failed to find node aml_dma.\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!of_device_is_available(node))
+		return -ENODEV;
+
+	if (of_address_to_resource(node, 0, &res)) {
+		pr_err("%s, Failed to get resource from node aml_dma.\n", __func__);
+		of_node_put(node);
+		return -EINVAL;
+	}
+
+	dma_t.reg_base = devm_ioremap(dev, res.start, resource_size(&res));
+	if (!dma_t.reg_base) {
+		pr_err("%s, Failed to map aml_dma register resource.\n", __func__);
+		of_node_put(node);
+		return -ENOMEM;
+	}
+
+	pr_info("%s, DMA register base address: %p, REG_OFFSET_STS0=0x%x\n",
+			__func__, dma_t.reg_base, REG_OFFSET_STS0);
+	dma_t.reg_virt_t0 = dma_t.reg_base + REG_OFFSET_T0 * 4;
+	dma_t.reg_virt_sts0 = dma_t.reg_base + REG_OFFSET_STS0 * 4;
+
+	dma_t.dsc = dma_alloc_coherent(dev, sizeof(struct dma_dsc), &dma_t.paddr, GFP_KERNEL);
+	if (!dma_t.dsc)
+		return -ENOMEM;
+
+	dma_t.dev = dev;
+	memset(dma_t.dsc, 0, sizeof(struct dma_dsc));
+
+	/* dma dsc configuration, ready to copy */
+	dma_t.dsc->src_addr = 0x0;
+	dma_t.dsc->tgt_addr = dma_t.rsv_base;
+	dma_t.dsc->dsc_cfg.d32 = 0;      // clean descriptor chain
+	dma_t.dsc->dsc_cfg.b.length = (dma_t.rsv_size >> 9);  // Each block is 512 bytes;
+	dma_t.dsc->dsc_cfg.b.block = 1;  // block mode
+	dma_t.dsc->dsc_cfg.b.mode = 0;   // DMA mode
+	dma_t.dsc->dsc_cfg.b.eoc = 1;    // End of chain
+	dma_t.dsc->dsc_cfg.b.owner = 1;  // Owned by hardware
+
+	pr_info("%s: dma_dsc size %d Bytes. Vaddr:%08x, Paddr:%08x\n",
+			__func__, sizeof(struct dma_dsc),
+			(unsigned int)dma_t.dsc, (unsigned int)dma_t.paddr);
+
+	return 0;
+}
+
+static void ramdump_dma_free(struct device *dev)
+{
+	if (dma_t.dsc) {
+		dma_free_coherent(dev, sizeof(struct dma_dsc), dma_t.dsc, dma_t.paddr);
+		dma_t.dsc = NULL;
+		pr_info("%s, DMA descriptor freed.\n", __func__);
+	}
+}
+
+static int ramdump_dma_copy(void)
+{
+	unsigned int dump_set;
+	int cnt = 0;
+	int ret = 0;
+
+	if (!dma_t.reg_base) {
+		pr_err("%s: need dma init before.\n", __func__);
+		return -1;
+	}
+
+	if (!cfg_sticky_reg) {
+		pr_err("%s: need ramdump init before.\n", __func__);
+		return -1;
+	}
+
+	writel(DMA_STS0_READY, dma_t.reg_virt_sts0);
+	writel((uintptr_t)dma_t.paddr | DMA_EOC_FLAG, dma_t.reg_virt_t0);
+
+	pr_info("%s: DMA tx start ...\n", __func__);
+	while (cnt <= RAMDUMP_DMA_MAX_RETRIES) {
+		if (readl(dma_t.reg_virt_sts0) != 0)
+			break;
+		udelay(1000); /* 1ms */
+		cnt++;
+	}
+
+	if (cnt > RAMDUMP_DMA_MAX_RETRIES) {
+		pr_info("%s: ERROR! DMA tx timeout(%d ms). Drop dump.bin!\n",
+				__func__, RAMDUMP_DMA_MAX_RETRIES);
+		dump_set = readl(cfg_sticky_reg) & ~RAMDUMP_STICKY_DMA_MASK;
+		dump_set &= ~AMLOGIC_KERNEL_BOOTED;
+		writel(dump_set, cfg_sticky_reg);
+		return -1;
+	}
+
+	pr_info("%s: OK. DMA tx %d MB in %d ms.\n",
+			__func__, dma_t.rsv_size / (1 << 20), cnt);
+	dump_set = readl(cfg_sticky_reg) & ~RAMDUMP_STICKY_DMA_MASK;
+	dump_set |= dma_t.rsv_base / RAMDUMP_DMA_ALIGNED_4MB;
+	writel(dump_set, cfg_sticky_reg);
+	pr_info("%s, done. addr=0x%08x, sticky=0x%04x\n",
+			__func__, dma_t.rsv_base, readl(cfg_sticky_reg));
+
+	return ret;
+}
+#endif
 
 static int panic_notify(struct notifier_block *self,
 			unsigned long cmd, void *ptr)
@@ -371,39 +536,41 @@ static int panic_notify(struct notifier_block *self,
 	pr_info("ramdump: PANIC CPU-%d flush cache ...\n", cpu);
 	ramdump_sync_data();
 	pr_info("ramdump: PANIC CPU-%d flush cache finish.\n", cpu);
+#ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
+	ramdump_dma_copy();
+#endif
 	return NOTIFY_DONE;
 }
 
 static struct notifier_block panic_notifier = {
 	.notifier_call	= panic_notify,
 };
-#endif
 
 static int __init ramdump_probe(struct platform_device *pdev)
 {
 	unsigned long total_mem;
 	struct resource *res;
 	unsigned int dump_set;
-	void __iomem *base;
 	void *vaddr = NULL;
 	int ret = 0;
 
 	total_mem = get_num_physpages() << PAGE_SHIFT;
+	/* MEM is aligned upwards to 64MB. And CFG bit0-5 use for dma copy addr */
+	total_mem = (total_mem + RAMDUMP_DDR_ALIGNED_64MB - 1) & ~(RAMDUMP_DDR_ALIGNED_64MB - 1);
 	pr_info("%s, %ld MB, args base:%lx, size:%lx\n",
 			__func__, total_mem / 1024 / 1024, ramdump_base, ramdump_size);
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 	if (!ramdump_disable) {
+#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 		/* flush cache for online cpu */
 		ret = register_trace_android_vh_ipi_stop(flush_all_cache_hook, NULL);
 		if (ret)
 			pr_err("%s, register_trace_android_vh_ipi_stop err(%d).\n", __func__, ret);
-
-		/* flush cache for panic cpu */
+#endif
+		/* flush cache for panic cpu, and DMA copy for 32bit */
 		ret = atomic_notifier_chain_register(&panic_notifier_list, &panic_notifier);
 		if (ret)
 			pr_err("%s, register panic_notifier err(%d).\n", __func__, ret);
 	}
-#endif
 
 	ram = kzalloc(sizeof(*ram), GFP_KERNEL);
 	if (!ram)
@@ -449,18 +616,22 @@ static int __init ramdump_probe(struct platform_device *pdev)
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "SYSCTRL_STICKY_REG6");
 		if (res) {
-			base = devm_ioremap(&pdev->dev, res->start,
+			cfg_sticky_reg = devm_ioremap(&pdev->dev, res->start,
 					    res->end - res->start);
-			if (!base) {
+			if (!cfg_sticky_reg) {
 				pr_err("%s, map reg failed\n", __func__);
 				goto err;
 			}
-			dump_set = readl(base);
+			dump_set = readl(cfg_sticky_reg);
 			dump_set &= ~RAMDUMP_STICKY_DATA_MASK;
 			dump_set |= ((total_mem >> 20) | AMLOGIC_KERNEL_BOOTED);
-			writel(dump_set, base);
+			writel(dump_set, cfg_sticky_reg);
 			pr_info("%s, set sticky(0x%08x) to 0x%x\n",
 					__func__, (unsigned int)res->start, dump_set);
+
+#ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
+			ramdump_dma_init(&pdev->dev);
+#endif
 		}
 	}
 	return ret;
@@ -481,6 +652,9 @@ static void ramdump_remove(struct platform_device *pdev)
 	sysfs_remove_bin_file(ram->kobj, &ramdump_attr);
 	iounmap((void *)ram->mem_base);
 	kobject_put(ram->kobj);
+#endif
+#ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
+	ramdump_dma_free(&pdev->dev);
 #endif
 	kfree(ram);
 }

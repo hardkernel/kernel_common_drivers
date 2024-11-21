@@ -35,8 +35,13 @@
 		#size-cells = <1>;
 		ranges;
 
-		ramdump_bl33z@0 {
-			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+		ramdump_bl33z {
+			compatible = "shared-dma-pool";
+			size = <0x01800000>;
+			alignment = <0x00400000>;
+			alloc-ranges = <0x0d000000 0x03000000>;
+			linux,contiguous-region;
+			no-map;
 			status = "disabled";
 		};
 

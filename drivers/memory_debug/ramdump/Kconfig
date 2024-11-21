@@ -8,3 +8,24 @@ config AMLOGIC_RAMDUMP
 		generated, the entire ddr data will be compressed and
 		copied out. Finally, use the crash tool to debug and
 		analyze on the PC side.
+
+config AMLOGIC_RAMDUMP_TEXTOFFSET
+	bool "set TEXTOFFSET=0x02008000 for kernel 32bit"
+	depends on ARM
+	depends on AMLOGIC_RAMDUMP
+	default n
+	help
+		The 32-bit kernel cannot use ramdump because the text
+		section at 1MB is overwritten by BL2 after reboot.
+		Set TEXTOFFSET to 24MB+, just for kernel 32bit.
+
+config AMLOGIC_RAMDUMP_DMA_COPY
+	bool "DMA copy 0-24MB after kernel panic"
+	depends on ARM
+	depends on AMLOGIC_RAMDUMP
+	default y if !AMLOGIC_RAMDUMP_TEXTOFFSET
+	default n
+	help
+		The 32-bit kernel cannot use ramdump because the text
+		section at 1MB is overwritten by BL2 after reboot.
+		DMA copy 0-24MB to high-mem area after kernel panic.
