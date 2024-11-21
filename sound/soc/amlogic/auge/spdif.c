@@ -389,8 +389,7 @@ static void ss_mute(int samesource_sel, bool mute)
 		struct aml_spdif *p_spdif = ops->private;
 		if (p_spdif->spdif_soft_mute)
 			spdif_reg_mute =  p_spdif->mute;
-		aml_spdifout_mute_without_actrl(samesource_sel - 3, !mute, spdif_reg_mute,
-			p_spdif->chipinfo->gain_ver);
+		aml_spdifout_mute_without_actrl(samesource_sel - 3, !mute, spdif_reg_mute);
 
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
 		    get_samesrc_ops(p_spdif->samesource_sel) &&
@@ -693,10 +692,8 @@ static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 				pinctrl_select_state(p_spdif->pin_ctl, state);
 		}
 	} else {
-		int gain_ver = p_spdif->chipinfo->gain_ver;
-
-		if (aml_spdif_out_get_mute(p_spdif->actrl, p_spdif->id, gain_ver) != mute)
-			aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, mute, gain_ver);
+		if (aml_spdif_out_get_mute(p_spdif->actrl, p_spdif->id) != mute)
+			aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, mute);
 	}
 
 	p_spdif->mute = mute;
@@ -1509,8 +1506,7 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			udelay(100);
 			if (p_spdif->spdif_soft_mute)
 				spdif_reg_mute =  p_spdif->mute;
-			aml_spdifout_mute_without_actrl(p_spdif->id, true, spdif_reg_mute,
-				p_spdif->chipinfo->gain_ver);
+			aml_spdifout_mute_without_actrl(p_spdif->id, true, spdif_reg_mute);
 			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 				spdif_sharebuffer_mute(p_spdif, false);
 		} else {
@@ -1540,8 +1536,7 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			 * only mute, ensure spdif outputs zero data.
 			 */
 			if (p_spdif->clk_cont) {
-				aml_spdifout_mute_without_actrl(p_spdif->id, false, true,
-					p_spdif->chipinfo->gain_ver);
+				aml_spdifout_mute_without_actrl(p_spdif->id, false, true);
 				if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 					spdif_sharebuffer_mute(p_spdif, true);
 			} else {

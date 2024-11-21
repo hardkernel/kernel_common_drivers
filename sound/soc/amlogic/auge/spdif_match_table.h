@@ -43,7 +43,6 @@ struct spdif_chipinfo {
 	int out_reset_reg_offset;
 	/* offset by the spec */
 	int out_reset_reg_shift;
-	int  gain_ver;
 	/* for input only */
 	bool only_capture;
 };
@@ -58,7 +57,6 @@ struct spdif_chipinfo axg_spdif_chipinfo = {
 	.use_arb          = true,
 	.out_reset_reg_offset = 9,
 	.out_reset_reg_shift = 15,
-	.gain_ver = GAIN_VER1,
 };
 
 struct spdif_chipinfo g12a_spdif_a_chipinfo = {
@@ -71,7 +69,6 @@ struct spdif_chipinfo g12a_spdif_a_chipinfo = {
 	.use_arb        = true,
 	.out_reset_reg_offset = 9,
 	.out_reset_reg_shift = 15,
-	.gain_ver = GAIN_VER1,
 };
 
 struct spdif_chipinfo g12a_spdif_b_chipinfo = {
@@ -84,7 +81,6 @@ struct spdif_chipinfo g12a_spdif_b_chipinfo = {
 	.use_arb        = true,
 	.out_reset_reg_offset = 9,
 	.out_reset_reg_shift = 16,
-	.gain_ver = GAIN_VER1,
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -98,7 +94,6 @@ struct spdif_chipinfo tl1_spdif_a_chipinfo = {
 	.use_arb      = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 15,
-	.gain_ver = GAIN_VER1,
 };
 
 struct spdif_chipinfo tl1_spdif_b_chipinfo = {
@@ -111,7 +106,6 @@ struct spdif_chipinfo tl1_spdif_b_chipinfo = {
 	.use_arb      = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 16,
-	.gain_ver = GAIN_VER1,
 };
 #endif
 
@@ -125,7 +119,6 @@ struct spdif_chipinfo sm1_spdif_a_chipinfo = {
 	.use_arb      = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 15,
-	.gain_ver = GAIN_VER2,
 };
 
 struct spdif_chipinfo sm1_spdif_b_chipinfo = {
@@ -138,7 +131,6 @@ struct spdif_chipinfo sm1_spdif_b_chipinfo = {
 	.use_arb      = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 16,
-	.gain_ver = GAIN_VER2,
 };
 
 struct spdif_chipinfo tm2_spdif_a_chipinfo = {
@@ -151,7 +143,6 @@ struct spdif_chipinfo tm2_spdif_a_chipinfo = {
 	.use_arb      = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 15,
-	.gain_ver = GAIN_VER2,
 };
 
 struct spdif_chipinfo tm2_spdif_b_chipinfo = {
@@ -164,7 +155,6 @@ struct spdif_chipinfo tm2_spdif_b_chipinfo = {
 	.use_arb      = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 16,
-	.gain_ver = GAIN_VER2,
 };
 #endif
 
@@ -180,7 +170,6 @@ struct spdif_chipinfo tm2_revb_spdif_a_chipinfo = {
 	.use_arb      = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 15,
-	.gain_ver = GAIN_VER3,
 };
 
 struct spdif_chipinfo tm2_revb_spdif_b_chipinfo = {
@@ -194,7 +183,6 @@ struct spdif_chipinfo tm2_revb_spdif_b_chipinfo = {
 	.use_arb      = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 16,
-	.gain_ver = GAIN_VER3,
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -209,7 +197,6 @@ struct spdif_chipinfo a5_spdif_a_chipinfo = {
 	.regulator    = true,
 	.out_reset_reg_offset = 0xa,
 	.out_reset_reg_shift = 15,
-	.gain_ver = GAIN_VER3,
 };
 
 struct spdif_chipinfo a1_spdif_in_chipinfo = {
@@ -221,7 +208,6 @@ struct spdif_chipinfo a1_spdif_in_chipinfo = {
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V1,
 	.use_arb      = true,
 	.only_capture = true,
-	.gain_ver = GAIN_VER3,
 };
 #endif
 
