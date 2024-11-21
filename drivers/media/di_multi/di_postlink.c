@@ -829,7 +829,8 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 
 		memcpy(dvfm_dm,
 			   in_dvfm, sizeof(*in_dvfm));
-		dim_dvf_type_p_change(dvfm_dm, out_fmt);
+		if (chg != 2)
+			dim_dvf_type_p_change(dvfm_dm, out_fmt);
 		dvfm_dm->flg_afbce_set = false;
 		if (itf->etype == EDIM_NIN_TYPE_VFM)
 			dvfm_dm->is_itf_vfm = 1;
