@@ -22,6 +22,9 @@ void blend(struct ge2d_context_s *wq,
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
 
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
+
 	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
 	   src2_x < 0 || src2_y < 0 || src2_w < 0 || src2_h < 0 ||
 	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
@@ -98,6 +101,9 @@ void blend_noblk(struct ge2d_context_s *wq,
 
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
+
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
 
 	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
 	   src2_x < 0 || src2_y < 0 || src2_w < 0 || src2_h < 0 ||
@@ -184,6 +190,9 @@ void blend_noalpha(struct ge2d_context_s *wq,
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
 
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
+
 	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
 	   src2_x < 0 || src2_y < 0 || src2_w < 0 || src2_h < 0 ||
 	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
@@ -265,6 +274,9 @@ void blend_noalpha_noblk(struct ge2d_context_s *wq,
 
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
+
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
 
 	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
 	   src2_x < 0 || src2_y < 0 || src2_w < 0 || src2_h < 0 ||
