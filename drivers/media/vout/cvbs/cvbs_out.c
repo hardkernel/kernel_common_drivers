@@ -1565,14 +1565,14 @@ static void cvbsout_get_config(struct device *dev)
 		cvbs_drv->sva_std = !!val;
 	else
 		cvbs_drv->sva_std = 0;
-	cvbs_log_info("sva_std:0x%x\n", cvbs_drv->sva_std);
+	cvbs_log_dbg("sva_std:0x%x\n", cvbs_drv->sva_std);
 
 	ret = of_property_read_u32(dev->of_node, "ntsc_ttc", &val);
 	if (!ret)
 		cvbs_drv->ntsc_ttc = !!val;
 	else
 		cvbs_drv->ntsc_ttc = 0;
-	cvbs_log_info("ntsc_ttc:0x%x\n", cvbs_drv->ntsc_ttc);
+	cvbs_log_dbg("ntsc_ttc:0x%x\n", cvbs_drv->ntsc_ttc);
 
 	for (perf_idx = 0; perf_idx < ARRAY_SIZE(perf_config); perf_idx++) {
 		perf_conf_ptr = perf_config[perf_idx].perfconf;
@@ -2015,13 +2015,13 @@ static const struct component_ops meson_cvbs_bind_ops = {
 
 static int am_meson_cvbs_probe(struct platform_device *pdev)
 {
-	pr_info("[%s:%d] in\n", __func__, __LINE__);
+	pr_debug("[%s:%d] in\n", __func__, __LINE__);
 	return component_add(&pdev->dev, &meson_cvbs_bind_ops);
 }
 
 static void am_meson_cvbs_remove(struct platform_device *pdev)
 {
-	pr_info("[%s:%d] in\n", __func__, __LINE__);
+	pr_debug("[%s:%d] in\n", __func__, __LINE__);
 	component_del(&pdev->dev, &meson_cvbs_bind_ops);
 }
 
@@ -2179,7 +2179,7 @@ static int meson_cvbs_bind(struct device *dev,
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_TV,
 			&drm_cvbs_instance.base);
-		cvbs_log_info("%s cvbs [%d]\n", __func__, hdev->drm_cvbs_id);
+		cvbs_log_dbg("%s cvbs [%d]\n", __func__, hdev->drm_cvbs_id);
 	} else {
 		cvbs_log_err("no bind func from drm.\n");
 	}

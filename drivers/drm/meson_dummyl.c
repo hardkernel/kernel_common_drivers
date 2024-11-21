@@ -187,7 +187,7 @@ int meson_dummyl_dev_bind(struct drm_device *drm,
 		return 0;
 	}
 
-	DRM_INFO("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
 	am_dummyl = kzalloc(sizeof(*am_dummyl), GFP_KERNEL);
 	if (!am_dummyl) {
 		DRM_ERROR("[%s]: alloc drm_dummyl failed\n", __func__);

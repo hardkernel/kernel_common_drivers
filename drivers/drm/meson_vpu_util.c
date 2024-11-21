@@ -91,7 +91,7 @@ void meson_vpu_reg_handle_register(void *arg)
 			drm_vsync_rdma_handle[vpp_index]);
 	}
 
-	DRM_INFO("%s, vpp%d-%d\n", __func__, vpp_index, drm_vsync_rdma_handle[vpp_index]);
+	DRM_DEBUG("%s, vpp%d-%d\n", __func__, vpp_index, drm_vsync_rdma_handle[vpp_index]);
 }
 
 /*suggestion: call this after atomic done*/

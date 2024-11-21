@@ -751,8 +751,8 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 					 &vp_vf_ops, video);
 	}
 
-	DRM_INFO("%s:vfm_mode = %d\n", __func__, video->vfm_mode);
-	MESON_DRM_BLOCK("%s:%s done.\n", __func__, video->base.name);
+	MESON_DRM_BLOCK("%s:%s done.vfm_mode:%d\n", __func__, video->base.name,
+			video->vfm_mode);
 }
 
 struct meson_vpu_block_ops video_ops = {

@@ -2312,7 +2312,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 	meson_plane_add_occupied_property(priv->drm, osd_plane);
 	meson_plane_add_max_fb_property(priv->drm, osd_plane);
 	meson_plane_add_rotation_reflect_property(priv->drm, osd_plane);
-	DRM_INFO("osd plane %d create done, occupied-%d crtc_mask-%d type-%d osd_reverse-%d\n",
+	DRM_DEBUG("osd plane %d create done, occupied-%d crtc_mask-%d type-%d osd_reverse-%d\n",
 		i, osd_plane->osd_occupied, crtc_mask, type, osd_reverse);
 	meson_plane_create_security_en_property(priv->drm, osd_plane);
 	meson_plane_add_palette_property(priv->drm, osd_plane);
@@ -2378,7 +2378,7 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 				BIT(SIGNAL_FMT_HDR10PRIME) |
 				BIT(SIGNAL_FMT_CUVA_HDR));
 	drm_plane_helper_add(plane, &am_video_helper_funcs);
-	DRM_INFO("video plane %d create done\n", i);
+	DRM_DEBUG("video plane %d create done\n", i);
 	return video_plane;
 }
 
@@ -2390,6 +2390,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 	struct meson_of_conf *conf = &priv->of_conf;
 	enum drm_plane_type type[MESON_MAX_OSD];
 	int i, osd_index, video_index;
+	u32 num_osd_plane = 0;
 
 	memset(priv->osd_planes, 0, sizeof(struct am_osd_plane *) * MESON_MAX_OSD);
 	memset(priv->video_planes, 0, sizeof(struct am_video_plane *) * MESON_MAX_VIDEO);
@@ -2417,6 +2418,8 @@ int am_meson_plane_create(struct meson_drm *priv)
 		priv->num_planes++;
 	}
 
+	num_osd_plane = priv->num_planes;
+
 	/*video plane: init after osd to provide osd id at first.*/
 	for (i = 0; i < pipeline->num_video; i++) {
 		video_index = pipeline->video[i]->base.index;
@@ -2431,5 +2434,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 		priv->num_planes++;
 	}
 
+	DRM_INFO("%u osd and %u video plane are created\n", num_osd_plane,
+			priv->num_planes - num_osd_plane);
 	return 0;
 }

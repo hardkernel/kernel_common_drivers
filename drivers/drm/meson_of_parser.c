@@ -52,7 +52,7 @@ static void meson_video_parse_config(struct drm_device *dev, struct meson_of_con
 	if (ret)
 		DRM_DEBUG("%s parse vfm mode fail!\n", __func__);
 
-	DRM_INFO("%s:vfm_mode = %d\n", __func__, mode_flag);
+	DRM_DEBUG("%s:vfm_mode = %d\n", __func__, mode_flag);
 	conf->vfm_mode = mode_flag;
 }
 
@@ -155,7 +155,7 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 	ret = of_property_read_u32(vpu_dev->of_node,
 					"osd_axi_sel", &pipeline->osd_axi_sel);
 	if (ret) {
-		DRM_ERROR("osd_axi_sel parser failed and set default 0\n");
+		DRM_DEBUG("osd_axi_sel parser failed and set default 0\n");
 		pipeline->osd_axi_sel = 0;
 	}
 

@@ -1519,6 +1519,8 @@
 		 *    2: force (60/50/30/24/59.94/23.97)
 		 */
 		fr_policy = <2>;
+		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vsync";
 	};
 
 	vout_mux: vout_mux {

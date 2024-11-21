@@ -342,7 +342,7 @@ static int set_vout2_init_mode(void)
 	} else {
 		memset(vout2_mode, 0, sizeof(vout2_mode));
 		snprintf(vout2_mode, VMODE_NAME_LEN_MAX, local_name);
-		VOUTPR("vout2: init mode %s set ok\n", local_name);
+		VOUTDBG("vout2: init mode %s set ok\n", local_name);
 	}
 
 	return ret;
@@ -962,7 +962,7 @@ static void aml_vout2_get_dt_info(struct platform_device *pdev)
 		if (ret)
 			VOUTERR("vout2: init fr_policy %d failed\n", para[0]);
 		else
-			VOUTPR("vout2: fr_policy:%d\n", para[0]);
+			VOUTDBG("vout2: fr_policy:%d\n", para[0]);
 	}
 }
 

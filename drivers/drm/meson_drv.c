@@ -355,9 +355,9 @@ static int am_meson_drm_bind(struct device *dev)
 
 	logo_skip = 0;
 	ret = of_property_read_u32(dev->of_node, "logo_skip", &logo_skip);
-	DRM_INFO("logo_skip = %d\n", logo_skip);
 	if ((!ret && logo_skip == 1) || skip_logo)
-		DRM_INFO("skip logo commit!\n");
+		DRM_INFO("skip logo commit.logo_skip:%d,skip_logo:%d,ret:%d\n",
+				logo_skip, skip_logo, ret);
 	else
 		am_meson_logo_init(drm);
 

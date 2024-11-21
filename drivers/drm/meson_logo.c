@@ -413,8 +413,8 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 	slogo->panel_index = priv->primary_plane_index[idx];
 	slogo->vpp_index = idx;
 
-	DRM_INFO("logo%d width=%d,height=%d,start_addr=0x%pa,size=%d\n",
-		 idx, slogo->width, slogo->height, &slogo->start, slogo->size);
+	DRM_INFO("logo%d w=%d,h=%d,start_addr=0x%pa,size=%d\n",
+			 idx, slogo->width, slogo->height, &slogo->start, slogo->size);
 	DRM_DEBUG("bpp=%d,alloc_flag=%d, osd_reverse=%d\n",
 		 slogo->bpp, slogo->alloc_flag, slogo->osd_reverse);
 	DRM_DEBUG("outputmode=%s\n", slogo->outputmode);
@@ -862,7 +862,6 @@ void am_meson_logo_init(struct drm_device *dev)
 	if (!mem_node || !of_device_is_available(mem_node)) {
 		DRM_INFO("mem region is disabled, skip allocation!\n");
 	}  else if (is_cma) {
-		DRM_INFO("allocate cmd mem\n");
 		ret = of_reserved_mem_device_init(&gp_dev->dev);
 		if (ret != 0) {
 			DRM_ERROR("failed to init reserved memory\n");
@@ -878,28 +877,23 @@ void am_meson_logo_init(struct drm_device *dev)
 
 			cma_logo = dev_get_cma_area(&gp_dev->dev);
 
-			if (cma_logo) {
-				if (logo.size > 0) {
+			if (!cma_logo || !logo.size) {
+				DRM_ERROR("Invalid cma, cma_logo:%p, size:%x\n",
+						cma_logo, logo.size);
+			} else {
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-					logo.logo_page = cma_alloc(cma_logo,
-							ALIGN(logo.size, PAGE_SIZE) >> PAGE_SHIFT,
-							0, GFP_KERNEL);
+				logo.logo_page = cma_alloc(cma_logo,
+						ALIGN(logo.size, PAGE_SIZE) >> PAGE_SHIFT,
+						0, GFP_KERNEL);
 #else
-					logo.logo_page = cma_alloc(cma_logo,
-							ALIGN(logo.size, PAGE_SIZE) >> PAGE_SHIFT,
-							0, false);
+				logo.logo_page = cma_alloc(cma_logo,
+						ALIGN(logo.size, PAGE_SIZE) >> PAGE_SHIFT,
+						0, false);
 #endif
-					if (!logo.logo_page)
-						DRM_ERROR("allocate buffer failed\n");
-					else
-						am_meson_logo_info_update(private);
-
-					DRM_INFO(" cma_alloc from %s start page %px-%px size %x\n",
-						cma_get_name(cma_logo),
-						logo.logo_page,
-						(void *)logo.start,
-						logo.size);
-				}
+				if (!logo.logo_page)
+					DRM_ERROR("allocate buffer failed\n");
+				else
+					am_meson_logo_info_update(private);
 			}
 #endif
 			if (gem_mem_start) {
@@ -912,7 +906,6 @@ void am_meson_logo_init(struct drm_device *dev)
 			}
 		}
 	} else {
-		DRM_INFO("allocate reserved mem\n");
 		ret = parse_reserve_mem_resource(mem_node, &osd_mem_res);
 
 		if (ret != 0) {
@@ -920,11 +913,11 @@ void am_meson_logo_init(struct drm_device *dev)
 		} else {
 			logo.size = resource_size(&osd_mem_res);
 			logo.start = osd_mem_res.start;
-			DRM_INFO("of read reservememsize=0x%x--0x%x\n",
-					logo.size, (u32)logo.start);
 		}
 
-		if (logo.size > 0) {
+		if (logo.size == 0) {
+			DRM_ERROR("logo size 0, error!\n");
+		} else {
 			logo.vaddr = memremap(logo.start, logo.size,
 					MEMREMAP_WB);
 

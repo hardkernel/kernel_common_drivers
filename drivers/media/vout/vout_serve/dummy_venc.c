@@ -2324,7 +2324,7 @@ static int meson_dummyl_bind(struct device *dev,
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_DUMMY_L,
 			&dummy_encl_drv->drm_instance.base);
-		pr_err("%s dummyl[%d]\n", __func__, dummy_encl_drv->drm_id);
+		pr_debug("%s dummyl[%d]\n", __func__, dummy_encl_drv->drm_id);
 	} else {
 		pr_err("no bind func from drm.\n");
 	}
@@ -2513,7 +2513,7 @@ static int dummy_venc_probe(struct platform_device *pdev)
 		break;
 	};
 
-	VOUTPR("%s OK\n", __func__);
+	VOUTDBG("%s OK\n", __func__);
 
 	return 0;
 }

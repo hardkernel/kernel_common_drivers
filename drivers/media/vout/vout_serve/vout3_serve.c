@@ -343,7 +343,7 @@ static int set_vout3_init_mode(void)
 	} else {
 		memset(vout3_mode, 0, sizeof(vout3_mode));
 		snprintf(vout3_mode, VMODE_NAME_LEN_MAX, local_name);
-		VOUTPR("vout3: init mode %s set ok\n", local_name);
+		VOUTDBG("vout3: init mode %s set ok\n", local_name);
 	}
 
 	return ret;
@@ -964,7 +964,7 @@ static void aml_vout3_get_dt_info(struct platform_device *pdev)
 		if (ret)
 			VOUTERR("vout3: init fr_policy %d failed\n", para[0]);
 		else
-			VOUTPR("vout3: fr_policy:%d\n", para[0]);
+			VOUTDBG("vout3: fr_policy:%d\n", para[0]);
 	}
 }
 

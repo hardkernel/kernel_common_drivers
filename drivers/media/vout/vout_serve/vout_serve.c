@@ -400,7 +400,7 @@ static int set_vout_init_mode(void)
 	} else {
 		memset(vout_mode, 0, sizeof(vout_mode));
 		snprintf(vout_mode, VMODE_NAME_LEN_MAX, "%s", local_name);
-		VOUTPR("init mode %s set ok\n", local_name);
+		VOUTDBG("init mode %s set ok\n", local_name);
 	}
 	vout_notifier_call_chain(VOUT_EVENT_SYS_INIT, &vmode);
 
@@ -1165,7 +1165,7 @@ static void aml_vout_get_dt_info(struct platform_device *pdev)
 		if (ret)
 			VOUTERR("init fr_policy %d failed\n", para[0]);
 		else
-			VOUTPR("fr_policy:%d\n", para[0]);
+			VOUTDBG("fr_policy:%d\n", para[0]);
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "vs_meas", &para[0]);
@@ -1212,7 +1212,7 @@ static int aml_vout_probe(struct platform_device *pdev)
 	vout_register_server(&nulldisp_vout_server);
 	set_vout_init_mode();
 
-	VOUTPR("%s OK\n", __func__);
+	VOUTDBG("%s OK\n", __func__);
 	return ret;
 }
 

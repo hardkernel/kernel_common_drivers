@@ -307,7 +307,7 @@ static int meson_hdmitx_bind(struct device *dev,
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_HDMIA_A + global_tx_base->enc_idx,
 			&hdmitx_drm_instance.base);
-		HDMITX_INFO("%s hdmi [%d]\n", __func__, drm_hdmitx_id);
+		HDMITX_DEBUG("%s hdmi [%d]\n", __func__, drm_hdmitx_id);
 	} else {
 		HDMITX_ERROR("no bind func from drm.\n");
 	}
