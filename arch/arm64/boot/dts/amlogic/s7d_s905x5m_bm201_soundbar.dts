@@ -923,6 +923,7 @@
 };
 
 &earc {
+	hdmitx_5v-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
