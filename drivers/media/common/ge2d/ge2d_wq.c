@@ -57,6 +57,11 @@ static int ge2d_irq = -ENXIO;
 static struct clk *ge2d_clk;
 static int backup_init_regs = 1;
 static DEFINE_MUTEX(dp_ctrl_mutex);
+static DEFINE_SPINLOCK(clk_lock);
+static int clk_counter;
+static int clk_counter_running;
+static struct timer_list clk_timer;
+#define CLK_TIMER_MS (1000)
 
 static const int bpp_type_lut[] = {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
@@ -217,7 +222,7 @@ void ge2d_runtime_pwr(int enable)
 	}
 }
 
-static int ge2d_clk_config(bool enable)
+static int ge2d_clk_set(bool enable)
 {
 	if (!ge2d_clk)
 		return -1;
@@ -225,6 +230,58 @@ static int ge2d_clk_config(bool enable)
 		clk_prepare_enable(ge2d_clk);
 	else
 		clk_disable_unprepare(ge2d_clk);
+
+	return 0;
+}
+
+static void clk_timer_expire(struct timer_list *t)
+{
+	int state = 0;
+
+	if (!clk_counter) {
+		del_timer(t);
+		ge2d_clk_set(false);
+		state = 1;
+		clk_counter_running = 0;
+	} else {
+		mod_timer(t, jiffies + msecs_to_jiffies(CLK_TIMER_MS));
+	}
+	ge2d_log_dbg("ge2d clk %s\n", state ? "off" : "delay");
+}
+
+static int ge2d_clk_config(bool enable)
+{
+	unsigned long lock_flags;
+
+	if (!ge2d_clk)
+		return -1;
+
+	spin_lock_irqsave(&clk_lock, lock_flags);
+	if (enable)
+		clk_counter++;
+	else
+		clk_counter--;
+
+	if (clk_counter > 0 && !clk_counter_running) {
+		clk_counter_running = 1;
+		ge2d_clk_set(true);
+		ge2d_log_dbg("ge2d clk on\n");
+		timer_setup(&clk_timer, clk_timer_expire, 0);
+		clk_timer.expires = jiffies + msecs_to_jiffies(CLK_TIMER_MS);
+		add_timer(&clk_timer);
+	}
+
+	if (clk_counter_running)
+		mod_timer(&clk_timer, jiffies + msecs_to_jiffies(CLK_TIMER_MS));
+
+	if (clk_counter < 0 || clk_counter > 1) {
+		ge2d_log_err("clk_counter:%d is wrong\n", clk_counter);
+		if (clk_counter < 0)
+			clk_counter = 0;
+		if (clk_counter > 1)
+			clk_counter = 1;
+	}
+	spin_unlock_irqrestore(&clk_lock, lock_flags);
 
 	return 0;
 }

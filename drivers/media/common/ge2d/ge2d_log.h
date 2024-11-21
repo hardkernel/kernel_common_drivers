@@ -15,6 +15,7 @@
 #define GE2D_LOG_LEVEL_DEBUG2 2
 #define GE2D_LOG_DUMP_CMD_QUEUE_REGS 0x100
 #define GE2D_LOG_DUMP_STACK 0x200
+#define GE2D_LOG_SKIP_PROCESS 0x400
 
 extern unsigned int ge2d_log_level;
 

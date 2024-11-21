@@ -16,6 +16,9 @@ static void _bitblt(struct ge2d_context_s *wq,
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
 
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
+
 	if (src_x < 0 || src_y < 0 || w < 0 || h < 0 ||
 	   dst_x < 0 || dst_y < 0) {
 		ge2d_log_err("%s wrong params, %d %d %d %d-> %d %d\n",
@@ -61,6 +64,9 @@ static void _bitblt_noalpha(struct ge2d_context_s *wq,
 
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
+
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
 
 	if (src_x < 0 || src_y < 0 || w < 0 || h < 0 ||
 	   dst_x < 0 || dst_y < 0) {

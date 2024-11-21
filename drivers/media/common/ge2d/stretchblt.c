@@ -17,6 +17,9 @@ static void _stretchblt(struct ge2d_context_s *wq,
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
 
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
+
 	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
 	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
 		ge2d_log_err("%s wrong params, %d %d %d %d-> %d %d %d %d\n",
@@ -87,6 +90,9 @@ static void _stretchblt_noalpha(struct ge2d_context_s *wq,
 
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
+
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
 
 	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
 	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {

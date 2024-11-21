@@ -1571,7 +1571,13 @@ bool ge2d_queue_empty(void)
 
 bool ge2d_is_busy(void)
 {
-	if (ge2d_reg_read(GE2D_STATUS0) & 1)
+	int reg = GE2D_STATUS0, bit = 0;
+
+	if (ge2d_meson_dev.chip_type >= MESON_CPU_MAJOR_ID_S7D) {
+		reg = GE2D_STATUS2;
+		bit = 3;
+	}
+	if (ge2d_reg_read(reg) & BIT(bit))
 		return true;
 	else
 		return false;

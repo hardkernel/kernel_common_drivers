@@ -19,6 +19,9 @@ static void _fillrect(struct ge2d_context_s *wq,
 	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
 		dump_stack();
 
+	if (ge2d_log_level & GE2D_LOG_SKIP_PROCESS)
+		return;
+
 	if (x < 0 || y < 0 || w < 0 || h < 0) {
 		ge2d_log_err("%s wrong params, %d %d %d %d\n",
 			     __func__, x, y, w, h);
