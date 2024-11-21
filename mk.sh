@@ -215,12 +215,17 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo args=${args}
 	set -x
 	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
-		if [[ ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} =~ "--kasan" ]]; then
+		if [[ ${GKI_CONFIG} != gki_20 || ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} =~ "--kasan" ]]; then
 			GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} \
 								--gki_build_config_fragment=//common_drivers:amlogic_build_config_fragment \
 								--allow_undeclared_modules"
+			if [[ -z ${GKI_CONFIG} ]]; then
+				GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} --notrim \
+								--nokmi_symbol_list_strict_mode"
+			fi
 		fi
-		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}
+		[[ -d ${ROOT_DIR}/common_drivers ]] && google_args="${google_args} --config=common_drivers_on_top"
+		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  ${google_args} --config=fast --lto=thin
 	elif [[ "${ABI}" -eq "1" ]]; then
 		tools/bazel run //common:amlogic_abi_update_symbol_list ${args}
 		tools/bazel run //common:kernel_aarch64_abi_dist ${args}
