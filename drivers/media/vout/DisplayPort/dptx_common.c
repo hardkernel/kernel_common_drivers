@@ -98,10 +98,10 @@ void __dptx_set_phy_config(struct dptx_drv_s *dptx, u8 use_preset)
 	dptx_phy_set_lane(dptx, 0xf);
 
 	//write the preset values to the sink device
-	data[0] = to_DPCD_LANESET(data[0]);
-	data[1] = to_DPCD_LANESET(data[1]);
-	data[2] = to_DPCD_LANESET(data[2]);
-	data[3] = to_DPCD_LANESET(data[3]);
+	data[0] = ds_to_DPCD_LANESET(data[0]);
+	data[1] = ds_to_DPCD_LANESET(data[1]);
+	data[2] = ds_to_DPCD_LANESET(data[2]);
+	data[3] = ds_to_DPCD_LANESET(data[3]);
 	if (__dptx_aux_write(dptx, DPCD_TRAINING_LANE0_SET, 4, data))
 		DPTXPR(dptx->idx, LOG_E, "DP sink set phy failed");
 }

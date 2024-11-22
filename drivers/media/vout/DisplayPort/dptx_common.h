@@ -140,7 +140,7 @@ void dptx_delay_us(int us);
 void dptx_delay_ms(int ms);
 u8 dptx_vswing_ds_to_phy(struct dptx_drv_s *dptx, u8 ds_level);
 u8 dptx_preem_ds_to_phy(struct dptx_drv_s *dptx, u8 ds_level);
-u8 to_DPCD_LANESET(u8 ds_level);
+u8 ds_to_DPCD_LANESET(u8 ds_level);
 u8 dptx_ds_to_vswing(u8 ds);
 u8 dptx_ds_to_preem(u8 ds);
 u8 dptx_v_p_to_ds(u8 vsw, u8 preem);
