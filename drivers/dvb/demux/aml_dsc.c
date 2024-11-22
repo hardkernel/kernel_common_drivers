@@ -783,7 +783,7 @@ static int _dvb_dsc_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 	struct aml_dsc *dsc = dvbdev->priv;
 	int ret = -EINVAL;
 
-	if (mutex_lock_interruptible(&dsc->mutex))
+	if (mutex_lock_interruptible(dsc->pmutex))
 		return -ERESTARTSYS;
 
 	switch (cmd) {
@@ -822,7 +822,7 @@ static int _dvb_dsc_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 		}
 	}
 
-	mutex_unlock(&dsc->mutex);
+	mutex_unlock(dsc->pmutex);
 
 	return ret;
 }
@@ -900,7 +900,7 @@ static int _dvb_dsc_release(struct inode *inode, struct file *file)
 	struct dsc_channel *ptmp = dsc->dsc_channels;
 	struct dsc_channel *ch;
 
-	if (mutex_lock_interruptible(&dsc->mutex))
+	if (mutex_lock_interruptible(dsc->pmutex))
 		return -ERESTARTSYS;
 
 	while (ptmp) {
@@ -910,7 +910,7 @@ static int _dvb_dsc_release(struct inode *inode, struct file *file)
 			_dsc_chan_free(ch, file);
 	}
 
-	mutex_unlock(&dsc->mutex);
+	mutex_unlock(dsc->pmutex);
 
 	dvb_generic_release(inode, file);
 
@@ -1067,7 +1067,7 @@ int dsc_dump_info(char *buf)
 		if (!dsc->dev)
 			continue;
 
-		if (mutex_lock_interruptible(&dsc->mutex))
+		if (mutex_lock_interruptible(dsc->pmutex))
 			return -ERESTARTSYS;
 
 		r = sprintf(buf, "dsc%d sid:0x%0x\n", dsc->id, dsc->sid);
@@ -1166,7 +1166,7 @@ int dsc_dump_info(char *buf)
 			}
 			chans = chans->next;
 		}
-		mutex_unlock(&dsc->mutex);
+		mutex_unlock(dsc->pmutex);
 	}
 	return total;
 }
