@@ -20,6 +20,11 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
+#define FLT_TICK_BIT_WIDTH		2
+#define FLT_CNT_BIT_WIDTH		3
+#define FLT_TICK_MASK(OFFSET)		((BIT(FLT_TICK_BIT_WIDTH) - 1) << (OFFSET))
+#define FLT_CNT_MASK(OFFSET)		((BIT(FLT_CNT_BIT_WIDTH) - 1) << (OFFSET))
+
 #define DET_TRIM_BIT_WIDTH		6
 #define DET_CTRL_BIT_WIDTH		2
 #define DET_TRIM_MASK(OFFSET)		((BIT(DET_TRIM_BIT_WIDTH) - 1) << (OFFSET))
@@ -29,6 +34,8 @@ enum digital_map {
 	IRQ_OUT,
 	IRQ_CLR,
 	IRQ_EN,
+	FLT_TICK,
+	FLT_CNT,
 	DIGITAL_MAP_MAX,
 };
 
@@ -131,8 +138,36 @@ static void amlogic_pdd_hw_enable(struct device *dev)
 	struct amlogic_pdd_priv *priv = dev_get_drvdata(dev);
 	u32 byte_offs;
 	u32 bit_offs;
+	u32 mask;
+	u32 regval;
 
 	clk_prepare_enable(priv->clk_core);
+
+	/*
+	 * filter_tick_sel:
+	 *   2'b00: 1us/tick
+	 *   2'b01: 10us/tick
+	 *   2'b10: 100us/tick
+	 *   2'b11: 1ms/tick
+	 */
+	byte_offs = priv->digital[FLT_TICK].byte_offs;
+	bit_offs = priv->digital[FLT_TICK].bit_offs;
+	mask = FLT_TICK_MASK(bit_offs);
+	regval = 1 << bit_offs; /* Select 10us/tick */
+	regmap_update_bits(priv->regmap, byte_offs, mask, regval);
+
+	/*
+	 * filter_cnt_sel:
+	 *   3'b000: 0 tick (no filter)
+	 *   3'b001: 1x3 tick
+	 *   3'b010: 2x3 tick
+	 *   ...
+	 */
+	byte_offs = priv->digital[FLT_CNT].byte_offs;
+	bit_offs = priv->digital[FLT_CNT].bit_offs;
+	mask = FLT_CNT_MASK(bit_offs);
+	regval = 0x7 << bit_offs; /* Select 7x3 tick */
+	regmap_update_bits(priv->regmap, byte_offs, mask, regval);
 
 	/* Enable detection */
 	byte_offs = priv->analog[DET_EN].byte_offs;
