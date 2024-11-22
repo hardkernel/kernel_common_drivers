@@ -748,17 +748,22 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e po
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
 	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
 		adc_ch = tvafe_port_to_channel(tvafe->parm.port, devp->pinmux);
-		W_APB_BIT(TVFE_CLAMP_INTF, 0, CLAMP_EN_BIT, CLAMP_EN_WID);
 		/*avsync tip set 1 to resume av detect*/
 		if (adc_ch == TVAFE_ADC_CH_0) {
 			avport_opened = 0;
+			W_APB_BIT(TVFE_CLAMP_INTF, 0,
+				  CLAMP_EN_BIT, CLAMP_EN_WID);
 			/*channel1*/
 			tvafe_cha1_detect_restart_config();
 		} else if (adc_ch == TVAFE_ADC_CH_1) {
+			W_APB_BIT(TVFE_CLAMP_INTF, 0,
+				  CLAMP_EN_BIT, CLAMP_EN_WID);
 			avport_opened = 0;
 			/*channel2*/
 			tvafe_cha2_detect_restart_config();
 		} else {
+			W_APB_BIT(TVFE_CLAMP_INTF, 0,
+				  CLAMP_EN_BIT, CLAMP_EN_WID);
 			tvafe_cha1_detect_restart_config();
 			tvafe_cha2_detect_restart_config();
 		}
@@ -997,7 +1002,6 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe, enum tvin_port_type_e por
 	enum tvin_port_e port = tvafe->parm.port;
 	enum tvafe_adc_ch_e adc_ch = TVAFE_ADC_CH_NULL;
 	unsigned int snow_value = 0;
-	int demod_rdy = 0;
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
@@ -1015,16 +1019,6 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe, enum tvin_port_type_e por
 	if (white_pattern_reset_pag(port, &tvafe->cvd2))
 		return true;
 
-	if (IS_TVAFE_ATV_SRC(port)) {
-		aml_fe_get_atvdemod_state(&demod_rdy);
-		if (!demod_rdy) {
-			tvafe->cvd2.info.state_cnt = 0;
-			tvafe->cvd2.info.state = TVAFE_CVD2_STATE_INIT;
-			if (tvafe_dbg_print & TVAFE_DBG_SMR)
-				tvafe_pr_info("ATV unstable\n");
-			return true;
-		}
-	}
 	tvafe->cvd2.smr_cnt++;
 
 	if (devp->flags & TVAFE_FLAG_DEV_STARTED)

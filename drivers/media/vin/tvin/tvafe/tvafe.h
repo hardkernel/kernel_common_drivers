@@ -42,8 +42,7 @@
 /* 20230804: atv add filter format and set saturation fail */
 /* 20241007: wss function optimization */
 /* 20241105: fmt detection optimization */
-/* 20241114: return no signal when ATV is unlocked */
-#define TVAFE_VER "20241114: return no signal when ATV is unlocked"
+#define TVAFE_VER "20241105: fmt detection optimization"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
@@ -204,10 +203,6 @@ int tvafe_pq_config_probe(struct meson_tvafe_data *tvafe_data);
 void cvd_set_shift_cnt(enum tvafe_cvd2_shift_cnt_e src, unsigned int val);
 unsigned int cvd_get_shift_cnt(enum tvafe_cvd2_shift_cnt_e src);
 int tvafe_bringup_detect_signal(struct tvafe_dev_s *devp, enum tvin_port_e port);
-void aml_fe_get_atvdemod_state(int *state);
-void __weak aml_fe_get_atvdemod_state(int *state)
-{
-}
 
 #endif  /* _TVAFE_H */
 

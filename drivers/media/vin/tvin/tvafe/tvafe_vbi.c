@@ -1868,7 +1868,7 @@ int vbi_alloc_memory(void)
 	vbi_dev->mem_size <<= 4;
 	vbi_mem_start = vbi_dev->mem_start;
 	vbi_dev->pac_addr_end = vbi_dev->pac_addr_start + vbi_dev->mem_size - 1;
-	tvafe_pr_info(": vbi_dev->pac_addr_start=0x%px, end:0x%px, size:0x%x\n",
+	tvafe_pr_info(": vbi_dev->pac_addr_start=0x%p, end:0x%p, size:0x%x\n",
 		vbi_dev->pac_addr_start, vbi_dev->pac_addr_end,
 		vbi_dev->mem_size);
 	vbi_dev->pac_addr = vbi_dev->pac_addr_start;

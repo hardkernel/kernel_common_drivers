@@ -53,7 +53,6 @@
 
 static struct tvin_adc_dev *adc_devp;
 static bool probe_finish;
-static void adc_dump_regs(void);
 
 static int adc_wr_afe(unsigned int reg, unsigned int val)
 {
@@ -1209,8 +1208,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		if (adc_pll_lock_cnt == 10) {
 			ret = -1;
 			pr_err("%s: ATV_DEMOD adc pll lock fail!!!\n", __func__);
-			if (devp->print_en & ADC_DBG_GET_STATUS)
-				adc_dump_regs();
 		} else {
 			devp->pll_flg |= ADC_ATV_DEMOD;
 		}
@@ -1255,8 +1252,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		if (adc_pll_lock_cnt == 10) {
 			ret = -2;
 			pr_err("%s: TVAFE adc pll lock fail!!!\n", __func__);
-			if (devp->print_en & ADC_DBG_GET_STATUS)
-				adc_dump_regs();
 		} else {
 			devp->pll_flg |= ADC_TVAFE;
 		}
@@ -1356,8 +1351,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			ret = -3;
 			pr_err("%s: DTV_DEMOD adc pll lock fail!!!\n",
 					__func__);
-			if (devp->print_en & ADC_DBG_GET_STATUS)
-				adc_dump_regs();
 		} else {
 			devp->pll_flg |= ADC_DTV_DEMOD;
 		}
