@@ -952,6 +952,36 @@ static bool is_video_output_4k120hz(int freq_ratio,
 		return false;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static bool is_video_input_4k(u8 layer_id)
+{
+	bool video_en = false, is_4k_input = false;
+	struct video_layer_s *layer = NULL;
+
+	layer = get_vd_layer(layer_id);
+	if (layer->new_vframe_count)
+		video_en = true;
+	if (!video_en)
+		return false;
+	if (layer->src_width >= 3840 && layer->src_height >= 2160)
+		is_4k_input = true;
+	return is_4k_input;
+}
+#endif
+
+static bool is_video_ratio_adjust(u32 layer_id)
+{
+	bool ret = false;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (video_is_meson_sc2_cpu() &&
+		is_video_input_4k(layer_id) &&
+		layer_id == 1)
+		ret = true;
+#endif
+	return ret;
+}
+
 /*
  *test on txlx:
  *Time_out = (V_out/V_screen_total)/FPS_out;
@@ -1197,6 +1227,8 @@ static int vpp_process_speed_check
 				if (IS_DI_POST(vf->type) &&
 				    !IS_DI_PRELINK(vf->di_flag))
 					cur_ratio = (cur_ratio * 105) / 100;
+				if (is_video_ratio_adjust(layer_id))
+					cur_ratio = (cur_ratio * 118) / 100;
 				if (!is_meson_t7_cpu() &&
 				    !is_meson_t5m_cpu() &&
 				    !is_meson_t3_cpu() &&
