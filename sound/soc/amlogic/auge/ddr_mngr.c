@@ -1902,6 +1902,12 @@ unsigned int aml_frddr_get_fifo_infos(struct frddr *fr,
 	normal_fifo_size = min(period_bytes, fr->chipinfo->fifo_depth);
 	final_fifo_size = min(normal_fifo_size, one_ms_fifo_size);
 
+	/* Keep final_fifo_size and threshold are positive multiple of 16,
+	 * which depends on VLSI design.
+	 * Use ceil value or not floor value.
+	 **/
+	final_fifo_size = (final_fifo_size + 31) & ~31;
+
 	return final_fifo_size;
 }
 
