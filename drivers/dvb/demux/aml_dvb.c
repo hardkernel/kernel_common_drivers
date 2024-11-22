@@ -938,7 +938,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		if (ret)
 			goto INIT_ERR;
 
-		advb->dsc[i]->mutex = advb->mutex;
+		advb->dsc[i]->pmutex = &advb->mutex;
 //              advb->dsc[i].slock = advb->slock;
 		advb->dsc[i]->id = i;
 		advb->dsc[i]->sid = advb->dmx[i]->sid;
