@@ -295,6 +295,19 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 		pipeline->gfcd[mvb->index] = to_gfcd_block(mvb);
 		pipeline->num_gfcd++;
 		break;
+	case MESON_BLK_CSC:
+		blk_size = sizeof(struct meson_vpu_csc);
+		if (pipeline->priv && pipeline->priv->vpu_data &&
+		    pipeline->priv->vpu_data->csc_ops)
+			ops = pipeline->priv->vpu_data->csc_ops;
+		else
+			ops = &csc_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
+		pipeline->csc[mvb->index] = to_csc_block(mvb);
+		pipeline->num_csc++;
+		break;
+
 	case MESON_BLK_VIDEO:
 		blk_size = sizeof(struct meson_vpu_video);
 		if (pipeline->priv && pipeline->priv->vpu_data)
@@ -636,6 +649,11 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 		if (pipeline->gfcd[i])
 			VPU_PIPELINE_HW_INIT(&pipeline->gfcd[i]->base);
 	}
+
+	for (i = 0; i < pipeline->num_csc; i++) {
+		if (pipeline->csc[i])
+			VPU_PIPELINE_HW_INIT(&pipeline->csc[i]->base);
+	}
 }
 
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
@@ -663,6 +681,11 @@ void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
 
 	for (i = 0; i < pipeline->num_postblend; i++)
 		VPU_PIPELINE_HW_FINI(&pipeline->postblends[i]->base);
+
+	for (i = 0; i < pipeline->num_csc; i++) {
+		if (pipeline->csc[i])
+			VPU_PIPELINE_HW_FINI(&pipeline->csc[i]->base);
+	}
 }
 
 /*

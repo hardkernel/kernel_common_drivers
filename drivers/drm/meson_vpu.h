@@ -36,6 +36,7 @@ struct meson_vpu_data {
 	struct meson_vpu_block_ops *video_ops;
 	struct meson_vpu_block_ops *slice2ppc_ops;
 	struct meson_vpu_block_ops *gfcd_ops;
+	struct meson_vpu_block_ops *csc_ops;
 	struct meson_plane_supported_formats *osd_formats;
 	struct meson_plane_supported_formats *video_formats;
 	u32 *cached_regs;

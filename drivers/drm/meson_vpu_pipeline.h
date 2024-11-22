@@ -30,6 +30,7 @@
 #define MESON_MAX_DBS 2
 #define MESON_MAX_POSTBLEND 3
 #define MESON_MAX_BLOCKS 32
+#define MESON_MAX_CSCS 2
 #define MESON_BLOCK_MAX_INPUTS 6
 #define MESON_BLOCK_MAX_OUTPUTS 3
 #define MESON_BLOCK_MAX_NAME_LEN 32
@@ -109,6 +110,7 @@ enum meson_vpu_blk_type {
 	MESON_BLK_VIDEO,
 	MESON_BLK_SLICE2PPC,
 	MESON_BLK_GFCD,
+	MESON_BLK_CSC,
 };
 
 struct meson_vpu_pipeline;
@@ -563,6 +565,15 @@ struct meson_vpu_gfcd_state {
 	struct meson_vpu_block_state base;
 };
 
+struct meson_vpu_csc {
+	struct meson_vpu_block base;
+	struct csc_reg_s *reg;
+};
+
+struct meson_vpu_csc_state {
+	struct meson_vpu_block_state base;
+};
+
 /* vpu pipeline */
 struct rdma_reg_ops {
 	u32 (*rdma_read_reg)(u32 addr);
@@ -604,6 +615,7 @@ struct meson_vpu_pipeline {
 	struct meson_vpu_postblend *postblends[MESON_MAX_POSTBLEND];
 	struct meson_vpu_slice2ppc *slice2ppc;
 	struct meson_vpu_gfcd *gfcd[MESON_MAX_OSDS];
+	struct meson_vpu_csc *csc[MESON_MAX_CSCS];
 	struct meson_vpu_pipeline_state *state;
 	struct meson_vpu_pipeline_ops *ops;
 	u32 num_osds;
@@ -614,6 +626,7 @@ struct meson_vpu_pipeline {
 	u32 num_dbs;
 	u32 num_postblend;
 	u32 num_gfcd;
+	u32 num_csc;
 	u8 osd_version;
 	u32 osd_axi_sel;
 
@@ -708,6 +721,7 @@ struct meson_vpu_pipeline_state {
 #define to_video_block(x) container_of(x, struct meson_vpu_video, base)
 #define to_slice2ppc_block(x) container_of(x, struct meson_vpu_slice2ppc, base)
 #define to_gfcd_block(x) container_of(x, struct meson_vpu_gfcd, base)
+#define to_csc_block(x) container_of(x, struct meson_vpu_csc, base)
 
 #define to_osd_state(x) container_of(x, struct meson_vpu_osd_state, base)
 #define to_afbc_state(x) container_of(x, struct meson_vpu_afbc_state, base)
@@ -722,6 +736,7 @@ struct meson_vpu_pipeline_state {
 		struct meson_vpu_slice2ppc_state, base)
 #define to_video_state(x) container_of(x, struct meson_vpu_video_state, base)
 #define to_gfcd_state(x) container_of(x, struct meson_vpu_gfcd_state, base)
+#define to_csc_state(x) container_of(x, struct meson_vpu_csc_state, base)
 
 #define priv_to_block(x) container_of(x, struct meson_vpu_block, obj)
 #define priv_to_block_state(x) container_of(x, \
@@ -809,6 +824,7 @@ extern struct meson_vpu_block_ops osdblend_ops;
 extern struct meson_vpu_block_ops hdr_ops;
 extern struct meson_vpu_block_ops db_ops;
 extern struct meson_vpu_block_ops postblend_ops;
+extern struct meson_vpu_block_ops csc_ops;
 
 /*
  * for g12b/sm1 soc with dual display
