@@ -7,6 +7,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/amlogic,meson-t5m-reset.h>
 #include <dt-bindings/clock/t5m-clkc.h>
+#include <dt-bindings/clock/amlogic,t5m-scmi-clk.h>
 #include <dt-bindings/clock/amlogic,t3-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-t5m-gpio.h>
@@ -39,16 +40,16 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>,
-				<&clkc CLKID_DSU_CLK>,
-				<&clkc CLKID_DSU_PRE_CLK>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent",
-				"dsu_clk",
-				"dsu_pre_parent";
+			//clocks = <&clkc CLKID_CPU_CLK>,
+			//	<&clkc CLKID_CPU_DYN_CLK>,
+			//	<&clkc CLKID_SYS_PLL>,
+			//	<&clkc CLKID_DSU_CLK>,
+			//	<&clkc CLKID_DSU_PRE_CLK>;
+			//clock-names = "core_clk",
+			//	"low_freq_clk_parent",
+			//	"high_freq_clk_parent",
+			//	"dsu_clk",
+			//	"dsu_pre_parent";
 			multi_tables_available;
 			operating-points-v2 = <&cpu_opp_table0>,
 				<&cpu_opp_table1>,
@@ -68,16 +69,16 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>,
-				<&clkc CLKID_DSU_CLK>,
-				<&clkc CLKID_DSU_PRE_CLK>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent",
-				"dsu_clk",
-				"dsu_pre_parent";
+			//clocks = <&clkc CLKID_CPU_CLK>,
+			//	<&clkc CLKID_CPU_DYN_CLK>,
+			//	<&clkc CLKID_SYS_PLL>,
+			//	<&clkc CLKID_DSU_CLK>,
+			//	<&clkc CLKID_DSU_PRE_CLK>;
+			//clock-names = "core_clk",
+			//	"low_freq_clk_parent",
+			//	"high_freq_clk_parent",
+			//	"dsu_clk",
+			//	"dsu_pre_parent";
 			multi_tables_available;
 			operating-points-v2 = <&cpu_opp_table0>,
 				<&cpu_opp_table1>,
@@ -97,16 +98,16 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>,
-				<&clkc CLKID_DSU_CLK>,
-				<&clkc CLKID_DSU_PRE_CLK>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent",
-				"dsu_clk",
-				"dsu_pre_parent";
+			//clocks = <&clkc CLKID_CPU_CLK>,
+			//	<&clkc CLKID_CPU_DYN_CLK>,
+			//	<&clkc CLKID_SYS_PLL>,
+			//	<&clkc CLKID_DSU_CLK>,
+			//	<&clkc CLKID_DSU_PRE_CLK>;
+			//clock-names = "core_clk",
+			//	"low_freq_clk_parent",
+			//	"high_freq_clk_parent",
+			//	"dsu_clk",
+			//	"dsu_pre_parent";
 			multi_tables_available;
 			operating-points-v2 = <&cpu_opp_table0>,
 				<&cpu_opp_table1>,
@@ -126,16 +127,16 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>,
-				<&clkc CLKID_DSU_CLK>,
-				<&clkc CLKID_DSU_PRE_CLK>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent",
-				"dsu_clk",
-				"dsu_pre_parent";
+			//clocks = <&clkc CLKID_CPU_CLK>,
+			//	<&clkc CLKID_CPU_DYN_CLK>,
+			//	<&clkc CLKID_SYS_PLL>,
+			//	<&clkc CLKID_DSU_CLK>,
+			//	<&clkc CLKID_DSU_PRE_CLK>;
+			//clock-names = "core_clk",
+			//	"low_freq_clk_parent",
+			//	"high_freq_clk_parent",
+			//	"dsu_clk",
+			//	"dsu_pre_parent";
 			multi_tables_available;
 			operating-points-v2 = <&cpu_opp_table0>,
 				<&cpu_opp_table1>,
@@ -305,7 +306,7 @@
 		//clock-names = "cts_vipnanoq_axi_clk_composite",
 		//      "cts_vipnanoq_core_clk_composite",
 		//      "sys1_pll";
-		assigned-clocks =  <&clkc CLKID_SYS1_PLL>;
+		assigned-clocks =  <&scmi_clk CLKID_SYS1_PLL>;
 		assigned-clock-rates =  <1704000000>;
 		interrupts = <0 59 4>;
 		interrupt-names = "galcore";
@@ -736,6 +737,34 @@
 		status = "okay";
 	};
 
+	shmem@050f6000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x050f6000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x050f6000 0x100>;
+
+		scmi_shmem: shmem@0 {
+			compatible = "arm,scmi-shmem";
+			reg = <0x0 0x100>;
+		};
+	};
+
+	firmware {
+		scmi: scmi {
+			compatible = "arm,scmi-smc";
+			arm,smc-id = <0x820000C1>;
+			shmem = <&scmi_shmem>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+		};
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -768,12 +797,14 @@
 				compatible = "amlogic,t5m-clkc";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0x230>,
-				      <0x0 0x8000 0x0 0x3e4>,
-				      <0x0 0xe140 0x0 0x20>;
-				reg-names = "basic", "pll",
-					    "cpu_clk";
-				clocks = <&xtal>;
-				clock-names = "xtal";
+				      <0x0 0x8000 0x0 0x3e4>;
+				reg-names = "basic", "pll";
+				clocks = <&xtal>,
+					 <&scmi_clk CLKID_FIXED_PLL>,
+					 <&scmi_clk CLKID_SYS1_PLL>;
+				clock-names = "xtal",
+					      "fixed_pll",
+					      "sys1_pll";
 				status = "okay";
 			};
 

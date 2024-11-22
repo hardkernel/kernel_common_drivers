@@ -20,227 +20,15 @@
 #include "t5m.h"
 #include <dt-bindings/clock/t5m-clkc.h>
 
-static const struct pll_params_table t5m_sys_pll_params_table[] = {
-	PLL_PARAMS_OD(100, 1, 1), /*DCO=2400M OD=DCO/2=1200M*/
-	PLL_PARAMS_OD(117, 1, 1), /*DCO=2808M OD=DCO/2=1404M*/
-	PLL_PARAMS_OD(125, 1, 1), /*DCO=3000M OD=DCO/2=1500M*/
-	PLL_PARAMS_OD(67, 1, 0),  /*DCO=1608M OD=DCO/1=1608M*/
-	PLL_PARAMS_OD(71, 1, 0),  /*DCO=1704M OD=DCO/1=1704M*/
-	PLL_PARAMS_OD(75, 1, 0),  /*DCO=1800M OD=DCO/1=1800M*/
-	PLL_PARAMS_OD(159, 2, 0),  /*DCO=1908M OD=DCO/1=1908M*/
-	PLL_PARAMS_OD(80, 1, 0),  /*DCO=1920M OD=DCO/1=1920M*/
-	PLL_PARAMS_OD(84, 1, 0),  /*DCO=2016M OD=DCO/1=2016M*/
-	{ /* sentinel */ }
-};
-
-static const struct pll_params_table t5m_sys1_pll_params_table[] = {
-	PLL_PARAMS_OD(100, 1, 1), /*DCO=2400M OD=DCO/2=1200M*/
-	PLL_PARAMS_OD(125, 1, 1), /*DCO=3000M OD=DCO/2=1500M*/
-	{ /* sentinel */ }
-};
-
-static struct clk_regmap t5m_sys_pll = {
-	.data = &(struct meson_clk_pll_data){
-		.en = {
-			.reg_off = ANACTRL_SYS0PLL_CTRL0,
-			.shift   = 28,
-			.width   = 1,
-		},
-		.m = {
-			.reg_off = ANACTRL_SYS0PLL_CTRL0,
-			.shift   = 0,
-			.width   = 8,
-		},
-		.n = {
-			.reg_off = ANACTRL_SYS0PLL_CTRL0,
-			.shift   = 16,
-			.width   = 5,
-		},
-		.od = {
-			.reg_off = ANACTRL_SYS0PLL_CTRL0,
-			.shift	 = 12,
-			.width	 = 3,
-		},
-		.l = {
-			.reg_off = ANACTRL_SYS0PLL_CTRL0,
-			.shift   = 31,
-			.width   = 1,
-		},
-		.rst = {
-			.reg_off = ANACTRL_SYS0PLL_CTRL0,
-			.shift   = 29,
-			.width   = 1,
-		},
-		.table = t5m_sys_pll_params_table,
-		.od_max = 4,
-		.smc_id = SECURE_PLL_CLK,
-		.secid_disable = SECID_SYS0_DCO_PLL_DIS,
-		.secid = SECID_SYS0_DCO_PLL,
-		.flags = CLK_MESON_PLL_FIXED_N,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sys_pll",
-		.ops = &meson_secure_pll_v2_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "xtal",
-		},
-		.num_parents = 1,
-		/*
-		 * This clock feeds the CPU, avoid disabling it
-		 * Register has the risk of being directly operated
-		 */
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap t5m_sys1_pll = {
-	.data = &(struct meson_clk_pll_data){
-		.en = {
-			.reg_off = ANACTRL_SYS1PLL_CTRL0,
-			.shift   = 28,
-			.width   = 1,
-		},
-		.m = {
-			.reg_off = ANACTRL_SYS1PLL_CTRL0,
-			.shift   = 0,
-			.width   = 8,
-		},
-		.n = {
-			.reg_off = ANACTRL_SYS1PLL_CTRL0,
-			.shift   = 16,
-			.width   = 5,
-		},
-		.od = {
-			.reg_off = ANACTRL_SYS1PLL_CTRL0,
-			.shift	 = 12,
-			.width	 = 3,
-		},
-		.l = {
-			.reg_off = ANACTRL_SYS1PLL_CTRL0,
-			.shift   = 31,
-			.width   = 1,
-		},
-		.rst = {
-			.reg_off = ANACTRL_SYS1PLL_CTRL0,
-			.shift   = 29,
-			.width   = 1,
-		},
-		.table = t5m_sys1_pll_params_table,
-		.od_max = 4,
-		.smc_id = SECURE_PLL_CLK,
-		.secid_disable = SECID_SYS1_DCO_PLL_DIS,
-		.secid = SECID_SYS1_DCO_PLL,
-		.flags = CLK_MESON_PLL_FIXED_N,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sys1_pll",
-		.ops = &meson_secure_pll_v2_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "xtal",
-		},
-		.num_parents = 1,
-		/*
-		 * Register has the risk of being directly operated
-		 */
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
-	},
-};
-
-/* od can not set 5/6/7 in sys0/sys1/fixed/gp0/hifi/hifi1 pll */
-static const struct clk_div_table t5m_pll_od_tab[] = {
-	{0, 1},
-	{1, 2},
-	{2, 4},
-	{3, 8},
-	{4, 16},
-	{ /* sentinel */ }
-};
-
-static const struct pll_params_table t5m_fix_pll_params_table[] = {
-	PLL_PARAMS(166, 1), /*DCO=3984M OD=DCO/2=1992M*/
-	{ /* sentinel */ }
-};
-
-static struct clk_regmap t5m_fixed_pll_dco = {
-	.data = &(struct meson_clk_pll_data){
-		.en = {
-			.reg_off = ANACTRL_FIXPLL_CTRL0,
-			.shift   = 28,
-			.width   = 1,
-		},
-		.m = {
-			.reg_off = ANACTRL_FIXPLL_CTRL0,
-			.shift   = 0,
-			.width   = 8,
-		},
-		.n = {
-			.reg_off = ANACTRL_FIXPLL_CTRL0,
-			.shift   = 16,
-			.width   = 5,
-		},
-		.l = {
-			.reg_off = ANACTRL_FIXPLL_CTRL0,
-			.shift   = 31,
-			.width   = 1,
-		},
-		.rst = {
-			.reg_off = ANACTRL_FIXPLL_CTRL0,
-			.shift   = 29,
-			.width   = 1,
-		},
-		.table = t5m_fix_pll_params_table,
-		.smc_id = SECURE_PLL_CLK,
-		.secid_disable = SECID_FIX_DCO_PLL_DIS,
-		.secid = SECID_FIX_DCO_PLL,
-		.flags = CLK_MESON_PLL_FIXED_N,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "fixed_pll_dco",
-		.ops = &meson_secure_pll_v2_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "xtal",
-		},
-		.num_parents = 1,
-		/*
-		 * This clock feeds the CPU, avoid disabling it
-		 * Register has the risk of being directly operated
-		 */
-		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap t5m_fixed_pll = {
-	.data = &(struct clk_regmap_div_data) {
-		.offset = ANACTRL_FIXPLL_CTRL0,
-		.shift = 12,
-		.width = 3,
-		.table = t5m_pll_od_tab,
-		.smc_id = SECURE_PLL_CLK,
-		.secid = SECID_FIX_PLL_OD
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "fixed_pll",
-		.ops = &clk_regmap_secure_v2_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_fixed_pll_dco.hw
-		},
-		.num_parents = 1,
-		/*
-		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
-		 * Never close , Register may be rewritten
-		 */
-		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
-	},
-};
-
 static struct clk_fixed_factor t5m_fclk_div2_div = {
 	.mult = 1,
 	.div = 2,
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div2_div",
 		.ops = &clk_fixed_factor_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t5m_fixed_pll.hw },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
 		.num_parents = 1,
 	},
 };
@@ -266,7 +54,9 @@ static struct clk_fixed_factor t5m_fclk_div3_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div3_div",
 		.ops = &clk_fixed_factor_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t5m_fixed_pll.hw },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
 		.num_parents = 1,
 	},
 };
@@ -292,7 +82,9 @@ static struct clk_fixed_factor t5m_fclk_div4_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div4_div",
 		.ops = &clk_fixed_factor_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t5m_fixed_pll.hw },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
 		.num_parents = 1,
 	},
 };
@@ -318,7 +110,9 @@ static struct clk_fixed_factor t5m_fclk_div5_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div5_div",
 		.ops = &clk_fixed_factor_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t5m_fixed_pll.hw },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
 		.num_parents = 1,
 	},
 };
@@ -344,7 +138,9 @@ static struct clk_fixed_factor t5m_fclk_div7_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div7_div",
 		.ops = &clk_fixed_factor_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t5m_fixed_pll.hw },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
 		.num_parents = 1,
 	},
 };
@@ -370,8 +166,8 @@ static struct clk_fixed_factor t5m_fclk_div2p5_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div2p5_div",
 		.ops = &clk_fixed_factor_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_fixed_pll.hw
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
 		},
 		.num_parents = 1,
 	},
@@ -458,214 +254,6 @@ static struct clk_regmap t5m_gp0_pll = {
 		 */
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
-};
-
-/* a55 cpu_clk, get the table from ucode */
-static const struct cpu_dyn_table t5m_cpu_dyn_table[] = {
-	CPU_LOW_PARAMS(100000000, 1, 1, 9),
-	CPU_LOW_PARAMS(250000000, 1, 1, 3),
-	CPU_LOW_PARAMS(333333333, 2, 1, 1),
-	CPU_LOW_PARAMS(500000000, 1, 1, 1),
-	CPU_LOW_PARAMS(666666666, 2, 0, 0),
-	CPU_LOW_PARAMS(1000000000, 1, 0, 0)
-};
-
-static const struct clk_parent_data t5m_cpu_dyn_clk_sel[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &t5m_fclk_div2.hw },
-	{ .hw = &t5m_fclk_div3.hw },
-	{ .hw = &t5m_fclk_div2p5.hw }
-};
-
-static struct clk_regmap t5m_cpu_dyn_clk = {
-	.data = &(struct meson_clk_cpu_dyn_data){
-		.table = t5m_cpu_dyn_table,
-		.table_cnt = ARRAY_SIZE(t5m_cpu_dyn_table),
-		.smc_id = SECURE_CPU_CLK,
-		.secid_dyn_rd = SECID_CPU_CLK_RD,
-		.secid_dyn = SECID_CPU_CLK_DYN,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "cpu_dyn_clk",
-		.ops = &meson_clk_cpu_dyn_ops,
-		.parent_data = t5m_cpu_dyn_clk_sel,
-		.num_parents = ARRAY_SIZE(t5m_cpu_dyn_clk_sel),
-	},
-};
-
-static struct clk_regmap t5m_cpu_clk = {
-	.data = &(struct clk_regmap_mux_data){
-		.mask = 0x1,
-		.shift = 11,
-		.flags = CLK_MUX_ROUND_CLOSEST,
-		.smc_id = SECURE_CPU_CLK,
-		.secid = SECID_CPU_CLK_SEL,
-		.secid_rd = SECID_CPU_CLK_RD
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk",
-		.ops = &clk_regmap_mux_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_cpu_dyn_clk.hw,
-			&t5m_sys_pll.hw,
-		},
-		.num_parents = 2,
-		/*
-		 * This clock feeds the CPU, avoid disabling it
-		 * Register has the risk of being directly operated
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
-	},
-};
-
-/* a55 usd_clk, get the table from ucode */
-static const struct cpu_dyn_table t5m_dsu_dyn_table[] = {
-	/* For dsu, his parent should always be on fiv_div2 or sys1 pll */
-	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
-	CPU_LOW_PARAMS(1200000000, 3, 0, 0),
-	CPU_LOW_PARAMS(1500000000, 3, 0, 0)
-};
-
-static const struct clk_parent_data t5m_dsu_dyn_clk_sel[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &t5m_fclk_div2.hw },
-	{ .hw = &t5m_fclk_div3.hw },
-	{ .hw = &t5m_sys1_pll.hw }
-};
-
-static struct clk_regmap t5m_dsu_dyn_clk = {
-	.data = &(struct meson_clk_cpu_dyn_data){
-		.table = t5m_dsu_dyn_table,
-		.table_cnt = ARRAY_SIZE(t5m_dsu_dyn_table),
-		.smc_id = SECURE_CPU_CLK,
-		.secid_dyn_rd = SECID_DSU_PRE_CLK_RD,
-		.secid_dyn = SECID_DSU_PRE_CLK_DYN,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_dyn_clk",
-		.ops = &meson_clk_cpu_dyn_ops,
-		.parent_data = t5m_dsu_dyn_clk_sel,
-		.num_parents = ARRAY_SIZE(t5m_dsu_dyn_clk_sel),
-	},
-};
-
-static struct clk_regmap t5m_dsu_pre_clk = {
-	.data = &(struct clk_regmap_mux_data){
-		.mask = 0x1,
-		.shift = 11,
-		.smc_id = SECURE_CPU_CLK,
-		.secid_rd = SECID_DSU_PRE_CLK_RD,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_pre_clk",
-		/* dsu must mux in t5m_dsu_dyn_clk */
-		.ops = &clk_regmap_mux_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_dsu_dyn_clk.hw,
-			&t5m_sys_pll.hw,
-		},
-		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-static struct clk_regmap t5m_dsu_clk = {
-	.data = &(struct clk_regmap_mux_data){
-		.mask = 0x1,
-		.shift = 31,
-		.smc_id = SECURE_CPU_CLK,
-		.secid = SECID_DSU_CLK_SEL,
-		.secid_rd = SECID_DSU_CLK_RD,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_clk",
-		.ops = &clk_regmap_mux_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_cpu_clk.hw,
-			&t5m_dsu_pre_clk.hw,
-		},
-		.num_parents = 2,
-	},
-};
-
-struct t5m_sys_pll_nb_data {
-	struct notifier_block nb;
-	struct clk_hw *sys_pll;
-	struct clk_hw *cpu_clk;
-	struct clk_hw *cpu_dyn_clk;
-};
-
-static int t5m_sys_pll_notifier_cb(struct notifier_block *nb,
-				   unsigned long event, void *data)
-{
-	struct t5m_sys_pll_nb_data *nb_data =
-		container_of(nb, struct t5m_sys_pll_nb_data, nb);
-
-	switch (event) {
-	case PRE_RATE_CHANGE:
-		/*
-		 * This notifier means sys_pll clock will be changed
-		 * to feed cpu_clk, this the current path :
-		 * cpu_clk
-		 *    \- sys_pll
-		 *          \- sys_pll_dco
-		 */
-
-		/*
-		 * Configure cpu_clk to use cpu_clk_dyn
-		 * Make sure cpu clk is 1G, cpu_clk_dyn may equal 24M
-		 */
-		if (clk_set_rate(nb_data->cpu_dyn_clk->clk, 1000000000))
-			pr_err("%s: set CPU dyn clock to 1G failed\n", __func__);
-
-		clk_hw_set_parent(nb_data->cpu_clk,
-				  nb_data->cpu_dyn_clk);
-
-		/*
-		 * Now, cpu_clk uses the dyn path
-		 * cpu_clk
-		 *    \- cpu_clk_dyn
-		 *          \- cpu_clk_dynX
-		 *                \- cpu_clk_dynX_sel
-		 *		     \- cpu_clk_dynX_div
-		 *                      \- xtal/fclk_div2/fclk_div3
-		 *                   \- xtal/fclk_div2/fclk_div3
-		 */
-
-		udelay(5);
-
-		return NOTIFY_OK;
-
-	case POST_RATE_CHANGE:
-		/*
-		 * The sys_pll has ben updated, now switch back cpu_clk to
-		 * sys_pll
-		 */
-
-		/* Configure cpu_clk to use sys_pll */
-		clk_hw_set_parent(nb_data->cpu_clk,
-				  nb_data->sys_pll);
-
-		udelay(5);
-
-		/* new path :
-		 * cpu_clk
-		 *    \- sys_pll
-		 *          \- sys_pll_dco
-		 */
-
-		return NOTIFY_OK;
-
-	default:
-		return NOTIFY_DONE;
-	}
-}
-
-static struct t5m_sys_pll_nb_data t5m_sys_pll_nb_data = {
-	.sys_pll = &t5m_sys_pll.hw,
-	.cpu_clk = &t5m_cpu_clk.hw,
-	.cpu_dyn_clk = &t5m_cpu_dyn_clk.hw,
-	.nb.notifier_call = t5m_sys_pll_notifier_cb,
 };
 
 static const struct reg_sequence t5m_hifi_init_regs[] = {
@@ -799,8 +387,8 @@ static struct clk_fixed_factor t5m_mpll_50m_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll_50m_div",
 		.ops = &clk_fixed_factor_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t5m_fixed_pll_dco.hw
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
 		},
 		.num_parents = 1,
 	},
@@ -3839,7 +3427,7 @@ static const struct clk_parent_data t5m_gen_sel_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5m_rtc_clk.hw },
 	{ .hw = &t5m_gp0_pll.hw },
-	{ .hw = &t5m_sys1_pll.hw },
+	{ .fw_name = "sys1_pll", },
 	{ .hw = &t5m_hifi_pll.hw },
 	{ .hw = &t5m_hifi1_pll.hw },
 	{ .hw = &t5m_fclk_div2.hw },
@@ -4843,10 +4431,6 @@ static MESON_t5m_SYS_GATE(t5m_sys_clk_tcon,		CLKCTRL_SYS_CLK_EN0_REG3, 12);
 /* Array of all clocks provided by this provider */
 static struct clk_hw_onecell_data t5m_hw_onecell_data = {
 	.hws = {
-		[CLKID_SYS_PLL]				= &t5m_sys_pll.hw,
-		[CLKID_SYS1_PLL]			= &t5m_sys1_pll.hw,
-		[CLKID_FIXED_PLL_DCO]			= &t5m_fixed_pll_dco.hw,
-		[CLKID_FIXED_PLL]			= &t5m_fixed_pll.hw,
 		[CLKID_FCLK_DIV2_DIV]			= &t5m_fclk_div2_div.hw,
 		[CLKID_FCLK_DIV2]			= &t5m_fclk_div2.hw,
 		[CLKID_FCLK_DIV3_DIV]			= &t5m_fclk_div3_div.hw,
@@ -4860,11 +4444,6 @@ static struct clk_hw_onecell_data t5m_hw_onecell_data = {
 		[CLKID_FCLK_DIV2P5_DIV]			= &t5m_fclk_div2p5_div.hw,
 		[CLKID_FCLK_DIV2P5]			= &t5m_fclk_div2p5.hw,
 		[CLKID_GP0_PLL]				= &t5m_gp0_pll.hw,
-		[CLKID_CPU_DYN_CLK]			= &t5m_cpu_dyn_clk.hw,
-		[CLKID_CPU_CLK]				= &t5m_cpu_clk.hw,
-		[CLKID_DSU_DYN_CLK]			= &t5m_dsu_dyn_clk.hw,
-		[CLKID_DSU_PRE_CLK]			= &t5m_dsu_pre_clk.hw,
-		[CLKID_DSU_CLK]				= &t5m_dsu_clk.hw,
 		[CLKID_HIFI_PLL]			= &t5m_hifi_pll.hw,
 		[CLKID_HIFI1_PLL]			= &t5m_hifi1_pll.hw,
 		[CLKID_MPLL_50M_DIV]			= &t5m_mpll_50m_div.hw,
@@ -5426,19 +5005,7 @@ static struct clk_regmap *const t5m_clk_regmaps[] = {
 	&t5m_sys_clk_tcon,
 };
 
-static struct clk_regmap *const t5m_cpu_clk_regmaps[] = {
-	&t5m_cpu_dyn_clk,
-	&t5m_cpu_clk,
-	&t5m_dsu_dyn_clk,
-	&t5m_dsu_pre_clk,
-	&t5m_dsu_clk
-};
-
 static struct clk_regmap *const t5m_pll_clk_regmaps[] = {
-	&t5m_sys_pll,
-	&t5m_sys1_pll,
-	&t5m_fixed_pll_dco,
-	&t5m_fixed_pll,
 	&t5m_fclk_div2,
 	&t5m_fclk_div3,
 	&t5m_fclk_div4,
@@ -5451,25 +5018,10 @@ static struct clk_regmap *const t5m_pll_clk_regmaps[] = {
 	&t5m_mpll_50m,
 };
 
-static int meson_t5m_dvfs_setup(struct platform_device *pdev)
-{
-	int ret;
-
-	/* Setup cluster 0 clock notifier for sys_pll */
-	ret = clk_notifier_register(t5m_sys_pll.hw.clk,
-				    &t5m_sys_pll_nb_data.nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register sys_pll notifier\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int meson_t5m_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct regmap *basic_map, *pll_map, *cpu_map;
+	struct regmap *basic_map, *pll_map;
 	int ret, i;
 
 	/* Get regmap for different clock area */
@@ -5485,18 +5037,10 @@ static int meson_t5m_probe(struct platform_device *pdev)
 		return PTR_ERR(pll_map);
 	}
 
-	cpu_map = meson_clk_regmap_resource(pdev, dev, 2);
-	if (IS_ERR(cpu_map)) {
-		dev_err(dev, "cpu clk registers not found\n");
-		return PTR_ERR(cpu_map);
-	}
-
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(t5m_clk_regmaps); i++)
 		t5m_clk_regmaps[i]->map = basic_map;
 
-	for (i = 0; i < ARRAY_SIZE(t5m_cpu_clk_regmaps); i++)
-		t5m_cpu_clk_regmaps[i]->map = cpu_map;
 
 	for (i = 0; i < ARRAY_SIZE(t5m_pll_clk_regmaps); i++)
 		t5m_pll_clk_regmaps[i]->map = pll_map;
@@ -5524,8 +5068,6 @@ static int meson_t5m_probe(struct platform_device *pdev)
 		}
 #endif
 	}
-
-	meson_t5m_dvfs_setup(pdev);
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   &t5m_hw_onecell_data);

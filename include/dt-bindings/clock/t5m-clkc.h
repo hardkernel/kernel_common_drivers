@@ -9,12 +9,6 @@
 /*
  * CLKID index values
  */
-#define CLKID_SYS_PLL_DCO		0
-#define CLKID_SYS_PLL			1
-#define CLKID_SYS1_PLL_DCO		2
-#define CLKID_SYS1_PLL			3
-#define CLKID_FIXED_PLL_DCO		4
-#define CLKID_FIXED_PLL			5
 #define CLKID_FCLK_DIV2_DIV		6
 #define CLKID_FCLK_DIV2			7
 #define CLKID_FCLK_DIV3_DIV		8
@@ -29,11 +23,6 @@
 #define CLKID_FCLK_DIV2P5		17
 #define CLKID_GP0_PLL_DCO		18
 #define CLKID_GP0_PLL			19
-#define CLKID_CPU_DYN_CLK		20
-#define CLKID_CPU_CLK			21
-#define CLKID_DSU_DYN_CLK		22
-#define CLKID_DSU_PRE_CLK		23
-#define CLKID_DSU_CLK			24
 #define CLKID_HIFI_PLL_DCO		25
 #define CLKID_HIFI_PLL			26
 #define CLKID_HIFI1_PLL_DCO		27
