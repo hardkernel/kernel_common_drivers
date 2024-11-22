@@ -323,6 +323,9 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int init_state;
+	struct lcd_boot_ctrl_s *boot_ctrl = pdrv->boot_ctrl;
+	unsigned int val = 0;
+	unsigned char valid;
 
 	pconf->timing.act_timing.h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END)
 		- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
@@ -332,6 +335,42 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 	pconf->timing.act_timing.v_period = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT) + 1;
 
 	init_state = lcd_vcbus_read(ENCL_VIDEO_EN);
+
+	val = lcd_vcbus_read(L_STH1_HS_ADDR);
+	valid = (val >> 9) & 0xf;
+	if (valid == 0xa) {
+		boot_ctrl->init_level = val & 0xf;
+		boot_ctrl->interface_state = (val >> 4) & 0x1;
+		boot_ctrl->dccd_flag = (val >> 5) & 0x1;
+		valid = (val >> 6) & 0x7f;
+
+		val = lcd_vcbus_read(L_STH1_HS_ADDR + 1);
+		boot_ctrl->frame_rate = val & 0x1fff;
+
+		val = lcd_vcbus_read(L_STH1_HS_ADDR + 2);
+		boot_ctrl->lcd_type = val & 0xf;
+		boot_ctrl->clk_mode = (val >> 4) & 0xf;
+		boot_ctrl->ppc = (val >> 8) & 0x3;
+		boot_ctrl->custom_pinmux = (val >> 10) & 0x1;
+
+		val = lcd_vcbus_read(L_STH1_HS_ADDR + 3);
+		boot_ctrl->advanced_flag = val & 0xff;
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+			LCDPR("%s: load boot_ctrl from regs:", __func__);
+			LCDPR("\tlcd_type        : %d", boot_ctrl->lcd_type);
+			LCDPR("\tadvanced_flag   : %d", boot_ctrl->advanced_flag);
+			LCDPR("\tcustom_pinmux   : %d", boot_ctrl->custom_pinmux);
+			LCDPR("\tdccd_flag       : %d", boot_ctrl->dccd_flag);
+			LCDPR("\tppc             : %d", boot_ctrl->ppc);
+			LCDPR("\tclk_mode        : %d", boot_ctrl->clk_mode);
+			LCDPR("\tframe_rate      : %d", boot_ctrl->frame_rate);
+			LCDPR("\tinit_level      : %d", boot_ctrl->init_level);
+			LCDPR("\tinterface_state : %d", boot_ctrl->interface_state);
+		}
+		init_state |= 0x2;
+	}
+
 	return init_state;
 }
 

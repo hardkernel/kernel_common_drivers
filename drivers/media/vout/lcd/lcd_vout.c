@@ -2218,15 +2218,11 @@ lcd_config_probe_work_failed:
 	kfree(pdrv);
 }
 
-static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
+static void lcd_config_default(struct aml_lcd_drv_s *pdrv, unsigned int init_state)
 {
-	unsigned int init_state;
-
 	pdrv->init_flag = 0;
 
-	init_state = lcd_get_venc_init_config(pdrv);
-
-	if (init_state) {
+	if (init_state & 0x1) {
 		if (pdrv->boot_ctrl->dccd_flag) {
 			pdrv->boot_ctrl->init_level = LCD_INIT_LEVEL_KERNEL_ON;
 			LCDPR("DCCD flow detected!\n");
@@ -2246,6 +2242,13 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 		default:
 			pdrv->status = (LCD_STATUS_ON | LCD_STATUS_PREPARE | LCD_STATUS_POWER);
 			break;
+		}
+
+		if (init_state & 0x2) {
+			if (pdrv->boot_ctrl->interface_state)
+				pdrv->status |= (LCD_STATUS_IF_ON | LCD_STATUS_POWER);
+			else
+				pdrv->status &= ~(LCD_STATUS_IF_ON | LCD_STATUS_POWER);
 		}
 	} else {
 		pdrv->status = 0;
@@ -2283,8 +2286,9 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 	pdrv->config.custom_pinmux = pdrv->boot_ctrl->custom_pinmux;
 	pdrv->config.basic.lcd_type = pdrv->boot_ctrl->lcd_type;
 	pdrv->config.timing.clk_mode = pdrv->boot_ctrl->clk_mode;
-	pdrv->config.timing.act_timing.frame_rate_min = pdrv->boot_ctrl->base_frame_rate;
-	pdrv->config.timing.act_timing.frame_rate_max = pdrv->boot_ctrl->base_frame_rate;
+	pdrv->config.timing.act_timing.frame_rate = pdrv->boot_ctrl->frame_rate;
+	pdrv->config.timing.act_timing.frame_rate_min = pdrv->boot_ctrl->frame_rate;
+	pdrv->config.timing.act_timing.frame_rate_max = pdrv->boot_ctrl->frame_rate;
 
 	switch (pdrv->boot_ctrl->ppc) {
 	case LCD_VENC_2PPC:
@@ -2301,11 +2305,6 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 
 	val = pdrv->boot_ctrl->advanced_flag;
 	switch (pdrv->config.basic.lcd_type) {
-	case LCD_RGB:
-		pdrv->config.timing.act_timing.lcd_bits = pdrv->boot_ctrl->lcd_bits;
-		pdrv->config.control.rgb_cfg.de_valid = val & 0x1;
-		pdrv->config.control.rgb_cfg.sync_valid = (val >> 1) & 0x1;
-		break;
 	case LCD_P2P:
 		pdrv->config.control.p2p_cfg.p2p_type = val;
 		break;
@@ -2318,6 +2317,7 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 {
 	int ret = 0;
 	char lrm_dev_name[32] = {0};
+	unsigned int init_state = lcd_get_venc_init_config(pdrv);
 
 	lcd_bootup_config_init(pdrv);
 
@@ -2334,7 +2334,7 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
 
 	lcd_clk_config_probe(pdrv);
-	lcd_config_default(pdrv);
+	lcd_config_default(pdrv, init_state);
 	lcd_init_vout(pdrv);
 	lcd_fr_lock_init(pdrv);
 
@@ -2712,6 +2712,7 @@ static int lcd_probe(struct platform_device *pdev)
 	pdrv = lcd_driver_add(index);
 	if (!pdrv)
 		goto lcd_probe_err_0;
+
 	/* set drvdata */
 	lcd_driver[index] = pdrv;
 	pdrv->data = pdata;
@@ -2961,7 +2962,7 @@ static int lcd_boot_ctrl_setup(char *str)
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
-	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
+	boot_ctrl->frame_rate = (data32 >> 24) & 0xff;
 	return 1;
 }
 
@@ -2989,7 +2990,7 @@ static int lcd1_boot_ctrl_setup(char *str)
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
-	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
+	boot_ctrl->frame_rate = (data32 >> 24) & 0xff;
 	return 1;
 }
 
@@ -3017,7 +3018,7 @@ static int lcd2_boot_ctrl_setup(char *str)
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
-	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
+	boot_ctrl->frame_rate = (data32 >> 24) & 0xff;
 	return 1;
 }
 
@@ -3074,7 +3075,7 @@ static int lcd_boot_str_setup(unsigned char idx, char *str)
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
-	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
+	boot_ctrl->frame_rate = (data32 >> 24) & 0xff;
 
 	LCDPR("[%u]: [0x%08x] [%s] [%s]\n", idx, data32, lcd_panel_name[idx], lcd_propname[idx]);
 

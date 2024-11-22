@@ -673,7 +673,8 @@ struct lcd_boot_ctrl_s {
 	unsigned char init_level;
 	unsigned char ppc;
 	unsigned char clk_mode;
-	unsigned char base_frame_rate;
+	unsigned char frame_rate;
+	unsigned char interface_state;
 };
 
 /*

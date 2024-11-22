@@ -440,6 +440,7 @@ struct reg_name_set_s {
 #define L_GAMMA_PROBE_POS_X                        0x140d
 #define L_GAMMA_PROBE_POS_Y                        0x140e
 #define L_STH1_HS_ADDR                             0x1410
+#define L_STH1_HS_ADDR_T7                         0x1910
 #define L_STH1_HE_ADDR                             0x1411
 #define L_STH1_VS_ADDR                             0x1412
 #define L_STH1_VE_ADDR                             0x1413
