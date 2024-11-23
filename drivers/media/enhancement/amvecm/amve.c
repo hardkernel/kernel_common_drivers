@@ -352,6 +352,10 @@ static void ve_dnlp_load_def_reg(void)
 			else
 				dnlp_reg = SRSHARP1_DNLP2_00;
 
+			if (chip_type_id == chip_s7d || chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+				dnlp_reg = VPP_DNLP_YGRID_0;
+
 			for (i = 0; i < 32; i++)
 				WRITE_VPP_REG(dnlp_reg + i,
 					ve_dnlp_reg_v2[i]);
@@ -1380,7 +1384,8 @@ void ve_dnlp_latch_process(void)
 
 	if (dnlp_en && dnlp_status) {
 		dnlp_status = 0;
-		ve_set_dnlp_2();
+		if (chip_type_id != chip_t6d)
+			ve_set_dnlp_2();
 		ve_enable_dnlp();
 		pr_amve_dbg("\n[amve..] set vpp_enable_dnlp OK!!!\n");
 	} else if (dnlp_en == 0 && !dnlp_status) {
