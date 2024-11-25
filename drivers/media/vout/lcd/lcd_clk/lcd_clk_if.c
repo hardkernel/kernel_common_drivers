@@ -252,7 +252,8 @@ int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
 int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq, unsigned int mode)
 {
 	struct lcd_clk_config_s *cconf;
-	int ss_adv = 0, ret = 0;
+	unsigned int ss_flag = 0;
+	int ret = 0;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf || !cconf->data)
@@ -272,8 +273,7 @@ int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq
 			goto lcd_set_ss_end;
 		}
 		cconf->ss_level = level;
-		if (cconf->data->set_ss_level)
-			cconf->data->set_ss_level(pdrv);
+		ss_flag |= LCD_SSC_LEVEL;
 	}
 	if (freq < 0xff) {
 		if (freq > cconf->data->ss_freq_max) {
@@ -283,7 +283,7 @@ int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq
 			goto lcd_set_ss_end;
 		}
 		cconf->ss_freq = freq;
-		ss_adv = 1;
+		ss_flag |= LCD_SSC_FREQ;
 	}
 	if (mode < 0xff) {
 		if (mode > cconf->data->ss_mode_max) {
@@ -293,12 +293,11 @@ int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq
 			goto lcd_set_ss_end;
 		}
 		cconf->ss_mode = mode;
-		ss_adv = 1;
+		ss_flag |= LCD_SSC_MODE;
 	}
-	if (ss_adv == 0)
-		goto lcd_set_ss_end;
-	if (cconf->data->set_ss_advance)
-		cconf->data->set_ss_advance(pdrv);
+
+	if (cconf->data->set_ss && ss_flag)
+		cconf->data->set_ss(pdrv, ss_flag);
 
 lcd_set_ss_end:
 	mutex_unlock(&lcd_clk_mutex);

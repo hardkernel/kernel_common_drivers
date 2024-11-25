@@ -106,10 +106,12 @@ static void lcd_pll_ss_enable(struct aml_lcd_drv_s *pdrv, int status)
 	lcd_ana_write(HHI_TCON_PLL_CNTL2, pll_ctrl2);
 }
 
-static void lcd_set_pll_ss_level(struct aml_lcd_drv_s *pdrv)
+static void lcd_set_pll_ss(struct aml_lcd_drv_s *pdrv, unsigned int ss_flag)
 {
 	struct lcd_clk_config_s *cconf;
 	unsigned int level, pll_ctrl2;
+	char prt_str[64];
+	int len = 0;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -117,42 +119,39 @@ static void lcd_set_pll_ss_level(struct aml_lcd_drv_s *pdrv)
 
 	level = cconf->ss_level;
 	pll_ctrl2 = lcd_ana_read(HHI_TCON_PLL_CNTL2);
-	pll_ctrl2 &= ~((1 << 15) | (0xf << 16) | (0xf << 28));
 
-	if (level > 0) {
-		cconf->ss_en = 1;
-		cconf->ss_dep_sel = pll_ss_reg_tl1[level][0];
-		cconf->ss_str_m = pll_ss_reg_tl1[level][1];
-		cconf->ss_ppm = cconf->ss_dep_sel * cconf->ss_str_m * cconf->data->ss_dep_base;
-		pll_ctrl2 |= ((1 << 15) | (cconf->ss_dep_sel << 28) | (cconf->ss_str_m << 16));
-		LCDPR("set pll spread spectrum: level %d, %dppm\n", level, cconf->ss_ppm);
-	} else {
-		cconf->ss_en = 0;
-		LCDPR("set pll spread spectrum: disable\n");
+	if (ss_flag & LCD_SSC_LEVEL) {
+		pll_ctrl2 &= ~((1 << 15) | (0xf << 16) | (0xf << 28));
+
+		if (level > 0) {
+			cconf->ss_en = 1;
+			cconf->ss_dep_sel = pll_ss_reg_tl1[level][0];
+			cconf->ss_str_m = pll_ss_reg_tl1[level][1];
+			cconf->ss_ppm =
+				cconf->ss_dep_sel * cconf->ss_str_m * cconf->data->ss_dep_base;
+			pll_ctrl2 |=
+				((1 << 15) | (cconf->ss_dep_sel << 28) | (cconf->ss_str_m << 16));
+			len += sprintf(prt_str + len, "level %d, %dppm", level, cconf->ss_ppm);
+		} else {
+			cconf->ss_en = 0;
+			len += sprintf(prt_str + len, "disable");
+		}
 	}
+
+	if (ss_flag & LCD_SSC_FREQ) {
+		pll_ctrl2 &= ~(0x7 << 24); /* ss_freq */
+		pll_ctrl2 |= (cconf->ss_freq << 24);
+		len += sprintf(prt_str + len, "%sfreq=%d", len ? ", " : "", cconf->ss_freq);
+	}
+
+	if (ss_flag & LCD_SSC_MODE) {
+		pll_ctrl2 &= ~(0x3 << 22); /* ss_mode */
+		pll_ctrl2 |= (cconf->ss_mode << 22);
+		len += sprintf(prt_str + len, "%smode=%d", len ? ", " : "", cconf->ss_mode);
+	}
+
 	lcd_ana_write(HHI_TCON_PLL_CNTL2, pll_ctrl2);
-}
-
-static void lcd_set_pll_ss_advance(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_clk_config_s *cconf;
-	unsigned int pll_ctrl2;
-	unsigned int freq, mode;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
-	freq = cconf->ss_freq;
-	mode = cconf->ss_mode;
-	pll_ctrl2 = lcd_ana_read(HHI_TCON_PLL_CNTL2);
-	pll_ctrl2 &= ~(0x7 << 24); /* ss_freq */
-	pll_ctrl2 |= (freq << 24);
-	pll_ctrl2 &= ~(0x3 << 22); /* ss_mode */
-	pll_ctrl2 |= (mode << 22);
-	lcd_ana_write(HHI_TCON_PLL_CNTL2, pll_ctrl2);
-
-	LCDPR("set pll spread spectrum: freq=%d, mode=%d\n", freq, mode);
+	LCDPR("set ssc: %s\n", prt_str);
 }
 
 static void lcd_pll_frac_set(struct aml_lcd_drv_s *pdrv, unsigned int frac)
@@ -248,10 +247,8 @@ set_pll_retry_tl1:
 		lcd_ana_setb(HHI_TCON_PLL_CNTL2, 1, 5, 1);
 	}
 
-	if (cconf->ss_level > 0) {
-		lcd_set_pll_ss_level(pdrv);
-		lcd_set_pll_ss_advance(pdrv);
-	}
+	if (cconf->ss_level > 0)
+		lcd_set_pll_ss(pdrv, (LCD_SSC_LEVEL | LCD_SSC_FREQ | LCD_SSC_MODE));
 }
 
 static void lcd_clk_set(struct aml_lcd_drv_s *pdrv)
@@ -609,8 +606,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5 = {
 	.clk_parameter_init = NULL,
 	.clk_generate_parameter = lcd_clk_generate_dft,
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
-	.set_ss_level = lcd_set_pll_ss_level,
-	.set_ss_advance = lcd_set_pll_ss_advance,
+	.set_ss = lcd_set_pll_ss,
 	.clk_ss_enable = lcd_pll_ss_enable,
 	.clk_ss_init = lcd_pll_ss_init,
 	.pll_frac_set = lcd_pll_frac_set,
@@ -678,8 +674,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.clk_parameter_init = NULL,
 	.clk_generate_parameter = lcd_clk_generate_dft,
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
-	.set_ss_level = lcd_set_pll_ss_level,
-	.set_ss_advance = lcd_set_pll_ss_advance,
+	.set_ss = lcd_set_pll_ss,
 	.clk_ss_enable = lcd_pll_ss_enable,
 	.clk_ss_init = lcd_pll_ss_init,
 	.pll_frac_set = lcd_pll_frac_set,
