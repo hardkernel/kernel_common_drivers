@@ -13826,6 +13826,12 @@ static void init_vd_proc_amdv_info(void)
 	vd_proc_amdv.slice_num = 1;
 }
 
+static void init_vd_proc_amvecm_info(void)
+{
+	memset(&vd_proc_amvecm, 0, sizeof(struct vd_proc_amvecm_info_t));
+	vd_proc_amvecm.slice_num = 1;
+}
+
 void update_vd_amdv_info(struct video_layer_s *layer)
 {
 	struct vpp_frame_par_s *cur_frame_par;
@@ -13858,6 +13864,36 @@ void update_vd_amdv_info(struct video_layer_s *layer)
 		vd_proc_amdv.vd2_crop_top = cur_frame_par->crop_top;
 		vd_proc_amdv.vd2_crop_bottom = cur_frame_par->crop_bottom;
 		vd_proc_amdv.vd2_no_compress = cur_frame_par->nocomp;
+	}
+}
+
+void update_vd_amvecm_info(struct video_layer_s *layer)
+{
+	struct vpp_frame_par_s *cur_frame_par;
+	s32 src_w = 0, src_h = 0, dst_w = 0, dst_h = 0;
+
+	cur_frame_par = layer->cur_frame_par;
+	if (!cur_frame_par)
+		return;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		vd_proc_amvecm.slice_num = 1;
+		src_w = cur_frame_par->video_input_w << cur_frame_par->supsc0_hori_ratio;
+		src_h = cur_frame_par->video_input_h << cur_frame_par->supsc0_vert_ratio;
+		dst_w = cur_frame_par->VPP_hsc_endp - cur_frame_par->VPP_hsc_startp + 1;
+		dst_h = cur_frame_par->VPP_vsc_endp - cur_frame_par->VPP_vsc_startp + 1;
+	}
+	if (layer->layer_id == 0) {
+		vd_proc_amvecm.vd1_in_hsize = src_w;
+		vd_proc_amvecm.vd1_in_vsize = src_h;
+		vd_proc_amvecm.vd1_dout_hsize = dst_w;
+		vd_proc_amvecm.vd1_dout_vsize = dst_h;
+	}
+	if (layer->layer_id == 1) {
+		vd_proc_amvecm.vd2_in_hsize = src_w;
+		vd_proc_amvecm.vd2_in_vsize = src_h;
+		vd_proc_amvecm.vd2_dout_hsize = dst_w;
+		vd_proc_amvecm.vd2_dout_vsize = dst_h;
 	}
 }
 #endif
@@ -15001,6 +15037,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	init_layer_canvas(&vd_layer[2], LAYER3_CANVAS_BASE_INDEX);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	init_vd_proc_amdv_info();
+	init_vd_proc_amvecm_info();
 #endif
 	/* vd_layer_vpp is for multiple vpp */
 	memcpy(&vd_layer_vpp[0], &vd_layer[1], sizeof(struct video_layer_s));

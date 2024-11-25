@@ -98,6 +98,11 @@ struct vd_proc_info_t *get_vd_proc_amdv_info(void)
 {
 	return &vd_proc_amdv;
 }
+
+struct vd_proc_amvecm_info_t *get_vd_proc_amvecm_info(void)
+{
+	return &vd_proc_amvecm;
+}
 #endif
 
 u32 is_crop_left_odd(struct vpp_frame_par_s *frame_par)

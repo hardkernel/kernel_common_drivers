@@ -1935,6 +1935,7 @@ s32 primary_render_frame(struct video_layer_s *layer,
 		(layer, &layer->sc_setting, vinfo);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	update_vd_amdv_info(layer);
+	update_vd_amvecm_info(layer);
 #endif
 	config_vd_blend
 		(layer, &layer->bld_setting);
@@ -2168,6 +2169,7 @@ s32 vdx_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 		(layer, &layer->sc_setting, vinfo);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	update_vd_amdv_info(layer);
+	update_vd_amvecm_info(layer);
 #endif
 	vd_s5_hw_set(layer, dispbuf, frame_par);
 	vd_scaler_setting

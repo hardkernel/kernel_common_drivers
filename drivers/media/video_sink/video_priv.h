@@ -1263,6 +1263,7 @@ int vpp_set_super_scaler_regs(struct video_layer_s *layer,
 void update_primary_fmt_event(void);
 void switch_from_lcevc_to_nonlcevc(bool unreg);
 void update_vd_amdv_info(struct video_layer_s *layer);
+void update_vd_amvecm_info(struct video_layer_s *layer);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {

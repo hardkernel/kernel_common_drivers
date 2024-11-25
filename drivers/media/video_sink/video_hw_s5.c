@@ -100,11 +100,11 @@ static struct vd_proc_s g_vd_proc;
 struct vpp_post_reg_s vpp_post_reg;
 struct vd_proc_reg_s vd_proc_reg;
 struct vd_proc_info_t vd_proc_amdv;
+struct vd_proc_amvecm_info_t vd_proc_amvecm;
 static u32 vpp_ofifo_size_s5 = 0x800;
 static u32 conv_lbuf_len_s5[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
 static u32 g_bypass_module = 5;
 static struct vpp_post_info_t vpp_post_amdv;
-static struct vd_proc_amvecm_info_t vd_proc_amvecm;
 static bool vd1_pi_input_size_update;
 static bool vd2_pi_input_size_update;
 static struct vd_pps_val_s vd_pps_val[SLICE_NUM];
@@ -6208,11 +6208,6 @@ static void update_vd_proc_amvecm_info(struct vd_proc_s *vd_proc)
 	vd_proc_amvecm.vd2_in_vsize = vd_proc_vd2_info->vd2_din_vsize;
 	vd_proc_amvecm.vd2_dout_hsize = vd_proc_vd2_info->vd2_dout_hsize;
 	vd_proc_amvecm.vd2_dout_vsize = vd_proc_vd2_info->vd2_dout_vsize;
-}
-
-struct vd_proc_amvecm_info_t *get_vd_proc_amvecm_info(void)
-{
-	return &vd_proc_amvecm;
 }
 
 void vd_s5_hw_set(struct video_layer_s *layer,
