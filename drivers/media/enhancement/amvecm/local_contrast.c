@@ -29,6 +29,7 @@
 #include "local_contrast.h"
 #include "amve_v2.h"
 #include "am_dma_ctrl.h"
+#include <linux/amlogic/media/video_sink/video.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 #include <linux/amlogic/media/frc/frc_common.h>
 #endif
@@ -150,6 +151,7 @@ bool lc_curve_fresh = true;
 struct ve_lc_curve_parm_s lc_curve_parm_load;
 struct lc_alg_param_s lc_alg_parm;
 struct lc_curve_tune_param_s lc_tune_curve;
+static struct vd_proc_amvecm_info_t *lc_vd_info;
 
 /*lc saturation gain, low parameters*/
 /*static unsigned int lc_satur_gain[63] = {
@@ -1157,6 +1159,11 @@ void lc_config(int enable,
 		flag_full = detect_signal_range_en;
 	}
 
+	if (chip_type_id == chip_t6d && lc_vd_info) {
+		sps_h_in = lc_vd_info->vd1_in_vsize;
+		sps_w_in = lc_vd_info->vd1_in_hsize;
+	}
+
 	if (flag_full != flag_full_pre ||
 		sps_h_in_pre != sps_h_in ||
 		sps_w_in_pre != sps_w_in) {
@@ -1184,11 +1191,17 @@ void lc_config(int enable,
 	}
 
 	flag_full_pre = flag_full;
-	height = sps_h_in << sps_h_en;
-	width = sps_w_in << sps_v_en;
+
+	if (chip_type_id == chip_t6d && lc_vd_info) {
+		height = lc_vd_info->vd1_dout_vsize;
+		width = lc_vd_info->vd1_dout_hsize;
+	} else {
+		height = sps_h_in << sps_h_en;
+		width = sps_w_in << sps_v_en;
+	}
+
 	sps_w_in_pre = sps_w_in;
 	sps_h_in_pre = sps_h_in;
-
 	vf_height = vf->height;
 	vf_width = vf->width;
 
@@ -2647,13 +2660,15 @@ void lc_process(struct vframe_s *vf,
 		}
 	}
 
-	if (chip_type_id == chip_t6d) {
-		sps_h_in = 1080;
-		sps_w_in = 1920;
-	}
+	lc_vd_info = get_vd_proc_amvecm_info();
 
-	height = sps_h_in << sps_v_en;
-	width = sps_w_in << sps_h_en;
+	if (chip_type_id == chip_t6d && lc_vd_info) {
+		height = lc_vd_info->vd1_dout_vsize;
+		width = lc_vd_info->vd1_dout_hsize;
+	} else {
+		height = sps_h_in << sps_v_en;
+		width = sps_w_in << sps_h_en;
+	}
 
 	if (!lc_en ||
 		(vf && width < width_limit && height < height_limit)) {
