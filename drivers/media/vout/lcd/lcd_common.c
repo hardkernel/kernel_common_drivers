@@ -78,50 +78,6 @@ void lcd_dbg_mem_dump(void *addr, size_t size)
 	LCDPR("0x%04x:%s\n", j * 0x10, buf);
 }
 
-int __of_reserved_mem_device_init_by_name(struct device *dev,
-					struct device_node *np,
-					const char *name)
-{
-	int idx = of_property_match_string(np, "memory-region-names", name);
-
-	return of_reserved_mem_device_init_by_idx(dev, np, idx);
-}
-
-void lcd_cma_pool_init(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
-{
-	struct device *dev;
-	int ret;
-	char rsv_mem_name[64];
-
-	if (!pdev || !pdrv)
-		return;
-
-	if (pdrv->index)
-		sprintf(rsv_mem_name, "lcd%d_cma_reserved", pdrv->index);
-	else
-		sprintf(rsv_mem_name, "lcd_cma_reserved");
-	dev = &pdrv->pdev->dev;
-	ret = __of_reserved_mem_device_init_by_name(dev, dev->of_node, rsv_mem_name);
-	if (ret == 0) {
-		pdrv->lcd_cma_ready = 1;
-		//dma_set_coherent_mask(dev, 0xffffffff);//4G
-	} else {
-		pdrv->lcd_cma_ready = -1;
-		LCDPR("warning:lcd cma init failed\n");
-	}
-}
-
-void *lcd_alloc_dma_buffer(struct aml_lcd_drv_s *pdrv, unsigned int size, dma_addr_t *paddr)
-{
-	if (!pdrv || !pdrv->pdev)
-		return NULL;
-
-	if (pdrv->lcd_cma_ready == 0)
-		lcd_cma_pool_init(pdrv, pdrv->pdev);
-
-	return dma_alloc_coherent(&pdrv->pdev->dev, size, paddr, GFP_KERNEL);
-}
-
 u8 *lcd_vmap(ulong addr, u32 size)
 {
 	u8 *vaddr = NULL;

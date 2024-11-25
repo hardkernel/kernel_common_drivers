@@ -868,7 +868,6 @@ struct aml_lcd_drv_s {
 	unsigned char viu_sel;
 	unsigned char projection_en;
 	unsigned char vsync_none_timer_flag;
-	signed char lcd_cma_ready;
 	unsigned char clk_conf_num;
 	unsigned char vout_regist_on_ctrl;
 	char vsync_isr_name[3][15];
