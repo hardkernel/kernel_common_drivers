@@ -726,14 +726,17 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 
 	/* when safa size <= 2048 and scaler up, dejaggy_enable */
 	if (cur_dev->dejaggy_support &&
-		hsize_in <= 2048 &&
-		(hsize_out > hsize_in || vsize_out > vsize_in) &&
-		!vsr_safa->prev_en &&
-		vsr_top->is_interlaced)
-		vsr_safa->dejaggy_en = true;
-	else
+		(hsize_out >= hsize_in || vsize_out >= vsize_in) &&
+		!vsr_safa->prev_en) {
+		if (video_is_meson_s6_cpu() && hsize_in <= 2048)
+			vsr_safa->dejaggy_en = true;
+		else if (video_is_meson_t6d_cpu() &&
+				(hsize_in <= 1024 ||
+				(vsr_top->input_422_en && hsize_in <= 2048)))
+			vsr_safa->dejaggy_en = true;
+	} else {
 		vsr_safa->dejaggy_en = false;
-
+	}
 	if (hsize_out <= 45)
 		vsr_top->sharpness_en = false;
 	else
