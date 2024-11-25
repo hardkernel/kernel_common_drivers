@@ -6644,7 +6644,7 @@ static int video_composer_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "vpu_dma_mask", &st->vpu_dma_mask);
 		if (ret) {
-			pr_err("video_composer don't find vpu_dma_mask\n");
+			pr_debug("video_composer don't find vpu_dma_mask\n");
 			st->vpu_dma_mask = 0;
 		}
 		if (st->vpu_dma_mask) {
@@ -6670,7 +6670,7 @@ static int video_composer_probe(struct platform_device *pdev)
 #endif
 	}
 	pr_debug("%s num=%d\n", __func__, video_composer_instance_num);
-	return ret;
+	return 0;
 
 error1:
 	pr_err("%s error\n", __func__);
