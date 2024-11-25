@@ -381,6 +381,7 @@ struct vframe_src_fmt_s {
 	bool hdmi_new_frame;
 	u32 py_level;
 	u32 downsamplers;
+	u8 py_id;
 };
 
 enum pic_mode_provider_e {

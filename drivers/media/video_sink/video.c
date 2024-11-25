@@ -945,6 +945,11 @@ inline struct vframe_s *amvideo_vf_get(void)
 		/*tunnel mode, add dv_inst to vf*/
 		if (dv_inst >= 0)
 			vf->src_fmt.dv_id = dv_inst;
+		/*init dv info*/
+		vf->src_fmt.pr_done = false;
+		vf->src_fmt.py_level = PY_NO_LEVEL;
+		vf->src_fmt.downsamplers = 2;
+		vf->src_fmt.py_id = 0;
 #endif
 	}
 	return vf;
@@ -3933,7 +3938,7 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 						pr_info("first frame for top1\n");
 					amdv_parse_metadata_hw5_top1(vf);
 					amdolby_vision_process_hw5(vf, NULL,
-						vf->compWidth << 16 | vf->compHeight, 1, 0);
+						vf->compWidth << 16 | vf->compHeight, 1);
 					force_top1_once = false;
 				}
 				break;/*wait metadata or step or top1*/

@@ -3536,7 +3536,7 @@ static void print_cfg(struct target_config_dvp *config)
 		config->pr_config.precision_rendering_strength);
 	pr_info("pyramid_pad_value:           %d\n",
 		config->pr_config.pyramid_pad_value);
-	pr_info("pyramid_weights:             %d %d %d %d %d %d %d\n",
+	pr_info("pyramid_weight:0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 		config->pr_config.pyramid_weights[0],
 		config->pr_config.pyramid_weights[1],
 		config->pr_config.pyramid_weights[2],
@@ -3544,7 +3544,7 @@ static void print_cfg(struct target_config_dvp *config)
 		config->pr_config.pyramid_weights[4],
 		config->pr_config.pyramid_weights[5],
 		config->pr_config.pyramid_weights[6]);
-	pr_info("pyramid_alpha:               %d %d %d %d %d %d %d\n",
+	pr_info("pyramid_alpha:0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 		config->pr_config.pyramid_alpha[0],
 		config->pr_config.pyramid_alpha[1],
 		config->pr_config.pyramid_alpha[2],

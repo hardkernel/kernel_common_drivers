@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "20241112"
+#define DRIVER_VER "20250109"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -110,6 +110,7 @@
 #define HDMI_ONLY_UPDATE_HIST_FOR_NEW_FRAME 0x2000 /*case5351 5356*/
 #define FORCE_ONE_SLICE 0x4000 /*case5011b 5055a 5055b*/
 #define DEBUG_IGNORE_IOCTL 0x8000
+#define DEBUG_HW5_SIX_LEVEL 0x10000
 
 #define MAX_CFG_SIZE (1024 * 10)
 #define MAX_BIN_SIZE (1024 * 150)
@@ -473,6 +474,7 @@ struct dovi_setting_s {
 #define CASE0_TOP1_READFROM_FILE 2
 #define CASE5344_TOP1_READFROM_FILE 3
 #define CASE5363_TOP1_READFROM_FILE 4
+#define CASE1080p_TOP1_READFROM_FILE 5 /*1080p+960x540*/
 
 struct dovi_setting_video_s {
 	struct composer_reg_ipcore comp_reg;
@@ -689,6 +691,7 @@ struct core_inst_s {
 	u32 core_disp_hsize;
 	u32 core_disp_vsize;
 	u32 py_level;
+	u8 py_id;
 };
 
 struct tv_input_info_s {
@@ -795,7 +798,7 @@ enum top2_source {
 	FROM_VDIN1 = 3
 };
 
-struct top1_pyramid_addr {
+struct pyramid_info {
 	void *py_vaddr[7];
 	dma_addr_t top1_py_paddr[7];
 	u32 top1_py_size[7];
@@ -923,7 +926,6 @@ extern int debug_cp_res;
 extern u32 force_update_reg;
 extern const char *input_str[11];
 extern bool module_installed;
-extern struct top1_pyramid_addr top1_py_addr;
 extern void *top1_reg_buf;
 extern void *top1b_reg_buf;
 extern void *top1_lut_buf;
@@ -949,9 +951,8 @@ extern bool load_fixed_setting;
 extern u32 test_dv;
 extern struct video_inst_s top1_v_info;/*video info*/
 extern struct video_inst_s top2_v_info;/*video info*/
-extern struct top1_pyramid_addr py_addr[PYRAMID_BUF_CNT];
-extern u8 py_wr_id;
-extern u8 py_rd_id;
+extern struct pyramid_info py_addr[PYRAMID_BUF_CNT];
+extern u8 py_id;
 extern struct dolby5_top1_md_hist dv5_md_hist;
 extern int force_top1_enable;
 extern u32 fix_data;
@@ -1378,13 +1379,10 @@ int tv_top_set(u64 *top1_reg,
 			     int hsize,
 			     int vsize,
 			     int bl_enable,
-			     int src_chroma_format,
-			     bool hdmi,
-			     bool hdr10,
+			     bool enable_detunnel,
 			     bool reset,
 			     bool toggle,
-			     bool pr_done,
-			     u32 level);
+			     bool pr_done);
 void dolby5_bypass_ctrl(unsigned int en);
 int load_reg_and_lut_file(char *fw_name, void **dst_buf);
 void read_txt_to_buf(char *reg_txt, void *reg_buf, int reg_num, bool is_reg);

@@ -111,6 +111,13 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 			(vf->type & VIDTYPE_MVC))
 			vf->type &= ~VIDTYPE_MVC;
 		pre_process_for_3d(vf);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		/*init dv info*/
+		vf->src_fmt.pr_done = false;
+		vf->src_fmt.py_level = PY_NO_LEVEL;
+		vf->src_fmt.downsamplers = 2;
+		vf->src_fmt.py_id = 0;
+#endif
 	}
 	return vf;
 }
@@ -691,7 +698,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 						pr_info("first frame for top1\n");
 					amdv_parse_metadata_hw5_top1(vf);
 					amdolby_vision_process_hw5(vf, NULL,
-						vf->compWidth << 16 | vf->compHeight, 1, 0);
+						vf->compWidth << 16 | vf->compHeight, 1);
 				}
 				break;
 			}

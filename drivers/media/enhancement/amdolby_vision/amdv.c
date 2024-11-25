@@ -305,16 +305,16 @@ u32 top2_lut_num = TOP2_LUT_NUM;/*read file from vlsi*/
 struct lut_dma_info_s lut_dma_info[DMA_BUF_CNT];
 bool lut_dma_support;
 int cur_dmabuf_id;
-struct top1_pyramid_addr py_addr[PYRAMID_BUF_CNT];/*read, write, invalid*/
-u8 py_wr_id;
-u8 py_rd_id;
+struct pyramid_info py_addr[PYRAMID_BUF_CNT];/*read, write, invalid*/
+u8 py_id;
+
 /*1024*576*10/8 = 737280 64byte align*/
 /*512*288*10/8 = 184320 64byte align*/
 /*256*144*10/8 = 46080 64byte align*/
-/*128*10/8 = 160 64byte align 192*72 = 13824*/
-/*64*10/8 = 80 64byte align 128*36 = 4608*/
-/*32*10/8 = 40 64byte align 64 *18 = 1152*/
-/*16*10/8 = 20 64byte align 64*9 = 576*/
+/*128*72*10/8 = 160 64byte align 192*72 = 13824*/
+/*64*36*10/8 = 80 64byte align 128*36 = 4608*/
+/*32*18*10/8 = 40 64byte align 64*18 = 1152*/
+/*16*9*10/8 = 20 64byte align 64*9 = 576*/
 u32 py_size[7] = {737280, 184320, 46080, 13824, 4608, 1152, 576};
 
 struct dolby5_top1_md_hist dv5_md_hist;
@@ -1674,10 +1674,10 @@ void dump_tv_setting(void *p_setting,
 		pr_info("\n");
 	}
 	if ((debug_flag & 0x10) && dump_enable) {
-		if (is_aml_hw5()) {
+		if (is_aml_t3x()) {
 			if (enable_top1) {
 				pr_info("\n===top1 real reg===\n");
-				for (i = 0; i < TOP1_REG_NUM; i++)
+				for (i = 0; i < TOP1_REG_NUM - 2; i++)
 					pr_info("[%04x]%08x\n", DOLBY5_CORE1_REG_BASE + i,
 						READ_VPP_DV_REG(DOLBY5_CORE1_REG_BASE + i));
 				pr_info("\n===top1b real reg===\n");
@@ -2277,7 +2277,7 @@ int amdv_update_setting(void)
 		dma_data = stb_core1_lut;
 		size = 8 * STB_DMA_TBL_SIZE;
 		memcpy(dma_vaddr, dma_data, size);
-	} else if (is_aml_hw5()) {//todo
+	} else if (is_aml_t3x()) {//todo
 		if (lut_dma_info[cur_dmabuf_id].dma_vaddr && tv_hw5_setting &&
 			!hw5_reg_from_file) {
 			if (enable_top1 || force_enable_top12_lut) {
@@ -2491,6 +2491,7 @@ void reset_dv_param(void)
 		top1_info.core_disp_hsize = 0;
 		top1_info.core_disp_vsize = 0;
 		top1_info.py_level = PY_NO_LEVEL;
+		top1_info.py_id = 0;
 		top2_info.core_on = false;
 		top2_info.amdv_setting_video_flag = false;
 		top2_info.core_on_cnt = 0;
@@ -2498,19 +2499,19 @@ void reset_dv_param(void)
 		top2_info.core_disp_hsize = 0;
 		top2_info.core_disp_vsize = 0;
 		top2_info.py_level = PY_NO_LEVEL;
+		top2_info.py_id = 0;
 		top1_done = false;
 		top1_scale = 0;
 		top1_v_info.amdv_src_format = 0;
 		top1_v_info.amdv_wait_init = false;
 		top1_v_info.amdv_wait_count = 0;
 		top1_v_info.frame_count = 0;
-
 		top2_v_info.amdv_src_format = 0;
 		top2_v_info.amdv_wait_init = false;
 		top2_v_info.amdv_wait_count = 0;
 		top2_v_info.frame_count = 0;
-		py_wr_id = 0;
-		py_rd_id = 0;
+		py_id = 0;
+		enable_top1 = false;
 		l1l4_distance = 0;
 		force_bypass_precision = false;
 		force_bypass_pd_level0 = false;
@@ -2554,7 +2555,7 @@ void update_dma_buf(void)
 
 	if (efuse_mode == 1) {
 		if (is_aml_tvmode()) {
-			if (is_aml_hw5()) {
+			if (is_aml_t3x()) {
 				for (i = 0; i < DMA_BUF_CNT; i++) {
 					size = lut_dma_info[i].dma_total_size;
 					if (lut_dma_info[i].dma_vaddr)
@@ -2749,7 +2750,7 @@ void amdv_init_receiver(void *pdev)
 		memset(last_dma_data, 0, alloc_size);
 	dma_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
 		alloc_size, &dma_paddr, GFP_KERNEL);
-	pr_info("get dma_vaddr %px %pad\n", dma_vaddr, &dma_paddr);
+	pr_info("get dma_vaddr %px 0x%x\n", dma_vaddr, (u32)dma_paddr);
 
 	if (is_aml_hw5()) {
 		for (i = 0; i < DMA_BUF_CNT; i++) {
@@ -5379,7 +5380,7 @@ int amdv_check_hlg(struct vframe_s *vf)
 	if (!is_amdv_frame(vf) && is_hlg_frame(vf) && !dolby_vision_on) {
 		/* hlg source, but dovi not enabled */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(vf, &mode, FORMAT_MVC)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_HLG)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -5398,7 +5399,7 @@ int amdv_check_hdr10plus(struct vframe_s *vf)
 	if (!is_amdv_frame(vf) && is_hdr10plus_frame(vf) && !dolby_vision_on) {
 		/* hdr10+ source, but dovi not enabled */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(vf, &mode, FORMAT_MVC)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_HDR10PLUS)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -5418,7 +5419,7 @@ int amdv_check_hdr10(struct vframe_s *vf)
 	if (!is_amdv_frame(vf) && is_hdr10_frame(vf) && !dolby_vision_on) {
 		/* hdr10 source, but dovi not enabled */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(vf, &mode, FORMAT_MVC)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_HDR10)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -5438,7 +5439,7 @@ int amdv_check_primesl(struct vframe_s *vf)
 	if (is_primesl_frame(vf) && dolby_vision_on) {
 		/* primesl source, but dovi enabled, need bypass dv */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(vf, &mode, FORMAT_MVC)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_PRIMESL)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -5458,7 +5459,7 @@ int amdv_check_cuva(struct vframe_s *vf)
 	if (is_cuva_frame(vf) && dolby_vision_on) {
 		/* cuva source, but dovi enabled, need bypass dv */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(vf, &mode, FORMAT_MVC)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_CUVA)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -14377,7 +14378,7 @@ int amdolby_vision_process(struct vframe_s *vf, u32 display_size,
 						    toggle_mode_2, pps_state);
 	} else {
 		if (is_aml_hw5())
-			amdolby_vision_process_hw5(NULL, vf, display_size, toggle_mode, pps_state);
+			amdolby_vision_process_hw5(NULL, vf, display_size, toggle_mode);
 		else
 			amdolby_vision_process_v1(vf, display_size, toggle_mode, pps_state);
 	}
@@ -15063,6 +15064,8 @@ static ssize_t amdolby_vision_load_reg_file_store
 		}
 	} else if (!strcmp(parm[0], "case5433_top1_64")) {
 		/*444-10bit interlaved, one pixel yuv share 32bit*/
+		if (fix_data)
+			fixed_buf_config();
 		load_reg_and_lut_file(parm[1], &top1_pic_txt);
 		if (y_vaddr && fix_data == CASE5344_TOP1_READFROM_FILE) {
 			read_top1_pic_to_buf(top1_pic_txt, y_vaddr, 1920 * 1080 / 2, true);
@@ -15084,6 +15087,8 @@ static ssize_t amdolby_vision_load_reg_file_store
 		}
 	} else if (!strcmp(parm[0], "case5433_top1")) {
 		/*444-10bit interlaved, one pixel yuv share 32bit*/
+		if (fix_data)
+			fixed_buf_config();
 		load_reg_and_lut_file(parm[1], &top1_pic_txt);
 		if (y_vaddr && fix_data == CASE5344_TOP1_READFROM_FILE) {
 			read_top1_pic_to_buf(top1_pic_txt, y_vaddr, 1920 * 1080, false);
@@ -15105,6 +15110,8 @@ static ssize_t amdolby_vision_load_reg_file_store
 		}
 	} else if (!strcmp(parm[0], "case5363_top1")) {
 		/*444-10bit interlaved, one pixel yuv share 32bit*/
+		if (fix_data)
+			fixed_buf_config();
 		load_reg_and_lut_file(parm[1], &top1_pic_txt);
 		if (y_vaddr && fix_data == CASE5363_TOP1_READFROM_FILE) {
 			read_top1_pic_to_buf(top1_pic_txt, y_vaddr, 540 * 540, false);
@@ -15122,6 +15129,31 @@ static ssize_t amdolby_vision_load_reg_file_store
 				p_buf_64[0], p_buf_64[1], p_buf_64[2]);
 
 			codec_mm_dma_flush(y_vaddr, 540 * 540 * 4, DMA_TO_DEVICE);
+			//codec_mm_unmap_phyaddr(y_vaddr);
+		}
+	} else if (!strcmp(parm[0], "case5040a_top1")) {
+		/*444-10bit interlaved, one pixel yuv share 32bit*/
+		if (fix_data)
+			fixed_buf_config();
+		load_reg_and_lut_file(parm[1], &top1_pic_txt);
+		if (!top1_pic_txt)
+			return count;
+		if (y_vaddr && fix_data == CASE1080p_TOP1_READFROM_FILE) {
+			read_top1_pic_to_buf(top1_pic_txt, y_vaddr, 960 * 540, false);
+			u32 *p_buf = (u32 *)y_vaddr;
+			u64 *p_buf_64 = (u64 *)y_vaddr;
+
+			pr_info("p_8bit %x %x %x %x %x %x %x %x %x %x %x %x\n",
+				y_vaddr[0], y_vaddr[1], y_vaddr[2], y_vaddr[3],
+				y_vaddr[4], y_vaddr[5], y_vaddr[6], y_vaddr[7],
+				y_vaddr[8], y_vaddr[9], y_vaddr[10], y_vaddr[11]);
+			pr_info("p_32bit %x %x %x %x, end: %x %x\n",
+				p_buf[0], p_buf[1], p_buf[2], p_buf[3],
+				p_buf[2073600 - 2], p_buf[2073600 - 1]);
+			pr_info("p_64bit %llx %llx %llx\n",
+				p_buf_64[0], p_buf_64[1], p_buf_64[2]);
+
+			codec_mm_dma_flush(y_vaddr, 960 * 540 * 4, DMA_TO_DEVICE);
 			//codec_mm_unmap_phyaddr(y_vaddr);
 		}
 	} else if (!strcmp(parm[0], "tv1614_reg_lut")) {
@@ -16816,7 +16848,7 @@ static ssize_t amdolby_vision_debug_store
 			amdv_run_mode_delay = 0;
 		}
 		if (is_aml_hw5())
-			hw5_reg_from_file = 1;
+			hw5_reg_from_file = load_fixed_setting;
 		pr_info("load_fixed_setting %d\n", load_fixed_setting);
 	} else if (!strcmp(parm[0], "debug_maxcll")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
@@ -18301,14 +18333,15 @@ static ssize_t amdolby_vision_inst_status_show
 			tv_hw5_setting->pq_config->tdc.pr_config.supports_precision_rendering,
 			tv_hw5_setting->pq_config->tdc.pr_config.precision_rendering_strength,
 			tv_hw5_setting->pq_config->tdc.ana_config.enalbe_l1l4_gen);
-		len += sprintf(buf + len, "pd:wr=%d rd=%d level_%s,pr_enabled=%d,l1l4=%d %d\n",
-			py_wr_id, py_rd_id,
+		len += sprintf(buf + len, "pd:[%d]wr=%d rd=%d level_%s,pr_en=%d,l1l4=%d %d\n",
+			py_id, top1_info.py_id, top2_info.py_id,
 			top2_info.py_level == 0 ? "6" : (top2_info.py_level == 1 ? "7" : "0"),
 			py_enabled, l1l4_enabled, l1l4_distance);
 
 		len += sprintf(buf + len, "================TOP1===============\n");
-		len += sprintf(buf + len, "top1 enable:%d, 0d01:0x%x\n", enable_top1,
-			READ_VPP_DV_REG(0x0d01));
+		if (is_aml_t3x())
+			len += sprintf(buf + len, "top1 enable:%d, cntrl_reg:0x%x\n", enable_top1,
+						READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1));
 		len += sprintf(buf + len, "num_downsamplers:%d, scale:%d\n",
 			num_downsamplers, top1_scale);
 		len += sprintf(buf + len, "force_bypass_precision:%d\n", force_bypass_precision);
@@ -19182,7 +19215,7 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(30);
 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 	}
-	if (is_aml_hw5()) {
+	if (is_aml_t3x()) {
 		int_viu1_dolby = platform_get_irq_byname(pdev, "viu1_dolby_int");
 		if (int_viu1_dolby <= 0) {
 			pr_dv_dbg("cannot get viu1_dolby_int resource\n");

@@ -251,7 +251,7 @@ void print_dv_ro(void);
 u32 get_top1_onoff(void);
 int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			 struct vframe_s *vf_top2, u32 display_size,
-			 u8 toggle_mode, u8 pps_state);
+			 u8 toggle_mode);
 int amdv_parse_metadata_hw5_top1(struct vframe_s *vf);
 bool get_idk_need_pps(void);
 int get_amdv_apo_enable(void);

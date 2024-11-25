@@ -104,8 +104,7 @@
 //Bit 11:10 reserved
 //Bit 9:0   reg_int_sel
 //default=0,output interrupt select,1:shutdown 0:open bit5:0=[dos din,rdma,core1,core1b,pyra,hist]
-//
-//
+
 #define DOLBY_TOP1_RO_0   0x0a15
 //Bit 31:0  ro_dbg0         //unsigned, RO, default=0
 //

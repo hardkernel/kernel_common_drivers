@@ -828,7 +828,7 @@ static void amdolby_vision_proc
 			amdolby_vision_process_hw5
 				(layer_1->vf_top1,
 				 disp_vf_1, frame_size_1,
-				 toggle_mode_1, pps_state);
+				 toggle_mode_1);
 		else
 			amdolby_vision_process
 				(disp_vf_1, frame_size_1,

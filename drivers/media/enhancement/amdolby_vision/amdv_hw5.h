@@ -27,7 +27,7 @@ struct dolby5_top1_type {
 	int core1_vsize;
 	int rdma_num;
 	int rdma_size;
-	int py_level;
+	int py_level; /*0:6py 1:7py 2:nopy*/
 	dma_addr_t py_baddr[7];
 	int py_stride[7];
 	unsigned int wdma_baddr;
