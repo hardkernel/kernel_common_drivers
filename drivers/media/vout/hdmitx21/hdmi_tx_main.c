@@ -872,20 +872,22 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	 * if currently output 8bit, and EDID don't
 	 * support Y422, and config_csc_en is 0, switch to SDR output
 	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
-		if (hdr_color_feature == C_BT709 &&
-			hdr_transfer_feature == T_BT709) {
-			/* for 8bit mode, also send hdr.sdr packet, not return here */
-			HDMITX_DEBUG_PACKET("%s: send hdr.sdr pkt\n", __func__);
-		} else if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
-			hdev->hdr_transfer_feature = T_BT709;
-			hdev->hdr_color_feature = C_BT709;
-			hdev->colormetry = 0;
-			schedule_work(&hdev->work_hdr);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_SDR);
-			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
-			return;
+	if (data) {
+		if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
+			if (hdr_color_feature == C_BT709 &&
+				hdr_transfer_feature == T_BT709) {
+				/* for 8bit mode, also send hdr.sdr packet, not return here */
+				HDMITX_DEBUG_PACKET("%s: send hdr.sdr pkt\n", __func__);
+			} else if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
+				hdev->hdr_transfer_feature = T_BT709;
+				hdev->hdr_color_feature = C_BT709;
+				hdev->colormetry = 0;
+				schedule_work(&hdev->work_hdr);
+				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
+						HDMITX_HDR_MODE_SDR);
+				spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+				return;
+			}
 		}
 	}
 	if (hdr_status_pos == 4) {
@@ -1585,14 +1587,16 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 	 * if currently output 8bit, and EDID don't
 	 * support Y422, and config_csc_en is 0, switch to SDR output
 	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
-		if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
-			hdev->hdr_transfer_feature = T_BT709;
-			hdev->hdr_color_feature = C_BT709;
-			schedule_work(&hdev->work_hdr);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_SDR);
-			return;
+	if (data) {
+		if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
+			if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
+				hdev->hdr_transfer_feature = T_BT709;
+				hdev->hdr_color_feature = C_BT709;
+				schedule_work(&hdev->work_hdr);
+				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
+						HDMITX_HDR_MODE_SDR);
+				return;
+			}
 		}
 	}
 	if (flag == HDR10_PLUS_ZERO_VSIF) {
