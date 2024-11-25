@@ -1175,6 +1175,10 @@
 	status = "okay";
 };
 
+&aed {
+	eqdrc_module = <1>;
+};
+
 &tdmb {
 	samesource_sel = <3>;
 	pinctrl-names = "tdm_pins";
@@ -1191,7 +1195,7 @@
 	dai-tdm-lane-slot-mask-in = <1 0 0 0>;
 	dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 	dai-tdm-clk-sel = <2>;
-
+	tdmout_master = <1>;
 	clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 			&clkaudio CLKID_AUDIO_MCLK_PAD2
 			&clkc CLKID_HIFI_PLL

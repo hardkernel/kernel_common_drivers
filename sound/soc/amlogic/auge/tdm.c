@@ -151,6 +151,7 @@ struct aml_tdm {
 	int tdmout_lane_mute_status[LANE_MAX3];
 	bool earc_use_48k;
 	int ext_amp_ws_inv;
+	unsigned int tdmout_master;
 };
 
 #define to_aml_tdm(x)   container_of(x, struct aml_tdm, clk_nb)
@@ -584,8 +585,6 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq, bool tune)
 
 static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture_active)
 {
-	bool tdmin_src_hdmirx = false;
-	bool tdmin_src_hdmirxb = false;
 	if (!p_tdm)
 		return -EINVAL;
 
@@ -612,17 +611,18 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 	}
 
 	p_tdm->setting.sclk_ws_inv = p_tdm->chipinfo->sclk_ws_inv;
+	p_tdm->setting.fmt = fmt;
+	p_tdm->setting.use_vadtop = p_tdm->chipinfo->use_vadtop;
+	p_tdm->setting.ext_amp_ws_inv = p_tdm->ext_amp_ws_inv;
+	p_tdm->setting.tdmout_master = p_tdm->tdmout_master;
 
 	if (!strcmp(p_tdm->tdmin_src_name, SRC_HDMIRX))
-		tdmin_src_hdmirx = true;
+		p_tdm->setting.tdmin_src_hdmirx = HDMIRX_A;
 	else if (!strcmp(p_tdm->tdmin_src_name, SRC_HDMIRXB))
-		tdmin_src_hdmirxb = true;
+		p_tdm->setting.tdmin_src_hdmirx = HDMIRX_B;
+
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
-			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1,
-			   tdmin_src_hdmirx,
-			   tdmin_src_hdmirxb,
-			   p_tdm->chipinfo->use_vadtop,
-			   p_tdm->ext_amp_ws_inv);
+			   p_tdm->clk_sel, p_tdm->id);
 	if (p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		int ret = clk_prepare_enable(p_tdm->mclk);
 
@@ -1039,6 +1039,29 @@ static int tdm_port_pcpd_detect_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 #endif
+
+static int tdm_set_function_pins(struct aml_tdm *p_tdm, bool on)
+{
+	struct pinctrl_state *ps = NULL;
+	int ret = 0;
+
+	if (IS_ERR_OR_NULL(p_tdm->pin_ctl))
+		return 0;
+
+	if (on)
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_pins");
+	else
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
+
+	if (IS_ERR_OR_NULL(ps))
+		return 0;
+
+	ret = pinctrl_select_state(p_tdm->pin_ctl, ps);
+	if (ret)
+		dev_err(p_tdm->dev, "failed set pdm function: %d\n", on);
+
+	return 0;
+}
 
 static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 	/*TDMOUT_B gain, enable data * gain*/
@@ -2797,6 +2820,11 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	else
 		pr_debug("TDM id %d ext_amp_ws_inv:%d\n",
 			p_tdm->id, p_tdm->ext_amp_ws_inv);
+
+	ret = of_property_read_u32(node, "tdmout_master", &p_tdm->tdmout_master);
+	if (ret < 0)
+		p_tdm->tdmout_master = 0;
+
 	ret = of_property_read_u32(node, "ctrl_gain", &p_tdm->ctrl_gain_enable);
 	if (ret < 0)
 		p_tdm->ctrl_gain_enable = 0;
@@ -2908,16 +2936,7 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 			regulator_disable(p_tdm->regulator_vcc3v3);
 	}
 
-	/*mute default clk */
-	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *ps = NULL;
-
-		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
-		if (!IS_ERR_OR_NULL(ps)) {
-			pinctrl_select_state(p_tdm->pin_ctl, ps);
-			pr_info("%s tdm pins disable!\n", __func__);
-		}
-	}
+	tdm_set_function_pins(p_tdm, false);
 
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
@@ -2984,15 +3003,7 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	if (!IS_ERR(p_tdm->mclk2pad) && p_tdm->start_clk_enable == 1)
 		aml_set_default_tdm_clk(p_tdm);
 
-	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *state = NULL;
-		state = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_pins");
-		if (!IS_ERR_OR_NULL(state)) {
-			pinctrl_select_state(p_tdm->pin_ctl, state);
-			pr_info("%s tdm pins enable!\n", __func__);
-		}
-	}
-
+	tdm_set_function_pins(p_tdm, true);
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
 }
@@ -3003,15 +3014,8 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 	int ret = 0;
 
 	/*mute default clk */
-	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *ps = NULL;
-
-		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
-		if (!IS_ERR_OR_NULL(ps)) {
-			pinctrl_select_state(p_tdm->pin_ctl, ps);
-			pr_info("%s tdm pins disable!\n", __func__);
-		}
-	}
+	if (p_tdm->start_clk_enable)
+		tdm_set_function_pins(p_tdm, false);
 
 	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
 		regulator_disable(p_tdm->regulator_vcc5v);

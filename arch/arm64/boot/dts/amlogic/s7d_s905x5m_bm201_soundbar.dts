@@ -646,7 +646,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-i2s";
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -664,7 +664,7 @@
 			};
 			tdmbcodec: codec {
 				prefix-names = "ad82128_c_30", "ad82128_c_31";
-				sound-dai = <&ad82128_30 &ad82128_31 &amlogic_codec>;
+				sound-dai = <&ad82128_30 &ad82128_31>;
 			};
 		};
 
@@ -681,7 +681,7 @@
 			bitclock-master = <&tdmccodec>;
 			frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s2hdmi";
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -691,7 +691,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
@@ -937,7 +937,6 @@
 			&clkc CLKID_HIFI_PLL
 			&clkc CLKID_HIFI1_PLL>;
 	clock-names = "mclk",  "mclk_pad", "clk_srcpll", "clk_src_cd";
-	samesource_sel = <3>;
 	pinctrl-names = "tdm_pins";
 	pinctrl-0 =
 			<&tdmb_pins
@@ -957,6 +956,7 @@
 	dai-tdm-lane-slot-mask-in = <1 0 0 0>;
 	dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 	dai-tdm-clk-sel = <2>;
+	tdmout_master = <1>;
 	clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 			&clkaudio CLKID_AUDIO_MCLK_PAD2
 			&clkc CLKID_HIFI_PLL
@@ -971,8 +971,8 @@
 };
 
 &amlogic_codec {
-			tocodec_inout = <1>;
-			tdmout_index = <1>;
+	tocodec_inout = <2>;
+	tdmout_index = <2>;
 };
 
 &i2c4 {
@@ -1146,6 +1146,18 @@
 				"tdm_d5_c6";
 			function = "tdm";
 			drive-strength = <2>;
+		};
+	};
+
+	tdmb_off_pins: tdmb_off_pin {
+		mux { /* GPIOC_2, GPIOC_3, GPIOC_0, GPIOC_1, GPIOC_5, GPIOC_6 */
+			groups = "GPIOC_2",
+				"GPIOC_3",
+				"GPIOC_0",
+				"GPIOC_1",
+				"GPIOC_5",
+				"GPIOC_6";
+			function = "gpio_periphs";
 		};
 	};
 

@@ -74,6 +74,7 @@ struct ad82128_data {
 	int vol;
 	int subwoofer_enable;
 	int no_device;
+	bool power_down;
 };
 
 static void print_i2c_client_info(struct i2c_client *client, const char *msg)
@@ -97,6 +98,8 @@ static int ad82128_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 88200:
 	case 96000:
+	case 176400:
+	case 192000:
 		ssz_ds = true;
 		break;
 	default:
@@ -591,6 +594,9 @@ static int ad82128_suspend(struct snd_soc_component *component)
 	struct ad82128_data *ad82128 = snd_soc_component_get_drvdata(component);
 	int ret;
 
+	if (ad82128->power_down)
+		return 0;
+
 	regcache_cache_only(ad82128->regmap, true);
 	regcache_mark_dirty(ad82128->regmap);
 
@@ -615,6 +621,7 @@ static int ad82128_suspend(struct snd_soc_component *component)
 			"ad82128 suspend, just ad82128 count--");
 	}
 	pr_info("ad82128 suspend, count: %d\n", g_codec_count);
+	ad82128->power_down = true;
 
 	return ret;
 }
@@ -623,6 +630,9 @@ static int ad82128_resume(struct snd_soc_component *component)
 {
 	struct ad82128_data *ad82128 = snd_soc_component_get_drvdata(component);
 	int ret;
+
+	if (!ad82128->power_down)
+		return 0;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(ad82128->supplies),
 		ad82128->supplies);
@@ -667,12 +677,38 @@ static int ad82128_resume(struct snd_soc_component *component)
 	ad82128_mute(component, ad82128->mute);
 	pr_info("ad82128_resume mute %d\n", ad82128->mute);
 	subwoofer_enable(component, ad82128->subwoofer_enable);
+	ad82128->power_down = false;
 	return 0;
 }
 #else
 #define ad82128_suspend NULL
 #define ad82128_resume NULL
 #endif
+
+static int ad82128_get_power_down(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct ad82128_data *ad82128 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = ad82128->power_down;
+
+	return 0;
+}
+
+static int ad82128_set_power_down(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	bool pdn = ucontrol->value.integer.value[0];
+
+	if (pdn)
+		ad82128_suspend(component);
+	else
+		ad82128_resume(component);
+
+	return 0;
+}
 
 static bool ad82128_is_volatile_reg(struct device *dev, unsigned int reg)
 {
@@ -749,6 +785,9 @@ static const struct snd_kcontrol_new ad82128_snd_controls[] = {
 	 .get = ad82128_Subwoofer_locked_get,
 	 .put = ad82128_Subwoofer_locked_put,
 	},
+
+	SOC_SINGLE_BOOL_EXT("Power Down", 0,
+		ad82128_get_power_down, ad82128_set_power_down),
 };
 
 static int ad82128_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -807,7 +846,7 @@ static const struct snd_soc_component_driver soc_component_dev_ad82128 = {
 
 /* PCM rates supported by the AD82128 driver */
 #define AD82128_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | \
-	SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
+	SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000)
 
 /* Formats supported by AD82128 driver */
 #define AD82128_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
