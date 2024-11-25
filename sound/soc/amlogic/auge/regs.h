@@ -10,22 +10,25 @@ enum {
 };
 
 enum clk_sel {
-	MASTER_A,
-	MASTER_B,
-	MASTER_C,
-	MASTER_D,
-	MASTER_E,
-	MASTER_F,
-	SLAVE_A,
-	SLAVE_B,
-	SLAVE_C,
-	SLAVE_D,
-	SLAVE_E,
-	SLAVE_F,
-	SLAVE_G,
-	SLAVE_H,
-	SLAVE_I,
-	SLAVE_J
+	MASTER_A = 0,
+	MASTER_B = 1,
+	MASTER_C = 2,
+	MASTER_D = 3,
+	MASTER_E = 4,
+	MASTER_F = 5,
+	SLAVE_A  = 6,
+	SLAVE_B  = 7,
+	SLAVE_C  = 8,
+	SLAVE_D  = 9,
+	SLAVE_E  = 10,
+	SLAVE_TXHD2_HDMIRX = 10,
+	SLAVE_F  = 11,
+	SLAVE_HDMIRX = 11,
+	SLAVE_G  = 12,
+	SLAVE_H  = 13,
+	SLAVE_I  = 14,
+	SLAVE_HDMIRXB = 14,
+	SLAVE_J  = 15
 };
 
 struct register_table {

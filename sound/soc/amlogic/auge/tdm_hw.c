@@ -349,17 +349,10 @@ static void aml_tdmout_bclk_skew(struct aml_audio_controller *actrl,
 void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	struct pcm_setting *p_config,
 	unsigned int clk_sel,
-	unsigned int index,
-	unsigned int fmt,
-	unsigned int capture_active,
-	unsigned int playback_active,
-	bool tdmin_src_hdmirx,
-	bool tdmin_src_hdmirxb,
-	bool use_vadtop,
-	int ext_amp_ws_inv)
+	unsigned int index)
 {
 	unsigned int binv, finv, id;
-	unsigned int valb, valf;
+	unsigned int valb;
 	unsigned int reg_in, reg_out, off_set;
 	int bclkin_skew, bclkout_skew;
 	int master_mode;
@@ -371,20 +364,17 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	binv = 0;
 	finv = 0;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	switch (p_config->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		valb = SLAVE_A + clk_sel;
-		valf = SLAVE_A + clk_sel;
 		master_mode = 0;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		if (use_vadtop) {
+		if (p_config->use_vadtop)
 			valb = MASTER_A;
-			valf = MASTER_A;
-		} else {
+		else
 			valb = MASTER_A + clk_sel;
-			valf = MASTER_A + clk_sel;
-		}
+
 		master_mode = 1;
 		break;
 	default:
@@ -396,18 +386,22 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	 * the clock is slave and from hdmirx
 	 * slv_sclk_f  = HDMIRX_I2S_SCLK
 	 */
-
-	if (tdmin_src_hdmirx)
-		aml_clk_set_tdmin_by_id(actrl, id, 11, 11, use_vadtop);
-	else if (tdmin_src_hdmirxb)
+	if (p_config->tdmin_src_hdmirx == HDMIRX_A) {
+		aml_clk_set_tdmin_by_id(actrl, id, SLAVE_HDMIRX,
+			SLAVE_HDMIRX, p_config->use_vadtop);
+	} else if (p_config->tdmin_src_hdmirx == HDMIRX_B) {
 		/*hdmi rx b use slv_sclk_i*/
-		aml_clk_set_tdmin_by_id(actrl, id, 14, 14, use_vadtop);
-	else
-		aml_clk_set_tdmin_by_id(actrl, id, valb, valf, use_vadtop);
+		aml_clk_set_tdmin_by_id(actrl, id, SLAVE_HDMIRXB,
+			SLAVE_HDMIRXB, p_config->use_vadtop);
+	} else {
+		aml_clk_set_tdmin_by_id(actrl, id, valb, valb, p_config->use_vadtop);
+	}
 
-	if (is_meson_txhd2_cpu() && tdmin_src_hdmirx)
-		aml_clk_set_tdmin_by_id(actrl, id, 10, 10, use_vadtop);
-	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	if (is_meson_txhd2_cpu() && p_config->tdmin_src_hdmirx == HDMIRX_A)
+		aml_clk_set_tdmin_by_id(actrl, id, SLAVE_TXHD2_HDMIRX,
+			SLAVE_TXHD2_HDMIRX, p_config->use_vadtop);
+
+	switch (p_config->fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		if (p_config->sclk_ws_inv) {
 			if (master_mode)
@@ -418,7 +412,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			bclkout_skew = 1;
 		}
 		bclkin_skew = 3;
-		if (ext_amp_ws_inv) {
+		if (p_config->ext_amp_ws_inv) {
 			is_i2s = true;
 			clkctl |= MST_CLK_INVERT_PH0_PAD_FCLK |
 				MST_CLK_INVERT_PH1_TDMIN_FCLK |
@@ -431,11 +425,9 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 
 		if (master_mode) {
 			clkctl |= MST_CLK_INVERT_PH0_PAD_BCLK;
-			if (capture_active)
-				binv |= 1;
+			binv |= 1;
 		} else {
-			if (playback_active)
-				binv |= 1;
+			binv |= 1;
 		}
 
 		break;
@@ -455,9 +447,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			bclkout_skew = 1;
 		}
 		bclkin_skew = 3;
-
-		if (capture_active)
-			binv |= 1;
+		binv |= 1;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 	case SND_SOC_DAIFMT_DSP_B:
@@ -474,26 +464,24 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			bclkout_skew = 2;
 		}
 		bclkin_skew = 2;
-
-		if (capture_active)
-			binv |= 1;
+		binv |= 1;
 		break;
 	default:
 		return;
 	}
 
-	p_config->pcm_mode = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
+	p_config->pcm_mode = p_config->fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
 	pr_debug("pad clk ctl value:%x\n", clkctl);
 	/* set lrclk/bclk invertion */
-	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	switch (p_config->fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_IB_IF:
 		/* Invert both clocks */
 		if (!master_mode)
 			binv ^= 1;
 
 		finv |= 1;
-		if (ext_amp_ws_inv) {
+		if (p_config->ext_amp_ws_inv) {
 			if (is_i2s)
 				tdmin_ws_inv = 0;
 			else
@@ -506,7 +494,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 		/* Invert bit clock */
 		if (!master_mode)
 			binv ^= 1;
-		if (ext_amp_ws_inv) {
+		if (p_config->ext_amp_ws_inv) {
 			if (is_i2s)
 				tdmin_ws_inv = 1;
 			else
@@ -517,7 +505,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	case SND_SOC_DAIFMT_NB_IF:
 		/* Invert frame clock */
 		finv ^= 1;
-		if (ext_amp_ws_inv) {
+		if (p_config->ext_amp_ws_inv) {
 			if (is_i2s)
 				tdmin_ws_inv = 0;
 			else
@@ -527,7 +515,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
 		/* normal cases */
-		if (ext_amp_ws_inv) {
+		if (p_config->ext_amp_ws_inv) {
 			if (is_i2s)
 				tdmin_ws_inv = 1;
 			else
@@ -542,7 +530,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	/*clkctl |= 0x88880000;*/
 
 	if (master_mode) {
-		if (use_vadtop) {
+		if (p_config->use_vadtop) {
 			reg_out = EE_AUDIO2_MST_VAD_SCLK_CTRL1;
 			vad_top_update_bits(reg_out, 0x3f, clkctl);
 		} else {
@@ -553,22 +541,28 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 		}
 	}
 	pr_debug("master_mode(%d), bclk inv(%d), fclk inv(%d) out_skew(%d), in_skew(%d) id(%d) ext_amp_ws_inv(%d)\n",
-			master_mode, binv, finv, bclkout_skew, bclkin_skew, id, ext_amp_ws_inv);
+		master_mode, binv, finv, bclkout_skew, bclkin_skew, id, p_config->ext_amp_ws_inv);
 
 	/* TDM out */
-	if (playback_active) {
+	{
+		unsigned int out_clk_id = 0;
+
+		if (p_config->tdmout_master)
+			out_clk_id = MASTER_A + clk_sel;
+		else
+			out_clk_id = valb;
 		aml_clk_set_tdmout_by_id(actrl,
-			id, valb, valf,
+			id, out_clk_id, out_clk_id,
 			p_config->sclk_ws_inv, master_mode, binv);
 		aml_tdmout_invert_lrclk(actrl, id, finv);
 		aml_tdmout_bclk_skew(actrl, id, bclkout_skew);
 	}
 
 	/* TDM in */
-	if (capture_active) {
+	{
 		int mode;
 
-		if (use_vadtop) {
+		if (p_config->use_vadtop) {
 			reg_in = EE_AUDIO2_CLK_TDMIN_VAD_CTRL;
 			vad_top_update_bits(reg_in,
 				0x3 << 30, 0x3 << 30);
@@ -597,15 +591,14 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 
 			/* TDM in for master && slave mode set bit[29] = 0 by T7C */
 			if (is_meson_rev_c() && (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) &&
-				(tdmin_src_hdmirx || !master_mode)) {
+				(p_config->tdmin_src_hdmirx || !master_mode)) {
 				aml_audiobus_update_bits(actrl, reg_in,
 					0x1 << 29, 0 << 29);
 			} else if (master_mode) {
 				aml_audiobus_update_bits(actrl, reg_in,
 					0x1 << 29, binv << 29);
 			}
-			if (is_meson_t3x_cpu() && (tdmin_src_hdmirx ||
-				tdmin_src_hdmirxb || !master_mode))
+			if (is_meson_t3x_cpu() && (p_config->tdmin_src_hdmirx || !master_mode))
 				aml_audiobus_update_bits(actrl, reg_in,
 					0x1 << 29, 0 << 29);
 			if (id == 3) {
@@ -618,7 +611,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			}
 			aml_audiobus_update_bits(actrl, reg_in,
 				3 << 26 | 0x7 << 16, 3 << 26 | bclkin_skew << 16);
-			if (ext_amp_ws_inv)
+			if (p_config->ext_amp_ws_inv)
 				aml_audiobus_update_bits(actrl, reg_in,
 					0x1 << 25, tdmin_ws_inv << 25);
 			else
