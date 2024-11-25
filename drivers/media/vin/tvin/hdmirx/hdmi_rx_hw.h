@@ -22,7 +22,8 @@
 /* 2024.11.4 close override when 420 */
 /* 2024.11.06 fix specific pc no signal issue */
 /* 2024.10.24 fix 420 display */
-#define RX_HW_VER "ver.2024/11/12"
+/* 2024.11.28 enable hdcp2.x irq mask */
+#define RX_HW_VER "ver.2024/11/28"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -39,10 +40,6 @@
 #define _BIT(n)			MSK(1, (n))
 #define MHz	1000000
 #define KHz	1000
-
-#define IRQ_EN_ALL	3
-#define IRQ_EN_EDID 2
-#define IRQ_EN_HDCP 1
 
 #define HHI_GCLK_MPEG0			(0x50  <<  2) /* (0xC883C000 + 0x140) */
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* (0xC883C000 + 0x200)  */
@@ -3172,6 +3169,13 @@
 #define I2C_MONITOR_AXI_STATUS		(rx_info.i2c_buff.addr_base + (0x010 << 2))
 #define I2C_MONITOR_INTR_STATUS		(rx_info.i2c_buff.addr_base + (0x011 << 2))
 #define I2C_MONITOR_AXI_CMD_CNT		(rx_info.i2c_buff.addr_base + (0x012 << 2))
+
+enum top_irq_mode_e {
+	IRQ_DISABLE = 0,
+	IRQ_EN_HDCP = 1,
+	IRQ_EN_EDID = 2,
+	IRQ_EN_ALL = 3
+};
 
 enum i2c_trigger_mode_e {
 	E_HW_TRIGGER,

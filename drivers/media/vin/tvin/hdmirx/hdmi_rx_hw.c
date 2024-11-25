@@ -1631,8 +1631,9 @@ void rx_set_irq_21(u8 enable, u8 port)
 	hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, data8, port);//emp
 
 	data8 = 0;
-	data8 |= val_all << 6; //hdcp1.x group en
-	data8 |= val_all << 2; //hdcp2.x group en
+	data8 |= val_hdcp << 6; //hdcp1.x group en
+	data8 |= val_hdcp << 5; //hdcp2.x group en
+	data8 |= val_hdcp << 2; //hdcp2.x group en
 	data8 |= val_all << 0; //depac group en
 	hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, data8, port);
 
@@ -1702,74 +1703,79 @@ void rx_irq_en(u8 enable, u8 port)
  */
 void hdmirx_top_irq_en(u8 en, u8 port)
 {
-	u32 data32;
+	u32 data32 = 0;
 
-	data32  = 0;
-	data32 |= top_irq_tab[IRQ_SQOF_FALL];
-	data32 |= top_irq_tab[IRQ_DE_RISE];
-	data32 |= top_irq_tab[IRQ_PWD_CTL];
-	if (rx_info.chip_id >= CHIP_ID_T3X) {
-		data32 |= top_irq_tab[IRQ_AON_CTL];
-		data32 |= top_irq_tab[IRQ_VALID_M_FALL];
-		data32 |= top_irq_tab[IRQ_EMP_DONE];
-		data32 |= top_irq_tab[IRQ_T3X_EDID_AD];
-		//data32 |= top_irq_tab[IRQ_1618_STB];
-	} else if (rx_info.chip_id >= CHIP_ID_T7 &&
-		rx_info.chip_id <= CHIP_ID_T6D) {
-		data32 |= top_irq_tab[IRQ_EMP_DONE];
-		data32 |= top_irq_tab[IRQ_EDID_AD3];
-		data32 |= top_irq_tab[IRQ_EDID_AD2];
-		data32 |= top_irq_tab[IRQ_EDID_AD1];
-		data32 |= top_irq_tab[IRQ_EDID_AD0];
-	}
-	//data32 |= top_irq_tab[IRQ_AUD_CHG];
-	//data32 |= top_irq_tab[IRQ_SQOF_RISE];
-	//data32 |= top_irq_tab[IRQ_LAST_EMP];
-	//data32 |= top_irq_tab[IRQ_EDID_AD3];
-	//data32 |= top_irq_tab[IRQ_EDID_AD2];
-	//data32 |= top_irq_tab[IRQ_EDID_AD1];
-	//data32 |= top_irq_tab[IRQ_EDID_AD0];
-	//data32 |= top_irq_tab[IRQ_T3X_EDID_AD];
-	//data32 |= top_irq_tab[IRQ_HDCP_EN_FALL];
-	//data32 |= top_irq_tab[IRQ_HDCP_EN_RISE];
-	//data32 |= top_irq_tab[IRQ_HDCP_ST_FALL];
-	//data32 |= top_irq_tab[IRQ_HDCP_EN_RISE];
-	//data32 |= top_irq_tab[IRQ_CAB_STB];
-	//data32 |= top_irq_tab[IRQ_COL_DEP];
-	//data32 |= top_irq_tab[IRQ_FMT_CHG];
-	//data32 |= top_irq_tab[IRQ_TMDS_STB];
-	top_intr_maskn_value = data32;
-
-	if (en == IRQ_EN_ALL) {
-		/* for TXLX, cec phy address error issues */
-		if (rx_info.chip_id <= CHIP_ID_TL1)
-			top_intr_maskn_value |= 0x1e0000;
-	} else if (en == IRQ_EN_HDCP) {
-		top_intr_maskn_value = top_irq_tab[IRQ_PWD_CTL];
-		if (rx_info.chip_id == CHIP_ID_T3X)
-			top_intr_maskn_value |= top_irq_tab[IRQ_AON_CTL];
-	} else if (en == IRQ_EN_EDID) {
+	switch (en) {
+	case IRQ_EN_EDID:
 		if (rx_info.chip_id == CHIP_ID_T3X) {
-			top_intr_maskn_value = top_irq_tab[IRQ_T3X_EDID_AD];
+			top_intr_maskn_value |= top_irq_tab[IRQ_T3X_EDID_AD];
 			top_intr_maskn_value |= top_irq_tab[IRQ_AON_CTL];
 		} else {
 			switch (port) {
 			case E_PORT0:
-				top_intr_maskn_value = top_irq_tab[IRQ_EDID_AD0];
+				top_intr_maskn_value |= top_irq_tab[IRQ_EDID_AD0];
 				break;
 			case E_PORT1:
-				top_intr_maskn_value = top_irq_tab[IRQ_EDID_AD1];
+				top_intr_maskn_value |= top_irq_tab[IRQ_EDID_AD1];
 				break;
 			case E_PORT2:
-				top_intr_maskn_value = top_irq_tab[IRQ_EDID_AD2];
+				top_intr_maskn_value |= top_irq_tab[IRQ_EDID_AD2];
 				break;
 			case E_PORT3:
-				top_intr_maskn_value = top_irq_tab[IRQ_EDID_AD3];
+				top_intr_maskn_value |= top_irq_tab[IRQ_EDID_AD3];
 				break;
 			}
 		}
-	} else {
+		break;
+	case IRQ_EN_HDCP:
+		top_intr_maskn_value |= top_irq_tab[IRQ_PWD_CTL];
+		if (rx_info.chip_id == CHIP_ID_T3X)
+			top_intr_maskn_value |= top_irq_tab[IRQ_AON_CTL];
+		break;
+	case IRQ_EN_ALL:
+		data32 |= top_irq_tab[IRQ_SQOF_FALL];
+		data32 |= top_irq_tab[IRQ_DE_RISE];
+		data32 |= top_irq_tab[IRQ_PWD_CTL];
+		if (rx_info.chip_id >= CHIP_ID_T3X) {
+			data32 |= top_irq_tab[IRQ_AON_CTL];
+			data32 |= top_irq_tab[IRQ_VALID_M_FALL];
+			data32 |= top_irq_tab[IRQ_EMP_DONE];
+			data32 |= top_irq_tab[IRQ_T3X_EDID_AD];
+			//data32 |= top_irq_tab[IRQ_1618_STB];
+		} else if (rx_info.chip_id >= CHIP_ID_T7 &&
+			rx_info.chip_id <= CHIP_ID_T6D) {
+			data32 |= top_irq_tab[IRQ_EMP_DONE];
+			data32 |= top_irq_tab[IRQ_EDID_AD3];
+			data32 |= top_irq_tab[IRQ_EDID_AD2];
+			data32 |= top_irq_tab[IRQ_EDID_AD1];
+			data32 |= top_irq_tab[IRQ_EDID_AD0];
+		}
+		//data32 |= top_irq_tab[IRQ_AUD_CHG];
+		//data32 |= top_irq_tab[IRQ_SQOF_RISE];
+		//data32 |= top_irq_tab[IRQ_LAST_EMP];
+		//data32 |= top_irq_tab[IRQ_EDID_AD3];
+		//data32 |= top_irq_tab[IRQ_EDID_AD2];
+		//data32 |= top_irq_tab[IRQ_EDID_AD1];
+		//data32 |= top_irq_tab[IRQ_EDID_AD0];
+		//data32 |= top_irq_tab[IRQ_T3X_EDID_AD];
+		//data32 |= top_irq_tab[IRQ_HDCP_EN_FALL];
+		//data32 |= top_irq_tab[IRQ_HDCP_EN_RISE];
+		//data32 |= top_irq_tab[IRQ_HDCP_ST_FALL];
+		//data32 |= top_irq_tab[IRQ_HDCP_EN_RISE];
+		//data32 |= top_irq_tab[IRQ_CAB_STB];
+		//data32 |= top_irq_tab[IRQ_COL_DEP];
+		//data32 |= top_irq_tab[IRQ_FMT_CHG];
+		//data32 |= top_irq_tab[IRQ_TMDS_STB];
+		/* for TXLX, cec phy address error issues */
+		if (rx_info.chip_id <= CHIP_ID_TL1)
+			top_intr_maskn_value |= 0x1e0000;
+		top_intr_maskn_value = data32;
+		break;
+	case IRQ_DISABLE:
 		top_intr_maskn_value = 0;
+		break;
+	default:
+		break;
 	}
 	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value, port);
 }
