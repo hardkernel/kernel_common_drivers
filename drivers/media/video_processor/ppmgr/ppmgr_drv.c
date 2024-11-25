@@ -1335,7 +1335,7 @@ static int ppmgr_driver_probe(struct platform_device *pdev)
 	}
 
 	ppmgr_device.i_do_decontour = true;
-	return r;
+	return 0;
 }
 
 static int ppmgr_mem_device_init(struct reserved_mem *rmem, struct device *dev)
