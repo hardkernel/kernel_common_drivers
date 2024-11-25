@@ -42,7 +42,9 @@ struct spicc_controller_data {
 	unsigned	dummy_ctl:1;
 	unsigned	dc_mode:2;
 	unsigned	dc_level:1;
-	unsigned int	read_turn_around:8;
+	unsigned	read_turn_around:8;
+	unsigned	miso_latency_en:1;
+	int		miso_latency; // in ns, signed
 	unsigned int	dma_trig_delay;
 	void (*dirspi_start)(struct spi_device *spi);
 	void (*dirspi_stop)(struct spi_device *spi);

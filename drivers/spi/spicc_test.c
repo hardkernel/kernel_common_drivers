@@ -32,9 +32,9 @@ int spicc_make_argv(char *s, int argvsz, char *argv[], char *delim)
 }
 
 int spicc_getopt(int argc, char *argv[], char *name,
-		 unsigned long *value, char **str, unsigned int base)
+		 long *value, char **str, unsigned int base)
 {
-	unsigned long v;
+	long v;
 	char *s;
 	int i, ret;
 
@@ -43,7 +43,8 @@ int spicc_getopt(int argc, char *argv[], char *name,
 		ret = memcmp(name, argv[i], strlen(name));
 		if (!ret && ((*s == ' ') || (*s == '\0'))) {
 			if (value) {
-				ret = kstrtoul(s + 1, base, &v);
+				strreplace(s + 1, 'n', '-');
+				ret = kstrtol(s + 1, base, &v);
 				if (!ret)
 					*value = v;
 			}
@@ -163,6 +164,8 @@ ssize_t testdev_dump(struct test_device *testdev, char *buf)
 	len += snprintf(buf + len, PAGE_SIZE, "ss_trailing_gap: %d\n", cdata->ss_trailing_gap);
 	len += snprintf(buf + len, PAGE_SIZE, "tx_tuning: %d\n", cdata->tx_tuning);
 	len += snprintf(buf + len, PAGE_SIZE, "rx_tuning: %d\n", cdata->rx_tuning);
+	len += snprintf(buf + len, PAGE_SIZE, "miso_latency: %d, enable %d\n",
+			cdata->miso_latency, cdata->miso_latency_en);
 	len += snprintf(buf + len, PAGE_SIZE, "dummy: %d\n", cdata->dummy_ctl);
 	len += snprintf(buf + len, PAGE_SIZE, "nxfers: %d\n", testdev->nxfers);
 
@@ -211,6 +214,8 @@ struct test_device *testdev_new(struct device *dev, int argc, char *argv[])
 	spi->max_speed_hz = 10000000;
 	spi->bits_per_word = 8;
 	spi->mode = 0;
+	spi->cs_setup.unit = -ENODEV;
+	spi->cs_hold.unit = -ENODEV;
 
 	if (testdev_setup(testdev, argc, argv)) {
 		spi_dev_put(spi);
@@ -245,7 +250,7 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 {
 	struct spi_device *spi;
 	struct spicc_controller_data *cdata;
-	unsigned long v;
+	long v;
 	int ret;
 
 	spi = testdev->spi;
@@ -289,6 +294,20 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 		cdata->read_turn_around = v;
 	if (!spicc_getopt(argc, argv, "dma_trig_delay", &v, NULL, 10))
 		cdata->dma_trig_delay = v;
+	if (!spicc_getopt(argc, argv, "use_ctrl_cs", &v, NULL, 10))
+		cdata->use_ctrl_cs = v;
+	if (!spicc_getopt(argc, argv, "miso_latency", &v, NULL, 10))
+		cdata->miso_latency = v;
+	if (!spicc_getopt(argc, argv, "miso_latency_en", &v, NULL, 10))
+		cdata->miso_latency_en = v;
+	if (!spicc_getopt(argc, argv, "cs_setup", &v, NULL, 10))
+		spi->cs_setup.value = v;
+	if (!spicc_getopt(argc, argv, "cs_setup_unit", &v, NULL, 10))
+		spi->cs_setup.unit = v;
+	if (!spicc_getopt(argc, argv, "cs_hold", &v, NULL, 10))
+		spi->cs_hold.value = v;
+	if (!spicc_getopt(argc, argv, "cs_hold_unit", &v, NULL, 10))
+		spi->cs_hold.unit = v;
 
 	ret = spi_setup(spi);
 	dev_info(&spi->controller->dev,
@@ -302,7 +321,7 @@ int testdev_new_xfer(struct test_device *testdev, int argc, char *argv[])
 	struct device *dev;
 	struct spi_transfer *xfer;
 	char *data_str;
-	unsigned long v;
+	long v;
 	bool vm = false, coherent = false;
 
 	dev = testdev->spi->controller->dev.parent;
@@ -427,7 +446,7 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 	struct spicc_controller_data *cdata;
 	struct spi_transfer *xfer;
 	char *data_str;
-	unsigned long v;
+	long v;
 	unsigned long t1, t2;
 	DECLARE_COMPLETION_ONSTACK(done);
 	int ret = -EIO;

@@ -23,7 +23,7 @@ struct test_device {
 
 int spicc_make_argv(char *s, int argvsz, char *argv[], char *delim);
 int spicc_getopt(int argc, char *argv[], char *name,
-		 unsigned long *value, char **str, unsigned int base);
+		 long *value, char **str, unsigned int base);
 void spicc_strtohex(char *str, int pass, u8 *buf, int len);
 int spicc_compare(u8 *buf1, u8 *buf2, int len, bool pr_diff);
 
