@@ -498,7 +498,7 @@ static u32 get_phase_step(int presc_size, int dst_size)
 	temp1 = (u32)presc_size;
 	temp2 = (u32)dst_size;
 	if (temp1 > 2048)
-		step = (temp1 << 18 / temp2) << 2;
+		step = ((temp1 << 18) / temp2) << 2;
 	else
 		step = (temp1 << 20) / temp2;
 
@@ -2555,8 +2555,8 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 				vid_cmpr_top->src_compress);
 			pr_info("vicp: skip_mode: %d.\n", vid_cmpr_top->skip_mode);
 			pr_info("vicp: output: w:%d, h:%d.\n",
-				vid_cmpr_top->out_hsize_bgnd,
-				vid_cmpr_top->out_vsize_bgnd);
+				vid_cmpr_top->out_hsize_in,
+				vid_cmpr_top->out_vsize_in);
 			pr_info("vicp: output: mif_en:%d, mif_fmt:%d.\n",
 				vid_cmpr_top->wrmif_en,
 				vid_cmpr_top->wrmif_fmt_mode);
