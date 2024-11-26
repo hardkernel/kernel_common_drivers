@@ -705,6 +705,16 @@ static void rx_parity_timer_func(struct timer_list *t)
 		unmute_later, p_earc->stream_stable);
 }
 
+static void earcrx_unstable_handle(struct earc *p_earc)
+{
+	earcrx_spdifin_mute(p_earc->rx_dmac_map, true);
+	p_earc->rx_spdifin_mute = true;
+	p_earc->rx_parity_err = true;
+	earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
+					p_earc->chipinfo->rx_pll_new);
+	rx_parity_restart_timer(p_earc, 100);
+}
+
 static irqreturn_t earc_rx_isr(int irq, void *data)
 {
 	struct earc *p_earc = (struct earc *)data;
@@ -799,12 +809,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		}
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR) {
 			dev_info(p_earc->dev, "ARCRX_R_PARITY_ERR reset\n");
-			earcrx_spdifin_mute(p_earc->rx_dmac_map, true);
-			p_earc->rx_spdifin_mute = true;
-			p_earc->rx_parity_err = true;
-			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
-							p_earc->chipinfo->rx_pll_new);
-			rx_parity_restart_timer(p_earc, 100);
+			earcrx_unstable_handle(p_earc);
 		}
 
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_CHST_MUTE_CLR) {
@@ -859,8 +864,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			   p_earc->rx_status1 & INT_EARCRX_DMAC_VALID_AUTO_NEG_INT_SET) {
 			earcrx_dmac_sync_clr_irqs(p_earc->rx_top_map);
 			dev_info(p_earc->dev, "%s unstable tick happen\n", __func__);
-			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
-				p_earc->chipinfo->rx_pll_new);
+			earcrx_unstable_handle(p_earc);
 		}
 	}
 	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
