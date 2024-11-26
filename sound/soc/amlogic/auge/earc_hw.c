@@ -103,27 +103,30 @@ void earcrx_pll_refresh(struct regmap *top_map,
 	}
 }
 
-void earcrx_cmdc_int_mask(struct regmap *top_map)
+void earcrx_cmdc_set_int_mask(struct regmap *top_map, bool enable)
 {
 	/* set irq mask */
-	mmio_write(top_map, EARCRX_CMDC_INT_MASK,
-		   (1 << 15) |  /* idle2_int */
-		   (1 << 14) |  /* idle1_int */
-		   (1 << 13) |  /* disc2_int */
-		   (1 << 12) |  /* disc1_int */
-		   (1 << 11) |  /* earc_int */
-		   (1 << 10) |  /* hb_status_int */
-		   (1 <<  9) |  /* losthb_int */
-		   (1 <<  8) |  /* timeout_int */
-		   (1 <<  7) |  /* status_ch_int */
-		   (0 <<  6) |  /* int_rec_invalid_id */
-		   (0 <<  5) |  /* int_rec_invalid_offset */
-		   (0 <<  4) |  /* int_rec_unexp */
-		   (0 <<  3) |  /* int_rec_ecc_err */
-		   (0 <<  2) |  /* int_rec_parity_err */
-		   (0 <<  1) |  /* int_recv_packet */
-		   (0 <<  0)	 /* int_rec_time_out */
-		  );
+	if (enable)
+		mmio_write(top_map, EARCRX_CMDC_INT_MASK,
+			   (1 << 15) |  /* idle2_int */
+			   (1 << 14) |  /* idle1_int */
+			   (1 << 13) |  /* disc2_int */
+			   (1 << 12) |  /* disc1_int */
+			   (1 << 11) |  /* earc_int */
+			   (1 << 10) |  /* hb_status_int */
+			   (1 <<  9) |  /* losthb_int */
+			   (1 <<  8) |  /* timeout_int */
+			   (1 <<  7) |  /* status_ch_int */
+			   (0 <<  6) |  /* int_rec_invalid_id */
+			   (0 <<  5) |  /* int_rec_invalid_offset */
+			   (0 <<  4) |  /* int_rec_unexp */
+			   (0 <<  3) |  /* int_rec_ecc_err */
+			   (0 <<  2) |  /* int_rec_parity_err */
+			   (0 <<  1) |  /* int_recv_packet */
+			   (0 <<  0)	 /* int_rec_time_out */
+			  );
+	else
+		mmio_write(top_map, EARCRX_CMDC_INT_MASK, 0);
 }
 
 void earcrx_pll_lock_force(struct regmap *top_map, bool en)
