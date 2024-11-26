@@ -1095,4 +1095,5 @@ bool rx_chk_drm_valid(u8 port);
 void hdmirx_pkt_var_init(u8 port);
 void rx_reset_pkt_cnt(enum pkt_type_e type, u8 port);
 bool rx_is_dv_unique_drm(struct drm_infoframe_st *drm_pkt);
+void rx_dump_aud_sample_pkt(u8 port);
 #endif

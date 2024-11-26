@@ -558,12 +558,16 @@ static void rx_pktdump_emp(u8 port)
 	}
 }
 
-static void rx_dump_aud_sample_pkt(u8 port)
+void rx_dump_aud_sample_pkt(u8 port)
 {
 	u32 i, j, tmp = 0;
 	char str[256];
 	struct emp_info_s *emp_p = NULL;
 
+	if (log_level != DUMP_AUD_LOG)
+		return;
+	if (rx_get_port_type(port) == TVIN_PORT_SUB)
+		return;
 	if (rx[port].emp_vid_idx) {
 		tmp = hdmirx_rd_top_common(TOP_EMP1_DDR_FILTER);
 		hdmirx_wr_top_common(TOP_EMP1_DDR_FILTER, 1 << 1); //only audio sample pkt
@@ -573,18 +577,18 @@ static void rx_dump_aud_sample_pkt(u8 port)
 		hdmirx_wr_top_common(TOP_EMP_DDR_FILTER, 1 << 1); //only audio sample pkt
 		emp_p = &rx_info.emp_buff_a;
 	}
-	while (audio_debug) {
-		for (i = 0; i < emp_p->emp_pkt_cnt; i++) {
-			memset(str, '\0', sizeof(str));
-			for (j = 0; j < 31; j++)
-				sprintf(str + strlen(str), "0x%02x ",
-					emp_buf[rx[port].emp_vid_idx][j + i * 31]);
-			rx_pr("pkt[%2d]: %s\n", i, str);
-		}
+	for (i = 0; i < emp_p->emp_pkt_cnt; i++) {
+		memset(str, '\0', sizeof(str));
+		for (j = 0; j < 31; j++)
+			sprintf(str + strlen(str), "0x%02x ",
+				emp_buf[rx[port].emp_vid_idx][j + i * 31]);
+		rx_pr("pkt[%2d]: %s\n", i, str);
 	}
 
 	/* recover emp filter */
 	hdmirx_wr_top_common(TOP_EMP_DDR_FILTER, tmp);
+	if (rx[port].dump_aud_cnt >= dump_aud_max)
+		log_level = LOG_EN;
 }
 
 void rx_pkt_dump(enum pkt_type_e typeid, u8 port)

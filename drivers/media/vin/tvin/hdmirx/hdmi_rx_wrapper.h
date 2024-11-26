@@ -44,7 +44,8 @@
 /* 2024.10.12 reduce fsm print */
 /* 2024.11.06 Adjust the HPD pull down time based on EDID type */
 /* 2024.11.27 fix fsm unnormal */
-#define RX_WRAPPER_VER "ver.2024/11/27"
+/* 2024.12.03 adjust audio fifo enable timing */
+#define RX_WRAPPER_VER "ver.2024/12/03"
 
 struct freq_ref_s {
 	bool interlace;
@@ -157,6 +158,7 @@ extern int fsm_debug;
 extern int rs_err_chk;
 extern int err_cnt;
 extern int edid_seg_flag[4];
+extern int dump_aud_max;
 
 enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port);
 void rx_mute_vpp(u8 port_type);

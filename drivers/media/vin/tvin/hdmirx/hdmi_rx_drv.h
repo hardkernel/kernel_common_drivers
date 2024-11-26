@@ -112,6 +112,7 @@
 #define EDID_DATA_LOG	0x20000
 #define RP_LOG		0x40000
 #define FRL_LOG		0x80000
+#define DUMP_AUD_LOG	0x100005
 
 #define FRAME_RATE_MIN 20
 #define FRAME_RATE_MAX 300
@@ -997,6 +998,7 @@ struct rx_s {
 	u32 irq_err_cnt;
 	u32 de_err_cnt;
 	int pkt_mini_interval[PACKET_TYPE_MAX]; //unit:frame
+	int dump_aud_cnt;
 };
 
 struct reg_map {

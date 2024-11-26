@@ -3970,6 +3970,8 @@ void rx_afifo_monitor(u8 port)
 
 	if (is_aud_pll_error_21())
 		return;
+	if (is_aud_fifo_error())
+		return;
 	if (rx_afifo_dbg_en) {
 		afifo_overflow_cnt = 0;
 		afifo_underflow_cnt = 0;
@@ -4185,7 +4187,7 @@ void rx_sw_reset(int level, u8 port)
 			data32 |= 0 << 0;	/* [0]cfg_enable */
 		}
 		hdmirx_wr_dwc(DWC_DMI_SW_RST, data32);
-		hdmirx_audio_fifo_rst(port);
+		//hdmirx_audio_fifo_rst(port);
 		hdmirx_packet_fifo_rst();
 	}
 }
@@ -4293,7 +4295,7 @@ void cor_config(u8 port)
 
 	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x1a, port);//SRST = 1
 	/* BIT0 AUTO RST AUD FIFO when fifo err */
-	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x01, port);//SRST = 0
+	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x02, port);//SRST = 0
 
 	/* TDM cfg */
 	hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00, port);
@@ -4711,15 +4713,17 @@ bool is_aud_fifo_error(void)
 {
 	bool ret = false;
 
-	if (rx_info.chip_id >= CHIP_ID_T7)
-		return ret;
-
-	if ((hdmirx_rd_dwc(DWC_AUD_FIFO_STS) &
-		(OVERFL_STS | UNDERFL_STS)) &&
-		rx[rx_info.main_port].aud_info.aud_packet_received) {
-		ret = true;
-		if (log_level & DBG_LOG)
-			rx_pr("afifo err\n");
+	if (rx_info.chip_id >= CHIP_ID_T7) {
+		if (hdmirx_rd_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), rx_info.main_port))
+			ret = true;
+	} else {
+		if ((hdmirx_rd_dwc(DWC_AUD_FIFO_STS) &
+			(OVERFL_STS | UNDERFL_STS)) &&
+			rx[rx_info.main_port].aud_info.aud_packet_received) {
+			ret = true;
+			if (log_level & DBG_LOG)
+				rx_pr("afifo err\n");
+		}
 	}
 	return ret;
 }

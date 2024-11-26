@@ -5900,7 +5900,7 @@ void rx_aud_pll_ctl_t3x(bool en, u8 port)
 					0, port);
 			}
 			rx_audio_pll_sw_update();
-			hdmirx_audio_fifo_rst(port);
+			//hdmirx_audio_fifo_rst(port);
 		} else if (!vpcore1_select) {
 			tmp = hdmirx_rd_top_common(HDMIRX_TOP_FSW_CNTL);
 			tmp |= _BIT(8 + port * 2);
@@ -5925,7 +5925,7 @@ void rx_aud_pll_ctl_t3x(bool en, u8 port)
 			if (log_level & AUDIO_LOG)
 				rx_pr("audio pll lock:0x%x\n", tmp);
 			rx_audio_pll_sw_update();
-			hdmirx_audio_fifo_rst(port);
+			//hdmirx_audio_fifo_rst(port);
 		}
 	} else {
 		/* disable pll, into reset mode */

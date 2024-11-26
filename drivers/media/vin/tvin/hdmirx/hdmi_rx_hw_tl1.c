@@ -925,7 +925,7 @@ void rx_aud_pll_ctl_txlx(bool en, u8 port)
 		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40000000);
 		wr_reg_hhi(HHI_ADC_PLL_CNTL4, 0x805);
 		rx_audio_pll_sw_update();
-		hdmirx_audio_fifo_rst(port);
+		//hdmirx_audio_fifo_rst(port);
 		/*External_Mute(0);*/
 	} else {
 		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x20000000);

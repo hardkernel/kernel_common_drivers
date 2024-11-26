@@ -2382,7 +2382,7 @@ void rx_aud_pll_ctl_txhd2(bool en, u8 port)
 			rx_pr("apll lock:0x%x\n", (tmp >> 31));
 		}
 		rx_audio_pll_sw_update();
-		hdmirx_audio_fifo_rst(port);
+		//hdmirx_audio_fifo_rst(port);
 	} else {
 		hdmirx_audio_disabled(port);
 		tmp = rd_reg_clk_ctl(CLK_MUX_TXHD2);

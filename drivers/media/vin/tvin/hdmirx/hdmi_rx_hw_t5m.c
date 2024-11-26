@@ -2284,7 +2284,7 @@ void rx_aud_pll_ctl_t5m(bool en, u8 port)
 			rx_pr("audio pll lock:0x%x\n",
 				  (hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31));
 		rx_audio_pll_sw_update();
-		hdmirx_audio_fifo_rst(port);
+		//hdmirx_audio_fifo_rst(port);
 	} else {
 		/* disable pll, into reset mode */
 		hdmirx_audio_disabled(port);

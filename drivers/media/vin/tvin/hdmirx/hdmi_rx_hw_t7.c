@@ -2396,14 +2396,12 @@ void rx_aud_pll_ctl_t7(bool en, u8 port)
 		/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
 		hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL3_T7,
 			rx[port].phy.aud_div);
-		if (log_level & AUDIO_LOG)
-			rx_pr("aud div=%d\n", rd_reg_hhi(HHI_AUD_PLL_CNTL3));
 		hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x60001540);
 		if (log_level & AUDIO_LOG)
 			rx_pr("audio pll lock:0x%x\n",
 				  hdmirx_rd_amlphy(HHI_AUD_PLL_CNTL_I_T7));
 		rx_audio_pll_sw_update();
-		hdmirx_audio_fifo_rst(port);
+		//hdmirx_audio_fifo_rst(port);
 	} else {
 		/* disable pll, into reset mode */
 		hdmirx_audio_disabled(port);
@@ -2431,16 +2429,13 @@ void rx_aud_pll_ctl_t3(bool en, u8 port)
 		/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
 		wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3,
 			rx[port].phy.aud_div);
-		if (log_level & AUDIO_LOG)
-			rx_pr("aud div=%d\n",
-				rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3));
 		wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x60001540);
 		if (log_level & AUDIO_LOG)
 			/* t3 audio pll lock bit: top reg acr_cntl_stat bit'31 */
 			rx_pr("audio pll lock:0x%x\n",
 				  (hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31));
 		rx_audio_pll_sw_update();
-		hdmirx_audio_fifo_rst(port);
+		//hdmirx_audio_fifo_rst(port);
 	} else {
 		/* disable pll, into reset mode */
 		hdmirx_audio_disabled(port);
@@ -2470,9 +2465,6 @@ void rx_aud_pll_ctl_t5w(bool en, u8 port)
 		/* cntl3 2:0 0=1*cts 1=2*cts */
 		/* 010=4*cts 011=8*cts */
 		wr_reg_hhi(HHI_AUD_PLL_CNTL3, rx[port].phy.aud_div);
-		if (log_level & AUDIO_LOG)
-			rx_pr("aud div=%d\n",
-			rd_reg_hhi(ANACTL_AUD_PLL_CNTL3));
 		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
 		if (log_level & AUDIO_LOG) {
 			/* pll lock bit:*/
@@ -2481,7 +2473,7 @@ void rx_aud_pll_ctl_t5w(bool en, u8 port)
 			rx_pr("apll lock:0x%x\n", (tmp >> 31));
 		}
 		rx_audio_pll_sw_update();
-		hdmirx_audio_fifo_rst(port);
+		//hdmirx_audio_fifo_rst(port);
 	} else {
 		/* disable pll, into reset mode */
 		hdmirx_audio_disabled(port);
