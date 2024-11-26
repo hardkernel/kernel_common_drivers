@@ -20,6 +20,7 @@
 #include <linux/trace_events.h>
 #include <trace/hooks/printk.h>
 #include <linux/irqflags.h>
+#include <linux/version.h>
 
 static bool print_task_name_bool;
 /* notice: this param only used by build module */
@@ -64,9 +65,13 @@ void printk_caller(void *data, char *caller, size_t size, u32 id, int *ret)
 	softirq = irq_trace & TRACE_FLAG_SOFTIRQ;
 
 	irqs_off =
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 		(irq_trace & TRACE_FLAG_IRQS_OFF) ? 'd' :
 		(irq_trace & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' :
 		'.';
+#else
+		'-';
+#endif
 
 	hardsoft_irq =
 		(nmi && hardirq)     ? 'Z' :
