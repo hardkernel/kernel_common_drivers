@@ -906,6 +906,7 @@ static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_
 {
 	int bitwidth = 16;
 	bool enable = false;
+	unsigned int src_sel = 0;
 
 	if (!to || !p_attach_resample || !to->chipinfo) {
 		pr_err("%s(), NULL pointer.", __func__);
@@ -964,12 +965,17 @@ static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_
 	}
 
 	enable = get_resample_enable(p_attach_resample->id);
+	src_sel = get_source_enable(p_attach_resample->id);
 
 	/*note: resampleb use loopback*/
 	if (p_attach_resample->resample_version >= T5_RESAMPLE) {
-		if (p_attach_resample->id == RESAMPLE_A)
-			aml_toddr_select_src(to, RESAMPLEA);
-		else if (p_attach_resample->id == RESAMPLE_C)
+		if (p_attach_resample->id == RESAMPLE_A) {
+			if (src_sel == 1)
+				aml_toddr_select_src(to, RESAMPLEB);
+			else
+				aml_toddr_select_src(to, RESAMPLEA);
+
+		} else if (p_attach_resample->id == RESAMPLE_C)
 			aml_toddr_select_src(to, RESAMPLEC);
 	} else {
 		/* select reample data */

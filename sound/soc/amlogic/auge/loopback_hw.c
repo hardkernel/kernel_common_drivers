@@ -188,7 +188,7 @@ void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg)
 }
 
 void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg, bool multi_bits_lbsrcs,
-		       bool use_resamplea)
+		       bool use_resamplea, bool asrc_sel)
 {
 	int offset = EE_AUDIO_LB_B_CTRL1 - EE_AUDIO_LB_A_CTRL1;
 	int reg = EE_AUDIO_LB_A_CTRL1 + offset * id;
@@ -220,10 +220,14 @@ void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg, bool multi_bits_lbsr
 			int loopback_src;
 
 			if (datalb_cfg->resample_enable) {
-				if (use_resamplea)
+				if (use_resamplea) {
 					loopback_src = RESAMPLEA;
-				else
-					loopback_src = RESAMPLEB;
+				} else {
+					if (asrc_sel == 1)
+						loopback_src = RESAMPLEA;
+					else
+						loopback_src = RESAMPLEB;
+				}
 			} else {
 				loopback_src = TDMIN_LB;
 			}

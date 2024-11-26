@@ -498,6 +498,12 @@ int resample_set_hw_pause_thd(enum resample_idx id, unsigned int thd)
 {
 	int offset = EE_AUDIO_RESAMPLEB_CTRL2 - EE_AUDIO_RESAMPLEA_CTRL2;
 	int reg = EE_AUDIO_RESAMPLEA_CTRL2 + offset * id;
+	unsigned int ch_sync_reg = 0;
+
+	ch_sync_reg = get_audioresample_ch_sync_reg(id);
+	/*ch_sync_reg can come from resample dts node*/
+	if (ch_sync_reg > 0)
+		reg = ch_sync_reg;
 
 	audiobus_update_bits(reg, 1 << 24 | 0x1fff << 11,
 			1 << 24 | thd << 11);
@@ -522,6 +528,12 @@ void aml_resample_chsync_set(enum resample_idx id, int channel)
 	int offset =
 		EE_AUDIO_RSAMP_B_CHSYNC_CTRL - EE_AUDIO_RSAMP_A_CHSYNC_CTRL;
 	int reg = EE_AUDIO_RSAMP_A_CHSYNC_CTRL + offset * id;
+	unsigned int ch_sync_reg = 0;
+
+	ch_sync_reg = get_audioresample_ch_sync_reg(id);
+	/*ch_sync_reg can come from resample dts node*/
+	if (ch_sync_reg > 0)
+		reg = ch_sync_reg;
 
 	/* bit 0-7: chnum_max */
 	audiobus_update_bits(reg,

@@ -247,6 +247,8 @@ struct earc {
 	enum audio_coding_types tx_audio_coding_type;
 	/* audio codec type for tx by ui kcontrol setting */
 	enum audio_coding_types ui_tx_audio_coding_type;
+	/* audio codec type for recording tx setting */
+	enum audio_coding_types last_tx_audio_coding_type;
 	enum work_event event;
 	enum sharebuffer_srcs samesource_sel;
 	/*
@@ -1494,8 +1496,10 @@ void aml_earctx_enable(bool enable)
 		return;
 	spin_lock_irqsave(&s_earc->tx_lock, flags);
 	if (s_earc->tx_dmac_clk_on) {
-		if (enable)
+		if (enable && s_earc->last_tx_audio_coding_type != s_earc->tx_audio_coding_type) {
 			schedule_work(&s_earc->tx_hold_bus_work);
+			s_earc->last_tx_audio_coding_type = s_earc->tx_audio_coding_type;
+		}
 		earctx_enable(s_earc->tx_top_map,
 			s_earc->tx_cmdc_map,
 			s_earc->tx_dmac_map,
@@ -1531,7 +1535,10 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      true,
 				      p_earc->chipinfo->rterm_on);
 			earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
-			schedule_work(&p_earc->tx_hold_bus_work);
+			if (p_earc->last_tx_audio_coding_type != p_earc->tx_audio_coding_type) {
+				schedule_work(&p_earc->tx_hold_bus_work);
+				p_earc->last_tx_audio_coding_type = p_earc->tx_audio_coding_type;
+			}
 			p_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
 		} else {
 			dev_info(p_earc->dev, "eARC/ARC RX enable\n");
@@ -3155,6 +3162,7 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 		 st ? "plugin" : "plugout");
 	p_earc->earctx_port = earc_port; /* get earc port id from hdmirx */
 	p_earc->earctx_5v = st;
+	p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 	earctx_init(earc_port, st);
 }
 
@@ -3459,6 +3467,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 	p_earc->tx_earc_mode = true;
 	p_earc->tx_ui_flag = 1;
 	p_earc->rx_ui_flag = 1;
+	p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 	s_earc = p_earc;
 
 	/* RX */
@@ -3572,10 +3581,8 @@ static int earc_platform_suspend(struct platform_device *pdev,
 		}
 	}
 
-	/* shutdown the power */
-	if (!IS_ERR(p_earc->tx_cmdc_map))
-		earctx_enable_d2a(p_earc->tx_top_map, false);
 	p_earc->resumed = false;
+	p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 	mutex_unlock(&earc_mutex);
 
 	return 0;
