@@ -243,6 +243,7 @@ void edid_read_head_8bytes(void)
 void hdmitx_read_edid(unsigned char *rx_edid)
 {
 	unsigned int timeout = 0;
+	unsigned int timeout_cnt = 0;
 	unsigned int i;
 	unsigned int byte_num = 0;
 	unsigned char blk_no = 1;
@@ -267,11 +268,11 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 		       !(hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 1))) {
 			mdelay(2);
 			timeout++;
+			timeout_cnt++;
 		}
-		if (timeout == EDID_WAIT_TIMEOUT) {
-			HDMITX_INFO("ddc timeout\n");
+		if (timeout == EDID_WAIT_TIMEOUT)
 			hdmitx_current_status(HDMITX_EDID_I2C_ERROR);
-		}
+
 		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 1 << 1);
 		/* Read back 8 bytes */
 		for (i = 0; i < 8; i++) {
@@ -291,6 +292,8 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 			blk_no = 8; /* Max extended block */
 		}
 	}
+	if (timeout_cnt >= EDID_WAIT_TIMEOUT)
+		HDMITX_INFO("ddc timeout = %d\n", timeout_cnt);
 	/* Because DRM will use segment registers,
 	 * so clear the registers to default
 	 */

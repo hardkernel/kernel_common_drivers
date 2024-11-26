@@ -2618,7 +2618,7 @@ static void set_aud_chnls(struct aud_para *audio_param)
 {
 	int i;
 
-	HDMITX_INFO("audio: set channel status\n");
+	HDMITX_DEBUG_AUDIO("audio: set channel status\n");
 	for (i = 0; i < 9; i++)
 		/* First, set all status to 0 */
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS0 + i, 0x00);
@@ -2776,7 +2776,7 @@ static bool set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N2,
 		      (aud_n_para >> 8) & 0xff); /* AudN[15:8] */
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, aud_n_para & 0xff); /* AudN[7:0] */
-	HDMITX_INFO("audio: update audio N %d", aud_n_para);
+	HDMITX_DEBUG_AUDIO("audio: update audio N %d", aud_n_para);
 	return true;
 }
 
@@ -5866,7 +5866,7 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
 			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
 		usleep_range(2000, 3000);
-		HDMITX_INFO("audio: reset audio fifo_rst\n");
+		HDMITX_DEBUG_AUDIO("audio: reset audio fifo_rst\n");
 		break;
 	case MISC_AUDIO_ACR_CTRL:
 		if (argv == 0)

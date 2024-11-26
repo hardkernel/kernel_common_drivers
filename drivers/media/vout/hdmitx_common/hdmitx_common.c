@@ -216,7 +216,7 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 			tx_comm->frac_rate_policy, para->cs, para->cd,
 			HDMI_QUANTIZATION_RANGE_FULL);
 		if (ret == 0) {
-			HDMITX_INFO("%s init ok\n", __func__);
+			HDMITX_DEBUG("%s init ok\n", __func__);
 			/* for bootup, override build format with HW state */
 			para->dsc_en = dsc_en;
 			para->frl_rate = hdmitx_hw_cntl_misc(tx_hw, MISC_GET_FRL_MODE, 0);
@@ -1213,30 +1213,30 @@ void get_hdmi_efuse(struct hdmitx_common *tx_comm)
 				switch (i) {
 				case 0:
 					tx_comm->efuse_dis_hdmi_4k60 = 1;
-					HDMITX_INFO("get efuse FEAT_DISABLE_HDMI_60HZ = 1\n");
+					HDMITX_DEBUG("get efuse FEAT_DISABLE_HDMI_60HZ = 1\n");
 					break;
 				case 1:
 					tx_comm->efuse_dis_output_4k = 1;
-					HDMITX_INFO("get efuse FEAT_DISABLE_OUTPUT_4K = 1\n");
+					HDMITX_DEBUG("get efuse FEAT_DISABLE_OUTPUT_4K = 1\n");
 					break;
 				case 2:
 					tx_comm->efuse_dis_hdcp_tx22 = 1;
-					HDMITX_INFO("get efuse FEAT_DISABLE_HDCP_TX_22 = 1\n");
+					HDMITX_DEBUG("get efuse FEAT_DISABLE_HDCP_TX_22 = 1\n");
 					break;
 				case 3:
 					tx_comm->efuse_dis_hdmi_tx3d = 1;
-					HDMITX_INFO("get efuse FEAT_DISABLE_HDMI_TX_3D = 1\n");
+					HDMITX_DEBUG("get efuse FEAT_DISABLE_HDMI_TX_3D = 1\n");
 					break;
 				case 4:
 					tx_comm->efuse_dis_hdcp_tx14 = 1;
-					HDMITX_INFO("get efuse FEAT_DISABLE_HDMI = 1\n");
+					HDMITX_DEBUG("get efuse FEAT_DISABLE_HDMI = 1\n");
 					break;
 				default:
 					break;
 				}
 			}
 		} else {
-			HDMITX_INFO("warn getting %s: %d\n", efuse_field_name, rc);
+			HDMITX_DEBUG("warn getting %s: %d\n", efuse_field_name, rc);
 		}
 	}
 }

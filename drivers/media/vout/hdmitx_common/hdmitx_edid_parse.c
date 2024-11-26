@@ -2909,7 +2909,7 @@ static void hdmitx_edid_blk_print(unsigned char *blk, unsigned int blk_idx)
 		return;
 
 	memset(tmp_buf, 0, TMP_EDID_BUF_SIZE);
-	HDMITX_INFO("edid: blk%d raw data\n", blk_idx);
+	HDMITX_DEBUG_EDID("edid: blk%d raw data\n", blk_idx);
 	for (i = 0, pos = 0; i < 128; i++) {
 		pos += sprintf(tmp_buf + pos, "%02x", blk[i]);
 		/* print 64 bytes a line */

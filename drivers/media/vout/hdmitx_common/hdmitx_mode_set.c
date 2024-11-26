@@ -759,7 +759,7 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	 * So if no server has been registered, register all valid servers
 	 */
 	if (!is_register) {
-		HDMITX_INFO("vout register all valid server\n");
+		HDMITX_DEBUG("vout register all valid server\n");
 		global_tx_common->viu_sel |= BIT(0);
 		vout_register_server(&hdmitx_vout_server);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE

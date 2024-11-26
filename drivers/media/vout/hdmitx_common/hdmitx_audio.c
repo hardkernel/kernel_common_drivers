@@ -810,7 +810,7 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	tx_aud_param->chs = aud_param->chs - 1;
 	tx_aud_param->aud_src_if = aud_param->aud_src_if;
 	hdmitx_set_i2s_mask(tx_aud_param, aud_param->chs, aud_param->i2s_ch_mask);
-	HDMITX_INFO("audio: aout notify format %s\n",
+	HDMITX_DEBUG_AUDIO("audio: aout notify format %s\n",
 		aud_type_string[cmd & 0xff]);
 
 	memcpy(tx_aud_param->status, aud_param->status, sizeof(aud_param->status));
@@ -819,7 +819,7 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	tx_hw_base->setaudmode(tx_hw_base, tx_aud_param);
 	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_AUDIO_MODE_SETTING);
 	tx_aud_param->aud_notify_update = 0;
-	HDMITX_INFO("audio: set audio end\n");
+	HDMITX_DEBUG_AUDIO("audio: set audio end\n");
 }
 
 struct hdmitx_tracer *tx_tracer;
