@@ -7775,6 +7775,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	if (first_picture || sr_phase_changed)
 		layer->new_vpp_setting = true;
 	layer->dispbuf = vf;
+	layer->cur_vf_type = vf->type;
 	if (layer->switch_vf)
 		layer->vf_ext = vf_ext;
 	else
