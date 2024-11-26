@@ -218,9 +218,25 @@ enum wifi_clk_table_e {
 	WIFI_CLOCK_TABLE_MAX,
 };
 
+#if IS_ENABLED(CONFIG_AMLOGIC_MMC_MESON_GX)
 void sdio_reinit(void);
 const char *get_wifi_inf(void);
 int sdio_get_vendor(void);
+#else /* !CONFIG_AMLOGIC_MMC_MESON_GX */
+void sdio_reinit(void)
+{
+}
+
+const char *get_wifi_inf(void)
+{
+	return NULL;
+}
+
+int sdio_get_vendor(void)
+{
+	return 0;
+}
+#endif
 void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 extern struct mmc_host *sdio_host;
 
