@@ -704,6 +704,7 @@ struct video_layer_s {
 	struct vframe_s *vf_top1;
 	u32 frc_h_size_pre;
 	u32 frc_v_size_pre;
+	u32 cur_vf_type;
 };
 
 struct video_lcevc_s {

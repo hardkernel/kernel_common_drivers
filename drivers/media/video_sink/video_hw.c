@@ -6829,7 +6829,7 @@ static void check_video_mute_state(void)
 
 				cur_mute_rgb = video_mute_rgb[i];
 				next_mute_rgb =
-					vd_layer[0].dispbuf->type & VIDTYPE_RGB_444;
+					vd_layer[0].cur_vf_type & VIDTYPE_RGB_444;
 
 				/* if the color space changes
 				 * reset video_mute_status to trigger the mute again
@@ -11320,6 +11320,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	if (first_picture || sr_phase_changed)
 		layer->new_vpp_setting = true;
 	layer->dispbuf = vf;
+	layer->cur_vf_type = vf->type;
 	if (layer->mosaic_mode) {
 		int i;
 		struct mosaic_frame_s *mosaic_frame = NULL;
