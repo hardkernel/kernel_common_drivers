@@ -10633,6 +10633,14 @@ static int update_afd_param(u8 id,
 		layer_info->layer_top +
 		layer_info->layer_height - 1;
 
+	if (layer->global_debug & DEBUG_FLAG_AFD_INFO)
+		pr_info("%s: frame_index=%d, magic_code=0x%x, ud_addr=%p, ud_len=%d.\n",
+			__func__,
+			vf->frame_index,
+			vf->vf_ud_param.magic_code,
+			vf->vf_ud_param.ud_param.pbuf_addr,
+			vf->vf_ud_param.ud_param.buf_len);
+
 	ret = afd_process(id, &in_p, &out_p);
 	if (ret >= 0) {
 		layer_info->afd_enable = out_p.afd_enable;
