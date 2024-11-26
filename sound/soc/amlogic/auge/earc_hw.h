@@ -255,7 +255,7 @@ void earcrx_pll_refresh(struct regmap *top_map,
 			enum pll_rst_src rst_src,
 			bool level,
 			bool arcin_new);
-void earcrx_cmdc_int_mask(struct regmap *top_map);
+void earcrx_cmdc_set_int_mask(struct regmap *top_map, bool enable);
 void earcrx_pll_lock_force(struct regmap *top_map, bool en);
 void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int,
 			bool rterm_on,

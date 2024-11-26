@@ -501,9 +501,9 @@ static void earcrx_init(bool st)
 			 p_earc->chipinfo->rx_dmac_sync_int,
 			 p_earc->chipinfo->rterm_on,
 			 p_earc->chipinfo->rx_pll_new);
-	if (st)
-		earcrx_cmdc_int_mask(p_earc->rx_top_map);
-	else
+
+	earcrx_cmdc_set_int_mask(p_earc->rx_top_map, st);
+	if (!st)
 		p_earc->bch_err = false;
 
 	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map, st);
@@ -3602,8 +3602,11 @@ static int earc_platform_suspend(struct platform_device *pdev,
 {
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
 
-	/* cancel delay work */
 	if (p_earc->chipinfo->rx_enable) {
+		/* disconnect when suspend */
+		if (p_earc->earcrx_5v)
+			earcrx_init(0);
+		/* cancel delay work */
 		cancel_delayed_work(&p_earc->rx_stable_work);
 		cancel_delayed_work(&p_earc->rx_pll_detect_work);
 		cancel_delayed_work(&p_earc->hdmitx_5v_work);
