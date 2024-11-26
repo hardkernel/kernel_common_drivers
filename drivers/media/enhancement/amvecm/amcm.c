@@ -991,8 +991,15 @@ void cm_frame_size_s5(struct vframe_s *vf, int vpp_index)
 				else
 					overlap = 0;
 
-				width = vd_size_info->slice[0].vd1_slice_in_hsize - overlap;
-				height = vd_size_info->slice[0].vd1_slice_in_vsize;
+				width = vd_size_info->slice[0].hsize;
+				height = vd_size_info->slice[0].vsize;
+				pr_amcm_dbg("[amcm] s[%d] in_size( %d,%d) size(%d,%d),overlap=%d\n",
+					i,
+					vd_size_info->slice[i].vd1_slice_in_hsize,
+					vd_size_info->slice[i].vd1_slice_in_vsize,
+					vd_size_info->slice[i].hsize,
+					vd_size_info->slice[i].vsize,
+					vd_size_info->slice[i].vd1_overlap);
 #else
 				width = 0xf00;
 				height = 0x870;
