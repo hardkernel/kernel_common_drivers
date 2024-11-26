@@ -1380,6 +1380,13 @@ static int vpp_process_speed_check
 				    ((vf->type & VIDTYPE_VIU_444) ||
 				     (vf->type & VIDTYPE_RGB_444)))
 					cur_ratio = cur_ratio * 2;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+				if (video_is_meson_t3x_cpu() &&
+					next_frame_par->vscale_skip_count > 0 &&
+				    ((vf->type & VIDTYPE_VIU_444) ||
+				     (vf->type & VIDTYPE_RGB_444)))
+					cur_ratio = cur_ratio * 160 / 100;
+#endif
 				if (pi_enable)
 					cur_ratio /= 2;
 				/* store the debug info for legacy */
