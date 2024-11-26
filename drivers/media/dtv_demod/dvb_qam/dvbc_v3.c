@@ -484,8 +484,10 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	qam_write_reg(demod, 0x0, 0x0);
 
 	/* Set the stability of the equalizer for dvbc, the default value is 0xd009 */
-	if (demod->atsc_mode == 0)
+	if (demod->atsc_mode == 0) {
+		qam_write_reg(demod, 0x4f, 0x28242824);//improve sensetivity
 		qam_write_reg(demod, 0x62, 0x1f00d009);
+	}
 
 	/* QAM_STATUS */
 	qam_write_reg(demod, 0x7, 0x00000f00);

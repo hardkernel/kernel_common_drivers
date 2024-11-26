@@ -287,6 +287,7 @@ int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	demod->auto_flags_trig = 0;
 	demod->last_lock = -1;
 	demod->last_qam_mode = QAM_MODE_NUM;
+	demod->atsc_mode = 0;
 
 	tuner_set_params(fe);
 
@@ -933,7 +934,7 @@ int dvbc_set_frontend(struct dvb_frontend *fe)
 	demod->sr_val_hw = param.symb_rate;
 	demod->last_qam_mode = QAM_MODE_NUM;
 	demod->last_lock = 0;
-	demod->time_start = jiffies_to_msecs(jiffies);
+	demod->atsc_mode = 0;
 
 	tuner_set_params(fe);
 	dvbc_set_ch(demod, &param, fe);
@@ -944,6 +945,8 @@ int dvbc_set_frontend(struct dvb_frontend *fe)
 
 	demod_dvbc_set_qam(demod, param.mode, demod->auto_sr);
 	demod_dvbc_fsm_reset(demod);
+
+	demod->time_start = jiffies_to_msecs(jiffies);
 
 	return ret;
 }
