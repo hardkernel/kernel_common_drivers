@@ -659,9 +659,8 @@ static int meson_tlc59116_i2c_probe(struct i2c_client *i2c)
 	}
 	ret = check_tlc59116_valid(tlc59116);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "%s: there is no tlc59116!\n",
-			__func__);
-		return ret;
+		dev_info(&i2c->dev, "there is no tlc59116. Exit probe process\n");
+		return 0;
 	}
 
 	meson_tlc59116_init_data(tlc59116);

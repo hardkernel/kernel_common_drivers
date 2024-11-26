@@ -936,8 +936,8 @@ static int aw9523_i2c_probe(struct i2c_client *i2c)
 	/* aw9523 chip id */
 	ret = aw9523_read_chipid(aw9523);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "%s: there is no aw9523 ret=%d\n", __func__, ret);
-		goto err_id;
+		dev_info(&i2c->dev, "there is no aw9523. Exit probe process\n");
+		return 0;
 	}
 	dev_set_drvdata(&i2c->dev, aw9523);
 	ret = aw9523_parse_led_cdev(aw9523, np);
@@ -958,7 +958,6 @@ static int aw9523_i2c_probe(struct i2c_client *i2c)
 	return 0;
 
 err_sysfs:
-err_id:
 	return ret;
 }
 
