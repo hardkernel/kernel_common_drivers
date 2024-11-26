@@ -622,7 +622,7 @@ static inline int dpss_module_init(void)
 
 #endif
 
-#ifdef CONFIG_AMLOGIC_AO_CEC
+#if defined(CONFIG_AMLOGIC_AO_CEC) || defined(CONFIG_AMLOGIC_LINUX_STD_CEC)
 int cec_init(void);
 #else
 static int cec_init(void)

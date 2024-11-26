@@ -48,6 +48,7 @@
 #include <linux/mailbox_controller.h>
 #include <linux/amlogic/aml_mbox.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/efuse.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 static struct early_suspend aocec_suspend_handler;
@@ -1649,6 +1650,7 @@ static void aocec_late_resume(struct early_suspend *h)
 #endif
 
 #ifdef CONFIG_OF
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct cec_platform_data_s cec_gxl_data = {
 	.chip_id = CEC_CHIP_GXL,
@@ -1749,7 +1751,8 @@ static const struct cec_platform_data_s cec_sm1_data = {
 
 static const struct cec_platform_data_s cec_tm2_data = {
 	.chip_id = CEC_CHIP_TM2,
-	.line_reg = 0,/*line_reg=0:AO_GPIO_I*/
+	/* don't check */
+	.line_reg = 0xff,
 	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
@@ -1762,7 +1765,7 @@ static const struct cec_platform_data_s cec_tm2_data = {
 static const struct cec_platform_data_s cec_sc2_data = {
 	.chip_id = CEC_CHIP_SC2,
 	.line_reg = 0xff,/*don't check*/
-	.line_bit = 0,
+	.line_bit = 3,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
 	.ceca_ver = CECA_VER_1,
@@ -1810,7 +1813,7 @@ static const struct cec_platform_data_s cec_t7_data = {
 static const struct cec_platform_data_s cec_s4_data = {
 	.chip_id = CEC_CHIP_S4,
 	.line_reg = 0xff,/*don't check*/
-	.line_bit = 0,
+	.line_bit = 3,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
 	.ceca_ver = CECA_VER_1,
@@ -1819,6 +1822,57 @@ static const struct cec_platform_data_s cec_s4_data = {
 	.reg_tab_group = cec_reg_group_a1,
 };
 
+static const struct cec_platform_data_s cec_s7_data = {
+	.chip_id = CEC_CHIP_S7,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+#endif
+
+static const struct cec_platform_data_s cec_s7d_data = {
+	.chip_id = CEC_CHIP_S7D,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+static const struct cec_platform_data_s cec_s6_data = {
+	.chip_id = CEC_CHIP_S6,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+/* s1a based on s4d */
+static const struct cec_platform_data_s cec_s1a_data = {
+	.chip_id = CEC_CHIP_S1A,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 3,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 1,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = true,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const struct cec_platform_data_s cec_t3_data = {
 	.chip_id = CEC_CHIP_T3,
 	.line_reg = 0xff,/*don't check*/
@@ -1894,8 +1948,32 @@ static const struct cec_platform_data_s cec_txhd2_data = {
 	.reg_tab_group = cec_reg_group_old,
 };
 
+static const struct cec_platform_data_s cec_t6d_data = {
+	.chip_id = CEC_CHIP_T6D,
+	.line_reg = 2,
+	.line_bit = 12,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
 static const struct cec_platform_data_s cec_t6w_data = {
 	.chip_id = CEC_CHIP_T6W,
+	.line_reg = 0xff,
+	.line_bit = 17,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+static const struct cec_platform_data_s cec_t6x_data = {
+	.chip_id = CEC_CHIP_T6X,
 	.line_reg = 0xff,
 	.line_bit = 17,
 	.ee_to_ao = 1,
@@ -1968,6 +2046,24 @@ static const struct of_device_id aml_cec_dt_match[] = {
 		.data = &cec_s4_data,
 	},
 	{
+		.compatible = "amlogic, aocec-s7",
+		.data = &cec_s7_data,
+	},
+#endif
+	{
+		.compatible = "amlogic, aocec-s7d",
+		.data = &cec_s7d_data,
+	},
+	{
+		.compatible = "amlogic, aocec-s6",
+		.data = &cec_s6_data,
+	},
+	{
+		.compatible = "amlogic, aocec-s1a",
+		.data = &cec_s1a_data,
+	},
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	{
 		.compatible = "amlogic, aocec-t3",
 		.data = &cec_t3_data,
 	},
@@ -1992,8 +2088,16 @@ static const struct of_device_id aml_cec_dt_match[] = {
 		.data = &cec_txhd2_data,
 	},
 	{
+		.compatible = "amlogic, aocec-t6d",
+		.data = &cec_t6d_data,
+	},
+	{
 		.compatible = "amlogic, aocec-t6w",
 		.data = &cec_t6w_data,
+	},
+	{
+		.compatible = "amlogic, aocec-t6x",
+		.data = &cec_t6x_data,
 	},
 #endif
 	{}
@@ -2029,15 +2133,30 @@ static int __of_irq_count(struct device_node *dev)
 static void cec_hdmi_plug_handler(struct work_struct *work)
 {
 	unsigned int tmp = 0;
+	unsigned int phy_addr = 0xffff;
 
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	tmp |= (hdmitx_ext_get_hpd_state() << 4);
+	if ((tmp & 0x10) != 0) {
+		phy_addr = cec_get_cur_phy_addr();
+		CEC_INFO("[plug_handler],cec_get_cur_phy_addr=%d", phy_addr);
+		if (phy_addr == 0)
+			cec_dev->phy_addr = 0xffff;
+		else
+			cec_dev->phy_addr = phy_addr;
+
+		cec_config2_phyaddr(cec_dev->phy_addr, 1);
+	} else {
+		cec_dev->phy_addr = 0xffff;
+	}
+	cec_s_phys_addr(std_ao_cec.adap,
+				cec_dev->phy_addr,
+				false);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	tmp |= (hdmirx_get_connect_info() & 0xF);
 #endif
-
-	cec_set_uevent(HDMI_PLUG_EVENT, tmp);
+	//cec_set_uevent(HDMI_PLUG_EVENT, tmp);
 }
 
 static void cec_rx_uevent_handler(struct work_struct *work)
@@ -2228,6 +2347,29 @@ static const struct cec_adap_ops ao_cec_ops = {
 };
 
 /* --------end of CEC framework interface-------- */
+
+int cec_get_gpiow_id_selection(void)
+{
+	/* default GPIOW_17 */
+	int ret = GPIOW_DEFAULT;
+	int val = GPIOW_16_SEL;
+
+	if (cec_dev->plat_data->chip_id != CEC_CHIP_T6W)
+		return ret;
+	val = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_CEC_IO);
+	/* val=0:efuse bit not found */
+	if (val < 0) {
+		pr_err("can not find efuse bit\n");
+		ret = GPIOW_16_SEL;
+	} else if (val == 0) {
+		ret = GPIOW_16_SEL;
+	} else if (val == 1) {
+		ret = GPIOW_17_SEL;
+	} else {
+		pr_err("cec read efuse error\n");
+	}
+	return ret;
+}
 
 static int aml_aocec_probe(struct platform_device *pdev)
 {
@@ -2741,7 +2883,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	} else {
 		std_ao_cec.tx_notify =
 			cec_notifier_cec_adap_register(hdmi_tx_dev,
-						       "hdmitx",
+						       "amhdmitx",
 						       std_ao_cec.adap);
 		if (!std_ao_cec.tx_notify) {
 			pr_info("cec_notifier_cec_adap_register fail\n");
@@ -3093,7 +3235,6 @@ int __init cec_init(void)
 	int ret;
 
 	ret = platform_driver_register(&aml_aocec_driver);
-
 	return ret;
 }
 
