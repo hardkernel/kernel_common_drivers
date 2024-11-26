@@ -43,7 +43,8 @@
 /* 2024.10.11 fix dsc timing judge */
 /* 2024.10.12 reduce fsm print */
 /* 2024.11.06 Adjust the HPD pull down time based on EDID type */
-#define RX_WRAPPER_VER "ver.2024/11/06"
+/* 2024.11.27 fix fsm unnormal */
+#define RX_WRAPPER_VER "ver.2024/11/27"
 
 struct freq_ref_s {
 	bool interlace;
