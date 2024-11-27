@@ -2818,7 +2818,7 @@ int codec_mm_scatter_owner_register(char *owner_name,
 
 	smgt = codec_mm_get_scatter_mgt(is_tvp);
 	len = strlen(owner_name);
-	memcpy(owner->owner_name, owner_name, MAX(len, SC_OWEN_NAME_LEN));
+	memcpy(owner->owner_name, owner_name, MIN(len, SC_OWEN_NAME_LEN));
 	owner->cache_keep_size = keep_size_M * SZ_1M;
 	INIT_LIST_HEAD(&owner->owner_list);
 
@@ -3317,8 +3317,7 @@ static u32 codec_mm_scatter_get_reserved_block_size(void)
 	case SCATTER_ALLOC_FROM_MIXED:
 		reserved_block_size =
 			codec_mm_get_property_from_dts("reserved_block_size");
-		if (reserved_block_size > total_size ||
-			reserved_block_size < 0) {
+		if (reserved_block_size > total_size) {
 			ret = 300;
 			pr_info("reserved_block_size is %d, reset as 300.\n",
 				reserved_block_size);
