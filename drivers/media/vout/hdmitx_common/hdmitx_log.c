@@ -64,6 +64,20 @@ void __hdmitx_err(const char *format, ...)
 	va_end(args);
 }
 
+void __hdmitx_warn(const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	pr_err("[" HDMITX_NAME ":] *HDMITX_WARNING* %pV", &vaf);
+
+	va_end(args);
+}
+
 void __hdmitx_dbg(enum hdmitx_debug_category category, const char *format, ...)
 {
 	struct va_format vaf;

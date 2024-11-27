@@ -25,6 +25,9 @@ enum hdmitx_debug_category {
 #define HDMITX_ERROR(fmt, ...)							\
 	__hdmitx_err(fmt, ##__VA_ARGS__)
 
+#define HDMITX_WARNING(fmt, ...)						\
+	__hdmitx_warn(fmt, ##__VA_ARGS__)
+
 #define HDMITX_DEBUG(fmt, ...)							\
 	__hdmitx_dbg(CORE_LOG, fmt, ##__VA_ARGS__)
 
@@ -70,6 +73,7 @@ enum hdmitx_debug_category {
 /*DONT USE API directly, use macro define instead.*/
 void __hdmitx_info(const char *format, ...);
 void __hdmitx_err(const char *format, ...);
+void __hdmitx_warn(const char *format, ...);
 void __hdmitx_dbg(enum hdmitx_debug_category category, const char *format, ...);
 
 #endif

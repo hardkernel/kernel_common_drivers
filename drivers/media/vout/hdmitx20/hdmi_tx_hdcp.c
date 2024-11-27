@@ -319,11 +319,6 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		hdmitx_current_status(HDMITX_HDCP_NOT_ENABLED);
 	}
 	if (strncmp(buf, "1", 1) == 0) {
-		char bksv[5] = {0};
-
-		hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_GET_BKSV, (unsigned long)bksv);
-		if (!hdcp_ksv_valid(bksv))
-			hdmitx_current_status(HDMITX_HDCP_AUTH_READ_BKSV_ERROR);
 		if (vic == HDMI_17_720x576p50_4x3 || vic == HDMI_18_720x576p50_16x9)
 			usleep_range(500000, 500010);
 		tx_comm->hdcp_mode = 1;

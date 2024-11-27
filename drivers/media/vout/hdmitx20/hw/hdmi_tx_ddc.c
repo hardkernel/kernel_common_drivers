@@ -83,7 +83,7 @@ static void pr_scdc_err_info(const char *func_name, u8 slave, u8 offset_addr,
 				scdc_msg[offset_addr] ? scdc_msg[offset_addr] : "rsvd");
 		} else {
 			if (slave_msg[slave])
-				HDMITX_ERROR("E: %s %s 0x%02x 0x%02x\n",
+				HDMITX_WARNING("E: %s %s 0x%02x 0x%02x\n",
 					func_name, slave_msg[slave], slave, offset_addr);
 			else
 				HDMITX_ERROR("E: %s unknown slave: <0x%x> 0x%02x\n",
