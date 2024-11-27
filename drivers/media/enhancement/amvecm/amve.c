@@ -2382,8 +2382,10 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 	unsigned int offset = TIMING_UHD + 1;/*av&atv*/
 #endif
 
-	if (overscan_disable)
+	if (overscan_disable) {
+		vf->ratio_control &= ~DISP_RATIO_ADAPTED_PICMODE;
 		return;
+	}
 
 	if (overscan_table[0].load_flag) {
 		height = (vf->type & VIDTYPE_COMPRESS) ?
