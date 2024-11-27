@@ -345,7 +345,7 @@ static void hdr_unmute_work_func(struct work_struct *work)
 {
 	unsigned int mute_us;
 	struct hdmitx_dev *hdev =
-		container_of(work, struct hdmitx_dev, work_hdr);
+		container_of(work, struct hdmitx_dev, work_hdr_unmute);
 
 	if (hdev->tx_comm.hdr_mute_frame) {
 		mute_us = hdev->tx_comm.hdr_mute_frame * hdmitx_get_frame_duration();
