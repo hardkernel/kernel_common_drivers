@@ -922,7 +922,7 @@ static int dmc_irq_set(struct device_node *node, int save_irq, int request)
 	int irq, r = 0, i, affinity_cpu = 1;
 	struct irq_desc *desc;
 
-	pr_info("%s: save_irq=%d, request=%d\n", __func__, save_irq, request);
+	pr_debug("%s: save_irq=%d, request=%d\n", __func__, save_irq, request);
 	if (!save_irq && !save_irq_num)
 		return -EINVAL;
 	if (!save_irq && ((request && request_num) || (!request && !request_num)))
