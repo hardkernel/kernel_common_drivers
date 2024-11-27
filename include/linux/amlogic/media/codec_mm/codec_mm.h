@@ -105,7 +105,7 @@ struct codec_mm_s {
 	int mem_id;
 	int next_bit;
 	struct list_head list;
-	u32 tvp_handle;
+	int tvp_handle;
 	struct list_head release_cb_list;
 	u32 release_cb_cnt;
 	u64 start_alloc_time;
