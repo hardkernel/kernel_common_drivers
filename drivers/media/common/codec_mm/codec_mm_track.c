@@ -102,6 +102,10 @@ static void build_dma_buf_list(struct seq_file *m,
 static bool is_fd_alive(u32 fd)
 {
 	struct files_struct *files = current->files;
+	/*
+	 * There is no "switch case value 8".
+	 */
+	/* coverity[overrun-local] */
 	struct fdtable *fdt = files_fdtable(files);
 
 	return test_bit(fd, fdt->open_fds);
@@ -373,6 +377,10 @@ static void find_ref_process(const struct dma_buf *dbuf, struct seq_file *m)
 
 	read_lock(&tasklist_lock);
 
+	/*
+	 * There is no "switch case value 8".
+	 */
+	/* coverity[overrun-local] */
 	for_each_process(tsk) {
 		if (tsk->flags & PF_KTHREAD)
 			continue;
@@ -622,6 +630,10 @@ static bool trace_elem_lookup(struct codec_mm_track_s *trk,
 		goto out;
 	}
 
+	/*
+	 * There is no "switch case value 8".
+	 */
+	/* coverity[overrun-local] */
 	for_each_thread(task->group_leader, tsk) {
 		if (find_match_task(trk, file, fd, tsk->pid, &elem)) {
 			*out = *elem;
@@ -701,6 +713,10 @@ static void trace_clean_invalid_fd(struct codec_mm_track_s *trk)
 
 	rcu_read_lock();
 
+	/*
+	 * There is no "switch case value 8".
+	 */
+	/* coverity[overrun-local] */
 	for_each_thread(current, tsk) {
 		hash_for_each_possible(trk->sample_table, elem, h_node, tsk->pid) {
 			if (is_fd_alive(elem->fd))
@@ -736,6 +752,10 @@ static void trace_clean_fd(struct codec_mm_track_s *trk,
 
 	rcu_read_lock();
 
+	/*
+	 * There is no "switch case value 8".
+	 */
+	/* coverity[overrun-local] */
 	for_each_thread(current, tsk) {
 		hash_for_each_possible(trk->sample_table, elem, h_node, tsk->pid) {
 			if (file == elem->file &&
@@ -946,6 +966,10 @@ static void build_dma_buf_list(struct seq_file *m,
 
 	read_lock(&tasklist_lock);
 
+	/*
+	 * There is no "switch case value 8".
+	 */
+	/* coverity[overrun-local] */
 	for_each_process(tsk) {
 		if (tsk->flags & PF_KTHREAD)
 			continue;

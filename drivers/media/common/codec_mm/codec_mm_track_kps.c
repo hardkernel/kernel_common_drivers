@@ -84,6 +84,10 @@ static int kp_do_dup2_pre(struct kprobe *p, struct pt_regs *regs)
 	if (!is_dma_buf_file_need(file))
 		goto out;
 
+	/*
+	 * There is no "switch case value 8".
+	 */
+	/* coverity[overrun-local] */
 	fdt = files_fdtable(files);
 	tofree = fdt->fd[fd];
 	if (!tofree && fd_is_open(fd, fdt))
