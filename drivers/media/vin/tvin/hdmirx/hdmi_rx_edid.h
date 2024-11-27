@@ -13,6 +13,7 @@
 //2024.11.01 Optimize clear of edid segment
 //2024.11.06 get edid size and frl
 //2024.11.20 add new edid function
+//2024.11.28 change the location for get edid size and frl
 #define RX_EDID_H_VER "ver.2024/11/20"
 
 #define EDID_EXT_BLK_OFF	128
@@ -964,6 +965,6 @@ void rx_edid_reset_task(u8 port);
 void rx_get_edid_support(u8 port);
 void rx_print_edid_support(void);
 bool is_valid_edid_data(unsigned char *p_edid);
-u32 rx_get_edid_size(u8 port);
-bool is_support_frl(u8 port);
+u32 rx_get_edid_size(u8 *pedid);
+bool is_support_frl(u8 *pedid, u8 port);
 #endif

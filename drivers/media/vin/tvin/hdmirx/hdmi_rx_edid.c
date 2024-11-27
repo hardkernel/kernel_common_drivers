@@ -2543,20 +2543,25 @@ void edid_parse_cea_ext_block(u8 *p_edid,
 		edid_info->blk_parse_info.db_info[i].offset += blk_start_offset;
 }
 
-bool is_support_frl(u8 port)
+bool is_support_frl(u8 *pedid, u8 port)
 {
-	u8 *pedid = NULL;
-	u32 hf_vsdb_start, frl_rate;
-	bool ret = false;
+	u32 hf_vsdb_start;
+	bool frl_rate, ret = false;
 
-	pedid = rx_get_cur_used_edid(port);
 	hf_vsdb_start = rx_get_cea_tag_offset(pedid, HF_VENDOR_DB_TAG);
 	frl_rate = pedid[hf_vsdb_start + 7] >> 4;
-	if (frl_rate > 0 && frl_rate < 7)
-		ret = true;
-	else
+	if (frl_rate) {
+		if (rx_info.chip_id == CHIP_ID_T3X &&
+			(port == E_PORT2 || port == E_PORT3)) {
+			ret = true;
+		} else {
+			if (log_level & EDID_LOG)
+				rx_pr("chip no support frl, edid error.\n");
+			ret = false;
+		}
+	} else {
 		ret = false;
-
+	}
 	return ret;
 }
 
@@ -5118,12 +5123,10 @@ u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 	return checksum;
 }
 
-u32 rx_get_edid_size(u8 port)
+u32 rx_get_edid_size(u8 *pedid)
 {
 	u32 blk_num = 0, index = 0;
-	u8 *pedid = NULL;
 
-	pedid = rx_get_cur_used_edid(port);
 	index = rx_get_cea_tag_offset(pedid, EXTENDED_HF_EEODB);
 	if (index)
 		blk_num = pedid[index + 2] + 1;
@@ -5222,6 +5225,8 @@ bool hdmi_rx_top_edid_update(void)
 			rx_pr("port-%d edid err!\n", i);
 			return false;
 		}
+		rx[i].edid_size = rx_get_edid_size(pedid);
+		rx[i].sup_frl = is_support_frl(pedid, i);
 		ext_blk_num = pedid[126];
 		rx_edid_update_hdr_dv_info(pedid);
 		rx_edid_update_sad(pedid);

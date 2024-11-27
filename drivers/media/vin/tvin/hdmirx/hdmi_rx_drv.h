@@ -963,6 +963,8 @@ struct rx_s {
 	struct phy_sts phy;
 	struct clk_msr clk;
 	enum edid_ver_e edid_ver;
+	u16 edid_size;
+	bool sup_frl;
 	u8 tx_type;
 	bool arc_5vsts;
 	u32 vsync_cnt;

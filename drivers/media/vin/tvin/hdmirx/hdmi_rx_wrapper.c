@@ -2779,11 +2779,11 @@ int rx_get_hpd_wait(u8 port)
 {
 	int ret = hpd_wait_dbg;
 
-	if (is_support_frl(port))
+	if (rx[port].sup_frl)
 		ret += HPD_WAIT_21;
-	else if (rx_get_edid_size(port) == 256)
+	else if (rx[port].edid_size == 256)
 		ret += HPD_WAIT_NORMAL;
-	else if (rx_get_edid_size(port) == 512)
+	else if (rx[port].edid_size == 512)
 		ret += HPD_WAIT_512;
 	else
 		ret += HPD_WAIT_NORMAL;
