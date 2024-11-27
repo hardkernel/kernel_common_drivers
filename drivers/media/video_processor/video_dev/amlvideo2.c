@@ -5879,6 +5879,23 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 		para.crop[1] = node->crop_info.source_left_crop;
 		para.crop[2] = node->crop_info.source_width_crop;
 		para.crop[3] = node->crop_info.source_height_crop;
+		if (para.crop[0] > para.v_active || para.crop[1] > para.h_active) {
+			pr_info("crop err, modify top: %d, left: %d\n", para.crop[0], para.crop[1]);
+			para.crop[0] = 0;
+			para.crop[1] = 0;
+		}
+		if (para.crop[2] > para.h_active || para.crop[3] > para.v_active) {
+			pr_info("crop err, modify width: %d, height: %d\n",
+				para.crop[2], para.crop[3]);
+			para.crop[2] = para.h_active;
+			para.crop[3] = para.v_active;
+		}
+		if (para.crop[2] == 0 || para.crop[3] == 0) {
+			para.crop[0] = 0;
+			para.crop[1] = 0;
+			para.crop[2] = para.h_active;
+			para.crop[3] = para.v_active;
+		}
 		para.reserved |= PARAM_STATE_SCREEN_CAP;
 		if (para.scan_mode == TVIN_SCAN_MODE_INTERLACED)
 			para.dest_v_active = para.dest_v_active / 2;
@@ -6248,11 +6265,6 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 	para.dest_h_active = dst_w;
 	para.dest_v_active = dst_h;
-	para.crop[0] = node->crop_info.source_top_crop;
-	para.crop[1] = node->crop_info.source_left_crop;
-	para.crop[2] = node->crop_info.source_width_crop;
-	para.crop[3] = node->crop_info.source_height_crop;
-
 	if (dst_w < VDIN1_SCALE_W || dst_h < VDIN1_SCALE_H) {
 		para.dest_h_active = VDIN1_SCALE_W;
 		para.dest_v_active = VDIN1_SCALE_H;
@@ -6264,7 +6276,26 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 	if (amlvideo2_dest_h != 0)
 		para.dest_h_active = amlvideo2_dest_h;
-
+	para.crop[0] = node->crop_info.source_top_crop;
+	para.crop[1] = node->crop_info.source_left_crop;
+	para.crop[2] = node->crop_info.source_width_crop;
+	para.crop[3] = node->crop_info.source_height_crop;
+	if (para.crop[0] > para.v_active || para.crop[1] > para.h_active) {
+		pr_info("crop err, modify top: %d, left: %d\n", para.crop[0], para.crop[1]);
+		para.crop[0] = 0;
+		para.crop[1] = 0;
+	}
+	if (para.crop[2] > para.h_active || para.crop[3] > para.v_active) {
+		pr_info("crop err, modify width: %d, height: %d\n", para.crop[2], para.crop[3]);
+		para.crop[2] = para.h_active;
+		para.crop[3] = para.v_active;
+	}
+	if (para.crop[2] == 0 || para.crop[3] == 0) {
+		para.crop[0] = 0;
+		para.crop[1] = 0;
+		para.crop[2] = para.h_active;
+		para.crop[3] = para.v_active;
+	}
 	para.reserved |= PARAM_STATE_SCREEN_CAP;
 	if (para.scan_mode == TVIN_SCAN_MODE_INTERLACED)
 		para.dest_v_active = para.dest_v_active / 2;
@@ -6490,17 +6521,36 @@ static int start_send_normal_frame(struct amlvideo2_fh *fh)
 
 	para.dest_h_active = dst_w;
 	para.dest_v_active = dst_h;
+	if (dst_w < VDIN1_SCALE_W || dst_h < VDIN1_SCALE_H) {
+		para.dest_h_active = VDIN1_SCALE_W;
+		para.dest_v_active = VDIN1_SCALE_H;
+		if (amlvideo2_dbg_en)
+			pr_info("need vdin scale, dst_w: %d, dst_h: %d,", fh->width, fh->height);
+	}
+	if (amlvideo2_dest_w != 0)
+		para.dest_h_active = amlvideo2_dest_w;
+	if (amlvideo2_dest_h != 0)
+		para.dest_h_active = amlvideo2_dest_h;
 	para.crop[0] = node->crop_info.source_top_crop;
 	para.crop[1] = node->crop_info.source_left_crop;
 	para.crop[2] = node->crop_info.source_width_crop;
 	para.crop[3] = node->crop_info.source_height_crop;
-
-	if (amlvideo2_dest_w != 0)
-		para.dest_h_active = amlvideo2_dest_w;
-
-	if (amlvideo2_dest_h != 0)
-		para.dest_h_active = amlvideo2_dest_h;
-
+	if (para.crop[0] > para.v_active || para.crop[1] > para.h_active) {
+		pr_info("crop err, modify top: %d, left: %d\n", para.crop[0], para.crop[1]);
+		para.crop[0] = 0;
+		para.crop[1] = 0;
+	}
+	if (para.crop[2] > para.h_active || para.crop[3] > para.v_active) {
+		pr_info("crop err, modify width: %d, height: %d\n", para.crop[2], para.crop[3]);
+		para.crop[2] = para.h_active;
+		para.crop[3] = para.v_active;
+	}
+	if (para.crop[2] == 0 || para.crop[3] == 0) {
+		para.crop[0] = 0;
+		para.crop[1] = 0;
+		para.crop[2] = para.h_active;
+		para.crop[3] = para.v_active;
+	}
 	para.reserved |= PARAM_STATE_SCREEN_CAP;
 	if (para.scan_mode == TVIN_SCAN_MODE_INTERLACED)
 		para.dest_v_active = para.dest_v_active / 2;
