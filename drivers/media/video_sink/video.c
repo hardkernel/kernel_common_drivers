@@ -10029,7 +10029,14 @@ static ssize_t cur_aipq_sp_show(const struct class *cla,
 	return count;
 }
 
-static ssize_t video_inuse_show(const struct class *class,
+static ssize_t is_video_enabled_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
+{
+	return sprintf(buf, "%d\n", get_video_enabled(0));
+}
+
+static ssize_t video_inuse_show(const struct class *cla,
 				const struct class_attribute *attr,
 				char *buf)
 {
@@ -14052,6 +14059,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR_RO(src_fmt),
 	__ATTR_RO(cur_aipq_sp),
 	__ATTR_RO(process_fmt),
+	__ATTR_RO(is_video_enabled),
 	__ATTR(axis_pip,
 	       0664,
 	       videopip_axis_show,
