@@ -426,8 +426,6 @@ static int amlogic_crg_drd_usb2_init_v0(struct usb_phy *x)
 		}
 	}
 
-	amlogic_crg_drd_usb2_set_controller_power(phy, false, true);
-
 	for (i = 0; i < portnum; i++)
 		temp = temp | (1 << phy->phy_reset_level_bit[i]);
 
@@ -915,9 +913,6 @@ static void amlogic_crg_drd_usb2phy_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
 	int ret;
-
-	if (local_pdata(phy)->ver == AML_CRG_DRD_USB2_PHY_V0)
-		amlogic_crg_drd_usb2_set_controller_power(phy, false, false);
 
 	ret = amlogic_crg_drd_usbphy_hold_reset(phy, false);
 	ret = amlogic_crg_drd_usbphy_reg_hold_reset(phy, false);
