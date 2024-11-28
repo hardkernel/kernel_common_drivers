@@ -82,12 +82,6 @@ static void ramdump_parse_info(void)
 #endif
 
 #ifdef CONFIG_ARM64
-	pr_info("%s, kimage_vaddr: 0x%px, v2p: 0x%lx\n",
-			__func__, (unsigned long *)kimage_vaddr,
-			(unsigned long)__pa_symbol(kimage_vaddr));
-	pr_info("%s, KIMAGE_VADDR: 0x%px, v2p: 0x%lx\n",
-			__func__, (unsigned long *)KIMAGE_VADDR,
-			(unsigned long)__pa_symbol(KIMAGE_VADDR));
 	pr_info("%s, --kaslr 0x%lx\n", __func__, kaslr_offset());
 	pr_info("%s, -m kimage_voffset=0x%lx\n", __func__,
 			(unsigned long)kimage_vaddr - (unsigned long)__pa_symbol(kimage_vaddr));
@@ -98,15 +92,10 @@ static void ramdump_parse_info(void)
 static int early_ramdump_para(char *buf)
 {
 	int ret;
-#ifdef	RESERVE_MEM_BY_RAMDUMP_DTS_NODE
-	struct device_node *node;
-	struct resource res;
-#endif
 
 	if (!buf)
 		return -EINVAL;
 
-	pr_info("%s:%s\n", __func__, buf);
 	if (strcmp(buf, "disabled") == 0) {
 		ramdump_disable = 1;
 	} else {
@@ -116,14 +105,9 @@ static int early_ramdump_para(char *buf)
 			ramdump_disable = 1;
 		}
 		ramdump_disable = 0;
-		pr_info("%s, base:%lx, size:%lx\n",
-			__func__, ramdump_base, ramdump_size);
-#ifdef	RESERVE_MEM_BY_RAMDUMP_DTS_NODE
-		node = of_find_node_by_path("/reserved-memory/ramdump_bl33z");
-		ret = of_address_to_resource(node, 0, &res);
-		pr_info("%s, dts reserved-memory %lx - %lx\n",
-					__func__, (unsigned long)res.start, (unsigned long)res.end);
-#else
+		ramdump_parse_info();
+
+#ifndef RESERVE_MEM_BY_RAMDUMP_DTS_NODE
 		ret = memblock_reserve(ramdump_base, PAGE_ALIGN(ramdump_size));
 		if (ret < 0) {
 			pr_info("%s, reserve memblock %lx - %lx failed\n",
@@ -136,7 +120,6 @@ static int early_ramdump_para(char *buf)
 				ramdump_base + PAGE_ALIGN(ramdump_size));
 		}
 #endif
-		ramdump_parse_info();
 	}
 	return 0;
 }
@@ -326,8 +309,6 @@ static void lazy_clear_work(struct work_struct *work)
 	unsigned long target_size;
 
 	free_pages = global_zone_page_state(NR_FREE_PAGES);
-	pr_info("ramdump, Free pages available: %lu (%lu MB)\n",
-			free_pages, free_pages * PAGE_SIZE / 1024 / 1024);
 	target_size = (free_pages * 90) / 100 * PAGE_SIZE;
 
 	INIT_LIST_HEAD(&head);
@@ -353,8 +334,9 @@ static void lazy_clear_work(struct work_struct *work)
 		__free_pages(page, order);
 		free += size;
 	}
-	pr_info("ramdump, clear:%lu MB, free:%lu MB, tick:%ld ms\n",
-			clear / 1024 / 1024, free / 1024 / 1024, tick / 1000000);
+	pr_info("ramdump, available: %lu MB, clear:%lu MB, free:%lu MB, tick:%ld ms\n",
+			free_pages * PAGE_SIZE / 1024 / 1024, clear / 1024 / 1024,
+			free / 1024 / 1024, tick / 1000000);
 }
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
@@ -393,8 +375,8 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	total_mem = get_num_physpages() << PAGE_SHIFT;
-	pr_info("ramdump, Total Memory:[%ld MB]\n", total_mem / 1024 / 1024);
-
+	pr_info("%s, %ld MB, args base:%lx, size:%lx\n",
+			__func__, total_mem / 1024 / 1024, ramdump_base, ramdump_size);
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 	if (!ramdump_disable) {
 		/* flush cache for online cpu */
@@ -418,26 +400,19 @@ static int __init ramdump_probe(struct platform_device *pdev)
 
 	ram->mem_base = 0;
 	ram->mem_size = ramdump_size;
-	if (!ramdump_base || !ramdump_size) {
-		pr_info("NO valid ramdump args:%lx %lx\n",
-			ramdump_base, ramdump_size);
-	} else {
+	if (ramdump_base && ramdump_size) {
 		pr_info("%s, memremap start, paddr area: 0x%08lx - 0x%08lx\n",
 				__func__, ramdump_base, ramdump_base + PAGE_ALIGN(ramdump_size));
 		//vaddr = ioremap_cache(ramdump_base, PAGE_ALIGN(ramdump_size));
 		vaddr = memremap(ramdump_base, PAGE_ALIGN(ramdump_size), MEMREMAP_WB);
 		if (vaddr)
 			ram->mem_base = (unsigned long)vaddr;
-
-		pr_info("%s, memremap end, vaddr_base:%lx, size:%lx\n",
-			__func__, ram->mem_base, ram->mem_size);
 	}
 
 	if (!ram->disable) {
 		if (!ram->mem_base) {	/* No compressed data */
 			INIT_DELAYED_WORK(&ram->work, lazy_clear_work);
 			schedule_delayed_work(&ram->work, msecs_to_jiffies(120 * 1000));
-			pr_info("%s, clear ddr 120s later.\n", __func__);
 		} else {		/* with compressed data */
 #ifdef	SAVE_DATA_BY_INIT_RC_SHELL
 			pr_info("%s, SAVE_DATA_BY_INIT_RC_SHELL\n", __func__);
