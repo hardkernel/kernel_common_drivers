@@ -1,4 +1,4 @@
-From 9a4108c810d7fc0731bd7f471d96182084f339b1 Mon Sep 17 00:00:00 2001
+From afaf60c1fd2b0f4fb547875e55056fe6a15eaddd Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 16:24:49 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -320,7 +320,7 @@ index 4ab5bdc898cf..3bd8f1c3019c 100644
  
  /* An illegal pointer value to mark the end of the shadow stack. */
 diff --git a/init/init_task.c b/init/init_task.c
-index 0e9ac9eb0b6f..cede8dfd5963 100644
+index 8827bd6f17b1..f8a86d752266 100644
 --- a/init/init_task.c
 +++ b/init/init_task.c
 @@ -219,10 +219,12 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
@@ -500,14 +500,14 @@ index d7809affe740..aa4135c3c43e 100644
  	}
  
 diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index ed4873e18c75..cb6ac2642aa3 100644
+index ed4873e18c75..84761ffbfc2a 100644
 --- a/mm/kasan/common.c
 +++ b/mm/kasan/common.c
 @@ -28,6 +28,10 @@
  #include <linux/string.h>
  #include <linux/types.h>
  #include <linux/bug.h>
-+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +#include "../internal.h"
 +#include <linux/amlogic/memory.h>
 +#endif
@@ -518,7 +518,7 @@ index ed4873e18c75..cb6ac2642aa3 100644
  	/* Poison the aligned part of the redzone. */
  	redzone_start = round_up((unsigned long)(ptr + size), KASAN_GRANULE_SIZE);
  	redzone_end = (unsigned long)ptr + page_size(virt_to_page(ptr));
-+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +	adjust_redzone_end(ptr, size, &redzone_end);
 +#endif
  	kasan_poison((void *)redzone_start, redzone_end - redzone_start,
@@ -661,7 +661,7 @@ index ec885a398fa0..65b8941a1a25 100644
  
  	for_each_online_node(nid) {
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 3d26c257ed8b..3e98074a0f8f 100644
+index 3d26c257ed8b..87639aaf5f53 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
 @@ -53,7 +53,11 @@ struct kmem_cache *kmem_cache;
@@ -680,7 +680,7 @@ index 3d26c257ed8b..3e98074a0f8f 100644
  size_t __ksize(const void *object)
  {
  	struct folio *folio;
-+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +	unsigned long page_num;
 +#endif
  
@@ -690,13 +690,13 @@ index 3d26c257ed8b..3e98074a0f8f 100644
  	folio = virt_to_folio(object);
  
  	if (unlikely(!folio_test_slab(folio))) {
-+#ifndef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifndef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
  		if (WARN_ON(folio_size(folio) <= KMALLOC_MAX_CACHE_SIZE))
  			return 0;
 +#endif
  		if (WARN_ON(object != folio_address(folio)))
  			return 0;
-+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++	#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +		if (unlikely(folio_test_owner_priv_1(folio))) {
 +			page_num = folio_page(folio, 0)->index;
 +			pr_debug("%s, obj:%p, page:%p, index:%ld, size:%ld\n",
@@ -763,14 +763,14 @@ index 3d26c257ed8b..3e98074a0f8f 100644
  }
  
 diff --git a/mm/slub.c b/mm/slub.c
-index 5b832512044e..6540ad6f4bd4 100644
+index 5b832512044e..8a74ee9f3005 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
 @@ -48,6 +48,9 @@
  
  #include "internal.h"
  
-+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +#include <linux/amlogic/memory.h>
 +#endif
  /*
@@ -780,7 +780,7 @@ index 5b832512044e..6540ad6f4bd4 100644
  		flags = kmalloc_fix_flags(flags);
  
  	flags |= __GFP_COMP;
-+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +	if (size < (PAGE_SIZE * (1 << order))) {
 +		struct page *page = aml_slub_alloc_large(node, size, flags, order);
 +		if (page)
@@ -796,7 +796,7 @@ index 5b832512044e..6540ad6f4bd4 100644
 +#endif
  	if (folio) {
  		ptr = folio_address(folio);
-+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++	#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +		lruvec_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B,
 +				      PAGE_ALIGN(size));
 +	#else
@@ -810,7 +810,7 @@ index 5b832512044e..6540ad6f4bd4 100644
  }
  EXPORT_SYMBOL(kmem_cache_free);
  
-+#ifndef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifndef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
  static void free_large_kmalloc(struct folio *folio, void *object)
  {
  	unsigned int order = folio_order(folio);
@@ -826,7 +826,7 @@ index 5b832512044e..6540ad6f4bd4 100644
  
  	folio = virt_to_folio(object);
  	if (unlikely(!folio_test_slab(folio))) {
-+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +		if (aml_free_nonslab_page(folio, (void *)object))
 +			return;
 +		__free_pages(folio_page(folio, 0), folio_order(folio));
@@ -840,7 +840,7 @@ index 5b832512044e..6540ad6f4bd4 100644
  	if (!s) {
  		/* Handle kalloc'ed objects */
  		if (unlikely(!folio_test_slab(folio))) {
-+		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++		#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +			if (!aml_free_nonslab_page(folio, object))
 +				__free_pages(folio_page(folio, 0), folio_order(folio));
 +		#else
@@ -883,14 +883,14 @@ index 83c164aba6e0..5400ce215e2c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bfe96f917a95..583d031efbba 100644
+index fb39c76f9c02..17939fd56287 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -1047,6 +1047,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
-+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifdef CONFIG_AMLOGIC_SWAPD_OPT
 +static int can_unmap_files(struct scan_control *sc, struct folio *folio)
 +{
 +	if (!current_is_kswapd())
@@ -908,7 +908,7 @@ index bfe96f917a95..583d031efbba 100644
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
-+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++	#ifdef CONFIG_AMLOGIC_SWAPD_OPT
 +		if (!can_unmap_files(sc, folio))
 +	#else
  		if (!sc->may_unmap && folio_mapped(folio))

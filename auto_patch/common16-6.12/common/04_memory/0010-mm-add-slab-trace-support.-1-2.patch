@@ -1,6 +1,6 @@
-From e9f05b4aa3255662787428109ed9f557559cd710 Mon Sep 17 00:00:00 2001
+From ca759b31f8f969801ddaf2d8a4c0a6030df28c34 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
-Date: Tue, 15 Oct 2024 16:10:34 +0800
+Date: Thu, 28 Nov 2024 14:44:23 +0800
 Subject: [PATCH] mm: add slab trace support. [1/2]
 
 PD#SWPL-150034
@@ -21,11 +21,11 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  1 file changed, 42 insertions(+)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index f9b6c3749a0f..cca41db38e6e 100644
+index 8a74ee9f3005..4132b08b924e 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
 @@ -51,6 +51,9 @@
- #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+ #ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
  #include <linux/amlogic/memory.h>
  #endif
 +#ifdef CONFIG_AMLOGIC_SLAB_TRACE
@@ -116,17 +116,17 @@ index f9b6c3749a0f..cca41db38e6e 100644
  	if (unlikely(slab != c->slab)) {
  		__slab_free(s, slab, head, tail, cnt, addr);
  		return;
-@@ -4789,6 +4818,9 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
+@@ -4791,6 +4820,9 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
  	if (!s) {
  		/* Handle kalloc'ed objects */
  		if (unlikely(!folio_test_slab(folio))) {
 +		#ifdef CONFIG_AMLOGIC_SLAB_TRACE
 +			slab_trace_remove_page(&folio->page, folio_order(folio), s);
 +		#endif
- 		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+ 		#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
  			if (!aml_free_nonslab_page(folio, object))
  				__free_pages(folio_page(folio, 0), folio_order(folio));
-@@ -5456,6 +5488,13 @@ static int calculate_sizes(struct kmem_cache_args *args, struct kmem_cache *s)
+@@ -5458,6 +5490,13 @@ static int calculate_sizes(struct kmem_cache_args *args, struct kmem_cache *s)
  	return !!oo_objects(s->oo);
  }
  
@@ -140,7 +140,7 @@ index f9b6c3749a0f..cca41db38e6e 100644
  static void list_slab_objects(struct kmem_cache *s, struct slab *slab,
  			      const char *text)
  {
-@@ -5966,6 +6005,9 @@ void __init kmem_cache_init(void)
+@@ -5968,6 +6007,9 @@ void __init kmem_cache_init(void)
  	/* Now we can use the kmem_cache to allocate kmalloc slabs */
  	setup_kmalloc_cache_index_table();
  	create_kmalloc_caches();
