@@ -195,7 +195,7 @@ void lcd_fr_lock(struct aml_lcd_drv_s *pdrv)
 	int temp_cnt = 0, err = 0;
 	int pll_index;
 
-	if (!fr_lock || !cconf)
+	if (pdrv->sw_vrr.en || !fr_lock || !cconf)
 		return;
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)
@@ -488,3 +488,106 @@ fr_lock_exit:
 	return;
 }
 
+void lcd_set_sw_vrr_target_fr(int index, unsigned int fr)
+{
+	unsigned long flags = 0;
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(index);
+
+	spin_lock_irqsave(&pdrv->sw_vrr.set_lock, flags);
+	pdrv->sw_vrr.tg_fr = fr;
+	spin_unlock_irqrestore(&pdrv->sw_vrr.set_lock, flags);
+}
+EXPORT_SYMBOL(lcd_set_sw_vrr_target_fr);
+
+unsigned int lcd_get_sw_vrr_target_fr(int index)
+{
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(index);
+
+	return (pdrv->sw_vrr.tg_fr <= 3000) ? (pdrv->sw_vrr.tg_fr * 2) : pdrv->sw_vrr.tg_fr;
+}
+EXPORT_SYMBOL(lcd_get_sw_vrr_target_fr);
+
+void lcd_sw_vrr_enable(int index, int en)
+{
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(index);
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&pdrv->sw_vrr.set_lock, flags);
+	pdrv->sw_vrr.en = en;
+	spin_unlock_irqrestore(&pdrv->sw_vrr.set_lock, flags);
+	if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
+		LCDPR("sw_vrr %sable\n", en ? "en" : "dis");
+}
+EXPORT_SYMBOL(lcd_sw_vrr_enable);
+
+static inline void lcd_sw_vrr_update(struct aml_lcd_drv_s *pdrv,
+				     unsigned int duration_num, unsigned int duration_den)
+{
+	struct vinfo_s *info;
+	struct lcd_detail_timing_s *pt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+	unsigned int h_period      = pt->h_period;
+	unsigned int v_period      = pt->v_period;
+	unsigned int v_period_prev = pt->v_period;
+	unsigned long long temp    = pt->pixel_clk;
+	unsigned int fr;
+
+	v_period              = lcd_do_div(temp * duration_den * 100, duration_num * h_period) + 50;
+	pt->v_period          = v_period / 100;
+	pt->frame_rate        = duration_num / duration_den; //60/1 == 6000/100, 60000/1001=5994/100
+	pt->sync_duration_num = duration_num;
+	pt->sync_duration_den = duration_den;
+	pt->frac              = lcd_fr_is_frac(pdrv, pt->frame_rate);
+
+	info = &pdrv->vinfo;
+	info->vtotal            = pt->v_period;
+	info->sync_duration_num = pt->sync_duration_num;
+	info->sync_duration_den = pt->sync_duration_den;
+	info->frac              = pt->frac;
+	info->std_duration      = pt->frame_rate;
+	lcd_venc_adj_vtotal(pdrv, pt->v_period);
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
+		fr = duration_num * 100 / duration_den;
+		LCDPR("sw_vrr tg:%d-%d, vt:%d -> %d\n",
+			pdrv->sw_vrr.tg_fr, fr, v_period_prev, pt->v_period);
+	}
+}
+
+void lcd_sw_vrr_proc(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned long flags = 0;
+	struct lcd_detail_timing_s *pt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+	unsigned int fr, duration_num, duration_den;
+
+	if (!pdrv)
+		return;
+
+	spin_lock_irqsave(&pdrv->sw_vrr.set_lock, flags);
+	if (pdrv->sw_vrr.en) {
+		if (pdrv->sw_vrr.sta == 0) {
+			pdrv->sw_vrr.base_duration_num = pt->sync_duration_num;
+			pdrv->sw_vrr.base_duration_den = pt->sync_duration_den;
+		}
+
+		pdrv->sw_vrr.sta = 1;
+		fr = lcd_get_sw_vrr_target_fr(0);
+		if (fr == pt->sync_duration_num * 100 / pt->sync_duration_den) {
+			//same frame rate
+			spin_unlock_irqrestore(&pdrv->sw_vrr.set_lock, flags);
+			return;
+		}
+		pdrv->sw_vrr.dma_dly = pdrv->sw_vrr.dma_dly_tg;
+		//frame_rate = duration_num / duration_den
+		duration_num = fr;//fr has been x100
+		duration_den = 100;
+		lcd_sw_vrr_update(pdrv, duration_num, duration_den);
+
+	} else if (!pdrv->sw_vrr.en && pdrv->sw_vrr.sta) {
+		// recovery frame rate
+		duration_num = pdrv->sw_vrr.base_duration_num;
+		duration_den = pdrv->sw_vrr.base_duration_den;
+		lcd_sw_vrr_update(pdrv, duration_num, duration_den);
+		pdrv->sw_vrr.sta = 0;
+	}
+	spin_unlock_irqrestore(&pdrv->sw_vrr.set_lock, flags);
+}

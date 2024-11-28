@@ -1382,7 +1382,11 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 	}
 #endif
 
-	frame_rate = vout_frame_rate_measure(1); //1000 multi
+	if (pdrv->sw_vrr.en)
+		frame_rate = lcd_get_sw_vrr_target_fr(0) * 10;//1000 multi
+	else
+		frame_rate = vout_frame_rate_measure(1); //1000 multi
+
 	if (frame_rate == 0) {
 		frame_rate = pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate;
 		if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
@@ -1480,7 +1484,7 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	struct tcon_pdf_s *tcon_pdf = lcd_tcon_get_pdf();
 	unsigned long long local_time[2];
-	unsigned long flags = 0;
+	unsigned long flags = 0, flags2 = 0;
 
 	if (!lcd_tcon_conf || lcd_tcon_conf->tcon_valid == 0)
 		return;
@@ -1492,6 +1496,8 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 
 	local_time[0] = sched_clock();
 
+	spin_lock_irqsave(&pdrv->sw_vrr.set_lock, flags2);
+
 	if (tcon_mm_table.version < 0xff) {
 		if (tcon_mm_table.multi_lut_update) {
 			spin_lock_irqsave(&tcon_local_cfg.multi_list_lock, flags);
@@ -1500,8 +1506,16 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 
-	if (lcd_tcon_conf->lut_dma_ops && lcd_tcon_conf->lut_dma_ops->update)
-		lcd_tcon_conf->lut_dma_ops->update(pdrv, lcd_tcon_conf->lut_dma_ops);
+	if (!pdrv->sw_vrr.en) {
+		if (lcd_tcon_conf->lut_dma_ops && lcd_tcon_conf->lut_dma_ops->update)
+			lcd_tcon_conf->lut_dma_ops->update(pdrv, lcd_tcon_conf->lut_dma_ops);
+	} else {
+		if (pdrv->sw_vrr.dma_dly > 0)
+			pdrv->sw_vrr.dma_dly--;
+		else if (lcd_tcon_conf->lut_dma_ops && lcd_tcon_conf->lut_dma_ops->update)
+			lcd_tcon_conf->lut_dma_ops->update(pdrv, lcd_tcon_conf->lut_dma_ops);
+	}
+	spin_unlock_irqrestore(&pdrv->sw_vrr.set_lock, flags2);
 
 	if (tcon_pdf->vs_handler)
 		tcon_pdf->vs_handler(tcon_pdf);
@@ -2981,6 +2995,7 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 		return 0;
 	}
 
+	pdrv->sw_vrr.dma_dly_tg = 1;
 	mutex_init(&lcd_tcon_dbg_mutex);
 
 	lrm_resource_device_prepare("lcd_tcon");
@@ -2994,7 +3009,6 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 	if (!dbg_vsync_time)
 		LCDERR("%s: dbg_vsync_time error\n", __func__);
 #endif
-
 	spin_lock_init(&tcon_local_cfg.multi_list_lock);
 
 	ret = lcd_tcon_get_config(pdrv);

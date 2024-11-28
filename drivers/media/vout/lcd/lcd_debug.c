@@ -2065,6 +2065,10 @@ static ssize_t lcd_debug_frame_rate_store(struct device *dev, struct device_attr
 			return -EINVAL;
 		}
 		break;
+	case 'f':
+		ret = sscanf(buf, "fr_show %d", &temp);
+		pdrv->fr_show = (unsigned char)temp;
+		break;
 	default:
 		pr_info("wrong command\n");
 		break;
@@ -3146,6 +3150,111 @@ static ssize_t lcd_debug_sw_vlock_show(struct device *dev, struct device_attribu
 		fr_lock->freq_limit,
 		fr_lock->kp, fr_lock->ki, fr_lock->kd
 		);
+
+	return len;
+}
+
+static ssize_t lcd_debug_sw_vrr_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+#define __MAX_PARAM 8
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct lcd_detail_timing_s *dt;
+	char *buf_orig;
+	char *parm[__MAX_PARAM] = {NULL};
+	unsigned int temp;
+	int ret;
+	struct aml_sw_vrr_s *sw_vrr = NULL;
+	unsigned long flags = 0;
+
+	if (!buf || !pdrv)
+		return count;
+
+	sw_vrr = &pdrv->sw_vrr;
+	if (!sw_vrr)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig) {
+		LCDERR("%s: buf malloc error\n", __func__);
+		return count;
+	}
+	lcd_debug_parse_param(buf_orig, (char **)&parm, __MAX_PARAM);
+
+	spin_lock_irqsave(&sw_vrr->set_lock, flags);
+
+	if (strcmp(parm[0], "en") == 0) {
+		if (!parm[1]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vrr_store_next;
+		}
+
+		ret = kstrtouint(parm[1], 10, &temp);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vrr_store_next;
+		}
+		if (temp) {
+			dt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+			sw_vrr->tg_fr = dt->sync_duration_num * 100 / dt->sync_duration_den;
+			sw_vrr->en = 1;
+		} else {
+			sw_vrr->en = 0;
+		}
+		if (lcd_debug_print_flag)
+			LCDPR("sw_vrr en:%d, fr:%d\n", sw_vrr->en, sw_vrr->tg_fr);
+	} else if (strcmp(parm[0], "set") == 0) {
+		if (!parm[1]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vrr_store_next;
+		}
+		ret = kstrtouint(parm[1], 10, &temp);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vrr_store_next;
+		}
+		sw_vrr->tg_fr = temp;
+		if (lcd_debug_print_flag)
+			LCDPR("sw_vrr fr:%d\n", sw_vrr->tg_fr);
+	} else if (strcmp(parm[0], "dma_delay") == 0) {
+		if (!parm[1]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vrr_store_next;
+		}
+		ret = kstrtouint(parm[1], 10, &temp);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vrr_store_next;
+		}
+		sw_vrr->dma_dly_tg = temp;
+		if (lcd_debug_print_flag)
+			LCDPR("sw_vrr dma delay:%d\n", sw_vrr->dma_dly_tg);
+	}
+
+lcd_debug_sw_vrr_store_next:
+	spin_unlock_irqrestore(&sw_vrr->set_lock, flags);
+
+	kfree(buf_orig);
+
+	return count;
+}
+
+static ssize_t lcd_debug_sw_vrr_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct aml_sw_vrr_s *sw_vrr = NULL;
+	ssize_t len = 0;
+
+	if (!pdrv)
+		return sprintf(buf, "null\n");
+
+	sw_vrr = &pdrv->sw_vrr;
+	if (!sw_vrr) {
+		len = sprintf(buf, "not support sw_vlock\n");
+		return len;
+	}
+
+	len = sprintf(buf, "en:%d, fr=%d\n", sw_vrr->en, sw_vrr->tg_fr);
 
 	return len;
 }
@@ -4447,6 +4556,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(cus_ctrl,    0200, NULL, lcd_debug_cus_ctrl_store),
 	__ATTR(vinfo,       0444, lcd_debug_vinfo_show, NULL),
 	__ATTR(sw_vlock,    0644, lcd_debug_sw_vlock_show, lcd_debug_sw_vlock_store),
+	__ATTR(sw_vrr,    0644, lcd_debug_sw_vrr_show, lcd_debug_sw_vrr_store),
 	__ATTR(vs_msr,      0644, lcd_debug_vs_msr_show, lcd_debug_vs_msr_store)
 };
 

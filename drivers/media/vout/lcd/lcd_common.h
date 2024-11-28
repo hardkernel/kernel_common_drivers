@@ -18,7 +18,8 @@
 /* 20250304: support lcd_if early on with resume_type control */
 /* 20250402: protect dummy state for lcd manual power on */
 /* 20250602: lcd multi-device support */
-#define LCD_DRV_VERSION    "20250602"
+/* 20250616: support sw vrr */
+#define LCD_DRV_VERSION    "20250616"
 
 #define CFMT_RGB565          0x05
 #define CFMT_RGB_6bit        0x06
@@ -127,6 +128,7 @@ void lcd_vrr_dev_unregister(struct aml_lcd_drv_s *pdrv);
 void lcd_fr_lock_init(struct aml_lcd_drv_s *pdrv);
 void lcd_fr_lock_deinit(struct aml_lcd_drv_s *pdrv);
 void lcd_fr_lock(struct aml_lcd_drv_s *pdrv);
+void lcd_sw_vrr_proc(struct aml_lcd_drv_s *pdrv);
 
 void lcd_queue_work(struct work_struct *work);
 inline void lcd_queue_delayed_work(struct delayed_work *delayed_work, int ms);

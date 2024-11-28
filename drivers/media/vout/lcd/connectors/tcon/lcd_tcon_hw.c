@@ -791,6 +791,9 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 			if (!dma_ops)
 				break;
 
+			if (pdrv->sw_vrr.en)
+				pdrv->sw_vrr.dma_dly = pdrv->sw_vrr.dma_dly_tg;
+
 			lcd_tcon_dma_addr_add(dma_ops, paddr, data_part.dma->dma_data_size);
 			if (exe_ignore) {
 				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))

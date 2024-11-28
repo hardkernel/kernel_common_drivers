@@ -1160,6 +1160,7 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	unsigned long long local_time[2];
 	unsigned long flags = 0;
 	unsigned int temp;
+	unsigned int fr;
 
 	if (!pdrv)
 		return;
@@ -1168,6 +1169,7 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
 
 	lcd_fr_lock(pdrv);
+	lcd_sw_vrr_proc(pdrv);
 
 	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 #ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
@@ -1187,6 +1189,11 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 #endif
 	default:
 		break;
+	}
+
+	if (pdrv->fr_show) {
+		fr = vout_frame_rate_measure(1);
+		pr_info("fr=%d.%d\n", fr / 1000, fr % 1000);
 	}
 
 	if (pdrv->mute_switch) {
@@ -2789,6 +2796,7 @@ static int lcd_probe(struct platform_device *pdev)
 	if (ret)
 		goto lcd_probe_err_1;
 
+	spin_lock_init(&pdrv->sw_vrr.set_lock);
 	spin_lock_init(&pdrv->isr_lock);
 	INIT_WORK(&pdrv->late_resume_work, lcd_lata_resume_work);
 	INIT_WORK(&pdrv->mode_switch_on_work, lcd_mode_switch_on_work);

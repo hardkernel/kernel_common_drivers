@@ -829,6 +829,18 @@ struct aml_fr_lock_s {
 	struct s32_slide_filter_s ft_time;
 };
 
+struct aml_sw_vrr_s {
+	unsigned char en;
+	unsigned char sta;
+	signed char dma_dly;
+	signed char dma_dly_tg;
+	unsigned int tg_fr;
+	unsigned int cur_fr;
+	unsigned int base_duration_num;
+	unsigned int base_duration_den;
+	spinlock_t set_lock;//
+};
+
 #define LCD_CONFIG_NONE 0
 #define LCD_CONFIG_DTS  1
 #define LCD_CONFIG_FILE 2
@@ -911,6 +923,7 @@ struct aml_lcd_drv_s {
 	unsigned char config_check_glb;
 	unsigned char config_check_en;
 	unsigned char enter_shutdown;
+	unsigned char fr_show;
 	int fr_lock_en;
 
 	struct lcd_driver_res_s {
@@ -945,6 +958,7 @@ struct aml_lcd_drv_s {
 	void *clk_conf;
 	struct vrr_device_s *vrr_dev;
 	struct aml_fr_lock_s *fr_lock;
+	struct aml_sw_vrr_s sw_vrr;
 #ifdef CONFIG_OF
 	struct device_node *of_node;
 #endif
@@ -1013,6 +1027,20 @@ void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv);
 void bl_lcd_off_ctrl(struct aml_lcd_drv_s *pdrv);
 
 extern struct mutex lcd_power_mutex;
+
+/*
+ * @index: lcd driver index
+ * @en: 0-disable, 1-enable,
+ */
+void lcd_sw_vrr_enable(int index, int en);
+
+/*
+ * @index: lcd driver index
+ * @fr: target frame_rate (x100, eg: 5994)
+ */
+void lcd_set_sw_vrr_target_fr(int index, unsigned int fr);
+
+unsigned int lcd_get_sw_vrr_target_fr(int index);
 
 void set_output_mute(bool on);
 int get_output_mute(void);
