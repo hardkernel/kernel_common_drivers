@@ -1985,7 +1985,7 @@
 
 	chosen {
 		kaslr-seed = <0x0 0x0>;
-		bootargs = "usbcore.autosuspend=-1";
+		bootargs = "usbcore.autosuspend=-1 stack_depot_disable=on cgroup_disable=pressure kasan.stacktrace=off swiotlb=noforce";
 	};
 };
 
