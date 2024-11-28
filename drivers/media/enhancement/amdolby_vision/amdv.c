@@ -13,7 +13,6 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/dma-mapping.h>
-#include <linux/platform_device.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
@@ -14610,7 +14609,7 @@ void amdv_update_backlight(void)
 			tv_backlight[bl_rd_id].set_flag = false;
 			cur_bl = tv_backlight[bl_rd_id].value;
 
-			if (cur_bl != last_backlight) {
+			if (cur_bl != last_backlight || tv_backlight_force_update) {
 				new_bl = use_12b_bl ? cur_bl << 4 :
 					cur_bl;
 				if (debug_dolby & 1)
@@ -14619,6 +14618,7 @@ void amdv_update_backlight(void)
 					(LCD_EVENT_BACKLIGHT_GD_DIM,
 					 &new_bl);
 				last_backlight = cur_bl;
+				tv_backlight_force_update = false;
 			}
 		}
 	}
