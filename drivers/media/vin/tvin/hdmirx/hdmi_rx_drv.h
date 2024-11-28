@@ -262,6 +262,13 @@ enum port_sts_e {
 	E_INIT = 0xff,
 };
 
+enum data_ch_e {
+	E_CH0,
+	E_CH1,
+	E_CH2,
+	E_CH3,
+	E_ALL_CH,
+};
 /* flag: need to request downstream re-auth */
 #define HDCP_NEED_REQ_DS_AUTH 0x10
 #define HDCP_VER_MASK 0xf

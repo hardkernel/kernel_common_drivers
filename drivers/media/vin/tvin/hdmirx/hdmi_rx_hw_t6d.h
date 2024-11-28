@@ -116,6 +116,7 @@ void rx_dig_clk_en_t6d(bool en);
 void dump_aml_phy_sts_t6d(void);
 void aml_phy_offset_cal_t6d(void);
 void rx_aud_pll_ctl_t6d(bool en, u8 port);
+int aml_phy_exbist_t6d(u8 port, u8 ch);
 /*function declare end*/
 
 #endif /*_HDMI_RX_T6D_H*/

@@ -1088,6 +1088,201 @@ void aml_phy_short_bist_t6d(void)
 		rx_info.aml_phy.pre_int = 1;
 }
 
+void hdmirx_rd_check_top_t6d(u32 addr, u32 exp_data, u32 mask)
+{
+	u32 rd_data;
+
+	rd_data = hdmirx_rd_top(addr, rx_info.main_port);
+	rx_pr("check_top=0x%x\n", rd_data);
+	if ((rd_data | mask) != (exp_data | mask))
+		rx_pr("top reg 0x%x,rd_data=0x%x, exp_data=0x%x mask=0x%x\n",
+		addr, rd_data, exp_data, mask);
+}
+
+int aml_phy_exbist_t6d(u8 port, u8 ch)
+{
+	u32 data32, tmp;
+	int ret = 0;
+	int rst_pll_cnt = 0;
+
+	sm_pause = 1;
+	//initialize pll/phy registers
+	//initialize pll/phy registers
+	hdmirx_wr_amlphy(T6D_HDMIRX20PLL_CTRL0, 0x0);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PLL_CTRL1, 0x0);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_AFE, 0x0);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_DFE, 0x0);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, 0x0);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, 0x0);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1, 0x0);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC2, 0x0);
+	//set registers to default
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, 0x30211050);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, 0x04005013);
+	data32 = 0x70873000;
+	data32 |= ((1 << port) << 24);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC2, data32);//port_sel
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1, 0xfb320000);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_DFE, 0x040bf885);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_AFE, 0x01811777);
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1, 0xff320070);//enable channel
+
+	do {
+		hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x01290850);
+		usleep_range(10, 20);
+		hdmirx_wr_amlphy(T6D_RG_RX20PLL_1, 0x12301865);
+		usleep_range(10, 20);
+		hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x11290850);
+		usleep_range(10, 20);
+		hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x51290850);
+		usleep_range(10, 20);
+		hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x71290850);
+		if (rst_pll_cnt++ > pll_rst_max) {
+			if (log_level & VIDEO_LOG)
+				rx_pr("pll rst error\n");
+			break;
+		}
+		if (log_level & VIDEO_LOG) {
+			rx_pr("sq=%d,pll_lock=%d",
+			      hdmirx_rd_top(TOP_MISC_STAT0, port) & 0x1,
+			      is_pll_lock_t6d());
+		}
+	} while (!is_tmds_clk_stable(port) && is_clk_stable(port) && !is_pll_lock_t6d());
+
+	//cdr eq dfe enable
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, 0x04007013);//enable cdr
+	usleep_range(100, 110);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, 0x04007053);//enable cdr fr
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, 0x30213050);//enable eq
+	usleep_range(2000, 2010);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, 0x30213350);//hold eq
+	usleep_range(100, 110);
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, 0x30233350);//enable dfe
+	usleep_range(1000, 1010);
+
+	//dump phy status
+	dump_aml_phy_sts_t6d();
+
+	data32 = 0;
+	data32 |= (1 << 4);//[4]valid_always
+	data32 |= (7 << 0);//[3:0]decoup_thresh
+	hdmirx_wr_top(TOP_CHAN_SWITCH_1, data32, port);
+
+	data32 = 0;
+	data32 |= (2 << 28);//[29:28]source_2
+	data32 |= (1 << 26);//[27:26]source_1
+	data32 |= (0 << 24);//[25:24]source_0
+	data32 |= (0 << 20);//[22:20]skew_2
+	data32 |= (0 << 16);//[18:16]skew_1
+	data32 |= (0 << 12);//[14:12]skew_0
+	data32 |= (0 << 10);//[10]bitswap_2
+	data32 |= (0 << 9);//[9]bitswap_1
+	data32 |= (0 << 8);//[8]bitswap_0
+	data32 |= (0 << 6);//[6]polarity_2
+	data32 |= (0 << 5);//[5]polarity_1
+	data32 |= (0 << 4);//[4]polarity_0
+	data32 |= (0 << 3);//[3]charswap_2
+	data32 |= (0 << 2);//[2]charswap_1
+	data32 |= (0 << 1);//[1]charswap_0
+	data32 |= (0 << 0);//[0]enable
+	hdmirx_wr_top(TOP_CHAN_SWITCH_0, data32, port);
+	data32 |= (1 << 0);// [0]        enable
+	hdmirx_wr_top(TOP_CHAN_SWITCH_0, data32, port);
+
+	// Ccnfigure PRBS generator
+	data32 = 0;
+	data32 |= (0 << 16);//[16]inj_prbs_err
+	data32 |= (0 << 10);//[14:10]pttn_max
+	data32 |= (0 << 9);//[9]pttn_gen_enable
+	data32 |= (0 << 8);//[8]bist_loopback
+	data32 |= (3 << 5);//[7:5]wrp_threshold
+	data32 |= (3 << 2);//[4:2]prbs_mode:3=prbs15
+	data32 |= (0 << 0);//[0]prbs_gen_enable
+	hdmirx_wr_top(TOP_PRBS_GEN, data32, port);
+
+	// Ccnfigure PRBS analyzer: PRBS15
+	data32 = 0;
+	data32 |= (3 << 28);//[30:28] prbs_mode:3=prbs15
+	data32 |= (0 << 25);//[25]prbs_ana_resync_ch3
+	data32 |= (0 << 24);//[24]prbs_ana_enable_ch3
+	data32 |= (3 << 20);//[22:20]prbs_mode:3=prbs15
+	data32 |= (0 << 17);//[17]prbs_ana_resync_ch2
+	data32 |= (0 << 16);//[16]prbs_ana_enable_ch2
+	data32 |= (3 << 12);//[14:12]prbs_mode3=prbs15
+	data32 |= (0 << 9);//[9]prbs_ana_resync_ch1
+	data32 |= (0 << 8);//[8]prbs_ana_enable_ch1
+	data32 |= (3 << 4);//[6:4]prbs_mode:3=prbs15
+	data32 |= (0 << 1);//[1]prbs_ana_resync_ch0
+	data32 |= (0 << 0);//[0]prbs_ana_enable_ch0
+	hdmirx_wr_top(TOP_PRBS_ANA_0, data32, port);
+	data32 |= (1 << 24);// [24]prbs_ana_enable_ch3
+	data32 |= (1 << 16);// [16]prbs_ana_enable_ch2
+	data32 |= (1 << 8);// [8]prbs_ana_enable_ch1
+	data32 |= (1 << 0);// [0]prbs_ana_enable_ch0
+	hdmirx_wr_top(TOP_PRBS_ANA_0, data32, port);
+
+	// Start PRBS
+	rx_pr("Start PRBS\n");
+	data32 = 0;
+	data32 |= (0 << 16);//[16]inj_prbs_err
+	data32 |= (0 << 10);//[14:10]pttn_max
+	data32 |= (0 << 9);//[9]pttn_gen_enable
+	data32 |= (0 << 8);//[8]bist_loopback
+	data32 |= (3 << 5);//[7:5]wrp_threshold
+	data32 |= (3 << 2);//[4:2] prbs_mode:3=prbs15
+	data32 |= (1 << 0);//[0] prbs_gen_enable
+	hdmirx_wr_top(TOP_PRBS_GEN, data32, port);
+	// wait 5ms
+	usleep_range(5000, 5100);
+
+	data32 = 0;
+	data32 |= (1 << 7);
+	data32 |= (0 << 6);
+	data32 |= (0 << 5);
+	data32 |= (1 << 4);
+	data32 |= (0 << 3);
+	data32 |= (1 << 2);
+	data32 |= (0 << 1);
+	data32 |= (1 << 0);
+	//hdmirx_rd_check_top_t6d(TOP_PRBS_ANA_STAT, data32, 0);
+	tmp = hdmirx_rd_top(TOP_PRBS_ANA_STAT, port);
+	if (ch == E_CH0) {
+		if ((tmp & 0x1) == 0x1) {
+			rx_pr("ch0 pass\n");
+		} else {
+			rx_pr("ch0 exbist fail\n");
+			hdmirx_rd_check_top_t6d(TOP_PRBS_ANA_BER_CH0, 0, 0);
+		}
+	}
+	if (ch == E_CH1) {
+		if ((tmp & 0x4) == 0x4) {
+			rx_pr("ch1 pass\n");
+		} else {
+			rx_pr("ch1 exbist fail\n");
+			hdmirx_rd_check_top_t6d(TOP_PRBS_ANA_BER_CH1, 0, 0);
+		}
+	}
+	if (ch == E_CH2) {
+		if ((tmp & 0x10) == 0x10) {
+			rx_pr("ch2 pass\n");
+		} else {
+			rx_pr("ch2 exbist fail\n");
+			hdmirx_rd_check_top_t6d(TOP_PRBS_ANA_BER_CH2, 0, 0);
+		}
+	}
+	if (ch == E_ALL_CH) {
+		if ((tmp & 0x15) == 0x15) {
+			rx_pr("exbist pass\n");
+		} else {
+			rx_pr("exbist fail\n");
+			hdmirx_rd_check_top_t6d(TOP_PRBS_ANA_BER_CH0, 0, 0);
+			hdmirx_rd_check_top_t6d(TOP_PRBS_ANA_BER_CH1, 0, 0);
+			hdmirx_rd_check_top_t6d(TOP_PRBS_ANA_BER_CH2, 0, 0);		}
+	}
+	return ret;
+}
 void aml_phy_power_off_t6d(void)
 {
 	hdmirx_wr_amlphy(T6D_HDMIRX20PLL_CTRL0, 0x0);

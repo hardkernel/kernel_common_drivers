@@ -23,7 +23,8 @@
 /* 2024.11.06 fix specific pc no signal issue */
 /* 2024.10.24 fix 420 display */
 /* 2024.11.28 enable hdcp2.x irq mask */
-#define RX_HW_VER "ver.2024/11/28"
+/* 2024.12.12 add phy exbist function */
+#define RX_HW_VER "ver.2024/12/12"
 
 #define K_TEST_CHK_ERR_CNT
 

@@ -7376,6 +7376,15 @@ int hdmirx_debug(const char *buf, int size)
 			hdmirx_mute_vpp(false, port);
 		else
 			hdmirx_mute_vpp(true, port);
+	} else if (strncmp(tmpbuf, "exbist", 6) == 0) {
+		if (tmpbuf[6] == '0')
+			aml_phy_exbist_t6d(port, E_CH0);
+		else if (tmpbuf[6] == '1')
+			aml_phy_exbist_t6d(port, E_CH1);
+		else if (tmpbuf[6] == '2')
+			aml_phy_exbist_t6d(port, E_CH2);
+		else if (tmpbuf[6] == 'f')
+			aml_phy_exbist_t6d(port, E_ALL_CH);
 	}
 	return 0;
 }
