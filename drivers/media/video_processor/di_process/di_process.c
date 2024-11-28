@@ -609,14 +609,17 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 	return 0;
 }
 
-static void queue_outbuf_to_di(struct di_process_dev *dev, struct di_buffer *di_buf)
+static enum DI_ERRORTYPE queue_outbuf_to_di(struct di_process_dev *dev, struct di_buffer *di_buf)
 {
-	di_fill_output_buffer(dev->di_index, di_buf);
+	enum DI_ERRORTYPE ret = 0;
+
+	ret = di_fill_output_buffer(dev->di_index, di_buf);
 
 	dev->fill_count++;
 	total_fill_count++;
 	dp_print(dev->index, PRINT_OTHER, "qbuf done: fill_count=%lld, total_fill_count=%d\n",
 		dev->fill_count, total_fill_count);
+	return ret;
 }
 
 static void di_process_task(struct di_process_dev *dev)
@@ -875,6 +878,7 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	bool di_bypass = false;
 	struct vframe_s *dec_vf = NULL;
 	int di_out_index;
+	enum DI_ERRORTYPE ret = 0;
 
 	if (!buf) {
 		pr_err("%s: di_buffer is NULL\n", __func__);
@@ -941,7 +945,12 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 				fput(buf->caller_mng.src_file);
 			process_di_done_buf(dev, buf, false);
 		} else {
-			queue_outbuf_to_di(dev, buf);
+			ret = queue_outbuf_to_di(dev, buf);
+			if (ret == DI_ERR_INDEX_NOT_ACTIVE) {
+				dp_print(dev->index, PRINT_OTHER,
+					"%s:recycle failed, release\n", __func__);
+				di_release_keep_buf(buf);
+			}
 		}
 		return 0;
 	}
@@ -1734,6 +1743,7 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 	struct vframe_s *vf;
 	int frame_index = -1;
 	bool need_put_dw = false;
+	enum DI_ERRORTYPE ret = 0;
 
 	file_vf = fget(fd);
 	if (!file_vf) {
@@ -1791,7 +1801,11 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 				private_data->file = NULL;
 			}
 		}
-		queue_outbuf_to_di(dev, di_p);
+		ret = queue_outbuf_to_di(dev, di_p);
+		if (ret != DI_ERR_NONE)
+			dp_print(dev->index, PRINT_ERROR,
+				"%s: queue_outbuf failed:%x.\n",
+				__func__, ret);
 		pop_di_out_q(dev, di_p);
 	} else if (private_data->flag & V4LVIDEO_FLAG_DI_BYPASS) {
 		/*di bypass, need put dec file*/
