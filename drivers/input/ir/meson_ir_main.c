@@ -731,7 +731,7 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 		}
 		chip->ir_contr[i].base = reg_base;
 
-		chip->irqno[i] = platform_get_irq(pdev, i);
+		chip->irqno[i] = platform_get_irq_optional(pdev, i);
 	}
 
 	if (chip->irqno[0] < 0) {
