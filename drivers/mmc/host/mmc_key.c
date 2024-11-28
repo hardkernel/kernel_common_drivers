@@ -518,7 +518,7 @@ void emmc_key_init(struct mmc_card *card, int *retp)
 		pr_info("%s:%d,emmc key check fail\n", __func__, __LINE__);
 		goto exit_err1;
 	}
-	pr_info("emmc key: %s:%d ok.\n", __func__, __LINE__);
+	pr_debug("emmc key: %s:%d ok.\n", __func__, __LINE__);
 
 	auto_attach();
 
@@ -562,7 +562,7 @@ int32_t emmc_key_read(u8 *buffer,
 		dst = (unsigned char *)buffer + MAX_EMMC_BLOCK_SIZE;
 	} while (cnt > 0);
 
-	pr_info("%s:%d, read %s\n", __func__, __LINE__, (ret) ? "error" : "ok");
+	pr_debug("%s:%d, read %s\n", __func__, __LINE__, (ret) ? "error" : "ok");
 
 	aml_enable_mmc_cqe(card);
 	mmc_release_host(card->host);

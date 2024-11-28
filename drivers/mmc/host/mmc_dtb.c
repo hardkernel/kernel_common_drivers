@@ -480,7 +480,7 @@ void amlmmc_dtb_init(struct mmc_card *card, int *retp)
 		goto exit_err3;
 	}
 
-	pr_info("%s: register dtb chardev OK", __func__);
+	pr_debug("%s: register dtb chardev OK", __func__);
 	goto exit;
 
 exit_err3:
