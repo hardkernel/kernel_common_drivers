@@ -347,6 +347,14 @@ unsigned int dim_ic_sub(void)
 }
 EXPORT_SYMBOL(dim_ic_sub);
 
+unsigned int dim_is_link(void)
+{
+	if (dil_api && dil_api->dim_is_link)
+		return dil_api->dim_is_link();
+	return 0;
+}
+EXPORT_SYMBOL(dim_is_link);
+
 unsigned int dim_get_vpuclkb_ext(void)
 {
 	if (dil_api && dil_api->get_vpu_clkb_ext)

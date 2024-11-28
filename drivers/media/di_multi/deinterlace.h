@@ -520,6 +520,7 @@ struct di_dev_s {
 	struct vpu_dev_s *dim_vpu_pd_post;
 	bool is_crc_ic;
 	unsigned int sub_v;
+	unsigned int is_link;
 	unsigned int di_pre_nrcrc[MAX_CRC_COUNT_NUM];
 	unsigned int getcrccount;
 	unsigned int setcrccount;

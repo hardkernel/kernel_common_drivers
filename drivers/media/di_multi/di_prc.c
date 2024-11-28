@@ -2227,6 +2227,10 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			link_mode = EPVPP_API_MODE_POST;
 		else
 			link_mode = EPVPP_API_MODE_PRE;
+
+		if (IS_IC_SUPPORT(POST_VPP_LINK))
+			de_devp->is_link = cfgg(EN_POST_LINK);
+
 		i_ret = dpvpp_try_reg(pch, vframe, link_mode);
 		if (i_ret) {
 			if (link_mode == EPVPP_API_MODE_PRE) {
@@ -5790,6 +5794,16 @@ unsigned int dim_is_ic_sub(void)
 		return 0;
 	else
 		return de_devp->sub_v;
+}
+
+unsigned int dim_is_ic_link(void)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
+	else
+		return de_devp->is_link;
 }
 
 /************************************************

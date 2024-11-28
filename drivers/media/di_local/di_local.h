@@ -51,6 +51,7 @@ struct di_ext_ops {
 	u32 (*pvpp_get_ins_id)(void);
 	bool (*config_crc_ic)(void);
 	unsigned int (*dim_ic_sub)(void);
+	unsigned int (*dim_is_link)(void);
 	int (*s_bypass_ch)(int index, bool on);
 	unsigned int (*get_vpu_clkb_ext)(void);
 	void (*set_vpu_clkb_ext)(unsigned long clkrate);
