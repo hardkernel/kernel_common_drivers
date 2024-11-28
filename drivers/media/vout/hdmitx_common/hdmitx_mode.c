@@ -510,7 +510,8 @@ const struct hdmi_timing *hdmitx_mode_match_vesa_timing(struct vesa_standard_tim
 		if (t->hactive == timing->h_active &&
 		    t->vactive == timing->v_active) {
 			if (t->vsync) {
-				unsigned int vsync = hdmi_timing_vrefresh(timing);
+				unsigned int vsync =
+					DIV_ROUND_CLOSEST_ULL(hdmi_timing_vrefresh(timing), 1000);
 
 				if (t->vsync == vsync)
 					return timing;
@@ -592,7 +593,7 @@ int hdmi_timing_vrefresh(const struct hdmi_timing *t)
 	if (t->pi_mode == 0)
 		num *= 2;
 
-	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(num, 1000), den);
+	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(num, 1000000), den);
 }
 
 bool hdmitx_mode_have_alternate_clock(const struct hdmi_timing *t)
@@ -624,9 +625,8 @@ int hdmitx_mode_update_timing(struct hdmi_timing *t,
 
 	if (alternate_clock) {
 		t->pixel_freq = alternate_clock;
-		/*update vsync/hsync*/
-		t->v_freq = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(t->pixel_freq, 1000000),
-						mul_u32_u32(t->h_total, t->v_total));
+		/* update vsync/hsync */
+		t->v_freq = hdmi_timing_vrefresh(t);
 		t->h_freq = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(t->pixel_freq, 1000), t->h_total);
 
 		/*HDMITX_INFO("Timing %s update frac_mode(%d):\n", t->name, to_frac_mode);
@@ -654,10 +654,17 @@ void hdmitx_mode_print_hdmi_timing(const struct hdmi_timing *t)
 		alternate_t = *t;
 		if (hdmitx_mode_update_timing(&alternate_t, 0) > 0 ||
 			hdmitx_mode_update_timing(&alternate_t, 1) > 0) {
-			pr_warn("Fraction mode:\n");
+			pr_warn("Fraction mode: Hfreq Vfreq Pfreq\n");
 			pr_warn("%d %d %d\n",
-				t->h_freq, t->v_freq, t->pixel_freq);
+				alternate_t.h_freq, alternate_t.v_freq, alternate_t.pixel_freq);
 		}
+
+		if (abs(alternate_t.v_freq - t->v_freq) >= 1000)
+			pr_err("alternate/primary v_freq: %d / %d not match\n",
+				alternate_t.v_freq, t->v_freq);
+		if (abs(alternate_t.h_freq - t->h_freq) >= 1000)
+			pr_err("alternate/primary h_freq: %d / %d not match\n",
+				alternate_t.h_freq, t->h_freq);
 	}
 
 	pr_warn("\nVIC Hfront Hsync Hback Hpol Vfront Vsync Vback Vpol Ln\n");
@@ -711,7 +718,7 @@ void hdmitx_mode_print_all_mode_table(void)
 			break;
 
 		hdmitx_mode_print_hdmi_timing(timing);
-	} while (idx++);
+	} while (++idx);
 
 	HDMITX_INFO("-----------------%s end --------------\n", __func__);
 }
