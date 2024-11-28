@@ -4458,13 +4458,292 @@ static struct kprobe kp_lookup_name = {
 };
 #endif
 
+#include <linux/proc_fs.h>
+
+static struct mm_struct *init_mm_t;
+struct mm_struct *aml_init_mm;
+
+struct ksymbol {
+	const char *name;
+	void *data;
+};
+
+#define KSYM_FUN(sym)			\
+	{				\
+		.name = #sym,		\
+		.data = &f_##sym,	\
+	}
+
+#define KSYM_CFI(sym)			\
+	{				\
+		.name = #sym ".cfi_jt",	\
+		.data = &f_##sym,	\
+	}
+
+#define KSYM_OBJ(sym)			\
+	{				\
+		.name = #sym,		\
+		.data = &sym##_t,	\
+	}
+
+static struct ksymbol module_symbols[] = {
+	KSYM_OBJ(init_mm),
+	{}
+};
+
+/* see struct proc_dir_entry in fs/proc/internal.h */
+struct proc_node {
+	atomic_t in_use;
+	refcount_t refcnt;
+	struct list_head pde_openers;
+	spinlock_t pde_unload_lock;
+	struct completion *pde_unload_completion;
+	const struct inode_operations *proc_iops;
+	union {
+		const struct proc_ops *proc_ops;
+		const struct file_operations *proc_dir_ops;
+	};
+	const struct dentry_operations *proc_dops;
+	union {
+		const struct seq_operations *seq_ops;
+		int (*single_show)(struct seq_file *, void *);
+	};
+	proc_write_t write;
+	void *data;
+	unsigned int state_size;
+	unsigned int low_ino;
+	nlink_t nlink;
+	kuid_t uid;
+	kgid_t gid;
+	loff_t size;
+	struct proc_node *parent;
+	struct rb_root subdir;
+	struct rb_node subdir_node;
+	char *name;
+	umode_t mode;
+	u8 flags;
+	u8 namelen;
+	char inline_name[];
+} __randomize_layout;
+
+static struct proc_node *find_subnode(struct proc_node *parent, char *name)
+{
+	struct proc_node *pd = NULL;
+
+	pd = rb_entry_safe(rb_first(&parent->subdir), struct proc_node, subdir_node);
+	while (1) {
+		if (!pd)
+			break;
+		if (!strcmp(pd->name, name))
+			break;
+		pd = rb_entry_safe(rb_next(&pd->subdir_node), struct proc_node, subdir_node);
+	}
+	return pd;
+}
+
+static int namecmp(const char *name1, int len1, const char *name2, int len2)
+{
+	int cmp;
+
+	cmp = memcmp(name1, name2, min(len1, len2));
+	if (cmp == 0)
+		cmp = len1 - len2;
+	return cmp;
+}
+
+static int proc_handle(struct ctl_table *table, int write,
+		  void *buffer, size_t *lenp, loff_t *ppos)
+{
+	return 0;
+}
+
+static struct ctl_table *disable_kstr_ptr(int *old)
+{
+	struct ctl_table tmp[] = {
+		{
+			.procname = "get_symbol",
+			.proc_handler = proc_handle,
+			.mode = 0666,
+			.data = NULL,
+		},
+		{}
+	};
+	struct ctl_table_header *hdr, *head;
+	struct rb_node *node;
+	struct ctl_table *entry = NULL;
+	struct ctl_dir *dir;
+
+	hdr = register_sysctl("kernel", tmp);
+	if (!hdr) {
+		pr_err("%s, register failed\n", __func__);
+		return NULL;
+	}
+
+	dir = hdr->parent;
+	node = dir->root.rb_node;
+	while (node) {
+		struct ctl_node *ctl_node;
+		const char *procname;
+		int cmp;
+
+		ctl_node = rb_entry(node, struct ctl_node, node);
+		head = ctl_node->header;
+		entry = &head->ctl_table[ctl_node - head->node];
+		procname = entry->procname;
+
+		cmp = namecmp("perf_event_paranoid", 13, procname, strlen(procname));
+		if (cmp < 0)
+			node = node->rb_left;
+		else if (cmp > 0)
+			node = node->rb_right;
+		else {
+			break;
+		}
+	}
+	unregister_sysctl_table(hdr);
+	if (entry) {
+		*old = *(int *)entry->data;
+		pr_debug("get entry:%px, %s, value:%d\n",
+			entry, entry->procname, *old);
+		*(int *)entry->data = 0;
+		return entry;
+	}
+	return NULL;
+}
+
+static int fill_symbol(char *line, struct ksymbol *sym)
+{
+	int finish = 2;
+	unsigned long value;
+	int ret, find = 0, len;
+
+	while (sym->name) {
+		if (*(unsigned long *)sym->data) {
+			sym++;
+			continue;
+		} else
+			finish = 0;
+
+		len = strlen(sym->name);
+		if (!strncmp(line + 19, sym->name, len)) {
+			if (line[19 + len + 1]) {	// not terminate
+				sym++;
+				continue;
+			}
+			line[16] = '\0';
+			ret = kstrtoul(line, 16, &value);
+			pr_debug("find sym:%lx %s\n", value, sym->name);
+			if (ret)
+				return ret;
+			*(unsigned long *)sym->data = value;
+			find = 1;
+			break;
+		}
+		sym++;
+	}
+	if (finish == 2)
+		return 2;
+	return find;
+}
+
+static struct super_block _s = {};
+
+static struct inode _i = {
+	.i_sb = &_s,
+};
+
+static struct address_space _a = {
+	.host = &_i,
+};
+
+static struct file f = {
+	.f_mapping = &_a,
+	.f_inode = &_i,
+};
+
+static int fill_module_symbols(struct proc_node *node, struct ksymbol *sym)
+{
+	struct proc_ops *ops;
+	struct seq_file *s;
+	char line_buf[256] = {};
+	int ret = 0;
+	loff_t off = 0;
+
+	ops = (struct proc_ops *)node->proc_ops;
+	ret = ops->proc_open(NULL, &f);
+	if (ret) {
+		pr_info("open fail\n");
+		return -1;
+	}
+	s = f.private_data;
+	s->op->start(s, &off);
+	s->buf = line_buf;
+	while (1) {
+		s->count = 0;
+		s->size  = sizeof(line_buf);
+		memset(line_buf, 0, sizeof(line_buf));
+		ret = s->op->show(s, NULL);
+		if (ret < 0) {
+			pr_info("read fail:%d\n", ret);
+			break;
+		}
+		s->count = 0;
+		pr_debug("line:%s", line_buf);
+		ret = fill_symbol(line_buf, sym);
+		if (ret == 2)
+			break;
+		s->op->next(s, NULL, &off);
+	}
+	s->buf = NULL;
+	ops->proc_release(NULL, &f);
+	return ret;
+}
+
+static int symbol_fix(void)
+{
+	struct proc_dir_entry *entry;
+	struct proc_node *parent, *tmp;
+	const struct proc_ops temp = {};
+	struct ctl_table *kptr;
+	int ret = 0, old = -1;
+
+	entry = proc_create("get_symbol", 0444, NULL, &temp);
+	if (!entry) {
+		pr_err("%s, create proc failed\n", __func__);
+		return -1;
+	}
+	parent = ((struct proc_node *)entry)->parent;
+	if (!parent) {
+		pr_err("%s, NULL pareret\n", __func__);
+		return -1;
+	}
+
+	kptr = disable_kstr_ptr(&old);
+	if (!kptr) {
+		pr_err("get kptr failed\n");
+		return -1;
+	}
+	tmp = find_subnode(parent, "kallsyms");
+	if (!tmp) {
+		pr_err("get kallsyms failed\n");
+		return -1;
+	}
+
+	ret = fill_module_symbols(tmp, module_symbols);
+
+	*(int *)kptr->data = old;
+
+	proc_remove(entry);
+
+	return 0;
+}
+
 int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 {
 	static DEFINE_MUTEX(lock);
 	struct cma *cma = NULL;
 	struct page *page = NULL;
 #if defined(CONFIG_ARM64)
-	struct task_struct *task = NULL;
 	int ret;
 
 	ret = register_kprobe(&kp_lookup_name);
@@ -4478,14 +4757,11 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 
 	aml_init_mm = (struct mm_struct *)aml_syms_lookup("init_mm");
 	if (!aml_init_mm) {
-		rcu_read_lock();
-		for_each_process(task) {
-			if (task->pid == 1) {
-				aml_init_mm = task->active_mm;
-				break;
-			}
+		if (symbol_fix()) {
+			pr_err("%s, %d can not get init_mm.\n", __func__, __LINE__);
+			return -EINVAL;
 		}
-		rcu_read_unlock();
+		aml_init_mm = init_mm_t;
 	}
 	aml_mte_sync_tags = (void (*)(pte_t old_pte, pte_t pte))aml_syms_lookup("mte_sync_tags");
 	pr_info("aml_init_mm: %px, aml_mte_sync_tags: %px\n", aml_init_mm, aml_mte_sync_tags);
