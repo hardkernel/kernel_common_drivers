@@ -1933,6 +1933,7 @@ struct dsub_nins_s {
 	struct vframe_s vfm_cp;
 	struct dim_wmode_s	wmode; /*tmp*/
 	unsigned int cnt;
+	struct caller_mng_s caller_mng;
 };
 
 struct dim_nins_s {

@@ -429,6 +429,8 @@ static bool dpvpp_post_bypass(struct dimn_itf_s *itf,
 					buffer->vf->di_flag &=
 						~(DI_FLAG_DI_PSTVPPLINK | DI_FLAG_DI_LOCAL_BUF);
 					buffer->vf->di_flag |= DI_FLAG_DI_PVPPLINK_BYPASS;
+					if (di_buf)
+						buffer->caller_mng = di_buf->caller_mng;
 				}
 				dvfm->c.di_buf = NULL;
 				if (di_buf)
@@ -681,6 +683,7 @@ static void dpvpp_post_feed_buffer(struct dimn_itf_s *itf,
 	memset(&ndvfm->c, 0, sizeof(ndvfm->c));
 	ndvfm->c.cnt_in = itf->c.sum_pre_get;
 	ndvfm->c.di_buf = di_buf;
+	ndvfm->c.di_buf->caller_mng = di_buf->caller_mng;
 	ndvfm->c.ori_in = dpvpp_get_bypass_post_frame(itf->bind_ch, di_buf);
 	if (ndvfm->c.ori_in) {
 		is_bypass = true;
@@ -763,6 +766,7 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 	struct dvfm_s *dvfm_dm;
 	unsigned int out_fmt;
 	struct pvpp_dis_para_in_s *dis_para_demo;
+	struct di_buffer *buffer;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 
@@ -927,6 +931,8 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 	out_dvfm->src_w = ndvfm->c.src_w;
 	out_dvfm->vf_ext = ndvfm->c.ori_vf;
 	out_dvfm->sum_reg_cnt = itf->sum_reg_cnt;
+	out_dvfm->caller_mng = ndvfm->c.di_buf->caller_mng;
+
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
 		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_in;
@@ -942,6 +948,10 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 	post_vtype_fill_d(itf, vfm, &ndvfm->c.vf_in_cp, &ndvfm->c.out_dvfm);
 	dim_print("%s:link\n", __func__);
 	didbg_vframe_out_save(itf->bind_ch, vfm, 6);
+	if (itf->etype == EDIM_NIN_TYPE_INS) {
+		buffer = &itf->buf_bf[vfm->index];
+		buffer->caller_mng = out_dvfm->caller_mng;
+	}
 	dpvpp_put_ready_vf(itf, ds, vfm);
 	return true;
 }

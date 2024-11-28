@@ -392,6 +392,7 @@ struct di_buf_s {
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
 	bool bit_8_flag;
 #endif
+	struct caller_mng_s caller_mng;
 };
 
 #define RDMA_DET3D_IRQ			0x20

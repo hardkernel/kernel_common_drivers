@@ -638,6 +638,9 @@ void in_buffer_put(struct dimn_itf_s *itf, struct di_buffer *buffer)
 		itf->nitf_parm.ops.empty_input_done(buffer);
 //#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
 		dbg_plink2("ins:empty_done:0x%px,0x%px\n", buffer, buffer->vf);
+		dbg_link("B:vf %x,canvas0 addr:%lx\n",
+					buffer->vf->type,
+					buffer->vf->canvas0_config[0].phy_addr);
 //#endif
 	}
 }
@@ -2829,6 +2832,15 @@ void dpvpp_put_ready_vf(struct dimn_itf_s *itf,
 		dbg_plink3("%s:[0x%px:0x%x]:vf[0x%px],%px index:%d\n",
 			__func__, buffer, buffer->flag, buffer->vf,
 			vfm, vfm->index);
+		dbg_link("%s:type %x,%lx,frame_index=%d,queued=%d,dropped=%d,dummy=%d,file:%px\n",
+			__func__,
+			buffer->vf->type,
+			buffer->vf->canvas0_config[0].phy_addr,
+			buffer->vf->frame_index,
+			buffer->caller_mng.queued,
+			buffer->caller_mng.dropped,
+			buffer->caller_mng.dummy,
+			buffer->caller_mng.src_file);
 		qready->ops.put(qready, buffer);
 	}
 }
@@ -2975,6 +2987,15 @@ void dpvpp_ins_fill_out(struct dimn_itf_s *itf)
 			dbg_plink2("\t:vf:0x%x,0x%x,0x%x\n",
 				   buffer->vf->type, buffer->vf->flag,
 				   buffer->vf->di_flag);
+		dbg_link("out_done: %x,%lx,frame_index=%d,queued=%d,dropped=%d,dummy=%d,file:%px\n",
+			buffer->vf->type,
+			buffer->vf->canvas0_config[0].phy_addr,
+			buffer->vf->frame_index,
+			buffer->caller_mng.queued,
+			buffer->caller_mng.dropped,
+			buffer->caller_mng.dummy,
+			buffer->caller_mng.src_file);
+
 //#endif
 		}
 	}

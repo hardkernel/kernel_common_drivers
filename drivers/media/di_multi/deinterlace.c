@@ -5974,6 +5974,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		}
 #endif
 		memcpy(di_buf->vframe, vframe, sizeof(struct vframe_s));
+		di_buf->caller_mng = nins->c.caller_mng;
 		dim_dbg_pre_cnt(channel, "cf1");
 		di_buf->width_bk = ppre->width_bk;	/*ary.sui 2019-04-23*/
 		di_buf->dw_width_bk = cur_dw_width;
@@ -6813,6 +6814,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		di_buf->local_ud_used_size = 0;
 	}
 #endif /* DIM_EN_UD_USED */
+	di_buf->caller_mng = ppre->di_inp_buf->caller_mng;
 	if (dip_cfg_afbc_skip()) {
 		di_buf->vframe->width = ppre->afbc_skip_w;
 		di_buf->vframe->height = ppre->afbc_skip_h;
@@ -10126,6 +10128,7 @@ int dim_process_post_vframe(unsigned int channel)
 				memcpy(di_buf->vframe,
 				       tmp_buf[1]->vframe,
 				       sizeof(struct vframe_s));
+				di_buf->caller_mng = tmp_buf[1]->caller_mng;
 				di_buf->vframe->private_data = di_buf;
 				di_buf->pd_config.global_mode =	PULL_DOWN_EI;
 				di_buf->vframe->type =
@@ -10262,6 +10265,7 @@ int dim_process_post_vframe(unsigned int channel)
 			memcpy(di_buf->vframe,
 			       di_buf->di_buf_dup_p[1]->vframe,
 			       sizeof(struct vframe_s));
+			di_buf->caller_mng = tmp_buf[1]->caller_mng;
 #ifdef DIM_EN_UD_USED
 			if (di_buf->local_meta &&
 			    di_buf->di_buf_dup_p[1]->local_meta &&
@@ -10440,6 +10444,7 @@ int dim_process_post_vframe(unsigned int channel)
 				 ready_di_buf->vframe->canvas0_config[0].width);
 			memcpy(di_buf->vframe, di_buf_i->vframe,
 			       sizeof(struct vframe_s));
+			di_buf->caller_mng = di_buf_i->caller_mng;
 #ifdef DIM_EN_UD_USED
 			if (di_buf->local_meta &&
 			    di_buf_i->local_meta &&
@@ -10580,6 +10585,7 @@ int dim_process_post_vframe(unsigned int channel)
 
 				memcpy(di_buf->vframe, di_buf_i->vframe,
 				       sizeof(struct vframe_s));
+				di_buf->caller_mng = di_buf_i->caller_mng;
 #ifdef DIM_EN_UD_USED
 				if (di_buf->local_meta &&
 				    di_buf_i->local_meta &&

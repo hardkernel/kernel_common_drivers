@@ -235,6 +235,8 @@ static void nins_m_recycle_ins(struct di_ch_s *pch)
 			//pw_vf_put(vfm, ch);
 			//pw_vf_notify_provider(ch,
 			//		      VFRAME_EVENT_RECEIVER_PUT, NULL);
+			dbg_link("out type %x,%lx\n", buffer->vf->type,
+				buffer->vf->canvas0_config[0].phy_addr);
 			pch->itf.u.dinst.parm.ops.empty_input_done(buffer);
 			sum_p_inc(ch);
 		}
@@ -703,7 +705,16 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 		PR_ERR("%s:no vf\n", __func__);
 	} else {
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));
+		pins->c.caller_mng = buffer->caller_mng;
 	}
+	dbg_link("in type %x,%lx,frame_index=%d, queued=%d, dropped=%d, dummy=%d, file:%px\n",
+			buffer->vf->type,
+			buffer->vf->canvas0_config[0].phy_addr,
+			buffer->vf->frame_index,
+			pins->c.caller_mng.queued,
+			pins->c.caller_mng.dropped,
+			pins->c.caller_mng.dummy,
+			pins->c.caller_mng.src_file);
 
 	if (pins->c.vfm_cp.type & VIDTYPE_COMPRESS) {
 		if (buffer->vf && is_src_crop_valid(buffer->vf->src_crop)) {

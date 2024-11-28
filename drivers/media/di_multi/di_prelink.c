@@ -31,7 +31,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/video_sink/video.h>
-
+#include <linux/amlogic/media/di/di_interface.h>
 #define MAX_DI_HOLD_CTRL_CNT 20
 #define MAX_SCREEN_RATIO 400
 //#define AUTO_NR_DISABLE		(1)
@@ -2834,6 +2834,7 @@ static enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 		vf = buffer->vf;
 		ndvfm->c.ori_vf = vf;
 		memcpy(&ndvfm->c.vf_in_cp, vf, sizeof(ndvfm->c.vf_in_cp));
+		ndvfm->c.in_dvfm.caller_mng = buffer->caller_mng;
 		dim_dvf_cp(&ndvfm->c.in_dvfm, vf, 0);
 		count_4k(itf, &ndvfm->c.in_dvfm);
 		if (IS_COMP_MODE(ndvfm->c.in_dvfm.vfs.type)) {
@@ -2845,6 +2846,15 @@ static enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 		//buffer_l->phy_addr	= vf->canvas0_config[0].phy_addr;//tmp
 		dim_print("%s:0x%lx\n", __func__,
 			  (unsigned long)vf->canvas0_config[0].phy_addr);
+		dbg_link("empty pre %x,%lx,frame_index=%d,queued=%d,dropped=%d,dummy=%d,file:%px\n",
+			vf->type,
+			vf->canvas0_config[0].phy_addr,
+			vf->frame_index,
+			buffer->caller_mng.queued,
+			buffer->caller_mng.dropped,
+			buffer->caller_mng.dummy,
+			buffer->caller_mng.src_file);
+
 	}
 	flg_q = qin->ops.put(qin, mvf);
 
@@ -2940,12 +2950,14 @@ static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf)
 			PR_ERR("%s:3:%d,%d\n", __func__, i, bindex);
 			continue;
 		}
-		if (buffer->vf)
+		if (buffer->vf) {
 			buffer->vf->decontour_pre = ins->c.vfm_cp.decontour_pre;
-		else
+			buffer->caller_mng = ins->c.caller_mng;
+		} else {
 			PR_WARN("%s:no vf:0x%px,0x%x\n",
 				__func__, buffer,
 				buffer->flag);
+		}
 		ins->c.vfm_cp.decontour_pre = NULL;
 		memset(&ins->c, 0, sizeof(ins->c));
 		qbuf_in(pbufq, QBF_NINS_Q_IDLE, bindex);
@@ -4081,6 +4093,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 	struct dvfm_s *dvfm_dm;
 	unsigned int out_fmt;
 	struct pvpp_buf_cfg_s *buf_cfg;
+	struct di_buffer *buffer;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 
@@ -4324,6 +4337,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 	out_dvfm->src_w = ndvfm->c.src_w;
 	out_dvfm->vf_ext = ndvfm->c.ori_vf;
 	out_dvfm->sum_reg_cnt = itf->sum_reg_cnt;
+	out_dvfm->caller_mng = ndvfm->c.in_dvfm.caller_mng;
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
 		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_in;
@@ -4362,6 +4376,11 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 		vtype_fill_d(itf, vfm, &ndvfm->c.vf_in_cp, &ndvfm->c.out_dvfm);
 		dim_print("%s:link\n", __func__);
 		didbg_vframe_out_save(itf->bind_ch, vfm, 6);
+		if (itf->etype == EDIM_NIN_TYPE_INS) {
+			buffer = &itf->buf_bf[vfm->index];
+			buffer->caller_mng = out_dvfm->caller_mng;
+		}
+
 		dpvpp_put_ready_vf(itf, ds, vfm);
 
 		return true;

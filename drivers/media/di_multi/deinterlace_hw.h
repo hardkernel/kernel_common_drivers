@@ -838,6 +838,7 @@ struct dvfm_s {
 	unsigned int src_h; //temp
 	void *vf_ext;
 	unsigned int sum_reg_cnt;
+	struct caller_mng_s caller_mng;
 };
 
 struct di_buf_s;

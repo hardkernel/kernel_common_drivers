@@ -5324,6 +5324,7 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 				dis->c.dbuff.flag |= DI_FLAG_P;
 			dis->c.dbuff.crcout = di_buf->datacrc;
 			dis->c.dbuff.nrcrcout = di_buf->nrcrc;
+			dis->c.dbuff.caller_mng = di_buf->caller_mng;
 			dbg_post_ref("00%s: %x\n", __func__, di_buf->datacrc);
 			dbg_post_ref("01%s: %x\n", __func__, di_buf->nrcrc);
 			ndrd_qin(pch, &dis->c.dbuff);
@@ -5351,6 +5352,7 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 			dbg_post_ref("03%s: %x\n", __func__, di_buf->nrcrc);
 			dis->c.dbuff.crcout = di_buf->datacrc;
 			dis->c.dbuff.nrcrcout = di_buf->nrcrc;
+			dis->c.dbuff.caller_mng = di_buf->caller_mng;
 			ndrd_qin(pch, &dis->c.pbuff);
 		}
 	}
