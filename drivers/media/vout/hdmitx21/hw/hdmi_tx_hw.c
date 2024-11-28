@@ -2507,6 +2507,7 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	} else if (strncmp(tmpbuf, "dumpintr", 8) == 0) {
 		hdmitx_dump_intr();
 	} else if (strncmp(tmpbuf, "chkfmt", 6) == 0) {
+		hdmitx_mode_print_all_mode_table();
 		return;
 	} else if (strncmp(tmpbuf, "ss", 2) == 0) {
 		HDMITX_INFO("hdev->hpd_state: 0x%x\n", hdev->tx_comm.hpd_state);
