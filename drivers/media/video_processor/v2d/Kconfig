@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#
+# Amlogic v2d device configuration
+#
+
+menu "Amlogic v2d support"
+
+config AMLOGIC_MEDIA_V2D
+	tristate "Amlogic v2d device support"
+	default y
+
+	help
+		Select to enable "Amlogic v2d device support.
+
+endmenu

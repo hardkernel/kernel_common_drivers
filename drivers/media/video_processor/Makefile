@@ -11,3 +11,4 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videoqueu
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/common/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/di_process/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videodisplay/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/v2d/Makefile

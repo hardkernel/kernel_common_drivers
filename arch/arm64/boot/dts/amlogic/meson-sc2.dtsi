@@ -1823,6 +1823,12 @@
 		status = "okay";
 	};
 
+	v2d {
+		compatible = "amlogic, v2d";
+		dev_name = "v2d";
+		status = "okay";
+	};
+
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
