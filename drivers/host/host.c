@@ -39,6 +39,28 @@
 static struct early_suspend host_early_suspend_handler;
 #endif
 
+#define HOST_NUM	2
+static struct host_module *host_p[HOST_NUM];
+
+bool host_firmware_ready(u8 host_id)
+{
+	if (host_id < HOST_NUM && host_p[host_id] &&
+		host_p[host_id]->firmware_load && host_p[host_id]->firmware_started)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(host_firmware_ready);
+
+struct device *host_to_device(u8 host_id)
+{
+	if (host_id < HOST_NUM && host_p[host_id])
+		return host_p[host_id]->dev;
+
+	return NULL;
+}
+EXPORT_SYMBOL(host_to_device);
+
 /*free reserved memory*/
 static unsigned long host_free_reserved_area(void *start, void *end, int poison, const char *s)
 {
@@ -650,6 +672,7 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			goto err;
 		}
 		pm_runtime_get_sync(dev);
+		host->firmware_started = 1;
 	break;
 	case HOST_STOP:
 		pr_debug("%s HOST_STOP\n", __func__);
@@ -661,6 +684,7 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			goto err;
 		}
 		pm_runtime_put_sync(dev);
+		host->firmware_started = 0;
 	break;
 	case HOST_GET_INFO:
 		pr_debug("%s HOST_GET_INFO\n", __func__);
@@ -958,19 +982,18 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 	struct mbox_chan *mbox_chan;
 	int ret;
 
-	host->dsp_spt_reg = devm_platform_ioremap_resource_byname(pdev, "dspsupport-reg");
-	if (IS_ERR_OR_NULL(host->dsp_spt_reg))
-		pr_debug("default dsp is not disabled!\n");
-	if (!IS_ERR_OR_NULL(host->dsp_spt_reg) && (readl(host->dsp_spt_reg) & DSP_OTP)) {
-		dev_err(&pdev->dev, "this device not support dsp\n");
-		return -EINVAL;
+	resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "device-support-reg");
+	if (!IS_ERR_OR_NULL(resource)) {
+		host->device_spt_reg = devm_ioremap(dev,
+						    resource->start,
+						    resource->end - resource->start + 1);
+		if (IS_ERR_OR_NULL(host->device_spt_reg))
+			dev_err(&pdev->dev, "failed to ioremap device support register\n");
 	}
 
-	host->m4_spt_reg = devm_platform_ioremap_resource_byname(pdev, "m4-support-reg");
-	if (IS_ERR_OR_NULL(host->m4_spt_reg))
-		pr_debug("default m4 is not disabled!\n");
-	if ((!IS_ERR_OR_NULL(host->m4_spt_reg) && (readl(host->m4_spt_reg) & M4_OTP))) {
-		dev_err(&pdev->dev, "this device not support m4\n");
+	if ((!IS_ERR_OR_NULL(host->device_spt_reg) &&
+			    (readl(host->device_spt_reg) & host->device_support_bit))) {
+		dev_err(&pdev->dev, "this device not support %s\n", host->misc->name);
 		return -EINVAL;
 	}
 
@@ -1096,18 +1119,28 @@ static int host_platform_probe(struct platform_device *pdev)
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (IS_ERR_OR_NULL(host))
 		return -ENOMEM;
+
 	if (strstr(host_data->name, "m4")) {
 		host_mfh = devm_kzalloc(dev, sizeof(*host_mfh), GFP_KERNEL);
 		if (IS_ERR_OR_NULL(host))
 			return -ENOMEM;
+
 		host->host_mfh = host_mfh;
+		if (of_property_read_u32(dev->of_node, "m4-support-bit", &host->device_support_bit))
+			dev_err(dev, "Not find m4-support-bit\n");
 	}
+
 	if (strstr(host_data->name, "dsp")) {
 		host_dsp = devm_kzalloc(dev, sizeof(*host_dsp), GFP_KERNEL);
 		if (IS_ERR_OR_NULL(host))
 			return -ENOMEM;
+
 		host->host_dsp = host_dsp;
+		if (of_property_read_u32(dev->of_node, "dsp-support-bit",
+					 &host->device_support_bit))
+			dev_err(dev, "Not find dsp-support-bit\n");
 	}
+
 	host->dev = dev;
 	host->hostid = host_data->hostid;
 	host->misc = &host_data->misc;
@@ -1145,6 +1178,8 @@ static int host_platform_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 	}
+
+	host_p[host->hostid] = host;
 
 	return 0;
 }

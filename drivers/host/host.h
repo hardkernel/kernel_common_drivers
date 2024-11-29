@@ -98,8 +98,6 @@ struct mfh_msg {
 #define REG_DSP_CFG1			(0x4)
 #define REG_DSP_CFG2			(0x8)
 #define REG_DSP_RESET_VEC		(0x004 << 2)
-#define DSP_OTP				(0x03000000)
-#define M4_OTP				(0x10000000)
 
 #define HOST_IOC_MAGIC  'H'
 
@@ -157,8 +155,7 @@ struct host_dsp {
  * @dev:	                struct device for this Host driver
  * @base_reg:                   Base register of host
  * @health_reg:                 Health monitor register
- * @dsp_spt_reg:                Whether the boards support dsp
- * @m4_spt_reg:                 Whether the boards support m4
+ * @device_spt_reg:             Whether the boards support dsp/m4
  * @sram_addr:                  Sram virtual address
  * @phys_sram_addr:             Sram physical address
  * @phys_sram_size:             Sram physical address size
@@ -193,6 +190,8 @@ struct host_dsp {
  * @hang:                       Host hang flag
  * @mbox_buf:                   Aocpu mbox buffer
  * @firmware_load:              Host firmware is load
+ * @firmware_started:           host dsp firmware started
+ * @device_support_bit:         DSP/M4 support bit
  * @host_data:                  Struct host_data
  * @host_mfh:                   Struct host_mfh
  * @host_dsp:                   Struct host_dsp
@@ -203,8 +202,7 @@ struct host_module {
 	struct device *dev;
 	void __iomem *base_reg;
 	void __iomem *health_reg;
-	void __iomem *dsp_spt_reg;
-	void __iomem *m4_spt_reg;
+	void __iomem *device_spt_reg;
 	void __iomem *sram_addr;
 	phys_addr_t  phys_sram_addr;
 	phys_addr_t  phys_sram_size;
@@ -238,9 +236,15 @@ struct host_module {
 	u32 hang;
 
 	u32 firmware_load;
+	u32 firmware_started;
+	u32 device_support_bit;
 	struct host_data *host_data;
 	struct host_mfh *host_mfh;
 	struct host_dsp *host_dsp;
 	struct notifier_block nb;
 };
+
+bool host_firmware_ready(u8 host_id);
+struct device *host_to_device(u8 host_id);
+
 #endif /*_HOST_MODULE_H*/
