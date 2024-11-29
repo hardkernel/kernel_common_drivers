@@ -176,6 +176,7 @@ ddr_cooling_register(struct device_node *np, struct cool_dev *cool)
 	struct ddr_cooling_device *ddr_dev = NULL;
 	struct thermal_instance *pos = NULL;
 	char dev_name[THERMAL_NAME_LENGTH];
+	u32 state_set;
 	int i;
 
 	ddr_dev = kmalloc(sizeof(*ddr_dev), GFP_KERNEL);
@@ -216,7 +217,9 @@ ddr_cooling_register(struct device_node *np, struct cool_dev *cool)
 
 	list_for_each_entry(pos, &cool_dev->thermal_instances, cdev_node) {
 		if (!strncmp(pos->cdev->type, dev_name, sizeof(dev_name))) {
-			pr_err("Notice!!! The notify interface has been removed.\n");
+			cool_dev->ops->get_requested_power(cool_dev, &state_set);
+			cool_dev->ops->set_cur_state(cool_dev, (unsigned long)state_set);
+			ddr_dev->last_state = state_set;
 			break;
 		}
 	}
