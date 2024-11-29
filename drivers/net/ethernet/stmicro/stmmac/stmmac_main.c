@@ -7220,7 +7220,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* Get the HW capability (new GMAC newer than 3.50a) */
 	priv->hw_cap_support = stmmac_get_hw_features(priv);
 	if (priv->hw_cap_support) {
-		dev_info(priv->device, "DMA HW capability register supported\n");
+		dev_dbg(priv->device, "DMA HW capability register supported\n");
 
 		/* We can override some gmac/dma configuration fields: e.g.
 		 * enh_desc, tx_coe (e.g. that are passed through the
@@ -7258,7 +7258,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 
 	if (priv->plat->rx_coe) {
 		priv->hw->rx_csum = priv->plat->rx_coe;
-		dev_info(priv->device, "RX Checksum Offload Engine supported\n");
+		dev_dbg(priv->device, "RX Checksum Offload Engine supported\n");
 		if (priv->synopsys_id < DWMAC_CORE_4_00)
 			dev_info(priv->device, "COE Type %d\n", priv->hw->rx_csum);
 	}
@@ -7266,7 +7266,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		dev_info(priv->device, "TX Checksum insertion supported\n");
 
 	if (priv->plat->pmt) {
-		dev_info(priv->device, "Wake-Up On Lan supported\n");
+		dev_dbg(priv->device, "Wake-Up On Lan supported\n");
 		device_set_wakeup_capable(priv->device, 1);
 	}
 
@@ -7292,7 +7292,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	if (((priv->synopsys_id >= DWMAC_CORE_3_50) ||
 	    (priv->plat->has_xgmac)) && (!priv->plat->riwt_off)) {
 		priv->use_riwt = 1;
-		dev_info(priv->device,
+		dev_dbg(priv->device,
 			 "Enable RX Mitigation via HW Watchdog Timer\n");
 	}
 
@@ -7656,7 +7656,7 @@ int stmmac_dvr_probe(struct device *device,
 		if (priv->plat->has_gmac4)
 			ndev->hw_features |= NETIF_F_GSO_UDP_L4;
 		priv->tso = true;
-		dev_info(priv->device, "TSO feature enabled\n");
+		dev_dbg(priv->device, "TSO feature enabled\n");
 	}
 
 	if (priv->dma_cap.sphen &&
@@ -7664,7 +7664,7 @@ int stmmac_dvr_probe(struct device *device,
 		ndev->hw_features |= NETIF_F_GRO;
 		priv->sph_cap = true;
 		priv->sph = priv->sph_cap;
-		dev_info(priv->device, "SPH feature enabled\n");
+		dev_dbg(priv->device, "SPH feature enabled\n");
 	}
 
 	/* Ideally our host DMA address width is the same as for the
@@ -7681,7 +7681,7 @@ int stmmac_dvr_probe(struct device *device,
 		ret = dma_set_mask_and_coherent(device,
 				DMA_BIT_MASK(priv->dma_cap.host_dma_width));
 		if (!ret) {
-			dev_info(priv->device, "Using %d/%d bits DMA host/device width\n",
+			dev_dbg(priv->device, "Using %d/%d bits DMA host/device width\n",
 				 priv->dma_cap.host_dma_width, priv->dma_cap.addr64);
 
 			/*

@@ -522,7 +522,7 @@ int dwmac1000_setup(struct stmmac_priv *priv)
 {
 	struct mac_device_info *mac = priv->hw;
 
-	dev_info(priv->device, "\tDWMAC1000\n");
+	dev_dbg(priv->device, "\tDWMAC1000\n");
 
 	priv->dev->priv_flags |= IFF_UNICAST_FLT;
 	mac->pcsr = priv->ioaddr;

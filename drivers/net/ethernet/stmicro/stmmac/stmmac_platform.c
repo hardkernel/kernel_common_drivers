@@ -667,7 +667,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	if (IS_ERR(plat->clk_ptp_ref)) {
 		plat->clk_ptp_rate = clk_get_rate(plat->stmmac_clk);
 		plat->clk_ptp_ref = NULL;
-		dev_info(&pdev->dev, "PTP uses main clock\n");
+		dev_dbg(&pdev->dev, "PTP uses main clock\n");
 	} else {
 		plat->clk_ptp_rate = clk_get_rate(plat->clk_ptp_ref);
 		dev_dbg(&pdev->dev, "PTP rate %d\n", plat->clk_ptp_rate);
@@ -784,7 +784,7 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 	if (stmmac_res->wol_irq < 0) {
 		if (stmmac_res->wol_irq == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "IRQ eth_wake_irq not found\n");
+		dev_dbg(&pdev->dev, "IRQ eth_wake_irq not found\n");
 		stmmac_res->wol_irq = stmmac_res->irq;
 	}
 
@@ -793,7 +793,7 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 	if (stmmac_res->lpi_irq < 0) {
 		if (stmmac_res->lpi_irq == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "IRQ eth_lpi not found\n");
+		dev_dbg(&pdev->dev, "IRQ eth_lpi not found\n");
 	}
 
 	stmmac_res->sfty_irq =
@@ -801,7 +801,7 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 	if (stmmac_res->sfty_irq < 0) {
 		if (stmmac_res->sfty_irq == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "IRQ sfty not found\n");
+		dev_dbg(&pdev->dev, "IRQ sfty not found\n");
 	}
 
 	stmmac_res->addr = devm_platform_ioremap_resource(pdev, 0);

@@ -447,20 +447,20 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 	unsigned int mc_val = 0;
 	unsigned int cali_val = 0;
 
-	pr_info("aml_cust_setting\n");
+	pr_debug("aml_cust_setting\n");
 
 	if (of_property_read_u32(np, "mc_val", &mc_val) == 0) {
-		pr_info("cover mc_val as 0x%x\n", mc_val);
+		pr_debug("cover mc_val as 0x%x\n", mc_val);
 		writel(mc_val, dwmac->regs + PRG_ETH0);
 	}
 
 	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
-		pr_info("use default internal_phy as 0\n");
+		pr_debug("use default internal_phy as 0\n");
 
 	ndev->ethtool->wol_enabled = true;
 #ifdef CONFIG_PM_SLEEP
 	if (of_property_read_u32(np, "mac_wol", &wol_switch_from_user) == 0)
-		pr_info("feature mac_wol\n");
+		pr_debug("feature mac_wol\n");
 #endif
 
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
