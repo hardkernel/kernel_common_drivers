@@ -749,6 +749,16 @@ static void vdac_dev_disable(void)
 		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl1);
 		reg_val |= BIT(3);
 		vdac_ana_reg_write(s_vdac_data->reg_cntl1, reg_val);
+	} else if (s_vdac_data->cpu_id == VDAC_CPU_S4 ||
+		s_vdac_data->cpu_id == VDAC_CPU_S4D) {
+		/*
+		 * for s4/s4d, band gap is used by both cvbs out
+		 * and sar adc, can't disable it when suspend/shutdown.
+		 * cdac_pwd can be disabled
+		 */
+		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl1);
+		reg_val &= ~BIT(7);
+		vdac_ana_reg_write(s_vdac_data->reg_cntl1, reg_val);
 	}
 
 	if ((pri_flag & VDAC_MODULE_MASK) == 0) {

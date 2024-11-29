@@ -47,7 +47,7 @@
 /* 20220419:adjust cvbsout clk delay */
 /* 20230426:add vdac control node */
 /* 20230325:t3x bringup */
-#define VDAC_VER "20240906: disable bandgap of sc2"
+#define VDAC_VER "20241106: disable cdac_pwd of s4/s4d when suspend"
 
 enum vdac_cpu_type {
 	VDAC_CPU_G12AB = 0,
