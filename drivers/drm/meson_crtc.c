@@ -1218,6 +1218,41 @@ static void meson_crtc_init_drm_policy_property(struct drm_device *drm_dev,
 	}
 }
 
+static const u32 am_crtc_max_out_size_list[] = {
+	1080 << 16 | 1920,
+	2160 << 16 | 3840,
+};
+
+static void meson_crtc_add_max_out_property(struct drm_device *drm_dev,
+					    struct am_meson_crtc *amcrtc)
+{
+	int ret;
+	struct drm_property *prop;
+	u32 max_out_size_indices[MESON_MAX_CRTC];
+	u32 max_out_size_idx;
+	u32 max_out_size;
+	struct meson_vpu_pipeline *ppl = amcrtc->pipeline;
+
+	ret = of_property_read_u32_array(drm_dev->dev->of_node,
+			"crtc_max_out_size", max_out_size_indices, ppl->num_postblend);
+
+	if (ret) {
+		/* use 0 to indicate platforms without the property */
+		max_out_size = 0;
+	} else {
+		max_out_size_idx = max_out_size_indices[amcrtc->crtc_index];
+		max_out_size = am_crtc_max_out_size_list[max_out_size_idx];
+	}
+	prop = drm_property_create_range(drm_dev, DRM_MODE_PROP_IMMUTABLE,
+					"crtc_max_out_size", 0, UINT_MAX);
+	if (prop) {
+		amcrtc->crtc_max_out_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, max_out_size);
+	} else {
+		DRM_ERROR("Failed to create crtc_max_out_size property\n");
+	}
+}
+
 static void meson_crtc_init_nonblock_by_vblank_property(struct drm_device *drm_dev,
 						  struct am_meson_crtc *amcrtc)
 {
@@ -1270,6 +1305,9 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	amcrtc->drm_dev = priv->drm;
 	amcrtc->crtc_index = idx;
 	amcrtc->vout_index = idx + 1;/*vout index start from 1.*/
+	amcrtc->pipeline = pipeline;
+	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
+
 	crtc = &amcrtc->base;
 	plane_index = priv->primary_plane_index[idx];
 	primary_plane = &priv->osd_planes[plane_index]->base;
@@ -1324,8 +1362,8 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_drm_policy_property(priv->drm, amcrtc);
 	meson_crtc_init_nonblock_by_vblank_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_support_info_property(priv->drm, amcrtc);
-	amcrtc->pipeline = pipeline;
-	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
+	meson_crtc_add_max_out_property(priv->drm, amcrtc);
+
 	priv->crtcs[priv->num_crtcs++] = amcrtc;
 
 	return amcrtc;
