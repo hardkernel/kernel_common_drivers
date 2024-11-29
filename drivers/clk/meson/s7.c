@@ -1249,19 +1249,103 @@ MESON_CLK_MUX_RW(vdec, CLKCTRL_VDEC3_CLK_CTRL, 0x1, 15, NULL, 0,
 		 vdec_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /* cts_hevcf_clk */
-MESON_CLK_COMPOSITE_RW(hevcf_0, CLKCTRL_VDEC2_CLK_CTRL, 0x7, 9,
-		       NULL, 0, vdec_pre_parent_data, 0,
-		       CLKCTRL_VDEC2_CLK_CTRL, 0, 7, NULL,
-		       0, CLK_SET_RATE_PARENT,
-		       CLKCTRL_VDEC2_CLK_CTRL, 8,
-		       0, CLK_SET_RATE_PARENT);
+static struct clk_regmap hevcf_0_sel = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_VDEC2_CLK_CTRL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_0_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = vdec_pre_parent_data,
+		.num_parents = ARRAY_SIZE(vdec_pre_parent_data),
+	},
+};
 
-MESON_CLK_COMPOSITE_RW(hevcf_1, CLKCTRL_VDEC4_CLK_CTRL, 0x7, 9,
-		       NULL, 0, vdec_pre_parent_data, 0,
-		       CLKCTRL_VDEC4_CLK_CTRL, 0, 7, NULL,
-		       0, CLK_SET_RATE_PARENT,
-		       CLKCTRL_VDEC4_CLK_CTRL, 8,
-		       0, CLK_SET_RATE_PARENT);
+static struct clk_regmap hevcf_0_div = {
+	.data = &(struct clk_regmap_div_data) {
+		.offset = CLKCTRL_VDEC2_CLK_CTRL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&hevcf_0_sel.hw,
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap hevcf_0 = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = CLKCTRL_VDEC2_CLK_CTRL,
+		.bit_idx = 8,
+		.check_offset = CLKCTRL_CHECK_CLK_RESULT,
+		.check_bit = 1,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&hevcf_0_div.hw,
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap hevcf_1_sel = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_VDEC4_CLK_CTRL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = vdec_pre_parent_data,
+		.num_parents = ARRAY_SIZE(vdec_pre_parent_data),
+	},
+};
+
+static struct clk_regmap hevcf_1_div = {
+	.data = &(struct clk_regmap_div_data) {
+		.offset = CLKCTRL_VDEC4_CLK_CTRL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&hevcf_1_sel.hw,
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap hevcf_1 = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = CLKCTRL_VDEC4_CLK_CTRL,
+		.bit_idx = 8,
+		.check_offset = CLKCTRL_CHECK_CLK_RESULT,
+		.check_bit = 1,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "hevcf_1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&hevcf_1_div.hw,
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
 
 static const struct clk_parent_data hevcf_parent_data[] = {
 	{ .hw = &hevcf_0.hw },
