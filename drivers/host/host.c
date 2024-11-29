@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/mutex.h>
 #include <linux/kdebug.h>
 #include <linux/compat.h>
 #include <linux/delay.h>
@@ -33,6 +34,7 @@
 #include "host_report.h"
 
 #define SUSPEND_CLK_FREQ 24000000
+static DEFINE_MUTEX(host_lock);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -614,10 +616,12 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 	void __user *argp;
 	int ret = 0;
 
+	mutex_lock(&host_lock);
 	if (!fp->private_data) {
 		pr_debug("%s error:fp->private_data is null", __func__);
 		ret = -1;
-		goto err;
+		mutex_unlock(&host_lock);
+		return ret;
 	}
 	argp = (void __user *)arg;
 	host = fp->private_data;
@@ -637,7 +641,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_LOAD is error", __func__);
 			goto err;
 		}
@@ -651,7 +654,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_2LOAD is error", __func__);
 			goto err;
 		}
@@ -667,7 +669,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_START is error", __func__);
 			goto err;
 		}
@@ -679,7 +680,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_STOP is error", __func__);
 			goto err;
 		}
@@ -691,7 +691,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_GET_INFO copy_from_user is error", __func__);
 			goto err;
 		}
@@ -702,7 +701,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_to_user(argp, host->host_dsp->usrinfo,
 				   sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_GET_INFO copy_to_user is error", __func__);
 			goto err;
 		}
@@ -720,7 +718,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 					host->host_dsp->shminfo.size > ((host->phys_ddr_addr +
 					host->phys_ddr_size) - host->phys_shm_size -
 							host->host_dsp->shminfo.addr)) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HIFI4DSP_SHM_CLEAN is error", __func__);
 			goto err;
 		}
@@ -740,7 +737,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 					host->host_dsp->shminfo.size > ((host->phys_ddr_addr +
 					host->phys_ddr_size) - host->phys_shm_size -
 							host->host_dsp->shminfo.addr)) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HIFI4DSP_SHM_INV is error", __func__);
 			goto err;
 		}
@@ -753,7 +749,7 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user((void *)&host->host_mfh->mfh_info,
 				     argp, sizeof(host->host_mfh->mfh_info));
 		if (ret < 0)
-			return ret;
+			goto err;
 		host->host_mfh->mfh_info.name[29] = '\0';
 		strcpy(host->fname0, host->host_mfh->mfh_info.name);
 		host_runtime_resume(dev);
@@ -762,11 +758,13 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_err("%s ioctl CMD error\n", __func__);
 	break;
 	}
+err:
 	if (strstr(host->host_data->name, "dsp")) {
 		kfree(host->host_dsp->usrinfo);
 		host->host_dsp->usrinfo = NULL;
 	}
-err:
+	mutex_unlock(&host_lock);
+
 	return ret;
 }
 
