@@ -662,7 +662,7 @@ static int aml_cpufreq_probe(struct platform_device *pdev)
 		of_property_for_each_u32(cluster_np, "cluster_cores", j) {
 			if (cpu_present(j)) {
 				cpumask_set_cpu(j, clusterdata[i].cpus);
-				pr_info("cpu%d->cluster%d\n", j,
+				pr_debug("cpu%d->cluster%d\n", j,
 					clusterdata[i].clusterid);
 			}
 		}
