@@ -65,6 +65,7 @@
 		vpu_dma_mask = <1>; /* 0: <= 4G, 1: > 4G */
 		ports = <&connectors_dev>;
 		fbdev_sizes = <1920 1080 1920 2160 32>;
+		crtc_max_out_size = <1 0>; /** 0:1080p fb 1:4k fb */
 		max_fb_size = <1>; /** 0:1080p fb 1:4k fb */
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;

@@ -114,6 +114,7 @@ struct am_meson_crtc {
 	struct drm_property *nonblock_by_vblank_property;
 	/*vpu pipeline dolby core cap*/
 	struct drm_property *dv_support_info;
+	struct drm_property *crtc_max_out_property;
 
 	/*debug*/
 	int dump_enable;
