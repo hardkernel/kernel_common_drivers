@@ -3151,6 +3151,7 @@ static int aml_tdm_platform_restore(struct device *dev)
 	p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
 	if (IS_ERR(p_tdm->pin_ctl))
 		pr_err("aml_tdm_get_pins error!\n");
+	aml_tdm_arb_config(p_tdm->actrl, p_tdm->chipinfo->use_arb);
 	audiobus_write(EE_AUDIO_FRDDR_A_CTRL0, 0);
 	aml_tdm_platform_resume(pdev);
 
