@@ -1421,7 +1421,8 @@ static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 				HDMITX_INFO("qms: vic list number over %d\n", MAX_QMS_GROUP_NUM);
 				continue;
 			}
-			group->qms_vic_lists[i++] = vic_timing->vic;
+			if (i < ARRAY_SIZE(group->qms_vic_lists))
+				group->qms_vic_lists[i++] = vic_timing->vic;
 		}
 	}
 }
