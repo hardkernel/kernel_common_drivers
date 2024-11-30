@@ -354,7 +354,8 @@ struct match_data_s {
 #define VDIN_AUTO_GAME_MODE		BIT(20)
 #define VDIN_AUTO_PC_MODE		BIT(21)
 #define VDIN_SET_DISPLAY_RATIO_TRANS	BIT(22) //vdin transparent transmission aspect ratio
-#define VDIN_MEM_MEMSET_EN      BIT(23)
+#define VDIN_MEM_MEMSET_EN		BIT(23)
+#define VDIN_CROP_SEL			BIT(24) //0-vdin cut win;1-vdin set src_crop in vf
 
 /* vdin_function_sel control bits end */
 
@@ -453,6 +454,7 @@ enum vdin_vf_put_md {
 
 #define VDIN_ISR_MONITOR_CFMT		BIT(23)
 #define VDIN_ISR_MONITOR_SECURE		BIT(24)
+#define VDIN_ISR_MONITOR_CROP		BIT(25)
 
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
 #define VDIN_DBG_CNTL_FLUSH	BIT(11)
@@ -945,6 +947,8 @@ struct vdin_dev_s {
 	unsigned int frame_buff_num_bak;/* backup */
 	unsigned int h_active;
 	unsigned int v_active;
+	unsigned int crop_h;
+	unsigned int crop_v;
 	unsigned int h_shrink_out;/* double write use */
 	unsigned int v_shrink_out;/* double write use */
 	unsigned int h_shrink_times;/* double write use */

@@ -555,9 +555,17 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 		return;
 	prop = &devp->prop;
 	sm_ops = devp->frontend->sm_ops;
+
 	if ((devp->flags & VDIN_FLAG_DEC_STARTED) && !vdin_is_afbce_enabled(devp) &&
 	    sm_ops->get_sig_property && !devp->cut_window_cfg) {
 		sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
+		if (devp->debug.cutwin.en) {
+			devp->prop.hs = devp->debug.cutwin.hs;
+			devp->prop.he = devp->debug.cutwin.he;
+			devp->prop.vs = devp->debug.cutwin.vs;
+			devp->prop.ve = devp->debug.cutwin.ve;
+		}
+
 		cur_vs = prop->vs;
 		cur_ve = prop->ve;
 		cur_hs = prop->hs;

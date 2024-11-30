@@ -88,7 +88,8 @@ void vdin_set_double_write_regs_t3x(struct vdin_dev_s *devp);
 void vdin_set_default_regmap_t3x(struct vdin_dev_s *devp);
 void vdin_hw_enable_t3x(struct vdin_dev_s *devp);
 void vdin_hw_disable_t3x(struct vdin_dev_s *devp);
-void vdin_set_cutwin_t3x(struct vdin_dev_s *devp);
+void vdin_cfg_cutwin_regs_t3x(struct vdin_dev_s *devp,
+	unsigned int rdma_enable, struct tvin_cutwin_s *cutwin_s);
 void vdin_set_decimation_t3x(struct vdin_dev_s *devp);
 void vdin_fix_nonstd_vsync_t3x(struct vdin_dev_s *devp);
 unsigned int vdin_get_meas_h_cnt64_t3x(unsigned int offset);

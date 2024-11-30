@@ -868,6 +868,10 @@ struct vframe_s *vdin_vf_get(void *op_arg)
 	if (!vfe)
 		return NULL;
 	atomic_inc(&p->buffer_cnt);
+	if (vf_list_dbg & VDIN_VF_MOVE_EN)
+		pr_info("%s,index:%d,index_disp:%d,disp_mode:%d\n", __func__,
+			vfe->vf.index, vfe->vf.index_disp,
+			p->disp_mode[vfe->vf.index_disp % VFRAME_DISP_MAX_NUM]);
 	return &vfe->vf;
 }
 
@@ -892,6 +896,10 @@ void vdin_vf_put(struct vframe_s *vf, void *op_arg)
 		/*	memset(p->dv_buf_ori[vf->index], 0, dolby_size_byte);*/
 	}
 	atomic_dec(&p->buffer_cnt);
+	if (vf_list_dbg & VDIN_VF_MOVE_EN)
+		pr_info("%s,index:%d,index_disp:%d,disp_mode:%d\n", __func__,
+			vf->index, vf->index_disp,
+			p->disp_mode[vf->index_disp % VFRAME_DISP_MAX_NUM]);
 }
 
 int vdin_vf_states(struct vframe_states *vf_ste, void *op_arg)

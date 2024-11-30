@@ -298,8 +298,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		h_active = devp->h_shrink_out;
 		v_active = devp->v_shrink_out;
 	} else {
-		h_active = devp->h_active;
-		v_active = devp->v_active;
+		h_active = devp->h_active + devp->crop_h;
+		v_active = devp->v_active + devp->crop_v;
 	}
 
 	switch (devp->format_convert) {
@@ -600,8 +600,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	}
 
 	/*pixels*/
-	h_size = devp->h_active;
-	v_size = devp->v_active;
+	h_size = devp->h_active + devp->crop_h;
+	v_size = devp->v_active + devp->crop_v;
 
 	if (devp->canvas_config_mode == 1) {
 		h_size = max_buf_width;

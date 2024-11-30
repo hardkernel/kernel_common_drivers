@@ -2458,7 +2458,6 @@ static ssize_t attr_store(struct device *dev,
 	devp = dev_get_drvdata(dev);
 	vdin_parse_param(buf_orig, (char **)&parm);
 	offset = devp->addr_offset;
-
 	if (!strncmp(parm[0], "fps", 3)) {
 		if (devp->cycle)
 			fps = (devp->msr_clk_val +
@@ -4060,7 +4059,7 @@ static ssize_t crop_store(struct device *dev,
 			  struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
-	char *parm[4] = {NULL}, *buf_orig;
+	char *parm[5] = {NULL}, *buf_orig;
 	struct vdin_dev_s *devp = dev_get_drvdata(dev);
 	struct tvin_cutwin_s *crop = &devp->debug.cutwin;
 	long val;
@@ -4071,24 +4070,26 @@ static ssize_t crop_store(struct device *dev,
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	vdin_parse_param(buf_orig, parm);
 
-	if (!parm[3]) {
+	if (!parm[4]) {
 		ret_ext = -EINVAL;
-		pr_info("miss param!!\n");
+		pr_info("miss param!! 5 args\n");
 	} else {
 		if (kstrtol(parm[0], 10, &val) == 0)
-			crop->hs = val;
+			devp->debug.cutwin.en = val;
 		if (kstrtol(parm[1], 10, &val) == 0)
-			crop->he = val;
+			crop->hs = val;
 		if (kstrtol(parm[2], 10, &val) == 0)
-			crop->vs = val;
+			crop->he = val;
 		if (kstrtol(parm[3], 10, &val) == 0)
+			crop->vs = val;
+		if (kstrtol(parm[4], 10, &val) == 0)
 			crop->ve = val;
 	}
 
 	kfree(buf_orig);
 
-	pr_info("hs_offset %u, he_offset %u, vs_offset %u, ve_offset %u.\n",
-		crop->hs, crop->he, crop->vs, crop->ve);
+	pr_info("hs_offset %u, he_offset %u, vs_offset %u, ve_offset %u, chg:%d.\n",
+		crop->hs, crop->he, crop->vs, crop->ve, devp->debug.cutwin.en);
 	return ret_ext;
 }
 

@@ -1300,10 +1300,8 @@ static void vdin_scale_and_cutwin_handle(struct vdin_dev_s *devp)
 		devp->prop.he = 128;
 	}
 
-	if (devp->debug.cutwin.hs ||
-	    devp->debug.cutwin.he ||
-	    devp->debug.cutwin.vs ||
-	    devp->debug.cutwin.ve) {
+	if (devp->debug.cutwin.hs || devp->debug.cutwin.he ||
+	    devp->debug.cutwin.vs || devp->debug.cutwin.ve) {
 		devp->prop.hs = devp->debug.cutwin.hs;
 		devp->prop.he = devp->debug.cutwin.he;
 		devp->prop.vs = devp->debug.cutwin.vs;
@@ -1359,8 +1357,10 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	devp->vframe_wr_en_pre = 1;
 	devp->keystone_vframe_ready = 0;
 	devp->rdma_undone_cnt = 0;
+	devp->h_skip_en = false;
+	devp->v_skip_en = false;
 	memset(&devp->stats, 0, sizeof(devp->stats));
-	//todo:more parameter initializations will be move here
+	//TBC
 }
 
 static void vdin_get_secure_state(struct vdin_dev_s *devp)
@@ -2999,7 +2999,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				 1000));
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin%d cnt:%d vf(%px):%d sg_type:%#x type:%#x flag:%#x %#x dur:%u disp:%d\n",
+			pr_info("vdin%d cnt:%d vf(%px):%d sg_type:%#x %#x flag:%#x %#x dur:%u\n",
 				devp->index, devp->irq_cnt,
 				&devp->vfp->last_last_vfe->vf,
 				devp->vfp->last_last_vfe->vf.index,
@@ -3007,8 +3007,12 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				devp->vfp->last_last_vfe->vf.type,
 				devp->vfp->last_last_vfe->flag,
 				devp->vfp->last_last_vfe->vf.flag,
-				devp->vfp->last_last_vfe->vf.duration,
-				devp->vfp->last_last_vfe->vf.index_disp);
+				devp->vfp->last_last_vfe->vf.duration);
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+			pr_info("disp:%d,wxh:[%d %d]\n",
+				devp->vfp->last_last_vfe->vf.index_disp,
+				devp->vfp->last_last_vfe->vf.width,
+				devp->vfp->last_last_vfe->vf.height);
 
 		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -3346,6 +3350,68 @@ static void vdin_slt_test(struct vdin_dev_s *devp)
 			devp->index, devp->debug.slt_test.vf_ori_crc,
 			!devp->vfp->last_last_vfe ? 0xdeaddeaf : devp->vfp->last_last_vfe->vf.crc,
 			devp->debug.slt_test.vf_pass_cnt, devp->debug.slt_test.vf_check_result);
+}
+
+static void vdin_set_crop(struct vdin_dev_s *devp, struct vf_entry *curr_wr_vfe)
+{
+	struct tvin_sig_property_s *prop;
+
+	if (devp->debug.cutwin.en) {
+		devp->prop.hs = devp->debug.cutwin.hs;
+		devp->prop.he = devp->debug.cutwin.he;
+		devp->prop.vs = devp->debug.cutwin.vs;
+		devp->prop.ve = devp->debug.cutwin.ve;
+	}
+
+	if (!(devp->vdin_function_sel & VDIN_CROP_SEL)) {
+		/* change cut window */
+		if (devp->cut_window_cfg && devp->auto_cut_window_en) {
+			prop = &devp->prop;
+			if (prop->pre_vs || prop->pre_ve)
+				devp->v_active += (prop->pre_vs + prop->pre_ve);
+			if (prop->pre_hs || prop->pre_he)
+				devp->h_active += (prop->pre_hs + prop->pre_he);
+			vdin_set_cutwin(devp, 0);
+			devp->cut_window_cfg = 0;
+			/* the new configuration of wrmif will take effect in the next frame */
+			devp->chg_drop_frame_cnt = 2;
+		}
+		if (devp->auto_cut_window_en && !vdin_is_afbce_enabled(devp))
+			curr_wr_vfe->vf.width = devp->h_active;
+	} else {
+		if (devp->prop.hs || devp->prop.he || devp->prop.vs || devp->prop.ve)
+			curr_wr_vfe->vf.src_crop.magic_code = SRC_CROP_MAGIC_CODE;
+		else
+			curr_wr_vfe->vf.src_crop.magic_code = 0;
+
+		curr_wr_vfe->vf.src_crop.top = devp->prop.vs;
+		curr_wr_vfe->vf.src_crop.bottom = devp->prop.ve;
+		curr_wr_vfe->vf.src_crop.left = devp->prop.hs;
+		curr_wr_vfe->vf.src_crop.right = devp->prop.he;
+		if (!vdin_is_afbce_enabled(devp)) {
+			curr_wr_vfe->vf.width  = devp->h_active - devp->prop.he;
+			if (devp->fmt_info_p && devp->fmt_info_p->scan_mode ==
+				TVIN_SCAN_MODE_INTERLACED)
+				curr_wr_vfe->vf.height = (devp->v_active << 1) - devp->prop.ve;
+			else
+				curr_wr_vfe->vf.height = devp->v_active - devp->prop.ve;
+		} else {
+			curr_wr_vfe->vf.width  = devp->h_shrink_out - devp->prop.he;
+			curr_wr_vfe->vf.height = devp->v_shrink_out - devp->prop.ve;
+		}
+		devp->prop.pre_vs = devp->prop.vs;
+		devp->prop.pre_ve = devp->prop.ve;
+		devp->prop.pre_hs = devp->prop.hs;
+		devp->prop.pre_he = devp->prop.he;
+	}
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_CROP)
+		pr_info("vdin%d,func:%#x,prop[%d %d %d %d],mc:%#x,[%d %d %d %d],wxh[%d %d]\n",
+			devp->index, devp->vdin_function_sel,
+			devp->prop.hs, devp->prop.he, devp->prop.vs, devp->prop.he,
+			curr_wr_vfe->vf.src_crop.magic_code,
+			curr_wr_vfe->vf.src_crop.top, curr_wr_vfe->vf.src_crop.bottom,
+			curr_wr_vfe->vf.src_crop.left, curr_wr_vfe->vf.src_crop.right,
+			curr_wr_vfe->vf.width, curr_wr_vfe->vf.height);
 }
 
 /*
@@ -3718,22 +3784,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->csc_cfg = 0;
 		}
 	}
-	/* change cut window */
-	if (devp->cut_window_cfg != 0 && devp->auto_cut_window_en == 1) {
-		prop = &devp->prop;
-		if (prop->pre_vs || prop->pre_ve)
-			devp->v_active += (prop->pre_vs + prop->pre_ve);
-		if (prop->pre_hs || prop->pre_he)
-			devp->h_active += (prop->pre_hs + prop->pre_he);
-		vdin_set_cutwin(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
-		prop->pre_vs = prop->vs;
-		prop->pre_ve = prop->ve;
-		prop->pre_hs = prop->hs;
-		prop->pre_he = prop->he;
-		devp->cut_window_cfg = 0;
-	}
-	if (devp->auto_cut_window_en && !vdin_is_afbce_enabled(devp))
-		curr_wr_vf->width = devp->h_active;
 
 	dec_ops = devp->frontend->dec_ops;
 	if (!dec_ops || !dec_ops->decode_isr ||
@@ -3889,7 +3939,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (IS_TVAFE_ATV_SRC(devp->parm.port) &&
 	    (devp->flags & VDIN_FLAG_SNOW_FLAG))
 		curr_wr_vf->height = 480;
-	curr_wr_vfe->flag |= VF_FLAG_NORMAL_FRAME;
+
 	if (IS_TVAFE_SRC(devp->parm.port) ||
 	    ((devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) &&
 	     (IS_TVAFE_SRC(devp->parm.port) || IS_HDMI_SRC(devp->parm.port))))
@@ -3937,6 +3987,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	devp->curr_wr_vfe = next_wr_vfe;
 	vdin_set_vfe_info(devp, next_wr_vfe);
+	vdin_set_crop(devp, curr_wr_vfe);
 
 	if (!(devp->flags & VDIN_FLAG_RDMA_ENABLE) ||
 	    (devp->game_mode & VDIN_GAME_MODE_1)) {

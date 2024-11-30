@@ -1362,7 +1362,6 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 	if (vdin_ctl_dbg)
 		pr_info("%s decimation_ratio=%u,new_clk=%u.\n",
 			__func__, devp->prop.decimation_ratio, new_clk);
-
 	devp->h_active = devp->fmt_info_p->h_active /
 			(devp->prop.decimation_ratio + 1);
 	devp->v_active = devp->fmt_info_p->v_active;
@@ -1415,6 +1414,8 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 	/* output_width_m1 */
 	wr_bits(offset, VDIN_INTF_WIDTHM1, (devp->h_active - 1),
 		VDIN_INTF_WIDTHM1_BIT, VDIN_INTF_WIDTHM1_WID);
+	devp->h_active_org = devp->h_active;
+	devp->v_active_org = devp->v_active;
 	if (vdin_ctl_dbg)
 		pr_info("%s: h_active=%u, v_active=%u\n",
 			__func__, devp->h_active, devp->v_active);
@@ -1450,98 +1451,88 @@ void vdin_fix_nonstd_vsync(struct vdin_dev_s *devp)
 	}
 }
 
-/*this function will set the bellow parameters of devp:
- * 1.h_active
- * 2.v_active
- *	set VDIN_WIN_H_START_END
- *		Bit 28:16 input window H start
- *		Bit 12:0  input window H end
- *	set VDIN_WIN_V_START_END
- *		Bit 28:16 input window V start
- *		Bit 12:0  input window V start
- */
-void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable)
+void vdin_cfg_cutwin_regs(struct vdin_dev_s *devp,
+	unsigned int rdma_enable, struct tvin_cutwin_s *cutwin_s)
 {
+	bool cutwin_en;
 	unsigned int offset = devp->addr_offset;
-	unsigned int he = 0, ve = 0;
-
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
-		vdin_set_cutwin_s5(devp);
+		vdin_cfg_cutwin_regs_s5(devp, rdma_enable, cutwin_s);
 		return;
 	} else if (is_meson_t3x_cpu()) {
-		vdin_set_cutwin_t3x(devp);
+		vdin_cfg_cutwin_regs_t3x(devp, rdma_enable, cutwin_s);
 		return;
 	}
 #endif
-	if (devp->h_skip_en) {
-		devp->prop.hs = devp->prop.hs / 2;
-		devp->prop.he = devp->prop.he / 2;
+
+	cutwin_en = (cutwin_s->hs || cutwin_s->he || cutwin_s->vs || cutwin_s->ve);
+	//update cut window
+	wr(offset, VDIN_WIN_H_START_END,
+		(cutwin_s->hs << INPUT_WIN_H_START_BIT) |
+		(cutwin_s->he << INPUT_WIN_H_END_BIT));
+	wr(offset, VDIN_WIN_V_START_END,
+		(cutwin_s->vs << INPUT_WIN_V_START_BIT) |
+		(cutwin_s->ve << INPUT_WIN_V_END_BIT));
+	wr_bits(offset, VDIN_COM_CTRL0, cutwin_en,
+		INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
+	//update wrmif
+	if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
+		if (vdin_is_convert_to_nv21(devp->format_convert)) {
+			wr_bits(offset, VDIN_WRMIF_CHRM_X, (devp->h_active - 1) >> 1, 16, 13);
+			/* vlsi suggest */
+			wr_bits(offset, VDIN_WRMIF_CHRM_Y, (devp->v_active - 1) >> 1, 16, 13);
+			wr_bits(offset, VDIN_WRMIF_CTRL1, 1, 25, 1);
+		} else {
+			wr_bits(offset, VDIN_WRMIF_CHRM_X, (devp->h_active - 1), 16, 13);
+			/* vlsi suggest */
+			wr_bits(offset, VDIN_WRMIF_CHRM_Y, (devp->v_active - 1), 16, 13);
+		}
+		wr_bits(offset, VDIN_WRMIF_LUMA_X, (devp->h_active - 1), 16, 13);
+		/* win_ve */
+		wr_bits(offset, VDIN_WRMIF_LUMA_Y, (devp->v_active - 1), 16, 13);
+	} else {
+		wr_bits(offset, VDIN_WR_H_START_END,
+			(devp->h_active - 1), WR_HEND_BIT, WR_HEND_WID);
+		/* win_ve */
+		wr_bits(offset, VDIN_WR_V_START_END,
+			(devp->v_active - 1), WR_VEND_BIT, WR_VEND_WID);
 	}
+	//TODO:update afbce
+}
+
+void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable)
+{
+	struct tvin_cutwin_s cutwin_s;
+
 	if ((devp->prop.hs || devp->prop.he ||
 	     devp->prop.vs || devp->prop.ve) &&
 	    devp->h_active > (devp->prop.hs + devp->prop.he) &&
 	    devp->v_active > (devp->prop.vs + devp->prop.ve)) {
+		devp->crop_h = (devp->prop.he + devp->prop.hs);
+		devp->crop_v = (devp->prop.ve + devp->prop.vs);
 		devp->h_active -= (devp->prop.he + devp->prop.hs);
 		devp->v_active -= (devp->prop.ve + devp->prop.vs);
-		he = devp->prop.hs + devp->h_active - 1;
-		ve = devp->prop.vs + devp->v_active - 1;
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-		if (rdma_enable) {
-			rdma_write_reg(devp->rdma_handle, VDIN_WIN_H_START_END + devp->addr_offset,
-				(devp->prop.hs << INPUT_WIN_H_START_BIT) |
-				(he << INPUT_WIN_H_END_BIT));
-			rdma_write_reg(devp->rdma_handle, VDIN_WIN_V_START_END + devp->addr_offset,
-				(devp->prop.vs << INPUT_WIN_V_START_BIT) |
-				(ve << INPUT_WIN_V_END_BIT));
-			rdma_write_reg_bits(devp->rdma_handle, VDIN_COM_CTRL0 + devp->addr_offset,
-				1, INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
-		} else {
-#endif
-			wr(offset, VDIN_WIN_H_START_END,
-			   (devp->prop.hs << INPUT_WIN_H_START_BIT) |
-			   (he << INPUT_WIN_H_END_BIT));
-			wr(offset, VDIN_WIN_V_START_END,
-			   (devp->prop.vs << INPUT_WIN_V_START_BIT) |
-			   (ve << INPUT_WIN_V_END_BIT));
-			wr_bits(offset, VDIN_COM_CTRL0, 1,
-				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-		}
-#endif
-		if (vdin_ctl_dbg)
-			pr_info("%s enable cutwin hs=%d, he=%d,  vs=%d, ve=%d\n",
-				__func__,
-			devp->prop.hs, devp->prop.he,
-			devp->prop.vs, devp->prop.ve);
+		cutwin_s.hs = devp->prop.hs;
+		cutwin_s.vs = devp->prop.vs;
+		cutwin_s.he = devp->prop.hs + devp->h_active - 1;
+		cutwin_s.ve = devp->prop.vs + devp->v_active - 1;
 	} else {
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-		if (rdma_enable) {
-			rdma_write_reg(devp->rdma_handle,
-				VDIN_WIN_H_START_END + devp->addr_offset, 0);
-			rdma_write_reg(devp->rdma_handle,
-				VDIN_WIN_V_START_END + devp->addr_offset, 0);
-			rdma_write_reg_bits(devp->rdma_handle,
-				VDIN_COM_CTRL0 + devp->addr_offset, 0,
-				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
-		} else {
-#endif
-			wr(offset, VDIN_WIN_H_START_END, 0);
-			wr(offset, VDIN_WIN_V_START_END, 0);
-			wr_bits(offset, VDIN_COM_CTRL0, 0,
-				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-		}
-#endif
-		if (vdin_ctl_dbg)
-			pr_info("%s disable cutwin!!! hs=%d, he=%d,  vs=%d, ve=%d\n",
-				__func__, devp->prop.hs, devp->prop.he,
-				devp->prop.vs, devp->prop.ve);
+		cutwin_s.hs = 0;
+		cutwin_s.he = 0;
+		cutwin_s.vs = 0;
+		cutwin_s.ve = 0;
+		devp->crop_h = 0;
+		devp->crop_v = 0;
 	}
+
 	devp->prop.pre_vs = devp->prop.vs;
 	devp->prop.pre_ve = devp->prop.ve;
 	devp->prop.pre_hs = devp->prop.hs;
 	devp->prop.pre_he = devp->prop.he;
+
+	vdin_cfg_cutwin_regs(devp, rdma_enable, &cutwin_s);
+
 	if (vdin_ctl_dbg)
 		pr_info("%s: h_active=%d, v_active=%d, hs:%u, he:%u, vs:%u, ve:%u\n",
 			__func__, devp->h_active, devp->v_active,
@@ -5182,10 +5173,6 @@ void vdin_set_hv_scale(struct vdin_dev_s *devp)
 
 	if (K_FORCE_HV_SHRINK)
 		goto set_hv_shrink;
-
-	/*backup current h v size*/
-	devp->h_active_org = devp->h_active;
-	devp->v_active_org = devp->v_active;
 
 	vdin_scaling_adjust(devp);
 
