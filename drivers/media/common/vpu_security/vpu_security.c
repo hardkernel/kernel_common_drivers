@@ -550,8 +550,8 @@ int secure_register(enum secure_module_e module,
 			ins->reg_wr_op[i] = reg_op[i];
 		ins->secure_cb = cb;
 		mutex_unlock(lock);
+		pr_info("%s module=%d ok\n", __func__, module);
 	}
-	pr_info("%s module=%d ok\n", __func__, module);
 	return 0;
 }
 EXPORT_SYMBOL(secure_register);
