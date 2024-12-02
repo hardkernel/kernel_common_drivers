@@ -356,7 +356,8 @@ int mediaproxy_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 
-	try_module_get(THIS_MODULE);
+	if (!try_module_get(THIS_MODULE))
+		return -ENODEV;
 	pr_info("mediaproxy_open start\n");
 	ret = session_creat((void **)&filp->private_data, "app");
 	if (ret) {
@@ -439,7 +440,7 @@ static int mediaproxy_connect(enum mp_role_e role, u32 fifo_len, struct mediapro
 				if (session->fifo_idx >= 0) {
 					mediaproxy->p_fifo[session->fifo_idx]->subscribe_msg_type =
 						session->subscribe_msg_type;
-					strncpy(mediaproxy->p_fifo[session->fifo_idx]->module_name,
+					strscpy(mediaproxy->p_fifo[session->fifo_idx]->module_name,
 						session->module_name, STR_MAX_SIZE - 1);
 				}
 				break;
@@ -468,7 +469,7 @@ static int mediaproxy_connect(enum mp_role_e role, u32 fifo_len, struct mediapro
 				if (session->fifo_idx >= 0) {
 					mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type =
 						session->subscribe_msg_type;
-					strncpy(mediaproxy->c_fifo[session->fifo_idx]->module_name,
+					strscpy(mediaproxy->c_fifo[session->fifo_idx]->module_name,
 						session->module_name, STR_MAX_SIZE - 1);
 				}
 				break;
