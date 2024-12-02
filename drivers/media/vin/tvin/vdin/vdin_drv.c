@@ -1231,14 +1231,8 @@ int vdin_crop_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
 		devp->prop.he = para->h_active - para->crop[2] - para->crop[1];
 		devp->prop.vs = para->crop[0];
 		devp->prop.ve = para->v_active - para->crop[3] - para->crop[0];
-		devp->prop.scaling4w = para->crop[2];
-		devp->prop.scaling4h = para->crop[3];
-	} else {
-		if (devp->parm.dest_width != 0 ||
-			devp->parm.dest_height != 0) {
-			devp->prop.scaling4w = devp->parm.dest_width;
-			devp->prop.scaling4h = devp->parm.dest_height;
-		}
+		devp->prop.scaling4w = para->dest_h_active;
+		devp->prop.scaling4h = para->dest_v_active;
 	}
 	return 0;
 }
