@@ -3482,9 +3482,9 @@ static void aml_bl_config_probe_work(struct work_struct *p_work)
 
 	if (bl_config_load(bdrv, bdrv->pdev, bl_level_bootup[bdrv->index])) {
 		platform_set_drvdata(bdrv->pdev, NULL);
-		kfree(bdrv);
 		bl_drv[bdrv->index] = NULL;
 		bl_drv_init_state &= ~(1 << bdrv->index);
+		kfree(bdrv);
 	}
 }
 

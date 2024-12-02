@@ -40,13 +40,13 @@ int strnum_get_num(const char *str, struct num_str_s *arr, int size_arr, int dft
 	int i = 0;
 
 	if (!str || !arr)
-		return -1;
+		return dft;
 
 	for (i = 0; i < size_arr; i++) {
 		if (strcmp(str, arr[i].str) == 0)
 			return arr[i].num;
 	}
-	return -1;
+	return dft;
 }
 
 char *strnum_get_str(int num, struct num_str_s *arr, int size_arr, char *dft)
@@ -54,13 +54,13 @@ char *strnum_get_str(int num, struct num_str_s *arr, int size_arr, char *dft)
 	int i = 0;
 
 	if (!arr)
-		return NULL;
+		return dft;
 
 	for (i = 0; i < size_arr; i++) {
 		if (num == arr[i].num)
 			return arr[i].str;
 	}
-	return NULL;
+	return dft;
 }
 
 int string_to_numbers(const char *str, unsigned int nums[])
@@ -68,28 +68,32 @@ int string_to_numbers(const char *str, unsigned int nums[])
 	int item_ind = 0, i = 0;
 	char *token = NULL;
 	char *tmp_buf = NULL;
-	int str_len = strlen(str);
+	int str_len;
 	unsigned int temp = 0;
 
 	if (!str)
 		return 0;
 
-	tmp_buf = kmalloc(str_len + 1, GFP_KERNEL);
+	str_len = strlen(str);
+	tmp_buf = kmalloc(str_len + 2, GFP_KERNEL);
 	if (!tmp_buf)
-		return -1;
+		return 0;
 
 	strcpy(tmp_buf, str);
 	tmp_buf[str_len] = '\0';
+	tmp_buf[str_len  + 1] = '\0';
 	token = tmp_buf;
 	while (i <= str_len) {
 		if (tmp_buf[i] == ',' || i == str_len) {
 			while (*token <= ' ')
 				token++;
 			tmp_buf[i] = '\0';
-			if (!kstrtouint(token, 0, &temp))
+			if (!kstrtouint(token, 0, &temp)) {
 				nums[item_ind++] = temp;
-			else
-				return 0;
+			} else {
+				item_ind = 0;
+				break;
+			}
 			token = tmp_buf + i + 1;
 		}
 		i++;

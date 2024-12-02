@@ -1224,7 +1224,7 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 
 //ctrl
 	child = json_get_object_child(jsp, parent, "ctrl");
-	if (!child) {
+	if (child) {
 		str = json_get_obj_str(jsp, child, "pinmux_name", NULL);
 		strncpy(dev_drv->pinmux_name, str ? str : "invalid", (LDIM_DEV_NAME_MAX - 1));
 
@@ -1294,36 +1294,38 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 		dev_drv->cmd_size = LCD_EXT_CMD_SIZE_DYNAMIC;
 
 		str = json_get_obj_str(jsp, child, "init_on", NULL);
-		nums_size = (strlen(str)) * sizeof(unsigned int);
-		nums = kzalloc(nums_size, GFP_KERNEL);
-		if (!nums) {
-			LDIMPR("ldim find init_on: no memory to save nums\n");
-			goto parse_ldim_init_off;
+		if (str) {
+			nums_size = (strlen(str)) * sizeof(unsigned int);
+			nums = kzalloc(nums_size, GFP_KERNEL);
+			if (!nums) {
+				LDIMPR("ldim find init_on: no memory to save nums\n");
+				goto parse_ldim_init_off;
+			}
+
+			memset(nums, 0, nums_size);
+			cnt = string_to_numbers(str, nums);
+			ldim_dev_init_dynamic_load_array(dev_drv, nums, cnt, 1);
+			kfree(nums);
 		}
-
-		memset(nums, 0, nums_size);
-		cnt = string_to_numbers(str, nums);
-		ldim_dev_init_dynamic_load_array(dev_drv, nums, cnt, 1);
-
 parse_ldim_init_off:
-		kfree(nums);
 		str = json_get_obj_str(jsp, child, "init_off", NULL);
-		nums_size = (strlen(str)) * sizeof(unsigned int);
-		nums = kzalloc(nums_size, GFP_KERNEL);
-		if (!nums) {
-			LDIMPR("ldim find init_on: no memory to save nums\n");
-			goto ldim_dev_get_config_from_json_end;
+		if (str) {
+			nums_size = (strlen(str)) * sizeof(unsigned int);
+			nums = kzalloc(nums_size, GFP_KERNEL);
+			if (!nums) {
+				LDIMPR("ldim find init_on: no memory to save nums\n");
+				goto ldim_dev_get_config_from_json_end;
+			}
+
+			memset(nums, 0, nums_size);
+			cnt = string_to_numbers(str, nums);
+			ldim_dev_init_dynamic_load_array(dev_drv, nums, cnt, 0);
+			kfree(nums);
 		}
-
-		memset(nums, 0, nums_size);
-		cnt = string_to_numbers(str, nums);
-		ldim_dev_init_dynamic_load_array(dev_drv, nums, cnt, 0);
-
 		dev_drv->init_loaded = 1;
 	}
 
 ldim_dev_get_config_from_json_end:
-	kfree(nums);
 
 	return 0;
 }

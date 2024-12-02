@@ -810,13 +810,15 @@ int lcd_extern_get_config_json(struct lcd_extern_driver_s *edrv,
 		return -1;
 	}
 	parent = json_get_array_child(jsp, parent, edev->dev_index);
-	if (!parent)
+	if (!parent) {
 		EXTERR("find /lcd_ext_dev[%d]\n", edev->dev_index);
+		return -1;
+	}
 
 	cfg = &edev->config;
 	cfg->index = edev->dev_index;
 	str = json_get_obj_str(jsp, parent, "name", "ext_default");
-	strcpy(cfg->name, str ? str : "ext_default");
+	strscpy(cfg->name, str ? str : "ext_default", LCD_EXTERN_NAME_LEN_MAX);
 	str = json_get_obj_str(jsp, parent, "type", NULL);
 	cfg->type = strnum_get_num(str, ext_type_name, ARRAY_SIZE(ext_type_name), LCD_EXTERN_MAX);
 	cfg->status = json_get_obj_u32(jsp, parent, "status", 0);
@@ -869,22 +871,22 @@ int lcd_extern_get_config_json(struct lcd_extern_driver_s *edrv,
 	if (cfg->table_init_on) {
 		memcpy(cfg->table_init_on, p + 8, on_cnt);
 		cfg->table_init_on_cnt = on_cnt;
+		if (lcd_extern_init_table_check(cfg->table_init_on, on_cnt)) {
+			kfree(cfg->table_init_on);
+			cfg->table_init_on = NULL;
+			cfg->table_init_on_cnt = 0;
+			EXTPR("%s init_on check fail\n", __func__);
+		}
 	}
 	if (cfg->table_init_off) {
 		memcpy(cfg->table_init_off, p + 8 + on_cnt, off_cnt);
 		cfg->table_init_off_cnt = off_cnt;
-	}
-
-	if (lcd_extern_init_table_check(cfg->table_init_on, on_cnt)) {
-		kfree(cfg->table_init_on);
-		cfg->table_init_on = NULL;
-		EXTPR("%s init_on check fail\n", __func__);
-	}
-
-	if (lcd_extern_init_table_check(cfg->table_init_off, off_cnt)) {
-		kfree(cfg->table_init_off);
-		cfg->table_init_off = NULL;
-		EXTPR("%s init_off check fail\n", __func__);
+		if (lcd_extern_init_table_check(cfg->table_init_off, off_cnt)) {
+			kfree(cfg->table_init_off);
+			cfg->table_init_off = NULL;
+			cfg->table_init_off_cnt = 0;
+			EXTPR("%s init_off check fail\n", __func__);
+		}
 	}
 
 parse_init_end:
