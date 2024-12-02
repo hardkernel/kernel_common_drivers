@@ -2060,6 +2060,9 @@ static void s6_osd_hw_init(struct meson_vpu_block *vblk)
 	osd->mali_src_en_switch = 1;
 	if (vblk->index == MESON_OSD3)
 		osd->is_viu2_osd = 1;
+	osd->has_gfcd = true;
+	osd->gfcd_global_alpha_policy =
+		!!(pipeline->priv->of_conf.gfcd_mask & BIT(GFCD_GLOBAL_ALPHA));
 
     /* osd secure function init */
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
