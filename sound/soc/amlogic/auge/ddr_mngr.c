@@ -740,6 +740,7 @@ static bool aml_toddr_check_status_flag(struct toddr *to)
 		udelay(1);
 		/* STATUS1 bit 23, stop_ddr_done */
 		if (to->reg_map && to->use_vad_toddr) {
+			reg = EE_AUDIO2_TODDR_VAD_STATUS1;
 			status = (mmio_read(to->reg_map,
 					EE_AUDIO2_TODDR_VAD_STATUS1) & 0x800000) >> 23;
 		} else {
