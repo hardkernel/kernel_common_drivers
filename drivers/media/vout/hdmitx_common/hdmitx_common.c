@@ -996,9 +996,7 @@ enum frl_rate_enum hdmitx_select_frl_rate(u8 *dsc_en, u8 dsc_policy, enum hdmi_v
 		timing->v_freq, tx_tmds_bandwidth);
 	/* If the tmds bandwidth is less than 594MHz, then select the tmds mode */
 	/* the HxVp48hz is new introduced in HDMI 2.1 / CEA-861-H */
-	if (timing->h_active <= 4096 && timing->v_active <= 2160 &&
-		timing->v_freq != 48000 && tx_tmds_bandwidth <= 594 &&
-		timing->pixel_freq / 1000 < 600)
+	if (tx_tmds_bandwidth <= 594 && timing->pixel_freq / 1000 < 600)
 		return FRL_NONE;
 	/* tx_frl_bandwidth = tmds_bandwidth * 24 * 1.122 */
 	tx_frl_bandwidth = tx_tmds_bandwidth * 24;
