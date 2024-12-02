@@ -5178,8 +5178,10 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 
 		dma_q->kthread = NULL;
 	}
-	if (node->context)
+	if (node->context) {
 		destroy_ge2d_work_queue(node->context);
+		node->context = NULL;
+	}
 	mutex_unlock(&node->mutex);
 	if (amlvideo2_dbg_en & 1) {
 		if (node->vid == 0)
