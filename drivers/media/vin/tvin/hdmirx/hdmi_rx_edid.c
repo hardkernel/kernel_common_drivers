@@ -681,19 +681,19 @@ void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 void rx_edid_update_vrr_info(unsigned char *p_edid)
 {
 	u_int hf_vsdb_start = 0;
-	u8 tag_len, i;
+	u8 tag_len;
 
 	if (!p_edid)
 		return;
 	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
 	if (!hf_vsdb_start)
 		return;
+
 	tag_len = (p_edid[hf_vsdb_start] & 0x1f) + 1;
+	if (tag_len <= 9 || vrr_func_en == 0xff)
+		return;
 	if (log_level & EDID_LOG)
 		rx_pr("tag_len = %d", tag_len);
-	if (tag_len <= 9)
-		return;
-
 	if (vrr_func_en) {
 		if (rx_info.vrr_min == 0)
 			return;
@@ -705,15 +705,8 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 				  rx_info.vrr_min, rx_info.vrr_max);
 	} else {
 		edid_rm_db_by_tag(p_edid, VSDB_FREESYNC_TAG);
-		rx_pr("hf_vsdb_start = %d", hf_vsdb_start);
-		p_edid[hf_vsdb_start] = 0x68;
-		p_edid[hf_vsdb_start + 8] &= 0x02;
-		for (i = hf_vsdb_start + 9; i < 254 - tag_len + 9; i++)
-			p_edid[i] = p_edid[i + tag_len - 9];
-		for (i = 254 - tag_len + 9; i < 254; i++)
-			p_edid[i] = 0;
-		/* dtd offset modify */
-		p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len - 9;
+		p_edid[hf_vsdb_start + 9] = 0;
+		p_edid[hf_vsdb_start + 10] = 0;
 	}
 }
 
@@ -743,6 +736,32 @@ void rx_edid_update_allm_info(unsigned char *p_edid)
 			rx_pr("disable allm.\n");
 	} else {
 		rx_pr("invalid allm_func_en: %d.\n", allm_func_en);
+	}
+}
+
+void rx_edid_update_qms_info(unsigned char *p_edid)
+{
+	u_int hf_vsdb_start = 0;
+	u8 tag_len;
+
+	if (!p_edid)
+		return;
+	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	if (!hf_vsdb_start)
+		return;
+	tag_len = p_edid[hf_vsdb_start] & 0x1f;
+	if (tag_len < 10 || qms_func_en == 0xff)
+		return;
+	if (log_level & EDID_LOG)
+		rx_pr("tag_len = %d", tag_len);
+	if (qms_func_en == 0) {
+		p_edid[hf_vsdb_start + 8] &= ~0x40;
+		p_edid[hf_vsdb_start + 11] &= ~0x10;
+		p_edid[hf_vsdb_start + 11] &= ~0x20;
+		if (log_level & EDID_LOG)
+			rx_pr("disable qms.\n");
+	} else {
+		rx_pr("invalid qms_func_en: %d.\n", qms_func_en);
 	}
 }
 
@@ -5231,10 +5250,9 @@ bool hdmi_rx_top_edid_update(void)
 		rx_edid_update_hdr_dv_info(pedid);
 		rx_edid_update_sad(pedid);
 		rx_edid_update_vsvdb(pedid, recv_vsvdb, recv_vsvdb_len);
-		if (vrr_range_dynamic_update_en)
-			rx_edid_update_vrr_info(pedid);
-		if (allm_update_en)
-			rx_edid_update_allm_info(pedid);
+		rx_edid_update_vrr_info(pedid);
+		rx_edid_update_allm_info(pedid);
+		rx_edid_update_qms_info(pedid);
 #ifdef CONFIG_AMLOGIC_HDMITX
 		rpt_edid_extraction(pedid);
 #endif

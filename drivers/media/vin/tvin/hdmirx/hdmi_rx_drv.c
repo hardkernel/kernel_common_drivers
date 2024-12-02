@@ -228,9 +228,6 @@ u32 rpt_edid_selection;
 /* disable hdr function in dts */
 u32 disable_hdr;
 
-//vrr field VRRmin/max dynamic update enable
-u32 vrr_range_dynamic_update_en;
-u32 allm_update_en;
 int rx_phy_level = 1;
 int def_trim_value;
 static struct notifier_block aml_hdcp22_pm_notifier = {
@@ -2910,6 +2907,30 @@ static ssize_t allm_func_ctrl_store(struct device *dev,
 	return count;
 }
 
+static ssize_t qms_func_ctrl_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	return sprintf(buf, "qms func: %d\n", qms_func_en);
+}
+
+static ssize_t qms_func_ctrl_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t count)
+{
+	int ret;
+	unsigned int tmp = 0;
+
+	ret = kstrtouint(buf, 16, &tmp);
+	if (ret)
+		return -EINVAL;
+
+	qms_func_en = tmp;
+	rx_pr("set qms_func_en to: %d\n", qms_func_en);
+	return count;
+}
+
 static ssize_t audio_blk_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
@@ -3115,6 +3136,7 @@ static DEVICE_ATTR_RO(scan_mode);
 static DEVICE_ATTR_RW(edid_with_port);
 static DEVICE_ATTR_RW(vrr_func_ctrl);
 static DEVICE_ATTR_RW(allm_func_ctrl);
+static DEVICE_ATTR_RW(qms_func_ctrl);
 static DEVICE_ATTR_RW(hdcp14_onoff);
 static DEVICE_ATTR_RW(hdcp22_onoff);
 static DEVICE_ATTR_RO(mode);
@@ -3802,6 +3824,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("hdmirx: fail to create allm_func_ctrl file\n");
 		goto fail_create_allm_func_ctrl;
 	}
+	ret = device_create_file(hdevp->dev, &dev_attr_qms_func_ctrl);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create qms_func_ctrl file\n");
+		goto fail_create_qms_func_ctrl;
+	}
 	ret = device_create_file(hdevp->dev, &dev_attr_audio_blk);
 	if (ret < 0) {
 		rx_pr("hdmirx: fail to create audio_blk file\n");
@@ -4135,18 +4162,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 				   "en_4k_timing", &en_4k_timing);
 	if (ret)
 		en_4k_timing = 1;
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "vrr_range_dynamic_update_en", &vrr_range_dynamic_update_en);
-	if (ret) {
-		vrr_range_dynamic_update_en = 0;
-		rx_sprintf(&boot_info_num, "vrr_range_dynamic_update_en not found.");
-	}
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "allm_update_en", &allm_update_en);
-	if (ret) {
-		allm_update_en = 0;
-		rx_sprintf(&boot_info_num, "allm_update_en not found.");
-	}
+
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "hpd_low_cec_off", &hpd_low_cec_off);
 	if (ret)
@@ -4283,6 +4299,8 @@ fail_create_audio_blk:
 	device_remove_file(hdevp->dev, &dev_attr_audio_blk);
 fail_create_edid_select:
 	device_remove_file(hdevp->dev, &dev_attr_edid_select);
+fail_create_qms_func_ctrl:
+	device_remove_file(hdevp->dev, &dev_attr_qms_func_ctrl);
 fail_create_allm_func_ctrl:
 	device_remove_file(hdevp->dev, &dev_attr_allm_func_ctrl);
 fail_create_vrr_func_ctrl:

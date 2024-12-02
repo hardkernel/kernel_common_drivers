@@ -79,8 +79,9 @@ static int reset_pcs_en;
 static int force_avi_stable;
 int fsm_debug;
 static int ecc_err_monitor;
-u32 vrr_func_en = 1;
+u32 vrr_func_en = 0xff;
 u32 allm_func_en = 0xff;
+u32 qms_func_en = 0xff;
 u32 htotal_cnt;
 static int frate_flg = 0xf;
 static int frate_flg1 = 0xf;
@@ -3048,6 +3049,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(wait_no_sig_max, i++);
 	pr_var(vrr_func_en, i++);
 	pr_var(allm_func_en, i++);
+	pr_var(qms_func_en, i++);
 #ifdef CONFIG_AMLOGIC_HDMITX
 	pr_var(receive_edid_len, i++);
 #endif
@@ -3121,8 +3123,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(dbg_cs, i++);
 	pr_var(dbg_pkt, i++);
 	pr_var(rpt_edid_selection, i++);
-	pr_var(vrr_range_dynamic_update_en, i++);
-	pr_var(allm_update_en, i++);
 	pr_var(vpcore_debug, i++);
 	pr_var(tuning_cnt, i++);
 	pr_var(frl_scrambler_en, i++);
@@ -3365,6 +3365,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(vrr_func_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(allm_func_en), &allm_func_en, value))
 		return pr_var(allm_func_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(qms_func_en), &qms_func_en, value))
+		return pr_var(qms_func_en, index);
 #ifdef CONFIG_AMLOGIC_HDMITX
 	if (set_pr_var(tmpbuf, var_to_str(receive_edid_len), &receive_edid_len, value))
 		return pr_var(receive_edid_len, index);
@@ -3520,12 +3522,6 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rpt_edid_selection),
 	    &rpt_edid_selection, value))
 		return pr_var(rpt_edid_selection, index);
-	if (set_pr_var(tmpbuf, var_to_str(vrr_range_dynamic_update_en),
-	    &vrr_range_dynamic_update_en, value))
-		return pr_var(vrr_range_dynamic_update_en, index);
-	if (set_pr_var(tmpbuf, var_to_str(allm_update_en),
-	    &allm_update_en, value))
-		return pr_var(allm_update_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx_phy_level),
 	    &rx_phy_level, value))
 		return pr_var(rx_phy_level, index);

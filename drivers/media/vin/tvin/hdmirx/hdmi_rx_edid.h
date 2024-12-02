@@ -14,6 +14,7 @@
 //2024.11.06 get edid size and frl
 //2024.11.20 add new edid function
 //2024.11.28 change the location for get edid size and frl
+//2024.12.18 add qms function
 #define RX_EDID_H_VER "ver.2024/11/20"
 
 #define EDID_EXT_BLK_OFF	128
