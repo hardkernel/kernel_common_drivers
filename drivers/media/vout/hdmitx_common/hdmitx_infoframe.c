@@ -709,15 +709,26 @@ static void hdmitx_sdr_hdr_uevent(void)
 				HDMITX_HDR_EVENT, 0, false);
 }
 
+static void hdmitx_video_mute_op(bool flag)
+{
+	if (!global_tx_common->hdmi_init)
+		return;
+
+	/* video mute is handled in the vsync_intr_handler interface */
+	if (flag)
+		global_tx_common->vid_mute_op = VIDEO_MUTE;
+	else
+		global_tx_common->vid_mute_op = VIDEO_UNMUTE;
+}
+
 void hdr_unmute_work_func(struct work_struct *work)
 {
 	unsigned int mute_us;
-	struct hdmitx_hw_common *tx_hw = global_tx_common->tx_hw;
 
 	if (hdr_mute_frame) {
 		mute_us = hdr_mute_frame * hdmitx_get_frame_duration();
 		usleep_range(mute_us, mute_us + 10);
-		hdmitx_hw_cntl_config(tx_hw, CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
+		hdmitx_video_mute_op(false);
 	}
 }
 
@@ -983,8 +994,7 @@ void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		global_tx_common->hdmi_last_hdr_mode = global_tx_common->hdmi_current_hdr_mode;
 		/* only SDR->HDR10/SDR->HLG need mute */
 		if (hdr_mute_frame && save_last_hdr_mode == 0) {
-			/* TODO mute in vsync */
-			hdmitx_hw_cntl_config(tx_hw, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
+			hdmitx_video_mute_op(true);
 			HDMITX_INFO("hdr: video mute %d frames\n", hdr_mute_frame);
 			/*
 			 * force unmute after specific frames,

@@ -166,5 +166,4 @@ void print_hsty_hdmiaud_config_data(void);
  ***********************************************************************/
 void hdmitx_meson_init(struct hdmitx_dev *hdmitx_device);
 
-void hdmitx20_video_mute_op(unsigned int flag);
 #endif

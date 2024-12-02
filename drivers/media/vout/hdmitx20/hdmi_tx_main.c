@@ -284,24 +284,6 @@ void hdmitx20_audio_mute_op(unsigned int flag)
 			CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
 }
 
-void hdmitx20_video_mute_op(unsigned int flag)
-{
-	struct hdmitx_dev *hdev = get_hdmitx_device();
-
-	if (hdev->tx_comm.hdmi_init != HDMITX20)
-		return;
-
-	if (flag == 0) {
-		/* hdev->tx_hw.base.cntlconfig(&hdev->tx_hw.base, */
-			/* CONF_VIDEO_MUTE_OP, VIDEO_MUTE); */
-		hdev->tx_comm.vid_mute_op = VIDEO_MUTE;
-	} else {
-		/* hdev->tx_hw.base.cntlconfig(&hdev->tx_hw.base, */
-			/* CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE); */
-		hdev->tx_comm.vid_mute_op = VIDEO_UNMUTE;
-	}
-}
-
 static ssize_t config_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)

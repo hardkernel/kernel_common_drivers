@@ -1920,16 +1920,18 @@ static ssize_t vid_mute_store(struct device *dev,
 {
 	atomic_t kref_video_mute = global_tx_common->kref_video_mute;
 
+	HDMITX_INFO("store vid_mute %s\n", buf);
+
 	if (buf[0] == '1') {
 		atomic_inc(&kref_video_mute);
 		if (atomic_read(&kref_video_mute) == 1)
-			global_tx_common->vid_mute_op = VIDEO_UNMUTE;
+			global_tx_common->vid_mute_op = VIDEO_MUTE;
 	}
 	if (buf[0] == '0') {
 		if (!(atomic_sub_and_test(0, &kref_video_mute))) {
 			atomic_dec(&kref_video_mute);
 			if (atomic_sub_and_test(0, &kref_video_mute))
-				global_tx_common->vid_mute_op = VIDEO_MUTE;
+				global_tx_common->vid_mute_op = VIDEO_UNMUTE;
 		}
 	}
 
