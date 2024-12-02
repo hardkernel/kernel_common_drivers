@@ -26,6 +26,7 @@ dtb-y += t3_t982_ar301_2g_P.dtb
 dtb-y += t7_a311d2_an400.dtb
 dtb-y += t7_a311d2_an400_linux.dtb
 dtb-y += s4_s805x2_aq222_drm_1.5g.dtb
+dtb-y += s4_s805x2_aq222_drm_2g.dtb
 dtb-y += s4_s905y4_ap222_drm.dtb
 dtb-y += sc2_s905x4_ah212_mxl258c_drm.dtb
 dtb-y += sc2_s905x4_ah212_linux.dtb
