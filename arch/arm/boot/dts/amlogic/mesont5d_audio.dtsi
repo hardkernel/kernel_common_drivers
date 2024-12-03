@@ -155,12 +155,12 @@
 		 */
 		samesource_sel = <3>;
 
-		pinctrl-names = "tdm_pins","tdmout_a_gpio";
+		pinctrl-names = "tdm_pins","tdm_gpio";
 		pinctrl-0 = <&mclk_1_pins
 			&tdmout_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-		pinctrl-1 = <&tdmout_a_gpio>;
+		pinctrl-1 = <&tdm_gpio>;
 
 		/* In for ACODEC_ADC */
 		tdmin-src-name = "acodec_adc";

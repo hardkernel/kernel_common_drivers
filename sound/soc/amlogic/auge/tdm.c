@@ -2919,7 +2919,7 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
 		struct pinctrl_state *ps = NULL;
 
-		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_gpio");
 		if (!IS_ERR_OR_NULL(ps)) {
 			pinctrl_select_state(p_tdm->pin_ctl, ps);
 			pr_info("%s tdm pins disable!\n", __func__);
@@ -3013,7 +3013,7 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
 		struct pinctrl_state *ps = NULL;
 
-		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_gpio");
 		if (!IS_ERR_OR_NULL(ps)) {
 			ret = pinctrl_select_state(p_tdm->pin_ctl, ps);
 			pr_info("%s tdm pins disable! ret:%d\n", __func__, ret);
@@ -3092,7 +3092,7 @@ static int aml_tdm_platform_freeze(struct device *dev)
 	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
 		struct pinctrl_state *ps = NULL;
 
-		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_gpio");
 		if (!IS_ERR_OR_NULL(ps)) {
 			ret = pinctrl_select_state(p_tdm->pin_ctl, ps);
 			pr_info("%s tdm pins disable! ret:%d\n", __func__, ret);

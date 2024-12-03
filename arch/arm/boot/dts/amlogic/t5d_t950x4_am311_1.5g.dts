@@ -1157,12 +1157,12 @@
 };
 
 &tdmb {
-	pinctrl-names = "tdm_pins","tdmout_a_gpio";
+	pinctrl-names = "tdm_pins","tdm_gpio";
 	pinctrl-0 = <&mclk_1_pins
 			&tdmout_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-	pinctrl-1 = <&tdmout_a_gpio>;
+	pinctrl-1 = <&tdm_gpio>;
 
 };
 
@@ -1212,7 +1212,7 @@
 		};
 	};
 
-	tdmout_a_gpio: tdmout_a_gpio {
+	tdm_gpio: tdm_gpio {
 		mux { /* GPIOH_14, GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_14",
 				"GPIOH_15",

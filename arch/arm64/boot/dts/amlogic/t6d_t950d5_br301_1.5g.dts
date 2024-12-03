@@ -1259,7 +1259,7 @@
 };
 
 &tdmb {
-	pinctrl-names = "tdm_pins","tdmout_a_gpio";
+	pinctrl-names = "tdm_pins","tdm_gpio";
 	pinctrl-0 = <
 			&tdmb_pin
 			&tdm_d0_pins

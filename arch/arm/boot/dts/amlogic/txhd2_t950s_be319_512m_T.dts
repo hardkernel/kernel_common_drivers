@@ -881,7 +881,7 @@
 			function = "tdm";
 		};
 	};
-	tdmout_a_gpio: tdmout_a_gpio {
+	tdm_gpio: tdm_gpio {
 		mux { /* GPIOC_0, GPIOC_5,  GPIOC_4*/
 			groups ="GPIOC_0",
 				"GPIOC_5",

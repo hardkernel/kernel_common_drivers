@@ -487,7 +487,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins","tdmout_a_gpio";
+		pinctrl-names = "tdm_pins","tdm_gpio";
 		pinctrl-0 = <
 			&mclk2_t17_pins
 			&tdmin_a_pins
@@ -519,7 +519,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_PAD1
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
+		pinctrl-names = "tdm_pins", "tdm_gpio";
 		pinctrl-0 =
 			<&mclk1_t4_pins
 			&tdm_b_pins
@@ -548,7 +548,7 @@
 		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk","clk_srcpll";
-		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
+		pinctrl-names = "tdm_pins", "tdm_gpio";
 		pinctrl-0 = <
 			&tdmin_c_pins
 			&tdm_d0_pins

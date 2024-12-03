@@ -1180,12 +1180,12 @@
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
 #if 0
-		pinctrl-names = "tdm_pins","tdmout_a_gpio";
+		pinctrl-names = "tdm_pins","tdm_gpio";
 		pinctrl-0 =
 			<&tdm_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-		pinctrl-1 = <&tdmout_a_gpio>;
+		pinctrl-1 = <&tdm_gpio>;
 #endif
 		/*
 		 * 0: tdmout_a;
