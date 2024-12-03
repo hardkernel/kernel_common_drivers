@@ -35,7 +35,11 @@ static int lcd_vx1_intr_request;
 static int lcd_vx1_vsync_isr_en;
 static int lcd_vx1_isr_flag;
 
-#define VX1_LOCKN_WAIT_TIMEOUT    5000  /* *50us */
+#define VX1_LOCKN_INTERVAL        20    //unit:us
+#define VX1_LOCKN_WAIT_TIMEOUT    20000 /* 20000*50us=1000ms */
+#define VX1_LOCKN_STABLE_CNT      100
+#define VX1_LOCKN_CONFIRM_DELAY   100 //us
+#define VX1_LOCKN_CONFIRM_CNT     5
 #define VX1_HPD_WAIT_TIMEOUT      10000  /* *50us */
 
 #define VX1_HPLL_INTERVAL (HZ)
@@ -863,52 +867,49 @@ void lcd_vbyone_wait_hpd(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-static void lcd_vbyone_power_on_wait_lockn(struct aml_lcd_drv_s *pdrv)
+static void lcd_vbyone_wait_lock(struct aml_lcd_drv_s *pdrv)
 {
+	int i = VX1_LOCKN_WAIT_TIMEOUT, lock_cnt = 0, lock_ok = 0, lock_confirm_cnt = 0;
 	unsigned int reg_status, offset;
-	int i = 0;
-
-	offset = pdrv->data->offset_venc_if[pdrv->index];
 
 	if (pdrv->data->chip_type == LCD_CHIP_T5W ||
 	    pdrv->data->chip_type == LCD_CHIP_T7 ||
 	    pdrv->data->chip_type == LCD_CHIP_T3 ||
-	    pdrv->data->chip_type == LCD_CHIP_T5M)
+	    pdrv->data->chip_type == LCD_CHIP_T5M) {
+		offset = pdrv->data->offset_venc_if[pdrv->index];
 		reg_status = VBO_STATUS_L_T7 + offset;
-	else if (pdrv->data->chip_type == LCD_CHIP_T3X)
+	} else if (pdrv->data->chip_type == LCD_CHIP_T3X) {
+		offset = pdrv->data->offset_venc_if[pdrv->index];
 		reg_status = VBO_STATUS_L_T3X + offset;
-	else
+	} else {
 		reg_status = VBO_STATUS_L;
-
-	/* training hold release */
-	if (pdrv->config.control.vbyone_cfg.ctrl_flag & 0x4)
-		lcd_vbyone_cdr_training_hold(pdrv, 0);
-	while (i++ < VX1_LOCKN_WAIT_TIMEOUT) {
-		if ((lcd_vcbus_read(reg_status) & 0x3f) == 0x20)
-			break;
-		lcd_delay_us(50);
 	}
-	LCDPR("[%d]: %s status: 0x%x, i=%d\n",
-	      pdrv->index, __func__, lcd_vcbus_read(reg_status), i);
-	/* power on reset */
-	if (pdrv->config.control.vbyone_cfg.ctrl_flag & 0x1) {
-		LCDPR("[%d]: ctrl_flag for power on reset\n", pdrv->index);
-		lcd_delay_ms(pdrv->config.control.vbyone_cfg.power_on_reset_delay);
-		lcd_vbyone_sw_reset(pdrv);
-		i = 0;
-		while (i++ < VX1_LOCKN_WAIT_TIMEOUT) {
-			if ((lcd_vcbus_read(reg_status) & 0x3f) == 0x20)
-				break;
-			lcd_delay_us(50);
+
+	while ((i > 0)) {
+		if ((lcd_vcbus_read(reg_status) & 0x3f) == 0x20) {
+			if (++lock_cnt >= VX1_LOCKN_STABLE_CNT) {
+				lock_ok = 1;
+				lock_confirm_cnt++;
+			}
+		} else {
+			lock_cnt = 0;
+			lock_confirm_cnt = 0;
 		}
-		LCDPR("[%d]: %s status: 0x%x, i=%d\n",
-		      pdrv->index, __func__, lcd_vcbus_read(reg_status), i);
+		if (lock_confirm_cnt == VX1_LOCKN_CONFIRM_CNT)
+			break;
+		if (lock_ok) {
+			lock_ok = 0;
+			lock_cnt = 0;
+			usleep_range(VX1_LOCKN_CONFIRM_DELAY * lock_confirm_cnt,
+					VX1_LOCKN_CONFIRM_DELAY * lock_confirm_cnt + 10);
+		} else {
+			usleep_range(VX1_LOCKN_INTERVAL, VX1_LOCKN_INTERVAL + 10);
+		}
+		i--;
 	}
-
-	vx1_training_wait_cnt = 0;
-	vx1_training_stable_cnt = 0;
-	vx1_fsm_acq_st = 0;
-	lcd_vbyone_interrupt_enable(pdrv, 1);
+	LCDPR("%s status: 0x%x, time=%dus\n",
+		__func__, lcd_vcbus_read(reg_status),
+		(VX1_LOCKN_WAIT_TIMEOUT - i) * VX1_LOCKN_INTERVAL);
 }
 
 #define LCD_VX1_WAIT_STABLE_POWER_ON_DELAY    300 /* ms */
@@ -920,7 +921,19 @@ void lcd_vbyone_power_on_wait_stable(struct aml_lcd_drv_s *pdrv)
 	if (lcd_vx1_intr_request == 0)
 		return;
 
-	lcd_vbyone_power_on_wait_lockn(pdrv);
+	lcd_vbyone_wait_lock(pdrv);
+	/* power on reset */
+	if (pdrv->config.control.vbyone_cfg.ctrl_flag & 0x1) {
+		LCDPR("[%d]: ctrl_flag for power on reset\n", pdrv->index);
+		lcd_delay_ms(pdrv->config.control.vbyone_cfg.power_on_reset_delay);
+		lcd_vbyone_sw_reset(pdrv);
+		lcd_vbyone_wait_lock(pdrv);
+	}
+
+	vx1_training_wait_cnt = 0;
+	vx1_training_stable_cnt = 0;
+	vx1_fsm_acq_st = 0;
+	lcd_vbyone_interrupt_enable(pdrv, 1);
 }
 
 void lcd_vbyone_wait_stable(struct aml_lcd_drv_s *pdrv)
