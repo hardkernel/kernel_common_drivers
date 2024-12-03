@@ -4456,7 +4456,6 @@ unsigned long (*aml_syms_lookup)(const char *name);
 static struct kprobe kp_lookup_name = {
 	.symbol_name	= "kallsyms_lookup_name",
 };
-#endif
 
 #include <linux/proc_fs.h>
 
@@ -4737,6 +4736,7 @@ static int symbol_fix(void)
 
 	return 0;
 }
+#endif
 
 int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 {
