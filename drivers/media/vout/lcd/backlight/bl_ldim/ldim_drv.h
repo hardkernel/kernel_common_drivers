@@ -29,8 +29,9 @@
 /*20231208: support spi dma trig interface */
 /*20240730: add fw iparam */
 /*20241030: add boost function */
+/*20241217: multiple spi support */
 
-#define LDIM_DRV_VER    "20241030"
+#define LDIM_DRV_VER    "20241217"
 
 enum spi_sync_type_e {
 	SPI_SYNC	= 0x00,

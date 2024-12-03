@@ -46,6 +46,7 @@ struct spicc_controller_data {
 	unsigned	miso_latency_en:1;
 	int		miso_latency; // in ns, signed
 	unsigned int	dma_trig_delay;
+	void *priv;
 	void (*dirspi_start)(struct spi_device *spi);
 	void (*dirspi_stop)(struct spi_device *spi);
 	int (*dirspi_async)(struct spi_device *spi,

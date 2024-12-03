@@ -20,6 +20,7 @@
 #include <linux/of_address.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
+#include <linux/amlogic/aml_spi.h>
 #include "../../lcd_common.h"
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
@@ -42,6 +43,7 @@ static DEFINE_MUTEX(spi_mutex);
 static DEFINE_MUTEX(dev_mutex);
 
 struct iw7039_s {
+	struct spi_device *spi;
 	unsigned int dev_on_flag;
 	unsigned char dma_support;
 	unsigned short vsync_cnt;
@@ -234,7 +236,7 @@ static int iw7039_reg_write_all(struct ldim_dev_driver_s *dev_drv,
 
 	mutex_lock(&spi_mutex);
 
-	ret = spi_wregs_all(dev_drv->spi_dev, dev_drv->chip_cnt, reg, buf, len);
+	ret = spi_wregs_all(bl_iw7039->spi, dev_drv->chip_cnt, reg, buf, len);
 	if (ret)
 		LDIMERR("%s: reg 0x%x, len %d error\n", __func__, reg, len);
 
@@ -251,7 +253,7 @@ static int iw7039_reg_write_duty(struct ldim_dev_driver_s *dev_drv,
 
 	spin_lock_irqsave(&spi_lock, flags);
 
-	ret = spi_wregs_duty(dev_drv->spi_dev, dev_drv->chip_cnt, dev_drv->spi_sync, reg, buf, len);
+	ret = spi_wregs_duty(bl_iw7039->spi, dev_drv->chip_cnt, dev_drv->spi_sync, reg, buf, len);
 	if (ret)
 		LDIMERR("%s: reg 0x%x, len %d error\n", __func__, reg, len);
 
@@ -341,7 +343,7 @@ static int iw7039_hw_init_on(struct ldim_dev_driver_s *dev_drv)
 	/* step 2: delay for internal logic stable */
 	lcd_delay_ms(10);
 
-	spi_device_number(dev_drv->spi_dev, dev_drv->chip_cnt);
+	spi_device_number(bl_iw7039->spi, dev_drv->chip_cnt);
 
 	iw7039_reg_write_all(dev_drv, 0x00, init_00, 0x20);
 
@@ -670,14 +672,21 @@ static int iw7039_ldim_dev_update(struct ldim_dev_driver_s *dev_drv)
 int ldim_dev_iw7039_probe(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
+	struct spicc_controller_data *cdata;
+	struct spi_private_data *priv;
 	int n, i;
 
 	if (!dev_drv) {
 		LDIMERR("%s: dev_drv is null\n", __func__);
 		return -1;
 	}
-	if (!dev_drv->spi_dev) {
-		LDIMERR("%s: spi_dev is null\n", __func__);
+	if (!dev_drv->spi_dev[0]) {
+		LDIMERR("%s: spi_dev[0] is null\n", __func__);
+		return -1;
+	}
+
+	if (!dev_drv->spi_dev[1] && dev_dev->spi_dev_num == 2) {
+		LDIMERR("%s: spi_dev[1] is null\n", __func__);
 		return -1;
 	}
 	if (dev_drv->chip_cnt == 0) {
@@ -691,6 +700,7 @@ int ldim_dev_iw7039_probe(struct aml_ldim_driver_s *ldim_drv)
 		return -1;
 	}
 
+	bl_iw7039->spi = dev_drv->spi_dev[0];
 	bl_iw7039->dev_on_flag = 0;
 	bl_iw7039->vsync_cnt = 0;
 	bl_iw7039->fault_cnt = 0;
@@ -723,7 +733,20 @@ int ldim_dev_iw7039_probe(struct aml_ldim_driver_s *ldim_drv)
 		goto ldim_dev_iw7039_probe_err2;
 
 	/*set spi_xlen equal as tbuf_size*/
-	dev_drv->spi_xlen = bl_iw7039->tbuf_size;
+	cdata = bl_iw7039->spi->controller_data;
+	if (!cdata) {
+		LDIMERR("%s:  controller_data is null\n", __func__);
+		goto ldim_dev_iw7039_probe_err3;
+	}
+
+	priv = cdata->priv;
+	if (priv) {
+		priv->xlen = bl_iw7039->tbuf_size;
+	} else {
+		LDIMERR("%s:  priv is null\n", __func__);
+		goto ldim_dev_iw7039_probe_err3;
+	}
+
 
 	iw7039_ldim_dev_update(dev_drv);
 
@@ -744,6 +767,9 @@ int ldim_dev_iw7039_probe(struct aml_ldim_driver_s *ldim_drv)
 	LDIMPR("%s ok\n", __func__);
 	return 0;
 
+ldim_dev_iw7039_probe_err3:
+	kfree(bl_iw7039->rbuf);
+	bl_iw7039->rbuf_size = 0;
 ldim_dev_iw7039_probe_err2:
 	kfree(bl_iw7039->tbuf);
 	bl_iw7039->tbuf_size = 0;

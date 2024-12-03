@@ -233,9 +233,10 @@ static int ldim_power_off(void)
 	if (ldim_driver.dev_drv && ldim_driver.dev_drv->power_off)
 		ldim_driver.dev_drv->power_off(&ldim_driver);
 
-	if (ldim_driver.dev_drv && ldim_driver.dev_drv->spi_dev &&
-		ldim_driver.dev_drv->spi_sync == SPI_DMA_TRIG)
-		ldim_spi_dma_trig_stop(ldim_driver.dev_drv->spi_dev);
+	if (ldim_driver.dev_drv &&
+		ldim_driver.dev_drv->spi_sync == SPI_DMA_TRIG) {
+		ldim_spi_dma_trig_stop_all();
+	}
 
 	ldim_driver.state &= ~LDIM_STATE_SPI_SMR_EN;
 
@@ -537,13 +538,15 @@ static irqreturn_t ldim_pwm_vs_isr(int irq, void *dev_id)
 	if (ldim_driver.init_on_flag == 0)
 		return IRQ_HANDLED;
 
-	ldim_spi_async_busy_proc();
+	if (ldim_driver.dev_drv && ldim_driver.dev_drv->spi_sync == SPI_ASYNC)
+		ldim_spi_async_busy_proc();
 
 	local_time = sched_clock();
 	diff = local_time - ldim_driver.pwm_vs_irq_time_pre;
 	ldim_driver.pwm_vs_irq_time_pre = local_time;
 
 	if (ldim_driver.dev_drv &&
+		ldim_driver.dev_drv->spi_sync == SPI_ASYNC &&
 		ldim_driver.dev_drv->ldim_pwm_config.pwm_port == BL_PWM_VS &&
 		diff < 3000000) {
 		ldim_driver.pwm_vs_irq_err_cnt++;
@@ -587,7 +590,7 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 	struct ldim_dev_driver_s *dev_drv = ldim_driver.dev_drv;
 	int ret;
 
-	if (!dev_drv || !dev_drv->spi_dev)
+	if (!dev_drv || !dev_drv->spi_dev[0])
 		return;
 	if (!dev_drv->dev_smr) {
 		if (ldim_driver.dbg_vs_cnt == 0)
@@ -598,9 +601,9 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 	if (ldim_driver.dev_smr_bypass || ldim_driver.brightness_bypass) {
 		if ((ldim_driver.state & LDIM_STATE_SPI_SMR_EN) &&
 			dev_drv->spi_sync == SPI_DMA_TRIG) {
-			ret = ldim_spi_dma_trig_stop(dev_drv->spi_dev);
+			ret = ldim_spi_dma_trig_stop_all();
 			if (ret) {
-				LDIMPR("ldim_spi_dma_trig_stop ret=%d, ldim_driver.state=0x%x\n",
+				LDIMPR("spi_dma_trig_stop_all ret=%d, ldim_driver.state=0x%x\n",
 					ret, ldim_driver.state);
 				return;
 			}
@@ -610,10 +613,10 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 		return;
 	} else if ((ldim_driver.state & LDIM_STATE_SPI_SMR_EN) == 0) {
 		if (dev_drv->spi_sync == SPI_DMA_TRIG) {
-			ret = ldim_spi_dma_trig_start(dev_drv->spi_dev);
+			ret = ldim_spi_dma_trig_start_all();
 			if (ret == 0)
 				ldim_driver.state |= LDIM_STATE_SPI_SMR_EN;
-			LDIMPR("ldim_spi_dma_trig_start ret=%d, ldim_driver.state=0x%x\n",
+			LDIMPR("spi_dma_trig_start_all ret=%d, ldim_driver.state=0x%x\n",
 					ret, ldim_driver.state);
 		} else {
 			ldim_driver.state |= LDIM_STATE_SPI_SMR_EN;

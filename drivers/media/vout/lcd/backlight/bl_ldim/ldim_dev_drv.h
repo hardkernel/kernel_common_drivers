@@ -18,7 +18,9 @@ int ldim_spi_init_dma_trig(struct spi_device *spi);
 int ldim_spi_write_dma_trig(struct spi_device *spi, unsigned char *tbuf,
 			 unsigned char *rbuf, int tlen, int max_len);
 int ldim_spi_dma_trig_start(struct spi_device *spi);
+int ldim_spi_dma_trig_start_all(void);
 int ldim_spi_dma_trig_stop(struct spi_device *spi);
+int ldim_spi_dma_trig_stop_all(void);
 int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 			 unsigned char *rbuf, int tlen, int max_len);
 int ldim_spi_write_xfer(struct spi_device *spi, unsigned char *tbuf, int tlen);

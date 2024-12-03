@@ -31,27 +31,6 @@
 #include "../lcd_bl.h"
 #include "ldim_reg.h"
 
-static struct spicc_controller_data ldim_spi_controller_data = {
-	.use_ctrl_cs = 0,
-	.use_dirspi = 1,
-	.ccxfer_en = 0,
-	.timing_en = 1,
-	.tx_tuning = 0,
-	.rx_tuning = 7,
-	.dummy_ctl = 0,
-	.ss_leading_gap = 2,
-	.ss_trailing_gap = 2,
-};
-
-static struct spi_board_info ldim_spi_info = {
-	.modalias = "ldim_dev",
-	.mode = SPI_MODE_0,
-	.max_speed_hz = 1000000, /* 1MHz */
-	.bus_num = 0, /* SPI bus No. */
-	.chip_select = 0, /* the cs pin index on the spi bus */
-	.controller_data = &ldim_spi_controller_data,
-};
-
 static int ldim_dev_init_table_save(struct ldim_dev_driver_s *dev_drv, int flag,
 				    unsigned char *table)
 {
@@ -279,15 +258,19 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	switch (dev_drv->type) {
 	case LDIM_DEV_TYPE_SPI:
 		/* get spi config */
-		dev_drv->spi_info = &ldim_spi_info;
 		ret = of_property_read_u32(child, "spi_bus_num", &val);
 		if (ret) {
 			LDIMERR("failed to get spi_bus_num\n");
 		} else {
-			ldim_spi_info.bus_num = val;
+			dev_drv->spi_info[0].bus_num = val & 0xf;
+			dev_drv->spi_info[1].bus_num = (val >> 4) & 0xf;
+			if (dev_drv->spi_info[1].bus_num)
+				dev_drv->spi_dev_num = 2;
 			if (ldim_debug_print) {
-				LDIMPR("spi bus_num: %d\n",
-				       ldim_spi_info.bus_num);
+				LDIMPR("spi bus_num: %d : %d, spi_dev_num:%d\n",
+					dev_drv->spi_info[0].bus_num,
+					dev_drv->spi_info[1].bus_num,
+					dev_drv->spi_dev_num);
 			}
 		}
 
@@ -295,10 +278,12 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		if (ret) {
 			LDIMERR("failed to get spi_chip_select\n");
 		} else {
-			ldim_spi_info.chip_select = val;
+			dev_drv->spi_info[0].chip_select = val & 0xf;
+			dev_drv->spi_info[1].chip_select = (val >> 4) & 0xf;
 			if (ldim_debug_print) {
-				LDIMPR("spi chip_select: %d\n",
-				       ldim_spi_info.chip_select);
+				LDIMPR("spi chip_select: %d : %d\n",
+				dev_drv->spi_info[0].chip_select,
+				dev_drv->spi_info[1].chip_select);
 			}
 		}
 
@@ -306,10 +291,11 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		if (ret) {
 			LDIMERR("failed to get spi_chip_select\n");
 		} else {
-			ldim_spi_info.max_speed_hz = val;
+			dev_drv->spi_info[0].max_speed_hz = val;
+			dev_drv->spi_info[1].max_speed_hz = val;
 			if (ldim_debug_print) {
 				LDIMPR("spi max_speed_hz: %d\n",
-				       ldim_spi_info.max_speed_hz);
+				       dev_drv->spi_info[0].max_speed_hz);
 			}
 		}
 
@@ -317,9 +303,10 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		if (ret) {
 			LDIMERR("failed to get spi_mode\n");
 		} else {
-			ldim_spi_info.mode = val;
+			dev_drv->spi_info[0].mode = val;
+			dev_drv->spi_info[1].mode = val;
 			if (ldim_debug_print)
-				LDIMPR("spi mode: %d\n", ldim_spi_info.mode);
+				LDIMPR("spi mode: %d\n", dev_drv->spi_info[0].mode);
 		}
 
 		ret = of_property_read_u32(child, "spi_dma_support", &val);
@@ -338,13 +325,9 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		if (ret) {
 			dev_drv->cs_hold_delay = 0;
 			dev_drv->cs_clk_delay = 0;
-			ldim_spi_controller_data.ss_leading_gap = 0;
-			ldim_spi_controller_data.ss_trailing_gap = 0;
 		} else {
 			dev_drv->cs_hold_delay = temp[0];
 			dev_drv->cs_clk_delay = temp[1];
-			ldim_spi_controller_data.ss_leading_gap = temp[0];
-			ldim_spi_controller_data.ss_trailing_gap = temp[1];
 		}
 		break;
 	default:
@@ -510,13 +493,12 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	if (ret) {
 		dev_drv->spi_sync = SPI_ASYNC;
 		dev_drv->spi_line_n = 0;
-		ldim_spi_controller_data.use_ctrl_cs = 0;
+		dev_drv->use_ctrl_cs = 0;
 	} else {
 		dev_drv->spi_sync = SPI_DMA_TRIG;
 		dev_drv->spi_line_n = (unsigned int)val;
-		ldim_spi_controller_data.use_ctrl_cs = 1;
+		dev_drv->use_ctrl_cs = 1;
 	}
-	dev_drv->use_ctrl_cs = ldim_spi_controller_data.use_ctrl_cs;
 
 	dbg_str_len = sprintf(dbg_str, "mcu_header=0x%08x, mcu_dim=0x%08x,",
 		dev_drv->mcu_header, dev_drv->mcu_dim);
@@ -755,16 +737,25 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv, phan
 	switch (dev_drv->type) {
 	case LDIM_DEV_TYPE_SPI:
 		/* get spi config */
-		dev_drv->spi_info = &ldim_spi_info;
+		temp = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_0);
+		dev_drv->spi_info[0].bus_num = temp & 0xf;
+		dev_drv->spi_info[1].bus_num = (temp >> 4) & 0xf;
+		if (dev_drv->spi_info[1].bus_num)
+			dev_drv->spi_dev_num = 2;
 
-		ldim_spi_info.bus_num = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_0);
-		ldim_spi_info.chip_select = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_1);
-		ldim_spi_info.max_speed_hz =
+		temp = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_1);
+		dev_drv->spi_info[0].chip_select = temp & 0xf;
+		dev_drv->spi_info[1].chip_select = (temp >> 4) & 0xf;
+
+		dev_drv->spi_info[0].max_speed_hz =
 			(*(p + LCD_UKEY_LDIM_DEV_IF_FREQ) |
 			((*(p + LCD_UKEY_LDIM_DEV_IF_FREQ + 1)) << 8) |
 			((*(p + LCD_UKEY_LDIM_DEV_IF_FREQ + 2)) << 16) |
 			((*(p + LCD_UKEY_LDIM_DEV_IF_FREQ + 3)) << 24));
-		ldim_spi_info.mode = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_2);
+		dev_drv->spi_info[1].max_speed_hz = dev_drv->spi_info[0].max_speed_hz;
+
+		dev_drv->spi_info[0].mode = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_2);
+		dev_drv->spi_info[1].mode = dev_drv->spi_info[0].mode;
 		dev_drv->dma_support = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_3);
 		dev_drv->cs_hold_delay =
 			(*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_4) |
@@ -772,15 +763,16 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv, phan
 		dev_drv->cs_clk_delay =
 			(*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_5) |
 			((*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_5 + 1)) << 8));
-		ldim_spi_controller_data.ss_leading_gap = dev_drv->cs_hold_delay;
-		ldim_spi_controller_data.ss_trailing_gap = dev_drv->cs_clk_delay;
+
 		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
-			LDIMPR("spi bus_num: %d\n", ldim_spi_info.bus_num);
-			LDIMPR("spi chip_select: %d\n",
-			       ldim_spi_info.chip_select);
+			LDIMPR("spi bus_num: %d : %d\n",
+				dev_drv->spi_info[0].bus_num, dev_drv->spi_info[1].bus_num);
+			LDIMPR("spi chip_select: %d :%d\n",
+			       dev_drv->spi_info[0].chip_select,
+				   dev_drv->spi_info[1].chip_select);
 			LDIMPR("spi max_speed_hz: %d\n",
-			       ldim_spi_info.max_speed_hz);
-			LDIMPR("spi mode: %d\n", ldim_spi_info.mode);
+			       dev_drv->spi_info[0].max_speed_hz);
+			LDIMPR("spi mode: %d\n", dev_drv->spi_info[0].mode);
 			LDIMPR("spi dma_support: %d\n", dev_drv->dma_support);
 		}
 		break;
@@ -927,13 +919,12 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv, phan
 	if (temp == 0) {
 		dev_drv->spi_sync = SPI_ASYNC;
 		dev_drv->spi_line_n = 0;
-		ldim_spi_controller_data.use_ctrl_cs = 0;
+		dev_drv->use_ctrl_cs = 0;
 	} else {
 		dev_drv->spi_sync = SPI_DMA_TRIG;
 		dev_drv->spi_line_n = temp;
-		ldim_spi_controller_data.use_ctrl_cs = 1;
+		dev_drv->use_ctrl_cs = 1;
 	}
-	dev_drv->use_ctrl_cs = ldim_spi_controller_data.use_ctrl_cs;
 
 	dbg_str_len = sprintf(dbg_str, "mcu_header=0x%08x, mcu_dim=0x%08x, ",
 		dev_drv->mcu_header, dev_drv->mcu_dim);
@@ -1091,7 +1082,7 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 	struct json_s *parent, *child, *child2, *child3;
 	int cnt = 0, i = 0, nums_size;
 	const char *str = NULL;
-	struct spi_board_info *spi_info;
+	//struct spi_board_info *spi_info;
 	struct bl_pwm_config_s *bl_pwm, *pwms[3];
 	struct ldim_profile_s *profile;
 	struct ldim_fw_s *fw = aml_ldim_get_fw();
@@ -1140,35 +1131,45 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 
 	switch (dev_drv->type) {
 	case LDIM_DEV_TYPE_SPI:
-		dev_drv->spi_info = &ldim_spi_info;
-		spi_info = dev_drv->spi_info;
-		spi_info->bus_num = json_get_obj_u32(jsp, child, "bus_number", 2);
-		spi_info->chip_select = json_get_obj_u32(jsp, child, "chip_select", 0);
-		spi_info->max_speed_hz = json_get_obj_u32(jsp, child, "max_frequency_hz", 3000000);
-		spi_info->mode = json_get_obj_u32(jsp, child, "spi_mode", 0);
+		dev_drv->spi_info[0].bus_num = json_get_obj_u32(jsp, child, "bus_number", 2);
+		dev_drv->spi_info[1].bus_num = json_get_obj_u32(jsp, child, "bus_number1", 0);
+		dev_drv->spi_info[0].chip_select = json_get_obj_u32(jsp, child, "chip_select", 0);
+		dev_drv->spi_info[1].chip_select = json_get_obj_u32(jsp, child, "chip_select1", 0);
+		dev_drv->spi_info[0].max_speed_hz =
+			json_get_obj_u32(jsp, child, "max_frequency_hz", 3000000);
+		dev_drv->spi_info[1].max_speed_hz =
+			json_get_obj_u32(jsp, child, "max_frequency_hz", 3000000);
+		dev_drv->spi_info[0].mode = json_get_obj_u32(jsp, child, "spi_mode", 0);
+		dev_drv->spi_info[1].mode = json_get_obj_u32(jsp, child, "spi_mode", 0);
 		dev_drv->cs_hold_delay = json_get_obj_u32(jsp, child, "cs_hold_delay_ms", 0);
 		dev_drv->cs_clk_delay = json_get_obj_u32(jsp, child, "cs_clk_delay_ms", 0);
 		dev_drv->spi_line_n = json_get_obj_u32(jsp, child, "line_n", 0);
 		dev_drv->spi_sync = json_get_obj_u32(jsp, child, "spi_sync", 0);
 		dev_drv->dma_support = json_get_obj_u32(jsp, child, "dma_support", 0);
+		if (dev_drv->spi_info[1].bus_num)
+			dev_drv->spi_dev_num = 2;
+		else
+			dev_drv->spi_dev_num = 1;
 
-		ldim_spi_controller_data.ss_leading_gap = dev_drv->cs_hold_delay;
-		ldim_spi_controller_data.ss_trailing_gap = dev_drv->cs_clk_delay;
 		if (dev_drv->spi_line_n == 0) {
 			dev_drv->spi_sync = SPI_ASYNC;
-			ldim_spi_controller_data.use_ctrl_cs = 0;
+			dev_drv->use_ctrl_cs = 0;
 		} else {
 			dev_drv->spi_sync = SPI_DMA_TRIG;
-			ldim_spi_controller_data.use_ctrl_cs = 1;
+			dev_drv->use_ctrl_cs = 1;
 		}
 
 		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
-			LDIMPR("spi bus: %d, mode:%d, cs:%d %dhz, dma:%d, cs_hold:%d, cs_clk:%d\n",
-			       ldim_spi_info.bus_num,
-			       ldim_spi_info.mode,
-			       ldim_spi_info.chip_select,
-			       ldim_spi_info.max_speed_hz,
-			       dev_drv->dma_support,
+			LDIMPR("spi_dev_num:%d, spi bus: %d:%d, cs:%d %d,\n"
+			"mode:%d, cs:%dhz, dma:%d, cs_hold:%d, cs_clk:%d\n",
+			       dev_drv->spi_dev_num,
+				   dev_drv->spi_info[0].bus_num,
+				   dev_drv->spi_info[1].bus_num,
+				   dev_drv->spi_info[0].chip_select,
+				   dev_drv->spi_info[1].chip_select,
+				   dev_drv->spi_info[0].mode,
+				   dev_drv->spi_info[0].max_speed_hz,
+				   dev_drv->dma_support,
 			       dev_drv->cs_hold_delay,
 			       dev_drv->cs_clk_delay);
 		}

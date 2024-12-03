@@ -20,6 +20,7 @@
 #include <linux/of_address.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
+#include <linux/amlogic/aml_spi.h>
 #include "../../lcd_common.h"
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
@@ -36,6 +37,7 @@ static DEFINE_MUTEX(spi_mutex);
 static DEFINE_MUTEX(dev_mutex);
 
 struct blmcu_s {
+	struct spi_device *spi;
 	unsigned int dev_on_flag;
 	unsigned short vsync_cnt;
 	unsigned int rbuf_size;
@@ -51,12 +53,15 @@ struct blmcu_s {
 	unsigned int apl;
 	unsigned int ch_size;
 	unsigned int zone_num;
-
-	/* local dimming driver smr api usage */
 	unsigned char *rbuf;
-
-	/* spi api internal used, don't use outside!!! */
 	unsigned char *tbuf;
+
+	/*for 2nd spi device*/
+	struct spi_device *spi1;
+	unsigned int rbuf_size1;
+	unsigned int tbuf_size1;
+	unsigned char *rbuf1;
+	unsigned char *tbuf1;
 };
 
 struct blmcu_s *bl_mcu;
@@ -100,7 +105,7 @@ static int blmcu_hw_init_off(struct ldim_dev_driver_s *dev_drv)
 static void ldim_vs_debug_info(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
-	unsigned int i, j;
+	unsigned int i;
 
 	if (bl_mcu->vsync_cnt) //300 vsync print once
 		return;
@@ -108,17 +113,15 @@ static void ldim_vs_debug_info(struct aml_ldim_driver_s *ldim_drv)
 		return;
 
 	LDIMPR("%s:\n", __func__);
-	if (bl_mcu->datawidth == 3) //16bits
-		j = 2 * dev_drv->zone_num;
-	else if (bl_mcu->datawidth == 2)
-		j = (3 * dev_drv->zone_num + 1) / 2;
-	else
-		j = dev_drv->zone_num;
 
-	j += bl_mcu->ext_len;
-
-	for (i = 0; i < j; i++)
+	for (i = 0; i < bl_mcu->tbuf_size; i++)
 		LDIMPR("tbuf[%d]: 0x%x\n", i, bl_mcu->tbuf[i]);
+
+	/*for 2nd spi*/
+	if (dev_drv->spi_dev_num == 2) {
+		for (i = 0; i < bl_mcu->tbuf_size1; i++)
+			LDIMPR("tbuf[%d]: 0x%x\n", i, bl_mcu->tbuf1[i]);
+	}
 
 	pr_info("\n");
 }
@@ -265,6 +268,11 @@ static inline void ldim_data_mapping(struct aml_ldim_driver_s *ldim_drv,
 
 	for (i = k + bl_mcu->ext_len; i < bl_mcu->tbuf_size; i++)
 		bl_mcu->tbuf[i] = 0;
+
+	/*for 2nd spi*/
+	/* here For reference only, need to be set according to the actual device spec!!!*/
+	if (dev_drv->spi_dev_num == 2)
+		memcpy(bl_mcu->tbuf1, bl_mcu->tbuf, bl_mcu->tbuf_size);
 }
 
 static int blmcu_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
@@ -307,16 +315,24 @@ static int blmcu_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 
 	switch (dev_drv->spi_sync) {
 	case SPI_SYNC:
-		ret = ldim_spi_write(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->tbuf_size);
+		ret = ldim_spi_write(bl_mcu->spi, bl_mcu->tbuf, bl_mcu->tbuf_size);
 		break;
 	case SPI_ASYNC:
-		ret = ldim_spi_write_async(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->rbuf,
+		ret = ldim_spi_write_async(bl_mcu->spi, bl_mcu->tbuf, bl_mcu->rbuf,
 		bl_mcu->tbuf_size, bl_mcu->tbuf_size);
+		/*for test 2nd spi*/
+		if (dev_drv->spi_dev_num == 2)
+			ret |=  ldim_spi_write_async(bl_mcu->spi1, bl_mcu->tbuf1, bl_mcu->rbuf1,
+		bl_mcu->tbuf_size1, bl_mcu->tbuf_size1);
 		break;
 	case SPI_DMA_TRIG:
 	default:
-		ret = ldim_spi_write_dma_trig(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->rbuf,
+		ret = ldim_spi_write_dma_trig(bl_mcu->spi, bl_mcu->tbuf, bl_mcu->rbuf,
 		bl_mcu->tbuf_size, bl_mcu->tbuf_size);
+		/*for test 2nd spi*/
+		if (dev_drv->spi_dev_num == 2)
+			ret |= ldim_spi_write_dma_trig(bl_mcu->spi1, bl_mcu->tbuf1, bl_mcu->rbuf1,
+		bl_mcu->tbuf_size1, bl_mcu->tbuf_size1);
 		break;
 	}
 	return ret;
@@ -396,8 +412,9 @@ static ssize_t blmcu_show(struct class *class, struct class_attribute *attr, cha
 				"dev_index      = %d\n"
 				"on_flag        = %d\n"
 				"vsync_cnt      = %d\n"
-				"tbuf_size      = %d\n"
-				"rbuf_size      = %d\n"
+				"spi			= 0x%p : 0x%p\n"
+				"tbuf_size      = %d : %d\n"
+				"rbuf_size      = %d : %d\n"
 				"adim      = %d\n"
 				"pdim      = %d\n"
 				"type      = %d\n"
@@ -415,8 +432,9 @@ static ssize_t blmcu_show(struct class *class, struct class_attribute *attr, cha
 				dev_drv->index,
 				bl_mcu->dev_on_flag,
 				bl_mcu->vsync_cnt,
-				bl_mcu->tbuf_size,
-				bl_mcu->rbuf_size,
+				bl_mcu->spi, bl_mcu->spi1,
+				bl_mcu->tbuf_size, bl_mcu->tbuf_size1,
+				bl_mcu->rbuf_size, bl_mcu->rbuf_size1,
 				bl_mcu->adim,
 				bl_mcu->pdim,
 				bl_mcu->type,
@@ -548,14 +566,21 @@ static int blmcu_ldim_dev_update(struct ldim_dev_driver_s *dev_drv)
 int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
+	struct spicc_controller_data *cdata;
+	struct spi_private_data *priv;
 	int i, n, zone_num;
 
 	if (!dev_drv) {
 		LDIMERR("%s: dev_drv is null\n", __func__);
 		return -1;
 	}
-	if (!dev_drv->spi_dev) {
-		LDIMERR("%s: spi_dev is null\n", __func__);
+	if (!dev_drv->spi_dev[0]) {
+		LDIMERR("%s: spi_dev[0] is null\n", __func__);
+		return -1;
+	}
+
+	if (!dev_drv->spi_dev[1] && dev_drv->spi_dev_num == 2) {
+		LDIMERR("%s: spi_dev[1] is null\n", __func__);
 		return -1;
 	}
 
@@ -565,6 +590,8 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 		return -1;
 	}
 
+	bl_mcu->spi = dev_drv->spi_dev[0];
+	bl_mcu->spi1 = dev_drv->spi_dev[1];
 	bl_mcu->dev_on_flag = 0;
 	bl_mcu->vsync_cnt = 0;
 	bl_mcu->ch_size = dev_drv->chip_cnt;
@@ -643,8 +670,58 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 	}
 
 	/*set spi_xlen equal as tbuf_size*/
-	dev_drv->spi_xlen = bl_mcu->tbuf_size;
+	cdata = bl_mcu->spi->controller_data;
+	if (!cdata) {
+		LDIMERR("%s:  controller_data is null\n", __func__);
+		goto ldim_dev_blmcu_probe_err2;
+	}
+	priv = cdata->priv;
+	if (priv) {
+		priv->xlen = bl_mcu->tbuf_size;
+	} else {
+		LDIMERR("%s:  priv is null\n", __func__);
+		goto ldim_dev_blmcu_probe_err2;
+	}
 
+	/* for 2nd spi */
+	/* here For reference only, need to be set according to the actual device spec!!!*/
+	if (dev_drv->spi_dev_num == 2) {
+		bl_mcu->tbuf_size1 = bl_mcu->tbuf_size;
+		bl_mcu->rbuf_size1 = bl_mcu->tbuf_size1;
+		bl_mcu->rbuf1 = kcalloc(bl_mcu->rbuf_size1,
+			sizeof(unsigned char), GFP_KERNEL | GFP_DMA);
+		if (!bl_mcu->rbuf1) {
+			LDIMERR("%s: bl_mcu->rbuf1 is error\n", __func__);
+			goto ldim_dev_blmcu_probe_err2;
+		}
+
+		bl_mcu->tbuf1 = kcalloc(bl_mcu->tbuf_size1,
+			sizeof(unsigned char), GFP_KERNEL | GFP_DMA);
+		if (!bl_mcu->tbuf1) {
+			LDIMERR("%s: bl_mcu->tbuf1 is error\n", __func__);
+			goto ldim_dev_blmcu_probe_err3;
+		}
+
+		cdata = bl_mcu->spi1->controller_data;
+		if (!cdata) {
+			LDIMERR("%s:  controller_data1 is null\n", __func__);
+			goto ldim_dev_blmcu_probe_err4;
+		}
+
+		priv = cdata->priv;
+		if (priv) {
+			priv->xlen = bl_mcu->tbuf_size1;
+		} else {
+			LDIMERR("%s:  priv1 is null\n", __func__);
+			goto ldim_dev_blmcu_probe_err4;
+		}
+	} else {
+		bl_mcu->tbuf_size1 = 0;
+		bl_mcu->rbuf_size1 = 0;
+		bl_mcu->spi1 = NULL;
+	}
+
+	/*set idim*/
 	bl_mcu->idim = dev_drv->boost_conf.iset;
 
 	if (bl_mcu->bl_pwm_en) {
@@ -670,6 +747,15 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 	LDIMPR("%s ok\n", __func__);
 	return 0;
 
+ldim_dev_blmcu_probe_err4:
+	kfree(bl_mcu->tbuf1);
+	bl_mcu->tbuf_size1 = 0;
+ldim_dev_blmcu_probe_err3:
+	kfree(bl_mcu->rbuf1);
+	bl_mcu->rbuf_size1 = 0;
+ldim_dev_blmcu_probe_err2:
+	kfree(bl_mcu->tbuf);
+	bl_mcu->tbuf_size = 0;
 ldim_dev_blmcu_probe_err1:
 	kfree(bl_mcu->rbuf);
 	bl_mcu->rbuf_size = 0;
@@ -688,6 +774,12 @@ int ldim_dev_blmcu_remove(struct aml_ldim_driver_s *ldim_drv)
 	bl_mcu->rbuf_size = 0;
 	kfree(bl_mcu->tbuf);
 	bl_mcu->tbuf_size = 0;
+	if (ldim_drv->dev_drv && ldim_drv->dev_drv->spi_dev_num == 2) {
+		kfree(bl_mcu->rbuf1);
+		bl_mcu->rbuf_size1 = 0;
+		kfree(bl_mcu->tbuf1);
+		bl_mcu->tbuf_size1 = 0;
+	}
 	kfree(bl_mcu);
 	bl_mcu = NULL;
 

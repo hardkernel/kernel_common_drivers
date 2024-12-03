@@ -60,6 +60,19 @@ struct ldim_boost_s {
 	int *iset;
 };
 
+struct spi_private_data {
+	int dev_idx;
+	unsigned int xlen;/*actually xfer len*/
+	dma_addr_t tx_dma;
+	dma_addr_t rx_dma;
+	unsigned char *tx_buf;
+	unsigned char *rx_buf;
+	int async_busy;
+	int async_busy_cnt;
+	int trig_init;
+	int trig_data_ready;
+};
+
 #define LDIM_DEV_NAME_MAX    30
 #define LDIM_INIT_ON_MAX     2000
 #define LDIM_INIT_OFF_MAX    100
@@ -71,16 +84,16 @@ struct ldim_dev_driver_s {
 	unsigned char config_load;
 	unsigned char type;
 	unsigned char dma_support;
-	unsigned char dma_trig_data_ready;
-	unsigned char dma_trig_init;
 	unsigned char spi_sync;
 	unsigned int spi_line_n;/*vpp line n irq*/
-	unsigned int spi_xlen;/*actually xfer len*/
-	dma_addr_t spi_tx_dma;
-	dma_addr_t spi_rx_dma;
-	unsigned char *spi_tx_buf;
-	unsigned char *spi_rx_buf;
+	//unsigned int spi_xlen[2];/*actually xfer len*/
+	//dma_addr_t spi_tx_dma[2];
+	//dma_addr_t spi_rx_dma[2];
+	//unsigned char *spi_tx_buf[2];
+	//unsigned char *spi_rx_buf[2];
 	unsigned int pwm_phase;
+	int spi_dev_num;
+	//char cur_spi_dev_idx;
 	int use_ctrl_cs;
 	int cs_hold_delay;
 	int cs_clk_delay;
@@ -120,8 +133,8 @@ struct ldim_dev_driver_s {
 	struct pinctrl *pin;
 	struct device *dev;
 	struct class *class;
-	struct spi_device *spi_dev;
-	struct spi_board_info *spi_info;
+	struct spi_device *spi_dev[2];
+	struct spi_board_info spi_info[2];
 
 	void (*dim_range_update)(struct ldim_dev_driver_s *dev_drv);
 	int (*pinmux_ctrl)(struct ldim_dev_driver_s *dev_drv, int status);

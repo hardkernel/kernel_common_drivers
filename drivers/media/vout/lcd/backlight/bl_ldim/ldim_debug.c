@@ -1163,7 +1163,7 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 			goto ldim_debug_store_end;
 		}
 	} else if (!strcmp(parm[0], "bypass")) {
-		if (!parm[1])
+		if (!parm[1] || !parm[2])
 			goto ldim_debug_store_err;
 		if (!strcmp(parm[1], "dev")) {
 			if (kstrtouint(parm[2], 0, &temp) < 0)
