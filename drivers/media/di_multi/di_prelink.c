@@ -3332,7 +3332,10 @@ int dpvpp_pre_display(struct vframe_s *vfm,
 	}
 	dbg_plink3("diff:0x%x\n", diff);
 	ndvfm->c.sts_diff = diff;//dbg only;
+#ifdef HIS_CODE
+	/* di will not influence FRC work flow*/
 	set_holdreg_by_in_out(vfm, para, op);
+ #endif
 	if (diff & EDIM_DVPP_DIFF_ALL) {
 		dim_print("%s:vfm:0x%px, in_para:0x%px, o:0x%px\n",
 		__func__, vfm, in_para, out_para);
