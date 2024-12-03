@@ -591,25 +591,27 @@ static int bt_probe(struct platform_device *pdev)
 
 	/*1.Set BT_WAKE_HOST to the input state;*/
 	/*2.Get interrupt number(irqno_wakeup).*/
-	pdata->irqno_wakeup = gpio_to_irq(pdata->gpio_btwakeup);
+	if (pdata->gpio_btwakeup > 0) {
+		pdata->irqno_wakeup = gpio_to_irq(pdata->gpio_btwakeup);
 
-	/*Register interrupt service function*/
-	ret = request_irq(pdata->irqno_wakeup, bt_interrupt,
+		/*Register interrupt service function*/
+		ret = request_irq(pdata->irqno_wakeup, bt_interrupt,
 			IRQF_TRIGGER_FALLING, "bt-irq", (void *)pdata);
-	if (ret < 0)
-		pr_err("request_irq error ret=%d\n", ret);
+		if (ret < 0)
+			pr_err("request_irq error ret=%d\n", ret);
 
-	//disable_irq(pdata->irqno_wakeup);
+		//disable_irq(pdata->irqno_wakeup);
 
-	ret = device_init_wakeup(&pdev->dev, 1);
-	if (ret)
-		pr_err("device_init_wakeup failed: %d\n", ret);
-	/*Wake up the interrupt*/
-	ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irqno_wakeup);
-	if (ret)
-		pr_err("dev_pm_set_wake_irq failed: %d\n", ret);
+		ret = device_init_wakeup(&pdev->dev, 1);
+		if (ret)
+			pr_err("device_init_wakeup failed: %d\n", ret);
+		/*Wake up the interrupt*/
+		ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irqno_wakeup);
+		if (ret)
+			pr_err("dev_pm_set_wake_irq failed: %d\n", ret);
 
-	INIT_WORK(&pdata->btwakeup_work, get_btwakeup_irq_work);
+		INIT_WORK(&pdata->btwakeup_work, get_btwakeup_irq_work);
+	}
 
 	//input
 	input_dev = input_allocate_device();
