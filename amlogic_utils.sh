@@ -1585,7 +1585,12 @@ function set_default_parameters () {
 		[[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" == "arm64" ]] && BAZEL=1
 	fi
 
-	auto_patch_to_common_dir
+	if [[ -d ${KERNEL_DIR}/.git ]]; then
+		auto_patch_to_common_dir
+	else
+		echo "WARNING: no git, auto patch skip!!!"
+		export SYS_SKIP_GIT=1
+	fi
 
 	if [[ ! -f ${BUILD_DIR}/build_abi.sh && ${BAZEL} == 0 ]]; then
 		echo "The directory of build does not exist";
