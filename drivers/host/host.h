@@ -22,7 +22,6 @@
 #define SMC_HIFI_DSP_CMD		0x82000090
 #define SMC_SUBID_HIFI_DSP_BOOT		0x10
 #define SMC_SUBID_HIFI_DSP_REMAP	0x11
-#define SMC_SUBID_HIFI_DSP_PWRCTRL	0x12
 #define SMC_SUBID_HIFI_DSP_PWR_SET	0x13
 #define SMC_SUBID_SHIFT			0x8
 #define PACK_SMC_SUBID_ID(subid, id) (((subid) << SMC_SUBID_SHIFT) | (id))
@@ -35,13 +34,11 @@
  *
  * bit0: pm_support_suspend
  * bit1: pm_support_always_on
- * bit2: pm_support_pwrctrl
- * bit3: pm_support_ffv
+ * bit2: pm_support_ffv
  */
 #define PM_SUPPORT_DSP_SUSPEND(pm_support)	((pm_support) & 0x1)
 #define PM_SUPPORT_DSP_ALWAYS_ON(pm_support)	(((pm_support) & 0x2) >> 1)
-#define PM_SUPPORT_DSP_PWRCTRL(pm_support)	(((pm_support) & 0x4) >> 2)
-#define PM_SUPPORT_DSP_FFV(pm_support)		(((pm_support) & 0x8) >> 3)
+#define PM_SUPPORT_DSP_FFV(pm_support)		(((pm_support) & 0x4) >> 2)
 
 struct host_module;
 struct dsp_info_t;
@@ -133,10 +130,9 @@ struct host_mfh {
  * @usrinfo:             dsp dsp_info_t struct
  * @pm_support_suspend:  dsp support suspend/resume
  * @pm_support_always_on:dsp work when arm suspend
- * @pm_support_pwrctrl:  If support dsp pwrctrl access
- * @pwrctrl_access_en:   Dsp pwrctrl access enable
  * @pm_support_ffv:      If support dsp far field voice
  * @input_device:        input_device for ffv to wakeup screen
+ * @clk_hifi:            dsp hifi clk source
  */
 
 struct host_dsp {
@@ -145,10 +141,9 @@ struct host_dsp {
 	struct dsp_info_t *usrinfo;
 	u8 pm_support_suspend;
 	u8 pm_support_always_on;
-	u8 pm_support_pwrctrl;
-	u8 pwrctrl_access_en;
 	u8 pm_support_ffv;
 	struct input_dev *input_device;
+	struct clk *clk_hifi;
 };
 
 /** struct host_module, the struct of host module
