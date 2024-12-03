@@ -1407,17 +1407,20 @@ int aml_ldim_probe(struct platform_device *pdev)
 		LDIMERR("can't request ldim_vsync_irq(%d)\n", ldim_vsync_irq);
 	}
 
-	ldim_pwm_vs_irq = platform_get_irq_byname(pdev, "ldim_pwm_vs");
-	if (ldim_pwm_vs_irq == -ENXIO) {
-		ret = -ENODEV;
-		LDIMERR("ldim_pwm_vs_irq resource error\n");
-		goto err4;
+	if (bdrv->bconf.method == BL_CTRL_LOCAL_DIMMING) {
+		ldim_pwm_vs_irq = platform_get_irq_byname(pdev, "ldim_pwm_vs");
+		if (ldim_pwm_vs_irq == -ENXIO) {
+			ret = -ENODEV;
+			LDIMERR("ldim_pwm_vs_irq resource error\n");
+			goto err4;
+		}
+		if (request_irq(ldim_pwm_vs_irq, ldim_pwm_vs_isr, IRQF_TRIGGER_FALLING,
+			"ldim_pwm_vs", (void *)"ldim_pwm_vs")) {
+			LDIMERR("can't request ldim_pwm_vs_irq(%d)\n", ldim_pwm_vs_irq);
+		}
+		LDIMPR("ldim_vsync_irq: %d, ldim_pwm_vs_irq: %d\n",
+			ldim_vsync_irq, ldim_pwm_vs_irq);
 	}
-	if (request_irq(ldim_pwm_vs_irq, ldim_pwm_vs_isr, IRQF_TRIGGER_FALLING,
-		"ldim_pwm_vs", (void *)"ldim_pwm_vs")) {
-		LDIMERR("can't request ldim_pwm_vs_irq(%d)\n", ldim_pwm_vs_irq);
-	}
-	LDIMPR("ldim_vsync_irq: %d, ldim_pwm_vs_irq: %d\n", ldim_vsync_irq, ldim_pwm_vs_irq);
 
 	ldim_driver.valid_flag = 1;
 
