@@ -7,18 +7,18 @@
 #define __HDMITX_VERSION_H__
 
 /*arch version*/
-#define HDMITX_MAJOR_VERSION		07
+#define HDMITX_MAJOR_VERSION		08
 /*sub module version*/
-#define HDMITX_COMMON_VERSION		03
+#define HDMITX_COMMON_VERSION		04
 #define HDMITX_HW_COMM_VERSION		01
-#define HDMITX_EDID_VERSION			03
-#define HDMITX_HDR_VERSION			03
-#define HDMITX_AUDIO_VERSION		03
+#define HDMITX_EDID_VERSION			04
+#define HDMITX_HDR_VERSION			04
+#define HDMITX_AUDIO_VERSION		04
 /*tx main version*/
-#define HDMITX_TX20_VERSION			05
-#define HDMITX_TX21_VERSION			04
+#define HDMITX_TX20_VERSION			06
+#define HDMITX_TX21_VERSION			05
 /*change history*/
-#define CHANGE_VERSION				20240914
+#define CHANGE_VERSION				20241206
 
 #define _TO_STRING(x) #x
 #define HDMITX_VER_STR(x) _TO_STRING(x)
