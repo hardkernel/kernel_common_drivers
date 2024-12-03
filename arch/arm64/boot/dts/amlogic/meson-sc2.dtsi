@@ -874,12 +874,13 @@
 		reg = <0x0 0xfe340000 0x0 0x114>, /*host base address*/
 		      <0x0 0xfe44006c 0x0 0x4>, /*dsp support region*/
 		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
-		clocks = <&clkc CLKID_DSPA_CLK>;
-		clock-names = "dspa_clk";
+		clocks = <&clkc CLKID_DSPA_CLK>,
+			 <&clkc CLKID_HIFI_PLL>;
+		clock-names = "dspa_clk",
+			      "dspa_clk_hifi";
 		/* bit0: pm_support_suspend
 		 * bit1: pm_support_always_on
-		 * bit2: pm_support_pwrctrl
-		 * bit3: pm_support_ffv
+		 * bit2: pm_support_ffv
 		 */
 		pm-support = /bits/ 8 <0>;
 		/* host dsp support bit
