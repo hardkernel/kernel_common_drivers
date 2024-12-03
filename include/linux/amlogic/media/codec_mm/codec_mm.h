@@ -193,5 +193,6 @@ static inline int cma_mmu_op(struct page *page, int count, bool set)
 
 u64 codec_mm_managed_max_addr(void);
 u64 codec_mm_secure_vdec_max_addr(void);
+int is_reserved_ext_support(void);
 
 #endif
