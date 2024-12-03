@@ -110,7 +110,8 @@ adjust_config_action
 build_part_of_kernel
 
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
-	args="$@ --config=stamp --config=fast"
+	args="$@ --config=fast"
+	[[ -z ${SYS_SKIP_GIT} ]] && args="${args} --config=stamp"
 	[[ -z ${PREBUILT_GKI} ]] && args="${args} --lto=${LTO}"
 	[[ -n ${FAST_BUILD} ]] && args="${args} --lto=none"
 	[[ -z ${GKI_CONFIG} ||  -n ${FAST_BUILD} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
