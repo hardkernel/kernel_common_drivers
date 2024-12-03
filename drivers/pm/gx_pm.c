@@ -497,6 +497,9 @@ ssize_t suspend_reason_store(struct class *class,
 static CLASS_ATTR_RW(suspend_reason);
 
 static unsigned int suspend_mode;
+#define SMCID_POWER_MANAGER	0x82000079
+#define SMCSUBID_PM_DDR_ASR	0x1000
+#define SMCSUBID_PM_DUMP_INFO	0x1001
 
 ssize_t suspend_mode_show(struct class *class,
 			    struct class_attribute *attr,
@@ -520,7 +523,7 @@ ssize_t suspend_mode_store(struct class *class,
 	if (ret)
 		return ret;
 
-	__invoke_psci_fn_smc(0x82000042, suspend_mode, 0, 0);
+	__invoke_psci_fn_smc(SMCID_POWER_MANAGER, SMCSUBID_PM_DDR_ASR, suspend_mode, 0);
 
 	return count;
 }
