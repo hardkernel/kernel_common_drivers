@@ -440,6 +440,7 @@ struct codec_mm_mgt_s {
 	int total_reserved_ext_size;
 	int alloced_res_ext_size;
 #endif
+	int support_res_ext;
 	int total_codec_mem_size;
 	int total_alloced_size;
 	int total_cma_size;
@@ -865,6 +866,14 @@ void codec_mm_dev_set_dma_mask(u64 bits)
 		dma_coerce_mask_and_coherent(mgt->dev, DMA_BIT_MASK(bits));
 }
 EXPORT_SYMBOL(codec_mm_dev_set_dma_mask);
+
+int is_reserved_ext_support(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	return mgt->support_res_ext;
+}
+EXPORT_SYMBOL(is_reserved_ext_support);
 
 #ifdef CONFIG_CODEC_MM_EXT_POOL
 static int codec_mm_alloc_first(struct codec_mm_mgt_s *mgt,
@@ -3363,6 +3372,7 @@ int codec_mm_mgt_init(struct device *dev)
 			 (void *)mgt->rmem_ext.base, (void *)aligned_addr,
 			 (int)mgt->rmem_ext.size, (int)aligned_size);
 		mgt->total_reserved_ext_size = aligned_size;
+		mgt->support_res_ext = true;
 	}
 #endif
 
