@@ -4099,9 +4099,11 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	}
 
 	if (!vdin_is_input_valid(devp) &&
-		!(devp->debug.invalid_input_en)) {
+		!devp->debug.invalid_input_en &&
+		!devp->set_canvas_manual) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
 		vdin_drop_frame_info(devp, "no data input");
+		goto irq_handled;
 	}
 
 	/* protect mem will fail sometimes due to no res from tee module */
@@ -4285,6 +4287,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	vdin_slt_test(devp);
 
 irq_handled:
+	vdin_force_mif_ctl(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE, true);
 	vdin_dbg_access_reg(devp, 1);
 	devp->vdin_irq_flag = 0;
 	spin_unlock_irqrestore(&devp->isr_lock, flags);

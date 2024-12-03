@@ -2753,6 +2753,28 @@ void vdin_wr_frame_en(unsigned int ch, unsigned int on_off)
 }
 EXPORT_SYMBOL(vdin_wr_frame_en);
 
+void vdin_force_mif_ctl(struct vdin_dev_s *devp, unsigned int rdma_enable, bool on_off)
+{
+	unsigned int offset = devp->addr_offset;
+
+	if (devp->debug.pause_mif_dec || devp->debug.pause_afbce_dec ||
+		devp->pause_dec)
+		return;
+
+	if (devp->dtdata->hw_ver == VDIN_HW_T6D && !devp->set_canvas_manual) {
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+		if (rdma_enable) {
+			rdma_write_reg_bits(devp->rdma_handle,
+				VDIN_WRMIF_FRM_EN_CTRL + offset, on_off, 15, 1);
+		} else {
+#endif
+			wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, on_off, 15, 1);
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+		}
+#endif
+	}
+}
+
 void vdin_set_mif_on_off(struct vdin_dev_s *devp, unsigned int rdma_enable)
 {
 	unsigned int offset = devp->addr_offset;
@@ -2766,6 +2788,7 @@ void vdin_set_mif_on_off(struct vdin_dev_s *devp, unsigned int rdma_enable)
 		return;
 	}
 #endif
+
 	if (devp->vframe_wr_en_pre == devp->vframe_wr_en)
 		return;
 
