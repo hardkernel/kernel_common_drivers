@@ -450,23 +450,28 @@ static int bt_resume(struct platform_device *pdev)
 		flag_p = 0;
 		cnt = 0;
 	}
-	if (!distinguish_module() && get_resume_method() == BT_WAKEUP) {
-		pr_debug("%s:simulate report key\r", __func__);
-		input_event(prdata->pdata->input_dev,
-			EV_KEY, KEY_POWER, 1);
-		input_sync(prdata->pdata->input_dev);
-		input_event(prdata->pdata->input_dev,
-			EV_KEY, KEY_POWER, 0);
-		input_sync(prdata->pdata->input_dev);
-	}
-	if (get_resume_method() == REMOTE_CUS_WAKEUP) {
-		pr_debug("%s:simulate report key\r", __func__);
-		input_event(prdata->pdata->input_dev,
-			EV_KEY, 133, 1);
-		input_sync(prdata->pdata->input_dev);
-		input_event(prdata->pdata->input_dev,
-			EV_KEY, 133, 0);
-		input_sync(prdata->pdata->input_dev);
+
+	/* for platform like yocto, suspend wakeup use any-key wakeup, don't
+	 * need to help report simulate key event for all modules
+	 */
+	if (!distinguish_module()) {
+#ifndef CONFIG_AMLOGIC_BT_WAKE_NOT_REPORT
+		if (get_resume_method() == BT_WAKEUP) {
+			pr_debug("%s:simulate report key\r", __func__);
+			input_event(prdata->pdata->input_dev, EV_KEY, KEY_POWER, 1);
+			input_sync(prdata->pdata->input_dev);
+			input_event(prdata->pdata->input_dev, EV_KEY, KEY_POWER, 0);
+			input_sync(prdata->pdata->input_dev);
+		}
+
+		if (get_resume_method() == REMOTE_CUS_WAKEUP) {
+			pr_debug("%s:simulate report key\r", __func__);
+			input_event(prdata->pdata->input_dev, EV_KEY, 133, 1);
+			input_sync(prdata->pdata->input_dev);
+			input_event(prdata->pdata->input_dev, EV_KEY, 133, 0);
+			input_sync(prdata->pdata->input_dev);
+		}
+#endif
 	}
 
 	return 0;
