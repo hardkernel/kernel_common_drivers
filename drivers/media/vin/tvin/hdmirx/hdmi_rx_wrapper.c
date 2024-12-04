@@ -4408,7 +4408,8 @@ void rx_fsm_print(u8 port)
 void rx_fsm_print_handler(struct work_struct *work)
 {
 	struct work_data *dd = container_of(work, struct work_data, work_wq);
-
+	if (rx[dd->port].state == FSM_SIG_READY)
+		dump_state(RX_DUMP_VIDEO, dd->port);
 	rx_pr("%s\n", fsm_pr_buff[dd->port]);
 }
 

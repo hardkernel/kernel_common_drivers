@@ -5540,7 +5540,9 @@ void rx_clkmsr_monitor(void)
 	rx[E_PORT1].clk.cable_clk_pre = rx[E_PORT1].clk.cable_clk;
 	rx[E_PORT2].clk.cable_clk_pre = rx[E_PORT2].clk.cable_clk;
 	rx[E_PORT3].clk.cable_clk_pre = rx[E_PORT3].clk.cable_clk;
-	if ((rx_info.main_port_open || rx_info.chip_id == CHIP_ID_T3X) && rx_get_hdmi5v_sts())
+	if ((rx_info.main_port_open ||
+		rx[rx_info.main_port].resume_flag ||
+		rx_info.chip_id == CHIP_ID_T3X) && rx_get_hdmi5v_sts())
 		schedule_work(&clkmsr_dwork);
 }
 
@@ -6838,7 +6840,7 @@ void rx_emp_field_done_irq(u8 port)
 	recv_byte_cnt = recv_pkt_cnt * 32;
 	if (recv_byte_cnt > (EMP_BUFFER_SIZE >> 2))
 		recv_byte_cnt = EMP_BUFFER_SIZE >> 2;
-	//if (log_level & PACKET_LOG)
+	//if (log_level & PACKET_LO)
 		//rx_pr("recv_byte_cnt=0x%x\n", recv_byte_cnt);
 
 	if (emp_buf_p->irq_cnt & 0x1) {
