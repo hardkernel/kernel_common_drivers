@@ -1659,7 +1659,7 @@
 			    "freq-addr";
 		type-mask = <8 8>;
 		freq-mask = <0 16>;
-		status = "okay";
+		status = "disabled";
 		lpddr4 {
 			particle = <LPDDR4_PARTICLE>;
 			particle-flag = <DDR_TYPE_FLAG>;
