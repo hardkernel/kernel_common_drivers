@@ -264,7 +264,7 @@ static inline bool resman_parser_kv(char *str, const char *k, __u32 *v)
 	if (k && v && sk && sv && !strcmp(sk, k) && !kstrtou32(sv, 0, v))
 		ret = true;
 	if (!ret)
-		dprintk(2, "parse %s failed %s\n", k, str);
+		dprintk(2, "parse %s  %s\n", k, str);
 	return ret;
 }
 
@@ -360,7 +360,7 @@ static bool resman_acquire_resource(struct resman_session *sess,
 				    const char *arg_ro)
 {
 	bool ret = false;
-	struct resman_node *node;
+	struct resman_node *node = NULL;
 	char *arg_rw = NULL;
 
 	if (arg_ro)
@@ -377,7 +377,7 @@ static bool resman_acquire_resource(struct resman_session *sess,
 		sess->id,
 		resource->name,
 		preempt ? "yes" : "no");
-	if (resource->acquire(sess, resource, node, preempt, timeout, arg_rw)) {
+	if (node && resource->acquire(sess, resource, node, preempt, timeout, arg_rw)) {
 		list_add_tail(&node->rlist, &sess->resources);
 		list_add_tail(&node->slist, &resource->sessions);
 		init_completion(&node->pending_release);
@@ -468,7 +468,7 @@ static void resman_close_session(struct resman_session *sess)
 
 static void resman_send_event(struct resman_session *sess, __u32 type)
 {
-	struct resman_event *event;
+	struct resman_event *event = NULL;
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
@@ -1056,8 +1056,7 @@ static void resman_codec_mm_release(struct resman_session *sess,
  */
 static void resman_codec_mm_probe(struct resman_resource *resource)
 {
-	int total_bytes;
-	int tvp_fhd, tvp_uhd;
+	int total_bytes = 0, tvp_fhd = 0, tvp_uhd = 0;
 
 	codec_mm_get_default_tvp_size(&tvp_fhd, &tvp_uhd);
 	total_bytes = codec_mm_get_total_size();
@@ -1694,7 +1693,8 @@ static void all_resource_init(void)
 	INIT_LIST_HEAD(&debug_head);
 	INIT_LIST_HEAD(&error_info_head);
 #ifdef RESMAM_ENABLE_JSON
-	resman_config_from_json(default_configs);
+	if (default_configs && len && default_configs[len] == '\0')
+		resman_config_from_json(default_configs);
 	kfree(default_configs);
 #else
 	resman_parser_config(default_configs);
@@ -1743,8 +1743,7 @@ beach:
 static int resman_estimate_tvp_available(int size)
 {
 	int free_size = codec_mm_get_free_size();
-	int tvp_fhd, tvp_uhd;
-	int mode = 0;
+	int tvp_fhd = 0, tvp_uhd = 0, mode = 0;
 
 	free_size += codec_mm_get_tvp_free_size();
 	if (size <= 0) {
@@ -2267,8 +2266,7 @@ static long resman_get_error_info(struct resman_session *sess, unsigned long par
 {
 	int len = 0;
 	struct error_info_node *node = NULL;
-	struct list_head *pos = NULL;
-	struct list_head *tmp = NULL;
+	struct list_head *pos = NULL, *tmp = NULL;
 
 	list_for_each_safe(pos, tmp, &error_info_head) {
 		node = list_entry(pos, struct error_info_node, list);
@@ -2445,7 +2443,7 @@ int resman_register_debug_callback(const char *module, debug_callback callback)
 		}
 
 		node->module = kzalloc(strlen(module) + 1, GFP_KERNEL);
-		if (!node) {
+		if (!node->module) {
 			dprintk(0, "failed allocate module for %s\n", module);
 			res = -ENOMEM;
 			goto error;
@@ -2504,7 +2502,7 @@ int resman_notify_error_info(const char *info)
 		goto error1;
 	}
 	node->info = kzalloc(strlen(info) + 1, GFP_KERNEL);
-	if (!node) {
+	if (!node->info) {
 		dprintk(0, "failed allocate info for %s\n", info);
 		res = -ENOMEM;
 		goto error;
