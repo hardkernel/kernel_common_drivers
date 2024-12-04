@@ -1726,7 +1726,7 @@
 		v4l_vd_num = <70>;
 		/* v4l2 capability */
 		driver   = "vdin_video";
-		card     = "meson-s4d";
+		card     = "meson-s6";
 		bus_info = "vdin0 v4l2";
 		version  = <0x20220120>;
 		/* fe_ports refer to tvin.h */
@@ -1754,7 +1754,7 @@
 		v4l_vd_num = <71>;
 		/* v4l2 capability */
 		driver   = "vdin_video";
-		card     = "meson-s4d";
+		card     = "meson-s6";
 		bus_info = "vdin1 v4l2";
 		version  = <0x20220120>;
 		/* fe_ports refer to tvin.h */
