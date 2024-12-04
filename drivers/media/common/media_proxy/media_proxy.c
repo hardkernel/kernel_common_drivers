@@ -871,6 +871,7 @@ int media_proxy_produce_deinit(void *handle)
 		} else {
 			mediaproxy->p_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
 			mediaproxy->p_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
+			kfifo_free(&session->msg_kfifo);
 		}
 		mediaproxy->has_unusing_fifo++;
 		pr_info("deinit has_unusing_fifo [%d]\n", mediaproxy->has_unusing_fifo);
