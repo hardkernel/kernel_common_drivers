@@ -39,7 +39,7 @@
 		clocks = <&clkc CLKID_VPU_CLKC>;
 		clock-names = "vpu_clkc";
 		assigned-clocks = <&clkc CLKID_VPU_CLKC>;
-		assigned-clock-rates = <200000000>;
+		assigned-clock-rates = <250000000>;
 		/*EXTERNAL port for driver outside of drm.*/
 		connectors_dev: port@1 {
 			#address-cells = <1>;
