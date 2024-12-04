@@ -292,6 +292,10 @@ int __init amlogic_heap_secure_dma_buf_init(void)
 	target = of_find_compatible_node(target, NULL, "amlogic, heap-secure-mem");
 	if (target) {
 		mem = of_reserved_mem_lookup(target);
+		if (!mem) {
+			pr_err("%s: of_reserved_mem_lookup return NULL.\n", __func__);
+			return -ENOMEM;
+		}
 	} else {
 		pr_err("%s: heap-secure not added in dts.\n", __func__);
 		return -ENOMEM;

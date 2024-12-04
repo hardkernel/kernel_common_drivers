@@ -425,8 +425,12 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 	 * unmap it now so we don't get corruption later on.
 	 */
 	if (buffer->uncached) {
-		dma_map_sgtable(dma_heap_get_dev(heap), table,
+		ret = dma_map_sgtable(dma_heap_get_dev(heap), table,
 						DMA_BIDIRECTIONAL, 0);
+		if (ret) {
+			ret = -ENOMEM;
+			goto free_pages;
+		}
 		dma_unmap_sgtable(dma_heap_get_dev(heap), table,
 						DMA_BIDIRECTIONAL, 0);
 	}
