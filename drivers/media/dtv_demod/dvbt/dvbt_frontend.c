@@ -71,6 +71,61 @@ typedef s32 fixed_t;
 static int iir_cnt;
 static int snr_iir;
 static bool doppler_detect;
+
+static unsigned int dvbt2_reg_to_fe_modulation(unsigned int reg_modu)
+{
+	unsigned int modu = 0xFF;
+
+	switch (reg_modu) {
+	case 0:
+		modu = QPSK;
+		break;
+	case 1:
+		modu = QAM_16;
+		break;
+	case 2:
+		modu = QAM_64;
+		break;
+	case 3:
+		modu = QAM_256;
+		break;
+	default:
+		break;
+	}
+
+	return modu;
+}
+
+static unsigned int dvbt2_reg_to_fe_coderate(unsigned int reg_cr)
+{
+	unsigned int cr = 0xFF;
+
+	switch (reg_cr) {
+	case 0:
+		cr = FEC_1_2;
+		break;
+	case 1:
+		cr = FEC_3_5;
+		break;
+	case 2:
+		cr = FEC_2_3;
+		break;
+	case 3:
+		cr = FEC_3_4;
+		break;
+	case 4:
+		cr = FEC_4_5;
+		break;
+	case 5:
+		cr = FEC_5_6;
+		break;
+	default:
+		break;
+	}
+
+	return cr;
+}
+
 static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int *is_signal)
 {
 	int ilock = 0;
@@ -137,9 +192,11 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 			FE_HAS_VITERBI | FE_HAS_SYNC;
 
 		//dBx10.
-		demod->real_para.snr =
-			(((dvbt_t2_rdb(CHC_CIR_SNR1) & 0x7) << 8)
-			| dvbt_t2_rdb(CHC_CIR_SNR0)) * 30 / 64;
+		demod->real_para.snr = (((dvbt_t2_rdb(CHC_CIR_SNR1) & 0x7) << 8) |
+			dvbt_t2_rdb(CHC_CIR_SNR0)) * 30 / 64;
+		//need read twice
+		demod->real_para.snr = (((dvbt_t2_rdb(CHC_CIR_SNR1) & 0x7) << 8) |
+			dvbt_t2_rdb(CHC_CIR_SNR0)) * 30 / 64;
 
 		dvbt_get_modulation_coderate(&demod->real_para.modulation,
 				&demod->real_para.hp_coderate,
@@ -491,6 +548,8 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	}
 	snr &= 0x7ff;
 	snr = snr * 30 / 64; //dBx10.
+	if (snr > 190)
+		snr = snr + (snr - 190 + 5) / 10;
 
 	if (is_meson_t6d_cpu() && l1post) {
 		/* detect T2 echo 20us case */
@@ -618,8 +677,8 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
 				FE_HAS_VITERBI | FE_HAS_SYNC;
 		demod->real_para.snr = snr;
-		demod->real_para.modulation = modu;
-		demod->real_para.coderate = cr;
+		demod->real_para.modulation = dvbt2_reg_to_fe_modulation(modu);
+		demod->real_para.coderate = dvbt2_reg_to_fe_coderate(cr);
 		demod->real_para.plp_num = plp_num;
 		demod->real_para.plp_common = plp_common;
 		demod->real_para.fef_info = fef_info;
