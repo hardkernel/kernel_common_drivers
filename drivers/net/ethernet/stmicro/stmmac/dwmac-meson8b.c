@@ -95,6 +95,8 @@
  */
 #define PRG_ETH1_CFG_RXCLK_DLY		GENMASK(19, 16)
 
+unsigned int mdns_switch_from_user;
+
 struct meson8b_dwmac;
 
 struct meson8b_dwmac_data {
@@ -461,6 +463,9 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 #ifdef CONFIG_PM_SLEEP
 	if (of_property_read_u32(np, "mac_wol", &wol_switch_from_user) == 0)
 		pr_debug("feature mac_wol\n");
+
+	if (of_property_read_u32(np, "mdns_wkup", &mdns_switch_from_user) == 0)
+		pr_info("feature mdns_switch_from_user\n");
 #endif
 
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
@@ -694,7 +699,10 @@ static int meson8b_suspend(struct device *dev)
 		set_wol_notify_bl30(dwmac, true);
 		/*our phy not support wol by now*/
 		phydev->irq_suspended = 0;
-		priv->wolopts = WAKE_MAGIC;
+		if (mdns_switch_from_user)
+			priv->wolopts = (0x1 << 5) | (0x1 << 8);
+		else
+			priv->wolopts = WAKE_MAGIC;
 		ret = stmmac_suspend(dev);
 		without_reset = 1;
 	} else {

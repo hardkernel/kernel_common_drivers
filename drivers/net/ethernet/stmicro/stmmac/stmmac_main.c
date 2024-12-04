@@ -293,22 +293,22 @@ EXPORT_SYMBOL_GPL(stmmac_global_err);
 
 static void stmmac_amlogic_task(struct work_struct *work)
 {
-	struct stmmac_priv *priv = container_of(work, struct stmmac_priv,
-			amlogic_task);
-	u32 regval;
+//	struct stmmac_priv *priv = container_of(work, struct stmmac_priv,
+//			amlogic_task);
+//	u32 regval;
 
-	if (priv->amlogic_task_action == 100) {
-		msleep(3000);
-		// re-enable MAC Rx/Tx to resolve network broken issue
-		regval = readl(priv->ioaddr + MAC_CTRL_REG);
-		regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
-		writel(regval, priv->ioaddr + MAC_CTRL_REG);
-		if (priv->linkup_after_resume < 2) {
-			// revert the effect of phy_speed_down() again
-			phylink_speed_up(priv->phylink);
-		}
-	}
-	priv->amlogic_task_action = 0;
+//	if (priv->amlogic_task_action == 100) {
+//		msleep(3000);
+//		// re-enable MAC Rx/Tx to resolve network broken issue
+//		regval = readl(priv->ioaddr + MAC_CTRL_REG);
+//		regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
+//		writel(regval, priv->ioaddr + MAC_CTRL_REG);
+//		if (priv->linkup_after_resume < 2) {
+//			// revert the effect of phy_speed_down() again
+//			phylink_speed_up(priv->phylink);
+//		}
+//	}
+//	priv->amlogic_task_action = 0;
 }
 
 void stmmac_trigger_amlogic_task(struct stmmac_priv *priv)
@@ -7939,17 +7939,6 @@ int stmmac_suspend(struct device *dev)
 
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
-#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-#ifdef CONFIG_PM_SLEEP
-		int ret;
-
-		if (wol_switch_from_user && priv->phylink->phydev->link) {
-			ret = phylink_speed_down(priv->phylink, true);
-			if (ret)
-				dev_err(priv->device, "phylink_speed_down(): auto-negotiation is incomplete\n");
-		}
-#endif
-#endif
 		phylink_suspend(priv->phylink, true);
 	} else {
 		if (device_may_wakeup(priv->device))
@@ -8048,7 +8037,6 @@ int stmmac_resume(struct device *dev)
 			return ret;
 	}
 
-#if !IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_resume(priv->phylink);
@@ -8058,7 +8046,6 @@ int stmmac_resume(struct device *dev)
 			phylink_speed_up(priv->phylink);
 	}
 	rtnl_unlock();
-#endif
 
 	rtnl_lock();
 	mutex_lock(&priv->lock);
@@ -8079,19 +8066,6 @@ int stmmac_resume(struct device *dev)
 
 	mutex_unlock(&priv->lock);
 	rtnl_unlock();
-
-#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-	rtnl_lock();
-	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
-		phylink_resume(priv->phylink);
-		phylink_speed_up(priv->phylink);
-	} else {
-		phylink_resume(priv->phylink);
-		if (device_may_wakeup(priv->device))
-			phylink_speed_up(priv->phylink);
-	}
-	rtnl_unlock();
-#endif
 
 	netif_device_attach(ndev);
 
