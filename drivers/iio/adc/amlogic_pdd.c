@@ -141,8 +141,6 @@ static void amlogic_pdd_hw_enable(struct device *dev)
 	u32 mask;
 	u32 regval;
 
-	clk_prepare_enable(priv->clk_core);
-
 	/*
 	 * filter_tick_sel:
 	 *   2'b00: 1us/tick
@@ -200,8 +198,6 @@ static void amlogic_pdd_hw_disable(struct device *dev)
 	byte_offs = priv->analog[DET_EN].byte_offs;
 	bit_offs = priv->analog[DET_EN].bit_offs;
 	regmap_update_bits(priv->regmap, byte_offs, BIT(bit_offs), 0);
-
-	clk_disable_unprepare(priv->clk_core);
 
 	dev_dbg(dev, "Power down detection disabled\n");
 }
@@ -509,16 +505,28 @@ static int amlogic_pdd_probe(struct platform_device *pdev)
 	priv->state = STATE_IDLE;
 	spin_lock_init(&priv->lock);
 
+	clk_prepare_enable(priv->clk_core);
+
 	/* Add an interrupt controller */
 	ret = amlogic_pdd_add_irq(dev);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(priv->clk_core);
 		return ret;
+	}
 
 	return 0;
 }
 
+static void amlogic_pdd_remove(struct platform_device *pdev)
+{
+	struct amlogic_pdd_priv *priv = dev_get_drvdata(&pdev->dev);
+
+	clk_disable_unprepare(priv->clk_core);
+}
+
 static struct platform_driver amlogic_pdd_driver = {
 	.probe		= amlogic_pdd_probe,
+	.remove		= amlogic_pdd_remove,
 	.driver		= {
 		.name	= "amlogic-pdd",
 		.of_match_table = amlogic_pdd_of_match,
