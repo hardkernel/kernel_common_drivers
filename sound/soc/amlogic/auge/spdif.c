@@ -109,6 +109,7 @@ struct aml_spdif {
 	struct regulator *regulator_vcc3v3;
 	struct regulator *regulator_vcc5v;
 	int suspend_clk_off;
+	int is_arc;
 	bool earc_use_48k;
 	/* Standardization value by normal setting */
 	unsigned int standard_sysclk;
@@ -116,6 +117,7 @@ struct aml_spdif {
 	/* stream ready to read audio type */
 	bool rx_stable;
 	struct delayed_work rx_stable_dwork;
+	struct delayed_work mute_work;
 };
 
 unsigned int get_spdif_source_l_config(int id)
@@ -153,8 +155,7 @@ void aml_spdifout_enable(int spdif_id, bool is_enable, bool reenable)
 	int spdif_reg_mute = 0;
 
 	if (!is_enable)
-		aml_spdifout_mute_without_actrl(p_spdif->id, false, true,
-			p_spdif->chipinfo->gain_ver);
+		aml_spdifout_mute_without_actrl(p_spdif->id, false, true);
 
 	spdifout_enable(spdif_id, is_enable, reenable);
 
@@ -162,8 +163,7 @@ void aml_spdifout_enable(int spdif_id, bool is_enable, bool reenable)
 		udelay(9);
 		if (p_spdif->spdif_soft_mute)
 			spdif_reg_mute =  p_spdif->mute;
-		aml_spdifout_mute_without_actrl(p_spdif->id, true, spdif_reg_mute,
-			p_spdif->chipinfo->gain_ver);
+		aml_spdifout_mute_without_actrl(p_spdif->id, true, spdif_reg_mute);
 	}
 }
 
@@ -409,8 +409,7 @@ static void ss_mute(int samesource_sel, bool mute)
 		struct aml_spdif *p_spdif = ops->private;
 		if (p_spdif->spdif_soft_mute)
 			spdif_reg_mute =  p_spdif->mute;
-		aml_spdifout_mute_without_actrl(samesource_sel - 3, !mute, spdif_reg_mute,
-			p_spdif->chipinfo->gain_ver);
+		aml_spdifout_mute_without_actrl(samesource_sel - 3, !mute, spdif_reg_mute);
 
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
 		    get_samesrc_ops(p_spdif->samesource_sel) &&
@@ -686,6 +685,15 @@ static int aml_audio_get_spdif_mute(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static void mute_work_func(struct work_struct *p_work)
+{
+	struct aml_spdif *p_spdif = container_of(to_delayed_work(p_work),
+			struct aml_spdif, mute_work);
+
+	if (aml_spdif_out_get_mute(p_spdif->actrl, p_spdif->id) != p_spdif->mute)
+		aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, p_spdif->mute);
+}
+
 static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
@@ -713,10 +721,18 @@ static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 				pinctrl_select_state(p_spdif->pin_ctl, state);
 		}
 	} else {
-		int gain_ver = p_spdif->chipinfo->gain_ver;
-
-		if (aml_spdif_out_get_mute(p_spdif->actrl, p_spdif->id, gain_ver) != mute)
-			aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, mute, gain_ver);
+		/* for avrs which don't support dts format, so can't send dts data.
+		 * when spdif dual output dts when audio output devices is speaker,
+		 * audio output devices switch  from speaker to arc, if the data
+		 * format is still dts, then unmute it later and audio hal will
+		 * change the output data format later.
+		 */
+		if (p_spdif->is_arc && !mute && p_spdif->codec_type == AUD_CODEC_TYPE_DTS) {
+			schedule_delayed_work(&p_spdif->mute_work, msecs_to_jiffies(30));
+		} else {
+			if (aml_spdif_out_get_mute(p_spdif->actrl, p_spdif->id) != mute)
+				aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, mute);
+		}
 	}
 
 	p_spdif->mute = mute;
@@ -1535,8 +1551,7 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			udelay(100);
 			if (p_spdif->spdif_soft_mute)
 				spdif_reg_mute =  p_spdif->mute;
-			aml_spdifout_mute_without_actrl(p_spdif->id, true, spdif_reg_mute,
-				p_spdif->chipinfo->gain_ver);
+			aml_spdifout_mute_without_actrl(p_spdif->id, true, spdif_reg_mute);
 			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 				spdif_sharebuffer_mute(p_spdif, false);
 		} else {
@@ -1566,8 +1581,7 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			 * only mute, ensure spdif outputs zero data.
 			 */
 			if (p_spdif->clk_cont) {
-				aml_spdifout_mute_without_actrl(p_spdif->id, false, true,
-					p_spdif->chipinfo->gain_ver);
+				aml_spdifout_mute_without_actrl(p_spdif->id, false, true);
 				if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 					spdif_sharebuffer_mute(p_spdif, true);
 			} else {
@@ -2224,6 +2238,10 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 
+	ret = of_property_read_u32(node, "is_arc", &aml_spdif->is_arc);
+	if (ret < 0)
+		dev_dbg(&pdev->dev, "Can't retrieve is_arc\n");
+
 	/* get audio controller */
 	node_prt = of_get_parent(node);
 	if (!node_prt)
@@ -2247,6 +2265,8 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 	spdif_priv[aml_spdif->id] = aml_spdif;
+	if (aml_spdif->is_arc)
+		INIT_DELAYED_WORK(&aml_spdif->mute_work, mute_work_func);
 	if (aml_spdif->id == 0)
 		INIT_DELAYED_WORK(&aml_spdif->rx_stable_dwork, rx_stable_dwork_func);
 
