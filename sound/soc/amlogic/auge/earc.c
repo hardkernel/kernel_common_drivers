@@ -3083,9 +3083,10 @@ struct earc_chipinfo s5_earc_chipinfo = {
 
 struct earc_chipinfo s7d_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
-	.rx_dmac_sync_int = true,
+	.rx_dmac_sync_int = false,
 	.rterm_on = true,
 	.chnum_mult_mode = true,
+	.unstable_tick_sel = true,
 	.rx_enable = true,
 	.tx_enable = false,
 	.rx_pll_new = true,
