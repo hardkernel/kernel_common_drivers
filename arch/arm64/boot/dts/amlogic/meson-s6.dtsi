@@ -2043,7 +2043,7 @@
 		status = "okay";
 	};
 
-	chosen {
+	chosen:chosen {
 		bootargs = "usbcore.autosuspend=-1";
 	};
 
