@@ -1073,12 +1073,13 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
 		src-clk-freq = <491520000>;
-		pinctrl-names = "tdm_pins";
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <&tdm_a_pins
 			&tdm_d0_pins
 			&tdm_d1_pins
 			&tdma_clk_pins>;
-
+		pinctrl-1 = <&tdm_a_sleep>;
+		suspend-clk-off = <1>;
 		/*enable default mclk(12.288M), before extern codec start*/
 		//start_clk_enable = <1>;
 
@@ -1100,13 +1101,13 @@
 		clock-names = "mclk", "mclk_pad", "clk_srcpll", "clk_src_cd";
 
 		src-clk-freq = <491520000>;
-		pinctrl-names = "tdm_pins";
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <&mclk_1_pins
 			&tdm_b_pins
 			&tdm_d4_pins
 			&tdm_d5_pins
 			&tdmb_clk_pins>;
-
+		pinctrl-1 = <&tdm_b_sleep>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1125,7 +1126,7 @@
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
 		status = "okay";
-
+		suspend-clk-off = <1>;
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/
@@ -1155,7 +1156,7 @@
 	tdmd:tdm@3 {
 		compatible = "amlogic, t7-snd-tdmd";
 		#sound-dai-cells = <0>;
-
+		suspend-clk-off = <1>;
 		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <3>;
@@ -1165,10 +1166,7 @@
 			&clkc CLKID_HIFI_PLL
 			&clkc CLKID_MPLL3>;
 		clock-names = "gate_out","mclk",
-					"mclk_pad","clk_srcpll", "clk_src_cd";
-		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdm_d_pins
-			&tdmd_clk_pins>;
+					"mclk_pad", "clk_srcpll", "clk_src_cd";
 		start_clk_enable = <1>;
 		samesource_sel = <3>;
 		ctrl_gain = <1>;
@@ -1194,8 +1192,9 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 		src-clk-freq = <491520000>;
-		pinctrl-names = "pdm_pins";
+		pinctrl-names = "pdm_pins", "pdm_a_gpio";
 		pinctrl-0 = <&pdmin_pins>;
+		pinctrl-1 = <&pdm_sleep>;
 
 		/* mode 0~4, default:1 */
 		filter_mode = <1>;
@@ -1226,7 +1225,7 @@
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
 		pinctrl-0 = <&spdifout_d>;
 		pinctrl-1 = <&spdifout_d_mute>;
-
+		suspend-clk-off = <1>;
 		/*samesource_sel = <4>;*/
 
 		/*spdif clk tuning enable*/
@@ -1244,6 +1243,7 @@
 		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
 		src-clk-freq = <491520000>;
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1305,7 +1305,7 @@
 		 *	EARC_RX,    11
 		 */
 		resample_module = <8>;
-
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1318,7 +1318,7 @@
 
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
-
+		suspend-clk-off = <1>;
 		status = "disabled";
 	};
 
@@ -1389,7 +1389,7 @@
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
-
+		mic-src = <&pdm>;
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
 
@@ -1446,7 +1446,7 @@
 		datain_chnum = <4>;
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 0 1 0>;
+		datain-lane-mask-in = <1 1 0 0>;
 
 		/* tdmin_lb src
 		 * 0: tdmoutA
@@ -1927,13 +1927,38 @@
 		};
 	};
 
-	tdm_d_pins: tdm_d_pin {
-		mux { /* GPIOM_5, GPIOM_4, GPIOM_3, GPIOM_2 */
-			groups = "tdm_sclk3",
-				"tdm_fs3",
-				"tdm_d14",
-				"tdm_d15";
-			function = "tdm";
+	pdm_sleep:pdm_sleep {
+		mux {
+			groups = "GPIOM_1",
+				"GPIOM_2",
+				"GPIOM_3",
+				"GPIOM_4",
+				"GPIOM_5";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	tdm_b_sleep:tdm_b_sleep {
+		mux {
+			groups = "GPIOT_1",
+				"GPIOT_2",
+				"GPIOT_5",
+				"GPIOT_0",
+				"GPIOT_6";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	tdm_a_sleep:tdm_a_sleep {
+		mux {
+			groups = "GPIOX_8",
+				"GPIOX_9",
+				"GPIOX_10",
+				"GPIOX_11";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -2061,13 +2086,6 @@
 		mux {
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
-		};
-	};
-
-	tdmd_clk_pins: tdmd_clk_pin {
-		mux {
-			groups = "tdm_sclk3", "tdm_lrclk3";
-			function = "tdm_clk_outd";
 		};
 	};
 };
