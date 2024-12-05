@@ -74,12 +74,6 @@
 			reg = <0x0 0x0 0x0 0x80000>;
 		};
 
-		mte_reserved:linux,mte {
-			compatible = "shared-dma-pool";
-			no-map;
-			reg = <0x0 0x0c000000 0x0 0x20000000>;
-		};
-
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			/*reusable;*/
@@ -1100,6 +1094,10 @@
 			reg = <0x0 0xffffffff>;
 		};
 	};
+};
+
+&chosen {
+	bootargs = "usbcore.autosuspend=-1 arm64.nomte";
 };
 
 &saradc {
