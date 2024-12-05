@@ -5,7 +5,6 @@ load("//common_drivers:modules.bzl", "AMLOGIC_MODULES")
 load("//common_drivers:project/project.bzl", "EXT_MODULES_ANDROID", "GKI_CONFIG", "KCONFIG_EXT_SRCS")
 load("//common_drivers:project/dtb.bzl", "AMLOGIC_DTBS")
 
-#KV_TODO: modify
 _AMLOGIC_DTBOS = [
 ]
 

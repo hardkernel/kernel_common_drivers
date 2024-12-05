@@ -131,13 +131,7 @@ static const struct regmap_irq_chip meson_pmic6b_irq_chip = {
 	.num_irqs = ARRAY_SIZE(meson_pmic6b_irqs),
 	.num_regs = 2,
 	.status_base = PMIC6B_IRQ_STATUS_CLR0,
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	.unmask_base = PMIC6B_IRQ_MASK0,
-#else
-	.mask_base = PMIC6B_IRQ_MASK0,
-	.mask_invert = true,
-#endif
 	.ack_base = PMIC6B_IRQ_STATUS_CLR0,
 	.init_ack_masked = true,
 	.ack_invert = true,

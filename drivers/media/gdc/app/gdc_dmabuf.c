@@ -159,12 +159,8 @@ static void *aml_dma_alloc(struct device *dev, unsigned long attrs,
 		cma_area = dev->cma_area;
 	else
 		cma_area = dma_contiguous_default_area;
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+
 	cma_pages = cma_alloc(cma_area, size >> PAGE_SHIFT, 0, GFP_KERNEL);
-#else
-	cma_pages = cma_alloc(cma_area, size >> PAGE_SHIFT, 0, 0);
-#endif
 	if (cma_pages) {
 		paddr = page_to_phys(cma_pages);
 	} else {
@@ -285,24 +281,11 @@ static struct sg_table *aml_dmabuf_ops_map(struct dma_buf_attachment *db_attach,
 {
 	struct aml_attachment *attach = db_attach->priv;
 	/* stealing dmabuf mutex to serialize map/unmap operations */
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-	struct mutex *lock = &db_attach->dmabuf->lock;
-#endif
 	struct sg_table *sgt;
-
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-	mutex_lock(lock);
-#endif
 
 	sgt = &attach->sgt;
 	/* return previously mapped sg table */
 	if (attach->dma_dir == dma_dir) {
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-		mutex_unlock(lock);
-#endif
 		return sgt;
 	}
 
@@ -318,19 +301,11 @@ static struct sg_table *aml_dmabuf_ops_map(struct dma_buf_attachment *db_attach,
 				dma_dir);
 	if (!sgt->nents) {
 		pr_err("failed to map scatterlist\n");
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-		mutex_unlock(lock);
-#endif
 		return (void *)(-EIO);
 	}
 
 	attach->dma_dir = dma_dir;
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-	mutex_unlock(lock);
-#endif
 	return sgt;
 }
 

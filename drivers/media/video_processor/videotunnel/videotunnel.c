@@ -1924,7 +1924,6 @@ static unsigned int vt_ioctl_dir(unsigned int cmd)
 	}
 }
 
-//KV_TODO: modify conflicting include/linux/tty.h:504 vt_ioctl()
 static long videotunnel_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;

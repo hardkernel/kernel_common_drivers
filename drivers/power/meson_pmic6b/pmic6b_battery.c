@@ -808,7 +808,6 @@ static const struct power_supply_desc pmic6b_bat_desc = {
 	.get_property	= pmic6b_bat_get_prop,
 };
 
-//KV_TODO: review
 int pmic6b_bat_hw_init(struct pmic6b_bat *bat)
 {
 	int ret = 0;

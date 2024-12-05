@@ -684,7 +684,6 @@ int pwm_double_channel_conf_dt(struct wifi_plat_info *plat)
 		struct pwm_double_data *pdata =
 			&plat->ddata.pwms[plat->ddata.num_pwm];
 
-		//KV_TODO: modify
 		pdata->pwm = devm_fwnode_pwm_get(plat->dev, fwnode, NULL);
 		if (IS_ERR(pdata->pwm)) {
 			ret = PTR_ERR(pdata->pwm);
