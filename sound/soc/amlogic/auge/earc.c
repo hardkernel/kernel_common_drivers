@@ -2015,7 +2015,8 @@ int earcrx_get_mute(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	spin_lock_irqsave(&p_earc->rx_lock, flags);
-	if (p_earc->rx_dmac_clk_on)
+	if (p_earc->rx_dmac_clk_on &&
+	    earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map) == ATNDTYP_EARC)
 		mute = earcrx_get_cs_mute(p_earc->rx_dmac_map);
 	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
 
