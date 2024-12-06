@@ -274,7 +274,7 @@ int aml_ci_init(struct platform_device *pdev,
 	struct dvb_adapter *dvb_adapter, struct aml_ci **cip)
 {
 	struct aml_ci *ci = NULL;
-	int ca_flags = 0, result;
+	int ca_flags, result = 0;
 
 	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci) {

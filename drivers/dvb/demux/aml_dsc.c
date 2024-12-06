@@ -265,7 +265,7 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc, struct file *file,
 			   unsigned int pid, int algo, int dsc_type,
 			   unsigned int *ca_index, char loop)
 {
-	char index = 0;
+	int index = 0;
 
 	struct dsc_channel *ch = vmalloc(sizeof(*ch));
 

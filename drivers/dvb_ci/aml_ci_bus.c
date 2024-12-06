@@ -1819,7 +1819,7 @@ static ssize_t iotest_store(const struct class *class,
 	int n = 0;
 	int i = 0;
 	char *buf_orig, *ps, *token;
-	char *parm[3];
+	char *parm[3] = {0, 0, 0};
 	unsigned int addr = 0, val = 0, retval = 0;
 	long value = 0;
 	struct aml_ci *ci = (struct aml_ci *)ci_bus.priv;
