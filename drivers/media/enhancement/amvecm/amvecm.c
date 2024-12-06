@@ -10265,7 +10265,8 @@ void suspend_ve(void)
 	unsigned int mtx_start_idx = 0;
 	pr_amvecm_dbg("amvecm: suspend ve_1\n");
 
-	if (chip_type_id == chip_s7d)
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
 		length_mtx = RECOVERY_REG_MTX_MAX * 4;
 	else if (chip_type_id == chip_t7)
 		length_mtx = RECOVERY_REG_MTX_MAX * 2 + 1;
@@ -10312,7 +10313,8 @@ void suspend_ve(void)
 	reg_ve_list[mtx_start_idx + 13].addr = reg;
 	pr_amvecm_dbg("amvecm: suspend ve_3\n");
 
-	if (chip_type_id == chip_s7d) {
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) {
 		reg = VPP_WRAP_OSD1_MATRIX_COEF00_01;
 		for (i = mtx_start_idx + 14; i < mtx_start_idx + 28; i++)
 			reg_ve_list[i].addr = reg + i - 14 - mtx_start_idx;
@@ -10446,7 +10448,8 @@ void suspend_sr(void)
 	unsigned int reg;
 
 	if (chip_type_id == chip_s7d ||
-		chip_type_id == chip_t6d)
+		chip_type_id == chip_t6d ||
+		chip_type_id == chip_s6)
 		return;
 
 	if (pq_cfg.sharpness0_en) {
@@ -10638,7 +10641,8 @@ void resume_ve(void)
 {
 	unsigned int length, length_mtx;
 
-	if (chip_type_id == chip_s7d)
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
 		length_mtx = RECOVERY_REG_MTX_MAX * 4;
 	else if (chip_type_id == chip_t7)
 		length_mtx = RECOVERY_REG_MTX_MAX * 2 + 1;
@@ -10902,8 +10906,10 @@ void resume_recovery_process(int vpp_index)
 			  is_meson_s4_cpu() ||
 			  is_meson_s4d_cpu() ||
 			  is_meson_s7_cpu() ||
-			  is_meson_s7d_cpu()) {
-			if (chip_type_id == chip_s7d) {
+			  is_meson_s7d_cpu() ||
+			  is_meson_s6_cpu()) {
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6) {
 				s7d_sharpness_init();
 				pr_amvecm_dbg("amvecm: resume sharpness\n");
 			} else {
@@ -16191,7 +16197,8 @@ static int amvecm_drv_suspend(struct device *dev)
 		chip_type_id == chip_s7 ||
 		chip_type_id == chip_s7d ||
 		chip_type_id == chip_t6d ||
-		chip_type_id == chip_t5m) {
+		chip_type_id == chip_t5m ||
+		chip_type_id == chip_s6) {
 		if (!suspend_drv_status_get()) {
 			suspend_drv_status_set(true);
 			suspend_cm();
@@ -16227,7 +16234,8 @@ static int amvecm_drv_resume(struct device *dev)
 		chip_type_id == chip_s7 ||
 		chip_type_id == chip_s7d ||
 		chip_type_id == chip_t6d ||
-		chip_type_id == chip_t5m) {
+		chip_type_id == chip_t5m ||
+		chip_type_id == chip_s6) {
 		if (suspend_drv_status_get()) {
 			vecm_latch_flag2 |= FLAG_RESUME_RECOVERY;
 			resume_mtx_flag_set(true);
@@ -16249,7 +16257,8 @@ static int amvecm_drv_freeze(struct device *dev)
 		chip_type_id == chip_s7 ||
 		chip_type_id == chip_s7d ||
 		chip_type_id == chip_t6d ||
-		chip_type_id == chip_t5m) {
+		chip_type_id == chip_t5m ||
+		chip_type_id == chip_s6) {
 		if (!suspend_drv_status_get()) {
 			suspend_drv_status_set(true);
 			suspend_cm();
@@ -16282,7 +16291,8 @@ static int amvecm_drv_thaw(struct device *dev)
 		chip_type_id == chip_s7 ||
 		chip_type_id == chip_s7d ||
 		chip_type_id == chip_t6d ||
-		chip_type_id == chip_t5m) {
+		chip_type_id == chip_t5m ||
+		chip_type_id == chip_s6) {
 		if (suspend_drv_status_get()) {
 			vecm_latch_flag2 |= FLAG_RESUME_RECOVERY;
 			resume_mtx_flag_set(true);
@@ -16311,7 +16321,8 @@ static int amvecm_drv_restore(struct device *dev)
 		chip_type_id == chip_s7 ||
 		chip_type_id == chip_s7d ||
 		chip_type_id == chip_t6d ||
-		chip_type_id == chip_t5m) {
+		chip_type_id == chip_t5m ||
+		chip_type_id == chip_s6) {
 		if (suspend_drv_status_get()) {
 			vecm_latch_flag2 |= FLAG_RESUME_RECOVERY;
 			resume_mtx_flag_set(true);
