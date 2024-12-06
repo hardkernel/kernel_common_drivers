@@ -137,7 +137,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* Two-channel 1080i HEVC secure playback requires at least 168MB */
-			size = <0xA800000>;
+			size = <0x6400000>;  //from yanggang
 			alignment = <0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x30000000 0x10000000>;
