@@ -10722,6 +10722,14 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2,
 		 flag);
 	}
 
+	if (flag == -2 && cur_valid_video_num == 1 &&
+		!is_aml_stb_hdmimode() && vf &&
+		new_m_dovi_setting.input[0].src_format == FORMAT_DOVI) {
+		pr_dv_dbg("dv source but metadata checked as el, force as sdr source\n");
+		new_m_dovi_setting.input[0].src_format = FORMAT_SDR;
+		flag = p_funcs_stb->multi_control_path(&new_m_dovi_setting);
+	}
+
 	if (flag >= 0) {
 		update_stb_core_setting_flag(flag);
 		if (debug_dolby & 2)
