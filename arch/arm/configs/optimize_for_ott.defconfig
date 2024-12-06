@@ -33,3 +33,9 @@ CONFIG_AMLOGIC_DVB_CI=n
 
 # amlogic-dvb-usbcam
 CONFIG_AMLOGIC_USBCAM=n
+# CONFIG_MTD is not set
+# CONFIG_AMLOGIC_SPI_MESON_SPIFC is not set
+# CONFIG_AMLOGIC_SPI is not set
+# CONFIG_MTD_SPI_NOR is not set
+# CONFIG_SPI is not set
+# CONFIG_SPI_SPIDEV is not set
