@@ -282,7 +282,7 @@ static int meson_spicc_config(struct spicc_device *spicc,
 			      struct spi_device *spi)
 {
 	struct  spicc_controller_data *cdata;
-	u8 cs, idx;
+	u8 idx;
 
 	if (!spi->bits_per_word || spi->bits_per_word % 8) {
 		spicc_err("invalid wordlen %d\n", spi->bits_per_word);
@@ -293,11 +293,8 @@ static int meson_spicc_config(struct spicc_device *spicc,
 	spicc->cfg_start.b.block_size = spicc->bytes_per_word & 0x7;
 
 	for (idx = 0; idx < MESON_SPI_CS_CNT_MAX; idx++) {
-		cs = spi_get_chipselect(spi, idx);
-		if (cs != SPI_INVALID_CS) {
-			spicc->cfg_spi.b.ss = spi->chip_select[idx];
-			break;
-		}
+		if (spi->cs_index_mask & BIT(idx))
+			spicc->cfg_spi.b.ss = idx;
 	}
 
 	spicc->cfg_bus.b.cpol = !!(spi->mode & SPI_CPOL);
@@ -423,7 +420,7 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 	}
 
 	if (ccxfer_en && (xfer->tx_sg.sgl || xfer->rx_sg.sgl)) {
-		if (xfer->tx_buf) {
+		if (xfer->tx_buf && ccxfer) {
 			ccxfer->tx_ccsg_len = xfer->tx_sg.nents * sizeof(void *);
 			ccxfer->tx_ccsg = dma_alloc_coherent(dev,
 					ccxfer->tx_ccsg_len,
@@ -433,11 +430,12 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 				spicc_err("alloc tx_ccsg failed\n");
 				return -ENOMEM;
 			}
-			spicc_sg_xlate(&xfer->tx_sg, ccxfer->tx_ccsg);
+			if (xfer->tx_sg.sgl)
+				spicc_sg_xlate(&xfer->tx_sg, ccxfer->tx_ccsg);
 			desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_SG;
 		}
 
-		if (xfer->rx_buf) {
+		if (xfer->rx_buf && ccxfer) {
 			ccxfer->rx_ccsg_len = xfer->rx_sg.nents * sizeof(void *);
 			ccxfer->rx_ccsg = dma_alloc_coherent(dev,
 					ccxfer->rx_ccsg_len,
@@ -452,8 +450,8 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 				spicc_err("alloc rx_ccsg failed\n");
 				return -ENOMEM;
 			}
-
-			spicc_sg_xlate(&xfer->rx_sg, ccxfer->rx_ccsg);
+			if (xfer->rx_sg.sgl)
+				spicc_sg_xlate(&xfer->rx_sg, ccxfer->rx_ccsg);
 			desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_SG;
 		}
 	} else {

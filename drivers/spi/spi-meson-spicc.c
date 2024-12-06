@@ -555,16 +555,14 @@ static int meson_spicc_set_speed(struct meson_spicc_device *spicc, int hz)
 
 static u8 meson_spicc_get_ctrl_cs_line(struct spi_device *spi)
 {
-	u8 ret, idx;
+	u8 idx, ret = 0;
 
 	for (idx = 0; idx < MESON_SPI_CS_CNT_MAX; idx++) {
-		ret = spi_get_chipselect(spi, idx);
-		if (ret != SPI_INVALID_CS)
-			return ret;
+		if (spi->cs_index_mask & BIT(idx))
+			return idx;
 	}
 
-	if (idx == MESON_SPI_CS_CNT_MAX)
-		ret = SPICC_DEFAULT_CS;
+	ret = SPICC_DEFAULT_CS;
 
 	return ret;
 }
