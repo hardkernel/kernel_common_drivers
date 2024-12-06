@@ -21,6 +21,14 @@ ifneq ($(CONFIG_AMLOGIC_DRM_VPU),)
         $(MESON_DRM_MODULE_NAME)-y += meson_vpu.o
 endif
 
+ifeq ($(CONFIG_AMLOGIC_DRM_CUT_HDMI),)
+        $(MESON_DRM_MODULE_NAME)-y += meson_hdmi.o
+endif
+
+ifeq ($(CONFIG_AMLOGIC_DRM_CUT_CVBS),)
+        $(MESON_DRM_MODULE_NAME)-y += meson_cvbs.o
+endif
+
 $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               meson_atomic.o  meson_sysfs.o\
                               meson_writeback.o meson_logo.o\
