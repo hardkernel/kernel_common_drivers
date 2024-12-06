@@ -278,23 +278,23 @@
 
 	vddcpu0: pwm_j-regulator {
 		compatible = "pwm-regulator";
-		pwms = <&pwm_j MESON_PWM_0 1500 0>;
+		pwms = <&pwm_j MESON_PWM_0 1260 0>;
 		regulator-name = "vddcpu0";
 		regulator-min-microvolt = <679000>;
 		regulator-max-microvolt = <979000>;
 		regulator-always-on;
-		max-duty-cycle = <1500>;
+		max-duty-cycle = <1260>;
 		amlogic,vsel-step = <3>;
 		amlogic,usleep-time = <200>;
 		/* Voltage Duty-Cycle */
 		voltage-table = <979000 0>,
-				<969000 4>,
+				<969000 3>,
 				<959000 7>,
 				<949000 10>,
-				<939000 14>,
+				<939000 13>,
 				<929000 17>,
 				<919000 20>,
-				<909000 24>,
+				<909000 23>,
 				<899000 27>,
 				<889000 30>,
 				<879000 33>,
@@ -303,19 +303,19 @@
 				<849000 43>,
 				<839000 47>,
 				<829000 50>,
-				<819000 54>,
-				<809000 58>,
-				<799000 61>,
-				<789000 64>,
+				<819000 53>,
+				<809000 57>,
+				<799000 60>,
+				<789000 63>,
 				<779000 67>,
 				<769000 70>,
-				<759000 74>,
+				<759000 73>,
 				<749000 77>,
-				<739000 81>,
-				<729000 84>,
+				<739000 80>,
+				<729000 83>,
 				<719000 87>,
-				<709000 91>,
-				<699000 94>,
+				<709000 90>,
+				<699000 93>,
 				<689000 97>,
 				<679000 100>;
 		status = "disabled";
@@ -580,8 +580,6 @@
 				reg = <0x59200 0x24>;
 				#pwm-cells = <3>;
 				clocks =  <&scmi_clk CLKID_SCMI_PWM_J>;
-				assigned-clocks = <&scmi_clk CLKID_SCMI_PWM_J>;
-				assigned-clock-rates = <666666666>;
 				clock-names = "clkin0";
 				tee_id = <9>;
 				status = "okay";
