@@ -1272,12 +1272,6 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					    (0 << 25)		| /* contrd en */
 					    ((mem_bypass ? 1 : 0) << 28)   |
 					    pre_field_num << 29);
-			if (DIM_IS_IC(S7D)) {
-				DIM_RDMA_WR_BITS(DI_WRARB_UGT_L1C1, 0x3, 4, 2);
-				DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 1, 1);
-				DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 3, 1);
-				dbg_reg("205d:0x%x 37ca:0x%x\n", RD(0x205d), RD(0x37ca));
-			}
 		}
 	} else {
 		if (madi_en) {
@@ -4498,6 +4492,14 @@ void dim_arb_sw(bool on)
 				}
 				if (!di_pre_idle())
 					PR_ERR("%s:2\n", __func__);
+				dim_print("%s:%x,%x,%x,%x,%x,%x,%x\n", __func__,
+					DIM_RDMA_RD(REG_VPU_ARB_DBG_STAT_L1C1),
+					DIM_RDMA_RD(0x17c7),
+					DIM_RDMA_RD(0x17c9),
+					DIM_RDMA_RD(0x1700),
+					DIM_RDMA_RD(0x1701),
+					DIM_RDMA_RD(0x37cd),
+					DIM_RDMA_RD(0x1730));
 			}
 		}
 		if (di_pre_idle())
@@ -4549,9 +4551,6 @@ void di_async_txhd2(void)
 {
 	unsigned int mask, val1, val2, val3;
 
-	if (!DIM_IS_IC_TXHD2 && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T3) && !DIM_IS_IC(S7D))
-		return;
-
 	/* reset inp/mem/nr wr mif */
 	mask = 0x5400;
 	val1 = RD(VIUB_SW_RESET);
@@ -4564,6 +4563,10 @@ void di_async_txhd2(void)
 		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 1, 22, 1);
 		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 0, 22, 1);
 	}
+	/* for arb update mcvec write mif UGT*/
+	DIM_RDMA_WR_BITS(DI_WRARB_UGT_L1C1, 0x3, 4, 2);
+	DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 1, 1);
+	DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 3, 1);
 	/* reset di axi arb */
 	//DIM_RDMA_WR_BITS(VIUB_SW_RESET0, 1, 14, 1);
 	//DIM_RDMA_WR_BITS(VIUB_SW_RESET0, 0, 14, 1);
