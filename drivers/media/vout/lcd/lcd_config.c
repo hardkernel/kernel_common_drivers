@@ -1109,6 +1109,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		pctrl->mipi_cfg.operation_mode_display = para[4];
 		pctrl->mipi_cfg.video_mode_type = para[5];
 		pctrl->mipi_cfg.clk_always_hs = para[6];
+		pctrl->mipi_cfg.user_pkt_size = para[7];
 
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
 		lcd_mipi_dsi_init_table_detect(pdrv, child);
