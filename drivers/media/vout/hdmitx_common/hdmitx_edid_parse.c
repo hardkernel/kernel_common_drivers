@@ -2593,6 +2593,10 @@ static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *EDI
 
 	cta_block_count = hdmitx_edid_get_cta_block_count(EDID_buf);
 
+	/*
+	 * only one block, need parse continue, at the end of parse, it will determine
+	 * whether to use the default vic
+	 */
 	if (cta_block_count == 0) {
 		HDMITX_INFO("EDID BlockCount=0\n");
 		/*
@@ -2614,7 +2618,6 @@ static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *EDI
 			prxcap->ieeeoui = HDMI_IEEE_OUI;
 		if (zero_numbers > 120)
 			prxcap->ieeeoui = HDMI_IEEE_OUI;
-		hdmitx_edid_set_default_vic(prxcap);
 	}
 }
 
