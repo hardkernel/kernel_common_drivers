@@ -1098,6 +1098,7 @@ static int earc_open(struct snd_soc_component *component, struct snd_pcm_substre
 			dev_err(dev, "failed to claim toddr\n");
 			goto err_ddr;
 		}
+		substream->pcm->nonatomic = 0;
 	}
 
 	runtime->private_data = p_earc;
