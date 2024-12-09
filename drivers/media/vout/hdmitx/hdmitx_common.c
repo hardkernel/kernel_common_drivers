@@ -1382,11 +1382,11 @@ enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode)
 int hdmitx_event_notifier_regist(struct notifier_block *nb)
 {
 #if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1)
+	if (get_hdmitx20_init() == HDMITX20)
 		return hdmitx20_event_notifier_regist(nb);
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1)
+	if (get_hdmitx21_init() == HDMITX21)
 		return hdmitx21_event_notifier_regist(nb);
 #endif
 	return 1;
@@ -1396,11 +1396,11 @@ EXPORT_SYMBOL(hdmitx_event_notifier_regist);
 int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 {
 #if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1)
+	if (get_hdmitx20_init() == HDMITX20)
 		return hdmitx20_event_notifier_unregist(nb);
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1)
+	if (get_hdmitx21_init() == HDMITX21)
 		return hdmitx21_event_notifier_unregist(nb);
 #endif
 	return 1;
@@ -1412,11 +1412,11 @@ int get_hpd_state(void)
 	int ret = 0;
 
 #if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1)
+	if (get_hdmitx20_init() == HDMITX20)
 		ret = get20_hpd_state();
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1)
+	if (get_hdmitx21_init() == HDMITX21)
 		ret = get21_hpd_state();
 #endif
 	return ret;
@@ -1426,11 +1426,11 @@ EXPORT_SYMBOL(get_hpd_state);
 struct vsdb_phyaddr *get_hdmitx_phy_addr(void)
 {
 #if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1)
+	if (get_hdmitx20_init() == HDMITX20)
 		return get_hdmitx20_phy_addr();
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1)
+	if (get_hdmitx21_init() == HDMITX21)
 		return get_hdmitx21_phy_addr();
 #endif
 	return NULL;
@@ -1480,12 +1480,10 @@ EXPORT_SYMBOL(register_earcrx_callback);
 void unregister_earcrx_callback(void)
 {
 #if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1)
-		hdmitx_earc_hpdst(NULL);
+	hdmitx_earc_hpdst(NULL);
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1)
-		hdmitx21_earc_hpdst(NULL);
+	hdmitx21_earc_hpdst(NULL);
 #endif
 }
 EXPORT_SYMBOL(unregister_earcrx_callback);
