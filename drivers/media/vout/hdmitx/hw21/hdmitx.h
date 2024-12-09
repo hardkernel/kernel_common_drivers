@@ -339,6 +339,7 @@ void hdmitx_register_vrr(struct hdmitx_dev *hdev);
 int hdmitx_dump_vrr_status(struct seq_file *s, void *p);
 void hdmitx_vrr_enable(void);
 void hdmitx_vrr_disable(void);
+void hdmitx_register_drm_vrr_api(struct hdmitx_dev *hdev);
 
 /* mute realted */
 extern unsigned long avmute_ms;

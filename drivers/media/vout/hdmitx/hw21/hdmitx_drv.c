@@ -58,7 +58,7 @@
 #include <../../vin/tvin/tvin_global.h>
 #include <../../vin/tvin/hdmirx/hdmi_rx_repeater.h>
 #include "../hdmitx_boot_parameters.h"
-#include "../hdmitx_drm_hook.h"
+#include "../hdmitx_drm.h"
 #include "../hdmitx_sysfs_common.h"
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
@@ -843,37 +843,6 @@ static int hdmitx21_ext_get_audio_status(void)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	return !!hdev->tx_comm.cur_audio_param.aud_output_en;
-}
-
-static int hdmi_hdr_status_to_drm(void)
-{
-	enum hdmi_tf_type type = HDMI_NONE;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR10P, 0);
-	if (type) {
-		if (type == HDMI_HDR10P_DV_VSIF)
-			return HDR10PLUS_VSIF;
-	}
-	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_DV, 0);
-	if (type) {
-		if (type == HDMI_DV_VSIF_STD)
-			return dolbyvision_std;
-		else if (type == HDMI_DV_VSIF_LL)
-			return dolbyvision_lowlatency;
-	}
-	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR, 0);
-	if (type) {
-		if (type == HDMI_HDR_SMPTE_2084)
-			return HDR10_GAMMA_ST2084;
-		else if (type == HDMI_HDR_HLG)
-			return HDR10_GAMMA_HLG;
-		else if (type == HDMI_HDR_HDR)
-			return HDR10_others;
-	}
-
-	/* default is SDR */
-	return SDR;
 }
 
 static inline int com_str(const char *buf, const char *str)
@@ -2235,6 +2204,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	hdmitx_register_vrr(hdev);
+	hdmitx_register_drm_vrr_api(hdev);
 #endif
 
 	/* after unlock, now can take actions of bottom half of hpd irq */
@@ -2520,23 +2490,13 @@ void __exit amhdmitx21_exit(void)
 //MODULE_VERSION("1.0.0");
 
 /*************DRM connector API**************/
-static struct meson_hdmitx_dev drm_hdmitx_instance = {
-	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	.get_vrr_cap = drm_hdmitx_get_vrr_cap,
-	.get_vrr_mode_group = drm_hdmitx_get_vrr_mode_group,
-	.set_vframe_rate_hint = hdmitx_set_vrr_rate,
-#endif
-};
-
 int hdmitx_hook_drm(struct device *device)
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(device);
 
 	return hdmitx_bind_meson_drm(device,
 		&hdev->tx_comm,
-		&hdev->tx_hw.base,
-		&drm_hdmitx_instance);
+		&hdev->tx_hw.base);
 }
 
 int hdmitx_unhook_drm(struct device *device)
@@ -2545,8 +2505,7 @@ int hdmitx_unhook_drm(struct device *device)
 
 	return hdmitx_unbind_meson_drm(device,
 		&hdev->tx_comm,
-		&hdev->tx_hw.base,
-		&drm_hdmitx_instance);
+		&hdev->tx_hw.base);
 }
 
 /*************DRM connector API end**************/

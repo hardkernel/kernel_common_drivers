@@ -73,6 +73,13 @@ struct drm_hdcp_ctrl_ops {
 	unsigned char (*get_dw_hdcp_topo_info)(void);
 };
 
+struct drm_vrr_ctrl_ops {
+	/* vrr apis */
+	u32 (*get_vrr_cap)(void);
+	int (*get_vrr_mode_group)(struct hdmitx_vrr_mode_group *groups, int max_group);
+	int (*set_vframe_rate_hint)(int duration, void *data);
+};
+
 struct st_debug_param {
 	unsigned int avmute_frame;
 };
@@ -104,6 +111,7 @@ struct hdmitx_common {
 	struct hdmitx_ctrl_ops *ctrl_ops;
 	struct hdcp_ctrl_ops *hdcp_ctrl_ops;
 	struct drm_hdcp_ctrl_ops *drm_hdcp_ctrl_ops;
+	struct drm_vrr_ctrl_ops *drm_vrr_ctrl_ops;
 	struct connector_hpd_cb drm_hpd_cb;/*drm hpd notify*/
 
 	char fmt_attr[16];
@@ -494,6 +502,10 @@ void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
+int hdmitx_common_get_hdr_status(void);
+u32 hdmitx_common_get_vrr_cap(void);
+int hdmitx_common_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_group);
+int hdmitx_common_set_vframe_rate_hint(int rate, void *data);
 
 /* hdmitx diff */
 #ifdef CONFIG_AMLOGIC_HDMITX

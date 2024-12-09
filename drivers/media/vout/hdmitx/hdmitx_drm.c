@@ -8,7 +8,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <drm/amlogic/meson_drm_bind.h>
 #include <linux/component.h>
-#include "hdmitx_drm_hook.h"
+#include "hdmitx_drm.h"
 #include "hdmitx_log.h"
 #include "hdmitx_check_valid.h"
 
@@ -297,6 +297,65 @@ int hdmitx_common_get_timing_para(int vic, struct drm_hdmitx_timing_para *para)
 }
 EXPORT_SYMBOL(hdmitx_common_get_timing_para);
 
+int hdmitx_common_get_hdr_status(void)
+{
+	enum hdmi_tf_type type = HDMI_NONE;
+
+	type = hdmitx_hw_get_state(global_tx_hw, STAT_TX_HDR10P, 0);
+	if (type) {
+		if (type == HDMI_HDR10P_DV_VSIF)
+			return HDR10PLUS_VSIF;
+	}
+	type = hdmitx_hw_get_state(global_tx_hw, STAT_TX_DV, 0);
+	if (type) {
+		if (type == HDMI_DV_VSIF_STD)
+			return dolbyvision_std;
+		else if (type == HDMI_DV_VSIF_LL)
+			return dolbyvision_lowlatency;
+	}
+	type = hdmitx_hw_get_state(global_tx_hw, STAT_TX_HDR, 0);
+	if (type) {
+		if (type == HDMI_HDR_SMPTE_2084)
+			return HDR10_GAMMA_ST2084;
+		else if (type == HDMI_HDR_HLG)
+			return HDR10_GAMMA_HLG;
+		else if (type == HDMI_HDR_HDR)
+			return HDR10_others;
+	}
+
+	/* default is SDR */
+	return SDR;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdr_status);
+
+u32 hdmitx_common_get_vrr_cap(void)
+{
+	if (global_tx_base && global_tx_base->drm_vrr_ctrl_ops &&
+		global_tx_base->drm_vrr_ctrl_ops->get_vrr_cap)
+		return global_tx_base->drm_vrr_ctrl_ops->get_vrr_cap();
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_get_vrr_cap);
+
+int hdmitx_common_get_vrr_mode_group(struct hdmitx_vrr_mode_group *groups, int max_group)
+{
+	if (global_tx_base && global_tx_base->drm_vrr_ctrl_ops &&
+		global_tx_base->drm_vrr_ctrl_ops->get_vrr_mode_group)
+		return global_tx_base->drm_vrr_ctrl_ops->get_vrr_mode_group(groups,
+							  MAX_VRR_MODE_GROUP);
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_get_vrr_mode_group);
+
+int hdmitx_common_set_vframe_rate_hint(int rate, void *data)
+{
+	if (global_tx_base && global_tx_base->drm_vrr_ctrl_ops &&
+		global_tx_base->drm_vrr_ctrl_ops->set_vframe_rate_hint)
+		return global_tx_base->drm_vrr_ctrl_ops->set_vframe_rate_hint(rate, data);
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_set_vframe_rate_hint);
+
 static int meson_hdmitx_bind(struct device *dev,
 			      struct device *master, void *data)
 {
@@ -341,8 +400,7 @@ static const struct component_ops meson_hdmitx_bind_ops = {
 
 int hdmitx_bind_meson_drm(struct device *device,
 	struct hdmitx_common *tx_base,
-	struct hdmitx_hw_common *tx_hw,
-	struct meson_hdmitx_dev *diff)
+	struct hdmitx_hw_common *tx_hw)
 {
 	if (global_tx_base)
 		HDMITX_ERROR("global_tx_base [%p] already hooked.\n", global_tx_base);
@@ -350,7 +408,6 @@ int hdmitx_bind_meson_drm(struct device *device,
 	global_tx_base = tx_base;
 	global_tx_hw = tx_hw;
 
-	hdmitx_drm_instance = *diff;
 	hdmitx_drm_instance.base.ver = MESON_DRM_CONNECTOR_V10;
 	hdmitx_drm_instance.hdmitx_common = tx_base;
 	hdmitx_drm_instance.hw_common = tx_hw;
@@ -360,8 +417,7 @@ int hdmitx_bind_meson_drm(struct device *device,
 
 int hdmitx_unbind_meson_drm(struct device *device,
 	struct hdmitx_common *tx_base,
-	struct hdmitx_hw_common *tx_hw,
-	struct meson_hdmitx_dev *diff)
+	struct hdmitx_hw_common *tx_hw)
 {
 	if (drm_hdmitx_id != 0)
 		component_del(device, &meson_hdmitx_bind_ops);

@@ -1661,6 +1661,19 @@ static struct vinfo_s *hdmitx_get_curvinfo(void *data)
 	return &hdev->tx_comm.hdmitx_vinfo;
 }
 
+static struct drm_vrr_ctrl_ops drm_vrr_ctrl_ops = {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	.get_vrr_cap = drm_hdmitx_get_vrr_cap,
+	.get_vrr_mode_group = drm_hdmitx_get_vrr_mode_group,
+	.set_vframe_rate_hint = hdmitx_set_vrr_rate,
+#endif
+};
+
+void hdmitx_register_drm_vrr_api(struct hdmitx_dev *hdev)
+{
+	hdev->tx_comm.drm_vrr_ctrl_ops = &drm_vrr_ctrl_ops;
+}
+
 void hdmitx_register_vrr(struct hdmitx_dev *hdev)
 {
 	int ret;

@@ -223,7 +223,7 @@ static struct hdmitx_color_attr *meson_hdmitx_get_candidate_attr_list
 	enum hdmi_hdr_status hdr_status = SDR;
 
 	if (am_hdmi_info.recovery_mode)
-		hdr_status = am_hdmi_info.hdmitx_dev->get_hdmi_hdr_status();
+		hdr_status = hdmitx_common_get_hdr_status();
 
 	/* filter some color value options, aimed at some modes. */
 	if (crtc_state->crtc_eotf_type ==
@@ -499,17 +499,11 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 		goto end;
 	}
 
-	if (am_hdmi_info.hdmitx_dev->get_vrr_mode_group)
-		num_group = am_hdmi_info.hdmitx_dev->get_vrr_mode_group(groups,
-							  MAX_VRR_MODE_GROUP);
+	num_group = hdmitx_common_get_vrr_mode_group(groups, MAX_VRR_MODE_GROUP);
 
 	/* get vrr capability */
-	if (am_hdmitx->hdmitx_dev->get_vrr_cap) {
-		vrr_cap = am_hdmitx->hdmitx_dev->get_vrr_cap();
-		drm_connector_set_vrr_capable_property(connector, vrr_cap & QMS_VRR_SUP);
-	} else {
-		drm_connector_set_vrr_capable_property(connector, false);
-	}
+	vrr_cap = hdmitx_common_get_vrr_cap();
+	drm_connector_set_vrr_capable_property(connector, vrr_cap & QMS_VRR_SUP);
 
 	/*add modes from hdmitx instead of edid*/
 	count = hdmitx_common_get_vic_list(&vics);
@@ -899,7 +893,7 @@ static int am_hdmitx_connector_atomic_get_property
 		*val = hdmitx_state->avmute;
 		return 0;
 	} else if (property == am_hdmi->hdmi_hdr_status_prop) {
-		*val = am_hdmi_info.hdmitx_dev->get_hdmi_hdr_status();
+		*val = hdmitx_common_get_hdr_status();
 		return 0;
 	} else if (property == am_hdmi->hdr_cap_property) {
 		*val = get_hdr_info();
@@ -1179,8 +1173,7 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 
 	drm_printf(p, "\tdrm hdmitx state:\n");
 	drm_printf(p, "\t\t android_path:[%d]\n", am_hdmi_info.android_path);
-	drm_printf(p, "\t\t VRR_CAP:[%u]\n", am_hdmi_info.hdmitx_dev->get_vrr_cap ?
-		   am_hdmi_info.hdmitx_dev->get_vrr_cap() : 0);
+	drm_printf(p, "\t\t VRR_CAP:[%u]\n", hdmitx_common_get_vrr_cap());
 	drm_printf(p, "\t\t hdr_cap:[%d]\n", get_hdr_info());
 	drm_printf(p, "\t\t dv_cap:[%d]\n", get_dv_info());
 	drm_printf(p, "\t\t contenttype_cap:[%d]\n",
@@ -1188,7 +1181,7 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 
 	drm_printf(p, "\t\t avmute:[%d]\n", hdmitx_state->avmute);
 	drm_printf(p, "\t\t hdmi_hdr_status:[%d]\n",
-		   am_hdmi_info.hdmitx_dev->get_hdmi_hdr_status());
+		   hdmitx_common_get_hdr_status());
 	drm_printf(p, "\t\t hdr_policy[%d]\n", hdmitx_state->pref_hdr_policy);
 	drm_printf(p, "\t\t allm_mode:[%d]\n", hdmitx_state->allm_mode);
 
@@ -1666,8 +1659,7 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 		return;
 	}
 
-	num_group = hdmitx->hdmitx_dev->get_vrr_mode_group(groups,
-							   MAX_VRR_MODE_GROUP);
+	num_group = hdmitx_common_get_vrr_mode_group(groups, MAX_VRR_MODE_GROUP);
 
 	vic = HDMI_0_UNKNOWN;
 
@@ -1900,7 +1892,7 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	if (meson_crtc_state->seamless) {
 		dst_vrefresh = meson_crtc_state->base.vrr_enabled ? mode_vrefresh : 0;
 		DRM_INFO("%s, set frame rate: %d\n", __func__, dst_vrefresh);
-		am_hdmi_info.hdmitx_dev->set_vframe_rate_hint(dst_vrefresh * 100, NULL);
+		hdmitx_common_set_vframe_rate_hint(dst_vrefresh * 100, NULL);
 		return;
 	}
 
@@ -1931,7 +1923,7 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	}
 
 	if (meson_crtc_state->base.vrr_enabled) {
-		am_hdmi_info.hdmitx_dev->set_vframe_rate_hint(mode_vrefresh * 100, NULL);
+		hdmitx_common_set_vframe_rate_hint(mode_vrefresh * 100, NULL);
 		DRM_INFO("%s, vrr set rate hint, %d\n", __func__,
 			 mode_vrefresh  * 100);
 	}
@@ -2788,8 +2780,8 @@ int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 	if (!hdmi_groups)
 		return -ENOMEM;
 
-	num_group = am_hdmi_info.hdmitx_dev->get_vrr_mode_group(hdmi_groups,
-							   MAX_VRR_MODE_GROUP);
+	num_group = hdmitx_common_get_vrr_mode_group(hdmi_groups, MAX_VRR_MODE_GROUP);
+
 	if (!num_group) {
 		DRM_ERROR("get vrr error or not support qms\n");
 		kfree(hdmi_groups);
