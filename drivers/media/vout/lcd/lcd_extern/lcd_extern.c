@@ -1384,28 +1384,31 @@ static int aml_lcd_extern_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, edrv);
 	ret = ext_cdev_add(edrv, &pdev->dev);
 	if (ret)
-		goto lcd_extern_probe_err;
+		goto lcd_extern_probe_exit;
 	edrv->pdev = pdev;
 	edrv->dev_cnt = 0;
 
 	ret = lcd_extern_config_load(edrv);
 	if (ret)
-		goto lcd_extern_probe_err;
+		goto lcd_extern_probe_exit;
+	if (edrv->dev_cnt == 0) //no device exit
+		goto lcd_extern_probe_exit;
 
 	lcd_extern_debug_file_creat(edrv);
 
 	EXTPR("[%d]: probe OK, init_state:0x%x\n", index, ext_drv_init_state);
 	return 0;
 
-lcd_extern_probe_err:
+lcd_extern_probe_exit:
 	/* free drvdata */
 	platform_set_drvdata(pdev, NULL);
 	/* free drv */
 	kfree(edrv);
 	ext_driver[index] = NULL;
 	ext_drv_init_state &= ~(1 << index);
-	EXTPR("[%d]: %s: failed\n", index, __func__);
-	return -1;
+	if (ret)
+		EXTPR("[%d]: %s: failed\n", index, __func__);
+	return ret;
 }
 
 static int aml_lcd_extern_remove(struct platform_device *pdev)

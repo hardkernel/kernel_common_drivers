@@ -247,6 +247,7 @@ char aml_ldim_get_bbd_state(void);
 int aml_ldim_get_config_dts(struct device_node *child);
 int aml_ldim_get_config_unifykey(unsigned char *buf);
 int aml_ldim_get_config_json(int panel_id);
+int aml_ldim_get_config_ini(void *inip, void *psec);
 int aml_ldim_probe(struct platform_device *pdev);
 int aml_ldim_remove(void);
 

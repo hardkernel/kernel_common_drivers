@@ -351,8 +351,8 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 	struct lcd_extern_dev_s *edev;
 #endif
 	unsigned long long local_time[2];
-	unsigned int i, index, wait;
-	int value = -1;
+	unsigned int i = 0, index, wait;
+	int max_step, value = -1;
 
 	if (pdrv->lcd_pxp) {
 		LCDPR("[%d]: %s: lcd_pxp bypass\n", pdrv->index, __func__);
@@ -360,25 +360,26 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
-	i = 0;
-	while (i < LCD_PWR_STEP_MAX) {
-		if (status)
-			power_step = &pdrv->config.power.power_on_step[i];
-		else
-			power_step = &pdrv->config.power.power_off_step[i];
-
-		if (power_step->type >= LCD_POWER_TYPE_MAX)
+	if (status) {
+		power_step = pdrv->config.power.power_on_step;
+		max_step = pdrv->config.power.power_on_step_max;
+	} else {
+		power_step = pdrv->config.power.power_off_step;
+		max_step = pdrv->config.power.power_off_step_max;
+	}
+	while (i < max_step) {
+		if (power_step[i].type >= LCD_POWER_TYPE_MAX)
 			break;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 			LCDPR("[%d]: %s: step %d, type=%d, index=%d, value=%d, delay=%d\n",
 			      pdrv->index, __func__, i,
-			      power_step->type, power_step->index,
-			      power_step->value, power_step->delay);
+			      power_step[i].type, power_step[i].index,
+			      power_step[i].value, power_step[i].delay);
 		}
-		switch (power_step->type) {
-		case LCD_POWER_TYPE_CPU:
-			index = power_step->index;
-			lcd_cpu_gpio_set(pdrv, index, power_step->value);
+		switch (power_step[i].type) {
+		case LCD_POWER_TYPE_GPIO:
+			index = power_step[i].index;
+			lcd_cpu_gpio_set(pdrv, index, power_step[i].value);
 			break;
 		case LCD_POWER_TYPE_PMU:
 			LCDPR("to do\n");
@@ -397,7 +398,7 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
-			index = power_step->index;
+			index = power_step[i].index;
 			edrv = lcd_extern_get_driver(pdrv->index);
 			edev = lcd_extern_get_dev(edrv, index);
 			if (!edrv || !edev)
@@ -419,19 +420,19 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			break;
 #endif
 		case LCD_POWER_TYPE_WAIT_GPIO:
-			index = power_step->index;
+			index = power_step[i].index;
 			lcd_cpu_gpio_set(pdrv, index, LCD_GPIO_INPUT);
 			LCDPR("[%d]: lcd_power_type_wait_gpio wait\n", pdrv->index);
-			for (wait = 0; wait < power_step->delay; wait++) {
+			for (wait = 0; wait < power_step[i].delay; wait++) {
 				value = lcd_cpu_gpio_get(pdrv, index);
-				if (value == power_step->value) {
+				if (value == power_step[i].value) {
 					LCDPR("[%d]: wait_gpio %d ok\n",
 					      pdrv->index, value);
 					break;
 				}
 				mdelay(1);
 			}
-			if (wait == power_step->delay) {
+			if (wait == power_step[i].delay) {
 				LCDERR("[%d]: wait_gpio %d timeout!\n",
 				       pdrv->index, value);
 			}
@@ -447,7 +448,7 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			break;
 #endif
 		case LCD_POWER_TYPE_MUTE:
-			if (power_step->value)
+			if (power_step[i].value)
 				lcd_power_screen_black(pdrv);
 			else
 				lcd_power_screen_restore(pdrv);
@@ -455,9 +456,9 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 		default:
 			break;
 		}
-		if (power_step->type != LCD_POWER_TYPE_WAIT_GPIO &&
-		    power_step->delay > 0)
-			lcd_delay_ms(power_step->delay);
+		if (power_step[i].type != LCD_POWER_TYPE_WAIT_GPIO &&
+		    power_step[i].delay > 0)
+			lcd_delay_ms(power_step[i].delay);
 		i++;
 	}
 
@@ -474,24 +475,26 @@ static void lcd_mode_switch_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int index;
 #endif
 	unsigned long long local_time[2];
-	unsigned int i;
+	int max_step, i = 0;
 
-	i = 0;
+	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
+	if (status) {
+		power_step = pdrv->config.power.power_on_step;
+		max_step = pdrv->config.power.power_on_step_max;
+	} else {
+		power_step = pdrv->config.power.power_off_step;
+		max_step = pdrv->config.power.power_off_step_max;
+	}
 	while (i < LCD_PWR_STEP_MAX) {
-		if (status)
-			power_step = &pdrv->config.power.power_on_step[i];
-		else
-			power_step = &pdrv->config.power.power_off_step[i];
-
-		if (power_step->type >= LCD_POWER_TYPE_MAX)
+		if (power_step[i].type >= LCD_POWER_TYPE_MAX)
 			break;
-		switch (power_step->type) {
+		switch (power_step[i].type) {
 		case LCD_POWER_TYPE_SIGNAL:
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: power:%s, step%d, type=%d, idx=%d, val=%d, dly=%d\n",
 					pdrv->index, status ? "on" : "off", i,
-					power_step->type, power_step->index,
-					power_step->value, power_step->delay);
+					power_step[i].type, power_step[i].index,
+					power_step[i].value, power_step[i].delay);
 			}
 			local_time[0] = sched_clock();
 			if (status) {
@@ -509,10 +512,10 @@ static void lcd_mode_switch_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: power:%s, step%d, type=%d, idx=%d, val=%d, dly=%d\n",
 					pdrv->index, status ? "on" : "off", i,
-					power_step->type, power_step->index,
-					power_step->value, power_step->delay);
+					power_step[i].type, power_step[i].index,
+					power_step[i].value, power_step[i].delay);
 			}
-			index = power_step->index;
+			index = power_step[i].index;
 			edrv = lcd_extern_get_driver(pdrv->index);
 			edev = lcd_extern_get_dev(edrv, index);
 			if (!edrv || !edev)
@@ -543,7 +546,7 @@ static void lcd_mode_switch_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			break;
 #endif
 		case LCD_POWER_TYPE_MUTE:
-			if (power_step->value)
+			if (power_step[i].value)
 				lcd_power_screen_black(pdrv);
 			else
 				lcd_power_screen_restore(pdrv);
@@ -567,23 +570,23 @@ static void lcd_mode_switch_data_on(struct aml_lcd_drv_s *pdrv)
 	unsigned int index;
 	unsigned long long local_time[2];
 #endif
-	unsigned int i = 0;
+	int max_step, i = 0;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
-	while (i < LCD_PWR_STEP_MAX) {
-		power_step = &pdrv->config.power.power_on_step[i];
-
-		if (power_step->type >= LCD_POWER_TYPE_MAX)
+	power_step = pdrv->config.power.power_on_step;
+	max_step = pdrv->config.power.power_on_step_max;
+	while (i < max_step) {
+		if (power_step[i].type >= LCD_POWER_TYPE_MAX)
 			break;
-		switch (power_step->type) {
+		switch (power_step[i].type) {
 		case LCD_POWER_TYPE_SIGNAL:
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: switch on, step%d, type=%d, idx=%d, val=%d, dly=%d\n",
 					pdrv->index, i,
-					power_step->type, power_step->index,
-					power_step->value, power_step->delay);
+					power_step[i].type, power_step[i].index,
+					power_step[i].value, power_step[i].delay);
 			}
 			if (pdrv->config.basic.lcd_type == LCD_P2P)
 				lcd_tcon_reload(pdrv);
@@ -593,11 +596,11 @@ static void lcd_mode_switch_data_on(struct aml_lcd_drv_s *pdrv)
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: switch on, step%d, type=%d, idx=%d, val=%d, dly=%d\n",
 					pdrv->index, i,
-					power_step->type, power_step->index,
-					power_step->value, power_step->delay);
+					power_step[i].type, power_step[i].index,
+					power_step[i].value, power_step[i].delay);
 			}
 			local_time[0] = sched_clock();
-			index = power_step->index;
+			index = power_step[i].index;
 			edrv = lcd_extern_get_driver(pdrv->index);
 			edev = lcd_extern_get_dev(edrv, index);
 			if (!edrv || !edev)
@@ -658,8 +661,7 @@ static void lcd_power_encl_on(struct aml_lcd_drv_s *pdrv)
 	/* vsync_none_timer conditional enabled to save cpu loading */
 	if (pdrv->viu_sel == LCD_VIU_SEL_NONE) {
 		if (pdrv->vsync_none_timer_flag == 0) {
-			pdrv->vs_none_timer.expires =
-				jiffies + LCD_VSYNC_NONE_INTERVAL;
+			pdrv->vs_none_timer.expires = jiffies + LCD_VSYNC_NONE_INTERVAL;
 			add_timer(&pdrv->vs_none_timer);
 			pdrv->vsync_none_timer_flag = 1;
 			LCDPR("[%d]: add vs_none_timer handler\n", pdrv->index);

@@ -39,6 +39,7 @@
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
+#include <linux/amlogic/media/vout/lcd/lcd_model.h>
 
 /*
  * LCD_ALLOC_FRONT is seek free memory  from low to high
@@ -840,7 +841,7 @@ int lcd_reserved_memory_init(struct platform_device *pdev)
 		lrm->size = size;
 		lrm->pstart = paddr;
 		lrm->allocated_num = 0;
-		strncpy(lrm->magic, LCD_RSVD_MEM_MAGIC, LCD_MEM_MAGIC_LEN);
+		strscpy(lrm->magic, LCD_RSVD_MEM_MAGIC, LCD_MEM_MAGIC_LEN);
 		INIT_LIST_HEAD(&lrm->mem_list);
 		LRMPR("%s rsvd mem paddr:0x%llx, size:0x%x", __func__, (u64)paddr, lrm->size);
 	} else {

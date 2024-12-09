@@ -94,7 +94,7 @@ static int bl_extern_i2c_config_from_dts(struct device *dev,
 		BLEXERR("failed to get i2c dev_name\n");
 		strcpy(i2c_dev->name, "none");
 	} else {
-		strncpy(i2c_dev->name, str, 29);
+		strscpy(i2c_dev->name, str, sizeof(i2c_dev->name));
 	}
 
 	return 0;

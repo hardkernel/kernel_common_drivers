@@ -18,7 +18,7 @@
 #include <linux/reset.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
-#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
+#include <linux/amlogic/media/vout/lcd/lcd_model.h>
 
 #define LCDUKEY(fmt, args...)     pr_info("lcd: ukey: " fmt "", ## args)
 #define LCDUKEYERR(fmt, args...)  pr_info("lcd: ukey error: " fmt "", ## args)
@@ -163,7 +163,7 @@ lcd_unifykey_get_retry:
 		LCDUKEYERR("%s: %s failed\n", __func__, key_name);
 		return -1;
 	}
-	key_crc32 = cal_crc32(0, &buf[4], (key_len - 4)); /* except crc32 */
+	key_crc32 = cal_CRC32(0, &buf[4], (key_len - 4)); /* except crc32 */
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDUKEY("%s: %s crc32: 0x%08x, header_crc32: 0x%08x\n",
 			__func__, key_name, key_crc32, key_header->crc32);
@@ -235,7 +235,7 @@ lcd_unifykey_get_tcon_retry:
 		LCDUKEYERR("%s: %s failed\n", __func__, key_name);
 		return -1;
 	}
-	key_crc32 = cal_crc32(0, &buf[4], (key_len - 4)); /* except crc32 */
+	key_crc32 = cal_CRC32(0, &buf[4], (key_len - 4)); /* except crc32 */
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDUKEY("%s: %s crc32: 0x%08x, header_crc32: 0x%08x\n",
 			__func__, key_name, key_crc32, init_header->crc32);

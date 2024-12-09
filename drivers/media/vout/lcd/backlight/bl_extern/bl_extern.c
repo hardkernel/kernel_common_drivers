@@ -383,7 +383,7 @@ static int bl_extern_config_from_dts(struct bl_extern_driver_s *bext)
 		BLEXERR("[%d]: failed to get extern_name\n", bext->index);
 		strcpy(bext->config.name, "none");
 	} else {
-		strncpy(bext->config.name, str, (BL_EXTERN_NAME_LEN_MAX - 1));
+		strscpy(bext->config.name, str, BL_EXTERN_NAME_LEN_MAX);
 	}
 
 	ret = of_property_read_u32(child, "type", &val);

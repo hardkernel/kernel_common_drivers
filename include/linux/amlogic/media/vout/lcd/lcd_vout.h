@@ -464,7 +464,7 @@ union lcd_ctrl_config_u {
  * **********************************
  */
 enum lcd_power_type_e {
-	LCD_POWER_TYPE_CPU = 0,
+	LCD_POWER_TYPE_GPIO = 0,
 	LCD_POWER_TYPE_PMU,
 	LCD_POWER_TYPE_SIGNAL,
 	LCD_POWER_TYPE_EXTERN,
@@ -845,6 +845,7 @@ struct aml_fr_lock_s {
 #define LCD_CONFIG_UKEY 2
 #define LCD_CONFIG_FILE 3
 #define LCD_CONFIG_BSP  4
+#define LCD_CONFIG_ERR  0xff
 
 #define PANEL_FILE_INVILD  0
 #define PANEL_FILE_INI     1

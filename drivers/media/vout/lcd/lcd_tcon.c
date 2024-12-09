@@ -30,6 +30,8 @@
 #include <linux/amlogic/aml_free_reserved.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#include <linux/amlogic/media/vout/lcd/lcd_model.h>
+#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -47,7 +49,6 @@
 #include "lcd_tcon_pdf.h"
 #include "lcd_tcon_swpdf.h"
 #include "lcd_tcon_rdma.h"
-#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 
 enum {
 	TCON_AXI_MEM_TYPE_OD = 0,
@@ -1975,7 +1976,7 @@ void lcd_tcon_data_block_regen_crc(unsigned char *data)
 	header = (struct lcd_tcon_data_block_header_s *)data;
 
 	raw_crc32 = (data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24));
-	new_crc32 = cal_crc32(0, data + 4, header->block_size - 4);
+	new_crc32 = cal_CRC32(0, data + 4, header->block_size - 4);
 	if (raw_crc32 != new_crc32) {
 		data[0] = (unsigned char)(new_crc32 & 0xff);
 		data[1] = (unsigned char)((new_crc32 >> 8) & 0xff);
@@ -2170,51 +2171,38 @@ tcon_reserved_mem_data_load_exit:
 
 static int lcd_tcon_bin_path_update(unsigned int size)
 {
+	struct lcd_tcon_bin_path_header_s *header;
 	unsigned char *mem_vaddr;
-	unsigned int data_size, block_cnt;
-	unsigned int data_crc32, temp_crc32;
+	unsigned int temp_crc32;
 
 	if (!tcon_rmem.bin_path_rmem.mem_vaddr) {
 		LCDERR("%s: get mem error\n", __func__);
 		return -1;
 	}
 	mem_vaddr = tcon_rmem.bin_path_rmem.mem_vaddr;
-	data_size = mem_vaddr[4] |
-		(mem_vaddr[5] << 8) |
-		(mem_vaddr[6] << 16) |
-		(mem_vaddr[7] << 24);
-	if (data_size < 32) { /* header size */
+	header = (struct lcd_tcon_bin_path_header_s *)mem_vaddr;
+	if (header->data_size < sizeof(*header)) {
 		LCDERR("%s: tcon_bin_path data_size error\n", __func__);
 		return -1;
 	}
-	block_cnt = mem_vaddr[16] |
-		(mem_vaddr[17] << 8) |
-		(mem_vaddr[18] << 16) |
-		(mem_vaddr[19] << 24);
-	if (block_cnt > 32) {
+	if (header->block_cnt > 32) {
 		LCDERR("%s: tcon_bin_path block_cnt error\n", __func__);
 		return -1;
 	}
-	data_crc32 = mem_vaddr[0] |
-		(mem_vaddr[1] << 8) |
-		(mem_vaddr[2] << 16) |
-		(mem_vaddr[3] << 24);
-	temp_crc32 = cal_crc32(0, &mem_vaddr[4], (data_size - 4));
-	if (data_crc32 != temp_crc32) {
+	if (!header->ready) {
+		LCDERR("%s: tcon_bin_path not ready\n", __func__);
+		return -1;
+	}
+	temp_crc32 = cal_CRC32(0, &mem_vaddr[4], (header->data_size - 4));
+	if (header->crc32 != temp_crc32) {
 		LCDERR("%s: tcon_bin_path data crc error\n", __func__);
 		return -1;
 	}
 
-	tcon_mm_table.version = mem_vaddr[8] |
-		(mem_vaddr[9] << 8) |
-		(mem_vaddr[10] << 16) |
-		(mem_vaddr[11] << 24);
-	tcon_mm_table.data_load_level = mem_vaddr[12] |
-		(mem_vaddr[13] << 8) |
-		(mem_vaddr[14] << 16) |
-		(mem_vaddr[15] << 24);
-	tcon_mm_table.block_cnt = block_cnt;
-	//tcon_mm_table.init_load = mem_vaddr[20];
+	tcon_mm_table.version = header->version;
+	tcon_mm_table.data_load_level = header->data_load_level;
+	tcon_mm_table.block_cnt = header->block_cnt;
+	//tcon_mm_table.init_load = header->init_load;
 	//LCDPR("%s: init_load: %d\n", __func__, tcon_mm_table.init_load);
 
 	tcon_mm_table.bin_path_valid = 1;
@@ -2592,9 +2580,11 @@ static int lcd_tcon_mem_config(void)
 	if (lcd_tcon_conf->axi_tbl_len && lcd_tcon_conf->axi_mem_cfg_tbl) {
 		for (i = 0; i < lcd_tcon_conf->axi_tbl_len; i++) {
 			axi_cfg = &lcd_tcon_conf->axi_mem_cfg_tbl[i];
-			LCDPR("axi[%d] mem type=%d, size=%#x, reg=%#x, valid=%d\n",
-				i, axi_cfg->mem_type, axi_cfg->mem_size,
-				axi_cfg->axi_reg, axi_cfg->mem_valid);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+				LCDPR("axi[%d] mem type=%d, size=%#x, reg=%#x, valid=%d\n",
+					i, axi_cfg->mem_type, axi_cfg->mem_size,
+					axi_cfg->axi_reg, axi_cfg->mem_valid);
+			}
 			switch (axi_cfg->mem_type) {
 			case TCON_AXI_MEM_TYPE_OD:
 				mem_od_size += axi_cfg->mem_size;

@@ -28,6 +28,7 @@ void bl_gpio_probe(struct aml_bl_drv_s *bdrv, int index);
 int bl_pwm_init_config_probe(struct bl_data_s *bdata);
 enum bl_pwm_port_e bl_pwm_str_to_num(const char *str);
 char *bl_pwm_num_to_str(unsigned int num);
+int bl_str_to_pwm_method(const char *str, int def_val);
 void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status);
 void bl_pwm_set_duty(struct aml_bl_drv_s *bdrv, struct bl_pwm_config_s *bl_pwm);
 void bl_pwm_set_level(struct aml_bl_drv_s *bdrv,

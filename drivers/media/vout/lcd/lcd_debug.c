@@ -26,6 +26,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#include <linux/amlogic/media/vout/lcd/lcd_model.h>
 #include "./lcd_clk/lcd_clk_config.h"
 #include "lcd_reg.h"
 #include "lcd_common.h"
@@ -235,8 +236,8 @@ static int lcd_cpu_gpio_register_print(struct lcd_config_s *pconf, char *buf, in
 
 static int lcd_power_step_print(struct lcd_config_s *pconf, int status, char *buf, int offset)
 {
-	int i, n, len = 0;
 	struct lcd_power_step_s *power_step;
+	int i = 0, max_step, n, len = 0;
 
 	n = lcd_debug_info_len(len + offset);
 	if (status)
@@ -244,21 +245,22 @@ static int lcd_power_step_print(struct lcd_config_s *pconf, int status, char *bu
 	else
 		len += snprintf((buf + len), n, "power off step:\n");
 
-	i = 0;
-	while (i < LCD_PWR_STEP_MAX) {
-		if (status)
-			power_step = &pconf->power.power_on_step[i];
-		else
-			power_step = &pconf->power.power_off_step[i];
-
-		if (power_step->type >= LCD_POWER_TYPE_MAX)
+	if (status) {
+		power_step = pconf->power.power_on_step;
+		max_step = pconf->power.power_on_step_max;
+	} else {
+		power_step = pconf->power.power_off_step;
+		max_step = pconf->power.power_off_step_max;
+	}
+	while (i < max_step) {
+		if (power_step[i].type >= LCD_POWER_TYPE_MAX)
 			break;
 
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n,
 			"%d: type=%d, index=%d, value=%d, delay=%d\n",
-			i, power_step->type, power_step->index,
-			power_step->value, power_step->delay);
+			i, power_step[i].type, power_step[i].index,
+			power_step[i].value, power_step[i].delay);
 
 		i++;
 	}
@@ -270,12 +272,9 @@ static int lcd_power_step_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int 
 {
 	int len = 0;
 
-	len += lcd_power_step_print(&pdrv->config, 1,
-		(buf + len), (len + offset));
-	len += lcd_power_step_print(&pdrv->config, 0,
-		(buf + len), (len + offset));
-	len += lcd_cpu_gpio_register_print(&pdrv->config,
-		(buf + len), (len + offset));
+	len += lcd_power_step_print(&pdrv->config, 1, (buf + len), (len + offset));
+	len += lcd_power_step_print(&pdrv->config, 0, (buf + len), (len + offset));
+	len += lcd_cpu_gpio_register_print(&pdrv->config, (buf + len), (len + offset));
 
 	return len;
 }
@@ -501,7 +500,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"fr_auto_flag: 0x%x, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
 		"fr_auto_policy(global): %d, fr_auto_cus: 0x%x, custom_pinmux: %d\n"
 		"mute_state: %d(real %d), test_flag: 0x%x\n"
-		"key_valid: %d, config_load: %d\n",
+		"key_valid: %d, config_load: %d\n\n",
 		pdrv->index, LCD_DRV_VERSION,
 		pdrv->config_check_glb, pconf->basic.config_check, pdrv->config_check_en,
 		pconf->propname, pdrv->data->chip_type,
@@ -1402,6 +1401,9 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		lcd_clk_clkmsr_print(pdrv, (print_buf + i), i);
 		lcd_debug_info_print(print_buf);
 		kfree(print_buf);
+		break;
+	case 'p': /*parse*/
+		dump_panel_file_parse_mem(pdrv->index);
 		break;
 	case 'k': /* key */
 		LCDPR("key_valid: %d, config_load: %d\n", pdrv->key_valid, pdrv->config_load);

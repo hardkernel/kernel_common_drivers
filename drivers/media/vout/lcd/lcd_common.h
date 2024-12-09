@@ -81,7 +81,8 @@
 /* 20240923: support reserved memory to transmit panel parameter to kernel */
 /* 20241023: optimize mute/unmute flow */
 /* 20241127: add lcd config json parse driver */
-#define LCD_DRV_VERSION    "20241127"
+/* 20241210: add lcd config ini parse support */
+#define LCD_DRV_VERSION    "20241210"
 
 #define CFMT_RGB565          0x05
 #define CFMT_RGB_6bit        0x06
@@ -120,10 +121,11 @@ unsigned int str_add_vmode(char *buf, unsigned char newline,
 /* lcd common */
 int string_to_numbers(const char *str, unsigned int nums[]);
 int strnum_get_num(const char *str, struct num_str_s *arr, int size_arr, int dft);
-char *strnum_get_str(int num, struct num_str_s *arr, int size_arr, char *dft);
-void lcd_dbg_mem_dump(void *addr, size_t size);
 void lcd_delay_us(int us);
 void lcd_delay_ms(int ms);
+unsigned char *lcd_init_table_load_array(char *name, unsigned char cmd_size,
+					 unsigned int *buf, int buf_len,
+					 int tbl_max, int *tbl_cnt);
 unsigned char aml_lcd_i2c_bus_get_str(const char *str);
 int lcd_type_str_to_type(const char *str);
 char *lcd_type_type_to_str(int type);
@@ -154,7 +156,7 @@ unsigned int lcd_config_timing_check(struct aml_lcd_drv_s *pdrv,
 				     struct lcd_detail_timing_s *ptiming);
 int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv);
 void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv);
-unsigned char lcd_panel_config_load_detect(int index, int key_valid);
+unsigned char lcd_panel_config_load_detect(int index, int key_valid, const char *func_name);
 int lcd_check_config_load(struct aml_lcd_drv_s *drv);
 int lcd_get_config(struct aml_lcd_drv_s *pdrv);
 void lcd_optical_vinfo_update(struct aml_lcd_drv_s *pdrv);
@@ -189,7 +191,8 @@ inline void lcd_queue_delayed_work(struct delayed_work *delayed_work, int ms);
 
 int lcd_cus_ctrl_load_from_unifykey(struct aml_lcd_drv_s *pdrv, unsigned char *buf,
 		unsigned int max_size, unsigned char version);
-
+int lcd_cus_ctrl_load_from_ini(struct aml_lcd_drv_s *pdrv, void *inip, void *psec,
+			       unsigned char version);
 int lcd_cus_ctrl_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *child);
 
 struct lcd_detail_timing_s *lcd_timing_alloc(struct aml_lcd_drv_s *pdrv);

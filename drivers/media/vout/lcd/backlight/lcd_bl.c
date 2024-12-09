@@ -3520,7 +3520,7 @@ static void bl_base_config_load(struct aml_bl_drv_s *bdrv)
 	cnt = of_property_read_string_array(bdrv->dev->of_node, "bl_gpio_names",
 					    bl_gpio, BL_GPIO_NUM_MAX);
 	for (i = 0; i < cnt; i++)
-		strncpy(bdrv->bconf.bl_gpio[i].name, bl_gpio[i], LCD_CPU_GPIO_NAME_MAX);
+		strscpy(bdrv->bconf.bl_gpio[i].name, bl_gpio[i], LCD_CPU_GPIO_NAME_MAX);
 }
 
 int aml_bl_index_add(int drv_index, int conf_index)

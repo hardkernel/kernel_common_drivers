@@ -493,8 +493,8 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 
 	LDIMPR("%s:\n", __func__);
 
-	pr_info("valid_flag            = %d\n"
-		"vsync_change_flag     = %d\n\n",
+	pr_info("valid_flag        = %d\n"
+		"vsync_change_flag = %d\n\n",
 		ldim_drv->valid_flag,
 		ldim_drv->vsync_change_flag);
 	if (!ldim_drv->dev_drv) {
@@ -502,17 +502,17 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 		return;
 	}
 
-	pr_info("dev_index          = %d\n"
-		"dev_name           = %s\n"
-		"key_valid          = %d\n"
-		"type               = %d\n"
-		"en_gpio            = %d\n"
-		"en_gpio_on         = %d\n"
-		"en_gpio_off        = %d\n"
-		"chip_cnt           = %d\n"
-		"dim_min            = 0x%03x\n"
-		"dim_max            = 0x%03x\n"
-		"zone_num           = %d\n",
+	pr_info("dev_index     = %d\n"
+		"dev_name      = %s\n"
+		"key_valid     = %d\n"
+		"type          = %d\n"
+		"en_gpio       = %d\n"
+		"en_gpio_on    = %d\n"
+		"en_gpio_off   = %d\n"
+		"chip_cnt      = %d\n"
+		"dim_min       = 0x%03x\n"
+		"dim_max       = 0x%03x\n"
+		"zone_num      = %d\n",
 		ldim_drv->dev_drv->index,
 		ldim_drv->dev_drv->name,
 		ldim_drv->dev_drv->key_valid,
@@ -553,25 +553,25 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 			priv1 = cdata1->priv;
 		}
 
-		pr_info("spi_pointer        = 0x%p\n"
-			"spi_modalias       = %s\n"
-			"spi_mode           = %d\n"
-			"spi_max_speed_hz   = %d\n"
-			"spi_bus_num        = %d : %d\n"
-			"spi_chip_select    = %d : %d\n"
-			"spi_dma_support    = %d\n"
-			"use_ctrl_cs        = %d\n"
-			"cs_hold_delay      = %d\n"
-			"cs_clk_delay       = %d\n"
-			"lamp_err_gpio      = %d\n"
-			"fault_check        = %d\n"
-			"write_check        = %d\n"
-			"spi_sync           = %d\n"
-			"spi_mode_bit       = 0x%x\n"
-			"spi_tx_dma         = 0x%lx : 0x%lx\n"
-			"spi_rx_dma         =  0x%lx : 0x%lx\n"
-			"spi_xlen           = %d : %d\n"
-			"spi_line_n         = %d\n\n",
+		pr_info("spi_pointer      = 0x%p\n"
+			"spi_modalias     = %s\n"
+			"spi_mode         = %d\n"
+			"spi_max_speed_hz = %d\n"
+			"spi_bus_num      = %d : %d\n"
+			"spi_chip_select  = %d : %d\n"
+			"spi_dma_support  = %d\n"
+			"use_ctrl_cs      = %d\n"
+			"cs_hold_delay    = %d\n"
+			"cs_clk_delay     = %d\n"
+			"lamp_err_gpio    = %d\n"
+			"fault_check      = %d\n"
+			"write_check      = %d\n"
+			"spi_sync         = %d\n"
+			"spi_mode_bit     = 0x%x\n"
+			"spi_tx_dma       = 0x%lx : 0x%lx\n"
+			"spi_rx_dma       = 0x%lx : 0x%lx\n"
+			"spi_xlen         = %d : %d\n"
+			"spi_line_n       = %d\n\n",
 			ldim_drv->dev_drv->spi_dev,
 			ldim_drv->dev_drv->spi_info[0].modalias,
 			ldim_drv->dev_drv->spi_info[0].mode,
@@ -605,13 +605,13 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 	}
 	bl_pwm = &ldim_drv->dev_drv->ldim_pwm_config;
 	if (bl_pwm->pwm_port < BL_PWM_MAX) {
-		pr_info("ldim_pwm_port:       %d\n"
-			"ldim_pwm_pol:        %d\n"
-			"ldim_pwm_freq:       %d\n"
-			"ldim_pwm_phase:      %d\n"
-			"ldim_pwm_cnt:        %d\n"
-			"ldim_pwm_level:      %d\n"
-			"ldim_pwm_duty:       %d / %d\n",
+		pr_info("ldim_pwm_port:   %d\n"
+			"ldim_pwm_pol:    %d\n"
+			"ldim_pwm_freq:   %d\n"
+			"ldim_pwm_phase:  %d\n"
+			"ldim_pwm_cnt:    %d\n"
+			"ldim_pwm_level:  %d\n"
+			"ldim_pwm_duty:   %d / %d\n",
 			bl_pwm->pwm_port, bl_pwm->pwm_method,
 			bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_cnt,
 			bl_pwm->pwm_level,
@@ -631,18 +631,18 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 				bl_pwm->pwm_data.pwm);
 			pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 			pr_info("ldim_pwm state:\n"
-				"  period:            %lld\n"
-				"  duty_cycle:        %lld\n"
-				"  polarity:          %d\n"
-				"  enabled:           %d\n",
+				"  period:        %lld\n"
+				"  duty_cycle:    %lld\n"
+				"  polarity:      %d\n"
+				"  enabled:       %d\n",
 				pstate.period, pstate.duty_cycle,
 				pstate.polarity, pstate.enabled);
 			break;
 		case BL_PWM_VS:
-			pr_info("ldim_pwm_reg0:       0x%08x\n"
-				"ldim_pwm_reg1:       0x%08x\n"
-				"ldim_pwm_reg2:       0x%08x\n"
-				"ldim_pwm_reg3:       0x%08x\n",
+			pr_info("ldim_pwm_reg0:   0x%08x\n"
+				"ldim_pwm_reg1:   0x%08x\n"
+				"ldim_pwm_reg2:   0x%08x\n"
+				"ldim_pwm_reg3:   0x%08x\n",
 				lcd_vcbus_read(VPU_VPU_PWM_V0),
 				lcd_vcbus_read(VPU_VPU_PWM_V1),
 				lcd_vcbus_read(VPU_VPU_PWM_V2),
@@ -682,10 +682,10 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 				bl_pwm->pwm_data.pwm);
 			pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 			pr_info("analog_pwm state:\n"
-				"  period:            %lld\n"
-				"  duty_cycle:        %lld\n"
-				"  polarity:          %d\n"
-				"  enabled:           %d\n",
+				"  period:     %lld\n"
+				"  duty_cycle: %lld\n"
+				"  polarity:   %d\n"
+				"  enabled:    %d\n",
 				pstate.period, pstate.duty_cycle,
 				pstate.polarity, pstate.enabled);
 			break;
@@ -699,10 +699,10 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 		ldim_drv->dev_drv->pin);
 
 	if (ldim_drv->dev_drv->cmd_size > 0) {
-		pr_info("table_loaded:        %d\n"
-			"cmd_size:            %d\n"
-			"init_on_cnt:         %d\n"
-			"init_off_cnt:        %d\n",
+		pr_info("table_loaded:    %d\n"
+			"cmd_size:        %d\n"
+			"init_on_cnt:     %d\n"
+			"init_off_cnt:    %d\n",
 			ldim_drv->dev_drv->init_loaded,
 			ldim_drv->dev_drv->cmd_size,
 			ldim_drv->dev_drv->init_on_cnt,

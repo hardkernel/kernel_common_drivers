@@ -117,6 +117,16 @@ char *bl_pwm_num_to_str(unsigned int num)
 	return bl_pwm_invalid_name[0];
 }
 
+int bl_str_to_pwm_method(const char *str, int def_val)
+{
+	if (strcmp(str, "BL_PWM_NEGATIVE") == 0)
+		return BL_PWM_NEGATIVE;
+	else if (strcmp(str, "BL_PWM_POSITIVE") == 0)
+		return BL_PWM_POSITIVE;
+	else
+		return def_val;
+}
+
 static unsigned int bl_level_mapping(struct aml_bl_drv_s *bdrv, unsigned int level)
 {
 	unsigned int mid = bdrv->bconf.level_mid;
@@ -734,7 +744,8 @@ void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
 		break;
 	default:
 		/* for pwm api: pwm_period */
-		bl_pwm->pwm_cnt = 1000000000 / bl_pwm->pwm_freq;
+		if (bl_pwm->pwm_freq)
+			bl_pwm->pwm_cnt = 1000000000 / bl_pwm->pwm_freq;
 		break;
 	}
 

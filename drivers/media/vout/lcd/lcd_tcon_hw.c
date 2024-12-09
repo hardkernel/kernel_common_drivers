@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/reset.h>
 #include <linux/sched/clock.h>
+#include <linux/amlogic/media/vout/lcd/lcd_model.h>
 #include "lcd_common.h"
 #include "lcd_reg.h"
 #include "lcd_tcon.h"
@@ -1263,7 +1264,7 @@ static int lcd_tcon_data_set(struct aml_lcd_drv_s *pdrv, struct tcon_mem_map_tab
 			continue;
 		}
 		chk_size = block_header->block_size - 4;
-		temp_crc32 = cal_crc32(0, &data_buf[4], chk_size);
+		temp_crc32 = cal_CRC32(0, &data_buf[4], chk_size);
 		if (temp_crc32 != block_header->crc32) {
 			LCDERR("%s: block[%d] %s: data crc error\n",
 				__func__, i, block_header->name);

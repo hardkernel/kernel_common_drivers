@@ -46,6 +46,8 @@ static inline unsigned long long div_around(unsigned long long num, unsigned int
 {
 	unsigned long long ret = num + den / 2;
 
+	if (den == 0)
+		return 0;
 	if (den == 1)
 		return num;
 
@@ -57,6 +59,9 @@ static inline unsigned long long div_around(unsigned long long num, unsigned int
 static inline unsigned long long lcd_do_div(unsigned long long num, unsigned int den)
 {
 	unsigned long long ret = num;
+
+	if (den == 0)
+		return 0;
 
 	do_div(ret, den);
 

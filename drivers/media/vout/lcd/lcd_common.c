@@ -63,46 +63,6 @@ char *strnum_get_str(int num, struct num_str_s *arr, int size_arr, char *dft)
 	return dft;
 }
 
-int string_to_numbers(const char *str, unsigned int nums[])
-{
-	int item_ind = 0, i = 0;
-	char *token = NULL;
-	char *tmp_buf = NULL;
-	int str_len;
-	unsigned int temp = 0;
-
-	if (!str)
-		return 0;
-
-	str_len = strlen(str);
-	tmp_buf = kmalloc(str_len + 2, GFP_KERNEL);
-	if (!tmp_buf)
-		return 0;
-
-	strcpy(tmp_buf, str);
-	tmp_buf[str_len] = '\0';
-	tmp_buf[str_len  + 1] = '\0';
-	token = tmp_buf;
-	while (i <= str_len) {
-		if (tmp_buf[i] == ',' || i == str_len) {
-			while (*token <= ' ')
-				token++;
-			tmp_buf[i] = '\0';
-			if (!kstrtouint(token, 0, &temp)) {
-				nums[item_ind++] = temp;
-			} else {
-				item_ind = 0;
-				break;
-			}
-			token = tmp_buf + i + 1;
-		}
-		i++;
-	}
-	kfree(tmp_buf);
-
-	return item_ind;
-}
-
 void lcd_delay_us(int us)
 {
 	if (!us)
@@ -127,23 +87,118 @@ void lcd_delay_ms(int ms)
 		msleep(ms);
 }
 
-void lcd_dbg_mem_dump(void *addr, size_t size)
+unsigned char *lcd_init_table_dynamic_load_array(char *name, unsigned int *buf, int buf_len,
+						 int tbl_max, int *tbl_cnt)
 {
-	int i = 0, j = 0, k = 0, len = 0;
-	unsigned char buf[128], *p = (unsigned char *)addr;
+	unsigned char *table, type, size;
+	int data_cnt, step = 0, i = 0;
 
-	if (!addr)
-		return;
-	LCDPR("memory dump addr:%px, size:0x%x\n", addr, (unsigned int)size);
-	for (j = 0; j < size / 16; j++) {
-		len = 0;
-		for (i = 0; i < 16; i++, k++)
-			len += sprintf(buf, "%02x ", p[k]);
-		LCDPR("0x%04x:%s\n", j * 0x10, buf);
+	if (!buf || buf_len == 0 || tbl_max == 0 || !tbl_cnt)
+		return NULL;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("%s: %s: buf_len=%d, tbl_max=%d\n", __func__, name, buf_len, tbl_max);
+
+	while (1) {
+		if ((i + 2) > buf_len) {
+			LCDERR("%s: %s: step[%d]: no ending error\n", __func__, name, step);
+			return NULL;
+		}
+		if ((i + 2) > tbl_max) {
+			LCDERR("%s: %s: step[%d]: size out of support (max %d)\n",
+			       __func__, name, step, tbl_max);
+			return NULL;
+		}
+		type = buf[i];
+		size = buf[i + 1];
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("%s: %s: step[%d]: type=0x%x, size=%d, i=%d\n",
+			      __func__, name, step, type, size, i);
+		}
+		i += 2;
+
+		if (type == LCD_EXT_CMD_TYPE_END)
+			break;
+		if (size == 0)
+			goto init_dynamic_array_next;
+		if ((i + size) > buf_len) {
+			LCDERR("%s: %s: step[%d]: size out of support (buf_len %d)\n",
+			       __func__, name, step, buf_len);
+			return NULL;
+		}
+		if ((i + size) > tbl_max) {
+			LCDERR("%s: %s: step[%d]: size out of support (max %d)\n",
+				__func__, name, step, tbl_max);
+			return NULL;
+		}
+
+		i += size;
+
+init_dynamic_array_next:
+		step++;
 	}
-	for (i = 0, len = 0; i < size % 16; i++, k++)
-		len += sprintf(buf, "%02x ", p[k]);
-	LCDPR("0x%04x:%s\n", j * 0x10, buf);
+	data_cnt = i;
+
+	table = kzalloc(data_cnt, GFP_KERNEL);
+	if (!table)
+		return NULL;
+	for (i = 0; i < data_cnt; i++)
+		table[i] = buf[i];
+	*tbl_cnt = data_cnt;
+
+	return table;
+}
+
+unsigned char *lcd_init_table_fixed_load_array(char *name, unsigned char cmd_size,
+					       unsigned int *buf, int buf_len,
+					       int tbl_max, int *tbl_cnt)
+{
+	unsigned char *table, type;
+	int data_cnt, step = 0, i = 0;
+
+	if (cmd_size == 0 || !buf || buf_len == 0 || tbl_max == 0 || !tbl_cnt)
+		return NULL;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("%s: %s: buf_len=%d, tbl_max=%d\n", __func__, name, buf_len, tbl_max);
+
+	while (1) {
+		if ((i + cmd_size) > buf_len) {
+			LCDERR("%s: %s: step[%d]: no ending error\n", __func__, name, step);
+			return NULL;
+		}
+		if ((i + cmd_size) > tbl_max) {
+			LCDERR("%s: %s: step[%d]: size out of support (max %d)\n",
+			       __func__, name, step, tbl_max);
+			return NULL;
+		}
+		type = buf[i];
+		i += cmd_size;
+
+		if (type == LCD_EXT_CMD_TYPE_END)
+			break;
+		step++;
+	}
+	data_cnt = i;
+
+	table = kzalloc(data_cnt, GFP_KERNEL);
+	if (!table)
+		return NULL;
+	for (i = 0; i < data_cnt; i++)
+		table[i] = buf[i];
+	*tbl_cnt = data_cnt;
+
+	return table;
+}
+
+unsigned char *lcd_init_table_load_array(char *name, unsigned char cmd_size,
+					 unsigned int *buf, int buf_len,
+					 int tbl_max, int *tbl_cnt)
+{
+	if (cmd_size == LCD_EXT_CMD_SIZE_DYNAMIC)
+		return lcd_init_table_dynamic_load_array(name, buf, buf_len, tbl_max, tbl_cnt);
+
+	return lcd_init_table_fixed_load_array(name, cmd_size, buf, buf_len, tbl_max, tbl_cnt);
 }
 
 u8 *lcd_vmap(ulong addr, u32 size)
@@ -757,7 +812,7 @@ int lcd_phy_cfg_print(struct phy_config_s *cfg, char *buf, int offset, int max_l
 	for (i = 0; i < cfg->lane_num; i++) {
 		if (len >= max_len - 1)
 			return len - offset;
-		len += snprintf(buf + len, max_len - len - 1, "[%2d]  %d     %02d    0x%02x\n",
+		len += snprintf(buf + len, max_len - len - 1, "[%2d]  %d     0x%02x  0x%02x\n",
 				i, ch_ctrl[i].en, ch_ctrl[i].sel, ch_ctrl[i].phase_sel);
 	}
 	if (len >= max_len - 1)
@@ -1953,3 +2008,4 @@ unsigned int str_add_vmode(char *buf, unsigned char newline,
 
 	return i;
 }
+

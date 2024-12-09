@@ -44,6 +44,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#include <linux/amlogic/media/vout/lcd/lcd_model.h>
 #include <linux/amlogic/media/vout/lcd/ldim_fw.h>
 #include "../../lcd_common.h"
 #include "ldim_drv.h"
@@ -1079,6 +1080,19 @@ int aml_ldim_get_config_json(int panel_id)
 	ldim_config.dev_index = 0;
 	ldim_config.seg_row = json_get_arr_u32(jsp, parent, 0, 0);
 	ldim_config.seg_col = json_get_arr_u32(jsp, parent, 1, 0);
+	LDIMPR("%s row:%d, col: %d\n", __func__, ldim_config.seg_row, ldim_config.seg_col);
+
+	return 0;
+}
+
+int aml_ldim_get_config_ini(void *inip, void *psec)
+{
+	if (!inip || !psec)
+		return -1;
+
+	ldim_config.dev_index = 0;
+	ldim_config.seg_row = lcd_ini_get_val(inip, psec, "bl_ldim_row", 0);
+	ldim_config.seg_col = lcd_ini_get_val(inip, psec, "bl_ldim_col", 0);
 	LDIMPR("%s row:%d, col: %d\n", __func__, ldim_config.seg_row, ldim_config.seg_col);
 
 	return 0;
