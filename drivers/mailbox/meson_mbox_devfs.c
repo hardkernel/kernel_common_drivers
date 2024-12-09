@@ -80,7 +80,7 @@ static ssize_t mbox_message_write(struct file *filp,
 		aml_data->sync = MBOX_SYNC;
 		break;
 	case MAILBOX_DSP:
-		aml_data->rxsize = 0;
+		aml_data->rxsize = MBOX_DATA_SIZE;
 		aml_data->sync = MBOX_TSYNC;
 		break;
 	case MAILBOX_SECPU:
