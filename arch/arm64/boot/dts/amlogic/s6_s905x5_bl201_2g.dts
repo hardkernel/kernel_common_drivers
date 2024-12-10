@@ -201,7 +201,7 @@
 
 		codec_mm_reserved_ext:linux,codec_mm_reserved_ext {
 			compatible = "amlogic, codec-mm-reserved_ext";
-			size = <0x00000000 0x000c00000>;
+			size = <0x00000000 0x00000000>;
 			alignment = <0x0 0x100000>;
 		};
 
