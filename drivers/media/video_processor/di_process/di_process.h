@@ -123,13 +123,14 @@ struct di_process_dev {
 	u32 last_instance_id;
 	u32 last_buf_mgr_reset_id;
 	u32 last_frame_index;
-	bool first_out;
-	bool q_dummy_frame_done;
 	struct vframe_s dummy_vf;
 	struct vframe_s dummy_vf1;
+	struct vframe_s last_vf;
+	struct mutex mutex_di_out;/*for di_out_q*/
+	bool first_out;
+	bool q_dummy_frame_done;
 	bool last_frame_bypass;
 	bool di_is_tvp;
-	struct vframe_s last_vf;
 	bool cur_is_i;
 	bool di_do_rotate;
 	bool di_module_bypass;

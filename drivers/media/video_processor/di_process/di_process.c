@@ -501,9 +501,11 @@ int get_di_out_buf_free_index(struct di_process_dev *dev)
 static void pop_di_out_q(struct di_process_dev *dev, struct di_buffer *di_buf)
 {
 	struct di_out_buf_t *di_out_buf = NULL;
-	int i = kfifo_len(&dev->di_out_q);
+	int i = 0;
 
-	while (kfifo_len(&dev->di_out_q) > 0) {
+	mutex_lock(&dev->mutex_di_out);
+	i = kfifo_len(&dev->di_out_q);
+	while (i > 0) {
 		if (kfifo_get(&dev->di_out_q, &di_out_buf)) {
 			if (di_buf == di_out_buf->di_buf) {
 				atomic_set(&di_out_buf->on_use, false);
@@ -513,11 +515,10 @@ static void pop_di_out_q(struct di_process_dev *dev, struct di_buffer *di_buf)
 				dp_print(dev->index, PRINT_ERROR, "di_out_q is full!\n");
 		}
 		i--;
-		if (i < 0) {
-			dp_print(dev->index, PRINT_ERROR, "can find di_buf in di_out_q\n");
-			break;
-		}
 	}
+	mutex_unlock(&dev->mutex_di_out);
+	if (i == 0)
+		dp_print(dev->index, PRINT_ERROR, "not find di_buf in di_out_q\n");
 }
 
 static int check_dropped(struct di_process_dev *dev, struct uvm_di_mgr_t *uvm_di_mgr,
@@ -611,8 +612,6 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 static void queue_outbuf_to_di(struct di_process_dev *dev, struct di_buffer *di_buf)
 {
 	di_fill_output_buffer(dev->di_index, di_buf);
-
-	pop_di_out_q(dev, di_buf);
 
 	dev->fill_count++;
 	total_fill_count++;
@@ -1006,8 +1005,10 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 		atomic_set(&dev->di_out_buf[di_out_index].on_use, true);
 		dev->di_out_buf[di_out_index].di_buf = buf;
 		dev->di_out_buf[di_out_index].private_data = private_data;
+		mutex_lock(&dev->mutex_di_out);
 		if (!kfifo_put(&dev->di_out_q, &dev->di_out_buf[di_out_index]))
 			dp_print(dev->index, PRINT_ERROR, "put di_out_q fail\n");
+		mutex_unlock(&dev->mutex_di_out);
 	}
 
 	dp_timeline_increase(dev, 1);
@@ -1105,6 +1106,7 @@ static void di_out_q_init(struct di_process_dev *dev)
 {
 	int i = 0;
 
+	mutex_lock(&dev->mutex_di_out);
 	INIT_KFIFO(dev->di_out_q);
 	kfifo_reset(&dev->di_out_q);
 
@@ -1113,6 +1115,7 @@ static void di_out_q_init(struct di_process_dev *dev)
 		dev->di_out_buf[i].di_buf = NULL;
 		atomic_set(&dev->di_out_buf[i].on_use, false);
 	}
+	mutex_unlock(&dev->mutex_di_out);
 }
 
 static void di_out_q_uninit(struct di_process_dev *dev)
@@ -1122,6 +1125,7 @@ static void di_out_q_uninit(struct di_process_dev *dev)
 	struct vframe_s *vf;
 	int keep_id;
 
+	mutex_lock(&dev->mutex_di_out);
 	dp_print(dev->index, PRINT_OTHER, "unit di_out_q len=%d\n",
 		 kfifo_len(&dev->di_out_q));
 	while (kfifo_len(&dev->di_out_q) > 0) {
@@ -1148,6 +1152,7 @@ static void di_out_q_uninit(struct di_process_dev *dev)
 		dev->di_out_buf[i].di_buf = NULL;
 		atomic_set(&dev->di_out_buf[i].on_use, false);
 	}
+	mutex_unlock(&dev->mutex_di_out);
 }
 
 static int di_process_init(struct di_process_dev *dev)
@@ -1785,6 +1790,7 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 			}
 		}
 		queue_outbuf_to_di(dev, di_p);
+		pop_di_out_q(dev, di_p);
 	} else if (private_data->flag & V4LVIDEO_FLAG_DI_BYPASS) {
 		/*di bypass, need put dec file*/
 		/*decoder vf maybe free, so should not to use vf struct*/
@@ -1908,6 +1914,7 @@ static int di_process_open(struct inode *inode, struct file *file)
 
 	dev->thread_need_stop = false;
 	init_waitqueue_head(&dev->wq);
+	mutex_init(&dev->mutex_di_out);
 	dev->kthread = kthread_create(di_process_thread, dev, dev->port->name);
 	if (IS_ERR(dev->kthread)) {
 		pr_err("di_process_thread creat failed\n");
