@@ -62,6 +62,8 @@ static int clk_counter;
 static int clk_counter_running;
 static struct timer_list clk_timer;
 #define CLK_TIMER_MS (1000)
+static DEFINE_MUTEX(clk_mutex);
+struct work_struct clk_work;
 
 static const int bpp_type_lut[] = {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
@@ -222,36 +224,46 @@ void ge2d_runtime_pwr(int enable)
 	}
 }
 
-static int ge2d_clk_set(bool enable)
+static void ge2d_clk_set(bool enable)
 {
 	if (!ge2d_clk)
-		return -1;
+		return;
+	mutex_lock(&clk_mutex);
 	if (enable)
 		clk_prepare_enable(ge2d_clk);
 	else
 		clk_disable_unprepare(ge2d_clk);
+	mutex_unlock(&clk_mutex);
+}
 
-	return 0;
+static void clk_work_func(struct work_struct *w)
+{
+	ge2d_clk_set(false);
 }
 
 static void clk_timer_expire(struct timer_list *t)
 {
+	unsigned long lock_flags;
 	int state = 0;
 
+	spin_lock_irqsave(&clk_lock, lock_flags);
 	if (!clk_counter) {
 		del_timer(t);
-		ge2d_clk_set(false);
+		/* might sleep, use work to process */
+		schedule_work(&clk_work);
 		state = 1;
 		clk_counter_running = 0;
 	} else {
 		mod_timer(t, jiffies + msecs_to_jiffies(CLK_TIMER_MS));
 	}
 	ge2d_log_dbg("ge2d clk %s\n", state ? "off" : "delay");
+	spin_unlock_irqrestore(&clk_lock, lock_flags);
 }
 
 static int ge2d_clk_config(bool enable)
 {
 	unsigned long lock_flags;
+	bool turn_on = false;
 
 	if (!ge2d_clk)
 		return -1;
@@ -264,7 +276,7 @@ static int ge2d_clk_config(bool enable)
 
 	if (clk_counter > 0 && !clk_counter_running) {
 		clk_counter_running = 1;
-		ge2d_clk_set(true);
+		turn_on = true;
 		ge2d_log_dbg("ge2d clk on\n");
 		timer_setup(&clk_timer, clk_timer_expire, 0);
 		clk_timer.expires = jiffies + msecs_to_jiffies(CLK_TIMER_MS);
@@ -282,6 +294,9 @@ static int ge2d_clk_config(bool enable)
 			clk_counter = 1;
 	}
 	spin_unlock_irqrestore(&clk_lock, lock_flags);
+
+	if (turn_on)
+		ge2d_clk_set(true);
 
 	return 0;
 }
@@ -3284,6 +3299,7 @@ int ge2d_wq_init(struct platform_device *pdev, int irq, struct clk *clk)
 	if (!ge2d_manager.buffer)
 		return -1;
 
+	INIT_WORK(&clk_work, clk_work_func);
 	if (ge2d_start_monitor()) {
 		ge2d_log_err("ge2d create thread error\n");
 		return -1;
