@@ -2957,6 +2957,15 @@ void video_post_process(struct vframe_s *vf,
 			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+		} else if (!osd_gamut_conv_type &&
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
+			pr_csc(32, "vd_path=%d vpp_index=%d, hdr_proc osd\n",
+				vd_path,
+				vpp_index);
+			if (vd_path == VD1_PATH && !is_video_layer_on(VD1_PATH))
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			else if (vd_path == VD2_PATH && !is_video_layer_on(VD2_PATH))
+				hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 		}
 		src_format = HDRTYPE_NONE;
 	}
