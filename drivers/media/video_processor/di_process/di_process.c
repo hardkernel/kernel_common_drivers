@@ -1236,6 +1236,7 @@ static int di_process_init(struct di_process_dev *dev)
 	dev->q_dummy_frame_done = false;
 	dev->last_frame_bypass = false;
 	dev->cur_is_i = false;
+	dev->last_buf_mgr = NULL;
 
 	receive_q_init(dev);
 	di_input_free_q_init(dev);
@@ -1431,6 +1432,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	u32 max_width_new = 0, max_width_last = 0;
 	bool ip_switch = false, tvp_switch = false;
 	bool need_do_dummy = false;
+	struct dp_buf_mgr_t *cur_buf_mgr;
+	int ret = 0;
 
 	if (!dev || !frame_info) {
 		pr_err("%s: param is invalid.\n", __func__);
@@ -1466,6 +1469,19 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		__func__, kfifo_len(&dev->receive_q), frame_info->in_fd, vf->frame_index,
 		 file_vf, file_count(file_vf));
 
+	cur_buf_mgr = get_buf_mgr(file_vf);
+	if (!dev->last_buf_mgr) {
+		dev->last_buf_mgr = cur_buf_mgr;
+		dp_print(dev->index, PRINT_OTHER,
+			"%s: new stream is on, first frame is set\n",
+			__func__);
+	} else if (cur_buf_mgr != dev->last_buf_mgr) {
+		dev->last_buf_mgr = cur_buf_mgr;
+		dp_print(dev->index, PRINT_OTHER,
+			"%s: stream changed, need notify processor\n",
+			__func__);
+		ret = 3;
+	}
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 		di_rotate[dev->index] != frame_info->transform) {
 		switch (frame_info->transform) {
@@ -1495,7 +1511,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		dev->last_file = file_vf;
 
 		dp_put_file(dev, file_vf);
-		return 0;
+		return ret;
 	}
 
 	/*vf need check tvp switch*/
@@ -1755,7 +1771,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	dev->last_dmabuf = dmabuf;
 	dev->last_frame_bypass = false;
 
-	return 0;
+	return ret;
 }
 
 static int di_process_q_output(struct di_process_dev *dev, u32 fd)
@@ -1878,16 +1894,13 @@ static long di_process_ioctl(struct file *file,
 		ret = di_process_uninit(dev);
 		break;
 	case DI_PROCESS_IOCTL_SET_FRAME:
-		if (copy_from_user(&frame_info, argp,
-				   sizeof(frame_info)) == 0) {
-			ret = di_process_set_frame(dev, &frame_info);
-			if (ret != 0)
-				return ret;
-			ret = copy_to_user(argp, &frame_info,
-					   sizeof(struct frame_info_t));
-		} else {
-			ret = -EFAULT;
-		}
+		if (copy_from_user(&frame_info, argp, sizeof(frame_info)) != 0)
+			return -EFAULT;
+		ret = di_process_set_frame(dev, &frame_info);
+		if (ret != 0 && ret != 3)
+			return ret;
+		if (copy_to_user(argp, &frame_info, sizeof(struct frame_info_t)) != 0)
+			return -EFAULT;
 		break;
 	case DI_PROCESS_IOCTL_Q_OUTPUT:
 		if (copy_from_user(&fd, argp, sizeof(u32)) == 0)
