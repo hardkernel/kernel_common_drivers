@@ -68,7 +68,7 @@ struct meson_pwm_variant_n {
 };
 
 struct meson_pwm_tee {
-	struct pwm_chip chip;
+	struct pwm_chip *chip;
 	struct meson_pwm_tee_channel channels[MESON_NUM_PWMS_TEE];
 	struct meson_pwm_variant_n variant;
 	void __iomem *base;

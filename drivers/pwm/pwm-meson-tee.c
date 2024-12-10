@@ -26,7 +26,7 @@
 
 static inline struct meson_pwm_tee *to_meson_pwm_tee(struct pwm_chip *chip)
 {
-	return container_of(chip, struct meson_pwm_tee, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static int meson_pwm_tee_request(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -48,7 +48,7 @@ static int meson_pwm_tee_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	}
 	channel->rate = clk_get_rate(channel->clk);
 	if (channel->rate == 0) {
-		dev_err(&meson->chip.dev, "invalid source clock frequency\n");
+		dev_err(&meson->chip->dev, "invalid source clock frequency\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -113,11 +113,11 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 
 	cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * period, NSEC_PER_SEC);
 	if (cnt > 0xffff) {
-		dev_err(&meson->chip.dev, "unable to get period cnt\n");
+		dev_err(&meson->chip->dev, "unable to get period cnt\n");
 		return -EINVAL;
 	}
 
-	dev_dbg(&meson->chip.dev, "period=%llu cnt=%u\n", period, cnt);
+	dev_dbg(&meson->chip->dev, "period=%llu cnt=%u\n", period, cnt);
 
 	if (duty == period) {
 		channel->hi = cnt;
@@ -128,7 +128,7 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 	} else {
 		duty_cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * duty, NSEC_PER_SEC);
 
-		dev_dbg(&meson->chip.dev, "duty=%llu duty_cnt=%u\n", duty, duty_cnt);
+		dev_dbg(&meson->chip->dev, "duty=%llu duty_cnt=%u\n", duty, duty_cnt);
 		if (duty_cnt == 0)
 			duty_cnt++;
 
@@ -148,7 +148,7 @@ static void meson_pwm_tee_enable(struct meson_pwm_tee *meson, struct pwm_device 
 	/*when tee is locked, clk rate fixed and should not be changed*/
 	// err = clk_set_rate(channel->clk, channel->rate);
 	// if (err)
-	// dev_err(&meson->chip.dev, "setting clock rate failed\n");
+	// dev_err(&meson->chip->dev, "setting clock rate failed\n");
 	value = FIELD_PREP(PWM_HIGH_MASK, channel->hi) |
 		FIELD_PREP(PWM_LOW_MASK, channel->lo);
 #ifdef DOUBLE_CHAN_COMPAT
@@ -324,13 +324,14 @@ MODULE_DEVICE_TABLE(of, meson_pwm_tee_matches);
 
 static int meson_pwm_tee_init_channels(struct meson_pwm_tee *meson)
 {
-	struct device *dev = &meson->chip.dev;
+	struct device *dev = pwmchip_parent(meson->chip);
 	char name[255];
+	struct device_node *np = dev->of_node;
 
 	snprintf(name, sizeof(name), "clkin%u", 0);
-	meson->channels[CHANNEL_MAIN].clk = devm_clk_get(dev, name);
+	meson->channels[CHANNEL_MAIN].clk = of_clk_get(np, 0);
 	if (IS_ERR(meson->channels[CHANNEL_MAIN].clk)) {
-		dev_err(&meson->chip.dev, "can't get device clock\n");
+		dev_err(&meson->chip->dev, "can't get device clock\n");
 		return PTR_ERR(meson->channels[CHANNEL_MAIN].clk);
 	}
 #ifdef DOUBLE_CHAN_COMPAT
@@ -342,14 +343,14 @@ static int meson_pwm_tee_init_channels(struct meson_pwm_tee *meson)
 static int meson_pwm_tee_probe(struct platform_device *pdev)
 {
 	struct meson_pwm_tee *meson;
+	struct pwm_chip *chip;
 	int err;
 	struct resource *regs;
 
-	meson = devm_kzalloc(&pdev->dev, sizeof(*meson), GFP_KERNEL);
-	if (!meson)
-		return -ENOMEM;
-
+	chip = devm_pwmchip_alloc(&pdev->dev, MESON_NUM_PWMS_TEE, sizeof(*meson));
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	meson = to_meson_pwm_tee(chip);
+	meson->chip = chip;
 	meson->base = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(meson->base))
 		return PTR_ERR(meson->base);
@@ -363,15 +364,13 @@ static int meson_pwm_tee_probe(struct platform_device *pdev)
 	// meson->base = devm_platform_ioremap_resource(pdev, 0);
 
 	spin_lock_init(&meson->lock);
-	meson->chip.dev = pdev->dev;
-	meson->chip.ops = &meson_pwm_tee_ops;
-	meson->chip.npwm = MESON_NUM_PWMS_TEE;
+	meson->chip->ops = &meson_pwm_tee_ops;
 
 	err = meson_pwm_tee_init_channels(meson);
 	if (err < 0)
 		return err;
 
-	err = pwmchip_add(&meson->chip);
+	err = pwmchip_add(meson->chip);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register PWM chip: %d\n", err);
 		return err;

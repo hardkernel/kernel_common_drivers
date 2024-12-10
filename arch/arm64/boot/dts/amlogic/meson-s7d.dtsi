@@ -580,11 +580,9 @@
 				reg = <0x0 0x59200 0x0 0x24>;
 				#pwm-cells = <3>;
 				clocks =  <&scmi_clk CLKID_SCMI_PWM_J>;
-				assigned-clocks = <&scmi_clk CLKID_SCMI_PWM_J>;
-				assigned-clock-rates = <666666666>;
 				clock-names = "clkin0";
 				tee_id = <9>;
-				status = "disabled";
+				status = "okay";
 			};
 
 			i2c0: i2c@66000 {
