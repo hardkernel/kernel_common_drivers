@@ -1804,7 +1804,8 @@ int video_display_setframe(int layer_index,
 	}
 	ready_count = kfifo_len(&dev->ready_q);
 	vc_print(layer_index, PRINT_OTHER, "%s: ready_q count is %d.\n", __func__, ready_count);
-	if (use_low_latency && dev->index == 0)
+	if ((use_low_latency || (is_dec_vf && vf->flag & VFRAME_FLAG_GAME_MODE)) &&
+		dev->index == 0)
 		proc_lowlatency_frame(0);
 	return 0;
 }
