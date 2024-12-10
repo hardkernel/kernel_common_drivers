@@ -313,55 +313,6 @@
 		clock-names = "smartcard";
 	};
 
-	thermal-zones {
-		soc_thermal: soc_thermal {
-			polling-delay = <1000>;
-			polling-delay-passive = <100>;
-			sustainable-power = <1160>;
-			thermal-sensors = <&p_tsensor 0>;
-			trips {
-				pswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				pcontrol: trip-point@1 {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				phot: trip-point@2 {
-					temperature = <55000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				pcritical: trip-point@3 {
-					temperature = <105000>;
-					hysteresis = <1000>;
-					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				cpufreq_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&CPU0 0 6>;
-					contribution = <1024>;
-				};
-				gpufreq_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-				ddr0_cooling_map {
-					trip = <&phot>;
-					cooling-device = <&ddr_cool0 0 12>;
-					contribution = <1024>;
-				};
-			};
-		};
-	};/*thermal zone end*/
-
 	multi-di {
 		compatible = "amlogic, dim-s7d";
 		status = "okay";

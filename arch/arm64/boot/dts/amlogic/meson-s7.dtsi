@@ -17,6 +17,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/mailbox/s7-mbox.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include <dt-bindings/phy/phy.h>
 #include "meson-ir-map.dtsi"
@@ -1455,25 +1456,77 @@
 					node_name = "bifrost";
 					device_type = "gpufreq";
 				};
-				ddr0_cool {
-					ddr_reg = <0xfe0364b4 0xfe0365b4>;
-					ddr_status = <13>;
-					ddr_bits = <0 15>,<0 15>;
-					ddr_data = <0x1819 0x1819 0x1819 0x1819 0x1819 0x1819 0x1347
-						0xF10 0xF10 0xC0C 0x9A3 0x788	0x606>;
-					gpu_data = <0xC0C 0xC0C	0xC0C 0xC0C 0xC0C 0xC0C 0x9A3 0x788
-						0x788 0x606 0x4D1 0x3C4 0x303>;
-					node_name = "ddr_cool0";
-					device_type = "ddr";
-				};
 			};
 			cpucore:cpucore {
 				#cooling-cells = <2>; /* min followed by max */
 			};
-			ddr_cool0:ddr_cool0 {
-				#cooling-cells = <2>;
-			};
 		};/*meson cooling devices end*/
+
+	thermal-zones {
+		soc_thermal: soc_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			sustainable-power = <1160>;
+			thermal-sensors = <&p_tsensor 0>;
+			trips {
+				pswitch_on: trip-point@0 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				pcontrol: trip-point@1 {
+					temperature = <95000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				pcritical: trip-point@2 {
+					temperature = <105000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&CPU0 0 6>,
+							 <&gpu 0 3>;
+					contribution = <1024>;
+				};
+			};
+		};
+	};/*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		reg = <0 0xfe036894 0 0x4>,
+		      <0 0xfe0368a8 0 0x4>;
+		reg-names = "sip-addr",
+			    "freq-addr";
+		sip-mask = <24 8>;
+		freq-mask = <0 16>;
+		status = "okay";
+		sip {
+			particle = <SIP_PARTICLE>;
+			particle-flag = <DDR_SIP_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			caddr = <0xfe0364b4>,
+				<0xfe0365b4>;
+			caddr-mask = <0 16>,
+				     <0 16>;
+			cstep-val = <85000 90000 95000 100000>,
+				    <105000 110000 115000 120000>;
+			caddr-val = <7800 3900>,
+				    <6240 3120>,
+				    <4875 2438>,
+				    <4875 2438>,
+				    <3900 1950>,
+				    <3120 1560>,
+				    <2437 1219>,
+				    <1950 975>;
+		};
+	};
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";
