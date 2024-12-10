@@ -19,6 +19,7 @@
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include <dt-bindings/mailbox/s7d-mbox.h>
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include "meson-ir-map.dtsi"
 #include "meson-valhall.dtsi"
 
@@ -1521,20 +1522,6 @@
 		cust_governor = "power_allocator";
 	};
 
-	dmc_tsensor: dmc_tsensor {
-		compatible = "amlogic, indmc-tsensor";
-		status = "okay";
-		#thermal-sensor-cells = <1>;
-		#cooling-cells = <2>;
-		tsensor_id = <2>;
-		reg_dram_type = <0xfe036814>;
-		reg_dram_rate = <0xfe0368a8>;
-		reg_sensor = <0xfe036a80>;
-		reg_dmc_refresh = <0xfe0364b4 0xfe0365b4>;
-		reg_dmc_init = <0xfe036678 0xfe036674>;
-		sensor_bits_need_reverse;
-	};
-
 	meson_cooldev: meson-cooldev@0 {
 			status = "okay";
 			compatible = "amlogic, meson-cooldev";
@@ -1554,6 +1541,56 @@
 				#cooling-cells = <2>; /* min followed by max */
 			};
 		};/*meson cooling devices end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		reg = <0 0xfe036814 0 0x4>,
+		      <0 0xfe0368a8 0 0x4>;
+		reg-names = "type-addr",
+			    "freq-addr";
+		type-mask = <8 4>;
+		freq-mask = <0 16>;
+		status = "okay";
+		ddr4 {
+			particle = <DDR4_PARTICLE>;
+			particle-flag = <DDR_TYPE_FLAG>;
+			condition-type = <DDR_DMC>;
+			dmc-reg = <0xfe036a80>;
+			dmc-mask = <3 2>;
+			caddr = <0xfe0364b4>,
+				<0xfe0365b4>;
+			caddr-mask = <0 16>,
+				     <0 16>;
+			caddr-val = <7800 3900>,
+				    <3900 1950>,
+				    <7800 3900>,
+				    <1950 975>;
+			dmc-init = <0xfe036678 0x400>,
+				   <0xfe036674 0x80000100>;
+		};
+
+		lpddr4 {
+			particle = <LPDDR4_PARTICLE>;
+			particle-flag = <DDR_TYPE_FLAG>;
+			condition-type = <DDR_DMC>;
+			dmc-reg = <0xfe036a80>;
+			dmc-mask = <0 3>;
+			caddr = <0xfe0364b4>,
+				<0xfe0365b4>;
+			caddr-mask = <0 16>,
+				     <0 16>;
+			caddr-val = <15600 7800>,
+				    <15600 7800>,
+				    <7800  3900>,
+				    <3900  1950>,
+				    <1950  975>,
+				    <980   490>,
+				    <980   490>,
+				    <490   245>;
+			dmc-init = <0xfe036678 0x4>,
+				   <0xfe036674 0x80000100>;
+		};
+	};
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";

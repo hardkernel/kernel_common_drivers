@@ -166,6 +166,7 @@ static int ddr_calc_dynamic_params(struct control_device *cdev, struct device_no
 	u32 msk_val[2] = {0, 0}, freq = 2002;
 	int idx, idx0;
 	bool is_constant;
+	u32 freq_div[2] = {0, 0};
 	int ret;
 
 	is_constant = of_property_read_bool(of_node, "refresh-constant-value");
@@ -181,10 +182,21 @@ static int ddr_calc_dynamic_params(struct control_device *cdev, struct device_no
 			return -EINVAL;
 		freq = (readl(vaddr) >> msk_val[0]) & (((u32)BIT_ULL(msk_val[1])) - 1);
 	}
+
+	ret = of_property_read_u32_array(of_node, "freq-divisor", freq_div, 2);
+	if (ret) {
+		freq_div[0] = 1;
+		freq_div[1] = 2;
+	} else if (freq_div[1] == 0) {
+		dev_err(cdev->dev, "freq_div[1] is error, the denominator can't be zero\n");
+		return -EINVAL;
+	}
+
 	for (idx = 0; idx < cstep->caddr_cnt; idx++) {
 		caddr = &cstep->caddr_tab[idx];
 		for (idx0 = 0; idx0 < caddr->tab_cnt; idx0++) {
-			caddr->table[idx0] = caddr->table[idx0] * ((freq / 2) - 1) / 1000;
+			caddr->table[idx0] = caddr->table[idx0] *
+					     ((freq * freq_div[0] / freq_div[1]) - 1) / 1000;
 			dev_dbg(cdev->dev, "val idx %d value %d\n", idx0, caddr->table[idx0]);
 		}
 	}
