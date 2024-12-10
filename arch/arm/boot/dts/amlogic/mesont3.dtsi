@@ -2453,7 +2453,7 @@
 
 	chosen {
 		kaslr-seed = <0x0 0x0>;
-		bootargs = "usbcore.autosuspend=-1";
+		bootargs = "usbcore.autosuspend=-1 dm_mod.reserved_bio_based_ios=8";
 	};
 };
 
