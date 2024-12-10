@@ -14,7 +14,9 @@
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vfm/vframe.h>
-#include <video_processor/video_composer/videodisplay.h>
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+#include <video_processor/videodisplay/videodisplay_interface.h>
+#endif
 #include "meson_vpu_pipeline.h"
 #include "meson_crtc.h"
 #include "meson_vpu_reg.h"
@@ -26,8 +28,8 @@ static int video_axis_zoom = -1;
 module_param(video_axis_zoom, int, 0664);
 MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
 
-static void
-video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+static void video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	struct video_display_frame_info_t *vf_info)
 {
 	vf_info->dmabuf = mvvs->dmabuf;
@@ -54,6 +56,7 @@ video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	MESON_DRM_BLOCK("byte_stride:%d, signal_fmt:%d\n",
 				vf_info->byte_stride, vf_info->signal_fmt);
 }
+#endif
 
 static u32 video_type_get(u32 pixel_format)
 {
@@ -387,12 +390,14 @@ static void video_set_state(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
 	struct video_display_frame_info_t vf_info;
+	int ret;
+#endif
 	struct vframe_s *vf = NULL, *dec_vf = NULL, *vfp = NULL;
 	u32 pixel_format, src_h, byte_stride, pic_w, pic_h, fb_h;
 	u32 recal_src_w, recal_src_h;
 	u64 phy_addr, phy_addr2 = 0;
-	int ret;
 
 	MESON_DRM_BLOCK("%s", __func__);
 
@@ -401,7 +406,9 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		return;
 	}
 
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
 	memset(&vf_info, 0, sizeof(vf_info));
+#endif
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;
 	fb_h = mvvs->fb_h;
@@ -474,6 +481,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
 
 		if (video->vfm_mode) {
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
 			vf_info.release_fence = video->fence;
 			vf_info.dmabuf = mvvs->dmabuf;
 			vf_info.dst_x = mvvs->dst_x;
@@ -497,7 +505,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
 			if (!ret)
 				dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
-					      DMA_RESV_USAGE_READ);
+					      DMA_RESV_USAGE_WRITE);
 
 			dma_resv_unlock(vf_info.dmabuf->resv);
 
@@ -509,7 +517,6 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
 				vf_info.crop_x, vf_info.crop_y, vf_info.crop_w, vf_info.crop_h,
 				vf_info.buffer_w, vf_info.buffer_h);
-#ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 			video_display_setframe(vblk->index, &vf_info, 0);
 #endif
 		} else {
@@ -535,6 +542,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		}
 	} else {
 		if (video->vfm_mode) {
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
 			vf_info.release_fence = video->fence;
 			video_vfm_convert_to_vfminfo(mvvs, &vf_info);
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
@@ -552,7 +560,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
 			if (!ret)
 				dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
-							DMA_RESV_USAGE_READ);
+							DMA_RESV_USAGE_WRITE);
 
 			dma_resv_unlock(vf_info.dmabuf->resv);
 			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px-%d)\n",
@@ -560,7 +568,6 @@ static void video_set_state(struct meson_vpu_block *vblk,
 				vf_info.release_fence ?
 					kref_read(&vf_info.release_fence->refcount) : -1);
 
-#ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 			video_display_setframe(vblk->index, &vf_info, 0);
 #endif
 		} else {
@@ -652,8 +659,12 @@ static void video_hw_enable(struct meson_vpu_block *vblk,
 		return;
 	}
 
-	if (video->vfm_mode) {
-		MESON_DRM_BLOCK("skip, %s enable by video_composer.\n", video->base.name);
+	if (video->vfm_mode && !video->video_enabled) {
+		MESON_DRM_BLOCK("set %s enable.\n", video->base.name);
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+		video_display_setenable(vblk->index, 1);
+		video->video_enabled = 1;
+#endif
 		return;
 	}
 
@@ -680,7 +691,7 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 	if (video->vfm_mode) {
 		DRM_INFO("%s dmabuf(%px), release_fence(%px), video_name(%s)\n",
 			__func__, video->dmabuf, video->fence, video->base.name);
-#ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
 		video_display_setenable(vblk->index, 0);
 		video->video_enabled = 0;
 #endif
