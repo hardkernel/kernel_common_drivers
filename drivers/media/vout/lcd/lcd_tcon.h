@@ -207,6 +207,14 @@ struct tcon_mem_map_table_s {
 
 #define TCON_BIN_VER_LEN    9
 #define MEM_FLAG_MAX	    2
+
+struct tcon_cmpr_info_s {
+	unsigned int en;      //function en
+	unsigned int num_p1;  //0x267[23:0]
+	unsigned long long frame_max_bytes;  //max bytes
+	unsigned long long frame_cur_bytes;  //current frame bytes
+};
+
 struct lcd_tcon_local_cfg_s {
 	char bin_ver[TCON_BIN_VER_LEN];
 	spinlock_t multi_list_lock; /* for tcon multi lut list change */
@@ -214,6 +222,8 @@ struct lcd_tcon_local_cfg_s {
 	struct lcd_tcon_init_block_header_s *cur_core_header;
 	struct lcd_tcon_init_block_ext_header_s *cur_core_ext_header;
 	unsigned char *cur_core_reg_table;
+
+	struct tcon_cmpr_info_s cmpr_info;
 
 	struct list_head pdf_data_list;  //for struct lcd_tcon_pdf_data_s
 	unsigned char pdf_list_load_flag;
@@ -375,5 +385,7 @@ void lcd_tcon_debug_file_remove(struct lcd_tcon_local_cfg_s *local_cfg);
 
 int lcd_tcon_mem_od_is_valid(void);
 int lcd_tcon_mem_demura_is_valid(void);
+
+void lcd_tcon_collect_cmpr_info(struct aml_lcd_drv_s *pdrv, struct tcon_cmpr_info_s *cmpr_info);
 
 #endif

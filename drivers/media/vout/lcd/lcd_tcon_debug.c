@@ -1242,6 +1242,29 @@ ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr
 	return len;
 }
 
+ssize_t lcd_tcon_cmpr_dbg_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	ssize_t len = 0;
+
+	if (!local_cfg)
+		return 0;
+
+	len += sprintf(buf,
+		"cmpr en        = %u\n"
+		"frame max bytes= %llu (%llu KB)\n"
+		"frame cur bytes= %llu (%llu KB)\n"
+		"num_p1         = %u\n",
+		local_cfg->cmpr_info.en,
+		local_cfg->cmpr_info.frame_max_bytes,
+		lcd_do_div(local_cfg->cmpr_info.frame_max_bytes, 1000),
+		local_cfg->cmpr_info.frame_cur_bytes,
+		lcd_do_div(local_cfg->cmpr_info.frame_cur_bytes, 1000),
+		local_cfg->cmpr_info.num_p1);
+
+	return len;
+}
+
 static struct device_attribute lcd_tcon_debug_attrs[] = {
 	__ATTR(debug,     0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(status,    0444, lcd_tcon_status_show, NULL),
@@ -1250,6 +1273,7 @@ static struct device_attribute lcd_tcon_debug_attrs[] = {
 	__ATTR(tcon_pdf,  0644, lcd_tcon_pdf_dbg_show, lcd_tcon_pdf_dbg_store),
 	__ATTR(tcon_rdma, 0644, lcd_tcon_rdma_dbg_show, lcd_tcon_rdma_dbg_store),
 	__ATTR(tcon_info, 0444, lcd_tcon_info_dbg_show, NULL),
+	__ATTR(tcon_cmpr, 0444, lcd_tcon_cmpr_dbg_show, NULL),
 };
 
 /* **********************************

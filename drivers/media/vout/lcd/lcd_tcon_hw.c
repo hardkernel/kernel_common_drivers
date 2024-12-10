@@ -275,6 +275,31 @@ void lcd_tcon_init_table_pre_proc(unsigned char *table)
 	}
 }
 
+void lcd_tcon_collect_cmpr_info(struct aml_lcd_drv_s *pdrv,
+			   struct tcon_cmpr_info_s *cmpr_info)
+{
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	unsigned int cmpr_en = 0;
+
+	if (!pdrv || !cmpr_info || !tcon_conf)
+		return;
+
+	cmpr_en = !!(lcd_tcon_read(pdrv, tcon_conf->reg_core_od) &
+			(1 << tcon_conf->bit_od_en));
+	if (!cmpr_en)
+		return;
+
+	if (!cmpr_info->en) {  //first enable, clear storage
+		memset(cmpr_info, 0, sizeof(*cmpr_info));
+		cmpr_info->en = cmpr_en;
+	}
+
+	cmpr_info->num_p1 = lcd_tcon_read(pdrv, 0x267) & 0xffffff;
+	cmpr_info->frame_cur_bytes = cmpr_info->num_p1 << 4;
+	if (cmpr_info->frame_max_bytes < cmpr_info->frame_cur_bytes)
+		cmpr_info->frame_max_bytes = cmpr_info->frame_cur_bytes;
+}
+
 void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 			   struct lcd_tcon_config_s *tcon_conf,
 			   struct tcon_mem_map_table_s *mm_table,

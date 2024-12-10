@@ -1564,6 +1564,8 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 	if (tcon_fw->vsync_isr)
 		tcon_fw->vsync_isr(tcon_fw);
 
+	lcd_tcon_collect_cmpr_info(pdrv, &tcon_local_cfg.cmpr_info);
+
 	local_time[1] = sched_clock();
 	pdrv->proc_time.tcon_vs_isr_time = local_time[1] - local_time[0];
 }
@@ -3120,6 +3122,11 @@ static struct lcd_tcon_axi_mem_cfg_s axi_mem_cfg_tbl_txhd2[] = {
 	{ TCON_AXI_MEM_TYPE_DEMURA, 0x00100000, 0x19b, 0 },  /* 1M */
 };
 
+static struct lcd_tcon_axi_mem_cfg_s axi_mem_cfg_tbl_t6d[] = {
+	{ TCON_AXI_MEM_TYPE_OD,     0x00200000, 0x261, 0 },  /* 2M */
+	{ TCON_AXI_MEM_TYPE_DEMURA, 0x00100000, 0x19b, 0 },  /* 1M */
+};
+
 static struct lcd_tcon_dma_ops_s lcd_tcon_dma_ops_t5m = {
 	.status = 0,
 	.addr_list = NULL,
@@ -3542,8 +3549,8 @@ static struct lcd_tcon_config_s tcon_data_t6d = {
 
 	.axi_bank = LCD_TCON_AXI_BANK_T6D,
 
-	.rsv_mem_size    = 0x00502840,
-	.axi_mem_size    = 0x00500000, /* 5M*/
+	.rsv_mem_size    = 0x00302840,
+	.axi_mem_size    = 0x00300000, /* 3M*/
 	.bin_path_size   = 0x00002800, /* 10K */
 	.secure_cfg_size = 0x00000040, /* 64byte */
 	.vac_size        = 0,
@@ -3551,8 +3558,8 @@ static struct lcd_tcon_config_s tcon_data_t6d = {
 	.demura_lut_size = 0,
 	.acc_lut_size    = 0,
 
-	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_txhd2),
-	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_txhd2,
+	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t6d),
+	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_t6d,
 	.lut_dma_ops = &lcd_tcon_dma_ops_t6d,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
@@ -3644,6 +3651,7 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 #endif
 
 	spin_lock_init(&tcon_local_cfg.multi_list_lock);
+	memset(&tcon_local_cfg.cmpr_info, 0, sizeof(tcon_local_cfg.cmpr_info));
 
 	if (pdrv->config_load != LCD_CONFIG_FILE && !lcd_unifykey_init_get()) {
 		INIT_DELAYED_WORK(&pdrv->tcon_config_dly_work, lcd_tcon_get_config_work);
