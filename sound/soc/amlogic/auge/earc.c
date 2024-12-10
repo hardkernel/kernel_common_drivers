@@ -1125,6 +1125,8 @@ static int earc_prepare(struct snd_soc_component *component, struct snd_pcm_subs
 	struct earc *p_earc = runtime->private_data;
 	unsigned int start_addr, end_addr, int_addr;
 	unsigned int period, threshold;
+	unsigned int use_fifo_size = 0, one_ms_fifo_size = 0;
+	unsigned int multi = 1;
 
 	start_addr = runtime->dma_addr;
 	end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
@@ -1134,14 +1136,15 @@ static int earc_prepare(struct snd_soc_component *component, struct snd_pcm_subs
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_earc->fddr;
 
-		/*
-		 * Contrast minimum of period and fifo depth,
-		 * and set the value as half.
-		 */
-		threshold = min(period, fr->chipinfo->fifo_depth);
-		threshold /= 2;
+		/* multi times of clk rate */
+		multi = audio_multi_clk(p_earc->tx_audio_coding_type);
+		/* current define -4ms for reference fifo delay */
+		one_ms_fifo_size = (runtime->rate * multi) * (runtime->frame_bits / 8) / 1000LL;
+		use_fifo_size = aml_frddr_get_fifo_infos(fr, period, one_ms_fifo_size);
+		threshold = use_fifo_size / 2;
+
 		/* Use all the fifo */
-		aml_frddr_set_fifos(fr, fr->chipinfo->fifo_depth, threshold);
+		aml_frddr_set_fifos(fr, use_fifo_size, threshold);
 
 		aml_frddr_set_buf(fr, start_addr, end_addr);
 		aml_frddr_set_intrpt(fr, int_addr);
