@@ -325,13 +325,15 @@ static void earc_clock_enable(void)
 
 	if (p_earc->suspend_clk_off) {
 		if (p_earc->chipinfo->tx_enable) {
-			if (!IS_ERR(p_earc->clk_tx_cmdc) && !IS_ERR(p_earc->clk_tx_cmdc_srcpll)) {
+			if (!IS_ERR_OR_NULL(p_earc->clk_tx_cmdc) &&
+			    !IS_ERR_OR_NULL(p_earc->clk_tx_cmdc_srcpll)) {
 				ret = clk_set_parent(p_earc->clk_tx_cmdc,
 						p_earc->clk_tx_cmdc_srcpll);
 				if (ret)
 					dev_err(p_earc->dev, "Can't resume set clk_tx_cmdc parent clock\n");
 			}
-			if (!IS_ERR(p_earc->clk_tx_dmac) && !IS_ERR(p_earc->clk_tx_dmac_srcpll)) {
+			if (!IS_ERR_OR_NULL(p_earc->clk_tx_dmac) &&
+			    !IS_ERR_OR_NULL(p_earc->clk_tx_dmac_srcpll)) {
 				unsigned long flags;
 
 				ret = clk_set_parent(p_earc->clk_tx_dmac,
@@ -353,13 +355,15 @@ static void earc_clock_enable(void)
 		}
 
 		if (p_earc->chipinfo->rx_enable) {
-			if (!IS_ERR(p_earc->clk_rx_cmdc) && !IS_ERR(p_earc->clk_rx_cmdc_srcpll)) {
+			if (!IS_ERR_OR_NULL(p_earc->clk_rx_cmdc) &&
+			    !IS_ERR_OR_NULL(p_earc->clk_rx_cmdc_srcpll)) {
 				ret = clk_set_parent(p_earc->clk_rx_cmdc,
 						p_earc->clk_rx_cmdc_srcpll);
 				if (ret)
 					dev_err(p_earc->dev, "Can't resume set clk_rx_cmdc parent clock\n");
 			}
-			if (!IS_ERR(p_earc->clk_rx_dmac) && !IS_ERR(p_earc->clk_rx_dmac_srcpll)) {
+			if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac) &&
+			    !IS_ERR_OR_NULL(p_earc->clk_rx_dmac_srcpll)) {
 				ret = clk_set_parent(p_earc->clk_rx_dmac,
 						p_earc->clk_rx_dmac_srcpll);
 				if (ret)
@@ -1374,7 +1378,7 @@ static void earctx_set_dmac_freq_normal(struct earc *p_earc, unsigned int freq, 
 		return;
 	}
 
-	if (IS_ERR(p_earc->clk_src_cd))
+	if (IS_ERR_OR_NULL(p_earc->clk_src_cd))
 		earctx_set_dmac_freq_normal_1(p_earc, freq, tune);
 	else
 		earctx_set_dmac_freq_normal_2(p_earc, freq, tune);
@@ -1437,7 +1441,7 @@ int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 	int channels, rate;
 	unsigned long flags;
 
-	if (!s_earc || IS_ERR(s_earc->tx_cmdc_map))
+	if (!s_earc || IS_ERR_OR_NULL(s_earc->tx_cmdc_map))
 		return 0;
 
 	s_earc->tx_audio_coding_type = new_coding_type;
@@ -1501,7 +1505,7 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 		return -ENOTCONN;
 	}
 
-	if (IS_ERR(s_earc->clk_tx_dmac) || IS_ERR(s_earc->clk_tx_dmac_srcpll))
+	if (IS_ERR_OR_NULL(s_earc->clk_tx_dmac) || IS_ERR_OR_NULL(s_earc->clk_tx_dmac_srcpll))
 		return -ENOTCONN;
 
 	/* same source channels always 2 */
@@ -1675,7 +1679,8 @@ static int earc_dai_startup(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		unsigned long flags;
 
-		if (IS_ERR(p_earc->clk_rx_dmac) || IS_ERR(p_earc->clk_rx_dmac_srcpll))
+		if (IS_ERR_OR_NULL(p_earc->clk_rx_dmac) ||
+		    IS_ERR_OR_NULL(p_earc->clk_rx_dmac_srcpll))
 			return -ENOTCONN;
 		/* rx dmac clk */
 		ret = clk_prepare_enable(p_earc->clk_rx_dmac);
@@ -1728,7 +1733,7 @@ static void earc_dai_shutdown(struct snd_pcm_substream *substream,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		if (!IS_ERR(p_earc->clk_rx_dmac)) {
+		if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac)) {
 			unsigned long flags;
 
 			spin_lock_irqsave(&p_earc->rx_lock, flags);
@@ -1736,7 +1741,7 @@ static void earc_dai_shutdown(struct snd_pcm_substream *substream,
 			spin_unlock_irqrestore(&p_earc->rx_lock, flags);
 			clk_disable_unprepare(p_earc->clk_rx_dmac);
 		}
-		if (!IS_ERR(p_earc->clk_rx_dmac_srcpll))
+		if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac_srcpll))
 			clk_disable_unprepare(p_earc->clk_rx_dmac_srcpll);
 
 		rx_parity_stop_timer(p_earc);
@@ -1852,7 +1857,7 @@ static int earcrx_get_attend_type(struct snd_kcontrol *kcontrol,
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	enum attend_type type;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 	type = earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map);
 	ucontrol->value.integer.value[0] = type;
@@ -1867,7 +1872,7 @@ static int earcrx_set_attend_type(struct snd_kcontrol *kcontrol,
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	enum cmdc_st state;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 	state = earcrx_cmdc_get_state(p_earc->rx_cmdc_map);
 
@@ -1885,7 +1890,7 @@ static int earcrx_arc_get_stable(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map)) {
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map)) {
 		ucontrol->value.integer.value[0] = false;
 		return 0;
 	}
@@ -1901,7 +1906,7 @@ static int earcrx_arc_get_enable(struct snd_kcontrol *kcontrol,
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	enum attend_type type;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 	type = earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map);
 	ucontrol->value.integer.value[0] = (bool)(type == ATNDTYP_ARC);
@@ -1915,7 +1920,7 @@ static int earcrx_arc_set_enable(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 
 	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map,
@@ -1931,7 +1936,7 @@ static int earctx_get_attend_type(struct snd_kcontrol *kcontrol,
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	enum attend_type type;
 
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
 		return 0;
 
 	type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
@@ -1948,7 +1953,7 @@ static int earctx_set_attend_type(struct snd_kcontrol *kcontrol,
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	enum cmdc_st state;
 
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
 		return 0;
 
 	state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
@@ -1969,7 +1974,7 @@ static int earcrx_get_latency(struct snd_kcontrol *kcontrol,
 	enum cmdc_st state;
 	u8  val = 0;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 
 	state = earcrx_cmdc_get_state(p_earc->rx_cmdc_map);
@@ -1991,7 +1996,7 @@ static int earcrx_set_latency(struct snd_kcontrol *kcontrol,
 	u8 latency = ucontrol->value.integer.value[0];
 	enum cmdc_st state;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 
 	p_earc->rx_latency = latency;
@@ -2014,7 +2019,7 @@ static int earcrx_get_cds(struct snd_kcontrol *kcontrol,
 	u8 *value = (u8 *)ucontrol->value.bytes.data;
 	int i;
 
-	if (!p_earc || IS_ERR(p_earc->rx_top_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_top_map))
 		return 0;
 
 	for (i = 0; i < bytes_ext->max; i++)
@@ -2030,7 +2035,7 @@ static int earcrx_set_cds(struct snd_kcontrol *kcontrol,
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	enum cmdc_st state;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 
 	memcpy(p_earc->rx_cds_data, ucontrol->value.bytes.data, CDS_MAX_BYTES);
@@ -2050,7 +2055,7 @@ int earcrx_get_mute(struct snd_kcontrol *kcontrol,
 	unsigned long flags;
 	int mute = 0;
 
-	if (!p_earc || IS_ERR(p_earc->rx_dmac_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_dmac_map))
 		return 0;
 
 	spin_lock_irqsave(&p_earc->rx_lock, flags);
@@ -2073,7 +2078,7 @@ int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 	enum attend_type type;
 	unsigned long flags;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 
 	if (!p_earc->rx_dmac_clk_on)
@@ -2109,7 +2114,7 @@ int earcrx_get_freq(struct snd_kcontrol *kcontrol,
 	int freq = 0;
 	unsigned long flags;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 
 	if (!p_earc->rx_cs_ready)
@@ -2136,7 +2141,7 @@ static int earcrx_get_freq_by_pll(struct snd_kcontrol *kcontrol,
 	int val = 0x7;
 	unsigned long flags;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
 		return 0;
 
 	spin_lock_irqsave(&p_earc->rx_lock, flags);
@@ -2162,7 +2167,7 @@ int earcrx_get_word_length(struct snd_kcontrol *kcontrol,
 	unsigned long flags;
 	int wlen = 0;
 
-	if (!p_earc || IS_ERR(p_earc->rx_dmac_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_dmac_map))
 		return 0;
 
 	spin_lock_irqsave(&p_earc->rx_lock, flags);
@@ -2183,7 +2188,7 @@ static int earctx_get_latency(struct snd_kcontrol *kcontrol,
 	enum cmdc_st state;
 	u8 val = 0;
 
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
 		return 0;
 
 	state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
@@ -2205,7 +2210,7 @@ static int earctx_set_latency(struct snd_kcontrol *kcontrol,
 	u8 latency = ucontrol->value.integer.value[0];
 	enum cmdc_st state;
 
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
 		return 0;
 
 	state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
@@ -2229,7 +2234,7 @@ static int earctx_get_cds(struct snd_kcontrol *kcontrol,
 	u8 data[256];
 	int i;
 
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
 		return 0;
 
 	state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
@@ -2250,7 +2255,7 @@ int earctx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 
-	if (!p_earc || IS_ERR(p_earc->tx_top_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_top_map))
 		return 0;
 
 	ucontrol->value.integer.value[0] = p_earc->tx_audio_coding_type;
@@ -2265,7 +2270,7 @@ int earctx_set_audio_coding_type(struct snd_kcontrol *kcontrol,
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	enum audio_coding_types new_coding_type = ucontrol->value.integer.value[0];
 
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map) ||
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map) ||
 	    new_coding_type == p_earc->ui_tx_audio_coding_type)
 		return 0;
 
@@ -2280,7 +2285,7 @@ int earctx_get_mute(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 
-	if (!p_earc || IS_ERR(p_earc->tx_top_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_top_map))
 		return 0;
 
 	ucontrol->value.integer.value[0] = p_earc->tx_cs_mute;
@@ -2300,7 +2305,7 @@ int earctx_set_mute(struct snd_kcontrol *kcontrol,
 	bool mute = ucontrol->value.integer.value[0];
 	unsigned long flags;
 
-	if (!p_earc || IS_ERR(p_earc->tx_dmac_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_dmac_map))
 		return 0;
 
 	p_earc->tx_cs_mute = mute;
@@ -2384,7 +2389,7 @@ static void earc_resume(void)
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 	/* earc port, need reset for earc discovery when earc mode is on */
-	if (!IS_ERR(p_earc->tx_cmdc_map) && p_earc->tx_earc_mode) {
+	if (!IS_ERR_OR_NULL(p_earc->tx_cmdc_map) && p_earc->tx_earc_mode) {
 		if (p_earc->earctx_5v) {
 			earctx_set_earc_mode(p_earc, p_earc->tx_earc_mode);
 		} else {
@@ -2422,7 +2427,7 @@ int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	int earc_mode = ucontrol->value.integer.value[0];
 
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
 		return 0;
 
 	p_earc->hold_bus_flag = false;
@@ -2456,7 +2461,7 @@ static int earcrx_get_iec958(struct snd_kcontrol *kcontrol,
 	unsigned long flags;
 	int cs = 0, i;
 
-	if (!p_earc || IS_ERR(p_earc->rx_dmac_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_dmac_map))
 		return 0;
 
 	spin_lock_irqsave(&p_earc->rx_lock, flags);
@@ -2491,7 +2496,7 @@ static int earctx_get_iec958(struct snd_kcontrol *kcontrol,
 	int cs;
 	unsigned long flags;
 
-	if (!p_earc || IS_ERR(p_earc->tx_dmac_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_dmac_map))
 		return 0;
 
 	spin_lock_irqsave(&p_earc->tx_lock, flags);
@@ -2523,7 +2528,7 @@ static int earctx_set_iec958(struct snd_kcontrol *kcontrol,
 	int cs = 0;
 	unsigned long flags;
 
-	if (!p_earc || IS_ERR(p_earc->tx_dmac_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_dmac_map))
 		return 0;
 
 	spin_lock_irqsave(&p_earc->tx_lock, flags);
@@ -2586,7 +2591,7 @@ static int earcrx_get_ca(struct snd_kcontrol *kcontrol,
 	enum audio_coding_types coding_type;
 	unsigned long flags;
 
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map)) {
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map)) {
 		ucontrol->value.integer.value[0] = 0xff;
 		return 0;
 	}
@@ -2617,7 +2622,7 @@ static int earctx_get_ca(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 
-	if (!p_earc || IS_ERR(p_earc->tx_top_map)) {
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_top_map)) {
 		ucontrol->value.integer.value[0] = 0xff;
 		return 0;
 	}
@@ -2638,7 +2643,7 @@ static int earctx_set_ca(struct snd_kcontrol *kcontrol,
 	int ca = ucontrol->value.integer.value[0];
 	unsigned long flags;
 
-	if (!p_earc || IS_ERR(p_earc->tx_top_map))
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_top_map))
 		return 0;
 
 	if (ca >= 0x32)
@@ -2663,7 +2668,7 @@ static int earctx_clk_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
-	if (!IS_ERR(p_earc->clk_tx_dmac)) {
+	if (!IS_ERR_OR_NULL(p_earc->clk_tx_dmac)) {
 		ucontrol->value.enumerated.item[0] =
 				clk_get_rate(p_earc->clk_tx_dmac);
 		p_earc->tx_dmac_freq = ucontrol->value.enumerated.item[0];
@@ -3165,7 +3170,7 @@ static int earcrx_cmdc_setup(struct earc *p_earc)
 
 	/* set cmdc clk */
 	audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x1 << 6, 0x1 << 6);
-	if (!IS_ERR(p_earc->clk_rx_cmdc)) {
+	if (!IS_ERR_OR_NULL(p_earc->clk_rx_cmdc)) {
 		clk_set_rate(p_earc->clk_rx_cmdc, 10000000);
 
 		ret = clk_prepare_enable(p_earc->clk_rx_cmdc);
@@ -3174,21 +3179,6 @@ static int earcrx_cmdc_setup(struct earc *p_earc)
 			return ret;
 		}
 	}
-
-	ret = devm_request_threaded_irq(p_earc->dev,
-					p_earc->irq_earc_rx,
-					rx_handler,
-					earc_rx_isr,
-					IRQF_TRIGGER_HIGH |
-					IRQF_ONESHOT,
-					"earc_rx",
-					p_earc);
-	if (ret) {
-		dev_err(p_earc->dev, "failed to claim earc_rx %u\n",
-			p_earc->irq_earc_rx);
-		return ret;
-	}
-
 	/* Default: arc arc_initiated */
 	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map, true);
 
@@ -3236,7 +3226,7 @@ static int earctx_cmdc_setup(struct earc *p_earc)
 
 	/* set cmdc clk */
 	audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x1 << 5, 0x1 << 5);
-	if (!IS_ERR(p_earc->clk_tx_cmdc)) {
+	if (!IS_ERR_OR_NULL(p_earc->clk_tx_cmdc)) {
 		clk_set_rate(p_earc->clk_tx_cmdc, 10000000);
 
 		ret = clk_prepare_enable(p_earc->clk_tx_cmdc);
@@ -3256,21 +3246,6 @@ static int earctx_cmdc_setup(struct earc *p_earc)
 		}
 		p_earc->tx_dmac_clk_on = true;
 	}
-
-	ret = devm_request_threaded_irq(p_earc->dev,
-					p_earc->irq_earc_tx,
-					NULL,
-					earc_tx_isr,
-					IRQF_TRIGGER_HIGH |
-					IRQF_ONESHOT,
-					"earc_tx",
-					p_earc);
-	if (ret) {
-		dev_err(p_earc->dev, "failed to claim earc_tx %u\n",
-			p_earc->irq_earc_tx);
-		return ret;
-	}
-
 	/* Default: no time out to connect RX */
 	earctx_cmdc_set_timeout(p_earc->tx_cmdc_map, 1);
 	/* Default: arc arc_initiated */
@@ -3284,7 +3259,7 @@ static void earc_work_func(struct work_struct *work)
 	struct earc *p_earc = container_of(work, struct earc, work);
 
 	/* RX */
-	if (!IS_ERR(p_earc->rx_top_map) &&
+	if (!IS_ERR_OR_NULL(p_earc->rx_top_map) &&
 	    p_earc->chipinfo->ana_auto_cal &&
 	    p_earc->event & EVENT_RX_ANA_AUTO_CAL) {
 		p_earc->event &= ~EVENT_RX_ANA_AUTO_CAL;
@@ -3292,7 +3267,7 @@ static void earc_work_func(struct work_struct *work)
 	}
 
 	/* TX */
-	if (!IS_ERR(p_earc->tx_top_map) &&
+	if (!IS_ERR_OR_NULL(p_earc->tx_top_map) &&
 	    p_earc->chipinfo->ana_auto_cal &&
 	    p_earc->event & EVENT_TX_ANA_AUTO_CAL) {
 		p_earc->event &= ~EVENT_TX_ANA_AUTO_CAL;
@@ -3370,8 +3345,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 	p_earc->dev = dev;
 	dev_set_drvdata(dev, p_earc);
 
-	p_earc->chipinfo = (struct earc_chipinfo *)
-		of_device_get_match_data(dev);
+	p_earc->chipinfo = (struct earc_chipinfo *)of_device_get_match_data(dev);
 
 	if (!p_earc->chipinfo) {
 		dev_warn_once(dev, "check whether to update earc chipinfo\n");
@@ -3385,70 +3359,53 @@ static int earc_platform_probe(struct platform_device *pdev)
 
 	pdev_parent = of_find_device_by_node(node_prt);
 	of_node_put(node_prt);
-	actrl = (struct aml_audio_controller *)
-			platform_get_drvdata(pdev_parent);
+	actrl = (struct aml_audio_controller *)platform_get_drvdata(pdev_parent);
 	p_earc->actrl = actrl;
 
-	p_earc->tx_cmdc_map = regmap_resource(dev, "tx_cmdc");
-	if (!p_earc->tx_cmdc_map)
-		dev_info(dev, "Can't get earctx_cmdc regmap!!\n");
-
-	p_earc->tx_dmac_map = regmap_resource(dev, "tx_dmac");
-	if (!p_earc->tx_dmac_map)
-		dev_info(dev, "Can't get earctx_dmac regmap!!\n");
-
-	p_earc->tx_top_map = regmap_resource(dev, "tx_top");
-	if (!p_earc->tx_top_map)
-		dev_info(dev, "Can't get earctx_top regmap!!\n");
-
-	p_earc->rx_cmdc_map = regmap_resource(dev, "rx_cmdc");
-	if (!p_earc->rx_cmdc_map)
-		dev_info(dev, "Can't get earcrx_cdmc regmap!!\n");
-
-	p_earc->rx_dmac_map = regmap_resource(dev, "rx_dmac");
-	if (!p_earc->rx_dmac_map)
-		dev_info(dev, "Can't get earcrx_dmac regmap!!\n");
-
-	p_earc->rx_top_map = regmap_resource(dev, "rx_top");
-	if (!p_earc->rx_top_map)
-		dev_info(dev, "Can't get earcrx_top regmap!!\n");
-
-	ret = of_property_read_u32(node, "suspend-clk-off",
-			&p_earc->suspend_clk_off);
-	if (ret < 0)
-		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
-
 	p_earc->clk_src_cd = devm_clk_get(&pdev->dev, "clk_src_cd");
-	if (IS_ERR(p_earc->clk_src_cd))
+	if (IS_ERR_OR_NULL(p_earc->clk_src_cd))
 		dev_info(&pdev->dev, "no clk_src_cd clock for 44k case\n");
 
-	/* RX */
 	if (p_earc->chipinfo->rx_enable) {
+		p_earc->rx_cmdc_map = regmap_resource(dev, "rx_cmdc");
+		if (IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
+			dev_info(dev, "Can't get earcrx_cdmc regmap!!\n");
+
+		p_earc->rx_dmac_map = regmap_resource(dev, "rx_dmac");
+		if (IS_ERR_OR_NULL(p_earc->rx_dmac_map))
+			dev_info(dev, "Can't get earcrx_dmac regmap!!\n");
+
+		p_earc->rx_top_map = regmap_resource(dev, "rx_top");
+		if (IS_ERR_OR_NULL(p_earc->rx_top_map))
+			dev_info(dev, "Can't get earcrx_top regmap!!\n");
+
 		spin_lock_init(&p_earc->rx_lock);
 		p_earc->clk_rx_cmdc = devm_clk_get(&pdev->dev, "rx_cmdc");
-		if (IS_ERR(p_earc->clk_rx_cmdc))
+		if (IS_ERR_OR_NULL(p_earc->clk_rx_cmdc))
 			dev_info(&pdev->dev, "Can't get clk_rx_cmdc\n");
 
 		p_earc->clk_rx_dmac = devm_clk_get(&pdev->dev, "rx_dmac");
-		if (IS_ERR(p_earc->clk_rx_dmac))
+		if (IS_ERR_OR_NULL(p_earc->clk_rx_dmac))
 			dev_info(&pdev->dev, "Can't get clk_rx_dmac\n");
 
 		p_earc->clk_rx_cmdc_srcpll = devm_clk_get(&pdev->dev, "rx_cmdc_srcpll");
-		if (IS_ERR(p_earc->clk_rx_cmdc_srcpll))
+		if (IS_ERR_OR_NULL(p_earc->clk_rx_cmdc_srcpll))
 			dev_info(&pdev->dev, "Can't get clk_rx_cmdc_srcpll\n");
 
 		p_earc->clk_rx_dmac_srcpll = devm_clk_get(&pdev->dev, "rx_dmac_srcpll");
-		if (IS_ERR(p_earc->clk_rx_dmac_srcpll))
+		if (IS_ERR_OR_NULL(p_earc->clk_rx_dmac_srcpll))
 			dev_info(&pdev->dev, "Can't get clk_rx_dmac_srcpll\n");
 
-		if (!IS_ERR(p_earc->clk_rx_cmdc) && !IS_ERR(p_earc->clk_rx_cmdc_srcpll)) {
+		if (!IS_ERR_OR_NULL(p_earc->clk_rx_cmdc) &&
+		    !IS_ERR_OR_NULL(p_earc->clk_rx_cmdc_srcpll)) {
 			ret = clk_set_parent(p_earc->clk_rx_cmdc, p_earc->clk_rx_cmdc_srcpll);
 			if (ret) {
 				dev_err(dev, "Can't set clk_rx_cmdc parent clock\n");
 				return ret;
 			}
 		}
-		if (!IS_ERR(p_earc->clk_rx_dmac) && !IS_ERR(p_earc->clk_rx_dmac_srcpll)) {
+		if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac) &&
+		    !IS_ERR_OR_NULL(p_earc->clk_rx_dmac_srcpll)) {
 			ret = clk_set_parent(p_earc->clk_rx_dmac, p_earc->clk_rx_dmac_srcpll);
 			if (ret) {
 				dev_err(dev, "Can't set clk_rx_dmac parent clock\n");
@@ -3471,33 +3428,46 @@ static int earc_platform_probe(struct platform_device *pdev)
 		earc_dai[0].capture = pcm_stream;
 	}
 
-	/* TX */
 	if (p_earc->chipinfo->tx_enable) {
+		p_earc->tx_cmdc_map = regmap_resource(dev, "tx_cmdc");
+		if (IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
+			dev_info(dev, "Can't get earctx_cmdc regmap!!\n");
+
+		p_earc->tx_dmac_map = regmap_resource(dev, "tx_dmac");
+		if (IS_ERR_OR_NULL(p_earc->tx_dmac_map))
+			dev_info(dev, "Can't get earctx_dmac regmap!!\n");
+
+		p_earc->tx_top_map = regmap_resource(dev, "tx_top");
+		if (IS_ERR_OR_NULL(p_earc->tx_top_map))
+			dev_info(dev, "Can't get earctx_top regmap!!\n");
+
 		spin_lock_init(&p_earc->tx_lock);
 		p_earc->clk_tx_cmdc = devm_clk_get(&pdev->dev, "tx_cmdc");
-		if (IS_ERR(p_earc->clk_tx_cmdc))
+		if (IS_ERR_OR_NULL(p_earc->clk_tx_cmdc))
 			dev_info(&pdev->dev, "Check whether support eARC TX\n");
 
 		p_earc->clk_tx_dmac = devm_clk_get(&pdev->dev, "tx_dmac");
-		if (IS_ERR(p_earc->clk_tx_dmac))
+		if (IS_ERR_OR_NULL(p_earc->clk_tx_dmac))
 			dev_info(&pdev->dev, "Check whether support eARC TX\n");
 
 		p_earc->clk_tx_cmdc_srcpll = devm_clk_get(&pdev->dev, "tx_cmdc_srcpll");
-		if (IS_ERR(p_earc->clk_tx_cmdc_srcpll))
+		if (IS_ERR_OR_NULL(p_earc->clk_tx_cmdc_srcpll))
 			dev_info(&pdev->dev, "Check whether support eARC TX\n");
 
 		p_earc->clk_tx_dmac_srcpll = devm_clk_get(&pdev->dev, "tx_dmac_srcpll");
-		if (IS_ERR(p_earc->clk_tx_dmac_srcpll))
+		if (IS_ERR_OR_NULL(p_earc->clk_tx_dmac_srcpll))
 			dev_info(&pdev->dev, "Check whether support eARC TX\n");
 
-		if (!IS_ERR(p_earc->clk_tx_cmdc) && !IS_ERR(p_earc->clk_tx_cmdc_srcpll)) {
+		if (!IS_ERR_OR_NULL(p_earc->clk_tx_cmdc) &&
+		    !IS_ERR_OR_NULL(p_earc->clk_tx_cmdc_srcpll)) {
 			ret = clk_set_parent(p_earc->clk_tx_cmdc, p_earc->clk_tx_cmdc_srcpll);
 			if (ret) {
 				dev_err(dev, "Can't set clk_tx_cmdc parent clock\n");
 				return ret;
 			}
 		}
-		if (!IS_ERR(p_earc->clk_tx_dmac) && !IS_ERR(p_earc->clk_tx_dmac_srcpll)) {
+		if (!IS_ERR_OR_NULL(p_earc->clk_tx_dmac) &&
+		    !IS_ERR_OR_NULL(p_earc->clk_tx_dmac_srcpll)) {
 			ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_tx_dmac_srcpll);
 			if (ret) {
 				dev_err(dev, "Can't set clk_tx_dmac parent clock\n");
@@ -3515,31 +3485,29 @@ static int earc_platform_probe(struct platform_device *pdev)
 		p_earc->earctx_port = -1;
 	}
 
-	/* default is mute, need HDMI ARC Switch */
-	p_earc->tx_mute = 1;
-	p_earc->resumed = true;
+	ret = of_property_read_u32(node, "suspend-clk-off", &p_earc->suspend_clk_off);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 
+	p_earc->resumed = true;
 	ret = snd_soc_register_component(&pdev->dev,
 				&earc_component,
 				earc_dai,
 				ARRAY_SIZE(earc_dai));
 	if (ret) {
-		dev_err(&pdev->dev,
-			"snd_soc_register_component failed\n");
+		dev_err(&pdev->dev, "snd_soc_register_component failed\n");
 		return ret;
 	}
-	p_earc->tx_earc_mode = true;
-	p_earc->tx_ui_flag = 1;
-	p_earc->rx_ui_flag = 1;
-	p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
+
 	s_earc = p_earc;
+	INIT_WORK(&p_earc->work, earc_work_func);
 
-	/* RX */
-	if (!IS_ERR(p_earc->rx_top_map))
-		earcrx_cmdc_setup(p_earc);
-
-	/* TX */
-	if (!IS_ERR(p_earc->tx_top_map)) {
+	if (!IS_ERR_OR_NULL(p_earc->tx_top_map)) {
+		/* default is mute, need HDMI ARC Switch */
+		p_earc->tx_mute = 1;
+		p_earc->tx_earc_mode = true;
+		p_earc->tx_ui_flag = 1;
+		p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 		earctx_cmdc_setup(p_earc);
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 		register_earctx_callback(earc_hdmirx_hpdst);
@@ -3551,15 +3519,23 @@ static int earc_platform_probe(struct platform_device *pdev)
 		INIT_WORK(&p_earc->tx_hold_bus_work, tx_hold_bus_work_func);
 		INIT_WORK(&p_earc->earctx_reg_init_work, earctx_reg_init_work_func);
 		INIT_DELAYED_WORK(&p_earc->gain_disable_work, gain_disable_work_func);
+
+		ret = devm_request_threaded_irq(p_earc->dev,
+					p_earc->irq_earc_tx,
+					NULL,
+					earc_tx_isr,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"earc_tx",
+					p_earc);
+		if (ret) {
+			dev_err(p_earc->dev, "failed to claim earc_tx %u\n", p_earc->irq_earc_tx);
+			return ret;
+		}
 	}
 
-	if ((!IS_ERR(p_earc->rx_top_map)) ||
-	    (!IS_ERR(p_earc->tx_top_map))) {
-		INIT_WORK(&p_earc->work, earc_work_func);
-		INIT_WORK(&p_earc->rx_dmac_int_work, valid_auto_work_func);
-	}
-
-	if (!IS_ERR(p_earc->rx_top_map)) {
+	if (!IS_ERR_OR_NULL(p_earc->rx_top_map)) {
+		p_earc->rx_ui_flag = 1;
+		earcrx_cmdc_setup(p_earc);
 #ifdef CONFIG_AMLOGIC_HDMITX21
 		register_earcrx_callback(earc_hdmitx_hpdst);
 #endif
@@ -3568,11 +3544,24 @@ static int earc_platform_probe(struct platform_device *pdev)
 			p_earc->rx_cds_data[i] = default_rx_cds[i];
 		if (earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map) == ATNDTYP_EARC)
 			earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
+		INIT_WORK(&p_earc->rx_dmac_int_work, valid_auto_work_func);
 		INIT_DELAYED_WORK(&p_earc->rx_stable_work, rx_stable_work_func);
 		INIT_DELAYED_WORK(&p_earc->rx_pll_detect_work, rx_pll_detect_work_func);
 		INIT_DELAYED_WORK(&p_earc->hdmitx_5v_work, hdmitx_5v_work_func);
 		if (!p_earc->chipinfo->ana_auto_cal)
 			earcrx_efuse_trim_set(p_earc->rx_top_map);
+
+		ret = devm_request_threaded_irq(p_earc->dev,
+					p_earc->irq_earc_rx,
+					rx_handler,
+					earc_rx_isr,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"earc_rx",
+					p_earc);
+		if (ret) {
+			dev_err(p_earc->dev, "failed to claim earc_rx %u\n", p_earc->irq_earc_rx);
+			return ret;
+		}
 	}
 	dev_err(dev, "registered eARC platform\n");
 
@@ -3582,11 +3571,11 @@ static int earc_platform_probe(struct platform_device *pdev)
 int earc_platform_remove(struct platform_device *pdev)
 {
 #ifdef CONFIG_AMLOGIC_HDMITX21
-	if (!IS_ERR(s_earc->rx_top_map))
+	if (!IS_ERR_OR_NULL(s_earc->rx_top_map))
 		unregister_earcrx_callback();
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
-	if (!IS_ERR(s_earc->tx_top_map))
+	if (!IS_ERR_OR_NULL(s_earc->tx_top_map))
 		unregister_earctx_callback();
 #endif
 	s_earc = NULL;
@@ -3627,24 +3616,24 @@ static int earc_platform_suspend(struct platform_device *pdev,
 	mutex_lock(&earc_mutex);
 	if (p_earc->suspend_clk_off) {
 		if (p_earc->chipinfo->rx_enable) {
-			if (!IS_ERR(p_earc->clk_rx_cmdc)) {
+			if (!IS_ERR_OR_NULL(p_earc->clk_rx_cmdc)) {
 				while (__clk_is_enabled(p_earc->clk_rx_cmdc))
 					clk_disable_unprepare(p_earc->clk_rx_cmdc);
 			}
 
-			if (!IS_ERR(p_earc->clk_rx_dmac)) {
+			if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac)) {
 				while (__clk_is_enabled(p_earc->clk_rx_dmac))
 					clk_disable_unprepare(p_earc->clk_rx_dmac);
 			}
 		}
 
 		if (p_earc->chipinfo->tx_enable) {
-			if (!IS_ERR(p_earc->clk_tx_cmdc)) {
+			if (!IS_ERR_OR_NULL(p_earc->clk_tx_cmdc)) {
 				while (__clk_is_enabled(p_earc->clk_tx_cmdc))
 					clk_disable_unprepare(p_earc->clk_tx_cmdc);
 			}
 
-			if (!IS_ERR(p_earc->clk_tx_dmac)) {
+			if (!IS_ERR_OR_NULL(p_earc->clk_tx_dmac)) {
 				unsigned long flags;
 
 				spin_lock_irqsave(&p_earc->tx_lock, flags);
