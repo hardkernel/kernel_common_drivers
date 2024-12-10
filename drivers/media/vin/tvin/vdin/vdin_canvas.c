@@ -835,7 +835,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				/*add for 1g config, codec can't release mem in time*/
 				for (j = 0; j < 20; j++) {
 					mem = codec_mm_alloc(vdin_name,
-						(frame_size / PAGE_SIZE) << PAGE_SHIFT, 0, flags);
+						(frame_size / PAGE_SIZE) << PAGE_SHIFT, 0, flags,
+							-1);
 					if (mem)
 						devp->vf_mem_start[i] = mem->phy_addr;
 					else

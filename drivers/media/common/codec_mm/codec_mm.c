@@ -1358,7 +1358,7 @@ static void dump_tvp_pool_info(void)
 }
 
 struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
-				  int align2n, int memflags)
+				  int align2n, int memflags, int inst_id)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	struct codec_mm_s *mem;
@@ -1368,7 +1368,11 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 
 	if (secure_mem_ctrl && (memflags & CODEC_MM_FLAGS_TVP) &&
 		(memflags & CODEC_MM_FLAGS_FOR_TRY_PREALLOC)) {
-		mem = get_mms_from_hashtable(size, align2n);
+		bool no_check_inst_id = false;
+
+		if (strcmp(owner, DMA_BUF_CODEC_MM) == 0)
+			no_check_inst_id = true;
+		mem = get_mms_from_hashtable(size, align2n, inst_id, no_check_inst_id);
 		if (mem) {
 			mem->owner[0] = owner;
 			mem->flags = memflags;
@@ -1811,7 +1815,7 @@ unsigned long codec_mm_alloc_for_dma(const char *owner, int page_cnt,
 {
 	struct codec_mm_s *mem;
 
-	mem = codec_mm_alloc(owner, page_cnt << PAGE_SHIFT, align2n, memflags);
+	mem = codec_mm_alloc(owner, page_cnt << PAGE_SHIFT, align2n, memflags, -1);
 	if (!mem)
 		return 0;
 	return mem->phy_addr;
@@ -1827,7 +1831,7 @@ unsigned long codec_mm_alloc_for_dma_ex(const char *owner,
 {
 	struct codec_mm_s *mem;
 
-	mem = codec_mm_alloc(owner, page_cnt << PAGE_SHIFT, align2n, memflags);
+	mem = codec_mm_alloc(owner, page_cnt << PAGE_SHIFT, align2n, memflags, -1);
 	if (!mem)
 		return 0;
 	mem->ins_id = ins_id;
@@ -1971,7 +1975,8 @@ static int codec_mm_tvp_pool_alloc_by_type(struct extpool_mgt_s *tvp_pool,
 					size,
 					RESERVE_MM_ALIGNED_2N,
 					CODEC_MM_FLAGS_FOR_LOCAL_MGR |
-					CODEC_MM_FLAGS_CMA);
+					CODEC_MM_FLAGS_CMA,
+					-1);
 		if (mem) {
 			struct page *mm = mem->mem_handle;
 
@@ -2000,7 +2005,8 @@ static int codec_mm_tvp_pool_alloc_by_type(struct extpool_mgt_s *tvp_pool,
 				size,
 				RESERVE_MM_ALIGNED_2N,
 				CODEC_MM_FLAGS_FOR_LOCAL_MGR |
-				CODEC_MM_FLAGS_RESERVED);
+				CODEC_MM_FLAGS_RESERVED,
+				-1);
 
 		if (mem) {
 			struct page *mm = mem->mem_handle;
@@ -2270,7 +2276,8 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 						try_alloced_size,
 						RESERVE_MM_ALIGNED_2N,
 						CODEC_MM_FLAGS_FOR_LOCAL_MGR |
-						CODEC_MM_FLAGS_RESERVED);
+						CODEC_MM_FLAGS_RESERVED,
+						-1);
 
 			if (mem) {
 				struct page *mm = mem->mem_handle;
@@ -2322,7 +2329,7 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 			mem = codec_mm_alloc(for_tvp ? TVP_POOL_NAME :
 						CMA_RES_POOL_NAME,
 					try_alloced_size, RESERVE_MM_ALIGNED_2N,
-					memflags);
+					memflags, -1);
 			if (mem) {
 				struct page *mm = mem->mem_handle;
 

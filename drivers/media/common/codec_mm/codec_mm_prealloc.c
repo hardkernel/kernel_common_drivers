@@ -38,12 +38,13 @@ module_param(codec_prealloc_debug, int, 0644);
 
 static LIST_HEAD(prealloc_job_list);
 static spinlock_t job_list_lock;   /* Protect job list */
-static spinlock_t ht_list_lock;   /* Protect job list */
+static DEFINE_MUTEX(ht_list_mutex);
 
 struct prealloc_job {
 	struct list_head list;
 	struct hlist_node hnode;
 	struct task_struct *host;
+	int inst_id;
 	u32 type;
 	u32 size;
 	int align_2n;
@@ -63,7 +64,7 @@ struct prealloc_pcp {
 struct prealloc_pcp prealloc_kthread_array[ALLOC_PAGE_NUM_KTHREAD];
 DECLARE_HASHTABLE(ht, 7);
 
-void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags)
+void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags, int inst_id)
 {
 	u32 i, cpu;
 	unsigned long flags;
@@ -77,8 +78,8 @@ void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags
 	if (num == 0 || size == 0)
 		return;
 
-	pr_dbg("submit job para type is %d num is %d, size is %d, align_2n is %d flags is %d\n",
-		type, num, size, align_2n, memflags);
+	pr_dbg("submit job para inst_id %d type is %d num is %d, size is %d, align_2n is %d flags is %d\n",
+		inst_id, type, num, size, align_2n, memflags);
 
 	if (align_2n < 0 || align_2n < PAGE_SHIFT)
 		align_2n = PAGE_SHIFT;
@@ -86,6 +87,7 @@ void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags
 	for (i = 0; i < num; i++) {
 		job = kzalloc(sizeof(*job), GFP_KERNEL | __GFP_HIGH);
 		job->type = type;
+		job->inst_id = inst_id;
 		job->size = size;
 		job->align_2n = align_2n;
 		job->host = current;
@@ -98,9 +100,9 @@ void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags
 		list_add_tail(&job->list, &prealloc_job_list);
 		spin_unlock(&job_list_lock);
 
-		spin_lock(&ht_list_lock);
+		mutex_lock(&ht_list_mutex);
 		hash_add(ht, &job->hnode, MB_ALIGN(job->size));
-		spin_unlock(&ht_list_lock);
+		mutex_unlock(&ht_list_mutex);
 
 		pr_dbg("submit job size is %d align_2n is %d flags is %d\n",
 			job->size, job->align_2n, job->memflags);
@@ -121,31 +123,41 @@ void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags
 }
 EXPORT_SYMBOL(submit_prealloc_job);
 
-void release_prealloc_job(void)
+void release_prealloc_job(int inst_identify)
 {
 	int key;
 	struct prealloc_job *job, *tmp;
 	struct hlist_node *hnode_tmp;
 	struct codec_mm_s *mm = NULL;
+	char mem_name[32] = { 0 };
 
 	spin_lock(&job_list_lock);
 	list_for_each_entry_safe(job, tmp, &prealloc_job_list, list) {
-		list_del_init(&job->list);
-		complete(&job->done);
+		if (job->inst_id == inst_identify) {
+			list_del_init(&job->list);
+			complete(&job->done);
+		}
 	}
 	spin_unlock(&job_list_lock);
 
+	mutex_lock(&ht_list_mutex);
 	for (key = 0; key < HASH_SIZE(ht); key++) {
 		hash_for_each_possible_safe(ht, job, hnode_tmp, hnode, key) {
-			hash_del(&job->hnode);
-			mm = job->mem;
-			if (mm) {
-				pr_dbg("prealloc free size is %d\n", mm->buffer_size);
-				codec_mm_release(mm, "pre_mem");
+			if (job->inst_id == inst_identify) {
+				hash_del(&job->hnode);
+				mm = job->mem;
+				if (mm) {
+					pr_dbg("prealloc free size is %d type is %d\n",
+						mm->buffer_size, job->type);
+					snprintf(mem_name, sizeof(mem_name),
+						"pre_mem_%d", job->type);
+					codec_mm_release(mm, mem_name);
+				}
+				kfree(job);
 			}
-			kfree(job);
 		}
 	}
+	mutex_unlock(&ht_list_mutex);
 }
 EXPORT_SYMBOL(release_prealloc_job);
 
@@ -177,14 +189,14 @@ static int prealloc_boost_work_func(void *prealloc_data)
 			if (fatal_signal_pending(job->host)) {
 				spin_unlock(&job_list_lock);
 
-				spin_lock(&ht_list_lock);
+				mutex_lock(&ht_list_mutex);
 				if (!hlist_unhashed(&job->hnode)) {
 					hash_del(&job->hnode);
 					kfree(job);
 				} else {
 					complete(&job->done);
 				}
-				spin_unlock(&ht_list_lock);
+				mutex_unlock(&ht_list_mutex);
 
 				c_work->ret = -EINTR;
 				pr_err("prealloc signal pending\n");
@@ -194,7 +206,7 @@ static int prealloc_boost_work_func(void *prealloc_data)
 			snprintf(mem_name, sizeof(mem_name),
 				"pre_mem_%d", job->type);
 			job->mem = codec_mm_alloc(mem_name, job->size,
-				job->align_2n, job->memflags);
+				job->align_2n, job->memflags, job->inst_id);
 			complete(&job->done);
 		}
 next:
@@ -207,7 +219,7 @@ next:
 	return 0;
 }
 
-struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n)
+struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n, int inst_id, bool no_check_inst_id)
 {
 	struct prealloc_job *job = NULL;
 	struct prealloc_job *pre_select_job = NULL;
@@ -217,13 +229,15 @@ struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n)
 	if (align_2n < 0 || align_2n < PAGE_SHIFT)
 		align_2n = PAGE_SHIFT;
 
-	spin_lock(&ht_list_lock);
+	mutex_lock(&ht_list_mutex);
 	hash_for_each_possible_safe(ht, job, tmp, hnode, MB_ALIGN(key)) {
-		if (job->size == key && job->align_2n >= align_2n) {
+		if (job->size == key &&
+			job->align_2n >= align_2n &&
+			(job->inst_id == inst_id || no_check_inst_id)) {
 			pre_select_job = job;
 			if (job->mem && completion_done(&job->done)) {
-				pr_dbg("get job size is %d align_2n is %d\n",
-					job->size, job->align_2n);
+				pr_dbg("get inst_id %d job size is %d align_2n is %d\n",
+					inst_id, job->size, job->align_2n);
 				hash_del(&job->hnode);
 				mm = job->mem;
 				kfree(job);
@@ -235,7 +249,7 @@ struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n)
 	if (!mm && pre_select_job)
 		hash_del(&pre_select_job->hnode);
 
-	spin_unlock(&ht_list_lock);
+	mutex_unlock(&ht_list_mutex);
 
 	if (!mm && pre_select_job) {
 		spin_lock(&job_list_lock);
@@ -270,7 +284,6 @@ int init_prealloc_boost_task(void)
 	char task_name[20];
 
 	spin_lock_init(&job_list_lock);
-	spin_lock_init(&ht_list_lock);
 	INIT_LIST_HEAD(&prealloc_job_list);
 	hash_init(ht);
 

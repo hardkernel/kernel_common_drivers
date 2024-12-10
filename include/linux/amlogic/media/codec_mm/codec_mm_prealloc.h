@@ -13,7 +13,7 @@ enum prealloc_mem_type {
 	PREALLOC_MV_TYPE = 3,
 };
 
-void release_prealloc_job(void);
-void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags);
+void release_prealloc_job(int inst_identify);
+void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags, int inst_id);
 
 #endif //_CODEC_MM_PREALLOC_H

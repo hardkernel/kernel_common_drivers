@@ -19,8 +19,6 @@
 #include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
 
-#define DMA_BUF_CODEC_MM "CODEC_MM_DMA_BUF"
-
 struct dma_heap_attachment {
 	struct device *dev;
 	struct sg_table *table;

@@ -10,6 +10,8 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 
+#define DMA_BUF_CODEC_MM "CODEC_MM_DMA_BUF"
+
 /*
  *memflags
  */
@@ -126,7 +128,7 @@ struct codec_mm_cb_s {
 };
 
 struct codec_mm_s *codec_mm_alloc(const char *owner, int size, int align2n,
-				  int memflags);
+				  int memflags, int ins_id);
 unsigned long codec_mm_alloc_for_dma_ex(const char *owner,
 					int page_cnt,
 					int align2n,

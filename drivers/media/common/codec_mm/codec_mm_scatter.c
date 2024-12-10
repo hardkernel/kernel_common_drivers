@@ -1036,8 +1036,8 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 		mm = codec_mm_alloc(SCATTER_MEM, try_alloc_size, 0,
 				    CODEC_MM_FLAGS_FOR_VDECODER |
 				    CODEC_MM_FLAGS_FOR_SCATTER |
-				    (smgt->tvp_mode ?
-					CODEC_MM_FLAGS_TVP : 0)
+				    (smgt->tvp_mode ? CODEC_MM_FLAGS_TVP : 0),
+					-1
 				);
 		if (mm) {
 			slot->from_type = SLOT_FROM_CODEC_MM;
