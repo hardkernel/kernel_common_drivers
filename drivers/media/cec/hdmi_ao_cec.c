@@ -2912,7 +2912,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	/* irq set */
 	cec_irq_enable(false);
 	/* Init cec function from register*/
-	cec_func_init(cec_config(0, 0));
+	cec_dev->cfg = CEC_FUNC_CFG_ALL;
+	cec_func_init(cec_dev->cfg);
 	/* for init */
 	cec_pre_init();
 
