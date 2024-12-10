@@ -1174,10 +1174,11 @@ static void set_vsr_input_format(struct vsr_setting_s *vsr)
 		u32 reg_422to444_mode = 0, reg_422to444_en = 0;
 
 		if (vsr->vsr_top.input_422_en) {
+			//SWPL-195913 pq request
 			reg_inp_422 = 1;
-			reg_444to422_mode = 2;
+			reg_444to422_mode = 0;
 			reg_444to422_en = 1;
-			reg_422to444_mode = 2;
+			reg_422to444_mode = 0;
 			reg_422to444_en = 1;
 		}
 		rdma_wr(vsr_reg->vpp_vsr_top_c42c44_mode,
