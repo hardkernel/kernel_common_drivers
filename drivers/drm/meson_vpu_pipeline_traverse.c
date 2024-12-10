@@ -756,7 +756,7 @@ int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 	return ret;
 }
 
-void vpu_pipeline_gfcd_odd_size_calculate(int index, u32 sc_idx,
+void vpu_pipeline_gfcd_odd_size_calculate(int index, int sc_idx,
 			       struct meson_vpu_pipeline_state *mvps, bool *flag,
 			       struct meson_vpu_block **mvb)
 {

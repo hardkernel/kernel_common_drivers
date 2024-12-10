@@ -401,6 +401,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		return;
 	}
 
+	memset(&vf_info, 0, sizeof(vf_info));
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;
 	fb_h = mvvs->fb_h;
