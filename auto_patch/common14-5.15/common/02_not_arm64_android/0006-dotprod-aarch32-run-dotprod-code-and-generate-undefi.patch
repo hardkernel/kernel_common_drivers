@@ -1,0 +1,55 @@
+From 2981f6c62068fb62f0b5aa38af27591e50b3cf07 Mon Sep 17 00:00:00 2001
+From: Yan Wang <yan.wang@amlogic.com>
+Date: Tue, 10 Dec 2024 10:29:17 +0800
+Subject: [PATCH] dotprod: aarch32 run dotprod code and generate undefined
+ error. [1/1]
+
+PD#SWPL-195843
+
+Problem:
+cts fail when aarch32 run dotprod code;
+Generate undefined error.
+
+Solution:
+add dotprod instructions support in aarch32.
+
+Verify:
+sc2 ah212
+
+Change-Id: I0b527b670af8bdcbfe55fca7a8755b3acc1d44a8
+Signed-off-by: Yan Wang <yan.wang@amlogic.com>
+---
+ arch/arm/kernel/entry-armv.S | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/arch/arm/kernel/entry-armv.S b/arch/arm/kernel/entry-armv.S
+index a7a7970f3067..cbd9d8f65fdb 100644
+--- a/arch/arm/kernel/entry-armv.S
++++ b/arch/arm/kernel/entry-armv.S
+@@ -795,6 +795,11 @@ call_fpe:
+ 	.word	0xff100000			@ mask
+ 	.word	0xf4000000			@ opcode
+
++#ifdef CONFIG_AMLOGIC_ARMV8_AARCH32
++	.word	0xff000800			@ mask
++	.word	0xfc000800			@ opcode
++#endif
++
+ 	.word	0x00000000			@ mask
+ 	.word	0x00000000			@ opcode
+
+@@ -805,6 +810,11 @@ call_fpe:
+ 	.word	0xff100000			@ mask
+ 	.word	0xf9000000			@ opcode
+
++#ifdef CONFIG_AMLOGIC_ARMV8_AARCH32
++	.word	0xff000800			@ mask
++	.word	0xfc000800			@ opcode
++#endif
++
+ 	.word	0x00000000			@ mask
+ 	.word	0x00000000			@ opcode
+ #endif
+--
+2.42.0
+
