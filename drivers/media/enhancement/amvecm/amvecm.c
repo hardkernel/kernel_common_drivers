@@ -3825,7 +3825,6 @@ static long amvecm_ioctl(struct file *file,
 		break;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case AMVECM_IOC_SET_3D_LUT:
-
 		if (chip_type_id == chip_t6d)
 			lut3d_single_sz = LUT3D_SINGLE_SIZE9;
 		else
@@ -3840,12 +3839,16 @@ static long amvecm_ioctl(struct file *file,
 		if (copy_from_user(p3dlut,
 			(void __user *)arg,
 			lut3d_single_sz * 3 * sizeof(unsigned int))) {
+			pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT cp data fail.\n");
 			ret = -EFAULT;
 		} else {
-			vpp_lut3d_table_init(0, 0, 0);
+			/*vpp_lut3d_table_init(0, 0, 0);*/
 			vpp_set_lut3d(0, 0, p3dlut->data, 0);
-			vpp_lut3d_table_release();
-			pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT\n");
+			/*vpp_lut3d_table_release();*/
+			if (ct_en) {
+				update_lut3d_base_data(p3dlut->data);
+				pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT update base data.\n");
+			}
 		}
 
 		vfree(p3dlut);
@@ -3860,7 +3863,8 @@ static long amvecm_ioctl(struct file *file,
 
 		vpp_lut3d_table_init(0, 0, 0);
 		vpp_set_lut3d(lut3d_data_source, lut_index, 0, 0);
-		vpp_lut3d_table_release();
+		/*vpp_lut3d_table_release();*/
+		pr_amvecm_dbg("AMVECM_IOC_LOAD_3D_LUT done.\n");
 
 		break;
 	case AMVECM_IOC_SET_3D_LUT_ORDER:
@@ -3870,6 +3874,8 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 		} else {
 			lut3d_order = lut_order;
+			pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT_ORDER lut3d_order = %d\n",
+				lut3d_order);
 		}
 
 		break;
@@ -3882,6 +3888,8 @@ static long amvecm_ioctl(struct file *file,
 			lut3d_en = tmp;
 			lut3d_en &= 0x1;
 			vpp_enable_lut3d(lut3d_en);
+			pr_amvecm_dbg("AMVECM_IOC_3D_LUT_EN lut3d_en = %d\n",
+				lut3d_en);
 		}
 		break;
 	case AMVECM_IOC_COLOR_PRI_EN:
@@ -4469,13 +4477,13 @@ static long amvecm_ioctl(struct file *file,
 	case AMVECM_IOC_S_COLOR_TUNE:
 		if (copy_from_user(&ct_param, (void __user *)arg,
 				   sizeof(struct color_tune_parm_s))) {
-			pr_amvecm_dbg("set color tune failed\n");
+			pr_amvecm_dbg("AMVECM_IOC_S_COLOR_TUNE set color tune failed\n");
 			ret = -EFAULT;
 		} else {
 			memcpy(&ct_parm1, &ct_param, sizeof(struct color_tune_parm_s));
 			ct_parm_set(&ct_parm1);
 			bs_ct_latch();
-			pr_amvecm_dbg("set color tune success\n");
+			pr_amvecm_dbg("AMVECM_IOC_S_COLOR_TUNE set color tune success\n");
 		}
 		break;
 	case AMVECM_IOC_S_EYE_PROT:
@@ -8020,7 +8028,21 @@ static ssize_t amvecm_pc_mode_store(struct class *cla,
 static ssize_t amvecm_color_tune_show(struct class *cla,
 				    struct class_attribute *attr, char *buf)
 {
-	return 0;
+	struct ct_func_s *ct_f = get_ct_func();
+
+	return sprintf(buf, "en = %d\nrgain_r = %d\nrgain_g = %d\nrgain_b = %d\n"
+		"ggain_r = %d\nggain_g = %d\nggain_b = %d\n"
+		"bgain_r = %d\nbgain_g = %d\nbgain_b = %d\n"
+		"cgain_r = %d\ncgain_g = %d\ncgain_b = %d\n"
+		"mgain_r = %d\nmgain_g = %d\nmgain_b = %d\n"
+		"ygain_r = %d\nygain_g = %d\nygain_b = %d\n",
+		ct_f->cl_par->en,
+		ct_f->cl_par->rgain_r, ct_f->cl_par->rgain_g, ct_f->cl_par->rgain_b,
+		ct_f->cl_par->ggain_r, ct_f->cl_par->ggain_g, ct_f->cl_par->ggain_b,
+		ct_f->cl_par->bgain_r, ct_f->cl_par->bgain_g, ct_f->cl_par->bgain_b,
+		ct_f->cl_par->cgain_r, ct_f->cl_par->cgain_g, ct_f->cl_par->cgain_b,
+		ct_f->cl_par->mgain_r, ct_f->cl_par->mgain_g, ct_f->cl_par->mgain_b,
+		ct_f->cl_par->ygain_r, ct_f->cl_par->ygain_g, ct_f->cl_par->ygain_b);
 }
 
 static ssize_t amvecm_color_tune_store(struct class *cla,
@@ -15026,14 +15048,13 @@ void amvecm_3dlut_init(bool en)
 		lut3d_en = 1;
 		vpp_lut3d_table_init(-1, -1, -1);
 		vpp_set_lut3d(0, 0, 0, 0);
-		if (ct_en)
-			color_lut_init(ct_en);
+		color_lut_init(ct_en);
 		vpp_enable_lut3d(ct_en);
+		vpp_lut3d_base_table_init();
 	} else {
 		vpp_lut3d_table_init(-1, -1, -1);
 		vpp_set_lut3d(0, 0, 0, 0);
-		vpp_lut3d_table_release();
-
+		/*vpp_lut3d_table_release();*/
 		vpp_enable_lut3d(en);
 	}
 }

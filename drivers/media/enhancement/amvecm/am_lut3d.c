@@ -18,6 +18,10 @@
 #include "blue_stretch/blue_str.h"
 #include "amve.h"
 
+unsigned int base_linear;/*1:base linear, 0:base customer*/
+module_param(base_linear, int, 0664);
+MODULE_PARM_DESC(base_linear, "base_linear");
+
 extern int (*plut)[3];
 extern unsigned int (*plut_out)[3];
 
@@ -31,11 +35,13 @@ void bs_ct_tbl(void)
 	else
 		lut3d_single_sz = LUT3D_SINGLE_SIZE;
 
-	if (bs_3dlut_en) {
-		//memcpy(&plut[0][0], plut3d, 14739 * sizeof(int));
-		for (i = 0; i < lut3d_single_sz; i++)
-			for (j = 0; j < 3; j++)
+	for (i = 0; i < lut3d_single_sz; i++) {
+		for (j = 0; j < 3; j++) {
+			if (bs_3dlut_en && base_linear)
 				plut[i][j] = plut3d[i * 3 + j];
+			else
+				plut[i][j] = plut3d_base[i * 3 + j];
+		}
 	}
 }
 
@@ -44,10 +50,13 @@ void lut3d_set_api(int vpp_index)
 {
 	struct ct_func_s *ct_f = get_ct_func();
 
-	bls_set();
+	if (base_linear)
+		bls_set();
+
 	if (!ct_f->cl_par->en || !ct_f->ct) {
 		pr_info("%s: ct_en = %d, ct = %p\n", __func__, ct_f->cl_par->en, ct_f->ct);
-		lut3d_update(0, vpp_index);
+		bs_ct_tbl();
+		lut3d_update((unsigned int (*)[3]) plut, vpp_index);
 	} else {
 		pr_info("%s: ct_en = %d, ct = %p\n", __func__, ct_f->cl_par->en, ct_f->ct);
 		bs_ct_tbl();

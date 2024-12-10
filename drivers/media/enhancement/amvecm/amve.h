@@ -101,7 +101,10 @@ extern struct gm_tbl_s gt;
 extern unsigned int gamma_index;
 extern unsigned int gamma_index_sub;
 extern unsigned int gm_par_idx;
+
 extern unsigned int *plut3d;
+extern unsigned int *plut3d_base;
+
 extern struct tcon_gamma_table_s video_gamma_table_r_sub;
 extern struct tcon_gamma_table_s video_gamma_table_g_sub;
 extern struct tcon_gamma_table_s video_gamma_table_b_sub;
@@ -228,6 +231,8 @@ void vpp_lut3d_table_release(void);
 int vpp_enable_lut3d(int enable);
 void dump_plut3d_table(void);
 void dump_plut3d_reg_table(void);
+void vpp_lut3d_base_table_init(void);
+void update_lut3d_base_data(unsigned int p3dlut_in[][3]);
 
 void amvecm_gamma_init(bool en);
 void set_gamma_regs(int en, int sel);
