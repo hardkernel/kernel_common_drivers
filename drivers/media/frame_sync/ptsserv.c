@@ -1437,7 +1437,8 @@ static int alloc_pts_list(struct pts_table_s *ptable)
 			(ptable->rec_num + page_nums +
 			 1) * sizeof(struct pts_rec_s) / PAGE_SIZE;
 	}
-	ptable->pages_list = kzalloc((page_nums + 1) * sizeof(void *),
+	// sizeof(void*)
+	ptable->pages_list = kzalloc((page_nums + 1) * sizeof(unsigned long),
 				GFP_KERNEL);
 	if (!ptable->pages_list)
 		return -ENOMEM;
