@@ -884,6 +884,7 @@
 			cap-mmc-crypto;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
+			full-pwr-cycle;
 		};
 
 		sd_emmc_b: sd@fe08a000 {

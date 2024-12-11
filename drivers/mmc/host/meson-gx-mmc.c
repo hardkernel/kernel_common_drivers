@@ -2355,6 +2355,8 @@ static int emmc_test_bus(struct mmc_host *mmc)
 
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 				  host->blk_test, blksz, 40, MMC_MAGIC_NAME);
+	if (err)
+		goto _out;
 
 _out:
 	/* get cmd index from curr desc & next desc */
@@ -4115,8 +4117,12 @@ static void meson_mmc_remove(struct platform_device *pdev)
 	writel(0, host->regs + SD_EMMC_IRQ_EN);
 	free_irq(host->irq, host);
 
-	dma_free_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
+	dma_free_coherent(host->dev, host->desc_buf_size,
 			  host->descs, host->descs_dma_addr);
+
+	if (MMC_HOST_VERSION(host) == MMC_HOST_V8)
+		dma_free_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
+			  host->sg_descs, host->sg_descs_dma_addr);
 
 	if (!host->dram_access_quirk)
 		dma_free_coherent(host->dev, host->bounce_buf_size,
