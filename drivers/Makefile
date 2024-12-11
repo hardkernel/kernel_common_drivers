@@ -6,6 +6,7 @@ subdir-ccflags-y += "-D__module_param_array(name, type, nump, perm)="
 subdir-ccflags-y += "-D__module_param_cb(name, ops, arg, perm)="
 subdir-ccflags-y += "-D__module_param_array_named(name, array, type, nump, perm)="
 
+obj-$(CONFIG_AMLOGIC_AMFC)		+= amfc/
 obj-y					+= tty/
 obj-$(CONFIG_AMLOGIC_GKI_TOOL)		+= gki_tool/
 obj-y					+= debug/

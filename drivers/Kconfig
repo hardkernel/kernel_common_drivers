@@ -2,6 +2,7 @@
 
 menu "Amlogic Device Drivers"
 
+source "$(COMMON_DRIVERS_DIR)/drivers/amfc/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/tty/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/clk/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/secmon/Kconfig"

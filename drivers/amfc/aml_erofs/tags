@@ -1,0 +1,973 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+ATTR_LIST	sysfs.c	56;"	d	file:
+CREATE_TRACE_POINTS	super.c	16;"	d	file:
+DBG_BUGON	internal.h	36;"	d
+DBG_BUGON	internal.h	38;"	d
+DECOMPRESS_FRONTEND_INIT	zdata.c	504;"	d	file:
+EFSCORRUPTED	internal.h	530;"	d
+ENOATTR	xattr.h	14;"	d
+EROFS_ALL_FEATURE_INCOMPAT	erofs_fs.h	32;"	d
+EROFS_ATTR	sysfs.c	28;"	d	file:
+EROFS_ATTR_FEATURE	sysfs.c	34;"	d	file:
+EROFS_ATTR_FUNC	sysfs.c	33;"	d	file:
+EROFS_ATTR_OFFSET	sysfs.c	36;"	d	file:
+EROFS_ATTR_RW	sysfs.c	44;"	d	file:
+EROFS_ATTR_RW_BOOL	sysfs.c	53;"	d	file:
+EROFS_ATTR_RW_UI	sysfs.c	50;"	d	file:
+EROFS_BLOCK_MAP_ENTRY_SIZE	erofs_fs.h	266;"	d
+EROFS_CHUNK_FORMAT_ALL	erofs_fs.h	128;"	d
+EROFS_CHUNK_FORMAT_BLKBITS_MASK	erofs_fs.h	124;"	d
+EROFS_CHUNK_FORMAT_INDEXES	erofs_fs.h	126;"	d
+EROFS_DEVT_SLOT_SIZE	erofs_fs.h	52;"	d
+EROFS_FEATURE_COMPAT_MTIME	erofs_fs.h	15;"	d
+EROFS_FEATURE_COMPAT_SB_CHKSUM	erofs_fs.h	14;"	d
+EROFS_FEATURE_COMPAT_XATTR_FILTER	erofs_fs.h	16;"	d
+EROFS_FEATURE_FUNCS	internal.h	235;"	d
+EROFS_FEATURE_INCOMPAT_BIG_PCLUSTER	erofs_fs.h	24;"	d
+EROFS_FEATURE_INCOMPAT_CHUNKED_FILE	erofs_fs.h	25;"	d
+EROFS_FEATURE_INCOMPAT_COMPR_CFGS	erofs_fs.h	23;"	d
+EROFS_FEATURE_INCOMPAT_COMPR_HEAD2	erofs_fs.h	27;"	d
+EROFS_FEATURE_INCOMPAT_DEDUPE	erofs_fs.h	30;"	d
+EROFS_FEATURE_INCOMPAT_DEVICE_TABLE	erofs_fs.h	26;"	d
+EROFS_FEATURE_INCOMPAT_FRAGMENTS	erofs_fs.h	29;"	d
+EROFS_FEATURE_INCOMPAT_XATTR_PREFIXES	erofs_fs.h	31;"	d
+EROFS_FEATURE_INCOMPAT_ZERO_PADDING	erofs_fs.h	22;"	d
+EROFS_FEATURE_INCOMPAT_ZTAILPACKING	erofs_fs.h	28;"	d
+EROFS_GET_BLOCKS_FIEMAP	internal.h	359;"	d
+EROFS_GET_BLOCKS_FINDTAIL	internal.h	363;"	d
+EROFS_GET_BLOCKS_READMORE	internal.h	361;"	d
+EROFS_I	internal.h	302;"	d
+EROFS_INODE_CHUNK_BASED	erofs_fs.h	/^	EROFS_INODE_CHUNK_BASED			= 4,$/;"	e	enum:__anon5
+EROFS_INODE_COMPRESSED_COMPACT	erofs_fs.h	/^	EROFS_INODE_COMPRESSED_COMPACT		= 3,$/;"	e	enum:__anon5
+EROFS_INODE_COMPRESSED_FULL	erofs_fs.h	/^	EROFS_INODE_COMPRESSED_FULL		= 1,$/;"	e	enum:__anon5
+EROFS_INODE_DATALAYOUT_MAX	erofs_fs.h	/^	EROFS_INODE_DATALAYOUT_MAX$/;"	e	enum:__anon5
+EROFS_INODE_FLAT_INLINE	erofs_fs.h	/^	EROFS_INODE_FLAT_INLINE			= 2,$/;"	e	enum:__anon5
+EROFS_INODE_FLAT_PLAIN	erofs_fs.h	/^	EROFS_INODE_FLAT_PLAIN			= 0,$/;"	e	enum:__anon5
+EROFS_INODE_LAYOUT_COMPACT	erofs_fs.h	132;"	d
+EROFS_INODE_LAYOUT_EXTENDED	erofs_fs.h	134;"	d
+EROFS_I_ALL	erofs_fs.h	121;"	d
+EROFS_I_ALL_BIT	erofs_fs.h	119;"	d
+EROFS_I_BL_XATTR_BIT	internal.h	259;"	d
+EROFS_I_BL_Z_BIT	internal.h	260;"	d
+EROFS_I_DATALAYOUT_BIT	erofs_fs.h	118;"	d
+EROFS_I_DATALAYOUT_MASK	erofs_fs.h	115;"	d
+EROFS_I_EA_INITED_BIT	internal.h	255;"	d
+EROFS_I_SB	internal.h	182;"	d
+EROFS_I_VERSION_BIT	erofs_fs.h	117;"	d
+EROFS_I_VERSION_MASK	erofs_fs.h	114;"	d
+EROFS_I_Z_INITED_BIT	internal.h	256;"	d
+EROFS_KMAP	internal.h	/^	EROFS_KMAP,		\/* use kmap_local_page() to map the buffer *\/$/;"	e	enum:erofs_kmap_type
+EROFS_MAP_ENCODED	internal.h	336;"	d
+EROFS_MAP_FRAGMENT	internal.h	340;"	d
+EROFS_MAP_FULL_MAPPED	internal.h	338;"	d
+EROFS_MAP_MAPPED	internal.h	332;"	d
+EROFS_MAP_META	internal.h	334;"	d
+EROFS_MAP_PARTIAL_REF	internal.h	342;"	d
+EROFS_MOUNT_DAX_ALWAYS	internal.h	187;"	d
+EROFS_MOUNT_DAX_NEVER	internal.h	188;"	d
+EROFS_MOUNT_POSIX_ACL	internal.h	186;"	d
+EROFS_MOUNT_XATTR_USER	internal.h	185;"	d
+EROFS_NAME_LEN	erofs_fs.h	289;"	d
+EROFS_NO_KMAP	internal.h	/^	EROFS_NO_KMAP,		\/* don't map the buffer *\/$/;"	e	enum:erofs_kmap_type
+EROFS_NULL_ADDR	erofs_fs.h	263;"	d
+EROFS_ONLINEFOLIO_EIO	data.c	253;"	d	file:
+EROFS_REG_COOKIE_NEED_NOEXIST	internal.h	401;"	d
+EROFS_REG_COOKIE_SHARE	internal.h	400;"	d
+EROFS_RO_ATTR	sysfs.c	47;"	d	file:
+EROFS_SB	internal.h	181;"	d
+EROFS_SB_EXTSLOT_SIZE	erofs_fs.h	44;"	d
+EROFS_SUPER_MAGIC	internal.h	42;"	d
+EROFS_SUPER_OFFSET	erofs_fs.h	12;"	d
+EROFS_SYNC_DECOMPRESS_AUTO	internal.h	/^	EROFS_SYNC_DECOMPRESS_AUTO,$/;"	e	enum:__anon11
+EROFS_SYNC_DECOMPRESS_FORCE_OFF	internal.h	/^	EROFS_SYNC_DECOMPRESS_FORCE_OFF$/;"	e	enum:__anon11
+EROFS_SYNC_DECOMPRESS_FORCE_ON	internal.h	/^	EROFS_SYNC_DECOMPRESS_FORCE_ON,$/;"	e	enum:__anon11
+EROFS_XATTR_ALIGN	erofs_fs.h	254;"	d
+EROFS_XATTR_FILTER_BITS	erofs_fs.h	226;"	d
+EROFS_XATTR_FILTER_DEFAULT	erofs_fs.h	227;"	d
+EROFS_XATTR_FILTER_SEED	erofs_fs.h	228;"	d
+EROFS_XATTR_INDEX_LUSTRE	erofs_fs.h	216;"	d
+EROFS_XATTR_INDEX_POSIX_ACL_ACCESS	erofs_fs.h	213;"	d
+EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT	erofs_fs.h	214;"	d
+EROFS_XATTR_INDEX_SECURITY	erofs_fs.h	217;"	d
+EROFS_XATTR_INDEX_TRUSTED	erofs_fs.h	215;"	d
+EROFS_XATTR_INDEX_USER	erofs_fs.h	212;"	d
+EROFS_XATTR_LONG_PREFIX	erofs_fs.h	223;"	d
+EROFS_XATTR_LONG_PREFIX_MASK	erofs_fs.h	224;"	d
+EROFS_ZIP_CACHE_DISABLED	internal.h	/^	EROFS_ZIP_CACHE_DISABLED,$/;"	e	enum:__anon12
+EROFS_ZIP_CACHE_READAHEAD	internal.h	/^	EROFS_ZIP_CACHE_READAHEAD,$/;"	e	enum:__anon12
+EROFS_ZIP_CACHE_READAROUND	internal.h	/^	EROFS_ZIP_CACHE_READAROUND$/;"	e	enum:__anon12
+JQ_BYPASS	zdata.c	/^	JQ_BYPASS,$/;"	e	enum:__anon3	file:
+JQ_SUBMIT	zdata.c	/^	JQ_SUBMIT,$/;"	e	enum:__anon3	file:
+LZ4_DECOMPRESS_INPLACE_MARGIN	decompressor.c	16;"	d	file:
+LZ4_DISTANCE_MAX	decompressor.c	11;"	d	file:
+LZ4_MAX_DISTANCE_PAGES	decompressor.c	14;"	d	file:
+MNGD_MAPPING	zdata.c	119;"	d	file:
+MODULE_NAME	Makefile	/^MODULE_NAME = aml-erofs$/;"	m
+NR_JOBQUEUES	zdata.c	/^	NR_JOBQUEUES,$/;"	e	enum:__anon3	file:
+Opt_acl	super.c	/^	Opt_acl,$/;"	e	enum:__anon21	file:
+Opt_cache_strategy	super.c	/^	Opt_cache_strategy,$/;"	e	enum:__anon21	file:
+Opt_dax	super.c	/^	Opt_dax,$/;"	e	enum:__anon21	file:
+Opt_dax_enum	super.c	/^	Opt_dax_enum,$/;"	e	enum:__anon21	file:
+Opt_device	super.c	/^	Opt_device,$/;"	e	enum:__anon21	file:
+Opt_domain_id	super.c	/^	Opt_domain_id,$/;"	e	enum:__anon21	file:
+Opt_err	super.c	/^	Opt_err$/;"	e	enum:__anon21	file:
+Opt_fsid	super.c	/^	Opt_fsid,$/;"	e	enum:__anon21	file:
+Opt_user_xattr	super.c	/^	Opt_user_xattr,$/;"	e	enum:__anon21	file:
+Z_EROFS_ADVISE_BIG_PCLUSTER_1	erofs_fs.h	349;"	d
+Z_EROFS_ADVISE_BIG_PCLUSTER_2	erofs_fs.h	350;"	d
+Z_EROFS_ADVISE_COMPACTED_2B	erofs_fs.h	348;"	d
+Z_EROFS_ADVISE_FRAGMENT_PCLUSTER	erofs_fs.h	353;"	d
+Z_EROFS_ADVISE_INLINE_PCLUSTER	erofs_fs.h	351;"	d
+Z_EROFS_ADVISE_INTERLACED_PCLUSTER	erofs_fs.h	352;"	d
+Z_EROFS_ALL_COMPR_ALGS	erofs_fs.h	305;"	d
+Z_EROFS_COMPRESSION_DEFLATE	erofs_fs.h	/^	Z_EROFS_COMPRESSION_DEFLATE	= 2,$/;"	e	enum:__anon6
+Z_EROFS_COMPRESSION_INTERLACED	internal.h	/^	Z_EROFS_COMPRESSION_INTERLACED,$/;"	e	enum:__anon18
+Z_EROFS_COMPRESSION_LZ4	erofs_fs.h	/^	Z_EROFS_COMPRESSION_LZ4		= 0,$/;"	e	enum:__anon6
+Z_EROFS_COMPRESSION_LZMA	erofs_fs.h	/^	Z_EROFS_COMPRESSION_LZMA	= 1,$/;"	e	enum:__anon6
+Z_EROFS_COMPRESSION_MAX	erofs_fs.h	/^	Z_EROFS_COMPRESSION_MAX$/;"	e	enum:__anon6
+Z_EROFS_COMPRESSION_RUNTIME_MAX	internal.h	/^	Z_EROFS_COMPRESSION_RUNTIME_MAX$/;"	e	enum:__anon18
+Z_EROFS_COMPRESSION_SHIFTED	internal.h	/^	Z_EROFS_COMPRESSION_SHIFTED = Z_EROFS_COMPRESSION_MAX,$/;"	e	enum:__anon18
+Z_EROFS_COMPRESSION_ZSTD	erofs_fs.h	/^	Z_EROFS_COMPRESSION_ZSTD	= 3,$/;"	e	enum:__anon6
+Z_EROFS_FRAGMENT_INODE_BIT	erofs_fs.h	355;"	d
+Z_EROFS_FULL_INDEX_ALIGN	erofs_fs.h	441;"	d
+Z_EROFS_INLINE_BVECS	zdata.c	13;"	d	file:
+Z_EROFS_LCLUSTER_TYPE_HEAD1	erofs_fs.h	/^	Z_EROFS_LCLUSTER_TYPE_HEAD1	= 1,$/;"	e	enum:__anon9
+Z_EROFS_LCLUSTER_TYPE_HEAD2	erofs_fs.h	/^	Z_EROFS_LCLUSTER_TYPE_HEAD2	= 3,$/;"	e	enum:__anon9
+Z_EROFS_LCLUSTER_TYPE_MAX	erofs_fs.h	/^	Z_EROFS_LCLUSTER_TYPE_MAX$/;"	e	enum:__anon9
+Z_EROFS_LCLUSTER_TYPE_NONHEAD	erofs_fs.h	/^	Z_EROFS_LCLUSTER_TYPE_NONHEAD	= 2,$/;"	e	enum:__anon9
+Z_EROFS_LCLUSTER_TYPE_PLAIN	erofs_fs.h	/^	Z_EROFS_LCLUSTER_TYPE_PLAIN	= 0,$/;"	e	enum:__anon9
+Z_EROFS_LI_D0_CBLKCNT	erofs_fs.h	422;"	d
+Z_EROFS_LI_LCLUSTER_TYPE_MASK	erofs_fs.h	412;"	d
+Z_EROFS_LI_PARTIAL_REF	erofs_fs.h	415;"	d
+Z_EROFS_LZMA_MAX_DICT_SIZE	erofs_fs.h	321;"	d
+Z_EROFS_ONSTACK_PAGES	zdata.c	125;"	d	file:
+Z_EROFS_PCLUSTER_FOLLOWED	zdata.c	/^	Z_EROFS_PCLUSTER_FOLLOWED,$/;"	e	enum:z_erofs_pclustermode	file:
+Z_EROFS_PCLUSTER_FOLLOWED_NOINPLACE	zdata.c	/^	Z_EROFS_PCLUSTER_FOLLOWED_NOINPLACE,$/;"	e	enum:z_erofs_pclustermode	file:
+Z_EROFS_PCLUSTER_INFLIGHT	zdata.c	/^	Z_EROFS_PCLUSTER_INFLIGHT,$/;"	e	enum:z_erofs_pclustermode	file:
+Z_EROFS_PCLUSTER_MAX_DSIZE	erofs_fs.h	295;"	d
+Z_EROFS_PCLUSTER_MAX_PAGES	zdata.c	12;"	d	file:
+Z_EROFS_PCLUSTER_MAX_SIZE	erofs_fs.h	292;"	d
+Z_EROFS_PCLUSTER_NIL	zdata.c	94;"	d	file:
+Z_EROFS_PCLUSTER_TAIL	zdata.c	93;"	d	file:
+Z_EROFS_PREALLOCATED_PAGE	compress.h	34;"	d
+Z_EROFS_SHORTLIVED_PAGE	compress.h	33;"	d
+Z_EROFS_ZSTD_MAX_DICT_SIZE	erofs_fs.h	336;"	d
+_PCLP	zdata.c	137;"	d	file:
+__AMLOGIC_EROFS_COMPRESS_H	compress.h	7;"	d
+__AMLOGIC_EROFS_H	erofs_fs.h	10;"	d
+__EROFS_BUF_INITIALIZER	internal.h	228;"	d
+__EROFS_INTERNAL_H	internal.h	8;"	d
+__EROFS_XATTR_H	xattr.h	7;"	d
+__Z_EROFS_BVSET	zdata.c	27;"	d	file:
+__erofs_allocpage	zutil.c	/^struct page *__erofs_allocpage(struct page **pagepool, gfp_t gfp, bool tryrsv)$/;"	f
+__erofs_workgroup_free	zutil.c	/^static void  __erofs_workgroup_free(struct erofs_workgroup *grp)$/;"	f	file:
+__packed	erofs_fs.h	/^} __packed;$/;"	v	typeref:struct:erofs_dirent
+__packed	erofs_fs.h	/^} __packed;$/;"	v	typeref:struct:z_erofs_deflate_cfgs
+__packed	erofs_fs.h	/^} __packed;$/;"	v	typeref:struct:z_erofs_lz4_cfgs
+__packed	erofs_fs.h	/^} __packed;$/;"	v	typeref:struct:z_erofs_lzma_cfgs
+__packed	erofs_fs.h	/^} __packed;$/;"	v	typeref:struct:z_erofs_zstd_cfgs
+__read_mostly	super.c	/^static struct kmem_cache *erofs_inode_cachep __read_mostly;$/;"	v	typeref:struct:erofs_inode_cachep	file:
+__read_mostly	zdata.c	/^static struct workqueue_struct *z_erofs_workqueue __read_mostly;$/;"	v	typeref:struct:z_erofs_workqueue	file:
+__read_mostly	zdata.c	/^static struct z_erofs_pcluster_slab pcluster_pool[] __read_mostly = {$/;"	v	typeref:struct:pcluster_pool	file:
+__struct_ptr	sysfs.c	/^static unsigned char *__struct_ptr(struct erofs_sb_info *sbi,$/;"	f	file:
+_erofs_err	super.c	/^void _erofs_err(struct super_block *sb, const char *func, const char *fmt, ...)$/;"	f
+_erofs_info	super.c	/^void _erofs_info(struct super_block *sb, const char *func, const char *fmt, ...)$/;"	f
+advise	erofs_fs.h	/^	__le16 advise;		\/* always 0, don't care for now *\/$/;"	m	struct:erofs_inode_chunk_index
+alg	compress.h	/^	unsigned int alg;       \/* the algorithm for decompression *\/$/;"	m	struct:z_erofs_decompress_req
+algorithmformat	zdata.c	/^	unsigned char algorithmformat;$/;"	m	struct:z_erofs_pcluster	file:
+attr	sysfs.c	/^	struct attribute attr;$/;"	m	struct:erofs_attr	typeref:struct:erofs_attr::attribute	file:
+attr_feature	sysfs.c	/^	attr_feature,$/;"	e	enum:__anon19	file:
+attr_id	sysfs.c	/^	short attr_id;$/;"	m	struct:erofs_attr	file:
+attr_pointer_bool	sysfs.c	/^	attr_pointer_bool,$/;"	e	enum:__anon19	file:
+attr_pointer_ui	sysfs.c	/^	attr_pointer_ui,$/;"	e	enum:__anon19	file:
+avail_out	compress.h	/^	unsigned int avail_out;		\/* remaining bytes in the decoded buffer *\/$/;"	m	struct:z_erofs_stream_dctx
+available_compr_algs	erofs_fs.h	/^		__le16 available_compr_algs;$/;"	m	union:erofs_super_block::__anon4
+available_compr_algs	internal.h	/^	u16 available_compr_algs;$/;"	m	struct:erofs_sb_info
+base	internal.h	/^	void *base;$/;"	m	struct:erofs_buf
+base_index	erofs_fs.h	/^	__u8   base_index;	\/* short xattr name prefix index *\/$/;"	m	struct:erofs_xattr_long_prefix
+besteffort	zdata.c	/^	bool besteffort;$/;"	m	struct:z_erofs_pcluster	file:
+big_pcluster	sysfs.c	/^EROFS_ATTR_FEATURE(big_pcluster);$/;"	v
+bio	fileio.c	/^	struct bio bio;$/;"	m	struct:erofs_fileio_rq	typeref:struct:erofs_fileio_rq::bio	file:
+bio	fscache.c	/^	struct bio bio;		\/* w\/o bdev to share bio_add_page\/endio() *\/$/;"	m	struct:erofs_fscache_bio	typeref:struct:erofs_fscache_bio::bio	file:
+biter	zdata.c	/^	struct z_erofs_bvec_iter biter;$/;"	m	struct:z_erofs_decompress_frontend	typeref:struct:z_erofs_decompress_frontend::z_erofs_bvec_iter	file:
+blkaddr	erofs_fs.h	/^		__le32 blkaddr;$/;"	m	union:z_erofs_lcluster_index::__anon10
+blkaddr	erofs_fs.h	/^	__le32 blkaddr;		\/* start block address of this inode chunk *\/$/;"	m	struct:erofs_inode_chunk_index
+blkszbits	erofs_fs.h	/^	__u8 blkszbits;         \/* filesystem block size in bit shift *\/$/;"	m	struct:erofs_super_block
+blkszbits	internal.h	/^	unsigned char blkszbits;	\/* filesystem block size in bit shift *\/$/;"	m	struct:erofs_sb_info
+blocks	erofs_fs.h	/^	__le32 blocks;		\/* total fs blocks of this device *\/$/;"	m	struct:erofs_deviceslot
+blocks	erofs_fs.h	/^	__le32 blocks;          \/* used for statfs *\/$/;"	m	struct:erofs_super_block
+blocks	internal.h	/^	u32 blocks;$/;"	m	struct:erofs_device_info
+bounce	compress.h	/^	void *bounce;			\/* bounce buffer for inplace I\/Os *\/$/;"	m	struct:z_erofs_stream_dctx
+bounce	decompressor_deflate.c	/^	u8 bounce[PAGE_SIZE];$/;"	m	struct:z_erofs_deflate	file:
+bounce	decompressor_lzma.c	/^	u8 bounce[PAGE_SIZE];$/;"	m	struct:z_erofs_lzma	file:
+bounce	decompressor_zstd.c	/^	u8 bounce[PAGE_SIZE];$/;"	m	struct:z_erofs_zstd	file:
+bounced	compress.h	/^	bool bounced;			\/* is the bounce buffer used now? *\/$/;"	m	struct:z_erofs_stream_dctx
+buf	internal.h	/^	struct erofs_buf buf;$/;"	m	struct:erofs_map_blocks	typeref:struct:erofs_map_blocks::erofs_buf
+buf	xattr.c	/^	struct erofs_buf buf;$/;"	m	struct:erofs_xattr_iter	typeref:struct:erofs_xattr_iter::erofs_buf	file:
+buffer	xattr.c	/^	char *buffer;$/;"	m	struct:erofs_xattr_iter	file:
+buffer_ofs	xattr.c	/^	int buffer_size, buffer_ofs;$/;"	m	struct:erofs_xattr_iter	file:
+buffer_size	xattr.c	/^	int buffer_size, buffer_ofs;$/;"	m	struct:erofs_xattr_iter	file:
+build_time	erofs_fs.h	/^	__le64 build_time;      \/* compact inode time derivation *\/$/;"	m	struct:erofs_super_block
+build_time	internal.h	/^	u64 build_time;$/;"	m	struct:erofs_sb_info
+build_time_nsec	erofs_fs.h	/^	__le32 build_time_nsec;	\/* compact inode time derivation in ns scale *\/$/;"	m	struct:erofs_super_block
+build_time_nsec	internal.h	/^	u32 build_time_nsec;$/;"	m	struct:erofs_sb_info
+bvec	zdata.c	/^	struct z_erofs_bvec bvec;$/;"	m	struct:z_erofs_bvec_item	typeref:struct:z_erofs_bvec_item::z_erofs_bvec	file:
+bvecs	fileio.c	/^	struct bio_vec bvecs[BIO_MAX_VECS];$/;"	m	struct:erofs_fileio_rq	typeref:struct:erofs_fileio_rq::bio_vec	file:
+bvecs	fscache.c	/^	struct bio_vec bvecs[BIO_MAX_VECS];$/;"	m	struct:erofs_fscache_bio	typeref:struct:erofs_fscache_bio::bio_vec	file:
+bvpage	zdata.c	/^	struct page *bvpage;$/;"	m	struct:z_erofs_bvec_iter	typeref:struct:z_erofs_bvec_iter::page	file:
+bvset	zdata.c	/^		struct z_erofs_bvset_inline bvset;$/;"	m	union:z_erofs_pcluster::__anon1	typeref:struct:z_erofs_pcluster::__anon1::z_erofs_bvset_inline	file:
+bvset	zdata.c	/^	struct z_erofs_bvset *bvset;$/;"	m	struct:z_erofs_bvec_iter	typeref:struct:z_erofs_bvec_iter::z_erofs_bvset	file:
+c	erofs_fs.h	/^	struct erofs_inode_chunk_info c;$/;"	m	union:erofs_inode_i_u	typeref:struct:erofs_inode_i_u::erofs_inode_chunk_info
+cache_strategy	internal.h	/^	unsigned char cache_strategy;$/;"	m	struct:erofs_mount_opts
+candidate_bvpage	zdata.c	/^	struct page *candidate_bvpage;$/;"	m	struct:z_erofs_decompress_frontend	typeref:struct:z_erofs_decompress_frontend::page	file:
+checksum	erofs_fs.h	/^	__le32 checksum;        \/* crc32c(super_block) *\/$/;"	m	struct:erofs_super_block
+chunkbits	internal.h	/^			unsigned char	chunkbits;$/;"	m	struct:erofs_inode::__anon13::__anon14
+chunked_file	sysfs.c	/^EROFS_ATTR_FEATURE(chunked_file);$/;"	v
+chunkformat	internal.h	/^			unsigned short	chunkformat;$/;"	m	struct:erofs_inode::__anon13::__anon14
+clear_opt	internal.h	190;"	d
+clusterofs	zmap.c	/^	u16 clusterofs;$/;"	m	struct:z_erofs_maprecorder	file:
+compr_cfgs	sysfs.c	/^EROFS_ATTR_FEATURE(compr_cfgs);$/;"	v
+compr_head2	sysfs.c	/^EROFS_ATTR_FEATURE(compr_head2);$/;"	v
+compressed_blocks	erofs_fs.h	/^	__le32 compressed_blocks;$/;"	m	union:erofs_inode_i_u
+compressed_bvecs	zdata.c	/^	struct z_erofs_bvec compressed_bvecs[];$/;"	m	struct:z_erofs_pcluster	typeref:struct:z_erofs_pcluster::z_erofs_bvec	file:
+compressed_pages	zdata.c	/^	struct page **compressed_pages;$/;"	m	struct:z_erofs_decompress_backend	typeref:struct:z_erofs_decompress_backend::page	file:
+compressedblks	zmap.c	/^	erofs_blk_t pblk, compressedblks;$/;"	m	struct:z_erofs_maprecorder	file:
+config	compress.h	/^	int (*config)(struct super_block *sb, struct erofs_super_block *dsb,$/;"	m	struct:z_erofs_decompressor
+cookie	internal.h	/^	struct fscache_cookie *cookie;$/;"	m	struct:erofs_fscache	typeref:struct:erofs_fscache::fscache_cookie
+cres	fscache.c	/^	struct netfs_cache_resources cres;$/;"	m	struct:erofs_fscache_io	typeref:struct:erofs_fscache_io::netfs_cache_resources	file:
+crypto_max_distance_pages	decompressor_cryptor.c	/^static int crypto_max_distance_pages;$/;"	v	file:
+cur	zdata.c	/^	unsigned int nr, cur;$/;"	m	struct:z_erofs_bvec_iter	file:
+datalayout	internal.h	/^	unsigned char datalayout;$/;"	m	struct:erofs_inode
+dax_dev	internal.h	/^	struct dax_device *dax_dev;$/;"	m	struct:erofs_device_info	typeref:struct:erofs_device_info::dax_device
+dax_dev	internal.h	/^	struct dax_device *dax_dev;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::dax_device
+dax_part_off	internal.h	/^	u64 dax_part_off;$/;"	m	struct:erofs_device_info
+dax_part_off	internal.h	/^	u64 dax_part_off;$/;"	m	struct:erofs_sb_info
+decode_compactedbits	zmap.c	/^static unsigned int decode_compactedbits(unsigned int lobits,$/;"	f	file:
+decompress	compress.h	/^	int (*decompress)(struct z_erofs_decompress_req *rq,$/;"	m	struct:z_erofs_decompressor
+decompressed_pages	zdata.c	/^	struct page **decompressed_pages;$/;"	m	struct:z_erofs_decompress_backend	typeref:struct:z_erofs_decompress_backend::page	file:
+decompressed_secondary_bvecs	zdata.c	/^	struct list_head decompressed_secondary_bvecs;$/;"	m	struct:z_erofs_decompress_backend	typeref:struct:z_erofs_decompress_backend::list_head	file:
+dedupe	sysfs.c	/^EROFS_ATTR_FEATURE(dedupe);$/;"	v
+delta	erofs_fs.h	/^		__le16 delta[2];$/;"	m	union:z_erofs_lcluster_index::__anon10
+delta	zmap.c	/^	u16 delta[2];$/;"	m	struct:z_erofs_maprecorder	file:
+dentry	xattr.c	/^	struct dentry *dentry;$/;"	m	struct:erofs_xattr_iter	typeref:struct:erofs_xattr_iter::dentry	file:
+dev	fileio.c	/^	struct erofs_map_dev dev;$/;"	m	struct:erofs_fileio	typeref:struct:erofs_fileio::erofs_map_dev	file:
+device_id	erofs_fs.h	/^	__le16 device_id;	\/* back-end storage id (with bits masked) *\/$/;"	m	struct:erofs_inode_chunk_index
+device_id_mask	internal.h	/^	u16 device_id_mask;	\/* valid bits of device id to be used *\/$/;"	m	struct:erofs_sb_info
+device_table	sysfs.c	/^EROFS_ATTR_FEATURE(device_table);$/;"	v
+devs	internal.h	/^	struct erofs_dev_context *devs;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::erofs_dev_context
+devt_slotoff	erofs_fs.h	/^	__le16 devt_slotoff;	\/* startoff = devt_slotoff * devt_slotsize *\/$/;"	m	struct:erofs_super_block
+di_advise	erofs_fs.h	/^	__le16 di_advise;$/;"	m	struct:z_erofs_lcluster_index
+di_clusterofs	erofs_fs.h	/^	__le16 di_clusterofs;$/;"	m	struct:z_erofs_lcluster_index
+di_u	erofs_fs.h	/^	} di_u;$/;"	m	struct:z_erofs_lcluster_index	typeref:union:z_erofs_lcluster_index::__anon10
+dict_size	erofs_fs.h	/^	__le32 dict_size;$/;"	m	struct:z_erofs_lzma_cfgs
+dirblkbits	erofs_fs.h	/^	__u8 dirblkbits;	\/* directory block size in bit shift *\/$/;"	m	struct:erofs_super_block
+domain	internal.h	/^	struct erofs_domain *domain;$/;"	m	struct:erofs_fscache	typeref:struct:erofs_fscache::erofs_domain
+domain	internal.h	/^	struct erofs_domain *domain;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::erofs_domain
+domain_id	internal.h	/^	char *domain_id;$/;"	m	struct:erofs_domain
+domain_id	internal.h	/^	char *domain_id;$/;"	m	struct:erofs_sb_info
+done	zdata.c	/^		struct completion done;$/;"	m	union:z_erofs_decompressqueue::__anon2	typeref:struct:z_erofs_decompressqueue::__anon2::completion	file:
+e_name	erofs_fs.h	/^	char   e_name[];        \/* attribute name *\/$/;"	m	struct:erofs_xattr_entry
+e_name_index	erofs_fs.h	/^	__u8   e_name_index;    \/* attribute name index *\/$/;"	m	struct:erofs_xattr_entry
+e_name_len	erofs_fs.h	/^	__u8   e_name_len;      \/* length of name *\/$/;"	m	struct:erofs_xattr_entry
+e_value_size	erofs_fs.h	/^	__le16 e_value_size;    \/* size of attribute value *\/$/;"	m	struct:erofs_xattr_entry
+eio	zdata.c	/^	bool eio, sync;$/;"	m	struct:z_erofs_decompressqueue	file:
+end	namei.c	/^	const unsigned char *end;$/;"	m	struct:erofs_qstr	file:
+end	zdata.c	/^	unsigned int end;$/;"	m	struct:z_erofs_bvec	file:
+end_io	fscache.c	/^	netfs_io_terminated_t	end_io;$/;"	m	struct:erofs_fscache_io	file:
+erofs	sysfs.c	/^ATTRIBUTE_GROUPS(erofs);$/;"	v
+erofs_alloc_inode	super.c	/^static struct inode *erofs_alloc_inode(struct super_block *sb)$/;"	f	file:
+erofs_allocpage	internal.h	/^static inline struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)$/;"	f
+erofs_anon_fs_type	fscache.c	/^static struct file_system_type erofs_anon_fs_type = {$/;"	v	typeref:struct:file_system_type	file:
+erofs_anon_init_fs_context	fscache.c	/^static int erofs_anon_init_fs_context(struct fs_context *fc)$/;"	f	file:
+erofs_aops	data.c	/^const struct address_space_operations erofs_aops = {$/;"	v	typeref:struct:address_space_operations
+erofs_attr	sysfs.c	/^struct erofs_attr {$/;"	s	file:
+erofs_attr_ops	sysfs.c	/^static const struct sysfs_ops erofs_attr_ops = {$/;"	v	typeref:struct:sysfs_ops	file:
+erofs_attr_show	sysfs.c	/^static ssize_t erofs_attr_show(struct kobject *kobj,$/;"	f	file:
+erofs_attr_store	sysfs.c	/^static ssize_t erofs_attr_store(struct kobject *kobj, struct attribute *attr,$/;"	f	file:
+erofs_attrs	sysfs.c	/^static struct attribute *erofs_attrs[] = {$/;"	v	typeref:struct:attribute	file:
+erofs_blk_t	internal.h	/^typedef u32 erofs_blk_t;$/;"	t
+erofs_blknr	internal.h	230;"	d
+erofs_blkoff	internal.h	231;"	d
+erofs_bmap	data.c	/^static sector_t erofs_bmap(struct address_space *mapping, sector_t block)$/;"	f	file:
+erofs_bread	data.c	/^void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,$/;"	f
+erofs_buf	internal.h	/^struct erofs_buf {$/;"	s
+erofs_check_ondisk_layout_definitions	erofs_fs.h	/^static inline void erofs_check_ondisk_layout_definitions(void)$/;"	f
+erofs_context_ops	super.c	/^static const struct fs_context_operations erofs_context_ops = {$/;"	v	typeref:struct:fs_context_operations	file:
+erofs_cpu_hotplug_destroy	zdata.c	/^static inline void erofs_cpu_hotplug_destroy(void) {}$/;"	f	file:
+erofs_cpu_hotplug_destroy	zdata.c	/^static void erofs_cpu_hotplug_destroy(void)$/;"	f	file:
+erofs_cpu_hotplug_init	zdata.c	/^static inline int erofs_cpu_hotplug_init(void) { return 0; }$/;"	f	file:
+erofs_cpu_hotplug_init	zdata.c	/^static int erofs_cpu_hotplug_init(void)$/;"	f	file:
+erofs_cpu_offline	zdata.c	/^static int erofs_cpu_offline(unsigned int cpu)$/;"	f	file:
+erofs_cpu_online	zdata.c	/^static int erofs_cpu_online(unsigned int cpu)$/;"	f	file:
+erofs_cpuhp_state	zdata.c	/^static enum cpuhp_state erofs_cpuhp_state;$/;"	v	typeref:enum:cpuhp_state	file:
+erofs_dax_fault	data.c	/^static vm_fault_t erofs_dax_fault(struct vm_fault *vmf)$/;"	f	file:
+erofs_dax_huge_fault	data.c	/^static vm_fault_t erofs_dax_huge_fault(struct vm_fault *vmf,$/;"	f	file:
+erofs_dax_param_enums	super.c	/^static const struct constant_table erofs_dax_param_enums[] = {$/;"	v	typeref:struct:constant_table	file:
+erofs_dax_vm_ops	data.c	/^static const struct vm_operations_struct erofs_dax_vm_ops = {$/;"	v	typeref:struct:vm_operations_struct	file:
+erofs_default_options	super.c	/^static void erofs_default_options(struct erofs_sb_info *sbi)$/;"	f	file:
+erofs_destroy_percpu_workers	zdata.c	/^static inline void erofs_destroy_percpu_workers(void) {}$/;"	f	file:
+erofs_destroy_percpu_workers	zdata.c	/^static void erofs_destroy_percpu_workers(void)$/;"	f	file:
+erofs_dev_context	internal.h	/^struct erofs_dev_context {$/;"	s
+erofs_device_info	internal.h	/^struct erofs_device_info {$/;"	s
+erofs_deviceslot	erofs_fs.h	/^struct erofs_deviceslot {$/;"	s
+erofs_dir_fops	dir.c	/^const struct file_operations erofs_dir_fops = {$/;"	v	typeref:struct:file_operations
+erofs_dir_iops	namei.c	/^const struct inode_operations erofs_dir_iops = {$/;"	v	typeref:struct:inode_operations
+erofs_dirent	erofs_fs.h	/^struct erofs_dirent {$/;"	s
+erofs_dirnamecmp	namei.c	/^static inline int erofs_dirnamecmp(const struct erofs_qstr *qn,$/;"	f	file:
+erofs_domain	internal.h	/^struct erofs_domain {$/;"	s
+erofs_domain_init_cookie	fscache.c	/^static struct erofs_fscache *erofs_domain_init_cookie(struct super_block *sb,$/;"	f	file:
+erofs_domain_register_cookie	fscache.c	/^static struct erofs_fscache *erofs_domain_register_cookie(struct super_block *sb,$/;"	f	file:
+erofs_err	internal.h	29;"	d
+erofs_exit_shrinker	internal.h	/^static inline void erofs_exit_shrinker(void) {}$/;"	f
+erofs_exit_shrinker	zutil.c	/^void erofs_exit_shrinker(void)$/;"	f
+erofs_exit_sysfs	sysfs.c	/^void erofs_exit_sysfs(void)$/;"	f
+erofs_export_ops	super.c	/^static const struct export_operations erofs_export_ops = {$/;"	v	typeref:struct:export_operations	file:
+erofs_fast_symlink_iops	inode.c	/^const struct inode_operations erofs_fast_symlink_iops = {$/;"	v	typeref:struct:inode_operations
+erofs_fc_fill_super	super.c	/^static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)$/;"	f	file:
+erofs_fc_free	super.c	/^static void erofs_fc_free(struct fs_context *fc)$/;"	f	file:
+erofs_fc_get_tree	super.c	/^static int erofs_fc_get_tree(struct fs_context *fc)$/;"	f	file:
+erofs_fc_parse_param	super.c	/^static int erofs_fc_parse_param(struct fs_context *fc,$/;"	f	file:
+erofs_fc_reconfigure	super.c	/^static int erofs_fc_reconfigure(struct fs_context *fc)$/;"	f	file:
+erofs_fc_set_dax_mode	super.c	/^static bool erofs_fc_set_dax_mode(struct fs_context *fc, unsigned int mode)$/;"	f	file:
+erofs_feat	sysfs.c	/^ATTRIBUTE_GROUPS(erofs_feat);$/;"	v
+erofs_feat	sysfs.c	/^static struct kobject erofs_feat = {$/;"	v	typeref:struct:kobject	file:
+erofs_feat_attrs	sysfs.c	/^static struct attribute *erofs_feat_attrs[] = {$/;"	v	typeref:struct:attribute	file:
+erofs_feat_ktype	sysfs.c	/^static const struct kobj_type erofs_feat_ktype = {$/;"	v	typeref:struct:kobj_type	file:
+erofs_fh_to_dentry	super.c	/^static struct dentry *erofs_fh_to_dentry(struct super_block *sb,$/;"	f	file:
+erofs_fh_to_parent	super.c	/^static struct dentry *erofs_fh_to_parent(struct super_block *sb,$/;"	f	file:
+erofs_fiemap	data.c	/^int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,$/;"	f
+erofs_file_fops	data.c	/^const struct file_operations erofs_file_fops = {$/;"	v	typeref:struct:file_operations
+erofs_file_mmap	data.c	/^static int erofs_file_mmap(struct file *file, struct vm_area_struct *vma)$/;"	f	file:
+erofs_file_mmap	data.c	473;"	d	file:
+erofs_file_read_iter	data.c	/^static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)$/;"	f	file:
+erofs_fileio	fileio.c	/^struct erofs_fileio {$/;"	s	file:
+erofs_fileio_aops	fileio.c	/^const struct address_space_operations erofs_fileio_aops = {$/;"	v	typeref:struct:address_space_operations
+erofs_fileio_bio_alloc	fileio.c	/^struct bio *erofs_fileio_bio_alloc(struct erofs_map_dev *mdev)$/;"	f
+erofs_fileio_bio_alloc	internal.h	/^static inline struct bio *erofs_fileio_bio_alloc(struct erofs_map_dev *mdev) { return NULL; }$/;"	f
+erofs_fileio_ki_complete	fileio.c	/^static void erofs_fileio_ki_complete(struct kiocb *iocb, long ret)$/;"	f	file:
+erofs_fileio_read_folio	fileio.c	/^static int erofs_fileio_read_folio(struct file *file, struct folio *folio)$/;"	f	file:
+erofs_fileio_readahead	fileio.c	/^static void erofs_fileio_readahead(struct readahead_control *rac)$/;"	f	file:
+erofs_fileio_rq	fileio.c	/^struct erofs_fileio_rq {$/;"	s	file:
+erofs_fileio_rq_alloc	fileio.c	/^static struct erofs_fileio_rq *erofs_fileio_rq_alloc(struct erofs_map_dev *mdev)$/;"	f	file:
+erofs_fileio_rq_submit	fileio.c	/^static void erofs_fileio_rq_submit(struct erofs_fileio_rq *rq)$/;"	f	file:
+erofs_fileio_scan_folio	fileio.c	/^static int erofs_fileio_scan_folio(struct erofs_fileio *io, struct folio *folio)$/;"	f	file:
+erofs_fileio_submit_bio	fileio.c	/^void erofs_fileio_submit_bio(struct bio *bio)$/;"	f
+erofs_fileio_submit_bio	internal.h	/^static inline void erofs_fileio_submit_bio(struct bio *bio) {}$/;"	f
+erofs_fill_dentries	dir.c	/^static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,$/;"	f	file:
+erofs_fill_from_devinfo	data.c	/^static void erofs_fill_from_devinfo(struct erofs_map_dev *map,$/;"	f	file:
+erofs_fill_inode	inode.c	/^static int erofs_fill_inode(struct inode *inode)$/;"	f	file:
+erofs_fill_symlink	inode.c	/^static int erofs_fill_symlink(struct inode *inode, void *kaddr,$/;"	f	file:
+erofs_find_target_block	namei.c	/^static void *erofs_find_target_block(struct erofs_buf *target,$/;"	f	file:
+erofs_find_workgroup	zutil.c	/^struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,$/;"	f
+erofs_folio_is_managed	zdata.c	/^static bool erofs_folio_is_managed(struct erofs_sb_info *sbi, struct folio *fo)$/;"	f	file:
+erofs_free_dev_context	super.c	/^static void erofs_free_dev_context(struct erofs_dev_context *devs)$/;"	f	file:
+erofs_free_inode	super.c	/^static void erofs_free_inode(struct inode *inode)$/;"	f	file:
+erofs_fs_parameters	super.c	/^static const struct fs_parameter_spec erofs_fs_parameters[] = {$/;"	v	typeref:struct:fs_parameter_spec	file:
+erofs_fs_type	super.c	/^static struct file_system_type erofs_fs_type = {$/;"	v	typeref:struct:file_system_type	file:
+erofs_fscache	internal.h	/^struct erofs_fscache {$/;"	s
+erofs_fscache_access_aops	fscache.c	/^const struct address_space_operations erofs_fscache_access_aops = {$/;"	v	typeref:struct:address_space_operations
+erofs_fscache_acquire_cookie	fscache.c	/^static struct erofs_fscache *erofs_fscache_acquire_cookie(struct super_block *sb,$/;"	f	file:
+erofs_fscache_bio	fscache.c	/^struct erofs_fscache_bio {$/;"	s	file:
+erofs_fscache_bio_alloc	fscache.c	/^struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev)$/;"	f
+erofs_fscache_bio_alloc	internal.h	/^static inline struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev) { return NULL; }$/;"	f
+erofs_fscache_bio_endio	fscache.c	/^static void erofs_fscache_bio_endio(void *priv,$/;"	f	file:
+erofs_fscache_data_read	fscache.c	/^static int erofs_fscache_data_read(struct erofs_fscache_rq *req)$/;"	f	file:
+erofs_fscache_data_read_slice	fscache.c	/^static int erofs_fscache_data_read_slice(struct erofs_fscache_rq *req)$/;"	f	file:
+erofs_fscache_domain_put	fscache.c	/^static void erofs_fscache_domain_put(struct erofs_domain *domain)$/;"	f	file:
+erofs_fscache_init_domain	fscache.c	/^static int erofs_fscache_init_domain(struct super_block *sb)$/;"	f	file:
+erofs_fscache_io	fscache.c	/^struct erofs_fscache_io {$/;"	s	file:
+erofs_fscache_io_put	fscache.c	/^static bool erofs_fscache_io_put(struct erofs_fscache_io *io)$/;"	f	file:
+erofs_fscache_meta_aops	fscache.c	/^static const struct address_space_operations erofs_fscache_meta_aops = {$/;"	v	typeref:struct:address_space_operations	file:
+erofs_fscache_meta_read_folio	fscache.c	/^static int erofs_fscache_meta_read_folio(struct file *data, struct folio *folio)$/;"	f	file:
+erofs_fscache_read_folio	fscache.c	/^static int erofs_fscache_read_folio(struct file *file, struct folio *folio)$/;"	f	file:
+erofs_fscache_read_io_async	fscache.c	/^static int erofs_fscache_read_io_async(struct fscache_cookie *cookie,$/;"	f	file:
+erofs_fscache_readahead	fscache.c	/^static void erofs_fscache_readahead(struct readahead_control *rac)$/;"	f	file:
+erofs_fscache_register_cookie	fscache.c	/^struct erofs_fscache *erofs_fscache_register_cookie(struct super_block *sb,$/;"	f
+erofs_fscache_register_cookie	internal.h	/^struct erofs_fscache *erofs_fscache_register_cookie(struct super_block *sb,$/;"	f
+erofs_fscache_register_domain	fscache.c	/^static int erofs_fscache_register_domain(struct super_block *sb)$/;"	f	file:
+erofs_fscache_register_fs	fscache.c	/^int erofs_fscache_register_fs(struct super_block *sb)$/;"	f
+erofs_fscache_register_fs	internal.h	/^static inline int erofs_fscache_register_fs(struct super_block *sb)$/;"	f
+erofs_fscache_register_volume	fscache.c	/^static int erofs_fscache_register_volume(struct super_block *sb)$/;"	f	file:
+erofs_fscache_relinquish_cookie	fscache.c	/^static void erofs_fscache_relinquish_cookie(struct erofs_fscache *ctx)$/;"	f	file:
+erofs_fscache_req_alloc	fscache.c	/^static struct erofs_fscache_rq *erofs_fscache_req_alloc(struct address_space *mapping,$/;"	f	file:
+erofs_fscache_req_complete	fscache.c	/^static void erofs_fscache_req_complete(struct erofs_fscache_rq *req)$/;"	f	file:
+erofs_fscache_req_end_io	fscache.c	/^static void erofs_fscache_req_end_io(void *priv,$/;"	f	file:
+erofs_fscache_req_io_alloc	fscache.c	/^static struct erofs_fscache_io *erofs_fscache_req_io_alloc(struct erofs_fscache_rq *req)$/;"	f	file:
+erofs_fscache_req_io_put	fscache.c	/^static void erofs_fscache_req_io_put(struct erofs_fscache_io *io)$/;"	f	file:
+erofs_fscache_req_put	fscache.c	/^static void erofs_fscache_req_put(struct erofs_fscache_rq *req)$/;"	f	file:
+erofs_fscache_rq	fscache.c	/^struct erofs_fscache_rq {$/;"	s	file:
+erofs_fscache_submit_bio	fscache.c	/^void erofs_fscache_submit_bio(struct bio *bio)$/;"	f
+erofs_fscache_submit_bio	internal.h	/^static inline void erofs_fscache_submit_bio(struct bio *bio) {}$/;"	f
+erofs_fscache_unregister_cookie	fscache.c	/^void erofs_fscache_unregister_cookie(struct erofs_fscache *ctx)$/;"	f
+erofs_fscache_unregister_cookie	internal.h	/^static inline void erofs_fscache_unregister_cookie(struct erofs_fscache *fscache)$/;"	f
+erofs_fscache_unregister_fs	fscache.c	/^void erofs_fscache_unregister_fs(struct super_block *sb)$/;"	f
+erofs_fscache_unregister_fs	internal.h	/^static inline void erofs_fscache_unregister_fs(struct super_block *sb) {}$/;"	f
+erofs_generic_iops	inode.c	/^const struct inode_operations erofs_generic_iops = {$/;"	v	typeref:struct:inode_operations
+erofs_get_acl	xattr.c	/^struct posix_acl *erofs_get_acl(struct inode *inode, int type, bool rcu)$/;"	f
+erofs_get_acl	xattr.h	70;"	d
+erofs_get_parent	super.c	/^static struct dentry *erofs_get_parent(struct dentry *child)$/;"	f	file:
+erofs_getattr	inode.c	/^int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,$/;"	f
+erofs_getxattr	xattr.c	/^int erofs_getxattr(struct inode *inode, int index, const char *name,$/;"	f
+erofs_getxattr	xattr.h	/^static inline int erofs_getxattr(struct inode *inode, int index,$/;"	f
+erofs_getxattr_foreach	xattr.c	/^static int erofs_getxattr_foreach(struct erofs_xattr_iter *it)$/;"	f	file:
+erofs_global_shrink_cnt	zutil.c	/^static atomic_long_t erofs_global_shrink_cnt;	\/* for all mounted instances *\/$/;"	v	file:
+erofs_grab_folio_nowait	internal.h	/^static inline struct folio *erofs_grab_folio_nowait(struct address_space *as,$/;"	f
+erofs_iblks	internal.h	233;"	d
+erofs_iget	inode.c	/^struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid)$/;"	f
+erofs_iget5_eq	inode.c	/^static int erofs_iget5_eq(struct inode *inode, void *opaque)$/;"	f	file:
+erofs_iget5_set	inode.c	/^static int erofs_iget5_set(struct inode *inode, void *opaque)$/;"	f	file:
+erofs_iloc	internal.h	/^static inline erofs_off_t erofs_iloc(struct inode *inode)$/;"	f
+erofs_info	internal.h	33;"	d
+erofs_init_device	super.c	/^static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,$/;"	f	file:
+erofs_init_fs_context	super.c	/^static int erofs_init_fs_context(struct fs_context *fc)$/;"	f	file:
+erofs_init_inode_xattrs	xattr.c	/^static int erofs_init_inode_xattrs(struct inode *inode)$/;"	f	file:
+erofs_init_managed_cache	internal.h	/^static inline int erofs_init_managed_cache(struct super_block *sb) { return 0; }$/;"	f
+erofs_init_managed_cache	zdata.c	/^int erofs_init_managed_cache(struct super_block *sb)$/;"	f
+erofs_init_metabuf	data.c	/^void erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb)$/;"	f
+erofs_init_percpu_worker	zdata.c	/^static struct kthread_worker *erofs_init_percpu_worker(int cpu)$/;"	f	file:
+erofs_init_percpu_workers	zdata.c	/^static inline int erofs_init_percpu_workers(void) { return 0; }$/;"	f	file:
+erofs_init_percpu_workers	zdata.c	/^static int erofs_init_percpu_workers(void)$/;"	f	file:
+erofs_init_shrinker	internal.h	/^static inline int erofs_init_shrinker(void) { return 0; }$/;"	f
+erofs_init_shrinker	zutil.c	/^int __init erofs_init_shrinker(void)$/;"	f
+erofs_init_sysfs	sysfs.c	/^int __init erofs_init_sysfs(void)$/;"	f
+erofs_inode	internal.h	/^struct erofs_inode {$/;"	s
+erofs_inode_chunk_index	erofs_fs.h	/^struct erofs_inode_chunk_index {$/;"	s
+erofs_inode_chunk_info	erofs_fs.h	/^struct erofs_inode_chunk_info {$/;"	s
+erofs_inode_compact	erofs_fs.h	/^struct erofs_inode_compact {$/;"	s
+erofs_inode_datalayout	internal.h	/^static inline unsigned int erofs_inode_datalayout(unsigned int ifmt)$/;"	f
+erofs_inode_extended	erofs_fs.h	/^struct erofs_inode_extended {$/;"	s
+erofs_inode_i_u	erofs_fs.h	/^union erofs_inode_i_u {$/;"	u
+erofs_inode_init_once	super.c	/^static void erofs_inode_init_once(void *ptr)$/;"	f	file:
+erofs_inode_is_data_compressed	erofs_fs.h	/^static inline bool erofs_inode_is_data_compressed(unsigned int datamode)$/;"	f
+erofs_inode_version	internal.h	/^static inline unsigned int erofs_inode_version(unsigned int ifmt)$/;"	f
+erofs_insert_workgroup	zutil.c	/^struct erofs_workgroup *erofs_insert_workgroup(struct super_block *sb,$/;"	f
+erofs_iomap_begin	data.c	/^static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,$/;"	f	file:
+erofs_iomap_end	data.c	/^static int erofs_iomap_end(struct inode *inode, loff_t pos, loff_t length,$/;"	f	file:
+erofs_iomap_ops	data.c	/^static const struct iomap_ops erofs_iomap_ops = {$/;"	v	typeref:struct:iomap_ops	file:
+erofs_is_fileio_mode	internal.h	/^static inline bool erofs_is_fileio_mode(struct erofs_sb_info *sbi)$/;"	f
+erofs_is_fscache_mode	internal.h	/^static inline bool erofs_is_fscache_mode(struct super_block *sb)$/;"	f
+erofs_kill_sb	super.c	/^static void erofs_kill_sb(struct super_block *sb)$/;"	f	file:
+erofs_kmap_type	internal.h	/^enum erofs_kmap_type {$/;"	g
+erofs_ktype	sysfs.c	/^static const struct kobj_type erofs_ktype = {$/;"	v	typeref:struct:kobj_type	file:
+erofs_listxattr	xattr.c	/^ssize_t erofs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)$/;"	f
+erofs_listxattr	xattr.h	63;"	d
+erofs_listxattr_foreach	xattr.c	/^static int erofs_listxattr_foreach(struct erofs_xattr_iter *it)$/;"	f	file:
+erofs_lookup	namei.c	/^static struct dentry *erofs_lookup(struct inode *dir, struct dentry *dentry,$/;"	f	file:
+erofs_map_blocks	data.c	/^int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)$/;"	f
+erofs_map_blocks	internal.h	/^struct erofs_map_blocks {$/;"	s
+erofs_map_blocks_flatmode	data.c	/^static int erofs_map_blocks_flatmode(struct inode *inode,$/;"	f	file:
+erofs_map_dev	data.c	/^int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *map)$/;"	f
+erofs_map_dev	internal.h	/^struct erofs_map_dev {$/;"	s
+erofs_module_exit	super.c	/^module_exit(erofs_module_exit);$/;"	v
+erofs_module_exit	super.c	/^static void __exit erofs_module_exit(void)$/;"	f	file:
+erofs_module_init	super.c	/^module_init(erofs_module_init);$/;"	v
+erofs_module_init	super.c	/^static int __init erofs_module_init(void)$/;"	f	file:
+erofs_mount_opts	internal.h	/^struct erofs_mount_opts {$/;"	s
+erofs_namei	namei.c	/^int erofs_namei(struct inode *dir, const struct qstr *name, erofs_nid_t *nid,$/;"	f
+erofs_nfs_get_inode	super.c	/^static struct inode *erofs_nfs_get_inode(struct super_block *sb,$/;"	f	file:
+erofs_nid_t	internal.h	/^typedef u64 erofs_nid_t;$/;"	t
+erofs_off_t	internal.h	/^typedef u64 erofs_off_t;$/;"	t
+erofs_onlinefolio_end	data.c	/^void erofs_onlinefolio_end(struct folio *folio, int err)$/;"	f
+erofs_onlinefolio_init	data.c	/^void erofs_onlinefolio_init(struct folio *folio)$/;"	f
+erofs_onlinefolio_split	data.c	/^void erofs_onlinefolio_split(struct folio *folio)$/;"	f
+erofs_pagepool_add	internal.h	/^static inline void erofs_pagepool_add(struct page **pagepool, struct page *page)$/;"	f
+erofs_param_cache_strategy	super.c	/^static const struct constant_table erofs_param_cache_strategy[] = {$/;"	v	typeref:struct:constant_table	file:
+erofs_pos	internal.h	232;"	d
+erofs_pseudo_mnt	fscache.c	/^static struct vfsmount *erofs_pseudo_mnt;$/;"	v	typeref:struct:vfsmount	file:
+erofs_put_metabuf	data.c	/^void erofs_put_metabuf(struct erofs_buf *buf)$/;"	f
+erofs_put_super	super.c	/^static void erofs_put_super(struct super_block *sb)$/;"	f	file:
+erofs_qstr	namei.c	/^struct erofs_qstr {$/;"	s	file:
+erofs_read_folio	data.c	/^static int erofs_read_folio(struct file *file, struct folio *folio)$/;"	f	file:
+erofs_read_inode	inode.c	/^static int erofs_read_inode(struct inode *inode)$/;"	f	file:
+erofs_read_metabuf	data.c	/^void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,$/;"	f
+erofs_read_metadata	super.c	/^void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,$/;"	f
+erofs_read_superblock	super.c	/^static int erofs_read_superblock(struct super_block *sb)$/;"	f	file:
+erofs_readahead	data.c	/^static void erofs_readahead(struct readahead_control *rac)$/;"	f	file:
+erofs_readdir	dir.c	/^static int erofs_readdir(struct file *f, struct dir_context *ctx)$/;"	f	file:
+erofs_register_sysfs	sysfs.c	/^int erofs_register_sysfs(struct super_block *sb)$/;"	f
+erofs_release_device_info	super.c	/^static int erofs_release_device_info(int id, void *ptr, void *data)$/;"	f	file:
+erofs_release_pages	zutil.c	/^void erofs_release_pages(struct page **pagepool)$/;"	f
+erofs_root	sysfs.c	/^static struct kset erofs_root = {$/;"	v	typeref:struct:kset	file:
+erofs_sb_info	internal.h	/^struct erofs_sb_info {$/;"	s
+erofs_sb_ktype	sysfs.c	/^static const struct kobj_type erofs_sb_ktype = {$/;"	v	typeref:struct:kobj_type	file:
+erofs_sb_lz4_info	internal.h	/^struct erofs_sb_lz4_info {$/;"	s
+erofs_sb_release	sysfs.c	/^static void erofs_sb_release(struct kobject *kobj)$/;"	f	file:
+erofs_scan_devices	super.c	/^static int erofs_scan_devices(struct super_block *sb,$/;"	f	file:
+erofs_set_sysfs_name	super.c	/^static void erofs_set_sysfs_name(struct super_block *sb)$/;"	f	file:
+erofs_show_options	super.c	/^static int erofs_show_options(struct seq_file *seq, struct dentry *root)$/;"	f	file:
+erofs_shrink_count	zutil.c	/^static unsigned long erofs_shrink_count(struct shrinker *shrink,$/;"	f	file:
+erofs_shrink_scan	zutil.c	/^static unsigned long erofs_shrink_scan(struct shrinker *shrink,$/;"	f	file:
+erofs_shrink_workstation	zutil.c	/^static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,$/;"	f	file:
+erofs_shrinker_info	zutil.c	/^static struct shrinker *erofs_shrinker_info;$/;"	v	typeref:struct:shrinker	file:
+erofs_shrinker_register	internal.h	/^static inline void erofs_shrinker_register(struct super_block *sb) {}$/;"	f
+erofs_shrinker_register	zutil.c	/^void erofs_shrinker_register(struct super_block *sb)$/;"	f
+erofs_shrinker_unregister	internal.h	/^static inline void erofs_shrinker_unregister(struct super_block *sb) {}$/;"	f
+erofs_shrinker_unregister	zutil.c	/^void erofs_shrinker_unregister(struct super_block *sb)$/;"	f
+erofs_sops	super.c	/^const struct super_operations erofs_sops = {$/;"	v	typeref:struct:super_operations
+erofs_squash_ino	inode.c	/^static ino_t erofs_squash_ino(erofs_nid_t nid)$/;"	f	file:
+erofs_statfs	super.c	/^static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)$/;"	f	file:
+erofs_super_block	erofs_fs.h	/^struct erofs_super_block {$/;"	s
+erofs_superblock_csum_verify	super.c	/^static int erofs_superblock_csum_verify(struct super_block *sb, void *sbdata)$/;"	f	file:
+erofs_symlink_iops	inode.c	/^const struct inode_operations erofs_symlink_iops = {$/;"	v	typeref:struct:inode_operations
+erofs_try_to_free_all_cached_folios	zdata.c	/^int erofs_try_to_free_all_cached_folios(struct erofs_sb_info *sbi,$/;"	f
+erofs_try_to_release_workgroup	zutil.c	/^static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,$/;"	f	file:
+erofs_unmap_metabuf	data.c	/^void erofs_unmap_metabuf(struct erofs_buf *buf)$/;"	f
+erofs_unregister_sysfs	sysfs.c	/^void erofs_unregister_sysfs(struct super_block *sb)$/;"	f
+erofs_vm_map_ram	internal.h	/^static inline void *erofs_vm_map_ram(struct page **pages, unsigned int count)$/;"	f
+erofs_workgroup	internal.h	/^struct erofs_workgroup {$/;"	s
+erofs_workgroup_free_rcu	zdata.c	/^void erofs_workgroup_free_rcu(struct erofs_workgroup *grp)$/;"	f
+erofs_workgroup_get	zutil.c	/^static bool erofs_workgroup_get(struct erofs_workgroup *grp)$/;"	f	file:
+erofs_workgroup_put	zutil.c	/^void erofs_workgroup_put(struct erofs_workgroup *grp)$/;"	f
+erofs_xattr_copy_to_buffer	xattr.c	/^static int erofs_xattr_copy_to_buffer(struct erofs_xattr_iter *it,$/;"	f	file:
+erofs_xattr_entry	erofs_fs.h	/^struct erofs_xattr_entry {$/;"	s
+erofs_xattr_entry_size	erofs_fs.h	/^static inline unsigned int erofs_xattr_entry_size(struct erofs_xattr_entry *e)$/;"	f
+erofs_xattr_generic_get	xattr.c	/^static int erofs_xattr_generic_get(const struct xattr_handler *handler,$/;"	f	file:
+erofs_xattr_handlers	xattr.c	/^const struct xattr_handler * const erofs_xattr_handlers[] = {$/;"	v
+erofs_xattr_handlers	xattr.h	64;"	d
+erofs_xattr_ibody_header	erofs_fs.h	/^struct erofs_xattr_ibody_header {$/;"	s
+erofs_xattr_ibody_size	erofs_fs.h	/^static inline unsigned int erofs_xattr_ibody_size(__le16 i_xattr_icount)$/;"	f
+erofs_xattr_iter	xattr.c	/^struct erofs_xattr_iter {$/;"	s	file:
+erofs_xattr_iter_inline	xattr.c	/^static int erofs_xattr_iter_inline(struct erofs_xattr_iter *it,$/;"	f	file:
+erofs_xattr_iter_shared	xattr.c	/^static int erofs_xattr_iter_shared(struct erofs_xattr_iter *it,$/;"	f	file:
+erofs_xattr_long_prefix	erofs_fs.h	/^struct erofs_xattr_long_prefix {$/;"	s
+erofs_xattr_prefix	xattr.h	/^static inline const char *erofs_xattr_prefix(unsigned int idx,$/;"	f
+erofs_xattr_prefix_item	internal.h	/^struct erofs_xattr_prefix_item {$/;"	s
+erofs_xattr_prefixes_cleanup	xattr.c	/^void erofs_xattr_prefixes_cleanup(struct super_block *sb)$/;"	f
+erofs_xattr_prefixes_cleanup	xattr.h	/^static inline void erofs_xattr_prefixes_cleanup(struct super_block *sb) {}$/;"	f
+erofs_xattr_prefixes_init	xattr.c	/^int erofs_xattr_prefixes_init(struct super_block *sb)$/;"	f
+erofs_xattr_prefixes_init	xattr.h	/^static inline int erofs_xattr_prefixes_init(struct super_block *sb) { return 0; }$/;"	f
+erofs_xattr_security_handler	xattr.c	/^const struct xattr_handler __maybe_unused erofs_xattr_security_handler = {$/;"	v	typeref:struct:__maybe_unused
+erofs_xattr_trusted_handler	xattr.c	/^const struct xattr_handler erofs_xattr_trusted_handler = {$/;"	v	typeref:struct:xattr_handler
+erofs_xattr_trusted_list	xattr.c	/^static bool erofs_xattr_trusted_list(struct dentry *dentry)$/;"	f	file:
+erofs_xattr_user_handler	xattr.c	/^const struct xattr_handler erofs_xattr_user_handler = {$/;"	v	typeref:struct:xattr_handler
+erofs_xattr_user_list	xattr.c	/^static bool erofs_xattr_user_list(struct dentry *dentry)$/;"	f	file:
+error	fscache.c	/^	short			error;		\/* 0 or error that occurred *\/$/;"	m	struct:erofs_fscache_rq	file:
+exit	compress.h	/^	void (*exit)(void);$/;"	m	struct:z_erofs_decompressor
+extra_devices	erofs_fs.h	/^	__le16 extra_devices;	\/* # of devices besides the primary device *\/$/;"	m	struct:erofs_super_block
+extra_devices	internal.h	/^	unsigned int extra_devices;$/;"	m	struct:erofs_dev_context
+fdev	internal.h	/^	struct file *fdev;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::file
+feature_compat	erofs_fs.h	/^	__le32 feature_compat;$/;"	m	struct:erofs_super_block
+feature_compat	internal.h	/^	u32 feature_compat;$/;"	m	struct:erofs_sb_info
+feature_incompat	erofs_fs.h	/^	__le32 feature_incompat;$/;"	m	struct:erofs_super_block
+feature_incompat	internal.h	/^	u32 feature_incompat;$/;"	m	struct:erofs_sb_info
+file	internal.h	/^	struct file *file;$/;"	m	struct:erofs_device_info	typeref:struct:erofs_device_info::file
+file_type	erofs_fs.h	/^	__u8 file_type; \/* file type *\/$/;"	m	struct:erofs_dirent
+fillgaps	compress.h	/^	bool inplace_io, partial_decoding, fillgaps;$/;"	m	struct:z_erofs_decompress_req
+find_target_dirent	namei.c	/^static struct erofs_dirent *find_target_dirent(struct erofs_qstr *name,$/;"	f	file:
+flags	internal.h	/^	unsigned long flags;$/;"	m	struct:erofs_inode
+flatdev	internal.h	/^	bool flatdev;$/;"	m	struct:erofs_dev_context
+format	erofs_fs.h	/^	__le16 format;		\/* chunk blkbits, etc. *\/$/;"	m	struct:erofs_inode_chunk_info
+format	erofs_fs.h	/^	__le16 format;$/;"	m	struct:z_erofs_lzma_cfgs
+format	erofs_fs.h	/^	u8 format;$/;"	m	struct:z_erofs_zstd_cfgs
+fragments	sysfs.c	/^EROFS_ATTR_FEATURE(fragments);$/;"	v
+fscache	internal.h	/^	struct erofs_fscache *fscache;$/;"	m	struct:erofs_device_info	typeref:struct:erofs_device_info::erofs_fscache
+fsid	internal.h	/^	char *fsid;$/;"	m	struct:erofs_sb_info
+get_compacted_la_distance	zmap.c	/^static int get_compacted_la_distance(unsigned int lobits,$/;"	f	file:
+gfp	compress.h	/^	gfp_t gfp;      \/* allocation flags for extra temporary buffers *\/$/;"	m	struct:z_erofs_decompress_req
+h_advise	erofs_fs.h	/^	__le16	h_advise;$/;"	m	struct:z_erofs_map_header
+h_algorithmtype	erofs_fs.h	/^	__u8	h_algorithmtype;$/;"	m	struct:z_erofs_map_header
+h_clusterbits	erofs_fs.h	/^	__u8	h_clusterbits;$/;"	m	struct:z_erofs_map_header
+h_fragmentoff	erofs_fs.h	/^		__le32  h_fragmentoff;$/;"	m	union:z_erofs_map_header::__anon7
+h_idata_size	erofs_fs.h	/^			__le16  h_idata_size;$/;"	m	struct:z_erofs_map_header::__anon7::__anon8
+h_name_filter	erofs_fs.h	/^	__le32 h_name_filter;		\/* bit value 1 indicates not-present *\/$/;"	m	struct:erofs_xattr_ibody_header
+h_reserved1	erofs_fs.h	/^			__le16  h_reserved1;$/;"	m	struct:z_erofs_map_header::__anon7::__anon8
+h_reserved2	erofs_fs.h	/^	__u8   h_reserved2[7];$/;"	m	struct:erofs_xattr_ibody_header
+h_shared_count	erofs_fs.h	/^	__u8   h_shared_count;$/;"	m	struct:erofs_xattr_ibody_header
+h_shared_xattrs	erofs_fs.h	/^	__le32 h_shared_xattrs[];       \/* shared xattr id array *\/$/;"	m	struct:erofs_xattr_ibody_header
+head	zdata.c	/^	z_erofs_next_pcluster_t head;$/;"	m	struct:z_erofs_decompressqueue	file:
+headoffset	zdata.c	/^	erofs_off_t headoffset;$/;"	m	struct:z_erofs_decompress_frontend	file:
+headtype	zmap.c	/^	u8  type, headtype;$/;"	m	struct:z_erofs_maprecorder	file:
+i_format	erofs_fs.h	/^	__le16 i_format;	\/* inode format hints *\/$/;"	m	struct:erofs_inode_compact
+i_format	erofs_fs.h	/^	__le16 i_format;	\/* inode format hints *\/$/;"	m	struct:erofs_inode_extended
+i_gid	erofs_fs.h	/^	__le16 i_gid;$/;"	m	struct:erofs_inode_compact
+i_gid	erofs_fs.h	/^	__le32 i_gid;$/;"	m	struct:erofs_inode_extended
+i_ino	erofs_fs.h	/^	__le32 i_ino;		\/* only used for 32-bit stat compatibility *\/$/;"	m	struct:erofs_inode_compact
+i_ino	erofs_fs.h	/^	__le32 i_ino;		\/* only used for 32-bit stat compatibility *\/$/;"	m	struct:erofs_inode_extended
+i_mode	erofs_fs.h	/^	__le16 i_mode;$/;"	m	struct:erofs_inode_compact
+i_mode	erofs_fs.h	/^	__le16 i_mode;$/;"	m	struct:erofs_inode_extended
+i_mtime	erofs_fs.h	/^	__le64 i_mtime;$/;"	m	struct:erofs_inode_extended
+i_mtime_nsec	erofs_fs.h	/^	__le32 i_mtime_nsec;$/;"	m	struct:erofs_inode_extended
+i_nlink	erofs_fs.h	/^	__le16 i_nlink;$/;"	m	struct:erofs_inode_compact
+i_nlink	erofs_fs.h	/^	__le32 i_nlink;$/;"	m	struct:erofs_inode_extended
+i_reserved	erofs_fs.h	/^	__le16 i_reserved;$/;"	m	struct:erofs_inode_extended
+i_reserved	erofs_fs.h	/^	__le32 i_reserved;$/;"	m	struct:erofs_inode_compact
+i_reserved2	erofs_fs.h	/^	__le32 i_reserved2;$/;"	m	struct:erofs_inode_compact
+i_reserved2	erofs_fs.h	/^	__u8   i_reserved2[16];$/;"	m	struct:erofs_inode_extended
+i_size	erofs_fs.h	/^	__le32 i_size;$/;"	m	struct:erofs_inode_compact
+i_size	erofs_fs.h	/^	__le64 i_size;$/;"	m	struct:erofs_inode_extended
+i_u	erofs_fs.h	/^	union erofs_inode_i_u i_u;$/;"	m	struct:erofs_inode_compact	typeref:union:erofs_inode_compact::erofs_inode_i_u
+i_u	erofs_fs.h	/^	union erofs_inode_i_u i_u;$/;"	m	struct:erofs_inode_extended	typeref:union:erofs_inode_extended::erofs_inode_i_u
+i_uid	erofs_fs.h	/^	__le16 i_uid;$/;"	m	struct:erofs_inode_compact
+i_uid	erofs_fs.h	/^	__le32 i_uid;$/;"	m	struct:erofs_inode_extended
+i_xattr_icount	erofs_fs.h	/^	__le16 i_xattr_icount;$/;"	m	struct:erofs_inode_compact
+i_xattr_icount	erofs_fs.h	/^	__le16 i_xattr_icount;$/;"	m	struct:erofs_inode_extended
+icur	zdata.c	/^	unsigned int icur;$/;"	m	struct:z_erofs_decompress_frontend	file:
+in	compress.h	/^	struct page **in, **out;$/;"	m	struct:z_erofs_decompress_req	typeref:struct:z_erofs_decompress_req::page
+inbuf_pos	compress.h	/^	unsigned int inbuf_pos, inbuf_sz;$/;"	m	struct:z_erofs_stream_dctx
+inbuf_sz	compress.h	/^	unsigned int inbuf_pos, inbuf_sz;$/;"	m	struct:z_erofs_stream_dctx
+index	internal.h	/^	pgoff_t index;$/;"	m	struct:erofs_workgroup
+index	xattr.c	/^	int index, infix_len;$/;"	m	struct:erofs_xattr_iter	file:
+infix	erofs_fs.h	/^	char   infix[];		\/* infix apart from short prefix *\/$/;"	m	struct:erofs_xattr_long_prefix
+infix_len	internal.h	/^	u8 infix_len;$/;"	m	struct:erofs_xattr_prefix_item
+infix_len	xattr.c	/^	int index, infix_len;$/;"	m	struct:erofs_xattr_iter	file:
+init	compress.h	/^	int (*init)(void);$/;"	m	struct:z_erofs_decompressor
+inode	internal.h	/^	struct inode *inode;	\/* anonymous inode for the blob *\/$/;"	m	struct:erofs_fscache	typeref:struct:erofs_fscache::inode
+inode	zdata.c	/^	struct inode *const inode;$/;"	m	struct:z_erofs_decompress_frontend	file:
+inode	zmap.c	/^	struct inode *inode;$/;"	m	struct:z_erofs_maprecorder	typeref:struct:z_erofs_maprecorder::inode	file:
+inode_isize	internal.h	/^	unsigned char inode_isize;$/;"	m	struct:erofs_inode
+inos	erofs_fs.h	/^	__le64 inos;            \/* total valid ino # (== f_files - f_favail) *\/$/;"	m	struct:erofs_super_block
+inos	internal.h	/^	u64 inos;$/;"	m	struct:erofs_sb_info
+inpages	compress.h	/^	unsigned int inpages, outpages;	\/* # of {en,de}coded pages *\/$/;"	m	struct:z_erofs_stream_dctx
+inpages	decompressor.c	/^	unsigned int inpages, outpages;$/;"	m	struct:z_erofs_lz4_decompress_ctx	file:
+inplace_io	compress.h	/^	bool inplace_io, partial_decoding, fillgaps;$/;"	m	struct:z_erofs_decompress_req
+inputsize	compress.h	/^	unsigned int inputsize, outputsize;$/;"	m	struct:z_erofs_decompress_req
+io	fscache.c	/^	struct erofs_fscache_io io;$/;"	m	struct:erofs_fscache_bio	typeref:struct:erofs_fscache_bio::erofs_fscache_io	file:
+iocb	fileio.c	/^	struct kiocb iocb;$/;"	m	struct:erofs_fileio_rq	typeref:struct:erofs_fileio_rq::kiocb	file:
+islotbits	internal.h	/^	unsigned char islotbits;	\/* inode slot unit size in bit shift *\/$/;"	m	struct:erofs_sb_info
+iter	fscache.c	/^	struct iov_iter		iter;$/;"	m	struct:erofs_fscache_io	typeref:struct:erofs_fscache_io::iov_iter	file:
+jobqueue_init	zdata.c	/^static struct z_erofs_decompressqueue *jobqueue_init(struct super_block *sb,$/;"	f	file:
+kaddr	xattr.c	/^	void *kaddr;$/;"	m	struct:erofs_xattr_iter	file:
+kin	compress.h	/^	u8 *kin, *kout;			\/* buffer mapped pointers *\/$/;"	m	struct:z_erofs_stream_dctx
+kmap_type	internal.h	/^	enum erofs_kmap_type kmap_type;$/;"	m	struct:erofs_buf	typeref:enum:erofs_buf::erofs_kmap_type
+kout	compress.h	/^	u8 *kin, *kout;			\/* buffer mapped pointers *\/$/;"	m	struct:z_erofs_stream_dctx
+kthread_work	zdata.c	/^		struct kthread_work kthread_work;$/;"	m	union:z_erofs_decompressqueue::__anon2	typeref:struct:z_erofs_decompressqueue::__anon2::kthread_work	file:
+lcn	zmap.c	/^	unsigned long lcn;$/;"	m	struct:z_erofs_maprecorder	file:
+len	fscache.c	/^	size_t			len;		\/* Length of the request *\/$/;"	m	struct:erofs_fscache_rq	file:
+length	zdata.c	/^	unsigned int length;$/;"	m	struct:z_erofs_pcluster	file:
+list	internal.h	/^	struct list_head list;$/;"	m	struct:erofs_domain	typeref:struct:erofs_domain::list_head
+list	internal.h	/^	struct list_head list;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::list_head
+list	zdata.c	/^	struct list_head list;$/;"	m	struct:z_erofs_bvec_item	typeref:struct:z_erofs_bvec_item::list_head	file:
+lock	zdata.c	/^	struct mutex lock;$/;"	m	struct:z_erofs_pcluster	typeref:struct:z_erofs_pcluster::mutex	file:
+lock	zutil.c	/^	spinlock_t lock;$/;"	m	struct:z_erofs_gbuf	file:
+lockref	internal.h	/^	struct lockref lockref;$/;"	m	struct:erofs_workgroup	typeref:struct:erofs_workgroup::lockref
+lz4	internal.h	/^	struct erofs_sb_lz4_info lz4;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::erofs_sb_lz4_info
+lz4_max_distance	erofs_fs.h	/^		__le16 lz4_max_distance;$/;"	m	union:erofs_super_block::__anon4
+m_algorithmformat	internal.h	/^	char m_algorithmformat;$/;"	m	struct:erofs_map_blocks
+m_bdev	internal.h	/^	struct block_device *m_bdev;$/;"	m	struct:erofs_map_dev	typeref:struct:erofs_map_dev::block_device
+m_dax_part_off	internal.h	/^	u64 m_dax_part_off;$/;"	m	struct:erofs_map_dev
+m_daxdev	internal.h	/^	struct dax_device *m_daxdev;$/;"	m	struct:erofs_map_dev	typeref:struct:erofs_map_dev::dax_device
+m_deviceid	internal.h	/^	unsigned int m_deviceid;$/;"	m	struct:erofs_map_dev
+m_deviceid	internal.h	/^	unsigned short m_deviceid;$/;"	m	struct:erofs_map_blocks
+m_flags	internal.h	/^	unsigned int m_flags;$/;"	m	struct:erofs_map_blocks
+m_fp	internal.h	/^	struct file *m_fp;$/;"	m	struct:erofs_map_dev	typeref:struct:erofs_map_dev::file
+m_fscache	internal.h	/^	struct erofs_fscache *m_fscache;$/;"	m	struct:erofs_map_dev	typeref:struct:erofs_map_dev::erofs_fscache
+m_la	internal.h	/^	erofs_off_t m_pa, m_la;$/;"	m	struct:erofs_map_blocks
+m_llen	internal.h	/^	u64 m_plen, m_llen;$/;"	m	struct:erofs_map_blocks
+m_pa	internal.h	/^	erofs_off_t m_pa, m_la;$/;"	m	struct:erofs_map_blocks
+m_pa	internal.h	/^	erofs_off_t m_pa;$/;"	m	struct:erofs_map_dev
+m_plen	internal.h	/^	u64 m_plen, m_llen;$/;"	m	struct:erofs_map_blocks
+magic	erofs_fs.h	/^	__le32 magic;           \/* file system magic number *\/$/;"	m	struct:erofs_super_block
+managed_cache	internal.h	/^	struct inode *managed_cache;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::inode
+managed_pslots	internal.h	/^	struct xarray managed_pslots;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::xarray
+map	fileio.c	/^	struct erofs_map_blocks map;$/;"	m	struct:erofs_fileio	typeref:struct:erofs_fileio::erofs_map_blocks	file:
+map	zdata.c	/^	struct erofs_map_blocks map;$/;"	m	struct:z_erofs_decompress_frontend	typeref:struct:z_erofs_decompress_frontend::erofs_map_blocks	file:
+map	zmap.c	/^	struct erofs_map_blocks *map;$/;"	m	struct:z_erofs_maprecorder	typeref:struct:z_erofs_maprecorder::erofs_map_blocks	file:
+mapped_blkaddr	erofs_fs.h	/^	__le32 mapped_blkaddr;	\/* map starting at mapped_blkaddr *\/$/;"	m	struct:erofs_deviceslot
+mapped_blkaddr	internal.h	/^	u32 mapped_blkaddr;$/;"	m	struct:erofs_device_info
+mapping	fscache.c	/^	struct address_space	*mapping;	\/* The mapping being accessed *\/$/;"	m	struct:erofs_fscache_rq	typeref:struct:erofs_fscache_rq::address_space	file:
+mapping	internal.h	/^	struct address_space *mapping;$/;"	m	struct:erofs_buf	typeref:struct:erofs_buf::address_space
+max_distance	erofs_fs.h	/^	__le16 max_distance;$/;"	m	struct:z_erofs_lz4_cfgs
+max_distance_pages	internal.h	/^	u16 max_distance_pages;$/;"	m	struct:erofs_sb_lz4_info
+max_pclusterblks	erofs_fs.h	/^	__le16 max_pclusterblks;$/;"	m	struct:z_erofs_lz4_cfgs
+max_pclusterblks	internal.h	/^	u16 max_pclusterblks;$/;"	m	struct:erofs_sb_lz4_info
+max_sync_decompress_pages	internal.h	/^	unsigned int max_sync_decompress_pages;$/;"	m	struct:erofs_mount_opts
+maxpages	zdata.c	/^	unsigned int maxpages;$/;"	m	struct:z_erofs_pcluster_slab	file:
+meta_blkaddr	erofs_fs.h	/^	__le32 meta_blkaddr;	\/* start block address of metadata area *\/$/;"	m	struct:erofs_super_block
+meta_blkaddr	internal.h	/^	u32 meta_blkaddr;$/;"	m	struct:erofs_sb_info
+mode	zdata.c	/^	enum z_erofs_pclustermode mode;$/;"	m	struct:z_erofs_decompress_frontend	typeref:enum:z_erofs_decompress_frontend::z_erofs_pclustermode	file:
+mount_opt	internal.h	/^	unsigned int mount_opt;$/;"	m	struct:erofs_mount_opts
+move_to_bypass_jobqueue	zdata.c	/^static void move_to_bypass_jobqueue(struct z_erofs_pcluster *pcl,$/;"	f	file:
+multibases	zdata.c	/^	bool multibases;$/;"	m	struct:z_erofs_pcluster	file:
+name	compress.h	/^	char *name;$/;"	m	struct:z_erofs_decompressor
+name	internal.h	/^	char *name;$/;"	m	struct:erofs_fscache
+name	namei.c	/^	const unsigned char *name;$/;"	m	struct:erofs_qstr	file:
+name	xattr.c	/^	struct qstr name;$/;"	m	struct:erofs_xattr_iter	typeref:struct:erofs_xattr_iter::qstr	file:
+name	zdata.c	/^	char name[48];$/;"	m	struct:z_erofs_pcluster_slab	file:
+nameoff	erofs_fs.h	/^	__le16 nameoff; \/* start offset of file name *\/$/;"	m	struct:erofs_dirent
+nameoff_from_disk	namei.c	43;"	d	file:
+next	decompressor_deflate.c	/^	struct z_erofs_deflate *next;$/;"	m	struct:z_erofs_deflate	typeref:struct:z_erofs_deflate::z_erofs_deflate	file:
+next	decompressor_lzma.c	/^	struct z_erofs_lzma *next;$/;"	m	struct:z_erofs_lzma	typeref:struct:z_erofs_lzma::z_erofs_lzma	file:
+next	decompressor_zstd.c	/^	struct z_erofs_zstd *next;$/;"	m	struct:z_erofs_zstd	typeref:struct:z_erofs_zstd::z_erofs_zstd	file:
+next	zdata.c	/^	z_erofs_next_pcluster_t next;$/;"	m	struct:z_erofs_pcluster	file:
+nextpackoff	zmap.c	/^	erofs_off_t nextpackoff;$/;"	m	struct:z_erofs_maprecorder	file:
+ni	compress.h	/^	int no, ni;			\/* the current {en,de}coded page # *\/$/;"	m	struct:z_erofs_stream_dctx
+nid	erofs_fs.h	/^	__le64 nid;     \/* node number *\/$/;"	m	struct:erofs_dirent
+nid	internal.h	/^	erofs_nid_t nid;$/;"	m	struct:erofs_inode
+no	compress.h	/^	int no, ni;			\/* the current {en,de}coded page # *\/$/;"	m	struct:z_erofs_stream_dctx
+node	internal.h	/^	struct list_head node;$/;"	m	struct:erofs_fscache	typeref:struct:erofs_fscache::list_head
+nr	zdata.c	/^	unsigned int nr, cur;$/;"	m	struct:z_erofs_bvec_iter	file:
+nr_pages	zdata.c	/^	unsigned int onstack_used, nr_pages;$/;"	m	struct:z_erofs_decompress_backend	file:
+nrpages	zutil.c	/^	unsigned int nrpages;$/;"	m	struct:z_erofs_gbuf	file:
+obj	zdata.c	/^	struct erofs_workgroup obj;$/;"	m	struct:z_erofs_pcluster	typeref:struct:z_erofs_pcluster::erofs_workgroup	file:
+oend	decompressor.c	/^	unsigned int oend;$/;"	m	struct:z_erofs_lz4_decompress_ctx	file:
+offset	sysfs.c	/^	int struct_type, offset;$/;"	m	struct:erofs_attr	file:
+offset	zdata.c	/^	int offset;$/;"	m	struct:z_erofs_bvec	file:
+onstack_pages	zdata.c	/^	struct page *onstack_pages[Z_EROFS_ONSTACK_PAGES];$/;"	m	struct:z_erofs_decompress_backend	typeref:struct:z_erofs_decompress_backend::page	file:
+onstack_used	zdata.c	/^	unsigned int onstack_used, nr_pages;$/;"	m	struct:z_erofs_decompress_backend	file:
+opt	internal.h	/^	struct erofs_mount_opts opt;	\/* options *\/$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::erofs_mount_opts
+out	compress.h	/^	struct page **in, **out;$/;"	m	struct:z_erofs_decompress_req	typeref:struct:z_erofs_decompress_req::
+outpages	compress.h	/^	unsigned int inpages, outpages;	\/* # of {en,de}coded pages *\/$/;"	m	struct:z_erofs_stream_dctx
+outpages	decompressor.c	/^	unsigned int inpages, outpages;$/;"	m	struct:z_erofs_lz4_decompress_ctx	file:
+outputsize	compress.h	/^	unsigned int inputsize, outputsize;$/;"	m	struct:z_erofs_decompress_req
+owned_head	zdata.c	/^	z_erofs_next_pcluster_t owned_head;$/;"	m	struct:z_erofs_decompress_frontend	file:
+packed_inode	internal.h	/^	struct inode *packed_inode;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::inode
+packed_nid	erofs_fs.h	/^	__le64 packed_nid;	\/* nid of the special packed inode *\/$/;"	m	struct:erofs_super_block
+packed_nid	internal.h	/^	erofs_nid_t packed_nid;$/;"	m	struct:erofs_sb_info
+page	internal.h	/^	struct page *page;$/;"	m	struct:erofs_buf	typeref:struct:erofs_buf::page
+page	zdata.c	/^	struct page *page;$/;"	m	struct:z_erofs_bvec	typeref:struct:z_erofs_bvec::page	file:
+pageofs_in	compress.h	/^	unsigned short pageofs_in, pageofs_out;$/;"	m	struct:z_erofs_decompress_req
+pageofs_in	zdata.c	/^	unsigned short pageofs_in;$/;"	m	struct:z_erofs_pcluster	file:
+pageofs_out	compress.h	/^	unsigned short pageofs_in, pageofs_out;$/;"	m	struct:z_erofs_decompress_req
+pageofs_out	zdata.c	/^	unsigned short pageofs_out;$/;"	m	struct:z_erofs_pcluster	file:
+pagepool	zdata.c	/^	struct page **pagepool;$/;"	m	struct:z_erofs_decompress_backend	typeref:struct:z_erofs_decompress_backend::page	file:
+pagepool	zdata.c	/^	struct page *pagepool;$/;"	m	struct:z_erofs_decompress_frontend	typeref:struct:z_erofs_decompress_frontend::page	file:
+pages	zutil.c	/^	struct page **pages;$/;"	m	struct:z_erofs_gbuf	typeref:struct:z_erofs_gbuf::page	file:
+partial	zdata.c	/^	bool partial;$/;"	m	struct:z_erofs_pcluster	file:
+partial_decoding	compress.h	/^	bool inplace_io, partial_decoding, fillgaps;$/;"	m	struct:z_erofs_decompress_req
+partialref	zmap.c	/^	bool partialref;$/;"	m	struct:z_erofs_maprecorder	file:
+path	internal.h	/^	char *path;$/;"	m	struct:erofs_device_info
+pblk	zmap.c	/^	erofs_blk_t pblk, compressedblks;$/;"	m	struct:z_erofs_maprecorder	file:
+pcl	zdata.c	/^	struct z_erofs_pcluster *pcl;$/;"	m	struct:z_erofs_decompress_backend	typeref:struct:z_erofs_decompress_backend::z_erofs_pcluster	file:
+pcl	zdata.c	/^	struct z_erofs_pcluster *pcl;$/;"	m	struct:z_erofs_decompress_frontend	typeref:struct:z_erofs_decompress_frontend::z_erofs_pcluster	file:
+pclustersize	zdata.c	/^	unsigned int pclustersize;$/;"	m	struct:z_erofs_pcluster	file:
+pending_bios	zdata.c	/^	atomic_t pending_bios;$/;"	m	struct:z_erofs_decompressqueue	file:
+pos	xattr.c	/^	erofs_off_t pos;$/;"	m	struct:erofs_xattr_iter	file:
+pr_fmt	internal.h	24;"	d
+pr_fmt	internal.h	25;"	d
+prefix	internal.h	/^	struct erofs_xattr_long_prefix *prefix;$/;"	m	struct:erofs_xattr_prefix_item	typeref:struct:erofs_xattr_prefix_item::erofs_xattr_long_prefix
+primarydevice_blocks	internal.h	/^	u32 primarydevice_blocks;$/;"	m	struct:erofs_sb_info
+private	fscache.c	/^	void			*private;$/;"	m	struct:erofs_fscache_io	file:
+ptr	zutil.c	/^	void *ptr;$/;"	m	struct:z_erofs_gbuf	file:
+raw_blkaddr	erofs_fs.h	/^	__le32 raw_blkaddr;$/;"	m	union:erofs_inode_i_u
+raw_blkaddr	internal.h	/^		erofs_blk_t raw_blkaddr;$/;"	m	union:erofs_inode::__anon13
+rcu	zdata.c	/^		struct rcu_head rcu;$/;"	m	union:z_erofs_pcluster::__anon1	typeref:struct:z_erofs_pcluster::__anon1::rcu_head	file:
+rdev	erofs_fs.h	/^	__le32 rdev;$/;"	m	union:erofs_inode_i_u
+ref	fscache.c	/^	refcount_t		ref;$/;"	m	struct:erofs_fscache_io	file:
+ref	fscache.c	/^	refcount_t		ref;$/;"	m	struct:erofs_fscache_rq	file:
+ref	internal.h	/^	refcount_t ref;$/;"	m	struct:erofs_domain
+ref	internal.h	/^	refcount_t ref;$/;"	m	struct:erofs_fscache
+reserved	erofs_fs.h	/^	__le16 reserved;$/;"	m	struct:erofs_inode_chunk_info
+reserved	erofs_fs.h	/^	__u8 reserved;  \/* reserved *\/$/;"	m	struct:erofs_dirent
+reserved	erofs_fs.h	/^	u8 reserved[10];$/;"	m	struct:z_erofs_lz4_cfgs
+reserved	erofs_fs.h	/^	u8 reserved[4];$/;"	m	struct:z_erofs_zstd_cfgs
+reserved	erofs_fs.h	/^	u8 reserved[56];$/;"	m	struct:erofs_deviceslot
+reserved	erofs_fs.h	/^	u8 reserved[5];$/;"	m	struct:z_erofs_deflate_cfgs
+reserved	erofs_fs.h	/^	u8 reserved[8];$/;"	m	struct:z_erofs_lzma_cfgs
+reserved2	erofs_fs.h	/^	__u8 reserved2[23];$/;"	m	struct:erofs_super_block
+root_nid	erofs_fs.h	/^	__le16 root_nid;	\/* nid of root directory *\/$/;"	m	struct:erofs_super_block
+root_nid	internal.h	/^	erofs_nid_t root_nid;$/;"	m	struct:erofs_sb_info
+rq	compress.h	/^	struct z_erofs_decompress_req *rq;$/;"	m	struct:z_erofs_stream_dctx	typeref:struct:z_erofs_stream_dctx::z_erofs_decompress_req
+rq	decompressor.c	/^	struct z_erofs_decompress_req *rq;$/;"	m	struct:z_erofs_lz4_decompress_ctx	typeref:struct:z_erofs_lz4_decompress_ctx::z_erofs_decompress_req	file:
+rq	fileio.c	/^	struct erofs_fileio_rq *rq;$/;"	m	struct:erofs_fileio	typeref:struct:erofs_fileio::erofs_fileio_rq	file:
+rwsem	internal.h	/^	struct rw_semaphore rwsem;$/;"	m	struct:erofs_dev_context	typeref:struct:erofs_dev_context::rw_semaphore
+s_fscache	internal.h	/^	struct erofs_fscache *s_fscache;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::erofs_fscache
+s_kobj	internal.h	/^	struct kobject s_kobj;		\/* \/sys\/fs\/erofs\/<devname> *\/$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::kobject
+s_kobj_unregister	internal.h	/^	struct completion s_kobj_unregister;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::completion
+sb	compress.h	/^	struct super_block *sb;$/;"	m	struct:z_erofs_decompress_req	typeref:struct:z_erofs_decompress_req::super_block
+sb	xattr.c	/^	struct super_block *sb;$/;"	m	struct:erofs_xattr_iter	typeref:struct:erofs_xattr_iter::super_block	file:
+sb	zdata.c	/^	struct super_block *sb;$/;"	m	struct:z_erofs_decompress_backend	typeref:struct:z_erofs_decompress_backend::super_block	file:
+sb	zdata.c	/^	struct super_block *sb;$/;"	m	struct:z_erofs_decompressqueue	typeref:struct:z_erofs_decompressqueue::super_block	file:
+sb_chksum	sysfs.c	/^EROFS_ATTR_FEATURE(sb_chksum);$/;"	v
+sb_extslots	erofs_fs.h	/^	__u8 sb_extslots;	\/* superblock size = 128 + sb_extslots * 16 *\/$/;"	m	struct:erofs_super_block
+sb_size	internal.h	/^	u32 sb_size;			\/* total superblock size *\/$/;"	m	struct:erofs_sb_info
+set_opt	internal.h	191;"	d
+shrinker_run_no	internal.h	/^	unsigned int shrinker_run_no;$/;"	m	struct:erofs_sb_info
+shrinker_run_no	zutil.c	/^static unsigned int shrinker_run_no;$/;"	v	file:
+slab	zdata.c	/^	struct kmem_cache *slab;$/;"	m	struct:z_erofs_pcluster_slab	typeref:struct:z_erofs_pcluster_slab::kmem_cache	file:
+start	fscache.c	/^	loff_t			start;		\/* Start position *\/$/;"	m	struct:erofs_fscache_rq	file:
+state	decompressor_lzma.c	/^	struct xz_dec_microlzma *state;$/;"	m	struct:z_erofs_lzma	typeref:struct:z_erofs_lzma::xz_dec_microlzma	file:
+struct_erofs_mount_opts	sysfs.c	/^	struct_erofs_mount_opts,$/;"	e	enum:__anon20	file:
+struct_erofs_sb_info	sysfs.c	/^	struct_erofs_sb_info,$/;"	e	enum:__anon20	file:
+struct_type	sysfs.c	/^	int struct_type, offset;$/;"	m	struct:erofs_attr	file:
+submitted	fscache.c	/^	size_t			submitted;	\/* Length of submitted *\/$/;"	m	struct:erofs_fscache_rq	file:
+sync	zdata.c	/^	bool eio, sync;$/;"	m	struct:z_erofs_decompressqueue	file:
+sync_decompress	internal.h	/^	unsigned int sync_decompress;$/;"	m	struct:erofs_mount_opts
+tag	erofs_fs.h	/^	u8 tag[64];		\/* digest(sha256), etc. *\/$/;"	m	struct:erofs_deviceslot
+test_opt	internal.h	192;"	d
+total_blocks	internal.h	/^	u64 total_blocks;$/;"	m	struct:erofs_sb_info
+tree	internal.h	/^	struct idr tree;$/;"	m	struct:erofs_dev_context	typeref:struct:erofs_dev_context::idr
+type	zmap.c	/^	u8  type, headtype;$/;"	m	struct:z_erofs_maprecorder	file:
+u	zdata.c	/^	} u;$/;"	m	struct:z_erofs_decompressqueue	typeref:union:z_erofs_decompressqueue::__anon2	file:
+u1	erofs_fs.h	/^	} __packed u1;$/;"	m	struct:erofs_super_block	typeref:union:erofs_super_block::__anon4
+umount_mutex	internal.h	/^	struct mutex umount_mutex;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::mutex
+unpack_compacted_index	zmap.c	/^static int unpack_compacted_index(struct z_erofs_maprecorder *m,$/;"	f	file:
+uuid	erofs_fs.h	/^	__u8 uuid[16];          \/* 128-bit uuid for volume *\/$/;"	m	struct:erofs_super_block
+uuid	internal.h	/^	u8 uuid[16];                    \/* 128-bit uuid for volume *\/$/;"	m	struct:erofs_sb_info
+vcnt	zdata.c	/^	unsigned int vcnt;$/;"	m	struct:z_erofs_pcluster	file:
+vfs_inode	internal.h	/^	struct inode vfs_inode;$/;"	m	struct:erofs_inode	typeref:struct:erofs_inode::inode
+volume	internal.h	/^	struct fscache_volume *volume;$/;"	m	struct:erofs_domain	typeref:struct:erofs_domain::fscache_volume
+volume	internal.h	/^	struct fscache_volume *volume;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::fscache_volume
+volume_name	erofs_fs.h	/^	__u8 volume_name[16];   \/* volume name *\/$/;"	m	struct:erofs_super_block
+volume_name	internal.h	/^	u8 volume_name[16];             \/* volume name *\/$/;"	m	struct:erofs_sb_info
+windowbits	erofs_fs.h	/^	u8 windowbits;			\/* 8..15 for DEFLATE *\/$/;"	m	struct:z_erofs_deflate_cfgs
+windowlog	erofs_fs.h	/^	u8 windowlog;           \/* windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN(10) *\/$/;"	m	struct:z_erofs_zstd_cfgs
+wksp	decompressor_zstd.c	/^	void *wksp;$/;"	m	struct:z_erofs_zstd	file:
+wkspsz	decompressor_zstd.c	/^	unsigned int wkspsz;$/;"	m	struct:z_erofs_zstd	file:
+work	zdata.c	/^		struct work_struct work;$/;"	m	union:z_erofs_decompressqueue::__anon2	typeref:struct:z_erofs_decompressqueue::__anon2::work_struct	file:
+xattr_blkaddr	erofs_fs.h	/^	__le32 xattr_blkaddr;	\/* start block address of shared xattr area *\/$/;"	m	struct:erofs_super_block
+xattr_blkaddr	internal.h	/^	u32 xattr_blkaddr;$/;"	m	struct:erofs_sb_info
+xattr_filter_reserved	erofs_fs.h	/^	__u8 xattr_filter_reserved; \/* reserved for xattr name filter *\/$/;"	m	struct:erofs_super_block
+xattr_filter_reserved	internal.h	/^	unsigned int xattr_filter_reserved;$/;"	m	struct:erofs_sb_info
+xattr_isize	internal.h	/^	unsigned int xattr_isize;$/;"	m	struct:erofs_inode
+xattr_name_filter	internal.h	/^	unsigned int xattr_name_filter;$/;"	m	struct:erofs_inode
+xattr_prefix_count	erofs_fs.h	/^	__u8 xattr_prefix_count;	\/* # of long xattr name prefixes *\/$/;"	m	struct:erofs_super_block
+xattr_prefix_count	internal.h	/^	u8 xattr_prefix_count;$/;"	m	struct:erofs_sb_info
+xattr_prefix_start	erofs_fs.h	/^	__le32 xattr_prefix_start;	\/* start of long xattr prefixes *\/$/;"	m	struct:erofs_super_block
+xattr_prefix_start	internal.h	/^	u32 xattr_prefix_start;$/;"	m	struct:erofs_sb_info
+xattr_prefixes	internal.h	/^	struct erofs_xattr_prefix_item *xattr_prefixes;$/;"	m	struct:erofs_sb_info	typeref:struct:erofs_sb_info::erofs_xattr_prefix_item
+xattr_shared_count	internal.h	/^	unsigned int xattr_shared_count;$/;"	m	struct:erofs_inode
+xattr_shared_xattrs	internal.h	/^	unsigned int *xattr_shared_xattrs;$/;"	m	struct:erofs_inode
+z	decompressor_deflate.c	/^	struct z_stream_s z;$/;"	m	struct:z_erofs_deflate	typeref:struct:z_erofs_deflate::z_stream_s	file:
+z_advise	internal.h	/^			unsigned short z_advise;$/;"	m	struct:erofs_inode::__anon13::__anon15
+z_algorithmtype	internal.h	/^			unsigned char  z_algorithmtype[2];$/;"	m	struct:erofs_inode::__anon13::__anon15
+z_erofs_alloc_pcluster	zdata.c	/^static struct z_erofs_pcluster *z_erofs_alloc_pcluster(unsigned int size)$/;"	f	file:
+z_erofs_aops	zdata.c	/^const struct address_space_operations z_erofs_aops = {$/;"	v	typeref:struct:address_space_operations
+z_erofs_attach_page	zdata.c	/^static int z_erofs_attach_page(struct z_erofs_decompress_frontend *fe,$/;"	f	file:
+z_erofs_bind_cache	zdata.c	/^static void z_erofs_bind_cache(struct z_erofs_decompress_frontend *fe)$/;"	f	file:
+z_erofs_bvec	zdata.c	/^struct z_erofs_bvec {$/;"	s	file:
+z_erofs_bvec_dequeue	zdata.c	/^static void z_erofs_bvec_dequeue(struct z_erofs_bvec_iter *iter,$/;"	f	file:
+z_erofs_bvec_enqueue	zdata.c	/^static int z_erofs_bvec_enqueue(struct z_erofs_bvec_iter *iter,$/;"	f	file:
+z_erofs_bvec_item	zdata.c	/^struct z_erofs_bvec_item {$/;"	s	file:
+z_erofs_bvec_iter	zdata.c	/^struct z_erofs_bvec_iter {$/;"	s	file:
+z_erofs_bvec_iter_begin	zdata.c	/^static void z_erofs_bvec_iter_begin(struct z_erofs_bvec_iter *iter,$/;"	f	file:
+z_erofs_bvec_iter_end	zdata.c	/^static struct page *z_erofs_bvec_iter_end(struct z_erofs_bvec_iter *iter)$/;"	f	file:
+z_erofs_bvset_flip	zdata.c	/^static struct page *z_erofs_bvset_flip(struct z_erofs_bvec_iter *iter)$/;"	f	file:
+z_erofs_cache_aops	zdata.c	/^static const struct address_space_operations z_erofs_cache_aops = {$/;"	v	typeref:struct:address_space_operations	file:
+z_erofs_cache_invalidate_folio	zdata.c	/^static void z_erofs_cache_invalidate_folio(struct folio *folio,$/;"	f	file:
+z_erofs_cache_release_folio	zdata.c	/^static bool z_erofs_cache_release_folio(struct folio *folio, gfp_t gfp)$/;"	f	file:
+z_erofs_create_pcluster_pool	zdata.c	/^static int z_erofs_create_pcluster_pool(void)$/;"	f	file:
+z_erofs_crypto_decompress	decompressor_cryptor.c	/^int z_erofs_crypto_decompress(struct z_erofs_decompress_req *rq,$/;"	f
+z_erofs_crypto_decompress_mem	decompressor_cryptor.c	/^static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *out)$/;"	f	file:
+z_erofs_crypto_handle_inplace_io	decompressor_cryptor.c	/^static void *z_erofs_crypto_handle_inplace_io(struct z_erofs_decompress_req *rq,$/;"	f	file:
+z_erofs_crypto_prepare_dstpages	decompressor_cryptor.c	/^static int z_erofs_crypto_prepare_dstpages(struct z_erofs_decompress_req *rq,$/;"	f	file:
+z_erofs_decomp	decompressor.c	/^const struct z_erofs_decompressor *z_erofs_decomp[] = {$/;"	v	typeref:struct:z_erofs_decompressor
+z_erofs_decompress_backend	zdata.c	/^struct z_erofs_decompress_backend {$/;"	s	file:
+z_erofs_decompress_frontend	zdata.c	/^struct z_erofs_decompress_frontend {$/;"	s	file:
+z_erofs_decompress_kickoff	zdata.c	/^static void z_erofs_decompress_kickoff(struct z_erofs_decompressqueue *io,$/;"	f	file:
+z_erofs_decompress_pcluster	zdata.c	/^static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,$/;"	f	file:
+z_erofs_decompress_queue	zdata.c	/^static int z_erofs_decompress_queue(const struct z_erofs_decompressqueue *io,$/;"	f	file:
+z_erofs_decompress_req	compress.h	/^struct z_erofs_decompress_req {$/;"	s
+z_erofs_decompressor	compress.h	/^struct z_erofs_decompressor {$/;"	s
+z_erofs_decompressqueue	zdata.c	/^struct z_erofs_decompressqueue {$/;"	s	file:
+z_erofs_decompressqueue_kthread_work	zdata.c	/^static void z_erofs_decompressqueue_kthread_work(struct kthread_work *work)$/;"	f	file:
+z_erofs_decompressqueue_work	zdata.c	/^static void z_erofs_decompressqueue_work(struct work_struct *work)$/;"	f	file:
+z_erofs_deflate	decompressor_deflate.c	/^struct z_erofs_deflate {$/;"	s	file:
+z_erofs_deflate_avail_strms	decompressor_deflate.c	/^static unsigned int z_erofs_deflate_nstrms, z_erofs_deflate_avail_strms;$/;"	v	file:
+z_erofs_deflate_cfgs	erofs_fs.h	/^struct z_erofs_deflate_cfgs {$/;"	s
+z_erofs_deflate_decomp	decompressor_deflate.c	/^const struct z_erofs_decompressor z_erofs_deflate_decomp = {$/;"	v	typeref:struct:z_erofs_decompressor
+z_erofs_deflate_decompress	decompressor_deflate.c	/^static int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,$/;"	f	file:
+z_erofs_deflate_exit	decompressor_deflate.c	/^static void z_erofs_deflate_exit(void)$/;"	f	file:
+z_erofs_deflate_head	decompressor_deflate.c	/^static struct z_erofs_deflate *z_erofs_deflate_head;$/;"	v	typeref:struct:z_erofs_deflate	file:
+z_erofs_deflate_init	decompressor_deflate.c	/^static int __init z_erofs_deflate_init(void)$/;"	f	file:
+z_erofs_deflate_nstrms	decompressor_deflate.c	/^static unsigned int z_erofs_deflate_nstrms, z_erofs_deflate_avail_strms;$/;"	v	file:
+z_erofs_destroy_pcluster_pool	zdata.c	/^static void z_erofs_destroy_pcluster_pool(void)$/;"	f	file:
+z_erofs_do_decompressed_bvec	zdata.c	/^static void z_erofs_do_decompressed_bvec(struct z_erofs_decompress_backend *be,$/;"	f	file:
+z_erofs_do_map_blocks	zmap.c	/^static int z_erofs_do_map_blocks(struct inode *inode,$/;"	f	file:
+z_erofs_endio	zdata.c	/^static void z_erofs_endio(struct bio *bio)$/;"	f	file:
+z_erofs_exit_decompressor	decompressor.c	/^void z_erofs_exit_decompressor(void)$/;"	f
+z_erofs_exit_subsystem	internal.h	/^static inline void z_erofs_exit_subsystem(void) {}$/;"	f
+z_erofs_exit_subsystem	zdata.c	/^void z_erofs_exit_subsystem(void)$/;"	f
+z_erofs_extent_lookback	zmap.c	/^static int z_erofs_extent_lookback(struct z_erofs_maprecorder *m,$/;"	f	file:
+z_erofs_fill_bio_vec	zdata.c	/^static void z_erofs_fill_bio_vec(struct bio_vec *bvec,$/;"	f	file:
+z_erofs_fill_inode_lazy	zmap.c	/^static int z_erofs_fill_inode_lazy(struct inode *inode)$/;"	f	file:
+z_erofs_fill_other_copies	zdata.c	/^static void z_erofs_fill_other_copies(struct z_erofs_decompress_backend *be,$/;"	f	file:
+z_erofs_fixup_insize	decompressor.c	/^int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,$/;"	f
+z_erofs_free_pcluster	zdata.c	/^static void z_erofs_free_pcluster(struct z_erofs_pcluster *pcl)$/;"	f	file:
+z_erofs_gbuf	zutil.c	/^struct z_erofs_gbuf {$/;"	s	file:
+z_erofs_gbuf_count	zutil.c	/^static unsigned int z_erofs_gbuf_count, z_erofs_gbuf_nrpages,$/;"	v	file:
+z_erofs_gbuf_exit	zutil.c	/^void z_erofs_gbuf_exit(void)$/;"	f
+z_erofs_gbuf_growsize	zutil.c	/^int z_erofs_gbuf_growsize(unsigned int nrpages)$/;"	f
+z_erofs_gbuf_id	zutil.c	/^static unsigned int z_erofs_gbuf_id(void)$/;"	f	file:
+z_erofs_gbuf_init	zutil.c	/^int __init z_erofs_gbuf_init(void)$/;"	f
+z_erofs_gbuf_nrpages	zutil.c	/^static unsigned int z_erofs_gbuf_count, z_erofs_gbuf_nrpages,$/;"	v	file:
+z_erofs_gbufpool	zutil.c	/^static struct z_erofs_gbuf *z_erofs_gbufpool, *z_erofs_rsvbuf;$/;"	v	typeref:struct:z_erofs_gbuf	file:
+z_erofs_get_extent_compressedlen	zmap.c	/^static int z_erofs_get_extent_compressedlen(struct z_erofs_maprecorder *m,$/;"	f	file:
+z_erofs_get_extent_decompressedlen	zmap.c	/^static int z_erofs_get_extent_decompressedlen(struct z_erofs_maprecorder *m)$/;"	f	file:
+z_erofs_init_decompressor	decompressor.c	/^int __init z_erofs_init_decompressor(void)$/;"	f
+z_erofs_init_subsystem	internal.h	/^static inline int z_erofs_init_subsystem(void) { return 0; }$/;"	f
+z_erofs_init_subsystem	zdata.c	/^int __init z_erofs_init_subsystem(void)$/;"	f
+z_erofs_iomap_begin_report	zmap.c	/^static int z_erofs_iomap_begin_report(struct inode *inode, loff_t offset,$/;"	f	file:
+z_erofs_iomap_report_ops	zmap.c	/^const struct iomap_ops z_erofs_iomap_report_ops = {$/;"	v	typeref:struct:iomap_ops
+z_erofs_is_inline_pcluster	zdata.c	/^static inline bool z_erofs_is_inline_pcluster(struct z_erofs_pcluster *pcl)$/;"	f	file:
+z_erofs_is_shortlived_page	compress.h	/^static inline bool z_erofs_is_shortlived_page(struct page *page)$/;"	f
+z_erofs_is_sync_decompress	zdata.c	/^static bool z_erofs_is_sync_decompress(struct erofs_sb_info *sbi,$/;"	f	file:
+z_erofs_isolate_strms	decompressor_zstd.c	/^static struct z_erofs_zstd *z_erofs_isolate_strms(bool all)$/;"	f	file:
+z_erofs_lcluster_index	erofs_fs.h	/^struct z_erofs_lcluster_index {$/;"	s
+z_erofs_load_compact_lcluster	zmap.c	/^static int z_erofs_load_compact_lcluster(struct z_erofs_maprecorder *m,$/;"	f	file:
+z_erofs_load_crypto_config	decompressor_cryptor.c	/^int z_erofs_load_crypto_config(struct super_block *sb,$/;"	f
+z_erofs_load_deflate_config	decompressor_deflate.c	/^static int z_erofs_load_deflate_config(struct super_block *sb,$/;"	f	file:
+z_erofs_load_full_lcluster	zmap.c	/^static int z_erofs_load_full_lcluster(struct z_erofs_maprecorder *m,$/;"	f	file:
+z_erofs_load_lcluster_from_disk	zmap.c	/^static int z_erofs_load_lcluster_from_disk(struct z_erofs_maprecorder *m,$/;"	f	file:
+z_erofs_load_lz4_config	decompressor.c	/^static int z_erofs_load_lz4_config(struct super_block *sb,$/;"	f	file:
+z_erofs_load_lzma_config	decompressor_lzma.c	/^static int z_erofs_load_lzma_config(struct super_block *sb,$/;"	f	file:
+z_erofs_load_zstd_config	decompressor_zstd.c	/^static int z_erofs_load_zstd_config(struct super_block *sb,$/;"	f	file:
+z_erofs_lz4_cfgs	erofs_fs.h	/^struct z_erofs_lz4_cfgs {$/;"	s
+z_erofs_lz4_decompress	decompressor.c	/^static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,$/;"	f	file:
+z_erofs_lz4_decompress_ctx	decompressor.c	/^struct z_erofs_lz4_decompress_ctx {$/;"	s	file:
+z_erofs_lz4_decompress_mem	decompressor.c	/^static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,$/;"	f	file:
+z_erofs_lz4_handle_overlap	decompressor.c	/^static void *z_erofs_lz4_handle_overlap(struct z_erofs_lz4_decompress_ctx *ctx,$/;"	f	file:
+z_erofs_lz4_prepare_dstpages	decompressor.c	/^static int z_erofs_lz4_prepare_dstpages(struct z_erofs_lz4_decompress_ctx *ctx,$/;"	f	file:
+z_erofs_lzma	decompressor_lzma.c	/^struct z_erofs_lzma {$/;"	s	file:
+z_erofs_lzma_avail_strms	decompressor_lzma.c	/^static unsigned int z_erofs_lzma_nstrms, z_erofs_lzma_avail_strms;$/;"	v	file:
+z_erofs_lzma_cfgs	erofs_fs.h	/^struct z_erofs_lzma_cfgs {$/;"	s
+z_erofs_lzma_decomp	decompressor_lzma.c	/^const struct z_erofs_decompressor z_erofs_lzma_decomp = {$/;"	v	typeref:struct:z_erofs_decompressor
+z_erofs_lzma_decompress	decompressor_lzma.c	/^static int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,$/;"	f	file:
+z_erofs_lzma_exit	decompressor_lzma.c	/^static void z_erofs_lzma_exit(void)$/;"	f	file:
+z_erofs_lzma_head	decompressor_lzma.c	/^static struct z_erofs_lzma *z_erofs_lzma_head;$/;"	v	typeref:struct:z_erofs_lzma	file:
+z_erofs_lzma_init	decompressor_lzma.c	/^static int __init z_erofs_lzma_init(void)$/;"	f	file:
+z_erofs_lzma_max_dictsize	decompressor_lzma.c	/^static unsigned int z_erofs_lzma_max_dictsize;$/;"	v	file:
+z_erofs_lzma_nstrms	decompressor_lzma.c	/^static unsigned int z_erofs_lzma_nstrms, z_erofs_lzma_avail_strms;$/;"	v	file:
+z_erofs_map_blocks_iter	zmap.c	/^int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,$/;"	f
+z_erofs_map_header	erofs_fs.h	/^struct z_erofs_map_header {$/;"	s
+z_erofs_maprecorder	zmap.c	/^struct z_erofs_maprecorder {$/;"	s	file:
+z_erofs_next_pcluster_t	zdata.c	/^typedef void *z_erofs_next_pcluster_t;$/;"	t	file:
+z_erofs_page_is_invalidated	zdata.c	/^static bool z_erofs_page_is_invalidated(struct page *page)$/;"	f	file:
+z_erofs_parse_cfgs	decompressor.c	/^int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)$/;"	f
+z_erofs_parse_cfgs	super.c	/^static int z_erofs_parse_cfgs(struct super_block *sb,$/;"	f	file:
+z_erofs_parse_in_bvecs	zdata.c	/^static int z_erofs_parse_in_bvecs(struct z_erofs_decompress_backend *be,$/;"	f	file:
+z_erofs_parse_out_bvecs	zdata.c	/^static void z_erofs_parse_out_bvecs(struct z_erofs_decompress_backend *be)$/;"	f	file:
+z_erofs_pcluster	zdata.c	/^struct z_erofs_pcluster {$/;"	s	file:
+z_erofs_pcluster_begin	zdata.c	/^static int z_erofs_pcluster_begin(struct z_erofs_decompress_frontend *fe)$/;"	f	file:
+z_erofs_pcluster_end	zdata.c	/^static void z_erofs_pcluster_end(struct z_erofs_decompress_frontend *fe)$/;"	f	file:
+z_erofs_pcluster_readmore	zdata.c	/^static void z_erofs_pcluster_readmore(struct z_erofs_decompress_frontend *f,$/;"	f	file:
+z_erofs_pcluster_slab	zdata.c	/^struct z_erofs_pcluster_slab {$/;"	s	file:
+z_erofs_pclustermode	zdata.c	/^enum z_erofs_pclustermode {$/;"	g	file:
+z_erofs_pclusterpages	zdata.c	/^static inline unsigned int z_erofs_pclusterpages(struct z_erofs_pcluster *pcl)$/;"	f	file:
+z_erofs_pcpu_workers	zdata.c	/^static struct kthread_worker __rcu **z_erofs_pcpu_workers;$/;"	v	typeref:struct:__rcu	file:
+z_erofs_put_shortlivedpage	compress.h	/^static inline bool z_erofs_put_shortlivedpage(struct page **pagepool,$/;"	f
+z_erofs_rcu_callback	zdata.c	/^static void z_erofs_rcu_callback(struct rcu_head *head)$/;"	f	file:
+z_erofs_read_folio	zdata.c	/^static int z_erofs_read_folio(struct file *file, struct folio *folio)$/;"	f	file:
+z_erofs_read_fragment	zdata.c	/^static int z_erofs_read_fragment(struct super_block *sb, struct folio *folio,$/;"	f	file:
+z_erofs_readahead	zdata.c	/^static void z_erofs_readahead(struct readahead_control *rac)$/;"	f	file:
+z_erofs_register_pcluster	zdata.c	/^static int z_erofs_register_pcluster(struct z_erofs_decompress_frontend *fe)$/;"	f	file:
+z_erofs_rsv_nrpages	zutil.c	/^		z_erofs_rsv_nrpages;$/;"	v	file:
+z_erofs_rsvbuf	zutil.c	/^static struct z_erofs_gbuf *z_erofs_gbufpool, *z_erofs_rsvbuf;$/;"	v	typeref:struct:	file:
+z_erofs_runqueue	zdata.c	/^static int z_erofs_runqueue(struct z_erofs_decompress_frontend *f,$/;"	f	file:
+z_erofs_scan_folio	zdata.c	/^static int z_erofs_scan_folio(struct z_erofs_decompress_frontend *f,$/;"	f	file:
+z_erofs_should_alloc_cache	zdata.c	/^static bool z_erofs_should_alloc_cache(struct z_erofs_decompress_frontend *fe)$/;"	f	file:
+z_erofs_stream_dctx	compress.h	/^struct z_erofs_stream_dctx {$/;"	s
+z_erofs_stream_switch_bufs	decompressor.c	/^int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,$/;"	f
+z_erofs_submit_queue	zdata.c	/^static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,$/;"	f	file:
+z_erofs_transform_plain	decompressor.c	/^static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,$/;"	f	file:
+z_erofs_zstd	decompressor_zstd.c	/^struct z_erofs_zstd {$/;"	s	file:
+z_erofs_zstd_avail_strms	decompressor_zstd.c	/^static unsigned int z_erofs_zstd_nstrms, z_erofs_zstd_avail_strms;$/;"	v	file:
+z_erofs_zstd_cfgs	erofs_fs.h	/^struct z_erofs_zstd_cfgs {$/;"	s
+z_erofs_zstd_decomp	decompressor_zstd.c	/^const struct z_erofs_decompressor z_erofs_zstd_decomp = {$/;"	v	typeref:struct:z_erofs_decompressor
+z_erofs_zstd_decompress	decompressor_zstd.c	/^static int z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,$/;"	f	file:
+z_erofs_zstd_exit	decompressor_zstd.c	/^static void z_erofs_zstd_exit(void)$/;"	f	file:
+z_erofs_zstd_head	decompressor_zstd.c	/^static struct z_erofs_zstd *z_erofs_zstd_head;$/;"	v	typeref:struct:z_erofs_zstd	file:
+z_erofs_zstd_init	decompressor_zstd.c	/^static int __init z_erofs_zstd_init(void)$/;"	f	file:
+z_erofs_zstd_max_dictsize	decompressor_zstd.c	/^static unsigned int z_erofs_zstd_max_dictsize;$/;"	v	file:
+z_erofs_zstd_nstrms	decompressor_zstd.c	/^static unsigned int z_erofs_zstd_nstrms, z_erofs_zstd_avail_strms;$/;"	v	file:
+z_fragmentoff	internal.h	/^				erofs_off_t z_fragmentoff;$/;"	m	union:erofs_inode::__anon13::__anon15::__anon16
+z_idata_size	internal.h	/^					unsigned short z_idata_size;$/;"	m	struct:erofs_inode::__anon13::__anon15::__anon16::__anon17
+z_idataoff	internal.h	/^					erofs_off_t    z_idataoff;$/;"	m	struct:erofs_inode::__anon13::__anon15::__anon16::__anon17
+z_logical_clusterbits	internal.h	/^			unsigned char  z_logical_clusterbits;$/;"	m	struct:erofs_inode::__anon13::__anon15
+z_tailextent_headlcn	internal.h	/^			unsigned long  z_tailextent_headlcn;$/;"	m	struct:erofs_inode::__anon13::__anon15
+zero_padding	sysfs.c	/^EROFS_ATTR_FEATURE(zero_padding);$/;"	v
+ztailpacking	sysfs.c	/^EROFS_ATTR_FEATURE(ztailpacking);$/;"	v

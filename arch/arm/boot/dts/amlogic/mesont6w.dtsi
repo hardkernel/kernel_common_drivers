@@ -188,7 +188,7 @@
 
 	amfc {
 		compatible = "amlogic,amfc-t6d";
-		status = "disabled";
+		status = "okay";
 		/* registers and clk */
 		reg = <0xfe092000 0x200
 		       0xFDFFFF6C 0x400>;

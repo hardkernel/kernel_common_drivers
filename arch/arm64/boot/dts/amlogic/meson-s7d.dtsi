@@ -1171,7 +1171,7 @@
 
 	amfc {
 		compatible = "amlogic,amfc-s7d";
-		status = "disabled";
+		status = "okay";
 		/* registers and clk */
 		reg = <0x0 0xfe024000 0x0 0x200
 		       0x0 0xfe000000 0x0 0x400>;

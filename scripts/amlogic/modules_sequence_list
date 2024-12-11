@@ -42,6 +42,8 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-irblaster.ko
 	amlogic-inphy.ko
 	aml_drm.ko
+	amlogic-amfc.ko
+	aml-erofs.ko
 )
 
 VENDOR_MODULES_LOAD_FIRST_LIST=(
@@ -60,7 +62,7 @@ RECOVERY_MODULES_LOAD_LIST=(
 
 COMMON_GKI_MODULES_LIST=(
 	zsmalloc.ko
-	zram.ko
+	aml-zram.ko
 	libarc4.ko
 	rfkill.ko
 	mii.ko
