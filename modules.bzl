@@ -24,6 +24,9 @@ AMLOGIC_MODULES_ANDROID = [
 AMLOGIC_COMMON_MODULES = [
     # keep sorted
     "arch/arm64/crypto/sha1-ce.ko",
+    "common_drivers/drivers/amfc/amlogic-soc-amfc.ko",
+    "common_drivers/drivers/amfc/aml_erofs/amlogic-soc-erofs.ko",
+    "common_drivers/drivers/amfc/aml_zram/aml-zram.ko",
     "common_drivers/drivers/aml_tee/optee/optee.ko",
     "common_drivers/drivers/aml_tee/tee.ko",
     "common_drivers/drivers/char/hw_random/amlogic-rng.ko",
