@@ -2968,6 +2968,24 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		if (frl_rate && ced->rs_c_valid && ced->rs_c_cnt)
 			HDMITX_INFO("RSCC ErrCnt 0x%x\n", ced->rs_c_cnt);
 		memset(ced, 0, sizeof(*ced));
+	} else if (strncmp(tmpbuf, "edid_parse", 10) == 0) {
+		if (tmpbuf[10] == '1') {
+			/*
+			 * Enable edid parse in hdmitx debug function command
+			 * echo edid_parse1 > /sys/class/amhdmitx/amhdmitx0/debug
+			 */
+			hdev->tx_comm.edid_parse_in_hdmitx = true;
+			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
+					hdev->tx_comm.edid_parse_in_hdmitx);
+		} else if (tmpbuf[10] == '0') {
+			/*
+			 * Disable edid parse in hdmitx debug function command
+			 * echo edid_parse0 > /sys/class/amhdmitx/amhdmitx0/debug
+			 */
+			hdev->tx_comm.edid_parse_in_hdmitx = false;
+			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
+					hdev->tx_comm.edid_parse_in_hdmitx);
+		}
 	}
 }
 

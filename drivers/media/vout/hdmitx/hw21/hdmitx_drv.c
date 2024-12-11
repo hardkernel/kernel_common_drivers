@@ -1311,6 +1311,24 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
 	/* step2: update cec phy addr and audio data block */
 	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+	/*
+	 * hdmitx edid parsing debug function, parsed in drm by default
+	 *
+	 * Enable edid parse in hdmitx debug function command
+	 * echo edid_parse1 > /sys/class/amhdmitx/amhdmitx0/debug
+	 *
+	 * Disable edid parse in hdmitx debug function command
+	 * echo edid_parse0 > /sys/class/amhdmitx/amhdmitx0/debug
+	 */
+	if (tx_comm->edid_parse_in_hdmitx) {
+		HDMITX_INFO("edid parse in hdmitx\n");
+		hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+		/* update the hdr/hdr10+/dv capabilities in the end of parse */
+		hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
+		hdmitx_common_notify_ced_status(tx_comm);
+	}
+
 	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap.vsdb_phy_addr, tx_comm->EDID_buf);
 	edid_check = tx_comm->rxcap.edid_check;
 	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);

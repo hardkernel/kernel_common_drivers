@@ -479,14 +479,16 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	 * when the hot_plug time occurs.
 	 */
 	if (sequence_id != am_hdmitx->sequence_id) {
-		DRM_INFO("[%s:%d]:edid parse\n", __func__, __LINE__);
-		/* step1: SW: edid parse */
-		hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
-		/* update the hdr/hdr10+/dv capabilities in the end of parse */
-		hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
-		/* step3：SW: update ced status */
-		hdmitx_common_notify_ced_status(tx_comm);
+		if (!tx_comm->edid_parse_in_hdmitx) {
+			DRM_INFO("[%s:%d]: edid parse in drm\n", __func__, __LINE__);
+			/* step1: SW: edid parse */
+			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+			/* update the hdr/hdr10+/dv capabilities in the end of parse */
+			hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
+			/* step3：SW: update ced status */
+			hdmitx_common_notify_ced_status(tx_comm);
+		}
 	}
 	drm_connector_update_edid_property(connector, edid);
 

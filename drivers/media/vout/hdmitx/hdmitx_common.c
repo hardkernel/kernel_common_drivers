@@ -50,6 +50,8 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->res_1080p = 0;
 	tx_comm->max_refreshrate = 60;
 	tx_comm->rxcap.edid_check = boot_param->edid_check;
+	/* by default, edid parse in plug interrupt is handled in drm */
+	tx_comm->edid_parse_in_hdmitx = false;
 
 	tx_comm->tx_hw = hw_comm;
 	if (tx_comm->tx_hw)
