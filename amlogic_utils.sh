@@ -472,6 +472,8 @@ function adjust_sequence_modules_loading() {
 
 	in_line_i=a
 	delete_type_modules=()
+	rule_type_modules=
+	select_type_modules=
 	[[ -z ${TYPE_MODULE_SELECT_MODULE} ]] && TYPE_MODULE_SELECT_MODULE=${TYPE_MODULE_SELECT_MODULE_ANDROID}
 	echo "TYPE_MODULE_SELECT_MODULE=${TYPE_MODULE_SELECT_MODULE}"
 	mkdir temp_dir
@@ -498,25 +500,36 @@ function adjust_sequence_modules_loading() {
 			if [[ ${select_modules_i} -eq ${select_modules_count} ]]; then
 				in_line_i=a
 				echo type_module=$type_module select_modules=$select_modules
-				for module in `ls ${type_module}`; do
-					dont_delete_module=0
-					for select_module in ${select_modules}; do
-						if [[ "${select_module}" == "${module}" ]] ; then
-							dont_delete_module=1
-							break;
-						fi
-					done
-					if [[ ${dont_delete_module} != 1 ]]; then
-						echo Delete module: ${module}
-						sed -n "/${module}:/p" modules.dep.temp
-						sed -i "/${module}:/d" modules.dep.temp
-						delete_type_modules=(${delete_type_modules[@]} ${module})
-					fi
-				done
-				echo delete_type_modules=${delete_type_modules[*]}
+				rule_type_modules="${rule_type_modules} ${type_module}"
+				select_type_modules="${select_type_modules} ${select_modules}"
 			fi
 		fi
 	done
+
+	if [[ -n ${ANDROID_PROJECT} ]];then
+		rule_type_modules="${rule_type_modules} ${DEFAULT_DELETE_TYPE_LIST[@]}"
+		rule_type_modules="${rule_type_modules} `echo ${DEFAULT_DELETE_TYPE_LIST_ANDROID}`"
+	fi
+	echo rule_type_modules="${rule_type_modules}"
+	echo select_type_modules="${select_type_modules}"
+
+	for module in `ls ${rule_type_modules}`; do
+		dont_delete_module=0
+		for select_module in ${select_type_modules}; do
+			if [[ "${select_module}" == "${module}" ]] ; then
+				dont_delete_module=1
+				break;
+			fi
+		done
+		if [[ ${dont_delete_module} != 1 ]]; then
+			echo Delete module: ${module}
+			sed -n "/${module}:/p" modules.dep.temp
+			sed -i "/${module}:/d" modules.dep.temp
+			delete_type_modules=(${delete_type_modules[@]} ${module})
+		fi
+	done
+	echo delete_type_modules=${delete_type_modules[*]}
+
 	if [[ -n ${in_temp_dir} ]]; then
 		cd ../
 		rm -r temp_dir

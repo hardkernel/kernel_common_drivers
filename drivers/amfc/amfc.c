@@ -172,7 +172,7 @@ static unsigned long vmalloc_to_phys(void *va)
 
 static unsigned long inline get_cache_line_size(void)
 {
-	unsigned long ctr_el0;
+	unsigned long ctr_el0 = 0;
 
 	asm volatile (
 	#ifdef CONFIG_ARM64

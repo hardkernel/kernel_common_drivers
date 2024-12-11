@@ -45,8 +45,8 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-irblaster.ko
 	amlogic-inphy.ko
 	aml_drm.ko
-	amlogic-amfc.ko
-	aml-erofs.ko
+	amlogic-soc-amfc.ko
+	amlogic-soc-erofs.ko
 )
 
 VENDOR_MODULES_LOAD_FIRST_LIST=(
@@ -85,4 +85,8 @@ COMMON_GKI_MODULES_LIST=(
 GKI_MODULES_LOAD_WHITE_LIST=(
 	${COMMON_GKI_MODULES_LIST[@]}
 	${EXTRA_GKI_MODULES_LIST[@]}
+)
+
+DEFAULT_DELETE_TYPE_LIST=(
+	amlogic-soc-*
 )
