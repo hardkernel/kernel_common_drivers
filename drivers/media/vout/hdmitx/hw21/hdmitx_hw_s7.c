@@ -247,20 +247,19 @@ void set21_hpll_sspll_s7(enum hdmi_vic vic)
 	}
 }
 
-/* CLKCTRL_HTX_CLK_CTRL0 bit8 gate for cts_hdmitx_prif_clk
+/*
+ * CLKCTRL_HTX_CLK_CTRL0 bit8 gate for cts_hdmitx_prif_clk
  * it's necessary for register access of controller
  * CLKCTRL_HTX_CLK_CTRL0 bit24 gate for cts_hdmitx_200m_clk
  * it's necessary for i2c clk
  * CLKCTRL_HDMI_CLK_CTRL bit8 gate for cts_hdmitx_sys_clk
  * it's necessary for register access of hdmitx top
  */
-static int gate_bit_mask = 0x01c7f;
-module_param(gate_bit_mask, int, 0644);
-MODULE_PARM_DESC(gate_bit_mask, "for gate_bit_mask");
-
 void hdmitx_s7_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
 {
-	HDMITX_INFO("hdmitx_s7_clock_gate %d\n", en);
+	int gate_bit_mask = hdev->tx_hw.gate_bit_mask;
+
+	HDMITX_INFO("gate_bit_mask = 0x%x, enable: %d\n", gate_bit_mask, en);
 	if (gate_bit_mask & BIT(1))
 		hd21_set_reg_bits(CLKCTRL_VID_PLL_CLK0_DIV, en, 19, 1);
 	if (gate_bit_mask & BIT(2))

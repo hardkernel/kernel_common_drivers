@@ -901,6 +901,9 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	hdmi_dev->tx_hw.base.hdmi_tx_cap.dsc_capable = false;
 	hdmi_dev->tx_hw.base.hdmi_tx_cap.tx_max_frl_rate = FRL_NONE;
 
+	/* for hdcp */
+	hdmi_dev->max_exceed = 200;
+
 	return 0;
 }
 

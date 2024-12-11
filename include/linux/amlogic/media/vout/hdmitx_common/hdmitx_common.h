@@ -291,6 +291,23 @@ struct hdmitx_common {
 	 */
 	u8 poll_rx_status_mtd;
 
+	/*
+	 * debug only, should be positive value. if it is N, then vysnc_handler
+	 * will handle N frames, then it will be 0, and vysnc_handler is pending
+	 * value 1 is only for single steps, and -1 will work as normally.
+	 */
+	int vrr_dbg_vframe;
+	int dfm_type; /* for dfm debug */
+	/*
+	 * for choose VPU_HDMI_if function
+	 * 1: yuv2rgb (default)
+	 * 2: rgb2yuv
+	 */
+	int csc_type;
+	/* for dsc debug */
+	int emp_no;
+	int emp_verbose;
+
 #endif
 	/* hdr info */
 	enum hdmi_hdr_transfer hdr_transfer_feature;

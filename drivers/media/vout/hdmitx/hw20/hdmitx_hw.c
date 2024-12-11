@@ -3577,6 +3577,10 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdev->tx_comm.poll_rx_status_mtd = 1;
 	} else if (strncmp(tmpbuf, "hdcp_max_exceed", 15) == 0) {
 		HDMITX_INFO("%d", hdev->hdcp_max_exceed_state);
+	} else if (strncmp(tmpbuf, "max_exceed", 10) == 0) {
+		ret = kstrtoul(tmpbuf + 10, 10, &value);
+		hdev->max_exceed = value;
+		HDMITX_INFO("%d", hdev->max_exceed);
 	} else if (strncmp(tmpbuf, "cedst_count", 11) == 0) {
 		if (!ch_st->clock_detected)
 			HDMITX_INFO("clock undetected\n");
@@ -4741,10 +4745,6 @@ static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 	}
 }
 
-static int max_exceed = 200;
-MODULE_PARM_DESC(max_exceed, "\nmax_exceed\n");
-module_param(max_exceed, int, 0664);
-
 static void hdcptx_events_handle(struct timer_list *t)
 {
 	struct hdmitx_dev *hdev = from_timer(hdev, t, hdcp_timer);
@@ -4779,7 +4779,7 @@ static void hdcptx_events_handle(struct timer_list *t)
 	if (hdev->hdcp_max_exceed_cnt)
 		hdev->hdcp_max_exceed_cnt++;
 	if (bcaps_6_rp && bcaps_5_ksvfifoready) {
-		if (hdev->hdcp_max_exceed_cnt > max_exceed &&
+		if (hdev->hdcp_max_exceed_cnt > hdev->max_exceed &&
 		    !ksv_sha_matched) {
 			topo14->max_devs_exceeded = 1;
 			topo14->max_cascade_exceeded = 1;

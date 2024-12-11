@@ -42,12 +42,8 @@ static struct hdcp_t *p_hdcp;
 /* hdcp_topo info transferred to upstream, 1.4 & 2.2 */
 struct hdcp_topo_s hdcp_topo;
 
-static int hdcp_verbose = L_1;
 /* only used for limit print when failure */
 static enum hdcp_fail_types_t fail_reason = HDCP_FAIL_NONE;
-
-module_param(hdcp_verbose, int, 0644);
-MODULE_PARM_DESC(hdcp_verbose, "for hdcp debug");
 
 MODULE_PARM_DESC(hdmi21_authenticated, "\n hdmi21_authenticated\n");
 module_param(hdmi21_authenticated, int, 0444);
@@ -100,12 +96,6 @@ static DEFINE_MUTEX(stream_type_mutex);
  */
 static DEFINE_MUTEX(hdcp_mutex);
 
-#define pr_hdcp_info(level, fmt, arg...) \
-	do { \
-		if (hdcp_verbose >= (level)) \
-			HDMITX_INFO("hdcptx: " fmt, ## arg); \
-	} while (0)
-
 /*
  * for hdcp repeater, downstream auth should be controlled
  * (started) by upstream side, and should not started
@@ -132,7 +122,7 @@ bool hdcp_need_control_by_upstream(struct hdmitx_hw_common *tx_hw)
 
 void hdcp_mode_set(unsigned int mode)
 {
-	pr_hdcp_info(L_0, "%s[%d] %d\n", __func__, __LINE__, mode);
+	HDMITX_HDCP_INFO("%s[%d] %d\n", __func__, __LINE__, mode);
 
 	if (mode == 0) {
 		hdcptx_reset(p_hdcp);
@@ -162,7 +152,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 	 */
 	mutex_lock(&hdcp_mutex);
 	if (hdev->tx_comm.hdcp_mode != 0) {
-		pr_hdcp_info(L_1, "[%s] hdcp %d already enabled, exit\n",
+		HDMITX_DEBUG_HDCP("[%s] hdcp %d already enabled, exit\n",
 			__func__, hdev->tx_comm.hdcp_mode);
 		mutex_unlock(&hdcp_mutex);
 		return;
@@ -179,7 +169,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 			rx_hdcp2_ver = 0;
 			if (hdev->frl_rate > FRL_NONE && hdev->frl_rate < FRL_RATE_MAX) {
 				hdev->tx_comm.hdcp_mode = 0;
-				pr_hdcp_info(L_0, "[%s] should not enable hdcp1.4 under FRL mode\n",
+				HDMITX_HDCP_INFO("[%s] should not enable hdcp1.4 under FRL mode\n",
 					__func__);
 			} else if (get_hdcp1_lstore()) {
 				hdmitx21_ctrl_hdcp_gate(1, true);
@@ -204,7 +194,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 	} else if (hdev->tx_hw.base.lstore & 0x1) {
 		if (hdev->frl_rate > FRL_NONE && hdev->frl_rate < FRL_RATE_MAX) {
 			hdev->tx_comm.hdcp_mode = 0;
-			pr_hdcp_info(L_0, "[%s] should not enable hdcp1.4 under FRL mode\n",
+			HDMITX_HDCP_INFO("[%s] should not enable hdcp1.4 under FRL mode\n",
 				__func__);
 		} else if (get_hdcp1_lstore()) {
 			hdmitx21_ctrl_hdcp_gate(1, true);
@@ -215,7 +205,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 			hdev->tx_comm.hdcp_mode = 0;
 		}
 	} else {
-		pr_hdcp_info(L_2, "debug: not enable hdcp as no key stored\n");
+		HDMITX_DEBUG_HDCP("debug: not enable hdcp as no key stored\n");
 	}
 	mutex_unlock(&hdcp_mutex);
 }
@@ -315,7 +305,7 @@ static void update_hdcp_state(struct hdcp_t *p_hdcp, enum hdcp_stat_t state)
 {
 	if (p_hdcp->hdcp_state != state || state == HDCP_STAT_NONE) {
 		p_hdcp->hdcp_state = state;
-		pr_hdcp_info(L_2, "%s[%d] %d\n", __func__, __LINE__, state);
+		HDMITX_DEBUG_HDCP("%s[%d] %d\n", __func__, __LINE__, state);
 	}
 }
 
@@ -425,7 +415,7 @@ static void hdcptx_encryption_update(struct hdcp_t *p_hdcp, bool en)
 
 static void hdcp_check_ds_csm_status(struct hdcp_t *p_hdcp)
 {
-	pr_hdcp_info(L_2, "%s[%d] ds_repeater %d  hdcp_type %d  csm_valid %d  content_type %d\n",
+	HDMITX_DEBUG_HDCP("%s[%d] ds_repeater %d  hdcp_type %d  csm_valid %d  content_type %d\n",
 		__func__, __LINE__, p_hdcp->ds_repeater, p_hdcp->hdcp_type,
 		p_hdcp->csm_valid, p_hdcp->content_type);
 	if (p_hdcp->ds_repeater) {
@@ -455,11 +445,11 @@ static void hdcp_check_ds_csm_status(struct hdcp_t *p_hdcp)
 
 static void hdcp_authenticated_handle(struct hdcp_t *p_hdcp)
 {
-	pr_hdcp_info(L_1, "part 1 done\n");
+	HDMITX_DEBUG_HDCP("part 1 done\n");
 	if (p_hdcp->hdcp_type == HDCP_VER_HDCP1X) {
 		hdcp_stop_work(&p_hdcp->timer_hdcp_rcv_auth);
 		p_hdcp->ds_auth = true;
-		pr_hdcp_info(L_1, "1x AuthDone\n");
+		HDMITX_DEBUG_HDCP("1x AuthDone\n");
 		p_hdcp->fail_type = HDCP_FAIL_NONE;
 		hdcptx_encryption_update(p_hdcp, true);
 		hdcp_topology_update(p_hdcp);
@@ -468,7 +458,7 @@ static void hdcp_authenticated_handle(struct hdcp_t *p_hdcp)
 	} else if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
 		hdcp_stop_work(&p_hdcp->timer_hdcp_rcv_auth);
 		p_hdcp->ds_auth = true;
-		pr_hdcp_info(L_1, "2x AuthDone\n");
+		HDMITX_DEBUG_HDCP("2x AuthDone\n");
 		p_hdcp->fail_type = HDCP_FAIL_NONE;
 		hdcptx_encryption_update(p_hdcp, true);
 		p_hdcp->ds_repeater = false;
@@ -510,7 +500,7 @@ static void hdcp1x_check_bksv_done(struct hdcp_t *p_hdcp)
 	u8 copp_data1;
 
 	copp_data1 = hdcptx1_ds_cap_status_get();
-	pr_hdcp_info(L_2, "%s[%d] copp_data1 0x%02x\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] copp_data1 0x%02x\n", __func__, __LINE__,
 		copp_data1);
 
 	if (copp_data1 & 0x02) {
@@ -661,7 +651,7 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 					/* not care if currently in hdmirx channel or not */
 					/* if (!hdcp_need_control_by_upstream(hdev)) { */
 						p_hdcp->csm_message.streamid_type = 1;
-						pr_hdcp_info(L_1, "auth with streamid_type = 1\n");
+						HDMITX_DEBUG_HDCP("auth with streamid_type = 1\n");
 					/* } */
 				} else {
 					set_hdcp2_topo(0);
@@ -681,7 +671,7 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 						p_hdcp->csm_message.streamid_type =
 							p_hdcp->saved_upstream_type & 0xf;
 						p_hdcp->saved_upstream_type &= 0xf;
-						pr_hdcp_info(L_1, "hdcptx2: force propagate the upstream type: %d\n",
+						HDMITX_DEBUG_HDCP("force propagate the upstream type: %d\n",
 							p_hdcp->csm_message.streamid_type);
 						/* need set to false, so that to re-send */
 						p_hdcp->csm_updated = false;
@@ -696,7 +686,7 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 						p_hdcp->csm_updated = true;
 						hdcptx_send_csm_msg(p_hdcp);
 						hdcptx2_rpt_smng_xfer_start();
-						pr_hdcp_info(L_1, "hdcptx2: send stream type: %d\n",
+						HDMITX_DEBUG_HDCP("hdcptx2: send stream type: %d\n",
 							p_hdcp->csm_message.streamid_type);
 					}
 				}
@@ -709,7 +699,7 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 		}
 	}
 	p_hdcp->rpt_ready = true;
-	pr_hdcp_info(L_1, "%s[%d] rpt_ready %d\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] rpt_ready %d\n", __func__, __LINE__,
 		p_hdcp->rpt_ready);
 }
 
@@ -775,7 +765,7 @@ static void hdcp_notify_rpt_info(struct work_struct *work)
 
 	memset(&hdcp_topo, 0, sizeof(hdcp_topo));
 	hdcp_topo.hdcp_ver = p_hdcp->hdcp_type;
-	pr_hdcp_info(L_2, "hdcp_type: %d\n", p_hdcp->hdcp_type);
+	HDMITX_DEBUG_HDCP("hdcp_type: %d\n", p_hdcp->hdcp_type);
 	hdcp_topo.depth = p_hdcp->hdcp_topology.rp_depth;
 	hdcp_topo.dev_cnt = p_hdcp->hdcp_topology.dev_count;
 	if (en_fake_rcv_id) {
@@ -792,14 +782,14 @@ static void hdcp_notify_rpt_info(struct work_struct *work)
 	ksv_bytes = ksv_bytes > ARRAY_SIZE(hdcp_topo.ksv_list) ?
 		ARRAY_SIZE(hdcp_topo.ksv_list) : ksv_bytes;
 	memcpy(hdcp_topo.ksv_list, p_hdcp->p_ksv_lists, ksv_bytes);
-	pr_hdcp_info(L_2, "%s depth:[%d] cnt:[%d] ksv_bytes:[%d] max_cas: [%d], max_dev: [%d]\n",
+	HDMITX_DEBUG_HDCP("%s depth:[%d] cnt:[%d] ksv_bytes:[%d] max_cas: [%d], max_dev: [%d]\n",
 		__func__, hdcp_topo.depth, hdcp_topo.dev_cnt, ksv_bytes,
 		hdcp_topo.max_cascade_exceeded, hdcp_topo.max_devs_exceeded);
 	for (i = 0; i < ksv_bytes / 5; i++) {
-		pr_hdcp_info(L_2, "ksv list[%d]: ", i);
+		HDMITX_DEBUG_HDCP("ksv list[%d]: ", i);
 		for (j = 0; j < 5; j++)
-			pr_hdcp_info(L_2, "%02x\n", hdcp_topo.ksv_list[5 * i + j]);
-		pr_hdcp_info(L_2, "\n");
+			HDMITX_DEBUG_HDCP("%02x\n", hdcp_topo.ksv_list[5 * i + j]);
+		HDMITX_DEBUG_HDCP("\n");
 	}
 	hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr,
 			HDMITX_KSVLIST, &hdcp_topo);
@@ -817,18 +807,18 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 	/* note: for CTS, it should not delay */
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
 	if (hdev->tx_comm.suspend_flag) {
-		pr_hdcp_info(L_1, "suspend, no need re-auth\n");
+		HDMITX_DEBUG_HDCP("suspend, no need re-auth\n");
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
 	if (!hdev->tx_comm.hpd_state) {
-		pr_hdcp_info(L_1, "hdmitx hpd low, no need re-auth\n");
+		HDMITX_DEBUG_HDCP("hdmitx hpd low, no need re-auth\n");
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
 	if (!hdev->tx_comm.ready) {
 		schedule_delayed_work(&p_hdcp->req_reauth_wk, HZ);
-		pr_hdcp_info(L_1, "hdmitx signal not done, delay hdcp re-auth\n");
+		HDMITX_DEBUG_HDCP("hdmitx signal not done, delay hdcp re-auth\n");
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
@@ -853,7 +843,7 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 		if (hdev->tx_comm.hdcp_mode) {
 			if (p_hdcp->req_reauth_ver == 0 ||
 				p_hdcp->req_reauth_ver == hdev->tx_comm.hdcp_mode) {
-				HDMITX_INFO("topology not changed, no need hdcp re-auth\n");
+				HDMITX_HDCP_INFO("topology not changed, no need hdcp re-auth\n");
 				schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
 				mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 				return;
@@ -939,20 +929,20 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		/* update upstream type firstly */
 		p_hdcp->saved_upstream_type = 0x10 | upstream_type;
 		if (hdev->tx_comm.suspend_flag) {
-			pr_hdcp_info(L_1, "%s, suspend, no need propagate stream type\n", __func__);
+			HDMITX_DEBUG_HDCP("%s, suspend, no need propagate stream type\n", __func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		if (!hdev->tx_comm.hpd_state) {
-			pr_hdcp_info(L_1, "%s, hdmitx hpd low, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, hdmitx hpd low, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		if (!hdev->tx_comm.ready) {
-			pr_hdcp_info(L_1, "%s, hdmitx signal not done, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, hdmitx signal not done, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -960,7 +950,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		}
 		/* make sure hdcp is enabled */
 		if (hdmitx21_get_hdcp_mode() == 0) {
-			pr_hdcp_info(L_1, "%s, hdcp disabled, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, hdcp disabled, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -968,7 +958,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		}
 		ds_repeater = hdcptx_query_ds_repeater(p_hdcp);
 		if (!ds_repeater || p_hdcp->hdcp_type != HDCP_VER_HDCP2X) {
-			pr_hdcp_info(L_1, "case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
+			HDMITX_DEBUG_HDCP("case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
 				update_scene, ds_repeater, p_hdcp->hdcp_type);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -985,7 +975,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			p_hdcp->csm_message.streamid_type =
 				(p_hdcp->csm_message.streamid_type & 0xFF00) |
 				upstream_type;
-			pr_hdcp_info(L_1, "case[%d] stream type change from %d to %d\n",
+			HDMITX_DEBUG_HDCP("case[%d] stream type change from %d to %d\n",
 				update_scene, cur_content_type, upstream_type);
 			if (p_hdcp->cont_smng_method == 0) {
 				p_hdcp->csm_updated = true;
@@ -999,21 +989,21 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		/* update upstream type firstly */
 		p_hdcp->saved_upstream_type = 0;
 		if (hdev->tx_comm.suspend_flag) {
-			pr_hdcp_info(L_1, "%s, exit hdmirx, suspend, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, exit hdmirx, suspend, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		if (!hdev->tx_comm.hpd_state) {
-			pr_hdcp_info(L_1, "%s, exit hdmirx, hdmitx hpd low, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, exit hdmirx, hdmitx hpd low, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		if (!hdev->tx_comm.ready) {
-			pr_hdcp_info(L_1, "%s, exit hdmirx, hdmitx signal not done, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, exit hdmirx, hdmitx signal not done, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -1025,7 +1015,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		 * need to start hdcp auth if it's not enabled
 		 */
 		if (hdmitx21_get_hdcp_mode() == 0) {
-			pr_hdcp_info(L_1, "%s, exit hdmirx, need to enable hdcp\n", __func__);
+			HDMITX_DEBUG_HDCP("%s, exit hdmirx, need to enable hdcp\n", __func__);
 			hdmitx21_enable_hdcp(hdev);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -1033,7 +1023,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		}
 		ds_repeater = hdcptx_query_ds_repeater(p_hdcp);
 		if (!ds_repeater || p_hdcp->hdcp_type != HDCP_VER_HDCP2X) {
-			pr_hdcp_info(L_1, "case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
+			HDMITX_DEBUG_HDCP("case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
 				update_scene, ds_repeater, p_hdcp->hdcp_type);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -1066,7 +1056,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			p_hdcp->csm_message.streamid_type =
 				(p_hdcp->csm_message.streamid_type & 0xFF00) |
 				cur_content_type;
-			pr_hdcp_info(L_1, "case[%d] stream type change from %d to %d\n",
+			HDMITX_DEBUG_HDCP("case[%d] stream type change from %d to %d\n",
 				update_scene, upstream_type, cur_content_type);
 			if (p_hdcp->cont_smng_method == 0) {
 				p_hdcp->csm_updated = true;
@@ -1080,21 +1070,21 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		/* update upstream type firstly */
 		p_hdcp->saved_upstream_type = 0x10 | upstream_type;
 		if (hdev->tx_comm.suspend_flag) {
-			pr_hdcp_info(L_1, "%s, enter hdmirx, suspend, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, enter hdmirx, suspend, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		if (!hdev->tx_comm.hpd_state) {
-			pr_hdcp_info(L_1, "%s, enter hdmirx, hdmitx hpd low, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, enter hdmirx, hdmitx hpd low, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		if (!hdev->tx_comm.ready) {
-			pr_hdcp_info(L_1, "%s, enter hdmirx, hdmitx signal not done, no need propagate stream type\n",
+			HDMITX_DEBUG_HDCP("%s, enter hdmirx, hdmitx signal not done, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -1103,7 +1093,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 
 		/* make sure hdcp is enabled */
 		if (hdmitx21_get_hdcp_mode() == 0) {
-			pr_hdcp_info(L_1, "%s, hdcp disabled, no need propagate stream type2\n",
+			HDMITX_DEBUG_HDCP("%s, hdcp disabled, no need propagate stream type2\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -1111,7 +1101,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		}
 		ds_repeater = hdcptx_query_ds_repeater(p_hdcp);
 		if (!ds_repeater || p_hdcp->hdcp_type != HDCP_VER_HDCP2X) {
-			pr_hdcp_info(L_1, "case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
+			HDMITX_DEBUG_HDCP("case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
 				update_scene, ds_repeater, p_hdcp->hdcp_type);
 			mutex_unlock(&stream_type_mutex);
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
@@ -1126,7 +1116,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			p_hdcp->csm_message.streamid_type =
 				(p_hdcp->csm_message.streamid_type & 0xFF00) |
 				upstream_type;
-			pr_hdcp_info(L_1, "case[%d] stream type change from %d to %d\n",
+			HDMITX_DEBUG_HDCP("case[%d] stream type change from %d to %d\n",
 				update_scene, cur_content_type, upstream_type);
 			if (p_hdcp->cont_smng_method == 0) {
 				p_hdcp->csm_updated = true;
@@ -1147,7 +1137,7 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 	u8 upstream_type = 0;
 	u8 update_scene = 0;
 
-	pr_hdcp_info(L_1, "%s[%d] hdcp_ver 0x%x\n", __func__, __LINE__, hdcp_version);
+	HDMITX_DEBUG_HDCP("%s[%d] hdcp_ver 0x%x\n", __func__, __LINE__, hdcp_version);
 
 	/* bit7~4: smng type notify, bit3~0: hdcp ver, 0:auto, 1:hdcp14, 2:hdcp22 */
 	p_hdcp->rx_update_flag = hdcp_version;
@@ -1188,13 +1178,13 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 				/* this mute operation should have the highest priority */
 				p_hdcp->stream_mute = true;
 				schedule_delayed_work(&p_hdcp->stream_mute_wk, 0);
-				pr_hdcp_info(L_1, "block stream to downstream as upstream type = 1\n");
+				HDMITX_DEBUG_HDCP("block stream to downstream as upstream type = 1\n");
 			}
 		} else {
 			/* this unmute operation should have the lowest priority */
 			p_hdcp->stream_mute = false;
 			schedule_delayed_work(&p_hdcp->stream_mute_wk, 0);
-			pr_hdcp_info(L_2, "non-block stream to downstream as upstream type = 0\n");
+			HDMITX_DEBUG_HDCP("non-block stream to downstream as upstream type = 0\n");
 		}
 		/*
 		 * streamtype_dbg:
@@ -1210,7 +1200,7 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 		/* step1: unmute */
 		p_hdcp->stream_mute = false;
 		schedule_delayed_work(&p_hdcp->stream_mute_wk, 0);
-		pr_hdcp_info(L_2, "upstream source inactive now, unmute\n");
+		HDMITX_DEBUG_HDCP("upstream source inactive now, unmute\n");
 		/* step2: set stream type as NTS requirement */
 		schedule_delayed_work(&p_hdcp->stream_type_wk, 0);
 	} else if (update_scene == UPSTREAM_ACTIVE) {
@@ -1232,7 +1222,7 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 				/* this mute operation should have the highest priority */
 				p_hdcp->stream_mute = true;
 				schedule_delayed_work(&p_hdcp->stream_mute_wk, 0);
-				pr_hdcp_info(L_1, "[2]block stream to downstream as upstream type = 1\n");
+				HDMITX_DEBUG_HDCP("[2]block stream to downstream as upstream type = 1\n");
 			}
 		} else {
 			/*
@@ -1264,7 +1254,7 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 	hdcp1xcoppst = hdcptx1_copp_status_get();
 	/* 0x222 0x223 */
 	prime_ri = hdcptx1_get_prime_ri();
-	pr_hdcp_info(L_2, "%s[%d] hdcp1xauthintst 0x%x hdcp1xcoppst 0x%x Ri 0x%x\n",
+	HDMITX_DEBUG_HDCP("%s[%d] hdcp1xauthintst 0x%x hdcp1xcoppst 0x%x Ri 0x%x\n",
 			__func__, __LINE__, hdcp1xauthintst, hdcp1xcoppst, prime_ri);
 	if ((hdcp1xauthintst & BIT_TPI_INTR_ST0_BKSV_ERR) ||
 		(hdcp1xauthintst & BIT_TPI_INTR_ST0_BKSV_BCAPS_ERR))
@@ -1304,7 +1294,7 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 			/* g_prot secure -- downstream is repeater */
 			p_hdcp->ds_repeater = true;
 			p_hdcp->hdcp14_second_part_pass = true;
-			pr_hdcp_info(L_1, "%s[%d] ds_repeater %d  rpt_ready %d\n",
+			HDMITX_DEBUG_HDCP("%s[%d] ds_repeater %d  rpt_ready %d\n",
 				__func__, __LINE__,
 				p_hdcp->ds_repeater, p_hdcp->rpt_ready);
 			if (p_hdcp->rpt_ready) {
@@ -1328,17 +1318,17 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 		}
 		switch (hdcptx1_ksv_v_get() & 0xc0) {
 		case 0xc0:
-			pr_hdcp_info(L_1, "hdcptx1: the rx auth is pass and rx repeater auth is begin\n");
+			HDMITX_DEBUG_HDCP("hdcptx1: the rx auth is pass and rx repeater auth is begin\n");
 			break;
 		case 0x80:
-			pr_hdcp_info(L_1, "hdcptx1: the rx all auth is pass\n");
+			HDMITX_DEBUG_HDCP("hdcptx1: the rx all auth is pass\n");
 			break;
 		case 0x40:
-			pr_hdcp_info(L_1, "hdcptx1: the rx auth is error\n");
+			HDMITX_DEBUG_HDCP("hdcptx1: the rx auth is error\n");
 			break;
 		case 0x00:
 		default:
-			pr_hdcp_info(L_2, "hdcptx1: the rx auth start again or ddc_gpu_tpi_granted\n");
+			HDMITX_DEBUG_HDCP("hdcptx1: the rx auth start again or ddc_gpu_tpi_granted\n");
 			break;
 		}
 	}
@@ -1346,11 +1336,11 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 		switch (hdcp1xcoppst & 0x30) {
 		case 0x00:
 		case 0x30:
-			pr_hdcp_info(L_1, "hdcptx1: link normal or rsvd\n");
+			HDMITX_DEBUG_HDCP("hdcptx1: link normal or rsvd\n");
 			break;
 		case 0x10:
 		case 0x20:
-			pr_hdcp_info(L_1, "hdcptx1: link lost or reneg\n");
+			HDMITX_DEBUG_HDCP("hdcptx1: link lost or reneg\n");
 			hdcptx_update_failures(p_hdcp, (hdcp1xcoppst & 0x08));
 			break;
 		default:
@@ -1376,7 +1366,7 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 			hdcp_rpt_ready_process(p_hdcp, true);
 			p_hdcp->update_topology = false;
 			p_hdcp->update_topo_state = true;
-			pr_hdcp_info(L_2, "%s[%d] update_topo_state %d\n", __func__,
+			HDMITX_DEBUG_HDCP("%s[%d] update_topo_state %d\n", __func__,
 				__LINE__, p_hdcp->update_topo_state);
 			if (p_hdcp->update_topo_state) {
 				p_hdcp->update_topo_state = false;
@@ -1403,7 +1393,7 @@ void hdcp1x_intr_handler(struct intr_t *intr)
 {
 	u8 hdcp14_intreg[1];
 
-	pr_hdcp_info(L_2, "%s[%d]\n", __func__, __LINE__);
+	HDMITX_DEBUG_HDCP("%s[%d]\n", __func__, __LINE__);
 	hdcp14_intreg[0] = intr->st_data;
 	/* clear intr state asap instead of clear after process intr */
 	intr->st_data = 0;
@@ -1448,7 +1438,7 @@ static void hdcp2x_process_intr(u8 int_reg[])
 	u8 cp2tx_state = hdcp2x_get_state_st();
 	static int smng_times;
 
-	pr_hdcp_info(L_2, "%s[%d] 0x%x 0x%x 0x%x 0x%x 0x%x\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] 0x%x 0x%x 0x%x 0x%x 0x%x\n", __func__, __LINE__,
 		int_reg[0], int_reg[1], int_reg[2], int_reg[3], cp2tx_state);
 
 	if (cp2tx_intr0_st & BIT_CP2TX_INTR0_AUTH_DONE) {
@@ -1473,7 +1463,7 @@ static void hdcp2x_process_intr(u8 int_reg[])
 			} else {
 				hdcp_stop_work(&p_hdcp->timer_hdcp_rcv_auth);
 				hdcp_stop_work(&p_hdcp->timer_hdcp_rpt_auth);
-				pr_hdcp_info(L_1, "hdcptx2: auth done\n");
+				HDMITX_DEBUG_HDCP("hdcptx2: auth done\n");
 			}
 		}
 		/* clear fail reason after passed */
@@ -1485,10 +1475,10 @@ static void hdcp2x_process_intr(u8 int_reg[])
 	}
 	if (cp2tx_intr0_st & BIT_CP2TX_INTR0_RPT_READY_CHANGE) {
 		p_hdcp->ds_repeater = true;
-		pr_hdcp_info(L_1, "hdcptx2: repeater ready\n");
+		HDMITX_DEBUG_HDCP("hdcptx2: repeater ready\n");
 	}
 	if (cp2tx_intr0_st & BIT_CP2TX_INTR0_REAUTH_REQ) {
-		pr_hdcp_info(L_1, "hdcptx2: reauth req from ds device\n");
+		HDMITX_DEBUG_HDCP("hdcptx2: reauth req from ds device\n");
 		/*
 		 * need to re-init flag, so that to send stream type
 		 * management message after re-auth done
@@ -1503,15 +1493,15 @@ static void hdcp2x_process_intr(u8 int_reg[])
 
 	for (i = 0; i < 8; i++) {
 		if (cp2tx_intr1_st & (1 << i))
-			pr_hdcp_info(L_1, "%s", msg1_info[i]);
+			HDMITX_DEBUG_HDCP("%s", msg1_info[i]);
 	}
 	for (i = 0; i < 8; i++) {
 		if (cp2tx_intr2_st & (1 << i))
-			pr_hdcp_info(L_1, "%s", msg2_info[i]);
+			HDMITX_DEBUG_HDCP("%s", msg2_info[i]);
 	}
 
 	if (cp2tx_intr1_st & BIT_CP2TX_INTR1_RPT_RCVID_CHANGED) {
-		pr_hdcp_info(L_1, "hdcptx2: rcv_id changed");
+		HDMITX_DEBUG_HDCP("hdcptx2: rcv_id changed");
 		hdcp_stop_work(&p_hdcp->timer_hdcp_rpt_auth);
 		hdcp_rpt_ready_process(p_hdcp, true);
 		/* ds is repeater case */
@@ -1562,10 +1552,10 @@ static void hdcp2x_process_intr(u8 int_reg[])
 				p_hdcp->csm_updated = true;
 				hdcp_update_csm(p_hdcp);
 				hdcptx2_rpt_smng_xfer_start();
-				HDMITX_INFO("send smng_times %d\n", smng_times);
+				HDMITX_HDCP_INFO("send smng_times %d\n", smng_times);
 			} else {
 				smng_times = 0;
-				pr_hdcp_info(L_1, "hdcptx2: M' hash fail, restart auth\n");
+				HDMITX_DEBUG_HDCP("hdcptx2: M' hash fail, restart auth\n");
 				schedule_delayed_work(&p_hdcp->req_reauth_wk, HZ);
 			}
 		} else {
@@ -1586,7 +1576,7 @@ static void hdcp1x_auth_start(struct hdcp_t *p_hdcp)
 {
 	bool key_valid;
 
-	pr_hdcp_info(L_2, "%s[%d]\n", __func__, __LINE__);
+	HDMITX_DEBUG_HDCP("%s[%d]\n", __func__, __LINE__);
 	p_hdcp->hdcp_type = HDCP_VER_HDCP1X;
 	update_hdcp_state(p_hdcp, HDCP_STAT_AUTH);
 	hdcptx1_encryption_update(false);
@@ -1616,7 +1606,7 @@ static void hdcp2x_auth_start(struct hdcp_t *p_hdcp)
 		content_type = 1;
 	else
 		content_type = 0xFF;
-	pr_hdcp_info(L_2, "%s[%d] content_type %d %d\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] content_type %d %d\n", __func__, __LINE__,
 		p_hdcp->content_type, content_type);
 
 	hdcptx2_src_auth_start(content_type);
@@ -1786,7 +1776,7 @@ static void hdcptx_reset(struct hdcp_t *p_hdcp)
 
 static bool hdcp_schedule_work(struct hdcp_work *work, u32 delay_ms, u32 period_ms)
 {
-	pr_hdcp_info(L_2, "hdcptx: schedule %s: delay %d ms  period %d ms\n",
+	HDMITX_DEBUG_HDCP("hdcptx: schedule %s: delay %d ms  period %d ms\n",
 		work->name, delay_ms, period_ms);
 
 	delay_ms = (delay_ms + 3) / 4;
@@ -1817,7 +1807,7 @@ static bool hdcp_stop_work(struct hdcp_work *work)
 {
 	bool ret = cancel_delayed_work(&work->dwork);
 
-	pr_hdcp_info(L_2, "hdcptx: stop %s\n", work->name);
+	HDMITX_DEBUG_HDCP("hdcptx: stop %s\n", work->name);
 	return ret;
 }
 
@@ -1826,7 +1816,7 @@ static bool hdcp_stop_work_sync(struct hdcp_work *work)
 {
 	bool ret = cancel_delayed_work_sync(&work->dwork);
 
-	pr_hdcp_info(L_2, "hdcptx: stop %s in sync\n", work->name);
+	HDMITX_DEBUG_HDCP("hdcptx: stop %s in sync\n", work->name);
 	return ret;
 }
 
@@ -1884,15 +1874,15 @@ static void hdcptx_update_failures(struct hdcp_t *p_hdcp, enum hdcp_fail_types_t
 		/* if fail type is DDC_NAK, and then comes BKSV_RXID, don't print */
 		if (fail_reason == HDCP_FAIL_DDC_NACK ||
 			fail_reason == HDCP_FAIL_BKSV_RXID) {
-			pr_hdcp_info(L_2, "%s[%d] types: %s\n", __func__, __LINE__,
+			HDMITX_DEBUG_HDCP("%s[%d] types: %s\n", __func__, __LINE__,
 				fail_string[types]);
 		} else {
-			pr_hdcp_info(L_1, "%s[%d] types: %s\n", __func__, __LINE__,
+			HDMITX_DEBUG_HDCP("%s[%d] types: %s\n", __func__, __LINE__,
 				fail_string[types]);
 		}
 		fail_reason = types;
 	} else {
-		pr_hdcp_info(L_2, "%s[%d] types: %s\n", __func__, __LINE__,
+		HDMITX_DEBUG_HDCP("%s[%d] types: %s\n", __func__, __LINE__,
 			fail_string[types]);
 	}
 	hdcp_stop_work(&p_hdcp->timer_hdcp_rcv_auth);
@@ -1916,7 +1906,7 @@ static void hdcp_check_ds_auth_whandler(struct work_struct *w)
 {
 	struct hdcp_work *work = &p_hdcp->timer_hdcp_rcv_auth;
 
-	pr_hdcp_info(L_2, "%s[%d] period %d ms\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] period %d ms\n", __func__, __LINE__,
 		work->period_ms);
 	hdcptx_update_failures(p_hdcp, HDCP_FAIL_AUTH_TIME_OUT);
 	if (work->period_ms)
@@ -1928,7 +1918,7 @@ static void hdcp_check_bksv_done_whandler(struct work_struct *w)
 	u8 copp_data1;
 	struct hdcp_work *work = &p_hdcp->timer_bksv_poll_done;
 
-	pr_hdcp_info(L_2, "%s[%d] period %d ms\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] period %d ms\n", __func__, __LINE__,
 		work->period_ms);
 	copp_data1 = hdcptx1_ds_cap_status_get();
 
@@ -1947,7 +1937,7 @@ static void hdcp_check_update_whandler(struct work_struct *w)
 {
 	struct hdcp_work *work = &p_hdcp->timer_hdcp_start;
 
-	pr_hdcp_info(L_2, "%s[%d] period %d ms\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] period %d ms\n", __func__, __LINE__,
 		work->period_ms);
 	hdcptx_reset(p_hdcp);
 	fail_reason = HDCP_FAIL_NONE;
@@ -1983,7 +1973,7 @@ static void hdcp_ddc_check_nack_whandler(struct work_struct *w)
 
 	if (cnt % 128 == 0) {
 		cnt++;
-		pr_hdcp_info(L_2, "%s[%d] period %d ms\n", __func__, __LINE__,
+		HDMITX_DEBUG_HDCP("%s[%d] period %d ms\n", __func__, __LINE__,
 			work->period_ms);
 	}
 	if (hdmi_ddc_status_check()) {
@@ -1999,7 +1989,7 @@ static void hdcp_check_auth_failretry_whandler(struct work_struct *w)
 {
 	struct hdcp_work *work = &p_hdcp->timer_hdcp_auth_fail_retry;
 
-	pr_hdcp_info(L_2, "%s[%d] period %d ms\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] period %d ms\n", __func__, __LINE__,
 		work->period_ms);
 	hdcptx_reset(p_hdcp);
 	hdcptx_auth_start(p_hdcp);
@@ -2011,7 +2001,7 @@ static void hdcp_update_csm_whandler(struct work_struct *w)
 {
 	struct hdcp_work *work = &p_hdcp->timer_update_csm;
 
-	pr_hdcp_info(L_2, "%s[%d] period %d ms\n", __func__, __LINE__,
+	HDMITX_DEBUG_HDCP("%s[%d] period %d ms\n", __func__, __LINE__,
 		work->period_ms);
 	hdcp_update_csm(p_hdcp);
 
@@ -2102,7 +2092,7 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 				for (count = 0; count < hdev->tx_comm.filter_hdcp_off_period * 10;
 					count++) {
 					if (!hdev->tx_comm.need_filter_hdcp_off) {
-						pr_hdcp_info(L_0, "hdcptx: exit filtering, mode %d auth: %d\n",
+						HDMITX_HDCP_INFO("hdcptx: exit filtering, mode %d auth: %d\n",
 							hdev->tx_comm.hdcp_mode,
 							hdmi21_authenticated);
 						break;
@@ -2112,11 +2102,11 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 					if (hdmi21_authenticated)
 						break;
 				}
-				pr_hdcp_info(L_0, "%d, after filtering auth is: %d, time:%dms\n",
+				HDMITX_HDCP_INFO("%d, after filtering auth is: %d, time:%dms\n",
 					hdev->tx_comm.hdcp_mode, hdmi21_authenticated, count * 100);
 				if (hdmi21_authenticated && hdev->tx_comm.need_filter_hdcp_off) {
 					hdev->tx_comm.need_filter_hdcp_off = false;
-					pr_hdcp_info(L_0, "mode: %d, filtered auth: %d\n",
+					HDMITX_HDCP_INFO("mode: %d, filtered auth: %d\n",
 						hdev->tx_comm.hdcp_mode,
 						hdmi21_authenticated);
 					continue;
@@ -2133,7 +2123,7 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 			/* self cleared after filter period expired */
 			hdev->tx_comm.need_filter_hdcp_off = false;
 			auth_stat = hdmi21_authenticated;
-			pr_hdcp_info(L_0, "mode %d, auth: %d\n", hdev->tx_comm.hdcp_mode,
+			HDMITX_HDCP_INFO("mode %d, auth: %d\n", hdev->tx_comm.hdcp_mode,
 				auth_stat);
 			/* for drm notify */
 			if (hdev->tx_comm.hdcp_ctl_lvl > 0)
@@ -2191,7 +2181,7 @@ static int hdmitx21_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int l
 	int pos = 0;
 
 	if (!tx_comm->hpd_state) {
-		HDMITX_INFO("%s: hpd low, just return 14\n", __func__);
+		HDMITX_HDCP_INFO("%s: hpd low, just return 14\n", __func__);
 		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n\r");
 		return pos;
 	}
@@ -2221,13 +2211,13 @@ static int hdmitx21_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int l
 		 * decision, it won't affect hdcp repeater CTS.
 		 */
 		if (hdcp_need_control_by_upstream(tx_comm->tx_hw)/* && !is_4k_sink(hdev) */) {
-			HDMITX_INFO("%s: currently should not read hdcp version\n", __func__);
+			HDMITX_HDCP_INFO("%s: currently should not read hdcp version\n", __func__);
 		} else if (hdmitx21_get_hdcp_mode() == 0) {
 			if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
 				pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
 				rx_hdcp2_ver = 1;
 			}
-			HDMITX_INFO("%s: hdev->tx_comm.hdcp_mode: 0, rx_hdcp2_ver = %d\n",
+			HDMITX_HDCP_INFO("%s: hdev->tx_comm.hdcp_mode: 0, rx_hdcp2_ver = %d\n",
 				__func__, rx_hdcp2_ver);
 		}
 	}
@@ -2244,7 +2234,7 @@ void drm_hdmitx_start_hdcp_handler(struct work_struct *work)
 		struct hdmitx_dev, work_drm_start_hdcp);
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-	HDMITX_INFO("%s: %d\n", __func__, hdev->tx_comm.hdcp_mode);
+	HDMITX_HDCP_INFO("%s: %d\n", __func__, hdev->tx_comm.hdcp_mode);
 	if (!hdev->tx_comm.ready || !hdev->tx_comm.hpd_state) {
 		HDMITX_ERROR("%s hdmitx ready:%d. hpd: %d, skip hdcp auth\n",
 			__func__, hdev->tx_comm.ready, hdev->tx_comm.hpd_state);
@@ -2252,7 +2242,7 @@ void drm_hdmitx_start_hdcp_handler(struct work_struct *work)
 		return;
 	}
 	if (hdev->frl_rate) {
-		HDMITX_INFO("%s hdcp enable for frl mode is on hdmitx side, skip here\n", __func__);
+		HDMITX_HDCP_INFO("%s hdcp enable for frl mode is on hdmitx side, skip here\n", __func__);
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
@@ -2283,7 +2273,7 @@ static void drm_hdmitx_hdcp_enable(int hdcp_type)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-	HDMITX_INFO("%s: %d\n", __func__, hdcp_type);
+	HDMITX_HDCP_INFO("%s: %d\n", __func__, hdcp_type);
 	if (!hdev->tx_comm.ready || !hdev->tx_comm.hpd_state) {
 		HDMITX_ERROR("%s hdmitx ready:%d. hpd: %d, skip hdcp auth\n",
 			__func__, hdev->tx_comm.ready, hdev->tx_comm.hpd_state);
@@ -2291,7 +2281,7 @@ static void drm_hdmitx_hdcp_enable(int hdcp_type)
 		return;
 	}
 	if (hdev->frl_rate) {
-		HDMITX_INFO("%s hdcp enable for frl mode is on hdmitx side, skip here\n", __func__);
+		HDMITX_HDCP_INFO("%s hdcp enable for frl mode is on hdmitx side, skip here\n", __func__);
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
@@ -2329,7 +2319,7 @@ static void drm_hdmitx_hdcp_disable(void)
 	hdmitx21_disable_hdcp(hdev);
 	hdev->drm_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 	hdev->drm_hdcp.hdcp_fail_cnt = 0;
-	HDMITX_INFO("%s\n", drm_hdmitx_hdcp_disable);
+	HDMITX_HDCP_INFO("%s\n", drm_hdmitx_hdcp_disable);
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 }
 
@@ -2344,7 +2334,7 @@ static void drm_hdmitx_hdcp_disconnect(void)
 	 */
 	hdev->drm_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 	hdev->drm_hdcp.hdcp_fail_cnt = 0;
-	HDMITX_INFO("%s\n", drm_hdmitx_hdcp_disconnect);
+	HDMITX_HDCP_INFO("%s\n", drm_hdmitx_hdcp_disconnect);
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 }
 
@@ -2483,7 +2473,7 @@ int hdmitx21_hdcp_init(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	pr_hdcp_info(L_2, "%s[%d]\n", __func__, __LINE__);
+	HDMITX_DEBUG_HDCP("%s[%d]\n", __func__, __LINE__);
 	hdev->am_hdcp = &hdcp_hdcp;
 	p_hdcp = &hdcp_hdcp;
 	p_hdcp->hdcp_state = HDCP_STAT_NONE;
@@ -2553,7 +2543,7 @@ static long hdcp_comm_ioctl(struct file *file,
 			hdcp_key_store |= BIT(1);
 		if (get_hdcp1_lstore())
 			hdcp_key_store |= BIT(0);
-		HDMITX_INFO("tee load hdcp key ready: 0x%x\n", hdcp_key_store);
+		HDMITX_HDCP_INFO("tee load hdcp key ready: 0x%x\n", hdcp_key_store);
 		/* for linux platform, notify hdcp key load ready to drm side */
 		if (hdev->tx_comm.hdcp_ctl_lvl > 0) {
 			if (hdev->drm_hdcp.drm_hdcp_cb.hdcp_notify) {
@@ -2567,9 +2557,9 @@ static long hdcp_comm_ioctl(struct file *file,
 		if (hdev->tx_comm.hpd_state == 1 &&
 			hdev->tx_comm.ready &&
 			hdmitx21_get_hdcp_mode() == 0) {
-			HDMITX_INFO("hdmi ready but hdcp not enabled, enable now\n");
+			HDMITX_HDCP_INFO("hdmi ready but hdcp not enabled, enable now\n");
 			if (hdcp_need_control_by_upstream(&hdev->tx_hw.base)) {
-				HDMITX_INFO("currently hdcp should started by upstream\n");
+				HDMITX_HDCP_INFO("currently hdcp should started by upstream\n");
 			} else {
 				if (hdcp_key_store & BIT(1))
 					hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
@@ -2591,7 +2581,7 @@ static long hdcp_comm_ioctl(struct file *file,
 			key_valid = drm_hdmitx_validate_hdcp_key(0x2);
 		else
 			key_valid = 0;
-		HDMITX_INFO("%ul key valid:%d\n", arg, key_valid);
+		HDMITX_HDCP_INFO("%ul key valid:%d\n", arg, key_valid);
 		rtn_val = copy_to_user((void __user *)arg, (void *)&key_valid, sizeof(key_valid));
 		if (rtn_val != 0)
 			rtn_val = -EFAULT;

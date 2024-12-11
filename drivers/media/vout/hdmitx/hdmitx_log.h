@@ -20,6 +20,7 @@ enum hdmitx_debug_category {
 	EVENT_LOG = 0x400,
 	HPD_LOG = 0x800,
 	DSC_LOG = 0x1000,
+	QMS_LOG = 0x2000,
 };
 
 #define HDMITX_ERROR(fmt, ...)							\
@@ -38,7 +39,7 @@ enum hdmitx_debug_category {
 	__hdmitx_dbg(AUDIO_LOG, fmt, ##__VA_ARGS__)
 
 #define HDMITX_DEBUG_HDCP(fmt, ...)						\
-	__hdmitx_dbg(HDCP_LOG, fmt, ##__VA_ARGS__)
+	__hdmitx_dbg(HDCP_LOG, "hdcptx: " fmt, ##__VA_ARGS__)
 
 #define HDMITX_DEBUG_PACKET(fmt, ...)					\
 	__hdmitx_dbg(PACKET_LOG, fmt, ##__VA_ARGS__)
@@ -65,10 +66,16 @@ enum hdmitx_debug_category {
 	__hdmitx_dbg(HPD_LOG, fmt, ##__VA_ARGS__)
 
 #define HDMITX_DEBUG_DSC(fmt, ...)						\
-		__hdmitx_dbg(DSC_LOG, fmt, ##__VA_ARGS__)
+	__hdmitx_dbg(DSC_LOG, fmt, ##__VA_ARGS__)
+
+#define HDMITX_DEBUG_QMS(fmt, ...)						\
+	__hdmitx_dbg(QMS_LOG, "QMS: " fmt, ##__VA_ARGS__)
 
 #define HDMITX_INFO(fmt, ...)							\
 	__hdmitx_info(fmt, ##__VA_ARGS__)
+
+#define HDMITX_HDCP_INFO(fmt, ...)							\
+	__hdmitx_info("hdcptx: " fmt, ##__VA_ARGS__)
 
 /*DONT USE API directly, use macro define instead.*/
 void __hdmitx_info(const char *format, ...);

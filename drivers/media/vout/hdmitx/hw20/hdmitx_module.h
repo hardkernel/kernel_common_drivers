@@ -92,6 +92,7 @@ struct hdmitx_dev {
 	unsigned int lstore;
 	unsigned char hdcp_max_exceed_state;
 	unsigned int hdcp_max_exceed_cnt;
+	unsigned int max_exceed;
 
 	struct drm_hdmitx_hdcp_cb drm_hdcp_cb;
 	/*hdcp end*/

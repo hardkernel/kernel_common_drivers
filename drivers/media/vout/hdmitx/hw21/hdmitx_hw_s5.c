@@ -577,40 +577,40 @@ void hdmitx21_s5_clk_div_rst(u32 clk_idx)
 	}
 }
 
-/* CLKCTRL_HTX_CLK_CTRL0 bit8 gate for cts_hdmitx_prif_clk
+/*
+ * CLKCTRL_HTX_CLK_CTRL0 bit8 gate for cts_hdmitx_prif_clk
  * it's necessary for register access of controller
  * CLKCTRL_HTX_CLK_CTRL0 bit24 gate for cts_hdmitx_200m_clk
  * it's necessary for i2c clk
  * CLKCTRL_HDMI_CLK_CTRL bit8 gate for cts_hdmitx_sys_clk
  * it's necessary for register access of hdmitx top
  */
-static int s5_gate_bit_mask = 0xffc7f;
-module_param(s5_gate_bit_mask, int, 0644);
-MODULE_PARM_DESC(s5_gate_bit_mask, "for s5_gate_bit_mask");
-
 void hdmitx_s5_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
 {
-	if (s5_gate_bit_mask & BIT(0))
+	int gate_bit_mask = hdev->tx_hw.gate_bit_mask;
+
+	HDMITX_INFO("gate_bit_mask = 0x%x, enable: %d\n", gate_bit_mask, en);
+	if (gate_bit_mask & BIT(0))
 		hd21_set_reg_bits(CLKCTRL_FPLL_CTRL0, en, 28, 1);
-	if (s5_gate_bit_mask & BIT(1))
+	if (gate_bit_mask & BIT(1))
 		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, en, 19, 1);
-	if (s5_gate_bit_mask & BIT(2))
+	if (gate_bit_mask & BIT(2))
 		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 4, 1);
-	if (s5_gate_bit_mask & BIT(3))
+	if (gate_bit_mask & BIT(3))
 		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 20, 1);
-	if (s5_gate_bit_mask & BIT(4))
+	if (gate_bit_mask & BIT(4))
 		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 12, 1);
-	if (s5_gate_bit_mask & BIT(5))
+	if (gate_bit_mask & BIT(5))
 		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, en, 3, 1);
-	if (s5_gate_bit_mask & BIT(6))
+	if (gate_bit_mask & BIT(6))
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, en, 8, 1);
-	if (s5_gate_bit_mask & BIT(7))
+	if (gate_bit_mask & BIT(7))
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL0, en, 24, 1);
-	if (s5_gate_bit_mask & BIT(8))
+	if (gate_bit_mask & BIT(8))
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL0, en, 8, 1);
-	if (s5_gate_bit_mask & BIT(9))
+	if (gate_bit_mask & BIT(9))
 		hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, en, 8, 1);
-	if (s5_gate_bit_mask & BIT(10))
+	if (gate_bit_mask & BIT(10))
 		hd21_set_reg_bits(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, en, 19, 1);
 		// hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, en, 1, 1);
 	/* ANACTRL_HDMIPLL_CTRL4 bit[25] for frl mode 1618 coding
@@ -618,17 +618,17 @@ void hdmitx_s5_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
 	 * suspend/resume. so disable it in suspend, not enable in resume,
 	 * it will be enabled in setting frl mode later.
 	 */
-	if (s5_gate_bit_mask & BIT(11) && !en)
+	if (gate_bit_mask & BIT(11) && !en)
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL4, en, 25, 1);
-	if (s5_gate_bit_mask & BIT(12))
+	if (gate_bit_mask & BIT(12))
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, en, 24, 1);
-	if (s5_gate_bit_mask & BIT(13))
+	if (gate_bit_mask & BIT(13))
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, en, 18, 1);
-	if (s5_gate_bit_mask & BIT(14))
+	if (gate_bit_mask & BIT(14))
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, en, 19, 1);
-	if (s5_gate_bit_mask & BIT(15))
+	if (gate_bit_mask & BIT(15))
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, en, 0, 1);
-	if (s5_gate_bit_mask & BIT(16))
+	if (gate_bit_mask & BIT(16))
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, en, 0, 1);
 	if (en == 0) /* this will enable during the mode setting */
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x0);

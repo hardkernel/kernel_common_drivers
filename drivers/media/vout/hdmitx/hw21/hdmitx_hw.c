@@ -1288,10 +1288,6 @@ static void vpu_hdmi_set_matrix_ycbcr2rgb(void)
 	hd21_set_reg_bits(VPU_HDMI_FMT_CTRL, 3, 0, 2);
 }
 
-static int dfm_type = -1;
-module_param(dfm_type, int, 0644);
-MODULE_PARM_DESC(dfm_type, "for dfm debug");
-
 /* set to 1 only for cvtem packet test */
 static int emp_dbg_en;
 
@@ -1349,10 +1345,6 @@ static void vpu_hdmi_set_matrix_rgb2ycbcr(void)
 	//enable matrix_rgb2ycbcr
 	hd21_set_reg_bits(VPU_HDMI_FMT_CTRL, 0, 0, 2);
 }
-
-static int CSC_type = 1;
-module_param(CSC_type, int, 0644);
-MODULE_PARM_DESC(CSC_type, "for choose VPU_HDMI_if function");
 
 static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 {
@@ -1517,9 +1509,9 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 			break;
 		case MESON_CPU_ID_S7D:
 		case MESON_CPU_ID_S6:
-			if (CSC_type == yuv2rgb)
+			if (hdev->tx_comm.csc_type == yuv2rgb)
 				vpu_hdmi_set_matrix_ycbcr2rgb();
-			else if (CSC_type == rgb2yuv)
+			else if (hdev->tx_comm.csc_type == rgb2yuv)
 				vpu_hdmi_set_matrix_rgb2ycbcr();
 			break;
 		default:
@@ -1604,11 +1596,11 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 					hdev->frl_rate, &tri_bytes_per_line);
 			}
 			/* manual mode */
-			if (dfm_type == 1) {
+			if (hdev->tx_comm.dfm_type == 1) {
 				hdmitx_dfm_cfg(1, tri_bytes_per_line);
-			} else if (dfm_type == 2) {
+			} else if (hdev->tx_comm.dfm_type == 2) {
 				hdmitx_dfm_cfg(2, 0);
-			} else if (dfm_type == 0) {
+			} else if (hdev->tx_comm.dfm_type == 0) {
 				hdmitx_dfm_cfg(0, 0);
 			} else {
 				if (ret)
@@ -1617,7 +1609,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 					hdmitx_dfm_cfg(2, 0);
 			}
 			HDMITX_INFO("%s hc_active: %d, full_bw: %d, tri_byte: %d, dfm_type: %d\n",
-					__func__, hc_active, ret, tri_bytes_per_line, dfm_type);
+					__func__, hc_active, ret, tri_bytes_per_line, hdev->tx_comm.dfm_type);
 		} else {
 			fifo_flow_enable_intrs(1);
 		}
@@ -2986,6 +2978,30 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
 					hdev->tx_comm.edid_parse_in_hdmitx);
 		}
+	} else if (strncmp(tmpbuf, "vrr_dbg_vframe", 14) == 0) {
+		ret = kstrtoul(tmpbuf + 14, 10, &value);
+		hdev->tx_comm.vrr_dbg_vframe = value;
+		HDMITX_INFO("vrr_dbg_vframe :%d\n", hdev->tx_comm.vrr_dbg_vframe);
+	} else if (strncmp(tmpbuf, "dfm_type", 8) == 0) {
+		ret = kstrtoul(tmpbuf + 8, 10, &value);
+		hdev->tx_comm.dfm_type = value;
+		HDMITX_INFO("dfm_type :%d\n", hdev->tx_comm.dfm_type);
+	} else if (strncmp(tmpbuf, "csc_type", 8) == 0) {
+		ret = kstrtoul(tmpbuf + 8, 10, &value);
+		hdev->tx_comm.csc_type = value;
+		HDMITX_INFO("csc_type :%d\n", hdev->tx_comm.csc_type);
+	} else if (strncmp(tmpbuf, "emp_no", 6) == 0) {
+		ret = kstrtoul(tmpbuf + 6, 10, &value);
+		hdev->tx_comm.emp_no = value;
+		HDMITX_INFO("emp_no :%d\n", hdev->tx_comm.emp_no);
+	} else if (strncmp(tmpbuf, "emp_verbose", 11) == 0) {
+		ret = kstrtoul(tmpbuf + 11, 10, &value);
+		hdev->tx_comm.emp_verbose = value;
+		HDMITX_INFO("emp_verbose :%d\n", hdev->tx_comm.emp_verbose);
+	} else if (strncmp(tmpbuf, "gate_bit_mask", 13) == 0) {
+		ret = kstrtoul(tmpbuf + 13, 16, &value);
+		hdev->tx_hw.gate_bit_mask = value;
+		HDMITX_INFO("gate_bit_mask :0x%x\n", hdev->tx_hw.gate_bit_mask);
 	}
 }
 

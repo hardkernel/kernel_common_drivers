@@ -296,10 +296,6 @@ static void pps_data_map(u8 *body, struct dsc_pps_data_s *pps,
 	body[135] = (pps->hc_active_bytes >> 8) & 0xff;
 }
 
-static int emp_verbose;
-MODULE_PARM_DESC(emp_verbose, "\n emp_verbose\n");
-module_param(emp_verbose, int, 0644);
-
 /* send DSC packet */
 void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	struct hdmi_timing *timing)
@@ -311,6 +307,8 @@ void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	//all 6 DSF, and the remain bytes in last DSF should be cleared
 	const u16 dsc_pkt_insert = (6 - 1) * 28 + 21;
 	u8 body[6 * 28];
+	struct dsc_offer_tx_data *dsc_data = container_of(pps, struct dsc_offer_tx_data, pps_data);
+	struct hdmitx_dev *hdev = container_of(dsc_data, struct hdmitx_dev, dsc_data);
 
 	memset(body, 0, sizeof(body));
 	pps_data_map(body, pps, timing);
@@ -368,11 +366,11 @@ void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	hdmitx21_set_reg_bits(DSC_PKT_GEN_CTL_IVCTX, 0, 3, 1);
 
 	for (i = 0; i < dsc_pkt_insert; i++) {
-		if (emp_verbose)
+		if (hdev->tx_comm.emp_verbose)
 			HDMITX_INFO("body[%d]=0x%02x\n", i, body[i]);
 		hdmitx21_wr_reg(DSC_PKT_MEM_WDATA_IVCTX, body[i]);
 	}
-	emp_verbose = 0;
+	hdev->tx_comm.emp_verbose = 0;
 	hdmitx21_wr_reg(DSC_PKT_INSERT_CTRL_IVCTX, 0x3);
 
 	/* only for pkt send in vsync */
@@ -385,20 +383,16 @@ void hdmitx_dsc_cvtem_pkt_disable(void)
 	hdmitx21_wr_reg(DSC_PKT_INSERT_CTRL_IVCTX, 0x0);
 }
 
-static int emp_no;
-MODULE_PARM_DESC(emp_no, "\n emp_no\n");
-module_param(emp_no, int, 0644);
-
 irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev)
 {
 	struct dsc_offer_tx_data dsc_data;
 	struct hdmi_timing *timing;
 
-	if (!hdev->dsc_en || emp_no == 0)
+	if (!hdev->dsc_en || hdev->tx_comm.emp_no == 0)
 		return IRQ_HANDLED;
 
-	if (emp_no != -1 || emp_no > 0)
-		emp_no--;
+	if (hdev->tx_comm.emp_no != -1 || hdev->tx_comm.emp_no > 0)
+		hdev->tx_comm.emp_no--;
 
 	timing = &hdev->tx_comm.fmt_para.timing;
 	hdmitx_get_dsc_data(&dsc_data);

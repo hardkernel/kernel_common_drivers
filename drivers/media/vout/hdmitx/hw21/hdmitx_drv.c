@@ -1598,7 +1598,11 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 	/* ll mode init values */
 	hdev->tx_comm.ll_enabled_in_auto_mode = false;
 	hdev->tx_comm.ll_user_set_mode = HDMI_LL_MODE_AUTO;
+	/* vrr function init*/
+	hdev->tx_comm.vrr_dbg_vframe = -1;
 
+	hdev->tx_comm.dfm_type = -1;
+	hdev->tx_comm.csc_type = 1;
 	return 0;
 }
 
@@ -1644,6 +1648,29 @@ static int hdmitx_get_connector(void)
 		return i;
 
 	return 0;
+}
+
+static void hdmitx_init_gate_bit_mask(struct hdmitx_dev *hdev)
+{
+	if (!hdev)
+		return;
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_S5:
+		hdev->tx_hw.gate_bit_mask = 0xffc7f;
+		break;
+	case MESON_CPU_ID_S6:
+		hdev->tx_hw.gate_bit_mask = 0x01c7f;
+		break;
+	case MESON_CPU_ID_S7:
+		hdev->tx_hw.gate_bit_mask = 0x01c7f;
+		break;
+	case MESON_CPU_ID_S7D:
+		hdev->tx_hw.gate_bit_mask = 0x01c7f;
+		break;
+	default:
+		hdev->tx_hw.gate_bit_mask = 0;
+		break;
+	}
 }
 
 static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev *hdev)
@@ -1728,6 +1755,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 			hdev->tx_hw.base.hdmi_tx_cap.dsc_capable = true;
 		else
 			hdev->tx_hw.base.hdmi_tx_cap.dsc_capable = false;
+		hdmitx_init_gate_bit_mask(hdev);
 		/* Get pxp_mode information */
 		ret = of_property_read_u32(pdev->dev.of_node, "pxp_mode",
 					   &pxp_mode);

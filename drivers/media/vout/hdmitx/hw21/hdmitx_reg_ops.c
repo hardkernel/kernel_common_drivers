@@ -23,8 +23,6 @@
 
 #include "hdmitx_common.h"
 
-static int hdmi_dbg;
-
 struct reg_map reg21_maps[REG_IDX_END] = {0};
 int hdmitx21_init_reg_map(struct platform_device *pdev)
 {
@@ -76,8 +74,7 @@ static void sec_wr(u32 addr, u32 data)
 {
 	struct arm_smccc_res res;
 
-	if (hdmi_dbg)
-		HDMITX_INFO("sec_wr32[0x%08x] 0x%08x\n", addr, data);
+	HDMITX_DEBUG_REG("sec_wr32[0x%08x] 0x%08x\n", addr, data);
 	arm_smccc_smc(0x82000019, (unsigned long)addr, data, 32, 0, 0, 0, 0, &res);
 }
 
@@ -85,8 +82,7 @@ static void sec_wr8(u32 addr, u8 data)
 {
 	struct arm_smccc_res res;
 
-	if (hdmi_dbg)
-		HDMITX_INFO("%s[0x%08x] 0x%02x\n", __func__, addr, data);
+	HDMITX_DEBUG_REG("%s[0x%08x] 0x%02x\n", __func__, addr, data);
 	arm_smccc_smc(0x82000019, (unsigned long)addr, data & 0xff, 8, 0, 0, 0, 0, &res);
 }
 
@@ -95,13 +91,11 @@ static u32 sec_rd(u32 addr)
 	u32 data;
 	struct arm_smccc_res res;
 
-	if (hdmi_dbg)
-		HDMITX_INFO("sec_rd32[0x%08x]\n", addr);
+	HDMITX_DEBUG_REG("sec_rd32[0x%08x]\n", addr);
 	arm_smccc_smc(0x82000018, (unsigned long)addr, 32, 0, 0, 0, 0, 0, &res);
 	data = (unsigned int)((res.a0) & 0xffffffff);
 
-	if (hdmi_dbg)
-		HDMITX_INFO("[0x%08x] 0x%08x\n", addr, data);
+	HDMITX_DEBUG_REG("[0x%08x] 0x%08x\n", addr, data);
 	return data;
 }
 
@@ -110,13 +104,11 @@ static u8 sec_rd8(u32 addr)
 	u32 data;
 	struct arm_smccc_res res;
 
-	if (hdmi_dbg)
-		HDMITX_INFO("%s[0x%08x]\n", __func__, addr);
+	HDMITX_DEBUG_REG("%s[0x%08x]\n", __func__, addr);
 	arm_smccc_smc(0x82000018, (unsigned long)addr, 8, 0, 0, 0, 0, 0, &res);
 	data = (unsigned int)((res.a0) & 0xffffffff);
 
-	if (hdmi_dbg)
-		HDMITX_INFO("[0x%08x] 0x%02x\n", addr, data);
+	HDMITX_DEBUG_REG("[0x%08x] 0x%02x\n", addr, data);
 	return data;
 }
 
@@ -161,8 +153,7 @@ u32 hd21_read_reg(u32 vaddr)
 	u32 paddr = get_enc_paddr(vaddr);
 
 	val = readl(TO_PMAP_ADDR(paddr));
-	if (hdmi_dbg)
-		HDMITX_INFO("Rd32[0x%08x] 0x%08x\n", TO21_PHY_ADDR(paddr), val);
+	HDMITX_DEBUG_REG("Rd32[0x%08x] 0x%08x\n", TO21_PHY_ADDR(paddr), val);
 	return val;
 }
 EXPORT_SYMBOL(hd21_read_reg);
@@ -174,13 +165,11 @@ void hd21_write_reg(u32 vaddr, u32 val)
 
 	writel(val, TO_PMAP_ADDR(paddr));
 	rval = readl(TO_PMAP_ADDR(paddr));
-	if (!hdmi_dbg)
-		return;
 	if (val != rval)
-		HDMITX_INFO("Wr32[0x%08x] 0x%08x != Rd32 0x%08x\n",
+		HDMITX_DEBUG_REG("Wr32[0x%08x] 0x%08x != Rd32 0x%08x\n",
 			TO21_PHY_ADDR(paddr), val, rval);
 	else
-		HDMITX_INFO("Wr32[0x%08x] 0x%08x\n",
+		HDMITX_DEBUG_REG("Wr32[0x%08x] 0x%08x\n",
 			TO21_PHY_ADDR(paddr), val);
 }
 EXPORT_SYMBOL(hd21_write_reg);
@@ -377,5 +366,3 @@ void hdmitx21_fifo_read(u16 offset, u8 *buf, u16 cnt)
 }
 EXPORT_SYMBOL(hdmitx21_fifo_read);
 
-MODULE_PARM_DESC(hdmi_dbg, "\n hdmi_dbg\n");
-module_param(hdmi_dbg, int, 0644);

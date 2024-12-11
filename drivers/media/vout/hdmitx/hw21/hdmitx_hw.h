@@ -37,6 +37,7 @@ struct hdmitx21_hw {
 	 * CLKCTRL_VID_CLK0_CTRL clk source should select vid_pix_clk.
 	 */
 	u8 s7_clk_config;
+	int gate_bit_mask; /* for ctrl phy/pll/clk */
 };
 
 #define to_hdmitx21_hw(x)	container_of(x, struct hdmitx21_hw, base)

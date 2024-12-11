@@ -716,44 +716,13 @@ static u32 reduce_0p1_percent(u32 value)
 	return value;
 }
 
-/*
- * debug only, should be positive value. if it is N, then vysnc_handler
- * will handle N frames, then it will be 0, and vysnc_handler is pending
- * value 1 is only for single steps, and -1 will work as normally.
- */
-static int vrr_dbg_vframe = -1;
-MODULE_PARM_DESC(vrr_dbg_vframe, "\n vrr_dbg_vframe\n");
-module_param(vrr_dbg_vframe, int, 0644);
-
-/* verbose log mode */
-static int vrr_verbose;
-MODULE_PARM_DESC(vrr_verbose, "\n vrr_verbose\n");
-module_param(vrr_verbose, int, 0644);
-
-static void vrr_debug_info(const char *fmt, ...)
-{
-	int len;
-	char temp[128] = {0};
-	va_list args;
-
-	if (!vrr_verbose)
-		return;
-
-	va_start(args, fmt);
-	len = vsnprintf(temp, sizeof(temp), fmt, args);
-	va_end(args);
-
-	if (len)
-		HDMITX_INFO("%s", temp);
-}
-
 static const struct mvrr_const_val *search_vrrconf_mconst(enum hdmi_vic brr_vic,
 	int duration)
 {
 	const struct mvrr_const_st **table_vic = NULL;
 	const struct mvrr_const_val *const *table_val = NULL;
 
-	vrr_debug_info("qms: %s[%d] brr_vic: %d duration: %d\n", __func__, __LINE__,
+	HDMITX_DEBUG_QMS("%s[%d] brr_vic: %d duration: %d\n", __func__, __LINE__,
 		brr_vic, duration);
 	for (table_vic = qms_const; table_vic; table_vic++) {
 		if ((*table_vic)->brr_vic == brr_vic) {
@@ -767,7 +736,7 @@ static const struct mvrr_const_val *search_vrrconf_mconst(enum hdmi_vic brr_vic,
 	}
 
 	if (!table_val)
-		vrr_debug_info("qms: %s[%d] not find brr_vic: %d duration: %d\n",
+		HDMITX_DEBUG_QMS("%s[%d] not find brr_vic: %d duration: %d\n",
 			__func__, __LINE__, brr_vic, duration);
 
 	return *table_val;
@@ -1084,9 +1053,9 @@ static u16 calc_vtotal_with_mdelta(struct tx_vrr_params *vrr)
 		val = min(vtotal_cur + delta, vtotal_target);
 	else
 		val = max(vtotal_cur - delta, vtotal_target);
-	vrr_debug_info("qms: %s[%d] vtotal_cur=%d vtotal_target=%d val=%d\n",
+	HDMITX_DEBUG_QMS("%s[%d] vtotal_cur=%d vtotal_target=%d val=%d\n",
 		__func__, __LINE__, vtotal_cur, vtotal_target, val);
-	vrr_debug_info("qms: mdelta_limit = %d\n", delta);
+	HDMITX_DEBUG_QMS("mdelta_limit = %d\n", delta);
 	return val;
 }
 
@@ -1109,7 +1078,7 @@ static void vrr_cur_vtotal_debug(u32 frame_cnt, bool m_const, u32 vt_target)
 		m_const_pre = m_const;
 	}
 	if (trigger)
-		vrr_debug_info("qms: [%s]FrameNo%d mcon%d vt_target/%d %s vt_cur/%d\n",
+		HDMITX_DEBUG_QMS("[%s]FrameNo%d mcon%d vt_target/%d %s vt_cur/%d\n",
 			__func__, frame_cnt, m_const, vt_target,
 			dist == 0 ? "==" : (dist == 1 ? "?=" : "!="), vt_cur);
 }
@@ -1548,7 +1517,7 @@ int hdmitx_set_vrr_rate(int rate, void *data)
 	int tmp_rate;
 	struct hdmi_format_para *fmt_para = &hdev->tx_comm.fmt_para;
 
-	vrr_debug_info("qms: %s[%d] rate %d\n", __func__, __LINE__, rate);
+	HDMITX_DEBUG_QMS("%s[%d] rate %d\n", __func__, __LINE__, rate);
 	hdmitx_vrr_disable();
 
 	/* check current rate, should less or equal than current rate of BRR */
@@ -1643,7 +1612,7 @@ int hdmitx_set_vrr_rate(int rate, void *data)
 
 	hdmitx_set_vrr_para(&para);
 	hdmitx_vrr_enable();
-	vrr_debug_info("qms: %s[%d]\n", __func__, __LINE__);
+	HDMITX_DEBUG_QMS("%s[%d]\n", __func__, __LINE__);
 
 	return 1;
 }
@@ -1714,14 +1683,14 @@ static void hdmitx_vrr_game_handler(struct hdmitx_dev *hdev)
 
 	timing = hdmitx_mode_vic_to_hdmi_timing(conf->brr_vic);
 	if (!timing) {
-		vrr_debug_info("%s[%d] failed to get timing of brr_vic %d\n",
+		HDMITX_DEBUG_QMS("%s[%d] failed to get timing of brr_vic %d\n",
 			__func__, __LINE__, conf->brr_vic);
 		return;
 	}
 	vtotal_tmp = timing->v_total * timing->v_freq / 10;
 	vtotal_tmp = vtotal_tmp / conf->duration;
 	vrr->game_val.vtotal_fixed = vtotal_tmp;
-	vrr_debug_info("game-vrr vtotal = %d\n", vrr->game_val.vtotal_fixed);
+	HDMITX_DEBUG_QMS("game-vrr vtotal = %d\n", vrr->game_val.vtotal_fixed);
 
 	hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, &vrr->emp_vrr_pkt);
 	hdmitx_vrr_set_maxlncnt(vrr->game_val.vtotal_fixed);
@@ -1739,10 +1708,10 @@ irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev)
 		return IRQ_HANDLED;
 
 	/* for vsync debug only */
-	if (vrr_dbg_vframe == 0)
+	if (hdev->tx_comm.vrr_dbg_vframe == 0)
 		return IRQ_HANDLED;
-	if (vrr_dbg_vframe > 0)
-		vrr_dbg_vframe--;
+	if (hdev->tx_comm.vrr_dbg_vframe > 0)
+		hdev->tx_comm.vrr_dbg_vframe--;
 
 	/* if configuration changed then init local vrr variables */
 	if (is_vrrconf_changed(&vrr->conf_params, &vrr->vrr_para_tmp)) {
