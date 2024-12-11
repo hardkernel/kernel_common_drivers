@@ -1241,7 +1241,7 @@
 	aocec: aocec {
 		compatible = "amlogic, aocec-s7d";
 		dev_name = "aocec";
-		status = "disabled";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
@@ -1324,13 +1324,13 @@
 
 	canvas: canvas{
 		compatible = "amlogic, meson, canvas";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe036048 0x0 0x2000>;
 	};
 
 	codec_io: codec_io {
 		compatible = "amlogic, meson-s7d, codec-io";
-		status = "disabled";
+		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;
@@ -1376,7 +1376,7 @@
 
 	vpu: vpu {
 		compatible = "amlogic, vpu-s7d";
-		status = "disabled";
+		status = "okay";
 		reg =	<0x0 0xfe000000 0x0 0x100    /* clk */
 			 0x0 0xfe00c000 0x0 0x70     /* pwrctrl */
 			 0x0 0xff000000 0x0 0xf000>; /* vcbus */
@@ -1397,7 +1397,7 @@
 
 	rdma {
 		compatible = "amlogic, meson-sc2, rdma";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
@@ -1408,7 +1408,7 @@
 	amlvecm: amlvecm {
 		compatible = "amlogic, vecm-s7d";
 		dev_name = "aml_vecm";
-		status = "disabled";
+		status = "okay";
 		gamma_en = <0>;/*1:enable ;0:disable*/
 		wb_en = <0>;/*1:enable ;0:disable*/
 		/*0: 709/601  1: bt2020*/
@@ -1676,7 +1676,7 @@
 	vdin1: vdin1 {
 		compatible = "amlogic, vdin-s7d";
 		dev_name = "vdin1";
-		status = "disabled";
+		status = "okay";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 212 1>;
@@ -1706,7 +1706,7 @@
 	meson-amvideom {
 		compatible = "amlogic, amvideom-s7d";
 		dev_name = "amvideom";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync";
 	};
@@ -1747,7 +1747,7 @@
 
 	ge2d {
 		compatible = "amlogic, ge2d-s7d";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 217 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ge2d";
 		clocks = <&clkc CLKID_VAPB>,

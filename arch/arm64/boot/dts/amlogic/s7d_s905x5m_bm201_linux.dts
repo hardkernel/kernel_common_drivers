@@ -216,7 +216,7 @@
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_s7d";
 		dev_name = "aml_amdolby_vision_driver";
-		status = "disabled";
+		status = "okay";
 		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 
@@ -1198,7 +1198,7 @@
 };
 
 &ir {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
 	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
@@ -1305,7 +1305,7 @@
 &amlvecm {
 	compatible = "amlogic, vecm-s7d";
 	dev_name = "aml_vecm";
-	status = "disabled";
+	status = "okay";
 	gamma_en = <0>;/*1:enable ;0:disable*/
 	wb_en = <0>;/*1:enable ;0:disable*/
 	/*0: 709/601  1: bt2020*/
