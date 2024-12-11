@@ -682,7 +682,8 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		(vsr_safa->prev_ratio == 2) ? ((vsize_in + 3) >> 2) :
 		((vsize_in + 7) >> 3) : vsize_in;
 
-	if (video_is_meson_s7d_cpu())
+	if (video_is_meson_s7d_cpu() ||
+		video_is_meson_s6_cpu())
 		ret = safa_speed_up_handle(vsr);
 	if (ret)
 		pre_hsize = ret;
