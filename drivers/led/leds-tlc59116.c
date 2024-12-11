@@ -705,8 +705,8 @@ static int meson_tlc59116_suspend(struct device *dev)
 	struct meson_tlc59116 *tlc59116 = i2c_get_clientdata(client);
 
 	if (!tlc59116) {
-		dev_err(dev, "tlc59116 is NULL!\n");
-		return -ENXIO;
+		pr_debug("tlc59116 is NULL!\n");
+		return 0;
 	}
 
 	if (tlc59116->ignore_led_suspend)
@@ -727,8 +727,8 @@ static int meson_tlc59116_resume(struct device *dev)
 	struct meson_tlc59116 *tlc59116 = i2c_get_clientdata(client);
 
 	if (!tlc59116) {
-		dev_err(dev, "tlc59116 is NULL!\n");
-		return -ENXIO;
+		pr_debug("tlc59116 is NULL!\n");
+		return 0;
 	}
 
 	if (tlc59116->ignore_led_suspend)
