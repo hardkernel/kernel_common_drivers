@@ -631,15 +631,17 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	 * if currently output 8bit, when csc_en is 1 and
 	 * 422 is supported, output HDR, otherwise SDR
 	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
-		if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
-			hdev->hdr_transfer_feature = T_BT709;
-			hdev->hdr_color_feature = C_BT709;
-			schedule_work(&hdev->work_hdr);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_SDR);
-			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
-			return;
+	if (data) {
+		if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
+			if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
+				hdev->hdr_transfer_feature = T_BT709;
+				hdev->hdr_color_feature = C_BT709;
+				schedule_work(&hdev->work_hdr);
+				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
+						HDMITX_HDR_MODE_SDR);
+				spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+				return;
+			}
 		}
 	}
 
@@ -1269,14 +1271,16 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 	 * if currently output 8bit, when csc_en is 1 and
 	 * 422 is supported, output HDR, otherwise SDR
 	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
-		if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
-			hdev->hdr_transfer_feature = T_BT709;
-			hdev->hdr_color_feature = C_BT709;
-			schedule_work(&hdev->work_hdr);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_SDR);
-			return;
+	if (data) {
+		if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
+			if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
+				hdev->hdr_transfer_feature = T_BT709;
+				hdev->hdr_color_feature = C_BT709;
+				schedule_work(&hdev->work_hdr);
+				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
+						HDMITX_HDR_MODE_SDR);
+				return;
+			}
 		}
 	}
 
