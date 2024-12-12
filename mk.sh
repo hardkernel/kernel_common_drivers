@@ -111,8 +111,8 @@ adjust_config_action
 build_part_of_kernel
 
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
-	args="$@ --config=fast --noincompatible_sandbox_hermetic_tmp"
-	[[ -z ${PREBUILT_GKI} ]] && args="${args} --lto=${LTO}"
+	args="$@ --config=fast"
+	[[ -z ${PREBUILT_GKI} ]] && args="${args}"
 	[[ -z ${GKI_CONFIG} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
 	[[ -d ${ROOT_DIR}/common_drivers ]] && args="${args} --config=common_drivers_on_top"
 

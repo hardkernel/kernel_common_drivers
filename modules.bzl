@@ -9,7 +9,7 @@ OEM_PROJECT_MODULES = [
 AMLOGIC_GKI20_MODULES = [
     "common_drivers/drivers/memory_ext/mem_debug.ko",
     "common_drivers/drivers/memory_ext/page_trace.ko",
-    "common_drivers/drivers/memory_ext/user_fault.ko",
+#    "common_drivers/drivers/memory_ext/user_fault.ko",
 ]
 
 AMLOGIC_GKI10_MODULES = [

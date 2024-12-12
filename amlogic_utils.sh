@@ -1757,6 +1757,7 @@ function set_default_parameters_for_32bit () {
 	echo CC_CLANG=$CC_CLANG
 	if [[ $CC_CLANG -eq "1" ]]; then
 		source ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+		LLVM=1
 		DTC=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/bin/dtc
 		if [[ -n "${LLVM}" ]]; then
 			tool_args+=("LLVM=1")

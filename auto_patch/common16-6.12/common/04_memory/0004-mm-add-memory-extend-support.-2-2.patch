@@ -1,4 +1,4 @@
-From afaf60c1fd2b0f4fb547875e55056fe6a15eaddd Mon Sep 17 00:00:00 2001
+From b972fa1ef4a3b0b2518d67a26f34e5b54daf9203 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 16:24:49 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -20,6 +20,7 @@ reserved_memory: change print of all reserved memory. [1/1]
 dma-buf: dma-buf system heap report error [1/1]
 mm: reduce cache line size to 64 bytes to save memory [1/1]
 mm: forward memory reclaim process [2/2]
+hibernate.c: fix build error
 
 Verify:
 local.
@@ -28,6 +29,7 @@ Change-Id: I571a5894121e82a3c18f03d03ad409a750018f60
 Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
 ---
  arch/arm64/include/asm/cache.h |  4 +++
+ arch/arm64/kernel/hibernate.c  |  3 ++
  drivers/base/core.c            |  2 ++
  drivers/of/base.c              |  4 +++
  drivers/of/of_reserved_mem.c   | 21 ++++++++++++
@@ -52,7 +54,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/slub.c                      | 38 ++++++++++++++++++++++
  mm/usercopy.c                  |  4 +++
  mm/vmscan.c                    | 17 ++++++++++
- 25 files changed, 299 insertions(+), 1 deletion(-)
+ 26 files changed, 302 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index 06a4670bdb0b..515e6f726e95 100644
@@ -70,11 +72,25 @@ index 06a4670bdb0b..515e6f726e95 100644
  #define ARCH_KMALLOC_MINALIGN	(8)
  
  #ifndef __ASSEMBLY__
+diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
+index 6e53ecfdfa12..6068578fecbc 100644
+--- a/arch/arm64/kernel/hibernate.c
++++ b/arch/arm64/kernel/hibernate.c
+@@ -83,6 +83,9 @@ static struct arch_hibernate_hdr {
+ 	u64		sleep_cpu_mpidr;
+ 
+ 	ANDROID_VENDOR_DATA(1);
++#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG) && (IS_ENABLED(CONFIG_AMLOGIC_MEMORY_OPT) || !defined(CONFIG_ANDROID_VENDOR_OEM_DATA))
++	u64 android_vendor_data1;
++#endif
+ } resume_hdr;
+ 
+ static inline void arch_hdr_invariants(struct arch_hibernate_hdr_invariants *i)
 diff --git a/drivers/base/core.c b/drivers/base/core.c
-index a4c853411a6b..6d2a133c18a1 100644
+index 048ff98dbdfd..96c71f51608b 100644
 --- a/drivers/base/core.c
 +++ b/drivers/base/core.c
-@@ -3410,8 +3410,10 @@ static int device_add_class_symlinks(struct device *dev)
+@@ -3407,8 +3407,10 @@ static int device_add_class_symlinks(struct device *dev)
  
  	if (of_node) {
  		error = sysfs_create_link(&dev->kobj, of_node_kobj(of_node), "of_node");
@@ -251,7 +267,7 @@ index af3014ccc82e..f5bce42c8d0d 100644
  
  #endif /* _ANDROID_VENDOR_H */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b67415191db1..0f7870a178c6 100644
+index eb7f85f51034..62676999c84f 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
 @@ -117,7 +117,18 @@ extern int page_group_by_mobility_disabled;
@@ -275,7 +291,7 @@ index b67415191db1..0f7870a178c6 100644
  struct pglist_data;
  
 diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 4a84bb251fe3..023629669875 100644
+index a2b0716c1f27..e7d156c0a025 100644
 --- a/include/linux/page-flags.h
 +++ b/include/linux/page-flags.h
 @@ -551,6 +551,9 @@ PAGEFLAG(Private2, private_2, PF_ANY) TESTSCFLAG(Private2, private_2, PF_ANY)
@@ -420,10 +436,10 @@ index bf65e0c3c86f..0daac1bf3491 100644
  	    || mod_mem_type_is_init(type))
  		return false;
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index cab820ee9f27..06b90b7f09e7 100644
+index fb242739aec8..d55cb3eeca11 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
-@@ -540,8 +540,13 @@ static u32 log_buf_len = __LOG_BUF_LEN;
+@@ -541,8 +541,13 @@ static u32 log_buf_len = __LOG_BUF_LEN;
  #if CONFIG_LOG_BUF_SHIFT <= PRB_AVGBITS
  #error CONFIG_LOG_BUF_SHIFT value too small.
  #endif
@@ -525,7 +541,7 @@ index ed4873e18c75..84761ffbfc2a 100644
  		     KASAN_PAGE_REDZONE, false);
  }
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c80563918668..ecb9eb6bfe04 100644
+index 47b7dbd41623..59f321b764c9 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -71,6 +71,10 @@
@@ -539,7 +555,7 @@ index c80563918668..ecb9eb6bfe04 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
  
-@@ -856,7 +860,15 @@ static inline void __free_one_page(struct page *page,
+@@ -861,7 +865,15 @@ static inline void __free_one_page(struct page *page,
  	else if (is_shuffle_order(order))
  		to_tail = shuffle_pick_tail();
  	else
@@ -555,7 +571,7 @@ index c80563918668..ecb9eb6bfe04 100644
  
  	__add_to_free_list(page, zone, order, migratetype, to_tail);
  
-@@ -2640,7 +2652,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
+@@ -2659,7 +2671,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
  	pcp->alloc_factor >>= 1;
  	__count_vm_events(PGFREE, 1 << order);
  	pindex = order_to_pindex(migratetype, order);
@@ -571,7 +587,7 @@ index c80563918668..ecb9eb6bfe04 100644
  	pcp->count += 1 << order;
  
  	batch = READ_ONCE(pcp->batch);
-@@ -4796,6 +4816,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+@@ -4820,6 +4840,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
  	 */
  	alloc_flags |= alloc_flags_nofragment(zonelist_zone(ac.preferred_zoneref), gfp);
  
@@ -581,7 +597,7 @@ index c80563918668..ecb9eb6bfe04 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -7051,6 +7074,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -7075,6 +7098,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -661,7 +677,7 @@ index ec885a398fa0..65b8941a1a25 100644
  
  	for_each_online_node(nid) {
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 3d26c257ed8b..87639aaf5f53 100644
+index 893d32059915..ef79d3f1f2d4 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
 @@ -53,7 +53,11 @@ struct kmem_cache *kmem_cache;
@@ -676,7 +692,7 @@ index 3d26c257ed8b..87639aaf5f53 100644
  
  static int __init setup_slab_nomerge(char *str)
  {
-@@ -979,6 +983,9 @@ void __init create_kmalloc_caches(void)
+@@ -988,6 +992,9 @@ void __init create_kmalloc_caches(void)
  size_t __ksize(const void *object)
  {
  	struct folio *folio;
@@ -686,7 +702,7 @@ index 3d26c257ed8b..87639aaf5f53 100644
  
  	if (unlikely(object == ZERO_SIZE_PTR))
  		return 0;
-@@ -986,10 +993,21 @@ size_t __ksize(const void *object)
+@@ -995,10 +1002,21 @@ size_t __ksize(const void *object)
  	folio = virt_to_folio(object);
  
  	if (unlikely(!folio_test_slab(folio))) {
@@ -708,7 +724,7 @@ index 3d26c257ed8b..87639aaf5f53 100644
  		return folio_size(folio);
  	}
  
-@@ -1064,9 +1082,18 @@ static void print_slabinfo_header(struct seq_file *m)
+@@ -1073,9 +1091,18 @@ static void print_slabinfo_header(struct seq_file *m)
  	 * without _too_ many complaints.
  	 */
  	seq_puts(m, "slabinfo - version: 2.1\n");
@@ -727,7 +743,7 @@ index 3d26c257ed8b..87639aaf5f53 100644
  	seq_putc(m, '\n');
  }
  
-@@ -1089,18 +1116,34 @@ static void slab_stop(struct seq_file *m, void *p)
+@@ -1098,18 +1125,34 @@ static void slab_stop(struct seq_file *m, void *p)
  static void cache_show(struct kmem_cache *s, struct seq_file *m)
  {
  	struct slabinfo sinfo;
@@ -883,10 +899,10 @@ index 83c164aba6e0..5400ce215e2c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fb39c76f9c02..17939fd56287 100644
+index e362706dc110..b5b3767538ef 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1047,6 +1047,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
+@@ -1048,6 +1048,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
@@ -904,7 +920,7 @@ index fb39c76f9c02..17939fd56287 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1093,7 +1104,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1094,7 +1105,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -916,7 +932,7 @@ index fb39c76f9c02..17939fd56287 100644
  			goto keep_locked;
  
  		/* folio_update_gen() tried to promote this page? */
-@@ -1833,8 +1848,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -1834,8 +1849,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */

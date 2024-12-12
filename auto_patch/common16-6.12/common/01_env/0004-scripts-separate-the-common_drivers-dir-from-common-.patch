@@ -1,8 +1,8 @@
-From 06ab147079e5b0c2fdc18085c8f694d2f8978aa8 Mon Sep 17 00:00:00 2001
+From eb1e11fbd5f928fa04c0c4b356b22957f0443a57 Mon Sep 17 00:00:00 2001
 From: Dezhen Wang <dezhen.wang@amlogic.com>
 Date: Tue, 15 Oct 2024 11:30:12 +0000
-Subject: [PATCH] scripts: separate the common_drivers dir from common dir
- [1/1]
+Subject: [PATCH 04/59] scripts: separate the common_drivers dir from common
+ dir [1/1]
 
 PD#SWPL-188894
 
@@ -25,18 +25,18 @@ Signed-off-by: Dezhen Wang <dezhen.wang@amlogic.com>
  3 files changed, 19 insertions(+), 5 deletions(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index dc6263d9eeba..51170d0b562e 100644
+index cb7ea71b22cd..c604f6442a1f 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
-@@ -28,6 +28,7 @@ load(
- )
- load(":abi.bzl", "cc_binary_with_abi")
- load(":modules.bzl", "get_gki_modules_list", "get_kunit_modules_list")
-+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+@@ -1,6 +1,7 @@
+ # SPDX-License-Identifier: GPL-2.0
+ # Copyright (C) 2021 The Android Open Source Project
  
- package(
-     default_visibility = [
-@@ -141,7 +142,7 @@ filegroup(
++load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+ load("@bazel_skylib//lib:paths.bzl", "paths")
+ load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+ load("@bazel_skylib//rules:write_file.bzl", "write_file")
+@@ -161,7 +162,7 @@ filegroup(
              "cscope.*",
              "ncscope.*",
          ],
@@ -45,7 +45,7 @@ index dc6263d9eeba..51170d0b562e 100644
      visibility = ["//visibility:public"],
  )
  
-@@ -2683,5 +2684,14 @@ exports_files([
+@@ -3047,5 +3048,14 @@ exports_files([
      "Makefile",
  ])
  
@@ -63,7 +63,7 @@ index dc6263d9eeba..51170d0b562e 100644
 +    visibility = ["//visibility:public"],
 +)
 diff --git a/Makefile b/Makefile
-index 20f496da310a..bb22b6a7d1b1 100644
+index a34c767b4762..267d2e8d3bff 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -431,7 +431,11 @@ endif
@@ -80,7 +80,7 @@ index 20f496da310a..bb22b6a7d1b1 100644
  export DTC_INCLUDE ?= $(srctree)/$(COMMON_DRIVERS_DIR)/include
  # endif
 diff --git a/modules.bzl b/modules.bzl
-index b4d89366bb11..44d4697eddba 100644
+index a0adfda411a6..aeb695def6db 100644
 --- a/modules.bzl
 +++ b/modules.bzl
 @@ -6,7 +6,7 @@ This module contains a full list of kernel modules
@@ -93,5 +93,5 @@ index b4d89366bb11..44d4697eddba 100644
  _COMMON_GKI_MODULES_LIST = [
      # keep sorted
 -- 
-2.46.0
+2.42.0
 
