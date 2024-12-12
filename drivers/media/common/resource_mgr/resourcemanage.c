@@ -1771,7 +1771,7 @@ static int resman_codec_mm_available(int issecure)
 			codec_mm_get_tvp_free_size()) >> 20;
 	}
 	dprintk(2, "avail %d\n", avail);
-	if (resman_debug)
+	if (resman_debug > 1)
 		dump_mem_infos_external();
 
 	return avail;
