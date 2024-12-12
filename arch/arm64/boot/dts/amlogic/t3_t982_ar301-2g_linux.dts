@@ -812,8 +812,9 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 		src-clk-freq = <491520000>;
-		pinctrl-names = "pdm_pins";
+		pinctrl-names = "pdm_pins", "pdm_a_gpio";
 		pinctrl-0 = <&pdmin>;
+		pinctrl-1 = <&pdm_sleep>;
 
 		/* mode 0~4, default:1 */
 		filter_mode = <1>;
@@ -1369,6 +1370,17 @@
 				"pdm_din1_h14",
 				"pdm_din2_h22";
 				function = "pdm";
+		};
+	};
+
+	pdm_sleep:pdm_sleep {
+		mux {
+			groups = "GPIOH_19",
+				"GPIOH_18",
+				"GPIOH_14",
+				"GPIOH_22";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 };

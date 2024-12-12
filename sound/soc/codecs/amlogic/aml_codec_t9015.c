@@ -606,7 +606,6 @@ static const struct of_device_id aml_T9015_codec_dt_match[] = {
 	{}
 };
 
-#ifdef CONFIG_HIBERNATION
 static int aml_T9015_acodec_platform_restore(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -634,17 +633,17 @@ static int aml_T9015_acodec_platform_freeze(struct device *dev)
 static const struct dev_pm_ops meson_T9015_pm_ops = {
 	.restore = aml_T9015_acodec_platform_restore,
 	.freeze = aml_T9015_acodec_platform_freeze,
+	.suspend = aml_T9015_acodec_platform_restore,
+	.resume = aml_T9015_acodec_platform_freeze,
+
 };
-#endif
 
 static struct platform_driver aml_T9015_codec_platform_driver = {
 	.driver  = {
 		.name           = "aml_codec_T9015",
 		.owner          = THIS_MODULE,
 		.of_match_table = aml_T9015_codec_dt_match,
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_T9015_pm_ops,
-#endif
 	},
 	.probe    = aml_T9015_audio_codec_probe,
 	.shutdown = aml_T9015_audio_codec_shutdown,

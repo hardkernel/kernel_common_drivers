@@ -517,8 +517,9 @@ static int spdifin_audio_type_get_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t state)
+static int aml_spdif_platform_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
 	struct pinctrl_state *pstate = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
@@ -555,8 +556,9 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 	return 0;
 }
 
-static int aml_spdif_platform_resume(struct platform_device *pdev)
+static int aml_spdif_platform_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
 	struct pinctrl_state *state = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
@@ -2273,12 +2275,9 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_HIBERNATION
 static int aml_spdif_platform_restore(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-
-	aml_spdif_platform_resume(pdev);
+	aml_spdif_platform_resume(dev);
 	return 0;
 }
 
@@ -2330,20 +2329,17 @@ static int aml_spdif_platform_freeze(struct device *dev)
 static const struct dev_pm_ops meson_spdif_pm_ops = {
 	.restore = aml_spdif_platform_restore,
 	.freeze = aml_spdif_platform_freeze,
+	.suspend = aml_spdif_platform_suspend,
+	.resume  = aml_spdif_platform_resume,
 };
-#endif
 
 struct platform_driver aml_spdif_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = aml_spdif_device_id,
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_spdif_pm_ops,
-#endif
 	},
 	.probe = aml_spdif_platform_probe,
-	.suspend = aml_spdif_platform_suspend,
-	.resume  = aml_spdif_platform_resume,
 	.shutdown = aml_spdif_platform_shutdown,
 };
 

@@ -1488,9 +1488,11 @@ static int aml_pdm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int pdm_platform_suspend(struct platform_device *pdev, pm_message_t state)
+static int pdm_platform_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
+
 	int id = p_pdm->chipinfo->id;
 	/* whether in freeze */
 	if (is_pm_s2idle_mode() && vad_pdm_is_running()) {
@@ -1521,9 +1523,11 @@ static int pdm_platform_suspend(struct platform_device *pdev, pm_message_t state
 	return 0;
 }
 
-static int pdm_platform_resume(struct platform_device *pdev)
+static int pdm_platform_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
+
 	int id = p_pdm->chipinfo->id;
 	int ret = 0;
 	/* whether in freeze mode */
@@ -1598,7 +1602,6 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 	}
 }
 
-#ifdef CONFIG_HIBERNATION
 static int pdm_platform_restore(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1750,22 +1753,19 @@ static const struct dev_pm_ops meson_pdm_pm_ops = {
 	 */
 	.restore = pdm_platform_restore,
 	.freeze = pdm_platform_freeze,
+	.suspend = pdm_platform_suspend,
+	.resume  = pdm_platform_resume,
 };
-#endif
 
 struct platform_driver aml_pdm_driver = {
 	.driver  = {
 		.name           = DRV_NAME,
 		.owner          = THIS_MODULE,
 		.of_match_table = of_match_ptr(aml_pdm_device_id),
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_pdm_pm_ops,
-#endif
 	},
 	.probe   = aml_pdm_platform_probe,
 	.remove  = aml_pdm_platform_remove,
-	.suspend = pdm_platform_suspend,
-	.resume  = pdm_platform_resume,
 	.shutdown = pdm_platform_shutdown,
 };
 

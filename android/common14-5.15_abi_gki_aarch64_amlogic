@@ -25,3 +25,6 @@
 
 # amlogic-debug-iotrace.ko
   of_find_all_nodes
+
+# amlogic-snd-codec-tas5707.ko
+  devm_gpio_free

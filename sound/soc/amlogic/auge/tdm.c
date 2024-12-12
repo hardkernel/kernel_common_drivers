@@ -3033,9 +3033,9 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_tdm_platform_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int aml_tdm_platform_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 
 	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
@@ -3061,8 +3061,9 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int aml_tdm_platform_resume(struct platform_device *pdev)
+static int aml_tdm_platform_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 	int ret = 0;
 	unsigned int out_lanes = 0, in_lanes = 0;
@@ -3160,7 +3161,6 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 }
 
-#ifdef CONFIG_HIBERNATION
 static int aml_tdm_platform_restore(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -3171,7 +3171,7 @@ static int aml_tdm_platform_restore(struct device *dev)
 		pr_err("aml_tdm_get_pins error!\n");
 	aml_tdm_arb_config(p_tdm->actrl, p_tdm->chipinfo->use_arb);
 	audiobus_write(EE_AUDIO_FRDDR_A_CTRL0, 0);
-	aml_tdm_platform_resume(pdev);
+	aml_tdm_platform_resume(dev);
 
 	return 0;
 }
@@ -3207,6 +3207,7 @@ static int aml_tdm_platform_freeze(struct device *dev)
 
 	/*mute default clk */
 	tdm_set_function_pins(p_tdm, false);
+	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 
 	return 0;
 }
@@ -3217,20 +3218,17 @@ static const struct dev_pm_ops meson_tdm_pm_ops = {
 	 */
 	.restore = aml_tdm_platform_restore,
 	.freeze = aml_tdm_platform_freeze,
+	.suspend = aml_tdm_platform_suspend,
+	.resume  = aml_tdm_platform_resume,
 };
-#endif
 
 struct platform_driver aml_tdm_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = aml_tdm_device_id,
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_tdm_pm_ops,
-#endif
 	},
 	.probe	 = aml_tdm_platform_probe,
-	.suspend = aml_tdm_platform_suspend,
-	.resume  = aml_tdm_platform_resume,
 	.shutdown = aml_tdm_platform_shutdown,
 };
 

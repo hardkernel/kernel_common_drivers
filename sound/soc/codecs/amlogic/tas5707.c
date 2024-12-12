@@ -877,11 +877,34 @@ static int tas5707_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_HIBERNATION
+static int aml_tas5707_platform_suspend(struct device *dev)
+{
+	struct tas5707_priv *tas5707 = dev_get_drvdata(dev);
+
+	tas5707_resume(tas5707->component);
+	return 0;
+}
+
+static int aml_tas5707_platform_resume(struct device *dev)
+{
+	struct tas5707_priv *tas5707 = dev_get_drvdata(dev);
+
+	tas5707_suspend(tas5707->component);
+	return 0;
+}
+
 static int aml_tas5707_platform_restore(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct tas5707_priv *tas5707 = i2c_get_clientdata(client);
+	struct tas5707_priv *tas5707 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (tas5707->pdata->reset_pin > 0) {
+		ret = devm_gpio_request_one(dev, tas5707->pdata->reset_pin,
+							GPIOF_OUT_INIT_LOW,
+							"tas5707-reset-pin");
+		if (ret < 0)
+			return -1;
+	}
 
 	tas5707_resume(tas5707->component);
 	return 0;
@@ -889,10 +912,11 @@ static int aml_tas5707_platform_restore(struct device *dev)
 
 static int aml_tas5707_platform_freeze(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct tas5707_priv *tas5707 = i2c_get_clientdata(client);
+	struct tas5707_priv *tas5707 = dev_get_drvdata(dev);
 
 	tas5707_suspend(tas5707->component);
+	devm_gpio_free(dev, tas5707->pdata->reset_pin);
+
 	return 0;
 }
 
@@ -902,8 +926,9 @@ static const struct dev_pm_ops meson_tas5707_pm_ops = {
 	 */
 	.restore = aml_tas5707_platform_restore,
 	.freeze = aml_tas5707_platform_freeze,
+	.suspend = aml_tas5707_platform_suspend,
+	.resume  = aml_tas5707_platform_resume,
 };
-#endif
 
 static const struct i2c_device_id tas5707_i2c_id[] = {
 	{ "tas5707", 0 },
@@ -921,9 +946,7 @@ static struct i2c_driver tas5707_i2c_driver = {
 		.name = DEV_NAME,
 		.of_match_table = tas5707_of_id,
 		.owner = THIS_MODULE,
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_tas5707_pm_ops,
-#endif
 	},
 	.probe = tas5707_i2c_probe,
 	.remove = tas5707_i2c_remove,

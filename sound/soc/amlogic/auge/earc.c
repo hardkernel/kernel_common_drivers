@@ -1007,7 +1007,7 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 		mutex_lock(&earc_mutex);
 		if (!p_earc->resumed)
 			earc_clock_enable();
-		earctx_update_attend_event(p_earc, false, false);
+		schedule_delayed_work(&p_earc->send_uevent_work, 0);
 		mutex_unlock(&earc_mutex);
 	}
 	if (status0 & INT_EARCTX_CMDC_IDLE2) {
@@ -3580,8 +3580,9 @@ int earc_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int earc_platform_resume(struct platform_device *pdev)
+static int earc_platform_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
 
 	if (!p_earc->resumed)
@@ -3590,9 +3591,9 @@ static int earc_platform_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int earc_platform_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int earc_platform_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
 
 	if (p_earc->chipinfo->rx_enable) {
@@ -3649,15 +3650,38 @@ static int earc_platform_suspend(struct platform_device *pdev,
 	return 0;
 }
 
+static int aml_earc_platform_restore(struct device *dev)
+{
+	earc_platform_resume(dev);
+
+	return 0;
+}
+
+static int aml_earc_platform_freeze(struct device *dev)
+{
+	earc_platform_suspend(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_earc_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = aml_earc_platform_restore,
+	.freeze = aml_earc_platform_freeze,
+	.suspend = earc_platform_suspend,
+	.resume  = earc_platform_resume,
+};
+
 struct platform_driver earc_driver = {
 	.driver = {
 		.name           = DRV_NAME,
 		.of_match_table = earc_device_id,
+		.pm = &meson_earc_pm_ops,
 	},
 	.probe = earc_platform_probe,
-	.suspend = earc_platform_suspend,
 	.remove = earc_platform_remove,
-	.resume  = earc_platform_resume,
 };
 
 int __init earc_init(void)

@@ -1024,7 +1024,22 @@ static void ad82128_i2c_shutdown(struct i2c_client *client)
 
 }
 
-#ifdef CONFIG_HIBERNATION
+static int aml_ad82128_platform_resume(struct device *dev)
+{
+	struct ad82128_data *data = dev_get_drvdata(dev);
+
+	ad82128_resume(data->component);
+	return 0;
+}
+
+static int aml_ad82128_platform_suspend(struct device *dev)
+{
+	struct ad82128_data *data = dev_get_drvdata(dev);
+
+	ad82128_suspend(data->component);
+	return 0;
+}
+
 static int aml_ad82128_platform_restore(struct device *dev)
 {
 	struct ad82128_data *data = dev_get_drvdata(dev);
@@ -1059,8 +1074,9 @@ static const struct dev_pm_ops meson_ad82128_pm_ops = {
 	 */
 	.restore = aml_ad82128_platform_restore,
 	.freeze = aml_ad82128_platform_freeze,
+	.suspend = aml_ad82128_platform_suspend,
+	.resume  = aml_ad82128_platform_resume,
 };
-#endif
 
 static const struct i2c_device_id ad82128_id[] = {
 	{ "ad82128", AD82128 },
@@ -1083,9 +1099,7 @@ static struct i2c_driver ad82128_i2c_driver = {
 	.driver = {
 		.name = "ad82128",
 		.of_match_table = of_match_ptr(ad82128_of_match),
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_ad82128_pm_ops,
-#endif
 	},
 	.probe = ad82128_probe,
 	.shutdown = ad82128_i2c_shutdown,
