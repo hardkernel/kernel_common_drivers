@@ -669,6 +669,7 @@
 	arc_port = <0>;
 	/* bit4: enable feature, bit3~0: port number */
 	disable_port = <0x0>;
+	allm_update_en = <1>;
 };
 
 &drm_vpu {
