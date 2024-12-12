@@ -231,7 +231,7 @@
 	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xfe010288 0x4>;
-		status = "disabled";
+		status = "okay";
 		mboxes = <&mbox_fifo S7D_REE2AO_VRTC>;
 	};
 
