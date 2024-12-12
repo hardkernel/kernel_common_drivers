@@ -4127,13 +4127,14 @@ static struct clk_regmap t6d_25m_clk = {
 	},
 };
 
-static u32 t6d_amfc_mux_table[] = {0, 1, 2, 3};
+static u32 t6d_amfc_mux_table[] = {0, 1, 2, 3, 6};
 
 static const struct clk_hw *t6d_amfc_parent_hws[] = {
 	&t6d_fclk_div4.hw,
 	&t6d_fclk_div3.hw,
 	&t6d_fclk_div5.hw,
 	&t6d_fclk_div7.hw,
+	&t6d_gp0_pll.hw,
 };
 
 static struct clk_regmap t6d_amfc_0_sel = {
