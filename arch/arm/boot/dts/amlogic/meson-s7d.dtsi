@@ -192,7 +192,6 @@
 	optee {
 		compatible = "linaro,optee-tz";
 		method = "smc";
-		status = "disabled";
 	};
 
 	aml_watermark {
