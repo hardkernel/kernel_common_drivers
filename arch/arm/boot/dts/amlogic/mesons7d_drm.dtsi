@@ -59,7 +59,7 @@
 	};
 
 	drm_subsystem: drm-subsystem {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, drm-subsystem";
 		ports = <&connectors_dev>;
 		fbdev_sizes = <1920 1080 1920 2160 32>;
