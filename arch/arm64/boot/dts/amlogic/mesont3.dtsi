@@ -374,16 +374,19 @@
 	mbox_devfs {
 		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <3>;
+		mbox-nums = <4>;
 		mbox-names = "ree2aocpu",
+			     "aocpu2ree",
 			     "dsp_dev",
 			     "dspa2ree";
 		mboxes = <&mbox_fifo T3_REE2AO_DEV>,
+			 <&mbox_fifo T3_AO2REE_DEV>,
 			 <&mbox_fifo T3_REE2DSPA_DEV>,
 			 <&mbox_fifo T3_DSPA2REE_DEV>;
 		mbox-dests = <MAILBOX_AOCPU>,
+			     <MAILBOX_ARM>,
 			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>;
+			     <MAILBOX_ARM>;
 	};
 
 	vdac: vdac {

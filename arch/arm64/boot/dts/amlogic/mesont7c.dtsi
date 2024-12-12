@@ -2699,22 +2699,25 @@
 	mbox_devfs {
 		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <5>;
+		mbox-nums = <6>;
 		mbox-names = "ree2aocpu",
+			     "aocpu2ree",
 			     "dsp_dev",
 			     "dspa2ree",
 			     "dspb_dev",
 			     "dspb2ree";
 		mboxes = <&mbox_fifo T7_REE2AO_DEV>,
+			 <&mbox_fifo T7_AO2REE_DEV>,
 			 <&mbox_fifo T7_REE2DSPA_DEV>,
 			 <&mbox_fifo T7_DSPA2REE_DEV>,
 			 <&mbox_fifo T7_REE2DSPB_DEV>,
 			 <&mbox_fifo T7_DSPB2REE_DEV>;
 		mbox-dests = <MAILBOX_AOCPU>,
+			     <MAILBOX_ARM>,
 			     <MAILBOX_DSP>,
+			     <MAILBOX_ARM>,
 			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>;
+			     <MAILBOX_ARM>;
 	};
 
 	lut_dma:lut_dma {

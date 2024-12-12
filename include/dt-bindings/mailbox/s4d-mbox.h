@@ -8,10 +8,11 @@
 
 #include "amlogic,mbox.h"
 
-// MBOX SEC CHANNEL ID
+/* MBOX SECPU CHANNEL ID */
 #define S4D_MBOX_REE2SCPU  0
 #define S4D_MBOX_SCPU2REE  1
 
+/* ARMREE to SECPU client ID */
 #define S4D_REE2SCPU_DEV  S4D_MBOX_REE2SCPU
 
 #endif /* __S4D_MBOX_H__ */

@@ -1745,7 +1745,7 @@
 			 <&mbox_pl C2_DSPA2REE_DEV>,
 			 <&mbox_pl C2_REE2AO_DEV>;
 		mbox-dests = <MAILBOX_DSP>,
-			     <MAILBOX_DSP>,
+			     <MAILBOX_ARM>,
 			     <MAILBOX_AOCPU>;
 	};
 

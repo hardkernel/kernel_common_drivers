@@ -8,24 +8,36 @@
 
 #include "amlogic,mbox.h"
 
-// MBOX DRIVER ID
-#define G12A_REE2AO0       1
-#define G12A_REE2AO1       2
-#define G12A_REE2AO2       3
-#define G12A_REE2AO3       4
-#define G12A_REE2AO4       5
-#define G12A_REE2AO5       6
-#define G12A_REE2AO6       7
-#define G12A_REE2AO7       8
+/* MAILBOX DRIVER ID */
+/* ARMREE to AOCPU driver ID */
+#define G12A_REE2AO0      64
+#define G12A_REE2AO1      65
+#define G12A_REE2AO2      66
+#define G12A_REE2AO3      67
+#define G12A_REE2AO4      68
+#define G12A_REE2AO5      69
+#define G12A_REE2AO6      70
+#define G12A_REE2AO7      71
+#define G12A_REE2AO8      72
+#define G12A_REE2AO9      73
+#define G12A_REE2AO10     74
 
-#define G12A_REE2MF0       0
-#define G12A_REE2MF1       1
-#define G12A_REE2MF2       2
-#define G12A_REE2MF3       3
-#define G12A_REE2MF4       4
-#define G12A_MF2REE0       (G12A_REE2MF4 + 1)
+/* ARMREE to M4 driver ID */
+#define G12A_REE2MF0      209
+#define G12A_REE2MF1      210
+#define G12A_REE2MF2      211
+#define G12A_REE2MF3      212
+#define G12A_REE2MF4      213
 
-// MBOX DEVICE TREE ID
+/* M4 to ARMREE driver ID */
+#define G12A_MF2REE0      193
+#define G12A_MF2REE1      194
+#define G12A_MF2REE2      195
+#define G12A_MF2REE3      196
+#define G12A_MF2REE4      197
+
+/* MBOX CLIENT ID */
+/* ARMREE to AOCPU client ID */
 #define G12A_REE2AO_DEV    G12A_REE2AO0
 #define G12A_REE2AO_VRTC   G12A_REE2AO1
 #define G12A_REE2AO_MF     G12A_REE2AO2
@@ -33,15 +45,18 @@
 #define G12A_REE2AO_LED    G12A_REE2AO4
 #define G12A_REE2AO_ETH    G12A_REE2AO5
 
+/* ARMREE to M4 client ID */
 #define G12A_REE2MF_MF     G12A_REE2MF0
+
+/* ARMREE to M4 client ID */
 #define G12A_MF2REE_DEV    G12A_MF2REE0
 
-// MBOX CHANNEL ID
-#define G12A_MBOX_MF2REE    0
-#define G12A_MBOX_REE2MF    1
-#define G12A_MBOX_MF_NUMS   2
+/* MBOX CHANNEL ID */
+#define G12A_MBOX_MF2REE   0
+#define G12A_MBOX_REE2MF   1
+#define G12A_MBOX_MF_NUMS  2
 
-#define G12A_MBOX_REE2AO    0
-#define G12A_MBOX_AO_NUMS   1
+#define G12A_MBOX_REE2AO   0
+#define G12A_MBOX_AO_NUMS  1
 
 #endif /* __G12A_MBOX_H__ */

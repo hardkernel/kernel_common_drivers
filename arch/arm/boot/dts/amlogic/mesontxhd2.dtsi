@@ -287,7 +287,7 @@
 		      <0xff63c428 0x4>,   /*ao tx set addr*/
 		      <0xff63c430 0x4>,   /*ao tx clr addr*/
 		      <0xff63c42C 0x4>;   /*ao tx sts addr*/
-		interrupts = <GIC_SPI 210 IRQ_TYPE_EDGE_RISING>,
+		interrupts = <GIC_SPI 211 IRQ_TYPE_EDGE_RISING>,
 			     <GIC_SPI 136 IRQ_TYPE_EDGE_RISING>;
 		#mbox-cells = <1>;
 		mbox-tx = "rx", "tx";
@@ -299,10 +299,13 @@
 	mbox_devfs: mbox-devfs@0 {
 		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <1>;
-		mbox-names = "ree2aocpu";
-		mboxes = <&mbox_pl TXHD2_REE2AO_DEV>;
-		mbox-dests = <MAILBOX_AOCPU>;
+		mbox-nums = <2>;
+		mbox-names = "ree2aocpu",
+			      "aocpu2ree";
+		mboxes = <&mbox_pl TXHD2_REE2AO_DEV>,
+			    <&mbox_pl TXHD2_AO2REE_DEV>;
+		mbox-dests = <MAILBOX_AOCPU>,
+			      <MAILBOX_ARM>;
 	};
 
 	cpuinfo {

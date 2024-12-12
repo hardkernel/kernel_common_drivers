@@ -69,7 +69,6 @@ struct aml_mbox_chan {
 	void __iomem *mbox_irqctlr_addr;
 	void __iomem *mbox_irqclr_addr;
 	void __iomem *mbox_irqsts_addr;
-	void __iomem *aocpu_tick_cnt_addr;
 
 	/* mbox payload */
 	u32 mbox_irq;
@@ -82,9 +81,22 @@ struct aml_mbox_chan {
 	void __iomem *mbox_fset_addr;
 	void __iomem *mbox_fclr_addr;
 	void __iomem *mbox_fsts_addr;
+	void __iomem *aocpu_tick_cnt_addr;
 	struct mutex mutex; /* for aml mbox chan mutex */
 	struct mbox_controller *mbox;
 	void *tx_complete;
+};
+
+/**
+ * struct aml_mbox_rx_data - mbox rx data info
+ * @cmd:        Mbox command which is sent from remote processor
+ * @size:       Mbox message size sent from remote processor
+ * @buf:        Mbox RX buffer which saved the data from remote processor
+ */
+struct aml_mbox_rx_data {
+	u32 cmd;
+	u32 size;
+	char buf[MBOX_DATA_SIZE];
 };
 
 static inline void mbox_receive_callback(struct mbox_client *cl, void *mssg)

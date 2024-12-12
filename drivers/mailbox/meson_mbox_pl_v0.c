@@ -25,6 +25,7 @@
 #include <dt-bindings/mailbox/sm1-mbox.h>
 #include <dt-bindings/mailbox/g12b-mbox.h>
 #include <dt-bindings/mailbox/g12a-mbox.h>
+#include <dt-bindings/mailbox/tm2-mbox.h>
 #include "meson_mbox_pl.h"
 #include "meson_mbox_comm.h"
 
@@ -35,29 +36,6 @@
 #define MBOX_PAYLOAD_SIZE    0x80
 #define ASYNC	1
 #define SYNC	2
-
-struct aml_chan_priv {
-	struct aml_mbox_chan *aml_chan;
-	u32 mbox_nums;
-};
-
-struct mbox_domain {
-	u32 drvid;
-	u32 mboxid;
-	u32 flags;
-};
-
-struct mbox_domain_data {
-	struct mbox_domain *mbox_domains;
-	u32 domain_counts;
-};
-
-#define MBOX_DOMAIN(drv_id, mbox_id, flag)		\
-{					\
-		.flags = flag,					\
-		.drvid = drv_id,				\
-		.mboxid = mbox_id,				\
-}
 
 static int mbox_transfer_data(struct mbox_chan *mbox_chan, void *data)
 {
@@ -110,6 +88,50 @@ static struct mbox_chan_ops mbox_pl_ops = {
 	.shutdown = mbox_shutdown,
 	.last_tx_done = mbox_last_tx_done,
 };
+
+static int mbox_chan_id_map(struct device *dev, int drvid)
+{
+	struct mbox_domain_data *domain_data;
+	const struct mbox_domain *mbox_domains;
+	int idx;
+	int chan_nums;
+
+	domain_data = dev_get_drvdata(dev);
+	mbox_domains = domain_data->mbox_domains;
+	chan_nums = domain_data->domain_counts;
+	for (idx = 0; idx < chan_nums; idx++) {
+		if (drvid == mbox_domains[idx].drvid)
+			break;
+	}
+
+	if (idx == chan_nums)
+		return -EINVAL;
+
+	return idx;
+}
+
+static struct mbox_chan *mbox_chan_xlate(struct mbox_controller *mbox,
+		    const struct of_phandle_args *sp)
+{
+	struct device *dev = mbox->dev;
+	int drv_id = sp->args[0];
+	int chan_id;
+
+	if (drv_id > MBOX_ID_MAX) {
+		dev_err(dev, "mbox driver id %d exceed maximum id\n", drv_id);
+		return ERR_PTR(-EINVAL);
+	}
+
+	chan_id = mbox_chan_id_map(dev, drv_id);
+	if (chan_id < 0) {
+		dev_err(dev, "failed to get mbox chan id\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	dev_dbg(dev, "chan xlate, drv_id = %d, chan_id = %d\n",
+			drv_id, chan_id);
+	return &mbox->chans[chan_id];
+}
 
 static irqreturn_t mbox_irq_handler(int irq, void *p)
 {
@@ -200,7 +222,8 @@ static int mbox_pl_probe(struct platform_device *pdev)
 	struct aml_mbox_chan *aml_chan;
 	struct mbox_controller *mbox_cons;
 	const struct mbox_domain_data *match;
-	struct mbox_domain *mbox_domains;
+	struct mbox_domain_data *domain_data;
+	const struct mbox_domain *mbox_domains;
 	struct aml_chan_priv aml_priv;
 	u32 mboxid = 0;
 	u32 mbox_nums;
@@ -223,7 +246,14 @@ static int mbox_pl_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get match data\n");
 		return -ENODEV;
 	}
+
 	mbox_domains = match->mbox_domains;
+	domain_data = devm_kzalloc(dev, sizeof(*domain_data), GFP_KERNEL);
+	if (IS_ERR(domain_data))
+		return PTR_ERR(domain_data);
+	domain_data->mbox_domains = match->mbox_domains;
+	domain_data->domain_counts = match->domain_counts;
+
 	mbox_chans = devm_kzalloc(dev, sizeof(*mbox_chans) * match->domain_counts, GFP_KERNEL);
 	if (IS_ERR(mbox_chans))
 		return PTR_ERR(mbox_chans);
@@ -243,13 +273,14 @@ static int mbox_pl_probe(struct platform_device *pdev)
 	if (IS_ERR(mbox_cons))
 		return PTR_ERR(mbox_cons);
 
+	mbox_cons->of_xlate = mbox_chan_xlate;
 	mbox_cons->chans = mbox_chans;
 	mbox_cons->num_chans = match->domain_counts;
 	mbox_cons->txdone_irq = true;
 	mbox_cons->ops = &mbox_pl_ops;
 	mbox_cons->dev = dev;
-	platform_set_drvdata(pdev, mbox_cons);
-	if (mbox_controller_register(mbox_cons)) {
+	platform_set_drvdata(pdev, domain_data);
+	if (devm_mbox_controller_register(dev, mbox_cons)) {
 		dev_err(dev, "failed to register mailbox controller\n");
 		return -ENOMEM;
 	}
@@ -274,13 +305,18 @@ static void mbox_pl_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 }
 
-struct mbox_domain sm1_mbox_domains[] = {
-	[SM1_REE2AO0]   = MBOX_DOMAIN(SM1_REE2AO0, SM1_MBOX_REE2AO, 0),
-	[SM1_REE2AO1]   = MBOX_DOMAIN(SM1_REE2AO1, SM1_MBOX_REE2AO, 0),
-	[SM1_REE2AO2]   = MBOX_DOMAIN(SM1_REE2AO2, SM1_MBOX_REE2AO, 0),
-	[SM1_REE2AO3]   = MBOX_DOMAIN(SM1_REE2AO3, SM1_MBOX_REE2AO, 0),
-	[SM1_REE2AO4]   = MBOX_DOMAIN(SM1_REE2AO4, SM1_MBOX_REE2AO, 0),
-	[SM1_REE2AO5]   = MBOX_DOMAIN(SM1_REE2AO5, SM1_MBOX_REE2AO, 0),
+const struct mbox_domain sm1_mbox_domains[] = {
+	MBOX_DOMAIN(SM1_REE2AO0, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO1, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO2, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO3, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO4, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO5, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO6, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO7, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO8, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO9, SM1_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(SM1_REE2AO10, SM1_MBOX_REE2AO, 0),
 };
 
 static struct mbox_domain_data sm1_mbox_domains_data __initdata = {
@@ -288,15 +324,18 @@ static struct mbox_domain_data sm1_mbox_domains_data __initdata = {
 	.domain_counts = ARRAY_SIZE(sm1_mbox_domains),
 };
 
-struct mbox_domain g12b_mbox_domains[] = {
-	[G12B_REE2AO_L0]   = MBOX_DOMAIN(G12B_REE2AO_L0, G12B_MBOX_REE2AO, 0),
-	[G12B_REE2AO_L1]   = MBOX_DOMAIN(G12B_REE2AO_L1, G12B_MBOX_REE2AO, 0),
-	[G12B_REE2AO_L2]   = MBOX_DOMAIN(G12B_REE2AO_L2, G12B_MBOX_REE2AO, 0),
-	[G12B_REE2AO_L3]   = MBOX_DOMAIN(G12B_REE2AO_L3, G12B_MBOX_REE2AO, 0),
-	[G12B_REE2AO_L4]   = MBOX_DOMAIN(G12B_REE2AO_L4, G12B_MBOX_REE2AO, 0),
-	[G12B_REE2AO_L5]   = MBOX_DOMAIN(G12B_REE2AO_L5, G12B_MBOX_REE2AO, 0),
-	[G12B_REE2AO_L6]   = MBOX_DOMAIN(G12B_REE2AO_L6, G12B_MBOX_REE2AO, 0),
-	[G12B_REE2AO_L7]   = MBOX_DOMAIN(G12B_REE2AO_L7, G12B_MBOX_REE2AO, 0),
+const struct mbox_domain g12b_mbox_domains[] = {
+	MBOX_DOMAIN(G12B_REE2AO0, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO1, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO2, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO3, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO4, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO5, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO6, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO7, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO8, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO9, G12B_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12B_REE2AO10, G12B_MBOX_REE2AO, 0),
 };
 
 static struct mbox_domain_data g12b_mbox_domains_data __initdata = {
@@ -304,20 +343,38 @@ static struct mbox_domain_data g12b_mbox_domains_data __initdata = {
 	.domain_counts = ARRAY_SIZE(g12b_mbox_domains),
 };
 
-struct mbox_domain g12a_mbox_domains_pl0[] = {
-	[G12A_REE2AO0]   = MBOX_DOMAIN(G12A_REE2AO0, G12A_MBOX_REE2AO, 0),
-	[G12A_REE2AO1]   = MBOX_DOMAIN(G12A_REE2AO1, G12A_MBOX_REE2AO, 0),
-	[G12A_REE2AO2]   = MBOX_DOMAIN(G12A_REE2AO2, G12A_MBOX_REE2AO, 0),
-	[G12A_REE2AO3]   = MBOX_DOMAIN(G12A_REE2AO3, G12A_MBOX_REE2AO, 0),
-	[G12A_REE2AO4]   = MBOX_DOMAIN(G12A_REE2AO4, G12A_MBOX_REE2AO, 0),
-	[G12A_REE2AO5]   = MBOX_DOMAIN(G12A_REE2AO5, G12A_MBOX_REE2AO, 0),
-	[G12A_REE2AO6]   = MBOX_DOMAIN(G12A_REE2AO6, G12A_MBOX_REE2AO, 0),
-	[G12A_REE2AO7]   = MBOX_DOMAIN(G12A_REE2AO7, G12A_MBOX_REE2AO, 0),
+const struct mbox_domain g12a_mbox_domains_pl0[] = {
+	MBOX_DOMAIN(G12A_REE2AO0, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO1, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO2, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO3, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO4, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO5, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO6, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO7, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO8, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO9, G12A_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(G12A_REE2AO10, G12A_MBOX_REE2AO, 0),
 };
 
 static struct mbox_domain_data g12a_mbox_domains_data __initdata = {
 	.mbox_domains = g12a_mbox_domains_pl0,
 	.domain_counts = ARRAY_SIZE(g12a_mbox_domains_pl0),
+};
+
+const struct mbox_domain tm2_mbox_domains_pl0[] = {
+	MBOX_DOMAIN(TM2_REE2AO0, TM2_MBOX_REE2AO_HIGH, 0),
+	MBOX_DOMAIN(TM2_REE2AO1, TM2_MBOX_REE2AO_HIGH, 0),
+	MBOX_DOMAIN(TM2_REE2AO2, TM2_MBOX_REE2AO_HIGH, 0),
+	MBOX_DOMAIN(TM2_REE2AO3, TM2_MBOX_REE2AO_HIGH, 0),
+	MBOX_DOMAIN(TM2_REE2AO4, TM2_MBOX_REE2AO_LOW, 0),
+	MBOX_DOMAIN(TM2_REE2AO5, TM2_MBOX_REE2AO_LOW, 0),
+	MBOX_DOMAIN(TM2_REE2AO6, TM2_MBOX_REE2AO_LOW, 0),
+};
+
+static struct mbox_domain_data tm2_mbox_domains_data __initdata = {
+	.mbox_domains = tm2_mbox_domains_pl0,
+	.domain_counts = ARRAY_SIZE(tm2_mbox_domains_pl0),
 };
 
 static const struct of_device_id mbox_of_match[] = {
@@ -332,6 +389,10 @@ static const struct of_device_id mbox_of_match[] = {
 	{
 		.compatible = "amlogic, g12a-mbox-pl-old",
 		.data = &g12a_mbox_domains_data,
+	},
+	{
+		.compatible = "amlogic, tm2-mbox-pl-old",
+		.data = &tm2_mbox_domains_data,
 	},
 	{}
 };

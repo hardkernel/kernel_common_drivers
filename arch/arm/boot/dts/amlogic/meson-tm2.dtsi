@@ -833,9 +833,9 @@
 			 <&mbox_pl1 TM2_DSPB2REE_DEV>;
 		mbox-dests = <MAILBOX_AOCPU>,
 			     <MAILBOX_DSP>,
+			     <MAILBOX_ARM>,
 			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>;
+			     <MAILBOX_ARM>;
 	};
 
 	efuse: efuse {

@@ -364,13 +364,16 @@
 	mbox_devfs {
 		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <2>;
+		mbox-nums = <3>;
 		mbox-names = "nee2scpu",
-			     "ree2aocpu";
+			     "ree2aocpu",
+			     "aocpu2ree";
 		mboxes = <&mbox_sec S4D_MBOX_REE2SCPU>,
-			 <&mbox_fifo S4_REE2AO_DEV>;
+			 <&mbox_fifo S4_REE2AO_DEV>,
+			 <&mbox_fifo S4_AO2REE_DEV>;
 		mbox-dests = <MAILBOX_SECPU>,
-			     <MAILBOX_AOCPU>;
+			     <MAILBOX_AOCPU>,
+			     <MAILBOX_ARM>;
 	};
 
 	vddcpu0: pwm_j-regulator {

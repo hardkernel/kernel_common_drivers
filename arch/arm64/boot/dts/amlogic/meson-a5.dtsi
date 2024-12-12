@@ -364,16 +364,19 @@
 	mbox_devfs {
 		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <3>;
+		mbox-nums = <4>;
 		mbox-names = "ree2aocpu",
+			     "aocpu2ree",
 			     "dsp_dev",
 			     "dspa2ree";
 		mboxes = <&mbox_fifo A5_REE2AO_DEV>,
+			 <&mbox_fifo A5_AO2REE_DEV>,
 			 <&mbox_fifo A5_REE2DSPA_DEV>,
 			 <&mbox_fifo A5_DSPA2REE_DEV>;
 		mbox-dests = <MAILBOX_AOCPU>,
+			     <MAILBOX_ARM>,
 			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>;
+			     <MAILBOX_ARM>;
 	};
 
 	aml_hwlock: aml_hwlock@0 {

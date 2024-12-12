@@ -1286,9 +1286,9 @@
 			 <&mbox_pl C1_REE2DSPB_DEV>,
 			 <&mbox_pl C1_DSPB2REE_DEV>;
 		mbox-dests = <MAILBOX_DSP>,
+			     <MAILBOX_ARM>,
 			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>;
+			     <MAILBOX_ARM>;
 	};
 
 	canvas: canvas {

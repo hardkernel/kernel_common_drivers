@@ -411,10 +411,13 @@
 	mbox_devfs {
 		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <1>;
-		mbox-names = "ree2aocpu";
-		mboxes = <&mbox_fifo A4_REE2AO_DEV>;
-		mbox-dests = <MAILBOX_AOCPU>;
+		mbox-nums = <2>;
+		mbox-names = "ree2aocpu",
+			     "aocpu2ree";
+		mboxes = <&mbox_fifo A4_REE2AO_DEV>,
+			 <&mbox_fifo A4_AO2REE_DEV>;
+		mbox-dests = <MAILBOX_AOCPU>,
+			     <MAILBOX_ARM>;
 	};
 
 	aml_hwlock: aml_hwlock@0 {

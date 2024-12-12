@@ -8,25 +8,57 @@
 
 #include "amlogic,mbox.h"
 
-// MBOX DRIVER ID
-#define S4_AO2REE        0
-#define S4_REE2AO0       (S4_AO2REE + 1)
-#define S4_REE2AO1       (S4_AO2REE + 2)
-#define S4_REE2AO2       (S4_AO2REE + 3)
-#define S4_REE2AO3       (S4_AO2REE + 4)
-#define S4_REE2AO4       (S4_AO2REE + 5)
-#define S4_REE2AO5       (S4_AO2REE + 6)
-#define S4_REE2AO6       (S4_AO2REE + 7)
+/* MAILBOX DRIVER ID */
+/* AOCPU to ARMREE driver ID */
+#define S4_AO2REE0       0
+#define S4_AO2REE1       1
+#define S4_AO2REE2       2
+#define S4_AO2REE3       3
+#define S4_AO2REE4       4
+#define S4_AO2REE5       5
+#define S4_AO2REE6       6
+#define S4_AO2REE7       7
+#define S4_AO2REE8       8
+#define S4_AO2REE9       9
+#define S4_AO2REE10      10
 
-#define S4_REE2AO_DEV    S4_REE2AO0
-#define S4_REE2AO_VRTC   S4_REE2AO1
-#define S4_REE2AO_KEYPAD S4_REE2AO2
-#define S4_REE2AO_AOCEC  S4_REE2AO3
-#define S4_REE2AO_LED    S4_REE2AO4
-#define S4_REE2AO_ETH    S4_REE2AO5
-#define S4_REE2AO_IR     S4_REE2AO6
+/* ARMREE to AOCPU driver ID */
+#define S4_REE2AO0       64
+#define S4_REE2AO1       65
+#define S4_REE2AO2       66
+#define S4_REE2AO3       67
+#define S4_REE2AO4       68
+#define S4_REE2AO5       69
+#define S4_REE2AO6       70
+#define S4_REE2AO7       71
+#define S4_REE2AO8       72
+#define S4_REE2AO9       73
+#define S4_REE2AO10      74
 
-// MBOX CHANNEL ID
+/* MBOX CLIENT ID */
+/* AOCPU to ARMREE client ID */
+#define S4_AO2REE_DEV       S4_AO2REE0
+#define S4_AO2REE_VRTC      S4_AO2REE1
+#define S4_AO2REE_RTC       S4_AO2REE2
+#define S4_AO2REE_KEYPAD    S4_AO2REE3
+#define S4_AO2REE_AOCEC     S4_AO2REE4
+#define S4_AO2REE_LED       S4_AO2REE5
+#define S4_AO2REE_ETH       S4_AO2REE6
+#define S4_AO2REE_SPINLOCK  S4_AO2REE7
+
+/* ARMREE to AOCPU client ID */
+#define S4_REE2AO_DRV       S4_REE2AO0
+#define S4_REE2AO_DEV       S4_REE2AO1
+#define S4_REE2AO_VRTC      S4_REE2AO2
+#define S4_REE2AO_RTC       S4_REE2AO3
+#define S4_REE2AO_KEYPAD    S4_REE2AO4
+#define S4_REE2AO_AOCEC     S4_REE2AO5
+#define S4_REE2AO_LED       S4_REE2AO6
+#define S4_REE2AO_ETH       S4_REE2AO7
+#define S4_REE2AO_SPINLOCK  S4_REE2AO8
+#define S4_REE2AO_IR        S4_REE2AO9
+
+/* MBOX CHANNEL ID */
 #define S4_MBOX_AO2REE    2
 #define S4_MBOX_REE2AO    3
 #define S4_MBOX_NUMS      2
