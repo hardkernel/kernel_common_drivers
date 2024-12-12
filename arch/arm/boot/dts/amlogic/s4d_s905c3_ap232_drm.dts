@@ -791,6 +791,7 @@
 		 *	LOOPBACK, 7
 		 */
 		resample_module = <4>;
+		src-clk-freq = <491520000>;
 		status = "disabled";
 	};
 
@@ -849,10 +850,10 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_MPLL3
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
-			&clkc CLKID_MPLL3
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_MCLK_B>;
 		clock-names = "pdm_gate",
 			"pdm_sysclk_srcpll",
@@ -894,6 +895,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
+		src-clk-freq = <491520000>;
 
 		status = "okay";
 	};
@@ -932,6 +934,8 @@
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
+
+		src-clk-freq = <491520000>;
 
 		/* tdmin_lb src
 		 * 0: tdmoutA

@@ -793,6 +793,7 @@
 		 *	LOOPBACK, 7
 		 */
 		resample_module = <4>;
+		src-clk-freq = <491520000>;
 		status = "disabled";
 	};
 

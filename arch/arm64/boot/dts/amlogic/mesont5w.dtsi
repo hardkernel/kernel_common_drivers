@@ -1639,6 +1639,7 @@
 				 */
 				resample_module = <8>;
 				suspend-clk-off = <1>;
+				src-clk-freq = <491520000>;
 				status = "okay";
 			};
 
@@ -1651,6 +1652,7 @@
 
 				/*this resample is only used for loopback_A.*/
 				suspend-clk-off = <1>;
+				src-clk-freq = <491520000>;
 				status = "okay";
 			};
 
@@ -1748,6 +1750,7 @@
 				/* define loopack with pdm mic. */
 				mic-src = <&pdm>;
 				suspend-clk-off = <1>;
+				src-clk-freq = <491520000>;
 				status = "okay";
 			};
 
@@ -1803,6 +1806,7 @@
 				/* config which data pin as loopback */
 				datalb-lane-mask-in = <1 0 0 0>;
 				suspend-clk-off = <1>;
+				src-clk-freq = <491520000>;
 				status = "disabled";
 			};
 		};/* end of audiobus*/

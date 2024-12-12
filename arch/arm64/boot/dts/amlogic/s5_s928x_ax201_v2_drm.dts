@@ -801,6 +801,7 @@
 			&tdm_d1_pins
 			&tdma_clk_pins>;
 		/* suspend disable clk */
+		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
@@ -819,6 +820,7 @@
 		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
 		i2s2hdmi = <1>;
 		/* suspend disable clk */
+		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
@@ -847,6 +849,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+		src-clk-freq = <491520000>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
 		status = "okay";
@@ -869,6 +872,7 @@
 		clock-names = "gate_in", "gate_out", "mclk",
 					"mclk_pad", "clk_srcpll", "clk_src_cd";
 		/* suspend disable clk */
+		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
 		start_clk_enable = <1>;
 		status = "okay";
@@ -892,7 +896,7 @@
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 		filter_mode = <1>;
-
+		src-clk-freq = <491520000>;
 		train_sample_count = <0xb>;
 
 		status = "okay";
@@ -921,6 +925,7 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 		/* suspend disable clk */
+		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
@@ -935,6 +940,7 @@
 		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
 		/* suspend disable clk */
+		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
@@ -1105,6 +1111,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
+		src-clk-freq = <491520000>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
 		status = "okay";

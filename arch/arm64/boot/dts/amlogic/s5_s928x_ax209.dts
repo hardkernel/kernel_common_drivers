@@ -801,6 +801,7 @@
 			&tdma_clk_pins>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 
 	};
@@ -822,6 +823,7 @@
 		i2s2hdmi = <1>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -851,6 +853,7 @@
 		clk_tuning_enable = <1>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 	tdmd:tdm@3 {
@@ -877,7 +880,6 @@
 		 * 3: spdifout;
 		 * 4: spdifout_b;
 		 */
-		src-clk-freq = <491520000>;
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdm_d_pins
 			&tdm_d2_t_pins
@@ -885,6 +887,7 @@
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
 		start_clk_enable = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -894,7 +897,7 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_HIFI1_PLL
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1>;
 		clock-names = "gate",
@@ -908,6 +911,7 @@
 		filter_mode = <1>;
 
 		train_sample_count = <0xb>;
+		src-clk-freq = <491520000>;
 
 		status = "okay";
 	};
@@ -938,6 +942,7 @@
 		clk_tuning_enable = <1>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 	spdifb:spdif@1 {
@@ -951,6 +956,7 @@
 				"gate_spdifout", "clk_spdifout";
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -1120,6 +1126,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
+		src-clk-freq = <491520000>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
 		status = "okay";
