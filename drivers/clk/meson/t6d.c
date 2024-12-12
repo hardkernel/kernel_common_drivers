@@ -4360,7 +4360,6 @@ static struct clk_regmap t6d_usb2_48m_clk_tmp_sel = {
 		.offset = CLKCTRL_USB_CLK_CTRL0,
 		.mask = 0x3,
 		.shift = 24,
-		.table = t6d_amfc_mux_table
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "usb2_48m_tmp_sel",
@@ -4408,7 +4407,6 @@ static struct clk_regmap t6d_usb2_48m_clk = {
 		.offset = CLKCTRL_USB_CLK_CTRL0,
 		.mask = 0x1,
 		.shift = 27,
-		.table = t6d_amfc_mux_table
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "usb2_48m_clk",
