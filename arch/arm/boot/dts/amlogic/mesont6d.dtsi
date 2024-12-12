@@ -20,6 +20,7 @@
 #include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/mailbox/t6d-mbox.h>
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include <dt-bindings/leds/leds-meson.h>
 
@@ -1464,23 +1465,9 @@
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
-			ddr0_cool {
-				ddr_reg = <0xfe0364b4 0xfe0365b4>;
-				ddr_status = <13>;
-				ddr_bits = <0 15>,<0 15>;
-				ddr_data = <0x1858 0x1858 0x1858 0x1858 0x1858 0x1858 0x1379 0xf37
-					0xf37 0xc2c 0x9bc 0x79b 0x616>;
-				gpu_data = <0xc2c 0xc2c 0xc2c 0xc2c 0xc2c 0xc2c 0x9bc 0x79b
-					0x79b 0x616 0x4de 0x3cd 0x30b>;
-				node_name = "ddr_cool0";
-				device_type = "ddr";
-			};
 		};
 
 		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>;
-		};
-		ddr_cool0:ddr_cool0 {
 			#cooling-cells = <2>;
 		};
 	};/*meson cooling devices end*/
@@ -1502,12 +1489,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				cpu_hot: trip-point@2 {
-					temperature = <55000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				cpu_critical: trip-point@3 {
+				cpu_critical: trip-point@2 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -1522,11 +1504,6 @@
 				gpufreq_cooling_map {
 					trip = <&cpu_control>;
 					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-				ddr0_cooling_map {
-					trip = <&cpu_hot>;
-					cooling-device = <&ddr_cool0 0 THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 			};
@@ -1556,6 +1533,37 @@
 			};
 		};
 	};/*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		reg = <0xfe036894 0x4>,
+		      <0xfe0368a8 0x4>;
+		reg-names = "sip-addr",
+			    "freq-addr";
+		sip-mask = <24 8>;
+		freq-mask = <0 16>;
+		status = "okay";
+		sip {
+			particle = <SIP_PARTICLE>;
+			particle-flag = <DDR_SIP_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			caddr = <0xfe0364b4>,
+				<0xfe0365b4>;
+			caddr-mask = <0 16>,
+				     <0 16>;
+			cstep-val = <85000 90000 95000 100000>,
+				    <105000 110000 115000 120000>;
+			caddr-val = <7800 3900>,
+				    <6240 3120>,
+				    <4875 2438>,
+				    <4875 2438>,
+				    <3900 1950>,
+				    <3120 1560>,
+				    <2437 1219>,
+				    <1950 975>;
+		};
+	};
 
 	usb_phy20: usbphy20@fe488000 {
 		compatible = "amlogic, amlogic-crg-drd-usb2-v1";
