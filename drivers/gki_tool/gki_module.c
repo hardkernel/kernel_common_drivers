@@ -238,6 +238,103 @@ static void mod_free_func(struct work_struct *work)
 	schedule_work(w);
 }
 
+static int key_value_set(const char *val, const struct kernel_param *kp)
+{
+	const struct param_entry *params = (struct param_entry *)kp->arg;
+	int i = 0, len;
+
+	while (params[i].name) {
+		len = strlen(params[i].name);
+
+		if (!strncmp(val, params[i].name, len)) {
+			switch (params[i].type) {
+			case TYPE_BOOL:
+				if (kstrtobool(val + len, (bool *)params[i].value))
+					goto err;
+				break;
+			case TYPE_INT:
+				if (kstrtoint(val + len, 0, (int *)params[i].value))
+					goto err;
+				break;
+			case TYPE_UINT:
+				if (kstrtouint(val + len, 0, (unsigned int *)params[i].value))
+					goto err;
+				break;
+			case TYPE_LONG:
+				if (kstrtol(val + len, 0, (long *)params[i].value))
+					goto err;
+				break;
+			case TYPE_ULONG:
+				if (kstrtoul(val + len, 0, (unsigned long *)params[i].value))
+					goto err;
+				break;
+			case TYPE_LLONG:
+				if (kstrtoll(val + len, 0, (long long *)params[i].value))
+					goto err;
+				break;
+			case TYPE_ULLONG:
+				if (kstrtoull(val + len, 0, (unsigned long long *)params[i].value))
+					goto err;
+				break;
+			default:
+				break;
+			}
+			return 0;
+		}
+		i++;
+	}
+err:
+	pr_err("Error, use format: echo key=val > module_param\n");
+
+	return -EINVAL;
+}
+
+static int key_value_get(char *buffer, const struct kernel_param *kp)
+{
+	const struct param_entry *params = (struct param_entry *)kp->arg;
+	int i = 0, pos = 0;
+
+	while (params[i].name) {
+		switch (params[i].type) {
+		case TYPE_BOOL:
+			pos += sprintf(buffer + pos, "%s%d\n",
+				params[i].name, *(int *)params[i].value);
+			break;
+		case TYPE_INT:
+			pos += sprintf(buffer + pos, "%s%d\n",
+				params[i].name, *(int *)params[i].value);
+			break;
+		case TYPE_UINT:
+			pos += sprintf(buffer + pos, "%s%u\n",
+				params[i].name, *(int *)params[i].value);
+			break;
+		case TYPE_LONG:
+			pos += sprintf(buffer + pos, "%s%ld\n",
+				params[i].name, *(unsigned long *)params[i].value);
+			break;
+		case TYPE_ULONG:
+			pos += sprintf(buffer + pos, "%s%lu\n",
+				params[i].name, *(unsigned long *)params[i].value);
+			break;
+		case TYPE_ULLONG:
+			pos += sprintf(buffer + pos, "%s%llu\n",
+				params[i].name, *(unsigned long long *)params[i].value);
+			break;
+		default:
+			break;
+		}
+		i++;
+	}
+
+	return pos;
+}
+
+struct kernel_param_ops key_value_param_ops = {
+	.set = key_value_set,
+	.get = key_value_get
+};
+EXPORT_SYMBOL(key_value_param_ops);
+
 int module_debug_init(void)
 {
 	int ret;

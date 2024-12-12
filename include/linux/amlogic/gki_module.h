@@ -95,4 +95,30 @@ void __module_init_hook(struct module *m);
 
 #endif //MODULE
 
+enum param_type {
+	TYPE_BOOL,
+	TYPE_INT,
+	TYPE_UINT,
+	TYPE_LONG,
+	TYPE_ULONG,
+	TYPE_LLONG,
+	TYPE_ULLONG,
+};
+
+#define PARAM_BOOL(name)	{#name "=", &(name), TYPE_BOOL}
+#define PARAM_INT(name)		{#name "=", &(name), TYPE_INT}
+#define PARAM_UINT(name)	{#name "=", &(name), TYPE_UINT}
+#define PARAM_LONG(name)	{#name "=", &(name), TYPE_LONG}
+#define PARAM_ULONG(name)	{#name "=", &(name), TYPE_ULONG}
+#define PARAM_LLONG(name)	{#name "=", &(name), TYPE_LLONG}
+#define PARAM_ULLONG(name)	{#name "=", &(name), TYPE_ULLONG}
+
+struct param_entry {
+	char *name;
+	void *value;
+	enum param_type type;
+};
+
+extern struct kernel_param_ops key_value_param_ops;
+
 #endif //__GKI_MODULE_AMLOGIC_H
