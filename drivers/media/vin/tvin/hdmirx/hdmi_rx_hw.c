@@ -7489,7 +7489,7 @@ void aml_phy_get_def_trim_value(void)
 			RTERM_VAL_T5M);
 		rx_info.aml_phy.rterm_flag =
 			hdmirx_rd_bits_amlphy(T5M_HDMIRX20PHY_DCHA_MISC1,
-			RTERM_FLAG_EFUSE);
+			RTERM_FLAG_T5M);
 		break;
 	case CHIP_ID_TXHD2:
 		rx_info.aml_phy.rterm_val =
@@ -7497,7 +7497,7 @@ void aml_phy_get_def_trim_value(void)
 			RTERM_VAL_TXHD2);
 		rx_info.aml_phy.rterm_flag =
 			hdmirx_rd_bits_amlphy(TXHD2_HDMIRX20PHY_DCHA_MISC1,
-			RTERM_FLAG_EFUSE);
+			RTERM_FLAG_TXHD2);
 		break;
 	case CHIP_ID_T3X:
 		/* 2.0 port rterm setting */
@@ -7514,6 +7514,14 @@ void aml_phy_get_def_trim_value(void)
 		data32 = hdmirx_rd_bits_amlphy_t3x(T3X_HDMIRX21PHY_MISC2,
 			RTERM_FLAG_T3X_21, E_PORT3);
 		rx_info.aml_phy_21.rterm_flag = data32;
+		break;
+	case CHIP_ID_T6D:
+		rx_info.aml_phy.rterm_val =
+			hdmirx_rd_bits_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1,
+			T6D_RTERM_CNTL);
+		rx_info.aml_phy.rterm_flag =
+			hdmirx_rd_bits_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1,
+			RTERM_FLAG_EFUSE_T6D);
 		break;
 	default:
 		break;

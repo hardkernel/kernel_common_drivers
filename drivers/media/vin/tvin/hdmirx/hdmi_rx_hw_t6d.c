@@ -385,9 +385,14 @@ void aml_dfe_en_t6d(void)
 /* phy offset calibration based on different chip and board */
 void aml_phy_offset_cal_t6d(void)
 {
-	rx_pr("ofst cal task start\n");
-	//misc1 to do
-	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1, 0xfb320000);
+	u32 data32;
+
+	data32 = 0xfb320000;
+	if (rx_info.aml_phy.rterm_flag) {
+		data32 = ((data32 & (~((0xf << 12) | 0x4))) |
+			(rx_info.aml_phy.rterm_val << 12) | rx_info.aml_phy.rterm_flag << 2);
+	}
+	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1, data32);
 	usleep_range(10, 20);
 	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC2, 0x00873000);
 	usleep_range(10, 20);
@@ -434,8 +439,8 @@ void aml_phy_offset_cal_t6d(void)
 	/* turn off pll*/
 	hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x0);
 	hdmirx_wr_amlphy(T6D_RG_RX20PLL_1, 0x0);
-	//if (log_level & PHY_LOG)
-	rx_pr("ofst cal task end\n");
+	if (log_level & PHY_LOG)
+		rx_pr("ofst cal task end\n");
 }
 
 /* hardware eye monitor */
@@ -577,7 +582,7 @@ void aml_phy_cfg_t6d(void)
 		if (rx_info.aml_phy.rterm_flag) {
 			data32 = ((data32 & (~((0xf << 12) | 0x1))) |
 				(rx_info.aml_phy.rterm_val << 12) |
-				rx_info.aml_phy.rterm_flag << 4);
+				rx_info.aml_phy.rterm_flag << 2);
 		}
 		hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1, data32);
 		data32 = phy_misc_t6d[idx][1];
