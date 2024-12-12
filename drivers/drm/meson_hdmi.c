@@ -951,6 +951,8 @@ static int am_hdmitx_connector_atomic_get_property
 		to_am_hdmitx_connector_state(state);
 	struct hdmitx_color_attr *attr = &hdmitx_state->color_attr_para;
 	struct meson_hdr_static_metadata mHdrMetaDataValue;
+	struct drm_property_blob *new_metadata, *old_metadata;
+	bool replaced;
 
 	if (property == am_hdmi->update_attr_prop) {
 		*val = 0;
@@ -1020,8 +1022,21 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->static_meta_prop) {
 		get_metadata(&mHdrMetaDataValue);
-		hdmitx_state->metadata = drm_property_create_blob(connector->dev,
+		old_metadata = hdmitx_state->metadata;
+		new_metadata = drm_property_create_blob(connector->dev,
 			sizeof(mHdrMetaDataValue), &mHdrMetaDataValue);
+		if (IS_ERR(new_metadata)) {
+			DRM_ERROR("%s, create metadata blob fail.\n", __func__);
+			return 0;
+		}
+		replaced = drm_property_replace_blob(&hdmitx_state->metadata,
+			new_metadata);
+		if (replaced && old_metadata)
+			drm_property_blob_put(old_metadata);
+
+		if (!replaced && new_metadata)
+			drm_property_blob_put(new_metadata);
+
 		*val = (hdmitx_state->metadata) ? hdmitx_state->metadata->base.id : 0;
 		return 0;
 	} else if (property == am_hdmi->allm_cap_prop) {
@@ -1200,6 +1215,7 @@ struct drm_connector_state *meson_hdmitx_atomic_duplicate_state
 	new_state->allm_mode = cur_state->allm_mode;
 	cur_state->hcs.state_sequence_id = am_hdmi_info.sequence_id;
 	new_state->frac_rate_policy = cur_state->frac_rate_policy;
+	new_state->metadata = cur_state->metadata;
 	memcpy(&new_state->hcs, &cur_state->hcs, sizeof(struct hdmitx_common_state));
 
 	return &new_state->base;
