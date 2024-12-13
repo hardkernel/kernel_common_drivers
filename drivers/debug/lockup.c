@@ -65,22 +65,23 @@
 #define INVALID_IRQ	     -1
 
 static unsigned long long isr_long_thr = LONG_ISR;
-module_param(isr_long_thr, ullong, 0644);
-
 static unsigned long isr_ratio_thr = 50;
-module_param(isr_ratio_thr, ulong, 0644);
-
 static unsigned long long idle_thr = LONG_IDLE;
-module_param(idle_thr, ullong, 0644);
-
 static int isr_check_en = 1;
-module_param(isr_check_en, int, 0644);
-
 static int idle_check_en = 1;
-module_param(idle_check_en, int, 0644);
-
 static int smc_check_en = 1;
-module_param(smc_check_en, int, 0644);
+
+static struct param_entry lockup_params[] = {
+	PARAM_ULLONG(isr_long_thr),
+	PARAM_ULONG(isr_ratio_thr),
+	PARAM_ULLONG(idle_thr),
+	PARAM_INT(isr_check_en),
+	PARAM_INT(idle_check_en),
+	PARAM_INT(smc_check_en),
+	{ /* sentinel */ }
+};
+
+module_param_cb(debug_lockup, &key_value_param_ops, &lockup_params, 0644);
 
 #if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
 #define FIQ_DEBUG_SMC_CMD	0x820000f1
