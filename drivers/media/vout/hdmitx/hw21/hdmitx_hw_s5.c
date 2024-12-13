@@ -567,7 +567,7 @@ void set21_hpll_sspll_s5(enum hdmi_vic vic)
 
 void hdmitx21_s5_clk_div_rst(u32 clk_idx)
 {
-	if (clk_idx == 89) {
+	if (clk_idx == 89 || clk_idx == 92) {
 		hd21_set_reg_bits(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, 1, 15, 1);
 		hd21_set_reg_bits(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, 0, 15, 1);
 	}

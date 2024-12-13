@@ -604,6 +604,9 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 	hdmitx21_set_reg_bits(PCLK2TMDS_MISC0_IVCTX, 0, 0, 2); /* Original DE generation logic */
 	/* Control signals for repeat count */
 	hdmitx21_set_reg_bits(HBLANK_REKEY_CONTROL_IVCTX, 1, 6, 1);
+
+	/* for 480/576 ddp case, Internal circuit detected Hsync polarity: Use legacy Tx logic */
+	hdmitx21_set_reg_bits(HDPLL_FIX0_IVCTX, 0, 0, 1);
 	audio_mute_op(1); /* enable audio default */
 }
 
@@ -1346,6 +1349,27 @@ static void vpu_hdmi_set_matrix_rgb2ycbcr(void)
 	hd21_set_reg_bits(VPU_HDMI_FMT_CTRL, 0, 0, 2);
 }
 
+static int CSC_type = 1;
+module_param(CSC_type, int, 0644);
+MODULE_PARM_DESC(CSC_type, "for choose VPU_HDMI_if function");
+
+/* need enable phy to digital and keep tmds clk */
+static void hdmitx_set_phy_todig(struct hdmitx_dev *hdev)
+{
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
+	case MESON_CPU_ID_S6:
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 0, 2);
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 3, 1);
+		break;
+	default:
+		/* pr_info("not match chip type to enable phy to dig\n"); */
+		return;
+	}
+	HDMITX_INFO("enable phy to dig\n");
+}
+
 static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -1545,7 +1569,11 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 		hdmitx21_venc_en(1, 1);
 	}
 
-	/* check the deep color phase */
+	hdmitx_set_phy_todig(hdev);
+	/*
+	 * when GCP phase is a fix value, here need check the phase is stable or not
+	 * otherwise it may cause display flash and abnormal issue
+	 */
 	{
 		enum hdmi_colorspace cs = para->cs;
 		enum hdmi_color_depth cd = para->cd;
@@ -1553,14 +1581,13 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 		bool h_unstable = 0;
 		int loop = 20;
 
+		/*check the GCP phase is a fix value*/
 		h_unstable = is_deep_htotal_frac(0, h_total, cs, cd);
 		HDMITX_INFO("%s[%d] frl_rate %d htotal %d cs %d cd %d h_unstable %d\n",
 			__func__, __LINE__, get_current_frl_rate(), h_total, cs, cd, h_unstable);
 		if (!h_unstable) {
 			while (loop--) {
-				hdmitx21_set_reg_bits(INTR2_SW_TPI_IVCTX, 0, 1, 1);
-				mdelay(1);
-				hdmitx21_poll_reg(INTR2_SW_TPI_IVCTX, 1 << 1, ~(1 << 1), HZ / 100);
+				hdmitx21_poll_reg(SYS_STAT_IVCTX, 1 << 0, ~(1 << 0), HZ / 100);
 				if (is_deep_phase_unstable(cs, cd)) {
 					/* reset pfifo */
 					hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 1, 1);
@@ -2161,11 +2188,6 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 		hdmitx_hw_cntl_misc(tx_hw, MISC_AUDIO_RESET, 1);
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 0, 0, 1);
 	mutex_unlock(&aud_mutex);
-	/*
-	 * audio compliance issue, for YAMAHA-TSR-700,
-	 * need delay more time 30ms when switch audio format
-	 */
-	usleep_range(30 * 1000, 30 * 1000 + 10);
 	audio_mute_op(audio_param->aud_output_en);
 	return 0;
 }
@@ -3784,6 +3806,7 @@ static void hdmi_phy_suspend(void)
 	 */
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_S7:
+		hd21_write_reg(phy_cntl3, 0xB);
 		hd21_write_reg(phy_cntl5, 0x800);
 		break;
 	case MESON_CPU_ID_S7D:

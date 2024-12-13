@@ -1997,6 +1997,7 @@ static int hdmitx21_status_check(void *data)
 			hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLK_DIV_RST, idx[0]);
 			HDMITX_DEBUG("reset the clock div for %d\n", idx[0]);
 			HDMITX_INFO("the clock[%d] is %d\n", idx[0], meson_clk_measure(idx[0]));
+			HDMITX_INFO("the clock[%d] is %d\n", idx[2], meson_clk_measure(idx[2]));
 		}
 		if (!clk[1]) {
 			HDMITX_DEBUG("the clock[%d] is %d\n", idx[1], clk[1]);

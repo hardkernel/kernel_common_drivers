@@ -18,6 +18,7 @@
 #include "hdmitx_mach_reg.h"
 #include "hdmitx_reg_ops.h"
 #include "hdmitx_reg.h"
+#include "hdmitx_reg_sc2.h"
 
 #define PR_BUS(a) \
 	do { \
@@ -28,7 +29,57 @@
 			   hd_read_reg(addr)); \
 	} while (0)
 
+#define PR_ANACTRL(a) \
+	do { \
+		typeof(a) addr = (a); \
+		seq_printf(s, "[0x%08x] = 0x%08x\n", \
+			   TO_PHY_ADDR(addr), \
+			   hd_read_reg(addr)); \
+	} while (0)
+
 static inline unsigned int get_msr_cts(void);
+
+static int dump_hdmi_phy_pll_reg_show(struct seq_file *s, void *p)
+{
+	int i;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	seq_puts(s, "\n--------HDMITX basic information --------\n");
+	seq_printf(s, "resolution: %s\n", hdev->tx_comm.fmt_para.name);
+	seq_printf(s, "attr: %s\n", hdev->tx_comm.fmt_attr);
+	seq_printf(s, "tmds clock: %dkhz\n", hdev->tx_comm.fmt_para.tmds_clk);
+
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_SC2:
+		if (reg_maps[ANACTRL_REG_IDX].phy_addr) {
+			seq_puts(s, "\n--------ANACTRL_HDMIPHY registers--------\n");
+			/* ((0x0080 << 2) + 0xfe008000) ~ ((0x0085 << 2) + 0xfe008000) */
+			for (i = ANACTRL_HDMIPHY_CTRL0; i <= ANACTRL_HDMIPHY_CTRL5; i++)
+				PR_ANACTRL(ANACTRL_REG_ADDR(i));
+
+			seq_puts(s, "\n--------ANACTRL_HDMIPLL registers--------\n");
+			/* ((0x0070 << 2) + 0xfe008000) ~ ((0x0076 << 2) + 0xfe008000) */
+			for (i = ANACTRL_HDMIPLL_CTRL0; i <= ANACTRL_HDMIPLL_CTRL6; i++)
+				PR_ANACTRL(ANACTRL_REG_ADDR(i));
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int dump_hdmi_phy_pll_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_hdmi_phy_pll_reg_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmi_phy_pll_reg_fops = {
+	.open		= dump_hdmi_phy_pll_regs_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
 
 static int dump_regs_show(struct seq_file *s, void *p)
 {
@@ -1521,6 +1572,7 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops},
 	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops},
 	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
+	{"hdmi_phy_pll_reg", S_IFREG | 0444, &dump_hdmi_phy_pll_reg_fops},
 };
 
 static struct dentry *hdmitx_dbgfs;

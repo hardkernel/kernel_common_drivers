@@ -29,10 +29,96 @@ static void dump32(struct seq_file *s, u32 start, u32 end)
 
 	for (; start <= end; start += 4) {
 		value = hd21_read_reg(start);
-		seq_printf(s, "[0x%08x] 0x%08x\n",
+		seq_printf(s, "[0x%08x] = 0x%08x\n",
 			TO21_PHY_ADDR(start), value);
 	}
 }
+
+static int dump_hdmi_phy_pll_show(struct seq_file *s, void *p)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	seq_puts(s, "\n--------HDMITX basic information --------\n");
+	seq_printf(s, "resolution: %s\n", hdev->tx_comm.fmt_para.name);
+	seq_printf(s, "attr: %s\n", hdev->tx_comm.fmt_attr);
+	seq_printf(s, "tmds clock: %dkhz\n", hdev->tx_comm.fmt_para.tmds_clk);
+	if (hdev->frl_rate != FRL_NONE) {
+		seq_printf(s, "frl rate: %d\n", hdev->frl_rate);
+		switch (hdev->frl_rate) {
+		case FRL_3G3L:
+			seq_puts(s, "FRL_3G3L\n");
+			break;
+		case FRL_6G3L:
+			seq_puts(s, "FRL_6G3L\n");
+			break;
+		case FRL_6G4L:
+			seq_puts(s, "FRL_6G4L\n");
+			break;
+		case FRL_8G4L:
+			seq_puts(s, "FRL_8G4L\n");
+			break;
+		case FRL_10G4L:
+			seq_puts(s, "FRL_10G4L\n");
+			break;
+		case FRL_12G4L:
+			seq_puts(s, "FRL_12G4L\n");
+			break;
+		default:
+			break;
+		}
+	}
+
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_S6:
+	case MESON_CPU_ID_S7D:
+	case MESON_CPU_ID_S7:
+		seq_puts(s, "\n--------ANACTRL_HDMIPHY registers--------\n");
+		/* ((0x0080 << 2) + 0xfe008000) ~ ((0x0085 << 2) + 0xfe008000) */
+		dump32(s, ANACTRL_HDMIPHY_CTRL0, ANACTRL_HDMIPHY_CTRL5);
+		seq_puts(s, "\n--------ANACTRL_HDMIPLL registers--------\n");
+		/* ((0x0070 << 2) + 0xfe008000) ~ ((0x0073 << 2) + 0xfe008000) */
+		dump32(s, ANACTRL_HDMIPLL_CTRL0, ANACTRL_HDMIPLL_CTRL3);
+		break;
+	case MESON_CPU_ID_S1A:
+	case MESON_CPU_ID_T7:
+		seq_puts(s, "\n--------ANACTRL_HDMIPHY registers--------\n");
+		/* ((0x0080 << 2) + 0xfe008000) ~ ((0x0085 << 2) + 0xfe008000) */
+		dump32(s, ANACTRL_HDMIPHY_CTRL0, ANACTRL_HDMIPHY_CTRL5);
+		seq_puts(s, "\n--------ANACTRL_HDMIPLL registers--------\n");
+		/* ((0x0070 << 2) + 0xfe008000) ~ ((0x0076 << 2) + 0xfe008000) */
+		dump32(s, ANACTRL_HDMIPLL_CTRL0, ANACTRL_HDMIPLL_CTRL6);
+		break;
+	case MESON_CPU_ID_S5:
+		seq_puts(s, "\n--------ANACTRL_HDMIPHY registers--------\n");
+		/* ((0x0080 << 2) + 0xfe008000) ~ ((0x0086 << 2) + 0xfe008000) */
+		dump32(s, ANACTRL_HDMIPHY_CTRL0, ANACTRL_HDMIPHY_CTRL6);
+		seq_puts(s, "\n--------ANACTRL_HDMIPLL registers--------\n");
+		/* ((0x0070 << 2) + 0xfe008000) ~ ((0x0077 << 2) + 0xfe008000) */
+		dump32(s, ANACTRL_HDMIPLL_CTRL0, ANACTRL_HDMIPLL_STS);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int dump_hdmi_phy_pll_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_hdmi_phy_pll_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmi_phy_pll_reg_fops = {
+	.open		= dump_hdmi_phy_pll_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmi_phy_pll_reg_pops = {
+	.proc_open		= dump_hdmi_phy_pll_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
 
 static int dump_regs_show(struct seq_file *s, void *p)
 {
@@ -945,6 +1031,8 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 #endif
 	{"cts_enc_clk", S_IFREG | 0444, &dump_cts_enc_clk_fops, &dump_cts_enc_clk_pops},
 	{"frl_status", S_IFREG | 0444, &dump_frl_status_fops, &dump_frl_status_pops},
+	{"hdmi_phy_pll_reg", S_IFREG | 0444, &dump_hdmi_phy_pll_reg_fops,
+		&dump_hdmi_phy_pll_reg_pops},
 };
 
 static struct dentry *hdmitx_file_dbgfs;

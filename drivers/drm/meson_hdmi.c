@@ -914,6 +914,7 @@ static int am_hdmitx_connector_atomic_set_property
 		to_am_hdmitx_connector_state(state);
 	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
 	struct hdmitx_color_attr *attr = &hdmitx_state->color_attr_para;
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
 
 	DRM_DEBUG("%s\n", __func__);
 	if (property == am_hdmi->update_attr_prop) {
@@ -940,6 +941,7 @@ static int am_hdmitx_connector_atomic_set_property
 		return 0;
 	} else if (property == am_hdmi->frac_rate_policy_prop) {
 		hdmitx_state->frac_rate_policy = val;
+		tx_comm->frac_rate_policy = val;
 		return 0;
 	}
 
@@ -1016,7 +1018,7 @@ static int am_hdmitx_connector_atomic_get_property
 		*val = hdmitx_common_get_hdcp_user_state(tx_comm);
 		return 0;
 	} else if (property == am_hdmi->frac_rate_policy_prop) {
-		*val = hdmitx_state->frac_rate_policy;
+		*val = tx_comm->frac_rate_policy;
 		return 0;
 	} else if (property == am_hdmi->hdmi_used_prop) {
 		*val = hdmitx_common_get_hdmi_used_state(tx_comm);
@@ -1970,9 +1972,6 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		return;
 	}
 
-	/* QMS seamless needs the value of frac_rate_policy property */
-	tx_comm->frac_rate_policy = meson_conn_state->frac_rate_policy;
-
 	if (meson_crtc_state->seamless) {
 		dst_vrefresh = meson_crtc_state->base.vrr_enabled ? mode_vrefresh : 0;
 		DRM_INFO("%s, set frame rate: %d\n", __func__, dst_vrefresh);
@@ -2139,7 +2138,7 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	if (strstr(modename, "dummy") || !hdmitx_get_hpd_state(common))
 		return 0;
 
-	if (am_hdmi_info.android_path && crtc_state->vrr_enabled &&
+	if (crtc_state->vrr_enabled &&
 		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
 		meson_hdmitx_cal_brr(&am_hdmi_info, meson_crtc_state, adj_mode);
 		modename = meson_crtc_state->brr_mode;
@@ -2150,6 +2149,7 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	DRM_DEBUG("%s[%d]: enter\n", __func__, __LINE__);
 
 	if (meson_crtc_state->uboot_mode_init == 1) {
+		DRM_INFO("%s[%d] uboot get: %d\n", __func__, __LINE__, common->frac_rate_policy);
 		hdmitx_get_init_state(common, &hdmitx_state->hcs);
 		attr->colorformat = hdmitx_state->hcs.para.cs;
 		attr->bitdepth = colordepth_to_bitdepth(hdmitx_state->hcs.para.cd);

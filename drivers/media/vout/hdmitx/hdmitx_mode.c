@@ -654,8 +654,8 @@ void hdmitx_mode_print_hdmi_timing(const struct hdmi_timing *t)
 		alternate_t = *t;
 		if (hdmitx_mode_update_timing(&alternate_t, 0) > 0 ||
 			hdmitx_mode_update_timing(&alternate_t, 1) > 0) {
-			HDMITX_INFO("Fraction mode: Hfreq Vfreq Pfreq\n");
-			HDMITX_INFO("%d %d %d\n",
+			pr_warn("Fraction mode: Hfreq Vfreq Pfreq\n");
+			pr_warn("%d %d %d\n",
 				alternate_t.h_freq, alternate_t.v_freq, alternate_t.pixel_freq);
 		}
 

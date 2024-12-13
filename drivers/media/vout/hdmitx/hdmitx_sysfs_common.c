@@ -925,6 +925,7 @@ static ssize_t contenttype_mode_store(struct device *dev,
 {
 	return _llm_mode_store(dev, attr, buf, count);
 }
+
 static DEVICE_ATTR_RW(contenttype_mode);
 
 static ssize_t allm_mode_show(struct device *dev,
@@ -1336,7 +1337,7 @@ static ssize_t fake_plug_store(struct device *dev,
 static DEVICE_ATTR_RW(fake_plug);
 
 static ssize_t _llm_cap_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+			     struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	struct rx_cap *prxcap = &global_tx_common->rxcap;
