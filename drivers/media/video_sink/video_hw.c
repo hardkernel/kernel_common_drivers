@@ -1202,7 +1202,7 @@ static bool is_layer_4k_to_4k_input(u8 layer_id)
 }
 
 #ifdef CHECK_LATER
-bool is_bandwidth_policy_hit(u8 layer_id)
+bool is_bandwidth_policy_hit(u8 layer_id, struct vframe_s *vf, u32 *vpp_flags)
 {
 	struct video_layer_s *layer = NULL;
 	static bool re_trigger;
@@ -1282,11 +1282,12 @@ bool is_bandwidth_policy_hit(u8 layer_id)
 	return false;
 }
 #else
-bool is_bandwidth_policy_hit(u8 layer_id)
+bool is_bandwidth_policy_hit(u8 layer_id, struct vframe_s *vf, u32 *vpp_flags)
 {
 	struct video_layer_s *layer = NULL;
 	static bool re_trigger;
 	bool hit_vskip[3] = {false};
+	int input_hz = 0, output_hz = 0;
 
 	if (video_is_meson_t7_cpu()) {
 		layer = get_vd_layer(0);
@@ -1367,6 +1368,20 @@ bool is_bandwidth_policy_hit(u8 layer_id)
 				return true;
 			}
 		}
+
+		layer = get_vd_layer(layer_id);
+		if (vf->duration != 0)
+			input_hz = (96000 + vf->duration / 2) / vf->duration;
+		output_hz = vinfo->sync_duration_num / vinfo->sync_duration_den + 1;
+
+		/* 8k60hz input + 120hz output */
+		if (is_layer_8k_to_4k_input(layer->layer_id) &&
+		    (vf->type & VIDTYPE_COMPRESS) &&
+		    !(vf->type & VIDTYPE_NO_DW) &&
+		    input_hz >= 60 &&
+		    output_hz >= 120)
+			*vpp_flags |= VPP_FLAG_FORCE_NO_COMPRESS;
+
 	}
 	return false;
 }

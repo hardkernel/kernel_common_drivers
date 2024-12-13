@@ -804,7 +804,7 @@ void update_vd_src_info(u8 layer_id,
 	layer->compHeight = compHeight;
 }
 
-bool is_bandwidth_policy_hit(u8 layer_id)
+bool is_bandwidth_policy_hit(u8 layer_id, struct vframe_s *vf, u32 *vpp_flags)
 {
 	return false;
 }

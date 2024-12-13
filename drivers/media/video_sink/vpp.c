@@ -1327,8 +1327,8 @@ static int vpp_process_speed_check
 	}
 
 	if ((sync_duration_num / sync_duration_den) > 60)
-		freq_ratio = sync_duration_num /
-			sync_duration_den / 60;
+		freq_ratio = (sync_duration_num /
+			sync_duration_den + 1) / 60;
 
 	if (freq_ratio < 1)
 		freq_ratio = 1;
@@ -1347,7 +1347,7 @@ static int vpp_process_speed_check
 			bpp = 2;
 		if (is_meson_t5m_cpu() && is_4k2k144hz_out(vinfo))
 			vpp_speed_factor = 0x104;
-		if (height_in * bpp > height_out) {
+		if (height_in * bpp * freq_ratio > height_out) {
 			/*
 			 *don't need do skip for under 5% scaler down
 			 *reason:for 1080p input,4k output, if di clk is 250M,
@@ -1961,7 +1961,7 @@ static int vpp_set_filters_internal
 	}
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_bandwidth_policy_hit(input->layer_id))
+	if (is_bandwidth_policy_hit(input->layer_id, vf, &vpp_flags))
 		next_frame_par->vscale_skip_count++;
 #endif
 	if (cur_super_debug)
