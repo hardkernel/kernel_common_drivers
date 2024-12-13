@@ -27,8 +27,6 @@
 #define AVI_INFOFRAMES_LENGTH     0x0D
 
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device);
-static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
-					enum hdmi_vic videocode);
 
 static void hdmi_tx_construct_avi_packet(struct hdmi_format_para *video_param,
 					 char *AVI_DB)
@@ -96,10 +94,13 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			    videocode == HDMI_94_3840x2160p25_16x9 ||
 			    videocode == HDMI_93_3840x2160p24_16x9 ||
 			    videocode == HDMI_98_4096x2160p24_256x135) {
-				hdmi_set_vend_spec_infofram(hdev, videocode);
+				hdmitx_common_setup_vsif_packet(&hdev->tx_comm,
+					VT_HDMI14_4K, 1, NULL);
 			} else if ((!hdev->tx_comm.flag_3dfp) && (!hdev->tx_comm.flag_3dtb) &&
 				 (!hdev->tx_comm.flag_3dss)) {
-				hdmi_set_vend_spec_infofram(hdev, 0);
+				/* For non-4kx2k mode setting */
+				hdmitx_common_setup_vsif_packet(&hdev->tx_comm,
+					VT_HDMI14_4K, 0, NULL);
 			}
 
 			if (hdev->tx_comm.allm_mode) {
@@ -116,51 +117,6 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 	hdmitx_set_spd_info(hdev);
 
 	return ret;
-}
-
-/* TODO: merge in hdmitx_common_setup_vsif_packet() */
-static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
-					enum hdmi_vic videocode)
-{
-	unsigned char buffer[31] = {0};
-	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
-
-	buffer[0] = 0x81;
-	buffer[1] = 0x01;
-	buffer[2] = 0x5;
-
-	if (videocode == 0) {
-		/* for non-4kx2k mode setting */
-		hdmitx_hw_set_packet(tx_hw_base, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
-		return;
-	}
-
-	if (hdev->tx_comm.rxcap.dv_info.block_flag == CORRECT ||
-			hdev->tx_comm.amdv_src_feature == 1)
-		/* for amdv */
-		return;
-
-	buffer[4] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
-	buffer[5] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
-	buffer[6] = GET_OUI_BYTE2(HDMI_IEEE_OUI);
-	/* 4k x 2k  Spec P156 */
-	buffer[7] = 0x00;
-
-	if (videocode == HDMI_95_3840x2160p30_16x9) {
-		buffer[7] = 0x20;
-		buffer[8] = 0x1;
-	} else if (videocode == HDMI_94_3840x2160p25_16x9) {
-		buffer[7] = 0x20;
-		buffer[8] = 0x2;
-	} else if (videocode == HDMI_93_3840x2160p24_16x9) {
-		buffer[7] = 0x20;
-		buffer[8] = 0x3;
-	} else if (videocode == HDMI_98_4096x2160p24_256x135) {
-		buffer[7] = 0x20;
-		buffer[8] = 0x4;
-	}
-
-	hdmitx_hw_set_packet(tx_hw_base, HDMI_INFOFRAME_TYPE_VENDOR, buffer);
 }
 
 int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)

@@ -643,7 +643,8 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, 0);
 			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, buffer);
 		} else {
-			HDMITX_INFO("skip vsif for non-4k mode.\n");
+			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+			HDMITX_INFO("clear vsif for non-4k mode.\n");
 			return -EINVAL;
 		}
 		break;
@@ -1217,14 +1218,12 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 		switch (type) {
 		case EOTF_T_DOLBYVISION:
 			len = 0x18;
-			global_tx_common->amdv_src_feature = 1;
 			break;
 		case EOTF_T_HDR10:
 		case EOTF_T_SDR:
 		case EOTF_T_NULL:
 		default:
 			len = 0x05;
-			global_tx_common->amdv_src_feature = 0;
 			break;
 		}
 
@@ -1340,18 +1339,6 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 			data = &para;
 		len = 0x1b;
 
-		switch (type) {
-		case EOTF_T_DOLBYVISION:
-		case EOTF_T_LL_MODE:
-			global_tx_common->amdv_src_feature = 1;
-			break;
-		case EOTF_T_HDR10:
-		case EOTF_T_SDR:
-		case EOTF_T_NULL:
-		default:
-			global_tx_common->amdv_src_feature = 0;
-			break;
-		}
 		buffer2[2] = len;
 		buffer2[4] = 0x46;
 		buffer2[5] = 0xd0;

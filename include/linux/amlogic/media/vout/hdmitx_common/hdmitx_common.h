@@ -307,7 +307,6 @@ struct hdmitx_common {
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;
 	bool hdmi_current_signal_sdr;
-	unsigned int amdv_src_feature;
 	/*
 	 * edid parse debug flag
 	 * true: edid parse in hdmitx
