@@ -9,23 +9,23 @@
 
 		opp00 {
 			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <666666666>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
@@ -49,11 +49,11 @@
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <2208000000>;
-			opp-microvolt = <929000>;
+			opp-microvolt = <919000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <2304000000>;
-			opp-microvolt = <939000>;
+			opp-microvolt = <919000>;
 		};
 		opp12 {
 			opp-hz = /bits/ 64 <2400000000>;
@@ -71,23 +71,23 @@
 
 		opp00 {
 			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <666666666>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <709000>;
+			opp-microvolt = <729000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
@@ -111,11 +111,11 @@
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <2208000000>;
-			opp-microvolt = <929000>;
+			opp-microvolt = <919000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <2304000000>;
-			opp-microvolt = <939000>;
+			opp-microvolt = <919000>;
 		};
 		opp12 {
 			opp-hz = /bits/ 64 <2400000000>;
@@ -133,27 +133,27 @@
 
 		opp00 {
 			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <729000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <729000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <729000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <666666666>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <729000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <729000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <699000>;
+			opp-microvolt = <729000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1404000000>;
@@ -173,11 +173,11 @@
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <2208000000>;
-			opp-microvolt = <889000>;
+			opp-microvolt = <879000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <2304000000>;
-			opp-microvolt = <899000>;
+			opp-microvolt = <879000>;
 		};
 		opp12 {
 			opp-hz = /bits/ 64 <2400000000>;
@@ -195,31 +195,31 @@
 
 		opp00 {
 			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <709000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <709000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <709000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <666666666>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <709000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <709000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <679000>;
+			opp-microvolt = <709000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <689000>;
+			opp-microvolt = <709000>;
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1608000000>;
@@ -235,11 +235,11 @@
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <2208000000>;
-			opp-microvolt = <839000>;
+			opp-microvolt = <829000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <2304000000>;
-			opp-microvolt = <849000>;
+			opp-microvolt = <829000>;
 		};
 		opp12 {
 			opp-hz = /bits/ 64 <2400000000>;
