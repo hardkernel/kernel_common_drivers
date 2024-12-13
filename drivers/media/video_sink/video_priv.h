@@ -1011,7 +1011,7 @@ struct video_layer_s *get_layer_by_layer_id(u8 layer_id);
 void update_vd_src_info(u8 layer_id,
 							u32 src_width, u32 src_height,
 							u32 compWidth, u32 compHeight);
-bool is_bandwidth_policy_hit(u8 layer_id);
+bool is_bandwidth_policy_hit(u8 layer_id, struct vframe_s *vf, u32 *vpp_flags);
 int video_hw_init(void);
 int video_early_init(struct amvideo_device_data_s *p_amvideo);
 int video_late_uninit(void);
