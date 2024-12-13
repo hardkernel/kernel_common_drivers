@@ -3863,9 +3863,9 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 				return mode_change;
 			}
 
-			if (cur_csc_type[VD1_PATH] != 0xffff &&
+			if (/*cur_csc_type[VD1_PATH] != 0xffff &&
 			    (get_hdr_module_status(VD1_PATH, VPP_TOP0)
-			     == HDR_MODULE_ON)) {
+			     == HDR_MODULE_ON)*/0) {
 				if (dolby_vision_mode != AMDV_OUTPUT_MODE_BYPASS) {
 					if (debug_dolby & 1)
 						pr_dv_dbg("src=%d, hdr module=ON, dv BYPASS\n",
@@ -3914,9 +3914,9 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 				}
 				return mode_change;
 			}
-			if (cur_csc_type[VD1_PATH] != 0xffff &&
+			if (/*cur_csc_type[VD1_PATH] != 0xffff &&
 			    (get_hdr_module_status(VD1_PATH, VPP_TOP0)
-			     == HDR_MODULE_ON)) {
+			     == HDR_MODULE_ON)*/0) {
 				if (dolby_vision_mode != AMDV_OUTPUT_MODE_BYPASS) {
 					if (debug_dolby & 1)
 						pr_dv_dbg("src=%d, hdr module=ON, dv BYPASS\n",
