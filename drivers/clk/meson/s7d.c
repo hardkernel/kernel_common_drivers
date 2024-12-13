@@ -2181,7 +2181,7 @@ static struct clk_regmap vpu_0_div = {
 	.data = &(struct clk_regmap_div_data) {
 		.offset = CLKCTRL_VPU_CLK_CTRL,
 		.shift = 0,
-		.width = 8,
+		.width = 7,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "vpu_0_div",
