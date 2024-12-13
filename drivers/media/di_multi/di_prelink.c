@@ -4701,6 +4701,15 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 			dpvpph_pre_to_link();
 			afbcd_enable_only_t5dvb(op_in, true);
 			dpvpph_prelink_sw(op_in, true);
+		} else {
+			if (DIM_IS_IC(T6D)) {
+				if (in_dvfm->vfs.type & VIDTYPE_COMPRESS) {
+					dim_print("vf type:0x%x\n", in_dvfm->vfs.type);
+					afbcd_enable_only_t5dvb(op_in, true);
+				} else {
+					dim_print("no-afbc :0x%x\n", in_dvfm->vfs.type);
+				}
+			}
 		}
 	}
 	/* mif in*/
