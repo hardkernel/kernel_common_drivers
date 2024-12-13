@@ -15065,7 +15065,6 @@ void video_resume_hw_recovery(void)
 		_video_hw_init_s5();
 	else
 		_video_hw_init();
-	vpp_probe_en_set(1);
 	vd_layer[0].property_changed = true;
 	vd_layer[1].property_changed = true;
 	vd_layer[2].property_changed = true;

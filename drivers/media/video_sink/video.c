@@ -16313,6 +16313,7 @@ static int amvideo_freeze(struct device *dev)
 			break;
 		status_save_val[i] = READ_VCBUS_REG(status_save_reg[i]);
 	}
+	video_early_suspend(NULL);
 	return 0;
 }
 
@@ -16325,6 +16326,7 @@ static int amvideo_restore(struct device *dev)
 {
 	int i;
 
+	video_late_resume(NULL);
 	for (i = 0; i < ARRAY_SIZE(status_save_reg); i++) {
 		if (!status_save_reg[i])
 			break;
