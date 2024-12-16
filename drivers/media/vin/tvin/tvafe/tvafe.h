@@ -88,6 +88,7 @@ struct tvafe_info_s {
 extern bool disable_api;
 extern bool force_stable;
 extern bool tvafe_atv_search_channel;
+extern bool enable_db_reg;
 
 extern unsigned int force_nostd;
 

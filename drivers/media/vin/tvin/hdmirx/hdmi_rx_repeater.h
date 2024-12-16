@@ -6,8 +6,6 @@
 #ifndef __HDMIRX_REPEATER__
 #define __HDMIRX_REPEATER__
 
-/* EDID */
-#define MAX_RECEIVE_EDID	40/*33*/
 #define MAX_HDR_LUMI		3
 #define MAX_KSV_SIZE		5
 #define MAX_REPEAT_DEPTH	7
@@ -62,14 +60,12 @@ struct hdcp_hw_info_s {
 	unsigned int reserved:15;
 };
 
-extern int receive_edid_len;
 extern int tx_hpd_event;
 extern bool new_edid;
 //extern int hdcp_array_len;
 extern int hdcp_len;
 extern int hdcp_repeat_depth;
 extern bool new_hdcp;
-extern bool repeat_plug;
 extern int up_phy_addr;/*d c b a 4bit*/
 //extern unsigned char receive_hdcp[MAX_KSV_LIST_SIZE];
 extern u8 ksvlist[10];

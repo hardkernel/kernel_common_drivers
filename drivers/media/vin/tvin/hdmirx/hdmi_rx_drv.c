@@ -156,14 +156,6 @@ u32 top_irq_tab[IRQ_TYPE_CNT];
 static DEFINE_SPINLOCK(rx_pr_lock);
 DECLARE_WAIT_QUEUE_HEAD(query_wait);
 
-int hdmi_yuv444_enable = 1;
-module_param(hdmi_yuv444_enable, int, 0664);
-MODULE_PARM_DESC(hdmi_yuv444_enable, "hdmi_yuv444_enable");
-
-int pc_mode_en;
-MODULE_PARM_DESC(pc_mode_en, "\n pc_mode_en\n");
-module_param(pc_mode_en, int, 0664);
-
 bool downstream_repeat_support;
 MODULE_PARM_DESC(downstream_repeat_support, "\n downstream_repeat_support\n");
 module_param(downstream_repeat_support, bool, 0664);

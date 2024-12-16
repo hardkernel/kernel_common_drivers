@@ -34,8 +34,6 @@
 #include "hdmi_rx_hw_t5m.h"
 
 int bist_delay = 5000;
-MODULE_PARM_DESC(bist_delay, "\n bist_delay\n");
-module_param(bist_delay, int, 0664);
 
 /* for T5m */
 u32 top_irq_mask_t5m[IRQ_TYPE_CNT] = {

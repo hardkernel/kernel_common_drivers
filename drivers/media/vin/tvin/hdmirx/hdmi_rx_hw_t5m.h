@@ -73,6 +73,7 @@ extern u32 cdr_value;
 extern u32 eq_value;
 extern u32 misc2_value;
 extern u32 misc1_value;
+extern int bist_delay;
 /*--------------------------function declare------------------*/
 /* T5m */
 void aml_phy_init_t5m(void);

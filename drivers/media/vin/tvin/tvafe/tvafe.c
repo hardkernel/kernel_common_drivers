@@ -75,9 +75,7 @@ static struct meson_tvafe_data *s_tvafe_data;
 static struct tvafe_clkgate_type tvafe_clkgate;
 static struct tvafe_dev_s *tvafe_dev_local;
 
-static bool enable_db_reg = true;
-module_param(enable_db_reg, bool, 0644);
-MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
+bool enable_db_reg = true;
 
 /*0: atv playmode*/
 /*1: atv search mode*/
