@@ -114,6 +114,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-tas5707.ko",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-tas5805.ko",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-tl1.ko",
+    "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-sy6026l.ko",
     "drivers/dma-buf/heaps/system_heap.ko",
     "drivers/gpu/drm/drm_dma_helper.ko",
     "drivers/gpu/drm/display/drm_display_helper.ko",
