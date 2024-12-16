@@ -195,8 +195,12 @@ static inline void aml_usb3_phy_post_reset(struct aml_usb3_phy *phy)
 	}
 }
 
-static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
+static int aml_usb3_phy_pll_init(struct aml_usb3_phy *phy)
 {
+	int plldone_i;
+
+	switch (phy->ic_ver) {
+	case MESON_CPU_MAJOR_ID_S6:
 #define U3P2PLL0_BIAS_EN 9
 #define U3P2PLL0_RSTN 10
 #define	U3P2PLL0_LOCK_EN 11
@@ -210,76 +214,88 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 #define U3P2PLL0_PLL_DONE 25
 #define PLL_LOCKED_MASK (BIT(U3P2PLL1_PLL_LOCK_FLAG) | BIT(U3P2PLL0_PLL_DONE))
 #define IS_PLL_LOCKED(x) (((x) & PLL_LOCKED_MASK) == PLL_LOCKED_MASK)
-	int plldone_i;
+		if (phy->pll_sw_cfg) {
+			/* The speed-drop usb devices TX maybe unstable at insertion,
+			 * leading to CDR KI overload. Delay freq tracking start point
+			 * by modifying fr_en delay 1us->300us.
+			 * Training timer change fr_en delay 1us->300us (unit: 41.668ns).
+			 */
+			aml_usb3_phy_write_reg32(phy, 0x1C20, phy->ctrl_reg + 0x9C);
+			/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
+			/* Enable upcrx_igen_en & upcrx_ldo_en. */
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x28, 0x3, 0x3);
+			/* Enable sw configure pll. */
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x50, 0x7f << 25,
+											0x7f << 25);
+			/* Configure pll_cfg 0~5. */
+			aml_usb3_phy_write_reg32(phy, 0x00FA114D, phy->ctrl_reg + 0x2C);
+			aml_usb3_phy_write_reg32(phy, 0x72007820, phy->ctrl_reg + 0x30);
+			aml_usb3_phy_write_reg32(phy, 0xA0900000, phy->ctrl_reg + 0x34);
+			aml_usb3_phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
+			aml_usb3_phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
+			aml_usb3_phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
 
-	if (phy->pll_sw_cfg) {
-		/* The speed-drop usb devices TX maybe unstable at insertion, leading to CDR KI
-		 * overload. Delay freq tracking start point by modifying fr_en delay 1us->300us.
-		 * Training timer change fr_en delay 1us->300us (unit: 41.668ns).
-		 */
-		aml_usb3_phy_write_reg32(phy, 0x1C20, phy->ctrl_reg + 0x9C);
-		/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
-		/* Enable upcrx_igen_en & upcrx_ldo_en. */
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x28, 0x3, 0x3);
-		/* Enable sw configure pll. */
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x50, 0x7f << 25, 0x7f << 25);
-		/* Configure pll_cfg 0~5. */
-		aml_usb3_phy_write_reg32(phy, 0x00FA117F, phy->ctrl_reg + 0x2C);
-		aml_usb3_phy_write_reg32(phy, 0x72007821, phy->ctrl_reg + 0x30);
-		aml_usb3_phy_write_reg32(phy, 0xA0900000, phy->ctrl_reg + 0x34);
-		aml_usb3_phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
-		aml_usb3_phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
-		aml_usb3_phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
-
-		/* Configure pll_cfg 6. */
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL0_BIAS_EN), BIT(U3P2PLL0_BIAS_EN));
-		udelay(5);
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL0_RSTN), BIT(U3P2PLL0_RSTN));
-		usleep_range(40, 50);
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL0_LOCK_EN), BIT(U3P2PLL0_LOCK_EN));
-		usleep_range(160, 170);
-		/* Off unused usb3phy digital 100M clk: U3P2PLL_HCSL_LDO_EN_TM -> 0. */
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-					BIT(U3P2PLL_HCSL_LDO_EN_TM) | BIT(U3P2PLL_HCSL_DREN0_TM),
-					0);
-		usleep_range(20, 30);
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL1_BIAS_EN), BIT(U3P2PLL1_BIAS_EN));
-		usleep_range(50, 60);
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL1_RSTN), BIT(U3P2PLL1_RSTN));
-		usleep_range(40, 50);
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL1_RSTN_LOCK), BIT(U3P2PLL1_RSTN_LOCK));
-		udelay(1);
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL1_LOCK_START), BIT(U3P2PLL1_LOCK_START));
-	} else {
-		/* Training timer change fr_en delay 1us->300us (unit: 41.668ns). */
-		aml_usb3_phy_write_reg32(phy, 0x1C20, phy->ctrl_reg + 0x9C);
-		/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
-		/* Enable upcrx_igen_en & upcrx_ldo_en. */
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x28, 0x3, 0x3);
-		/* Configure pll_cfg 0~5. */
-		aml_usb3_phy_write_reg32(phy, 0x00FA117F, phy->ctrl_reg + 0x2C);
-		aml_usb3_phy_write_reg32(phy, 0x72007821, phy->ctrl_reg + 0x30);
-		aml_usb3_phy_write_reg32(phy, 0xA0900000, phy->ctrl_reg + 0x34);
-		aml_usb3_phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
-		aml_usb3_phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
-		aml_usb3_phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
-		/* Off unused usb3phy digital 100M clk: U3P2PLL_HCSL_LDO_EN_TM -> 0. */
-		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-					BIT(U3P2PLL_HCSL_LDO_EN_TM) | BIT(U3P2PLL_HCSL_DREN0_TM),
-					0);
+			/* Configure pll_cfg 6. */
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+							BIT(U3P2PLL0_BIAS_EN),
+							BIT(U3P2PLL0_BIAS_EN));
+			udelay(5);
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+							BIT(U3P2PLL0_RSTN), BIT(U3P2PLL0_RSTN));
+			usleep_range(40, 140);
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+							BIT(U3P2PLL0_LOCK_EN),
+							BIT(U3P2PLL0_LOCK_EN));
+			usleep_range(160, 260);
+			/* Off unused usb3phy digital 100M clk: U3P2PLL_HCSL_LDO_EN_TM -> 0. */
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL_HCSL_LDO_EN_TM) |
+						BIT(U3P2PLL_HCSL_DREN0_TM),
+						0);
+			usleep_range(20, 120);
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+							BIT(U3P2PLL1_BIAS_EN),
+							BIT(U3P2PLL1_BIAS_EN));
+			usleep_range(50, 150);
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+							BIT(U3P2PLL1_RSTN),
+							BIT(U3P2PLL1_RSTN));
+			usleep_range(40, 140);
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+							BIT(U3P2PLL1_RSTN_LOCK),
+							BIT(U3P2PLL1_RSTN_LOCK));
+			udelay(1);
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+							BIT(U3P2PLL1_LOCK_START),
+							BIT(U3P2PLL1_LOCK_START));
+		} else {
+			/* Training timer change fr_en delay 1us->300us (unit: 41.668ns). */
+			aml_usb3_phy_write_reg32(phy, 0x1C20, phy->ctrl_reg + 0x9C);
+			/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
+			/* Enable upcrx_igen_en & upcrx_ldo_en. */
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x28, 0x3, 0x3);
+			/* Configure pll_cfg 0~5. */
+			aml_usb3_phy_write_reg32(phy, 0x00FA114D, phy->ctrl_reg + 0x2C);
+			aml_usb3_phy_write_reg32(phy, 0x72007820, phy->ctrl_reg + 0x30);
+			aml_usb3_phy_write_reg32(phy, 0xA0900000, phy->ctrl_reg + 0x34);
+			aml_usb3_phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
+			aml_usb3_phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
+			aml_usb3_phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
+			/* Off unused usb3phy digital 100M clk: U3P2PLL_HCSL_LDO_EN_TM -> 0. */
+			aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL_HCSL_LDO_EN_TM) |
+						BIT(U3P2PLL_HCSL_DREN0_TM),
+						0);
+		}
+		break;
+	default:
+		break;
 	}
 
 	for (plldone_i = 5; plldone_i > 0; plldone_i--) {
-		usleep_range(20, 30);
+		usleep_range(20, 120);
 		if (IS_PLL_LOCKED(readl(phy->ctrl_reg + 0x154)))
 			goto done;
 	}
@@ -290,11 +306,6 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 
 done:
 	return 0;
-}
-
-static int aml_usb3_phy_pll_init(struct aml_usb3_phy *phy)
-{
-	return aml_usb3_phy_pll_init_v0(phy);
 }
 
 static void aml_usb3_phy_trim(struct aml_usb3_phy *phy)
