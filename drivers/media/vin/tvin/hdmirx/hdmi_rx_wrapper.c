@@ -4220,6 +4220,7 @@ void rx_5v_monitor(void)
 						//aml_phy_power_off_t3x(i);
 						//rx_cor_reset_t3x(i);
 						rx[i].tx_type = DEV_UNKNOWN;
+						rx[i].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 						rx_clr_edid_type(i);
 						rx_edid_reset(i);
 					} else {
@@ -4230,6 +4231,7 @@ void rx_5v_monitor(void)
 						set_fsm_state(FSM_5V_LOST, i);
 						rx[i].pre_5v_sts = 0;
 						rx[i].tx_type = DEV_UNKNOWN;
+						rx[i].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 						rx_clr_edid_type(i);
 					}
 				}
@@ -4444,6 +4446,7 @@ void rx_main_state_machine(void)
 		rx[port].var.esd_phy_rst_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
 		rx[port].var.edid_update_flag = 0;
+		rx[port].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 		pre_port = port;
 		rx[port].pre_5v_sts = 1;
 		rx_irq_en(IRQ_EN_EDID, port);
@@ -4954,6 +4957,7 @@ void rx_port0_main_state_machine(void)
 		//rx[port].var.esd_phy_rst_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
 		rx[port].var.edid_update_flag = 0;
+		rx[port].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 		rx[port].pre_5v_sts = 1;
 		rx_irq_en(IRQ_EN_EDID, port);
 		rx_set_cur_hpd(1, 0, port);
@@ -5369,6 +5373,7 @@ void rx_port1_main_state_machine(void)
 		rx[port].var.clk_unstable_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
 		rx[port].var.edid_update_flag = 0;
+		rx[port].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 		rx_irq_en(IRQ_EN_EDID, port);
 		rx_set_cur_hpd(1, 0, port);
 		rx[port].last_sw_vic = 0;
@@ -5788,6 +5793,7 @@ void rx_port2_main_state_machine(void)
 		rx[port].var.clk_unstable_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
 		rx[port].var.edid_update_flag = 0;
+		rx[port].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 		pre_port = port;
 		rx[port].pre_5v_sts = 1;
 		rx_irq_en(IRQ_EN_EDID, port);
@@ -6289,6 +6295,7 @@ void rx_port3_main_state_machine(void)
 		rx[port].var.clk_unstable_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
 		rx[port].var.edid_update_flag = 0;
+		rx[port].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 		pre_port = port;
 		rx[port].pre_5v_sts = 1;
 		rx_irq_en(IRQ_EN_EDID, port);

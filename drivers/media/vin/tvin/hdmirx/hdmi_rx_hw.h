@@ -27,7 +27,8 @@
 /* 2024.12.13 fix resume no signal */
 /* 2024.12.24 remove hdcp2.3 enc sts chg irq mask*/
 /* 2024.12.25 fix dolbyvision YUV422 can't display issue */
-#define RX_HW_VER "ver.2024/12/25"
+/* 2024.12.16 modify hdcp reauth flow */
+#define RX_HW_VER "ver.2024/12/30"
 
 #define K_TEST_CHK_ERR_CNT
 

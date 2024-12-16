@@ -4004,6 +4004,7 @@ void rx_afifo_monitor(u8 port)
 			//hdmirx_hbr2spdif(0);
 			//rx_set_cur_hpd(0, 5);
 			//rx[rx_info.main_port].state = FSM_5V_LOST;
+			rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 			rx_pr("!!force reset\n");
 		}
 	}
@@ -4024,7 +4025,7 @@ void rx_hdcp_monitor(u8 port)
 	if (rx[port].state < FSM_SIG_STABLE)
 		return;
 	if (rx[port].hdcp.hdcp_version == HDCP_VER_NONE &&
-		rx[port].tx_type != DEV_HDMI14 && rx[port].tx_type != DEV_HDMI20)
+		rx[port].hdcp.hdcp_pre_ver == HDCP_VER_NONE)
 		return;
 
 	rx_get_ecc_info(port);
@@ -4038,13 +4039,20 @@ void rx_hdcp_monitor(u8 port)
 	} else {
 		rx[port].ecc_err_frames_cnt = 0;
 	}
+	//In some cases, cor rst or phy cfg may not result in hdcp unnormal
+	//we will not do hdcp reauth and clear hdcp flag, which has little side
+	//effect. clear the flag on 5v lost or hpd low
 	if (rx[port].ecc_err_frames_cnt >= rx_ecc_err_frames) {
-		if (rx[port].hdcp.hdcp_version == HDCP_VER_22 || rx[port].cur.hdcp22_state) {
+		if (rx[port].hdcp.hdcp_version == HDCP_VER_22 ||
+			rx[port].cur.hdcp22_state ||
+			rx[port].hdcp.hdcp_pre_ver == HDCP_VER_22) {
 			rx_pr("port%d hdcp22 reauth-err:%d, reauth_req:0x%x\n",
 				port, rx[port].ecc_err,
 				hdmirx_rd_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, port));
 			rx_hdcp_22_sent_reauth(port);
-		} else if (rx[port].hdcp.hdcp_version == HDCP_VER_14 || rx[port].cur.hdcp14_state) {
+		} else if (rx[port].hdcp.hdcp_version == HDCP_VER_14 ||
+			rx[port].cur.hdcp14_state ||
+			rx[port].hdcp.hdcp_pre_ver == HDCP_VER_14) {
 			rx_pr("port%d hdcp14 reauth-err:%d, reauth_req:0x%x\n",
 				port, rx[port].ecc_err,
 				hdmirx_rd_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, port));
@@ -4054,6 +4062,7 @@ void rx_hdcp_monitor(u8 port)
 				port, rx[port].ecc_err,
 				hdmirx_rd_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, port));
 		}
+		rx[port].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 		rx[port].hdcp.hdcp_version = HDCP_VER_NONE;
 		rx[port].state = FSM_SIG_WAIT_STABLE;
 		rx[port].ecc_err = 0;
