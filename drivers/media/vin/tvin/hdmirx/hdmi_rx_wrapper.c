@@ -4943,7 +4943,6 @@ void rx_port0_main_state_machine(void)
 	case FSM_5V_LOST:
 		if (rx[port].cur_5v_sts)
 			rx[port].state = FSM_INIT;
-		fsm_restart(port);
 		break;
 	case FSM_HPD_LOW:
 		/* disable irq before hpd low */
@@ -5362,7 +5361,6 @@ void rx_port1_main_state_machine(void)
 	case FSM_5V_LOST:
 		if (rx[port].cur_5v_sts)
 			rx[port].state = FSM_INIT;
-		fsm_restart(port);
 		break;
 	case FSM_HPD_LOW:
 		rx_irq_en(0, port);

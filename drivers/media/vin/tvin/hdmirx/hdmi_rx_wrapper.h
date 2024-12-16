@@ -45,7 +45,8 @@
 /* 2024.11.06 Adjust the HPD pull down time based on EDID type */
 /* 2024.11.27 fix fsm unnormal */
 /* 2024.12.03 adjust audio fifo enable timing */
-#define RX_WRAPPER_VER "ver.2024/12/03"
+/* 2024.12.16 remove fsm restart on t3x */
+#define RX_WRAPPER_VER "ver.2024/12/16"
 
 struct freq_ref_s {
 	bool interlace;
