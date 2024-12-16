@@ -276,6 +276,13 @@ void dump_vd_vsr_safa_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%x [safa_pps_sc_misc]\n",
 		reg_addr, reg_val);
+
+	if (cur_dev->dejaggy_support) {
+		reg_addr = vsr_reg->safa_pps_dejaggy_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%x [safa_pps_dejaggy_ctrl]\n",
+			reg_addr, reg_val);
+	}
 };
 
 void dump_vd_vsr_safa_nonlinear_reg(void)
@@ -741,6 +748,8 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 				(hsize_in <= 1024 ||
 				(vsr_top->input_422_en && hsize_in <= 2048)))
 			vsr_safa->dejaggy_en = true;
+		else
+			vsr_safa->dejaggy_en = false;
 	} else {
 		vsr_safa->dejaggy_en = false;
 	}
