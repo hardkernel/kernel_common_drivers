@@ -936,7 +936,8 @@ static int spicc_dma_trig_stop(struct spicc_device *spicc)
 {
 	struct device *dev = &spicc->pdev->dev;
 	unsigned long timeout;
-	u32 sts;
+	union spicc_cfg_start cfg_start;
+	u32 desc_h;
 
 	if (spicc->dirspi_status == DIRSPI_STA_IDLE) {
 		dev_warn(dev, "stop trig in idle state\n");
@@ -954,11 +955,10 @@ static int spicc_dma_trig_stop(struct spicc_device *spicc)
 
 	timeout = msecs_to_jiffies(100) + jiffies;
 	while (time_before(jiffies, timeout)) {
-		sts = spicc_readl(spicc, SPICC_REG_IRQ_STS);
-		if (sts & (SPICC_DESC_CHAIN_DONE | SPICC_DESC_DONE)) {
-			spicc_writel(spicc, sts, SPICC_REG_IRQ_STS);
+		cfg_start.d32 = spicc_readl(spicc, SPICC_REG_CFG_START);
+		desc_h = spicc_readl(spicc, SPICC_REG_DESC_LIST_H);
+		if (!cfg_start.b.pending && !(desc_h & SPICC_DESC_PENDING))
 			break;
-		}
 	}
 
 	if (time_after(jiffies, timeout))
