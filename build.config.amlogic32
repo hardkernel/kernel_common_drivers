@@ -71,15 +71,30 @@ FILES="
 if [[ -n ${ANDROID_PROJECT} ]]; then
 MAKE_GOALS="
 	${MAKE_GOALS}
-	android_overlay_dt.dtbo
 	${MAKE_GOALS_ANDROID}
 "
 
 FILES="
 	${FILES}
-	android_overlay_dt.dtbo
 	${FILES_ANDROID}
 "
+
+if [[ -z ${DTBO_DEVICETREE} ]]; then
+	DTBO_DEVICETREE="android_overlay_dt.dtbo"
+fi
+
+for dtbo_device_tree in ${DTBO_DEVICETREE}; do
+MAKE_GOALS="
+	${MAKE_GOALS}
+	${dtbo_device_tree}
+"
+
+FILES="
+	${FILES}
+	${dtbo_device_tree}
+"
+done
+
 for device_tree in ${KERNEL_DEVICETREE}; do
 MAKE_GOALS="
 	${MAKE_GOALS}
