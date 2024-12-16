@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/printk.h>
+#include <linux/amlogic/gki_module.h>
 #include "hdmitx_log.h"
 
 #define HDMITX_NAME		"hdmitx"
@@ -96,3 +97,24 @@ void __hdmitx_dbg(enum hdmitx_debug_category category, const char *format, ...)
 	va_end(args);
 }
 
+static int hdmitx_config_debug_level(char *str)
+{
+	int err;
+	u32 value;
+
+	if (!str) {
+		__hdmitx_debug = 0;
+		return -EINVAL;
+	}
+
+	err = kstrtou32(str, 16, &value);
+	if (err) {
+		HDMITX_ERROR("%s fail\n", __func__);
+		__hdmitx_debug = 0;
+		return err;
+	}
+	__hdmitx_debug = value;
+
+	return 1;
+}
+__setup("hdmitx_debug_level=", hdmitx_config_debug_level);
