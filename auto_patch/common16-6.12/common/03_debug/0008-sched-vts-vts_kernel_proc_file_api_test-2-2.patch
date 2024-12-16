@@ -1,4 +1,4 @@
-From ebacff3b091a1b6e781c956ad2f3af3c32c5ea3c Mon Sep 17 00:00:00 2001
+From 463bbd07284f50cf01cd6debae005b82029ac8aa Mon Sep 17 00:00:00 2001
 From: "qiankun.wang" <qiankun.wang@amlogic.com>
 Date: Fri, 19 May 2023 15:26:35 +0800
 Subject: [PATCH] sched: vts: vts_kernel_proc_file_api_test [2/2]
@@ -19,10 +19,10 @@ SC2
 Change-Id: I514cea758d73825252a14cb7c39e1f233d075f2e
 Signed-off-by: qiankun.wang <qiankun.wang@amlogic.com>
 ---
- include/linux/sched/sysctl.h | 11 +++++++++
+ include/linux/sched/sysctl.h | 11 ++++++++++
  kernel/sched/fair.c          | 25 +++++++++++++++++++++
- kernel/sysctl.c              | 43 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 79 insertions(+)
+ kernel/sysctl.c              | 42 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 78 insertions(+)
  mode change 100644 => 100755 kernel/sysctl.c
 
 diff --git a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
@@ -32,7 +32,7 @@ index 5a64582b086b..c9ec64f360cf 100644
 @@ -19,6 +19,17 @@ enum sched_tunable_scaling {
  	SCHED_TUNABLESCALING_END,
  };
-
+ 
 +#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_SCHED_SYSCTL)
 +extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
 +extern unsigned int sysctl_sched_latency;
@@ -48,10 +48,10 @@ index 5a64582b086b..c9ec64f360cf 100644
  #define NUMA_BALANCING_NORMAL		0x1
  #define NUMA_BALANCING_MEMORY_TIERING	0x2
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 73afaa16d4a2..2dd1d1d3aacc 100755
+index 419065ada968..8a0b6659ecfb 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -999,6 +999,31 @@ int sched_update_scaling(void)
+@@ -1029,6 +1029,31 @@ int sched_update_scaling(void)
  	return 0;
  }
  #endif
@@ -81,18 +81,18 @@ index 73afaa16d4a2..2dd1d1d3aacc 100755
 +}
 +#endif
  #endif
-
+ 
  static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
 old mode 100644
 new mode 100755
-index e4421594fc25..e4101e5f9c1a
+index 79e6cb1d5c48..1ade886bbea1
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
 @@ -135,6 +135,17 @@ static enum sysctl_writes_mode sysctl_writes_strict = SYSCTL_WRITES_STRICT;
  int sysctl_legacy_va_layout;
  #endif
-
+ 
 +#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_SCHED_SYSCTL)
 +static int min_sched_granularity_ns = 100000;           /* 100 usecs */
 +static int max_sched_granularity_ns = NSEC_PER_SEC;     /* 1 second */
@@ -105,9 +105,9 @@ index e4421594fc25..e4101e5f9c1a
 +#endif
 +
  #endif /* CONFIG_SYSCTL */
-
+ 
  /*
-@@ -2029,6 +2040,38 @@ static struct ctl_table kern_table[] = {
+@@ -2029,6 +2040,37 @@ static struct ctl_table kern_table[] = {
  		.extra2		= SYSCTL_INT_MAX,
  	},
  #endif
@@ -142,10 +142,9 @@ index e4421594fc25..e4101e5f9c1a
 +	},
 +#endif
 +#endif
-+	{ }
  };
-
+ 
  static struct ctl_table vm_table[] = {
---
-2.29.0
+-- 
+2.42.0
 
