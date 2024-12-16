@@ -5943,7 +5943,7 @@ int vdin_get_irq_from_dts(struct platform_device *pdev,
 		/* get irq from resource */
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 		if (!res) {
-			pr_err("%s: can't get irq resource\n", __func__);
+			pr_err("%s: can't get vsync irq resource\n", __func__);
 			ret = -ENXIO;
 			return ret;
 		}
