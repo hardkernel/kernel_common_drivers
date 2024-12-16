@@ -89,7 +89,7 @@
 		logo_reserved:linux,meson-fb {
 			compatible = "amlogic, meson-fb";
 			alignment = <0x400000>;
-			reg = <0x1f800000 0x800000>;
+			reg = <0x1fc00000 0x400000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -107,15 +107,15 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p STB androidT size 56M */
-			size = <0x3800000>;
+			/* 720p STB androidT size 24M */
+			size = <0x1800000>;
 			alignment = <0x400000>;
 		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1080p STB androidT size 88M */
-			size = <0x5800000>;
+			size = <0x0>;
 			alignment = <0x400000>;
 		};
 		dmaheap_secure_reserved:heap-secure {
@@ -151,8 +151,8 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M*/
-			size = <0xD000000>;
+			/* ion_codec_mm max can alloc size 168M*/
+			size = <0xa800000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 			linux,contiguous-region;
@@ -187,16 +187,15 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			/* 420 mode:1280x720x2x4=8MB
+			 * 444 mode:1280x720x3x4=12MB
 			 */
-			size = <0x01400000>;
+			size = <0x000000>;
 			alignment = <0x400000>;
 		};
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "amlogic,dsp";
-			size = <0x00800000>;
-			reg = <0x30000000 0x00800000>;
+			size = <0x000000>;
 		};
 
 		/* global autoconfigured region for contiguous allocations */
@@ -1703,14 +1702,14 @@
 	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x800000>;
-	logo_addr = "0x1f800000";
+	logo_addr = "0x1fc00000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
 &drm_vpu {
 	status = "okay";
-	logo_addr = "0x1f800000";
+	logo_addr = "0x1fc00000";
 };
 
 &drm_amhdmitx {
