@@ -84,8 +84,6 @@ unsigned int rx_hdcp2_ver;
 #define to_hdmitx21_dev(x)	container_of(x, struct hdmitx_dev, tx_comm)
 
 static struct class *hdmitx_class;
-static int hdmitx_hook_drm(struct device *device);
-static int hdmitx_unhook_drm(struct device *device);
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev);
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
@@ -2199,7 +2197,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	set_hdcp_common_instance(&hdev->tx_comm);
 	hdmitx21_hdcp_init();
 	/* bind drm before hdmi event */
-	hdmitx_hook_drm(&pdev->dev);
+	hdmitx_bind_meson_drm(&pdev->dev, &hdev->tx_comm, &hdev->tx_hw.base);
 
 	/* init power_uevent state */
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
@@ -2285,7 +2283,7 @@ static void amhdmitx_remove(struct platform_device *pdev)
 
 	tee_comm_dev_unreg(hdev);
 	/* unbind from drm */
-	hdmitx_unhook_drm(&pdev->dev);
+	hdmitx_unbind_meson_drm(&pdev->dev, &hdev->tx_comm, &hdev->tx_hw.base);
 
 	cancel_work_sync(&hdev->tx_comm.work_hdr);
 	cancel_work_sync(&hdev->tx_comm.work_hdr_unmute);
@@ -2535,23 +2533,3 @@ void __exit amhdmitx21_exit(void)
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION("1.0.0");
 
-/*************DRM connector API**************/
-int hdmitx_hook_drm(struct device *device)
-{
-	struct hdmitx_dev *hdev = dev_get_drvdata(device);
-
-	return hdmitx_bind_meson_drm(device,
-		&hdev->tx_comm,
-		&hdev->tx_hw.base);
-}
-
-int hdmitx_unhook_drm(struct device *device)
-{
-	struct hdmitx_dev *hdev = dev_get_drvdata(device);
-
-	return hdmitx_unbind_meson_drm(device,
-		&hdev->tx_comm,
-		&hdev->tx_hw.base);
-}
-
-/*************DRM connector API end**************/
