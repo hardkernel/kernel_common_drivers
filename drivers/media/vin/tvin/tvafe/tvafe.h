@@ -42,7 +42,8 @@
 /* 20230804: atv add filter format and set saturation fail */
 /* 20241007: wss function optimization */
 /* 20241105: fmt detection optimization */
-#define TVAFE_VER "20241105: fmt detection optimization"
+/* 20241217: removed unnecessary reset */
+#define TVAFE_VER "20241217: removed unnecessary reset"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

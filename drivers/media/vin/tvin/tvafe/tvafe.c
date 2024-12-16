@@ -960,35 +960,6 @@ static struct tvin_decoder_ops_s tvafe_dec_ops = {
 	.callmaster_det = NULL,
 };
 
-static bool white_pattern_reset_pag(enum tvin_port_e port,
-				    struct tvafe_cvd2_s *cvd2)
-{
-	if (IS_TVAFE_AVIN_SRC(port)) {
-		if (port == TVIN_PORT_CVBS1) {
-			if (av1_plugin_state == 1) {
-				return true;
-			}
-		}
-
-		if (port == TVIN_PORT_CVBS2) {
-			if (av2_plugin_state == 1) {
-				return true;
-			}
-		}
-
-		if ((av1_plugin_state == 0 || av2_plugin_state == 0) &&
-			!R_APB_BIT(TVFE_CLAMP_INTF,
-				CLAMP_EN_BIT, CLAMP_EN_WID) && !sm_print_nosig) {
-			white_pattern_pga_reset(port);
-			tvafe_pr_info("av1:%u av2:%u\n", av1_plugin_state,
-				      av2_plugin_state);
-			return true;
-		}
-	}
-
-	return false;
-}
-
 /*
  * tvafe signal status: signal on/off
  */
@@ -1016,8 +987,8 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe, enum tvin_port_type_e por
 	if (!IS_TVAFE_SRC(port))
 		return ret;
 
-	if (white_pattern_reset_pag(port, &tvafe->cvd2))
-		return true;
+	//if (white_pattern_reset_pag(port, &tvafe->cvd2))
+		//return true;
 
 	tvafe->cvd2.smr_cnt++;
 
