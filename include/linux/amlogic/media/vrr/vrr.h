@@ -59,11 +59,13 @@ struct vrr_notifier_data_s {
 #define VRR_IOC_ENABLE         0x1
 #define VRR_IOC_DISABLE        0x2
 #define VRR_IOC_GET_EN         0x3
+#define VRR_IOC_GET_SUPPORT    0x4
 
-#define VRR_IOC_CMD_GET_CAP   _IOR(VRR_IOC_TYPE, VRR_IOC_GET_CAP, unsigned int)
-#define VRR_IOC_CMD_ENABLE    _IO(VRR_IOC_TYPE, VRR_IOC_ENABLE)
-#define VRR_IOC_CMD_DISABLE   _IO(VRR_IOC_TYPE, VRR_IOC_DISABLE)
-#define VRR_IOC_CMD_GET_EN    _IOR(VRR_IOC_TYPE, VRR_IOC_GET_EN, unsigned int)
+#define VRR_IOC_CMD_GET_CAP        _IOR(VRR_IOC_TYPE, VRR_IOC_GET_CAP, unsigned int)
+#define VRR_IOC_CMD_ENABLE         _IO(VRR_IOC_TYPE, VRR_IOC_ENABLE)
+#define VRR_IOC_CMD_DISABLE        _IO(VRR_IOC_TYPE, VRR_IOC_DISABLE)
+#define VRR_IOC_CMD_GET_EN         _IOR(VRR_IOC_TYPE, VRR_IOC_GET_EN, unsigned int)
+#define VRR_IOC_CMD_GET_SUPPORT    _IOR(VRR_IOC_TYPE, VRR_IOC_GET_SUPPORT, unsigned int)
 
 /* **********************************
  * NOTIFY define

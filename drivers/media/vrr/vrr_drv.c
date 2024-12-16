@@ -28,6 +28,7 @@
 #include "vrr_drv.h"
 #include "vrr_reg.h"
 #include "../enhancement/amvecm/reg_helper.h"
+#include "../enhancement/amvecm/frame_lock_policy.h"
 
 #include <linux/amlogic/gki_module.h>
 
@@ -1203,6 +1204,11 @@ static long vrr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case VRR_IOC_GET_EN:
 		if (copy_to_user(argp, &vdrv->enable, sizeof(unsigned int)))
+			ret = -EFAULT;
+		break;
+	case VRR_IOC_GET_SUPPORT:
+		temp = (unsigned int)get_vrr_support_st();
+		if (copy_to_user(argp, &temp, sizeof(unsigned int)))
 			ret = -EFAULT;
 		break;
 	default:

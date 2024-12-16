@@ -15526,7 +15526,7 @@ static const struct vecm_match_data_s vecm_dt_t6d = {
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 	.vlk_ctl_for_frc = 0,
-	.vrr_support_flag = 1,
+	.vrr_support_flag = 0,
 };
 
 static const struct of_device_id aml_vecm_dt_match[] = {
