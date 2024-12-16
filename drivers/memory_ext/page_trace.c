@@ -842,9 +842,11 @@ unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 #endif
 
 	trace.ret_ip = (ip - text) >> 2;
+#ifdef CONFIG_AMLOGIC_CMA
 	if (flag == __GFP_NO_CMA)
 		trace.migrate_type = MIGRATE_CMA;
 	else
+#endif
 		trace.migrate_type = aml_gfp_migratetype(flag);
 	trace.order = order;
 #if DEBUG_PAGE_TRACE
