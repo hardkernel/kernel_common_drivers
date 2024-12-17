@@ -191,7 +191,7 @@
 		interrupt-names = "amfc0", "amfc1";
 		clocks = <&clkc CLKID_AMFC>;
 		assigned-clocks = <&clkc CLKID_AMFC>;
-		assigned-clock-rates = <666666666>;
+		assigned-clock-rates = <576000000>;
 	};
 
 	ddr_bandwidth {
