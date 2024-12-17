@@ -96,7 +96,7 @@
 			compatible = "amlogic, meson-fb";
 			size = <0x400000>;
 			alignment = <0x400000>;
-			reg = <0x3f800000 0x800000>;
+			reg = <0x3f800000 0x400000>;
 		};
 
 		lcd_cma_reserved:linux,lcd-reserved {
