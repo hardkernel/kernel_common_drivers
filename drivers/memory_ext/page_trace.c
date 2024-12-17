@@ -1367,7 +1367,7 @@ static void show_page_trace2(struct zone *zone,
 			if (!p[i].cnt)	/* may be empty after merge */
 				continue;
 
-			if (K(p[i].cnt) >= page_trace_filter) {
+			if (K(p[i].cnt) >= 1024) {
 				pr_info("%8ld, %16lx, %ps\n",
 						K(p[i].cnt), p[i].ip,
 						(void *)p[i].ip);
@@ -1400,9 +1400,11 @@ static void __kprobes oom_panic_callback(struct kprobe *p,
 	struct zone *zone;
 	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
 	struct pagetrace_summary *sum;
-	struct oom_control oc = {
-		.gfp_mask = GFP_KERNEL,
-	};
+	/*
+	 *struct oom_control oc = {
+	 *	.gfp_mask = GFP_KERNEL,
+	 *};
+	 */
 
 	if (!trace_buffer) {
 		pr_info("page trace not enabled\n");
@@ -1441,7 +1443,9 @@ static void __kprobes oom_panic_callback(struct kprobe *p,
 
 	kfree(sum);
 
-	dump_tasks(&oc);
+	/*
+	 *dump_tasks(&oc);
+	 */
 }
 
 static void *get_symbol_addr(const char *symbol_name)
@@ -1560,6 +1564,7 @@ static void __exit page_trace_module_exit(void)
 	if (!dump_sum)
 		vfree(dump_sum);
 #endif
+
 	if (!trace_buffer)
 		vfree(trace_buffer);
 
