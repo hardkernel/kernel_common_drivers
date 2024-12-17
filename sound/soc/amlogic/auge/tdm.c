@@ -630,6 +630,7 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 	p_tdm->setting.use_vadtop = p_tdm->chipinfo->use_vadtop;
 	p_tdm->setting.ext_amp_ws_inv = p_tdm->ext_amp_ws_inv;
 	p_tdm->setting.tdmout_master = p_tdm->tdmout_master;
+	p_tdm->setting.tdmin_src_hdmirx = 0;
 
 	if (!strcmp(p_tdm->tdmin_src_name, SRC_HDMIRX))
 		p_tdm->setting.tdmin_src_hdmirx = HDMIRX_A;
