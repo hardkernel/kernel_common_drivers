@@ -125,6 +125,11 @@ struct uvm_hook_data {
 	char data_buf[META_DATA_SIZE + 1];
 };
 
+struct uvm_sync_info {
+	int src_fd;
+	int dst_fd;
+};
+
 struct uvm_decoder_para {
 	u32 slot_id;
 	u32 width;
@@ -143,6 +148,7 @@ union uvm_ioctl_arg {
 	struct uvm_meta_data meta_data;
 	struct uvm_hook_data hook_data;
 	struct uvm_decoder_para decode_para;
+	struct uvm_sync_info sync_info;
 };
 
 #define UVM_IOC_MAGIC 'U'
@@ -174,6 +180,8 @@ union uvm_ioctl_arg {
 				struct uvm_decoder_para)
 #define UVM_IOC_GET_DECODER_PARA _IOWR(UVM_IOC_MAGIC, 13, \
 				struct uvm_decoder_para)
+#define UVM_IOC_SYNC_INFO _IOWR(UVM_IOC_MAGIC, 14, \
+				struct uvm_sync_info)
 
 size_t mua_calc_real_dmabuf_size(struct mua_buffer *buffer);
 int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, void *vaddr);

@@ -155,6 +155,7 @@ enum uvm_hook_mod_type {
 	PROCESS_AICOLOR,
 	PROCESS_HWC,
 	PROCESS_LCEVC,
+	PROCESS_DRM,
 	PROCESS_INVALID
 };
 
@@ -239,4 +240,6 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type);
 bool is_valid_mod_type(struct dma_buf *dmabuf,
 		       enum uvm_hook_mod_type type);
 
+int uvm_sync_handle_info(struct dma_buf *src_dmabuf,
+			 struct dma_buf *dst_dmabuf);
 #endif
