@@ -1090,3 +1090,26 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	return ret;
 }
 EXPORT_SYMBOL(uvm_put_hook_mod);
+
+int uvm_sync_handle_info(struct dma_buf *src_dmabuf, struct dma_buf *dst_dmabuf)
+{
+	struct uvm_handle *src_handle, *dst_handle;
+
+	if (IS_ERR_OR_NULL(src_dmabuf) || !dmabuf_is_uvm(src_dmabuf) ||
+	    IS_ERR_OR_NULL(dst_dmabuf) || !dmabuf_is_uvm(dst_dmabuf)) {
+		UVM_PRINTK(UVM_DBG, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	src_handle = src_dmabuf->priv;
+	dst_handle = dst_dmabuf->priv;
+
+	memcpy(&dst_handle->vf, &src_handle->vf, sizeof(struct vframe_s));
+
+	dst_handle->vfp = src_handle->vfp;
+
+	dst_handle->mod_attached_mask = src_handle->mod_attached_mask;
+	dst_handle->mod_attached_mask |= (1 << PROCESS_DRM);
+	return 0;
+}
+EXPORT_SYMBOL(uvm_sync_handle_info);

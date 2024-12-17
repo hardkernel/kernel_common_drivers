@@ -752,6 +752,32 @@ static int mua_get_meta_data(int fd, ulong arg)
 	return 0;
 }
 
+static int mua_sync_info(struct uvm_sync_info *sync_info)
+{
+	struct dma_buf *src_dmabuf, *dst_dmabuf;
+	int ret = 0;
+
+	src_dmabuf = dma_buf_get(sync_info->src_fd);
+	if (IS_ERR_OR_NULL(src_dmabuf)) {
+		MUA_PRINTK(MUA_ERROR, "invalid src_dmabuf fd\n");
+		return -EINVAL;
+	}
+
+	dst_dmabuf = dma_buf_get(sync_info->dst_fd);
+	if (IS_ERR_OR_NULL(dst_dmabuf)) {
+		dma_buf_put(src_dmabuf);
+		MUA_PRINTK(MUA_ERROR, "invalid dst_dmabuf fd\n");
+		return -EINVAL;
+	}
+
+	ret = uvm_sync_handle_info(src_dmabuf, dst_dmabuf);
+
+	dma_buf_put(src_dmabuf);
+	dma_buf_put(dst_dmabuf);
+
+	return ret;
+}
+
 static int mua_attach(int fd, int type, char *buf)
 {
 	struct uvm_hook_mod_info info;
@@ -1108,6 +1134,14 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = mua_get_decoder_para(&data.decode_para);
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
+		break;
+	case UVM_IOC_SYNC_INFO:
+		MUA_PRINTK(MUA_DBG, "%s LINE:%d.\n", __func__, __LINE__);
+		ret = mua_sync_info(&data.sync_info);
+		if (ret < 0) {
+			MUA_PRINTK(MUA_INFO, "sync info fail.\n");
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -ENOTTY;
