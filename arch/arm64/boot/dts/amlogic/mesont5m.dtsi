@@ -2410,6 +2410,8 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
+		/* decoder and vdin can only access dmc0, scatter only alloc from cma */
+		scatter_alloc_mode = <2>;
 		status = "okay";
 	};
 
