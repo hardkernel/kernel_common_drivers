@@ -589,7 +589,7 @@ done:
 	pr_info("\n");
 }
 
-#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
+#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT)
 struct mm_struct *aml_init_mm;
 
 pte_t * (*aml__pte_offset_map)(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
@@ -607,7 +607,7 @@ static long __nocfi get_user_pfn(struct mm_struct *mm, unsigned long addr)
 	long pfn = -1;
 	pgd_t *pgd;
 
-#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
+#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT)
 	if (!mm || addr >= VMALLOC_START)
 		mm = aml_init_mm;
 	if (!mm)
@@ -640,7 +640,7 @@ static long __nocfi get_user_pfn(struct mm_struct *mm, unsigned long addr)
 		if (pmd_none(*pmd) || pmd_bad(*pmd))
 			break;
 
-#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
+#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT)
 		pte = aml__pte_offset_map(pmd, addr, NULL);
 #else
 		pte = pte_offset_map(pmd, addr);
@@ -887,7 +887,7 @@ void show_extra_reg_data(struct pt_regs *regs)
 	printk("\n");
 }
 
-#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
+#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT)
 static void *get_symbol_addr(const char *symbol_name)
 {
 	struct kprobe kp = {
@@ -972,6 +972,28 @@ static void __kprobes bad_el0_sync_handler_post(struct kprobe *p,
 	show_all_pfn(current, regs);
 }
 
+#ifdef CONFIG_ARM64
+static struct mm_struct *get_faked_init_mm(void)
+{
+	static pgd_t *faked_pgd;
+
+	unsigned long long ttbr1_el1;
+	unsigned long long swapper_pg_dir_pa;
+
+	if (faked_pgd)
+		return container_of(&faked_pgd, struct mm_struct, pgd);
+
+	ttbr1_el1 = read_sysreg(ttbr1_el1);
+	swapper_pg_dir_pa = ttbr1_el1 & 0xfffffffff000ULL;
+	faked_pgd = phys_to_virt(swapper_pg_dir_pa);
+
+	pr_info("ttbr1=%llx faked_init_mm=%px\n", ttbr1_el1,
+		container_of(&faked_pgd, struct mm_struct, pgd));
+
+	return container_of(&faked_pgd, struct mm_struct, pgd);
+}
+#endif
+
 static int __nocfi user_fault_register_kprobe(void *data)
 {
 	int ret;
@@ -985,8 +1007,12 @@ static int __nocfi user_fault_register_kprobe(void *data)
 
 	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 
+#ifdef CONFIG_ARM64
+	aml_init_mm = get_faked_init_mm();
+#else
 	aml_init_mm = (struct mm_struct *)aml_syms_lookup("init_mm");
 	pr_debug("aml_init_mm: %px\n", aml_init_mm);
+#endif
 
 	kp_show_regs.post_handler = show_regs_handler_post;
 	ret = register_kprobe(&kp_show_regs);
