@@ -15,7 +15,7 @@
 #define IR_MBOX_BUF_SIZE (MAX_WAKEUP_KEY * 2 + 2)
 
 /*to ensure kernel and user spase use the same header file*/
-#define SHARE_DATA_VERSION "v1.1.1"
+#define SHARE_DATA_VERSION "v1.1.2"
 
 union _codemap {
 	struct ir_key_map {
@@ -83,6 +83,11 @@ struct ir_wakeup_tab {
 #define IR_IOC_SET_KEY_NUMBER        _IOW('I', 3, __u32)
 #define IR_IOC_SET_KEY_MAPPING_TAB   _IOW('I', 4, __u32)
 #define IR_IOC_SET_SW_DECODE_PARA    _IOW('I', 5, __u32)
+#define IR_IOC_GET_WAKEUP_TAB        _IOW('I', 6, __u32)
+#define IR_IOC_GET_KEY_MAPPING_TAB   _IOW('I', 7, __u32)
+#define IR_IOC_SET_WAKEUP_NUMBER     _IOW('I', 8, __u32)
+#define IR_IOC_SET_WAKEUP_TAB        _IOW('I', 9, __u32)
+#define IR_IOC_GET_WAKEUP_KEY        _IOW('I', 10, __u32)
 #define IR_IOC_GET_DATA_VERSION      _IOR('I', 121, __u32)
 
 #endif

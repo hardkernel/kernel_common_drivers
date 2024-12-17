@@ -38,6 +38,9 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 	unsigned long flags;
 	u32 value;
 	int retval = 0, i;
+	u32 tmp[MAX_WAKEUP_KEY + 3];
+	struct ir_wakeup_tab *wt;
+	static u32 wakeup_size;
 
 	if (!parg) {
 		dev_err(chip->dev, "%s invalid user space pointer\n", __func__);
@@ -96,10 +99,14 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 			/*scancode sort*/
 			meson_ir_scancode_sort(&ir_map->tab);
 
-			ir_map->tab.id.vendor = 0x0001;
-			ir_map->tab.id.product = 0x0001;
-			ir_map->tab.id.version = 0x0100;
-			ir_map->tab.id.bustype = BUS_ISA;
+			if (!ir_map->tab.id.vendor)
+				ir_map->tab.id.vendor = 0x0001;
+			if (!ir_map->tab.id.product)
+				ir_map->tab.id.product = 0x0001;
+			if (!ir_map->tab.id.version)
+				ir_map->tab.id.version = 0x0100;
+			if (!ir_map->tab.id.bustype)
+				ir_map->tab.id.bustype = BUS_ISA;
 
 			/*overwrite the old map table or insert new map table*/
 			spin_lock_irqsave(&chip->slock, flags);
@@ -124,6 +131,90 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 			goto err;
 		}
 		chip->r_dev->max_frame_time = sw_data.max_frame_time;
+		break;
+
+	case IR_IOC_GET_WAKEUP_TAB:
+		i = 0;
+		while (chip->wakeup_tab[i].frame_code)
+			i++;
+
+		if (i && copy_to_user(parg, chip->wakeup_tab,
+				      sizeof(struct ir_wakeup_tab) * (i + 1))) {
+			retval = -EFAULT;
+			goto err;
+		}
+		break;
+
+	case IR_IOC_GET_KEY_MAPPING_TAB:
+		if (copy_from_user(&value, parg, sizeof(u32))) {
+			retval = -EFAULT;
+			goto err;
+		}
+		if (value == 0) {
+			i = 0;
+			list_for_each_entry(ir_map, &chip->map_tab_head, list) {
+				tmp[i++] = ir_map->tab.custom_code;
+			}
+			if (i && copy_to_user(parg, tmp, sizeof(u32) * i)) {
+				retval = -EFAULT;
+				goto err;
+			}
+		} else {
+			ptable = meson_ir_seek_map_tab(chip, value);
+			if (ptable && copy_to_user(parg, &ptable->tab,
+			    sizeof(struct ir_map_tab) +
+			    ptable->tab.map_size * sizeof(union _codemap))) {
+				retval = -EFAULT;
+				goto err;
+			}
+		}
+		break;
+
+	case IR_IOC_SET_WAKEUP_NUMBER:
+		if (copy_from_user(&wakeup_size, parg, sizeof(u32))) {
+			wakeup_size = 0;
+			retval = -EFAULT;
+			goto err;
+		}
+		if (wakeup_size > MAX_WAKEUP_KEY)
+			wakeup_size = MAX_WAKEUP_KEY;
+		break;
+
+	case IR_IOC_SET_WAKEUP_TAB:
+		wt = kzalloc((wakeup_size + 1) * sizeof(*chip->wakeup_tab),
+			     GFP_KERNEL);
+		if (!wt) {
+			retval = -ENOMEM;
+			goto err;
+		}
+
+		if (copy_from_user(wt, parg,
+				   wakeup_size * sizeof(*chip->wakeup_tab))) {
+			kfree(wt);
+			retval = -EFAULT;
+			goto err;
+		}
+
+		kfree(chip->wakeup_tab);
+		chip->wakeup_tab = wt;
+
+		tmp[0] = IR_MBOX_CMD_SET_WAKEUP_LIST;
+		tmp[1] = wakeup_size;
+		for (i = 0; i < wakeup_size; i++) {
+			tmp[2] |= (chip->wakeup_tab[i].ir_reason & 0x1) << i;
+			tmp[i + 3] = chip->wakeup_tab[i].frame_code;
+		}
+		meson_ir_mbox_transfer(chip, tmp, sizeof(tmp));
+		break;
+
+	case IR_IOC_GET_WAKEUP_KEY:
+		tmp[0] = IR_MBOX_CMD_GET_PREBOOT_KEY;
+		meson_ir_mbox_transfer(chip, tmp, sizeof(u32));
+
+		if (copy_to_user(parg, &tmp[0], sizeof(u32))) {
+			retval = -EFAULT;
+			goto err;
+		}
 		break;
 
 	default:
