@@ -290,12 +290,19 @@ void dptx_vmode_manage(struct dptx_drv_s *dptx)
 				continue;
 
 			if (dptx->edid_info.range.vfreq[1]) { //fr range
-				if (dtd_pix_idx[i][1] >= dtd_pix_idx[j][1])
+				if (dtd_pix_idx[i][1] >= dtd_pix_idx[j][1]) {
+					if (dtd_pix_idx[i][2] > dptx->edid_info.range.vfreq[1] ||
+					    dtd_pix_idx[i][2] < dptx->edid_info.range.vfreq[0])
+						continue;
 					dptx->edid_info.dtd_timing[i].ctrl |=
 						CTRL_DUPLICATED_TIMING;
-				else
+				} else {
+					if (dtd_pix_idx[j][2] > dptx->edid_info.range.vfreq[1] ||
+					    dtd_pix_idx[j][2] < dptx->edid_info.range.vfreq[0])
+						continue;
 					dptx->edid_info.dtd_timing[j].ctrl |=
 						CTRL_DUPLICATED_TIMING;
+				}
 			} else {
 				if (dtd_pix_idx[i][2] == dtd_pix_idx[j][2]) { //same fr
 					if (dtd_pix_idx[i][1] >= dtd_pix_idx[j][1])
@@ -321,6 +328,10 @@ void dptx_vmode_manage(struct dptx_drv_s *dptx)
 		if (!dptx->edid_info.range.vfreq[1])
 			continue;
 
+		if (dptx->edid_info.dtd_timing[i].fr1000 / 1000 > dptx->edid_info.range.vfreq[1] ||
+		    dptx->edid_info.dtd_timing[i].fr1000 / 1000 < dptx->edid_info.range.vfreq[0])
+			continue;
+
 		for (j = 0; j < ARRAY_SIZE(dptx_fr_int); j++) {
 			if (dptx_fr_int[j] <= dptx->edid_info.range.vfreq[1] &&
 			    dptx_fr_int[j] >= dptx->edid_info.range.vfreq[0]) {
@@ -336,10 +347,7 @@ void dptx_vmode_manage(struct dptx_drv_s *dptx)
 }
 
 static u8 cfmt_priority[] = {
-	CFMT_RGB_10bit, CFMT_RGB_8bit,
-	CFMT_YCbCr422_10bit, CFMT_YCbCr422_8bit,
-	CFMT_YCbCr420_10bit, CFMT_YCbCr420_8bit,
-	CFMT_Y_only_10bit, CFMT_Y_only_8bit, CFMT_RGB_6bit,
+	CFMT_RGB_10bit, CFMT_RGB_8bit, CFMT_RGB_6bit, CFMT_YCbCr420_8bit,
 };
 
 struct dptx_vmode_s *dptx_get_vmode(struct dptx_drv_s *dptx, u8 th)

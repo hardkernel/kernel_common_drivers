@@ -72,6 +72,8 @@ void dptx_act_timing_to_vinfo(struct dptx_drv_s *dptx)
 	dptx->vinfo.vfp    = dptx->act_timing.v_fp;
 	dptx->vinfo.cur_enc_ppc =  1;
 	dptx->vinfo.fr_adj_type = VOUT_FR_ADJ_NONE;
+	dptx->vinfo.viu_color_fmt = (dptx->act_timing.cfmt <= CFMT_RGB_12bit) ?
+					COLOR_FMT_RGB444 : COLOR_FMT_YUV444;
 	dptx->vinfo.vpp_post_out_color_fmt = (dptx->act_timing.cfmt <= CFMT_RGB_12bit) ? 1 : 0;
 }
 

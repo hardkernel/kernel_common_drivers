@@ -99,7 +99,7 @@ static void dptx_ana_phy_set(struct dptx_drv_s *dptx, u8 status)
 		dptx1_ana_phy_cntl_set(dptx, status);
 
 	if (status)
-		dptx_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00406245 | phy->vswing);
+		dptx_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00406243 | phy->vswing);
 
 	//DPTXPR(dptx->idx, LOG_I, "phy lane_lock: 0x%x\n", phy_ctrl_p->lane_lock);
 }
