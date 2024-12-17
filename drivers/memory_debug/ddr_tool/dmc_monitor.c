@@ -687,7 +687,7 @@ dmc_ignore:
 static void dmc_set_default(struct dmc_monitor *mon)
 {
 	char default_filter_dev[] = "USB,ETH,EMMC";
-	char default_filter_sym[] = "__dma_direct_alloc_pages,alloc_page_boost_work_func";
+	char default_filter_sym[] = "__dma_direct_alloc_pages,alloc_page_boost_work_func,alloc_from_cma";
 
 	set_dmc_filter(default_filter_dev);
 	set_dmc_filter(default_filter_sym);
