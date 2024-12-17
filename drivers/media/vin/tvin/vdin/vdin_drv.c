@@ -319,6 +319,9 @@ void tvin_update_vdin_prop(u8 port_type, u8 pkt_type)
 	if (!devp || !devp->frontend || !devp->frontend->sm_ops)
 		return;
 
+	if (!IS_HDMI_SRC(devp->parm.port))
+		return;
+
 	if (devp->debug.bypass_update_prop)
 		return;
 

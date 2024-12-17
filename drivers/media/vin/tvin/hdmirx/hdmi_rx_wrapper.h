@@ -46,7 +46,8 @@
 /* 2024.11.27 fix fsm unnormal */
 /* 2024.12.03 adjust audio fifo enable timing */
 /* 2024.12.16 remove fsm restart on t3x */
-#define RX_WRAPPER_VER "ver.2024/12/16"
+/* 2024.12.19 add protection when not in hdmi source */
+#define RX_WRAPPER_VER "ver.2024/12/19"
 
 struct freq_ref_s {
 	bool interlace;

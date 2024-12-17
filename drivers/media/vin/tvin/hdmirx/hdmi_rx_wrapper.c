@@ -4617,7 +4617,7 @@ void rx_main_state_machine(void)
 		rx[port].var.sig_unstable_cnt = 0;
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
-		rx_pkt_initial(port);
+		//rx_pkt_initial(port);
 		rx[port].state = FSM_SIG_HOLD;
 		break;
 	case FSM_SIG_HOLD:    //todo
@@ -5072,8 +5072,8 @@ void rx_port0_main_state_machine(void)
 		rx[port].var.sig_unstable_cnt = 0;
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
-		reset_pcs(port);
-		rx_pkt_initial(port);
+		//reset_pcs(port);
+		//rx_pkt_initial(port);
 		rx[port].state = FSM_SIG_HOLD;
 		break;
 	case FSM_SIG_HOLD:    //todo
@@ -5486,8 +5486,8 @@ void rx_port1_main_state_machine(void)
 		rx[port].var.sig_unstable_cnt = 0;
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
-		reset_pcs(port);
-		rx_pkt_initial(port);
+		//reset_pcs(port);
+		//rx_pkt_initial(port);
 		rx[port].state = FSM_SIG_HOLD;
 		break;
 	case FSM_SIG_HOLD:    //todo
@@ -5967,7 +5967,7 @@ void rx_port2_main_state_machine(void)
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
 		//reset_pcs(port);
-		rx_pkt_initial(port);
+		//rx_pkt_initial(port);
 		rx[port].var.check_dsc_de_cnt = 0;
 		rx_switch_to_self_hsync(port, false);
 		rx_clr_f_det(true, port);
@@ -6468,7 +6468,7 @@ void rx_port3_main_state_machine(void)
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
 		//reset_pcs(port);
-		rx_pkt_initial(port);
+		//rx_pkt_initial(port);
 		rx[port].var.check_dsc_de_cnt = 0;
 		rx_switch_to_self_hsync(port, false);
 		rx_clr_f_det(true, port);
