@@ -917,8 +917,8 @@ const struct meson_ddemod_data  data_t5d = {
 
 const struct meson_ddemod_data  data_s4 = {
 	.dig_clk = {
-		.demod_clk_ctl = 0x74,
-		.demod_clk_ctl_1 = 0x75,
+		.demod_clk_ctl = 0x80,
+		.demod_clk_ctl_1 = 0x81,
 	},
 	.regoff = {
 		.off_demod_top = 0xf000,

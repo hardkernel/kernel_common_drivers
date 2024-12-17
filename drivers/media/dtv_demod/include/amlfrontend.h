@@ -192,6 +192,7 @@
 /*  V3.6.012 improve T6D ATSC/QAM/DVBS/T/T2 performance */
 /*  V3.6.013 improve dvbc sensitivity */
 /*  V3.6.014 fix failure of DVBT/T2 SSI SQI */
+/*  V3.6.015 fix S4 dvbc search crash */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -208,8 +209,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.014"
-#define DTVDEMOD_VER	"2024/12/05: fix failure of DVBT/T2 SSI SQI"
+#define AMLDTVDEMOD_VER "V3.6.015"
+#define DTVDEMOD_VER	"2024/12/17: fix S4 dvbc search crash"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
