@@ -3598,9 +3598,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			HDMITX_INFO("CH2 ErrCnt 0x%x\n", ced->ch2_cnt);
 		memset(ced, 0, sizeof(*ced));
 	} else if (strncmp(tmpbuf, "hdmi_hsty_config", 16) == 0) {
-		print_hsty_drm_config_data();
-		print_hsty_vsif_config_data();
-		print_hsty_hdr10p_config_data();
 		print_hsty_hdmiaud_config_data();
 	} else if (strncmp(tmpbuf, "edid_parse", 10) == 0) {
 		if (tmpbuf[10] == '1') {

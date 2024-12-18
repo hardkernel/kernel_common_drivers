@@ -786,6 +786,12 @@ void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	u32 save_last_hdr_mode;
 
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
+	if (data)
+		memcpy(&global_tx_common->drm_config_data, data,
+				sizeof(struct master_display_info_s));
+	else
+		memset(&global_tx_common->drm_config_data, 0, sizeof(struct master_display_info_s));
+
 	spin_lock_irqsave(&global_tx_common->edid_spinlock, flags);
 
 	if (!data || !global_tx_common->rxcap.hdr_info2.hdr_support) {
@@ -1038,6 +1044,11 @@ void hdmitx_set_hdr10plus_pkt(unsigned int flag, struct hdr10plus_para *data)
 	struct rx_cap *prxcap = &global_tx_common->rxcap;
 
 	HDMITX_DEBUG_PACKET("hdr: [%s]: [%d]\n", __func__, __LINE__);
+	if (data)
+		memcpy(&global_tx_common->hdr10p_config_data, data, sizeof(struct hdr10plus_para));
+	else
+		memset(&global_tx_common->hdr10p_config_data, 0, sizeof(struct hdr10plus_para));
+
 	if (global_tx_common->bist_lock)
 		return;
 
@@ -1163,6 +1174,11 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 	enum hdmi_tf_type hdr_type = HDMI_NONE;
 
 	HDMITX_DEBUG_PACKET("hdr: [%s]: [%d]\n", __func__, __LINE__);
+	if (!data)
+		memcpy(&global_tx_common->vsif_debug_info.data, &para, sizeof(struct dv_vsif_para));
+	else
+		memcpy(&global_tx_common->vsif_debug_info.data, data, sizeof(struct dv_vsif_para));
+
 	spin_lock_irqsave(&global_tx_common->edid_spinlock, flags);
 	if (global_tx_common->bist_lock) {
 		spin_unlock_irqrestore(&global_tx_common->edid_spinlock, flags);

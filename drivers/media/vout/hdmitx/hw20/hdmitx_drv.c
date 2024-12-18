@@ -414,18 +414,6 @@ static int hdmitx20_ext_get_audio_status(void)
 	return val;
 }
 
-void print_hsty_drm_config_data(void)
-{
-}
-
-void print_hsty_vsif_config_data(void)
-{
-}
-
-void print_hsty_hdr10p_config_data(void)
-{
-}
-
 void print_hsty_hdmiaud_config_data(void)
 {
 	struct aud_para *data;
