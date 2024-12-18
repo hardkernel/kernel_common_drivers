@@ -301,6 +301,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		h_active = devp->h_active + devp->crop_h;
 		v_active = devp->v_active + devp->crop_v;
 	}
+	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
+		h_active = roundup(h_active, devp->canvas_align);
 
 	switch (devp->format_convert) {
 	case VDIN_FORMAT_CONVERT_YUV_YUV444:
@@ -602,6 +604,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	/*pixels*/
 	h_size = devp->h_active + devp->crop_h;
 	v_size = devp->v_active + devp->crop_v;
+
+	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
+		h_size = roundup(h_size, devp->canvas_align);
 
 	if (devp->canvas_config_mode == 1) {
 		h_size = max_buf_width;
