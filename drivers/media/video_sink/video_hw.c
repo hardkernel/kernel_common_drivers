@@ -6744,11 +6744,14 @@ static inline bool is_tv_panel(void)
 		return false;
 
 	/*panel*/
-	if (vinfo->viu_color_fmt == COLOR_FMT_RGB444 &&
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_TL1 || cur_dev->is_tv_panel))
-		return true;
-	else
+	if (!(vinfo->mode == VMODE_LCD ||
+		vinfo->mode == VMODE_DUMMY_ENCP)) {
+		//yuv
 		return false;
+	} else {
+		//rgb
+		return true;
+	}
 }
 
 bool is_panel_output(void)
@@ -7042,6 +7045,25 @@ void rx_mute_dual_video_vcbus(int vdin0_mute, int vdin1_mute)
 	}
 }
 EXPORT_SYMBOL(rx_mute_dual_video_vcbus);
+
+/* for s6 lcd output mute */
+void mute_output_vcbus(void)
+{
+	u32 black_val;
+
+	if (is_tv_panel())
+		black_val = (0x0 << 20) | (0x0 << 10) | 0;
+	else
+		black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
+
+	WRITE_VCBUS_REG(VPP_CLIP_MISC0,
+		black_val);
+	WRITE_VCBUS_REG(VPP_CLIP_MISC1,
+		black_val);
+
+	output_mute_status = VIDEO_MUTE_ON_VPP;
+}
+EXPORT_SYMBOL(mute_output_vcbus);
 
 static inline void mute_output(void)
 {

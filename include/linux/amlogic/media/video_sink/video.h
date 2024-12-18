@@ -488,6 +488,7 @@ struct vpp_postblend_scope_s {
 void set_video_mute(u32 owner, bool on);
 void rx_mute_dual_video_rdma(int vdin0_mute, int vdin1_mute);
 void rx_mute_dual_video_vcbus(int vdin0_mute, int vdin1_mute);
+void mute_output_vcbus(void);
 int get_video_mute(void);
 void set_output_mute(bool on);
 int get_output_mute(void);
