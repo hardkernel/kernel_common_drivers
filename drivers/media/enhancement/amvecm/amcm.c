@@ -1061,13 +1061,12 @@ void cm2_frame_size_patch(struct vframe_s *vf,
 	addr_port = VPP_CHROMA_ADDR_PORT;
 	data_port = VPP_CHROMA_DATA_PORT;
 
-	if (!cm_en)
+	if (!cm_en || width == 0 || height == 0)
 		return;
 	else if (width < cm_width_limit)
-		amcm_disable(WR_VCB, 0);/*(WR_DMA);*/
+		amcm_disable(WR_DMA, vpp_index);
 	else if (!cm_en_flag && !cm_dis_flag)
 		amcm_enable(WR_DMA, vpp_index);
-
 	vpp_size = width | (height << 16);
 	if (cm_size != vpp_size) {
 		VSYNC_WRITE_VPP_REG_VPP_SEL(addr_port, 0x205, vpp_index);
