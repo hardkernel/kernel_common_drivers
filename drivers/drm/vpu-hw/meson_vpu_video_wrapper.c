@@ -12,6 +12,7 @@
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #endif
+#include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <video_processor/video_composer/videodisplay.h>
@@ -25,6 +26,31 @@
 static int video_axis_zoom = -1;
 module_param(video_axis_zoom, int, 0664);
 MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
+
+static u32 video_bpp_get(u32 pixel_format)
+{
+	u32 bpp = 8;
+
+	switch (pixel_format) {
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		bpp = 8;
+		break;
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+		bpp = 32;
+		break;
+	case DRM_FORMAT_VUY888:
+		bpp = 24;
+		break;
+	default:
+		DRM_INFO("no support pixel format:0x%x, set default bpp 8\n", pixel_format);
+		break;
+	}
+	return bpp;
+}
 
 static void
 video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
@@ -391,6 +417,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	u32 pixel_format, src_h, byte_stride, pic_w, pic_h, fb_h;
 	u32 recal_src_w, recal_src_h;
 	u64 phy_addr, phy_addr2 = 0;
+	u32 bpp;
+	bool is_process_drm_vf = false;
 
 	MESON_DRM_BLOCK("%s", __func__);
 
@@ -410,6 +438,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	byte_stride = mvvs->byte_stride;
 	fb_h = mvvs->fb_h;
 	phy_addr = mvvs->phy_addr[0];
+	phy_addr2 = mvvs->phy_addr[1];
 	pixel_format = mvvs->pixel_format;
 	MESON_DRM_BLOCK("%s %d-%d-%llx", __func__, src_h, pixel_format, phy_addr);
 
@@ -434,38 +463,84 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		vf->crop[0] = mvvs->src_y;/*crop top*/
 		vf->crop[1] = mvvs->src_x;/*crop left*/
 
+		is_process_drm_vf = is_valid_mod_type(mvvs->dmabuf, PROCESS_DRM);
+
 		/*
 		 *if video_axis_zoom = 1, means the video anix is
 		 *set by westeros
 		 */
-		if (video_axis_zoom != -1) {
-			if (dec_vf->type & VIDTYPE_COMPRESS) {
-				pic_w = dec_vf->compWidth;
-				pic_h = dec_vf->compHeight;
-				recal_src_w = mvvs->src_w *
+		if (!is_process_drm_vf) {
+			if (video_axis_zoom != -1) {
+				if (dec_vf->type & VIDTYPE_COMPRESS) {
+					pic_w = dec_vf->compWidth;
+					pic_h = dec_vf->compHeight;
+					recal_src_w = mvvs->src_w *
 							pic_w / dec_vf->width;
-				recal_src_h = mvvs->src_h *
+					recal_src_h = mvvs->src_h *
 							pic_h / dec_vf->height;
-				vf->crop[0] = mvvs->src_y *
+					vf->crop[0] = mvvs->src_y *
 							pic_h / dec_vf->height;
-				vf->crop[1] = mvvs->src_x *
+					vf->crop[1] = mvvs->src_x *
 							pic_w / dec_vf->width;
+				} else {
+					pic_w = dec_vf->width;
+					pic_h = dec_vf->height;
+					recal_src_w = mvvs->src_w;
+					recal_src_h = mvvs->src_h;
+				}
 			} else {
-				pic_w = dec_vf->width;
-				pic_h = dec_vf->height;
 				recal_src_w = mvvs->src_w;
 				recal_src_h = mvvs->src_h;
+				if (dec_vf->type & VIDTYPE_COMPRESS) {
+					pic_w = dec_vf->compWidth;
+					pic_h = dec_vf->compHeight;
+				} else {
+					pic_w = dec_vf->width;
+					pic_h = dec_vf->height;
+				}
 			}
 		} else {
+			bpp = video_bpp_get(mvvs->pixel_format);
 			recal_src_w = mvvs->src_w;
 			recal_src_h = mvvs->src_h;
-			if (dec_vf->type & VIDTYPE_COMPRESS) {
-				pic_w = dec_vf->compWidth;
-				pic_h = dec_vf->compHeight;
-			} else {
-				pic_w = dec_vf->width;
-				pic_h = dec_vf->height;
+			pic_w = mvvs->byte_stride * 8 / bpp;
+			pic_h = mvvs->fb_h;
+
+			/* overlay dec vframe parameters*/
+			if (drm_rotation_90_or_270(mvvs->rotation))
+				vf->ratio_control = 0;
+
+			vf->type &= (~VIDTYPE_COMPRESS);
+			vf->compWidth = 0;
+			vf->compHeight = 0;
+			vf->width = pic_w;
+			vf->height = pic_h;
+			vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
+			vf->plane_num = 1;
+			vf->canvas0Addr = -1;
+			vf->canvas0_config[0].phy_addr = phy_addr;
+			vf->canvas0_config[0].width = byte_stride;
+			vf->canvas0_config[0].height = pic_h;
+			vf->canvas0_config[0].endian = 0;
+			vf->canvas1Addr = -1;
+
+			if (pixel_format == DRM_FORMAT_NV12 ||
+				pixel_format == DRM_FORMAT_NV21) {
+				if (!phy_addr2)
+					phy_addr2 = phy_addr + byte_stride * src_h;
+				vf->plane_num = 2;
+				vf->canvas0_config[1].phy_addr = phy_addr2;
+				vf->canvas0_config[1].width = byte_stride;
+				vf->canvas0_config[1].height = pic_h / 2;
+				dec_vf->canvas0_config[1].block_mode =
+					CANVAS_BLKMODE_LINEAR;
+				/*big endian default support*/
+				vf->canvas0_config[1].endian = 0;
+				vf->plane_num = 2;
 			}
+			vf->type = video_type_get(pixel_format);
+			vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+			DRM_DEBUG("rotation overlay, rotation:%d\n", mvvs->rotation);
 		}
 
 		if ((pic_w == 0 || pic_h == 0) && dec_vf->vf_ext) {
