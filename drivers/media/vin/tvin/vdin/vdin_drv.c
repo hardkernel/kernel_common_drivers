@@ -4205,8 +4205,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		}
 	}
 
-	if (devp->parm.port == TVIN_PORT_VIU1 ||
-	    devp->parm.port == TVIN_PORT_CAMERA) {
+	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
 		if (!vdin_write_done_check(devp)) {
 			if (vdin_dbg_en)
 				pr_info("[vdin.%u] write undone skiped.\n",

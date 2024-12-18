@@ -3154,7 +3154,7 @@ start_chk:
 			pr_err("miss parameters .\n");
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->dbg_no_wr_check = (val & 0xf);
-			devp->dts_config.chk_write_done_en = (val >> 0xf);
+			devp->dts_config.chk_write_done_en = (val >> 4);
 			pr_info("dbg_no_wr_check(%d):en:%d,chk:%d\n\n", devp->index,
 				devp->dts_config.chk_write_done_en,
 				devp->dbg_no_wr_check);
