@@ -117,6 +117,10 @@ void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status)
 {
 	unsigned long flags;
 	u32 keycode;
+	if (dev->cur_hardcode && (dev->is_valid_custom && !dev->is_valid_custom(dev))) {
+		input_event(dev->input_devs[0], EV_MSC, MSC_SCAN, dev->cur_hardcode);
+		input_sync(dev->input_devs[0]);
+	}
 
 	if (dev->led_blink)
 		led_trigger_blink_oneshot(dev->led_feedback, &dev->delay_on,
@@ -169,6 +173,7 @@ void meson_ir_input_configure(struct input_dev *input_device,
 		input_set_capability(input_device, EV_KEY,
 				     ir_map->codemap[i].map.keycode);
 	meson_ir_common_input_set_capability(input_device);
+	input_set_capability(input_device, EV_MSC, MSC_SCAN);
 }
 EXPORT_SYMBOL(meson_ir_input_configure);
 
