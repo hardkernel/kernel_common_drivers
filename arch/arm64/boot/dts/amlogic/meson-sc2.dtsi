@@ -1632,14 +1632,10 @@
 			};
 
 			cooling-maps {
-				cpufreq_cooling_map {
+				cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&CPU0 0 8>;
-					contribution = <1024>;
-				};
-				gpufreq_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&gpu 0 3>;
+					cooling-device = <&CPU0 0 8>,
+							 <&gpu 0 3>;
 					contribution = <1024>;
 				};
 			};
