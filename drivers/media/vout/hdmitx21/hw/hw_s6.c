@@ -161,7 +161,7 @@ void set21_s6_htxpll_clk_out(const u32 clk, u32 div)
 	HDMITX_INFO("pll_od0 = %d, pll_od2 = %d, pll_od1 = %d\n",
 		pll_od0, pll_od2, pll_od1);
 	//tx_spll_lock_by_pass_alo
-	if (hdev->tx_hw.s7_clk_config)
+	if (hdev->tx_hw.clk_analog_path)
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, pll_od1, 22, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, pll_od2, 24, 6);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, pll_od0, 20, 6);

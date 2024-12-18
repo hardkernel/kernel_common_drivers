@@ -147,17 +147,19 @@ void set21_s7_htxpll_clk_out(const u32 clk, u32 div)
 	pll_od2 = (pll_od20 << 2) | pll_od21;
 
 	//pll_od3
-	if (cd == COLORDEPTH_24B)
-		pll_od3 = 0;//pll_div3 = 5;
-	else if (cd == COLORDEPTH_30B)
-		pll_od3 = 1;//pll_div3 = 6.25;
-	else if (cd == COLORDEPTH_36B)
-		pll_od3 = 2;//pll_div3 = 7.5;
+	if (cs != HDMI_COLORSPACE_YUV422) {
+		if (cd == COLORDEPTH_24B)
+			pll_od3 = 0;//pll_div3 = 5;
+		else if (cd == COLORDEPTH_30B)
+			pll_od3 = 1;//pll_div3 = 6.25;
+		else if (cd == COLORDEPTH_36B)
+			pll_od3 = 2;//pll_div3 = 7.5;
+	}
 
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 19, 1);
 	HDMITX_INFO("pll_od1 = %d, pll_od2 = %d, pll_od3 = %d\n",
 		pll_od1, pll_od2, pll_od3);
-	if (hdev->tx_hw.s7_clk_config)
+	if (hdev->tx_hw.clk_analog_path)
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, pll_od3, 9, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, pll_od2, 15, 4);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, pll_od1, 19, 4);

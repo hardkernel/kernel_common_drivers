@@ -871,10 +871,11 @@ static void set_vid_clk_div(u32 div)
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 16, 3);
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_DIV, div - 1, 0, 8);
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
 		//bit[18:16]:sel clk source.3'h0:vid_pll_clk, 3'h3:vid_pix_clk
 		//[49]hdmi_vx1_pix_clk
-		if (hdev->tx_hw.s7_clk_config)
+		if (hdev->tx_hw.clk_analog_path)
 			hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 3, 16, 3);// select vid_pix_clk
 	}
 }
@@ -1177,7 +1178,8 @@ void enable_crt_video_encp2(u32 enable, u32 in_sel)
 static void hdmitx_mux_vid_pll_clk(struct hdmitx_dev *hdev)
 {
 	/* RA bit[18:16] vid_pll_clk source: 0 vid_pll0_clk, 4 vid_pll1_clk */
-	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, hdev->frl_rate ? 4 : 0, 16, 3);
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5)
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, hdev->frl_rate ? 4 : 0, 16, 3);
 }
 
 /* In the DSC mode, the v2_master_clk will choose gp2_pll_clk */
@@ -2714,13 +2716,13 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdmitx_set_div40(1);
 		if (strncmp(tmpbuf + 5, "0", 1) == 0)
 			hdmitx_set_div40(0);
-	} else if (strncmp(tmpbuf, "pll_clk_config", 14) == 0) {
+	} else if (strncmp(tmpbuf, "clk_analog_path", 14) == 0) {
 		if (strncmp(tmpbuf + 14, "1", 1) == 0) {
-			hdev->tx_hw.s7_clk_config = 1;
-			HDMITX_INFO("s7_clk_config = %d\n", hdev->tx_hw.s7_clk_config);
+			hdev->tx_hw.clk_analog_path = 1;
+			HDMITX_INFO("clk_analog_path = %d\n", hdev->tx_hw.clk_analog_path);
 		} else if (strncmp(tmpbuf + 14, "0", 1) == 0) {
-			hdev->tx_hw.s7_clk_config = 0;
-			HDMITX_INFO("s7_clk_config = %d\n",  hdev->tx_hw.s7_clk_config);
+			hdev->tx_hw.clk_analog_path = 0;
+			HDMITX_INFO("clk_analog_path = %d\n",  hdev->tx_hw.clk_analog_path);
 		}
 	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
 		HDMITX_INFO("test drm_hdcp_ver: %d\n", drm_hdmitx_get_rx_hdcp_cap());
