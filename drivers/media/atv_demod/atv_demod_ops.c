@@ -34,7 +34,7 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 
 unsigned int reg_23cf = 0x88188832; /*IIR filter*/
 unsigned int btsc_sap_mode = 1; /*0: off 1:monitor 2:auto */
-
+unsigned int vfmt_cnt = 420;
 
 /*
  * add interface for audio driver to get atv audio state.
@@ -606,7 +606,7 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
 	int i = 0;
-	int try_vfmt_cnt = 300;
+	int try_vfmt_cnt = vfmt_cnt;
 	int verify_cnt = 0;
 	int cvbs_std = 0;
 	v4l2_std_id std_bk = 0;
