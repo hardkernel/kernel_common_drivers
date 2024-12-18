@@ -1,4 +1,4 @@
-From f6f8257184cfb04fde96d5f96392b69ffff5867d Mon Sep 17 00:00:00 2001
+From c6c38d7cacd72ccc2b29e600f837cfc6d8b47c15 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 15:51:10 +0800
 Subject: [PATCH] mm: porting CMA optimization from 5.15 [1/2]
@@ -41,14 +41,14 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  12 files changed, 332 insertions(+)
 
 diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 88c2d68a69c9..cf411dcf5bec 100644
+index 88c2d68a69c9..86a432868899 100644
 --- a/arch/arm/mm/dma-mapping.c
 +++ b/arch/arm/mm/dma-mapping.c
 @@ -572,6 +572,10 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
  	allowblock = gfpflags_allow_blocking(gfp);
  	cma = allowblock ? dev_get_cma_area(dev) : NULL;
  
-+	#ifdef CONFIG_AMLOGIC_NO_CMA
++	#ifdef CONFIG_AMLOGIC_CMA
 +	if (!!(gfp & __GFP_NO_CMA))
 +		cma = false;
 +	#endif
@@ -56,14 +56,14 @@ index 88c2d68a69c9..cf411dcf5bec 100644
  		buf->allocator = &cma_allocator;
  	else if (is_coherent)
 diff --git a/block/bdev.c b/block/bdev.c
-index 134e3db98bc8..5f3343a90f42 100644
+index 134e3db98bc8..13d45d37b796 100644
 --- a/block/bdev.c
 +++ b/block/bdev.c
 @@ -428,7 +428,11 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
  	inode->i_mode = S_IFBLK;
  	inode->i_rdev = 0;
  	inode->i_data.a_ops = &def_blk_aops;
-+#ifdef CONFIG_AMLOGIC_NO_CMA
++#ifdef CONFIG_AMLOGIC_CMA
 +	mapping_set_gfp_mask(&inode->i_data, GFP_USER | __GFP_NO_CMA);
 +#else
  	mapping_set_gfp_mask(&inode->i_data, GFP_USER);
@@ -72,14 +72,14 @@ index 134e3db98bc8..5f3343a90f42 100644
  	bdev = I_BDEV(inode);
  	mutex_init(&bdev->bd_fsfreeze_mutex);
 diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
-index 899c0effb5d3..74267a5658bd 100644
+index 899c0effb5d3..a23a4d6d0d6d 100644
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
 @@ -1960,7 +1960,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
  	 * process context, not interrupt context (or so documenation
  	 * for usb_set_interface() and usb_set_configuration() claim).
  	 */
-+	#ifdef CONFIG_AMLOGIC_NO_CMA
++	#ifdef CONFIG_AMLOGIC_CMA
 +	if (xhci_endpoint_init(xhci, virt_dev, udev, ep, GFP_NOIO | __GFP_NO_CMA) < 0) {
 +	#else
  	if (xhci_endpoint_init(xhci, virt_dev, udev, ep, GFP_NOIO) < 0) {
@@ -504,14 +504,14 @@ index a2e2a521df0a..c046cd70a7a9 100644
  		bool split;
  
 diff --git a/mm/memory.c b/mm/memory.c
-index 878331b71d98..ae4a30440fbe 100644
+index 878331b71d98..6a872bb69376 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -1059,11 +1059,23 @@ static inline struct folio *folio_prealloc(struct mm_struct *src_mm,
  {
  	struct folio *new_folio;
  
-+#ifdef CONFIG_AMLOGIC_NO_CMA
++#ifdef CONFIG_AMLOGIC_CMA
 +	if (need_zero) {
 +		gfp_t tmp_flags = GFP_HIGHUSER_MOVABLE |
 +				__GFP_ZERO | __GFP_NO_CMA;
@@ -535,7 +535,7 @@ index 878331b71d98..ae4a30440fbe 100644
  	p4d_t *p4d;
  	vm_fault_t ret;
  
-+#ifdef CONFIG_AMLOGIC_NO_CMA
++#ifdef CONFIG_AMLOGIC_CMA
 +	if (vma->vm_file && vma->vm_file->f_mapping &&
 +			(vma->vm_flags & VM_EXEC))
 +		vma->vm_file->f_mapping->gfp_mask |= __GFP_NO_CMA;
@@ -653,7 +653,7 @@ index 8150679930c8..60bdbf968abb 100644
  			}
  			dst = dst2;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4dee239c9ce6..47b7dbd41623 100644
+index 4dee239c9ce6..f7ae78257ace 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -67,6 +67,10 @@
@@ -754,7 +754,7 @@ index 4dee239c9ce6..47b7dbd41623 100644
  	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
  	struct alloc_context ac = { };
  
-+#ifdef CONFIG_AMLOGIC_NO_CMA
++#ifdef CONFIG_AMLOGIC_CMA
 +	update_gfp_flags(&gfp);
 +#endif
  	/*

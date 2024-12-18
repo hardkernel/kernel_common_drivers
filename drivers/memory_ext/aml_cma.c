@@ -372,10 +372,8 @@ bool can_use_cma(gfp_t gfp_flags)
 	if (unlikely(!cma_first_wm_low))
 		return false;
 
-#ifdef CONFIG_AMLOGIC_NO_CMA
 	if (cma_forbidden_mask(gfp_flags))
 		return false;
-#endif
 
 	if (cma_alloc_ref())
 		return false;
@@ -469,7 +467,11 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 		pr_info("c a p:%lx, c:%ld, f:%ps\n",
 			page_to_pfn(page), cnt, (void *)fun);
 	for (i = 0; i < cnt; i++) {
+#ifdef CONFIG_AMLOGIC_CMA
 		set_page_trace(page, 0, __GFP_NO_CMA, (void *)fun);
+#else
+		set_page_trace(page, 0, 0, (void *)fun);
+#endif
 		page++;
 	}
 }
@@ -680,10 +682,8 @@ void check_page_to_cma(struct compact_control *cc,
 		__set_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned);
 #endif
 
-#ifdef CONFIG_AMLOGIC_NO_CMA
 	if (mapping && cma_forbidden_mask(mapping_gfp_mask(mapping)))
 		__set_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned);
-#endif
 }
 
 #ifdef CONFIG_ARM64
@@ -698,10 +698,8 @@ static int can_migrate_to_cma(struct folio *folio)
 	if (folio_test_ksm(folio) && !folio_test_slab(folio))
 		return 0;
 
-#ifdef CONFIG_AMLOGIC_NO_CMA
 	if (mapping && cma_forbidden_mask(mapping_gfp_mask(mapping)))
 		return 0;
-#endif
 
 	return 1;
 }
@@ -802,7 +800,7 @@ static struct page *get_migrate_page(struct page *page, unsigned long private)
 	int zidx;
 
 	mtc = (struct migration_target_control *)private;
-#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+#ifdef CONFIG_AMLOGIC_CMA
 	gfp_mask = mtc->gfp_mask | __GFP_NO_CMA;
 #else
 	gfp_mask = mtc->gfp_mask;
@@ -2192,7 +2190,7 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 		 * may blocked on some pages, relax CPU and try later.
 		 */
 		if ((sched_clock() - in_tick) >= timeout) {
-			if (timeout_count > 100) {
+			if (timeout_count > 200) {
 				pr_err("cma: %s alloc too long %lx ,%lx\n",
 					cma->name, pfn, count);
 				cma_debug_level = 6;
@@ -2201,9 +2199,6 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 			usleep_range(1000, 2000);
 		}
 	}
-
-	if (cma_debug_level == 6)
-		cma_debug_level = 0;
 
 	//trace_cma_alloc_finish(cma->name, pfn, page, count, align);
 
@@ -2234,6 +2229,9 @@ out:
 			cma_sysfs_account_fail_pages(cma, count);
 	}
 	aml_cma_alloc_post_hook(&dummy, count, page, tick, ret);
+
+	if (cma_debug_level == 6)
+		cma_debug_level = 0;
 
 	if (reset == 1)
 		preempt_disable();

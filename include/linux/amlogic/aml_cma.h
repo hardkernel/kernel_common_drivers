@@ -6,7 +6,7 @@
 #ifndef __AMLOGIC_CMA_H__
 #define __AMLOGIC_CMA_H__
 
-#ifdef CONFIG_AMLOGIC_NO_CMA
+#ifdef CONFIG_AMLOGIC_CMA
 #define GFP_NO_CMA    (__GFP_NO_CMA | __GFP_WRITE)
 
 int can_write_use_cma(void);
