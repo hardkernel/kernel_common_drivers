@@ -363,16 +363,6 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	mvvs->crtc_index = plane_info->crtc_index;
 	mvvs->rotation = plane_info->rotation;
 	mvvs->signal_fmt = video_signal_fmt_cov(plane_info->signal_fmt);
-
-	MESON_DRM_BLOCK("video->dmabuf-%px plane_info->dmabuf-%px\n",
-		video->dmabuf, plane_info->dmabuf);
-	if (video->dmabuf != plane_info->dmabuf) {
-		mvvs->repeat_frame = 0;
-		video->dmabuf = plane_info->dmabuf;
-	} else {
-		mvvs->repeat_frame = 1;
-	}
-
 	if (!video->vfm_mode && !video->video_path_reg) {
 		kfifo_reset(&video->ready_q);
 		kfifo_reset(&video->free_q);
@@ -395,6 +385,9 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
 	struct video_display_frame_info_t vf_info;
 	struct vframe_s *vf = NULL, *dec_vf = NULL, *vfp = NULL;
+	struct meson_vpu_pipeline *pipe;
+	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_video_layer_info *plane_info;
 	u32 pixel_format, src_h, byte_stride, pic_w, pic_h, fb_h;
 	u32 recal_src_w, recal_src_h;
 	u64 phy_addr, phy_addr2 = 0;
@@ -404,6 +397,13 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	if (!vblk || !mvvs->dmabuf) {
 		MESON_DRM_BLOCK("set_state break for NULL.\n");
 		return;
+	}
+
+	pipe = vblk->pipeline;
+	mvps = priv_to_pipeline_state(pipe->obj.state);
+	if (mvps) {
+		plane_info = &mvps->video_plane_info[vblk->index];
+		mvvs->repeat_frame = plane_info->repeat_frame;
 	}
 
 	src_h = mvvs->src_h;
@@ -558,8 +558,11 @@ static void video_set_state(struct meson_vpu_block *vblk,
 
 			vf_info.type = video_type_get(pixel_format);
 			vf_info.bitdepth = video_bitdepth_get(pixel_format);
-			if (vf_info.dmabuf && vf_info.dmabuf->resv)
+			if (vf_info.dmabuf && vf_info.dmabuf->resv) {
 				old_fence = dma_resv_get_excl_unlocked(vf_info.dmabuf->resv);
+				if (old_fence)
+					dma_fence_put(old_fence);
+			}
 			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px-%d), old_fence=%px-%d\n",
 				vf_info.dmabuf, vf_info.release_fence,
 				vf_info.release_fence ?
@@ -692,19 +695,17 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 	priv = video->base.pipeline->priv;
 
 	if (video->vfm_mode) {
-		DRM_INFO("%s dmabuf(%px), release_fence(%px), video_name(%s)\n",
-			__func__, video->dmabuf, video->fence, video->base.name);
+		DRM_INFO("%s release_fence(%px), video_name(%s)\n",
+			__func__, video->fence, video->base.name);
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 		video_display_setenable(vblk->index, 0);
 		video->video_enabled = 0;
 #endif
 		video->fence = NULL;
-		video->dmabuf = NULL;
 		priv->disable_video_plane = 1;
 	} else {
 		video_disable_fence(video);
 		video->fence = NULL;
-		video->dmabuf = NULL;
 		if (video->video_enabled) {
 			set_video_enabled(0, vblk->index);
 			video->video_enabled = 0;

@@ -328,6 +328,7 @@ struct meson_vpu_video_layer_info {
 	u32 pixel_blend;
 	u32 crtc_index;
 	u32 rotation;
+	u32 repeat_frame;
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
 	u32 vfm_mode;
@@ -356,7 +357,6 @@ struct meson_vpu_video {
 	u32 vfm_mode;
 	bool video_enabled;
 	struct dma_fence *fence;
-	struct dma_buf *dmabuf;
 	struct list_head vfm_node[MESON_MAX_VIDEO];
 	struct workqueue_struct *disable_wq;
 	struct meson_vpu_disable_work worker;

@@ -965,11 +965,13 @@ static bool meson_video_plane_is_repeat_frame(struct drm_plane *plane,
 	mvps = meson_vpu_pipeline_get_new_state(drv->pipeline, new_state->state);
 	if (mvps) {
 		plane_info = &mvps->video_plane_info[video_plane->plane_index];
+		plane_info->repeat_frame = 0;
 		old_mvps = meson_vpu_pipeline_get_old_state(drv->pipeline, new_state->state);
 		if (old_mvps) {
 			old_plane_info = &old_mvps->video_plane_info[video_plane->plane_index];
 			if (plane_info->dmabuf == old_plane_info->dmabuf) {
-				DRM_DEBUG("video repeat frame!");
+				MESON_DRM_FENCE("video repeat frame!");
+				plane_info->repeat_frame = 1;
 				return true;
 			}
 		}
