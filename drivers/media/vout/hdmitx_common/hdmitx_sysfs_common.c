@@ -342,6 +342,9 @@ static ssize_t edid_store(struct device *dev,
 			global_tx_common->forced_edid = 1;
 			hdmitx_edid_rxcap_clear(&global_tx_common->rxcap);
 			hdmitx_edid_parse(&global_tx_common->rxcap, global_tx_common->EDID_buf);
+			hdmitx_cec_phy_addr_parse(&global_tx_common->rxcap,
+					global_tx_common->EDID_buf);
+			hdmitx_audio_parse(&global_tx_common->rxcap, global_tx_common->EDID_buf);
 			hdmitx_common_edid_tracer_post_proc(global_tx_common,
 					&global_tx_common->rxcap);
 			hdmitx_edid_print(global_tx_common->EDID_buf);
