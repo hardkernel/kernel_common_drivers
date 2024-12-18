@@ -1,4 +1,4 @@
-From 06a622e493b3ded068cc1d1ee8924089e43d793f Mon Sep 17 00:00:00 2001
+From 123241871563849d896dd8257be6b5f81e864b54 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
 Subject: [PATCH] init: initialize the building framework of android-mainline
@@ -20,15 +20,15 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 ---
  .gitignore               |   3 +
  Kbuild                   |   3 +
- Makefile                 |  23 ++++++
+ Makefile                 |  37 ++++++++-
  drivers/Kconfig          |  61 +++++++++++++++
  scripts/checkpatch.pl    | 158 +++++++++++++++++++--------------------
  scripts/kconfig/Makefile |   9 ++-
  usr/include/Makefile     |   4 +
- 7 files changed, 181 insertions(+), 80 deletions(-)
+ 7 files changed, 194 insertions(+), 81 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
-index 56972adb5031..99d1c4ff15a1 100644
+index 56972adb5031a..99d1c4ff15a17 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -177,3 +177,6 @@ sphinx_*/
@@ -39,7 +39,7 @@ index 56972adb5031..99d1c4ff15a1 100644
 +# amlogic drivers
 +/common_drivers/
 diff --git a/Kbuild b/Kbuild
-index 464b34a08f51..bd26c93f68ef 100644
+index 464b34a08f51e..bd26c93f68ef8 100644
 --- a/Kbuild
 +++ b/Kbuild
 @@ -97,3 +97,6 @@ obj-$(CONFIG_SAMPLES)	+= samples/
@@ -50,7 +50,7 @@ index 464b34a08f51..bd26c93f68ef 100644
 +obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/sound/
 +obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/samples/
 diff --git a/Makefile b/Makefile
-index 379bfc260c17..3c29b9d49b3c 100644
+index 6b195df4bd73f..c315c12932653 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -428,6 +428,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
@@ -61,7 +61,7 @@ index 379bfc260c17..3c29b9d49b3c 100644
 +# config cannot be used here to mark AMLOGIC modifications
 +# If these three variables are not set externally, set their default values
 +export COMMON_DRIVERS_DIR ?= common_drivers
-+dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/amlogic
++dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/
 +export DTC_INCLUDE ?= $(srctree)/$(COMMON_DRIVERS_DIR)/include
 +# endif
 +
@@ -97,8 +97,32 @@ index 379bfc260c17..3c29b9d49b3c 100644
  
  ifeq ($(KBUILD_EXTMOD),)
  
+@@ -1435,10 +1458,22 @@ endif
+ ifneq ($(dtstree),)
+ 
+ %.dtb: dtbs_prepare
+-	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
++ifdef CONFIG_AMLOGIC_DRIVER
++	$(if $(wildcard $(srctree)/$(dtstree)/amlogic/$(addsuffix .dts,$(basename $@))),\
++		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/amlogic/$@,\
++		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@)
++else
++	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@)
++endif
+ 
+ %.dtbo: dtbs_prepare
++ifdef CONFIG_AMLOGIC_DRIVER
++	$(if $(wildcard $(srctree)/$(dtstree)/amlogic/$(addsuffix .dts,$(basename $@))),\
++		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/amlogic/$@,\
++		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
++else
+ 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
++endif
+ 
+ PHONY += dtbs dtbs_prepare dtbs_install dtbs_check
+ dtbs: dtbs_prepare
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index 7bdad836fc62..407bb559650a 100644
+index 7bdad836fc620..407bb559650ac 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
 @@ -245,4 +245,65 @@ source "drivers/cdx/Kconfig"
@@ -168,7 +192,7 @@ index 7bdad836fc62..407bb559650a 100644
 +
  endmenu
 diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-index 4427572b2477..2913277bfddb 100755
+index 4427572b24771..2913277bfddb7 100755
 --- a/scripts/checkpatch.pl
 +++ b/scripts/checkpatch.pl
 @@ -60,7 +60,7 @@ my $configuration_file = ".checkpatch.conf";
@@ -449,7 +473,7 @@ index 4427572b2477..2913277bfddb 100755
  # check for pointless casting of alloc functions
  		if ($line =~ /\*\s*\)\s*$allocFunctions\b/) {
 diff --git a/scripts/kconfig/Makefile b/scripts/kconfig/Makefile
-index a0a0be38cbdc..6f152a620cf1 100644
+index a0a0be38cbdc1..6f152a620cf15 100644
 --- a/scripts/kconfig/Makefile
 +++ b/scripts/kconfig/Makefile
 @@ -99,7 +99,14 @@ else
@@ -469,7 +493,7 @@ index a0a0be38cbdc..6f152a620cf1 100644
  configfiles = $(wildcard $(srctree)/kernel/configs/$(1) $(srctree)/arch/$(SRCARCH)/configs/$(1))
  all-config-fragments = $(call configfiles,*.config)
 diff --git a/usr/include/Makefile b/usr/include/Makefile
-index 771e32872b2a..7b73dfeb4c61 100644
+index 771e32872b2ab..7b73dfeb4c61b 100644
 --- a/usr/include/Makefile
 +++ b/usr/include/Makefile
 @@ -8,6 +8,10 @@
@@ -484,5 +508,5 @@ index 771e32872b2a..7b73dfeb4c61 100644
  # It is here just because CONFIG_CC_CAN_LINK is tested with -m32 or -m64.
  UAPI_CFLAGS += $(filter -m32 -m64 --target=%, $(KBUILD_CFLAGS))
 -- 
-2.42.0
+2.46.0
 

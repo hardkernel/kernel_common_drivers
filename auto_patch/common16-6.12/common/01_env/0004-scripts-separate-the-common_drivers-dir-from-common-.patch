@@ -1,8 +1,8 @@
-From eb1e11fbd5f928fa04c0c4b356b22957f0443a57 Mon Sep 17 00:00:00 2001
+From 79bfa607291f8694b1274878d39fcbe4e92f0cf4 Mon Sep 17 00:00:00 2001
 From: Dezhen Wang <dezhen.wang@amlogic.com>
 Date: Tue, 15 Oct 2024 11:30:12 +0000
-Subject: [PATCH 04/59] scripts: separate the common_drivers dir from common
- dir [1/1]
+Subject: [PATCH] scripts: separate the common_drivers dir from common dir
+ [1/1]
 
 PD#SWPL-188894
 
@@ -25,7 +25,7 @@ Signed-off-by: Dezhen Wang <dezhen.wang@amlogic.com>
  3 files changed, 19 insertions(+), 5 deletions(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index cb7ea71b22cd..c604f6442a1f 100644
+index cb7ea71b22cd3..c604f6442a1f5 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
 @@ -1,6 +1,7 @@
@@ -63,7 +63,7 @@ index cb7ea71b22cd..c604f6442a1f 100644
 +    visibility = ["//visibility:public"],
 +)
 diff --git a/Makefile b/Makefile
-index a34c767b4762..267d2e8d3bff 100644
+index c315c12932653..774c1490e93e7 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -431,7 +431,11 @@ endif
@@ -76,11 +76,11 @@ index a34c767b4762..267d2e8d3bff 100644
 +else
 +	export COMMON_DRIVERS_DIR := ../common_drivers
 +endif
- dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/amlogic
+ dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/
  export DTC_INCLUDE ?= $(srctree)/$(COMMON_DRIVERS_DIR)/include
  # endif
 diff --git a/modules.bzl b/modules.bzl
-index a0adfda411a6..aeb695def6db 100644
+index a0adfda411a69..aeb695def6db1 100644
 --- a/modules.bzl
 +++ b/modules.bzl
 @@ -6,7 +6,7 @@ This module contains a full list of kernel modules
@@ -93,5 +93,5 @@ index a0adfda411a6..aeb695def6db 100644
  _COMMON_GKI_MODULES_LIST = [
      # keep sorted
 -- 
-2.42.0
+2.46.0
 
