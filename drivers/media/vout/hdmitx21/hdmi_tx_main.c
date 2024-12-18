@@ -4295,7 +4295,6 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 
 	hdev->hdtx_dev = NULL;
 
-	hdev->tx_comm.rxcap.physical_addr = 0xffff;
 	hdev->tx_comm.hdmi_last_hdr_mode = 0;
 	hdev->tx_comm.hdmi_current_hdr_mode = 0;
 
