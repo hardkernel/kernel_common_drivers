@@ -526,6 +526,18 @@
 //Bit  2           reg_postsc_en             // unsigned ,    RW, default = 0  ,reg_postsc_en
 //Bit  1           reg_size_mux              // unsigned ,    RW, default = 0  ,hsize sel
 //Bit  0           reg_prevsc_outside_en     // unsigned ,    RW, default = 1  ,video1 scale out enable
+#define T6D_SAFA_PPS_DEJAGGY_CTRL                      0x5191
+//Bit 31           reg_dejaggy_en            // unsigned ,    RW, default = 0
+//Bit 30           reg_dejaggy_dps_en_0      // unsigned ,    RW, default = 0
+//Bit 29           reg_dejaggy_dps_en_1      // unsigned ,    RW, default = 0
+//Bit 28           reg_dejaggy_sameside_mode // unsigned ,    RW, default = 0
+//Bit 27:25        reserved
+//Bit 24           reg_dejaggy_sameside_prtct // unsigned ,    RW, default = 0
+//Bit 23:16        reserved
+//Bit 15:12        reg_dejaggy_procluma_alpha_1 // unsigned ,    RW, default = 15
+//Bit 11: 8        reg_dejaggy_procluma_alpha_0 // unsigned ,    RW, default = 15
+//Bit  7: 4        reg_dejaggy_procchrm_alpha_1 // unsigned ,    RW, default = 15
+//Bit  3: 0        reg_dejaggy_procchrm_alpha_0 // unsigned ,    RW, default = 15
 #define T6D_SAFA_PPS_CNTL_SCALE_COEF_IDX_LUMA          0x5192
 //Bit 31:15        reserved
 //Bit 14           reg_index_inc_luma        // unsigned ,    RW, default = 0  ,index increment, if bit9 == 1  then (0: index increase 1, 1: index increase 2) else (index increase 2)
@@ -957,6 +969,20 @@
 //Bit 28:16  p2i_line_length  // unsigned  , default = 780  ve_line_length
 //Bit 15:13  reserved
 //Bit 12:0   p2i_pic_height   // unsigned  , default = 438  ve_pic_height
+#define T6D_SAFA_PPS_SAD_FLAT_THD                      0x5140
+//Bit 31:24        reserved
+//Bit 23:16        reg_sad_flat_th2          // unsigned ,    RW, default = 10
+//Bit 15: 8        reg_sad_flat_th1          // unsigned ,    RW, default = 10
+//Bit  7: 0        reg_sad_flat_th0          // unsigned ,    RW, default = 3
+#define T6D_SAFA_PPS_DIR_MIN_IDX_VALID                 0x5126
+//Bit 31:13        reserved
+//Bit 12           reg_delta_chk_min_idx_valid // unsigned ,    RW, default = 0
+//Bit 11: 9        reserved
+//Bit  8           reg_dir_hist_chk_min_idx_valid // unsigned ,    RW, default = 1
+//Bit  7: 5        reserved
+//Bit  4           reg_dir_dif_chk_min_idx_valid // unsigned ,    RW, default = 1
+//Bit  3: 1        reserved
+//Bit  0           reg_beta_chk_min_idx_valid // unsigned ,    RW, default = 0
 
 #define S6_SAFA_PPS_CNTL_SCALE_COEF_IDX_LUMA          0x5190
 #define S6_SAFA_PPS_CNTL_SCALE_COEF_LUMA              0x5191

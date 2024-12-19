@@ -15098,6 +15098,8 @@ static struct video_device_hw_s t6d_dev_property = {
 	.sr01_num = 0,
 	.vd1_vsr_safa_support = 1,
 	.frm2fld_support = 0,
+	.vsr_nonlinear_support = 1,
+	.dejaggy_support = 1,
 };
 #endif
 
