@@ -552,19 +552,10 @@ function adjust_sequence_modules_loading() {
 	GKI_MODULES_LOAD_BLACK_LIST=()
 	if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" == "arm64" ]]; then
 		gki_modules_temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
-		if [[ ${BAZEL} == "1" ]]; then
-			if [[ -z ${ANDROID_PROJECT} && -n ${FAST_BUILD} ]]; then
-				cp ${BAZEL_OUT}/kernel_aarch64_all_module_names/kernel_aarch64_modules ${gki_modules_temp_file}
-			else
-				cp ${DIST_DIR}/system_dlkm.modules.load ${gki_modules_temp_file}
-			fi
-		else
-			rm -f ${gki_modules_temp_file}
-			cat ${ROOT_DIR}/${KERNEL_DIR}/modules.bzl |grep ko | while read LINE
-			do
-				echo $LINE | sed 's/^[^"]*"//' | sed 's/".*$//' >> ${gki_modules_temp_file}
-			done
-		fi
+		cat ${ROOT_DIR}/${KERNEL_DIR}/modules.bzl |grep ko | while read LINE
+		do
+			echo $LINE | sed 's/^[^"]*"//' | sed 's/".*$//' >> ${gki_modules_temp_file}
+		done
 
 		for module in ${GKI_MODULES_LOAD_WHITE_LIST[@]}; do
 			sed -i "/\/${module}/d" ${gki_modules_temp_file}
