@@ -67,10 +67,8 @@ static bool vtype_fill_d(struct dimn_itf_s *itf,
 static void dpvpph_prelink_polling_check(const struct reg_acc *op, bool p_link);
 static void dpvpph_pre_frame_reset_g12(bool pvpp_link,
 				       const struct reg_acc *op_in);
-static unsigned int dpvpp_dbg_force_dech;
-module_param_named(dpvpp_dbg_force_dech, dpvpp_dbg_force_dech, uint, 0664);
-static unsigned int dpvpp_dbg_force_decv;
-module_param_named(dpvpp_dbg_force_decv, dpvpp_dbg_force_decv, uint, 0664);
+unsigned int dpvpp_dbg_force_dech;
+unsigned int dpvpp_dbg_force_decv;
 
 /* refor to enum EPVPP_BUF_CFG_T */
 const char *const name_buf_cfg[] = {
@@ -203,7 +201,7 @@ static struct di_hold_setting setting[MAX_DI_HOLD_CTRL_CNT] = {
  * bit [25]: force not bypass mem
  * bit [30]: force disable pre_hold;
  **********************************************/
-static unsigned int tst_pre_vpp;
+unsigned int tst_pre_vpp;
 module_param_named(tst_pre_vpp, tst_pre_vpp, uint, 0664);
 
 //bit 0 for vpp

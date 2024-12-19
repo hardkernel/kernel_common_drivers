@@ -112,24 +112,118 @@ static int mpeg2vdin_flag;
 static int mpeg2vdin_en;
 #endif
 
-static int queue_print_flag = -1;
-static int di_reg_unreg_cnt = 1000;
-static bool overturn;
-static bool check_start_drop_prog;
-static bool mcpre_en = true;
-
 static bool mc_mem_alloc;
-
-static unsigned int di_pre_rdma_enable;
 static struct mutex di_event_mutex;
 static atomic_t di_flag_unreg;	//ary 2019-05-27
 static atomic_t di_trig_free_mem;
 
-static unsigned int di_force_bit_mode = 10;
-module_param(di_force_bit_mode, uint, 0664);
-MODULE_PARM_DESC(di_force_bit_mode, "force DI bit mode to 8 or 10 bit");
 
+static unsigned int di_pre_rdma_enable;
+static int di_reg_unreg_cnt = 1000;
+static unsigned int overturn;
+static bool check_start_drop_prog;
+static bool mcpre_en = true;
+unsigned int di_force_bit_mode = 10;
+bool force_prog = true;
+bool combing_fix_en = true;
+int cur_lev = 2;
+static int pps_dstw;
+static int pps_dsth;
+static bool pps_en;
+static unsigned int pps_position = 1;
+static unsigned int pre_enable_mask = 3;/*bit0:ma bit1:mc*/
+static bool pre_hsc_down_en;
+static int pre_hsc_down_width = 480;
+#ifdef DET3D
+static unsigned int det3d_frame_cnt = 50;
+#endif
+static bool calc_mcinfo_en = 1;
+static unsigned int colcfd_thr = 128;
+static unsigned int post_blend;
+static unsigned int post_ei;
+static unsigned int post_cnt;
+static bool post_refresh;
+static bool nrds_en;
+static int bypass_all;
+static int bypass_trick_mode = 1;
+static int bypass_3d = 1;
+static int invert_top_bot;
+static int skip_top_bot;/*1or2: may affect atv when bypass di*/
+static int force_width;
+static int force_height;
+static int prog_proc_config = (1 << 5) | (1 << 1) | 1;
+static int start_frame_drop_count = 2;
+static long same_field_top_count;
+static long same_field_bot_count;
+static unsigned int di_debug_flag;/* enable rdma even di bypassed */
+static unsigned int di_log_flag;
+static unsigned int buf_state_log_threshold = 16;
+static int bypass_state = 1;
+static int di_vscale_skip_enable;
+/*1:enable bypass pre,ei only;
+ * 2:debug force bypass pre,ei for post
+ */
+static int by_pass_pre;
+
+static int bypass_post;
+static bool post_wr_en;
+static unsigned int post_wr_support;
+static int bypass_post_state;
+/* 0, use di_wr_buf still;
+ * 1, call pre_de_done_buf_clear to clear di_wr_buf;
+ * 2, do nothing
+ */
+static int use_2_interlace_buff;
+/* prog_proc_config,
+ * bit[2:1]: when two field buffers are used,
+ * 0 use vpp for blending ,
+ * 1 use post_di module for blending
+ * 2 debug mode, bob with top field
+ * 3 debug mode, bot with bot field
+ * bit[0]:
+ * 0 "prog vdin" use two field buffers,
+ * 1 "prog vdin" use single frame buffer
+ * bit[4]:
+ * 0 "prog frame from decoder/vdin" use two field buffers,
+ * 1 use single frame buffer
+ * bit[5]:
+ * when two field buffers are used for decoder (bit[4] is 0):
+ * 1,handle prog frame as two interlace frames
+ * bit[6]:(bit[4] is 0,bit[5] is 0,use_2_interlace_buff is 0): 0,
+ * process progress frame as field,blend by post;
+ * 1, process progress frame as field,process by normal di
+ */
+/*
+ * for source include both progressive and interlace pictures,
+ * always use post_di module for blending
+ */
+static int frame_count;
+static int debug_blend_mode = -1;
+static unsigned int pldn_dly1 = 1;
+static int di_vscale_skip_count;
+static int di_vscale_skip_count_real;
+static int vpp_3d_mode;
+static bool det3d_en;
+static int post_hold_line = 8; /*2019-01-10: from VLSI feijun from 17 to 8*/
+static int post_urgent = 1;
+static unsigned int di_printk_flag;
+/*pre process speed debug */
+static int pre_process_time;
+static unsigned int force_recovery = 1;
+static unsigned int force_recovery_count;
+/* 0: not support nr10bit, 1: support nr10bit */
+static unsigned int nr10bit_support;
+static unsigned int nr_done_check_cnt = 5;
+/************For Write register**********************/
+static unsigned int di_stop_reg_flag;
+static unsigned int num_di_stop_reg_addr = 4;
+static unsigned int di_stop_reg_addr[4] = {0};
+static unsigned int di_dbg_mask;
 static bool full_422_pack;
+static bool cma_print;
+static bool pulldown_enable = true;
+static unsigned int pldn_dly = 1;
+
 /* destroy unnecessary frames before display */
 static unsigned int hold_video;
 
@@ -141,38 +235,13 @@ static struct class *di_clsp;
 
 static const char version_s[] = "2019-06-20a: afbc switch from vpp";
 
-static int bypass_state = 1;
-static int bypass_all;
-/*1:enable bypass pre,ei only;
- * 2:debug force bypass pre,ei for post
- */
-static int bypass_pre;
-static int bypass_trick_mode = 1;
-static int bypass_3d = 1;
-static int invert_top_bot;
-static int skip_top_bot;/*1or2: may affect atv when bypass di*/
 
-static int bypass_post;
-static bool post_wr_en;
-static unsigned int post_wr_support;
-static int bypass_post_state;
-/* 0, use di_wr_buf still;
- * 1, call pre_de_done_buf_clear to clear di_wr_buf;
- * 2, do nothing
- */
-
-static int force_width;
-static int force_height;
 /* add avoid vframe put/get error */
 static int di_blocking;
 /*
  * bit[2]: enable bypass all when skip
  * bit[1:0]: enable bypass post when skip
  */
-static int di_vscale_skip_enable;
-
-/* 0: not support nr10bit, 1: support nr10bit */
-static unsigned int nr10bit_support;
 
 #ifdef RUN_DI_PROCESS_IN_IRQ
 /*
@@ -204,46 +273,17 @@ static int input2pre_miss_policy;
  * bit0: process progress by frame with 2 interlace buffer
  * bit1: temp add debug for 3d process FA,1:bit0 force to 1;
  */
-static int use_2_interlace_buff;
-/* prog_proc_config,
- * bit[2:1]: when two field buffers are used,
- * 0 use vpp for blending ,
- * 1 use post_di module for blending
- * 2 debug mode, bob with top field
- * 3 debug mode, bot with bot field
- * bit[0]:
- * 0 "prog vdin" use two field buffers,
- * 1 "prog vdin" use single frame buffer
- * bit[4]:
- * 0 "prog frame from decoder/vdin" use two field buffers,
- * 1 use single frame buffer
- * bit[5]:
- * when two field buffers are used for decoder (bit[4] is 0):
- * 1,handle prog frame as two interlace frames
- * bit[6]:(bit[4] is 0,bit[5] is 0,use_2_interlace_buff is 0): 0,
- * process progress frame as field,blend by post;
- * 1, process progress frame as field,process by normal di
- */
-static int prog_proc_config = (1 << 5) | (1 << 1) | 1;
-/*
- * for source include both progressive and interlace pictures,
- * always use post_di module for blending
- */
+
 #define is_handle_prog_frame_as_interlace(vframe) \
 	(((prog_proc_config & 0x30) == 0x20) && \
 	 ((vframe->type & VIDTYPE_VIU_422) == 0))
 
-static int frame_count;
 static int disp_frame_count;
-static int start_frame_drop_count = 2;
+
 /* static int start_frame_hold_count = 0; */
 
 static int video_peek_cnt;
 static unsigned long reg_unreg_timeout_cnt;
-static int di_vscale_skip_count;
-static int di_vscale_skip_count_real;
-static int vpp_3d_mode;
-static bool det3d_en;
 
 #ifdef DET3D
 static unsigned int det3d_mode;
@@ -260,24 +300,16 @@ static unsigned int unreg_cnt;/*cnt for vframe unreg*/
 static unsigned int reg_cnt;/*cnt for vframe reg*/
 static unsigned char active_flag;
 static unsigned char recovery_flag;
-static unsigned int force_recovery = 1;
-static unsigned int force_recovery_count;
 static unsigned int recovery_log_reason;
 static unsigned int recovery_log_queue_idx;
 static struct di_buf_s *recovery_log_di_buf;
 
-static long same_field_top_count;
-static long same_field_bot_count;
 /* bit 0:
  * 0, keep 3 buffers in pre_ready_list for checking;
  * 1, keep 4 buffers in pre_ready_list for checking;
  */
 
-static int post_hold_line = 8; /*2019-01-10: from VLSI feijun from 17 to 8*/
-static int post_urgent = 1;
 
-/*pre process speed debug */
-static int pre_process_time;
 static int di_receiver_event_fun(int type, void *data, void *arg);
 static void di_uninit_buf(unsigned int disable_mirror);
 static void log_buffer_state(unsigned char *tag);
@@ -339,7 +371,6 @@ void trigger_pre_di_process(unsigned char idx)
 		up(&di_sema);
 }
 
-static unsigned int di_printk_flag;
 #define DI_PRE_INTERVAL         (HZ / 100)
 
 /*
@@ -357,12 +388,6 @@ static struct di_buf_s *cur_post_ready_di_buf;
 static struct di_buf_s di_buf_local[MAX_LOCAL_BUF_NUM * 2];
 static struct di_buf_s di_buf_in[MAX_IN_BUF_NUM];
 static struct di_buf_s di_buf_post[MAX_POST_BUF_NUM];
-
-/************For Write register**********************/
-static unsigned int di_stop_reg_flag;
-static unsigned int num_di_stop_reg_addr = 4;
-static unsigned int di_stop_reg_addr[4] = {0};
-static unsigned int di_dbg_mask;
 
 unsigned int is_need_stop_reg(unsigned int addr)
 {
@@ -791,14 +816,11 @@ static int di_read_canvas_reverse(char *str)
 }
 __setup("video_reverse=", di_read_canvas_reverse);
 
-static unsigned int di_debug_flag;/* enable rdma even di bypassed */
 static unsigned char *di_log_buf;
 static unsigned int di_log_wr_pos;
 static unsigned int di_log_rd_pos;
 static unsigned int di_log_buf_size;
 static unsigned int di_printk_flag;
-static unsigned int di_log_flag;
-static unsigned int buf_state_log_threshold = 16;
 static unsigned int buf_state_log_start;
 /*  set to 1 by condition of "post_ready count < buf_state_log_threshold",
  * reset to 0 by set buf_state_log_threshold as 0
@@ -2190,7 +2212,6 @@ static unsigned int di_cma_alloc_total(struct di_dev_s *de_devp)
 	#endif
 }
 
-static bool cma_print;
 static unsigned int di_cma_alloc(struct di_dev_s *devp)
 {
 	unsigned int start_time, end_time, delta_time;
@@ -3283,8 +3304,7 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 		di_mtnwr_mif->canvas_num = di_buf->mtn_canvas_idx;
 	}
 }
-static bool force_prog = true;
-module_param_named(force_prog, force_prog, bool, 0664);
+
 static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 {
 	if (di_buf == NULL)
@@ -3670,14 +3690,6 @@ static void top_bot_config(struct di_buf_s *di_buf)
 	}
 }
 
-static bool pulldown_enable = true;
-
-static bool combing_fix_en = true;
-module_param_named(combing_fix_en, combing_fix_en, bool, 0664);
-
-static int cur_lev = 2;
-module_param_named(combing_cur_lev, cur_lev, int, 0444);
-
 static void pre_de_done_buf_config(void)
 {
 	ulong irq_flag2 = 0;
@@ -4031,21 +4043,6 @@ static void pre_inp_canvas_config(struct vframe_s *vf)
 	}
 }
 #endif
-static int pps_dstw;
-module_param_named(pps_dstw, pps_dstw, int, 0644);
-static int pps_dsth;
-module_param_named(pps_dsth, pps_dsth, int, 0644);
-static bool pps_en;
-module_param_named(pps_en, pps_en, bool, 0644);
-static unsigned int pps_position = 1;
-module_param_named(pps_position, pps_position, uint, 0644);
-static unsigned int pre_enable_mask = 3;/*bit0:ma bit1:mc*/
-module_param_named(pre_enable_mask, pre_enable_mask, uint, 0644);
-
-static bool pre_hsc_down_en;
-module_param_named(pre_hsc_down_en, pre_hsc_down_en, bool, 0644);
-static int pre_hsc_down_width = 480;
-module_param_named(pre_hsc_down_width, pre_hsc_down_width, int, 0644);
 
 u32 di_request_afbc(u32 onoff)
 {
@@ -4483,7 +4480,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			}
 
 			if (
-				(bypass_pre & 0x2) &&
+				(by_pass_pre & 0x2) &&
 				!di_pre_stru.cur_prog_flag)
 				di_buf->post_proc_flag = -2;
 			else
@@ -4936,8 +4933,7 @@ static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf)
  * return ret;
  * }
  */
-static unsigned int det3d_frame_cnt = 50;
-module_param_named(det3d_frame_cnt, det3d_frame_cnt, uint, 0644);
+
 static void det3d_irq(void)
 {
 	unsigned int data32 = 0, likely_val = 0;
@@ -4991,14 +4987,6 @@ static void det3d_irq(void)
 	}
 }
 #endif
-
-static bool calc_mcinfo_en = 1;
-module_param(calc_mcinfo_en, bool, 0664);
-MODULE_PARM_DESC(calc_mcinfo_en, "/n get mcinfo for post /n");
-
-static unsigned int colcfd_thr = 128;
-module_param(colcfd_thr, uint, 0664);
-MODULE_PARM_DESC(colcfd_thr, "/n threshold for cfd/n");
 
 unsigned int ro_mcdi_col_cfd[26];
 static void get_mcinfo_from_reg_in_irq(void)
@@ -5419,20 +5407,6 @@ static void get_vscale_skip_count(unsigned int par)
 
 #define get_vpp_reg_update_flag(par) ((par >> 16) & 0x1)
 
-static unsigned int pldn_dly = 1;
-
-static unsigned int post_blend;
-module_param(post_blend, uint, 0664);
-MODULE_PARM_DESC(post_blend, "/n show blend mode/n");
-static unsigned int post_ei;
-module_param(post_ei, uint, 0664);
-MODULE_PARM_DESC(post_ei, "/n show blend mode/n");
-
-static unsigned int post_cnt;
-module_param(post_cnt, uint, 0664);
-MODULE_PARM_DESC(post_cnt, "/n show blend mode/n");
-static bool post_refresh;
-module_param_named(post_refresh, post_refresh, bool, 0644);
 unsigned int di_last_display;
 
 static int
@@ -6123,8 +6097,6 @@ recycle_vframe_type_post_print(struct di_buf_s *di_buf,
 		vframe_type_name[di_buf->type], di_buf->index);
 }
 #endif
-static int debug_blend_mode = -1;
-static unsigned int pldn_dly1 = 1;
 static void set_pulldown_mode(struct di_buf_s *di_buf)
 {
 	struct di_buf_s *pre_buf_p = di_buf->di_buf_dup_p[pldn_dly1];
@@ -7069,9 +7041,6 @@ static bool need_bypass(struct vframe_s *vf)
 	return false;
 }
 
-static bool nrds_en;
-module_param_named(nrds_en, nrds_en, bool, 0644);
-
 static void di_reg_process_irq(void)
 {
 	ulong irq_flag2 = 0;
@@ -7352,7 +7321,7 @@ static void di_process(void)
 #endif
 	}
 }
-static unsigned int nr_done_check_cnt = 5;
+
 static void di_pre_trigger_work(struct di_pre_stru_s *pre_stru_p)
 {
 
@@ -9156,110 +9125,6 @@ void __exit di_module_exit(void)
 #endif
 	platform_driver_unregister(&di_driver);
 }
-
-module_param_named(bypass_all, bypass_all, int, 0664);
-module_param_named(bypass_3d, bypass_3d, int, 0664);
-module_param_named(bypass_trick_mode, bypass_trick_mode, int, 0664);
-module_param_named(di_invert_top_bot, invert_top_bot, int, 0664);
-module_param_named(skip_top_bot, skip_top_bot, int, 0664);
-module_param_named(force_width, force_width, int, 0664);
-module_param_named(force_height, force_height, int, 0664);
-module_param_named(prog_proc_config, prog_proc_config, int, 0664);
-module_param_named(start_frame_drop_count, start_frame_drop_count, int, 0664);
-#ifdef SUPPORT_START_FRAME_HOLD
-module_param_named(start_frame_hold_count, start_frame_hold_count, int, 0664);
-#endif
-module_param_named(same_field_top_count, same_field_top_count,
-	long, 0664);
-module_param_named(same_field_bot_count, same_field_bot_count,
-	long, 0664);
-MODULE_PARM_DESC(di_log_flag, "\n di log flag\n");
-module_param(di_log_flag, int, 0664);
-
-MODULE_PARM_DESC(di_debug_flag, "\n di debug flag\n");
-module_param(di_debug_flag, int, 0664);
-
-MODULE_PARM_DESC(buf_state_log_threshold, "\n buf_state_log_threshold\n");
-module_param(buf_state_log_threshold, int, 0664);
-
-MODULE_PARM_DESC(bypass_state, "\n bypass_state\n");
-module_param(bypass_state, uint, 0664);
-
-MODULE_PARM_DESC(di_vscale_skip_enable, "\n di_vscale_skip_enable\n");
-module_param(di_vscale_skip_enable, uint, 0664);
-
-MODULE_PARM_DESC(di_vscale_skip_count, "\n di_vscale_skip_count\n");
-module_param(di_vscale_skip_count, int, 0664);
-
-MODULE_PARM_DESC(di_vscale_skip_count_real, "\n di_vscale_skip_count_real\n");
-module_param(di_vscale_skip_count_real, int, 0664);
-
-module_param_named(vpp_3d_mode, vpp_3d_mode, int, 0664);
-#ifdef DET3D
-MODULE_PARM_DESC(det3d_en, "\n det3d_enable\n");
-module_param(det3d_en, bool, 0664);
-MODULE_PARM_DESC(det3d_mode, "\n det3d_mode\n");
-module_param(det3d_mode, uint, 0664);
-#endif
-
-MODULE_PARM_DESC(post_hold_line, "\n post_hold_line\n");
-module_param(post_hold_line, uint, 0664);
-
-MODULE_PARM_DESC(post_urgent, "\n post_urgent\n");
-module_param(post_urgent, uint, 0664);
-
-MODULE_PARM_DESC(di_printk_flag, "\n di_printk_flag\n");
-module_param(di_printk_flag, uint, 0664);
-
-MODULE_PARM_DESC(force_recovery, "\n force_recovery\n");
-module_param(force_recovery, uint, 0664);
-
-module_param_named(force_recovery_count, force_recovery_count, uint, 0664);
-module_param_named(pre_process_time, pre_process_time, uint, 0664);
-module_param_named(bypass_post, bypass_post, uint, 0664);
-module_param_named(post_wr_en, post_wr_en, bool, 0664);
-module_param_named(post_wr_support, post_wr_support, uint, 0664);
-module_param_named(bypass_post_state, bypass_post_state, uint, 0664);
-/* n debug for progress interlace mixed source */
-module_param_named(use_2_interlace_buff, use_2_interlace_buff, int, 0664);
-module_param_named(debug_blend_mode, debug_blend_mode, int, 0664);
-MODULE_PARM_DESC(debug_blend_mode, "\n force post blend mode\n");
-module_param_named(nr10bit_support, nr10bit_support, uint, 0664);
-module_param_named(di_stop_reg_flag, di_stop_reg_flag, uint, 0664);
-module_param(di_dbg_mask, uint, 0664);
-MODULE_PARM_DESC(di_dbg_mask, "\n di_dbg_mask\n");
-module_param(nr_done_check_cnt, uint, 0664);
-MODULE_PARM_DESC(nr_done_check_cnt, "\n nr_done_check_cnt\n");
-module_param_array(di_stop_reg_addr, uint, &num_di_stop_reg_addr,
-	0664);
-module_param_named(mcpre_en, mcpre_en, bool, 0664);
-module_param_named(check_start_drop_prog, check_start_drop_prog, bool, 0664);
-module_param_named(overturn, overturn, bool, 0664);
-module_param_named(queue_print_flag, queue_print_flag, int, 0664);
-module_param_named(full_422_pack, full_422_pack, bool, 0644);
-module_param_named(cma_print, cma_print, bool, 0644);
-module_param_named(pulldown_enable, pulldown_enable, bool, 0644);
-#ifdef DEBUG_SUPPORT
-#ifdef RUN_DI_PROCESS_IN_IRQ
-module_param_named(input2pre, input2pre, uint, 0664);
-module_param_named(input2pre_buf_miss_count, input2pre_buf_miss_count,
-	uint, 0664);
-module_param_named(input2pre_proc_miss_count, input2pre_proc_miss_count,
-	uint, 0664);
-module_param_named(input2pre_miss_policy, input2pre_miss_policy, uint, 0664);
-module_param_named(input2pre_throw_count, input2pre_throw_count, uint, 0664);
-#endif
-#ifdef SUPPORT_MPEG_TO_VDIN
-module_param_named(mpeg2vdin_en, mpeg2vdin_en, int, 0664);
-module_param_named(mpeg2vdin_flag, mpeg2vdin_flag, int, 0664);
-#endif
-module_param_named(di_pre_rdma_enable, di_pre_rdma_enable, uint, 0664);
-module_param_named(pldn_dly, pldn_dly, uint, 0644);
-module_param_named(pldn_dly1, pldn_dly1, uint, 0644);
-module_param_named(di_reg_unreg_cnt, di_reg_unreg_cnt, int, 0664);
-module_param_named(bypass_pre, bypass_pre, int, 0664);
-module_param_named(di_frame_count, frame_count, int, 0664);
-#endif
 //MODULE_DESCRIPTION("AMLOGIC DEINTERLACE driver");
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION("4.0.0");

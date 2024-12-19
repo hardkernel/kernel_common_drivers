@@ -109,12 +109,10 @@
 
 /* move above */
 /* debug only for fg */
-static bool dim_trig_fg;
-module_param_named(dim_trig_fg, dim_trig_fg, bool, 0664);
-static int dim_trig_delay = 1;
-module_param_named(dim_trig_delay, dim_trig_delay, int, 0664);
+int dim_trig_fg;
+
+int dim_trig_delay = 1;
 bool di_reverse;
-module_param_named(di_reverse, di_reverse, bool, 0664);
 
 static bool fg_bypass;
 
@@ -145,12 +143,12 @@ void di_unlock_irq(void)
 }
 
 #ifdef SUPPORT_MPEG_TO_VDIN
-static int mpeg2vdin_flag;
-static int mpeg2vdin_en;
+int mpeg2vdin_flag;
+int mpeg2vdin_en;
 #endif
 
-static int di_reg_unreg_cnt = 40;
-static bool overturn;
+int di_reg_unreg_cnt = 40;
+unsigned int overturn;
 bool dim_get_overturn(void)
 {
 	return overturn;
@@ -167,7 +165,7 @@ bool dim_get_mcmem_alloc(void)
 	return mc_mem_alloc;
 }
 
-static unsigned int di_pre_rdma_enable;
+unsigned int di_pre_rdma_enable;
 
 static int kpi_frame_num;// default print first coming n frames
 
@@ -191,9 +189,9 @@ static const char version_s[] = "2023-01-04a";
 /*1:enable bypass pre,ei only;
  * 2:debug force bypass pre,ei for post
  */
-static int bypass_pre;
+unsigned int by_pass_pre;
 
-static int invert_top_bot;
+int invert_top_bot;
 
 /* add avoid vframe put/get error */
 static int di_blocking;
@@ -266,7 +264,7 @@ static int input2pre_miss_policy;
 	(((dimp_get(edi_mp_prog_proc_config) & 0x30) == 0x20) &&	\
 	 (((vframe)->type & VIDTYPE_VIU_422) == 0))
 
-static int frame_count;
+int frame_count;
 static int disp_frame_count;
 int di_get_disp_cnt(void)
 {
@@ -376,8 +374,8 @@ static struct queue_s *get_queue_by_idx(unsigned int channel, int idx);
 
 /************For Write register**********************/
 
-static unsigned int num_di_stop_reg_addr = 4;
-static unsigned int di_stop_reg_addr[4] = {0};
+unsigned int num_di_stop_reg_addr = 4;
+unsigned int di_stop_reg_addr[4] = {0};
 
 static unsigned int is_need_stop_reg(unsigned int addr)
 {
@@ -2027,8 +2025,6 @@ int di_cnt_buf(int width, int height, int prog_flag, int mc_mm,
 }
 
 unsigned int insert_line; //= 0x100;
-module_param(insert_line, uint, 0664);
-MODULE_PARM_DESC(insert_line, "debug insert_line");
 
 static unsigned int di_cnt_pre_afbct(struct di_ch_s *pch)
 {
@@ -6389,7 +6385,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				ppre->di_post_inp_buf = NULL;
 			}
 
-			if ((bypass_pre & 0x2) && !ppre->cur_prog_flag)
+			if ((by_pass_pre & 0x2) && !ppre->cur_prog_flag)
 				di_buf->post_proc_flag = -2;
 			else
 				di_buf->post_proc_flag = 0;
@@ -7210,7 +7206,6 @@ static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf)
  * }
  */
 static unsigned int det3d_frame_cnt = 50;
-module_param_named(det3d_frame_cnt, det3d_frame_cnt, uint, 0644);
 static void det3d_irq(unsigned int channel)
 {
 	unsigned int data32 = 0, likely_val = 0;
@@ -7709,13 +7704,9 @@ unsigned int pldn_dly = 1;
  ******************************************/
 
 #ifdef DIM_OUT_NV21
-
-static unsigned int cfg_nv21/* = DI_BIT0*/;
-module_param_named(cfg_nv21, cfg_nv21, uint, 0664);
-
+unsigned int cfg_nv21/* = DI_BIT0*/;
 #ifdef NV21_DBG
-static unsigned int cfg_vf;
-module_param_named(cfg_vf, cfg_vf, uint, 0664);
+unsigned int cfg_vf;
 #endif
 
 unsigned int dim_cfg_nv21(void)
@@ -9797,7 +9788,7 @@ recycle_vframe_type_post_print(struct di_buf_s *di_buf,
 }
 #endif
 
-static unsigned int pldn_dly1 = 1;
+unsigned int pldn_dly1 = 1;
 static void set_pulldown_mode(struct di_buf_s *di_buf, unsigned int channel)
 {
 	struct di_buf_s *pre_buf_p = di_buf->di_buf_dup_p[pldn_dly1];
@@ -12255,85 +12246,9 @@ bool dim_get_vfm_info(struct afbcd_info *vfm_info)
 	return true;
 }
 
-module_param_named(invert_top_bot, invert_top_bot, int, 0664);
-
-#ifdef DET3D
-
-MODULE_PARM_DESC(det3d_mode, "\n det3d_mode\n");
-module_param(det3d_mode, uint, 0664);
-#endif
-
-module_param_array(di_stop_reg_addr, uint, &num_di_stop_reg_addr,
-		   0664);
-
-module_param_named(overturn, overturn, bool, 0664);
-
-#ifdef DEBUG_SUPPORT
-#ifdef RUN_DI_PROCESS_IN_IRQ
-module_param_named(input2pre, input2pre, uint, 0664);
-module_param_named(input2pre_buf_miss_count, input2pre_buf_miss_count,
-		   uint, 0664);
-module_param_named(input2pre_proc_miss_count, input2pre_proc_miss_count,
-		   uint, 0664);
-module_param_named(input2pre_miss_policy, input2pre_miss_policy, uint, 0664);
-module_param_named(input2pre_throw_count, input2pre_throw_count, uint, 0664);
-#endif
-#ifdef SUPPORT_MPEG_TO_VDIN
-module_param_named(mpeg2vdin_en, mpeg2vdin_en, int, 0664);
-module_param_named(mpeg2vdin_flag, mpeg2vdin_flag, int, 0664);
-#endif
-module_param_named(di_pre_rdma_enable, di_pre_rdma_enable, uint, 0664);
-module_param_named(pldn_dly, pldn_dly, uint, 0644);
-module_param_named(pldn_dly1, pldn_dly1, uint, 0644);
-module_param_named(di_reg_unreg_cnt, di_reg_unreg_cnt, int, 0664);
-module_param_named(bypass_pre, bypass_pre, int, 0664);
-module_param_named(frame_count, frame_count, int, 0664);
-#endif
-
 int dim_seq_file_module_para_di(struct seq_file *seq)
 {
 	seq_puts(seq, "di---------------\n");
-
-#ifdef DET3D
-	seq_printf(seq, "%-15s:%d\n", "det3d_frame_cnt", det3d_frame_cnt);
-#endif
-	seq_printf(seq, "%-15s:%ld\n", "same_field_top_count",
-		   same_field_top_count);
-	seq_printf(seq, "%-15s:%ld\n", "same_field_bot_count",
-		   same_field_bot_count);
-
-	seq_printf(seq, "%-15s:%d\n", "overturn", overturn);
-
-#ifdef DEBUG_SUPPORT
-#ifdef RUN_DI_PROCESS_IN_IRQ
-	seq_printf(seq, "%-15s:%d\n", "input2pre", input2pre);
-	seq_printf(seq, "%-15s:%d\n", "input2pre_buf_miss_count",
-		   input2pre_buf_miss_count);
-	seq_printf(seq, "%-15s:%d\n", "input2pre_proc_miss_count",
-		   input2pre_proc_miss_count);
-	seq_printf(seq, "%-15s:%d\n", "input2pre_miss_policy",
-		   input2pre_miss_policy);
-	seq_printf(seq, "%-15s:%d\n", "input2pre_throw_count",
-		   input2pre_throw_count);
-#endif
-#ifdef SUPPORT_MPEG_TO_VDIN
-
-	seq_printf(seq, "%-15s:%d\n", "mpeg2vdin_en", mpeg2vdin_en);
-	seq_printf(seq, "%-15s:%d\n", "mpeg2vdin_flag", mpeg2vdin_flag);
-#endif
-	seq_printf(seq, "%-15s:%d\n", "di_pre_rdma_enable",
-		   di_pre_rdma_enable);
-	seq_printf(seq, "%-15s:%d\n", "pldn_dly", pldn_dly);
-	seq_printf(seq, "%-15s:%d\n", "pldn_dly1", pldn_dly1);
-	seq_printf(seq, "%-15s:%d\n", "di_reg_unreg_cnt", di_reg_unreg_cnt);
-	seq_printf(seq, "%-15s:%d\n", "bypass_pre", bypass_pre);
-	seq_printf(seq, "%-15s:%d\n", "frame_count", frame_count);
-#endif
-/******************************/
-
-#ifdef DET3D
-	seq_printf(seq, "%-15s:%d\n", "det3d_mode", det3d_mode);
-#endif
 	return 0;
 }
 

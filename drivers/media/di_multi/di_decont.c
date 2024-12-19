@@ -57,8 +57,7 @@
  ************************************************/
 /*bit 4: grid use fix */
 /*bit 9:8: demo left /right */
-static unsigned int dbg_dct;
-module_param_named(dbg_dct, dbg_dct, uint, 0664);
+unsigned int dbg_dct;
 
 bool disable_ppmng(void)
 {

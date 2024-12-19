@@ -228,20 +228,9 @@ static int chroma_filter_table[] = {
 };
 
 static unsigned int vert_scaler_filter = 0xff;
-module_param(vert_scaler_filter, uint, 0664);
-MODULE_PARM_DESC(vert_scaler_filter, "vert_scaler_filter");
-
 static unsigned int vert_chroma_scaler_filter = 0xff;
-module_param(vert_chroma_scaler_filter, uint, 0664);
-MODULE_PARM_DESC(vert_chroma_scaler_filter, "vert_chroma_scaler_filter");
-
 static unsigned int horz_scaler_filter = 0xff;
-module_param(horz_scaler_filter, uint, 0664);
-MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
-
 bool pre_scaler_en = true;
-module_param(pre_scaler_en, bool, 0664);
-MODULE_PARM_DESC(pre_scaler_en, "pre_scaler_en");
 #endif
 /*bicubic*/
 static const unsigned int di_filt_coef0[] = {

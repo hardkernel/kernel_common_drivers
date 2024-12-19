@@ -174,8 +174,7 @@ void ins_2_doing(struct di_ch_s *pch, bool bypass, struct di_buf_s *pstdi_buf)
  * bit 1: dbg for buffer
  **************************************/
 
-static unsigned int new_int;
-module_param_named(new_int, new_int, uint, 0664);
+unsigned int new_int;
 
 bool dim_dbg_new_int(unsigned int id)
 {

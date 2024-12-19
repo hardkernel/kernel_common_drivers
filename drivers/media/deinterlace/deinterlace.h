@@ -386,7 +386,7 @@ struct di_pre_stru_s {
 /*for static pic*/
 	int	static_frame_count;
 	bool force_interlace;
-	bool bypass_pre;
+	bool by_pass_pre;
 	bool invert_flag;
 	bool vdin_source;
 	int nr_size;

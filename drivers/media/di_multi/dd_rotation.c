@@ -614,10 +614,9 @@ static unsigned char _pre_cfg_bypass(struct di_ch_s *pch, struct dim_nins_s *nin
 	return (unsigned char)bypassr;
 }
 
-static unsigned int dim_dbg_o_vtype;
-module_param_named(dim_dbg_o_vtype, dim_dbg_o_vtype, uint, 0664);
-static unsigned int dim_dbg_o_b;
-module_param_named(dim_dbg_o_b, dim_dbg_o_b, uint, 0664);
+unsigned int dim_dbg_o_vtype;
+unsigned int dim_dbg_o_b;
+unsigned int afbc_skip_pps_w, afbc_skip_pps_h;
 
 /* for afbcd out put, need check */
 static void _dimpst_fill_outvf(struct di_ch_s *pch,

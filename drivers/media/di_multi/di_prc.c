@@ -47,29 +47,23 @@
 #include <trace/events/meson_atrace.h>
 
 //#include "../deinterlace/di_pqa.h"
-bool di_forc_pq_load_later = true;
-module_param(di_forc_pq_load_later, bool, 0664);
-MODULE_PARM_DESC(di_forc_pq_load_later, "debug pq");
-
+unsigned int di_forc_pq_load_later = 1;
 bool dim_dbg_is_force_later(void)
 {
 	return di_forc_pq_load_later;
 }
 
 unsigned int di_dbg = DBG_M_EVENT/*|DBG_M_IC|DBG_M_MEM2|DBG_M_RESET_PRE*/;
-module_param(di_dbg, uint, 0664);
-MODULE_PARM_DESC(di_dbg, "debug print");
 
 /************************************************
  * dim_cfg
  *	[0] bypass_all_p
  ***********************************************/
 #ifdef TEST_DISABLE_BYPASS_P
-static unsigned int dim_cfg;
+unsigned int dim_cfg;
 #else
-static unsigned int dim_cfg = 1;
+unsigned int dim_cfg = 1;
 #endif
-module_param_named(dim_cfg, dim_cfg, uint, 0664);
 
 bool dim_dbg_cfg_post_byapss(void)
 {
@@ -84,8 +78,8 @@ bool dim_dbg_cfg_disable_arb(void)
 		return true;
 	return false;
 }
-static unsigned int dim_dbg_dec21;
-module_param_named(dim_dbg_dec21, dim_dbg_dec21, uint, 0644);
+
+unsigned int dim_dbg_dec21;
 unsigned int dim_get_dbg_dec21(void)
 {
 	return dim_dbg_dec21;
@@ -1189,8 +1183,7 @@ void di_mp_uit_set(enum EDI_MP_UI_T idx, int val)
 }
 
 #ifdef DBG_POST_SETTING
-static unsigned int dim_dbg_post;
-module_param_named(dim_dbg_post, dim_dbg_post, uint, 0664);
+unsigned int dim_dbg_post;
 
 bool dim_dbg_post_crash_check(unsigned int bit_mask)
 {
@@ -1213,14 +1206,9 @@ bool dim_dbg_post_crash_check(unsigned int bit_mask)
 /************************************************
  * asked by pq tune
  ************************************************/
-static bool dimpulldown_enable = true;
-module_param_named(dimpulldown_enable, dimpulldown_enable, bool, 0664);
-
-static bool dimmcpre_en = true;
-module_param_named(dimmcpre_en, dimmcpre_en, bool, 0664);
-
-static unsigned int dimmcen_mode = 1;
-module_param_named(dimmcen_mode, dimmcen_mode, uint, 0664);
+unsigned int dimpulldown_enable = 1;
+unsigned int dimmcpre_en = 1;
+unsigned int dimmcen_mode = 1;
 /************************************************/
 
 void dim_mp_update_reg(void)
@@ -5728,16 +5716,14 @@ unsigned int dim_int_tab(struct device *dev,
 	return crc;
 }
 
-static bool dim_slt_mode;
-module_param_named(dim_slt_mode, dim_slt_mode, bool, 0664);
+int dim_slt_mode;
 
 bool dim_is_slt_mode(void)
 {
 	return dim_slt_mode;
 }
 
-static int dim_post_num;
-module_param_named(dim_post_num, dim_post_num, int, 0664);
+int dim_post_num;
 
 unsigned int dim_get_post_num(void)
 {
@@ -8912,8 +8898,7 @@ void dbg_pip_func(struct di_ch_s *pch, unsigned int mode)
 }
 #endif
 
-static unsigned int dbg_trig_eos;
-module_param_named(dbg_trig_eos, dbg_trig_eos, uint, 0664);
+unsigned int dbg_trig_eos;
 
 bool dbg_is_trig_eos(unsigned int ch)
 {

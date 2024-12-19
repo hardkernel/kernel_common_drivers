@@ -55,8 +55,7 @@
 static unsigned int ctrl_regs[SKIP_CTRE_NUM];
 static struct SC2_OVERLAP_REG_s sc2overlap_reg[SC2_OVERLAP_NUM];
 
-static bool pd_source_en;
-module_param_named(pd_source_en, pd_source_en, bool, 0664);
+unsigned int pd_source_en;
 
 /*ary move to di_hw_v2.c */
 static void set_di_inp_fmt_more(unsigned int repeat_l0_en,

@@ -40,19 +40,13 @@
 #define stimulus_print		PR_INF
 
 /* ary */
-static u32 sc2_dbg;
-module_param_named(sc2_dbg, sc2_dbg, uint, 0664);
-
+u32 sc2_dbg;
 /********************
  * BIT0: enable pre irq
  * BIT1: enable pst irq
  ********************/
-
-static u32 sc2_dbg_cnt_pre;
-module_param_named(sc2_dbg_cnt_pre, sc2_dbg_cnt_pre, uint, 0664);
-
-static u32 sc2_dbg_cnt_pst;
-module_param_named(sc2_dbg_cnt_pst, sc2_dbg_cnt_pst, uint, 0664);
+u32 sc2_dbg_cnt_pre;
+u32 sc2_dbg_cnt_pst;
 
 void sc2_dbg_set(unsigned int val)
 {
@@ -93,8 +87,7 @@ bool sc2_dbg_is_en_pst_irq(void)
 }
 
 /*dbg setting: */
-static u32 sc2_reg_mask;
-module_param_named(sc2_reg_mask, sc2_reg_mask, uint, 0664);
+u32 sc2_reg_mask;
 /* */
 
 bool is_mask(unsigned int cmd)
@@ -3003,8 +2996,7 @@ bool dim_aisr_test(struct DI_SIM_MIF_S *mif, bool sel)
 	return true;
 }
 
-static unsigned int dim_hf_dbg;
-module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
+unsigned int dim_hf_dbg;
 
 /* from t3 */
 /* ucode: aisr_pre_cfg */
@@ -7140,15 +7132,10 @@ unsigned int uint_up_bits(unsigned int val_ori, unsigned int value,
 }
 
 //debug only:
-static unsigned int dim_nr_h;
-module_param_named(dim_nr_h, dim_nr_h, uint, 0664);
-static unsigned int dim_nr_v;
-module_param_named(dim_nr_v, dim_nr_v, uint, 0664);
-static unsigned int dim_bitmode;
-module_param_named(dim_bitmode, dim_bitmode, uint, 0664);
-
-static unsigned int dim_dbg_mode;
-module_param_named(dim_dbg_mode, dim_bitmode, uint, 0664);
+unsigned int dim_nr_h;
+unsigned int dim_nr_v;
+unsigned int dim_bitmode;
+unsigned int dim_dbg_mode;
 
 /* as set_wrmif_simple_v3*/
 static void set_wrmif_t6d(struct DI_SIM_MIF_S *mif,

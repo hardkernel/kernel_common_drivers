@@ -102,7 +102,6 @@
 /* move above */
 /* debug only for fg */
 static bool dim_trig_fg;
-module_param_named(dim_trig_fg, dim_trig_fg, bool, 0664);
 static bool fg_bypass;
 
 #undef module_param
@@ -1999,8 +1998,6 @@ int di_cnt_buf(int width, int height, int prog_flag, int mc_mm,
 }
 
 unsigned int insert_line; //= 0x100;
-module_param(insert_line, uint, 0664);
-MODULE_PARM_DESC(insert_line, "debug insert_line");
 
 static unsigned int di_cnt_pre_afbct(struct di_ch_s *pch)
 {
@@ -6957,7 +6954,6 @@ static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf)
  * }
  */
 static unsigned int det3d_frame_cnt = 50;
-module_param_named(det3d_frame_cnt, det3d_frame_cnt, uint, 0644);
 static void det3d_irq(unsigned int channel)
 {
 	unsigned int data32 = 0, likely_val = 0;
@@ -7447,11 +7443,9 @@ static unsigned int pldn_dly = 1;
 #ifdef DIM_OUT_NV21
 
 static unsigned int cfg_nv21/* = DI_BIT0*/;
-module_param_named(cfg_nv21, cfg_nv21, uint, 0664);
 
 #ifdef NV21_DBG
 static unsigned int cfg_vf;
-module_param_named(cfg_vf, cfg_vf, uint, 0664);
 #endif
 
 unsigned int dim_cfg_nv21(void)
@@ -11727,85 +11721,9 @@ unsigned int dim_get_vpu_clk_ext(void)
 	return get_dim_de_devp()->clkb_max_rate;
 }
 
-module_param_named(invert_top_bot, invert_top_bot, int, 0664);
-
-#ifdef DET3D
-
-MODULE_PARM_DESC(det3d_mode, "\n det3d_mode\n");
-module_param(det3d_mode, uint, 0664);
-#endif
-
-module_param_array(di_stop_reg_addr, uint, &num_di_stop_reg_addr,
-		   0664);
-
-module_param_named(overturn, overturn, bool, 0664);
-
-#ifdef DEBUG_SUPPORT
-#ifdef RUN_DI_PROCESS_IN_IRQ
-module_param_named(input2pre, input2pre, uint, 0664);
-module_param_named(input2pre_buf_miss_count, input2pre_buf_miss_count,
-		   uint, 0664);
-module_param_named(input2pre_proc_miss_count, input2pre_proc_miss_count,
-		   uint, 0664);
-module_param_named(input2pre_miss_policy, input2pre_miss_policy, uint, 0664);
-module_param_named(input2pre_throw_count, input2pre_throw_count, uint, 0664);
-#endif
-#ifdef SUPPORT_MPEG_TO_VDIN
-module_param_named(mpeg2vdin_en, mpeg2vdin_en, int, 0664);
-module_param_named(mpeg2vdin_flag, mpeg2vdin_flag, int, 0664);
-#endif
-module_param_named(di_pre_rdma_enable, di_pre_rdma_enable, uint, 0664);
-module_param_named(pldn_dly, pldn_dly, uint, 0644);
-module_param_named(pldn_dly1, pldn_dly1, uint, 0644);
-module_param_named(di_reg_unreg_cnt, di_reg_unreg_cnt, int, 0664);
-module_param_named(bypass_pre, bypass_pre, int, 0664);
-module_param_named(frame_count, frame_count, int, 0664);
-#endif
-
 int dim_seq_file_module_para_di(struct seq_file *seq)
 {
 	seq_puts(seq, "di---------------\n");
-
-#ifdef DET3D
-	seq_printf(seq, "%-15s:%d\n", "det3d_frame_cnt", det3d_frame_cnt);
-#endif
-	seq_printf(seq, "%-15s:%ld\n", "same_field_top_count",
-		   same_field_top_count);
-	seq_printf(seq, "%-15s:%ld\n", "same_field_bot_count",
-		   same_field_bot_count);
-
-	seq_printf(seq, "%-15s:%d\n", "overturn", overturn);
-
-#ifdef DEBUG_SUPPORT
-#ifdef RUN_DI_PROCESS_IN_IRQ
-	seq_printf(seq, "%-15s:%d\n", "input2pre", input2pre);
-	seq_printf(seq, "%-15s:%d\n", "input2pre_buf_miss_count",
-		   input2pre_buf_miss_count);
-	seq_printf(seq, "%-15s:%d\n", "input2pre_proc_miss_count",
-		   input2pre_proc_miss_count);
-	seq_printf(seq, "%-15s:%d\n", "input2pre_miss_policy",
-		   input2pre_miss_policy);
-	seq_printf(seq, "%-15s:%d\n", "input2pre_throw_count",
-		   input2pre_throw_count);
-#endif
-#ifdef SUPPORT_MPEG_TO_VDIN
-
-	seq_printf(seq, "%-15s:%d\n", "mpeg2vdin_en", mpeg2vdin_en);
-	seq_printf(seq, "%-15s:%d\n", "mpeg2vdin_flag", mpeg2vdin_flag);
-#endif
-	seq_printf(seq, "%-15s:%d\n", "di_pre_rdma_enable",
-		   di_pre_rdma_enable);
-	seq_printf(seq, "%-15s:%d\n", "pldn_dly", pldn_dly);
-	seq_printf(seq, "%-15s:%d\n", "pldn_dly1", pldn_dly1);
-	seq_printf(seq, "%-15s:%d\n", "di_reg_unreg_cnt", di_reg_unreg_cnt);
-	seq_printf(seq, "%-15s:%d\n", "bypass_pre", bypass_pre);
-	seq_printf(seq, "%-15s:%d\n", "frame_count", frame_count);
-#endif
-/******************************/
-
-#ifdef DET3D
-	seq_printf(seq, "%-15s:%d\n", "det3d_mode", det3d_mode);
-#endif
 	return 0;
 }
 

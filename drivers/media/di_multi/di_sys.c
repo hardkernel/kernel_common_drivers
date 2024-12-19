@@ -73,6 +73,8 @@
 
 #include "register.h"
 #include "nr_downscale.h"
+#include "../deinterlace/deinterlace_dbg.h"
+
 
 #include "di_pre.h"
 #include "di_post.h"
@@ -2119,9 +2121,7 @@ bool mem_cfg(struct di_ch_s *pch)
 }
 
 #ifdef AFBC_DBG
-static unsigned int sleep_cnt;
-module_param(sleep_cnt, uint, 0664);
-MODULE_PARM_DESC(sleep_cnt, "debug sleep_cnt");
+unsigned int sleep_cnt;
 #endif
 
 /************************************************
@@ -3977,7 +3977,7 @@ static int dim_probe(struct platform_device *pdev)
 		PR_ERR("%s: failed to create class\n", __func__);
 		goto fail_class_create;
 	}
-
+	di_attr_create(di_pdev->pclss);
 	di_devp = di_pdev;
 	/* *********new********* */
 	di_pdev->data_l = NULL;
@@ -4002,7 +4002,6 @@ static int dim_probe(struct platform_device *pdev)
 	di_devp->devt = MKDEV(MAJOR(di_devp->devno), 0);
 	di_devp->dev = device_create(di_devp->pclss, &pdev->dev,
 				     di_devp->devt, di_devp, "di%d", 0);
-
 	if (!di_devp->dev) {
 		pr_error("device_create create error\n");
 		goto fail_cdev_add;
@@ -4160,6 +4159,7 @@ static int dim_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_frame_format);
 	device_create_file(di_devp->dev, &dev_attr_tvp_region);
 	device_create_file(di_devp->dev, &dev_attr_kpi_frame_num);
+
 	dim_vpu_dev_register(di_devp);
 
 	//set ic version need before PQ init

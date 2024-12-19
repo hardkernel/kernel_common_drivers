@@ -187,20 +187,17 @@ static const struct reg_acc di_normal_regset = {
  * bit[1]: p -> need proce p use 2 i buf
  * bit[2]: mode
  ************************************/
-static u32 afbc_cfg;// =  BITS_EAFBC_CFG_4K;
+u32 afbc_cfg;// =  BITS_EAFBC_CFG_4K;
 /************************************
  * base function:
  *	0x3:	afbcd x  1
  *	0x07:	afbcd x 2 + afbce x 1
  *	0x101:
  ************************************/
-module_param_named(afbc_cfg, afbc_cfg, uint, 0664);
 
 #ifdef DBG_AFBC
-static u32 afbc_cfg_vf;
-module_param_named(afbc_cfg_vf, afbc_cfg_vf, uint, 0664);
-static u32 afbc_cfg_bt;
-module_param_named(afbc_cfg_bt, afbc_cfg_bt, uint, 0664);
+u32 afbc_cfg_vf;
+u32 afbc_cfg_bt;
 #endif
 static struct afbcd_ctr_s *di_get_afd_ctr(void);
 

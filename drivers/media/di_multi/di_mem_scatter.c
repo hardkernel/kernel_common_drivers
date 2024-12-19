@@ -65,9 +65,7 @@
  * bit5: to sum;
  ************************************/
 
-static u32 dbg_sct_cfg = DI_BIT5 | DI_BIT6;// =  BITS_EAFBC_CFG_4K;
-
-module_param_named(dbg_sct_cfg, dbg_sct_cfg, uint, 0664);
+u32 dbg_sct_cfg = DI_BIT5 | DI_BIT6;// =  BITS_EAFBC_CFG_4K;
 
 bool dbg_sct_used_decoder_buffer(void)
 {

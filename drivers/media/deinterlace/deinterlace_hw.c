@@ -41,29 +41,25 @@
 #include "detect3d.h"
 #endif
 
-static unsigned short mcen_mode = 1;
-MODULE_PARM_DESC(mcen_mode, "\n mcen mode\n");
-module_param(mcen_mode, ushort, 0664);
-static unsigned short mcuv_en = 1;
-MODULE_PARM_DESC(mcuv_en, "\n blend mcuv enable\n");
-module_param(mcuv_en, ushort, 0664);
-
 static unsigned short mcdebug_mode;
-MODULE_PARM_DESC(mcdebug_mode, "\n mcdi mcdebugmode\n");
-module_param(mcdebug_mode, ushort, 0664);
-
+static unsigned short mcuv_en = 1;
+static unsigned short mcen_mode = 1;
 static unsigned short pre_urgent;
 static unsigned short pre_hold_line = 10;
-/*
- * 0: use vframe->bitdepth,
- * 8: froce to 8 bit mode.
- * 10: froce to 10 bit mode and enable nr 10 bit.
- */
-
-static unsigned int pq_load_dbg;
-module_param_named(pq_load_dbg, pq_load_dbg, uint, 0644);
-
+static unsigned int pre_ctrl;
+static unsigned short line_num_post_frst = 5;
+static unsigned short line_num_pre_frst = 5;
 static bool pd22_flg_calc_en = true;
+static unsigned int pq_load_dbg;
+static unsigned int pldn_ctrl_rflsh = 1;
+static unsigned int post_ctrl;
+static short lmv_dist = 5;
+static short offset_lmv = 100;
+static unsigned short pr_mcinfo_cnt;
+static bool lmv_lock_win_en;
+static bool if2_disable;
+static unsigned short pre_flag = 2;
+
 static unsigned int ctrl_regs[SKIP_CTRE_NUM];
 u32 afbc_disable_flag;
 
@@ -302,9 +298,6 @@ static void lmvs_init(struct mcinfo_lmv_s *lmvs, unsigned short lmv)
 	lmvs->lock_cnt = (lmv & 255);
 }
 
-static bool lmv_lock_win_en;
-module_param_named(lmv_lock_win_en, lmv_lock_win_en, bool, 0644);
-
 void calc_lmv_init(void)
 {
 	if (lmv_lock_win_en) {
@@ -316,14 +309,7 @@ void calc_lmv_init(void)
 	}
 }
 
-static short lmv_dist = 5;
-module_param_named(lmv_dist, lmv_dist, short, 0644);
-
-static unsigned short pr_mcinfo_cnt;
-module_param_named(pr_mcinfo_cnt, pr_mcinfo_cnt, ushort, 0644);
 static struct mcinfo_lmv_s lines_mv[540];
-static short offset_lmv = 100;
-module_param_named(offset_lmv, offset_lmv, short, 0644);
 
 void calc_lmv_base_mcinfo(unsigned int vf_height, unsigned short *mcinfo_vadr)
 {
@@ -428,8 +414,6 @@ void calc_lmv_base_mcinfo(unsigned int vf_height, unsigned short *mcinfo_vadr)
 	Wr(MCDI_LMVLCKEDEXT_1, lmv_lckedext[2]);
 }
 
-static unsigned short line_num_post_frst = 5;
-static unsigned short line_num_pre_frst = 5;
 /*
  * config pre hold ratio & mif request block len
  * pass_ratio = (pass_cnt + 1)/(pass_cnt + 1 + hold_cnt + 1)
@@ -726,7 +710,6 @@ void di_interrupt_ctrl(unsigned char ma_en,
 		RDMA_WR_BITS(DI_INTR_CTRL, 0, 30, 2);
 }
 
-static unsigned int pre_ctrl;
 void enable_di_pre_aml(
 	struct DI_MIF_s		   *di_inp_mif,
 	struct DI_MIF_s		   *di_mem_mif,
@@ -2760,11 +2743,6 @@ static void post_bit_mode_config(unsigned char if0,
 		DI_Wr_reg_bits(DI_DIWR_CTRL, 0x3, 22, 2);
 }
 
-static unsigned int pldn_ctrl_rflsh = 1;
-module_param(pldn_ctrl_rflsh, uint, 0644);
-MODULE_PARM_DESC(pldn_ctrl_rflsh, "/n post blend reflesh./n");
-static unsigned int post_ctrl;
-module_param_named(post_ctrl, post_ctrl, uint, 0644);
 void di_post_switch_buffer(
 	struct DI_MIF_s		   *di_buf0_mif,
 	struct DI_MIF_s		   *di_buf1_mif,
@@ -3303,11 +3281,6 @@ static void post_frame_reset_g12a(void)
 	DI_VSYNC_WR_MPEG_REG(DI_POST_GL_CTRL, reg_val);
 }
 
-static bool if2_disable;
-module_param_named(if2_disable, if2_disable, bool, 0644);
-
-static unsigned short pre_flag = 2;
-module_param_named(pre_flag, pre_flag, ushort, 0644);
 void di_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag,
 	bool mc_enable)
 {
@@ -4049,15 +4022,6 @@ void di_txl_patch_prog(int prog_flg, unsigned int cnt, bool mc_en)
 	RDMA_WR(DI_MTN_1_CTRL1, di_mtn_1_ctrl1);
 
 }
-#ifdef DEBUG_SUPPORT
-module_param_named(pre_mif_gate, pre_mif_gate, bool, 0644);
-module_param_named(pre_urgent, pre_urgent, ushort, 0644);
-module_param_named(pre_hold_line, pre_hold_line, ushort, 0644);
-module_param_named(pre_ctrl, pre_ctrl, uint, 0644);
-module_param_named(line_num_post_frst, line_num_post_frst, ushort, 0644);
-module_param_named(line_num_pre_frst, line_num_pre_frst, ushort, 0644);
-module_param_named(pd22_flg_calc_en, pd22_flg_calc_en, bool, 0644);
-#endif
 
 /**********************/
 /* register table     */

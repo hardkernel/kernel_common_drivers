@@ -45,9 +45,7 @@
 //#define DBG_QUE_INTERFACE	(1)
 //#define DBG_OUT_SIZE		(1)
 DEFINE_SPINLOCK(lock_pvpp);
-
 unsigned int tst_plink_vpp;
-module_param_named(tst_plink_vpp, tst_plink_vpp, uint, 0664);
 
 bool dim_is_creat_p_vpp_link(void)
 {

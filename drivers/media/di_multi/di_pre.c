@@ -237,8 +237,7 @@ void dpre_clear(void)
 	memset(pre, 0, sizeof(struct di_hpre_s));
 }
 
-static unsigned int dim_pre_tm_thd = 40;
-module_param_named(dim_pre_tm_thd, dim_pre_tm_thd, uint, 0664);
+unsigned int dim_pre_tm_thd = 40;
 
 void dpre_init(void)
 {/*reg:*/

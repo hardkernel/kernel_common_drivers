@@ -26,11 +26,10 @@
 #include "di_pqa.h"
 static unsigned int field_diff_rate;
 
-static unsigned int flm22_sure_num = 100;
+unsigned int flm22_sure_num = 100;
 static unsigned int flm22_sure_smnum = 70;
-static unsigned int flm22_ratio = 200;
+unsigned int flm22_ratio = 200;
 /* 79 for iptv test pd22 ts */
-module_param_named(flm22_ratio, flm22_ratio, uint, 0644);
 
 static struct sFlmSftPar pd_param;
 static struct FlmDectRes dectres;
@@ -78,39 +77,21 @@ void pulldown_vof_win_vshift(struct pulldown_detected_s *wins,
 			wins->regs[0].win_ve = 0;
 	}
 }
-static int flag_di_weave = 1;
+
+int flag_di_weave = 1;
 static unsigned int pldn_mod;
-
-static unsigned int pldn_cmb0 = 1;
-module_param_named(pldn_cmb0, pldn_cmb0, uint, 0644);
-
-static unsigned int pldn_cmb1;
-module_param_named(pldn_cmb1, pldn_cmb1, uint, 0644);
-
+unsigned int pldn_cmb0 = 1;
+unsigned int pldn_cmb1;
 /* static unsigned int flmxx_sure_num[7]
  * = {50, 50, 50, 50, 50, 50, 50};
  */
-static unsigned int flmxx_sure_num[8] = {20, 20, 20, 20, 20, 20, 20, 20};
-static unsigned int flmxx_snum_adr = 7;
-module_param_array(flmxx_sure_num, uint, &flmxx_snum_adr, 0664);
+unsigned int flmxx_sure_num[8] = {20, 20, 20, 20, 20, 20, 20, 20};
+unsigned int flm22_glbpxlnum_rat = 4; /* 4/256 = 64 */
+unsigned int flm22_glbpxl_maxrow = 16; /* 16/256 = 16 */
+unsigned int flm22_glbpxl_minrow = 3; /* 4/256 = 64 */
+unsigned int cmb_3point_rnum;
+unsigned int cmb_3point_rrat = 32;
 
-static unsigned int flm22_glbpxlnum_rat = 4; /* 4/256 = 64 */
-
-static unsigned int flm22_glbpxl_maxrow = 16; /* 16/256 = 16 */
-module_param(flm22_glbpxl_maxrow, uint, 0644);
-MODULE_PARM_DESC(flm22_glbpxl_maxrow, "flm22_glbpxl_maxrow/n");
-
-static unsigned int flm22_glbpxl_minrow = 3; /* 4/256 = 64 */
-module_param(flm22_glbpxl_minrow, uint, 0644);
-MODULE_PARM_DESC(flm22_glbpxl_minrow, "flm22_glbpxl_minrow/n");
-
-static unsigned int cmb_3point_rnum;
-module_param(cmb_3point_rnum, uint, 0644);
-MODULE_PARM_DESC(cmb_3point_rnum, "cmb_3point_rnum/n");
-
-static unsigned int cmb_3point_rrat = 32;
-module_param(cmb_3point_rrat, uint, 0644);
-MODULE_PARM_DESC(cmb_3point_rrat, "cmb_3point_rrat/n");
 
 unsigned int pulldown_detection(struct pulldown_detected_s *res,
 	struct combing_status_s *cmb_sts, bool reverse, struct vframe_s *vf)
@@ -559,11 +540,7 @@ void pd_device_files_del(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_pd_param);
 }
-#ifdef DEBUG_SUPPORT
-module_param_named(flm22_sure_num, flm22_sure_num, uint, 0644);
-module_param_named(flm22_glbpxlnum_rat, flm22_glbpxlnum_rat, uint, 0644);
-module_param_named(flag_di_weave, flag_di_weave, int, 0644);
-#endif
+
 static const struct pulldown_op_s di_pd_ops = {
 	.init		= pulldown_init,	/*call when size change*/
 	.detection	= pulldown_detection,	/*call after pre nrwrite*/
