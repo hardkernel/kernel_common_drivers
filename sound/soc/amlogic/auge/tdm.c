@@ -2051,6 +2051,10 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 				 p_tdm->id);
 			/*don't change this flow*/
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
+			if (p_tdm->mixer_en)
+				mixer_en(true);
+#endif
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 			aml_aed_top_enable(p_tdm->fddr, true);
 #endif
 			aml_tdm_enable(p_tdm->actrl,
@@ -2076,10 +2080,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 			}
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, false);
-#ifndef CONFIG_AMLOGIC_AUDIO_CUT
-			if (p_tdm->mixer_en)
-				mixer_en(true);
-#endif
+
 		} else {
 			dev_dbg(substream->pcm->card->dev,
 				 "TDM[%d] Capture enable\n",
@@ -2131,6 +2132,10 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
 			aml_aed_top_enable(p_tdm->fddr, false);
 #endif
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
+			if (p_tdm->mixer_en)
+				mixer_en(false);
+#endif
 			aml_tdm_enable(p_tdm->actrl,
 				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable,
 				p_tdm->chipinfo->use_vadtop);
@@ -2141,10 +2146,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 				aml_frddr_check(p_tdm->fddr);
 
 			aml_frddr_enable(p_tdm->fddr, false);
-#ifndef CONFIG_AMLOGIC_AUDIO_CUT
-			if (p_tdm->mixer_en)
-				mixer_en(false);
-#endif
+
 		} else {
 			bool toddr_stopped = false;
 

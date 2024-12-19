@@ -1631,5 +1631,5 @@ struct register_table {
 #define EE_AUDIO_MIXER_CTRL3               0x18d
 #define EE_AUDIO_MIXER_CTRL4               0x18e
 #define EE_AUDIO_MIXER_STATUS1             0x18f
-
+#define EE_AUDIO_SW_RESET1                 0x0b
 #endif

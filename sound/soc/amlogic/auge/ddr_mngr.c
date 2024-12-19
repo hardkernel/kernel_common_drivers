@@ -1807,7 +1807,10 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	if (aml_get_mixer_is_exist(fr) && !aml_check_aed_module(fr->dest))
 		mixer_demux_sel(fr->dest);
+	if (aml_get_mixer_is_exist(fr) && enable)
+		aml_audiobus_write(actrl, EE_AUDIO_MIXER_CTRL4, value2);
 #endif
+
 	/* ensure disable before enable frddr */
 	aml_audiobus_update_bits(actrl,	reg, 1 << 31, enable << 31);
 
@@ -1822,8 +1825,6 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	} else {
 		/* after enable frddr, enable src_sel_en */
 		aml_audiobus_write(actrl, reg1, value1);
-		if (aml_get_mixer_is_exist(fr))
-			aml_audiobus_write(actrl, EE_AUDIO_MIXER_CTRL4, value2);
 	}
 }
 

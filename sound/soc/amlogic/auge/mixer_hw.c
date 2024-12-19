@@ -26,14 +26,23 @@ EXPORT_SYMBOL_GPL(mixer_format_set);
 
 int mixer_fifo_reset(void)
 {
+	audiobus_update_bits(EE_AUDIO_SW_RESET1, 0x1 << 19, 0x1 << 19);
+	audiobus_update_bits(EE_AUDIO_SW_RESET1, 0x1 << 19, 0x1 << 0);
+
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 29, 0x1 << 29);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 29, 0x0 << 29);
+
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL1, 0x1 << 28, 0x0 << 28);
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL1, 0x1 << 29, 0x0 << 29);
 
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL1, 0x1 << 28, 0x1 << 28);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL1, 0x1 << 29, 0x1 << 29);
 
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL2, 0x1 << 31, 0x1 << 31);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL2, 0x1 << 31, 0x0 << 31);
+
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL2, 0x1 << 30, 0x0 << 30);
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL2, 0x1 << 29, 0x0 << 29);
 
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL2, 0x1 << 30, 0x1 << 30);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL2, 0x1 << 29, 0x1 << 29);
@@ -65,8 +74,8 @@ int mixer_eq_enable(struct frddr *fr, int enable)
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL1, 0x1 << 27, 0x1 << 27);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL1, 0x7 << 24, 0x6 << 24);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 3, 0 << 3);
-	audiobus_update_bits(EE_AUDIO_MIXER_CTRL4, 0x1 << 3, enable << 3);
 	eqdrc_update_bits(AED_TOP_CTL0, 0x1 << 14, 1 << 14);
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL4, 0x1 << 3, enable << 3);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mixer_eq_enable);
@@ -111,6 +120,8 @@ int mic_mixer_fifo_reset(void)
 {
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL3, 0x1 << 31, 0x1 << 31);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL3, 0x1 << 31, 0x0 << 31);
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL3, 0x1 << 30, 0x0 << 30);
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL3, 0x1 << 29, 0x0 << 29);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL3, 0x1 << 30, 0x1 << 30);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL3, 0x1 << 29, 0x1 << 29);
 	return 0;
