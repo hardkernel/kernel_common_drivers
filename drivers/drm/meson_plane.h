@@ -31,6 +31,7 @@ struct am_meson_plane_state {
 struct am_meson_video_plane_state {
 	struct drm_plane_state base;
 	u32 signal_fmt;
+	struct dma_fence *async_in_fence;
 };
 
 enum meson_max_fb_enum {
@@ -98,6 +99,8 @@ struct am_video_plane {
 	struct drm_property *video_src_min_size_property;
 	struct drm_property *video_src_max_size_property;
 
+	struct drm_property *async_in_fence_property;
+
 	struct meson_vpu_pipeline *pipeline;
 	spinlock_t lock; //used for video plane dma_fence
 	u32 vfm_mode;
@@ -143,6 +146,9 @@ int meson_osd_plane_async_check(struct drm_plane *plane,
 	struct drm_atomic_state *state);
 void meson_osd_plane_async_update(struct drm_plane *plane,
 	struct drm_atomic_state *state);
+int meson_async_atomic_plane_set_property(struct drm_plane *plane,
+		struct drm_plane_state *state, struct drm_file *file_priv,
+		struct drm_property *property, u64 val);
 
 struct drm_property *
 meson_create_scaling_filter_prop(struct drm_device *dev,

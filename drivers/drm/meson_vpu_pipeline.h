@@ -327,6 +327,7 @@ struct meson_vpu_video_layer_info {
 	u32 rotation;
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
+	struct dma_fence *in_fence;
 	u32 vfm_mode;
 	bool is_uvm;
 	u32 status_changed;
@@ -410,6 +411,7 @@ struct meson_vpu_video_state {
 	u32 rotation;
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
+	struct dma_fence *in_fence;
 	bool is_uvm;
 	int sec_en;
 	u32 signal_fmt;

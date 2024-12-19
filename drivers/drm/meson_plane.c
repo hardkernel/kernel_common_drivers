@@ -9,6 +9,7 @@
 #include <linux/dma-buf.h>
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_blend.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
 #include <linux/amlogic/media/osd/osd_logo.h>
@@ -22,6 +23,9 @@
 #include "vpu-hw/meson_osd_afbc.h"
 #include "meson_gem.h"
 #include "meson_logo.h"
+
+static const struct drm_plane_funcs am_video_plane_funs;
+
 static int force_gfcd_mode;
 static int osd_enable[MESON_MAX_OSDS];
 
@@ -1060,25 +1064,23 @@ static int meson_video_plane_atomic_get_property(struct drm_plane *plane,
 	struct meson_vpu_pipeline *ppl = video_plane->pipeline;
 	struct meson_vpu_video *mvv = ppl->video[video_plane->plane_index];
 
-	int ret = 0;
-
 	plane_state = to_am_meson_video_plane_state(state);
 
 	if (property == video_plane->signal_fmt_property) {
 		*val = plane_state->signal_fmt;
-		return 0;
 	} else if (property == video_plane->video_cap_property) {
 		*val = mvv->video_cap;
-		return 0;
 	} else if (property == video_plane->video_src_min_size_property) {
 		*val = mvv->src_min_size;
-		return 0;
 	} else if (property == video_plane->video_src_max_size_property) {
 		*val =  mvv->src_max_size;
-		return 0;
+	} else if (property == video_plane->async_in_fence_property) {
+		*val = -1;
+	} else {
+		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int meson_video_plane_atomic_set_property(struct drm_plane *plane,
@@ -1088,16 +1090,133 @@ static int meson_video_plane_atomic_set_property(struct drm_plane *plane,
 {
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 	struct am_meson_video_plane_state *plane_state;
-	int ret = 0;
 
 	plane_state = to_am_meson_video_plane_state(state);
 
 	if (property == video_plane->signal_fmt_property) {
 		plane_state->signal_fmt = val;
 		return 0;
+	} else if (property == video_plane->async_in_fence_property) {
+		if (plane_state->async_in_fence)
+			return -EINVAL;
+
+		if (U642I64(val) == -1)
+			return 0;
+
+		plane_state->async_in_fence = sync_file_get_fence(val);
+		if (!plane_state->async_in_fence)
+			return -EINVAL;
 	}
 
-	return ret;
+	return 0;
+}
+
+int meson_async_atomic_plane_set_property(struct drm_plane *plane,
+		struct drm_plane_state *state, struct drm_file *file_priv,
+		struct drm_property *property, u64 val)
+{
+	struct am_video_plane *video_plane = NULL;
+	struct am_meson_video_plane_state *plane_state = NULL;
+	struct drm_device *dev = plane->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	bool replaced = false;
+	int ret;
+
+	if (plane->funcs == &am_video_plane_funs) {
+		video_plane = to_am_video_plane(plane);
+		plane_state = to_am_meson_video_plane_state(state);
+	}
+
+	if (property == config->prop_fb_id) {
+		struct drm_framebuffer *fb;
+
+		fb = drm_framebuffer_lookup(dev, file_priv, val);
+		drm_atomic_set_fb_for_plane(state, fb);
+		if (fb)
+			drm_framebuffer_put(fb);
+	} else if (property == config->prop_in_fence_fd) {
+		if (state->fence)
+			return -EINVAL;
+
+		if (U642I64(val) == -1)
+			return 0;
+
+		state->fence = sync_file_get_fence(val);
+		if (!state->fence)
+			return -EINVAL;
+
+	} else if (video_plane && property == video_plane->async_in_fence_property) {
+		if (plane_state->async_in_fence)
+			return -EINVAL;
+
+		if (U642I64(val) == -1)
+			return 0;
+
+		plane_state->async_in_fence = sync_file_get_fence(val);
+		if (!plane_state->async_in_fence)
+			return -EINVAL;
+
+	} else if (property == config->prop_crtc_id) {
+		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
+
+		if (val && !crtc)
+			return -EACCES;
+		return drm_atomic_set_crtc_for_plane(state, crtc);
+	} else if (property == config->prop_crtc_x) {
+		state->crtc_x = U642I64(val);
+	} else if (property == config->prop_crtc_y) {
+		state->crtc_y = U642I64(val);
+	} else if (property == config->prop_crtc_w) {
+		state->crtc_w = val;
+	} else if (property == config->prop_crtc_h) {
+		state->crtc_h = val;
+	} else if (property == config->prop_src_x) {
+		state->src_x = val;
+	} else if (property == config->prop_src_y) {
+		state->src_y = val;
+	} else if (property == config->prop_src_w) {
+		state->src_w = val;
+	} else if (property == config->prop_src_h) {
+		state->src_h = val;
+	} else if (property == plane->alpha_property) {
+		state->alpha = val;
+	} else if (property == plane->blend_mode_property) {
+		state->pixel_blend_mode = val;
+	} else if (property == plane->rotation_property) {
+		if (!is_power_of_2(val & DRM_MODE_ROTATE_MASK)) {
+			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] bad rotation bitmask: 0x%llx\n",
+					 plane->base.id, plane->name, val);
+			return -EINVAL;
+		}
+		state->rotation = val;
+	} else if (property == plane->zpos_property) {
+		state->zpos = val;
+	} else if (property == plane->color_encoding_property) {
+		state->color_encoding = val;
+	} else if (property == plane->color_range_property) {
+		state->color_range = val;
+	} else if (property == config->prop_fb_damage_clips) {
+		ret = drm_property_replace_blob_from_id(dev,
+					&state->fb_damage_clips,
+					val,
+					-1,
+					sizeof(struct drm_rect),
+					&replaced);
+		return ret;
+	} else if (property == plane->scaling_filter_property) {
+		state->scaling_filter = val;
+	} else if (plane->funcs->atomic_set_property) {
+		return plane->funcs->atomic_set_property(plane, state,
+				property, val);
+	} else {
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] unknown property [PROP:%d:%s]]\n",
+				 plane->base.id, plane->name,
+				 property->base.id, property->name);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static struct drm_plane_state *
@@ -1652,6 +1771,7 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 
 	plane_state = to_am_meson_video_plane_state(state);
 	plane_info->signal_fmt = plane_state->signal_fmt;
+	plane_info->in_fence = plane_state->async_in_fence;
 
 	mvps->plane_index[video_plane->plane_index] = video_plane->plane_index;
 	meson_video_plane_position_calc(plane_info, state,
@@ -2236,6 +2356,23 @@ int meson_video_plane_create_signal_fmt_property(struct am_video_plane *video_pl
 	return 0;
 }
 
+static int meson_video_plane_create_in_fence_property(struct meson_drm *priv,
+				struct am_video_plane *video_plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_signed_range(priv->drm, DRM_MODE_PROP_ATOMIC,
+						"ASYNC_IN_FENCE_FD", -1,
+						INT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	drm_object_attach_property(&video_plane->base.base, prop, -1);
+
+	video_plane->async_in_fence_property = prop;
+
+	return 0;
+}
+
 static void meson_plane_get_primary_plane(struct meson_drm *priv,
 			enum drm_plane_type *type)
 {
@@ -2429,6 +2566,7 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 				DRM_MODE_ROTATE_0,
 				DRM_MODE_ROTATE_MASK);
 	drm_plane_create_zpos_property(plane, zpos, min_zpos, max_zpos);
+	meson_video_plane_create_in_fence_property(priv, video_plane);
 	meson_video_plane_create_signal_fmt_property(video_plane,
 				BIT(SIGNAL_FMT_SDR) |
 				BIT(SIGNAL_FMT_HDR10) |

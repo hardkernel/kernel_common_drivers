@@ -34,128 +34,6 @@ struct drm_property *meson_mode_obj_find_prop_id(struct drm_mode_object *obj,
 	return NULL;
 }
 
-static int
-meson_atomic_replace_property_blob_from_id(struct drm_device *dev,
-					 struct drm_property_blob **blob,
-					 u64 blob_id,
-					 ssize_t expected_size,
-					 ssize_t expected_elem_size,
-					 bool *replaced)
-{
-	struct drm_property_blob *new_blob = NULL;
-
-	if (blob_id != 0) {
-		new_blob = drm_property_lookup_blob(dev, blob_id);
-		if (!new_blob)
-			return -EINVAL;
-
-		if (expected_size > 0 &&
-		    new_blob->length != expected_size) {
-			drm_property_blob_put(new_blob);
-			return -EINVAL;
-		}
-		if (expected_elem_size > 0 &&
-		    new_blob->length % expected_elem_size != 0) {
-			drm_property_blob_put(new_blob);
-			return -EINVAL;
-		}
-	}
-
-	*replaced |= drm_property_replace_blob(blob, new_blob);
-	drm_property_blob_put(new_blob);
-
-	return 0;
-}
-
-static int meson_atomic_plane_set_property(struct drm_plane *plane,
-		struct drm_plane_state *state, struct drm_file *file_priv,
-		struct drm_property *property, u64 val)
-{
-	struct drm_device *dev = plane->dev;
-	struct drm_mode_config *config = &dev->mode_config;
-	bool replaced = false;
-	int ret;
-
-	if (property == config->prop_fb_id) {
-		struct drm_framebuffer *fb;
-
-		fb = drm_framebuffer_lookup(dev, file_priv, val);
-		drm_atomic_set_fb_for_plane(state, fb);
-		if (fb)
-			drm_framebuffer_put(fb);
-	} else if (property == config->prop_in_fence_fd) {
-		if (state->fence)
-			return -EINVAL;
-
-		if (U642I64(val) == -1)
-			return 0;
-
-		state->fence = sync_file_get_fence(val);
-		if (!state->fence)
-			return -EINVAL;
-
-	} else if (property == config->prop_crtc_id) {
-		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
-
-		if (val && !crtc)
-			return -EACCES;
-		return drm_atomic_set_crtc_for_plane(state, crtc);
-	} else if (property == config->prop_crtc_x) {
-		state->crtc_x = U642I64(val);
-	} else if (property == config->prop_crtc_y) {
-		state->crtc_y = U642I64(val);
-	} else if (property == config->prop_crtc_w) {
-		state->crtc_w = val;
-	} else if (property == config->prop_crtc_h) {
-		state->crtc_h = val;
-	} else if (property == config->prop_src_x) {
-		state->src_x = val;
-	} else if (property == config->prop_src_y) {
-		state->src_y = val;
-	} else if (property == config->prop_src_w) {
-		state->src_w = val;
-	} else if (property == config->prop_src_h) {
-		state->src_h = val;
-	} else if (property == plane->alpha_property) {
-		state->alpha = val;
-	} else if (property == plane->blend_mode_property) {
-		state->pixel_blend_mode = val;
-	} else if (property == plane->rotation_property) {
-		if (!is_power_of_2(val & DRM_MODE_ROTATE_MASK)) {
-			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] bad rotation bitmask: 0x%llx\n",
-					 plane->base.id, plane->name, val);
-			return -EINVAL;
-		}
-		state->rotation = val;
-	} else if (property == plane->zpos_property) {
-		state->zpos = val;
-	} else if (property == plane->color_encoding_property) {
-		state->color_encoding = val;
-	} else if (property == plane->color_range_property) {
-		state->color_range = val;
-	} else if (property == config->prop_fb_damage_clips) {
-		ret = meson_atomic_replace_property_blob_from_id(dev,
-					&state->fb_damage_clips,
-					val,
-					-1,
-					sizeof(struct drm_rect),
-					&replaced);
-		return ret;
-	} else if (property == plane->scaling_filter_property) {
-		state->scaling_filter = val;
-	} else if (plane->funcs->atomic_set_property) {
-		return plane->funcs->atomic_set_property(plane, state,
-				property, val);
-	} else {
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] unknown property [PROP:%d:%s]]\n",
-				 plane->base.id, plane->name,
-				 property->base.id, property->name);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static bool meson_property_change_valid_get(struct drm_property *property,
 				   u64 value, struct drm_mode_object **ref)
 {
@@ -248,7 +126,7 @@ static int atomic_set_prop(struct drm_atomic_state *state,
 			break;
 		}
 
-		ret = meson_atomic_plane_set_property(plane,
+		ret = meson_async_atomic_plane_set_property(plane,
 				plane_state, file_priv, prop, prop_value);
 		break;
 	}
