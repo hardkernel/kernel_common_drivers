@@ -2157,17 +2157,6 @@
 		compatible = "amlogic, picdec";
 		status = "disabled";
 	};
-
-	audiolocker: locker {
-		compatible = "amlogic, audiolocker";
-		clock-names = "lock_out", "lock_in", "out_src",
-					"in_src", "out_calc", "in_ref";
-		interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "irq";
-		frequency = <49000000>; /* pll */
-		dividor = <49>; /* locker's parent */
-		status = "disabled";
-	};
 };
 
 &periphs_pinctrl {

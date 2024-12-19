@@ -26,6 +26,13 @@ static const char *const mclk_pad_parent_names[] = {
 	"mclk_d", "mclk_e", "mclk_f"
 };
 
+static const char *const locker_parent_names[] = {
+	"mclk_a", "mclk_b", "mclk_c", "mclk_d", "mclk_e",
+	"mclk_f", "i_slv_sclk_a", "i_slv_sclk_b", "i_slv_sclk_c", "i_slv_sclk_d",
+	"i_slv_sclk_e", "earcrx_pll_dmac_ck", "resample_b_vld", "resample_a_vld", "earcrx_find_xyz",
+	"spdifin_find_xyz"
+};
+
 CLOCK_GATE(audio_ddr_arb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 0, sys_clk);
 CLOCK_GATE(audio_pdm, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 1, sys_clk);
 CLOCK_GATE(audio_tdmina, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 2, sys_clk);
@@ -323,11 +330,11 @@ static int sc2_clks_init(struct clk **clks, void __iomem *iobase)
 	WARN_ON(IS_ERR_OR_NULL(clks[CLKID_AUDIO_RESAMPLE_A]));
 
 	IOMAP_COM_CLK(locker_out, iobase);
-	clks[CLKID_AUDIO_LOCKER_OUT] = REGISTER_AUDIOCLK_COM(locker_out);
+	clks[CLKID_AUDIO_LOCKER_OUT] = REGISTER_CLK_COM_PARENTS(locker_out, locker);
 	WARN_ON(IS_ERR_OR_NULL(clks[CLKID_AUDIO_LOCKER_OUT]));
 
 	IOMAP_COM_CLK(locker_in, iobase);
-	clks[CLKID_AUDIO_LOCKER_IN] = REGISTER_AUDIOCLK_COM(locker_in);
+	clks[CLKID_AUDIO_LOCKER_IN] = REGISTER_CLK_COM_PARENTS(locker_in, locker);
 	WARN_ON(IS_ERR_OR_NULL(clks[CLKID_AUDIO_LOCKER_IN]));
 
 	IOMAP_COM_CLK(pdmin0, iobase);

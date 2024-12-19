@@ -6,6 +6,10 @@
  *
  */
 
+#include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/sound/auge_utils.h>
+#include <linux/amlogic/cpu_version.h>
+
 #include "audio_utils.h"
 #include "regs.h"
 #include "iomap.h"
@@ -14,10 +18,7 @@
 #include "effects_v2.h"
 #include "vad.h"
 #include "ddr_mngr.h"
-
-#include <linux/amlogic/iomap.h>
-#include <linux/amlogic/media/sound/auge_utils.h>
-#include <linux/amlogic/cpu_version.h>
+#include "locker.h"
 
 struct snd_elem_info {
 	struct soc_enum *ee;
@@ -337,31 +338,6 @@ static int spdifout_channel_status_set(struct snd_kcontrol *kcontrol,
 }
 
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
-static const char *const audio_locker_texts[] = {
-	"Disable",
-	"Enable",
-};
-
-static const struct soc_enum audio_locker_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_locker_texts),
-			audio_locker_texts);
-
-static int audio_locker_get_enum(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.enumerated.item[0] = audio_locker_get();
-	return 0;
-}
-
-static int audio_locker_set_enum(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	int enable = ucontrol->value.enumerated.item[0];
-
-	audio_locker_set(enable);
-	return 0;
-}
-
 static const char *const audio_inskew_texts[] = {
 	"0",
 	"1",
@@ -494,12 +470,6 @@ static const struct snd_kcontrol_new snd_auge_controls[] = {
 			  spdif_channel_status_enum),
 
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
-	/* audio locker */
-	SOC_ENUM_EXT("audio locker enable",
-		     audio_locker_enum,
-		     audio_locker_get_enum,
-		     audio_locker_set_enum),
-
 	/* audio inskew */
 	SOC_ENUM_EXT("audio inskew set",
 		     audio_inskew_enum,
@@ -545,6 +515,11 @@ int snd_card_add_kcontrols(struct snd_soc_card *card)
 	ret = card_add_vad_kcontrols(card);
 	if (ret < 0)
 		pr_warn_once("Failed to add VAD controls\n");
+
+	ret = card_add_locker_kcontrols(card);
+	if (ret < 0)
+		pr_warn_once("Failed to add locker controls\n");
+
 #endif
 	return snd_soc_add_card_controls(card,
 					 snd_auge_controls,

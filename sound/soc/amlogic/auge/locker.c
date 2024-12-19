@@ -1,12 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * audio locker ASoc driver
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
-
-//#define DEBUG
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -14,318 +9,487 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/amlogic/iomap.h>
+#include <linux/time.h>
+#include <linux/clk.h>
 
+#include "locker.h"
+#include "regs.h"
+#include "iomap.h"
 #include "locker_hw.h"
-#include "audio_utils.h"
+#include "../common/iomapres.h"
+
 #define DRV_NAME "audiolocker"
+
+enum locker_src {
+	LOCKER_INVAL,
+	LOCKER_TDM_A,
+	LOCKER_TDM_B,
+	LOCKER_TDM_C,
+	LOCKER_TDM_D,
+	LOCKER_SPDIF,
+	LOCKER_SPDIF_B,
+	LOCKER_EARCRX,
+	LOCKER_ARCRX,
+	LOCKER_SPDIFIN,
+};
+
+struct audio_locker_clk_cnt {
+	unsigned int input_cnt;
+	unsigned int output_cnt;
+};
 
 struct audiolocker {
 	struct device *dev;
 	struct clk *lock_out;
 	struct clk *lock_in;
-	/* locker src (parent of locker in/out)*/
-	struct clk *out_src;
-	struct clk *in_src;
-	/* pll (parent of locker src) */
-	struct clk *out_calc;
-	struct clk *in_ref;
-
-	int irq;
-	int expected_freq;
-	int dividor;
+	struct clk *earcrx_clk;
+	struct clk *arcrx_find_y;
+	struct clk *speaker_clk;
+	struct regmap *regmap;
+	struct audio_locker_clk_cnt clk_cnt;
+	enum locker_src in_src;
+	enum locker_src out_src;
+	int duration;
 	bool enable;
+	bool prepared;
 };
-
-/*#define AUDIOLOCKER_TEST*/
 
 struct audiolocker *s_locker;
 
-static int audiolocker_pll_config(struct audiolocker *p_audiolocker)
+static struct audiolocker *get_locker(void)
 {
-#ifdef AUDIOLOCKER_TEST
-	clk_set_rate(p_audiolocker->out_calc, 49000000);
-	clk_set_rate(p_audiolocker->in_ref, 49006000);
+	struct audiolocker *p_locker;
 
-	/* fclk_div2 --> mclk_c */
-	audiobus_write(EE_AUDIO_MCLK_C_CTRL(1),	1 << 31 | 1 << 24 | 48 << 0);
+	p_locker = s_locker;
 
-	/* fclk_div3 --> mclk_d */
-	audiobus_write(EE_AUDIO_MCLK_D_CTRL(1),	1 << 31 | 2 << 24 | 48 << 0);
-
-	/* lockin select mclk_d, lockout select mclk_e */
-	audiobus_write(EE_AUDIO_CLK_LOCKER_CTRL,
-		       1 << 31 | /* lockout enable */
-		       2 << 24 | /*lock_out_clk, 2:mst_c_mclk, 27~24*/
-		       0 << 16 | /*clk_div, 23~16*/
-		       1 << 15 | /* locker in enable */
-		       3 << 8  | /*lock_in_clk, 3:mst_d_mclk, 11~8*/
-		       0 << 0    /*clk_div, 7~0*/
-		      );
-#else
-	int ret;
-
-	clk_set_rate(p_audiolocker->out_calc,
-		     p_audiolocker->expected_freq);
-	clk_set_rate(p_audiolocker->in_ref,
-		     p_audiolocker->expected_freq);
-
-	clk_set_rate(p_audiolocker->out_src,
-		     p_audiolocker->expected_freq / p_audiolocker->dividor);
-	clk_set_rate(p_audiolocker->in_src,
-		     p_audiolocker->expected_freq / p_audiolocker->dividor);
-
-	ret = clk_prepare_enable(p_audiolocker->in_ref);
-	if (ret) {
-		pr_err("Can't enable pll_ref clock: %d\n", ret);
-		return -EINVAL;
-	}
-	ret = clk_prepare_enable(p_audiolocker->out_calc);
-	if (ret) {
-		pr_err("Can't enable pll_calc clock: %d\n", ret);
-		return -EINVAL;
+	if (!p_locker) {
+		pr_debug("Not init vad\n");
+		return NULL;
 	}
 
-	ret = clk_prepare_enable(p_audiolocker->in_src);
-	if (ret) {
-		pr_err("Can't enable in_src clock: %d\n", ret);
-		return -EINVAL;
-	}
-	ret = clk_prepare_enable(p_audiolocker->out_src);
-	if (ret) {
-		pr_err("Can't enable out_src clock: %d\n", ret);
-		return -EINVAL;
-	}
+	return p_locker;
+}
 
-	ret = clk_prepare_enable(p_audiolocker->lock_in);
-	if (ret) {
-		pr_err("Can't enable lock_in clock: %d\n", ret);
-		return -EINVAL;
-	}
-	ret = clk_prepare_enable(p_audiolocker->lock_out);
-	if (ret) {
-		pr_err("Can't enable lock_out clock: %d\n", ret);
-		return -EINVAL;
-	}
-#endif
+static int locker_set_duration(struct regmap *regmap, int duration)
+{
+	int ref_latch_time_s = 500000000 / 3 * duration;
 
+	audiolocker_refclk_latch(regmap, ref_latch_time_s);
 	return 0;
 }
 
-static void audiolocker_init(struct audiolocker *p_audiolocker)
+static int locker_init(struct regmap *regmap)
 {
-	if (p_audiolocker->enable) {
-		/* audio pll */
-		audiolocker_pll_config(p_audiolocker);
+	audiolocker_refclk_downsample_step(regmap, 0);
+	audiolocker_imclk_downsample_step(regmap, 0);
+	audiolocker_omclk_downsample_step(regmap, 0);
 
-		/* audiolocker irq*/
-		audiolocker_irq_config();
+	/* TODO: chip info set pclk source, sc2 set 1 for sysclk */
+	audiolocker_set_refclk_src(regmap, 1);
+
+	audiolocker_latch(regmap);
+	audiolocker_interrupt_mask(regmap, 0xe);
+	return 0;
+}
+
+static int locker_in_src_set(struct audiolocker *locker, enum locker_src in_src)
+{
+	int ret = 0;
+
+	switch (in_src) {
+	case LOCKER_TDM_A:
+	case LOCKER_TDM_B:
+	case LOCKER_TDM_C:
+	case LOCKER_TDM_D:
+		pr_info("%s:hdmirx in\n", __func__);
+		break;
+	case LOCKER_SPDIF:
+	case LOCKER_SPDIF_B:
+		break;
+	case LOCKER_ARCRX:
+		if (!IS_ERR(locker->arcrx_find_y)) {
+			ret = clk_set_parent(locker->lock_in, locker->arcrx_find_y);
+			if (ret < 0)
+				dev_err(locker->dev, "%s clk err!\n", __func__);
+			pr_info("%s:arc in\n", __func__);
+		}
+		audiolocker_imclk_downsample_step(locker->regmap, 0);
+		break;
+	case LOCKER_EARCRX:
+		if (!IS_ERR(locker->earcrx_clk)) {
+			ret = clk_set_parent(locker->lock_in, locker->earcrx_clk);
+			if (ret < 0)
+				dev_err(locker->dev, "%s clk err!\n", __func__);
+			pr_info("%s:earcrx in\n", __func__);
+		}
+		audiolocker_imclk_downsample_step(locker->regmap, 128 - 1);
+		break;
+	case LOCKER_INVAL:
+	default:
+		pr_info("%s: locker not support src: %d\n", __func__, in_src);
+		break;
+	}
+
+	locker->in_src = in_src;
+	return 0;
+}
+
+static int locker_in_src_get(struct audiolocker *locker)
+{
+	if (!locker)
+		return 0;
+
+	return locker->in_src;
+}
+
+static int locker_out_src_set(struct audiolocker *locker, enum locker_src out_src)
+{
+	int ret = 0;
+
+	if (!locker)
+		return 0;
+
+	switch (out_src) {
+	case LOCKER_TDM_A:
+	case LOCKER_TDM_B:
+	case LOCKER_TDM_C:
+	case LOCKER_TDM_D:
+		if (!IS_ERR(locker->speaker_clk)) {
+			ret = clk_set_parent(locker->lock_out, locker->speaker_clk);
+			if (ret < 0)
+				dev_err(locker->dev, "%s clk err!\n", __func__);
+		}
+		audiolocker_omclk_downsample_step(locker->regmap, 256 - 1);
+
+		break;
+	case LOCKER_INVAL:
+	default:
+		pr_info("%s: locker not support src: %d\n", __func__, out_src);
+		break;
+	}
+
+	locker->out_src = out_src;
+	return 0;
+}
+
+static int locker_out_src_get(struct audiolocker *locker)
+{
+	if (!locker)
+		return 0;
+	return locker->out_src;
+}
+
+static void audio_locker_enable(struct audiolocker *locker, int enable)
+{
+	if (enable) {
+		clk_prepare_enable(locker->lock_in);
+		clk_prepare_enable(locker->lock_out);
+
+		locker_set_duration(locker->regmap, locker->duration);
+		audiolocker_enable(locker->regmap, 1);
+		audiolocker_sw_reset(locker->regmap);
 	} else {
-		audiolocker_disable();
+		audiolocker_enable(locker->regmap, 0);
+		clk_disable_unprepare(locker->lock_in);
+		clk_disable_unprepare(locker->lock_out);
 	}
+
+	locker->enable = enable;
 }
 
-static irqreturn_t locker_isr_handler(int irq, void *data)
+static int audio_locker_is_enable(struct audiolocker *locker)
 {
-	struct audiolocker *p_audiolocker = (struct audiolocker *)data;
-
-	audiolocker_update_clks(p_audiolocker->out_calc,
-				p_audiolocker->in_ref);
-
-	return IRQ_HANDLED;
+	return locker->enable;
 }
 
-static ssize_t locker_enable_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static int audio_locker_duration_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
 {
-	struct audiolocker *p_audiolocker = dev_get_drvdata(dev);
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
 
-	return sprintf(buf, "%d\n", p_audiolocker->enable);
+	ucontrol->value.integer.value[0] = locker->duration;
+	return 0;
 }
 
-static ssize_t locker_enable_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+static int audio_locker_duration_set(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
 {
-	struct audiolocker *p_audiolocker = dev_get_drvdata(dev);
-	int target, ret;
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
+	int duration = ucontrol->value.integer.value[0];
 
-	ret = kstrtoint(buf, 10, &target);
-	if (ret) {
-		pr_info("%s: invalid data\n", __func__);
-		return -EINVAL;
+	if (duration < 0 || duration > 1000) {
+		pr_err("%s, invalid duration: %d [Range:0~1000]", __func__, duration);
+		return 0;
 	}
 
-	if (target)
-		p_audiolocker->enable = true;
-	else
-		p_audiolocker->enable = false;
-
-	audiolocker_init(p_audiolocker);
-
-	return count;
+	locker_set_duration(locker->regmap, duration);
+	locker->duration = duration;
+	return 0;
 }
 
-static DEVICE_ATTR_RW(locker_enable);
+static const char *const audio_locker_texts[] = {
+	"Disable",
+	"Enable",
+};
 
-void audio_locker_set(int enable)
+static const struct soc_enum audio_locker_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_locker_texts),
+			audio_locker_texts);
+
+static const char *const audio_locker_src_texts[] = {
+	"INVAL",
+	"TDM-A",
+	"TDM-B",
+	"TDM-C",
+	"TDM-D",
+	"SPDIF",
+	"SPDIF-B",
+	"EARCRX",
+	"ARCRX",
+	"SPDIFIN"
+};
+
+static const struct soc_enum audio_locker_src_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_locker_src_texts),
+			audio_locker_src_texts);
+
+static int audio_locker_get_enable(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	if (!s_locker) {
-		pr_debug("audio locker is not init\n");
-		return;
-	}
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
 
-	s_locker->enable = enable;
-	audiolocker_init(s_locker);
+	ucontrol->value.enumerated.item[0] = audio_locker_is_enable(locker);
+	return 0;
 }
 
-int audio_locker_get(void)
+static int audio_locker_set_enable(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	if (!s_locker) {
-		pr_debug("audio locker is not init\n");
-		return -1;
-	}
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
+	int enable = ucontrol->value.enumerated.item[0];
 
-	return s_locker->enable;
+	audio_locker_enable(locker, enable);
+	return 0;
 }
 
-static int audiolocker_platform_probe(struct platform_device *pdev)
+static int audio_locker_get_reset(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct audiolocker *p_audiolocker;
-	int ret;
+	ucontrol->value.enumerated.item[0] = 0;
+	return 0;
+}
 
-	pr_info("%s\n", __func__);
+static int audio_locker_reset(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
+	int enable = ucontrol->value.enumerated.item[0];
 
-	p_audiolocker = devm_kzalloc(&pdev->dev,
-				     sizeof(struct audiolocker),
-				     GFP_KERNEL);
-	if (!p_audiolocker) {
-		/*dev_err(&pdev->dev, "Can't allocate for audiolocker\n");*/
-		return -ENOMEM;
-	}
-
-	p_audiolocker->lock_in = devm_clk_get(&pdev->dev, "lock_in");
-	if (IS_ERR(p_audiolocker->lock_in)) {
-		dev_err(&pdev->dev,
-			"Can't retrieve lock_in clock\n");
-		ret = PTR_ERR(p_audiolocker->lock_in);
-		return ret;
-	}
-	p_audiolocker->lock_out = devm_clk_get(&pdev->dev, "lock_out");
-	if (IS_ERR(p_audiolocker->lock_out)) {
-		dev_err(&pdev->dev,
-			"Can't retrieve lock_out clock\n");
-		ret = PTR_ERR(p_audiolocker->lock_out);
-		return ret;
-	}
-	p_audiolocker->in_src = devm_clk_get(&pdev->dev, "in_src");
-	if (IS_ERR(p_audiolocker->in_src)) {
-		dev_err(&pdev->dev,
-			"Can't retrieve in_src clock\n");
-		ret = PTR_ERR(p_audiolocker->in_src);
-		return ret;
-	}
-	p_audiolocker->out_src = devm_clk_get(&pdev->dev, "out_src");
-	if (IS_ERR(p_audiolocker->out_src)) {
-		dev_err(&pdev->dev,
-			"Can't retrieve out_src clock\n");
-		ret = PTR_ERR(p_audiolocker->out_src);
-		return ret;
-	}
-	p_audiolocker->in_ref = devm_clk_get(&pdev->dev, "in_ref");
-	if (IS_ERR(p_audiolocker->in_ref)) {
-		dev_err(&pdev->dev,
-			"Can't retrieve in_ref clock\n");
-		ret = PTR_ERR(p_audiolocker->in_ref);
-		return ret;
-	}
-	p_audiolocker->out_calc = devm_clk_get(&pdev->dev, "out_calc");
-	if (IS_ERR(p_audiolocker->out_calc)) {
-		dev_err(&pdev->dev,
-			"Can't retrieve out_calc clock\n");
-		ret = PTR_ERR(p_audiolocker->out_calc);
-		return ret;
-	}
-
-	ret = clk_set_parent(p_audiolocker->lock_in,
-			     p_audiolocker->in_src);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Can't set lock_in parent clock\n");
-		return ret;
-	}
-
-	ret = clk_set_parent(p_audiolocker->lock_out,
-			     p_audiolocker->out_src);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Can't set lock_out parent clock\n");
-		return ret;
-	}
-
-	ret = clk_set_parent(p_audiolocker->in_src,
-			     p_audiolocker->in_ref);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Can't set in_src parent clock\n");
-		return ret;
-	}
-
-	ret = clk_set_parent(p_audiolocker->out_src,
-			     p_audiolocker->out_calc);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Can't set out_src parent clock\n");
-		return ret;
-	}
-
-	of_property_read_u32(pdev->dev.of_node, "frequency",
-			     &p_audiolocker->expected_freq);
-
-	of_property_read_u32(pdev->dev.of_node, "dividor",
-			     &p_audiolocker->dividor);
-	if (!p_audiolocker->dividor)
-		p_audiolocker->dividor = 1;
-
-	/* irq */
-	p_audiolocker->irq = platform_get_irq_byname(pdev, "irq");
-	if (p_audiolocker->irq < 0) {
-		dev_err(&pdev->dev,
-			"Can't get irq number\n");
-		return -EINVAL;
-	}
-
-	ret = request_irq(p_audiolocker->irq,
-			  locker_isr_handler,
-			  IRQF_SHARED,
-			  "audiolocker",
-			  p_audiolocker);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"audio audiolocker irq register fail\n");
-		return -EINVAL;
-	}
-
-	p_audiolocker->dev = &pdev->dev;
-	dev_set_drvdata(&pdev->dev, p_audiolocker);
-
-	s_locker = p_audiolocker;
-
-	ret = device_create_file(&pdev->dev, &dev_attr_locker_enable);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"failed to register class\n");
-		free_irq(p_audiolocker->irq, p_audiolocker);
-		return -EINVAL;
-	}
+	if (enable)
+		audiolocker_sw_reset(locker->regmap);
 
 	return 0;
+}
+
+static int audio_locker_get_in_src(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = locker_in_src_get(locker);
+	return 0;
+}
+
+static int audio_locker_set_in_src(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
+	int in_src = ucontrol->value.enumerated.item[0];
+
+	locker_in_src_set(locker, in_src);
+	return 0;
+}
+
+static int audio_locker_get_out_src(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = locker_out_src_get(locker);
+	return 0;
+}
+
+static int audio_locker_set_out_src(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
+	int out_src = ucontrol->value.enumerated.item[0];
+
+	locker_out_src_set(locker, out_src);
+	return 0;
+}
+
+static int audio_locker_clk_cnt_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct audiolocker *locker = snd_kcontrol_chip(kcontrol);
+	char *val = (char *)ucontrol->value.bytes.data;
+	const void *p = &locker->clk_cnt;
+
+	memcpy(val, p, sizeof(struct audio_locker_clk_cnt));
+	return 0;
+}
+
+static const struct snd_kcontrol_new locker_controls[] = {
+	SOC_SINGLE_EXT("audio locker duration",
+		     SND_SOC_NOPM, 0,
+		     1000, 0,
+		     audio_locker_duration_get,
+		     audio_locker_duration_set),
+
+	/* audio locker */
+	SOC_ENUM_EXT("audio locker enable",
+		     audio_locker_enum,
+		     audio_locker_get_enable,
+		     audio_locker_set_enable),
+
+	SOC_ENUM_EXT("audio locker sw reset",
+		     audio_locker_enum,
+		     audio_locker_get_reset,
+		     audio_locker_reset),
+
+	/* audio locker in src */
+	SOC_ENUM_EXT("audio locker in src",
+		     audio_locker_src_enum,
+		     audio_locker_get_in_src,
+		     audio_locker_set_in_src),
+
+	/* audio locker out src */
+	SOC_ENUM_EXT("audio locker out src",
+		     audio_locker_src_enum,
+		     audio_locker_get_out_src,
+		     audio_locker_set_out_src),
+
+	SND_SOC_BYTES_EXT("locker clock count",
+			sizeof(struct audio_locker_clk_cnt),
+			audio_locker_clk_cnt_get, NULL)
+};
+
+static int locker_update_count(struct audiolocker *locker)
+{
+	struct audio_locker_clk_cnt *clk_cnt = &locker->clk_cnt;
+
+	if (mmio_read(locker->regmap, RO_AUD_LOCK_INT_STATUS) == 3) {
+		clk_cnt->input_cnt = mmio_read(locker->regmap, RO_REF2IMCLK_CNT_L);
+		clk_cnt->output_cnt = mmio_read(locker->regmap, RO_REF2OMCLK_CNT_L);
+		pr_debug("in_count:%d, out_count:%d\n",
+			clk_cnt->input_cnt, clk_cnt->output_cnt);
+	}
+
+	/* audiolocker_sw_reset(locker->regmap); */
+	mmio_write(locker->regmap, AUD_LOCK_INT_CLR, 0x3);
+	return 0;
+}
+
+static irqreturn_t locker_count_isr_handler(int irq, void *data)
+{
+	struct audiolocker *locker = (struct audiolocker *)data;
+
+	locker_update_count(locker);
+	return IRQ_HANDLED;
 }
 
 static const struct of_device_id audiolocker_device_id[] = {
 	{ .compatible = "amlogic, audiolocker" },
 	{}
 };
+
 MODULE_DEVICE_TABLE(of, audiolocker_device_id);
+
+static int audio_locker_of_get_clks(struct audiolocker *locker)
+{
+	struct device *dev = locker->dev;
+	int ret = 0;
+
+	locker->lock_in = devm_clk_get(dev, "lock_in");
+	if (IS_ERR(locker->lock_in)) {
+		dev_err(dev, "Can't retrieve lock_in clock\n");
+		ret = PTR_ERR(locker->lock_in);
+	}
+
+	locker->lock_out = devm_clk_get(dev, "lock_out");
+	if (IS_ERR(locker->lock_out)) {
+		dev_err(dev, "Can't retrieve lock_out clock\n");
+		ret = PTR_ERR(locker->lock_out);
+	}
+
+	locker->earcrx_clk = devm_clk_get(dev, "earcrx_clk");
+	if (IS_ERR(locker->earcrx_clk)) {
+		dev_err(dev, "Can't retrieve earcrx clock\n");
+		ret = PTR_ERR(locker->earcrx_clk);
+	}
+
+	locker->speaker_clk = devm_clk_get(dev, "speaker_clk");
+	if (IS_ERR(locker->speaker_clk)) {
+		dev_err(dev, "Can't retrieve speaker_clk\n");
+		ret = PTR_ERR(locker->speaker_clk);
+	}
+
+	locker->arcrx_find_y = devm_clk_get(dev, "arcrx_find_y");
+	if (IS_ERR(locker->arcrx_find_y)) {
+		dev_err(dev, "Can't retrieve in_src clock\n");
+		ret = PTR_ERR(locker->arcrx_find_y);
+	}
+
+	return ret;
+}
+
+static int audiolocker_platform_probe(struct platform_device *pdev)
+{
+	struct audiolocker *locker = NULL;
+	int ret = 0;
+	int irq;
+
+	locker = devm_kzalloc(&pdev->dev,
+				     sizeof(struct audiolocker),
+				     GFP_KERNEL);
+	s_locker = locker;
+	if (!locker)
+		return -ENOMEM;
+
+	locker->regmap = regmap_resource(&pdev->dev, "locker_reg");
+	if (IS_ERR(locker->regmap)) {
+		dev_err(&pdev->dev, "Can't get locker regmap!!\n");
+		return PTR_ERR(locker->regmap);
+	}
+
+	locker->dev = &pdev->dev;
+	audio_locker_of_get_clks(locker);
+
+	/* irq */
+	irq = platform_get_irq_byname(pdev, "irq");
+	if (irq < 0) {
+		dev_err(&pdev->dev,	"Can't get irq number\n");
+		return -EINVAL;
+	}
+
+	ret = devm_request_irq(&pdev->dev, irq,
+			  locker_count_isr_handler,
+			  IRQF_SHARED,
+			  "audiolocker",
+			  locker);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"audio audiolocker irq register fail, ret: %d\n", ret);
+		return -EINVAL;
+	}
+
+	locker->prepared = true;
+	dev_set_drvdata(&pdev->dev, locker);
+
+	return 0;
+}
 
 static struct platform_driver audiolocker_platform_driver = {
 	.driver = {
@@ -336,7 +500,30 @@ static struct platform_driver audiolocker_platform_driver = {
 	.probe  = audiolocker_platform_probe,
 };
 
-#ifdef MODULE
+int card_add_locker_kcontrols(struct snd_soc_card *card)
+{
+	struct audiolocker *locker = get_locker();
+	unsigned int idx;
+	int err;
+
+	if (!locker)
+		return -ENODEV;
+	if (!locker->prepared)
+		return -ENODEV;
+
+	locker_init(locker->regmap);
+
+	for (idx = 0; idx < ARRAY_SIZE(locker_controls); idx++) {
+		err = snd_ctl_add(card->snd_card,
+				snd_ctl_new1(&locker_controls[idx],
+				locker));
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 int __init audio_locker_init(void)
 {
 	return platform_driver_register(&(audiolocker_platform_driver));
@@ -346,6 +533,8 @@ void __exit audio_locker_exit(void)
 {
 	platform_driver_unregister(&audiolocker_platform_driver);
 }
-#else
-module_platform_driver(audiolocker_platform_driver);
+
+#ifndef MODULE
+module_init(audio_locker_init);
+module_exit(audio_locker_exit);
 #endif

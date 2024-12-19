@@ -9,69 +9,50 @@
 #include <linux/delay.h>
 
 #include "locker_hw.h"
+#include "../common/iomapres.h"
 
-static void audiolocker_reset(void)
+void audiolocker_enable(struct regmap *regmap, bool enable)
 {
-	audiolocker_write(AUD_LOCK_SW_RESET, 0x1);
-	audiolocker_write(AUD_LOCK_EN, 0x1);
+	mmio_write(regmap, AUD_LOCK_EN, !!enable);
 }
 
-void audiolocker_disable(void)
+void audiolocker_sw_reset(struct regmap *regmap)
 {
-	audiolocker_write(AUD_LOCK_SW_RESET, 0x0);
-	audiolocker_write(AUD_LOCK_EN, 0x0);
+	mmio_write(regmap, AUD_LOCK_SW_RESET, 1);
 }
 
-void audiolocker_irq_config(void)
+void audiolocker_latch(struct regmap *regmap)
 {
-	audiolocker_write(AUD_LOCK_REFCLK_DS_INT, 0);
-	audiolocker_write(AUD_LOCK_IMCLK_DS_INT, 0);
-	audiolocker_write(AUD_LOCK_OMCLK_DS_INT, 0);
-
-	audiolocker_write(AUD_LOCK_REFCLK_LAT_INT, 0x4000000);
-
-	audiolocker_write(AUD_LOCK_SW_LATCH, 0xf);
-	audiolocker_write(AUD_LOCK_HW_LATCH, 0xf);
-	audiolocker_write(AUD_LOCK_INT_CTRL, 0xe);
-
-	audiolocker_reset();
+	mmio_write(regmap, AUD_LOCK_SW_LATCH, 0xf);
+	mmio_write(regmap, AUD_LOCK_HW_LATCH, 0xf);
 }
 
-int add_cnt = 0, reduce_cnt = 0;
-
-void audiolocker_update_clks(struct clk *clk_calc, struct clk *clk_ref)
+void audiolocker_refclk_downsample_step(struct regmap *regmap, unsigned int step)
 {
-	int in_count, out_count;
-	int mpll2_rate, mpll1_rate;
-
-	in_count = audiolocker_read(RO_REF2IMCLK_CNT_L);
-	out_count = audiolocker_read(RO_REF2OMCLK_CNT_L);
-	pr_info("\tin count:%d, out count:%d\n", in_count, out_count);
-
-	if (in_count < out_count) {
-		add_cnt++;
-		mpll1_rate = clk_get_rate(clk_calc);
-		mpll2_rate = clk_get_rate(clk_ref);
-
-		pr_info("\t    add cnt:%d, mpll1_rate:%d mpll2 rate:%d\n",
-			add_cnt, mpll1_rate, mpll2_rate);
-
-		clk_set_rate(clk_ref, mpll2_rate + 600);
-		/*udelay(1);*/
-		audiolocker_reset();
-	} else if (in_count > out_count) {
-		reduce_cnt++;
-		mpll1_rate = clk_get_rate(clk_calc);
-		mpll2_rate = clk_get_rate(clk_ref);
-
-		pr_info("\t reduce cnt:%d, mpll1_rate:%d, mpll2 rate:%d\n",
-			reduce_cnt, mpll1_rate, mpll2_rate);
-
-		clk_set_rate(clk_ref, mpll2_rate - 600);
-		/*udelay(1);*/
-		audiolocker_reset();
-	}
-
-	audiolocker_write(AUD_LOCK_INT_CLR, 0x3);
+	mmio_write(regmap, AUD_LOCK_REFCLK_DS_INT, step & 0x3ff);
 }
 
+void audiolocker_imclk_downsample_step(struct regmap *regmap, unsigned int step)
+{
+	mmio_write(regmap, AUD_LOCK_IMCLK_DS_INT, step & 0x3ff);
+}
+
+void audiolocker_omclk_downsample_step(struct regmap *regmap, unsigned int step)
+{
+	mmio_write(regmap, AUD_LOCK_OMCLK_DS_INT, step & 0x3ff);
+}
+
+void audiolocker_refclk_latch(struct regmap *regmap, unsigned int num)
+{
+	mmio_write(regmap, AUD_LOCK_REFCLK_LAT_INT, num);
+}
+
+void audiolocker_interrupt_mask(struct regmap *regmap, unsigned int mask)
+{
+	mmio_write(regmap, AUD_LOCK_INT_CTRL, mask & 0xf);
+}
+
+void audiolocker_set_refclk_src(struct regmap *regmap, unsigned int src)
+{
+	mmio_write(regmap, AUD_LOCK_REFCLK_SRC, src);
+}

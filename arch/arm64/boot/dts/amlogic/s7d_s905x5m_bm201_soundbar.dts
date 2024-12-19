@@ -505,6 +505,52 @@
 		};
 	};
 
+	spdifin_find_y: spdifin-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <48000>;
+		clock-output-names = "spdifin_find_xyz";
+		#clock-cells = <0>;
+	};
+
+	earcrx_dmac: earcrx-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <24576000>;
+		clock-output-names = "earcrx_pll_dmac_ck";
+		#clock-cells = <0>;
+	};
+
+	arcrx_find_y: arc-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <48000>;
+		clock-output-names = "earcrx_find_xyz";
+		#clock-cells = <0>;
+	};
+
+	audiolocker: audiolocker@fe331400 {
+		compatible = "simple-bus";
+		reg = <0x0 0xfe331400 0x0 0x400>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x0 0x0 0xfe331400 0x0 0x400>;
+		locker: locker@0 {
+			compatible = "amlogic, audiolocker";
+			interrupts = <GIC_SPI 41 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "irq";
+			reg =<0x0 0x0 0x0 0x400>;
+			reg-names = "locker_reg";
+			clocks = <&clkaudio CLKID_AUDIO_LOCKER_OUT
+				&clkaudio CLKID_AUDIO_LOCKER_IN
+				&earcrx_dmac
+				&clkaudio CLKID_AUDIO_MCLK_B
+				&arcrx_find_y>;
+			clock-names =
+				"lock_out","lock_in",
+				"earcrx_clk",
+				"speaker_clk",
+				"arcrx_find_y";
+		};
+	};
+
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";

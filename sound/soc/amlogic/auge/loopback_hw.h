@@ -64,7 +64,6 @@ void tdminlb_set_lanemask_and_chswap
 	(int swap, int lane_mask, unsigned int mask);
 void tdminlb_set_slot_num(int slot_num, bool i2s_mode);
 
-
 void tdminlb_set_src(int src);
 void lb_set_datain_src(int id, int src);
 void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg);
