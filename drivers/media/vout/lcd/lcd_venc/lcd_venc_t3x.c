@@ -456,9 +456,9 @@ static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned int offset, init_state, size, ppc;
+	unsigned int offset, init_state, size, ppc = 1;
 
-	ppc = pdrv->config.timing.ppc;
+	ppc = 1 << pdrv->boot_ctrl->ppc;
 	offset = pdrv->data->offset_venc[pdrv->index];
 
 	size = lcd_vcbus_getb(ENCL_VIDEO_HAVON_PX_RNG + offset, 0, 16)
