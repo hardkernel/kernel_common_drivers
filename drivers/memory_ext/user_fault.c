@@ -846,9 +846,16 @@ void show_user_fault_info(struct pt_regs *regs, u64 lr, u64 sp)
 		return;
 
 	if (user_mode(regs)) {
+		int read_locked;
+
+		read_locked = mmap_read_trylock(current->mm);
 		show_vma(current->mm, instruction_pointer(regs));
 		show_vma(current->mm, lr);
 		show_vma(current->mm, read_sysreg(far_el1));
+
+		if (read_locked)
+			mmap_read_unlock(current->mm);
+
 		show_all_pfn(current, regs);
 	} else {
 		show_pfn(instruction_pointer(regs), "PC");
@@ -858,14 +865,26 @@ void show_user_fault_info(struct pt_regs *regs, u64 lr, u64 sp)
 	}
 #elif defined CONFIG_ARM
 	if (user_mode(regs)) {
+		int read_locked;
+
+		read_locked = mmap_read_trylock(current->mm);
 		show_vma(current->mm, instruction_pointer(regs));
 		show_vma(current->mm, regs->ARM_lr);
+
+		if (read_locked)
+			mmap_read_unlock(current->mm);
 	}
 #elif defined CONFIG_RISCV
 	if (user_mode(regs)) {
+		int read_locked;
+
+		read_locked = mmap_read_trylock(current->mm);
 		show_vma(current->mm, instruction_pointer(regs));
 		show_vma(current->mm, lr);
 		show_vma(current->mm, regs->badaddr);
+
+		if (read_locked)
+			mmap_read_unlock(current->mm);
 	}
 
 	show_pfn(regs->badaddr, "badaddr");
