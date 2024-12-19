@@ -277,7 +277,7 @@ static void am_meson_gem_free_ion_buf(struct drm_device *dev,
 	}
 #endif
 	if (!meson_gem_obj->ionbuffer && !meson_gem_obj->is_dma)
-		DRM_ERROR("meson_gem_obj buffer is null\n");
+		DRM_DEBUG("meson_gem_obj buffer is null\n");
 }
 
 static int am_meson_gem_alloc_video_secure_buff(struct am_meson_gem_object *meson_gem_obj)
@@ -315,7 +315,7 @@ void meson_gem_object_free(struct drm_gem_object *obj)
 {
 	struct am_meson_gem_object *meson_gem_obj = to_am_meson_gem_obj(obj);
 
-	DRM_DEBUG("%s %p handle count = %d\n", __func__, meson_gem_obj,
+	DRM_DEBUG("%s %px handle count = %d\n", __func__, meson_gem_obj,
 		  obj->handle_count);
 
 	if ((meson_gem_obj->flags & MESON_USE_VIDEO_PLANE) &&
@@ -882,7 +882,7 @@ am_meson_gem_prime_import_sg_table(struct drm_device *dev,
 		return  ERR_PTR(-ENOMEM);
 	}
 
-	DRM_DEBUG("%s: %p, sg_table %p\n", __func__, meson_gem_obj, sgt);
+	DRM_DEBUG("%s: %px, sg_table %p\n", __func__, meson_gem_obj, sgt);
 	meson_gem_obj->sg = sgt;
 	meson_gem_obj->addr = sg_dma_address(sgt->sgl);
 	return &meson_gem_obj->base;
@@ -897,15 +897,39 @@ struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 		struct uvm_handle *handle;
 		struct uvm_buf_obj *ubo;
 		struct am_meson_gem_object *meson_gem_obj;
+		unsigned long size;
+		int ret;
 
 		handle = dmabuf->priv;
-		ubo = handle->ua->obj;
-		meson_gem_obj = uvm_to_gem_obj(ubo);
+		if (handle->ua && handle->ua->obj) {
+			ubo = handle->ua->obj;
 
-		if (ubo->dev == dev->dev) {
-			drm_gem_object_get(&meson_gem_obj->base);
-			return &meson_gem_obj->base;
+			if (ubo->dev == dev->dev) {
+				meson_gem_obj = uvm_to_gem_obj(ubo);
+				drm_gem_object_get(&meson_gem_obj->base);
+				return &meson_gem_obj->base;
+			}
+
+			return drm_gem_prime_import(dev, dmabuf);
 		}
+
+		meson_gem_obj = kzalloc(sizeof(*meson_gem_obj), GFP_KERNEL);
+		if (!meson_gem_obj)
+			return ERR_PTR(-ENOMEM);
+		DRM_DEBUG("%s skeleton uvm alloc %px\n", __func__, meson_gem_obj);
+		meson_gem_obj->base.funcs = &meson_gem_object_funcs;
+		meson_gem_obj->is_uvm = true;
+		meson_gem_obj->ubo.dmabuf = dmabuf;
+
+		size = roundup(dmabuf->size, PAGE_SIZE);
+		ret = drm_gem_object_init(dev, &meson_gem_obj->base, size);
+		if (ret < 0) {
+			DRM_ERROR("failed to initialize gem object\n");
+			kfree(meson_gem_obj);
+			return NULL;
+		}
+
+		return &meson_gem_obj->base;
 	}
 
 	return drm_gem_prime_import(dev, dmabuf);
