@@ -23,11 +23,13 @@
 #include <linux/amlogic/secure_pwm_i2c.h>
 
 #define TEE_RW_NODE				1
+#define DOUBLE_CHAN_COMPAT
 
-static inline struct meson_pwm_tee *to_meson_pwm_tee(struct pwm_chip *chip)
+struct meson_pwm_tee *to_meson_pwm_tee(struct pwm_chip *chip)
 {
 	return pwmchip_get_drvdata(chip);
 }
+EXPORT_SYMBOL(to_meson_pwm_tee);
 
 static int meson_pwm_tee_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {

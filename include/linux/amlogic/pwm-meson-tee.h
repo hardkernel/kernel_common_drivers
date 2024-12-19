@@ -81,5 +81,7 @@ struct meson_pwm_tee {
 };
 
 int meson_pwm_sysfs_init(struct device *dev, bool tee_pwm);
-
+struct meson_pwm_tee *to_meson_pwm_tee(struct pwm_chip *chip);
+int pwm_set_times_tee(struct meson_pwm_tee *meson,
+		  unsigned int index, unsigned int value);
 #endif   /* _PWM_MESON_TEE_H_ */
