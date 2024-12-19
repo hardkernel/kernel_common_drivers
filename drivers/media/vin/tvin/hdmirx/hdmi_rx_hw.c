@@ -1593,7 +1593,8 @@ void rx_set_irq_21(u8 enable, u8 port)
 	hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, data8, port);
 
 	data8 = 0;
-	data8 |= val_all << 7; /* 2.3 encrypted sts changed en */
+	//can't enable this irq or too much interrupt
+	data8 |= 0 << 7; /* 2.3 encrypted sts changed en */
 	hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, data8, port);
 
 	//HDCP 2X_RX_ECC

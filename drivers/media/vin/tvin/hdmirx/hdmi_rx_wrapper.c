@@ -881,7 +881,6 @@ static int rx_cor_irq_handler(u8 port)
 	u8 intr_6 = 0;
 	u8 rx_intr_1 = 0;
 	u8 rx_intr_4 = 0;
-	u8 rx_intr_13 = 0;
 	u8 rx_depack2_intr0;
 	u8 rx_depack2_intr2;
 	u8 rx_hdcp1x_intr0;
@@ -920,10 +919,6 @@ static int rx_cor_irq_handler(u8 port)
 		//aud fifo
 		hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, rx_intr_4, port);
 	}
-
-	rx_intr_13 = hdmirx_rd_cor(RX_INTR13_PWD_IVCRX, port);
-	if (rx_intr_13 != 0)
-		hdmirx_wr_cor(RX_INTR13_PWD_IVCRX, rx_intr_13, port);
 
 	rx_depack2_intr0 = hdmirx_rd_cor(RX_DEPACK2_INTR0_DP0B_IVCRX, port);
 	if (rx_depack2_intr0 != 0)
@@ -982,15 +977,6 @@ static int rx_cor_irq_handler(u8 port)
 		if (rx_get_bits(rx_hdcp2x_intr0, _BIT(3))) {
 			if (log_level & HDCP_IRQ_LOG)
 				rx_pr("hash-ng");
-		}
-	}
-	if (rx_intr_13) {
-		if (log_level & IRQ_LOG)
-			rx_pr("hdcp2-3%x\n", rx_intr_13);
-		if (rx_get_bits(rx_intr_13, _BIT(7))) {
-			//auth decryption change
-			if (log_level & HDCP_IRQ_LOG)
-				rx_pr("22 chg\n");
 		}
 	}
 	if (rx_intr_1) {
