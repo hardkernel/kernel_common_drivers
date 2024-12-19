@@ -73,6 +73,8 @@
 
 #include "register.h"
 #include "nr_downscale.h"
+#include "../deinterlace/deinterlace_dbg.h"
+
 
 #include "di_pre.h"
 #include "di_post.h"
@@ -2133,9 +2135,7 @@ bool mem_cfg(struct di_ch_s *pch)
 }
 
 #ifdef AFBC_DBG
-static unsigned int sleep_cnt;
-module_param(sleep_cnt, uint, 0664);
-MODULE_PARM_DESC(sleep_cnt, "debug sleep_cnt");
+unsigned int sleep_cnt;
 #endif
 
 /************************************************
@@ -4000,7 +4000,7 @@ static int dim_probe(struct platform_device *pdev)
 		PR_ERR("%s: failed to create class\n", __func__);
 		goto fail_class_create;
 	}
-
+	di_attr_create(di_pdev->pclss);
 	di_devp = di_pdev;
 	/* *********new********* */
 	di_pdev->data_l = NULL;

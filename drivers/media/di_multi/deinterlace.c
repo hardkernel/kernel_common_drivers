@@ -189,7 +189,7 @@ static const char version_s[] = "2023-01-04a";
 /*1:enable bypass pre,ei only;
  * 2:debug force bypass pre,ei for post
  */
-static int bypass_pre;
+unsigned int by_pass_pre;
 
 int invert_top_bot;
 
@@ -6400,7 +6400,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				ppre->di_post_inp_buf = NULL;
 			}
 
-			if ((bypass_pre & 0x2) && !ppre->cur_prog_flag)
+			if ((by_pass_pre & 0x2) && !ppre->cur_prog_flag)
 				di_buf->post_proc_flag = -2;
 			else
 				di_buf->post_proc_flag = 0;

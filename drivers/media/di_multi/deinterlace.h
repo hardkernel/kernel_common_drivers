@@ -638,7 +638,7 @@ struct di_pre_stru_s {
 /*for static pic*/
 	int	static_frame_count;
 	bool force_interlace;
-	bool bypass_pre;
+	bool by_pass_pre;
 	bool invert_flag;
 //	bool vdin_source; /* ary 2020-06-12: no*/
 	int cma_release_req;
