@@ -227,6 +227,7 @@ struct am_reg_s *reg_sr1_list;
 struct am_reg_s *reg_lc_list;
 struct am_reg_s *reg_cm_list;
 struct am_reg_s *reg_ve_list;
+struct am_reg_s *reg_matrix_list;
 #endif
 /*demo final gain */
 uint demo_pk_sr_final_pgains = 0xa0;
@@ -10279,36 +10280,100 @@ bool suspend_drv_status_get(void)
 	return suspend_drv_flag;
 }
 
+void suspend_matrix(void)
+{
+	int i;
+	unsigned int reg;
+	unsigned int length;
+
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
+		length = RECOVERY_REG_MTX_MAX * 4;
+	else if (chip_type_id == chip_t7)
+		length = RECOVERY_REG_MTX_MAX * 2 + 1;
+	else if (chip_type_id == chip_t6d)
+		length = RECOVERY_REG_MTX_MAX * 3;
+	else if (chip_cls_id == TV_CHIP)
+		length = RECOVERY_REG_MTX_MAX * 2;
+	else
+		length = RECOVERY_REG_MTX_MAX;
+
+	reg_matrix_list = kcalloc(length, sizeof(struct am_reg_s), GFP_KERNEL);
+	if (!reg_matrix_list)
+		return;
+
+	reg = OSD1_HDR2_MATRIXI_COEF00_01;
+	for (i = 0; i < 12; i++)
+		reg_matrix_list[i].addr = reg + i;
+
+	reg = OSD1_HDR2_MATRIXI_CLIP;
+	reg_matrix_list[12].addr = reg;
+
+	reg = OSD1_HDR2_MATRIXI_EN_CTRL;
+	reg_matrix_list[13].addr = reg;
+
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) {
+		reg = VPP_WRAP_OSD1_MATRIX_COEF00_01;
+		for (i = 14; i < 28; i++)
+			reg_matrix_list[i].addr = reg + i - 14;
+
+		reg = OSD2_HDR2_MATRIXI_COEF00_01 + 0x500;
+		for (i = 28; i < 40; i++)
+			reg_matrix_list[i].addr = reg + i - 28;
+
+		reg = OSD2_HDR2_MATRIXI_CLIP + 0x500;
+		reg_matrix_list[40].addr = reg;
+
+		reg = OSD2_HDR2_MATRIXI_EN_CTRL + 0x500;
+		reg_matrix_list[41].addr = reg;
+
+		reg = VPP_OSD2_MATRIX_COEF00_01;
+		for (i = 42; i < 56; i++)
+			reg_matrix_list[i].addr = reg + i - 42;
+	} else if (chip_type_id == chip_t7 ||
+		(chip_cls_id == TV_CHIP &&
+		chip_type_id != chip_t6d)) {
+		reg = VPP_POST2_MATRIX_COEF00_01;
+		for (i = 14; i < 28; i++)
+			reg_matrix_list[i].addr = reg + i - 14;
+	} else if (chip_type_id == chip_t6d) {
+		reg = OSD1_PQ_MATRIX_COEF00_01;
+		for (i = 14; i < 28; i++)
+			reg_matrix_list[i].addr = reg + i - 14;
+
+		reg = VPP_POST2_MATRIX_COEF00_01;
+		for (i = 28; i < 42; i++)
+			reg_matrix_list[i].addr = reg + i - 28;
+	}
+
+	if (chip_type_id == chip_t7) {
+		reg = OSD1_HDR2_CTRL;
+		reg_matrix_list[length - 1].addr = reg;
+	}
+
+	for (i = 0; i < length; i++) {
+		reg_matrix_list[i].type = REG_TYPE_VCBUS;
+		reg_matrix_list[i].mask = 0xffffffff;
+		reg = reg_matrix_list[i].addr;
+		reg_matrix_list[i].val = READ_VPP_REG(reg);
+		pr_amvecm_dbg("amvecm: suspend matrix [0x%x] = 0x%x\n",
+			reg, reg_matrix_list[i].val);
+	}
+
+	pr_amvecm_dbg("amvecm: suspend matrix\n");
+}
+
 void suspend_ve(void)
 {
 	int i;
 	unsigned int reg;
-	unsigned int length, length_mtx;
-	unsigned int mtx_start_idx = 0;
-	pr_amvecm_dbg("amvecm: suspend ve_1\n");
-
-	if (chip_type_id == chip_s7d ||
-		chip_type_id == chip_s6)
-		length_mtx = RECOVERY_REG_MTX_MAX * 4;
-	else if (chip_type_id == chip_t7)
-		length_mtx = RECOVERY_REG_MTX_MAX * 2 + 1;
-	else if (chip_type_id == chip_t6d)
-		length_mtx = RECOVERY_REG_MTX_MAX * 3;
-	else if (chip_cls_id == TV_CHIP)
-		length_mtx = RECOVERY_REG_MTX_MAX * 2;
-	else
-		length_mtx = RECOVERY_REG_MTX_MAX;
+	unsigned int length = RECOVERY_REG_VE_MAX;
 
 	if (!pq_cfg.black_ext_en &&
-		!pq_cfg.chroma_cor_en) {
-		length = length_mtx;
-		mtx_start_idx = 0;
-	} else {
-		length = length_mtx + RECOVERY_REG_VE_MAX;
-		mtx_start_idx = RECOVERY_REG_VE_MAX;
-	}
+		!pq_cfg.chroma_cor_en)
+		return;
 
-	pr_amvecm_dbg("amvecm: suspend ve_2\n");
 	reg_ve_list = kcalloc(length, sizeof(struct am_reg_s), GFP_KERNEL);
 	if (!reg_ve_list)
 		return;
@@ -10316,6 +10381,7 @@ void suspend_ve(void)
 	if (pq_cfg.black_ext_en || pq_cfg.chroma_cor_en) {
 		reg = VPP_BLACKEXT_CTRL;
 		reg_ve_list[0].addr = reg;
+
 		reg = VPP_BLUE_STRETCH_1;
 		for (i = 1; i < 4; i++)
 			reg_ve_list[i].addr = reg + i - 1;
@@ -10325,63 +10391,11 @@ void suspend_ve(void)
 			reg_ve_list[i].addr = reg + i - 4;
 	}
 
-	reg = OSD1_HDR2_MATRIXI_COEF00_01;
-	for (i = mtx_start_idx; i < mtx_start_idx + 12; i++)
-		reg_ve_list[i].addr = reg + i - mtx_start_idx;
-
-	reg = OSD1_HDR2_MATRIXI_CLIP;
-	reg_ve_list[mtx_start_idx + 12].addr = reg;
-	reg = OSD1_HDR2_MATRIXI_EN_CTRL;
-	reg_ve_list[mtx_start_idx + 13].addr = reg;
-	pr_amvecm_dbg("amvecm: suspend ve_3\n");
-
-	if (chip_type_id == chip_s7d ||
-		chip_type_id == chip_s6) {
-		reg = VPP_WRAP_OSD1_MATRIX_COEF00_01;
-		for (i = mtx_start_idx + 14; i < mtx_start_idx + 28; i++)
-			reg_ve_list[i].addr = reg + i - 14 - mtx_start_idx;
-
-		reg = OSD2_HDR2_MATRIXI_COEF00_01 + 0x500;
-		for (i = mtx_start_idx + 28; i < mtx_start_idx + 40; i++)
-			reg_ve_list[i].addr = reg + i - 28 - mtx_start_idx;
-		reg = OSD2_HDR2_MATRIXI_CLIP + 0x500;
-		reg_ve_list[mtx_start_idx + 40].addr = reg;
-		reg = OSD2_HDR2_MATRIXI_EN_CTRL + 0x500;
-		reg_ve_list[mtx_start_idx + 41].addr = reg;
-
-		reg = VPP_OSD2_MATRIX_COEF00_01;
-		for (i = mtx_start_idx + 42; i < mtx_start_idx + 56; i++)
-			reg_ve_list[i].addr = reg + i - 42 - mtx_start_idx;
-	} else if (chip_type_id == chip_t7 ||
-		       (chip_cls_id == TV_CHIP &&
-		       chip_type_id != chip_t6d)) {
-		reg = VPP_POST2_MATRIX_COEF00_01;
-		for (i = mtx_start_idx + 14; i < mtx_start_idx + 28; i++)
-			reg_ve_list[i].addr = reg + i - 14 - mtx_start_idx;
-	} else if (chip_type_id == chip_t6d) {
-		reg = OSD1_PQ_MATRIX_COEF00_01;
-		for (i = mtx_start_idx + 14; i < mtx_start_idx + 28; i++)
-			reg_ve_list[i].addr = reg + i - 14 - mtx_start_idx;
-
-		reg = VPP_POST2_MATRIX_COEF00_01;
-		for (i = mtx_start_idx + 28; i < mtx_start_idx + 42; i++)
-			reg_ve_list[i].addr = reg + i - 28 - mtx_start_idx;
-	}
-	pr_amvecm_dbg("amvecm: suspend ve_4\n");
-
-	if (chip_type_id == chip_t7) {
-		reg = OSD1_HDR2_CTRL;
-		reg_ve_list[length - 1].addr = reg;
-	}
-
 	for (i = 0; i < length; i++) {
 		reg_ve_list[i].type = REG_TYPE_VCBUS;
 		reg_ve_list[i].mask = 0xffffffff;
 		reg = reg_ve_list[i].addr;
-		if (pq_reg_wr_rdma)
-			reg_ve_list[i].val = VSYNC_RD_MPEG_REG(reg);
-		else
-			reg_ve_list[i].val = READ_VPP_REG(reg);
+		reg_ve_list[i].val = READ_VPP_REG(reg);
 	}
 
 	pr_amvecm_dbg("amvecm: suspend ve\n");
@@ -10515,10 +10529,7 @@ void suspend_sr(void)
 			reg_sr0_list[i].type = REG_TYPE_VCBUS;
 			reg_sr0_list[i].mask = 0xffffffff;
 			reg = reg_sr0_list[i].addr;
-			if (pq_reg_wr_rdma)
-				reg_sr0_list[i].val = VSYNC_RD_MPEG_REG(reg);
-			else
-				reg_sr0_list[i].val = READ_VPP_REG(reg);
+			reg_sr0_list[i].val = READ_VPP_REG(reg);
 		}
 		pr_amvecm_dbg("amvecm: suspend sr0\n");
 	}
@@ -10569,10 +10580,7 @@ void suspend_sr(void)
 			reg_sr1_list[i].type = REG_TYPE_VCBUS;
 			reg_sr1_list[i].mask = 0xffffffff;
 			reg = reg_sr1_list[i].addr;
-			if (pq_reg_wr_rdma)
-				reg_sr1_list[i].val = VSYNC_RD_MPEG_REG(reg);
-			else
-				reg_sr1_list[i].val = READ_VPP_REG(reg);
+			reg_sr1_list[i].val = READ_VPP_REG(reg);
 		}
 
 		pr_amvecm_dbg("amvecm: suspend sr1\n");
@@ -10615,10 +10623,7 @@ void suspend_lc(void)
 		reg_lc_list[i].type = REG_TYPE_VCBUS;
 		reg_lc_list[i].mask = 0xffffffff;
 		reg = reg_lc_list[i].addr;
-		if (pq_reg_wr_rdma)
-			reg_lc_list[i].val = VSYNC_RD_MPEG_REG(reg);
-		else
-			reg_lc_list[i].val = READ_VPP_REG(reg);
+		reg_lc_list[i].val = READ_VPP_REG(reg);
 	}
 
 	pr_amvecm_dbg("amvecm: suspend lc\n");
@@ -10659,34 +10664,57 @@ void resume_mtx_t7(void)
 	pr_info("amvecm: resume post2 mtx\n");
 }
 
-void resume_ve(void)
+void resume_matrix(int vpp_index)
 {
-	unsigned int length, length_mtx;
+	int i;
+	unsigned int reg, tmp;
+	unsigned int length;
 
 	if (chip_type_id == chip_s7d ||
 		chip_type_id == chip_s6)
-		length_mtx = RECOVERY_REG_MTX_MAX * 4;
+		length = RECOVERY_REG_MTX_MAX * 4;
 	else if (chip_type_id == chip_t7)
-		length_mtx = RECOVERY_REG_MTX_MAX * 2 + 1;
+		length = RECOVERY_REG_MTX_MAX * 2 + 1;
 	else if (chip_type_id == chip_t6d)
-		length_mtx = RECOVERY_REG_MTX_MAX * 3;
+		length = RECOVERY_REG_MTX_MAX * 3;
 	else if (chip_cls_id == TV_CHIP)
-		length_mtx = RECOVERY_REG_MTX_MAX * 2;
+		length = RECOVERY_REG_MTX_MAX * 2;
 	else
-		length_mtx = RECOVERY_REG_MTX_MAX;
+		length = RECOVERY_REG_MTX_MAX;
+
+	amregs_store.length = length;
+	if (!(memcpy(amregs_store.am_reg, reg_matrix_list,
+		length * sizeof(struct am_reg_s))))
+		return;
+
+	for (i = 0; i < length; i++) {
+		reg = reg_matrix_list[i].addr;
+		tmp = READ_VPP_REG(reg);
+		pr_amvecm_dbg("amvecm: resume matrix [0x%x] = 0x%x/0x%x\n",
+			reg, reg_matrix_list[i].val, tmp);
+	}
+
+	am_set_regmap(&amregs_store, vpp_index);
+
+	kfree(reg_matrix_list);
+	reg_matrix_list = NULL;
+	pr_amvecm_dbg("amvecm: resume matrix\n");
+}
+
+void resume_ve(int vpp_index)
+{
+	unsigned int length = RECOVERY_REG_VE_MAX;
 
 	if (!pq_cfg.black_ext_en &&
 		!pq_cfg.chroma_cor_en)
-		length = length_mtx;
-	else
-		length = length_mtx + RECOVERY_REG_VE_MAX;
+		return;
 
 	amregs_store.length = length;
 	if (!(memcpy(amregs_store.am_reg, reg_ve_list,
 		length * sizeof(struct am_reg_s))))
 		return;
 
-	cm_load_reg(&amregs_store);
+	am_set_regmap(&amregs_store, vpp_index);
 
 	kfree(reg_ve_list);
 	reg_ve_list = NULL;
@@ -10712,7 +10740,7 @@ void resume_cm(int vpp_index)
 			RECOVERY_REG_CM_MAX * sizeof(struct am_reg_s))))
 			return;
 
-		cm_load_reg(&amregs_store);
+		am_set_regmap(&amregs_store, vpp_index);
 
 		kfree(reg_cm_list);
 		reg_cm_list = NULL;
@@ -10720,7 +10748,7 @@ void resume_cm(int vpp_index)
 	}
 }
 
-void resume_sr(void)
+void resume_sr(int vpp_index)
 {
 	if (chip_type_id == chip_s7d ||
 		chip_type_id == chip_t6d)
@@ -10731,7 +10759,7 @@ void resume_sr(void)
 		if (!(memcpy(amregs_store.am_reg, reg_sr0_list,
 			RECOVERY_REG_SR_MAX * sizeof(struct am_reg_s))))
 			return;
-		cm_load_reg(&amregs_store);
+		am_set_regmap(&amregs_store, vpp_index);
 
 		kfree(reg_sr0_list);
 		reg_sr0_list = NULL;
@@ -10748,7 +10776,7 @@ void resume_sr(void)
 		if (!(memcpy(amregs_store.am_reg, reg_sr1_list,
 			RECOVERY_REG_SR_MAX * sizeof(struct am_reg_s))))
 			return;
-		cm_load_reg(&amregs_store);
+		am_set_regmap(&amregs_store, vpp_index);
 
 		kfree(reg_sr1_list);
 		reg_sr1_list = NULL;
@@ -10756,7 +10784,7 @@ void resume_sr(void)
 	}
 }
 
-void resume_lc(void)
+void resume_lc(int vpp_index)
 {
 	if (!pq_cfg.lc_en)
 		return;
@@ -10766,7 +10794,7 @@ void resume_lc(void)
 		RECOVERY_REG_LC_MAX * sizeof(struct am_reg_s))))
 		return;
 
-	cm_load_reg(&amregs_store);
+	am_set_regmap(&amregs_store, vpp_index);
 	ve_lc_curve_update();
 
 	kfree(reg_lc_list);
@@ -10891,6 +10919,8 @@ void resume_recovery_process(int vpp_index)
 		if (chip_type_id == chip_a4)
 			return;
 
+		resume_matrix(vpp_index);
+
 		if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 			is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
 			is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
@@ -10915,11 +10945,11 @@ void resume_recovery_process(int vpp_index)
 					s7d_sharpness_init();
 					pr_amvecm_dbg("amvecm: resume sharpness\n");
 				} else {
-					resume_sr();
+					resume_sr(vpp_index);
 				}
 
 				if (chip_cls_id == TV_CHIP)
-					resume_lc();
+					resume_lc(vpp_index);
 			}
 		} else if (is_meson_g12a_cpu() ||
 			  is_meson_g12b_cpu() ||
@@ -10935,14 +10965,14 @@ void resume_recovery_process(int vpp_index)
 				s7d_sharpness_init();
 				pr_amvecm_dbg("amvecm: resume sharpness\n");
 			} else {
-				resume_sr();
+				resume_sr(vpp_index);
 			}
 		} else if (chip_type_id == chip_s5) {
 			cm_top_ctl(WR_DMA, 1, vpp_index);
 		}
 
 		resume_cm(vpp_index);
-		resume_ve();
+		resume_ve(vpp_index);
 		resume_dnlp();
 		resume_vadj1(vpp_index);
 		resume_wb(vpp_index);
@@ -16229,8 +16259,10 @@ static int amvecm_drv_suspend(struct device *dev)
 				cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 				suspend_lc();
 			suspend_ve();
+			suspend_matrix();
 		}
 	}
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_suspend();
 	pr_info("amvecm: suspend module\n");
@@ -16291,8 +16323,10 @@ static int amvecm_drv_freeze(struct device *dev)
 				cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 				suspend_lc();
 			suspend_ve();
+			suspend_matrix();
 		}
 	}
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_suspend();
 	pr_info("amvecm: freeze module\n");
