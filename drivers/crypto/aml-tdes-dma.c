@@ -521,8 +521,8 @@ static int aml_tdes_crypt_dma_start(struct aml_tdes_dev *dd)
 	dma_sync_single_for_device(dd->parent, addr_in, dd->dma_size,
 				   DMA_TO_DEVICE);
 
-	dsc.src_addr = (u32)addr_in;
-	dsc.tgt_addr = (u32)addr_out;
+	dsc.src_addr = (u64)addr_in;
+	dsc.tgt_addr = (u64)addr_out;
 	dsc.dsc_cfg.d32 = 0;
 	dsc.dsc_cfg.b.length = count;
 	aml_dma_dsc_writer(dd->descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
