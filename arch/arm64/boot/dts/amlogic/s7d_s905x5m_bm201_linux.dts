@@ -223,10 +223,6 @@
 	gpio_leds {
 		compatible = "gpio-leds";
 		status = "okay";
-		pwr_led {
-			label = "pwr_led";
-			default-state = "on";
-		};
 
 		bt_led {
 			label = "bt_led";
