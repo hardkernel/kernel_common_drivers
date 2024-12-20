@@ -35,11 +35,14 @@ void bs_ct_tbl(void)
 	else
 		lut3d_single_sz = LUT3D_SINGLE_SIZE;
 
+	if (!plut)
+		return;
+
 	for (i = 0; i < lut3d_single_sz; i++) {
 		for (j = 0; j < 3; j++) {
-			if (bs_3dlut_en && base_linear)
+			if (bs_3dlut_en && base_linear && plut3d)
 				plut[i][j] = plut3d[i * 3 + j];
-			else
+			else if (plut3d_base)
 				plut[i][j] = plut3d_base[i * 3 + j];
 		}
 	}
