@@ -65,6 +65,76 @@
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct rx_cap *prxcap);
+static void edid_check_pcm_declare(struct rx_cap *prxcap);
+
+/*
+ * cec_get_edid_spa_location() - find location of the Source Physical Address
+ *
+ * @edid: the EDID
+ * @size: the size of the EDID
+ *
+ * This EDID is expected to be a CEA-861 compliant, which means that there are
+ * at least two blocks and one or more of the extensions blocks are CEA-861
+ * blocks.
+ *
+ * The returned location is guaranteed to be <= size-2.
+ *
+ * This is an inline function since it is used by both CEC and V4L2.
+ * Ideally this would go in a module shared by both, but it is overkill to do
+ * that for just a single function.
+ */
+static unsigned int cec_get_edid_spa_location(const u8 *edid, unsigned int size)
+{
+	unsigned int blocks = size / 128;
+	unsigned int block;
+	u8 d;
+
+	/* Sanity check: at least 2 blocks and a multiple of the block size */
+	if (blocks < 2 || size % 128)
+		return 0;
+
+	/*
+	 * If there are fewer extension blocks than the size, then update
+	 * 'blocks'. It is allowed to have more extension blocks than the size,
+	 * since some hardware can only read e.g. 256 bytes of the EDID, even
+	 * though more blocks are present. The first CEA-861 extension block
+	 * should normally be in block 1 anyway.
+	 */
+	if (edid[0x7e] + 1 < blocks)
+		blocks = edid[0x7e] + 1;
+
+	for (block = 1; block < blocks; block++) {
+		unsigned int offset = block * 128;
+
+		/* Skip any non-CEA-861 extension blocks */
+		if (edid[offset] != 0x02 || edid[offset + 1] != 0x03)
+			continue;
+
+		/* search Vendor Specific Data Block (tag 3) */
+		d = edid[offset + 2] & 0x7f;
+		/* Check if there are Data Blocks */
+		if (d <= 4)
+			continue;
+		if (d > 4) {
+			unsigned int i = offset + 4;
+			unsigned int end = offset + d;
+
+			/* Note: 'end' is always < 'size' */
+			do {
+				u8 tag = edid[i] >> 5;
+				u8 len = edid[i] & 0x1f;
+
+				if (tag == 3 && len >= 5 && i + len <= end &&
+				    edid[i + 1] == 0x03 &&
+				    edid[i + 2] == 0x0c &&
+				    edid[i + 3] == 0x00)
+					return i + 4;
+				i += len + 1;
+			} while (i < end);
+		}
+	}
+	return 0;
+}
 
 static u16 hdmitx_cec_get_edid_phys_addr(const u8 *edid, unsigned int size)
 {
@@ -75,22 +145,27 @@ static u16 hdmitx_cec_get_edid_phys_addr(const u8 *edid, unsigned int size)
 	return (edid[loc] << 8) | edid[loc + 1];
 }
 
-void hdmitx_cec_phy_addr_parse(struct vsdb_phyaddr *vsdb_phy_addr, const u8 *edid_buf)
+void hdmitx_cec_phy_addr_parse(struct rx_cap *prxcap, u8 *edid_buf)
 {
 	u16 pa = 0xffff;
+	unsigned char edid_check = 0;
 
-	if (!vsdb_phy_addr)
+	if (!prxcap || !edid_buf)
+		return;
+
+	edid_check = prxcap->edid_check;
+	if (hdmitx_edid_check_data_valid(edid_check, edid_buf) == false)
 		return;
 
 	if (edid_buf && edid_buf[0x7e]) {
 		pa = hdmitx_cec_get_edid_phys_addr((const u8 *)edid_buf,
 				128 * (edid_buf[0x7e] + 1));
-		vsdb_phy_addr->a = (pa >> 12) & 0xf;
-		vsdb_phy_addr->b = (pa >> 8) & 0xf;
-		vsdb_phy_addr->c = (pa >> 4) & 0xf;
-		vsdb_phy_addr->d = (pa >> 0) & 0xf;
+		prxcap->vsdb_phy_addr.a = (pa >> 12) & 0xf;
+		prxcap->vsdb_phy_addr.b = (pa >> 8) & 0xf;
+		prxcap->vsdb_phy_addr.c = (pa >> 4) & 0xf;
+		prxcap->vsdb_phy_addr.d = (pa >> 0) & 0xf;
 		if (pa != 0xffff)
-			vsdb_phy_addr->valid = 1;
+			prxcap->vsdb_phy_addr.valid = 1;
 	}
 }
 
@@ -115,7 +190,7 @@ static bool hdmitx_edid_header_invalid(u8 edid_check, const u8 *buf)
 }
 
 /* return the blocks of extension CTA */
-unsigned char hdmitx_edid_get_cta_block_count(const u8 *edid_buf)
+static unsigned char hdmitx_edid_get_cta_block_count(const u8 *edid_buf)
 {
 	unsigned char cta_block_count = 0;
 
@@ -1768,29 +1843,21 @@ static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 	}
 }
 
-int hdmitx_edid_audio_block_parse(struct rx_cap *prxcap, u8 *block_buf)
+static int hdmitx_edid_audio_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 {
 	u8 offset, end;
 	u8 count;
 	u8 tag;
 	int i, tmp, idx;
-	u32 aud_flag = 0;
 
 	if (!prxcap || !block_buf)
 		return -1;
 
-	/* CTA Block */
-	block_buf += 0x80;
 	/* CEA description */
 	end = block_buf[2];
 	/* Initialize SVD_VIC used for SVD storage in the video data block */
 	if (end > 127)
 		return 0;
-
-	if (block_buf[1] <= 2) {
-		/* skip below for loop */
-		goto next;
-	}
 
 	/* this loop should be parsing when revision number is larger than 2 */
 	for (offset = 4 ; offset < end ; ) {
@@ -1798,7 +1865,6 @@ int hdmitx_edid_audio_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 		count = block_buf[offset] & 0x1f;
 		switch (tag) {
 		case HDMI_EDID_BLOCK_TYPE_AUDIO:
-			aud_flag = 1;
 			tmp = count / 3;
 			idx = prxcap->AUD_count;
 			prxcap->AUD_count += tmp;
@@ -1821,15 +1887,32 @@ int hdmitx_edid_audio_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 			break;
 		}
 	}
-next:
-	if (aud_flag == 0)
-		hdmitx_edid_set_default_aud(prxcap);
 
-	/* dtds in extended blocks */
-	i = 0;
-	offset = block_buf[2] + i * 18;
-	for ( ; (offset + 18) < 0x7f; i++)
-		offset += 18;
+	return 0;
+}
+
+int hdmitx_audio_parse(struct rx_cap *prxcap, u8 *block_buf)
+{
+	int i;
+	unsigned char cta_block_count;
+	unsigned char edid_check = 0;
+
+	edid_check = prxcap->edid_check;
+	if (hdmitx_edid_check_data_valid(edid_check, block_buf) == false)
+		return 0;
+
+	cta_block_count = hdmitx_edid_get_cta_block_count(block_buf);
+	for (i = 1; i <= cta_block_count; i++) {
+		if (block_buf[i * 0x80] == 0x02 || edid_check & 0x01)
+			hdmitx_edid_audio_block_parse(prxcap, &block_buf[i * 0x80]);
+	}
+	/*
+	 * CEA-861F 7.5.2  If only Basic Audio is supported,
+	 * no Short Audio Descriptors are necessary.
+	 */
+	if (!prxcap->AUD_count)
+		hdmitx_edid_set_default_aud(prxcap);
+	edid_check_pcm_declare(prxcap);
 
 	return 0;
 }
@@ -2647,7 +2730,6 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 			hdmitx_edid_cta_block_parse(prxcap, &edid_buf[i * 0x80]);
 	}
 
-	edid_check_pcm_declare(prxcap);
 	/*
 	 * move parts that may contain cea timing parse behind
 	 * VDB parse, so that to not affect VDB index which
@@ -2726,15 +2808,6 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	if (edid_zero_data(edid_buf))
 		prxcap->ieeeoui = HDMI_IEEE_OUI;
 
-	if (!prxcap->AUD_count && !prxcap->ieeeoui)
-		hdmitx_edid_set_default_aud(prxcap);
-	/*
-	 * CEA-861F 7.5.2  If only Basic Audio is supported,
-	 * no Short Audio Descriptors are necessary.
-	 */
-	if (!prxcap->AUD_count)
-		hdmitx_edid_set_default_aud(prxcap);
-
 	update_edid_chksum(prxcap, edid_buf);
 
 	if (!hdmitx_edid_valid_block_num(&edid_buf[0])) {
@@ -2794,7 +2867,6 @@ void hdmitx_edid_rxcap_clear(struct rx_cap *prxcap)
 	prxcap->ieeeoui = HDMI_IEEE_OUI;
 
 	prxcap->edid_parsing = 0;
-	hdmitx_edid_set_default_aud(prxcap);
 	rx_set_hdr_lumi(&tmp[0], 2);
 	/* rx_set_receiver_edid(&tmp[0], 2); */
 }

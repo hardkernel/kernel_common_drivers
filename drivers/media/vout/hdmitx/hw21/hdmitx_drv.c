@@ -1297,10 +1297,6 @@ static void hdmitx_bootup_process_plugin(struct hdmitx_dev *hdev, bool set_audio
 static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
 {
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-	int i;
-	unsigned char cta_block_count;
-	unsigned char *edid_buf = tx_comm->EDID_buf;
-	unsigned char edid_check = 0;
 	unsigned long flags = 0;
 
 	/* step1: SW: EDID read */
@@ -1327,13 +1323,8 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
 		hdmitx_common_notify_ced_status(tx_comm);
 	}
 
-	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap.vsdb_phy_addr, tx_comm->EDID_buf);
-	edid_check = tx_comm->rxcap.edid_check;
-	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);
-	for (i = 1; i <= cta_block_count; i++) {
-		if (edid_buf[i * 0x80] == 0x02 || edid_check & 0x01)
-			hdmitx_edid_audio_block_parse(&tx_comm->rxcap, edid_buf);
-	}
+	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+	hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 
 	/* step3: SW: notify client modules and update uevent state */
