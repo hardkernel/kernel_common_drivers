@@ -1056,7 +1056,7 @@ void get_slice_out_hsize_debug(int *debug, int *slice0_hsize,
 			       int *slice1_hsize, int *slice_w_max);
 void set_slice_out_hsize_debug(int debug, int slice0_hsize,
 			       int slice1_hsize, int slice_w_max);
-void video_resume_hw_recovery(void);
+void video_resume_hw_recovery(bool restore_vpu_sec);
 void vd2_postblend_update(const struct vinfo_s *vinfo, u8 vpp_index);
 
 /* from video.c */
