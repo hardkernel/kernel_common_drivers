@@ -780,8 +780,8 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 		pdm_dclkidx2rate(dclk_idx),
 		osr,
 		runtime->rate,
-		p_pdm->lpf_filter_mode,
-		p_pdm->hpf_filter_mode);
+		lpf_filter_mode,
+		hpf_filter_mode);
 
 	info.bitdepth   = bitwidth;
 	info.channels   = runtime->channels;
