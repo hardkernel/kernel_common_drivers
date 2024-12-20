@@ -629,7 +629,7 @@ static void datatin_pdm_cfg(struct snd_pcm_runtime *runtime,
 	int pdm_id = 0;
 	struct pdm_info info;
 	struct aml_pdm *pdm = (struct aml_pdm *)p_loopback->mic_src;
-	int gain_index = 0;
+	int gain_index = 0, lpf_filter_mode = 4, hpf_filter_mode = 6;
 
 	if (pdm)
 		gain_index = pdm->pdm_gain_index;
@@ -647,12 +647,13 @@ static void datatin_pdm_cfg(struct snd_pcm_runtime *runtime,
 	info.sample_count = pdm_get_sample_count(0, p_loopback->dclk_idx);
 
 	if (pdm) {
-		aml_pdm_ctrl(&info, pdm_id);
-		/* filter for pdm */
-		osr = pdm_get_ors(p_loopback->dclk_idx, runtime->rate);
-		aml_pdm_filter_ctrl(gain_index, osr, pdm->lpf_filter_mode,
-				pdm->hpf_filter_mode, pdm_id);
+		lpf_filter_mode = pdm->lpf_filter_mode;
+		hpf_filter_mode = pdm->hpf_filter_mode;
 	}
+	aml_pdm_ctrl(&info, pdm_id);
+	/* filter for pdm */
+	osr = pdm_get_ors(p_loopback->dclk_idx, runtime->rate);
+	aml_pdm_filter_ctrl(gain_index, osr, lpf_filter_mode, hpf_filter_mode, pdm_id);
 }
 
 static int loopback_dai_prepare(struct snd_pcm_substream *ss,

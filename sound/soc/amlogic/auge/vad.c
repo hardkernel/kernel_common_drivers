@@ -869,15 +869,17 @@ void vad_enable(bool enable)
 		int len_ram = ARRAY_SIZE(vad_ram_coeff);
 		struct aml_pdm *pdm = (struct aml_pdm *)p_vad->mic_src;
 		int gain_index = 0;
-		int osr = 0;
+		int osr = 0, lpf_filter_mode = 4, hpf_filter_mode = 6;
 
 		if (pdm) {
 			gain_index = pdm->pdm_gain_index;
-			osr = pdm_get_ors(0, p_vad->wakeup_sample_rate);
-			/*only used pdm 0*/
-			aml_pdm_filter_ctrl(gain_index, osr, pdm->lpf_filter_mode,
-					pdm->hpf_filter_mode, 0);
+			lpf_filter_mode = pdm->lpf_filter_mode;
+			hpf_filter_mode = pdm->hpf_filter_mode;
 		}
+
+		osr = pdm_get_ors(0, p_vad->wakeup_sample_rate);
+		/*only used pdm 0*/
+		aml_pdm_filter_ctrl(gain_index, osr, lpf_filter_mode, hpf_filter_mode, 0);
 		p_vad->tddr->fmt.rate = p_vad->wakeup_sample_rate;
 		pr_info("%s, gain_index = %d, osr = %d, vad_sample_rate = %d\n",
 			__func__, gain_index, osr, p_vad->tddr->fmt.rate);
