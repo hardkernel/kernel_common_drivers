@@ -35,7 +35,6 @@
 #endif
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
-#include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "arch/vpp_s7d_sr_regs.h"
@@ -2530,7 +2529,7 @@ int vpp_set_lut3d(int bfromkey,
 	int blut3dcheck)
 {
 #ifdef CONFIG_AMLOGIC_LCD
-	int i, key_len, key_count, ret, offset = 0;
+	int i, key_len, key_count, offset = 0;
 #else
 	int i, key_len, key_count, offset = 0;
 #endif
@@ -2578,21 +2577,21 @@ int vpp_set_lut3d(int bfromkey,
 
 		if (bfromkey == 1) {
 #ifdef CONFIG_AMLOGIC_LCD
-			ret = lcd_unifykey_get_size("lcd_3dlut", &key_len);
-			if (ret < 0) {
+			//ret = -1; //lcd_unifykey_get_size("lcd_3dlut", &key_len);
+			//if (ret < 0) {
 				kfree(pkeylutall);
 				kfree(pkeylut);
 				return 1;
-			}
-			ret =
-			lcd_unifykey_get_no_header("lcd_3dlut",
-				(unsigned char *)pkeylutall,
-				&key_len);
-			if (ret < 0) {
-				kfree(pkeylutall);
-				kfree(pkeylut);
-				return 1;
-			}
+			//}
+			//ret = -1;
+			//lcd_unifykey_get_no_header("lcd_3dlut",
+			//	(unsigned char *)pkeylutall,
+			//	key_len);
+			//if (ret < 0) {
+			//	kfree(pkeylutall);
+			//	kfree(pkeylut);
+			//	return 1;
+			//}
 #endif
 		} else if (bfromkey == 2) {
 			#ifdef CONFIG_SET_FS

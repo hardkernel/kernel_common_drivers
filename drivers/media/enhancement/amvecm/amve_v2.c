@@ -19,7 +19,6 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
-#include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/utils/amstream.h>
 #include "arch/vpp_regs_v2.h"
 #include "amve_v2.h"

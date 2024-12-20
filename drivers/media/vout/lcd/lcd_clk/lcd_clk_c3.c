@@ -50,11 +50,11 @@ set_pll_retry_c3:
 	lcd_ana_write(ANACTRL_GP0PLL_CTRL5, 0x3927200a);
 	lcd_ana_setb(ANACTRL_GP0PLL_CTRL0, 3, 28, 2);
 	lcd_ana_setb(ANACTRL_GP0PLL_CTRL0, 0, 29, 1);
-	udelay(20);
+	lcd_delay_us(20);
 	lcd_ana_write(ANACTRL_GP0PLL_CTRL2, 0x00023001);
-	udelay(20);
+	lcd_delay_us(20);
 
-	ret = lcd_pll_wait_lock(ANACTRL_GP0PLL_STS, 31);
+	ret = lcd_pll_wait_lock(cconf->pll_id, ANACTRL_GP0PLL_STS, 31);
 	if (ret) {
 		if (cnt++ < PLL_RETRY_MAX)
 			goto set_pll_retry_c3;
@@ -124,7 +124,7 @@ static void lcd_pll_frac_generate_c3(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	enc_clk = pconf->timing.lcd_clk;
+	enc_clk = pconf->timing.enc_clk;
 	od = od_table[cconf->pll_od1_sel];
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2) {
 		LCDPR("m=%d, n=%d, od=%d, xd=%d\n",
@@ -168,105 +168,6 @@ static void lcd_pll_frac_generate_c3(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-static void lcd_clk_generate_c3(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_clk_config_s *cconf;
-	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned long long pll_fout, bit_rate, bit_rate_max = 0, bit_rate_min = 0, tmp;
-	unsigned int xd, phy_div;
-	int done = 0;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
-	cconf->fout = pconf->timing.lcd_clk;
-	cconf->err_fmin = MAX_ERROR;
-
-	if (cconf->fout > cconf->data->xd_out_fmax) {
-		LCDERR("%s: wrong lcd_clk value %dHz\n", __func__, cconf->fout);
-		goto generate_clk_done_c3;
-	}
-
-	switch (pconf->basic.lcd_type) {
-	case LCD_MIPI:
-		cconf->xd_max = CRT_VID_DIV_MAX_C3;
-		bit_rate_max = pconf->control.mipi_cfg.local_bit_rate_max;
-		bit_rate_min = pconf->control.mipi_cfg.local_bit_rate_min;
-		tmp = bit_rate_max - cconf->fout;
-		if (tmp >= bit_rate_min)
-			bit_rate_min = tmp;
-		if (lcd_debug_print_flag & LCD_DBG_PR_ADV2) {
-			LCDPR("fout=%d, dsi_bit_rate max=%lld, min=%lld, xd_max=%d\n",
-				 cconf->fout, bit_rate_max,
-				 bit_rate_min, cconf->xd_max);
-		}
-
-		for (xd = 1; xd <= cconf->xd_max; xd++) {
-			done = 0;
-			pll_fout = cconf->fout;
-			pll_fout *= xd;
-			if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-				LCDPR("pll_fout=%lld, xd=%d\n", pll_fout, xd);
-			for (phy_div = 1; phy_div <= PHY_CLK_DIV_MAX_C3; phy_div++) {
-				bit_rate = lcd_do_div(pll_fout, phy_div);
-				if (bit_rate <= bit_rate_max &&
-				    bit_rate >= bit_rate_min) {
-					done = 1;
-					break;
-				}
-			}
-			if (done == 0)
-				continue;
-			if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-				LCDPR("bit_rate=%lld, phy_div=%d\n", bit_rate, phy_div);
-
-			cconf->phy_clk = bit_rate;
-			pconf->timing.bit_rate = cconf->phy_clk;
-			pconf->control.mipi_cfg.clk_factor = xd / phy_div;
-			cconf->xd = xd;
-			cconf->phy_div = phy_div;
-			done = check_pll_1od(cconf, pll_fout);
-			if (done)
-				goto generate_clk_done_c3;
-		}
-		break;
-	default:
-		cconf->xd_max = CRT_VID_DIV_MAX_C3;
-		for (xd = 1; xd <= cconf->xd_max; xd++) {
-			done = 0;
-			pll_fout = cconf->fout;
-			pll_fout *= xd;
-			if (lcd_debug_print_flag & LCD_DBG_PR_ADV2) {
-				LCDPR("fout=%d, pll_fout=%lld, xd=%d\n",
-					cconf->fout, pll_fout, xd);
-			}
-			cconf->xd = xd;
-			done = check_pll_1od(cconf, pll_fout);
-			if (done)
-				goto generate_clk_done_c3;
-		}
-		break;
-	}
-
-generate_clk_done_c3:
-	if (done) {
-		pconf->timing.pll_ctrl =
-			(cconf->pll_od1_sel << PLL_CTRL_OD1) |
-			(cconf->pll_n << PLL_CTRL_N) |
-			(cconf->pll_m << PLL_CTRL_M);
-		pconf->timing.div_ctrl =
-			(CLK_DIV_SEL_1 << DIV_CTRL_DIV_SEL) |
-			(cconf->xd << DIV_CTRL_XD);
-		pconf->timing.clk_ctrl =
-			(cconf->pll_frac << CLK_CTRL_FRAC);
-		cconf->done = 1;
-	} else {
-		cconf->done = 0;
-		LCDERR("Out of clock range\n");
-	}
-}
-
 static int lcd_clk_config_print_c3(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	struct lcd_clk_config_s *cconf;
@@ -294,6 +195,47 @@ static int lcd_clk_config_print_c3(struct aml_lcd_drv_s *pdrv, char *buf, int of
 		cconf->pll_frac, cconf->pll_fvco,
 		cconf->pll_od1_sel, cconf->pll_fout,
 		cconf->xd, cconf->phy_div, cconf->fout);
+
+	return len;
+}
+
+static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i = 0, n, len = 0;
+	unsigned int *table = NULL, size = 0;
+	unsigned int pll_reg_table[] = {
+		ANACTRL_GP0PLL_CTRL0,
+		ANACTRL_GP0PLL_CTRL1,
+		ANACTRL_GP0PLL_CTRL2,
+		ANACTRL_GP0PLL_CTRL3,
+		ANACTRL_GP0PLL_CTRL4,
+		ANACTRL_GP0PLL_CTRL5,
+		ANACTRL_GP0PLL_CTRL6,
+		ANACTRL_GP0PLL_STS
+	};
+	unsigned int clk_reg_table[] = {
+		CLKCTRL_VOUTENC_CLK_CTRL,
+		CLKCTRL_MIPIDSI_PHY_CLK_CTRL
+	};
+
+	if (!pdrv)
+		return 0;
+
+	table = pll_reg_table;
+	size = ARRAY_SIZE(pll_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "pll [0x%02x] = 0x%08x\n",
+			table[i], lcd_ana_read(table[i]));
+	}
+
+	table = clk_reg_table;
+	size = ARRAY_SIZE(clk_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "clk [0x%02x] = 0x%08x\n",
+			table[i], lcd_clk_read(table[i]));
+	}
 
 	return len;
 }
@@ -326,13 +268,19 @@ static struct lcd_clk_data_s lcd_clk_data_c3 = {
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 
+	.div_sel_max = 0,
+	.xd_max = 128,
+	.phy_div_max = 128,
+
 	.ss_support = 0,
 
+	.clktree_set = NULL,
+	.clktree_index = {0, 0, 0, 0, 0, 0},
+
 	.clk_parameter_init = NULL,
-	.clk_generate_parameter = lcd_clk_generate_c3,
+	.clk_generate_parameter = lcd_clk_generate_dft,
 	.pll_frac_generate = lcd_pll_frac_generate_c3,
-	.set_ss_level = NULL,
-	.set_ss_advance = NULL,
+	.set_ss = NULL,
 	.clk_ss_enable = NULL,
 	.clk_ss_init = NULL,
 	.pll_frac_set = NULL,
@@ -341,13 +289,11 @@ static struct lcd_clk_data_s lcd_clk_data_c3 = {
 	.clk_set = lcd_clk_set,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
-	.clk_gate_switch = NULL,
-	.clk_gate_optional_switch = NULL,
-	.clktree_set = NULL,
-	.clktree_probe = NULL,
-	.clktree_remove = NULL,
+	.mlvds_clk_phase_set = NULL,
+	.clk_set_dummy = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_c3,
+	.clk_reg_print = lcd_clk_reg_dump,
 	.prbs_test = NULL,
 };
 

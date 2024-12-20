@@ -941,7 +941,7 @@ static int spicc_dma_trig_start(struct spicc_device *spicc)
 		       spicc->trig_reg);
 
 	spicc->dirspi_status = DIRSPI_STA_RUNNING;
-	dev_info(dev, "start trig in ready state success\n");
+	dev_dbg(dev, "start trig in ready state success\n");
 
 	return 0;
 }
@@ -980,7 +980,7 @@ static int spicc_dma_trig_stop(struct spicc_device *spicc)
 
 	spicc_sem_up_write(spicc);
 	spicc->dirspi_status = DIRSPI_STA_READY;
-	dev_info(dev, "stop trig in running state success\n");
+	dev_dbg(dev, "stop trig in running state success\n");
 
 	return 0;
 }
@@ -998,7 +998,7 @@ static int spicc_dma_trig_release(struct spicc_device *spicc)
 		spicc_dma_trig_stop(spicc);
 
 	spicc->dirspi_status = DIRSPI_STA_IDLE;
-	dev_info(dev, "release trig success\n");
+	dev_dbg(dev, "release trig success\n");
 
 	return 0;
 }
@@ -1078,7 +1078,7 @@ static int dirspi_dma_trig(struct spi_device *spi,
 
 	spicc_sem_up_write(spicc);
 	spicc->dirspi_status = DIRSPI_STA_READY;
-	dev_info(dev, "init trig success\n");
+	dev_dbg(dev, "init trig success\n");
 
 	return 0;
 }

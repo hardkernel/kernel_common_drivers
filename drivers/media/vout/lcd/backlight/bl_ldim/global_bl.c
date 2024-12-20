@@ -111,8 +111,7 @@ static int global_power_off(struct aml_ldim_driver_s *ldim_drv)
 }
 
 static ssize_t global_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+						const struct class_attribute *attr, char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;

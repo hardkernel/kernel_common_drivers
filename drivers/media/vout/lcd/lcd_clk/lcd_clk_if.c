@@ -90,14 +90,56 @@ void lcd_clk_frac_generate(struct aml_lcd_drv_s *pdrv)
 	case LCD_MIPI:
 		lcd_mipi_dsi_bit_rate_config(pdrv);
 		break;
-	case LCD_EDP:
-		lcd_edp_bit_rate_config(pdrv);
-		break;
 	default:
 		break;
 	}
 	if (cconf->data->pll_frac_generate)
 		cconf->data->pll_frac_generate(pdrv);
+}
+
+static void lcd_bit_rate_match_phy(struct aml_lcd_drv_s *pdrv)
+{
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_attr_s *phy;
+	int i = 0;
+	unsigned int phy_clk;
+
+	phy_cfg->act_phy = phy_cfg->phys[0];// if not matched, use default
+	phy_clk = lcd_do_div(pdrv->config.timing.bit_rate, 1000000);
+	for (i = 0; i < phy_cfg->group_num; i++) {
+		phy = phy_cfg->phys[i];
+		if (phy->phy_clk < phy_clk - 20 || phy->phy_clk > phy_clk + 20)
+			continue;
+
+		phy_cfg->act_phy = phy_cfg->phys[i];
+		LCDPR("%s act_phy[%d], clk:%d\n", __func__, i, phy_cfg->act_phy->phy_clk);
+		return;
+	}
+	if (phy_cfg->phys[0]->phy_clk)
+		LCDPR("no phy_clk matched, use default(phy[0])\n");
+}
+
+static void lcd_phy_match_ss(struct aml_lcd_drv_s *pdrv)
+{
+	struct phy_attr_s *phy;
+	struct lcd_timing_s *tim = &pdrv->config.timing;
+
+	phy = pdrv->config.phy_cfg.act_phy;
+	if (!phy)
+		return;
+
+	if (tim->act_timing.ss_force) {
+		tim->ss_freq = tim->act_timing.ss_freq;
+		tim->ss_level = tim->act_timing.ss_level;
+		tim->ss_mode = tim->act_timing.ss_mode;
+	} else {
+		tim->ss_freq = phy->ss.freq;
+		tim->ss_level = phy->ss.level;
+		tim->ss_mode = phy->ss.mode;
+	}
+
+	LCDPR("[%d]:match ss_level=%d, ss_freq=%d, ss_mode=%d\n",
+		pdrv->index, tim->ss_level, tim->ss_freq, tim->ss_mode);
 }
 
 void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
@@ -122,18 +164,22 @@ void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 	case LCD_MIPI:
 		lcd_mipi_dsi_bit_rate_config(pdrv);
 		break;
-	case LCD_EDP:
-		lcd_edp_bit_rate_config(pdrv);
-		break;
 	default:
 		break;
 	}
+
 	if (cconf->data->clk_generate_parameter)
 		cconf->data->clk_generate_parameter(pdrv);
+	lcd_bit_rate_match_phy(pdrv);
+	lcd_phy_match_ss(pdrv);
+	lcd_clk_ss_param_init(pdrv);
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 }
 
 int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,
-	unsigned int *level, unsigned int *freq, unsigned int *mode)
+	unsigned int *level, unsigned int *ppm, unsigned int *freq, unsigned int *mode)
 {
 	struct lcd_clk_config_s *cconf;
 
@@ -146,6 +192,8 @@ int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,
 	if (cconf->data->ss_support == 0) {
 		if (level)
 			*level = 0;
+		if (ppm)
+			*ppm = 0;
 		if (freq)
 			*freq = 0;
 		if (mode)
@@ -153,13 +201,19 @@ int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,
 	} else {
 		if (level)
 			*level = cconf->ss_level;
+		if (ppm) {
+			if (cconf->ss_level)
+				*ppm = cconf->ss_ppm;
+			else
+				*ppm = 0;
+		}
 		if (freq)
 			*freq = cconf->ss_freq;
 		if (mode)
 			*mode = cconf->ss_mode;
 	}
 
-	return 0;
+	return cconf->ss_en;
 }
 
 int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
@@ -177,9 +231,13 @@ int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
 		return len;
 	}
 
-	len += sprintf(buf + len, "ss_level: %d, %dppm, dep_sel=%d, str_m=%d\n",
-		cconf->ss_level, cconf->ss_ppm,
-		cconf->ss_dep_sel, cconf->ss_str_m);
+	if (cconf->ss_level) {
+		len += sprintf(buf + len, "ss_level: %d, %dppm, dep_sel=%d, str_m=%d\n",
+			cconf->ss_level, cconf->ss_ppm,
+			cconf->ss_dep_sel, cconf->ss_str_m);
+	} else {
+		len += sprintf(buf + len, "ss_level: %d, disabled\n", cconf->ss_level);
+	}
 	len += sprintf(buf + len, "ss_freq: %s\n",
 		lcd_ss_freq_table_dft[cconf->ss_freq]);
 	len += sprintf(buf + len, "ss_mode: %s\n",
@@ -190,7 +248,8 @@ int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
 int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq, unsigned int mode)
 {
 	struct lcd_clk_config_s *cconf;
-	int ss_adv = 0, ret = 0;
+	unsigned int ss_flag = 0;
+	int ret = 0;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf || !cconf->data)
@@ -210,8 +269,7 @@ int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq
 			goto lcd_set_ss_end;
 		}
 		cconf->ss_level = level;
-		if (cconf->data->set_ss_level)
-			cconf->data->set_ss_level(pdrv);
+		ss_flag |= LCD_SSC_LEVEL;
 	}
 	if (freq < 0xff) {
 		if (freq > cconf->data->ss_freq_max) {
@@ -221,7 +279,7 @@ int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq
 			goto lcd_set_ss_end;
 		}
 		cconf->ss_freq = freq;
-		ss_adv = 1;
+		ss_flag |= LCD_SSC_FREQ;
 	}
 	if (mode < 0xff) {
 		if (mode > cconf->data->ss_mode_max) {
@@ -231,12 +289,11 @@ int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq
 			goto lcd_set_ss_end;
 		}
 		cconf->ss_mode = mode;
-		ss_adv = 1;
+		ss_flag |= LCD_SSC_MODE;
 	}
-	if (ss_adv == 0)
-		goto lcd_set_ss_end;
-	if (cconf->data->set_ss_advance)
-		cconf->data->set_ss_advance(pdrv);
+
+	if (cconf->data->set_ss && ss_flag)
+		cconf->data->set_ss(pdrv, ss_flag);
 
 lcd_set_ss_end:
 	mutex_unlock(&lcd_clk_mutex);
@@ -304,6 +361,31 @@ void lcd_clk_pll_reset(struct aml_lcd_drv_s *pdrv)
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 }
 
+unsigned long long lcd_pll_freq_get(int index)
+{
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(index);
+	struct lcd_clk_config_s *cconf;
+	long long m, f, hz;
+	int sign = 1;
+
+	if (!pdrv)
+		return 0;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return 0;
+
+#define PLL_FRAC_CONST_LEN 17
+	m = cconf->pll_m;
+	f = cconf->pll_frac & ((1 << (PLL_FRAC_CONST_LEN + 1)) - 1);
+	sign = (f & (1 << cconf->data->pll_frac_sign_bit)) ? -1 : 1;
+	f *= sign;
+	hz = 24000000 * ((m << PLL_FRAC_CONST_LEN) + f) >> PLL_FRAC_CONST_LEN;
+#undef PLL_FRAC_CONST_LEN
+
+	return (unsigned long long)hz;
+}
+
 //can't mutex_lock for atomic context
 void lcd_vlock_m_update(int index, unsigned int vlock_m)
 {
@@ -318,6 +400,11 @@ void lcd_vlock_m_update(int index, unsigned int vlock_m)
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf || !cconf->data)
 		return;
+
+	if (pdrv->config.timing.clk_mode == LCD_CLK_MODE_INDEPENDENCE) {
+		LCDERR("%s: clk_mode independence, can't adjust single pll m\n", __func__);
+		return;
+	}
 
 	vlock_m &= 0xff;
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
@@ -347,7 +434,7 @@ void lcd_vlock_frac_update(int index, unsigned int vlock_frac)
 		return;
 	}
 
-	vlock_frac &= 0x1ffff;
+	vlock_frac &= 0x7ffff;
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
 		LCDPR("[%d]: %s, vlock_frac: 0x%x\n", index, __func__, vlock_frac);
 
@@ -358,30 +445,22 @@ void lcd_vlock_frac_update(int index, unsigned int vlock_frac)
 /* for frame rate change */
 void lcd_update_clk_frac(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_clk_config_s *cconf, *phyconf, *pixconf;
+	struct lcd_clk_config_s *cconf;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf || !cconf->data)
-		return; // goto lcd_clk_update_end;
+		return;
 
 	mutex_lock(&lcd_clk_mutex);
-
-	if (pdrv->config.timing.clk_mode == LCD_CLK_MODE_INDEPENDENCE) {
-		phyconf = &cconf[0];
-		pixconf = &cconf[1];
-		if (phyconf->data->pll_frac_set)
-			phyconf->data->pll_frac_set(pdrv, phyconf->pll_frac);
-		if (pixconf->data->pll_frac_set)
-			pixconf->data->pll_frac_set(pdrv, pixconf->pll_frac);
-		LCDPR("[%d]: %s: phy pll_frac=0x%x, pix pll_frac=0x%x\n",
-			pdrv->index, __func__, phyconf->pll_frac, pixconf->pll_frac);
-	} else {
-		if (cconf->data->pll_frac_set)
-			cconf->data->pll_frac_set(pdrv, cconf->pll_frac);
-		LCDPR("[%d]: %s: pll_frac=0x%x\n", pdrv->index, __func__, cconf->pll_frac);
-	}
-
+	if (cconf->data->pll_frac_set)
+		cconf->data->pll_frac_set(pdrv, cconf->pll_frac);
+	pdrv->config.timing.clk_change = 0; /* clear clk_change flag */
 	mutex_unlock(&lcd_clk_mutex);
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: clk_change=0x%x\n",
+			pdrv->index, __func__, pdrv->config.timing.clk_change);
+	}
 }
 
 /* for timing init */
@@ -418,10 +497,13 @@ lcd_set_clk_retry:
 
 	if (cconf->data->clktree_set)
 		cconf->data->clktree_set(pdrv);
+	pdrv->config.timing.clk_change = 0; /* clear clk_change flag */
 	mutex_unlock(&lcd_clk_mutex);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: clk_change=0x%x\n",
+			pdrv->index, __func__, pdrv->config.timing.clk_change);
+	}
 }
 
 void lcd_disable_clk(struct aml_lcd_drv_s *pdrv)
@@ -440,32 +522,97 @@ void lcd_disable_clk(struct aml_lcd_drv_s *pdrv)
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 }
 
-static void lcd_clk_gate_optional_switch(struct aml_lcd_drv_s *pdrv, int status)
+void lcd_clk_change(struct aml_lcd_drv_s *pdrv)
+{
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: clk_change:0x%x\n",
+			pdrv->index, __func__, pdrv->config.timing.clk_change);
+	}
+
+	if ((pdrv->config.timing.clk_change & LCD_CLK_PLL_CHANGE) ||
+	    (pdrv->config.timing.clk_change & LCD_CLK_PLL_RESET)) {
+#ifdef CONFIG_AMLOGIC_VPU
+		if (vpu_support_overclk() && pdrv->vmode_switch) {
+			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
+			lcd_venc_enable(pdrv, 0);
+			msleep(30);
+			vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
+			msleep(30);
+			lcd_venc_enable(pdrv, 1);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
+		}
+#endif
+		lcd_set_clk(pdrv);
+	} else if (pdrv->config.timing.clk_change & LCD_CLK_FRAC_UPDATE) {
+		lcd_update_clk_frac(pdrv);
+	}
+}
+
+int lcd_clk_set_dummy(struct aml_lcd_drv_s *pdrv, int status)
 {
 	struct lcd_clk_config_s *cconf;
 
 	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf || !cconf->data)
-		return;
-
-	if (!cconf->data->clk_gate_optional_switch)
-		return;
+	if (!cconf || !cconf->data || !cconf->data->clk_set_dummy)
+		return -1;
 
 	if (status) {
-		if (cconf->clktree.clk_gate_optional_state) {
-			LCDPR("[%d]: clk_gate_optional is already on\n",
-			      pdrv->index);
-		} else {
-			cconf->data->clk_gate_optional_switch(pdrv, 1);
+#ifdef CONFIG_AMLOGIC_VPU
+		if (vpu_support_overclk()) {
+			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
+			lcd_venc_enable(pdrv, 0);
+			msleep(30);
+			vpu_dev_clk_request(pdrv->lcd_vpu_dev, 25000000);
+			msleep(30);
+			lcd_venc_enable(pdrv, 1);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
 		}
+#endif
+		mutex_lock(&lcd_clk_mutex);
+		cconf->data->clk_set_dummy(pdrv);
+		mutex_unlock(&lcd_clk_mutex);
 	} else {
-		if (cconf->clktree.clk_gate_optional_state == 0) {
-			LCDPR("[%d]: clk_gate_optional is already off\n",
-			      pdrv->index);
-		} else {
-			cconf->data->clk_gate_optional_switch(pdrv, 0);
+#ifdef CONFIG_AMLOGIC_VPU
+		if (vpu_support_overclk()) {
+			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
+			lcd_venc_enable(pdrv, 0);
+			msleep(30);
+			vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
+			msleep(30);
+			lcd_venc_enable(pdrv, 1);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
 		}
+#endif
+		lcd_set_clk(pdrv);
 	}
+	LCDPR("[%d]: %s status: %d\n", pdrv->index, __func__, status);
+	return 0;
+}
+
+int lcd_mlvds_clk_phase_set(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf;
+	int ret = -1;
+
+	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
+		return -1;
+	if (pdrv->config.basic.lcd_type != LCD_MLVDS)
+		return -1;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf || !cconf->data)
+		return -1;
+
+	mutex_lock(&lcd_clk_mutex);
+	if (cconf->data->mlvds_clk_phase_set)
+		ret = cconf->data->mlvds_clk_phase_set(pdrv);
+	mutex_unlock(&lcd_clk_mutex);
+
+	LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	return ret;
 }
 
 void lcd_clk_gate_switch(struct aml_lcd_drv_s *pdrv, int status)
@@ -476,31 +623,24 @@ void lcd_clk_gate_switch(struct aml_lcd_drv_s *pdrv, int status)
 	if (!cconf || !cconf->data)
 		return;
 
-	if (status) {
-		if (cconf->clktree.clk_gate_state) {
-			LCDPR("[%d]: clk_gate is already on\n", pdrv->index);
-		} else {
-#ifdef CONFIG_AMLOGIC_VPU
-			vpu_dev_clk_gate_on(pdrv->lcd_vpu_dev);
-#endif
-			if (cconf->data->clk_gate_switch)
-				cconf->data->clk_gate_switch(pdrv, 1);
-			cconf->clktree.clk_gate_state = 1;
-		}
-		lcd_clk_gate_optional_switch(pdrv, 1);
-	} else {
-		lcd_clk_gate_optional_switch(pdrv, 0);
-		if (cconf->clktree.clk_gate_state == 0) {
-			LCDPR("[%d]: clk_gate is already off\n",  pdrv->index);
-		} else {
-			if (cconf->data->clk_gate_switch)
-				cconf->data->clk_gate_switch(pdrv, 0);
-#ifdef CONFIG_AMLOGIC_VPU
-			vpu_dev_clk_gate_off(pdrv->lcd_vpu_dev);
-#endif
-			cconf->clktree.clk_gate_state = 0;
-		}
+	if (cconf->clktree.clk_gate_state == status) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: gate is already %s\n", pdrv->index, status ? "on" : "off");
+		return;
 	}
+
+	if (status) {
+#ifdef CONFIG_AMLOGIC_VPU
+		vpu_dev_clk_gate_on(pdrv->lcd_vpu_dev);
+#endif
+		lcd_clktree_gate_switch(pdrv, 1);
+	} else {
+		lcd_clktree_gate_switch(pdrv, 0);
+#ifdef CONFIG_AMLOGIC_VPU
+		vpu_dev_clk_gate_off(pdrv->lcd_vpu_dev);
+#endif
+	}
+	cconf->clktree.clk_gate_state = status;
 }
 
 int lcd_clk_clkmsr_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
@@ -521,16 +661,14 @@ int lcd_clk_clkmsr_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		goto lcd_clk_clkmsr_print_step_1;
 	clk = meson_clk_measure(cconf->data->enc_clk_msr_id);
 	n = lcd_debug_info_len(len + offset);
-	len += snprintf((buf + len), n,
-		"encl_clk:    %u\n", clk);
+	len += snprintf((buf + len), n, "encl_clk:    %u\n", clk);
 
 lcd_clk_clkmsr_print_step_1:
 	if (cconf->data->fifo_clk_msr_id == -1)
 		goto lcd_clk_clkmsr_print_step_2;
 	clk = meson_clk_measure(cconf->data->fifo_clk_msr_id);
 	n = lcd_debug_info_len(len + offset);
-	len += snprintf((buf + len), n,
-		"fifo_clk:    %u\n", clk);
+	len += snprintf((buf + len), n, "fifo_clk:    %u\n", clk);
 
 lcd_clk_clkmsr_print_step_2:
 	switch (pdrv->config.basic.lcd_type) {
@@ -540,8 +678,7 @@ lcd_clk_clkmsr_print_step_2:
 			break;
 		clk = meson_clk_measure(cconf->data->tcon_clk_msr_id);
 		n = lcd_debug_info_len(len + offset);
-		len += snprintf((buf + len), n,
-			"tcon_clk:    %u\n", clk);
+		len += snprintf((buf + len), n, "tcon_clk:    %u\n", clk);
 		break;
 	default:
 		break;
@@ -565,6 +702,25 @@ int lcd_clk_config_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 
 	if (cconf->data->clk_config_print)
 		len = cconf->data->clk_config_print(pdrv, buf, offset);
+
+	return len;
+}
+
+int lcd_clk_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	struct lcd_clk_config_s *cconf;
+	int n, len = 0;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf || !cconf->data) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "[%d]: %s: clk config is null\n",
+				pdrv->index, __func__);
+		return len;
+	}
+
+	if (cconf->data->clk_reg_print)
+		len = cconf->data->clk_reg_print(pdrv, buf, offset);
 
 	return len;
 }
@@ -600,16 +756,13 @@ int lcd_clk_path_change(struct aml_lcd_drv_s *pdrv, int sel)
 	return 0;
 }
 
-void lcd_clk_config_parameter_init(struct aml_lcd_drv_s *pdrv)
+void lcd_clk_ss_param_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned int ss_level, ss_freq, ss_mode;
 
 	if (!cconf || !cconf->data)
 		return;
-
-	if (cconf->data->clk_parameter_init)
-		cconf->data->clk_parameter_init(pdrv);
 
 	ss_level = pdrv->config.timing.ss_level;
 	cconf->ss_level = (ss_level > cconf->data->ss_level_max) ?
@@ -636,19 +789,30 @@ void lcd_clk_config_parameter_init(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+void lcd_clk_config_parameter_init(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
+
+	if (!cconf || !cconf->data)
+		return;
+
+	if (cconf->data->clk_parameter_init)
+		cconf->data->clk_parameter_init(pdrv);
+
+	//lcd_clk_ss_param_init(pdrv); in lcd_config_init()->lcd_clk_generate_parameter()
+}
+
 static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
 {
 	unsigned int i;
 
 	for (i = 0; i < pdrv->clk_conf_num; i++) {
-		cconf[i].pll_id = i;
+		cconf[i].pll_id = pdrv->index + i;
 		cconf[i].fin = FIN_FREQ;
 	}
 
 	switch (pdrv->data->chip_type) {
-	case LCD_CHIP_AXG:
-		lcd_clk_config_chip_init_axg(pdrv, cconf);
-		break;
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	case LCD_CHIP_G12A:
 	case LCD_CHIP_SM1:
 		lcd_clk_config_chip_init_g12a(pdrv, cconf);
@@ -656,16 +820,8 @@ static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_c
 	case LCD_CHIP_G12B:
 		lcd_clk_config_chip_init_g12b(pdrv, cconf);
 		break;
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	case LCD_CHIP_TL1:
-		lcd_clk_config_chip_init_tl1(pdrv, cconf);
-		break;
-#endif
 	case LCD_CHIP_TM2:
 		lcd_clk_config_chip_init_tm2(pdrv, cconf);
-		break;
-	case LCD_CHIP_T5:
-		lcd_clk_config_chip_init_t5(pdrv, cconf);
 		break;
 	case LCD_CHIP_T5D:
 		lcd_clk_config_chip_init_t5d(pdrv, cconf);
@@ -680,33 +836,32 @@ static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_c
 	case LCD_CHIP_T5W:
 		lcd_clk_config_chip_init_t5w(pdrv, cconf);
 		break;
+#endif
 	case LCD_CHIP_C3:
 		lcd_clk_config_chip_init_c3(pdrv, cconf);
 		break;
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	case LCD_CHIP_T3X:
 		lcd_clk_config_chip_init_t3x(pdrv, cconf);
 		break;
 	case LCD_CHIP_TXHD2:
 		lcd_clk_config_chip_init_txhd2(pdrv, cconf);
 		break;
-	case LCD_CHIP_A4:
-		lcd_clk_config_chip_init_a4(pdrv, cconf);
+	case LCD_CHIP_S6:
+		lcd_clk_config_chip_init_s6(pdrv, cconf);
 		break;
+	case LCD_CHIP_T6D:
+		lcd_clk_config_chip_init_t6d(pdrv, cconf);
+		break;
+#endif
 	default:
 		LCDPR("[%d]: %s: invalid chip type\n", pdrv->index, __func__);
 		return -1;
 	}
 
-	for (i = 0; i < pdrv->clk_conf_num; i++) {
-		if (!cconf[i].data) {
-			LCDERR("[%d]: %s: cconf[%d] data is NULL\n",
-				pdrv->index, __func__, i);
-			return -1;
-		}
-		if (lcd_debug_print_flag & LCD_DBG_PR_ADV2) {
-			if (cconf[i].data->clk_config_init_print)
-				cconf[i].data->clk_config_init_print(pdrv);
-		}
+	if (lcd_debug_print_flag & LCD_DBG_PR_CLK) {
+		if (cconf->data->clk_config_init_print)
+			cconf->data->clk_config_init_print(pdrv);
 	}
 
 	return 0;
@@ -731,8 +886,7 @@ void lcd_clk_config_probe(struct aml_lcd_drv_s *pdrv)
 	if (ret)
 		return;
 
-	if (cconf->data->clktree_probe)
-		cconf->data->clktree_probe(pdrv);
+	lcd_clktree_bind(pdrv, 1);
 }
 
 void lcd_clk_config_remove(struct aml_lcd_drv_s *pdrv)
@@ -743,8 +897,7 @@ void lcd_clk_config_remove(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
-	if (cconf->data && cconf->data->clktree_remove)
-		cconf->data->clktree_remove(pdrv);
+	lcd_clktree_bind(pdrv, 0);
 
 	kfree(cconf);
 	pdrv->clk_conf = NULL;

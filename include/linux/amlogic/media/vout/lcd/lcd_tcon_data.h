@@ -53,7 +53,6 @@
 #define LCD_TCON_DATA_PART_FLAG_CMD_IGNORE_ISR  0x80
 
 #define LCD_TCON_DATA_BLOCK_HEADER_SIZE         64
-#define LCD_TCON_DATA_BLOCK_EXT_HEADER_SIZE_PRE        16
 #define LCD_TCON_DATA_BLOCK_NAME_SIZE           36
 #define LCD_TCON_DATA_PART_NAME_SIZE            48
 #define LCD_TCON_INIT_BIN_NAME_SIZE             28
@@ -64,11 +63,11 @@
 #define LCD_TCON_DATA_CTRL_FLAG_MULTI           0x01
 #define LCD_TCON_DATA_CTRL_FLAG_DMA             0x02
 /*FLAG_DLG only for basic init data*/
-#define LCD_TCON_DATA_CTRL_FLAG_DLG             0xd0
+#define LCD_TCON_DATA_CTRL_FLAG_UFR             0xd0
 
 #define is_block_ctrl_dma(block_ctrl) ((block_ctrl) & LCD_TCON_DATA_CTRL_FLAG_DMA)
 #define is_block_ctrl_multi(block_ctrl) ((block_ctrl) & LCD_TCON_DATA_CTRL_FLAG_MULTI)
-#define is_block_ctrl_dlg(block_ctrl) ((block_ctrl) == LCD_TCON_DATA_CTRL_FLAG_DLG)
+#define is_block_ctrl_ufr(block_ctrl) ((block_ctrl) == LCD_TCON_DATA_CTRL_FLAG_UFR)
 
 /* ctrl_method */
 #define LCD_TCON_DATA_CTRL_DEFAULT              0x00
@@ -76,6 +75,7 @@
 #define LCD_TCON_DATA_CTRL_MULTI_VFREQ_NOTIFY   0x02
 #define LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL       0x11
 #define LCD_TCON_DATA_CTRL_MULTI_BL_PWM_DUTY    0x12
+#define LCD_TCON_DATA_CTRL_MULTI_RESOLUTION     0x21
 #define LCD_TCON_DATA_CTRL_MULTI_MAX            0xff
 
 struct lcd_tcon_init_block_header_s {
@@ -84,14 +84,21 @@ struct lcd_tcon_init_block_header_s {
 	unsigned short v_active;
 	unsigned int block_size;
 	unsigned short header_size;
-	unsigned short reserved1;
+	unsigned short ext_header_size;
 	unsigned short block_type;
 	unsigned short block_ctrl;
-	unsigned char reserved2[5];
+	unsigned char dccd_flag;
+	unsigned char dccd_crc;
+	unsigned char reserved2[3];
 	unsigned char data_byte_width;
 	unsigned short chipid;
 	unsigned char name[LCD_TCON_INIT_BIN_NAME_SIZE];
 	char version[LCD_TCON_INIT_BIN_VERSION_SIZE];
+};
+
+struct lcd_tcon_init_block_ext_header_s {
+	unsigned short framerate_min;
+	unsigned short framerate_max;
 };
 
 struct lcd_tcon_data_block_header_s {
@@ -108,6 +115,7 @@ struct lcd_tcon_data_block_header_s {
 	unsigned char name[LCD_TCON_DATA_BLOCK_NAME_SIZE];
 };
 
+#define LCD_TCON_DATA_BLOCK_EXT_HEADER_SIZE_PRE  16
 struct lcd_tcon_data_block_ext_header_s {
 	unsigned short part_cnt;
 	unsigned char part_mapping_byte;
@@ -254,7 +262,7 @@ struct lcd_tcon_data_part_pdf_action_s {
 	unsigned char part_type;
 	unsigned char src_id;
 	unsigned char dst_cnt;
-	unsigned char dst_array[];
+	unsigned char dst_array[0];
 };
 
 union lcd_tcon_data_part_u {
@@ -271,6 +279,20 @@ union lcd_tcon_data_part_u {
 	struct lcd_tcon_data_part_pdf_action_s *pdf_action;
 	struct lcd_tcon_data_part_pdf_src_s *pdf_src;
 	struct lcd_tcon_data_part_pdf_dst_s *pdf_dst;
+};
+
+#define TCON_BIN_PATH_MAX_SIZE        (0x2800)
+#define TCON_BIN_PATH_LEN             256
+struct lcd_tcon_bin_path_header_s {
+	unsigned int crc32;
+	unsigned int data_size;
+	unsigned char version;
+	unsigned char data_load_level;
+	unsigned char init_load;
+	unsigned char ready;
+	unsigned int mem_total_size;
+	unsigned int block_cnt;
+	unsigned char reserved[12];
 };
 
 #define LCD_UKEY_TCON_SPI_BLOCK_SIZE_PRE          20

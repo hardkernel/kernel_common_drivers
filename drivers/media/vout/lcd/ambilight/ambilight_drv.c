@@ -224,10 +224,10 @@ static irqreturn_t amblt_vsync_isr(int irq, void *data)
 
 static int amblt_vsync_irq_init(struct amblt_drv_s *amblt_drv)
 {
-	if (amblt_drv->vs_irq < 0)
+	if (!amblt_drv->res_vs_irq)
 		return -1;
 
-	if (request_irq(amblt_drv->vs_irq,
+	if (request_irq(amblt_drv->res_vs_irq->start,
 			amblt_vsync_isr, IRQF_SHARED, "amblt_vs", (void *)amblt_drv)) {
 		AMBLTERR("can't request amblt_vsync_isr\n");
 		return -1;
@@ -238,8 +238,8 @@ static int amblt_vsync_irq_init(struct amblt_drv_s *amblt_drv)
 
 static void amblt_vsync_irq_remove(struct amblt_drv_s *amblt_drv)
 {
-	if (amblt_drv->vs_irq >= 0)
-		free_irq(amblt_drv->vs_irq, (void *)amblt_drv);
+	if (amblt_drv->res_vs_irq)
+		free_irq(amblt_drv->res_vs_irq->start, (void *)amblt_drv);
 }
 
 static int amblt_get_config(struct amblt_drv_s *amblt_drv, struct platform_device *pdev)
@@ -257,12 +257,12 @@ static int amblt_get_config(struct amblt_drv_s *amblt_drv, struct platform_devic
 	amblt_drv->zone_h = para[0];
 	amblt_drv->zone_v = para[1];
 	amblt_drv->zone_size = para[0] * para[1];
-	AMBLTPR("%s: zone h=%d, v=%d, size=%d\n",
-		__func__, amblt_drv->zone_h, amblt_drv->zone_v, amblt_drv->zone_size);
+	//AMBLTPR("%s: zone h=%d, v=%d, size=%d\n",
+	//	__func__, amblt_drv->zone_h, amblt_drv->zone_v, amblt_drv->zone_size);
 	amblt_zone_pixel_init(amblt_drv);
 
-	amblt_drv->vs_irq = platform_get_irq_byname(pdev, "vsync");
-	if (amblt_drv->vs_irq < 0) {
+	amblt_drv->res_vs_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
+	if (!amblt_drv->res_vs_irq) {
 		AMBLTERR("%s: can't get vsync irq\n", __func__);
 		return -1;
 	}
@@ -277,8 +277,8 @@ void amblt_zone_pixel_init(struct amblt_drv_s *amblt_drv)
 
 	if (!pdrv)
 		return;
-	h_active = pdrv->config.basic.h_active;
-	v_active = pdrv->config.basic.v_active;
+	h_active = pdrv->config.timing.act_timing.h_active;
+	v_active = pdrv->config.timing.act_timing.v_active;
 
 	amblt_drv->hsize = h_active;
 	amblt_drv->vsize = v_active;

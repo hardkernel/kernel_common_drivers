@@ -25,7 +25,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sched/clock.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
-#include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -212,17 +212,15 @@ int lcd_tcon_fw_buf_table_generate(struct lcd_tcon_fw_s *tcon_fw)
 
 void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int temp;
-
 	if (!pdrv || !lcd_tcon_fw.base_timing)
 		return;
 
-	lcd_tcon_fw.base_timing->hsize = pdrv->config.basic.h_active;
-	lcd_tcon_fw.base_timing->vsize = pdrv->config.basic.v_active;
-	lcd_tcon_fw.base_timing->htotal = pdrv->config.basic.h_period;
-	lcd_tcon_fw.base_timing->vtotal = pdrv->config.basic.v_period;
-	lcd_tcon_fw.base_timing->frame_rate = pdrv->config.timing.frame_rate;
-	lcd_tcon_fw.base_timing->pclk = pdrv->config.timing.lcd_clk;
+	lcd_tcon_fw.base_timing->hsize = pdrv->config.timing.act_timing.h_active;
+	lcd_tcon_fw.base_timing->vsize = pdrv->config.timing.act_timing.v_active;
+	lcd_tcon_fw.base_timing->htotal = pdrv->config.timing.act_timing.h_period;
+	lcd_tcon_fw.base_timing->vtotal = pdrv->config.timing.act_timing.v_period;
+	lcd_tcon_fw.base_timing->frame_rate = pdrv->config.timing.act_timing.frame_rate;
+	lcd_tcon_fw.base_timing->pclk = pdrv->config.timing.act_timing.pixel_clk;
 	lcd_tcon_fw.base_timing->bit_rate = pdrv->config.timing.bit_rate;
 
 	lcd_tcon_fw.base_timing->de_hstart = pdrv->config.timing.hstart;
@@ -232,19 +230,143 @@ void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_fw.base_timing->pre_de_h = 8;
 	lcd_tcon_fw.base_timing->pre_de_v = 8;
 
-	temp = pdrv->config.timing.base_h_period - pdrv->config.basic.h_active -
-		pdrv->config.timing.hsync_width - pdrv->config.timing.hsync_bp;
-	lcd_tcon_fw.base_timing->hsw = pdrv->config.timing.hsync_width;
-	lcd_tcon_fw.base_timing->hbp = pdrv->config.timing.hsync_bp;
-	lcd_tcon_fw.base_timing->hfp = temp;
+	lcd_tcon_fw.base_timing->hsw = pdrv->config.timing.act_timing.hsync_width;
+	lcd_tcon_fw.base_timing->hbp = pdrv->config.timing.act_timing.hsync_bp;
+	lcd_tcon_fw.base_timing->hfp = pdrv->config.timing.act_timing.hsync_fp;
 
-	temp = pdrv->config.timing.base_v_period - pdrv->config.basic.v_active -
-		pdrv->config.timing.vsync_width - pdrv->config.timing.vsync_bp;
-	lcd_tcon_fw.base_timing->vsw = pdrv->config.timing.vsync_width;
-	lcd_tcon_fw.base_timing->vbp = pdrv->config.timing.vsync_bp;
-	lcd_tcon_fw.base_timing->vfp = temp;
+	lcd_tcon_fw.base_timing->vsw = pdrv->config.timing.act_timing.vsync_width;
+	lcd_tcon_fw.base_timing->vbp = pdrv->config.timing.act_timing.vsync_bp;
+	lcd_tcon_fw.base_timing->vfp = pdrv->config.timing.act_timing.vsync_fp;
 
 	lcd_tcon_fw.base_timing->update_flag = 1;
+}
+
+int lcd_tcon_fw_add_core_table(struct lcd_tcon_fw_s *fw, unsigned char *core_table)
+{
+	struct lcd_tcon_config_s *tcon_cfg = get_lcd_tcon_config();
+	struct tcon_fw_core_reg_s *fw_core = NULL;
+	struct lcd_tcon_init_block_header_s *init_header = NULL;
+	struct lcd_tcon_init_block_ext_header_s *ext_header = NULL;
+	char str[64] = "";
+	int ret = -1;
+
+	if (!fw || !fw->config || !core_table || !tcon_cfg)
+		goto __add_core_table_exit;
+
+	fw_core = kzalloc(sizeof(*fw_core), GFP_KERNEL);
+	if (!fw_core)
+		goto __add_core_table_exit;
+
+	init_header = (struct lcd_tcon_init_block_header_s *)core_table;
+	if (init_header->ext_header_size) {
+		ext_header = (struct lcd_tcon_init_block_ext_header_s *)
+			(core_table + init_header->header_size);
+	}
+
+	fw_core->full_table = kzalloc(init_header->block_size, GFP_KERNEL);
+	if (!fw_core->full_table)
+		goto __add_core_table_exit;
+
+	memmove(fw_core->full_table, core_table, init_header->block_size);
+	fw_core->core_reg_size = tcon_cfg->reg_table_len;
+	fw_core->init_header = (struct lcd_tcon_init_block_header_s *)fw_core->full_table;
+	if (init_header->ext_header_size) {
+		fw_core->ext_header = (struct lcd_tcon_init_block_ext_header_s *)
+			(fw_core->full_table + init_header->header_size);
+	}
+	fw_core->core_reg = fw_core->full_table + init_header->header_size
+		+ init_header->ext_header_size;
+
+	list_add_tail(&fw_core->list, &fw->config->core_reg_list);
+	ret = 0;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		memset(str, 0, sizeof(str));
+		memcpy(str, init_header->version, LCD_TCON_INIT_BIN_VERSION_SIZE);
+		LCDPR("Add core reg info:\n");
+		LCDPR("  name       = %s\n", init_header->name);
+		LCDPR("  version    = %s\n", str);
+		LCDPR("  block_size = %#x (%d)\n", init_header->block_size,
+			init_header->block_size);
+		LCDPR("  resolution = %dx%d\n", init_header->h_active, init_header->v_active);
+		if (ext_header) {
+			LCDPR("  fr range   = %d~%d\n",
+				ext_header->framerate_min, ext_header->framerate_max);
+		}
+		LCDPR("  crc        = %#x\n", init_header->crc32);
+	}
+
+__add_core_table_exit:
+	if (ret) {
+		if (fw_core)
+			kfree(fw_core->full_table);
+		kfree(fw_core);
+	}
+
+	return ret;
+}
+
+void lcd_tcon_fw_remove_core_table(struct lcd_tcon_fw_s *fw)
+{
+	struct tcon_fw_core_reg_s *fw_core, *core_n;
+
+	if (!fw || !fw->config)
+		return;
+
+	list_for_each_entry_safe(fw_core, core_n, &fw->config->core_reg_list, list) {
+		kfree(fw_core->full_table);
+		list_del(&fw_core->list);
+		kfree(fw_core);
+	}
+}
+
+int lcd_tcon_fw_core_table_cnt(struct lcd_tcon_fw_s *fw)
+{
+	struct list_head *cur_list = NULL;
+	int cnt = 0;
+
+	if (!fw || !fw->config)
+		return 0;
+
+	list_for_each(cur_list, &fw->config->core_reg_list)
+		cnt++;
+
+	return cnt;
+}
+
+void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw)
+{
+	struct aml_lcd_drv_s *pdrv = NULL;
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	struct tcon_fw_core_reg_s *core_reg = NULL;
+	struct lcd_detail_timing_s *dft_timing = NULL;
+	struct lcd_tcon_init_block_header_s *init_header;
+	unsigned char *core_reg_table;
+	int ret;
+
+	if (!fw || !mm_table)
+		return;
+
+	pdrv = (struct aml_lcd_drv_s *)fw->drvdat;
+	dft_timing = pdrv ? pdrv->config.timing.dft_timing : NULL;
+	if (!pdrv || !dft_timing)
+		return;
+
+	list_for_each_entry(core_reg, &fw->config->core_reg_list, list) {
+		init_header = core_reg->init_header;
+		core_reg_table = core_reg->full_table + init_header->header_size +
+					init_header->ext_header_size;
+		if (tcon_conf && tcon_conf->tcon_init_table_pre_proc)
+			tcon_conf->tcon_init_table_pre_proc(core_reg_table);
+		lcd_tcon_data_block_regen_crc(core_reg->full_table);
+		ret = lcd_tcon_init_data_update(core_reg->full_table, dft_timing);
+		if (ret == 0) {
+			kfree(mm_table->core_reg_bin);
+			mm_table->core_reg_bin = core_reg->full_table;
+			break;
+		}
+	}
 }
 
 void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *tcon_conf)
@@ -259,16 +381,6 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 		return;
 
 	switch (pdrv->data->chip_type) {
-	case LCD_CHIP_TL1:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_TL1;
-		break;
-	case LCD_CHIP_TM2:
-	case LCD_CHIP_TM2B:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_TM2;
-		break;
-	case LCD_CHIP_T5:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T5;
-		break;
 	case LCD_CHIP_T5D:
 		lcd_tcon_fw.config->chip_type = TCON_CHIP_T5D;
 		break;
@@ -286,6 +398,9 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 		break;
 	case LCD_CHIP_TXHD2:
 		lcd_tcon_fw.config->chip_type = TCON_CHIP_TXHD2;
+		break;
+	case LCD_CHIP_T6D:
+		lcd_tcon_fw.config->chip_type = TCON_CHIP_T6D;
 		break;
 	default:
 		break;
@@ -311,25 +426,31 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 		lcd_tcon_fw.config->axi_rmem[i].mem_size = tcon_rmem->axi_rmem[i].mem_size;
 	}
 
+	INIT_LIST_HEAD(&lcd_tcon_fw.config->core_reg_list);
+
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_TCON_EN;
-	if (mm_table->valid_flag & LCD_TCON_DATA_VALID_VAC)
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_VAC)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_VAC_VALID;
-	if (mm_table->valid_flag & LCD_TCON_DATA_VALID_DEMURA)
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DEMURA)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_DEMURA_VALID;
-	if (mm_table->valid_flag & LCD_TCON_DATA_VALID_ACC)
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_ACC)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_ACC_VALID;
-	if (mm_table->valid_flag & LCD_TCON_DATA_VALID_DITHER)
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DITHER)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_DITHER_VALID;
-	if (mm_table->valid_flag & LCD_TCON_DATA_VALID_OD)
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_OD)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_OD_VALID;
-	if (mm_table->valid_flag & LCD_TCON_DATA_VALID_LOD)
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_LOD)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_LOD_VALID;
 
 	lcd_tcon_fw_base_timing_update(pdrv);
+	init_completion(&lcd_tcon_fw.alg_comp);
 
 	lcd_tcon_fw.drvdat = (void *)pdrv;
 	lcd_tcon_fw.dev = pdrv->dev;
+	lcd_tcon_fw.flag = 0;
+	if (pdrv->boot_ctrl->dccd_flag)
+		lcd_tcon_fw.flag |= TCON_FW_FLAG_DCCD_RUN;
 
 	lcd_tcon_fw.valid = 1;
 

@@ -81,8 +81,10 @@ int lcd_reg_txhd2[] = {
 	LCD_MAP_MAX,
 };
 
-int lcd_reg_a4[] = {
+int lcd_reg_t6d[] = {
+	LCD_MAP_TCON,
 	LCD_MAP_PERIPHS,
+	LCD_MAP_RST,
 	LCD_MAP_MAX,
 };
 
@@ -267,28 +269,6 @@ static inline void __iomem *check_lcd_tcon_reg_byte(struct aml_lcd_drv_s *pdrv,
 	reg_offset = LCD_REG_OFFSET_BYTE(reg);
 	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
 		LCDERR("[%d]: invalid tcon reg offset: 0x%04x\n",
-		       pdrv->index, reg);
-		return NULL;
-	}
-	p = pdrv->reg_map[reg_bus].p + reg_offset;
-	return p;
-}
-
-static inline void __iomem *check_lcd_dptx_reg(struct aml_lcd_drv_s *pdrv,
-					       unsigned int reg)
-{
-	void __iomem *p;
-	int reg_bus;
-	unsigned int reg_offset;
-
-	reg_bus = LCD_MAP_EDP;
-	if (check_lcd_ioremap(pdrv, reg_bus))
-		return NULL;
-
-	reg_offset = reg; /* don't left shift */
-
-	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
-		LCDERR("[%d]: invalid dptx reg offset: 0x%04x\n",
 		       pdrv->index, reg);
 		return NULL;
 	}
@@ -652,8 +632,7 @@ unsigned int dsi_host_read(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 	return temp;
 };
 
-void dsi_host_write(struct aml_lcd_drv_s *pdrv,
-		    unsigned int reg, unsigned int val)
+void dsi_host_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int val)
 {
 	void __iomem *p;
 	unsigned long flags = 0;
@@ -702,8 +681,7 @@ unsigned int dsi_host_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 	return temp;
 }
 
-void dsi_host_set_mask(struct aml_lcd_drv_s *pdrv,
-		       unsigned int reg, unsigned int mask)
+void dsi_host_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask)
 {
 	void __iomem *p;
 	unsigned int temp = 0;
@@ -719,8 +697,7 @@ void dsi_host_set_mask(struct aml_lcd_drv_s *pdrv,
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
 
-void dsi_host_clr_mask(struct aml_lcd_drv_s *pdrv,
-		       unsigned int reg, unsigned int mask)
+void dsi_host_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask)
 {
 	void __iomem *p;
 	unsigned int temp = 0;
@@ -751,8 +728,7 @@ unsigned int dsi_phy_read(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 	return temp;
 };
 
-void dsi_phy_write(struct aml_lcd_drv_s *pdrv,
-		   unsigned int reg, unsigned int val)
+void dsi_phy_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int val)
 {
 	void __iomem *p;
 	unsigned long flags = 0;
@@ -801,8 +777,7 @@ unsigned int dsi_phy_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 	return temp;
 }
 
-void dsi_phy_set_mask(struct aml_lcd_drv_s *pdrv,
-		      unsigned int reg, unsigned int mask)
+void dsi_phy_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask)
 {
 	void __iomem *p;
 	unsigned int temp = 0;
@@ -818,8 +793,7 @@ void dsi_phy_set_mask(struct aml_lcd_drv_s *pdrv,
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
 
-void dsi_phy_clr_mask(struct aml_lcd_drv_s *pdrv,
-		      unsigned int reg, unsigned int mask)
+void dsi_phy_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask)
 {
 	void __iomem *p;
 	unsigned int temp = 0;
@@ -1048,71 +1022,6 @@ int lcd_tcon_check_bits_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			temp = 0;
 	} else {
 		temp = -1;
-	}
-	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
-
-	return temp;
-}
-
-unsigned int dptx_reg_read(struct aml_lcd_drv_s *pdrv, unsigned int reg)
-{
-	void __iomem *p;
-	unsigned int temp = 0;
-	unsigned long flags = 0;
-
-	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	p = check_lcd_dptx_reg(pdrv, reg);
-	if (p)
-		temp = readl(p);
-	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
-
-	return temp;
-};
-
-void dptx_reg_write(struct aml_lcd_drv_s *pdrv,
-		    unsigned int reg, unsigned int val)
-{
-	void __iomem *p;
-	unsigned long flags = 0;
-
-	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	p = check_lcd_dptx_reg(pdrv, reg);
-	if (p)
-		writel(val, p);
-	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
-};
-
-void dptx_reg_setb(struct aml_lcd_drv_s *pdrv,
-		   unsigned int reg, unsigned int value,
-		   unsigned int start, unsigned int len)
-{
-	void __iomem *p;
-	unsigned int temp = 0;
-	unsigned long flags = 0;
-
-	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	p = check_lcd_dptx_reg(pdrv, reg);
-	if (p) {
-		temp = readl(p);
-		temp = (temp & (~(((1L << len) - 1) << start))) |
-			((value & ((1L << len) - 1)) << start);
-		writel(temp, p);
-	}
-	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
-}
-
-unsigned int dptx_reg_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			  unsigned int start, unsigned int len)
-{
-	void __iomem *p;
-	unsigned int temp = 0;
-	unsigned long flags = 0;
-
-	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	p = check_lcd_dptx_reg(pdrv, reg);
-	if (p) {
-		temp = readl(p);
-		temp = (temp >> start) & ((1L << len) - 1);
 	}
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 

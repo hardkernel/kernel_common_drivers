@@ -809,6 +809,7 @@ int lcd_tcon_pdf_init(struct aml_lcd_drv_s *pdrv)
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_TXHD2:
+	case LCD_CHIP_T6D:
 		cur_plat = &pdf_txhd2_info;
 		break;
 	case LCD_CHIP_T3X:

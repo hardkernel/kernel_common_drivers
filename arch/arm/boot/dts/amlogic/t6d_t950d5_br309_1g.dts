@@ -97,7 +97,7 @@
 		lcd_cma_reserved:linux,lcd-reserved {
 			compatible = "amlogic, lcd_rsvd";
 			reg = <0x3f000000 0x00410000>;
-			tcon-size = <0x00402840>;
+			tcon-size = <0x00202840>;
 		};
 
 		dmaheap_cma_reserved:heap-gfx {

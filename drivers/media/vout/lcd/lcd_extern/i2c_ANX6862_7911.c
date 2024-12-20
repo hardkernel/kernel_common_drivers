@@ -289,7 +289,7 @@ static int lcd_extern_power_on(struct lcd_extern_driver_s *edrv,
 		lcd_extern_i2c_write(edev->i2c_dev[1]->client, ANX7911_NVM_wr, 2);
 	}
 
-	EXTPR("%s\n", __func__);
+	EXTPR("lcd debug:%s\n", __func__);
 	return ret;
 }
 

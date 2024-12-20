@@ -732,8 +732,7 @@ static int iw7038_power_off(void)
 }
 
 static ssize_t iw7038_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			   const struct class_attribute *attr, char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct iw7038_s *bl = container_of(class, struct iw7038_s, cls);
@@ -787,8 +786,8 @@ static ssize_t iw7038_show(const struct class *class,
 
 #define MAX_ARG_NUM 4
 static ssize_t iw7038_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+			    const struct class_attribute *attr, const char *buf,
+			    size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct iw7038_s *bl = container_of(class, struct iw7038_s, cls);

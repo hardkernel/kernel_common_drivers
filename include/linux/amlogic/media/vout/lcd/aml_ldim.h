@@ -19,6 +19,7 @@
 /*#define LDIM_DEBUG_INFO*/
 #define LDIMPR(fmt, args...)     pr_info("ldim: " fmt "", ## args)
 #define LDIMERR(fmt, args...)    pr_err("ldim: error: " fmt "", ## args)
+#define LDIMWARN(fmt, args...)    pr_warn("ldim: warning: " fmt "", ## args)
 
 #define LD_DATA_DEPTH   12
 #define LD_DATA_MIN     10
@@ -43,17 +44,57 @@ struct ldim_config_s {
 	unsigned char dev_index;
 };
 
+struct ldim_boost_s {
+	unsigned char en;
+	unsigned char mode;
+	unsigned short i_l100;
+	unsigned short i_l32;
+	unsigned short i_l100_val;
+	unsigned short i_l32_val;
+	unsigned char kp_l100;
+	unsigned char kp_l32;
+	unsigned char kp_cur;
+	unsigned short i_cur;
+	unsigned int apl;
+	unsigned int pre_apl;
+	int *iset;
+};
+
+struct spi_private_data {
+	int dev_idx;
+	unsigned int xlen;/*actually xfer len*/
+	dma_addr_t tx_dma;
+	dma_addr_t rx_dma;
+	unsigned char *tx_buf;
+	unsigned char *rx_buf;
+	int async_busy;
+	int async_busy_cnt;
+	int trig_init;
+	int trig_data_ready;
+};
+
 #define LDIM_DEV_NAME_MAX    30
-#define LDIM_INIT_ON_MAX     1000
-#define LDIM_INIT_OFF_MAX    24
+#define LDIM_INIT_ON_MAX     2000
+#define LDIM_INIT_OFF_MAX    100
 struct ldim_dev_driver_s {
 	unsigned char index;
 	char name[LDIM_DEV_NAME_MAX];
 	char pinmux_name[LDIM_DEV_NAME_MAX];
 	unsigned char key_valid;
+	unsigned char config_load;
 	unsigned char type;
 	unsigned char dma_support;
-	unsigned char spi_sync;/*1:spi_sync, 0:dirspi_async*/
+	unsigned char spi_sync;
+	unsigned int spi_line_n;/*vpp line n irq*/
+	//unsigned int spi_xlen[2];/*actually xfer len*/
+	//dma_addr_t spi_tx_dma[2];
+	//dma_addr_t spi_rx_dma[2];
+	//unsigned char *spi_tx_buf[2];
+	//unsigned char *spi_rx_buf[2];
+	unsigned int pwm_phase;
+	int spi_dev_num;
+	//char cur_spi_dev_idx;
+	int use_ctrl_cs;
 	int cs_hold_delay;
 	int cs_clk_delay;
 	int en_gpio;
@@ -63,7 +104,7 @@ struct ldim_dev_driver_s {
 	unsigned char fault_check;
 	unsigned char write_check;
 	unsigned char pinmux_flag;
-	unsigned char chip_cnt;
+	unsigned int chip_cnt;
 	unsigned int mcu_header;
 	unsigned int mcu_dim;
 
@@ -82,15 +123,18 @@ struct ldim_dev_driver_s {
 	unsigned char *init_off;
 	unsigned int init_on_cnt;
 	unsigned int init_off_cnt;
+	unsigned int hw_on_delay;
+	unsigned int hw_off_delay;
 
 	struct bl_pwm_config_s ldim_pwm_config;
 	struct bl_pwm_config_s analog_pwm_config;
+	struct ldim_boost_s boost_conf;
 
 	struct pinctrl *pin;
 	struct device *dev;
 	struct class *class;
-	struct spi_device *spi_dev;
-	struct spi_board_info *spi_info;
+	struct spi_device *spi_dev[2];
+	struct spi_board_info spi_info[2];
 
 	void (*dim_range_update)(struct ldim_dev_driver_s *dev_drv);
 	int (*pinmux_ctrl)(struct ldim_dev_driver_s *dev_drv, int status);
@@ -113,7 +157,6 @@ struct ldim_dev_driver_s {
 
 struct ldim_drv_data_s {
 	unsigned char ldc_chip_type;
-	unsigned char spi_sync;
 	unsigned int rsv_mem_size;
 	unsigned short h_zone_max;
 	unsigned short v_zone_max;
@@ -133,6 +176,8 @@ struct ldim_drv_data_s {
 #define LDIM_STATE_REMAP_EN             BIT(2)
 #define LDIM_STATE_REMAP_FORCE_UPDATE   BIT(3)
 #define LDIM_STATE_LD_EN                BIT(4)
+#define LDIM_STATE_SPI_SMR_EN           BIT(5)
+#define LDIM_STATE_PQ_INIT              BIT(6)
 
 struct aml_ldim_driver_s {
 	unsigned char valid_flag;
@@ -155,6 +200,7 @@ struct aml_ldim_driver_s {
 	unsigned char load_db_en;
 	unsigned char level_update;
 	unsigned char resolution_update;
+	unsigned int debug_ctrl;/*for debug used*/
 
 	unsigned int state;
 	unsigned int data_min;
@@ -164,8 +210,13 @@ struct aml_ldim_driver_s {
 	unsigned int dbg_vs_cnt;
 	unsigned int irq_cnt;
 	unsigned int pwm_vs_irq_cnt;
+	unsigned int pwm_vs_irq_err_cnt;
+	unsigned long long pwm_vs_irq_time_pre;
 	unsigned long long arithmetic_time[10];
 	unsigned long long xfer_time[10];
+	unsigned long long fw_time[10];
+	unsigned char time_msr_en;
+	unsigned int level_curve[5][2];
 
 	struct ldim_drv_data_s *data;
 	struct ldim_config_s *conf;
@@ -195,6 +246,8 @@ struct aml_ldim_driver_s *aml_ldim_get_driver(void);
 char aml_ldim_get_bbd_state(void);
 int aml_ldim_get_config_dts(struct device_node *child);
 int aml_ldim_get_config_unifykey(unsigned char *buf);
+int aml_ldim_get_config_json(int panel_id);
+int aml_ldim_get_config_ini(void *inip, void *psec);
 int aml_ldim_probe(struct platform_device *pdev);
 int aml_ldim_remove(void);
 
