@@ -15095,12 +15095,15 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	return r;
 }
 
-void video_resume_hw_recovery(void)
+void video_resume_hw_recovery(bool restore_vpu_sec)
 {
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		_video_hw_init_s5();
 	else
 		_video_hw_init();
+
+	if (restore_vpu_sec)
+		vpp_probe_en_set(1);
 	vd_layer[0].property_changed = true;
 	vd_layer[1].property_changed = true;
 	vd_layer[2].property_changed = true;

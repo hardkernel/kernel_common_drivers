@@ -14290,6 +14290,8 @@ static struct mconfig video_configs[] = {
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/media/di/di_interface.h>
+
+static bool restore_vpu_sec = true;
 static void video_early_suspend(struct early_suspend *h)
 {
 	safe_switch_videolayer(0, false, false);
@@ -14302,7 +14304,7 @@ static void video_early_suspend(struct early_suspend *h)
 
 static void video_late_resume(struct early_suspend *h)
 {
-	video_resume_hw_recovery();
+	video_resume_hw_recovery(restore_vpu_sec);
 	video_suspend_cycle = 0;
 	video_suspend = false;
 	log_out = 1;
@@ -16125,7 +16127,9 @@ static int amvideo_freeze(struct device *dev)
 			break;
 		status_save_val[i] = READ_VCBUS_REG(status_save_reg[i]);
 	}
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	video_early_suspend(NULL);
+#endif
 	return 0;
 }
 
@@ -16138,7 +16142,11 @@ static int amvideo_restore(struct device *dev)
 {
 	int i;
 
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	restore_vpu_sec = false;
 	video_late_resume(NULL);
+	restore_vpu_sec = true;
+#endif
 	for (i = 0; i < ARRAY_SIZE(status_save_reg); i++) {
 		if (!status_save_reg[i])
 			break;
