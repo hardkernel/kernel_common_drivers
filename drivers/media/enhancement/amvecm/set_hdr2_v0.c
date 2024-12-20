@@ -1204,7 +1204,7 @@ static int srgb2rgb_coeff[MTX_NUM_PARAM] = {
 };
 
 struct hdr_gmt_comp_param_s gmt_comp_default = {
-	.reg_hdr2_gm_comp_en = 1,
+	.reg_hdr2_gm_comp_en = 0,
 	.reg_hdr_comp_ofst_r = 85900,
 	.reg_hdr_comp_ofst_g = 85900,
 	.reg_hdr_comp_ofst_b = 85900,
