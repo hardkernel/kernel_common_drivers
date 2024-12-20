@@ -1073,25 +1073,17 @@ static __nocfi u32 vaddr_to_paddr(unsigned long vaddr)
 	pte_t *pte;
 	unsigned long  paddr = 0;
 	struct mm_struct *local_init_mm = NULL;
-	unsigned long (*aml_syms_lookup)(const char *name);
 	pte_t * (*local_pte_offset_map)(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
+#ifdef CONFIG_ARM64
+	pgd_t *pgd_f;
+	unsigned long long ttbr1_el1 = read_sysreg(ttbr1_el1);
 
-	struct kprobe kp_lookup_name = {
-		.symbol_name    = "kallsyms_lookup_name",
-	};
-
-	if (register_kprobe(&kp_lookup_name) < 0) {
-		pr_err("register_kprobe failed\n");
-		goto failed;
-	}
-
-	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
-	local_init_mm = (struct mm_struct *)aml_syms_lookup("init_mm");
-	unregister_kprobe(&kp_lookup_name);
-
-	if (IS_ERR_OR_NULL(local_init_mm))
-		goto failed;
-
+	ttbr1_el1 &= GENMASK_ULL(63, 12);
+	pgd_f = phys_to_virt(ttbr1_el1);
+	local_init_mm = container_of(&pgd_f, struct mm_struct, pgd);
+#else
+	local_init_mm = init_task.active_mm;
+#endif
 	/* table walking */
 	pgd = pgd_offset(local_init_mm, vaddr);
 	if (pgd_none(*pgd) || pgd_bad(*pgd))
