@@ -67,7 +67,7 @@ EXPORT_SYMBOL(should_wakeup_kswap);
 
 void adjust_redzone_end(const void *ptr, size_t size, unsigned long *p_end)
 {
-	if (folio_test_owner_priv_1(virt_to_folio(ptr)))
+	if (PageOwnerPriv1(virt_to_page(ptr)))
 		*p_end = (unsigned long)ptr + PAGE_ALIGN(size);
 }
 
@@ -86,10 +86,20 @@ void *aml_slub_alloc_large(int node, size_t size, gfp_t flags, int order)
 
 		/* record how many pages in first page*/
 		__SetPageHead(page);
-		folio_set_owner_priv_1(page_folio(page)); /* special flag */
+		SetPageOwnerPriv1(page); /* special flag */
 
 	#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 		fun = get_page_trace(page);
+	#endif
+
+	#ifdef CONFIG_MEMCG
+		if (memcg_kmem_online() && PageMemcgKmem(page)) {
+			for (i = 1; i < total_pages; i++) {
+				p = page + i;
+				p->memcg_data = page->memcg_data;
+				__memcg_kmem_charge_page(p, flags, 0);
+			}
+		}
 	#endif
 
 		for (i = 1; i < used_pages; i++) {
@@ -116,16 +126,26 @@ void *aml_slub_alloc_large(int node, size_t size, gfp_t flags, int order)
 	return NULL;
 }
 
-static void aml_slub_free_large(struct page *page, const void *obj)
+static void aml_slub_free_large(struct folio *folio, const void *obj)
 {
 	unsigned int nr_pages, i;
+	struct page *page = folio_page(folio, 0);
 
 	if (page) {
 		__ClearPageHead(page);
-		folio_clear_owner_priv_1(page_folio(page)); /* special flag */
+		ClearPageOwnerPriv1(page);
 		nr_pages = page->index;
 		pr_debug("%s, page:%p, pages:%d, obj:%p\n",
 			__func__, page_address(page), nr_pages, obj);
+
+		if (!nr_pages) {
+			pr_err("%s index num error\n", __func__);
+			dump_stack();
+		}
+
+		lruvec_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B,
+			-(nr_pages * PAGE_SIZE));
+
 		for (i = 0; i < nr_pages; i++)  {
 			__free_pages(page, 0);
 			page++;
@@ -135,30 +155,25 @@ static void aml_slub_free_large(struct page *page, const void *obj)
 
 int aml_free_nonslab_page(struct folio *folio, void *object)
 {
-	unsigned int nr_pages;
 	unsigned int order = folio_order(folio);
-	unsigned int page_num = folio_page(folio, 0)->index;
 
 	/*
 	 *if (WARN_ON_ONCE(order == 0))
 	 *	pr_warn_once("object pointer: 0x%p\n", object);
 	 */
 
-	if (page_num)
-		nr_pages = page_num;
-	else
-		nr_pages = 1 << order;
-
 	kmemleak_free(object);
 	kasan_kfree_large(object);
 	kmsan_kfree_large(object);
 
-	mod_lruvec_page_state(folio_page(folio, 0), NR_SLAB_UNRECLAIMABLE_B,
-				-(nr_pages * PAGE_SIZE));
-	if (unlikely(folio_test_owner_priv_1(folio))) {
-		aml_slub_free_large(folio_page(folio, 0), object);
+	if (unlikely(PageOwnerPriv1(folio_page(folio, 0)))) {
+		aml_slub_free_large(folio, object);
+
 		return 1;
 	}
+
+	lruvec_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B,
+			      -(PAGE_SIZE << order));
 
 	return 0;
 }

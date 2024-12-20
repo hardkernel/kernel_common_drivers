@@ -1,4 +1,4 @@
-From b972fa1ef4a3b0b2518d67a26f34e5b54daf9203 Mon Sep 17 00:00:00 2001
+From 371e9a689dcd1d95f01396e64900d505f4a4623f Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 16:24:49 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -51,10 +51,10 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/page_alloc.c                | 58 ++++++++++++++++++++++++++++++++++
  mm/show_mem.c                  | 12 +++++++
  mm/slab_common.c               | 43 +++++++++++++++++++++++++
- mm/slub.c                      | 38 ++++++++++++++++++++++
+ mm/slub.c                      | 32 +++++++++++++++++++
  mm/usercopy.c                  |  4 +++
  mm/vmscan.c                    | 17 ++++++++++
- 26 files changed, 302 insertions(+), 1 deletion(-)
+ 26 files changed, 296 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index 06a4670bdb0b..515e6f726e95 100644
@@ -291,19 +291,19 @@ index eb7f85f51034..62676999c84f 100644
  struct pglist_data;
  
 diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index a2b0716c1f27..e7d156c0a025 100644
+index a2b0716c1f27..0adaa9797759 100644
 --- a/include/linux/page-flags.h
 +++ b/include/linux/page-flags.h
-@@ -551,6 +551,9 @@ PAGEFLAG(Private2, private_2, PF_ANY) TESTSCFLAG(Private2, private_2, PF_ANY)
+@@ -548,6 +548,9 @@ FOLIO_FLAG(swapbacked, FOLIO_HEAD_PAGE)
+  */
+ PAGEFLAG(Private, private, PF_ANY)
+ PAGEFLAG(Private2, private_2, PF_ANY) TESTSCFLAG(Private2, private_2, PF_ANY)
++#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
++PAGEFLAG(OwnerPriv1, owner_priv_1, PF_ANY) TESTCLEARFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
++#endif
  
  /* owner_2 can be set on tail pages for anon memory */
  FOLIO_FLAG(owner_2, FOLIO_HEAD_PAGE)
-+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
-+FOLIO_FLAG(owner_priv_1, FOLIO_HEAD_PAGE)
-+#endif
- 
- /*
-  * Only test-and-set exist for PG_writeback.  The unconditional operators are
 diff --git a/include/linux/printk.h b/include/linux/printk.h
 index eca9bb2ee637..1e766ac5899b 100644
 --- a/include/linux/printk.h
@@ -541,7 +541,7 @@ index ed4873e18c75..84761ffbfc2a 100644
  		     KASAN_PAGE_REDZONE, false);
  }
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 47b7dbd41623..59f321b764c9 100644
+index f7ae78257ace..da8223fa0f8d 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -71,6 +71,10 @@
@@ -677,7 +677,7 @@ index ec885a398fa0..65b8941a1a25 100644
  
  	for_each_online_node(nid) {
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 893d32059915..ef79d3f1f2d4 100644
+index 893d32059915..6b8164fa414a 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
 @@ -53,7 +53,11 @@ struct kmem_cache *kmem_cache;
@@ -713,7 +713,7 @@ index 893d32059915..ef79d3f1f2d4 100644
  		if (WARN_ON(object != folio_address(folio)))
  			return 0;
 +	#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
-+		if (unlikely(folio_test_owner_priv_1(folio))) {
++		if (unlikely(PageOwnerPriv1(folio_page(folio, 0)))) {
 +			page_num = folio_page(folio, 0)->index;
 +			pr_debug("%s, obj:%p, page:%p, index:%ld, size:%ld\n",
 +				__func__, object, folio_address(folio),
@@ -779,7 +779,7 @@ index 893d32059915..ef79d3f1f2d4 100644
  }
  
 diff --git a/mm/slub.c b/mm/slub.c
-index 5b832512044e..8a74ee9f3005 100644
+index 5b832512044e..64fe8c271039 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
 @@ -48,6 +48,9 @@
@@ -822,50 +822,22 @@ index 5b832512044e..8a74ee9f3005 100644
  	}
  
  	ptr = kasan_kmalloc_large(ptr, size, flags);
-@@ -4682,6 +4703,7 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
- }
- EXPORT_SYMBOL(kmem_cache_free);
- 
-+#ifndef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
- static void free_large_kmalloc(struct folio *folio, void *object)
- {
- 	unsigned int order = folio_order(folio);
-@@ -4697,6 +4719,7 @@ static void free_large_kmalloc(struct folio *folio, void *object)
- 			      -(PAGE_SIZE << order));
- 	folio_put(folio);
- }
-+#endif
- 
- /**
-  * kfree - free previously allocated memory
-@@ -4718,7 +4741,13 @@ void kfree(const void *object)
+@@ -4718,7 +4739,14 @@ void kfree(const void *object)
  
  	folio = virt_to_folio(object);
  	if (unlikely(!folio_test_slab(folio))) {
 +#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 +		if (aml_free_nonslab_page(folio, (void *)object))
 +			return;
-+		__free_pages(folio_page(folio, 0), folio_order(folio));
++
++		folio_put(folio);
 +#else
  		free_large_kmalloc(folio, (void *)object);
 +#endif
  		return;
  	}
  
-@@ -4762,7 +4791,12 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
- 	if (!s) {
- 		/* Handle kalloc'ed objects */
- 		if (unlikely(!folio_test_slab(folio))) {
-+		#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
-+			if (!aml_free_nonslab_page(folio, object))
-+				__free_pages(folio_page(folio, 0), folio_order(folio));
-+		#else
- 			free_large_kmalloc(folio, object);
-+		#endif
- 			df->slab = NULL;
- 			return size;
- 		}
-@@ -5052,6 +5086,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
+@@ -5052,6 +5080,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
  
  static inline int calculate_order(unsigned int size)
  {
@@ -875,7 +847,7 @@ index 5b832512044e..8a74ee9f3005 100644
  	unsigned int order;
  	unsigned int min_objects;
  	unsigned int max_objects;
-@@ -5111,6 +5148,7 @@ static inline int calculate_order(unsigned int size)
+@@ -5111,6 +5142,7 @@ static inline int calculate_order(unsigned int size)
  	if (order <= MAX_PAGE_ORDER)
  		return order;
  	return -ENOSYS;

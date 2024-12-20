@@ -1,4 +1,4 @@
-From ca759b31f8f969801ddaf2d8a4c0a6030df28c34 Mon Sep 17 00:00:00 2001
+From a1dd81f5f40b8986f1ba3f41e91a81476fcbb1df Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 28 Nov 2024 14:44:23 +0800
 Subject: [PATCH] mm: add slab trace support. [1/2]
@@ -21,7 +21,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  1 file changed, 42 insertions(+)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index 8a74ee9f3005..4132b08b924e 100644
+index 2fbf1bcadd34..dbf7797e2b77 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
 @@ -51,6 +51,9 @@
@@ -116,17 +116,17 @@ index 8a74ee9f3005..4132b08b924e 100644
  	if (unlikely(slab != c->slab)) {
  		__slab_free(s, slab, head, tail, cnt, addr);
  		return;
-@@ -4791,6 +4820,9 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
+@@ -4790,6 +4819,9 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
  	if (!s) {
  		/* Handle kalloc'ed objects */
  		if (unlikely(!folio_test_slab(folio))) {
 +		#ifdef CONFIG_AMLOGIC_SLAB_TRACE
 +			slab_trace_remove_page(&folio->page, folio_order(folio), s);
 +		#endif
- 		#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
- 			if (!aml_free_nonslab_page(folio, object))
- 				__free_pages(folio_page(folio, 0), folio_order(folio));
-@@ -5458,6 +5490,13 @@ static int calculate_sizes(struct kmem_cache_args *args, struct kmem_cache *s)
+ 			free_large_kmalloc(folio, object);
+ 			df->slab = NULL;
+ 			return size;
+@@ -5452,6 +5484,13 @@ static int calculate_sizes(struct kmem_cache_args *args, struct kmem_cache *s)
  	return !!oo_objects(s->oo);
  }
  
@@ -140,7 +140,7 @@ index 8a74ee9f3005..4132b08b924e 100644
  static void list_slab_objects(struct kmem_cache *s, struct slab *slab,
  			      const char *text)
  {
-@@ -5968,6 +6007,9 @@ void __init kmem_cache_init(void)
+@@ -5962,6 +6001,9 @@ void __init kmem_cache_init(void)
  	/* Now we can use the kmem_cache to allocate kmalloc slabs */
  	setup_kmalloc_cache_index_table();
  	create_kmalloc_caches();
