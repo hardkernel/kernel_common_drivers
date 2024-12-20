@@ -151,8 +151,11 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* Two-channel 1080i HEVC secure playback requires at least 168MB */
-			size = <0xA800000>;
+			/*
+			 * S7 1G lowram platform, the maximum scenario
+			 * is HEVC 1080i local playback, need 92M.
+			 */
+			size = <0x5c00000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x30000000 0x10000000>;
@@ -640,6 +643,11 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+};
+
+&codec_mm {
+	/* scatter only alloc from sys */
+	scatter_alloc_mode = <1>;
 };
 
 &amlvideo2_0 {

@@ -140,10 +140,10 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/*
-			 * Two-channel 1080i HEVC secure playback
-			 * requires at least 168MB without DTV enable
+			 * S7 1G lowram platform, the maximum scenario
+			 * is HEVC 1080i local playback, need 92M.
 			 */
-			size = <0x0 0xA800000>;
+			size = <0x0 0x5c00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -623,6 +623,11 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+};
+
+&codec_mm {
+       /* scatter only alloc from sys */
+	scatter_alloc_mode = <1>;
 };
 
 &amlvideo2_0 {
