@@ -107,6 +107,7 @@ static u32 force_comp_w;
 static u32 force_comp_h;
 static u32 lossy_compress_rate;//0: 100% copress; 1: 67% compress; 2: 83% compress
 static u32 enable_frc_pattern;
+static u32 low_latency_en;
 static enum vc_fence_status last_buffer_status;
 static struct vframe_s *last_normal_vf;
 static struct videodisplay_dev *dev_array[MAX_VD_LAYERS];
@@ -494,6 +495,9 @@ void set_debug_flag_val(enum videodisplay_debug_class_type debug_type, int value
 	case VD_DEBUG_CLASS_BUF_STATUS:
 		//buf_status = value;
 		break;
+	case VD_DEBUG_CLASS_USE_LOW_LATENCY:
+		low_latency_en = value;
+		break;
 	default:
 		pr_info("%s: invalid debug type.\n", __func__);
 		break;
@@ -654,6 +658,9 @@ int get_debug_flag_val(enum videodisplay_debug_class_type debug_type)
 		break;
 	case VD_DEBUG_CLASS_BUF_STATUS:
 		//ret = buf_status;
+		break;
+	case VD_DEBUG_CLASS_USE_LOW_LATENCY:
+		ret = low_latency_en;
 		break;
 	default:
 		pr_info("%s: invalid debug type.\n", __func__);
@@ -2847,6 +2854,9 @@ static void vframe_display(struct videodisplay_dev *dev,
 	ready_count = kfifo_len(&dev->ready_q);
 	vd_print(dev->index, PRINT_OTHER, "%s: ready_q count is %d.\n", __func__, ready_count);
 	atomic_set(&received_frames->on_use, false);
+
+	if ((low_latency_en || (is_dec_vf && vf->flag & VFRAME_FLAG_GAME_MODE)) && dev->index == 0)
+		proc_lowlatency_frame(0);
 }
 
 static void video_display_task(struct videodisplay_dev *dev)

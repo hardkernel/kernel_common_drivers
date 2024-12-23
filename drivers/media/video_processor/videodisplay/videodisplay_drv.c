@@ -1125,6 +1125,32 @@ static ssize_t buffer_status_show(const struct class *cla,
 	return -EINVAL;
 }
 
+static ssize_t use_low_latency_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf,
+				size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_err("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+
+	set_debug_flag_val(VD_DEBUG_CLASS_USE_LOW_LATENCY, tmp);
+	return count;
+}
+
+static ssize_t use_low_latency_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 80, "use_low_latency is %d.\n",
+		get_debug_flag_val(VD_DEBUG_CLASS_USE_LOW_LATENCY));
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -1176,6 +1202,7 @@ static CLASS_ATTR_RW(dewarp_load_flag);
 static CLASS_ATTR_RW(lossy_compress_rate);
 static CLASS_ATTR_RW(enable_frc_pattern);
 static CLASS_ATTR_RO(buffer_status);
+static CLASS_ATTR_RW(use_low_latency);
 
 static struct attribute *videodisplay_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -1229,6 +1256,7 @@ static struct attribute *videodisplay_class_attrs[] = {
 	&class_attr_lossy_compress_rate.attr,
 	&class_attr_enable_frc_pattern.attr,
 	&class_attr_buffer_status.attr,
+	&class_attr_use_low_latency.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(videodisplay_class);
