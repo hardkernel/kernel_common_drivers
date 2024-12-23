@@ -1362,12 +1362,15 @@ void  get_video_input_info(struct video_input_info *input_info)
 	input_info->crop_right = cur_frame_par[0]->crop_right;
 }
 
-bool is_crop_from_vf(u32 s_type)
+bool is_crop_from_vf(struct vframe_s *vf)
 {
-	if (s_type != VFRAME_SOURCE_TYPE_HDMI &&
+	u32 s_type = vf->source_type;
+
+	if ((s_type != VFRAME_SOURCE_TYPE_HDMI &&
 	    s_type != VFRAME_SOURCE_TYPE_CVBS &&
 	    s_type != VFRAME_SOURCE_TYPE_TUNER &&
-	    s_type != VFRAME_SOURCE_TYPE_HWC)
+	    s_type != VFRAME_SOURCE_TYPE_HWC) ||
+	    (vf->flag & VFRAME_FLAG_COMPOSER_DONE))
 		return true;
 	else
 		return false;
@@ -1539,7 +1542,7 @@ void primary_swap_frame(struct video_layer_s *layer,
 		crop[2] = vf->crop[2];
 		crop[3] = vf->crop[3];
 		_set_video_window(&glayer_info[0], axis);
-		if (is_crop_from_vf(vf->source_type)) {
+		if (is_crop_from_vf(vf)) {
 			_set_video_crop(&glayer_info[0], crop);
 		} else {
 			crop_save[0] = glayer_info[0].crop_top_save;
@@ -4066,7 +4069,7 @@ static struct vframe_s *vdx_swap_frame(u8 layer_id,
 		}
 		_set_video_window(&glayer_info[layer_id], axis);
 		source_type = vd_layer[layer_id].dispbuf->source_type;
-		if (is_crop_from_vf(source_type)) {
+		if (is_crop_from_vf(vd_layer[layer_id].dispbuf)) {
 			_set_video_crop(&glayer_info[layer_id], crop);
 		} else {
 			crop_save[0] = glayer_info[layer_id].crop_top_save;
