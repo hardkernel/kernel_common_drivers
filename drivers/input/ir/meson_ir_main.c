@@ -339,6 +339,7 @@ static u32 meson_ir_getkeycode(struct meson_ir_dev *dev, u32 scancode)
 static bool meson_ir_is_valid_custom(struct meson_ir_dev *dev)
 {
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
+	struct meson_ir_map_tab_list *old_ct = chip->cur_tab;
 	int custom_code;
 
 	if (!chip->ir_contr[chip->ir_work].get_custom_code)
@@ -349,6 +350,7 @@ static bool meson_ir_is_valid_custom(struct meson_ir_dev *dev)
 		dev->keyup_delay = chip->cur_tab->tab.release_delay;
 		return true;
 	}
+	chip->cur_tab = old_ct;
 	return false;
 }
 
