@@ -422,21 +422,11 @@ struct meson_vpu_afbc_state {
 	u32 inter_format;
 };
 
-/*
- * from s7 soc, scaler hw add alpha premulti process
- * for input, and add alpha divide process for output
- */
-enum alpha_proc_mode {
-	NO_ALPHA_PROC,
-	ALPHA_PROC,
-};
-
 struct meson_vpu_scaler {
 	struct meson_vpu_block base;
 	struct osd_scaler_reg_s *reg;
 	u32 linebuffer;/*base pixel*/
 	u32 bank_length;/*base line*/
-	enum alpha_proc_mode alpha_mode;
 };
 
 struct meson_vpu_scaler_state {
@@ -883,7 +873,6 @@ extern struct meson_vpu_block_ops t6d_postblend_ops;
  */
 extern struct meson_vpu_block_ops s7_osd_ops;
 extern struct meson_vpu_block_ops s7_afbc_ops;
-extern struct meson_vpu_block_ops s7_scaler_ops;
 extern struct meson_vpu_block_ops s7_postblend_ops;
 
 /*

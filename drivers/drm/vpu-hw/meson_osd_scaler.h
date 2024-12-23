@@ -23,7 +23,6 @@
 #define VPP_OSD_SCO_V_START_END                    0x1dcb
 #define VPP_OSD_SCALE_COEF_IDX                     0x1dcc
 #define VPP_OSD_SCALE_COEF                         0x1dcd
-#define VPP_OSD_SC_DIV_ALPHA                       0x1dbf
 
 /* vpp osd2 scaler */
 #define OSD2_VSC_PHASE_STEP                        0x3d00
@@ -40,7 +39,6 @@
 #define OSD2_SCO_V_START_END                       0x3d0b
 #define OSD2_SCALE_COEF_IDX                        0x3d18
 #define OSD2_SCALE_COEF                            0x3d19
-#define OSD2_SC_DIV_ALPHA                          0x3d38
 
 /* vpp osd34 scaler */
 #define OSD34_VSC_PHASE_STEP                       0x3d20
@@ -57,7 +55,6 @@
 #define OSD34_SCO_V_START_END                      0x3d2b
 #define OSD34_SCALE_COEF_IDX                       0x3d1e
 #define OSD34_SCALE_COEF                           0x3d1f
-#define OSD34_SC_DIV_ALPHA                         0x3d39
 
 /* for s6 viu2 osd scaler */
 #define VIU2_OSD_VSC_PHASE_STEP                    0x1ee0
@@ -74,7 +71,6 @@
 #define VIU2_OSD_SCO_V_START_END                   0x1eeb
 #define VIU2_OSD_SCALE_COEF_IDX                    0x1ef8
 #define VIU2_OSD_SCALE_COEF                        0x1ef9
-#define VIU2_OSD_SC_DIV_ALPHA                      0x1efa
 
 /* for t7 osd scaler */
 #define T7_VPP_OSD_VSC_PHASE_STEP                  0x5a00
@@ -306,7 +302,6 @@ struct osd_scaler_reg_s {
 	u32 vpp_osd_sci_wh_m1;
 	u32 vpp_osd_sco_h_start_end;
 	u32 vpp_osd_sco_v_start_end;
-	u32 vpp_osd_sc_div_alpha;
 };
 
 #endif
