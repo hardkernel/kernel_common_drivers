@@ -724,13 +724,16 @@ static struct platform_driver aml_cpufreq_platdrv = {
 	.remove_new		= aml_cpufreq_remove,
 };
 
-int __init aml_cpufreq_v2_init(void)
+static int __init aml_cpufreq_v2_init(void)
 {
 	return platform_driver_register(&aml_cpufreq_platdrv);
 }
 
-void __exit aml_cpufreq_v2_exit(void)
+static void __exit aml_cpufreq_v2_exit(void)
 {
 	platform_driver_unregister(&aml_cpufreq_platdrv);
 }
 
+module_init(aml_cpufreq_v2_init);
+module_exit(aml_cpufreq_v2_exit);
+MODULE_LICENSE("GPL v2");
