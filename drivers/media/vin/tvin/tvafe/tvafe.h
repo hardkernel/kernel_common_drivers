@@ -43,7 +43,8 @@
 /* 20241007: wss function optimization */
 /* 20241105: fmt detection optimization */
 /* 20241217: removed unnecessary reset */
-#define TVAFE_VER "20241217: removed unnecessary reset"
+/* 20241227: modify pal-n adc setting. fix double shadow issue */
+#define TVAFE_VER "20241227: modify pal-n adc setting"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
