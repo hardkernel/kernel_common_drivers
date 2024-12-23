@@ -71,32 +71,18 @@
 #include "video_safa_reg.h"
 
 static unsigned int skip_safa_speed_up;
-module_param(skip_safa_speed_up, uint, 0664);
-MODULE_PARM_DESC(skip_safa_speed_up, "skip_safa_speed_up");
 
 static unsigned int g_postsc_en = 0xff;
-module_param(g_postsc_en, uint, 0664);
-MODULE_PARM_DESC(g_postsc_en, "g_postsc_en");
 
 static unsigned int g_preh_en = 0xff;
-module_param(g_preh_en, uint, 0664);
-MODULE_PARM_DESC(g_preh_en, "g_preh_en");
 
 static unsigned int g_preh_rate  = 0xff;
-module_param(g_preh_rate, uint, 0664);
-MODULE_PARM_DESC(g_preh_rate, "g_preh_rate");
 
 static unsigned int g_prev_en = 0xff;
-module_param(g_prev_en, uint, 0664);
-MODULE_PARM_DESC(g_prev_en, "g_prev_en");
 
 static unsigned int g_prev_rate  = 0xff;
-module_param(g_prev_rate, uint, 0664);
-MODULE_PARM_DESC(g_prev_rate, "g_prev_rate");
 
 static unsigned int g_axi_rps_ratio  = 0xff;
-module_param(g_axi_rps_ratio, uint, 0664);
-MODULE_PARM_DESC(g_axi_rps_ratio, "g_axi_rps_ratio");
 
 u8 safa_dir_interp_en = 1;
 
@@ -1020,8 +1006,6 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			filt_num_c = 4;
 
 		//reg config
-		rdma_wr_bits(vsr_reg->safa_pps_sr_422_en,
-			input_422_en, 0, 1);
 		rdma_wr(vsr_reg->safa_pps_pre_scale,
 			(4 << 16) |
 			(filt_num_c << 12) |
@@ -1109,6 +1093,8 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			rdma_wr_bits(vsr_reg->safa_pps_bot_vsc_init,
 				vsr_top->pi_safa_vsc_ini_phase, 0, 16);
 	}
+	rdma_wr_bits(vsr_reg->safa_pps_sr_422_en,
+		input_422_en, 0, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
 		prev_en, 4, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
@@ -1464,3 +1450,14 @@ void vsr_debug_mode_update(u32 debug_mode, struct vsr_setting_s *vsr)
 			(VPP_POSTBLEND_VD1_V_START_END, out_scope_y);
 	}
 }
+
+struct video_module_debug_s debug_video_safa[7] = {
+	{"skip_safa_speed_up", &skip_safa_speed_up, 1, 0},
+	{"g_postsc_en", &g_postsc_en, 1, 0},
+	{"g_preh_en", &g_preh_en, 1, 0},
+	{"g_preh_rate", &g_preh_rate, 1, 0},
+	{"g_prev_en", &g_prev_en, 1, 0},
+	{"g_prev_rate", &g_prev_rate, 1, 0},
+	{"g_axi_rps_ratio", &g_axi_rps_ratio, 1, 0},
+};
+

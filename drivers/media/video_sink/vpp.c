@@ -103,8 +103,6 @@ struct filter_info_s {
 
 #define PPS_COEF_NUM       (66 + 2)
 #define PPS_COEF_8TAP_NUM  (132 + 2)
-static unsigned int pps_coef = PPS_COEF_NUM;
-static unsigned int pps_coef_8tap = PPS_COEF_8TAP_NUM;
 static uint test_pps_h_coef[PPS_COEF_NUM] = {2, 33};
 static uint test_pps_h_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
 static uint test_pps_v_coef[PPS_COEF_NUM] = {2, 33};
@@ -115,20 +113,6 @@ static uint vpp_speed_factor = 0x110;
 static uint lcevc_table_coef[PPS_COEF_NUM] = {4, 33};
 
 uint load_pps_coef;
-MODULE_PARM_DESC(vpp_speed_factor, "\n vpp_speed_factor\n");
-module_param(vpp_speed_factor, uint, 0664);
-MODULE_PARM_DESC(force_pps_hcoef_update, "\n force_pps_hcoef_update\n");
-module_param(force_pps_hcoef_update, uint, 0664);
-MODULE_PARM_DESC(force_pps_vcoef_update, "\n force_pps_vcoef_update\n");
-module_param(force_pps_vcoef_update, uint, 0664);
-module_param_array(test_pps_h_coef, uint, &pps_coef, 0664);
-MODULE_PARM_DESC(test_pps_h_coef, "\n test_pps_h_coef\n");
-module_param_array(test_pps_v_coef, uint, &pps_coef, 0664);
-MODULE_PARM_DESC(test_pps_v_coef, "\n test_pps_v_coef\n");
-module_param_array(test_pps_h_coef_8tap, uint, &pps_coef_8tap, 0664);
-MODULE_PARM_DESC(test_pps_h_coef_8tap, "\n test_pps_h_coef_8tap\n");
-module_param_array(test_pps_v_coef_8tap, uint, &pps_coef_8tap, 0664);
-MODULE_PARM_DESC(test_pps_v_coef_8tap, "\n test_pps_v_coef_8tap\n");
 uint int_hv_phase = 0xff;
 uint int_hv_rpt_num = 0xff;
 
@@ -6060,10 +6044,14 @@ void vpp_bypass_ratio_config(void)
 	}
 }
 
-struct video_module_debug_s debug_vpp[51] = {
+struct video_module_debug_s debug_vpp[55] = {
 	{"vpp_speed_factor", &vpp_speed_factor, 1, 0},
 	{"force_pps_hcoef_update", &force_pps_hcoef_update, 1, 0},
 	{"force_pps_vcoef_update", &force_pps_vcoef_update, 1, 0},
+	{"test_pps_h_coef", test_pps_h_coef, PPS_COEF_NUM, 0},
+	{"test_pps_v_coef", test_pps_v_coef, PPS_COEF_NUM, 0},
+	{"test_pps_h_coef_8tap", test_pps_h_coef_8tap, PPS_COEF_8TAP_NUM, 0},
+	{"test_pps_v_coef_8tap", test_pps_v_coef_8tap, PPS_COEF_8TAP_NUM, 0},
 	{"sharpness1_sr2_ctrl_32d7", &sharpness1_sr2_ctrl_32d7, 1, 0},
 	{"sharpness1_sr2_ctrl_3280", &sharpness1_sr2_ctrl_3280, 1, 0},
 	{"vpp_filter_fix", &vpp_filter_fix, 1, 0},

@@ -118,12 +118,7 @@ static struct fb_fix_screeninfo fb_def_fix = {
 
 #ifdef SPI_DEBUG
 static int spi_write_min;
-module_param(spi_write_min, int, 0664);
-MODULE_PARM_DESC(spi_write_min, "spi_write_min");
-
 static int spi_write_max;
-module_param(spi_write_max, int, 0664);
-MODULE_PARM_DESC(spi_write_max, "spi_write_max");
 #endif
 
 static void lcd_init(void)
@@ -212,6 +207,50 @@ static ssize_t store_log_level(struct device *device,
 
 	return count;
 }
+
+#ifdef SPI_DEBUG
+static ssize_t show_spi_write_min(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "%d\n", spi_write_min);
+}
+
+static ssize_t store_spi_write_min(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	osd_log_info("log_level: %d->%d\n", spi_write_min, res);
+	spi_write_min = res;
+
+	return count;
+}
+
+static ssize_t show_spi_write_max(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "%d\n", spi_write_max);
+}
+
+static ssize_t store_spi_write_max(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	osd_log_info("log_level: %d->%d\n", spi_write_max, res);
+	spi_write_max = res;
+
+	return count;
+}
+#endif
 
 static ssize_t show_log_module(struct device *device,
 			       struct device_attribute *attr,
@@ -834,6 +873,10 @@ static void fbdev_virt_set_default(struct fb_virtual_dev_s *fbdev, int index)
 
 static struct device_attribute virt_fb_attrs[] = {
 	__ATTR(log_level, 0644, show_log_level, store_log_level),
+#ifdef SPI_DEBUG
+	__ATTR(spi_write_min, 0644, show_spi_write_min, store_spi_write_min),
+	__ATTR(spi_write_max, 0644, show_spi_write_max, store_spi_write_max),
+#endif
 	__ATTR(log_module, 0644, show_log_module, store_log_module),
 	__ATTR(fps, 0644, show_fb_fps, store_fb_fps),
 };

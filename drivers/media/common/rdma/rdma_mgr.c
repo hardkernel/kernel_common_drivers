@@ -91,12 +91,6 @@ int enc_num_configed[RDMA_NUM] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 #define DEBUG_RDMA_CONFIG         0x80
 #define DEBUG_RDMA_DONE           0x100
 
-MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
-module_param(g_vsync_rdma_item_count, uint, 0664);
-
-MODULE_PARM_DESC(g_vsync_rdma_item_count_max, "\n g_vsync_rdma_item_count_max\n");
-module_param(g_vsync_rdma_item_count_max, uint, 0664);
-
 struct rdma_irq_reg_s {
 	u32 reg;
 	u32 start;
@@ -2179,6 +2173,48 @@ static ssize_t store_enable(const struct class *class,
 	return count;
 }
 
+static ssize_t show_g_vsync_rdma_item_count(const struct class *class,
+			   const struct class_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "g_vsync_rdma_item_count: %d\n",
+			g_vsync_rdma_item_count);
+}
+
+static ssize_t store_g_vsync_rdma_item_count(const struct class *class,
+			    const struct class_attribute *attr,
+			    const char *buf, size_t count)
+{
+	int g_vsync_item_count = 0, ret;
+
+	ret = kstrtoint(buf, 0, &g_vsync_item_count);
+	pr_info("g_vsync_rdma_item_count %d -> %d\n",
+		g_vsync_rdma_item_count, g_vsync_item_count);
+	g_vsync_rdma_item_count = g_vsync_item_count;
+	return count;
+}
+
+static ssize_t show_g_vsync_rdma_item_count_max(const struct class *class,
+			   const struct class_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "g_vsync_rdma_item_count_max: %d\n",
+			g_vsync_rdma_item_count_max);
+}
+
+static ssize_t store_g_vsync_rdma_item_count_max(const struct class *class,
+			    const struct class_attribute *attr,
+			    const char *buf, size_t count)
+{
+	int g_vsync_item_count_max = 0, ret;
+
+	ret = kstrtoint(buf, 0, &g_vsync_item_count_max);
+	pr_info("g_vsync_rdma_item_count_max %d -> %d\n",
+		g_vsync_rdma_item_count_max, g_vsync_item_count_max);
+	g_vsync_rdma_item_count_max = g_vsync_item_count_max;
+	return count;
+}
+
 static struct class_attribute rdma_mgr_attrs[] = {
 	__ATTR(debug_flag, 0664,
 	       show_debug_flag, store_debug_flag),
@@ -2204,6 +2240,10 @@ static struct class_attribute rdma_mgr_attrs[] = {
 	       NULL, store_rdma_reset),
 	__ATTR(enable, 0664,
 	       show_enable, store_enable),
+	__ATTR(g_vsync_rdma_item_count, 0664,
+	       show_g_vsync_rdma_item_count, store_g_vsync_rdma_item_count),
+	__ATTR(g_vsync_rdma_item_count_max, 0664,
+	       show_g_vsync_rdma_item_count_max, store_g_vsync_rdma_item_count_max),
 };
 
 static struct class *rdma_mgr_class;

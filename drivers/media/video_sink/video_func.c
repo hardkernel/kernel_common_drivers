@@ -140,8 +140,6 @@ struct video_lcevc_s video_lcevc;
 
 u32 frc_mute_frames = 3;
 u32 frc_muted_frames;
-MODULE_PARM_DESC(frc_mute_frames, "\n frc_mute_frames\n");
-module_param(frc_mute_frames, uint, 0664);
 
 bool get_video_reverse(void)
 {
@@ -6893,10 +6891,11 @@ u32 get_vpp_vsync_index(u32 layerid)
 }
 EXPORT_SYMBOL(get_vpp_vsync_index);
 
-struct video_module_debug_s debug_video_func[4] = {
+struct video_module_debug_s debug_video_func[5] = {
 	{"dmc_adjust", &dmc_adjust, 1, 0},
 	{"stop_update", &stop_update, 1, 0},
 	{"pre_vsync_count", &pre_vsync_count, 1, 0},
 	{"stop_force_dmc", &stop_force_dmc, 1, 0},
+	{"frc_mute_frames", &frc_mute_frames, 1, 0},
 };
 

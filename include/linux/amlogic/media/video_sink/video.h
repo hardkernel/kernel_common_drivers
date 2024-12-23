@@ -359,9 +359,10 @@ extern struct video_module_debug_s debug_video[52];
 extern struct video_module_debug_s debug_video[43];
 #endif
 extern struct video_module_debug_s debug_video_hw[9];
-extern struct video_module_debug_s debug_video_func[4];
-extern struct video_module_debug_s debug_vpp[51];
+extern struct video_module_debug_s debug_video_func[5];
+extern struct video_module_debug_s debug_vpp[55];
 extern struct video_module_debug_s debug_video_hw_s5[7];
+extern struct video_module_debug_s debug_video_safa[7];
 
 enum rx_mute_type_e {
 	E_RX_MUTE,

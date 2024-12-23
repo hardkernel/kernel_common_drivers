@@ -8377,6 +8377,10 @@ static struct video_module_debug_s *search_module_param(char *name)
 		if (!strncmp(name, debug_video_hw_s5[i].parm_name, 32))
 			find_param = &debug_video_hw_s5[i];
 	}
+	for (i = 0; i < ARRAY_SIZE(debug_video_safa); i++) {
+		if (!strncmp(name, debug_video_safa[i].parm_name, 32))
+			find_param = &debug_video_safa[i];
+	}
 
 	return find_param;
 }
@@ -8415,6 +8419,10 @@ static ssize_t video_debug_show(const struct class *class,
 	for (i = 0; i < ARRAY_SIZE(debug_video_hw_s5); i++) {
 		pr_info("echo %s > %s\n",
 			       debug_video_hw_s5[i].parm_name, sysfs_node);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_video_safa); i++) {
+		pr_info("echo %s > %s\n",
+			       debug_video_safa[i].parm_name, sysfs_node);
 	}
 	pr_info("--- if writing module parameters ---\n");
 	for (i = 0; i < ARRAY_SIZE(debug_video); i++) {
