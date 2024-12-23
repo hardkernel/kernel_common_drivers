@@ -4251,7 +4251,7 @@ void cor_config(u8 port)
 	data8 |= (0 << 6);// [6]  rsvd
 	data8 |= (0 << 5);// [5]  reg_vdi_rx_dig_bypass
 	data8 |= (0 << 4);// [4]  reg_tmds_mode_inv
-	data8 |= (1 << 3);// [3]  reg_bypass_rx2tx_dsc_video
+	data8 |= (0 << 3);// [3]  reg_bypass_rx2tx_dsc_video
 	data8 |= (0 << 2);// [2]  rsvd
 	data8 |= (0 << 1);// [1]  rsvd
 	data8 |= (0 << 0);// [0]  reg_core_iso_en  TMDS core isolation enable
@@ -5448,6 +5448,11 @@ void hdmirx_config_video(u8 port)
 		rx_cd_override(true, port);
 	else
 		rx_cd_override(false, port);
+	/* YUV420 DSC video core bypass */
+	if (rx[port].cur.colorspace == E_COLOR_YUV420)
+		hdmirx_wr_bits_cor(RX_PWD_CTRL, _BIT(3), 1, port);
+	else
+		hdmirx_wr_bits_cor(RX_PWD_CTRL, _BIT(3), 0, port);
 	if (rx_info.chip_id >= CHIP_ID_T3X && port == rx_info.main_port) {
 		rx[port].emp_vid_idx = 1;
 		rx[port].emp_info = &rx_info.emp_buff_b;
