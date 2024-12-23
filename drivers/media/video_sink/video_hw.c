@@ -10101,7 +10101,7 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 			axis[3] = pic_axis[i][3];
 
 			_set_video_window(&g_mosaic_frame[i].virtual_layer_info, axis);
-			if (is_crop_from_vf(mosaic_vf->source_type))
+			if (is_crop_from_vf(mosaic_vf))
 				_set_video_crop(&g_mosaic_frame[i].virtual_layer_info,
 					mosaic_vf->crop);
 			if (mosaic_vf->flag & VFRAME_FLAG_MIRROR_H)

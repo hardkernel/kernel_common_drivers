@@ -804,7 +804,7 @@ static int lowlatency_vsync(u8 instance_id)
 		crop[3] = vd_layer[0].dispbuf->crop[3];
 		_set_video_window(&glayer_info[0], axis);
 		source_type = vd_layer[0].dispbuf->source_type;
-		if (is_crop_from_vf(source_type)) {
+		if (is_crop_from_vf(vd_layer[0].dispbuf)) {
 			_set_video_crop(&glayer_info[0], crop);
 		} else {
 			crop_save[0] = glayer_info[0].crop_top_save;
@@ -1203,7 +1203,7 @@ static int lowlatency_vsync(u8 instance_id)
 		crop[3] = vd_layer[1].dispbuf->crop[3];
 		_set_video_window(&glayer_info[1], axis);
 		source_type = vd_layer[1].dispbuf->source_type;
-		if (is_crop_from_vf(source_type)) {
+		if (is_crop_from_vf(vd_layer[1].dispbuf)) {
 			_set_video_crop(&glayer_info[1], crop);
 		} else {
 			crop_save[0] = glayer_info[1].crop_top_save;
@@ -1502,7 +1502,7 @@ static int lowlatency_vsync(u8 instance_id)
 			crop[3] = vd_layer[2].dispbuf->crop[3];
 			_set_video_window(&glayer_info[2], axis);
 			source_type = vd_layer[2].dispbuf->source_type;
-			if (is_crop_from_vf(source_type)) {
+			if (is_crop_from_vf(vd_layer[2].dispbuf)) {
 				_set_video_crop(&glayer_info[2], crop);
 			} else {
 				crop_save[0] = glayer_info[2].crop_top_save;
