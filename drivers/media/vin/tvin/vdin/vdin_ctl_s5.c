@@ -655,6 +655,9 @@ void vdin_cfg_cutwin_regs_s5(struct vdin_dev_s *devp,
 	unsigned int offset = devp->addr_offset;
 
 	cutwin_en = (cutwin_s->hs || cutwin_s->he || cutwin_s->vs || cutwin_s->ve);
+	/* Enable vdin1 cut window always for write done checking */
+	if (devp->hw_core == VDIN_HW_CORE_LITE)
+		cutwin_en = true;
 	//update cut window
 	wr(offset, VDIN_PP_TOP_H_WIN,
 		(cutwin_s->hs << INPUT_WIN_H_START_BIT) |

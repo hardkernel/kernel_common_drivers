@@ -1023,6 +1023,7 @@
 			clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
 				clock-names = "fclk_div5", "cts_vdin_meas_clk";
 			tv_bit_mode = <0x15>;
+			chk_wr_done_en;
 			/* vdin v4l2 */
 			v4l_support_en = <0>;
 			v4l_vd_num = <71>;

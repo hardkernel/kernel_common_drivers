@@ -3205,14 +3205,15 @@ static bool vdin_is_input_valid(struct vdin_dev_s *devp)
 	h_diff_val = devp->h_active_org / div - h_report;
 	v_diff_val = devp->v_active_org - v_report;
 
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_INPUT)
+		pr_info("vdin%d,hv_active=[%d %d],report=[%d %d],diff=[%d %d],thd:%d\n",
+			devp->index, devp->h_active, devp->v_active,
+			h_report, v_report, h_diff_val, v_diff_val,
+			devp->vdin_input_data_threshold);
+
 	if (abs(h_diff_val) > devp->vdin_input_data_threshold ||
-		abs(v_diff_val) > devp->vdin_input_data_threshold) {
-		if (vdin_isr_monitor & VDIN_ISR_MONITOR_INPUT)
-			pr_info("vdin%d,hv_active=[%d %d],report=[%d %d],diff=[%d %d]\n",
-				devp->index, devp->h_active, devp->v_active,
-				h_report, v_report, h_diff_val, v_diff_val);
+		abs(v_diff_val) > devp->vdin_input_data_threshold)
 		return false;
-	}
 
 	return true;
 }
@@ -4207,12 +4208,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
 		if (!vdin_write_done_check(devp)) {
-			if (vdin_dbg_en)
-				pr_info("[vdin.%u] write undone skiped.\n",
-						devp->index);
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
 			vdin_drop_frame_info(devp, "write done check");
-			goto irq_handled;
 		}
 	}
 
@@ -4342,7 +4339,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	vdin_slt_test(devp);
 
 irq_handled:
-	vdin_force_mif_ctl(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE, true);
+	//vdin_force_mif_ctl(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE, true);
 	vdin_dbg_access_reg(devp, 1);
 	devp->vdin_irq_flag = 0;
 	spin_unlock_irqrestore(&devp->isr_lock, flags);

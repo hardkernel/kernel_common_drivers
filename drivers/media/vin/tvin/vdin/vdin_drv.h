@@ -672,6 +672,7 @@ struct vdin_debug_s {
 	unsigned char rgb_8l[3];
 	unsigned int v4l2_buff_area;
 	bool invalid_input_en;
+	unsigned int matrix_pattern_mode;
 };
 
 struct vdin_dv_s {

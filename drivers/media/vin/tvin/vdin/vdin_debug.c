@@ -3587,7 +3587,7 @@ start_chk:
 		 * 0:off 1:enable
 		 */
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
-			devp->matrix_pattern_mode = temp;
+			devp->debug.matrix_pattern_mode = temp;
 			vdin_set_matrix_color(devp);
 			/* pr_info("matrix_pattern_mode:%d\n", devp->matrix_pattern_mode); */
 		}

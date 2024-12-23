@@ -1467,6 +1467,9 @@ void vdin_cfg_cutwin_regs(struct vdin_dev_s *devp,
 #endif
 
 	cutwin_en = (cutwin_s->hs || cutwin_s->he || cutwin_s->vs || cutwin_s->ve);
+	/* Enable vdin1 cut window always for write done checking */
+	if (devp->hw_core == VDIN_HW_CORE_LITE)
+		cutwin_en = true;
 	//update cut window
 	wr(offset, VDIN_WIN_H_START_END,
 		(cutwin_s->hs << INPUT_WIN_H_START_BIT) |
@@ -1519,9 +1522,9 @@ void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable)
 		cutwin_s.ve = devp->prop.vs + devp->v_active - 1;
 	} else {
 		cutwin_s.hs = 0;
-		cutwin_s.he = 0;
+		cutwin_s.he = devp->h_active - 1;
 		cutwin_s.vs = 0;
-		cutwin_s.ve = 0;
+		cutwin_s.ve = devp->v_active - 1;
 		devp->crop_h = 0;
 		devp->crop_v = 0;
 	}
@@ -2786,8 +2789,8 @@ void vdin_set_mif_on_off(struct vdin_dev_s *devp, unsigned int rdma_enable)
 	#if CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
-			rdma_write_reg_bits(devp->rdma_handle, VDIN_WRMIF_FRM_EN_CTRL + offset,
-				    devp->vframe_wr_en, 15, 1);
+//			rdma_write_reg_bits(devp->rdma_handle, VDIN_WRMIF_FRM_EN_CTRL + offset,
+//				    devp->vframe_wr_en, 15, 1);
 		} else {
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_WR_CTRL2 + offset,
 					    devp->vframe_wr_en ? 0 : 1,
@@ -2872,7 +2875,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 	u32 stride_luma, stride_chroma = 0;
 	u32 hsize;
 	unsigned long phy_addr_luma = 0, phy_addr_chroma = 0;
-	bool reg_en = true;
+	bool pause_en = false;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
@@ -2907,7 +2910,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 	/*		stride_luma, stride_chroma);*/
 	/*}*/
 	if (devp->pause_dec || devp->debug.pause_mif_dec)
-		reg_en = false;
+		pause_en = true;
 
 	if (rdma_enable) {
 		if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
@@ -2917,6 +2920,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 			rdma_write_reg(devp->rdma_handle,
 				       VDIN_WRMIF_LUMA_CTRL1 + devp->addr_offset,
 				       stride_luma);
+			vdin_pause_mif_write(devp, rdma_enable, pause_en);
 		} else {
 			rdma_write_reg(devp->rdma_handle,
 				       VDIN_WR_BADDR_LUMA + devp->addr_offset,
@@ -2944,9 +2948,9 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 					       stride_chroma);
 			}
 		}
-		if (devp->dtdata->hw_ver == VDIN_HW_T6D)
-			rdma_write_reg_bits(devp->rdma_handle,
-				VDIN_WRMIF_FRM_EN_CTRL + devp->addr_offset, reg_en, 15, 1);
+//		if (devp->dtdata->hw_ver == VDIN_HW_T6D)
+//			rdma_write_reg_bits(devp->rdma_handle,
+//				VDIN_WRMIF_FRM_EN_CTRL + devp->addr_offset, reg_en, 15, 1);
 	} else {
 		if (vdin_dbg_en)
 			pr_info("%s,phy_addr_luma:0x%lx,stride_luma:%d\n",
@@ -2954,6 +2958,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 		if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 			wr(devp->addr_offset, VDIN_WRMIF_LUMA_BADDR, phy_addr_luma >> 4);
 			wr(devp->addr_offset, VDIN_WRMIF_LUMA_CTRL1, stride_luma);
+			vdin_pause_mif_write(devp, 0, pause_en);
 		} else {
 			wr(devp->addr_offset, VDIN_WR_BADDR_LUMA, phy_addr_luma >> 4);
 			wr(devp->addr_offset, VDIN_WR_STRIDE_LUMA, stride_luma);
@@ -3058,10 +3063,10 @@ void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable, boo
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 		if (rdma_enable)
 			rdma_write_reg_bits(devp->rdma_handle,
-				VDIN_WRMIF_FRM_EN_CTRL + devp->addr_offset, !pause_en, 15, 1);
+				VDIN_LFIFO_CTRL + devp->addr_offset, pause_en, 28, 1);
 		else
 #endif
-			wr_bits(devp->addr_offset, VDIN_WRMIF_FRM_EN_CTRL, !pause_en, 15, 1);
+			wr_bits(devp->addr_offset, VDIN_LFIFO_CTRL, pause_en, 28, 1);
 	} else {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 		if (rdma_enable)
@@ -4057,8 +4062,8 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 		wr(offset, VDIN_WRMIF_CHRM_X, 0x00000000);
 		wr(offset, VDIN_WRMIF_CHRM_Y, 0x00000000);
 		wr_bits(offset, VDIN_LFIFO_CTRL, 0, 28, 1);//discard data disable
-		wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, 1, 1, 1);
-		wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, 0, 15, 1);
+		wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, 0, 1, 1);/* 0-auto,1-manual */
+		//wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, 0, 15, 1);
 	} else {
 		/* [27:16] write.output_hs        = 0 */
 		/* [11: 0] write.output_he        = 0 */
@@ -4139,13 +4144,6 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 	/* [28:16]  bbar.blnt_thr_on_wpix = 0 */
 	/* [12: 0]  bbar.blnb_thr_on_wpix = 0 */
 	wr(offset, VDIN_BLKBAR_ROW_TH1_TH2, 0x00000000);
-
-	/* [28:16] input_win.hs               = 0 */
-	/* [12: 0] input_win.he               = 0 */
-	wr(offset, VDIN_WIN_H_START_END, 0x00000000);
-	/* [28:16] input_win.vs               = 0 */
-	/* [12: 0] input_win.ve               = 0 */
-	wr(offset, VDIN_WIN_V_START_END, 0x00000000);
 
 	/*hw verify:de-tunnel 444 to 422 12bit*/
 	/*if (devp->dtdata->de_tunnel_tunnel) */{
@@ -4485,6 +4483,7 @@ void vdin_clear_vdi6_afifo_overflow_flg(unsigned int offset)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu()) {
+		vdin_clear_vdi6_afifo_overflow_t3x(offset);
 		return;
 	} else
 #endif
@@ -4632,7 +4631,7 @@ void vdin_enable_module(struct vdin_dev_s *devp, bool enable)
 bool vdin_write_done_check(struct vdin_dev_s *devp)
 {
 	bool ret = false;
-	unsigned int offset, done_flag;
+	unsigned int offset, done_flag = true;
 
 	offset = devp->addr_offset;
 
@@ -4648,24 +4647,39 @@ bool vdin_write_done_check(struct vdin_dev_s *devp)
 		return vdin_write_done_check_t3x(devp);
 #endif
 
-	if (devp->dtdata->hw_ver != VDIN_HW_T6D) {
+	devp->stats.write_done_check++;
+	/* To make the vdin1 write done checking in loopback more accurate,it is necessary to
+	 * enable cutwin and combine the below two methods for checking.
+	 */
+	if (devp->hw_core == VDIN_HW_CORE_LITE) {
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+			pr_info("VDIN_COM_STATUS2:%#x,VDIN_WR_DONE_CTL:%#x\n",
+				!rd_bits(offset, VDIN_COM_STATUS2, 15, 1),
+				rd_bits(offset, VDIN_WR_DONE_CTL, 30, 1));
+		done_flag = !vdin_check_vdi6_afifo_overflow(offset);
+		vdin_clear_vdi6_afifo_overflow_flg(offset);
+	}
+
+	if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
+		done_flag = done_flag && rd_bits(offset, VDIN_WR_DONE_CTL, 30, 1);
+		/*clear top int status*/
+		wr_bits(offset, VDIN_WR_DONE_CTL, 1, 16, 1);
+		wr_bits(offset, VDIN_WR_DONE_CTL, 0, 16, 1);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		/*clear int status*/
 		wr_bits(offset, VDIN_WR_CTRL, 1,
 				DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
 		wr_bits(offset, VDIN_WR_CTRL, 0,
 				DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
-	}
-
-	devp->stats.write_done_check++;
-	if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
-		done_flag = rd_bits(offset, VDIN_WR_DONE_CTL, 30, 1);
-		/*clear top int status*/
-		wr_bits(offset, VDIN_WR_DONE_CTL, 1, 16, 1);
-		wr_bits(offset, VDIN_WR_DONE_CTL, 0, 16, 1);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		done_flag = rd_bits(offset, VDIN_RO_WRMIF_STATUS,
+		done_flag = done_flag && rd_bits(offset, VDIN_RO_WRMIF_STATUS,
 				WRITE_DONE_BIT, WRITE_DONE_WID);
 	} else {
+		/*clear int status*/
+		wr_bits(offset, VDIN_WR_CTRL, 1,
+				DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
+		wr_bits(offset, VDIN_WR_CTRL, 0,
+				DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
+		//TODO: chips before TM2,check vdi6
 		done_flag = rd_bits(offset, VDIN_COM_STATUS0,
 				DIRECT_DONE_STATUS_BIT, DIRECT_DONE_STATUS_WID);
 	}
@@ -7700,6 +7714,9 @@ void vdin_set_matrix_color(struct vdin_dev_s *devp)
 		return;
 	}
 #endif
+	if (devp->debug.matrix_pattern_mode)
+		mode = devp->debug.matrix_pattern_mode;
+
 	/*vdin bist mode RGB:black, for T6D, vdin0 use matrix0*/
 	if (is_meson_t6d_cpu() && devp->hw_core == VDIN_HW_CORE_NORMAL)
 		wr(offset, VDIN_MATRIX_CTRL, 0x0);

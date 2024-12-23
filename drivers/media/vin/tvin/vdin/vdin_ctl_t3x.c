@@ -764,6 +764,9 @@ void vdin_cfg_cutwin_regs_t3x(struct vdin_dev_s *devp,
 	unsigned int offset = devp->addr_offset;
 
 	cutwin_en = (cutwin_s->hs || cutwin_s->he || cutwin_s->vs || cutwin_s->ve);
+	/* Enable vdin1 cut window always for write done checking */
+	if (devp->hw_core == VDIN_HW_CORE_LITE)
+		cutwin_en = true;
 	//update cut window
 	wr(offset, VDIN0_CUTWIN_H_WIN,
 		(cutwin_s->hs << INPUT_WIN_H_START_BIT) |
@@ -2311,6 +2314,12 @@ void vdin_enable_module_t3x(struct vdin_dev_s *devp, bool enable)
 	}
 }
 
+void vdin_clear_vdi6_afifo_overflow_t3x(unsigned int offset)
+{
+	wr_bits(offset, VDIN_INTF_VDI6_CTRL, 0x1, 1, 1);
+	wr_bits(offset, VDIN_INTF_VDI6_CTRL, 0x0, 1, 1);
+}
+
 bool vdin_write_done_check_t3x(struct vdin_dev_s *devp)
 {
 	bool ret = false;
@@ -3243,6 +3252,9 @@ void vdin_set_matrix_color_t3x(struct vdin_dev_s *devp)
 	unsigned int offset = devp->addr_offset;
 	unsigned int mode = devp->matrix_pattern_mode;
 
+	if (devp->debug.matrix_pattern_mode)
+		mode = devp->debug.matrix_pattern_mode;
+
 	/*vdin bist mode RGB:black*/
 	wr(offset, VDIN0_MAT_COEF00_01, 0x0);
 	wr(offset, VDIN0_MAT_COEF02_10, 0x0);
@@ -3321,10 +3333,20 @@ void vdin_bist_t3x(struct vdin_dev_s *devp, unsigned int mode)
 
 bool vdin_is_wrmif_done_t3x(struct vdin_dev_s *devp)
 {
-	if (rd_bits(devp->addr_offset, VDIN0_CORE_FRM_END, 3, 1))
-	//if (rd_bits(devp->addr_offset, VDIN0_WRMIF_RO_STATUS, 0, 1))
-		return true;
-	return false;
+	bool done_flag = true;
+
+	if (devp->hw_core == VDIN_HW_CORE_LITE) {
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+			pr_info("VDIN_COM_STATUS2:%#x,VDIN_WR_DONE_CTL:%#x\n",
+				!rd_bits(0, VDIN_INTF_VDI_INT_STATUS1, 7, 1),
+				rd_bits(devp->addr_offset, VDIN0_CORE_FRM_END, 3, 1));
+		done_flag = !rd_bits(0, VDIN_INTF_VDI_INT_STATUS1, 7, 1);
+		vdin_clear_vdi6_afifo_overflow_t3x(devp->addr_offset);
+	}
+
+	done_flag = done_flag && rd_bits(devp->addr_offset, VDIN0_CORE_FRM_END, 3, 1);
+
+	return done_flag;
 }
 
 void vdin_clr_write_done_t3x(struct vdin_dev_s *devp)
