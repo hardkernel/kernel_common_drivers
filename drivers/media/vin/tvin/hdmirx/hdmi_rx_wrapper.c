@@ -4625,8 +4625,9 @@ void rx_main_state_machine(void)
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 			break;
 		}
-		if (port != rx_info.main_port &&
-			port != rx_info.sub_port)
+		if ((port != rx_info.main_port &&
+			port != rx_info.sub_port) ||
+			rx[port].resume_flag)
 			break;
 		rx[port].state = FSM_SIG_STABLE;
 		break;

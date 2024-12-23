@@ -47,7 +47,8 @@
 /* 2024.12.03 adjust audio fifo enable timing */
 /* 2024.12.16 remove fsm restart on t3x */
 /* 2024.12.19 add protection when not in hdmi source */
-#define RX_WRAPPER_VER "ver.2024/12/19"
+/* 2024.12.24 rx statemachine hold when resume on other src*/
+#define RX_WRAPPER_VER "ver.2024/12/24"
 
 struct freq_ref_s {
 	bool interlace;
