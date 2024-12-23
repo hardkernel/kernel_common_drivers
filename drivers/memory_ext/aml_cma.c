@@ -2089,7 +2089,9 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 	int dummy = 0;
 	unsigned long tick = 0;
 	unsigned long long in_tick, timeout;
-	int timeout_count = 0;
+	/*
+	 *int timeout_count = 0;
+	 */
 	int reset = 0;
 
 	if (!preemptible()) {
@@ -2182,22 +2184,24 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 		//trace_cma_alloc_busy_retry(cma->name, pfn, pfn_to_page(pfn),
 		//			   count, align);
 		/* try again with a bit different memory target */
-		//start = bitmap_no + mask + 1;
+		start = bitmap_no + mask + 1;
 		/*
 		 * CMA allocation time out, for example:
 		 * 1. set isolation failed.
 		 * 2. refcout and mapcount mismatch.
 		 * may blocked on some pages, relax CPU and try later.
 		 */
-		if ((sched_clock() - in_tick) >= timeout) {
-			if (timeout_count > 200) {
-				pr_err("cma: %s alloc too long %lx ,%lx\n",
-					cma->name, pfn, count);
-				cma_debug_level = 6;
-			}
-			timeout_count++;
-			usleep_range(1000, 2000);
-		}
+		/*
+		 *if ((sched_clock() - in_tick) >= timeout) {
+		 *	if (timeout_count > 200) {
+		 *		pr_err("cma: %s alloc too long %lx ,%lx\n",
+		 *			cma->name, pfn, count);
+		 *		cma_debug_level = 6;
+		 *	}
+		 *	timeout_count++;
+		 *	usleep_range(1000, 2000);
+		 *}
+		 */
 	}
 
 	//trace_cma_alloc_finish(cma->name, pfn, page, count, align);
