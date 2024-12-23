@@ -1448,7 +1448,7 @@
 
 	vdac: vdac {
 		compatible = "amlogic, vdac-s7D";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vout: vout {
