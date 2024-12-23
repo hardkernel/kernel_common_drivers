@@ -616,7 +616,6 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	return 0;
 
 err_remove_config_dt:
-	stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
 }
@@ -760,16 +759,11 @@ static int meson8b_resume(struct device *dev)
 
 static void meson8b_dwmac_remove(struct platform_device *pdev)
 {
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
 
 	input_unregister_device(dwmac->input_dev);
 
 	stmmac_dvr_remove(&pdev->dev);
-
-	stmmac_remove_config_dt(pdev, priv->plat);
 }
 
 static SIMPLE_DEV_PM_OPS(meson8b_pm_ops,
