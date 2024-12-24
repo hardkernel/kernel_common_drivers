@@ -30,6 +30,7 @@
 #ifdef CONFIG_AMLOGIC_PWM_32K
 #include <linux/pwm.h>
 #include <linux/amlogic/pwm-meson.h>
+#include <linux/amlogic/pwm-meson-tee.h>
 #endif
 #include <gpiolib-of.h>
 #define OWNER_NAME "sdio_wifi"
@@ -84,6 +85,7 @@ struct wifi_plat_info {
 	int power_init_off;
 
 	int clock_32k_pin;
+	int wifi_pwm_tee;
 	struct gpio_desc *interrupt_desc;
 	struct gpio_desc *powe_desc;
 
@@ -739,8 +741,8 @@ int pwm_double_channel_conf(struct wifi_plat_info *plat)
 	struct pwm_double_data pwm_data2 = plat->ddata.pwms[1];
 	struct pwm_device *pwm1 = pwm_data1.pwm;
 	struct pwm_device *pwm2 = pwm_data2.pwm;
-	struct meson_pwm *meson1 = to_meson_pwm(pwm1->chip);
-	struct meson_pwm *meson2 = to_meson_pwm(pwm2->chip);
+	void *meson1 = NULL;
+	void *meson2 = NULL;
 	struct pwm_state pstate1;
 	struct pwm_state pstate2;
 	unsigned int pwm1_duty = pwm_data1.duty_cycle;
@@ -749,6 +751,14 @@ int pwm_double_channel_conf(struct wifi_plat_info *plat)
 	unsigned int pwm2_times = pwm_data2.pwm_times;
 	int ret = 0;
 
+	if (plat->wifi_pwm_tee) {
+		meson1 = to_meson_pwm_tee(pwm1->chip);
+		meson2 = to_meson_pwm_tee(pwm2->chip);
+	} else {
+		meson1 = to_meson_pwm(pwm1->chip);
+		meson2 = to_meson_pwm(pwm2->chip);
+	}
+
 	/*init for pwm2 device*/
 	pwm_init_state(pwm1, &pstate1);
 	pwm_init_state(pwm2, &pstate2);
@@ -756,13 +766,21 @@ int pwm_double_channel_conf(struct wifi_plat_info *plat)
 	pwm_config(pwm1, pwm1_duty, pstate1.period);
 	pwm_config(pwm2, pwm2_duty, pstate2.period);
 
-	ret = pwm_set_times(meson1, pwm1->hwpwm, pwm1_times);
+	if (plat->wifi_pwm_tee)
+		ret = pwm_set_times_tee((struct meson_pwm_tee *)meson1, pwm1->hwpwm, pwm1_times);
+	else
+		ret = pwm_set_times((struct meson_pwm *)meson1, pwm1->hwpwm, pwm1_times);
+
 	if (ret) {
 		pr_err("[%s][%d]wifi: pwm_set_times filed\n",
 		       __func__, __LINE__);
 		return ret;
 	}
-	ret = pwm_set_times(meson2, pwm2->hwpwm, pwm2_times);
+	if (plat->wifi_pwm_tee)
+		ret = pwm_set_times_tee((struct meson_pwm_tee *)meson2, pwm2->hwpwm, pwm2_times);
+	else
+		ret = pwm_set_times((struct meson_pwm *)meson2, pwm2->hwpwm, pwm2_times);
+
 	if (ret) {
 		pr_err("[%s][%d]wifi: pwm_set_times filed\n",
 		       __func__, __LINE__);
@@ -877,6 +895,14 @@ static int wifi_dev_probe(struct platform_device *pdev)
 							(pdev->dev.of_node,
 							"chip_en-gpios",
 							0, NULL);
+		}
+
+		if (of_get_property(pdev->dev.of_node, "wifi_pwm_tee", NULL)) {
+			plat->wifi_pwm_tee = 1;
+			WIFI_INFO("wifi_pwm_tee = 1\n");
+		} else {
+			plat->wifi_pwm_tee = 0;
+			WIFI_INFO("wifi_pwm_tee = 0\n");
 		}
 
 #ifdef CONFIG_AMLOGIC_PWM_32K
