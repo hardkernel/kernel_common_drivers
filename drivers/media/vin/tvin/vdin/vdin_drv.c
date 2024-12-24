@@ -3202,8 +3202,8 @@ static bool vdin_is_input_valid(struct vdin_dev_s *devp)
 #endif
 	h_report = vdin_get_active_h(devp);
 	v_report = vdin_get_active_v(devp);
-	h_diff_val = devp->h_active_org / div - h_report;
-	v_diff_val = devp->v_active_org - v_report;
+	h_diff_val = devp->h_active_org / div - devp->crop_h - h_report;
+	v_diff_val = devp->v_active_org - devp->crop_v - v_report;
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_INPUT)
 		pr_info("vdin%d,hv_active=[%d %d],report=[%d %d],diff=[%d %d],thd:%d\n",
