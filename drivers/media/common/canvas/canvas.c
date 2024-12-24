@@ -341,36 +341,41 @@ static int __init canvas_probe(struct platform_device *pdev)
 {
 	int r = 0;
 	struct canvas_device_info *info = NULL;
-	struct resource *res;
+	struct resource *res = NULL;
 	int size;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "I/O memory region is not used\n");
-		r = -ENOMEM;
-		goto err1;
-	} else {
-		info->res = *res;
-		size = (int)resource_size(res);
-		info->reg_base = devm_ioremap_resource(&pdev->dev, res);
-		if (!info->reg_base) {
-			dev_err(&pdev->dev,
-				"devm_ioremap canvas failed!\n");
+	amcanvas_manager_init();
+	if (hw_canvas_support) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res) {
+			dev_err(&pdev->dev, "I/O memory region is not used\n");
+			r = -ENOMEM;
 			goto err1;
+		} else {
+			info->res = *res;
+			size = (int)resource_size(res);
+			info->reg_base = devm_ioremap_resource(&pdev->dev, res);
+			if (!info->reg_base) {
+				dev_err(&pdev->dev,
+					"devm_ioremap canvas failed!\n");
+				goto err1;
+			}
 		}
 	}
-	amcanvas_manager_init();
 	info->max_canvas_num = canvas_pool_canvas_num();
 	spin_lock_init(&info->lock);
 	info->canvas_dev = pdev;
 	canvas_info = info;
 
-	pr_info("%s ok, reg=%lx, size=%x base =%px\n", __func__,
-		(unsigned long)res->start, size, info->reg_base);
+	if (hw_canvas_support)
+		pr_info("%s ok, reg=%lx, size=%x base =%px\n", __func__,
+			(unsigned long)res->start, size, info->reg_base);
+	else
+		pr_info("%s ok\n", __func__);
 	return 0;
 err1:
 	devm_kfree(&pdev->dev, info);

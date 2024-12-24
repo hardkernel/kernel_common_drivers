@@ -2525,7 +2525,6 @@
 		compatible = "amlogic, meson, canvas";
 		dev_name = "amlogic-canvas";
 		status = "okay";
-		reg = <0x0 0xfe036048 0x0 0x2000>;
 	};
 
 	codec_io: codec_io {

@@ -1285,7 +1285,6 @@
 	canvas: canvas{
 		compatible = "amlogic, meson, canvas";
 		status = "disabled";
-		reg = <0xfe036048 0x2000>;
 	};
 
 	codec_io: codec_io {

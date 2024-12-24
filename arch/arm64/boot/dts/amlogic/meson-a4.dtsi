@@ -1355,7 +1355,6 @@
 		compatible = "amlogic, meson, canvas";
 		dev_name = "amlogic-canvas";
 		status = "okay";
-		reg = <0x0 0xfe030048 0x0 0x2000>;
 	};
 
 	ion_dev {
