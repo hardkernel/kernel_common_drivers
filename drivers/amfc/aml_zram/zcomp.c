@@ -34,7 +34,7 @@ static const struct zcomp_ops *backends[] = {
 static void zcomp_strm_free(struct zcomp *comp, struct zcomp_strm *zstrm)
 {
 	comp->ops->destroy_ctx(&zstrm->ctx);
-	vfree(zstrm->buffer);
+	kfree(zstrm->buffer);
 	zstrm->buffer = NULL;
 }
 
