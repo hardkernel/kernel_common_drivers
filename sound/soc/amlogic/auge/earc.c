@@ -1229,9 +1229,7 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 		struct frddr *fr = p_earc->fddr;
 		enum frddr_dest dst = EARCTX_DMAC;
 		unsigned int fifo_id;
-		enum attend_type type =
-			earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
-		struct iec_cnsmr_cs cs_info;
+		enum attend_type type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
 
 		if (type == ATNDTYP_DISCNCT) {
 			dev_err(p_earc->dev,
@@ -1262,16 +1260,6 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 				       fr->fifo_id,
 				       bit_depth - 1,
 				       spdifout_get_frddr_type(bit_depth));
-
-		iec_get_cnsmr_cs_info(&cs_info,
-				      p_earc->tx_audio_coding_type,
-				      runtime->channels,
-				      runtime->rate);
-		earctx_set_cs_info(p_earc->tx_dmac_map,
-				   p_earc->tx_audio_coding_type,
-				   &cs_info,
-				   &p_earc->tx_cs_lpcm_ca);
-
 		earctx_set_cs_mute(p_earc->tx_dmac_map, p_earc->tx_cs_mute);
 
 		p_earc->tx_stream_state = SNDRV_PCM_STATE_PREPARED;
@@ -1433,18 +1421,15 @@ int spdif_codec_to_earc_codec[][2] = {
 
 };
 
-int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
+static int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 {
 	struct frddr *fr;
 	enum attend_type type;
 	struct iec_cnsmr_cs cs_info;
 	int channels, rate;
-	unsigned long flags;
 
 	if (!s_earc || IS_ERR_OR_NULL(s_earc->tx_cmdc_map))
 		return 0;
-
-	s_earc->tx_audio_coding_type = new_coding_type;
 
 	fr = s_earc->fddr;
 	/* Update dmac clk ? */
@@ -1460,17 +1445,12 @@ int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 	else
 		return 0;
 
-	spin_lock_irqsave(&s_earc->tx_lock, flags);
 	if (!s_earc->tx_dmac_clk_on)
-		goto exit;
+		return 0;
 
 	dev_info(s_earc->dev, "tx audio coding type: 0x%02x\n", new_coding_type);
 
 	type = earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
-
-	/* Update ECC enable/disable */
-	earctx_compressed_enable(s_earc->tx_dmac_map,
-				 type, new_coding_type, true);
 
 	/* Update Channel Status in runtime */
 	iec_get_cnsmr_cs_info(&cs_info,
@@ -1482,8 +1462,6 @@ int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 			   &cs_info,
 			   &s_earc->tx_cs_lpcm_ca);
 
-exit:
-	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 	return 0;
 }
 
@@ -1511,7 +1489,8 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 	/* same source channels always 2 */
 	s_earc->ss_info.channels =  2;
 	s_earc->ss_info.rate = runtime->rate;
-	aml_earctx_set_audio_coding_type(spdif_codec_to_earc_codec[type][1]);
+	s_earc->tx_audio_coding_type = spdif_codec_to_earc_codec[type][1];
+
 	for (i = 0; i < runtime->channels; i++)
 		chmask |= (1 << i);
 	swap_masks = (2 * lane_i2s) | (2 * lane_i2s + 1) << 4;
@@ -1547,6 +1526,7 @@ void aml_earctx_enable(bool enable)
 			if (!s_earc->hold_bus_flag)
 				schedule_work(&s_earc->tx_hold_bus_work);
 			s_earc->last_tx_audio_coding_type = s_earc->tx_audio_coding_type;
+			aml_earctx_set_audio_coding_type(s_earc->tx_audio_coding_type);
 		}
 		earctx_enable(s_earc->tx_top_map,
 			s_earc->tx_cmdc_map,
@@ -1573,9 +1553,22 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			struct snd_pcm_runtime *runtime = substream->runtime;
+			struct iec_cnsmr_cs cs_info;
+
 			dev_info(p_earc->dev, "eARC/ARC TX enable\n");
 
 			aml_frddr_enable(p_earc->fddr, true);
+			if (!p_earc->hold_bus_flag)
+				schedule_work(&p_earc->tx_hold_bus_work);
+			iec_get_cnsmr_cs_info(&cs_info,
+				      p_earc->tx_audio_coding_type,
+				      runtime->channels,
+				      runtime->rate);
+			earctx_set_cs_info(p_earc->tx_dmac_map,
+				   p_earc->tx_audio_coding_type,
+				   &cs_info,
+				   &p_earc->tx_cs_lpcm_ca);
 			earctx_enable(p_earc->tx_top_map,
 				      p_earc->tx_cmdc_map,
 				      p_earc->tx_dmac_map,
@@ -1583,8 +1576,6 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      true,
 				      p_earc->chipinfo);
 			earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
-			if (!p_earc->hold_bus_flag)
-				schedule_work(&p_earc->tx_hold_bus_work);
 			p_earc->last_tx_audio_coding_type = p_earc->tx_audio_coding_type;
 			p_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
 		} else {
