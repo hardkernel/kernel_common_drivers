@@ -1125,12 +1125,23 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 	dim_secure_sw_post(channel);
 	dim_ddbg_mod_save(EDI_DBG_MOD_POST_SETB, channel, ppost->frame_cnt);
 	/* make sure the height is even number */
-	di_start_x = para->win.x_st;
 	di_width = para->win.x_size;
-	di_end_x = di_width + di_start_x - 1;
-	di_start_y = para->win.y_st;
 	di_height = para->win.y_size;
-	di_end_y = di_height + di_start_y - 1;
+	if (di_reverse && (DIM_IS_IC(T5DB) || DIM_IS_IC(T5) || DIM_IS_IC(T6D))) {
+		di_start_x = para->win.orig_w - para->win.x_st - di_width;
+		di_end_x = di_width + di_start_x - 1;
+		if (di_end_x > (para->win.orig_w - 1))
+			di_end_x = para->win.orig_w - 1;
+		di_start_y = para->win.orig_h - para->win.y_st - di_height;
+		di_end_y = di_height + di_start_y - 1;
+		if (di_end_y > (para->win.orig_h - 1))
+			di_end_y = para->win.orig_h - 1;
+	} else {
+		di_start_x = para->win.x_st;
+		di_end_x = di_width + di_start_x - 1;
+		di_start_y = para->win.y_st;
+		di_end_y = di_height + di_start_y - 1;
+	}
 	if (di_height & 1)
 		di_height++;
 
