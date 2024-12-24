@@ -218,6 +218,7 @@
 /*  V4.0.001 fix t5d DVB-T2 stuck issue */
 /*  V4.0.002 fix coverity issues */
 /*  V4.0.003 fix T6D/T6W dvbc probability missing channels caused by qam impuse noise */
+/*  V4.0.004 add dvbs2x support transport gse on ts packet */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -234,8 +235,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.0.003"
-#define DTVDEMOD_VER	"2025/07/15: fix T6D/T6W dvbc probability missing channels"
+#define AMLDTVDEMOD_VER "V4.0.004"
+#define DTVDEMOD_VER	"2025/08/01 add dvbs2x support transport gse on ts packet"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

@@ -1054,7 +1054,7 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 		unsigned int if_freq_khz, bool re_tune)
 {
 	int ilock = 0;
-	unsigned char s = 0;
+	unsigned char s = 0, bbf = 0;
 	s16 strength = 0;
 	int offset = 0, polarity = 0;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
@@ -1188,6 +1188,37 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 				dvbs_wr_byte(0x991, 0x24);
 				PR_INFO("DVBS2 QPSK 1/4 set 0x991 to 0x24\n");
 			}
+
+			bbf = dvbs_rd_byte(0xf20);
+			//modulation: QPSK: ts, DQPSK: ges
+			if ((bbf & 0xc0) == 0x80 &&
+					c->modulation == DQPSK &&
+					(!(dvbs_rd_byte(0xe00) & 0x1) ||
+					!(dvbs_rd_byte(0xe04) & 0x4))) {
+				dvbs_write_bits(0xe00, 0x1, 0, 1);//bit0=1
+				dvbs_write_bits(0xe04, 0x1, 2, 1);//bit2=1
+				PR_INFO("DVBS2X GSE Lite 0xf20 0x%x, 0xe00 0x%x, 0xe04 0x%x\n",
+					bbf,
+					dvbs_rd_byte(0xe00),
+					dvbs_rd_byte(0xe04));
+			} else if (((bbf & 0xc0) == 0x40 || (bbf & 0xc0) == 0xc0) &&
+					c->modulation == DQPSK &&
+					(!(dvbs_rd_byte(0xe00) & 0x1) ||
+					!(dvbs_rd_byte(0xe04) & 0x4))) {
+				dvbs_write_bits(0xf10, 0x2, 6, 2);//bit[7:6]=0x2
+				dvbs_write_bits(0xf06, 0x1, 5, 1);//bit5=1
+				dvbs_write_bits(0xf00, 0x3, 0, 2);//bit[7:6]=0x3
+				dvbs_write_bits(0xe00, 0x1, 0, 1);//bit0=1
+				dvbs_write_bits(0xe04, 0x1, 2, 1);//bit2=1
+				PR_INFO("DVBS2X GSE 0xf20 0x%x, 0xe00 0x%x, 0xe04 0x%x\n",
+					bbf,
+					dvbs_rd_byte(0xe00),
+					dvbs_rd_byte(0xe04));
+				PR_INFO("0xf10 0x%x, 0xf06 0x%x, 0xf00 0x%x\n",
+					dvbs_rd_byte(0xf10),
+					dvbs_rd_byte(0xf06),
+					dvbs_rd_byte(0xf00));
+			}
 		} else {
 			dvbs_wr_byte(0x991, 0x40);
 		}
@@ -1232,10 +1263,11 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	unsigned int tuner_if[3] = { 0 };
 
 	if (devp->blind_same_frec == 0)
-		PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d\n",
+		PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
-			c->bandwidth_hz);
+			c->bandwidth_hz, c->modulation);
 
+	demod->demod_status.ch_mode = c->modulation; /* QPSK: ts, DQPSK: gse */
 	demod->demod_status.symb_rate = c->symbol_rate / 1000;
 	demod->demod_status.is_blind_scan = 0; /* The actual frequency lock normal mode */
 	demod->last_lock = -1;
