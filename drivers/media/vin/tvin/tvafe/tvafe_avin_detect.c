@@ -834,8 +834,7 @@ static void tvafe_avin_detect_state(struct tvafe_avin_det_s *av_dev)
 	tvafe_pr_info("detect_finish:%d\n", detect_finish);
 	tvafe_pr_info("detect_state:%d\n", detect_state->state);
 	tvafe_pr_info("detect_black:%d\n", detect_state->black_cnt);
-	tvafe_pr_info("sm_print_nosig:%d\n", sm_print_nosig);
-
+	tvafe_pr_info("av_detect_ver:%s\n", AV_DETECT_VER);
 }
 
 static void tvafe_avin_reg_print(void)
@@ -1489,11 +1488,11 @@ static int tvafe_avin_detect_probe(struct platform_device *pdev)
 	tvafe_avin_detect_digital_config();
 	// init count times param
 	if (meson_data->detect_version == DETECTED_IRQ_VERSION) {
-		av_dev->avin_detect_param.avin_in_count_times = 5;
-		av_dev->avin_detect_param.avin_out_count_times = 5;
-	} else if (meson_data->detect_version == DETECTED_GPIO_VERSION) {
-		av_dev->avin_detect_param.avin_in_count_times = 1;
+		av_dev->avin_detect_param.avin_in_count_times = 10;
 		av_dev->avin_detect_param.avin_out_count_times = 10;
+	} else if (meson_data->detect_version == DETECTED_GPIO_VERSION) {
+		av_dev->avin_detect_param.avin_in_count_times = 10;
+		av_dev->avin_detect_param.avin_out_count_times = 40;
 		//10ms
 		avin_timer_time = 1;
 	}
@@ -1693,6 +1692,7 @@ struct meson_avin_data txhd2_data = {
 	.cpu_id = AVIN_CPU_TYPE_TXHD2,
 	.name = "meson-txhd2-avin-detect",
 
+	.detect_version = DETECTED_IRQ_VERSION,
 	.detect_cntl = HHI_CVBS_DETECT_CNTL,
 	.irq0_cntl = CVBS_IRQ0_CNTL,
 	.irq1_cntl = CVBS_IRQ1_CNTL,

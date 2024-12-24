@@ -10,6 +10,9 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 
+/* 20241231: removed unnecessary reset */
+#define AV_DETECT_VER "20241231: add av detect time"
+
 /* avin debug control start */
 #define AVIN_NORMAL_DBG				BIT(0)
 #define AVIN_SIGNAL_DBG				BIT(1)
