@@ -15,6 +15,13 @@ enum {
 	VSYNC_RDMA_READ = 6, /* for read */
 };
 
+struct lowlatency_reg_s {
+	int rdma_handle;
+	u32 reg_count;
+};
+
+extern struct lowlatency_reg_s lowlatency_reg;
+
 extern int has_multi_vpp;
 extern ulong rdma_done_us[];
 extern ulong rdma_vsync_us[];
@@ -68,6 +75,7 @@ int is_in_vsync_isr_viu2(u8 cur_cpuid);
 int is_in_vsync_isr_viu3(u8 cur_cpuid);
 int is_video_process_in_thread(void);
 bool get_lowlatency_mode(void);
+int get_rdma_item_count(int handle);
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 int is_in_ldim_vsync_isr(u8 cur_cpuid);
 #endif
