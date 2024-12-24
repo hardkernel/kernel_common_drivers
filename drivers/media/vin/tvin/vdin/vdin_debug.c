@@ -1471,14 +1471,51 @@ static void vdin_dump_count(struct vdin_dev_s *devp)
 	vdin_dump_vs_info(devp);
 }
 
-static void vdin_dump_dts_debug_config(struct vdin_dev_s *devp)
+static void vdin_dump_dts_config(struct vdin_dev_s *devp)
 {
 	pr_info("------dts config start------\n");
 	pr_info("chk_write_done_en: %d\n", devp->dts_config.chk_write_done_en);
 	pr_info("urgent_en: %d\n", devp->dts_config.urgent_en);
 	pr_info("v4l_en:%d\n", devp->dts_config.v4l_en);
+	pr_info("afbce_flag_cfg:%d\n", devp->dts_config.afbce_flag_cfg);
+	pr_info("keystone_sel:%d\n", devp->dts_config.keystone_sel);
+	pr_info("max_buf_num:%d\n", devp->dts_config.max_buf_num);
+	pr_info("min_buf_num:%d\n", devp->dts_config.min_buf_num);
+	pr_info("cm_enable:%d\n", devp->dts_config.cm_enable);
+	pr_info("vdin_det_idle_wait:%d\n", devp->dts_config.vdin_det_idle_wait);
+	pr_info("vdin_get_prop_in_vs_en:%d\n", devp->dts_config.vdin_get_prop_in_vs_en);
+	pr_info("vdin_get_prop_in_sm_en:%d\n", devp->dts_config.vdin_get_prop_in_sm_en);
+	pr_info("canvas_config_mode:%d\n", devp->dts_config.canvas_config_mode);
+	pr_info("viu_hw_irq:%d\n", devp->dts_config.viu_hw_irq);
+	pr_info("game_mode_switch_frames:%d\n", devp->dts_config.game_mode_switch_frames);
+	pr_info("game_mode_phlock_switch_frames:%d\n",
+		devp->dts_config.game_mode_phlock_switch_frames);
+	pr_info("vdin_vrr_switch_cnt:%d\n", devp->dts_config.vdin_vrr_switch_cnt);
+	pr_info("sct_cache_size:%d\n", devp->dts_config.sct_cache_size);
+	pr_info("vdin_re_config:%d\n", devp->dts_config.vdin_re_config);
+	pr_info("vdin_re_config:%d\n", devp->dts_config.vdin_re_cfg_drop_cnt);
+	pr_info("back_nosig_max_cnt:%d\n", devp->dts_config.back_nosig_max_cnt);
+	pr_info("atv_unstable_in_cnt:%d\n", devp->dts_config.atv_unstable_in_cnt);
+	pr_info("atv_unstable_out_cnt:%d\n", devp->dts_config.atv_unstable_out_cnt);
+	pr_info("hdmi_unstable_out_cnt:%d\n", devp->dts_config.hdmi_unstable_out_cnt);
+	pr_info("hdmi_stable_out_cnt:%d\n", devp->dts_config.hdmi_stable_out_cnt);
+	pr_info("atv_stable_out_cnt:%d\n", devp->dts_config.atv_stable_out_cnt);
+	pr_info("atv_stable_fmt_check_cnt:%d\n", devp->dts_config.atv_stable_fmt_check_cnt);
+	pr_info("atv_prestable_out_cnt:%d\n", devp->dts_config.atv_prestable_out_cnt);
+	pr_info("other_stable_out_cnt:%d\n", devp->dts_config.other_stable_out_cnt);
+	pr_info("other_unstable_out_cnt:%d\n", devp->dts_config.other_unstable_out_cnt);
+	pr_info("other_unstable_in_cnt:%d\n", devp->dts_config.other_unstable_in_cnt);
+	pr_info("nosig_in_cnt:%d\n", devp->dts_config.nosig_in_cnt);
+	pr_info("nosig2_unstable_cnt:%d\n", devp->dts_config.nosig2_unstable_cnt);
+	pr_info("vdin_dv_chg_cnt:%d\n", devp->dts_config.vdin_dv_chg_cnt);
+	pr_info("vdin_hdr_chg_cnt:%d\n", devp->dts_config.vdin_hdr_chg_cnt);
+	pr_info("vdin_vrr_chg_cnt:%d\n", devp->dts_config.vdin_vrr_chg_cnt);
+	pr_info("vdin_qms_chg_cnt:%d\n", devp->dts_config.vdin_qms_chg_cnt);
 	pr_info("------dts config end------\n");
+}
 
+static void vdin_dump_debug_config(struct vdin_dev_s *devp)
+{
 	pr_info("------debug start------\n");
 	pr_info("cutwin:%d %d %d %d\n", devp->debug.cutwin.hs, devp->debug.cutwin.he,
 		devp->debug.cutwin.vs, devp->debug.cutwin.ve);
@@ -1503,7 +1540,20 @@ static void vdin_dump_dts_debug_config(struct vdin_dev_s *devp)
 	pr_info("sar_width:%d\n", devp->debug.sar_width);
 	pr_info("sar_height:%d\n", devp->debug.sar_height);
 	pr_info("ratio_control:%d\n", devp->debug.ratio_control);
-	pr_info("dbg_rw_reg_en:%#x\n", devp->debug.dbg_rw_reg_en);
+	pr_info("dbg_rw_reg_en:%d\n", devp->debug.dbg_rw_reg_en);
+	pr_info("rgb_info_enable:%d\n", devp->debug.rgb_info_enable);
+	pr_info("invert_top_bot:%d\n", devp->debug.invert_top_bot);
+	pr_info("dv_dbg_log:%#x, dv_dbg_log_du=%#x, dv_dbg_mask=%#x\n",
+		devp->debug.dv_dbg_log, devp->debug.dv_dbg_log_du, devp->debug.dv_dbg_mask);
+	pr_info("vdin_ctl_dbg:%#x\n", devp->debug.vdin_ctl_dbg);
+	pr_info("vdin_isr_monitor:%#x\n", devp->debug.vdin_isr_monitor);
+	pr_info("vdin_dbg_en:%#x\n", devp->debug.vdin_dbg_en);
+	pr_info("vdin_delay_num:%d\n", devp->debug.vdin_delay_num);
+	pr_info("vdin_time_en:%d\n", devp->debug.vdin_time_en);
+	pr_info("vdin_frame_work_mode:%d\n", devp->debug.vdin_frame_work_mode);
+	pr_info("sct_print_ctl:%#x\n", devp->debug.sct_print_ctl);
+	pr_info("sleep_time:%d\n", devp->debug.sleep_time);
+	pr_info("sm_debug_enable:%#x\n", devp->debug.sm_debug_enable);
 	pr_info("------debug end------\n");
 }
 
@@ -2175,7 +2225,7 @@ int vdin_afbce_compression_ratio_monitor(struct vdin_dev_s *devp, struct vf_entr
 	if (src_size2)
 		ratio2 = dst_frame_size * 100 / src_size2;
 
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_AFBCE)
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_AFBCE)
 		pr_info("ratio_src=%d%%,ratio_afbc_in=%d%%,dst:%d(%ux%u),src1=%d,src2=%d;\n",
 			ratio1, ratio2, dst_frame_size, mmu_num, mif_size, src_size1, src_size2);
 
@@ -2600,7 +2650,7 @@ static ssize_t attr_store(struct device *dev,
 		/*disable irq until vdin is configured completely*/
 		/*disable_irq_nosync(devp->irq);*/
 
-		if (vdin_dbg_en)
+		if (devp->debug.vdin_dbg_en)
 			pr_info("%s vdin.%d disable_irq_nosync\n", __func__,
 				devp->index);
 		/*init queue*/
@@ -2707,7 +2757,7 @@ start_chk:
 		/* free irq, free when close device */
 		/* free_irq(devp->irq, (void *)devp); */
 
-		if (vdin_dbg_en)
+		if (devp->debug.vdin_dbg_en)
 			pr_info("%s vdin.%d free_irq\n", __func__,
 				devp->index);
 		/* reset the hardware limit to vertical [0-1079]  */
@@ -3492,16 +3542,16 @@ start_chk:
 		 */
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			if (temp == 0) {
-				dv_dbg_mask |= DV_CRC_FORCE_FALSE;
-				dv_dbg_mask &= ~DV_CRC_FORCE_TRUE;
+				devp->debug.dv_dbg_mask |= DV_CRC_FORCE_FALSE;
+				devp->debug.dv_dbg_mask &= ~DV_CRC_FORCE_TRUE;
 			} else if (temp == 1) {
-				dv_dbg_mask &= ~DV_CRC_FORCE_FALSE;
-				dv_dbg_mask |= DV_CRC_FORCE_TRUE;
+				devp->debug.dv_dbg_mask &= ~DV_CRC_FORCE_FALSE;
+				devp->debug.dv_dbg_mask |= DV_CRC_FORCE_TRUE;
 			} else {
-				dv_dbg_mask &= ~DV_CRC_FORCE_FALSE;
-				dv_dbg_mask &= ~DV_CRC_FORCE_TRUE;
+				devp->debug.dv_dbg_mask &= ~DV_CRC_FORCE_FALSE;
+				devp->debug.dv_dbg_mask &= ~DV_CRC_FORCE_TRUE;
 			}
-			pr_info("dv_dbg_mask=0x%x\n", dv_dbg_mask);
+			pr_info("dv_dbg_mask=0x%x\n", devp->debug.dv_dbg_mask);
 		}
 	} else if (!strcmp(parm[0], "get_hist")) {
 		pr_info("sum:0x%lx, width:%d, height:%d ave:0x%x\n",
@@ -3520,7 +3570,7 @@ start_chk:
 		if (devp->vfp && devp->vfp->last_last_vfe)
 			pr_info("vf crc:0x%x\n", devp->vfp->last_last_vfe->vf.crc);
 	} else if (!strcmp(parm[0], "game_mode")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp) {
 				devp->debug.bypass_game_mode = true;
 				if (temp <= 0xb) {
@@ -3549,7 +3599,7 @@ start_chk:
 			game_mode = temp;
 		}
 	} else if (!strcmp(parm[0], "pc_mode")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp) {
 				devp->debug.bypass_pc_mode = true;
 				if (temp == 1)
@@ -3758,13 +3808,129 @@ start_chk:
 	} else if (!strcmp(parm[0], "vdin_function_sel")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
 			devp->vdin_function_sel = temp;
+	} else if (!strcmp(parm[0], "rgb_info_enable")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->debug.rgb_info_enable = true;
+			else
+				devp->debug.rgb_info_enable = false;
+		}
+		pr_info("rgb_info_enable:%d\n", devp->debug.rgb_info_enable);
+	} else if (!strcmp(parm[0], "delay_line_num")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->delay_line_num = temp;
+		pr_info("delay_line_num:%d\n", devp->delay_line_num);
+	} else if (!strcmp(parm[0], "enable_reset")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->enable_reset = true;
+			else
+				devp->enable_reset = false;
+		}
+		pr_info("enable_reset:%d\n", devp->enable_reset);
+	} else if (!strcmp(parm[0], "vsync_reset_mask")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->vsync_reset_mask = temp;
+		pr_info("vsync_reset_mask:0x%x\n", devp->vsync_reset_mask);
+	} else if (!strcmp(parm[0], "dv_dbg_log")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.dv_dbg_log = temp;
+		pr_info("dv_dbg_log:0x%x\n", devp->debug.dv_dbg_log);
+	} else if (!strcmp(parm[0], "dv_dbg_log_du")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.dv_dbg_log_du = temp;
+		pr_info("dv_dbg_log_du:0x%x\n", devp->debug.dv_dbg_log_du);
+	} else if (!strcmp(parm[0], "vdin_ctl_dbg")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.vdin_ctl_dbg = temp;
+		pr_info("vdin_ctl_dbg:0x%x\n", devp->debug.vdin_ctl_dbg);
+	} else if (!strcmp(parm[0], "vdin_isr_monitor")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.vdin_isr_monitor = temp;
+		pr_info("vdin_isr_monitor:0x%x\n", devp->debug.vdin_isr_monitor);
+	} else if (!strcmp(parm[0], "vdin_get_prop_in_fe_en")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp)
+				devp->vdin_get_prop_in_fe_en = true;
+			else
+				devp->vdin_get_prop_in_fe_en = false;
+		}
+		pr_info("vdin_get_prop_in_fe_en:%d\n", devp->vdin_get_prop_in_fe_en);
+	} else if (!strcmp(parm[0], "work_mode_simple")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp)
+				devp->work_mode_simple = true;
+			else
+				devp->work_mode_simple = false;
+		}
+		pr_info("work_mode_simple:%d\n", devp->work_mode_simple);
+	} else if (!strcmp(parm[0], "dv_work_dolby")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dv_work_dolby = temp;
+		pr_info("dv_work_dolby:%d\n", devp->dv_work_dolby);
+	} else if (!strcmp(parm[0], "sct_print_ctl")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.sct_print_ctl = temp;
+		pr_info("sct_print_ctl:%d\n", devp->debug.sct_print_ctl);
+	} else if (!strcmp(parm[0], "vdin_dbg_en")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.vdin_dbg_en = temp;
+		pr_info("vdin_dbg_en:%d\n", devp->debug.vdin_dbg_en);
+	} else if (!strcmp(parm[0], "vdin_delay_num")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.vdin_delay_num = temp;
+		pr_info("vdin_delay_num:%d\n", devp->debug.vdin_delay_num);
+	} else if (!strcmp(parm[0], "vdin_time_en")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->debug.vdin_time_en = true;
+			else
+				devp->debug.vdin_time_en = false;
+		}
+		pr_info("vdin_time_en:%d\n", devp->debug.vdin_time_en);
+	} else if (!strcmp(parm[0], "vdin_frame_work_mode")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.vdin_frame_work_mode = temp;
+		pr_info("vdin_frame_work_mode:%d\n", devp->debug.vdin_frame_work_mode);
+	} else if (!strcmp(parm[0], "sleep_time")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.sleep_time = temp;
+		pr_info("sleep_time:%d\n", devp->debug.sleep_time);
+	} else if (!strcmp(parm[0], "sm_debug_enable")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.sm_debug_enable = temp;
+		pr_info("sm_debug_enable:%d\n", devp->debug.sm_debug_enable);
+	} else if (!strcmp(parm[0], "vf_log_enable")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->vfp->vf_log_enable = true;
+			else
+				devp->vfp->vf_log_enable = false;
+		}
+		pr_info("vf_log_enable:%d\n", devp->vfp->vf_log_enable);
+	} else if (!strcmp(parm[0], "vf_log_fe")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->vfp->vf_log_fe = true;
+			else
+				devp->vfp->vf_log_fe = false;
+		}
+		pr_info("vf_log_fe:%d\n", devp->vfp->vf_log_fe);
+	} else if (!strcmp(parm[0], "vf_list_dbg")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->vfp->vf_list_dbg = temp;
+		pr_info("vf_list_dbg:%d\n", devp->vfp->vf_list_dbg);
+	} else if (!strcmp(parm[0], "vf_move_print_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->vfp->vf_move_print_cnt = temp;
+		pr_info("vf_move_print_cnt:%d\n", devp->vfp->vf_move_print_cnt);
 	} else if (!strcmp(parm[0], "dmc_ctrl")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			vdin_dmc_ctrl(devp, !!temp);
 			pr_info("set dmc_ctrl on_off:%d\n", !!temp);
 		}
 	} else if (!strcmp(parm[0], "manual_change_csc")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
 			devp->debug.manual_change_csc = temp;
 		pr_info("manual_change_csc:%d\n", devp->debug.manual_change_csc);
 	} else if (!strcmp(parm[0], "afbce_monitor")) {
@@ -3776,8 +3942,8 @@ start_chk:
 			else if (devp->kthread && !devp->dbg_afbce_monitor)
 				vdin_kthread_stop(devp);
 		}
-	} else if (!strcmp(parm[0], "dts_config")) {
-		vdin_dump_dts_debug_config(devp);
+	} else if (!strcmp(parm[0], "debug_config")) {
+		vdin_dump_debug_config(devp);
 	} else if (!strcmp(parm[0], "change_get_drm")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			devp->debug.change_get_drm = temp;
@@ -3837,9 +4003,9 @@ start_chk:
 	} else if (!strcmp(parm[0], "invert_top_bot")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
-				set_invert_top_bot(true);
+				devp->debug.invert_top_bot = true;
 			else
-				set_invert_top_bot(false);
+				devp->debug.invert_top_bot = false;
 			pr_info("invert_top_bot temp:%d\n", temp);
 		}
 	} else if (!strcmp(parm[0], "color_range_force")) {
@@ -4000,6 +4166,188 @@ static ssize_t vf_log_store(struct device *dev,
 static DEVICE_ATTR_RW(vf_log);
 
 #endif /* VF_LOG_EN */
+
+static ssize_t dts_config_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int len = 0;
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+
+	vdin_dump_dts_config(devp);
+
+	return len;
+}
+
+static ssize_t dts_config_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	char *buf_orig, *parm[47] = {NULL};
+	struct vdin_dev_s *devp;
+	unsigned int temp = 0;
+
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	devp = dev_get_drvdata(dev);
+	vdin_parse_param(buf_orig, (char **)&parm);
+
+	if (!strcmp(parm[0], "max_buf_num")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.max_buf_num = temp;
+		pr_info("max_buf_num:%d\n", devp->dts_config.max_buf_num);
+	} else if (!strcmp(parm[0], "min_buf_num")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.min_buf_num = temp;
+		pr_info("max_buf_num:%d\n", devp->dts_config.min_buf_num);
+	} else if (!strcmp(parm[0], "cm_enable")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->dts_config.cm_enable = true;
+			else
+				devp->dts_config.cm_enable = false;
+		}
+		pr_info("cm_enable:%d\n", devp->dts_config.cm_enable);
+	} else if (!strcmp(parm[0], "vdin_det_idle_wait")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_det_idle_wait = temp;
+		pr_info("vdin_det_idle_wait:%d\n", devp->dts_config.vdin_det_idle_wait);
+	} else if (!strcmp(parm[0], "vdin_get_prop_in_vs_en")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->dts_config.vdin_get_prop_in_vs_en = true;
+			else
+				devp->dts_config.vdin_get_prop_in_vs_en = false;
+		}
+		pr_info("vdin_get_prop_in_vs_en:%d\n", devp->dts_config.vdin_get_prop_in_vs_en);
+	} else if (!strcmp(parm[0], "vdin_get_prop_in_sm_en")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->dts_config.vdin_get_prop_in_sm_en = true;
+			else
+				devp->dts_config.vdin_get_prop_in_sm_en = false;
+		}
+		pr_info("vdin_get_prop_in_sm_en:%d\n", devp->dts_config.vdin_get_prop_in_sm_en);
+	} else if (!strcmp(parm[0], "canvas_config_mode")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.canvas_config_mode = temp;
+		pr_info("canvas_config_mode:%d\n", devp->dts_config.canvas_config_mode);
+	} else if (!strcmp(parm[0], "viu_hw_irq")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.viu_hw_irq = temp;
+		pr_info("viu_hw_irq:%d\n", devp->dts_config.viu_hw_irq);
+	} else if (!strcmp(parm[0], "game_mode_switch_frames")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.game_mode_switch_frames = temp;
+		pr_info("game_mode_switch_frames:%d\n", devp->dts_config.game_mode_switch_frames);
+	} else if (!strcmp(parm[0], "game_mode_phlock_switch_frames")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.game_mode_phlock_switch_frames = temp;
+		pr_info("game_mode_phlock_switch_frames:%d\n",
+			devp->dts_config.game_mode_phlock_switch_frames);
+	} else if (!strcmp(parm[0], "vdin_vrr_switch_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_vrr_switch_cnt = temp;
+		pr_info("vdin_vrr_switch_cnt:%d\n", devp->dts_config.vdin_vrr_switch_cnt);
+	} else if (!strcmp(parm[0], "sct_cache_size")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.sct_cache_size = temp;
+		pr_info("sct_cache_size:%d\n", devp->dts_config.sct_cache_size);
+	} else if (!strcmp(parm[0], "vdin_re_config")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_re_config = temp;
+		pr_info("vdin_re_config:%d\n", devp->dts_config.vdin_re_config);
+	} else if (!strcmp(parm[0], "vdin_re_cfg_drop_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_re_cfg_drop_cnt = temp;
+		pr_info("vdin_re_cfg_drop_cnt:%d\n", devp->dts_config.vdin_re_cfg_drop_cnt);
+	} else if (!strcmp(parm[0], "back_nosig_max_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.back_nosig_max_cnt = temp;
+		pr_info("back_nosig_max_cnt:%d\n", devp->dts_config.back_nosig_max_cnt);
+	} else if (!strcmp(parm[0], "atv_unstable_in_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.atv_unstable_in_cnt = temp;
+		pr_info("atv_unstable_in_cnt:%d\n", devp->dts_config.atv_unstable_in_cnt);
+	} else if (!strcmp(parm[0], "atv_unstable_out_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.atv_unstable_out_cnt = temp;
+		pr_info("atv_unstable_out_cnt:%d\n", devp->dts_config.atv_unstable_out_cnt);
+	} else if (!strcmp(parm[0], "hdmi_unstable_out_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.hdmi_unstable_out_cnt = temp;
+		pr_info("hdmi_unstable_out_cnt:%d\n", devp->dts_config.hdmi_unstable_out_cnt);
+	} else if (!strcmp(parm[0], "hdmi_stable_out_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.hdmi_stable_out_cnt  = temp;
+		pr_info("hdmi_stable_out_cnt:%d\n", devp->dts_config.hdmi_stable_out_cnt);
+	} else if (!strcmp(parm[0], "atv_stable_out_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.atv_stable_out_cnt = temp;
+		pr_info("atv_stable_out_cnt:%d\n", devp->dts_config.atv_stable_out_cnt);
+	} else if (!strcmp(parm[0], "atv_stable_fmt_check_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.atv_stable_fmt_check_cnt = temp;
+		pr_info("atv_stable_fmt_check_cnt:%d\n", devp->dts_config.atv_stable_fmt_check_cnt);
+	} else if (!strcmp(parm[0], "atv_prestable_out_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.atv_prestable_out_cnt = temp;
+		pr_info("atv_prestable_out_cnt:%d\n", devp->dts_config.atv_prestable_out_cnt);
+	} else if (!strcmp(parm[0], "other_stable_out_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.other_stable_out_cnt = temp;
+		pr_info("other_stable_out_cnt:%d\n", devp->dts_config.other_stable_out_cnt);
+	} else if (!strcmp(parm[0], "other_unstable_out_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.other_unstable_out_cnt  = temp;
+		pr_info("other_unstable_out_cnt:%d\n", devp->dts_config.other_unstable_out_cnt);
+	} else if (!strcmp(parm[0], "other_unstable_in_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.other_unstable_in_cnt = temp;
+		pr_info("other_unstable_in_cnt:%d\n", devp->dts_config.other_unstable_in_cnt);
+	} else if (!strcmp(parm[0], "nosig_in_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.nosig_in_cnt = temp;
+		pr_info("nosig_in_cnt:%d\n", devp->dts_config.nosig_in_cnt);
+	} else if (!strcmp(parm[0], "nosig2_unstable_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.nosig2_unstable_cnt = temp;
+		pr_info("nosig2_unstable_cnt:%d\n", devp->dts_config.nosig2_unstable_cnt);
+	} else if (!strcmp(parm[0], "vdin_dv_chg_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_dv_chg_cnt = temp;
+		pr_info("vdin_dv_chg_cnt:%d\n", devp->dts_config.vdin_dv_chg_cnt);
+	} else if (!strcmp(parm[0], "vdin_hdr_chg_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_hdr_chg_cnt = temp;
+		pr_info("vdin_hdr_chg_cnt:%d\n", devp->dts_config.vdin_hdr_chg_cnt);
+	} else if (!strcmp(parm[0], "vdin_vrr_chg_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_vrr_chg_cnt = temp;
+		pr_info("vdin_vrr_chg_cnt:%d\n", devp->dts_config.vdin_vrr_chg_cnt);
+	} else if (!strcmp(parm[0], "vdin_qms_chg_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_qms_chg_cnt = temp;
+		pr_info("vdin_qms_chg_cnt:%d\n", devp->dts_config.vdin_qms_chg_cnt);
+	}
+
+	kfree(buf_orig);
+	return count;
+}
+
+/*
+ * 1. show log length.
+ * cat /sys/class/vdin/vdin0/vf_log
+ * cat /sys/class/vdin/vdin1/vf_log
+ * 2. clear log buffer and start log.
+ * echo start > /sys/class/vdin/vdin0/vf_log
+ * echo start > /sys/class/vdin/vdin1/vf_log
+ * 3. print log
+ * echo print > /sys/class/vdin/vdin0/vf_log
+ * echo print > /sys/class/vdin/vdin1/vf_log
+ */
+static DEVICE_ATTR_RW(dts_config);
 
 #ifdef ISR_LOG_EN
 static ssize_t isr_log_show(struct device *dev,
@@ -4283,7 +4631,7 @@ static ssize_t input_rate_show(struct device *dev,
 			tmp_msr_clk_val = (u64)devp->msr_clk_val * 1000;
 			tmp = vdin_do_div(tmp_msr_clk_val, devp->cycle);
 			if (tmp > devp->parm.info.fps * 1000) {
-				if (vdin_dbg_en)
+				if (devp->debug.vdin_dbg_en)
 					pr_info("invalid input_rate:%d.%03d,fps:%d\n",
 						(input_rate / 1000), (input_rate % 1000),
 						devp->parm.info.fps);
@@ -4462,6 +4810,7 @@ int vdin_create_debug_files(struct device *dev)
 
 	ret = device_create_file(dev, &dev_attr_sig_det);
 	ret = device_create_file(dev, &dev_attr_attr);
+	ret = device_create_file(dev, &dev_attr_dts_config);
 	/* create sysfs attribute files */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	#ifdef VF_LOG_EN
@@ -4500,6 +4849,7 @@ void vdin_remove_debug_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_slt_test);
 #endif
 	device_remove_file(dev, &dev_attr_attr);
+	device_remove_file(dev, &dev_attr_dts_config);
 	device_remove_file(dev, &dev_attr_sig_det);
 }
 

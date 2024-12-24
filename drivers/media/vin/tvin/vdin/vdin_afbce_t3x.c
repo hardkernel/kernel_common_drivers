@@ -531,7 +531,7 @@ int vdin_afbce_read_write_down_flag_t3x(struct vdin_dev_s *devp)
 	//frm_end = rd_bits(0, devp->addr_offset + VDIN0_AFBCE_STAT1, 31, 1);
 	wr_abort = rd_bits(0, devp->addr_offset + VDIN0_AFBCE_STA_FLAGT, 2, 2);
 
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
 		pr_info("frm_end:%#x,wr_abort:%#x;[%#x]:%#x,[%#x]:%#x\n", frm_end, wr_abort,
 			VDIN0_AFBCE_STAT1, rd(devp->addr_offset, VDIN0_AFBCE_STAT1),
 			VDIN0_AFBCE_STA_FLAGT, rd(devp->addr_offset, VDIN0_AFBCE_STA_FLAGT));
@@ -562,7 +562,7 @@ void vdin_afbce_mode_update_t3x(struct vdin_dev_s *devp)
 //	else
 //		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_MIF);
 
-	if (vdin_dbg_en) {
+	if (devp->debug.vdin_dbg_en) {
 		pr_info("vdin.%d: change afbce_mode %d->%d\n",
 			devp->index, devp->afbce_mode_pre, devp->afbce_mode);
 	}

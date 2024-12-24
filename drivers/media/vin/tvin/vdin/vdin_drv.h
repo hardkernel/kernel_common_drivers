@@ -371,6 +371,25 @@ struct match_data_s {
 #define VDIN_VRR_MIN_FRAME_RATE		25
 #define VDIN_RDMA_UNDONE_MAX_CNT	10
 
+/* Stay in TVIN_SIG_STATE_NOSIG for some
+ * cycles => be sure TVIN_SIG_STATE_NOSIG
+ */
+#define NOSIG_MAX_CNT 8
+		/* Stay in TVIN_SIG_STATE_UNSTABLE for some
+		 * cycles => be sure TVIN_SIG_STATE_UNSTABLE
+		 */
+#define UNSTABLE_MAX_CNT 2/* 4 */
+		/* Have signal for some cycles	=> exit TVIN_SIG_STATE_NOSIG */
+#define EXIT_NOSIG_MAX_CNT 2/* 1 */
+		/* No signal for some cycles  => back to TVAFE_STATE_NOSIG */
+#define BACK_NOSIG_MAX_CNT 24 /* 8 */
+		/* Signal unstable for some cycles => exit TVAFE_STATE_STABLE */
+#define EXIT_STABLE_MAX_CNT 1
+		/* Signal stable for some cycles  => back to TVAFE_STATE_STABLE */
+		/* must >=500ms,for new api function */
+#define BACK_STABLE_MAX_CNT 3
+#define EXIT_PRESTABLE_MAX_CNT 50
+
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \
 		 (((src_) >= TVIN_PORT_HDMI0) && \
@@ -670,6 +689,25 @@ struct vdin_debug_s {
 	unsigned char rgb_8f[3];
 	unsigned char rgb_8l[3];
 	unsigned int v4l2_buff_area;
+	bool rgb_info_enable;
+	unsigned int rgb_info_x;
+	unsigned int rgb_info_y;
+	unsigned int rgb_info_r;
+	unsigned int rgb_info_g;
+	unsigned int rgb_info_b;
+	bool invert_top_bot;
+	unsigned int dv_dbg_log;
+	unsigned int dv_dbg_log_du;
+	unsigned int dv_dbg_mask;
+	int vdin_ctl_dbg;
+	unsigned int vdin_isr_monitor;
+	int vdin_dbg_en;
+	int vdin_delay_num;
+	bool vdin_time_en;
+	enum vdin_vf_put_md vdin_frame_work_mode;
+	int sct_print_ctl;
+	unsigned int sleep_time;
+	unsigned int sm_debug_enable;
 };
 
 struct vdin_dv_s {
@@ -743,6 +781,47 @@ struct vdin_dts_config_s {
 	bool v4l_en;
 	bool keystone_sel;
 	unsigned int afbce_flag_cfg;
+	unsigned int canvas_config_mode;
+	/* 0: canvas_config in driver probe; 1: start config; 2: auto config*/
+	unsigned int max_buf_num;
+	unsigned int min_buf_num;
+	bool cm_enable;
+	int vdin_det_idle_wait;
+	bool vdin_get_prop_in_vs_en;
+	bool vdin_get_prop_in_sm_en;
+	bool viu_hw_irq;
+	int game_mode_switch_frames;
+	int game_mode_phlock_switch_frames; /*min num is 5 by 1080p60hz input test*/
+	unsigned int vdin_vrr_switch_cnt;
+	int sct_cache_size;
+	u32 vdin_re_config;
+	u32 vdin_re_cfg_drop_cnt;
+	int back_nosig_max_cnt;
+	int atv_unstable_in_cnt;
+	int atv_unstable_out_cnt;
+	int hdmi_unstable_out_cnt;
+	int hdmi_stable_out_cnt;
+	/* new add in gxtvbb@20160523,reason:
+	 *gxtvbb add atv snow config,the config will affect signal detect.
+	 *if atv_stable_out_cnt < 100,the signal state will change
+	 *after switch source to atv or after atv search
+	 */
+	int atv_stable_out_cnt;
+	/* new add in gxtvbb@20160613,reason:
+	 *gxtvbb add atv snow config,the config will affect signal detect.
+	 *ensure after fmt change,the new fmt can be detect in time!
+	 */
+	int atv_stable_fmt_check_cnt;
+	int atv_prestable_out_cnt;
+	int other_stable_out_cnt;
+	int other_unstable_out_cnt;
+	int other_unstable_in_cnt;
+	int nosig_in_cnt;
+	int nosig2_unstable_cnt;
+	unsigned int vdin_dv_chg_cnt;
+	unsigned int vdin_hdr_chg_cnt;
+	unsigned int vdin_vrr_chg_cnt;
+	unsigned int vdin_qms_chg_cnt;
 };
 
 struct vdin_s5_s {
@@ -1095,7 +1174,6 @@ struct vdin_dev_s {
 	unsigned int set_canvas_manual;
 	unsigned int keystone_vframe_ready;
 	struct vf_entry *keystone_entry[VDIN_CANVAS_MAX_CNT];
-	unsigned int canvas_config_mode;
 	bool pre_h_scale_en;
 	bool v_shrink_en;
 	bool double_wr_cfg;
@@ -1223,23 +1301,23 @@ struct vdin_dev_s {
 	unsigned int fs_open_cnt;
 	unsigned int rdma_undone_cnt;
 	struct vdin_dv_hw5_s dv_hw5;
+	unsigned int delay_line_num;
+	bool enable_reset;
+	int vsync_reset_mask;
+	bool vdin_get_prop_in_fe_en;
+	bool work_mode_simple;
+	unsigned int dv_work_dolby;
 };
 
 extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
-extern unsigned int vdin_drop_cnt;
 extern unsigned int vdin0_afbce_debug_force;
 extern unsigned int vdin_dv_de_scramble;
 
 struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name);
 extern bool enable_reset;
 extern unsigned int dolby_size_byte;
-extern unsigned int dv_dbg_mask;
 extern u32 vdin_cfg_444_to_422_wmif_en;
-extern unsigned int vdin_isr_monitor;
-extern unsigned int vdin_get_prop_in_vs_en;
-extern unsigned int vdin_prop_monitor;
-extern unsigned int vdin_get_prop_in_fe_en;
 extern struct vdin_hist_s vdin1_hist;
 
 struct vframe_provider_s *vf_get_provider_by_name(const
@@ -1299,9 +1377,6 @@ bool vlock_get_vlock_flag(void);
 bool frame_lock_vrr_lock_status(void);
 
 u32 vlock_get_phase_en(u32 enc_idx);
-void vdin_change_matrix0(u32 offset, u32 matrix_csc);
-void vdin_change_matrix1(u32 offset, u32 matrix_csc);
-void vdin_change_matrix_hdr(u32 offset, u32 matrix_csc);
 
 struct vdin_dev_s *vdin_get_dev(unsigned int index);
 void vdin_mif_config_init(struct vdin_dev_s *devp);

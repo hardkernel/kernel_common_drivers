@@ -42,29 +42,10 @@
 /*the value depending on dts config mem limit
  *for skip two vframe case,need +2
  */
-static unsigned int max_buf_num = VDIN_CANVAS_MAX_CNT;
-static unsigned int min_buf_num = VDIN_CANVAS_MIN_CNT;
 static unsigned int max_buf_width = VDIN_CANVAS_MAX_WIDTH_HD;
 static unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGHT;
 /* one frame max metadata size:32x280 bits = 1120bytes(0x460) */
 unsigned int dolby_size_byte = K_DV_META_BUFF_SIZE;
-
-module_param(max_buf_num, uint, 0664);
-MODULE_PARM_DESC(max_buf_num, "vdin max buf num.\n");
-
-module_param(min_buf_num, uint, 0664);
-MODULE_PARM_DESC(min_buf_num, "vdin min buf num.\n");
-
-#ifdef DEBUG_SUPPORT
-module_param(max_buf_width, uint, 0664);
-MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
-
-module_param(max_buf_height, uint, 0664);
-MODULE_PARM_DESC(max_buf_height, "vdin max buf height.\n");
-
-module_param(dolby_size_byte, uint, 0664);
-MODULE_PARM_DESC(dolby_size_byte, "dolby_size_byte.\n");
-#endif
 
 const unsigned int vdin_canvas_ids[VDIN_MAX_DEVS][VDIN_CANVAS_MAX_CNT] = {
 	{
@@ -137,7 +118,7 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
-	unsigned int max_buffer_num = max_buf_num;
+	unsigned int max_buffer_num = devp->dts_config.max_buf_num;
 
 	switch (devp->format_convert) {
 	case VDIN_FORMAT_CONVERT_YUV_YUV444:
@@ -291,7 +272,7 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
-	unsigned int max_buffer_num = max_buf_num;
+	unsigned int max_buffer_num = devp->dts_config.max_buf_num;
 	unsigned int h_active, v_active;
 
 	if (devp->vf_mem_size_small) {
@@ -547,7 +528,7 @@ void vdin_mem_memset(struct vdin_dev_s *devp)
 		vdin_dma_flush(devp, buf, frame_size, DMA_TO_DEVICE);
 		if (highmem_flag)
 			vdin_unmap_phyaddr(buf);
-		if (vdin_dbg_en & 0x10)
+		if (devp->debug.vdin_dbg_en & 0x10)
 			pr_info("vdin%d,buf[%d] mem_start = 0x%lx, mem_size = 0x%x, highmem_flag = %d, color_range = %d\n",
 				devp->index, i, devp->vf_mem_start[i],
 				devp->frame_size, highmem_flag, val);
@@ -564,7 +545,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	unsigned int mem_size, h_size, v_size, frame_size, temp;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST | CODEC_MM_FLAGS_CMA_CLEAR |
 		CODEC_MM_FLAGS_DMA;
-	unsigned int max_buffer_num = min_buf_num;
+	unsigned int max_buffer_num = devp->dts_config.min_buf_num;
 	unsigned int i, j;
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 	unsigned int res = 0;
@@ -578,12 +559,12 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	    (IS_HDMI_SRC(devp->parm.port) || IS_TVAFE_SRC(devp->parm.port)))
 		max_buffer_num += devp->vfp->skip_vf_num;
 
-	if (max_buffer_num > max_buf_num)
-		max_buffer_num = max_buf_num;
+	if (max_buffer_num > devp->dts_config.max_buf_num)
+		max_buffer_num = devp->dts_config.max_buf_num;
 
 	/* if vfmem_cfg_num define in dts, use dts's setting */
-	if (devp->frame_buff_num >= min_buf_num &&
-	    devp->frame_buff_num <= max_buf_num)
+	if (devp->frame_buff_num >= devp->dts_config.min_buf_num &&
+	    devp->frame_buff_num <= devp->dts_config.max_buf_num)
 		max_buffer_num = devp->frame_buff_num;
 
 	if (!devp->index && devp->frame_buff_num < VDIN_CANVAS_INTERLACED_MIN_CNT &&
@@ -603,7 +584,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	h_size = devp->h_active;
 	v_size = devp->v_active;
 
-	if (devp->canvas_config_mode == 1) {
+	if (devp->dts_config.canvas_config_mode == 1) {
 		h_size = max_buf_width;
 		v_size = max_buf_height;
 	}
@@ -819,7 +800,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			if (devp->cfg_dma_buf)
 				devp->mem_start = vdin_set_canvas_addr[i].paddr;
 			devp->vf_mem_start[i] = vdin_set_canvas_addr[i].paddr;
-			if (vdin_dbg_en)
+			if (devp->debug.vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
 					devp->index, i,
 					devp->vf_mem_start[i],
@@ -896,7 +877,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				}
 				devp->vf_mem_start[i] = page_to_phys(devp->vf_venc_pages[i]);
 			}
-			if (vdin_dbg_en)
+			if (devp->debug.vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
 					devp->index, i,	devp->vf_mem_start[i], frame_size);
 		}
@@ -939,7 +920,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		for (i = 0; i < max_buffer_num; i++) {
 			devp->vf_mem_start[i] = devp->mem_start + frame_size * i;
 
-			if (vdin_dbg_en)
+			if (devp->debug.vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
 					devp->index, i,
 					devp->vf_mem_start[i], frame_size);
@@ -973,7 +954,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 					devp->afbce_info->frame_head_size;
 			}
 
-			if (vdin_dbg_en) {
+			if (devp->debug.vdin_dbg_en) {
 				pr_info("vdin%d fm_head_paddr[%d] = 0x%lx, frame_head_size = 0x%x\n",
 					devp->index, i,
 					devp->afbce_info->fm_head_paddr[i],
@@ -1027,7 +1008,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 	pr_info("vdin%d cma alloc %d buffers ok!\n", devp->index,
 		devp->vf_mem_max_cnt);
-	if (devp->vf_mem_max_cnt < min_buf_num) {
+	if (devp->vf_mem_max_cnt < devp->dts_config.min_buf_num) {
 		pr_info("vdin%d cma alloc num too less need release\n", devp->index);
 		vdin_cma_release(devp);
 		return 1;

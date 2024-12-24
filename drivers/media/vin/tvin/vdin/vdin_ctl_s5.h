@@ -12,9 +12,6 @@
 #include <linux/dma-map-ops.h>
 #include "vdin_drv.h"
 
-extern int vdin_ctl_dbg;
-extern int vdin_dbg_en;
-
 /* ************************************************************************ */
 /* ******** GLOBAL FUNCTION CLAIM ******** */
 /* ************************************************************************ */
@@ -41,7 +38,7 @@ void vdin_wr_reverse_s5(unsigned int offset, bool h_reverse,
 void vdin_set_hv_scale_s5(struct vdin_dev_s *devp);
 void vdin_set_bitdepth_s5(struct vdin_dev_s *devp);
 void vdin_set_cm2_s5(unsigned int offset, unsigned int w,
-		  unsigned int h, unsigned int *data);
+		  unsigned int h, unsigned int *data, bool cm_enable);
 void vdin_hdmiin_patch(struct vdin_dev_s *devp);
 void vdin_set_top_s5(struct vdin_dev_s *devp, enum tvin_port_e port,
 		  enum tvin_color_fmt_e input_cfmt, enum bt_path_e bt_path);
