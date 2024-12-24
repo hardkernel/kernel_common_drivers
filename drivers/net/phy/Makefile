@@ -3,6 +3,13 @@
 MODULE_NAME = amlogic-inphy
 PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
-ccflags-y += $(PR_FMT_DEFINE)
+CFLAGS_meson-gxl.o += $(PR_FMT_DEFINE)
 obj-$(CONFIG_AMLOGIC_INPHY) = $(MODULE_NAME).o
 $(MODULE_NAME)-y += meson-gxl.o
+
+RTL_MODULE_NAME = amlogic-realtek
+PR_FMT_RTL = $(subst amlogic-,,$(RTL_MODULE_NAME))
+PR_FMT_DEFINE_RTL = "-Dpr_fmt(fmt)= \"[$(PR_FMT_RTL)]: \" fmt"
+CFLAGS_realtek.o += $(PR_FMT_DEFINE_RTL)
+obj-$(CONFIG_AMLOGIC_REALTEK) += $(RTL_MODULE_NAME).o
+$(RTL_MODULE_NAME)-y += realtek.o

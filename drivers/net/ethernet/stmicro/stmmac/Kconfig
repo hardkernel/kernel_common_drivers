@@ -1,4 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
+config AMLOGIC_ETH_PRIVE
+	tristate "Amlogic PHY debug"
+	help
+	  Currently has a driver for the Amlogic PHY debug
+
 config STMMAC_ETH
 	tristate "STMicroelectronics Multi-Gigabit Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
@@ -119,17 +125,6 @@ config DWMAC_MESON
 	  This selects the Amlogic Meson SoC glue layer support for
 	  the stmmac device driver. This driver is used for Meson6,
 	  Meson8, Meson8b and GXBB SoCs.
-
-config AMLOGIC_ETH_PRIVE
-	tristate "Amlogic private ethernet code"
-	default n
-	depends on OF
-	help
-	  Support for Ethernet controller on Amlogic Meson SoCs.
-
-	  This selects the Amlogic Meson SoC glue layer support for
-	  the stmmac device driver. This driver is used for amlogic
-	  private driver.
 
 config DWMAC_QCOM_ETHQOS
 	tristate "Qualcomm ETHQOS support"

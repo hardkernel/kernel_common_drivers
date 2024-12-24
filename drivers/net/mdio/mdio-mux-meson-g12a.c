@@ -25,6 +25,7 @@ unsigned int phy_mode;
 EXPORT_SYMBOL_GPL(phy_mode);
 #endif
 
+#define ETH_PHY_DBG_CFG0	0x08
 #define ETH_PLL_STS		0x40
 #define ETH_PLL_CTL0		0x44
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
@@ -87,6 +88,14 @@ struct g12a_ephy_pll {
 
 #define g12a_ephy_pll_to_dev(_hw)			\
 	container_of(_hw, struct g12a_ephy_pll, hw)
+
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_HIBERNATION
+struct device *g12a_mdio_dev;
+#endif
+#endif
+#endif
 
 static unsigned long g12a_ephy_pll_recalc_rate(struct clk_hw *hw,
 					       unsigned long parent_rate)
@@ -157,7 +166,6 @@ static int g12a_ephy_pll_is_enabled(struct clk_hw *hw)
 static int g12a_ephy_pll_init(struct clk_hw *hw)
 {
 	struct g12a_ephy_pll *pll = g12a_ephy_pll_to_dev(hw);
-
 	/* Apply PLL HW settings */
 	/*12nm*/
 
@@ -182,6 +190,16 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		usleep_range(100, 200);
 		writel(0x508200a0, pll->base + ETH_PLL_CTL0);
 		writel(0x00000110, pll->base + ETH_PLL_CTL2);
+	}
+	/*s7*/
+	if (phy_pll_mode == 2) {
+		writel(0x00510630, pll->base + ETH_PLL_CTL0);
+		writel(0x222210a0, pll->base + ETH_PLL_CTL1);
+		writel(0x00518630, pll->base + ETH_PLL_CTL0);
+		usleep_range(100, 200);
+		writel(0x222200a0, pll->base + ETH_PLL_CTL1);
+		usleep_range(100, 200);
+		writel(0x00118630, pll->base + ETH_PLL_CTL0);
 	}
 	/*s7d*/
 	if (phy_pll_mode == 3) {
@@ -230,7 +248,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	unsigned int rx_R = 0;
 	unsigned int tx_R = 0;
 	unsigned int efuse_get_tmp = 0;
-
+	unsigned int led_setting = 0;
 	if (of_property_read_u32(np, "tx_amp_src", &tx_amp_addr) != 0)
 		pr_info("no amp setting\n");
 
@@ -280,11 +298,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
 					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
-						| (0x0b02cf01),
+						| (0x0802cf01),
 						priv->regs + ETH_PLL_CTL6);
 				} else {
 					pr_debug("no efuse setting use default\n");
-					writel(0x8a82cf01, priv->regs + ETH_PLL_CTL6);
+					writel(0x8882cf01, priv->regs + ETH_PLL_CTL6);
 				}
 				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
 				/*writel(0x8a82cf01, priv->regs + ETH_PLL_CTL6);*/
@@ -298,14 +316,32 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
 					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
-						| (0x0b020000),
+						| (0x08020000),
 						priv->regs + ETH_PLL_CTL3);
 				} else {
 					pr_debug("no efuse setting use default\n");
-					writel(0xaa820000, priv->regs + ETH_PLL_CTL3);
+					writel(0xa8820000, priv->regs + ETH_PLL_CTL3);
 				}
 				writel(0xcf01, priv->regs + ETH_PLL_CTL6);
 				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
+				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
+			}
+
+			/*s7*/
+			if (phy_mode == 4) {
+				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
+				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
+					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
+					tx_R = (efuse_get_tmp & 0x0f0000) >> 16;
+					writel(((tx_R << 28) | (rx_R << 20))
+						| (0x0a060000),
+						priv->regs + ETH_PLL_CTL3);
+				} else {
+					pr_debug("no efuse setting use default\n");
+					writel(0xaa860000, priv->regs + ETH_PLL_CTL3);
+				}
+				writel(0x4001, priv->regs + ETH_PLL_CTL6);
+				writel(0x20000000, priv->regs + ETH_PLL_CTL5);
 				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
 			}
 			/*s7d s6*/
@@ -327,12 +363,38 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 				writel(0x84001580, priv->regs + ETH_PLL_CTL5);
 //				writel(0x00007423, priv->regs + ETH_PLL_CTL7);
 			}
+			/*t6d*/
+			if (phy_mode == 7) {
+				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
+				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
+					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
+					tx_R = (efuse_get_tmp & 0x0f0000) >> 16;
+					writel(((tx_R << 28) | (rx_R << 20))
+						| (0x08060000),
+						priv->regs + ETH_PLL_CTL3);
+				} else {
+					pr_debug("no efuse setting use default\n");
+					writel(0xa8860000, priv->regs + ETH_PLL_CTL3);
+				}
+				writel(0x4001, priv->regs + ETH_PLL_CTL6);
+				writel(0x20000000, priv->regs + ETH_PLL_CTL5);
+				writel(0x00003623, priv->regs + ETH_PLL_CTL7);
+			}
 		}
 	}
 
 	if (of_property_read_u32(np, "st_mode", &st_mode) != 0) {
 		pr_info("use default st_mode\n");
 		st_mode = 7;
+	}
+	if (of_property_read_u32(np, "led_setting", &led_setting) == 0) {
+		/*led setting 10bit ETH_PHY_CNTL0 bit[31:23] and ETH_PLL_CTL4 bit0*/
+		/*led_cfg_1 in ETH_PLL_CTL4*/
+		if ((led_setting >> 9) == 1)
+			writel(0x1, priv->regs + ETH_PLL_CTL4);
+		/*ETH_PHY_CNTL0 bit[31:23]*/
+		led_setting = ((led_setting & 0x1ff) << 23);
+		pr_info("led setting 0x%x\n", led_setting);
 	}
 #endif
 	/* Enable the phy clock */
@@ -365,14 +427,31 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	       PHY_CNTL2_RX_CLK_EPHY,
 	       priv->regs + ETH_PHY_CNTL2);
 	value |= PHY_CNTL1_PHY_ENB;
+	value |= led_setting;
 	if (phy_mode == 5)
 		value |= 0x200000;
 	writel(value, priv->regs + ETH_PHY_CNTL1);
 	/* The phy needs a bit of time to power up */
 	mdelay(10);
-
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_HIBERNATION
+int g12a_resume_enable_internal_mdio(void)
+{
+	struct g12a_mdio_mux *priv = dev_get_drvdata(g12a_mdio_dev);
+
+	g12a_ephy_pll_init(__clk_get_hw(priv->pll));
+	g12a_ephy_pll_enable(__clk_get_hw(priv->pll));
+
+	return g12a_enable_internal_mdio(priv);
+}
+EXPORT_SYMBOL_GPL(g12a_resume_enable_internal_mdio);
+#endif
+#endif
+#endif
 
 static int g12a_enable_external_mdio(struct g12a_mdio_mux *priv)
 {
@@ -507,6 +586,13 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_HIBERNATION
+	g12a_mdio_dev = dev;
+#endif
+#endif
+#endif
 	platform_set_drvdata(pdev, priv);
 
 	priv->regs = devm_platform_ioremap_resource(pdev, 0);

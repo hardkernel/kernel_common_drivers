@@ -248,7 +248,6 @@ static void dwmac1000_pmt(struct mac_device_info *hw, unsigned long mode)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	unsigned int pmt = 0;
-
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	if (mode & (1 << 8)) {
 		pr_info("GMAC: WOL mdns wakeup\n");
@@ -538,7 +537,11 @@ int dwmac1000_setup(struct stmmac_priv *priv)
 {
 	struct mac_device_info *mac = priv->hw;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	dev_dbg(priv->device, "\tDWMAC1000\n");
+#else
+	dev_info(priv->device, "\tDWMAC1000\n");
+#endif
 
 	priv->dev->priv_flags |= IFF_UNICAST_FLT;
 	mac->pcsr = priv->ioaddr;

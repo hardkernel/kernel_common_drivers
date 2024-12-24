@@ -18,9 +18,15 @@ static u32 stmmac_get_id(struct stmmac_priv *priv, u32 id_reg)
 		return 0x0;
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	dev_dbg(priv->device, "User ID: 0x%x, Synopsys ID: 0x%x\n",
 			(unsigned int)(reg & GENMASK(15, 8)) >> 8,
 			(unsigned int)(reg & GENMASK(7, 0)));
+#else
+	dev_info(priv->device, "User ID: 0x%x, Synopsys ID: 0x%x\n",
+			(unsigned int)(reg & GENMASK(15, 8)) >> 8,
+			(unsigned int)(reg & GENMASK(7, 0)));
+#endif
 	return reg & GENMASK(7, 0);
 }
 
@@ -41,11 +47,19 @@ static void stmmac_dwmac_mode_quirk(struct stmmac_priv *priv)
 	struct mac_device_info *mac = priv->hw;
 
 	if (priv->chain_mode) {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "Chain mode enabled\n");
+#else
+		dev_info(priv->device, "Chain mode enabled\n");
+#endif
 		priv->mode = STMMAC_CHAIN_MODE;
 		mac->mode = &chain_mode_ops;
 	} else {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "Ring mode enabled\n");
+#else
+		dev_info(priv->device, "Ring mode enabled\n");
+#endif
 		priv->mode = STMMAC_RING_MODE;
 		mac->mode = &ring_mode_ops;
 	}
@@ -56,11 +70,19 @@ static int stmmac_dwmac1_quirks(struct stmmac_priv *priv)
 	struct mac_device_info *mac = priv->hw;
 
 	if (priv->plat->enh_desc) {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "Enhanced/Alternate descriptors\n");
+#else
+		dev_info(priv->device, "Enhanced/Alternate descriptors\n");
+#endif
 
 		/* GMAC older than 3.50 has no extended descriptors */
 		if (priv->synopsys_id >= DWMAC_CORE_3_50) {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 			dev_dbg(priv->device, "Enabled extended descriptors\n");
+#else
+			dev_info(priv->device, "Enabled extended descriptors\n");
+#endif
 			priv->extend_desc = 1;
 		} else {
 			dev_warn(priv->device, "Extended descriptors not supported\n");
@@ -68,7 +90,11 @@ static int stmmac_dwmac1_quirks(struct stmmac_priv *priv)
 
 		mac->desc = &enh_desc_ops;
 	} else {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "Normal descriptors\n");
+#else
+		dev_info(priv->device, "Normal descriptors\n");
+#endif
 		mac->desc = &ndesc_ops;
 	}
 

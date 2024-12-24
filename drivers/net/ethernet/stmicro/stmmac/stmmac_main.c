@@ -293,22 +293,31 @@ EXPORT_SYMBOL_GPL(stmmac_global_err);
 
 static void stmmac_amlogic_task(struct work_struct *work)
 {
-//	struct stmmac_priv *priv = container_of(work, struct stmmac_priv,
-//			amlogic_task);
-//	u32 regval;
+	struct stmmac_priv *priv = container_of(work, struct stmmac_priv,
+			amlogic_task);
+	u32 regval;
 
-//	if (priv->amlogic_task_action == 100) {
-//		msleep(3000);
-//		// re-enable MAC Rx/Tx to resolve network broken issue
-//		regval = readl(priv->ioaddr + MAC_CTRL_REG);
-//		regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
-//		writel(regval, priv->ioaddr + MAC_CTRL_REG);
-//		if (priv->linkup_after_resume < 2) {
-//			// revert the effect of phy_speed_down() again
-//			phylink_speed_up(priv->phylink);
-//		}
-//	}
-//	priv->amlogic_task_action = 0;
+	if (priv->amlogic_task_action == 100) {
+		msleep(3000);
+		// re-enable MAC Rx/Tx to resolve network broken issue
+		regval = readl(priv->ioaddr + MAC_CTRL_REG);
+		regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
+		writel(regval, priv->ioaddr + MAC_CTRL_REG);
+#ifdef CONFIG_PM_SLEEP
+		if (wol_switch_from_user && priv->linkup_after_resume < 2) {
+			if (!mdns_switch_from_user) {
+				// revert the effect of phy_speed_down() again
+				rtnl_lock();
+				phylink_speed_up(priv->phylink);
+				rtnl_unlock();
+			}
+		}
+#endif
+	} else if (priv->amlogic_task_action == 101) {
+		msleep(3000);
+		stmmac_global_err(priv);
+	}
+	priv->amlogic_task_action = 0;
 }
 
 void stmmac_trigger_amlogic_task(struct stmmac_priv *priv)
@@ -1152,11 +1161,6 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	stmmac_mac_set(priv, priv->ioaddr, true);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-#ifdef CONFIG_PM_SLEEP
-	if (device_may_wakeup(priv->device)) {
-		pm_relax(priv->device);
-	}
-#endif
 	priv->linkup_after_resume++;
 #endif
 	if (phy && priv->dma_cap.eee) {
@@ -7233,7 +7237,11 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* Get the HW capability (new GMAC newer than 3.50a) */
 	priv->hw_cap_support = stmmac_get_hw_features(priv);
 	if (priv->hw_cap_support) {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "DMA HW capability register supported\n");
+#else
+		dev_info(priv->device, "DMA HW capability register supported\n");
+#endif
 
 		/* We can override some gmac/dma configuration fields: e.g.
 		 * enh_desc, tx_coe (e.g. that are passed through the
@@ -7271,7 +7279,11 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 
 	if (priv->plat->rx_coe) {
 		priv->hw->rx_csum = priv->plat->rx_coe;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "RX Checksum Offload Engine supported\n");
+#else
+		dev_info(priv->device, "RX Checksum Offload Engine supported\n");
+#endif
 		if (priv->synopsys_id < DWMAC_CORE_4_00)
 			dev_info(priv->device, "COE Type %d\n", priv->hw->rx_csum);
 	}
@@ -7279,12 +7291,20 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		dev_info(priv->device, "TX Checksum insertion supported\n");
 
 	if (priv->plat->pmt) {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "Wake-Up On Lan supported\n");
+#else
+		dev_info(priv->device, "Wake-Up On Lan supported\n");
+#endif
 		device_set_wakeup_capable(priv->device, 1);
 	}
 
 	if (priv->dma_cap.tsoen)
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+		dev_dbg(priv->device, "TSO supported\n");
+#else
 		dev_info(priv->device, "TSO supported\n");
+#endif
 
 	priv->hw->vlan_fail_q_en =
 		(priv->plat->flags & STMMAC_FLAG_VLAN_FAIL_Q_EN);
@@ -7305,8 +7325,13 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	if (((priv->synopsys_id >= DWMAC_CORE_3_50) ||
 	    (priv->plat->has_xgmac)) && (!priv->plat->riwt_off)) {
 		priv->use_riwt = 1;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device,
 			 "Enable RX Mitigation via HW Watchdog Timer\n");
+#else
+		dev_info(priv->device,
+			 "Enable RX Mitigation via HW Watchdog Timer\n");
+#endif
 	}
 
 	return 0;
@@ -7604,7 +7629,7 @@ int stmmac_dvr_probe(struct device *device,
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	/* Allocate workqueue for Amlogic task */
-	priv->amlogic_wq = create_singlethread_workqueue("amlogic_wq");
+	priv->amlogic_wq = create_singlethread_workqueue("stmmacamlogictask_wq");
 	if (!priv->amlogic_wq) {
 		dev_err(priv->device, "failed to create workqueue\n");
 		ret = -ENOMEM;
@@ -7669,7 +7694,11 @@ int stmmac_dvr_probe(struct device *device,
 		if (priv->plat->has_gmac4)
 			ndev->hw_features |= NETIF_F_GSO_UDP_L4;
 		priv->tso = true;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "TSO feature enabled\n");
+#else
+		dev_info(priv->device, "TSO feature enabled\n");
+#endif
 	}
 
 	if (priv->dma_cap.sphen &&
@@ -7677,7 +7706,11 @@ int stmmac_dvr_probe(struct device *device,
 		ndev->hw_features |= NETIF_F_GRO;
 		priv->sph_cap = true;
 		priv->sph = priv->sph_cap;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		dev_dbg(priv->device, "SPH feature enabled\n");
+#else
+		dev_info(priv->device, "SPH feature enabled\n");
+#endif
 	}
 
 	/* Ideally our host DMA address width is the same as for the
@@ -7694,8 +7727,13 @@ int stmmac_dvr_probe(struct device *device,
 		ret = dma_set_mask_and_coherent(device,
 				DMA_BIT_MASK(priv->dma_cap.host_dma_width));
 		if (!ret) {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 			dev_dbg(priv->device, "Using %d/%d bits DMA host/device width\n",
 				 priv->dma_cap.host_dma_width, priv->dma_cap.addr64);
+#else
+			dev_info(priv->device, "Using %d/%d bits DMA host/device width\n",
+				 priv->dma_cap.host_dma_width, priv->dma_cap.addr64);
+#endif
 
 			/*
 			 * If more than 32 bits can be addressed, make sure to
@@ -7912,7 +7950,11 @@ int stmmac_suspend(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	u32 chan;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	if (!ndev || !netif_running(ndev) || !netif_device_present(ndev))
+#else
 	if (!ndev || !netif_running(ndev))
+#endif
 		return 0;
 
 	mutex_lock(&priv->lock);
@@ -7952,6 +7994,17 @@ int stmmac_suspend(struct device *dev)
 
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+		int ret;
+
+		if (wol_switch_from_user && priv->phylink->phydev->link && !mdns_switch_from_user) {
+			ret = phylink_speed_down(priv->phylink, true);
+			if (ret)
+				dev_err(priv->device, "phylink_speed_down(): auto-negotiation is incomplete\n");
+		}
+#endif
+#endif
 		phylink_suspend(priv->phylink, true);
 	} else {
 		if (device_may_wakeup(priv->device))
@@ -8050,6 +8103,7 @@ int stmmac_resume(struct device *dev)
 			return ret;
 	}
 
+#if !IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_resume(priv->phylink);
@@ -8059,6 +8113,7 @@ int stmmac_resume(struct device *dev)
 			phylink_speed_up(priv->phylink);
 	}
 	rtnl_unlock();
+#endif
 
 	rtnl_lock();
 	mutex_lock(&priv->lock);
@@ -8068,7 +8123,15 @@ int stmmac_resume(struct device *dev)
 	stmmac_free_tx_skbufs(priv);
 	stmmac_clear_descriptors(priv, &priv->dma_conf);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	ret = stmmac_hw_setup(ndev, false);
+	if (ret < 0) {
+		priv->amlogic_task_action = 101;
+		stmmac_trigger_amlogic_task(priv);
+	}
+#else
 	stmmac_hw_setup(ndev, false);
+#endif
 	stmmac_init_coalesce(priv);
 	stmmac_set_rx_mode(ndev);
 
@@ -8080,9 +8143,27 @@ int stmmac_resume(struct device *dev)
 	mutex_unlock(&priv->lock);
 	rtnl_unlock();
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	rtnl_lock();
+	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
+		phylink_resume(priv->phylink);
+		if (wol_switch_from_user && !mdns_switch_from_user)
+			phylink_speed_up(priv->phylink);
+	} else {
+		phylink_resume(priv->phylink);
+		if (device_may_wakeup(priv->device))
+			phylink_speed_up(priv->phylink);
+	}
+	rtnl_unlock();
+#endif
+
 	netif_device_attach(ndev);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	return ret;
+#else
 	return 0;
+#endif
 }
 EXPORT_SYMBOL_GPL(stmmac_resume);
 
