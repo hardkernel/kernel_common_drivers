@@ -1216,7 +1216,7 @@ u32 rdma_read_reg(int handle, u32 adr)
 	int i, j = 0;
 	u32 *write_table;
 	int match = 0;
-	int match_oth = 0;
+	int match_oth = 0, match_mirror = 0, match_lowlatency = 0;
 	int read_from = 0;
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
@@ -1248,8 +1248,37 @@ u32 rdma_read_reg(int handle, u32 adr)
 			if (write_table[i << 1] == adr) {
 				read_val =
 					write_table[(i << 1) + 1];
+				match_mirror = 1;
 				read_from = 2;
 				break;
+			}
+		}
+	}
+	if (!match_mirror && !match) {
+		/* changed to read from rdma_table_adr to lowlatency channel for optimize */
+		if (handle != lowlatency_reg.rdma_handle &&
+			(lowlatency_reg.rdma_handle > 0 &&
+			lowlatency_reg.rdma_handle < rdma_meson_dev.channel_num)) {
+			struct rdma_instance_s *ins_lowlatency =
+				&info->rdma_ins[lowlatency_reg.rdma_handle];
+
+			write_table = ins_lowlatency->rdma_table_mirror;
+			for (i = (ins_lowlatency->rdma_write_count - 1);
+				i >= 0; i--) {
+				if (write_table[i << 1] == adr) {
+					read_val =
+						write_table[(i << 1) + 1];
+					match_lowlatency = 1;
+					read_from = 4;
+					if (rdma_trace_enable)
+						pr_info("(%s) handle %d, %04x=0x%08x from lowlatency table(%d), cur_val:0x%x\n",
+							__func__,
+							lowlatency_reg.rdma_handle, adr,
+							read_val,
+							i,
+							READ_VCBUS_REG(adr));
+					break;
+				}
 			}
 		}
 	}
@@ -1276,6 +1305,13 @@ u32 rdma_read_reg(int handle, u32 adr)
 						handle, adr,
 						read_val,
 						ins->rdma_item_count,
+						READ_VCBUS_REG(adr));
+				else if (read_from == 4)
+					pr_info("(%s) handle %d, %04x=0x%08x from lowlatency table(%d), cur_val:0x%x\n",
+						__func__,
+						lowlatency_reg.rdma_handle, adr,
+						read_val,
+						i,
 						READ_VCBUS_REG(adr));
 				else
 					pr_info("(%s) handle %d, %04x=0x%08x from real reg, cur_val:0x%x\n",
@@ -2073,7 +2109,7 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	int i, j = 0;
 	u32 *write_table;
 	int match = 0;
-	int match_oth = 0;
+	int match_oth = 0, match_mirror = 0, match_lowlatency = 0;
 	int read_from = 0;
 	bool part_conflict_check = true;
 	int vpp_index = handle_trans_vpp(handle);
@@ -2127,9 +2163,39 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 				if (!match_oth) {
 					read_val =
 						write_table[(i << 1) + 1];
+					match_mirror = 1;
 					read_from = 2;
 				}
 				break;
+			}
+		}
+	}
+	if (!match_mirror && !match) {
+		/* changed to read from rdma_table_adr to lowlatency channel for optimize */
+		if (handle != lowlatency_reg.rdma_handle &&
+			(lowlatency_reg.rdma_handle > 0 &&
+			lowlatency_reg.rdma_handle < rdma_meson_dev.channel_num)) {
+			struct rdma_instance_s *ins_lowlatency =
+				&info->rdma_ins[lowlatency_reg.rdma_handle];
+
+			write_table = ins_lowlatency->rdma_table_mirror;
+			for (i = (ins_lowlatency->rdma_write_count - 1);
+				i >= 0; i--) {
+				if (write_table[i << 1] == adr) {
+					read_val =
+						write_table[(i << 1) + 1];
+					match_lowlatency = 1;
+					read_from = 3;
+					if (rdma_trace_enable)
+						pr_info("(%s) handle %d, %04x=0x%08x from lowlatency table(%d %d), cur_val:0x%x\n",
+							__func__,
+							lowlatency_reg.rdma_handle, adr,
+							read_val,
+							ins->rdma_write_count,
+							i,
+							READ_VCBUS_REG(adr));
+					break;
+				}
 			}
 		}
 	}
@@ -2168,6 +2234,15 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					ins->rdma_item_count,
 					match,
 					match ? i : ins->rdma_item_count,
+					READ_VCBUS_REG(adr));
+			else if (read_from == 3)
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from lowlatency table(%d %d), cur_val:0x%x\n",
+					__func__,
+					lowlatency_reg.rdma_handle, current->comm, adr,
+					read_val,
+					write_val,
+					ins->rdma_write_count,
+					i,
 					READ_VCBUS_REG(adr));
 			else
 				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from real reg, cur_val:0x%x\n",
@@ -2271,6 +2346,20 @@ u32 *rdma_get_read_back_addr(int handle)
 	return NULL;
 }
 EXPORT_SYMBOL(rdma_get_read_back_addr);
+
+int get_rdma_item_count(int handle)
+{
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = NULL;
+	int rdma_item_count = 0;
+
+	if (handle > 0 && handle < rdma_meson_dev.channel_num) {
+		ins = &info->rdma_ins[handle];
+		rdma_item_count = ins->rdma_item_count;
+	}
+	return rdma_item_count;
+}
+EXPORT_SYMBOL(get_rdma_item_count);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static struct rdma_device_data_s rdma_meson = {

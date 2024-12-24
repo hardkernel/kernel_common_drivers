@@ -83,6 +83,7 @@ int is_in_vsync_isr_viu3(u8 cur_cpuid);
 int is_video_process_in_thread(void);
 bool get_lowlatency_mode(void);
 int vpp_low_latency_check(void);
+int get_rdma_item_count(int handle);
 #ifdef CONFIG_AMLOGIC_LCD
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 int is_in_ldim_vsync_isr(u8 cur_cpuid);
