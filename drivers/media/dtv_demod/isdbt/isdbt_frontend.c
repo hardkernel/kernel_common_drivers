@@ -37,6 +37,7 @@
 #include "demod_dbg.h"
 #include "amlfrontend.h"
 #include "isdbt_frontend.h"
+#include "isdbt_func.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define ISDBT_TIME_CHECK_SIGNAL 400
@@ -87,6 +88,68 @@ void isdbt_reset_demod(void)
 	msleep(20);
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 0));
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 24));
+
+	if (is_meson_t6d_cpu()) {
+		front_write_reg(0x36, 0x0);
+		front_write_reg(0x37, 0x0);
+
+		front_write_reg(0x20, 0x6011b);
+		front_write_reg(0x20, 0x6011b);//0xe20=6011b
+		front_write_reg(0x21, 0x10122);
+		front_write_reg(0x22, 0x7200a16);
+		front_write_reg(0x23, 0x42190190);
+		front_write_reg(0x26, 0x1a000f0f);
+
+		front_write_reg(0x28, 0x20003030);
+		front_write_reg(0x2a, 0x4404101a);
+		front_write_reg(0x2c, 0x8c042214);//31bit:disable src search
+		front_write_reg(0x2d, 0x00007011);
+		front_write_reg(0x2b, 0x302f4000);
+		front_write_reg(0x27, 0x03555555);
+		front_write_reg(0x2e, 0x00400000);
+		front_write_reg(0x2f, 0x00000005);
+		front_write_reg(0x40, 0x061e81bc);
+		front_write_reg(0x36, 0x3fffffff);
+		front_write_reg(0x37, 0x3fffffff);
+
+		front_write_reg(0x41, 0x1450a9);
+		front_write_reg(0x42, 0x187b7);
+		front_write_reg(0x43, 0x7977b0);
+		front_write_reg(0x44, 0x7e901f);
+		front_write_reg(0x45, 0x3c036);
+		front_write_reg(0x46, 0x177f1);
+		front_write_reg(0x47, 0x7d97d8);
+		front_write_reg(0x48, 0x7ea006);
+		front_write_reg(0x49, 0x1b020);
+		front_write_reg(0x4a, 0x14000);
+		front_write_reg(0x4b, 0x7ee7e7);
+		front_write_reg(0x4c, 0x7ed7fd);
+		front_write_reg(0x4d, 0xc014);
+		front_write_reg(0x4e, 0x11006);
+		front_write_reg(0x4f, 0x7f87f0);
+		front_write_reg(0x50, 0x7f17f9);
+		front_write_reg(0x51, 0x400d);
+		front_write_reg(0x52, 0xe008);
+		front_write_reg(0x53, 0x7fe7f7);
+		front_write_reg(0x54, 0x7f47f8);
+		front_write_reg(0x55, 0x7);
+		front_write_reg(0x56, 0xa008);
+		front_write_reg(0x57, 0x27fb);
+		front_write_reg(0x58, 0x7f87f9);
+		front_write_reg(0x59, 0x7fd003);
+		front_write_reg(0x5a, 0x6006);
+		front_write_reg(0x5b, 0x37ff);
+		front_write_reg(0x5c, 0x7fc7fb);
+		front_write_reg(0x5d, 0x7fc000);
+		front_write_reg(0x5e, 0x3004);
+		front_write_reg(0x5f, 0x4002);
+		front_write_reg(0x60, 0x7ff7fe);
+		front_write_reg(0x61, 0x7fe);
+
+		dvbt_isdbt_wr_reg(0x8 << 2, 0x00013000);//bypass ISDBT frontend
+	}
+
+	PR_ISDBT("do a isdbt reset\n");
 }
 
 int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune)
@@ -245,6 +308,7 @@ int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 
 	/*polling*/
 	dvbt_isdbt_read_status(fe, status, re_tune);
+	isdbt_get_tmcc_info(NULL);
 
 	return 0;
 }
@@ -285,6 +349,11 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
 			c->bandwidth_hz, c->modulation, c->inversion);
+
+	if (c->bandwidth_hz != 6000000) {
+		c->bandwidth_hz = 6000000;
+		PR_INFO("fource use 6M BW\n");
+	}
 
 	/* bw == 0 : 8M*/
 	/*       1 : 7M*/
