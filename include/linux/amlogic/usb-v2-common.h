@@ -7,6 +7,7 @@
 #define __USB_V2_COMMON_HEADER_
 
 #include <linux/usb/phy.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/clk.h>
@@ -22,6 +23,40 @@ enum aml_usb_phy_mode {
 	AML_USB_PHY_MODE_USB_HSP,
 	AML_USB_PHY_MODE_USB_SS,
 	AML_USB_PHY_MODE_USB_OTG,
+};
+
+struct meson_uphy_configure_opts {
+#define MESON_USB_DEVICE_TEST_MODE_COMPL 0
+#define	MESON_USB_DEVICE_TEST_JK_COMPL	 1
+	u32 test_mode;
+};
+
+struct amlogic_otg_helper {
+	struct delayed_work     work;
+	struct delayed_work     set_mode_work;
+	/*otg_mutex should be taken amlogic_crg_otg_work and
+	 *amlogic_crg_otg_set_m_work
+	 */
+	struct mutex		*otg_mutex;
+	int mode_work_flag;
+	int controller_type;
+	struct pm_reg_store {
+		/* host/device mode. */
+		union u2p_r0_v2 u2p_r0;
+		/* iddig irq state. */
+		union u2p_r2_v2 u2p_r2;
+		union u2p_r1_v2 usb_r1;
+	} pm_buf;
+	struct notifier_block pm_notifier;
+	u32 otg_port_index;
+	u32 mode;
+#define AML_USB_OTG_HOST_MODE	0
+#define AML_USB_OTG_DEVICE_MODE	1
+#define AML_USB_OTG_OTG_MODE	2
+#define AML_USB_OTG_HOST_MODE_MASK BIT(AML_USB_OTG_HOST_MODE)
+#define AML_USB_OTG_DEVICE_MODE_MASK BIT(AML_USB_OTG_DEVICE_MODE)
+#define AML_USB_OTG_OTG_MODE_MASK BIT(AML_USB_OTG_OTG_MODE)
+	struct dentry *debugfs_root;
 };
 
 #define USB_PHY_MAX_NUMBER  0x8
@@ -59,6 +94,8 @@ struct amlogic_usb_v2 {
 	int vbus_power_pin;
 	int vbus_power_pin_work_mask;
 	int otg;
+	struct amlogic_otg_helper otg_helper;
+	enum phy_mode last_mode;
 	u32 version;
 	int portspeed;
 	struct delayed_work	work;
@@ -121,4 +158,5 @@ usb_phy_trim_tuning(struct usb_phy *x, int port, int default_val)
 	}
 }
 
+void aml_new_usb3_get_phy(struct amlogic_usb_v2 *phy);
 #endif

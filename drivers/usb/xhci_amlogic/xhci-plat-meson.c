@@ -236,6 +236,10 @@ int aml_xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, con
 
 	device_set_wakeup_capable(&pdev->dev, true);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	device_set_wakeup_capable(sysdev, false);
+#endif
+
 	xhci->main_hcd = hcd;
 
 	/* imod_interval is the interrupt moderation value in nanoseconds. */

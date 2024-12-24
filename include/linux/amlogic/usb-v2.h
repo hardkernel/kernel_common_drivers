@@ -12,7 +12,7 @@
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
 #include <linux/clk.h>
-#include <linux/amlogic/usb-v2-common.h>
+//#include <linux/amlogic/usb-v2-common.h>
 #include <linux/amlogic/usb-v2-c2.h>
 
 //BLOCKING_NOTIFIER_HEAD(aml_new_usb_v2_notifier_list);
@@ -526,7 +526,6 @@ struct aml_usb3_phy {
 
 #define	phy_to_amlusb3phy(p)	container_of((p), struct aml_usb3_phy, phy)
 
-void aml_new_usb3_get_phy(struct amlogic_usb_v2 *phy);
 void cr_bus_addr(unsigned int addr);
 int cr_bus_read(unsigned int addr);
 void cr_bus_write(unsigned int addr, unsigned int data);

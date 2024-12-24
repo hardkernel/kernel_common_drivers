@@ -849,27 +849,12 @@
 	status = "okay";
 };
 
-&usb_phy20 {
-	portnum = <1>;
+&u2phy0 {
 	status = "disabled";
 };
 
-&usb_phy21 {
-	portnum = <1>;
+&u2phy1 {
 	status = "disabled";
-};
-
-&usb_phy30 {
-	status = "disabled";
-};
-
-&usb_phy31 {
-	status = "disabled";
-};
-
-&crg_otg {
-	status = "disabled";
-	controller-type = <1>; /* 0~3: normal, host, device, otg */
 };
 
 &crg_drd {

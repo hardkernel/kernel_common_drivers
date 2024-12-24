@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/amlogic/usb-v2.h>
+#include <linux/amlogic/usb-v2-common.h>
 #include "phy-aml-crg-drd.h"
 
 bool aml_usb_phy2_dbg;

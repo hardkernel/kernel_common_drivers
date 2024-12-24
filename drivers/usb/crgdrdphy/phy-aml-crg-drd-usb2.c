@@ -992,6 +992,9 @@ int amlogic_crg_device_usb2_init(u32 phy_id)
 
 	int ret = -EINVAL;
 
+	if (!phy)
+		return ret;
+
 	if (local_pdata(phy)->ver == AML_CRG_DRD_USB2_PHY_V1)
 		ret = amlogic_crg_device_usb2_init_v1(phy);
 	else

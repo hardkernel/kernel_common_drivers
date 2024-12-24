@@ -83,15 +83,10 @@ static void crg_set_mode(struct crg_drd *crg, u32 mode)
 
 static int crg_core_soft_reset(struct crg_drd *crg)
 {
-	if (crg->usb2_phy)
-		usb_phy_init(crg->usb2_phy);
-
-	if (crg->usb3_phy)
-		usb_phy_init(crg->usb3_phy);
-
+	usb_phy_init(crg->usb2_phy);
+	usb_phy_init(crg->usb3_phy);
 	if (crg->usb2_phy)
 		amlogic_crg_host_power(crg->usb2_phy, false, true);
-
 	return 0;
 }
 
@@ -101,13 +96,11 @@ static void crg_core_exit(struct crg_drd	*crg)
 		amlogic_crg_host_power(crg->usb2_phy, false, false);
 		usb_phy_shutdown(crg->usb2_phy);
 	}
-	if (crg->usb3_phy)
-		usb_phy_shutdown(crg->usb3_phy);
 
-	if (crg->usb2_phy)
-		usb_phy_set_suspend(crg->usb2_phy, 1);
-	if (crg->usb3_phy)
-		usb_phy_set_suspend(crg->usb3_phy, 1);
+	usb_phy_shutdown(crg->usb3_phy);
+
+	usb_phy_set_suspend(crg->usb2_phy, 1);
+	usb_phy_set_suspend(crg->usb3_phy, 1);
 }
 
 static int crg_core_init(struct crg_drd *crg)
@@ -178,8 +171,12 @@ static int crg_core_get_phy(struct crg_drd *crg)
 	struct device *dev = crg->dev;
 
 	crg->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
+	if (IS_ERR(crg->usb2_phy))
+		crg->usb2_phy = NULL;
 
 	crg->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
+	if (IS_ERR(crg->usb3_phy))
+		crg->usb3_phy = NULL;
 
 	return 0;
 }

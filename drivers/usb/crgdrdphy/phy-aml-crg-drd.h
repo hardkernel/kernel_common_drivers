@@ -8,6 +8,7 @@
 
 #include <linux/usb/phy.h>
 #include <linux/amlogic/usb-v2.h>
+#include <linux/amlogic/usb-v2-common.h>
 
 #define	phy_to_amlusb(x)	container_of((x), struct amlogic_usb_v2, phy)
 #define TUNING_DISCONNECT_THRESHOLD 0x3f

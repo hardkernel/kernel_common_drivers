@@ -125,6 +125,16 @@ static int __init aml_usb3_phy_drv_init(void)
 {
 	return -1;
 }
+
+#endif
+
+#if IS_ENABLED(CONFIG_MESON_USBPHY)
+int __init meson_uphy_drv_init(void);
+#else
+static inline int __init meson_uphy_drv_init(void)
+{
+	return -1;
+}
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_CC)

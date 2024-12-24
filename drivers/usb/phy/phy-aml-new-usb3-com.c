@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/usb/phy.h>
 #include <linux/amlogic/usb-v2.h>
+#include <linux/amlogic/usb-v2-common.h>
 #include <linux/of_gpio.h>
 #include <linux/workqueue.h>
 #include <linux/notifier.h>

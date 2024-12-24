@@ -50,6 +50,16 @@ config AMLOGIC_CRG
           corigine
           support
 
+config MESON_USBPHY
+	bool "Meson new USB PHY Driver"
+	depends on AMLOGIC_USB
+	help
+	  Enable this to support new Amlogic USB phy driver for Amlogic SoCs.
+	  This driver uses the Generic Phy framework for Amlogic USB 2.0 PHY &
+	  Amlogic USB 3.0 PHY and implements Amlogic USB otg functions.
+
+	  For which socs this driver supports, check the files in the driver directory.
+
 config AMLOGIC_USBPHY
 	bool "Amlogic USB PHY Driver"
 	depends on AMLOGIC_USB

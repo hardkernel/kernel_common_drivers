@@ -555,7 +555,7 @@ static int amlogic_crg_otg_post_hibernation(struct amlogic_crg_otg *phy)
 	//union u2p_r2_v2 reg2;
 
 	//reg2.d32 = readl((void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
-	//pr_err("linestate: %d recover to %d\n",
+	//pr_err("line state: %d recover to %d\n",
 	//	reg2.b.iddig_curr, phy->pm_buf.u2p_r2.b.iddig_curr);
 
 	writel(phy->pm_buf.usb_r1.d32, phy->phy3_cfg + 4);
@@ -564,7 +564,7 @@ static int amlogic_crg_otg_post_hibernation(struct amlogic_crg_otg *phy)
 
 	/* During STD the idpin line state could lose sync with controller state even the
 	 * register has been restored. This happens when linestate changes after std but
-	 * before h-prepare which disables the irq, records linesate then cancels the unscheduled
+	 * before h-prepare which disables the irq, records line state then cancels the unscheduled
 	 * role-switch irq work.
 	 * e.g.
 	 * If the otg plug is removed before h-prepare, the restored state remains as host
