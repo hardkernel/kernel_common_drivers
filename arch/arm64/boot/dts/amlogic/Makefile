@@ -6,6 +6,7 @@ dtb-y += adt4_overlay_dt.dtbo
 dtb-y += a1-a113l-ad403-spk.dtb
 dtb-y += sc2_s905x4_ah212_drm.dtb
 dtb-y += sc2_s905x4_ah212_drm_1.5g.dtb
+dtb-y += sc2_s905x4_ah212_drm_1g.dtb
 dtb-y += t3_t965d4_ar321-2g.dtb
 dtb-y += t3_t965d4_ar331-4g.dtb
 dtb-y += t3_t982_ar301-2g.dtb
