@@ -427,6 +427,7 @@ static int gxl_resume(struct phy_device *phydev)
 #ifdef CONFIG_HIBERNATION
 int gxl_resume_internal_registers(struct phy_device *phydev)
 {
+	phy_write(phydev, 30, 0x7e);
 	return custom_internal_config(phydev);
 }
 EXPORT_SYMBOL_GPL(gxl_resume_internal_registers);
