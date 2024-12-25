@@ -2690,7 +2690,8 @@ static void vframe_composer(struct composer_dev *dev)
 	is_tvp = received_frames_tmp->is_tvp;
 	temp_file = received_frames_tmp->file_vf[0];
 #ifdef CONFIG_AMLOGIC_UVM_CORE
-	if (meson_uvm_get_usage(received_frames_tmp->file_vf[0]->private_data, &usage) < 0)
+	if (dmabuf_is_uvm(received_frames_tmp->file_vf[0]->private_data) &&
+		meson_uvm_get_usage(received_frames_tmp->file_vf[0]->private_data, &usage) < 0)
 		vc_print(dev->index, PRINT_ERROR,
 			"%s:meson_uvm_get_usage fail.\n", __func__);
 #endif
