@@ -8,6 +8,33 @@
 #include <linux/arm-smccc.h>
 #include "clk-regmap.h"
 
+static int clk_regmap_check_is_satisfied(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_gate_data *gate = clk_get_regmap_gate_data(clk);
+	unsigned int val;
+	int cnt = 3;
+
+	if (gate->check_offset) {
+		do {
+			if (!cnt) {
+				pr_err("check %s failed!\n", clk_hw_get_name(hw));
+				return -ETIMEDOUT;
+			}
+			/*
+			 * FIXME: due to hardware reasons, the check will be delayed per 1ms,
+			 * and the spinlock used during the enable period will be delayed
+			 * for at least 1ms.
+			 */
+			udelay(1000);
+			cnt--;
+			regmap_read(clk->map, gate->check_offset, &val);
+		} while (!(val & BIT(gate->check_bit)));
+	}
+
+	return 0;
+}
+
 static int clk_regmap_gate_endisable(struct clk_hw *hw, int enable)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
@@ -22,7 +49,17 @@ static int clk_regmap_gate_endisable(struct clk_hw *hw, int enable)
 
 static int clk_regmap_gate_enable(struct clk_hw *hw)
 {
-	return clk_regmap_gate_endisable(hw, 1);
+	int ret;
+
+	ret = clk_regmap_gate_endisable(hw, 1);
+	if (ret)
+		return ret;
+
+	ret = clk_regmap_check_is_satisfied(hw);
+	if (ret)
+		clk_regmap_gate_endisable(hw, 0);
+
+	return ret;
 }
 
 static void clk_regmap_gate_disable(struct clk_hw *hw)

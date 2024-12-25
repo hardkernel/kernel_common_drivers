@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include <dt-bindings/clock/s7-clkc.h>
-#include <dt-bindings/clock/s7-scmi-clk.h>
+#include <dt-bindings/clock/amlogic,s7-clkc.h>
+#include <dt-bindings/clock/amlogic,s7-scmi-clkc.h>
 #include <dt-bindings/clock/g12a-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -81,12 +81,12 @@
 		};
 	};
 
-	shmem@50f7e00 {
+	shmem@50f6000 {
 		compatible = "mmio-sram";
-		reg = <0x050f7e00 0x100>;
+		reg = <0x050f6000 0x100>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x050f7e00 0x100>;
+		ranges = <0x0 0x050f6000 0x100>;
 
 		scmi_shmem: shmem@0 {
 			compatible = "arm,scmi-shmem";
@@ -368,7 +368,7 @@
 			clocks = <&xtal>,
 				 <&clkc CLKID_SYS_SAR_ADC>,
 				 <&clkc CLKID_SAR_ADC>,
-				 <&clkc CLKID_SAR_ADC_SEL>;
+				 <&clkc CLKID_SAR_ADC_MUX>;
 			clock-names = "clkin", "core", "adc_clk", "adc_sel";
 			interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
 		};
@@ -407,16 +407,8 @@
 				      <0x8000 0x384>;
 				reg-names = "basic", "pll";
 				clocks = <&xtal>,
-					 <&scmi_clk CLKID_SCMI_CPU_CLK>,
-					 <&scmi_clk CLKID_SCMI_DSU_CLK>,
-					 <&scmi_clk CLKID_SCMI_GP1_PLL>,
-					 <&scmi_clk CLKID_SCMI_PWM_G>,
-					 <&scmi_clk CLKID_SCMI_PWM_I>,
-					 <&scmi_clk CLKID_SCMI_PLL_TOP>,
-					 <&scmi_clk CLKID_SCMI_ACLKM>;
-				clock-names = "xtal", "cpu_clk", "dsu_clk",
-					      "gp1_pll", "pwm_g", "pwm_i",
-					      "pll_top_in", "aclkm";
+					 <&scmi_clk CLKID_SCMI_GP1_PLL>;
+				clock-names = "xtal", "gp1_pll";
 				status = "okay";
 			};
 
@@ -467,9 +459,9 @@
 				reg = <0x50000 0x38>;
 				interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPICC0>,
-					 <&clkc CLKID_SPICC>;
+					 <&clkc CLKID_SPICC0>;
 				clock-names = "sys", "spi";
-				assigned-clocks = <&clkc CLKID_SPICC>;
+				assigned-clocks = <&clkc CLKID_SPICC0>;
 				assigned-clock-rates = <500000000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -499,7 +491,7 @@
 				reg = <0x58000 0x24>,
 					  <0x180 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_A_SEL>;
+				clocks = <&clkc CLKID_PWM_A_MUX>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -509,7 +501,7 @@
 				reg = <0x58200 0x24>,
 					  <0x180 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_B_SEL>;
+				clocks = <&clkc CLKID_PWM_B_MUX>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -519,7 +511,7 @@
 				reg = <0x58400 0x24>,
 					  <0x184 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_C_SEL>;
+				clocks = <&clkc CLKID_PWM_C_MUX>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -529,7 +521,7 @@
 				reg = <0x58600 0x24>,
 					  <0x184 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_D_SEL>;
+				clocks = <&clkc CLKID_PWM_D_MUX>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -539,7 +531,7 @@
 				reg = <0x58800 0x24>,
 					  <0x188 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_E_SEL>;
+				clocks = <&clkc CLKID_PWM_E_MUX>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -549,7 +541,7 @@
 				reg = <0x58a00 0x24>,
 					  <0x188 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_F_SEL>;
+				clocks = <&clkc CLKID_PWM_F_MUX>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -664,7 +656,7 @@
 
 				clocks = <&clkc CLKID_SYS_ETHPHY>,
 					 <&xtal>,
-					 <&clkc CLKID_FCLK_CLK50M>;
+					 <&clkc CLKID_FCLK_50M>;
 				clock-names = "pclk", "clkin0", "clkin1";
 				mdio-parent-bus = <&mdio0>;
 				#address-cells = <1>;
@@ -832,7 +824,7 @@
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
-				<&clkc CLKID_SD_EMMC_C_SEL>,
+				<&clkc CLKID_SD_EMMC_C_MUX>,
 				 <&clkc CLKID_SD_EMMC_C>,
 				 <&xtal>,
 				 <&clkc CLKID_GP0_PLL>,
@@ -859,7 +851,7 @@
 			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SYS_SD_EMMC_B>,
-				<&clkc CLKID_SD_EMMC_B_SEL>,
+				<&clkc CLKID_SD_EMMC_B_MUX>,
 				 <&clkc CLKID_SD_EMMC_B>,
 				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>;
@@ -880,7 +872,7 @@
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SYS_SD_EMMC_A>,
-				<&clkc CLKID_SD_EMMC_A_SEL>,
+				<&clkc CLKID_SD_EMMC_A_MUX>,
 				 <&clkc CLKID_SD_EMMC_A>,
 				 <&xtal>,
 				 <&clkc CLKID_GP0_PLL>,
@@ -921,7 +913,7 @@
 			interrupt-names = "macirq";
 			clocks = <&clkc CLKID_SYS_ETHPHY>,
 				 <&clkc CLKID_FCLK_DIV2>,
-				 <&clkc CLKID_FCLK_CLK50M>;
+				 <&clkc CLKID_FCLK_50M>;
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			mboxes = <&mbox_fifo S7_REE2AO_ETH>;
 			snps,force_thresh_dma_mode;
@@ -1183,7 +1175,7 @@
 		pinctrl-0=<&eecec_b>;
 		pinctrl-1=<&eecec_b>;
 		pinctrl-2=<&cec_pin_sleep>;
-		clocks = <&clkc CLKID_CECB_DUAL_CLKOUT>;
+		clocks = <&clkc CLKID_CECB_DUAL>;
 		clock-names = "cecb_clk";
 		reg = <0xfe044000 0x2ff
 		       0xfe010000 0xfff
@@ -1268,7 +1260,7 @@
 		compatible = "amlogic, amvenc_avc";
 		dev_name = "amvenc_avc";
 		status = "disabled";
-		//clocks = <&clkc CLKID_HCODEC_P0>;
+		//clocks = <&clkc CLKID_HCODEC_0>;
 		//clock-names = "cts_hcodec_aclk";
 		interrupts = <0 93 1>;
 		interrupt-names = "mailbox_2";
@@ -1279,7 +1271,7 @@
 		compatible = "amlogic, jpegenc";
 		dev_name = "jpegenc";
 		status = "disabled";
-		//clocks = <&clkc CLKID_HCODEC_P0>;
+		//clocks = <&clkc CLKID_HCODEC_0>;
 		//clock-names = "cts_jpegenc_aclk";
 		interrupts = <0 93 1>;
 		interrupt-names = "mailbox_2";
@@ -3006,7 +2998,7 @@
 	 * free mux to safely change frequency while running.
 	 */
 	assigned-clocks = <&scmi_clk CLKID_SCMI_GP1_PLL>,
-			<&clkc CLKID_MALI_0_SEL>,
+			<&clkc CLKID_MALI_0_MUX>,
 			<&clkc CLKID_MALI_0>,
 			<&clkc CLKID_MALI>; /* Glitch free mux */
 	assigned-clock-parents = <0>, /* Do Nothing */

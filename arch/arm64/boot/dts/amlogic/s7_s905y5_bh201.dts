@@ -385,7 +385,7 @@
 		/* interrupt-names = "demod_isr"; */
 
 		//power-domains = <&pwrdm PDID_S4_DEMOD>;
-		/* clocks = <&clkc CLKID_DAC_CLK>; */
+		/* clocks = <&clkc CLKID_VDAC>; */
 		/* clock-names = "vdac_clk_gate"; */
 
 		reg = <0x0 0xfe350000 0x0 0x10000	/* dtv demod base */

@@ -45,6 +45,8 @@ struct clk_regmap {
 struct clk_regmap_gate_data {
 	unsigned int	offset;
 	u8		bit_idx;
+	unsigned int	check_offset;
+	u8		check_bit;
 	u8		flags;
 	int		saved_is_enabled;
 };
