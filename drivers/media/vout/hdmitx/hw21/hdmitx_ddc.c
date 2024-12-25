@@ -45,10 +45,10 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 	u32 blk_idx = 0;
 	u8 ext_block_num = 0;
 	u8 *rx_edid = _rx_edid;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	/* skip edid reading in pxp */
-	if (hdev->pxp_mode)
+	if (hdev->tx_comm.pxp_mode)
 		return;
 
 	if (0) {

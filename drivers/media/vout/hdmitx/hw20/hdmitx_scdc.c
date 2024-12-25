@@ -4,7 +4,8 @@
  */
 
 #include <linux/delay.h>
-#include "hdmitx_module.h"
+#include "hdmitx_ddc.h"
+#include "../hdmitx_module.h"
 #include "hdmitx_common.h"
 
 void scdc_config(struct hdmitx_dev *hdev)
@@ -37,7 +38,7 @@ void scdc_config(struct hdmitx_dev *hdev)
 /* update CED, 10.4.1.8 */
 static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 {
-	struct ced_cnt *ced = &hdev->ced_cnt;
+	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
 	u8 raw[7];
 	u8 chksum;
 	int i;
@@ -89,23 +90,23 @@ int scdc_status_flags(struct hdmitx_dev *hdev)
 	scdc_rd_sink(UPDATE_0, &st);
 	if (st & STATUS_UPDATE) {
 		scdc_rd_sink(STATUS_FLAGS_0, &locked_st);
-		hdev->chlocked_st.clock_detected = locked_st & (1 << 0);
-		hdev->chlocked_st.ch0_locked = !!(locked_st & (1 << 1));
-		hdev->chlocked_st.ch1_locked = !!(locked_st & (1 << 2));
-		hdev->chlocked_st.ch2_locked = !!(locked_st & (1 << 3));
+		hdev->tx_comm.chlocked_st.clock_detected = locked_st & (1 << 0);
+		hdev->tx_comm.chlocked_st.ch0_locked = !!(locked_st & (1 << 1));
+		hdev->tx_comm.chlocked_st.ch1_locked = !!(locked_st & (1 << 2));
+		hdev->tx_comm.chlocked_st.ch2_locked = !!(locked_st & (1 << 3));
 	}
 	if (st & CED_UPDATE)
 		scdc_ced_cnt(hdev);
 	if (st & (STATUS_UPDATE | CED_UPDATE))
 		scdc_wr_sink(UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE));
 	if (st & STATUS_UPDATE) {
-		if (!hdev->chlocked_st.clock_detected)
+		if (!hdev->tx_comm.chlocked_st.clock_detected)
 			HDMITX_INFO("ced: clock undetected\n");
-		if (!hdev->chlocked_st.ch0_locked)
+		if (!hdev->tx_comm.chlocked_st.ch0_locked)
 			HDMITX_INFO("ced: ch0 unlocked\n");
-		if (!hdev->chlocked_st.ch1_locked)
+		if (!hdev->tx_comm.chlocked_st.ch1_locked)
 			HDMITX_INFO("ced: ch1 unlocked\n");
-		if (!hdev->chlocked_st.ch2_locked)
+		if (!hdev->tx_comm.chlocked_st.ch2_locked)
 			HDMITX_INFO("ced: ch2 unlocked\n");
 	}
 

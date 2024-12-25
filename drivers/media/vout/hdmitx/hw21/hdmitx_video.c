@@ -16,10 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
-#include "hdmitx_module.h"
+#include "../hdmitx_module.h"
 #include "hdmitx_common.h"
-
-#define to_hdmitx21_dev(x)	container_of(x, struct hdmitx_dev, tx_comm)
 
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device);
 
@@ -100,7 +98,7 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		HDMITX_INFO("VESA only support RGB format\n");
 	}
 
-	if (hdev->tx_hw.base.setdispmode(&hdev->tx_hw.base) >= 0) {
+	if (hdev->hw_comm.setdispmode(&hdev->hw_comm) >= 0) {
 		construct_avi_packet(hdev);
 
 		/*
@@ -111,11 +109,11 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		 */
 		if (is_dvi_device(&hdev->tx_comm.rxcap)) {
 			HDMITX_INFO("Sink is DVI device\n");
-			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+			hdmitx_hw_cntl_config(&hdev->hw_comm,
 				CONF_HDMI_DVI_MODE, DVI_MODE);
 		} else {
 			HDMITX_INFO("Sink is HDMI device\n");
-			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+			hdmitx_hw_cntl_config(&hdev->hw_comm,
 				CONF_HDMI_DVI_MODE, HDMI_MODE);
 		}
 		if (videocode == HDMI_95_3840x2160p30_16x9 ||
@@ -140,14 +138,14 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			 */
 			HDMITX_INFO("hdr: %s: hdr.sdr pkt sent\n", __func__);
 			hdev->tx_comm.colormetry = 0;
-			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AVI_BT2020, CLR_AVI_BT2020);
-			hdmitx_hw_set_packet(&hdev->tx_hw.base, HDMI_PACKET_DRM, buffer);
+			hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_AVI_BT2020, CLR_AVI_BT2020);
+			hdmitx_hw_set_packet(&hdev->hw_comm, HDMI_PACKET_DRM, buffer);
 		}
 		if (hdev->tx_comm.allm_mode) {
 			hdmitx_common_setup_vsif_packet(&hdev->tx_comm, VT_ALLM, 1, NULL);
-			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE, SET_CT_OFF);
+			hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_CT_MODE, SET_CT_OFF);
 		} else {
-			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE,
+			hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_CT_MODE,
 				hdev->tx_comm.ct_mode | hdev->tx_comm.it_content << 4);
 		}
 		hdmitx_set_spd_info(hdev);
@@ -190,8 +188,8 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 	u32 len = 0;
 	struct vendor_info_data *vend_data;
 
-	if (hdev->config_data.vend_data) {
-		vend_data = hdev->config_data.vend_data;
+	if (hdev->tx_comm.config_data.vend_data) {
+		vend_data = hdev->tx_comm.config_data.vend_data;
 	} else {
 		HDMITX_DEBUG_VIDEO("packet: can\'t get vendor data\n");
 		return;
@@ -208,4 +206,29 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 	}
 	spd_db[24] = 0x1;
 	/* TODO hdev->hwop.setinfoframe(HDMI_INFOFRAME_TYPE_SPD, SPD_HB); */
+}
+
+static DEFINE_MUTEX(vid_mute_mutex);
+void hdmitx21_video_mute_op(u32 flag, unsigned int path)
+{
+	static unsigned int vid_mute_path;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	mutex_lock(&vid_mute_mutex);
+	if (flag == 0)
+		vid_mute_path |= path;
+	else
+		vid_mute_path &= ~path;
+
+	if (flag == 0) {
+		HDMITX_INFO("%s: VID_MUTE path=0x%x\n", __func__, path);
+		hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
+	} else {
+		/* unmute only if none of the paths are muted */
+		if (vid_mute_path == 0) {
+			HDMITX_INFO("%s: VID_UNMUTE path=0x%x\n", __func__, path);
+			hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
+		}
+	}
+	mutex_unlock(&vid_mute_mutex);
 }

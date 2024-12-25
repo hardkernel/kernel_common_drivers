@@ -36,7 +36,7 @@
 #include "hdmitx_log.h"
 
 #ifdef CONFIG_AMLOGIC_HDMITX21
-#include "hw21/hdmitx_module.h"
+#include "hdmitx_module.h"
 #include "hw21/hdmitx.h"
 #include "hw21/hdmitx_enc_clk_config.h"
 #endif
@@ -659,7 +659,7 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			buffer[5] = GET_OUI_BYTE1(ieeeoui);
 			buffer[6] = GET_OUI_BYTE2(ieeeoui);
 			/* set bit1, ALLM_MODE */
-			buffer[7] |= 1 << 1;
+			buffer[8] |= 1 << 1;
 			/* reset vic which may be reset by VT_HDMI14_4K */
 			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0)
 				hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, tx_comm->fmt_para.vic);

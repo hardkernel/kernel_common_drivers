@@ -17,7 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include "hdmitx_module.h"
+#include "../hdmitx_module.h"
 #include "hdmitx_common.h"
 
 int hdmitx21_set_audio(struct hdmitx_dev *hdev,
@@ -29,9 +29,48 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 	/* hdmi_audio_infoframe_init(info); */
 	for (i = 0; i < (24 * 2); i++)
 		CHAN_STAT_BUF[i] = 0;
-	if (hdev->tx_hw.base.setaudmode(&hdev->tx_hw.base, audio_param) >= 0) {
+	if (hdev->hw_comm.setaudmode(&hdev->hw_comm, audio_param) >= 0) {
 		/* hdmi_audio_infoframe_set(info); */
 		ret = 0;
 	}
 	return ret;
+}
+
+static DEFINE_MUTEX(aud_mute_mutex);
+void hdmitx21_audio_mute_op(u32 flag, unsigned int path)
+{
+	static unsigned int aud_mute_path;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	mutex_lock(&aud_mute_mutex);
+	if (flag == 0)
+		aud_mute_path |= path;
+	else
+		aud_mute_path &= ~path;
+	hdev->tx_comm.cur_audio_param.aud_output_en = !aud_mute_path;
+
+	if (flag == 0) {
+		HDMITX_INFO("audio: AUD_MUTE path=0x%x\n", path);
+		hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
+	} else {
+		/* unmute only if none of the paths are muted */
+		if (aud_mute_path == 0) {
+			HDMITX_INFO("audio: AUD_UNMUTE path=0x%x\n", path);
+			hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
+		}
+	}
+	mutex_unlock(&aud_mute_mutex);
+}
+
+void hdmitx21_ext_set_audio_output(bool enable)
+{
+	hdmitx21_audio_mute_op(enable, AUDIO_MUTE_PATH_1);
+	HDMITX_INFO("audio: enable:%d\n", enable);
+}
+
+int hdmitx21_ext_get_audio_status(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	return !!hdev->tx_comm.cur_audio_param.aud_output_en;
 }

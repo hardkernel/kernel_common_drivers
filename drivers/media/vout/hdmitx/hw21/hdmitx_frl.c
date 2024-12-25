@@ -4,7 +4,7 @@
  */
 
 #include <linux/delay.h>
-#include "hdmitx_module.h"
+#include "../hdmitx_module.h"
 #include "hdmitx_common.h"
 
 #define MAX_SUPPORTED_FRL_RATE FRL_12G4L /* TODO */
@@ -367,7 +367,7 @@ static void tx_train_fsm(struct work_struct *work)
 		struct frl_work, dwork);
 	struct frl_train_t *p = container_of(frl_work,
 		struct frl_train_t, timer_frl_flt);
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	if (p->last_state != p->flt_tx_state) {
 		HDMITX_INFO("FRL: %s to %s\n", flt_tx_string[p->last_state],
@@ -704,8 +704,8 @@ void frl_tx_training_handler(struct hdmitx_dev *hdev)
 	rxcap = &hdev->tx_comm.rxcap;
 	p_frl_train->min_frl_rate = FRL_3G3L;
 	/* configured in dts, maximum FRL_10G4L */
-	p_frl_train->user_max_frl_rate = hdev->tx_hw.base.hdmi_tx_cap.tx_max_frl_rate;
-	p_frl_train->max_frl_rate = hdev->tx_hw.base.hdmi_tx_cap.tx_max_frl_rate;
+	p_frl_train->user_max_frl_rate = hdev->hw_comm.hdmi_tx_cap.tx_max_frl_rate;
+	p_frl_train->max_frl_rate = hdev->hw_comm.hdmi_tx_cap.tx_max_frl_rate;
 	p_frl_train->frl_rate = hdev->frl_rate;
 	p_frl_train->flt_tx_state = FLT_TX_LTS_L;
 	frl_tx_frl_mode_init(p_frl_train, rxcap, false);

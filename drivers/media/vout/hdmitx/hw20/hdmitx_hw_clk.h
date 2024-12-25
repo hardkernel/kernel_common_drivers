@@ -43,12 +43,12 @@ struct hw_enc_clk_val_group {
 };
 
 void hdmitx_set_clk(struct hdmitx_dev *hdev);
-void hdmitx_set_cts_sys_clk(struct hdmitx20_hw *tx_hw);
-void hdmitx_set_top_pclk(struct hdmitx20_hw *tx_hw);
+void hdmitx_set_cts_sys_clk(struct hdmitx_hw_common *tx_hw);
+void hdmitx_set_top_pclk(struct hdmitx_hw_common *tx_hw);
 void hdmitx_set_hdcp_pclk(struct hdmitx_dev *hdev);
 void hdmitx_set_cts_hdcp22_clk(struct hdmitx_dev *hdev);
 void hdmitx_set_hdmi_axi_clk(struct hdmitx_dev *hdev);
-void hdmitx_set_sys_clk(struct hdmitx20_hw *tx_hw, unsigned char flag);
+void hdmitx_set_sys_clk(struct hdmitx_hw_common *tx_hw, unsigned char flag);
 void hdmitx_disable_clk(struct hdmitx_dev *hdev);
 
 #endif

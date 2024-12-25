@@ -366,11 +366,11 @@ void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	hdmitx21_set_reg_bits(DSC_PKT_GEN_CTL_IVCTX, 0, 3, 1);
 
 	for (i = 0; i < dsc_pkt_insert; i++) {
-		if (hdev->tx_comm.emp_verbose)
+		if (hdev->emp_verbose)
 			HDMITX_INFO("body[%d]=0x%02x\n", i, body[i]);
 		hdmitx21_wr_reg(DSC_PKT_MEM_WDATA_IVCTX, body[i]);
 	}
-	hdev->tx_comm.emp_verbose = 0;
+	hdev->emp_verbose = 0;
 	hdmitx21_wr_reg(DSC_PKT_INSERT_CTRL_IVCTX, 0x3);
 
 	/* only for pkt send in vsync */
@@ -388,11 +388,11 @@ irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev)
 	struct dsc_offer_tx_data dsc_data;
 	struct hdmi_timing *timing;
 
-	if (!hdev->dsc_en || hdev->tx_comm.emp_no == 0)
+	if (!hdev->dsc_en || hdev->emp_no == 0)
 		return IRQ_HANDLED;
 
-	if (hdev->tx_comm.emp_no != -1 || hdev->tx_comm.emp_no > 0)
-		hdev->tx_comm.emp_no--;
+	if (hdev->emp_no != -1 || hdev->emp_no > 0)
+		hdev->emp_no--;
 
 	timing = &hdev->tx_comm.fmt_para.timing;
 	hdmitx_get_dsc_data(&dsc_data);

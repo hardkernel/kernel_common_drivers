@@ -203,7 +203,7 @@ void set21_s5_htxpll_clk_out(const u32 clk, const u32 div)
 {
 	u32 div1;
 	u32 div2;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
 	enum hdmi_color_depth cd = COLORDEPTH_24B;
 
@@ -587,7 +587,7 @@ void hdmitx21_s5_clk_div_rst(u32 clk_idx)
  */
 void hdmitx_s5_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
 {
-	int gate_bit_mask = hdev->tx_hw.gate_bit_mask;
+	int gate_bit_mask = hdev->tx21_hw.gate_bit_mask;
 
 	HDMITX_INFO("gate_bit_mask = 0x%x, enable: %d\n", gate_bit_mask, en);
 	if (gate_bit_mask & BIT(0))

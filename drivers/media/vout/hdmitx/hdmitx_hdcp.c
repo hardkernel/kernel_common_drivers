@@ -126,3 +126,4 @@ void set_hdcp_common_instance(struct hdmitx_common *tx_comm)
 	if (tx_comm)
 		global_tx_common = tx_comm;
 }
+

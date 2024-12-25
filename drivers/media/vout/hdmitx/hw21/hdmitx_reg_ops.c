@@ -56,10 +56,10 @@ u32 get21_hdcp22_base(void)
 
 inline bool cor_reg_addr_mask(u32 addr)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	addr = addr & 0xffff;
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A)
+	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S1A)
 		if ((addr >= 0x0330 && addr <= 0x03ff) ||
 			(addr >= 0x0800 && addr <= 0x08ff) ||
 			(addr >= 0x0940 && addr <= 0x09ff) ||
@@ -136,7 +136,7 @@ static void __iomem *TO_PMAP_ADDR(u32 addr)
 
 static u32 get_enc_paddr(unsigned int addr)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	unsigned int idx = addr >> BASE_REG_OFFSET;
 	unsigned int offset = (addr & 0xffff) >> 2;
 

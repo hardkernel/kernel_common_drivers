@@ -36,7 +36,7 @@ static pf_callback earc_hdmitx_hpdst;
 static void ddc_stall_req_handler(struct intr_t *intr);
 void hdmitx21_earc_hpdst(pf_callback cb)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	earc_hdmitx_hpdst = cb;
 	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX21)
@@ -185,11 +185,11 @@ static void _intr_enable(struct intr_t *pint, bool en)
 
 void hdcp_enable_intrs(bool en)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) {
+	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
+		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
 		if (hdev->tx_comm.hdcp_mode == 1) {
 			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.tpi_intr, en);
 		} else if (hdev->tx_comm.hdcp_mode == 2) {
@@ -218,7 +218,7 @@ void fifo_flow_enable_intrs(bool en)
 
 static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
 {
-	switch (hdev->tx_hw.chip_data->chip_type) {
+	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
 	case MESON_CPU_ID_S1A:
 		hdmitx21_phy_bandgap_en_t7();
@@ -253,8 +253,9 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 	int i;
 	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
 	u32 val;
-	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
-		struct hdmitx_dev, work_internal_intr);
+	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
+		struct hdmitx_common, work_internal_intr);
+	struct hdmitx_dev *hdev = container_of(tx_comm, struct hdmitx_dev, tx_comm);
 	bool ret;
 
 	if (pint->st_data) {
@@ -264,32 +265,32 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 		/* clear intr state asap */
 		pint->st_data = 0;
 		/* check HPD status */
-		if (!hdev->pxp_mode && ((dat_top & (1 << 1)) && (dat_top & (1 << 2)))) {
+		if (!hdev->tx_comm.pxp_mode && ((dat_top & (1 << 1)) && (dat_top & (1 << 2)))) {
 			if (hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO))
 				dat_top &= ~(1 << 2);
 			else
 				dat_top &= ~(1 << 1);
 		}
 		/* bit[2:1] of dat_top means HPD falling and rising */
-		if ((dat_top & 0x6) && hdev->tx_hw.base.hdmitx_gpios_hpd >= 0) {
+		if ((dat_top & 0x6) && hdev->hw_comm.hdmitx_gpios_hpd >= 0) {
 			struct timespec64 kts;
 			struct rtc_time tm;
 
 			ktime_get_real_ts64(&kts);
 			rtc_time64_to_tm(kts.tv_sec, &tm);
 			HDMITX_INFO("UTC+0 %ptRd %ptRt HPD %s\n", &tm, &tm,
-				gpio_get_value(hdev->tx_hw.base.hdmitx_gpios_hpd) ? "HIGH" : "LOW");
+				gpio_get_value(hdev->hw_comm.hdmitx_gpios_hpd) ? "HIGH" : "LOW");
 		}
-		if ((dat_top & 0x6) && hdev->tx_hw.base.debug_hpd_lock) {
+		if ((dat_top & 0x6) && hdev->hw_comm.debug_hpd_lock) {
 			HDMITX_INFO("HDMI hpd locked\n");
 			goto next;
 		}
 		/* HPD rising */
 		if (dat_top & (1 << 1)) {
 			hdmitx_hpd_irq_top_half_process(hdev, true);
-			ret = queue_delayed_work(hdev->hdmi_hpd_wq,
-				&hdev->work_hpd_plugin,
-				hdev->pxp_mode ? 0 : HZ / 2);
+			ret = queue_delayed_work(hdev->tx_comm.hdmi_hpd_wq,
+				&hdev->tx_comm.work_hpd_plugin,
+				hdev->tx_comm.pxp_mode ? 0 : HZ / 2);
 			if (!ret)
 				HDMITX_DEBUG("HDMI plugin work is already in the queue\n");
 		}
@@ -302,14 +303,14 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 			 * critical high cpu loading case. always do
 			 * plugout work to disable output asap.
 			 */
-			ret = cancel_delayed_work(&hdev->work_hpd_plugin);
+			ret = cancel_delayed_work(&hdev->tx_comm.work_hpd_plugin);
 			if (ret)
 				HDMITX_DEBUG("plugin work is pending and canceled\n");
 			else
 				HDMITX_DEBUG("plugin work is not pending\n");
 
-			ret = queue_delayed_work(hdev->hdmi_hpd_wq,
-				&hdev->work_hpd_plugout, 0);
+			ret = queue_delayed_work(hdev->tx_comm.hdmi_hpd_wq,
+				&hdev->tx_comm.work_hpd_plugout, 0);
 			if (!ret)
 				HDMITX_DEBUG("HDMI plugout work is already in the queue\n");
 		}
@@ -347,14 +348,14 @@ static void intr_status_save_and_clear(void)
 {
 	int i;
 	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	u32 gate_status = hdmitx21_get_gate_status();
 	u32 tmp;
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++, pint++) {
-		if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
-			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D ||
-			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) {
+		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
+			hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
+			hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
 			if (!(gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP1X)) {
 				if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX)
 					continue;
@@ -395,13 +396,13 @@ void intr_status_init_clear(void)
 	int i;
 	u32 st_data;
 	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	u32 gate_status = hdmitx21_get_gate_status();
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++, pint++) {
-		if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
-			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D ||
-			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) {
+		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
+			hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
+			hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
 			if (!(gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP1X)) {
 				if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX)
 					continue;
@@ -431,7 +432,7 @@ RE_ISR:
 	top_intr_state = hdmitx21_rd_reg(HDMITX_TOP_INTR_STAT);
 
 	/* for hdcp cts test, need handle ASAP w/o any delay */
-	queue_delayed_work(hdev->hdmi_intr_wq, &hdev->work_internal_intr, 0);
+	queue_delayed_work(hdev->hdmi_intr_wq, &hdev->tx_comm.work_internal_intr, 0);
 
 	/* if TX Controller interrupt shadowing is true,
 	 * it means there's interrupt not cleared/handled
@@ -459,13 +460,13 @@ static irqreturn_t vsync_intr_handler(int irq, void *dev)
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
 
 	if (hdev->tx_comm.vid_mute_op != VIDEO_NONE_OP) {
-		hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+		hdmitx_hw_cntl_config(&hdev->hw_comm,
 			CONF_VIDEO_MUTE_OP, hdev->tx_comm.vid_mute_op);
 		hdev->tx_comm.vid_mute_op = VIDEO_NONE_OP;
 	}
 
 	if (hdev->tx_comm.tx_hw->tmds_phy_op == TMDS_PHY_DISABLE) {
-		hdmitx_hw_cntl_misc(&hdev->tx_hw.base,
+		hdmitx_hw_cntl_misc(&hdev->hw_comm,
 			MISC_TMDS_PHY_OP, hdev->tx_comm.tx_hw->tmds_phy_op);
 		hdev->tx_comm.tx_hw->tmds_phy_op = TMDS_PHY_NONE;
 	}
@@ -480,35 +481,37 @@ static irqreturn_t emp_vsync_intr_handler(int irq, void *dev)
 }
 #endif
 
-void hdmitx_setupirqs(struct hdmitx_dev *phdev)
+int hdmitx_setupirqs(struct hdmitx_hw_common *tx_hw)
 {
 	int r;
+	struct hdmitx_dev *phdev = get_hdmitx_device();
 
-	if (phdev->pxp_mode)
-		return;
+	if (phdev->tx_comm.pxp_mode)
+		return -EINVAL;
 
 	hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT_CLR, 0x7);
-	r = request_irq(phdev->irq_hpd, &intr_handler,
+	r = request_irq(phdev->tx_comm.irq_hpd, &intr_handler,
 			IRQF_SHARED, "hdmitx",
 			(void *)phdev);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	r = request_irq(phdev->irq_vrr_vsync, &vrr_vsync_intr_handler,
+	r = request_irq(phdev->tx_comm.irq_vrr_vsync, &vrr_vsync_intr_handler,
 			IRQF_SHARED, "hdmitx_vrr_vsync",
 			(void *)phdev);
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request vrr_vsync irq\n");
 #endif
-	r = request_irq(phdev->irq_vrr_vsync, &vsync_intr_handler,
+	r = request_irq(phdev->tx_comm.irq_vrr_vsync, &vsync_intr_handler,
 			IRQF_SHARED, "hdmi_vsync",
 			(void *)phdev);
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request hdmi_vsync irq\n");
 #ifdef CONFIG_AMLOGIC_DSC
-	r = request_irq(phdev->irq_vrr_vsync, &emp_vsync_intr_handler,
+	r = request_irq(phdev->tx_comm.irq_vrr_vsync, &emp_vsync_intr_handler,
 			IRQF_SHARED, "hdmitx_emp_vsync",
 			(void *)phdev);
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request emp_vsync irq\n");
 #endif
+	return r;
 }

@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_drv.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_video.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_audio.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hdcp.o

@@ -18,7 +18,7 @@
 #include <linux/cdev.h>
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include "hdmitx_module.h"
+#include "../hdmitx_module.h"
 #include "hdmitx_common.h"
 
 /* Old definitions */
@@ -53,7 +53,7 @@ static int is_dvi_device(struct rx_cap *prxcap)
 int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 {
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
-	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
+	struct hdmitx_hw_common *tx_hw_base = &hdev->hw_comm;
 	int i, ret = -1;
 	unsigned char AVI_DB[32];
 	unsigned char AVI_HB[32];
@@ -73,7 +73,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			para->cd = COLORDEPTH_24B;
 		}
 
-		if (hdev->tx_hw.base.setdispmode(&hdev->tx_hw.base) >= 0) {
+		if (hdev->hw_comm.setdispmode(&hdev->hw_comm) >= 0) {
 			/* HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
 			 * other VSDB, No GB or DI expected
 			 * TMDS_MODE[hdmi_config]
@@ -136,7 +136,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
 {
 	unsigned char buffer[31] = {0};
-	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
+	struct hdmitx_hw_common *tx_hw_base = &hdev->hw_comm;
 
 	buffer[0] = 0x81;
 	buffer[1] = 0x01;
@@ -162,10 +162,10 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 	unsigned char buffer[31] = {0x83, 0x1, 0x19};
 	unsigned int len = 0;
 	struct vendor_info_data *vend_data;
-	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
+	struct hdmitx_hw_common *tx_hw_base = &hdev->hw_comm;
 
-	if (hdev->config_data.vend_data) {
-		vend_data = hdev->config_data.vend_data;
+	if (hdev->tx_comm.config_data.vend_data) {
+		vend_data = hdev->tx_comm.config_data.vend_data;
 	} else {
 		HDMITX_DEBUG_VIDEO("packet: can\'t get vendor data\n");
 		return;

@@ -103,7 +103,7 @@ static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 			hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x44331290);
 		}
 	} else {
-		if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_SM1 &&
+		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_SM1 &&
 		    hdmitx_find_vendor_6g(hdev->tx_comm.EDID_buf) &&
 		    (para->vic == HDMI_96_3840x2160p50_16x9 ||
 		    para->vic == HDMI_97_3840x2160p60_16x9 ||
@@ -176,7 +176,7 @@ static inline int is_dongle_mode(struct hdmitx_dev *hdev)
 {
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
-	return hdev->tx_hw.dongle_mode &&
+	return hdev->hw_comm.dongle_mode &&
 		(para->cs == HDMI_COLORSPACE_YUV422 ||
 		para->cd == COLORDEPTH_24B) &&
 		(hdev->tx_comm.fmt_para.vic == HDMI_19_1280x720p50_16x9 ||
@@ -558,21 +558,18 @@ int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd)
 	int ret = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	if (!(hdev->pdev)) {
+	if (!(hdev->tx_comm.pdev)) {
 		HDMITX_INFO("exit for null device of hdmitx!\n");
 		return -ENODEV;
 	}
-
-	if (!(hdev->pdev->pins)) {
+	if (!(hdev->tx_comm.pdev->pins)) {
 		HDMITX_INFO("exit for null pins of hdmitx device!\n");
 		return -ENODEV;
 	}
-
-	if (!(hdev->pdev->pins->p)) {
+	if (!(hdev->tx_comm.pdev->pins->p)) {
 		HDMITX_INFO("exit for null pinctrl of hdmitx device pins!\n");
 		return -ENODEV;
 	}
-
 	switch (cmd) {
 	case HPD_INIT_SET_FILTER:
 		hdmitx_wr_reg(HDMITX_TOP_HPD_FILTER,
@@ -582,11 +579,11 @@ int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd)
 		ret = 1;
 		break;
 	case HPD_MUX_HPD:
-		pinctrl_select_state(hdev->pdev->pins->p,
-				     hdev->pinctrl_default);
+		pinctrl_select_state(hdev->tx_comm.pdev->pins->p,
+				     hdev->tx_comm.pinctrl_default);
 		break;
 	case HPD_UNMUX_HPD:
-		pinctrl_select_state(hdev->pdev->pins->p, hdev->pinctrl_i2c);
+		pinctrl_select_state(hdev->tx_comm.pdev->pins->p, hdev->tx_comm.pinctrl_i2c);
 		break;
 	case HPD_READ_HPD_GPIO:
 		ret = hdmitx_rd_reg(HDMITX_DWC_PHY_STAT0) & (1 << 1);
@@ -618,7 +615,7 @@ void set_hpll_sspll_g12a(enum hdmi_vic vic)
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 1, 8, 1);
 		/* 2: 1000ppm  1: 500ppm */
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 2, 4, 4);
-		if (hdev->tx_hw.dongle_mode)
+		if (hdev->hw_comm.dongle_mode)
 			hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 4, 4, 4);
 		/* bit[15] hdmi_dpll_sdmnc_en */
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL3, 0, 15, 1);
@@ -643,28 +640,28 @@ int hdmitx_ddc_hw_op_g12a(enum ddc_op cmd)
 	int ret = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	if (!(hdev->pdev)) {
+	if (!(hdev->tx_comm.pdev)) {
 		HDMITX_INFO("exit for null device of hdmitx!\n");
 		return -ENODEV;
 	}
 
-	if (!(hdev->pdev->pins)) {
+	if (!(hdev->tx_comm.pdev->pins)) {
 		HDMITX_INFO("exit for null pins of hdmitx device!\n");
 		return -ENODEV;
 	}
 
-	if (!(hdev->pdev->pins->p)) {
+	if (!(hdev->tx_comm.pdev->pins->p)) {
 		HDMITX_INFO("exit for null pinctrl of hdmitx device pins!\n");
 		return -ENODEV;
 	}
 
 	switch (cmd) {
 	case DDC_MUX_DDC:
-		pinctrl_select_state(hdev->pdev->pins->p,
-				     hdev->pinctrl_default);
+		pinctrl_select_state(hdev->tx_comm.pdev->pins->p,
+				     hdev->tx_comm.pinctrl_default);
 		break;
 	case DDC_UNMUX_DDC:
-		pinctrl_select_state(hdev->pdev->pins->p, hdev->pinctrl_i2c);
+		pinctrl_select_state(hdev->tx_comm.pdev->pins->p, hdev->tx_comm.pinctrl_i2c);
 		break;
 	case DDC_INIT_DISABLE_PULL_UP_DN:
 		/*

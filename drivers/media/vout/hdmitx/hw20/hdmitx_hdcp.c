@@ -29,7 +29,9 @@
 #include <linux/spinlock.h>
 #include <linux/spinlock_types.h>
 #include <linux/extcon-provider.h>
-#include "hdmitx_module.h"
+#include "hdmitx_hdcp_type.h"
+#include "hdmitx_ddc.h"
+#include "../hdmitx_module.h"
 #include <linux/uaccess.h>
 #include "hdmitx_common.h"
 #include "hdmitx_hdcp.h"
@@ -41,7 +43,7 @@
 #include <linux/workqueue.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include "hdmitx_ddc.h"
+
 /*
  * hdmi_tx_hdcp.c
  * version 1.1
@@ -63,7 +65,7 @@ unsigned int hdcp_get_downstream_ver(struct hdmitx_dev *hdev)
 	unsigned int ret = 14;
 
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
-	if (hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_22_LSTORE, 0) == 0)
+	if (hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_22_LSTORE, 0) == 0)
 		if (hdcp_rd_hdcp22_ver())
 			ret = 22;
 		else
@@ -94,7 +96,7 @@ int hdcp_ksv_valid(unsigned char *dat)
 
 static int save_obs_val(struct hdmitx_dev *hdev, struct hdcp_obs_val *obs)
 {
-	return hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
+	return hdmitx_hw_cntl_ddc(hdev->tx20_hw.base,
 		DDC_HDCP14_SAVE_OBS, (unsigned long)obs);
 }
 
@@ -156,8 +158,9 @@ static void _hdcp_do_work(struct work_struct *work)
 	int ret = 0;
 	struct hdmitx_dev *hdev =
 		container_of(work, struct hdmitx_dev, work_do_hdcp.work);
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
-	switch (hdev->tx_comm.hdcp_mode) {
+	switch (tx_comm->hdcp_mode) {
 	case 2:
 		/* hdev->HWOp.CntlMisc(hdev, MISC_HDCP_CLKDIS, 1); */
 		/* schedule_delayed_work(&hdev->work_do_hdcp, HZ / 50); */
@@ -180,16 +183,25 @@ static void _hdcp_do_work(struct work_struct *work)
 		memset(&obs_cur, 0, sizeof(obs_cur));
 		memset(&obs_last, 0, sizeof(obs_last));
 		mutex_unlock(&mutex);
-		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_HDCP_CLKDIS, 0);
+		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_HDCP_CLKDIS, 0);
 		break;
 	}
 }
 
 void hdmitx_hdcp_do_work(struct hdmitx_common *tx_comm)
 {
-	struct hdmitx_dev *hdev = container_of(tx_comm, struct hdmitx_dev, tx_comm);
+	struct hdmitx_dev *hdev =
+		container_of(tx_comm, struct hdmitx_dev, tx_comm);
 
 	_hdcp_do_work(&hdev->work_do_hdcp.work);
+}
+
+void hdmitx_hdcp_status(struct hdmitx_dev *hdev, int hdmi_authenticated)
+{
+	hdmitx_set_uevent(&hdev->tx_comm, HDMITX_HDCP_EVENT, hdmi_authenticated);
+	if (hdev->drm_hdcp_cb.callback)
+		hdev->drm_hdcp_cb.callback(hdev->drm_hdcp_cb.data,
+			hdmi_authenticated);
 }
 
 static int hdmitx_hdcp_task(void *data)
@@ -198,10 +210,10 @@ static int hdmitx_hdcp_task(void *data)
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)data;
 
 	INIT_DELAYED_WORK(&hdev->work_do_hdcp, _hdcp_do_work);
-	while (hdev->hpd_event != 0xff) {
-		hdmi_authenticated = hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
+	while (hdev->tx_comm.hpd_event != 0xff) {
+		hdmi_authenticated = hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 			DDC_HDCP_GET_AUTH, 0);
-		hdmitx_hdcp_status(hdmi_authenticated);
+		hdmitx_hdcp_status(hdev, hdmi_authenticated);
 		if (auth_trigger != hdmi_authenticated) {
 			auth_trigger = hdmi_authenticated;
 			HDMITX_INFO("hdcptx: %d  auth: %d\n", hdev->tx_comm.hdcp_mode,
@@ -375,17 +387,17 @@ static unsigned int meson_hdcp_get_tx_key_version(void)
 	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX20)
 		return 0;
 
-	if (hdev->tx_hw.base.lstore < 0x10) {
-		hdev->tx_hw.base.lstore = 0;
-		if (hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_14_LSTORE, 0))
-			hdev->tx_hw.base.lstore += 1;
-		if (hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_22_LSTORE, 0))
-			hdev->tx_hw.base.lstore += 2;
+	if (hdev->hw_comm.lstore < 0x10) {
+		hdev->hw_comm.lstore = 0;
+		if (hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_14_LSTORE, 0))
+			hdev->hw_comm.lstore += 1;
+		if (hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_22_LSTORE, 0))
+			hdev->hw_comm.lstore += 2;
 	}
 
 	HDMITX_INFO("hdmitx support hdcp14: %d, hdcp22: %d\n",
-		hdev->tx_hw.base.lstore & 0x1, (hdev->tx_hw.base.lstore & 0x2) >> 1);
-	return hdev->tx_hw.base.lstore & 0x3;
+		hdev->hw_comm.lstore & 0x1, (hdev->hw_comm.lstore & 0x2) >> 1);
+	return hdev->hw_comm.lstore & 0x3;
 }
 
 int meson_hdcp_get_valid_type(int request_type_mask)
@@ -682,12 +694,6 @@ static const struct file_operations hdcp_comm_file_operations = {
 };
 
 /* debug interface begin */
-static void am_hdmitx_set_hdcp_mode(unsigned int user_type)
-{
-	meson_hdcp.hdcp_debug_type = user_type;
-	HDMITX_INFO("set_hdcp_mode: %d manually\n", user_type);
-}
-
 static void am_hdmitx_set_hdmi_mode(void)
 {
 	enum vmode_e vmode = get_current_vmode();
@@ -744,18 +750,6 @@ static void am_hdmitx_hdcp_disable(void)
 	if (hdmitx_dev->tx_comm.hdcp_ctl_lvl >= 1)
 		meson_hdcp_disable();
 	HDMITX_INFO("hdcp disable manually\n");
-}
-
-static void am_hdmitx_hdcp_enable(void)
-{
-	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
-	int hdcp_type = HDCP_NULL;
-
-	if (hdmitx_dev->tx_comm.hdcp_ctl_lvl >= 1) {
-		hdcp_type = am_get_hdcp_exe_type();
-		meson_hdcp_enable(hdcp_type);
-	}
-	HDMITX_INFO("hdcp enable manually\n");
 }
 
 static void am_hdmitx_hdcp_disconnect(void)
@@ -848,12 +842,11 @@ void meson_hdcp_init(void)
 	drm_hdmitx_register_hdcp_cb(&hdcp_cb);
 
 	hdmitx_dev = get_hdmitx_device();
-	hdmitx_dev->hwop.am_hdmitx_set_hdcp_mode = am_hdmitx_set_hdcp_mode;
-	hdmitx_dev->hwop.am_hdmitx_set_hdmi_mode = am_hdmitx_set_hdmi_mode;
-	hdmitx_dev->hwop.am_hdmitx_set_out_mode = am_hdmitx_set_out_mode;
-	hdmitx_dev->hwop.am_hdmitx_hdcp_disable = am_hdmitx_hdcp_disable;
-	hdmitx_dev->hwop.am_hdmitx_hdcp_enable = am_hdmitx_hdcp_enable;
-	hdmitx_dev->hwop.am_hdmitx_hdcp_disconnect = am_hdmitx_hdcp_disconnect;
+	hdmitx_dev->tx_comm.drm_hdcp.test_set_hdmi_mode = am_hdmitx_set_hdmi_mode;
+	hdmitx_dev->tx_comm.drm_hdcp.test_set_out_mode = am_hdmitx_set_out_mode;
+	hdmitx_dev->tx_comm.drm_hdcp.test_hdcp_disable = am_hdmitx_hdcp_disable;
+	hdmitx_dev->tx_comm.drm_hdcp.test_hdcp_enable = meson_hdcp_enable;
+	hdmitx_dev->tx_comm.drm_hdcp.test_hdcp_disconnect = am_hdmitx_hdcp_disconnect;
 
 	INIT_DELAYED_WORK(&meson_hdcp.notify_work, meson_hdcp_key_notify);
 	meson_hdcp.key_chk_cnt = 0;
@@ -899,7 +892,7 @@ unsigned int meson_hdcp_get_rx_cap(void)
 	if (hdev->tx_comm.hdcp_mode == 1)
 		return 0x1;
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
-	if (hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
+	if (hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 		DDC_HDCP_22_LSTORE, 0) == 0)
 		return 0x1;
 
@@ -918,7 +911,7 @@ void drm_hdmitx_hdcp22_init(void)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	hdmitx_hdcp_do_work(&hdev->tx_comm);
-	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
+	hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 		DDC_HDCP_MUX_INIT, 2);
 }
 
@@ -928,16 +921,16 @@ void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
-	vic = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_VIDEO_VIC, 0);
-	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_GET_AUTH, 0);
+	vic = hdmitx_hw_get_state(&hdev->hw_comm, STAT_VIDEO_VIC, 0);
+	hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_GET_AUTH, 0);
 
 	if (content_type == 1) {
-		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_MUX_INIT, 1);
+		hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_MUX_INIT, 1);
 		if (vic == HDMI_17_720x576p50_4x3 || vic == HDMI_18_720x576p50_16x9)
 			usleep_range(500000, 500010);
 		hdev->tx_comm.hdcp_mode = 1;
 		hdmitx_hdcp_do_work(&hdev->tx_comm);
-		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
+		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 			DDC_HDCP_OP, HDCP14_ON);
 	} else if (content_type == 2) {
 		hdev->tx_comm.hdcp_mode = 2;
@@ -946,7 +939,7 @@ void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 		 * for drm hdcp_tx22, esm init only once
 		 * don't do HDCP22 IP reset after init done!
 		 */
-		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
+		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 			DDC_HDCP_MUX_INIT, 3);
 	}
 }
@@ -956,14 +949,14 @@ void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_MUX_INIT, 1);
-	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_GET_AUTH, 0);
+	hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_MUX_INIT, 1);
+	hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_GET_AUTH, 0);
 
 	if (content_type == 1) {
-		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
+		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 			DDC_HDCP_OP, HDCP14_OFF);
 	} else if (content_type == 2) {
-		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
+		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 			DDC_HDCP_OP, HDCP22_OFF);
 	}
 
@@ -1006,13 +999,14 @@ const struct file_operations hdcplog_ops = {
 
 static struct dentry *hdmitx_dbgfs;
 
-int hdmitx_hdcp_init(struct hdmitx_dev *hdev)
+int hdmitx20_hdcp_init(struct hdmitx_dev *hdev)
 {
 	struct dentry *entry;
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
-	hdev->tx_comm.drm_hdcp_ctrl_ops = &tx20_drm_hdcp_ctrl_ops;
-	hdev->tx_comm.hdcp_ctrl_ops = &tx20_hdcp_ctrl_ops;
-	if (!hdev->hdtx_dev) {
+	tx_comm->drm_hdcp_ctrl_ops = &tx20_drm_hdcp_ctrl_ops;
+	tx_comm->hdcp_ctrl_ops = &tx20_hdcp_ctrl_ops;
+	if (!hdev->tx_comm.hdtx_dev) {
 		HDMITX_DEBUG_HDCP("exit for null device of hdmitx!\n");
 		return -ENODEV;
 	}
@@ -1020,7 +1014,7 @@ int hdmitx_hdcp_init(struct hdmitx_dev *hdev)
 	memset(&hdcplog_buf, 0, sizeof(hdcplog_buf));
 	init_waitqueue_head(&hdcplog_buf.wait);
 
-	hdev->task_hdcp = kthread_run(hdmitx_hdcp_task,	(void *)hdev,
+	tx_comm->task_hdcp = kthread_run(hdmitx_hdcp_task,	(void *)hdev,
 				      "kthread_hdcp");
 
 	hdmitx_dbgfs = hdmitx_get_dbgfsdentry();
@@ -1038,16 +1032,17 @@ int hdmitx_hdcp_init(struct hdmitx_dev *hdev)
 	return 0;
 }
 
-void hdmitx_hdcp_exit(struct hdmitx_dev *hdev)
+void hdmitx20_hdcp_exit(struct hdmitx_dev *hdev)
 {
-	if (hdev) {
-		kthread_stop(hdev->task_hdcp);
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+
+	if (hdev && tx_comm) {
+		kthread_stop(tx_comm->task_hdcp);
 		cancel_delayed_work_sync(&hdev->work_do_hdcp);
-		kfree(hdev->tx_comm.topo_info);
-		hdev->tx_comm.topo_info = NULL;
+		kfree(tx_comm->topo_info);
+		tx_comm->topo_info = NULL;
 	}
 }
 
 MODULE_PARM_DESC(hdmi_authenticated, "\n hdmi_authenticated\n");
 module_param(hdmi_authenticated, int, 0444);
-

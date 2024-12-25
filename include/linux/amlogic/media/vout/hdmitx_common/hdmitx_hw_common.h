@@ -233,6 +233,39 @@ enum hdmi_ll_mode {
 	#define INTR_MASKN_DISABLE  1
 	#define INTR_CLEAR          2
 
+/* chip type */
+enum amhdmitx_chip_e {
+	MESON_CPU_ID_M8B = 0,
+	MESON_CPU_ID_GXBB,
+	MESON_CPU_ID_GXTVBB,
+	MESON_CPU_ID_GXL,
+	MESON_CPU_ID_GXM,
+	MESON_CPU_ID_TXL,
+	MESON_CPU_ID_TXLX,
+	MESON_CPU_ID_AXG,
+	MESON_CPU_ID_GXLX,
+	MESON_CPU_ID_TXHD,
+	MESON_CPU_ID_G12A,
+	MESON_CPU_ID_G12B,
+	MESON_CPU_ID_SM1,
+	MESON_CPU_ID_TM2,
+	MESON_CPU_ID_TM2B,
+	MESON_CPU_ID_SC2,
+
+	MESON_CPU_ID_T7,
+	MESON_CPU_ID_S1A,
+	MESON_CPU_ID_S5,
+	MESON_CPU_ID_S7,
+	MESON_CPU_ID_S7D,
+	MESON_CPU_ID_S6,
+	MESON_CPU_ID_MAX,
+};
+
+struct amhdmitx_data_s {
+	enum amhdmitx_chip_e chip_type;
+	const char *chip_name;
+};
+
 /***********************************************************************
  *             HDMITX COMMON STRUCT & API
  **********************************************************************/
@@ -305,6 +338,8 @@ struct hdmitx_hw_common {
 
 	/* save the lastest plug_in time from interrupt*/
 	u64 hw_sequence_id;
+	u32 dongle_mode:1;
+	struct amhdmitx_data_s *chip_data;
 };
 
 int hdmitx_hw_cntl_config(struct hdmitx_hw_common *tx_hw,
@@ -345,6 +380,18 @@ enum pkt_op {
 	GEN4_PKT,
 	GEN5_PKT,
 	VTEM_PKT,
+};
+
+/*
+ * HDMITX HPD HW related operations
+ */
+enum hpd_op {
+	HPD_INIT_DISABLE_PULLUP,
+	HPD_INIT_SET_FILTER,
+	HPD_IS_HPD_MUXED,
+	HPD_MUX_HPD,
+	HPD_UNMUX_HPD,
+	HPD_READ_HPD_GPIO,
 };
 
 /*utils functions shared for hdmitx hw module.*/

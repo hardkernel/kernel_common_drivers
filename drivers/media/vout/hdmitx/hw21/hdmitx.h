@@ -8,7 +8,8 @@
 #include <linux/hdmi.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include "hdmitx_module.h"
+#include "hdmitx_hdcp.h"
+#include "../hdmitx_module.h"
 
 /* L_0 will always be printed, set log level to L_1/2/3 for detail */
 #define L_0 0
@@ -74,8 +75,8 @@ u8 hdmi_ddc_status_check(void);
 u8 hdmi_ddc_busy_check(void);
 void hdmi_ddc_error_reset(void);
 
-int hdmitx21_hdcp_init(void);
-void hdmitx21_hdcp_exit(void);
+int hdmitx21_hdcp_init(struct hdmitx_dev *hdev);
+void hdmitx21_hdcp_exit(struct hdmitx_dev *hdev);
 bool hdmitx21_uboot_audio_en(void);
 
 int hdmitx21_init_reg_map(struct platform_device *pdev);
@@ -320,7 +321,7 @@ extern unsigned long hdcp_reauth_dbg;
 extern unsigned long streamtype_dbg;
 extern unsigned long en_fake_rcv_id;
 void hdmitx_top_intr_handler(struct work_struct *work);
-void hdmitx_setupirqs(struct hdmitx_dev *phdev);
+int hdmitx_setupirqs(struct hdmitx_hw_common *tx_hw);
 void intr_status_init_clear(void);
 void ddc_toggle_sw_tpi(void);
 bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len, u8 read_cmd);

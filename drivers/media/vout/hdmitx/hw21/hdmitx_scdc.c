@@ -4,7 +4,7 @@
  */
 
 #include <linux/delay.h>
-#include "hdmitx_module.h"
+#include "../hdmitx_module.h"
 #include "hdmitx_common.h"
 
 void scdc21_config(struct hdmitx_dev *hdev)
@@ -17,7 +17,7 @@ void scdc21_config(struct hdmitx_dev *hdev)
 /* update CED, 10.4.1.8 */
 static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 {
-	struct ced_cnt *ced = &hdev->ced_cnt;
+	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
 	enum frl_rate_enum frl_rate;
 	u8 raw[9] = {0};
 	u8 chksum;
@@ -26,7 +26,7 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 
 	memset(raw, 0, sizeof(raw));
 	memset(ced, 0, sizeof(struct ced_cnt));
-	frl_rate = hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_GET_FRL_MODE, 0);
+	frl_rate = hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0);
 
 	chksum = 0;
 	len = 7; /* 0x50 ~ 0x56 */
@@ -66,7 +66,7 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 
 static int scdc_rsed_cnt(struct hdmitx_dev *hdev)
 {
-	struct ced_cnt *ced = &hdev->ced_cnt;
+	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
 	u8 raw[2] = {0};
 
 	scdc21_sequential_rd_sink(SCDC_RS_CORRECTION_CNT_0, &raw[0], 2);
@@ -89,15 +89,15 @@ int scdc21_status_flags(struct hdmitx_dev *hdev)
 	u8 locked_st = 0;
 	enum frl_rate_enum frl_rate;
 
-	frl_rate = hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_GET_FRL_MODE, 0);
+	frl_rate = hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0);
 	scdc21_rd_sink(SCDC_UPDATE_0, &st);
 	if (st & STATUS_UPDATE) {
 		scdc21_rd_sink(SCDC_STATUS_FLAGS_0, &locked_st);
-		hdev->chlocked_st.clock_detected = locked_st & BIT(0);
-		hdev->chlocked_st.ch0_locked = !!(locked_st & BIT(1));
-		hdev->chlocked_st.ch1_locked = !!(locked_st & BIT(2));
-		hdev->chlocked_st.ch2_locked = !!(locked_st & BIT(3));
-		hdev->chlocked_st.ch3_locked = !!(locked_st & BIT(4));
+		hdev->tx_comm.chlocked_st.clock_detected = locked_st & BIT(0);
+		hdev->tx_comm.chlocked_st.ch0_locked = !!(locked_st & BIT(1));
+		hdev->tx_comm.chlocked_st.ch1_locked = !!(locked_st & BIT(2));
+		hdev->tx_comm.chlocked_st.ch2_locked = !!(locked_st & BIT(3));
+		hdev->tx_comm.chlocked_st.ch3_locked = !!(locked_st & BIT(4));
 	}
 	if (st & CED_UPDATE)
 		scdc_ced_cnt(hdev);
@@ -106,15 +106,15 @@ int scdc21_status_flags(struct hdmitx_dev *hdev)
 	if (st & (STATUS_UPDATE | CED_UPDATE | RSED_UPDATE))
 		scdc21_wr_sink(SCDC_UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE | RSED_UPDATE));
 	if (st & STATUS_UPDATE) {
-		if (!frl_rate && !hdev->chlocked_st.clock_detected)
+		if (!frl_rate && !hdev->tx_comm.chlocked_st.clock_detected)
 			HDMITX_INFO("ced: clock undetected\n");
-		if (!hdev->chlocked_st.ch0_locked)
+		if (!hdev->tx_comm.chlocked_st.ch0_locked)
 			HDMITX_INFO("ced: ch0 unlocked\n");
-		if (!hdev->chlocked_st.ch1_locked)
+		if (!hdev->tx_comm.chlocked_st.ch1_locked)
 			HDMITX_INFO("ced: ch1 unlocked\n");
-		if (!hdev->chlocked_st.ch2_locked)
+		if (!hdev->tx_comm.chlocked_st.ch2_locked)
 			HDMITX_INFO("ced: ch2 unlocked\n");
-		if (frl_rate && !hdev->chlocked_st.ch3_locked)
+		if (frl_rate && !hdev->tx_comm.chlocked_st.ch3_locked)
 			HDMITX_INFO("ced: ch3 unlocked\n");
 	}
 

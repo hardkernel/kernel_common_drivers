@@ -489,7 +489,7 @@ void set_phy_by_mode_sc2(unsigned int mode)
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL0, 0x37eb65c4);
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
 		/* for hdmi_rext use the 1.3k resistor */
-		if (mode == HDMI_PHYPARA_6G && hdev->hdmi_rext == 1300)
+		if (mode == HDMI_PHYPARA_6G && hdev->tx_comm.hdmi_rext == 1300)
 			hd_write_reg(P_ANACTRL_HDMIPHY_CTRL0, 0x37eb6584);
 		break;
 	/* 2.97Gbps */
@@ -543,7 +543,7 @@ void set_hpll_sspll_sc2(enum hdmi_vic vic)
 		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL2, 1, 8, 1);
 		/* 2: 1000ppm  1: 500ppm */
 		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL2, 2, 4, 4);
-		if (hdev->tx_hw.dongle_mode)
+		if (hdev->hw_comm.dongle_mode)
 			hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL2, 4, 4, 4);
 		/* bit[15] hdmi_dpll_sdmnc_en */
 		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL3, 0, 15, 1);

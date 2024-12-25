@@ -219,8 +219,7 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para, tx_comm->fmt_attr,
 					       sizeof(tx_comm->fmt_attr));
 
-	if (tx_comm->ctrl_ops->pre_enable_mode)
-		tx_comm->ctrl_ops->pre_enable_mode(tx_comm, para);
+	hdmitx_pre_enable_mode(tx_comm, para);
 
 	mutex_unlock(&tx_comm->valid_mutex);
 	return 0;
@@ -229,15 +228,14 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 static int hdmitx_common_enable_mode(struct hdmitx_common *tx_comm,
 				     struct hdmi_format_para *para)
 {
-	tx_comm->ctrl_ops->enable_mode(tx_comm, para);
+	hdmitx_enable_mode(tx_comm, para);
 	return 0;
 }
 
 static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 					  struct hdmi_format_para *para)
 {
-	if (tx_comm->ctrl_ops->post_enable_mode)
-		tx_comm->ctrl_ops->post_enable_mode(tx_comm, para);
+	hdmitx_post_enable_mode(tx_comm, para);
 
 	if (tx_comm->cedst_en) {
 		cancel_delayed_work(&tx_comm->work_cedst);
@@ -464,8 +462,7 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	}
 
 	/* disable frl/dsc/vrr */
-	if (tx_comm->ctrl_ops->disable_21_work)
-		tx_comm->ctrl_ops->disable_21_work();
+	hdmitx_disable_21_work(tx_comm);
 
 	/* step3: clear edid */
 	if (edid_clear)
@@ -474,12 +471,12 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	/* step4: HW: clear packets */
 	if (pkt_clear) {
 		HDMITX_INFO("%s: clear hdmitx pkt\n", __func__);
-		tx_comm->ctrl_ops->clear_pkt(tx_hw_base);
+		hdmitx_clear_packets(tx_comm);
 	}
 
 	/* step5: reset hdcp */
 	if (hdcp_reset)
-		tx_comm->ctrl_ops->disable_hdcp(tx_comm);
+		hdmitx_disable_hdcp(tx_comm);
 
 	/* step6: SW: cancel ced work */
 	if (tx_comm->cedst_en)
@@ -504,8 +501,7 @@ int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 	else
 		para = NULL;
 
-	if (tx_comm->ctrl_ops->disable_mode)
-		tx_comm->ctrl_ops->disable_mode(tx_comm, para);
+	hdmitx_disable_mode(tx_comm, para);
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 
 	return 0;
@@ -873,7 +869,7 @@ void hdmitx_bootup_plugin_work(struct hdmitx_common *tx_comm)
 	if (tx_comm->hdcp_mode != 0) {
 		HDMITX_INFO("hdcp: %d should not be enabled before signal ready\n",
 			tx_comm->hdcp_mode);
-		tx_comm->ctrl_ops->disable_hdcp(tx_comm);
+		hdmitx_disable_hdcp(tx_comm);
 	}
 
 	/* read edid */
@@ -927,7 +923,7 @@ void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm)
 	if (tx_comm->hdcp_mode != 0) {
 		HDMITX_INFO("hdcp: %d should not be enabled before signal ready\n",
 			tx_comm->hdcp_mode);
-		tx_comm->ctrl_ops->disable_hdcp(tx_comm);
+		hdmitx_disable_hdcp(tx_comm);
 	}
 
 	/*read edid*/

@@ -26,7 +26,7 @@
 #include "hdmitx_reg_ops.h"
 
 struct reg_map reg_maps[REG_IDX_END] = {0};
-int hdmitx_init_reg_map(struct platform_device *pdev)
+int hdmitx20_init_reg_map(struct platform_device *pdev)
 {
 	int i = 0;
 	struct resource res;
@@ -87,7 +87,7 @@ unsigned int hd_read_reg(unsigned int addr)
 
 	HDMITX_DEBUG(REG "Rd[0x%x] 0x%x\n", paddr, val);
 
-	switch (tx20_hw->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_GXL:
 	case MESON_CPU_ID_GXM:
@@ -114,7 +114,7 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 
 	HDMITX_DEBUG(REG "Wr[0x%x] 0x%x\n", paddr, val);
 
-	switch (tx20_hw->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_GXL:
 	case MESON_CPU_ID_GXM:
@@ -196,7 +196,7 @@ unsigned int hdmitx_rd_reg(unsigned int addr)
 	unsigned int data;
 	struct hdmitx20_hw *tx20_hw = get_hdmitx20_hw_instance();
 
-	if (tx20_hw->chip_data->chip_type >= MESON_CPU_ID_G12A)
+	if (tx20_hw->base->chip_data->chip_type >= MESON_CPU_ID_G12A)
 		data = hdmitx_rd_reg_g12a(addr);
 	else
 		data = hdmitx_rd_reg_normal(addr);
@@ -255,7 +255,7 @@ void hdmitx_wr_reg(unsigned int addr, unsigned int data)
 {
 	struct hdmitx20_hw *tx20_hw = get_hdmitx20_hw_instance();
 
-	if (tx20_hw->chip_data->chip_type >= MESON_CPU_ID_G12A)
+	if (tx20_hw->base->chip_data->chip_type >= MESON_CPU_ID_G12A)
 		hdmitx_wr_reg_g12a(addr, data);
 	else
 		hdmitx_wr_reg_normal(addr, data);

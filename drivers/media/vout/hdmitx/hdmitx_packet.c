@@ -331,6 +331,8 @@ void hdmitx_set_sbtm_pkt(struct vtem_sbtm_st *data)
 {
 	struct emp_packet_st *sbtm = &pkt_sbtm;
 
+	if (global_tx_common->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7)
+		return;
 	if (!data) {
 		hdmi_emp_infoframe_set(EMP_TYPE_SBTM, NULL);
 		return;

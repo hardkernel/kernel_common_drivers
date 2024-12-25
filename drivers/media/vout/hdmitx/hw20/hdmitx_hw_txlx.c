@@ -45,17 +45,17 @@ int hdmitx_hpd_hw_op_txlx(enum hpd_op cmd)
 
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	if (!(hdev->pdev)) {
+	if (!(hdev->tx_comm.pdev)) {
 		HDMITX_INFO("exit for null device of hdmitx!\n");
 		return -ENODEV;
 	}
 
-	if (!(hdev->pdev->pins)) {
+	if (!(hdev->tx_comm.pdev->pins)) {
 		HDMITX_INFO("exit for null pins of hdmitx device!\n");
 		return -ENODEV;
 	}
 
-	if (!(hdev->pdev->pins->p)) {
+	if (!(hdev->tx_comm.pdev->pins->p)) {
 		HDMITX_INFO("exit for null pinctrl of hdmitx device pins!\n");
 		return -ENODEV;
 	}
@@ -71,11 +71,11 @@ int hdmitx_hpd_hw_op_txlx(enum hpd_op cmd)
 		ret = 1;
 		break;
 	case HPD_MUX_HPD:
-		pinctrl_select_state(hdev->pdev->pins->p,
-				     hdev->pinctrl_default);
+		pinctrl_select_state(hdev->tx_comm.pdev->pins->p,
+				     hdev->tx_comm.pinctrl_default);
 		break;
 	case HPD_UNMUX_HPD:
-		pinctrl_select_state(hdev->pdev->pins->p, hdev->pinctrl_i2c);
+		pinctrl_select_state(hdev->tx_comm.pdev->pins->p, hdev->tx_comm.pinctrl_i2c);
 		break;
 	case HPD_READ_HPD_GPIO:
 		ret = hdmitx_rd_reg(HDMITX_DWC_PHY_STAT0) & (1 << 1);
@@ -97,17 +97,17 @@ int hdmitx_ddc_hw_op_txlx(enum ddc_op cmd)
 	int ret = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	if (!(hdev->pdev)) {
+	if (!(hdev->tx_comm.pdev)) {
 		HDMITX_INFO("exit for null device of hdmitx!\n");
 		return -ENODEV;
 	}
 
-	if (!(hdev->pdev->pins)) {
+	if (!(hdev->tx_comm.pdev->pins)) {
 		HDMITX_INFO("exit for null pins of hdmitx device!\n");
 		return -ENODEV;
 	}
 
-	if (!(hdev->pdev->pins->p)) {
+	if (!(hdev->tx_comm.pdev->pins->p)) {
 		HDMITX_INFO("exit for null pinctrl of hdmitx device pins!\n");
 		return -ENODEV;
 	}
@@ -116,11 +116,11 @@ int hdmitx_ddc_hw_op_txlx(enum ddc_op cmd)
 	case DDC_INIT_DISABLE_PULL_UP_DN:
 		break;
 	case DDC_MUX_DDC:
-		pinctrl_select_state(hdev->pdev->pins->p,
-				     hdev->pinctrl_default);
+		pinctrl_select_state(hdev->tx_comm.pdev->pins->p,
+				     hdev->tx_comm.pinctrl_default);
 		break;
 	case DDC_UNMUX_DDC:
-		pinctrl_select_state(hdev->pdev->pins->p, hdev->pinctrl_i2c);
+		pinctrl_select_state(hdev->tx_comm.pdev->pins->p, hdev->tx_comm.pinctrl_i2c);
 		break;
 	default:
 		HDMITX_ERROR("error ddc cmd %d\n", cmd);

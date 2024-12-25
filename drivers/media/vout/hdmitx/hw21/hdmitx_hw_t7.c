@@ -35,7 +35,7 @@
 static bool set_hpll_hclk_v1(u32 m, u32 frac_val)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x0b3a0400 | (m & 0xff));
@@ -421,7 +421,7 @@ void set21_phy_by_mode_t7(u32 mode)
 
 void set21_hpll_sspll_t7(enum hdmi_vic vic)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (vic) {
 	case HDMI_16_1920x1080p60_16x9:
@@ -439,7 +439,7 @@ void set21_hpll_sspll_t7(enum hdmi_vic vic)
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 1, 8, 1);
 		/* 2: 1000ppm  1: 500ppm */
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 2, 4, 4);
-		if (hdev->tx_hw.dongle_mode)
+		if (hdev->hw_comm.dongle_mode)
 			hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 4, 4, 4);
 		/* bit[15] hdmi_dpll_sdmnc_en */
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 0, 15, 1);

@@ -83,7 +83,7 @@ void set21_s7_htxpll_clk_out(const u32 clk, u32 div)
 	u32 pll_od20 = 0;
 	u32 pll_od21 = 0;
 	u32 pll_od3 = 0;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
 	enum hdmi_color_depth cd = COLORDEPTH_24B;
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
@@ -157,7 +157,7 @@ void set21_s7_htxpll_clk_out(const u32 clk, u32 div)
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 19, 1);
 	HDMITX_INFO("pll_od1 = %d, pll_od2 = %d, pll_od3 = %d\n",
 		pll_od1, pll_od2, pll_od3);
-	if (hdev->tx_hw.s7_clk_config)
+	if (hdev->tx21_hw.clk_config)
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, pll_od3, 9, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, pll_od2, 15, 4);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, pll_od1, 19, 4);
@@ -257,7 +257,7 @@ void set21_hpll_sspll_s7(enum hdmi_vic vic)
  */
 void hdmitx_s7_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
 {
-	int gate_bit_mask = hdev->tx_hw.gate_bit_mask;
+	int gate_bit_mask = hdev->tx21_hw.gate_bit_mask;
 
 	HDMITX_INFO("gate_bit_mask = 0x%x, enable: %d\n", gate_bit_mask, en);
 	if (gate_bit_mask & BIT(1))

@@ -743,8 +743,7 @@ static ssize_t phy_store(struct device *dev,
 	if (strncmp(buf, "0", 1) == 0) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		/* for s5 frl mode */
-		if (global_tx_common->ctrl_ops->disable_frl_work)
-			global_tx_common->ctrl_ops->disable_frl_work();
+		hdmitx_disable_frl_work(global_tx_common);
 #endif
 		global_tx_hw->tmds_phy_op = TMDS_PHY_DISABLE;
 		/*
@@ -2366,6 +2365,112 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hdmitx_basic_config);
 
+static ssize_t config_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct master_display_info_s data = {0};
+	struct hdr10plus_para hdr_data = {0x1, 0x2, 0x3};
+	struct cuva_hdr_vs_emds_para cuva_data = {0x1, 0x2, 0x3};
+	struct dv_vsif_para vsif_para = {0};
+	/* unsigned int mute_us = 0; */
+	/* unsigned int mute_frames = 0; */
+
+	HDMITX_INFO("config: %s\n", buf);
+
+	if (strncmp(buf, "info", 4) == 0) {
+		HDMITX_INFO("%x %x %x %x %x %x\n",
+			hdmitx_hw_get_hdr_st(global_tx_hw),
+			hdmitx_hw_get_dv_st(global_tx_hw),
+			hdmitx_hw_get_hdr10p_st(global_tx_hw),
+			hdmitx_hdr_en(global_tx_hw),
+			hdmitx_dv_en(global_tx_hw),
+			hdmitx_hdr10p_en(global_tx_hw)
+			);
+	} else if (strncmp(buf, "sdr_hdr_dov", 11) == 0) {
+		/*
+		 * firstly stay at SDR state, then send hdr->dv packet to
+		 * emulate SDR->HDR->DV switch, DRM-TX-47
+		 */
+		/* step1: SDR-->HDR */
+		data.features = 0x00091000;
+		hdmitx_set_drm_pkt(&data);
+		/* mute_us = mute_frames * hdmitx_get_frame_duration(); */
+		/* usleep_range(mute_us, mute_us + 10); */
+		/* step2: HDR->DV_LL */
+		vsif_para.ver = 0x1;
+		vsif_para.length = 0x1b;
+		vsif_para.ver2_l11_flag = 0;
+		vsif_para.vers.ver2.low_latency = 1;
+		vsif_para.vers.ver2.dobly_vision_signal = 1;
+		hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+	} else if (strncmp(buf, "sdr", 3) == 0) {
+		data.features = 0x00010100;
+		hdmitx_set_drm_pkt(&data);
+	} else if (strncmp(buf, "hdr", 3) == 0) {
+		data.features = 0x00091000;
+		hdmitx_set_drm_pkt(&data);
+	} else if (strncmp(buf, "sbtm", 4) == 0) {
+		struct vtem_sbtm_st sbtm = {
+			.sbtm_ver = 0x2,
+			.sbtm_mode = 0x3,
+			.sbtm_type = 0x1,
+			.grdm_min = 0x1,
+			.grdm_lum = 2,
+			/* MD2/3 */
+			.frmpblimitint = 0xdcba,
+		};
+		hdmitx_set_sbtm_pkt(&sbtm);
+	} else if (strncmp(buf, "hlg", 3) == 0) {
+		data.features = 0x00091200;
+		hdmitx_set_drm_pkt(&data);
+	} else if (strncmp(buf, "vsif", 4) == 0) {
+		if (buf[4] == '1' && buf[5] == '1') {
+			/* DV STD */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 0;
+			vsif_para.vers.ver2.dobly_vision_signal = 1;
+			hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
+		} else if (buf[4] == '1' && buf[5] == '0') {
+			/* DV STD packet, but dolby_vision_signal bit cleared */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 0;
+			vsif_para.vers.ver2.dobly_vision_signal = 0;
+			hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
+		} else if (buf[4] == '4' && buf[5] == '1') {
+			/* DV LL */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 1;
+			vsif_para.vers.ver2.dobly_vision_signal = 1;
+			hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+		}  else if (buf[4] == '4' && buf[5] == '0') {
+			/* DV LL packet, but dolby_vision_signal bit cleared */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 1;
+			vsif_para.vers.ver2.dobly_vision_signal = 0;
+			hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+		} else if (buf[4] == '0') {
+			/* exit DV to SDR */
+			hdmitx_set_vsif_pkt(0, 0, NULL, true);
+		}
+	} else if (strncmp(buf, "hdr10+", 6) == 0) {
+		hdmitx_set_hdr10plus_pkt(1, &hdr_data);
+	} else if (strncmp(buf, "cuva", 4) == 0) {
+		hdmitx_set_cuva_hdr_vs_emds(&cuva_data);
+	}
+	return count;
+}
+
+static DEVICE_ATTR_WO(config);
+
 #ifdef CONFIG_AMLOGIC_HDMITX21
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static ssize_t vrr_cap_show(struct device *dev,
@@ -3160,6 +3265,7 @@ int hdmitx_sysfs_common_create(struct device *dev,
 	ret = device_create_file(dev, &dev_attr_hdcp_ver);
 	ret = device_create_file(dev, &dev_attr_hdmitx_pkt_dump);
 	ret = device_create_file(dev, &dev_attr_hdmitx_basic_config);
+	ret = device_create_file(dev, &dev_attr_config);
 #ifdef CONFIG_AMLOGIC_HDMITX21
 	if (global_tx_common->hdmi_init == HDMITX21) {
 		ret = device_create_file(dev, &dev_attr_vrr_cap);
@@ -3255,6 +3361,7 @@ int hdmitx_sysfs_common_destroy(struct device *dev)
 	device_remove_file(dev, &dev_attr_hdcp_ver);
 	device_remove_file(dev, &dev_attr_hdmitx_pkt_dump);
 	device_remove_file(dev, &dev_attr_hdmitx_basic_config);
+	device_remove_file(dev, &dev_attr_config);
 #ifdef CONFIG_AMLOGIC_HDMITX21
 	if (global_tx_common->hdmi_init == HDMITX21) {
 		device_remove_file(dev, &dev_attr_vrr_cap);

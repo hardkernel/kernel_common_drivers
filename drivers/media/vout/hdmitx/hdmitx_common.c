@@ -16,6 +16,7 @@
 #include "hdmitx_check_valid.h"
 #include "../../../efuse_unifykey/efuse.h"
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include "hdmitx_module.h"
 
 int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,
@@ -61,6 +62,22 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->debug_param.avmute_frame = 0;
 
 	hdmitx_format_para_reset(&tx_comm->fmt_para);
+
+	tx_comm->ready = 0;
+	tx_comm->hdcp_user = 1;
+	tx_comm->hdr_mute_frame = 20;
+	/* no RxSense by default */
+	tx_comm->rxsense_policy = 0;
+	/* enable or disable HDMITX SSPLL, enable by default */
+	tx_comm->sspll = 1;
+	tx_comm->flag_3dfp = 0;
+	tx_comm->flag_3dss = 0;
+	tx_comm->flag_3dtb = 0;
+	tx_comm->vid_mute_op = VIDEO_NONE_OP;
+	tx_comm->vid_mute_op = VIDEO_NONE_OP;
+	tx_comm->hdcp_mode = 0;
+	/* default audio configure is on */
+	tx_comm->cur_audio_param.aud_output_en = 1;
 
 	/*mutex init*/
 	mutex_init(&tx_comm->hdmimode_mutex);
@@ -638,6 +655,12 @@ int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_ue
 	return 0;
 }
 EXPORT_SYMBOL(hdmitx_common_notify_hpd_status);
+
+int hdmitx_set_uevent(struct hdmitx_common *tx_comm, enum hdmitx_event type, int val)
+{
+	return hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
+				type, val, false);
+}
 
 bool hdmitx_hdr_en(struct hdmitx_hw_common *tx_hw)
 {
@@ -1353,62 +1376,76 @@ enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode)
 }
 #endif
 
+static inline void hdmitx_notify_hpd(int hpd, void *p)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	if (hpd)
+		hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr,
+				HDMITX_PLUG, p);
+	else
+		hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr,
+				HDMITX_UNPLUG, NULL);
+}
+
 /* for notify to cec */
 int hdmitx_event_notifier_regist(struct notifier_block *nb)
 {
-#if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == HDMITX20)
-		return hdmitx20_event_notifier_regist(nb);
-#endif
-#if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == HDMITX21)
-		return hdmitx21_event_notifier_regist(nb);
-#endif
-	return 1;
+	int ret = 0;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	if (!nb)
+		return ret;
+
+	ret = hdmitx_event_mgr_notifier_register(hdev->tx_comm.event_mgr,
+		(struct hdmitx_notifier_client *)nb);
+
+	/* update status when register */
+	if (!ret && nb->notifier_call) {
+		/* if (hdev->tx_comm.hdmi_repeater == 1) */
+		hdmitx_notify_hpd(hdev->tx_comm.hpd_state,
+			hdev->tx_comm.rxcap.edid_parsing ?
+			hdev->tx_comm.EDID_buf : NULL);
+		/* actually notify phy_addr is not used by CEC/hdmirx */
+		/* if (hdev->tx_comm.rxcap.physical_addr != 0xffff) { */
+		/* if (hdev->tx_comm.hdmi_repeater == 1) */
+		/* hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr, */
+		/* HDMITX_PHY_ADDR_VALID, */
+		/* &hdev->tx_comm.rxcap.physical_addr); */
+		/* } */
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(hdmitx_event_notifier_regist);
 
 int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 {
-#if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == HDMITX20)
-		return hdmitx20_event_notifier_unregist(nb);
-#endif
-#if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == HDMITX21)
-		return hdmitx21_event_notifier_unregist(nb);
-#endif
-	return 1;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	return hdmitx_event_mgr_notifier_unregister(hdev->tx_comm.event_mgr,
+		(struct hdmitx_notifier_client *)nb);
 }
 EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
 
 int get_hpd_state(void)
 {
 	int ret = 0;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-#if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == HDMITX20)
-		ret = get20_hpd_state();
-#endif
-#if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == HDMITX21)
-		ret = get21_hpd_state();
-#endif
+	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
+	ret = hdev->tx_comm.hpd_state;
+	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+
 	return ret;
 }
 EXPORT_SYMBOL(get_hpd_state);
 
 struct vsdb_phyaddr *get_hdmitx_phy_addr(void)
 {
-#if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == HDMITX20)
-		return get_hdmitx20_phy_addr();
-#endif
-#if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == HDMITX21)
-		return get_hdmitx21_phy_addr();
-#endif
-	return NULL;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	return &hdev->tx_comm.rxcap.vsdb_phy_addr;
 }
 EXPORT_SYMBOL(get_hdmitx_phy_addr);
 
@@ -1496,3 +1533,47 @@ int aout_notifier_call_chain(unsigned long val, void *v)
 	return blocking_notifier_call_chain(&aout_notifier_list, val, v);
 }
 EXPORT_SYMBOL_GPL(aout_notifier_call_chain);
+
+int hdmitx_get_connector(void)
+{
+	int i = 0;
+	int j = 0;
+	static const char * const hdmi_types[] = {
+		/* venc0 */
+		"HDMI-A-A",
+		/* venc1 */
+		"HDMI-A-B",
+		/* venc2 */
+		"HDMI-A-C",
+	};
+	char *conn_types[3] = {};
+	char *type;
+
+	conn_types[0] = get_uboot_connector0_type();
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	conn_types[1] = get_uboot_connector1_type();
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	conn_types[2] = get_uboot_connector2_type();
+#endif
+	if (conn_types[0])
+		HDMITX_INFO("%s[%d] %s\n", __func__, __LINE__, conn_types[0]);
+	if (conn_types[1])
+		HDMITX_INFO("%s[%d] %s\n", __func__, __LINE__, conn_types[1]);
+	if (conn_types[2])
+		HDMITX_INFO("%s[%d] %s\n", __func__, __LINE__, conn_types[2]);
+
+	for (j = 0; j < ARRAY_SIZE(conn_types); j++) {
+		type = conn_types[j];
+		if (!type)
+			continue;
+		for (i = 0; i < ARRAY_SIZE(hdmi_types); i++) {
+			if (strncmp(type, hdmi_types[i], strlen(hdmi_types[i])) == 0)
+				return i;
+		}
+	}
+	if (i < ARRAY_SIZE(hdmi_types))
+		return i;
+
+	return 0;
+}

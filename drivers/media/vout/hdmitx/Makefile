@@ -18,7 +18,8 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_COMMON) += \
 							vout/hdmitx/hdmitx_compliance.o \
 							vout/hdmitx/hdmitx_check_valid.o \
 							vout/hdmitx/hdmitx_hdcp.o \
-							vout/hdmitx/hdmitx_infoframe.o
+							vout/hdmitx/hdmitx_infoframe.o \
+							vout/hdmitx/hdmitx_drv.o
 
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx/hw20/Makefile
 

@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include "hdmitx.h"
-#include "hdmitx_module.h"
+#include "../hdmitx_module.h"
 #include "hdmitx_reg.h"
 #include "hdmitx_ddc.h"
 #include "hdmitx_register.h"
@@ -203,18 +203,6 @@ void dump_infoframe_packets(struct seq_file *s);
 /* data flow metering config */
 void hdmitx_dfm_cfg(u8 bw_type, u16 h_active);
 void hdmitx21_s5_clk_div_rst(u32 clk_idx);
-
-/*
- * HDMITX HPD HW related operations
- */
-enum hpd_op {
-	HPD_INIT_DISABLE_PULLUP,
-	HPD_INIT_SET_FILTER,
-	HPD_IS_HPD_MUXED,
-	HPD_MUX_HPD,
-	HPD_UNMUX_HPD,
-	HPD_READ_HPD_GPIO,
-};
 
 int hdmitx21_hpd_hw_op(enum hpd_op cmd);
 void hdmitx_hpd_irq_top_half_process(struct hdmitx_dev *hdev, bool hpd);

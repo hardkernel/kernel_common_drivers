@@ -111,6 +111,6 @@ bool hdmitx_get_bit(unsigned int addr, unsigned int bit_nr);
 void hdmitx_set_reg_bits(unsigned int addr, unsigned int value,
 				unsigned int offset, unsigned int len);
 
-int hdmitx_init_reg_map(struct platform_device *pdev);
+int hdmitx20_init_reg_map(struct platform_device *pdev);
 
 #endif

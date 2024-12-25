@@ -49,7 +49,7 @@ static int dump_hdmi_phy_pll_reg_show(struct seq_file *s, void *p)
 	seq_printf(s, "attr: %s\n", hdev->tx_comm.fmt_attr);
 	seq_printf(s, "tmds clock: %dkhz\n", hdev->tx_comm.fmt_para.tmds_clk);
 
-	switch (hdev->tx_hw.chip_data->chip_type) {
+	switch (hdev->tx20_hw.base->chip_data->chip_type) {
 	case MESON_CPU_ID_SC2:
 		if (reg_maps[ANACTRL_REG_IDX].phy_addr) {
 			seq_puts(s, "\n--------ANACTRL_HDMIPHY registers--------\n");
@@ -85,7 +85,7 @@ static int dump_regs_show(struct seq_file *s, void *p)
 {
 	int i;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
-	int chip_id = hdev->tx_hw.chip_data->chip_type;
+	int chip_id = hdev->tx_comm.tx_hw->chip_data->chip_type;
 
 	if (reg_maps[VPU_REG_IDX].phy_addr) {
 		seq_puts(s, "\n--------ENCP registers--------\n");
@@ -1340,7 +1340,7 @@ static void hdmitx_parsing_vsifpkt(struct seq_file *s)
 	unsigned int ieee_code = 0;
 	unsigned int count;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
-	struct hdmitx_hw_common *tx_hw_base = &hdev->tx_hw.base;
+	struct hdmitx_hw_common *tx_hw_base = &hdev->hw_comm;
 
 	seq_puts(s, "\n--------parsing VSIF--------\n");
 

@@ -20,7 +20,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/amlogic/media/vout/vinfo.h>
-#include "hdmitx_module.h"
+#include "../hdmitx_module.h"
 #include "hdmitx.h"
 #include "hdmitx_enc_clk_config.h"
 #include "../hdmitx_check_valid.h"
@@ -1087,7 +1087,7 @@ ssize_t _vrr_cap_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	struct vrr_device_s *vrr = &hdev->tx_comm.hdmitx_vrr_dev;
 
@@ -1192,7 +1192,7 @@ static bool check_hpd_hw_id(struct hdmitx_dev *hdev)
 
 u32 drm_hdmitx_get_vrr_cap(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	u32 vrr_cap = 0;
 
@@ -1211,7 +1211,7 @@ u32 drm_hdmitx_get_vrr_cap(void)
 static bool is_rx_supported_vic(enum hdmi_vic brr_vic)
 {
 	int i;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 
 	for (i = 0; i < prxcap->VIC_count; i++) {
@@ -1399,7 +1399,7 @@ static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 static void add_vic_to_group(enum hdmi_vic vic, struct hdmitx_vrr_mode_group *group, bool log_en)
 {
 	const struct hdmi_timing *timing;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	char str_vics[64];
 	int i;
@@ -1439,7 +1439,7 @@ int drm_hdmitx_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_g
 {
 	int i = 0, j = 0;
 	const struct hdmi_timing *timing;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	bool log_en = 0;
 
@@ -1509,7 +1509,7 @@ static void updata_vinfo_sync_duration(struct vinfo_s *vinfo,
 /* rate: Unit *100. Example, 1080p23.976Hz, rate = 2397 */
 int hdmitx_set_vrr_rate(int rate, void *data)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	struct vrr_conf_para para;
@@ -1626,7 +1626,7 @@ void hdmitx_unregister_vrr(struct hdmitx_dev *hdev)
 
 static struct vinfo_s *hdmitx_get_curvinfo(void *data)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	return &hdev->tx_comm.hdmitx_vinfo;
 }
@@ -1708,10 +1708,10 @@ irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev)
 		return IRQ_HANDLED;
 
 	/* for vsync debug only */
-	if (hdev->tx_comm.vrr_dbg_vframe == 0)
+	if (hdev->vrr_dbg_vframe == 0)
 		return IRQ_HANDLED;
-	if (hdev->tx_comm.vrr_dbg_vframe > 0)
-		hdev->tx_comm.vrr_dbg_vframe--;
+	if (hdev->vrr_dbg_vframe > 0)
+		hdev->vrr_dbg_vframe--;
 
 	/* if configuration changed then init local vrr variables */
 	if (is_vrrconf_changed(&vrr->conf_params, &vrr->vrr_para_tmp)) {
@@ -1762,17 +1762,17 @@ irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev)
 void hdmitx_vrr_disable(void)
 {
 	struct tx_vrr_params *vrr = &vrr_para;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	if (hdev->irq_vrr_vsync)
+	if (hdev->tx_comm.irq_vrr_vsync)
 		vrr->conf_params.vrr_enabled = 0;
 }
 
 void hdmitx_vrr_enable(void)
 {
 	struct tx_vrr_params *vrr = &vrr_para;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	if (hdev->irq_vrr_vsync)
+	if (hdev->tx_comm.irq_vrr_vsync)
 		vrr->conf_params.vrr_enabled = 1;
 }
