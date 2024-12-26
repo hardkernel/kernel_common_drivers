@@ -10631,20 +10631,14 @@ void suspend_lc(void)
 
 void resume_mtx_t7(void)
 {
-	unsigned int start_idx;
+	unsigned int start_idx = RECOVERY_REG_MTX_MAX;
 	int i;
 	unsigned int val = 0;
 	unsigned int addr = 0;
 	struct am_regs_s *p = &amregs_store;
 
-	if (!pq_cfg.black_ext_en &&
-		!pq_cfg.chroma_cor_en)
-		start_idx = RECOVERY_REG_MTX_MAX;
-	else
-		start_idx = RECOVERY_REG_MTX_MAX + RECOVERY_REG_VE_MAX;
-
 	p->length = RECOVERY_REG_MTX_MAX;
-	if (!(memcpy(p->am_reg, reg_ve_list + start_idx,
+	if (!(memcpy(p->am_reg, reg_matrix_list + start_idx,
 		RECOVERY_REG_MTX_MAX * sizeof(struct am_reg_s))))
 		return;
 
