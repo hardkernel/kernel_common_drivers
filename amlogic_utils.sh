@@ -942,12 +942,23 @@ function modules_install() {
 		find ${BAZEL_OUT} -name *.ko | grep "unstripped" | while read module; do
 		        cp ${module} ${OUT_AMLOGIC_DIR}/symbols
 		done
+
+		pushd ${ROOT_DIR}/bazel-out
+		AMLOGIC_CONFIG=`find -name .config | grep amlogic_config`
+		KERNEL_AARCH64_CONFIG=`find -name .config | grep kernel_aarch64_config`
+		cp ${AMLOGIC_CONFIG} ${DIST_DIR}/amlogic.config
+		cp ${KERNEL_AARCH64_CONFIG} ${DIST_DIR}/.config
+		cp ${AMLOGIC_CONFIG} ${OUT_AMLOGIC_DIR}/symbols/amlogic.config
+		cp ${KERNEL_AARCH64_CONFIG} ${OUT_AMLOGIC_DIR}/symbols/.config
+		popd
 	else
 		cp ${OUT_DIR}/vmlinux ${OUT_AMLOGIC_DIR}/symbols
 		find ${OUT_DIR} -type f -name "*.ko" -exec cp {} ${OUT_AMLOGIC_DIR}/symbols \;
 		for ext_module in ${EXT_MODULES}; do
 			find ${COMMON_OUT_DIR}/${ext_module} -type f -name "*.ko" -exec cp {} ${OUT_AMLOGIC_DIR}/symbols \;
 		done
+		find ${OUT_DIR} -name .config -exec cp {} ${DIST_DIR} \;
+		find ${OUT_DIR} -name .config -exec cp {} ${OUT_AMLOGIC_DIR}/symbols \;
 	fi
 }
 export -f modules_install
