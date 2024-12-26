@@ -151,6 +151,8 @@ static int meson_DisplayPort_bind(struct device *dev, struct device *master, voi
 		drm_dptx_wrappers[dptx->idx].drm_type = DRM_MODE_CONNECTOR_MESON_DP_B;
 	else
 		drm_dptx_wrappers[dptx->idx].drm_type = DRM_MODE_CONNECTOR_MESON_DP_A;
+	// DRM_MODE_CONNECTOR_MESON_EDP_A
+	// DRM_MODE_CONNECTOR_MESON_EDP_B
 
 	/*bind instance to drm*/
 	if (bound_data->connector_component_bind) {

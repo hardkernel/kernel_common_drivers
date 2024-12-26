@@ -7,6 +7,7 @@
 #define _AMLOGIC_DisplayPort_TX_EXPORT_H
 
 #include <linux/amlogic/media/vout/DisplayPort/DPTX.h>
+#include <drm/amlogic/meson_connector_dev.h>
 
 // char *lcd_get_dt_addr(void);
 // int dptx_probe(void);
@@ -39,4 +40,7 @@
 // int aml_lcd_driver_poweroff(void *pm_ops);
 // void aml_lcd_set_poweron_suspend_sta(int state);
 
-#endif /* INC_AML_LCD_VOUT_H */
+struct dptx_drv_s *aml_dptx_get_driver(u8 drv_idx);
+void aml_dptx_regist_hpd_cb(struct dptx_drv_s *dptx, struct connector_hpd_cb *hpd_cb);
+
+#endif

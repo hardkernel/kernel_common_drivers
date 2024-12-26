@@ -21,7 +21,7 @@
 
 #include <linux/clk.h>
 #include <linux/amlogic/media/vout/DisplayPort/DPTX.h>
-#include "dptx_clk_ctrl.h"
+#include "./dptx_clk_ctrl.h"
 #include "../dptx_common.h"
 #include "../dptx_reg_op.h"
 

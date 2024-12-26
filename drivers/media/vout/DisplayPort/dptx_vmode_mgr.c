@@ -347,7 +347,7 @@ void dptx_vmode_manage(struct dptx_drv_s *dptx)
 }
 
 static u8 cfmt_priority[] = {
-	CFMT_RGB_10bit, CFMT_RGB_8bit, CFMT_RGB_6bit, CFMT_YCbCr420_8bit,
+	DPTX_CFMT_RGB_10bit, DPTX_CFMT_RGB_8bit, DPTX_CFMT_RGB_6bit, DPTX_CFMT_YCbCr420_8bit,
 };
 
 struct dptx_vmode_s *dptx_get_vmode(struct dptx_drv_s *dptx, u8 th)

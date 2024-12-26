@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 #include <linux/cdev.h>
+//#include <drm/amlogic/meson_connector_dev.h>
+//#include <drm/drm_dp_helper.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/pinctrl/consumer.h>
@@ -134,7 +136,7 @@ struct dptx_venc_cfg_s {
 struct dptx_phy_cfg_s {
 	u32 flag;
 	u32 vswing;
-	struct phy_lane_s {
+	struct dptx_phy_lane_s {
 		u8 status;
 		u8 amp;
 		u8 preem;
@@ -296,7 +298,7 @@ struct dptx_vmode_mgr_s {
 struct dptx_drv_s {
 	u8 idx;
 	u8 status;
-	// u8 mode; // 0=DP; 1=eDP
+	u8 mode; // 0=DP; 1=eDP
 	u8 viu_sel; // 1=vout; 2=vou2; 3=vout3
 	u8 crtc_sel;
 	u8 uboot_edid_crc;
@@ -349,6 +351,9 @@ struct dptx_drv_s {
 #endif
 	struct vinfo_s vinfo;
 
+	void *if_ctrls;
+
+	//struct connector_hpd_cb drm_hpd_cb;
 };
 
 #endif

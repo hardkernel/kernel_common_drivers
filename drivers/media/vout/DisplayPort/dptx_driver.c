@@ -28,7 +28,6 @@
 #include <linux/amlogic/media/vout/DisplayPort/DPCD_REG.h>
 #include "dptx_common.h"
 #include <linux/sched/clock.h>
-#include "./DPTX_IP/dptx_IP_ops.h"
 
 #define DPTX_HPD_TIMEOUT        200
 #define DPTX_DELAY_AFTER_HPD    200
@@ -37,13 +36,6 @@ extern struct dptx_boot_ctrl_s dptx_uboot_configs[DPTX_MAX_DRV];
 
 void dptx_act_timing_to_vinfo(struct dptx_drv_s *dptx)
 {
-	// struct dptx_detail_timing_s *ptiming = &dptx->act_timing;
-
-	//if (!pdrv)
-	//	return;
-
-	//memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
-
 	dptx->vinfo.name = dptx->act_timing.name;
 	dptx->vinfo.frac = 0;
 	dptx->vinfo.width               = dptx->act_timing.h_act;
@@ -72,15 +64,16 @@ void dptx_act_timing_to_vinfo(struct dptx_drv_s *dptx)
 	dptx->vinfo.vfp    = dptx->act_timing.v_fp;
 	dptx->vinfo.cur_enc_ppc =  1;
 	dptx->vinfo.fr_adj_type = VOUT_FR_ADJ_NONE;
-	dptx->vinfo.viu_color_fmt = (dptx->act_timing.cfmt <= CFMT_RGB_12bit) ?
+	dptx->vinfo.viu_color_fmt = (dptx->act_timing.cfmt <= DPTX_CFMT_RGB_12bit) ?
 					COLOR_FMT_RGB444 : COLOR_FMT_YUV444;
-	dptx->vinfo.vpp_post_out_color_fmt = (dptx->act_timing.cfmt <= CFMT_RGB_12bit) ? 1 : 0;
+	dptx->vinfo.vpp_post_out_color_fmt = (dptx->act_timing.cfmt <= DPTX_CFMT_RGB_12bit) ? 1 : 0;
 }
 
 void dptx_HPD_trigger_set(struct dptx_drv_s *dptx, u8 en)
 {
 	if (dptx->status & DPTX_STA_DRV_READY) {
-		dptx_interrupt_mask_set(dptx, en);
+		dptx_if_set_hpd_interrupt_mask(dptx,
+			en ? DPTX_IRQ_HPD_EVENT_MASK | DPTX_IRQ_HPD_IRQ_EVENT : 0);
 
 		if (en)
 			dptx->status |= DPTX_STA_HPD_TRI_EN;
@@ -129,7 +122,7 @@ void dptx_driver_ready(struct dptx_drv_s *dptx)
 
 	dptx_venc_enable(dptx, 0);
 
-	dptx_transmitter_init(dptx);
+	dptx_if_transmitter_init(dptx);
 
 	dptx->PWR_gpio = devm_gpiod_get(dptx->dev, "dptx-gpio-PWR", GPIOD_OUT_HIGH);
 	if (IS_ERR_OR_NULL(dptx->PWR_gpio)) {
@@ -189,7 +182,7 @@ void dptx_drv_check_HPD(struct dptx_drv_s *dptx)
 	}
 
 	while (i < DPTX_HPD_TIMEOUT) {
-		data = dptx_get_hpd_level(dptx);
+		data = dptx_if_get_hpd_level(dptx);
 		if (data) {
 			dptx->status |= DPTX_STA_HPD_HIGH;
 			DPTXPR(dptx->idx, LOG_I, "HPD after %ums", i);
@@ -214,13 +207,13 @@ void dptx_drv_start(struct dptx_drv_s *dptx)
 
 	dptx_venc_enable(dptx, 0);
 
-	dptx_transmitter_init(dptx);
+	dptx_if_transmitter_init(dptx);
 	__dptx_set_phy_config(dptx, 1); //?
 
 	dptx_delay_ms(DPTX_DELAY_AFTER_HPD);
 
 	//Power up link
-	if (____dptx_aux_write_single(dptx, DPCD_SET_POWER, 0x1))
+	if (dptx_if_aux_write_single(dptx, DPCD_SET_POWER, 0x1))
 		DPTXPR(dptx->idx, LOG_E, "DPCD SET POWER ERROR");
 	dptx_delay_ms(20);
 
@@ -245,6 +238,9 @@ void dptx_drv_start(struct dptx_drv_s *dptx)
 	if (1) {
 		if (!__dptx_EDID_probe(dptx, 0)) {
 			dptx_vmode_manage(dptx);
+
+			//if (dptx->drm_hpd_cb.callback)
+			//	dptx->drm_hpd_cb.callback(dptx->drm_hpd_cb.data);
 			dp_vmode = dptx_get_optimum_vmode(dptx);
 		}
 		if (!dp_vmode) {
@@ -257,11 +253,11 @@ void dptx_drv_start(struct dptx_drv_s *dptx)
 
 	dptx_set_content_protection(dptx);
 
-	dptx_set_MSA(dptx);
+	dptx_if_set_MSA(dptx);
 
 	dptx_venc_enable(dptx, 1);
 
-	dptx_main_stream_enable(dptx);
+	dptx_if_transmitter_output(dptx, 1);
 
 	dptx->status |= DPTX_STA_LINK_ON;
 	DPTXPR(dptx->idx, LOG_I, "%s enable main stream video finished", __func__);
@@ -309,12 +305,12 @@ void dptx_driver_close(struct dptx_drv_s *dptx)
 	//dptx_clear_timing(dptx);
 	//Power down link
 	auxdata = 0x2;
-	ret = __dptx_aux_write(dptx, DPCD_SET_POWER, 1, &auxdata);
+	ret = dptx_if_aux_write(dptx, DPCD_SET_POWER, 1, &auxdata);
 	if (ret)
 		DPTXPR(dptx->idx, LOG_V, "sink power down link failed");
 
 	DPTXPR(dptx->idx, LOG_I, "disable main stream video");
-	dptx_transmitter_shutdown(dptx);
+	dptx_if_transmitter_output(dptx, 0);
 
 	dp_vmode = &DPTX_SafeMode_640x480_vmode;
 	dptx_vmode_apply_to_act_timing(dptx, dp_vmode);

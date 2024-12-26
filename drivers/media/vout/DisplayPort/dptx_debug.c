@@ -24,7 +24,6 @@
 #include "dptx_reg_op.h"
 #include "dptx_debug.h"
 #include "dptx_common.h"
-#include "DPTX_IP/dptx_IP_ops.h"
 
 static int dptx_debug_info_len(int num)
 {
@@ -217,7 +216,7 @@ static ssize_t dptx_regs_pr(struct dptx_drv_s *dptx, u8 reg_t,
 		case DPTX_REG_TYPE_DPCD_LINK_STATUS:
 			reg_addr = reg_sets[idx].addr;
 			reg_val = 0;
-			if (__dptx_aux_read(dptx, reg_addr, 1, &reg_temp))
+			if (dptx_if_aux_read(dptx, reg_addr, 1, &reg_temp))
 				break;
 			reg_val = reg_temp;
 			break;

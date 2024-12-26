@@ -42,7 +42,6 @@
 #include <linux/amlogic/gki_module.h>
 #include "dptx_common.h"
 #include "dptx_reg_op.h"
-#include "DPTX_IP/dptx_IP_ops.h"
 
 #define DPTX_CDEV_NAME  "DisplayPort-TX"
 
@@ -194,8 +193,8 @@ static irqreturn_t dptx_HPD_isr(int irq, void *data)
 	if (!(dptx->status & DPTX_STA_HPD_TRI_EN))
 		return IRQ_HANDLED;
 
-	curr_HPD_level = dptx_get_hpd_level(dptx);
-	curr_irq = dptx_get_hpd_irq(dptx);
+	curr_HPD_level = dptx_if_get_hpd_level(dptx);
+	curr_irq = dptx_if_get_hpd_irq(dptx);
 
 	DPTXPR(dptx->idx, LOG_V, "HPD[%d] triggerd. ignore=%d level=%u irq=0x%x", irq,
 		dptx->status & DPTX_STA_HPD_TRI_EN ? 0 : 1, curr_HPD_level, curr_irq);
@@ -585,6 +584,7 @@ static int dptx_config_probe(struct dptx_drv_s *dptx, struct platform_device *pd
 	dptx_phy_probe(dptx);
 	dptx_venc_probe(dptx);
 	dptx_debug_probe(dptx);
+	dptx_if_IP_probe(dptx);
 
 	dptx_bootup_config_init(dptx);
 
@@ -894,6 +894,22 @@ static int __dptx_debug_setup(char *str)
 __setup("dptx0=", __dptx0_boot_ctrl_setup);
 __setup("dptx1=", __dptx1_boot_ctrl_setup);
 __setup("dptx_dbg=", __dptx_debug_setup);
+
+struct dptx_drv_s *aml_dptx_get_driver(u8 drv_idx)
+{
+	if (drv_idx >= DPTX_MAX_DRV)
+		return NULL;
+
+	return dptx_driver[drv_idx];
+}
+EXPORT_SYMBOL(aml_dptx_get_driver);
+
+void aml_dptx_regist_hpd_cb(struct dptx_drv_s *dptx, struct connector_hpd_cb *hpd_cb)
+{
+	// dptx->drm_hpd_cb.callback = hpd_cb->callback;
+	// dptx->drm_hpd_cb.data = hpd_cb->data;
+}
+EXPORT_SYMBOL(aml_dptx_regist_hpd_cb);
 
 //MODULE_DESCRIPTION("Meson DisplayPort TX Driver");
 //MODULE_LICENSE("GPL");
