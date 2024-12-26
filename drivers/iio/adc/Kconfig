@@ -56,6 +56,16 @@ config AMLOGIC_PDD
 	  To compile this driver as a module, choose M here: the
 	  module will be called amlogic_pdd_s7.
 
+config AMLOGIC_SARADC_TO_GPIO
+	bool "Amlogic SAR ADC to GPIO driver"
+	depends on OF
+	depends on GPIOLIB
+	help
+	  Say yes here to build support for the SAR ADC to GPIO.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called amlogic_saradc_to_gpio.
+
 endif # AMLOGIC_ADC
 
 endmenu

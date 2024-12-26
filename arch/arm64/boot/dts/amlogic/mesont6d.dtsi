@@ -429,6 +429,16 @@
 		status = "okay";
 	};
 
+	saradc_to_gpio {
+		compatible = "amlogic,saradc-to-gpio";
+		io-channels = <&saradc SARADC_CH0>, <&saradc SARADC_CH1>,
+			      <&saradc SARADC_CH2>, <&saradc SARADC_CH3>,
+			      <&saradc SARADC_CH4>, <&saradc SARADC_CH5>,
+			      <&saradc SARADC_CH6>, <&saradc SARADC_CH7>;
+		amlogic,threshold = <512 512 512 512 512 512 512 512>;
+		status = "disabled";
+	};
+
 	shmem {
 		compatible = "mmio-sram";
 		reg = <0x0 0x50f6000 0x0 0x100>;

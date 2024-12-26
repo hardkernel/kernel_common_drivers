@@ -73,4 +73,18 @@ static inline void amlogic_pdd_monitor_driver_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_SARADC_TO_GPIO)
+int amlogic_saradc_to_gpio_driver_init(void);
+void amlogic_saradc_to_gpio_driver_exit(void);
+#else
+static inline int amlogic_saradc_to_gpio_driver_init(void)
+{
+	return 0;
+}
+
+static inline void amlogic_saradc_to_gpio_driver_exit(void)
+{
+}
+#endif
+
 #endif /* __AMLOGIC_SARADC_MAIN_H_ */
