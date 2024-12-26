@@ -5,6 +5,7 @@
 #ifndef _AMFC_H_
 #define _AMFC_H_
 
+#include <linux/amlogic/cpu_version.h>
 #define AMFC_S7D				0x37
 #define AMFC_T6D				0x49
 
@@ -174,5 +175,16 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size);
 #ifdef __UNCOMPRESS_IMAGE__
 void cache_clean_flush(unsigned long start, unsigned long end);
 #endif
+
+static inline int amfc_supported(void)
+{
+	if (is_meson_s7d_cpu())
+		return 1;
+	if (is_meson_s6_cpu())
+		return 1;
+	if (is_meson_t6d_cpu())
+		return 1;
+	return 0;
+}
 
 #endif

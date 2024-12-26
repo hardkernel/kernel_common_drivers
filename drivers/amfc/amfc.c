@@ -38,9 +38,7 @@
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/amlogic/page_trace.h>
-#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/gki_module.h>
-#include <linux/amlogic/cpu_version.h>
 #include <linux/arm-smccc.h>
 #include <linux/highmem.h>
 #include <linux/amlogic/amfc_regs.h>
@@ -1485,6 +1483,9 @@ int __init amfc_init(void)
 	match_id = amfc_match;
 	amfc_driver.driver.of_match_table = match_id;
 #endif
+	if (!amfc_supported())
+		return -ENODEV;
+
 	ret = platform_driver_probe(&amfc_driver, amfc_probe);
 	return ret;
 }
