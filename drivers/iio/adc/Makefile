@@ -25,3 +25,5 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_PDD) += \
 	amlogic_pdd.o \
 	amlogic_pdd_monitor.o
 
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_SARADC_TO_GPIO) += \
+	amlogic_saradc_to_gpio.o
