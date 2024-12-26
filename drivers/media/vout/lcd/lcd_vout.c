@@ -678,6 +678,7 @@ static void lcd_power_encl_off(struct aml_lcd_drv_s *pdrv)
 {
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 		LCDPR("[%d]: %s: force power off interface ahead\n", pdrv->index, __func__);
+		pdrv->status &= ~LCD_STATUS_POWER;
 		lcd_power_if_off(pdrv);
 	}
 
