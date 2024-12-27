@@ -429,7 +429,7 @@ struct vf_ref_t *get_ref_from_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s
 	}
 
 	for (i = 0; i < VF_LIST_COUNT; i++) {
-		if (buf_mgr->ref_list[i].vf.frame_index == vf->frame_index)
+		if (buf_mgr->ref_list[i].vf_p == vf)
 			break;
 	}
 	if (i == VF_LIST_COUNT) {
@@ -448,6 +448,12 @@ struct vf_ref_t *get_ref_from_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s
 	if (!vf_ref) {
 		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: vf_ref is NULL.\n", __func__);
 		return NULL;
+	}
+
+	if (vf->frame_index != vf_ref->frame_index) {
+		dp_buf_print(buf_mgr, PRINT_ERROR, "%s err: %d %d\n",
+			__func__, vf->frame_index, vf_ref->frame_index);
+		print_all_in_ref_list(buf_mgr);
 	}
 
 	return vf_ref;
