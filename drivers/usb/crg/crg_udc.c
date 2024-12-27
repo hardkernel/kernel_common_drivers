@@ -4935,8 +4935,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	crg_udc->mmio_virt_base = devm_ioremap
-		(&pdev->dev, crg_udc->mmio_phys_base->start,
+	crg_udc->mmio_virt_base = ioremap(crg_udc->mmio_phys_base->start,
 			resource_size(crg_udc->mmio_phys_base));
 	if (!crg_udc->mmio_virt_base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
@@ -5025,7 +5024,7 @@ static void crg_udc_remove(struct platform_device *pdev)
 
 	crg_udc = &crg_udc_dev;
 
-	if (unlikely(crg_udc_probe_state != 1)) {
+	if (unlikely(crg_udc_probe_state != 1 || !crg_udc)) {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -5065,6 +5064,9 @@ static void crg_udc_remove(struct platform_device *pdev)
 		phy_put(crg_udc->dev, crg_udc->phy);
 	if (crg_udc->u3phy)
 		phy_put(crg_udc->dev, crg_udc->u3phy);
+
+	if (crg_udc->mmio_virt_base)
+		iounmap(crg_udc->mmio_virt_base);
 
 	crg_clk_disable_usb(pdev);
 	/*
