@@ -38,6 +38,11 @@
 #include <linux/nodemask.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
+
+#include <asm/irq.h>
+#include <asm/stack_pointer.h>
+#include <asm/stacktrace.h>
+
 #endif
 
 #ifdef CONFIG_NUMA
@@ -109,88 +114,73 @@ static struct alloc_caller common_caller[COMMON_CALLER_SIZE];
  * functions
  */
 static struct fun_symbol common_func[] = {
-	{"__alloc_pages_noprof",	1, 0},
-	{"__folio_alloc",		1, 0},
-	{"__traceiter_mm_page_alloc",	1, 0},
-	{"page_alloc_callback",		1, 0},
-	{"set_page_trace",		1, 0},
-	{"kmem_cache_alloc",		1, 0},
-	{"__get_free_pages",		1, 0},
-	{"__kmalloc_noprof",		1, 0},
-	{"__kmalloc_large_noprof",	1, 0},
-	{"__kmalloc_large_node_noprof",	1, 0},
-	{"__kmalloc_node_track_caller_noprof",	1, 0},
-	{"__kmalloc_cache_noprof",		1, 0},
-	{"kmem_cache_alloc_node_noprof",	1, 0},
-	{"kmem_cache_alloc_lru_noprof",	1, 0},
-	{"__kmalloc_node_noprof",	1, 0},
-	{"__kmalloc_cache_node_noprof",	1, 0},
-	{"kmem_cache_alloc_noprof",	1, 0},
-	{"__cma_alloc",			1, 0},
-	{"cma_alloc",			1, 0},
-	{"update_cma_page_trace",	1, 0},
-	{"aml_cma_alloc_post_hook",	1, 0},
-	{"aml_cma_alloc",		1, 0},
-	{"dma_alloc_from_contiguous",	1, 0},
-	{"dma_alloc_contiguous",	1, 0},
+	{"__netdev_alloc_skb",			1, 0},
+	{"kmalloc_reserve",			1, 0},
+	{"__alloc_skb",				1, 0},
+	{"sk_prot_alloc",			1, 0},
+	{"sk_alloc",				1, 0},
 	{"__traceiter_android_vh_cma_alloc_bypass",	1, 0},
-	{"__dma_direct_alloc_pages",	1, 0},
-	{"__vmalloc_node_range_noprof",	1, 0},
-	{"__kvmalloc_node_noprof",	1, 0},
-	{"kmalloc_reserve",		1, 0},
-	{"kvmemdup",			1, 0},
-	{"devm_kmalloc",		1, 0},
-	{"sk_alloc",			1, 0},
-	{"__netdev_alloc_skb",		1, 0},
-	{"__folio_alloc_noprof",	1, 0},
+	{"devm_kmalloc",			1, 0},
+	{"cma_alloc",				1, 0},
+	{"__cma_alloc",				1, 0},
+	{"__kasan_slab_alloc",			1, 0},
+	{"allocate_slab",			1, 0},
+	{"___slab_alloc",			1, 0},
+	{"kmem_cache_alloc_bulk_noprof",	1, 0},
+	{"__kmalloc_cache_node_noprof",		1, 0},
+	{"__kmalloc_cache_noprof",		1, 0},
+	{"__kmalloc_node_track_caller_noprof",	1, 0},
+	{"__kmalloc_noprof",			1, 0},
+	{"__kmalloc_node_noprof",		1, 0},
+	{"__kmalloc_large_node_noprof",		1, 0},
+	{"___kmalloc_large_node",		1, 0},
+	{"__kmalloc_large_noprof",		1, 0},
+	{"kmem_cache_alloc_node_noprof",	1, 0},
+	{"kmem_cache_alloc_lru_noprof",		1, 0},
+	{"kmem_cache_alloc_noprof",		1, 0},
+	{"alloc_pages_exact_nid_noprof",	1, 0},
+	{"alloc_pages_exact_noprof",		1, 0},
+	{"get_zeroed_page_noprof",		1, 0},
+	{"get_free_pages_noprof",		1, 0},
+	{"__folio_alloc_noprof",		1, 0},
+	{"__alloc_pages_noprof",		1, 0},
+	{"vzalloc_node_noprof",			1, 0},
+	{"vzalloc_noprof",			1, 0},
+	{"vmalloc_noprof",			1, 0},
+	{"__vmalloc_noprof",			1, 0},
+	{"__vmalloc_node_noprof",		1, 0},
+	{"__vmalloc_node_range_noprof",		1, 0},
+	{"trace_raw_output_kmem_cache_alloc",	1, 0},
+	{"trace_event_raw_event_kmem_cache_alloc", 1, 0},
+	{"__traceiter_mm_page_alloc",		1, 0},
+	{"__probestub_kmem_cache_alloc",	1, 0},
+	{"__traceiter_kmem_cache_alloc",	1, 0},
+	{"__vmalloc_array_noprof",		1, 0},
+	{"__kvmalloc_node_noprof",		1, 0},
+	{"kvmemdup",				1, 0},
+	{"kstrdup_const",			1, 0},
+	{"__kretprobe_trampoline_handler",	1, 0},
+	{"dma_alloc_contiguous",		1, 0},
+	{"dma_alloc_from_contiguous",		1, 0},
+	{"__dma_direct_alloc_pages",		1, 0},
+	{"dma_direct_alloc",			1, 0},
+	{"dma_alloc_pages",			1, 0},
+	{"dma_alloc_attrs",			1, 0},
+	{"aml_cma_alloc",			1, 0},
+	{"aml_cma_alloc_post_hook",		1, 0},
+	{"system_heap_allocate",		1, 0},
+	{"update_cma_page_trace",		1, 0},
+	{"aml_slub_alloc_large",		1, 0},
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
+	{"alloc_pages_ret_handler",		1, 0},
+	{"page_alloc_callback",			1, 0},
+	{"set_page_trace",			1, 0},
+	{"find_back_trace",			1, 0},
+#endif
 #ifdef CONFIG_ARM
-	{"__dma_alloc",			1, 0},
-	{"arm_dma_alloc",		1, 0},
-	{"__alloc_from_contiguous",	1, 0},
-	{"cma_allocator_alloc",		1, 0},
-#endif
-	{"alloc_pages_exact",		1, 0},
-	{"alloc_pages_exact_nid",	1, 0},
-	{"get_zeroed_page",		1, 0},
-	{"__vmalloc_node_range",	1, 0},
-	{"__vmalloc_area_node",		1, 0},
-	{"sk_prot_alloc",		1, 0},
-	{"__alloc_skb",			1, 0},
-	{"vzalloc",			1, 0},
-	{"vmalloc",			1, 0},
-	{"__vmalloc",			1, 0},
-	{"kzalloc",			1, 0},
-	{"kstrdup_const",		1, 0},
-	{"kvmalloc_node",		1, 0},
-	{"kmalloc_order",		1, 0},
-	{"kmalloc_order_trace",		1, 0},
-	{"aml_slub_alloc_large",	1, 0},
-	{"___kmalloc_large_node",	1, 0},
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
-	{"alloc_pages_ret_handler",	1, 0},
-	{"comp_alloc_ret_handler",	1, 0},
-	{"__kretprobe_trampoline_handler", 1, 0},
-	{"trampoline_probe_handler",	1, 0},
-	{"kretprobe_trampoline",	1, 0},
-	{"kretprobe_trampoline_handler",	1, 0},
-#endif
-	{"module_alloc",		1, 0},
-	{"load_module",			1, 0},
-#ifdef CONFIG_NUMA
-	{"alloc_pages_current",		1, 0},
-	{"alloc_page_interleave",	1, 0},
-	{"kmalloc_large_node",		1, 0},
-	{"__kmalloc_node",		1, 0},
-	{"alloc_pages_vma",		1, 0},
-#endif
-#ifdef CONFIG_SLUB	/* for some static symbols not exported in headfile */
-	{"new_slab",			0, 0},
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
-	{"slab_alloc",			0, 0},
-	{"___slab_alloc",		0, 0},
-#endif
-	{"__slab_alloc",		0, 0},
-	{"allocate_slab",		0, 0},
+	{"__dma_alloc",				1, 0},
+	{"arm_dma_alloc",			1, 0},
+	{"__alloc_from_contiguous",		1, 0},
 #endif
 	{}		/* tail */
 };
@@ -214,9 +204,6 @@ unsigned long (*aml_syms_lookup)(const char *name);
 
 int (*aml_kallsyms_on_each_symbol)(int (*fn)(void *, const char *, unsigned long),
 			    void *data);
-
-void (*f_arch_stack_walk)(stack_trace_consume_fn consume_entry,
-		void *cookie, struct task_struct *task, struct pt_regs *regs);
 
 /* For each probe you need to allocate a kprobe structure */
 static struct kprobe kp_lookup_name = {
@@ -375,21 +362,22 @@ static int __nocfi setup_common_caller(unsigned long kaddr)
 
 static int max_high;
 
-static void dump_common_caller(void)
+static void dump_common_caller(int limit)
 {
 	int i;
 
 	for (i = 0; i < COMMON_CALLER_SIZE; i++) {
-		if (common_caller[i].func_start_addr)
-			pr_debug("dump: %2d, addr:%lx + %4lx, %ps\n", i,
+		if (!common_caller[i].func_start_addr)
+			break;
+
+		if (i < limit)
+			pr_info("dump: %2d, addr:%lx + %4lx, %ps\n", i,
 				common_caller[i].func_start_addr,
 				common_caller[i].size,
 				(void *)common_caller[i].func_start_addr);
-		else
-			break;
 	}
 	max_high = i - 1;
-	pr_info("max high: %d\n", max_high);
+	pr_info("max high:%d, filter size:%d\n", max_high, (int)ARRAY_SIZE(common_func));
 }
 
 static int  sym_cmp(const void *x1, const void *x2)
@@ -591,10 +579,91 @@ static int notrace aml_unwind_frame(struct task_struct *tsk, struct stackframe *
 #endif
 #endif
 
+#ifdef CONFIG_MODULES
+static const char *kallsyms_symbol_name(struct mod_kallsyms *kallsyms, unsigned int symnum)
+{
+	return kallsyms->strtab + kallsyms->symtab[symnum].st_name;
+}
+
+static char * const filter_module[] = {
+	"aml_cma",
+	"system_heap",
+};
+
+static int is_filter_module(struct module *mod)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(filter_module); i++) {
+		if (!strncmp(mod->name, filter_module[i], strlen(filter_module[i])))
+			return 0;
+	}
+
+	return 1;
+}
+
+static void track_modules_update_filter_list(struct module *mod)
+{
+	struct mod_kallsyms *kallsyms;
+	int i = 0;
+
+	if (is_filter_module(mod))
+		return;
+
+	pr_debug("module name: %s\n", mod->name);
+
+	/* Use rcu_dereference_sched() to remain compliant with the sparse tool */
+	preempt_disable();
+	kallsyms = rcu_dereference_sched(mod->kallsyms);
+	preempt_enable();
+
+	for (i = 0; i < kallsyms->num_symtab; i++) {
+		const Elf_Sym *sym = &kallsyms->symtab[i];
+
+		if (sym->st_shndx == SHN_UNDEF)
+			continue;
+
+		match_common_caller(NULL, kallsyms_symbol_name(kallsyms, i),
+					kallsyms_symbol_value(sym));
+	}
+
+	sort(common_caller, COMMON_CALLER_SIZE, sizeof(struct alloc_caller),
+		sym_cmp, NULL);
+
+	/* must call this func to update max_high parameter */
+	dump_common_caller(0);
+}
+
+static int track_modules_notify(struct notifier_block *self,
+			       unsigned long val, void *data)
+{
+	struct module *mod = data;
+
+	switch (val) {
+	case MODULE_STATE_LIVE:
+		track_modules_update_filter_list(mod);
+		break;
+	case MODULE_STATE_GOING:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block track_modules_nb = {
+	.notifier_call = track_modules_notify,
+	.priority = 0,
+};
+#endif /* CONFIG_MODULES */
+
 static int find_static_common_symbol(void *data)
 {
-	memset(common_caller, 0, sizeof(common_caller));
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+	memset(common_caller, 0, sizeof(common_caller));
+#ifdef CONFIG_MODULES
+	register_module_notifier(&track_modules_nb);
+#endif
+
 	kallsyms_on_each_symbol(match_common_caller, NULL);
 #else
 	/* match_common_caller(); */
@@ -602,27 +671,196 @@ static int find_static_common_symbol(void *data)
 #endif
 	sort(common_caller, COMMON_CALLER_SIZE, sizeof(struct alloc_caller),
 		sym_cmp, NULL);
-	dump_common_caller();
+
+	/* must call this func to update max_high parameter */
+	dump_common_caller(0);
 
 	return 0;
 }
 
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
-unsigned long backtrace_pc, backtrace_skip;
-
-static int backtrace_skip_limit = 3;
+static int backtrace_skip_limit = 2;
 module_param(backtrace_skip_limit, int, 0644);
 
 static bool aml_dump_backtrace_entry(void *arg, unsigned long where)
 {
-	if (!is_common_caller(common_caller, where)) {
-		backtrace_pc = where;
-		backtrace_skip++;
-		if (backtrace_skip > backtrace_skip_limit)
-			return false;
-	}
-	return true;
+	return is_common_caller(common_caller, where);
 }
+
+/*
+ * Kernel unwind state
+ *
+ * @common:      Common unwind state.
+ * @task:        The task being unwound.
+ * @graph_idx:   Used by ftrace_graph_ret_addr() for optimized stack unwinding.
+ * @kr_cur:      When KRETPROBES is selected, holds the kretprobe instance
+ *               associated with the most recently encountered replacement lr
+ *               value.
+ */
+struct aml_kunwind_state {
+	struct unwind_state common;
+	struct task_struct *task;
+	int graph_idx;
+#ifdef CONFIG_KRETPROBES
+	struct llist_node *kr_cur;
+#endif
+};
+
+static __always_inline void
+aml_kunwind_init(struct aml_kunwind_state *state,
+	     struct task_struct *task)
+{
+	unwind_init_common(&state->common);
+	state->task = task;
+}
+
+/*
+ * Start an unwind from a caller.
+ *
+ * The unwind will begin at the caller of whichever function this is inlined
+ * into.
+ *
+ * The function which invokes this must be noinline.
+ */
+static __always_inline void
+kunwind_init_from_caller(struct aml_kunwind_state *state)
+{
+	aml_kunwind_init(state, current);
+
+	state->common.fp = (unsigned long)__builtin_frame_address(1);
+	state->common.pc = (unsigned long)__builtin_return_address(0);
+}
+
+/*
+ * Unwind from one frame record (A) to the next frame record (B).
+ *
+ * We terminate early if the location of B indicates a malformed chain of frame
+ * records (e.g. a cycle), determined based on the location and fp value of A
+ * and the location (but not the fp value) of B.
+ */
+static __always_inline int
+kunwind_next(struct aml_kunwind_state *state)
+{
+	struct task_struct *tsk = state->task;
+	unsigned long fp = state->common.fp;
+	int err;
+
+	/* Final frame; nothing to unwind */
+	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
+		return -ENOENT;
+
+	err = unwind_next_frame_record(&state->common);
+	if (err)
+		return err;
+
+	state->common.pc = ptrauth_strip_kernel_insn_pac(state->common.pc);
+
+	return 0;
+}
+
+typedef bool (*aml_kunwind_consume_fn)(const struct aml_kunwind_state *state, void *cookie);
+
+static __always_inline unsigned long
+do_kunwind(struct aml_kunwind_state *state, aml_kunwind_consume_fn consume_state,
+	   void *cookie)
+{
+	unsigned int backtrace_skip_t = 0;
+
+	while (1) {
+		int ret;
+
+		if (!consume_state(state, cookie)) {
+			backtrace_skip_t++;
+			if (backtrace_skip_t > backtrace_skip_limit)
+				return state->common.pc;
+		}
+		ret = kunwind_next(state);
+		if (ret < 0)
+			return 0;
+	}
+}
+
+/*
+ * Per-cpu stacks are only accessible when unwinding the current task in a
+ * non-preemptible context.
+ */
+#define AML_STACKINFO_CPU(name)					\
+	({							\
+			stackinfo_get_unknown();		\
+	})
+
+/*
+ * SDEI stacks are only accessible when unwinding the current task in an NMI
+ * context.
+ */
+#define AML_STACKINFO_SDEI(name)					\
+	({							\
+		((task == current) && in_nmi())			\
+			? stackinfo_get_sdei_##name()		\
+			: stackinfo_get_unknown();		\
+	})
+
+#define AML_STACKINFO_EFI						\
+	({							\
+			stackinfo_get_unknown();		\
+	})
+
+static __always_inline unsigned long
+kunwind_stack_walk(aml_kunwind_consume_fn consume_state,
+		   void *cookie, struct task_struct *task,
+		   struct pt_regs *regs)
+{
+	struct stack_info stacks[] = {
+		stackinfo_get_task(task),
+		AML_STACKINFO_CPU(irq),
+#if defined(CONFIG_VMAP_STACK)
+		AML_STACKINFO_CPU(overflow),
+#endif
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_ARM_SDE_INTERFACE)
+		AML_STACKINFO_SDEI(normal),
+		AML_STACKINFO_SDEI(critical),
+#endif
+#ifdef CONFIG_EFI
+		AML_STACKINFO_EFI,
+#endif
+	};
+	struct aml_kunwind_state state = {
+		.common = {
+			.stacks = stacks,
+			.nr_stacks = ARRAY_SIZE(stacks),
+		},
+	};
+
+	kunwind_init_from_caller(&state);
+
+	return do_kunwind(&state, consume_state, cookie);
+}
+
+struct aml_kunwind_consume_entry_data {
+	stack_trace_consume_fn consume_entry;
+	void *cookie;
+};
+
+static __always_inline bool
+arch_kunwind_consume_entry(const struct aml_kunwind_state *state, void *cookie)
+{
+	struct aml_kunwind_consume_entry_data *data = cookie;
+
+	return data->consume_entry(data->cookie, state->common.pc);
+}
+
+static noinstr unsigned long aml_arch_stack_walk(stack_trace_consume_fn consume_entry,
+			      void *cookie, struct task_struct *task,
+			      struct pt_regs *regs)
+{
+	struct aml_kunwind_consume_entry_data data = {
+		.consume_entry = consume_entry,
+		.cookie = cookie,
+	};
+
+	return kunwind_stack_walk(arch_kunwind_consume_entry, &data, task, regs);
+}
+
 #endif
 
 unsigned long __nocfi find_back_trace(void)
@@ -656,15 +894,7 @@ unsigned long __nocfi find_back_trace(void)
 #endif
 
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
-	backtrace_pc = 0;
-	backtrace_skip = 0;
-#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
-	f_arch_stack_walk(aml_dump_backtrace_entry, KERN_DEFAULT, current, NULL);
-#else
-	arch_stack_walk(aml_dump_backtrace_entry, KERN_DEFAULT, current, NULL);
-#endif
-	if (backtrace_pc)
-		return backtrace_pc;
+	return aml_arch_stack_walk(aml_dump_backtrace_entry, KERN_DEFAULT, current, NULL);
 #else
 	while (1) {
 	#ifdef CONFIG_ARM64
@@ -880,6 +1110,7 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 	#endif
 		return;
 	}
+
 	val = pack_ip(ip, order, flag);
 	base = find_page_base(page);
 	push_ip(base, (struct page_trace *)&val);
@@ -1321,6 +1552,9 @@ static ssize_t pagetrace_write(struct file *file, const char __user *buffer,
 		pr_info("set filter to %d KB\n", page_trace_filter);
 	}
 
+	if (!strncmp(buf, "show_caller", 11))
+		dump_common_caller(COMMON_CALLER_SIZE);
+
 	kfree(buf);
 
 	return count;
@@ -1504,8 +1738,6 @@ static int __init page_trace_module_init(void)
 	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 	aml_kallsyms_on_each_symbol = (int (*)(int (*fn)(void *, const char *, unsigned long),
 				void *data))get_symbol_addr("kallsyms_on_each_symbol");
-	f_arch_stack_walk = (void (*)(stack_trace_consume_fn consume_entry, void *cookie,
-		struct task_struct *task, struct pt_regs *regs))aml_syms_lookup("arch_stack_walk");
 
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && !defined(CONFIG_ARM64)
 	if (symbol_fix()) {
@@ -1671,6 +1903,11 @@ void __init page_trace_mem_init(void)
 
 	if (page_trace_disable)
 		return;
+
+	memset(common_caller, 0, sizeof(common_caller));
+#ifdef CONFIG_MODULES
+	register_module_notifier(&track_modules_nb);
+#endif
 
 	/* find_static_common_symbol(); */
 	kthread_run(find_static_common_symbol, NULL, "PAGETRACE_TASK");
