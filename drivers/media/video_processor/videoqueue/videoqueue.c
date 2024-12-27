@@ -58,7 +58,7 @@
 #define VSYNC_MAIN_NORMAL 0x1
 #define VSYNC_PIP_NORMAL 0x2
 
-#define UNDEQUEU_COUNT 4
+#define UNDEQUEU_COUNT 5
 #define CHECK_DELAYE_COUNT 6
 
 #define VIDEO_QUEUE_MAIN 0
@@ -537,6 +537,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 	bool vlock_locked = false;
 	bool need_resync = false;
 	u64 vdin_vsync = 0;
+	int vq_hold_count = 0;
 
 	if (!dev->provider_name) {
 		provider_name = vf_get_provider_name(dev->vf_receiver_name);
@@ -895,8 +896,13 @@ static int do_file_thread(struct video_queue_dev *dev)
 	dev->queue_count++;
 	vq_print(dev->inst, P_OTHER, "q_buf: frame_index=%d, file=%px\n",
 		vf->frame_index, ready_file);
+
+	vq_hold_count = FILE_CNT - UNDEQUEU_COUNT;
+	if (vf->type & VIDTYPE_INTERLACE)
+		vq_hold_count++;
+
 	while (1) {
-		if (dev->queue_count <= FILE_CNT - UNDEQUEU_COUNT)
+		if (dev->queue_count <= vq_hold_count)
 			break;
 
 		if (kthread_should_stop())
