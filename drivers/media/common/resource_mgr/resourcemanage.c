@@ -227,8 +227,8 @@ static struct class *resman_class;
 static char *resman_configs;
 static char *debug_info;
 
-__module_param(resman_debug, int, 0644);
-__module_param(preempt_timeout_ms, int, 0644);
+module_param(resman_debug, int, 0644);
+module_param(preempt_timeout_ms, int, 0644);
 
 #define dprintk(level, fmt, arg...)					\
 	do {								\
@@ -934,9 +934,7 @@ static bool resman_codec_mm_enough(struct resman_resource *resource,
 		enough = false;
 		dprintk(2, "free size 0x%x\n", codec_mm_get_tvp_free_size() +
 			+ codec_mm_get_free_size());
-	} else if (resource->value + score > resource->d.codec_mm.total)
-		enough = false;
-
+	}
 	return enough;
 }
 
@@ -963,6 +961,7 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 	__u32 score = resource->d.codec_mm.fhd;
 	bool secure = false;
 	char *opt;
+	__u32 slicetimeout = 300, attempt = 0, max_attempts = 10;
 
 	while ((opt = strsep(&arg, ","))) {
 		if (!strncmp(opt, "size", 4)) {
@@ -994,11 +993,26 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 			atomic_inc(&resource->pending_acquire);
 			mutex_unlock(&resource->lock);
 			dprintk(1, "%d acquire wait\n", sess->id);
-			remain = wait_event_interruptible_timeout(resource->wq_release,
+			max_attempts = timeout / slicetimeout;
+			while (attempt < max_attempts) {
+				dprintk(1, "max_attempts %d attempt %d\n", max_attempts, attempt);
+				remain = wait_event_interruptible_timeout(resource->wq_release,
 					resman_codec_mm_enough(resource,
-							       score,
-							       secure),
-					msecs_to_jiffies(timeout));
+							score,
+							secure),
+				msecs_to_jiffies(slicetimeout));
+
+				if (remain > 0) {
+					// Condition became true
+					break;
+				} else if (remain == 0) {
+					// Timeout occurred
+					attempt++;
+				} else {
+					// Interrupted by a signal
+					break;
+				}
+			}
 			dprintk(1, "%d acquire wait return %ld\n",
 				sess->id,
 				remain);
