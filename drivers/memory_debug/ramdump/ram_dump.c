@@ -72,6 +72,7 @@ struct ramdump {
 };
 
 static struct ramdump *ram;
+char ramdump_info[256];
 
 static void ramdump_parse_info(void)
 {
@@ -87,6 +88,18 @@ static void ramdump_parse_info(void)
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
 	pr_info("%s, --kaslr 0x%lx\n", __func__, kaslr_offset());
 #endif
+	snprintf(ramdump_info, sizeof(ramdump_info),
+			"aml_ramdump_kimage_voffset=0x%llx\n"
+			"aml_ramdump_vabits_actual=%d\n"
+#if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
+			"aml_ramdump_kaslr=0x%lx\n"
+#endif
+			"aml_ramdump_build_time=%s\n",
+			kimage_voffset, (unsigned int)vabits_actual,
+#if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
+			kaslr_offset(),
+#endif
+			BUILD_TIME);
 #endif
 }
 
