@@ -3578,7 +3578,7 @@ static void hdmirx_early_suspend(struct early_suspend *h)
 	if (early_suspend_flag)
 		return;
 	early_suspend_flag = true;
-	del_timer_sync(&rx_info.hdmirx_dev->timer);
+	rx_del_timer(rx_info.hdmirx_dev);
 	rx_irq_en(0, E_PORT0);
 	if (rx_info.chip_id == CHIP_ID_T3X) {
 		rx_irq_en(0, E_PORT1);
@@ -3601,8 +3601,7 @@ static void hdmirx_late_resume(struct early_suspend *h)
 	rx_phy_resume();
 	if (rx_info.chip_id == CHIP_ID_T3X)
 		sm_pause = 0;
-	if (!rx[rx_info.main_port].resume_flag)
-		add_timer(&rx_info.hdmirx_dev->timer);
+	rx_add_timer(rx_info.hdmirx_dev);
 	rx_pr("%s- ok\n", __func__);
 };
 
@@ -4228,7 +4227,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	register_pm_notifier(&aml_hdcp22_pm_notifier);
 	hdevp->timer.function = hdmirx_timer_handler;
 	hdevp->timer.expires = jiffies + TIMER_STATE_CHECK;
-	add_timer(&hdevp->timer);
+	rx_add_timer(hdevp);
 	rx_info.boot_flag = true;
 #ifdef CONFIG_AMLOGIC_HDMITX
 	if (rx_info.chip_id == CHIP_ID_TM2 ||
@@ -4472,7 +4471,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	struct hdmirx_dev_s *hdevp;
 
 	hdevp = platform_get_drvdata(pdev);
-	del_timer_sync(&hdevp->timer);
+	rx_del_timer(hdevp);
 	rx_irq_en(0, E_PORT0);
 	if (rx_info.chip_id >= CHIP_ID_T3X) {
 		rx_irq_en(0, E_PORT1);
@@ -4509,7 +4508,7 @@ static int hdmirx_resume(struct platform_device *pdev)
 	struct hdmirx_dev_s *hdevp;
 
 	hdevp = platform_get_drvdata(pdev);
-	add_timer(&hdevp->timer);
+	rx_add_timer(hdevp);
 	rx_emp_hw_enable(true);
 	rx_dig_clk_en(1);
 //#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -4545,7 +4544,7 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 
 	rx_pr("%s\n", __func__);
 	hdevp = platform_get_drvdata(pdev);
-	del_timer_sync(&hdevp->timer);
+	rx_del_timer(hdevp);
 	/* set HPD low when cec off or TV auto power on disabled.*/
 	if (!hdmi_cec_en || !tv_auto_power_on)
 		rx_set_port_hpd(ALL_PORTS, 0);

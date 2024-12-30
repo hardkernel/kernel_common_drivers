@@ -85,7 +85,8 @@
 //2024.10.09 t3x/t7c hdmirx support std hibernate
 //2024.11.15 add protect for fsm
 //2024.11.29 optimize early suspend flow
-#define RX_DRV_VER "ver.2024/11/15"
+//2025.01.02 optimize timer execution logic
+#define RX_DRV_VER "ver.2025/01/02"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -913,6 +914,7 @@ struct rx_info_s {
 	struct edid_capacity edid_cap;
 	bool suspend_flag;
 	u8 edid_update_done;
+	bool timer_flag;
 };
 
 struct rx_s {

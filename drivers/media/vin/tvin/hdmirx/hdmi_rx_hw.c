@@ -7834,3 +7834,28 @@ EXIT:
 #endif
 }
 
+void rx_add_timer(struct hdmirx_dev_s *rx_dev)
+{
+	if (!rx_info.timer_flag) {
+		add_timer(&rx_dev->timer);
+		rx_info.timer_flag = true;
+		if (log_level & DBG_LOG)
+			rx_pr("add new timer\n");
+	} else {
+		if (log_level & DBG_LOG)
+			rx_pr("timer already exists\n");
+	}
+}
+
+void rx_del_timer(struct hdmirx_dev_s *rx_dev)
+{
+	if (rx_info.timer_flag) {
+		del_timer_sync(&rx_dev->timer);
+		rx_info.timer_flag = false;
+		if (log_level & DBG_LOG)
+			rx_pr("del timer\n");
+	} else {
+		if (log_level & DBG_LOG)
+			rx_pr("timer does not exist\n");
+	}
+}
