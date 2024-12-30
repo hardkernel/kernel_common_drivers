@@ -212,7 +212,6 @@
 	optee {
 		compatible = "linaro,optee-tz";
 		method = "smc";
-		status = "disabled";
 	};
 
 	aml_watermark {
@@ -251,7 +250,7 @@
 	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
-		status = "disabled";
+		status = "okay";
 		mboxes = <&mbox_fifo S7_REE2AO_VRTC>;
 	};
 
@@ -594,7 +593,7 @@
 				assigned-clock-rates = <666666666>;
 				clock-names = "clkin0";
 				tee_id = <9>;
-				status = "disabled";
+				status = "okay";
 			};
 
 			i2c0: i2c@66000 {
@@ -1002,7 +1001,7 @@
 	vcodec_dos_dev: vcodec_dos_dev {
 		compatible = "amlogic, cpu-major-id-s7";
 		dev_name = "vcodec_dos_dev";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe320000 0x0 0x10000>,
 			<0x0 0xfe036000 0x0 0x2000>;
 		reg-names = "dosbus",
@@ -1022,7 +1021,7 @@
 	vdec {
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
@@ -1046,7 +1045,7 @@
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ddr_bandwidth {
@@ -1167,7 +1166,7 @@
 	aocec: aocec {
 		compatible = "amlogic, aocec-s7";
 		dev_name = "aocec";
-		status = "disabled";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
@@ -1243,12 +1242,12 @@
 
 	canvas: canvas{
 		compatible = "amlogic, meson, canvas";
-		status = "disabled";
+		status = "okay";
 	};
 
 	codec_io: codec_io {
 		compatible = "amlogic, meson-s7, codec-io";
-		status = "disabled";
+		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;
@@ -1313,7 +1312,7 @@
 	};
 	vpu: vpu {
 		compatible = "amlogic, vpu-s7";
-		status = "disabled";
+		status = "okay";
 		reg =	<0x0 0xfe000000 0x0 0x100    /* clk */
 			 0x0 0xfe00c000 0x0 0x70     /* pwrctrl */
 			 0x0 0xff000000 0x0 0xf000>; /* vcbus */
@@ -1334,7 +1333,7 @@
 
 	rdma {
 		compatible = "amlogic, meson-sc2, rdma";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
@@ -1345,7 +1344,7 @@
 	amlvecm: amlvecm {
 		compatible = "amlogic, vecm-s7";
 		dev_name = "aml_vecm";
-		status = "disabled";
+		status = "okay";
 		gamma_en = <0>;/*1:enable ;0:disable*/
 		wb_en = <0>;/*1:enable ;0:disable*/
 		/*0: 709/601  1: bt2020*/
@@ -1354,7 +1353,7 @@
 
 	multi-di {
 		compatible = "amlogic, dim-s7d";
-		status = "disabled";
+		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
@@ -1386,12 +1385,12 @@
 
 	vdac {
 		compatible = "amlogic, vdac-s7";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vout: vout {
 		compatible = "amlogic, vout";
-		status = "disabled";
+		status = "okay";
 
 		/* fr_policy:
 		 *    0: disable
@@ -1403,7 +1402,7 @@
 
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux";
-		status = "disabled";
+		status = "okay";
 		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
 		clock-names = "fclk_div5", "vdin_meas_clk";
 	};
@@ -1574,7 +1573,7 @@
 	vdin1: vdin1 {
 		compatible = "amlogic, vdin-s7";
 		dev_name = "vdin1";
-		status = "disabled";
+		status = "okay";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 212 1>;
@@ -1605,7 +1604,7 @@
 	meson-amvideom {
 		compatible = "amlogic, amvideom-s7";
 		dev_name = "amvideom";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync";
 	};
@@ -1646,7 +1645,7 @@
 
 	ge2d {
 		compatible = "amlogic, ge2d-s7";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 217 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ge2d";
 		clocks = <&clkc CLKID_VAPB>,
@@ -1659,7 +1658,7 @@
 
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
-		status = "disabled";
+		status = "okay";
 		bt_en-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	};
 

@@ -366,7 +366,7 @@
 
 	multi-di {
 		compatible = "amlogic, dim-s7d";
-		status = "disabled";
+		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
@@ -771,7 +771,7 @@
 };
 
 &crg_udc {
-	status = "disabled";
+	status = "okay";
 };
 
 &crg {
@@ -897,7 +897,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &ethmac {
@@ -909,7 +909,7 @@
 };
 
 &ir {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-1 = <&remote_pins_sleep>;
 	pinctrl-names = "default", "sleep";
@@ -992,7 +992,7 @@
 };
 
 &aml_wifi{
-	status = "disabled";
+	status = "okay";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
@@ -1008,7 +1008,7 @@
 	pinctrl-0 = <&pwm_e_pins1>;
 	pinctrl-1 = <&pwm_e_pins1_sleep>;
 	pinctrl-names = "default","sleep";
-	status = "disabled";
+	status = "okay";
 };
 
 &uart_A {
@@ -1027,7 +1027,7 @@
 &amlvecm {
 	compatible = "amlogic, vecm-s7";
 	dev_name = "aml_vecm";
-	status = "disabled";
+	status = "okay";
 	gamma_en = <0>;/*1:enable ;0:disable*/
 	wb_en = <0>;/*1:enable ;0:disable*/
 	/*0: 709/601  1: bt2020*/
