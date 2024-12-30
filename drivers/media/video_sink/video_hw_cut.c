@@ -585,7 +585,7 @@ static const enum f2v_vphase_type_e vpp_phase_table[4][3] = {
 
 static const u8 skip_tab[6] = { 0x24, 0x04, 0x68, 0x48, 0x28, 0x08 };
 
-static bool video_mute_on;
+bool video_mute_on;
 /* 0: mute off, 1: mute on */
 static int video_mute_status;
 static bool output_mute_on;

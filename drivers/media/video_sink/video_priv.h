@@ -893,6 +893,7 @@ extern u32 lcevc_coef_demo;
 extern uint int_hv_phase;
 extern uint int_hv_rpt_num;
 extern bool force_vpp_blend_update;
+extern bool video_mute_on;
 
 bool is_amdv_enable(void);
 bool is_amdv_on(void);

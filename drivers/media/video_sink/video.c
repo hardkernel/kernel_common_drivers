@@ -6469,6 +6469,23 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_GET_VIDEO_DISABLE:
 		put_user(vd_layer[0].disable_video, (u32 __user *)argp);
 		break;
+	case AMSTREAM_IOC_GET_NEW_FRAME_COUNT:
+		put_user(new_frame_count, (u32 __user *)argp);
+		break;
+
+	case AMSTREAM_IOC_SET_VIDEO_MUTE:
+		{
+			bool val;
+
+			if (copy_from_user(&val, argp, sizeof(bool)) == 0)
+				set_video_mute(USER_MUTE_SET, val);
+			else
+				ret = -EFAULT;
+		}
+		break;
+	case AMSTREAM_IOC_GET_VIDEO_MUTE:
+		put_user(video_mute_on, (bool __user *)argp);
+		break;
 
 	case AMSTREAM_IOC_SET_VIDEOPIP_DISABLE:
 		{
@@ -7007,6 +7024,9 @@ static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_SET_PIP2_SCREEN_MODE:
 	case AMSTREAM_IOC_GET_PIP2_ZORDER:
 	case AMSTREAM_IOC_SET_PIP2_ZORDER:
+	case AMSTREAM_IOC_GET_NEW_FRAME_COUNT:
+	case AMSTREAM_IOC_SET_VIDEO_MUTE:
+	case AMSTREAM_IOC_GET_VIDEO_MUTE:
 		arg = (unsigned long)compat_ptr(arg);
 		return amvideo_ioctl(file, cmd, arg);
 	case AMSTREAM_IOC_TRICKMODE:
