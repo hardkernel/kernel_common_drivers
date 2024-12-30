@@ -337,7 +337,10 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 			/*if (pq_reg_wr_rdma)*/
 			/*	cm_wr_api(addr, val, mask, WR_DMA, vpp_index);*/
 			/*else*/
+			if (chip_cls_id == TV_CHIP)
 				cm_wr_api(addr, val, mask, WR_VCB, 0);
+			else
+				cm_wr_api(addr, val, mask, WR_DMA, vpp_index);
 
 			default_sat_param(addr, val);
 #endif
