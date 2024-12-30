@@ -926,6 +926,9 @@ inline struct vframe_s *amvideo_vf_get(void)
 		}
 		video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET;
 		atomic_set(&vf->use_cnt, 1);
+		if (!glayer_info[1].layer_support &&
+			(vf->type & VIDTYPE_MVC))
+			vf->type &= ~VIDTYPE_MVC;
 		/*always to 1,for first get from vfm provider */
 		if ((vf->type & VIDTYPE_MVC) && (framepacking_support) &&
 		    (framepacking_width) && (framepacking_height)) {

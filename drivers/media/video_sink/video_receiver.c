@@ -107,6 +107,9 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 			vf->disp_pts_us64 = 0;
 		}
 		ins->notify_flag |= VIDEO_NOTIFY_PROVIDER_GET;
+		if (!glayer_info[1].layer_support &&
+			(vf->type & VIDTYPE_MVC))
+			vf->type &= ~VIDTYPE_MVC;
 		pre_process_for_3d(vf);
 	}
 	return vf;
