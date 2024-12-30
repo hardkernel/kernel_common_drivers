@@ -162,6 +162,7 @@ struct amfc {
 
 	unsigned long rate;			/* hz */
 	struct clk *clk;
+	atomic_t need_reset;		/* 1: reset compress, 2: reset decompress*/
 	unsigned char chip;
 	unsigned char work_mode;		/* 0: irq mode, 1: poll mode  */
 	unsigned char log;

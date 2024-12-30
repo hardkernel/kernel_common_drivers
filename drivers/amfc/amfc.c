@@ -596,7 +596,6 @@ again:
 				goto again;
 			}
 		}
-		ret = 0;
 	}
 	clks = amfc_hw_read(AMFC_CMD1_TIME_MEASURE);
 
@@ -635,8 +634,8 @@ out:
 			dump_addr(dst, dst_size);
 			need_copy = 0;	// decompress real failed
 		}
-		spin_lock(&amfc->com_lock);
 		/* sw reset */
+		spin_lock(&amfc->com_lock);
 		amfc_hw_write(0x80000000, AMFC_GL_CMD1_CONTROL);
 		spin_unlock(&amfc->com_lock);
 	} else {
@@ -658,6 +657,11 @@ out:
 	if (need_copy)
 		memcpy(tmp, amfc->bounce_buffer, dst_size - AMFC_STREAM_MARGIN);
 
+	if (atomic_read(&amfc->need_reset) & 2) {
+		amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
+		atomic_andnot(2, &amfc->need_reset);
+		pr_err("amfc: reset dec due to error from enc\n");
+	}
 	if (amfc->work_mode == AMFC_POLL_MODE)
 		spin_unlock(&amfc->dec_lock);
 	else
@@ -686,8 +690,8 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	struct amfc_cmd_list *acl;
 	int ret = -EINVAL;
 	int src_order = 0, dst_order = 0;
-	void *table_addr1 = NULL, *table_addr2;
-	unsigned int status, control, clks = 0;
+	void *table_addr1 = NULL, *table_addr2 = NULL;
+	unsigned int status = 0, control, clks = 0;
 	unsigned long flags;
 	unsigned long timeout = ((src_size) / PAGE_SIZE) * 100 + 5000; // us
 	unsigned long long tick, cur;
@@ -804,7 +808,6 @@ again:
 				goto again;
 			}
 		}
-		ret = 0;
 	}
 	clks = amfc_hw_read(AMFC_CMD0_TIME_MEASURE);
 
@@ -832,10 +835,14 @@ out:
 				ret, amfc_hw_read(AMFC_GL_CMD0_STATUS));
 			show_regs(NULL);
 			show_acl(acl);
-			spin_lock(&amfc->dec_lock);
 			/* sw reset */
+			/* May dead lock if both enc/dec have error and
+			 * need reset together, so just set flag and warning
+			 * herre
+			 */
 			amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
-			spin_unlock(&amfc->dec_lock);
+			atomic_or(2, &amfc->need_reset);
+			WARN_ON(spin_is_locked(&amfc->dec_lock));
 		}
 	} else {
 		amfc->cin         += src_size;
