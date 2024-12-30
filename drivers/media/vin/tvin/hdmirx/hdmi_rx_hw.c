@@ -761,6 +761,8 @@ u8 hdmirx_rd_cor(u32 addr, u8 port)
 	u32 dev_offset = 0;
 	bool need_wr_twice = false;
 
+	if (!rx_get_dig_clk_en_sts())
+		return 0;
 	if (dbg_port)
 		port = dbg_port - 1;
 
@@ -816,6 +818,8 @@ void hdmirx_wr_cor(u32 addr, u8 data, u8 port)
 	u32 dev_offset = 0;
 	bool need_wr_twice = false;
 
+	if (!rx_get_dig_clk_en_sts())
+		return;
 	if (dbg_port)
 		port = dbg_port - 1;
 	/* addr bit[8:15] is 0x1d or 0x1e need write twice */
@@ -1677,10 +1681,6 @@ void rx_set_irq_21(u8 enable, u8 port)
  */
 void rx_irq_en(u8 enable, u8 port)
 {
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	if (early_suspend_flag)
-		return;
-#endif
 	switch (rx_info.chip_id) {
 	case CHIP_ID_T3X:
 	case CHIP_ID_T5M:
@@ -3228,12 +3228,28 @@ bool rx_get_dig_clk_en_sts(void)
 {
 	int ret;
 
-	if (rx_info.chip_id >= CHIP_ID_T7)
-		return true;
-	if (rx_info.chip_id >= CHIP_ID_T5)
-		ret = hdmirx_rd_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN);
-	else
+	switch (rx_info.chip_id) {
+	case CHIP_ID_TL1:
+	case CHIP_ID_TM2:
 		ret = rd_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN);
+		break;
+	case CHIP_ID_T5:
+	case CHIP_ID_T5D:
+		ret = hdmirx_rd_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN);
+		break;
+	case CHIP_ID_T7:
+	case CHIP_ID_T3:
+	case CHIP_ID_T5W:
+	case CHIP_ID_T5M:
+	case CHIP_ID_T3X:
+	case CHIP_ID_TXHD2:
+	case CHIP_ID_T6D:
+		ret = hdmirx_rd_bits_clk_ctl(RX_CLK_CTRL1, CFG_CLK_EN);
+		break;
+	default:
+		ret = true;
+		break;
+	}
 	return ret;
 }
 
