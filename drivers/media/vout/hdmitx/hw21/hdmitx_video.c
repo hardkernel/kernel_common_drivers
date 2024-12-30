@@ -92,6 +92,7 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 {
 	struct hdmi_format_para *param = &hdev->tx_comm.fmt_para;
 	int ret = -1;
+	unsigned char buffer[31] = {0x87, 0x1, 26};
 
 	if (videocode >= HDMITX_VESA_OFFSET) {
 		param->cs = HDMI_COLORSPACE_RGB;
@@ -132,10 +133,15 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		}
 		/* if TV support traditional SDR, then enable hdr.sdr packet by default */
 		if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) {
-			struct master_display_info_s data = {0};
-
-			data.features = 0x00010100;
-			hdev->tx_comm.vdev->fresh_tx_hdr_pkt(&data);
+			/*
+			 * only for hdr.sdr packet send after mode setting,
+			 * for sync purpose, should not use work queue,
+			 * no uevent/trace for such case
+			 */
+			HDMITX_INFO("hdr: %s: hdr.sdr pkt sent\n", __func__);
+			hdev->tx_comm.colormetry = 0;
+			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AVI_BT2020, CLR_AVI_BT2020);
+			hdmitx_hw_set_packet(&hdev->tx_hw.base, HDMI_PACKET_DRM, buffer);
 		}
 		if (hdev->tx_comm.allm_mode) {
 			hdmitx_common_setup_vsif_packet(&hdev->tx_comm, VT_ALLM, 1, NULL);

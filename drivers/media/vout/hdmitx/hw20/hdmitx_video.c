@@ -102,7 +102,21 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 				hdmitx_common_setup_vsif_packet(&hdev->tx_comm,
 					VT_HDMI14_4K, 0, NULL);
 			}
-
+			/*
+			 * if TV support traditional SDR, then enable hdr.sdr packet by default
+			 * only for hdr.sdr packet send after mode setting,
+			 * for sync purpose, should not use work queue,
+			 * no uevent/trace for such case
+			 */
+			/*
+			 * if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) {
+			 *	unsigned char buffer[31] = {0x87, 0x1, 26};
+			 *	HDMITX_INFO("hdr: %s: hdr.sdr pkt sent\n", __func__);
+			 *	hdev->tx_comm.colormetry = 0;
+			 *	hdmitx_hw_cntl_config(tx_hw_base, CONF_AVI_BT2020, CLR_AVI_BT2020);
+			 *	hdmitx_hw_set_packet(tx_hw_base, HDMI_PACKET_DRM, buffer);
+			 * }
+			 */
 			if (hdev->tx_comm.allm_mode) {
 				hdmitx_common_setup_vsif_packet(&hdev->tx_comm, VT_ALLM, 1, NULL);
 				hdmitx_hw_cntl_config(tx_hw_base, CONF_CT_MODE,

@@ -784,13 +784,20 @@ void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	enum hdmi_tf_type hdmi_hdr_status = hdmitx_hw_get_state(tx_hw, STAT_TX_HDR, 0);
 	struct hdr_info *hdr_info = &prxcap->hdr_info;
 	u32 save_last_hdr_mode;
+	enum hdmi_hdr_transfer hdr_transfer_feature = T_UNKNOWN;
+	enum hdmi_hdr_color hdr_color_feature = C_UNKNOWN;
+	unsigned int colormetry = 0;
 
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
-	if (data)
+	if (data) {
 		memcpy(&global_tx_common->drm_config_data, data,
 				sizeof(struct master_display_info_s));
-	else
+		hdr_transfer_feature = (data->features >> 8) & 0xff;
+		hdr_color_feature = (data->features >> 16) & 0xff;
+		colormetry = (data->features >> 30) & 0x1;
+	} else {
 		memset(&global_tx_common->drm_config_data, 0, sizeof(struct master_display_info_s));
+	}
 
 	spin_lock_irqsave(&global_tx_common->edid_spinlock, flags);
 
@@ -840,11 +847,12 @@ void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		hdr_status_pos = 0;
 	}
 
-	if ((global_tx_common->hdr_transfer_feature != ((data->features >> 8) & 0xff)) ||
-			(global_tx_common->hdr_color_feature != ((data->features >> 16) & 0xff))) {
-		global_tx_common->hdr_transfer_feature = (data->features >> 8) & 0xff;
-		global_tx_common->hdr_color_feature = (data->features >> 16) & 0xff;
-		global_tx_common->colormetry = (data->features >> 30) & 0x1;
+	if (global_tx_common->hdr_transfer_feature != hdr_transfer_feature ||
+			global_tx_common->hdr_color_feature != hdr_color_feature ||
+			global_tx_common->colormetry != colormetry) {
+		global_tx_common->hdr_transfer_feature = hdr_transfer_feature;
+		global_tx_common->hdr_color_feature = hdr_color_feature;
+		global_tx_common->colormetry = colormetry;
 		HDMITX_INFO("hdr: [%s]: tf = %d, cf = %d, colormetry = %d\n",
 				    __func__, global_tx_common->hdr_transfer_feature,
 				    global_tx_common->hdr_color_feature,
