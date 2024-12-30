@@ -2581,8 +2581,10 @@ static ssize_t bl_debug_power_store(struct device *dev,
 			bl_power_off(bdrv);
 	} else {
 		bdrv->state |= BL_STATE_BL_POWER_ON;
-		if ((bdrv->state & BL_STATE_BL_ON) == 0)
+		if ((bdrv->state & BL_STATE_BL_ON) == 0) {
+			bl_pwm_ctrl_status_set(bdrv, 1);
 			bl_power_on(bdrv);
+		}
 	}
 
 	return count;
