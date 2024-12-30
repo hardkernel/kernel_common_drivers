@@ -3649,5 +3649,6 @@ void wr_bits_reg_ana_ctl(u32 addr, u32 mask, u32 value);
 void rx_i2c_dbg_monitor(void);
 void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod);
 void rx_i2c_dump(void);
-
+void rx_add_timer(struct hdmirx_dev_s *rx_dev);
+void rx_del_timer(struct hdmirx_dev_s *rx_dev);
 #endif
