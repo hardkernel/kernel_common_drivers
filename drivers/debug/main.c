@@ -46,3 +46,4 @@ module_init(debug_main_init);
 module_exit(debug_main_exit);
 
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(MINIDUMP);

@@ -8,13 +8,14 @@ ccflags-y += $(PR_FMT_DEFINE)
 
 ccflags-y += -I$(srctree)/fs/pstore/
 ccflags-y += -I$(srctree)/kernel/sched/
+ccflags-y += -I$(srctree)/mm/
 ccflags-y += "-DGKI_CONFIG=\"$(srctree)/$(COMMON_DRIVERS_DIR)/arch/arm64/configs/amlogic_gki.fragment\""
 
 obj-$(CONFIG_AMLOGIC_DEBUG) = $(MODULE_NAME).o
 $(MODULE_NAME)-y = main.o lockup.o sched.o kprobes.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DEBUG_ISOLCPUS) += isolcpus.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DEBUG_MHZ) += cpu_mhz.o
-$(MODULE_NAME)-$(CONFIG_AMLOGIC_DEBUG_ATRACE) += atrace.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_DEBUG_ATRACE) += atrace.o atrace_mem.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DEBUG_FILE) += debug_file.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_GKI_CONFIG) += gki_config.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DEBUG_HLD) += watchdog_hld.o
