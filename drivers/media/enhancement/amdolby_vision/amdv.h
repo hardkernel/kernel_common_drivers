@@ -941,8 +941,7 @@ extern bool force_bypass_precision;
 extern bool force_core2c_on;
 extern u32 hlg_max;
 extern u32 hlg_min;
-
-/************/
+extern enum signal_format_enum g_dst_format;
 
 #define pr_dv_dbg(fmt, args...)\
 	do {\

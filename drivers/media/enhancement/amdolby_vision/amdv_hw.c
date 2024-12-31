@@ -3901,6 +3901,9 @@ static bool is_video_effect_bypass;
 
 void video_effect_bypass(int bypass)
 {
+	bool dovi_ll_enable = false;
+	bool eye_pr_byass = false;
+
 	if (is_aml_tvmode()) {
 		/*bypass vpp pq only for IDK cert or debug mode*/
 		if (!debug_bypass_vpp_pq &&
@@ -3915,9 +3918,11 @@ void video_effect_bypass(int bypass)
 			dv_pq_ctl(DV_PQ_TV_BYPASS);
 		else
 			dv_pq_ctl(DV_PQ_STB_BYPASS);
+		dv_pq_ctl(DV_PQ_EP_BYPASS);
 		return;
 	} else if (debug_bypass_vpp_pq == 2) {
 		dv_pq_ctl(DV_PQ_REC);
+		dv_pq_ctl(DV_PQ_EP_REC);
 		return;
 	} else if (debug_bypass_vpp_pq == 3) {
 		return;
@@ -3960,12 +3965,30 @@ void video_effect_bypass(int bypass)
 			{
 #endif
 				if ((dolby_vision_flags & FLAG_CERTIFICATION) ||
-				    bypass_all_vpp_pq)
+				    bypass_all_vpp_pq) {
 					dv_pq_ctl(DV_PQ_CERT);
-				else if (is_aml_tvmode())
+					dv_pq_ctl(DV_PQ_EP_BYPASS);
+				} else if (is_aml_tvmode()) {
 					dv_pq_ctl(DV_PQ_TV_BYPASS);
-				else
+				} else {
 					dv_pq_ctl(DV_PQ_STB_BYPASS);
+				}
+				if (is_amdv_stb_mode() && g_dst_format == FORMAT_DOVI) {
+					if (multi_dv_mode)
+						dovi_ll_enable = m_dovi_setting.dovi_ll_enable;
+					else
+						dovi_ll_enable = dovi_setting.dovi_ll_enable;
+					if (!dovi_ll_enable)/*bypass eye protect in sink-led mode*/
+						eye_pr_byass = true;
+
+					if (debug_dolby & 2)
+						pr_dv_dbg("g_dst_format %d, eye_pr_byass %d\n",
+							g_dst_format, eye_pr_byass);
+				}
+				if (eye_pr_byass)
+					dv_pq_ctl(DV_PQ_EP_BYPASS);
+				else
+					dv_pq_ctl(DV_PQ_EP_REC);
 			}
 		}
 		is_video_effect_bypass = true;
@@ -3998,6 +4021,7 @@ void video_effect_bypass(int bypass)
 		{
 #endif
 			dv_pq_ctl(DV_PQ_REC);
+			dv_pq_ctl(DV_PQ_EP_REC);
 		}
 		is_video_effect_bypass = false;
 	}

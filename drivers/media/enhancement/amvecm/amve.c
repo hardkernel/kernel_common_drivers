@@ -3725,25 +3725,32 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 		cfg.black_ext_en = dv_cfg_bypass.black_ext_en;
 		cfg.chroma_cor_en = dv_cfg_bypass.chroma_cor_en;
 		vpp_pq_ctrl_config(cfg, WR_DMA, vpp_index);
-		eye_proc(eye_protect.mtx_ep, 0, vpp_index);
 		dv_pq_bypass = 2;
 		pr_amve_dbg("dv enable, for STB pq disable, dv_pq_bypass = %d\n",
 				dv_pq_bypass);
 		break;
 	case DV_PQ_CERT:
 		vpp_pq_ctrl_config(dv_cfg_bypass, WR_DMA, vpp_index);
-		eye_proc(eye_protect.mtx_ep, 0, vpp_index);
 		dv_pq_bypass = 1;
 		pr_amve_dbg("dv certification mode, pq disable, dv_pq_bypass = %d\n",
 			    dv_pq_bypass);
 		break;
 	case DV_PQ_REC:
 		vpp_pq_ctrl_config(pq_cfg, WR_DMA, vpp_index);
-		vecm_latch_flag2 |= VPP_EYE_PROTECT_UPDATE;
+		//vecm_latch_flag2 |= VPP_EYE_PROTECT_UPDATE;
 		dv_pq_bypass = 0;
 		pr_amve_dbg("dv disable, pq recovery, dv_pq_bypass = %d\n",
 			    dv_pq_bypass);
 		break;
+	case DV_PQ_EP_BYPASS:
+		eye_proc(eye_protect.mtx_ep, 0, vpp_index);
+		pr_amve_dbg("dv enable, sink-led bypass eye protect for stb\n");
+		break;
+	case DV_PQ_EP_REC:
+		vecm_latch_flag2 |= VPP_EYE_PROTECT_UPDATE;
+		pr_amve_dbg("dv enable, enable eye protect for stb\n");
+		break;
+
 	default:
 		break;
 	}
