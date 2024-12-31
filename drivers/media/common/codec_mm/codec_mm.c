@@ -257,9 +257,7 @@ static u32 secure_mem_align2n;
 #define CODEC_MM_FOR_DMACPU(flags) \
 	(((flags) & CODEC_MM_FLAGS_FROM_MASK) == CODEC_MM_FLAGS_DMA_CPU)
 
-#define RESERVE_MM_ALIGNED_2N	17
-
-#define TVP_MM_ALIGNED_2N	16
+#define RESERVE_MM_ALIGNED_2N	16
 
 #define RES_MEM_FLAGS_HAVE_MAPED 0x4
 
@@ -920,20 +918,16 @@ static int codec_mm_alloc_first(struct codec_mm_mgt_s *mgt,
 	if (!(mem->flags & CODEC_MM_FLAGS_RESERVED_EXT))
 		return 0;
 
-	if (mgt->total_reserved_ext_size > mem->buffer_size &&
-		  mem->align2n <= RESERVE_MM_ALIGNED_2N) {
-		int aligned_buffer_size = ALIGN(mem->buffer_size,
-			(1 << RESERVE_MM_ALIGNED_2N));
+	if (mgt->total_reserved_ext_size > mem->buffer_size) {
 
 		mem->mem_handle = (void *)gen_pool_alloc(mgt->res_ext_pool,
-						aligned_buffer_size);
+						mem->buffer_size);
 		mem->from_flags =
 			AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT;
 		if (mem->mem_handle) {
 			/*default is no map */
 			mem->vbuffer = NULL;
 			mem->phy_addr = (unsigned long)mem->mem_handle;
-			mem->buffer_size = aligned_buffer_size;
 			if (debug_mode & 0x10)
 				pr_info("alloc flags:%d,align=%d,pages:%d,s:%d\n",
 					mem->flags,
@@ -1000,18 +994,16 @@ bool alloc_from_cma(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 bool alloc_from_res(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 	int align_2n, u32 *alloc_trace_mask)
 {
-	int aligned_buf_size = ALIGN(mem->buffer_size, (1 << RESERVE_MM_ALIGNED_2N));
 	struct extpool_mgt_s *ptr_pool = &mgt->cma_res_pool;
 
-	if (align_2n <= RESERVE_MM_ALIGNED_2N && mgt->res_pool) {
+	if (mgt->res_pool) {
 		*alloc_trace_mask |= 1 << 2;
-		mem->mem_handle = (void *)gen_pool_alloc(mgt->res_pool, aligned_buf_size);
+		mem->mem_handle = (void *)gen_pool_alloc(mgt->res_pool, mem->buffer_size);
 		mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED;
 		if (mem->mem_handle) {
 			/*default is no mapped */
 			mem->vbuffer = NULL;
 			mem->phy_addr = (unsigned long)mem->mem_handle;
-			mem->buffer_size = aligned_buf_size;
 			return true;
 		}
 	}
@@ -1020,11 +1012,10 @@ bool alloc_from_res(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 		(ptr_pool->alloced_size + mem->buffer_size) <= ptr_pool->total_size) {
 		*alloc_trace_mask |= 1 << 3;
 		mem->mem_handle = (void *)codec_mm_extpool_alloc(ptr_pool,
-			&mem->from_ext, aligned_buf_size);
+			&mem->from_ext, mem->buffer_size);
 		mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES;
 		if (mem->mem_handle) {
 			mem->phy_addr = (unsigned long)mem->mem_handle;
-			mem->buffer_size = aligned_buf_size;
 			mem->vbuffer = (mem->flags & CODEC_MM_FLAGS_CPU) ?
 				codec_mm_map_phyaddr(mem) : NULL;
 			return true;
@@ -1114,36 +1105,28 @@ static void codec_mm_clear_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_
 static void codec_mm_secure_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 	int align_2n, u32 *alloc_trace_mask)
 {
-	int aligned_buffer_size;
-
-	if (align_2n > TVP_MM_ALIGNED_2N)
-		return;
-
-	aligned_buffer_size = ALIGN(mem->buffer_size, (1 << TVP_MM_ALIGNED_2N));
 	(*alloc_trace_mask) |= 1 << 5;
 	if (tvp_dynamic_increase_disable) {
-		if (aligned_buffer_size > mgt->tvp_pool.total_size - mgt->tvp_pool.alloced_size)
+		if (mem->buffer_size > mgt->tvp_pool.total_size - mgt->tvp_pool.alloced_size)
 			return;
 
 		mem->mem_handle = (void *)codec_mm_extpool_alloc(&mgt->tvp_pool,
-			&mem->from_ext, aligned_buffer_size);
+			&mem->from_ext, mem->buffer_size);
 		mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP;
 		if (mem->mem_handle) {
 			/*no vaddr for TVP MEMORY */
 			mem->vbuffer = NULL;
 			mem->phy_addr = (unsigned long)mem->mem_handle;
-			mem->buffer_size = aligned_buffer_size;
 		}
 	} else {
 		do {
 			mem->mem_handle = (void *)codec_mm_extpool_alloc(&mgt->tvp_pool,
-				&mem->from_ext, aligned_buffer_size);
+				&mem->from_ext, mem->buffer_size);
 			if (mem->mem_handle) {
 				/*no vaddr for TVP MEMORY */
 				mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP;
 				mem->vbuffer = NULL;
 				mem->phy_addr = (unsigned long)mem->mem_handle;
-				mem->buffer_size = aligned_buffer_size;
 				break;
 			}
 			if (codec_mm_tvp_pool_alloc_by_slot(&mgt->tvp_pool,
@@ -1878,7 +1861,7 @@ static int codec_mm_init_tvp_pool(struct extpool_mgt_s *tvp_pool,
 	struct gen_pool *pool;
 	int ret;
 
-	pool = gen_pool_create(TVP_MM_ALIGNED_2N, -1);
+	pool = gen_pool_create(PAGE_SHIFT, -1);
 	if (!pool)
 		return -ENOMEM;
 	ret = gen_pool_add(pool, mm->phy_addr, mm->buffer_size, -1);
@@ -3449,14 +3432,11 @@ int codec_mm_mgt_init(struct device *dev)
 		unsigned long aligned_addr;
 		int aligned_size;
 		/*mem aligned, */
-		mgt->res_pool = gen_pool_create(RESERVE_MM_ALIGNED_2N, -1);
+		mgt->res_pool = gen_pool_create(PAGE_SHIFT, -1);
 		if (!mgt->res_pool)
 			return -ENOMEM;
-		aligned_addr = ((unsigned long)mgt->rmem.base +
-			((1 << RESERVE_MM_ALIGNED_2N) - 1)) &
-			(~((1 << RESERVE_MM_ALIGNED_2N) - 1));
-		aligned_size = mgt->rmem.size -
-			(int)(aligned_addr - (unsigned long)mgt->rmem.base);
+		aligned_addr = (unsigned long)mgt->rmem.base;
+		aligned_size = mgt->rmem.size;
 		ret = gen_pool_add(mgt->res_pool,
 				 aligned_addr, aligned_size, -1);
 		if (ret < 0) {
@@ -3478,12 +3458,10 @@ int codec_mm_mgt_init(struct device *dev)
 		unsigned long aligned_addr;
 		int aligned_size;
 		/*mem aligned, */
-		mgt->res_ext_pool = gen_pool_create(RESERVE_MM_ALIGNED_2N, -1);
+		mgt->res_ext_pool = gen_pool_create(PAGE_SHIFT, -1);
 		if (!mgt->res_ext_pool)
 			return -ENOMEM;
-		aligned_addr = ((unsigned long)mgt->rmem_ext.base +
-			((1 << RESERVE_MM_ALIGNED_2N) - 1)) &
-			(~((1 << RESERVE_MM_ALIGNED_2N) - 1));
+		aligned_addr = (unsigned long)mgt->rmem_ext.base;
 		aligned_size = mgt->rmem_ext.size -
 			(int)(aligned_addr - (unsigned long)mgt->rmem_ext.base);
 		ret = gen_pool_add(mgt->res_ext_pool,
