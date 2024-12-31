@@ -95,10 +95,6 @@
  */
 #define PRG_ETH1_CFG_RXCLK_DLY		GENMASK(19, 16)
 
-#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-unsigned int mdns_switch_from_user;
-#endif
-
 struct meson8b_dwmac;
 
 struct meson8b_dwmac_data {
@@ -798,8 +794,10 @@ static int meson8b_resume(struct device *dev)
 		/*RTC wait linkup*/
 		pr_info("eth hold wakelock 5s\n");
 		pm_wakeup_event(dev, 5000);
-		priv->amlogic_task_action = 100;
-		stmmac_trigger_amlogic_task(priv);
+		if (priv->plat->has_gmac) {
+			priv->amlogic_task_action = 100;
+			stmmac_trigger_amlogic_task(priv);
+		}
 	} else {
 		if (internal_phy == 2) {
 			phy_resume(phydev);
@@ -811,9 +809,13 @@ static int meson8b_resume(struct device *dev)
 		if (phydev)
 			phydev->irq_suspended = 0;
 		ret = stmmac_resume(dev);
-		/*this flow only for txhd2, not for common anymore*/
-		if (phy_mode == 2)
-			stmmac_global_err(priv);
+		/*RTC wait linkup*/
+		pr_info("eth hold wakelock 5s\n");
+		pm_wakeup_event(dev, 5000);
+		if (priv->plat->has_gmac) {
+			priv->amlogic_task_action = 100;
+			stmmac_trigger_amlogic_task(priv);
+		}
 	}
 
 	if (support_gpio_wol) {
@@ -825,14 +827,6 @@ static int meson8b_resume(struct device *dev)
 			input_event(dwmac->input_dev,
 				EV_KEY, KEY_POWER, 0);
 			input_sync(dwmac->input_dev);
-		}
-
-		if (ret < 0) {
-			pr_info("exeth hold wakelock 10s\n");
-			pm_wakeup_event(dev, 10000);
-		} else {
-			pr_info("exeth hold wakelock 5s\n");
-			pm_wakeup_event(dev, 5000);
 		}
 	}
 

@@ -298,21 +298,13 @@ static void stmmac_amlogic_task(struct work_struct *work)
 	u32 regval;
 
 	if (priv->amlogic_task_action == 100) {
-		msleep(3000);
-		// re-enable MAC Rx/Tx to resolve network broken issue
-		regval = readl(priv->ioaddr + MAC_CTRL_REG);
-		regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
-		writel(regval, priv->ioaddr + MAC_CTRL_REG);
-#ifdef CONFIG_PM_SLEEP
-		if (wol_switch_from_user && priv->linkup_after_resume < 2) {
-			if (!mdns_switch_from_user) {
-				// revert the effect of phy_speed_down() again
-				rtnl_lock();
-				phylink_speed_up(priv->phylink);
-				rtnl_unlock();
-			}
+		if (priv->plat->has_gmac) {
+			msleep(3000);
+			// re-enable MAC Rx/Tx to resolve network broken issue
+			regval = readl(priv->ioaddr + MAC_CTRL_REG);
+			regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
+			writel(regval, priv->ioaddr + MAC_CTRL_REG);
 		}
-#endif
 	} else if (priv->amlogic_task_action == 101) {
 		msleep(3000);
 		stmmac_global_err(priv);
@@ -8143,10 +8135,6 @@ int stmmac_resume(struct device *dev)
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	ret = stmmac_hw_setup(ndev, false);
-	if (ret < 0) {
-		priv->amlogic_task_action = 101;
-		stmmac_trigger_amlogic_task(priv);
-	}
 #else
 	stmmac_hw_setup(ndev, false);
 #endif
