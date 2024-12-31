@@ -3360,8 +3360,13 @@ void vlock_process(struct vframe_s *vf,
 	if (!pvlock)
 		return;
 
-	if (!vf)
+	if (!vf) {
+		vlock_set_sts_by_frame_lock(false);
+		pvlock->fsm_sts = VLOCK_STATE_NULL;
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("%s  vf is null\n", __func__);
 		return;
+	}
 
 	if (vf->flag & VFRAME_FLAG_GAME_MODE)
 		vlock_game = 1;
@@ -3399,8 +3404,9 @@ void vlock_process(struct vframe_s *vf,
 
 	if (!(vlock_debug & VLOCK_DEBUG_FORCE_ON)) {
 		if (vlock_chk_is_small_win(cur_video_sts)) {
-			if (pvlock->dtdata->vlk_ctl_for_frc)
-				pvlock->fsm_sts = VLOCK_STATE_NULL;
+			//if (pvlock->dtdata->vlk_ctl_for_frc)
+			vlock_set_sts_by_frame_lock(false);
+			pvlock->fsm_sts = VLOCK_STATE_NULL;
 			if (vlock_debug & VLOCK_DEBUG_INFO)
 				pr_info("%s is small win\n", __func__);
 			return;
