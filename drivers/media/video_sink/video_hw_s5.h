@@ -462,4 +462,5 @@ void update_frc_in_size_s5(struct video_layer_s *layer);
 void vd1_set_go_field_s5(void);
 u32 get_vd1s1_vd2_prebld_en(u32 layer_id);
 void vd_3mux3_set(u8 vpp_index);
+int get_video_reg_table_s5(u32 *check_item);
 #endif

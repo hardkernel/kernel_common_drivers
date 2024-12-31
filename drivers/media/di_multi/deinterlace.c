@@ -430,7 +430,7 @@ void DIM_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val)
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support))
 		DIM_DI_WR(addr, val);
 	else
-		VSYNC_WR_MPEG_REG(addr, val);
+		VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, addr, val);
 }
 
 /* dim_VSYNC_WR_MPEG_REG_BITS */
@@ -443,7 +443,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr, unsigned int val,
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support))
 		DIM_DI_WR_REG_BITS(addr, val, start, len);
 	else
-		VSYNC_WR_MPEG_REG_BITS(addr, val, start, len);
+		VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, addr, val, start, len);
 
 	return 0;
 }
@@ -465,7 +465,7 @@ unsigned int DIM_VSC_RD_MPG_BT(unsigned int addr, unsigned int start,
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support))
 		ret = DIM_RDMA_RD_BITS(addr, start, len);
 	else
-		ret = VSYNC_RD_MPEG_REG(addr);
+		ret = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 	return ((ret &  (((1L << len) - 1) << start)) >> start);
 }
 
@@ -485,7 +485,7 @@ unsigned int l_DI_POST_REG_RD(unsigned int addr)
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support))
 		ret = DIM_RDMA_RD(addr);
 	else
-		ret = VSYNC_RD_MPEG_REG(addr);
+		ret = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 	return ret;
 }
 
@@ -499,7 +499,7 @@ int l_DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 		PR_ERR("REG 0x%x access prohibited.\n", adr);
 		return -1;
 	}
-	return VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	return VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, adr, val, start, len);
 }
 
 /**********************************/
@@ -3626,31 +3626,32 @@ void dbg_cvs_addr(void)
 	unsigned long addr;
 
 	/* */
-	tmp = VSYNC_RD_MPEG_REG(DI_NRWR_CTRL) & 0xff;
+	tmp = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, DI_NRWR_CTRL) & 0xff;
 	addr = canvas_get_addr(tmp);
 	dim_print("1:reg[0x%x][%d], 0x%lx\n", DI_NRWR_CTRL, tmp, addr);
 
-	tmp = (VSYNC_RD_MPEG_REG(DI_NRWR_CTRL) & 0xff00) >> 8;
+	tmp = (VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, DI_NRWR_CTRL) & 0xff00) >> 8;
 	addr = canvas_get_addr(tmp);
 	dim_print("2:[%d], 0x%lx\n", tmp, addr);
 
-	tmp = VSYNC_RD_MPEG_REG(CONTWR_CTRL) & 0xff;
+	tmp = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, CONTWR_CTRL) & 0xff;
 	addr = canvas_get_addr(tmp);
 	dim_print("3:reg[0x%x][%d], 0x%lx\n", CONTWR_CTRL, tmp, addr);
 
-	tmp = VSYNC_RD_MPEG_REG(MTNWR_CTRL) & 0xff;
+	tmp = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, MTNWR_CTRL) & 0xff;
 	addr = canvas_get_addr(tmp);
 	dim_print("4:reg[0x%x][%d], 0x%lx\n", MTNWR_CTRL, tmp, addr);
 
-	tmp = VSYNC_RD_MPEG_REG(MCVECWR_CTRL) & 0xff;
+	tmp = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, MCVECWR_CTRL) & 0xff;
 	addr = canvas_get_addr(tmp);
 	dim_print("5:reg[0x%x][%d], 0x%lx\n", MCVECWR_CTRL, tmp, addr);
 
-	tmp = VSYNC_RD_MPEG_REG(MCINFWR_CTRL) & 0xff;
+	tmp = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, MCINFWR_CTRL) & 0xff;
 	addr = canvas_get_addr(tmp);
 	dim_print("6:reg[0x%x][%d], 0x%lx\n", MCINFWR_CTRL, tmp, addr);
 
-	dim_print("7:0x%x, 0x%x\n", DI_PRE_CTRL, VSYNC_RD_MPEG_REG(DI_PRE_CTRL));
+	dim_print("7:0x%x, 0x%x\n", DI_PRE_CTRL,
+		VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, DI_PRE_CTRL));
 }
 
 static bool ext_is_di_hf_y_reverse(void)

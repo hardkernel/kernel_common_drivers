@@ -276,6 +276,10 @@ struct video_frame_detect_s {
 };
 
 static struct video_frame_detect_s video_frame_detect;
+static struct rdma_partition_ins_s vpp0_rdma_part_ins;
+static struct rdma_partition_ins_s vpp1_rdma_part_ins;
+static struct rdma_partition_ins_s vpp2_rdma_part_ins;
+static struct rdma_partition_ins_s pre_vsync_rdma_part_ins;
 
 #define ENABLE_UPDATE_HDR_FROM_USER 0
 #if ENABLE_UPDATE_HDR_FROM_USER
@@ -9861,14 +9865,91 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 	pr_debug("%s cap:%x, ptype:%d\n", __func__, layer_cap, p_amvideo->cpu_type);
 }
 
+void init_video_rdma_part_ins(int vpp_valid)
+{
+	if (vpp_valid & (1 << RDMA_VPP0)) {
+		vpp0_rdma_part_ins.vpp_index = RDMA_VPP0;
+		vpp0_rdma_part_ins.table_index = VIDEO_PARTITION_TABLE;
+		vpp0_rdma_part_ins.flag = true;
+		vpp0_rdma_part_ins.max_reg_cnt = 2048;
+		vpp0_rdma_part_ins.reg_range_check = false;
+		vpp0_rdma_part_ins.check_start_addr = 0x0;
+		vpp0_rdma_part_ins.check_end_addr = 0x0;
+		rdma_part_table_register(&vpp0_rdma_part_ins);
+	}
+
+	if (vpp_valid & (1 << RDMA_VPP1)) {
+		vpp1_rdma_part_ins.vpp_index = RDMA_VPP1;
+		vpp1_rdma_part_ins.table_index = VIDEO_PARTITION_TABLE;
+		vpp1_rdma_part_ins.flag = true;
+		vpp1_rdma_part_ins.max_reg_cnt = 2048;
+		vpp1_rdma_part_ins.reg_range_check = false;
+		vpp1_rdma_part_ins.check_start_addr = 0x0;
+		vpp1_rdma_part_ins.check_end_addr = 0x0;
+		rdma_part_table_register(&vpp1_rdma_part_ins);
+	}
+
+	if (vpp_valid & (1 << RDMA_VPP2)) {
+		vpp2_rdma_part_ins.vpp_index = RDMA_VPP2;
+		vpp2_rdma_part_ins.table_index = VIDEO_PARTITION_TABLE;
+		vpp2_rdma_part_ins.flag = true;
+		vpp2_rdma_part_ins.max_reg_cnt = 2048;
+		vpp2_rdma_part_ins.reg_range_check = false;
+		vpp2_rdma_part_ins.check_start_addr = 0x0;
+		vpp2_rdma_part_ins.check_end_addr = 0x0;
+		rdma_part_table_register(&vpp2_rdma_part_ins);
+	}
+
+	if (vpp_valid & (1 << RDMA_PRE_VSYNC)) {
+		pre_vsync_rdma_part_ins.vpp_index = RDMA_PRE_VSYNC;
+		pre_vsync_rdma_part_ins.table_index = VIDEO_PARTITION_TABLE;
+		pre_vsync_rdma_part_ins.flag = true;
+		pre_vsync_rdma_part_ins.max_reg_cnt = 2048;
+		pre_vsync_rdma_part_ins.reg_range_check = false;
+		pre_vsync_rdma_part_ins.check_start_addr = 0x0;
+		pre_vsync_rdma_part_ins.check_end_addr = 0x0;
+		rdma_part_table_register(&pre_vsync_rdma_part_ins);
+	}
+}
+
+u32 VSYNC_RD_VIDEO_TABLE_REG(u32 adr)
+{
+	return VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, adr);
+}
+
+int VSYNC_WR_VIDEO_TABLE_REG(u32 adr, u32 val)
+{
+	return VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, adr, val);
+}
+
+int VSYNC_WR_VIDEO_TABLE_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	return VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, adr, val, start, len);
+}
+
+u32 PRE_VSYNC_RD_VIDEO_TABLE_REG(u32 adr)
+{
+	return PRE_VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, adr);
+}
+
+int PRE_VSYNC_WR_VIDEO_TABLE_REG(u32 adr, u32 val)
+{
+	return PRE_VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, adr, val);
+}
+
+int PRE_VSYNC_WR_VIDEO_TABLE_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	return PRE_VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, adr, val, start, len);
+}
+
 static void set_rdma_func_handler(void)
 {
 	cur_dev->rdma_func[0].rdma_rd =
-		VSYNC_RD_MPEG_REG;
+		VSYNC_RD_VIDEO_TABLE_REG;
 	cur_dev->rdma_func[0].rdma_wr =
-		VSYNC_WR_MPEG_REG;
+		VSYNC_WR_VIDEO_TABLE_REG;
 	cur_dev->rdma_func[0].rdma_wr_bits =
-		VSYNC_WR_MPEG_REG_BITS;
+		VSYNC_WR_VIDEO_TABLE_REG_BITS;
 
 	cur_dev->rdma_func[1].rdma_rd =
 		VSYNC_RD_MPEG_REG_VPP1;
@@ -9885,11 +9966,11 @@ static void set_rdma_func_handler(void)
 		VSYNC_WR_MPEG_REG_BITS_VPP2;
 
 	cur_dev->rdma_func[3].rdma_rd =
-		PRE_VSYNC_RD_MPEG_REG;
+		PRE_VSYNC_RD_VIDEO_TABLE_REG;
 	cur_dev->rdma_func[3].rdma_wr =
-		PRE_VSYNC_WR_MPEG_REG;
+		PRE_VSYNC_WR_VIDEO_TABLE_REG;
 	cur_dev->rdma_func[3].rdma_wr_bits =
-		PRE_VSYNC_WR_MPEG_REG_BITS;
+		PRE_VSYNC_WR_VIDEO_TABLE_REG_BITS;
 }
 
 static int amvideom_probe(struct platform_device *pdev)
@@ -9897,6 +9978,7 @@ static int amvideom_probe(struct platform_device *pdev)
 	int ret = 0;
 	int i;
 	int vdtemp = -1;
+	int vpp_valid = 0;
 	const void *prop;
 	int ex_rdma = 0;
 	char propname[16];
@@ -9936,7 +10018,8 @@ static int amvideom_probe(struct platform_device *pdev)
 
 	video_early_init(&amvideo_meson_dev);
 	video_hw_init();
-
+	vpp_valid |= (1 << RDMA_VPP0);
+	video_reg_write_check_table_init();
 	prop = of_get_property(pdev->dev.of_node, "low_latency", NULL);
 	if (prop) {
 		ex_rdma = of_read_ulong(prop, 1);
@@ -9979,6 +10062,7 @@ static int amvideom_probe(struct platform_device *pdev)
 		pr_info("amvideom line_n irq: %d\n", video_line_n_int);
 		set_line_n_num();
 	}
+	init_video_rdma_part_ins(vpp_valid);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&video_early_suspend_handler);
 #endif

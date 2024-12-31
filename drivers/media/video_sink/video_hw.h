@@ -31,4 +31,8 @@ int set_video_mute_info(u32 owner, bool on);
 void check_video_mute(void);
 bool get_video_mute_val(u32 owner);
 void vppx_vdx_mux_set(void);
+int get_video_reg_table(u32 *check_item);
+#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+int get_video_reg_table_cut(u32 *check_item);
+#endif
 #endif
