@@ -52,6 +52,7 @@ ddk_module(
         "CONFIG_AMLOGIC_DRM_CUT_HDMI": {
             False: [
                 "meson_hdmi.c",
+                "meson_hdmitx_diag.c",
             ],
         },
         "CONFIG_AMLOGIC_DRM_CUT_CVBS": {

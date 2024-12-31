@@ -23,6 +23,7 @@ endif
 
 ifeq ($(CONFIG_AMLOGIC_DRM_CUT_HDMI),)
         $(MESON_DRM_MODULE_NAME)-y += meson_hdmi.o
+        $(MESON_DRM_MODULE_NAME)-y += meson_hdmitx_diag.o
 endif
 
 ifeq ($(CONFIG_AMLOGIC_DRM_CUT_CVBS),)

@@ -18,4 +18,13 @@ int hdmi_avi_infoframe_unpack_renew(struct hdmi_avi_infoframe *frame,
 	const void *buffer, size_t size);
 ssize_t hdmi_avi_infoframe_pack_renew(struct hdmi_avi_infoframe *frame,
 				void *buffer, size_t size);
+
+/* drm compose */
+int hdmi_drm_infoframe_unpack_renew(struct hdmi_drm_infoframe *frame,
+				const void *buffer, size_t size);
+int hdmi_audio_infoframe_unpack_renew(struct hdmi_audio_infoframe *frame,
+				const void *buffer, size_t size);
+int hdmi_spd_infoframe_unpack_renew(struct hdmi_spd_infoframe *frame,
+				const void *buffer, size_t size);
+
 #endif

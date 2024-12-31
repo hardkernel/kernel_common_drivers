@@ -354,7 +354,26 @@ static int hdmitx_get_scan_info_from_avi(struct hdmitx21_dev *hdev)
 	return ret;
 }
 
-static int get_extended_colorimetry_from_avi(struct hdmitx21_dev *hdev)
+static int hdmitx_get_colorimetry_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->colorimetry;
+
+	return ret;
+}
+
+static int hdmitx_get_extended_colorimetry_from_avi(struct hdmitx21_dev *hdev)
 {
 	int ret;
 	u8 body[32] = {0};
@@ -377,6 +396,253 @@ static int get_extended_colorimetry_from_avi(struct hdmitx21_dev *hdev)
 	return ret;
 }
 
+static int hdmitx_get_picture_aspect_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->picture_aspect;
+
+	return ret;
+}
+
+static int hdmitx_get_active_aspect_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->active_aspect;
+
+	return ret;
+}
+
+static int hdmitx_get_quantization_range_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->quantization_range;
+
+	return ret;
+}
+
+static int hdmitx_get_nups_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->nups;
+
+	return ret;
+}
+
+static int hdmitx_get_ycc_quantization_range_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->ycc_quantization_range;
+
+	return ret;
+}
+
+static bool hdmitx_get_itc_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->itc;
+
+	return ret;
+}
+
+static int hdmitx_get_content_type_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->content_type;
+
+	return ret;
+}
+
+static int hdmitx_get_pixel_repeat_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->pixel_repeat;
+
+	return ret;
+}
+
+static int hdmitx_get_top_bar_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->top_bar;
+
+	return ret;
+}
+
+static int hdmitx_get_bottom_bar_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->bottom_bar;
+
+	return ret;
+}
+
+static int hdmitx_get_left_bar_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->left_bar;
+
+	return ret;
+}
+
+static int hdmitx_get_right_bar_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->right_bar;
+
+	return ret;
+}
+
+static int hdmitx_get_vic_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->video_code;
+
+	return ret;
+}
+
 static enum hdmi_vic _get_vic_from_vsif(struct hdmitx21_dev *hdev)
 {
 	int ret;
@@ -390,13 +656,10 @@ static enum hdmi_vic _get_vic_from_vsif(struct hdmitx21_dev *hdev)
 	if (ret == -1 || ret == 0)
 		return hdmi4k_vic;
 	ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
-	if (ret < 0) {
-		HDMITX_ERROR("parsing VEND failed %d\n", ret);
-	} else {
-		if (vendor->oui != HDMI_IEEE_OUI) {
-			HDMITX_INFO("%s not hdmi1.4 vsif\n", __func__);
+	if (ret >= 0) {
+		if (vendor->oui != HDMI_IEEE_OUI)
 			return hdmi4k_vic;
-		}
+
 		switch (vendor->vic) {
 		case 1:
 			hdmi4k_vic = HDMI_95_3840x2160p30_16x9;
@@ -415,6 +678,325 @@ static enum hdmi_vic _get_vic_from_vsif(struct hdmitx21_dev *hdev)
 		}
 	}
 	return hdmi4k_vic;
+}
+
+static unsigned int hdmitx_get_ieeeoui_from_vsif(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &global_tx_hw->infoframe->vend;
+	struct hdmi_vendor_infoframe *vendor = &infoframe->vendor.hdmi;
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+
+	ret = hdmi_vend_infoframe_get(tx_comm, body);
+	if (ret == -1 || ret == 0)
+		return 0;
+
+	vendor->oui = body[6] << 16 | body[5] << 8 | body[4];
+
+	return vendor->oui;
+}
+
+static unsigned int hdmitx_get_allm_from_vsif(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &global_tx_hw->infoframe->vend;
+	struct hdmi_vendor_infoframe *vendor = &infoframe->vendor.hdmi;
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	unsigned int allm = 0;
+
+	ret = hdmi_vend_infoframe_get(tx_comm, body);
+	if (ret == -1 || ret == 0)
+		return allm;
+	vendor->oui = body[6] << 16 | body[5] << 8 | body[4];
+	if (vendor->oui == HDMI_FORUM_IEEE_OUI)
+		allm = (body[8] & 0x2) >> 1;
+
+	return allm;
+}
+
+static unsigned int hdmitx_get_amdv_signal_from_vsif(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &global_tx_hw->infoframe->vend;
+	struct hdmi_vendor_infoframe *vendor = &infoframe->vendor.hdmi;
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	unsigned int amdv_signal = 0;
+
+	ret = hdmi_vend_infoframe_get(tx_comm, body);
+	if (ret == -1 || ret == 0)
+		return amdv_signal;
+	vendor->oui = body[6] << 16 | body[5] << 8 | body[4];
+	if (vendor->oui == DOVI_IEEEOUI)
+		amdv_signal = (body[7] & 0x2) >> 1;
+
+	return amdv_signal;
+}
+
+static unsigned int hdmitx_get_amdv_low_latency_from_vsif(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &global_tx_hw->infoframe->vend;
+	struct hdmi_vendor_infoframe *vendor = &infoframe->vendor.hdmi;
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	unsigned int amdv_low_latency = 0;
+
+	ret = hdmi_vend_infoframe_get(tx_comm, body);
+	if (ret == -1 || ret == 0)
+		return amdv_low_latency;
+	vendor->oui = body[6] << 16 | body[5] << 8 | body[4];
+	if (vendor->oui == DOVI_IEEEOUI)
+		amdv_low_latency = body[7] & 0x1;
+
+	return amdv_low_latency;
+}
+
+static int hdmitx_get_eotf_from_drm(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.drm;
+	struct hdmi_drm_infoframe *drm = &infoframe->drm;
+
+	ret = hdmi_drm_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_drm_infoframe_unpack_renew(drm, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = drm->eotf;
+
+	return ret;
+}
+
+static int hdmitx_get_n_from_audio(struct hdmitx21_dev *hdev)
+{
+	unsigned int n1 = 0;
+	unsigned int n2 = 0;
+	unsigned int n3 = 0;
+	unsigned int n = 0;
+
+	n1 = hdmitx21_rd_reg(N_SVAL1_IVCTX);
+	n2 = hdmitx21_rd_reg(N_SVAL2_IVCTX);
+	n3 = hdmitx21_rd_reg(N_SVAL3_IVCTX);
+
+	n = n3 << 16 | n2 << 8 | n1;
+
+	return n;
+}
+
+static int hdmitx_get_cts_from_audio(struct hdmitx21_dev *hdev)
+{
+	unsigned int cts1 = 0;
+	unsigned int cts2 = 0;
+	unsigned int cts3 = 0;
+	unsigned int cts = 0;
+
+	cts1 = hdmitx21_rd_reg(CTS_TXHVAL1_IVCTX);
+	cts2 = hdmitx21_rd_reg(CTS_TXHVAL2_IVCTX);
+	cts3 = hdmitx21_rd_reg(CTS_TXHVAL3_IVCTX);
+
+	cts = cts3 << 16 | cts2 << 8 | cts1;
+
+	return cts;
+}
+
+static int hdmitx_get_channel_from_audio(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.aud;
+	struct hdmi_audio_infoframe *audio = &infoframe->audio;
+
+	ret = hdmi_audio_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = audio->channels;
+
+	return ret;
+}
+
+static int hdmitx_get_coding_type_from_audio(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.aud;
+	struct hdmi_audio_infoframe *audio = &infoframe->audio;
+
+	ret = hdmi_audio_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = audio->coding_type;
+
+	return ret;
+}
+
+static int hdmitx_get_sample_size_from_audio(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.aud;
+	struct hdmi_audio_infoframe *audio = &infoframe->audio;
+
+	ret = hdmi_audio_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = audio->sample_size;
+
+	return ret;
+}
+
+static int hdmitx_get_sample_frequency_from_audio(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.aud;
+	struct hdmi_audio_infoframe *audio = &infoframe->audio;
+
+	ret = hdmi_audio_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = audio->sample_frequency;
+
+	return ret;
+}
+
+static int hdmitx_get_coding_type_ext_from_audio(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.aud;
+	struct hdmi_audio_infoframe *audio = &infoframe->audio;
+
+	ret = hdmi_audio_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = audio->coding_type_ext;
+
+	return ret;
+}
+
+static int hdmitx_get_channel_allocation_from_audio(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.aud;
+	struct hdmi_audio_infoframe *audio = &infoframe->audio;
+
+	ret = hdmi_audio_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = audio->channel_allocation;
+
+	return ret;
+}
+
+static int hdmitx_get_level_shift_value_from_audio(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.aud;
+	struct hdmi_audio_infoframe *audio = &infoframe->audio;
+
+	ret = hdmi_audio_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = audio->level_shift_value;
+
+	return ret;
+}
+
+static int hdmitx_get_downmix_inhibit_from_audio(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.aud;
+	struct hdmi_audio_infoframe *audio = &infoframe->audio;
+
+	ret = hdmi_audio_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+	else
+		ret = audio->downmix_inhibit;
+
+	return ret;
+}
+
+static int hdmitx_get_base_refresh_rate_from_emp(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+
+	ret = hdmi_emp_infoframe_get(EMP_TYPE_VRR_QMS, body);
+	if (ret == -1 || ret == 0)
+		return -1;
+
+	ret = ((body[12] & 0x3) << 8) | body[13];
+
+	return ret;
+}
+
+static int hdmitx_get_next_tfr_from_emp(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+
+	ret = hdmi_emp_infoframe_get(EMP_TYPE_VRR_QMS, body);
+	if (ret == -1 || ret == 0)
+		return -1;
+
+	ret = (body[12] & 0xf8) >> 3;
+
+	return ret;
+}
+
+static int hdmitx_get_m_const_from_emp(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+
+	ret = hdmi_emp_infoframe_get(EMP_TYPE_VRR_QMS, body);
+	if (ret == -1 || ret == 0)
+		return -1;
+
+	ret = (body[10] & 0x2) >> 1;
+
+	return ret;
 }
 
 static void hdmi_hwp_init(struct hdmitx21_dev *hdev, bool reset)
@@ -3674,8 +4256,14 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_SET_AVI_VIC, arg & 0xff);
 		break;
-	case AUX_PKT_GET_AVI_BT2020:
-		ret = get_extended_colorimetry_from_avi(hdev);
+	case AUX_PKT_GET_AVI_COLORIMETRY:
+		ret = hdmitx_get_colorimetry_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_EXTENDED_COLORIMETRY:
+		ret = hdmitx_get_extended_colorimetry_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_VIDEO_CODE:
+		ret = hdmitx_get_vic_from_avi(hdev);
 		break;
 	case AUX_PKT_CONF_AVI_SCAN:
 		ret = hdmitx21_check_input_argv(cmd, input_argv);
@@ -3686,6 +4274,42 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case AUX_PKT_GET_AVI_SCAN:
 		ret = hdmitx_get_scan_info_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_Q01:
+		ret = hdmitx_get_quantization_range_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_YQ01:
+		ret = hdmitx_get_ycc_quantization_range_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_PICTURE_ASPECT:
+		ret = hdmitx_get_picture_aspect_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_ACTIVE_ASPECT:
+		ret = hdmitx_get_active_aspect_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_NUPS:
+		ret = hdmitx_get_nups_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_ITC:
+		ret = hdmitx_get_itc_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_CT_TYPE:
+		ret = hdmitx_get_content_type_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_PIXEL_REPEAT:
+		ret = hdmitx_get_pixel_repeat_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_TOP_BAR:
+		ret = hdmitx_get_top_bar_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_BOTTOM_BAR:
+		ret = hdmitx_get_bottom_bar_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_LEFT_BAR:
+		ret = hdmitx_get_left_bar_from_avi(hdev);
+		break;
+	case AUX_PKT_GET_AVI_RIGHT_BAR:
+		ret = hdmitx_get_right_bar_from_avi(hdev);
 		break;
 	case AUX_PKT_CLR_DV_VS10_SIG:
 		break;
@@ -3737,6 +4361,21 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		else
 			hdmi_vend_infoframe_rawset(tx_comm, pkt_byte);
 		break;
+	case AUX_PKT_GET_VSIF_IEEEOUI:
+		ret = hdmitx_get_ieeeoui_from_vsif(hdev);
+		break;
+	case AUX_PKT_GET_VSIF_VIC:
+		ret = _get_vic_from_vsif(hdev);
+		break;
+	case AUX_PKT_GET_VSIF_ALLM:
+		ret = hdmitx_get_allm_from_vsif(hdev);
+		break;
+	case AUX_PKT_GET_VSIF_AMDV_SIGNAL:
+		ret = hdmitx_get_amdv_signal_from_vsif(hdev);
+		break;
+	case AUX_PKT_GET_VSIF_AMDV_LOW_LATENCY:
+		ret = hdmitx_get_amdv_low_latency_from_vsif(hdev);
+		break;
 	case AUX_PKT_SET_DRM:
 		if (!input_argv) {
 			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, NULL);
@@ -3747,12 +4386,66 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		/* TODO: memcpy(&drm_db[1], DB, 26); */
 		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, pkt_byte);
 		break;
+	case AUX_PKT_GET_DRM_EOTF:
+		ret = hdmitx_get_eotf_from_drm(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_N:
+		ret = hdmitx_get_n_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_CTS:
+		ret = hdmitx_get_cts_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_CHANNEL:
+		ret = hdmitx_get_channel_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_CODING_TYPE:
+		ret = hdmitx_get_coding_type_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_SAMPLE_SIZE:
+		ret = hdmitx_get_sample_size_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_CODING_FREQUENCY:
+		ret = hdmitx_get_sample_frequency_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_CODING_TYPE_EXT:
+		ret = hdmitx_get_coding_type_ext_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_CHANNEL_ALLOCATION:
+		ret = hdmitx_get_channel_allocation_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_LEVEL_SHIFT_VALUE:
+		ret = hdmitx_get_level_shift_value_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_AUDIO_DOWNMIX_INHIBIT:
+		ret = hdmitx_get_downmix_inhibit_from_audio(hdev);
+		break;
+	case AUX_PKT_GET_TMDS_CLK:
+		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
+			ret = meson_clk_measure(92);
+		else
+			ret = meson_clk_measure(76);
+		break;
+	case AUX_PKT_GET_PIXEL_CLK:
+		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
+			ret = meson_clk_measure(68);
+		else
+			ret = meson_clk_measure(59);
+		break;
 	case AUX_PKT_SET_EMP:
 		ret = hdmitx21_check_input_argv(cmd, input_argv);
 		if (ret < 0)
 			break;
 		pkt_byte = (u8 *)input_argv;
 		hdmitx_dhdr_send(pkt_byte, sizeof(struct hdmi_packet_t) * 3);
+		break;
+	case AUX_PKT_GET_QMS_BASE_REFRESH_RATE:
+		ret = hdmitx_get_base_refresh_rate_from_emp(hdev);
+		break;
+	case AUX_PKT_GET_QMS_M_CONST:
+		ret = hdmitx_get_m_const_from_emp(hdev);
+		break;
+	case AUX_PKT_GET_QMS_NEXT_TFR:
+		ret = hdmitx_get_next_tfr_from_emp(hdev);
 		break;
 	case AUX_PKT_SET_EMP_SBTM:
 		if (!input_argv) {

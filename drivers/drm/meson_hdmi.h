@@ -8,6 +8,7 @@
 
 #include "meson_drv.h"
 #include <uapi/amlogic/drm/meson_drm.h>
+#include <drm/amlogic/meson_hdmi_diag.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 #include <drm/amlogic/meson_connector_dev.h>
@@ -157,8 +158,9 @@ struct am_hdmitx_connector_state {
 	struct drm_connector_state base;
 	struct hdmitx_common_state hcs;
 
-	/*drm hdmitx attr from external modules,
-	 *ONLY used for once, and reset when duplicate.
+	/*
+	 * drm hdmitx attr from external modules,
+	 * ONLY used for once, and reset when duplicate.
 	 */
 	struct hdmitx_color_attr color_attr_para;
 	/*HDR Priority: dv,hdr,sdr*/
@@ -192,5 +194,9 @@ int am_meson_mode_testattr_ioctl(struct drm_device *dev, void *data,
 	struct drm_file *file_priv);
 int am_meson_get_vrr_range_ioctl(struct drm_device *dev, void *data,
 	struct drm_file *file_priv);
+int am_meson_get_hdmitx_diag_ioctl(struct drm_device *dev, void *data,
+	struct drm_file *file_priv);
+void hdmitx_diag_init(struct hdmitx_common *tx_comm);
+struct hdmitx_common *meson_get_hdmitx_common(struct drm_connector *connector);
 
 #endif

@@ -5206,12 +5206,73 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			hdmitx_set_avi_colorimetry(&tx_comm->fmt_para);
 		}
 		break;
-	case AUX_PKT_GET_AVI_BT2020:
-		if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) == 0xC0) &&
-			((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) == 0x60))
-			ret = HDMI_EXTENDED_COLORIMETRY_BT2020;
-		else
-			ret = 0;
+	case AUX_PKT_GET_AVI_COLORIMETRY:
+		switch (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) {
+		case 0x00:
+			ret = HDMI_COLORIMETRY_NONE;
+			break;
+		case 0x40:
+			ret = HDMI_COLORIMETRY_ITU_601;
+			break;
+		case 0x80:
+			ret = HDMI_COLORIMETRY_ITU_709;
+			break;
+		case 0xc0:
+			ret = HDMI_COLORIMETRY_EXTENDED;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case AUX_PKT_GET_AVI_EXTENDED_COLORIMETRY:
+		if ((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) == 0xC0) {
+			switch (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) {
+			case 0x00:
+				ret = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+				break;
+			case 0x10:
+				ret = HDMI_EXTENDED_COLORIMETRY_XV_YCC_709;
+				break;
+			case 0x20:
+				ret = HDMI_EXTENDED_COLORIMETRY_S_YCC_601;
+				break;
+			case 0x30:
+				ret = HDMI_EXTENDED_COLORIMETRY_OPYCC_601;
+				break;
+			case 0x40:
+				ret = HDMI_EXTENDED_COLORIMETRY_OPRGB;
+				break;
+			case 0x50:
+				ret = HDMI_EXTENDED_COLORIMETRY_BT2020_CONST_LUM;
+				break;
+			case 0x60:
+				ret = HDMI_EXTENDED_COLORIMETRY_BT2020;
+				break;
+			case 0x70:
+				ret = HDMI_EXTENDED_COLORIMETRY_RESERVED;
+				break;
+			default:
+				break;
+			}
+		}
+		break;
+	case AUX_PKT_GET_AVI_Q01:
+	case AUX_PKT_GET_AVI_YQ01:
+	case AUX_PKT_GET_AVI_PIXEL_REPEAT:
+	case AUX_PKT_GET_AVI_TOP_BAR:
+	case AUX_PKT_GET_AVI_BOTTOM_BAR:
+	case AUX_PKT_GET_AVI_LEFT_BAR:
+	case AUX_PKT_GET_AVI_RIGHT_BAR:
+		break;
+	case AUX_PKT_GET_AVI_VIDEO_CODE:
+		ret = hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID);
+		break;
+	case AUX_PKT_GET_AVI_PICTURE_ASPECT:
+	case AUX_PKT_GET_AVI_ACTIVE_ASPECT:
+	case AUX_PKT_GET_AVI_CT_TYPE:
+	case AUX_PKT_GET_AVI_NUPS:
+	case AUX_PKT_GET_AVI_ITC:
 		break;
 	case AUX_PKT_CONF_AVI_SCAN:
 		ret = hdmitx20_check_input_argv(cmd, input_argv);
@@ -5412,6 +5473,8 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			hdmitx_wr_reg(HDMITX_DWC_FC_DRM_PB00 + i, buffer[4 + i]);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 6, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 7, 1);
+		break;
+	case AUX_PKT_GET_DRM_EOTF:
 		break;
 	case AUX_PKT_SET_EMP:
 		if (!input_argv) {

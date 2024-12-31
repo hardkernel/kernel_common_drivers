@@ -107,7 +107,7 @@ struct hdmitx_color_attr other_color_attr_list[] = {
 #define MODE_4K2KSMPTE50HZ              "smpte50hz"
 #define MODE_4K2KSMPTE60HZ              "smpte60hz"
 
-static struct hdmitx_common *meson_get_hdmitx_common(struct drm_connector *connector)
+struct hdmitx_common *meson_get_hdmitx_common(struct drm_connector *connector)
 {
 	struct am_hdmi_tx *am_hdmi = NULL;
 

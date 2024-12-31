@@ -142,14 +142,20 @@ void hdmi_vend_infoframe2_rawset(struct hdmitx_common *tx_comm, u8 *body);
 /* vsif raw data get from reg, only used for DV_VSIF / CUVA VSIF / HDMI1.4b_VSIF / HDR10+ VSIF */
 int hdmi_vend_infoframe_get(struct hdmitx_common *tx_comm, u8 *body);
 
+/* spd raw data get from reg */
+int hdmi_spd_infoframe_get(u8 *body);
 /* spd infoframe set */
 void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info);
 
+/* audio raw data get from reg */
+int hdmi_audio_infoframe_get(u8 *body);
 /* audio infoframe set */
 void hdmi_audio_infoframe_set(struct hdmi_audio_infoframe *info);
 /* audio infoframe raw set, for backup */
 void hdmi_audio_infoframe_rawset(u8 *hb, u8 *pb);
 
+/* drm raw data get from reg */
+int hdmi_drm_infoframe_get(u8 *body);
 /* drm infoframe set, both deprecated */
 void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info);
 void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);

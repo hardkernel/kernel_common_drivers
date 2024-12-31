@@ -197,6 +197,14 @@ int am_meson_set_connector_force_ioctl(struct drm_device *dev,
 	return ret ? ret : 0;
 }
 
+int am_meson_get_hdmitx_diag_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+	am_meson_hdmi_get_hdmitx_diag(dev, data, file_priv);
+
+	return 0;
+}
+
 static const struct drm_ioctl_desc meson_ioctls[] = {
 	#ifdef CONFIG_AMLOGIC_DRM_USE_ION
 	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
@@ -208,6 +216,7 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MESON_TESTATTR, am_meson_mode_testattr_ioctl, 0),
 #endif
 	DRM_IOCTL_DEF_DRV(MESON_GET_VRR_RANGE, am_meson_get_vrr_range_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(MESON_GET_HDMITX_DIAG, am_meson_get_hdmitx_diag_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(MESON_RMFB, am_meson_mode_rmfb_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(MESON_ADDFB2, am_meson_mode_addfb2_ioctl, 0),
 	#if IS_ENABLED(CONFIG_SYNC_FILE)
