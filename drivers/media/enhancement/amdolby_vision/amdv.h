@@ -1020,6 +1020,7 @@ extern uint debug_rdmif;
 extern u32 force_update_top2;
 
 /************/
+extern enum signal_format_enum g_dst_format;
 
 #define pr_dv_dbg(fmt, args...)\
 	do {\

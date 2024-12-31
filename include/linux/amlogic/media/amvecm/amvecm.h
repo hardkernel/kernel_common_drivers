@@ -212,6 +212,8 @@ enum dv_pq_ctl_e {
 	DV_PQ_STB_BYPASS,
 	DV_PQ_CERT,
 	DV_PQ_REC,
+	DV_PQ_EP_BYPASS,
+	DV_PQ_EP_REC,
 };
 
 enum wr_md_e {
