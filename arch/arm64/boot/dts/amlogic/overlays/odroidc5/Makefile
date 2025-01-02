@@ -1,6 +1,7 @@
 # dtb-y += overlay.dtbo
 
 dtb-y += dht11.dtbo \
+         hktft32.dtbo \
          i2c0.dtbo \
          i2c1.dtbo \
          i2c2.dtbo \
