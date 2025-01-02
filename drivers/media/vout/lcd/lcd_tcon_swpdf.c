@@ -475,6 +475,18 @@ void lcd_swpdf_init(struct aml_lcd_drv_s *pdrv)
 	//lcd_swpdf_parse_pat(pdrv);
 }
 
+void lcd_swpdf_deinit(struct aml_lcd_drv_s *pdrv)
+{
+	struct swpdf_s *pdf = get_swpdf();
+	struct swpdf_pat_s *pat, *tmp;
+
+	if (pdf->pat_list.next && !list_empty(&pdf->pat_list)) {
+		list_for_each_entry_safe(pat, tmp, &pdf->pat_list, list)
+			swpdf_pat_destroy(pdf, pat);
+	}
+	device_remove_file(pdrv->dev, &swpdf_attr);
+}
+
 static void swpdf_reset(void)
 {
 	struct swpdf_s *pdf = get_swpdf();
@@ -859,8 +871,8 @@ ssize_t lcd_swpdf_dbg_store(struct device *dev, struct device_attribute *attr,
 	lcd_debug_parse_param(buf_orig, parm, SWPDF_MAX_PARAM);
 	swpdf_param_restore(pdrv, parm);
 
-__swpdf_dbg_store_exit:
 	kfree(parm);
+__swpdf_dbg_store_exit:
 	kfree(buf_orig);
 	return count;
 }

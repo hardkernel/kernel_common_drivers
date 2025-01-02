@@ -421,7 +421,9 @@ static void amblt_remove(struct platform_device *pdev)
 
 	amblt_vsync_irq_remove(amblt_drv);
 	amblt_debug_file_remove(amblt_drv);
-
+	dma_free_coherent(&pdev->dev, amblt_drv->dma_mem.size,
+			amblt_drv->dma_mem.vaddr, amblt_drv->dma_mem.paddr);
+	kfree(amblt_drv->buf);
 	/* free drvdata */
 	platform_set_drvdata(pdev, NULL);
 

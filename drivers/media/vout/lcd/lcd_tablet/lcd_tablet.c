@@ -1195,6 +1195,15 @@ void lcd_tablet_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 	else if (pdrv->vout_regist_on_ctrl & 0x04)
 		vout3_unregister_server(pdrv->vout_server[1]);
 #endif
+
+	kfree(pdrv->vout_server[1]->name);
+	kfree(pdrv->vout_server[1]);
+	pdrv->vout_server[1] = NULL;
+
+	kfree(pdrv->vout_server[0]->name);
+	kfree(pdrv->vout_server[0]);
+	pdrv->vout_server[0] = NULL;
+
 }
 
 static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
@@ -1288,5 +1297,6 @@ int lcd_mode_tablet_init(struct aml_lcd_drv_s *pdrv)
 int lcd_mode_tablet_remove(struct aml_lcd_drv_s *pdrv)
 {
 	lcd_vrr_dev_unregister(pdrv);
+	lcd_vmode_remove_all(pdrv);
 	return 0;
 }

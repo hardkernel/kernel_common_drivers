@@ -1037,7 +1037,7 @@ int ini_parse_mem(struct ini_s *ini_buf, const char *tmp_buf)
 
 	if (error)
 		INIERR("%s: error=%d\n", __func__, error);
-
+	kfree(multi_line.buf);
 	kfree(line);
 
 	ini_alloc_parse_mem_print();

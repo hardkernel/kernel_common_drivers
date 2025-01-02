@@ -114,6 +114,16 @@ void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv, struct device_no
 		dsi_init_table_print(dconf);
 }
 
+void lcd_mipi_dsi_init_table_free(struct dsi_config_s *dconf)
+{
+	if (!dconf)
+		return;
+	kfree(dconf->dsi_init_on);
+	kfree(dconf->dsi_init_off);
+	dconf->dsi_init_on = NULL;
+	dconf->dsi_init_off = NULL;
+}
+
 static void dsi_req_print(int ret, struct dsi_cmd_req_s *req)
 {
 	char string[256];

@@ -3048,11 +3048,16 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 	struct lcd_tcon_data_block_header_s *block_header;
 
 	lcd_tcon_debug_file_remove(&tcon_local_cfg);
+	lcd_tcon_fw_finish(pdrv);
 	lcd_tcon_rdma_remove(pdrv);
 	lcd_tcon_pdf_remove(pdrv);
 
 	kfree(tcon_mm_table.core_reg_bin);
 	tcon_mm_table.core_reg_bin = NULL;
+
+	if (tcon_local_cfg.pdf_data_list.next && !list_empty(&tcon_local_cfg.pdf_data_list))
+		lcd_tcon_pdf_clean_data(&tcon_local_cfg.pdf_data_list);
+
 	if (tcon_mm_table.version < 0xff) {
 		tcon_mm_table.data_init = NULL;
 		tcon_mm_table.lut_valid_flag = 0;
@@ -3077,6 +3082,12 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 				tcon_mm_table.data_mem_vaddr[i] = NULL;
 				tcon_mm_table.data_mem_paddr[i] = 0;
 			}
+			kfree(tcon_mm_table.data_multi);
+			tcon_mm_table.data_multi = NULL;
+
+			kfree(tcon_mm_table.data_size);
+			tcon_mm_table.data_size = NULL;
+
 			kfree(tcon_mm_table.data_mem_vaddr);
 			tcon_mm_table.data_mem_vaddr = NULL;
 
@@ -3095,6 +3106,18 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 		tcon_rmem.rsv_mem_vaddr = NULL;
 		tcon_rmem.rsv_mem_paddr = 0;
 	}
+
+#ifdef TCON_DBG_TIME
+	kfree(dbg_vsync_time);
+#endif
+	for (i = 0; i < tcon_rmem.axi_bank; i++)
+		lcd_unmap_phyaddr(tcon_rmem.axi_rmem[i].mem_vaddr);
+
+	kfree(tcon_rmem.axi_reg);
+	tcon_rmem.axi_reg = NULL;
+
+	kfree(tcon_rmem.axi_rmem);
+	tcon_rmem.axi_rmem = NULL;
 
 	if (lcd_tcon_conf) {
 		/* lcd_tcon_conf == NULL; */

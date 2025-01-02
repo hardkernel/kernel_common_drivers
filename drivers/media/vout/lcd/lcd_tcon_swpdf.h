@@ -86,6 +86,7 @@ struct swpdf_s {
 struct swpdf_s *get_swpdf(void);
 int lcd_swpdf_vs_handle(void);
 void lcd_swpdf_init(struct aml_lcd_drv_s *pdrv);
+void lcd_swpdf_deinit(struct aml_lcd_drv_s *pdrv);
 struct swpdf_pat_s *swpdf_pat_create_add(struct swpdf_s *pdf, u16 th_w, u16 th_b);
 struct swpdf_block_s *swpdf_block_create_add(struct swpdf_pat_s *pat,
 	u16 x, u16 y, u16 w, u16 h, u32 *mat);

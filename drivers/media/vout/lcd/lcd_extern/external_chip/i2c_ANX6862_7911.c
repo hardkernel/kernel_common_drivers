@@ -245,11 +245,12 @@ static int lcd_extern_init_check(struct lcd_extern_dev_s *edev, unsigned char fl
 	ret = lcd_extern_i2c_read(i2c_dev->client, chk_table, 1, chk_table, cnt);
 	if (ret) {
 		EXTERR("%s: i2c read error\n", __func__);
+		kfree(chk_table);
 		return -1;
 	}
 
 	ret = lcd_extern_check_reg_dynamic_size(table, chk_table, cnt, flag);
-
+	kfree(chk_table);
 	return ret;
 }
 

@@ -1260,6 +1260,14 @@ void lcd_timing_free_last(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+void lcd_timing_free_all(struct aml_lcd_drv_s *pdrv)
+{
+	if (!pdrv || pdrv->config.timing.num_timings <= 0)
+		return;
+	while (pdrv->config.timing.num_timings)
+		lcd_timing_free_last(pdrv);
+}
+
 struct phy_attr_s *lcd_phy_alloc(struct aml_lcd_drv_s *pdrv)
 {
 	int n;
@@ -1291,6 +1299,14 @@ void lcd_phy_free_last(struct aml_lcd_drv_s *pdrv)
 	pdrv->config.phy_cfg.group_num--;
 	if (pdrv->config.phy_cfg.group_num == 0)
 		pdrv->config.phy_cfg.act_phy = NULL;
+}
+
+void lcd_phy_free_all(struct aml_lcd_drv_s *pdrv)
+{
+	if (!pdrv || pdrv->config.phy_cfg.group_num <= 0)
+		return;
+	while (pdrv->config.phy_cfg.group_num)
+		lcd_phy_free_last(pdrv);
 }
 
 static void lcd_fr_range_update(struct lcd_detail_timing_s *ptiming)

@@ -159,6 +159,7 @@ void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv);
 unsigned char lcd_panel_config_load_detect(int index, int key_valid, const char *func_name);
 int lcd_check_config_load(struct aml_lcd_drv_s *drv);
 int lcd_get_config(struct aml_lcd_drv_s *pdrv);
+void lcd_config_load_remove(struct aml_lcd_drv_s *pdrv);
 void lcd_optical_vinfo_update(struct aml_lcd_drv_s *pdrv);
 
 void lcd_vbyone_bit_rate_config(struct aml_lcd_drv_s *pdrv);
@@ -184,6 +185,7 @@ void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv);
 void lcd_vrr_dev_register(struct aml_lcd_drv_s *pdrv);
 void lcd_vrr_dev_unregister(struct aml_lcd_drv_s *pdrv);
 void lcd_fr_lock_init(struct aml_lcd_drv_s *pdrv);
+void lcd_fr_lock_deinit(struct aml_lcd_drv_s *pdrv);
 void lcd_fr_lock(struct aml_lcd_drv_s *pdrv);
 
 void lcd_queue_work(struct work_struct *work);
@@ -195,8 +197,10 @@ int lcd_cus_ctrl_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *c
 
 struct lcd_detail_timing_s *lcd_timing_alloc(struct aml_lcd_drv_s *pdrv);
 void lcd_timing_free_last(struct aml_lcd_drv_s *pdrv);
+void lcd_timing_free_all(struct aml_lcd_drv_s *pdrv);
 struct phy_attr_s *lcd_phy_alloc(struct aml_lcd_drv_s *pdrv);
 void lcd_phy_free_last(struct aml_lcd_drv_s *pdrv);
+void lcd_phy_free_all(struct aml_lcd_drv_s *pdrv);
 
 /* lcd phy */
 unsigned int lcd_phy_vswing_level_to_value(struct aml_lcd_drv_s *pdrv, unsigned int level);
@@ -249,6 +253,7 @@ unsigned int lcd_tcon_reg_read(struct aml_lcd_drv_s *pdrv, unsigned int addr);
 void lcd_tcon_reg_write(struct aml_lcd_drv_s *pdrv,
 			unsigned int addr, unsigned int val);
 int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_global_reset(struct aml_lcd_drv_s *pdrv);
 unsigned int lcd_tcon_table_read(unsigned int addr);
 unsigned int lcd_tcon_table_write(unsigned int addr, unsigned int val);
@@ -361,6 +366,7 @@ int lcd_mode_tv_remove(struct aml_lcd_drv_s *pdrv);
 
 /* @lcd_common.c */
 void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv, struct device_node *m_node);
+void lcd_mipi_dsi_init_table_free(struct dsi_config_s *dconf);
 void lcd_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, unsigned char en);
 unsigned long long lcd_dsi_get_min_bitrate(struct aml_lcd_drv_s *pdrv);
 /* @lcd_debug.c */
@@ -382,7 +388,9 @@ int lcd_mode_tablet_remove(struct aml_lcd_drv_s *pdrv);
 #endif
 
 void lcd_resource_add(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigned int res_index);
+void lcd_resource_free(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigned int res_index);
 int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv);
+void lcd_resource_remove_all(struct aml_lcd_drv_s *pdrv);
 int lcd_drm_add(struct device *dev);
 void lcd_drm_remove(struct device *dev);
 

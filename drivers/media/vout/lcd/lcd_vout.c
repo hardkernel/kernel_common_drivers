@@ -191,6 +191,30 @@ static struct lcd_resource_s *lcd_resource_new(unsigned int res_type, unsigned i
 	return pres;
 }
 
+void lcd_resource_free(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigned int res_index)
+{
+	struct lcd_resource_s *res_next, *res;
+
+	if (!pdrv || !pdrv->resource)
+		return;
+
+	res = pdrv->resource;
+	if (res->type == res_type && res->index == res_index) {
+		pdrv->resource = res->next_res;
+		kfree(res);
+		return;
+	}
+
+	while (res->next_res) {
+		if (res->next_res->type == res_type && res->next_res->index == res_index) {
+			res_next = res->next_res->next_res;
+			kfree(res->next_res);
+			res->next_res = res_next;
+			break;
+		}
+	}
+}
+
 void lcd_resource_add(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigned int res_index)
 {
 	struct lcd_resource_s *res_i, *res_tail, *pres;
@@ -302,6 +326,21 @@ int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
 
 	mutex_unlock(&lcd_power_mutex);
 	return 1;
+}
+
+void lcd_resource_remove_all(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_resource_s *res, *res_next;
+
+	if (!pdrv || !pdrv->resource)
+		return;
+	res = pdrv->resource;
+	while (res) {
+		res_next = res->next_res;
+		kfree(res);
+		res = res_next;
+	}
+	pdrv->resource = NULL;
 }
 
 unsigned char get_vout_lcd_mode(unsigned char vout_index)
@@ -2133,6 +2172,8 @@ static int lcd_mode_probe(struct aml_lcd_drv_s *pdrv)
 
 static int lcd_config_remove(struct aml_lcd_drv_s *pdrv)
 {
+	lcd_config_load_remove(pdrv);
+	lcd_fr_lock_deinit(pdrv);
 	switch (pdrv->mode) {
 #ifdef CONFIG_AMLOGIC_LCD_TV
 	case LCD_MODE_TV:

@@ -1156,6 +1156,9 @@ void lcd_tv_vout_server_init(struct aml_lcd_drv_s *pdrv)
 void lcd_tv_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 {
 	vout_unregister_server(pdrv->vout_server[0]);
+	kfree(pdrv->vout_server[0]->name);
+	kfree(pdrv->vout_server[0]);
+	pdrv->vout_server[0] = NULL;
 }
 
 static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
@@ -1266,6 +1269,7 @@ int lcd_mode_tv_remove(struct aml_lcd_drv_s *pdrv)
 	default:
 		break;
 	}
+	lcd_vmode_remove_list(pdrv);
 
 	return 0;
 }

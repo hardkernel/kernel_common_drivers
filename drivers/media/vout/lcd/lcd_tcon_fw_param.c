@@ -457,3 +457,19 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("tcon fw prepare done\n");
 }
+
+void lcd_tcon_fw_finish(struct aml_lcd_drv_s *pdrv)
+{
+	if (!pdrv)
+		return;
+
+	lcd_tcon_fw.valid = 0;
+	lcd_tcon_fw.flag = 0;
+	lcd_tcon_fw.dev = NULL;
+	lcd_tcon_fw.drvdat = NULL;
+	lcd_tcon_fw_base_timing_update(pdrv);
+	lcd_tcon_fw.tcon_state = 0;
+	kfree(lcd_tcon_fw.config->axi_rmem);
+	lcd_tcon_fw.config->axi_rmem = NULL;
+	lcd_tcon_fw.config->axi_cnt = 0;
+}

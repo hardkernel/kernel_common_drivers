@@ -108,6 +108,19 @@ void lcd_fr_lock_init(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+void lcd_fr_lock_deinit(struct aml_lcd_drv_s *pdrv)
+{
+	struct aml_fr_lock_s *fr_lock = pdrv->fr_lock;
+
+	if (!pdrv->fr_lock_en || !fr_lock)
+		return;
+
+	kfree(fr_lock->ft_cnt.data);
+	kfree(fr_lock->ft_time.data);
+	kfree(pdrv->fr_lock);
+	pdrv->fr_lock = NULL;
+}
+
 static inline void lcd_fr_lock_auto_switch(struct aml_lcd_drv_s *pdrv)
 {
 	struct aml_fr_lock_s *fr_lock = pdrv->fr_lock;
