@@ -156,6 +156,61 @@ int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 	return 0;
 }
 
+int am_meson_set_connector_force_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	enum drm_connector_force old_force;
+	struct drm_meson_connector_info *connector_info = data;
+	int ret, tmp = 0;
+	char *name = connector_info->name;
+	char *status = connector_info->status;
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (!strcmp(connector->name, name)) {
+			tmp = 1;
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+	if (!tmp)
+		return -EFAULT;
+
+	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	if (ret)
+		return ret;
+
+	old_force = connector->force;
+
+	if (!strcmp(status, "detect"))
+		connector->force = 0;
+	else if (!strcmp(status, "on"))
+		connector->force = DRM_FORCE_ON;
+	else if (!strcmp(status, "on-digital"))
+		connector->force = DRM_FORCE_ON_DIGITAL;
+	else if (!strcmp(status, "off"))
+		connector->force = DRM_FORCE_OFF;
+	else
+		ret = -EINVAL;
+
+	if (old_force != connector->force || !connector->force) {
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force updated from %d to %d or reprobing\n",
+			      connector->base.id,
+			      connector->name,
+			      old_force, connector->force);
+
+		connector->funcs->fill_modes(connector,
+					     dev->mode_config.max_width,
+					     dev->mode_config.max_height);
+	}
+
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret ? ret : 0;
+}
+
 static const struct drm_ioctl_desc meson_ioctls[] = {
 	#ifdef CONFIG_AMLOGIC_DRM_USE_ION
 	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
@@ -175,7 +230,8 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MESON_CREAT_PRESENT_FENCE,
 			meson_crtc_creat_present_fence_ioctl, 0),
 	#endif
-	DRM_IOCTL_DEF_DRV(MESON_MUTE_PLANE, meson_plane_mute_ioctl, 0)
+	DRM_IOCTL_DEF_DRV(MESON_MUTE_PLANE, meson_plane_mute_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(MESON_SET_CONNECTOR_FORCE, am_meson_set_connector_force_ioctl, 0)
 };
 
 DEFINE_DRM_GEM_FOPS(meson_drm_fops);

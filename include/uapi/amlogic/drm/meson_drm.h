@@ -146,6 +146,11 @@ struct drm_meson_plane_mute {
 	__u32 plane_mute; /* 0:umute plane, 1:mute plane */
 };
 
+struct drm_meson_connector_info {
+	char name[32];
+	char status[32];
+};
+
 /*Memory related.*/
 #define DRM_IOCTL_MESON_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x00, struct drm_meson_gem_create)
@@ -165,6 +170,8 @@ struct drm_meson_plane_mute {
 		0x12, struct drm_meson_plane_mute)
 #define DRM_IOCTL_MESON_GET_VRR_RANGE DRM_IOWR(DRM_COMMAND_BASE + \
 		0x13, struct drm_vrr_mode_groups)/*hdmitx relatde*/
+#define DRM_IOCTL_MESON_SET_CONNECTOR_FORCE DRM_IOWR(DRM_COMMAND_BASE + \
+		0x30, struct drm_meson_connector_info)
 
 /*present fence*/
 #define DRM_IOCTL_MESON_CREAT_PRESENT_FENCE	DRM_IOWR(DRM_COMMAND_BASE + \
