@@ -80,15 +80,15 @@ static int has_unused_pool(void)
 	return -1;
 }
 
-static ssize_t log_level_show(struct class *cla,
-			      struct class_attribute *attr,
+static ssize_t log_level_show(const struct class *cla,
+			      const struct class_attribute *attr,
 			      char *buf)
 {
 	return snprintf(buf, 40, "%d\n", dummy_video_log_level);
 }
 
-static ssize_t log_level_store(struct class *cla,
-			       struct class_attribute *attr,
+static ssize_t log_level_store(const struct class *cla,
+			       const struct class_attribute *attr,
 			       const char *buf, size_t count)
 {
 	int res = 0;
@@ -761,11 +761,11 @@ static int video_provider_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int video_provider_remove(struct platform_device *pdev)
+static void video_provider_remove(struct platform_device *pdev)
 {
 	vp_info("%s\n", __func__);
 	if (!video_provider_device.cla)
-		return 0;
+		return;
 
 	if (video_provider_device.dev)
 		device_destroy(video_provider_device.cla,
@@ -773,8 +773,6 @@ static int video_provider_remove(struct platform_device *pdev)
 	class_unregister(video_provider_device.cla);
 	unregister_chrdev(video_provider_device.major,
 				video_provider_device.name);
-
-	return 0;
 }
 
 static const struct of_device_id amlogic_video_provider_dt_match[] = {
