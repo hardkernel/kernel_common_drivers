@@ -575,6 +575,14 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 
 	vf->vc_private = (struct video_composer_private *)di_buf->caller_mng.src_file;
 
+	dp_print(dev->index, PRINT_OTHER,
+		"%s: frame_index=%d, magic_code=0x%x, ud_addr=%p, ud_len=%d.\n",
+		__func__,
+		vf->frame_index,
+		vf->vf_ud_param.magic_code,
+		vf->vf_ud_param.ud_param.pbuf_addr,
+		vf->vf_ud_param.ud_param.buf_len);
+
 	if (vf->type & VIDTYPE_FORCE_SIGN_IP_JOINT) {
 		vf->type &= ~VIDTYPE_FORCE_SIGN_IP_JOINT;
 		dp_print(dev->index, PRINT_OTHER, "rm IP_JOINT type\n");
@@ -937,6 +945,14 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 		buf->flag,
 		dev->fill_done_count,
 		total_fill_done_count);
+
+	dp_print(dev->index, PRINT_OTHER,
+		"%s: frame_index=%d, magic_code=0x%x, ud_addr=%p, ud_len=%d.\n",
+		__func__,
+		buf->vf->frame_index,
+		buf->vf->vf_ud_param.magic_code,
+		buf->vf->vf_ud_param.ud_param.pbuf_addr,
+		buf->vf->vf_ud_param.ud_param.buf_len);
 
 	if (buf->caller_mng.dropped) {
 		dp_print(dev->index, PRINT_OTHER, "%s:dropped\n", __func__);
@@ -1534,6 +1550,14 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		"frame_index=%d,type=0x%x,flag=0x%x,compWidth=%d,compHeight=%d,width=%d,height=%d.\n",
 		vf->frame_index, vf->type, vf->flag, vf->compWidth, vf->compHeight, vf->width,
 		vf->height);
+
+	dp_print(dev->index, PRINT_OTHER,
+		"%s: frame_index=%d, magic_code=0x%x, ud_addr=%p, ud_len=%d.\n",
+		__func__,
+		vf->frame_index,
+		vf->vf_ud_param.magic_code,
+		vf->vf_ud_param.ud_param.pbuf_addr,
+		vf->vf_ud_param.ud_param.buf_len);
 
 	/*1080p->1080i; 4k->1080i*/
 	max_width_new = vf->compWidth >= vf->width ? vf->compWidth : vf->width;

@@ -5062,6 +5062,14 @@ static void set_frames_info(struct composer_dev *dev,
 				 vf->index_disp,
 				 vf->pts_us64,
 				 vf);
+
+			vc_print(dev->index, PRINT_FENCE,
+				"%s: frame_index=%d, magic_code=0x%x, ud_addr=%p, ud_len=%d.\n",
+				__func__,
+				vf->frame_index,
+				vf->vf_ud_param.magic_code,
+				vf->vf_ud_param.ud_param.pbuf_addr,
+				vf->vf_ud_param.ud_param.buf_len);
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
 			ATRACE_COUNTER("video_composer_sf_frame_index", vf->frame_index);
 			ATRACE_COUNTER("video_composer_sf_frame_index", 0);
