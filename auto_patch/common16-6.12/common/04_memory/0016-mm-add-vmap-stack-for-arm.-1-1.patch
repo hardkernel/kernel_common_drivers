@@ -1,0 +1,533 @@
+From 607187abd332a01220b8f4c893363adc70569d64 Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Thu, 2 Jan 2025 15:37:12 +0800
+Subject: [PATCH] mm: add vmap stack for arm. [1/1]
+
+Change-Id: I88fe4fee188b86d47567aea8ac69d852c7c16538
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ arch/arm/Kconfig                   |  4 +-
+ arch/arm/include/asm/memory.h      | 13 +++++
+ arch/arm/include/asm/thread_info.h | 11 ++++
+ arch/arm/kernel/asm-offsets.c      |  9 +++
+ arch/arm/kernel/entry-armv.S       | 94 ++++++++++++++++++++++++++++++
+ arch/arm/kernel/entry-header.S     | 13 +++++
+ arch/arm/kernel/ftrace.c           |  6 ++
+ arch/arm/kernel/setup.c            |  6 ++
+ arch/arm/kernel/suspend.c          |  8 +++
+ arch/arm/kernel/unwind.c           | 53 +++++++++++++++++
+ include/linux/sched/task_stack.h   |  8 +--
+ 11 files changed, 219 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 2c5a06d7be74..981736bbe641 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -151,7 +151,7 @@ config ARM
+ 	select SYS_SUPPORTS_APM_EMULATION
+ 	select THREAD_INFO_IN_TASK
+ 	select TIMER_OF if OF
+-	select HAVE_ARCH_VMAP_STACK if MMU && ARM_HAS_GROUP_RELOCS
++	select HAVE_ARCH_VMAP_STACK if MMU && ARM_HAS_GROUP_RELOCS && !AMLOGIC_VMAP
+ 	select TRACE_IRQFLAGS_SUPPORT if !CPU_V7M
+ 	select USE_OF if !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
+ 	# Above selects are sorted alphabetically; please add new ones
+@@ -1382,7 +1382,7 @@ config CC_HAVE_STACKPROTECTOR_TLS
+ 
+ config STACKPROTECTOR_PER_TASK
+ 	bool "Use a unique stack canary value for each task"
+-	depends on STACKPROTECTOR && CURRENT_POINTER_IN_TPIDRURO && !XIP_DEFLATED_DATA
++	depends on STACKPROTECTOR && CURRENT_POINTER_IN_TPIDRURO && !XIP_DEFLATED_DATA && !AMLOGIC_VMAP
+ 	depends on GCC_PLUGINS || CC_HAVE_STACKPROTECTOR_TLS
+ 	select GCC_PLUGIN_ARM_SSP_PER_TASK if !CC_HAVE_STACKPROTECTOR_TLS
+ 	default y
+diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
+index ef2aa79ece5a..c29ae31d315a 100644
+--- a/arch/arm/include/asm/memory.h
++++ b/arch/arm/include/asm/memory.h
+@@ -23,6 +23,11 @@
+ #ifdef CONFIG_NEED_MACH_MEMORY_H
+ #include <mach/memory.h>
+ #endif
++
++#ifdef CONFIG_AMLOGIC_VMAP
++#define SIZE_VSTACK             (48 * 1024 * 1024)
++#endif
++
+ #include <asm/kasan_def.h>
+ 
+ /*
+@@ -41,7 +46,11 @@
+  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
+  */
+ #ifndef CONFIG_KASAN
++#ifdef CONFIG_AMLOGIC_VMAP
++#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M) - SIZE_VSTACK)
++#else
+ #define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M))
++#endif
+ #else
+ #define TASK_SIZE		(KASAN_SHADOW_START)
+ #endif
+@@ -56,12 +65,16 @@
+  * The module space lives between the addresses given by TASK_SIZE
+  * and PAGE_OFFSET - it must be within 32MB of the kernel text.
+  */
++#if defined(CONFIG_AMLOGIC_VMAP)
++#define MODULES_VADDR		(PAGE_OFFSET - SZ_64M)
++#else
+ #ifndef CONFIG_THUMB2_KERNEL
+ #define MODULES_VADDR		(PAGE_OFFSET - SZ_16M)
+ #else
+ /* smaller range for Thumb-2 symbols relocation (2^24)*/
+ #define MODULES_VADDR		(PAGE_OFFSET - SZ_8M)
+ #endif
++#endif /* CONFIG_AMLOGIC_VMAP */
+ 
+ #if TASK_SIZE > MODULES_VADDR
+ #error Top of user space clashes with start of module space
+diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
+index 943ffcf069d2..58a359c11f39 100644
+--- a/arch/arm/include/asm/thread_info.h
++++ b/arch/arm/include/asm/thread_info.h
+@@ -23,7 +23,18 @@
+ #define THREAD_SIZE_ORDER	1
+ #endif
+ #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
++
++#ifdef CONFIG_AMLOGIC_VMAP
++/* must align up to 8 bytes */
++//#define THREAD_INFO_SIZE        ((sizeof(struct thread_info) + 7) & 0xfffffff8)
++#define THREAD_INFO_SIZE        0
++#define THREAD_INFO_OFFSET      (THREAD_SIZE - THREAD_INFO_SIZE)
++#define THREAD_START_SP         (THREAD_SIZE - 8 - THREAD_INFO_SIZE)
++#define VMAP_RESERVE_SIZE       (8 + 4 * 4)
++#define VMAP_BACK_SP            12
++#else
+ #define THREAD_START_SP		(THREAD_SIZE - 8)
++#endif
+ 
+ #ifdef CONFIG_VMAP_STACK
+ #define THREAD_ALIGN		(2 * THREAD_SIZE)
+diff --git a/arch/arm/kernel/asm-offsets.c b/arch/arm/kernel/asm-offsets.c
+index 4853875740d0..20cc8958bd1b 100644
+--- a/arch/arm/kernel/asm-offsets.c
++++ b/arch/arm/kernel/asm-offsets.c
+@@ -172,5 +172,14 @@ int main(void)
+   DEFINE(KEXEC_INDIR_PAGE,	offsetof(struct kexec_relocate_data, kexec_indirection_page));
+   DEFINE(KEXEC_MACH_TYPE,	offsetof(struct kexec_relocate_data, kexec_mach_type));
+   DEFINE(KEXEC_R2,		offsetof(struct kexec_relocate_data, kexec_r2));
++
++#ifdef CONFIG_AMLOGIC_VMAP
++	DEFINE(TI_THREAD_START_SP,	THREAD_START_SP);
++	DEFINE(TI_VMAP_BACK_SP,		VMAP_BACK_SP);
++	DEFINE(TI_VMAP_RESERVE_LEN,	VMAP_RESERVE_SIZE);
++	DEFINE(TI_THREAD_SIZE,		THREAD_SIZE);
++	DEFINE(TI_THREAD_INFO_SIZE,	0);
++#endif
++
+   return 0; 
+ }
+diff --git a/arch/arm/kernel/entry-armv.S b/arch/arm/kernel/entry-armv.S
+index ef6a657c8d13..3dd3e4bd006c 100644
+--- a/arch/arm/kernel/entry-armv.S
++++ b/arch/arm/kernel/entry-armv.S
+@@ -158,9 +158,23 @@ ENDPROC(__und_invalid)
+ #define SPFIX(code...)
+ #endif
+ 
++#ifdef CONFIG_AMLOGIC_VMAP
++	.macro	svc_entry, stack_hole=0, trace=1, uaccess=1, overflow_check=1, vmap=0
++#else
+ 	.macro	svc_entry, stack_hole=0, trace=1, uaccess=1, overflow_check=1
++#endif
+  UNWIND(.fnstart		)
++#ifdef CONFIG_AMLOGIC_VMAP
++	.if \vmap
++	/* keep using stack of abt mode */
++	str     sp, [r0, #TI_VMAP_BACK_SP]
++	sub     sp, r0, #(SVC_REGS_SIZE + \stack_hole)
++	.else
++	sub     sp, sp, #(SVC_REGS_SIZE + \stack_hole)
++	.endif
++#else /* !CONFIG_AMLOGIC_VMAP */
+ 	sub	sp, sp, #(SVC_REGS_SIZE + \stack_hole)
++#endif /* CONFIG_AMLOGIC_VMAP */
+  THUMB(	add	sp, r1		)	@ get SP in a GPR without
+  THUMB(	sub	r1, sp, r1	)	@ using a temp register
+ 
+@@ -169,6 +183,8 @@ ENDPROC(__und_invalid)
+ 	do_overflow_check (SVC_REGS_SIZE + \stack_hole)
+ 	.endif
+ 
++#ifdef CONFIG_AMLOGIC_VMAP
++	.if !\vmap
+ #ifdef CONFIG_THUMB2_KERNEL
+ 	tst	r1, #4			@ test stack pointer alignment
+ 	sub	r1, sp, r1		@ restore original R1
+@@ -177,6 +193,11 @@ ENDPROC(__und_invalid)
+  SPFIX(	tst	sp, #4		)
+ #endif
+  SPFIX(	subne	sp, sp, #4	)
++	.endif
++#else
++ SPFIX(	tst	sp, #4		)
++ SPFIX(	subne	sp, sp, #4	)
++#endif /* CONFIG_AMLOGIC_VMAP */
+ 
+  ARM(	stmib	sp, {r1 - r12}	)
+  THUMB(	stmia	sp, {r0 - r12}	)	@ No STMIB in Thumb-2
+@@ -184,8 +205,17 @@ ENDPROC(__und_invalid)
+ 	ldmia	r0, {r3 - r5}
+ 	add	r7, sp, #S_SP		@ here for interlock avoidance
+ 	mov	r6, #-1			@  ""  ""      ""       ""
++#ifdef CONFIG_AMLOGIC_VMAP
++	.if \vmap
++	ldr     r2, [sp, #(TI_VMAP_BACK_SP + SVC_REGS_SIZE)]
++	.else
+ 	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole)
+  SPFIX(	addne	r2, r2, #4	)
++	.endif
++#else
++	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole)
++ SPFIX(	addne	r2, r2, #4	)
++#endif
+ 	str	r3, [sp]		@ save the "real" r0 copied
+ 					@ from the exception stack
+ 
+@@ -202,6 +232,19 @@ ENDPROC(__und_invalid)
+ 	@
+ 	stmia	r7, {r2 - r6}
+ 
++#ifdef CONFIG_AMLOGIC_VMAP
++	.if \vmap
++	/*
++	 * get fault task thread info
++	 */
++	ldr	r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
++	/* sp may not access able when switch task */
++	mov	r1, r0
++	bl	pmd_check
++	get_thread_info tsk
++	.endif
++#endif
++
+ 	get_thread_info tsk
+ 	uaccess_entry tsk, r0, r1, r2, \uaccess
+ 
+@@ -214,7 +257,34 @@ ENDPROC(__und_invalid)
+ 
+ 	.align	5
+ __dabt_svc:
++#ifdef CONFIG_AMLOGIC_VMAP
++	svc_entry uaccess=0, vmap=1
++	mrc     p15, 0, r1, c5, c0, 0           @ get FSR
++	mrc     p15, 0, r0, c6, c0, 0           @ get FAR
++	mov     r2, sp
++	uaccess_disable ip                      @ disable user space access
++	bl      handle_vmap_fault
++	cmp     r0, #0
++	bne     .L__dabt_svc_next
++	/* handled by vmap fault handler */
++	svc_exit r5, vmap=1			@ return from exception
++.L__dabt_svc_next:
++	/* re-build context for normal abort handler */
++	ldr	r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
++	sub	r0, #SVC_REGS_SIZE
++	tst	r0, #4
++	subne	r0, r0, #4
++	mov	r1, sp
++	mov	r2, #SVC_REGS_SIZE
++#ifdef CONFIG_KASAN
++	bl	__memcpy		/* copy back sp	*/
++#else
++	bl	memcpy			/* copy back sp	*/
++#endif
++	mov	sp, r0
++#else
+ 	svc_entry uaccess=0
++#endif
+ 	mov	r2, sp
+ 	dabt_helper
+  THUMB(	ldr	r5, [sp, #S_PSR]	)	@ potentially updated CPSR
+@@ -291,10 +361,30 @@ ENDPROC(__und_svc)
+ 
+ 	.align	5
+ __pabt_svc:
++#ifdef CONFIG_AMLOGIC_VMAP
++	svc_entry vmap=1	/* keep using abt stack */
++	/* re-build context for normal abort handler */
++	ldr	r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
++	sub	r0, #SVC_REGS_SIZE
++	tst	r0, #4
++	subne	r0, r0, #4
++	mov	r1, sp
++	mov	r2, #SVC_REGS_SIZE
++#ifdef CONFIG_KASAN
++	bl	__memcpy		/* copy back sp	*/
++#else
++	bl	memcpy			/* copy back sp	*/
++#endif
++	mov	sp, r0
++	mov	r2, sp				@ regs
++	pabt_helper
++	svc_exit r5				@ return from exception
++#else
+ 	svc_entry
+ 	mov	r2, sp				@ regs
+ 	pabt_helper
+ 	svc_exit r5				@ return from exception
++#endif
+  UNWIND(.fnend		)
+ ENDPROC(__pabt_svc)
+ 
+@@ -525,6 +615,7 @@ ENTRY(__switch_to)
+ 	ldr	r6, [r2, #TI_CPU_DOMAIN]
+ #endif
+ 	switch_tls r1, r4, r5, r3, r7
++#ifndef CONFIG_AMLOGIC_STACKPROTECTOR
+ #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
+     !defined(CONFIG_STACKPROTECTOR_PER_TASK)
+ 	ldr	r8, =__stack_chk_guard
+@@ -535,6 +626,7 @@ ENTRY(__switch_to)
+ 	ldr	r9, [r2, #TSK_STACK_CANARY & IMM12_MASK]
+ 	.endif
+ #endif
++#endif /* CONFIG_AMLOGIC_STACKPROTECTOR */
+ 	mov	r7, r2				@ Preserve 'next'
+ #ifdef CONFIG_CPU_USE_DOMAINS
+ 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
+@@ -544,10 +636,12 @@ ENTRY(__switch_to)
+ 	ldr	r0, =thread_notify_head
+ 	mov	r1, #THREAD_NOTIFY_SWITCH
+ 	bl	atomic_notifier_call_chain
++#ifndef CONFIG_AMLOGIC_STACKPROTECTOR
+ #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
+     !defined(CONFIG_STACKPROTECTOR_PER_TASK)
+ 	str	r9, [r8]
+ #endif
++#endif /* CONFIG_AMLOGIC_STACKPROTECTOR */
+ 	mov	r0, r5
+ #if !defined(CONFIG_THUMB2_KERNEL) && !defined(CONFIG_VMAP_STACK)
+ 	set_current r7, r8
+diff --git a/arch/arm/kernel/entry-header.S b/arch/arm/kernel/entry-header.S
+index 99411fa91350..202520376b24 100644
+--- a/arch/arm/kernel/entry-header.S
++++ b/arch/arm/kernel/entry-header.S
+@@ -199,7 +199,11 @@
+ 	.endm
+ 
+ 
++#ifdef CONFIG_AMLOGIC_VMAP
++	.macro	svc_exit, rpsr, irq = 0, vmap = 0
++#else
+ 	.macro	svc_exit, rpsr, irq = 0
++#endif /* CONFIG_AMLOGIC_VMAP */
+ 	.if	\irq != 0
+ 	@ IRQs already off
+ #ifdef CONFIG_TRACE_IRQFLAGS
+@@ -224,7 +228,16 @@
+ 	msr	spsr_cxsf, \rpsr
+ #if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_32v6K)
+ 	@ We must avoid clrex due to Cortex-A15 erratum #830321
++#ifdef CONFIG_AMLOGIC_VMAP
++	.if \vmap
++	ldr     r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
++	sub     r0, r0, #4                      @ uninhabited address
++	.else
++	sub     r0, sp, #4                      @ uninhabited address
++	.endif
++#else
+ 	sub	r0, sp, #4			@ uninhabited address
++#endif /* CONFIG_AMLOGIC_VMAP */
+ 	strex	r1, r2, [r0]			@ clear the exclusive monitor
+ #endif
+ 	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
+diff --git a/arch/arm/kernel/ftrace.c b/arch/arm/kernel/ftrace.c
+index e61591f33a6c..4968cf175ff5 100644
+--- a/arch/arm/kernel/ftrace.c
++++ b/arch/arm/kernel/ftrace.c
+@@ -231,6 +231,12 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
+ 	unsigned long return_hooker = (unsigned long) &return_to_handler;
+ 	unsigned long old;
+ 
++#ifdef CONFIG_AMLOGIC_VMAP
++	/* some special case current may not copied to stack end */
++	if (unlikely(!current))
++		return;
++#endif
++
+ 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+ err_out:
+ 		return;
+diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+index e6a857bf0ce6..010ef117d291 100644
+--- a/arch/arm/kernel/setup.c
++++ b/arch/arm/kernel/setup.c
+@@ -59,6 +59,9 @@
+ #include <asm/unwind.h>
+ #include <asm/memblock.h>
+ #include <asm/virt.h>
++#ifdef CONFIG_AMLOGIC_VMAP
++#include <linux/amlogic/vmap_stack.h>
++#endif
+ #include <asm/kasan.h>
+ 
+ #include "atags.h"
+@@ -588,6 +591,9 @@ void notrace cpu_init(void)
+ 	      "I" (offsetof(struct stack, fiq[0])),
+ 	      PLC_l (PSR_F_BIT | PSR_I_BIT | SVC_MODE)
+ 	    : "r14");
++#ifdef CONFIG_AMLOGIC_VMAP
++	__setup_vmap_stack(cpu);
++#endif
+ #endif
+ }
+ 
+diff --git a/arch/arm/kernel/suspend.c b/arch/arm/kernel/suspend.c
+index 58a6441b58c4..fdbb28c92cf2 100644
+--- a/arch/arm/kernel/suspend.c
++++ b/arch/arm/kernel/suspend.c
+@@ -14,6 +14,10 @@
+ #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
+ 
++#ifdef CONFIG_AMLOGIC_VMAP
++#include <linux/amlogic/vmap_stack.h>
++#endif
++
+ extern int __cpu_suspend(unsigned long, int (*)(unsigned long), u32 cpuid);
+ extern void cpu_resume_mmu(void);
+ 
+@@ -84,7 +88,11 @@ void __cpu_suspend_save(u32 *ptr, u32 ptrsz, u32 sp, u32 *save_ptr)
+ {
+ 	u32 *ctx = ptr;
+ 
++#ifdef CONFIG_AMLOGIC_VMAP
++	*save_ptr = save_suspend_context(ptr);
++#else
+ 	*save_ptr = virt_to_phys(ptr);
++#endif
+ 
+ 	/* This must correspond to the LDM in cpu_resume() assembly */
+ 	*ptr++ = virt_to_phys(idmap_pgd);
+diff --git a/arch/arm/kernel/unwind.c b/arch/arm/kernel/unwind.c
+index a879727077b3..42321e3e228a 100644
+--- a/arch/arm/kernel/unwind.c
++++ b/arch/arm/kernel/unwind.c
+@@ -29,6 +29,10 @@
+ #include <linux/spinlock.h>
+ #include <linux/list.h>
+ #include <linux/module.h>
++#ifdef CONFIG_AMLOGIC_VMAP
++#include <linux/amlogic/vmap_stack.h>
++#include <asm/irq.h>
++#endif
+ 
+ #include <asm/stacktrace.h>
+ #include <asm/traps.h>
+@@ -529,6 +533,20 @@ int unwind_frame(struct stackframe *frame)
+ 	return URC_OK;
+ }
+ 
++#ifdef CONFIG_AMLOGIC_VMAP
++static void dump_backtrace_entry_fp(unsigned long where, unsigned long fp,
++				    unsigned long sp)
++{
++	signed long fp_size = 0;
++
++	fp_size = fp - sp + 4;
++	if (fp_size < 0 || !fp)
++		fp_size = 0;
++	pr_info("[%08lx+%4ld][<%08lx>] %pS\n",
++		fp, fp_size, where, (void *)where);
++}
++#endif
++
+ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+ 		      const char *loglvl)
+ {
+@@ -573,9 +591,44 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+ 		unsigned long where = frame.pc;
+ 
+ 		urc = unwind_frame(&frame);
++	#ifdef CONFIG_AMLOGIC_VMAP
++		if (urc < 0) {
++			int keep = 0;
++			int cpu;
++			unsigned long addr;
++			struct pt_regs *pt_regs;
++
++			cpu = raw_smp_processor_id();
++			/* continue search for irq stack */
++			if (on_vmap_irq_stack(frame.sp, cpu)) {
++				unsigned long sp_irq;
++
++				keep = 1;
++				sp_irq   = (unsigned long)irq_stack[cpu];
++				//addr     = *((unsigned long *)(sp_irq +
++				//	      THREAD_INFO_OFFSET - 8));
++				addr     = *((unsigned long *)(sp_irq - 8));
++				pt_regs  = (struct pt_regs *)addr;
++				frame.fp = pt_regs->ARM_fp;
++				frame.sp = pt_regs->ARM_sp;
++				frame.lr = pt_regs->ARM_lr;
++				frame.pc = pt_regs->ARM_pc;
++			}
++			if (!keep)
++				break;
++		}
++		where = frame.pc;
++		/*
++		 * The last "where" may be an invalid one,
++		 * rechecking it
++		 */
++		if (kernel_text_address(where))
++			dump_backtrace_entry_fp(where, frame.fp, frame.sp);
++	#else
+ 		if (urc < 0)
+ 			break;
+ 		dump_backtrace_entry(where, frame.pc, frame.sp - 4, loglvl);
++	#endif
+ 	}
+ }
+ 
+diff --git a/include/linux/sched/task_stack.h b/include/linux/sched/task_stack.h
+index 31898c056273..d0a85098ae7f 100644
+--- a/include/linux/sched/task_stack.h
++++ b/include/linux/sched/task_stack.h
+@@ -27,15 +27,11 @@ static __always_inline void *task_stack_page(const struct task_struct *task)
+ 
+ static __always_inline unsigned long *end_of_stack(const struct task_struct *task)
+ {
+-#ifdef CONFIG_AMLOGIC_VMAP
+-	return task->stack;
+-#else /* CONFIG_AMLOGIC_VMAP */
+ #ifdef CONFIG_STACK_GROWSUP
+ 	return (unsigned long *)((unsigned long)task->stack + THREAD_SIZE) - 1;
+ #else
+ 	return task->stack;
+ #endif
+-#endif /* CONFIG_AMLOGIC_VMAP */
+ }
+ 
+ #elif !defined(__HAVE_THREAD_FUNCTIONS)
+@@ -59,11 +55,15 @@ static inline void setup_thread_stack(struct task_struct *p, struct task_struct
+  */
+ static inline unsigned long *end_of_stack(struct task_struct *p)
+ {
++#ifdef CONFIG_AMLOGIC_VMAP
++	return task->stack;
++#else /* CONFIG_AMLOGIC_VMAP */
+ #ifdef CONFIG_STACK_GROWSUP
+ 	return (unsigned long *)((unsigned long)task_thread_info(p) + THREAD_SIZE) - 1;
+ #else
+ 	return (unsigned long *)(task_thread_info(p) + 1);
+ #endif
++#endif /* CONFIG_AMLOGIC_VMAP */
+ }
+ 
+ #endif
+-- 
+2.42.0
+

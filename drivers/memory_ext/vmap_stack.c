@@ -133,19 +133,12 @@ void notrace __setup_vmap_stack(unsigned long cpu)
 		stack = (void *)__get_free_pages(VMAP_MASK, THREAD_SIZE_ORDER);
 		WARN_ON(!stack);
 		vmap_stack[cpu] = stack;
-		irq_stack[cpu] = (void *)__get_free_pages(VMAP_MASK,
-							  THREAD_SIZE_ORDER);
-		WARN_ON(!irq_stack[cpu]);
 	}
 
 	pr_debug("cpu %ld, vmap stack:[%lx-%lx]\n",
 		cpu, (unsigned long)stack,
 		(unsigned long)stack + THREAD_START_SP);
-	pr_debug("cpu %ld, irq  stack:[%lx-%lx]\n",
-		cpu, (unsigned long)irq_stack[cpu],
-		(unsigned long)irq_stack[cpu] + THREAD_START_SP);
 	stack += THREAD_SIZE;
-	stack -= sizeof(struct thread_info);
 	/*
 	 * reserve 24 byte for r0, lr, spsr, sp_svc and 8 bytes gap
 	 */
@@ -465,7 +458,7 @@ static bool aml_dump_backtrace_entry(void *arg, unsigned long where)
 	return true;
 }
 #else
-static void dump_backtrace_entry(unsigned long ip, unsigned long fp,
+static void aml_dump_backtrace_entry(unsigned long ip, unsigned long fp,
 				 unsigned long sp)
 {
 	unsigned long fp_size = 0;
@@ -536,7 +529,7 @@ static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 		ret = unwind_frame(current, &frame);
 	#endif
 	#elif defined(CONFIG_ARM)
-		dump_backtrace_entry(frame.pc, frame.fp, frame.sp);
+		aml_dump_backtrace_entry(frame.pc, frame.fp, frame.sp);
 		ret = unwind_frame(&frame);
 	#endif
 		if (ret < 0)
