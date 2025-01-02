@@ -9,6 +9,7 @@
 #include <linux/cpu.h>
 #include <linux/crypto.h>
 #include <linux/vmalloc.h>
+#include <linux/amlogic/amfc.h>
 
 #include "zcomp.h"
 
@@ -63,6 +64,12 @@ static const struct zcomp_ops *lookup_backend_ops(const char *comp)
 	int i = 0;
 
 	while (backends[i]) {
+		/* skip amfc if not supported */
+		if (sysfs_streq(backends[i]->name, "amfc") && !amfc_supported()) {
+			i++;
+			pr_err("%s, set amfc but amfc not supported\n", __func__);
+			continue;
+		}
 		if (sysfs_streq(comp, backends[i]->name))
 			break;
 		i++;

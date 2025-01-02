@@ -12,6 +12,7 @@
 #include <linux/exportfs.h>
 #include <linux/backing-dev.h>
 #include <linux/async.h>
+#include <linux/amlogic/amfc.h>
 #include <linux/amlogic/gki_module.h>
 #include "xattr.h"
 
@@ -870,6 +871,8 @@ static int __init erofs_module_init(void)
 	int err;
 	struct file_system_type *old_erofs = NULL;
 
+	if (!amfc_supported())
+		return -ENODEV;
 	old_erofs = get_fs_type("erofs");
 	if (old_erofs)
 		unregister_filesystem(old_erofs);
