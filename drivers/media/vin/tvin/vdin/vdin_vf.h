@@ -44,12 +44,12 @@
 
 #define VFRAME_DISP_MAX_NUM	25
 #define VDIN_CANVAS_MIN_CNT	3
-#define VDIN_CANVAS_MAX_CNT	12
+#define VDIN_CANVAS_MAX_CNT	16
 #define VDIN_CANVAS_INTERLACED_MIN_CNT	8
 /* total canvas num in chips */
 #define VDIN_TOTAL_CANVAS_NUM	20
 /* real canvas num for each vdin */
-#define VDIN0_CANVAS_MAX_CNT	12
+#define VDIN0_CANVAS_MAX_CNT	16
 #define VDIN1_CANVAS_MAX_CNT	8
 #define VDIN_VF_POOL_FREEZE              0x00000001
 #define ISR_LOG_EN
