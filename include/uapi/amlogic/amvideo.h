@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+#include <linux/types.h>
 
 #ifndef __AMVIDEO_H__
 #define __AMVIDEO_H__
@@ -36,20 +37,20 @@
 #define AMSTREAM_IOC_SET_VIDEOPIP_CROP            _IOW((_A_M), 0x32, int)
 #define AMSTREAM_IOC_GET_PIP_SCREEN_MODE          _IOR((_A_M), 0x33, int)
 #define AMSTREAM_IOC_SET_PIP_SCREEN_MODE          _IOW((_A_M), 0x34, int)
-#define AMSTREAM_IOC_GET_PIP_ZORDER               _IOW((_A_M), 0x35, u32)
-#define AMSTREAM_IOC_SET_PIP_ZORDER               _IOW((_A_M), 0x36, u32)
+#define AMSTREAM_IOC_GET_PIP_ZORDER               _IOW((_A_M), 0x35, __u32)
+#define AMSTREAM_IOC_SET_PIP_ZORDER               _IOW((_A_M), 0x36, __u32)
 
-#define AMSTREAM_IOC_GET_ZORDER                   _IOW((_A_M), 0x37, u32)
-#define AMSTREAM_IOC_SET_ZORDER                   _IOW((_A_M), 0x38, u32)
+#define AMSTREAM_IOC_GET_ZORDER                   _IOW((_A_M), 0x37, __u32)
+#define AMSTREAM_IOC_SET_ZORDER                   _IOW((_A_M), 0x38, __u32)
 
-#define AMSTREAM_IOC_QUERY_LAYER                  _IOW((_A_M), 0x39, u32)
-#define AMSTREAM_IOC_ALLOC_LAYER                  _IOW((_A_M), 0x3a, u32)
-#define AMSTREAM_IOC_FREE_LAYER                   _IOW((_A_M), 0x3b, u32)
+#define AMSTREAM_IOC_QUERY_LAYER                  _IOW((_A_M), 0x39, __u32)
+#define AMSTREAM_IOC_ALLOC_LAYER                  _IOW((_A_M), 0x3a, __u32)
+#define AMSTREAM_IOC_FREE_LAYER                   _IOW((_A_M), 0x3b, __u32)
 
 /* VPP.3D IOCTL command list */
-#define  AMSTREAM_IOC_SET_3D_TYPE                 _IOW((_A_M), 0x3c, u32)
-#define  AMSTREAM_IOC_GET_3D_TYPE                 _IOW((_A_M), 0x3d, u32)
-#define  AMSTREAM_IOC_GET_SOURCE_VIDEO_3D_TYPE    _IOW((_A_M), 0x3e, u32)
+#define  AMSTREAM_IOC_SET_3D_TYPE                 _IOW((_A_M), 0x3c, __u32)
+#define  AMSTREAM_IOC_GET_3D_TYPE                 _IOW((_A_M), 0x3d, __u32)
+#define  AMSTREAM_IOC_GET_SOURCE_VIDEO_3D_TYPE    _IOW((_A_M), 0x3e, __u32)
 
 #define AMSTREAM_IOC_SYNCENABLE                   _IOW((_A_M), 0x43, int)
 #define AMSTREAM_IOC_GET_SYNC_ADISCON             _IOR((_A_M), 0x44, int)
@@ -66,6 +67,9 @@
 
 #define AMSTREAM_IOC_GET_BLACKOUT_POLICY          _IOR((_A_M), 0x52, int)
 #define AMSTREAM_IOC_SET_BLACKOUT_POLICY          _IOW((_A_M), 0x53, int)
+#define AMSTREAM_IOC_GET_NEW_FRAME_COUNT          _IOW((_A_M), 0x54, __u32)
+#define AMSTREAM_IOC_SET_VIDEO_MUTE               _IOW((_A_M), 0x55, bool)
+#define AMSTREAM_IOC_GET_VIDEO_MUTE               _IOW((_A_M), 0x56, bool)
 
 #define AMSTREAM_IOC_GET_SCREEN_MODE              _IOR((_A_M), 0x58, int)
 #define AMSTREAM_IOC_SET_SCREEN_MODE              _IOW((_A_M), 0x59, int)
@@ -90,8 +94,8 @@
 #define AMSTREAM_IOC_SET_VIDEOPIP2_CROP            _IOW((_A_M), 0x75, int)
 #define AMSTREAM_IOC_GET_PIP2_SCREEN_MODE          _IOR((_A_M), 0x76, int)
 #define AMSTREAM_IOC_SET_PIP2_SCREEN_MODE          _IOW((_A_M), 0x77, int)
-#define AMSTREAM_IOC_GET_PIP2_ZORDER               _IOW((_A_M), 0x78, u32)
-#define AMSTREAM_IOC_SET_PIP2_ZORDER               _IOW((_A_M), 0x79, u32)
+#define AMSTREAM_IOC_GET_PIP2_ZORDER               _IOW((_A_M), 0x78, __u32)
+#define AMSTREAM_IOC_SET_PIP2_ZORDER               _IOW((_A_M), 0x79, __u32)
 #define AMSTREAM_IOC_CLEAR_VIDEOPIP2	          _IOW((_A_M), 0x7a, int)
 #define AMSTREAM_IOC_CLEAR_PIP2_VBUF               _IO((_A_M), 0x7b)
 
@@ -110,14 +114,14 @@
 #define AMSTREAM_IOC_SET_OMX_VPTS                 _IOW((_A_M), 0xaf, int)
 #define AMSTREAM_IOC_GET_OMX_VPTS                 _IOW((_A_M), 0xb0, int)
 #define AMSTREAM_IOC_GET_OMX_VERSION              _IOW((_A_M), 0xb1, int)
-#define AMSTREAM_IOC_GET_OMX_INFO                 _IOR((_A_M), 0xb2, u32)
+#define AMSTREAM_IOC_GET_OMX_INFO                 _IOR((_A_M), 0xb2, __u32)
 #define AMSTREAM_IOC_SET_HDR_INFO                 _IOW((_A_M), 0xb3, int)
 
 #define AMSTREAM_IOC_SET_TUNNEL_MODE _IOR(_A_M, 0xbd, unsigned int)
-#define AMSTREAM_IOC_GET_FIRST_FRAME_TOGGLED      _IOR(_A_M, 0xbe, u32)
+#define AMSTREAM_IOC_GET_FIRST_FRAME_TOGGLED      _IOR(_A_M, 0xbe, __u32)
 
 /* av sycn event */
-#define AMSTREAM_IOC_SET_VIDEOPEEK                _IOW(_A_M, 0xbf, u32)
+#define AMSTREAM_IOC_SET_VIDEOPEEK                _IOW(_A_M, 0xbf, __u32)
 
 #define AMSTREAM_IOC_GET_TRICK_VPTS               _IOR((_A_M), 0xf0, int)
 #define AMSTREAM_IOC_DISABLE_SLOW_SYNC            _IOW((_A_M), 0xf1, int)
