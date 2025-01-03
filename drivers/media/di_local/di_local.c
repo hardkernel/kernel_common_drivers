@@ -148,7 +148,7 @@ EXPORT_SYMBOL(DI_POST_REG_RD);
 
 int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
-	#ifdef MARcK_HIS
+	#ifdef MARK_HIS
 	if (IS_ERR_OR_NULL(de_devp))
 		return 0;
 	if (de_devp->flags & DI_SUSPEND_FLAG) {
