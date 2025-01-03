@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <dt-bindings/input/meson_ir.h>
 #include <linux/leds.h>
-#include "meson_ir_common.h"
+#include <uapi/amlogic/meson_ir_common.h>
 
 #define MULTI_IR_TYPE_MASK(type) (type & 0xff)  /*8bit*/
 #define LEGACY_IR_TYPE_MASK(type) ((type >> 8) & 0xff) /*8bit*/
