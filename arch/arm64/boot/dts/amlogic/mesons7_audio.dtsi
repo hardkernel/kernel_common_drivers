@@ -15,7 +15,8 @@
 		amlogic_codec:t9015{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, s4_codec_T9015";
-			reg = <0x0 0xFE01A000 0x0 0x2000>;
+			reg = <0x0 0xFE01A000 0x0 0x2000>, <0x0 0xFE330740 0x0 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tocodec_inout = <2>;
 			tdmout_index = <2>;
 			ch0_sel = <0>;
@@ -229,17 +230,6 @@
 		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
 		status = "okay";
-	};
-
-	extn:extn {
-		compatible = "amlogic, txhd2-snd-extn";
-		#sound-dai-cells = <0>;
-
-		interrupts =
-				<GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "irq_frhdmirx";
-
-		status = "disabled";
 	};
 
 	aed:effect {
