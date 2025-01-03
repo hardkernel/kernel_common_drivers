@@ -4961,6 +4961,9 @@ void dimh_combing_pd22_window_config(unsigned int width, unsigned int height)
 
 void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 {
+	unsigned int i = 0;
+	unsigned int blend_arry[] = {0, 1, 2, 3, 0, 1, 2};
+	int arry_length = ARRAY_SIZE(blend_arry);
 	if (DIM_IS_REV(SC2, MAJOR)) {
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
 				  wins->regs[0].win_vs, 17, 12);
@@ -5027,46 +5030,53 @@ void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 			? 1 : 0, 16, 1);
 	}
 
+	for (i = 0; i < 4; i++) {
+		if (wins->regs[i].blend_mode > arry_length - 1) {
+			pr_err("regs[%d]:blend_mode is over size\n", i);
+			wins->regs[i].blend_mode = PULL_DOWN_EI;
+		}
+	}
+
 	if (DIM_IS_REV(SC2, SUB)) {
-		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[0].blend_mode,
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_arry[wins->regs[0].blend_mode],
 			8, 2);
 		set_sc2overlap_table(DI_BLEND_CTRL,
 				  (wins->regs[1].win_ve > wins->regs[1].win_vs)
 				  ? 1 : 0, 17, 1);
-		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[1].blend_mode,
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_arry[wins->regs[1].blend_mode],
 			10, 2);
 
 		set_sc2overlap_table(DI_BLEND_CTRL,
 				  (wins->regs[2].win_ve > wins->regs[2].win_vs)
 				  ? 1 : 0, 18, 1);
-		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[2].blend_mode,
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_arry[wins->regs[2].blend_mode],
 			12, 2);
 
 		set_sc2overlap_table(DI_BLEND_CTRL,
 				  (wins->regs[3].win_ve > wins->regs[3].win_vs)
 				  ? 1 : 0, 19, 1);
-		set_sc2overlap_table(DI_BLEND_CTRL,
-				  wins->regs[3].blend_mode, 14, 2);
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_arry[wins->regs[3].blend_mode],
+			14, 2);
 	} else {
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[0].blend_mode,
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_arry[wins->regs[0].blend_mode],
 			8, 2);
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
 				  (wins->regs[1].win_ve > wins->regs[1].win_vs)
 				  ? 1 : 0, 17, 1);
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[1].blend_mode,
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_arry[wins->regs[1].blend_mode],
 			10, 2);
 
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
 				  (wins->regs[2].win_ve > wins->regs[2].win_vs)
 				  ? 1 : 0, 18, 1);
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[2].blend_mode,
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_arry[wins->regs[2].blend_mode],
 			12, 2);
 
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
 				  (wins->regs[3].win_ve > wins->regs[3].win_vs)
 				  ? 1 : 0, 19, 1);
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
-				  wins->regs[3].blend_mode, 14, 2);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_arry[wins->regs[3].blend_mode],
+			14, 2);
 	}
 }
 
