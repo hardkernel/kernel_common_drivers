@@ -5,6 +5,7 @@
 
 #ifndef VIDEO_LOW_LATENCTY_HH
 #define VIDEO_LOW_LATENCTY_HH
+#include <linux/platform_device.h>
 #include "vpp_pq.h"
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
@@ -58,6 +59,13 @@ void vf_pq_process(struct vframe_s *vf,
 		   struct ai_scenes_pq *vpp_scenes,
 		   int *pq_debug,
 		   unsigned int vpp_new_frame);
+void get_low_latency_info(u32 *enable, u32 *version);
+void set_low_latency_info(u32 enable, u32 version);
+int get_low_latency_version(void);
+void video_lowlatency_init(struct platform_device *pdev);
+void video_lowlatency_exit(void);
+void video_lowlatency_line_n_num(void);
+int video_lowlatency_process(void);
 #endif
 #endif
 /*VIDEO_LOW_LATENCTY_HH*/

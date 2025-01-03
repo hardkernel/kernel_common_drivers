@@ -364,6 +364,9 @@ int _vsync_rdma_config(int rdma_type)
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 						RDMA_TRIGGER_VSYNC_INPUT |
 						RDMA_TRIGGER_OMIT_LOCK);
+					if (iret)
+						update_over_field_states(OVER_FIELD_RDMA_READY,
+							false);
 				} else if (rdma_type == LINE_N_INT_RDMA) {
 					set_rdma_trigger_line();
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
@@ -390,6 +393,9 @@ int _vsync_rdma_config(int rdma_type)
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 						RDMA_TRIGGER_VSYNC_INPUT |
 						RDMA_TRIGGER_OMIT_LOCK);
+					if (iret)
+						update_over_field_states(OVER_FIELD_RDMA_READY,
+							false);
 				}
 			}
 			if (iret)

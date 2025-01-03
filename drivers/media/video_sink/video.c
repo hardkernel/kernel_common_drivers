@@ -733,6 +733,7 @@ int last_mode_3d;
 static void update_process_hdmi_avsync_flag(bool flag);
 static void hdmi_in_delay_maxmin_reset(void);
 static int is_interlaced(struct vinfo_s *vinfo);
+static unsigned int g_line_n_debug;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 static unsigned int det_stb_cnt = 30;
@@ -5415,6 +5416,16 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+int video_lowlatency_process(void)
+{
+	int irq = 0, ret = 0;
+	void *dev_id = NULL;
+
+	ret = vsync_isr_in(irq, dev_id);
+
+	return ret;
+}
+
 #ifdef FIQ_VSYNC
 void vsync_fisr(void)
 {
@@ -5439,9 +5450,20 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		last_time = cur_time;
 	}
 
-	if (get_lowlatency_mode())
+	if (get_lowlatency_mode() || get_low_latency_version() == 2)
 		put_buffer_proc();
 	lowlatency_vsync_count++;
+
+	if (get_low_latency_version() == 2) {
+		if (overrun_flag) {
+			overrun_flag = false;
+			vsync_proc_drop++;
+			lowlatency_overrun_recovery_cnt++;
+			vsync_cnt[VPP0]++;
+		}
+		return IRQ_HANDLED;
+	}
+
 	if (atomic_inc_return(&video_proc_lock) > 1) {
 		vsync_proc_drop++;
 		atomic_dec(&video_proc_lock);
@@ -6246,7 +6268,13 @@ EXPORT_SYMBOL(is_in_pre_vsync_isr);
 
 int is_video_process_in_thread(void)
 {
-	return 0;
+	int ret = 0;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (get_low_latency_version() == 2)
+		ret = 1;
+#endif
+	return ret;
 }
 EXPORT_SYMBOL(is_video_process_in_thread);
 
@@ -13619,6 +13647,80 @@ static ssize_t crop_select_store(const struct class *cla,
 	return count;
 }
 
+static u32 get_line_n_num(void)
+{
+	return READ_VCBUS_REG(VPP_INT_LINE_NUM);
+}
+
+static void modify_line_n_num(u32 line_num)
+{
+	WRITE_VCBUS_REG(VPP_INT_LINE_NUM, line_num);
+}
+
+static ssize_t line_n_num_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len, "current line_n setting: %d\n",
+		       get_line_n_num());
+
+	return len;
+}
+
+static ssize_t line_n_num_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	int ret;
+	u32 val = 0, cur_line = 0, new_line = 0;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret < 0)
+		return -EINVAL;
+
+	g_line_n_debug = val;
+	cur_line = get_line_n_num();
+	modify_line_n_num(val);
+	new_line = get_line_n_num();
+	pr_info("line_n setting: %d -> %d\n", cur_line, get_line_n_num());
+
+	return count;
+}
+
+static ssize_t lowlatency_en_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
+{
+	ssize_t len = 0;
+	u32 enable = 0, version = 0;
+
+	get_low_latency_info(&enable, &version);
+	len += sprintf(buf + len, "lowlatency enable:%d version:%d\n",
+		       enable, version);
+
+	return len;
+}
+
+static ssize_t lowlatency_en_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		pr_info("lowlatency enable:%d version:%d\n",
+			 parsed[0], parsed[1]);
+		set_low_latency_info(parsed[0], parsed[1]);
+	} else {
+		pr_err("echo enable version > lowlatency_en\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -14248,6 +14350,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		crop_select_show,
 		crop_select_store),
+	__ATTR(line_n_num,
+		0664,
+		line_n_num_show,
+		line_n_num_store),
+	__ATTR(lowlatency_en,
+		0664,
+		lowlatency_en_show,
+		lowlatency_en_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -14377,6 +14487,8 @@ int vout_notify_callback(struct notifier_block *block, unsigned long cmd,
 
 	switch (cmd) {
 	case VOUT_EVENT_MODE_CHANGE:
+		if (!g_line_n_debug)
+			video_lowlatency_line_n_num();
 		info = get_current_vinfo();
 		if (!info || info->mode == VMODE_INVALID)
 			return 0;
@@ -16505,6 +16617,10 @@ static int amvideom_probe(struct platform_device *pdev)
 		for (j = 0; j < SCENES_VALUE; j++)
 			vpp_scenes[i].pq_values[j] = vpp_pq_data[i][j];
 	}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	video_lowlatency_init(pdev);
+#endif
+
 	return ret;
 }
 
@@ -16797,6 +16913,9 @@ int __init video_init(void)
 
 void __exit video_exit(void)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	video_lowlatency_exit();
+#endif
 	video_debugfs_exit();
 	vf_unreg_receiver(&video_vf_recv);
 	vf_unreg_receiver(&videopip_vf_recv);

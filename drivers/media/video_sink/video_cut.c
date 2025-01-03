@@ -8927,7 +8927,7 @@ static ssize_t tvin_source_type_store(const struct class *cla,
 	return count;
 }
 
-ssize_t line_n_num_show(const struct class *cla, const struct class_attribute *attr,
+static ssize_t line_n_num_show(const struct class *cla, const struct class_attribute *attr,
 		    char *buf)
 {
 	ssize_t len = 0;
@@ -8938,7 +8938,7 @@ ssize_t line_n_num_show(const struct class *cla, const struct class_attribute *a
 	return len;
 }
 
-ssize_t line_n_num_store(const struct class *cla, const struct class_attribute *attr,
+static ssize_t line_n_num_store(const struct class *cla, const struct class_attribute *attr,
 		     const char *buf, size_t count)
 {
 	int ret;

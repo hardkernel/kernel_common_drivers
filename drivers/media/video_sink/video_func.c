@@ -79,6 +79,7 @@
 #include "video_priv.h"
 #include "video_reg.h"
 #include "video_func.h"
+#include "video_low_latency.h"
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 #include <linux/amlogic/aml_iotrace.h>
 #endif
@@ -2974,7 +2975,7 @@ void put_buffer_proc(void)
 
 	for (i = 0; i < 3; i++) {
 		if (gvideo_recv[i])
-			gvideo_recv[i]->func->early_proc(gvideo_recv[i], 0);
+			gvideo_recv[i]->func->early_proc(gvideo_recv[i], over_field ? 1 : 0);
 	}
 }
 
@@ -4583,7 +4584,7 @@ static int misc_early_proc(void)
 	if (is_amdv_on())
 		amdv_update_backlight();
 #endif
-
+	new_frame_mask = 0;
 	vout_type = detect_vout_type(vinfo);
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
@@ -6652,6 +6653,11 @@ EXPORT_SYMBOL(set_vsync_2to1_mode);
 
 void set_pre_vsync_mode(u8 enable)
 {
+	/* disable prevsync for low_latency_v2 */
+	#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (get_low_latency_version() == 2)
+		enable = 0;
+	#endif
 	if (cur_dev->prevsync_support) {
 		cur_dev->pre_vsync_enable = enable;
 		vd1_set_go_field();
