@@ -105,18 +105,26 @@ enum param_type {
 	TYPE_ULLONG,
 };
 
-#define PARAM_BOOL(name)	{#name "=", &(name), TYPE_BOOL}
-#define PARAM_INT(name)		{#name "=", &(name), TYPE_INT}
-#define PARAM_UINT(name)	{#name "=", &(name), TYPE_UINT}
-#define PARAM_LONG(name)	{#name "=", &(name), TYPE_LONG}
-#define PARAM_ULONG(name)	{#name "=", &(name), TYPE_ULONG}
-#define PARAM_LLONG(name)	{#name "=", &(name), TYPE_LLONG}
-#define PARAM_ULLONG(name)	{#name "=", &(name), TYPE_ULLONG}
+#define PARAM_BOOL(name)		{#name "=", &(name), TYPE_BOOL, 1}
+#define PARAM_INT(name)			{#name "=", &(name), TYPE_INT, 1}
+#define PARAM_UINT(name)		{#name "=", &(name), TYPE_UINT, 1}
+#define PARAM_LONG(name)		{#name "=", &(name), TYPE_LONG, 1}
+#define PARAM_ULONG(name)		{#name "=", &(name), TYPE_ULONG, 1}
+#define PARAM_LLONG(name)		{#name "=", &(name), TYPE_LLONG, 1}
+#define PARAM_ULLONG(name)		{#name "=", &(name), TYPE_ULLONG, 1}
+#define PARAM_BOOL_ARRAY(name)		{#name "=", (name), TYPE_BOOL, ARRAY_SIZE(name)}
+#define PARAM_INT_ARRAY(name)		{#name "=", (name), TYPE_INT, ARRAY_SIZE(name)}
+#define PARAM_UINT_ARRAY(name)		{#name "=", (name), TYPE_UINT, ARRAY_SIZE(name)}
+#define PARAM_LONG_ARRAY(name)		{#name "=", (name), TYPE_LONG, ARRAY_SIZE(name)}
+#define PARAM_ULONG_ARRAY(name)		{#name "=", (name), TYPE_ULONG, ARRAY_SIZE(name)}
+#define PARAM_LLONG_ARRAY(name)		{#name "=", (name), TYPE_LLONG, ARRAY_SIZE(name)}
+#define PARAM_ULLONG_ARRAY(name)	{#name "=", (name), TYPE_ULLONG, ARRAY_SIZE(name)}
 
 struct param_entry {
 	char *name;
 	void *value;
 	enum param_type type;
+	int array_size;
 };
 
 extern struct kernel_param_ops key_value_param_ops;

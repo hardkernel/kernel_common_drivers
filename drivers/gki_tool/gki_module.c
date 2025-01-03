@@ -241,50 +241,76 @@ static void mod_free_func(struct work_struct *work)
 static int key_value_set(const char *val, const struct kernel_param *kp)
 {
 	const struct param_entry *params = (struct param_entry *)kp->arg;
-	int i = 0, len;
+	int i = 0, len, j;
+	char *token, *buffer, *origin = NULL;
+	void *value;
 
 	while (params[i].name) {
 		len = strlen(params[i].name);
 
 		if (!strncmp(val, params[i].name, len)) {
-			switch (params[i].type) {
-			case TYPE_BOOL:
-				if (kstrtobool(val + len, (bool *)params[i].value))
-					goto err;
-				break;
-			case TYPE_INT:
-				if (kstrtoint(val + len, 0, (int *)params[i].value))
-					goto err;
-				break;
-			case TYPE_UINT:
-				if (kstrtouint(val + len, 0, (unsigned int *)params[i].value))
-					goto err;
-				break;
-			case TYPE_LONG:
-				if (kstrtol(val + len, 0, (long *)params[i].value))
-					goto err;
-				break;
-			case TYPE_ULONG:
-				if (kstrtoul(val + len, 0, (unsigned long *)params[i].value))
-					goto err;
-				break;
-			case TYPE_LLONG:
-				if (kstrtoll(val + len, 0, (long long *)params[i].value))
-					goto err;
-				break;
-			case TYPE_ULLONG:
-				if (kstrtoull(val + len, 0, (unsigned long long *)params[i].value))
-					goto err;
-				break;
-			default:
-				break;
+			buffer = kstrdup(val + len, GFP_KERNEL);
+			if (!buffer)
+				goto err;
+
+			origin = buffer;
+			token = buffer;
+
+			for (j = 0; j < params[i].array_size; j++) {
+				if (params[i].array_size > 1) {
+					token = strsep(&buffer, ",");
+					if (!token)
+						break;
+				}
+				switch (params[i].type) {
+				case TYPE_BOOL:
+					value = (bool *)params[i].value + j;
+					if (kstrtobool(token, value))
+						goto err;
+					break;
+				case TYPE_INT:
+					value = (int *)params[i].value + j;
+					if (kstrtoint(token, 0, value))
+						goto err;
+					break;
+				case TYPE_UINT:
+					value = (unsigned int *)params[i].value + j;
+					if (kstrtouint(token, 0, value))
+						goto err;
+					break;
+				case TYPE_LONG:
+					value = (long *)params[i].value + j;
+					if (kstrtol(token, 0, value))
+						goto err;
+					break;
+				case TYPE_ULONG:
+					value = (unsigned long *)params[i].value + j;
+					if (kstrtoul(token, 0, value))
+						goto err;
+					break;
+				case TYPE_LLONG:
+					value = (long long *)params[i].value + j;
+					if (kstrtoll(token, 0, value))
+						goto err;
+					break;
+				case TYPE_ULLONG:
+					value = (unsigned long long *)params[i].value + j;
+					if (kstrtoull(token, 0, value))
+						goto err;
+					break;
+				default:
+					break;
+				}
 			}
+			kfree(origin);
+
 			return 0;
 		}
 		i++;
 	}
 err:
 	pr_err("Error, use format: echo key=val > module_param\n");
+	kfree(origin);
 
 	return -EINVAL;
 }
@@ -292,37 +318,51 @@ err:
 static int key_value_get(char *buffer, const struct kernel_param *kp)
 {
 	const struct param_entry *params = (struct param_entry *)kp->arg;
-	int i = 0, pos = 0;
+	int i = 0, pos = 0, j;
 
 	while (params[i].name) {
-		switch (params[i].type) {
-		case TYPE_BOOL:
-			pos += sprintf(buffer + pos, "%s%d\n",
-				params[i].name, *(int *)params[i].value);
-			break;
-		case TYPE_INT:
-			pos += sprintf(buffer + pos, "%s%d\n",
-				params[i].name, *(int *)params[i].value);
-			break;
-		case TYPE_UINT:
-			pos += sprintf(buffer + pos, "%s%u\n",
-				params[i].name, *(int *)params[i].value);
-			break;
-		case TYPE_LONG:
-			pos += sprintf(buffer + pos, "%s%ld\n",
-				params[i].name, *(unsigned long *)params[i].value);
-			break;
-		case TYPE_ULONG:
-			pos += sprintf(buffer + pos, "%s%lu\n",
-				params[i].name, *(unsigned long *)params[i].value);
-			break;
-		case TYPE_ULLONG:
-			pos += sprintf(buffer + pos, "%s%llu\n",
-				params[i].name, *(unsigned long long *)params[i].value);
-			break;
-		default:
-			break;
+		pos += sprintf(buffer + pos, "%s", params[i].name);
+
+		for (j = 0; j < params[i].array_size; j++) {
+			switch (params[i].type) {
+			case TYPE_BOOL:
+				pos += sprintf(buffer + pos, "%d",
+					*((bool *)params[i].value + j));
+				break;
+			case TYPE_INT:
+				pos += sprintf(buffer + pos, "%d",
+					*((int *)params[i].value + j));
+				break;
+			case TYPE_UINT:
+				pos += sprintf(buffer + pos, "%u",
+					*((unsigned int *)params[i].value + j));
+				break;
+			case TYPE_ULONG:
+				pos += sprintf(buffer + pos, "%lu",
+					*((unsigned long *)params[i].value + j));
+				break;
+			case TYPE_LONG:
+				pos += sprintf(buffer + pos, "%ld",
+					*((long *)params[i].value + j));
+				break;
+			case TYPE_ULLONG:
+				pos += sprintf(buffer + pos, "%llu",
+					*((unsigned long long *)params[i].value + j));
+				break;
+			case TYPE_LLONG:
+				pos += sprintf(buffer + pos, "%lld",
+					*((long long *)params[i].value + j));
+				break;
+			default:
+				break;
+			}
+
+			if (j != params[i].array_size - 1)
+				pos += sprintf(buffer + pos, ",");
 		}
+
+		pos += sprintf(buffer + pos, "\n");
+
 		i++;
 	}
 
