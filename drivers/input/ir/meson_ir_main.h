@@ -8,7 +8,7 @@
 #include <linux/cdev.h>
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
-#include "meson_ir_common.h"
+#include <uapi/amlogic/meson_ir_common.h>
 #include "meson_ir_core.h"
 
 #define DRIVER_NAME "meson-ir"
