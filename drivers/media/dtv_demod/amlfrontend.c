@@ -1607,7 +1607,7 @@ fail_alloc_region:
 	return ret;
 }
 
-static void __exit aml_dtvdemod_remove(struct platform_device *pdev)
+static void aml_dtvdemod_remove(struct platform_device *pdev)
 {
 	struct amldtvdemod_device_s *devp =
 			(struct amldtvdemod_device_s *)platform_get_drvdata(pdev);

@@ -98,12 +98,11 @@ void rx_pkt_status(u8 port)
 void rx_pkt_debug(void)
 {
 	u32 data32;
-	u8 i;
 
 	if (rx_info.chip_id >= CHIP_ID_T7)
 		return;
-	for (i = 0; i < rx_info.port_num; i++)
-		memset(&rxpktsts[i], 0, sizeof(struct rxpkt_st));
+
+	memset(&rxpktsts, 0, sizeof(struct rxpkt_st) * rx_info.port_num);
 
 	data32 = hdmirx_rd_dwc(DWC_PDEC_CTRL);
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_VSI));

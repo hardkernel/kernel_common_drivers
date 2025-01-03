@@ -4745,7 +4745,7 @@ static const struct reserved_mem_ops secure_vdec_rmem_ops = {
 	.device_init = secure_vdec_reserved_init,
 };
 
-static int __init secure_vdec_res_setup(struct reserved_mem *rmem)
+static int secure_vdec_res_setup(struct reserved_mem *rmem)
 {
 	rmem->ops = &secure_vdec_rmem_ops;
 

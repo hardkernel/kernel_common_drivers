@@ -780,7 +780,7 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 		wdma_clean(pchan->id);
 
 		if (is_security_dmx == TEE_DMX_ENABLE) {
-			memcpy(&param.desc, pchan->memdescs, sizeof(union mem_desc));
+			memcpy(&param.desc, pchan->memdescs, sizeof(union tee_mem_desc));
 			param.buffer_id = pchan->id;
 			param.pid = pid;
 			if (sec_level != 0)
