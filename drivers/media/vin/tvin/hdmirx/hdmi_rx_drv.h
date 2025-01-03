@@ -86,7 +86,8 @@
 //2024.11.15 add protect for fsm
 //2024.11.29 optimize early suspend flow
 //2025.01.02 optimize timer execution logic
-#define RX_DRV_VER "ver.2025/01/02"
+//2025.01.16 t3 hdmirx support std hibernate
+#define RX_DRV_VER "ver.2025/01/16"
 
 /*print type*/
 #define COR1_LOG	0x10000

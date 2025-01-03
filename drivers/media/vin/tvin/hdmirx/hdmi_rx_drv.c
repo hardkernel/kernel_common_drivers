@@ -4573,7 +4573,7 @@ static int hdmirx_freeze(struct device *dev)
 	hdevp = platform_get_drvdata(pdev);
 	//std hibernate should not save timer object
 	//or it will crash when resume an inactive timer
-	del_timer_sync(&hdevp->timer);
+	rx_del_timer(hdevp);
 	//it will check pinctrl state when pinctrl restore pinmux
 	//freeze -- sleep   restore -- hdmirx_pin
 	pin = devm_pinctrl_get_select(dev, "sleep");
@@ -4583,6 +4583,7 @@ static int hdmirx_freeze(struct device *dev)
 
 static int hdmirx_restore(struct device *dev)
 {
+	u8 port_idx = 0;
 	struct platform_device *pdev = to_platform_device(dev);
 
 	//all register will be clear when std power off
@@ -4592,6 +4593,11 @@ static int hdmirx_restore(struct device *dev)
 	hdmirx_switch_pinmux(dev);
 	rx_pr("hdmirx pm: restore\n");
 	hdmirx_resume(pdev);
+	if (rx_5v_wake_up_en)
+		hdmirx_wr_bits_top_common(TOP_EDID_RAM_OVR0_DATA, _BIT(0), 1);
+	//restore edid
+	for (port_idx = E_PORT0; port_idx < rx_info.port_num; port_idx++)
+		fsm_restart(port_idx);
 	return 0;
 }
 
@@ -4610,8 +4616,8 @@ static int hdmirx_pm_resume(struct device *dev)
 }
 
 const struct dev_pm_ops hdmirx_pm = {
-	.freeze     = hdmirx_freeze,
-	.restore	= hdmirx_restore,
+	.freeze_noirq   = hdmirx_freeze,
+	.restore_noirq	= hdmirx_restore,
 	.suspend	= hdmirx_pm_suspend,
 	.resume		= hdmirx_pm_resume,
 };

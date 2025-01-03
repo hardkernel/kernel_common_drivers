@@ -2764,9 +2764,10 @@
 		#size-cells=<1>;
 		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
 		status = "okay";
-		pinctrl-names = "hdmirx_pins";
+		pinctrl-names = "hdmirx_pins", "sleep";
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 			&hdmirx_c_mux>;
+		pinctrl-1 = <&hdmirx_pin_sleep>;
 		repeat = <0>;
 		power-domains = <&pwrdm PDID_T3_HDMIRX>;
 		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
@@ -3031,6 +3032,24 @@
 				"hdmirx_sda_c",
 				"hdmirx_scl_c";
 			function = "hdmirx";
+		};
+	};
+
+	hdmirx_pin_sleep:hdmirx_pin_sleep {
+		mux {
+			groups = "GPIOW_0",
+				"GPIOW_1",
+				"GPIOW_2",
+				"GPIOW_3",
+				"GPIOW_4",
+				"GPIOW_5",
+				"GPIOW_6",
+				"GPIOW_7",
+				"GPIOW_8",
+				"GPIOW_9",
+				"GPIOW_10",
+				"GPIOW_11";
+			function = "gpio_periphs";
 		};
 	};
 
