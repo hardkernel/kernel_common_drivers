@@ -208,6 +208,17 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case IR_IOC_GET_WAKEUP_KEY:
+		tmp[0] = IR_MBOX_CMD_GET_WAKEUP_KEY;
+		meson_ir_mbox_transfer(chip, tmp, sizeof(u32));
+		meson_ir_report_wakeup_event(chip, tmp[0]);
+
+		if (copy_to_user(parg, &tmp[0], sizeof(u32))) {
+			retval = -EFAULT;
+			goto err;
+		}
+		break;
+
+	case IR_IOC_GET_PREBOOT_KEY:
 		tmp[0] = IR_MBOX_CMD_GET_PREBOOT_KEY;
 		meson_ir_mbox_transfer(chip, tmp, sizeof(u32));
 
