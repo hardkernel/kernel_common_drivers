@@ -849,26 +849,6 @@
 	status = "okay";
 };
 
-&u2phy0 {
-	status = "disabled";
-};
-
-&u2phy1 {
-	status = "disabled";
-};
-
-&crg_drd {
-	status = "disabled";
-};
-
-&crg_udc {
-	status = "disabled";
-};
-
-&crg {
-	status = "disabled";
-};
-
 &pcie {
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
 	status = "disable";

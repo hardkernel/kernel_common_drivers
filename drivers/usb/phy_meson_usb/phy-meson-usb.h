@@ -38,7 +38,7 @@ enum meson_uphy_version {
 
 enum meson_uphy_port_speed {
 	MESON_USB_SPEED_HIGH,
-	MESON_USB_SPEED_HIGH_PLUS,
+	MESON_USB_SPEED_HIGH_PLUS, /* Meson's private enhanced 960M. */
 	MESON_USB_SPEED_SUPER,
 };
 
@@ -82,8 +82,6 @@ struct meson_uphy_pool {
 	struct device *dev;
 	const struct meson_uphy_pdata *pdata;
 	struct meson_uphy_instance **phys;
-	int (*parse_props)(struct device *dev, struct meson_uphy_instance *instance);
-	int (*otg_helper)(struct device *dev, struct meson_uphy_instance *instance);
 	int nphys;
 };
 
@@ -108,7 +106,8 @@ struct meson_uphy_pdata {
 	enum meson_uphy_version version;
 };
 
-extern struct meson_uphy_pdata meson_uphy_s905x5m_pdata;
+extern struct meson_uphy_pdata meson_uphy_s7_pdata;
+extern struct meson_uphy_pdata meson_uphy_s7d_pdata;
 
 int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy);
 int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on);
@@ -117,6 +116,7 @@ int meson_u2phy_reset_phycfg(struct amlogic_usb_v2 *phy, int port);
 int meson_u2phy_reg_reset(struct amlogic_usb_v2 *phy, int port);
 int meson_u2phy_reg_hold_reset(struct amlogic_usb_v2 *phy, int port, bool on);
 void meson_u2phy_set_vbus_power(struct amlogic_usb_v2 *phy, bool is_power_on);
+void meson_usb2phy_set_calibration_trim(struct amlogic_usb_v2 *mphy, int port);
 int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, int port, enum phy_mode mode);
 int meson_usb2phy_wait_ready(struct amlogic_usb_v2 *phy, int port, unsigned int timeout);
 int meson_u2phy_exit(struct amlogic_usb_v2 *phy, int port);

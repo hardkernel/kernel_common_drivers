@@ -696,17 +696,15 @@
 			};
 		};
 
-		u2phy0: meson-u2phy0@fe358000 {
-			compatible = "amlogic,u2phy-s905x5m";
+		usbphy0: usbphy0@fe358000 {
+			compatible = "amlogic,u2phy-s7d";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			//ranges = <0 0 0 0x1000>;
-			status = "okay";
-			u20port0: usb-phy@fe358000 {
-				#phy-cells = <1>;
-				status = "disable";
-				port-speed = <0x0>;
-				portnum = <1>;
+			status = "disabled";
+			u2p0port0: u2p@0 {
+				#phy-cells = <0>;
+				port-speed = <0x0>; /* 0~2: HS HSP SS */
 				reg = <0xfe358000 0x10
 						0xfe002000 0x100
 						0xfe010330 0x4
@@ -722,22 +720,19 @@
 				clocks = <&clkc CLKID_SYS_USB>;
 				clock-names = "crg_general";
 				phy-otg;
-				otg-port-index = <0>;
 				interrupts = <0 129 IRQ_TYPE_EDGE_RISING>;
 			};
 		};
 
-		u2phy1: meson-u2phy1@fe348000 {
-			compatible = "amlogic,u2phy-s905x5m";
+		usbphy1: usbphy1@fe348000 {
+			compatible = "amlogic,u2phy-s7d";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			//ranges = <0 0 0 0x1000>;
-			status = "okay";
-			u21port0: usb-phy@fe348000 {
-				#phy-cells = <1>;
-				status = "disable";
-				port-speed = <0x0>;
-				portnum = <1>;
+			status = "disabled";
+			u2p1port0: u2p@0 {
+				#phy-cells = <0>;
+				port-speed = <0x0>; /* 0~2: HS HSP SS */
 				reg = <0xfe348000 0x10
 						0xfe002000 0x100
 						0xfe010330 0x4
@@ -760,7 +755,7 @@
 			status = "disabled";
 			reg = <0x0 0xfe350000 0x0 0x8000>;
 			interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
-			phys = <&u20port0 PHY_TYPE_USB2>;
+			phys = <&u2p0port0>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 			in-nak-rty = <0x5>;
@@ -768,26 +763,23 @@
 
 		crg_udc: crgudc@fe350000 {
 			compatible = "amlogic, crg_udc";
-			status = "disable";
+			status = "disabled";
 			controller-type = <1>; /* 1: aml phy 4: m31 phy */
 			reg = <0x0 0xfe350000 0x0 0x8000>;
 			interrupts = <0 131 IRQ_TYPE_EDGE_RISING>;
 			port-speed = <3>; /* 0~3: unknown, low, full, high */
-			//phy-reg = <0xfe358000>; /* phy2 base*/
-			//phy-reg-size = <0x10>;
-			phys = <&u20port0 PHY_TYPE_USB2>;
+			phys = <&u2p0port0>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "usb_general";
-			phy-id = <0>;
 			version = <1>; /* 1: forbid vbus detect */
 		};
 
 		crg: crg@fe340000 {
 			compatible = "amlogic, crg-host-drd";
-			status = "disable";
+			status = "disabled";
 			reg = <0x0 0xfe340000 0x0 0x8000>;
 			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
-			phys = <&u21port0 PHY_TYPE_USB2>;
+			phys = <&u2p1port0>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 			in-nak-rty = <0x5>;

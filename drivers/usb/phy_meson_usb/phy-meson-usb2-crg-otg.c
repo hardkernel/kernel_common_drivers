@@ -358,13 +358,14 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 	if (retval < 0)
 		mphy->otg_helper.controller_type = USB_NORMAL;
 
-	retval = of_property_read_u32(dev->of_node, "otg-port-index",
-								&mphy->otg_helper.otg_port_index);
-	if (retval < 0) {
-		mu2p_err(dev, "no otg port index, use 0 as default.\n");
-		mphy->otg_helper.otg_port_index = 0;
-		return retval;
-	}
+	mphy->otg_helper.otg_port_index = 0;
+//	retval = of_property_read_u32(dev->of_node, "otg-port-index",
+//								&mphy->otg_helper.otg_port_index);
+//	if (retval < 0) {
+//		mu2p_err(dev, "no otg port index, use 0 as default.\n");
+//		mphy->otg_helper.otg_port_index = 0;
+//		return retval;
+//	}
 
 	if (mphy->otg_helper.controller_type == USB_OTG)
 		otg = 1;

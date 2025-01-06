@@ -812,31 +812,17 @@
 	status = "okay";
 };
 
-&usb_phy20 {
+&usbphy0 {
 	status = "okay";
-	portnum = <1>;
+	u2p@0 {
+		controller-type = <1>; /* 0~3: normal, host, device, otg */
+		gpio-vbus-power = "GPIOH_8";
+		gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+	};
 };
 
-&usb_phy21 {
+&usbphy1 {
 	status = "okay";
-	portnum = <1>;
-};
-
-&usb_phy30 {
-	status = "okay";
-	portnum = <0>;
-};
-
-&usb_phy31 {
-	status = "okay";
-	portnum = <0>;
-};
-
-&crg_otg {
-	status = "okay";
-	controller-type = <1>; /* 0~3: normal, host, device, otg */
-	gpio-vbus-power = "GPIOH_8";
-	gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
 };
 
 &crg_drd {

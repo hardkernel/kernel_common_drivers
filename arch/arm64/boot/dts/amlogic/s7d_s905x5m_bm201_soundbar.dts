@@ -877,15 +877,19 @@
 	status = "okay";
 };
 
-&u20port0 {
+&usbphy0 {
 	status = "okay";
-	controller-type = <1>; /* 0~3: normal, host, device, otg */
+	u2p@0 {
+		controller-type = <1>; /* 0~3: normal, host, device, otg */
+	};
 };
 
-&u21port0 {
-	gpio-vbus-power = "GPIOH_8";
-	gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+&usbphy1 {
 	status = "okay";
+	u2p@0 {
+		gpio-vbus-power = "GPIOH_8";
+		gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &crg_drd {

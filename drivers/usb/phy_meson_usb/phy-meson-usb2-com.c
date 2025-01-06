@@ -163,6 +163,39 @@ void meson_u2phy_set_vbus_power(struct amlogic_usb_v2 *phy, bool is_power_on)
 		gpiod_direction_output(phy->usb_gpio_desc, 0);
 }
 
+void meson_usb2phy_set_calibration_trim(struct amlogic_usb_v2 *mphy, int port)
+{
+	u32 value = 0;
+	u32 cali, i;
+	u8 cali_en;
+
+	if (!mphy->usb_phy_trim_reg) {
+		mu2p_err(mphy->dev, "No usb-phy-trim-reg\n");
+		return;
+	}
+
+	cali = readl(mphy->usb_phy_trim_reg);
+	cali_en = (cali >> 12) & 0x1;
+	cali = cali >> 8;
+	if (cali_en) {
+		cali = cali & 0xf;
+		/* s7 modify. */
+		cali = cali + 2;
+		if (cali > 12)
+			cali = 12;
+	} else {
+		cali = mphy->pll_setting[4];
+	}
+	value = readl(mphy->phy_cfg[port] + 0x10);
+	value &= (~0xfff);
+	for (i = 0; i < cali; i++)
+		value |= (1 << i);
+
+	writel(value, mphy->phy_cfg[port] + 0x10);
+
+	mu2p_dbg(mphy->dev, "phy trim value= 0x%08x\n", value);
+}
+
 int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, int port,
 			enum phy_mode mode)
 {
@@ -287,20 +320,15 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 			return -ENODEV;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "portnum", &aml_u2phy->portnum);
-	if (ret < 0)
-		aml_u2phy->portnum = 0;
-
-	if (!aml_u2phy->portnum) {
-		mu2p_dbg(dev, "This phy has no usb port\n");
-		return -ENOMEM;
-	}
-
-	mu2p_dbg(dev, "portnum:%d.\n", aml_u2phy->portnum);
+	/* Assume that all phy node represent _only_ one hw port.
+	 * FIXME: What if the phy controller cfg regs and phy config regs are
+	 * not one-to-one maps?
+	 */
+	aml_u2phy->portnum = 1;
 
 	ret = of_property_read_reg(dev->of_node, 0, &addr, &size);
 	if (ret) {
-		mu2p_dbg(dev, "failed to get address 0(id-%d)\n",
+		mu2p_err(dev, "failed to get address 0(id-%d)\n",
 			aml_u2phy->phy_id);
 		return ret;
 	}
@@ -314,7 +342,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	ret = of_property_read_reg(dev->of_node, 1, &addr, &size);
 	if (ret) {
-		mu2p_dbg(dev, "failed to get address 1(id-%d)\n",
+		mu2p_err(dev, "failed to get address 1(id-%d)\n",
 			aml_u2phy->phy_id);
 		return ret;
 	}
@@ -328,7 +356,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	ret = of_property_read_reg(dev->of_node, 2, &addr, &size);
 	if (ret) {
-		mu2p_dbg(dev, "failed to get address 2(id-%d)\n",
+		mu2p_err(dev, "failed to get address 2(id-%d)\n",
 			aml_u2phy->phy_id);
 		return ret;
 	}
@@ -344,7 +372,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	for (i = 0; i < aml_u2phy->portnum; i++) {
 		ret = of_property_read_reg(dev->of_node, i + 3, &addr, &size);
 		if (ret) {
-			mu2p_dbg(dev, "failed to get address resource %d (id-%d)\n",
+			mu2p_err(dev, "failed to get address resource %d (id-%d)\n",
 				i + 3, aml_u2phy->phy_id);
 			return ret;
 		}
@@ -372,10 +400,10 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 								aml_u2phy->phy_reset_level_bit,
 								aml_u2phy->portnum);
 	if (ret == -EOVERFLOW) {
-		mu2p_dbg(dev, "phy-reset-level-bits should contains %d values\n",
+		mu2p_err(dev, "phy-reset-level-bits should contains %d values\n",
 								aml_u2phy->portnum);
 	} else if (ret < 0) {
-		mu2p_dbg(dev, "no phy-reset-level-bits? exit.\n");
+		mu2p_err(dev, "no phy-reset-level-bits? exit.\n");
 		return -EINVAL;
 	}
 
@@ -397,7 +425,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	cnt = of_property_count_u32_elems(dev->of_node, "pll-settings");
 	if (cnt < 0) {
-		mu2p_dbg(dev, "no pll-settings? exit.");
+		mu2p_err(dev, "no pll-settings? exit.");
 		return -EINVAL;
 	}
 
@@ -405,9 +433,9 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 									aml_u2phy->pll_setting,
 									cnt);
 	if (ret == -EOVERFLOW) {
-		mu2p_dbg(dev, "pll-settings should contains %d values\n", cnt);
+		mu2p_err(dev, "pll-settings should contains %d values\n", cnt);
 	} else if (ret < 0) {
-		mu2p_dbg(dev, "no pll-settings? exit.\n");
+		mu2p_err(dev, "no pll-settings? exit.\n");
 		return -EINVAL;
 	}
 
@@ -422,7 +450,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	cnt = of_property_count_strings(dev->of_node, "clock-names");
 	if (cnt < 0) {
-		mu2p_dbg(dev, "no clks? exit.");
+		mu2p_err(dev, "no clks? exit.");
 		return -EINVAL;
 	}
 
@@ -432,7 +460,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 		ret = of_property_read_string_index(dev->of_node, "clock-names",
 									i, &aml_u2phy->clks[i].id);
 		if (ret < 0) {
-			mu2p_dbg(dev, "read clk-names idx:%d err", i);
+			mu2p_err(dev, "read clk-names idx:%d err", i);
 			return -EINVAL;
 		}
 	}

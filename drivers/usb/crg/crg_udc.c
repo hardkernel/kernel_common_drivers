@@ -5072,7 +5072,7 @@ static int crg_udc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct crg_gadget_dev *crg_udc;
-	int ret;
+	int ret = 0;
 
 	crg_udc = &crg_udc_dev;
 
@@ -5088,6 +5088,27 @@ static int crg_udc_suspend(struct device *dev)
 
 	crg_clk_disable_usb(pdev);
 
+	return ret;
+}
+
+/* Threads should be runnable or ums unbind will stuck.
+ * Defer the udc restart and it also helps to shorten the
+ * boot time.
+ */
+static int crg_udc_resume_post(struct crg_gadget_dev *crg_udc)
+{
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	/* Actually the crg_rewrite_otg_write_UDC() is used to restart the controller
+	 * to workaround quirks emerge in suspend-resume stress test.
+	 * It is safe to skip it if the driver chooses to use resume-reinit scheme.
+	 */
+	if (crg_udc_suspend_reinit(crg_udc))
+		goto done;
+
+	crg_rewrite_otg_write_UDC();
+
+done:
+#endif
 	return 0;
 }
 
@@ -5103,7 +5124,7 @@ static int crg_udc_resume(struct device *dev)
 
 	ret = phy_init(crg_udc->phy);
 	if (ret)
-		goto done;
+		return ret;
 
 	//if (crg_udc->controller_type != USB_M31)
 		//amlogic_crg_device_usb2_init(crg_udc->phy_id);
@@ -5111,19 +5132,7 @@ static int crg_udc_resume(struct device *dev)
 	if (crg_udc_suspend_reinit(crg_udc))
 		amlogic_crg_device_power(crg_udc->phy_id, crg_udc_suspend_reinit(crg_udc), true);
 
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-	/* Actually the crg_rewrite_otg_write_UDC() is used to restart the controller
-	 * to workaround quirks emerge in suspend-resume stress test.
-	 * It is safe to skip it if the driver chooses to use resume-reinit scheme.
-	 */
-	if (crg_udc_suspend_reinit(crg_udc))
-		goto done;
-
-	crg_rewrite_otg_write_UDC();
-
-done:
-#endif
-	return 0;
+	return ret;
 }
 
 static int crg_udc_freeze(struct device *dev)
@@ -5159,11 +5168,11 @@ static int crg_udc_pm_cb(struct notifier_block *notifier,
 	struct crg_gadget_dev *crg_udc = &crg_udc_dev;
 	struct platform_device *pdev;
 
-	pr_info("%s called. pm_event:%lu.\n", __func__, pm_event);
+	CRG_DEBUG("%s called. pm_event:%lu.\n", __func__, pm_event);
 
 	mutex_lock(&crg_udc_driver_lock);
 	if (crg_udc_driver_state != 1) {
-		pr_info("crg udc drv state:%d exit.\n", crg_udc_driver_state);
+		CRG_ERROR("crg udc drv state:%d exit.\n", crg_udc_driver_state);
 		goto exit;
 	}
 	pdev = to_platform_device(crg_udc->dev);
@@ -5181,6 +5190,7 @@ static int crg_udc_pm_cb(struct notifier_block *notifier,
 		 */
 		break;
 	case PM_POST_SUSPEND:
+		crg_udc_resume_post(crg_udc);
 		if (crg_udc_suspend_reinit(crg_udc)) {
 			crg_udc_remove(pdev);
 			crg_udc_probe(pdev);
