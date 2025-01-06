@@ -130,7 +130,7 @@ void release_prealloc_job(void)
 
 	spin_lock(&job_list_lock);
 	list_for_each_entry_safe(job, tmp, &prealloc_job_list, list) {
-		list_del(&job->list);
+		list_del_init(&job->list);
 		complete(&job->done);
 	}
 	spin_unlock(&job_list_lock);
@@ -172,7 +172,7 @@ static int prealloc_boost_work_func(void *prealloc_data)
 				goto next;
 			}
 			job = list_first_entry(&prealloc_job_list, struct prealloc_job, list);
-			list_del(&job->list);
+			list_del_init(&job->list);
 
 			if (fatal_signal_pending(job->host)) {
 				spin_unlock(&job_list_lock);
@@ -187,6 +187,7 @@ static int prealloc_boost_work_func(void *prealloc_data)
 				spin_unlock(&ht_list_lock);
 
 				c_work->ret = -EINTR;
+				pr_err("prealloc signal pending\n");
 				goto next;
 			}
 			spin_unlock(&job_list_lock);
@@ -237,13 +238,24 @@ struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n)
 	spin_unlock(&ht_list_lock);
 
 	if (!mm && pre_select_job) {
-		int ret = wait_for_completion_timeout(&pre_select_job->done,
-			msecs_to_jiffies(1000));
+		spin_lock(&job_list_lock);
+		if (!list_empty(&pre_select_job->list)) {
+			/* this job still not start, no wait */
+			list_del_init(&pre_select_job->list);
+			kfree(pre_select_job);
+			spin_unlock(&job_list_lock);
+			return NULL;
+		}
+		spin_unlock(&job_list_lock);
 
-		if (ret == 0)
-			pr_err("codec_mm wait prealloc buffer timeout\n");
-		if (pre_select_job->mem)
-			mm = pre_select_job->mem;
+		/* this job is being allocated, waiting to be completed */
+		wait_for_completion(&pre_select_job->done);
+		if (!pre_select_job->mem) {
+			pr_err("prealloc null, might because signal pending\n");
+			list_del_init(&pre_select_job->list);
+		}
+		mm = pre_select_job->mem;
+
 		kfree(pre_select_job);
 	}
 
