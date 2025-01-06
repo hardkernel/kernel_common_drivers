@@ -12,7 +12,8 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
-#define VBI_DRV_VER    "Ref.20190715"
+/* 20241231: release vbi memory when suspend */
+#define VBI_DRV_VER    "20250106: release vbi memory when suspend"
 
 /* *************************************************** */
 /* *** macro definitions ***************************** */
