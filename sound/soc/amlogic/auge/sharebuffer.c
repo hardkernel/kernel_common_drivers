@@ -121,7 +121,7 @@ void sharebuffer_enable(int sel, bool enable, bool reenable)
 		// TODO: same with tdm
 	} else if (sel <= SHAREBUFFER_SPDIFB) {
 		/* same source with spdif a/b */
-		spdifout_enable(sel - 3, enable, reenable);
+		aml_spdifout_enable(sel - 3, enable, reenable);
 	} else if (sel == SHAREBUFFER_EARCTX) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		aml_earctx_enable(enable);

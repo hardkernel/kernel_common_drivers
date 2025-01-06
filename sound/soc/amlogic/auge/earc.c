@@ -191,6 +191,7 @@ struct earc {
 	struct delayed_work rx_stable_work;
 	struct delayed_work rx_pll_detect_work;
 	struct delayed_work hdmitx_5v_work;
+	struct delayed_work tx_mute_work;
 
 	struct samesource_info ss_info;
 
@@ -1526,11 +1527,12 @@ void aml_earctx_enable(bool enable)
 			s_earc->tx_audio_coding_type,
 			enable,
 			s_earc->chipinfo);
-		earctx_dmac_mute(s_earc->tx_dmac_map, s_earc->tx_mute);
-		if (enable)
+		if (enable) {
+			earctx_dmac_mute(s_earc->tx_dmac_map, s_earc->tx_mute);
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
-		else
+		} else {
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_DISCONNECTED;
+		}
 	}
 	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 }
@@ -2796,6 +2798,17 @@ static int arc_spdifout_reg_mute_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static void tx_mute_work_func(struct work_struct *p_work)
+{
+	struct earc *p_earc = container_of(p_work, struct earc, tx_mute_work.work);
+	unsigned long flags;
+
+	spin_lock_irqsave(&p_earc->tx_lock, flags);
+	if (p_earc->tx_dmac_clk_on && p_earc->tx_stream_state == SNDRV_PCM_STATE_RUNNING)
+		earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
+	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
+}
+
 static int arc_spdifout_reg_mute_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -2807,11 +2820,22 @@ static int arc_spdifout_reg_mute_put(struct snd_kcontrol *kcontrol,
 	if (!p_earc)
 		return 0;
 	p_earc->tx_mute = mute;
-	spin_lock_irqsave(&p_earc->tx_lock, flags);
-	/* set unmute when stream is running */
-	if (p_earc->tx_dmac_clk_on && p_earc->tx_stream_state == SNDRV_PCM_STATE_RUNNING)
-		earctx_dmac_mute(p_earc->tx_dmac_map, mute);
-	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
+
+	if (mute || p_earc->tx_audio_coding_type != AUDIO_CODING_TYPE_DTS) {
+		spin_lock_irqsave(&p_earc->tx_lock, flags);
+		/* set unmute when stream is running */
+		if (p_earc->tx_dmac_clk_on && p_earc->tx_stream_state == SNDRV_PCM_STATE_RUNNING)
+			earctx_dmac_mute(p_earc->tx_dmac_map, mute);
+		spin_unlock_irqrestore(&p_earc->tx_lock, flags);
+	} else {
+		/* for avrs which don't support dts format, so can't send dts data.
+		 * when spdif dual output dts when audio output devices is speaker,
+		 * audio output devices switch  from speaker to arc, if the data
+		 * format is still dts, then unmute it later and audio hal will
+		 * change the output data format later.
+		 */
+		schedule_delayed_work(&p_earc->tx_mute_work, msecs_to_jiffies(30));
+	}
 
 	return 0;
 }
@@ -3540,6 +3564,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 		INIT_WORK(&p_earc->tx_hold_bus_work, tx_hold_bus_work_func);
 		INIT_WORK(&p_earc->earctx_reg_init_work, earctx_reg_init_work_func);
 		INIT_DELAYED_WORK(&p_earc->gain_disable_work, gain_disable_work_func);
+		INIT_DELAYED_WORK(&p_earc->tx_mute_work, tx_mute_work_func);
 	}
 
 	if ((!IS_ERR(p_earc->rx_top_map)) ||
@@ -3608,6 +3633,7 @@ static int earc_platform_suspend(struct platform_device *pdev,
 		cancel_delayed_work(&p_earc->tx_resume_work);
 		cancel_delayed_work(&p_earc->send_uevent_work);
 		cancel_delayed_work(&p_earc->gain_disable_work);
+		cancel_delayed_work(&p_earc->tx_mute_work);
 	}
 
 	mutex_lock(&earc_mutex);
