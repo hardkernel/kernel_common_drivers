@@ -1885,6 +1885,7 @@ int vbi_release_memory(void)
 
 	if (vbi_mem_flag == VBI_MEM_MALLOC && vbi_dev->pac_addr_start) {
 		kfree(vbi_dev->pac_addr_start);
+		vbi_dev->pac_addr_start = NULL;
 	} else if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC && vbi_dev->mem_start) {
 		if (vbi_dev->pac_addr_start) {
 			codec_mm_unmap_phyaddr(vbi_dev->pac_addr_start);
@@ -2700,7 +2701,7 @@ static int vbi_remove(struct platform_device *pdev)
 	class_destroy(vbi_clsp);
 	unregister_chrdev_region(vbi_id, 0);
 
-	tvafe_pr_info(": driver removed ok.\n");
+	tvafe_pr_info("vbi removed ok.\n");
 
 	return 0;
 }
@@ -2708,6 +2709,8 @@ static int vbi_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int vbi_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	vbi_release_memory();
+	tvafe_pr_info("vbi suspend ok.\n");
 	return 0;
 }
 
