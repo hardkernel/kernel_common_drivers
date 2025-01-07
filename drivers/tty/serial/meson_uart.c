@@ -36,11 +36,18 @@
 /* AML_UART_CONTROL bits */
 #define AML_UART_TX_EN			BIT(12)
 #define AML_UART_RX_EN			BIT(13)
+#define AML_UART_TWO_WIRE_EN		BIT(15)
+#define AML_UART_PARITY_TYPE		BIT(18)
+#define AML_UART_PARITY_EN		BIT(19)
 #define AML_UART_TX_RST			BIT(22)
 #define AML_UART_RX_RST			BIT(23)
 #define AML_UART_CLR_ERR		BIT(24)
 #define AML_UART_RX_INT_EN		BIT(27)
 #define AML_UART_TX_INT_EN		BIT(28)
+#define AML_UART_RX_RTS			BIT(31)
+#define AML_UART_STOP_BIN_LEN_MASK	(0x03 << 16)
+#define AML_UART_STOP_BIN_1SB		(0x00 << 16)
+#define AML_UART_STOP_BIN_2SB		(0x01 << 16)
 #define AML_UART_DATA_LEN_MASK		(0x03 << 20)
 #define AML_UART_DATA_LEN_8BIT		(0x00 << 20)
 #define AML_UART_DATA_LEN_7BIT		(0x01 << 20)
@@ -54,20 +61,11 @@
 #define AML_UART_RX_EMPTY		BIT(20)
 #define AML_UART_TX_FULL		BIT(21)
 #define AML_UART_TX_EMPTY		BIT(22)
+#define AML_UART_CTS			BIT(23)
 #define AML_UART_RX_FIFO_OVERFLOW	BIT(24)
 #define AML_UART_ERR			(AML_UART_PARITY_ERR | \
 					 AML_UART_FRAME_ERR  | \
 					 AML_UART_RX_FIFO_OVERFLOW)
-
-/* AML_UART_CONTROL bits */
-#define AML_UART_TWO_WIRE_EN		BIT(15)
-#define AML_UART_PARITY_TYPE		BIT(18)
-#define AML_UART_PARITY_EN		BIT(19)
-#define AML_UART_CLEAR_ERR		BIT(24)
-#define AML_UART_STOP_BIN_LEN_MASK	(0x03 << 16)
-#define AML_UART_STOP_BIN_1SB		(0x00 << 16)
-#define AML_UART_STOP_BIN_2SB		(0x01 << 16)
-#define UART_CTS_EN		(0x01 << 31)
 
 /* AML_UART_MISC bits */
 #define AML_UART_XMIT_IRQ(c)		(((c) & 0xff) << 8)
@@ -103,11 +101,28 @@ static struct meson_uart_port *meson_ports[AML_UART_PORT_MAX];
 
 static void meson_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	u32 val;
+
+	if (port->line == 0)
+		return;
+
+	val = readl(port->membase + AML_UART_CONTROL);
+	if (mctrl & TIOCM_RTS)
+		val &= ~AML_UART_RX_RTS;
+	else
+		val |= AML_UART_RX_RTS;
+	writel(val, port->membase + AML_UART_CONTROL);
 }
 
 static unsigned int meson_uart_get_mctrl(struct uart_port *port)
 {
-	return TIOCM_CTS;
+	u32 val;
+
+	if (port->line == 0)
+		return TIOCM_CTS;
+
+	val = readl(port->membase + AML_UART_STATUS);
+	return (val & AML_UART_CTS) ? 0 : TIOCM_CTS;
 }
 
 static unsigned int meson_uart_tx_empty(struct uart_port *port)
@@ -152,7 +167,7 @@ static void meson_uart_shutdown(struct uart_port *port)
 	val = readl_relaxed(port->membase + AML_UART_CONTROL);
 	val &= ~(AML_UART_RX_EN | AML_UART_TX_EN);
 	val &= ~(AML_UART_RX_INT_EN | AML_UART_TX_INT_EN);
-	val |= UART_CTS_EN;
+	val |= AML_UART_RX_RTS;
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -245,11 +260,11 @@ static void meson_receive_chars(struct uart_port *port)
 				port->icount.frame++;
 
 			mode = readl_relaxed(port->membase + AML_UART_CONTROL);
-			mode |= AML_UART_CLEAR_ERR;
+			mode |= AML_UART_CLR_ERR;
 			writel_relaxed(mode, port->membase + AML_UART_CONTROL);
 
 			/* It doesn't clear to 0 automatically */
-			mode &= ~AML_UART_CLEAR_ERR;
+			mode &= ~AML_UART_CLR_ERR;
 			writel_relaxed(mode, port->membase + AML_UART_CONTROL);
 
 			status &= port->read_status_mask;
@@ -323,7 +338,7 @@ static int meson_uart_startup(struct uart_port *port)
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 	val |= (AML_UART_RX_INT_EN | AML_UART_TX_INT_EN);
-	val &= ~UART_CTS_EN;
+	val &= ~AML_UART_RX_RTS;
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 
@@ -514,7 +529,7 @@ static int meson_uart_request_port(struct uart_port *port)
 	val = (AML_UART_RECV_IRQ(1) | AML_UART_XMIT_IRQ(port->fifosize / 2));
 	writel_relaxed(val, port->membase + AML_UART_MISC);
 
-	writel_relaxed(readl_relaxed(port->membase + AML_UART_CONTROL) | UART_CTS_EN,
+	writel_relaxed(readl_relaxed(port->membase + AML_UART_CONTROL) | AML_UART_RX_RTS,
 			port->membase + AML_UART_CONTROL);
 
 	if (mup->for_bt)
