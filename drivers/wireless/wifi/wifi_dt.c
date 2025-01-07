@@ -87,7 +87,7 @@ struct wifi_plat_info {
 	int power_init_off;
 
 	int clock_32k_pin;
-	int flag_tee;
+	int wifi_pwm_tee;
 	struct gpio_desc *interrupt_desc;
 	struct gpio_desc *powe_desc;
 
@@ -117,13 +117,8 @@ struct wifi_plat_info {
 #define SDIO_GET_DEV_TYPE  _IO('m', 5)
 #define CLR_BT_POWER_BIT   _IO('m', 6)
 #define GET_AML_WIFI_MODULE  _IO('m', 7)
-static struct wifi_plat_info wifi_info = {
-	.flag_tee = 0,
-};
+static struct wifi_plat_info wifi_info;
 
-static struct wifi_plat_info wifi_info_tee = {
-	.flag_tee = 1,
-};
 static dev_t wifi_power_devno;
 static struct cdev *wifi_power_cdev;
 static struct device *devp;
@@ -151,10 +146,6 @@ static const struct of_device_id wifi_match[] = {
 	{
 		.compatible = "amlogic, aml-wifi",
 		.data		= (void *)&wifi_info
-	},
-	{
-		.compatible = "amlogic, aml-wifi-tee",
-		.data		= (void *)&wifi_info_tee
 	},
 	{},
 };
@@ -771,7 +762,7 @@ int pwm_double_channel_conf(struct wifi_plat_info *plat)
 	unsigned int pwm2_times = pwm_data2.pwm_times;
 	int ret = 0;
 
-	if (plat->flag_tee) {
+	if (plat->wifi_pwm_tee) {
 		meson1 = to_meson_pwm_tee(pwm1->chip);
 		meson2 = to_meson_pwm_tee(pwm2->chip);
 	} else {
@@ -786,7 +777,7 @@ int pwm_double_channel_conf(struct wifi_plat_info *plat)
 	pwm_config(pwm1, pwm1_duty, pstate1.period);
 	pwm_config(pwm2, pwm2_duty, pstate2.period);
 
-	if (plat->flag_tee)
+	if (plat->wifi_pwm_tee)
 		ret = pwm_set_times_tee((struct meson_pwm_tee *)meson1, pwm1->hwpwm, pwm1_times);
 	else
 		ret = pwm_set_times((struct meson_pwm *)meson1, pwm1->hwpwm, pwm1_times);
@@ -796,7 +787,7 @@ int pwm_double_channel_conf(struct wifi_plat_info *plat)
 		       __func__, __LINE__);
 		return ret;
 	}
-	if (plat->flag_tee)
+	if (plat->wifi_pwm_tee)
 		ret = pwm_set_times_tee((struct meson_pwm_tee *)meson2, pwm2->hwpwm, pwm2_times);
 	else
 		ret = pwm_set_times((struct meson_pwm *)meson2, pwm2->hwpwm, pwm2_times);
@@ -920,6 +911,14 @@ static int wifi_dev_probe(struct platform_device *pdev)
 							(pdev->dev.of_node,
 							"chip_en-gpios",
 							0, NULL);
+		}
+
+		if (of_get_property(pdev->dev.of_node, "wifi_pwm_tee", NULL)) {
+			plat->wifi_pwm_tee = 1;
+			WIFI_INFO("wifi_pwm_tee = 1\n");
+		} else {
+			plat->wifi_pwm_tee = 0;
+			WIFI_INFO("wifi_pwm_tee = 0\n");
 		}
 
 #ifdef CONFIG_AMLOGIC_PWM_32K
