@@ -705,9 +705,6 @@ static int coresight_init(void)
 		writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
 	}
 
-	timer_setup(&iotm.ts_to_kernel_timer, get_boot_time, 0);
-	mod_timer(&iotm.ts_to_kernel_timer, jiffies + msecs_to_jiffies(1));
-
 	/* enable iotm */
 	val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
 
@@ -999,6 +996,10 @@ static int iotm_probe(struct platform_device *pdev)
 		pr_err("IOTM:fail to request irq: %d\n", ret);
 		return ret;
 	}
+
+	/* create timer to record kernel_time and iotm timestamp */
+	timer_setup(&iotm.ts_to_kernel_timer, get_boot_time, 0);
+	mod_timer(&iotm.ts_to_kernel_timer, jiffies + msecs_to_jiffies(1));
 
 	/* print iotm trace */
 	atomic_notifier_chain_register(&panic_notifier_list, &iotm_panic_notifier);
