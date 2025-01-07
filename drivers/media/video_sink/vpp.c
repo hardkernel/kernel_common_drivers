@@ -1802,7 +1802,8 @@ static int vpp_set_filters_internal
 	next_frame_par->nocomp = false;
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->vscale_skip_count++;
-	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) && !cur_dev->frm2fld_support)
+	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) &&
+		(!cur_dev->frm2fld_support || id != 0))
 		height_shift++;
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
@@ -2422,7 +2423,7 @@ RESTART:
 		next_frame_par->VPP_vsc_startp = 0;
 		next_frame_par->VPP_vsc_endp = 0;
 	} else {
-		if (!cur_dev->frm2fld_support) {
+		if (!cur_dev->frm2fld_support || id != 0) {
 			next_frame_par->VPP_vsc_startp =
 				(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
 				(start >> 1) : start;
@@ -2633,7 +2634,7 @@ RESTART:
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
 	     (!next_frame_par->hscale_skip_count && !is_comb_mode)) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
-		if (cur_dev->frm2fld_support)
+		if (cur_dev->frm2fld_support && id == 0)
 			screen_h = vinfo_height;
 		else
 			screen_h = vinfo_height >>
@@ -3099,7 +3100,8 @@ RESTART:
 			next_frame_par->vpp_vf_rpt_num);
 	/* overwrite filter setting for interlace output*/
 	/* TODO: not reasonable when 4K input to 480i output */
-	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) && !cur_dev->frm2fld_support) {
+	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) &&
+		(!cur_dev->frm2fld_support || id != 0)) {
 		filter->vpp_vert_coeff = filter_table[COEF_BILINEAR];
 		filter->vpp_vert_filter = COEF_BILINEAR;
 	}
@@ -5098,7 +5100,8 @@ static int vpp_set_filters_no_scaler_internal
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->vscale_skip_count++;
 	/* safa have no p to i transfer */
-	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) && !cur_dev->frm2fld_support)
+	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) &&
+		(!cur_dev->frm2fld_support || input->layer_id != 0))
 		height_shift++;
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
@@ -5300,7 +5303,7 @@ RESTART:
 		next_frame_par->VPP_vsc_startp = 0;
 		next_frame_par->VPP_vsc_endp = 0;
 	} else {
-		if (!cur_dev->frm2fld_support) {
+		if (!cur_dev->frm2fld_support || input->layer_id != 0) {
 			next_frame_par->VPP_vsc_startp =
 				(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
 				(start >> 1) : start;
