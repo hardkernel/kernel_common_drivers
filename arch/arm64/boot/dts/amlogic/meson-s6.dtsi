@@ -1898,8 +1898,9 @@
 	};
 
 	aml_wifi: aml_wifi {
-		compatible = "amlogic, aml-wifi-tee";
+		compatible = "amlogic, aml-wifi";
 		status = "disabled";
+		wifi_pwm_tee;
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
 		wifi_static_buf = <0>;
 		//pinctrl-0 = <&pwm_e_pins>;
