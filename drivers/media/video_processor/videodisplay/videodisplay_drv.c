@@ -58,28 +58,70 @@ static const struct file_operations videodisplay_fops = {
 	.poll = NULL,
 };
 
+static int vd_parse_param(char *buf_orig, char **parm)
+{
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+
+	return n;
+}
+
 static ssize_t print_flag_show(const struct class *cla,
 			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
-			"current print_flag is %d\n",
-			get_print_flag());
+			"current print_flag: vd[0]=%d, vd[1]=%d, vd[2]=%d.\n",
+			get_print_flag(0),
+			get_print_flag(1),
+			get_print_flag(2));
 }
 
 static ssize_t print_flag_store(const struct class *cla,
 				const struct class_attribute *attr,
 				const char *buf, size_t count)
 {
-	long tmp;
-	int ret;
+	long index, val;
+	char *buf_orig, *parm[8] = {NULL};
+	int num = 0;
 
-	ret = kstrtol(buf, 0, &tmp);
-	if (ret != 0) {
-		pr_info("ERROR converting %s to long int!\n", buf);
-		return ret;
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	num = vd_parse_param(buf_orig, (char **)&parm);
+	if (num == 1) {
+		if (kstrtol(parm[0], 16, &val) < 0) {
+			kfree(buf_orig);
+			return -EINVAL;
+		}
+		set_print_flag(0, val);
+		set_print_flag(1, val);
+		set_print_flag(2, val);
+	} else if (num == 2) {
+		if (kstrtol(parm[0], 10, &index) < 0 || kstrtol(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			return -EINVAL;
+		}
+		set_print_flag(index, val);
+	} else {
+		pr_info("ERROR invalid param!\n");
 	}
-	set_print_flag(tmp);
+
+	kfree(buf_orig);
 	return count;
 }
 

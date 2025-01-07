@@ -5,21 +5,32 @@
 
 #include "videodisplay_util.h"
 
-static u32 print_flag;
-int set_print_flag(u32 value)
+static u32 print_flag[MAX_VIDEODISPLAY_INSTANCE_NUM];
+int set_print_flag(int index, u32 value)
 {
-	print_flag = value;
+	if (index >= MAX_VIDEODISPLAY_INSTANCE_NUM) {
+		pr_info("%s: %d out of buf.\n", __func__, index);
+		return -1;
+	}
+
+	pr_info("%s: set vd[%d] print_flag to %d.\n", __func__, index, value);
+	print_flag[index] = value;
 	return 0;
 }
 
-u32 get_print_flag(void)
+u32 get_print_flag(int index)
 {
-	return print_flag;
+	if (index >= MAX_VIDEODISPLAY_INSTANCE_NUM) {
+		pr_info("%s: %d out of buf.\n", __func__, index);
+		return -1;
+	}
+
+	return print_flag[index];
 }
 
 int vd_print(int index, int debug_flag, const char *fmt, ...)
 {
-	if ((print_flag & debug_flag) ||
+	if ((print_flag[index] & debug_flag) ||
 	    debug_flag == PRINT_ERROR) {
 		unsigned char buf[256];
 		int len = 0;

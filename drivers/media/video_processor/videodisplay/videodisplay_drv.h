@@ -54,7 +54,6 @@
 #define VCOM_MAP_STRUCT_SIZE 120
 #define VCOM_PROVIDER_NAME_SIZE 32
 #define PATTEN_FACTOR_MAX 5
-#define MAX_VIDEODISPLAY_INSTANCE_NUM 3
 
 enum buffer_format_t {
 	NV21 = 0,

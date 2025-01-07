@@ -135,7 +135,7 @@ static u32 vsync_pts_inc_scale_base[MAX_VD_LAYERS];
 static struct timeval vsync_time[MAX_VD_LAYERS];
 static int patten_trace[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static int vsync_count[MAX_VIDEODISPLAY_INSTANCE_NUM];
-static struct videodisplay_dev *mdev[3];
+static struct videodisplay_dev *mdev[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static DEFINE_MUTEX(videodisplay_mutex);
 
 #define to_dst_buf(vf)	container_of(vf, struct dst_buf_t, frame)
@@ -2081,7 +2081,7 @@ static bool check_mosaic_22(struct videodisplay_dev *dev,
 	return true;
 }
 
-static bool detect_composer_usage(struct videodisplay_dev *dev,
+static bool detect_vf_usage(struct videodisplay_dev *dev,
 	struct received_frames_t *received_frames, bool *need_composer_ptr, bool *mosaic_22_ptr)
 {
 	struct vframe_s *vf = NULL;
@@ -2093,11 +2093,9 @@ static bool detect_composer_usage(struct videodisplay_dev *dev,
 
 	count = received_frames->frames_info.frame_count;
 	if (count == 1) {
-		if ((dev->index == 0 && force_composer) ||
-		    (dev->index == 1 && force_composer_pip))
+		if ((dev->index == 0 && force_composer) || (dev->index == 1 && force_composer_pip))
 			*need_composer_ptr = true;
-		frame_transform =
-			received_frames->frames_info.frame_info[0].rotation;
+		frame_transform = received_frames->frames_info.frame_info[0].rotation;
 		if (frame_transform == VC_TRANSFORM_ROT_90 ||
 			frame_transform == VC_TRANSFORM_ROT_180 ||
 			frame_transform == VC_TRANSFORM_ROT_270 ||
@@ -2699,10 +2697,8 @@ static void vframe_display(struct videodisplay_dev *dev,
 
 	detect_vf_type(frame_info, &is_dec_vf, &is_v4l_vf);
 	get_dma_buf(frame_info->dmabuf);
-	if ((dev->last_file == (struct file *)frame_info->dmabuf) && (is_dec_vf || is_v4l_vf)) {
-		vd_print(dev->index, PRINT_OTHER, "%s: repeat vf.\n", __func__);
+	if ((dev->last_file == (struct file *)frame_info->dmabuf) && (is_dec_vf || is_v4l_vf))
 		is_repeat_vf = true;
-	}
 
 	if (is_repeat_vf) {
 		dma_buf_put(frame_info->dmabuf);
@@ -2752,9 +2748,13 @@ static void vframe_display(struct videodisplay_dev *dev,
 
 	if (is_repeat_vf) {
 		vf->repeat_count++;
+		ready_count = kfifo_len(&dev->ready_q);
+		atomic_set(&received_frames->on_use, false);
 		vd_print(dev->index, PRINT_OTHER,
-			"%s: repeat frame, repeat_count is %d.\n",
-			__func__, vf->repeat_count);
+			"%s: repeat frame, repeat_count is %d, ready_q count is %d.\n",
+			__func__,
+			vf->repeat_count,
+			ready_count);
 		return;
 	}
 
@@ -2816,7 +2816,8 @@ static void vframe_display(struct videodisplay_dev *dev,
 		vf->bitdepth = frame_info->bitdepth;
 	}
 
-	vd_print(dev->index, PRINT_AXIS, "%s: frame_index=%d.\n", __func__, vf->frame_index);
+	vd_print(dev->index, PRINT_AXIS, "=========frame info:==========\n");
+	vd_print(dev->index, PRINT_AXIS, "frame_index=%d.\n", vf->frame_index);
 	vd_print(dev->index, PRINT_AXIS,
 		 "axis: %d %d %d %d, crop: %d %d %d %d\n",
 		 vf->axis[0], vf->axis[1], vf->axis[2], vf->axis[3],
@@ -2824,7 +2825,6 @@ static void vframe_display(struct videodisplay_dev *dev,
 	vd_print(dev->index, PRINT_AXIS,
 		 "vf_width: %d, vf_height: %d\n",
 		 vf->width, vf->height);
-	vd_print(dev->index, PRINT_AXIS, "=========frame info:==========\n");
 	vd_print(dev->index, PRINT_AXIS,
 		 "frame aixs x,y,w,h: %d %d %d %d\n",
 		 frame_info->dst_x, frame_info->dst_y,
@@ -2894,8 +2894,8 @@ static void video_display_task(struct videodisplay_dev *dev)
 	if (video_wait_file_fence(dev, fence_file) == 0)
 		return;
 
-	if (!detect_composer_usage(dev, received_frames, &need_composer, &do_mosaic_22)) {
-		vd_print(dev->index, PRINT_ERROR, "%s: fail to get composer usage.\n", __func__);
+	if (!detect_vf_usage(dev, received_frames, &need_composer, &do_mosaic_22)) {
+		vd_print(dev->index, PRINT_ERROR, "%s: fail to get vf usage.\n", __func__);
 		return;
 	}
 
@@ -2980,10 +2980,8 @@ static int vd_render_index_get(struct videodisplay_dev *dev)
 	if (!dev) {
 		pr_info("%s: dev is null.\n", __func__);
 	} else {
-		if (dev->index >= MAX_VD_LAYERS) {
-			vd_print(dev->index, PRINT_ERROR,
-				"%s: invalid param.\n",
-				__func__);
+		if (dev->index >= MAX_VIDEODISPLAY_INSTANCE_NUM) {
+			pr_info("%s: index(%d) is invalid.\n", __func__, dev->index);
 		} else {
 			receiver_id = get_receiver_id(dev->index);
 			if (receiver_id >= 5)
@@ -2992,11 +2990,12 @@ static int vd_render_index_get(struct videodisplay_dev *dev)
 				render_index = receiver_id - 2;
 			else
 				render_index = 0;
+			vd_print(dev->index, PRINT_ERROR,
+				"%s: render_index is %d.\n",
+				__func__, render_index);
 		}
-		vd_print(dev->index, PRINT_ERROR,
-			"%s: render_index is %d.\n",
-			__func__, render_index);
 	}
+
 	return render_index;
 }
 
@@ -3694,7 +3693,7 @@ static int video_display_open(int index)
 	u32 layer_cap = 0;
 
 	if (index >= MAX_VIDEODISPLAY_INSTANCE_NUM) {
-		vd_print(index, PRINT_ERROR, "%s: index(%d) is invalid.\n", __func__, index);
+		pr_info("%s: index(%d) is invalid.\n", __func__, index);
 		return -ENODEV;
 	}
 
@@ -3761,7 +3760,7 @@ static int video_display_release(int index)
 	int i = 0;
 
 	if (index >= MAX_VIDEODISPLAY_INSTANCE_NUM) {
-		vd_print(index, PRINT_ERROR, "%s: index(%d) is invalid.\n", __func__, index);
+		pr_info("%s: index(%d) is invalid.\n", __func__, index);
 		return -ENODEV;
 	}
 
@@ -3857,10 +3856,15 @@ int vd_set_frames(int index, struct frames_info_t *frames_info)
 		return -EINVAL;
 	}
 
+	vd_print(dev->index, PRINT_OTHER,
+		"%s: receive_count=%d, index=%d.\n",
+		__func__,
+		frames_info->frame_count,
+		frames_info->layer_index);
+
 	time1 = dev->start_time;
 	do_gettimeofday(&time2);
-	time_us64 = (u64)1000000 * (time2.tv_sec - time1.tv_sec)
-			+ time2.tv_usec - time1.tv_usec;
+	time_us64 = (u64)1000000 * (time2.tv_sec - time1.tv_sec) + time2.tv_usec - time1.tv_usec;
 
 	dev->received_frames[num].is_drm = true;
 	dev->received_frames[num].frames_num = frames_info->frame_count;

@@ -37,6 +37,8 @@
 #define PRINT_DALTON		0X0400
 #define PRINT_AIFACE		0X0800
 
+#define MAX_VIDEODISPLAY_INSTANCE_NUM 3
+
 enum videocom_source_type {
 	DECODER_8BIT_NORMAL = 0,
 	DECODER_8BIT_BOTTOM,
@@ -124,8 +126,8 @@ struct composer_common_para {
 	struct composer_output_para output_para;
 };
 
-int set_print_flag(u32 value);
-u32 get_print_flag(void);
+int set_print_flag(int index, u32 value);
+u32 get_print_flag(int index);
 int vd_print(int index, int debug_flag, const char *fmt, ...);
 
 #endif
