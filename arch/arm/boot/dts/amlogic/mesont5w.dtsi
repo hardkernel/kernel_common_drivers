@@ -2542,7 +2542,6 @@
 	};
 
 	chosen {
-		kaslr-seed = <0x0 0x0>;
 	};
 
 	aml_mkl {
