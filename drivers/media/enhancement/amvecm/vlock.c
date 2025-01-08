@@ -3361,10 +3361,13 @@ void vlock_process(struct vframe_s *vf,
 		return;
 
 	if (!vf) {
-		vlock_set_sts_by_frame_lock(false);
-		pvlock->fsm_sts = VLOCK_STATE_NULL;
+		if (pvlock->fsm_sts >= VLOCK_STATE_ENABLE_STEP1_DONE &&
+			pvlock->fsm_sts <= VLOCK_STATE_DISABLE_STEP1_DONE) {
+			vlock_set_sts_by_frame_lock(false);
+			pvlock->fsm_sts = VLOCK_STATE_NULL;
+		}
 		if (vlock_debug & VLOCK_DEBUG_INFO)
-			pr_info("%s  vf is null\n", __func__);
+			pr_info("%s vf is null\n", __func__);
 		return;
 	}
 
@@ -3404,9 +3407,11 @@ void vlock_process(struct vframe_s *vf,
 
 	if (!(vlock_debug & VLOCK_DEBUG_FORCE_ON)) {
 		if (vlock_chk_is_small_win(cur_video_sts)) {
-			//if (pvlock->dtdata->vlk_ctl_for_frc)
-			vlock_set_sts_by_frame_lock(false);
-			pvlock->fsm_sts = VLOCK_STATE_NULL;
+			if (pvlock->fsm_sts >= VLOCK_STATE_ENABLE_STEP1_DONE &&
+				pvlock->fsm_sts <= VLOCK_STATE_DISABLE_STEP1_DONE) {
+				vlock_set_sts_by_frame_lock(false);
+				pvlock->fsm_sts = VLOCK_STATE_NULL;
+			}
 			if (vlock_debug & VLOCK_DEBUG_INFO)
 				pr_info("%s is small win\n", __func__);
 			return;
