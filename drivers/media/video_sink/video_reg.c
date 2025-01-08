@@ -1020,6 +1020,7 @@ struct hw_vsr_safa_reg_s vsr_safa_reg = {
 	SAFA_PPS_CNTL_SCALE_COEF_LUMA,
 	SAFA_PPS_CNTL_SCALE_COEF_IDX_CHRO,
 	SAFA_PPS_CNTL_SCALE_COEF_CHRO,
+	VPP_SR_EN,
 };
 
 struct hw_vsr_safa_reg_s s6_vsr_safa_reg = {
@@ -1062,6 +1063,7 @@ struct hw_vsr_safa_reg_s s6_vsr_safa_reg = {
 	S6_SAFA_PPS_CNTL_SCALE_COEF_LUMA,
 	S6_SAFA_PPS_CNTL_SCALE_COEF_IDX_CHRO,
 	S6_SAFA_PPS_CNTL_SCALE_COEF_CHRO,
+	VPP_SR_EN,
 	SAFA_PPS_DEJAGGY_CTRL,
 };
 
@@ -1105,6 +1107,7 @@ struct hw_vsr_safa_reg_s vsr_safa_reg_t6d = {
 	T6D_SAFA_PPS_CNTL_SCALE_COEF_LUMA,
 	T6D_SAFA_PPS_CNTL_SCALE_COEF_IDX_CHRO,
 	T6D_SAFA_PPS_CNTL_SCALE_COEF_CHRO,
+	VPP_SR_EN,
 	T6D_SAFA_PPS_DEJAGGY_CTRL,
 };
 

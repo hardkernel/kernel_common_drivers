@@ -262,11 +262,20 @@ void dump_vd_vsr_safa_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%x [safa_pps_sc_misc]\n",
 		reg_addr, reg_val);
-
+	reg_addr = vsr_reg->vpp_sr_en;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%x [vpp_sr_en]\n",
+		reg_addr, reg_val);
 	if (cur_dev->dejaggy_support) {
 		reg_addr = vsr_reg->safa_pps_dejaggy_ctrl;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("[0x%x] = 0x%x [safa_pps_dejaggy_ctrl]\n",
+			reg_addr, reg_val);
+	}
+	if (cur_dev->frm2fld_support) {
+		reg_addr = VPP_P2I_H_V_SIZE;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%x [VPP_P2I_H_V_SIZE]\n",
 			reg_addr, reg_val);
 	}
 };
@@ -740,7 +749,7 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		vsr_safa->dejaggy_en = false;
 	}
 
-	if (hsize_out <= 45)
+	if (hsize_out <= 45 || hsize_in <= 35)
 		vsr_top->sharpness_en = false;
 	else
 		vsr_top->sharpness_en = true;
@@ -768,14 +777,15 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 			(vsr_top->pi_safa_vsc_ini_integer << 16);
 	}
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA) {
-		pr_info("%s:vsr top: h/vsize_in:%d,%d, h/vsize_out:%d, %d, dejaggy_en=%d, is_interlaced=%d\n",
+		pr_info("%s:vsr top: h/vsize_in:%d,%d, h/vsize_out:%d, %d, dejaggy_en=%d, is_interlaced=%d, sharpness_en=%d\n",
 			__func__,
 			hsize_in,
 			vsize_in,
 			hsize_out,
 			vsize_out,
 			vsr_safa->dejaggy_en,
-			vsr_top->is_interlaced);
+			vsr_top->is_interlaced,
+			vsr_top->sharpness_en);
 		pr_info("%s:safa pre_scaler pre_h/vsize:%d, %d\n",
 			__func__,
 			pre_hsize,
@@ -1266,9 +1276,9 @@ static void sharpness_and_dir_interp_enable(struct vsr_setting_s *vsr)
 	rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
 		dir_interp_en, 25, 1);
 	if (super_scaler && vsr->vsr_top.sharpness_en)
-		rdma_wr_bits(VPP_SR_EN, 1, 0, 1);
+		rdma_wr_bits(vsr_reg->vpp_sr_en, 1, 0, 1);
 	else
-		rdma_wr_bits(VPP_SR_EN, 0, 0, 1);
+		rdma_wr_bits(vsr_reg->vpp_sr_en, 0, 0, 1);
 }
 
 void set_vsr_scaler(struct vsr_setting_s *vsr)
@@ -1276,12 +1286,12 @@ void set_vsr_scaler(struct vsr_setting_s *vsr)
 	set_vsr_input_size(vsr);
 	set_vsr_input_format(vsr);
 	set_vd1_frm2fld_en(vsr);
-	sharpness_and_dir_interp_enable(vsr);
 	if (vsr->vsr_top.vsr_en) {
 		set_cfg_pi_safa(vsr);
 		set_vsr_pi(vsr);
 		set_safa_pps(vsr);
 	}
+	sharpness_and_dir_interp_enable(vsr);
 }
 
 void set_dither_mode(int dither_mode)
