@@ -3392,6 +3392,16 @@
 		};
 	};
 
+	c_uart_pins6:c_uart6 {
+		mux {
+			groups = "uart_c_tx_h28",
+				"uart_c_rx_h29";
+			function = "uart_c";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
+		};
+	};
+
 	jtag_a_pins: jtag_a_pin {
 		mux {
 			groups = "jtag_a_tdi",
@@ -3399,30 +3409,6 @@
 				 "jtag_a_clk",
 				 "jtag_a_tms";
 			function = "jtag_a";
-		};
-	};
-
-	c_uart_pins5:c_uart5 {
-		mux {
-			groups = "uart_c_tx_m",
-				"uart_c_rx_m";
-			function = "uart_c";
-		};
-	};
-
-	d_uart_pins1:d_uart1 {
-		mux {
-			groups = "uart_d_tx_z",
-				"uart_d_rx_z";
-			function = "uart_d";
-		};
-	};
-
-	d_uart_pins2:d_uart2 {
-		mux {
-			groups = "uart_d_tx_m",
-				"uart_d_rx_m";
-			function = "uart_d";
 		};
 	};
 
