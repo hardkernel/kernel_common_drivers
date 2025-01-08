@@ -896,6 +896,11 @@ void earctx_enable_d2a(struct regmap *top_map, int enable)
 	mmio_update_bits(top_map, EARCTX_ANA_CTRL0, 0x1 << 31, enable << 31);
 }
 
+void earctx_enable_rterm_on(struct regmap *top_map)
+{
+	mmio_update_bits(top_map, EARCTX_ANA_CTRL0, 0x1 << 17, 0x1 << 17);
+}
+
 void earctx_cmdc_init(struct regmap *top_map, bool en, struct earc_chipinfo *chipinfo)
 {
 	/* always set bit[16] = 0 from T5M for Txs */

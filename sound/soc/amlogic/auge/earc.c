@@ -3284,6 +3284,8 @@ static int earctx_cmdc_setup(struct earc *p_earc)
 	earctx_cmdc_set_timeout(p_earc->tx_cmdc_map, 1);
 	/* Default: arc arc_initiated */
 	earctx_cmdc_int_mask(p_earc->tx_top_map);
+	if (p_earc->chipinfo->rterm_on)
+		earctx_enable_rterm_on(p_earc->tx_top_map);
 
 	return ret;
 }
