@@ -189,7 +189,6 @@ static inline void decrease_duration(struct meson_ir_raw_event *ev,
 
 void meson_ir_input_configure(struct input_dev *input_device,
 			      struct ir_map_tab *ir_map);
-void meson_ir_input_mouse_configure(struct meson_ir_dev *dev);
 void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status);
 int meson_ir_raw_event_store(struct meson_ir_dev *dev,
 			     struct meson_ir_raw_event *ev);

@@ -137,6 +137,7 @@ struct meson_ir_chip {
 	 */
 	unsigned char ir_work;
 	struct tasklet_struct tasklet;
+	struct work_struct ir_workqueue;
 	struct mbox_chan *mbox_chan;
 };
 

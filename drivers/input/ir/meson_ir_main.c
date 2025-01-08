@@ -103,8 +103,7 @@ void meson_ir_report_wakeup_event(struct meson_ir_chip *chip, u32 framecode)
 input_report:
 	if (!input_device) {
 		input_device = chip->r_dev->input_devs[0];
-		dev_err(chip->dev, "Input ID not found, framecode = 0x%x\n",
-			framecode);
+		dev_err(chip->dev, "wakeup framecode = 0x%x\n", framecode);
 	}
 
 	spin_lock_irqsave(&chip->slock, flags);
@@ -280,10 +279,8 @@ static int meson_ir_report_rel(struct meson_ir_dev *dev, u32 scancode,
 	}
 
 	input_device = meson_ir_match_input_dev(dev, ct);
-	if (!input_device) {
-		dev_err(chip->dev, "Input ID not found\n");
+	if (!input_device)
 		return 0;
-	}
 
 	input_event(input_device, EV_REL, mouse_code, cursor_value);
 	input_sync(input_device);
@@ -324,7 +321,6 @@ static u32 meson_ir_getkeycode(struct meson_ir_dev *dev, u32 scancode)
 	    scancode == ct->tab.cursor_code.fn_key_scancode) {
 		if (ct->ir_dev_mode == NORMAL_MODE) {
 			ct->ir_dev_mode = MOUSE_MODE;
-			meson_ir_input_mouse_configure(dev);
 		} else {
 			ct->ir_dev_mode = NORMAL_MODE;
 		}
@@ -381,6 +377,7 @@ static bool meson_ir_set_custom_code(struct meson_ir_dev *dev, u32 code)
 static void meson_ir_tasklet(struct tasklet_struct *t)
 {
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)t->data;
+	struct input_dev *input_device;
 	unsigned long flags;
 	int status = -1;
 	int scancode = -1;
@@ -413,6 +410,74 @@ static void meson_ir_tasklet(struct tasklet_struct *t)
 		break;
 	}
 	spin_unlock_irqrestore(&chip->slock, flags);
+
+	if (chip->cur_tab && chip->cur_tab->ir_dev_mode == MOUSE_MODE) {
+		input_device = meson_ir_match_input_dev(chip->r_dev,
+							chip->cur_tab);
+		if (input_device && !test_bit(EV_REL, input_device->evbit))
+			queue_work(system_wq, &chip->ir_workqueue);
+	}
+}
+
+static void meson_ir_input_mouse_configure(struct meson_ir_dev *dev)
+{
+	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
+	struct meson_ir_map_tab_list *ct = chip->cur_tab;
+	struct input_dev *new_input, *old_input = NULL;
+	int ret, i, j;
+
+	if (!ct)
+		return;
+
+	for (i = 0; i < dev->input_dev_num; i++)
+		if (!memcmp(&ct->tab.id, &dev->input_devs[i]->id,
+			    sizeof(struct input_id))) {
+			old_input = dev->input_devs[i];
+			break;
+		}
+
+	if (!old_input)
+		return;
+	if (test_bit(EV_REL, old_input->evbit))
+		return;
+
+	new_input = devm_input_allocate_device(chip->dev);
+	if (!new_input)
+		return;
+
+	new_input->name = old_input->name;
+	new_input->phys = "keypad/input0";
+	new_input->dev.parent = old_input->dev.parent;
+	memcpy(&new_input->id, &old_input->id, sizeof(struct input_id));
+	new_input->rep[REP_DELAY] = 0xffffffff;  /*close input repeat*/
+	new_input->rep[REP_PERIOD] = 0xffffffff; /*close input repeat*/
+
+	bitmap_copy(new_input->keybit, old_input->keybit, KEY_MAX);
+	bitmap_copy(new_input->evbit, old_input->evbit, EV_MAX);
+	input_set_capability(new_input, EV_REL, REL_X);
+	input_set_capability(new_input, EV_REL, REL_Y);
+	input_set_capability(new_input, EV_REL, REL_WHEEL);
+	for (j = BTN_MOUSE; j < BTN_SIDE; j++)
+		input_set_capability(new_input, EV_KEY, j);
+
+	input_set_drvdata(new_input, dev);
+
+	input_unregister_device(old_input);
+	ret = input_register_device(new_input);
+	if (ret < 0) {
+		dev_err(chip->dev, "re-register input failed\n");
+		return;
+	}
+
+	dev->input_devs[i] = new_input;
+}
+
+static void meson_ir_workqueue(struct work_struct *work)
+{
+	struct meson_ir_chip *chip = container_of(work, struct meson_ir_chip,
+						  ir_workqueue);
+
+	meson_ir_input_mouse_configure(chip->r_dev);
 }
 
 static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
@@ -897,6 +962,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	chip->dev_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					"amremote%d", chip->dev_no);
 
+	INIT_WORK(&chip->ir_workqueue, meson_ir_workqueue);
 	tasklet_setup(&chip->tasklet, meson_ir_tasklet);
 	chip->tasklet.data = (unsigned long)chip;
 

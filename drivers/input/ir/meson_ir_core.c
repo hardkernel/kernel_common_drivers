@@ -37,10 +37,8 @@ static void meson_ir_do_keyup(struct meson_ir_dev *dev)
 		return;
 
 	input_device = meson_ir_match_input_dev(dev, ct);
-	if (!input_device) {
-		dev_err(chip->dev, "Input ID not found\n");
+	if (!input_device)
 		return;
-	}
 
 	if (meson_ir_read_dev_num() > 1) {
 		meson_ir_common_input_report(dev->last_keycode, 0);
@@ -96,10 +94,8 @@ static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 		dev->last_keycode = keycode;
 
 		input_device = meson_ir_match_input_dev(dev, ct);
-		if (!input_device) {
-			dev_err(chip->dev, "Input ID not found\n");
+		if (!input_device)
 			return;
-		}
 
 		if (meson_ir_read_dev_num() > 1) {
 			meson_ir_common_input_report(keycode, 1);
@@ -173,21 +169,6 @@ void meson_ir_input_configure(struct input_dev *input_device,
 }
 EXPORT_SYMBOL(meson_ir_input_configure);
 
-void meson_ir_input_mouse_configure(struct meson_ir_dev *dev)
-{
-	int i, j;
-
-	for (i = 0; i < dev->input_dev_num; i++) {
-		input_set_capability(dev->input_devs[i], EV_REL, REL_X);
-		input_set_capability(dev->input_devs[i], EV_REL, REL_Y);
-		input_set_capability(dev->input_devs[i], EV_REL, REL_WHEEL);
-		for (j = BTN_MOUSE; j < BTN_SIDE; j++)
-			input_set_capability(dev->input_devs[i], EV_KEY, j);
-	}
-	meson_ir_common_input_set_capability(dev->input_devs[0]);
-}
-EXPORT_SYMBOL(meson_ir_input_mouse_configure);
-
 struct input_dev *meson_ir_match_input_dev(struct meson_ir_dev *dev,
 					   struct meson_ir_map_tab_list *ir_map)
 {
@@ -197,6 +178,8 @@ struct input_dev *meson_ir_match_input_dev(struct meson_ir_dev *dev,
 		if (!memcmp(&ir_map->tab.id, &dev->input_devs[i]->id,
 			    sizeof(struct input_id)))
 			return dev->input_devs[i];
+
+	dev_err(dev->dev, "Input ID not found\n");
 	return NULL;
 }
 EXPORT_SYMBOL(meson_ir_match_input_dev);
