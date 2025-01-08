@@ -196,6 +196,7 @@
 /*  V3.6.016 fix t6d isdbt offset test failed */
 /*  V3.6.017 fix dvbs auto sr config(cause unlock) */
 /*  V3.6.018 get dvbs/s2 if config from get_if_frequency */
+/*  V3.6.019 fix dvbs blind scan lose TP for rda5815m */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -212,8 +213,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.018"
-#define DTVDEMOD_VER	"2025/02/24: get dvbs/s2 if config from get_if_frequency"
+#define AMLDTVDEMOD_VER "V3.6.019"
+#define DTVDEMOD_VER	"2025/02/28: fix dvbs blind scan lose TP for rda5815m"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

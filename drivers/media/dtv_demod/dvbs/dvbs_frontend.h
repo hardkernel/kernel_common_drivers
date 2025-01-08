@@ -22,7 +22,7 @@ int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
 	struct fft_in_bw_result *in_bw_result, unsigned int fft_frc_range_min,
 	unsigned int fft_frc_range_max, unsigned int range_ini);
 void dvbs_blind_scan_new_work(struct work_struct *work);
-int dtvdemod_dvbs_set_ch(struct aml_demod_sta *demod_sta);
+int dtvdemod_dvbs_set_ch(struct dvb_frontend *fe, struct aml_demod_sta *demod_sta);
 unsigned int dvbs_get_bitrate(int sr);
 int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 		unsigned int if_freq_khz, bool re_tune);

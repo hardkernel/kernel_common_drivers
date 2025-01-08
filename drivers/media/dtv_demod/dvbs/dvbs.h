@@ -170,7 +170,7 @@ int dvbs_get_modulation_coderate(u32 *modulation, u32 *coderate);
 unsigned int dvbs_get_freq_offset(unsigned int *polarity);
 unsigned int dvbs_get_symbol_rate(void);
 int dvbs_get_signal_strength_off(void);
-void dvbs_fft_reg_init(unsigned int *reg_val);
+void dvbs_fft_reg_init(struct dvb_frontend *fe, unsigned int *reg_val);
 void dvbs_fft_reg_term(unsigned int reg_val[60]);
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
 	int frq, struct fft_search_result *search_result);

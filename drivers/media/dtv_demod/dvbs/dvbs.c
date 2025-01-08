@@ -750,7 +750,7 @@ int dvbs_get_signal_strength_off(void)
 	return -i;
 }
 
-void dvbs_fft_reg_init(unsigned int *reg_val)
+void dvbs_fft_reg_init(struct dvb_frontend *fe, unsigned int *reg_val)
 {
 	unsigned int fld_value;
 	int i = 0;
@@ -847,11 +847,13 @@ void dvbs_fft_reg_init(unsigned int *reg_val)
 	dvbs_write_bits(0x99f, 0x56, 0, 7);
 
 	dvbs_wr_byte(0x990, 0x0);
-	dvbs_write_bits(0x912, 0x0, 0, 3);
+	if (!tuner_find_by_name(fe, "rda5815m"))
+		dvbs_write_bits(0x912, 0x0, 0, 3);
 	dvbs_write_bits(0x910, 0x1, 5, 1);
 	dvbs_write_bits(0x910, 0x1, 3, 1);
 	dvbs_wr_byte(0x913, 0x58);
-	dvbs_write_bits(0x912, 0x0, 0, 3);
+	if (!tuner_find_by_name(fe, "rda5815m"))
+		dvbs_write_bits(0x912, 0x0, 0, 3);
 
 	dvbs_wr_byte(0x918, 0x00);
 	dvbs_wr_byte(0x919, 0x00);
