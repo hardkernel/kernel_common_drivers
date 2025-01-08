@@ -363,7 +363,7 @@ static size_t aml_aes_sg_dma(struct aml_aes_dev *dd, void *descriptor,
 	dd->sg_dsc_out = dma_alloc_coherent(dd->parent,
 					    out_nents *  dma_sg_sz,
 					    &dd->dma_sg_dsc_out, GFP_KERNEL | GFP_DMA);
-	if (!dd->dma_sg_dsc_out) {
+	if (!dd->sg_dsc_out) {
 		dev_err(dev, "dma_alloc_coherent() for output error\n");
 		dma_free_coherent(dd->parent, in_nents * dma_sg_sz,
 				  dd->sg_dsc_in, dd->dma_sg_dsc_in);

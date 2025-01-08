@@ -1274,6 +1274,10 @@ static int aml_tdes_probe(struct platform_device *pdev)
 	}
 
 	tdes_info = devm_kzalloc(dev, sizeof(*tdes_info), GFP_KERNEL);
+	if (!tdes_info) {
+		err = -ENOMEM;
+		goto tdes_dd_err;
+	}
 	tdes_info->algs = match->algs;
 	tdes_info->num_algs = match->num_algs;
 	tdes_dd->info = tdes_info;

@@ -395,7 +395,8 @@ static int aml_sha_update_dma_start(struct aml_sha_dev *dd,
 	dbgp(1, " block size: %zd, flag: %lx\n",
 	     ctx->block_size, ctx->flags);
 
-	if (!ctx->total) {
+	/* Sanity check */
+	if (!ctx->total || !ctx->sg) {
 		ctx->fast_nents = 0;
 		return 0;
 	}
@@ -407,6 +408,15 @@ static int aml_sha_update_dma_start(struct aml_sha_dev *dd,
 		ctx->fast_nents--;
 	}
 
+	if (!ctx->sg) {
+		pr_err("%s:%d: no more sg found\n",
+		       __func__, __LINE__);
+		return 0;
+	}
+
+	/* Run out of data in current sg.
+	 * Move sg to next.
+	 */
 	if (ctx->offset == ctx->sg->length) {
 		ctx->sg = sg_next(ctx->sg);
 		if (ctx->sg)
@@ -428,7 +438,7 @@ static int aml_sha_update_dma_start(struct aml_sha_dev *dd,
 
 	sg = ctx->sg;
 
-	while (ctx->total && ctx->fast_nents < MAX_NUM_TABLES && sg) {
+	while (ctx->total && ctx->fast_nents < MAX_NUM_TABLES) {
 		dbgp(1, "fast:ctx:%p,dig:0x%llx 0x%llx,bc:%zd,tot:%u,sgl: %u\n",
 		     ctx, ctx->digcnt[1], ctx->digcnt[0],
 		ctx->bufcnt, ctx->total, ctx->sg->length);
