@@ -7937,6 +7937,22 @@ void stmmac_dvr_remove(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(stmmac_dvr_remove);
 
+static int phy_poll_aneg_done(struct phy_device *phydev)
+{
+	unsigned int retries = 100;
+	int ret;
+
+	do {
+		msleep(100);
+		ret = phy_aneg_done(phydev);
+	} while (!ret && --retries);
+
+	if (!ret)
+		return -ETIMEDOUT;
+	msleep(100);
+	return ret < 0 ? ret : 0;
+}
+
 /**
  * stmmac_suspend - suspend callback
  * @dev: device pointer
@@ -7999,7 +8015,9 @@ int stmmac_suspend(struct device *dev)
 		int ret;
 
 		if (wol_switch_from_user && priv->phylink->phydev->link && !mdns_switch_from_user) {
-			ret = phylink_speed_down(priv->phylink, true);
+			phylink_speed_down(priv->phylink, false);
+			pr_info("wait link up 10M\n");
+			ret = phy_poll_aneg_done(priv->phylink->phydev);
 			if (ret)
 				dev_err(priv->device, "phylink_speed_down(): auto-negotiation is incomplete\n");
 		}
