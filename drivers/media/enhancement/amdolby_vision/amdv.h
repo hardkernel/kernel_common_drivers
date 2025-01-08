@@ -1012,6 +1012,7 @@ extern unsigned int core1_bypass;
 extern unsigned int vtotal_add;
 extern unsigned int g_vtiming;
 extern uint debug_rdmif;
+extern u32 force_update_top2;
 
 /************/
 

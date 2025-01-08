@@ -173,15 +173,16 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 		if (vinfo) {
 			if (vinfo->sync_duration_den)
 				sync_duration_num = vinfo->sync_duration_num /
-						    vinfo->sync_duration_den;
+					vinfo->sync_duration_den;
 			if (debug_dolby & 2)
-				pr_dv_dbg("vinfo %d %d %d %d %d %d\n",
-					     vinfo->width,
-					     vinfo->height,
-					     vinfo->field_height,
-					     vinfo->sync_duration_num,
-					     vinfo->sync_duration_den,
-					     sync_duration_num);
+				pr_dv_dbg("vinfo %d %d %d %d %d %d, graphics_h %d\n",
+					vinfo->width,
+					vinfo->height,
+					vinfo->field_height,
+					vinfo->sync_duration_num,
+					vinfo->sync_duration_den,
+					sync_duration_num,
+					graphics_h);
 			if (vinfo->width < 1280 &&
 				vinfo->height < 720 &&
 				vinfo->field_height < 720)
@@ -213,7 +214,7 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 			g_vpotch = 0x20;
 		}
 	} else if (is_aml_tm2_stbmode() || is_aml_t7_stbmode() ||
-		is_aml_sc2() || is_aml_s4d() || is_aml_s7d() || is_aml_s6()) {
+		is_aml_sc2() || is_aml_s4d()) {
 		if (vinfo) {
 			if (debug_dolby & 2)
 				pr_dv_dbg("vinfo %d %d %d, graphics_h %d\n",
@@ -225,6 +226,40 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 				vinfo->height < 720 &&
 				vinfo->field_height < 720)
 				g_vpotch = 0x60;
+			else if (vinfo->width <= 1920 &&
+				vinfo->height <= 1080 &&
+				vinfo->field_height <= 1080)
+				g_vpotch = 0x50;
+			else
+				g_vpotch = 0x20;
+
+			/* for 4k fb */
+			if (graphics_h > 1440)
+				g_vpotch = 0x15;
+
+			if (vinfo->width > 1920)
+				htotal_add = 0xc0;
+			else
+				htotal_add = 0x140;
+		} else {
+			g_vpotch = 0x20;
+		}
+	} else if (is_aml_s7d() || is_aml_s6()) {
+		if (vinfo) {
+			if (debug_dolby & 2)
+				pr_dv_dbg("vinfo %d %d %d, graphics_h %d\n",
+					vinfo->width,
+					vinfo->height,
+					vinfo->field_height,
+					graphics_h);
+			if (vinfo->width < 1280 &&
+				vinfo->height < 720 &&
+				vinfo->field_height < 720)
+				g_vpotch = 0x60;
+			else if (vinfo->width == 1280 &&
+				vinfo->height == 720 &&
+				vinfo->field_height == 720)
+				g_vpotch = 0x70;
 			else if (vinfo->width <= 1920 &&
 				vinfo->height <= 1080 &&
 				vinfo->field_height <= 1080)
@@ -6404,31 +6439,4 @@ int register_osd_func(int (*get_osd_enable_status)(u32 index))
 	return 0;
 }
 EXPORT_SYMBOL(register_osd_func);
-
-__module_param(core1_bypass, uint, 0664);
-MODULE_PARM_DESC(core1_bypass, "\n core1_bypass\n");
-
-__module_param(vtotal_add, uint, 0664);
-MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
-
-__module_param(vpotch, uint, 0444);
-MODULE_PARM_DESC(vpotch, "\n vpotch\n");
-
-__module_param(g_vtiming, uint, 0664);
-MODULE_PARM_DESC(g_vtiming, "\n g_vtiming\n");
-
-__module_param(dma_start_line, uint, 0664);
-MODULE_PARM_DESC(dma_start_line, "\n dma_start_line\n");
-
-__module_param(dv_ll_output_mode, uint, 0664);
-MODULE_PARM_DESC(dv_ll_output_mode, "\n dv_ll_output_mode\n");
-
-module_param(force_update_reg, uint, 0664);
-MODULE_PARM_DESC(force_update_reg, "\n force_update_reg\n");
-
-__module_param(bypass_core1a_composer, uint, 0664);
-MODULE_PARM_DESC(bypass_core1a_composer, "\n bypass_core1a_composer\n");
-
-__module_param(bypass_core1b_composer, uint, 0664);
-MODULE_PARM_DESC(bypass_core1b_composer, "\n bypass_core1b_composer\n");
 

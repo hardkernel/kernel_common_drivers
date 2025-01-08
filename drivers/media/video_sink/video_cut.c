@@ -505,7 +505,7 @@ static u32 vpp_crc_viu2_en;
 /* source fmt string */
 const char *src_fmt_str[12] = {
 	"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
-	"Dolby Vison", "Dolby Vison Low latency", "MVC",
+	"AM_DolbyVision", "AM_DolbyVision_LL", "MVC",
 	"CUVA_HDR", "CUVA_HLG", "SDR_2020", "HDR10_709_SOURCE"
 };
 

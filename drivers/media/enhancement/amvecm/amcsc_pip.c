@@ -126,9 +126,10 @@ static const char *input_str[10] = {
 };
 
 /* output_format_e */
-static const char *output_str[10] = {
+static const char *output_str[11] = {
 	"UNKNOWN",
 	"709",
+	"709_HDR",
 	"2020",
 	"HDR",
 	"HDR+",
@@ -167,12 +168,10 @@ static void hdr_proc(struct vframe_s *vf,
 		__func__, module_sel, limit_full);
 
 	/* RGB / YUV vdin input handling  prepare extra op code or info */
-	if (vf && vf->type & VIDTYPE_RGB_444 && !is_amdv_on() &&
-		get_amdv_src_format(VD1_PATH, vf) != HDRTYPE_DOVI)
+	if (vf && vf->type & VIDTYPE_RGB_444 && !is_amdv_on())
 		hdr_process_select |= RGB_VDIN;
 
-	if (limit_full && !is_amdv_on() &&
-		get_amdv_src_format(VD1_PATH, vf) != HDRTYPE_DOVI)
+	if (limit_full && !is_amdv_on())
 		hdr_process_select |= FULL_VDIN;
 	/* RGB / YUV input handling */
 

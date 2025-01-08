@@ -100,8 +100,6 @@ static int use_inter_pq;
 #define MAX_LINE_SIZE 1536
 
 unsigned int force_hdr_tonemapping;
-__module_param(force_hdr_tonemapping, uint, 0664);
-MODULE_PARM_DESC(force_hdr_tonemapping, "\n force_hdr_tonemapping\n");
 
 static u32 last_front_lux;
 static u32 last_real_lum;
@@ -4071,7 +4069,4 @@ void read_stb26_reg_lut_to_buf(char *reg_txt, struct m_fixed_setting_s *setting,
 	}
 	pr_info("read file, count: %d\n", reg_count);
 }
-
-module_param(panel_max_lumin, uint, 0664);
-MODULE_PARM_DESC(panel_max_lumin, "\n panel_max_lumin\n");
 
