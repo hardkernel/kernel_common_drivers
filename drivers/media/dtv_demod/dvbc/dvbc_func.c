@@ -491,7 +491,7 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 		c->delivery_system = SYS_DVBC_ANNEX_A;
 		c->symbol_rate = 7250000;//6875000;
 
-		dvbs2_reg_initial(20000, 0);
+		dvbs2_reg_initial(fe, 20000, 0);
 
 		dvbc_blind_check_signal(demod, f_max, &freq_add, &freq_add1, &state, &asperity,
 				&sr_est, blind_spectrum_invert);

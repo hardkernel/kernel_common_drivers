@@ -557,7 +557,8 @@ void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
 void dvbs_wr_byte(unsigned int addr, unsigned char data);
 unsigned char dvbs_rd_byte(unsigned int addr);
-void dvbs2_reg_initial(unsigned int symb_rate_kbs, unsigned int is_blind_scan);
+void dvbs2_reg_initial(struct dvb_frontend *fe, unsigned int symb_rate_kbs,
+			unsigned int is_blind_scan);
 #endif
 
 int aml_demod_init(void);

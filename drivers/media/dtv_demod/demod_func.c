@@ -2144,7 +2144,8 @@ void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 	/*demod_mutex_unlock();*/
 }
 
-void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
+void demod_init_local(struct dvb_frontend *fe, unsigned int symb_rate_kbs,
+			unsigned int is_blind_scan)
 {
 	unsigned int reg = 0;
 #ifdef AML_DEMOD_SUPPORT_DVBS
@@ -2179,6 +2180,9 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 
 			dvbs_wr_byte(0x302, data);
 #endif
+		} else if (l2a_def_val_local[reg].addr == 0x912 &&
+			tuner_find_by_name(fe, "rda5815m")) {
+			dvbs_wr_byte(0x912, 0x9f);
 		} else if (l2a_def_val_local[reg].addr == 0x913) {
 			dvbs_wr_byte(0x913, dvbs_agc_target);
 		} else if (l2a_def_val_local[reg].addr == 0x308 &&
@@ -2196,7 +2200,8 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 	} while (1);
 }
 
-void dvbs2_reg_initial(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
+void dvbs2_reg_initial(struct dvb_frontend *fe, unsigned int symb_rate_kbs,
+			unsigned int is_blind_scan)
 {
 	unsigned int tmp = 0, decimal = 0;
 	int tmp1 = 0, integer = 0;
@@ -2216,7 +2221,7 @@ void dvbs2_reg_initial(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 	dvbs_wr_byte(0x9f1, (tmp >> 8) & 0xff);
 	dvbs_wr_byte(0x9f2, tmp & 0xff);
 
-	demod_init_local(symb_rate_kbs, is_blind_scan);
+	demod_init_local(fe, symb_rate_kbs, is_blind_scan);
 
 	if (is_blind_scan && blind_scan_new == 0x2) {
 		PR_DVBS("symbol rate %d KS/s-----tmp: %#x\n", symb_rate_kbs, tmp);

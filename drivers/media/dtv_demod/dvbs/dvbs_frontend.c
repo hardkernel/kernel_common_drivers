@@ -317,7 +317,7 @@ int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
 	reg_value[1] = dvbs_rd_byte(0x912);//AGC1CN
 	reg_value[2] = dvbs_rd_byte(0x913);//AGC1REF
 
-	dvbs_fft_reg_init(fft_reg_val);
+	dvbs_fft_reg_init(fe, fft_reg_val);
 
 	spectr_ana_data.flow = fft_frc_range_min;
 	spectr_ana_data.fup = fft_frc_range_max;
@@ -456,7 +456,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 
 	demod->last_lock = -1;
 	//dvbs all reg init
-	dtvdemod_dvbs_set_ch(&demod->demod_status);
+	dtvdemod_dvbs_set_ch(fe, &demod->demod_status);
 
 	if (fe->ops.tuner_ops.get_if_frequency)
 		fe->ops.tuner_ops.get_if_frequency(fe, tuner_if);
@@ -720,7 +720,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 	}
 }
 
-int dtvdemod_dvbs_set_ch(struct aml_demod_sta *demod_sta)
+int dtvdemod_dvbs_set_ch(struct dvb_frontend *fe, struct aml_demod_sta *demod_sta)
 {
 	int ret = 0;
 
@@ -730,7 +730,7 @@ int dtvdemod_dvbs_set_ch(struct aml_demod_sta *demod_sta)
 	if (demod_sta->ch_if == 0)
 		demod_sta->ch_if = DEMOD_5M_IF;
 
-	dvbs2_reg_initial(demod_sta->symb_rate, demod_sta->is_blind_scan);
+	dvbs2_reg_initial(fe, demod_sta->symb_rate, demod_sta->is_blind_scan);
 
 	return ret;
 }
@@ -1245,7 +1245,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	if (devp->blind_scan_stop && tmp_sr < SR_LOW_THRD)
 		c->symbol_rate = tmp_sr;
 
-	dtvdemod_dvbs_set_ch(&demod->demod_status);
+	dtvdemod_dvbs_set_ch(fe, &demod->demod_status);
 	demod->time_start = jiffies_to_msecs(jiffies);
 
 	devp->agc_direction = tuner_if[2];
@@ -1378,7 +1378,7 @@ void dvbs_blind_scan_new_work2(struct aml_dtvdemod *demod)
 	c->bandwidth_hz = 8000000;
 	c->modulation = QPSK;
 	c->rolloff = ROLLOFF_35;
-	dvbs2_reg_initial(c->symbol_rate / 1000, 0);
+	dvbs2_reg_initial(fe, c->symbol_rate / 1000, 0);
 
 	f_max = MIN_FREQ_KHZ;
 	freq_add = 0;
@@ -1444,7 +1444,7 @@ void dvbs_blind_scan_new_work2(struct aml_dtvdemod *demod)
 			if (devp->blind_scan_stop)
 				return;
 
-			dvbs2_reg_initial(sr_est, 1);
+			dvbs2_reg_initial(fe, sr_est, 1);
 
 			dly_cnt = 0;
 			second_lock = 0;
@@ -1462,14 +1462,14 @@ void dvbs_blind_scan_new_work2(struct aml_dtvdemod *demod)
 					tuner_set_params(fe);
 					usleep_range(2000, 2001);
 					//st_dvbs2_init2(sr_est_lock);
-					dvbs2_reg_initial((unsigned int)sr_est_lock2, 1);
+					dvbs2_reg_initial(fe, (unsigned int)sr_est_lock2, 1);
 				} else {
 					if (dly_cnt > 0) {
 						c->frequency = f_max;
 						tuner_set_params(fe);
 						usleep_range(2000, 2001);
 						//st_dvbs2_init2(sr_est_lock);
-						dvbs2_reg_initial(sr_est, 1);
+						dvbs2_reg_initial(fe, sr_est, 1);
 					}
 				}
 
