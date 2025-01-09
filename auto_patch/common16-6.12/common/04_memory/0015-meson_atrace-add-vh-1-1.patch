@@ -1,0 +1,64 @@
+From 589fcf4786f21eb76704711c0effa350f9d1b203 Mon Sep 17 00:00:00 2001
+From: "biao.sun" <biao.sun@amlogic.com>
+Date: Thu, 9 Jan 2025 10:19:09 +0000
+Subject: [PATCH] meson_atrace: add memory vh [1/1]
+
+PD#SWPL-184150
+
+Problem:
+__alloc_page_noprof lack vh
+
+Solution:
+__alloc_page_noprof add vh
+
+Verify:
+sc2_ah212
+
+Change-Id: I35f01e20ceecef4b70a9c3a77e8c7f1c485c3f64
+Signed-off-by: biao.sun <biao.sun@amlogic.com>
+---
+ drivers/android/vendor_hooks.c | 1 +
+ include/trace/hooks/mm.h       | 5 +++++
+ mm/page_alloc.c                | 1 +
+ 3 files changed, 7 insertions(+)
+
+diff --git a/drivers/android/vendor_hooks.c b/drivers/android/vendor_hooks.c
+index 4dd752c4fbf2..89cfd7c31451 100644
+--- a/drivers/android/vendor_hooks.c
++++ b/drivers/android/vendor_hooks.c
+@@ -185,3 +185,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_report_bug);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_logbuf);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_logbuf_pr_cont);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_calc_alloc_flags);
++EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_pages_entry);
+diff --git a/include/trace/hooks/mm.h b/include/trace/hooks/mm.h
+index 710e279e4c18..9d9f98c37989 100644
+--- a/include/trace/hooks/mm.h
++++ b/include/trace/hooks/mm.h
+@@ -60,6 +60,11 @@ DECLARE_HOOK(android_vh_calc_alloc_flags,
+ 	TP_PROTO(gfp_t gfp_mask, unsigned int *alloc_flags,
+ 		bool *bypass),
+ 	TP_ARGS(gfp_mask, alloc_flags, bypass));
++
++DECLARE_HOOK(android_vh_alloc_pages_entry,
++	TP_PROTO(gfp_t *gfp, unsigned int order, int preferred_nid,
++		nodemask_t *nodemask),
++	TP_ARGS(gfp, order, preferred_nid, nodemask));
+ #endif /* _TRACE_HOOK_MM_H */
+
+ /* This part must be outside protection */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index da8223fa0f8d..3da14b9e85a5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4810,6 +4810,7 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+ 	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
+ 	struct alloc_context ac = { };
+
++	trace_android_vh_alloc_pages_entry(&gfp, order, preferred_nid, nodemask);
+ #ifdef CONFIG_AMLOGIC_CMA
+ 	update_gfp_flags(&gfp);
+ #endif
+--
+2.46.0
+
