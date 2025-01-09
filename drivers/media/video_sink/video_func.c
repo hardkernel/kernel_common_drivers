@@ -543,6 +543,20 @@ bool has_enhanced_layer(struct vframe_s *vf)
 	return req.dv_enhance_exist;
 }
 
+int init_rdma_check_video_reg_table(u32 *check_item)
+{
+	int vd_reg_cnt;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		vd_reg_cnt = get_video_reg_table_s5(check_item);
+	else
+		vd_reg_cnt = get_video_reg_table(check_item);
+#else
+	if (video_is_meson_s1a_cpu())
+		vd_reg_cnt = get_video_reg_table_cut(check_item);
+#endif
+	return vd_reg_cnt;
+}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool dvel_status;
 int dolby_vision_need_wait(u8 path_index)

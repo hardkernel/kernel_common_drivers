@@ -35,6 +35,7 @@
 #include <linux/amlogic/media/utils/am_com.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
@@ -83,13 +84,17 @@ static int enable[RDMA_NUM];
 int rdma_configured[RDMA_NUM];
 ulong rdma_config_us[RDMA_NUM];
 int enc_num_configed[RDMA_NUM] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
+static struct video_module_reg_s video_reg;
 /* bit0~bit3 already used */
 #define DEBUG_RDMA_DONE_SKIP      0x10
 #define DEBUG_RDMA_REG_CONFLICT   0x20
 #define DEBUG_RDMA_WATCHDOG       0x40
 #define DEBUG_RDMA_CONFIG         0x80
 #define DEBUG_RDMA_DONE           0x100
+#define DEBUG_RDMA_VIDEO_REG_CONFLICT  0x200
+#define DEBUG_RDMA_VIDEO_REG_CONFLICT_STACK  0x400
+#define RDMA_PARTITION_TABLE_CNT     2048
+#define RDMA_PARTITION_TABLE_SIZE (RDMA_PARTITION_TABLE_CNT * 8)
 
 struct rdma_irq_reg_s {
 	u32 reg;
@@ -146,6 +151,7 @@ struct rdma_device_info {
 	struct platform_device *rdma_dev;
 	struct rdma_instance_s rdma_ins[RDMA_NUM];
 	struct rdma_conflict_regs_s rdma_reg;
+	struct rdma_partition_ins_s rdma_part_ins[RDMA_VPP_MAX][PARTITION_TABLE_NUM];
 };
 
 static struct rdma_device_data_s rdma_meson_dev;
@@ -538,6 +544,32 @@ static struct rdma_regadr_s rdma_regadr_t3x[] = {
 };
 #endif
 
+static int handle_trans_vpp(int handle)
+{
+	int ret;
+	int rdma_type;
+
+	rdma_type = get_rdma_type(handle);
+	if (rdma_type < 0 || rdma_type > EX_VSYNC_RDMA)
+		return -1;
+	switch (rdma_type) {
+	case VSYNC_RDMA:
+	case EX_VSYNC_RDMA:
+		ret = RDMA_VPP0;
+		break;
+	case VSYNC_RDMA_VPP1:
+		ret = RDMA_VPP1;
+		break;
+	case VSYNC_RDMA_VPP2:
+		ret = RDMA_VPP2;
+		break;
+	case PRE_VSYNC_RDMA:
+		ret = RDMA_PRE_VSYNC;
+		break;
+	}
+	return ret;
+}
+
 int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 {
 	int i;
@@ -770,6 +802,39 @@ void rdma_stop(int handle)
 			     rdma_meson_dev.trigger_mask_len);
 }
 
+void part_table_combine_to_reg_buf(int handle)
+{
+	int i;
+	int vpp_index = -1;
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = NULL;
+	u32 *temp_combine_item;
+
+	vpp_index = handle_trans_vpp(handle);
+	if (vpp_index == -1)
+		return;
+	ins = &info->rdma_ins[handle];
+	if (vpp_index == RDMA_VPP0 ||
+		vpp_index == RDMA_PRE_VSYNC) {
+		temp_combine_item = ins->reg_buf + ins->rdma_item_count * 2;
+		for (i = 0; i < PARTITION_TABLE_NUM; i++) {
+			if (info->rdma_part_ins[vpp_index][i].flag) {
+				if (!info->rdma_part_ins[vpp_index][i].rdma_item_count)
+					continue;
+				memcpy(temp_combine_item,
+					info->rdma_part_ins[vpp_index][i].rdma_item,
+					info->rdma_part_ins[vpp_index][i].rdma_item_count *
+					2 * sizeof(u32));
+				temp_combine_item +=
+					info->rdma_part_ins[vpp_index][i].rdma_item_count * 2;
+				ins->rdma_item_count +=
+					info->rdma_part_ins[vpp_index][i].rdma_item_count;
+				info->rdma_part_ins[vpp_index][i].rdma_item_count = 0;
+			}
+		}
+	}
+}
+
 /*
  *	trigger_type:
  *		0, stop,
@@ -782,7 +847,6 @@ void rdma_stop(int handle)
  *		0, rdma table is empty, will not have rdma irq
  *		1, success
  */
-
 int rdma_config(int handle, u32 trigger_type)
 {
 	int ret = 0;
@@ -829,6 +893,8 @@ int rdma_config(int handle, u32 trigger_type)
 
 	trigger_type &= ~RDMA_AUTO_START_MASK;
 	trigger_type &= ~RDMA_TRIGGER_OMIT_LOCK;
+
+	part_table_combine_to_reg_buf(handle);
 	if (auto_start) {
 		WRITE_VCBUS_REG_BITS
 			(ins->rdma_regadr->trigger_mask_reg,
@@ -883,7 +949,6 @@ int rdma_config(int handle, u32 trigger_type)
 			rdma_write_reg(handle, rdma_done_detect_reg,
 				       rdma_done_detect_cnt);
 		}
-
 		memcpy(ins->rdma_table_addr, ins->reg_buf,
 		       ins->rdma_item_count *
 		       (rdma_read ? 1 : 2) * sizeof(u32));
@@ -1393,6 +1458,11 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	int j = 0;
+	bool part_conflict_check = true;
+	int vpp_index = handle_trans_vpp(handle);
+
+	if (vpp_index == -1)
+		part_conflict_check = false;
 	u8 cur_cpuid = smp_processor_id();
 
 	if (ins->rdma_table_size == 0)
@@ -1423,6 +1493,20 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 			handle, current->comm, val, ins->rdma_item_count);
 		dump_stack();
 	}
+	/*
+	 *only video use partition table can use this debug function
+	 *to trace video reg write by pq/db
+	 */
+	if ((debug_flag & DEBUG_RDMA_VIDEO_REG_CONFLICT) && part_conflict_check &&
+		info->rdma_part_ins[vpp_index][VIDEO_PARTITION_TABLE].flag) {
+		for (j = 0; j < video_reg.reg_count; j++) {
+			if (adr == video_reg.reg_table[j]) {
+				pr_info("ERROR: video reg: 0x%x be write by other module\n", adr);
+				if (debug_flag & DEBUG_RDMA_VIDEO_REG_CONFLICT_STACK)
+					dump_stack();
+			}
+		}
+	}
 	if (debug_flag & 1 ||
 		(rdma_trace_enable &&
 		rdma_trace_channel == handle))
@@ -1452,6 +1536,7 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		ins->reg_buf[(ins->rdma_item_count << 1) + 1] = val;
 		ins->rdma_item_count++;
 	}
+
 	if (rdma_trace_enable) {
 		for (j = 0; j < rdma_trace_num; j++) {
 			if (adr == rdma_trace_reg[j]) {
@@ -1468,6 +1553,458 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 }
 EXPORT_SYMBOL(rdma_write_reg);
 
+void video_reg_write_check_table_init(void)
+{
+	int table_size = 2048 * 8;
+
+	video_reg.reg_table = kmalloc(table_size, GFP_KERNEL);
+	if (!video_reg.reg_table) {
+		kfree(video_reg.reg_table);
+		video_reg.reg_table = NULL;
+	} else {
+		video_reg.reg_count =
+			init_rdma_check_video_reg_table(video_reg.reg_table);
+	}
+}
+
+bool get_part_flag_status(int vpp_index, int tbl_index)
+{
+	bool ret;
+	struct rdma_device_info *info = &rdma_info;
+
+	if (info->rdma_part_ins[vpp_index][tbl_index].flag)
+		ret = true;
+	else
+		ret = false;
+	return ret;
+}
+
+void set_part_flag_status(int vpp_index, int tbl_index, bool set_flag)
+{
+	struct rdma_device_info *info = &rdma_info;
+
+	if (info->rdma_part_ins[vpp_index][tbl_index].flag != set_flag)
+		info->rdma_part_ins[vpp_index][tbl_index].flag = set_flag;
+	else
+		pr_info("vpp:%d tbl_index:%d flag is %d",
+			vpp_index, tbl_index, info->rdma_part_ins[vpp_index][tbl_index].flag);
+}
+
+struct rdma_partition_ins_s *get_part_table_ins(int vpp_index, int tbl_index)
+{
+	struct rdma_device_info *info = &rdma_info;
+
+	return &info->rdma_part_ins[vpp_index][tbl_index];
+}
+
+int rdma_part_table_register(struct rdma_partition_ins_s *rdma_part_ins)
+{
+	int table_size;
+	int tbl_index;
+	int table_cnt;
+	int vpp_index;
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_partition_ins_s *ins;
+
+	if (!rdma_part_ins->flag ||
+		rdma_part_ins->table_index >= PARTITION_TABLE_NUM) {
+		pr_info("tbl_index register rdma part table fail\n");
+		return -1;
+	}
+	tbl_index = rdma_part_ins->table_index;
+	vpp_index = rdma_part_ins->vpp_index;
+	table_cnt = rdma_part_ins->max_reg_cnt;
+	ins = &info->rdma_part_ins[vpp_index][tbl_index];
+	if (table_cnt == 0) {
+		table_size = RDMA_PARTITION_TABLE_SIZE;
+		ins->max_reg_cnt = RDMA_PARTITION_TABLE_CNT;
+	} else {
+		table_size = table_cnt * 8;
+		ins->max_reg_cnt = rdma_part_ins->max_reg_cnt;
+	}
+	ins->flag = rdma_part_ins->flag;
+	ins->table_index = rdma_part_ins->table_index;
+	ins->rdma_item_count = 0;
+	ins->reg_range_check = rdma_part_ins->reg_range_check;
+	ins->check_start_addr = rdma_part_ins->check_start_addr;
+	ins->check_end_addr = rdma_part_ins->check_end_addr;
+	if (ins->flag)
+		ins->rdma_item = kmalloc(table_size, GFP_KERNEL);
+	if (!ins->rdma_item) {
+		kfree(ins->rdma_item);
+		ins->rdma_item = NULL;
+		return -1;
+	}
+	ins->vpp_index = rdma_part_ins->vpp_index;
+
+	return tbl_index;
+}
+EXPORT_SYMBOL(rdma_part_table_register);
+
+void free_part_table_memory(void)
+{
+	int i, j;
+	struct rdma_device_info *info = &rdma_info;
+
+	for (i = 0; i < RDMA_VPP_MAX; i++) {
+		for (j = 0; j < PARTITION_TABLE_NUM; j++) {
+			if (info->rdma_part_ins[i][j].flag) {
+				kfree(info->rdma_part_ins[i][j].rdma_item);
+				info->rdma_part_ins[i][j].rdma_item = NULL;
+			}
+		}
+	}
+	if (!video_reg.reg_table) {
+		kfree(video_reg.reg_table);
+		video_reg.reg_table = NULL;
+	}
+}
+
+u32 rdma_part_read_reg(int tbl_index, int handle, u32 adr)
+{
+	int i, j = 0;
+	int match = 0;
+#ifdef DEBUG_RDMA_OPTIMIZE
+	u32 *write_table;
+	int match_oth = 0;
+#endif
+	int read_from = 0;
+	int vpp_index = handle_trans_vpp(handle);
+
+	if (vpp_index == -1) {
+		pr_info("%s %d vpp_index error\n", __func__, __LINE__);
+		return 0;
+	}
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+	struct rdma_partition_ins_s *part_ins = &info->rdma_part_ins[vpp_index][tbl_index];
+	u32 read_val = READ_VCBUS_REG(adr);
+#ifdef DEBUG_RDMA_OPTIMIZE
+	for (i = 0; i < MAX_CONFLICT; i++) {
+		if (info->rdma_reg.adr[i] == adr) {
+			read_val = info->rdma_reg.val[i];
+			match_oth = 1;
+			read_from = 3;
+			break;
+		}
+	}
+
+	if (!match_oth) {
+#endif
+		for (i = part_ins->rdma_item_count - 1;
+				i >= 0; i--) {
+			if (part_ins->rdma_item[i << 1] == adr) {
+				read_val = part_ins->rdma_item[(i << 1) + 1];
+				match = 1;
+				read_from = 1;
+				break;
+			}
+		}
+#ifdef DEBUG_RDMA_OPTIMIZE
+	}
+
+	/* changed to read from rdma_table_adr to mirror for optimize */
+	if (!match) {
+		write_table = ins->rdma_table_mirror;
+		for (i = (ins->rdma_write_count - 1);
+			i >= 0; i--) {
+			if (write_table[i << 1] == adr) {
+				read_val =
+					write_table[(i << 1) + 1];
+				read_from = 2;
+				break;
+			}
+		}
+	}
+#endif
+	if (rdma_trace_enable) {
+		for (j = 0; j < rdma_trace_num; j++) {
+			if (adr == rdma_trace_reg[j]) {
+				if (read_from == 3)
+					pr_info("(%s) handle %d, %04x=0x%08x from conflict table(%d), cur_val:0x%x\n",
+						__func__,
+						handle, adr,
+						read_val,
+						ins->rdma_write_count,
+						READ_VCBUS_REG(adr));
+				else if (read_from == 2)
+					pr_info("(%s) handle %d, %04x=0x%08x from write table(%d), cur_val:0x%x\n",
+						__func__,
+						handle, adr,
+						read_val,
+						ins->rdma_write_count,
+						READ_VCBUS_REG(adr));
+				else if (read_from == 1)
+					pr_info("(%s) handle %d, %04x=0x%08x from partition table:%d (%d), cur_val:0x%x\n",
+						__func__,
+						handle, adr,
+						read_val,
+						tbl_index,
+						part_ins->rdma_item_count,
+						READ_VCBUS_REG(adr));
+				else
+					pr_info("(%s) handle %d, %04x=0x%08x from real reg, cur_val:0x%x\n",
+						__func__,
+						handle, adr,
+						read_val,
+						READ_VCBUS_REG(adr));
+			}
+		}
+	}
+	return read_val;
+}
+EXPORT_SYMBOL(rdma_part_read_reg);
+
+int rdma_part_write_reg(int tbl_index, int handle, u32 adr, u32 val)
+{
+	struct rdma_device_info *info = &rdma_info;
+	int vpp_index = handle_trans_vpp(handle);
+
+	if (vpp_index == -1) {
+		pr_info("%s %d vpp_index error\n", __func__, __LINE__);
+		return 0;
+	}
+	struct rdma_partition_ins_s *part_ins = &info->rdma_part_ins[vpp_index][tbl_index];
+	u32 rdma_tbl_count = part_ins->rdma_item_count;
+	int i = 0, j = 0;
+	u8 cur_cpuid = smp_processor_id();
+
+	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
+		(cur_cpuid != rdma_done_cpuid ||
+		(!is_in_vsync_isr(cur_cpuid) &&
+#ifdef CONFIG_AMLOGIC_BL_LDIM
+		!is_in_ldim_vsync_isr(cur_cpuid) &&
+#endif
+#ifdef CONFIG_AMLOGIC_AMBILIGHT
+		!is_in_amblt_vsync_isr(cur_cpuid) &&
+#endif
+		!is_in_pre_vsync_isr(cur_cpuid) &&
+		!is_in_vsync_isr_viu2(cur_cpuid) &&
+		!is_in_vsync_isr_viu3(cur_cpuid)
+		))) {
+		dump_stack();
+		pr_info("%s(table_idx:%d)(%d)(%s) %d(%x)<=%x\n", __func__,
+			tbl_index, handle, current->comm, rdma_tbl_count, adr, val);
+	}
+	/*
+	 *only video use partition table can use this debug function
+	 *to trace video reg write by pq/db
+	 */
+	if ((debug_flag & DEBUG_RDMA_VIDEO_REG_CONFLICT) &&
+		info->rdma_part_ins[vpp_index][VIDEO_PARTITION_TABLE].flag) {
+		for (j = 0; j < video_reg.reg_count; j++) {
+			if (adr == video_reg.reg_table[j] &&
+				tbl_index != VIDEO_PARTITION_TABLE) {
+				pr_info("ERROR: part table index:%d video reg: 0x%x\n",
+						tbl_index, adr);
+				if (debug_flag & DEBUG_RDMA_VIDEO_REG_CONFLICT_STACK)
+					dump_stack();
+			}
+		}
+	}
+	if (adr == 0) {
+		pr_info("%s(table_idx:%d)(%d)(%s) write zero addr = %x, count:%d\n",
+			__func__, tbl_index, handle, current->comm, val, rdma_tbl_count);
+		dump_stack();
+	}
+	if (part_ins->reg_range_check &&
+		(adr > part_ins->check_end_addr ||
+		adr < part_ins->check_start_addr)) {
+		pr_info("part index:%d write reg: 0x%x out of range:0x%x - 0x%x",
+			tbl_index, adr, part_ins->check_start_addr,
+			part_ins->check_end_addr);
+	}
+	if (debug_flag & 1 ||
+		(rdma_trace_enable &&
+		rdma_trace_channel == handle))
+		pr_info("%s(table_idx:%d)(%d)(%s) %d(%x)<=%x\n", __func__,
+			tbl_index, handle, current->comm, rdma_tbl_count, adr, val);
+	if (rdma_check_conflict(handle, adr, NULL))
+		rdma_update_conflict(adr, val);
+
+	if (part_ins->flag) {
+		if (part_ins->rdma_item_count < part_ins->max_reg_cnt) {
+			part_ins->rdma_item[rdma_tbl_count << 1] = adr;
+			part_ins->rdma_item[(rdma_tbl_count << 1) + 1] = val;
+			part_ins->rdma_item_count++;
+		} else {
+			pr_info("%s(%s)(%d, %x, %x ,%d) buf overflow, tbl_index = %d rdma_item_count=%d\n",
+				__func__, current->comm, rdma_watchdog_count[handle],
+				handle, adr, val, tbl_index,
+				part_ins->rdma_item_count);
+			for (i = 0; i < part_ins->rdma_item_count; i++)
+				WRITE_VCBUS_REG(part_ins->rdma_item[i << 1],
+					part_ins->rdma_item[(i << 1) + 1]);
+			part_ins->rdma_item_count = 0;
+			part_ins->rdma_item[rdma_tbl_count << 1] = adr;
+			part_ins->rdma_item[(rdma_tbl_count << 1) + 1] = val;
+			part_ins->rdma_item_count++;
+		}
+	}
+
+	if (rdma_trace_enable) {
+		for (j = 0; j < rdma_trace_num; j++) {
+			if (adr == rdma_trace_reg[j]) {
+				pr_info("table_idx:%d (%s) handle %d(%s), %04x=0x%08x (%d), cur_val:0x%x\n",
+					tbl_index,
+					__func__,
+					handle, current->comm, adr,
+					val,
+					rdma_tbl_count,
+					READ_VCBUS_REG(adr));
+			}
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(rdma_part_write_reg);
+
+int rdma_part_write_reg_bits(int tbl_index, int handle, u32 adr, u32 val, u32 start, u32 len)
+{
+	int i, j = 0;
+#ifdef DEBUG_RDMA_OPTIMIZE
+	u32 *write_table;
+	int match_oth = 0;
+	u32 oth_val = 0;
+#endif
+	int match = 0;
+	int read_from = 0;
+	int vpp_index = handle_trans_vpp(handle);
+
+	if (vpp_index == -1) {
+		pr_info("%s %d vpp_index error\n", __func__, __LINE__);
+		return 0;
+	}
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+	struct rdma_partition_ins_s *part_ins = &info->rdma_part_ins[vpp_index][tbl_index];
+	u32 read_val = READ_VCBUS_REG(adr);
+	u32 write_val;
+#ifdef DEBUG_RDMA_OPTIMIZE
+	if (ins->rdma_table_size == 0)
+		return -1;
+
+	if (rdma_check_conflict(handle, adr, &oth_val)) {
+		match_oth = 1;
+		read_val = oth_val;
+		read_from = 3;
+	}
+#endif
+	/*
+	 *only video use partition table can use this debug function
+	 *to trace video reg write by pq/db
+	 */
+	if ((debug_flag & DEBUG_RDMA_VIDEO_REG_CONFLICT) &&
+		info->rdma_part_ins[vpp_index][VIDEO_PARTITION_TABLE].flag) {
+		for (j = 0; j < video_reg.reg_count; j++) {
+			if (adr == video_reg.reg_table[j] &&
+				tbl_index != VIDEO_PARTITION_TABLE) {
+				pr_info("ERROR: part table index:%d video reg: 0x%x\n",
+						tbl_index, adr);
+				if (debug_flag & DEBUG_RDMA_VIDEO_REG_CONFLICT_STACK)
+					dump_stack();
+			}
+		}
+	}
+
+	if (part_ins->reg_range_check &&
+		(adr > part_ins->check_end_addr ||
+		adr < part_ins->check_start_addr)) {
+		pr_info("part index:%d write reg: 0x%x out of range:0x%x - 0x%x",
+			tbl_index, adr, part_ins->check_start_addr,
+			part_ins->check_end_addr);
+	}
+	for (i = part_ins->rdma_item_count - 1; i >= 0 ; i--) {
+		if (part_ins->rdma_item[(i << 1)] == adr) {
+			match = 1;
+			//if (!match_oth) {
+				read_val = part_ins->rdma_item[(i << 1) + 1];
+				read_from = 1;
+			//}
+			break;
+		}
+	}
+#ifdef DEBUG_RDMA_OPTIMIZE
+	/* changed to read from rdma_table_adr to mirror for optimize */
+	if (!match) {
+		write_table = ins->rdma_table_mirror;
+		for (i = (ins->rdma_write_count - 1);
+			i >= 0; i--) {
+			if (write_table[i << 1] == adr) {
+				if (!match_oth) {
+					read_val =
+						write_table[(i << 1) + 1];
+					read_from = 2;
+				}
+				break;
+			}
+		}
+	}
+#endif
+	write_val = (read_val & ~(((1L << (len)) - 1) << (start))) |
+			((unsigned int)(val) << (start));
+#ifdef DEBUG_RDMA_OPTIMIZE
+	if (match_oth)
+		rdma_update_conflict(adr, write_val);
+#endif
+	for (j = 0; j < rdma_trace_num; j++) {
+		if (adr == rdma_trace_reg[j]) {
+			if (read_from == 3)
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from conflict table(%d %d %d), cur_val:0x%x\n",
+					__func__,
+					handle, current->comm, adr,
+					read_val,
+					write_val,
+					ins->rdma_write_count,
+					match,
+					match ? i : ins->rdma_write_count,
+					READ_VCBUS_REG(adr));
+			else if (read_from == 2)
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from write table(%d %d %d), cur_val:0x%x\n",
+					__func__,
+					handle, current->comm, adr,
+					read_val,
+					write_val,
+					ins->rdma_write_count,
+					match,
+					match ? i : ins->rdma_write_count,
+					READ_VCBUS_REG(adr));
+			else if (read_from == 1)
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from part table:%d (%d %d %d), cur_val:0x%x\n",
+					__func__,
+					handle, current->comm, adr,
+					read_val,
+					write_val,
+					tbl_index,
+					part_ins->rdma_item_count,
+					match,
+					match ? i : part_ins->rdma_item_count,
+					READ_VCBUS_REG(adr));
+			else
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from real reg, cur_val:0x%x\n",
+					__func__,
+					handle, current->comm, adr,
+					read_val,
+					write_val,
+					READ_VCBUS_REG(adr));
+		}
+	}
+	if (match) {
+		if (debug_flag & 1 ||
+			(rdma_trace_enable &&
+			rdma_trace_channel == handle))
+			pr_info("rdma_part_write_bits(%d)(%s) %d(%x)<=%x\n",
+				handle, current->comm, part_ins->rdma_item_count,
+				adr, val);
+		part_ins->rdma_item[(i << 1) + 1] = write_val;
+		return 0;
+	}
+
+	rdma_part_write_reg(tbl_index, handle, adr, write_val);
+	return 0;
+}
+EXPORT_SYMBOL(rdma_part_write_reg_bits);
+
 int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 {
 	int i, j = 0;
@@ -1475,6 +2012,11 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	int match = 0;
 	int match_oth = 0;
 	int read_from = 0;
+	bool part_conflict_check = true;
+	int vpp_index = handle_trans_vpp(handle);
+
+	if (vpp_index == -1)
+		part_conflict_check = false;
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	u32 read_val = READ_VCBUS_REG(adr);
@@ -1483,7 +2025,20 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 
 	if (ins->rdma_table_size == 0)
 		return -1;
-
+	/*
+	 *only video use partition table can use this debug function
+	 *to trace video reg write by pq/db
+	 */
+	if ((debug_flag & DEBUG_RDMA_VIDEO_REG_CONFLICT) && part_conflict_check &&
+		info->rdma_part_ins[vpp_index][VIDEO_PARTITION_TABLE].flag) {
+		for (j = 0; j < video_reg.reg_count; j++) {
+			if (adr == video_reg.reg_table[j]) {
+				pr_info("ERROR: video reg: 0x%x be write by other module\n", adr);
+				if (debug_flag & DEBUG_RDMA_VIDEO_REG_CONFLICT_STACK)
+					dump_stack();
+			}
+		}
+	}
 	if (rdma_check_conflict(handle, adr, &oth_val)) {
 		match_oth = 1;
 		read_val = oth_val;
@@ -1566,7 +2121,7 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 			rdma_trace_channel == handle))
 			pr_info("rdma_write_bits(%d)(%s) %d(%x)<=%x\n",
 				handle, current->comm, ins->rdma_item_count,
-				adr, val);
+				adr, write_val);
 		ins->reg_buf[(i << 1) + 1] = write_val;
 		return 0;
 	}
@@ -1921,12 +2476,25 @@ static ssize_t store_reset_count(const struct class *class,
 	return count;
 }
 
+static ssize_t show_video_all_reg(const struct class *class,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	int i;
+	ssize_t ret = 0;
+
+	for (i = 0; i < video_reg.reg_count; i++)
+		pr_info("video_reg adr: %d adr = %x", i, video_reg.reg_table[i]);
+	return ret;
+}
+
 static ssize_t show_ctrl_ahb_rd_burst_size(const struct class *class,
 					   const struct class_attribute *attr,
 					   char *buf)
 {
 	return snprintf(buf, 40, "%d\n", ctrl_ahb_rd_burst_size);
 }
+
 
 static ssize_t store_ctrl_ahb_rd_burst_size(const struct class *class,
 					    const struct class_attribute *attr,
@@ -2011,7 +2579,7 @@ static ssize_t rdma_mgr_trace_enable_show(const struct class *cla,
 	return snprintf(buf, PAGE_SIZE, "%x\n", rdma_trace_enable);
 }
 
-static ssize_t rdma_mgr_trace_enable_stroe(const struct class *cla,
+static ssize_t rdma_mgr_trace_enable_store(const struct class *cla,
 					   const struct class_attribute *attr,
 					   const char *buf, size_t count)
 {
@@ -2044,7 +2612,7 @@ static ssize_t rdma_mgr_trace_reg_show(const struct class *cla,
 	return i;
 }
 
-static ssize_t rdma_mgr_trace_reg_stroe(const struct class *cla,
+static ssize_t rdma_mgr_trace_reg_store(const struct class *cla,
 					const struct class_attribute *attr,
 					const char *buf, size_t count)
 {
@@ -2059,6 +2627,56 @@ static ssize_t rdma_mgr_trace_reg_stroe(const struct class *cla,
 		for (i  = 0; i < num; i++) {
 			rdma_trace_reg[i] = parsed[i];
 			pr_info("trace reg:0x%x\n", rdma_trace_reg[i]);
+		}
+	}
+	return count;
+}
+
+static ssize_t rdma_partition_enable_show(const struct class *cla,
+				       const struct class_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+	int i, j;
+	struct rdma_device_info *info = &rdma_info;
+
+	for (i = 0; i < RDMA_VPP_MAX; i++) {
+		pr_info("vpp index = %d\n", i);
+		for (j = 0; j < PARTITION_TABLE_NUM; j++) {
+			pr_info("rdma partition table index %d flag status: %d", j,
+				info->rdma_part_ins[i][j].flag);
+		}
+	}
+	return ret;
+}
+
+static ssize_t rdma_partition_enable_store(const struct class *cla,
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	int parsed[3];
+	int num = 0;
+	int i;
+	int tbl_idx;
+	int vpp_index;
+	bool set_flag;
+	struct rdma_device_info *info = &rdma_info;
+
+	num = parse_para(buf, 3, parsed);
+
+	if (num == 3) {
+		vpp_index = parsed[0];
+		tbl_idx = parsed[1];
+		set_flag = parsed[2] ? true : false;
+		if (vpp_index >= RDMA_VPP_MAX || tbl_idx > PARTITION_TABLE_NUM) {
+			pr_info("para1(vpp_index)%d  need < %d para2(table_index)%d need < %d",
+				vpp_index, RDMA_VPP_MAX, tbl_idx, PARTITION_TABLE_NUM);
+		} else {
+			if (tbl_idx != PARTITION_TABLE_NUM) {
+				info->rdma_part_ins[vpp_index][tbl_idx].flag = set_flag;
+			} else {
+				for (i = 0; i < PARTITION_TABLE_NUM; i++)
+					info->rdma_part_ins[vpp_index][i].flag = set_flag;
+			}
 		}
 	}
 	return count;
@@ -2227,9 +2845,13 @@ static struct class_attribute rdma_mgr_attrs[] = {
 	__ATTR(ctrl_ahb_wr_burst_size, 0664,
 	       show_ctrl_ahb_wr_burst_size, store_ctrl_ahb_wr_burst_size),
 	__ATTR(trace_enable, 0664,
-	       rdma_mgr_trace_enable_show, rdma_mgr_trace_enable_stroe),
+	       rdma_mgr_trace_enable_show, rdma_mgr_trace_enable_store),
 	__ATTR(trace_reg, 0664,
-	       rdma_mgr_trace_reg_show, rdma_mgr_trace_reg_stroe),
+	       rdma_mgr_trace_reg_show, rdma_mgr_trace_reg_store),
+	__ATTR(video_reg_table, 0664,
+	       show_video_all_reg, NULL),
+	__ATTR(part_enable, 0664,
+	       rdma_partition_enable_show, rdma_partition_enable_store),
 	__ATTR(ex_vsync_rdma, 0664,
 	       show_ex_vsync_rdma, store_ex_vsync_rdma),
 	__ATTR(irq_count_stat, 0664,
@@ -2513,6 +3135,7 @@ static void rdma_remove(struct platform_device *pdev)
 {
 	pr_error("RDMA driver removed.\n");
 	remove_rdma_mgr_class();
+	free_part_table_memory();
 	rdma_exit();
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_mem_power_down(rdma_vpu_dev);

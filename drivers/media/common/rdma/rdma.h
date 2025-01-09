@@ -5,6 +5,8 @@
 
 #ifndef RDMA_VSYNC_H_
 #define RDMA_VSYNC_H_
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
+
 enum {
 	VSYNC_RDMA = 0,      /* for write */
 	VSYNC_RDMA_VPP1 = 1,
@@ -13,6 +15,18 @@ enum {
 	EX_VSYNC_RDMA = 4,
 	LINE_N_INT_RDMA = 5,
 	VSYNC_RDMA_READ = 6, /* for read */
+};
+
+struct lowlatency_reg_s {
+	int rdma_handle;
+	u32 reg_count;
+};
+
+extern struct lowlatency_reg_s lowlatency_reg;
+
+struct video_module_reg_s {
+	u32 *reg_table;
+	u32 reg_count;
 };
 
 extern int has_multi_vpp;
@@ -80,9 +94,12 @@ int is_in_amblt_vsync_isr(u8 cur_cpuid);
 void set_rdma_channel_enable(u8 rdma_en);
 u32 get_cur_enc_line(void);
 unsigned int rdma_hw_done_bit(void);
-
+u32 rdma_part_read_reg(int tbl_index, int handle, u32 adr);
+int rdma_part_write_reg_bits(int tbl_index, int handle, u32 adr, u32 val, u32 start, u32 len);
+int rdma_part_write_reg(int tbl_index, int handle, u32 adr, u32 val);
 //extern int vsync_rdma_handle[5];
 u32 VCBUS_RD_MPEG_REG(u32 adr);
 int VCBUS_WR_MPEG_REG(u32 adr, u32 val);
 int VCBUS_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+bool get_part_flag_status(int vpp_index, int tbl_index);
 #endif

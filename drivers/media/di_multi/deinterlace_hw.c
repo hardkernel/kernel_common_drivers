@@ -2872,7 +2872,8 @@ void dimh_initial_di_post_2(int hsize_post, int vsize_post,
 
 	} else {
 		/* enable ma,disable if0 to vpp */
-		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000) {
+		if ((VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE,
+				VIU_MISC_CTRL0) & 0x50000) != 0x50000) {
 			DIM_VSC_WR_MPG_BT(VIU_MISC_CTRL0, 5, 16, 3);
 			if (post_write_en)
 				DIM_VSC_WR_MPG_BT(VIU_MISC_CTRL0, 1, 28, 1);
@@ -3039,7 +3040,8 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 		}
 #endif
 	} else {
-		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000)
+		if ((VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE,
+				VIU_MISC_CTRL0) & 0x50000) != 0x50000)
 			DIM_VSC_WR_MPG_BT(VIU_MISC_CTRL0, 5, 16, 3);
 		if (di_ddr_en)
 			DIM_VSC_WR_MPG_BT(VIU_MISC_CTRL0, 1, 28, 1);
@@ -3594,7 +3596,7 @@ void dimh_disable_post_deinterlace_2(bool link)
 	}
 	/* disable ma,enable if0 to vpp,enable afbc to vpp */
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
-		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0)
+		if ((VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, VIU_MISC_CTRL0) & 0x50000) != 0)
 			DIM_VSC_WR_MPG_BT(VIU_MISC_CTRL0, 0, 16, 4);
 		/* DI inp(current data) switch to memory */
 		DIM_VSC_WR_MPG_BT(VIUB_MISC_CTRL0, 0, 16, 1);

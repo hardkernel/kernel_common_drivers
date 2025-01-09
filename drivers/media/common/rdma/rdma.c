@@ -760,6 +760,24 @@ u32 VSYNC_RD_MPEG_REG(u32 adr)
 }
 EXPORT_SYMBOL(VSYNC_RD_MPEG_REG);
 
+u32 VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr)
+{
+	int enable_ = cur_enable[cur_vsync_handle_id] & 0xf;
+
+	u32 read_val = Rd(adr);
+
+	if (enable_ != 0 && vsync_rdma_handle[cur_vsync_handle_id] > 0) {
+		if (get_part_flag_status(RDMA_VPP0, tbl_idx))
+			read_val = rdma_part_read_reg(tbl_idx,
+						vsync_rdma_handle[cur_vsync_handle_id], adr);
+		else
+			read_val = rdma_read_reg(vsync_rdma_handle[cur_vsync_handle_id], adr);
+	}
+
+	return read_val;
+}
+EXPORT_SYMBOL(VSYNC_RD_TABLE_REG);
+
 u32 VSYNC_RD_MPEG_REG_VPP1(u32 adr)
 {
 	int enable_ = cur_enable[VSYNC_RDMA_VPP1] & 0xf;
@@ -797,6 +815,22 @@ u32 PRE_VSYNC_RD_MPEG_REG(u32 adr)
 }
 EXPORT_SYMBOL(PRE_VSYNC_RD_MPEG_REG);
 
+u32 PRE_VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr)
+{
+	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
+	u32 read_val = Rd(adr);
+
+	if (enable_ != 0 && vsync_rdma_handle[PRE_VSYNC_RDMA] > 0) {
+		if (get_part_flag_status(RDMA_PRE_VSYNC, tbl_idx))
+			read_val = rdma_part_read_reg(tbl_idx,
+						vsync_rdma_handle[PRE_VSYNC_RDMA], adr);
+		else
+			read_val = rdma_read_reg(vsync_rdma_handle[PRE_VSYNC_RDMA], adr);
+	}
+	return read_val;
+}
+EXPORT_SYMBOL(PRE_VSYNC_RD_TABLE_REG);
+
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 {
 	int enable_ = cur_enable[cur_vsync_handle_id] & 0xf;
@@ -811,6 +845,25 @@ int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_MPEG_REG);
+
+int VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val)
+{
+	int enable_ = cur_enable[cur_vsync_handle_id] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[cur_vsync_handle_id] > 0) {
+		if (get_part_flag_status(RDMA_VPP0, tbl_idx))
+			rdma_part_write_reg(tbl_idx,
+					vsync_rdma_handle[cur_vsync_handle_id], adr, val);
+		else
+			rdma_write_reg(vsync_rdma_handle[cur_vsync_handle_id], adr, val);
+	} else {
+		Wr(adr, val);
+		if (debug_flag[cur_vsync_handle_id] & 1)
+			pr_info("VSYNC_WR(%x)=%x\n", adr, val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(VSYNC_WR_TABLE_REG);
 
 int VSYNC_WR_MPEG_REG_VPP1(u32 adr, u32 val)
 {
@@ -841,6 +894,7 @@ int VSYNC_WR_MPEG_REG_VPP2(u32 adr, u32 val)
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_VPP2);
+
 int PRE_VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 {
 	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
@@ -855,6 +909,25 @@ int PRE_VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 	return 0;
 }
 EXPORT_SYMBOL(PRE_VSYNC_WR_MPEG_REG);
+
+int PRE_VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val)
+{
+	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[PRE_VSYNC_RDMA] > 0) {
+		if (get_part_flag_status(RDMA_PRE_VSYNC, tbl_idx))
+			rdma_part_write_reg(tbl_idx,
+					vsync_rdma_handle[PRE_VSYNC_RDMA], adr, val);
+		else
+			rdma_write_reg(vsync_rdma_handle[PRE_VSYNC_RDMA], adr, val);
+	} else {
+		Wr(adr, val);
+		if (debug_flag[PRE_VSYNC_RDMA] & 1)
+			pr_info("PRE_VSYNC_RDMA_WR(%x)=%x\n", adr, val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(PRE_VSYNC_WR_TABLE_REG);
 
 int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
@@ -875,6 +948,30 @@ int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_BITS);
+
+int VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len)
+{
+	int enable_ = cur_enable[cur_vsync_handle_id] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[cur_vsync_handle_id] > 0) {
+		if (get_part_flag_status(RDMA_VPP0, tbl_idx))
+			rdma_part_write_reg_bits(tbl_idx, vsync_rdma_handle[cur_vsync_handle_id],
+					adr, val, start, len);
+		else
+			rdma_write_reg_bits(vsync_rdma_handle[cur_vsync_handle_id],
+					adr, val, start, len);
+	} else {
+		u32 read_val = Rd(adr);
+		u32 write_val = (read_val &
+				 ~(((1L << (len)) - 1) << (start)))
+			| ((unsigned int)(val) << (start));
+		Wr(adr, write_val);
+		if (debug_flag[cur_vsync_handle_id] & 1)
+			pr_info("VSYNC_WR(%x)=%x\n", adr, write_val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(VSYNC_WR_TABLE_REG_BITS);
 
 int VSYNC_WR_MPEG_REG_BITS_VPP1(u32 adr, u32 val, u32 start, u32 len)
 {
@@ -915,6 +1012,7 @@ int VSYNC_WR_MPEG_REG_BITS_VPP2(u32 adr, u32 val, u32 start, u32 len)
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_BITS_VPP2);
+
 int PRE_VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
 	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
@@ -934,6 +1032,30 @@ int PRE_VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 	return 0;
 }
 EXPORT_SYMBOL(PRE_VSYNC_WR_MPEG_REG_BITS);
+
+int PRE_VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len)
+{
+	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[PRE_VSYNC_RDMA] > 0) {
+		if (get_part_flag_status(RDMA_PRE_VSYNC, tbl_idx))
+			rdma_part_write_reg_bits(tbl_idx, vsync_rdma_handle[PRE_VSYNC_RDMA],
+					adr, val, start, len);
+		else
+			rdma_write_reg_bits(vsync_rdma_handle[PRE_VSYNC_RDMA],
+				    adr, val, start, len);
+	} else {
+		u32 read_val = Rd(adr);
+		u32 write_val = (read_val &
+				 ~(((1L << (len)) - 1) << (start)))
+			| ((unsigned int)(val) << (start));
+		Wr(adr, write_val);
+		if (debug_flag[PRE_VSYNC_RDMA] & 1)
+			pr_info("PRE_VSYNC_VPP2_WR(%x)=%x\n", adr, write_val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(PRE_VSYNC_WR_TABLE_REG_BITS);
 
 u32 _VSYNC_RD_MPEG_REG(u32 adr)
 {

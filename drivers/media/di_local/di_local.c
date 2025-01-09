@@ -46,7 +46,7 @@
 #include "../deinterlace/di_pqa.h"
 #include <linux/amlogic/media/di/di_interface.h>
 #include <linux/amlogic/media/di/di.h>
-
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 /*for di_ext_ops*/
 /*#include <linux/amlogic/media/video_sink/video.h> */
@@ -136,7 +136,7 @@ unsigned int DI_POST_REG_RD(unsigned int addr)
 		pr_err("[DI] REG 0x%x access prohibited.\n", addr);
 		return 0;
 	}
-	return VSYNC_RD_MPEG_REG(addr);
+	return VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 	#endif
 	if (dil_api && dil_api->di_post_reg_rd)
 		return dil_api->di_post_reg_rd(addr);
@@ -155,7 +155,7 @@ int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 		pr_err("[DI] REG 0x%x access prohibited.\n", adr);
 		return -1;
 	}
-	return VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	return VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, adr, val, start, len);
 	#endif
 	if (dil_api && dil_api->di_post_wr_reg_bits)
 		return dil_api->di_post_wr_reg_bits(adr, val, start, len);

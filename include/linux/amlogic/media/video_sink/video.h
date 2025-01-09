@@ -578,6 +578,7 @@ void get_vdx_axis(u32 index, int *buf);
 void get_vdx_real_axis(u32 index, int *buf);
 void vpu_module_clk_enable(u32 vpp_index, u32 module, bool async);
 void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async);
+int init_rdma_check_video_reg_table(u32 *check_item);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_get_video_latency(void);

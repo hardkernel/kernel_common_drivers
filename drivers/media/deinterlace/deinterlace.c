@@ -429,7 +429,7 @@ void DI_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val)
 	if (post_wr_en && post_wr_support)
 		DI_Wr(addr, val);
 	else
-		VSYNC_WR_MPEG_REG(addr, val);
+		VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, addr, val);
 }
 
 void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr, unsigned int val,
@@ -440,7 +440,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr, unsigned int val,
 	if (post_wr_en && post_wr_support)
 		DI_Wr_reg_bits(addr, val, start, len);
 	else
-		VSYNC_WR_MPEG_REG_BITS(addr, val, start, len);
+		VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, addr, val, start, len);
 }
 
 #if 0
@@ -452,7 +452,7 @@ unsigned int DI_POST_REG_RD(unsigned int addr)
 		pr_err("[DI] REG 0x%x access prohibited.\n", addr);
 		return 0;
 	}
-	return VSYNC_RD_MPEG_REG(addr);
+	return VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 }
 EXPORT_SYMBOL(DI_POST_REG_RD);
 
@@ -464,7 +464,7 @@ int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 		pr_err("[DI] REG 0x%x access prohibited.\n", adr);
 		return -1;
 	}
-	return VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	return VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, adr, val, start, len);
 }
 EXPORT_SYMBOL(DI_POST_WR_REG_BITS);
 #else
@@ -476,7 +476,7 @@ static unsigned int lDI_POST_REG_RD(unsigned int addr)
 		pr_err("[DI] REG 0x%x access prohibited.\n", addr);
 		return 0;
 	}
-	return VSYNC_RD_MPEG_REG(addr);
+	return VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 }
 
 static int lDI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
@@ -487,7 +487,7 @@ static int lDI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 		pr_err("[DI] REG 0x%x access prohibited.\n", adr);
 		return -1;
 	}
-	return VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	return VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, adr, val, start, len);
 }
 
 static const struct di_ext_ops di_ext = {

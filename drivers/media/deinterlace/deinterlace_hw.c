@@ -64,7 +64,7 @@ static unsigned int ctrl_regs[SKIP_CTRE_NUM];
 u32 afbc_disable_flag;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-extern u32 VSYNC_RD_MPEG_REG(u32 adr);
+extern u32 VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr);
 #endif
 static void set_di_inp_fmt_more(
 		unsigned int repeat_l0_en,
@@ -2697,7 +2697,8 @@ void initial_di_post_2(int hsize_post, int vsize_post,
 
 	} else {
 		/* enable ma,disable if0 to vpp */
-		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000) {
+		if ((VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE,
+				VIU_MISC_CTRL0) & 0x50000) != 0x50000) {
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
 			if (post_write_en)
 				DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0,
@@ -2782,7 +2783,8 @@ void di_post_switch_buffer(
 			/* current field mtn canvas index.*/
 		}
 	} else {
-		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000)
+		if ((VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE,
+			VIU_MISC_CTRL0) & 0x50000) != 0x50000)
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
 		if (di_ddr_en)
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0,
@@ -3038,7 +3040,7 @@ void disable_post_deinterlace_2(void)
 		DI_VSYNC_WR_MPEG_REG(DI_IF2_GEN_REG, 0x3 << 30);
 	/* disable ma,enable if0 to vpp,enable afbc to vpp */
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
-		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0)
+		if ((VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, VIU_MISC_CTRL0) & 0x50000) != 0)
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 0, 16, 4);
 		/* DI inp(current data) switch to memory */
 		DI_VSYNC_WR_MPEG_REG_BITS(VIUB_MISC_CTRL0, 0, 16, 1);

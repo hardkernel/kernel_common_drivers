@@ -111,9 +111,9 @@ int amblt_debug_file_remove(struct amblt_drv_s *amblt_drv);
 int amblt_function_enable(struct amblt_drv_s *amblt_drv);
 int amblt_function_disable(struct amblt_drv_s *amblt_drv);
 
-int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
-u32 VSYNC_RD_MPEG_REG(u32 adr);
-int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+u32 VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr);
+int VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val);
+int VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len);
 
 /********************ioctl************************/
 #define AMBLT_IOC_TYPE               'B'

@@ -539,7 +539,7 @@ int dpvpp_itf_show(struct seq_file *s, void *what)
 
 static void VS_REG_WR(unsigned int addr, unsigned int val)
 {
-	VSYNC_WR_MPEG_REG(addr, val);
+	VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, addr, val);
 }
 
 /* dim_VSYNC_WR_MPEG_REG_BITS */
@@ -547,14 +547,14 @@ static void VS_REG_WR(unsigned int addr, unsigned int val)
 static unsigned int VS_REG_WRB(unsigned int addr, unsigned int val,
 			       unsigned int start, unsigned int len)
 {
-	VSYNC_WR_MPEG_REG_BITS(addr, val, start, len);
+	VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, addr, val, start, len);
 
 	return 0;
 }
 
 static unsigned int VS_REG_RD(unsigned int addr)
 {
-	return VSYNC_RD_MPEG_REG(addr);
+	return VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 }
 
 static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
@@ -1494,9 +1494,9 @@ static bool dpvpp_reg(struct dimn_itf_s *itf,
 	dimn_que_int(&ds->lk_que_kback, &qcfg);
 	/* check define */
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-	dbg_plink1("define check:%s:yes\n", "VSYNC_WR_MPEG_REG");
+	dbg_plink1("define check:%s:yes\n", "VSYNC_WR_TABLE_REG");
 #else
-	PR_ERR("define check:%s:no\n", "VSYNC_WR_MPEG_REG");
+	PR_ERR("define check:%s:no\n", "VSYNC_WR_TABLE_REG");
 #endif
 	/* check que if ready */
 	if (!ds->lk_que_idle.flg	||

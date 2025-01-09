@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/video.h>
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 #include <linux/clk.h>
 #include <linux/atomic.h>
