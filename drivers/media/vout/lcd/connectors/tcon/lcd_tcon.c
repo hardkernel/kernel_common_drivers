@@ -1966,6 +1966,36 @@ static int lcd_tcon_axi_tbl_check_valid(unsigned int type)
 	return 0;
 }
 
+unsigned char *lcd_tcon_demura_mem_get(struct aml_lcd_drv_s *pdrv,
+		int *mem_len)
+{
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
+	struct lcd_tcon_axi_mem_cfg_s *axi_mem_cfg = NULL;
+	unsigned char *mem = NULL;
+	int i = 0, len = 0;
+
+	if (!tcon_conf || !tcon_rmem || !tcon_rmem->axi_rmem)
+		goto __demura_mem_get_exit;
+
+	for (i = 0; i < tcon_conf->axi_tbl_len; i++) {
+		axi_mem_cfg = &tcon_conf->axi_mem_cfg_tbl[i];
+		if (!axi_mem_cfg->mem_valid)
+			continue;
+		if (axi_mem_cfg->mem_type == TCON_AXI_MEM_TYPE_DEMURA) {
+			mem = tcon_rmem->axi_rmem[i].mem_vaddr;
+			len = tcon_rmem->axi_rmem[i].mem_size;
+			break;
+		}
+	}
+
+	if (mem)
+		*mem_len = len;
+
+__demura_mem_get_exit:
+	return mem;
+}
+
 int lcd_tcon_mem_od_is_valid(void)
 {
 	return lcd_tcon_axi_tbl_check_valid(TCON_AXI_MEM_TYPE_OD);
@@ -2130,11 +2160,6 @@ static int lcd_tcon_mem_config(void)
 	if (lcd_tcon_conf->axi_tbl_len && lcd_tcon_conf->axi_mem_cfg_tbl) {
 		for (i = 0; i < lcd_tcon_conf->axi_tbl_len; i++) {
 			axi_cfg = &lcd_tcon_conf->axi_mem_cfg_tbl[i];
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-				LCDPR("axi[%d] mem type=%d, size=%#x, reg=%#x, valid=%d\n",
-					i, axi_cfg->mem_type, axi_cfg->mem_size,
-					axi_cfg->axi_reg, axi_cfg->mem_valid);
-			}
 			switch (axi_cfg->mem_type) {
 			case TCON_AXI_MEM_TYPE_OD:
 				mem_od_size += axi_cfg->mem_size;
@@ -2168,6 +2193,11 @@ static int lcd_tcon_mem_config(void)
 		}
 
 		lcd_tcon_conf->axi_mem_size = axi_mem_size;
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("axi[%d] mem type=%d, size=%#x, reg=%#x, valid=%d\n",
+				i, axi_cfg->mem_type, axi_cfg->mem_size,
+				axi_cfg->axi_reg, axi_cfg->mem_valid);
+		}
 	} else {
 		mem_size = lcd_tcon_conf->axi_mem_size + lcd_tcon_conf->bin_path_size
 			+ lcd_tcon_conf->secure_cfg_size;

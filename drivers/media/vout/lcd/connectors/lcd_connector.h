@@ -78,6 +78,9 @@ ssize_t lcd_tcon_rdma_dbg_show(struct device *dev, struct device_attribute *attr
 ssize_t lcd_tcon_rdma_dbg_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count);
 ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t lcd_tcon_demura_dbg_show(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t lcd_tcon_demura_dbg_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count);
 long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned long arg);
 #endif
 

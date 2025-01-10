@@ -56,6 +56,42 @@ static struct lcd_tcon_adb_reg_s adb_reg = {
 	.len = 0,
 };
 
+#define TCON_DEMURA_MODE_NULL  0
+#define TCON_DEMURA_MODE_READ  1
+#define TCON_DEMURA_MODE_WRITE 2
+#define TCON_DEMURA_MODE_ERROR 0xff
+struct lcd_tcon_demura_reg_s {
+	unsigned int rw_mode;
+	unsigned int bit_width;
+
+	//read/write offset parameter
+	unsigned int offset;
+
+	//read/write length parameter, not distinguish with 8/32 bit
+	unsigned int len;
+
+	//read option may not completely print all data
+	//because command line limit, so need to store read offset
+	unsigned int rd_ofs;  //store read offset
+	unsigned int rd_eofs; //store read end offset
+
+	unsigned int mem_size;  //mem bytes
+	unsigned char *mem;
+
+	struct mutex lock;  //demura operation lock
+};
+
+static struct lcd_tcon_demura_reg_s demura_reg = {
+	.rw_mode = TCON_DEMURA_MODE_NULL,
+	.bit_width = 8,
+	.offset = 0,
+	.len = 0,
+	.rd_ofs = 0,
+	.rd_eofs = 0,
+	.mem_size = 0,
+	.mem = NULL,
+};
+
 static void lcd_tcon_multi_lut_print(void)
 {
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
@@ -1294,6 +1330,273 @@ ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr
 	return len;
 }
 
+ssize_t lcd_tcon_demura_dbg_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	unsigned char *mem;
+	unsigned long *mem32;
+	ssize_t size = 0, max_size = 4096 - 32, mem_len = 0;
+	int i, j = 0, ret = -1, lmax_size = 0;
+	int line_size = 0, blk_max_size = 0;
+
+	if (!pdrv || (pdrv->status & LCD_STATUS_IF_ON) == 0)
+		return 0;
+
+	if (!demura_reg.mem)
+		return 0;
+
+	mutex_lock(&demura_reg.lock);
+
+	mem = demura_reg.mem;
+	mem32 = (unsigned long *)demura_reg.mem;
+	mem_len = (demura_reg.bit_width == 32) ?
+		lcd_do_div(demura_reg.mem_size, 4) : demura_reg.mem_size;
+
+	line_size = 10 + 16 * ((demura_reg.bit_width == 32) ? 9 : 3);
+	blk_max_size = lcd_do_div(max_size, line_size) * line_size + 2;
+	lmax_size = blk_max_size;
+	switch (demura_reg.rw_mode) {
+	case TCON_DEMURA_MODE_READ:
+	case TCON_DEMURA_MODE_WRITE:
+		if (demura_reg.rw_mode == TCON_DEMURA_MODE_READ &&
+				demura_reg.rd_ofs >= demura_reg.rd_eofs) {
+			size += snprintf(buf + size, lmax_size, "Read done\n");
+			break;
+		}
+		for (i = demura_reg.rd_ofs, j = 0;
+				i < demura_reg.rd_eofs && i < mem_len && lmax_size > 0;
+				i++, j++) {
+			if ((j % 16) == 0) {
+				if (lmax_size < line_size)
+					break;
+				ret = snprintf(buf + size, lmax_size,
+					"%s%08x:", j ? "\n" : "", i);
+				if (ret < 0) {
+					LCDERR("Invalid return=%d\n", ret);
+					goto __tcon_demura_show_exit;
+				}
+				size += ret;
+				lmax_size -= ret;
+			}
+			if (demura_reg.bit_width == 32)
+				ret = snprintf(buf + size, lmax_size, " %08lx", mem32[i]);
+			else
+				ret = snprintf(buf + size, lmax_size, " %02x", mem[i]);
+			if (ret < 0) {
+				LCDERR("Invalid return=%d\n", ret);
+				goto __tcon_demura_show_exit;
+			}
+			size += ret;
+			lmax_size -= ret;
+			demura_reg.rd_ofs++;
+		}
+		ret = snprintf(buf + size, lmax_size, "\n");
+		if (ret < 0) {
+			LCDERR("Invalid return=%d\n", ret);
+			goto __tcon_demura_show_exit;
+		}
+		size += ret;
+		lmax_size -= ret;
+		break;
+	case TCON_DEMURA_MODE_ERROR:
+		size += snprintf(buf + size, lmax_size,
+			"Error Operation\n");
+		break;
+	default:
+		size += snprintf(buf + size, lmax_size,
+			"Unknown Operation\n");
+		break;
+	}
+
+__tcon_demura_show_exit:
+	mutex_unlock(&demura_reg.lock);
+	return size;
+}
+
+ssize_t lcd_tcon_demura_dbg_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+#define __MAX_PARAM 520
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct lcd_tcon_demura_reg_s demura_val;
+	char **parm = NULL, *buf_orig = NULL;
+	unsigned char *mem;
+	unsigned long *mem32;
+	unsigned int val = 0, real_len = 0, real_offset = 0;
+	int ret = -1, i, mem_size = 0;
+
+	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
+		return count;
+
+	mutex_lock(&demura_reg.lock);
+	if (!demura_reg.mem) {
+		mem = lcd_tcon_demura_mem_get(pdrv, &mem_size);
+		if (!mem) {
+			LCDERR("%s: get demura mem fail\n", __func__);
+			goto __tcon_demura_store_err;
+		}
+		demura_reg.mem = mem;
+		demura_reg.mem_size = mem_size;
+	}
+	mem = demura_reg.mem;
+	mem32 = (unsigned long *)demura_reg.mem;
+	mem_size = demura_reg.mem_size;
+
+	memset(&demura_val, 0, sizeof(demura_val));
+	demura_val.mem = mem;
+	demura_val.mem_size = mem_size;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		goto __tcon_demura_store_err;
+
+	parm = kcalloc(__MAX_PARAM, sizeof(char *), GFP_KERNEL);
+	if (!parm)
+		goto __tcon_demura_store_err;
+
+	lcd_debug_parse_param(buf_orig, parm, __MAX_PARAM);
+	if (!strcasecmp(parm[0], "read") ||
+			!strcasecmp(parm[0], "rd") ||
+			!strcasecmp(parm[0], "dump")) {
+		demura_val.rw_mode = TCON_DEMURA_MODE_READ;
+		ret = kstrtouint(parm[1], 0, &val);  //bit_width
+		if (ret)
+			goto __tcon_demura_store_err;
+		demura_val.bit_width = val;
+		ret = kstrtouint(parm[2], 0, &val);  //offset
+		if (ret)
+			goto __tcon_demura_store_err;
+		demura_val.offset = val;
+		ret = kstrtouint(parm[3], 0, &val);  //len
+		if (ret)
+			goto __tcon_demura_store_err;
+		demura_val.len = val;
+
+		//check param valid
+		if (demura_val.bit_width != 32 &&
+			demura_val.bit_width != 8) {
+			LCDERR("Invalid bit width=%u\n", demura_val.bit_width);
+			goto __tcon_demura_store_err;
+		}
+		real_len = demura_val.len;
+		real_offset = demura_val.offset;
+		if (demura_val.bit_width == 32) {
+			real_len = real_len * 4;
+			real_offset = real_offset * 4;
+		}
+		if ((real_offset + real_len) > mem_size) {
+			LCDERR("offset(%u) or len(%u) is out of mem size(%d)\n",
+				real_offset, real_len, mem_size);
+			goto __tcon_demura_store_err;
+		}
+		val = lcd_do_div(demura_val.bit_width, 8) * demura_val.len;
+		if (val > mem_size) {
+			LCDERR("Read len(%u) is out of mem size(%d)\n",
+				demura_val.len, mem_size);
+			goto __tcon_demura_store_err;
+		}
+		demura_val.rd_ofs = demura_val.offset;
+		demura_val.rd_eofs = demura_val.offset + demura_val.len;
+
+		memcpy(&demura_reg, &demura_val, sizeof(demura_val));
+	} else if (!strcasecmp(parm[0], "write") ||
+			!strcasecmp(parm[0], "wr")) {
+		demura_val.rw_mode = TCON_DEMURA_MODE_WRITE;
+		ret = kstrtouint(parm[1], 0, &val);  //bit_width
+		if (ret) {
+			LCDERR("Invalid bit width\n");
+			goto __tcon_demura_store_err;
+		}
+		demura_val.bit_width = val;
+		ret = kstrtouint(parm[2], 0, &val);  //offset
+		if (ret)
+			goto __tcon_demura_store_err;
+		demura_val.offset = val;
+		ret = kstrtouint(parm[3], 0, &val);  //len
+		if (ret)
+			goto __tcon_demura_store_err;
+		demura_val.len = val;
+
+		//check param valid
+		if (demura_val.bit_width != 32 &&
+			demura_val.bit_width != 8) {
+			LCDERR("Invalid bit width=%u\n", demura_val.bit_width);
+			goto __tcon_demura_store_err;
+		}
+		real_len = demura_val.len;
+		real_offset = demura_val.offset;
+		if (demura_val.bit_width == 32) {
+			real_len = real_len * 4;
+			real_offset = real_offset * 4;
+		}
+		if ((real_offset + real_len) > mem_size) {
+			LCDERR("offset(%u) or len(%u) is out of mem size(%d)\n",
+				real_offset, real_len, mem_size);
+			goto __tcon_demura_store_err;
+		}
+		demura_val.rd_ofs = demura_val.offset;
+		demura_val.rd_eofs = demura_val.offset + demura_val.len;
+		memcpy(&demura_reg, &demura_val, sizeof(demura_val));
+		for (i = 0; i < demura_val.len; i++) {
+			ret = kstrtouint(parm[i + 4], 0, &val);  //val
+			if (ret) {
+				LCDERR("Invalid data[%d] value\n", i);
+				goto __tcon_demura_store_err;
+			}
+			if (demura_val.bit_width == 32)
+				mem32[demura_val.offset + i] = val;
+			else
+				mem[demura_val.offset + i] = (unsigned char)val;
+		}
+	} else if (!strcasecmp(parm[0], "info")) {
+		LCDPR("Demura info:\n");
+		LCDPR("  mem addr =0x%p\n", demura_reg.mem);
+		LCDPR("  mem size =%u (%#x)\n",
+			demura_reg.mem_size, demura_reg.mem_size);
+		switch (demura_reg.rw_mode) {
+		case TCON_DEMURA_MODE_NULL:
+			LCDPR("  mode     =NULL\n");
+			break;
+		case TCON_DEMURA_MODE_READ:
+			LCDPR("  mode     =READ\n");
+			break;
+		case TCON_DEMURA_MODE_WRITE:
+			LCDPR("  mode     =WRITE\n");
+			break;
+		case TCON_DEMURA_MODE_ERROR:
+			LCDPR("  mode     =ERROR\n");
+			break;
+		default:
+			LCDPR("  mode     =UNKNOWN\n");
+			break;
+		}
+		LCDPR("  bit_width=%d\n", demura_reg.bit_width);
+		LCDPR("  offset   =%d (%#x)\n", demura_reg.offset,
+			demura_reg.offset);
+		LCDPR("  len      =%d (%#x)\n", demura_reg.len,
+			demura_reg.len);
+		LCDPR("  rd offset     =%d (%#x)\n", demura_reg.rd_ofs,
+			demura_reg.rd_ofs);
+		LCDPR("  rd end offset =%d (%#x)\n", demura_reg.rd_eofs,
+			demura_reg.rd_eofs);
+	}
+
+	kfree(parm);
+	kfree(buf_orig);
+	mutex_unlock(&demura_reg.lock);
+	return count;
+
+__tcon_demura_store_err:
+	demura_reg.rw_mode = TCON_DEMURA_MODE_ERROR;
+
+	kfree(parm);
+	kfree(buf_orig);
+	mutex_unlock(&demura_reg.lock);
+	return count;
+#undef __MAX_PARAM
+}
+
 static struct device_attribute lcd_tcon_debug_attrs[] = {
 	__ATTR(debug,     0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(status,    0444, lcd_tcon_status_show, NULL),
@@ -1301,6 +1604,7 @@ static struct device_attribute lcd_tcon_debug_attrs[] = {
 	__ATTR(tcon_fw,   0644, lcd_tcon_fw_dbg_show, lcd_tcon_fw_dbg_store),
 	__ATTR(tcon_pdf,  0644, lcd_tcon_pdf_dbg_show, lcd_tcon_pdf_dbg_store),
 	__ATTR(tcon_rdma, 0644, lcd_tcon_rdma_dbg_show, lcd_tcon_rdma_dbg_store),
+	__ATTR(tcon_demura, 0644, lcd_tcon_demura_dbg_show, lcd_tcon_demura_dbg_store),
 	__ATTR(tcon_info, 0444, lcd_tcon_info_dbg_show, NULL),
 };
 

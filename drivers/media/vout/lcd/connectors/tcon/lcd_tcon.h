@@ -336,5 +336,6 @@ void lcd_tcon_debug_file_remove(struct lcd_tcon_local_cfg_s *local_cfg);
 
 int lcd_tcon_mem_od_is_valid(void);
 int lcd_tcon_mem_demura_is_valid(void);
+unsigned char *lcd_tcon_demura_mem_get(struct aml_lcd_drv_s *pdrv, int *mem_len);
 
 #endif
