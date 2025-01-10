@@ -1,0 +1,27 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-gkitool",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_GKI_TOOL": {
+            True: [
+                "gki_module.c",
+                "gki_tool.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+        "//common:kernel/module/internal.h",
+    ],
+    linux_includes = [
+        "../../../common/kernel/module",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[gkitool]: \" fmt"],
+    out = "amlogic-gkitool.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+)

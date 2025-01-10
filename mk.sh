@@ -30,6 +30,7 @@ function show_help {
 	echo "  --kasan                 for build kernel with config kasan"
 	echo "  --fatload          	for force change to fatload mode in android build"
 	echo "  --clean          	for clean out directory"
+	echo "  --ddk_build          	for use ddk to build common_drivers with gki_20 mode"
 }
 
 # handle the dir parameters for amlogic_utils.sh
@@ -114,6 +115,10 @@ adjust_config_action
 build_part_of_kernel
 
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
+	if [[ "${GKI_CONFIG}" != "gki_20" && -n ${DDK_BUILD} ]]; then
+		echo "The drivers in the common_drivers directory can be compiled with DDK only in the gki_20 mode!!!"
+		exit
+	fi
 	args="$@ --config=fast"
 	[[ -z ${SYS_SKIP_GIT} ]] && args="${args} --config=stamp"
 	[[ -z ${PREBUILT_GKI} ]] && args="${args}"
@@ -156,6 +161,11 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo "KASAN=${KASAN}"					>> ${PROJECT_DIR}/build.config.project
 	sed -i "/CHECK_GKI_20/d" ${PROJECT_DIR}/build.config.project
 	echo "CHECK_GKI_20=${CHECK_GKI_20}"			>> ${PROJECT_DIR}/build.config.project
+	sed -i "/DDK_BUILD/d" ${PROJECT_DIR}/build.config.project
+	echo "DDK_BUILD=${DDK_BUILD}"				>> ${PROJECT_DIR}/build.config.project
+	BUILD_TIME=`date +%Y.%m.%d-%H.%M.%S`
+	sed -i "/BUILD_TIME/d" ${PROJECT_DIR}/build.config.project
+	echo "BUILD_TIME=${BUILD_TIME}"				>> ${PROJECT_DIR}/build.config.project
 
 	if [[ -z ${ANDROID_PROJECT} ]]; then
 		[[ -f ${PROJECT_DIR}/Kconfig.ext_modules ]] && rm -rf ${PROJECT_DIR}/Kconfig.ext_modules
@@ -205,6 +215,22 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		echo "GKI_CONFIG = \"non_gki\""			>> ${PROJECT_DIR}/project.bzl
 	else
 		echo "GKI_CONFIG = \"${GKI_CONFIG}\""		>> ${PROJECT_DIR}/project.bzl
+	fi
+
+	sed -i "/BUILD_TIME/d" ${PROJECT_DIR}/project.bzl
+	echo "BUILD_TIME = \"${BUILD_TIME}\""			>> ${PROJECT_DIR}/project.bzl
+
+	cd ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/
+	COMMON_DRIVER_RELEASE=$(git rev-parse --verify HEAD)
+	cd - >> /dev/null
+	sed -i "/COMMON_DRIVER_RELEASE/d" ${PROJECT_DIR}/project.bzl
+	echo "COMMON_DRIVER_RELEASE = \"${COMMON_DRIVER_RELEASE}\"" >> ${PROJECT_DIR}/project.bzl
+
+	sed -i "/DDK_BUILD/d" ${PROJECT_DIR}/project.bzl
+	if [[ "${DDK_BUILD}" == "1" ]]; then
+		echo "DDK_BUILD = True"				>> ${PROJECT_DIR}/project.bzl
+	else
+		echo "DDK_BUILD = False"			>> ${PROJECT_DIR}/project.bzl
 	fi
 
 	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/project.bzl

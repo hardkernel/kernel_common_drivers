@@ -795,40 +795,40 @@ function modules_install() {
 	mkdir -p ${OUT_AMLOGIC_DIR}/symbols
 
 	if [[ ${BAZEL} == "1" ]]; then
-		BAZEL_OUT=bazel-out/
+		BAZEL_OUT=`realpath bazel-out`
 		while read module
 		do
 			module_name=${module##*/}
-			if [[ -z ${ANDROID_PROJECT} || `echo ${module} | grep "^kernel\/"` ]]; then
+			if [[ -z ${ANDROID_PROJECT} || ${module} == kernel/* ]]; then
 				if [[ -f ${DIST_DIR}/${module_name} ]]; then
 					cp ${DIST_DIR}/${module_name} ${OUT_AMLOGIC_DIR}/modules
 				else
 					module=`find ${BAZEL_OUT} -name ${module_name} | grep "amlogic_modules_install"`
 					cp ${module} ${OUT_AMLOGIC_DIR}/modules
 				fi
-			elif [[ `echo ${module} | grep "^extra\/"` ]]; then
-				module=${module#*/}
-				local match=
-				for ext_module in ${EXT_MODULES_ANDROID_AUTO_LOAD}; do
-					if [[ "${module}" =~ "${ext_module}" ]]; then
-						match=1
-						break
-					fi
-				done
-				if [[ ${match} == 1 ]]; then
-					cp ${DIST_DIR}/${module_name} ${OUT_AMLOGIC_DIR}/modules
-				else
-					cp ${DIST_DIR}/${module_name} ${OUT_AMLOGIC_DIR}/ext_modules
+			elif [[ ${module} == extra/* ]]; then
+				local dist_dir=${OUT_AMLOGIC_DIR}/modules
+				if [[ ! ${module} =~ common_drivers ]]; then
+					echo extra_module=${module}
+					dist_dir=${OUT_AMLOGIC_DIR}/ext_modules
+					module=${module#*/}
+					for ext_module in ${EXT_MODULES_ANDROID_AUTO_LOAD}; do
+						if [[ "${module}" =~ "${ext_module}" ]]; then
+							dist_dir=${OUT_AMLOGIC_DIR}/modules
+							break
+						fi
+					done
 				fi
+				cp ${DIST_DIR}/${module_name} ${dist_dir}
 			else
 				echo "warning unrecognized module: ${module}"
 			fi
 		done < ${DIST_DIR}/modules.load
 
-		dep_file=`find ${BAZEL_OUT} -name *.dep | grep "amlogic"`
+		dep_file=`find ${BAZEL_OUT} -name "*.dep" | grep "amlogic"`
 		cp ${dep_file} ${OUT_AMLOGIC_DIR}/modules/full_modules.dep
 		if [[ -n ${ANDROID_PROJECT} ]]; then
-			grep -E "^kernel\/|^common_drivers\/" ${dep_file} > ${OUT_AMLOGIC_DIR}/modules/modules1.dep
+			grep -E "^kernel/|(^|/)common_drivers/" ${dep_file} > ${OUT_AMLOGIC_DIR}/modules/modules1.dep
 			for ext_module in ${EXT_MODULES_ANDROID_AUTO_LOAD}; do
 				cat ${dep_file} | cut -d ':' -f 1 | grep -n "${ext_module}" | cut -d ':' -f 1 | while read line; do
 					sed -n ${line}p ${dep_file} >> ${OUT_AMLOGIC_DIR}/modules/modules1.dep
@@ -1417,10 +1417,10 @@ export -f build_part_of_kernel
 function export_env_variable () {
 	export ABI BUILD_CONFIG LTO KMI_SYMBOL_LIST_STRICT_MODE CHECK_DEFCONFIG MANUAL_INSMOD_MODULE ARCH
 	export KERNEL_DIR COMMON_DRIVERS_DIR BUILD_DIR ANDROID_PROJECT GKI_CONFIG UPGRADE_PROJECT ANDROID_VERSION FAST_BUILD CHECK_GKI_20 DEV_CONFIGS
-	export FULL_KERNEL_VERSION BAZEL PREBUILT_GKI KASAN FATLOAD
+	export FULL_KERNEL_VERSION BAZEL PREBUILT_GKI KASAN FATLOAD DDK_BUILD
 
 	echo ROOT_DIR=$ROOT_DIR
-	echo ABI=${ABI} BUILD_CONFIG=${BUILD_CONFIG} LTO=${LTO} KMI_SYMBOL_LIST_STRICT_MODE=${KMI_SYMBOL_LIST_STRICT_MODE} CHECK_DEFCONFIG=${CHECK_DEFCONFIG} MANUAL_INSMOD_MODULE=${MANUAL_INSMOD_MODULE} FATLOAD=${FATLOAD}
+	echo ABI=${ABI} BUILD_CONFIG=${BUILD_CONFIG} LTO=${LTO} KMI_SYMBOL_LIST_STRICT_MODE=${KMI_SYMBOL_LIST_STRICT_MODE} CHECK_DEFCONFIG=${CHECK_DEFCONFIG} MANUAL_INSMOD_MODULE=${MANUAL_INSMOD_MODULE} FATLOAD=${FATLOAD} DDK_BUILD=${DDK_BUILD}
 	echo KERNEL_DIR=${KERNEL_DIR} COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR} BUILD_DIR=${BUILD_DIR} ANDROID_PROJECT=${ANDROID_PROJECT} GKI_CONFIG=${GKI_CONFIG} UPGRADE_PROJECT=${UPGRADE_PROJECT} ANDROID_VERSION=${ANDROID_VERSION}  FAST_BUILD=${FAST_BUILD} CHECK_GKI_20=${CHECK_GKI_20}
 	echo FULL_KERNEL_VERSION=${FULL_KERNEL_VERSION} BAZEL=${BAZEL} PREBUILT_GKI=${PREBUILT_GKI} KASAN=${KASAN}
 	echo MENUCONFIG=${MENUCONFIG} BASICCONFIG=${BASICCONFIG} IMAGE=${IMAGE} MODULES=${MODULES} DTB_BUILD=${DTB_BUILD}
@@ -1547,6 +1547,10 @@ function handle_input_parameters () {
 			;;
 		--clean)
 			CLEAN=1
+			shift
+			;;
+		--ddk_build)
+			DDK_BUILD=1
 			shift
 			;;
 		-h|--help)
@@ -2127,7 +2131,9 @@ function build_ext_module_without_bazel {
 	CROSS_COMPILE_PATH=${ROOT_DIR}/prebuilts/clang/host/linux-x86/clang-${CLANG_VERSION}/bin
 	local tool_args="CC=${CROSS_COMPILE_PATH}/clang LD=${CROSS_COMPILE_PATH}/ld.lld LLVM=1 KBUILD_MODPOST_WARN=1"
 	local ext_module
-	echo "# MODULE_BUILD_WITHOUT_BAZEL (ROOT_DIR=${ROOT_DIR})" >> ${OUT_AMLOGIC_DIR}/ext_modules/ext_modules.order
+	if [ -n "${EXT_MODULES_ANDROID}" ]; then
+		echo "# MODULE_BUILD_WITHOUT_BAZEL (ROOT_DIR=${ROOT_DIR})" >> ${OUT_AMLOGIC_DIR}/ext_modules/ext_modules.order
+	fi
 	for ext_module in ${EXT_MODULES_ANDROID}; do
 		local ext_mod_rel=$(real_path ${ext_module} ${kernel_src})
 		make ARCH=${ARCH} ${tool_args} -C ${ext_module} M=${ext_mod_rel} KERNEL_SRC=${kernel_src} "$@"

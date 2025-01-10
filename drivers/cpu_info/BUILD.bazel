@@ -1,0 +1,38 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:project/project.bzl", "GKI_CONFIG", "BUILD_TIME", "COMMON_DRIVER_RELEASE")
+
+ddk_module(
+    name = "amlogic-cpuinfo",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_CPU_INFO": {
+            True: [
+                "cpu_info.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [
+    ],
+    local_defines = [
+        "pr_fmt(fmt)=\"[cpu_info]: \" fmt",
+        "GKI_CONFIG=\"{}\"".format(GKI_CONFIG),
+        "BUILD_TIME=\"{}\"".format(BUILD_TIME),
+        "COMMON_DRIVER_RELEASE=\"{}\"".format(COMMON_DRIVER_RELEASE),
+    ],
+    out = "amlogic-cpuinfo.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
+)
+
+

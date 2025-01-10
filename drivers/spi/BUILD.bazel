@@ -1,0 +1,51 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-spi",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SPI": {
+            True: [
+                "module-init.c",
+                "spi-meson-mem.c",
+                "page_info.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_SPI_MESON_SPICC": {
+            True: ["spi-meson-spicc.c"],
+        },
+        "CONFIG_AMLOGIC_SPI_MESON_SPICC_V2": {
+            True: ["spi-meson-spicc-v2.c"],
+        },
+        "CONFIG_AMLOGIC_SPI_MESON_SPIFC": {
+            True: ["spi-meson-spifc.c"],
+        },
+        "CONFIG_AMLOGIC_SPI_MESON_SPIFC_V2": {
+            True: ["spi-meson-spifc-v2.c"],
+        },
+        "CONFIG_AMLOGIC_SPI_MESON_SPICC_SLAVE": {
+            True: [
+                "spi-meson-spicc-slave.c",
+                "vmem.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_SPI_NFC": {
+            True: [
+                "spi_nfc.c",
+                "nfc.c",
+            ],
+        },
+        "CONFIG_SPICC_TEST": {
+            True: ["spicc_test.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[spi]: \" fmt"],
+    out = "amlogic-spi.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,117 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-debug-iotrace",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_DEBUG_IOTRACE": {
+            True: [
+                "aml_iotrace.c",
+                "ftrace_ramoops.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[debug-iotrace]: \" fmt"],
+    out = "amlogic-debug-iotrace.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
+    ],
+)
+
+ddk_module(
+    name = "amlogic-debug",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_DEBUG": {
+            True: [
+                   "main.c",
+                   "lockup.c",
+                   "sched.c",
+                   "kprobes.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEBUG_ISOLCPUS": {
+            True: ["isolcpus.c"],
+        },
+            "CONFIG_AMLOGIC_DEBUG_MHZ": {
+            True: ["cpu_mhz.c"],
+        },
+        "CONFIG_AMLOGIC_DEBUG_ATRACE": {
+            True: [
+                    "atrace.c",
+                    "atrace_mem.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEBUG_FILE": {
+            True: ["debug_file.c"],
+        },
+        "CONFIG_AMLOGIC_GKI_CONFIG": {
+            True: ["gki_config.c"],
+        },
+        "CONFIG_AMLOGIC_DEBUG_HLD": {
+            True: ["watchdog_hld.c"],
+        },
+        "CONFIG_ARM64_MTE": {
+            True: ["debug_mte.c"],
+        },
+        "CONFIG_AMLOGIC_DEBUG_PRINTK": {
+            True: ["printk.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+        "//common:amlogic_kernel_headers_unsafe",
+        "//common_drivers:arch/arm64/configs/amlogic_gki.fragment",
+        "//common:mm/cma.h",
+        "//common:kernel/workqueue_internal.h",
+    ],
+    linux_includes = [
+        "../../../common/mm",
+        "../../../common/kernel/sched",
+    ],
+    local_defines = [
+        "pr_fmt(fmt)=\"[debug]: \" fmt",
+        "GKI_CONFIG=\"../../arch/arm64/configs/amlogic_gki.fragment\"",
+    ],
+    out = "amlogic-debug.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+            ":amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-audio-utils",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_AUDIO_UTILS": {
+            True: [
+                "audio_utils.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = [
+            "pr_fmt(fmt)=\"[audio-utils]: \" fmt",
+    ],
+    out = "amlogic-audio-utils.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)

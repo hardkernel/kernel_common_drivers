@@ -1,8 +1,23 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_headers(
+    name = "soc_headers",
+    hdrs = glob([
+        "include/**/*.h",
+    ]),
+    linux_includes = [
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 exports_files(["build.config.amlogic.fragment.bazel"])
 exports_files(["build.config.amlogic.bazel"])
 exports_files(["Kconfig.ext"])
 exports_files(["project/build.config.project"])
 exports_files(["build.config.amlogic"])
+exports_files(["arch/arm64/configs/amlogic_gki.fragment"])
 
 filegroup(
     name = "amlogic_build_config_fragment",

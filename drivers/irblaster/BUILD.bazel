@@ -1,0 +1,26 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-irblaster",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_IRBLASTER": {
+            True: [
+                "core.c",
+                "sysfs.c",
+                "irblaster-meson.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[amlogic-irblaster]: \" fmt"],
+    out = "amlogic-irblaster.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)

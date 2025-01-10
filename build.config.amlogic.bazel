@@ -39,6 +39,9 @@ function pre_defconfig_cmds() {
 	fi
 
 	if [[ ${GKI_CONFIG} == gki_20 ]]; then
+		if [[ -n ${DDK_BUILD} ]]; then
+			echo "CONFIG_AMLOGIC_DDK_BUILD=y" >> ${temp_file}
+		fi
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
 		${ARM64_DEFCONFIG} ${FRAGMENT_CONFIG} ${temp_file}
 	else

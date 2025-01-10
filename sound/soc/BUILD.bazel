@@ -1,0 +1,440 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-snd-codec-dummy",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_CODEC_DUMMY_CODEC": {
+            True: [
+                    "codecs/amlogic/dummy_codec.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-dummy]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-dummy.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-a1",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_CODEC_A1_ACODEC": {
+            True: [
+                    "codecs/amlogic/aml_codec_a1_acodec.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-a1]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-a1.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-t9015",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_CODEC_AMLT9015": {
+            True: [
+                    "codecs/amlogic/aml_codec_t9015.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-t9015]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-t9015.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-tl1",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_CODEC_TL1_ACODEC": {
+            True: [
+                    "codecs/amlogic/aml_codec_tl1_acodec.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-tl1]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-tl1.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-ad82584f",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_AD82584F": {
+            True: [
+                    "codecs/amlogic/ad82584f.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-ad82584f]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-ad82584f.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-tlv320adc3101",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_TLV320ADC3101": {
+            True: [
+                    "codecs/amlogic/tlv320adc3101.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-tlv320adc3101]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-tlv320adc3101.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-tas5707",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_TAS5707": {
+            True: [
+                    "codecs/amlogic/tas5707.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-tas5707]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-tas5707.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-tas5805",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_TAS5805": {
+            True: [
+                    "codecs/amlogic/tas5805.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-tas5805]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-tas5805.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-pa1",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_PA1": {
+            True: [
+                    "codecs/amlogic/aml_codec_pa1.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-pa1]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-pa1.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-tas5805m",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_TAS5805m": {
+            True: [
+                    "codecs/amlogic/tas5805m.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-tas5805m]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-tas5805m.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-ad82128",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_AD82128": {
+            True: [
+                    "codecs/amlogic/ad82128.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-ad82128]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-ad82128.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-sy6026l",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_SY6026L": {
+            True: [
+                    "codecs/amlogic/sy602x.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-sy6026l]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-sy6026l.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-soc",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_AUGE": {
+                True: [
+                        "amlogic/auge/clks/clk-g12a.c",
+                "amlogic/auge/clks/clk-sm1.c",
+                "amlogic/auge/clks/clk-tm2.c",
+                "amlogic/auge/clks/clk-a1.c",
+                "amlogic/auge/clks/clk-t5.c",
+                "amlogic/auge/clks/clk-t7.c",
+                "amlogic/auge/clks/clk-t3.c",
+                "amlogic/auge/clks/clk-p1.c",
+                "amlogic/auge/clks/clk-a4.c",
+                "amlogic/auge/clks/clk-a5.c",
+                "amlogic/auge/clks/clk-axg.c",
+                "amlogic/auge/clks/clk-c3.c",
+                "amlogic/auge/clks/clk-t5m.c",
+                "amlogic/auge/clks/clk-s5.c",
+                "amlogic/auge/clks/clk-t3x.c",
+                "amlogic/auge/clks/clk-txhd2.c",
+                "amlogic/auge/clks/clk-t6d.c",
+                "amlogic/auge/clks/clk-s1a.c",
+                "amlogic/auge/clks/clk-sc2.c",
+                "amlogic/auge/clks/audio_clks.c",
+                "amlogic/auge/audio_controller.c",
+                "amlogic/auge/audio_io.c",
+                "amlogic/auge/pinctrl/pctrl-audio.c",
+                "amlogic/auge/pinctrl/pctrl-audio-sm1.c",
+                "amlogic/auge/pinctrl/pctrl-audio-g12a.c",
+                "amlogic/auge/card_utils.c",
+                "amlogic/auge/tdm.c",
+                "amlogic/auge/tdm_hw.c",
+                "amlogic/auge/spdif.c",
+                "amlogic/auge/spdif_hw.c",
+                "amlogic/auge/pdm.c",
+                "amlogic/auge/pdm_hw.c",
+                "amlogic/auge/hdmirx_arc_iomap.c",
+                "amlogic/auge/iomap.c",
+                "amlogic/auge/ddr_mngr.c",
+                "amlogic/auge/aud_sram.c",
+                "amlogic/auge/loopback.c",
+                "amlogic/auge/loopback_hw.c",
+                "amlogic/auge/audio_utils.c",
+                "amlogic/auge/locker.c",
+                "amlogic/auge/locker_hw.c",
+                "amlogic/auge/resample.c",
+                "amlogic/auge/resample_hw.c",
+                "amlogic/auge/effects_v2.c",
+                "amlogic/auge/effects_hw_v2.c",
+                "amlogic/auge/effects_v3.c",
+                "amlogic/auge/effects_hw_v3.c",
+                "amlogic/auge/sharebuffer.c",
+                "amlogic/auge/extn.c",
+                "amlogic/auge/frhdmirx_hw.c",
+                "amlogic/auge/vad.c",
+                "amlogic/auge/vad_hw.c",
+                "amlogic/auge/vad_dev.c",
+                "amlogic/auge/earc.c",
+                "amlogic/auge/earc_hw.c",
+                "amlogic/auge/card.c",
+                "amlogic/auge/pcpd_monitor.c",
+                "amlogic/common/iec_info.c",
+                "amlogic/common/misc.c",
+                "amlogic/common/iomapres.c",
+                "amlogic/common/audio_uevent.c",
+                "amlogic/common/debug.c",
+                ],
+            },
+        "CONFIG_AMLOGIC_AUDIO_DSP": {
+                True: [
+                        "amlogic/common/audiodsp/audiodsp_module.c",
+                ],
+            },
+        "CONFIG_AMLOGIC_AMAUDIO": {
+                True: [
+                        "amlogic/common/amaudio/amaudio.c",
+                ],
+            },
+        "CONFIG_AMLOGIC_AUDIO_INFO": {
+                True: [
+                        "amlogic/common/audioinfo/audio_data.c",
+                ],
+            },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [
+        "amlogic/common",
+        "../../drivers/efuse_unifykey",
+        ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-soc]: \" fmt",
+    ],
+    out = "amlogic-snd-soc.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/media:aml_media",
+        "//common_drivers/drivers/dvb:amlogic-dvb",
+        "//common_drivers/drivers/tee:amlogic-tee",
+        "//common_drivers/drivers/pwm:amlogic-pwm",
+        "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
+        "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
+        "//common_drivers/drivers/memory_ext:page_trace",
+        "//common_drivers/drivers/gpio:amlogic-gpio",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+        "//common_drivers/drivers/clk/meson:amlogic-clk",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    ],
+)

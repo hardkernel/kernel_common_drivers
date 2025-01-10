@@ -1,0 +1,143 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "page_trace",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_PAGE_TRACE": {
+            True: ["page_trace.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[page_trace]: \" fmt"],
+    out = "page_trace.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+)
+
+ddk_module(
+    name = "aml_smmu",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_FAKE_SMMU": {
+            True: ["aml_smmu.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+        "//common:drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h",
+    ],
+    linux_includes = [
+        "../../../common/drivers/iommu/arm/arm-smmu-v3",
+    ],
+    local_defines = [
+        "pr_fmt(fmt)=\"[smmu]: \" fmt",
+        "__module_param(name, type, perm)=",
+        "__module_param_named(name, value, type, perm)=",
+        "__module_param_array(name, type, nump, perm)=",
+        "__module_param_cb(name, ops, arg, perm)=",
+        "__module_param_array_named(name, array, type, nump, perm)=",
+    ],
+    out = "aml_smmu.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+        "//common_drivers/drivers/tee:amlogic-tee",
+    ],
+)
+
+ddk_module(
+    name = "aml_cma",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_CMA": {
+            True: ["aml_cma.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+        "//common:mm/internal.h",
+        "//common:mm/vma.h",
+    ],
+    linux_includes = ["../../../common/mm"],
+    local_defines = [
+        "pr_fmt(fmt)=\"[smmu]: \" fmt",
+    ],
+    out = "aml_cma.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/memory_ext:page_trace",
+    ],
+)
+
+ddk_module(
+    name = "user_fault",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_USER_FAULT": {
+            True: ["user_fault.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = ["../memory_debug/ddr_tool"],
+    local_defines = [
+        "pr_fmt(fmt)=\"[user_fault]: \" fmt",
+    ],
+    out = "user_fault.ko",
+
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/memory_ext:page_trace",
+        "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
+)
+
+ddk_module(
+    name = "mem_debug",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_MEM_DEBUG": {
+            True: ["mem_debug.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [],
+    local_defines = [
+        "pr_fmt(fmt)=\"[mem_debug]: \" fmt",
+    ],
+    out = "mem_debug.ko",
+
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)

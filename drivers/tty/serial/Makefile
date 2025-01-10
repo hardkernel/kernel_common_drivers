@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
+ifeq ($(and $(filter y,$(CONFIG_AMLOGIC_DDK_BUILD)), $(filter m,$(CONFIG_AMLOGIC_SERIAL_MESON))),)
 MODULE_NAME = amlogic-uart
 PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
@@ -7,5 +8,8 @@ ccflags-y += $(PR_FMT_DEFINE) -D SKIP_LOCKUP_CHECK
 KBUILD_CFLAGS += -D__DISABLE_TRACE_MMIO__
 obj-$(CONFIG_AMLOGIC_SERIAL_MESON) = $(MODULE_NAME).o
 $(MODULE_NAME)-y += meson_uart.o
+endif
 
+ifeq ($(and $(filter y,$(CONFIG_AMLOGIC_DDK_BUILD)), $(filter m,$(CONFIG_AMLOGIC_SERIAL_EARLY_CONSOLE))),)
 obj-$(CONFIG_AMLOGIC_SERIAL_EARLY_CONSOLE) += meson_early_console.o
+endif

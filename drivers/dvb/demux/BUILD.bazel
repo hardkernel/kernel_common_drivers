@@ -1,0 +1,59 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-dvb-demux",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_DVB_DMX": {
+        True: [
+                "aml_dvb.c",
+                "aml_dsc.c",
+                "aml_dmx.c",
+                "sw_demux/swdmx_cb_list.c",
+                "sw_demux/swdmx_crc32.c",
+                "sw_demux/swdmx_demux.c",
+                "sw_demux/swdmx_ts_parser.c",
+                "sc2_demux/sc2_control.c",
+                "sc2_demux/mem_desc.c",
+                "sc2_demux/ts_output.c",
+                "sc2_demux/ts_input.c",
+                "sc2_demux/frontend.c",
+                "sc2_demux/dvb_reg.c",
+                "sc2_demux/ts_clone.c",
+                "sc2_demux/dma_buf_manage.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [
+        "../../../../common/include/media",
+    ],
+    local_defines = [
+        "pr_fmt(fmt)=\"[dvb-demux]: \" fmt",
+    ],
+    out = "amlogic-dvb-demux.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/media:aml_media",
+        "//common_drivers/drivers/dvb:amlogic-dvb",
+        "//common_drivers/drivers/pwm:amlogic-pwm",
+        "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
+        "//common_drivers/drivers/tee:amlogic-tee",
+        "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
+        "//common_drivers/drivers/memory_ext:page_trace",
+        "//common_drivers/drivers/gpio:amlogic-gpio",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+        "//common_drivers/drivers/clk/meson:amlogic-clk",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    ],
+)

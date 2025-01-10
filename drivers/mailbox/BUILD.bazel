@@ -1,0 +1,28 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-mailbox",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_MHU_MBOX": {
+            True: [
+                "meson_mbox_main.c",
+                "meson_mbox_fifo.c",
+                "meson_mbox_pl_v0.c",
+                "meson_mbox_pl_v1.c",
+                "meson_mbox_pl_v2.c",
+                "meson_mbox_devfs.c",
+                "meson_mbox_sec.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[mailbox]: \" fmt"],
+    out = "amlogic-mailbox.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+)

@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 load("//common_drivers:project/project.bzl", "EXTRA_ANDROID_MODULE", "GKI_CONFIG", "UPGRADE_PROJECT")
-load("//common_drivers:project/project.bzl", "MODULES_OUT_REMOVE", "MODULES_OUT_ADD")
+load("//common_drivers:project/project.bzl", "MODULES_OUT_REMOVE", "MODULES_OUT_ADD", "DDK_BUILD")
+
+AMLOGIC_COMMON_PRIVATE_HEADERS = [
+    "kernel/sched/**/*.h",
+]
 
 OEM_PROJECT_MODULES = [
 
@@ -259,4 +263,134 @@ ALL_MODULES_REMOVE = \
 	MODULES_OUT_REMOVE
 remove_modules_items = {module: None for module in depset(ALL_MODULES_REMOVE).to_list()}
 
-AMLOGIC_MODULES = [module for module in depset(ALL_MODULES).to_list() if module not in remove_modules_items]
+INTREE_BUILD_MODULES = [module for module in depset(ALL_MODULES).to_list() if module not in remove_modules_items]
+
+DDK_COMMON_MODULES = [module for module in depset(INTREE_BUILD_MODULES).to_list() if "common_drivers" not in module]
+
+AMLOGIC_MODULES = DDK_COMMON_MODULES if DDK_BUILD else INTREE_BUILD_MODULES
+
+SOC_DDK_MODULES_1 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/hwspinlock:amlogic-hwspinlock",
+    "//common_drivers/drivers/memory_ext:page_trace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+    "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
+    "//common_drivers/drivers/secmon:amlogic-secmon",
+    "//common_drivers/drivers/clk/meson:amlogic-clk",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-s4",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-sc2",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-c2",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-c3",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-a1",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t3",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t7",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t5m",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-g12a",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-s5",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t5w",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t3x",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-txhd2",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-c1",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-s1a",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t5d",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t6d",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-a5",
+    # "//common_drivers/drivers/clk/meson:amlogic-clk-soc-a4",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-s6",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-s7",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-s7d",
+    "//common_drivers/drivers/gpio:amlogic-gpio",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-s4",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-c2",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-c3",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-a1",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-sc2",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-t3",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-t7",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-t5m",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-g12a",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-s5",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-t5w",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-t3x",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-txhd2",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-c1",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-s1a",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-t5d",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-a4",
+    # "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-a5",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-tm2",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-s7",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-s7d",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-s6",
+    "//common_drivers/drivers/gpio:amlogic-pinctrl-soc-t6d",
+    "//common_drivers/drivers/pwm:amlogic-pwm",
+    "//common_drivers/drivers/reset:amlogic-reset",
+    "//common_drivers/drivers/power:amlogic-power",
+    "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+    "//common_drivers/drivers/mailbox:amlogic-mailbox",
+    "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
+    "//common_drivers/drivers/mmc/host:amlogic-mmc",
+    "//common_drivers/drivers/i2c/busses:amlogic-i2c",
+    "//common_drivers/drivers/spi:amlogic-spi",
+    "//common_drivers/drivers/tee:amlogic-tee",
+    "//common_drivers/drivers/aml_tee:tee",
+    "//common_drivers/drivers/memory_ext:aml_smmu",
+    "//common_drivers/drivers/pm:amlogic-pm",
+    "//common_drivers/drivers/iio/adc:amlogic-adc",
+    "//common_drivers/drivers/input:amlogic-input",
+    "//common_drivers/drivers/watchdog:amlogic-watchdog",
+    "//common_drivers/drivers/dvb:amlogic-dvb",
+    "//common_drivers/drivers/cpufreq:amlogic-cpufreq",
+    "//common_drivers/drivers/char/hw_random:amlogic-rng",
+    "//common_drivers/drivers/thermal:amlogic-thermal",
+    "//common_drivers/drivers/usb:amlogic-usb",
+    "//common_drivers/drivers/irblaster:amlogic-irblaster",
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+    "//common_drivers/drivers/amfc:aml-zram",
+    "//common_drivers/drivers/amfc:amlogic-soc-amfc",
+    "//common_drivers/drivers/amfc:amlogic-soc-erofs",
+    "//common_drivers/drivers/crypto:amlogic-crypto-dma",
+    "//common_drivers/drivers/wireless:amlogic-wireless",
+    "//common_drivers/drivers/debug:amlogic-audio-utils",
+    "//common_drivers/drivers/dvb/demux:amlogic-dvb-demux",
+    "//common_drivers/drivers/dvb_ci:amlogic-dvb-ci",
+    "//common_drivers/drivers/rtc:amlogic-rtc",
+    "//common_drivers/drivers/memory_ext:aml_cma",
+    "//common_drivers/drivers/memory_ext:mem_debug",
+    "//common_drivers/drivers/memory_ext:user_fault",
+    "//common_drivers/drivers/soc_info:amlogic-socinfo",
+    "//common_drivers/drivers/host:amlogic-host",
+    "//common_drivers/drivers/led:amlogic-led",
+    "//common_drivers/drivers/net:amlogic-mdio-g12a",
+    "//common_drivers/drivers/net:amlogic-realtek",
+    "//common_drivers/drivers/net:stmmac",
+    "//common_drivers/drivers/net:stmmac-platform",
+    "//common_drivers/drivers/net:dwmac-meson",
+    "//common_drivers/drivers/net:dwmac-meson8b",
+    "//common_drivers/drivers/net:dwmac-dwc-qos-eth",
+    "//common_drivers/drivers/net:amlogic-inphy",
+    "//common_drivers/drivers/jtag:amlogic-jtag",
+    "//common_drivers/drivers/seckey:amlogic-seckey",
+    "//common_drivers/drivers/dvb_usbci:amlogic-usb-cam",
+    "//common_drivers/sound/soc:amlogic-snd-codec-dummy",
+    "//common_drivers/sound/soc:amlogic-snd-codec-t9015",
+    "//common_drivers/sound/soc:amlogic-snd-codec-tl1",
+    "//common_drivers/sound/soc:amlogic-snd-codec-ad82584f",
+    "//common_drivers/sound/soc:amlogic-snd-codec-tas5707",
+    "//common_drivers/sound/soc:amlogic-snd-codec-tas5805",
+    "//common_drivers/sound/soc:amlogic-snd-codec-pa1",
+    "//common_drivers/sound/soc:amlogic-snd-codec-ad82128",
+    "//common_drivers/sound/soc:amlogic-snd-codec-sy6026l",
+    "//common_drivers/drivers/media:aml_media",
+    "//common_drivers/drivers/drm:aml_drm",
+    "//common_drivers/sound/soc:amlogic-snd-soc",
+    "//common_drivers/drivers/pci/controller:amlogic-pcie",
+    "//common_drivers/drivers/aml_tee:optee",
+]
+
+EXTRA_ANDROID_MODULES = [
+    "//common_drivers/drivers/tty/serial:amlogic-uart",
+]
+
+SOC_DDK_MODULES = [] if not DDK_BUILD else SOC_DDK_MODULES_1 + EXTRA_ANDROID_MODULES if EXTRA_ANDROID_MODULE else SOC_DDK_MODULES_1

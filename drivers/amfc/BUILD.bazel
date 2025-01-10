@@ -1,0 +1,139 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-soc-amfc",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_AMFC": {
+            True: [
+                "amfc.c",
+            ],
+        },
+    },
+    hdrs = ["//common_drivers:soc_headers"],
+    local_defines = [
+    ],
+    out = "amlogic-soc-amfc.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-soc-erofs",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_EROFS": {
+            True: [
+                "aml_erofs/super.c",
+                "aml_erofs/inode.c",
+                "aml_erofs/data.c",
+                "aml_erofs/namei.c",
+                "aml_erofs/dir.c",
+                "aml_erofs/sysfs.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_EROFS_XATTR": {
+            True: [
+                "aml_erofs/xattr.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_EROFS_ZIP": {
+            True: [
+                "aml_erofs/decompressor.c",
+                "aml_erofs/zmap.c",
+                "aml_erofs/zdata.c",
+                "aml_erofs/zutil.c",
+                "aml_erofs/decompressor_cryptor.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_EROFS_ZIP_DEFLATE": {
+            True: [
+                "aml_erofs/decompressor_deflate.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_EROFS_ZIP_ZSTD": {
+            True: [
+                "aml_erofs/decompressor_zstd.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_EROFS_BACKED_BY_FILE": {
+            True: [
+                "aml_erofs/fileio.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_EROFS_ONDEMAND": {
+            True: [
+                "aml_erofs/fscache.c",
+            ],
+        },
+    },
+    hdrs = ["//common_drivers:soc_headers"],
+    local_defines = [
+    ],
+    out = "amlogic-soc-erofs.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
+)
+
+ddk_module(
+    name = "aml-zram",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_ZRAM": {
+            True: [
+                "aml_zram/zcomp.c",
+                "aml_zram/zram_drv.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_ZRAM_BACKEND_LZO": {
+            True: [
+                "aml_zram/backend_lzorle.c",
+                "aml_zram/backend_lzo.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_ZRAM_BACKEND_LZ4": {
+            True: [
+                "aml_zram/backend_lz4.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_ZRAM_BACKEND_AMFC": {
+             True: [
+                "aml_zram/backend_amfc.c",
+             ],
+        },
+    },
+    hdrs = ["//common_drivers:soc_headers"],
+    local_defines = [
+    ],
+    out = "aml-zram.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
+)
+

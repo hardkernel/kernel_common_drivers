@@ -1,0 +1,684 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-clk",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK": {
+            True: ["clk-common-init.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_AO_CLKC": {
+            True: ["meson-aoclk.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV": {
+            True: ["clk-cpu-dyndiv.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_DUALDIV": {
+            True: ["clk-dualdiv.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_EE_CLKC": {
+            True: ["meson-eeclk.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_MPLL": {
+            True: ["clk-mpll.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_PHASE": {
+            True: ["clk-phase.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_PLL": {
+            True: ["clk-pll.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_REGMAP": {
+            True: ["clk-regmap.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_SCLK_DIV": {
+            True: ["sclk-div.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV": {
+            True: ["vid-pll-div.c"],
+        },
+        "CONFIG_AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS": {
+            True: ["meson-clkc-utils.c"],
+        },
+        "CONFIG_AMLOGIC_MESON_CLK_MEASURE": {
+            True: ["meson-clk-measure.c"],
+        },
+        "CONFIG_AMLOGIC_CLK_DEBUG": {
+            True: ["meson-clk-debug.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk]: \" fmt"],
+    out = "amlogic-clk.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-s4",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_S4": {
+            True: ["s4.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-s4]: \" fmt"],
+    out = "amlogic-clk-soc-s4.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-sc2",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_SC2": {
+            True: ["sc2.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-sc2]: \" fmt"],
+    out = "amlogic-clk-soc-sc2.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-c2",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_C2": {
+            True: ["c2.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-c2]: \" fmt"],
+    out = "amlogic-clk-soc-c2.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-c3",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_C3": {
+            True: ["c3.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-c3]: \" fmt"],
+    out = "amlogic-clk-soc-c3.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-a1",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_A1": {
+            True: ["a1.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-a1]: \" fmt"],
+    out = "amlogic-clk-soc-a1.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-t3",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_T3": {
+            True: ["t3.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-t3]: \" fmt"],
+    out = "amlogic-clk-soc-t3.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-t7",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_T7": {
+            True: ["t7.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-t7]: \" fmt"],
+    out = "amlogic-clk-soc-t7.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-t5m",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_T5M": {
+            True: ["t5m.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-t5m]: \" fmt"],
+    out = "amlogic-clk-soc-t5m.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-g12a",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_G12A": {
+            True: [
+                "g12a.c",
+                "g12a-aoclk.c",
+                "g12a-main.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-g12a]: \" fmt"],
+    out = "amlogic-clk-soc-g12a.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-s5",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_S5": {
+            True: ["s5.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-s5]: \" fmt"],
+    out = "amlogic-clk-soc-s5.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-t5w",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_T5W": {
+            True: [
+                "t5w.c",
+                "t5w-aoclk.c",
+                "t5w-main.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-t5w]: \" fmt"],
+    out = "amlogic-clk-soc-t5w.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-aoclk-soc-t5w",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_AO_CLK_T5W": {
+            True: ["t5w-aoclk.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[aoclk-soc-t5w]: \" fmt"],
+    out = "amlogic-aoclk-soc-t5w.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-t3x",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_T3X": {
+            True: ["t3x.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-t3x]: \" fmt"],
+    out = "amlogic-clk-soc-t3x.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-txhd2",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_TXHD2": {
+            True: [
+                "txhd2.c",
+                "txhd2-aoclk.c",
+                "txhd2-main.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-txhd2]: \" fmt"],
+    out = "amlogic-clk-soc-txhd2.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-aoclk-soc-txhd2",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_AO_CLK_TXHD2": {
+            True: ["txhd2-aoclk.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[aoclk-soc-txhd2]: \" fmt"],
+    out = "amlogic-aoclk-soc-txhd2.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-c1",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_C1": {
+            True: ["c1.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-c1]: \" fmt"],
+    out = "amlogic-clk-soc-c1.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-s1a",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_S1A": {
+            True: ["s1a.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-s1a]: \" fmt"],
+    out = "amlogic-clk-soc-s1a.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-t5d",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_T5D": {
+            True: [
+                "t5d.c",
+                "t5d-aoclk.c",
+                "t5d-main.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-t5d]: \" fmt"],
+    out = "amlogic-clk-soc-t5d.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-t6d",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_T6D": {
+            True: ["t6d.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-t6d]: \" fmt"],
+    out = "amlogic-clk-soc-t6d.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-a5",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_A5": {
+            True: ["a5.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-a5]: \" fmt"],
+    out = "amlogic-clk-soc-a5.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-a4",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_A4": {
+            True: ["a4.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-a4]: \" fmt"],
+    out = "amlogic-clk-soc-a4.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-tm2",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_TM2": {
+            True: [
+                "tm2.c",
+                "tm2-aoclk.c",
+                "tm2-main.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-tm2]: \" fmt"],
+    out = "amlogic-clk-soc-tm2.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-s6",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_S6": {
+            True: ["s6.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-s6]: \" fmt"],
+    out = "amlogic-clk-soc-s6.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-s7",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_S7": {
+            True: ["s7.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-s7]: \" fmt"],
+    out = "amlogic-clk-soc-s7.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-clk-soc-s7d",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_S7D": {
+            True: ["s7d.c"],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-s7d]: \" fmt"],
+    out = "amlogic-clk-soc-s7d.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
+)

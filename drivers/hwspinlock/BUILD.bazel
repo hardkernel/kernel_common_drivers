@@ -1,0 +1,24 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-hwspinlock",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SECMON": {
+            True: [
+                "hwspinlock_bakery.c",
+                "hwspinlock.c",
+                "hwspinlock_main.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[hwspinlock]: \" fmt"],
+    out = "amlogic-hwspinlock.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+)

@@ -28,6 +28,9 @@ function pre_defconfig_cmds() {
 			echo "CONFIG_AMLOGIC_DRIVER=y" > ${temp_file}
 			echo "CONFIG_AMLOGIC_MODIFY=y" >> ${temp_file}
 			echo "CONFIG_AMLOGIC_IN_KERNEL_MODULES=y" >> ${temp_file}
+			if [[ -n ${DDK_BUILD} ]]; then
+				echo "CONFIG_AMLOGIC_DDK_BUILD=y" >> ${temp_file}
+			fi
 
 			echo "CONFIG_AMLOGIC_SERIAL_MESON=y" >> ${temp_file}
 			echo "CONFIG_AMLOGIC_SERIAL_MESON_CONSOLE=y" >> ${temp_file}

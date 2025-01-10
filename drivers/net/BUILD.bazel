@@ -1,0 +1,270 @@
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "amlogic-phy-debug",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_MDIO_G12A": {
+            True: [
+                "ethernet/stmicro/stmmac/aml_phy_debug.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[amlogic-phy-debug]: \" fmt"],
+    out = "amlogic-phy-debug.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-inphy",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_INPHY": {
+            True: [
+                "phy/meson-gxl.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[amlogic-inphy]: \" fmt"],
+    out = "amlogic-inphy.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-realtek",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_REALTEK": {
+            True: [
+                "phy/realtek.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[amlogic-realtek]: \" fmt"],
+    out = "amlogic-realtek.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+    ],
+)
+
+ddk_module(
+    name = "amlogic-mdio-g12a",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_MDIO_G12A": {
+            True: [
+                "mdio/mdio-mux-meson-g12a.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[mdio-g12a]: \" fmt"],
+    out = "amlogic-mdio-g12a.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+        "//common_drivers/drivers/net:amlogic-inphy",
+    ],
+)
+
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+
+ddk_module(
+    name = "stmmac",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_STMMAC_ETH": {
+            True: [
+                "ethernet/stmicro/stmmac/stmmac_main.c",
+                "ethernet/stmicro/stmmac/stmmac_ethtool.c",
+                "ethernet/stmicro/stmmac/stmmac_mdio.c",
+                "ethernet/stmicro/stmmac/ring_mode.c",
+                "ethernet/stmicro/stmmac/chain_mode.c",
+                "ethernet/stmicro/stmmac/dwmac_lib.c",
+                "ethernet/stmicro/stmmac/dwmac1000_core.c",
+                "ethernet/stmicro/stmmac/dwmac1000_dma.c",
+                "ethernet/stmicro/stmmac/dwmac100_core.c",
+                "ethernet/stmicro/stmmac/dwmac100_dma.c",
+                "ethernet/stmicro/stmmac/enh_desc.c",
+                "ethernet/stmicro/stmmac/norm_desc.c",
+                "ethernet/stmicro/stmmac/mmc_core.c",
+                "ethernet/stmicro/stmmac/stmmac_hwtstamp.c",
+                "ethernet/stmicro/stmmac/stmmac_ptp.c",
+                "ethernet/stmicro/stmmac/dwmac4_descs.c",
+                "ethernet/stmicro/stmmac/dwmac4_dma.c",
+                "ethernet/stmicro/stmmac/dwmac4_lib.c",
+                "ethernet/stmicro/stmmac/dwmac4_core.c",
+                "ethernet/stmicro/stmmac/dwmac5.c",
+                "ethernet/stmicro/stmmac/hwif.c",
+                "ethernet/stmicro/stmmac/stmmac_tc.c",
+                "ethernet/stmicro/stmmac/dwxgmac2_core.c",
+                "ethernet/stmicro/stmmac/dwxgmac2_dma.c",
+                "ethernet/stmicro/stmmac/dwxgmac2_descs.c",
+                "ethernet/stmicro/stmmac/stmmac_xdp.c",
+                "ethernet/stmicro/stmmac/stmmac_est.c",
+            ],
+        },
+        "CONFIG_STMMAC_SELFTESTS": {
+            True: [
+                "ethernet/stmicro/stmmac/stmmac_selftests.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [],
+    out = "stmmac.ko",
+
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+    ],
+)
+
+ddk_module(
+    name = "stmmac-platform",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_STMMAC_PLATFORM": {
+            True: [
+                "ethernet/stmicro/stmmac/stmmac_platform.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [],
+    out = "stmmac-platform.ko",
+
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+        "//common_drivers/drivers/net:stmmac",
+    ],
+)
+
+ddk_module(
+    name = "dwmac-meson",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_DWMAC_MESON": {
+            True: [
+                "ethernet/stmicro/stmmac/dwmac-meson.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [],
+    out = "dwmac-meson.ko",
+
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+        "//common_drivers/drivers/net:stmmac",
+        "//common_drivers/drivers/net:stmmac-platform",
+    ],
+)
+
+ddk_module(
+    name = "dwmac-meson8b",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_DWMAC_MESON": {
+            True: [
+                "ethernet/stmicro/stmmac/dwmac-meson8b.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [],
+    out = "dwmac-meson8b.ko",
+
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+        "//common_drivers/drivers/net:stmmac",
+        "//common_drivers/drivers/net:stmmac-platform",
+        "//common_drivers/drivers/net:amlogic-mdio-g12a",
+        "//common_drivers/drivers/net:amlogic-inphy",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+    ],
+)
+
+ddk_module(
+    name = "dwmac-dwc-qos-eth",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_DWMAC_DWC_QOS_ETH": {
+            True: [
+                "ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [],
+    out = "dwmac-dwc-qos-eth.ko",
+
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+        "//common_drivers/drivers/net:stmmac",
+        "//common_drivers/drivers/net:stmmac-platform",
+    ],
+)
+
