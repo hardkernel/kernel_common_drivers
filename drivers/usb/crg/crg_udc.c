@@ -4723,8 +4723,6 @@ static int crg_udc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err0;
 
-	phy_power_off(crg_udc->phy);
-
 //	if (controller_type != USB_M31)
 //		amlogic_crg_device_usb2_init(phy_id);
 //	else
@@ -4790,20 +4788,6 @@ static int crg_udc_probe(struct platform_device *pdev)
 		ret = -1;
 		goto err0;
 	}
-
-	/* It is unable to set controller_cfg reg of the U2PHY
-	 * that has reg val reset feature before controller role switch.
-	 */
-	ret = phy_init(crg_udc->phy);
-	if (ret)
-		goto err0;
-
-	ret = phy_set_mode(crg_udc->phy, PHY_MODE_USB_DEVICE);
-	if (ret)
-		goto err0;
-
-//	if (controller_type != USB_M31)
-//		amlogic_crg_device_usb2_init(phy_id);
 
 	ret = device_create_file(&pdev->dev, &dev_attr_udc_debug);
 	if (ret) {

@@ -80,7 +80,7 @@ enum lm_device_type_e {
 };
 
 int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
-	unsigned long usb_peri_reg, const char *cpu_type, int controller_type);
+	unsigned long usb_peri_reg, const char *cpu_type, int controller_type, bool phy_cfg);
 
 int clk_disable_usb(struct platform_device *pdev, const char *s_clock_name,
 		unsigned long usb_peri_reg, const char *cpu_type);
@@ -91,9 +91,6 @@ int clk_resume_usb(struct platform_device *pdev, const char *s_clock_name,
 int clk_suspend_usb(struct platform_device *pdev, const char *s_clock_name,
 		unsigned long usb_peri_reg, const char *cpu_type);
 
-int device_status(unsigned long usb_peri_reg);
-int device_status_v2(unsigned long usb_peri_reg);
-
 int crg_clk_enable_usb(struct platform_device *pdev);
 
 int crg_clk_disable_usb(struct platform_device *pdev);
@@ -101,9 +98,6 @@ int crg_clk_disable_usb(struct platform_device *pdev);
 int crg_clk_resume_usb(struct platform_device *pdev);
 
 int crg_clk_suspend_usb(struct platform_device *pdev);
-
-//int crg_device_status(unsigned long usb_peri_reg);
-//int crg_device_status_v2(unsigned long usb_peri_reg);
 
 int dwc_otg_power_register_notifier(struct notifier_block *nb);
 int dwc_otg_power_unregister_notifier(struct notifier_block *nb);

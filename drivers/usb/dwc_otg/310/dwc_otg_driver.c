@@ -83,6 +83,7 @@
 #include <linux/amlogic/gki_module.h>
 
 #include "../../usb_main.h"
+#include "../phy_meson_usb/phy-meson-usb.h"
 
 #define DWC_DRIVER_VERSION	"3.10a 12-MAY-2014"
 #define DWC_DRIVER_DESC		"HS OTG USB Controller driver"
@@ -796,6 +797,8 @@ static void dwc_otg_driver_remove(struct platform_device *pdev)
 		return;
 	}
 #endif
+	phy_exit(otg_dev->core_if->phy_port);
+
 	/*
 	 * Free the IRQ
 	 */
@@ -975,19 +978,22 @@ void xhci_force_disable_port(void)
 	int controller_setting;
 	int controller_type;
 
-	controller_type = g_dwc_otg_device[0]->core_if->controller_type;
+	/* If use gphy, the xhci_port_a is set in the complete of the otg driver. */
+	if (!g_dwc_otg_device[0]->core_if->phy_port) {
+		controller_type = g_dwc_otg_device[0]->core_if->controller_type;
 
-	if (get_otg_mode() && controller_type == USB_HOST_ONLY)
-		controller_setting = USB_DEVICE_ONLY;
-	else
-		controller_setting = controller_type;
+		if (get_otg_mode() && controller_type == USB_HOST_ONLY)
+			controller_setting = USB_DEVICE_ONLY;
+		else
+			controller_setting = controller_type;
 
 #ifdef CONFIG_AMLOGIC_USB3PHY
-	if (controller_setting == USB_OTG)
-		resume_xhci_port_a();
-	else if (controller_setting == USB_DEVICE_ONLY)
-		force_disable_xhci_port_a();
+		if (controller_setting == USB_OTG)
+			resume_xhci_port_a();
+		else if (controller_setting == USB_DEVICE_ONLY)
+			force_disable_xhci_port_a();
 #endif
+	}
 }
 
 /**
@@ -1034,6 +1040,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	struct dwc_otg_driver_module_params *pcore_para;
 	static int dcount;
 	int controller_type = USB_NORMAL;
+	bool use_gphy;
 
 	dev_dbg(&pdev->dev, "dwc_otg_driver_probe(%p)\n", pdev);
 
@@ -1106,17 +1113,27 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 			if (prop)
 				pmu_apply_power = of_read_ulong(prop, 1);
 
-			retval = of_property_read_u32(of_node, "phy-reg", &p_phy_reg_addr);
-			if (retval < 0)
-				return -EINVAL;
+			use_gphy = of_property_read_bool(of_node, "use-gphy");
 
-			retval = of_property_read_u32(of_node, "phy-reg-size", &phy_reg_addr_size);
-			if (retval < 0)
-				return -EINVAL;
+			if (use_gphy)
+				controller_type = USB_DEVICE_ONLY;
 
-			phy_reg_addr = devm_ioremap(&(pdev->dev), (resource_size_t)p_phy_reg_addr, (unsigned long)phy_reg_addr_size);
-			if (!phy_reg_addr)
+			if (!use_gphy) {
+				retval = of_property_read_u32(of_node, "phy-reg", &p_phy_reg_addr);
+				if (retval < 0)
+					return -EINVAL;
+
+				retval = of_property_read_u32(of_node, "phy-reg-size",
+								&phy_reg_addr_size);
+				if (retval < 0)
+					return -EINVAL;
+
+				phy_reg_addr = devm_ioremap(&pdev->dev,
+					(resource_size_t)p_phy_reg_addr,
+					(unsigned long)phy_reg_addr_size);
+				if (!phy_reg_addr)
 					return -ENOMEM;
+			}
 
 			retval = of_property_read_u32(of_node, "usb-fifo", &dwc_otg_module_params.data_fifo_size);
 			if (retval < 0)
@@ -1147,14 +1164,17 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	if (controller_type == USB_HOST_ONLY && !get_otg_mode()) {
-		DWC_PRINTF("%s host only, not probe usb_otg!!!\n", __func__);
-		return -ENODEV;
-	}
+	/* By using the generic phy arch, the port should be dual role switchable. */
+	if (!use_gphy) {
+		if (controller_type == USB_HOST_ONLY && !get_otg_mode()) {
+			DWC_PRINTF("%s host only, not probe usb_otg!!!\n", __func__);
+			return -ENODEV;
+		}
 #ifdef CONFIG_AMLOGIC_USBPHYC2
-	if (controller_type == USB_DEVICE_ONLY || get_otg_mode())
-		set_usb_phy_reg10(1);
+		if (controller_type == USB_DEVICE_ONLY || get_otg_mode())
+			set_usb_phy_reg10(1);
 #endif
+	}
 
 	dwc_otg_device = DWC_ALLOC(sizeof(dwc_otg_device_t));
 
@@ -1217,7 +1237,8 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "dwc_otg_device=0x%p\n", dwc_otg_device);
 
 	if (clk_enable_usb(pdev, s_clock_name,
-		(unsigned long)phy_reg_addr, cpu_type, controller_type)) {
+		(unsigned long)phy_reg_addr, cpu_type, controller_type,
+		!use_gphy)) {
 		dev_err(&pdev->dev, "Set dwc_otg PHY clock failed!\n");
 		DWC_FREE(dwc_otg_device);
 		return -ENODEV;
@@ -1231,6 +1252,24 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	/* Phy inited by host controller driver(e.g. dwc3-meson). */
+	if (use_gphy) {
+		dwc_otg_device->core_if->phy_port =
+			devm_of_phy_get_by_index(&pdev->dev, pdev->dev.of_node, 0);
+		if (IS_ERR(dwc_otg_device->core_if->phy_port)) {
+			dwc_otg_device->core_if->phy_port = NULL;
+			DWC_ERROR("Cannot get gphy, check dts dwc2_a node.\n");
+			goto fail;
+		}
+
+		retval = phy_init(dwc_otg_device->core_if->phy_port);
+		if (retval) {
+			DWC_ERROR("can't init  phy port\n");
+			goto fail;
+		}
+	}
+
+	/* TODO: usb_peri_reg is not used, remove it? */
 	dwc_otg_device->core_if->usb_peri_reg = (usb_peri_reg_t *)phy_reg_addr;
 	dwc_otg_device->core_if->controller_type = controller_type;
 	dwc_otg_device->core_if->phy_interface = phy_interface;
@@ -1286,8 +1325,6 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 			break;
 		}
 	}
-
-
 
 	if (USB_NORMAL != controller_type) {
 		if (dwc_otg_module_params.data_fifo_size == 728) {
@@ -1478,7 +1515,17 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	register_early_suspend(&dwc_otg_device->usb_early_suspend);
 #endif
 
-	if (dwc_otg_device->core_if->controller_type == USB_OTG) {
+	/* use_gphy: otg switch moved to phy layer. */
+	if (use_gphy) {
+		struct meson_uphy_configure_opts opts = {.otg_init = 1};
+
+		retval = phy_configure(dwc_otg_device->core_if->phy_port,
+				(union phy_configure_opts *)(void *)&opts);
+		if (retval) {
+			DWC_ERROR("can't init port otg mode\n");
+			goto fail;
+		}
+	} else if (dwc_otg_device->core_if->controller_type == USB_OTG) {
 		if (dwc_otg_device->core_if->phy_interface != 1) {
 			if (dwc_otg_device->core_if->phy_otg)
 				aml_new_otg_init();
@@ -1522,6 +1569,8 @@ static int dwc2_suspend(struct device *dev)
 	if (!cpu_type)
 		return 0;
 
+	phy_exit(g_dwc_otg_device[pdev->id]->core_if->phy_port);
+
 	clk_suspend_usb(pdev, s_clock_name,
 			(unsigned long)(g_dwc_otg_device[pdev->id]->
 				core_if->usb_peri_reg), cpu_type);
@@ -1545,6 +1594,9 @@ static int dwc2_resume(struct device *dev)
 	clk_resume_usb(pdev, s_clock_name,
 			(unsigned long)(g_dwc_otg_device[pdev->id]->
 				core_if->usb_peri_reg), cpu_type);
+
+	phy_init(g_dwc_otg_device[pdev->id]->core_if->phy_port);
+
 	g_dwc_otg_device[pdev->id]->core_if->dev_if->suspend_no = 0;
 
 	return 0;

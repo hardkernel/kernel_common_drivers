@@ -39,7 +39,11 @@
 #include "io-meson.h"
 
 #include "debug-meson.h"
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+#include "../xhci_amlogic/xhci-ext-caps-meson.h"
+#else
 #include "../host/xhci-ext-caps.h"
+#endif
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 #include <linux/amlogic/usbtype.h>
 static int dwc3_phy_init(struct aml_dwc3 *dwc);
@@ -1598,13 +1602,6 @@ static int dwc3_core_get_phy(struct aml_dwc3 *dwc)
 			return dev_err_probe(dev, ret, "no usb2 phy configured\n");
 	}
 
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-	dwc->super_speed_support = 0;
-	if (dwc->usb3_phy)
-		if (dwc->usb3_phy->flags == AML_USB3_PHY_ENABLE)
-			dwc->super_speed_support = 1;
-#endif
-
 	if (IS_ERR(dwc->usb3_phy)) {
 		ret = PTR_ERR(dwc->usb3_phy);
 		if (ret == -ENXIO || ret == -ENODEV)
@@ -1612,6 +1609,11 @@ static int dwc3_core_get_phy(struct aml_dwc3 *dwc)
 		else
 			return dev_err_probe(dev, ret, "no usb3 phy configured\n");
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	else if (dwc->usb3_phy->flags == AML_USB3_PHY_ENABLE) {
+		dwc->super_speed_support = true;
+	}
+#endif
 
 	for (i = 0; i < dwc->num_usb2_ports; i++) {
 		if (dwc->num_usb2_ports == 1)
@@ -1645,6 +1647,10 @@ static int dwc3_core_get_phy(struct aml_dwc3 *dwc)
 				return dev_err_probe(dev, ret, "failed to lookup phy %s\n",
 							phy_name);
 		}
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (dwc->usb3_generic_phy[i])
+			dwc->super_speed_support = true;
+#endif
 	}
 
 	return 0;

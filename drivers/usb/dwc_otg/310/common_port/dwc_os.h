@@ -62,6 +62,7 @@ extern "C" {
 # include <linux/errno.h>
 # include <linux/stdarg.h>
 /*# include <asm/system.h>*/
+# include <linux/phy/phy.h>
 #endif
 
 #if defined(DWC_FREEBSD) || defined(DWC_NETBSD)

@@ -44,6 +44,39 @@ __retry:
 	goto __retry;
 }
 
+static void meson_usb2phy_s7_set_calibration_trim(struct amlogic_usb_v2 *phy)
+{
+	u32 value = 0;
+	u32 cali, i;
+	u8 cali_en;
+
+	if (!phy->usb_phy_trim_reg) {
+		mup_err(phy->dev, "No usb-phy-trim-reg\n");
+		return;
+	}
+
+	cali = readl(phy->usb_phy_trim_reg);
+	cali_en = (cali >> 12) & 0x1;
+	cali = cali >> 8;
+	if (cali_en) {
+		cali = cali & 0xf;
+		/* s7 modify. */
+		cali = cali + 2;
+		if (cali > 12)
+			cali = 12;
+	} else {
+		cali = phy->pll_setting[4];
+	}
+	value = readl(phy->phy_cfg[0] + 0x10);
+	value &= (~0xfff);
+	for (i = 0; i < cali; i++)
+		value |= (1 << i);
+
+	writel(value, phy->phy_cfg[0] + 0x10);
+
+	mup_dbg(phy->dev, "phy trim value= 0x%08x\n", value);
+}
+
 static int meson_usb2phy_s7_cali_disc_squelch
 			(struct amlogic_usb_v2 *mphy)
 {
@@ -60,9 +93,9 @@ static int meson_usb2phy_s7_cali_disc_squelch
 	return 0;
 }
 
-static int meson_usb2phy_s7_cali(struct amlogic_usb_v2 *mphy, int port)
+static int meson_usb2phy_s7_cali(struct amlogic_usb_v2 *mphy)
 {
-	meson_usb2phy_set_calibration_trim(mphy, port);
+	meson_usb2phy_s7_set_calibration_trim(mphy);
 	meson_usb2phy_s7_cali_disc_squelch(mphy);
 	return 0;
 }
@@ -74,7 +107,7 @@ static int meson_u2phy_s7_set_mode(struct phy *phy, enum phy_mode mode, int subm
 		(struct meson_uphy_instance *)phy_get_drvdata(phy);
 	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)ist->meson_uphy;
 
-	ret = meson_u2phy_set_mode(mphy, 0, mode);
+	ret = meson_u2phy_set_mode(mphy, mode);
 
 	return ret;
 }
@@ -85,44 +118,45 @@ static int meson_u2phy_s7_init(struct phy *phy)
 	struct meson_uphy_instance *ist =
 		(struct meson_uphy_instance *)phy_get_drvdata(phy);
 	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)ist->meson_uphy;
-	int port = 0;
+
+	if (!mphy->suspend_flag) {
+		mup_err(mphy->dev, "%s excessive init\n", __func__);
+		return -EBUSY;
+	}
 
 	ret = clk_bulk_prepare_enable(mphy->clk_num, mphy->clks);
 	if (ret) {
-		mu2p_err(mphy->dev, "Failed to enable usb2 phy bus clock at %d\n",
+		mup_err(mphy->dev, "Failed to enable usb2 phy bus clock at %d\n",
 							__LINE__);
 	}
 
-	if (port)
-		mu2p_err(mphy->dev, "not port 0?.\n");
-
-	meson_u2phy_hold_reset(mphy, port, true);
+	meson_u2phy_hold_reset(mphy, true);
 	meson_u2phy_usb_reset(mphy);
 	usleep_range(49, 50);
 
-	mu2p_dbg(mphy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
-			readl(&mphy->u2p_aml_regs[port]->r0),
-			readl(&mphy->u2p_aml_regs[port]->r1),
-			readl(&mphy->u2p_aml_regs[port]->r2));
+	mup_dbg(mphy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
+			readl(&mphy->u2p_aml_regs[0]->r0),
+			readl(&mphy->u2p_aml_regs[0]->r1),
+			readl(&mphy->u2p_aml_regs[0]->r2));
 
-	if (mphy->suspend_flag)
+	if (mphy->suspend_flag && mphy->current_mode != 0)
 		meson_u2phy_s7_set_mode(phy, mphy->current_mode, 0);
 
 	usleep_range(50, 100);
-	meson_u2phy_reset_phycfg(mphy, port);
+	meson_u2phy_reset_phycfg(mphy);
 
-	meson_usb2phy_s7_cali(mphy, port);
+	meson_usb2phy_s7_cali(mphy);
 
-	ret = meson_usb2phy_wait_ready(mphy, port, 200);
+	ret = meson_usb2phy_wait_ready(mphy, 200);
 	if (ret)
-		mu2p_err(mphy->dev, " wait for ready timeout.\n");
+		mup_err(mphy->dev, " wait for ready timeout.\n");
 
 	meson_usb2phy_s7_set_pll(mphy);
 
-	mu2p_dbg(mphy->dev, "end r0~r2 0x%x 0x%x 0x%x.\n",
-			readl(&mphy->u2p_aml_regs[port]->r0),
-			readl(&mphy->u2p_aml_regs[port]->r1),
-			readl(&mphy->u2p_aml_regs[port]->r2));
+	mup_dbg(mphy->dev, "end r0~r2 0x%x 0x%x 0x%x.\n",
+			readl(&mphy->u2p_aml_regs[0]->r0),
+			readl(&mphy->u2p_aml_regs[0]->r1),
+			readl(&mphy->u2p_aml_regs[0]->r2));
 
 	if (mphy->suspend_flag)
 		mphy->suspend_flag = 0;
@@ -136,7 +170,7 @@ static int meson_u2phy_s7_exit(struct phy *phy)
 		(struct meson_uphy_instance *)phy_get_drvdata(phy);
 	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)ist->meson_uphy;
 
-	return meson_u2phy_exit(mphy, 0);
+	return meson_u2phy_exit(mphy);
 }
 
 static int meson_u2phy_s7_power_on(struct phy *phy)
@@ -175,7 +209,7 @@ static int meson_u2phy_s7_disconnect(struct phy *phy, int port)
 	return 0;
 }
 
-static struct meson_uphy_ops meson_u2phy_s7_pdata = {
+static struct meson_uphy_ops meson_u2phy_s7_ops = {
 	.init = meson_u2phy_s7_init,
 	.exit = meson_u2phy_s7_exit,
 	.power_on = meson_u2phy_s7_power_on,
@@ -188,9 +222,9 @@ static struct meson_uphy_ops meson_u2phy_s7_pdata = {
 };
 
 struct meson_uphy_pdata meson_uphy_s7_pdata = {
-	.u2phy_ops = &meson_u2phy_s7_pdata,
+	.u2phy_ops = &meson_u2phy_s7_ops,
 	.u3phy_ops = NULL,
 	.u2phy_parse = meson_aml_u2phy_parse,
-	.u3phy_parse = meson_aml_u3phy_parse,
+	.u3phy_parse = NULL,
 	.otg_parse = meson_u2phy_crg_otg_parse,
 };

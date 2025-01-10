@@ -29,11 +29,16 @@ struct meson_uphy_configure_opts {
 #define MESON_USB_DEVICE_TEST_MODE_COMPL 0
 #define	MESON_USB_DEVICE_TEST_JK_COMPL	 1
 	u32 test_mode;
+	u32 cfg_tune:1;
+	u32 tune:1;
+	u32 otg_init:1;
 };
 
 struct amlogic_otg_helper {
 	struct delayed_work     work;
 	struct delayed_work     set_mode_work;
+	struct delayed_work		id_gpio_work;
+	struct gpio_desc *idgpiodesc;
 	/*otg_mutex should be taken amlogic_crg_otg_work and
 	 *amlogic_crg_otg_set_m_work
 	 */
@@ -48,14 +53,18 @@ struct amlogic_otg_helper {
 		union u2p_r1_v2 usb_r1;
 	} pm_buf;
 	struct notifier_block pm_notifier;
-	u32 otg_port_index;
-#define AML_USB_OTG_HOST_MODE	0
-#define AML_USB_OTG_DEVICE_MODE	1
-#define AML_USB_OTG_OTG_MODE	2
-#define AML_USB_OTG_HOST_MODE_MASK BIT(AML_USB_OTG_HOST_MODE)
-#define AML_USB_OTG_DEVICE_MODE_MASK BIT(AML_USB_OTG_DEVICE_MODE)
-#define AML_USB_OTG_OTG_MODE_MASK BIT(AML_USB_OTG_OTG_MODE)
-	struct dentry *debugfs_root;
+	/* Is this an otg port? */
+	bool otg_port;
+	/* HW otg irq? */
+	bool hwotg;
+	enum {
+		MESON_USB_OTG_T_PHY,
+		MESON_USB_OTG_T_GPIO,
+	} hwotg_type;
+	/* For legacy aml usb phy. 0: iddig bits in the usb2 phy set.
+	 * 1: in the usb3 phy set.
+	 */
+	u32 iddig_type;
 };
 
 #define USB_PHY_MAX_NUMBER  0x8
@@ -73,6 +82,7 @@ struct amlogic_usb_v2 {
 	void __iomem	*phy3_cfg_r2;
 	void __iomem	*phy3_cfg_r4;
 	void __iomem	*phy3_cfg_r5;
+	/* TODO: Can we remove these phy31 stuffs? */
 	void __iomem	*phy31_cfg;
 	void __iomem	*phy31_cfg_r1;
 	void __iomem	*phy31_cfg_r2;
@@ -81,7 +91,10 @@ struct amlogic_usb_v2 {
 	void __iomem	*usb2_phy_cfg;
 	void __iomem	*xhci_port_a_addr;
 	struct u2p_aml_regs_m_v2 __iomem *u2p_aml_regs[USB_PHY_MAX_NUMBER];
+	/* TODO: Remove usb_aml_regs once all drivers uses u2p_aml_regs. */
+	struct usb_aml_regs_m_v2 __iomem *usb_aml_regs;
 	u32 pll_setting[8];
+	/* TODO: Remove all soc specific params. */
 	u32 pll_ver;
 	u32 ic_ver;
 	u32 pll_dis_thred_enhance;
@@ -94,9 +107,11 @@ struct amlogic_usb_v2 {
 	int vbus_power_pin_work_mask;
 	int otg;
 	struct amlogic_otg_helper otg_helper;
-	struct usb_role_switch	*role_sw;
 	enum phy_mode current_mode;
+#if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
+	struct usb_role_switch	*role_sw;
 	u32 role_switch_default_mode;
+#endif
 	u32 version;
 	int portspeed;
 	struct delayed_work	work;
@@ -117,6 +132,7 @@ struct amlogic_usb_v2 {
 	u32 reset_level;
 	struct clk_bulk_data clks[AML_USB_PHY_MAX_CLK_NUMBER];
 	int clk_num;
+	/* TODO: Remove all clk stuffs. */
 	u32	clk_mux;
 	struct clk		*clk;
 	struct clk		*usb_clk;

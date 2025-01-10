@@ -38,7 +38,7 @@
 #include "../xhci_amlogic/xhci-plat-meson.h"
 
 static struct aml_xhci_plat_priv crg_xhci_plat_priv = {
-	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_RESET_ON_RESUME,
+	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_RESET_ON_RESUME | XHCI_SKIP_PHY_INIT,
 };
 
 #define CRG_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
@@ -48,6 +48,9 @@ static struct aml_xhci_plat_priv crg_xhci_plat_priv = {
 #define CRG_GCTL_PRTCAP_OTG	3
 #define CRG_XHCI_REGS_END		0x7fff
 #define	CRG_U3DC_CFG0_MAXSPEED_SS		(0x4L << 0)
+
+#define CRGDRD_USB2_MAX_PORTS	4
+#define CRGDRD_USB3_MAX_PORTS	4
 
 struct crg_drd {
 	struct device		*dev;
@@ -62,6 +65,10 @@ struct crg_drd {
 	void			*mem;
 	struct usb_phy		*usb2_phy;
 	struct usb_phy		*usb3_phy;
+	struct phy		*usb2_generic_phy[CRGDRD_USB2_MAX_PORTS];
+	struct phy		*usb3_generic_phy[CRGDRD_USB3_MAX_PORTS];
+	int num_usb2_ports;
+	int num_usb3_ports;
 
 	unsigned		super_speed_support:1;
 	bool		usb_phy_init;
@@ -81,49 +88,137 @@ static void crg_set_mode(struct crg_drd *crg, u32 mode)
 	}
 }
 
-static int crg_core_soft_reset(struct crg_drd *crg)
+static int crg_phy_init(struct crg_drd *crg)
 {
+	int ret;
+	int i;
+	int j;
+
 	usb_phy_init(crg->usb2_phy);
-	usb_phy_init(crg->usb3_phy);
 	if (crg->usb2_phy)
 		amlogic_crg_host_power(crg->usb2_phy, false, true);
+	usb_phy_init(crg->usb3_phy);
+
+	for (i = 0; i < crg->num_usb2_ports; i++) {
+		ret = phy_init(crg->usb2_generic_phy[i]);
+		if (ret < 0)
+			goto err_exit_usb2_phy;
+	}
+
+	for (j = 0; j < crg->num_usb3_ports; j++) {
+		ret = phy_init(crg->usb3_generic_phy[j]);
+		if (ret < 0)
+			goto err_exit_usb3_phy;
+	}
+
 	return 0;
+
+err_exit_usb3_phy:
+	while (--j >= 0)
+		phy_exit(crg->usb3_generic_phy[j]);
+
+err_exit_usb2_phy:
+	while (--i >= 0)
+		phy_exit(crg->usb2_generic_phy[i]);
+
+	usb_phy_shutdown(crg->usb3_phy);
+	usb_phy_shutdown(crg->usb2_phy);
+
+	return ret;
 }
 
-static void crg_core_exit(struct crg_drd	*crg)
+static void crg_phy_exit(struct crg_drd *crg)
 {
+	int i;
+
+	for (i = 0; i < crg->num_usb3_ports; i++)
+		phy_exit(crg->usb3_generic_phy[i]);
+
+	for (i = 0; i < crg->num_usb2_ports; i++)
+		phy_exit(crg->usb2_generic_phy[i]);
+
+	usb_phy_shutdown(crg->usb3_phy);
+
 	if (crg->usb2_phy) {
 		amlogic_crg_host_power(crg->usb2_phy, false, false);
 		usb_phy_shutdown(crg->usb2_phy);
 	}
-
-	usb_phy_shutdown(crg->usb3_phy);
-
-	usb_phy_set_suspend(crg->usb2_phy, 1);
-	usb_phy_set_suspend(crg->usb3_phy, 1);
 }
 
-static int crg_core_init(struct crg_drd *crg)
+static int crg_phy_power_on(struct crg_drd *crg)
 {
-	int			ret;
-
-	ret = crg_core_soft_reset(crg);
-	if (ret)
-		return ret;
+	int ret;
+	int i;
+	int j;
 
 	usb_phy_set_suspend(crg->usb2_phy, 0);
 	usb_phy_set_suspend(crg->usb3_phy, 0);
 
-	crg->super_speed_support = 0;
-	if (crg->usb3_phy)
-		if (crg->usb3_phy->flags == AML_USB3_PHY_ENABLE)
-			crg->super_speed_support = 1;
+	for (i = 0; i < crg->num_usb2_ports; i++) {
+		ret = phy_power_on(crg->usb2_generic_phy[i]);
+		if (ret < 0)
+			goto err_power_off_usb2_phy;
+	}
+
+	for (j = 0; j < crg->num_usb3_ports; j++) {
+		ret = phy_power_on(crg->usb3_generic_phy[j]);
+		if (ret < 0)
+			goto err_power_off_usb3_phy;
+	}
+
+	return 0;
+
+err_power_off_usb3_phy:
+	while (--j >= 0)
+		phy_power_off(crg->usb3_generic_phy[j]);
+
+err_power_off_usb2_phy:
+	while (--i >= 0)
+		phy_power_off(crg->usb2_generic_phy[i]);
+
+	usb_phy_set_suspend(crg->usb3_phy, 1);
+	usb_phy_set_suspend(crg->usb2_phy, 1);
+
+	return ret;
+}
+
+static void crg_phy_power_off(struct crg_drd *crg)
+{
+	int i;
+
+	for (i = 0; i < crg->num_usb3_ports; i++)
+		phy_power_off(crg->usb3_generic_phy[i]);
+
+	for (i = 0; i < crg->num_usb2_ports; i++)
+		phy_power_off(crg->usb2_generic_phy[i]);
+
+	usb_phy_set_suspend(crg->usb3_phy, 1);
+	usb_phy_set_suspend(crg->usb2_phy, 1);
+}
+
+static int crg_core_init(struct crg_drd *crg)
+{
+	int			i, ret;
+
+	ret = crg_phy_init(crg);
+	if (ret)
+		return ret;
+
+	ret = crg_phy_power_on(crg);
+	if (ret) {
+		crg_phy_exit(crg);
+		return ret;
+	}
 
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
 		crg_set_mode(crg, CRG_GCTL_PRTCAP_DEVICE);
 		break;
 	case USB_DR_MODE_HOST:
+		for (i = 0; i < crg->num_usb2_ports; i++)
+			phy_set_mode(crg->usb2_generic_phy[i], PHY_MODE_USB_HOST);
+		for (i = 0; i < crg->num_usb3_ports; i++)
+			phy_set_mode(crg->usb3_generic_phy[i], PHY_MODE_USB_HOST);
 		crg_set_mode(crg, CRG_GCTL_PRTCAP_HOST);
 		break;
 	case USB_DR_MODE_OTG:
@@ -141,12 +236,15 @@ static int crg_core_resume(struct crg_drd *crg)
 {
 	int			ret;
 
-	ret = crg_core_soft_reset(crg);
+	ret = crg_phy_init(crg);
 	if (ret)
 		return ret;
 
-	usb_phy_set_suspend(crg->usb2_phy, 0);
-	usb_phy_set_suspend(crg->usb3_phy, 0);
+	ret = crg_phy_power_on(crg);
+	if (ret) {
+		crg_phy_exit(crg);
+		return ret;
+	}
 
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -169,6 +267,8 @@ static int crg_core_resume(struct crg_drd *crg)
 static int crg_core_get_phy(struct crg_drd *crg)
 {
 	struct device *dev = crg->dev;
+	int i, ret;
+	char phy_name[9];
 
 	crg->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 	if (IS_ERR(crg->usb2_phy))
@@ -177,6 +277,48 @@ static int crg_core_get_phy(struct crg_drd *crg)
 	crg->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
 	if (IS_ERR(crg->usb3_phy))
 		crg->usb3_phy = NULL;
+	else if (crg->usb3_phy->flags == AML_USB3_PHY_ENABLE)
+		crg->super_speed_support = true;
+
+	for (i = 0; i < crg->num_usb2_ports; i++) {
+		if (crg->num_usb2_ports == 1)
+			snprintf(phy_name, sizeof(phy_name), "usb2-phy");
+		else
+			snprintf(phy_name, sizeof(phy_name),  "usb2-%u", i);
+
+		crg->usb2_generic_phy[i] = devm_phy_get(dev, phy_name);
+		if (IS_ERR(crg->usb2_generic_phy[i])) {
+			ret = PTR_ERR(crg->usb2_generic_phy[i]);
+			if (ret == -ENODEV) {
+				crg->usb2_generic_phy[i] = NULL;
+				dev_err(dev, "no u2phy%d.\n", i);
+			} else {
+				return dev_err_probe(dev, ret, "failed to lookup phy %s\n",
+							phy_name);
+			}
+		}
+	}
+
+	for (i = 0; i < crg->num_usb3_ports; i++) {
+		if (crg->num_usb3_ports == 1)
+			snprintf(phy_name, sizeof(phy_name), "usb3-phy");
+		else
+			snprintf(phy_name, sizeof(phy_name), "usb3-%u", i);
+
+		crg->usb3_generic_phy[i] = devm_phy_get(dev, phy_name);
+		if (IS_ERR(crg->usb3_generic_phy[i])) {
+			ret = PTR_ERR(crg->usb3_generic_phy[i]);
+			if (ret == -ENODEV) {
+				crg->usb3_generic_phy[i] = NULL;
+				dev_err(dev, "no u3phy%d.\n", i);
+			} else {
+				return dev_err_probe(dev, ret, "failed to lookup phy %s\n",
+							phy_name);
+			}
+		}
+		if (crg->usb3_generic_phy[i])
+			crg->super_speed_support = true;
+	}
 
 	return 0;
 }
@@ -403,6 +545,56 @@ static int crg_core_init_mode(struct crg_drd *crg)
 	return 0;
 }
 
+static int crg_get_num_ports(struct crg_drd *crg)
+{
+	void __iomem *base;
+	u8 major_revision;
+	u32 offset;
+	u32 val;
+
+	/*
+	 * Remap xHCI address space to access XHCI ext cap regs since it is
+	 * needed to get information on number of ports present.
+	 */
+	base = crg->regs;
+
+	if (!base)
+		return -ENOMEM;
+
+	offset = 0;
+	do {
+		offset = xhci_find_next_ext_cap(base, offset,
+						XHCI_EXT_CAPS_PROTOCOL);
+		if (!offset)
+			break;
+
+		val = readl(base + offset);
+		major_revision = XHCI_EXT_PORT_MAJOR(val);
+
+		val = readl(base + offset + 0x08);
+		if (major_revision == 0x03) {
+			crg->num_usb3_ports += XHCI_EXT_PORT_COUNT(val);
+		} else if (major_revision <= 0x02) {
+			crg->num_usb2_ports += XHCI_EXT_PORT_COUNT(val);
+		} else {
+			dev_warn(crg->dev, "unrecognized port major revision %d\n",
+				 major_revision);
+		}
+	} while (1);
+
+	dev_info(crg->dev, "hs-ports: %u ss-ports: %u\n",
+		crg->num_usb2_ports, crg->num_usb3_ports);
+
+	if (crg->num_usb2_ports > CRGDRD_USB2_MAX_PORTS ||
+	    crg->num_usb3_ports > CRGDRD_USB3_MAX_PORTS) {
+		dev_warn(crg->dev, "num_usb2_ports %d num_usb3_ports %d too large\n",
+			 crg->num_usb2_ports, crg->num_usb3_ports);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 #define CRG_ALIGN_MASK		(16 - 1)
 
 static int crg_probe(struct platform_device *pdev)
@@ -452,6 +644,10 @@ static int crg_probe(struct platform_device *pdev)
 	} else {
 		clk_prepare_enable(crg->general_clk);
 	}
+
+	ret = crg_get_num_ports(crg);
+	if (ret < 0)
+		goto err0;
 
 	platform_set_drvdata(pdev, crg);
 
@@ -557,7 +753,8 @@ static void crg_shutdown(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	crg_host_exit(crg);
-	crg_core_exit(crg);
+	crg_phy_power_off(crg);
+	crg_phy_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -573,7 +770,8 @@ static void crg_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	crg_host_exit(crg);
-	crg_core_exit(crg);
+	crg_phy_power_off(crg);
+	crg_phy_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -597,7 +795,8 @@ static int crg_suspend_common(struct crg_drd *crg)
 		break;
 	}
 
-	crg_core_exit(crg);
+	crg_phy_power_off(crg);
+	crg_phy_exit(crg);
 
 	return 0;
 }

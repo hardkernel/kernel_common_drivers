@@ -22,8 +22,12 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 
+#include "dwc_otg_cil.h"
+#include "dwc_otg_core_if.h"
+#include "dwc_otg_pcd.h"
 #include "../../bc/amlogic-bc.h"
 #include "../../cc/amlogic-cc.h"
+#include "../phy_meson_usb/phy-meson-usb.h"
 
 /*
  * M chip USB clock setting
@@ -36,25 +40,6 @@ struct clk_reset {
 };
 
 struct clk_reset p_clk_reset[4];
-
-/* ret 1: device plug in */
-/* ret 0: device plug out */
-int device_status_v2(unsigned long usb_peri_reg)
-{
-	struct u2p_aml_regs_v2 u2p_aml_regs;
-	union u2p_r1_v2 reg1;
-	int ret = 1;
-
-	u2p_aml_regs.u2p_r_v2[1] = (void __iomem	*)
-				((unsigned long)usb_peri_reg +
-					PHY_REGISTER_SIZE + 0x4);
-	reg1.d32 = readl(u2p_aml_regs.u2p_r_v2[1]);
-	if (!reg1.b.OTGSESSVLD0)
-		ret = 0;
-
-	return ret;
-}
-EXPORT_SYMBOL(device_status_v2);
 
 static void set_device_mode_v2(struct platform_device *pdev,
 				unsigned long reg_addr, int controller_type)
@@ -105,7 +90,7 @@ static void set_device_mode_v2(struct platform_device *pdev,
 
 int clk_enable_usb_v2(struct platform_device *pdev,
 			const char *s_clock_name, unsigned long usb_peri_reg,
-			int controller_type)
+			int controller_type, bool phy_cfg)
 {
 	struct clk *usb_reset;
 
@@ -115,7 +100,8 @@ int clk_enable_usb_v2(struct platform_device *pdev,
 	usb_reset = devm_clk_get(&pdev->dev, "usb1");
 	clk_prepare_enable(usb_reset);
 	p_clk_reset[pdev->id].usb_reset_usb_to_ddr = usb_reset;
-	set_device_mode_v2(pdev, usb_peri_reg, controller_type);
+	if (phy_cfg)
+		set_device_mode_v2(pdev, usb_peri_reg, controller_type);
 	return 0;
 }
 
@@ -159,7 +145,7 @@ int clk_resume_usb_v2(struct platform_device *pdev,
 
 int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
 		unsigned long usb_peri_reg, const char *cpu_type,
-		int controller_type)
+		int controller_type, bool phy_cfg)
 {
 	int ret = 0;
 
@@ -168,7 +154,7 @@ int clk_enable_usb(struct platform_device *pdev, const char *s_clock_name,
 
 	if (!strcmp(cpu_type, V2))
 		ret = clk_enable_usb_v2(pdev,
-				s_clock_name, usb_peri_reg, controller_type);
+				s_clock_name, usb_peri_reg, controller_type, phy_cfg);
 
 	/*add other cpu type's usb clock enable*/
 
@@ -226,3 +212,68 @@ int clk_suspend_usb(struct platform_device *pdev, const char *s_clock_name,
 	return 0;
 }
 EXPORT_SYMBOL(clk_suspend_usb);
+
+int dwc_otg_phy_get_mode(dwc_otg_core_if_t *core_if)
+{
+	int ret = 0;
+
+	if (core_if->phy_port) {
+		ret = phy_validate(core_if->phy_port, PHY_MODE_USB_DEVICE, 0, NULL);
+	} else if (core_if->phy_interface != 1) {
+		if (core_if->phy_otg == 1)
+			ret = aml_new_otg_get_mode();
+		else
+			ret = aml_new_usb_get_mode();
+	}
+
+	return ret;
+}
+
+void dwc_otg_phy_tuning(dwc_otg_core_if_t *core_if, int tune)
+{
+	struct meson_uphy_configure_opts opts;
+
+	if (core_if->phy_port) {
+		opts.cfg_tune = 1;
+		opts.tune = 1;
+		/* phy_configure might sleep. */
+		core_if->phy_port->ops->configure(core_if->phy_port,
+				(union phy_configure_opts *)(void *)&opts);
+	} else {
+		set_usb_phy_device_tuning(1, tune);
+	}
+}
+
+void dwc_otg_phy_register_notifier(dwc_otg_device_t *otg_dev)
+{
+	otg_dev->nb.notifier_call = dwc_usb_change;
+	if (otg_dev->core_if->phy_port) {
+#ifdef CONFIG_MESON_USBPHY
+		meson_uphy_rtmux_otg_register_notifier(&otg_dev->nb);
+#endif
+	} else if (otg_dev->core_if->phy_interface != 1) {
+#ifdef CONFIG_AMLOGIC_USB3PHY
+		if (otg_dev->core_if->phy_otg == 1)
+			aml_new_otg_register_notifier(&otg_dev->nb);
+		else
+			aml_new_usb_v2_register_notifier(&otg_dev->nb);
+#endif
+	}
+};
+
+void dwc_otg_phy_unregister_notifier(dwc_otg_device_t *otg_dev)
+{
+	if (otg_dev->core_if->phy_port) {
+#ifdef CONFIG_MESON_USBPHY
+		meson_uphy_rtmux_otg_unregister_notifier(&otg_dev->nb);
+#endif
+	} else if (otg_dev->core_if->phy_interface != 1) {
+#ifdef CONFIG_AMLOGIC_USB3PHY
+		if (otg_dev->core_if->phy_otg == 1)
+			aml_new_otg_unregister_notifier(&otg_dev->nb);
+		else
+			aml_new_usb_v2_unregister_notifier(&otg_dev->nb);
+#endif
+	}
+};
+

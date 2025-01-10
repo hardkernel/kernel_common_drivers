@@ -108,6 +108,17 @@ struct usb_aml_regs_v2 {
 	void __iomem	*usb_r_v2[8];
 };
 
+struct usb_aml_regs_m_v2 {
+	__le32 r0;
+	__le32 r1;
+	__le32 r2;
+	__le32 r3;
+	__le32 r4;
+	__le32 r5;
+	__le32 r6;
+	__le32 r7;
+};
+
 union usb_r0_v2 {
 	/** raw register data */
 	u32 d32;

@@ -284,8 +284,18 @@ void dwc_otg_iso_buffer_done(dwc_otg_pcd_t *pcd, dwc_otg_pcd_ep_t *ep,
 			     void *req_handle);
 
 extern void do_test_mode(void *data);
+
+int dwc_otg_phy_get_mode(dwc_otg_core_if_t *core_if);
+
 #ifdef CONFIG_AMLOGIC_USB3PHY
 extern void set_usb_phy_device_tuning(int port, int default_val);
 #endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_USB3PHY) || IS_ENABLED(CONFIG_MESON_USBPHY)
+void dwc_otg_phy_tuning(dwc_otg_core_if_t *core_if, int tune);
+#endif
+int dwc_usb_change(struct notifier_block *nb, unsigned long value, void *pdata);
+void dwc_otg_phy_register_notifier(dwc_otg_device_t *otg_dev);
+void dwc_otg_phy_unregister_notifier(dwc_otg_device_t *otg_dev);
 #endif
 #endif /* DWC_HOST_ONLY */

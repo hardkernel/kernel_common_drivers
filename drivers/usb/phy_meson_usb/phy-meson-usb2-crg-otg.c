@@ -25,7 +25,6 @@
 #include "../usb_main.h"
 
 static int UDC_exist_flag = -1;
-static char amlogic_switch_mode_name[32] = "drd";
 
 static int meson_u2phy_crg_otg_freeze(struct meson_uphy_instance *instance)
 {
@@ -39,9 +38,9 @@ static int meson_u2phy_crg_otg_thaw(struct meson_uphy_instance *instance)
 	if (mphy->phy3_cfg)
 		writel(mphy->otg_helper.pm_buf.usb_r1.d32, mphy->phy3_cfg + 4);
 	writel(mphy->otg_helper.pm_buf.u2p_r2.d32,
-			&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+			&mphy->u2p_aml_regs[0]->r2);
 	writel(mphy->otg_helper.pm_buf.u2p_r0.d32,
-			&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r0);
+			&mphy->u2p_aml_regs[0]->r0);
 
 	/* Don't resync here because device_block_probing is still held.
 	 * if hibernation fails,  PM_POST_HIBERNATION will handle.
@@ -58,7 +57,7 @@ static int meson_u2phy_crg_otg_hibernation_prepare(struct amlogic_usb_v2 *mphy)
 {
 	union u2p_r2_v2 reg2;
 
-	reg2.d32 = readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
 	mphy->otg_helper.pm_buf.u2p_r2.d32 = reg2.d32;
 	/* Quiesce otg func: clear&disable hwirq, cancel works. */
 	if (mphy->otg_helper.controller_type == USB_OTG) {
@@ -66,12 +65,12 @@ static int meson_u2phy_crg_otg_hibernation_prepare(struct amlogic_usb_v2 *mphy)
 		reg2.b.iddig_en0 = 0;
 		reg2.b.iddig_en1 = 0;
 		reg2.b.iddig_th = 0;
-		writel(reg2.d32, &mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+		writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
 		cancel_delayed_work_sync(&mphy->otg_helper.work);
 	}
 
 	mphy->otg_helper.pm_buf.u2p_r0.d32 =
-			readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r0);
+			readl(&mphy->u2p_aml_regs[0]->r0);
 	if (mphy->phy3_cfg)
 		mphy->otg_helper.pm_buf.usb_r1.d32 = readl(mphy->phy3_cfg + 4);
 	return 0;
@@ -87,9 +86,9 @@ static int meson_u2phy_crg_otg_post_hibernation(struct amlogic_usb_v2 *mphy)
 
 	writel(mphy->otg_helper.pm_buf.usb_r1.d32, mphy->phy3_cfg + 4);
 	writel(mphy->otg_helper.pm_buf.u2p_r2.d32,
-			&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+			&mphy->u2p_aml_regs[0]->r2);
 	writel(mphy->otg_helper.pm_buf.u2p_r0.d32,
-			&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r0);
+			&mphy->u2p_aml_regs[0]->r0);
 
 	/* During STD the idpin line state could lose sync with controller state even the
 	 * register has been restored. This happens when line state changes after std but
@@ -117,7 +116,7 @@ static int meson_u2phy_crg_otg_pm_cb(struct notifier_block *notifier,
 	struct amlogic_usb_v2 *mphy =
 		container_of(notifier, struct amlogic_usb_v2, otg_helper.pm_notifier);
 
-	mu2p_dbg(mphy->dev, "%s called. pm_event:%lu.\n", __func__, pm_event);
+	mup_dbg(mphy->dev, "%s called. pm_event:%lu.\n", __func__, pm_event);
 
 	switch (pm_event) {
 	case PM_HIBERNATION_PREPARE:
@@ -150,24 +149,24 @@ static int meson_u2phy_crg_otg_init(struct amlogic_usb_v2 *mphy)
 		writel(r1.d32, usb_crg_otg_aml_regs.usb_r_v2[1]);
 	}
 
-	reg2.d32 = readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
 	reg2.b.iddig_en0 = 1;
 	reg2.b.iddig_en1 = 1;
 	reg2.b.iddig_th = 255;
-	writel(reg2.d32, &mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
 
 	return 0;
 }
 
 #if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
-static int amlogic_usb_role_switch_set(struct usb_role_switch *sw,
+static int meson_u2phy_crg_otg_role_switch_set(struct usb_role_switch *sw,
 				    enum usb_role role)
 {
 	struct amlogic_usb_v2	*mphy = usb_role_switch_get_drvdata(sw);
 	u32 mode;
 	int ret;
 
-	mu2p_info(mphy->dev, " MODE=%u, %s\n", role, __func__);
+	mup_info(mphy->dev, " MODE=%u, %s\n", role, __func__);
 
 	switch (role) {
 	case USB_ROLE_HOST:
@@ -186,13 +185,9 @@ static int amlogic_usb_role_switch_set(struct usb_role_switch *sw,
 
 	if (mode == USB_HOST_ONLY) {
 		crg_gadget_exit();
-		meson_u2phy_set_mode(mphy, mphy->otg_helper.otg_port_index, PHY_MODE_USB_HOST);
-		meson_u2phy_set_vbus_power(mphy, 1);
 		crg_init();
 	} else {
 		crg_exit();
-		meson_u2phy_set_mode(mphy, mphy->otg_helper.otg_port_index, PHY_MODE_USB_DEVICE);
-		meson_u2phy_set_vbus_power(mphy, 0);
 		crg_gadget_init();
 		if (UDC_exist_flag != 1) {
 			if (crg_udc_get_UDC_name()) {
@@ -206,7 +201,7 @@ static int amlogic_usb_role_switch_set(struct usb_role_switch *sw,
 	return 0;
 }
 
-static enum usb_role amlogic_usb_role_switch_get(struct usb_role_switch *sw)
+static enum usb_role meson_u2phy_crg_otg_role_switch_get(struct usb_role_switch *sw)
 {
 	struct amlogic_usb_v2	*mphy = usb_role_switch_get_drvdata(sw);
 	enum usb_role role;
@@ -218,9 +213,9 @@ static enum usb_role amlogic_usb_role_switch_get(struct usb_role_switch *sw)
 	case PHY_MODE_USB_DEVICE:
 		role = USB_ROLE_DEVICE;
 		break;
-	case PHY_MODE_USB_OTG:
-		role = USB_OTG;
-		break;
+	//case PHY_MODE_USB_OTG:
+		//role = USB_OTG;
+		//break;
 	default:
 		if (mphy->role_switch_default_mode == USB_HOST_ONLY)
 			role = USB_ROLE_HOST;
@@ -231,63 +226,103 @@ static enum usb_role amlogic_usb_role_switch_get(struct usb_role_switch *sw)
 	return role;
 }
 
-static int amlogic_setup_role_switch(struct amlogic_usb_v2 *phy)
+static int meson_u2phy_crg_otg_setup_role_switch(struct amlogic_usb_v2 *mphy)
 {
-	struct usb_role_switch_desc amlogic_role_switch = {NULL};
-	//u32 mode;
+	struct usb_role_switch_desc meson_role_switch = {NULL};
+	int ret = 0;
 
-	amlogic_role_switch.fwnode = dev_fwnode(phy->dev->parent);
-	amlogic_role_switch.allow_userspace_control = true;
-	amlogic_role_switch.set = amlogic_usb_role_switch_set;
-	amlogic_role_switch.get = amlogic_usb_role_switch_get;
-	amlogic_role_switch.name = amlogic_switch_mode_name;
-	amlogic_role_switch.driver_data = phy;
-	phy->role_sw = usb_role_switch_register(phy->dev->parent, &amlogic_role_switch);
-	if (IS_ERR(phy->role_sw))
-		return PTR_ERR(phy->role_sw);
+	meson_role_switch.fwnode = dev_fwnode(mphy->dev->parent);
+	meson_role_switch.allow_userspace_control = true;
+	meson_role_switch.set = meson_u2phy_crg_otg_role_switch_set;
+	meson_role_switch.get = meson_u2phy_crg_otg_role_switch_get;
+	meson_role_switch.name = "drd";
+	meson_role_switch.driver_data = mphy;
+	mphy->role_sw = usb_role_switch_register(mphy->dev->parent, &meson_role_switch);
+	if (IS_ERR(mphy->role_sw)) {
+		ret = PTR_ERR(mphy->role_sw);
+		mphy->role_sw = NULL;
+	}
 
-	return 0;
+	return ret;
 }
 #endif
+
+static int meson_u2phy_crg_otg_set_mode(struct amlogic_usb_v2 *mphy, enum meson_uphy_mode mode)
+{
+	int ret;
+
+	switch (mode) {
+	case MESON_USB_MODE_HOST:
+#if (IS_ENABLED(CONFIG_USB_ROLE_SWITCH))
+		ret = usb_role_switch_set_role(mphy->role_sw, USB_ROLE_HOST);
+#else
+		crg_gadget_exit();
+		crg_init();
+#endif
+		break;
+	case MESON_USB_MODE_DEVICE:
+#if (IS_ENABLED(CONFIG_USB_ROLE_SWITCH))
+		ret = usb_role_switch_set_role(mphy->role_sw, USB_ROLE_DEVICE);
+#else
+		crg_exit();
+		crg_gadget_init();
+		if (UDC_exist_flag != 1) {
+			if (crg_udc_get_UDC_name()) {
+				ret = crg_otg_write_UDC(crg_udc_get_UDC_name());
+				if (ret == 0 || ret == -EBUSY)
+					UDC_exist_flag = 1;
+			}
+		}
+#endif
+		break;
+	case MESON_USB_MODE_OTG:
+		meson_u2phy_crg_otg_init(mphy);
+		ret = meson_u2phy_set_mode(mphy, PHY_MODE_USB_OTG);
+		break;
+	default:
+		mup_err(mphy->dev, "%s: unknown phy mode.\n", __func__);
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret)
+		mup_err(mphy->dev, "failed to set %s ret %d\n",
+			IS_ENABLED(CONFIG_USB_ROLE_SWITCH) ? "role" : "mode", ret);
+	return ret;
+}
 
 static void meson_u2phy_crg_otg_work(struct work_struct *work)
 {
 	struct amlogic_usb_v2 *mphy = container_of(work, struct amlogic_usb_v2,
 								otg_helper.set_mode_work.work);
 	union u2p_r2_v2 reg2;
-	//int ret;
 	bool curr;
-	enum usb_role role;
-	int ret;
 
 	if (mphy->otg_helper.mode_work_flag == 1) {
 		cancel_delayed_work_sync(&mphy->otg_helper.set_mode_work);
 		mphy->otg_helper.mode_work_flag = 0;
 	}
 	mutex_lock(mphy->otg_helper.otg_mutex);
-	reg2.d32 = readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
 	curr = reg2.b.iddig_curr;
 	if (reg2.b.iddig_curr == 0)
-		role = USB_ROLE_HOST;
+		meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_HOST);
 	else
-		role = USB_ROLE_DEVICE;
+		meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_DEVICE);
 
-	ret = usb_role_switch_set_role(mphy->role_sw, role);
-	if (ret)
-		mu2p_info(mphy->dev, " set role ret=%d\n", ret);
-	reg2.d32 = readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
 	reg2.b.usb_iddig_irq = 0;
 	/* PHY has reg val reset feature may reset otg related bits
 	 * to default. Restore reg bits we concern.
 	 */
 	reg2.b.iddig_curr = curr;
-	writel(reg2.d32, &mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
 	meson_u2phy_crg_otg_init(mphy);
 
-	mu2p_dbg(mphy->dev, "otg_work r0, r1, r2: 0x%x 0x%x 0x%x.\n",
-			readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r0),
-			readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r1),
-			readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2));
+	mup_dbg(mphy->dev, "otg_work r0, r1, r2: 0x%x 0x%x 0x%x.\n",
+			readl(&mphy->u2p_aml_regs[0]->r0),
+			readl(&mphy->u2p_aml_regs[0]->r1),
+			readl(&mphy->u2p_aml_regs[0]->r2));
 
 	mutex_unlock(mphy->otg_helper.otg_mutex);
 }
@@ -297,22 +332,18 @@ static void meson_u2phy_crg_otg_set_m_work(struct work_struct *work)
 	struct amlogic_usb_v2 *mphy = container_of(work, struct amlogic_usb_v2,
 								otg_helper.set_mode_work.work);
 	union u2p_r2_v2 reg2;
-	enum usb_role role;
-	int ret;
 
 	mutex_lock(mphy->otg_helper.otg_mutex);
 	mphy->otg_helper.mode_work_flag = 0;
-	reg2.d32 = readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
 
 	if (reg2.b.iddig_curr == 0)
-		role = USB_ROLE_HOST;
+		meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_HOST);
 	else
-		role = USB_ROLE_DEVICE;
-	ret = usb_role_switch_set_role(mphy->role_sw, role);
-	if (ret)
-		mu2p_info(mphy->dev, " set role ret=%d\n", ret);
+		meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_DEVICE);
+
 	reg2.b.usb_iddig_irq = 0;
-	writel(reg2.d32, &mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
 	mutex_unlock(mphy->otg_helper.otg_mutex);
 }
 
@@ -321,9 +352,9 @@ static irqreturn_t meson_u2phy_crg_otg_detect_irq(int irq, void *dev)
 	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)dev;
 	union u2p_r2_v2 reg2;
 
-	reg2.d32 = readl(&mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
 	reg2.b.usb_iddig_irq = 0;
-	writel(reg2.d32, &mphy->u2p_aml_regs[mphy->otg_helper.otg_port_index]->r2);
+	writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
 
 	schedule_delayed_work(&mphy->work, msecs_to_jiffies(100));
 
@@ -335,30 +366,22 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 	int irq;
 	int retval;
-	int otg = 0;
+
+	mphy->otg_helper.otg_port = true;
 
 	retval = of_property_read_u32(dev->of_node, "controller-type",
 								&mphy->otg_helper.controller_type);
 	if (retval < 0)
 		mphy->otg_helper.controller_type = USB_NORMAL;
 
-	mphy->otg_helper.otg_port_index = 0;
-//	retval = of_property_read_u32(dev->of_node, "otg-port-index",
-//								&mphy->otg_helper.otg_port_index);
-//	if (retval < 0) {
-//		mu2p_err(dev, "no otg port index, use 0 as default.\n");
-//		mphy->otg_helper.otg_port_index = 0;
-//		return retval;
-//	}
-
 	if (mphy->otg_helper.controller_type == USB_OTG)
-		otg = 1;
+		mphy->otg_helper.hwotg = true;
 
-	mu2p_info(dev, "controller_type is %d\n"
+	mup_info(dev, "controller_type is %d\n"
 				"crg_force_device_mode is %d\n"
 				"otg is %d\n",
 				mphy->otg_helper.controller_type,
-				get_otg_mode(), otg);
+				get_otg_mode(), mphy->otg_helper.hwotg);
 
 	mphy->otg_helper.mode_work_flag = 0;
 	mphy->otg_helper.otg_mutex = kmalloc(sizeof(*mphy->otg_helper.otg_mutex),
@@ -370,7 +393,7 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 	mphy->otg_helper.pm_notifier.notifier_call = meson_u2phy_crg_otg_pm_cb;
 	register_pm_notifier(&mphy->otg_helper.pm_notifier);
 
-	if (otg) {
+	if (mphy->otg_helper.hwotg) {
 		/* m31 */
 //		val = readl(phy->m31_phy_cfg + 0x8);
 //		val |= 1;
@@ -383,36 +406,43 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 				 IRQF_SHARED, "amlogic_botg_detect", mphy);
 
 		if (retval) {
-			mu2p_err(dev, "request of irq%d failed\n", irq);
+			mup_err(dev, "request of irq%d failed\n", irq);
 			retval = -EBUSY;
 			return retval;
 		}
 	}
 
 	/* The otg driver firstly touches the phy reg. The reset maybe low at boot. */
-	meson_u2phy_hold_reset(mphy, mphy->otg_helper.otg_port_index, true);
+	meson_u2phy_hold_reset(mphy, true);
+#if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
 	if (get_otg_mode())
 		mphy->role_switch_default_mode = USB_DEVICE_ONLY;
 	else
 		mphy->role_switch_default_mode = USB_HOST_ONLY;
-	if (ROLE_SWITCH_FLAG)
-		amlogic_setup_role_switch(mphy);
+	if (ROLE_SWITCH_FLAG) {
+		retval = meson_u2phy_crg_otg_setup_role_switch(mphy);
+		if (retval) {
+			mup_err(dev, "setup role switch failed\n");
+			return retval;
+		}
+	}
+#endif
 
-	if (otg == 0) {
+	if (mphy->otg_helper.hwotg == 0) {
 		if (get_otg_mode() || mphy->otg_helper.controller_type == USB_DEVICE_ONLY) {
+#if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
 			mphy->role_switch_default_mode = USB_DEVICE_ONLY;
-			retval = usb_role_switch_set_role(mphy->role_sw, USB_ROLE_DEVICE);
-			if (retval)
-				mu2p_info(mphy->dev, " set role ret=%d\n", retval);
+#endif
+			meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_DEVICE);
 		} else if (mphy->otg_helper.controller_type == USB_HOST_ONLY) {
+#if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
 			mphy->role_switch_default_mode = USB_HOST_ONLY;
-			retval = usb_role_switch_set_role(mphy->role_sw, USB_ROLE_HOST);
-			if (retval)
-				mu2p_info(mphy->dev, " set role ret=%d\n", retval);
+#endif
+			meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_HOST);
 		}
 	} else {
-		meson_u2phy_crg_otg_init(mphy);
-		meson_u2phy_set_mode(mphy, mphy->otg_helper.otg_port_index, PHY_MODE_USB_OTG);
+		meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_OTG);
+
 		/* The usb2_phy_cfg iddig bit is default 0 and may not change to 1 instantly
 		 * with otg connecter plugged at boot time. Defer the mode init here to avoid
 		 * excess host mode init.

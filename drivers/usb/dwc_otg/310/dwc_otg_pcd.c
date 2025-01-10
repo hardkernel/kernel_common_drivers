@@ -1172,7 +1172,7 @@ static void sof_timeout(void *ptr)
 		if (sof_cnt_pre == dsts.b.soffn) {
 			sofstop_flag++;
 			if (sofstop_flag == 2) {
-				set_usb_phy_device_tuning(1, 1);
+				dwc_otg_phy_tuning(core_if, 1);
 				sofstop_flag = 0;
 			} else {
 				DWC_TIMER_SCHEDULE(timer, 100);

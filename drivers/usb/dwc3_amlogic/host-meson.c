@@ -13,10 +13,17 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+#include "../xhci_amlogic/xhci-meson.h"
+#include "../xhci_amlogic/xhci-port-meson.h"
+#include "../xhci_amlogic/xhci-caps-meson.h"
+#include "../xhci_amlogic/xhci-plat-meson.h"
+#else
 #include "../host/xhci-port.h"
 #include "../host/xhci-ext-caps.h"
 #include "../host/xhci-caps.h"
 #include "../host/xhci-plat.h"
+#endif
 #include "core-meson.h"
 
 #define XHCI_HCSPARAMS1		0x4
@@ -74,9 +81,16 @@ static void dwc3_xhci_plat_start(struct usb_hcd *hcd)
 	dwc3_enable_susphy(dwc, true);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+static const struct aml_xhci_plat_priv dwc3_xhci_plat_quirk = {
+	.plat_start = dwc3_xhci_plat_start,
+	.quirks = XHCI_SKIP_PHY_INIT,
+};
+#else
 static const struct xhci_plat_priv dwc3_xhci_plat_quirk = {
 	.plat_start = dwc3_xhci_plat_start,
 };
+#endif
 
 static void dwc3_host_fill_xhci_irq_res(struct aml_dwc3 *dwc,
 					int irq, char *name)
@@ -127,7 +141,7 @@ out:
 int aml_dwc3_host_init(struct aml_dwc3 *dwc)
 {
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-	struct property_entry	props[8];
+	struct property_entry	props[9];
 #else
 	struct property_entry	props[6];
 #endif
@@ -190,8 +204,13 @@ int aml_dwc3_host_init(struct aml_dwc3 *dwc)
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("quirk-broken-port-ped");
 
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-	if (dwc->super_speed_support)
+	if (dwc->super_speed_support) {
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("super_speed_support");
+		/* Some quirky devices take >2s to turn on Rterm and begin polling.
+		 * this leads to wait_for_connected timeout when resuming.
+		 */
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-missing-cas-quirk");
+	}
 #endif
 
 	if (prop_idx) {
@@ -202,8 +221,13 @@ int aml_dwc3_host_init(struct aml_dwc3 *dwc)
 		}
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	ret = platform_device_add_data(xhci, &dwc3_xhci_plat_quirk,
+				       sizeof(struct aml_xhci_plat_priv));
+#else
 	ret = platform_device_add_data(xhci, &dwc3_xhci_plat_quirk,
 				       sizeof(struct xhci_plat_priv));
+#endif
 	if (ret)
 		goto err;
 
