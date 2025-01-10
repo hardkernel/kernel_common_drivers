@@ -4,8 +4,8 @@
  */
 
 #include <dt-bindings/clock/axg-audio-clkc.h>
-#include <dt-bindings/clock/s6-clkc.h>
-#include <dt-bindings/clock/s6-scmi-clk.h>
+#include <dt-bindings/clock/amlogic,s6-clkc.h>
+#include <dt-bindings/clock/amlogic,s6-scmi-clkc.h>
 #include <dt-bindings/clock/g12a-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -654,7 +654,7 @@
 				reg = <0x0  0x58400 0x0 0x24>,
 					  <0x0  0x184 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_C_MUX>;
+				clocks = <&scmi_clk CLKID_PWM_C>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -664,7 +664,7 @@
 				reg = <0x0 0x58600 0x0 0x24>,
 					  <0x0 0x184 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_D_MUX>;
+				clocks = <&scmi_clk CLKID_PWM_D>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -674,7 +674,7 @@
 				reg = <0x0 0x58800 0x0 0x24>,
 					  <0x0 0x188 0x0 0x4>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_E_MUX>;
+				clocks = <&scmi_clk CLKID_PWM_E>;
 				clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -683,7 +683,7 @@
 				compatible = "amlogic,meson-pwm-tee";
 				reg = <0x0 0x58a00 0x0 0x24>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_F>;
+				clocks = <&scmi_clk CLKID_PWM_F>;
 				clock-names = "clkin0";
 				tee_id = <5>;
 				status = "disabled";
