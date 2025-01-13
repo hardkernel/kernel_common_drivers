@@ -6892,11 +6892,12 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (copy_from_user(&path_id, argp, sizeof(s32)) == 0) {
 				if (layer->display_path_id != path_id) {
 					new_prop = 1;
-					pr_info
-					("VID: VD%d, path_id changed %d->%d\n",
-					 layer->layer_id + 1,
-					 layer->display_path_id,
-					 path_id);
+					if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+						pr_info
+						("VID: VD%d, path_id changed %d->%d\n",
+						 layer->layer_id + 1,
+						 layer->display_path_id,
+						 path_id);
 				}
 				layer->display_path_id = path_id;
 				if (layer->layer_id == 0 && new_prop)

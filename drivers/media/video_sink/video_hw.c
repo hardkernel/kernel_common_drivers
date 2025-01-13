@@ -1725,15 +1725,17 @@ void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async)
 
 void safe_switch_videolayer(u8 layer_id, bool on, bool async)
 {
-	if (layer_id == 0xff)
-		pr_info("VID: VD all %s with async %s\n",
-			 on ? "on" : "off",
-			 async ? "true" : "false");
-	else
-		pr_info("VID: VD%d %s with async %s\n",
-			 layer_id,
-			 on ? "on" : "off",
-			 async ? "true" : "false");
+	if (debug_flag & DEBUG_FLAG_BASIC_INFO) {
+		if (layer_id == 0xff)
+			pr_info("VID: VD all %s with async %s\n",
+				 on ? "on" : "off",
+				 async ? "true" : "false");
+		else
+			pr_info("VID: VD%d %s with async %s\n",
+				 layer_id,
+				 on ? "on" : "off",
+				 async ? "true" : "false");
+	}
 
 	if (layer_id == 0) {
 		if (on) {
@@ -6811,12 +6813,14 @@ int set_video_mute_info(u32 owner, bool on)
 		if (video_mute_array[owner])
 			return -EINVAL;
 		video_mute_array[owner] = true;
-		pr_info("%d mute video\n", owner);
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("%d mute video\n", owner);
 	} else {
 		if (!video_mute_array[owner])
 			return -EINVAL;
 		video_mute_array[owner] = false;
-		pr_info("%d unmute video\n", owner);
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("%d unmute video\n", owner);
 	}
 	return 0;
 }
@@ -6903,7 +6907,8 @@ void check_video_mute(void)
 			mute_video(0);
 			if (is_aisr_enable(&vd_layer[0]))
 				aisr_sr1_nn_enable_sync(false);
-			pr_info("%s: VIDEO_MUTE_ON_VPP\n", __func__);
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("%s: VIDEO_MUTE_ON_VPP\n", __func__);
 		}
 		video_mute_status = VIDEO_MUTE_ON_VPP;
 	} else {
@@ -6911,7 +6916,8 @@ void check_video_mute(void)
 			unmute_video(0);
 			if (is_aisr_enable(&vd_layer[0]))
 				aisr_sr1_nn_enable_sync(true);
-			pr_info("%s: VIDEO_MUTE_OFF\n", __func__);
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("%s: VIDEO_MUTE_OFF\n", __func__);
 		}
 		video_mute_status = VIDEO_MUTE_OFF;
 	}
@@ -6922,13 +6928,15 @@ void check_videopip_mute(void)
 	if (videopip_mute_on) {
 		if (videopip_mute_status != VIDEO_MUTE_ON_VPP) {
 			mute_video(1);
-			pr_info("%s: VIDEOPIP_MUTE_ON_VPP\n", __func__);
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("%s: VIDEOPIP_MUTE_ON_VPP\n", __func__);
 		}
 		videopip_mute_status = VIDEO_MUTE_ON_VPP;
 	} else {
 		if (videopip_mute_status != VIDEO_MUTE_OFF) {
 			unmute_video(1);
-			pr_info("%s: VIDEOPIP_MUTE_OFF vpp\n", __func__);
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("%s: VIDEOPIP_MUTE_OFF vpp\n", __func__);
 		}
 		videopip_mute_status = VIDEO_MUTE_OFF;
 	}

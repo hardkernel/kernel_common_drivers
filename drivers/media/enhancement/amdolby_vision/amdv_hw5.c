@@ -1244,7 +1244,7 @@ void enable_amdv_hw5(int enable)
 			}
 			isr_cnt = 0;
 			top1_done = false;
-			pr_info("TV core turn on\n");
+			pr_dv_dbg("TV core turn on\n");
 		} else {
 			if (!top1_info.core_on && enable_top1 &&
 				(amdv_mask & 1) &&
@@ -1960,7 +1960,7 @@ int tv_top_set(u64 *top1_reg,
 	}
 
 	if (debug_dolby & 0x1)
-		pr_info("READ:rdma %x,%x,VPU_TOP_MISC %x,%x,%x,%x,0c07=%x,%x,%llx,pr_done %d,top1_done %d\n",
+		pr_info("READ:rdma %x,%x,VPU_TOP_MISC %x,%x,%x,%x,0c07=%x,%x,%x,%llx,pr_done %d,top1_done %d\n",
 				READ_VPP_DV_REG(DOLBY_TOP1_RDMA_CTRL),
 				READ_VPP_DV_REG(DOLBY_TOP2_RDMA_CTRL),
 				READ_VPP_DV_REG(VPU_TOP_MISC),
@@ -1969,6 +1969,7 @@ int tv_top_set(u64 *top1_reg,
 				READ_VPP_DV_REG(VPU_DOLBY_WRAP_CTRL),
 				READ_VPP_DV_REG(DOLBY_TOP2_RDMA_SIZE5),
 				READ_VPP_DV_REG(0x0d01),
+				READ_VPP_DV_REG(0x0900),
 				top2_reg ? (top2_reg[2] & 0xFFFFFFFF) : 0,
 				pr_done, top1_done);
 
@@ -1987,7 +1988,7 @@ int tv_top_set(u64 *top1_reg,
 		reg = READ_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK);
 		if ((reg & 0xA0000) != 0xA0000) {
 			/*bit0-15 gclk_ctrl,bit17 detunnel sw_rst,bit19 sw_rst_overlap*/
-			VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, (reg | 0xA0000));
+			VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 0xA0000);
 		}
 	}
 
