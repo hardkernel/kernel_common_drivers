@@ -372,7 +372,6 @@ int hdmitx_common_attch_platform_data(struct hdmitx_common *tx_comm,
  * bool force_uevent: force send uevent even the hpd state NOT change
  */
 int hdmitx_common_notify_ced_status(struct hdmitx_common *tx_comm);
-int hdmitx_bootup_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent);
 int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent);
 
 /* packet api */

@@ -1291,7 +1291,7 @@ static void hdmitx_bootup_process_plugin(struct hdmitx_dev *hdev, bool set_audio
 	}
 
 	/* step2: SW: notify client modules and update uevent state */
-	hdmitx_bootup_notify_hpd_status(&hdev->tx_comm, false);
+	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
 }
 
 static void hdmitx_process_plugin(struct hdmitx_dev *hdev)

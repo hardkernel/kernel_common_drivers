@@ -603,37 +603,6 @@ int hdmitx_common_notify_ced_status(struct hdmitx_common *tx_comm)
 }
 EXPORT_SYMBOL(hdmitx_common_notify_ced_status);
 
-int hdmitx_bootup_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent)
-{
-	if (!tx_comm->suspend_flag)
-		/* notify to userspace by uevent */
-		hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
-				HDMITX_HPD_EVENT, tx_comm->hpd_state, force_uevent);
-	else
-		/*
-		 * under early suspend, only update uevent state, not
-		 * post to system, in case 1.old android system will
-		 * set hdmi mode, 2.audio server and audio_hal will
-		 * start run, increase power consumption
-		 */
-		hdmitx_event_mgr_set_uevent_state(tx_comm->event_mgr,
-				HDMITX_HPD_EVENT, tx_comm->hpd_state);
-
-	/*
-	 * always notify to other driver module: CEC/RX
-	 * CEC/RX side will decide to update HPD/EDID or
-	 * not by product type
-	 */
-	/* if (tx_comm->hdmi_repeater == 1) { */
-	if (tx_comm->hpd_state)
-		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_PLUG,
-			tx_comm->rxcap.edid_parsing ? tx_comm->EDID_buf : NULL);
-	else
-		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_UNPLUG, NULL);
-	return 0;
-}
-EXPORT_SYMBOL(hdmitx_bootup_notify_hpd_status);
-
 int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent)
 {
 	if (!tx_comm->suspend_flag)
