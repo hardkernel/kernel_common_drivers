@@ -6730,8 +6730,9 @@ void video_set_global_output(u32 index, u32 val)
 		}
 #endif
 	}
-	pr_info("VID: VD%d set global output as %d\n",
-		index + 1, (val != 0) ? 1 : 0);
+	if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+		pr_info("VID: VD%d set global output as %d\n",
+			index + 1, (val != 0) ? 1 : 0);
 	if (index == 0 &&
 		video_lcevc.vd2_vd1_shared_vf)
 		video_set_global_output(1, val);
@@ -6794,7 +6795,8 @@ int _videopip_set_disable(u32 index, u32 val)
 		layer->disable_video = VIDEO_DISABLE_NONE;
 
 	if (layer->disable_video != VIDEO_DISABLE_NONE) {
-		pr_info("VID: VD%d off\n", index + 1);
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("VID: VD%d off\n", index + 1);
 		safe_switch_videolayer
 			(layer->layer_id, false, true);
 
@@ -6810,7 +6812,8 @@ int _videopip_set_disable(u32 index, u32 val)
 		    !is_local_vf(layer->dispbuf)) {
 			safe_switch_videolayer
 				(layer->layer_id, true, true);
-			pr_info("VID: VD%d on\n", index + 1);
+			if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+				pr_info("VID: VD%d on\n", index + 1);
 			layer->property_changed = true;
 		}
 	}
@@ -6853,8 +6856,9 @@ s32 set_video_path_select(const char *recv_name, u8 layer_id)
 	else if (!strcmp(recv_name, "invalid"))
 		new_path_id = VFM_PATH_INVALID;
 	if (layer_info->display_path_id != new_path_id && layer) {
-		pr_info("VID: store VD%d path_id changed %d->%d\n",
-			layer_id, layer_info->display_path_id, new_path_id);
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("VID: store VD%d path_id changed %d->%d\n",
+				layer_id, layer_info->display_path_id, new_path_id);
 		layer_info->display_path_id = new_path_id;
 		layer->property_changed = true;
 		if (new_path_id == VFM_PATH_AUTO)

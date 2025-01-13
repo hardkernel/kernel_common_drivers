@@ -336,16 +336,17 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	if (layer3_used)
 		safe_switch_videolayer(2, false, true);
 
-	pr_info("%s %s: vd1 used:%s, vd2 used:%s, vd3 used:%s, f_wait:%s (%lld %lld), b_out:%d, cur_buf:%p\n",
-		__func__,
-		ins->recv_name,
-		layer1_used ? "true" : "false",
-		layer2_used ? "true" : "false",
-		layer3_used ? "true" : "false",
-		force_wait ? "true" : "false",
-		recv_vsync_cnt, cur_vsync_cnt,
-		ins->blackout | force_blackout,
-		ins->cur_buf);
+	if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+		pr_info("%s %s: vd1 used:%s, vd2 used:%s, vd3 used:%s, f_wait:%s (%lld %lld), b_out:%d, cur_buf:%p\n",
+			__func__,
+			ins->recv_name,
+			layer1_used ? "true" : "false",
+			layer2_used ? "true" : "false",
+			layer3_used ? "true" : "false",
+			force_wait ? "true" : "false",
+			recv_vsync_cnt, cur_vsync_cnt,
+			ins->blackout | force_blackout,
+			ins->cur_buf);
 
 	ins->active = false;
 	if (vpp1_used)
