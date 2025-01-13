@@ -1593,7 +1593,9 @@ void rx_set_irq_21(u8 enable, u8 port)
 	data8 = 0;//HDCP2.x
 	data8 |= val_all << 3; //hash fail
 	data8 |= val_all << 1; //auth fail
-	data8 |= val_all << 0; //auth done
+	//auth done tcl close the irq
+	//not find the root cause of too many irq now. vlsi-1964
+	//data8 |= val_all << 0;
 	hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, data8, port);
 
 	data8 = 0;

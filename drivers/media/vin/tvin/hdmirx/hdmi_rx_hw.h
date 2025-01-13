@@ -29,7 +29,8 @@
 /* 2024.12.25 fix dolbyvision YUV422 can't display issue */
 /* 2024.12.16 modify hdcp reauth flow */
 /* 2025.01.10 keep irq off when early suspend */
-#define RX_HW_VER "ver.2025/01/10"
+/* 2024.1.13 close hdcp auth done irq */
+#define RX_HW_VER "ver.2024/1/13"
 
 #define K_TEST_CHK_ERR_CNT
 
