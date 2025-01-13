@@ -735,17 +735,28 @@ void hdr_unmute_work_func(struct work_struct *work)
 
 void hdr_work_func(struct work_struct *work)
 {
+	hdmitx_sdr_hdr_uevent();
+}
+
+/* Need to be called in edid_spinlock */
+static void hdmitx_set_sdr_pkt(void)
+{
 	struct hdmitx_hw_common *tx_hw = global_tx_common->tx_hw;
 	unsigned char buffer[31] = {0x87, 0x1, 26};
 
 	if (global_tx_common->hdr_transfer_feature == T_BT709 &&
 			global_tx_common->hdr_color_feature == C_BT709) {
-		HDMITX_INFO("hdr: [%s]: send zero DRM pkt\n", __func__);
-		hdmitx_hw_set_packet(tx_hw, HDMI_PACKET_DRM, buffer);
+		if (global_tx_common->rxcap.hdr_info2.hdr_support & 0x1) {
+			/* edid supports SDR */
+			HDMITX_INFO("hdr: [%s]: send zero drm pkt\n", __func__);
+			hdmitx_hw_set_packet(tx_hw, HDMI_PACKET_DRM, buffer);
+		} else {
+			/* edid does not support SDR */
+			HDMITX_INFO("hdr: [%s]: disabled drm pkt\n", __func__);
+			hdmitx_hw_set_packet(tx_hw, HDMI_PACKET_DRM, NULL);
+		}
 		hdmitx_hw_cntl_config(tx_hw, CONF_AVI_BT2020, global_tx_common->colormetry);
 
-		/* delay 1.5s */
-		msleep(1500);
 		/*
 		 * disable DRM packets completely ONLY if hdr transfer
 		 * feature and color feature still demand SDR.
@@ -756,20 +767,9 @@ void hdr_work_func(struct work_struct *work)
 			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
 			hdr_status_pos = 0;
 		}
-		if (global_tx_common->hdr_transfer_feature == T_BT709 &&
-				global_tx_common->hdr_color_feature == C_BT709) {
-			/* update hdr mode flag */
-			global_tx_common->hdmi_current_hdr_mode = 0;
-			global_tx_common->hdmi_last_hdr_mode =
-				global_tx_common->hdmi_current_hdr_mode;
-		} else {
-			HDMITX_INFO("hdr: [%s]: tf=%d, cf=%d\n",
-				__func__,
-				global_tx_common->hdr_transfer_feature,
-				global_tx_common->hdr_color_feature);
-		}
-	} else {
-		hdmitx_sdr_hdr_uevent();
+		/* update hdr mode flag */
+		global_tx_common->hdmi_current_hdr_mode = 0;
+		global_tx_common->hdmi_last_hdr_mode = global_tx_common->hdmi_current_hdr_mode;
 	}
 }
 
@@ -831,6 +831,7 @@ void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			global_tx_common->hdr_transfer_feature = T_BT709;
 			global_tx_common->hdr_color_feature = C_BT709;
 			global_tx_common->colormetry = 0;
+			hdmitx_set_sdr_pkt();
 			schedule_work(&global_tx_common->work_hdr);
 			hdmitx_tracer_write_event(global_tx_common->tx_tracer,
 					HDMITX_HDR_MODE_SDR);
@@ -887,14 +888,14 @@ void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	/* SDR */
 	if (global_tx_common->hdr_transfer_feature == T_BT709 &&
 		global_tx_common->hdr_color_feature == C_BT709) {
-		/* send zero drm only for HDR->SDR transition */
+		/* send zero drm packet on HDR->SDR transition */
 		if (hdmi_hdr_status == HDMI_HDR_SMPTE_2084 || hdmi_hdr_status == HDMI_HDR_HLG) {
 			if (hdmi_hdr_status == HDMI_HDR_SMPTE_2084)
 				HDMITX_INFO("hdr: [%s]: HDR10->SDR\n", __func__);
 			else
 				HDMITX_INFO("hdr: [%s]: HLG->SDR\n", __func__);
 			global_tx_common->colormetry = 0;
-			hdmitx_hw_cntl_config(tx_hw, CONF_AVI_BT2020, CLR_AVI_BT2020);
+			hdmitx_set_sdr_pkt();
 			schedule_work(&global_tx_common->work_hdr);
 			hdmitx_tracer_write_event(global_tx_common->tx_tracer, HDMITX_HDR_MODE_SDR);
 			buffer[4] = 0;
@@ -1120,6 +1121,7 @@ void hdmitx_set_hdr10plus_pkt(unsigned int flag, struct hdr10plus_para *data)
 			global_tx_common->hdr_transfer_feature = T_BT709;
 			global_tx_common->hdr_color_feature = C_BT709;
 			global_tx_common->colormetry = 0;
+			hdmitx_set_sdr_pkt();
 			schedule_work(&global_tx_common->work_hdr);
 			return;
 		}
