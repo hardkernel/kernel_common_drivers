@@ -183,6 +183,7 @@ enum EDI_CFG_TOP_IDX {
 #endif
 	EDI_CFG_PRE_NUB,
 	EDI_CFG_EN_POST_LINK,
+	EDI_CFG_420_10bit,
 	EDI_CFG_END,
 };
 

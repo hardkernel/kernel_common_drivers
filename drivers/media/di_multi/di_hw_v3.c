@@ -187,6 +187,13 @@ static void di_mif0_stride(struct DI_MIF_S *mif,
 	unsigned int burst_stride_1;
 	unsigned int burst_stride_2;
 
+#ifdef T6D_420_10
+	unsigned int ycomp_bits, cbcomp_bits, crcomp_bits;
+
+	ycomp_bits = 10;
+	cbcomp_bits = 20;
+	crcomp_bits = 0;
+#endif
 	//if support scope,need change this to real hsize
 	//unsigned int pic_hsize = mif->luma_x_end0 - mif->luma_x_start0 + 1;
 	unsigned int pic_hsize = mif->buf_crop_en ?
@@ -210,6 +217,14 @@ static void di_mif0_stride(struct DI_MIF_S *mif,
 				   comp_bits + 127) >> 7;//burst
 		burst_stride_2 =  (((pic_hsize + 1) >> 1) *
 				   comp_bits + 127) >> 7;//burst
+#ifdef T6D_420_10
+	} else if (mif->set_separate_en == 2 && nv_21_10bit) {
+		burst_stride_0 =  (pic_hsize * ycomp_bits + 127) >> 7;//burst
+		burst_stride_1 =  (((pic_hsize + 1) >> 1) *
+				   cbcomp_bits + 127) >> 7;//burst
+		burst_stride_2 =  (((pic_hsize + 1) >> 1) *
+				   crcomp_bits + 127) >> 7;//burst
+#endif
 	} else {
 		burst_stride_0 =  (pic_hsize * comp_bits + 127) >> 7;//burst
 		burst_stride_1 =  (pic_hsize * comp_bits + 127) >> 7;//burst
@@ -318,7 +333,6 @@ void di_mif0_linear_rd_cfg(struct DI_MIF_S *mif,
 //	op->bwr(off + RDMIFXN_STRIDE_1, stride_cr, 0, 13);//stride
 	op->wr(off + RDMIFXN_STRIDE_0, (stride_cb << 16) | stride_y);//stride
 	op->bwr(off + RDMIFXN_STRIDE_1, (1 << 16) | stride_cr, 0, 32);//stride
-
 	dbg_ic("\t:reg:0x%x= 0x%x\n",
 	       off + RDMIFXN_STRIDE_0, op->rd(off + RDMIFXN_STRIDE_0));
 	dbg_ic("\t:reg:0x%x= 0x%x\n",
@@ -5054,6 +5068,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		PR_ERR("%s:\n", __func__);
 		return;
 	}
+
 	dbg_ic("%s:id[%d]\n", __func__, mif_index);
 	if (mif->set_separate_en != 0 && mif->src_field_mode == 1) {
 		if (mif->video_mode == 0)
@@ -5168,6 +5183,11 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	}
 
 	if (!is_mask(SC2_REG_MSK_GEN_PRE)) {
+#ifdef T6D_420_10
+		if (mif_index == DI_MIF0_ID_IF1 || mif_index == DI_MIF0_ID_IF0 ||
+			mif_index == DI_MIF0_ID_IF2)
+			bytes_per_pixel = 1;
+#endif
 		op->wr(off + reg[MIF_GEN_REG],
 			(reset_bit << 29)          | // reset on go field
 			(urgent << 28)             | // chroma urgent bit
@@ -5229,13 +5249,13 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	// cntl_luma_y_end0
 		(mif->luma_y_start0 << 0)        // cntl_luma_y_start0
 		);
+
 	op->wr(off + reg[MIF_CHROMA_X0], (mif->chroma_x_end0 << 16) |
 		(mif->chroma_x_start0 << 0)
 		);
 	op->wr(off + reg[MIF_CHROMA_Y0], (mif->chroma_y_end0 << 16) |
 		(mif->chroma_y_start0 << 0)
 		);
-
 	// ----------------------
 	// Repeat or skip
 	// ----------------------
@@ -5892,7 +5912,6 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 		      unsigned int ch)
 {
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
-
 	if (!di_buf)
 		return;
 
@@ -5911,10 +5930,12 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 			dbg_ic("%s:inp not change addr\n", __func__);
 		} else {
 			di_mif->addr0 = di_buf->nr_adr;
+#ifdef T6D_420_10
+			di_mif->addr1 = di_buf->nr_uv_adr;
+#endif
 			di_mif->buf_crop_en = 1;
 			//di_mif->buf_hsize = 1920; //tmp
 			di_mif->buf_hsize = di_buf->buf_hsize;
-
 			di_mif->block_mode = 0;
 			dbg_reg("%s:mif_index:%d addr0:0x%lx,addr1:0x%lx, hsize[%d]\n", __func__,
 				mif_index,
@@ -5937,6 +5958,12 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 			di_mif->bit_mode =
 			(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ?
 			3 : 1;
+#ifdef T6D_420_10
+		else if (di_buf->vframe->type & VIDTYPE_VIU_NV21)
+			di_mif->bit_mode =
+			(di_buf->vframe->bitdepth & FULL_PACK_420_MODE) ?
+			3 : 1;
+#endif
 	} else {
 		di_mif->bit_mode = 0;
 	}
@@ -6077,6 +6104,18 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 						(di_buf->vframe->height + 1) / 2 - 1;
 				}
 			}
+#ifdef T6D_420_10
+			if (mif_index != DI_MIF0_ID_INP &&
+				(di_buf->vframe->type & (VIDTYPE_VIU_NV21))) {
+				di_mif->src_field_mode = 0;
+				di_mif->luma_y_start0 = 0;
+				di_mif->luma_y_end0 =
+					di_buf->vframe->height / 2 - 1;
+				di_mif->chroma_y_start0 = 0;
+				di_mif->chroma_y_end0 =
+					di_buf->vframe->height / 4 - 1;
+			}
+#endif
 		}
 	}
 }
@@ -7354,7 +7393,10 @@ static void set_wrmif_t6d(struct DI_SIM_MIF_S *mif,
 	y_swap = ((fmt == 2) && (bits == 1) && (endian == 1)) ? 1 : 0;
 	fmt_t = (fmt == 3) ? 1 : fmt;
 	bubble = (fmt == 1) ? 1 : 0;
-
+#ifdef T6D_420_10
+	if (nv_21_10bit)
+		vmode = 1;
+#endif
 	op->wr(reg[EIRN_BW6_LUMA_BADDR], ybaddr);
 	op->wr(reg[EIRN_BW6_CHRM_BADDR], cbaddr);
 	op->wr(reg[EIRN_BW6_LUMA_CTRL1], ystride);

@@ -270,6 +270,10 @@ struct di_buf_s {
 	unsigned int nr_size;
 	unsigned int tab_size;
 	unsigned long nr_adr;
+#ifdef T6D_420_10
+	unsigned int y_size;
+	unsigned long nr_uv_adr;
+#endif
 	int nr_canvas_idx;
 	unsigned long mtn_adr;
 	int mtn_canvas_idx;

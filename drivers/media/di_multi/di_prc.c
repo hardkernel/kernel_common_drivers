@@ -303,7 +303,10 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_EN_POST_LINK,
 			0,
 			K_DI_CFG_T_FLG_DTS},
-
+	[EDI_CFG_420_10bit]  = {"420_10bit",
+			EDI_CFG_420_10bit,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -3144,7 +3147,10 @@ static enum EDPST_MODE dim_cnt_mode(struct di_ch_s *pch)
 	} else {
 		if (dimp_get(edi_mp_nr10bit_support) &&
 			dimp_get(edi_mp_force_422_8bit) != 1) {
-			if (dimp_get(edi_mp_full_422_pack))
+			if (nv_21_10bit ||
+				cfgg(420_10bit) == 1)
+				mode = EDPST_MODE_420_10BIT_PACK;
+			else if (dimp_get(edi_mp_full_422_pack))
 				mode = EDPST_MODE_422_10BIT_PACK;
 			else
 				mode = EDPST_MODE_422_10BIT;
@@ -3426,6 +3432,10 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 	       pch->ponly, ponly_by_firstp, post_nub);
 
 	pch->mode = dim_cnt_mode(pch);
+#ifdef T6D_420_10
+	if (pch->buf_420)
+		pch->mode = EDPST_MODE_420_10BIT_PACK;
+#endif
 }
 
 enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe)
@@ -6342,7 +6352,7 @@ static int cnt_mm_info_simple_p(struct mm_size_out_s *info)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		canvas_align_width = 64;
 
-	if (in->mode == EDPST_MODE_422_10BIT_PACK)
+	if (in->mode == EDPST_MODE_422_10BIT_PACK || in->mode == EDPST_MODE_420_10BIT_PACK)
 		nr_width = (width * 5) / 4;
 	else if (in->mode == EDPST_MODE_422_10BIT)
 		nr_width = (width * 3) / 2;

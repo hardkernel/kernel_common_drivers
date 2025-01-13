@@ -3237,6 +3237,10 @@ struct di_class_debug_s {
 
 static struct di_class_debug_s di_debugfs_class_files[] = {
 	{"dim_trig_fg", &dim_trig_fg, 1, 0},
+#ifdef T6D_420_10
+	{"ON_420_10", &ON_420_10, 1, 0},
+#endif
+	{"nv_21_10bit", &nv_21_10bit, 1, 0},
 	{"invert_top_bot", &invert_top_bot, 1, 0},
 	{"frame_count", &frame_count, 1, 0},
 	{"dbg_dct", &dbg_dct, 1, 0},

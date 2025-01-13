@@ -1474,6 +1474,11 @@ static unsigned char s4dw_pre_buf_config(struct di_ch_s *pch)
 		} else if ((cfggch(pch, POUT_FMT) == 1) || (cfggch(pch, POUT_FMT) == 2)) {
 			nv21_flg = 1; /*nv21*/
 			di_buf->flg_nv21 = cfggch(pch, POUT_FMT);
+#ifdef T6D_420_10
+		} else if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			nv21_flg = 1; /*nv21*/
+			di_buf->flg_nv21 = cfgg(420_10bit);
+#endif
 		} else if ((cfggch(pch, POUT_FMT) == 5) &&
 			   (ppre->sgn_lv == EDI_SGN_4K)) {
 			nv21_flg = 1; /*nv21*/

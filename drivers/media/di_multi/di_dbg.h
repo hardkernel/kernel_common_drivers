@@ -15,6 +15,8 @@
 
 extern unsigned int dim_cfg;
 extern int dim_trig_fg;
+extern int ON_420_10;
+extern int nv_21_10bit;
 extern int invert_top_bot;
 extern int frame_count;
 extern unsigned int dbg_dct;

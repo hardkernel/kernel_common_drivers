@@ -1331,6 +1331,9 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->afbc_adr	= buf_p->adr_start;
 		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.afbci_size;
 		buf_p->nr_adr = buf_p->dw_adr;// + mm->cfg.dw_size;
+#ifdef T6D_420_10
+		buf_p->nr_uv_adr = buf_p->nr_adr + mm->cfg.y_size;
+#endif
 		buf_p->buf_hsize	= mm->cfg.ibuf_hsize;
 		/* count afbct setting and crc */
 		if (dim_afds() && mm->cfg.afbci_size) {
@@ -1379,6 +1382,9 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		/*}*/
 
 		buf_p->nr_size = mm->cfg.nr_size;
+#ifdef T6D_420_10
+		buf_p->y_size = mm->cfg.y_size;
+#endif
 		buf_p->tab_size = mm->cfg.afbct_size;
 		buf_p->hf_adr	= 0;
 		if (buf_p->blk_buf && buf_p->blk_buf->flg_hf)
@@ -1391,7 +1397,9 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->canvas_height_mc = mm->cfg.canvas_height_mc;
 		buf_p->canvas_height	= mm->cfg.canvas_height;
 		dbg_mem2("\t:nr_adr\t[0x%lx]\n", buf_p->nr_adr);
-
+#ifdef T6D_420_10
+		dbg_mem2("\t:nr_adr\t[0x%lx]\n", buf_p->nr_uv_adr);
+#endif
 		dbg_mem2("\t:afbct_adr\t[0x%lx]\n", buf_p->afbct_adr);
 		dbg_mem2("\t:afbc_adr\t[0x%lx]\n", buf_p->afbc_adr);
 
@@ -1455,6 +1463,9 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		//buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
 		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
 		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
+#ifdef T6D_420_10
+		buf_p->nr_uv_adr = buf_p->nr_adr + mm->cfg.pst_buf_y_size;
+#endif
 		buf_p->tab_size = mm->cfg.pst_afbct_size;
 		buf_p->nr_size = mm->cfg.pst_buf_size;
 		buf_p->buf_hsize = mm->cfg.pbuf_hsize;
@@ -1924,6 +1935,9 @@ bool mem_cfg_pst(struct di_ch_s *pch)
 		di_buf->c.buffer = buffer;
 		di_buf->adr_start = buffer->vf->canvas0_config[0].phy_addr;
 		di_buf->nr_adr	= di_buf->adr_start;
+#ifdef T6D_420_10
+		di_buf->nr_uv_adr	= di_buf->nr_adr + di_buf->y_size;
+#endif
 		/* h_size */
 		di_buf->buf_hsize =
 		cnt_out_buffer_h_size(pch,

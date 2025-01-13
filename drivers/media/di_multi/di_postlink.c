@@ -305,6 +305,11 @@ static bool post_vtype_fill_d(struct dimn_itf_s *itf,
 			memcpy(&vfmt->canvas0_config[0],
 			       &by_dvfm->vfs.canvas0_config[0],
 			       sizeof(vfmt->canvas0_config));
+#ifdef T6D_420_10
+			memcpy(&vfmt->canvas0_config[1],
+			       &by_dvfm->vfs.canvas0_config[1],
+			       sizeof(vfmt->canvas0_config));
+#endif
 		}
 		vfmt->vf_ext = by_dvfm->vf_ext;
 		if (vfmt->vf_ext)
@@ -325,6 +330,16 @@ static bool post_vtype_fill_d(struct dimn_itf_s *itf,
 		}
 		vfmt->di_flag &= ~DI_FLAG_DCT_DS_RATIO_MASK;
 		update_vframe_meta(vfmt, 1);
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			vfmt->bitdepth &= ~(BITDEPTH_MASK);
+			vfmt->bitdepth &= ~(FULL_PACK_422_MODE);
+			vfmt->bitdepth |= (FULL_PACK_420_MODE);
+			vfmt->bitdepth |= BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+			vfmt->type &= (~VFMT_DIPVPP_CHG_MASK);
+			vfmt->type |= VIDTYPE_VIU_NV21 | VIDTYPE_VIU_FIELD | VIDTYPE_PRE_INTERLACE;
+		}
+#endif
 	} else {
 		PR_ERR("%s:not postlink vfm %px\n", __func__, by_dvfm);
 	}
@@ -593,6 +608,16 @@ static void dpvpp_post_fill_outvf(struct vframe_s *vfm,
 			BITDEPTH_U8	|
 			BITDEPTH_V8);
 	}
+#ifdef T6D_420_10
+	if (nv_21_10bit || cfgg(420_10bit) == 1) {
+		vfm->bitdepth &= ~(BITDEPTH_MASK);
+		vfm->bitdepth &= ~(FULL_PACK_422_MODE);
+		vfm->bitdepth |= (FULL_PACK_420_MODE);
+		vfm->bitdepth |= BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+		vfm->type &= (~VFMT_DIPVPP_CHG_MASK);
+		vfm->type |= VIDTYPE_VIU_NV21 | VIDTYPE_VIU_FIELD | VIDTYPE_PRE_INTERLACE;
+	}
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
 	ori_vfm_bitdepth = vfm->bitdepth;
 	if (di_buf->bit_8_flag == 1) {
@@ -718,8 +743,14 @@ static void dpvpp_post_feed_buffer(struct dimn_itf_s *itf,
 	} else {
 		//ndvfm->c.ori_vf = vf;
 		if (!is_bypass && di_buf->di_buf_dup_p[1]) {
-			dpvpp_post_fill_outvf(vf,
-				di_buf->di_buf_dup_p[1], EDPST_OUT_MODE_DEF);
+#ifdef T6D_420_10
+			if (nv_21_10bit || cfgg(420_10bit) == 1)
+				dpvpp_post_fill_outvf(vf,
+					di_buf->di_buf_dup_p[1], EDPST_OUT_MODE_NV21);
+			else
+#endif
+				dpvpp_post_fill_outvf(vf,
+					di_buf->di_buf_dup_p[1], EDPST_OUT_MODE_DEF);
 			ds->bypass_cnt = 0;
 		} else {
 			if (ds->bypass_cnt == 0)
@@ -783,6 +814,7 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 	in_dvfm = &ndvfm->c.in_dvfm;
 
 	bypass = dpvpp_is_bypass_dvfm_postlink(in_dvfm);
+
 	if (!ndvfm->c.di_buf)
 		bypass = EPVPP_BYPASS_REASON_NO_LOCAL_BUF;
 	ndvfm->c.bypass_reason = bypass;
@@ -896,6 +928,13 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 		//set last information:
 		dpvpp_set_type_smp(&ds->in_last, in_dvfm);
 		ds->cnt_parser = 0;
+#ifdef T6D_420_10
+		if (nv_21_10bit) {
+			ds->out_dvfm_demo.vfs.type &= (~VFMT_DIPVPP_CHG_MASK);
+			ds->out_dvfm_demo.vfs.type |= VIDTYPE_VIU_NV21 | VIDTYPE_VIU_FIELD;
+			ds->out_dvfm_demo.vfs.plane_num = 2;
+		}
+#endif
 	} else {
 		memcpy(&ds->out_dvfm_demo.vfs,
 	       &in_dvfm->vfs, sizeof(struct dsub_vf_s));
@@ -909,7 +948,13 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 			  DI_FLAG_DI_LOCAL_BUF | DI_FLAG_DI_PVPPLINK_BYPASS);
 		ds->out_dvfm_demo.vfs.di_flag |= (DI_FLAG_DI_PSTVPPLINK | DI_FLAG_DI_LOCAL_BUF);
 	}
-
+#ifdef T6D_420_10
+	if (nv_21_10bit) {
+		ds->out_dvfm_demo.vfs.type &= (~VFMT_DIPVPP_CHG_MASK);
+		ds->out_dvfm_demo.vfs.type |= VIDTYPE_VIU_NV21 | VIDTYPE_VIU_FIELD;
+		ds->out_dvfm_demo.vfs.plane_num = 2;
+	}
+#endif
 	ndvfm->c.set_cfg.d32 = ds->set_cfg_cur.d32;
 	ndvfm->c.is_inp_4k = ds->is_inp_4k;
 	ndvfm->c.is_out_4k = ds->is_out_4k;
@@ -1210,6 +1255,10 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 
 			if (di_buf->vframe->type & VIDTYPE_VIU_444)
 				bit_mode = (bitdepth & FULL_PACK_422_MODE) ? 3 : 2;
+#ifdef T6D_420_10
+			else if (di_buf->vframe->type & VIDTYPE_VIU_NV21)
+				bit_mode = (bitdepth & FULL_PACK_420_MODE) ? 3 : 1;
+#endif
 			else
 				bit_mode = (bitdepth & FULL_PACK_422_MODE) ? 3 : 1;
 			ppost->di_buf0_mif.bit_mode = bit_mode;
@@ -1241,16 +1290,36 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 				ppost->di_buf0_mif.set_separate_en = 0;
 			ppost->di_buf0_mif.luma_y_start0 = di_start_y;
 			ppost->di_buf0_mif.luma_y_end0 = di_end_y;
+#ifdef T6D_420_10
+			if (nv_21_10bit || cfgg(420_10bit) == 1) {
+				ppost->di_buf0_mif.set_separate_en = 2;
+				ppost->di_buf0_mif.chroma_y_start0 = di_start_y >> 2;
+				ppost->di_buf0_mif.chroma_y_end0 = di_end_y >> 2;
+			}
+#endif
 		} else { /* from vdin or local vframe process by di pre */
 			ppost->di_buf0_mif.set_separate_en = 0;
 			ppost->di_buf0_mif.luma_y_start0 = di_start_y >> 1;
 			ppost->di_buf0_mif.luma_y_end0 = di_end_y >> 1;
+#ifdef T6D_420_10
+			if (nv_21_10bit || cfgg(420_10bit) == 1) {
+				ppost->di_buf0_mif.set_separate_en = 2;
+				ppost->di_buf0_mif.chroma_y_start0 = di_start_y >> 2;
+				ppost->di_buf0_mif.chroma_y_end0 = di_end_y >> 2;
+			}
+#endif
 		}
 		ppost->di_buf0_mif.luma_x_start0 = di_start_x;
 		ppost->di_buf0_mif.luma_x_end0 = di_end_x;
 		ppost->di_buf0_mif.reg_swap	= 1;
 		ppost->di_buf0_mif.l_endian	= 0;
 		ppost->di_buf0_mif.cbcr_swap	= 0;
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			ppost->di_buf0_mif.chroma_x_end0 = di_end_x >> 1;
+			ppost->di_buf0_mif.chroma_x_start0 = di_start_x >> 1;
+		}
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
 		if (DIM_IS_IC_TXHD2)
 			ppost->di_buf0_mif.bit8_flag = di_buf->bit_8_flag;
@@ -1385,6 +1454,16 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 		ppost->di_mtnprd_mif.addr =
 			di_buf->di_buf_dup_p[2]->mtn_adr;
 		mc_pre_flag = cur_overturn ? 0 : 1;
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			ppost->di_buf0_mif.addr1 =
+				di_buf->di_buf_dup_p[1]->nr_uv_adr;
+			ppost->di_buf1_mif.addr1 =
+				di_buf->di_buf_dup_p[0]->nr_uv_adr;
+			ppost->di_buf2_mif.addr1 =
+				di_buf->di_buf_dup_p[2]->nr_uv_adr;
+		}
+#endif
 		if (di_buf->pd_config.global_mode == PULL_DOWN_NORMAL) {
 			post_blend_mode = 3;
 			/*if pulldown, mcdi_mcpreflag is 1,*/
@@ -1433,7 +1512,16 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 			di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
 		ppost->di_mtnprd_mif.addr =
 			di_buf->di_buf_dup_p[2]->mtn_adr;
-
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			ppost->di_buf0_mif.addr1 =
+				di_buf->di_buf_dup_p[1]->nr_uv_adr;
+			ppost->di_buf1_mif.addr1 =
+				di_buf->di_buf_dup_p[0]->nr_uv_adr;
+			ppost->di_buf2_mif.addr1 =
+				di_buf->di_buf_dup_p[2]->nr_uv_adr;
+		}
+#endif
 		if (dimp_get(edi_mp_mcpre_en)) {
 			ppost->di_mcvecrd_mif.canvas_num =
 				di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
@@ -1528,6 +1616,12 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 			ppost->di_buf0_mif.src_field_mode =
 				post_field_num;
 		}
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			ppost->di_buf0_mif.addr1 =
+				di_buf->di_buf_dup_p[1]->nr_uv_adr;
+		}
+#endif
 		post_blend_mode = 2;
 		blend_mtn_en = 0;
 		ei_en = 1;

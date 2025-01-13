@@ -101,6 +101,11 @@ int dim_trig_fg;
 int dim_trig_delay = 1;
 unsigned int di_reverse;
 
+#ifdef T6D_420_10
+int ON_420_10;
+#endif
+int nv_21_10bit;
+
 static bool fg_bypass;
 
 #undef module_param
@@ -2054,7 +2059,6 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	unsigned int afbc_info_size = 0, afbc_tab_size = 0, old_size;
 	//unsigned int insert_line = 544;
 	unsigned int insert_size;
-
 	unsigned int one_idat_size = 0;
 	/**********************************************/
 	/* count buf info */
@@ -2065,8 +2069,11 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	ch = pch->ch_id;
 	mode = pch->mode;
 	mm = dim_mm_get(ch);
-
-	if (mode == EDPST_MODE_422_10BIT_PACK)
+#ifdef T6D_420_10
+	if (nv_21_10bit || cfgg(420_10bit) == 1)
+		mode = EDPST_MODE_420_10BIT_PACK;
+#endif
+	if (mode == EDPST_MODE_422_10BIT_PACK || mode == EDPST_MODE_420_10BIT_PACK)
 		nr_width = (width * 5) / 4;
 	else if (mode == EDPST_MODE_422_10BIT)
 		nr_width = (width * 3) / 2;
@@ -2113,7 +2120,15 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	 * cont(bits) = w * active_h * 4 mv(bits) = w * active_h / 5*16
 	 * mcinfo(bits) = active_h * 16
 	 */
-	nr_size = (nr_width * canvas_height) * 8 * 2 / 16;
+	if (mode == EDPST_MODE_420_10BIT_PACK) {
+		nr_width = (nr_width + 63) / 64 * 64;
+		nr_size = (nr_width * canvas_height) * 8 * 3 / 32;
+		mm->cfg.y_size = (nr_width * canvas_height) * 8 / 16;
+		dbg_ev("%s1:tvp:%d,mode=%d,nr_width=%d,canvas_height=%d,y_size=%d\n", __func__,
+			mm->cfg.pbuf_flg.b.tvp, mode, nr_width, canvas_height, mm->cfg.y_size);
+	} else {
+		nr_size = (nr_width * canvas_height) * 8 * 2 / 16;
+	}
 	if (afbc_buffer_size > nr_size) {
 		PR_INF("%s:0x%x, 0x%x\n", "bufi large:",
 		       nr_size, afbc_buffer_size);
@@ -2337,7 +2352,6 @@ int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 	unsigned int canvas_align_width_hf = 64;
 	ch = pch->ch_id;
 	mm = dim_mm_get(ch);
-
 	height	= mm->cfg.di_h;
 	canvas_height = roundup(height, 32);
 	width	= mm->cfg.di_w;
@@ -2364,10 +2378,14 @@ int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 	     (cfggch(pch, POUT_FMT) == 2)	||
 	     (cfggch(pch, POUT_FMT) == 5)))
 		mode = EDPST_MODE_NV21_8BIT;
+#ifdef T6D_420_10
+	if (nv_21_10bit || cfgg(420_10bit) == 1)
+		mode = EDPST_MODE_420_10BIT_PACK;
+#endif
 	dbg_mem2("%s:mode:%d\n", __func__, mode);
 
 	/***********************/
-	if (mode == EDPST_MODE_422_10BIT_PACK)
+	if (mode == EDPST_MODE_422_10BIT_PACK || mode == EDPST_MODE_420_10BIT_PACK)
 		nr_width = (width * 5) / 4;
 	else if (mode == EDPST_MODE_422_10BIT)
 		nr_width = (width * 3) / 2;
@@ -2377,7 +2395,25 @@ int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 	/* p */
 	//tmp nr_width = roundup(nr_width, canvas_align_width);
 	mm->cfg.pst_mode = mode;
-	if (mode == EDPST_MODE_NV21_8BIT) {
+	if (mode == EDPST_MODE_420_10BIT_PACK) {
+		nr_width = roundup(nr_width, canvas_align_width);
+		nr_width = (nr_width + 63) / 64 * 64;
+		tmpa = (nr_width * canvas_height) >> 1;/*uv*/
+		tmpb = tmpa;
+		tmpa = nr_width * canvas_height;
+
+		mm->cfg.pst_buf_uv_size = roundup(tmpb, PAGE_SIZE);
+		mm->cfg.pst_buf_y_size	= roundup(tmpa, PAGE_SIZE);
+		mm->cfg.pst_buf_size	= mm->cfg.pst_buf_y_size +
+		mm->cfg.pst_buf_uv_size;//tmpa + tmpb;
+		mm->cfg.size_post	= mm->cfg.pst_buf_size;
+		mm->cfg.pst_cvs_w	= nr_width;
+		mm->cfg.pst_cvs_h	= canvas_height;
+		mm->cfg.pst_afbci_size	= 0;
+		mm->cfg.pst_afbct_size	= 0;
+		dbg_reg("%s:pst_y_size=0x%x,pst_uv_size=0x%x,nr_w=%d,cvs_h=%d\n",
+		__func__, mm->cfg.pst_buf_y_size, mm->cfg.pst_buf_uv_size, nr_width, canvas_height);
+	} else if (mode == EDPST_MODE_NV21_8BIT) {
 		nr_width = roundup(nr_width, canvas_align_width);
 		tmpa = (nr_width * canvas_height) >> 1;/*uv*/
 		tmpb = tmpa;
@@ -2869,7 +2905,6 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 
 	ch = pch->ch_id;
 	mm = dim_mm_get(ch);
-
 	//check_tvp_state(pch);
 	di_cnt_i_buf(pch, 1920, 1088);
 	//di_cnt_i_buf(pch, 1920, 2160);
@@ -3791,6 +3826,16 @@ void dim_pre_de_process(unsigned int channel)
 				ppre->di_wr_buf->vframe->canvas0_config[0].phy_addr;
 			ppre->di_nrwr_mif.addr1 =
 				ppre->di_wr_buf->vframe->canvas0_config[1].phy_addr;
+#ifdef T6D_420_10
+			if (nv_21_10bit || cfgg(420_10bit)) {
+				ppre->di_nrwr_mif.addr =
+					ppre->di_wr_buf->nr_adr;
+				ppre->di_nrwr_mif.addr1 =
+					ppre->di_wr_buf->nr_uv_adr;
+				dbg_reg("%s :01 0x%lx,0x0x%lx\n",
+				__func__, ppre->di_nrwr_mif.addr, ppre->di_nrwr_mif.addr1);
+			}
+#endif
 		}
 	} else  if (ppre->shrk_cfg.shrk_en) {
 		ppre->di_nrwr_mif.reg_swap = 1;
@@ -3849,13 +3894,24 @@ void dim_pre_de_process(unsigned int channel)
 			      ppre->di_mem_buf_dup_p, channel);
 	/* patch */
 	dbg_reg("%s :01 0x%x\n", __func__, ppre->di_wr_buf->flg_nv21);
-	if (ppre->di_wr_buf->flg_nv21	&&
-	    ppre->di_mem_buf_dup_p	&&
-	    ppre->di_mem_buf_dup_p != ppre->di_inp_buf) {
-		ppre->di_mem_mif.l_endian = ppre->di_nrwr_mif.l_endian;
-		ppre->di_mem_mif.cbcr_swap = ppre->di_nrwr_mif.cbcr_swap;
-		ppre->di_mem_mif.reg_swap = ppre->di_nrwr_mif.reg_swap;
+
+	if (ppre->di_wr_buf->flg_nv21) {
+		if (ppre->di_mem_buf_dup_p	&&
+		    ppre->di_mem_buf_dup_p != ppre->di_inp_buf) {
+			ppre->di_mem_mif.l_endian = ppre->di_nrwr_mif.l_endian;
+			ppre->di_mem_mif.cbcr_swap = ppre->di_nrwr_mif.cbcr_swap;
+			ppre->di_mem_mif.reg_swap = ppre->di_nrwr_mif.reg_swap;
+		}
+#ifdef T6D_420_10
+		if (ppre->di_chan2_buf_dup_p	&&
+		    ppre->di_chan2_buf_dup_p != ppre->di_inp_buf) {
+			ppre->di_chan2_mif.l_endian = ppre->di_nrwr_mif.l_endian;
+			ppre->di_chan2_mif.cbcr_swap = ppre->di_nrwr_mif.cbcr_swap;
+			ppre->di_chan2_mif.reg_swap = ppre->di_nrwr_mif.reg_swap;
+		}
+#endif
 	}
+
 	if (!ppre->di_chan2_buf_dup_p) {
 		if (DIM_IS_IC_EF(SC2))
 			opl1()->pre_cfg_mif(&ppre->di_chan2_mif,
@@ -5117,6 +5173,10 @@ static void pp_buf_cp(struct di_buf_s *buft, struct di_buf_s *buff)
 {
 	buft->blk_buf	= buff->blk_buf;
 	buft->nr_adr	= buff->nr_adr;
+#ifdef T6D_420_10
+	buft->nr_uv_adr	= buff->nr_uv_adr;
+	buft->y_size	= buff->y_size;
+#endif
 	buft->afbc_adr	= buff->afbc_adr;
 	buft->afbct_adr	= buff->afbct_adr;
 	buft->dw_adr	= buff->dw_adr;
@@ -5158,6 +5218,10 @@ void pp_buf_clear(struct di_buf_s *buff)
 //	buff->pat_buf	= 0;
 	buff->adr_start = 0;
 	buff->nr_adr	= 0;
+#ifdef T6D_420_10
+	buff->nr_uv_adr	= 0;
+	buff->y_size	= 0;
+#endif
 	buff->afbc_adr	= 0;
 	buff->hf_adr	= 0;
 	buff->hf_done	= 0;
@@ -6572,6 +6636,13 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		di_buf->di_wr_linked_buf = NULL;
 
 		di_buf->di_buf_post = NULL;
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit)) {
+			nv21_flg = 1;
+			di_buf->flg_nv21 = 1;
+			dbg_reg("config: support nv21\n");
+		}
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
 		di_buf->bit_8_flag = 0;
 		if (DIM_IS_IC_TXHD2)
@@ -6674,6 +6745,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		} else if ((cfggch(pch, POUT_FMT) == 1) || (cfggch(pch, POUT_FMT) == 2)) {
 			nv21_flg = 1; /*nv21*/
 			di_buf->flg_nv21 = cfggch(pch, POUT_FMT);
+#ifdef T6D_420_10
+		} else if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			nv21_flg = 1; /*nv21*/
+			di_buf->flg_nv21 = cfgg(420_10bit);
+			dbg_reg("config: support nv21\n");
+#endif
 		} else if ((cfggch(pch, POUT_FMT) == 5) &&
 			   (ppre->sgn_lv == EDI_SGN_4K)) {
 			nv21_flg = 1; /*nv21*/
@@ -6776,6 +6853,13 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	/* set vframe bit info */
 	di_buf->vframe->bitdepth &= ~(BITDEPTH_YMASK);
 	di_buf->vframe->bitdepth &= ~(FULL_PACK_422_MODE);
+#ifdef T6D_420_10
+	di_buf->vframe->bitdepth &= ~(FULL_PACK_420_MODE);
+	di_buf->vframe->bitdepth &= ~BITDEPTH_Y10;
+	di_buf->vframe->bitdepth &= ~BITDEPTH_U10;
+	di_buf->vframe->bitdepth &= ~BITDEPTH_V10;
+#endif
+
 	/* pps auto */
 	if (de_devp->pps_enable & DI_BIT1) {
 		if (VFMT_IS_I(ppre->cur_inp_type))
@@ -6837,7 +6921,14 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				di_mp_uit_get(edi_mp_pre_hsc_down_width);
 		}
 	}
-	if (dimp_get(edi_mp_di_force_bit_mode) == 10) {
+	if (nv_21_10bit || cfgg(420_10bit) == 1) {
+#ifdef T6D_420_10
+		di_buf->vframe->bitdepth &= ~(BITDEPTH_MASK);
+		di_buf->vframe->bitdepth &= ~(FULL_PACK_422_MODE);
+		di_buf->vframe->bitdepth |= (FULL_PACK_420_MODE);
+		di_buf->vframe->bitdepth |= BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+#endif
+	} else if (dimp_get(edi_mp_di_force_bit_mode) == 10) {
 		di_buf->vframe->bitdepth |= (BITDEPTH_Y10);
 		if (dimp_get(edi_mp_full_422_pack))
 			di_buf->vframe->bitdepth |= (FULL_PACK_422_MODE);
@@ -6855,7 +6946,20 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				       VIDTYPE_VIU_FIELD;
 		if (ppre->cur_inp_type & VIDTYPE_PRE_INTERLACE)
 			di_buf->vframe->type |= VIDTYPE_PRE_INTERLACE;
-
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			di_buf->vframe->type &= ~(VIDTYPE_VIU_NV12 |
+			       VIDTYPE_VIU_444	|
+			       VIDTYPE_VIU_NV21 |
+			       VIDTYPE_VIU_422	|
+			       VIDTYPE_VIU_SINGLE_PLANE |
+			       VIDTYPE_COMPRESS |
+			       VIDTYPE_PRE_INTERLACE);
+			di_buf->vframe->type |= VIDTYPE_VIU_FIELD;
+			di_buf->vframe->type |= VIDTYPE_VIU_NV21;
+			di_buf->vframe->type |= VIDTYPE_PRE_INTERLACE;
+		}
+#endif
 		if (pch->ponly && dip_is_ponly_sct_mem(pch)) {
 			if (dim_afds() && dim_afds()->cnt_sgn_mode) {
 				if (IS_COMP_MODE
@@ -6914,6 +7018,10 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 					tmpmode = EDPST_OUT_MODE_NV21;
 				else
 					tmpmode = EDPST_OUT_MODE_NV12;
+#ifdef T6D_420_10
+				if (nv_21_10bit || cfgg(420_10bit) == 1)
+					tmpmode = EDPST_OUT_MODE_NV21;
+#endif
 				dimpst_fill_outvf(di_buf->vframe,
 					  di_buf, tmpmode);
 			//} else {
@@ -6934,6 +7042,20 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 					       VIDTYPE_VIU_422 |
 					       VIDTYPE_VIU_SINGLE_PLANE |
 					       VIDTYPE_VIU_FIELD;
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			di_buf->vframe->type &= ~(VIDTYPE_VIU_NV12	|
+					       VIDTYPE_VIU_444	|
+					       VIDTYPE_VIU_NV21	|
+					       VIDTYPE_VIU_422	|
+					       VIDTYPE_VIU_SINGLE_PLANE	|
+					       VIDTYPE_COMPRESS	|
+					       VIDTYPE_PRE_INTERLACE);
+			di_buf->vframe->type |= VIDTYPE_VIU_FIELD |
+						VIDTYPE_VIU_NV21 |
+						VIDTYPE_PRE_INTERLACE;
+		}
+#endif
 		/*add for vpp skip line ref*/
 		if (di_bypass_state_get(channel) == 0)
 			di_buf->vframe->type |= VIDTYPE_PRE_INTERLACE;
@@ -7794,6 +7916,12 @@ void di_cnt_cvs_nv21(unsigned int mode,
 	nr_width = width;
 	nr_canvas_width = nr_width;//nr_width << 1;
 	nr_canvas_width = roundup(nr_canvas_width, canvas_align_width);
+#ifdef T6D_420_10
+	if (nv_21_10bit) {
+		nr_canvas_width = (nr_canvas_width * 10 / 8 + 63) / 64 * 64;
+		canvas_height = height / 2;
+	}
+#endif
 	*h = nr_canvas_width;
 	*v = canvas_height;
 	dbg_reg("nr_canvas_width %d canvas_height %d\n", nr_canvas_width, canvas_height);
@@ -7920,6 +8048,32 @@ static void dimpst_fill_outvf(struct vframe_s *vfm,
 				  BITDEPTH_U8	|
 				  BITDEPTH_V8);
 	}
+#ifdef T6D_420_10
+	if (nv_21_10bit || mode == EDPST_OUT_MODE_NV21) {
+		/*clear*/
+		vfm->type &= ~(VIDTYPE_VIU_NV12 |
+			       VIDTYPE_VIU_444	|
+			       VIDTYPE_VIU_NV21 |
+			       VIDTYPE_VIU_422	|
+			       VIDTYPE_VIU_SINGLE_PLANE |
+			       VIDTYPE_COMPRESS |
+			       VIDTYPE_PRE_INTERLACE);
+		vfm->type |= VIDTYPE_VIU_FIELD;
+		vfm->type |= VIDTYPE_PRE_INTERLACE;
+		if (mode == EDPST_OUT_MODE_NV21)
+			vfm->type |= VIDTYPE_VIU_NV21;
+		else
+			vfm->type |= VIDTYPE_VIU_NV12;
+
+		/* bit */
+		vfm->bitdepth &= ~(BITDEPTH_MASK);
+		vfm->bitdepth &= ~(FULL_PACK_422_MODE);
+		vfm->bitdepth |= (FULL_PACK_420_MODE);
+		vfm->bitdepth |= BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+	}
+#endif
+	dbg_reg("setting bitdepth: 0x%x\n", vfm->bitdepth);
+
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
 	ori_vfm_bitdepth = vfm->bitdepth;
 	if (di_buf->bit_8_flag == 1) {
@@ -8294,6 +8448,10 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	//else if (cfg_nv21 & DI_BIT0)
 	else if (cfggch(pch, IOUT_FMT) == 1)
 		dimpst_fill_outvf(&pst->vf_post, di_buf, EDPST_OUT_MODE_NV21);
+#ifdef T6D_420_10
+	else if (nv_21_10bit || cfgg(420_10bit) == 1)
+		dimpst_fill_outvf(&pst->vf_post, di_buf, EDPST_OUT_MODE_NV21);
+#endif
 	else if (cfggch(pch, IOUT_FMT) == 2)
 		dimpst_fill_outvf(&pst->vf_post, di_buf, EDPST_OUT_MODE_NV12);
 	else
@@ -8385,6 +8543,13 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 			ppost->di_diwr_mif.reg_swap = 1;
 			ppost->di_diwr_mif.l_endian = 0;
 		}
+#ifdef T6D_420_10
+		if (dip_itf_is_o_linear(pch) &&
+		    (nv_21_10bit || cfgg(420_10bit) == 1)) {
+			ppost->di_diwr_mif.reg_swap = 0;
+			ppost->di_diwr_mif.l_endian = 1;
+		}
+#endif
 		dbg_r = dim_get_dbg_dec21();
 		if (dbg_r & 0xf0) {
 			ppost->di_diwr_mif.reg_swap = bget(&dbg_r, 4);
@@ -8412,7 +8577,15 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 2;
 				ppost->di_buf2_mif.bit_mode =
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 2;
-
+			} else if (di_buf->vframe->type & VIDTYPE_VIU_NV21) {
+#ifdef T6D_420_10
+				ppost->di_buf0_mif.bit_mode =
+		(di_buf->vframe->bitdepth & FULL_PACK_420_MODE) ? 3 : 1;
+				ppost->di_buf1_mif.bit_mode =
+		(di_buf->vframe->bitdepth & FULL_PACK_420_MODE) ? 3 : 1;
+				ppost->di_buf2_mif.bit_mode =
+		(di_buf->vframe->bitdepth & FULL_PACK_420_MODE) ? 3 : 1;
+#endif
 			} else {
 				ppost->di_buf0_mif.bit_mode =
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 1;
@@ -8484,6 +8657,28 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 			ppost->di_buf2_mif.luma_y_start0 =
 				di_start_y >> 1;
 		}
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			ppost->di_buf0_mif.set_separate_en = 2;
+			ppost->di_buf1_mif.set_separate_en = 2;
+			ppost->di_buf2_mif.set_separate_en = 2;
+
+			ppost->di_buf0_mif.chroma_x_start0 = 0;
+			ppost->di_buf0_mif.chroma_x_end0 = di_end_x >> 1;
+			ppost->di_buf0_mif.chroma_y_start0 = 0;
+			ppost->di_buf0_mif.chroma_y_end0 = di_end_y >> 2;
+
+			ppost->di_buf1_mif.chroma_x_start0 = 0;
+			ppost->di_buf1_mif.chroma_x_end0 = di_end_x >> 1;
+			ppost->di_buf1_mif.chroma_y_start0 = 0;
+			ppost->di_buf1_mif.chroma_y_end0 = di_end_y >> 2;
+
+			ppost->di_buf2_mif.chroma_x_start0 = 0;
+			ppost->di_buf2_mif.chroma_x_end0 = di_end_x >> 1;
+			ppost->di_buf2_mif.chroma_y_start0 = 0;
+			ppost->di_buf2_mif.chroma_y_end0 = di_end_y >> 2;
+		}
+#endif
 		ppost->di_buf0_mif.luma_x_start0 = di_start_x;
 		ppost->di_buf0_mif.luma_x_end0 = di_end_x;
 		ppost->di_buf1_mif.luma_x_start0 = di_start_x;
@@ -8655,7 +8850,19 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 			di_buf->di_buf_dup_p[0]->nr_adr;
 		ppost->di_buf2_mif.addr0 =
 			di_buf->di_buf_dup_p[2]->nr_adr;
-
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			ppost->di_buf0_mif.addr1 = di_buf->di_buf_dup_p[1]->nr_uv_adr;
+			ppost->di_buf1_mif.addr1 = di_buf->di_buf_dup_p[0]->nr_uv_adr;
+			ppost->di_buf2_mif.addr1 = di_buf->di_buf_dup_p[2]->nr_uv_adr;
+			dbg_reg("%s:di_buf0_mif addr:0x%lx,addr1:0x%lx\n",
+				__func__, ppost->di_buf0_mif.addr0, ppost->di_buf0_mif.addr1);
+			dbg_reg("%s:di_buf1_mif addr:0x%lx,addr1:0x%lx\n",
+				__func__, ppost->di_buf1_mif.addr0, ppost->di_buf1_mif.addr1);
+			dbg_reg("%s:di_buf2_mif addr:0x%lx,addr1:0x%lx\n",
+				__func__, ppost->di_buf2_mif.addr0, ppost->di_buf2_mif.addr1);
+		}
+#endif
 		/* afbc dec */
 		acfg->buf_mif[0] = di_buf->di_buf_dup_p[1];
 		acfg->buf_mif[1] = di_buf->di_buf_dup_p[0];
@@ -8722,7 +8929,13 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 			di_buf->di_buf_dup_p[2]->nr_adr;
 		ppost->di_buf2_mif.addr0 =
 			di_buf->di_buf_dup_p[0]->nr_adr;
-
+#ifdef T6D_420_10
+		if (nv_21_10bit || cfgg(420_10bit) == 1) {
+			ppost->di_buf0_mif.addr1 = di_buf->di_buf_dup_p[1]->nr_uv_adr;
+			ppost->di_buf1_mif.addr1 = di_buf->di_buf_dup_p[2]->nr_uv_adr;
+			ppost->di_buf2_mif.addr1 = di_buf->di_buf_dup_p[0]->nr_uv_adr;
+		}
+#endif
 		/* afbc dec */
 		acfg->buf_mif[0] = di_buf->di_buf_dup_p[1];
 		acfg->buf_mif[1] = di_buf->di_buf_dup_p[2];
@@ -8836,6 +9049,10 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 				di_buf->di_buf_dup_p[1]->nr_canvas_idx;
 			ppost->di_buf0_mif.addr0 =
 				di_buf->di_buf_dup_p[1]->nr_adr;
+#ifdef T6D_420_10
+			if (nv_21_10bit)
+				ppost->di_buf0_mif.addr1 = di_buf->di_buf_dup_p[1]->nr_uv_adr;
+#endif
 			/* afbc dec */
 			acfg->buf_mif[0] = di_buf->di_buf_dup_p[1];
 			acfg->buf_mif[1] = NULL;
@@ -8874,7 +9091,6 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		ppost->di_diwr_mif.addr1 = pst->vf_post.canvas0_config[1].phy_addr;
 
 		ppost->di_diwr_mif.ddr_en = 1;
-
 		#endif
 
 		di_vpp_en = 0;
@@ -10137,6 +10353,23 @@ int dim_process_post_vframe(unsigned int channel)
 					VIDTYPE_VIU_SINGLE_PLANE |
 					VIDTYPE_VIU_FIELD |
 					VIDTYPE_PRE_INTERLACE;
+#ifdef T6D_420_10
+				if (nv_21_10bit || cfgg(420_10bit) == 1) {
+					di_buf->vframe->type &= ~(VIDTYPE_VIU_NV12 |
+						       VIDTYPE_VIU_444	|
+						       VIDTYPE_VIU_NV21	|
+						       VIDTYPE_VIU_422	|
+						       VIDTYPE_VIU_SINGLE_PLANE	|
+						       VIDTYPE_COMPRESS	|
+						       VIDTYPE_PRE_INTERLACE);
+					di_buf->vframe->type |= VIDTYPE_VIU_FIELD;
+					di_buf->vframe->type |= VIDTYPE_VIU_NV21;
+					di_buf->vframe->type |= VIDTYPE_PRE_INTERLACE;
+					di_buf->vframe->bitdepth |= (FULL_PACK_420_MODE);
+					di_buf->vframe->bitdepth |=
+					BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+				}
+#endif
 				 /* dbg_sw */
 				if (dim_dbg_post_crash_check(DI_BIT17))
 					di_buf->vframe->width =
@@ -10196,7 +10429,6 @@ int dim_process_post_vframe(unsigned int channel)
 			}
 		} else if (ready_count >= buffer_keep_count) {/* i ?*/
 			i = 0;
-
 			di_que_list(channel, QUE_PRE_READY, &tmpa[0], &psize);
 
 			for (itmp = 0; itmp < psize; itmp++) {
@@ -10335,6 +10567,26 @@ int dim_process_post_vframe(unsigned int channel)
 					VIDTYPE_VIU_SINGLE_PLANE |
 					VIDTYPE_VIU_FIELD |
 					VIDTYPE_PRE_INTERLACE;
+#ifdef T6D_420_10
+				if (nv_21_10bit || cfgg(420_10bit) == 1) {
+					di_buf->vframe->type &= ~(VIDTYPE_VIU_NV12 |
+						       VIDTYPE_VIU_444	|
+						       VIDTYPE_VIU_NV21 |
+						       VIDTYPE_VIU_422	|
+						       VIDTYPE_VIU_SINGLE_PLANE |
+						       VIDTYPE_COMPRESS |
+						       VIDTYPE_PRE_INTERLACE);
+					di_buf->vframe->type = VIDTYPE_VIU_FIELD |
+							VIDTYPE_VIU_NV21 |
+							VIDTYPE_PRE_INTERLACE;
+					di_buf->vframe->bitdepth &= ~(BITDEPTH_MASK);
+					di_buf->vframe->bitdepth &= ~(FULL_PACK_422_MODE);
+					di_buf->vframe->bitdepth |= (FULL_PACK_420_MODE);
+					di_buf->vframe->bitdepth |=
+						BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+					dbg_tb("bitdepth:0x%x\n", di_buf->vframe->bitdepth);
+				}
+#endif
 				 /* dbg_sw */
 				if (dim_dbg_post_crash_check(DI_BIT16))
 					di_buf->vframe->width =
@@ -10362,6 +10614,25 @@ int dim_process_post_vframe(unsigned int channel)
 						VIDTYPE_VIU_SINGLE_PLANE |
 						VIDTYPE_VIU_FIELD |
 						VIDTYPE_PRE_INTERLACE;
+#ifdef T6D_420_10
+					if (nv_21_10bit || cfgg(420_10bit) == 1) {
+						di_buf->vframe->type &= ~(VIDTYPE_VIU_NV12 |
+							       VIDTYPE_VIU_444	|
+							       VIDTYPE_VIU_NV21 |
+							       VIDTYPE_VIU_422	|
+							       VIDTYPE_VIU_SINGLE_PLANE |
+							       VIDTYPE_COMPRESS |
+							       VIDTYPE_PRE_INTERLACE);
+						di_buf->vframe->type = VIDTYPE_VIU_FIELD |
+								VIDTYPE_VIU_NV21 |
+								VIDTYPE_PRE_INTERLACE;
+						di_buf->vframe->bitdepth &= ~(BITDEPTH_MASK);
+						di_buf->vframe->bitdepth &= ~(FULL_PACK_422_MODE);
+						di_buf->vframe->bitdepth |= (FULL_PACK_420_MODE);
+						di_buf->vframe->bitdepth |=
+						BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+					}
+#endif
 					di_buf->vframe->height >>= 1;
 					di_buf->vframe->canvas0Addr =
 						di_buf->di_buf_dup_p[0]
@@ -11136,6 +11407,10 @@ void di_unreg_variable(unsigned int channel)
 	pch->record_10bit_flag = 0;
 	pch->record_8bit_flag = 0;
 #endif
+#ifdef T6D_420_10
+	nv_21_10bit = 0;
+	pch->buf_420 = 0;
+#endif
 	rt_unreg(pch);
 
 	get_datal()->ch_data[channel].dbg_data.pfm_out = NULL;
@@ -11653,6 +11928,25 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 	if (vframe) {
 //		if (DIM_IS_IC_EF(SC2) && dim_afds())
 //			di_set_default();
+#ifdef T6D_420_10
+		if (DIM_IS_IC(T6D) && ON_420_10) {
+			if ((vframe->type & VIDTYPE_VIU_NV21 ||
+				vframe->type & VIDTYPE_VIU_NV12) &&
+				VFMT_IS_I(vframe->type)) {
+				dbg_reg("vf w:0%d/n", vframe->width);
+				if (vframe->width >= 1920) {
+					nv_21_10bit = 1;
+					dbg_reg(" switch to 420 10bit mode\n");
+				} else {
+					nv_21_10bit = 0;
+					dbg_reg(" Resolutions < 1080i Not supported 420 10\n");
+				}
+			} else {
+				nv_21_10bit = 0;
+			}
+		pch->buf_420 = 1;
+		}
+#endif
 		dip_init_value_reg(channel, vframe);/*add 0404 for post*/
 		dim_ddbg_mod_save(EDI_DBG_MOD_RVB, channel, 0);
 		//if (!dip_itf_is_ins_exbuf(pch)) {
@@ -11688,7 +11982,6 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		dim_tb_ext_cmd(vframe, 0,
 			channel, ECMD_TB_REG);
 #endif
-
 		de_devp->pps_enable = dimp_get(edi_mp_pps_en);
 		/*di pre h scaling down: sm1 tm2*/
 		de_devp->h_sc_down_en = di_mp_uit_get(edi_mp_pre_hsc_down_en);
@@ -11727,7 +12020,6 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		//di_init_buf(mm->cfg.di_w, mm->cfg.di_h,
 		//	      is_progressive(vframe), channel);
 		di_init_buf_new(pch, vframe);
-
 		intr_mode = 3;
 		if (mm->cfg.pbuf_flg.b.typ == EDIM_BLK_TYP_PSCT) {
 			if (mm->cfg.num_post)
