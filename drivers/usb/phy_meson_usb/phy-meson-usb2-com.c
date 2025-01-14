@@ -212,10 +212,7 @@ int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, int port,
 			reg0.b.DRVVBUS0 = 1;
 		//}
 		writel(reg0.d32, &phy->u2p_aml_regs[port]->r0);
-		phy->otg_helper.mode &= ~(AML_USB_OTG_HOST_MODE_MASK |
-								AML_USB_OTG_DEVICE_MODE_MASK);
-		phy->otg_helper.mode |= AML_USB_OTG_HOST_MODE_MASK;
-		phy->last_mode = PHY_MODE_USB_HOST;
+		phy->current_mode = PHY_MODE_USB_HOST;
 		break;
 	case PHY_MODE_USB_DEVICE:
 		reg0.d32 = readl(&phy->u2p_aml_regs[port]->r0);
@@ -226,16 +223,13 @@ int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, int port,
 			reg0.b.DRVVBUS0 = 1;
 		//}
 		writel(reg0.d32, &phy->u2p_aml_regs[port]->r0);
-		phy->otg_helper.mode &= ~(AML_USB_OTG_HOST_MODE_MASK |
-								AML_USB_OTG_DEVICE_MODE_MASK);
-		phy->otg_helper.mode |= AML_USB_OTG_DEVICE_MODE_MASK;
-		phy->last_mode = PHY_MODE_USB_DEVICE;
+		phy->current_mode = PHY_MODE_USB_DEVICE;
 		break;
 	case PHY_MODE_USB_OTG:
 		/* ID DETECT: usb2_otg_aca_en set to 0 */
 		writel(readl(cfg + 0x54) & (~(1 << 2)), (cfg + 0x54));
 		/* usb2_otg_iddet_en set to 1 by otg driver. */
-		phy->otg_helper.mode |= AML_USB_OTG_OTG_MODE_MASK;
+		phy->current_mode = PHY_MODE_USB_OTG;
 		break;
 	default:
 		break;
@@ -307,7 +301,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	aml_u2phy->phy_id = instance->index;
 	aml_u2phy->dev = dev;
-	mu2p_dbg(dev, "phy_id %d.\n", aml_u2phy->phy_id);
+	mu2p_info(dev, "phy_id %d.\n", aml_u2phy->phy_id);
 	instance->meson_uphy = aml_u2phy;
 	get_device(dev);
 

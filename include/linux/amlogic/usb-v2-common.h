@@ -49,7 +49,6 @@ struct amlogic_otg_helper {
 	} pm_buf;
 	struct notifier_block pm_notifier;
 	u32 otg_port_index;
-	u32 mode;
 #define AML_USB_OTG_HOST_MODE	0
 #define AML_USB_OTG_DEVICE_MODE	1
 #define AML_USB_OTG_OTG_MODE	2
@@ -95,7 +94,9 @@ struct amlogic_usb_v2 {
 	int vbus_power_pin_work_mask;
 	int otg;
 	struct amlogic_otg_helper otg_helper;
-	enum phy_mode last_mode;
+	struct usb_role_switch	*role_sw;
+	enum phy_mode current_mode;
+	u32 role_switch_default_mode;
 	u32 version;
 	int portspeed;
 	struct delayed_work	work;
@@ -159,4 +160,12 @@ usb_phy_trim_tuning(struct usb_phy *x, int port, int default_val)
 }
 
 void aml_new_usb3_get_phy(struct amlogic_usb_v2 *phy);
+
+#if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
+#define ROLE_SWITCH_FLAG 1
+#else
+#define ROLE_SWITCH_FLAG 0
+#define dwc3_setup_role_switch(x) 0
+#endif
+
 #endif

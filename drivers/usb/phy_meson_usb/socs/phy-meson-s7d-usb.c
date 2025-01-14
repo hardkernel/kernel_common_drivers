@@ -167,7 +167,7 @@ static int meson_u2phy_s7d_init(struct phy *phy)
 			readl(&mphy->u2p_aml_regs[port]->r2));
 
 	if (mphy->suspend_flag)
-		meson_u2phy_s7d_set_mode(phy, mphy->last_mode, 0);
+		meson_u2phy_s7d_set_mode(phy, mphy->current_mode, 0);
 
 	usleep_range(50, 100);
 	meson_u2phy_reset_phycfg(mphy, port);
