@@ -346,7 +346,7 @@ static void __exit mix_mod_exit(void)
 
 module_init(mix_mod_init);
 module_exit(mix_mod_exit);
-__module_param_named(mixed_ratio, mixed_ratio, int, 0644);
+module_param_named(mixed_ratio, mixed_ratio, int, 0644);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Mixed Compression Algorithm");

@@ -375,20 +375,3 @@ static const struct kparam_array __param_arr_adj = {
 };
 #endif
 
-/*
- * not really modular, but the easiest way to keep compat with existing
- * bootargs behaviour is to continue using __module_param here.
- */
-__module_param_named(cost, lowmem_shrinker.seeks, int, 0644);
-#ifdef CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
-__module_param_cb(adj, &lowmem_adj_array_ops,
-		.arr = &__param_arr_adj,
-		0644);
-__MODULE_PARM_TYPE(adj, "array of short");
-#else
-__module_param_array_named(adj, lowmem_adj, short, &lowmem_adj_size, 0644);
-#endif
-__module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
-			 0644);
-__module_param_named(debug_level, lowmem_debug_level, uint, 0644);
-
