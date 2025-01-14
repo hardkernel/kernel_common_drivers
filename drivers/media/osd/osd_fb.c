@@ -4765,7 +4765,6 @@ static int osd_pm_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 #ifdef CONFIG_64BIT
 static void free_reserved_highmem(unsigned long start, unsigned long end)
 {
@@ -4813,7 +4812,6 @@ static void free_reserved_mem(unsigned long start, unsigned long size)
 		}
 	}
 }
-#endif
 
 static void mem_free_work(struct work_struct *work)
 {
@@ -4852,7 +4850,6 @@ static void mem_free_work(struct work_struct *work)
 				}
 				osd_log_info("%s, free memory: addr:%lx\n",
 					     __func__, start_addr);
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 #ifdef CONFIG_ARM64
 				struct device_node *node = NULL;
 
@@ -4869,14 +4866,11 @@ static void mem_free_work(struct work_struct *work)
 					r += PAGE_SIZE;
 				}
 #endif
-#endif
 			}
 #endif
 		}
 	} else {
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 		free_reserved_mem(osd_mem_res.start, fb_memsize[0]);
-#endif
 	}
 }
 

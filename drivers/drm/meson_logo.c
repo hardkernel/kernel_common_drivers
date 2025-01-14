@@ -279,7 +279,6 @@ struct para_pair_s {
 	int value;
 };
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 #ifdef CONFIG_64BIT
 static void free_reserved_highmem(unsigned long start, unsigned long end)
 {
@@ -324,7 +323,6 @@ static void free_reserved_mem(unsigned long start, unsigned long size)
 		}
 	}
 }
-#endif
 
 void am_meson_free_logo_memory(void)
 {
@@ -340,11 +338,9 @@ void am_meson_free_logo_memory(void)
 #endif
 		}
 	} else {
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 		free_reserved_mem(logo.start, logo.size);
 		DRM_INFO("%s, free none_cma memory: addr:0x%pa,size:0x%x\n",
 				 __func__, &logo.start, logo.size);
-#endif
 	}
 
 	logo.alloc_flag = 0;

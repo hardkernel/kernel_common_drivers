@@ -14,6 +14,7 @@ unsigned long aml_free_reserved_area(void *start, void *end, int poison, const c
 static inline unsigned long aml_free_reserved_area(void *start,
 			void *end, int poison, const char *s)
 {
+	pr_info("free reserved area not support: %s\n", s);
 	return 0;
 }
 #endif
