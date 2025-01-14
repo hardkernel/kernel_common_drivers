@@ -28,6 +28,7 @@ void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
 	tunnel_mode, struct dv_vsif_para *data, bool signal_sdr);
 void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data);
 
+void hdmitx_clear_all_infoframe_pkt(struct hdmitx_common *tx_comm);
 /* CONF_AVI_BT2020 */
 #define CLR_AVI_BT2020      0
 #define SET_AVI_BT2020      1

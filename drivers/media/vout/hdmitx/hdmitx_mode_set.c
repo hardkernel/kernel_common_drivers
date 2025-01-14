@@ -469,10 +469,8 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 		hdmitx_common_edid_clear(tx_comm);
 
 	/* step4: HW: clear packets */
-	if (pkt_clear) {
-		HDMITX_INFO("%s: clear hdmitx pkt\n", __func__);
+	if (pkt_clear)
 		hdmitx_clear_packets(tx_comm);
-	}
 
 	/* step5: reset hdcp */
 	if (hdcp_reset)

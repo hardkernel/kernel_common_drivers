@@ -1983,20 +1983,7 @@ EXPORT_SYMBOL(hdmitx_update_latency_info);
 
 void hdmitx_clear_packets(struct hdmitx_common *tx_comm)
 {
-	/* HW: clear hdr related packets */
-	hdmitx_set_drm_pkt(NULL);
-	hdmitx_set_vsif_pkt(EOTF_T_NULL, 0, NULL, true);
-	hdmitx_set_hdr10plus_pkt(0, NULL);
-	hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CLR_AVI_PACKET, 0);
-
-	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
-		/* clear any VSIF packet left over because of vendor<->vendor2 switch */
-		hdmi_vend_infoframe_rawset(NULL, NULL);
-		/* stop ALLM packet by hdmitx itself
-		 * DV CTS case91: clear HF-VSIF for safety
-		 */
-		hdmi_vend_infoframe2_rawset(NULL, NULL);
-	}
+	hdmitx_clear_all_infoframe_pkt(tx_comm);
 }
 
 /* action in suspend/plugout/disable_module(switch mode) */

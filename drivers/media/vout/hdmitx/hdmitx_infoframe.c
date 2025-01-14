@@ -1596,6 +1596,31 @@ void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 	spin_unlock_irqrestore(&global_tx_common->edid_spinlock, flags);
 }
 
+void hdmitx_clear_all_infoframe_pkt(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw = tx_comm->tx_hw;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
+
+	HDMITX_INFO("hdr: clear all hdmitx infoframe\n");
+	/* step1 HW: clear packets */
+	hdmitx_hw_set_packet(tx_hw, HDMI_PACKET_DRM, NULL);
+	hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+	hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+	hdmitx_hw_cntl_config(tx_hw, CONF_AVI_BT2020, CLR_AVI_BT2020);
+	hdmitx_hw_cntl_config(tx_hw, CONF_CLR_AVI_PACKET, 0);
+	/* step2 SW: reset para */
+	tx_comm->hdr_transfer_feature = T_UNKNOWN;
+	tx_comm->hdr_color_feature = C_UNKNOWN;
+	tx_comm->colormetry = 0;
+	tx_comm->hdmi_current_hdr_mode = 0;
+	tx_comm->hdmi_last_hdr_mode = 0;
+	tx_comm->hdr10plus_feature = 0;
+
+	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
+}
+
 void hdmitx_hdr_init(struct hdmitx_common *tx_comm)
 {
 	global_tx_common = tx_comm;
