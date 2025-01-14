@@ -43,7 +43,7 @@
 #define N_DELAY 4
 /*hist bin num*/
 #define HIST_BIN 16
-#define LC_BLK_H_NUM 8
+#define LC_BLK_H_NUM 12
 #define LC_BLK_V_NUM 8
 
 int amlc_debug;
