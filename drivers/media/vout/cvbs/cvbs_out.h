@@ -176,7 +176,14 @@ void amvecm_clip_range_limit(bool limit_en);
 
 int cvbs_cpu_type(void);
 const struct vinfo_s *get_valid_vinfo(char  *mode);
+#if IS_ENABLED(CONFIG_AMLOGIC_CVBS_OUTPUT)
 int cvbs_set_current_vmode(enum vmode_e mode, void *data);
+#else
+int cvbs_set_current_vmode(enum vmode_e mode, void *data)
+{
+	return 0;
+}
+#endif
 struct meson_cvbsout_data *get_cvbs_data(void);
 void wss_process_cmd(unsigned int cmd, unsigned int param);
 ssize_t cvbs_dump_pll_reg(char *buf);
