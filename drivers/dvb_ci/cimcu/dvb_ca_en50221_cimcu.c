@@ -22,30 +22,11 @@
 #define READ_LPDU_PKT
 
 static int dvb_ca_en50221_debug;
-
-__module_param_named(cammcu_debug, dvb_ca_en50221_debug, int, 0644);
-MODULE_PARM_DESC(cammcu_debug, "enable verbose debug messages");
-
 static int dvb_ca_en50221_usleep = 800;
-
-__module_param_named(cammcu_usleep, dvb_ca_en50221_usleep, int, 0644);
-MODULE_PARM_DESC(cammcu_usleep, "enable sleep");
-
 static int dvb_ca_ciplus_enable;
-__module_param_named(ciplus_enable, dvb_ca_ciplus_enable, int, 0644);
-MODULE_PARM_DESC(ciplus_enable, "get ci plus enable");
-
 static unsigned int dvb_ca_ci_profire;
-__module_param_named(ci_profire, dvb_ca_ci_profire, int, 0644);
-MODULE_PARM_DESC(ci_profire, "get ci plus profire");
-
 static unsigned int ca_slotstate_validate_t = 1;
-__module_param_named(ca_slotstate_validate, ca_slotstate_validate_t, int, 0644);
-MODULE_PARM_DESC(ca_slotstate_validate, "slotstate validate on off");
-
 static unsigned int read_tuple_time_t = 500;
-__module_param_named(read_tuple_time, read_tuple_time_t, int, 0644);
-MODULE_PARM_DESC(read_tuple_time, "read tuple time");
 
 #define dprintk(fmt, args...) \
 do {\
@@ -2163,4 +2144,38 @@ void dvb_ca_en50221_cimcu_release(struct dvb_ca_en50221_cimcu *pubca)
 
 	dvb_ca_private_put(ca);
 	pubca->private = NULL;
+}
+
+int cimcu_get_param(int type)
+{
+	if (type == CI_PARAMS_EN50221_DEBUG)
+		return dvb_ca_en50221_debug;
+	else if (type == CI_PARAMS_EN50221_USLEEP)
+		return dvb_ca_en50221_usleep;
+	else if (type == CI_PARAMS_CIPLUS_ENABLE)
+		return dvb_ca_ciplus_enable;
+	else if (type == CI_PARAMS_CI_PROFIRE)
+		return dvb_ca_ci_profire;
+	else if (type == CI_PARAMS_SLOT_STATUS_VALIDATE)
+		return ca_slotstate_validate_t;
+	else if (type == CI_PARAMS_READ_TUPLE_TIME)
+		return read_tuple_time_t;
+	return -1;
+}
+
+int cimcu_set_param(int type, int value)
+{
+	if (type == CI_PARAMS_EN50221_DEBUG)
+		dvb_ca_en50221_debug = value;
+	else if (type == CI_PARAMS_EN50221_USLEEP)
+		dvb_ca_en50221_usleep = value;
+	else if (type == CI_PARAMS_CIPLUS_ENABLE)
+		dvb_ca_ciplus_enable = value;
+	else if (type == CI_PARAMS_CI_PROFIRE)
+		dvb_ca_ci_profire = value;
+	else if (type == CI_PARAMS_SLOT_STATUS_VALIDATE)
+		ca_slotstate_validate_t = value;
+	else if (type == CI_PARAMS_READ_TUPLE_TIME)
+		read_tuple_time_t = value;
+	return 0;
 }

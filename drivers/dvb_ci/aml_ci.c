@@ -19,9 +19,7 @@
 
 #include "aml_ci_bus.h"
 
-MODULE_PARM_DESC(aml_ci_debug, "\n\t\t dvb ci debug");
 static int aml_ci_debug;
-__module_param(aml_ci_debug, int, 0444);
 
 #define pr_dbg(args...)\
 	do {\
@@ -358,10 +356,93 @@ static ssize_t ts_show(const struct class *class,
 	ret = sprintf(buf, "ts%d\n", 1);
 	return ret;
 }
+
+static ssize_t ci_params_show(const struct class *class,
+			const struct class_attribute *attr, char *buf)
+{
+	int ret = 0, total = 0;
+
+	ret = sprintf(buf, "aml_ci_debug:%d\n", aml_ci_debug);
+	total += ret;
+	ret = sprintf(buf + total, "cammcu_debug:%d\n", cimcu_get_param(0));
+	total += ret;
+	ret = sprintf(buf + total, "cammcu_usleep:%d\n", cimcu_get_param(1));
+	total += ret;
+	ret = sprintf(buf + total, "ciplus_enable:%d\n", cimcu_get_param(2));
+	total += ret;
+	ret = sprintf(buf + total, "ci_profire:%d\n", cimcu_get_param(3));
+	total += ret;
+	ret = sprintf(buf + total, "ca_slotstate_validate:%d\n", cimcu_get_param(4));
+	total += ret;
+	ret = sprintf(buf + total, "read_tuple_time:%d\n", cimcu_get_param(5));
+	total += ret;
+	ret = sprintf(buf + total, "ci_bus_debug:%d\n", aml_ci_bus_get_param(0));
+	total += ret;
+	ret = sprintf(buf + total, "ci_bus_set_delay:%d\n", aml_ci_bus_get_param(1));
+	total += ret;
+	ret = sprintf(buf + total, "ci_bus_time:%d\n", aml_ci_bus_get_param(2));
+	total += ret;
+	ret = sprintf(buf + total, "pcmcia_debug:%d\n", pcmcia_get_param(0));
+	total += ret;
+	ret = sprintf(buf + total, "reset_time_h:%d\n", pcmcia_get_param(1));
+	total += ret;
+	ret = sprintf(buf + total, "reset_time_l:%d\n", pcmcia_get_param(2));
+	total += ret;
+
+	return total;
+}
+
+static ssize_t ci_params_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	char param_name[32];
+	int param_value = 0, ret = 0;
+
+	ret = sscanf(buf, "%s %d", param_name, &param_value);
+	if (ret != 2) {
+		pr_err("invalid command, please use ");
+		pr_err("param_name param_value\n");
+		return  -EINVAL;
+	}
+
+	if (!strncmp(param_name, "aml_ci_debug", strlen("aml_ci_debug")))
+		aml_ci_debug = param_value;
+	else if (!strncmp(param_name, "cammcu_debug", strlen("cammcu_debug")))
+		cimcu_set_param(CI_PARAMS_EN50221_DEBUG, param_value);
+	else if (!strncmp(param_name, "cammcu_usleep", strlen("cammcu_usleep")))
+		cimcu_set_param(CI_PARAMS_EN50221_USLEEP, param_value);
+	else if (!strncmp(param_name, "ciplus_enable", strlen("ciplus_enable")))
+		cimcu_set_param(CI_PARAMS_CIPLUS_ENABLE, param_value);
+	else if (!strncmp(param_name, "ci_profire", strlen("ci_profire")))
+		cimcu_set_param(CI_PARAMS_CI_PROFIRE, param_value);
+	else if (!strncmp(param_name, "ca_slotstate_validate", strlen("ca_slotstate_validate")))
+		cimcu_set_param(CI_PARAMS_SLOT_STATUS_VALIDATE, param_value);
+	else if (!strncmp(param_name, "read_tuple_time", strlen("read_tuple_time")))
+		cimcu_set_param(CI_PARAMS_READ_TUPLE_TIME, param_value);
+	else if (!strncmp(param_name, "ci_bus_debug", strlen("ci_bus_debug")))
+		aml_ci_bus_set_param(CI_PARAMS_CI_BUS_DEBUG, param_value);
+	else if (!strncmp(param_name, "ci_bus_set_delay", strlen("ci_bus_set_delay")))
+		aml_ci_bus_set_param(CI_PARAMS_CI_BUS_SET_DELAY, param_value);
+	else if (!strncmp(param_name, "ci_bus_time", strlen("ci_bus_time")))
+		aml_ci_bus_set_param(CI_PARAMS_CI_BUS_TIME, param_value);
+	else if (!strncmp(param_name, "pcmcia_debug", strlen("pcmcia_debug")))
+		pcmcia_set_param(CI_PARAMS_PCMCIA_DEBUG, param_value);
+	else if (!strncmp(param_name, "reset_time_h", strlen("reset_time_h")))
+		pcmcia_set_param(CI_PARAMS_RESET_TIME_H, param_value);
+	else if (!strncmp(param_name, "reset_time_l", strlen("reset_time_l")))
+		pcmcia_set_param(CI_PARAMS_RESET_TIME_L, param_value);
+	else
+		pr_err("commoand invalid: %s\n", buf);
+	return size;
+}
+
 static CLASS_ATTR_RO(ts);
+static CLASS_ATTR_RW(ci_params);
 
 static struct attribute *aml_ci_attrs[] = {
 	&class_attr_ts.attr,
+	&class_attr_ci_params.attr,
 	NULL
 };
 
@@ -379,7 +460,7 @@ static int aml_ci_register_class(struct aml_ci *ci)
 	if (!clp->name)
 		return -ENOMEM;
 
-	snprintf((char *)clp->name, CLASS_NAME_LEN, "amlci-%d", ci->id);
+	snprintf((char *)clp->name, CLASS_NAME_LEN, "amlci");
 	clp->class_groups = aml_ci_groups;
 	ret = class_register(clp);
 	if (ret)

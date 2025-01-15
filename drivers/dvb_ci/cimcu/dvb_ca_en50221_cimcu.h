@@ -122,4 +122,16 @@ int dvb_ca_en50221_cimcu_init(struct dvb_adapter *dvb_adapter,
  */
 	void dvb_ca_en50221_cimcu_release(struct dvb_ca_en50221_cimcu *ca);
 
+enum {
+	CI_PARAMS_EN50221_DEBUG,
+	CI_PARAMS_EN50221_USLEEP,
+	CI_PARAMS_CIPLUS_ENABLE,
+	CI_PARAMS_CI_PROFIRE,
+	CI_PARAMS_SLOT_STATUS_VALIDATE,
+	CI_PARAMS_READ_TUPLE_TIME
+};
+
+int cimcu_get_param(int type);
+int cimcu_set_param(int type, int value);
+
 #endif

@@ -46,5 +46,14 @@ int aml_pcmcia_exit(struct aml_pcmcia *pc);
 int aml_pcmcia_reset(struct aml_pcmcia *pc);
 void aml_pcmcia_detect_cam(struct aml_pcmcia *pc);
 
+enum {
+	CI_PARAMS_PCMCIA_DEBUG,
+	CI_PARAMS_RESET_TIME_H,
+	CI_PARAMS_RESET_TIME_L
+};
+
+int pcmcia_get_param(int type);
+int pcmcia_set_param(int type, int value);
+
 #endif /*_AML_PCMCIA_*/
 

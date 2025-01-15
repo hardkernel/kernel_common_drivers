@@ -35,15 +35,6 @@ static int aml_ci_bus_set_delay;
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static u32 fetch_done;
 
-__module_param_named(ci_bus_debug, aml_ci_bus_debug, int, 0644);
-MODULE_PARM_DESC(ci_bus_debug, "enable verbose debug messages");
-
-__module_param_named(ci_bus_set_delay, aml_ci_bus_set_delay, int, 0644);
-MODULE_PARM_DESC(ci_bus_set_delay, "enable ci bus delay set");
-
-__module_param_named(ci_bus_time, aml_ci_bus_time, int, 0644);
-MODULE_PARM_DESC(ci_bus_time, "set ci bus time");
-
 #define pr_dbg(args...)\
 	do {\
 		if (aml_ci_bus_debug)\
@@ -2083,3 +2074,25 @@ void  aml_ci_bus_mod_exit(void)
 	class_unregister(&ci_bus.cls);
 }
 EXPORT_SYMBOL(aml_ci_bus_mod_exit);
+
+int aml_ci_bus_get_param(int type)
+{
+	if (type == CI_PARAMS_CI_BUS_DEBUG)
+		return aml_ci_bus_debug;
+	else if (type == CI_PARAMS_CI_BUS_SET_DELAY)
+		return aml_ci_bus_set_delay;
+	else if (type == CI_PARAMS_CI_BUS_TIME)
+		return aml_ci_bus_time;
+	return -1;
+}
+
+int aml_ci_bus_set_param(int type, int value)
+{
+	if (type == CI_PARAMS_CI_BUS_DEBUG)
+		aml_ci_bus_debug = value;
+	else if (type == CI_PARAMS_CI_BUS_SET_DELAY)
+		aml_ci_bus_set_delay = value;
+	else if (type == CI_PARAMS_CI_BUS_TIME)
+		aml_ci_bus_time =  value;
+	return 0;
+}

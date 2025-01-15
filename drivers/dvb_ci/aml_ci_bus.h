@@ -190,4 +190,12 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev);
 int aml_ci_bus_exit(struct aml_ci *ci);
 int aml_ci_bus_mod_init(void);
 void aml_ci_bus_mod_exit(void);
+enum {
+	CI_PARAMS_CI_BUS_DEBUG,
+	CI_PARAMS_CI_BUS_SET_DELAY,
+	CI_PARAMS_CI_BUS_TIME
+};
+
+int aml_ci_bus_get_param(int type);
+int aml_ci_bus_set_param(int type, int value);
 #endif				/* __AML_CI_BUS_H_ */

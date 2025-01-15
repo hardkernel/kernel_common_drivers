@@ -14,17 +14,8 @@
 #include "aml_ci.h"
 
 static int aml_pcmcia_debug = 1;
-
-__module_param_named(pcmcia_debug, aml_pcmcia_debug, int, 0644);
-MODULE_PARM_DESC(pcmcia_debug, "enable verbose debug messages");
-
 static int reset_time_h_t = 2000;
-__module_param_named(reset_time_h, reset_time_h_t, int, 0644);
-MODULE_PARM_DESC(reset_time_h, "reset time h");
-
 static int reset_time_l_t = 2000;
-__module_param_named(reset_time_l, reset_time_l_t, int, 0644);
-MODULE_PARM_DESC(reset_time_l, "reset time l");
 
 #define pr_dbg(fmt, args...)\
 do {\
@@ -211,3 +202,25 @@ int aml_pcmcia_reset(struct aml_pcmcia *pc)
 	return 0;
 }
 EXPORT_SYMBOL(aml_pcmcia_reset);
+
+int pcmcia_get_param(int type)
+{
+	if (type == CI_PARAMS_PCMCIA_DEBUG)
+		return aml_pcmcia_debug;
+	else if (type == CI_PARAMS_RESET_TIME_H)
+		return reset_time_h_t;
+	else if (type == CI_PARAMS_RESET_TIME_L)
+		return reset_time_l_t;
+	return -1;
+}
+
+int pcmcia_set_param(int type, int value)
+{
+	if (type == CI_PARAMS_PCMCIA_DEBUG)
+		aml_pcmcia_debug = value;
+	else if (type == CI_PARAMS_RESET_TIME_H)
+		reset_time_h_t = value;
+	else if (type == CI_PARAMS_RESET_TIME_L)
+		reset_time_l_t = value;
+	return 0;
+}
