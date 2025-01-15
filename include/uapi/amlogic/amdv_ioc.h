@@ -131,8 +131,23 @@ struct light_sensor_s {
 /*get precision detail cap for current mode(1:support 0:not support)*/
 #define DV_IOC_GET_DV_PRECISION_DETAIL_SUPPORT _IOR((DV_M), 0x10, int)
 
-/*set precision detail for current mode (1: bypass, 0: not bypass*/
+/*set precision detail for current mode (1: bypass, 0: not bypass)*/
 #define DV_IOC_SET_DV_PRECISION_DETAIL_BYPASS _IOW((DV_M), 0x11, int)
+
+/* set dv enable for current mode (1: enable, 0: not neable) */
+#define DV_IOC_SET_DV_ENABLE _IOW((DV_M), 0x12, bool)
+
+/* get dv hdr10 policy for current mode */
+#define DV_IOC_GET_DV_HDR10_POLICY _IOR((DV_M), 0x13, unsigned int)
+
+/* set dv ll policy for current mode */
+#define DV_IOC_SET_DV_LL_POLICY _IOW((DV_M), 0x14, uint32_t)
+
+/* set dv policy for current mode */
+#define DV_IOC_SET_DV_POLICY _IOW((DV_M), 0x15, uint32_t)
+
+/* get dv status for current mode */
+#define DV_IOC_GET_DV_STATUS _IOR((DV_M), 0x16, uint32_t)
 
 #endif
 

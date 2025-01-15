@@ -15575,6 +15575,9 @@ static long amdolby_vision_ioctl(struct file *file,
 	char *user_cfg_data = NULL;
 	int precision_detail_support = 0;
 	int bypass_pd = 0;
+	bool amdv_enable;
+	u32 amdv_ll_policy;
+	u32 amdv_policy;
 
 	if (debug_dolby & 0x200)
 		pr_info("[DV]: %s: cmd_nr = 0x%x\n",
@@ -15590,7 +15593,7 @@ static long amdolby_vision_ioctl(struct file *file,
 		return ret;
 	}
 
-	if (!get_load_config_status() && cmd != DV_IOC_SET_DV_CONFIG_FILE &&
+	if (is_aml_tvmode() && !get_load_config_status() && cmd != DV_IOC_SET_DV_CONFIG_FILE &&
 		cmd != DV_IOC_SET_DV_CONFIG_DATA) {
 		pr_info("[DV] no config file, pq ioctl disable!\n");
 		return ret;
@@ -15916,6 +15919,39 @@ static long amdolby_vision_ioctl(struct file *file,
 		} else {
 			ret = -EFAULT;
 		}
+		break;
+	case DV_IOC_SET_DV_ENABLE:
+		if (copy_from_user(&amdv_enable, argp, sizeof(bool)) == 0) {
+			set_amdv_enable(amdv_enable);
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: DV_IOC_SET_DV_ENABLE: %d\n", amdv_enable);
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_GET_DV_HDR10_POLICY:
+		put_user(dolby_vision_hdr10_policy, (unsigned int __user *)argp);
+		break;
+	case DV_IOC_SET_DV_LL_POLICY:
+		if (copy_from_user(&amdv_ll_policy, argp, sizeof(uint32_t)) == 0) {
+			set_amdv_ll_policy(amdv_ll_policy);
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: DV_IOC_SET_DV_LL_POLICY: %d\n", amdv_ll_policy);
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_SET_DV_POLICY:
+		if (copy_from_user(&amdv_policy, argp, sizeof(uint32_t)) == 0) {
+			set_amdv_policy(amdv_policy);
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: DV_IOC_SET_DV_POLICY: %d\n", amdv_policy);
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_GET_DV_STATUS:
+		put_user(dolby_vision_status, (uint32_t __user *)argp);
 		break;
 	default:
 		ret = -EINVAL;
