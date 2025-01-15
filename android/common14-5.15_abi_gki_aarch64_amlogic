@@ -12,6 +12,9 @@
 # amlogic-usb.ko
   devm_clk_bulk_get
 
+# dwc_otg.ko
+  drain_workqueue
+
 # pagetrace.ko
   __traceiter_android_vh_oom_check_panic
   __tracepoint_android_vh_oom_check_panic
