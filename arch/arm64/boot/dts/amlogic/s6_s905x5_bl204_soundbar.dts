@@ -921,7 +921,7 @@
 
 &spdifa {
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		pinctrl-0 = <&spdif_out_a_h4_pins>;
+		pinctrl-0 = <&spdif_out_a_h4_pins &spdifin_h>;
 		pinctrl-1 = <&spdif_out_a_h4_mute_pins>;
 };
 
