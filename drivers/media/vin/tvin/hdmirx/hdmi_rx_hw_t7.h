@@ -95,6 +95,7 @@ void rx_dig_clk_en_t7(bool en);
 void rx_aud_pll_ctl_t7(bool en, u8 port);
 void rx_aud_pll_ctl_t3(bool en, u8 port);
 void rx_aud_pll_ctl_t5w(bool en, u8 port);
+void rx_dig_clk_en_t5w(bool en);
 /*function declare end*/
 extern int hdcp_22_en;
 

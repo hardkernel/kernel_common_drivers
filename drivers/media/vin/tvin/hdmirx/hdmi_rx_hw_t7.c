@@ -2379,6 +2379,15 @@ void rx_dig_clk_en_t7(bool en)
 	hdmirx_wr_bits_clk_ctl(RX_CLK_CTRL3, METER_CLK_EN, en);
 }
 
+void rx_dig_clk_en_t5w(bool en)
+{
+	hdmirx_wr_bits_clk_ctl(RX_CLK_CTRL_T5W, CLK_2M_EN, en);
+	hdmirx_wr_bits_clk_ctl(RX_CLK_CTRL_T5W, CLK_5M_EN, en);
+	hdmirx_wr_bits_clk_ctl(RX_CLK_CTRL1_T5W, HDCP2X_ECLK_EN, en);
+	hdmirx_wr_bits_clk_ctl(RX_CLK_CTRL1_T5W, CFG_CLK_EN, en);
+	hdmirx_wr_bits_clk_ctl(RX_CLK_CTRL3_T5W, METER_CLK_EN, en);
+}
+
 void rx_aud_pll_ctl_t7(bool en, u8 port)
 {
 	int tmp = 0;

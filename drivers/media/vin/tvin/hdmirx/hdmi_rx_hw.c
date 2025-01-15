@@ -3204,9 +3204,11 @@ void rx_dig_clk_en(bool en)
 	case CHIP_ID_T5D:
 		rx_dig_clk_en_t5(en);
 		break;
+	case CHIP_ID_T5W:
+		rx_dig_clk_en_t5w(en);
+		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
-	case CHIP_ID_T5W:
 		rx_dig_clk_en_t7(en);
 		break;
 	case CHIP_ID_T5M:
@@ -3239,12 +3241,16 @@ bool rx_get_dig_clk_en_sts(void)
 	case CHIP_ID_T5D:
 		ret = hdmirx_rd_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN);
 		break;
+	case CHIP_ID_TXHD2:
+		ret = hdmirx_rd_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL1, CFG_CLK_EN);
+		break;
+	case CHIP_ID_T5W:
+		ret = hdmirx_rd_bits_clk_ctl(RX_CLK_CTRL1_T5W, CFG_CLK_EN);
+		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
-	case CHIP_ID_T5W:
 	case CHIP_ID_T5M:
 	case CHIP_ID_T3X:
-	case CHIP_ID_TXHD2:
 	case CHIP_ID_T6D:
 		ret = hdmirx_rd_bits_clk_ctl(RX_CLK_CTRL1, CFG_CLK_EN);
 		break;

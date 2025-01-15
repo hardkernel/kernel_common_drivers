@@ -30,7 +30,8 @@
 /* 2024.12.16 modify hdcp reauth flow */
 /* 2025.01.10 keep irq off when early suspend */
 /* 2024.1.13 close hdcp auth done irq */
-#define RX_HW_VER "ver.2024/1/13"
+/* 2024.1.17 correct clk_ctrl register address */
+#define RX_HW_VER "ver.2024/1/17"
 
 #define K_TEST_CHK_ERR_CNT
 
