@@ -22,6 +22,8 @@
 #define MESON_USE_TEXTURE			(1ull << 17)
 #define MESON_USE_VIDEO_PLANE           (1ull << 18)
 #define MESON_USE_VIDEO_AFBC            (1ull << 19)
+#define MESON_USE_VD1			(1ull << 20)
+#define MESON_USE_VD2			(1ull << 21)
 
 #define FBIOPUT_OSD_WINDOW_AXIS          0x4513
 #define FBIOGET_DISPLAY_MODE             0x4580
