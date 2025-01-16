@@ -267,14 +267,7 @@ pgprot_t (*aml_dma_pgprot)(struct device *dev, pgprot_t prot, unsigned long attr
 
 unsigned long aml_max_pfn;
 
-u64 aml_zone_dma_limit;
-
-unsigned long (*aml_kallsyms_lookup_name)(const char *name);
-
-/* For each probe you need to allocate a kprobe structure */
-static struct kprobe kp_lookup_name = {
-	.symbol_name	= "kallsyms_lookup_name",
-};
+u64 aml_zone_dma_limit __ro_after_init = DMA_BIT_MASK(24);
 
 static struct kprobe kp_iommu_probe_device = {
 	.symbol_name	= "iommu_probe_device",
@@ -473,9 +466,11 @@ not_found:
 	tmp_io_tlb_used = io_tlb_used;
 
 	spin_unlock_irqrestore(&io_tlb_lock, flags);
+#ifdef CONFIG_PRINTK
 	if (!(attrs & DMA_ATTR_NO_WARN) && __printk_ratelimit(__func__))
 		dev_warn(hwdev, "swiotlb buffer is full (sz: %zd bytes), total %lu (slots), used %lu (slots)\n",
 			 alloc_size, io_tlb_nslabs, tmp_io_tlb_used);
+#endif
 	return (phys_addr_t)DMA_MAPPING_ERROR;
 found:
 	io_tlb_used += nslots;
@@ -1214,6 +1209,25 @@ static int __nocfi __kprobes iommu_probe_device_handler_post(struct kprobe *p, s
 	}
 }
 
+static unsigned long get_max_pfn(void)
+{
+	int nid;
+	unsigned long end_pfn;
+
+	/* Not inialized....update now */
+	/* find out "max pfn" */
+	end_pfn = 0;
+	for_each_node_state(nid, N_MEMORY) {
+		unsigned long node_end;
+
+		node_end = node_end_pfn(nid);
+		if (end_pfn < node_end)
+			end_pfn = node_end;
+	}
+
+	return end_pfn;
+}
+
 static struct reserved_mem *g_rmem1;
 
 static int __nocfi aml_smmu_symbol_init(void *data)
@@ -1269,18 +1283,9 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 		return ret;
 	}
 
-	ret = register_kprobe(&kp_lookup_name);
-	if (ret < 0) {
-		pr_err("register_kprobe failed, returned %d\n", ret);
-		return ret;
-	}
-	pr_debug("kprobe lookup offset at %px\n", kp_lookup_name.addr);
+	aml_max_pfn = get_max_pfn();
+	pr_info("aml_max_pfn: %lx\n", aml_max_pfn);
 
-	aml_kallsyms_lookup_name = (unsigned long (*)(const char *name))kp_lookup_name.addr;
-
-	aml_max_pfn = *(unsigned long *)aml_kallsyms_lookup_name("max_pfn");
-
-	aml_zone_dma_limit = *(u64 *)aml_kallsyms_lookup_name("zone_dma_limit");
 	/* Record our private device structure */
 	platform_set_drvdata(pdev, smmu);
 
