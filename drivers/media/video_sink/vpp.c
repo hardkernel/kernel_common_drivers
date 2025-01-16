@@ -1198,10 +1198,12 @@ static int vpp_process_speed_check
 
 	if ((sync_duration_num / sync_duration_den) > 60)
 		freq_ratio = (sync_duration_num /
-			sync_duration_den + 1) / 60;
+			sync_duration_den + 1) * 10 / 60;
 
 	if (freq_ratio < 1)
 		freq_ratio = 1;
+	freq_ratio = (freq_ratio + 9) / 10;
+
 	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 		cur_freq_ratio = freq_ratio;
 
@@ -5625,9 +5627,10 @@ RERTY:
 	update_vd_src_info(input->layer_id,
 		src_width, src_height, vf->compWidth, vf->compHeight);
 	if (super_debug)
-		pr_info("vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d, dec_set_screen_mode=%d\n",
+		pr_info("vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d, dec_set_screen_mode=%d, op_flag=%x\n",
 			vf->compWidth, vf->compHeight,
-			vf->width, vf->height, vf->dec_set_screen_mode);
+			vf->width, vf->height, vf->dec_set_screen_mode,
+			input->op_flag);
 #if defined(TV_3D_FUNCTION_OPEN) && defined(CONFIG_AMLOGIC_MEDIA_TVIN)
 	/*
 	 *check 3d mode change in display buffer or 3d type

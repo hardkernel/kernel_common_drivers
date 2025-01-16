@@ -4431,7 +4431,7 @@ static void do_vd1_swap_frame(u8 layer_id,
 					old_str ? old_str : "invalid",
 					new_str ? new_str : "invalid",
 					vd_layer[0].dispbuf,
-					vd_layer[0].dispbuf->signal_type);
+					vd_layer[0].dispbuf ? vd_layer[0].dispbuf->signal_type : 0);
 			}
 			atomic_set(&cur_primary_src_fmt, fmt);
 			atomic_set(&primary_src_fmt, fmt);

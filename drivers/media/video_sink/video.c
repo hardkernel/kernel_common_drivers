@@ -10928,6 +10928,25 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 
 	dispbuf = get_dispbuf(index);
 	if (dispbuf) {
+		u32 format = 0;
+		char  *str = NULL;
+		const char *fmt_str[5] = {
+			"NV21", "NV12", "YUV422", "YUV444", "GRB444",
+		};
+
+		if (dispbuf->type & VIDTYPE_VIU_NV21)
+			format = 0;
+		else if (dispbuf->type & VIDTYPE_VIU_NV12)
+			format = 1;
+		else if (dispbuf->type & VIDTYPE_VIU_422)
+			format = 2;
+		else if (dispbuf->type & VIDTYPE_VIU_444)
+			format = 3;
+		else if (dispbuf->type & VIDTYPE_RGB_444)
+			format = 4;
+		str = (char *)fmt_str[format];
+		len += sprintf(buf + len, "fmt:%s. bitdepth:0x%x\n",
+			       str, dispbuf->bitdepth);
 		afbc = dispbuf->type & VIDTYPE_COMPRESS ? 1 : 0;
 		dw = afbc && _cur_frame_par->nocomp;
 		len += sprintf(buf + len, "afbc:%d double_write:%d.\n",
