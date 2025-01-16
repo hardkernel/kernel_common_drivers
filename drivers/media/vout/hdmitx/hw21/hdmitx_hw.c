@@ -2493,7 +2493,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			return;
 		}
 		/* for encp including 1080i */
-		hdmi_avi_infoframe_config(CONF_AVI_CS, para->cs);
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 		hd21_write_reg(VENC_VIDEO_TST_EN, 1);
 		if (strncmp(tmpbuf + 4, "line", 4) == 0) {

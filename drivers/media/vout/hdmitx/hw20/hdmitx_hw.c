@@ -3283,7 +3283,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	int ret;
 	unsigned long adr = 0;
 	unsigned long value = 0;
-	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 	u8 data;
 	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
 	struct scdc_locked_st *ch_st = &hdev->tx_comm.chlocked_st;
@@ -3326,8 +3325,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			return;
 		}
 		hdev->tx_comm.bist_lock = 1;
-		hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_AVI_RGBYCC_INDIC, para->cs);
 		if (hdev->tx_comm.tx_hw->chip_data->chip_type < MESON_CPU_ID_SC2)
 			hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
 		hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);

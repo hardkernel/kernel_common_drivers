@@ -1058,9 +1058,6 @@ void hdmitx_set_hdr10plus_pkt(unsigned int flag, struct hdr10plus_para *data)
 	else
 		memset(&global_tx_common->hdr10p_config_data, 0, sizeof(struct hdr10plus_para));
 
-	if (global_tx_common->bist_lock)
-		return;
-
 	/* if ready is 0, only can clear pkt */
 	if (global_tx_common->ready == 0)
 		return;
@@ -1190,10 +1187,6 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 		memcpy(&global_tx_common->vsif_debug_info.data, data, sizeof(struct dv_vsif_para));
 
 	spin_lock_irqsave(&global_tx_common->edid_spinlock, flags);
-	if (global_tx_common->bist_lock) {
-		spin_unlock_irqrestore(&global_tx_common->edid_spinlock, flags);
-		return;
-	}
 
 	/* if ready is 0, only can clear pkt */
 	if (global_tx_common->ready == 0 && type != EOTF_T_NULL) {
