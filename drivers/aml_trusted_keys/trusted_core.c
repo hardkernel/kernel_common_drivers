@@ -31,12 +31,7 @@
 #include <linux/uaccess.h>
 
 static char *trusted_rng = "default";
-__module_param_named(rng, trusted_rng, charp, 0);
-MODULE_PARM_DESC(rng, "Select trusted key RNG");
-
 static char *trusted_key_source;
-__module_param_named(source, trusted_key_source, charp, 0);
-MODULE_PARM_DESC(source, "Select trusted keys source (tpm, tee or caam)");
 
 static const struct trusted_key_source trusted_key_sources[] = {
 #if IS_REACHABLE(CONFIG_AMLOGIC_TRUSTED_KEYS_TEE)
