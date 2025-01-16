@@ -10,10 +10,11 @@
 
 // MBOX DRIVER ID
 #define S6_DSPA2REE0     0
-#define S6_REE2DSPA0     1
-#define S6_REE2DSPA1     2
-#define S6_REE2DSPA2     3
-#define S6_AO2REE        4
+#define S6_DSPA2REE1     1
+#define S6_REE2DSPA0     2
+#define S6_REE2DSPA1     3
+#define S6_REE2DSPA2     4
+#define S6_AO2REE        5
 #define S6_REE2AO0       (S6_AO2REE + 1)
 #define S6_REE2AO1       (S6_AO2REE + 2)
 #define S6_REE2AO2       (S6_AO2REE + 3)
@@ -21,6 +22,9 @@
 #define S6_REE2AO4       (S6_AO2REE + 5)
 #define S6_REE2AO5       (S6_AO2REE + 6)
 #define S6_REE2AO6       (S6_AO2REE + 7)
+#define S6_REE2AO7       (S6_AO2REE + 8)
+#define S6_REE2AO8       (S6_AO2REE + 9)
+#define S6_REE2AO9       (S6_AO2REE + 10)
 
 // DEVICE TREE ID
 #define S6_REE2DSPA_DEV  S6_REE2DSPA0
