@@ -15497,12 +15497,12 @@ static long amdolby_vision_ioctl(struct file *file,
 	struct dv_config_data_s config_data;
 	struct dv_user_cfg_s user_cfg;
 	struct light_sensor_s light_sensor;
+	struct dv_cfg_support_s dv_cfg_support;
 	void __user *argp = (void __user *)arg;
 	unsigned char bin_name[MAX_BYTES] = "";
 	unsigned char cfg_name[MAX_BYTES] = "";
 	int dark_detail = 0;
 	char *user_cfg_data = NULL;
-	int precision_detail_support = 0;
 	int bypass_pd = 0;
 
 	if (debug_dolby & 0x200)
@@ -15827,10 +15827,25 @@ static long amdolby_vision_ioctl(struct file *file,
 			ret = -EFAULT;
 		}
 		break;
-	case DV_IOC_GET_DV_PRECISION_DETAIL_SUPPORT:
-		if (check_cfg_enabled_top1() & CFG_ENABLE_PRECISION)
-			precision_detail_support = 1;
-		put_user(precision_detail_support, (u32 __user *)argp);
+	case DV_IOC_GET_DV_CFG_SUPPORT:
+		if (copy_from_user(&dv_cfg_support, argp,
+			sizeof(struct dv_cfg_support_s)) == 0) {
+			mode_id = dv_cfg_support.pic_mode_id;
+			dv_cfg_support = get_cfg_support(mode_id);
+
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: get mode %d, cfg cap %d, %d, %d\n",
+					mode_id,
+					dv_cfg_support.precision_detail,
+					dv_cfg_support.dark_detail,
+					dv_cfg_support.light_sense);
+
+			if (copy_to_user(argp, &dv_cfg_support,
+				sizeof(struct dv_cfg_support_s)))
+				ret = -EFAULT;
+		} else {
+			ret = -EFAULT;
+		}
 		break;
 	case DV_IOC_SET_DV_PRECISION_DETAIL_BYPASS:
 		mode_id = get_pic_mode();

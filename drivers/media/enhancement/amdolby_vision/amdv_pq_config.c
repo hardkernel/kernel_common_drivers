@@ -1292,6 +1292,30 @@ u32 check_cfg_enabled_top1(void)
 	return ret;
 }
 
+struct dv_cfg_support_s get_cfg_support(int mode)
+{
+	struct target_config_dvp *tdc_dvp = NULL;
+	struct target_config *tdc = NULL;
+	struct dv_cfg_support_s dv_cfg_support = {mode, 0, 0, 0};
+
+	if (bin_to_cfg_dvp && is_aml_hw5()) {
+		tdc_dvp = &bin_to_cfg_dvp[mode].tdc;
+		if (tdc_dvp && tdc_dvp->pr_config.supports_precision_rendering)
+			dv_cfg_support.precision_detail = 1;
+		if (tdc_dvp && tdc_dvp->ambient_config.dark_detail)
+			dv_cfg_support.dark_detail = 1;
+		if (tdc_dvp && tdc_dvp->ambient_config.ambient)
+			dv_cfg_support.light_sense = 1;
+	} else if (bin_to_cfg) {
+		tdc = &bin_to_cfg[mode].tdc;
+		if (tdc && tdc->ambient_config.dark_detail)
+			dv_cfg_support.dark_detail = 1;
+		if (tdc && tdc->ambient_config.ambient)
+			dv_cfg_support.light_sense = 1;
+	}
+	return dv_cfg_support;
+}
+
 void update_cp_cfg_hw5(bool update_pyramid, bool is_top1, bool enable)
 {
 	struct target_config_dvp *tdc;

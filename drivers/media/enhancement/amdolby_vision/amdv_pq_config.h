@@ -359,6 +359,7 @@ int load_user_cfg_by_name(char *fw_name);
 char *get_pic_mode_name(int mode);
 s16 get_single_pq_value(int mode, enum pq_item_e item);
 struct dv_full_pq_info_s get_full_pq_value(int mode);
+struct dv_cfg_support_s get_cfg_support(int mode);
 void set_single_pq_value(int mode, enum pq_item_e item, s16 value);
 void set_full_pq_value(struct dv_full_pq_info_s full_pq_info);
 
