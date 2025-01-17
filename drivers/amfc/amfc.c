@@ -54,7 +54,7 @@
 static struct amfc *amfc;
 static struct page *garbage_page;
 
-static inline int _vmalloc_or_module_addr(const void *x)
+inline static int _vmalloc_or_module_addr(const void *x)
 {
 	/*
 	 * ARM, x86-64 and sparc64 put modules in a special place,
@@ -173,7 +173,7 @@ static unsigned long vmalloc_to_phys(void *va)
 	return __pa(pfn_to_kaddr(pfn)) + offset_in_page(va);
 }
 
-static unsigned long inline get_cache_line_size(void)
+inline static unsigned long get_cache_line_size(void)
 {
 	unsigned long ctr_el0 = 0;
 
@@ -342,7 +342,7 @@ static void dump_addr(void *buf, unsigned int size)
 	}
 }
 #else
-static inline void dump_addr(void *buf, unsigned int size)
+inline static void dump_addr(void *buf, unsigned int size)
 {
 }
 #endif
@@ -399,7 +399,7 @@ static void *build_tables(unsigned int *table, void *base, ssize_t size, int str
 	return table;
 }
 
-static inline int get_page_count(size_t size)
+inline static int get_page_count(size_t size)
 {
 	int num;
 
