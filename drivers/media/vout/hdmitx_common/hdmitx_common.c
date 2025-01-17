@@ -460,6 +460,7 @@ static void update_hdr_strategy1(struct hdmitx_common *tx_comm, u32 strategy)
 		disable_dv_info(&prxcap->dv_info);
 		disable_hdr10_info(&prxcap->hdr_info);
 		disable_hdr10p_info(&prxcap->hdr_info.hdr10plus_info);
+		disable_hlg_info(&prxcap->hdr_info);
 		break;
 	default:
 		break;
