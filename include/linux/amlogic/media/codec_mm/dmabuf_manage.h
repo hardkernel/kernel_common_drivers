@@ -113,7 +113,9 @@ struct secure_vdec_channel {
 
 #define SECURE_HEAP_USER_TA_VERSION				3
 #define SECURE_HEAP_USER_TA_VERSION_EXTEND      4
-#define SECURE_HEAP_MAX_VERSION					5
+#define SECURE_HEAP_STAND_POOL_VERSION			100
+#define SECURE_HEAP_MAX_VERSION					100
+
 
 int dmabuf_manage_secure_pool_create(u32 id_high, u32 id_low, u32 block_size,
 	u32 version);

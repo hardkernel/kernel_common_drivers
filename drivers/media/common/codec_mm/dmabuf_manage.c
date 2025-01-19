@@ -37,6 +37,10 @@ static u32 dmabuf_manage_version;
 
 static u32 secure_vdec_config = 0x7C;
 
+static u32 secure_buf_num_of_channel;
+static u32 secure_stand_heap_version;
+static u32 force_secmem_v3;
+
 #define  DEVICE_NAME "secmem"
 #define  CLASS_NAME  "dmabuf_manage"
 
@@ -58,6 +62,7 @@ static u32 secure_vdec_config = 0x7C;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
 #define DMABUF_MANAGE_BLOCK_MIN_SIZE_KB				(256 * 1024)
+#define DEFAULT_SECURE_BUFFER_NUM_OF_CHANNEL				8
 
 #define TA_SECMEM_CMD_GET_NO_HEAD_SUPPORT			2
 #define TA_SECMEM_V2_CMD_INIT						294
@@ -65,12 +70,14 @@ static u32 secure_vdec_config = 0x7C;
 #define TA_SECMEM_V2_CMD_MEM_FREE					258
 #define TA_SECMEM_V2_CMD_CLOSE						266
 #define TA_SECMEM_V2_CMD_PROBE_VP9_METADATA			298
+#define TA_SECMEM_V2_CMD_MEM_CREATE_AND_ALLOC		283
 
 #define TA_SECMEM_V3_CMD_INIT						3049
 #define TA_SECMEM_V3_CMD_MEM_CREATE					3002
 #define TA_SECMEM_V3_CMD_MEM_FREE					3009
 #define TA_SECMEM_V3_CMD_CLOSE						3017
-#define TA_SECMEM_V3_CMD_PROBE_VP9_METADATA			3060
+#define TA_SECMEM_V3_CMD_PROBE_VP9_METADATA				3060
+#define TA_SECMEM_V3_CMD_MEM_CREATE_AND_ALLOC				3038
 
 #define TA_SECMEM_SHM_SIZE							4096
 #define TEE_CMD_PARAM_NUM							4
@@ -89,6 +96,7 @@ struct block_node {
 	struct list_head node;
 	u64 addr;
 	u32 size;
+	u64 phyaddr;
 };
 
 struct secure_pool_info {
@@ -120,6 +128,9 @@ struct tee_shm *g_shm_pool;
 static int g_secmem_inited;
 static DEFINE_MUTEX(g_no_head_mutex);
 
+#pragma pack(push)
+#pragma pack(4)
+
 enum TEE_CMD_PARAMTYPE {
 	TEE_CMD_PARAMTYPE_BUF,
 	TEE_CMD_PARAMTYPE_UINT32,
@@ -127,13 +138,10 @@ enum TEE_CMD_PARAMTYPE {
 	TEE_CMD_PARAMTYPE_VOID,
 };
 
-#pragma pack(push)
-#pragma pack(4)
-
 struct tee_cmdparam {
-	u32 type;
+	enum TEE_CMD_PARAMTYPE type;
 	union {
-		struct { /* type == tee_cmdparamType_Buf */
+		struct {
 			u32 buflen;
 			u32 pbuf;
 		} buf;
@@ -176,6 +184,7 @@ static int dmabuf_manage_tee_unpack_u32(const char *shm, u32 *num, u32 *poff)
 	if (off > TA_SECMEM_SHM_SIZE - sizeof(struct tee_cmdparam))
 		return -1;
 
+	memset((void *)&p, 0, sizeof(struct tee_cmdparam));
 	memcpy((void *)&p, (void *)(shm + off), sizeof(struct tee_cmdparam));
 	if (p.type != TEE_CMD_PARAMTYPE_UINT32) {
 		pr_error("error param type %d", p.type);
@@ -564,17 +573,17 @@ int dmabuf_manage_vp9_probe_metadata(phys_addr_t phy, u32 size, unsigned char *m
 	char *shm_data = NULL;
 	struct tee_param param[TEE_CMD_PARAM_NUM] = { 0 };
 	struct tee_ioctl_invoke_arg inv_arg = { 0 };
-	u32 version = dmabuf_manage_secure_negotiated_version();
 	u32 id = 0;
 
 	if (!phy || !size || !meta || !meta_size || *meta_size < 40)
 		return -1;
 
 	mutex_lock(&g_no_head_mutex);
-	if (version < SECURE_HEAP_USER_TA_VERSION_EXTEND)
-		id = TA_SECMEM_V2_CMD_PROBE_VP9_METADATA;
-	else
+
+	if (force_secmem_v3 == 1)
 		id = TA_SECMEM_V3_CMD_PROBE_VP9_METADATA;
+	else
+		id = TA_SECMEM_V2_CMD_PROBE_VP9_METADATA;
 
 	res = dmabuf_manage_secmem_tee_init();
 	if (res)
@@ -1253,6 +1262,8 @@ static int dmabuf_manage_secure_v2_init(struct secure_pool_info *pool, u32 flags
 	char *shm_data = NULL;
 	struct tee_param param[TEE_CMD_PARAM_NUM] = { 0 };
 	struct tee_ioctl_invoke_arg inv_arg = { 0 };
+	u32 allocsize = 0;
+	u32 buf_num = 0;
 
 	if (!pool || !g_secmem_context)
 		return -1;
@@ -1267,8 +1278,18 @@ static int dmabuf_manage_secure_v2_init(struct secure_pool_info *pool, u32 flags
 	if ((decoder_flag & 0x8) == 0x8)
 		config |= 0x2;
 
-	if (tvp_flag == 0x2)
+	if (tvp_flag == 0x2) {
 		config |= 0x100;
+	} else if (tvp_flag == 0x4) {
+		if (secure_buf_num_of_channel == 0)
+			buf_num = DEFAULT_SECURE_BUFFER_NUM_OF_CHANNEL;
+		else
+			buf_num = secure_buf_num_of_channel;
+
+		config |= (1 << 28);
+		config |= (1 << 8);
+		allocsize = pool->block_size * buf_num;
+	}
 
 	config |= (vd_index << 11);
 	config |= 0x10000;
@@ -1308,7 +1329,7 @@ static int dmabuf_manage_secure_v2_init(struct secure_pool_info *pool, u32 flags
 		goto error;
 	}
 
-	res = dmabuf_manage_tee_pack_u32(shm_data, 0, &in_len);
+	res = dmabuf_manage_tee_pack_u32(shm_data, allocsize, &in_len);
 	if (res) {
 		pr_error("%s pass tee parameter failed\n", __func__);
 		res = -EFAULT;
@@ -1377,6 +1398,8 @@ static int dmabuf_manage_secure_v3_init(struct secure_pool_info *pool, u32 flags
 	char *shm_data = NULL;
 	struct tee_param param[TEE_CMD_PARAM_NUM] = { 0 };
 	struct tee_ioctl_invoke_arg inv_arg = { 0 };
+	u32 allocsize = 0;
+	u32 buf_num = 0;
 
 	if (!pool || !g_secmem_context)
 		return -1;
@@ -1391,8 +1414,18 @@ static int dmabuf_manage_secure_v3_init(struct secure_pool_info *pool, u32 flags
 	if ((decoder_flag & 0x8) == 0x8)
 		config |= 0x2;
 
-	if (tvp_flag == 0x2)
+	if (tvp_flag == 0x2) {
 		config |= 0x100;
+	} else if (tvp_flag == 0x4) {
+		if (secure_buf_num_of_channel == 0)
+			buf_num = DEFAULT_SECURE_BUFFER_NUM_OF_CHANNEL;
+		else
+			buf_num = secure_buf_num_of_channel;
+
+		config |= (1 << 28);
+		config |= (1 << 8);
+		allocsize = pool->block_size * buf_num;
+	}
 
 	config |= (vd_index << 11);
 	config |= 0x10000;
@@ -1432,7 +1465,7 @@ static int dmabuf_manage_secure_v3_init(struct secure_pool_info *pool, u32 flags
 		goto error;
 	}
 
-	res = dmabuf_manage_tee_pack_u64(shm_data, 0, &in_len);
+	res = dmabuf_manage_tee_pack_u64(shm_data, allocsize, &in_len);
 	if (res) {
 		pr_error("%s pass tee parameter failed\n", __func__);
 		res = -EFAULT;
@@ -1519,6 +1552,9 @@ static int dmabuf_manage_secmem_pool_init(u32 id_high, u32 id_low, u32 block_siz
 		tvp_set = 2;
 	}
 
+	if (version >= SECURE_HEAP_STAND_POOL_VERSION)
+		tvp_set = 4;
+
 	if (!g_secmem_context) {
 		g_secmem_context = tee_client_open_context(NULL,
 			dmabuf_manage_secmem_ctx_match, NULL, NULL);
@@ -1549,12 +1585,14 @@ static int dmabuf_manage_secmem_pool_init(u32 id_high, u32 id_low, u32 block_siz
 		goto error_alloc_shm;
 	}
 
-	if (version > SECURE_HEAP_USER_TA_VERSION)
+	if (force_secmem_v3 == 1) {
 		res = dmabuf_manage_secure_v3_init(pool,
 			tvp_set | (codec_flags << 4) | (vd_index << 9));
-	else
+	} else {
 		res = dmabuf_manage_secure_v2_init(pool,
 			tvp_set | (codec_flags << 4) | (vd_index << 9));
+	}
+
 	if (res) {
 		pr_error("%s secure v2 init failed\n", __func__);
 		goto error_open_session;
@@ -1593,7 +1631,7 @@ static void dmabuf_manage_destroy_secmem_pool(struct secure_pool_info *pool)
 				return;
 			}
 
-			if (pool->version > SECURE_HEAP_USER_TA_VERSION)
+			if (force_secmem_v3 == 1)
 				tee_command = TA_SECMEM_V3_CMD_CLOSE;
 
 			res = dmabuf_manage_tee_pack_u32(shm_data, tee_command, &in_len);
@@ -1786,12 +1824,15 @@ static void dmabuf_manage_dump_secure_pool(struct secure_pool_info *pool)
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 size, u64 *handle)
+static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 size, u64 *handle,
+	u64 *paddr, u32 *allocsize)
 {
 	int res = 0;
 	u32 in_len = 0;
 	u32 out_off = 0;
 	char *shm_data = NULL;
+	u32 handle_32 = 0;
+	u32 paddr_32 = 0;
 	struct tee_param param[TEE_CMD_PARAM_NUM] = { 0 };
 	struct tee_ioctl_invoke_arg inv_arg = { 0 };
 	u32 tee_command = TA_SECMEM_V2_CMD_MEM_CREATE;
@@ -1809,14 +1850,31 @@ static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 s
 		goto error;
 	}
 
-	if (pool->version > SECURE_HEAP_USER_TA_VERSION)
-		tee_command = TA_SECMEM_V3_CMD_MEM_CREATE;
+	if (force_secmem_v3 == 1) {
+		if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION)
+			tee_command = TA_SECMEM_V3_CMD_MEM_CREATE_AND_ALLOC;
+		else
+			tee_command = TA_SECMEM_V3_CMD_MEM_CREATE;
+	} else {
+		if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION)
+			tee_command = TA_SECMEM_V2_CMD_MEM_CREATE_AND_ALLOC;
+	}
 
 	res = dmabuf_manage_tee_pack_u32(shm_data, tee_command, &in_len);
 	if (res) {
 		pr_error("%s pass tee parameter failed\n", __func__);
 		res = -EFAULT;
 		goto error;
+	}
+
+	if (tee_command == TA_SECMEM_V2_CMD_MEM_CREATE_AND_ALLOC ||
+		tee_command == TA_SECMEM_V3_CMD_MEM_CREATE_AND_ALLOC) {
+		res = dmabuf_manage_tee_pack_u32(shm_data, size, &in_len);
+		if (res) {
+			pr_error("%s pass tee parameter failed\n", __func__);
+			res = -EFAULT;
+			goto error;
+		}
 	}
 
 	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT;
@@ -1849,13 +1907,58 @@ static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 s
 		goto error;
 	}
 
-	if (pool->version > SECURE_HEAP_USER_TA_VERSION)
-		res = dmabuf_manage_tee_unpack_u64(shm_data, handle, &out_off);
-	else
-		res = dmabuf_manage_tee_unpack_u32(shm_data, (u32 *)handle, &out_off);
+	if (force_secmem_v3 == 1) {
+		if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION) {
+			res = dmabuf_manage_tee_unpack_u64(shm_data, handle, &out_off);
+			if (!res) {
+				res = dmabuf_manage_tee_unpack_u64(shm_data, paddr, &out_off);
+				if (!res)
+					res = dmabuf_manage_tee_unpack_u32(shm_data, allocsize,
+						&out_off);
+			}
+		} else {
+			res = dmabuf_manage_tee_unpack_u64(shm_data, handle, &out_off);
+		}
+	} else {
+		if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION) {
+			res = dmabuf_manage_tee_unpack_u32(shm_data,
+				&handle_32, &out_off);
+			if (!res) {
+				res = dmabuf_manage_tee_unpack_u32(shm_data, &paddr_32, &out_off);
+				if (!res) {
+					res = dmabuf_manage_tee_unpack_u32(shm_data, allocsize,
+						&out_off);
+					if (!res) {
+						*handle = handle_32;
+						*paddr = paddr_32;
+					}
+				}
+			}
+		} else {
+			res = dmabuf_manage_tee_unpack_u32(shm_data, (u32 *)handle, &out_off);
+		}
+	}
 
 error:
 	return res;
+}
+
+static u64 dmabuf_manage_handle2addr(struct secure_pool_info *pool, u64 handle)
+{
+	struct block_node *block = NULL;
+	struct list_head *pos = NULL, *tmp = NULL;
+
+	if (pool) {
+		if (!list_empty(&pool->block_node)) {
+			list_for_each_safe(pos, tmp, &pool->block_node) {
+				block = list_entry(pos, struct block_node, node);
+				if (block && block->addr == handle)
+					return block->addr;
+			}
+		}
+	}
+
+	return 0;
 }
 
 static int dmabuf_manage_secmem_block_free(struct secure_pool_info *pool, u64 handle)
@@ -1880,7 +1983,16 @@ static int dmabuf_manage_secmem_block_free(struct secure_pool_info *pool, u64 ha
 		goto error;
 	}
 
-	if (pool->version > SECURE_HEAP_USER_TA_VERSION)
+	if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION) {
+		handle = dmabuf_manage_handle2addr(pool, handle);
+		if (!handle) {
+			pr_error("%s pass tee parameter failed\n", __func__);
+			res = -EFAULT;
+			goto error;
+		}
+	}
+
+	if (force_secmem_v3 == 1)
 		tee_command = TA_SECMEM_V3_CMD_MEM_FREE;
 
 	res = dmabuf_manage_tee_pack_u32(shm_data, tee_command, &in_len);
@@ -1890,7 +2002,7 @@ static int dmabuf_manage_secmem_block_free(struct secure_pool_info *pool, u64 ha
 		goto error;
 	}
 
-	if (pool->version > SECURE_HEAP_USER_TA_VERSION)
+	if (force_secmem_v3 == 1)
 		res = dmabuf_manage_tee_pack_u64(shm_data, handle, &in_len);
 	else
 		res = dmabuf_manage_tee_pack_u32(shm_data, (u32)handle, &in_len);
@@ -1960,25 +2072,34 @@ u64 dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
 	u32 version)
 {
 	struct secure_pool_info *pool = NULL;
+	u64 res = 0;
 	u64 addr = 0;
+	u64 phyaddr = 0;
+	u32 allocsize = 0;
 	struct block_node *block = NULL;
 
 	mutex_lock(&g_secure_pool_mutex);
 	pool = dmabuf_manage_get_secure_vdec_pool(id_high, id_low);
 	if (pool) {
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-		dmabuf_manage_secmem_block_alloc(pool, size, &addr);
+		res = dmabuf_manage_secmem_block_alloc(pool, size, &addr, &phyaddr, &allocsize);
+		if (res)
+			return 0;
 #endif
-
 		if (addr) {
 			block = kzalloc(sizeof(*block), GFP_KERNEL);
 			if (block) {
 				block->addr = addr;
 				block->size = size;
+				block->phyaddr = phyaddr;
 				list_add_tail(&block->node, &pool->block_node);
 			} else {
 				pr_error("No Memory for secure block\n");
 			}
+
+			if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION)
+				addr = phyaddr;
+
 		} else {
 			dmabuf_manage_dump_secure_pool(pool);
 		}
@@ -2033,11 +2154,15 @@ static u32 dmabuf_manage_secure_negotiated_version(void)
 	u32 version = SECURE_HEAP_USER_TA_VERSION;
 	u64 addr = codec_mm_secure_vdec_max_addr();
 
-	if (dmabuf_manage_version >= AML_DMA_BUF_MANAGER_VERSION)
+	if (dmabuf_manage_version >= AML_DMA_BUF_MANAGER_VERSION) {
+		force_secmem_v3 = 1;
 		return SECURE_HEAP_USER_TA_VERSION_EXTEND;
+	}
 
-	if (addr & 0xFFFFFFFF00000000UL)
+	if (addr & 0xFFFFFFFF00000000UL) {
+		force_secmem_v3 = 1;
 		return SECURE_HEAP_USER_TA_VERSION_EXTEND;
+	}
 
 	return version;
 }
@@ -2058,7 +2183,12 @@ static u32 dmabuf_manage_negotiated_version(void)
 
 int dmabuf_manage_get_secure_heap_version(void)
 {
-	return dmabuf_manage_secure_negotiated_version();
+	int version = dmabuf_manage_secure_negotiated_version();
+
+	if (secure_stand_heap_version >= SECURE_HEAP_STAND_POOL_VERSION)
+		return secure_stand_heap_version;
+
+	return version;
 }
 
 static int dmabuf_manage_open(struct inode *inodep, struct file *filep)
@@ -2226,7 +2356,10 @@ static ssize_t dmabuf_manage_config_store(const struct class *class,
 
 static struct mconfig dmabuf_manage_configs[] = {
 	MC_PI32("secure_vdec_config", &secure_vdec_config),
-	MC_PI32("dmabuf_manage_version", &dmabuf_manage_version)
+	MC_PI32("dmabuf_manage_version", &dmabuf_manage_version),
+	MC_PI32("secure_stand_heap_version", &secure_stand_heap_version),
+	MC_PI32("secure_buf_num_of_channel", &secure_buf_num_of_channel),
+	MC_PI32("force_secmem_v3", &force_secmem_v3)
 };
 
 static CLASS_ATTR_RO(dmabuf_manage_dump);

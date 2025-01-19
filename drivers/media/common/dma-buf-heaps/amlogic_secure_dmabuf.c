@@ -123,7 +123,8 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 		goto out_unlock;
 
 	block = buffer->block;
-	if (block->version >= SECURE_HEAP_USER_TA_VERSION) {
+	if (block->version >= SECURE_HEAP_USER_TA_VERSION &&
+		block->version < SECURE_HEAP_STAND_POOL_VERSION) {
 		switch (block->state) {
 		case AML_SECURE_DMABUF_HEAP_SETTING_PHYADDR:
 			if (block->version > SECURE_HEAP_USER_TA_VERSION) {
@@ -193,14 +194,19 @@ static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 	mutex_lock(&buffer->lock);
 	block = buffer->block;
 	if (block) {
-		if (block->version > SECURE_HEAP_USER_TA_VERSION)
+		if (block->version > SECURE_HEAP_USER_TA_VERSION) {
 			handle = block->handle_extend;
-		else
+			if (handle == 0)
+				handle = block->handle;
+		} else {
 			handle = block->handle;
+		}
 
-		if (dmabuf_manage_secure_block_free(block->id_high, block->id_low,
-			handle, block->size, block->version))
-			pr_error("Secure vdec block free error please fix it");
+		if (handle > 0) {
+			if (dmabuf_manage_secure_block_free(block->id_high, block->id_low,
+				handle, block->size, block->version))
+				pr_error("Secure vdec block free error please fix it");
+		}
 	}
 	sg_free_table(&buffer->sg_table);
 	if (buffer->block_page)
@@ -236,6 +242,7 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct dma_buf *dmabuf = NULL;
 	struct sg_table *table = NULL;
+	u64 alloc_paddr = 0;
 	int ret = -ENOMEM;
 
 	pr_dbg("<%s %d> thread (%s, %d %d) len %d\n", __func__, __LINE__,
@@ -267,16 +274,35 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 		block->version))
 		goto free_tables;
 
+	alloc_paddr = dmabuf_manage_secure_block_alloc(block->id_high, block->id_low,
+		len, block->version);
+	if (!alloc_paddr)
+		goto free_tables;
+
 	if (block->version > SECURE_HEAP_USER_TA_VERSION) {
-		block->handle_extend = dmabuf_manage_secure_block_alloc(block->id_high,
-			block->id_low, len, block->version);
-		if (!block->handle_extend)
-			goto free_tables;
+		if (alloc_paddr >= 0xFFFFFFFF)
+			block->handle_extend = alloc_paddr;
+		else
+			block->handle = (u32)alloc_paddr;
 	} else {
-		block->handle = (u32)dmabuf_manage_secure_block_alloc(block->id_high,
-			block->id_low, len, block->version);
-		if (!block->handle)
-			goto free_tables;
+		block->handle = (u32)alloc_paddr;
+	}
+
+	if (block->version >= SECURE_HEAP_STAND_POOL_VERSION) {
+		if (alloc_paddr >= 0xFFFFFFFF)
+			block->paddr_extend = block->handle_extend;
+		else
+			block->paddr = block->handle;
+		block->psize = len;
+		sg_set_page(buffer->sg_table.sgl,
+			pfn_to_page(PFN_DOWN(alloc_paddr)),
+			PAGE_ALIGN(block->psize), 0);
+		buffer->sg_table.sgl->dma_address = alloc_paddr;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		buffer->sg_table.sgl->dma_length = PAGE_ALIGN(block->psize);
+#else
+		buffer->sg_table.sgl->length = PAGE_ALIGN(block->psize);
+#endif
 	}
 
 	block->size = len;
