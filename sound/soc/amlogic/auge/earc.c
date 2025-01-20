@@ -1883,36 +1883,6 @@ static int earcrx_arc_get_stable(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int earcrx_arc_get_enable(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct earc *p_earc = dev_get_drvdata(component->dev);
-	enum attend_type type;
-
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
-		return 0;
-	type = earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map);
-	ucontrol->value.integer.value[0] = (bool)(type == ATNDTYP_ARC);
-
-	return 0;
-}
-
-static int earcrx_arc_set_enable(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct earc *p_earc = dev_get_drvdata(component->dev);
-
-	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
-		return 0;
-
-	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map,
-		(bool)ucontrol->value.integer.value[0]);
-
-	return 0;
-}
-
 static int earctx_get_attend_type(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
@@ -2901,11 +2871,6 @@ static const struct snd_kcontrol_new earc_tx_controls[] = {
 };
 
 static const struct snd_kcontrol_new earc_rx_controls[] = {
-	SOC_SINGLE_BOOL_EXT("eARC RX ARC Switch",
-			    0,
-			    earcrx_arc_get_enable,
-			    earcrx_arc_set_enable),
-
 	SOC_ENUM_EXT("eARC_RX attended type",
 		     attended_type_enum,
 		     earcrx_get_attend_type,
