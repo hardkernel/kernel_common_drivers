@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/mutex.h>
 #include <linux/kdebug.h>
 #include <linux/compat.h>
 #include <linux/delay.h>
@@ -34,6 +35,7 @@
 #include "host_report.h"
 
 #define SUSPEND_CLK_FREQ 24000000
+static DEFINE_MUTEX(host_lock);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -204,13 +206,6 @@ static unsigned long host_psci_smc(struct host_module *host, unsigned int smc_su
 		arg[2] = addr;
 		arg[3] = host->phys_sram_addr;
 		arg[4] = 2;
-		break;
-	case SMC_SUBID_HIFI_DSP_PWRCTRL:
-		arg[0] = SMC_HIFI_DSP_CMD;
-		arg[1] = id;
-		arg[2] = host->host_dsp->pwrctrl_access_en;
-		arg[3] = 0;
-		arg[4] = 0;
 		break;
 	case SMC_SUBID_MFH_V1_BOOT:
 		arg[0] = SMC_M4_CMD;
@@ -412,17 +407,21 @@ static int __maybe_unused host_runtime_suspend(struct device *dev)
 
 	if (strstr(host->misc->name, "mfh"))
 		host_psci_smc(host, SMC_SUBID_MFH_V2_RESET);
-
-	if (!host->hang) {
-		aml_mbox_transfer_data(host->mbox_chan_to_dev,
-				       MBOX_CMD_HIFI4STOP,
-				       message,
-				       sizeof(message),
-				       NULL,
-				       0,
-				       MBOX_SYNC);
-		msleep(50);
+	else if (strstr(host->misc->name, "hifi4dsp")) {
+		if (!host->hang) {
+			aml_mbox_transfer_data(host->mbox_chan_to_dev,
+					       MBOX_CMD_HIFI4STOP,
+					       message,
+					       sizeof(message),
+					       NULL,
+					       0,
+					       MBOX_SYNC);
+			msleep(50);
+		}
+	} else {
+		return 0;
 	}
+
 	clk_disable_unprepare(host->clk);
 	host_health_monitor_stop(host);
 	host_logbuff_stop(host);
@@ -472,6 +471,7 @@ static void host_early_suspend(struct early_suspend *h)
 {
 	struct host_module *host = h->param;
 	char message[30];
+	unsigned long clk_rate;
 
 	if (pm_runtime_suspended(host->dev))
 		return;
@@ -486,6 +486,18 @@ static void host_early_suspend(struct early_suspend *h)
 				       message,
 				       sizeof(message),
 				       MBOX_SYNC);
+
+		if (!IS_ERR_OR_NULL(host->host_dsp->clk_hifi))
+			clk_rate = clk_get_rate(host->host_dsp->clk_hifi) / 2;
+		else
+			clk_rate = SUSPEND_CLK_FREQ;
+
+		if (clk_set_rate(host->clk, clk_rate) == 0) {
+			pr_info("early suspend: switch dsp clk to %ld Hz\n", clk_rate);
+		} else {
+			pr_info("early suspend: switch dsp clk to 24 MHz\n");
+			clk_set_rate(host->clk, SUSPEND_CLK_FREQ);
+		}
 	}
 }
 
@@ -498,6 +510,9 @@ static void host_late_resume(struct early_suspend *h)
 		return;
 
 	if (pm_runtime_active(host->dev) && host->host_dsp->pm_support_suspend) {
+		if (clk_set_rate(host->clk, (unsigned long)host->clk_rate * 1000) == 0)
+			pr_info("late resume: switch dsp clk to %d Hz\n", host->clk_rate * 1000);
+
 		pr_debug("late resume: AP send resume cmd to dsp...\n");
 		strncpy(message, "HIFI_LATE_RESUME_WITH_FFV", sizeof(message));
 		aml_mbox_transfer_data(host->mbox_chan_to_dev,
@@ -528,10 +543,8 @@ static int host_suspend(struct device *dev)
 		return 0;
 
 	if (pm_runtime_active(dev) && host->host_dsp->pm_support_suspend) {
-		if (host->host_dsp->pm_support_pwrctrl) {
-			host->host_dsp->pwrctrl_access_en = 1;
-			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
-		}
+		if (host->host_dsp->pm_support_ffv)
+			return 0;
 
 		pr_debug("AP send suspend cmd to dsp...\n");
 		strncpy(message, "HIFI_DEEP_SLEEP", sizeof(message));
@@ -543,13 +556,10 @@ static int host_suspend(struct device *dev)
 				       sizeof(message),
 				       MBOX_SYNC);
 
-		if (!host->host_dsp->pm_support_ffv) {
-			/*clk = 24 M*/
-			clk_set_rate(host->clk, SUSPEND_CLK_FREQ);
-		}
-	} else if (!host->host_dsp->pm_support_always_on) {
+		/*clk = 24 M*/
+		clk_set_rate(host->clk, SUSPEND_CLK_FREQ);
+	} else if (!host->host_dsp->pm_support_always_on)
 		clk_disable_unprepare(host->clk);
-	}
 
 	return 0;
 }
@@ -563,17 +573,19 @@ static int host_resume(struct device *dev)
 		return 0;
 
 	if (pm_runtime_active(dev) && host->host_dsp->pm_support_suspend) {
-		pr_debug("AP send resume cmd to dsp...\n");
 		if (host->host_dsp->pm_support_ffv) {
 			if (get_resume_method() == VAD_WAKEUP) {
 				pr_info("input event: vad wakeup in deep sleep\n");
 				host_dsp_vad_report(host);
 			}
-		} else {
-			/*clk = Max M*/
-			clk_set_rate(host->clk, (unsigned long)host->clk_rate * 1000);
+
+			return 0;
 		}
 
+		/*clk = Max M*/
+		clk_set_rate(host->clk, (unsigned long)host->clk_rate * 1000);
+
+		pr_debug("AP send resume cmd to dsp...\n");
 		strncpy(message, "HIFI_RESUME", sizeof(message));
 		aml_mbox_transfer_data(host->mbox_chan_to_dev,
 				       MBOX_CMD_HIFI4RESUME,
@@ -582,14 +594,8 @@ static int host_resume(struct device *dev)
 				       message,
 				       sizeof(message),
 				       MBOX_SYNC);
-
-		if (host->host_dsp->pm_support_pwrctrl) {
-			host->host_dsp->pwrctrl_access_en = 0;
-			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
-		}
-	} else if (!host->host_dsp->pm_support_always_on) {
+	} else if (!host->host_dsp->pm_support_always_on)
 		clk_prepare_enable(host->clk);
-	}
 
 	return 0;
 }
@@ -617,10 +623,12 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 	void __user *argp;
 	int ret = 0;
 
+	mutex_lock(&host_lock);
 	if (!fp->private_data) {
 		pr_debug("%s error:fp->private_data is null", __func__);
 		ret = -1;
-		goto err;
+		mutex_unlock(&host_lock);
+		return ret;
 	}
 	argp = (void __user *)arg;
 	host = fp->private_data;
@@ -640,7 +648,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_LOAD is error", __func__);
 			goto err;
 		}
@@ -654,7 +661,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_2LOAD is error", __func__);
 			goto err;
 		}
@@ -670,7 +676,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_START is error", __func__);
 			goto err;
 		}
@@ -682,7 +687,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_STOP is error", __func__);
 			goto err;
 		}
@@ -694,7 +698,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user(host->host_dsp->usrinfo, argp,
 				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_GET_INFO copy_from_user is error", __func__);
 			goto err;
 		}
@@ -705,7 +708,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_to_user(argp, host->host_dsp->usrinfo,
 				   sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_GET_INFO copy_to_user is error", __func__);
 			goto err;
 		}
@@ -723,7 +725,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 					host->host_dsp->shminfo.size > ((host->phys_ddr_addr +
 					host->phys_ddr_size) - host->phys_shm_size -
 							host->host_dsp->shminfo.addr)) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HIFI4DSP_SHM_CLEAN is error", __func__);
 			goto err;
 		}
@@ -743,7 +744,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 					host->host_dsp->shminfo.size > ((host->phys_ddr_addr +
 					host->phys_ddr_size) - host->phys_shm_size -
 							host->host_dsp->shminfo.addr)) {
-			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HIFI4DSP_SHM_INV is error", __func__);
 			goto err;
 		}
@@ -756,7 +756,7 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		ret = copy_from_user((void *)&host->host_mfh->mfh_info,
 				     argp, sizeof(host->host_mfh->mfh_info));
 		if (ret < 0)
-			return ret;
+			goto err;
 		host->host_mfh->mfh_info.name[29] = '\0';
 		strcpy(host->fname0, host->host_mfh->mfh_info.name);
 		host_runtime_resume(dev);
@@ -765,11 +765,13 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_err("%s ioctl CMD error\n", __func__);
 	break;
 	}
+err:
 	if (strstr(host->host_data->name, "dsp")) {
 		kfree(host->host_dsp->usrinfo);
 		host->host_dsp->usrinfo = NULL;
 	}
-err:
+	mutex_unlock(&host_lock);
+
 	return ret;
 }
 
@@ -1045,14 +1047,22 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 							host->phys_sram_size);
 	}
 
-	if (!of_property_read_string(dev->of_node, "clock-names", &clk_name)) {
+	if (of_property_read_u8(dev->of_node, "pm-support", &host->pm_support))
+		dev_err(dev, "Not find pm-support\n");
+
+	if (host->pm_support) {
+		host->host_dsp->pm_support_suspend = PM_SUPPORT_DSP_SUSPEND(host->pm_support);
+		host->host_dsp->pm_support_always_on = PM_SUPPORT_DSP_ALWAYS_ON(host->pm_support);
+		host->host_dsp->pm_support_ffv = PM_SUPPORT_DSP_FFV(host->pm_support);
+	}
+
+	if (!of_property_read_string_index(dev->of_node, "clock-names", 0, &clk_name)) {
 		host->clk = devm_clk_get(dev, clk_name);
 		if (IS_ERR_OR_NULL(host->clk)) {
 			dev_err(dev, "can't get clk\n");
 			goto err;
 		} else {
-			ret = of_property_read_u32(dev->of_node, "clkfreq-khz",
-						   &host->clk_rate);
+			ret = of_property_read_u32(dev->of_node, "clkfreq-khz", &host->clk_rate);
 			if (ret) {
 				dev_err(&pdev->dev, "of get clkfreq-khz failed\n");
 				goto err;
@@ -1060,14 +1070,11 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 		}
 	}
 
-	if (of_property_read_u8(dev->of_node, "pm-support", &host->pm_support))
-		dev_err(dev, "Not find pm-support\n");
-
-	if (host->pm_support) {
-		host->host_dsp->pm_support_suspend = PM_SUPPORT_DSP_SUSPEND(host->pm_support);
-		host->host_dsp->pm_support_always_on = PM_SUPPORT_DSP_ALWAYS_ON(host->pm_support);
-		host->host_dsp->pm_support_pwrctrl = PM_SUPPORT_DSP_PWRCTRL(host->pm_support);
-		host->host_dsp->pm_support_ffv = PM_SUPPORT_DSP_FFV(host->pm_support);
+	if (host->host_dsp->pm_support_ffv &&
+	    !of_property_read_string_index(dev->of_node, "clock-names", 1, &clk_name)) {
+		host->host_dsp->clk_hifi = devm_clk_get(dev, clk_name);
+		if (IS_ERR_OR_NULL(host->host_dsp->clk_hifi))
+			dev_warn(dev, "can't get clk_hifi\n");
 	}
 
 	/* mbox channel request */
@@ -1183,6 +1190,11 @@ static int host_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static void host_shutdown(struct platform_device *pdev)
+{
+	pm_runtime_force_suspend(&pdev->dev);
+}
+
 static struct platform_driver host_platform_driver = {
 	.driver = {
 		.name  = "amlogic_host",
@@ -1192,6 +1204,7 @@ static struct platform_driver host_platform_driver = {
 	},
 	.probe  = host_platform_probe,
 	.remove = host_platform_remove,
+	.shutdown = host_shutdown,
 };
 module_platform_driver(host_platform_driver);
 
