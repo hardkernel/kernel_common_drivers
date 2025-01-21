@@ -183,19 +183,15 @@ void codec_mm_get_default_tvp_size(int *tvp_fhd, int *tvp_uhd);
 void codec_mm_memset(ulong phys, u32 val, u32 size);
 int codec_mm_alloc_cma_size(void);
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
-	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
-	IS_ENABLED(CONFIG_CODEC_NEED_TODO)
+	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
 int cma_mmu_op(struct page *page, int count, bool set);
-void codec_mm_dev_set_dma_mask(u64 bits);
-
 #else
 static inline int cma_mmu_op(struct page *page, int count, bool set)
 {
 	return 0;
 }
 #endif
-
+void codec_mm_dev_set_dma_mask(u64 bits);
 u64 codec_mm_managed_max_addr(void);
 u64 codec_mm_secure_vdec_max_addr(void);
 int is_reserved_ext_support(void);

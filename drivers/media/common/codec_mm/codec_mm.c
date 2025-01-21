@@ -94,139 +94,6 @@ u32 tee_sectbl_mem_map(phys_addr_t tbl0_sta, size_t tbl0_size, u32 tbl0_blk_size
 }
 #endif
 
-#if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
-	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
-	IS_ENABLED(CONFIG_CODEC_NEED_TODO)
-/* aml_media is ko can't use cma_mmu_op() func */
-void (*aml_mte_sync_tags)(pte_t old_pte, pte_t pte);
-
-struct mm_struct *aml_init_mm;
-
-struct device *codec_dev;
-
-#ifdef CONFIG_ARM64
-static void aml_set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pte)
-{
-	/*
-	 * if (pte_present(pte) && pte_user_exec(pte) && !pte_special(pte))
-	 *	__sync_icache_dcache(pte);
-	 */
-
-	/*
-	 * If the PTE would provide user space access to the tags associated
-	 * with it then ensure that the MTE tags are synchronised.  Although
-	 * pte_access_permitted() returns false for exec only mappings, they
-	 * don't expose tags (instruction fetches don't check tags).
-	 */
-	if (system_supports_mte() && pte_access_permitted(pte, false) &&
-	    !pte_special(pte)) {
-		pte_t old_pte = READ_ONCE(*ptep);
-		/*
-		 * We only need to synchronise if the new PTE has tags enabled
-		 * or if swapping in (in which case another mapping may have
-		 * set tags in the past even if this PTE isn't tagged).
-		 * (!pte_none() && !pte_present()) is an open coded version of
-		 * is_swap_pte()
-		 */
-		if (pte_tagged(pte) || (!pte_none(old_pte) && !pte_present(old_pte)))
-			aml_mte_sync_tags(old_pte, pte);
-	}
-
-	__check_racy_pte_update(mm, ptep, pte);
-
-	set_pte(ptep, pte);
-}
-
-static bool is_cma_page(struct page *page)
-{
-	int migrate_type = 0;
-
-	if (!page)
-		return false;
-	migrate_type = get_pageblock_migratetype(page);
-	if (is_migrate_cma(migrate_type) ||
-	    is_migrate_isolate(migrate_type)) {
-		return true;
-	}
-	return false;
-}
-
-int cma_mmu_op(struct page *page, int count, bool set)
-{
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	unsigned long addr, end;
-	struct mm_struct *mm;
-	struct cma *cma;
-
-	if (!page || PageHighMem(page))
-		return -EINVAL;
-
-	/* TODO: owner must make sure this cma pool have called
-	 * setup_cma_full_pagemap before call this function
-	 */
-	if (!is_cma_page(page)) {
-		pr_debug("%s, page:%lx is not cma or no clear-map, cma:%px\n",
-			 __func__, page_to_pfn(page), cma);
-		return -EINVAL;
-	}
-
-	if (!aml_init_mm || !aml_mte_sync_tags) {
-		pr_err("%s, no cma mmu operation.\n", __func__);
-		return -EINVAL;
-	}
-
-	addr = (unsigned long)page_address(page);
-	end  = addr + count * PAGE_SIZE;
-	mm = aml_init_mm;
-	for (; addr < end; addr += PAGE_SIZE) {
-		pgd = pgd_offset(mm, addr);
-		if (pgd_none(*pgd) || pgd_bad(*pgd))
-			break;
-
-		p4d = p4d_offset(pgd, addr);
-		if (p4d_none(*p4d) || p4d_bad(*p4d))
-			break;
-
-		pud = pud_offset(p4d, addr);
-		if (pud_none(*pud) || pud_bad(*pud))
-			break;
-
-		pmd = pmd_offset(pud, addr);
-		if (pmd_none(*pmd))
-			break;
-
-		pte = pte_offset_map(pmd, addr);
-		if (set)
-			aml_set_pte_at(mm, addr, pte, mk_pte(page, pgprot_tagged(PAGE_KERNEL)));
-		else
-			pte_clear(mm, addr, pte);
-		pte_unmap(pte);
-	#ifdef CONFIG_ARM
-		pr_debug("%s, add:%lx, pgd:%p %x, pmd:%p %x, pte:%p %x\n",
-			 __func__, addr, pgd, (int)pgd_val(*pgd),
-			 pmd, (int)pmd_val(*pmd), pte, (int)pte_val(*pte));
-	#elif defined(CONFIG_ARM64)
-		pr_debug("%s, add:%lx, pgd:%p %llx, pmd:%p %llx, pte:%p %llx\n",
-			 __func__, addr, pgd, pgd_val(*pgd),
-			 pmd, pmd_val(*pmd), pte, pte_val(*pte));
-	#endif
-		page++;
-	}
-	return 0;
-}
-#else
-int cma_mmu_op(struct page *page, int count, bool set)
-{
-	return 0;
-}
-#endif
-#endif
 #include <linux/amlogic/cpu_version.h>
 
 static bool secure_mem_ctrl;
@@ -4283,11 +4150,55 @@ int codec_mm_cs_show(struct seq_file *m, struct codec_state_node *cs)
 
 CODEC_STATE_RO(codec_mm);
 
+/* aml_media is ko can't use cma_mmu_op() func */
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
-	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
-	IS_ENABLED(CONFIG_CODEC_NEED_TODO)
+	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
 #ifdef CONFIG_ARM64
+#include <linux/proc_fs.h>
+
+//static struct mm_struct *init_mm_t;
+struct mm_struct *aml_init_mm;
+void (*aml_mte_sync_tags)(pte_t old_pte, pte_t pte);
+pte_t * (*aml__pte_offset_map)(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
+
+static void *get_symbol_addr(const char *symbol_name)
+{
+	struct kprobe kp = {
+		.symbol_name = symbol_name,
+	};
+	int ret;
+
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
+		pr_err("register_kprobe:%s failed, returned %d\n", symbol_name, ret);
+		return NULL;
+	}
+	pr_debug("symbol_name:%s addr=%px\n", symbol_name, kp.addr);
+	unregister_kprobe(&kp);
+
+	return kp.addr;
+}
+
+static struct mm_struct *get_faked_init_mm(void)
+{
+	static pgd_t *faked_pgd;
+
+	unsigned long long ttbr1_el1;
+	unsigned long long swapper_pg_dir_pa;
+
+	if (faked_pgd)
+		return container_of(&faked_pgd, struct mm_struct, pgd);
+
+	ttbr1_el1 = read_sysreg(ttbr1_el1);
+	swapper_pg_dir_pa = ttbr1_el1 & 0xfffffffff000ULL;
+	faked_pgd = phys_to_virt(swapper_pg_dir_pa);
+
+	pr_info("ttbr1=%llx faked_init_mm=%px\n", ttbr1_el1,
+		container_of(&faked_pgd, struct mm_struct, pgd));
+
+	return container_of(&faked_pgd, struct mm_struct, pgd);
+}
+
 static int tvp_clear_cma_pagemap(unsigned long pfn, unsigned long count)
 {
 	pgd_t *pgd;
@@ -4325,6 +4236,173 @@ static int tvp_clear_cma_pagemap(unsigned long pfn, unsigned long count)
 
 	return 0;
 }
+
+static void aml_set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep, pte_t pte)
+{
+	/*
+	 * if (pte_present(pte) && pte_user_exec(pte) && !pte_special(pte))
+	 *	__sync_icache_dcache(pte);
+	 */
+
+	/*
+	 * If the PTE would provide user space access to the tags associated
+	 * with it then ensure that the MTE tags are synchronised.  Although
+	 * pte_access_permitted() returns false for exec only mappings, they
+	 * don't expose tags (instruction fetches don't check tags).
+	 */
+	if (system_supports_mte() && pte_access_permitted(pte, false) &&
+	    !pte_special(pte)) {
+		pte_t old_pte = READ_ONCE(*ptep);
+		/*
+		 * We only need to synchronise if the new PTE has tags enabled
+		 * or if swapping in (in which case another mapping may have
+		 * set tags in the past even if this PTE isn't tagged).
+		 * (!pte_none() && !pte_present()) is an open coded version of
+		 * is_swap_pte()
+		 */
+		if (pte_tagged(pte) || (!pte_none(old_pte) && !pte_present(old_pte)))
+			aml_mte_sync_tags(old_pte, pte);
+	}
+
+	__check_safe_pte_update(mm, ptep, pte);
+
+	set_pte(ptep, pte);
+}
+
+/* Return a pointer to the bitmap storing bits affecting a block of pages */
+static inline unsigned long *get_pageblock_bitmap(const struct page *page,
+							unsigned long pfn)
+{
+#ifdef CONFIG_SPARSEMEM
+	return section_to_usemap(__pfn_to_section(pfn));
+#else
+	return page_zone(page)->pageblock_flags;
+#endif /* CONFIG_SPARSEMEM */
+}
+
+static inline unsigned long pfn_to_bitidx(const struct page *page, unsigned long pfn)
+{
+#ifdef CONFIG_SPARSEMEM
+	pfn &= (PAGES_PER_SECTION - 1);
+#else
+	pfn = pfn - pageblock_start_pfn(page_zone(page)->zone_start_pfn);
+#endif /* CONFIG_SPARSEMEM */
+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+}
+
+static unsigned long aml_get_pfnblock_flags_mask(const struct page *page,
+					unsigned long pfn, unsigned long mask)
+{
+	unsigned long *bitmap;
+	unsigned long bitidx, word_bitidx;
+	unsigned long word;
+
+	bitmap = get_pageblock_bitmap(page, pfn);
+	bitidx = pfn_to_bitidx(page, pfn);
+	word_bitidx = bitidx / BITS_PER_LONG;
+	bitidx &= (BITS_PER_LONG - 1);
+	/*
+	 * This races, without locks, with set_pfnblock_flags_mask(). Ensure
+	 * a consistent read of the memory array, so that results, even though
+	 * racy, are not corrupted.
+	 */
+	word = READ_ONCE(bitmap[word_bitidx]);
+	return (word >> bitidx) & mask;
+}
+
+static bool is_cma_page(struct page *page)
+{
+	int migrate_type = 0;
+
+	if (!page)
+		return false;
+	migrate_type = aml_get_pfnblock_flags_mask(page, page_to_pfn(page), MIGRATETYPE_MASK);
+	if (is_migrate_cma(migrate_type) ||
+	    is_migrate_isolate(migrate_type)) {
+		return true;
+	}
+	return false;
+}
+
+int cma_mmu_op(struct page *page, int count, bool set)
+{
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long addr, end;
+	struct mm_struct *mm;
+	struct cma *cma;
+
+	if (!page || PageHighMem(page))
+		return -EINVAL;
+
+	/* TODO: owner must make sure this cma pool have called
+	 * setup_cma_full_pagemap before call this function
+	 */
+	if (!is_cma_page(page)) {
+		pr_debug("%s, page:%lx is not cma or no clear-map, cma:%px\n",
+			 __func__, page_to_pfn(page), cma);
+		return -EINVAL;
+	}
+
+	if (!aml_init_mm || !aml_mte_sync_tags || !aml__pte_offset_map) {
+		pr_err("%s, no cma mmu operation. %px-%px-%px\n", __func__,
+				aml_init_mm, aml_mte_sync_tags, aml__pte_offset_map);
+		return -EINVAL;
+	}
+
+	addr = (unsigned long)page_address(page);
+	end  = addr + count * PAGE_SIZE;
+	mm = aml_init_mm;
+	for (; addr < end; addr += PAGE_SIZE) {
+		pgd = pgd_offset(mm, addr);
+		if (pgd_none(*pgd) || pgd_bad(*pgd))
+			break;
+
+		p4d = p4d_offset(pgd, addr);
+		if (p4d_none(*p4d) || p4d_bad(*p4d))
+			break;
+
+		pud = pud_offset(p4d, addr);
+		if (pud_none(*pud) || pud_bad(*pud))
+			break;
+
+		pmd = pmd_offset(pud, addr);
+		if (pmd_none(*pmd))
+			break;
+
+		pte = aml__pte_offset_map(pmd, addr, NULL);
+		if (set)
+			aml_set_pte_at(mm, addr, pte, mk_pte(page, pgprot_tagged(PAGE_KERNEL)));
+		else
+			pte_clear(mm, addr, pte);
+		pte_unmap(pte);
+	#ifdef CONFIG_ARM
+		pr_debug("%s, add:%lx, pgd:%p %x, pmd:%p %x, pte:%p %x\n",
+			 __func__, addr, pgd, (int)pgd_val(*pgd),
+			 pmd, (int)pmd_val(*pmd), pte, (int)pte_val(*pte));
+	#elif defined(CONFIG_ARM64)
+		pr_debug("%s, add:%lx, pgd:%p %llx, pmd:%p %llx, pte:%p %llx\n",
+			 __func__, addr, pgd, pgd_val(*pgd),
+			 pmd, pmd_val(*pmd), pte, pte_val(*pte));
+	#endif
+		page++;
+	}
+	return 0;
+}
+
+#else
+/*
+ * highmem no mapping, so limitting codec_mm_cma
+ * alloc-range to highmem if cpu can random access
+ */
+int cma_mmu_op(struct page *page, int count, bool set)
+{
+	return 0;
+}
 #endif
 
 static int tvp_setup_cma_full_pagemap(unsigned long pfn, unsigned long count)
@@ -4337,6 +4415,11 @@ static int tvp_setup_cma_full_pagemap(unsigned long pfn, unsigned long count)
 	 */
 	return 0;
 #elif defined(CONFIG_ARM64)
+	if (!aml_init_mm) {
+		pr_err("[%s] aml_init_mm NULL!\n", __func__);
+		return -EINVAL;
+	}
+
 	struct vm_area_struct vma = {};
 	unsigned long addr, size;
 	int ret;
@@ -4348,25 +4431,18 @@ static int tvp_setup_cma_full_pagemap(unsigned long pfn, unsigned long count)
 	vma.vm_start = addr;
 	vma.vm_end   = addr + size;
 	vma.vm_page_prot = pgprot_tagged(PAGE_KERNEL);
+	mmap_write_lock(vma.vm_mm);
 	ret = remap_pfn_range(&vma, addr, pfn,
 			      size, vma.vm_page_prot);
 	if (ret < 0)
 		pr_info("%s, remap pte failed:%d, cma:%lx\n",
 			__func__, ret, pfn);
+	mmap_write_unlock(vma.vm_mm);
 	return 0;
 #else
 	#error "NOT supported ARCH"
 #endif
 }
-
-#if defined(CONFIG_ARM64)
-unsigned long (*aml_syms_lookup)(const char *name);
-
-/* For each probe you need to allocate a kprobe structure */
-static struct kprobe kp_lookup_name = {
-	.symbol_name	= "kallsyms_lookup_name",
-};
-#endif
 
 int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 {
@@ -4374,34 +4450,20 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	struct cma *cma = NULL;
 	struct page *page = NULL;
 #if defined(CONFIG_ARM64)
-	struct task_struct *task = NULL;
-	int ret;
-
-	ret = register_kprobe(&kp_lookup_name);
-	if (ret < 0) {
-		pr_err("register_kprobe failed, returned %d\n", ret);
+	aml_init_mm = get_faked_init_mm();
+	aml_mte_sync_tags = (void (*)(pte_t old_pte, pte_t pte))get_symbol_addr("mte_sync_tags");
+	aml__pte_offset_map = (pte_t * (*)(pmd_t *pmd, unsigned long addr,
+			pmd_t *pmdvalp))get_symbol_addr("__pte_offset_map");
+	pr_debug("aml_init_mm:%px, aml_mte_sync_tags:%px, aml__pte_offset_map:%px\n",
+			aml_init_mm, aml_mte_sync_tags, aml__pte_offset_map);
+	if (!aml_init_mm || !aml_mte_sync_tags || !aml__pte_offset_map) {
+		pr_err("[%s]symbol fix failed, %px %px %px\n",
+			__func__, aml_init_mm, aml_mte_sync_tags, aml__pte_offset_map);
 		return -1;
 	}
-	pr_debug("kprobe lookup offset at %px\n", kp_lookup_name.addr);
-
-	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
-
-	aml_init_mm = (struct mm_struct *)aml_syms_lookup("init_mm");
-	if (!aml_init_mm) {
-		rcu_read_lock();
-		for_each_process(task) {
-			if (task->pid == 1) {
-				aml_init_mm = task->active_mm;
-				break;
-			}
-		}
-		rcu_read_unlock();
-	}
-	aml_mte_sync_tags = (void (*)(pte_t old_pte, pte_t pte))aml_syms_lookup("mte_sync_tags");
-	pr_info("aml_init_mm: %px, aml_mte_sync_tags: %px\n", aml_init_mm, aml_mte_sync_tags);
 #endif
 
-	cma = dev_get_cma_area(codec_dev);
+	cma = dev_get_cma_area(get_mem_mgt()->dev);
 	if (!cma) {
 		pr_err("CMA:  NO CMA region\n");
 		return -1;
@@ -4414,8 +4476,7 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 		return -1;
 	}
 	mutex_lock(&lock);
-	if (aml_init_mm)
-		tvp_setup_cma_full_pagemap(cma->base_pfn, cma->count);
+	tvp_setup_cma_full_pagemap(cma->base_pfn, cma->count);
 	/* spin_unlock_irqrestore(&cma->lock, flags); */
 	mutex_unlock(&lock);
 	cma_release(cma, page, cma->count);
@@ -4521,10 +4582,7 @@ u64 codec_mm_secure_vdec_max_addr(void)
 static void prepare_full_pagemap(struct device_node *of_node)
 {
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
-		IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-		!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
-		IS_ENABLED(CONFIG_CODEC_NEED_TODO)
-
+		!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
 	u32 random = 0;
 	int ret;
 
@@ -4566,15 +4624,9 @@ static int codec_mm_probe(struct platform_device *pdev)
 		pr_debug("codec_mm cma memory probed done\n");
 
 	pr_info("%s ok\n", __func__);
-	codec_mm_mgt_init(&pdev->dev);
 	codec_mm_dev_set_dma_mask(DMA_BIT_MASK(64));
 
-#if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
-	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
-	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK) && \
-	IS_ENABLED(CONFIG_CODEC_NEED_TODO)
-	codec_dev = &pdev->dev;
-#endif
+	codec_mm_mgt_init(&pdev->dev);
 	codec_mm_scatter_mgt_init(&pdev->dev);
 	codec_mm_keeper_mgr_init();
 	amstream_test_init();

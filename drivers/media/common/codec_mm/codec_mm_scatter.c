@@ -1312,6 +1312,7 @@ static int multi_task_alloc_pages(struct codec_mm_scatter_mgt *smgt,
 			/*can't alloced memory from ONEPAGE alloc */
 			WAR_LOG("Out of memory OnePage alloc =%d,%ld\n",
 				alloced, nr_pages);
+			mutex_unlock(&alloc_page_array_mutex);
 			break;
 		}
 		mutex_unlock(&alloc_page_array_mutex);
