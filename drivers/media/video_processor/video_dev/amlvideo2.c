@@ -7099,6 +7099,13 @@ static int amlvideo2_vb2ops_queue_setup(struct vb2_queue *vq,
 	if (aml2_dev->use_reserve != 1) {
 		alloc_devs[0] = v4l_get_dev_from_codec_mm();
 		node->mem_form_dev = alloc_devs[0];
+		if (amlvideo2_dbg_en & 0x10)
+			pr_info("%s, alloc mem from codec_mm\n", __func__);
+	} else {
+		alloc_devs[0] = &aml2_dev->pdev->dev;
+		node->mem_form_dev = alloc_devs[0];
+		if (amlvideo2_dbg_en & 0x10)
+			pr_info("%s, alloc mem from CMA mem\n", __func__);
 	}
 	if (amlvideo2_dbg_en & 0x10)
 		pr_info("%s, count=%d, size=%d\n", __func__, *num_buffers, sizes[0]);
@@ -7954,7 +7961,8 @@ static int amlvideo2_driver_probe(struct platform_device *pdev)
 		pr_err("don't find  match cma_mode\n");
 		aml2_dev->cma_mode = 1;
 	}
-
+	if (!aml2_dev->cma_mode)
+		aml2_dev->use_reserve = 1;
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "amlvideo2_id", &aml2_dev->node_id);
 	if (ret)
