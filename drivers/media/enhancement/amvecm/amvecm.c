@@ -6789,8 +6789,10 @@ static ssize_t amvecm_wb_store(struct class *cls,
 			wb_rd_val = video_rgb_ogo_sub.en;
 		}
 	} else {
-		if (kstrtol(parm[1], 10, &value) < 0)
+		if (kstrtol(parm[1], 10, &value) < 0) {
+			kfree(buf_orig);
 			return -EINVAL;
+		}
 		if (!strncmp(parm[0], "wb_en", 5)) {
 			if (!data_path)
 				white_balance_adjust(0, value);
@@ -7655,6 +7657,8 @@ static ssize_t amvecm_color_tune_store(struct class *cla,
 		return count;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return -ENOMEM;
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
 	ret = ct_dbg(parm);
@@ -7686,15 +7690,23 @@ static ssize_t amvecm_dma_buf_store(struct class *cla,
 		return count;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return -ENOMEM;
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
-	if (kstrtoul(parm[0], 10, &tbl_id) < 0)
+	if (kstrtoul(parm[0], 10, &tbl_id) < 0) {
+		kfree(buf_orig);
 		return -EINVAL;
-	if (kstrtoul(parm[1], 16, &value) < 0)
+	}
+	if (kstrtoul(parm[1], 16, &value) < 0) {
+		kfree(buf_orig);
 		return -EINVAL;
+	}
 	if (parm[2]) {
-		if (kstrtoul(parm[2], 16, &table_offset) < 0)
+		if (kstrtoul(parm[2], 16, &table_offset) < 0) {
+			kfree(buf_orig);
 			return -EINVAL;
+		}
 	}
 
 	write_dma_buf((u32)table_offset, (u32)tbl_id, (u32)value);
@@ -7758,6 +7770,8 @@ static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
 		return count;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return -ENOMEM;
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
 	if (!strcmp(parm[0], "blk_adj_en")) {
@@ -7766,7 +7780,7 @@ static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
 			goto for_read;
 		}
 		if (kstrtoul(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto free_buf;
 		ble_whe_param_load.blk_adj_en = (int)val;
 		pr_info("blk_adj_en = %d\n", (int)val);
 	} else if (!strcmp(parm[0], "blk_end")) {
@@ -7775,7 +7789,7 @@ static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
 			goto for_read;
 		}
 		if (kstrtoul(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto free_buf;
 		ble_whe_param_load.blk_end = (int)val;
 		pr_info("blk_end = %d\n", (int)val);
 	} else if (!strcmp(parm[0], "blk_slp")) {
@@ -7784,7 +7798,7 @@ static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
 			goto for_read;
 		}
 		if (kstrtoul(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto free_buf;
 		ble_whe_param_load.blk_slp = (int)val;
 		pr_info("blk_slp = %d\n", (int)val);
 	} else if (!strcmp(parm[0], "brt_adj_en")) {
@@ -7793,7 +7807,7 @@ static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
 			goto for_read;
 		}
 		if (kstrtoul(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto free_buf;
 		ble_whe_param_load.brt_adj_en = (int)val;
 		pr_info("brt_adj_en = %d\n", (int)val);
 	} else if (!strcmp(parm[0], "brt_start")) {
@@ -7802,7 +7816,7 @@ static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
 			goto for_read;
 		}
 		if (kstrtoul(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto free_buf;
 		ble_whe_param_load.brt_start = (int)val;
 		pr_info("brt_start = %d\n", (int)val);
 	} else if (!strcmp(parm[0], "brt_slp")) {
@@ -7811,7 +7825,7 @@ static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
 			goto for_read;
 		}
 		if (kstrtoul(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto free_buf;
 		ble_whe_param_load.brt_slp = (int)val;
 		pr_info("brt_slp = %d\n", (int)val);
 	} else if (!strcmp(parm[0], "read_param")) {
@@ -7824,10 +7838,16 @@ static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
 	}
 
 	vecm_latch_flag2 |= BLE_WHE_UPDATE;
+	kfree(buf_orig);
 	return count;
 
 for_read:
+	kfree(buf_orig);
 	return count;
+
+free_buf:
+	kfree(buf_orig);
+	return -EINVAL;
 }
 
 void pc_mode_process(int vpp_index)
