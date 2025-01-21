@@ -26,6 +26,10 @@
 
 static const struct drm_plane_funcs am_video_plane_funs;
 
+static int video_axis_zoom = -1;
+module_param(video_axis_zoom, int, 0664);
+MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
+
 static int force_gfcd_mode;
 static int osd_enable[MESON_MAX_OSDS];
 
@@ -451,7 +455,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 		dst_w = state->crtc_w + state->crtc_x;
 		if (dst_w > 0) {
 			src_w = plane_info->src_w * dst_w / state->crtc_w;
-			plane_info->src_x = plane_info->src_w - src_w;
+			plane_info->src_x += plane_info->src_w - src_w;
 			plane_info->src_w = src_w;
 			plane_info->dst_w = dst_w;
 			plane_info->dst_x = 0;
@@ -464,7 +468,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 		dst_h = state->crtc_h + state->crtc_y;
 		if (dst_h > 0) {
 			src_h = plane_info->src_h * dst_h / state->crtc_h;
-			plane_info->src_y = plane_info->src_h - src_h;
+			plane_info->src_y += plane_info->src_h - src_h;
 			plane_info->src_h = src_h;
 			plane_info->dst_h = dst_h;
 			plane_info->dst_y = 0;
@@ -524,7 +528,8 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 				struct drm_plane_state *state,
 				struct meson_vpu_pipeline *pipeline)
 {
-	u32 dst_w, dst_h, src_w, src_h;
+	u32 orig_w, orig_h;
+	u32 crop_w = 0, crop_h = 0;
 	struct drm_atomic_state *atomic_state = state->state;
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_crtc_state *crtc_state;
@@ -542,15 +547,31 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 
 	if (!crtc_state || !mode)
 		mode = &pipeline->subs[crtc->index].mode;
+
 	plane_info->src_x = state->src_x >> 16;
 	plane_info->src_y = state->src_y >> 16;
 	plane_info->src_w = (state->src_w >> 16) & 0xffff;
 	plane_info->src_h = (state->src_h >> 16) & 0xffff;
+	plane_info->ori_src_x = plane_info->src_x;
+	plane_info->ori_src_y = plane_info->src_y;
+	plane_info->ori_src_w = plane_info->src_w;
+	plane_info->ori_src_h = plane_info->src_h;
 
 	plane_info->dst_x = state->crtc_x;
 	plane_info->dst_y = state->crtc_y;
 	plane_info->dst_w = state->crtc_w;
 	plane_info->dst_h = state->crtc_h;
+	plane_info->ori_dst_x = plane_info->dst_x;
+	plane_info->ori_dst_y = plane_info->dst_y;
+	plane_info->ori_dst_w = plane_info->dst_w;
+	plane_info->ori_dst_h = plane_info->dst_h;
+
+	DRM_DEBUG("original:src[(%d %d),%dx%d]dst[(%d %d),%dx%d]mode[%dx%d]is_uvm[%d]vf[%px]\n",
+		plane_info->ori_src_x, plane_info->ori_src_y,
+		plane_info->ori_src_w, plane_info->ori_src_h,
+		plane_info->ori_dst_x, plane_info->ori_dst_y,
+		plane_info->ori_dst_w, plane_info->ori_dst_h,
+		mode->hdisplay, mode->vdisplay, plane_info->is_uvm, plane_info->vf);
 
 	if (state->plane) {
 		avp = to_am_video_plane(state->plane);
@@ -583,47 +604,104 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 			avp->adjust_dst.y2);
 	}
 
+	if (plane_info->is_uvm && plane_info->vf) {
+		DRM_DEBUG("type=0x%x, video_axis_zoom=%d, comp[%u, %u][%u %u]\n",
+			plane_info->vf->type, video_axis_zoom,
+			plane_info->vf->compWidth, plane_info->vf->compHeight,
+			plane_info->vf->width, plane_info->vf->height);
+		if ((video_axis_zoom != -1) && (plane_info->vf->type & VIDTYPE_COMPRESS)) {
+			plane_info->src_x = plane_info->src_x *
+				(plane_info->vf->compWidth / plane_info->vf->width);
+			plane_info->src_y = plane_info->src_y *
+				(plane_info->vf->compHeight / plane_info->vf->height);
+			plane_info->src_w = plane_info->src_w *
+				(plane_info->vf->compWidth / plane_info->vf->width);
+			plane_info->src_h = plane_info->src_h *
+				(plane_info->vf->compHeight / plane_info->vf->height);
+			DRM_DEBUG("COMPRESS:src[(%d %d), %dx%d]\n",
+				plane_info->src_x, plane_info->src_y,
+				plane_info->src_w, plane_info->src_h);
+		}
+	}
+
+	orig_w = plane_info->src_w;
+	orig_h = plane_info->src_h;
+
 	/*negative position process*/
-	if (state->crtc_x < 0) {
-		dst_w = state->crtc_w + state->crtc_x;
-		if (dst_w > 0) {
-			src_w = plane_info->src_w * dst_w / state->crtc_w;
-			plane_info->src_x = plane_info->src_w - src_w;
-			plane_info->src_w = src_w;
-			plane_info->dst_w = dst_w;
+	if (plane_info->dst_x < 0) {
+		plane_info->src_x = (-plane_info->dst_x) * plane_info->src_w / plane_info->dst_w;
+		plane_info->dst_w += state->crtc_x;
+		DRM_DEBUG("x<0:src_x=%d, dst_w=%d\n", plane_info->src_x, plane_info->dst_w);
+		if (plane_info->dst_w > 0) {
+			plane_info->src_w -= plane_info->src_x;
 			plane_info->dst_x = 0;
 		} else {
 			plane_info->enable = 0;
 		}
+		DRM_DEBUG("x<0:src_x=%d, src_w=%d, dst_x=%d, dst_w=%d, enable=%d\n",
+			plane_info->src_x, plane_info->src_w,
+			plane_info->dst_x, plane_info->dst_w, plane_info->enable);
 	}
-	if (state->crtc_y < 0) {
-		dst_h = state->crtc_h + state->crtc_y;
-		if (dst_h > 0) {
-			src_h = plane_info->src_h * dst_h / state->crtc_h;
-			plane_info->src_y = plane_info->src_h - src_h;
-			plane_info->src_h = src_h;
-			plane_info->dst_h = dst_h;
+
+	if (plane_info->dst_y < 0) {
+		plane_info->src_y = (-plane_info->dst_y) * plane_info->src_h / plane_info->dst_h;
+		plane_info->dst_h += state->crtc_y;
+		DRM_DEBUG("y<0:src_y=%d, dst_h=%d\n", plane_info->src_y, plane_info->dst_h);
+		if (plane_info->dst_h > 0) {
+			plane_info->src_h -= plane_info->src_y;
 			plane_info->dst_y = 0;
 		} else {
 			plane_info->enable = 0;
 		}
+		DRM_DEBUG("y<0:src_y=%d, src_h=%d, dst_y=%d, dst_h=%d, enable=%d\n",
+			plane_info->src_y, plane_info->src_h,
+			plane_info->dst_y, plane_info->dst_h, plane_info->enable);
 	}
+
 	/*overdisplay process*/
 	if ((plane_info->dst_x + plane_info->dst_w) > mode->hdisplay) {
-		if (plane_info->dst_x >= mode->hdisplay)
+		if (plane_info->dst_x >= mode->hdisplay) {
 			plane_info->enable = 0;
-		else
-			plane_info->dst_w =
-				mode->hdisplay - plane_info->dst_x;
+		} else {
+			crop_w = plane_info->dst_x + plane_info->dst_w - mode->hdisplay;
+			plane_info->src_w -= crop_w * orig_w / state->crtc_w;
+			DRM_DEBUG("(x+w)>hdisplay:origw=%d, cropw=%d, src_w=%d\n",
+				orig_w, crop_w, plane_info->src_w);
+			if (plane_info->src_w < 0)
+				plane_info->src_w = 0;
+
+			plane_info->dst_w -= crop_w;
+			if (plane_info->dst_w < 0)
+				plane_info->dst_w = 0;
+		}
+		DRM_DEBUG("(x+w)>hdisplay:src_w=%d, dst_w=%d, enable=%d\n",
+			plane_info->src_w, plane_info->dst_w, plane_info->enable);
 	}
+
 	if ((plane_info->dst_y + plane_info->dst_h) > mode->vdisplay) {
-		if (plane_info->dst_y >= mode->vdisplay)
+		if (plane_info->dst_y >= mode->vdisplay) {
 			plane_info->enable = 0;
-		else
-			plane_info->dst_h = mode->vdisplay - plane_info->dst_y;
+		} else {
+			crop_h = plane_info->dst_y + plane_info->dst_h - mode->vdisplay;
+			plane_info->src_h -= crop_h * orig_h / state->crtc_h;
+			DRM_DEBUG("(y+h)>vdisplay:origh=%d, croph=%d, src_h=%d\n",
+				orig_h, crop_h, plane_info->src_h);
+			if (plane_info->src_h < 0)
+				plane_info->src_h = 0;
+
+			plane_info->dst_h -= crop_h;
+			if (plane_info->dst_h < 0)
+				plane_info->dst_h = 0;
+		}
+		DRM_DEBUG("(y+h)>vdisplay:src_h=%d, dst_h=%d, enable=%d\n",
+			plane_info->src_h, plane_info->dst_h, plane_info->enable);
 	}
-	DRM_DEBUG("mode->hdisplay=%d, mode->vdisplay=%d\n",
-		  mode->hdisplay, mode->vdisplay);
+
+	DRM_DEBUG("modified:src[(%d %d), %dx%d], dst[(%d %d), %dx%d]\n",
+		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h,
+		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
+	DRM_DEBUG("modified:enable = %d, ori[%d %d], crop[%d %d]\n",
+		plane_info->enable, orig_w, orig_h, crop_w, crop_h);
 }
 
 static int
@@ -768,7 +846,8 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	if (!plane_info->dmabuf)
 		return -EINVAL;
 
-	DRM_DEBUG("%s dmabuf %px vf %px\n", __func__, plane_info->dmabuf, plane_info->vf);
+	DRM_DEBUG("%s dmabuf %px, is_uvm %d, vf %px\n",
+		__func__, plane_info->dmabuf, plane_info->is_uvm, plane_info->vf);
 	#else
 	if (!fb)
 		return -EINVAL;
@@ -1488,6 +1567,14 @@ static void meson_video_plane_atomic_print_state(struct drm_printer *p,
 
 	drm_printf(p, "\tmeson video plane %d info:\n",
 					video_plane->plane_index);
+	drm_printf(p, "\t\tori_src_x=%u\n", plane_info->ori_src_x);
+	drm_printf(p, "\t\tori_src_y=%u\n", plane_info->ori_src_y);
+	drm_printf(p, "\t\tori_src_w=%u\n", plane_info->ori_src_w);
+	drm_printf(p, "\t\tori_src_h=%u\n", plane_info->ori_src_h);
+	drm_printf(p, "\t\tori_dst_w=%u\n", plane_info->ori_dst_w);
+	drm_printf(p, "\t\tori_dst_h=%u\n", plane_info->ori_dst_h);
+	drm_printf(p, "\t\tori_dst_x=%d\n", plane_info->ori_dst_x);
+	drm_printf(p, "\t\tori_dst_y=%d\n", plane_info->ori_dst_y);
 	drm_printf(p, "\t\tsrc_x=%u\n", plane_info->src_x);
 	drm_printf(p, "\t\tsrc_y=%u\n", plane_info->src_y);
 	drm_printf(p, "\t\tsrc_w=%u\n", plane_info->src_w);
@@ -1794,6 +1881,13 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	plane_info->in_fence = plane_state->async_in_fence;
 
 	mvps->video_plane_index[video_plane->plane_index] = video_plane->plane_index;
+	ret = meson_video_plane_fb_check(plane, state, plane_info);
+	if (ret < 0) {
+		plane_info->enable = 0;
+		DRM_DEBUG("plane%d fb is NULL,disable the plane!\n",
+			  plane_info->plane_index);
+		return 0;
+	}
 	meson_video_plane_position_calc(plane_info, state,
 					drv->pipeline);
 
@@ -1813,15 +1907,6 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 			plane_info->status_changed = 0;
 	} else {
 		plane_info->status_changed = 1;
-	}
-
-	ret = meson_video_plane_fb_check(plane, state, plane_info);
-	if (ret < 0) {
-		plane_info->enable = 0;
-		video_pipeline_block_check(mvsp, atomic_state);
-		DRM_DEBUG("plane%d fb is NULL,disable the plane!\n",
-			  plane_info->plane_index);
-		return 0;
 	}
 	ret = meson_video_plane_get_fb_info(plane, state, plane_info);
 	if (ret < 0 ||

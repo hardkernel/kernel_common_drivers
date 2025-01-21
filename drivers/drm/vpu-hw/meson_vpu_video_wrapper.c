@@ -24,10 +24,6 @@
 #include "meson_drv.h"
 #include "meson_plane.h"
 
-static int video_axis_zoom = -1;
-module_param(video_axis_zoom, int, 0664);
-MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
-
 static void video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	struct video_display_frame_info_t *vf_info)
 {
@@ -248,18 +244,19 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	fb_h = mvvs->fb_h;
 	phy_addr = mvvs->phy_addr[0];
 	pixel_format = mvvs->pixel_format;
-	MESON_DRM_BLOCK("%s %d-%d-%llx", __func__, src_h, pixel_format, phy_addr);
+	MESON_DRM_BLOCK("%s,src_h[%d]pixel_format[%d]phy_addr[%llx]is_uvm[%d]vf[%px]\n",
+		__func__, src_h, pixel_format, phy_addr, mvvs->is_uvm, mvvs->vf);
 
 	if (mvvs->is_uvm && mvvs->vf) {
 		dec_vf = mvvs->vf;
 		vf = mvvs->vf;
-		MESON_DRM_BLOCK("dec vf, %s, flag-%u, type-%u, %u, %u, %u, %u\n",
+		MESON_DRM_BLOCK("dec vf, %s, flag-0x%x, type-0x%x, comp[%u, %u][%u, %u]\n",
 			  __func__, dec_vf->flag, dec_vf->type,
 			  dec_vf->compWidth, dec_vf->compHeight,
 			  dec_vf->width, dec_vf->height);
 		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
 			vf = mvvs->vf->vf_ext;
-			MESON_DRM_BLOCK("DI vf, %s, flag-%u, type-%u, %u,%u,%u,%u\n",
+			MESON_DRM_BLOCK("DI vf, %s, flag-0x%x, type-0x%x, comp[%u, %u][%u, %u]\n",
 				  __func__, vf->flag, vf->type,
 				  vf->compWidth, vf->compHeight,
 				  vf->width, vf->height);
@@ -271,38 +268,14 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		vf->crop[0] = mvvs->src_y;/*crop top*/
 		vf->crop[1] = mvvs->src_x;/*crop left*/
 
-		/*
-		 *if video_axis_zoom = 1, means the video anix is
-		 *set by westeros
-		 */
-		if (video_axis_zoom != -1) {
-			if (dec_vf->type & VIDTYPE_COMPRESS) {
-				pic_w = dec_vf->compWidth;
-				pic_h = dec_vf->compHeight;
-				new_src_w = mvvs->src_w *
-							pic_w / dec_vf->width;
-				new_src_h = mvvs->src_h *
-							pic_h / dec_vf->height;
-				vf->crop[0] = mvvs->src_y *
-							pic_h / dec_vf->height;
-				vf->crop[1] = mvvs->src_x *
-							pic_w / dec_vf->width;
-			} else {
-				pic_w = dec_vf->width;
-				pic_h = dec_vf->height;
-				new_src_w = mvvs->src_w;
-				new_src_h = mvvs->src_h;
-			}
+		new_src_w = mvvs->src_w;
+		new_src_h = mvvs->src_h;
+		if (dec_vf->type & VIDTYPE_COMPRESS) {
+			pic_w = dec_vf->compWidth;
+			pic_h = dec_vf->compHeight;
 		} else {
-			new_src_w = mvvs->src_w;
-			new_src_h = mvvs->src_h;
-			if (dec_vf->type & VIDTYPE_COMPRESS) {
-				pic_w = dec_vf->compWidth;
-				pic_h = dec_vf->compHeight;
-			} else {
-				pic_w = dec_vf->width;
-				pic_h = dec_vf->height;
-			}
+			pic_w = dec_vf->width;
+			pic_h = dec_vf->height;
 		}
 
 		if ((pic_w == 0 || pic_h == 0) && dec_vf->vf_ext) {
@@ -347,7 +320,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 				vf_info.release_fence ?
 				kref_read(&vf_info.release_fence->refcount) : -1);
 
-		MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
+		MESON_DRM_BLOCK("vf-info dst:%u,%u,%ux%u, crop:%u,%u,%ux%u, buffer:%ux%u\n",
+				vf_info.dst_x, vf_info.dst_y, vf_info.dst_w, vf_info.dst_h,
 				vf_info.crop_x, vf_info.crop_y, vf_info.crop_w, vf_info.crop_h,
 				vf_info.buffer_w, vf_info.buffer_h);
 

@@ -314,6 +314,14 @@ struct meson_vpu_osd_state {
 };
 
 struct meson_vpu_video_layer_info {
+	u32 ori_src_x;
+	u32 ori_src_y;
+	u32 ori_src_w;
+	u32 ori_src_h;
+	u32 ori_dst_w;
+	u32 ori_dst_h;
+	int ori_dst_x;
+	int ori_dst_y;
 	u32 src_x;
 	u32 src_y;
 	u32 src_w;
