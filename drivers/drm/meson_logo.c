@@ -67,19 +67,6 @@ static unsigned long gem_mem_start, gem_mem_size;
 static struct resource osd_mem_res;
 static bool is_cma;
 
-#ifdef MODULE
-MODULE_PARM_DESC(outputmode, "outputmode");
-__module_param_named(outputmode, logo.outputmode_t, charp, 0600);
-
-#else
-#ifndef CONFIG_AMLOGIC_MEDIA_FB
-core_param(fb_width, logo.width, uint, 0644);
-core_param(fb_height, logo.height, uint, 0644);
-core_param(display_bpp, logo.bpp, uint, 0644);
-#endif
-core_param(outputmode, logo.outputmode_t, charp, 0644);
-#endif
-
 #ifndef CONFIG_AMLOGIC_MEDIA_FB
 static u32 drm_logo_bpp = 16;
 static u32 drm_logo_width = 1920;
