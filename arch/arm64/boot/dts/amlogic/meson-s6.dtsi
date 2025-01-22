@@ -442,7 +442,8 @@
 			clock-names = "core";
 			clocks = <&clkc CLKID_SYS_SAR_ADC>;
 			amlogic,interrupt = <182>;
-			amlogic,digital-maps = <0x18 26>, <0x18 23>, <0x18 17>;
+			amlogic,digital-maps = <0x18 26>, <0x18 23>, <0x18 17>,
+					       <0x18 12>, <0x18 14>;
 			amlogic,analog-maps = <0x14 26>, <0x14 22>, <0x14 24>;
 			amlogic,voltage-maps = <400>, <800>, <800>, <1200>;
 			status = "okay";
@@ -1314,7 +1315,7 @@
 	aocec: aocec {
 		compatible = "amlogic, aocec-s6";
 		dev_name = "aocec";
-		status = "disabled";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
