@@ -39,6 +39,17 @@
 static dev_t amcsi_devno;
 static struct class *amcsi_clsp;
 
+static struct sensor_info g_sensor_info;
+
+void update_sensor_info(struct sensor_info info)
+{
+	g_sensor_info = info;
+	DPRINT("csi: %s, sensor w %d h %d bps %d M nlanes %d\n",
+			__func__, g_sensor_info.width, g_sensor_info.height,
+			g_sensor_info.bps_m, g_sensor_info.nlanes);
+}
+EXPORT_SYMBOL(update_sensor_info);
+
 static void init_csi_dec_parameter(struct amcsi_dev_s *devp)
 {
 	enum tvin_sig_fmt_e fmt;
