@@ -2253,7 +2253,7 @@ static void edid_dtd_parsing(struct rx_cap *prxcap, u8 *data)
 		return;
 
 	if (prxcap->dtd_idx >= MAX_DTD_COUNT) {
-		HDMITX_ERROR("dtd_idx must be less than MAX_DTD_COUNT\n");
+		HDMITX_DEBUG_EDID("dtd_idx must be less than MAX_DTD_COUNT\n");
 		return;
 	}
 	t = &prxcap->dtd[prxcap->dtd_idx];
