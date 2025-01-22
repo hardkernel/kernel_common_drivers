@@ -1282,6 +1282,9 @@ void update_primary_fmt_event(void);
 void switch_from_lcevc_to_nonlcevc(bool unreg);
 void update_vd_amdv_info(struct video_layer_s *layer);
 void update_vd_amvecm_info(struct video_layer_s *layer);
+int VSYNC_WR_VIDEO_TABLE_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+int PRE_VSYNC_WR_VIDEO_TABLE_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {

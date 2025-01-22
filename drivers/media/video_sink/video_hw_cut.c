@@ -8841,10 +8841,10 @@ int video_hw_init(void)
 	struct vpu_dev_s *arb_vpu_dev;
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
+	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_VIDEO_TABLE_REG_BITS,
 					       VSYNC_WR_MPEG_REG_BITS_VPP1,
 					       VSYNC_WR_MPEG_REG_BITS_VPP2,
-					       PRE_VSYNC_WR_MPEG_REG_BITS};
+					       PRE_VSYNC_WR_VIDEO_TABLE_REG_BITS};
 #endif
 
 	if (!legacy_vpp) {
