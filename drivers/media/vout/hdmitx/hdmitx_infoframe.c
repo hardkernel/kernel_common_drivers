@@ -600,6 +600,9 @@ int hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val)
 		else if (val == SET_CT_GAME)
 			frame->content_type = 3;
 		break;
+	case CONF_AVI_SCAN_INFO:
+		frame->scan_mode = val;
+		break;
 	default:
 		break;
 	}

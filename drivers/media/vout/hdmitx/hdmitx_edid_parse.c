@@ -1799,6 +1799,7 @@ static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 	/* CEA description */
 	end = block_buf[2];
 	prxcap->native_Mode = block_buf[1] >= 2 ? block_buf[3] : 0;
+	prxcap->underscan = (prxcap->native_Mode & 0x80) >> 7;
 	prxcap->number_of_dtd += block_buf[1] >= 2 ? (block_buf[3] & 0xf) : 0;
 	/* Initialize SVD_VIC used for SVD storage in the video data block */
 	prxcap->SVD_VIC_count = 0;

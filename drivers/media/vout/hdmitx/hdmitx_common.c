@@ -749,6 +749,87 @@ u32 hdmitx_edid_get_hdmi14_4k_vic(u32 vic)
 	return ret;
 }
 
+/*
+ * CE Video Format: Any Video Format listed in Table 1, or listed in
+ * Table 11 and Table 12, except the 640x480p Video Format
+ *
+ * From CTA-861-I Page 26
+ */
+static bool is_ce_video_format(enum hdmi_vic vic)
+{
+	bool ret = false;
+
+	if ((vic > HDMI_1_640x480p60_4x3 && vic <= HDMI_127_5120x2160p100_64x27) ||
+		(vic >= HDMI_193_5120x2160p120_64x27 && vic <= HDMI_219_4096x2160p120_256x135))
+		ret = true;
+
+	/* TODO: RID is also CE video format, need to add in the future */
+	return ret;
+}
+
+enum hdmi_scan_mode hdmitx_check_scan_info(struct rx_cap *prxcap,
+		enum hdmi_scan_mode val, enum hdmi_vic vic)
+{
+	enum hdmi_scan_mode scan_mode = val;
+	u8 vcdb = 0;
+
+	if (!prxcap)
+		return scan_mode;
+
+	vcdb = prxcap->video_capability_data;
+	/*
+	 * If the display does not provide a VCDB then the Source should assume that
+	 * CE Video Formats are overscanned by the display and that IT Video Format
+	 * behavior is indicated by CEA Extension byte 3 bit 7 (underscan).
+	 * If underscan=1 then the Source should assume that IT Video Formats are
+	 * underscanned and if underscan=0, that IT Video Formats are overscanned
+	 */
+	if (!vcdb && !is_ce_video_format(vic)) {
+		if (prxcap->underscan)
+			scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
+		else
+			scan_mode = HDMI_SCAN_MODE_OVERSCAN;
+	}
+
+	if (vcdb) {
+		/*
+		 * If the display declares a non-zero value for the S_PT (preferred timing
+		 * overscan/underscan behavior) field, and the Source outputs that Video
+		 * Format, then the S_PT declaration shall take precedence over both S_CE
+		 * and S_IT declarations
+		 */
+		if (((vcdb & 0x30) != PT_VIDEO_FORMAT_NO_DATA) &&
+				prxcap->flag_vfpdb && vic == prxcap->preferred_mode) {
+			if ((vcdb & 0x30) == PT_VIDEO_FORMAT_ALWAYS_OVERSCAN)
+				scan_mode = HDMI_SCAN_MODE_OVERSCAN;
+			if ((vcdb & 0x30) == PT_VIDEO_FORMAT_ALWAYS_UNDERSCANSCAN)
+				scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
+		} else {
+			/*
+			 * If the S_PT field is 0 then the overscan/underscan behavior of this
+			 * format is indicated by either the S_CE or S_IT fields, depending on
+			 * whether the Preferred Video Format is a CE or IT Video Format
+			 */
+			if (is_ce_video_format(vic)) {
+				if ((vcdb & 0x3) == CE_VIDEO_FORMAT_NOT_SUPPORT)
+					scan_mode = HDMI_SCAN_MODE_NONE;
+				else if ((vcdb & 0x3) == CE_VIDEO_FORMAT_ALWAYS_OVERSCAN)
+					scan_mode = HDMI_SCAN_MODE_OVERSCAN;
+				else if ((vcdb & 0x3) == CE_VIDEO_FORMAT_ALWAYS_UNDERSCANSCAN)
+					scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
+			} else {
+				if ((vcdb & 0xC) == IT_VIDEO_FORMAT_NOT_SUPPORT)
+					scan_mode = HDMI_SCAN_MODE_NONE;
+				else if ((vcdb & 0xC) == IT_VIDEO_FORMAT_ALWAYS_OVERSCAN)
+					scan_mode = HDMI_SCAN_MODE_OVERSCAN;
+				else if ((vcdb & 0xC) == IT_VIDEO_FORMAT_ALWAYS_UNDERSCANSCAN)
+					scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
+			}
+		}
+	}
+	return scan_mode;
+}
+
 int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
@@ -1908,6 +1989,36 @@ int hdmitx_common_set_vframe_rate_hint(struct hdmitx_common *tx_comm, int rate, 
 	return 0;
 }
 EXPORT_SYMBOL(hdmitx_common_set_vframe_rate_hint);
+
+enum hdmi_scan_mode hdmitx_common_get_scan_info(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+	enum hdmi_scan_mode scan_info = HDMI_SCAN_MODE_NONE;
+
+	scan_info = hdmitx_hw_cntl_config(tx_hw_base, CONF_GET_AVI_SCAN_INFO, 0);
+
+	return scan_info;
+}
+EXPORT_SYMBOL(hdmitx_common_get_scan_info);
+
+int hdmitx_common_set_scan_info(struct hdmitx_common *tx_comm, enum hdmi_scan_mode val)
+{
+	enum hdmi_scan_mode scan_info = HDMI_SCAN_MODE_NONE;
+	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+	struct rx_cap *prxcap = &tx_comm->rxcap;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+
+	vic = hdmitx_hw_get_state(tx_hw_base, STAT_VIDEO_VIC, 0);
+	/*
+	 * need to check whether the value set through the UI is supported by the TV,
+	 * If it is supported, set it. If not supported, set the supported value
+	 */
+	scan_info = hdmitx_check_scan_info(prxcap, val, vic);
+	hdmitx_hw_cntl_config(tx_hw_base, CONF_AVI_SCAN_INFO, scan_info);
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_set_scan_info);
 
 /*
  * ARC IN audio capture not working due to init

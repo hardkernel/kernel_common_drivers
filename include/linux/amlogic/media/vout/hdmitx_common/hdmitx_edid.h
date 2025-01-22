@@ -33,6 +33,26 @@ struct hdmitx_common;
 
 #define Y420CMDB_MAX	32
 
+/* From CTA-861-I Table 60 */
+enum video_capability {
+	CE_VIDEO_FORMAT_NOT_SUPPORT = 0x0,
+	CE_VIDEO_FORMAT_ALWAYS_OVERSCAN = 0x1,
+	CE_VIDEO_FORMAT_ALWAYS_UNDERSCANSCAN = 0x2,
+	CE_VIDEO_FORMAT_BOTH_OVER_UNDERSCAN = 0x3,
+	IT_VIDEO_FORMAT_NOT_SUPPORT = 0x0,
+	IT_VIDEO_FORMAT_ALWAYS_OVERSCAN = 0x4,
+	IT_VIDEO_FORMAT_ALWAYS_UNDERSCANSCAN = 0x8,
+	IT_VIDEO_FORMAT_BOTH_OVER_UNDERSCAN = 0xC,
+	PT_VIDEO_FORMAT_NO_DATA = 0x0,
+	PT_VIDEO_FORMAT_ALWAYS_OVERSCAN = 0x10,
+	PT_VIDEO_FORMAT_ALWAYS_UNDERSCANSCAN = 0x20,
+	PT_VIDEO_FORMAT_BOTH_OVER_UNDERSCAN = 0x30,
+	QS_NO_DATA = 0x0,
+	QS_SELECTABLE = 0x40,
+	QY_NO_DATA = 0x0,
+	QY_SELECTABLE = 0x80,
+};
+
 enum flt_tx_states {
 	FLT_TX_LTS_L,	/* legacy mode */
 	FLT_TX_LTS_1,	/* read edid */
@@ -106,6 +126,14 @@ struct dolby_vsadb_cap {
 };
 
 struct rx_cap {
+	/*
+	 * If the display does not provide a VCDB then the Source should assume that
+	 * CE Video Formats are overscanned by the display and that IT Video Format
+	 * behavior is indicated by CEA Extension byte 3 bit 7 (underscan).
+	 * If underscan=1 then the Source should assume that IT Video Formats are
+	 * underscanned and if underscan=0, that IT Video Formats are overscanned
+	 */
+	u8 underscan;
 	u32 native_Mode;
 	/*video*/
 	u32 VIC[VIC_MAX_NUM];

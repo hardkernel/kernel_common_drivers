@@ -132,6 +132,7 @@ struct am_hdmi_tx {
 	struct drm_property *type_prop;
 	int hdmi_type;
 	struct drm_property *static_meta_prop;
+	struct drm_property *scan_info_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
@@ -154,6 +155,7 @@ struct am_hdmitx_connector_state {
 	/*HDR Priority: dv,hdr,sdr*/
 	int pref_hdr_policy;
 	u32 hdr_priority;
+	enum hdmi_scan_mode scan_info;
 
 	bool update : 1;
 	bool color_force : 1;

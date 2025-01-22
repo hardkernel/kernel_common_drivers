@@ -192,6 +192,8 @@ enum avi_component_conf {
 	CONF_AVI_CS,
 	CONF_AVI_AR,
 	CONF_AVI_CT_TYPE,
+	CONF_AVI_SCAN_INFO,
+	CONF_GET_AVI_SCAN_INFO,
 };
 
 /* CN TYPE define */

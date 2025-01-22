@@ -543,6 +543,11 @@ bool hdmitx_hdr_en(struct hdmitx_hw_common *tx_hw);
 bool hdmitx_dv_en(struct hdmitx_hw_common *tx_hw);
 bool hdmitx_hdr10p_en(struct hdmitx_hw_common *tx_hw);
 
+enum hdmi_scan_mode hdmitx_common_get_scan_info(struct hdmitx_common *tx_comm);
+int hdmitx_common_set_scan_info(struct hdmitx_common *tx_comm, enum hdmi_scan_mode val);
+enum hdmi_scan_mode hdmitx_check_scan_info(struct rx_cap *prxcap,
+		enum hdmi_scan_mode val, enum hdmi_vic vic);
+
 u32 hdmitx_get_frl_bandwidth(const enum frl_rate_enum rate);
 u32 hdmitx_calc_frl_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
 	enum hdmi_color_depth cd);
@@ -658,5 +663,4 @@ void unregister_earcrx_callback(void);
 void hdmitx_disable_frl_work(struct hdmitx_common *tx_comm);
 void hdmitx_disable_21_work(struct hdmitx_common *tx_comm);
 void hdmitx_clear_packets(struct hdmitx_common *tx_comm);
-
 #endif

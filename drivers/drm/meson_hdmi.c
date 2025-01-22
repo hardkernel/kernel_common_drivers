@@ -935,6 +935,10 @@ static int am_hdmitx_connector_atomic_set_property
 		hdmitx_state->frac_rate_policy = val;
 		tx_comm->frac_rate_policy = val;
 		return 0;
+	} else if (property == am_hdmi->scan_info_prop) {
+		hdmitx_state->scan_info = val;
+		hdmitx_common_set_scan_info(tx_comm, hdmitx_state->scan_info);
+		return 0;
 	}
 
 	return -EINVAL;
@@ -1029,6 +1033,9 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->dc_cap_prop) {
 		*val = get_dc_cap(tx_comm);
+		return 0;
+	} else if (property == am_hdmi->scan_info_prop) {
+		*val = hdmitx_common_get_scan_info(tx_comm);
 		return 0;
 	}
 
@@ -2386,6 +2393,30 @@ static void meson_hdmitx_init_colordepth_property(struct drm_device *drm_dev,
 	}
 }
 
+static const struct drm_prop_enum_list hdmi_scan_info_enum_list[] = {
+	{ HDMI_SCAN_MODE_NONE, "no data" },
+	{ HDMI_SCAN_MODE_OVERSCAN, "overscan" },
+	{ HDMI_SCAN_MODE_UNDERSCAN, "underscan" },
+	{ HDMI_SCAN_MODE_RESERVED, "future" },
+};
+
+static void meson_hdmitx_init_scan_info_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_enum(drm_dev, 0,
+			"scan_info", hdmi_scan_info_enum_list,
+			ARRAY_SIZE(hdmi_scan_info_enum_list));
+
+	if (prop) {
+		am_hdmi->scan_info_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to scan_info property\n");
+	}
+}
+
 static void meson_hdmitx_init_hdr_priority_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -2619,6 +2650,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_static_meta_property(drm, am_hdmi);
 	meson_hdmitx_init_hdr_priority_property(drm, am_hdmi);
 	meson_hdmitx_create_range_property(drm, am_hdmi);
+	meson_hdmitx_init_scan_info_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi->android_path;

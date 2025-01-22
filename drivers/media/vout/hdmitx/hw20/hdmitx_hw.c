@@ -5386,6 +5386,13 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		else
 			ret = 0;
 		break;
+	case CONF_AVI_SCAN_INFO:
+		HDMITX_INFO("%s argv = %d\n", __func__, argv);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, argv & 0x3, 4, 2);
+		break;
+	case CONF_GET_AVI_SCAN_INFO:
+		ret = (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x30) >> 4;
+		break;
 	case CONF_CLR_DV_VS10_SIG:
 /* if current is DV/VSIF.DOVI, next will switch to HDR, need set
  * Dolby_Vision_VS10_Signal_Type as 0
@@ -6048,6 +6055,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	unsigned int tmp = 0;
 	unsigned short v_active = t->v_active;
 	struct hdmitx_hw_common *tx_hw = hdev->tx_comm.tx_hw;
+	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
+	enum hdmi_scan_mode scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
 
 	if (t->pi_mode == 0)
 		v_active = v_active >> 1;
@@ -6360,7 +6369,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (((output_color_format >> 2) & 0x1) << 7);
 	data32 |= (1 << 6);
 	/* underscan */
-	data32 |= (2 << 4);
+	scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->vic);
+	data32 |= (scan_mode << 4);
 	data32 |= (0 << 2);
 	data32 |= (0x2 << 0);    /* FIXED YCBCR 444 */
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, data32);

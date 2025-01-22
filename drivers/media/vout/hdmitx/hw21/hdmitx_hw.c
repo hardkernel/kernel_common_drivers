@@ -435,6 +435,25 @@ static enum hdmi_color_depth _get_colordepth(void)
 	return depth;
 }
 
+static int hdmitx_get_scan_info_from_avi(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframes.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing avi failed %d\n", ret);
+	else
+		ret = avi->scan_mode;
+
+	return ret;
+}
+
 static int get_extended_colorimetry_from_avi(struct hdmitx21_dev *hdev)
 {
 	int ret;
@@ -2911,6 +2930,10 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		ret = kstrtoul(tmpbuf + 13, 16, &value);
 		hdev->tx21_hw.gate_bit_mask = value;
 		HDMITX_INFO("gate_bit_mask :0x%x\n", hdev->tx21_hw.gate_bit_mask);
+	} else if (strncmp(tmpbuf, "scan_info", 9) == 0) {
+		ret = kstrtoul(tmpbuf + 9, 10, &value);
+		hdmi_avi_infoframe_config(CONF_AVI_SCAN_INFO, value);
+		HDMITX_INFO("config scan info: %d\n", value);
 	}
 }
 
@@ -3394,6 +3417,12 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case CONF_GET_AVI_BT2020:
 		ret = get_extended_colorimetry_from_avi(hdev);
+		break;
+	case CONF_AVI_SCAN_INFO:
+		hdmi_avi_infoframe_config(CONF_AVI_SCAN_INFO, argv & 0x3);
+		break;
+	case CONF_GET_AVI_SCAN_INFO:
+		ret = hdmitx_get_scan_info_from_avi(hdev);
 		break;
 	case CONF_CLR_DV_VS10_SIG:
 		break;
