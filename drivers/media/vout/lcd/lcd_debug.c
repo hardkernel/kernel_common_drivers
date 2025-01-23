@@ -111,10 +111,10 @@ int str_add_reg_sets(struct aml_lcd_drv_s *pdrv, char *buf, int offset,
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
 		case LCD_REG_DBG_MIPIHOST_BUS:
-			reg_val = dsi_host_read(pdrv, reg_sets[idx].reg + reg_offset);
+			reg_val = dsi_host_read(pdrv, 0, reg_sets[idx].reg + reg_offset);
 			break;
 		case LCD_REG_DBG_MIPIPHY_BUS:
-			reg_val = dsi_phy_read(pdrv, reg_sets[idx].reg + reg_offset);
+			reg_val = dsi_phy_read(pdrv, 0, reg_sets[idx].reg + reg_offset);
 			break;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_TV
@@ -2303,14 +2303,14 @@ static void lcd_debug_reg_op(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 	case LCD_REG_DBG_MIPIHOST_BUS:
 		sprintf(reg_bus_name, "DSI host");
 		if (reg_write)
-			dsi_host_write(pdrv, reg, data);
-		wr_rd_out = dsi_host_read(pdrv, reg);
+			dsi_host_write(pdrv, 0, reg, data);
+		wr_rd_out = dsi_host_read(pdrv, 0, reg);
 		break;
 	case LCD_REG_DBG_MIPIPHY_BUS:
 		sprintf(reg_bus_name, "DSI dphy");
 		if (reg_write)
-			dsi_phy_write(pdrv, reg, data);
-		wr_rd_out = dsi_phy_read(pdrv, reg);
+			dsi_phy_write(pdrv, 0, reg, data);
+		wr_rd_out = dsi_phy_read(pdrv, 0, reg);
 		break;
 #endif
 	case LCD_REG_DBG_COMBOPHY_BUS:
@@ -2396,14 +2396,14 @@ static void lcd_debug_reg_dump(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 		pr_info("dump mipi_dsi_host regs:\n");
 		for (i = 0; i < num; i++) {
 			pr_info("[0x%04x] = 0x%08x\n",
-				(reg + i), dsi_host_read(pdrv, reg + i));
+				(reg + i), dsi_host_read(pdrv, 0, reg + i));
 		}
 		break;
 	case LCD_REG_DBG_MIPIPHY_BUS:
 		pr_info("dump mipi_dsi_phy regs:\n");
 		for (i = 0; i < num; i++) {
 			pr_info("[0x%04x] = 0x%08x\n",
-				(reg + i), dsi_phy_read(pdrv, reg + i));
+				(reg + i), dsi_phy_read(pdrv, 0, reg + i));
 		}
 		break;
 #endif

@@ -596,6 +596,7 @@ static unsigned char lcd_clk_generate_DSI_1PLL(struct aml_lcd_drv_s *pdrv)
 	struct dsi_clk_tb_s *clk_div_tb;
 
 	unsigned long long bitrate_min, bitrate_max;
+	u8 port_cnt = dconf->multi_port_cfg & BIT(0) ? 2 : 1;
 
 	bitrate_min = lcd_dsi_get_min_bitrate(pdrv);
 	bitrate_max = dconf->bit_rate_max;
@@ -688,7 +689,7 @@ dsi_clk_tabel_buffer_full:
 	dconf->lane_byte_clk = div_around(clk_div_tb[x].phy_clk, 8);
 
 	// should lane_byte_clk = (be phy_clk == phy_bitrate / 2) / pclk
-	dconf->factor_numerator = cconf->xd;
+	dconf->factor_numerator = cconf->xd * port_cnt;
 	dconf->factor_denominator = cconf->phy_div * 8;
 
 	kfree(clk_div_tb);
@@ -1696,9 +1697,9 @@ void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status)
 		case CLKTREE_ENCL_INT_GATE:
 			clk_use = 1;
 			break;
-		case CLKTREE_DSI_HOST_GATE:
-		case CLKTREE_DSI_PHY_GATE:
-		case CLKTREE_DSI_MEAS:
+		case CLKTREE_DSI_A_HOST_GATE:
+		case CLKTREE_DSI_A_PHY_GATE:
+		case CLKTREE_DSI_A_MEAS:
 			if (pdrv->config.basic.lcd_type == LCD_MIPI)
 				clk_use = 1;
 			break;

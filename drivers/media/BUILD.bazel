@@ -369,7 +369,8 @@ ddk_module(
                 "vout/lcd/lcd_clk/lcd_clk_g12.c",
                 "vout/lcd/lcd_clk/lcd_clk_tm2.c",
                 "vout/lcd/lcd_clk/lcd_clk_t5d.c",
-                "vout/lcd/lcd_clk/lcd_clk_t7_t3_t5m.c",
+                "vout/lcd/lcd_clk/lcd_clk_t7.c",
+                "vout/lcd/lcd_clk/lcd_clk_t3_t5m.c",
                 "vout/lcd/lcd_clk/lcd_clk_t6d.c",
                 "vout/lcd/lcd_clk/lcd_clk_t5w.c",
                 "vout/lcd/lcd_clk/lcd_clk_txhd2.c",
@@ -381,19 +382,6 @@ ddk_module(
             True: [
                 "vout/lcd/lcd_tv/lcd_tv.c",
                 "vout/lcd/lcd_tv/lcd_drv.c",
-            ],
-        },
-        "CONFIG_AMLOGIC_LCD_CLK_C3_REMOVE": {
-            True: [
-                "vout/lcd/lcd_clk/lcd_clk_g12.c",
-                "vout/lcd/lcd_clk/lcd_clk_tm2.c",
-                "vout/lcd/lcd_clk/lcd_clk_t5d.c",
-                "vout/lcd/lcd_clk/lcd_clk_t7_t3_t5m.c",
-                "vout/lcd/lcd_clk/lcd_clk_t6d.c",
-                "vout/lcd/lcd_clk/lcd_clk_t5w.c",
-                "vout/lcd/lcd_clk/lcd_clk_txhd2.c",
-                "vout/lcd/lcd_clk/lcd_clk_t3x.c",
-                "vout/lcd/lcd_clk/lcd_clk_s6.c",
             ],
         },
         "CONFIG_AMLOGIC_LCD_TABLET": {

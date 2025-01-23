@@ -1093,6 +1093,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		}
 		pctrl->mipi_cfg.lane_num = para[0];
 		pctrl->mipi_cfg.bit_rate_max = para[1];
+		pctrl->mipi_cfg.multi_port_cfg = para[2];
 		pctrl->mipi_cfg.operation_mode_init = para[3];
 		pctrl->mipi_cfg.operation_mode_display = para[4];
 		pctrl->mipi_cfg.video_mode_type = para[5];

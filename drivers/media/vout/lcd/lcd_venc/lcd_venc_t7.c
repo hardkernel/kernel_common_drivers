@@ -122,7 +122,7 @@ static struct lcd_enc_test_t lcd_enc_tst_t6d[] = {
 
 static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 {
-	unsigned int h_active, video_on_pixel, offset;
+	unsigned int width, video_on_pixel, offset;
 	struct lcd_enc_test_t *pcur_test = NULL;
 	unsigned int cur_test_num = 0;
 
@@ -141,16 +141,16 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 		return -1;
 
 	offset = pdrv->data->offset_venc[pdrv->index];
-	h_active = pdrv->config.timing.act_timing.h_active;
-	video_on_pixel = pdrv->config.timing.hstart;
+	width = pdrv->config.timing.act_timing.h_active / 8 - 1;
+	video_on_pixel = pdrv->config.timing.hstart - 2;
 
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, pcur_test[num].rgb_in);
 	lcd_vcbus_write(ENCL_TST_MDSEL + offset, pcur_test[num].mode);
 	lcd_vcbus_write(ENCL_TST_Y + offset, pcur_test[num].y);
 	lcd_vcbus_write(ENCL_TST_CB + offset, pcur_test[num].cb);
 	lcd_vcbus_write(ENCL_TST_CR + offset, pcur_test[num].cr);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel - 2);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, (h_active / 9));
+	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel);
+	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, width);
 	lcd_vcbus_write(ENCL_TST_EN + offset, pcur_test[num].en);
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, pcur_test[num].vfifo_en, 3, 1);
 	if (num > 0)
@@ -334,6 +334,76 @@ static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, (void *)pdrv);
 }
 
+static void dual_set_t7(struct aml_lcd_drv_s *pdrv, u8 en, u8 to_port, u8 dual_mode)
+{
+	// uint16_t single_ha = pdrv->config.timing.act_timing.h_active / 2;
+
+	if (pdrv->index != 0) {
+		LCDPR("[%d]: dual-port on VENC %u not supported\n", pdrv->index, pdrv->index);
+		return;
+	}
+
+	if (to_port != 1) {
+		LCDPR("[%d]: dual-port to PORT-%c not supported\n", pdrv->index, 'A' + to_port);
+		return;
+	}
+
+	if (en == 0) {
+		lcd_vcbus_write(VPU_VENC_RGN_CTRL, 0);
+		return;
+	}
+
+	LCDPR("[%d]: set dual split %s mode (%c->[%c] | %c->[%c])\n", pdrv->index,
+		(dual_mode == LCD_DUAL_PORT_L_R || dual_mode == LCD_DUAL_PORT_R_L) ?
+			"Left-Right" : "Odd-Even",
+		dual_mode == LCD_DUAL_PORT_L_R ? 'L' :
+			(dual_mode == LCD_DUAL_PORT_R_L ? 'R' :
+				(dual_mode == LCD_DUAL_PORT_O_E ? 'O' : 'E')), 'A' + pdrv->index,
+		dual_mode == LCD_DUAL_PORT_L_R ? 'R' :
+			(dual_mode == LCD_DUAL_PORT_R_L ? 'L' :
+				(dual_mode == LCD_DUAL_PORT_O_E ? 'E' : 'O')), 'A' + to_port);
+
+	if (pdrv->config.timing.act_timing.h_active % 2 ||
+		pdrv->config.timing.act_timing.hsync_width % 2 ||
+		pdrv->config.timing.act_timing.hsync_bp % 2 ||
+		pdrv->config.timing.act_timing.hsync_fp % 2) {
+		LCDPR("[%d]: dual-port H-active/bp/fp/sync should be even value\n", pdrv->index);
+	}
+
+	// lcd_clk_setb(CLKCTRL_VID_CLK0_CTRL2, 1, 16, 1);
+
+	/* @reg: VPU_VENC_RGN_RSIZE 0x278a
+	 * [23:12] reg_region0_size: output region0 size (hsize+1)/2
+	 * [11:0]  reg_region1_size: output region0 size hsize - reg_region0_size
+	 */
+
+	lcd_vcbus_write(VPU_VENC_RGN_RSIZE,
+		(((pdrv->config.timing.act_timing.h_active / 2) << 12) |
+		  (pdrv->config.timing.act_timing.h_active / 2)));
+	/* @reg: VPU_DISP_WRAP_CTRL 0x278b
+	 * [7:5] reg_difx_link_prot: 0:disp0 sync venc0 1:disp1 sync venc0 2:disp2 sync venc0
+	 * [4] reg_splt2_mode: enable 1ppc->2ppc
+	 * [2:0] reg_venc0_difx_link[2:0]:
+	 */
+	lcd_vcbus_write(VPU_DISP_WRAP_CTRL, 0x13);
+
+	/* @reg: VPU_VENC_RGN_CTRL 0x2789
+	 * [11:10] reg_gclk_ctrl: ram clk
+	 * [9:8] reg_gclk_ctrl: logic clk
+	 * [7] reg_rgn_swap: 0:(0-left, 1right) 1:converse
+	 * [6] sw_rst: rgn_buffer soft reset
+	 * [5] reg_sync_ctrl: rgn buffer related en signal sync enable
+	 * [4] reg_sync_ctrl: vsync polarity 0:up edge 1:down edge
+	 * [3] reg_vsync_ctrl: vsync polarity 0:positive 1:negative
+	 * [2] reg_hsync_ctrl: hsync polarity 0:positive 1:negative
+	 * [1] oe_sp_en: odd even split enable
+	 * [0] rgn_en: vbo rgn_buffer enable
+	 */
+	lcd_vcbus_write(VPU_VENC_RGN_CTRL,
+		((dual_mode == LCD_DUAL_PORT_L_R || dual_mode == LCD_DUAL_PORT_R_L) << 0 |
+		 (dual_mode == LCD_DUAL_PORT_R_L || dual_mode == LCD_DUAL_PORT_E_O) << 7));
+}
+
 static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int reg_disp_viu_ctrl, offset;
@@ -400,6 +470,12 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_setb(VPU_VENC_CTRL + offset, 2, 0, 2);
 
 	lcd_venc_gamma_init(pdrv);
+
+	if (pdrv->config.basic.lcd_type == LCD_MIPI &&
+	    pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0)) {
+		dual_set_t7(pdrv, 1, 1,
+			(pdrv->config.control.mipi_cfg.multi_port_cfg >> 4) & 0Xf);
+	}
 }
 
 static void lcd_venc_change_timing(struct aml_lcd_drv_s *pdrv)

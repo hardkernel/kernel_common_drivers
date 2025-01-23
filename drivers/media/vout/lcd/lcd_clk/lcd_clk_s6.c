@@ -392,7 +392,7 @@ static void lcd_prbs_test_s6(struct aml_lcd_drv_s *pdrv, unsigned int ms,
 		ret = 1;
 		for (j = 0; j < 20; j++) {
 			lcd_delay_us(5);
-			val = dsi_phy_getb(pdrv, MIPI_DSI_TEST_CTRL0, 28, 4);
+			val = dsi_phy_getb(pdrv, 0, MIPI_DSI_TEST_CTRL0, 28, 4);
 			if (val == 0x0f) {
 				ret = 0;
 				break;

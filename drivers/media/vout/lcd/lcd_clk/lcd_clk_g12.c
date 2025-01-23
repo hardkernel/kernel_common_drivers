@@ -727,9 +727,9 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path0 = { //HPLL
 
 	.clktree_set = NULL,
 	.clktree_index = {
-		CLKTREE_DSI_HOST_GATE,
-		CLKTREE_DSI_PHY_GATE,
-		CLKTREE_DSI_MEAS,
+		CLKTREE_DSI_A_HOST_GATE,
+		CLKTREE_DSI_A_PHY_GATE,
+		CLKTREE_DSI_A_MEAS,
 		CLKTREE_ENCL_TOP_GATE,
 		CLKTREE_ENCL_INT_GATE,
 		0},
@@ -789,9 +789,9 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path1 = {  //GP0
 	.clktree_set = NULL,
 	.clktree_index = {
 		CLKTREE_GP0_PLL,
-		CLKTREE_DSI_HOST_GATE,
-		CLKTREE_DSI_PHY_GATE,
-		CLKTREE_DSI_MEAS,
+		CLKTREE_DSI_A_HOST_GATE,
+		CLKTREE_DSI_A_PHY_GATE,
+		CLKTREE_DSI_A_MEAS,
 		CLKTREE_ENCL_TOP_GATE,
 		CLKTREE_ENCL_INT_GATE},
 
@@ -849,9 +849,9 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path0 = {  //HPLL
 
 	.clktree_set = NULL,
 	.clktree_index = {
-		CLKTREE_DSI_HOST_GATE,
-		CLKTREE_DSI_PHY_GATE,
-		CLKTREE_DSI_MEAS,
+		CLKTREE_DSI_A_HOST_GATE,
+		CLKTREE_DSI_A_PHY_GATE,
+		CLKTREE_DSI_A_MEAS,
 		CLKTREE_ENCL_TOP_GATE,
 		CLKTREE_ENCL_INT_GATE,
 		0},
@@ -911,9 +911,9 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path1 = { //GP0
 	.clktree_set = NULL,
 	.clktree_index = {
 		CLKTREE_GP0_PLL,
-		CLKTREE_DSI_HOST_GATE,
-		CLKTREE_DSI_PHY_GATE,
-		CLKTREE_DSI_MEAS,
+		CLKTREE_DSI_A_HOST_GATE,
+		CLKTREE_DSI_A_PHY_GATE,
+		CLKTREE_DSI_A_MEAS,
 		CLKTREE_ENCL_TOP_GATE,
 		CLKTREE_ENCL_INT_GATE},
 

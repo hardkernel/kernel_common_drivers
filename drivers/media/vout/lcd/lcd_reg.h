@@ -16,19 +16,21 @@ struct reg_name_set_s {
 	char *name;
 };
 
-#define LCD_REG_DBG_VC_BUS          0
-#define LCD_REG_DBG_ANA_BUS         1
-#define LCD_REG_DBG_CLK_BUS         2
-#define LCD_REG_DBG_PERIPHS_BUS     3
-#define LCD_REG_DBG_MIPIHOST_BUS    4
-#define LCD_REG_DBG_MIPIPHY_BUS     5
-#define LCD_REG_DBG_TCON_BUS        6
-#define LCD_REG_DBG_EDPHOST_BUS     7
-#define LCD_REG_DBG_EDPDPCD_BUS     8
-#define LCD_REG_DBG_COMBOPHY_BUS    9
-#define LCD_REG_DBG_RST_BUS         10
-#define LCD_REG_DBG_HHI_BUS         11
-#define LCD_REG_DBG_MAX_BUS         0xff
+#define LCD_REG_DBG_VC_BUS                0
+#define LCD_REG_DBG_ANA_BUS               1
+#define LCD_REG_DBG_CLK_BUS               2
+#define LCD_REG_DBG_PERIPHS_BUS           3
+#define LCD_REG_DBG_MIPIHOST_BUS          4
+#define LCD_REG_DBG_MIPIPHY_BUS           5
+#define LCD_REG_DBG_TCON_BUS              6
+#define LCD_REG_DBG_EDPHOST_BUS           7
+#define LCD_REG_DBG_EDPDPCD_BUS           8
+#define LCD_REG_DBG_COMBOPHY_BUS          9
+#define LCD_REG_DBG_RST_BUS               10
+#define LCD_REG_DBG_HHI_BUS               11
+#define LCD_REG_DBG_MIPIHOST_BUS_SUB_PORT 12
+#define LCD_REG_DBG_MIPIPHY_BUS_SUB_PORT  13
+#define LCD_REG_DBG_MAX_BUS               0xff
 
 /* register offset address define */
 /* base & offset */
@@ -1240,6 +1242,9 @@ struct reg_name_set_s {
 #define VPU_DISP_VIU0_CTRL                         0x2786
 #define VPU_DISP_VIU1_CTRL                         0x2787
 #define VPU_DISP_VIU2_CTRL                         0x2788
+#define VPU_VENC_RGN_CTRL                          0x2789
+#define VPU_VENC_RGN_RSIZE                         0x278a
+#define VPU_DISP_WRAP_CTRL                         0x278b
 
 #define LCD_RGB_BASE_ADDR                          0x14a5
 #define LCD_RGB_COEFF_ADDR                         0x14a6
@@ -1862,23 +1867,16 @@ unsigned int lcd_periphs_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
 void lcd_periphs_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 		       unsigned int value);
 
-unsigned int dsi_host_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void dsi_host_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
-void dsi_host_setb(struct aml_lcd_drv_s *pdrv,
-		   unsigned int reg, unsigned int value,
-		   unsigned int start, unsigned int len);
-unsigned int dsi_host_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			   unsigned int start, unsigned int len);
-void dsi_host_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
-void dsi_host_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
-unsigned int dsi_phy_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void dsi_phy_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
-void dsi_phy_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value,
-		  unsigned int start, unsigned int len);
-unsigned int dsi_phy_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			  unsigned int start, unsigned int len);
-void dsi_phy_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
-void dsi_phy_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
+unsigned int dsi_host_read(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg);
+void dsi_host_write(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg, unsigned int value);
+void dsi_host_setb(struct aml_lcd_drv_s *pdrv, u8 port,
+		   unsigned int reg, unsigned int value, u8 start, u8 len);
+unsigned int dsi_host_getb(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg, u8 start, u8 len);
+unsigned int dsi_phy_read(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg);
+void dsi_phy_write(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg, unsigned int value);
+void dsi_phy_setb(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg, unsigned int value,
+		  u8 start, u8 len);
+unsigned int dsi_phy_getb(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg, u8 start, u8 len);
 
 unsigned int lcd_tcon_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
 void lcd_tcon_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,

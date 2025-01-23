@@ -28,7 +28,7 @@ static void lcd_lane_map_chip_init(struct aml_lcd_drv_s *pdrv, struct phy_config
 	case LCD_CHIP_T7:
 		if (pdrv->index == 0) {
 			phy_cfg->lane_offset = 0;
-			phy_cfg->lane_mask = 0xff;
+			phy_cfg->lane_mask = 0xffff;
 		} else if (pdrv->index == 1) {
 			phy_cfg->lane_offset = 8;
 			phy_cfg->lane_mask = 0xff;
@@ -465,6 +465,8 @@ void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
 			lane_map0 = 0xfff43210;
 			lane_map1 = 0xffffffff;
 		}
+		if (pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0))
+			lane_map1 = lane_map0;
 		break;
 	default:
 		break;
@@ -555,7 +557,18 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 		lcd_vcbus_write(P2P_CH_SWAP0, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1, channel_sel1);
 		break;
-	case LCD_CHIP_T7:
+	case LCD_CHIP_T7: /* when MIPI-DSI using dual-port, swap B to venc1 */
+		offset = pdrv->data->offset_venc_if[pdrv->index];
+		lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, pdrv->config.phy_cfg.ch_swap0);
+		lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, pdrv->config.phy_cfg.ch_swap1);
+
+		if (pdrv->config.basic.lcd_type == LCD_MIPI &&
+		    pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0)) {
+			offset = pdrv->data->offset_venc_if[1];
+			lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, pdrv->config.phy_cfg.ch_swap0);
+			lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, pdrv->config.phy_cfg.ch_swap1);
+		}
+		break;
 	case LCD_CHIP_T5W:
 	case LCD_CHIP_T3:
 	case LCD_CHIP_T5M:
@@ -576,25 +589,34 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 
 void lcd_mipi_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 {
-	unsigned int bit_lane_sel;
-
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
-	case LCD_CHIP_TXHD2:
+		if (on_off == 0)
+			break;
+
 		if (pdrv->index == 0) {
-			bit_lane_sel = 0;
+			if (pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0)) {
+				//Bit 5: reg_phy1_pll_sel
+				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 0x1, 5, 1);
+				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x0, 16, 10);
+			}
+
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x0, 0, 10);
 		} else if (pdrv->index == 1) {
-			bit_lane_sel = 16;
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x0, 16, 10);
 		} else {
 			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
 			return;
 		}
+		lcd_lane_map_set(pdrv);
+		break;
+	case LCD_CHIP_TXHD2:
 		if (on_off) {
 			// sel dphy lane
-			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x0, bit_lane_sel, 10);
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x0, 0, 10);
 			lcd_lane_map_set(pdrv);
 		}
 		break;
