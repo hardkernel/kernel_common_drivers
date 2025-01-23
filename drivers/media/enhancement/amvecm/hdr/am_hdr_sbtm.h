@@ -8,7 +8,6 @@
 #define _AM_HDR_SBTM_H
 
 #include <linux/amlogic/media/amvecm/hdr2_ext.h>
-
 #include "../amcsc.h"
 
 enum sbtm_en_mode {
@@ -81,6 +80,7 @@ struct sbtmem_s {
 	u8 sbtm_type;
 };
 
+extern uint pr_sbtm_en;
 extern uint sbtm_en;
 extern uint sbtm_mode;
 extern uint sbtm_tmo_static;
@@ -96,9 +96,9 @@ int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 void unregister_osd_status_cb(void);
 
 int sbtm_convert_process(enum sbtm_hdr_proc_sel sbtm_proc_sel,
-			  struct vinfo_s *vinfo,
-			  struct matrix_s *mtx,
-			  int mtx_depth);
+	struct vinfo_s *vinfo,
+	struct matrix_s *mtx,
+	int mtx_depth);
 int sbtm_tmo_hdr2hdr_process(struct vinfo_s *vinfo);
 
 int sbtm_hdr10_tmo_dbg(char **parm);

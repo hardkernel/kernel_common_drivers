@@ -30,12 +30,6 @@
 #include "../amcsc.h"
 
 unsigned int gmt_print;
-module_param(gmt_print, uint, 0664);
-MODULE_PARM_DESC(gmt_print, "print gamut");
-
-/* gamma=2.200000 lumin=500 boost=0.075000 */
-static unsigned int scale_factor =
-	(unsigned int)((((1.000000) * 4096.0) + 1) / 2);
 
 #define pr_gmt(fmt, args...)\
 	do {\
@@ -45,6 +39,11 @@ static unsigned int scale_factor =
 
 #define NORM 50000
 #define BL		16
+
+/* gamma=2.200000 lumin=500 boost=0.075000 */
+static unsigned int scale_factor =
+	(unsigned int)((((1.000000) * 4096.0) + 1) / 2);
+
 static s64 ma[3][3] = {
 	{0.8951 * NORM, 0.2664 * NORM, -0.1614 * NORM},
 	{-0.7502 * NORM, 1.7135 * NORM, 0.0367 * NORM},
@@ -374,12 +373,7 @@ static u32 std_bt709_white_point[2] = {
 };
 
 uint force_primary;
-module_param(force_primary, uint, 0664);
-MODULE_PARM_DESC(force_primary, "\n force_primary\n");
-
 uint force_matrix;
-module_param(force_matrix, uint, 0664);
-MODULE_PARM_DESC(force_matrix, "\n force_matrix\n");
 
 u32 force_matrix_primary[3][3] = {
 	{0x0d49, 0x1b4d, 0x1f6b},
@@ -394,8 +388,6 @@ u32 force_src_primary[8] = {
 	0.131 * NORM + 0.5, 0.046 * NORM + 0.5,	/* B */
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
-module_param_array(force_src_primary, uint, &num_force_primary, 0664);
-MODULE_PARM_DESC(force_src_primary, "\n force_src_primary\n");
 
 u32 force_dst_primary[8] = {
 	0.64 * NORM + 0.5, 0.33 * NORM + 0.5,	/* R */
@@ -403,8 +395,7 @@ u32 force_dst_primary[8] = {
 	0.15 * NORM + 0.5, 0.06 * NORM + 0.5,	/* B */
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
-module_param_array(force_dst_primary, uint, &num_force_primary, 0664);
-MODULE_PARM_DESC(force_dst_primary, "\n force_src_primary\n");
+
 int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,
 			  enum vd_path_e vd_path,

@@ -58,6 +58,10 @@
 #define O_BW       32/*freeze*/
 #define maxbit     33/*freeze*/
 #define OGAIN_BW   12/*freeze*/
+#define OO_BITS    12
+#define OO_GAIN_SHIFT    3
+#define OO_NOR    (OO_BITS - OO_GAIN_SHIFT)
+#define NUM_HDR_HIST 16
 
 enum hdr_lut_sel {
 	HDR_EOTF_LUT = 1,
@@ -75,16 +79,6 @@ enum hdr_hist_sel {
 	HIST_O_AFTER = 6,
 	HIST_MAX
 };
-
-#define OO_BITS			12
-#define OO_GAIN_SHIFT	3
-#define OO_NOR			(OO_BITS - OO_GAIN_SHIFT)
-
-enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
-			      enum hdr_process_sel hdr_process_select,
-			      struct vinfo_s *vinfo,
-			      struct matrix_s *gmt_mtx,
-			      enum vpp_index_e vpp_index);
 
 enum mtx_csc_e {
 	MATRIX_NULL = 0,
@@ -114,58 +108,68 @@ enum mtx_csc_e {
 	MATRIX_OSD_LC_EVC
 };
 
-void mtx_setting(enum vpp_matrix_e mtx_sel,
-		 enum mtx_csc_e mtx_csc,
-	int mtx_on);
-
-unsigned int _log2(unsigned int value);
-int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
-			   enum hdr_process_sel hdr_process_select,
-			   struct hdr10pgen_param_s *hdr10pgen_param,
-			   enum vpp_index_e vpp_index);
-enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
-				 enum hdr_process_sel hdr_process_select,
-				 struct vinfo_s *vinfo,
-				 struct matrix_s *gmt_mtx,
-				 enum vpp_index_e vpp_index);
-void set_ootf_lut(enum hdr_module_sel module_sel,
-		  struct hdr_proc_lut_param_s *hdr_lut_param,
-		  enum vpp_index_e vpp_index);
 extern struct hdr_proc_lut_param_s hdr_lut_param;
 extern int oo_y_lut_hdr_sdr_def[HDR2_OOTF_LUT_SIZE];
 extern int oo_y_lut_hdr_sdr[HDR2_OOTF_LUT_SIZE];
 extern int oo_y_lut_hlg_sdr[HDR2_OOTF_LUT_SIZE];
-void eo_clip_proc(struct vframe_master_display_colour_s *master_info,
-		  unsigned int eo_sel);
-int hdr10_tm_update(enum hdr_module_sel module_sel,
-		    enum hdr_process_sel hdr_process_select,
-		    enum vpp_index_e vpp_index);
 extern int cgain_lut_bypass[HDR2_CGAIN_LUT_SIZE];
 extern unsigned int hdr10_pr;
 extern unsigned int hdr10_clip_disable;
 extern unsigned int hdr10_clip_luma;
 extern unsigned int hdr10_clip_margin;
-void get_hist(enum vd_path_e vd_path,
-	      enum hdr_hist_sel hist_sel);
-#define NUM_HDR_HIST 16
 extern u32 hdr_hist[NUM_HDR_HIST][128];
 extern u32 percentile[9];
 extern u32 disable_flush_flag;
 extern u32 cuva_static_hlg_en;
+extern uint adp_scal_x_shift;
+extern uint adp_scal_y_shift;
+extern uint clip_func;
+extern uint vd1_bp_force;
+
+enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	struct vinfo_s *vinfo,
+	struct matrix_s *gmt_mtx,
+	enum vpp_index_e vpp_index);
+
+void mtx_setting(enum vpp_matrix_e mtx_sel,
+	enum mtx_csc_e mtx_csc,
+	int mtx_on);
+
+unsigned int _log2(unsigned int value);
+int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	struct hdr10pgen_param_s *hdr10pgen_param,
+	enum vpp_index_e vpp_index);
+enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	struct vinfo_s *vinfo,
+	struct matrix_s *gmt_mtx,
+	enum vpp_index_e vpp_index);
+void set_ootf_lut(enum hdr_module_sel module_sel,
+	struct hdr_proc_lut_param_s *hdr_lut_param,
+	enum vpp_index_e vpp_index);
+void eo_clip_proc(struct vframe_master_display_colour_s *master_info,
+	unsigned int eo_sel);
+int hdr10_tm_update(enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	enum vpp_index_e vpp_index);
+void get_hist(enum vd_path_e vd_path,
+	enum hdr_hist_sel hist_sel);
 int cuva_hdr_update(enum hdr_module_sel module_sel,
 	enum hdr_process_sel hdr_process_select, enum vpp_index_e vpp_index);
 void hdr_reg_dump(unsigned int offset);
 int calc_gmut_shift(struct hdr_proc_mtx_param_s *hdr_mtx_param);
 
 #define LDIM_STTS_DMA_ID 0
-#define FG0_DMA_ID		 1
-#define FG1_DMA_ID		 2
-#define FG2_DMA_ID		 3
-#define FG3_DMA_ID		 4
-#define FG4_DMA_ID		 5
-#define FG5_DMA_ID		 6
-#define HDR_DMA_ID		 7
-#define LUT3D_DMA_ID	 8
+#define FG0_DMA_ID 1
+#define FG1_DMA_ID 2
+#define FG2_DMA_ID 3
+#define FG3_DMA_ID 4
+#define FG4_DMA_ID 5
+#define FG5_DMA_ID 6
+#define HDR_DMA_ID 7
+#define LUT3D_DMA_ID 8
 
 enum LUT_DMA_ID_e {
 	LDIM_DMA_ID = LDIM_STTS_DMA_ID,

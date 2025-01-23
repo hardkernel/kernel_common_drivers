@@ -33,13 +33,9 @@
 #include "../arch/vpp_s7d_sr_regs.h"
 
 unsigned int aipq_debug;
-module_param(aipq_debug, uint, 0664);
-MODULE_PARM_DESC(aipq_debug, "\n aipq_debug\n");
-
 unsigned int aipq_smooth_dbg;
-module_param(aipq_smooth_dbg, uint, 0664);
-MODULE_PARM_DESC(aipq_smooth_dbg, "\n aipq_smooth_dbg\n");
-
+int aipq_bld_rs = 1;
+int slower_coef = 1024;
 unsigned int aipq_en =
 	(1 << BLUE_SCENE) |
 	(1 << GREEN_SCENE) |
@@ -48,16 +44,6 @@ unsigned int aipq_en =
 	(1 << SATURATION_SCENE) |
 	(1 << DYNAMIC_CONTRAST_SCENE) |
 	(1 << NOISE_SCENE);
-module_param(aipq_en, uint, 0664);
-MODULE_PARM_DESC(aipq_en, "\n aipq_en\n");
-
-int aipq_bld_rs = 1;
-module_param(aipq_bld_rs, uint, 0664);
-MODULE_PARM_DESC(aipq_bld_rs, "\n aipq_bld_rs\n");
-
-int slower_coef = 1024;
-module_param(slower_coef, uint, 0664);
-MODULE_PARM_DESC(slower_coef, "\n slower_coef\n");
 
 #define pr_aipq_dbg(fmt, args...)\
 	do {\
@@ -66,8 +52,10 @@ MODULE_PARM_DESC(slower_coef, "\n slower_coef\n");
 	} while (0)\
 
 #endif
+
 #define DISABLE 0
 #define ENABLE 1
+
 struct single_scene_s detected_scenes[SCENE_MAX] = {
 	{DISABLE, NULL},
 	{DISABLE, NULL},
@@ -375,6 +363,13 @@ int peaking_scene_process(int offset, int enable)
 	adap_param->satur_param.offset = offset;
 
 	if (!enable || !(aipq_en & (1 << PEAKING_SCENE))) {
+		for (i = 0; i < 4; i++) {
+			if (base_val[i] < 0)
+				base_val[i] = 0;
+			else if (base_val[i] > 255)
+				base_val[i] = 255;
+		}
+
 		if (chip_type_id == chip_s6 ||
 		chip_type_id == chip_s7d)
 			set_sharpness_gain(base_val[0] << 8 | base_val[1] |
@@ -442,6 +437,13 @@ int peaking_scene_process(int offset, int enable)
 				    offset, bld_offset[i], bld_rs);
 			aipq_debug--;
 		}
+	}
+
+	for (i = 0; i < 4; i++) {
+		if (reg_val[i] < 0)
+			reg_val[i] = 0;
+		else if (reg_val[i] > 255)
+			reg_val[i] = 255;
 	}
 
 	if (chip_type_id == chip_s6 ||

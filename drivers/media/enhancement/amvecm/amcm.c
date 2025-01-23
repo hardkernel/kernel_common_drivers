@@ -52,33 +52,15 @@
 			pr_info("AMCM: " fmt, ## args);\
 	} while (0)\
 
-static int debug_amcm;
-module_param(debug_amcm, int, 0664);
-MODULE_PARM_DESC(debug_amcm, "\n debug_amcm\n");
-
-static bool debug_regload;
-module_param(debug_regload, bool, 0664);
-MODULE_PARM_DESC(debug_regload, "\n debug_regload\n");
+int debug_amcm;
+int debug_regload;
+int cm_en;/* 0:disable;1:enable */
+int pq_reg_wr_rdma;/* 0:disable;1:enable */
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int cm_level = 1;/* 0:optimize;1:enhancement */
-module_param(cm_level, int, 0664);
-MODULE_PARM_DESC(cm_level, "\n select cm lever\n");
-#endif
-
-int cm_en;/* 0:disable;1:enable */
-module_param(cm_en, int, 0664);
-MODULE_PARM_DESC(cm_en, "\n enable or disable cm\n");
-
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static unsigned int cm_width_limit = 50;/* vlsi adjust */
-module_param(cm_width_limit, uint, 0664);
-MODULE_PARM_DESC(cm_width_limit, "\n cm_width_limit\n");
 #endif
-
-int pq_reg_wr_rdma;/* 0:disable;1:enable */
-module_param(pq_reg_wr_rdma, int, 0664);
-MODULE_PARM_DESC(pq_reg_wr_rdma, "\n pq_reg_wr_rdma\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 static struct am_regs_s amregs0;
@@ -334,10 +316,14 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 				}
 			}
 
-			/*if (pq_reg_wr_rdma)*/
-			/*	cm_wr_api(addr, val, mask, WR_DMA, vpp_index);*/
-			/*else*/
+			if (chip_cls_id == TV_CHIP) {
 				cm_wr_api(addr, val, mask, WR_VCB, 0);
+			} else {
+				if (pq_reg_wr_rdma)
+					cm_wr_api(addr, val, mask, WR_DMA, vpp_index);
+				else
+					cm_wr_api(addr, val, mask, WR_VCB, 0);
+			}
 
 			default_sat_param(addr, val);
 #endif
@@ -991,8 +977,15 @@ void cm_frame_size_s5(struct vframe_s *vf, int vpp_index)
 				else
 					overlap = 0;
 
-				width = vd_size_info->slice[0].vd1_slice_in_hsize - overlap;
-				height = vd_size_info->slice[0].vd1_slice_in_vsize;
+				width = vd_size_info->slice[0].hsize;
+				height = vd_size_info->slice[0].vsize;
+				pr_amcm_dbg("[amcm] s[%d] in_size( %d,%d) size(%d,%d),overlap=%d\n",
+					i,
+					vd_size_info->slice[i].vd1_slice_in_hsize,
+					vd_size_info->slice[i].vd1_slice_in_vsize,
+					vd_size_info->slice[i].hsize,
+					vd_size_info->slice[i].vsize,
+					vd_size_info->slice[i].vd1_overlap);
 #else
 				width = 0xf00;
 				height = 0x870;
@@ -1054,10 +1047,10 @@ void cm2_frame_size_patch(struct vframe_s *vf,
 	addr_port = VPP_CHROMA_ADDR_PORT;
 	data_port = VPP_CHROMA_DATA_PORT;
 
-	if (!cm_en)
+	if (!cm_en || width == 0 || height == 0)
 		return;
 	else if (width < cm_width_limit)
-		amcm_disable(WR_VCB, 0);/*(WR_DMA);*/
+		amcm_disable(WR_DMA, vpp_index);
 	else if (!cm_en_flag && !cm_dis_flag)
 		amcm_enable(WR_DMA, vpp_index);
 

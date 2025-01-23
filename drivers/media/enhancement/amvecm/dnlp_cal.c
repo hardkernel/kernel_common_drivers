@@ -47,17 +47,9 @@ ulong ve_dnlp_reg_def[16] = {
 	0xdad7d5d2,	0xe6e3e0dd,	0xf2efece9,	0xfdfaf7f4
 };
 
-static bool hist_sel = 1; /*1->vpp , 0->vdin*/
-module_param(hist_sel, bool, 0664);
-MODULE_PARM_DESC(hist_sel, "hist_sel");
-
-static unsigned int dnlp_dbg_print; /*1->vpp , 0->vdin*/
-module_param(dnlp_dbg_print, uint, 0664);
-MODULE_PARM_DESC(dnlp_dbg_print, "dnlp_dbg_print");
-
-bool dnlp_insmod_ok; /*0:fail, 1:ok*/
-module_param(dnlp_insmod_ok, bool, 0664);
-MODULE_PARM_DESC(dnlp_insmod_ok, "dnlp_insmod_ok");
+unsigned int  hist_sel = 1; /*1->vpp , 0->vdin*/
+unsigned int dnlp_insmod_ok; /*0:fail, 1:ok*/
+unsigned int dnlp_dbg_print; /*1->vpp , 0->vdin*/
 
 struct dnlp_alg_s *dnlp_alg_function;
 EXPORT_SYMBOL(dnlp_alg_function);
@@ -585,7 +577,8 @@ void ve_dnlp_calculate_reg(void)
 			data = ve_dnlp_lpf[cur + 1] << 2;
 			if (data > 1023)
 				data = 1023;
-			if (chip_type_id == chip_s6 ||
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6 ||
 				chip_type_id == chip_t6d) {
 				ve_dnlp_reg_v2[i] |= data << 12;
 			} else {

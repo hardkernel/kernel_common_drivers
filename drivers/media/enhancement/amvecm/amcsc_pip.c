@@ -40,11 +40,9 @@ static enum hdr_type_e cur_source_format[VD_PATH_MAX];
 enum output_format_e output_format;
 
 /*bit4: force mode; bit 0-3 slice num */
-static uint slice_set = 0x14;
-module_param(slice_set, uint, 0664);
-MODULE_PARM_DESC(slice_set, "\n slice_set\n");
+uint slice_set = 0x14;
 
-#define INORM	50000
+#define INORM  50000
 static u32 bt2020_primaries[3][2] = {
 	{0.17 * INORM + 0.5, 0.797 * INORM + 0.5},	/* G */
 	{0.131 * INORM + 0.5, 0.046 * INORM + 0.5},	/* B */
@@ -2818,8 +2816,8 @@ int get_s5_slice_mode(void)
 	if (!is_meson_s5_cpu())
 		return 1;
 
-	if ((slice_set & 0x10))
-		slice_number = slice_set & 0x0F;
+	if (slice_set & 0x10)
+		slice_number = slice_set & 0x0f;
 	else
 		slice_number = get_slice_num(0);
 

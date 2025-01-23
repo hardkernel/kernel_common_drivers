@@ -12,11 +12,8 @@
 #include "gamut_convert.h"
 #include "../set_hdr2_v0.h"
 #include "../s5_set_hdr2_v0.h"
-//#include "../../../../drm/meson_plane.h"
 
 uint pr_sbtm_en;
-module_param(pr_sbtm_en, int, 0664);
-MODULE_PARM_DESC(pr_sbtm_en, "\n pr_sbtm_en\n");
 
 #define pr_sbtm_dbg(fmt, args...)\
 	do {\
@@ -156,7 +153,6 @@ int oo_y_lut_bypass_sbtm[HDR2_OOTF_LUT_SIZE] = {
 };
 
 static u32 oo_lut[HDR2_OOTF_LUT_SIZE] = {0};
-static int num_oo_y_lut_sbtm = HDR2_OOTF_LUT_SIZE;
 int oo_y_lut_sbtm[HDR2_OOTF_LUT_SIZE] = {
 	1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600,
 	1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600, 1600,
@@ -174,10 +170,7 @@ int oo_y_lut_sbtm[HDR2_OOTF_LUT_SIZE] = {
 	134, 126, 119, 113, 107, 102, 97, 93, 89, 86,
 	82, 79, 77, 74, 72, 69, 67, 65, 64
 };
-module_param_array(oo_y_lut_sbtm, int, &num_oo_y_lut_sbtm, 0664);
-MODULE_PARM_DESC(oo_y_lut_sbtm, "\n oo_y_lut_sbtm\n");
 
-static int num_oo_y_lut_sbtm_osd = HDR2_OOTF_LUT_SIZE;
 int oo_y_lut_sbtm_osd[HDR2_OOTF_LUT_SIZE] = {
 	16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
 	16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
@@ -190,8 +183,6 @@ int oo_y_lut_sbtm_osd[HDR2_OOTF_LUT_SIZE] = {
 	16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
 	16, 16, 16, 16, 16
 };
-module_param_array(oo_y_lut_sbtm_osd, int, &num_oo_y_lut_sbtm_osd, 0664);
-MODULE_PARM_DESC(oo_y_lut_sbtm_osd, "\n oo_y_lut_sbtm_osd\n");
 
 static unsigned int eo_lut_28_sbtm[143] = {
 	0, 1, 4, 7, 12, 17, 24, 31, 39, 49, 59, 71, 83, 97,
@@ -319,29 +310,19 @@ struct vtem_sbtm_st sbtmem_reg = {
 };
 
 u8 sbtm_hdr_process;
-
 uint sbtmdb_auto_update = 1;/* sbtmdb update use edid info */
-module_param(sbtmdb_auto_update, uint, 0664);
-MODULE_PARM_DESC(sbtmdb_auto_update, "\n sbtmdb_auto_update\n");
-
 uint sbtm_tmo_static;/* sbtm_tmo_static 0/1 dynamic/static */
-module_param(sbtm_tmo_static, uint, 0664);
-MODULE_PARM_DESC(sbtm_tmo_static, "\n sbtm_tmo_static\n");
-
 uint sbtm_en;/* sbtm_en enable/disable */
-module_param(sbtm_en, uint, 0664);
-MODULE_PARM_DESC(sbtm_en, "\n sbtm_en\n");
+uint cur_sbtm_mode = SBTM_MODE_OFF;
+uint sbtm_mode = SBTM_MODE_OFF;
+unsigned int hdr10_tmo_debug_sbtm;
+unsigned int tmo_alpha = 250;
 
 void sbtm_set_sbtm_enable(unsigned int enable)
 {
 	sbtm_en = enable;
 }
 EXPORT_SYMBOL(sbtm_set_sbtm_enable);
-
-uint cur_sbtm_mode = SBTM_MODE_OFF;
-uint sbtm_mode = SBTM_MODE_OFF;
-module_param(sbtm_mode, uint, 0664);
-MODULE_PARM_DESC(sbtm_mode, "\n sbtm_mode\n");
 
 void sbtm_mode_set(uint mode)
 {
@@ -355,14 +336,6 @@ void sbtm_mode_set(uint mode)
 		sbtm_mode = mode;
 }
 EXPORT_SYMBOL(sbtm_mode_set);
-
-unsigned int hdr10_tmo_debug_sbtm;
-module_param(hdr10_tmo_debug_sbtm, uint, 0664);
-MODULE_PARM_DESC(hdr10_tmo_debug_sbtm, "\n hdr10_tmo_debug_sbtm\n");
-
-unsigned int tmo_alpha = 250;
-module_param(tmo_alpha, uint, 0664);
-MODULE_PARM_DESC(tmo_alpha, "\n tmo_alpha\n");
 
 static int _get_maxl_e(int maxl)
 {

@@ -6,6 +6,8 @@
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #include "../amcsc.h"
 
+extern int pr_tmo_en;
+
 void hdr10_tmo_gen(u32 *oo_gain);
 int hdr10_tmo_dbg(char **param);
 void hdr10_tmo_parm_show(void);

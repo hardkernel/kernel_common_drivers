@@ -30,52 +30,42 @@
 
 #define NUM_CM_14_COLOR_MAX cm_14_ecm2colormode_max
 
-static uint lpf_coef_matrix_param = NUM_MATRIX_PARAM;
 static uint lpf_coef[NUM_MATRIX_PARAM] = {
 	0, 16, 32, 32, 32, 16, 0
 };
 
-static uint color_key_pts_matrix_param = NUM_COLOR_MAX;
 static uint color_key_pts[NUM_COLOR_MAX] = {
 	5, 9, 12, 15, 17, 19, 23, 25, 29
 };
 
-static uint color_start_param = NUM_COLOR_MAX;
 static uint color_start[NUM_COLOR_MAX] = {
 	1, 7, 11, 14, 16, 18, 23, 25, 29
 };
 
-static uint color_end_param = NUM_COLOR_MAX;
 static uint color_end[NUM_COLOR_MAX] = {
 	6, 10, 13, 15, 17, 22, 24, 28, 32
 };
 
-static uint cm_14_color_key_pts_matrix_param = NUM_CM_14_COLOR_MAX;
 static uint cm_14_color_key_pts[NUM_CM_14_COLOR_MAX] = {
 	2, 4, 7, 9, 11, 13, 14, 16, 18, 20, 22, 25, 28, 30
 };
 
-static uint cm_14_color_start_param = NUM_CM_14_COLOR_MAX;
 static uint cm_14_color_start[NUM_CM_14_COLOR_MAX] = {
 	1, 3, 6, 8, 10, 12, 14, 15, 17, 20, 22, 25, 28, 30
 };
 
-static uint cm_14_color_end_param = NUM_CM_14_COLOR_MAX;
 static uint cm_14_color_end[NUM_CM_14_COLOR_MAX] = {
 	2, 5, 7, 9, 11, 13, 14, 16, 19, 21, 24, 27, 29, 32
 };
 
-static uint smth_coef_hue_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_hue[NUM_SMTH_PARAM] = {
 	0, 20, 40, 80, 110, 128, 110, 80, 40, 20, 0
 };
 
-static uint smth_coef_luma_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_luma[NUM_SMTH_PARAM] = {
 	40, 100, 105, 110, 115, 120, 115, 110, 85, 60, 40
 };
 
-static uint smth_coef_sat_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_sat[NUM_SMTH_PARAM] = {
 	40, 60, 85, 105, 115, 120, 115, 105, 85, 60, 30
 };
@@ -92,46 +82,6 @@ static char def_hue_via_hue[32];
 static char def_luma_via_hue[32];
 
 //static char def_14_color_sat_via_hs[3][32];
-
-module_param_array(lpf_coef, uint,
-		   &lpf_coef_matrix_param, 0664);
-MODULE_PARM_DESC(lpf_coef, "\n lpf_coef\n");
-
-module_param_array(color_key_pts, uint,
-		   &color_key_pts_matrix_param, 0664);
-MODULE_PARM_DESC(color_key_pts, "\n color_key_pts\n");
-
-module_param_array(color_start, uint,
-		   &color_start_param, 0664);
-MODULE_PARM_DESC(color_start, "\n color_start\n");
-
-module_param_array(color_end, uint,
-		   &color_end_param, 0664);
-MODULE_PARM_DESC(color_end, "\n color_end\n");
-
-module_param_array(cm_14_color_key_pts, uint,
-		   &cm_14_color_key_pts_matrix_param, 0664);
-MODULE_PARM_DESC(cm_14_color_key_pts, "\n cm_14_color_key_pts\n");
-
-module_param_array(cm_14_color_start, uint,
-		   &cm_14_color_start_param, 0664);
-MODULE_PARM_DESC(cm_14_color_start, "\n 14 color_start\n");
-
-module_param_array(cm_14_color_end, uint,
-		   &cm_14_color_end_param, 0664);
-MODULE_PARM_DESC(cm_14_color_end, "\n 14 color_end\n");
-
-module_param_array(smth_coef_hue, uint,
-		   &smth_coef_hue_matrix_param, 0664);
-MODULE_PARM_DESC(smth_coef_hue_matrix_param, "\n smth_coef_hue\n");
-
-module_param_array(smth_coef_luma, uint,
-		   &smth_coef_luma_matrix_param, 0664);
-MODULE_PARM_DESC(smth_coef_luma_matrix_param, "\n smth_coef_luma\n");
-
-module_param_array(smth_coef_sat, uint,
-		   &smth_coef_sat_matrix_param, 0664);
-MODULE_PARM_DESC(smth_coef_sat_matrix_param, "\n smth_coef_sat\n");
 
 /*static int lpf_coef[] = {
  *	0, 0, 32, 64, 32, 0, 0
@@ -305,16 +255,6 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 		data_port = VPP_CHROMA_DATA_PORT;
 	}
 
-	if (cm_color_md_hue_by_hs.color_type == cm_9_color) {
-		colormode = cm_color_md_hue_by_hs.cm_9_color_md;
-		start	= color_start[colormode];
-		end		= color_end[colormode];
-	} else {
-		colormode = cm_color_md_hue_by_hs.cm_14_color_md;
-		start	= cm_14_color_start[colormode];
-		end		= cm_14_color_end[colormode];
-	}
-
 	if (cm_color_md_hue_by_hs.color_type == cm_9_color &&
 		cm_color_md_hue_by_hs.cm_9_color_md == ecm2colormode_max) {
 		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
@@ -323,6 +263,16 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 		cm_color_md_hue_by_hs.cm_14_color_md == cm_14_ecm2colormode_max) {
 		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
 		return;
+	}
+
+	if (cm_color_md_hue_by_hs.color_type == cm_9_color) {
+		colormode = cm_color_md_hue_by_hs.cm_9_color_md;
+		start	= color_start[colormode];
+		end		= color_end[colormode];
+	} else {
+		colormode = cm_color_md_hue_by_hs.cm_14_color_md;
+		start	= cm_14_color_start[colormode];
+		end		= cm_14_color_end[colormode];
 	}
 
 	if (cm2_debug & CM_HUE_BY_HIS_DEBUG_FLAG)
@@ -462,16 +412,6 @@ void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
 		data_port = VPP_CHROMA_DATA_PORT;
 	}
 
-	if (cm_color_md_hue.color_type == cm_9_color) {
-		colormode = cm_color_md_hue.cm_9_color_md;
-		start	= color_start[colormode];
-		end		= color_end[colormode];
-	} else {
-		colormode = cm_color_md_hue.cm_14_color_md;
-		start	= cm_14_color_start[colormode];
-		end		= cm_14_color_end[colormode];
-	}
-
 	if (cm_color_md_hue.color_type == cm_9_color &&
 		cm_color_md_hue.cm_9_color_md == ecm2colormode_max) {
 		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
@@ -480,6 +420,16 @@ void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
 		cm_color_md_hue.cm_14_color_md == cm_14_ecm2colormode_max) {
 		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
 		return;
+	}
+
+	if (cm_color_md_hue.color_type == cm_9_color) {
+		colormode = cm_color_md_hue.cm_9_color_md;
+		start	= color_start[colormode];
+		end		= color_end[colormode];
+	} else {
+		colormode = cm_color_md_hue.cm_14_color_md;
+		start	= cm_14_color_start[colormode];
+		end		= cm_14_color_end[colormode];
 	}
 
 	if (cm2_debug & CM_HUE_DEBUG_FLAG)
@@ -582,16 +532,6 @@ void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 		data_port = VPP_CHROMA_DATA_PORT;
 	}
 
-	if (cm_color_md_luma.color_type == cm_9_color) {
-		colormode = cm_color_md_luma.cm_9_color_md;
-		start	= color_start[colormode];
-		end		= color_end[colormode];
-	} else {
-		colormode = cm_color_md_luma.cm_14_color_md;
-		start	= cm_14_color_start[colormode];
-		end		= cm_14_color_end[colormode];
-	}
-
 	if (cm_color_md_luma.color_type == cm_9_color &&
 		cm_color_md_luma.cm_9_color_md == ecm2colormode_max) {
 		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
@@ -600,6 +540,16 @@ void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 		cm_color_md_luma.cm_14_color_md == cm_14_ecm2colormode_max) {
 		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
 		return;
+	}
+
+	if (cm_color_md_luma.color_type == cm_9_color) {
+		colormode = cm_color_md_luma.cm_9_color_md;
+		start	= color_start[colormode];
+		end		= color_end[colormode];
+	} else {
+		colormode = cm_color_md_luma.cm_14_color_md;
+		start	= cm_14_color_start[colormode];
+		end		= cm_14_color_end[colormode];
 	}
 
 	if (cm2_debug & CM_LUMA_DEBUG_FLAG)
@@ -702,16 +652,6 @@ void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat)
 		data_port = VPP_CHROMA_DATA_PORT;
 	}
 
-	if (cm_color_md_sat.color_type == cm_9_color) {
-		colormode = cm_color_md_sat.cm_9_color_md;
-		start	= color_start[colormode];
-		end		= color_end[colormode];
-	} else {
-		colormode = cm_color_md_sat.cm_14_color_md;
-		start	= cm_14_color_start[colormode];
-		end		= cm_14_color_end[colormode];
-	}
-
 	if (cm_color_md_sat.color_type == cm_9_color &&
 		cm_color_md_sat.cm_9_color_md == ecm2colormode_max) {
 		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
@@ -720,6 +660,16 @@ void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat)
 		cm_color_md_sat.cm_14_color_md == cm_14_ecm2colormode_max) {
 		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
 		return;
+	}
+
+	if (cm_color_md_sat.color_type == cm_9_color) {
+		colormode = cm_color_md_sat.cm_9_color_md;
+		start	= color_start[colormode];
+		end		= color_end[colormode];
+	} else {
+		colormode = cm_color_md_sat.cm_14_color_md;
+		start	= cm_14_color_start[colormode];
+		end		= cm_14_color_end[colormode];
 	}
 
 	if (cm2_debug & CM_SAT_DEBUG_FLAG)

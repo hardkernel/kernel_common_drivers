@@ -23,6 +23,8 @@
 #define CABC_DEBUG 0X2
 #define PRE_GAM_DEBUG 0x4
 
+extern int pr_cabc_aad;
+
 void aml_cabc_alg_process(struct work_struct *work);
 void aml_cabc_alg_bypass(struct work_struct *work);
 void db_cabc_param_set(struct db_cabc_param_s *db_cabc_param_data);

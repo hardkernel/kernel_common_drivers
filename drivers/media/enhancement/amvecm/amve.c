@@ -68,25 +68,12 @@
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #define GAMMA_RETRY        1000
+
 unsigned int gamma_loadprotect_en;
-module_param(gamma_loadprotect_en, int, 0664);
-MODULE_PARM_DESC(gamma_loadprotect_en, "gamma_loadprotect_en");
-
 unsigned int gamma_update_flag_r;
-module_param(gamma_update_flag_r, int, 0664);
-MODULE_PARM_DESC(gamma_update_flag_r, "gamma_update_flag_r");
-
 unsigned int gamma_update_flag_g;
-module_param(gamma_update_flag_g, int, 0664);
-MODULE_PARM_DESC(gamma_update_flag_g, "gamma_update_flag_g");
-
 unsigned int gamma_update_flag_b;
-module_param(gamma_update_flag_b, int, 0664);
-MODULE_PARM_DESC(gamma_update_flag_b, "gamma_update_flag_b");
-
 unsigned int gamma_disable_flag;
-module_param(gamma_disable_flag, int, 0664);
-MODULE_PARM_DESC(gamma_disable_flag, "gamma_disable_flag");
 #endif
 
 /* 0: Invalid */
@@ -101,31 +88,17 @@ unsigned long flags;
 #define NEW_DNLP_IN_VPP 1
 
 unsigned int dnlp_sel = NEW_DNLP_IN_SHARPNESS;
-module_param(dnlp_sel, int, 0664);
-MODULE_PARM_DESC(dnlp_sel, "dnlp_sel");
 /* #endif */
 #endif
 
 int flag_lc_evc;
 
-static int amve_debug;
-module_param(amve_debug, int, 0664);
-MODULE_PARM_DESC(amve_debug, "amve_debug");
+int amve_debug;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static int amve_bringup_debug;
-module_param(amve_bringup_debug, int, 0664);
-MODULE_PARM_DESC(amve_bringup_debug, "amve_bringup_debug");
-
-/*for fmeter en*/
+int amve_bringup_debug;
 int fmeter_en = 1;
-module_param(fmeter_en, int, 0664);
-MODULE_PARM_DESC(fmeter_en, "fmeter_en");
-
 int fmeter_slt;
-module_param(fmeter_slt, int, 0664);
-MODULE_PARM_DESC(fmeter_slt, "fmeter_slt");
-
 struct ve_hist_s video_ve_hist;
 #endif
 
@@ -179,46 +152,23 @@ struct tcon_rgb_ogo_s video_rgb_ogo_sub = {
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int dnlp_en;/* 0:disable;1:enable */
-module_param(dnlp_en, int, 0664);
-MODULE_PARM_DESC(dnlp_en, "\n enable or disable dnlp\n");
 static int dnlp_status = 1;/* 0:done;1:todo */
-
 int dnlp_en_2_pre = 1;
 int dnlp_en_2 = 1;/* 0:disable;1:enable */
-module_param(dnlp_en_2, int, 0664);
-MODULE_PARM_DESC(dnlp_en_2, "\n enable or disable dnlp\n");
-
 int dnlp_en_dsw = 1;/* 0:disable;1:enable */
-module_param(dnlp_en_dsw, int, 0664);
-MODULE_PARM_DESC(dnlp_en_dsw, "\n enable or disable dnlp_dsw\n");
-
 int lut3d_en;/* lut3d_en enable/disable */
 int lut3d_order;/* 0 RGB 1 GBR */
 int lut3d_debug;
 #endif
 
-static int frame_lock_freq;
-module_param(frame_lock_freq, int, 0664);
-MODULE_PARM_DESC(frame_lock_freq, "frame_lock_50");
-
-static int video_rgb_ogo_mode_sw;
-module_param(video_rgb_ogo_mode_sw, int, 0664);
-MODULE_PARM_DESC(video_rgb_ogo_mode_sw,
-		 "enable/disable video_rgb_ogo_mode_sw");
-
+/*static int frame_lock_freq;*/
+int video_rgb_ogo_mode_sw;
 int video_rgb_ogo_xvy_mtx;
-module_param(video_rgb_ogo_xvy_mtx, int, 0664);
-MODULE_PARM_DESC(video_rgb_ogo_xvy_mtx,
-		 "enable/disable video_rgb_ogo_xvy_mtx");
-
 int video_rgb_ogo_xvy_mtx_latch;
 
-static int num_lc_evc = LC_EVC_SIZE;
 int lc_evc[LC_EVC_SIZE] = {
 	0x08000000, 0x08000000, 0x00000800, 0x1f001f00, 0x00001f00
 };
-module_param_array(lc_evc, int, &num_lc_evc, 0664);
-MODULE_PARM_DESC(lc_evc, "\n lc_evc\n");
 
 static unsigned int assist_cnt;/* ASSIST_SPARE8_REG1; */
 
@@ -226,10 +176,7 @@ static unsigned int assist_cnt;/* ASSIST_SPARE8_REG1; */
  *1: certification mode
  *2: bypass mode, vadj1 follow config for ui setting
  */
-static int dv_pq_bypass;
-module_param(dv_pq_bypass, int, 0664);
-MODULE_PARM_DESC(dv_pq_bypass, "\n dv_pq_bypass\n");
-
+int dv_pq_bypass;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /* 3d sync parts begin */
@@ -246,13 +193,9 @@ unsigned int sync_3d_sync_to_vbo;
 #endif
 
 unsigned int contrast_adj_sel;/*0:vdj1, 1:vd1 mtx rgb contrast*/
-module_param(contrast_adj_sel, uint, 0664);
-MODULE_PARM_DESC(contrast_adj_sel, "\n contrast_adj_sel\n");
 
 /*gxlx adaptive sr level*/
 static unsigned int sr_adapt_level;
-module_param(sr_adapt_level, uint, 0664);
-MODULE_PARM_DESC(sr_adapt_level, "\n sr_adapt_level\n");
 
 /*sharpness gain for ai pq*/
 int sr_gain[2];
@@ -352,6 +295,10 @@ static void ve_dnlp_load_def_reg(void)
 			else
 				dnlp_reg = SRSHARP1_DNLP2_00;
 
+			if (chip_type_id == chip_s7d || chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+				dnlp_reg = VPP_DNLP_YGRID_0;
+
 			for (i = 0; i < 32; i++)
 				WRITE_VPP_REG(dnlp_reg + i,
 					ve_dnlp_reg_v2[i]);
@@ -393,6 +340,10 @@ void dnlp_en_update(int vpp_index)
 			if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_DNLP_EN,
 					dnlp_en_2, 0, 1, vpp_index);
+			else if (chip_type_id == chip_s7d || chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_DNLP_EN_MODE,
+						dnlp_en_2, 4, 1, vpp_index);
 			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 				if (!vinfo_lcd_support() || is_meson_t7_cpu())
 					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_DNLP_EN,
@@ -434,7 +385,7 @@ int vpp_get_vout_viu_mux(void)
 	vinfo3 = NULL;
 	#ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	vinfo1 = get_current_vinfo();
-	if (vinfo1->mode == 2) {
+	if (vinfo1 && vinfo1->mode == 2) {
 		temp = (vinfo1->viu_mux >> 4) & 0xf;
 		if (temp == 0)
 			temp = 1;
@@ -448,7 +399,7 @@ int vpp_get_vout_viu_mux(void)
 
 	#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vinfo2 = get_current_vinfo2();
-	if (vinfo2->mode == 2) {
+	if (vinfo2 && vinfo2->mode == 2) {
 		temp = (vinfo2->viu_mux >> 4) & 0xf;
 		if (temp == 0)
 			temp = 1;
@@ -462,7 +413,7 @@ int vpp_get_vout_viu_mux(void)
 
 	#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	vinfo3 = get_current_vinfo3();
-	if (vinfo3->mode == 2) {
+	if (vinfo3 && vinfo3->mode == 2) {
 		temp = (vinfo3->viu_mux >> 4) & 0xf;
 		if (temp == 0)
 			temp = 1;
@@ -1380,7 +1331,8 @@ void ve_dnlp_latch_process(void)
 
 	if (dnlp_en && dnlp_status) {
 		dnlp_status = 0;
-		ve_set_dnlp_2();
+		if (chip_type_id != chip_t6d)
+			ve_set_dnlp_2();
 		ve_enable_dnlp();
 		pr_amve_dbg("\n[amve..] set vpp_enable_dnlp OK!!!\n");
 	} else if (dnlp_en == 0 && !dnlp_status) {
@@ -2147,6 +2099,9 @@ static void vd1_brightness_contrast(signed int brightness,
 void amvecm_bricon_process(signed int bri_val,
 			   signed int cont_val, struct vframe_s *vf, int vpp_index)
 {
+	static int dbg_cnt_mute;
+	static int dbg_cnt_unmute;
+
 	if (!vf)
 		return;
 
@@ -2157,8 +2112,14 @@ void amvecm_bricon_process(signed int bri_val,
 		pr_amve_dbg("\n[%s] HWC reset brightness, set BRI flag.\n",
 			__func__);
 	} else {
-		if (vecm_latch_flag & FLAG_VADJ1_BRI) {
-			if (!get_video_mute()) {
+		if (!get_video_mute()) {
+			dbg_cnt_mute = 0;
+			if (dbg_cnt_unmute < 3) {
+				pr_amve_dbg("\n[%s]unmute dbg_cnt1:%d.\n",
+						__func__, dbg_cnt_unmute);
+				dbg_cnt_unmute++;
+			}
+			if (vecm_latch_flag & FLAG_VADJ1_BRI) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 				if (is_video_layer_on(VD1_PATH)) {
 #endif
@@ -2167,11 +2128,26 @@ void amvecm_bricon_process(signed int bri_val,
 					pr_amve_dbg("\n[%s] set OK, brightness:%d, type:%d\n",
 						__func__, bri_val, vf->source_type);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+				} else {
+					if (dbg_cnt_unmute < 3)
+						pr_amve_dbg("\n[%s]unmute not VD1_PATH video on. dbg_cnt_unmute:%d.\n",
+							__func__, dbg_cnt_unmute);
 				}
 #endif
 			} else {
-				pr_amve_dbg("\n[%s] mute or video disable skip.\n",
-					__func__);
+				if (dbg_cnt_unmute < 3)
+					pr_amve_dbg("\n[%s]unmute not set FLAG_VADJ1_BRI. dbg_cnt_unmute:%d.\n",
+						__func__, dbg_cnt_unmute);
+			}
+		} else {
+			vpp_vd_adj1_brightness(VD1_PATH, vf, vpp_index);
+			if (!(vecm_latch_flag & FLAG_VADJ1_BRI))
+				vecm_latch_flag |= FLAG_VADJ1_BRI;
+			dbg_cnt_unmute = 0;
+			if (dbg_cnt_mute < 3) {
+				pr_amve_dbg("\n[%s] mute or video disable reset brightness. brightness:%d, dbg_cnt_mute:%d\n",
+						__func__, bri_val, dbg_cnt_mute);
+				dbg_cnt_mute++;
 			}
 		}
 	}
@@ -2356,17 +2332,9 @@ void amve_sharpness_init(int vpp_index)
 }
 #endif
 
-static int overscan_timing = TIMING_MAX;
-module_param(overscan_timing, uint, 0664);
-MODULE_PARM_DESC(overscan_timing, "\n overscan_control\n");
-
-static int overscan_screen_mode = 0xff;
-module_param(overscan_screen_mode, uint, 0664);
-MODULE_PARM_DESC(overscan_screen_mode, "\n overscan_screen_mode\n");
-
-static int overscan_disable;
-module_param(overscan_disable, uint, 0664);
-MODULE_PARM_DESC(overscan_disable, "\n overscan_disable\n");
+int overscan_timing = TIMING_MAX;
+int overscan_screen_mode = 0xff;
+int overscan_disable;
 
 void amvecm_fresh_overscan(struct vframe_s *vf)
 {
@@ -2377,8 +2345,10 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 	unsigned int offset = TIMING_UHD + 1;/*av&atv*/
 #endif
 
-	if (overscan_disable)
+	if (overscan_disable) {
+		vf->ratio_control &= ~DISP_RATIO_ADAPTED_PICMODE;
 		return;
+	}
 
 	if (overscan_table[0].load_flag) {
 		height = (vf->type & VIDTYPE_COMPRESS) ?
@@ -3535,8 +3505,13 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 		} else {
 			if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en) {
 				pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
-				WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
-					pq_cfg.sharpness0_en, 1, 1);
+				if (chip_type_id == chip_t6d || chip_type_id == chip_s6 ||
+					chip_type_id == chip_s7d)
+					WRITE_VPP_REG_BITS(VPP_SR_EN,
+						pq_cfg.sharpness0_en, 0, 1);
+				else
+					WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
+						pq_cfg.sharpness0_en, 1, 1);
 			}
 			if (pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
 				pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
@@ -3725,8 +3700,13 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 		} else {
 			if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en) {
 				pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
-					pq_cfg.sharpness0_en, 1, 1, vpp_index);
+				if (chip_type_id == chip_t6d || chip_type_id == chip_s6 ||
+					chip_type_id == chip_s7d)
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SR_EN,
+						pq_cfg.sharpness0_en, 0, 1, vpp_index);
+				else
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
+						pq_cfg.sharpness0_en, 1, 1, vpp_index);
 			}
 			if (pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
 				pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
@@ -4066,6 +4046,7 @@ int mtx_multi(int mtx_ep[][4], int (*mtx_out)[3], enum ep_mode_e mode)
 			}
 		}
 	}
+
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 4; j++)
 			pr_amve_dbg("mtx_in[%d][%d] = %d\n",
@@ -4087,6 +4068,7 @@ int mtx_multi(int mtx_ep[][4], int (*mtx_out)[3], enum ep_mode_e mode)
 			pr_amve_dbg("mtx_out[%d][%d] = 0x%x\n",
 			i, j, mtx_out[i][j]);
 	}
+
 	return 0;
 }
 
@@ -6209,10 +6191,9 @@ void amve_vsr_config_update(struct vframe_s *vf, int vpp_index)
 			}
 		}
 
-		pr_amve_dbg("\n[%s] vf->type_original = %x,cur_vsr_cfg=%d\n",
-				__func__, vf->type_original, cur_vsr_cfg);
-
 		if (cur_vsr_cfg != pre_vsr_cfg) {
+			pr_amve_dbg("\n[%s] vf->type_original = %x,cur_vsr_cfg=%d\n",
+				__func__, vf->type_original, cur_vsr_cfg);
 			pr_amve_dbg("\n[%s] set OK %d-->%d, w_in=%d\n",
 				__func__, pre_vsr_cfg, cur_vsr_cfg, width_in);
 			vsr_pq_config(cur_vsr_cfg, WR_DMA, vpp_index);
@@ -6327,7 +6308,7 @@ void osd_sharpness_ctrl(unsigned int sel, unsigned int enable)
 	if (enable)
 		enable = 1;
 
-	/* 0: sr; 1: pk；2：os; 3: cc*/
+	/* 0: sr; 1: pk; 2: os; 3: cc*/
 	switch (sel) {
 	case 0:
 		WRITE_VPP_REG_BITS(OSD_SR_EN,

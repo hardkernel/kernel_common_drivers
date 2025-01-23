@@ -155,6 +155,7 @@ extern unsigned int vecm_latch_flag;
 extern signed int vd1_contrast_offset;
 extern signed int saturation_offset;
 extern uint sdr_mode;
+extern uint hdr_mode;
 extern uint hdr_flag;
 extern int video_rgb_ogo_xvy_mtx_latch;
 extern int video_rgb_ogo_xvy_mtx;
@@ -215,6 +216,7 @@ void get_cur_vd_signal_type(enum vd_path_e vd_path);
 enum color_primary_e get_color_primary(void);
 
 unsigned int get_cur_vd_ext_signal_type(enum vd_path_e vd_path);
+enum vpp_matrix_csc_e get_csc_type(void);
 enum vpp_matrix_ext_csc_e get_ext_csc_type(void);
 
 /*hdr*/
@@ -320,9 +322,27 @@ uint32_t sink_dv_support(const struct vinfo_s *vinfo);
 uint32_t sink_hdr_support(const struct vinfo_s *vinfo);
 uint32_t sink_hdr_support_ori_cap(const struct vinfo_s *vinfo);
 
+extern uint hdr_policy;
+extern uint primary_policy;
+extern uint force_output;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 extern uint osd_gamut_conv_type;
 extern uint gamut_conv_enable;
-extern uint hdr_policy;
+extern uint force_csc_type;
+extern uint range_control;
+extern uint rdma_flag;
+extern uint csc_en;
+extern int print_lut_mtx;
+extern int lut_289_en;
+extern int knee_factor;
+extern int knee_interpolation_mode;
+extern int force_customer_panel_lumin;
+extern int customer_panel_lumin;
+extern int customer_hdr_clipping;
+extern int video_lut_switch;
+extern unsigned int reload_lut;
+#endif
 
 void force_toggle(void);
 int get_s5_slice_mode(void);

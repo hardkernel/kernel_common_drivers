@@ -30,7 +30,10 @@
 #define TM_GAIN_BIT 6
 #define MAX_32 0xffffffff
 
+extern unsigned int hdr10_tm_dbg;
+extern unsigned int hdr10_tm_sel;
 extern unsigned int panell;
+
 int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
 #endif
 #endif

@@ -479,11 +479,11 @@ struct vdj_parm_s {
 };
 
 extern signed int vd1_brightness, vd1_contrast;
-extern bool gamma_en;
+extern int gamma_en;
 extern unsigned int atv_source_flg;
 extern enum hdr_type_e hdr_source_type;
 extern unsigned int pd_detect_en;
-extern bool wb_en;
+extern int wb_en;
 extern struct pq_ctrl_s pq_cfg_cur;
 
 extern struct pq_ctrl_s pq_cfg;

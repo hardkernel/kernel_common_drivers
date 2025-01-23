@@ -171,14 +171,14 @@ int ct_dbg(char **parm)
 {
 	long val;
 
-	if (!strcmp(parm[0], "ct_en"))  {
+	if (!strcmp(parm[0], "en"))  {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.en = (int)val;
-		pr_info("ct_en = %d\n", ct_en);
+		pr_info("en = %d\n", ct_en);
 		bs_ct_latch();
 	} else if (!strcmp(parm[0], "read_parm")) {
-		pr_info("ct_en = %d\n", ct_en);
+		pr_info("en = %d\n", ct_en);
 
 		pr_info("rgain_r = %d\n", ct_parm.rgain_r);
 		pr_info("rgain_g = %d\n", ct_parm.rgain_g);

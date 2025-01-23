@@ -9,6 +9,7 @@
 
 #include "set_hdr2_v0.h"
 
+extern int vev2_dbg;
 extern int multi_picture_case;
 extern int multi_slice_case;
 extern int hist_dma_case;

@@ -27,17 +27,9 @@
 #include "am_dma_ctrl.h"
 #include "color/ai_color.h"
 
-static uint cpu_write_lut = 1;
-module_param(cpu_write_lut, uint, 0664);
-MODULE_PARM_DESC(cpu_write_lut, "\n cpu_write_lut\n");
-
-static uint dma_sel = 3;
-module_param(dma_sel, uint, 0664);
-MODULE_PARM_DESC(dma_sel, "\n dma_sel\n");
-
-static uint dma_sel1 = 3;
-module_param(dma_sel1, uint, 0664);
-MODULE_PARM_DESC(dma_sel1, "\n dma_sel1\n");
+uint cpu_write_lut = 1;
+uint dma_sel = 3;
+uint dma_sel1 = 3;
 
 static struct vd_proc_amvecm_info_t *vd_proc_info;
 
@@ -1035,7 +1027,8 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 			adpscl_shift[1] = OO_NOR -
 			_log2((1 << OO_NOR) / ogain_lut_148) - 2;
 		} else if (hdr_mtx_param->p_sel == SDR_HDR) {
-			if (chip_cls_id == TV_CHIP && module_sel == VD1_HDR) {
+			if (chip_cls_id == TV_CHIP &&
+				(module_sel == VD1_HDR || module_sel == S5_VD1_SLICE1)) {
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 				adpscl_shift[1] = OO_NOR -
 					_log2((1 << OO_NOR) / ogain_lut_148);

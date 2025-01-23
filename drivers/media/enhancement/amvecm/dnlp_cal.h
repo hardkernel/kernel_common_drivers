@@ -120,6 +120,10 @@ extern ulong ve_dnlp_reg[16];
 extern ulong ve_dnlp_reg_v2[32];
 extern ulong ve_dnlp_reg_def[16];
 extern struct dnlp_parse_cmd_s dnlp_parse_cmd[];
+extern unsigned int  hist_sel;
+extern unsigned int dnlp_dbg_print;
+extern unsigned int dnlp_insmod_ok; /*0:fail, 1:ok*/
+extern int *dnlp_printk_copy;
 
 int ve_dnlp_calculate_tgtx(struct vframe_s *vf, int vpp_index, struct vpp_hist_param_s *vp);
 void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p);
@@ -156,11 +160,10 @@ extern int *blkwht_ebld_copy;
 extern unsigned int *ve_dnlp_luma_sum_copy;
 extern unsigned char *ve_dnlp_tgt_copy;
 extern unsigned int *ve_dnlp_tgt_10b_copy;
+extern struct ve_ble_whe_param_s ble_whe_param_load;
 
 void dnlp_dbg_node_copy(void);
-extern bool dnlp_insmod_ok; /*0:fail, 1:ok*/
-extern int *dnlp_printk_copy;
-extern struct ve_ble_whe_param_s ble_whe_param_load;
+
 void ai_dnlp_param_update(int value);
 void ble_whe_param_update(struct ve_ble_whe_param_s *p);
 #endif

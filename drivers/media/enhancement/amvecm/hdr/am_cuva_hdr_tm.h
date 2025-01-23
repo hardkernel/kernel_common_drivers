@@ -10,11 +10,15 @@
 
 #define DEBUG_PROC_INFO 0x1
 
+extern uint cuva_sw_dbg;
+
 struct aml_gain_reg *get_gain_lut(void);
 int cuva_hdr_dbg(void);
 void cuva_tm_func(enum cuva_func_e tm_func,
 	struct vframe_master_display_colour_s *p);
 
 unsigned int get_max_output_lum(unsigned int type);
+void set_max_output_lum(unsigned int type, unsigned int val);
+
 #endif
 #endif

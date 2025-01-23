@@ -29,47 +29,21 @@
 #include "set_hdr2_v0.h"
 #include "arch/vpp_s5_hdr_regs.h"
 
-int multi_picture_case;
-module_param(multi_picture_case, int, 0644);
-MODULE_PARM_DESC(multi_picture_case, "multi_picture_case for t3x");
-
-int multi_slice_case;
-module_param(multi_slice_case, int, 0644);
-MODULE_PARM_DESC(multi_slice_case, "multi_slice_case for t3x");
-
-int dnlp_slice_num_changed;
-module_param(dnlp_slice_num_changed, int, 0644);
-MODULE_PARM_DESC(dnlp_slice_num_changed, "dnlp_slice_num_changed for t3x");
-
-int lc_slice_num_changed;
-module_param(lc_slice_num_changed, int, 0644);
-MODULE_PARM_DESC(lc_slice_num_changed, "lc_slice_num_changed for t3x");
-
-int hist_dma_case = 1;
-module_param(hist_dma_case, int, 0644);
-MODULE_PARM_DESC(hist_dma_case, "hist_dma_case for t3x");
-
-int dump_lc_curve;
-module_param(dump_lc_curve, int, 0644);
-MODULE_PARM_DESC(dump_lc_curve, "dump_lc_curve for t3x");
-
-static int vev2_dbg;
-module_param(vev2_dbg, int, 0644);
-MODULE_PARM_DESC(vev2_dbg, "ve dbg after s5");
-
-int delay = 4;
-module_param(delay, int, 0664);
-MODULE_PARM_DESC(delay, "\n delay\n");
-
-int counter = 4;
-module_param(counter, int, 0664);
-MODULE_PARM_DESC(counter, "\n counter\n");
+int vev2_dbg;
 
 #define pr_amve_v2(fmt, args...)\
 	do {\
 		if (vev2_dbg & 0x1)\
 			pr_info("AMVE: " fmt, ## args);\
 	} while (0)\
+
+int multi_picture_case;
+int multi_slice_case;
+int dnlp_slice_num_changed;
+int lc_slice_num_changed;
+int hist_dma_case = 1;
+int delay = 4;
+int counter = 4;
 
 /*ve module slice0 offset*/
 unsigned int ve_addr_offset = 0x600;
@@ -94,18 +68,12 @@ unsigned int lc_reg_ofst[4] = {
 };
 
 int lc_h_count_ini_phs;
-
-unsigned int lc_overlap_s0 = 32;
-module_param(lc_overlap_s0, int, 0644);
-MODULE_PARM_DESC(lc_overlap_s0, "lc_overlap_s0");
-
-unsigned int lc_overlap = 32;
-module_param(lc_overlap, int, 0644);
-MODULE_PARM_DESC(lc_overlap, "lc_overlap");
-
 static struct vd_proc_amvecm_info_t *vd_info;
 static int vi_hist_en;
 static int eye_proc_en;
+
+unsigned int lc_overlap_s0 = 32;
+unsigned int lc_overlap = 32;
 
 int get_slice_max(void)
 {
@@ -3990,7 +3958,9 @@ void ve_lc_base_init(void)
 	for (i = SLICE0; i < SLICE2; i++) {
 		lc_reg = VPP_SRSHARP1_LC_TOP_CTRL +
 			sr_sharp_reg_ofst[i];
-		WRITE_VPP_REG_S5(lc_reg, 0x0);
+
+		if (!slt_en)
+			WRITE_VPP_REG_S5(lc_reg, 0x0);
 
 		lc_reg = VPP_SRSHARP1_LC_INPUT_MUX +
 			sr_sharp_reg_ofst[i];
@@ -4374,6 +4344,9 @@ void dump_lc_mapping_reg(void)
 	int data_reg;
 	unsigned int ret_data, ret_data1;
 
+	if (chip_type_id != chip_t3x)
+		return;
+
 	slice_max = get_slice_max();
 
 	for (slice = SLICE0; slice < slice_max; slice++) {
@@ -4405,6 +4378,9 @@ void dump_lc_reg(void)
 	int i;
 	unsigned int tmp;
 	int lc_reg;
+
+	if (chip_type_id != chip_t3x)
+		return;
 
 	pr_info("multi_slice_case=%d\n", multi_slice_case);
 	pr_info("hist_dma_case=%d\n", hist_dma_case);
@@ -4506,21 +4482,19 @@ void dump_lc_reg(void)
 		pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
 	}
 
-	if (dump_lc_curve) {
-		for (i = 0; i < 96; i++) {
-			lc_reg = 0x52fd;
-			tmp = READ_VPP_REG_S5(lc_reg);
-			pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
-			lc_reg = 0x52fe;
-			tmp = READ_VPP_REG_S5(lc_reg);
-			pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
-			lc_reg = 0x77fd;
-			tmp = READ_VPP_REG_S5(lc_reg);
-			pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
-			lc_reg = 0x77fe;
-			tmp = READ_VPP_REG_S5(lc_reg);
-			pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
-		}
+	for (i = 0; i < 96; i++) {
+		lc_reg = 0x52fd;
+		tmp = READ_VPP_REG_S5(lc_reg);
+		pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
+		lc_reg = 0x52fe;
+		tmp = READ_VPP_REG_S5(lc_reg);
+		pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
+		lc_reg = 0x77fd;
+		tmp = READ_VPP_REG_S5(lc_reg);
+		pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
+		lc_reg = 0x77fe;
+		tmp = READ_VPP_REG_S5(lc_reg);
+		pr_info("[0x%04x]=0x%08x\n", lc_reg, tmp);
 	}
 
 	lc_reg = 0x2811;
@@ -4581,6 +4555,9 @@ void monitor_lc_stts_overflow(void)
 	unsigned int reg_ro = VPP_LC_STTS_DMA_ERROR_RO;
 	unsigned int tmp;
 
+	if (chip_type_id != chip_t3x)
+		return;
+
 	tmp = READ_VPP_REG_S5(reg_ro);
 	if (tmp > 0) {
 		pr_info("VPP_LC_STTS_DMA_ERROR_RO overflow!\n");
@@ -4592,6 +4569,9 @@ void clean_lc_stts_overflow(void)
 {
 	unsigned int reg_ro = VPP_LC_STTS_DMA_ERROR_RO;
 	unsigned int tmp;
+
+	if (chip_type_id != chip_t3x)
+		return;
 
 	WRITE_VPP_REG_BITS_S5(VPP_LC_STTS_CTRL1, 1, 10, 1);
 	tmp = READ_VPP_REG_S5(reg_ro);

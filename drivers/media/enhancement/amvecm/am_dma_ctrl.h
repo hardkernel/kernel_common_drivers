@@ -22,6 +22,8 @@ enum lut_dma_wr_id_e {
 	EN_DMA_WR_ID_MAX,
 };
 
+extern int am_dma_ctrl_dbg;
+
 void am_dma_init(void);
 void am_dma_reset_lc(int enable, int rdma_mode, int vpp_index);
 void am_dma_set_wr_cfg(enum lut_dma_wr_id_e dma_wr_id, int enable,

@@ -28,6 +28,8 @@ struct sr1_regs_s {
 	unsigned int  val;
 };
 
+extern int debug_amcm;
+extern int debug_regload;
 extern unsigned int vecm_latch_flag;
 extern unsigned int cm_size;
 extern unsigned int cm2_patch_flag;

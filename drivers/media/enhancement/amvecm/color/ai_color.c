@@ -19,12 +19,6 @@
 #include "../amcsc.h"
 
 unsigned int ai_clr_dbg;
-module_param(ai_clr_dbg, uint, 0664);
-MODULE_PARM_DESC(ai_clr_dbg, "\n ai color dbg\n");
-
-int aice_offset[4] = {
-	0x0, 0x100, 0x900, 0xa00
-};
 
 #define pr_ai_clr(fmt, args...)\
 	do {\
@@ -33,6 +27,10 @@ int aice_offset[4] = {
 	} while (0)\
 
 #define AI_COLOR_VER "ai_color ver: 2023-04-07\n"
+
+int aice_offset[4] = {
+	0x0, 0x100, 0x900, 0xa00
+};
 
 int s_gain_lut[120] = {
 	126, 127, 128, 128, 130, 132, 135, 138, 141, 143,

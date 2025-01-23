@@ -60,6 +60,11 @@ struct adap_param_setting_s {
 };
 
 extern struct adap_param_setting_s adaptive_param;
+extern unsigned int aipq_debug;
+extern unsigned int aipq_smooth_dbg;
+extern unsigned int aipq_en;
+extern int aipq_bld_rs;
+extern int slower_coef;
 
 int aipq_saturation_hue_get_base_val(void);
 int ai_detect_scene_init(void);

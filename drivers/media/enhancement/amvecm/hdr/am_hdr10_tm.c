@@ -32,8 +32,6 @@
 #include "am_hdr10_tmo_fw.h"
 
 unsigned int hdr10_tm_dbg;
-module_param(hdr10_tm_dbg, uint, 0664);
-MODULE_PARM_DESC(hdr10_tm_dbg, "HDR10 tone mapping dbg\n");
 
 #define pr_hdr_tm(fmt, args...)\
 	do {\
@@ -42,18 +40,11 @@ MODULE_PARM_DESC(hdr10_tm_dbg, "HDR10 tone mapping dbg\n");
 	} while (0)
 
 unsigned int panell = 400;
-module_param(panell, uint, 0664);
-MODULE_PARM_DESC(panell, "display panel luminance\n");
-
-static unsigned int hdr10_tm_sel = 2; /*1 old algorithm, 2 hdr_tmo algorithm  default 2*/
-module_param(hdr10_tm_sel, uint, 0664);
-MODULE_PARM_DESC(hdr10_tm_sel, "hdr10_tm_sel\n");
+/*sel: 1 old algorithm, 2 hdr_tmo algorithm, default 2*/
+unsigned int hdr10_tm_sel = 2;
 
 #define KNEE_POINT 2
-static unsigned int kp = KNEE_POINT;
 static unsigned int knee_point[KNEE_POINT] = {0, 0};
-module_param_array(knee_point, uint, &kp, 0664);
-MODULE_PARM_DESC(knee_point, "\n knee point xy\n");
 
 /*u32 ebz_p[MAX_BEIZER_ORDER] = {
  *	0, 1170, 1755, 2121, 2377, 2596, 2779, 2925, 3064, 3185,

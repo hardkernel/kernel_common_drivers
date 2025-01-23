@@ -30,9 +30,7 @@
 #include "cabc_aadc_fw.h"
 #include "../amve.h"
 
-static int pr_cabc_aad;
-module_param(pr_cabc_aad, int, 0664);
-MODULE_PARM_DESC(pr_cabc_aad, "\n pr_cabc_aad\n");
+int pr_cabc_aad;
 
 #define pr_cabc_aad_dbg(fmt, args...)\
 	do {\
@@ -431,8 +429,6 @@ void cabc_aad_d_convert_str(int num, char cur_s[], int bit_chose)
 
 	count = strlen(buf);
 	cur_s_len = strlen(cur_s);
-
-	buf[count] = ' ';
 
 	for (i = 0; i < count + 1; i++)
 		cur_s[i + cur_s_len] = buf[i];
@@ -1470,10 +1466,10 @@ int cabc_aad_debug(char **param)
 			pr_info("aad_dist_mode = %d\n", (int)val);
 		}
 	} else if (!strcmp(param[0], "sensor_rgb")) {
+		if (!param[1])
+			goto error;
 		if (!strcmp(param[1], "w")) {
 			if (!fw_aad_param->aad_param)
-				goto error;
-			if (!param[1])
 				goto error;
 			str_sapr_conv(param[2], 5,
 				fw_aad_param->aad_param->sensor_input,
@@ -1483,8 +1479,6 @@ int cabc_aad_debug(char **param)
 			debug_cabc_aad = 0x09;
 		} else {
 			if (!fw_aad_param->aad_param)
-				goto error;
-			if (!param[1])
 				goto error;
 			str_sapr_conv(param[1], 5,
 				fw_aad_param->aad_param->sensor_input,
@@ -1625,10 +1619,10 @@ int cabc_aad_debug(char **param)
 		fw_aad_param->aad_debug_mode = val;
 		pr_info("aad_debug_mode = %d\n", (int)val);
 	} else if (!strcmp(param[0], "lut_Y_gain_w_val_str")) {
+		if (!param[1])
+			goto error;
 		if (!strcmp(param[1], "w") || !param[1]) {
 			if (!fw_aad_param->aad_param)
-				goto error;
-			if (!param[1])
 				goto error;
 			str_sapr_conv(param[2], 5,
 				fw_aad_param->aad_param->aad_LUT_Y_gain,
@@ -1870,8 +1864,8 @@ int cabc_aad_debug(char **param)
 				goto error;
 			if (kstrtoul(param[1], 10, &val) < 0)
 				goto error;
-			fw_cabc_param->cabc_param->cabc_sc_flag = val;
-			pr_info("cabc_sc_flag = %d\n", (int)val);
+			fw_cabc_param->cabc_param->cabc_sc_hist_diff_thd = val;
+			pr_info("cabc_sc_hist_diff_thd = %d\n", (int)val);
 		}
 	} else if (!strcmp(param[0], "cabc_sc_apl_diff_thd")) {
 		if (!strcmp(param[1], "w")) {

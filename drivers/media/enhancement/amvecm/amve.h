@@ -84,7 +84,6 @@ enum vsr_pq_cfg_e {
 	RES_1080I,
 };
 
-extern unsigned int gamma_loadprotect_en;
 extern struct ve_hist_s video_ve_hist;
 void ve_hist_gamma_reset(void);
 extern unsigned int ve_size;
@@ -193,7 +192,6 @@ void amve_fmetersize_config(u32 sr0_w, u32 sr0_h,
 /* #if defined(CONFIG_ARCH_MESON2) */
 /* unsigned long long ve_get_vs_cnt(void); */
 /* #endif */
-extern int video_rgb_ogo_xvy_mtx;
 
 #define GAMMA_SIZE 256
 
@@ -256,11 +254,26 @@ void pi_pq_config(enum vsr_pq_cfg_e vsr_cfg, enum wr_md_e mode, int vpp_index);
 void amve_sharpness_sub_ctrl(unsigned int sel, unsigned int enable);
 void amve_vsr_config_update(struct vframe_s *vf, int vpp_index);
 
-extern int dnlp_en_dsw;
 void set_sharpness_gain(int sr0_gain, int sr1_gain);
 void sharpness_gain_update(int vpp_index);
 void osd_sharpness_init(void);
 void osd_sharpness_ctrl(unsigned int sel, unsigned int enable);
 void amvecm_vadj_enable(enum vadj_index_e vadj_idx, int enable);
+
+extern int amve_debug;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+extern int amve_bringup_debug;
+extern int fmeter_en;
+extern int fmeter_slt;
+extern int dnlp_en_dsw;
+extern unsigned int gamma_loadprotect_en;
+#endif
+extern int overscan_timing;
+extern int overscan_screen_mode;
+extern int overscan_disable;
+extern int video_rgb_ogo_mode_sw;
+extern int video_rgb_ogo_xvy_mtx;
+extern int dv_pq_bypass;
+extern unsigned int contrast_adj_sel;
 #endif
 

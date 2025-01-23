@@ -714,5 +714,17 @@ struct db_aicolor_param_s {
 #define AMVECM_IOC_S_AI_COLOR_PARAM _IOW(_VE_CM, 0x8c, struct db_aicolor_param_s)
 #define AMVECM_IOC_S_SDR2HDR_CTRL   _IO(_VE_CM, 0x8d)
 #define AMVECM_IOC_G_CHIP_TYPE      _IOR(_VE_CM, 0x8e, int)
+#define AMVECM_IOC_G_CHIP_ClASS     _IOR(_VE_CM, 0x8f, int)
+
+/* hdr gamut and in/out matrix control */
+#define AMVECM_IOC_S_HDR_TOP_CTRL_MODE _IO(_VE_CM, 0x90)
+
+#define AMVECM_IOC_S_CM_CTRL     _IO(_VE_CM, 0xa0)
+#define AMVECM_IOC_S_FORCE_OUT   _IO(_VE_CM, 0xa1)
+#define AMVECM_IOC_S_HDR_POLICY  _IO(_VE_CM, 0xa2)
+#define AMVECM_IOC_S_HDR_MODE    _IO(_VE_CM, 0xa3)
+#define AMVECM_IOC_S_SDR_MODE    _IO(_VE_CM, 0xa4)
+#define AMVECM_IOC_S_CUVA_SDR_MAX_LUM    _IO(_VE_CM, 0xa5)
+#define AMVECM_IOC_S_CUVA_HDR_MAX_LUM    _IO(_VE_CM, 0xa6)
 
 #endif
