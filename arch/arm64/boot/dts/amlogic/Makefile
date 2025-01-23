@@ -144,5 +144,7 @@ dtb-y += s6_s905x5_bl209.dtb
 dtb-y += s6_s905x5l_bn201.dtb
 dtb-y += s6_s905x5l_bn201_linux.dtb
 dtb-y += s6_s905x5_bl204_soundbar.dtb
+dtb-y += s6_s905x5_bl201_2g.dtb
+dtb-y += s6_s905x5_bl204_2g.dtb
 dtb-y += t6d_t950d5_br301_1g.dtb
 dtb-y += t6d_t950d5_br301_1.5g.dtb
