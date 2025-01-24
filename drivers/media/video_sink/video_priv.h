@@ -675,6 +675,7 @@ struct video_layer_s {
 	bool plink_en;
 	bool need_disable_plink;
 	bool plink_bypass_check;
+	bool reverse_local_buff;
 	u8 cur_link_mode;
 	atomic_t disable_plink_done;
 

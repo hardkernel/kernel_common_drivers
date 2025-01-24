@@ -5890,6 +5890,7 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	struct vframe_s *dispbuf = NULL;
 	u32 blank;
 	int v_chrm_ratio = 1;
+	u32 start_x_lines, end_x_lines, start_y_lines, end_y_lines;
 
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf || !setting)
 		return -1;
@@ -5898,6 +5899,12 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 		dispbuf = layer->vf_ext;
 	else
 		dispbuf = layer->dispbuf;
+
+	start_x_lines = layer->start_x_lines;
+	end_x_lines = layer->end_x_lines;
+	start_y_lines = layer->start_y_lines;
+	end_y_lines = layer->end_y_lines;
+
 	setting->id = layer->layer_id;
 	setting->p_vd_mif_reg = &layer->vd_mif_reg;
 	setting->p_vd_afbc_reg = &layer->vd_afbc_reg;
@@ -5915,10 +5922,43 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 		blank = 0;
 	setting->src_h -= blank;
 
-	setting->start_x_lines = layer->start_x_lines;
-	setting->end_x_lines = layer->end_x_lines;
-	setting->start_y_lines = layer->start_y_lines;
-	setting->end_y_lines = layer->end_y_lines;
+	if (layer->reverse_local_buff) {
+		u32 size;
+		s32 start_pos, end_pos;
+
+		/* horizontal re-calculation */
+		size = end_x_lines - start_x_lines + 1;
+		start_pos = setting->src_w - start_x_lines - size;
+		end_pos = size + start_pos - 1;
+		if (end_pos > (setting->src_w - 1))
+			end_pos = setting->src_w - 1;
+		if (layer->global_debug & DEBUG_FLAG_PLINK)
+			pr_info("layer%d: src horizontal position from (%d %d)->(%d %d)\n",
+				layer->layer_id,
+				start_x_lines, end_x_lines,
+				start_pos, end_pos);
+		start_x_lines = start_pos;
+		end_x_lines = end_pos;
+
+		/* vertical re-calculation */
+		size = end_y_lines - start_y_lines + 1;
+		start_pos = (setting->src_h >> 1) - start_y_lines - size;
+		end_pos = size + start_pos - 1;
+		if (end_pos > ((setting->src_h >> 1) - 1))
+			end_pos = (setting->src_h >> 1) - 1;
+		if (layer->global_debug & DEBUG_FLAG_PLINK)
+			pr_info("layer%d: src vertical position from (%d %d)->(%d %d)\n",
+				layer->layer_id,
+				start_y_lines, end_y_lines,
+				start_pos, end_pos);
+		start_y_lines = start_pos;
+		end_y_lines = end_pos;
+	}
+
+	setting->start_x_lines = start_x_lines;
+	setting->end_x_lines = end_x_lines;
+	setting->start_y_lines = start_y_lines;
+	setting->end_y_lines = end_y_lines;
 
 	setting->h_skip = layer->cur_frame_par->hscale_skip_count;
 	setting->v_skip = layer->cur_frame_par->vscale_skip_count;
@@ -5942,14 +5982,14 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	else
 		setting->skip_afbc = true;
 
-	setting->l_hs_luma = layer->start_x_lines;
-	setting->l_he_luma = layer->end_x_lines;
-	setting->l_vs_luma = layer->start_y_lines;
-	setting->l_ve_luma = layer->end_y_lines;
-	setting->r_hs_luma = layer->start_x_lines;
-	setting->r_he_luma = layer->end_x_lines;
-	setting->r_vs_luma = layer->start_y_lines;
-	setting->r_ve_luma = layer->end_y_lines;
+	setting->l_hs_luma = start_x_lines;
+	setting->l_he_luma = end_x_lines;
+	setting->l_vs_luma = start_y_lines;
+	setting->l_ve_luma = end_y_lines;
+	setting->r_hs_luma = start_x_lines;
+	setting->r_he_luma = end_x_lines;
+	setting->r_vs_luma = start_y_lines;
+	setting->r_ve_luma = end_y_lines;
 
 #ifdef TV_3D_FUNCTION_OPEN
 	if (setting->id == 0 &&
@@ -11159,6 +11199,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		memcpy(&glayer_info[layer_id].src_crop, &vf->src_crop,
 			sizeof(struct src_crop_s));
 		glayer_info[layer_id].select_mode = cur_crop_select;
+		layer->reverse_local_buff = false;
 
 		if (layer->force_switch_mode == 1)
 			op_flag |= OP_FORCE_SWITCH_VF;
@@ -11210,6 +11251,9 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 				is_amdv_stb_mode() &&
 				for_amdv_certification()),
 				op_flag | OP_HAS_DI_LOCAL);
+			if (reverse && reverse != glayer_info[layer_id].reverse &&
+			    (video_is_meson_txhd2_cpu() || video_is_meson_t6d_cpu()))
+				layer->reverse_local_buff = true;
 			if (ret && (layer->global_debug & DEBUG_FLAG_BASIC_INFO))
 				pr_info
 				("layer%d: for di local buffer setting ret:%d\n",
