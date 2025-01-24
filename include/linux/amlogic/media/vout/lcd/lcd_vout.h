@@ -48,6 +48,7 @@ extern unsigned int lcd_debug_print_flag;
 #define LCD_DBG_PR_BL_ISR       BIT(7)
 #define LCD_DBG_PR_CLK          BIT(8)
 #define LCD_DBG_PR_TCON         BIT(9)
+#define LCD_DBG_PR_MEM          BIT(13)
 #define LCD_DBG_PR_TEST         BIT(14)
 #define LCD_DBG_PR_REG          BIT(15)
 
@@ -646,6 +647,7 @@ struct lcd_config_s {
 #define LCD_INIT_LEVEL_PWR_OFF        1
 #define LCD_INIT_LEVEL_KERNEL_ON      2
 #define LCD_INIT_LEVEL_KERNEL_OFF     3
+#define LCD_INIT_LEVEL_PREBOOT        4  // lcd on, bl off
 
 #define LCD_VENC_1PPC                 0
 #define LCD_VENC_2PPC                 1
@@ -665,14 +667,16 @@ struct lcd_config_s {
 struct lcd_boot_ctrl_s {
 	unsigned char lcd_type;
 	unsigned char lcd_bits;
-	unsigned char advanced_flag;
 	unsigned char dccd_flag;
-	unsigned char custom_pinmux;
-	unsigned char init_level;
+	unsigned char mute_flag;
 	unsigned char ppc;
 	unsigned char clk_mode;
-	unsigned char frame_rate;
-	unsigned char interface_state;
+	unsigned char custom_pinmux;
+	unsigned char init_level;
+	unsigned short advanced_flag;
+	unsigned short frame_rate;
+	unsigned char if_state;
+	unsigned char bl_state;
 };
 
 /*

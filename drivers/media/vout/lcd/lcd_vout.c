@@ -178,6 +178,64 @@ struct aml_lcd_drv_s *aml_lcd_get_driver(int index)
 }
 EXPORT_SYMBOL(aml_lcd_get_driver);
 
+static void lcd_bootargs_debug_load(void)
+{
+	struct lcd_debug_ctrl_s *debug_ctrl = &lcd_debug_ctrl_config;
+	unsigned char *p;
+	int size;
+
+	p = lrm_bootargs_get_data("lcd_debug", &size);
+	if (p) {
+		if (size != sizeof(struct lcd_debug_ctrl_s))
+			return;
+
+		memcpy((void *)debug_ctrl, p, size);
+	}
+}
+
+static void lcd_bootargs_ctrl_load(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_boot_ctrl_s *boot_ctrl;
+	char arg_name[16], *str;
+	unsigned char *p;
+	int size = 0;
+
+	if (pdrv->index >= LCD_MAX_DRV)
+		return;
+
+	sprintf(arg_name, "panel%d_name", pdrv->index);
+	p = lrm_bootargs_get_data(arg_name, &size);
+	if (p) {
+		str = (char *)p;
+		sprintf(lcd_panel_name[pdrv->index], "%s", str);
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
+			LCDPR("%s: %s\n", arg_name, lcd_panel_name[pdrv->index]);
+	}
+
+	sprintf(arg_name, "panel%d_type", pdrv->index);
+	p = lrm_bootargs_get_data(arg_name, &size);
+	if (p) {
+		str = (char *)p;
+		sprintf(lcd_propname[pdrv->index], "%s", str);
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
+			LCDPR("%s: %s\n", arg_name, lcd_propname[pdrv->index]);
+	}
+
+	sprintf(arg_name, "lcd%d_attr", pdrv->index);
+	p = lrm_bootargs_get_data(arg_name, &size);
+	if (p) {
+		if (size != sizeof(struct lcd_boot_ctrl_s))
+			return;
+		boot_ctrl = &lcd_boot_ctrl_config[pdrv->index];
+		memcpy((void *)boot_ctrl, p, size);
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
+			LCDPR("[%d]: %s: %s\n", pdrv->index, __func__, arg_name);
+	}
+}
+
 static struct lcd_resource_s *lcd_resource_new(unsigned int res_type, unsigned int res_index)
 {
 	struct lcd_resource_s *pres;
@@ -1599,8 +1657,6 @@ static void lcd_notifier_remove(void)
 	aml_lcd_notifier_unregister(&lcd_vlock_param_nb);
 }
 
-/* **************************************** */
-
 /* ************************************************************* */
 /* lcd ioctl                                                     */
 /* ************************************************************* */
@@ -1955,6 +2011,8 @@ static int lcd_global_init_once(struct lcd_data_s *pdata)
 	if (lcd_global_init_flag++)
 		return 0;
 
+	lcd_bootargs_debug_load();
+
 	mutex_init(&lcd_vout_mutex);
 	mutex_init(&lcd_power_mutex);
 	lcd_clk_init();
@@ -2242,12 +2300,10 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv, unsigned int init_sta
 			break;
 		}
 
-		if (init_state & 0x2) {
-			if (pdrv->boot_ctrl->interface_state)
-				pdrv->status |= (LCD_STATUS_IF_ON | LCD_STATUS_POWER);
-			else
-				pdrv->status &= ~(LCD_STATUS_IF_ON | LCD_STATUS_POWER);
-		}
+		if (pdrv->boot_ctrl->if_state)
+			pdrv->status |= (LCD_STATUS_IF_ON | LCD_STATUS_POWER);
+		else
+			pdrv->status &= ~(LCD_STATUS_IF_ON | LCD_STATUS_POWER);
 	} else {
 		pdrv->status = 0;
 	}
@@ -2682,6 +2738,7 @@ static int lcd_probe(struct platform_device *pdev)
 	if (ret)
 		goto lcd_probe_err_2;
 
+	lcd_bootargs_ctrl_load(pdrv);
 	ret = lcd_config_probe(pdrv, pdev);
 	if (ret)
 		goto lcd_probe_err_2;
@@ -2827,154 +2884,28 @@ void __exit lcd_exit(void)
 	platform_driver_unregister(&lcd_platform_driver);
 }
 
-static int lcd_panel_name_para_setup(char *str)
+static void lcd_boot_ctrl_dft_prepare(struct lcd_boot_ctrl_s *boot_ctrl)
 {
-	if (str)
-		sprintf(lcd_panel_name[0], "%s", str);
-
-	LCDPR("panel_name: %s\n", lcd_panel_name[0]);
-	return 1;
-}
-
-static int lcd1_panel_name_para_setup(char *str)
-{
-	if (str)
-		sprintf(lcd_panel_name[1], "%s", str);
-
-	LCDPR("panel_name: %s\n", lcd_panel_name[1]);
-	return 1;
-}
-
-static int lcd2_panel_name_para_setup(char *str)
-{
-	if (str)
-		sprintf(lcd_panel_name[2], "%s", str);
-
-	LCDPR("panel_name: %s\n", lcd_panel_name[2]);
-	return 1;
-}
-
-static int lcd_panel_type_para_setup(char *str)
-{
-	if (str)
-		sprintf(lcd_propname[0], "%s", str);
-
-	LCDPR("panel_type: %s\n", lcd_propname[0]);
-	return 1;
-}
-
-static int lcd1_panel_type_para_setup(char *str)
-{
-	if (str)
-		sprintf(lcd_propname[1], "%s", str);
-
-	LCDPR("panel1_type: %s\n", lcd_propname[1]);
-	return 1;
-}
-
-static int lcd2_panel_type_para_setup(char *str)
-{
-	if (str)
-		sprintf(lcd_propname[2], "%s", str);
-
-	LCDPR("panel2_type: %s\n", lcd_propname[2]);
-	return 1;
-}
-
-static int lcd_boot_ctrl_setup(char *str)
-{
-	int ret = 0;
-	unsigned int data32 = 0;
-	struct lcd_boot_ctrl_s *boot_ctrl = &lcd_boot_ctrl_config[0];
-
-	if (!str)
-		return -EINVAL;
-
-	ret = kstrtouint(str, 16, &data32);
-	if (ret) {
-		LCDERR("%s:invalid data\n", __func__);
-		return -EINVAL;
+	switch (boot_ctrl->init_level) {
+	case LCD_INIT_LEVEL_PREBOOT:
+		boot_ctrl->if_state = 1;
+		boot_ctrl->bl_state = 0;
+		break;
+	case LCD_INIT_LEVEL_PWR_OFF:
+		boot_ctrl->if_state = 0;
+		boot_ctrl->bl_state = 0;
+		break;
+	case LCD_INIT_LEVEL_KERNEL_ON:
+		boot_ctrl->if_state = 0;
+		boot_ctrl->bl_state = 0;
+		break;
+	case LCD_INIT_LEVEL_NORMAL:
+	default:
+		boot_ctrl->if_state = 1;
+		boot_ctrl->bl_state = 1;
+		break;
 	}
-
-	LCDPR("lcd_ctrl: 0x%08x\n", data32);
-	boot_ctrl->lcd_type = data32 & 0xf;
-	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
-	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
-	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
-	boot_ctrl->dccd_flag = (data32 >> 17) & 0x1;
-	boot_ctrl->init_level = (data32 >> 18) & 0x3;
-	boot_ctrl->ppc = (data32 >> 20) & 0x3;
-	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
-	boot_ctrl->frame_rate = (data32 >> 24) & 0xff;
-	return 1;
 }
-
-static int lcd1_boot_ctrl_setup(char *str)
-{
-	int ret = 0;
-	unsigned int data32 = 0;
-	struct lcd_boot_ctrl_s *boot_ctrl = &lcd_boot_ctrl_config[1];
-
-	if (!str)
-		return -EINVAL;
-
-	ret = kstrtouint(str, 16, &data32);
-	if (ret) {
-		LCDERR("%s:invalid data\n", __func__);
-		return -EINVAL;
-	}
-
-	LCDPR("lcd1_ctrl: 0x%08x\n", data32);
-	boot_ctrl->lcd_type = data32 & 0xf;
-	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
-	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
-	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
-	boot_ctrl->dccd_flag = (data32 >> 17) & 0x1;
-	boot_ctrl->init_level = (data32 >> 18) & 0x3;
-	boot_ctrl->ppc = (data32 >> 20) & 0x3;
-	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
-	boot_ctrl->frame_rate = (data32 >> 24) & 0xff;
-	return 1;
-}
-
-static int lcd2_boot_ctrl_setup(char *str)
-{
-	int ret = 0;
-	unsigned int data32 = 0;
-	struct lcd_boot_ctrl_s *boot_ctrl = &lcd_boot_ctrl_config[2];
-
-	if (!str)
-		return -EINVAL;
-
-	ret = kstrtouint(str, 16, &data32);
-	if (ret) {
-		LCDERR("%s:invalid data\n", __func__);
-		return -EINVAL;
-	}
-
-	LCDPR("lcd2_ctrl: 0x%08x\n", data32);
-	boot_ctrl->lcd_type = data32 & 0xf;
-	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
-	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
-	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
-	boot_ctrl->dccd_flag = (data32 >> 17) & 0x1;
-	boot_ctrl->init_level = (data32 >> 18) & 0x3;
-	boot_ctrl->ppc = (data32 >> 20) & 0x3;
-	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
-	boot_ctrl->frame_rate = (data32 >> 24) & 0xff;
-	return 1;
-}
-
-__setup("panel_name=", lcd_panel_name_para_setup);
-__setup("panel1_name=", lcd1_panel_name_para_setup);
-__setup("panel2_name=", lcd2_panel_name_para_setup);
-__setup("panel_type=", lcd_panel_type_para_setup);
-__setup("panel1_type=", lcd1_panel_type_para_setup);
-__setup("panel2_type=", lcd2_panel_type_para_setup);
-__setup("lcd_ctrl=",  lcd_boot_ctrl_setup);
-__setup("lcd1_ctrl=", lcd1_boot_ctrl_setup);
-__setup("lcd2_ctrl=", lcd2_boot_ctrl_setup);
-// consider remove in future
 
 // lcdX={lcd_ctrl},{name},{type}
 static int lcd_boot_str_setup(unsigned char idx, char *str)
@@ -3019,6 +2950,8 @@ static int lcd_boot_str_setup(unsigned char idx, char *str)
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
 	boot_ctrl->frame_rate = (data32 >> 24) & 0xff;
+
+	lcd_boot_ctrl_dft_prepare(boot_ctrl);
 
 	LCDPR("[%u]: [0x%08x] [%s] [%s]\n", idx, data32, lcd_panel_name[idx], lcd_propname[idx]);
 

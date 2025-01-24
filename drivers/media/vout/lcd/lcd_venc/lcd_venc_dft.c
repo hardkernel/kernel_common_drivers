@@ -337,7 +337,7 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 	valid = (val >> 9) & 0xf;
 	if (valid == 0xa) {
 		boot_ctrl->init_level = val & 0xf;
-		boot_ctrl->interface_state = (val >> 4) & 0x1;
+		boot_ctrl->if_state = (val >> 4) & 0x1;
 		boot_ctrl->dccd_flag = (val >> 5) & 0x1;
 		valid = (val >> 6) & 0x7f;
 
@@ -363,7 +363,7 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 			LCDPR("\tclk_mode        : %d", boot_ctrl->clk_mode);
 			LCDPR("\tframe_rate      : %d", boot_ctrl->frame_rate);
 			LCDPR("\tinit_level      : %d", boot_ctrl->init_level);
-			LCDPR("\tinterface_state : %d", boot_ctrl->interface_state);
+			LCDPR("\tif_state        : %d", boot_ctrl->if_state);
 		}
 		init_state |= 0x2;
 	}

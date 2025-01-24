@@ -64,6 +64,9 @@ static ssize_t lcd_resman_debug_store(const struct class *cla,
 #define __MAX_PARAM 16
 	char *buf_orig;
 	char **parm = NULL;
+	unsigned char *p;
+	char *str;
+	int size = 0, i, j, n;
 
 	if (!buf)
 		return count;
@@ -81,12 +84,34 @@ static ssize_t lcd_resman_debug_store(const struct class *cla,
 
 	if (strcmp(parm[0], "memory") == 0) {
 		lrm_show();
-		goto resman_debug_store_exit;
+	} else if (strcmp(parm[0], "bootargs") == 0) {
+		if (!parm[1])
+			goto lcd_resman_debug_bootargs_next;
+
+		p = lrm_bootargs_get_data(parm[1], &size);
+		if (!p)
+			goto lcd_resman_debug_bootargs_next;
+		str = kzalloc(64, GFP_KERNEL);
+		if (str) {
+			for (i = 0; i < size; i += 16) {
+				n = 0;
+				for (j = 0; j < 16; j++) {
+					if ((i + j) >= size)
+						break;
+					n += sprintf(str + n, " %02x", p[i + j]);
+				}
+				pr_info("%04x:%s\n", i, str);
+			}
+			pr_info("\n");
+			kfree(str);
+		}
+
+lcd_resman_debug_bootargs_next:
+		lrm_bootargs_dump();
 	} else if (strcmp(parm[0], "mbox") == 0) {
-		goto resman_debug_store_exit;
+		pr_info("todo");
 	}
 
-resman_debug_store_exit:
 	kfree(parm);
 	kfree(buf_orig);
 	return count;
@@ -97,6 +122,7 @@ resman_debug_store_exit:
 static const char *lcd_resman_dbg_str = {
 	"usage:\n"
 	"echo memory > /sys/class/lcd_resman/debug\n"
+	"echo bootargs [name] > /sys/class/lcd_resman/debug\n"
 };
 
 static ssize_t lcd_resman_debug_show(const struct class *cla, const struct class_attribute *attr,

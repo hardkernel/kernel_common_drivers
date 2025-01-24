@@ -14,75 +14,9 @@
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 #include "lcd_reg.h"
 
-/* 20220430: initial version*/
-/* 20220610: add c3 support*/
-/* 20220619: c3 mipi-dsi display ok*/
-/* 20220622: c3 support bt656/1120*/
-/* 20220916: port k5.4 code to k5.15*/
-/* 20221012: correct t5w vbyone reset reg*/
-/* 20221028: fix lane lock && fix t7 mipi lprx reg set*/
-/* 20221111: modify edp transmit_unit_size to 48(temporary)*/
-/* 20221115: support force unfit mipi-dsi bit_rate_max*/
-/* 20221116: add pinmux lock for c3*/
-/* 20221123: add ioctl functions, include: power,mute,phy,ss*/
-/* 20221207: support drm display mode timing for different frame rate*/
-/* 20221208: remove black pattern when enable*/
-/* 20221215: remove unnecessary tcon top reset*/
-/* 20221216: optimize clk code*/
-/* 20230105: update clk ss support*/
-/* 20230110: optimize config probe workqueue*/
-/* 20230222: update tcon tee memory debug info*/
-/* 20230303: fix hdmi mode 47hz & 95hz timing*/
-/* 20230313: update tcon debug info print*/
-/* 20230319: optimize phy code*/
-/* 20230505: t3x support */
-/* 20230510: support tcon fw*/
-/* 20230525: update tcon debug support */
-/* 20230615: txhd2 support */
-/* 20230705: t3x fix tconless phy setting */
-/* 20230706: Resolve conflicts where DLG changeed and vrr set tcon data at the same time*/
-/* 20230710: Remove redundant lcd enable settings*/
-/* 20230802: add t5m,t5w,t3x set phy lane amp*/
-/* 20230815: add full-link-training and EDID-timing for eDP */
-/* 20230816: optimize clk accuracy*/
-/* 20230821: update clk ss support*/
-/* 20230823: add dma driver for tcon lut*/
-/* 20230824: support high resolution vsync measure debug*/
-/* 20230906: support pdf action */
-/* 20230907: t3x revB OD secure support*/
-/* 20230912: bypass phy data buffer */
-/* 20230915: update phy setting for txhd2 */
-/* 20230918: support ultra refresh rate function*/
-/* 20231011: t3x dual display support */
-/* 20231012: optimize clk management*/
-/* 20231113: update vrr_dev register flow for tablet mode*/
-/* 20231205: add lcd config check*/
-/* 20231218: update timing management*/
-/* 20240118: MIPI DSI arch adjust*/
-/* 20240129: update display mode management*/
-/* 20240218: optimize lcd config check sequence*/
-/* 20240222: update custom control support*/
-/* 20240226: add tcon init_table pre_proc*/
-/* 20240307: update swpdf support*/
-/* 20240319: add tcon pre_proc_clk_en control*/
-/* 20240403: update lcd status, notifier event and bypass ufr switch when power off */
-/* 20240513: update tcon ufr switch mode 3 flow */
-/* 20240515: update lcd ufr switch flow and process time record */
-/* 20240529: add lcd frame_lock function */
-/* 20240601: lcd tablet multi timing support */
-/* 20240607: lcd tcon support extern header */
-/* 20240618: lcd tcon new ctrl_type(resolution) for demura multi lut */
-/* 20240620: optimize tcon multi data set flow */
-/* 20240704: lcd tcon support user info */
-/* 20240710: add support for S6 */
-/* 20240712: lcd tcon lut dma flow optimize */
-/* 20240806: support phy tuning function */
-/* 20240909: update phy tuning: get real state from register */
-/* 20240923: support reserved memory to transmit panel parameter to kernel */
-/* 20241023: optimize mute/unmute flow */
-/* 20241127: add lcd config json parse driver */
-/* 20241210: add lcd config ini parse support */
-#define LCD_DRV_VERSION    "20241210"
+/* 20250121: initial version*/
+/* 20250123: update lcd bootargs transfer by lrm */
+#define LCD_DRV_VERSION    "20250123"
 
 #define CFMT_RGB565          0x05
 #define CFMT_RGB_6bit        0x06
@@ -119,7 +53,6 @@ unsigned int str_add_vmode(char *buf, unsigned char newline,
 		unsigned short width, unsigned short height, unsigned short fr);
 
 /* lcd common */
-int string_to_numbers(const char *str, unsigned int nums[]);
 int strnum_get_num(const char *str, struct num_str_s *arr, int size_arr, int dft);
 void lcd_delay_us(int us);
 void lcd_delay_ms(int ms);

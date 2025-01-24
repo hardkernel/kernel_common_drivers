@@ -60,7 +60,8 @@
 #define LCD_ATTR_SEC     BIT(1) //secure memory
 #define LCD_ATTR_TAIL    BIT(31)
 
-#define LCD_RSVD_MEM_MAGIC "amlogic_lcd_reserved"
+#define LCD_RSVD_MEM_MAGIC       "amlogic_lcd_reserved"
+#define LCD_BOOTARGS_IDENTIFIER  "lcd_bootargs"
 
 #define LCD_MEM_MAGIC_LEN 32
 #define LCD_MEM_INFO_SIZE 64
@@ -80,6 +81,20 @@ struct lcd_mem_list_s {
 	struct lcd_mem_info_s info;
 };
 
+struct lcd_bootargs_head_s {
+	unsigned int crc32;
+	unsigned int total_size;
+	unsigned int args_num;
+	unsigned int cur_pos;
+	char identifier[16];
+};
+
+struct lcd_bootargs_item_s {
+	unsigned int data_size;
+	unsigned int attr;
+	char name[36];
+};
+
 struct lcd_rsvd_mem_s {
 	char magic[LCD_MEM_MAGIC_LEN];  //magic words fixed 'amlogic_lcd_reserved'
 	u32 size;              //total memory size
@@ -89,7 +104,7 @@ struct lcd_rsvd_mem_s {
 	u32 args_num;
 	u32 tcon_size;
 	u32 free_unused;
-	char *bootargs;
+	unsigned char *bootargs;
 	struct list_head mem_list;
 	spinlock_t lock;//
 };
@@ -125,7 +140,7 @@ void lrm_resource_device_prepare(char *name)
 	list_add_tail(&res->list, &lrm_resource_device_list);
 	spin_unlock(&lrm_res_dev_lock);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+	if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
 		LRMPR("lrm device %s add ok\n", name);
 }
 
@@ -141,7 +156,7 @@ void lrm_resource_device_finish(char *name)
 		if (strncmp(res->name, name, 32) == 0) {
 			list_del(&res->list);
 			kfree(res);
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
 				LRMPR("lrm device %s finish\n", name);
 		}
 	}
@@ -266,7 +281,7 @@ void *lrm_phys_to_virt(phys_addr_t paddr, u32 size)
 
 	if (lrm->no_map) {
 		vaddr = memremap(paddr, size, MEMREMAP_WC);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
 			LRMPR("%s memremap pa:0x%llx\n", __func__, (u64)paddr);
 	} else if (PageHighMem(phys_to_page(paddr))) {
 		nr_page = DIV_ROUND_UP(size, PAGE_SIZE);
@@ -275,7 +290,7 @@ void *lrm_phys_to_virt(phys_addr_t paddr, u32 size)
 			pages[i] = phys_to_page(paddr + i * PAGE_SIZE);
 
 		vaddr = vmap(pages, nr_page, VM_MAP, PAGE_KERNEL);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
 			LRMPR("%s vmap pa;0x%llx %d pages\n", __func__, (u64)paddr, nr_page);
 	} else {
 		vaddr = phys_to_virt(paddr);
@@ -497,40 +512,33 @@ void lrm_show(void)
 	struct lcd_mem_list_s *pos;
 	struct list_head *head;
 	u64 pa;
-	char *p;
 	u32 offset, size, total = 0, i;
 	char *attr[4] = {"no-map", "high-map", "cross-high-map", "linear"};
 
 	if (!lrm)
 		return;
 
+	pr_info("mem alloc_num: %u\n", lrm->allocated_num);
 	head = &lrm->mem_list;
 	list_for_each_entry(pos, head, list) {
 		pa = lrm->pstart + pos->info.offset;
 		offset = pos->info.offset;
 		size = pos->info.size;
 		total += size;
-		LRMPR("pa:0x%llx offset:%08x, size:%08x attr:0x%08x, %s\n",
+		pr_info("pa:0x%llx offset:0x%08x, size:0x%08x attr:0x%08x, %s\n",
 			pa, offset, size, pos->info.attr, pos->info.name);
-	}
-
-	if (lrm->bootargs) {
-		LRMPR("bootargs: num:%u\n", lrm->args_num);
-		p = (char *)lrm->bootargs;
-		for (i = 0; i < lrm->args_num && p < lrm->bootargs + RSVD_MEM_BOOTARGS_SIZE; i++) {
-			pr_info("%u: %s\n", i, p);
-			p = p + strlen(p) + 1;
-		}
 	}
 
 	i = lrm->no_map ? 0 :
 		PageHighMem(phys_to_page(lrm->pstart)) ? 1 :
 		PageHighMem(phys_to_page(lrm->pstart + lrm->size)) ? 2 :
 		3;
-	LRMPR("%s %s pa:0x%llx, alloc_num:%u, memory used: 0x%x/0x%x\n\n",
-		lrm->magic, attr[i], lrm->pstart, lrm->allocated_num, total, lrm->size);
+	pr_info("\n%s %s pa:0x%llx, memory used: 0x%x/0x%x\n\n",
+		lrm->magic, attr[i], lrm->pstart, total, lrm->size);
 
 	lrm_resource_device_show();
+
+	lrm_bootargs_dump();
 }
 
 /*==============================================================================================*/
@@ -604,40 +612,114 @@ static void lcd_rsvd_delayed_work(struct work_struct *p_work)
 	}
 
 	lrm_release_unused();
-	lrm_show();
+	if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
+		lrm_show();
 }
 
 /*==============================================================================================*/
-const char *lrm_bootargs_get_string(const char *name)
+static int lrm_bootargs_check(unsigned char *bootargs_mem)
 {
-	char *p = NULL, *re = NULL;
-	struct lcd_rsvd_mem_s *lrm = lrm_get();
-	unsigned int i = 0, len = 0;
+	struct lcd_bootargs_head_s *head;
+	unsigned int crc;
 
-	if (!lrm || !lrm->bootargs  || !name)
-		return NULL;
-
-	len = strlen(name);
-	p = lrm->bootargs;
-	for (i = 0; i < lrm->args_num && p < lrm->bootargs + RSVD_MEM_BOOTARGS_SIZE; i++) {
-		if (strncmp(p, name, len) != 0 && p[len] != '=')
-			re = p + len + 1;
-		else
-			p = p + strlen(p) + 1;//escape '\0'
+	head = (struct lcd_bootargs_head_s *)bootargs_mem;
+	if (strcmp(head->identifier, LCD_BOOTARGS_IDENTIFIER)) {
+		LRMERR("%s: identifier error\n", __func__);
+		return -1;
 	}
-	return re;
+	if (head->args_num) {
+		crc = cal_CRC32(0, bootargs_mem + 4, head->total_size - 4);
+		if (crc != head->crc32) {
+			LRMERR("%s: crc error\n", __func__);
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
-unsigned int lrm_bootargs_get_number(const char *name, unsigned int dft)
+static struct lcd_bootargs_item_s *lrm_bootargs_get_item(unsigned char *bootargs_mem,
+			const char *name)
 {
-	const char *s;
-	unsigned int val = 0;
+	struct lcd_bootargs_head_s *head;
+	struct lcd_bootargs_item_s *item = NULL;
+	unsigned char *p;
+	int mem_size = 0, item_size, i;
 
-	s = lrm_bootargs_get_string(name);
-	if (s && kstrtouint(s, 16, &val) == 0)
-		return val;
-	else
-		return dft;
+	if (!bootargs_mem)
+		return NULL;
+
+	head = (struct lcd_bootargs_head_s *)bootargs_mem;
+	p = bootargs_mem + sizeof(struct lcd_bootargs_head_s);
+	for (i = 0; i < head->args_num; i++) {
+		item = (struct lcd_bootargs_item_s *)p;
+		item_size = (sizeof(struct lcd_bootargs_item_s) + item->data_size);
+		mem_size += item_size;
+		if (mem_size > head->cur_pos)
+			break;
+
+		if (strcmp(item->name, name) == 0)
+			return item;
+
+		p += item_size;
+	}
+
+	return NULL;
+}
+
+void lrm_bootargs_dump(void)
+{
+	struct lcd_rsvd_mem_s *lrm = lrm_get();
+	struct lcd_bootargs_head_s *head;
+	struct lcd_bootargs_item_s *item = NULL;
+	unsigned char *p;
+	int mem_size = 0, item_size, i;
+
+	if (!lrm || !lrm->bootargs)
+		return;
+
+	pr_info("\nbootargs num:%u\n", lrm->args_num);
+	if (lrm_bootargs_check(lrm->bootargs))
+		return;
+
+	head = (struct lcd_bootargs_head_s *)lrm->bootargs;
+	p = lrm->bootargs + sizeof(struct lcd_bootargs_head_s);
+	for (i = 0; i < head->args_num; i++) {
+		item = (struct lcd_bootargs_item_s *)p;
+		item_size = (sizeof(struct lcd_bootargs_item_s) + item->data_size);
+		mem_size += item_size;
+		if (mem_size > head->cur_pos)
+			break;
+
+		pr_info("offset:0x%x, data_size:%d, attr:0x%x, %s\n",
+			(unsigned int)(p - lrm->bootargs),
+			item->data_size, item->attr, item->name);
+
+		p += item_size;
+	}
+
+	pr_info("\n%s: mem used:0x%x/0x%x\n", head->identifier, head->cur_pos, head->total_size);
+}
+
+unsigned char *lrm_bootargs_get_data(const char *name, u32 *len)
+{
+	struct lcd_rsvd_mem_s *lrm = lrm_get();
+	struct lcd_bootargs_item_s *item = NULL;
+	unsigned char *data = NULL;
+
+	if (!lrm || !lrm->bootargs || !name || !len)
+		return NULL;
+
+	if (lrm_bootargs_check(lrm->bootargs))
+		return NULL;
+
+	item = lrm_bootargs_get_item(lrm->bootargs, name);
+	if (item) {
+		data = ((unsigned char *)item) + sizeof(struct lcd_bootargs_item_s);
+		*len = item->data_size;
+	}
+
+	return data;
 }
 
 struct lrm_transmit_mem_s {
@@ -767,7 +849,7 @@ int lrm_update_bootloader(struct lcd_rsvd_mem_s *lrm)
 		}
 		memcpy(&mem->info, p, sizeof(mem->info));
 		list_add_tail(&mem->list, &lrm->mem_list);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		if (lcd_debug_print_flag & LCD_DBG_PR_MEM)
 			LRMPR("lcd rsvd mem used by bootloader: pa:0x%llx, size:0x%x, name:%s",
 				 lrm->pstart + mem->info.offset, mem->info.size, mem->info.name);
 		lrm->allocated_num++;
@@ -776,10 +858,12 @@ int lrm_update_bootloader(struct lcd_rsvd_mem_s *lrm)
 
 	if (args_num) {
 		p = va + RSVD_MEM_UBOOT_INFO_SIZE;
-		lrm->bootargs = kzalloc(RSVD_MEM_BOOTARGS_SIZE, GFP_KERNEL);
-		if (lrm->bootargs) {
-			lrm->args_num = args_num;
-			memcpy(lrm->bootargs, p, RSVD_MEM_BOOTARGS_SIZE);
+		if (lrm_bootargs_check(p) == 0) {
+			lrm->bootargs = kzalloc(RSVD_MEM_BOOTARGS_SIZE, GFP_KERNEL);
+			if (lrm->bootargs) {
+				lrm->args_num = args_num;
+				memcpy(lrm->bootargs, p, RSVD_MEM_BOOTARGS_SIZE);
+			}
 		}
 	}
 	memset(va, 0, RSVD_MEM_TAIL_SIZE);//merge tail memory to free memory
