@@ -90,7 +90,7 @@ static void pipeline_visit_clean(struct meson_vpu_block_state *curr_state)
  * to the end block, the result will be saved to the meson_vpu_traverse struct.
  *
  */
-static void pipeline_dfs(int osd_index, struct meson_vpu_pipeline_state *mvps,
+static void pipeline_dfs(int osd_index, struct meson_vpu_sub_pipeline_state *mvps,
 			 struct meson_vpu_block *start,
 			 struct meson_vpu_block *end,
 			 struct drm_atomic_state *state)
@@ -173,7 +173,7 @@ static u8 find_in_port(struct meson_vpu_block *in, struct meson_vpu_block *out)
 }
 
 void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
-					 struct meson_vpu_pipeline_state *mvps)
+					 struct meson_vpu_sub_pipeline_state *mvps)
 {
 	u8 m, i;
 	u32 ratio_w_num, ratio_w_den;
@@ -392,7 +392,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 
 /* only effect on vpp0, which include the osdblend block*/
 static void vpu_pipeline_recalc_global_scaler(int crtc_idx,
-		struct meson_vpu_pipeline_state *mvps)
+		struct meson_vpu_sub_pipeline_state *mvps)
 {
 	int i;
 	bool found = false;
@@ -458,7 +458,7 @@ static void vpu_pipeline_recalc_global_scaler(int crtc_idx,
 	}
 }
 
-static void vpu_osd_shift_recalc(struct meson_vpu_pipeline_state *state)
+static void vpu_osd_shift_recalc(struct meson_vpu_sub_pipeline_state *state)
 {
 	u8 i;
 
@@ -470,7 +470,7 @@ static void vpu_osd_shift_recalc(struct meson_vpu_pipeline_state *state)
 }
 
 int vpu_pipeline_scaler_check(int *combination, int num_planes,
-			      struct meson_vpu_pipeline_state *mvps)
+			      struct meson_vpu_sub_pipeline_state *mvps)
 {
 	int i, j, osd_index, ret, m, osdblend_crtc_idx = 0;
 	struct meson_vpu_traverse *mvt;
@@ -566,7 +566,7 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
  * 0 for the valid path or -1 for the invalid path
  */
 int vpu_pipeline_check_block(int *combination, int num_planes,
-			     struct meson_vpu_pipeline_state *mvps,
+			     struct meson_vpu_sub_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
 	u8 in_port, out_port;
@@ -585,7 +585,8 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!mvps->plane_info[i].enable)
+		if (!(mvps->plane_info[i].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 		osd_index = mvps->plane_index[i];
 		mvt = &mvps->osd_traverse[osd_index];
@@ -608,7 +609,8 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!mvps->plane_info[i].enable)
+		if (!(mvps->plane_info[i].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 		osd_index = mvps->plane_index[i];
 		mvt = &mvps->osd_traverse[osd_index];
@@ -656,7 +658,7 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int s5_check_pipeline_path(int *combination, int num_planes,
-			   struct meson_vpu_pipeline_state *mvps,
+			   struct meson_vpu_sub_pipeline_state *mvps,
 			   struct drm_atomic_state *state)
 {
 	int more_4k;
@@ -668,11 +670,12 @@ int s5_check_pipeline_path(int *combination, int num_planes,
 	struct meson_vpu_block *block;
 	bool have_blend, have_slice2ppc = 0;
 
-	more_4k = mvps->sub_states[0].more_4k;
-	more_60 = mvps->sub_states[0].more_60;
+	more_4k = mvps->more_4k;
+	more_60 = mvps->more_60;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!mvps->plane_info[i].enable)
+		if (!(mvps->plane_info[i].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 		osd_index = mvps->plane_index[i];
 		mvt = &mvps->osd_traverse[osd_index];
@@ -714,7 +717,7 @@ int s5_check_pipeline_path(int *combination, int num_planes,
 }
 
 int t7_check_pipeline_path(int *combination, int num_planes,
-			     struct meson_vpu_pipeline_state *mvps,
+			     struct meson_vpu_sub_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
 	return vpu_pipeline_check_block(combination, num_planes, mvps, state);
@@ -722,7 +725,7 @@ int t7_check_pipeline_path(int *combination, int num_planes,
 #endif
 
 int g12a_check_pipeline_path(int *combination, int num_planes,
-			     struct meson_vpu_pipeline_state *mvps,
+			     struct meson_vpu_sub_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
 	return vpu_pipeline_check_block(combination, num_planes, mvps, state);
@@ -738,7 +741,8 @@ int video_pipeline_check_block(struct meson_video_sub_pipeline_state *mvps,
 	MESON_DRM_TRAVERSE("mvps (%p), atomic-state(%p)\n", mvps, state);
 
 	for (i = 0; i < MESON_MAX_VIDEO; i++) {
-		if (!mvps->video_plane_info[i].enable)
+		if (!(mvps->video_plane_info[i].enable &&
+			mvps->index == mvps->video_plane_info[i].crtc_index))
 			continue;
 		block = &mvps->pipe->video[i]->base;
 		if (block->ops && block->ops->check_video_state) {
@@ -757,7 +761,7 @@ int video_pipeline_check_block(struct meson_video_sub_pipeline_state *mvps,
 }
 
 void vpu_pipeline_gfcd_odd_size_calculate(int index, int sc_idx,
-			       struct meson_vpu_pipeline_state *mvps, bool *flag,
+			       struct meson_vpu_sub_pipeline_state *mvps, bool *flag,
 			       struct meson_vpu_block **mvb)
 {
 	struct meson_vpu_osd_layer_info *plane_info;
@@ -814,19 +818,18 @@ void vpu_pipeline_gfcd_odd_size_calculate(int index, int sc_idx,
 }
 
 void vpu_pipeline_enable_block(int *combination, int num_planes,
-			       struct meson_vpu_pipeline_state *mvps)
+			       struct meson_vpu_sub_pipeline_state *mvps)
 {
 	int i, j, osd_index, crtc_index, local_sc_idx, has_blend;
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
 	struct meson_vpu_block_state *mvbs;
-	struct meson_vpu_sub_pipeline_state *sub_state;
-	struct meson_vpu_pipeline *mvp = mvps->pipeline;
 	bool osdblend_set = false;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!mvps->plane_info[i].enable)
+		if (!(mvps->plane_info[i].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 
 		local_sc_idx = -1;
@@ -837,7 +840,6 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 			DRM_ERROR("%s, overbound crtc index\n", __func__);
 			crtc_index = 0;
 		}
-		sub_state = &mvps->sub_states[crtc_index];
 		mvt = &mvps->osd_traverse[osd_index];
 		mvb = mvt->path[combination[i]];
 		MESON_DRM_TRAVERSE("OSD%d select path%d\n",
@@ -849,8 +851,8 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 				break;
 
 			mvbs = meson_vpu_block_get_state(block, mvps->obj.state);
-			mvbs->sub = &mvp->subs[crtc_index];
-			sub_state->enable_blocks |= BIT(block->id);
+			mvbs->sub = mvps->pipeline->subs[crtc_index];
+			mvps->enable_blocks |= BIT(block->id);
 
 			if (block->type == MESON_BLK_OSDBLEND)
 				has_blend = j;
@@ -868,7 +870,7 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int s5_set_pipeline_para(int *combination, int num_planes,
-			 struct meson_vpu_pipeline_state *mvps,
+			 struct meson_vpu_sub_pipeline_state *mvps,
 			 struct drm_atomic_state *state)
 {
 	int more_4k;
@@ -886,18 +888,17 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 	u32 init_phase[MESON_MAX_OSDS] = {0};
 	u32 slice_st[MESON_MAX_OSDS] = {0};
 	u32 horz_phase_step, slice1_init_phase_out;
-	struct meson_vpu_sub_pipeline_state *mvsps;
 
-	mvsps = &mvps->sub_states[0];
-	more_4k = mvsps->more_4k;
-	more_60 = mvsps->more_60;
+	more_4k = mvps->more_4k;
+	more_60 = mvps->more_60;
 
 	osd_in_hsize_real = 0;
 	osd_out_hsize_real = 0;
 	osd_out_hsize_raw = 0;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!mvps->plane_info[i].enable)
+		if (!(mvps->plane_info[i].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 
 		if (more_60) {
@@ -911,15 +912,16 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 	}
 
 	osd_out_hsize_real = ALIGN(osd_out_hsize_raw, 8);
-	mvsps->slice2ppc_hsize = osd_out_hsize_real / 2;
-	mvsps->slice2ppc_vsize = mvps->plane_info[OSD1_SLICE0].dst_h;
-	mvsps->osd_out_hsize_raw = osd_out_hsize_raw;
-	mvsps->osd_out_hsize_real = osd_out_hsize_real;
+	mvps->slice2ppc_hsize = osd_out_hsize_real / 2;
+	mvps->slice2ppc_vsize = mvps->plane_info[OSD1_SLICE0].dst_h;
+	mvps->osd_out_hsize_raw = osd_out_hsize_raw;
+	mvps->osd_out_hsize_real = osd_out_hsize_real;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		memset(&mvps->osd_scope_pre[i], 0, sizeof(mvps->osd_scope_pre[i]));
 
-		if (!mvps->plane_info[i].enable)
+		if (!(mvps->plane_info[i].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 
 		if (more_60) {
@@ -1011,10 +1013,10 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 			//		  osd_pps_dout_hsize[i];
 		}
 
-		mvsps->scaler_din_hsize[i] = osd_pps_din_hsize[i];
-		mvsps->scaler_dout_hsize[i] = osd_pps_dout_hsize[i];
-		mvsps->scaler_din_vsize[i] = osd_pps_din_vsize[i];
-		mvsps->scaler_dout_vsize[i] = osd_pps_dout_vsize[i];
+		mvps->scaler_din_hsize[i] = osd_pps_din_hsize[i];
+		mvps->scaler_dout_hsize[i] = osd_pps_dout_hsize[i];
+		mvps->scaler_din_vsize[i] = osd_pps_din_vsize[i];
+		mvps->scaler_dout_vsize[i] = osd_pps_dout_vsize[i];
 		mvps->scaler_param[i].input_width = osd_pps_din_hsize[i];
 		mvps->scaler_param[i].input_height = osd_pps_din_vsize[i];
 		mvps->scaler_param[i].output_width = osd_pps_dout_hsize[i];
@@ -1043,16 +1045,16 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 			mvps->osd_scope_pre[i].v_end = mvps->plane_info[i].dst_y +
 						osd_pps_dout_vsize[i] - 1;
 		}
-		mvsps->slice_dout_hsize[i] = osd_slice_dout_hsize[i];
-		mvsps->hwincut_bgn[i] = hwincut_bgn[i];
-		mvsps->hwincut_end[i] = hwincut_end[i];
-		mvsps->slice_x_st[i] = slice_st[i];
-		mvsps->slice_x_end[i] = 0;
-		mvsps->init_phase[i] = init_phase[0];
-		mvsps->slice2ppc_hsize = osd_out_hsize_real / 2;
-		DRM_DEBUG("%s, scaler_d:%u, %u, %u, %u, %d\n", __func__, mvsps->scaler_din_hsize[i],
-			  mvsps->scaler_dout_hsize[i], mvsps->scaler_din_vsize[i],
-			  mvsps->scaler_dout_vsize[i], i);
+		mvps->slice_dout_hsize[i] = osd_slice_dout_hsize[i];
+		mvps->hwincut_bgn[i] = hwincut_bgn[i];
+		mvps->hwincut_end[i] = hwincut_end[i];
+		mvps->slice_x_st[i] = slice_st[i];
+		mvps->slice_x_end[i] = 0;
+		mvps->init_phase[i] = init_phase[0];
+		mvps->slice2ppc_hsize = osd_out_hsize_real / 2;
+		DRM_DEBUG("%s, scaler_d:%u, %u, %u, %u, %d\n", __func__, mvps->scaler_din_hsize[i],
+			  mvps->scaler_dout_hsize[i], mvps->scaler_din_vsize[i],
+			  mvps->scaler_dout_vsize[i], i);
 		DRM_DEBUG("%s, scaler_p:%u, %u, %u, %u\n", __func__,
 			  mvps->scaler_param[i].input_width,
 			  mvps->scaler_param[i].input_height, mvps->scaler_param[i].output_width,
@@ -1066,7 +1068,7 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 }
 
 int t7_set_pipeline_para(int *combination, int num_planes,
-			     struct meson_vpu_pipeline_state *mvps,
+			     struct meson_vpu_sub_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
 	vpu_pipeline_enable_block(combination, num_planes, mvps);
@@ -1075,7 +1077,7 @@ int t7_set_pipeline_para(int *combination, int num_planes,
 #endif
 
 int g12a_set_pipeline_para(int *combination, int num_planes,
-			     struct meson_vpu_pipeline_state *mvps,
+			     struct meson_vpu_sub_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
 	vpu_pipeline_enable_block(combination, num_planes, mvps);
@@ -1083,7 +1085,7 @@ int g12a_set_pipeline_para(int *combination, int num_planes,
 }
 
 void vpu_pipeline_clean_block(int *combination, int num_planes,
-			      struct meson_vpu_pipeline_state *mvps,
+			      struct meson_vpu_sub_pipeline_state *mvps,
 			      struct drm_atomic_state *state)
 {
 	int i, j, osd_index;
@@ -1122,7 +1124,7 @@ void vpu_pipeline_clean_block(int *combination, int num_planes,
  * 0 for the valid path or -1 for the invalid path
  */
 int combine_layer_path(int *path_num_array, int num_planes,
-			 struct meson_vpu_pipeline_state *mvps,
+			 struct meson_vpu_sub_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
 	int i, j, k, ret, index;
@@ -1135,7 +1137,8 @@ int combine_layer_path(int *path_num_array, int num_planes,
 	ret = -1;
 
 	for (index = MESON_MAX_OSDS - 1; index >= 0; index--) {
-		if (mvps->plane_info[index].enable)
+		if (mvps->plane_info[index].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index)
 			break;
 	}
 
@@ -1170,8 +1173,8 @@ int combine_layer_path(int *path_num_array, int num_planes,
 		is_continue = false;
 
 		for (j = 0; j < MESON_MAX_OSDS; j++) {
-			if (combination[j] != 0 &&
-			    mvps->plane_info[j].enable) {
+			if (combination[j] != 0 && mvps->plane_info[j].enable &&
+			    mvps->index == mvps->plane_info[i].crtc_index) {
 				is_continue = true;
 				break;
 			}
@@ -1192,7 +1195,7 @@ int combine_layer_path(int *path_num_array, int num_planes,
  * RETURNS:
  * 0 for the valid path or -1 for the invalid path
  */
-int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
+int vpu_pipeline_traverse(struct meson_vpu_sub_pipeline_state *mvps,
 			  struct drm_atomic_state *state)
 {
 	int i, osd_index, crtc_index, ret;
@@ -1200,21 +1203,6 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 	struct meson_vpu_block *start, *end;
 	int path[MESON_MAX_OSDS] = {0};
 	struct meson_vpu_pipeline *mvp = mvps->pipeline;
-	struct meson_vpu_block *mvb;
-	struct meson_vpu_block_state *mvbs;
-
-	/* to dup new state for all blocks.The duped state is empty/disable state.
-	 */
-	for (i = 0; i < BLOCK_ID_MAX; i++) {
-		mvb = mvp->mvbs[i];
-
-		if (!mvb || mvb->type == MESON_BLK_VIDEO)
-			continue;
-
-		mvbs = meson_vpu_block_get_state(mvb, state);
-		if (PTR_ERR(mvbs) == -EDEADLK)
-			return -EDEADLK;
-	}
 
 	num_planes = mvps->num_plane;
 	if (!num_planes)
@@ -1222,7 +1210,8 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 
 	MESON_DRM_TRAVERSE("====> traverse start num: %d  %p.\n", num_planes, mvps);
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!mvps->plane_info[i].enable)
+		if (!(mvps->plane_info[i].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 		osd_index = mvps->plane_index[i];
 		crtc_index = mvps->plane_info[i].crtc_index;
@@ -1240,7 +1229,8 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 	MESON_DRM_TRAVERSE("==>pipeline_dfs end, start combine.\n");
 	// start to combination every layer case
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!mvps->plane_info[i].enable)
+		if (!(mvps->plane_info[i].enable &&
+			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 		osd_index = mvps->plane_index[i];
 		path[i] = mvps->osd_traverse[osd_index].num_path;

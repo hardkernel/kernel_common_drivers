@@ -102,21 +102,24 @@ static int osd_fbdump_open(struct inode *inode, struct file *filp)
 	u32 fb_size;
 	void *vir_addr;
 	u64 phy_addr;
-	struct meson_vpu_pipeline *pipeline;
+	int crtc_index;
 	struct meson_vpu_osd_layer_info *info;
 	struct meson_drm *priv;
-	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvps;
 	struct drm_plane *plane = inode->i_private;
 	struct am_osd_plane *amp = to_am_osd_plane(plane);
 
 	filp->private_data = inode->i_private;
 	priv = plane->dev->dev_private;
-	pipeline = priv->pipeline;
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-
 	index = amp->plane_index;
-	info = &mvps->plane_info[index];
+	crtc_index = priv->pipeline->osd_crtc_index[index];
+	if (crtc_index == -1) {
+		DRM_INFO("osd is disabled\n");
+		return 0;
+	}
 
+	mvps = priv_to_sub_pipeline_state(priv->pipeline->subs[crtc_index]->obj.state);
+	info = &mvps->plane_info[index];
 	if (!info->enable) {
 		DRM_INFO("osd is disabled\n");
 		return 0;

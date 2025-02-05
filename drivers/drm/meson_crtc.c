@@ -437,17 +437,24 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 			container_of(state, struct am_meson_crtc_state, base);
 	struct am_meson_crtc *meson_crtc = to_am_meson_crtc(cstate->base.crtc);
 	struct meson_drm *priv = meson_crtc->priv;
-	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline *subs;
 	struct drm_private_state *obj_state;
 	int i;
 
-	obj_state = priv->pipeline->obj.state;
+	subs = priv->pipeline->subs[meson_crtc->crtc_index];
+	if (!subs) {
+		DRM_ERROR("null sub pipeline!\n");
+		return;
+	}
+
+	obj_state = subs->obj.state;
 	if (!obj_state) {
 		DRM_ERROR("null pipeline obj state!\n");
 		return;
 	}
 
-	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
+	mvps = container_of(obj_state, struct meson_vpu_sub_pipeline_state, obj);
 	if (!mvps) {
 		DRM_INFO("%s mvps is NULL!\n", __func__);
 		return;
@@ -469,7 +476,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 
 	drm_printf(p, "\tmeson vpu pipeline state:\n");
 	drm_printf(p, "\t\tenable_blocks=%llu\n",
-		mvps->sub_states[meson_crtc->crtc_index].enable_blocks);
+		mvps->enable_blocks);
 	drm_printf(p, "\t\tnum_plane=%u\n", mvps->num_plane);
 	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
@@ -757,9 +764,9 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 
 	meson_crtc_state->vmode = mode;
-	pipeline->subs[amcrtc->crtc_index].vmode = mode;
+	pipeline->subs[amcrtc->crtc_index]->vmode = mode;
 
-	memcpy(&pipeline->subs[amcrtc->crtc_index].mode, adjusted_mode,
+	memcpy(&pipeline->subs[amcrtc->crtc_index]->mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
 
 	drm_crtc_vblank_on(crtc);
@@ -824,7 +831,6 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_atomic_state *atomic_state)
 {
 	int ret;
-	struct meson_vpu_pipeline_state *mvps;
 	struct meson_vpu_sub_pipeline_state *mvsps;
 	struct drm_display_mode *mode;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
@@ -841,13 +847,13 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	mvps = meson_vpu_pipeline_get_state(amcrtc->pipeline, crtc_state->state);
-	if (PTR_ERR(mvps) == -EDEADLK) {
+	mvsps = meson_vpu_pipeline_get_state(amcrtc->pipeline->subs[crtc->index],
+			crtc_state->state);
+	if (PTR_ERR(mvsps) == -EDEADLK) {
 		DRM_DEBUG_ATOMIC("deadlock!\n");
 		return -EDEADLK;
 	}
 
-	mvsps = &mvps->sub_states[crtc->index];
 	mode = &crtc_state->mode;
 	if (mode->hdisplay > 4096 || mode->vdisplay > 2160)
 		mvsps->more_4k = 1;
@@ -893,7 +899,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 
 	/*check plane-update*/
 	if (!atomic_state->async_update)
-		ret = vpu_pipeline_check(amcrtc->pipeline, atomic_state);
+		ret = vpu_pipeline_check(amcrtc->pipeline->subs[crtc->index], atomic_state);
 
 	return ret;
 }
@@ -929,7 +935,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 	old_am_crtc_state = to_am_meson_crtc_state(old_crtc_state);
 
-	sub_pipe = &pipeline->subs[crtc_index];
+	sub_pipe = pipeline->subs[crtc_index];
 	meson_crtc_state = to_am_meson_crtc_state(crtc->state);
 	if (crtc->state->color_mgmt_changed) {
 		DRM_INFO("%s color_mgmt_changed!\n", __func__);
@@ -1325,7 +1331,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	crtc = &amcrtc->base;
 	plane_index = priv->primary_plane_index[idx];
 	primary_plane = &priv->osd_planes[plane_index]->base;
-	sub_pipeline = &pipeline->subs[idx];
+	sub_pipeline = pipeline->subs[idx];
 
 	snprintf(crtc_name, 64, "%s-%d", "VPP", amcrtc->crtc_index);
 

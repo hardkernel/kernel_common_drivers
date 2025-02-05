@@ -497,18 +497,19 @@ meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 {
 	int i;
 	struct meson_vpu_osd_layer_info *info;
-	struct meson_vpu_pipeline_state *state;
-	struct meson_vpu_pipeline *pipeline = priv_to_pipeline(obj);
-	struct meson_vpu_pipeline_state *cur_state = priv_to_pipeline_state(obj->state);
+	struct meson_vpu_sub_pipeline_state *state;
+	struct meson_vpu_sub_pipeline *sub_pipeline = priv_to_sub_pipeline(obj);
+	struct meson_vpu_sub_pipeline_state *cur_state = priv_to_sub_pipeline_state(obj->state);
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	memcpy(state, cur_state, sizeof(struct meson_vpu_pipeline_state));
+	memcpy(state, cur_state, sizeof(struct meson_vpu_sub_pipeline_state));
 
-	state->pipeline = pipeline;
+	state->pipeline = sub_pipeline->pipeline;
 	state->global_afbc = 0;
 	state->vpp_scope_x = 0;
 	state->vpp_scope_y = 0;
 	state->osdblend_input_width_offset = 0;
+	state->index = sub_pipeline->index;
 
 	for (i = 0; i < MESON_MAX_SCALERS; i++) {
 		state->scaler_param[i].global = 0;
@@ -517,7 +518,7 @@ meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (state->sub_states[0].more_60 && i == OSD3_SLICE1) {
+		if (state->more_60 && i == OSD3_SLICE1) {
 			info = &state->plane_info[i];
 			info->enable = 0;
 		}
@@ -532,7 +533,7 @@ static void
 meson_vpu_pipeline_atomic_destroy_state(struct drm_private_obj *obj,
 					struct drm_private_state *state)
 {
-	struct meson_vpu_pipeline_state *mvps = priv_to_pipeline_state(state);
+	struct meson_vpu_sub_pipeline_state *mvps = priv_to_sub_pipeline_state(state);
 
 	kfree(mvps);
 }
@@ -543,16 +544,16 @@ static const struct drm_private_state_funcs meson_vpu_pipeline_obj_funcs = {
 };
 
 static int meson_vpu_pipeline_state_init(struct meson_drm *private,
-					 struct meson_vpu_pipeline *pipeline)
+					 struct meson_vpu_sub_pipeline *sub_pipeline)
 {
-	struct meson_vpu_pipeline_state *state;
+	struct meson_vpu_sub_pipeline_state *state;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
-	state->pipeline = pipeline;
-	drm_atomic_private_obj_init(private->drm, &pipeline->obj, &state->obj,
+	state->pipeline = sub_pipeline->pipeline;
+	drm_atomic_private_obj_init(private->drm, &sub_pipeline->obj, &state->obj,
 				    &meson_vpu_pipeline_obj_funcs);
 
 	return 0;
@@ -626,6 +627,7 @@ meson_video_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 	memcpy(state, cur_state, sizeof(struct meson_video_sub_pipeline_state));
 	state->sub_pipe = sub_pipe;
 	state->enable_blocks = 0;
+	state->index = sub_pipe->index;
 
 	return &state->obj;
 }
@@ -704,16 +706,34 @@ meson_vpu_block_get_old_state(struct meson_vpu_block *mvb,
 	return NULL;
 }
 
-struct meson_vpu_pipeline_state *
-meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
+struct meson_vpu_block_state *
+meson_vpu_block_get_new_state(struct meson_vpu_block *mvb,
+			struct drm_atomic_state *state)
+{
+	struct drm_private_obj *obj;
+	struct drm_private_state *new_obj_state;
+	struct meson_vpu_block_state *mvbs = NULL;
+	int i;
+
+	for_each_new_private_obj_in_state(state, obj, new_obj_state, i) {
+		mvbs = priv_to_block_state(new_obj_state);
+		if (mvb == mvbs->pblk)
+			return mvbs;
+	}
+
+	return NULL;
+}
+
+struct meson_vpu_sub_pipeline_state *
+meson_vpu_pipeline_get_state(struct meson_vpu_sub_pipeline *sub_pipeline,
 			     struct drm_atomic_state *state)
 {
 	struct drm_private_state *dps;
 
-	dps = drm_atomic_get_private_obj_state(state, &pipeline->obj);
+	dps = drm_atomic_get_private_obj_state(state, &sub_pipeline->obj);
 	if (!IS_ERR(dps)) {
 		dps->state = state;
-		return priv_to_pipeline_state(dps);
+		return priv_to_sub_pipeline_state(dps);
 	} else {
 		if (PTR_ERR(dps) == -EDEADLK)
 			return ERR_PTR(-EDEADLK);
@@ -724,34 +744,37 @@ meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 	return NULL;
 }
 
-struct meson_vpu_pipeline_state *
-meson_vpu_pipeline_get_old_state(struct meson_vpu_pipeline *pipeline,
+struct meson_vpu_sub_pipeline_state *
+meson_vpu_pipeline_get_old_state(struct meson_vpu_sub_pipeline *sub_pipeline,
 			     struct drm_atomic_state *state)
 {
-	struct drm_private_obj *obj;
-	struct drm_private_state *old_obj_state;
-	struct meson_vpu_pipeline_state *mvps = NULL;
+	struct drm_private_state *dps = NULL;
+	struct drm_private_obj *obj = &sub_pipeline->obj;
 	int i;
 
-	for_each_old_private_obj_in_state(state, obj, old_obj_state, i) {
-		mvps = priv_to_pipeline_state(old_obj_state);
-		if (pipeline == mvps->pipeline)
-			return mvps;
+	for (i = 0; i < state->num_private_objs; i++) {
+		if (obj == state->private_objs[i].ptr) {
+			dps = state->private_objs[i].old_state;
+			if (dps) {
+				dps->state = state;
+				return priv_to_sub_pipeline_state(dps);
+			}
+		}
 	}
 
 	return NULL;
 }
 
-struct meson_vpu_pipeline_state *
-meson_vpu_pipeline_get_new_state(struct meson_vpu_pipeline *pipeline,
+struct meson_vpu_sub_pipeline_state *
+meson_vpu_pipeline_get_new_state(struct meson_vpu_sub_pipeline *sub_pipeline,
 			     struct drm_atomic_state *state)
 {
 	struct drm_private_state *dps;
 
-	dps = drm_atomic_get_new_private_obj_state(state, &pipeline->obj);
+	dps = drm_atomic_get_new_private_obj_state(state, &sub_pipeline->obj);
 	if (dps) {
 		dps->state = state;
-		return priv_to_pipeline_state(dps);
+		return priv_to_sub_pipeline_state(dps);
 	}
 
 	return NULL;
@@ -762,9 +785,11 @@ int meson_vpu_block_state_init(struct meson_drm *private,
 {
 	int i, ret;
 
-	ret = meson_vpu_pipeline_state_init(private, pipeline);
-	if (ret)
-		return ret;
+	for (i = 0; i < pipeline->num_postblend; i++) {
+		ret = meson_vpu_pipeline_state_init(private, pipeline->subs[i]);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (pipeline->osds[i]) {

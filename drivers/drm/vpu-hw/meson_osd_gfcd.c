@@ -57,19 +57,18 @@ static int gfcd_format_is_rgbx(u32 pixel_format)
 
 static int gfcd_check_state(struct meson_vpu_block *vblk,
 				 struct meson_vpu_block_state *state,
-				 struct meson_vpu_pipeline_state *mvps)
+				 struct meson_vpu_sub_pipeline_state *mvps)
 {
 	return 0;
 }
 
 static void gfcd_set_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
-				struct meson_vpu_block_state *old_state)
+				struct meson_vpu_block_state *old_state,
+				struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	struct meson_vpu_gfcd *gfcd;
 	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_pipeline_state *mvps;
-	struct meson_vpu_sub_pipeline_state *mvsps;
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct rdma_reg_ops *reg_ops;
 	struct gfcd_reg_s *reg;
@@ -81,12 +80,10 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 
 	gfcd = to_gfcd_block(vblk);
 	pipeline = gfcd->base.pipeline;
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	mvsps = &mvps->sub_states[0];
 	reg_ops = state->sub->reg_ops;
 
 	for (i = 0; i < gfcd->num_surface; i++) {
-		plane_info = &mvps->plane_info[i];
+		plane_info = &mvsps->plane_info[i];
 		reg = &gfcd->reg[i];
 		gfcd_en = (plane_info->process_unit == GFCD_AFBC ||
 			plane_info->process_unit == GFCD_AFRC);

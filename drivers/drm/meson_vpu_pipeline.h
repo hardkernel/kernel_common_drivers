@@ -118,21 +118,25 @@ struct meson_vpu_pipeline;
 struct meson_video_sub_pipeline;
 struct meson_vpu_block;
 struct meson_vpu_block_state;
-struct meson_vpu_pipeline_state;
 struct meson_video_sub_pipeline_state;
+struct meson_vpu_sub_pipeline_state;
 
 /* vpu block ops */
 struct meson_vpu_block_ops {
 	int (*check_state)(struct meson_vpu_block *vblk,
 			   struct meson_vpu_block_state *state,
-		struct meson_vpu_pipeline_state *mvps);
+			   struct meson_vpu_sub_pipeline_state *mvps);
 	int (*check_video_state)(struct meson_vpu_block *vblk,
 			   struct meson_vpu_block_state *state,
 		struct meson_video_sub_pipeline_state *mvps);
-
 	void (*update_state)(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *new_state,
-			     struct meson_vpu_block_state *old_state);
+			     struct meson_vpu_block_state *old_state,
+			     struct meson_vpu_sub_pipeline_state *mvsps);
+	void (*update_video_state)(struct meson_vpu_block *vblk,
+			     struct meson_vpu_block_state *new_state,
+			     struct meson_vpu_block_state *old_state,
+			     struct meson_video_sub_pipeline_state *mvsps);
 	void (*detect_reset)(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *new_state);
 	void (*enable)(struct meson_vpu_block *vblk,
@@ -605,9 +609,8 @@ struct rdma_reg_ops {
 };
 
 struct meson_vpu_sub_pipeline {
-	//todo:update to vpp_index;
+	struct drm_private_obj obj;
 	int index;
-	//todo: update name
 	struct meson_vpu_pipeline *pipeline;
 	struct drm_display_mode mode;
 	struct rdma_reg_ops *reg_ops;
@@ -622,16 +625,15 @@ struct meson_video_sub_pipeline {
 
 struct meson_vpu_pipeline_ops {
 	int (*check_pipeline_path)(int *combination, int num_planes,
-				  struct meson_vpu_pipeline_state *mvps,
+				  struct meson_vpu_sub_pipeline_state *mvps,
 				  struct drm_atomic_state *state);
 	int (*set_pipeline_para)(int *combination, int num_planes,
-				  struct meson_vpu_pipeline_state *mvps,
+				  struct meson_vpu_sub_pipeline_state *mvps,
 				  struct drm_atomic_state *state);
 };
 
 struct meson_vpu_pipeline {
-	struct drm_private_obj obj;
-	struct meson_vpu_sub_pipeline subs[MESON_MAX_CRTC];
+	struct meson_vpu_sub_pipeline *subs[MESON_MAX_CRTC];
 	struct meson_video_sub_pipeline video_subs[MESON_MAX_CRTC];
 	struct meson_vpu_osd *osds[MESON_MAX_OSDS];
 	struct meson_vpu_video *video[MESON_MAX_VIDEOS];
@@ -643,7 +645,6 @@ struct meson_vpu_pipeline {
 	struct meson_vpu_postblend *postblends[MESON_MAX_POSTBLEND];
 	struct meson_vpu_slice2ppc *slice2ppc;
 	struct meson_vpu_gfcd *gfcd[MESON_MAX_OSDS];
-	struct meson_vpu_pipeline_state *state;
 	struct meson_vpu_pipeline_ops *ops;
 	u32 num_osds;
 	u32 num_video;
@@ -659,6 +660,9 @@ struct meson_vpu_pipeline {
 	struct meson_drm *priv;
 	struct meson_vpu_block **mvbs;
 	int num_blocks;
+	/* save runtime crtc index of osd&video */
+	int osd_crtc_index[MESON_MAX_OSDS];
+	int video_crtc_index[MESON_MAX_VIDEOS];
 };
 
 struct meson_vpu_stack {
@@ -673,9 +677,14 @@ struct meson_vpu_traverse {
 };
 
 struct meson_vpu_sub_pipeline_state {
+	struct drm_private_state obj;
+	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_osd_layer_info plane_info[MESON_MAX_OSDS];
+	struct meson_vpu_video_layer_info video_plane_info[MESON_MAX_VIDEOS];
 	u64 enable_blocks;
-	int more_4k;
-	int more_60;
+	u32 index;
+	u32 num_plane;
+	u32 num_plane_video;
 	u32 osd_out_hsize_raw;
 	u32 osd_out_hsize_real;
 	u32 scaler_din_hsize[MESON_MAX_OSDS];
@@ -692,17 +701,6 @@ struct meson_vpu_sub_pipeline_state {
 	u32 blend_dout_vsize[2];
 	u32 slice2ppc_hsize;
 	u32 slice2ppc_vsize;
-};
-
-struct meson_vpu_pipeline_state {
-	struct drm_private_state obj;
-	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_sub_pipeline_state sub_states[MESON_MAX_CRTC];
-	struct meson_vpu_osd_layer_info plane_info[MESON_MAX_OSDS];
-	struct meson_vpu_video_layer_info video_plane_info[MESON_MAX_VIDEOS];
-	u32 num_plane;
-	u32 num_plane_video;
-	/*min --> max*/
 	u32 zorder_plane_index[MESON_MAX_OSDS];
 	u32 ratio_plane_index[MESON_MAX_OSDS];
 	struct meson_vpu_scaler_param scaler_param[MESON_MAX_SCALERS];
@@ -713,6 +711,8 @@ struct meson_vpu_pipeline_state {
 	u32 osdblend_input_width_offset;
 	int vpp_scope_x;
 	int vpp_scope_y;
+	int more_4k;
+	int more_60;
 
 	/*some traverse help structure*/
 	struct meson_vpu_stack osd_stack[MESON_MAX_OSDS];
@@ -733,6 +733,7 @@ struct meson_vpu_pipeline_state {
 
 struct meson_video_sub_pipeline_state {
 	struct drm_private_state obj;
+	int index;
 	struct meson_vpu_pipeline *pipe;
 	struct meson_video_sub_pipeline *sub_pipe;
 	struct meson_vpu_video_layer_info video_plane_info[MESON_MAX_VIDEOS];
@@ -770,8 +771,9 @@ struct meson_video_sub_pipeline_state {
 #define priv_to_block_state(x) container_of(x, \
 		struct meson_vpu_block_state, obj)
 #define priv_to_pipeline(x) container_of(x, struct meson_vpu_pipeline, obj)
-#define priv_to_pipeline_state(x) container_of(x, \
-		struct meson_vpu_pipeline_state, obj)
+#define priv_to_sub_pipeline(x) container_of(x, struct meson_vpu_sub_pipeline, obj)
+#define priv_to_sub_pipeline_state(x) container_of(x, \
+				struct meson_vpu_sub_pipeline_state, obj)
 #define priv_to_video_sub_pipe(x) container_of(x, struct meson_video_sub_pipeline, obj)
 #define priv_to_video_sub_pipe_state(x) container_of(x, \
 		struct meson_video_sub_pipeline_state, obj)
@@ -782,15 +784,14 @@ int video_pipeline_block_update(struct meson_video_sub_pipeline *pipeline,
 			struct drm_atomic_state *old_state, int plane_index);
 int video_pipeline_block_async_update(struct meson_video_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *new_state, int plane_index);
-
-int vpu_pipeline_osd_check(struct meson_vpu_pipeline *pipeline,
+int vpu_pipeline_osd_check(struct meson_vpu_sub_pipeline *sub_pipeline,
 		       struct drm_atomic_state *state);
-int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *pipeline,
+int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state);
 
 int vpu_topology_populate(struct meson_vpu_pipeline *pipeline);
 int vpu_topology_init(struct platform_device *pdev, struct meson_drm *private);
-int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
+int vpu_pipeline_check(struct meson_vpu_sub_pipeline *pipeline,
 		       struct drm_atomic_state *state);
 
 int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *pipeline,
@@ -810,13 +811,14 @@ void video_dummy_data_set(u64 crtc_bgcolor, bool crtc_bgcolor_flag);
 struct meson_vpu_block_state *
 meson_vpu_block_get_state(struct meson_vpu_block *block,
 			  struct drm_atomic_state *state);
-
 struct meson_vpu_block_state *
 meson_vpu_block_get_old_state(struct meson_vpu_block *mvb,
 			struct drm_atomic_state *state);
-
-struct meson_vpu_pipeline_state *
-meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
+struct meson_vpu_block_state *
+meson_vpu_block_get_new_state(struct meson_vpu_block *mvb,
+			struct drm_atomic_state *state);
+struct meson_vpu_sub_pipeline_state *
+meson_vpu_pipeline_get_state(struct meson_vpu_sub_pipeline *sub_pipeline,
 			     struct drm_atomic_state *state);
 
 struct meson_video_sub_pipeline_state *
@@ -832,22 +834,22 @@ meson_video_pipeline_get_state(struct meson_video_sub_pipeline *video_pipe,
 int meson_vpu_block_state_init(struct meson_drm *private,
 			       struct meson_vpu_pipeline *pipeline);
 
-int combination_traverse(struct meson_vpu_pipeline_state *mvps,
+int combination_traverse(struct meson_vpu_sub_pipeline_state *mvps,
 			 struct drm_atomic_state *state);
-int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
+int vpu_pipeline_traverse(struct meson_vpu_sub_pipeline_state *mvps,
 			  struct drm_atomic_state *state);
 int vpu_pipeline_check_osdblend(u32 *out_port, int num_planes,
-				struct meson_vpu_pipeline_state *mvps,
+				struct meson_vpu_sub_pipeline_state *mvps,
 					struct drm_atomic_state *state);
 int video_pipeline_check_block(struct meson_video_sub_pipeline_state *mvps,
 				   struct drm_atomic_state *state);
 void vpu_pipeline_check_finish_reg(int crtc_index);
 void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline);
-struct meson_vpu_pipeline_state *
-meson_vpu_pipeline_get_old_state(struct meson_vpu_pipeline *pipeline,
+struct meson_vpu_sub_pipeline_state *
+meson_vpu_pipeline_get_old_state(struct meson_vpu_sub_pipeline *pipeline,
 			     struct drm_atomic_state *state);
-struct meson_vpu_pipeline_state *
-meson_vpu_pipeline_get_new_state(struct meson_vpu_pipeline *pipeline,
+struct meson_vpu_sub_pipeline_state *
+meson_vpu_pipeline_get_new_state(struct meson_vpu_sub_pipeline *pipeline,
 			     struct drm_atomic_state *state);
 void sort_osd_by_zorder(struct osd_zorder_s *din, u32 osd_num);
 const struct meson_drm_format_info *meson_drm_format_info(struct meson_vpu_block *vblk, u32 format,

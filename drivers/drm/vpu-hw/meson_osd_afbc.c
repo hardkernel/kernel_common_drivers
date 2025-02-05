@@ -537,7 +537,7 @@ static void t7_osd_afbc_enable(struct meson_vpu_block *vblk,
 /*only supports one 4k fb at most for osd plane*/
 static
 int osd_afbc_check_uhd_count(struct meson_vpu_osd_layer_info *plane_info,
-			     struct meson_vpu_pipeline_state *mvps, u32 num_of_4k_osd)
+			     struct meson_vpu_sub_pipeline_state *mvps, u32 num_of_4k_osd)
 {
 	int cnt;
 	int uhd_plane_sum = 0;
@@ -560,7 +560,7 @@ int osd_afbc_check_uhd_count(struct meson_vpu_osd_layer_info *plane_info,
 
 static int osd_afbc_check_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
-		struct meson_vpu_pipeline_state *mvps)
+		struct meson_vpu_sub_pipeline_state *mvps)
 {
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
 	struct meson_vpu_osd_layer_info *plane_info;
@@ -586,7 +586,8 @@ static int osd_afbc_check_state(struct meson_vpu_block *vblk,
 
 static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				    struct meson_vpu_block_state *state,
-				    struct meson_vpu_block_state *old_state)
+				    struct meson_vpu_block_state *old_state,
+				    struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	u32 pixel_format, line_stride, output_stride;
 	u32 frame_width, frame_height;
@@ -601,7 +602,6 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_afbc_state *afbc_state;
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_pipeline_state *pipeline_state;
 	struct osd_mif_reg_s *osd_reg;
 	struct afbc_osd_reg_s *afbc_reg;
 	const struct drm_format_info *info;
@@ -611,10 +611,9 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc_state = to_afbc_state(state);
 	pipeline = vblk->pipeline;
 	osd_index = vblk->index;
-	pipeline_state = priv_to_pipeline_state(pipeline->obj.state);
 	osd_reg = pipeline->osds[osd_index]->reg;
 	afbc_reg = afbc->afbc_regs;
-	plane_info = &pipeline_state->plane_info[osd_index];
+	plane_info = &mvsps->plane_info[osd_index];
 	reg_ops = state->sub->reg_ops;
 
 	if (!plane_info->afbc_en) {
@@ -664,8 +663,8 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	reverse_x = (plane_info->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
 	reverse_y = (plane_info->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
 
-	if (pipeline_state->sec_src)
-		pipeline_state->sec_src |= MALI_AFBCD_SECURE;
+	if (mvsps->sec_src)
+		mvsps->sec_src |= MALI_AFBCD_SECURE;
 
 	/* set osd path misc ctrl */
 	reg_ops->rdma_write_reg_bits(OSD_PATH_MISC_CTRL, 0x1,
@@ -743,7 +742,7 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void osd_afbc_ctrl_init(struct meson_vpu_block *vblk,
-	struct rdma_reg_ops *reg_ops, struct meson_vpu_pipeline_state *mvps)
+	struct rdma_reg_ops *reg_ops, struct meson_vpu_sub_pipeline_state *mvps)
 {
 	struct meson_vpu_pipeline *pipeline = vblk->pipeline;
 	int i;
@@ -776,17 +775,17 @@ static void osd_afbc_ctrl_init(struct meson_vpu_block *vblk,
 			is_amdv_graphic_on_osd3());
 #endif
 
-		reg_ops = pipeline->subs[0].reg_ops;
+		reg_ops = pipeline->subs[VPP0]->reg_ops;
 		reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL,
 						1, 16, 1); /* osd0 */
 		reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL,
 						1, 21, 1); /* osd1 */
 
-		reg_ops = pipeline->subs[1].reg_ops;
+		reg_ops = pipeline->subs[VPP1]->reg_ops;
 		reg_ops->rdma_write_reg_bits(MALI_AFBCD1_TOP_CTRL,
 						1, 21, 1); /* osd2 */
 
-		reg_ops = pipeline->subs[2].reg_ops;
+		reg_ops = pipeline->subs[VPP2]->reg_ops;
 		reg_ops->rdma_write_reg_bits(MALI_AFBCD2_TOP_CTRL,
 						1, 21, 1); /* osd3 */
 
@@ -796,7 +795,8 @@ static void osd_afbc_ctrl_init(struct meson_vpu_block *vblk,
 
 static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				  struct meson_vpu_block_state *state,
-				  struct meson_vpu_block_state *old_state)
+				  struct meson_vpu_block_state *old_state,
+				  struct meson_vpu_sub_pipeline_state *mvps)
 {
 	int i, core_enable;
 	u32 pixel_format, line_stride, output_stride;
@@ -812,7 +812,6 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_afbc_state *afbc_state;
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_pipeline_state *mvps;
 	struct osd_mif_reg_s *osd_reg;
 	struct afbc_osd_reg_s *afbc_reg;
 	struct afbc_status_reg_s *afbc_stat_reg;
@@ -822,7 +821,6 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc = to_afbc_block(vblk);
 	afbc_state = to_afbc_state(state);
 	pipeline = vblk->pipeline;
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	reg_ops = state->sub->reg_ops;
 	core_enable = 0;
 
@@ -989,7 +987,8 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 
 static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				  struct meson_vpu_block_state *state,
-				  struct meson_vpu_block_state *old_state)
+				  struct meson_vpu_block_state *old_state,
+				  struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	int i, core_enable;
 	u32 pixel_format, line_stride, output_stride;
@@ -1005,8 +1004,6 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_afbc_state *afbc_state;
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_pipeline_state *mvps;
-	struct meson_vpu_sub_pipeline_state *mvsps;
 	struct osd_mif_reg_s *osd_reg;
 	struct afbc_osd_reg_s *afbc_reg;
 	struct afbc_status_reg_s *afbc_stat_reg;
@@ -1016,23 +1013,21 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc = to_afbc_block(vblk);
 	afbc_state = to_afbc_state(state);
 	pipeline = vblk->pipeline;
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	mvsps = &mvps->sub_states[0];
 	reg_ops = state->sub->reg_ops;
 
 	afbc_stat_reg = afbc->status_regs;
 	core_enable = 0;
 
 	for (i = afbc->start_surface; i <= afbc->end_surface; i++) {
-		if (mvps->plane_info[i].enable && mvps->plane_info[i].afbc_en) {
+		if (mvsps->plane_info[i].enable && mvsps->plane_info[i].afbc_en) {
 			core_enable = 1;
 			osd_index = i;
 			osd_reg = pipeline->osds[osd_index]->reg;
 			afbc_reg = &afbc->afbc_regs[osd_index];
-			plane_info = &mvps->plane_info[osd_index];
+			plane_info = &mvsps->plane_info[osd_index];
 
-			if (mvps->sec_src)
-				mvps->sec_src |= MALI_AFBCD_SECURE;
+			if (mvsps->sec_src)
+				mvsps->sec_src |= MALI_AFBCD_SECURE;
 
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, osd_index, 1);
 
@@ -1119,11 +1114,11 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			if (mvsps->more_60 && osd_index == OSD1_SLICE0)
 				reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_x_end_s,
 							plane_info->src_x - 1 +
-							mvps->scaler_param[osd_index].input_width);
+							mvsps->scaler_param[osd_index].input_width);
 			if (mvsps->more_60 && osd_index == OSD3_SLICE1)
 				reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_x_start_s,
 							plane_info->src_x + plane_info->src_w -
-							mvps->scaler_param[osd_index].input_width);
+							mvsps->scaler_param[osd_index].input_width);
 
 			/*reverse config*/
 			reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
@@ -1156,7 +1151,7 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_irq_mask, 0xf);
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_irq_clear, 0x3f);
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_command, 1);
-		mvps->global_afbc = 1;
+		mvsps->global_afbc = 1;
 		afbc_err_irq_clear = 1;
 	}
 
@@ -1165,7 +1160,8 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 
 static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				  struct meson_vpu_block_state *state,
-				  struct meson_vpu_block_state *old_state)
+				  struct meson_vpu_block_state *old_state,
+				  struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	int i, core_enable;
 	u32 pixel_format, line_stride, output_stride;
@@ -1181,8 +1177,6 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_afbc_state *afbc_state;
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_pipeline_state *mvps;
-	struct meson_vpu_sub_pipeline_state *mvsps;
 	struct osd_mif_reg_s *osd_reg;
 	struct afbc_osd_reg_s *afbc_reg;
 	struct afbc_status_reg_s *afbc_stat_reg;
@@ -1192,23 +1186,21 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc = to_afbc_block(vblk);
 	afbc_state = to_afbc_state(state);
 	pipeline = vblk->pipeline;
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	mvsps = &mvps->sub_states[0];
 	reg_ops = state->sub->reg_ops;
 
 	afbc_stat_reg = afbc->status_regs;
 	core_enable = 0;
 
 	for (i = afbc->start_surface; i <= afbc->end_surface; i++) {
-		if (mvps->plane_info[i].enable && mvps->plane_info[i].afbc_en) {
+		if (mvsps->plane_info[i].enable && mvsps->plane_info[i].afbc_en) {
 			core_enable = 1;
 			osd_index = i;
 			osd_reg = pipeline->osds[osd_index]->reg;
 			afbc_reg = &afbc->afbc_regs[osd_index];
-			plane_info = &mvps->plane_info[osd_index];
+			plane_info = &mvsps->plane_info[osd_index];
 
-			if (mvps->sec_src)
-				mvps->sec_src |= MALI_AFBCD_SECURE;
+			if (mvsps->sec_src)
+				mvsps->sec_src |= MALI_AFBCD_SECURE;
 
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, osd_index, 1);
 
@@ -1295,11 +1287,11 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			if (mvsps->more_60 && osd_index == OSD1_SLICE0)
 				reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_x_end_s,
 							plane_info->src_x - 1 +
-							mvps->scaler_param[osd_index].input_width);
+							mvsps->scaler_param[osd_index].input_width);
 			if (mvsps->more_60 && osd_index == OSD3_SLICE1)
 				reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_x_start_s,
 							plane_info->src_x + plane_info->src_w -
-							mvps->scaler_param[osd_index].input_width);
+							mvsps->scaler_param[osd_index].input_width);
 
 			/*reverse config*/
 			reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
@@ -1330,7 +1322,7 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_irq_mask, 0xf);
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_irq_clear, 0x3f);
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_command, 1);
-		mvps->global_afbc = 1;
+		mvsps->global_afbc = 1;
 		afbc_err_irq_clear = 1;
 	}
 
@@ -1339,7 +1331,8 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 
 static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				  struct meson_vpu_block_state *state,
-				  struct meson_vpu_block_state *old_state)
+				  struct meson_vpu_block_state *old_state,
+				  struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	int i, core_enable;
 	u32 pixel_format, line_stride, output_stride;
@@ -1355,8 +1348,6 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_afbc_state *afbc_state;
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_pipeline_state *mvps;
-	struct meson_vpu_sub_pipeline_state *mvsps;
 	struct osd_mif_reg_s *osd_reg;
 	struct afbc_osd_reg_s *afbc_reg;
 	struct afbc_status_reg_s *afbc_stat_reg;
@@ -1366,23 +1357,21 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc = to_afbc_block(vblk);
 	afbc_state = to_afbc_state(state);
 	pipeline = vblk->pipeline;
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	mvsps = &mvps->sub_states[0];
 	reg_ops = state->sub->reg_ops;
 
 	afbc_stat_reg = afbc->status_regs;
 	core_enable = 0;
 
 	for (i = afbc->start_surface; i <= afbc->end_surface; i++) {
-		if (mvps->plane_info[i].enable && mvps->plane_info[i].afbc_en) {
+		if (mvsps->plane_info[i].enable && mvsps->plane_info[i].afbc_en) {
 			core_enable = 1;
 			osd_index = i;
 			osd_reg = pipeline->osds[osd_index]->reg;
 			afbc_reg = &afbc->afbc_regs[osd_index];
-			plane_info = &mvps->plane_info[osd_index];
+			plane_info = &mvsps->plane_info[osd_index];
 
-			if (mvps->sec_src)
-				mvps->sec_src |= MALI_AFBCD_SECURE;
+			if (mvsps->sec_src)
+				mvsps->sec_src |= MALI_AFBCD_SECURE;
 
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, osd_index, 1);
 
@@ -1469,11 +1458,11 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			if (mvsps->more_60 && osd_index == OSD1_SLICE0)
 				reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_x_end_s,
 							plane_info->src_x - 1 +
-							mvps->scaler_param[osd_index].input_width);
+							mvsps->scaler_param[osd_index].input_width);
 			if (mvsps->more_60 && osd_index == OSD3_SLICE1)
 				reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_x_start_s,
 							plane_info->src_x + plane_info->src_w -
-							mvps->scaler_param[osd_index].input_width);
+							mvsps->scaler_param[osd_index].input_width);
 
 			/*reverse config*/
 			reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
@@ -1506,7 +1495,7 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_irq_mask, 0xf);
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_irq_clear, 0x3f);
 		reg_ops->rdma_write_reg(afbc_stat_reg->vpu_mafbc_command, 1);
-		mvps->global_afbc = 1;
+		mvsps->global_afbc = 1;
 		afbc_err_irq_clear = 1;
 	}
 
@@ -1515,7 +1504,8 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 
 static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				    struct meson_vpu_block_state *state,
-				    struct meson_vpu_block_state *old_state)
+				    struct meson_vpu_block_state *old_state,
+				    struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	u32 pixel_format, line_stride, output_stride;
 	u32 frame_width, frame_height;
@@ -1530,7 +1520,6 @@ static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_afbc_state *afbc_state;
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_pipeline_state *pipeline_state;
 	struct osd_mif_reg_s *osd_reg;
 	struct afbc_osd_reg_s *afbc_reg;
 	const struct drm_format_info *info;
@@ -1540,10 +1529,9 @@ static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc_state = to_afbc_state(state);
 	pipeline = vblk->pipeline;
 	osd_index = vblk->index;
-	pipeline_state = priv_to_pipeline_state(pipeline->obj.state);
 	osd_reg = pipeline->osds[osd_index]->reg;
 	afbc_reg = afbc->afbc_regs;
-	plane_info = &pipeline_state->plane_info[osd_index];
+	plane_info = &mvsps->plane_info[osd_index];
 	reg_ops = state->sub->reg_ops;
 
 	if (!plane_info->afbc_en) {
@@ -1590,8 +1578,8 @@ static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	else if (osd_index == 1)
 		out_addr = S6_VPU_MAFBC_OUT_ADDR_S1;
 
-	if (pipeline_state->sec_src)
-		pipeline_state->sec_src |= MALI_AFBCD_SECURE;
+	if (mvsps->sec_src)
+		mvsps->sec_src |= MALI_AFBCD_SECURE;
 
 	/* set linear addr */
 	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_ctrl_stat, 0x1, 2, 1);
@@ -1961,10 +1949,10 @@ static void osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	afbc->status_regs = &afbc_status_regs;
 	afbc->num_of_4k_osd = 1;
 
-	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
+	pipeline->subs[VPP0]->reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
 
     /* disable osd1 afbc */
-	osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, vblk->index, 0);
+	osd_afbc_enable(vblk, pipeline->subs[VPP0]->reg_ops, vblk->index, 0);
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
 }
@@ -1979,10 +1967,10 @@ static void s7_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	afbc->status_regs = &afbc_status_regs;
 	afbc->shift_bits = 1;
 
-	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
+	pipeline->subs[VPP0]->reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
 
     /* disable osd1 afbc */
-	osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, vblk->index, 0);
+	osd_afbc_enable(vblk, pipeline->subs[VPP0]->reg_ops, vblk->index, 0);
 
 	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
 }
@@ -2048,7 +2036,7 @@ static void t3_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	};
 
 	/* disable osd1 afbc */
-	t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops,
+	t7_osd_afbc_enable(vblk, pipeline->subs[VPP0]->reg_ops,
 					   afbc->status_regs, vblk->index, 0);
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
@@ -2083,7 +2071,7 @@ static void s5_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	};
 
 	/* disable osd1 afbc */
-	t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, afbc->status_regs, vblk->index, 0);
+	t7_osd_afbc_enable(vblk, pipeline->subs[VPP0]->reg_ops, afbc->status_regs, vblk->index, 0);
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
 }
@@ -2127,10 +2115,10 @@ static void s7d_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	afbc->status_regs = &afbc_status_regs;
 	afbc->shift_bits = 1;
 
-	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
+	pipeline->subs[VPP0]->reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
 
 	/* disable osd1 afbc */
-	osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, vblk->index, 0);
+	osd_afbc_enable(vblk, pipeline->subs[VPP0]->reg_ops, vblk->index, 0);
 
 	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
 }
@@ -2148,21 +2136,21 @@ static void s6_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 		afbc->status_regs = &afbc_status_regs;
 	afbc->shift_bits = 1;
 
-	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
+	pipeline->subs[VPP0]->reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
 
 	if (vblk->index == 0 || vblk->index == 1) {
-		t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, afbc->status_regs,
+		t7_osd_afbc_enable(vblk, pipeline->subs[VPP0]->reg_ops, afbc->status_regs,
 			vblk->index, 0);
 	} else {
-		t7_osd_afbc_enable(vblk, pipeline->subs[1].reg_ops, afbc->status_regs,
+		t7_osd_afbc_enable(vblk, pipeline->subs[VPP1]->reg_ops, afbc->status_regs,
 			vblk->index, 0);
-		pipeline->subs[1].reg_ops->rdma_write_reg_bits(VPP2_MISC, 0, 0, 1);
+		pipeline->subs[VPP1]->reg_ops->rdma_write_reg_bits(VPP2_MISC, 0, 0, 1);
 	}
 
 	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
 }
 
-void s6_viu2_arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state,
+void s6_viu2_arm_fbc_start(struct meson_vpu_sub_pipeline_state *pipeline_state,
 	struct rdma_reg_ops *reg_ops)
 {
 	if (!pipeline_state->global_afbc && global_afbc_mask) {
@@ -2177,7 +2165,8 @@ void s6_viu2_arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state,
 }
 #endif
 
-void arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state, struct rdma_reg_ops *reg_ops)
+void arm_fbc_start(struct meson_vpu_sub_pipeline_state *pipeline_state,
+	struct rdma_reg_ops *reg_ops)
 {
 	if (!pipeline_state->global_afbc && global_afbc_mask) {
 		reg_ops->rdma_write_reg(VPU_MAFBC_IRQ_MASK, 0xf);

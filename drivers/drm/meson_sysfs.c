@@ -566,23 +566,29 @@ static ssize_t osd_fbdump_show(struct file *filp, struct kobject *kobj,
 	struct meson_drm *priv;
 	struct am_osd_plane *amp;
 	bool bflg;
+	int crtc_index;
 	u32 fb_size;
+	u32 index;
+	u32 num_pages;
 	void *vir_addr;
 	u64 phy_addr;
-	struct meson_vpu_pipeline *pipeline;
 	struct meson_vpu_osd_layer_info *info;
-	struct meson_vpu_pipeline_state *mvps;
-	u32 num_pages;
+	struct meson_vpu_sub_pipeline_state *mvps;
 
 	if (!minor || !minor->dev)
 		return -EINVAL;
 
+	index = *(int *)attr->private;
 	priv = minor->dev->dev_private;
-	amp = priv->osd_planes[*(int *)attr->private];
-	pipeline = priv->pipeline;
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	info = &mvps->plane_info[*(int *)attr->private];
+	crtc_index = priv->pipeline->osd_crtc_index[index];
+	if (crtc_index == -1) {
+		DRM_INFO("osd is disabled\n");
+		return 0;
+	}
 
+	amp = priv->osd_planes[index];
+	mvps = priv_to_sub_pipeline_state(priv->pipeline->subs[crtc_index]->obj.state);
+	info = &mvps->plane_info[index];
 	if (!info->enable) {
 		DRM_INFO("osd is disabled\n");
 		return 0;

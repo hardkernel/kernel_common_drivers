@@ -333,6 +333,7 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 	struct device_node *child_node;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_para para;
+	struct meson_vpu_sub_pipeline *sub_pipe[MESON_MAX_CRTC] = {0};
 	u32 num_blocks;
 
 	num_blocks = of_get_child_count(vpu_block_node);
@@ -358,12 +359,17 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 	populate_block_link();
 
 	for (i = 0; i < MESON_MAX_CRTC; i++) {
+		sub_pipe[i] = kzalloc(sizeof(*sub_pipe[i]), GFP_KERNEL);
+		if (!sub_pipe[i])
+			return -ENOMEM;
+
+		pipeline->subs[i] = sub_pipe[i];
 		if (i < pipeline->num_postblend) {
-			pipeline->subs[i].index = i;
-			pipeline->subs[i].pipeline = pipeline;
+			pipeline->subs[i]->index = i;
+			pipeline->subs[i]->pipeline = pipeline;
 		} else {
-			pipeline->subs[i].index = -1;
-			pipeline->subs[i].pipeline = NULL;
+			pipeline->subs[i]->index = -1;
+			pipeline->subs[i]->pipeline = NULL;
 		}
 
 		if (i < pipeline->num_postblend) {
@@ -374,6 +380,12 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 			pipeline->video_subs[i].pipe = NULL;
 		}
 	}
+
+	for (i = 0; i < MESON_MAX_OSD; i++)
+		pipeline->osd_crtc_index[i] = -1;
+
+	for (i = 0; i < MESON_MAX_VIDEO; i++)
+		pipeline->video_crtc_index[i] = -1;
 
 	return 0;
 }
@@ -396,66 +408,63 @@ void VPU_PIPELINE_HW_FINI(struct meson_vpu_block *mvb)
 }
 
 static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
-				     struct meson_vpu_pipeline_state *mvps)
+				     struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	u8 i;
 	int crtc_index;
-	struct meson_vpu_sub_pipeline_state *mvsps;
 
-	mvps->num_plane = 0;
-
-	for (i = 0; i < MESON_MAX_CRTC; i++) {
-		mvsps = &mvps->sub_states[i];
-		mvsps->enable_blocks = 0;
-		if (am_drm_param.osd_slice_mode)
-			mvsps->more_60 = 1;
-	}
+	mvsps->num_plane = 0;
+	mvsps->enable_blocks = 0;
+	if (am_drm_param.osd_slice_mode)
+		mvsps->more_60 = 1;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		crtc_index = mvps->plane_info[i].crtc_index;
-		if (!mvps->sub_states[crtc_index].more_60) {
-			if (mvps->plane_info[i].enable) {
-				if (mvps->plane_info[i].src_w >
+		crtc_index = mvsps->plane_info[i].crtc_index;
+		if (!mvsps->more_60) {
+			if (mvsps->plane_info[i].enable &&
+				mvsps->index == mvsps->plane_info[i].crtc_index) {
+				if (mvsps->plane_info[i].src_w >
 					MESON_OSD_INPUT_W_LIMIT ||
-					mvps->plane_info[i].dst_w == 0) {
-					mvps->plane_info[i].enable = 0;
+					mvsps->plane_info[i].dst_w == 0) {
+					mvsps->plane_info[i].enable = 0;
 					continue;
 				}
-				DRM_DEBUG("osdplane [%d] enable:(%d-%llx, %d-%d)\n",
-						mvps->plane_info[i].plane_index,
-						mvps->plane_info[i].zorder,
-						mvps->plane_info[i].phy_addr,
-						mvps->plane_info[i].dst_w,
-						mvps->plane_info[i].dst_h);
-				mvps->num_plane++;
+				DRM_DEBUG("crtc%d osdplane [%d] enable:(%d-%llx, %d-%d)\n",
+						mvsps->index,
+						mvsps->plane_info[i].plane_index,
+						mvsps->plane_info[i].zorder,
+						mvsps->plane_info[i].phy_addr,
+						mvsps->plane_info[i].dst_w,
+						mvsps->plane_info[i].dst_h);
+				mvsps->num_plane++;
 			} else {
 				DRM_DEBUG("osdplane index [%d] disable.\n", i);
 			}
 		} else {
-			if (i == OSD1_SLICE0 && mvps->plane_info[i].enable) {
-				mvps->plane_info[i].src_w = mvps->plane_info[i].src_w / 2;
-				mvps->plane_info[i].dst_w = mvps->plane_info[i].dst_w / 2;
-				mvps->num_plane++;
+			if (i == OSD1_SLICE0 && mvsps->plane_info[i].enable) {
+				mvsps->plane_info[i].src_w = mvsps->plane_info[i].src_w / 2;
+				mvsps->plane_info[i].dst_w = mvsps->plane_info[i].dst_w / 2;
+				mvsps->num_plane++;
 			} else if (i == OSD3_SLICE1) {
-				memcpy(&mvps->plane_info[i], &mvps->plane_info[OSD1_SLICE0],
+				memcpy(&mvsps->plane_info[i], &mvsps->plane_info[OSD1_SLICE0],
 						sizeof(struct meson_vpu_osd_layer_info));
-				mvps->plane_info[i].src_w = mvps->plane_info[OSD1_SLICE0].src_w;
-				mvps->plane_info[i].dst_w = mvps->plane_info[OSD1_SLICE0].dst_w;
+				mvsps->plane_info[i].src_w = mvsps->plane_info[OSD1_SLICE0].src_w;
+				mvsps->plane_info[i].dst_w = mvsps->plane_info[OSD1_SLICE0].dst_w;
 
-				mvps->plane_info[i].src_x = mvps->plane_info[OSD1_SLICE0].src_x +
-							mvps->plane_info[OSD1_SLICE0].src_w;
-				mvps->plane_info[i].dst_x = mvps->plane_info[OSD1_SLICE0].dst_x +
-							mvps->plane_info[OSD1_SLICE0].dst_w;
-				mvps->plane_info[i].plane_index = i;
-				mvps->plane_index[i] = i;
-				mvps->num_plane++;
+				mvsps->plane_info[i].src_x = mvsps->plane_info[OSD1_SLICE0].src_x +
+							mvsps->plane_info[OSD1_SLICE0].src_w;
+				mvsps->plane_info[i].dst_x = mvsps->plane_info[OSD1_SLICE0].dst_x +
+							mvsps->plane_info[OSD1_SLICE0].dst_w;
+				mvsps->plane_info[i].plane_index = i;
+				mvsps->plane_index[i] = i;
+				mvsps->num_plane++;
 			} else {
 				DRM_DEBUG("slice mode osdplane [%d] disable.\n", i);
 			}
 		}
 	}
 
-	DRM_DEBUG("num_plane=%d.\n", mvps->num_plane);
+	DRM_DEBUG("num_plane=%d.\n", mvsps->num_plane);
 }
 
 static void video_pipeline_planes_calc(struct meson_vpu_pipeline *pipe,
@@ -467,7 +476,8 @@ static void video_pipeline_planes_calc(struct meson_vpu_pipeline *pipe,
 	mvsps->enable_blocks = 0;
 
 	for (i = 0; i < pipe->num_video; i++) {
-		if (mvsps->video_plane_info[i].enable) {
+		if (mvsps->video_plane_info[i].enable &&
+			mvsps->index == mvsps->video_plane_info[i].crtc_index) {
 			mvsps->enable_blocks |=
 				BIT(pipe->video[i]->base.id);
 			mvsps->num_plane_video++;
@@ -479,16 +489,16 @@ static void video_pipeline_planes_calc(struct meson_vpu_pipeline *pipe,
 	DRM_DEBUG("video_plane_num=%d.\n", mvsps->num_plane_video);
 }
 
-int vpu_pipeline_osd_check(struct meson_vpu_pipeline *pipeline,
+int vpu_pipeline_osd_check(struct meson_vpu_sub_pipeline *sub_pipeline,
 		       struct drm_atomic_state *state)
 {
-	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvps;
 
-	mvps = meson_vpu_pipeline_get_state(pipeline, state);
+	mvps = meson_vpu_pipeline_get_state(sub_pipeline, state);
 	if (PTR_ERR(mvps) == -EDEADLK)
 		return -EDEADLK;
 
-	vpu_pipeline_planes_calc(pipeline, mvps);
+	vpu_pipeline_planes_calc(sub_pipeline->pipeline, mvps);
 
 	DRM_DEBUG("check done--num_plane=%d.\n", mvps->num_plane);
 
@@ -528,17 +538,14 @@ void vpu_pipeline_check_finish_reg(int crtc_index)
 
 void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline)
 {
-	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
-	struct meson_vpu_pipeline_state *new_mvps;
-	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_sub_pipeline_state *new_mvps;
 	unsigned long affected_blocks = 0;
 	unsigned long id;
 
-	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
-	new_mvsps = &new_mvps->sub_states[sub_pipeline->index];
-	affected_blocks = new_mvsps->enable_blocks;
+	new_mvps = priv_to_sub_pipeline_state(sub_pipeline->obj.state);
+	affected_blocks = new_mvps->enable_blocks;
 
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
@@ -554,14 +561,14 @@ void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline)
 	}
 }
 
-int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
+int vpu_pipeline_check(struct meson_vpu_sub_pipeline *sub_pipeline,
 		       struct drm_atomic_state *state)
 {
+	struct meson_vpu_sub_pipeline_state *mvps;
 	int ret;
-	struct meson_vpu_pipeline_state *mvps;
 
-	mvps = meson_vpu_pipeline_get_state(pipeline, state);
-	vpu_pipeline_planes_calc(pipeline, mvps);
+	mvps = meson_vpu_pipeline_get_state(sub_pipeline, state);
+	vpu_pipeline_planes_calc(sub_pipeline->pipeline, mvps);
 
 	ret = vpu_pipeline_traverse(mvps, state);
 	DRM_DEBUG("check done--num_plane=%d.\n", mvps->num_plane);
@@ -685,7 +692,6 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs, *old_mvbs;
-	struct meson_vpu_pipeline_state *new_mvps;
 	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
 	struct rdma_reg_ops *reg_ops;
@@ -693,8 +699,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	unsigned long affected_blocks = 0;
 
 	crtc_index = sub_pipeline->index;
-	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
-	new_mvsps = &new_mvps->sub_states[crtc_index];
+	new_mvsps = priv_to_sub_pipeline_state(sub_pipeline->obj.state);
 	amcrtc = pipeline->priv->crtcs[crtc_index];
 
 	affected_blocks = new_mvsps->enable_blocks;
@@ -707,10 +712,10 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			mvb->type != MESON_BLK_OSDBLEND)
 			continue;
 
-		mvbs = priv_to_block_state(mvb->obj.state);
+		mvbs = meson_vpu_block_get_new_state(mvb, old_state);
 		old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
 		if (new_mvsps->enable_blocks & BIT(id)) {
-			mvb->ops->update_state(mvb, mvbs, old_mvbs);
+			mvb->ops->update_state(mvb, mvbs, old_mvbs, new_mvsps);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
 			mvb->ops->disable(mvb, mvbs);
@@ -721,7 +726,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	if (overwrite_enable) {
 		for (i = 0; i < reg_num; i++) {
 			if (overwrite_crtc_idx[i] < MESON_MAX_CRTC) {
-				reg_ops = pipeline->subs[overwrite_crtc_idx[i]].reg_ops;
+				reg_ops = pipeline->subs[overwrite_crtc_idx[i]]->reg_ops;
 				reg_ops->rdma_write_reg(overwrite_reg[i], overwrite_val[i]);
 			}
 		}
@@ -753,16 +758,15 @@ int video_pipeline_block_update(struct meson_video_sub_pipeline *sub_pipeline,
 
 	crtc_index = sub_pipeline->index;
 	mvb = &mvv->base;
-	mvbs = priv_to_block_state(mvb->obj.state);
+	mvbs = meson_vpu_block_get_new_state(mvb, old_state);
 	old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
 	old_mvsps = meson_video_pipeline_get_state(sub_pipeline, old_state);
 	new_mvsps = priv_to_video_sub_pipe_state(sub_pipeline->obj.state);
-
 	affected_blocks = new_mvsps->enable_blocks | old_mvsps->enable_blocks;
 
 	if (affected_blocks & BIT(mvb->id)) {
 		if (new_mvsps->enable_blocks & BIT(mvb->id)) {
-			mvb->ops->update_state(mvb, mvbs, old_mvbs);
+			mvb->ops->update_video_state(mvb, mvbs, old_mvbs, new_mvsps);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
 			mvb->ops->disable(mvb, mvbs);
@@ -795,7 +799,7 @@ int video_pipeline_block_async_update(struct meson_video_sub_pipeline *sub_pipel
 
 	if (affected_blocks & BIT(mvb->id)) {
 		if (new_mvsps->enable_blocks & BIT(mvb->id)) {
-			mvb->ops->update_state(mvb, mvbs, old_mvbs);
+			mvb->ops->update_video_state(mvb, mvbs, old_mvbs, new_mvsps);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
 			mvb->ops->disable(mvb, mvbs);
@@ -817,7 +821,6 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs, *old_mvbs;
-	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
 	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
 	struct rdma_reg_ops *reg_ops;
@@ -825,12 +828,10 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	unsigned long affected_blocks = 0;
 
 	crtc_index = sub_pipeline->index;
-	old_mvps = meson_vpu_pipeline_get_state(pipeline, old_state);
-	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
-	old_mvsps = &old_mvps->sub_states[crtc_index];
-	new_mvsps = &new_mvps->sub_states[crtc_index];
+	old_mvsps = meson_vpu_pipeline_get_state(sub_pipeline, old_state);
+	new_mvsps = priv_to_sub_pipeline_state(sub_pipeline->obj.state);
 	amcrtc = pipeline->priv->crtcs[crtc_index];
-	new_mvps->global_afbc = 0;
+	new_mvsps->global_afbc = 0;
 
 	DRM_DEBUG("old_enable_blocks: 0x%llx - %p, new_enable_blocks: 0x%llx - %p.\n",
 		  old_mvsps->enable_blocks, old_mvsps,
@@ -847,10 +848,12 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			if (!mvb || mvb->type != MESON_BLK_VPPBLEND || mvb->index != crtc_index)
 				continue;
 
-			old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
-			old_mvbs->sub = &pipeline->subs[crtc_index];
+			mvbs = meson_vpu_block_get_new_state(mvb, old_state);
+			if (!mvbs)
+				mvbs = meson_vpu_block_get_state(mvb, old_state);
+			mvbs->sub = pipeline->subs[crtc_index];
 			if (mvb->ops && mvb->ops->disable)
-				mvb->ops->disable(mvb, old_mvbs);
+				mvb->ops->disable(mvb, mvbs);
 		}
 	}
 
@@ -859,21 +862,21 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		if (mvb->type == MESON_BLK_VIDEO)
 			continue;
 
-		mvbs = priv_to_block_state(mvb->obj.state);
+		mvbs = meson_vpu_block_get_new_state(mvb, old_state);
 		old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
 
 		if (new_mvsps->enable_blocks & BIT(id)) {
 			DRM_DEBUG("Enable block %s: mvbs new-%p, old-%p\n",
 				mvb->name, mvbs, old_mvbs);
 
-			mvb->ops->update_state(mvb, mvbs, old_mvbs);
+			mvb->ops->update_state(mvb, mvbs, old_mvbs, new_mvsps);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
 			DRM_DEBUG("Disable block %s: mvbs new-%p, old-%p\n",
 				mvb->name, mvbs, old_mvbs);
 
 			if (!old_mvbs || !old_mvbs->sub) {
-				DRM_ERROR("old_mvbs or sub is invalid.\n");
+				DRM_DEBUG("old_mvbs or sub is invalid.\n");
 				continue;
 			}
 
@@ -885,7 +888,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	if (overwrite_enable) {
 		for (i = 0; i < reg_num; i++) {
 			if (overwrite_crtc_idx[i] < MESON_MAX_CRTC) {
-				reg_ops = pipeline->subs[overwrite_crtc_idx[i]].reg_ops;
+				reg_ops = pipeline->subs[overwrite_crtc_idx[i]]->reg_ops;
 				reg_ops->rdma_write_reg(overwrite_reg[i], overwrite_val[i]);
 			}
 		}

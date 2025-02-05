@@ -34,7 +34,7 @@ static struct hdr_reg_s t7_osd_hdr_reg[MESON_MAX_HDRS] = {
 
 static int hdr_check_state(struct meson_vpu_block *vblk,
 			   struct meson_vpu_block_state *state,
-		struct meson_vpu_pipeline_state *mvps)
+		struct meson_vpu_sub_pipeline_state *mvps)
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 
@@ -51,7 +51,8 @@ static int hdr_check_state(struct meson_vpu_block *vblk,
 
 static void hdr_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state,
-			  struct meson_vpu_block_state *old_state)
+			  struct meson_vpu_block_state *old_state,
+			  struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 	//struct meson_vpu_hdr_state *hdr_state = to_hdr_state(state);
@@ -61,20 +62,17 @@ static void hdr_set_state(struct meson_vpu_block *vblk,
 
 static void s7d_hdr_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state,
-			  struct meson_vpu_block_state *old_state)
+			  struct meson_vpu_block_state *old_state,
+			  struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
-	struct meson_vpu_pipeline *pipeline = hdr->base.pipeline;
 	struct hdr_reg_s *reg = hdr->reg;
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
-	struct meson_vpu_pipeline_state *mvps;
 	u32 hsize, vsize;
 
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-
-	hsize = mvps->plane_info[vblk->index].src_w +
-		mvps->plane_info[vblk->index].src_w_offset4hdr;
-	vsize = mvps->plane_info[vblk->index].src_h;
+	hsize = mvsps->plane_info[vblk->index].src_w +
+		mvsps->plane_info[vblk->index].src_w_offset4hdr;
+	vsize = mvsps->plane_info[vblk->index].src_h;
 
 	reg_ops->rdma_write_reg(reg->vpp_osd_in_size, hsize | (vsize << 16));
 	MESON_DRM_BLOCK("%s set_state called.\n", hdr->base.name);
@@ -82,20 +80,17 @@ static void s7d_hdr_set_state(struct meson_vpu_block *vblk,
 
 static void t7_hdr_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state,
-			  struct meson_vpu_block_state *old_state)
+			  struct meson_vpu_block_state *old_state,
+			  struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
-	struct meson_vpu_pipeline *pipeline = hdr->base.pipeline;
 	struct hdr_reg_s *reg = hdr->reg;
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
-	struct meson_vpu_pipeline_state *mvps;
 	u32 hsize, vsize;
 
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-
 	if (vblk->index == HDR2_INDEX) {
-		hsize = mvps->scaler_param[MESON_OSD3].output_width;
-		vsize = mvps->scaler_param[MESON_OSD3].output_height;
+		hsize = mvsps->scaler_param[MESON_OSD3].output_width;
+		vsize = mvsps->scaler_param[MESON_OSD3].output_height;
 
 		MESON_DRM_BLOCK("%s set_state,input size:%u,%u.\n", hdr->base.name, hsize, vsize);
 		reg_ops->rdma_write_reg(reg->vpp_osd_in_size, hsize | (vsize << 16));
@@ -125,12 +120,13 @@ static void hdr_dump_register(struct drm_printer *p, struct meson_vpu_block *vbl
 
 static void s5_hdr_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state,
-			  struct meson_vpu_block_state *old_state)
+			  struct meson_vpu_block_state *old_state,
+			  struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 	struct meson_vpu_pipeline *pipeline = hdr->base.pipeline;
 	//struct hdr_reg_s *reg = hdr->reg;
-	struct meson_vpu_pipeline_state *mvps, *old_mvps;
+	struct meson_vpu_sub_pipeline_state *old_mvps;
 	u32 hsize, vsize;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
@@ -139,20 +135,20 @@ static void s5_hdr_set_state(struct meson_vpu_block *vblk,
 	u32 i;
 #endif
 
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	old_mvps = meson_vpu_pipeline_get_old_state(pipeline, old_state->obj.state);
+	old_mvps = meson_vpu_pipeline_get_old_state(pipeline->subs[mvsps->index],
+		old_state->obj.state);
 	if (!old_mvps)
 		return;
 
 	if (vblk->index == HDR1_INDEX) {
 		//TODO
 	} else if (vblk->index == S5_HDR2_INDEX) {
-		if (mvps->plane_info[MESON_OSD3].enable &&
+		if (mvsps->plane_info[MESON_OSD3].enable &&
 			!old_mvps->plane_info[MESON_OSD3].enable) {
 			MESON_DRM_BLOCK("state changed\n");
 
-			hsize = mvps->plane_info[MESON_OSD3].src_w;
-			vsize = mvps->plane_info[MESON_OSD3].src_h;
+			hsize = mvsps->plane_info[MESON_OSD3].src_w;
+			vsize = mvsps->plane_info[MESON_OSD3].src_h;
 			MESON_DRM_BLOCK("%s set_state,input size:%u,%u.\n",
 				hdr->base.name, hsize, vsize);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -246,7 +242,7 @@ struct meson_vpu_block_ops s5_hdr_ops = {
 
 static int db_check_state(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *state,
-		struct meson_vpu_pipeline_state *mvps)
+		struct meson_vpu_sub_pipeline_state *mvps)
 {
 	struct meson_vpu_db *mvd = to_db_block(vblk);
 
@@ -263,7 +259,8 @@ static int db_check_state(struct meson_vpu_block *vblk,
 
 static void db_set_state(struct meson_vpu_block *vblk,
 			    struct meson_vpu_block_state *state,
-			    struct meson_vpu_block_state *old_state)
+			    struct meson_vpu_block_state *old_state,
+			    struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	struct meson_vpu_db *mvd = to_db_block(vblk);
 

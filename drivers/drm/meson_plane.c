@@ -389,7 +389,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	}
 
 	if (!crtc_state || !mode)
-		mode = &pipeline->subs[crtc->index].mode;
+		mode = &pipeline->subs[crtc->index]->mode;
 	scan_mode_out = mode->flags & DRM_MODE_FLAG_INTERLACE;
 	plane_info->src_x = state->src_x >> 16;
 	plane_info->src_y = state->src_y >> 16;
@@ -546,7 +546,7 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 	}
 
 	if (!crtc_state || !mode)
-		mode = &pipeline->subs[crtc->index].mode;
+		mode = &pipeline->subs[crtc->index]->mode;
 
 	plane_info->src_x = state->src_x >> 16;
 	plane_info->src_y = state->src_y >> 16;
@@ -984,18 +984,20 @@ static int meson_video_plane_get_fb_info(struct drm_plane *plane,
 }
 
 static bool meson_video_plane_is_repeat_frame(struct meson_video_sub_pipeline *mvsp,
-				struct drm_plane *plane,
-				struct drm_plane_state *new_state)
+				struct drm_plane *plane, int crtc_index,
+				struct drm_plane_state *state)
 {
 	struct meson_vpu_video_layer_info *plane_info, *old_plane_info;
 	struct meson_video_sub_pipeline_state *mvps, *old_mvps;
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct meson_drm *drv = video_plane->drv;
+	struct meson_video_sub_pipeline *sub_pipe = &drv->pipeline->video_subs[crtc_index];
 
-	mvps = meson_video_pipeline_get_new_state(mvsp, new_state->state);
+	mvps = meson_video_pipeline_get_new_state(mvsp, state->state);
 	if (mvps) {
 		plane_info = &mvps->video_plane_info[video_plane->plane_index];
 		plane_info->repeat_frame = 0;
-		old_mvps = meson_video_pipeline_get_old_state(mvsp, new_state->state);
+		old_mvps = meson_video_pipeline_get_old_state(sub_pipe, state->state);
 		if (old_mvps) {
 			old_plane_info = &old_mvps->video_plane_info[video_plane->plane_index];
 			if (plane_info->dmabuf == old_plane_info->dmabuf) {
@@ -1447,10 +1449,11 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 {
 	struct drm_plane *plane;
 	struct meson_vpu_osd_layer_info *plane_info;
-	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvps;
 	struct am_osd_plane *osd_plane;
 	struct meson_drm *drv;
 	struct drm_private_state *obj_state;
+	u32 crtc_index = 0;
 
 	if (!state) {
 		DRM_INFO("%s state/meson_drm is NULL!\n", __func__);
@@ -1472,14 +1475,18 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 		return;
 	}
 
-	obj_state = drv->pipeline->obj.state;
+	if (state->crtc)
+		crtc_index = state->crtc->index;
+	else if (drv->pipeline->osd_crtc_index[osd_plane->plane_index] != -1)
+		crtc_index = drv->pipeline->osd_crtc_index[osd_plane->plane_index];
+
+	obj_state = drv->pipeline->subs[crtc_index]->obj.state;
 	if (!obj_state) {
 		DRM_ERROR("null pipeline obj state!\n");
 		return;
 	}
 
-	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
-
+	mvps = container_of(obj_state, struct meson_vpu_sub_pipeline_state, obj);
 	if (!mvps || osd_plane->plane_index >= MESON_MAX_OSDS) {
 		DRM_INFO("%s mvps/osd_plane is NULL!\n", __func__);
 		return;
@@ -1525,10 +1532,11 @@ static void meson_video_plane_atomic_print_state(struct drm_printer *p,
 {
 	struct drm_plane *plane;
 	struct meson_vpu_video_layer_info *plane_info;
-	struct meson_vpu_pipeline_state *mvps;
+	struct meson_video_sub_pipeline_state *mvps;
 	struct am_video_plane *video_plane;
 	struct meson_drm *drv;
 	struct drm_private_state *obj_state;
+	u32 crtc_index = 0;
 
 	if (!state) {
 		DRM_INFO("%s state/meson_drm is NULL!\n", __func__);
@@ -1550,21 +1558,24 @@ static void meson_video_plane_atomic_print_state(struct drm_printer *p,
 		return;
 	}
 
-	obj_state = drv->pipeline->obj.state;
+	if (state->crtc)
+		crtc_index = state->crtc->index;
+	else if (drv->pipeline->video_crtc_index[video_plane->plane_index] != -1)
+		crtc_index = drv->pipeline->video_crtc_index[video_plane->plane_index];
+
+	obj_state = drv->pipeline->video_subs[crtc_index].obj.state;
 	if (!obj_state) {
 		DRM_ERROR("null pipeline obj state!\n");
 		return;
 	}
 
-	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
-
+	mvps = container_of(obj_state, struct meson_video_sub_pipeline_state, obj);
 	if (!mvps || video_plane->plane_index >= MESON_MAX_VIDEO) {
 		DRM_INFO("%s mvps/video_plane is NULL!\n", __func__);
 		return;
 	}
 
 	plane_info = &mvps->video_plane_info[video_plane->plane_index];
-
 	drm_printf(p, "\tmeson video plane %d info:\n",
 					video_plane->plane_index);
 	drm_printf(p, "\t\tori_src_x=%u\n", plane_info->ori_src_x);
@@ -1642,11 +1653,12 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_atomic_state *state)
 {
 	struct meson_vpu_osd_layer_info *plane_info;
-	struct meson_vpu_pipeline_state *mvps;
-	struct meson_vpu_sub_pipeline_state *mvsps;
+	struct meson_vpu_sub_pipeline_state *mvps;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
+	struct drm_crtc *crtc = NULL;
 	struct meson_drm *drv;
 	struct drm_private_state *obj_state;
+	int crtc_index = 0;
 
 	if (!plane->state) {
 		DRM_INFO("%s state is NULL!\n", __func__);
@@ -1659,21 +1671,24 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	obj_state = drv->pipeline->obj.state;
+	crtc = plane->state->crtc;
+	if (crtc)
+		crtc_index = crtc->index;
+
+	obj_state = drv->pipeline->subs[crtc_index]->obj.state;
 	if (!obj_state) {
 		DRM_ERROR("null pipeline obj state!\n");
 		return;
 	}
 
-	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
+	mvps = container_of(obj_state, struct meson_vpu_sub_pipeline_state, obj);
 	if (!mvps || osd_plane->plane_index >= MESON_MAX_OSDS) {
 		DRM_INFO("%s mvps/osd_plane is NULL!\n", __func__);
 		return;
 	}
-	plane_info = &mvps->plane_info[osd_plane->plane_index];
 
-	mvsps = &mvps->sub_states[plane_info->crtc_index];
-	if (mvsps->more_60) {
+	plane_info = &mvps->plane_info[osd_plane->plane_index];
+	if (mvps->more_60) {
 		osd_enable[OSD1_SLICE0] = 1;
 		osd_enable[OSD3_SLICE1] = 1;
 		DRM_DEBUG("%s mode_60hz case, osd0_status=%d  osd2_status=%d\n",
@@ -1699,17 +1714,17 @@ static void meson_video_plane_atomic_update(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane->state->crtc;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct meson_vpu_pipeline *pipeline = amcrtc->priv->pipeline;
-	struct drm_plane_state *old_plane_state;
+	struct drm_plane_state *old_state;
 	struct meson_vpu_video *mvv = pipeline->video[video_plane->plane_index];
 
 	crtc_index = crtc->index;
 	video_index = video_plane->plane_index;
 	mvsp = &pipeline->video_subs[crtc_index];
-	old_plane_state = drm_atomic_get_old_plane_state(old_atomic_state, plane);
+	old_state = drm_atomic_get_old_plane_state(old_atomic_state, plane);
 
-	DRM_DEBUG("video plane atomic_update.\n");
-	if (!meson_video_plane_is_repeat_frame(mvsp, plane, old_plane_state))
-		meson_video_prepare_fence(plane, old_plane_state, mvv);
+	DRM_DEBUG("video plane atomic_update old_state:%p.\n", old_state);
+	if (old_state && !meson_video_plane_is_repeat_frame(mvsp, plane, crtc_index, old_state))
+		meson_video_prepare_fence(plane, old_state, mvv);
 	video_pipeline_block_update(mvsp, old_atomic_state, video_index);
 }
 
@@ -1718,12 +1733,13 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 {
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_osd_layer_info *old_plane_info = NULL;
-	struct meson_vpu_pipeline_state *mvps, *old_mvps;
+	struct meson_vpu_sub_pipeline_state  *mvps, *old_mvps;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
 	struct meson_drm *drv = osd_plane->drv;
 	struct drm_plane_state *state;
 	struct am_meson_plane_state *plane_state;
 	u16 blend_mask_val;
+	u32 crtc_index = 0;
 	int ret;
 
 	state = drm_atomic_get_new_plane_state(atomic_state, plane);
@@ -1734,7 +1750,13 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 
 	DRM_DEBUG("%s [%d]\n", __func__, osd_plane->plane_index);
 
-	mvps = meson_vpu_pipeline_get_state(drv->pipeline, atomic_state);
+	if (state->crtc)
+		crtc_index = state->crtc->index;
+	else if (drv->pipeline->osd_crtc_index[osd_plane->plane_index] != -1)
+		crtc_index = drv->pipeline->osd_crtc_index[osd_plane->plane_index];
+
+	mvps = meson_vpu_pipeline_get_state(drv->pipeline->subs[crtc_index],
+				atomic_state);
 	if (PTR_ERR(mvps) == -EDEADLK)
 		return -EDEADLK;
 
@@ -1768,7 +1790,8 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 		return ret;
 	}
 
-	old_mvps = meson_vpu_pipeline_get_old_state(drv->pipeline, state->state);
+	old_mvps = meson_vpu_pipeline_get_old_state(drv->pipeline->subs[crtc_index],
+				state->state);
 	if (old_mvps) {
 		old_plane_info = &old_mvps->plane_info[osd_plane->plane_index];
 		if (plane_info->src_w != old_plane_info->src_w ||
@@ -1810,15 +1833,13 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	plane_info->enable = 1;
-
 	if (osd_plane->osd_permanent_blank) {
 		plane_info->enable = 0;
 		DRM_INFO("osd-%d is forcibly disabled by debug node.\n", osd_plane->plane_index);
 	}
 
-	if (state->crtc)
-		plane_info->crtc_index = state->crtc->index;
-
+	plane_info->crtc_index = crtc_index;
+	drv->pipeline->osd_crtc_index[osd_plane->plane_index] = crtc_index;
 	plane_state = to_am_meson_plane_state(state);
 	plane_info->sec_en = plane_state->sec_en;
 
@@ -1858,6 +1879,8 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 
 	if (state->crtc)
 		crtc_index = state->crtc->index;
+	else if (drv->pipeline->video_crtc_index[video_plane->plane_index] != -1)
+		crtc_index = drv->pipeline->video_crtc_index[video_plane->plane_index];
 	else
 		crtc_index = 0;
 
@@ -1916,11 +1939,12 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 		return ret;
 	}
 
+	plane_info->crtc_index = crtc_index;
+	drv->pipeline->video_crtc_index[video_plane->plane_index] = crtc_index;
 	plane_info->enable = 1;
-	if (state->crtc)
-		plane_info->crtc_index = state->crtc->index;
 
 	video_pipeline_block_check(mvsp, atomic_state);
+
 	DRM_DEBUG("VIDOE PLANE index=%d, zorder=%d\n",
 		plane_info->plane_index, plane_info->zorder);
 	DRM_DEBUG("src_x/y/w/h=%d/%d/%d/%d\n",
@@ -1937,14 +1961,20 @@ static void meson_plane_atomic_disable(struct drm_plane *plane,
 				       struct drm_atomic_state *old_state)
 {
 	struct meson_vpu_osd_layer_info *plane_info;
-	struct meson_vpu_pipeline_state *mvps;
-	struct meson_vpu_sub_pipeline_state *mvsps;
+	struct meson_vpu_sub_pipeline_state *mvps;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
 	struct meson_drm *drv;
 	struct drm_private_state *obj_state;
+	struct drm_plane_state *old_plane_state;
 
 	if (!plane->state) {
 		DRM_INFO("%s state  is NULL!\n", __func__);
+		return;
+	}
+
+	old_plane_state = drm_atomic_get_old_plane_state(old_state, plane);
+	if (!old_plane_state) {
+		DRM_INFO("%s old plane state is NULL!\n", __func__);
 		return;
 	}
 
@@ -1954,21 +1984,20 @@ static void meson_plane_atomic_disable(struct drm_plane *plane,
 		return;
 	}
 
-	obj_state = drv->pipeline->obj.state;
+	obj_state = drv->pipeline->subs[old_plane_state->crtc->index]->obj.state;
 	if (!obj_state) {
 		DRM_ERROR("null pipeline obj state!\n");
 		return;
 	}
 
-	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
+	mvps = container_of(obj_state, struct meson_vpu_sub_pipeline_state, obj);
 	if (!mvps || osd_plane->plane_index >= MESON_MAX_OSDS) {
 		DRM_INFO("%s mvps/osd_plane is NULL!\n", __func__);
 		return;
 	}
 	plane_info = &mvps->plane_info[osd_plane->plane_index];
-	mvsps = &mvps->sub_states[plane_info->crtc_index];
 	osd_enable[plane_info->plane_index] = 0;
-	if (mvsps->more_60 && plane_info->plane_index == OSD1_SLICE0) {
+	if (mvps->more_60 && plane_info->plane_index == OSD1_SLICE0) {
 		osd_enable[OSD1_SLICE0] = 0;
 		osd_enable[OSD3_SLICE1] = 0;
 		DRM_DEBUG("%s mode_60hz case, osd0_status=%d  osd2_status=%d\n",
@@ -2003,7 +2032,7 @@ int meson_osd_plane_async_check(struct drm_plane *plane,
 	struct drm_atomic_state *atomic_state)
 {
 	int ret = 0;
-	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvps;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
 	struct meson_drm *drv = osd_plane->drv;
 	struct meson_vpu_osd_layer_info *plane_info;
@@ -2017,7 +2046,8 @@ int meson_osd_plane_async_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	mvps = meson_vpu_pipeline_get_state(drv->pipeline, atomic_state);
+	mvps = meson_vpu_pipeline_get_state(drv->pipeline->subs[new_state->crtc->index],
+			atomic_state);
 	if (PTR_ERR(mvps) == -EDEADLK)
 		return -EDEADLK;
 
@@ -2065,7 +2095,6 @@ int meson_video_plane_async_check(struct drm_plane *plane,
 		crtc_index = 0;
 
 	mvsp = &drv->pipeline->video_subs[crtc_index];
-
 	mvps = meson_video_pipeline_get_state(mvsp, atomic_state);
 	if (PTR_ERR(mvps) == -EDEADLK)
 		return -EDEADLK;
@@ -2112,7 +2141,7 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 	amcrtc = to_am_meson_crtc(new_state->crtc);
 	pipeline = amcrtc->pipeline;
 	crtc_index = amcrtc->crtc_index;
-	sub_pipe = &pipeline->subs[crtc_index];
+	sub_pipe = pipeline->subs[crtc_index];
 
 	DRM_DEBUG("plane_index-%d\n", osd_plane->plane_index);
 
@@ -2185,7 +2214,7 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 	plane->state->crtc_h = new_state->crtc_h;
 	swap(plane->state->fb, new_state->fb);
 
-	if (!meson_video_plane_is_repeat_frame(sub_pipe, plane, new_state))
+	if (new_state && !meson_video_plane_is_repeat_frame(sub_pipe, plane, crtc_index, new_state))
 		meson_video_prepare_fence(plane, new_state, mvv);
 	video_pipeline_block_async_update(sub_pipe, new_state->state, video_plane->plane_index);
 }

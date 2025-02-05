@@ -302,8 +302,9 @@ enum afbc_core_e {
 	AFBC_CORE3,
 };
 
-void arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state, struct rdma_reg_ops *reg_ops);
-void s6_viu2_arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state,
+void arm_fbc_start(struct meson_vpu_sub_pipeline_state *pipeline_state,
+	struct rdma_reg_ops *reg_ops);
+void s6_viu2_arm_fbc_start(struct meson_vpu_sub_pipeline_state *pipeline_state,
 	struct rdma_reg_ops *reg_ops);
 void arm_fbc_check_error(void);
 

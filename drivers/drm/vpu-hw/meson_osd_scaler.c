@@ -944,54 +944,48 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 }
 
 static void scaler_size_check(struct meson_vpu_block *vblk,
-			      struct meson_vpu_block_state *state)
+			      struct meson_vpu_block_state *state,
+			      struct meson_vpu_sub_pipeline_state *mvsps)
 {
-	struct meson_vpu_pipeline *pipeline = vblk->pipeline;
-	struct meson_vpu_pipeline_state *pipeline_state;
 	struct meson_vpu_scaler_state *scaler_state = to_scaler_state(state);
 
-	pipeline_state = priv_to_pipeline_state(pipeline->obj.state);
-	if (!pipeline_state) {
-		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
-		return;
-	}
 	if (scaler_state->input_width !=
-		pipeline_state->scaler_param[vblk->index].input_width) {
+		mvsps->scaler_param[vblk->index].input_width) {
 		scaler_state->input_width =
-			pipeline_state->scaler_param[vblk->index].input_width;
+			mvsps->scaler_param[vblk->index].input_width;
 		scaler_state->state_changed |= SCALER_INPUT_WIDTH_CHANGED;
 	}
 	if (scaler_state->input_height !=
-		pipeline_state->scaler_param[vblk->index].input_height) {
+		mvsps->scaler_param[vblk->index].input_height) {
 		scaler_state->input_height =
-			pipeline_state->scaler_param[vblk->index].input_height;
+			mvsps->scaler_param[vblk->index].input_height;
 		scaler_state->state_changed |= SCALER_INPUT_HEIGHT_CHANGED;
 	}
 	if (scaler_state->output_width !=
-		pipeline_state->scaler_param[vblk->index].output_width) {
+		mvsps->scaler_param[vblk->index].output_width) {
 		scaler_state->output_width =
-			pipeline_state->scaler_param[vblk->index].output_width;
+			mvsps->scaler_param[vblk->index].output_width;
 		scaler_state->state_changed |= SCALER_OUTPUT_WIDTH_CHANGED;
 	}
 	if (scaler_state->output_height !=
-		pipeline_state->scaler_param[vblk->index].output_height) {
+		mvsps->scaler_param[vblk->index].output_height) {
 		scaler_state->output_height =
-			pipeline_state->scaler_param[vblk->index].output_height;
+			mvsps->scaler_param[vblk->index].output_height;
 		scaler_state->state_changed |= SCALER_OUTPUT_HEIGHT_CHANGED;
 	}
 
 	scaler_state->input_width_offset =
-			pipeline_state->scaler_param[vblk->index].input_width_offset;
+			mvsps->scaler_param[vblk->index].input_width_offset;
 	scaler_state->output_width_offset =
-			pipeline_state->scaler_param[vblk->index].output_width_offset;
-	scaler_state->global = pipeline_state->scaler_param[vblk->index].global;
+			mvsps->scaler_param[vblk->index].output_width_offset;
+	scaler_state->global = mvsps->scaler_param[vblk->index].global;
 }
 
 void scan_mode_check(struct meson_vpu_pipeline *pipeline,
 		     struct meson_vpu_scaler_state *scaler_state)
 {
 	int crtc_index = scaler_state->crtc_index;
-	u32 scan_mode_out = pipeline->subs[crtc_index].mode.flags &
+	u32 scan_mode_out = pipeline->subs[crtc_index]->mode.flags &
 				DRM_MODE_FLAG_INTERLACE;
 
 	if (scaler_state->scan_mode_out != scan_mode_out) {
@@ -1003,7 +997,7 @@ void scan_mode_check(struct meson_vpu_pipeline *pipeline,
 
 void scaler_filter_mode_check(struct meson_vpu_block *vblk,
 		     struct meson_vpu_scaler_state *scaler_state,
-		struct meson_vpu_pipeline_state *mvps)
+		struct meson_vpu_sub_pipeline_state *mvps)
 {
 	u32 scaling_filter_mode = mvps->plane_info[vblk->index].scaling_filter;
 
@@ -1015,7 +1009,7 @@ void scaler_filter_mode_check(struct meson_vpu_block *vblk,
 
 static int scaler_check_state(struct meson_vpu_block *vblk,
 			      struct meson_vpu_block_state *state,
-		struct meson_vpu_pipeline_state *mvps)
+		struct meson_vpu_sub_pipeline_state *mvps)
 {
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
@@ -1034,33 +1028,31 @@ static int scaler_check_state(struct meson_vpu_block *vblk,
 
 static void scaler_set_state(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *state,
-			     struct meson_vpu_block_state *old_state)
+			     struct meson_vpu_block_state *old_state,
+			     struct meson_vpu_sub_pipeline_state *mvsps)
 {
-	struct meson_vpu_pipeline_state *mvps;
-
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
 	struct meson_vpu_scaler_state *scaler_state = to_scaler_state(state);
 	struct osd_scaler_reg_s *reg = scaler->reg;
 	struct meson_vpu_pipeline *pipeline = scaler->base.pipeline;
 
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	/*todo:move afbc start to afbc block.*/
 	if (pipeline->osd_version < OSD_V7) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (is_meson_s6_cpu() && vblk->index == 2)
-			s6_viu2_arm_fbc_start(mvps, state->sub->reg_ops);
+			s6_viu2_arm_fbc_start(mvsps, state->sub->reg_ops);
 		else
 #endif
-			arm_fbc_start(mvps, state->sub->reg_ops);
+			arm_fbc_start(mvsps, state->sub->reg_ops);
 	}
 
 	if (!scaler_state) {
 		MESON_DRM_BLOCK("scaler or scaler_state is NULL!!\n");
 		return;
 	}
-	scaler_size_check(vblk, state);
+	scaler_size_check(vblk, state, mvsps);
 	scan_mode_check(vblk->pipeline, scaler_state);
-	scaler_filter_mode_check(vblk, scaler_state, mvps);
+	scaler_filter_mode_check(vblk, scaler_state, mvsps);
 	MESON_DRM_BLOCK("scaler_state=0x%x\n", scaler_state->state_changed);
 	if (scaler_state->state_changed || am_drm_param.osdscaler_force_update) {
 		osd_scaler_config(reg, scaler_state, vblk, state->sub->reg_ops);

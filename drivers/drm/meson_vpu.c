@@ -113,7 +113,7 @@ static void meson_drm_handle_vpp_crc(struct am_meson_crtc *amcrtc)
 	u32 crc;
 	struct drm_crtc *crtc = &amcrtc->base;
 	struct meson_vpu_pipeline *ppl = amcrtc->pipeline;
-	struct rdma_reg_ops *reg_ops = ppl->subs[0].reg_ops;
+	struct rdma_reg_ops *reg_ops = ppl->subs[0]->reg_ops;
 
 	if (amcrtc->vpp_crc_enable && cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
 		crc = reg_ops->rdma_read_reg(VPP_RO_CRCSUM);
@@ -226,7 +226,7 @@ static void vpu_pipeline_pre_init(struct meson_vpu_pipeline *pipeline, struct de
 	int i;
 
 	for (i = 0; i < pipeline->num_postblend; i++)
-		pipeline->subs[i].reg_ops = &vpu_data->crtc_func.reg_ops[i];
+		pipeline->subs[i]->reg_ops = &vpu_data->crtc_func.reg_ops[i];
 
 	if (vpu_data->crtc_func.pre_init)
 		vpu_data->crtc_func.pre_init(pipeline, dev);
@@ -316,10 +316,10 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	/*subpipeline/postblend/crtc have same index.*/
 	for (i = 0; i < pipeline->num_postblend; i++) {
-		if (pipeline->subs[i].index == -1)
+		if (pipeline->subs[i]->index == -1)
 			break;
 
-		amcrtc = meson_crtc_bind(private, pipeline->subs[i].index);
+		amcrtc = meson_crtc_bind(private, pipeline->subs[i]->index);
 		if (!amcrtc) {
 			dev_err(dev, "create crtc %d failed\n", i);
 			break;

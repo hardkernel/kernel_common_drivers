@@ -1150,7 +1150,7 @@ static bool osd_check_config(struct meson_vpu_osd_state *mvos,
 
 static int osd_check_state(struct meson_vpu_block *vblk,
 			   struct meson_vpu_block_state *state,
-		struct meson_vpu_pipeline_state *mvps)
+		struct meson_vpu_sub_pipeline_state *mvps)
 {
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
@@ -1303,14 +1303,13 @@ static int osd_format_is_rgbx(u32 pixel_format)
 
 static void osd_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state,
-			  struct meson_vpu_block_state *old_state)
+			  struct meson_vpu_block_state *old_state,
+			  struct meson_vpu_sub_pipeline_state *mvsps)
 {
 	struct meson_vpu_osd *osd;
 	struct meson_vpu_osd_state *mvos, *old_mvos = NULL;
 	struct meson_vpu_pipeline *pipe;
 	struct meson_drm *priv;
-	struct meson_vpu_sub_pipeline_state *mvsps;
-	struct meson_vpu_pipeline_state *mvps;
 	struct rdma_reg_ops *reg_ops;
 	int crtc_index;
 	u32 pixel_format, canvas_idx, src_h, byte_stride, flush_reg, hold_line;
@@ -1332,8 +1331,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	reg_ops = state->sub->reg_ops;
 	pipe = vblk->pipeline;
 	priv = pipe->priv;
-	mvps = priv_to_pipeline_state(pipe->obj.state);
-	mvsps = &mvps->sub_states[0];
 	reg = osd->reg;
 	if (!reg) {
 		MESON_DRM_BLOCK("set_state break for NULL OSD mixer reg.\n");
@@ -1409,10 +1406,10 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	if (mvsps->more_60) {
 		if (vblk->index == OSD1_SLICE0)
 			scope_src.h_end = mvos->src_x +
-				mvps->scaler_param[vblk->index].input_width - 1;
+				mvsps->scaler_param[vblk->index].input_width - 1;
 		if (vblk->index == OSD3_SLICE1)
 			scope_src.h_start = scope_src.h_end -
-				mvps->scaler_param[vblk->index].input_width + 1;
+				mvsps->scaler_param[vblk->index].input_width + 1;
 	}
 
 	reverse_x = (mvos->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
@@ -1447,13 +1444,13 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	}
 
 	if (mvos->sec_en)
-		mvps->sec_src |= osd_secure_input_index[vblk->index];
+		mvsps->sec_src |= osd_secure_input_index[vblk->index];
 
 	osd_premult_enable(vblk, reg_ops, reg, alpha_div_en);
 	if (!osd->gfcd_global_alpha_policy)
 		osd_global_alpha_set(vblk, reg_ops, reg, global_alpha);
 
-	osd_scan_mode_config(vblk, reg_ops, reg, pipe->subs[crtc_index].mode.flags &
+	osd_scan_mode_config(vblk, reg_ops, reg, pipe->subs[crtc_index]->mode.flags &
 				 DRM_MODE_FLAG_INTERLACE);
 	osd_set_dimm_ctrl(vblk, reg_ops, reg, 0);
 	ods_hold_line_config(vblk, reg_ops, reg, hold_line);

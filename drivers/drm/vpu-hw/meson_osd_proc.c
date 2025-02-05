@@ -35,48 +35,45 @@ static struct slice2ppc_reg_s slice2ppc_reg = {
 
 static int slice2ppc_check_state(struct meson_vpu_block *vblk,
 				 struct meson_vpu_block_state *state,
-				 struct meson_vpu_pipeline_state *mvps)
+				 struct meson_vpu_sub_pipeline_state *mvps)
 {
 	return 0;
 }
 
 static void slice2ppc_set_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
-				struct meson_vpu_block_state *old_state)
+				struct meson_vpu_block_state *old_state,
+				struct meson_vpu_sub_pipeline_state *mvps)
 {
 	struct meson_vpu_slice2ppc *slice;
 	struct meson_vpu_pipeline *pipeline;
-	struct meson_vpu_pipeline_state *mvps;
-	struct meson_vpu_sub_pipeline_state *mvsps;
 	struct rdma_reg_ops *reg_ops;
 	struct slice2ppc_reg_s *reg;
 	u32 slice_pad_h_bgn, slice_pad_h_end;
 
 	slice = to_slice2ppc_block(vblk);
 	pipeline = slice->base.pipeline;
-	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	mvsps = &mvps->sub_states[0];
 	reg_ops = state->sub->reg_ops;
 	reg = slice->reg;
 
 	//write osd1 proc in size
 	reg_ops->rdma_write_reg(reg->osd1_proc_in_size, mvps->scaler_param[0].input_width << 1 |
-						mvsps->scaler_din_vsize[OSD1_SLICE0] << 16);
+						mvps->scaler_din_vsize[OSD1_SLICE0] << 16);
 	reg_ops->rdma_write_reg(reg->osd3_proc_in_size, mvps->scaler_param[2].input_width << 1 |
-						mvsps->scaler_din_vsize[OSD3_SLICE1] << 16);
+						mvps->scaler_din_vsize[OSD3_SLICE1] << 16);
 	reg_ops->rdma_write_reg_bits(VIU_OSD1_MISC, 1, 17, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD3_MISC, 1, 17, 1);
 
 	//write osd1 proc out size
-	reg_ops->rdma_write_reg(reg->osd1_proc_out_size, mvsps->scaler_dout_hsize[OSD1_SLICE0] |
-						mvsps->scaler_dout_vsize[OSD1_SLICE0] << 16);
-	reg_ops->rdma_write_reg(reg->osd3_proc_out_size, mvsps->scaler_dout_hsize[OSD3_SLICE1] |
-						mvsps->scaler_dout_vsize[OSD3_SLICE1] << 16);
+	reg_ops->rdma_write_reg(reg->osd1_proc_out_size, mvps->scaler_dout_hsize[OSD1_SLICE0] |
+						mvps->scaler_dout_vsize[OSD1_SLICE0] << 16);
+	reg_ops->rdma_write_reg(reg->osd3_proc_out_size, mvps->scaler_dout_hsize[OSD3_SLICE1] |
+						mvps->scaler_dout_vsize[OSD3_SLICE1] << 16);
 
 	// write OSD_2SLICE2PPC_IN_SIZE
 	// viu_2slice2ppc_hsize = osd_out_hize_real
-	reg_ops->rdma_write_reg(reg->osd_2slice2ppc_in_size, (mvsps->osd_out_hsize_real / 2) |
-			    mvsps->slice2ppc_vsize << 16);
+	reg_ops->rdma_write_reg(reg->osd_2slice2ppc_in_size, (mvps->osd_out_hsize_real / 2) |
+			    mvps->slice2ppc_vsize << 16);
 
 	//0: 2slice to 2ppc  1: 1 slice to 2ppc
 	reg_ops->rdma_write_reg(reg->osd_2slice2ppc_mode, 0);
@@ -84,30 +81,30 @@ static void slice2ppc_set_state(struct meson_vpu_block *vblk,
 	//write hwin0 register
 	reg_ops->rdma_write_reg_bits(reg->osd_sys_hwin0_cut, 1, 29, 1);
 	reg_ops->rdma_write_reg_bits(reg->osd_sys_hwin0_cut,
-				     mvsps->hwincut_bgn[OSD1_SLICE0], 16, 13);
+				     mvps->hwincut_bgn[OSD1_SLICE0], 16, 13);
 	reg_ops->rdma_write_reg_bits(reg->osd_sys_hwin0_cut,
-				     mvsps->hwincut_end[OSD1_SLICE0], 0, 13);
+				     mvps->hwincut_end[OSD1_SLICE0], 0, 13);
 
 	//write hwin1 register
 	reg_ops->rdma_write_reg_bits(reg->osd_sys_hwin1_cut, 1, 29, 1);
 	reg_ops->rdma_write_reg_bits(reg->osd_sys_hwin1_cut,
-				     mvsps->hwincut_bgn[OSD3_SLICE1], 16, 13);
+				     mvps->hwincut_bgn[OSD3_SLICE1], 16, 13);
 	reg_ops->rdma_write_reg_bits(reg->osd_sys_hwin1_cut,
-				     mvsps->hwincut_end[OSD3_SLICE1], 0, 13);
+				     mvps->hwincut_end[OSD3_SLICE1], 0, 13);
 
-	if (mvsps->osd_out_hsize_raw < mvsps->osd_out_hsize_real) {
+	if (mvps->osd_out_hsize_raw < mvps->osd_out_hsize_real) {
 		slice_pad_h_bgn = 0;
-		slice_pad_h_end = mvsps->osd_out_hsize_raw -
-				  mvsps->osd_out_hsize_real / 2 - 1;
+		slice_pad_h_end = mvps->osd_out_hsize_raw -
+				  mvps->osd_out_hsize_real / 2 - 1;
 		reg_ops->rdma_write_reg_bits(reg->osd_sys_pad_ctrl, 1, 0, 1);
 		reg_ops->rdma_write_reg(reg->osd_sys_pad_h_size,
 					slice_pad_h_bgn << 16 | slice_pad_h_end);
-		reg_ops->rdma_write_reg(reg->osd_sys_pad_v_size, mvsps->slice2ppc_vsize - 1);
+		reg_ops->rdma_write_reg(reg->osd_sys_pad_v_size, mvps->slice2ppc_vsize - 1);
 
 		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 1, 29, 1);
 		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 0, 16, 13);
 		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut,
-					     mvsps->osd_out_hsize_raw / 2 - 1, 0, 13);
+					     mvps->osd_out_hsize_raw / 2 - 1, 0, 13);
 	} else {
 		//write pad register
 		reg_ops->rdma_write_reg_bits(reg->osd_sys_pad_ctrl, 0, 0, 1);
@@ -116,7 +113,7 @@ static void slice2ppc_set_state(struct meson_vpu_block *vblk,
 		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 0, 29, 1);
 		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 0, 16, 13);
 		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut,
-					     mvsps->slice2ppc_hsize, 0, 13);
+					     mvps->slice2ppc_hsize, 0, 13);
 	}
 
 	// write pi register

@@ -220,7 +220,8 @@ static int video_check_state(struct meson_vpu_block *vblk,
 
 static void video_set_state(struct meson_vpu_block *vblk,
 			    struct meson_vpu_block_state *state,
-			    struct meson_vpu_block_state *old_state)
+			    struct meson_vpu_block_state *old_state,
+			    struct meson_video_sub_pipeline_state *mvsps)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
@@ -459,7 +460,7 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 
 struct meson_vpu_block_ops video_ops = {
 	.check_video_state = video_check_state,
-	.update_state = video_set_state,
+	.update_video_state = video_set_state,
 	.enable = video_hw_enable,
 	.disable = video_hw_disable,
 	.dump_register = video_dump_register,
