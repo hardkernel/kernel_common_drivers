@@ -726,10 +726,9 @@ irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 	u32 read_val;
 	u32 cur_enc_line_start = 0, cur_enc_line_end = 0;
 
-
-	rdma_done_cpuid = smp_processor_id();
 	if (debug_flag & DEBUG_RDMA_DONE_SKIP)
 		return IRQ_HANDLED;
+	rdma_done_cpuid = smp_processor_id();
 	rdma_isr_count++;
 QUERY:
 	retry_count++;
@@ -3143,7 +3142,15 @@ static void rdma_remove(struct platform_device *pdev)
 #endif
 }
 
+static void rdma_shutdown(struct platform_device *pdev)
+{
+	pr_debug("rdma shutdown\n");
+	debug_flag = DEBUG_RDMA_DONE_SKIP;
+	set_rdma_channel_enable(0);
+}
+
 static struct platform_driver rdma_driver = {
+	.shutdown = rdma_shutdown,
 	.remove = rdma_remove,
 	.driver = {
 		.name = "amlogic-rdma",
