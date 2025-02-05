@@ -167,7 +167,7 @@ void video_dummy_data_set(u64 crtc_bgcolor, bool crtc_bgcolor_flag)
 
 static int video_check_state(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *state,
-		struct meson_vpu_pipeline_state *mvps)
+		struct meson_video_sub_pipeline_state *mvps)
 {
 	struct meson_vpu_video_layer_info *plane_info;
 	struct meson_vpu_video *video = to_video_block(vblk);
@@ -415,10 +415,21 @@ static void video_hw_enable(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("%s enable done.\n", video->base.name);
 }
 
+static void video_disable_work_func(struct work_struct *works)
+{
+	struct meson_vpu_disable_work *worker = container_of(works,
+		struct meson_vpu_disable_work, work);
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+	video_display_control(worker->idx, 0);
+#endif
+	worker->video->video_enabled = 0;
+}
+
 static void video_hw_disable(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
+	struct meson_vpu_disable_work *worker;
 	struct meson_drm *priv;
 
 	if (!video) {
@@ -426,14 +437,15 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 		return;
 	}
 
+	worker = &video->worker;
 	priv = video->base.pipeline->priv;
 
 	DRM_INFO("%s dmabuf(%px), release_fence(%px), video_name(%s)\n",
 			__func__, video->dmabuf, video->fence, video->base.name);
-#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
-	video_display_control(vblk->index, 0);
-	video->video_enabled = 0;
-#endif
+	worker->idx = vblk->index;
+	worker->video = video;
+	if (video->disable_wq)
+		queue_work(video->disable_wq, &worker->work);
 	video->fence = NULL;
 	video->dmabuf = NULL;
 	priv->disable_video_plane = 1;
@@ -464,11 +476,15 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 	get_video_src_max_buffer(vblk->index, &w, &h);
 	video->src_max_size = w << 16 | h;
 
+	video->disable_wq = alloc_workqueue("disable_wq",
+				WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
+	INIT_WORK(&video->worker.work, video_disable_work_func);
+
 	MESON_DRM_BLOCK("%s:%s done\n", __func__, video->base.name);
 }
 
 struct meson_vpu_block_ops video_ops = {
-	.check_state = video_check_state,
+	.check_video_state = video_check_state,
 	.update_state = video_set_state,
 	.enable = video_hw_enable,
 	.disable = video_hw_disable,

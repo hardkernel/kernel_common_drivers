@@ -558,6 +558,113 @@ static int meson_vpu_pipeline_state_init(struct meson_drm *private,
 	return 0;
 }
 
+/*video pipeline state ops start
+ */
+
+struct meson_video_sub_pipeline_state *
+meson_video_pipeline_get_state(struct meson_video_sub_pipeline *video_pipe,
+			     struct drm_atomic_state *state)
+{
+	struct drm_private_state *dps;
+
+	dps = drm_atomic_get_private_obj_state(state, &video_pipe->obj);
+	if (!IS_ERR(dps)) {
+		dps->state = state;
+		return priv_to_video_sub_pipe_state(dps);
+	}
+
+	if (PTR_ERR(dps) == -EDEADLK)
+		return ERR_PTR(-EDEADLK);
+
+	DRM_ERROR("video pipeline state ERROR (%ld)\n", PTR_ERR(dps));
+
+	return NULL;
+}
+
+struct meson_video_sub_pipeline_state *
+meson_video_pipeline_get_old_state(struct meson_video_sub_pipeline *video_pipe,
+			     struct drm_atomic_state *state)
+{
+	struct drm_private_obj *obj;
+	struct drm_private_state *old_obj_state;
+	struct meson_video_sub_pipeline_state *mvps = NULL;
+	int i;
+
+	for_each_old_private_obj_in_state(state, obj, old_obj_state, i) {
+		mvps = priv_to_video_sub_pipe_state(old_obj_state);
+		if (video_pipe == mvps->sub_pipe)
+			return mvps;
+	}
+
+	return NULL;
+}
+
+struct meson_video_sub_pipeline_state *
+meson_video_pipeline_get_new_state(struct meson_video_sub_pipeline *video_pipe,
+			     struct drm_atomic_state *state)
+{
+	struct drm_private_state *dps;
+
+	dps = drm_atomic_get_new_private_obj_state(state, &video_pipe->obj);
+	if (dps) {
+		dps->state = state;
+		return priv_to_video_sub_pipe_state(dps);
+	}
+
+	return NULL;
+}
+
+static struct drm_private_state *
+meson_video_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
+{
+	struct meson_video_sub_pipeline *sub_pipe;
+	struct meson_video_sub_pipeline_state *state;
+	struct meson_video_sub_pipeline_state *cur_state = priv_to_video_sub_pipe_state(obj->state);
+
+	sub_pipe = priv_to_video_sub_pipe(obj);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	memcpy(state, cur_state, sizeof(struct meson_video_sub_pipeline_state));
+	state->sub_pipe = sub_pipe;
+	state->enable_blocks = 0;
+
+	return &state->obj;
+}
+
+static void
+meson_video_pipeline_atomic_destroy_state(struct drm_private_obj *obj,
+					struct drm_private_state *state)
+{
+	struct meson_video_sub_pipeline_state *mvps = priv_to_video_sub_pipe_state(state);
+
+	kfree(mvps);
+}
+
+static const struct drm_private_state_funcs meson_video_pipeline_obj_funcs = {
+	.atomic_duplicate_state = meson_video_pipeline_atomic_duplicate_state,
+	.atomic_destroy_state = meson_video_pipeline_atomic_destroy_state,
+};
+
+static int meson_video_pipeline_state_init(struct meson_drm *private,
+					 struct meson_vpu_pipeline *pipe, int index)
+{
+	struct meson_video_sub_pipeline_state *state;
+	struct meson_video_sub_pipeline *sub_pipe = &pipe->video_subs[index];
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
+
+	state->sub_pipe = sub_pipe;
+	state->pipe = pipe;
+	drm_atomic_private_obj_init(private->drm, &sub_pipe->obj, &state->obj,
+				    &meson_video_pipeline_obj_funcs);
+
+	return 0;
+}
+
+/*video pipeline state ops start
+ */
+
 struct meson_vpu_block_state *
 meson_vpu_block_get_state(struct meson_vpu_block *block,
 			  struct drm_atomic_state *state)
@@ -722,5 +829,12 @@ int meson_vpu_block_state_init(struct meson_drm *private,
 				return ret;
 		}
 	}
+
+	for (i = 0; i < private->pipeline->num_postblend; i++) {
+		ret = meson_video_pipeline_state_init(private, pipeline, i);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }

@@ -892,7 +892,8 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	/*check plane-update*/
-	ret = vpu_pipeline_check(amcrtc->pipeline, atomic_state);
+	if (!atomic_state->async_update)
+		ret = vpu_pipeline_check(amcrtc->pipeline, atomic_state);
 
 	return ret;
 }

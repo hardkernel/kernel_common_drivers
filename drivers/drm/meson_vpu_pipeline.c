@@ -293,7 +293,6 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 			ops = &video_ops;
 
 		mvb = create_block(blk_size, para, ops, pipeline);
-
 		pipeline->video[mvb->index] = to_video_block(mvb);
 		pipeline->num_video++;
 		break;
@@ -366,6 +365,14 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 			pipeline->subs[i].index = -1;
 			pipeline->subs[i].pipeline = NULL;
 		}
+
+		if (i < pipeline->num_postblend) {
+			pipeline->video_subs[i].index = i;
+			pipeline->video_subs[i].pipe = pipeline;
+		} else {
+			pipeline->video_subs[i].index = -1;
+			pipeline->video_subs[i].pipe = NULL;
+		}
 	}
 
 	return 0;
@@ -396,7 +403,6 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 	struct meson_vpu_sub_pipeline_state *mvsps;
 
 	mvps->num_plane = 0;
-	mvps->num_plane_video = 0;
 
 	for (i = 0; i < MESON_MAX_CRTC; i++) {
 		mvsps = &mvps->sub_states[i];
@@ -449,19 +455,28 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 		}
 	}
 
-	for (i = 0; i < pipeline->num_video; i++) {
-		if (mvps->video_plane_info[i].enable) {
-			crtc_index = mvps->video_plane_info[i].crtc_index;
-			mvsps = &mvps->sub_states[crtc_index];
+	DRM_DEBUG("num_plane=%d.\n", mvps->num_plane);
+}
+
+static void video_pipeline_planes_calc(struct meson_vpu_pipeline *pipe,
+				     struct meson_video_sub_pipeline_state *mvsps)
+{
+	u8 i;
+
+	mvsps->num_plane_video = 0;
+	mvsps->enable_blocks = 0;
+
+	for (i = 0; i < pipe->num_video; i++) {
+		if (mvsps->video_plane_info[i].enable) {
 			mvsps->enable_blocks |=
-				BIT(pipeline->video[i]->base.id);
-			mvps->num_plane_video++;
+				BIT(pipe->video[i]->base.id);
+			mvsps->num_plane_video++;
 			DRM_DEBUG("video[%d]-id=%d\n", i,
-				  pipeline->video[i]->base.id);
+				  pipe->video[i]->base.id);
 		}
 	}
-	DRM_DEBUG("num_plane=%d, video_plane_num=%d.\n",
-		  mvps->num_plane, mvps->num_plane_video);
+
+	DRM_DEBUG("video_plane_num=%d.\n", mvsps->num_plane_video);
 }
 
 int vpu_pipeline_osd_check(struct meson_vpu_pipeline *pipeline,
@@ -480,15 +495,15 @@ int vpu_pipeline_osd_check(struct meson_vpu_pipeline *pipeline,
 	return 0;
 }
 
-int vpu_pipeline_video_check(struct meson_vpu_pipeline *pipeline,
+int video_pipeline_block_check(struct meson_video_sub_pipeline *video_pipe,
 		       struct drm_atomic_state *state)
 {
-	struct meson_vpu_pipeline_state *mvps;
+	struct meson_video_sub_pipeline_state *mvps;
 
-	mvps = meson_vpu_pipeline_get_state(pipeline, state);
+	mvps = meson_video_pipeline_get_state(video_pipe, state);
 
-	vpu_pipeline_planes_calc(pipeline, mvps);
-	vpu_video_pipeline_check_block(mvps, state);
+	video_pipeline_planes_calc(video_pipe->pipe, mvps);
+	video_pipeline_check_block(mvps, state);
 	DRM_DEBUG("check done--num_video=%d.\n", mvps->num_plane_video);
 
 	return 0;
@@ -549,7 +564,6 @@ int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 	vpu_pipeline_planes_calc(pipeline, mvps);
 
 	ret = vpu_pipeline_traverse(mvps, state);
-	vpu_video_pipeline_check_block(mvps, state);
 	DRM_DEBUG("check done--num_plane=%d.\n", mvps->num_plane);
 
 	return ret;
@@ -659,43 +673,8 @@ void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
 }
 
 /*
- * Start of Roku async update func implement
+ * Start of async update func implement
  */
-int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *sub_pipeline,
-			struct drm_atomic_state *old_state)
-{
-	int crtc_index;
-	unsigned long id;
-	struct meson_vpu_block *mvb;
-	struct meson_vpu_block_state *mvbs, *old_mvbs;
-	struct meson_vpu_pipeline_state *new_mvps;
-	struct meson_vpu_sub_pipeline_state *new_mvsps;
-	unsigned long affected_blocks = 0;
-	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
-
-	crtc_index = sub_pipeline->index;
-	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
-	new_mvsps = &new_mvps->sub_states[crtc_index];
-
-	affected_blocks = new_mvsps->enable_blocks;
-	for_each_set_bit(id, &affected_blocks, 32) {
-		mvb = vpu_blocks[id];
-		if (mvb->type != MESON_BLK_VIDEO)
-			continue;
-
-		mvbs = priv_to_block_state(mvb->obj.state);
-		old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
-		if (new_mvsps->enable_blocks & BIT(id)) {
-			mvb->ops->update_state(mvb, mvbs, old_mvbs);
-			mvb->ops->enable(mvb, mvbs);
-		} else {
-			mvb->ops->disable(mvb, old_mvbs);
-		}
-	}
-
-	return 0;
-}
-
 int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state)
 {
@@ -759,17 +738,16 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	return 0;
 }
 
-//end of Roku async update func implement
+//end of async update func implement
 
-int vpu_video_plane_update(struct meson_vpu_sub_pipeline *sub_pipeline,
+int video_pipeline_block_update(struct meson_video_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state, int plane_index)
 {
 	int crtc_index;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs, *old_mvbs;
-	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
-	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
-	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct meson_video_sub_pipeline_state *old_mvsps, *new_mvsps;
+	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipe;
 	struct meson_vpu_video *mvv = pipeline->video[plane_index];
 	unsigned long affected_blocks = 0;
 
@@ -777,10 +755,41 @@ int vpu_video_plane_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	mvb = &mvv->base;
 	mvbs = priv_to_block_state(mvb->obj.state);
 	old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
-	old_mvps = meson_vpu_pipeline_get_state(pipeline, old_state);
-	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
-	old_mvsps = &old_mvps->sub_states[crtc_index];
-	new_mvsps = &new_mvps->sub_states[crtc_index];
+	old_mvsps = meson_video_pipeline_get_state(sub_pipeline, old_state);
+	new_mvsps = priv_to_video_sub_pipe_state(sub_pipeline->obj.state);
+
+	affected_blocks = new_mvsps->enable_blocks | old_mvsps->enable_blocks;
+
+	if (affected_blocks & BIT(mvb->id)) {
+		if (new_mvsps->enable_blocks & BIT(mvb->id)) {
+			mvb->ops->update_state(mvb, mvbs, old_mvbs);
+			mvb->ops->enable(mvb, mvbs);
+		} else {
+			mvb->ops->disable(mvb, mvbs);
+		}
+	}
+
+	return 0;
+}
+
+int video_pipeline_block_async_update(struct meson_video_sub_pipeline *sub_pipeline,
+			struct drm_atomic_state *new_state, int plane_index)
+{
+	int crtc_index;
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_state *mvbs, *old_mvbs;
+	struct meson_video_sub_pipeline_state *old_mvsps, *new_mvsps;
+	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipe;
+	struct meson_vpu_video *mvv = pipeline->video[plane_index];
+	unsigned long affected_blocks = 0;
+
+	crtc_index = sub_pipeline->index;
+	mvb = &mvv->base;
+
+	mvbs = meson_vpu_block_get_state(mvb, new_state);
+	old_mvbs = priv_to_block_state(mvb->obj.state);
+	old_mvsps = meson_video_pipeline_get_state(sub_pipeline, new_state);
+	new_mvsps = priv_to_video_sub_pipe_state(sub_pipeline->obj.state);
 
 	affected_blocks = old_mvsps->enable_blocks | new_mvsps->enable_blocks;
 

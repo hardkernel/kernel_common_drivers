@@ -728,7 +728,7 @@ int g12a_check_pipeline_path(int *combination, int num_planes,
 	return vpu_pipeline_check_block(combination, num_planes, mvps, state);
 }
 
-int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
+int video_pipeline_check_block(struct meson_video_sub_pipeline_state *mvps,
 				   struct drm_atomic_state *state)
 {
 	int i, ret = 0;
@@ -740,10 +740,10 @@ int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 	for (i = 0; i < MESON_MAX_VIDEO; i++) {
 		if (!mvps->video_plane_info[i].enable)
 			continue;
-		block = &mvps->pipeline->video[i]->base;
-		if (block->ops && block->ops->check_state) {
+		block = &mvps->pipe->video[i]->base;
+		if (block->ops && block->ops->check_video_state) {
 			mvbs = meson_vpu_block_get_state(block, state);
-			ret = block->ops->check_state(block,
+			ret = block->ops->check_video_state(block,
 					mvbs, mvps);
 
 			if (ret) {
@@ -1109,16 +1109,6 @@ void vpu_pipeline_clean_block(int *combination, int num_planes,
 			}
 		}
 	}
-	/*clean video wrapper block*/
-	for (i = 0; i < MESON_MAX_VIDEO; i++) {
-		if (!mvps->video_plane_info[i].enable)
-			continue;
-		block = &mvps->pipeline->video[i]->base;
-		if (block->ops && block->ops->check_state) {
-			mvbs = meson_vpu_block_get_state(block, state);
-			mvbs->checked = 0;
-		}
-	}
 }
 
 /**
@@ -1218,7 +1208,7 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 	for (i = 0; i < BLOCK_ID_MAX; i++) {
 		mvb = mvp->mvbs[i];
 
-		if (!mvb)
+		if (!mvb || mvb->type == MESON_BLK_VIDEO)
 			continue;
 
 		mvbs = meson_vpu_block_get_state(mvb, state);
