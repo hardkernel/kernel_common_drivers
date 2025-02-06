@@ -24,7 +24,7 @@
 #include "aml_dvb_extern_i2c.h"
 
 #define AML_DVB_EXTERN_DEVICE_NAME "aml_dvb_extern"
-#define AML_DVB_EXTERN_VERSION     "V1.22"
+#define AML_DVB_EXTERN_VERSION     "V1.26"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -83,6 +83,16 @@ static char *fe_modulation_name[] = {
 
 static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 {
+	struct demod_ops *dtops = NULL;
+	struct dvb_demod *demod = get_dvb_demods();
+
+	if (!on) {
+		list_for_each_entry(dtops, &demod->list, list) {
+			if (dtops->fe && dtops->fe->ops.release)
+				dtops->fe->ops.release(dtops->fe);
+		}
+	}
+
 	if (!aml_gpio_is_valid(pin_cfg->pin)) {
 		pr_err("dvb power gpio invalid");
 
@@ -92,9 +102,9 @@ static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 	/* OD pin[No output capacity], set direction output as low output. */
 	if (pin_cfg->dir != GPIOF_IN) {
 		if (on)
-			aml_gpio_set_value(pin_cfg->pin, pin_cfg->value);
+			aml_gpio_direction_output(pin_cfg->pin, pin_cfg->value);
 		else
-			aml_gpio_set_value(pin_cfg->pin, !(pin_cfg->value));
+			aml_gpio_direction_output(pin_cfg->pin, !(pin_cfg->value));
 	} else {
 		if (on) {
 			aml_gpio_direction_input(pin_cfg->pin);
@@ -103,6 +113,8 @@ static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 			aml_gpio_direction_output(pin_cfg->pin, !(pin_cfg->value));
 		}
 	}
+
+	pr_debug("%s %d OK\n", __func__, on);
 }
 
 void aml_dvb_extern_resume_work(struct work_struct *work)
@@ -743,7 +755,7 @@ static ssize_t demod_debug_store(const struct class *class,
 					!ret ? "Locked" : "Unlocked");
 		}
 
-	} else if (!strncmp(parm[0], "status", 6)) {
+	} else if (fe && !strncmp(parm[0], "status", 6)) {
 		pr_err("demod numbers: %d\n", dev->demod_num);
 		pr_err("all demods:\n");
 		list_for_each_entry(ops, &demod->list, list) {
@@ -1320,6 +1332,52 @@ struct device *aml_get_dvb_extern_dev(void)
 	return dvb_extern_dev->dev;
 }
 
+#ifdef AML_DVB_EXTERN_EN_EARLY_SUSPEND
+#if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
+static void aml_dvb_early_suspend(struct early_suspend *h)
+{
+	struct dvb_extern_device *dvbdev = (struct dvb_extern_device *)h->param;
+	struct tuner_ops *ttops = NULL;
+	struct demod_ops *dtops = NULL;
+	struct dvb_tuner *tuner = get_dvb_tuners();
+	struct dvb_demod *demod = get_dvb_demods();
+
+	if (IS_ERR_OR_NULL(dvbdev))
+		return;
+
+	list_for_each_entry(ttops, &tuner->list, list) {
+		if (ttops->fe.ops.tuner_ops.suspend)
+			ttops->fe.ops.tuner_ops.suspend(&ttops->fe);
+		else if (ttops->fe.ops.tuner_ops.sleep)
+			ttops->fe.ops.tuner_ops.sleep(&ttops->fe);
+	}
+
+	list_for_each_entry(dtops, &demod->list, list) {
+		if (dtops->fe && dtops->fe->ops.sleep)
+			dtops->fe->ops.sleep(dtops->fe);
+	}
+
+	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
+
+	pr_debug("%s: OK.\n", __func__);
+}
+
+static void aml_dvb_early_resume(struct early_suspend *h)
+{
+	struct dvb_extern_device *dvbdev = (struct dvb_extern_device *)h->param;
+
+	if (IS_ERR_OR_NULL(dvbdev))
+		return;
+
+	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
+
+	schedule_work(&dvbdev->resume_work);
+
+	pr_debug("%s: OK.\n", __func__);
+}
+#endif
+#endif
+
 static int aml_dvb_extern_probe(struct platform_device *pdev)
 {
 	int ret = -1, i = 0;
@@ -1550,6 +1608,16 @@ PROPERTY_DEMOD:
 	INIT_WORK(&dvbdev->resume_work, aml_dvb_extern_resume_work);
 	INIT_WORK(&dvbdev->attach_work.work, aml_dvb_extern_attach_work);
 
+#ifdef AML_DVB_EXTERN_EN_EARLY_SUSPEND
+#if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
+	dvbdev->suspend.suspend = aml_dvb_early_suspend;
+	dvbdev->suspend.resume = aml_dvb_early_resume;
+	dvbdev->suspend.param = dvbdev;
+
+	register_early_suspend(&dvbdev->suspend);
+#endif
+#endif
+
 PROPERTY_DONE:
 	dvb_extern_dev = dvbdev;
 
@@ -1591,13 +1659,19 @@ static void aml_dvb_extern_remove(struct platform_device *pdev)
 	if (dvbdev->debug_proc_dir)
 		proc_remove(dvbdev->debug_proc_dir);
 
+#ifdef AML_DVB_EXTERN_EN_EARLY_SUSPEND
+#if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
+	unregister_early_suspend(&dvbdev->suspend);
+#endif
+#endif
+
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
 
 	kfree(dvbdev);
 	dvbdev = NULL;
 	dvb_extern_dev = NULL;
 
-	pr_info("%s OK\n", __func__);
+	pr_debug("%s OK\n", __func__);
 }
 
 static void aml_dvb_extern_shutdown(struct platform_device *pdev)
@@ -1624,6 +1698,8 @@ static void aml_dvb_extern_shutdown(struct platform_device *pdev)
 	}
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
+
+	pr_debug("%s OK\n", __func__);
 }
 
 static int aml_dvb_extern_suspend(struct platform_device *pdev,
@@ -1652,6 +1728,8 @@ static int aml_dvb_extern_suspend(struct platform_device *pdev,
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
 
+	pr_debug("%s OK\n", __func__);
+
 	return 0;
 }
 
@@ -1665,6 +1743,8 @@ static int aml_dvb_extern_resume(struct platform_device *pdev)
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
 
 	schedule_work(&dvbdev->resume_work);
+
+	pr_debug("%s OK\n", __func__);
 
 	return 0;
 }

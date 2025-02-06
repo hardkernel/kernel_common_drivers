@@ -27,6 +27,18 @@ static const struct demod_module demod_modules[] = {
 		.register_frontend = aml_dvb_register_frontend,
 		.unregister_frontend = aml_dvb_unregister_frontend
 	},
+	{
+		.name = "dummy",
+		.id = AM_DTV_DEMOD_DUMMY,
+		.type = { },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
 #ifdef DEMOD_UNUSED
 	{
 		.name = "m1",
@@ -625,6 +637,9 @@ int aml_get_dts_demod_config(struct device_node *node,
 			cfg->ts_remap_cnt = 0;
 		}
 
+		if (cfg->ts_remap_cnt) {
+			;/* TODO: need init in dvb */
+		}
 	} else {
 		snprintf(buf, sizeof(buf), "fe%d_ts_header_bytes", index);
 		ret = of_property_read_u32(node, buf, &value);
