@@ -2101,7 +2101,7 @@
 		compatible = "amlogic, amvdec_csi-s6";
 		status = "okay";
 		csi_id = <0>;
-		squlech_mode = <1>;
+		squlech_mode = <0>;
 		deskew_mode = <0>;
 		reg = <0x0 0xfe014000 0x0 0x00000100>,
 			<0x0 0xfe016000 0x0 0x00000100>,

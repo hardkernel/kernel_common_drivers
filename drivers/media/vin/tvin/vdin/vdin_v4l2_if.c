@@ -1287,6 +1287,13 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	}
 
 	if (devp->parm.port == TVIN_PORT_MIPI) {
+		devp->frontend = tvin_get_frontend(devp->parm.port, devp->parm.index);
+		if (!(devp->frontend)) {
+			dprintk(0, "%s(%d): not supported port 0x%x\n",
+				__func__, devp->index, devp->parm.port);
+			mutex_unlock(&devp->fe_lock);
+			return -1;
+		}
 		if (devp->frontend && devp->frontend->sm_ops &&
 			devp->frontend->sm_ops->get_fmt)
 			devp->parm.info.fmt =
@@ -1301,8 +1308,9 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	}
 	mutex_unlock(&devp->fe_lock);
 
-	dprintk(0, "%s current port:%#x(%s)\n", __func__,
-		devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur));
+	dprintk(0, "%s vdin%d,current port:%#x(%s),status:%d\n", __func__, devp->index,
+		devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur),
+		devp->parm.info.status);
 	return 0;
 }
 
@@ -1471,7 +1479,7 @@ static int vdin_v4l2_open(struct file *file)
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	dprintk(0, "%s\n", __func__);
+	dprintk(0, "%s,vdin%d\n", __func__, devp->index);
 	/*dump_stack();*/
 	devp->afbce_flag_backup = devp->afbce_flag;
 

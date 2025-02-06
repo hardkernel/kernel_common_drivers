@@ -3,6 +3,7 @@
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -20,6 +21,9 @@
 
 #include <linux/amlogic/media/mipi/am_mipi_csi2.h>
 
+#include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
+
 #include "../tvin_global.h"
 #include "../vdin/vdin_regs.h"
 #include "../vdin/vdin_drv.h"
@@ -27,6 +31,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 #include "csi.h"
+#include "csi_reg.h"
 
 #define DEV_NAME  "amvdec_csi"
 #define DRV_NAME  "amvdec_csi"
@@ -38,6 +43,7 @@
 
 static dev_t amcsi_devno;
 static struct class *amcsi_clsp;
+static struct csi_chip_info_s g_csi_chip_info;
 
 static struct sensor_info g_sensor_info;
 
@@ -54,17 +60,31 @@ static void init_csi_dec_parameter(struct amcsi_dev_s *devp)
 {
 	enum tvin_sig_fmt_e fmt;
 	const struct tvin_format_s *fmt_info_p;
+	switch ((g_sensor_info.width << 16) | g_sensor_info.height) {
+	case (3840 << 16) | 2160:
+		devp->para.fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
+		break;
+	case (1920 << 16) | 1080:
+		devp->para.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+		break;
+	case (1280 << 16) | 800:
+		devp->para.fmt = TVIN_SIG_FMT_HDMI_1280X800_00HZ;
+		break;
+	default:
+		devp->para.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+		break;
+	}
 
-	pr_info("%s,Enter\n", __func__);
+	DPRINT("%s, %d TBD\n", __func__, __LINE__);
 	fmt = devp->para.fmt;
 	fmt_info_p = (struct tvin_format_s *)tvin_get_fmt_info(fmt);
-	devp->para.v_active    = 1080;
-	devp->para.h_active    = 1920;
+	devp->para.v_active    = g_sensor_info.height;
+	devp->para.h_active    = g_sensor_info.width;
 	devp->para.hsync_phase = 0;
 	devp->para.vsync_phase = 0;
 	devp->para.hs_bp       = 0;
 	devp->para.vs_bp       = 0;
-	devp->para.csi_hw_info.lanes = 2;
+	devp->para.csi_hw_info.lanes = g_sensor_info.nlanes;
 }
 
 static void reset_btcsi_module(void)
@@ -80,8 +100,6 @@ static void reinit_csi_dec(struct amcsi_dev_s *devp)
 static void start_amvdec_csi(struct amcsi_dev_s *devp)
 {
 	enum tvin_port_e port =  devp->para.port;
-
-	pr_info("%s,Enter\n", __func__);
 
 	if (devp->dec_status & TVIN_AMCSI_RUNNING) {
 		pr_info("%s csi have started already.\n",
@@ -218,7 +236,7 @@ int amcsi_isr(struct tvin_frontend_s *fe, unsigned int hcnt, enum tvin_port_type
 		DPRINT("error state:0x%x.,status:0x%x\n",
 			frame.err, data1);
 		devp->overflow_cnt++;
-		WRITE_CSI_ADPT_REG(CSI2_ERR_STAT0, 0);
+		WRITE_CSI_ADPT_REG(CSI2_ERR_STAT0, 0xffff);
 	}
 	if (devp->overflow_cnt > 4) {
 		DPRINT("should reset mipi\n");
@@ -317,7 +335,7 @@ static ssize_t hw_info_store(struct device *dev,
 
 	if (strcmp(parm[0], "reset") == 0) {
 		pr_info("reset\n");
-		am_mipi_csi2_init(&csi_devp->csi_parm);
+		am_mipi_csi2_init(csi_devp);
 	} else if (strcmp(parm[0], "init") == 0) {
 		pr_info("init mipi measure clock\n");
 		init_am_mipi_csi2_clock();
@@ -343,18 +361,21 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		container_of(fe, struct amcsi_dev_s, frontend);
 	struct vdin_parm_s *parm = fe->private_data;
 
+	if (!parm) {
+		DPRINT("[mipi..]%s:invalid port param %d.\n", __func__, port);
+		return -1;
+	}
+
 	if (port != TVIN_PORT_MIPI) {
 		DPRINT("[mipi..]%s:invalid port %d.\n", __func__, port);
 		return -1;
 	}
 
-	if (!memcpy(&csi_devp->para, parm,
+	if (parm && !memcpy(&csi_devp->para, parm,
 		sizeof(struct vdin_parm_s))) {
 		DPRINT("[mipi..]%s memcpy error.\n", __func__);
 		return -1;
 	}
-
-	init_am_mipi_csi2_clock();
 
 	csi_devp->para.port = port;
 
@@ -362,11 +383,17 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		&parm->csi_hw_info, sizeof(struct csi_parm_s));
 	csi_devp->csi_parm.skip_frames = parm->skip_count;
 
+	csi_devp->csi_parm.settle = g_sensor_info.bps_m;
+	csi_devp->csi_parm.lanes = g_sensor_info.nlanes;
+	csi_devp->csi_parm.clock_lane_mode = g_sensor_info.clock_mode;
 	csi_devp->reset = 0;
 	csi_devp->reset_count = 0;
+	if (csi_devp->dev)
+		pm_runtime_get_sync(csi_devp->dev);
 
-	cal_csi_para(&csi_devp->csi_parm);
-	am_mipi_csi2_init(&csi_devp->csi_parm);
+	cal_csi_para(csi_devp);
+	enable_am_mipi_csi2_clk();
+	am_mipi_csi2_init(csi_devp);
 	csi_devp->fe_status = CAMERA_FE_OPEN;
 	DPRINT("%s camera fe open\n", __func__);
 
@@ -386,11 +413,15 @@ static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port
 
 	devp->reset = 0;
 	devp->reset_count = 0;
+
 	if (devp->fe_status == CAMERA_FE_OPEN) {
 		DPRINT("%s camera fe close\n", __func__);
 		devp->fe_status = CAMERA_FE_CLOSE;
 	}
-	am_mipi_csi2_uninit();
+	am_mipi_csi2_uninit(devp);
+	disable_am_mipi_csi2_clk();
+	if (devp->dev)
+		pm_runtime_put_sync(devp->dev);
 
 	memset(&devp->para, 0, sizeof(struct vdin_parm_s));
 }
@@ -403,10 +434,21 @@ static enum tvin_sig_fmt_e amcsi_get_fmt(struct tvin_frontend_s *fe,
 	enum tvin_port_type_e port_type)
 {
 	enum tvin_sig_fmt_e fmt = TVIN_SIG_FMT_NULL;
-
-	//todo:get fmt from sensor
-	fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
-
+	switch ((g_sensor_info.width << 16) | g_sensor_info.height) {
+	case (3840 << 16) | 2160:
+		fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
+		break;
+	case (1920 << 16) | 1080:
+		fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+		break;
+	case (1280 << 16) | 800:
+		fmt = TVIN_SIG_FMT_HDMI_1280X800_00HZ;
+		break;
+	default:
+		fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+		break;
+	}
+	DPRINT("%s, %d TBD\n", __func__, __LINE__);
 	return fmt;
 }
 
@@ -451,18 +493,63 @@ static void csi_delete_device(int minor)
 	device_destroy(amcsi_clsp, devno);
 }
 
+static struct csi_chip_info_s csi_info_on_sm1 = {
+	.csi_chip_type = CSI_ON_SM1,
+};
+
+static struct csi_chip_info_s csi_info_on_s6 = {
+	.csi_chip_type = CSI_ON_S6,
+};
+
+static const struct of_device_id csi_dt_match[] = {
+	{
+		.compatible = "amlogic, amvdec_csi",
+		.data = &csi_info_on_sm1,
+	},
+	{
+		.compatible = "amlogic, amvdec_csi-s6",
+		.data = &csi_info_on_s6,
+	},
+	{},
+};
+
 static int amvdec_csi_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	unsigned int id = 0;
 	struct amcsi_dev_s *devp = NULL;
 
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		struct csi_chip_info_s *matched_data;
+
+		match = of_match_node(csi_dt_match, pdev->dev.of_node);
+		if (match) {
+			matched_data = (struct csi_chip_info_s *)match->data;
+			if (matched_data) {
+				memcpy(&g_csi_chip_info, matched_data,
+					   sizeof(struct csi_chip_info_s));
+			} else {
+				pr_err("%s data NOT match\n", __func__);
+				return -ENODEV;
+			}
+		} else {
+			pr_err("%s NOT match\n", __func__);
+			return -ENODEV;
+		}
+	}
+
 	devp = kmalloc(sizeof(*devp), GFP_KERNEL);
 	if (!devp) {
 		ret = -1;
 		goto fail_kmalloc_dev;
 	}
+
 	memset(devp, 0, sizeof(struct amcsi_dev_s));
+	// keep this assignment first.
+	// other initialization may depends on chip info.
+	devp->csi_chip_info = &g_csi_chip_info;
+	devp->dev = &pdev->dev;
 
 	ret = csi_add_cdev(&devp->cdev, &amcsi_fops, 0);
 	if (ret != 0) {
@@ -487,6 +574,8 @@ static int amvdec_csi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, devp);
 
 	am_mipi_csi2_para_init(pdev);
+	init_am_mipi_csi2_clock();
+	pm_runtime_enable(&pdev->dev);
 
 	pr_info("amvdec_csi probe ok.\n");
 	return ret;
@@ -505,20 +594,15 @@ static void amvdec_csi_remove(struct platform_device *pdev)
 
 	tvin_unreg_frontend(&devp->frontend);
 	device_remove_file(devp->dev, &dev_attr_hw_info);
+	pm_runtime_disable(devp->dev);
 	deinit_am_mipi_csi2_clock();
 	csi_delete_device(pdev->id);
 	cdev_del(&devp->cdev);
 	dev_set_drvdata(devp->dev, NULL);
 	platform_set_drvdata(pdev, NULL);
 	kfree(devp);
+	return;
 }
-
-static const struct of_device_id csi_dt_match[] = {
-	{
-		.compatible = "amlogic, amvdec_csi",
-	},
-	{},
-};
 
 static struct platform_driver amvdec_csi_driver = {
 	.probe      = amvdec_csi_probe,
