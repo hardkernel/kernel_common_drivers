@@ -18,6 +18,7 @@
 
 #ifndef __AM_DNLP_AGL_H
 #define __AM_DNLP_AGL_H
+#include <linux/amlogic/media/amvecm/amvecm.h>
 
 struct param_for_dnlp_s {
 	unsigned int dnlp_alg_enable;
@@ -160,18 +161,75 @@ struct ble_whe_param_s {
 	int brt_slp;
 };
 
-struct dnlp_alg_s {
+struct aml_dnlp_drv_param_s {
+	struct dnlp_alg_output_param_s *output_param;
+	struct dnlp_alg_input_param_s *input_param;
+	struct dnlp_dbg_rw_param_s *rw_param;
+	struct dnlp_dbg_ro_param_s *ro_param;
+	struct param_for_dnlp_s *dnlp_alg_param;
+	struct ble_whe_param_s *ble_whe_param;
+	struct dnlp_dbg_print_s  *dbg_alg_print;
+	bool *dnlp_insmod_ok;
 	void (*dnlp_algorithm_main)(unsigned int raw_hst_sum);
-	void (*dnlp_para_set)(struct dnlp_alg_output_param_s **dnlp_output,
-			      struct dnlp_alg_input_param_s **dnlp_input,
-			      struct dnlp_dbg_rw_param_s **rw_param,
-			      struct dnlp_dbg_ro_param_s **ro_param,
-			      struct param_for_dnlp_s **rw_node,
-			      struct dnlp_dbg_print_s **dbg_print,
-			      struct ble_whe_param_s **ble_whe_param);
-	void (*dnlp3_param_refresh)(void);
+	void (*dnlp3_param_refrsh)(void);
 };
 
-struct dnlp_alg_s *dnlp_alg_init(struct dnlp_alg_s **dnlp_alg);
-extern struct dnlp_alg_s *dnlp_alg_function;
+struct lc_curve_tune_param_s {
+	int lc_reg_lmtrat_sigbin;
+	int lc_reg_lmtrat_thd_max;
+	int lc_reg_lmtrat_thd_black;
+	int lc_reg_thd_black;
+	int yminv_black_thd;
+	int ypkbv_black_thd;
+
+	/* read back black pixel count */
+	int lc_reg_black_count;
+};
+
+struct aml_lc_drv_param_s {
+	int *curve_nodes_cur;
+	int *curve_nodes_pre;
+	int *refresh_bit;
+	int *vnum_start_below;
+	int *vnum_end_below;
+	int *vnum_start_above;
+	int *vnum_end_above;
+	int *invalid_blk;
+	int *osd_iir_en;
+	int *ts;
+	int *scene_change_th;
+	int *alpha1;
+	int *alpha2;
+	int *min_bv_percent_th;
+	int *amlc_debug;
+	int *amlc_iir_debug_en;
+	unsigned int *lc_node_prcnt;
+	unsigned int *lc_node_pos_h;
+	unsigned int *lc_node_pos_v;
+	unsigned int *lc_curve_prcnt;
+	bool *lc_curve_fresh;
+	s64 *curve_nodes_pre_raw;
+	struct lc_curve_tune_param_s *lc_tune_curve;
+	void (*tune_nodes_patch)(int *omap, int *ihistogram, int i, int j);
+	void (*lc_fw_curve_iir)(int *lc_hist, int *lc_szcurve,
+		int blk_vnum, int blk_hnum, enum chip_type chip_type_id);
+};
+
+struct aml_fmeter_drv_param_s {
+	/*input*/
+	struct fmeter_data_s *data_meter;
+	unsigned int *fmeter_debug;
+	/*output*/
+	int fmeter0_score;
+	int fmeter1_score;
+	u8 fmeter_score_unit;
+	u8 fmeter_score_ten;
+	u8 fmeter_score_hundred;
+	int cur_fmeter_level;
+	void (*fmeter_cal_score)(u32 width, u32 height);
+};
+
+struct aml_dnlp_drv_param_s *dnlp_drv_param_get(void);
+struct aml_lc_drv_param_s *lc_drv_param_get(void);
+struct aml_fmeter_drv_param_s *fmeter_drv_param_get(void);
 #endif

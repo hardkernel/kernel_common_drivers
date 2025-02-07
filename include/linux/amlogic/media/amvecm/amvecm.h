@@ -59,6 +59,8 @@
 			})
 #endif // FMETER_SCORE
 
+#define FMETER_VERSION "v2025.02.26.1(minimum ko version: v2025.02.26.1)"
+
 /* struct ve_dnlp_s          video_ve_dnlp; */
 #define FLAG_COLORPRI_LATCH     BIT(31)
 #define FLAG_VADJ1_COLOR        BIT(30)
@@ -539,7 +541,6 @@ int metadata_read_u32(uint32_t *value);
 int metadata_wait(struct vframe_s *vf);
 int metadata_sync(u32 frame_id, uint64_t pts);
 void amvecm_wakeup_queue(void);
-void lc_load_curve(struct ve_lc_curve_parm_s *p);
 
 int amvecm_drm_get_gamma_size(u32 index);
 void amvecm_drm_init(u32 index);
@@ -639,6 +640,19 @@ struct gamma_data_s {
 	struct venc_gamma_table_s dbg_gm_tbl;
 };
 
+struct fmeter_data_s {
+	u32 fmeter0_hcnt[4];
+	u32 fmeter0_vcnt[4];
+	u32 fmeter0_pdcnt[4];
+	u32 fmeter0_ndcnt[4];
+	u32 fmeter1_hcnt[4];
+	u32 fmeter1_vcnt[4];
+	u32 fmeter1_pdcnt[4];
+	u32 fmeter1_ndcnt[4];
+};
+
+extern struct fmeter_data_s data_meter;
+
 struct gamma_data_s *get_gm_data(void);
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
@@ -663,6 +677,10 @@ void osd_sharpness_demo_ctrl(void);
 bool is_hdr10plus_enable(void);
 
 bool is_hdr10plus_enable(void);
+void d_convert_str(int num,
+			  int num_num, char cur_s[],
+			  int char_bit, int bit_chose);
+void str_sapr_to_d(char *s, int *d, int n);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool is_amdv_enable(void);

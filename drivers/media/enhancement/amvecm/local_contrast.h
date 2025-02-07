@@ -25,7 +25,7 @@
 /*V1.0: Local_contrast Basic function, iir algorithm, debug interface for tool*/
 /*V1.1: add ioctrl load interface supprt*/
 /*v2.0: add lc tune curve node patch by vlsi-guopan*/
-#define LC_VER		"Ref.2019/05/30-V2.0"
+#define LC_VER	"v2025.02.26.1(minimum ko version: v2025.02.26.1)"
 
 enum lc_mtx_sel_e {
 	INP_MTX = 0x1,
@@ -65,65 +65,24 @@ struct lc_alg_param_s {
 	unsigned int dbg_parm4;
 };
 
-struct lc_curve_tune_param_s {
-	int lc_reg_lmtrat_sigbin;
-	int lc_reg_lmtrat_thd_max;
-	int lc_reg_lmtrat_thd_black;
-	int lc_reg_thd_black;
-	int yminv_black_thd;
-	int ypkbv_black_thd;
-
-	/* read back black pixel count */
-	int lc_reg_black_count;
-};
-
-extern int amlc_debug;
-extern int tune_curve_en;
-extern int detect_signal_range_en;
-extern int detect_signal_range_threshold_black;
-extern int detect_signal_range_threshold_white;
 extern int lc_en;
-extern int lc_demo_mode;
+extern struct ve_lc_curve_parm_s lc_curve_parm_load;
 extern int lc_curve_isr_defined;
 extern int use_lc_curve_isr;
-extern unsigned int lc_hist_vs;
-extern unsigned int lc_hist_ve;
-extern unsigned int lc_hist_hs;
-extern unsigned int lc_hist_he;
-extern unsigned int lc_hist_prcnt;
-extern unsigned int lc_node_prcnt;
-extern unsigned int lc_node_pos_h;
-extern unsigned int lc_node_pos_v;
-extern unsigned int lc_curve_prcnt;
-extern int osd_iir_en;
-extern int amlc_iir_debug_en;
-/*osd related setting */
-extern int vnum_start_below;
-extern int vnum_end_below;
-extern int vnum_start_above;
-extern int vnum_end_above;
-extern int invalid_blk;
-/*u10,7000/21600=0.324*1024=331 */
-extern int min_bv_percent_th;
-/*control the refresh speed*/
-extern int alpha1;
-extern int alpha2;
-extern int refresh_bit;
-extern int ts;
-extern int scene_change_th;
-extern bool lc_curve_fresh;
-extern int *lc_szcurve;/*12*8*6+4*/
-extern int *curve_nodes_cur;
-extern int *lc_hist;/*12*8*17*/
-extern struct ve_lc_curve_parm_s lc_curve_parm_load;
-extern struct lc_alg_param_s lc_alg_parm;
-extern struct lc_curve_tune_param_s lc_tune_curve;
-extern int lc_bitdepth;
+extern int lc_change_curve_nodes_en;
+extern int lc_demo_mode;
+/*for debug*/
+extern int lc_dbg_flag;
+extern enum lc_reg_lut_e reg_sel;
+extern int lc_temp;
+extern char lc_dbg_curve[100];
+extern int amlc_debug;
 extern int lc_skip_iir;
 extern int lc_force_ctrl;
-extern int dbg_monitor_ctrl;
-extern int skip_num;
-extern int lc_rdma_mode;
+extern int alpha1;
+extern int lc_pattern_detect_log1;
+extern int lc_read_curve_nodes_changed_en;
+extern int lc_change_curve_nodes_en;
 
 void lc_init(int bitdepth);
 void lc_process(struct vframe_s *vf,
@@ -138,6 +97,11 @@ void lc_read_region(int blk_vnum, int blk_hnum, int slice);
 void lc_disable(int rdma_mode, int vpp_index);
 bool lc_curve_ctrl_reg_set_flag(unsigned int addr);
 void lc_prt_curve(void);
-
+int get_lc_pattern_gain(void);
+void lc_change_pattern_curve_nodes(int lc_gain);
+void lc_load_curve(struct ve_lc_curve_parm_s *p);
+void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf);
+void lc_slt_en(int enable);
+int lc_debug_store(char **parm);
 #endif
 #endif

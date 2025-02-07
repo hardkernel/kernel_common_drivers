@@ -33,16 +33,12 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 #include <linux/amlogic/media/frc/frc_common.h>
 #endif
-/*may define in other module*/
-#define CURV_NODES 6
+#include <linux/amlogic/media/amvecm/dnlp_alg.h>
+
 /*curve_node_total*/
 #define LC_HIST_SIZE 1632
 /*curve_node_total*/
 #define LC_CURV_SIZE 585
-/*history message delay*/
-#define N_DELAY 4
-/*hist bin num*/
-#define HIST_BIN 16
 #define LC_BLK_H_NUM 12
 #define LC_BLK_V_NUM 8
 
@@ -81,6 +77,7 @@ int vnum_end_above = 2;
 int invalid_blk = 2;
 /*u10,7000/21600=0.324*1024=331 */
 int min_bv_percent_th = 331;
+
 /*control the refresh speed*/
 int alpha1 = 512;
 int alpha2 = 512;
@@ -118,6 +115,11 @@ struct ve_lc_curve_parm_s lc_curve_parm_load;
 struct lc_alg_param_s lc_alg_parm;
 struct lc_curve_tune_param_s lc_tune_curve;
 static struct vd_proc_amvecm_info_t *lc_vd_info;
+
+int lc_pattern_detect_log1;
+int lc_read_curve_nodes_changed_en;
+int lc_change_curve_nodes_en;
+int lc_pattern_detect_log1_cnt;
 
 /*lc saturation gain, low parameters*/
 /*static unsigned int lc_satur_gain[63] = {
@@ -160,7 +162,20 @@ int tune_curve_en = 2;
 int detect_signal_range_en = 2;
 int detect_signal_range_threshold_black = 1600;
 int detect_signal_range_threshold_white = 3200;
-int cur_scene_change_flag;
+
+/*for debug*/
+int lc_dbg_flag;
+enum lc_reg_lut_e reg_sel;
+int lc_temp;
+char lc_dbg_curve[100];
+
+struct aml_lc_drv_param_s lc_drv_param;
+
+struct aml_lc_drv_param_s *lc_drv_param_get(void)
+{
+	return &lc_drv_param;
+}
+EXPORT_SYMBOL(lc_drv_param_get);
 
 /*local contrast begin*/
 void lc_curve_get_blk_num(int *h_num, int *v_num)
@@ -1236,130 +1251,6 @@ static void tune_nodes_patch_init(void)
 	lc_tune_curve.yminv_black_thd = 256;
 }
 
-static void tune_nodes_patch(int *omap, int *ihistogram, int i, int j)
-{
-	int yminv_org, minbv_org, pkbv_org;
-	int maxbv_org, ymaxv_org, ypkbv_org;
-	int yminv, ymaxv, ypkbv;
-	int k, alpha, bin_pk, idx_pk, bin_pk2nd;
-	int pksum, pksum_2nd, dist;
-	int amount;
-	int thrd_sglbin;   /*u24 maybe 80% or 90%*/
-	int thrd_sglbin_thd_max;   /*u24 maybe 80% or 90%*/
-	int thrd_sglbin_thd_black;
-	int alpha_sgl;
-	int tmp_peak_val;/*pksum; bin_pk*/
-	int idx_pk2nd;
-
-	yminv_org = omap[0];
-	minbv_org = omap[1];
-	pkbv_org = omap[2];
-	maxbv_org = omap[3];
-	ymaxv_org = omap[4];
-	ypkbv_org = omap[5];
-	if (amlc_debug == 0xa) {
-		pr_info("minBV_org=%d yminV_org=%d pkBV_org=%d ypkBV_org=%d maxBV_org=%d ymaxV_org=%d\n",
-			minbv_org, yminv_org, pkbv_org, ypkbv_org,
-			maxbv_org, ymaxv_org);
-		amlc_debug = 0x0;
-	}
-	idx_pk = (pkbv_org + 32) >> 6;
-	bin_pk2nd = 0;
-	amount = 0;
-	bin_pk = 0;
-	idx_pk2nd = 0;
-
-	for (k = 0; k < HIST_BIN; k++) {
-		amount += ihistogram[k];
-		if (ihistogram[k] > bin_pk) {
-			bin_pk = ihistogram[k];
-			idx_pk = k;
-		}
-	}
-	pksum = (idx_pk <= 1 || idx_pk >= 14) ? ihistogram[idx_pk] :
-		(ihistogram[idx_pk] + ihistogram[max(min(idx_pk - 1, 14), 1)]
-			+ ihistogram[max(min(idx_pk + 1, 14), 1)]);
-
-	for (k = 0; k < HIST_BIN; k++) {
-		if (k < (idx_pk - 1) || k > (idx_pk + 1)) {
-			if (ihistogram[k] > bin_pk2nd) {
-				bin_pk2nd = ihistogram[k];
-				idx_pk2nd = k;
-			}
-		}
-	}
-	pksum_2nd = (idx_pk2nd <= 1 || idx_pk2nd >= 14) ?
-		ihistogram[idx_pk2nd] :
-		(ihistogram[idx_pk2nd] +
-			ihistogram[max(min(idx_pk2nd - 1, 14), 1)] +
-			ihistogram[max(min(idx_pk2nd + 1, 14), 1)]);
-
-	dist = abs(idx_pk - idx_pk2nd);
-	if (bin_pk2nd == 0) {
-		alpha = 0;
-	} else {
-		if ((pksum_2nd >= (pksum * 4 / 16)) && dist > 2)
-			alpha = min(dist * 8, 64);
-		else
-			alpha = 0;
-	}
-	yminv = yminv_org + (minbv_org - yminv_org) * alpha / 64;
-	ymaxv = ymaxv_org + (maxbv_org - ymaxv_org) * alpha / 64;
-
-	/*2. tune ypkBV if single peak
-	 * int reg_lmtrat_sigbin = 922; 95% 1024*0.95 = 973 / 90% 1024*0.9 = 922
-	 * 85% 1024*0.85 = 870 / 80% 1024*0.8 = 819
-	 */
-
-	 /*u24 maybe 80% or 90%*/
-	thrd_sglbin = (lc_tune_curve.lc_reg_lmtrat_sigbin * amount) >> 10;
-	thrd_sglbin_thd_max =
-		(lc_tune_curve.lc_reg_lmtrat_thd_max * amount) >> 10;
-	alpha_sgl = 0;
-	tmp_peak_val = bin_pk;/*pksum; bin_pk;*/
-	if (tmp_peak_val > thrd_sglbin) {
-		alpha_sgl = (tmp_peak_val - thrd_sglbin) * 1024 /
-			(thrd_sglbin_thd_max - thrd_sglbin);
-		if (alpha_sgl > 1024)
-			alpha_sgl = 1024;
-	}
-
-	ypkbv = ypkbv_org + (pkbv_org - ypkbv_org) * alpha_sgl / 1024;
-	yminv = yminv_org + (minbv_org - yminv_org) * alpha_sgl / 1024;
-
-	/*3. check black info, global checking
-	 */
-	thrd_sglbin_thd_black =
-		(lc_tune_curve.lc_reg_lmtrat_thd_black * amount) >> 10;
-	if (lc_tune_curve.lc_reg_black_count >= thrd_sglbin_thd_black &&
-		minbv_org < lc_tune_curve.yminv_black_thd) {
-		yminv = minbv_org;
-	}
-
-	if (lc_tune_curve.lc_reg_black_count >= thrd_sglbin_thd_black &&
-		pkbv_org < lc_tune_curve.ypkbv_black_thd) {
-		ypkbv = pkbv_org;
-	}
-
-	omap[0] = yminv;
-	omap[4] = ymaxv;
-	omap[5] = ypkbv;
-	if (amlc_debug == 0xc &&
-		lc_node_prcnt > 0) {
-		if (i == lc_node_pos_v && j == lc_node_pos_h)
-			pr_info("black_count=%x thd_black=%x amount %x\n",
-				lc_tune_curve.lc_reg_black_count,
-				thrd_sglbin_thd_black, amount);
-
-		if (i == lc_node_pos_v && j == lc_node_pos_h)
-			pr_info("pos:%d %d yminV_org=%d yminV=%d ymaxV_org=%d ymaxV=%d\n",
-				i, j, yminv_org, yminv, ymaxv_org, ymaxv);
-
-		if (i == lc_node_pos_v && j == lc_node_pos_h)
-			pr_info("ypkBV_org=%d ypkBV=%d\n", ypkbv_org, ypkbv);
-	}
-}
-
 static void linear_nodes_patch(int *omap)
 {
 	omap[0] = 0;
@@ -1541,500 +1432,6 @@ static int set_lc_curve(int binit, int bcheck, int vpp_index)
 	return rflag;
 }
 
-/*
- *function: detect osd and provide osd signal status
- *output:
- *	osd_flag_cnt: signal indicate osd exist (process)
- *	frm_cnt: signal that record the sudden
- *		moment osd appear or disappear
- */
-static int osd_det_func(int *osd_flag_cnt,
-	int *frm_cnt,
-	int blk_hist_sum,
-	int *lc_hist,
-	int blk_hnum,
-	int osd_vnum_strt,
-	int osd_vnum_end)
-{
-	int i, j;
-	int min_bin_value, min_bin_percent;
-	int osd_flag;
-	int valid_blk;
-	int percent_norm = (1 << 10) - 1;
-	static int osd_hist_cnt;
-
-	osd_flag = 0;
-	min_bin_value = 0;
-
-	/*1.1, case 1: osd below,e.g. vnum=5,6(0~7)*/
-	osd_hist_cnt = 0;
-	for (i = osd_vnum_strt; i <= osd_vnum_end; i++) {/*two line*/
-		for (j = 0; j < blk_hnum; j++) {
-			min_bin_value =
-				lc_hist[(i * blk_hnum + j) *
-				(HIST_BIN + 1) + 0];/*first bin*/
-			/*black osd means first bin value very large*/
-			min_bin_percent =
-				(min_bin_value * percent_norm) /
-				(blk_hist_sum + 1);
-			if (min_bin_percent > min_bv_percent_th)
-				osd_hist_cnt++;/*black bin count*/
-			if (amlc_debug == 0x2)
-				pr_info("v2-1:osd_hist_cnt:%d, min_bin_percent:%d, (th:%d)\n",
-					osd_hist_cnt,
-					min_bin_percent,
-					min_bv_percent_th);
-		}
-	}
-	/*how many block osd occupy*/
-	valid_blk = (osd_vnum_end - osd_vnum_strt + 1) * blk_hnum -
-		invalid_blk;
-	/*we suppose when osd appear,
-	 * 1)it came in certain area,
-	 * 2)and almost all those area are black
-	 */
-	if (osd_hist_cnt > valid_blk)
-		osd_flag_cnt[1] = 1;
-	else
-		osd_flag_cnt[1] = 0;
-	/*detect the moment osd appear and disappear:*/
-	osd_flag = ((osd_flag_cnt[1] & (~(osd_flag_cnt[0]))) +
-		((~(osd_flag_cnt[1])) & osd_flag_cnt[0]));/*a^b*/
-	/*set osd appear and disappear heavy iir time*/
-	if (osd_flag && osd_iir_en)
-		*frm_cnt = 60 * ts;
-
-	/*debug*/
-	if (amlc_iir_debug_en == 10 || amlc_debug == 0x2) {
-		pr_info("osd_log v2:osd_flag_cnt[0]:%d,osd_flag_cnt[1]:%d,osd_flag:%d,frm_cnt:%d\n",
-			osd_flag_cnt[0],
-			osd_flag_cnt[1],
-			osd_flag,
-			*frm_cnt);
-		if (*frm_cnt <= 0)
-			amlc_iir_debug_en = 0;
-	}
-
-	return 0;
-}
-
-/*
- *note 1: osd appear in 5,6(0,1,2,...7) line in Vnum = 8 situation
- *		if Vnum changed, debug osd location, find
- * vnum_start_below, vnum_end_below(osd below situation,above situation is same)
- *
- * note 2: here just consider 2 situation: osd appear below or appear above
- *
- * function: 2 situation osd detect and provide
- *		osd status signal(osd_flag_cnt&frm_cnt)
- */
-static int osd_detect(int *osd_flag_cnt_above,
-	int *osd_flag_cnt_below,
-	int *frm_cnt_above,
-	int *frm_cnt_below,
-	int *lc_hist,
-	int blk_hnum)
-{
-	int k;
-	unsigned long blk_hist_sum = 0;
-
-	for (k = 0; k < HIST_BIN; k++)
-		blk_hist_sum +=
-		lc_hist[(0 * blk_hnum + 0) *
-			(HIST_BIN + 1) + k];/*use blk[0,0],16bin*/
-	/*above situation*/
-	osd_det_func(osd_flag_cnt_above,/*out*/
-				frm_cnt_above,/*out*/
-				blk_hist_sum,
-				lc_hist,
-				blk_hnum,
-				vnum_start_above,
-				vnum_end_above);
-	/*below situation*/
-	osd_det_func(osd_flag_cnt_below,/*out*/
-				frm_cnt_below,/*out*/
-				blk_hist_sum,
-				lc_hist,
-				blk_hnum,
-				vnum_start_below,
-				vnum_end_below);
-
-	return 0;
-}
-
-/*just temporarily define here to avoid grammar error*/
-static int video_scene_change_flag_en;
-static int video_scene_change_flag;
-/*function: detect global scene change signal
- *output: scene_change_flag
- */
-int global_scene_change(int *curve_nodes_cur,
-	int *curve_nodes_pre,
-	int blk_vnum,
-	int blk_hnum,
-	int *osd_flag_cnt_above,
-	int *osd_flag_cnt_below)
-{
-	int scene_change_flag;
-	static int scene_dif[N_DELAY];
-	static int frm_dif[N_DELAY];
-	/*store frame valid block for frm diff calc*/
-	static int valid_blk_num[N_DELAY];
-
-	int frm_dif_osd, vnum_osd;
-	int addr_curv1;
-	int apl_cur, apl_pre;
-	int i, j;
-
-	/*history message delay*/
-	for (i = 0; i < N_DELAY - 1; i++) {
-		scene_dif[i] = scene_dif[i + 1];
-		frm_dif[i] = frm_dif[i + 1];
-		valid_blk_num[i] = valid_blk_num[i + 1];
-	}
-
-	if (video_scene_change_flag_en) {
-		scene_change_flag =
-			video_scene_change_flag;/*2.1 flag from front module*/
-	} else {
-		/* 2.2.1 use block APL to calculate frame dif:
-		 * omap[5]: (yminV), minBV, pkBV, maxBV, (ymaxV),ypkBV
-		 */
-		frm_dif[N_DELAY - 1] = 0;/*update current result*/
-		scene_dif[N_DELAY - 1] = 0;
-		valid_blk_num[N_DELAY - 1] = 0;
-		frm_dif_osd = 0;
-		vnum_osd = 0;
-		for (i = 0; i < blk_vnum; i++) {
-			for (j = 0; j < blk_hnum; j++) {
-				addr_curv1 = (i * blk_hnum + j);
-				apl_cur = curve_nodes_cur[addr_curv1 *
-					CURV_NODES + 2];/*apl value*/
-				apl_pre = curve_nodes_pre[addr_curv1 *
-					CURV_NODES + 2];
-				frm_dif[N_DELAY - 1] +=
-					abs(apl_cur - apl_pre);/*frame motion*/
-
-				/*when have osd,
-				 *	remove them to calc frame motion
-				 */
-				if (osd_flag_cnt_below[1] &&
-					i >= vnum_start_below &&
-					i <= vnum_end_below) {
-					frm_dif_osd += abs(apl_cur - apl_pre);
-					vnum_osd =
-						vnum_end_below -
-						vnum_start_below + 1;
-				}
-
-				if (osd_flag_cnt_above[1] &&
-					i >= vnum_start_above &&
-					i <= vnum_end_above) {
-					frm_dif_osd += abs(apl_cur - apl_pre);
-					vnum_osd =
-						vnum_end_above -
-						vnum_start_above + 1;
-				}
-			}
-		}
-		/*remove osd to calc frame motion */
-		frm_dif[N_DELAY - 1] = frm_dif[N_DELAY - 1] - frm_dif_osd;
-		valid_blk_num[N_DELAY - 1] = (blk_vnum - vnum_osd) * blk_hnum;
-		/*debug*/
-		if (amlc_debug == 0x4) {
-			pr_info("#vnum_osd = %d;\n", vnum_osd);
-			pr_info("#valid_blk_num[%d] =  %d\n",
-				N_DELAY - 1, valid_blk_num[N_DELAY - 1]);
-			pr_info("#valid_blk_num[%d] =  %d\n",
-				N_DELAY - 2, valid_blk_num[N_DELAY - 2]);
-		}
-
-		/*2.2.2motion dif.if motion dif too large,
-		 *	we think scene changed
-		 */
-		scene_dif[N_DELAY - 1] =
-			abs((frm_dif[N_DELAY - 1] / (valid_blk_num[N_DELAY - 1] + 1)) -
-			(frm_dif[N_DELAY - 2] / (valid_blk_num[N_DELAY - 2] + 1)));
-
-		if (scene_dif[N_DELAY - 1] > scene_change_th) {
-			scene_change_flag = 1;
-			pr_amlc_dbg("%s scene_dif/scene_change_th = %d/%d\n",
-				__func__, scene_dif[N_DELAY - 1], scene_change_th);
-		} else {
-			scene_change_flag = 0;
-		}
-
-		/*debug*/
-		if (scene_dif[N_DELAY - 1] > scene_change_th && amlc_iir_debug_en) {
-			for (i = 0; i < N_DELAY; i++)
-				pr_info("valid_blk_num[%d] = %d,\n",
-					i, valid_blk_num[i]);
-			for (i = 0; i < N_DELAY; i++)
-				pr_info("frm_dif[%d] = %d,\n",
-					i, frm_dif[i]);
-			pr_info("\n\n");
-			for (i = 0; i < N_DELAY; i++)
-				pr_info("scene_dif[%d] = %d,\n",
-					i, scene_dif[i]);
-			pr_info("scene_change_flag =%d\n\n",
-				scene_change_flag);
-		}
-	}
-	return scene_change_flag;
-}
-
-/*
- *function: set tiir alpha based on different situation
- *input: scene_change_flag, frm_cnt(frm_cnt_above,frm_cnt_below)
- *out:refresh_alpha[96]
- */
-int cal_iir_alpha(int *refresh_alpha,
-	int blk_vnum,
-	int blk_hnum,
-	int refresh,
-	int scene_change_flag,
-	int frm_cnt_above,
-	int frm_cnt_below)
-{
-	int addr_curv1;
-	int osd_local_p, osd_local_m;
-	int i, j, k;
-
-	if (chip_type_id == chip_t3x) {
-		for (i = 0; i < blk_vnum; i++) {
-			for (j = 0; j < blk_hnum; j++) {
-				addr_curv1 = (i * blk_hnum + j);
-				refresh_alpha[addr_curv1] = alpha1;/*normal iir*/
-			}
-		}
-
-		return 0;
-	}
-
-	/* 3.1 global scene change,highest priority */
-	if (scene_change_flag) {/*only use current curve*/
-		for (i = 0; i < blk_vnum; i++) {
-			for (j = 0; j < blk_hnum; j++) {
-				for (k = 0; k < CURV_NODES; k++) {
-					addr_curv1 = (i * blk_hnum + j);
-					refresh_alpha[addr_curv1] = refresh;/*alpha1;*/
-				}
-			}
-		}
-	} else {/*time domain alpha blend, may need optimize*/
-		for (i = 0; i < blk_vnum; i++) {
-			for (j = 0; j < blk_hnum; j++) {
-				addr_curv1 = (i * blk_hnum + j);
-				refresh_alpha[addr_curv1] =
-					alpha1;/*normal iir*/
-			}
-		}
-	}
-
-	/*3.2 osd situation-1, osd below */
-	if (frm_cnt_below > 0) {
-		osd_local_p = max(vnum_start_below - 1, 0);
-		osd_local_m = min(vnum_end_below + 1, blk_vnum);
-
-		for (i = osd_local_p; i <= osd_local_m; i++) {
-			for (j = 0; j < blk_hnum; j++) {
-				addr_curv1 = (i * blk_hnum + j);
-				/*osd around(-1,osd,+1) use heavy iir*/
-				refresh_alpha[addr_curv1] = alpha2;
-			}
-		}
-	}
-	/*3.2 osd situation-2, osd above */
-	if (frm_cnt_above > 0) {
-		osd_local_p = max(vnum_start_below - 1, 0);
-		osd_local_m = min(vnum_end_below + 1, blk_vnum);
-
-		for (i = osd_local_p; i <= osd_local_m; i++) {
-			for (j = 0; j < blk_hnum; j++) {
-				addr_curv1 = (i * blk_hnum + j);
-				/*osd around use heavy iir*/
-				refresh_alpha[addr_curv1] = alpha2;
-			}
-		}
-	}
-
-	return 0;
-}
-
-/*function: curve iir process
- *	out: curve_nodes_cur(after iir)
- */
-int cal_curv_iir(int *curve_nodes_cur,
-	int *curve_nodes_pre,
-	int *refresh_alpha,
-	int blk_vnum,
-	int blk_hnum,
-	int refresh)
-{
-	int i, j, k;
-	s64 tmap[CURV_NODES], node_pre_raw;
-	int addr_curv1, addr_curv2;
-	int node_cur;
-
-	for (i = 0; i < blk_vnum; i++) {
-		for (j = 0; j < blk_hnum; j++) {
-			addr_curv1 = (i * blk_hnum + j);
-			for (k = 0; k < CURV_NODES; k++) {
-				addr_curv2 =
-					(i * blk_hnum + j) * CURV_NODES + k;
-				node_cur =/*u12 calc*/
-					(curve_nodes_cur[addr_curv2] << 2);
-				node_pre_raw =
-					curve_nodes_pre_raw[addr_curv2];
-				tmap[k] =
-					(node_cur * refresh_alpha[addr_curv1])
-					+ ((node_pre_raw *
-					(refresh - refresh_alpha[addr_curv1]))
-						>> refresh_bit);
-				curve_nodes_pre_raw[addr_curv2] =
-					tmap[k];
-				tmap[k] = (tmap[k] + (1 << (1 + refresh_bit)))
-							>> (2 + refresh_bit);
-				/*output the iir result*/
-				curve_nodes_cur[addr_curv2] =
-					(int)(tmap[k]);/*back to u10*/
-				/*delay for next iir*/
-				curve_nodes_pre[addr_curv2] =
-					(int)(tmap[k]);
-			}
-		}
-	}
-	return 0;
-}
-
-/*
- * attention !
- * note 1:
- *		video_scene_change_flag_en
- *		video_scene_change_flag
- *should from front module,indicate scene changed;
- *
- * Note 2: OSD appear location
- *      vnum_start_below
- *      vnum_end_below (case1)
- *      vnum_start_above
- *      vnum_end_above (case2)
- */
-
- /* iir algorithm top level path */
-static void lc_fw_curve_iir(struct vframe_s *vf,
-	int *lc_hist,
-	int *lc_szcurve,
-	int blk_vnum,
-	int blk_hnum)
-{
-	int i;
-	int scene_change_flag;
-	/* osd detect */
-	static int frm_cnt_below, frm_cnt_above;
-	static int osd_flag_cnt_below[2];
-	static int osd_flag_cnt_above[2];
-	/* alpha blend init */
-	int refresh_alpha[96] = {0};/*96=vnum*hnum*/
-	int refresh = 1 << refresh_bit;
-	int temp1, temp2;
-
-	if (!vf || lc_skip_iir)
-		return;
-
-	if (!lc_curve_fresh)
-		goto stop_curvefresh;
-
-	/* pre: get curve nodes from szCurveInfo and save to curve_nodes_cur*/
-	for (i = 0; i < 580; i++)/*12*8*6+4*/
-		curve_nodes_cur[i] = lc_szcurve[i];
-
-	/* pre: osd flag delay*/
-	osd_flag_cnt_below[0] = osd_flag_cnt_below[1];
-	osd_flag_cnt_above[0] = osd_flag_cnt_above[1];
-
-	if (amlc_debug == 0xc &&
-		lc_node_prcnt > 0) {
-		temp1 =
-		curve_nodes_cur[(lc_node_pos_v * 12 + lc_node_pos_h) * 6 + 5];
-		temp2 =
-		curve_nodes_pre[(lc_node_pos_v * 12 + lc_node_pos_h) * 6 + 5];
-		pr_info("before iir ypkBV[%d][%d]=%d, ypkBVpre[%d][%d]=%d\n",
-			lc_node_pos_v,
-			lc_node_pos_h,
-			temp1,
-			lc_node_pos_v,
-			lc_node_pos_h,
-			temp2);
-	}
-
-	/* step 1: osd detect*/
-	if (chip_type_id != chip_t3x)
-		osd_detect(osd_flag_cnt_above,/*out*/
-			osd_flag_cnt_below,/*out*/
-			&frm_cnt_above,/*out*/
-			&frm_cnt_below,/*out: osd case heavy iir time */
-			lc_hist,
-			blk_hnum);
-
-	/*step 2: scene change signal get: two method*/
-	scene_change_flag = global_scene_change(curve_nodes_cur,
-		curve_nodes_pre, blk_vnum, blk_hnum,
-		osd_flag_cnt_above, osd_flag_cnt_below);
-	if (scene_change_flag) {
-		memset(osd_flag_cnt_below, 0, sizeof(int) * 2);
-		memset(osd_flag_cnt_above, 0, sizeof(int) * 2);
-		frm_cnt_below = 0;
-		frm_cnt_above = 0;
-		pr_amlc_dbg("%s scene_change_flag = %d\n",
-			__func__, scene_change_flag);
-	}
-
-	if (cur_scene_change_flag != scene_change_flag)
-		cur_scene_change_flag = scene_change_flag;
-
-	/* step 3: set tiir alpha based on different situation */
-	cal_iir_alpha(refresh_alpha,/*out*/
-		blk_vnum, blk_hnum, refresh,
-		scene_change_flag, frm_cnt_above, frm_cnt_below);
-
-	/* step 4: iir filter */
-	cal_curv_iir(curve_nodes_cur,/*out: iir-ed curve*/
-		curve_nodes_pre,/*out: store previous frame curve */
-		refresh_alpha, blk_vnum, blk_hnum, refresh);
-
-	if (amlc_debug == 0xc &&
-		lc_node_prcnt > 0) {
-		temp1 =
-		curve_nodes_cur[(lc_node_pos_v * 12 + lc_node_pos_h) * 6 + 5];
-		temp2 =
-		curve_nodes_pre[(lc_node_pos_v * 12 + lc_node_pos_h) * 6 + 5];
-		pr_info("after iir ypkBV[%d][%d]=%d, ypkBVpre[%d][%d]=%d\n",
-			lc_node_pos_v,
-			lc_node_pos_h,
-			temp1,
-			lc_node_pos_v,
-			lc_node_pos_h,
-			temp2);
-	}
-
-	for (i = 0; i < 580; i++)
-		lc_szcurve[i] = curve_nodes_cur[i];/*output*/
-
-	frm_cnt_below--;
-	if (frm_cnt_below < 0)
-		frm_cnt_below = 0;
-
-	frm_cnt_above--;
-	if (frm_cnt_above < 0)
-		frm_cnt_above = 0;
-	return;
-
-stop_curvefresh:
-	for (i = 0; i < 580; i++)
-		lc_szcurve[i] = curve_nodes_cur[i];/*output*/
-}
-
 static void _read_region(int blk_vnum, int blk_hnum)
 {
 	int i, j, k;
@@ -2100,9 +1497,10 @@ static void _read_region(int blk_vnum, int blk_hnum)
 
 			/*part3: add tune curve node patch--by vlsi-guopan*/
 			if (tune_curve_en == 2) {
-				tune_nodes_patch(&lc_szcurve[cur_block * 6],
-					&lc_hist[cur_block * 17],
-					i, j);
+				if (lc_drv_param.tune_nodes_patch)
+					lc_drv_param.tune_nodes_patch(&lc_szcurve[cur_block * 6],
+						&lc_hist[cur_block * 17],
+						i, j);
 			} else if (tune_curve_en == 1) {
 				linear_nodes_patch(&lc_szcurve[cur_block * 6]);
 			}
@@ -2234,6 +1632,33 @@ void lc_prt_curve(void)
 			pr_amlc_dbg("\n");
 		}
 	}
+}
+
+static void lc_drv_param_init(void)
+{
+	lc_drv_param.curve_nodes_cur = curve_nodes_cur;
+	lc_drv_param.curve_nodes_pre = curve_nodes_pre;
+	lc_drv_param.refresh_bit = &refresh_bit;
+	lc_drv_param.vnum_start_below = &vnum_start_below;
+	lc_drv_param.vnum_end_below = &vnum_end_below;
+	lc_drv_param.vnum_start_above = &vnum_start_above;
+	lc_drv_param.vnum_end_above = &vnum_end_above;
+	lc_drv_param.invalid_blk = &invalid_blk;
+	lc_drv_param.osd_iir_en = &osd_iir_en;
+	lc_drv_param.ts = &ts;
+	lc_drv_param.scene_change_th = &scene_change_th;
+	lc_drv_param.alpha1 = &alpha1;
+	lc_drv_param.alpha2 = &alpha2;
+	lc_drv_param.min_bv_percent_th = &min_bv_percent_th;
+	lc_drv_param.amlc_debug = &amlc_debug;
+	lc_drv_param.amlc_iir_debug_en = &amlc_iir_debug_en;
+	lc_drv_param.lc_node_prcnt = &lc_node_prcnt;
+	lc_drv_param.lc_node_pos_h = &lc_node_pos_h;
+	lc_drv_param.lc_node_pos_v = &lc_node_pos_v;
+	lc_drv_param.lc_curve_prcnt = &lc_curve_prcnt;
+	lc_drv_param.lc_curve_fresh = &lc_curve_fresh;
+	lc_drv_param.curve_nodes_pre_raw = curve_nodes_pre_raw;
+	lc_drv_param.lc_tune_curve = &lc_tune_curve;
 }
 
 void lc_init(int bitdepth)
@@ -2438,6 +1863,7 @@ void lc_init(int bitdepth)
 		ve_lc_curve_set(1, 0, NULL, 0, 0);
 		ve_lc_curve_set(1, 0, NULL, 1, 0);
 	}
+	lc_drv_param_init();
 }
 
 bool lc_curve_ctrl_reg_set_flag(unsigned int addr)
@@ -2585,6 +2011,183 @@ void dbg_monitor(struct vframe_s *vf,
 	}
 }
 
+int get_lc_pattern_gain(void)
+{
+	int k, left, rgt;
+	int idx1 = 0, idx2 = 0, idx_max = 0;
+	int hcnt[4], vcnt[4], pdcnt[4], ndcnt[4], cntsum[4], integer_part[4], frac_part[4];
+	int lc_gain = 0;
+	int frac_bitw = 8;
+	int lc_pattern_gain[100] = {
+		/*0   1   2   3   4   5   6   7   8   9*/
+		64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+		64, 58, 52, 38, 32, 26, 20, 12, 6,  0,
+		0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+		0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+		0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+		0,  0,  0,  0,  0,  0,  0,  0,  0,  0,/*5*/
+		0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+		0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+		0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+		0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+	};/*norm 64 as 1*/
+
+	for (k = 0; k < 4; k++) {
+		hcnt[k] = 0;
+		vcnt[k] = 0;
+		pdcnt[k] = 0;
+		ndcnt[k] = 0;
+		cntsum[k] = 0;
+		integer_part[k] = 0;
+		frac_part[k] = 0;
+	}
+
+	hcnt[0] = (data_meter.fmeter1_hcnt[0] + 16) >> 5;
+	hcnt[1] = (data_meter.fmeter1_hcnt[1] + 16) >> 5;
+	hcnt[2] = (data_meter.fmeter1_hcnt[2] + 16) >> 5;
+	hcnt[3] = (data_meter.fmeter1_hcnt[3] + 16) >> 5;
+
+	vcnt[0] = (data_meter.fmeter1_vcnt[0] + 16) >> 5;
+	vcnt[1] = (data_meter.fmeter1_vcnt[1] + 16) >> 5;
+	vcnt[2] = (data_meter.fmeter1_vcnt[2] + 16) >> 5;
+	vcnt[3] = (data_meter.fmeter1_vcnt[3] + 16) >> 5;
+
+	pdcnt[0] = (data_meter.fmeter1_pdcnt[0] + 16) >> 5;
+	pdcnt[1] = (data_meter.fmeter1_pdcnt[1] + 16) >> 5;
+	pdcnt[2] = (data_meter.fmeter1_pdcnt[2] + 16) >> 5;
+	pdcnt[3] = (data_meter.fmeter1_pdcnt[3] + 16) >> 5;
+
+	ndcnt[0] = (data_meter.fmeter1_ndcnt[0] + 16) >> 5;
+	ndcnt[1] = (data_meter.fmeter1_ndcnt[1] + 16) >> 5;
+	ndcnt[2] = (data_meter.fmeter1_ndcnt[2] + 16) >> 5;
+	ndcnt[3] = (data_meter.fmeter1_ndcnt[3] + 16) >> 5;
+
+	cntsum[0] = hcnt[0] + hcnt[1] + hcnt[2];
+	cntsum[1] = vcnt[0] + vcnt[1] + vcnt[2];
+	cntsum[2] = pdcnt[0] + pdcnt[1] + pdcnt[2];
+	cntsum[3] = ndcnt[0] + ndcnt[1] + ndcnt[2];
+
+	integer_part[0] = (100 * cntsum[0]) / (cntsum[0] + hcnt[3] + 1);
+	integer_part[1] = (100 * cntsum[1]) / (cntsum[1] + vcnt[3] + 1);
+	integer_part[2] = (100 * cntsum[2]) / (cntsum[2] + pdcnt[3] + 1);
+	integer_part[3] = (100 * cntsum[3]) / (cntsum[3] + ndcnt[3] + 1);
+
+	frac_part[0] = (((100 * cntsum[0]) << frac_bitw) / (cntsum[0] + hcnt[3] + 1)) -
+		(integer_part[0] << frac_bitw);
+	frac_part[1] = (((100 * cntsum[1]) << frac_bitw) / (cntsum[1] + vcnt[3] + 1)) -
+		(integer_part[1] << frac_bitw);
+	frac_part[2] = (((100 * cntsum[2]) << frac_bitw) / (cntsum[2] + pdcnt[3] + 1)) -
+		(integer_part[2] << frac_bitw);
+	frac_part[3] = (((100 * cntsum[3]) << frac_bitw) / (cntsum[3] + ndcnt[3] + 1)) -
+		(integer_part[3] << frac_bitw);
+
+	/*get max idx*/
+	idx1 = integer_part[0] > integer_part[1] ? 0 : 1;
+	idx2 = integer_part[2] > integer_part[3] ? 2 : 3;
+	idx_max = integer_part[idx1] > integer_part[idx2] ? idx1 : idx2;
+
+	/*get gain*/
+	left = integer_part[idx_max];
+	left = min(max(left, 0), 99);
+	rgt = min(left + 1, 99);
+	lc_gain = lc_pattern_gain[left] +
+		(((lc_pattern_gain[rgt] - lc_pattern_gain[left]) *
+		frac_part[idx_max] + (1 << (frac_bitw - 1))) >> frac_bitw);
+
+	if (lc_pattern_detect_log1) {
+		lc_pattern_detect_log1_cnt++;
+
+		if (lc_pattern_detect_log1_cnt > 1) {
+			for (k = 0; k < 4; k++) {
+				pr_info("hcnt[%d] = %d\n",
+					k, data_meter.fmeter1_hcnt[k]);
+				pr_info("vcnt[%d] = %d\n",
+					k, data_meter.fmeter1_vcnt[k]);
+				pr_info("pdcnt[%d] = %d\n",
+					k, data_meter.fmeter1_pdcnt[k]);
+				pr_info("ndcnt[%d] = %d\n",
+					k, data_meter.fmeter1_ndcnt[k]);
+			}
+
+			pr_info("lc_gain = %d\n", lc_gain);
+			pr_info("end...\n\n");
+
+			lc_pattern_detect_log1_cnt = 0;
+			lc_pattern_detect_log1 = 0;
+		}
+	}
+
+	return lc_gain;
+}
+
+void lc_change_pattern_curve_nodes(int lc_gain)
+{
+	int i, j;
+	int blk_hnum, blk_vnum;
+	unsigned int temp1, temp2, cur_block;
+	int dif_value1, dif_value2, dif_value3;
+
+	lc_curve_get_blk_num(&blk_hnum, &blk_vnum);
+
+	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 1);
+	WRITE_VPP_REG(LC_CURVE_RAM_ADDR, 0);
+
+	for (i = 0; i < blk_vnum; i++) {
+		for (j = 0; j < blk_hnum; j++) {
+			cur_block = i * blk_hnum + j;
+			/*part1: get lc curve node*/
+			temp1 = READ_VPP_REG(LC_CURVE_RAM_DATA);
+			temp2 = READ_VPP_REG(LC_CURVE_RAM_DATA);
+
+			lc_szcurve[cur_block * 6 + 0] =
+				temp1 & 0x3ff;         //bit0:9      yminV
+			lc_szcurve[cur_block * 6 + 1] =
+				(temp1 >> 10) & 0x3ff; //bit10:19    minBV
+			lc_szcurve[cur_block * 6 + 2] =
+				(temp1 >> 20) & 0x3ff; //bit20:29    PKBV
+			lc_szcurve[cur_block * 6 + 3] =
+				temp2 & 0x3ff;         //bit0:9      maxBV
+			lc_szcurve[cur_block * 6 + 4] =
+				(temp2 >> 10) & 0x3ff; //bit10:19    ymaxV
+			lc_szcurve[cur_block * 6 + 5] =
+				(temp2 >> 20) & 0x3ff; //bit20:29    ypkBV
+
+			/*add logic*/
+			dif_value1 = 0;
+			dif_value2 = 0;
+			dif_value3 = 0;
+
+			dif_value1 = lc_szcurve[cur_block * 6 + 1] -
+				lc_szcurve[cur_block * 6 + 0];
+			lc_szcurve[cur_block * 6 + 0] = lc_szcurve[cur_block * 6 + 0] +
+				((lc_gain * dif_value1 + 32) >> 6);
+
+			dif_value2 = lc_szcurve[cur_block * 6 + 2] -
+				lc_szcurve[cur_block * 6 + 5];
+			lc_szcurve[cur_block * 6 + 5] = lc_szcurve[cur_block * 6 + 5] +
+				((lc_gain * dif_value2 + 32) >> 6);
+
+			dif_value3 = lc_szcurve[cur_block * 6 + 3] -
+				lc_szcurve[cur_block * 6 + 4];
+			lc_szcurve[cur_block * 6 + 4] = lc_szcurve[cur_block * 6 + 4] +
+				((lc_gain * dif_value3 + 32) >> 6);
+
+			if (lc_read_curve_nodes_changed_en)
+				pr_info("block[%d, %d] = %d, %d, %d, %d, %d, %d\n", i, j,
+					lc_szcurve[cur_block * 6 + 0],
+					lc_szcurve[cur_block * 6 + 1],
+					lc_szcurve[cur_block * 6 + 2],
+					lc_szcurve[cur_block * 6 + 3],
+					lc_szcurve[cur_block * 6 + 4],
+					lc_szcurve[cur_block * 6 + 5]);
+		}
+	}
+
+	lc_read_curve_nodes_changed_en = 0;
+
+	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 0);
+}
+
 void lc_process(struct vframe_s *vf,
 	unsigned int sps_h_en,
 	unsigned int sps_v_en,
@@ -2598,6 +2201,7 @@ void lc_process(struct vframe_s *vf,
 	int multi_slice_flag = 0;
 	int lc_bypass_th = 0;
 	unsigned int height, width;
+	int lc_gain = 0;
 
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1 ||
 		chip_type_id == chip_s5 ||
@@ -2611,6 +2215,11 @@ void lc_process(struct vframe_s *vf,
 
 	if (!lc_malloc_ok) {
 		pr_amlc_dbg("[%s] lc malloc fail\n", __func__);
+		return;
+	}
+
+	if (!lc_drv_param.lc_fw_curve_iir || !lc_drv_param.tune_nodes_patch) {
+		pr_amlc_dbg("[%s] lc alg null\n", __func__);
 		return;
 	}
 
@@ -2689,9 +2298,16 @@ void lc_process(struct vframe_s *vf,
 		if (!use_lc_curve_isr || !lc_curve_isr_defined)
 			lc_read_region(blk_vnum, blk_hnum, 0);
 
-		/*do time domain iir*/
-		lc_fw_curve_iir(vf, lc_hist,
-			lc_szcurve, blk_vnum, blk_hnum);
+		if (lc_change_curve_nodes_en) {
+			lc_gain = get_lc_pattern_gain();
+			lc_change_pattern_curve_nodes(lc_gain);
+		}
+
+		if (vf && !lc_skip_iir)
+			/*do time domain iir*/
+			lc_drv_param.lc_fw_curve_iir(lc_hist,
+				lc_szcurve, blk_vnum, blk_hnum, chip_type_id);
+
 		if (lc_curve_prcnt > 0) { /*debug lc curve node*/
 			lc_prt_curve();
 			lc_curve_prcnt--;
@@ -2715,9 +2331,10 @@ void lc_process(struct vframe_s *vf,
 		/*}*/
 		lc_read_region(blk_vnum, blk_hnum, 0);
 
-		/*do time domain iir*/
-		lc_fw_curve_iir(vf, lc_hist,
-			lc_szcurve, blk_vnum, blk_hnum);
+		if (vf && !lc_skip_iir)
+			/*do time domain iir*/
+			lc_drv_param.lc_fw_curve_iir(lc_hist,
+				lc_szcurve, blk_vnum, blk_hnum, chip_type_id);
 
 		if (lc_curve_prcnt > 0) { /*debug lc curve node*/
 			lc_prt_curve();
@@ -2753,4 +2370,841 @@ void lc_free(void)
 
 	lc_malloc_ok = 0;
 }
+
+void lc_slt_en(int     enable)
+{
+	if (enable) {
+		lc_init(lc_bitdepth);
+		tune_curve_en = 1;
+		lc_skip_iir = 1;
+		lc_en = 1;
+		ve_lc_mapping_ctrl(lc_en, 1, 0);
+	} else {
+		lc_skip_iir = 0;
+		tune_curve_en = 2;
+	}
+}
+
+void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
+{
+	int i, j, tmp, tmp1, tmp2, len = 12;
+	int lut_data[63] = {0};
+	char *stemp = NULL;
+	int slice_index = 0;
+	unsigned int reg_sat0 = SRSHARP1_LC_SAT_LUT_0_1;
+	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
+	unsigned int adr = 16;
+
+	if (chip_type_id == chip_t6d) {
+		reg_sat0 = VPP_LC_SATUR_LUT_0;
+		reg_sat = VPP_LC_SATUR_LUT_F;
+		adr = 12;
+	}
+
+	if (chip_type_id == chip_t3x) {
+		ve_lc_rd_reg(reg_sel, data_type, buf, slice_index);
+		return;
+	}
+
+	if (data_type == 1)
+		goto dump_as_string;
+
+	switch (reg_sel) {
+	case SATUR_LUT:
+		for (i = 0; i < 31 ; i++) {
+			tmp = READ_VPP_REG(reg_sat0 + i);
+			if (chip_type_id == chip_t6d) {
+				tmp2 = (tmp >> adr) & 0xfff;
+				tmp1 = tmp & 0xfff;
+			} else {
+				tmp1 = (tmp >> adr) & 0xfff;
+				tmp2 = tmp & 0xfff;
+			}
+			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
+				2 * i, tmp1);
+			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
+				2 * i + 1, tmp2);
+		}
+		tmp = READ_VPP_REG(reg_sat);
+		pr_info("reg_lc_satur_lut[62] =%4d.\n",
+			tmp & 0xfff);
+		break;
+	case YMINVAL_LMT:
+		for (i = 0; i < 6 ; i++) {
+			tmp = READ_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i);
+			tmp1 = (tmp >> 16) & 0x3ff;
+			tmp2 = tmp & 0x3ff;
+			pr_info("reg_yminVal_lmt[%d] =%4d.\n",
+				2 * i, tmp1);
+			pr_info("reg_yminVal_lmt[%d] =%4d.\n",
+				2 * i + 1, tmp2);
+		}
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			for (j = 0; j < 2 ; j++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				pr_info("reg_yminVal_lmt[%d] =%4d.\n",
+					2 * i, tmp1);
+				pr_info("reg_yminVal_lmt[%d] =%4d.\n",
+					2 * i + 1, tmp2);
+				i++;
+			}
+		}
+		break;
+	case YPKBV_YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
+			break;
+
+		for (i = 0; i < 6 ; i++) {
+			tmp = READ_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i);
+			tmp1 = (tmp >> 16) & 0x3ff;
+			tmp2 = tmp & 0x3ff;
+			pr_info("reg_lc_ypkBV_ymaxVal_lmt[%d] =%4d.\n",
+				2 * i, tmp1);
+			pr_info("reg_lc_ypkBV_ymaxVal_lmt[%d] =%4d.\n",
+				2 * i + 1, tmp2);
+		}
+		break;
+	case YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			for (i = 0; i < 6 ; i++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
+					2 * i, tmp1);
+				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
+					2 * i + 1, tmp2);
+			}
+
+			for (j = 0; j < 2 ; j++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
+					2 * i, tmp1);
+				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
+					2 * i + 1, tmp2);
+				i++;
+			}
+		}
+		break;
+	case YPKBV_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			for (i = 0; i < 8 ; i++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				pr_info("reg_lc_ypkBV_lmt[%d] =%4d.\n",
+					2 * i, tmp1);
+				pr_info("reg_lc_ypkBV_lmt[%d] =%4d.\n",
+					2 * i + 1, tmp2);
+			}
+		}
+		break;
+	case YPKBV_RAT:
+		tmp = READ_VPP_REG(LC_CURVE_YPKBV_RAT);
+		pr_info("reg_lc_ypkBV_ratio[0] =%4d.\n",
+			(tmp >> 24) & 0xff);
+		pr_info("reg_lc_ypkBV_ratio[1] =%4d.\n",
+			(tmp >> 16) & 0xff);
+		pr_info("reg_lc_ypkBV_ratio[2] =%4d.\n",
+			(tmp >> 8) & 0xff);
+		pr_info("reg_lc_ypkBV_ratio[3] =%4d.\n",
+			tmp & 0xff);
+		break;
+	case YPKBV_SLP_LMT:
+		tmp = READ_VPP_REG(LC_CURVE_YPKBV_SLP_LMT);
+		pr_info("reg_lc_ypkBV_slope_lmt[0] =%4d.\n",
+			(tmp >> 8) & 0xff);
+		pr_info("reg_lc_ypkBV_slope_lmt[1] =%4d.\n",
+			tmp & 0xff);
+		break;
+	case CNTST_LMT:
+		tmp = READ_VPP_REG(LC_CURVE_CONTRAST__LMT_LH);
+		pr_info("reg_lc_cntstlmt_low[0] =%4d.\n",
+			(tmp >> 24) & 0xff);
+		pr_info("reg_lc_cntstlmt_high[0] =%4d.\n",
+			(tmp >> 16) & 0xff);
+		pr_info("reg_lc_cntstlmt_low[1] =%4d.\n",
+			(tmp >> 8) & 0xff);
+		pr_info("reg_lc_cntstlmt_high[1] =%4d.\n",
+			tmp & 0xff);
+		break;
+	default:
+		break;
+	}
+	return;
+
+dump_as_string:
+	stemp = kzalloc(300, GFP_KERNEL);
+	if (!stemp)
+		return;
+	memset(stemp, 0, 300);
+	switch (reg_sel) {
+	case SATUR_LUT:
+		for (i = 0; i < 31 ; i++) {
+			tmp = READ_VPP_REG(reg_sat0 + i);
+			if (chip_type_id == chip_t6d) {
+				tmp2 = (tmp >> adr) & 0xfff;
+				tmp1 = tmp & 0xfff;
+			} else {
+				tmp1 = (tmp >> adr) & 0xfff;
+				tmp2 = tmp & 0xfff;
+			}
+			lut_data[2 * i] = tmp1;
+			lut_data[2 * i + 1] = tmp2;
+		}
+		tmp = READ_VPP_REG(reg_sat);
+		lut_data[62] = tmp & 0xfff;
+		for (i = 0; i < 63 ; i++)
+			d_convert_str(lut_data[i],
+						i, stemp, 4, 10);
+		memcpy(buf, stemp, 300);
+		break;
+	case YMINVAL_LMT:
+		for (i = 0; i < 6 ; i++) {
+			tmp = READ_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i);
+			tmp1 = (tmp >> 16) & 0x3ff;
+			tmp2 = tmp & 0x3ff;
+			lut_data[2 * i] = tmp1;
+			lut_data[2 * i + 1] = tmp2;
+		}
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			len = 16;
+			for (j = 0; j < 2 ; j++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				lut_data[2 * i] = tmp1;
+				lut_data[2 * i + 1] = tmp2;
+				i++;
+			}
+		}
+		for (i = 0; i < len ; i++)
+			d_convert_str(lut_data[i],
+						i, stemp, 4, 10);
+		memcpy(buf, stemp, 300);
+		break;
+	case YPKBV_YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
+			break;
+
+		for (i = 0; i < 6 ; i++) {
+			tmp = READ_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i);
+			tmp1 = (tmp >> 16) & 0x3ff;
+			tmp2 = tmp & 0x3ff;
+			lut_data[2 * i] = tmp1;
+			lut_data[2 * i + 1] = tmp2;
+		}
+		for (i = 0; i < 12 ; i++)
+			d_convert_str(lut_data[i],
+				      i, stemp, 4, 10);
+		memcpy(buf, stemp, 300);
+		break;
+	case YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			for (i = 0; i < 6 ; i++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				lut_data[2 * i] = tmp1;
+				lut_data[2 * i + 1] = tmp2;
+			}
+
+			len = 16;
+			for (j = 0; j < 2 ; j++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				lut_data[2 * i] = tmp1;
+				lut_data[2 * i + 1] = tmp2;
+				i++;
+			}
+		}
+		for (i = 0; i < len ; i++)
+			d_convert_str(lut_data[i],
+				      i, stemp, 4, 10);
+		memcpy(buf, stemp, 300);
+		break;
+	case YPKBV_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			for (i = 0; i < 8 ; i++) {
+				tmp = READ_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				lut_data[2 * i] = tmp1;
+				lut_data[2 * i + 1] = tmp2;
+			}
+			for (i = 0; i < 16 ; i++)
+				d_convert_str(lut_data[i],
+					      i, stemp, 4, 10);
+			memcpy(buf, stemp, 300);
+		}
+		break;
+	case YPKBV_RAT:
+		tmp = READ_VPP_REG(LC_CURVE_YPKBV_RAT);
+		lut_data[0] = (tmp >> 24) & 0xff;
+		lut_data[1] = (tmp >> 16) & 0xff;
+		lut_data[2] = (tmp >> 8) & 0xff;
+		lut_data[3] = tmp & 0xff;
+		for (i = 0; i < 4 ; i++)
+			d_convert_str(lut_data[i],
+						i, stemp, 4, 10);
+		memcpy(buf, stemp, 300);
+		break;
+	default:
+		break;
+	}
+	kfree(stemp);
+}
+
+void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
+{
+	int i, j, tmp, tmp1, tmp2;
+	unsigned int reg_sat0 = SRSHARP1_LC_SAT_LUT_0_1;
+	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
+	unsigned int adr = 16;
+
+	if (chip_type_id == chip_t6d) {
+		reg_sat0 = VPP_LC_SATUR_LUT_0;
+		reg_sat = VPP_LC_SATUR_LUT_F;
+		adr = 12;
+	}
+
+	if (chip_type_id != chip_t3x) {
+		switch (reg_sel) {
+		case SATUR_LUT:
+			for (i = 0; i < 31; i++) {
+				tmp1 = *(p + 2 * i);
+				tmp2 = *(p + 2 * i + 1);
+				if (chip_type_id == chip_t6d)
+					tmp = ((tmp2 & 0xfff) << adr) | (tmp1 & 0xfff);
+				else
+					tmp = ((tmp1 & 0xfff) << adr) | (tmp2 & 0xfff);
+				WRITE_VPP_REG(reg_sat0 + i, tmp);
+			}
+			tmp = (*(p + 62)) & 0xfff;
+			WRITE_VPP_REG(reg_sat, tmp);
+			break;
+		case YMINVAL_LMT:
+			for (i = 0; i < 6; i++) {
+				tmp1 = *(p + 2 * i);
+				tmp2 = *(p + 2 * i + 1);
+				tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+				WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i, tmp);
+			}
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+				for (j = 0; j < 2; j++) {
+					tmp1 = *(p + 2 * i);
+					tmp2 = *(p + 2 * i + 1);
+					tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+					WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j,
+						tmp);
+					i++;
+				}
+			}
+			break;
+		case YPKBV_YMAXVAL_LMT:
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
+				break;
+
+			for (i = 0; i < 6; i++) {
+				tmp1 = *(p + 2 * i);
+				tmp2 = *(p + 2 * i + 1);
+				tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+				WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i, tmp);
+			}
+			break;
+		case YMAXVAL_LMT:
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+				for (i = 0; i < 6; i++) {
+					tmp1 = *(p + 2 * i);
+					tmp2 = *(p + 2 * i + 1);
+					tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+					WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i,
+						tmp);
+				}
+
+				for (j = 0; j < 2; j++) {
+					tmp1 = *(p + 2 * i);
+					tmp2 = *(p + 2 * i + 1);
+					tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+					WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j,
+						tmp);
+					i++;
+				}
+			}
+			break;
+		case YPKBV_LMT:
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+				for (i = 0; i < 8; i++) {
+					tmp1 = *(p + 2 * i);
+					tmp2 = *(p + 2 * i + 1);
+					tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+					WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i,
+						tmp);
+				}
+			}
+			break;
+		case YPKBV_RAT:
+			tmp = (*p & 0xff) << 24 | (*(p + 1) & 0xff) << 16 |
+				(*(p + 2) & 0xff) << 8 | (*(p + 3) & 0xff);
+			WRITE_VPP_REG(LC_CURVE_YPKBV_RAT, tmp);
+			break;
+		case YPKBV_SLP_LMT:
+			tmp = (*p & 0xff) << 8 | (*(p + 1) & 0xff);
+			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, tmp);
+			break;
+		case CNTST_LMT:
+			tmp = (*p & 0xff) << 24 | (*(p + 1) & 0xff) << 16 |
+				(*(p + 2) & 0xff) << 8 | (*(p + 3) & 0xff);
+			WRITE_VPP_REG(LC_CURVE_CONTRAST__LMT_LH, tmp);
+			break;
+		default:
+			break;
+		}
+	} else {
+		switch (reg_sel) {
+		case SATUR_LUT:
+			ve_lc_sat_lut_set(p);
+			break;
+		case YMINVAL_LMT:
+			ve_lc_ymin_lmt_set(p);
+			break;
+		case YMAXVAL_LMT:
+			ve_lc_ymax_lmt_set(p);
+			break;
+		case YPKBV_LMT:
+			ve_lc_ypkbv_lmt_set(p);
+			break;
+		case YPKBV_RAT:
+			ve_lc_ypkbv_rat_set(p);
+			break;
+		case YPKBV_SLP_LMT:
+			ve_lc_ypkbv_slp_lmt_set(p);
+			break;
+		case CNTST_LMT:
+			ve_lc_contrast_lmt_set(p);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void lc_load_curve(struct ve_lc_curve_parm_s *p)
+{
+	/*load lc parms*/
+	lc_alg_parm.dbg_parm0 = p->param[lc_dbg_parm0];
+	lc_alg_parm.dbg_parm1 = p->param[lc_dbg_parm1];
+	lc_alg_parm.dbg_parm2 = p->param[lc_dbg_parm2];
+	lc_alg_parm.dbg_parm3 = p->param[lc_dbg_parm3];
+	lc_alg_parm.dbg_parm4 = p->param[lc_dbg_parm4];
+
+	if (chip_type_id != chip_t3x) {
+		/*load lc_saturation curve*/
+		lc_wr_reg(p->ve_lc_saturation, 0x1);
+		/*load lc_yminval_lmt*/
+		lc_wr_reg(p->ve_lc_yminval_lmt, 0x2);
+		/*load lc_ypkbv_ymaxval_lmt*/
+		lc_wr_reg(p->ve_lc_ypkbv_ymaxval_lmt, 0x4);
+		/*load lc_ypkbv_ratio*/
+		lc_wr_reg(p->ve_lc_ypkbv_ratio, 0x8);
+		/*load lc_ymaxval_ratio*/
+		lc_wr_reg(p->ve_lc_ymaxval_lmt, 0x10);
+		/*load lc_ypkbv_lmt*/
+		lc_wr_reg(p->ve_lc_ypkbv_lmt, 0x20);
+	} else {
+		ve_lc_sat_lut_set(p->ve_lc_saturation);
+		ve_lc_ymin_lmt_set(p->ve_lc_yminval_lmt);
+		ve_lc_ymax_lmt_set(p->ve_lc_ymaxval_lmt);
+		ve_lc_ypkbv_lmt_set(p->ve_lc_ypkbv_lmt);
+		ve_lc_ypkbv_rat_set(p->ve_lc_ypkbv_ratio);
+	}
+}
+
+int lc_debug_store(char **parm)
+{
+	int reg_lut[63] = {0};
+	int h, v, i, start_point;
+	long val = 0;
+	int curve_val[6] = {0};
+	char *stemp = NULL;
+
+	stemp = kzalloc(100, GFP_KERNEL);
+	if (!stemp)
+		return 0;
+
+	memset(stemp, 0, 100);
+	memset(lc_dbg_curve, 0, sizeof(char) * 100);
+
+	if (!strcmp(parm[0], "lc")) {
+		if (!strcmp(parm[1], "enable"))
+			lc_en = 1;
+		else if (!strcmp(parm[1], "disable"))
+			lc_en = 0;
+		else
+			pr_info("unsupport cmd!\n");
+	} else if (!strcmp(parm[0], "lc_dump_reg")) {
+		dump_lc_reg();
+	} else if (!strcmp(parm[0], "lc_version")) {
+		pr_info("lc driver version :  %s\n", LC_VER);
+	} else if (!strcmp(parm[0], "lc_dbg")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
+		amlc_debug = val;
+	} else if (!strcmp(parm[0], "lc_curve_isr")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		use_lc_curve_isr = val;
+	} else if (!strcmp(parm[0], "lc_demo_mode")) {
+		if (!strcmp(parm[1], "enable"))
+			lc_demo_mode = 1;
+		else if (!strcmp(parm[1], "disable"))
+			lc_demo_mode = 0;
+		else
+			pr_info("unsupport cmd!\n");
+	} else if (!strcmp(parm[0], "dump_lut_data")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
+		reg_sel = val;
+		if (reg_sel == SATUR_LUT)
+			lc_rd_reg(SATUR_LUT, 0, NULL);
+		else if (reg_sel == YMINVAL_LMT)
+			lc_rd_reg(YMINVAL_LMT, 0, NULL);
+		else if (reg_sel == YPKBV_YMAXVAL_LMT)
+			lc_rd_reg(YPKBV_YMAXVAL_LMT, 0, NULL);
+		else if (reg_sel == YMAXVAL_LMT)
+			lc_rd_reg(YMAXVAL_LMT, 0, NULL);
+		else if (reg_sel == YPKBV_LMT)
+			lc_rd_reg(YPKBV_LMT, 0, NULL);
+		else if (reg_sel == YPKBV_RAT)
+			lc_rd_reg(YPKBV_RAT, 0, NULL);
+		else if (reg_sel == YPKBV_SLP_LMT)
+			lc_rd_reg(YPKBV_SLP_LMT, 0, NULL);
+		else if (reg_sel == CNTST_LMT)
+			lc_rd_reg(CNTST_LMT, 0, NULL);
+		else
+			pr_info("unsupport cmd!\n");
+	} else if (!strcmp(parm[0], "dump_lut_str")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
+		reg_sel = val;
+		lc_dbg_flag |= LC_CUR_RD_UPDATE;
+	} else if (!strcmp(parm[0], "lc_wr_lut")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
+		reg_sel = val;
+		if (!parm[2])
+			goto free_buf;
+		str_sapr_to_d(parm[2], reg_lut, 5);
+		if (reg_sel == SATUR_LUT)
+			lc_wr_reg(reg_lut, SATUR_LUT);
+		else if (reg_sel == YMINVAL_LMT)
+			lc_wr_reg(reg_lut, YMINVAL_LMT);
+		else if (reg_sel == YPKBV_YMAXVAL_LMT)
+			lc_wr_reg(reg_lut, YPKBV_YMAXVAL_LMT);
+		else if (reg_sel == YMAXVAL_LMT)
+			lc_wr_reg(reg_lut, YMAXVAL_LMT);
+		else if (reg_sel == YPKBV_LMT)
+			lc_wr_reg(reg_lut, YPKBV_LMT);
+		else if (reg_sel == YPKBV_RAT)
+			lc_wr_reg(reg_lut, YPKBV_RAT);
+		else if (reg_sel == YPKBV_SLP_LMT)
+			lc_wr_reg(reg_lut, YPKBV_SLP_LMT);
+		else if (reg_sel == CNTST_LMT)
+			lc_wr_reg(reg_lut, CNTST_LMT);
+		else
+			pr_info("unsupport cmd!\n");
+	} else if (!strcmp(parm[0], "dump_lc_curve")) {
+		if (!strcmp(parm[1], "all")) {
+			/*dump curve of one frame*/
+			if (ve_multi_picture_case_get() > 0)
+				lc_hist_prcnt = 2;
+			else
+				lc_hist_prcnt = 1;
+			amlc_debug = 0x80;
+		} else if (!strcmp(parm[1], "slice0")) {
+			lc_read_region(8, 12, 0);
+			lc_prt_curve();
+		} else if (!strcmp(parm[1], "slice1")) {
+			lc_read_region(8, 12, 1);
+			lc_prt_curve();
+		}
+	} else if (!strcmp(parm[0], "dump_hist")) {
+		if (!strcmp(parm[1], "all")) {
+			/*dump all hist of one frame*/
+			if (ve_multi_picture_case_get() > 0)
+				lc_hist_prcnt = 2;
+			else
+				lc_hist_prcnt = 1;
+			amlc_debug = 0x8;
+		} else if (!strcmp(parm[1], "chosen")) {
+			/*dump multiple frames in selected area*/
+			if (!parm[6])
+				goto free_buf;
+			if (kstrtoul(parm[2], 10, &val) < 0)
+				goto free_buf;
+			lc_hist_hs = val;
+			if (kstrtoul(parm[3], 10, &val) < 0)
+				goto free_buf;
+			lc_hist_he = val;
+			if (kstrtoul(parm[4], 10, &val) < 0)
+				goto free_buf;
+			lc_hist_vs = val;
+			if (kstrtoul(parm[5], 10, &val) < 0)
+				goto free_buf;
+			lc_hist_ve = val;
+			if (kstrtoul(parm[6], 10, &val) < 0)
+				goto free_buf;
+			lc_hist_prcnt = val;
+			amlc_debug = 0x6;
+		} else {
+			pr_info("unsupport cmd!\n");
+		}
+	} else if (!strcmp(parm[0], "dump_curve")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_curve_prcnt = val;
+	} else if (!strcmp(parm[0], "lc_osd_setting")) {
+		if (!strcmp(parm[1], "show")) {
+			pr_info("VNUM_STRT_BELOW: %d, VNUM_END_BELOW: %d\n",
+				vnum_start_below, vnum_end_below);
+			pr_info("VNUM_STRT_ABOVE: %d, VNUM_END_ABOVE: %d\n",
+				vnum_start_above, vnum_end_above);
+			pr_info("INVALID_BLK: %d, MIN_BV_PERCENT_TH: %d\n",
+				invalid_blk, min_bv_percent_th);
+		} else if (!strcmp(parm[1], "set")) {
+			if (!parm[7])
+				goto free_buf;
+			if (kstrtoul(parm[2], 10, &val) < 0)
+				goto free_buf;
+			vnum_start_below = val;
+			if (kstrtoul(parm[3], 10, &val) < 0)
+				goto free_buf;
+			vnum_end_below = val;
+			if (kstrtoul(parm[4], 10, &val) < 0)
+				goto free_buf;
+			vnum_start_above = val;
+			if (kstrtoul(parm[5], 10, &val) < 0)
+				goto free_buf;
+			vnum_end_above = val;
+			if (kstrtoul(parm[6], 10, &val) < 0)
+				goto free_buf;
+			invalid_blk = val;
+			if (kstrtoul(parm[7], 10, &val) < 0)
+				goto free_buf;
+			min_bv_percent_th = val;
+		} else {
+			pr_info("unsupport cmd!\n");
+		}
+	} else if (!strcmp(parm[0], "osd_iir_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		osd_iir_en = val;
+	} else if (!strcmp(parm[0], "iir_refresh")) {
+		if (!strcmp(parm[1], "show")) {
+			pr_info("current state: alpha1: %d, alpha2: %d, refresh_bit: %d, ts: %d\n",
+				alpha1, alpha2, refresh_bit, ts);
+		} else if (!strcmp(parm[1], "set")) {
+			if (!parm[5])
+				goto free_buf;
+			if (kstrtoul(parm[2], 10, &val) < 0)
+				goto free_buf;
+			alpha1 = val;
+			if (kstrtoul(parm[3], 10, &val) < 0)
+				goto free_buf;
+			alpha2 = val;
+			if (kstrtoul(parm[4], 10, &val) < 0)
+				goto free_buf;
+			refresh_bit = val;
+			if (kstrtoul(parm[5], 10, &val) < 0)
+				goto free_buf;
+			ts = val;
+			pr_info("after setting: alpha1: %d, alpha2: %d, refresh_bit: %d, ts: %d\n",
+				alpha1, alpha2, refresh_bit, ts);
+		}  else {
+			pr_info("unsupport cmd!\n");
+		}
+	} else if (!strcmp(parm[0], "scene_change_th")) {
+		pr_info("current value: %d\n", scene_change_th);
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		scene_change_th = val;
+		pr_info("setting value: %d\n", scene_change_th);
+	} else if (!strcmp(parm[0], "irr_dbg_en")) {
+		pr_info("current value: %d\n", amlc_iir_debug_en);
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		amlc_iir_debug_en = val;
+		pr_info("setting value: %d\n", amlc_iir_debug_en);
+	} else if (!strcmp(parm[0], "get_blk_region")) {
+		if (chip_type_id == chip_t3x) {
+			ve_lc_blk_num_get(&h, &v, 0);
+		} else {
+			val = READ_VPP_REG(LC_CURVE_HV_NUM);
+			h = (val >> 8) & 0x1f;
+			v = (val) & 0x1f;
+		}
+		if (!strcmp(parm[1], "htotal")) {
+			lc_temp = h;
+			lc_dbg_flag |= LC_PARAM_RD_UPDATE;
+		} else if (!strcmp(parm[1], "vtotal")) {
+			lc_temp = v;
+			lc_dbg_flag |= LC_PARAM_RD_UPDATE;
+		} else {
+			pr_info("unsupport cmd!\n");
+		}
+	} else if (!strcmp(parm[0], "get_hist")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		h = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		v = val;
+		if (h > 11 || v > 7)
+			goto free_buf;
+		start_point = (12 * v + h) * 17;
+		for (i = 0; i < 17; i++)
+			d_convert_str(lc_hist[start_point + i] >> 4,
+						i, stemp, 4, 10);
+		memcpy(lc_dbg_curve, stemp, 100);
+		lc_dbg_flag |= LC_CUR2_RD_UPDATE;
+	} else if (!strcmp(parm[0], "get_curve")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		h = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		v = val;
+		if (h > 11 || v > 7)
+			goto free_buf;
+		start_point = (12 * v + h) * 6;
+		for (i = 0; i < 6; i++)
+			d_convert_str(curve_nodes_cur[start_point + i],
+						i, stemp, 4, 10);
+		memcpy(lc_dbg_curve, stemp, 100);
+		lc_dbg_flag |= LC_CUR2_RD_UPDATE;
+	} else if (!strcmp(parm[0], "set_curve")) {
+		if (!parm[3])
+			goto free_buf;
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		h = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		v = val;
+		if (h > 11 || v > 7)
+			goto free_buf;
+		start_point = (12 * v + h) * 6;
+		str_sapr_to_d(parm[3], curve_val, 5);
+		for (i = 0; i < 6; i++)
+			curve_nodes_cur[start_point + i] =
+			curve_val[i];
+	} else if (!strcmp(parm[0], "stop_refresh")) {
+		lc_curve_fresh = false;
+	} else if (!strcmp(parm[0], "refresh_curve")) {
+		lc_curve_fresh = true;
+	} else if (!strcmp(parm[0], "reg_lmtrat_sigbin")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.lc_reg_lmtrat_sigbin = val;
+		pr_info("reg_lmtrat_sigbin = %d\n",
+			lc_tune_curve.lc_reg_lmtrat_sigbin);
+	} else if (!strcmp(parm[0], "reg_lmtrat_thd_max")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.lc_reg_lmtrat_thd_max = val;
+		pr_info("reg_lmtrat_thd_max = %d\n",
+			lc_tune_curve.lc_reg_lmtrat_thd_max);
+	} else if (!strcmp(parm[0], "reg_lmtrat_thd_black")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.lc_reg_lmtrat_thd_black = val;
+		pr_info("reg_lmtrat_thd_black = %d\n",
+			lc_tune_curve.lc_reg_lmtrat_thd_black);
+	} else if (!strcmp(parm[0], "reg_thd_black")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.lc_reg_thd_black = val;
+		WRITE_VPP_REG_BITS(LC_STTS_BLACK_INFO,
+				   lc_tune_curve.lc_reg_thd_black, 0, 8);
+		pr_info("reg_thd_black = %d\n",
+			lc_tune_curve.lc_reg_thd_black);
+	} else if (!strcmp(parm[0], "ypkBV_black_thd")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.ypkbv_black_thd = val;
+		pr_info("ypkBV_black_thd = %d\n",
+			lc_tune_curve.ypkbv_black_thd);
+	} else if (!strcmp(parm[0], "yminV_black_thd")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.yminv_black_thd = val;
+		pr_info("yminV_black_thd = %d\n",
+			lc_tune_curve.yminv_black_thd);
+	} else if (!strcmp(parm[0], "tune_curve_debug")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_node_pos_v = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		lc_node_pos_h = val;
+		pr_info("tune_curve_debug pos = v %d h %d\n",
+			lc_node_pos_v, lc_node_pos_h);
+	} else if (!strcmp(parm[0], "tune_curve_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		tune_curve_en = val;
+		amlc_debug = 0xc;
+		lc_node_prcnt = 10;
+		pr_info("tune_curve_en = %d\n", tune_curve_en);
+	} else if (!strcmp(parm[0], "detect_signal_range_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		amlc_debug = 0xe;
+		detect_signal_range_en = val;
+		pr_info("detect_signal_range_en = %d\n",
+			detect_signal_range_en);
+	} else if (!strcmp(parm[0], "detect_signal_range_threshold")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		detect_signal_range_threshold_black = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		detect_signal_range_threshold_white = val;
+		amlc_debug = 0xe;
+		pr_info("detect_signal_range_threshold = %d %d\n",
+			detect_signal_range_threshold_black,
+			detect_signal_range_threshold_white);
+	} else if (!strcmp(parm[0], "clean_error_ro")) {
+		clean_lc_stts_overflow();
+	} else if (!strcmp(parm[0], "lc_dma_reset")) {
+		if (!strcmp(parm[1], "enable"))
+			am_dma_reset_lc(1, 1, 3);
+		else if (!strcmp(parm[1], "disable"))
+			am_dma_reset_lc(0, 1, 3);
+		else
+			pr_info("unsupport cmd!\n");
+	} else {
+		pr_info("unsupport cmd!\n");
+	}
+	kfree(stemp);
+	return 0;
+
+free_buf:
+	pr_info("Missing parameters !\n");
+	kfree(stemp);
+	return -EINVAL;
+}
+
 #endif

@@ -478,6 +478,9 @@ static int RGB709_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
+struct fmeter_data_s data_meter;
+struct aml_fmeter_drv_param_s fmeter_drv_param;
+
 bool is_hdr_stb_mode(void)
 {
 	if ((is_meson_txlx_cpu() && !vinfo_lcd_support()) ||
@@ -506,7 +509,7 @@ bool is_hdr_tv_mode(void)
 		return false;
 }
 
-static void str_sapr_to_d(char *s, int *d, int n)
+void str_sapr_to_d(char *s, int *d, int n)
 {
 	int i, j, count;
 	long value;
@@ -524,7 +527,7 @@ static void str_sapr_to_d(char *s, int *d, int n)
 	}
 }
 
-static void d_convert_str(int num,
+void d_convert_str(int num,
 			  int num_num, char cur_s[],
 			  int char_bit, int bit_chose)
 {
@@ -1615,11 +1618,51 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf,
 		vf->fmeter1_hcnt[3] =
 		READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE3);
 
-		vf->fmeter0_score = FMETER_SCORE(vf->fmeter0_hcnt[0],
-			vf->fmeter0_hcnt[1], vf->fmeter0_hcnt[2]);
+		data_meter.fmeter0_hcnt[0] = READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE0);
+		data_meter.fmeter0_hcnt[1] = READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE1);
+		data_meter.fmeter0_hcnt[2] = READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE2);
+		data_meter.fmeter0_hcnt[3] = READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE3);
 
-		vf->fmeter1_score = FMETER_SCORE(vf->fmeter1_hcnt[0],
-			vf->fmeter1_hcnt[1], vf->fmeter1_hcnt[2]);
+		data_meter.fmeter0_vcnt[0] = READ_VPP_REG(SRSHARP0_RO_FMETER_VCNT_TYPE0);
+		data_meter.fmeter0_vcnt[1] = READ_VPP_REG(SRSHARP0_RO_FMETER_VCNT_TYPE1);
+		data_meter.fmeter0_vcnt[2] = READ_VPP_REG(SRSHARP0_RO_FMETER_VCNT_TYPE2);
+		data_meter.fmeter0_vcnt[3] = READ_VPP_REG(SRSHARP0_RO_FMETER_VCNT_TYPE3);
+
+		data_meter.fmeter0_pdcnt[0] = READ_VPP_REG(SRSHARP0_RO_FMETER_PDCNT_TYPE0);
+		data_meter.fmeter0_pdcnt[1] = READ_VPP_REG(SRSHARP0_RO_FMETER_PDCNT_TYPE1);
+		data_meter.fmeter0_pdcnt[2] = READ_VPP_REG(SRSHARP0_RO_FMETER_PDCNT_TYPE2);
+		data_meter.fmeter0_pdcnt[3] = READ_VPP_REG(SRSHARP0_RO_FMETER_PDCNT_TYPE3);
+
+		data_meter.fmeter0_ndcnt[0] = READ_VPP_REG(SRSHARP0_RO_FMETER_NDCNT_TYPE0);
+		data_meter.fmeter0_ndcnt[1] = READ_VPP_REG(SRSHARP0_RO_FMETER_NDCNT_TYPE1);
+		data_meter.fmeter0_ndcnt[2] = READ_VPP_REG(SRSHARP0_RO_FMETER_NDCNT_TYPE2);
+		data_meter.fmeter0_ndcnt[3] = READ_VPP_REG(SRSHARP0_RO_FMETER_NDCNT_TYPE3);
+
+		data_meter.fmeter1_hcnt[0] = READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE0);
+		data_meter.fmeter1_hcnt[1] = READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE1);
+		data_meter.fmeter1_hcnt[2] = READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE2);
+		data_meter.fmeter1_hcnt[3] = READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE3);
+
+		data_meter.fmeter1_vcnt[0] = READ_VPP_REG(SRSHARP1_RO_FMETER_VCNT_TYPE0);
+		data_meter.fmeter1_vcnt[1] = READ_VPP_REG(SRSHARP1_RO_FMETER_VCNT_TYPE1);
+		data_meter.fmeter1_vcnt[2] = READ_VPP_REG(SRSHARP1_RO_FMETER_VCNT_TYPE2);
+		data_meter.fmeter1_vcnt[3] = READ_VPP_REG(SRSHARP1_RO_FMETER_VCNT_TYPE3);
+
+		data_meter.fmeter1_pdcnt[0] = READ_VPP_REG(SRSHARP1_RO_FMETER_PDCNT_TYPE0);
+		data_meter.fmeter1_pdcnt[1] = READ_VPP_REG(SRSHARP1_RO_FMETER_PDCNT_TYPE1);
+		data_meter.fmeter1_pdcnt[2] = READ_VPP_REG(SRSHARP1_RO_FMETER_PDCNT_TYPE2);
+		data_meter.fmeter1_pdcnt[3] = READ_VPP_REG(SRSHARP1_RO_FMETER_PDCNT_TYPE3);
+
+		data_meter.fmeter1_ndcnt[0] = READ_VPP_REG(SRSHARP1_RO_FMETER_NDCNT_TYPE0);
+		data_meter.fmeter1_ndcnt[1] = READ_VPP_REG(SRSHARP1_RO_FMETER_NDCNT_TYPE1);
+		data_meter.fmeter1_ndcnt[2] = READ_VPP_REG(SRSHARP1_RO_FMETER_NDCNT_TYPE2);
+		data_meter.fmeter1_ndcnt[3] = READ_VPP_REG(SRSHARP1_RO_FMETER_NDCNT_TYPE3);
+
+		if (fmeter_drv_param.fmeter_cal_score) {
+			fmeter_drv_param.fmeter_cal_score(vf->width, vf->height);
+			vf->fmeter0_score = fmeter_drv_param.fmeter0_score;
+			vf->fmeter1_score = fmeter_drv_param.fmeter1_score;
+		}
 	}
 
 	get_cm_hist(vp);
@@ -1819,10 +1862,15 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 	}
 }
 
+struct aml_fmeter_drv_param_s *fmeter_drv_param_get(void)
+{
+	return &fmeter_drv_param;
+}
+EXPORT_SYMBOL(fmeter_drv_param_get);
+
 /*sr fmeter interface*/
 void amvecm_fmeter_process(struct vframe_s *vf, int vpp_index)
 {
-	u8 fmeter_score_unit, fmeter_score_ten, fmeter_score_hundred;
 	uint val;
 	uint reg_val;
 
@@ -1832,77 +1880,25 @@ void amvecm_fmeter_process(struct vframe_s *vf, int vpp_index)
 	if (fmeter_slt)
 		return;
 
-	if (vf->height <= 1080 && vf->width <= 1920) {
-		fmeter_score_hundred = vf->fmeter0_score / 100;
-		fmeter_score_ten =
-			(vf->fmeter0_score - fmeter_score_hundred * 100) / 10;
-		fmeter_score_unit =
-			vf->fmeter0_score - fmeter_score_hundred * 100
-			- fmeter_score_ten * 10;
-		if (fmeter_debug == 3)
-			pr_info("fmeter0_hcnt0 = %d,hcnt1 = %d,hcnt2 = %d,hcnt3 = %d\n",
-				vf->fmeter0_hcnt[0], vf->fmeter0_hcnt[1],
-				vf->fmeter0_hcnt[2], vf->fmeter0_hcnt[3]);
-		if (fmeter_debug == 2)
-			pr_info("fmeter0_score = %d\n", vf->fmeter0_score);
-
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
-		if (fmeter_debug == 1)
-			frc_set_seg_display(1, fmeter_score_hundred,
-				fmeter_score_ten, fmeter_score_unit);
-		if (fmeter_debug == 0)
-			frc_set_seg_display(0, 0, 0, 0);
+	if (fmeter_debug == 1)
+		frc_set_seg_display(1, fmeter_drv_param.fmeter_score_hundred,
+			fmeter_drv_param.fmeter_score_ten,
+			fmeter_drv_param.fmeter_score_unit);
+	if (fmeter_debug == 0)
+		frc_set_seg_display(0, 0, 0, 0);
 #endif
 
-		cur_fmeter_level = vf->fmeter0_score / 10;
-		if (cur_fmeter_level > 10)
-			cur_fmeter_level = 10;
-		if (cur_fmeter_level < 0)
-			cur_fmeter_level = 0;
-
-		if (cur_fmeter_level == pre_fmeter_level)
-			fmeter_flag++;
-		else
-			fmeter_flag = 0;
-	} else {
-		fmeter_score_hundred = vf->fmeter1_score / 100;
-		fmeter_score_ten =
-			(vf->fmeter1_score - fmeter_score_hundred * 100) / 10;
-		fmeter_score_unit =
-			vf->fmeter1_score - fmeter_score_hundred * 100
-			- fmeter_score_ten * 10;
-		if (fmeter_debug == 3)
-			pr_info("fmeter1_hcnt0 = %d,hcnt1 = %d,hcnt2 = %d,hcnt3 = %d\n",
-				vf->fmeter1_hcnt[0], vf->fmeter1_hcnt[1],
-				vf->fmeter1_hcnt[2], vf->fmeter1_hcnt[3]);
-		if (fmeter_debug == 2)
-			pr_info("fmeter1_score = %d\n", vf->fmeter1_score);
-
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC
-		if (fmeter_debug == 1)
-			frc_set_seg_display(1, fmeter_score_hundred,
-				fmeter_score_ten, fmeter_score_unit);
-		if (fmeter_debug == 0)
-			frc_set_seg_display(0, 0, 0, 0);
-#endif
-
-		cur_fmeter_level = vf->fmeter1_score / 10;
-		if (cur_fmeter_level > 10)
-			cur_fmeter_level = 10;
-		if (cur_fmeter_level < 0)
-			cur_fmeter_level = 0;
-
-		if (cur_fmeter_level == pre_fmeter_level)
-			fmeter_flag++;
-		else
-			fmeter_flag = 0;
-	}
+	if (fmeter_drv_param.cur_fmeter_level == pre_fmeter_level)
+		fmeter_flag++;
+	else
+		fmeter_flag = 0;
 
 	if (fmeter_flag == fmeter_count && fmeter_en) {
 		fmeter_flag = 0;
-		if (cur_sr_level < cur_fmeter_level)
+		if (cur_sr_level < fmeter_drv_param.cur_fmeter_level)
 			cur_sr_level++;
-		else if (cur_sr_level > cur_fmeter_level)
+		else if (cur_sr_level > fmeter_drv_param.cur_fmeter_level)
 			cur_sr_level--;
 		else
 			return;
@@ -1974,7 +1970,7 @@ void amvecm_fmeter_process(struct vframe_s *vf, int vpp_index)
 			VSYNC_WRITE_VPP_REG_VPP_SEL(NN_ADP_CORING, val, vpp_index);
 		}
 	}
-	pre_fmeter_level = cur_fmeter_level;
+	pre_fmeter_level = fmeter_drv_param.cur_fmeter_level;
 }
 
 static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info, int vpp_index)
@@ -4598,12 +4594,8 @@ static long amvecm_compat_ioctl(struct file *file, unsigned int cmd,
 #endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static unsigned int dnlp_dbg_flag;
-static int dnlp_rd_param;
-static char dnlp_rd_curve[400];
 static ssize_t amvecm_dnlp_debug_show(const struct class *cla,
-				      const struct class_attribute *attr,
-				      char *buf)
+				      const struct class_attribute *attr, char *buf)
 {
 	if (dnlp_dbg_flag & DNLP_PARAM_RD_UPDATE) {
 		dnlp_dbg_flag &= ~DNLP_PARAM_RD_UPDATE;
@@ -4622,796 +4614,23 @@ static ssize_t amvecm_dnlp_debug_store(const struct class *cla,
 				       const struct class_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int i, *p;
-	long val = 0;
-	unsigned int num;
 	char *buf_orig, *parm[8] = {NULL};
-	int curve_val[65] = {0};
-	char *stemp = NULL;
-	unsigned short *hist_tmp;
+	int ret = 0;
 
 	if (!buf)
 		return count;
 
-	stemp = kzalloc(400, GFP_KERNEL);
-	if (!stemp)
-		return 0;
-	memset(stemp, 0, 400);
-	memset(dnlp_rd_curve, 0, 400);
-
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	if (!buf_orig) {
-		kfree(stemp);
 		return -ENOMEM;
 	}
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
-	if (!dnlp_insmod_ok) {
-		pr_info("dnlp insmod fail\n");
-		goto free_buf;
-	}
-
-	if (!strcmp(parm[0], "r")) {/*read param*/
-		if (!strcmp(parm[1], "param")) {
-			if (!strcmp(parm[2], "all")) {
-				for (i = 0;
-				dnlp_parse_cmd[i].value; i++) {
-					pr_info("%d ",
-						*dnlp_parse_cmd[i].value);
-				}
-				pr_info("dnlp_insmod_ok: %d\n", dnlp_insmod_ok);
-				pr_info("hist_sel: %d\n", hist_sel);
-				pr_info("\n");
-			} else {
-				pr_info("error cmd\n");
-			}
-		} else {
-			for (i = 0;
-				dnlp_parse_cmd[i].value; i++) {
-				if (!strcmp(parm[1],
-					    dnlp_parse_cmd[i].parse_string)) {
-					dnlp_rd_param = *dnlp_parse_cmd[i].value;
-					dnlp_dbg_flag |= DNLP_PARAM_RD_UPDATE;
-					break;
-				}
-			}
-			dnlp_dbg_node_copy();
-		}
-	} else if (!strcmp(parm[0], "w")) {/*write param*/
-		for (i = 0; dnlp_parse_cmd[i].value; i++) {
-			if (!strcmp(parm[1],
-				    dnlp_parse_cmd[i].parse_string)) {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				*dnlp_parse_cmd[i].value = val;
-				pr_amvecm_dbg(" %s: %d\n",
-					      dnlp_parse_cmd[i].parse_string,
-					*dnlp_parse_cmd[i].value);
-				break;
-			}
-			dnlp_dbg_node_copy();
-		}
-	} else if (!strcmp(parm[0], "rc")) {/*read curve*/
-		if (!strcmp(parm[1], "scurv_low")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(dnlp_scurv_low_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 64 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						dnlp_scurv_low_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "scurv_mid1")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(dnlp_scurv_mid1_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 64 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						dnlp_scurv_mid1_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "scurv_mid2")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(dnlp_scurv_mid2_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 64 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						dnlp_scurv_mid2_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "scurv_hgh1")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(dnlp_scurv_hgh1_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 64 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						dnlp_scurv_hgh1_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "scurv_hgh2")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(dnlp_scurv_hgh2_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 64 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						dnlp_scurv_hgh2_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "gain_var_lut49")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 49; i++)
-					d_convert_str(gain_var_lut49_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 49);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 48 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						gain_var_lut49_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "c_hist_gain")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(c_hist_gain_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp,
-					sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 64 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						c_hist_gain_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "s_hist_gain")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(s_hist_gain_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp,
-					sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 64 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						s_hist_gain_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "wext_gain")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 48; i++)
-					d_convert_str(wext_gain_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 48);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 47 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n", wext_gain_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "adp_thrd")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 33; i++)
-					d_convert_str(adp_thrd_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 33);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 32 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n", adp_thrd_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "reg_blk_boost_12")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 13; i++)
-					d_convert_str(reg_blk_boost_12_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 13);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 12 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						reg_blk_boost_12_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "reg_adp_ofset_20")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 20; i++)
-					d_convert_str(reg_adp_ofset_20_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 20);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 19 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						reg_adp_ofset_20_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "reg_mono_protect")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 6; i++)
-					d_convert_str(reg_mono_protect_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 6);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 5 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						reg_mono_protect_copy[val]);
-			}
-		} else if (!strcmp(parm[1], "reg_trend_wht_expand_lut8")) {
-			p = reg_trend_wht_expand_lut8_copy;
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 9; i++)
-					d_convert_str(p[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 9);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				if (val > 8 || val < 0)
-					pr_info("error cmd\n");
-				else
-					pr_info("%d\n",
-						p[val]);
-			}
-		} else if (!strcmp(parm[1], "ve_dnlp_tgt")) {
-			/*read only curve*/
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(ve_dnlp_tgt_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				pr_info("error cmd\n");
-			}
-		} else if (!strcmp(parm[1], "ve_dnlp_tgt_10b")) {
-			/*read only curve*/
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(ve_dnlp_tgt_10b_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				pr_info("error cmd\n");
-			}
-		} else if (!strcmp(parm[1], "GmScurve")) {
-			/*read only curve*/
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(gmscurve_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				pr_info("error cmd\n");
-			}
-		} else if (!strcmp(parm[1], "clash_curve")) {
-			/*read only curve*/
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(clash_curve_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				pr_info("error cmd\n");
-			}
-		} else if (!strcmp(parm[1], "clsh_scvbld")) {
-			/*read only curve*/
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(clsh_scvbld_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				pr_info("error cmd\n");
-			}
-		} else if (!strcmp(parm[1], "blkwht_ebld")) {
-			/*read only curve*/
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(blkwht_ebld_copy[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				pr_info("error cmd\n");
-			}
-		} else if (!strcmp(parm[1], "vpp_histgram")) {
-			/*read only curve*/
-			hist_tmp = vpp_hist_param.vpp_gamma;
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 64; i++)
-					d_convert_str(hist_tmp[i],
-						      i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 64);
-				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
-			} else {
-				pr_info("error cmd\n");
-			}
-		}
-	} else if (!strcmp(parm[0], "wc")) {/*write curve*/
-		if (!strcmp(parm[1], "scurv_low")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 65; i++)
-					dnlp_scurv_low_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 64)
-					pr_info("error cmd\n");
-				else
-					dnlp_scurv_low_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "scurv_mid1")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 65; i++)
-					dnlp_scurv_mid1_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 64)
-					pr_info("error cmd\n");
-				else
-					dnlp_scurv_mid1_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "scurv_mid2")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 65; i++)
-					dnlp_scurv_mid2_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 64)
-					pr_info("error cmd\n");
-				else
-					dnlp_scurv_mid2_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "scurv_hgh1")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 65; i++)
-					dnlp_scurv_hgh1_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 64)
-					pr_info("error cmd\n");
-				else
-					dnlp_scurv_hgh1_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "scurv_hgh2")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 65; i++)
-					dnlp_scurv_hgh2_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 64)
-					pr_info("error cmd\n");
-				else
-					dnlp_scurv_hgh2_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "gain_var_lut49")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 49; i++)
-					gain_var_lut49_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 48)
-					pr_info("error cmd\n");
-				else
-					gain_var_lut49_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "c_hist_gain")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 65; i++)
-					c_hist_gain_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 64)
-					pr_info("error cmd\n");
-				else
-					c_hist_gain_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "s_hist_gain")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 65; i++)
-					s_hist_gain_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 64)
-					pr_info("error cmd\n");
-				else
-					s_hist_gain_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "wext_gain")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 48; i++)
-					wext_gain_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 47)
-					pr_info("error cmd\n");
-				else
-					wext_gain_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "adp_thrd")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 33; i++)
-					adp_thrd_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 32)
-					pr_info("error cmd\n");
-				else
-					adp_thrd_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "reg_blk_boost_12")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 13; i++)
-					reg_blk_boost_12_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 12)
-					pr_info("error cmd\n");
-				else
-					reg_blk_boost_12_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "reg_adp_ofset_20")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 20; i++)
-					reg_adp_ofset_20_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 19)
-					pr_info("error cmd\n");
-				else
-					reg_adp_ofset_20_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "reg_mono_protect")) {
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 6; i++)
-					reg_mono_protect_copy[i] = curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 5)
-					pr_info("error cmd\n");
-				else
-					reg_mono_protect_copy[num] = val;
-			}
-		} else if (!strcmp(parm[1], "reg_trend_wht_expand_lut8")) {
-			p = reg_trend_wht_expand_lut8_copy;
-			if (!parm[2]) {
-				pr_info("error cmd\n");
-				goto free_buf;
-			} else if (!strcmp(parm[2], "all")) {
-				str_sapr_to_d(parm[3], curve_val, 5);
-				for (i = 0; i < 9; i++)
-					reg_trend_wht_expand_lut8_copy[i] =
-						curve_val[i];
-			} else {
-				if (kstrtoul(parm[2], 10, &val) < 0)
-					goto free_buf;
-
-				num = val;
-				if (kstrtoul(parm[3], 10, &val) < 0)
-					goto free_buf;
-
-				if (num > 8)
-					pr_info("error cmd\n");
-				else
-					reg_trend_wht_expand_lut8_copy[num] =
-						val;
-			}
-		}
-	} else if (!strcmp(parm[0], "ro")) {
-		if (!strcmp(parm[1], "luma_avg4")) {
-			dnlp_rd_param = *ro_luma_avg4_copy;
-			dnlp_dbg_flag |= DNLP_PARAM_RD_UPDATE;
-		} else if (!strcmp(parm[1], "var_d8")) {
-			dnlp_rd_param = *ro_var_d8_copy;
-			dnlp_dbg_flag |= DNLP_PARAM_RD_UPDATE;
-		} else if (!strcmp(parm[1], "scurv_gain")) {
-			dnlp_rd_param = *ro_scurv_gain_copy;
-			dnlp_dbg_flag |= DNLP_PARAM_RD_UPDATE;
-		} else if (!strcmp(parm[1], "blk_wht_ext0")) {
-			dnlp_rd_param = *ro_blk_wht_ext0_copy;
-			dnlp_dbg_flag |= DNLP_PARAM_RD_UPDATE;
-		} else if (!strcmp(parm[1], "blk_wht_ext1")) {
-			dnlp_rd_param = *ro_blk_wht_ext1_copy;
-			dnlp_dbg_flag |= DNLP_PARAM_RD_UPDATE;
-		} else if (!strcmp(parm[1], "dnlp_brightness")) {
-			dnlp_rd_param = *ro_dnlp_brightness_copy;
-			dnlp_dbg_flag |= DNLP_PARAM_RD_UPDATE;
-		} else
-			pr_info("error cmd\n");
-	} else if (!strcmp(parm[0], "dnlp_print")) {
-		if (kstrtoul(parm[1], 16, &val) < 0)
-			goto free_buf;
-
-		*dnlp_printk_copy = val;
-		pr_info("dnlp_print = %x\n", *dnlp_printk_copy);
-	} else if (!strcmp(parm[0], "dnlp_dump_reg")) {
-		dump_dnlp_reg();
-	}
-
+	ret = dnlp_debug_store(parm);
+	if (ret)
+		pr_info("set parameters failed %d\n", ret);
 	kfree(buf_orig);
-	kfree(stemp);
 	return count;
-
-free_buf:
-	kfree(buf_orig);
-	kfree(stemp);
-	return -EINVAL;
 }
 
 static ssize_t amvecm_cabc_aad_show(const struct class *cla,
@@ -12568,6 +11787,8 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 		default:
 			break;
 		}
+	} else if (!strcmp(parm[0], "fmeter_version")) {
+		pr_info("fmeter driver version : %s\n", FMETER_VERSION);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -12803,17 +12024,12 @@ void amvecm_slt_sr_enable(void)
 
 void amvecm_slt_dnlp_enable(void)
 {
-	int i;
-
 	if (chip_type_id == chip_s7)
 		return;
 
 	ve_enable_dnlp();
-
 	dnlp_en_dsw = 0;
-	for (i = 0; i < 64; i++)
-		ve_dnlp_lpf[i] = i * 4 + 1;
-	ve_dnlp_lpf[63] = 254;
+	ve_dnlp_tgt_init(1);
 	ve_dnlp_calculate_reg();
 	ve_dnlp_load_reg();
 }
@@ -12832,12 +12048,7 @@ void amvecm_slt_lc_enable(void)
 		chip_type_id == chip_s7 ||
 		chip_type_id == chip_s7d)
 		return;
-
-	lc_init(lc_bitdepth);
-	tune_curve_en = 1;
-	lc_skip_iir = 1;
-	lc_en = 1;
-	ve_lc_mapping_ctrl(lc_en, 1, 0);
+	lc_slt_en(1);
 }
 
 void amvecm_slt_lc_disable(void)
@@ -12846,9 +12057,7 @@ void amvecm_slt_lc_disable(void)
 		chip_type_id == chip_s7 ||
 		chip_type_id == chip_s7d)
 		return;
-
-	lc_skip_iir = 0;
-	tune_curve_en = 2;
+	lc_slt_en(0);
 }
 
 void amvecm_slt_ble_enable(void)
@@ -13379,457 +12588,7 @@ static ssize_t amvecm_get_hdr_type_store(const struct class *cls,
 	return count;
 }
 
-static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
-{
-	int i, j, tmp, tmp1, tmp2, len = 12;
-	int lut_data[63] = {0};
-	char *stemp = NULL;
-	int slice_index = 0;
-	unsigned int reg_sat0 = SRSHARP1_LC_SAT_LUT_0_1;
-	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
-	unsigned int adr = 16;
 
-	if (chip_type_id == chip_t6d) {
-		reg_sat0 = VPP_LC_SATUR_LUT_0;
-		reg_sat = VPP_LC_SATUR_LUT_F;
-		adr = 12;
-	}
-
-	if (chip_type_id == chip_t3x) {
-		ve_lc_rd_reg(reg_sel, data_type, buf, slice_index);
-		return;
-	}
-
-	if (data_type == 1)
-		goto dump_as_string;
-
-	switch (reg_sel) {
-	case SATUR_LUT:
-		for (i = 0; i < 31 ; i++) {
-			tmp = READ_VPP_REG(reg_sat0 + i);
-			if (chip_type_id == chip_t6d) {
-				tmp2 = (tmp >> adr) & 0xfff;
-				tmp1 = tmp & 0xfff;
-			} else {
-				tmp1 = (tmp >> adr) & 0xfff;
-				tmp2 = tmp & 0xfff;
-			}
-			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
-				2 * i, tmp1);
-			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
-				2 * i + 1, tmp2);
-		}
-		tmp = READ_VPP_REG(reg_sat);
-		pr_info("reg_lc_satur_lut[62] =%4d.\n",
-			tmp & 0xfff);
-		break;
-	case YMINVAL_LMT:
-		for (i = 0; i < 6 ; i++) {
-			tmp = READ_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i);
-			tmp1 = (tmp >> 16) & 0x3ff;
-			tmp2 = tmp & 0x3ff;
-			pr_info("reg_yminVal_lmt[%d] =%4d.\n",
-				2 * i, tmp1);
-			pr_info("reg_yminVal_lmt[%d] =%4d.\n",
-				2 * i + 1, tmp2);
-		}
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-			for (j = 0; j < 2 ; j++) {
-				tmp =
-				READ_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j);
-				tmp1 = (tmp >> 16) & 0x3ff;
-				tmp2 = tmp & 0x3ff;
-				pr_info("reg_yminVal_lmt[%d] =%4d.\n",
-					2 * i, tmp1);
-				pr_info("reg_yminVal_lmt[%d] =%4d.\n",
-					2 * i + 1, tmp2);
-				i++;
-			}
-		}
-		break;
-	case YPKBV_YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-			break;
-
-		for (i = 0; i < 6 ; i++) {
-			tmp = READ_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i);
-			tmp1 = (tmp >> 16) & 0x3ff;
-			tmp2 = tmp & 0x3ff;
-			pr_info("reg_lc_ypkBV_ymaxVal_lmt[%d] =%4d.\n",
-				2 * i, tmp1);
-			pr_info("reg_lc_ypkBV_ymaxVal_lmt[%d] =%4d.\n",
-				2 * i + 1, tmp2);
-		}
-		break;
-	case YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-			for (i = 0; i < 6 ; i++) {
-				tmp =
-				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i);
-				tmp1 = (tmp >> 16) & 0x3ff;
-				tmp2 = tmp & 0x3ff;
-				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
-					2 * i, tmp1);
-				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
-					2 * i + 1, tmp2);
-			}
-
-			for (j = 0; j < 2 ; j++) {
-				tmp =
-				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j);
-				tmp1 = (tmp >> 16) & 0x3ff;
-				tmp2 = tmp & 0x3ff;
-				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
-					2 * i, tmp1);
-				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
-					2 * i + 1, tmp2);
-				i++;
-			}
-		}
-		break;
-	case YPKBV_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-			for (i = 0; i < 8 ; i++) {
-				tmp =
-				READ_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i);
-				tmp1 = (tmp >> 16) & 0x3ff;
-				tmp2 = tmp & 0x3ff;
-				pr_info("reg_lc_ypkBV_lmt[%d] =%4d.\n",
-					2 * i, tmp1);
-				pr_info("reg_lc_ypkBV_lmt[%d] =%4d.\n",
-					2 * i + 1, tmp2);
-			}
-		}
-		break;
-	case YPKBV_RAT:
-		tmp = READ_VPP_REG(LC_CURVE_YPKBV_RAT);
-		pr_info("reg_lc_ypkBV_ratio[0] =%4d.\n",
-			(tmp >> 24) & 0xff);
-		pr_info("reg_lc_ypkBV_ratio[1] =%4d.\n",
-			(tmp >> 16) & 0xff);
-		pr_info("reg_lc_ypkBV_ratio[2] =%4d.\n",
-			(tmp >> 8) & 0xff);
-		pr_info("reg_lc_ypkBV_ratio[3] =%4d.\n",
-			tmp & 0xff);
-		break;
-	case YPKBV_SLP_LMT:
-		tmp = READ_VPP_REG(LC_CURVE_YPKBV_SLP_LMT);
-		pr_info("reg_lc_ypkBV_slope_lmt[0] =%4d.\n",
-			(tmp >> 8) & 0xff);
-		pr_info("reg_lc_ypkBV_slope_lmt[1] =%4d.\n",
-			tmp & 0xff);
-		break;
-	case CNTST_LMT:
-		tmp = READ_VPP_REG(LC_CURVE_CONTRAST__LMT_LH);
-		pr_info("reg_lc_cntstlmt_low[0] =%4d.\n",
-			(tmp >> 24) & 0xff);
-		pr_info("reg_lc_cntstlmt_high[0] =%4d.\n",
-			(tmp >> 16) & 0xff);
-		pr_info("reg_lc_cntstlmt_low[1] =%4d.\n",
-			(tmp >> 8) & 0xff);
-		pr_info("reg_lc_cntstlmt_high[1] =%4d.\n",
-			tmp & 0xff);
-		break;
-	default:
-		break;
-	}
-	return;
-
-dump_as_string:
-	stemp = kzalloc(300, GFP_KERNEL);
-	if (!stemp)
-		return;
-	memset(stemp, 0, 300);
-	switch (reg_sel) {
-	case SATUR_LUT:
-		for (i = 0; i < 31 ; i++) {
-			tmp = READ_VPP_REG(reg_sat0 + i);
-			if (chip_type_id == chip_t6d) {
-				tmp2 = (tmp >> adr) & 0xfff;
-				tmp1 = tmp & 0xfff;
-			} else {
-				tmp1 = (tmp >> adr) & 0xfff;
-				tmp2 = tmp & 0xfff;
-			}
-			lut_data[2 * i] = tmp1;
-			lut_data[2 * i + 1] = tmp2;
-		}
-		tmp = READ_VPP_REG(reg_sat);
-		lut_data[62] = tmp & 0xfff;
-		for (i = 0; i < 63 ; i++)
-			d_convert_str(lut_data[i],
-						i, stemp, 4, 10);
-		memcpy(buf, stemp, 300);
-		break;
-	case YMINVAL_LMT:
-		for (i = 0; i < 6 ; i++) {
-			tmp = READ_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i);
-			tmp1 = (tmp >> 16) & 0x3ff;
-			tmp2 = tmp & 0x3ff;
-			lut_data[2 * i] = tmp1;
-			lut_data[2 * i + 1] = tmp2;
-		}
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-			len = 16;
-			for (j = 0; j < 2 ; j++) {
-				tmp =
-				READ_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j);
-				tmp1 = (tmp >> 16) & 0x3ff;
-				tmp2 = tmp & 0x3ff;
-				lut_data[2 * i] = tmp1;
-				lut_data[2 * i + 1] = tmp2;
-				i++;
-			}
-		}
-		for (i = 0; i < len ; i++)
-			d_convert_str(lut_data[i],
-						i, stemp, 4, 10);
-		memcpy(buf, stemp, 300);
-		break;
-	case YPKBV_YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-			break;
-
-		for (i = 0; i < 6 ; i++) {
-			tmp = READ_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i);
-			tmp1 = (tmp >> 16) & 0x3ff;
-			tmp2 = tmp & 0x3ff;
-			lut_data[2 * i] = tmp1;
-			lut_data[2 * i + 1] = tmp2;
-		}
-		for (i = 0; i < 12 ; i++)
-			d_convert_str(lut_data[i],
-				      i, stemp, 4, 10);
-		memcpy(buf, stemp, 300);
-		break;
-	case YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-			for (i = 0; i < 6 ; i++) {
-				tmp =
-				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i);
-				tmp1 = (tmp >> 16) & 0x3ff;
-				tmp2 = tmp & 0x3ff;
-				lut_data[2 * i] = tmp1;
-				lut_data[2 * i + 1] = tmp2;
-			}
-
-			len = 16;
-			for (j = 0; j < 2 ; j++) {
-				tmp =
-				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j);
-				tmp1 = (tmp >> 16) & 0x3ff;
-				tmp2 = tmp & 0x3ff;
-				lut_data[2 * i] = tmp1;
-				lut_data[2 * i + 1] = tmp2;
-				i++;
-			}
-		}
-		for (i = 0; i < len ; i++)
-			d_convert_str(lut_data[i],
-				      i, stemp, 4, 10);
-		memcpy(buf, stemp, 300);
-		break;
-	case YPKBV_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-			for (i = 0; i < 8 ; i++) {
-				tmp = READ_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i);
-				tmp1 = (tmp >> 16) & 0x3ff;
-				tmp2 = tmp & 0x3ff;
-				lut_data[2 * i] = tmp1;
-				lut_data[2 * i + 1] = tmp2;
-			}
-			for (i = 0; i < 16 ; i++)
-				d_convert_str(lut_data[i],
-					      i, stemp, 4, 10);
-			memcpy(buf, stemp, 300);
-		}
-		break;
-	case YPKBV_RAT:
-		tmp = READ_VPP_REG(LC_CURVE_YPKBV_RAT);
-		lut_data[0] = (tmp >> 24) & 0xff;
-		lut_data[1] = (tmp >> 16) & 0xff;
-		lut_data[2] = (tmp >> 8) & 0xff;
-		lut_data[3] = tmp & 0xff;
-		for (i = 0; i < 4 ; i++)
-			d_convert_str(lut_data[i],
-						i, stemp, 4, 10);
-		memcpy(buf, stemp, 300);
-		break;
-	default:
-		break;
-	}
-	kfree(stemp);
-}
-
-static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
-{
-	int i, j, tmp, tmp1, tmp2;
-	unsigned int reg_sat0 = SRSHARP1_LC_SAT_LUT_0_1;
-	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
-	unsigned int adr = 16;
-
-	if (chip_type_id == chip_t6d) {
-		reg_sat0 = VPP_LC_SATUR_LUT_0;
-		reg_sat = VPP_LC_SATUR_LUT_F;
-		adr = 12;
-	}
-
-	if (chip_type_id != chip_t3x) {
-		switch (reg_sel) {
-		case SATUR_LUT:
-			for (i = 0; i < 31; i++) {
-				tmp1 = *(p + 2 * i);
-				tmp2 = *(p + 2 * i + 1);
-				if (chip_type_id == chip_t6d)
-					tmp = ((tmp2 & 0xfff) << adr) | (tmp1 & 0xfff);
-				else
-					tmp = ((tmp1 & 0xfff) << adr) | (tmp2 & 0xfff);
-				WRITE_VPP_REG(reg_sat0 + i, tmp);
-			}
-			tmp = (*(p + 62)) & 0xfff;
-			WRITE_VPP_REG(reg_sat, tmp);
-			break;
-		case YMINVAL_LMT:
-			for (i = 0; i < 6; i++) {
-				tmp1 = *(p + 2 * i);
-				tmp2 = *(p + 2 * i + 1);
-				tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
-				WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i, tmp);
-			}
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-				for (j = 0; j < 2; j++) {
-					tmp1 = *(p + 2 * i);
-					tmp2 = *(p + 2 * i + 1);
-					tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
-					WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j,
-						tmp);
-					i++;
-				}
-			}
-			break;
-		case YPKBV_YMAXVAL_LMT:
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-				break;
-
-			for (i = 0; i < 6; i++) {
-				tmp1 = *(p + 2 * i);
-				tmp2 = *(p + 2 * i + 1);
-				tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
-				WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i, tmp);
-			}
-			break;
-		case YMAXVAL_LMT:
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-				for (i = 0; i < 6; i++) {
-					tmp1 = *(p + 2 * i);
-					tmp2 = *(p + 2 * i + 1);
-					tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
-					WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i,
-						tmp);
-				}
-
-				for (j = 0; j < 2; j++) {
-					tmp1 = *(p + 2 * i);
-					tmp2 = *(p + 2 * i + 1);
-					tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
-					WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j,
-						tmp);
-					i++;
-				}
-			}
-			break;
-		case YPKBV_LMT:
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-				for (i = 0; i < 8; i++) {
-					tmp1 = *(p + 2 * i);
-					tmp2 = *(p + 2 * i + 1);
-					tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
-					WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i,
-						tmp);
-				}
-			}
-			break;
-		case YPKBV_RAT:
-			tmp = (*p & 0xff) << 24 | (*(p + 1) & 0xff) << 16 |
-				(*(p + 2) & 0xff) << 8 | (*(p + 3) & 0xff);
-			WRITE_VPP_REG(LC_CURVE_YPKBV_RAT, tmp);
-			break;
-		case YPKBV_SLP_LMT:
-			tmp = (*p & 0xff) << 8 | (*(p + 1) & 0xff);
-			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, tmp);
-			break;
-		case CNTST_LMT:
-			tmp = (*p & 0xff) << 24 | (*(p + 1) & 0xff) << 16 |
-				(*(p + 2) & 0xff) << 8 | (*(p + 3) & 0xff);
-			WRITE_VPP_REG(LC_CURVE_CONTRAST__LMT_LH, tmp);
-			break;
-		default:
-			break;
-		}
-	} else {
-		switch (reg_sel) {
-		case SATUR_LUT:
-			ve_lc_sat_lut_set(p);
-			break;
-		case YMINVAL_LMT:
-			ve_lc_ymin_lmt_set(p);
-			break;
-		case YMAXVAL_LMT:
-			ve_lc_ymax_lmt_set(p);
-			break;
-		case YPKBV_LMT:
-			ve_lc_ypkbv_lmt_set(p);
-			break;
-		case YPKBV_RAT:
-			ve_lc_ypkbv_rat_set(p);
-			break;
-		case YPKBV_SLP_LMT:
-			ve_lc_ypkbv_slp_lmt_set(p);
-			break;
-		case CNTST_LMT:
-			ve_lc_contrast_lmt_set(p);
-			break;
-		default:
-			break;
-		}
-	}
-}
-
-void lc_load_curve(struct ve_lc_curve_parm_s *p)
-{
-	/*load lc parms*/
-	lc_alg_parm.dbg_parm0 = p->param[lc_dbg_parm0];
-	lc_alg_parm.dbg_parm1 = p->param[lc_dbg_parm1];
-	lc_alg_parm.dbg_parm2 = p->param[lc_dbg_parm2];
-	lc_alg_parm.dbg_parm3 = p->param[lc_dbg_parm3];
-	lc_alg_parm.dbg_parm4 = p->param[lc_dbg_parm4];
-
-	if (chip_type_id != chip_t3x) {
-		/*load lc_saturation curve*/
-		lc_wr_reg(p->ve_lc_saturation, 0x1);
-		/*load lc_yminval_lmt*/
-		lc_wr_reg(p->ve_lc_yminval_lmt, 0x2);
-		/*load lc_ypkbv_ymaxval_lmt*/
-		lc_wr_reg(p->ve_lc_ypkbv_ymaxval_lmt, 0x4);
-		/*load lc_ypkbv_ratio*/
-		lc_wr_reg(p->ve_lc_ypkbv_ratio, 0x8);
-		/*load lc_ymaxval_ratio*/
-		lc_wr_reg(p->ve_lc_ymaxval_lmt, 0x10);
-		/*load lc_ypkbv_lmt*/
-		lc_wr_reg(p->ve_lc_ypkbv_lmt, 0x20);
-	} else {
-		ve_lc_sat_lut_set(p->ve_lc_saturation);
-		ve_lc_ymin_lmt_set(p->ve_lc_yminval_lmt);
-		ve_lc_ymax_lmt_set(p->ve_lc_ymaxval_lmt);
-		ve_lc_ypkbv_lmt_set(p->ve_lc_ypkbv_lmt);
-		ve_lc_ypkbv_rat_set(p->ve_lc_ypkbv_ratio);
-	}
-}
-
-static int lc_dbg_flag;
-static enum lc_reg_lut_e reg_sel;
-static int lc_temp;
-static char lc_dbg_curve[100];
 static ssize_t amvecm_lc_show(const struct class *cla,
 			      const struct class_attribute *attr, char *buf)
 {
@@ -13926,387 +12685,21 @@ static ssize_t amvecm_lc_store(const struct class *cls,
 		 const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
-	int reg_lut[63] = {0};
-	int h, v, i, start_point;
-	long val = 0;
-	char *stemp = NULL;
-	int curve_val[6] = {0};
+	int ret;
 
 	if (!buf)
 		return count;
-	stemp = kzalloc(100, GFP_KERNEL);
-	if (!stemp)
-		return 0;
 
-	memset(stemp, 0, 100);
-	memset(lc_dbg_curve, 0, sizeof(char) * 100);
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	if (!buf_orig) {
-		kfree(stemp);
 		return -ENOMEM;
 	}
 	parse_param_amvecm(buf_orig, (char **)&parm);
-
-	if (!strcmp(parm[0], "lc")) {
-		if (!strcmp(parm[1], "enable"))
-			lc_en = 1;
-		else if (!strcmp(parm[1], "disable"))
-			lc_en = 0;
-		else
-			pr_info("unsupport cmd!\n");
-	} else if (!strcmp(parm[0], "lc_dump_reg")) {
-		dump_lc_reg();
-	} else if (!strcmp(parm[0], "lc_version")) {
-		pr_info("lc driver version :  %s\n", LC_VER);
-	} else if (!strcmp(parm[0], "lc_dbg")) {
-		if (kstrtoul(parm[1], 16, &val) < 0)
-			goto free_buf;
-		amlc_debug = val;
-	} else if (!strcmp(parm[0], "lc_curve_isr")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		use_lc_curve_isr = val;
-	} else if (!strcmp(parm[0], "lc_demo_mode")) {
-		if (!strcmp(parm[1], "enable"))
-			lc_demo_mode = 1;
-		else if (!strcmp(parm[1], "disable"))
-			lc_demo_mode = 0;
-		else
-			pr_info("unsupport cmd!\n");
-	} else if (!strcmp(parm[0], "dump_lut_data")) {
-		if (kstrtoul(parm[1], 16, &val) < 0)
-			goto free_buf;
-		reg_sel = val;
-		if (reg_sel == SATUR_LUT)
-			lc_rd_reg(SATUR_LUT, 0, NULL);
-		else if (reg_sel == YMINVAL_LMT)
-			lc_rd_reg(YMINVAL_LMT, 0, NULL);
-		else if (reg_sel == YPKBV_YMAXVAL_LMT)
-			lc_rd_reg(YPKBV_YMAXVAL_LMT, 0, NULL);
-		else if (reg_sel == YMAXVAL_LMT)
-			lc_rd_reg(YMAXVAL_LMT, 0, NULL);
-		else if (reg_sel == YPKBV_LMT)
-			lc_rd_reg(YPKBV_LMT, 0, NULL);
-		else if (reg_sel == YPKBV_RAT)
-			lc_rd_reg(YPKBV_RAT, 0, NULL);
-		else if (reg_sel == YPKBV_SLP_LMT)
-			lc_rd_reg(YPKBV_SLP_LMT, 0, NULL);
-		else if (reg_sel == CNTST_LMT)
-			lc_rd_reg(CNTST_LMT, 0, NULL);
-		else
-			pr_info("unsupport cmd!\n");
-	} else if (!strcmp(parm[0], "dump_lut_str")) {
-		if (kstrtoul(parm[1], 16, &val) < 0)
-			goto free_buf;
-		reg_sel = val;
-		lc_dbg_flag |= LC_CUR_RD_UPDATE;
-	} else if (!strcmp(parm[0], "lc_wr_lut")) {
-		if (kstrtoul(parm[1], 16, &val) < 0)
-			goto free_buf;
-		reg_sel = val;
-		if (!parm[2])
-			goto free_buf;
-		str_sapr_to_d(parm[2], reg_lut, 5);
-		if (reg_sel == SATUR_LUT)
-			lc_wr_reg(reg_lut, SATUR_LUT);
-		else if (reg_sel == YMINVAL_LMT)
-			lc_wr_reg(reg_lut, YMINVAL_LMT);
-		else if (reg_sel == YPKBV_YMAXVAL_LMT)
-			lc_wr_reg(reg_lut, YPKBV_YMAXVAL_LMT);
-		else if (reg_sel == YMAXVAL_LMT)
-			lc_wr_reg(reg_lut, YMAXVAL_LMT);
-		else if (reg_sel == YPKBV_LMT)
-			lc_wr_reg(reg_lut, YPKBV_LMT);
-		else if (reg_sel == YPKBV_RAT)
-			lc_wr_reg(reg_lut, YPKBV_RAT);
-		else if (reg_sel == YPKBV_SLP_LMT)
-			lc_wr_reg(reg_lut, YPKBV_SLP_LMT);
-		else if (reg_sel == CNTST_LMT)
-			lc_wr_reg(reg_lut, CNTST_LMT);
-		else
-			pr_info("unsupport cmd!\n");
-	} else if (!strcmp(parm[0], "dump_lc_curve")) {
-		if (!strcmp(parm[1], "all")) {
-			/*dump curve of one frame*/
-			if (ve_multi_picture_case_get() > 0)
-				lc_hist_prcnt = 2;
-			else
-				lc_hist_prcnt = 1;
-			amlc_debug = 0x80;
-		} else if (!strcmp(parm[1], "slice0")) {
-			lc_read_region(8, 12, 0);
-			lc_prt_curve();
-		} else if (!strcmp(parm[1], "slice1")) {
-			lc_read_region(8, 12, 1);
-			lc_prt_curve();
-		}
-	} else if (!strcmp(parm[0], "dump_hist")) {
-		if (!strcmp(parm[1], "all")) {
-			/*dump all hist of one frame*/
-			if (ve_multi_picture_case_get() > 0)
-				lc_hist_prcnt = 2;
-			else
-				lc_hist_prcnt = 1;
-			amlc_debug = 0x8;
-		} else if (!strcmp(parm[1], "chosen")) {
-			/*dump multiple frames in selected area*/
-			if (!parm[6])
-				goto free_buf;
-			if (kstrtoul(parm[2], 10, &val) < 0)
-				goto free_buf;
-			lc_hist_hs = val;
-			if (kstrtoul(parm[3], 10, &val) < 0)
-				goto free_buf;
-			lc_hist_he = val;
-			if (kstrtoul(parm[4], 10, &val) < 0)
-				goto free_buf;
-			lc_hist_vs = val;
-			if (kstrtoul(parm[5], 10, &val) < 0)
-				goto free_buf;
-			lc_hist_ve = val;
-			if (kstrtoul(parm[6], 10, &val) < 0)
-				goto free_buf;
-			lc_hist_prcnt = val;
-			amlc_debug = 0x6;
-		} else {
-			pr_info("unsupport cmd!\n");
-		}
-	} else if (!strcmp(parm[0], "dump_curve")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		lc_curve_prcnt = val;
-	} else if (!strcmp(parm[0], "lc_osd_setting")) {
-		if (!strcmp(parm[1], "show")) {
-			pr_info("VNUM_STRT_BELOW: %d, VNUM_END_BELOW: %d\n",
-				vnum_start_below, vnum_end_below);
-			pr_info("VNUM_STRT_ABOVE: %d, VNUM_END_ABOVE: %d\n",
-				vnum_start_above, vnum_end_above);
-			pr_info("INVALID_BLK: %d, MIN_BV_PERCENT_TH: %d\n",
-				invalid_blk, min_bv_percent_th);
-		} else if (!strcmp(parm[1], "set")) {
-			if (!parm[7])
-				goto free_buf;
-			if (kstrtoul(parm[2], 10, &val) < 0)
-				goto free_buf;
-			vnum_start_below = val;
-			if (kstrtoul(parm[3], 10, &val) < 0)
-				goto free_buf;
-			vnum_end_below = val;
-			if (kstrtoul(parm[4], 10, &val) < 0)
-				goto free_buf;
-			vnum_start_above = val;
-			if (kstrtoul(parm[5], 10, &val) < 0)
-				goto free_buf;
-			vnum_end_above = val;
-			if (kstrtoul(parm[6], 10, &val) < 0)
-				goto free_buf;
-			invalid_blk = val;
-			if (kstrtoul(parm[7], 10, &val) < 0)
-				goto free_buf;
-			min_bv_percent_th = val;
-		} else {
-			pr_info("unsupport cmd!\n");
-		}
-	} else if (!strcmp(parm[0], "osd_iir_en")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		osd_iir_en = val;
-	} else if (!strcmp(parm[0], "iir_refresh")) {
-		if (!strcmp(parm[1], "show")) {
-			pr_info("current state: alpha1: %d, alpha2: %d, refresh_bit: %d, ts: %d\n",
-				alpha1, alpha2, refresh_bit, ts);
-		} else if (!strcmp(parm[1], "set")) {
-			if (!parm[5])
-				goto free_buf;
-			if (kstrtoul(parm[2], 10, &val) < 0)
-				goto free_buf;
-			alpha1 = val;
-			if (kstrtoul(parm[3], 10, &val) < 0)
-				goto free_buf;
-			alpha2 = val;
-			if (kstrtoul(parm[4], 10, &val) < 0)
-				goto free_buf;
-			refresh_bit = val;
-			if (kstrtoul(parm[5], 10, &val) < 0)
-				goto free_buf;
-			ts = val;
-			pr_info("after setting: alpha1: %d, alpha2: %d, refresh_bit: %d, ts: %d\n",
-				alpha1, alpha2, refresh_bit, ts);
-		}  else {
-			pr_info("unsupport cmd!\n");
-		}
-	} else if (!strcmp(parm[0], "scene_change_th")) {
-		pr_info("current value: %d\n", scene_change_th);
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		scene_change_th = val;
-		pr_info("setting value: %d\n", scene_change_th);
-	} else if (!strcmp(parm[0], "irr_dbg_en")) {
-		pr_info("current value: %d\n", amlc_iir_debug_en);
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		amlc_iir_debug_en = val;
-		pr_info("setting value: %d\n", amlc_iir_debug_en);
-	} else if (!strcmp(parm[0], "get_blk_region")) {
-		if (chip_type_id == chip_t3x) {
-			ve_lc_blk_num_get(&h, &v, 0);
-		} else {
-			val = READ_VPP_REG(LC_CURVE_HV_NUM);
-			h = (val >> 8) & 0x1f;
-			v = (val) & 0x1f;
-		}
-		if (!strcmp(parm[1], "htotal")) {
-			lc_temp = h;
-			lc_dbg_flag |= LC_PARAM_RD_UPDATE;
-		} else if (!strcmp(parm[1], "vtotal")) {
-			lc_temp = v;
-			lc_dbg_flag |= LC_PARAM_RD_UPDATE;
-		} else
-			pr_info("unsupport cmd!\n");
-	} else if (!strcmp(parm[0], "get_hist")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		h = val;
-		if (kstrtoul(parm[2], 10, &val) < 0)
-			goto free_buf;
-		v = val;
-		if (h > 11 || v > 7)
-			goto free_buf;
-		start_point = (12 * v + h) * 17;
-		for (i = 0; i < 17; i++)
-			d_convert_str(lc_hist[start_point + i] >> 4,
-						i, stemp, 4, 10);
-		memcpy(lc_dbg_curve, stemp, 100);
-		lc_dbg_flag |= LC_CUR2_RD_UPDATE;
-	} else if (!strcmp(parm[0], "get_curve")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		h = val;
-		if (kstrtoul(parm[2], 10, &val) < 0)
-			goto free_buf;
-		v = val;
-		if (h > 11 || v > 7)
-			goto free_buf;
-		start_point = (12 * v + h) * 6;
-		for (i = 0; i < 6; i++)
-			d_convert_str(curve_nodes_cur[start_point + i],
-						i, stemp, 4, 10);
-		memcpy(lc_dbg_curve, stemp, 100);
-		lc_dbg_flag |= LC_CUR2_RD_UPDATE;
-	} else if (!strcmp(parm[0], "set_curve")) {
-		if (!parm[3])
-			goto free_buf;
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		h = val;
-		if (kstrtoul(parm[2], 10, &val) < 0)
-			goto free_buf;
-		v = val;
-		if (h > 11 || v > 7)
-			goto free_buf;
-		start_point = (12 * v + h) * 6;
-		str_sapr_to_d(parm[3], curve_val, 5);
-		for (i = 0; i < 6; i++)
-			curve_nodes_cur[start_point + i] =
-			curve_val[i];
-	} else if (!strcmp(parm[0], "stop_refresh")) {
-		lc_curve_fresh = false;
-	} else if (!strcmp(parm[0], "refresh_curve")) {
-		lc_curve_fresh = true;
-	} else if (!strcmp(parm[0], "reg_lmtrat_sigbin")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		lc_tune_curve.lc_reg_lmtrat_sigbin = val;
-		pr_info("reg_lmtrat_sigbin = %d\n",
-			lc_tune_curve.lc_reg_lmtrat_sigbin);
-	} else if (!strcmp(parm[0], "reg_lmtrat_thd_max")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		lc_tune_curve.lc_reg_lmtrat_thd_max = val;
-		pr_info("reg_lmtrat_thd_max = %d\n",
-			lc_tune_curve.lc_reg_lmtrat_thd_max);
-	} else if (!strcmp(parm[0], "reg_lmtrat_thd_black")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		lc_tune_curve.lc_reg_lmtrat_thd_black = val;
-		pr_info("reg_lmtrat_thd_black = %d\n",
-			lc_tune_curve.lc_reg_lmtrat_thd_black);
-	} else if (!strcmp(parm[0], "reg_thd_black")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		lc_tune_curve.lc_reg_thd_black = val;
-		WRITE_VPP_REG_BITS(LC_STTS_BLACK_INFO,
-				   lc_tune_curve.lc_reg_thd_black, 0, 8);
-		pr_info("reg_thd_black = %d\n",
-			lc_tune_curve.lc_reg_thd_black);
-	} else if (!strcmp(parm[0], "ypkBV_black_thd")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		lc_tune_curve.ypkbv_black_thd = val;
-		pr_info("ypkBV_black_thd = %d\n",
-			lc_tune_curve.ypkbv_black_thd);
-	} else if (!strcmp(parm[0], "yminV_black_thd")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		lc_tune_curve.yminv_black_thd = val;
-		pr_info("yminV_black_thd = %d\n",
-			lc_tune_curve.yminv_black_thd);
-	} else if (!strcmp(parm[0], "tune_curve_debug")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		lc_node_pos_v = val;
-		if (kstrtoul(parm[2], 10, &val) < 0)
-			goto free_buf;
-		lc_node_pos_h = val;
-		pr_info("tune_curve_debug pos = v %d h %d\n",
-			lc_node_pos_v, lc_node_pos_h);
-	} else if (!strcmp(parm[0], "tune_curve_en")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		tune_curve_en = val;
-		amlc_debug = 0xc;
-		lc_node_prcnt = 10;
-		pr_info("tune_curve_en = %d\n", tune_curve_en);
-	} else if (!strcmp(parm[0], "detect_signal_range_en")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		amlc_debug = 0xe;
-		detect_signal_range_en = val;
-		pr_info("detect_signal_range_en = %d\n",
-			detect_signal_range_en);
-	} else if (!strcmp(parm[0], "detect_signal_range_threshold")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-		detect_signal_range_threshold_black = val;
-		if (kstrtoul(parm[2], 10, &val) < 0)
-			goto free_buf;
-		detect_signal_range_threshold_white = val;
-		amlc_debug = 0xe;
-		pr_info("detect_signal_range_threshold = %d %d\n",
-			detect_signal_range_threshold_black,
-			detect_signal_range_threshold_white);
-	} else if (!strcmp(parm[0], "clean_error_ro")) {
-		clean_lc_stts_overflow();
-	} else if (!strcmp(parm[0], "lc_dma_reset")) {
-		if (!strcmp(parm[1], "enable"))
-			am_dma_reset_lc(1, 1, 3);
-		else if (!strcmp(parm[1], "disable"))
-			am_dma_reset_lc(0, 1, 3);
-		else
-			pr_info("unsupport cmd!\n");
-	} else {
-		pr_info("unsupport cmd!\n");
-	}
-
+	ret = lc_debug_store(parm);
+	if (ret)
+		pr_info("set parameters failed %d\n", ret);
 	kfree(buf_orig);
-	kfree(stemp);
 	return count;
-
-free_buf:
-	pr_info("Missing parameters !\n");
-	kfree(buf_orig);
-	kfree(stemp);
-	return -EINVAL;
 }
 
 static void def_hdr_sdr_mode(void)
@@ -14438,6 +12831,9 @@ struct param_parse_cmd_s param_cut_cmd[] = {
 	{"vks_theta_angle", &vks_theta_angle},
 	{"vks_alph0_angle", &vks_alph0_angle},
 	{"vks_alph1_angle", &vks_alph1_angle},
+	{"lc_pattern_detect_log1", &lc_pattern_detect_log1},
+	{"lc_read_curve_nodes_changed_en", &lc_read_curve_nodes_changed_en},
+	{"lc_change_curve_nodes_en", &lc_change_curve_nodes_en},
 	{"end", NULL},
 };
 #endif

@@ -184,7 +184,10 @@ extern unsigned int sync_3d_sync_to_vbo;
 extern int fmeter_slt;
 extern int fmeter_en;
 extern int cur_sr_level;
-extern int pre_fmeter_level, cur_fmeter_level, fmeter_flag;
+extern int pre_fmeter_level, fmeter_flag;
+extern unsigned int fmeter_debug;
+extern struct aml_fmeter_drv_param_s fmeter_drv_param;
+
 void amve_fmeter_init(int enable);
 void amve_fmetersize_config(u32 sr0_w, u32 sr0_h,
 	u32 sr1_w, u32 sr1_h, int vpp_index);

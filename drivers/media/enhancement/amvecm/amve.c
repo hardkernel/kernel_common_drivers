@@ -1214,17 +1214,10 @@ void ve_dnlp_ctrl_vsync(int enable)
 
 void ve_set_dnlp_2(void)
 {
-	ulong i = 0;
 	/* clear historic luma sum */
 	if (dnlp_insmod_ok == 0)
 		return;
-	*ve_dnlp_luma_sum_copy = 0;
-	/* init tgt & lpf */
-	for (i = 0; i < 64; i++) {
-		ve_dnlp_tgt_copy[i] = i << 2;
-		ve_dnlp_tgt_10b_copy[i] = i << 4;
-		ve_dnlp_lpf[i] = (ulong)ve_dnlp_tgt_copy[i] << ve_dnlp_rt;
-	}
+	ve_dnlp_tgt_init(0);
 	/* calculate dnlp reg data */
 	ve_dnlp_calculate_reg();
 	/* load dnlp reg data */
@@ -3346,6 +3339,9 @@ void amve_fmeter_init(int enable)
 	WRITE_VPP_REG(SRSHARP1_SR7_PKLONG_PF_GAIN, 0x40404040);
 	WRITE_VPP_REG_BITS(SRSHARP1_PK_OS_STATIC, 0x14, 0, 10);
 	WRITE_VPP_REG_BITS(SRSHARP1_PK_OS_STATIC, 0x14, 12, 10);
+
+	fmeter_drv_param.fmeter_debug = &fmeter_debug;
+	fmeter_drv_param.data_meter = &data_meter;
 }
 
 /*frequence meter size config*/
