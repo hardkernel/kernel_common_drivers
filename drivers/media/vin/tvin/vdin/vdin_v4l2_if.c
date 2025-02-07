@@ -1614,15 +1614,17 @@ static int vdin_vb2ops_queue_setup(struct vb2_queue *vq,
 	for (i = 0; i < *num_planes; i++) {
 		sizes[i] = devp->v4l2_fmt.fmt.pix_mp.plane_fmt[i].sizeimage;
 		dprintk(1, "plane %d, size %x\n", i, sizes[i]);
-		//if (devp->index == 0)
-		if (devp->debug.v4l2_buff_area == 0)
+		if (devp->hw_core == VDIN_HW_CORE_LITE)
+			alloc_devs[i] = &devp->this_pdev->dev;/* vdin_cma area */
+		else
 			alloc_devs[i] = v4l_get_dev_from_codec_mm();/* codec_mm_cma area */
-		else if (devp->debug.v4l2_buff_area == 1)
-			alloc_devs[i] = &devp->this_pdev->dev;/* vdin0_cma area */
+
+		if (devp->debug.v4l2_buff_area == 1)
+			alloc_devs[i] = v4l_get_dev_from_codec_mm();/* codec_mm_cma area */
 		else if (devp->debug.v4l2_buff_area == 2)
+			alloc_devs[i] = &devp->this_pdev->dev;/* vdin0_cma area */
+		else if (devp->debug.v4l2_buff_area == 3)
 			alloc_devs[i] = devp->dev;/* CMA reserved area */
-		//else
-			//alloc_devs[i] = &devp->this_pdev->dev;/* vdin1_cma area */
 	}
 
 	dprintk(1, "type: %d, plane: %d, buf cnt: %d, size: [Y: %x, C: %x]\n",
