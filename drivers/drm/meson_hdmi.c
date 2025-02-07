@@ -271,7 +271,7 @@ static bool meson_hdmitx_test_color_attr(struct hdmitx_common *common,
 				attr_list->colorformat, attr_list->bitdepth);
 			if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
 					attr_str, false)) {
-				DRM_INFO("%s success [%d]+[%d]\n", __func__,
+				DRM_DEBUG("%s success [%d]+[%d]\n", __func__,
 					attr_list->colorformat,
 					attr_list->bitdepth);
 				break;
@@ -1819,7 +1819,7 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 		crtc_state->valid_brr = 1;
 	}
 
-	DRM_INFO("%s, %d, %d, %s, %d\n", __func__, vic, brr, crtc_state->brr_mode,
+	DRM_DEBUG("%s, %d, %d, %s, %d\n", __func__, vic, brr, crtc_state->brr_mode,
 			 crtc_state->valid_brr);
 	crtc_state->brr = brr;
 	kfree(groups);
@@ -2173,7 +2173,7 @@ static int meson_hdmitx_encoder_autoselect_attr(struct drm_encoder *encoder,
 	if (ret < 0)
 		DRM_ERROR("format para build fail\n");
 
-	DRM_INFO("driver autoselect attr:[%s][%d][%d]\n",
+	DRM_DEBUG("driver autoselect attr:[%s][%d][%d]\n",
 		hdmitx_state->hcs.para.name, hdmitx_state->hcs.para.cs, hdmitx_state->hcs.para.cd);
 
 	return ret;
