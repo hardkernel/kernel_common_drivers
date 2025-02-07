@@ -501,6 +501,7 @@ void set_hdcp_common_instance(struct hdmitx_common *tx_comm);
 
 int hdmitx_get_connector(void);
 struct hdmitx_dev *get_hdmitx_device(void);
+void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
 /*******************************hdmitx common api end*******************************/
 
 int hdmitx_register_hpd_cb(struct hdmitx_common *tx_comm, struct connector_hpd_cb *hpd_cb);

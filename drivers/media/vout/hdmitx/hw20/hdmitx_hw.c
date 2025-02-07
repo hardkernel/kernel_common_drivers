@@ -744,7 +744,7 @@ void hdmitx20_meson_init(struct hdmitx_dev *hdev)
 	global_tx_hw->base->setaudmode = hdmitx_set_audmode;
 	global_tx_hw->base->uninit = hdmitx_uninit;
 	global_tx_hw->base->setupirq = hdmitx_setupirq;
-	global_tx_hw->base->debugfun = hdmitx_debug;
+	global_tx_hw->base->debugfunc = hdmitx_debug;
 	global_tx_hw->base->setdispmode = hdmitx_set_dispmode;
 	global_tx_hw->base->get_clk = hdmitx_get_clk;
 	global_tx_hw->base->pkt_dump = hdmitx_pkt_dump;
@@ -3159,18 +3159,6 @@ do { \
 	} \
 } while (0)
 
-static void hdmitx_dump_intr(void)
-{
-	unsigned int addr = 0, val = 0;
-
-	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_FC_STAT0,
-		HDMITX_DWC_IH_I2CMPHY_STAT0);
-	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_DECODE, HDMITX_DWC_IH_DECODE);
-	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_MUTE_FC_STAT0,
-		HDMITX_DWC_IH_MUTE_I2CMPHY_STAT0);
-	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_MUTE, HDMITX_DWC_IH_MUTE);
-}
-
 static void mode420_half_horizontal_para(void)
 {
 	unsigned int hactive = 0;
@@ -3284,9 +3272,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	unsigned long adr = 0;
 	unsigned long value = 0;
 	u8 data;
-	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
-	struct scdc_locked_st *ch_st = &hdev->tx_comm.chlocked_st;
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
@@ -3294,28 +3279,12 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	}
 	tmpbuf[i] = 0;
 
-	if (strncmp(tmpbuf, "testhpll", 8) == 0) {
-		ret = kstrtoul(tmpbuf + 8, 10, &value);
-		hdev->tx_comm.fmt_para.vic = value;
-		set_vmode_clk(hdev);
-		return;
-	} else if (strncmp(tmpbuf, "testedid", 8) == 0) {
+	if (strncmp(tmpbuf, "testedid", 8) == 0) {
 		hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_RESET_EDID, 0);
 		hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_EDID_READ_DATA, 0);
 		return;
 	} else if (strncmp(tmpbuf, "i2c_reactive", 12) == 0) {
 		hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_I2C_RESET, 0);
-		return;
-	} else if (strncmp(tmpbuf, "edid_check", 10) == 0) {
-		if (strncmp(tmpbuf + 10, "=0", 2) == 0)
-			hdev->tx_comm.rxcap.edid_check = 0;
-		else if (strncmp(tmpbuf + 10, "=1", 2) == 0)
-			hdev->tx_comm.rxcap.edid_check = 1;
-		else if (strncmp(tmpbuf + 10, "=2", 2) == 0)
-			hdev->tx_comm.rxcap.edid_check = 2;
-		else if (strncmp(tmpbuf + 10, "=3", 2) == 0)
-			hdev->tx_comm.rxcap.edid_check = 3;
-		HDMITX_INFO("edid_check = %d\n", hdev->tx_comm.rxcap.edid_check);
 		return;
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		if (strncmp(tmpbuf + 4, "off", 3) == 0) {
@@ -3354,23 +3323,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		return;
 	} else if (strncmp(tmpbuf, "testaudio", 9) == 0) {
 		hdmitx_set_audmode(&hdev->hw_comm, NULL);
-	} else if (strncmp(tmpbuf, "dumpintr", 8) == 0) {
-		hdmitx_dump_intr();
-	} else if (strncmp(tmpbuf, "testhdcp", 8) == 0) {
-		int i;
-
-		i = tmpbuf[8] - '0';
-		if (i == 2)
-			HDMITX_INFO("hdcp rslt = %d", hdmitx_hdcp_opr(2));
-		if (i == 1)
-			hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_OP, HDCP14_ON);
-		return;
-	} else if (strncmp(tmpbuf, "chkfmt", 6) == 0) {
-		hdmitx_mode_print_all_mode_table();
-		return;
-	} else if (strncmp(tmpbuf, "ss", 2) == 0) {
-		HDMITX_INFO("hdev->hpd_state: 0x%x\n", hdev->tx_comm.hpd_state);
-		HDMITX_INFO("hdev->tx_comm.fmt_para.vic: 0x%x\n", hdev->tx_comm.fmt_para.vic);
 	} else if (strncmp(tmpbuf, "hpd_lock", 8) == 0) {
 		if (tmpbuf[8] == '1') {
 			hdev->hw_comm.debug_hpd_lock = 1;
@@ -3379,53 +3331,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdev->hw_comm.debug_hpd_lock = 0;
 			HDMITX_INFO("unlock hpd\n");
 		}
-		return;
-	} else if (strncmp(tmpbuf, "hpd_stick", 9) == 0) {
-		if (tmpbuf[9] == '1')
-			hdev->hdcp_hpd_stick = 1;
-		else
-			hdev->hdcp_hpd_stick = 0;
-		HDMITX_DEBUG_HPD("%sstick hpd\n",
-			(hdev->hdcp_hpd_stick) ? "" : "un");
-	} else if (strncmp(tmpbuf, "topo", 4) == 0) {
-		HDMITX_INFO("topo: %d\n", hdmitx_hdcp_opr(0xe));
-		return;
-	} else if (strncmp(tmpbuf, "dumpcecreg", 10) == 0) {
-		unsigned char cec_val = 0;
-		unsigned int cec_adr = 0;
-		/* HDMI CEC Regs address range:0xc000~0xc01c;0xc080~0xc094 */
-		for (cec_adr = 0xc000; cec_adr < 0xc01d; cec_adr++) {
-			cec_val = hdmitx_rd_reg(cec_adr);
-			HDMITX_INFO(CEC "HDMI CEC Regs[0x%x]: 0x%x\n",
-				cec_adr, cec_val);
-		}
-		for (cec_adr = 0xc080; cec_adr < 0xc095; cec_adr++) {
-			cec_val = hdmitx_rd_reg(cec_adr);
-			HDMITX_INFO(CEC "HDMI CEC Regs[0x%x]: 0x%x\n",
-				cec_adr, cec_val);
-		}
-		return;
-	} else if (strncmp(tmpbuf, "dumpcbusreg", 11) == 0) {
-		unsigned int i, val;
-
-		for (i = 0; i < 0x3000; i++) {
-			val = hd_read_reg(CBUS_REG_ADDR(i));
-			if (val)
-				HDMITX_INFO("CBUS[0x%x]: 0x%x\n", i, val);
-		}
-		return;
-	} else if (strncmp(tmpbuf, "dumpvcbusreg", 12) == 0) {
-		unsigned int i, val;
-
-		for (i = 0; i < 0x3000; i++) {
-			val = hd_read_reg(VCBUS_REG_ADDR(i));
-			if (val)
-				HDMITX_INFO("VCBUS[0x%x]: 0x%x\n", i, val);
-		}
-		return;
-	} else if (strncmp(tmpbuf, "cfgreg", 6) == 0) {
-		ret = kstrtoul(tmpbuf + 6, 16, &adr);
-		ret = kstrtoul(buf + i + 1, 16, &value);
 		return;
 	} else if (tmpbuf[0] == 'w') {
 		unsigned long read_back = 0;
@@ -3445,73 +3350,8 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		if (buf[1] == 'h')
 			value = hdmitx_rd_reg(adr);
 		HDMITX_INFO("%s reg[%lx]=%lx\n", "HDMI", adr, value);
-	} else if (strncmp(tmpbuf, "prbs", 4) == 0) {
-		unsigned int phy_cntl1;
-		unsigned int phy_cntl4;
-		unsigned int phy_status;
-
-		switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
-		case MESON_CPU_ID_SC2:
-			phy_cntl1 = P_ANACTRL_HDMIPHY_CTRL1;
-			phy_cntl4 = P_ANACTRL_HDMIPHY_CTRL4;
-			phy_status = P_ANACTRL_HDMIPHY_STS;
-			break;
-		case MESON_CPU_ID_TM2:
-		case MESON_CPU_ID_TM2B:
-			phy_cntl1 = P_TM2_HHI_HDMI_PHY_CNTL1;
-			phy_cntl4 = P_TM2_HHI_HDMI_PHY_CNTL4;
-			phy_status = P_TM2_HHI_HDMI_PHY_STATUS;
-			break;
-		case MESON_CPU_ID_G12A:
-		case MESON_CPU_ID_G12B:
-		case MESON_CPU_ID_SM1:
-		default:
-			phy_cntl1 = P_HHI_HDMI_PHY_CNTL1;
-			phy_cntl4 = P_HHI_HDMI_PHY_CNTL4;
-			phy_status = P_HHI_HDMI_PHY_STATUS;
-			break;
-		}
-		/* test prbs */
-		for (i = 0; i < 4; i++) {
-			hd_write_reg(phy_cntl1, 0x0390000f);
-			hd_write_reg(phy_cntl1, 0x0390000e);
-			hd_write_reg(phy_cntl1, 0x03904002);
-			hd_write_reg(phy_cntl4, 0x0001efff
-				| (i << 20));
-			hd_write_reg(phy_cntl1, 0xef904002);
-			mdelay(10);
-			if (i > 0)
-				HDMITX_INFO("prbs D[%d]:%x\n", i - 1,
-					hd_read_reg(phy_status));
-			else
-				HDMITX_INFO("prbs clk :%x\n",
-					hd_read_reg(phy_status));
-		}
 	} else if (strncmp(tmpbuf, "stop_vsif", 9) == 0) {
 		hdmitx_disable_packet(HDMI_PACKET_VEND);
-	} else if (strncmp(tmpbuf, "hdcp_mode", 9) == 0) {
-		ret = kstrtoul(tmpbuf + 9, 16, &value);
-		if (ret == 0 && value <= 2)
-			hdev->tx_comm.drm_hdcp.test_hdcp_mode = value - 0;
-		HDMITX_INFO("test drm_hdcp_mode: %d\n", hdev->tx_comm.drm_hdcp.test_hdcp_mode);
-	} else if (strncmp(tmpbuf, "drm_set_hdmi", 12) == 0) {
-		if (hdev->tx_comm.drm_hdcp.test_set_hdmi_mode)
-			hdev->tx_comm.drm_hdcp.test_set_hdmi_mode();
-	} else if (strncmp(tmpbuf, "drm_set_out", 11) == 0) {
-		if (hdev->tx_comm.drm_hdcp.test_set_out_mode)
-			hdev->tx_comm.drm_hdcp.test_set_out_mode();
-	} else if (strncmp(tmpbuf, "drm_hdcp_op", 11) == 0) {
-		ret = kstrtoul(tmpbuf + 11, 16, &value);
-		if (value == 0 && hdev->tx_comm.drm_hdcp.test_hdcp_disable)
-			hdev->tx_comm.drm_hdcp.test_hdcp_disable();
-		else if (value == 1 && tx_comm->drm_hdcp.test_hdcp_enable)
-			tx_comm->drm_hdcp.test_hdcp_enable(tx_comm->drm_hdcp.test_hdcp_mode);
-		else if (value == 2 && hdev->tx_comm.drm_hdcp.test_hdcp_disconnect)
-			hdev->tx_comm.drm_hdcp.test_hdcp_disconnect();
-	} else if (strncmp(tmpbuf, "avmute_frame", 12) == 0) {
-		ret = kstrtoul(tmpbuf + 12, 10, &value);
-		hdev->tx_comm.debug_param.avmute_frame = value;
-		HDMITX_INFO("avmute_frame = %lu\n", value);
 	} else if (strncmp(tmpbuf, "csc_en", 6) == 0) {
 		ret = kstrtoul(tmpbuf + 6, 0, &value);
 		/* 0: no change
@@ -3527,14 +3367,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdmitx_hw_cntl_config(&hdev->hw_comm, CONFIG_CSC,
 				value | CSC_UPDATE_AVI_CS);
 		}
-	} else if (strncmp(tmpbuf, "config_csc_en", 13) == 0) {
-		ret = kstrtoul(tmpbuf + 13, 0, &value);
-		HDMITX_INFO("config_csc_en to %lu\n", value);
-
-		if (value == 0)
-			hdev->tx_comm.config_csc_en = false;
-		else if (value == 1)
-			hdev->tx_comm.config_csc_en = true;
 	} else if (strncmp(tmpbuf, "set_div40", 9) == 0) {
 		/* echo 1 > div40, force send 1:40 tmds bit clk ratio
 		 * echo 0 > div40, send 1:10 tmds bit clk ratio if scdc_present
@@ -3548,11 +3380,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 				DDC_SCDC_DIV40_SCRAMB, value);
 		}
-	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
-		HDMITX_INFO("test drm_hdcp_ver: %d\n", meson_hdcp_get_rx_cap());
-	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
-		HDMITX_INFO("hdcp result: hdcp22: %d topo: %d, hdcp14: %d\n",
-			hdmitx_hdcp_opr(7), hdmitx_hdcp_opr(0xe), hdmitx_hdcp_opr(2));
 	} else if (strncmp(tmpbuf, "tv_hdcp_rst", 11) == 0) {
 		HDMITX_INFO("force poll and reset TV hdcp\n");
 		hdmitx_reset_tv_hdcp();
@@ -3571,48 +3398,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdev->tx_comm.poll_rx_status_mtd = 0;
 		else
 			hdev->tx_comm.poll_rx_status_mtd = 1;
-	} else if (strncmp(tmpbuf, "hdcp_max_exceed", 15) == 0) {
-		HDMITX_INFO("%d", hdev->hdcp_max_exceed_state);
-	} else if (strncmp(tmpbuf, "max_exceed", 10) == 0) {
-		ret = kstrtoul(tmpbuf + 10, 10, &value);
-		hdev->max_exceed = value;
-		HDMITX_INFO("%d", hdev->max_exceed);
-	} else if (strncmp(tmpbuf, "cedst_count", 11) == 0) {
-		if (!ch_st->clock_detected)
-			HDMITX_INFO("clock undetected\n");
-		if (!ch_st->ch0_locked)
-			HDMITX_INFO("CH0 unlocked\n");
-		if (!ch_st->ch1_locked)
-			HDMITX_INFO("CH1 unlocked\n");
-		if (!ch_st->ch2_locked)
-			HDMITX_INFO("CH2 unlocked\n");
-		if (ced->ch0_valid && ced->ch0_cnt)
-			HDMITX_INFO("CH0 ErrCnt 0x%x\n", ced->ch0_cnt);
-		if (ced->ch1_valid && ced->ch1_cnt)
-			HDMITX_INFO("CH1 ErrCnt 0x%x\n", ced->ch1_cnt);
-		if (ced->ch2_valid && ced->ch2_cnt)
-			HDMITX_INFO("CH2 ErrCnt 0x%x\n", ced->ch2_cnt);
-		memset(ced, 0, sizeof(*ced));
-	} else if (strncmp(tmpbuf, "hdmi_hsty_config", 16) == 0) {
-		print_hsty_hdmiaud_config_data();
-	} else if (strncmp(tmpbuf, "edid_parse", 10) == 0) {
-		if (tmpbuf[10] == '1') {
-			/*
-			 * Enable edid parse in hdmitx debug function command
-			 * echo edid_parse1 > /sys/class/amhdmitx/amhdmitx0/debug
-			 */
-			hdev->tx_comm.edid_parse_in_hdmitx = true;
-			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
-					hdev->tx_comm.edid_parse_in_hdmitx);
-		} else if (tmpbuf[10] == '0') {
-			/*
-			 * Disable edid parse in hdmitx debug function command
-			 * echo edid_parse0 > /sys/class/amhdmitx/amhdmitx0/debug
-			 */
-			hdev->tx_comm.edid_parse_in_hdmitx = false;
-			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
-					hdev->tx_comm.edid_parse_in_hdmitx);
-		}
 	}
 }
 
@@ -5949,6 +5734,8 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		break;
 	case MISC_HDMI_CLKS_CTRL:
 		break;
+	case MISC_GET_FRL_MODE:
+		return 0;
 	default:
 		break;
 	}

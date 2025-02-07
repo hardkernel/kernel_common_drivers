@@ -21,6 +21,7 @@
 #include "hdmitx_log.h"
 #include "hdmitx_compliance.h"
 #include "hdmitx_check_valid.h"
+#include "hdmitx_module.h"
 
 /*!!Only one instance supported.*/
 static struct hdmitx_common *global_tx_common;
@@ -1275,7 +1276,20 @@ static ssize_t debug_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
-	global_tx_hw->debugfun(global_tx_hw, buf);
+	if (strncmp(buf, "hw ", 3) == 0) {
+		global_tx_hw->debugfunc(global_tx_hw, buf + 3);
+	} else if (strncmp(buf, "sw ", 3) == 0) {
+		if (global_tx_hw->chip_data->chip_type < MESON_CPU_ID_T7)
+			hdmitx20_sw_debugfunc(global_tx_common, buf + 3);
+		else
+			hdmitx21_sw_debugfunc(global_tx_common, buf + 3);
+		hdmitx_common_sw_debugfunc(global_tx_common, buf + 3);
+	/* Compatible with the original commonly used debug cmd */
+	} else if ((strncmp(buf, "bist", 4) == 0) ||
+		(strncmp(buf, "hpd_lock", 8) == 0) ||
+		(strncmp(buf, "set_div40", 9) == 0)) {
+		global_tx_hw->debugfunc(global_tx_hw, buf);
+	}
 	return count;
 }
 

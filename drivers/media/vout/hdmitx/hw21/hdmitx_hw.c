@@ -769,7 +769,7 @@ void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 	global_tx_hw->base->setaudmode = hdmitx_set_audmode;
 	global_tx_hw->base->uninit = hdmitx_uninit;
 	global_tx_hw->base->setupirq = hdmitx_setupirqs;
-	global_tx_hw->base->debugfun = hdmitx_debug;
+	global_tx_hw->base->debugfunc = hdmitx_debug;
 	global_tx_hw->base->setdispmode = hdmitx_set_dispmode;
 	global_tx_hw->base->get_clk = hdmitx_get_clk;
 	global_tx_hw->base->pkt_dump = hdmitx_pkt_dump;
@@ -2288,10 +2288,6 @@ do { \
 	} \
 } while (0)
 
-static void hdmitx_dump_intr(void)
-{
-}
-
 static ssize_t hdmitx_get_clk(char *buf, int size)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
@@ -2411,8 +2407,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	unsigned int mov_val;
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 	struct vinfo_s *vinfo = &hdev->tx_comm.hdmitx_vinfo;
-	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
 	if (!buf)
 		return;
@@ -2423,44 +2417,12 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	}
 	tmpbuf[i] = 0;
 
-	if (strncmp(tmpbuf, "testhpll", 8) == 0) {
-		ret = kstrtoul(tmpbuf + 8, 10, &value);
-		hdev->tx_comm.fmt_para.vic = value;
-		hdmitx21_set_clk(hdev);
-		return;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	} else if (strncmp(tmpbuf, "frl", 3) == 0) {
-		if (strncmp(tmpbuf + 3, "stop", 4) == 0) {
-			frl_tx_stop();
-			return;
-		}
-		hdev->frl_rate = tmpbuf[3] - '0';
-		frl_tx_training_handler(hdev);
-		return;
-#endif
-	} else if (strncmp(tmpbuf, "testedid", 8) == 0) {
+	if (strncmp(tmpbuf, "testedid", 8) == 0) {
 		hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_RESET_EDID, 0);
 		hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_EDID_READ_DATA, 0);
 		return;
-	} else if (strncmp(tmpbuf, "maskqms", 7) == 0) {
-		if (tmpbuf[7] == '1')
-			hdev->edid_mask_qms = 1;
-		if (tmpbuf[7] == '0')
-			hdev->edid_mask_qms = 0;
-		HDMITX_DEBUG("mask edid qms %d\n", hdev->edid_mask_qms);
 	} else if (strncmp(tmpbuf, "i2c_reactive", 11) == 0) {
 		hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_I2C_RESET, 0);
-		return;
-	} else if (strncmp(tmpbuf, "edid_check", 10) == 0) {
-		if (strncmp(tmpbuf + 10, "=0", 2) == 0)
-			hdev->tx_comm.rxcap.edid_check = 0;
-		else if (strncmp(tmpbuf + 10, "=1", 2) == 0)
-			hdev->tx_comm.rxcap.edid_check = 1;
-		else if (strncmp(tmpbuf + 10, "=2", 2) == 0)
-			hdev->tx_comm.rxcap.edid_check = 2;
-		else if (strncmp(tmpbuf + 10, "=3", 2) == 0)
-			hdev->tx_comm.rxcap.edid_check = 3;
-		HDMITX_INFO("edid_check = %d\n", hdev->tx_comm.rxcap.edid_check);
 		return;
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		if (strncmp(tmpbuf + 4, "off", 3) == 0) {
@@ -2571,14 +2533,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdmitx21_pbist_config(hdev, hdev->tx_comm.fmt_para.vic, 0);
 	} else if (strncmp(tmpbuf, "testaudio", 9) == 0) {
 		hdmitx_set_audmode(&hdev->hw_comm, NULL);
-	} else if (strncmp(tmpbuf, "dumpintr", 8) == 0) {
-		hdmitx_dump_intr();
-	} else if (strncmp(tmpbuf, "chkfmt", 6) == 0) {
-		hdmitx_mode_print_all_mode_table();
-		return;
-	} else if (strncmp(tmpbuf, "ss", 2) == 0) {
-		HDMITX_INFO("hdev->hpd_state: 0x%x\n", hdev->tx_comm.hpd_state);
-		HDMITX_INFO("hdev->tx_comm.fmt_para.vic: 0x%x\n", hdev->tx_comm.fmt_para.vic);
 	} else if (strncmp(tmpbuf, "hpd_lock", 8) == 0) {
 		if (tmpbuf[8] == '1') {
 			hdev->hw_comm.debug_hpd_lock = 1;
@@ -2586,21 +2540,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		} else {
 			hdev->hw_comm.debug_hpd_lock = 0;
 			HDMITX_INFO("unlock hpd\n");
-		}
-		return;
-	} else if (strncmp(tmpbuf, "dumpcecreg", 10) == 0) {
-		u8 cec_val = 0;
-		u32 cec_adr = 0;
-		/* HDMI CEC Regs address range:0xc000~0xc01c;0xc080~0xc094 */
-		for (cec_adr = 0xc000; cec_adr < 0xc01d; cec_adr++) {
-			cec_val = hdmitx21_rd_reg(cec_adr);
-			HDMITX_INFO(CEC "HDMI CEC Regs[0x%x]: 0x%x\n",
-				cec_adr, cec_val);
-		}
-		for (cec_adr = 0xc080; cec_adr < 0xc095; cec_adr++) {
-			cec_val = hdmitx21_rd_reg(cec_adr);
-			HDMITX_INFO(CEC "HDMI CEC Regs[0x%x]: 0x%x\n",
-				cec_adr, cec_val);
 		}
 		return;
 	} else if (tmpbuf[0] == 'w') {
@@ -2635,82 +2574,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		if (buf[1] == 'h')
 			value = hdmitx21_rd_reg(adr);
 		HDMITX_INFO("%s reg[%lx]=%lx\n", "HDMI", adr, value);
-	} else if (strncmp(tmpbuf, "prbs", 4) == 0) {
-		u32 phy_cntl1 = ANACTRL_HDMIPHY_CTRL1;
-		u32 phy_cntl4 = ANACTRL_HDMIPHY_CTRL4;
-		u32 phy_status = ANACTRL_HDMIPHY_STS;
-
-		switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
-		case MESON_CPU_ID_T7:
-			phy_cntl1 = ANACTRL_HDMIPHY_CTRL1;
-			phy_cntl4 = ANACTRL_HDMIPHY_CTRL4;
-			phy_status = ANACTRL_HDMIPHY_STS;
-			break;
-		default:
-			break;
-		}
-		/* test prbs */
-		for (i = 0; i < 4; i++) {
-			hd21_write_reg(phy_cntl1, 0x0390000f);
-			hd21_write_reg(phy_cntl1, 0x0390000e);
-			hd21_write_reg(phy_cntl1, 0x03904002);
-			hd21_write_reg(phy_cntl4, 0x0001efff
-				| (i << 20));
-			hd21_write_reg(phy_cntl1, 0xef904002);
-			mdelay(10);
-			if (i > 0)
-				HDMITX_INFO("prbs D[%d]:%x\n", i - 1,
-					hd21_read_reg(phy_status));
-			else
-				HDMITX_INFO("prbs clk :%x\n",
-					hd21_read_reg(phy_status));
-		}
-	} else if (strncmp(tmpbuf, "reauth_dbg", 10) == 0) {
-		ret = kstrtoul(tmpbuf + 10, 10, &value);
-		hdcp_reauth_dbg = value;
-		HDMITX_INFO("set hdcp_reauth_dbg :%lu\n", hdcp_reauth_dbg);
-	} else if (strncmp(tmpbuf, "streamtype_dbg", 14) == 0) {
-		ret = kstrtoul(tmpbuf + 14, 10, &value);
-		streamtype_dbg = value;
-		HDMITX_INFO("set streamtype_dbg :%lu\n", streamtype_dbg);
-	} else if (strncmp(tmpbuf, "en_fake_rcv_id", 14) == 0) {
-		ret = kstrtoul(tmpbuf + 14, 10, &value);
-		en_fake_rcv_id = value;
-		HDMITX_INFO("set en_fake_rcv_id :%lu\n", en_fake_rcv_id);
-	} else if (strncmp(tmpbuf, "aud_mute", 8) == 0) {
-		ret = kstrtoul(tmpbuf + 8, 10, &value);
-		hdmitx_ext_set_audio_output(value);
-		HDMITX_INFO("aud_mute :%lu\n", value);
-	} else if (strncmp(tmpbuf, "avmute_frame", 12) == 0) {
-		ret = kstrtoul(tmpbuf + 12, 10, &value);
-		hdev->tx_comm.debug_param.avmute_frame = value;
-		HDMITX_INFO("avmute_frame = %lu\n", value);
-	} else if (strncmp(tmpbuf, "hdcp_timeout", 12) == 0) {
-		ret = kstrtoul(tmpbuf + 12, 10, &value);
-		hdev->up_hdcp_timeout_sec = value;
-	} else if (strncmp(tmpbuf, "avmute_ms", 10) == 0) {
-		ret = kstrtoul(tmpbuf + 10, 10, &value);
-		avmute_ms = value;
-		HDMITX_INFO("set avmute_ms :%lu\n", avmute_ms);
-	} else if (strncmp(tmpbuf, "vid_mute_ms", 10) == 0) {
-		ret = kstrtoul(tmpbuf + 10, 10, &value);
-		vid_mute_ms = value;
-		HDMITX_INFO("set vid_mute_ms :%lu\n", vid_mute_ms);
-	} else if (strncmp(tmpbuf, "get_output_mute", 15) == 0) {
-		HDMITX_INFO("VPP output mute :%d\n", get_output_mute());
-	} else if (strncmp(tmpbuf, "set_output_mute", 15) == 0) {
-		ret = kstrtoul(tmpbuf + 15, 10, &value);
-		set_output_mute(!!value);
-		HDMITX_INFO("set VPP output mute :%d\n", !!value);
-	} else if (strncmp(tmpbuf, "vinfo", 5) == 0) {
-		ret = kstrtoul(tmpbuf + 5, 10, &value);
-		if (value ==  0) {
-			edidinfo_detach_to_vinfo(&hdev->tx_comm);
-			HDMITX_INFO("detach vinfo\n");
-		} else if (value ==  1) {
-			edidinfo_attach_to_vinfo(&hdev->tx_comm);
-			HDMITX_INFO("attach vinfo\n");
-		}
 	} else if (strncmp(tmpbuf, "set_div40", 9) == 0) {
 		/* echo 1 > div40, force send 1:40 tmds bit clk ratio
 		 * echo 0 > div40, send 1:10 tmds bit clk ratio if scdc_present
@@ -2741,8 +2604,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdev->tx21_hw.clk_config = 0;
 			HDMITX_INFO("clk_config = %d\n",  hdev->tx21_hw.clk_config);
 		}
-	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
-		HDMITX_INFO("test drm_hdcp_ver: %d\n", drm_hdmitx_get_rx_hdcp_cap());
 	} else if (strncmp(tmpbuf, "hdcp_ver", 8) == 0) {
 		HDMITX_INFO("hdcp_22_capable :%d\n", is_rx_hdcp2ver());
 	} else if (strncmp(tmpbuf, "emp_test", 8) == 0) {
@@ -2796,35 +2657,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hd21_read_reg(CLKCTRL_HDMI_VID_PLL_CLK_DIV));
 		HDMITX_INFO("RJ: CLKCTRL_HTX_CLK_CTRL1         0xfe000120: 0x%08x\n",
 			hd21_read_reg(CLKCTRL_HTX_CLK_CTRL1));
-	} else if (strncmp(tmpbuf, "fmt_para", 8) == 0) {
-		hdmitx_format_para_print(para, NULL);
-		HDMITX_INFO("external frl_rate: %d, dsc_en: %d\n", hdev->frl_rate, hdev->dsc_en);
-	} else if (strncmp(tmpbuf, "hdcp_mode", 9) == 0) {
-		ret = kstrtoul(tmpbuf + 9, 16, &value);
-		if (ret == 0 && value <= 2)
-			hdev->tx_comm.drm_hdcp.test_hdcp_mode = value - 0;
-		HDMITX_INFO("test drm_hdcp_mode: %d\n", hdev->tx_comm.drm_hdcp.test_hdcp_mode);
-	} else if (strncmp(tmpbuf, "drm_hdcp_op", 11) == 0) {
-		ret = kstrtoul(tmpbuf + 11, 16, &value);
-		if (ret != 0)
-			return;
-		if (value == 0 && hdev->tx_comm.drm_hdcp.test_hdcp_disable)
-			hdev->tx_comm.drm_hdcp.test_hdcp_disable();
-		else if (value == 1 && tx_comm->drm_hdcp.test_hdcp_enable)
-			tx_comm->drm_hdcp.test_hdcp_enable(tx_comm->drm_hdcp.test_hdcp_mode);
-		else if (value == 2 && hdev->tx_comm.drm_hdcp.test_hdcp_disconnect)
-			hdev->tx_comm.drm_hdcp.test_hdcp_disconnect();
-	} else if (strncmp(tmpbuf, "config_csc_en", 13) == 0) {
-		ret = kstrtoul(tmpbuf + 13, 0, &value);
-		HDMITX_INFO("config_csc_en to %lu\n", value);
-
-		if (value == 0)
-			hdev->tx_comm.config_csc_en = false;
-		else if (value == 1)
-			hdev->tx_comm.config_csc_en = true;
-	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
-		HDMITX_INFO("hdcp filtered result: hdcp22: %d topo: %d, hdcp14: %d\n",
-			get_hdcp2_result(), get_hdcp2_topo(), get_hdcp1_result());
 	} else if (strncmp(tmpbuf, "load_14key", 10) == 0) {
 		HDMITX_INFO("hdcp1.4 key load result: %d\n",
 			hdmitx_hw_cntl_misc(hdev->tx_comm.tx_hw, MISC_VALIDATE_HDCP14_KEY, 0));
@@ -2834,177 +2666,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			return;
 		HDMITX_INFO("hdcp reauth: %lu\n", value);
 		hdmitx_reauth_request(value & 0xFF);
-	} else if (strncmp(tmpbuf, "hdcp_delay", 10) == 0) {
-		ret = kstrtoul(tmpbuf + 10, 10, &value);
-		HDMITX_INFO("hdcp_delay :%d\n", value);
-		hdev->hdcp_debug_delay = value;
-	} else if (strncmp(tmpbuf, "vrr_mode", 8) == 0) {
-		switch (hdev->vrr_mode) {
-		case T_VRR_GAME:
-			HDMITX_INFO("%s\n", "game-vrr");
-			break;
-		case T_VRR_QMS:
-			HDMITX_INFO("%s\n", "qms-vrr");
-			break;
-		default:
-			HDMITX_INFO("%s\n", "none");
-			break;
-		}
-	} else if (strncmp(tmpbuf, "propagate_stream_type", 21) == 0) {
-		if (p_hdcp->ds_repeater && p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
-			HDMITX_INFO("%d\n", p_hdcp->csm_message.streamid_type & 0xFF);
-		} else {
-			HDMITX_INFO("no stream type, as ds_repeater: %d, hdcp_type: %d\n",
-				p_hdcp->ds_repeater, p_hdcp->hdcp_type);
-		}
-	} else if (strncmp(tmpbuf, "cont_smng_method", 16) == 0) {
-		/*
-		 * content stream management update method:
-		 * when upstream side received new content stream
-		 * management message, there're two method to
-		 * update content stream type that propagated
-		 * to downstream hdcp2.3 repeater:
-		 * 0(default): only send content stream management
-		 * message with new stream type to downstream
-		 * 1: init new re-auth with downstream
-		 */
-		ret = kstrtoul(tmpbuf + 16, 10, &value);
-		if (value == 0 || value == 1) {
-			HDMITX_INFO("set cont_smng_method as %d\n", value);
-			p_hdcp->cont_smng_method = value;
-		} else {
-			HDMITX_INFO("current cont_smng_method: %d\n", p_hdcp->cont_smng_method);
-		}
-	} else if (strncmp(tmpbuf, "frl_rate", 8) == 0) {
-		/* forced FRL rate setting */
-		if (strncmp(&tmpbuf[8], "_w", 2) == 0) {
-			ret = kstrtoul(tmpbuf + 10, 10, &value);
-			if (!hdev->tx_comm.rxcap.max_frl_rate)
-				HDMITX_INFO("rx not support FRL\n");
-			if (value > FRL_12G4L) {
-				HDMITX_ERROR("set frl_rate in 0 ~ 6\n");
-				return;
-			}
-			hdev->manual_frl_rate = value;
-			HDMITX_INFO("set tx frl_rate as %d\n", value);
-			if (hdev->manual_frl_rate > hdev->tx_comm.rxcap.max_frl_rate)
-				HDMITX_INFO("larger than rx max_frl_rate %d\n",
-					hdev->tx_comm.rxcap.max_frl_rate);
-		} else if (strncmp(&tmpbuf[8], "_r", 2) == 0) {
-			HDMITX_INFO("%d\n", hdev->frl_rate);
-			switch (hdev->frl_rate) {
-			case FRL_3G3L:
-				HDMITX_INFO("FRL_3G3L\n");
-				break;
-			case FRL_6G3L:
-				HDMITX_INFO("FRL_6G3L\n");
-				break;
-			case FRL_6G4L:
-				HDMITX_INFO("FRL_6G4L\n");
-				break;
-			case FRL_8G4L:
-				HDMITX_INFO("FRL_8G4L\n");
-				break;
-			case FRL_10G4L:
-				HDMITX_INFO("FRL_10G4L\n");
-				break;
-			case FRL_12G4L:
-				HDMITX_INFO("FRL_12G4L\n");
-				break;
-			default:
-				break;
-			}
-		}
-	} else if (strncmp(tmpbuf, "dsc_en", 6) == 0) {
-		HDMITX_INFO("dsc enable: %d\n", hdev->dsc_en);
-	} else if (strncmp(tmpbuf, "dsc_policy", 10) == 0) {
-		/*
-		 * dsc_policy:
-		 * 0 automatically enable dsc if necessary, but not support 8k Y444/rgb,12bit
-		 * or 4k100/120hz Y444/rgb,12bit
-		 * 1 force enable dsc for mode that can be supported both with dsc/non-dsc
-		 * 2 force enable dsc for mode test for new dsc mode(debug only)
-		 * 3 forcely filter out dsc mode output by valid_mode_check
-		 * 4 automatically enable dsc if necessary, include those mentioned in 0
-		 */
-		if (strncmp(&tmpbuf[10], "_w", 2) == 0) {
-			ret = kstrtoul(tmpbuf + 12, 10, &value);
-			if (value != 0 && value != 1 && value != 2 && value != 3 && value != 4) {
-				HDMITX_INFO("set dsc_policy in 0~4\n");
-				return;
-			}
-			hdev->hw_comm.hdmi_tx_cap.dsc_policy = value;
-			HDMITX_INFO("set dsc_policy as %d\n", value);
-		} else if (strncmp(&tmpbuf[10], "_r", 2) == 0) {
-			HDMITX_INFO("%d\n", hdev->hw_comm.hdmi_tx_cap.dsc_policy);
-		}
-	} else if (strncmp(tmpbuf, "aud_mute", 8) == 0) {
-		if (strncmp(&tmpbuf[8], "_w", 2) == 0) {
-			ret = kstrtoul(tmpbuf + 10, 10, &value);
-			atomic_t kref_audio_mute = hdev->kref_audio_mute;
-
-			if (value == 1) {
-				atomic_inc(&kref_audio_mute);
-				hdmitx21_audio_mute_op(0, AUDIO_MUTE_PATH_2);
-			}
-			if (value == 0) {
-				if (!(atomic_sub_and_test(0, &kref_audio_mute)))
-					atomic_dec(&kref_audio_mute);
-				hdmitx21_audio_mute_op(1, AUDIO_MUTE_PATH_2);
-			}
-			hdev->kref_audio_mute = kref_audio_mute;
-		} else if (strncmp(&tmpbuf[8], "_r", 2) == 0) {
-			HDMITX_INFO("%d\n", atomic_read(&hdev->kref_audio_mute));
-		}
-	} else if (strncmp(tmpbuf, "cedst_count", 11) == 0) {
-		struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
-		struct scdc_locked_st *ch_st = &hdev->tx_comm.chlocked_st;
-		enum frl_rate_enum frl_rate;
-
-		frl_rate = hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0);
-		if (!frl_rate && !ch_st->clock_detected)
-			HDMITX_INFO("clock undetected\n");
-		if (!ch_st->ch0_locked)
-			HDMITX_INFO("CH0 unlocked\n");
-		if (!ch_st->ch1_locked)
-			HDMITX_INFO("CH1 unlocked\n");
-		if (!ch_st->ch2_locked)
-			HDMITX_INFO("CH2 unlocked\n");
-		if (frl_rate && !ch_st->ch3_locked)
-			HDMITX_INFO("CH3 unlocked\n");
-		if (ced->ch0_valid && ced->ch0_cnt)
-			HDMITX_INFO("CH0 ErrCnt 0x%x\n", ced->ch0_cnt);
-		if (ced->ch1_valid && ced->ch1_cnt)
-			HDMITX_INFO("CH1 ErrCnt 0x%x\n", ced->ch1_cnt);
-		if (ced->ch2_valid && ced->ch2_cnt)
-			HDMITX_INFO("CH2 ErrCnt 0x%x\n", ced->ch2_cnt);
-		if (frl_rate >= FRL_6G4L && ced->ch3_valid && ced->ch3_cnt)
-			HDMITX_INFO("CH3 ErrCnt 0x%x\n", ced->ch3_cnt);
-		if (frl_rate && ced->rs_c_valid && ced->rs_c_cnt)
-			HDMITX_INFO("RSCC ErrCnt 0x%x\n", ced->rs_c_cnt);
-		memset(ced, 0, sizeof(*ced));
-	} else if (strncmp(tmpbuf, "edid_parse", 10) == 0) {
-		if (tmpbuf[10] == '1') {
-			/*
-			 * Enable edid parse in hdmitx debug function command
-			 * echo edid_parse1 > /sys/class/amhdmitx/amhdmitx0/debug
-			 */
-			hdev->tx_comm.edid_parse_in_hdmitx = true;
-			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
-					hdev->tx_comm.edid_parse_in_hdmitx);
-		} else if (tmpbuf[10] == '0') {
-			/*
-			 * Disable edid parse in hdmitx debug function command
-			 * echo edid_parse0 > /sys/class/amhdmitx/amhdmitx0/debug
-			 */
-			hdev->tx_comm.edid_parse_in_hdmitx = false;
-			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
-					hdev->tx_comm.edid_parse_in_hdmitx);
-		}
-	} else if (strncmp(tmpbuf, "vrr_dbg_vframe", 14) == 0) {
-		ret = kstrtoul(tmpbuf + 14, 10, &value);
-		hdev->vrr_dbg_vframe = value;
-		HDMITX_INFO("vrr_dbg_vframe :%d\n", hdev->vrr_dbg_vframe);
 	} else if (strncmp(tmpbuf, "dfm_type", 8) == 0) {
 		ret = kstrtoul(tmpbuf + 8, 10, &value);
 		hdev->dfm_type = value;
@@ -3013,14 +2674,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		ret = kstrtoul(tmpbuf + 8, 10, &value);
 		hdev->csc_type = value;
 		HDMITX_INFO("csc_type :%d\n", hdev->csc_type);
-	} else if (strncmp(tmpbuf, "emp_no", 6) == 0) {
-		ret = kstrtoul(tmpbuf + 6, 10, &value);
-		hdev->emp_no = value;
-		HDMITX_INFO("emp_no :%d\n", hdev->emp_no);
-	} else if (strncmp(tmpbuf, "emp_verbose", 11) == 0) {
-		ret = kstrtoul(tmpbuf + 11, 10, &value);
-		hdev->emp_verbose = value;
-		HDMITX_INFO("emp_verbose :%d\n", hdev->emp_verbose);
 	} else if (strncmp(tmpbuf, "gate_bit_mask", 13) == 0) {
 		ret = kstrtoul(tmpbuf + 13, 16, &value);
 		hdev->tx21_hw.gate_bit_mask = value;

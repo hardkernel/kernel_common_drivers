@@ -140,6 +140,7 @@ int hdmitx20_init_reg_map(struct platform_device *pdev);
 int hdmitx20_hdcp_init(struct hdmitx_dev *hdev);
 /* for debug */
 void print_hsty_hdmiaud_config_data(void);
+void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
 /***********************************************************************
  *    hdmitx hardware level interface
  ***********************************************************************/
@@ -148,6 +149,7 @@ void hdmitx20_meson_init(struct hdmitx_dev *hdev);
 void hdmitx20_ext_set_audio_output(bool enable);
 int hdmitx20_ext_get_audio_status(void);
 void hdmitx20_audio_mute_op(unsigned int flag);
+int hdmitx_hdcp_opr(unsigned int val);
 #endif
 
 #ifdef CONFIG_AMLOGIC_HDMITX21
@@ -205,6 +207,7 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 		     struct aud_para *audio_param);
 
 struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing *t);
+void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
 /***********************************************************************
  *    hdmitx hardware level interface
  ***********************************************************************/

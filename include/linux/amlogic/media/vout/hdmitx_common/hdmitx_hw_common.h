@@ -314,7 +314,7 @@ struct hdmitx_hw_common {
 	int (*setaudmode)(struct hdmitx_hw_common *tx_hw, struct aud_para *audio_param);
 
 	/*debug function*/
-	void (*debugfun)(struct hdmitx_hw_common *tx_hw, const char *cmd_str);
+	void (*debugfunc)(struct hdmitx_hw_common *tx_hw, const char *cmd_str);
 	int (*setdispmode)(struct hdmitx_hw_common *tx_hw);
 	u8 debug_hpd_lock;
 	/* dump packet information */
