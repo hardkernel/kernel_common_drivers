@@ -3,7 +3,6 @@
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
-#include <linux/errno.h>
 #include <uapi/linux/dvb/aml_fe_ext.h>
 #include "dvbs_singlecable.h"
 #include <linux/errno.h>

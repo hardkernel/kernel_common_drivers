@@ -14,10 +14,6 @@
 #include "addr_dtmb_front.h"
 #include "addr_dtmb_front_bit.h"
 
-#define DTMB_DEMOD_BASE		DEMOD_REG_ADDR_OFFSET(0x0)
-
-#define  DTMB_TOP_ADDR(x) (DTMB_DEMOD_BASE + ((x) << 2))
-
 #define  DTMB_TOP_CTRL_SW_RST               (0x1)
 #define  DTMB_TOP_TESTBUS                   (0x2)
 #define  DTMB_TOP_TB                        (0x3)

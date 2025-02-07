@@ -10,7 +10,7 @@
 #ifdef AML_DEMOD_SUPPORT_DVBS
 #include "dvbs_diseqc.h"
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
 #include "dvbc_func.h"
 #endif
 
@@ -151,7 +151,49 @@
 /*  V3.5.024 fix dvbs diseqc timing */
 /*  V3.5.025 fix dvbc blind scan init issue */
 /*  V3.5.026 support dtmb 6M BW */
-/*  V3.5.027 fix coverity errors */
+/*  V3.5.027 Support switching auto between dvb-t and t2 */
+/*  V3.5.028 fix not lock signal in dvbt2 DTG161 case */
+/*  V3.5.029 fix atsc-c signal strength issue */
+/*  V3.5.030 fix dvbt overflow when 6M 1/4 and other param */
+/*  V3.5.031 calibrate dvbc signal strength read from R842 */
+/*  V3.5.032 rebuild dtmb driver */
+/*  V3.5.033 remove more print logs */
+/*  V3.5.034 fix incorrect cfo calculation results and add t2 info */
+/*  V3.5.035 fix crash caused by accessing T2 registers on T5D */
+/*  V3.5.036 fix T5D switch to dvbt2 unlock(sync from 5.4/4.9) */
+/*  V3.5.037 fix dvbt2 mplp id list and mplp tune(except T5D) */
+/*  V3.5.038 fix compile error when remove dvbt2 module */
+/*  V3.5.039 fix aml_demod_ioctl and dump adc issue */
+/*  V3.5.040 fix coverity errors */
+/*  V3.5.041 fix occasional failure to lock dvbt signal */
+/*  V3.5.042 fix dvbs_read_signal_strength issue */
+/*  V3.5.043 optimize dvb-s rssi for rda5815m */
+/*  V3.5.044 fix atsc VBS to NTSC N+1 aci and R.1 test */
+/*  V3.5.045 fix low probability missing 8vsb channel */
+/*  V3.5.046 optimize dvb-c auto qam for T3 T5D */
+/*  V3.5.047 fix lock fail when switch to atsc */
+/*  V3.5.048 fix all get_frontend and code optimize */
+/*  V3.5.049 calibrate j83b signal strength read from R842*/
+/*  V3.5.050 fix sfc device lock dvbc 256qam failed*/
+/*  V3.5.051 fix init and sleep flow and state */
+/*  V3.5.052 calibrate the j83b sensitivity value */
+/*  V3.6.000 T6D bringup */
+/*  V3.6.001 config agc select on T6D */
+/*  V3.6.002 fix j83b unlock for T6D */
+/*  V3.6.003 fix suspend/init flow */
+/*  V3.6.004 bring up dvbs 3rd blind scan algorithm */
+/*  V3.6.005 fix dvbs band scan progress issue */
+/*  V3.6.006 fix mplp init state */
+/*  V3.6.007 fix atsc signal check failed */
+/*  V3.6.008 fix ambus setting when enter dtmb */
+/*  V3.6.009 fix demod error when locking SPLP 2K T2 signal */
+/*  V3.6.010 fix dvbc fast search flow */
+/*  V3.6.011 fix dvbt2 mplp plpid switch fail*/
+/*  V3.6.012 improve T6D ATSC/QAM/DVBS/T/T2 performance */
+/*  V3.6.013 improve dvbc sensitivity */
+/*  V3.6.014 fix failure of DVBT/T2 SSI SQI */
+/*  V3.6.015 fix S4 dvbc search crash */
+/*  V3.6.016 fix t6d isdbt offset test failed */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -168,9 +210,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.27"
-#define DTVDEMOD_VER	"2024/11/18: fix coverity errors"
-#define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
+#define AMLDTVDEMOD_VER "V3.6.016"
+#define DTVDEMOD_VER	"2024/12/25: fix t6d isdbt offset test failed"
+#define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #if defined AML_DEMOD_SUPPORT_ATSC || defined AML_DEMOD_SUPPORT_J83B
@@ -197,11 +239,12 @@
 
 #ifdef AML_DEMOD_SUPPORT_DTMB
 #define THRD_TUNER_STRENGTH_DTMB (-100)
+#define TIMEOUT_DTMB		2500
 #endif
 
 #ifdef AML_DEMOD_SUPPORT_DVBC
 #define THRD_TUNER_STRENGTH_DVBC (-87)
-#define TIMEOUT_DVBC		3000
+#define TIMEOUT_DVBC		4000
 #endif
 
 #ifdef AML_DEMOD_SUPPORT_ISDBT
@@ -211,15 +254,6 @@
 
 #define TIMEOUT_DDR_LEAVE	50
 
-enum qam_md_e {
-	QAM_MODE_16,
-	QAM_MODE_32,
-	QAM_MODE_64,
-	QAM_MODE_128,
-	QAM_MODE_256,
-	QAM_MODE_AUTO,
-	QAM_MODE_NUM
-};
 
 enum DEMOD_TUNER_IF {
 	DEMOD_4M_IF = 4000,
@@ -307,7 +341,8 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_T5M,
 	DTVDEMOD_HW_T3X,
 	DTVDEMOD_HW_TXHD2,
-	DTVDEMOD_HW_S1A
+	DTVDEMOD_HW_S1A,
+	DTVDEMOD_HW_T6D
 };
 
 struct ddemod_dig_clk_addr {
@@ -340,16 +375,13 @@ struct poll_machie_s {
 	unsigned int bch;
 };
 
-struct aml_demod_para {
-	u32_t dvbc_symbol;
-	u32_t dvbc_qam;
-	u32_t dtmb_qam;
-	u32_t dtmb_coderate;
-};
-
 struct aml_demod_para_real {
 	u32_t modulation;
 	u32_t coderate;
+	u32_t hp_coderate;
+	u32_t lp_coderate;
+	u32_t fft_mode;
+	u32_t gi;
 	u32_t symbol;
 	u32_t snr;
 	u32_t plp_num;
@@ -400,7 +432,6 @@ struct aml_dtvdemod {
 	unsigned int freq;
 	unsigned int freq_dvbc;
 	enum fe_modulation atsc_mode;
-	struct aml_demod_para para_demod;
 	unsigned int timeout_atsc_ms;
 #ifdef AML_DEMOD_SUPPORT_DVBT
 	unsigned int timeout_dvbt_ms;
@@ -418,11 +449,16 @@ struct aml_dtvdemod {
 	int auto_flags_trig;
 	unsigned int p1_peak;
 
+#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
 	enum qam_md_e auto_qam_mode;
-	enum qam_md_e auto_qam_list[5];
 	enum qam_md_e last_qam_mode;
+#endif
+#ifdef AML_DEMOD_SUPPORT_DVBC
+	enum qam_md_e auto_qam_list[5];
+#endif
 	unsigned int auto_times;
 	unsigned int auto_done_times;
+	unsigned int qam_wait_times;
 	bool auto_qam_done;
 	bool fsm_reset;
 	unsigned int auto_qam_index;
@@ -556,9 +592,6 @@ struct amldtvdemod_device_s {
 	unsigned char index;
 	struct list_head demod_list;
 };
-
-/*int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev);*/
-int convert_snr(int in_snr);
 
 struct amldtvdemod_device_s *dtvdemod_get_dev(void);
 
@@ -711,13 +744,9 @@ static inline unsigned int gphybase_hiu(void)
 
 //int amdemod_stat_islock(struct aml_dtvdemod *demod, enum fe_delivery_system delsys);
 
-unsigned int dtmb_is_have_check(void);
 const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys);
-void aml_dtv_demode_isr_en(struct amldtvdemod_device_s *devp, u32 en);
 unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp);
-#ifdef AML_DEMOD_SUPPORT_DTMB
-int dtmb_information(struct seq_file *seq);
-#endif
+
 #ifdef MODULE
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config);
 #endif

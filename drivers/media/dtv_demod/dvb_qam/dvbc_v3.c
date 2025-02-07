@@ -11,16 +11,96 @@
 #include "demod_func.h"
 #include "dvbc_func.h"
 
-MODULE_PARM_DESC(dvbc_agc_target, "\n\t\t dvbc_agc_target");
+MODULE_PARM_DESC(dvbc_agc_target, "");
 static unsigned char dvbc_agc_target = 0xc;
 __module_param(dvbc_agc_target, byte, 0644);
 
-MODULE_PARM_DESC(j83b_agc_target, "\n\t\t j83b_agc_target");
+MODULE_PARM_DESC(j83b_agc_target, "");
 static unsigned char j83b_agc_target = 0xe;
 __module_param(j83b_agc_target, byte, 0644);
 
 static unsigned char dvbc_qam_reg[15] = { 0 };
 static unsigned int dvbc_qam_value[15] = { 0 };
+
+int amdemod_qam(enum fe_modulation qam)
+{
+	switch (qam) {
+	case QAM_16:
+		return QAM_MODE_16;
+	case QAM_32:
+		return QAM_MODE_32;
+	case QAM_64:
+		return QAM_MODE_64;
+	case QAM_128:
+		return QAM_MODE_128;
+	case QAM_256:
+		return QAM_MODE_256;
+	case QAM_AUTO:
+		return QAM_MODE_AUTO;
+	default:
+		return QAM_MODE_64;
+	}
+
+	return QAM_MODE_64;
+}
+
+enum fe_modulation amdemod_qam_fe(enum qam_md_e qam)
+{
+	switch (qam) {
+	case QAM_MODE_16:
+		return QAM_16;
+	case QAM_MODE_32:
+		return QAM_32;
+	case QAM_MODE_64:
+		return QAM_64;
+	case QAM_MODE_128:
+		return QAM_128;
+	case QAM_MODE_256:
+	default:
+		return QAM_256;
+	}
+
+	return QAM_256;
+}
+
+const char *qam_name[] = {
+	"QAM_16",
+	"QAM_32",
+	"QAM_64",
+	"QAM_128",
+	"QAM_256",
+	"QAM_UNDEF"
+};
+
+const char *get_qam_name(enum qam_md_e qam)
+{
+	if (qam >= QAM_MODE_16 && qam <= QAM_MODE_256)
+		return qam_name[qam];
+	else
+		return qam_name[5];
+}
+
+int dvbc_get_power_strength(int agc_gain, int tuner_strength)
+{
+	int strength = 0;
+	int i = 0;
+	/*tuner has 3 stage gain control, only last is controlled by demod agc*/
+	int dvbc_R842[20] = {
+		/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
+		1200, 1180, 1150, 1130, 1100, 1065, 1040, 1030, 1000, 970
+	};
+
+	for (i = 0; i < sizeof(dvbc_R842) / sizeof(int); i++)
+		if (agc_gain >= dvbc_R842[i])
+			break;
+
+	if (agc_gain >= 970)
+		strength = -90 + i * 1;
+	else
+		strength = tuner_strength + 22;
+
+	return strength;
+}
 
 u32 dvbc_get_status(struct aml_dtvdemod *demod)
 {
@@ -236,11 +316,10 @@ void demod_dvbc_restore_qam_cfg(struct aml_dtvdemod *demod)
 void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam, bool auto_sr)
 {
 	if (demod->last_qam_mode != qam) {
-		PR_DVBC("%s last_qam_mode %d, switch to qam %d.\n",
-				__func__, demod->last_qam_mode, qam);
+		PR_DVBC("last qam %d, switch to %d\n",
+				demod->last_qam_mode, qam);
 	} else {
-		PR_DVBC("%s last_qam_mode == qam %d is the same.\n",
-				__func__, qam);
+		PR_DVBC("last qam == qam %d\n", qam);
 
 		return;
 	}
@@ -367,7 +446,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	ch_if = demod->demod_status.ch_if;	/* kHz */
 	ch_bw = demod->demod_status.ch_bw;	/* kHz */
 	symb_rate = demod->demod_status.symb_rate;	/* k/sec */
-	PR_DVBC("ch_if is %d,  %d,  %d,  %d, %d %d\n",
+	PR_DVBC("ch_if %d, %d, %d, %d, %d %d\n",
 		ch_if, ch_mode, ch_freq, ch_bw, symb_rate, adc_freq);
 	/* disable irq */
 	qam_write_reg(demod, 0x34, 0);
@@ -403,6 +482,13 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 
 	/* Sw enable demod */
 	qam_write_reg(demod, 0x0, 0x0);
+
+	/* Set the stability of the equalizer for dvbc, the default value is 0xd009 */
+	if (demod->atsc_mode == 0) {
+		qam_write_reg(demod, 0x4f, 0x28242824);//improve sensetivity
+		qam_write_reg(demod, 0x62, 0x1f00d009);
+	}
+
 	/* QAM_STATUS */
 	qam_write_reg(demod, 0x7, 0x00000f00);
 	//demod_dvbc_set_qam(demod, ch_mode, demod->auto_sr);
@@ -450,7 +536,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		tmp = 40000000 / adc_freq;
 		max_frq_off = tmp * max_frq_off;
 	}
-	PR_DVBC("max_frq_off is %x,\n", max_frq_off);
+	PR_DVBC("max_frq_off %x,\n", max_frq_off);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		/* j83b */
@@ -563,6 +649,12 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	qam_write_reg(demod, 0xb4, 0x32030);
 	qam_write_reg(demod, 0xb7, 0x3084);
 
+	if (is_meson_t6d_cpu()) {
+		//QAM impulse noise
+		qam_write_reg(demod, 0x65, 0x410c);
+		qam_write_reg(demod, 0x70, 0x9132080);
+	}
+
 	// agc gain
 	qam_write_reg(demod, 0x24, (qam_read_reg(demod, 0x24) | (1 << 17)));
 	qam_write_reg(demod, 0x60, 0x10466000);
@@ -580,6 +672,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	/*dvbc_set_auto_symtrack(demod); */
 }
 
+#ifdef AML_DEMOD_SUPPORT_DVBC
 u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
@@ -595,6 +688,7 @@ u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 	/* Sw enable demod */
 	return 0;
 }
+#endif
 
 int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts, struct seq_file *seq)
 {
@@ -742,7 +836,7 @@ static void sort_with_index(int size, int data[], int index[])
 	struct index_data idx_data[5], temp;
 
 	if (size > 5) {
-		PR_ERR("error [size > 5].\n");
+		PR_ERR("error[size > 5]\n");
 
 		return;
 	}
@@ -782,7 +876,7 @@ static unsigned int find_greater_data_coord(unsigned int matrix[8][8],
 				coord_col[count] = j;
 				count++;
 
-				PR_DVBC("find %d[%d, %d].\n", matrix[i][j], i, j);
+				PR_DVBC("find %d[%d, %d]\n", matrix[i][j], i, j);
 			}
 		}
 	}
@@ -820,7 +914,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 	// 1. wait eq stable.
 	for (i = 0; i < 5; i++) {
 		eq_state = qam_read_reg(demod, 0x5d) & 0xf;
-		PR_DVBC("%s: eq_state: 0x%x.\n", __func__, eq_state);
+		PR_DVBC("eq_state: 0x%x\n", eq_state);
 		if (eq_state > 0x01)
 			break;
 
@@ -869,8 +963,8 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 		d3 = qam_read_reg(demod, 0xd3);
 	}
 
-	PR_DVBC("0xbe[0x%x], 0xbf[0x%x], 0xc0[0x%x].\n", be, bf, c0);
-	PR_DVBC("0xd3[0x%x], 0xd4[0x%x], 0xd5[0x%x].\n", d3, d4, d5);
+	PR_DVBC("0xbe[0x%x], 0xbf[0x%x], 0xc0[0x%x]\n", be, bf, c0);
+	PR_DVBC("0xd3[0x%x], 0xd4[0x%x], 0xd5[0x%x]\n", d3, d4, d5);
 
 	// 3. get QAM probability distribution.
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M)) {
@@ -1014,16 +1108,16 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 	total_all_acc = total_32_64_128_256_acc + idx_16_acc;
 	total_all_acc += idx_8_acc + idx_4_acc + idx_2_acc + idx_1_acc;
 
-	PR_DVBC("idx_1_acc: 0x%x, idx_2_acc: 0x%x, idx_4_acc: 0x%x.\n",
+	PR_DVBC("idx_1_acc: 0x%x, idx_2_acc: 0x%x, idx_4_acc: 0x%x\n",
 			idx_1_acc, idx_2_acc, idx_4_acc);
-	PR_DVBC("idx_8_acc: 0x%x, idx_16_acc: 0x%x, index_32_acc: 0x%x.\n",
+	PR_DVBC("idx_8_acc: 0x%x, idx_16_acc: 0x%x, index_32_acc: 0x%x\n",
 			idx_8_acc, idx_16_acc, idx_32_acc);
-	PR_DVBC("idx_64_acc: 0x%x, idx_128_acc: 0x%x, idx_256_acc: 0x%x.\n",
+	PR_DVBC("idx_64_acc: 0x%x, idx_128_acc: 0x%x, idx_256_acc: 0x%x\n",
 			idx_64_acc, idx_128_acc, idx_256_acc);
 	PR_DVBC("total_64_128_256_acc: 0x%x.\n", total_64_128_256_acc);
 	PR_DVBC("total_32_64_128_256_acc: 0x%x.\n", total_32_64_128_256_acc);
 	PR_DVBC("total_all_acc: 0x%x.\n", total_all_acc);
-	PR_DVBC("idx_all: 0x%x(%d), idx_77: 0x%x(%d), idx[0]: %d.\n",
+	PR_DVBC("idx_all: 0x%x(%d), idx_77: 0x%x(%d), idx[0]: %d\n",
 			idx_all, idx_all, idx_77, idx_77, idx[0]);
 
 	if (total_all_acc < 60 || total_64_128_256_acc <= 4) {
@@ -1039,13 +1133,13 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 	dis_val[1] = abs(idx_256_acc - 16) + 1;
 	dis_val[0] = abs(idx_256_acc - 8) + 1;
 
-	PR_DVBC("orig dis_val: %d, %d, %d, %d, %d.\n",
+	PR_DVBC("orig dis_val: %d, %d, %d, %d, %d\n",
 			dis_val[0], dis_val[1],
 			dis_val[2], dis_val[3], dis_val[4]);
 
 	sort_with_index(len, dis_val, dis_idx);
 
-	PR_DVBC("sort dis_val(idx): %d(%d), %d(%d), %d(%d), %d(%d), %d(%d).\n",
+	PR_DVBC("sort dis_val(idx): %d(%d), %d(%d), %d(%d), %d(%d), %d(%d)\n",
 			dis_val[0], dis_idx[0], dis_val[1], dis_idx[1],
 			dis_val[2], dis_idx[2], dis_val[3], dis_idx[3],
 			dis_val[4], dis_idx[4]);
@@ -1067,7 +1161,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 				dis_idx[1] = temp;
 			}
 
-			PR_DVBC("in idx_77 <= 2000  128 256 ----\n");
+			PR_DVBC("in idx_77 <= 2000  128 256\n");
 		} else if (dis_idx[0] > 1 && dis_idx[1] > 1 &&
 			dis_idx[0] < 4 && dis_idx[1] < 4) {
 			if (dis_idx[0] == 3) //128
@@ -1085,7 +1179,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 				dis_idx[1] = temp;
 			}
 
-			PR_DVBC("in idx_77 <= 2000  128 64 ----\n");
+			PR_DVBC("in idx_77 <= 2000  128 64\n");
 		} else if (dis_idx[0] > 0 && dis_idx[1] > 0 &&
 			dis_idx[0] < 3 && dis_idx[1] < 3) {
 			if (dis_idx[0] == 1) //32
@@ -1103,7 +1197,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 				dis_idx[1] = temp;
 			}
 
-			PR_DVBC("in idx_77 <= 2000  32 64 ----\n\n");
+			PR_DVBC("in idx_77 <= 2000  32 64\n\n");
 		}
 	} else {
 		// > 2000
@@ -1160,7 +1254,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 			}
 		}
 
-		PR_DVBC("in idx_77 > 2000  128 256 ----\n\n");
+		PR_DVBC("in idx_77 > 2000  128 256\n\n");
 	}
 
 	if (idx[0] < 25) {
@@ -1181,7 +1275,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 				dis_idx[1] = temp;
 			}
 
-			PR_DVBC("in index_00 < 25  32 64----\n\n");
+			PR_DVBC("in index_00 < 25  32 64\n\n");
 		}
 	}
 
@@ -1203,7 +1297,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 				dis_idx[1] = temp;
 			}
 
-			PR_DVBC("in index_00 < 150  128 64 ----\n\n");
+			PR_DVBC("in index_00 < 150  128 64\n\n");
 		}
 	}
 
@@ -1224,7 +1318,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 				dis_idx[1] = temp;
 			}
 
-			PR_DVBC("in aa == 8  16 ----\n\n");
+			PR_DVBC("in aa == 8  16\n\n");
 		} else {
 			if (dis_idx[0] == 1) //32
 				dis_val[0] = -4;
@@ -1241,7 +1335,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 				dis_idx[1] = temp;
 			}
 
-			PR_DVBC("in aa > or < 8  32 ----\n");
+			PR_DVBC("in aa > or < 8  32\n");
 		}
 	}
 
@@ -1299,7 +1393,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 					flag = 1;
 			}
 
-			PR_DVBC("greater: %d, count: %d, flag: %d.\n",
+			PR_DVBC("greater: %d, count: %d, flag: %d\n",
 					greater, count, flag);
 
 			if (count == 8 && !flag) {
@@ -1318,7 +1412,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 					dis_idx[1] = temp;
 				}
 
-				PR_DVBC("in count == 8 and flag == 0  32 ----\n");
+				PR_DVBC("in count == 8 and flag == 0  32\n");
 			}
 		}
 	}
@@ -1331,11 +1425,12 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 
 AUTO_QAM_DONE:
 	if (!ret)
-		PR_INFO("%s: find qam: %d, %d, %d, %d, %d.\n",
-				__func__, qam_mode[0], qam_mode[1],
+		PR_INFO("find qam: %d, %d, %d, %d, %d\n",
+				qam_mode[0], qam_mode[1],
 				qam_mode[2], qam_mode[3], qam_mode[4]);
 	else
-		PR_INFO("%s: can not find qam(ret %d).\n", __func__, ret);
+		PR_INFO("can not find qam(ret %d)\n", ret);
 
 	return ret;
 }
+

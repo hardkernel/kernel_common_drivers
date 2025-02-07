@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __ISDBT_FRONTEND_H__
@@ -18,7 +18,7 @@ int gxtv_demod_isdbt_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks);
 int gxtv_demod_isdbt_read_signal_strength(struct dvb_frontend *fe,
 		s16 *strength);
 int dvbt_isdbt_set_frontend(struct dvb_frontend *fe);
-int gxtv_demod_isdbt_get_frontend(struct dvb_frontend *fe);
+int gxtv_demod_isdbt_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties *p);
 int dvbt_isdbt_init(struct aml_dtvdemod *demod);
 
 #endif

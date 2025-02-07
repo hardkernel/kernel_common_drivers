@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -35,15 +35,53 @@
 #include "aml_demod.h"
 #include "demod_func.h"
 #include "demod_dbg.h"
-#include "amlfrontend.h"
+
 #include "dvbs_frontend.h"
 #include "dvbs.h"
+#include "dvbs_diseqc.h"
 #include "dvbs_singlecable.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
-static bool blind_scan_new = true;
-__module_param(blind_scan_new, bool, 0644);
-MODULE_PARM_DESC(blind_scan_new, "blind_scan_new");
+//blind_scan algorithm version: 0x0 1st, 0x1 2nd, 0x2 3rd
+unsigned char blind_scan_new = 0x1;
+__module_param(blind_scan_new, byte, 0644);
+MODULE_PARM_DESC(blind_scan_new, "");
+
+static unsigned char dvbs_blind_spectrum_invert;
+__module_param(dvbs_blind_spectrum_invert, byte, 0644);
+MODULE_PARM_DESC(dvbs_blind_spectrum_invert, "");
+
+static unsigned int BLIND_SEARCH_SR_TH_DVBS = 30000;
+__module_param(BLIND_SEARCH_SR_TH_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_SR_TH_DVBS, "");
+
+static unsigned int BLIND_SR_UP_DVBS = 10000;
+__module_param(BLIND_SR_UP_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SR_UP_DVBS, "");
+
+static unsigned int BLIND_SR_LOW_DVBS = 10000;
+__module_param(BLIND_SR_LOW_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SR_LOW_DVBS, "");
+
+static unsigned int BLIND_SR_RT_UP_DVBS = 5; //x0.2 = /5
+__module_param(BLIND_SR_RT_UP_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SR_RT_UP_DVBS, "");
+
+static unsigned int BLIND_SR_RT_LOW_DVBS = 5;
+__module_param(BLIND_SR_RT_LOW_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SR_RT_LOW_DVBS, "");
+
+static unsigned int BLIND_SEARCH_TIM_DVBS = 250;
+__module_param(BLIND_SEARCH_TIM_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_TIM_DVBS, "");
+
+static unsigned int BLIND_SEARCH_TIM1_DVBS = 10;
+__module_param(BLIND_SEARCH_TIM1_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_TIM1_DVBS, "");
+
+static unsigned int BLIND_SEARCH_TIM2_DVBS = 80;
+__module_param(BLIND_SEARCH_TIM2_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_TIM2_DVBS, "");
 
 int dtvdemod_dvbs_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
@@ -52,7 +90,7 @@ int dtvdemod_dvbs_read_ber(struct dvb_frontend *fe, u32 *ber)
 	/* x e10 */
 	*ber = demod->real_para.ber;
 
-	PR_DVBS("%s: ber %d E-10\n", __func__, *ber);
+	PR_DVBS("ber %d E-10\n", *ber);
 
 	return 0;
 }
@@ -64,10 +102,7 @@ int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe, s16 *strength)
 	unsigned int i = 0, if_agc_value = 0;
 	u16 rf_strength = 0;
 
-	if (demod->last_status != 0x1F) {
-		*strength = -100;
-	} else if (tuner_find_by_name(fe, "av2018") ||
-		tuner_find_by_name(fe, "rda5815m")) {
+	if (tuner_find_by_name(fe, "av2018")) {
 		agc_level = dvbs_rd_byte(DVBS_AGC_LEVEL_ADDR);
 		if (agc_level > 183) {
 			*strength = 0;
@@ -102,13 +137,17 @@ int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe, s16 *strength)
 		PR_DBGL("if_agc_code %d\n", if_agc_value);
 
 		*strength = (s16)tuner_get_ch_power(fe);
+	} else if (tuner_find_by_name(fe, "rda5815m")) {
+		*strength = (s16)tuner_get_ch_power(fe);
 	} else {
 		*strength = (s16)tuner_get_ch_power(fe);
 		if (*strength <= -57)
 			*strength += (s16)dvbs_get_signal_strength_off();
 	}
+	if (*strength < -100)
+		*strength = -100;
 
-	PR_DVBS("demod [id %d] signal strength %d dBm\n", demod->id, *strength);
+	PR_DVBS("[id %d] strength %d dBm\n", demod->id, *strength);
 
 	return 0;
 }
@@ -119,7 +158,7 @@ int dvbs_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	*snr = (u16)demod->real_para.snr;
 
-	PR_DVBS("demod[%d] snr %d dBx10\n", demod->id, *snr);
+	PR_DVBS("[id %d] snr %d dBx10\n", demod->id, *snr);
 
 	return 0;
 }
@@ -149,7 +188,7 @@ int dtvdemod_dvbs_unicable_change_channel(struct dvb_frontend *fe)
 				devp->singlecable_param.userband, devp->singlecable_param.frequency,
 				devp->singlecable_param.bank, c->frequency);
 		if (ret != 0) {
-			PR_ERR("%s: singlecable ODU_channel_change failed %d\n", __func__, ret);
+			PR_ERR("singlecable ODU_channel_change fail %d\n", ret);
 			return ret;
 		}
 	} else if (devp->singlecable_param.version == SINGLECABLE_VERSION_2_EN50607) {
@@ -162,18 +201,18 @@ int dtvdemod_dvbs_unicable_change_channel(struct dvb_frontend *fe)
 				devp->singlecable_param.uncommitted,
 				devp->singlecable_param.committed);
 		if (ret != 0) {
-			PR_ERR("%s: singlecable2 ODU_channel_change failed %d\n", __func__, ret);
+			PR_ERR("singlecable2 ODU_channel_change fail %d\n", ret);
 			return ret;
 		}
 	} else {
-		PR_ERR("%s: not support singlecable ver %d !!!\n", __func__,
+		PR_ERR("not support singlecable ver %d\n",
 				devp->singlecable_param.version);
 		return -EINVAL;
 	}
 
 	ret = aml_diseqc_send_master_cmd(fe, &cmd);
 	if (ret < 0) {
-		PR_ERR("%s: aml_diseqc_send_master_cmd failed %d\n", __func__, ret);
+		PR_ERR("send cmd fail %d\n", ret);
 		return ret;
 	}
 	c->frequency = devp->singlecable_param.frequency;
@@ -188,6 +227,7 @@ int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int ret = 0, next_step_khz1 = 0, asperity = 0;
+	enum fe_status status = 0;
 
 #ifdef DVBS_BLIND_SCAN_DEBUG
 	unsigned int fld_value[2] = { 0 };
@@ -204,12 +244,17 @@ int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 		c->symbol_rate = 45000000;
 	}
 
+	/* update current search info */
+	demod->blind_result_frequency = c->frequency;
+	demod->blind_result_symbol_rate = c->symbol_rate;
+	status = BLINDSCAN_UPDATESTARTFREQ | FE_HAS_LOCK;
+	dvb_frontend_add_event(fe, status);
+
 	//in Unicable blind scan mode, when try signal, the actual IF freq
 	//should be moved to the specified user band freq first,
 	//then tuner_set_params with the specified user band freq.
 	if (!devp->blind_scan_stop && demod->demod_status.is_blind_scan &&
 			demod->demod_status.is_singlecable) {
-		PR_DVBS("%s: IF_freq %d\n", __func__, c->frequency);
 		ret = dtvdemod_dvbs_unicable_change_channel(fe);
 		if (ret != 0)
 			return ret;
@@ -234,10 +279,10 @@ int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 		agc1_iq_power /= 5;
 	}
 
-	PR_DVBS("agc1_iq_amp: %d, agc1_iq_power: %d.\n", agc1_iq_amp, agc1_iq_power);
+	PR_DVBS("agc1_iq_amp: %d, agc1_iq_power: %d\n", agc1_iq_amp, agc1_iq_power);
 #endif
 
-	if (blind_scan_new) {
+	if (blind_scan_new == 0x1) {
 		if (*signal_state == 0 || *signal_state == 1) {
 			asperity = dvbs_blind_check_AGC2_bandwidth_new(next_step_khz,
 					&next_step_khz1, signal_state);
@@ -361,9 +406,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 	int asperity = 0, next_step_khz = 0, signal_state = 0, freq_add = 0, freq_add_dly = 0;
 	int scan_time = 1;
 	bool found_tp = false;
-	unsigned int last_step_num = 50, cur_step_num = 0, percent_base = 0;
-
-	PR_INFO("a new blind scan thread\n");
+	unsigned int last_step_num = 0, cur_step_num = 0, percent_base = 0;
 
 	list_for_each_entry(tmp, &devp->demod_list, list) {
 		if (tmp->id == 0) {
@@ -373,14 +416,14 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 	}
 
 	if (!demod) {
-		PR_INFO("%s: demod == NULL.\n", __func__);
+		PR_INFO("demod NULL\n");
 		return;
 	}
 
 	fe = &demod->frontend;
 
 	if (unlikely(!fe)) {
-		PR_ERR("%s err, fe is NULL\n", __func__);
+		PR_ERR("fe NULL\n");
 		return;
 	}
 
@@ -401,12 +444,12 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 	if (devp->singlecable_param.version) {
 		demod->demod_status.is_singlecable = 1;
 		scan_time = 2;
-		PR_ERR("%s scan_time %d\n", __func__, scan_time);
+		PR_ERR("blind scan_time %d\n", scan_time);
 		//when blind scan started, reset the voltage for H/V polarization.
 		if (devp->singlecable_param.version != SINGLECABLE_VERSION_UNKNOWN)
 			aml_diseqc_set_voltage(fe, SEC_VOLTAGE_13);
 		else
-			PR_ERR("%s: invalid unicable ver %d\n", __func__,
+			PR_ERR("invalid unicable ver %d\n",
 					devp->singlecable_param.version);
 	}
 
@@ -415,32 +458,31 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 	dtvdemod_dvbs_set_ch(&demod->demod_status);
 
 	if (devp->agc_direction) {
-		PR_DVBS("%s: DTV AGC direction: %d, Set dvbs agc pin reverse\n",
-			__func__, devp->agc_direction);
+		PR_DVBS("AGC direction: %d\n", devp->agc_direction);
 		dvbs_wr_byte(0x118, 0x04);
 	}
 
 	total_result.tp_num = 0;
-	if (blind_scan_new && freq_max == 2150000)
+	if (blind_scan_new == 0x1 && freq_max == 2150000)
 		freq_max = freq_max + freq_step;
 
 	//map blind scan fft process to 0% - 50%
 	freq_one_percent =
 		scan_time == 2 ? (freq_max - freq_min) / 25 : (freq_max - freq_min) / 50;
-	PR_DVBS("freq_one_percent: %d.\n", freq_one_percent);
+	PR_DVBS("freq_one_percent: %d\n", freq_one_percent);
 
 	/* 950MHz ~ 2150MHz. */
 	do {
 		for (freq = freq_min; freq <= freq_max;) {
 			if (devp->blind_scan_stop)
 				break;
-			PR_INFO("------Search From: [%d KHz to %d KHz]-----\n",
+			PR_INFO("Search From: [%d KHz to %d KHz]\n",
 					freq - 20000, freq + freq_step - 20000);
 
 			asperity = dtvdemod_dvbs_blind_check_signal(fe, freq,
 				&next_step_khz, &signal_state);
 
-			PR_INFO("get asperity: %d, next_step_khz %d, signal_state %d.\n",
+			PR_INFO("get asperity: %d, next_step_khz %d, signal_state %d\n",
 				asperity, next_step_khz, signal_state);
 
 			fft_frc_range_min = (freq - 20000) / 1000;
@@ -454,7 +496,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 					fft_frc_range_min, fft_frc_range_max, range_ini);
 
 				if (in_bw_result.tp_num != 0)
-					PR_INFO("------In Bw(range_ini %d) Find Tp Num:%d-----\n",
+					PR_INFO("In Bw(range_ini %d) Find Tp Num:%d\n",
 							range_ini, in_bw_result.tp_num);
 
 				for (j = 0; j < in_bw_result.tp_num; j++) {
@@ -469,21 +511,21 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 			}
 
 			cur_step_num = (freq - freq_min) / freq_one_percent + percent_base;
-			PR_DVBS("last %d cur_step_num %d\n",
-					demod->blind_result_frequency, cur_step_num);
+			PR_DVBS("last %d cur_step_num %d\n", last_step_num, cur_step_num);
 			if (freq <= freq_max &&
-					cur_step_num > demod->blind_result_frequency &&
+					cur_step_num > last_step_num &&
 					cur_step_num <= (scan_time == 1 ? 50 : 25)) {
+				last_step_num = cur_step_num;
 				demod->blind_result_frequency = cur_step_num;
 				demod->blind_result_symbol_rate = 0;
 
 				status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-				PR_DVBS("FFT search: blind scan process: [%d%%].\n",
+				PR_DVBS("FFT search: blind scan process: [%d%%]\n",
 						demod->blind_result_frequency);
 				dvb_frontend_add_event(fe, status);
 			}
 
-			if (blind_scan_new) {
+			if (blind_scan_new == 0x1) {
 				if (asperity == 2 && signal_state == 2) {
 					signal_state = 0;
 					next_step_khz = freq_add;
@@ -505,28 +547,29 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 
 			PR_INFO("[signal_state %d], freq %d, next_step_khz %d",
 					signal_state, freq, next_step_khz);
-			PR_INFO("freq_add %d, freq_add_dly %d.\n", freq_add, freq_add_dly);
+			PR_INFO("freq_add %d, freq_add_dly %d\n", freq_add, freq_add_dly);
 		}
-		PR_ERR("%s scan_time %d\n", __func__, scan_time);
+		PR_ERR("cur blind scan_time %d\n", scan_time);
 		if (scan_time == 2) {
 			dvbs_set_iq_swap(iq_swap_default ? 0 : 1);
 			cur_iq = dvbs_get_iq_swap();
-			PR_INFO("%s set dvbs_iq_swap %d.\n", __func__, cur_iq);
+			PR_INFO("set dvbs_iq_swap %d\n", cur_iq);
 			percent_base = 25;
 		}
 		scan_time--;
 	} while (scan_time && !devp->blind_scan_stop);
 	dvbs_set_iq_swap(iq_swap_default);
 
-	PR_INFO("------TOTAL FIND TP NUM: %d-----\n", total_result.tp_num);
+	PR_INFO("TOTAL FIND TP NUM: %d\n", total_result.tp_num);
 
 	if (total_result.tp_num > 0 && !devp->blind_scan_stop) {
 		// map blind scan try lock process to 51% ~ 99%
+		last_step_num = 50;
 		freq_one_percent = total_result.tp_num * 50 / 50;
 
 		dvbs_blind_fft_result_handle(&total_result);
 
-		PR_INFO("------Start Try To Lock Test-----\n");
+		PR_INFO("Start Try To Lock Test\n");
 		last_locked_freq = 0;
 		last_locked_sr = 0;
 		for (k = 0; k < total_result.tp_num; ++k) {
@@ -537,7 +580,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 			cur_sr = total_result.bw[k] * 1000;
 			cur_iq = total_result.iq_swap[k];
 
-			PR_INFO("Try TP: [%d KHz, %d bps].\n",
+			PR_INFO("Try TP: [%d KHz, %d bps]\n",
 					cur_freq, cur_sr);
 
 			if ((abs(last_locked_freq - cur_freq) < 5000) ||
@@ -546,7 +589,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 				((abs(last_locked_sr - cur_sr) <= 5000) &&
 				(abs(last_locked_freq - cur_freq) <= 8000))) {
 				status = FE_TIMEDOUT;
-				PR_INFO("Skip tune: last[%d KHz, %d bps], cur[%d KHz, %d bps].\n",
+				PR_INFO("Skip tune: last[%d KHz, %d bps], cur[%d KHz, %d bps]\n",
 						last_locked_freq, last_locked_sr,
 						cur_freq, cur_sr);
 			} else {
@@ -587,7 +630,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 					(abs(last_locked_freq - cur_freq) < 10000 &&
 					last_locked_sr >= 20000000)) {
 					status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-				PR_INFO("Skip report: last[%d KHz, %d bps], cur[%d KHz, %d bps].\n",
+				PR_INFO("Skip report: last[%d KHz, %d bps], cur[%d KHz, %d bps]\n",
 						last_locked_freq, last_locked_sr,
 						cur_freq, cur_sr);
 					found_tp = false;
@@ -614,14 +657,14 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 
 					if (status == FE_TIMEDOUT || status == 0) {
 						status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-						PR_INFO("Skip unlock TP: [%d KHz, %d bps].\n",
+						PR_INFO("Skip unlock TP: [%d KHz, %d bps]\n",
 							cur_freq, cur_sr);
 						continue;
 					}
 
 					if (last_locked_sr == cur_sr &&
 						(abs(last_locked_freq - cur_freq) <= 15000)) {
-						PR_INFO("Skip repo TP: l[%d, %d], c[%d, %d].\n",
+						PR_INFO("Skip repo TP: l[%d, %d], c[%d, %d]\n",
 							last_locked_freq, last_locked_sr,
 							cur_freq, cur_sr);
 						status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
@@ -637,7 +680,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 				status = BLINDSCAN_UPDATERESULTFREQ |
 					FE_HAS_LOCK;
 
-				PR_INFO("Get actual TP: [%d KHz, %d bps].\n",
+				PR_INFO("Get actual TP: [%d KHz, %d bps]\n",
 						cur_freq, cur_sr);
 
 				dvb_frontend_add_event(fe, status);
@@ -654,7 +697,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 				demod->blind_result_symbol_rate = 0;
 
 				status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-				PR_DVBS("Try lock: blind scan process: [%d%%].\n",
+				PR_DVBS("Try lock: blind scan process: [%d%%]\n",
 						demod->blind_result_frequency);
 				dvb_frontend_add_event(fe, status);
 			}
@@ -666,7 +709,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 		demod->blind_result_frequency = 100;
 		demod->blind_result_symbol_rate = 0;
 		status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-		PR_INFO("%s:force 100%% to upper layer\n", __func__);
+		PR_INFO("force 100%% to upper layer\n");
 		dvb_frontend_add_event(fe, status);
 		devp->blind_scan_stop = 1;
 	}
@@ -904,7 +947,7 @@ unsigned int dvbs_get_bitrate(int sr)
 		}
 	}
 
-	PR_DVBS("DVBS%d modu_value=%d, modu=PSK_%d, cr=%d/%d\n",
+	PR_DVBS("DVBS%d modu=%d, modu=PSK_%d, cr=%d/%d\n",
 		s2 == 0x40 ? 2 : 1, modu, 1 << modu_ratio, cr_t, cr_b);
 
 	return sr * cr_b / cr_t / modu_ratio;
@@ -917,14 +960,22 @@ static int calc_ave(int *val_arr, int cnt, unsigned int mode, int par)
 	need_order = (mode >> 31) & 1 ? 0 : 1;
 	mode = mode & 0x7FFFFFFF;
 
-	if (!val_arr || cnt <= 0 || mode > 2)
+	if (!val_arr)
 		return 0;
+
+	if (cnt <= 0 || mode > 2)
+		return val_arr[0];
 
 	if (mode != 0 && par <= 0)
-		return 0;
+		return val_arr[0];
 
-	if (mode == 1 && (par * 2) >= cnt)
-		return 0;
+	if (mode == 1 && (par * 2) >= cnt) {
+		tot = 0;
+		for (i = 0; i < cnt; i++)
+			tot += val_arr[i];
+
+		return tot / cnt;
+	}
 
 	tot = 0;
 	calc_cnt = cnt;
@@ -1017,8 +1068,8 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 //	if (strength < THRD_TUNER_STRENGTH_DVBS) {
 //		*status = FE_TIMEDOUT;
 //		demod->last_lock = -1;
-//		PR_DVBS("%s: [id %d] tuner strength [%d] no signal(%d).\n",
-//			__func__, demod->id, strength, THRD_TUNER_STRENGTH_DVBS);
+//		PR_DVBS("[id %d] strength [%d] no signal(%d)\n",
+//			demod->id, strength, THRD_TUNER_STRENGTH_DVBS);
 //		return 0;
 //	}
 
@@ -1043,8 +1094,11 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 	snr[times++ % 8] = dvbs_get_quality();
 	//PR_DVBS("calc_ave cnt:%d ==>%d, %d, %d, %d, %d, %d, %d, %d<==\n",
 	//	cnt, snr[0], snr[1], snr[2], snr[3], snr[4], snr[5], snr[6], snr[7]);
-	demod->real_para.snr = calc_ave(snr, 8, 1, 1);
-	PR_DVBS("calc snr = %d dBx10\n", demod->real_para.snr);
+	demod->real_para.snr = calc_ave(snr, times >= 8 ? 8 : times, 1, 1);
+	PR_DVBS("calc snr %d dBx10\n", demod->real_para.snr);
+
+	dvbs_get_modulation_coderate(&demod->real_para.modulation,
+			&demod->real_para.coderate);
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	if (demod->time_passed >= 500) {
@@ -1070,14 +1124,14 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 				(offset > 11500 && c->symbol_rate >= SR_LOW_THRD)) {
 				ilock = 0;
 				*status = FE_TIMEDOUT;
-				PR_INFO("%s [id %d]: offset %d KHz too large, sr %d.\n",
-						__func__, demod->id,
+				PR_INFO("[id %d]: offset %d KHz too large, sr %d\n",
+						demod->id,
 						offset, c->symbol_rate);
 			}
 		}
 	} else {
 		if (timer_not_enough(demod, D_TIMER_DETECT)) {
-			ilock = 0;
+			ilock = -1;
 			*status = 0;
 		} else {
 			ilock = 0;
@@ -1109,7 +1163,7 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 		}
 
 		PR_INFO("%s [id %d]: %s.freq: %s, sr: %d %s%s\n", __func__, demod->id,
-				ilock ? "!!  >> LOCK << !!" : "!! >> UNLOCK << !!",
+				ilock == 1 ? "!!  >> LOCK << !!" : "!! >> UNLOCK << !!",
 				buf, c->symbol_rate,
 				polarity_name ? polarity_name : "",
 				band ? band : "");
@@ -1129,6 +1183,32 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 	return 0;
 }
 
+int dtvdemod_dvbs_get_frontend(struct dvb_frontend *fe,
+		struct dtv_frontend_properties *p)
+{
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	if (!devp->blind_scan_stop) {
+		p->delivery_system = demod->last_delsys;
+		p->frequency = demod->blind_result_frequency;
+		p->symbol_rate = demod->blind_result_symbol_rate;
+	} else {
+		p->delivery_system = demod->last_delsys;
+		p->frequency = c->frequency;
+		p->symbol_rate = c->symbol_rate;
+		p->modulation = demod->real_para.modulation;
+		p->fec_inner = demod->real_para.coderate;
+	}
+
+	PR_DVBS("dvbs get delsys %d,freq %d,sr %d,coderate %d,modul %d\n",
+			p->delivery_system, p->frequency, p->symbol_rate,
+			p->fec_inner, p->modulation);
+
+	return 0;
+}
+
 int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
@@ -1138,7 +1218,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	unsigned int tmp_sr = 0;
 
 	if (devp->blind_same_frec == 0)
-		PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d.\n",
+		PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
 			c->bandwidth_hz);
 
@@ -1160,7 +1240,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	demod->time_start = jiffies_to_msecs(jiffies);
 
 	if (devp->agc_direction) {
-		PR_DVBS("DTV AGC direction: %d, Set dvbs agc pin reverse\n", devp->agc_direction);
+		PR_DVBS("AGC direction: %d\n", devp->agc_direction);
 		dvbs_wr_byte(0x118, 0x04);
 	}
 
@@ -1186,12 +1266,12 @@ int dtvdemod_dvbs_tune(struct dvb_frontend *fe, bool re_tune,
 		dtvdemod_dvbs_set_frontend(fe);
 		timer_begain(demod, D_TIMER_DETECT);
 		dtvdemod_dvbs_read_status(fe, status, fe->dtv_property_cache.frequency, re_tune);
-		PR_DVBS("[id %d] tune finish!\n", demod->id);
+
 		return ret;
 	}
 
 	if (!demod->en_detect) {
-		PR_DBGL("%s: [id %d] not enable.\n", __func__, demod->id);
+		PR_DBGL("[id %d] dvbs not enable\n", demod->id);
 		return ret;
 	}
 
@@ -1219,17 +1299,10 @@ int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 	demod->demod_status.ch_if = DEMOD_5M_IF;
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
-	PR_DBG("[%s]adc_clk is %d,demod_clk is %d\n", __func__, sys.adc_clk,
-	       sys.demod_clk);
 	demod->auto_flags_trig = 0;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
-		PR_DBG("[%s]S4D SET DEMOD CLK\n", __func__);
-		dd_hiu_reg_write(0x81, 0x702);
-		dd_hiu_reg_write(0x80, 0x501);
-	} else if (devp->data->hw_ver == DTVDEMOD_HW_S1A) {
-		PR_DBG("[%s]S1A SET DEMOD CLK\n", __func__);
+	if (devp->data->hw_ver == DTVDEMOD_HW_S1A || devp->data->hw_ver == DTVDEMOD_HW_T6D) {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	} else {
@@ -1249,5 +1322,375 @@ int amdemod_stat_dvbs_islock(struct aml_dtvdemod *demod,
 
 	ret = (dvbs_rd_byte(0x160) >> 3) & 0x1;
 	return ret;
+}
+
+//start to check signal and report event: blind scan result(valid TPs) and progress.
+void dvbs_blind_scan_new_work2(struct aml_dtvdemod *demod)
+{
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct dvb_frontend *fe = NULL;
+	struct dtv_frontend_properties *c = NULL;
+	const unsigned int MIN_FREQ_KHZ = devp->blind_min_fre - 5000;
+	const unsigned int MAX_FREQ_KHZ = devp->blind_max_fre + 15000; //950-1950M, 1100-2150M
+	unsigned int found_tp_num = 0;
+
+	unsigned int f_max, sr_est;
+	int freq_add, freq_add1, freq_add_next, freq_add_dly;
+	unsigned int state, s2_state;
+	//unsigned int fld_value[2] = {0}, agcrfin;
+	unsigned int asperity = 0;
+	int tmp, tmp1, tmp2, tmp3;
+	int tmp3_f, tmp4_f;
+	unsigned int ts_lock, dly_cnt, dly_cnt1, dly_cnt2, second_lock;
+	int sr_est_lock, car_offset_lock, sr_lock, sr_lock_dly, cr_lock, cr_lock_dly;
+	int sr_est_lock2, car_offset_lock2;
+	enum fe_status status = FE_NONE;
+	const unsigned int FREQ_STEP_KHZ = (MAX_FREQ_KHZ - MIN_FREQ_KHZ + 1000) / 100;
+	unsigned int last_step_num = 0, cur_step_num = 0;
+	int integer = 0, integer1 = 0, integer2 = 0, integer3 = 0;
+	unsigned int decimal = 0, decimal1 = 0, decimal2 = 0, decimal3 = 0;
+
+	fe = &demod->frontend;
+	if (unlikely(!fe)) {
+		PR_ERR("%s err, fe is NULL\n", __func__);
+		return;
+	}
+
+	if (devp->blind_scan_stop)
+		return;
+
+	c = &fe->dtv_property_cache;
+	demod->blind_result_frequency = 0;
+	demod->blind_result_symbol_rate = 0;
+
+	PR_DVBS("[id %d] %d start launch_spectrum\n", demod->id, dvbs_blind_spectrum_invert);
+	c->symbol_rate = 45000000;
+	c->bandwidth_hz = 8000000;
+	c->modulation = QPSK;
+	c->rolloff = ROLLOFF_35;
+	dvbs2_reg_initial(c->symbol_rate / 1000, 0);
+
+	f_max = MIN_FREQ_KHZ;
+	freq_add = 0;
+	freq_add1 = 0;
+	freq_add_next = 0;
+	freq_add_dly = 0;
+	state = 0;
+	s2_state = 0;
+	asperity = 0;
+	sr_est = 0;
+
+	while (f_max < MAX_FREQ_KHZ) {
+		if (devp->blind_scan_stop)
+			return;
+
+		PR_DVBS("=====f_max %d KHz,freq_add %d KHz, freq_add1 %d KHz, ",
+				f_max, freq_add, freq_add1);
+		PR_DVBS("state %d,asperity %d,freq_add_dly %d\n",
+				state, asperity, freq_add_dly);
+
+		if (state == 1 && asperity == 0) {
+			f_max = f_max + 40000;
+			freq_add_dly = freq_add1;
+		} else if (state == 2 && asperity == 0) {
+			f_max = f_max + 40000;
+			//freq_add_dly = freq_add1;
+			s2_state = 1;
+		} else if (state == 3 && asperity == 0) {
+			if (s2_state == 1) {
+				freq_add_next = 40000 + 20000 + (freq_add_dly + freq_add1) / 2;
+				f_max = f_max - 40000 + (freq_add1 - freq_add_dly) / 2;
+				sr_est = 40000 + 40000 + (freq_add_dly + freq_add1);
+			} else {
+				freq_add_next = 40000 + (freq_add_dly + freq_add1) / 2;
+				f_max = f_max - 20000 + (freq_add1 - freq_add_dly) / 2;
+				sr_est = 40000 + (freq_add_dly + freq_add1);
+			}
+			PR_DVBS("f_max %d KHz,freq_add %d,freq_add1 %d,freq_add_dly %d\n",
+					f_max, freq_add, freq_add1, freq_add_dly);
+			PR_DVBS("freq_add_next %d, s2_state %d\n", freq_add_next, s2_state);
+		} else if (state == 1 && asperity == 1) {
+			f_max = f_max + freq_add;
+			freq_add_next = freq_add1;
+		} else {
+			f_max = f_max + freq_add;
+		}
+
+		PR_DVBS("begin launch_BlindCheckAGC2BandWidth2---f_max %d\n", f_max);
+
+		c->frequency = f_max;
+		c->symbol_rate = 45000000;
+		tuner_set_params(fe);
+		usleep_range(2000, 2001);
+
+		dvbs_blind_check_signal(demod, f_max, &freq_add, &freq_add1, &state, &asperity,
+				&sr_est, dvbs_blind_spectrum_invert);
+		PR_DVBS("=====end launch_BlindCheckAGC2BandWidth2 f_max %d, ", f_max);
+		PR_DVBS("freq_add %d,freq_add1 %d\n", freq_add, freq_add1);
+		PR_DVBS("state %d, asperity=%d\n", state, asperity);
+
+		//when a signal is detected, report blind scan result
+		if (asperity == 2) {
+			if (devp->blind_scan_stop)
+				return;
+
+			dvbs2_reg_initial(sr_est, 1);
+
+			dly_cnt = 0;
+			second_lock = 0;
+			sr_est_lock2 = 0;
+			car_offset_lock2 = 0;
+			while (dly_cnt < BLIND_SEARCH_TIM_DVBS) {
+				if (devp->blind_scan_stop)
+					return;
+				PR_DVBS("f_max %d KHz,sr_est %d KS/s,dly_cnt %d,second_lock %d, ",
+						f_max, sr_est, dly_cnt, second_lock);
+				PR_DVBS("sr_est_lock2 %d KS/s,car_offset_lock2 %d Hz\n",
+						sr_est_lock2, car_offset_lock2);
+				if (second_lock == 1) {
+					c->frequency = f_max - car_offset_lock2 / 1000;
+					tuner_set_params(fe);
+					usleep_range(2000, 2001);
+					//st_dvbs2_init2(sr_est_lock);
+					dvbs2_reg_initial((unsigned int)sr_est_lock2, 1);
+				} else {
+					if (dly_cnt > 0) {
+						c->frequency = f_max;
+						tuner_set_params(fe);
+						usleep_range(2000, 2001);
+						//st_dvbs2_init2(sr_est_lock);
+						dvbs2_reg_initial(sr_est, 1);
+					}
+				}
+
+				ts_lock = 0;
+				dly_cnt1 = 0;
+				dly_cnt2 = 0;
+				sr_est_lock = 0;
+				sr_lock = 0;
+				sr_lock_dly = 0;
+				cr_lock = 0;
+				cr_lock_dly = 0;
+				car_offset_lock = 0;
+				second_lock = 0;
+				while (ts_lock == 0 && dly_cnt < BLIND_SEARCH_TIM_DVBS) {
+					if (devp->blind_scan_stop)
+						return;
+
+					dly_cnt++;
+					sr_lock_dly = sr_lock;
+					cr_lock_dly = cr_lock;
+
+					ts_lock = (dvbs_rd_byte(0x160) >> 3) & 0x1;
+
+					tmp = (dvbs_rd_byte(0x9f0) << 16) +
+						(dvbs_rd_byte(0x9f1) << 8) + dvbs_rd_byte(0x9f2);
+					//tmp_f = ((long long)tmp * 135000) / 16777216;
+					float_division((long long)tmp * 135000, 16777216,
+							&integer, &decimal);
+					tmp1 = (dvbs_rd_byte(0x9f3) << 16) +
+						(dvbs_rd_byte(0x9f4) << 8) + dvbs_rd_byte(0x9f5);
+					//tmp1_f = ((long long)tmp1 * 135000) / 16777216;
+					float_division((long long)tmp1 * 135000, 16777216,
+							&integer1, &decimal1);
+					tmp2 = (dvbs_rd_byte(0x9f6) << 16) +
+						(dvbs_rd_byte(0x9f7) << 8) + dvbs_rd_byte(0x9f8);
+					//tmp2_f = ((long long)tmp2 * 135000) / 16777216;
+					float_division((long long)tmp2 * 135000, 16777216,
+							&integer2, &decimal2);
+					tmp3 = (dvbs_rd_byte(0x9fc) << 16) +
+						(dvbs_rd_byte(0x9fd) << 8) + dvbs_rd_byte(0x9fe);
+					//tmp3_f = ((long long)tmp3 * 135000) / 16777216;
+					float_division((long long)tmp3 * 135000, 16777216,
+							&integer3, &decimal3);
+					tmp3_f = integer3;
+					//PR_DVBS("tmp %d tmp1 %d tmp2 %d tmp3 %d\n",
+							//tmp, tmp1, tmp2, tmp3);
+					PR_DVBS("init sr %d.%d KS/s, up limit sr %d.%d KS/s, ",
+						integer, decimal, integer1, decimal1);
+					PR_DVBS("low limit sr %d.%d KS/s, current sr %d.%d KS/s\n",
+						integer2, decimal2, integer3, decimal3);
+					PR_DVBS("0x9ea is %#x,  0x9e5 is %#x, 0x9e6 is %#x\n",
+						dvbs_rd_byte(0x9ea), dvbs_rd_byte(0x9e5),
+						dvbs_rd_byte(0x9e6));
+
+					tmp4_f = tmp3_f;
+					sr_est_lock = tmp3_f; //KS/s
+					sr_lock = tmp3_f * 1000; //S/s
+					if (sr_est > sr_est_lock) {
+						if (((sr_est - sr_est_lock >
+							sr_est / BLIND_SR_RT_LOW_DVBS) &&
+							sr_est >= BLIND_SEARCH_SR_TH_DVBS) ||
+							(sr_est - sr_est_lock > BLIND_SR_LOW_DVBS &&
+							sr_est < BLIND_SEARCH_SR_TH_DVBS)) {
+							PR_DVBS("sr_est %d,sr_est_lock %d, ",
+								sr_est, sr_est_lock);
+						PR_DVBS("BLIND_SEARCH_SR_LOW %d,ts_lock %d\n",
+								BLIND_SR_LOW_DVBS, ts_lock);
+							break;
+						}
+					} else {
+						if (((sr_est_lock - sr_est >
+							sr_est / BLIND_SR_RT_UP_DVBS) &&
+							sr_est >= BLIND_SEARCH_SR_TH_DVBS) ||
+							(sr_est_lock - sr_est > BLIND_SR_UP_DVBS &&
+							sr_est < BLIND_SEARCH_SR_TH_DVBS)) {
+							PR_DVBS("sr_est %d,sr_est_lock %d, ",
+								sr_est, sr_est_lock);
+						PR_DVBS("BLIND_SEARCH_SR_UP %d,ts_lock %d\n",
+								BLIND_SR_UP_DVBS, ts_lock);
+							break;
+						}
+					}
+
+					tmp = (dvbs_rd_byte(0x9c3) << 16) +
+						(dvbs_rd_byte(0x9c4) << 8) + dvbs_rd_byte(0x9c5);
+					if (tmp > (1 << 23) - 1)
+						tmp = tmp - (1 << 24);
+					//tmp_f = ((long long)tmp * 135000) / 16777216;
+					float_division((long long)tmp * 135000, 16777216,
+							&integer, &decimal);
+					tmp1 = (dvbs_rd_byte(0x9c6) << 16) +
+						(dvbs_rd_byte(0x9c7) << 8) + dvbs_rd_byte(0x9c8);
+					if (tmp1 > (1 << 23) - 1)
+						tmp1 = tmp1 - (1 << 24);
+					//tmp1_f = ((long long)tmp1 * 135000) / 16777216;
+					float_division((long long)tmp1 * 135000, 16777216,
+							&integer1, &decimal1);
+					tmp2 = (dvbs_rd_byte(0x9c9) << 16) +
+						(dvbs_rd_byte(0x9ca) << 8) + dvbs_rd_byte(0x9cb);
+					if (tmp2 > (1 << 23) - 1)
+						tmp2 = tmp2 - (1 << 24);
+					//tmp2_f = ((long long)tmp2 * 135000) / 16777216;
+					float_division((long long)tmp2 * 135000, 16777216,
+							&integer2, &decimal2);
+					tmp3 = (dvbs_rd_byte(0x9cf) << 16) +
+						(dvbs_rd_byte(0x9d0) << 8) + dvbs_rd_byte(0x9d1);
+					if (tmp3 > (1 << 23) - 1)
+						tmp3 = tmp3 - (1 << 24);
+					//tmp3_f = ((long long)tmp3 * 135000) / 16777216;
+					float_division((long long)tmp3 * 135000, 16777216,
+							&integer3, &decimal3);
+					tmp3_f = integer3;
+					//PR_DVBS("tmp %d tmp1 %d tmp2 %d tmp3 %d\n",
+							//tmp, tmp1, tmp2, tmp3);
+					PR_DVBS("init cfo %d.%d, up limit cfo %d.%d, ",
+							integer, decimal, integer1, decimal1);
+					PR_DVBS("low limit cfo %d.%d, current cfo %d.%d\n",
+							integer2, decimal2, integer3, decimal3);
+
+					cr_lock = tmp3_f * 1000;
+					car_offset_lock = tmp3_f * 1000;
+				PR_DVBS("sr_lock %d, sr_lock_dly %d, sr_est_lock %d, sr_est %d\n",
+							sr_lock, sr_lock_dly, sr_est_lock, sr_est);
+					PR_DVBS("cr_lock %d, cr_lock_dly %d, car_offset_lock %d",
+							cr_lock, cr_lock_dly, car_offset_lock);
+					PR_DVBS(", dly_cnt1 %d, dly_cnt2 %d\n", dly_cnt1, dly_cnt2);
+					if (ts_lock == 0) {
+						dly_cnt2++;
+						if (dly_cnt2 > BLIND_SEARCH_TIM2_DVBS &&
+							second_lock == 0) {
+							PR_DVBS("dly_cnt2 %d, ts_lock %d, ",
+								dly_cnt2, ts_lock);
+							PR_DVBS("second_lock %d\n", second_lock);
+							break;
+						}
+					} else {
+						dly_cnt2 = 0;
+					}
+
+					if (abs(sr_lock - sr_lock_dly) < BLIND_SR_DIFF_DVBS &&
+						abs(cr_lock - cr_lock_dly) < BLIND_CR_DIFF_DVBS &&
+						second_lock == 0 && ts_lock == 0) {
+						dly_cnt1++;
+						if (dly_cnt1 > BLIND_SEARCH_TIM1_DVBS) {
+							sr_est_lock2 = tmp4_f; //KS/s
+							car_offset_lock2 = tmp3_f * 1000; //Hz
+							second_lock = 1;
+				PR_DVBS("sr_est_lock2 %d, car_offset_lock2 %d, second_lock %d\n",
+							sr_est_lock2, car_offset_lock2,
+							second_lock);
+						}
+					} else {
+						dly_cnt1 = 0;
+					}
+
+					PR_DVBS("TS_ok %d, second_lock %d, dly %d, dly1 %d\n",
+							ts_lock, second_lock, dly_cnt, dly_cnt1);
+					//msleep(50); //delay 50ms
+					usleep_range(10000, 10001);
+				}
+
+				if (ts_lock == 1) {
+					PR_DVBS("sr_est_lock %d, car_offset_lock %d, ts_lock %d\n",
+							sr_est_lock, car_offset_lock, ts_lock);
+					break;
+				}
+			}
+
+			if (ts_lock == 1) {
+				PR_DBGL("search result: freq_est %d KHz, freq_result %d KHz",
+					f_max, f_max - car_offset_lock / 1000);
+				PR_DBGL(", sr_est %d KS/s, sr_result %d KS/s, ",
+					sr_est, sr_est_lock);
+				PR_DBGL("current cfo %d KHz, dvbs lock=%d lock2 %d\n",
+					car_offset_lock / 1000, ts_lock, second_lock);
+
+				demod->blind_result_frequency = f_max - car_offset_lock / 1000;
+				demod->blind_result_symbol_rate = (unsigned int)sr_est_lock * 1000;
+				//demod->symbol_rate_manu = sr_est;
+				status = BLINDSCAN_UPDATERESULTFREQ | FE_HAS_LOCK;
+				dvb_frontend_add_event(fe, status);
+
+				found_tp_num++;
+				PR_INFO("----check_signal_result: freq=%d KHz, sr=%d S/s, %d\n",
+					f_max - car_offset_lock / 1000, sr_est_lock * 1000,
+					found_tp_num);
+			}
+		}
+
+		if (asperity == 2 && state == 3) {
+			state = 0;
+			if (ts_lock == 1 || second_lock == 1)
+				freq_add = sr_est_lock / 2 + 23000
+						- car_offset_lock / 1000;
+			else
+				freq_add = freq_add_next;
+
+			asperity = 0;
+			s2_state = 0;
+			PR_DVBS("freq_add %d KHz, sr_est_lock %d KS/s, car_offset_lock %d KHz\n",
+					freq_add, sr_est_lock, car_offset_lock / 1000);
+		}
+
+		//report blind scan progress
+		cur_step_num = (f_max - MIN_FREQ_KHZ) / FREQ_STEP_KHZ;
+		PR_DVBS("last %d cur %d %d\n", last_step_num, cur_step_num, FREQ_STEP_KHZ);
+		if (f_max >= MIN_FREQ_KHZ && cur_step_num > last_step_num && cur_step_num < 100) {
+			last_step_num = cur_step_num;
+			demod->blind_result_frequency = cur_step_num;
+			demod->blind_result_symbol_rate = 0;
+
+			status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
+			PR_DVBS("blind scan process: [%d%%].\n", demod->blind_result_frequency);
+			dvb_frontend_add_event(fe, status);
+		}
+	}
+
+	PR_INFO("----%s: %d tps found\n", __func__, found_tp_num);
+	if (!devp->blind_scan_stop) {
+		//the time usage of first stage is 10% of the overall time usage.
+		demod->blind_result_frequency = 100;
+		demod->blind_result_symbol_rate = 0;
+		status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
+		PR_INFO("%s: force 100%% to upper layer\n", __func__);
+		dvb_frontend_add_event(fe, status);
+		devp->blind_scan_stop = 1;
+	}
+
+	// Get saturation level of input stages
+	//fld_value[1] = dvbs_rd_byte(0x91a);
+	//fld_value[0] = dvbs_rd_byte(0x91b);
+	//agcrfin = (fld_value[1] << 8) + fld_value[0];
 }
 

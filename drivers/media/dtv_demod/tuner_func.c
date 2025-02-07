@@ -25,7 +25,7 @@ void tuner_set_params(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.set_params)
 		ret = fe->ops.tuner_ops.set_params(fe);
 	else
-		PR_ERR("error: no tuner, set_params == NULL.\n");
+		PR_ERR("set_params NULL\n");
 }
 
 int tuner_get_ch_power(struct dvb_frontend *fe)
@@ -38,7 +38,7 @@ int tuner_get_ch_power(struct dvb_frontend *fe)
 			fe->ops.tuner_ops.get_strength(fe, &strengtha);
 			strength = (int)strengtha;
 		} else {
-			PR_INFO("no tuner get_strength\n");
+			PR_INFO("get_strength NULL\n");
 		}
 	}
 
@@ -116,91 +116,3 @@ int agc_power_to_dbm(int agc_gain, int ad_power, int offset, int tuner)
 
 	return est_rf_power;
 }
-
-int dtmb_get_power_strength(int agc_gain)
-{
-	int strength;
-	int j;
-	static int calcE_R840[13] = {
-		1010, 969, 890, 840, 800,
-		760, 720, 680, 670, 660,
-		510, 440, 368};
-	for (j = 0; j < sizeof(calcE_R840)/sizeof(int); j++)
-		if (agc_gain >= calcE_R840[j])
-			break;
-	if (agc_gain >= 440)
-		strength = -90+j*3;
-	else
-		strength = -56;
-	return strength;
-}
-
-/*tuner has 3 stage gain control, only last is controlled by demod agc*/
-static int dvbc_R842[20] = {
-	/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
-	1200, 1180, 1150, 1130, 1100, 1065, 1040, 1030, 1000, 970
-};
-
-int dvbc_get_power_strength(int agc_gain, int tuner_strength)
-{
-	int strength;
-	int i;
-
-	for (i = 0; i < sizeof(dvbc_R842)/sizeof(int); i++)
-		if (agc_gain >= dvbc_R842[i])
-			break;
-
-	if (agc_gain >= 970)
-		strength = -90+i*1;
-	else
-		strength = tuner_strength + 22;
-
-	return strength;
-}
-
-static int j83b_R842[10] = {
-	/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
-	1140, 1110, 1080, 1060, 1030, 1000, 980, 1000, 970, 1000,
-	/*-80,-79,-78,  -77, -76  , -75 , -74 , -73  , -72 , -71dbm*/
-	/*970 ,    980, 960,  970, 950,   960,   970, 980,   960,   970*/
-};
-
-int  j83b_get_power_strength(int agc_gain, int tuner_strength)
-{
-	int strength;
-	int i;
-
-	for (i = 0; i < sizeof(j83b_R842)/sizeof(int); i++)
-		if (agc_gain >= j83b_R842[i])
-			break;
-
-	if (agc_gain >= 970)
-		strength = -90+i*1;
-	else
-		strength = tuner_strength + 18;
-
-	return strength;
-}
-
-static int atsc_R842[6] = {
-	/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
-	2160, 2110, 2060, 2010, 1960, 1910/*, 1870, 1910, 1860, 1900*/
-};
-
-int atsc_get_power_strength(int agc_gain, int tuner_strength)
-{
-	int strength;
-	int i;
-
-	for (i = 0; i < sizeof(atsc_R842)/sizeof(int); i++)
-		if (agc_gain >= atsc_R842[i])
-			break;
-
-	if (agc_gain >= 1910)
-		strength = -90+i*1;
-	else
-		strength = tuner_strength;
-
-	return strength;
-}
-

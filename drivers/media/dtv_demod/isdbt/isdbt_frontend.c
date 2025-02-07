@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -37,6 +37,7 @@
 #include "demod_dbg.h"
 #include "amlfrontend.h"
 #include "isdbt_frontend.h"
+#include "isdbt_func.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define ISDBT_TIME_CHECK_SIGNAL 400
@@ -44,99 +45,21 @@
 #define ISDBT_FSM_CHECK_SIGNAL 7
 
 //isdb-t
-MODULE_PARM_DESC(isdbt_check_signal_time, "\n\t\t isdbt check signal time");
+MODULE_PARM_DESC(isdbt_check_signal_time, "");
 static unsigned int isdbt_check_signal_time = ISDBT_TIME_CHECK_SIGNAL;
 __module_param(isdbt_check_signal_time, int, 0644);
 
-MODULE_PARM_DESC(isdbt_reset_in_unlock_times, "\n\t\t isdbt check signal time");
+MODULE_PARM_DESC(isdbt_reset_in_unlock_times, "");
 static unsigned int isdbt_reset_in_unlock_times = ISDBT_RESET_IN_UNLOCK_TIMES;
 __module_param(isdbt_reset_in_unlock_times, int, 0644);
 
-MODULE_PARM_DESC(isdbt_lock_continuous_cnt, "\n\t\t isdbt lock signal continuous counting");
+MODULE_PARM_DESC(isdbt_lock_continuous_cnt, "");
 static unsigned int isdbt_lock_continuous_cnt = 1;
 __module_param(isdbt_lock_continuous_cnt, int, 0644);
 
-MODULE_PARM_DESC(isdbt_lost_continuous_cnt, "\n\t\t isdbt lost signal continuous counting");
+MODULE_PARM_DESC(isdbt_lost_continuous_cnt, "");
 static unsigned int isdbt_lost_continuous_cnt = 10;
 __module_param(isdbt_lost_continuous_cnt, int, 0644);
-
-int dvbt_isdbt_set_ch(struct aml_dtvdemod *demod,
-		struct aml_demod_dvbt *demod_dvbt)
-{
-	int ret = 0;
-	u8_t demod_mode = 1;
-	u8_t bw, sr, ifreq, agc_mode;
-	u32_t ch_freq;
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
-		bw = BANDWIDTH_AUTO;
-	else
-		bw = demod_dvbt->bw;
-
-	sr = demod_dvbt->sr;
-	ifreq = demod_dvbt->ifreq;
-	agc_mode = demod_dvbt->agc_mode;
-	ch_freq = demod_dvbt->ch_freq;
-	demod_mode = demod_dvbt->dat0;
-	PR_DVBT("bw:%d, sr:%d, ifreq:%d, agc_mode:%d, ch_freq:%d, demod_mode:%d\n",
-		bw, sr, ifreq, agc_mode, ch_freq, demod_mode);
-	if (ch_freq < 1000 || ch_freq > 900000000) {
-		/* PR_DVBT("Error: Invalid Channel Freq option %d\n",*/
-		/* ch_freq); */
-		ch_freq = 474000;
-		ret = -1;
-	}
-
-	/*if (demod_mode < 0 || demod_mode > 4) {*/
-	if (demod_mode > 4) {
-		/* PR_DVBT("Error: Invalid demod mode option %d\n",*/
-		/* demod_mode); */
-		demod_mode = 1;
-		ret = -1;
-	}
-
-	demod->demod_status.ch_mode = 0;	/* TODO */
-	demod->demod_status.agc_mode = agc_mode;
-	demod->demod_status.ch_freq = ch_freq;
-	/*   if (demod_i2c->tuner == 1) */
-	/*     demod_sta->ch_if = 36130;*/
-	/* else if (demod_i2c->tuner == 2)*/
-	/*     demod_sta->ch_if = 4570;*/
-	/* else if (demod_i2c->tuner == 3)*/
-	/*     demod_sta->ch_if = 4000;// It is nouse.(alan)*/
-	/* else if (demod_i2c->tuner == 7)*/
-	/*     demod_sta->ch_if = 5000;//silab 5000kHz IF*/
-
-	demod->demod_status.ch_bw = (8 - bw) * 1000;
-	demod->demod_status.symb_rate = 0;	/* TODO */
-
-	/* bw=0; */
-	demod_mode = 1;
-	/* for si2176 IF:5M   sr 28.57 */
-	sr = 4;
-	ifreq = 4;
-	PR_INFO("%s:1:bw=%d, demod_mode=%d\n", __func__, bw, demod_mode);
-
-	/*bw = BANDWIDTH_AUTO;*/
-	if (bw == BANDWIDTH_AUTO)
-		demod_mode = 2;
-
-	ofdm_initial(bw,
-			/* 00:8M 01:7M 10:6M 11:5M */
-		     sr,
-		     /* 00:45M 01:20.8333M 10:20.7M 11:28.57  100:24m */
-		     ifreq,
-		     /* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
-		     demod_mode - 1,
-		     /* 00:DVBT,01:ISDBT */
-		     1
-		     /* 0: Unsigned, 1:TC */
-	    );
-	PR_DVBT("DVBT/ISDBT mode\n");
-
-	return ret;
-}
 
 int dvbt_isdbt_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
@@ -151,7 +74,7 @@ int gxtv_demod_dvbt_isdbt_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	*snr = demod->real_para.snr;
 
-	PR_ISDBT("demod[%d] snr %d dBx10\n", demod->id, *snr);
+	PR_ISDBT("[id %d] snr %d dBx10\n", demod->id, *snr);
 
 	return 0;
 }
@@ -165,6 +88,68 @@ void isdbt_reset_demod(void)
 	msleep(20);
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 0));
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 24));
+
+	if (is_meson_t6d_cpu()) {
+		front_write_reg(0x36, 0x0);
+		front_write_reg(0x37, 0x0);
+
+		front_write_reg(0x20, 0x6011b);
+		front_write_reg(0x20, 0x6011b);//0xe20=6011b
+		front_write_reg(0x21, 0x10122);
+		front_write_reg(0x22, 0x7200a16);
+		front_write_reg(0x23, 0x42190190);
+		front_write_reg(0x26, 0x1a000f0f);
+
+		front_write_reg(0x28, 0x20003030);
+		front_write_reg(0x2a, 0x4404101a);
+		front_write_reg(0x2c, 0x8c042214);//31bit:disable src search
+		front_write_reg(0x2d, 0x00007011);
+		front_write_reg(0x2b, 0x302f4000);
+		front_write_reg(0x27, 0x03555555);
+		front_write_reg(0x2e, 0x00400000);
+		front_write_reg(0x2f, 0x00000005);
+		front_write_reg(0x40, 0x061e81bc);
+		front_write_reg(0x36, 0x3fffffff);
+		front_write_reg(0x37, 0x3fffffff);
+
+		front_write_reg(0x41, 0x1450a9);
+		front_write_reg(0x42, 0x187b7);
+		front_write_reg(0x43, 0x7977b0);
+		front_write_reg(0x44, 0x7e901f);
+		front_write_reg(0x45, 0x3c036);
+		front_write_reg(0x46, 0x177f1);
+		front_write_reg(0x47, 0x7d97d8);
+		front_write_reg(0x48, 0x7ea006);
+		front_write_reg(0x49, 0x1b020);
+		front_write_reg(0x4a, 0x14000);
+		front_write_reg(0x4b, 0x7ee7e7);
+		front_write_reg(0x4c, 0x7ed7fd);
+		front_write_reg(0x4d, 0xc014);
+		front_write_reg(0x4e, 0x11006);
+		front_write_reg(0x4f, 0x7f87f0);
+		front_write_reg(0x50, 0x7f17f9);
+		front_write_reg(0x51, 0x400d);
+		front_write_reg(0x52, 0xe008);
+		front_write_reg(0x53, 0x7fe7f7);
+		front_write_reg(0x54, 0x7f47f8);
+		front_write_reg(0x55, 0x7);
+		front_write_reg(0x56, 0xa008);
+		front_write_reg(0x57, 0x27fb);
+		front_write_reg(0x58, 0x7f87f9);
+		front_write_reg(0x59, 0x7fd003);
+		front_write_reg(0x5a, 0x6006);
+		front_write_reg(0x5b, 0x37ff);
+		front_write_reg(0x5c, 0x7fc7fb);
+		front_write_reg(0x5d, 0x7fc000);
+		front_write_reg(0x5e, 0x3004);
+		front_write_reg(0x5f, 0x4002);
+		front_write_reg(0x60, 0x7ff7fe);
+		front_write_reg(0x61, 0x7fe);
+
+		dvbt_isdbt_wr_reg(0x8 << 2, 0x00013000);//bypass ISDBT frontend
+	}
+
+	PR_ISDBT("do a isdbt reset\n");
 }
 
 int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune)
@@ -199,8 +184,8 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 	if (strength < THRD_TUNER_STRENGTH_ISDBT) {
 		*status = FE_TIMEDOUT;
 
-		PR_ISDBT("%s: tuner strength [%d] no signal(%d).\n",
-				__func__, strength, THRD_TUNER_STRENGTH_ISDBT);
+		PR_ISDBT("strength [%d] no signal(%d)\n",
+				strength, THRD_TUNER_STRENGTH_ISDBT);
 
 		if (!(no_signal_cnt++ % 20))
 			isdbt_reset_demod();
@@ -248,13 +233,13 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 
 		if (demod->last_lock >= 0) {
 			demod->last_lock = -1;
-			PR_ISDBT("==> lost signal first\n");
+			PR_ISDBT("lost signal first\n");
 		} else if (demod->last_lock <= -lost_continuous_cnt) {
 			demod->last_lock = -lost_continuous_cnt;
-			PR_ISDBT("==> lost signal continue\n");
+			PR_ISDBT("lost signal continue\n");
 		} else {
 			demod->last_lock--;
-			PR_ISDBT("==> lost signal times:%d\n", demod->last_lock);
+			PR_ISDBT("lost signal times:%d\n", demod->last_lock);
 		}
 
 		if (demod->last_lock <= -lost_continuous_cnt)
@@ -266,13 +251,13 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 
 		if (demod->last_lock <= 0) {
 			demod->last_lock = 1;
-			PR_ISDBT("==> lock signal first\n");
+			PR_ISDBT("lock signal first\n");
 		} else if (demod->last_lock >= lock_continuous_cnt) {
 			demod->last_lock = lock_continuous_cnt;
-			PR_ISDBT("==> lock signal continue\n");
+			PR_ISDBT("lock signal continue\n");
 		} else {
 			demod->last_lock++;
-			PR_ISDBT("==> lock signal times:%d\n", demod->last_lock);
+			PR_ISDBT("lock signal times:%d\n", demod->last_lock);
 		}
 
 		if (demod->last_lock >= lock_continuous_cnt)
@@ -309,7 +294,7 @@ int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 	*delay = HZ / 20;
 
 	if (re_tune) {
-		PR_INFO("%s [id %d]: re_tune.\n", __func__, demod->id);
+		PR_INFO("%s [id %d]: re_tune\n", __func__, demod->id);
 		demod->en_detect = 1; /*fist set*/
 		dvbt_isdbt_set_frontend(fe);
 		dvbt_isdbt_read_status(fe, status, re_tune);
@@ -317,12 +302,13 @@ int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 	}
 
 	if (!demod->en_detect) {
-		PR_DBGL("%s: [id %d] not enable.\n", __func__, demod->id);
+		PR_DBGL("[id %d] isdbt not enable\n", demod->id);
 		return 0;
 	}
 
 	/*polling*/
 	dvbt_isdbt_read_status(fe, status, re_tune);
+	isdbt_get_tmcc_info(NULL);
 
 	return 0;
 }
@@ -347,7 +333,7 @@ int gxtv_demod_isdbt_read_signal_strength(struct dvb_frontend *fe,
 	else if (tuner_find_by_name(fe, "mxl661"))
 		*strength += 3;
 
-	PR_ISDBT("demod [id %d] signal strength %d dbm\n", demod->id, *strength);
+	PR_ISDBT("[id %d] strength %d dbm\n", demod->id, *strength);
 
 	return 0;
 }
@@ -358,13 +344,16 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	/*struct aml_demod_sts demod_sts;*/
 	struct aml_demod_dvbt param;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-#endif
 
-	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d.\n",
+	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
 			c->bandwidth_hz, c->modulation, c->inversion);
+
+	if (c->bandwidth_hz != 6000000) {
+		c->bandwidth_hz = 6000000;
+		PR_INFO("fource use 6M BW\n");
+	}
 
 	/* bw == 0 : 8M*/
 	/*       1 : 7M*/
@@ -382,7 +371,6 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	demod->last_lock = -1;
 	demod->last_status = 0;
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
 		demod_is_t5d_cpu(devp)) {
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
@@ -395,22 +383,29 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 		if (is_meson_t5w_cpu())
 			t5w_write_ambus_reg(0xe138, 0x1, 23, 1);
 	}
-#endif
 
 	tuner_set_params(fe);
 	msleep(20);
 	dvbt_isdbt_set_ch(demod, &param);
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t5w_cpu())
 		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
-#endif
 
 	return 0;
 }
 
-int gxtv_demod_isdbt_get_frontend(struct dvb_frontend *fe)
+int gxtv_demod_isdbt_get_frontend(struct dvb_frontend *fe,
+		struct dtv_frontend_properties *p)
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	p->delivery_system = demod->last_delsys;
+	p->frequency = c->frequency;
+
+	PR_ATSC("isdbt get delsys %d,freq %d\n",
+			p->delivery_system, p->frequency);
+
 	return 0;
 }
 
@@ -421,7 +416,7 @@ int dvbt_isdbt_init(struct aml_dtvdemod *demod)
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 
-	PR_DBG("AML Demod DVB-T/isdbt init\r\n");
+	PR_DBG("DVB-T/isdbt init\n");
 
 	memset(&sys, 0, sizeof(sys));
 	memset(&demod->demod_status, 0, sizeof(demod->demod_status));
@@ -434,13 +429,16 @@ int dvbt_isdbt_init(struct aml_dtvdemod *demod)
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x507);
-	else
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		else
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x507);
+	} else {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	}
 
 	ret = demod_set_sys(demod, &sys);
 
 	return ret;
 }
-

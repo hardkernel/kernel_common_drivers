@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -39,32 +39,38 @@
 #include "atsc_frontend.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
-#define ATSC_TIME_CHECK_SIGNAL 600
+#define ATSC_TIME_CHECK_SIGNAL 500
 #define ATSC_TIME_START_CCI 1500
-#define ATSC_AGC_TARGET_VALUE 0x28
 
 //atsc-c
-
-MODULE_PARM_DESC(std_lock_timeout, "\n\t\t atsc-c std lock timeout");
-//static unsigned int std_lock_timeout = 1000;
-__module_param(std_lock_timeout, int, 0644);
+MODULE_PARM_DESC(std_lock_timeout, "");
+static unsigned int std_lock_timeout = 1000;
+module_param(std_lock_timeout, int, 0644);
 
 //atsc-t
-MODULE_PARM_DESC(atsc_agc_target, "\n\t\t atsc agc target");
-static unsigned char atsc_agc_target;
+MODULE_PARM_DESC(atsc_agc_target, "");
+static unsigned char atsc_agc_target; //after and t5m 0x1f, other 0x28.
 __module_param(atsc_agc_target, byte, 0644);
 
-MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "\n\t\t atsc-t lock signal continuous counting");
+MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "");
 static unsigned int atsc_t_lock_continuous_cnt = 1;
 __module_param(atsc_t_lock_continuous_cnt, int, 0644);
 
-MODULE_PARM_DESC(atsc_check_signal_time, "\n\t\t atsc check signal time");
-static unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
-__module_param(atsc_check_signal_time, int, 0644);
-
-MODULE_PARM_DESC(atsc_t_lost_continuous_cnt, "\n\t\t atsc-t lost signal continuous counting");
+MODULE_PARM_DESC(atsc_t_lost_continuous_cnt, "");
 static unsigned int atsc_t_lost_continuous_cnt = 15;
 __module_param(atsc_t_lost_continuous_cnt, int, 0644);
+
+static unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
+MODULE_PARM_DESC(atsc_check_signal_time, "");
+__module_param(atsc_check_signal_time, int, 0644);
+
+static unsigned char atsc_check_rst = 1;
+MODULE_PARM_DESC(atsc_check_rst, "");
+__module_param(atsc_check_rst, byte, 0644);
+
+static unsigned char atsc_check_fsm = 3;
+MODULE_PARM_DESC(atsc_check_fsm, "");
+__module_param(atsc_check_fsm, byte, 0644);
 
 void gxtv_demod_atsc_release(struct dvb_frontend *fe)
 {
@@ -103,7 +109,7 @@ int gxtv_demod_atsc_read_status(struct dvb_frontend *fe,
 		} else {
 			if (s == 0 && demod->last_lock == 1 && atsc_read_reg(0x0980) >= 0x76) {
 				s = 1;
-				PR_ATSC("[rsj] unlock,but fsm >= 0x76\n");
+				PR_ATSC("unlock fsm >= 0x76\n");
 			}
 		}
 	}
@@ -129,7 +135,7 @@ int gxtv_demod_atsc_read_status(struct dvb_frontend *fe,
 	}
 
 	if (demod->last_lock != ilock) {
-		PR_INFO("%s [id %d]: %s.\n", __func__, demod->id,
+		PR_INFO("%s [id %d]: %s\n", __func__, demod->id,
 			ilock ? "!!  >> LOCK << !!" : "!! >> UNLOCK << !!");
 		demod->last_lock = ilock;
 
@@ -145,7 +151,7 @@ int gxtv_demod_atsc_read_status(struct dvb_frontend *fe,
 			strength = tuner_get_ch_power(fe);
 
 			PR_ATSC("s=%d(1 is lock),lock=%d\n", s, ilock);
-			PR_ATSC("[rsj_test]freq[%d] strength[%d]\n",
+			PR_ATSC("freq[%d] strength[%d]\n",
 					demod->freq, strength);
 
 			/*update */
@@ -183,7 +189,7 @@ int gxtv_demod_atsc_read_signal_strength(struct dvb_frontend *fe,
 		*strength += 3;
 	}
 
-	PR_ATSC("demod [id %d] signal strength %d dBm\n", demod->id, *strength);
+	PR_ATSC("[id %d] strength %d dBm\n", demod->id, *strength);
 
 	return 0;
 }
@@ -194,7 +200,7 @@ int gxtv_demod_atsc_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	*snr = demod->real_para.snr;
 
-	PR_ATSC("demod[%d] snr %d dBx10\n", demod->id, *snr);
+	PR_ATSC("[id %d] snr %d dBx10\n", demod->id, *snr);
 
 	return 0;
 }
@@ -211,6 +217,18 @@ int gxtv_demod_atsc_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
+static void atsc_rst(void)
+{
+	union atsc_cntl_reg_0x20 val;
+
+	val.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
+	val.b.cpu_rst = 1;
+	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
+	usleep_range(1000, 1001);
+	val.b.cpu_rst = 0;
+	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
+}
+
 int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
@@ -219,13 +237,11 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_atsc param_atsc;
 	union ATSC_DEMOD_REG_0X6A_BITS val_0x6a;
-	union atsc_cntl_reg_0x20 val;
 	/*[0]: spectrum inverse(1),normal(0); [1]:if_frequency*/
 	unsigned int tuner_freq[2] = {0};
 	enum fe_delivery_system delsys = demod->last_delsys;
-	unsigned char agc_target = ATSC_AGC_TARGET_VALUE;
 
-	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d.\n",
+	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
 			c->bandwidth_hz, c->modulation, c->inversion);
 
@@ -236,9 +252,12 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	demod->atsc_mode = c->modulation;
 	demod->last_qam_mode = QAM_MODE_NUM;
 
+	tuner_set_params(fe);
+
 	if (c->modulation > QAM_AUTO) {
 		if (fe->ops.tuner_ops.get_if_frequency)
 			fe->ops.tuner_ops.get_if_frequency(fe, tuner_freq);
+
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			/* bit0~3: AGC bandwidth select */
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X58, 0x528220d);
@@ -254,29 +273,34 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 				atsc_write_reg_v4(ATSC_AGC_REG_0X42, 0x40208003);
 
 				/* agc target */
-				if (is_meson_t5m_cpu())
-					agc_target = 0x1f; //for t5m single AGC
-				atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
-					atsc_agc_target ? atsc_agc_target : agc_target, 0, 8);
+				if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
+					atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
+						atsc_agc_target ? atsc_agc_target : 0x1f, 0, 8);
+				else
+					atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
+						atsc_agc_target ? atsc_agc_target : 0x28, 0, 8);
 			}
-		}
-	}
 
-	tuner_set_params(fe);
-
-	if (c->modulation > QAM_AUTO && tuner_find_by_name(fe, "r842"))
-		msleep(200);
-
-	if (c->modulation > QAM_AUTO) {
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			val_0x6a.bits = atsc_read_reg_v4(ATSC_DEMOD_REG_0X6A);
 			val_0x6a.b.peak_thd = 0x6;//Let CCFO Quality over 6
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X6A, val_0x6a.bits);
 			atsc_write_reg_v4(ATSC_EQ_REG_0XA5, 0x8c);
 			/* bit30: enable CCI */
 			atsc_write_reg_v4(ATSC_EQ_REG_0X92, 0x40000240);
-			//static echo
-			atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f01A0);
+			if (is_meson_t6d_cpu()) {
+				//improve C/N
+				atsc_write_reg_v4(0xde, 0x8a0a0a0c);
+				atsc_write_reg_v4(0xdf, 0x4449);
+				atsc_write_reg_v4(0xdb, 0x80a0ff40);
+				atsc_write_reg_v4(0xdd, 0x2040600);
+				//dynamic echo
+				atsc_write_reg_v4(0x8a, 0x94000008);
+				//static echo
+				atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f0310);
+			} else {
+				//static echo
+				atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f01A0);
+			}
 			/* clk recover confidence control */
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X5D, 0x14400202);
 			/* CW bin frequency */
@@ -304,12 +328,7 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 
 			/*for timeshift mosaic issue*/
 			atsc_write_reg_v4(0x12, 0x18);
-			val.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
-			val.b.cpu_rst = 1;
-			atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
-			usleep_range(1000, 1001);
-			val.b.cpu_rst = 0;
-			atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
+			atsc_rst();
 			usleep_range(5000, 5001);
 			demod->last_status = 0;
 		} else {
@@ -328,17 +347,24 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		}
 	}
 
-	PR_DBG("atsc_mode is %d\n", demod->atsc_mode);
+	PR_DBG("atsc_mode %d\n", demod->atsc_mode);
 
 	return 0;
 }
 
-int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe)
+int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe,
+		struct dtv_frontend_properties *p)
 {
-	/*these content will be written into eeprom .*/
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	PR_ATSC("c->frequency is %d\n", c->frequency);
+	p->delivery_system = demod->last_delsys;
+	p->modulation = c->modulation;
+	p->frequency = c->frequency;
+
+	PR_ATSC("atsc get delsys %d,freq %d,modul %d\n",
+			p->delivery_system, p->frequency, p->modulation);
+
 	return 0;
 }
 
@@ -352,11 +378,11 @@ void atsc_polling(struct dvb_frontend *fe, enum fe_status *status)
 		return;
 
 	if (c->modulation == QPSK) {
-		PR_DBG("mode is qpsk, return;\n");
+		PR_DBG("qpsk, return\n");
 		/*return;*/
 	} else if (c->modulation <= QAM_AUTO) {
-	//atsc_j83b_polling(fe, status);
-		PR_DBG("mode is qam, return;\n");
+		//atsc_j83b_polling(fe, status);
+		PR_DBG("qam, return\n");
 	} else {
 		atsc_thread();
 		gxtv_demod_atsc_read_status(fe, status);
@@ -399,7 +425,7 @@ void atsc_optimize_cn(bool reset)
 
 	r_a9 = atsc_read_reg_v4(ATSC_EQ_REG_0XA9);
 	r_9e = atsc_read_reg_v4(ATSC_EQ_REG_0X9E);
-	PR_ATSC("r_a9=0x%x, r_9e=0x%x, ave_c3=0x%x, ave_d8=0x%x\n", r_a9, r_9e, ave_c3, ave_d8);
+	PR_ATSC("r_a9=0x%x,r_9e=0x%x,ave_c3=0x%x,ave_d8=0x%x\n", r_a9, r_9e, ave_c3, ave_d8);
 	if ((r_a9 != 0x77744 || r_9e != 0xd0d0d09) &&
 		ave_d8 < 0x1000 && ave_c3 > 0x240) {
 		PR_ATSC("set cn to 15dB\n");
@@ -431,21 +457,27 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 {
 	int fsm_status;//0:none;1:lock;-1:lost
 	s16 strength = 0;
+	u16 rf_strength = 0;
 	unsigned int sys_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	static int lock_status;
 	static int peak;
+	static unsigned char chk_fsm, first_chk;
 	//Threshold value of times of continuous lock and lost
 	int lock_continuous_cnt = atsc_t_lock_continuous_cnt > 1 ? atsc_t_lock_continuous_cnt : 1;
 	int lost_continuous_cnt = atsc_t_lost_continuous_cnt > 1 ? atsc_t_lost_continuous_cnt : 1;
 	int check_signal_time = atsc_check_signal_time > 1 ? atsc_check_signal_time :
 		ATSC_TIME_CHECK_SIGNAL;
+	check_signal_time = atsc_check_rst ? (check_signal_time * 2) : (check_signal_time * 3 / 2);
 	int tuner_strength_threshold = THRD_TUNER_STRENGTH_ATSC;
 
 	if (re_tune) {
 		lock_status = 0;
 		demod->last_status = 0;
 		peak = 0;
+		chk_fsm = atsc_check_fsm ? 1 : 0;
+		first_chk = atsc_check_rst;
 		demod->time_start = jiffies_to_msecs(jiffies);
 		*status = 0;
 		atsc_optimize_cn(true);
@@ -456,19 +488,32 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 
 	if (tuner_find_by_name(fe, "r842") ||
 		tuner_find_by_name(fe, "r836") ||
-		tuner_find_by_name(fe, "r850")) {
+		tuner_find_by_name(fe, "r850"))
 		tuner_strength_threshold = -89;
-		check_signal_time += 100;
-	}
 
 	gxtv_demod_atsc_read_signal_strength(fe, &strength);
 	if (strength < tuner_strength_threshold) {
 		*status = FE_TIMEDOUT;
-		PR_ATSC("%s: tuner strength [%d] no signal(%d).\n",
-				__func__, strength, tuner_strength_threshold);
+		PR_ATSC("strength [%d] no signal(%d)\n",
+				strength, tuner_strength_threshold);
 
 		goto finish;
 	}
+
+	if (((atsc_read_reg_v4(0xcf) & 0x8000000) == 0x8000000) && // detected doppler
+		((atsc_read_reg_v4(0xcf) & 0x1000000) == 0x0) && //dop_det detected awgn
+		((atsc_read_reg_v4(0xce) & 0xff) < 0x14)) {
+		if (atsc_read_reg_v4(0xde) != 0x8c0a0a0c)
+			atsc_write_reg_v4(0xde, 0x8c0a0a0c);
+		if (atsc_read_reg_v4(0xdf) != 0x9449)
+			atsc_write_reg_v4(0xdf, 0x9449);
+	} else {
+		if (atsc_read_reg_v4(0xde) != 0x8a0a0a0c)
+			atsc_write_reg_v4(0xde, 0x8a0a0a0c);
+		if (atsc_read_reg_v4(0xdf) != 0x4449)
+			atsc_write_reg_v4(0xdf, 0x4449);
+	}
+	PR_ATSC("0xde=0x%x, 0xdf=%x\n", atsc_read_reg_v4(0xde), atsc_read_reg_v4(0xdf));
 
 	atsc_check_fsm_status(demod);
 
@@ -478,7 +523,26 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 		atsc_optimize_cn(false);
 		fsm_status = 1;
 		peak = 1;//atsc signal
+
+		/* for call r842 atsc monitor */
+		if (tuner_find_by_name(fe, "r842") && fe->ops.tuner_ops.get_rf_strength)
+			fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
 	} else {
+		if (chk_fsm) {
+			if (sys_sts >= CR_LOCK) {
+				chk_fsm = 0;
+			} else {
+				chk_fsm++;
+				if (chk_fsm == atsc_check_fsm) {
+					chk_fsm = 0;
+					*status = FE_TIMEDOUT;
+					PR_ATSC("fsm check failed\n");
+
+					goto finish;
+				}
+			}
+		}
+
 		if (sys_sts >= (CR_PEAK_LOCK & 0xf0))
 			peak = 1;//atsc signal
 
@@ -486,6 +550,12 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 			demod->time_passed <= check_signal_time ||
 			(demod->time_passed <= TIMEOUT_ATSC && peak)) {
 			fsm_status = 0;
+
+			if (!peak && first_chk && demod->time_passed >= (check_signal_time / 2)) {
+				first_chk = 0;
+				atsc_rst();
+				PR_ATSC("do a reset for check @%dHz\n", c->frequency);
+			}
 		} else {
 			fsm_status = -1;
 
@@ -496,6 +566,11 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 				PR_ATSC("not atsc signal\n");
 
 				goto finish;
+			}
+
+			if (lock_status == 0) {
+				atsc_rst();
+				PR_ATSC("do a reset for retry @%dHz\n", c->frequency);
 			}
 		}
 
@@ -508,13 +583,13 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 	if (fsm_status == -1) {
 		if (lock_status >= 0) {
 			lock_status = -1;
-			PR_ATSC("==> lost signal first\n");
+			PR_ATSC("lost signal first\n");
 		} else if (lock_status <= -lost_continuous_cnt) {
 			lock_status = -lost_continuous_cnt;
-			PR_ATSC("==> lost signal continue\n");
+			PR_ATSC("lost signal continue\n");
 		} else {
 			lock_status--;
-			PR_ATSC("==> lost signal times%d\n", lock_status);
+			PR_ATSC("lost signal times%d\n", lock_status);
 		}
 
 		if (lock_status <= -lost_continuous_cnt)
@@ -524,13 +599,13 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 	} else if (fsm_status == 1) {
 		if (lock_status <= 0) {
 			lock_status = 1;
-			PR_ATSC("==> lock signal first\n");
+			PR_ATSC("lock signal first\n");
 		} else if (lock_status >= lock_continuous_cnt) {
 			lock_status = lock_continuous_cnt;
-			PR_ATSC("==> lock signal continue\n");
+			PR_ATSC("lock signal continue\n");
 		} else {
 			lock_status++;
-			PR_ATSC("==> lock signal times:%d\n", lock_status);
+			PR_ATSC("lock signal times:%d\n", lock_status);
 		}
 
 		if (lock_status >= lock_continuous_cnt)
@@ -545,7 +620,7 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 finish:
 	if (demod->last_status != *status && *status != 0) {
 		PR_INFO("!!  >> %s << !!, freq=%d, time_passed=%d\n", *status == FE_TIMEDOUT ?
-			"UNLOCK" : "LOCK", fe->dtv_property_cache.frequency, demod->time_passed);
+			"UNLOCK" : "LOCK", c->frequency, demod->time_passed);
 		demod->last_status = *status;
 	}
 }
@@ -573,15 +648,12 @@ int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 			timer_begain(demod, D_TIMER_DETECT);
 
 		if (c->modulation == QPSK) {
-			PR_ATSC("[id %d] modulation is QPSK do nothing!", demod->id);
-		} else if (c->modulation <= QAM_AUTO) {
-			PR_ATSC("[id %d] detect modulation is j83 first.\n", demod->id);
-			PR_ATSC("[%s] do not call this function.\n", __func__);
+			PR_ATSC("[id %d] modulation QPSK do nothing", demod->id);
 		} else if (c->modulation > QAM_AUTO) {
-			PR_ATSC("[id %d] modulation is 8VSB.\n", demod->id);
+			PR_ATSC("[id %d] modulation 8VSB.\n", demod->id);
 			atsc_read_status(fe, status, re_tune);
 		} else {
-			PR_ATSC("[id %d] modulation is %d unsupported!\n",
+			PR_ATSC("[id %d] modulation %d unsupported\n",
 					demod->id, c->modulation);
 		}
 
@@ -589,7 +661,7 @@ int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 	}
 
 	if (!demod->en_detect) {
-		PR_DBGL("%s: [id %d] not enable.\n", __func__, demod->id);
+		PR_DBGL("[id %d] atsc not enable\n", demod->id);
 		return 0;
 	}
 
@@ -616,7 +688,7 @@ int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	demod->demod_status.delsys = SYS_ATSC;
 	sys.adc_clk = ADC_CLK_24M;
 
-	PR_DBG(" %s c->modulation : %d\n", __func__, c->modulation);
+	PR_DBG("atsc modulation: %d\n", c->modulation);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 		sys.demod_clk = DEMOD_CLK_250M;
 	else
@@ -628,13 +700,8 @@ int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
-		demod->demod_status.adc_freq = sys.adc_clk;
-		dd_hiu_reg_write(DEMOD_CLK_CTL_S4D, 0x501);
-	} else {
-		if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
-			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
-	}
+	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 
 	ret = demod_set_sys(demod, &sys);
 
@@ -648,36 +715,32 @@ int amdemod_stat_atsc_islock(struct aml_dtvdemod *demod,
 	unsigned int ret = 0;
 	unsigned int val;
 
-	if (delsys == SYS_ATSC || delsys == SYS_ATSCMH) {
-		if (demod->atsc_mode == VSB_8) {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-				//ret = amdemod_check_8vsb_rst(demod);
-				val = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
-				if (val >= ATSC_LOCK)
-					ret = 1;
-				else if (val >= CR_PEAK_LOCK)
-					ret = atsc_check_cci(demod);
-				else //if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) <= 0x50)
-					ret = 0;
-			} else {
-				atsc_fsm = atsc_read_reg(0x0980);
-				PR_DBGL("atsc status [%x]\n", atsc_fsm);
-
-				if (atsc_read_reg(0x0980) >= 0x79)
-					ret = 1;
-				else
-					ret = 0;
-			}
+	if (demod->atsc_mode == VSB_8) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			//ret = amdemod_check_8vsb_rst(demod);
+			val = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+			if (val >= ATSC_LOCK)
+				ret = 1;
+			else if (val >= CR_PEAK_LOCK)
+				ret = atsc_check_cci(demod);
+			else //if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) <= 0x50)
+				ret = 0;
 		} else {
 			atsc_fsm = atsc_read_reg(0x0980);
 			PR_DBGL("atsc status [%x]\n", atsc_fsm);
+
 			if (atsc_read_reg(0x0980) >= 0x79)
 				ret = 1;
 			else
 				ret = 0;
 		}
 	} else {
-		PR_ERR("%s delsys wrong.\n", __func__);
+		atsc_fsm = atsc_read_reg(0x0980);
+		PR_DBGL("atsc status [%x]\n", atsc_fsm);
+		if (atsc_read_reg(0x0980) >= 0x79)
+			ret = 1;
+		else
+			ret = 0;
 	}
 
 	return ret;
@@ -687,4 +750,3 @@ unsigned int dtvdemod_get_atsc_lock_sts(struct aml_dtvdemod *demod)
 {
 	return amdemod_stat_atsc_islock(demod, SYS_ATSC);
 }
-

@@ -2,25 +2,54 @@
 /*
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
+#include <linux/math64.h>
 
 #include "demod_func.h"
 #include "dvbs.h"
 
 static unsigned char dvbs_iq_swap;
-MODULE_PARM_DESC(dvbs_iq_swap, "\n\t\t dvbs IQ swap");
-__module_param(dvbs_iq_swap, byte, 0644);
+MODULE_PARM_DESC(dvbs_iq_swap, "");
+module_param(dvbs_iq_swap, byte, 0644);
 
 static unsigned int blind_search_agc2bandwidth = BLIND_SEARCH_AGC2BANDWIDTH_60;
-MODULE_PARM_DESC(blind_search_agc2bandwidth, "\n\t\tblind_search_agc2bandwidth");
+MODULE_PARM_DESC(blind_search_agc2bandwidth, "");
 __module_param(blind_search_agc2bandwidth, int, 0644);
 
 static unsigned int blind_search_bw_min = BLIND_SEARCH_BW_MIN;
-MODULE_PARM_DESC(blind_search_bw_min, "\n\t\tblind_search_bw_min");
+MODULE_PARM_DESC(blind_search_bw_min, "");
 __module_param(blind_search_bw_min, int, 0644);
 
 static unsigned int blind_search_pow_th = BLIND_SEARCH_POW_TH2;
-MODULE_PARM_DESC(blind_search_pow_th, "\n\t\tblind_search_pow_th");
+MODULE_PARM_DESC(blind_search_pow_th, "");
 __module_param(blind_search_pow_th, int, 0644);
+
+static unsigned char BLIND_SEARCH_AGC2BANDWIDTH_DVBS = 70;
+__module_param(BLIND_SEARCH_AGC2BANDWIDTH_DVBS, byte, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_AGC2BANDWIDTH_DVBS, "");
+
+static unsigned int BLIND_SEARCH_POW_TH1_DVBS = 50000;
+__module_param(BLIND_SEARCH_POW_TH1_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_POW_TH1_DVBS, "");
+
+static unsigned int BLIND_SEARCH_POW_TH2_DVBS = 18000;
+__module_param(BLIND_SEARCH_POW_TH2_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_POW_TH2_DVBS, "");
+
+static unsigned int BLIND_SEARCH_POW_TH3_DVBS = 70000;
+__module_param(BLIND_SEARCH_POW_TH3_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_POW_TH3_DVBS, "");
+
+static unsigned int BLIND_SEARCH_BW_MIN_DVBS = 7;
+__module_param(BLIND_SEARCH_BW_MIN_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_SEARCH_BW_MIN_DVBS, "");
+
+static unsigned int BLIND_CENT_BW_DVBS = 4;
+__module_param(BLIND_CENT_BW_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_CENT_BW_DVBS, "");
+
+static unsigned int BLIND_CENT_TH_DVBS = 15; //x1.5=15/10
+__module_param(BLIND_CENT_TH_DVBS, int, 0644);
+MODULE_PARM_DESC(BLIND_CENT_TH_DVBS, "");
 
 static struct fe_lla_lookup_t fe_l2a_s1_cn_lookup = {
 	161, //size
@@ -223,7 +252,7 @@ void dvbs2_diseqc_init(void)
 	/* rx 22k tone, 125Mhz:b0, default 135Mhz:c0*/
 	//dvbs_wr_byte(DVBS_REG_DISTXF22, 0xb0); //t5d
 	/* number of bit to wait before starting the transmission */
-	if (is_meson_s1a_cpu())
+	if (is_meson_s1a_cpu() || is_meson_t6d_cpu())
 		dvbs_wr_byte(DVBS_REG_DISTIMEOCFG, 0x84 | (diseqc_out_invert << 3));
 	else
 		dvbs_wr_byte(DVBS_REG_DISTIMEOCFG, 0x84);
@@ -305,13 +334,13 @@ void demod_dump_reg_diseqc(void)
 	unsigned int i = 0;
 
 	for (i = DVBS_REG_SYS_IRQMSK1; i <= DVBS_REG_SYS_IRQFORCE0; i++)
-		PR_INFO(" diseqc reg:0x%x val:0x%x\n", i, dvbs_rd_byte(i));
+		PR_INFO("diseqc reg:0x%x val:0x%x\n", i, dvbs_rd_byte(i));
 
 	for (i = DVBS_REG_GPIO0CFG; i <= DVBS_REG_I2CMAPO20; i++)
-		PR_INFO(" diseqc reg:0x%x val:0x%x\n", i, dvbs_rd_byte(i));
+		PR_INFO("diseqc reg:0x%x val:0x%x\n", i, dvbs_rd_byte(i));
 
 	for (i = DVBS_REG_DISIRQCFG; i <= DVBS_REG_ACRDIV; i++)
-		PR_INFO(" diseqc reg:0x%x val:0x%x\n", i, dvbs_rd_byte(i));
+		PR_INFO("diseqc reg:0x%x val:0x%x\n", i, dvbs_rd_byte(i));
 }
 
 void dvbs_check_status(struct seq_file *seq)
@@ -451,6 +480,174 @@ unsigned int dvbs_get_quality(void)
 	return c_n;
 }
 
+int dvbs_get_s_s2_system(void)
+{
+	unsigned char system = dvbs_rd_byte(0x932) & 0x60;
+
+	//bit[5-6].
+	if (system == 0x40)
+		return SYS_DVBS2;
+	else if (system == 0x60)
+		return SYS_DVBS;
+	else
+		return SYS_DVBS;
+}
+
+int dvbs_get_modulation_coderate(u32 *modulation, u32 *coderate)
+{
+	int system = dvbs_get_s_s2_system();
+	int value = (dvbs_rd_byte(0x930) >> 2) & 0x3f;//bit[2-7]
+
+	if (system == SYS_DVBS2) {
+		switch (value) {
+		case 0x1://0x1~0xB:QPSK
+			*modulation = QPSK;
+			*coderate = FEC_1_4;
+			break;
+		case 0x2:
+			*modulation = QPSK;
+			*coderate = FEC_1_3;
+			break;
+		case 0x3:
+			*modulation = QPSK;
+			*coderate = FEC_2_5;
+			break;
+		case 0x4:
+			*modulation = QPSK;
+			*coderate = FEC_1_2;
+			break;
+		case 0x5:
+			*modulation = QPSK;
+			*coderate = FEC_3_5;
+			break;
+		case 0x6:
+			*modulation = QPSK;
+			*coderate = FEC_2_3;
+			break;
+		case 0x7:
+			*modulation = QPSK;
+			*coderate = FEC_3_4;
+			break;
+
+		case 0x8:
+			*modulation = QPSK;
+			*coderate = FEC_4_5;
+			break;
+		case 0x9:
+			*modulation = QPSK;
+			*coderate = FEC_5_6;
+			break;
+		case 0xA:
+			*modulation = QPSK;
+			*coderate = FEC_8_9;
+			break;
+		case 0xB:
+			*modulation = QPSK;
+			*coderate = FEC_9_10;
+			break;
+		case 0xC://0xC~0x11:8PSK
+			*modulation = PSK_8;
+			*coderate = FEC_3_5;
+			break;
+		case 0xD:
+			*modulation = PSK_8;
+			*coderate = FEC_2_3;
+			break;
+		case 0xE:
+			*modulation = PSK_8;
+			*coderate = FEC_3_4;
+			break;
+		case 0xF:
+			*modulation = PSK_8;
+			*coderate = FEC_5_6;
+			break;
+		case 0x10:
+			*modulation = PSK_8;
+			*coderate = FEC_8_9;
+			break;
+		case 0x11:
+			*modulation = PSK_8;
+			*coderate = FEC_9_10;
+			break;
+		case 0x12://0x12~0x17:APSK_16
+			*modulation = APSK_16;
+			*coderate = FEC_2_3;
+			break;
+		case 0x13:
+			*modulation = APSK_16;
+			*coderate = FEC_3_4;
+			break;
+		case 0x14:
+			*modulation = APSK_16;
+			*coderate = FEC_4_5;
+			break;
+		case 0x15:
+			*modulation = APSK_16;
+			*coderate = FEC_5_6;
+			break;
+		case 0x16:
+			*modulation = APSK_16;
+			*coderate = FEC_8_9;
+			break;
+		case 0x17:
+			*modulation = APSK_16;
+			*coderate = FEC_9_10;
+			break;
+		case 0x18://0x18~0x1C:APSK_32
+			*modulation = APSK_32;
+			*coderate = FEC_3_4;
+			break;
+		case 0x19:
+			*modulation = APSK_32;
+			*coderate = FEC_4_5;
+			break;
+		case 0x1A:
+			*modulation = APSK_32;
+			*coderate = FEC_5_6;
+			break;
+		case 0x1B:
+			*modulation = APSK_32;
+			*coderate = FEC_8_9;
+			break;
+		case 0x1C:
+			*modulation = APSK_32;
+			*coderate = FEC_9_10;
+			break;
+		default:
+			*modulation = QPSK;
+			*coderate = FEC_AUTO;
+			break;
+		};
+	} else { //SYS_DVBS
+		*modulation = QPSK;
+		switch (value) {
+		case 0x20:
+			*coderate = FEC_1_2;
+			break;
+		case 0x21:
+			*coderate = FEC_2_3;
+			break;
+		case 0x22:
+			*coderate = FEC_3_4;
+			break;
+		case 0x23:
+			*coderate = FEC_5_6;
+			break;
+		case 0x24:
+			*coderate = FEC_6_7;
+			break;
+		case 0x25:
+			*coderate = FEC_7_8;
+			break;
+		default:
+			*coderate = FEC_AUTO;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 {
 	unsigned int carrier_offset = 0, freq_offset = 0;
@@ -461,10 +658,6 @@ unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 
 	*polarity = carrier_offset >> 23 & 0x1;
 	/* negative val, convert to original code */
-
-	PR_DVBS("%s:[debug] polarity %d, carrier_offset 0x%x.\n",
-		__func__, *polarity, carrier_offset);
-
 	if (*polarity) {
 		carrier_offset ^= 0xffffff;
 		carrier_offset += 1;
@@ -477,7 +670,7 @@ unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 	freq_offset = carrier_offset * (ADC_CLK_135M / 1000); //ADC_CLK_135M
 	freq_offset = (freq_offset + ALIGN_24 / 2000) / (ALIGN_24 / 1000);
 
-	PR_DVBS("%s: iq_swap %d, polarity %d, carrier_offset 0x%x, freq_offset %dKHz.\n",
+	PR_DVBS("%s: iq_swap %d, polarity %d, carrier_offset 0x%x, freq_offset %dKHz\n",
 		__func__, dvbs_iq_swap, *polarity, carrier_offset, freq_offset);
 
 	return freq_offset;
@@ -507,7 +700,7 @@ unsigned int dvbs_get_symbol_rate(void)
 			((clock_h * value_l) >> 16) +
 			((value_h * clock_l) >> 16);
 
-	PR_INFO("%s: value 0x%0x, samples 0x%x, clock %d, sr_kbps %d bps.\n",
+	PR_INFO("%s: value 0x%0x, samples 0x%x, clock %d, sr_kbps %d bps\n",
 			__func__, value, samples, clock, sr_kbps);
 
 	return (sr_kbps / 1000);
@@ -521,14 +714,14 @@ unsigned int dvbs_get_symbol_rate(void)
 
 	sr_kbps = (value + ALIGN_24 / 2000) / (ALIGN_24 / 1000);
 
-	PR_INFO("%s: value %d, sr_kbps %d Kbps.\n", __func__, value, sr_kbps);
+	PR_INFO("%s: value %d, sr_kbps %d Kbps\n", __func__, value, sr_kbps);
 
 	return sr_kbps;
 #endif
 }
 
 #define SIGNAL_STRENGTH_READ_TIMES 50
-static unsigned char s_aStrengthVal[] = {
+static unsigned char sastrengthval[] = {
 	0xd3,
 	0xd5, 0xd2, 0xd0, 0xce, 0xcb,
 	0xc8, 0xc5, 0xc2, 0xbe, 0xb9,
@@ -547,8 +740,8 @@ int dvbs_get_signal_strength_off(void)
 		val += dvbs_rd_byte(0x91a);
 	val /= SIGNAL_STRENGTH_READ_TIMES;
 
-	for (i = 1; i < sizeof(s_aStrengthVal); i++) {
-		if (val >= s_aStrengthVal[i])
+	for (i = 1; i < sizeof(sastrengthval); i++) {
+		if (val >= sastrengthval[i])
 			break;
 	}
 
@@ -839,7 +1032,7 @@ unsigned int fe_l2a_get_AGC2_accu(void)
 	if (exponent >= 0)
 		AGC2_accu = mantissa * (1 << exponent);
 
-	PR_DVBS("1 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d.\n",
+	PR_DVBS("1 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d\n",
 			AGC2_accu, AGC2_accu, mantissa, exponent);
 
 	/* Georg's method */
@@ -851,7 +1044,7 @@ unsigned int fe_l2a_get_AGC2_accu(void)
 	if (exponent >= 0)
 		AGC2_accu = mantissa * (1 << exponent);
 
-	PR_DVBS("2 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d.\n",
+	PR_DVBS("2 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d\n",
 			AGC2_accu, AGC2_accu, mantissa, exponent);
 #endif
 	/* Damien's method */
@@ -875,7 +1068,7 @@ unsigned int fe_l2a_get_AGC2_accu(void)
 		AGC2_accu = (1000 * mantissa) * AGC2_accu;
 	}
 
-	PR_DVBS("3 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d.\n",
+	PR_DVBS("3 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d\n",
 		AGC2_accu, AGC2_accu, mantissa, exponent);
 
 	return AGC2_accu;
@@ -899,7 +1092,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 
 	PR_DVBS("[blind_search_agc2bandwidth %d, blind_search_bw_min %d]",
 			blind_search_agc2bandwidth, blind_search_bw_min);
-	PR_DVBS("[blind_search_pow_th %d].\n",
+	PR_DVBS("[blind_search_pow_th %d]\n",
 			blind_search_pow_th);
 
 	dvbs_wr_byte(0x924, 0x1c); //demod stop
@@ -943,7 +1136,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 		if (devp->blind_scan_stop)
 			break;
 
-		PR_DVBS("init_freq: %d, freq_step: %d, nb_steps: %d.\n",
+		PR_DVBS("init_freq: %d, freq_step: %d, nb_steps: %d\n",
 				init_freq, freq_step, nb_steps);
 
 		dvbs_wr_byte(0x924, 0x1c);
@@ -958,7 +1151,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 		if (tmp & 0x800000)
 			tmp = (((~tmp) & 0x7fffff) + 1) * (-1);
 
-		PR_DVBS("get hw carrier_freq1 = %d.\n", tmp);
+		PR_DVBS("get hw carrier_freq1 = %d\n", tmp);
 #endif
 		dvbs_wr_byte(0x924, 0x18); //Warm start
 		usleep_range(5 * 1000, 6 * 1000);//msleep(5);
@@ -967,7 +1160,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 		if (agc2_level > 0x1fffff)
 			agc2_level = 0x1fffff;
 
-		PR_DVBS("agc2_level: %d(0x%x), i: %d, j: %d.\n",
+		PR_DVBS("agc2_level: %d(0x%x), i: %d, j: %d\n",
 				agc2_level, agc2_level, i, j);
 
 		if (i == 0) {
@@ -1010,23 +1203,23 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 			if (agc2_ratio > 0xffff)
 				agc2_ratio = 0xffff;
 
-			PR_DVBS("i: %d, j: %d.\n", i, j);
-			PR_DVBS("agc2_level     %d.\n", agc2_level);
-			PR_DVBS("max_agc2_level %d.\n", max_agc2_level);
-			PR_DVBS("min_agc2_level %d.\n", min_agc2_level);
-			PR_DVBS("mid_agc2_level %d.\n", mid_agc2_level);
-			PR_DVBS("agc2_ratio     %d.\n", agc2_ratio);
+			PR_DVBS("i: %d, j: %d\n", i, j);
+			PR_DVBS("agc2_level     %d\n", agc2_level);
+			PR_DVBS("max_agc2_level %d\n", max_agc2_level);
+			PR_DVBS("min_agc2_level %d\n", min_agc2_level);
+			PR_DVBS("mid_agc2_level %d\n", mid_agc2_level);
+			PR_DVBS("agc2_ratio     %d\n", agc2_ratio);
 
 			if (agc2_ratio > blind_search_agc2bandwidth &&
 				agc2_level == min_agc2_level &&
-				agc2_level <  blind_search_pow_th &&
+				agc2_level < blind_search_pow_th &&
 				wait_for_fall == 0 &&
 				*signal_state == 0 &&
 				i < 84) {
 				/* rising edge */
 
 				PR_DVBS("Find first edge is rising ...\n");
-				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x, agc2_level 0x%x).\n",
+				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x, agc2_level 0x%x)\n",
 						agc2_ratio, min_agc2_level, agc2_level);
 
 				/* The first edge is rising */
@@ -1034,7 +1227,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 				wait_for_fall = 1;
 				j = 0;
 
-			PR_DVBS("rising: i %d, j %d, m %d, n %d, asperity %d, init_freq %d.\n",
+			PR_DVBS("rising: i %d, j %d, m %d, n %d, asperity %d, init_freq %d\n",
 					i, j, m, n, asperity, init_freq);
 
 				for (l = 0; l < 10 * div; l++)
@@ -1061,8 +1254,8 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 					wait_for_fall = 0;
 				}
 
-				PR_DVBS("Find first edge is falling ...\n");
-				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x).\n",
+				PR_DVBS("Find first edge is falling\n");
+				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x)\n",
 						agc2_ratio, min_agc2_level);
 
 				/* the first edge is falling */
@@ -1071,7 +1264,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 				//else
 				//	asperity = 1;
 
-			PR_DVBS("falling: i %d, j %d, m %d, n %d, asperity %d, init_freq %d.\n",
+			PR_DVBS("falling: i %d, j %d, m %d, n %d, asperity %d, init_freq %d\n",
 					i, j, m, n, asperity, init_freq);
 
 				//if (j == 1) {
@@ -1146,10 +1339,10 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 			*next_step_khz = 40000;
 	}
 
-	PR_DVBS("%s: asperity %d, next_step_khz %d, next_step_khz1 %d.\n",
-			__func__, asperity, *next_step_khz, *next_step_khz1);
-	PR_DVBS("%s: i %d, j %d, m %d, n %d, state %d.\n",
-			__func__, i, j, m, n, *signal_state);
+	PR_DVBS("asperity %d, next_step_khz %d, next_step_khz1 %d\n",
+			asperity, *next_step_khz, *next_step_khz1);
+	PR_DVBS("i %d, j %d, m %d, n %d, state %d\n",
+			i, j, m, n, *signal_state);
 
 	return asperity;
 }
@@ -1205,7 +1398,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 		if (devp->blind_scan_stop)
 			break;
 
-		PR_DVBS("init_freq: %d, freq_step: %d, nb_steps: %d.\n",
+		PR_DVBS("init_freq: %d, freq_step: %d, nb_steps: %d\n",
 				init_freq, freq_step, nb_steps);
 
 		dvbs_wr_byte(0x924, 0x1c);
@@ -1220,7 +1413,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 		if (tmp & 0x800000)
 			tmp = (((~tmp) & 0x7fffff) + 1) * (-1);
 
-		PR_DVBS("get hw carrier_freq1 = %d.\n", tmp);
+		PR_DVBS("get hw carrier_freq1 = %d\n", tmp);
 #endif
 		dvbs_wr_byte(0x924, 0x18); //Warm start
 		usleep_range(5 * 1000, 6 * 1000);//msleep(5);
@@ -1229,7 +1422,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 		if (agc2_level > 0x1fffff)
 			agc2_level = 0x1fffff;
 
-		PR_DVBS("agc2_level: %d(0x%x), i: %d, j: %d.\n",
+		PR_DVBS("agc2_level: %d(0x%x), i: %d, j: %d\n",
 				agc2_level, agc2_level, i, j);
 
 		if (i == 0) {
@@ -1272,27 +1465,27 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 			if (agc2_ratio > 0xffff)
 				agc2_ratio = 0xffff;
 
-			PR_DVBS("i: %d, j: %d.\n", i, j);
-			PR_DVBS("agc2_level     %d.\n", agc2_level);
-			PR_DVBS("max_agc2_level %d.\n", max_agc2_level);
-			PR_DVBS("min_agc2_level %d.\n", min_agc2_level);
-			PR_DVBS("mid_agc2_level %d.\n", mid_agc2_level);
-			PR_DVBS("agc2_ratio     %d.\n", agc2_ratio);
+			PR_DVBS("i: %d, j: %d\n", i, j);
+			PR_DVBS("agc2_level     %d\n", agc2_level);
+			PR_DVBS("max_agc2_level %d\n", max_agc2_level);
+			PR_DVBS("min_agc2_level %d\n", min_agc2_level);
+			PR_DVBS("mid_agc2_level %d\n", mid_agc2_level);
+			PR_DVBS("agc2_ratio     %d\n", agc2_ratio);
 
 			if (agc2_ratio > BLIND_SEARCH_AGC2BANDWIDTH_40 &&
 				agc2_level == min_agc2_level &&
 				agc2_level < BLIND_SEARCH_POW_TH) {
 				/* rising edge */
 
-				PR_DVBS("Find first edge is rising ...\n");
-				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x, agc2_level 0x%x).\n",
+				PR_DVBS("Find first edge is rising\n");
+				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x, agc2_level 0x%x)\n",
 						agc2_ratio, min_agc2_level, agc2_level);
 
 				/* The first edge is rising */
 				asperity = 1;
 				wait_for_fall = 1;
 
-				PR_DVBS("rising: i %d, j %d, asperity %d, init_freq %d.\n",
+				PR_DVBS("rising: i %d, j %d, asperity %d, init_freq %d\n",
 						i, j, asperity, init_freq);
 
 				for (l = 0; l < 5 * div; l++)
@@ -1302,7 +1495,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 						min_agc2_level < BLIND_SEARCH_POW_TH) {
 				/* falling edge */
 
-				PR_DVBS("Find first edge is falling ...\n");
+				PR_DVBS("Find first edge is falling\n");
 				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x).\n",
 						agc2_ratio, min_agc2_level);
 
@@ -1312,7 +1505,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 				else
 					asperity = 1;
 
-				PR_DVBS("falling: i %d, j %d, asperity %d, init_freq %d.\n",
+				PR_DVBS("falling: i %d, j %d, asperity %d, init_freq %d\n",
 						i, j, asperity, init_freq);
 
 				if (j == 1) {
@@ -1365,5 +1558,396 @@ void dvbs_set_iq_swap(unsigned int iq_swap)
 unsigned int dvbs_get_iq_swap(void)
 {
 	return dvbs_iq_swap;
+}
+
+static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod,
+		struct fe_l2a_internal_param *pparams, unsigned int spectrum_invert)
+{
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	//unsigned int minagc2level = 0xffff, maxagc2level = 0x0000, midagc2level,
+	//unsigned int minagc2level = 0x3ffff, maxagc2level = 0x0000, midagc2level,
+	unsigned int minagc2level = 0x3fffff, maxagc2level = 0x0000, midagc2level;
+	unsigned int agc2level, agc2ratio;
+	int init_freq, freq_step;
+	unsigned long long tmp, tmp1, tmp2, tmp4;
+	//int tmp_f;
+	unsigned int asperity = 0;
+	unsigned int waitforfall = 0;
+	unsigned int acculevel = 0;
+	unsigned char div = 2;
+	unsigned int agc2leveltab[20] = {0};
+	int i, j = 0, k, l, m = 0, n = 0, nbsteps, center_oft = 0, center_enb = 0;
+	int integer = 0;
+	unsigned int decimal = 0, BLIND_SEARCH_AGC2BANDWIDTH = 80;
+
+	if (devp->blind_scan_stop)
+		return 0;
+
+	if (BLIND_SEARCH_AGC2BANDWIDTH_DVBS)
+		BLIND_SEARCH_AGC2BANDWIDTH = BLIND_SEARCH_AGC2BANDWIDTH_DVBS;
+
+	PR_DVBS("fe_l2a_BlindCheckAGC2BandWidth-----------\n");
+
+	if (pparams->state == 1 || pparams->state == 2)
+		waitforfall = 1;
+	else
+		waitforfall = 0;
+
+	dvbs_wr_byte(0x924, 0x1c);//demod stop
+	tmp2 = dvbs_rd_byte(0x9b0);
+	dvbs_wr_byte(0x9b0, 0x6);
+
+	tmp4 = dvbs_rd_byte(0x9b5);
+	dvbs_wr_byte(0x9b5, 0x00);
+	dvbs_wr_byte(0x991, 0x40);
+
+	tmp1 = dvbs_rd_byte(0x922);
+	dvbs_write_bits(0x922, 1, 6, 1);
+	dvbs_write_bits(0x922, 1, 7, 1);
+	/* Enable the SR SCAN */
+	dvbs_write_bits(0x922, 0, 4, 1);
+	/* activate the carrier frequency search loop*/
+	dvbs_write_bits(0x922, 0, 3, 1);
+	//AGC2 bandwidth is 1/div MHz //=0.5M
+	fe_l2a_set_symbol_rate(pparams, (unsigned int)(1000000 / div));
+
+	nbsteps = ((int)pparams->tuner_bw * div / 2000000);//4 //8=45000000/2000000*2
+	PR_DVBS("nbsteps is %d(44)\n", nbsteps);
+	if (nbsteps <= 0)
+		nbsteps = 1;
+
+	/* AGC2 step is 1/div MHz */
+	freq_step = (int)(((1000000 << 8) / (pparams->master_clock >> 8)) / div);//0.5M
+	freq_step = (int)(freq_step << 8);
+	PR_DVBS("freq_step is %d\n", freq_step);
+	//init_freq = 0;////////----------------------1--------------------------
+	if (spectrum_invert == 0)
+		init_freq = 0 + freq_step * nbsteps;
+	else
+		init_freq = 0 - freq_step * nbsteps;
+
+	//for(i = 0; i < nbsteps; i++) {
+	for (i = 0; i < nbsteps * 2; i++) {////////-------------------3------------------
+		// Scan on the positive part of the tuner Bw
+
+		if (devp->blind_scan_stop)
+			break;
+
+		dvbs_wr_byte(0x924, 0x1c);
+		dvbs_wr_byte(0x9c3, (init_freq >> 16) & 0xff);
+		dvbs_wr_byte(0x9c4, (init_freq >> 8) & 0xff);
+		dvbs_wr_byte(0x9c5, init_freq  & 0xff);
+
+		if (dvbs_rd_byte(0x9c3) > 127)
+			tmp = (unsigned long long)(255 * 65536LL * 256 +
+				dvbs_rd_byte(0x9c3) * 65536 + dvbs_rd_byte(0x9c4) * 256 +
+				dvbs_rd_byte(0x9c5));
+		else
+			tmp = (unsigned long long)(dvbs_rd_byte(0x9c3) * 65536 +
+					dvbs_rd_byte(0x9c4) * 256 + dvbs_rd_byte(0x9c5));
+		PR_DVBS("hw carrier_freq1 = %lld\n", tmp);
+
+		//tmp_f = tmp * 135000 / 16777216;
+		float_division((long long)tmp * 135000, 16777216, &integer, &decimal);
+		PR_DVBS("hw carrier_freq2 = %lld %d.%d Khz\n", tmp, integer, decimal);
+		dvbs_wr_byte(0x924, 0x18);//Warm start
+		//dvbs2_write_byte(0x912, 0x0);
+		//WAIT_N_MS(5);
+		usleep_range(5000, 5001);
+
+		agc2level = 0;
+		//printf("fe_l2a_GetAGC2Accu---------\n");
+		fe_l2a_get_agc2accu(pparams, &agc2level);
+
+		if (agc2level > 0x1fffff)//0x1ffff
+			agc2level = 0x1fffff;//0x1ffff
+		//printf("clip agc2level is %d\n",agc2level);
+
+		if (i == 0) {
+			minagc2level = agc2level;
+			maxagc2level = agc2level;
+			midagc2level = agc2level;
+
+			for (l = 0; l < 20; l++)
+				agc2leveltab[l] = agc2level;
+		} else {
+			k = i % (20);
+			//agc2leveltab[k] = agc2level;
+
+			if (((agc2level > minagc2level * BLIND_CENT_TH_DVBS / 10) &&
+				(i == 44 || i == 45)) ||
+				(center_oft + BLIND_CENT_BW_DVBS > i && center_oft <= i && i >= 44))
+				center_enb = 1;
+			else
+				center_enb = 0;
+
+			if (i == 44 || i == 45 || center_enb == 1) {
+				PR_DVBS("i is %d,agc2level %d,maxagc2level %d, minagc2level %d\n",
+						i, agc2level, maxagc2level, minagc2level);
+				PR_DVBS("midagc2level %d, center_oft %d, center_enb %d\n",
+						midagc2level, center_oft, center_enb);
+			}
+
+			if ((agc2level > minagc2level * BLIND_CENT_TH_DVBS / 10) &&
+					(i == 44 || i == 45)) {
+				agc2leveltab[k] = midagc2level;
+				center_oft = i;
+			} else if (center_enb == 1) {
+				agc2leveltab[k] = midagc2level;
+			} else {
+				agc2leveltab[k] = agc2level;
+			}
+
+			minagc2level = 0x3fffff;//0x3ffff
+			maxagc2level = 0x0000;
+			acculevel = 0;
+
+			for (l = 0; l < 20; l++) { // Min and max detection
+				if (agc2leveltab[l] < minagc2level)
+					minagc2level = agc2leveltab[l];
+
+				if (agc2leveltab[l] > maxagc2level)
+					maxagc2level = agc2leveltab[l];
+
+				acculevel = acculevel + agc2leveltab[l];
+				//printf("acculevel is %d\n",acculevel);
+			}
+
+			midagc2level = acculevel / (20);
+
+			//if (waitforfall == 0)
+			agc2ratio = (maxagc2level - minagc2level) * 128 / midagc2level;
+			//else
+				//agc2ratio = (maxagc2level - minagc2level) * 128 / midagc2level;
+
+			if (agc2ratio > 0xffff)
+				agc2ratio = 0xffff;
+
+			PR_DVBS("i %d,j %d,agc2level %d,maxagc2level %d,minagc2level %d\n",
+					i, j, agc2level, maxagc2level, minagc2level);
+			PR_DVBS("midagc2level %d,agc2ratio %d,waitforfall %d\n",
+					midagc2level, agc2ratio, waitforfall);
+
+			if (agc2ratio > BLIND_SEARCH_AGC2BANDWIDTH && //40
+					agc2level == minagc2level &&
+					agc2level < BLIND_SEARCH_POW_TH1_DVBS &&
+					waitforfall == 0 && pparams->state == 0 && i < 86) {
+				//asperity = 1; // The first edge is rising
+
+				//if (2 == waitforfall)
+				//	n = m;
+
+				waitforfall = 1;
+				j = 0;
+
+				PR_DVBS("The first edge is rising ---1111111111111111111111\n");
+				PR_DVBS("i is %d,j is %d,m is %d,n is %d,asperity is %d\n",
+						i, j, m, n, asperity);
+				PR_DVBS("init_freq is %d,agc2ratio is %d\n", init_freq, agc2ratio);
+				for (l = 0; l < 20; l++)
+					agc2leveltab[l] = agc2level;
+			} else if (agc2ratio > BLIND_SEARCH_AGC2BANDWIDTH &&
+					agc2level > BLIND_SEARCH_POW_TH2_DVBS &&
+					agc2level == maxagc2level && waitforfall == 1)
+			// Falling edge //
+			{
+				if (pparams->state == 0) {
+					if (m > BLIND_SEARCH_BW_MIN_DVBS)
+						n = m;
+
+					if (m == 0)
+						waitforfall = 3;
+					else if (m <= BLIND_SEARCH_BW_MIN_DVBS)
+						waitforfall = 0;
+					else
+						waitforfall = 2;
+
+					m = 0;
+				} else {
+					waitforfall = 0;
+				}
+
+				PR_DVBS("The first edge is falling, agc2ratio %d 11111111111111\n",
+						agc2ratio);
+				PR_DVBS("i is %d,j is %d,m is %d,n is %d,asperity is %d\n",
+						i, j, m, n, asperity);
+				PR_DVBS("init_freq is %d, agc2ratio is %d\n", init_freq, agc2ratio);
+
+				for (l = 0; l < 20; l++)
+					agc2leveltab[l] = agc2level;
+			} else if (agc2level > BLIND_SEARCH_POW_TH3_DVBS &&
+					waitforfall == 1 && i < 86 && i > 3 && center_enb == 0) {
+				waitforfall = 0;
+				m = 0;
+				PR_DVBS("detect error ---agc2level is %d 1111111111\n", agc2level);
+			}
+
+			if (waitforfall == 1)
+				m += 1;
+
+			if (waitforfall == 2 || waitforfall == 3)
+				j += 1;
+		} // if (i == 0)  //
+
+		if (spectrum_invert == 0)
+			init_freq = init_freq - freq_step;//edit by yong
+		else
+			init_freq = init_freq + freq_step;
+
+		PR_DVBS("init_freq is %d,freq_step is %d,nbsteps is %d\n", init_freq, freq_step, i);
+	}  // End of for (i=0; i < nbsteps) //
+
+	dvbs_wr_byte(0x922, tmp1);
+	dvbs_wr_byte(0x9b0, tmp2);
+	dvbs_wr_byte(0x9b5, tmp4);
+	// Demod Stop //
+	dvbs_wr_byte(0x924, 0x1c);
+	dvbs_wr_byte(0x9c4, 0x0);
+	dvbs_wr_byte(0x9c5, 0x0);
+
+	if (devp->blind_scan_stop)
+		return 0;
+
+	if (n == 0 && j == 0) { //rising edge followed by a constant level or a falling edge
+		if (waitforfall == 1 && pparams->state == 0) {
+			asperity = 0;
+			pparams->tuner_index_jump = 40000;
+			pparams->tuner_index_jump1 = (1000 / div) * (m - 45);
+			pparams->state = 1;
+		} else if (waitforfall == 0 && (pparams->state == 1 || pparams->state == 2)) {
+			asperity = 0;
+			pparams->tuner_index_jump = 0;
+			pparams->tuner_index_jump1 = (1000 / div) * (m - 45);
+			pparams->state = 3;
+		} else if (waitforfall == 1 && pparams->state == 1) {
+			asperity = 0;
+			pparams->tuner_index_jump = 40000;
+			if (pparams->tuner_index_jump1 > BLIND_SEARCH_BW_DVBS)
+				pparams->state = 0;
+			else
+				pparams->state = 2;
+		} else {
+			asperity = 0;
+			pparams->tuner_index_jump = 40000;
+			//pparams->tuner_index_jump =
+					//40000 - (1000 / div) * (m - 4 + BLIND_SEARCH_OFT_BW);
+		}
+
+		PR_DVBS("asperity is 0,tuner_index_jump is %d,i is %d,j is %d,m is %d,n is %d\n",
+				pparams->tuner_index_jump, i, j, m, n);
+		PR_DVBS("tuner_index_jump1 is %d,state is %d\n",
+				pparams->tuner_index_jump1, pparams->state);
+	} else if (n != 0 && j == 0) {
+	//rising edge followed by a constant level or a falling edge //
+		asperity = 1;
+		if (m != 0)
+			pparams->tuner_index_jump = 40000 - (1000 / div) * m;
+		else
+			pparams->tuner_index_jump = 40000;
+
+		PR_DVBS("asperity is 1,pParams->tuner_index_jump is %d,i is %d,j is %d\n",
+				pparams->tuner_index_jump, i, j);
+		PR_DVBS("m is %d,n is %d\n", m, n);
+	} else {
+		asperity = 1;
+
+		pparams->tuner_index_jump = (1000 / div) * ((45 - j) - n / 2);
+		pparams->tuner_index_jump1 = 23000 + (1000 / div) * (n / 2);
+		pparams->sr = (1000 / div) * n;
+
+		pparams->state = 1;
+		PR_DVBS("asperity is 1,pParams->tuner_index_jump is %d,i is %d,j is %d\n",
+				pparams->tuner_index_jump, i, j);
+		PR_DVBS("m is %d,n is %d\n", m, n);
+		PR_DVBS("tuner_index_jump1 is %d,sr is %d,state is %d\n",
+				pparams->tuner_index_jump1, pparams->sr, pparams->state);
+	}
+
+	PR_DVBS("asperity is %d,init_freq is %d,pParams->tuner_index_jump is %d\n",
+			asperity, init_freq, pparams->tuner_index_jump);
+	return asperity;
+}
+
+void dvbs_blind_check_signal(struct aml_dtvdemod *demod,
+		unsigned int freq_khz, unsigned int *freq_add,
+		unsigned int *freq_add1, unsigned int *state, unsigned int *asperity,
+		unsigned int *sr_est, unsigned int spectrum_invert)
+{
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	unsigned int i;
+	struct fe_l2a_internal_param pparams;
+	//internal_param_ptr handle={0};
+
+	signed int iqpower, agc1power;
+	//unsigned int asperity = 0;
+	unsigned int fld_value[2] = {0};
+	//char cmd[50] = {0};
+	bool satellite_scan = true;
+	//unsigned int demodTimeout = 4500;
+	//unsigned int fecTimeout = 450;
+
+	if (devp->blind_scan_stop)
+		return;
+
+	PR_DVBS("start launch_BlindCheckAGC2BandWidth\n");
+	PR_DVBS("1st set tuner\n");
+
+	pparams.demod_search_algo = 0;
+	pparams.master_clock = 135000000;
+	pparams.tuner_bw = 45000000;
+	pparams.demod_search_standard = FE_SAT_AUTO_SEARCH;
+	pparams.demod_symbol_rate = 1000000;
+	pparams.tuner_index_jump1 = *freq_add1;
+
+	PR_DVBS("parameter initialization!\n");
+
+	//ChipWaitOrAbort(pParams->handle_demod, 10);
+	//usleep(1000);
+	//usleep(2000);//1
+	//NO signal Detection, Read PowerI and PowerQ to check the signal presence
+
+	fld_value[0] = dvbs_rd_byte(0x91a);
+	fld_value[1] = dvbs_rd_byte(0x91b);
+	agc1power = (signed int)(MAKEWORD(fld_value[0], fld_value[1]));
+	iqpower = 0;
+
+	if (agc1power == 0) {
+		// if AGC1 integrator value is 0 then read POWERI, POWERQ registers
+		// Read the IQ power value
+		for (i = 0; i < 5; i++) {
+			fld_value[0] = dvbs_rd_byte(0x916);
+			fld_value[1] = dvbs_rd_byte(0x917);
+			iqpower = iqpower + (signed int)fld_value[0] + (signed int)fld_value[1];
+		}
+		iqpower /= 5;
+	}
+	PR_DVBS("agc1power is %d,iqpower is %d,state is %d,asperity is %d\n",
+			agc1power, iqpower, *state, *asperity);
+	pparams.state = *state;
+
+		//if (((agc1power != 0) || (iqpower >= powerThreshold))
+	if ((*state == 0 || *state == 1 || *state == 2) && *asperity == 0 &&
+			pparams.demod_search_algo == FE_SAT_BLIND_SEARCH &&
+			satellite_scan) { /* Perform edge detection */
+		PR_DVBS("satellite_scan == TRUE satellite_scan is %d\n", satellite_scan);
+		*asperity = fe_l2a_blind_check_agc2_bandwidth(demod, &pparams, spectrum_invert);
+		PR_DVBS("after fe_l2a_BlindCheckAGC2BandWidth tuner_index_jump is %d\n",
+				pparams.tuner_index_jump);
+		PR_DVBS("tuner_index_jump1 is %d\n", pparams.tuner_index_jump1);
+
+		*freq_add = pparams.tuner_index_jump;
+		*freq_add1 = pparams.tuner_index_jump1;
+		*sr_est = pparams.sr;
+
+		*state = pparams.state;
+		PR_DVBS("asperity is %d, freq_add is %d, state is %d\n",
+				*asperity, *freq_add, *state);
+		//io_printf("agc1power is %d,iqpower is %d\n",agc1power,iqpower);
+	} else if ((*state == 3) && (*asperity == 0)) {
+		*asperity = 2;
+	} else if ((*state == 1) && (*asperity == 1)) {
+		*asperity = 2;
+		*state = 3;
+	}
 }
 
