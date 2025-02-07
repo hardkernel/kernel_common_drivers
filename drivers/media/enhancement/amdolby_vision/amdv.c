@@ -689,8 +689,8 @@ static u32 amdv_reg_list[4];
 #define MAX_RDMA_TABLE_CNT 7
 #define MAX_REG_CNT 256
 #define LAST_PART_INS (MAX_RDMA_TABLE_CNT - 1)
-bool other_reg_table_num;
-bool vpp_reg_table_num;
+u32 other_reg_table_num;
+u32 vpp_reg_table_num;
 
 static struct rdma_partition_ins_s amdv_rdma_part_ins[MAX_RDMA_TABLE_CNT];
 static struct rdma_partition_ins_s *vpp_rdma_part;
@@ -1233,7 +1233,7 @@ void init_amdv_rdma_part_ins(void)
 	vpp_reg[i++] = VPP_SLICE3_DOLBY_CTRL;
 	vpp_reg_table_num = i;
 	vpp_rdma_part = get_part_table_ins(RDMA_VPP0, VIDEO_PARTITION_TABLE);
-
+	pr_info("vpp_rdma_part %px\n", vpp_rdma_part);
 	amdv_rdma_init = true;
 }
 
@@ -1246,7 +1246,7 @@ int map_reg_to_rdma_table_index(u32 reg)
 	if (!amdv_rdma_init)
 		return -1;
 
-	if (dv_meson_dev.cpu_id < _CPU_MAJOR_ID_T5W ||
+	if (dv_meson_dev.cpu_id < _CPU_MAJOR_ID_G12 ||
 		dv_meson_dev.cpu_id > _CPU_MAJOR_ID_S6 ||
 		dv_meson_dev.cpu_id == _CPU_MAJOR_ID_T3X)
 		return -1;
@@ -1282,6 +1282,12 @@ int map_reg_to_rdma_table_index(u32 reg)
 		}
 	}
 	if (!find_reg) {
+		if (amdv_debug & PRINT_RDMA_TABLE_REG_MORE)
+			pr_dv_dbg("reg 0x%x, %px,vpp_rdma_part->flag %d, %x,%x,%x\n",
+			reg,
+			vpp_rdma_part,
+			vpp_rdma_part ? vpp_rdma_part->flag : 0,
+			vpp_reg[22], vpp_reg[23], vpp_reg[24]);
 		for (i = 0; i < vpp_reg_table_num; i++) {
 			if (vpp_reg[i] == reg && vpp_rdma_part) {
 				find_reg = true;
