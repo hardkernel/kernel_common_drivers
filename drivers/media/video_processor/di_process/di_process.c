@@ -1240,6 +1240,21 @@ static bool check_vf_compression_ratio(struct di_process_dev *dev, struct vframe
 	return ret;
 }
 
+static bool is_amdv_signal(struct vframe_s *vf)
+{
+	bool ret = false;
+
+	if (IS_ERR_OR_NULL(vf)) {
+		pr_err("%s: NULL param.\n", __func__);
+		return ret;
+	}
+
+	if (vf->signal_type & (1 << 30))
+		ret = true;
+
+	return ret;
+}
+
 static bool check_need_do_di(struct di_process_dev *dev, struct vframe_s *vf)
 {
 	bool need_do_di = true;
@@ -1247,6 +1262,12 @@ static bool check_need_do_di(struct di_process_dev *dev, struct vframe_s *vf)
 	if (!dev || !vf) {
 		pr_err("%s: param is invalid.\n", __func__);
 		return need_do_di;
+	}
+
+	/*dv input no need do di*/
+	if (is_amdv_signal(vf)) {
+		dp_print(dev->index, PRINT_OTHER, "dv input, no need do di.\n");
+		need_do_di = false;
 	}
 
 	/*over compression ratio*/
