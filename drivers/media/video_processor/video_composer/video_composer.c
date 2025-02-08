@@ -1748,24 +1748,24 @@ static void check_window_change(struct composer_dev *dev,
 	int last_width, last_height, current_width, current_height;
 	int cur_pos_x, cur_pos_y, cur_pos_w, cur_pos_h;
 	int last_pos_x, last_pos_y, last_pos_w, last_pos_h;
-	struct frames_info_t last_frame_info;
+	struct frames_info_t *last_frame_info;
 	int last_zorder, cur_zorder;
 	bool window_changed = false;
 	int i;
 
-	last_frame_info = dev->last_frames.frames_info;
-	if (cur_frame_info->frame_count != last_frame_info.frame_count) {
+	last_frame_info = &dev->last_frames.frames_info;
+	if (cur_frame_info->frame_count != last_frame_info->frame_count) {
 		window_changed = true;
 		vc_print(dev->index, PRINT_ERROR,
 			 "last count=%d, current count=%d\n",
-			 last_frame_info.frame_count,
+			 last_frame_info->frame_count,
 			 cur_frame_info->frame_count);
 	} else {
 		for (i = 0; i < cur_frame_info->frame_count; i++) {
 			current_width = cur_frame_info->frame_info[i].crop_w;
 			current_height = cur_frame_info->frame_info[i].crop_h;
-			last_width = last_frame_info.frame_info[i].crop_w;
-			last_height = last_frame_info.frame_info[i].crop_h;
+			last_width = last_frame_info->frame_info[i].crop_w;
+			last_height = last_frame_info->frame_info[i].crop_h;
 
 			if (current_width * last_height !=
 				current_height * last_width) {
@@ -1779,10 +1779,10 @@ static void check_window_change(struct composer_dev *dev,
 			cur_pos_y = cur_frame_info->frame_info[i].dst_y;
 			cur_pos_w = cur_frame_info->frame_info[i].dst_w;
 			cur_pos_h = cur_frame_info->frame_info[i].dst_h;
-			last_pos_x = last_frame_info.frame_info[i].dst_x;
-			last_pos_y = last_frame_info.frame_info[i].dst_y;
-			last_pos_w = last_frame_info.frame_info[i].dst_w;
-			last_pos_h = last_frame_info.frame_info[i].dst_h;
+			last_pos_x = last_frame_info->frame_info[i].dst_x;
+			last_pos_y = last_frame_info->frame_info[i].dst_y;
+			last_pos_w = last_frame_info->frame_info[i].dst_w;
+			last_pos_h = last_frame_info->frame_info[i].dst_h;
 
 			if (cur_pos_x != last_pos_x ||
 			    cur_pos_y != last_pos_y ||
@@ -1795,7 +1795,7 @@ static void check_window_change(struct composer_dev *dev,
 			}
 
 			cur_zorder = cur_frame_info->frame_info[i].zorder;
-			last_zorder = last_frame_info.frame_info[i].zorder;
+			last_zorder = last_frame_info->frame_info[i].zorder;
 			if (cur_zorder != last_zorder) {
 				vc_print(dev->index, PRINT_OTHER,
 					 "frame zorder changed!");
