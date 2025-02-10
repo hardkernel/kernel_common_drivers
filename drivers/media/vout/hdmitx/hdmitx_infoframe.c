@@ -743,7 +743,7 @@ static void hdmitx_set_sdr_pkt(void)
 
 	if (global_tx_common->hdr_transfer_feature == T_BT709 &&
 			global_tx_common->hdr_color_feature == C_BT709) {
-		if (global_tx_common->rxcap.hdr_info2.hdr_support & 0x1) {
+		if (global_tx_common->rxcap.hdr_info.hdr_support & 0x1) {
 			/* edid supports SDR */
 			HDMITX_INFO("hdr: [%s]: send zero drm pkt\n", __func__);
 			hdmitx_hw_set_packet(tx_hw, HDMI_PACKET_DRM, buffer);
@@ -798,7 +798,7 @@ void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	spin_lock_irqsave(&global_tx_common->edid_spinlock, flags);
 
-	if (!data || !global_tx_common->rxcap.hdr_info2.hdr_support) {
+	if (!data || !global_tx_common->rxcap.hdr_info.hdr_support) {
 		buffer[1] = 0;
 		buffer[2] = 0;
 		buffer[4] = 0;
@@ -1331,7 +1331,7 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 				hdmitx_hw_cntl_config(tx_hw, CONF_AVI_BT2020,
 					CLR_AVI_BT2020);
 				/* if TV support traditional SDR, then recover hdr.sdr packet */
-				/* if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) { */
+				/* if (hdev->tx_comm.rxcap.hdr_info.hdr_support & 0x1) { */
 				/* HDMITX_DEBUG_PACKET("%s: recover hdr.sdr pkt\n", __func__); */
 				/* hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm); */
 				/* hdmi_drm_infoframe_set(&hdev->infoframes.drm.drm); */
@@ -1524,7 +1524,7 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 				hdmitx_tracer_write_event(global_tx_common->tx_tracer,
 					HDMITX_HDR_MODE_SDR);
 				/* if TV support traditional SDR, then recover hdr.sdr packet */
-				/* if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) { */
+				/* if (hdev->tx_comm.rxcap.hdr_info.hdr_support & 0x1) { */
 				/* HDMITX_DEBUG_PACKET("%s: recover hdr.sdr pkt\n", __func__); */
 				/* hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm); */
 				/* hdmi_drm_infoframe_set(&hdev->infoframes.drm.drm); */

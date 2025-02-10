@@ -37,30 +37,13 @@ unsigned int hdmitx_common_get_contenttypes(void)
 }
 EXPORT_SYMBOL(hdmitx_common_get_contenttypes);
 
-const struct dv_info *hdmitx_common_get_dv_info(void)
+const struct dv_info *hdmitx_common_get_dv_info_rx(void)
 {
 	const struct dv_info *dv = &global_tx_base->rxcap.dv_info;
 
 	return dv;
 }
-EXPORT_SYMBOL(hdmitx_common_get_dv_info);
-
-const struct dv_info *hdmitx_common_get_dv_info_rx(void)
-{
-	const struct dv_info *dv = &global_tx_base->rxcap.dv_info2;
-
-	return dv;
-}
 EXPORT_SYMBOL(hdmitx_common_get_dv_info_rx);
-
-const struct hdr_info *hdmitx_common_get_hdr_info(void)
-{
-	static struct hdr_info hdrinfo;
-
-	hdmitx_get_hdrinfo(global_tx_base, &hdrinfo);
-	return &hdrinfo;
-}
-EXPORT_SYMBOL(hdmitx_common_get_hdr_info);
 
 const struct hdr_info *hdmitx_common_get_hdr_info_rx(void)
 {

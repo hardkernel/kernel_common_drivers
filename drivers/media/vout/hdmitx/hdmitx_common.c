@@ -18,6 +18,10 @@
 #include "hdmitx_module.h"
 #include "efuse.h"
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
+
 int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,
 		enum hdmi_colorspace cs, enum hdmi_color_depth cd,
@@ -400,20 +404,26 @@ static void disable_hdr10_info(struct hdr_info *des)
 }
 
 /* hdr10plus */
-static void enable_hdr10p_info(struct hdr10_plus_info *des, const struct hdr10_plus_info *src)
-{
-	if (!des || !src)
-		return;
-
-	memcpy(des, src, sizeof(*des));
-}
-
 static void disable_hdr10p_info(struct hdr10_plus_info *des)
 {
 	if (!des)
 		return;
 
 	memset(des, 0, sizeof(*des));
+}
+
+static void enable_hdr10p_info(struct hdr10_plus_info *des, const struct hdr10_plus_info *src)
+{
+	if (!des || !src)
+		return;
+
+	memcpy(des, src, sizeof(*des));
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
+	if (!is_hdr10plus_enable())
+		disable_hdr10p_info(des);
+#endif
 }
 
 /* hlg */
@@ -433,73 +443,99 @@ static void disable_hlg_info(struct hdr_info *des)
 	des->hdr_support &= ~BIT(3);
 }
 
-static void enable_all_hdr_info(struct rx_cap *prxcap)
+static void enable_all_hdr_info(struct rx_cap *prxcap, struct hdr_info *hdr_info,
+		struct dv_info *dv_info)
 {
-	if (!prxcap)
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	struct hdr10_plus_info *hdr10p_info = NULL;
+#endif
+	if (!prxcap || !hdr_info || !dv_info)
 		return;
 
-	memcpy(&prxcap->hdr_info, &prxcap->hdr_info2, sizeof(prxcap->hdr_info));
-	memcpy(&prxcap->dv_info, &prxcap->dv_info2, sizeof(prxcap->dv_info));
+	memcpy(hdr_info, &prxcap->hdr_info, sizeof(prxcap->hdr_info));
+	memcpy(dv_info, &prxcap->dv_info, sizeof(prxcap->dv_info));
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	hdr10p_info = &hdr_info->hdr10plus_info;
+	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
+	if (!is_hdr10plus_enable())
+		disable_hdr10p_info(hdr10p_info);
+#endif
 }
 
-static void update_hdr_strategy1(struct hdmitx_common *tx_comm, u32 strategy)
+static void update_hdr_strategy1(struct hdmitx_common *tx_comm, struct hdr_info *hdr_info,
+		struct dv_info *dv_info, u32 strategy)
 {
 	struct rx_cap *prxcap;
 
-	if (!tx_comm)
+	if (!tx_comm || !hdr_info || !dv_info)
 		return;
 
 	prxcap = &tx_comm->rxcap;
+	/* init hdr_info and dv_info */
+	enable_all_hdr_info(prxcap, hdr_info, dv_info);
+
 	switch (strategy) {
 	case 0:
-		enable_all_hdr_info(prxcap);
+		enable_all_hdr_info(prxcap, hdr_info, dv_info);
 		break;
 	case 1:
-		disable_dv_info(&prxcap->dv_info);
+		disable_dv_info(dv_info);
 		break;
 	case 2:
-		disable_dv_info(&prxcap->dv_info);
-		disable_hdr10_info(&prxcap->hdr_info);
-		disable_hdr10p_info(&prxcap->hdr_info.hdr10plus_info);
+		disable_dv_info(dv_info);
+		disable_hdr10_info(hdr_info);
+		disable_hdr10p_info(&hdr_info->hdr10plus_info);
+		disable_hlg_info(hdr_info);
 		break;
 	default:
 		break;
 	}
 }
 
-static void update_hdr_strategy2(struct hdmitx_common *tx_comm, u32 strategy)
+static void update_hdr_strategy2(struct hdmitx_common *tx_comm, struct hdr_info *hdr_info,
+		struct dv_info *dv_info, u32 strategy)
 {
 	struct rx_cap *prxcap;
 
-	if (!tx_comm)
+	if (!tx_comm || !hdr_info || !dv_info)
 		return;
 
 	prxcap = &tx_comm->rxcap;
+	/* init hdr_info and dv_info */
+	enable_all_hdr_info(prxcap, hdr_info, dv_info);
+
 	/* bit4: 1 disable dv  0 enable dv */
 	if (strategy & BIT(4))
-		disable_dv_info(&prxcap->dv_info);
+		disable_dv_info(dv_info);
 	else
-		enable_dv_info(&prxcap->dv_info, &prxcap->dv_info2);
+		enable_dv_info(dv_info, &prxcap->dv_info);
 	/* bit5: 1 disable hdr10/hdr10+   0 enable hdr10/hdr10+ */
 	if (strategy & BIT(5)) {
-		disable_hdr10_info(&prxcap->hdr_info);
-		disable_hdr10p_info(&prxcap->hdr_info.hdr10plus_info);
+		disable_hdr10_info(hdr_info);
+		disable_hdr10p_info(&hdr_info->hdr10plus_info);
 	} else {
-		enable_hdr10_info(&prxcap->hdr_info, &prxcap->hdr_info2);
-		enable_hdr10p_info(&prxcap->hdr_info.hdr10plus_info,
-			&prxcap->hdr_info2.hdr10plus_info);
+		enable_hdr10_info(hdr_info, &prxcap->hdr_info);
+		enable_hdr10p_info(&hdr_info->hdr10plus_info,
+			&prxcap->hdr_info.hdr10plus_info);
 	}
 	/* bit6: 1 disable hlg   0 enable hlg */
 	if (strategy & BIT(6))
-		disable_hlg_info(&prxcap->hdr_info);
+		disable_hlg_info(hdr_info);
 	else
-		enable_hlg_info(&prxcap->hdr_info, &prxcap->hdr_info2);
+		enable_hlg_info(hdr_info, &prxcap->hdr_info);
 }
 
-int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority)
+int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority,
+		struct hdr_info *hdr_info, struct dv_info *dv_info)
 {
 	u32 choose = 0;
 	u32 strategy = 0;
+
+	if (!hdr_info || !dv_info || !tx_comm) {
+		HDMITX_ERROR("%s fail\n", __func__);
+		return 0;
+	}
 
 	tx_comm->hdr_priority = hdr_priority;
 	HDMITX_DEBUG("%s, set hdr_prio: %u\n", __func__, hdr_priority);
@@ -508,11 +544,11 @@ int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority)
 	switch (choose) {
 	case 0:
 		strategy = tx_comm->hdr_priority & 0xf;
-		update_hdr_strategy1(tx_comm, strategy);
+		update_hdr_strategy1(tx_comm, hdr_info, dv_info, strategy);
 		break;
 	case 1:
 		strategy = tx_comm->hdr_priority & 0xf0;
-		update_hdr_strategy2(tx_comm, strategy);
+		update_hdr_strategy2(tx_comm, hdr_info, dv_info, strategy);
 		break;
 	default:
 		break;
@@ -528,21 +564,11 @@ int hdmitx_get_hdr_priority(struct hdmitx_common *tx_comm, u32 *hdr_priority)
 }
 EXPORT_SYMBOL(hdmitx_get_hdr_priority);
 
-int hdmitx_get_hdrinfo(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo)
-{
-	struct rx_cap *prxcap = &tx_comm->rxcap;
-
-	memcpy(hdrinfo, &prxcap->hdr_info, sizeof(struct hdr_info));
-	hdrinfo->colorimetry_support = prxcap->colorimetry_data;
-
-	return 0;
-}
-
 int hdmitx_get_hdrinfo_rx(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo)
 {
 	struct rx_cap *prxcap = &tx_comm->rxcap;
 
-	memcpy(hdrinfo, &prxcap->hdr_info2, sizeof(struct hdr_info));
+	memcpy(hdrinfo, &prxcap->hdr_info, sizeof(struct hdr_info));
 	hdrinfo->colorimetry_support = prxcap->colorimetry_data;
 
 	return 0;
@@ -784,11 +810,11 @@ int hdmitx_common_edid_tracer_post_proc(struct hdmitx_common *tx_comm, struct rx
 	if (prxcap->chksum_err)
 		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_CHECKSUM_ERROR);
 
-	dv = &prxcap->dv_info2;
+	dv = &prxcap->dv_info;
 	if (dv->ieeeoui == DV_IEEE_OUI && dv->block_flag == CORRECT)
 		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_DV_SUPPORT);
 
-	hdr = &prxcap->hdr_info2;
+	hdr = &prxcap->hdr_info;
 	if (hdr->hdr_support > 0)
 		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_HDR_SUPPORT);
 

@@ -53,12 +53,6 @@ enum meson_color_attr_type {
 	COLOR_MAX_ATTR,
 };
 
-/* To differ hdr_info/hdr_info2 and dv_info/dv_info2 */
-enum hdmi_info_index {
-	hdmi_info_1 = 0,
-	hdmi_info_2 = 1,
-};
-
 struct am_hdmi_tx {
 	struct meson_connector base;
 	struct drm_encoder encoder;
@@ -94,6 +88,9 @@ struct am_hdmi_tx {
 	struct drm_property *hdmi_hdr_status_prop;
 	/* May be changed by hdr_priority */
 	struct drm_property *hdr_cap_property;
+	/* TV's real hdr capability that not changed by hdr_priority */
+	struct drm_property *hdr_cap_rx_property;
+	/* May be changed by hdr_priority */
 	struct drm_property *dv_cap_property;
 	/* TV's real dv capability that not changed by hdr_priority */
 	struct drm_property *dv_cap_rx_property;
@@ -132,8 +129,6 @@ struct am_hdmi_tx {
 	 * 4 sink
 	 */
 	struct drm_property *sink_type_prop;
-	/* TV's real hdr capability that not changed by hdr_priority */
-	struct drm_property *hdr_cap_rx_prop;
 	struct drm_property *static_meta_prop;
 	struct drm_property *allm_cap_prop;
 	struct drm_property *dc_cap_prop;
@@ -143,6 +138,9 @@ struct am_hdmi_tx {
 #endif
 
 	struct meson_hdmitx_dev *hdmitx_dev;
+
+	struct hdr_info hdr_info;
+	struct dv_info dv_info;
 };
 
 struct am_hdmitx_connector_state {

@@ -282,7 +282,6 @@ static int hdmitx_device_init(struct hdmitx_dev *hdev)
 		amhdmitx_infoframe_init(hdev);
 		hdev->tx21_hw.base = &hdev->hw_comm;
 	}
-	set_dummy_dv_info(&hdmitx_vdev);
 
 	return 0;
 }
@@ -923,8 +922,6 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
 		HDMITX_INFO("edid parse in hdmitx\n");
 		hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
 		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
-		/* update the hdr/hdr10+/dv capabilities in the end of parse */
-		hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
 		hdmitx_common_notify_ced_status(tx_comm);
 	}
 

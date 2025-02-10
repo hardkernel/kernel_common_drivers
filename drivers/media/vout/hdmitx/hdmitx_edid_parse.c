@@ -1014,11 +1014,8 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 static void edid_parsingvendspec(struct rx_cap *prxcap, u8 *buf)
 {
 	struct dv_info *dv = &prxcap->dv_info;
-	struct dv_info *dv2 = &prxcap->dv_info2;
 	struct hdr10_plus_info *hdr10_plus = &prxcap->hdr_info.hdr10plus_info;
-	struct hdr10_plus_info *hdr10_plus2 = &prxcap->hdr_info2.hdr10plus_info;
 	struct cuva_info *cuva = &prxcap->hdr_info.cuva_info;
-	struct cuva_info *cuva2 = &prxcap->hdr_info2.cuva_info;
 
 	u8 pos = 0;
 	u32 ieeeoui = 0;
@@ -1039,7 +1036,6 @@ static void edid_parsingvendspec(struct rx_cap *prxcap, u8 *buf)
 	ieeeoui += buf[pos++] << 16;
 
 	_edid_parsingvendspec(dv, hdr10_plus, cuva, buf);
-	_edid_parsingvendspec(dv2, hdr10_plus2, cuva2, buf);
 }
 
 /* ----------------------------------------------------------- */
@@ -1125,15 +1121,12 @@ INVALID_DRM_STATIC:
 static int edid_parsedrmsb(struct rx_cap *prxcap, u8 *buf)
 {
 	struct hdr_info *hdr;
-	struct hdr_info *hdr2;
 
 	if (!prxcap || !buf)
 		return -1;
 
 	hdr = &prxcap->hdr_info;
-	hdr2 = &prxcap->hdr_info2;
 	_edid_parsedrmsb(hdr, buf);
-	_edid_parsedrmsb(hdr2, buf);
 	return 0;
 }
 
@@ -1200,15 +1193,12 @@ INVALID_DRM_DYNAMIC:
 static int edid_parsedrmdb(struct rx_cap *prxcap, u8 *buf)
 {
 	struct hdr_info *hdr;
-	struct hdr_info *hdr2;
 
 	if (!prxcap || !buf)
 		return -1;
 
 	hdr = &prxcap->hdr_info;
-	hdr2 = &prxcap->hdr_info2;
 	_edid_parsedrmdb(hdr, buf);
-	_edid_parsedrmdb(hdr2, buf);
 	return 0;
 }
 
@@ -2861,8 +2851,6 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	/* EDID parsing complete - check if 4k60/50 DV can be truly supported */
 	dv = &prxcap->dv_info;
 	check_dv_truly_support(prxcap, dv);
-	dv = &prxcap->dv_info2;
-	check_dv_truly_support(prxcap, dv);
 	/*
 	 * For some receivers, they don't claim the screen size
 	 * and re-calculate it from the h/v image size from dtd
@@ -3172,9 +3160,9 @@ int hdmitx_edid_print_sink_cap(const struct rx_cap *prxcap,
 		pos += snprintf(buffer + pos, buffer_len - pos,
 			"  DolbyVision%d", prxcap->dv_info.ver);
 
-	if (prxcap->hdr_info2.hdr_support)
+	if (prxcap->hdr_info.hdr_support)
 		pos += snprintf(buffer + pos, buffer_len - pos, "  HDR/%d",
-			prxcap->hdr_info2.hdr_support);
+			prxcap->hdr_info.hdr_support);
 	if (prxcap->hdr_info.sbtm_info.sbtm_support)
 		pos += snprintf(buffer + pos, buffer_len - pos, "  SBTM");
 	if (prxcap->dc_y444 || prxcap->dc_30bit || prxcap->dc_30bit_420)

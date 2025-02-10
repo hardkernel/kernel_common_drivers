@@ -109,7 +109,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			 * no uevent/trace for such case
 			 */
 			/*
-			 * if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) {
+			 * if (hdev->tx_comm.rxcap.hdr_info.hdr_support & 0x1) {
 			 *	unsigned char buffer[31] = {0x87, 0x1, 26};
 			 *	HDMITX_INFO("hdr: %s: hdr.sdr pkt sent\n", __func__);
 			 *	hdev->tx_comm.colormetry = 0;

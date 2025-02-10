@@ -383,15 +383,8 @@ static ssize_t _hdr_cap_show(struct device *dev,
 	const struct hdr10_plus_info *hdr10p = &hdr->hdr10plus_info;
 	const struct sbtm_info *sbtm = &hdr->sbtm_info;
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
-	if (hdr10p->ieeeoui == HDR10_PLUS_IEEE_OUI &&
-		hdr10p->application_version != 0xFF &&
-		is_hdr10plus_enable())
-#else
 	if (hdr10p->ieeeoui == HDR10_PLUS_IEEE_OUI &&
 			hdr10p->application_version != 0xFF)
-#endif
 		hdr10plus_supported = 1;
 	pos += snprintf(buf + pos, size - pos, "HDR10Plus Supported: %d\n",
 		hdr10plus_supported);
@@ -550,7 +543,7 @@ static ssize_t _hdr_cap_show(struct device *dev,
 	return pos;
 }
 
-static ssize_t hdr_cap_show(struct device *dev,
+static ssize_t hdr_cap_rx_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
@@ -560,20 +553,7 @@ static ssize_t hdr_cap_show(struct device *dev,
 	return _hdr_cap_show(dev, attr, buf, info, PAGE_SIZE);
 }
 
-static DEVICE_ATTR_RO(hdr_cap);
-
-static ssize_t hdr_cap2_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
-{
-	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-	const struct hdr_info *info2 = &tx_comm->rxcap.hdr_info2;
-
-	return _hdr_cap_show(dev, attr, buf, info2, PAGE_SIZE);
-}
-
-static DEVICE_ATTR_RO(hdr_cap2);
+static DEVICE_ATTR_RO(hdr_cap_rx);
 
 static ssize_t _show_dv_cap(struct device *dev,
 			    struct device_attribute *attr,
@@ -680,7 +660,7 @@ static ssize_t _show_dv_cap(struct device *dev,
 	return pos;
 }
 
-static ssize_t dv_cap_show(struct device *dev,
+static ssize_t dv_cap_rx_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
@@ -691,20 +671,7 @@ static ssize_t dv_cap_show(struct device *dev,
 	return _show_dv_cap(dev, attr, buf, dv, PAGE_SIZE);
 }
 
-static DEVICE_ATTR_RO(dv_cap);
-
-static ssize_t dv_cap2_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
-{
-	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-	const struct dv_info *dv2 = &tx_comm->rxcap.dv_info2;
-
-	return _show_dv_cap(dev, attr, buf, dv2, PAGE_SIZE);
-}
-
-static DEVICE_ATTR_RO(dv_cap2);
+static DEVICE_ATTR_RO(dv_cap_rx);
 
 static ssize_t frac_rate_policy_store(struct device *dev,
 				struct device_attribute *attr,
@@ -1113,7 +1080,6 @@ static ssize_t _dc_cap_show(struct device *dev,
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 	struct rx_cap *prxcap = &tx_comm->rxcap;
 	const struct dv_info *dv =  &prxcap->dv_info;
-	const struct dv_info *dv2 = &prxcap->dv_info2;
 	int i;
 
 	/* DVI case, only rgb,8bit */
@@ -1137,13 +1103,10 @@ static ssize_t _dc_cap_show(struct device *dev,
 
 	if (prxcap->native_Mode & (1 << 5)) {
 		if (prxcap->dc_y444) {
-			if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
-			    dv2->sup_10b_12b_444 == 0x2)
+			if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)
 				pos += snprintf(buf + pos, size - pos, "444,12bit\n");
-			if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
-			    dv2->sup_10b_12b_444 == 0x1) {
+			if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1)
 				pos += snprintf(buf + pos, size - pos, "444,10bit\n");
-			}
 		}
 		pos += snprintf(buf + pos, size - pos, "444,8bit\n");
 	}
@@ -1151,11 +1114,9 @@ static ssize_t _dc_cap_show(struct device *dev,
 	if (prxcap->native_Mode & (1 << 4))
 		pos += snprintf(buf + pos, size - pos, "422,12bit\n");
 
-	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
-	    dv2->sup_10b_12b_444 == 0x2)
+	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)
 		pos += snprintf(buf + pos, size - pos, "rgb,12bit\n");
-	if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
-	    dv2->sup_10b_12b_444 == 0x1)
+	if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1)
 		pos += snprintf(buf + pos, size - pos, "rgb,10bit\n");
 	pos += snprintf(buf + pos, size - pos, "rgb,8bit\n");
 	return pos;
@@ -2966,10 +2927,8 @@ int hdmitx_sysfs_common_create(struct device *dev,
 	ret = device_create_file(dev, &dev_attr_support_3d);
 	ret = device_create_file(dev, &dev_attr_allm_cap);
 	ret = device_create_file(dev, &dev_attr_contenttype_cap);
-	ret = device_create_file(dev, &dev_attr_hdr_cap);
-	ret = device_create_file(dev, &dev_attr_hdr_cap2);
-	ret = device_create_file(dev, &dev_attr_dv_cap);
-	ret = device_create_file(dev, &dev_attr_dv_cap2);
+	ret = device_create_file(dev, &dev_attr_hdr_cap_rx);
+	ret = device_create_file(dev, &dev_attr_dv_cap_rx);
 	ret = device_create_file(dev, &dev_attr_sink_type);
 
 	ret = device_create_file(dev, &dev_attr_phy);
@@ -3057,10 +3016,8 @@ int hdmitx_sysfs_common_destroy(struct device *dev)
 	device_remove_file(dev, &dev_attr_support_3d);
 	device_remove_file(dev, &dev_attr_allm_cap);
 	device_remove_file(dev, &dev_attr_contenttype_cap);
-	device_remove_file(dev, &dev_attr_hdr_cap);
-	device_remove_file(dev, &dev_attr_hdr_cap2);
-	device_remove_file(dev, &dev_attr_dv_cap);
-	device_remove_file(dev, &dev_attr_dv_cap2);
+	device_remove_file(dev, &dev_attr_hdr_cap_rx);
+	device_remove_file(dev, &dev_attr_dv_cap_rx);
 	device_remove_file(dev, &dev_attr_sink_type);
 
 	device_remove_file(dev, &dev_attr_phy);

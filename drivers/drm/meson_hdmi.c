@@ -481,8 +481,6 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			/* step1: SW: edid parse */
 			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
 			hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
-			/* update the hdr/hdr10+/dv capabilities in the end of parse */
-			hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
 			/* step3：SW: update ced status */
 			hdmitx_common_notify_ced_status(tx_comm);
 		}
@@ -602,70 +600,51 @@ static enum drm_connector_status am_hdmitx_connector_detect
 		connector_status_connected : connector_status_disconnected;
 }
 
-static int _get_hdr_info(const struct hdr_info *hdr, enum hdmi_info_index hdr_info_index)
+static int _get_hdr_info(const struct hdr_info *hdr)
 {
 	int hdr_cap_value = 0;
-	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
 	const struct hdr10_plus_info *hdr10p = &hdr->hdr10plus_info;
-	unsigned int hdr_priority =  tx_comm->hdr_priority;
 
-	/* just mask hdr_cap's hdr capability */
-	if (hdr_priority == 2 && hdr_info_index == hdmi_info_1)
-		return 0;
-
+	/*
+	 * hdr_cap_value:
+	 *   bit0 SDR
+	 *   bit1 HDR
+	 *   bit2 SMPTE2084
+	 *   bit3 HLG
+	 *   bit4 HDR10PLUS
+	 */
+	hdr_cap_value = hdr->hdr_support;
 	/* hdr10plus_supported */
 	if (hdr10p->ieeeoui == HDR10_PLUS_IEEE_OUI &&
 		hdr10p->application_version != 0xFF)
-		hdr_cap_value |= 1 << 0;
-
-	/*
-	 *HDR Static Metadata:
-	 *Supported EOTF:
-	 */
-
-	/*Traditional SDR*/
-	hdr_cap_value |= (!!(hdr->hdr_support & 0x1)) << 1;
-
-	/*Traditional HDR*/
-	hdr_cap_value |= (!!(hdr->hdr_support & 0x2)) << 2;
-
-	/*SMPTE ST 2084*/
-	hdr_cap_value |= (!!(hdr->hdr_support & 0x4)) << 3;
-
-	/*Hybrid Log-Gamma*/
-	hdr_cap_value |= (!!(hdr->hdr_support & 0x8)) << 4;
-
-	/*Supported SMD type1*/
-	hdr_cap_value |= hdr->static_metadata_type1 << 5;
+		hdr_cap_value |= BIT(4);
 
 	return hdr_cap_value;
 }
 
 static int get_hdr_info(void)
 {
-	enum hdmi_info_index hdr_info_index = hdmi_info_1;
-	const struct hdr_info *hdr = hdmitx_common_get_hdr_info();
+	const struct hdr_info *hdr = NULL;
 
-	return _get_hdr_info(hdr, hdr_info_index);
+	hdmitx_set_hdr_priority(am_hdmi_info.hdmitx_dev->hdmitx_common,
+			am_hdmi_info.hdmitx_dev->hdmitx_common->hdr_priority,
+			&am_hdmi_info.hdr_info, &am_hdmi_info.dv_info);
+
+	hdr = &am_hdmi_info.hdr_info;
+
+	return _get_hdr_info(hdr);
 }
 
 static int get_hdr_info_rx(void)
 {
-	enum hdmi_info_index hdr_info_index = hdmi_info_2;
 	const struct hdr_info *hdr = hdmitx_common_get_hdr_info_rx();
 
-	return _get_hdr_info(hdr, hdr_info_index);
+	return _get_hdr_info(hdr);
 }
 
-static int __get_dv_info(const struct dv_info *dv, enum hdmi_info_index dv_info_index)
+static int __get_dv_info(const struct dv_info *dv)
 {
-	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
-	unsigned int hdr_priority = tx_comm->hdr_priority;
 	int dv_flag = 0;
-
-	/* just mask dv_cap's dv capability */
-	if (hdr_priority && dv_info_index == hdmi_info_1)
-		return 0;
 
 	/*The Rx don't support DolbyVision*/
 	if (dv->ieeeoui != DV_IEEE_OUI || dv->block_flag != CORRECT)
@@ -742,6 +721,8 @@ static int __get_dv_info(const struct dv_info *dv, enum hdmi_info_index dv_info_
 				dv_flag |= 1 << 7;
 			}
 		}
+
+		dv_flag |= (dv->parity ? 1 : 0) << 8;
 	}
 
 	return dv_flag;
@@ -749,18 +730,22 @@ static int __get_dv_info(const struct dv_info *dv, enum hdmi_info_index dv_info_
 
 static int get_dv_info(void)
 {
-	enum hdmi_info_index dv_info_index = hdmi_info_1;
-	const struct dv_info *dv = hdmitx_common_get_dv_info();
+	const struct dv_info *dv = NULL;
 
-	return __get_dv_info(dv, dv_info_index);
+	hdmitx_set_hdr_priority(am_hdmi_info.hdmitx_dev->hdmitx_common,
+			am_hdmi_info.hdmitx_dev->hdmitx_common->hdr_priority,
+			&am_hdmi_info.hdr_info, &am_hdmi_info.dv_info);
+
+	dv = &am_hdmi_info.dv_info;
+
+	return __get_dv_info(dv);
 }
 
 static int get_dv_info_rx(void)
 {
-	enum hdmi_info_index dv_info_index = hdmi_info_2;
 	const struct dv_info *dv = hdmitx_common_get_dv_info_rx();
 
-	return __get_dv_info(dv, dv_info_index);
+	return __get_dv_info(dv);
 }
 
 static int hdcp_rx_ver(void)
@@ -844,7 +829,6 @@ static int get_dc_cap(void)
 	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
 	struct rx_cap *prxcap = &tx_comm->rxcap;
 	const struct dv_info *dv =  &prxcap->dv_info;
-	const struct dv_info *dv2 = &prxcap->dv_info2;
 	int i, dc_cap_mask = 0;
 
 	/* DVI case, only rgb,8bit */
@@ -871,12 +855,10 @@ static int get_dc_cap(void)
 
 	if (prxcap->native_Mode & (1 << 5)) {
 		if (prxcap->dc_y444) {
-			if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
-			    dv2->sup_10b_12b_444 == 0x2)
+			if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)
 				/* 444,12bit */
 				dc_cap_mask |= BIT(COLOR_YCBCR444_12BIT);
-			if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
-			    dv2->sup_10b_12b_444 == 0x1) {
+			if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1) {
 				/* 444,10bit */
 				dc_cap_mask |= BIT(COLOR_YCBCR444_10BIT);
 			}
@@ -889,12 +871,10 @@ static int get_dc_cap(void)
 		/* 422,12bit */
 		dc_cap_mask |= BIT(COLOR_YCBCR422_12BIT);
 
-	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
-	    dv2->sup_10b_12b_444 == 0x2)
+	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)
 		/* rgb,12bit */
 		dc_cap_mask |= BIT(COLOR_RGB_12BIT);
-	if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
-	    dv2->sup_10b_12b_444 == 0x1)
+	if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1)
 		/* rgb,10bit */
 		dc_cap_mask |= BIT(COLOR_RGB_10BIT);
 	/* rgb,8bit */
@@ -975,7 +955,7 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->hdr_cap_property) {
 		*val = get_hdr_info();
 		return 0;
-	} else if (property == am_hdmi->hdr_cap_rx_prop) {
+	} else if (property == am_hdmi->hdr_cap_rx_property) {
 		*val = get_hdr_info_rx();
 		return 0;
 	} else if (property == am_hdmi->dv_cap_property) {
@@ -1575,9 +1555,14 @@ static const struct drm_connector_funcs am_hdmi_connector_funcs = {
 static int meson_hdmitx_update_dv_eotf(struct drm_display_mode *mode,
 	u8 *crtc_eotf_type)
 {
-	const struct dv_info *dvcap = hdmitx_common_get_dv_info();
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+	const struct dv_info *dvcap = NULL;
 	u8 dv_types = 0;
 	u8 eotf_type = *crtc_eotf_type;
+
+	hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority,
+			&am_hdmi_info.hdr_info, &am_hdmi_info.dv_info);
+	dvcap = &am_hdmi_info.dv_info;
 
 	if (dvcap->ieeeoui != DV_IEEE_OUI || dvcap->block_flag != CORRECT)
 		return -ENODEV;
@@ -1630,7 +1615,12 @@ static int meson_hdmitx_update_hdr_eotf(struct drm_display_mode *mode,
 	/*refer to sink_hdr_support()*/
 	const u8 hdr10_bit = BIT(2);
 	const u8 hlg_bit = BIT(3);
-	const struct hdr_info *hdrcap = hdmitx_common_get_hdr_info();
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+	const struct hdr_info *hdrcap = NULL;
+
+	hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority,
+			&am_hdmi_info.hdr_info, &am_hdmi_info.dv_info);
+	hdrcap = &am_hdmi_info.hdr_info;
 
 	/*hdr core can support all the hdr types.*/
 	if ((hdrcap->hdr_support & hdr10_bit) ||
@@ -1984,7 +1974,9 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	if (!meson_crtc_state->seamless) {
 		hdmitx_set_hdr_priority(am_hdmi_info.hdmitx_dev->hdmitx_common,
-					meson_conn_state->hdr_priority);
+					meson_conn_state->hdr_priority,
+					&am_hdmi_info.hdr_info,
+					&am_hdmi_info.dv_info);
 
 		meson_vout_notify_mode_change(amcrtc->vout_index,
 					      vmode, EVENT_MODE_SET_START);
@@ -2351,7 +2343,7 @@ static void meson_hdmitx_init_dv_cap_property(struct drm_device *drm_dev,
 	struct drm_property *prop;
 
 	prop = drm_property_create_range(drm_dev, 0,
-			"dv_cap", 0, 256);
+			"dv_cap", 0, 512);
 
 	if (prop) {
 		am_hdmi->dv_cap_property = prop;
@@ -2367,7 +2359,7 @@ static void meson_hdmitx_init_dv_cap_rx_property(struct drm_device *drm_dev,
 	struct drm_property *prop;
 
 	prop = drm_property_create_range(drm_dev, 0,
-			"dv_cap_rx", 0, 256);
+			"dv_cap_rx", 0, 512);
 
 	if (prop) {
 		am_hdmi->dv_cap_rx_property = prop;
@@ -2548,7 +2540,7 @@ static void meson_hdmitx_init_hdr_cap_rx_property(struct drm_device *drm_dev,
 			"hdr_cap_rx", 0, 64);
 
 	if (prop) {
-		am_hdmi->hdr_cap_rx_prop = prop;
+		am_hdmi->hdr_cap_rx_property = prop;
 		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
 	} else {
 		DRM_ERROR("Failed to hdr_cap_rx property\n");

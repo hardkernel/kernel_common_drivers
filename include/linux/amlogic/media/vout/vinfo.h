@@ -346,7 +346,6 @@ struct dv_info {
 };
 
 struct vout_device_s {
-	const struct dv_info *dv_info;
 	void (*fresh_tx_hdr_pkt)(struct master_display_info_s *data);
 	void (*fresh_tx_sbtm_pkt)(struct vtem_sbtm_st *data);
 	void (*fresh_tx_vsif_pkt)(enum eotf_type type,
@@ -413,10 +412,12 @@ struct vinfo_s {
 	unsigned int viu_mux;
 	struct master_display_info_s master_display_info;
 	struct vtem_sbtm_st sbtm_pkt;
+	struct dv_info dv_info;
 	struct hdr_info hdr_info;
 	struct rx_av_latency rx_latency;
 	struct vout_device_s *vout_device;
-	/* new parameters for s5 or later
+	/*
+	 * new parameters for s5 or later
 	 * if current output is FRL or DSC mode,
 	 * then there may use 2 or 4 slices pixel per clock.
 	 * the default value is 0 or 1.

@@ -487,12 +487,41 @@ static ssize_t vout2_vinfo_show(const struct class *class,
 		info->master_display_info.white_point[1],
 		info->master_display_info.luminance[0],
 		info->master_display_info.luminance[1]);
+
+	len += sprintf(buf + len, "dv_info:\n"
+		"    ieeeoui                0x%06x\n"
+		"    ver                    %d\n"
+		"    length                 %d\n"
+		"    sup_422_12bit_sink_led %d\n"
+		"    sup_2160p60hz          %d\n"
+		"    sup_1080p120hz         %d\n"
+		"    sup_global_dimming     %d\n"
+		"    dv_emp_cap             %d\n"
+		"    low_latency            %d\n\n",
+		info->dv_info.ieeeoui,
+		info->dv_info.ver,
+		info->dv_info.length,
+		info->dv_info.sup_yuv422_12bit,
+		info->dv_info.sup_2160p60hz,
+		info->dv_info.sup_1080p120hz,
+		info->dv_info.sup_global_dimming,
+		info->dv_info.dv_emp_cap,
+		info->dv_info.low_latency);
+
 	len += sprintf(buf + len, "hdr_static_info:\n"
 		"    hdr_support           %d\n"
+		"      hlg_support         %d\n"
+		"      hdr10_support       %d\n"
+		"      hdr_support         %d\n"
+		"      sdr_support         %d\n"
 		"    lumi_max              %d\n"
 		"    lumi_avg              %d\n"
 		"    lumi_min              %d\n",
 		info->hdr_info.hdr_support,
+		(info->hdr_info.hdr_support & 0x8) >> 3,
+		(info->hdr_info.hdr_support & 0x4) >> 2,
+		(info->hdr_info.hdr_support & 0x2) >> 1,
+		info->hdr_info.hdr_support & 0x1,
 		info->hdr_info.lumi_max,
 		info->hdr_info.lumi_avg,
 		info->hdr_info.lumi_min);

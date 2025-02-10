@@ -178,12 +178,6 @@ struct rx_cap {
 	u32 vrr_min;
 	struct hdr_info hdr_info;
 	struct dv_info dv_info;
-	/* When hdr_priority is 1, then dv_info will be all 0;
-	 * when hdr_priority is 2, then dv_info/hdr_info will be all 0
-	 * App won't get real dv_cap/hdr_cap, but can get real dv_cap2/hdr_cap2
-	 */
-	struct hdr_info hdr_info2;
-	struct dv_info dv_info2;
 	u8 IDManufacturerName[4];
 	u8 IDProductCode[2];
 	u8 IDSerialNumber[4];

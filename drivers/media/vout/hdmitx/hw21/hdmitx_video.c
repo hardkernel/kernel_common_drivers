@@ -130,7 +130,7 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 				VT_HDMI14_4K, 0, NULL);
 		}
 		/* if TV support traditional SDR, then enable hdr.sdr packet by default */
-		if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) {
+		if (hdev->tx_comm.rxcap.hdr_info.hdr_support & 0x1) {
 			/*
 			 * only for hdr.sdr packet send after mode setting,
 			 * for sync purpose, should not use work queue,

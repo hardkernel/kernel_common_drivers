@@ -523,7 +523,8 @@ int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16]);
 int hdmitx_get_hdrinfo(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo);
 int hdmitx_get_hdrinfo_rx(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo);
 
-int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority);
+int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority,
+		struct hdr_info *hdr_info, struct dv_info *dv_info);
 int hdmitx_get_hdr_priority(struct hdmitx_common *tx_comm, u32 *hdr_priority);
 void hdmitx_hdr_state_init(struct hdmitx_common *tx_comm);
 bool hdmitx_hdr_en(struct hdmitx_hw_common *tx_hw);

@@ -450,7 +450,6 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 	struct rx_cap *prxcap = &tx_comm->rxcap;
 	const struct dv_info *dv = &prxcap->dv_info;
-	const struct dv_info *dv2 = &prxcap->dv_info2;
 	const struct hdr_info *hdr = &prxcap->hdr_info;
 	const struct cuva_info *cuva = &hdr->cuva_info;
 	const struct hdr10_plus_info *hdr10p = &hdr->hdr10plus_info;
@@ -521,13 +520,10 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 
 		if (prxcap->native_Mode & (1 << 5)) {
 			if (prxcap->dc_y444) {
-				if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
-					dv2->sup_10b_12b_444 == 0x2)
+				if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)
 					seq_puts(s, "444,12bit\n");
-				if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
-					dv2->sup_10b_12b_444 == 0x1) {
+				if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1)
 					seq_puts(s, "444,10bit\n");
-				}
 			}
 			seq_puts(s, "444,8bit\n");
 		}
@@ -535,11 +531,9 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 		if (prxcap->native_Mode & (1 << 4))
 			seq_puts(s, "422,12bit\n");
 
-		if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
-			dv2->sup_10b_12b_444 == 0x2)
+		if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)
 			seq_puts(s, "rgb,12bit\n");
-		if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
-			dv2->sup_10b_12b_444 == 0x1)
+		if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1)
 			seq_puts(s, "rgb,10bit\n");
 		seq_puts(s, "rgb,8bit\n");
 	}
@@ -593,67 +587,67 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 	mutex_unlock(&tx_comm->valid_mutex);
 
 	seq_puts(s, "\n******dv_cap******\n");
-	if (dv2->ieeeoui != DV_IEEE_OUI || dv2->block_flag != CORRECT) {
+	if (dv->ieeeoui != DV_IEEE_OUI || dv->block_flag != CORRECT) {
 		seq_puts(s, "The Rx don't support DolbyVision\n");
 	} else {
 		seq_puts(s, "DolbyVision RX support list:\n");
 
-		if (dv2->ver == 0) {
-			seq_printf(s, "VSVDB Version: V%d\n", dv2->ver);
-			seq_printf(s, "2160p%shz: 1\n", dv2->sup_2160p60hz ? "60" : "30");
+		if (dv->ver == 0) {
+			seq_printf(s, "VSVDB Version: V%d\n", dv->ver);
+			seq_printf(s, "2160p%shz: 1\n", dv->sup_2160p60hz ? "60" : "30");
 			seq_puts(s, "Support mode:\n");
 			seq_puts(s, "  DV_RGB_444_8BIT\n");
-			if (dv2->sup_yuv422_12bit)
+			if (dv->sup_yuv422_12bit)
 				seq_puts(s, "  DV_YCbCr_422_12BIT\n");
 		}
-		if (dv2->ver == 1) {
+		if (dv->ver == 1) {
 			seq_printf(s, "VSVDB Version: V%d(%d-byte)\n",
-				dv2->ver, dv->length + 1);
-			if (dv2->length == 0xB) {
+				dv->ver, dv->length + 1);
+			if (dv->length == 0xB) {
 				seq_printf(s, "2160p%shz: 1\n",
-					dv2->sup_2160p60hz ? "60" : "30");
+					dv->sup_2160p60hz ? "60" : "30");
 			seq_puts(s, "Support mode:\n");
 			seq_puts(s, "  DV_RGB_444_8BIT\n");
-			if (dv2->sup_yuv422_12bit)
+			if (dv->sup_yuv422_12bit)
 				seq_puts(s, "  DV_YCbCr_422_12BIT\n");
-			if (dv2->low_latency == 0x01)
+			if (dv->low_latency == 0x01)
 				seq_puts(s, "  LL_YCbCr_422_12BIT\n");
 			}
 
-			if (dv2->length == 0xE) {
+			if (dv->length == 0xE) {
 				seq_printf(s, "2160p%shz: 1\n",
-					dv2->sup_2160p60hz ? "60" : "30");
+					dv->sup_2160p60hz ? "60" : "30");
 				seq_puts(s, "Support mode:\n");
 				seq_puts(s, "  DV_RGB_444_8BIT\n");
-				if (dv2->sup_yuv422_12bit)
+				if (dv->sup_yuv422_12bit)
 					seq_puts(s, "  DV_YCbCr_422_12BIT\n");
 			}
 		}
-		if (dv2->ver == 2) {
+		if (dv->ver == 2) {
 			seq_printf(s, "VSVDB Version: V%d\n", dv->ver);
 			seq_printf(s, "2160p%shz: 1\n",
-				dv2->sup_2160p60hz ? "60" : "30");
+				dv->sup_2160p60hz ? "60" : "30");
 			seq_printf(s, "Parity: %d\n", dv->parity);
 			seq_puts(s, "Support mode:\n");
-			if (dv2->Interface != 0x00 && dv->Interface != 0x01) {
+			if (dv->Interface != 0x00 && dv->Interface != 0x01) {
 				seq_puts(s, "  DV_RGB_444_8BIT\n");
-				if (dv2->sup_yuv422_12bit)
+				if (dv->sup_yuv422_12bit)
 					seq_puts(s, "  DV_YCbCr_422_12BIT\n");
 			}
 			seq_puts(s, "  LL_YCbCr_422_12BIT\n");
-			if (dv2->Interface == 0x01 || dv2->Interface == 0x03) {
-				if (dv2->sup_10b_12b_444 == 0x1)
+			if (dv->Interface == 0x01 || dv->Interface == 0x03) {
+				if (dv->sup_10b_12b_444 == 0x1)
 					seq_puts(s, "  LL_RGB_444_10BIT\n");
-				if (dv2->sup_10b_12b_444 == 0x2)
+				if (dv->sup_10b_12b_444 == 0x2)
 					seq_puts(s, "  LL_RGB_444_12BIT\n");
 			}
 		}
 		seq_printf(s,
-			"IEEEOUI: 0x%06x\n", dv2->ieeeoui);
-		seq_printf(s, "EMP: %d\n", dv2->dv_emp_cap);
+			"IEEEOUI: 0x%06x\n", dv->ieeeoui);
+		seq_printf(s, "EMP: %d\n", dv->dv_emp_cap);
 		seq_puts(s, "VSVDB: ");
-		for (i = 0; i < (dv2->length + 1); i++)
-			seq_printf(s, "%02x", dv2->rawdata[i]);
+		for (i = 0; i < (dv->length + 1); i++)
+			seq_printf(s, "%02x", dv->rawdata[i]);
 		seq_puts(s, "\n");
 	}
 

@@ -10,10 +10,6 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
 #include <linux/amlogic/media/vout/hdmi_tx_repeater.h>
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-#include <linux/amlogic/media/amvecm/amvecm.h>
-#endif
-
 #include "hdmitx_log.h"
 #include "hdmitx_check_valid.h"
 
@@ -23,7 +19,6 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data);
 /*!!Only one instance supported.*/
 static struct hdmitx_common *global_tx_common;
 static struct hdmitx_hw_common *global_tx_hw;
-static const struct dv_info dv_dummy;
 
 void hdmi_physical_size_to_vinfo(struct hdmitx_common *tx_comm)
 {
@@ -45,25 +40,6 @@ void hdmi_physical_size_to_vinfo(struct hdmitx_common *tx_comm)
 	}
 }
 
-void set_dummy_dv_info(struct vout_device_s *vdev)
-{
-	vdev->dv_info = &dv_dummy;
-};
-
-void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_common *tx_comm)
-{
-	memcpy(hdrinfo, &tx_comm->rxcap.hdr_info, sizeof(struct hdr_info));
-	hdrinfo->colorimetry_support = tx_comm->rxcap.colorimetry_data;
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
-	if (!is_hdr10plus_enable()) {
-		hdrinfo->hdr10plus_info.ieeeoui = 0;
-		hdrinfo->hdr10plus_info.length = 0;
-		hdrinfo->hdr10plus_info.application_version = 0;
-	}
-#endif
-}
-
 void rxlatency_to_vinfo(struct hdmitx_common *tx_comm)
 {
 	struct vinfo_s *info = &tx_comm->hdmitx_vinfo;
@@ -78,10 +54,7 @@ void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm)
 {
 	struct vinfo_s *info = &tx_comm->hdmitx_vinfo;
 	struct hdmi_format_para *para = &tx_comm->fmt_para;
-	struct vout_device_s *vdev = tx_comm->vdev;
 	struct rx_cap *prxcap = &tx_comm->rxcap;
-
-	hdrinfo_to_vinfo(&info->hdr_info, tx_comm);
 
 	/* if currently config_csc_en is true, and EDID
 	 * support 422, Need to switch small mode in output
@@ -96,7 +69,6 @@ void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm)
 	}
 
 	rxlatency_to_vinfo(tx_comm);
-	vdev->dv_info = &tx_comm->rxcap.dv_info;
 	hdmi_physical_size_to_vinfo(tx_comm);
 	memcpy(info->hdmichecksum, tx_comm->rxcap.hdmichecksum, 10);
 }
@@ -104,11 +76,10 @@ void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm)
 void edidinfo_detach_to_vinfo(struct hdmitx_common *tx_comm)
 {
 	struct vinfo_s *info = &tx_comm->hdmitx_vinfo;
-	struct vout_device_s *vdev = tx_comm->vdev;
 
+	memset(&info->dv_info, 0, sizeof(info->dv_info));
 	memset(&info->hdr_info, 0, sizeof(info->hdr_info));
 	memset(&info->rx_latency, 0, sizeof(info->rx_latency));
-	vdev->dv_info = &dv_dummy;
 
 	info->screen_real_width = 0;
 	info->screen_real_height = 0;
@@ -511,6 +482,11 @@ struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 {
 	global_tx_common->hdmitx_vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_HDMIA_A
 		+ global_tx_common->enc_idx;
+	/* update hdr_info and dv_info */
+	hdmitx_set_hdr_priority(global_tx_common, global_tx_common->hdr_priority,
+			&global_tx_common->hdmitx_vinfo.hdr_info,
+			&global_tx_common->hdmitx_vinfo.dv_info);
+
 	return &global_tx_common->hdmitx_vinfo;
 }
 
@@ -667,9 +643,6 @@ static void hdmitx_bootup_parse_edid(struct hdmitx_common *tx_comm)
 	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
 	hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
 	hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
-
-	/* update the hdr/hdr10+/dv capabilities in the end of parse */
-	hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
 
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 }
