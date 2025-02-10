@@ -514,6 +514,8 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 				else
 					LCDERR("[%d]: no ext_%d power off\n", pdrv->index, index);
 			}
+			if (edrv->exit_break)
+				return;
 			break;
 #endif
 		case LCD_POWER_TYPE_WAIT_GPIO:
@@ -631,6 +633,8 @@ static void lcd_mode_switch_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 				else
 					LCDERR("[%d]: no ext_%d power off\n", pdrv->index, index);
 			}
+			if (edrv->exit_break)
+				return;
 			break;
 #endif
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
@@ -708,6 +712,8 @@ static void lcd_mode_switch_data_on(struct aml_lcd_drv_s *pdrv)
 				LCDERR("[%d]: no ext_%d power on\n", pdrv->index, index);
 			local_time[1] = sched_clock();
 			pdrv->proc_time.extern_init_time = local_time[1] - local_time[0];
+			if (edrv->exit_break)
+				return;
 			break;
 #endif
 		case LCD_POWER_TYPE_MUTE:

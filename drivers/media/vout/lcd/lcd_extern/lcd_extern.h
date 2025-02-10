@@ -52,7 +52,7 @@ unsigned int lcd_extern_gpio_get(struct lcd_extern_driver_s *edrv, unsigned char
 void lcd_extern_pinmux_set(struct lcd_extern_driver_s *edrv, int status);
 
 void lcd_extern_check_add(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev,
-		int cmd_step, unsigned char *data_buf, unsigned char data_len);
+		int cmd_step, unsigned char type, unsigned char *data_buf, unsigned char data_len);
 void lcd_extern_check_handler(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev,
 		struct i2c_client *i2client, unsigned char cmd_type,
 		unsigned char *raw_table, unsigned char data_len);
@@ -64,6 +64,8 @@ int lcd_extern_cmd_wait_gpio(struct lcd_extern_driver_s *edrv, struct lcd_extern
 		int cmd_step, unsigned char *data_buf, unsigned char data_len);
 int lcd_extern_cmd_delay(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev,
 		int cmd_step, unsigned char *data_buf, unsigned char data_len);
+int lcd_extern_cmd_exit(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev,
+			int cmd_step, unsigned char break_flag);
 int lcd_extern_cmd_i2c(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev,
 			int cmd_step, unsigned char cmd_type,
 			unsigned char *data_buf, unsigned char data_len);
