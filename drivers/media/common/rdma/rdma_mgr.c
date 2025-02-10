@@ -1663,8 +1663,8 @@ u32 rdma_part_read_reg(int tbl_index, int handle, u32 adr)
 {
 	int i, j = 0;
 	int match = 0;
-#ifdef DEBUG_RDMA_OPTIMIZE
 	u32 *write_table;
+#ifdef DEBUG_RDMA_OPTIMIZE
 	int match_oth = 0;
 #endif
 	int read_from = 0;
@@ -1701,7 +1701,7 @@ u32 rdma_part_read_reg(int tbl_index, int handle, u32 adr)
 		}
 #ifdef DEBUG_RDMA_OPTIMIZE
 	}
-
+#endif
 	/* changed to read from rdma_table_adr to mirror for optimize */
 	if (!match) {
 		write_table = ins->rdma_table_mirror;
@@ -1715,7 +1715,6 @@ u32 rdma_part_read_reg(int tbl_index, int handle, u32 adr)
 			}
 		}
 	}
-#endif
 	if (rdma_trace_enable) {
 		for (j = 0; j < rdma_trace_num; j++) {
 			if (adr == rdma_trace_reg[j]) {
@@ -1861,9 +1860,9 @@ EXPORT_SYMBOL(rdma_part_write_reg);
 int rdma_part_write_reg_bits(int tbl_index, int handle, u32 adr, u32 val, u32 start, u32 len)
 {
 	int i, j = 0;
-#ifdef DEBUG_RDMA_OPTIMIZE
 	u32 *write_table;
 	int match_oth = 0;
+#ifdef DEBUG_RDMA_OPTIMIZE
 	u32 oth_val = 0;
 #endif
 	int match = 0;
@@ -1923,7 +1922,6 @@ int rdma_part_write_reg_bits(int tbl_index, int handle, u32 adr, u32 val, u32 st
 			break;
 		}
 	}
-#ifdef DEBUG_RDMA_OPTIMIZE
 	/* changed to read from rdma_table_adr to mirror for optimize */
 	if (!match) {
 		write_table = ins->rdma_table_mirror;
@@ -1939,7 +1937,6 @@ int rdma_part_write_reg_bits(int tbl_index, int handle, u32 adr, u32 val, u32 st
 			}
 		}
 	}
-#endif
 	write_val = (read_val & ~(((1L << (len)) - 1) << (start))) |
 			((unsigned int)(val) << (start));
 #ifdef DEBUG_RDMA_OPTIMIZE
