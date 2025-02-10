@@ -1,31 +1,7 @@
-// ------------------------------------------------------------------------
-//
-//              (C) COPYRIGHT 2014 - 2015 SYNOPSYS, INC.
-//
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License version 2
-// as published by the Free Software Foundation.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-//
-// ------------------------------------------------------------------------
-//
-// Project:
-//
-// ESM Host Library
-//
-// Description:
-//
-// ESM Host Library Driver: Linux kernel module
-//
-// ------------------------------------------------------------------------
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -39,7 +15,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
-#include "hdcp.h"
+#include "esm_hdcp_tx.h"
 
 #define ELP_DEBUG()	pr_info("esm %s[%d]\n", __func__, __LINE__)
 
@@ -266,7 +242,6 @@ static struct dentry *esm_debugfs;
 
 static void free_dma_areas(struct esm_device *esm)
 {
-
 	if (!esm->code_is_phys_mem && esm->code) {
 		dma_free_coherent(NULL, esm->code_size, esm->code,
 				esm->code_base);
@@ -464,12 +439,12 @@ static long hld_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	return -ENOTTY;
 }
 
-int __init esm_init(void)
+int esm_init(void)
 {
 	return misc_register(&hld_device);
 }
 
-void __exit esm_exit(void)
+void  esm_exit(void)
 {
 	int i;
 
@@ -478,10 +453,6 @@ void __exit esm_exit(void)
 	for (i = 0; i < MAX_ESM_DEVICES; i++)
 		free_esm_slot(&esm_devices[i]);
 }
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Synopsys, Inc.");
-MODULE_DESCRIPTION("ESM Linux Host Library Driver");
 
 __module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Enable (1) or disable (0) the debug traces.");

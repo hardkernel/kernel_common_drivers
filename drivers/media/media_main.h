@@ -70,16 +70,6 @@ static inline int amhdmitx_init(void)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_ESM
-int esm_init(void);
-#else
-static inline int esm_init(void)
-{
-	return 0;
-}
-
-#endif
-
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 int hdmirx_init(void);
 int hld_init(void);

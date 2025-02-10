@@ -2,6 +2,7 @@
 
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_video.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_audio.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/esm_hdcp_tx.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hdcp.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_scdc.o
 

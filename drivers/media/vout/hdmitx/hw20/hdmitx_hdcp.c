@@ -1011,6 +1011,7 @@ int hdmitx20_hdcp_init(struct hdmitx_dev *hdev)
 		return -ENODEV;
 	}
 
+	esm_init();
 	memset(&hdcplog_buf, 0, sizeof(hdcplog_buf));
 	init_waitqueue_head(&hdcplog_buf.wait);
 
@@ -1042,6 +1043,7 @@ void hdmitx20_hdcp_exit(struct hdmitx_dev *hdev)
 		kfree(tx_comm->topo_info);
 		tx_comm->topo_info = NULL;
 	}
+	esm_exit();
 }
 
 MODULE_PARM_DESC(hdmi_authenticated, "\n hdmi_authenticated\n");

@@ -105,5 +105,8 @@ void drm_hdmitx_hdcp22_init(void);
 void drm_hdmitx_enable_hdcp_mode(unsigned int content_type);
 void drm_hdmitx_disable_hdcp_mode(unsigned int content_type);
 
+int esm_init(void);
+void esm_exit(void);
+
 #endif
 

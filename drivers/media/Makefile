@@ -16,7 +16,6 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/frame_sync/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/gdc/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/cec/Makefile
-include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/esm/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/atv_demod/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/avsync/Makefile
