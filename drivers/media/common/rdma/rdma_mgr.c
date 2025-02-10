@@ -820,6 +820,17 @@ void part_table_combine_to_reg_buf(int handle)
 			if (info->rdma_part_ins[vpp_index][i].flag) {
 				if (!info->rdma_part_ins[vpp_index][i].rdma_item_count)
 					continue;
+				if ((ins->rdma_item_count +
+					info->rdma_part_ins[vpp_index][i].rdma_item_count) * 2 >=
+					ins->rdma_table_size / sizeof(u32)) {
+					pr_info("err:%s, line=%d, vpp_index=%d, i=%d, temp_combine_item=%p, rdma_item_count=%d, %d\n",
+						__func__, __LINE__,
+						vpp_index, i,
+						temp_combine_item,
+						ins->rdma_item_count,
+						info->rdma_part_ins[vpp_index][i].rdma_item_count);
+					break;
+				}
 				memcpy(temp_combine_item,
 					info->rdma_part_ins[vpp_index][i].rdma_item,
 					info->rdma_part_ins[vpp_index][i].rdma_item_count *
@@ -3062,7 +3073,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 	/* T7 lack rdma channel. So do not alloc EX_VSYNC_RDMA channel for 3 vppout */
 	if (rdma_meson_dev.rdma_ver != RDMA_VER_3) {
 		handle = rdma_register(get_rdma_ops(EX_VSYNC_RDMA),
-			NULL, RDMA_TABLE_SIZE);
+			NULL, rdma_table_size);
 		set_rdma_handle(EX_VSYNC_RDMA, handle);
 	}
 
