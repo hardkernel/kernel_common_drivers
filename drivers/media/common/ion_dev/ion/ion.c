@@ -23,7 +23,7 @@
 #include <linux/vmalloc.h>
 
 #include <linux/amlogic/ion.h>
-#include "../dev_ion.h"
+#include <linux/amlogic/media/dev_ion.h>
 
 static struct ion_device *internal_dev;
 static int heap_id;

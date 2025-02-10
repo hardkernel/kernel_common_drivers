@@ -16,7 +16,7 @@
 #include <linux/cma.h>
 
 #include <linux/amlogic/ion.h>
-#include "dev_ion.h"
+#include <linux/amlogic/media/dev_ion.h>
 
 #define MESON_MAX_ION_HEAP 8
 

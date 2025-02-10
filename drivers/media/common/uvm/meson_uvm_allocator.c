@@ -20,11 +20,11 @@
 #include <linux/dma-buf.h>
 #include <linux/pagemap.h>
 #include <linux/amlogic/ion.h>
-#include <dev_ion.h>
 #include <linux/dma-heap.h>
 #include <linux/dma-direction.h>
 #include <uapi/linux/dma-heap.h>
 
+#include <linux/amlogic/media/dev_ion.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
 #include <linux/amlogic/media/meson_uvm_allocator.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_WRAPPER

@@ -31,16 +31,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-map-ops.h>
 #include <linux/dma-buf.h>
-//#include <linux/ion.h>
-#include <dev_ion.h>
 #include <linux/fs.h>
 #include <linux/cma.h>
 //#include <linux/dma-contiguous.h>
 #include <linux/delay.h>
-#include "../common/ion_dev/dev_ion.h"
-//#include <linux/meson_ion.h>
 
 /* Amlogic Headers */
+#include <linux/amlogic/ion.h>
+#include <linux/amlogic/media/dev_ion.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 

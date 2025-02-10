@@ -15,7 +15,7 @@
 #include <linux/clk.h>
 #include <linux/uaccess.h>
 #ifdef CONFIG_AMLOGIC_ION
-#include <dev_ion.h>
+#include <linux/amlogic/media/dev_ion.h>
 #endif
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>

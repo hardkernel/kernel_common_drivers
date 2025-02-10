@@ -13,7 +13,7 @@
 #include <linux/amlogic/ion.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
-#include <dev_ion.h>
+#include <linux/amlogic/media/dev_ion.h>
 #include "meson_gem.h"
 #include <drm/drm_gem_dma_helper.h>
 #include <linux/iosys-map.h>

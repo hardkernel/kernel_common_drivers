@@ -26,7 +26,7 @@
 #include <linux/amlogic/media/ge2d/ge2d.h>
 #include <linux/platform_device.h>
 #ifdef CONFIG_AMLOGIC_ION
-#include <dev_ion.h>
+#include <linux/amlogic/media/dev_ion.h>
 #endif
 
 /* Local Headers */

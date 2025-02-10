@@ -24,7 +24,7 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/ion.h>
-#include <dev_ion.h>
+#include <linux/amlogic/media/dev_ion.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
