@@ -17,6 +17,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gcd.h>
 #include <linux/err.h>
 #ifdef CONFIG_AMLOGIC_VOUT
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -92,6 +93,11 @@
 
 #define DATA_ALIGNED_4(x)  (((x) + 3) & ~3)
 #define DATA_ALIGNED_DOWN_4(x)  ((x) & ~3)
+
+struct ar_frac_s {
+	int numerator;
+	int denominator;
+};
 
 struct filter_info_s {
 	u32 cur_vert_filter;
@@ -619,6 +625,7 @@ static int force_filter_mode = 1;
 /*temp disable sr for power test*/
 bool super_scaler = true;
 struct sr_info_s sr_info;
+#define USE_OLD_ASPECT_RATIO   2
 static unsigned int super_debug;
 static unsigned int scaler_path_sel = SCALER_PATH_MAX;
 static unsigned int bypass_spscl0;
@@ -1606,6 +1613,7 @@ bool get_uvm_open_nn(void)
 
 static int vpp_set_filters_internal
 	(struct disp_info_s *input,
+	struct ar_frac_s *ext_ar,
 	u32 width_in,
 	u32 height_in,
 	u32 wid_out,
@@ -1626,7 +1634,7 @@ static int vpp_set_filters_internal
 	struct vppfilter_mode_s *filter = &next_frame_par->vpp_filter;
 	u32 wide_mode;
 	s32 height_shift = 0;
-	u32 height_after_ratio = 0;
+	u32 height_after_ratio = 0, height10_after_ratio = 0;
 	u32 aspect_factor;
 	s32 ini_vphase;
 	u32 w_in = width_in;
@@ -1637,8 +1645,7 @@ static int vpp_set_filters_internal
 	u32 aspect_ratio_out =
 		(vinfo->aspect_ratio_den << 10) / vinfo->aspect_ratio_num;
 	bool fill_match = true;
-	u32 orig_aspect = 0;
-	u32 screen_aspect = 0;
+	u32 orig_aspect = 0, screen_aspect = 0;
 	bool skip_policy_check = true;
 	u32 vskip_step;
 	s32 video_layer_global_offset_x, video_layer_global_offset_y;
@@ -1659,7 +1666,7 @@ static int vpp_set_filters_internal
 	u32 crop_ratio = 1;
 	u32 crop_left, crop_right, crop_top, crop_bottom;
 	u32 sar_width = 0, sar_height = 0;
-	bool ext_sar = false;
+	bool use_sar = false;
 	bool no_compress = false;
 	u32 min_aspect_ratio_out, max_aspect_ratio_out;
 	u32 cur_super_debug = 0;
@@ -1679,6 +1686,13 @@ static int vpp_set_filters_internal
 	u8 id = 0;
 	u8 vpp_index = 0;
 	bool is_comb_mode = false;
+	struct ar_frac_s screen_ar = {0, 0};
+	struct ar_frac_s src_ar = {0, 0};
+	struct ar_frac_s orig_ar = {0, 0};
+	bool new_ar = false, new_aspect_ratio = false;
+	u32 gcd_val;
+	s64 r0;
+	u32 r1 = 0;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1686,6 +1700,10 @@ static int vpp_set_filters_internal
 	if (vpp_flags & VPP_FLAG_MORE_LOG)
 		cur_super_debug = super_debug;
 
+	if (super_debug & USE_OLD_ASPECT_RATIO)
+		new_aspect_ratio = false;
+	else
+		new_aspect_ratio = true;
 	id = input->layer_id;
 	vpp_index = vd_layer[id].vpp_index;
 	if (id == 1 && video_lcevc.preblend_en) {
@@ -1864,6 +1882,58 @@ static int vpp_set_filters_internal
 #endif
 #endif
 
+	orig_aspect = (vpp_flags & VPP_FLAG_AR_MASK) >> VPP_FLAG_AR_BITS;
+	if ((vpp_flags & VPP_FLAG_AR_MASK) == VPP_FLAG_AR_MASK) {
+		use_sar = true;
+		sar_width = vf->sar_width;
+		sar_height = vf->sar_height;
+	} else if (force_use_ext_ar) {
+		use_sar = true;
+		sar_width = 1;
+		sar_height = 1;
+	}
+
+	/* ext_ar will overwrite sar */
+	if (ext_ar && ext_ar->numerator && ext_ar->denominator) {
+		orig_ar.numerator = ext_ar->numerator;
+		orig_ar.denominator = ext_ar->denominator;
+		new_ar = true;
+		use_sar = false;
+	} else if (use_sar) {
+		orig_ar.numerator = sar_width * width_in;
+		orig_ar.denominator = sar_height * height_in;
+		new_ar = true;
+	}
+
+	if (!orig_ar.numerator || !orig_ar.denominator) {
+		use_sar = false;
+		new_ar = false;
+	}
+
+	if (use_sar) {
+		gcd_val = gcd(orig_ar.numerator, orig_ar.denominator);
+		if (cur_super_debug)
+			pr_info("layer%d: calc sar gcd: %d:%d %d\n",
+				input->layer_id,
+				orig_ar.numerator, orig_ar.denominator, gcd_val);
+		if (gcd_val) {
+			orig_ar.numerator /= gcd_val;
+			orig_ar.denominator /= gcd_val;
+		}
+	}
+	if (new_ar && orig_ar.numerator && orig_ar.denominator) {
+		/* re-calculate aspect_factor */
+		orig_aspect =
+			div_u64((u64)256ULL *
+			(u64)orig_ar.denominator,
+			(u32)orig_ar.numerator);
+	} else if (!new_ar) {
+		orig_ar.numerator = 0x100;
+		orig_ar.denominator = orig_aspect;
+	} else {
+		orig_aspect = 0;
+	}
+
 RESTART_ALL:
 	crop_left = video_source_crop_left / crop_ratio;
 	crop_right = video_source_crop_right / crop_ratio;
@@ -1986,77 +2056,74 @@ RESTART:
 			next_frame_par->hscale_skip_count,
 			hskip_adjust);
 
-	aspect_factor = (vpp_flags & VPP_FLAG_AR_MASK) >> VPP_FLAG_AR_BITS;
+	aspect_factor = orig_aspect;
+	src_ar = orig_ar;
 	/* don't use input->wide_mode */
 	wide_mode = (vpp_flags & VPP_FLAG_WIDEMODE_MASK) >> VPP_WIDEMODE_BITS;
-
-	if ((vpp_flags & VPP_FLAG_AR_MASK) == VPP_FLAG_AR_MASK) {
-		ext_sar = true;
-		sar_width = vf->sar_width;
-		sar_height = vf->sar_height;
-	} else if (force_use_ext_ar) {
-		ext_sar = true;
-		sar_width = 1;
-		sar_height = 1;
-	}
-
-	if (ext_sar && sar_width && sar_height && width_in) {
-		aspect_factor =
-			div_u64((u64)256ULL *
-			(u64)sar_height *
-			(u64)height_in,
-			(u32)(sar_width * width_in));
-	} else {
-		ext_sar = false;
-	}
+	if (cur_super_debug)
+		pr_info("%s(line:%d): aspect_factor=%d, src_ar=(%d:%d) wide_mode=%d, vpp_flags=0x%x\n",
+			__func__, __LINE__,
+			aspect_factor,
+			src_ar.numerator, src_ar.denominator,
+			wide_mode, vpp_flags);
 
 	/* special mode did not use ext sar mode */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
 	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T)
-		ext_sar = false;
+		use_sar = false;
 
 	/* keep 8 bits resolution for aspect conversion */
 	if (wide_mode == VIDEO_WIDEOPTION_4_3) {
-		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE)
+		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE) {
 			aspect_factor = 0x155;
-		else
+			src_ar.numerator = 3;
+			src_ar.denominator = 4;
+		} else {
 			aspect_factor = 0xc0;
+			src_ar.numerator = 4;
+			src_ar.denominator = 3;
+		}
 		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
 		    video_layer_width > 1 && video_layer_height > 1 &&
 		    (aspect_factor * video_layer_width == video_layer_height << 8))
 			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		else
 			wide_mode = VIDEO_WIDEOPTION_NORMAL;
-		ext_sar = false;
+		use_sar = false;
 	} else if (wide_mode == VIDEO_WIDEOPTION_16_9) {
-		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE)
+		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE) {
 			aspect_factor = 0x1c7;
-		else
+			src_ar.numerator = 9;
+			src_ar.denominator = 16;
+		} else {
 			aspect_factor = 0x90;
+			src_ar.numerator = 16;
+			src_ar.denominator = 9;
+		}
 		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
 		    video_layer_width > 1 && video_layer_height > 1 &&
 		    (aspect_factor * video_layer_width == video_layer_height << 8))
 			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		else
 			wide_mode = VIDEO_WIDEOPTION_NORMAL;
-		ext_sar = false;
+		use_sar = false;
 	} else if ((wide_mode >= VIDEO_WIDEOPTION_4_3_IGNORE) &&
 		   (wide_mode <= VIDEO_WIDEOPTION_4_3_COMBINED)) {
 		if (aspect_factor != 0xc0)
 			fill_match = false;
-
-		orig_aspect = aspect_factor;
+		screen_ar.numerator = 4;
+		screen_ar.denominator = 3;
 		screen_aspect = 0xc0;
-		ext_sar = false;
+		use_sar = false;
 	} else if ((wide_mode >= VIDEO_WIDEOPTION_16_9_IGNORE) &&
 		(wide_mode <= VIDEO_WIDEOPTION_16_9_COMBINED)) {
 		if (aspect_factor != 0x90)
 			fill_match = false;
-
-		orig_aspect = aspect_factor;
+		screen_ar.numerator = 16;
+		screen_ar.denominator = 9;
 		screen_aspect = 0x90;
-		ext_sar = false;
+		use_sar = false;
 	} else if (wide_mode == VIDEO_WIDEOPTION_CUSTOM) {
 		if (cur_super_debug)
 			pr_info("layer%d: wide_mode=%d, aspect_factor=%d, cur_custom_ar=%d\n",
@@ -2064,74 +2131,131 @@ RESTART:
 				aspect_factor, cur_custom_ar);
 		if (cur_custom_ar != 0) {
 			aspect_factor = cur_custom_ar & 0x3ff;
-			ext_sar = false;
+			src_ar.numerator = 0x100;
+			src_ar.denominator = aspect_factor;
+			use_sar = false;
 		}
 		wide_mode = VIDEO_WIDEOPTION_NORMAL;
 	} else if (wide_mode == VIDEO_WIDEOPTION_AFD) {
 		if (aspect_factor == 0x90) {
 			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
-			ext_sar = false;
+			use_sar = false;
 		} else {
 			wide_mode = VIDEO_WIDEOPTION_NORMAL;
 		}
 	} else if (wide_mode == VIDEO_WIDEOPTION_21_9) {
-		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE)
+		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE) {
 			aspect_factor = 0x255;
-		else
+			src_ar.numerator = 9;
+			src_ar.denominator = 21;
+		} else {
 			aspect_factor = 0x6E;
+			src_ar.numerator = 21;
+			src_ar.denominator = 9;
+		}
 		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
 		    video_layer_width > 1 && video_layer_height > 1 &&
 		    (9 * video_layer_width == video_layer_height * 21))
 			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		else
 			wide_mode = VIDEO_WIDEOPTION_NORMAL;
-		ext_sar = false;
+		use_sar = false;
 	}
 	/* if use the mode ar, will disable ext ar */
 
 	if (cur_super_debug)
-		pr_info("aspect_factor=%d,%d,%d,%d,%d,%d\n",
-			aspect_factor, w_in, height_out,
-			width_out, h_in, aspect_ratio_out >> 2);
+		pr_info("aspect_factor=%d,%d,%d,%d,%d,%d,(%d:%d)\n",
+			aspect_factor, w_in, h_in,
+			width_out, height_out,
+			aspect_ratio_out >> 2,
+			src_ar.numerator, src_ar.denominator);
 
-	if (aspect_factor == 0 ||
-	    wide_mode == VIDEO_WIDEOPTION_FULL_STRETCH ||
-	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
-	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T ||
-	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP) {
-		aspect_factor = 0x100;
-		height_after_ratio = h_in;
-	} else if (ext_sar) {
-		/* avoid the bit length overflow */
-		u64 tmp = (u64)((u64)(width_out * width_in) * aspect_ratio_out);
+	if (!new_aspect_ratio) {
+		if (aspect_factor == 0 ||
+		    wide_mode == VIDEO_WIDEOPTION_FULL_STRETCH ||
+		    wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
+		    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T ||
+		    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP) {
+			aspect_factor = 0x100;
+			src_ar.numerator = 1;
+			src_ar.denominator = 1;
+			height_after_ratio = h_in;
+		} else if (use_sar) {
+			/* avoid the bit length overflow */
+			u64 tmp = (u64)((u64)(width_out * width_in) * aspect_ratio_out);
 
-		tmp = tmp >> 4;
-		if (tmp != 0)
-			height_after_ratio =
-				div_u64((u64)64ULL *
-					(u64)w_in *
-					(u64)height_out *
-					(u64)sar_height *
-					(u64)height_in,
-					(u32)tmp);
-		height_after_ratio /= sar_width;
-		aspect_factor = (height_after_ratio << 8) / h_in;
-		if (cur_super_debug)
-			pr_info("ext_sar: aspect_factor=%d, %d,%d,%d,%d,%d\n",
-				aspect_factor, w_in, h_in,
-				height_after_ratio,
-				sar_width, sar_height);
+			tmp = tmp >> 4;
+			if (tmp != 0)
+				height_after_ratio =
+					div_u64((u64)64ULL *
+						(u64)w_in *
+						(u64)height_out *
+						(u64)sar_height *
+						(u64)height_in,
+						(u32)tmp);
+			height_after_ratio /= sar_width;
+			aspect_factor = (height_after_ratio << 8) / h_in;
+			if (cur_super_debug)
+				pr_info("use_sar: aspect_factor=%d, %d,%d,%d,%d,%d\n",
+					aspect_factor, w_in, h_in,
+					height_after_ratio,
+					sar_width, sar_height);
+		} else {
+			/* avoid the bit length overflow */
+			u64 tmp = (u64)((u64)(width_out * h_in) * aspect_ratio_out);
+
+			tmp = tmp >> 4;
+			if (tmp != 0)
+				aspect_factor =
+					div_u64((unsigned long long)w_in * height_out *
+						(aspect_factor << 6),
+						(u32)tmp);
+			height_after_ratio = (h_in * aspect_factor) >> 8;
+		}
 	} else {
-		/* avoid the bit length overflow */
-		u64 tmp = (u64)((u64)(width_out * h_in) * aspect_ratio_out);
+		height_after_ratio = h_in;
+		height10_after_ratio = height_after_ratio * 10;
+		if (aspect_factor == 0 ||
+		    wide_mode == VIDEO_WIDEOPTION_FULL_STRETCH ||
+		    wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
+		    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T ||
+		    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP) {
+			aspect_factor = 0x100;
+			src_ar.numerator = 1;
+			src_ar.denominator = 1;
+		} else {
+			u64 tmp = (u64)((u64)(width_out * src_ar.numerator) * aspect_ratio_out);
+			u64 tmp2 = 0;
 
-		tmp = tmp >> 4;
-		if (tmp != 0)
-			aspect_factor =
-				div_u64((unsigned long long)w_in * height_out *
-					(aspect_factor << 6),
-					(u32)tmp);
-		height_after_ratio = (h_in * aspect_factor) >> 8;
+			tmp = tmp >> 4;
+			if (tmp != 0) {
+				tmp2 = (u64)64ULL *
+						(u64)10ULL *
+						(u64)w_in *
+						(u64)height_out *
+						(u64)src_ar.denominator;
+				tmp2 += (tmp >> 1); /* + 0.5 */
+				height10_after_ratio = div_u64(tmp2, (u32)tmp);
+				height_after_ratio = (height10_after_ratio + 5) / 10;
+			}
+			aspect_factor = (height_after_ratio << 8) / h_in;
+			/* modify the value for h ratio */
+			src_ar.numerator = h_in * 10;
+			src_ar.denominator = height10_after_ratio;
+			gcd_val = gcd(src_ar.numerator, src_ar.denominator);
+			if (gcd_val) {
+				src_ar.numerator /= gcd_val;
+				src_ar.denominator /= gcd_val;
+			}
+			if (cur_super_debug)
+				pr_info("%s(line:%d): use src_ar: aspect_factor=%d,(%d:%d) h=(%d %d %d) 0x%llx/0x%llx\n",
+					__func__, __LINE__,
+					aspect_factor,
+					src_ar.numerator,
+					src_ar.denominator,
+					h_in, height_after_ratio, height10_after_ratio,
+					tmp2, tmp);
+		}
 	}
 
 	/*
@@ -2173,13 +2297,20 @@ RESTART:
 	/*aspect ratio match */
 	if (wide_mode >= VIDEO_WIDEOPTION_4_3_IGNORE &&
 	    wide_mode <= VIDEO_WIDEOPTION_16_9_COMBINED &&
-		orig_aspect) {
+	    orig_ar.numerator && orig_ar.denominator) {
 		if (!fill_match) {
 			u32 screen_ratio_x, screen_ratio_y;
 
 			screen_ratio_x = 1 << 18;
-			screen_ratio_y = (orig_aspect << 18) / screen_aspect;
-
+			if (!new_aspect_ratio)
+				screen_ratio_y = (orig_aspect << 18) / screen_aspect;
+			else
+				screen_ratio_y =
+					div_u64((u64)(1 << 18) *
+							(u64)screen_ar.numerator *
+							(u64)orig_ar.denominator,
+							(u32)(screen_ar.denominator *
+							orig_ar.numerator));
 			switch (wide_mode) {
 			case VIDEO_WIDEOPTION_4_3_LETTER_BOX:
 			case VIDEO_WIDEOPTION_16_9_LETTER_BOX:
@@ -2202,10 +2333,26 @@ RESTART:
 			default:
 				break;
 			}
-
 			ratio_x = screen_ratio_x * w_in / video_width;
-			ratio_y =	screen_ratio_y * h_in / orig_aspect *
-				screen_aspect / video_height;
+			if (!new_aspect_ratio) {
+				ratio_y = screen_ratio_y * h_in / orig_aspect;
+				ratio_y = ratio_y * screen_aspect / video_height;
+			} else {
+				ratio_y = div_u64((u64)screen_ratio_y *
+					(u64)h_in *
+					(u64)orig_ar.numerator *
+					(u64)screen_ar.denominator,
+					(u32)(screen_ar.numerator * orig_ar.denominator *
+					video_height));
+			}
+			if (cur_super_debug)
+				pr_info("layer%d: screen_ratio(%d %d) ratio(%d %d) orig_ar(%d:%d) screen_ar(%d:%d) h(%d %d)\n",
+					input->layer_id,
+					screen_ratio_x, screen_ratio_y,
+					ratio_x, ratio_y,
+					orig_ar.numerator, orig_ar.denominator,
+					screen_ar.numerator, screen_ar.denominator,
+					h_in, video_height);
 		} else {
 			screen_width = video_width * vpp_zoom_ratio / 100;
 			screen_height = video_height * vpp_zoom_ratio / 100;
@@ -2222,26 +2369,41 @@ RESTART:
 		if (screen_width * 2  < (w_in << 19) / ratio_x)
 			ratio_x++;
 
-		ratio_y = (height_after_ratio << 18) / screen_height;
+		if (!new_aspect_ratio)
+			ratio_y = (height_after_ratio << 18) / screen_height;
+		else
+			ratio_y = div_u64((u64)((u64)height10_after_ratio << 18),
+					(u32)(screen_height * 10));
 		if (cur_super_debug)
-			pr_info("layer%d: height_after_ratio=%d,%d,%d,%d,%d\n",
+			pr_info("layer%d: height_after_ratio=%d,%d,%d,%d,%d,(%d:%d)\n",
 				input->layer_id,
 				height_after_ratio, ratio_x, ratio_y,
-				aspect_factor, wide_mode);
-
+				aspect_factor, wide_mode,
+				src_ar.numerator, src_ar.denominator);
+		/* TODO: use ((w_in << 18) * src_ar.numerator) / */
+		/* (screen_width * src_ar.denominator) */
+		/* or ((height_after_ratio << 18) * src_ar.numerator) / */
+		/* (screen_height * src_ar.denominator) */
 		if (wide_mode == VIDEO_WIDEOPTION_NORMAL) {
 			ratio_x = max(ratio_x, ratio_y);
 			ratio_y = ratio_x;
-			if (ext_sar)
+			if (new_aspect_ratio) {
 				ratio_y =
 					div_u64((u64)ratio_y *
-						(u64)h_in,
-						(u32)height_after_ratio);
-			else
-				ratio_y =
-					div_u64((u64)ratio_y *
-						(u64)256ULL,
-						(u32)aspect_factor);
+						(u64)src_ar.numerator,
+						(u32)src_ar.denominator);
+			} else {
+				if (use_sar)
+					ratio_y =
+						div_u64((u64)ratio_y *
+							(u64)h_in,
+							(u32)height_after_ratio);
+				else
+					ratio_y =
+						div_u64((u64)ratio_y *
+							(u64)256ULL,
+							(u32)aspect_factor);
+			}
 		} else if (wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP) {
 			u32 r1, r2;
 
@@ -2249,17 +2411,26 @@ RESTART:
 				ratio_y = ratio_y * 2;
 
 			r1 = max(ratio_x, ratio_y);
-			r2 = (r1 << 8) / aspect_factor;
-
+			if (new_aspect_ratio)
+				r2 = (r1 * src_ar.numerator) / src_ar.denominator;
+			else
+				r2 = (r1 << 8) / aspect_factor;
 			if (!next_frame_par->nocomp &&
 				((r1 < (1 << 18)) || (r2 < (1 << 18)))) {
 				if (r1 < r2) {
 					ratio_x = 1 << 18;
-					ratio_y =
-					(ratio_x << 8) / aspect_factor;
+					if (new_aspect_ratio)
+						ratio_y = (ratio_x * src_ar.numerator) /
+							src_ar.denominator;
+					else
+						ratio_y = (ratio_x << 8) / aspect_factor;
 				} else {
 					ratio_y = 1 << 18;
-					ratio_x = aspect_factor << 10;
+					if (new_aspect_ratio)
+						ratio_x = (src_ar.denominator << 18) /
+							src_ar.numerator;
+					else
+						ratio_x = aspect_factor << 10;
 				}
 			} else {
 				ratio_x = r1;
@@ -2274,23 +2445,37 @@ RESTART:
 	ini_vphase = vpp_zoom_center_y & 0xff;
 
 	/* screen position for source */
-	start = video_top + (video_height + 1) / 2 -
+	/* start = video_top + (video_height + 1) / 2 - */
+	/*	((h_in << 17) + */
+	/*	(vpp_zoom_center_y << 10) + */
+	/*	(ratio_y >> 1)) / ratio_y; */
+	if (new_aspect_ratio) {
+		r0 = video_top + (video_height + 1) / 2;
+		r1 = (h_in << 17) + (vpp_zoom_center_y << 10) + (ratio_y >> 1);
+		start = r0 - (r1 / ratio_y);
+	} else {
+		start = video_top + (video_height + 1) / 2 -
 		((h_in << 17) +
 		(vpp_zoom_center_y << 10) +
 		(ratio_y >> 1)) / ratio_y;
+	}
 	end = ((h_in << 18) + (ratio_y >> 1)) / ratio_y + start - 1;
 	if (cur_super_debug)
-		pr_info("layer%d: top:start =%d,%d,%d,%d  %d,%d,%d\n",
+		pr_info("layer%d: top:start =%d,%d,%d,%d  %d,%d,%d %d\n",
 			input->layer_id,
 			start, end, video_top,
-			video_height, h_in, ratio_y, vpp_zoom_center_y);
+			video_height, h_in, ratio_y, vpp_zoom_center_y, r1);
 
 #ifdef TV_REVERSE
 	if (reverse) {
 		/* calculate source vertical clip */
 		if (video_top < 0) {
 			if (start < 0) {
-				temp = (-start * ratio_y) >> 18;
+				/* temp = (-start * ratio_y) >> 18; */
+				if (new_aspect_ratio)
+					temp = (r1 - r0 * ratio_y) >> 18;
+				else
+					temp = (-start * ratio_y) >> 18;
 				next_frame_par->VPP_vd_end_lines_ =
 					h_in - 1 - temp;
 				next_frame_par->crop_bottom_adjust = temp;
@@ -2299,7 +2484,13 @@ RESTART:
 			}
 		} else {
 			if (start < video_top) {
-				temp = ((video_top - start) * ratio_y) >> 18;
+				/* temp = ((video_top - start) * ratio_y) >> 18; */
+				if (new_aspect_ratio) {
+					r0 = video_top - r0;
+					temp = (r0 * ratio_y + r1) >> 18;
+				} else {
+					temp = ((video_top - start) * ratio_y) >> 18;
+				}
 				next_frame_par->VPP_vd_end_lines_ =
 					h_in - 1 - temp;
 				next_frame_par->crop_bottom_adjust = temp;
@@ -2314,16 +2505,30 @@ RESTART:
 #endif
 		if (video_top < 0) {
 			if (start < 0) {
-				temp = (-start * ratio_y) >> 18;
+				/* temp = (-start * ratio_y) >> 18; */
+				if (new_aspect_ratio)
+					temp = (r1 - r0 * ratio_y + (1 << 17)) >> 18;
+				else
+					temp = (-start * ratio_y) >> 18;
 				next_frame_par->VPP_vd_start_lines_ = temp;
 			} else {
 				next_frame_par->VPP_vd_start_lines_ = 0;
 			}
-			temp_height = min((video_top + video_height - 1),
-					  (vinfo_height - 1));
+			if (new_aspect_ratio)
+				temp_height = min((video_top + video_height - 1),
+						  (vinfo_height - 1)) + 1;
+			else
+				temp_height = min((video_top + video_height - 1),
+						  (vinfo_height - 1));
 		} else {
 			if (start < video_top) {
-				temp = ((video_top - start) * ratio_y) >> 18;
+				/* temp = ((video_top - start) * ratio_y) >> 18; */
+				if (new_aspect_ratio) {
+					r0 = video_top - r0;
+					temp = (r0 * ratio_y + r1 + (1 << 17)) >> 18;
+				} else {
+					temp = ((video_top - start) * ratio_y) >> 18;
+				}
 				next_frame_par->VPP_vd_start_lines_ = temp;
 			} else {
 				next_frame_par->VPP_vd_start_lines_ = 0;
@@ -2331,8 +2536,15 @@ RESTART:
 			temp_height = min((video_top + video_height - 1),
 					  (vinfo_height - 1)) - video_top + 1;
 		}
-		temp = next_frame_par->VPP_vd_start_lines_ +
-			(temp_height * ratio_y >> 18);
+		if (new_aspect_ratio) {
+			temp = next_frame_par->VPP_vd_start_lines_ +
+				((temp_height * ratio_y  + (1 << 17)) >> 18);
+			if (temp > next_frame_par->VPP_vd_start_lines_)
+				temp--;
+		} else {
+			temp = next_frame_par->VPP_vd_start_lines_ +
+				(temp_height * ratio_y >> 18);
+		}
 		next_frame_par->VPP_vd_end_lines_ =
 			(temp <= (h_in - 1)) ? temp : (h_in - 1);
 #ifdef TV_REVERSE
@@ -2461,22 +2673,35 @@ RESTART:
 	next_frame_par->VPP_hf_ini_phase_ = vpp_zoom_center_x & 0xff;
 
 	/* screen position for source */
-	start = video_left + (video_width + 1) / 2 - ((w_in << 17) +
-		(vpp_zoom_center_x << 10) +
-		(ratio_x >> 1)) / ratio_x;
+	/* start = video_left + (video_width + 1) / 2 - ((w_in << 17) + */
+	/*	(vpp_zoom_center_x << 10) + */
+	/*	(ratio_x >> 1)) / ratio_x; */
+	if (new_aspect_ratio) {
+		r0 = video_left + (video_width + 1) / 2;
+		r1 = (w_in << 17) + (vpp_zoom_center_x << 10) + (ratio_x >> 1);
+		start = r0 - (r1 / ratio_x);
+	} else {
+		start = video_left + (video_width + 1) / 2 - ((w_in << 17) +
+			(vpp_zoom_center_x << 10) +
+			(ratio_x >> 1)) / ratio_x;
+	}
 	end = ((w_in << 18) + (ratio_x >> 1)) / ratio_x + start - 1;
 	if (cur_super_debug)
-		pr_info("layer%d: left:start =%d,%d,%d,%d  %d,%d,%d\n",
+		pr_info("layer%d: left:start =%d,%d,%d,%d  %d,%d,%d %d\n",
 			input->layer_id,
 			start, end, video_left,
-			video_width, w_in, ratio_x, vpp_zoom_center_x);
+			video_width, w_in, ratio_x, vpp_zoom_center_x, r1);
 
 	/* calculate source horizontal clip */
 #ifdef TV_REVERSE
 	if (reverse) {
 		if (video_left < 0) {
 			if (start < 0) {
-				temp = (-start * ratio_x) >> 18;
+				/* temp = (-start * ratio_x) >> 18; */
+				if (new_aspect_ratio)
+					temp = (r1 - r0 * ratio_x) >> 18;
+				else
+					temp = (-start * ratio_x) >> 18;
 				next_frame_par->VPP_hd_end_lines_ =
 					w_in - 1 - temp;
 			} else {
@@ -2484,7 +2709,13 @@ RESTART:
 			}
 		} else {
 			if (start < video_left) {
-				temp = ((video_left - start) * ratio_x) >> 18;
+				/* temp = ((video_left - start) * ratio_x) >> 18; */
+				if (new_aspect_ratio) {
+					r0 = video_left - r0;
+					temp = (r0 * ratio_x + r1) >> 18;
+				} else {
+					temp = ((video_left - start) * ratio_x) >> 18;
+				}
 				next_frame_par->VPP_hd_end_lines_ =
 					w_in - 1 - temp;
 			} else {
@@ -2498,16 +2729,26 @@ RESTART:
 #endif
 		if (video_left < 0) {
 			if (start < 0) {
-				temp = (-start * ratio_x) >> 18;
+				/* temp = (-start * ratio_x) >> 18; */
+				if (new_aspect_ratio)
+					temp = (r1 - r0 * ratio_x + (1 << 17)) >> 18;
+				else
+					temp = (-start * ratio_x) >> 18;
 				next_frame_par->VPP_hd_start_lines_ = temp;
 			} else {
 				next_frame_par->VPP_hd_start_lines_ = 0;
 			}
 			temp_width = min((video_left + video_width - 1),
-					 (vinfo_width - 1));
+					 (vinfo_width - 1)) + 1;
 		} else {
 			if (start < video_left) {
-				temp = ((video_left - start) * ratio_x) >> 18;
+				/* temp = ((video_left - start) * ratio_x) >> 18; */
+				if (new_aspect_ratio) {
+					r0 = video_left - r0;
+					temp = (r0 * ratio_x + r1 + (1 << 17)) >> 18;
+				} else {
+					temp = ((video_left - start) * ratio_x) >> 18;
+				}
 				next_frame_par->VPP_hd_start_lines_ = temp;
 			} else {
 				next_frame_par->VPP_hd_start_lines_ = 0;
@@ -2515,8 +2756,15 @@ RESTART:
 			temp_width = min((video_left + video_width - 1),
 					 (vinfo_width - 1)) - video_left + 1;
 		}
-		temp = next_frame_par->VPP_hd_start_lines_ +
-			(temp_width * ratio_x >> 18);
+		if (new_aspect_ratio) {
+			temp = next_frame_par->VPP_hd_start_lines_ +
+				((temp_width * ratio_x + (1 << 17)) >> 18);
+			if (temp > next_frame_par->VPP_hd_start_lines_)
+				temp--;
+		} else {
+			temp = next_frame_par->VPP_hd_start_lines_ +
+				(temp_width * ratio_x >> 18);
+		}
 		next_frame_par->VPP_hd_end_lines_ =
 			(temp <= (w_in - 1)) ? temp : (w_in - 1);
 #ifdef TV_REVERSE
@@ -5588,6 +5836,7 @@ int vpp_set_filters(struct disp_info_s *input,
 	u8 slice_num = 0;
 	bool adjust = false;
 	s32 orientation = 0;
+	struct ar_frac_s dst_ar = {0, 0};
 
 	if (!input)
 		return ret;
@@ -5596,6 +5845,8 @@ int vpp_set_filters(struct disp_info_s *input,
 	/* recalc if pi enable */
 RERTY:
 	vpp_flags = 0;
+	dst_ar.numerator = 0;
+	dst_ar.denominator = 0;
 	adjust = false;
 	input->op_flag = op_flag;
 	/* use local var to avoid the input data be overwritten */
@@ -5744,6 +5995,14 @@ RERTY:
 		vpp_flags |= VPP_FLAG_FORCE_NO_SRC_CROP;
 	} else if (local_input.afd_enable &&
 		!(disable_adapted & DISABLE_ADAPTIVE_AR)) {
+#ifdef OPEN_LATER
+		if (local_input.afd_dst_ar.numerator &&
+		    local_input.afd_dst_ar.denominator) {
+			dst_ar.numerator = local_input.afd_dst_ar.numerator;
+			dst_ar.denominator = local_input.afd_dst_ar.denominator;
+			aspect_ratio = (dst_ar.denominator << 8) / dst_ar.numerator;
+		}
+#endif
 		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		local_input.crop_top = local_input.afd_crop.top;
 		local_input.crop_left = local_input.afd_crop.left;
@@ -5899,7 +6158,8 @@ RERTY:
 	}
 	if (local_input.pps_support) {
 		ret = vpp_set_filters_internal
-			(&local_input, src_width, src_height,
+			(&local_input, &dst_ar,
+			src_width, src_height,
 			dst_width, dst_height,
 			vinfo, vpp_flags, next_frame_par, vf);
 	} else {
