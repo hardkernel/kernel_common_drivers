@@ -476,33 +476,24 @@
 		};
 	};//End unifykey
 
-	efusekey:efusekey{
-		keynum = <4>;
+	/delete-node/ efusekey;
+	efuse: efuse{
+		/delete-property/ check;
+		key = <&efuse_odroid_keys>;
+		status = "okay";
+	};
+
+	efuse_odroid_keys:efuse_odroid_keys{
+		keynum = <1>;
 		key0 = <&key_0>;
-		key1 = <&key_1>;
-		key2 = <&key_2>;
-		key3 = <&key_3>;
+
 		key_0:key_0{
-			keyname = "mac";
+			keyname = "uuid";
 			offset = <0>;
-			size = <6>;
+			size = <32>;
 		};
-		key_1:key_1{
-			keyname = "mac_bt";
-			offset = <6>;
-			size = <6>;
-		};
-		key_2:key_2{
-			keyname = "mac_wifi";
-			offset = <12>;
-			size = <6>;
-		};
-		key_3:key_3{
-			keyname = "usid";
-			offset = <18>;
-			size = <16>;
-		};
-	};//End efusekey
+	};
+
 	/* Audio Related start */
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
