@@ -12309,6 +12309,10 @@ void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 	/*get ori size*/
 	h = tv_dovi_setting->core1_reg_lut[49] & 0xfff;
 	v = (tv_dovi_setting->core1_reg_lut[49] >> 13) & 0xfff;
+	if (h == 0 || v == 0) {
+		h = tv_dovi_setting->video_width >> 16;
+		v = tv_dovi_setting->video_height >> 16;
+	}
 
 	if (vf->type & VIDTYPE_COMPRESS) {
 		if (is_src_crop_valid(vf->src_crop)) {
@@ -12434,6 +12438,10 @@ void handle_aoi(u32 hsize, u32 vsize)
 	/*get ori size*/
 	h = tv_dovi_setting->core1_reg_lut[49] & 0xfff;
 	v = (tv_dovi_setting->core1_reg_lut[49] >> 13) & 0xfff;
+	if (h == 0 || v == 0) {
+		h = tv_dovi_setting->video_width >> 16;
+		v = tv_dovi_setting->video_height >> 16;
+	}
 	if (debug_dolby & 1)
 		pr_dv_dbg("%s:aoi_info %d_%d %d %d,%d,%llx,%llx,[%d %d %d %d]\n",
 			     __func__, h, v,
