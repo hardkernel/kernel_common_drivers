@@ -343,7 +343,6 @@ set_hpll_pll_retry_g12b:
 static void lcd_set_vid_pll_div_g12b(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int shift_val, shift_sel;
-	int i;
 	struct lcd_clk_config_s *cconf;
 
 	cconf = get_lcd_clk_config(pdrv);
@@ -357,16 +356,15 @@ static void lcd_set_vid_pll_div_g12b(struct aml_lcd_drv_s *pdrv)
 	lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
 	lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
 
-	i = 0;
-	while (lcd_clk_div_table[i].divider < cconf->data->div_sel_max) {
-		if (cconf->div_sel == lcd_clk_div_table[i].divider)
-			break;
-		i++;
+	if (cconf->data->div_sel_max == CLK_DIV_SEL_1 ||
+	    cconf->div_sel > cconf->data->div_sel_max ||
+	    cconf->div_sel >= ARRAY_SIZE(lcd_clk_div_table)) {
+		LCDERR("[%d]: invalid clk divider\n", pdrv->index);
+		return;
 	}
-	if (lcd_clk_div_table[i].divider == CLK_DIV_SEL_MAX)
-		LCDERR("invalid clk divider\n");
-	shift_val = lcd_clk_div_table[i].shift_val;
-	shift_sel = lcd_clk_div_table[i].shift_sel;
+
+	shift_val = lcd_clk_div_table[cconf->div_sel].shift_val;
+	shift_sel = lcd_clk_div_table[cconf->div_sel].shift_sel;
 
 	if (shift_val == 0xffff) { /* if divide by 1 */
 		lcd_hiu_setb(HHI_VID_PLL_CLK_DIV, 1, 18, 1);
@@ -714,7 +712,6 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path0 = { //HPLL
 	.xd_out_fmax = 200000000,
 	.od_cnt = 3,
 	.have_tcon_div = 0,
-	.have_pll_div = 1,
 	.phy_clk_location = 2,
 
 	.vclk_sel = 0,
@@ -776,7 +773,6 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path1 = {  //GP0
 	.xd_out_fmax = 200000000,
 	.od_cnt = 1,
 	.have_tcon_div = 0,
-	.have_pll_div = 0,
 	.phy_clk_location = 1,
 
 	.vclk_sel = 1,
@@ -784,7 +780,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path1 = {  //GP0
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 
-	.div_sel_max = CLK_DIV_SEL_MAX,
+	.div_sel_max = CLK_DIV_SEL_1,
 	.xd_max = 128,
 	.phy_div_max = 128,
 
@@ -838,7 +834,6 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path0 = {  //HPLL
 	.xd_out_fmax = 200000000,
 	.od_cnt = 3,
 	.have_tcon_div = 0,
-	.have_pll_div = 1,
 	.phy_clk_location = 2,
 
 	.vclk_sel = 0,
@@ -900,7 +895,6 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path1 = { //GP0
 	.xd_out_fmax = 200000000,
 	.od_cnt = 1,
 	.have_tcon_div = 0,
-	.have_pll_div = 0,
 	.phy_clk_location = 1,
 
 	.vclk_sel = 1,
@@ -908,7 +902,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path1 = { //GP0
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 
-	.div_sel_max = CLK_DIV_SEL_MAX,
+	.div_sel_max = CLK_DIV_SEL_1,
 	.xd_max = 128,
 	.phy_div_max = 128,
 

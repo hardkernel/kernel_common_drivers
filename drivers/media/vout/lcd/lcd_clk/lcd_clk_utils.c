@@ -41,25 +41,24 @@ const unsigned int od_fb_table[2] = {1, 2};
 const unsigned int tcon_div_table[5] = {1, 2, 4, 8, 16};
 
 struct lcd_clk_div_table_s lcd_clk_div_table[] = {
-	/* name,    divider,         num, den, shift_sel, shift_val*/
-	{"1",       CLK_DIV_SEL_1,    1,   1,    0,       0xffff},
-	{"2",       CLK_DIV_SEL_2,    1,   2,    0,       0x0aaa},
-	{"3",       CLK_DIV_SEL_3,    1,   3,    0,       0x0db6},
-	{"3.5",     CLK_DIV_SEL_3p5,  2,   7,    1,       0x36cc},
-	{"3.75",    CLK_DIV_SEL_3p75, 4,   15,   2,       0x6666},
-	{"4",       CLK_DIV_SEL_4,    1,   4,    0,       0x0ccc},
-	{"5",       CLK_DIV_SEL_5,    1,   5,    2,       0x739c},
-	{"6",       CLK_DIV_SEL_6,    1,   6,    0,       0x0e38},
-	{"6.25",    CLK_DIV_SEL_6p25, 4,   25,   3,       0x0000},
-	{"7",       CLK_DIV_SEL_7,    1,   7,    1,       0x3c78},
-	{"7.5",     CLK_DIV_SEL_7p5,  2,   15,   2,       0x78f0},
-	{"12",      CLK_DIV_SEL_12,   1,   12,   0,       0x0fc0},
-	{"14",      CLK_DIV_SEL_14,   1,   14,   1,       0x3f80},
-	{"15",      CLK_DIV_SEL_15,   1,   15,   2,       0x7f80},
-	{"2.5",     CLK_DIV_SEL_2p5,  2,   5,    2,       0x5294},
-	{"4.67",    CLK_DIV_SEL_4p67, 3,   14,   1,       0x0ccc},
-	{"2.33",    CLK_DIV_SEL_2p33, 3,   7,    1,       0x1aaa},
-	{"invalid", CLK_DIV_SEL_MAX,  1,   1,    0,       0xffff},
+	/* name, num, den, shift_sel, shift_val    divider */
+	{"1",     1,   1,    0,       0xffff},  //CLK_DIV_SEL_1,
+	{"2",     1,   2,    0,       0x0aaa},  //CLK_DIV_SEL_2,
+	{"3",     1,   3,    0,       0x0db6},  //CLK_DIV_SEL_3,
+	{"3.5",   2,   7,    1,       0x36cc},  //CLK_DIV_SEL_3p5,
+	{"3.75",  4,   15,   2,       0x6666},  //CLK_DIV_SEL_3p75,
+	{"4",     1,   4,    0,       0x0ccc},  //CLK_DIV_SEL_4,
+	{"5",     1,   5,    2,       0x739c},  //CLK_DIV_SEL_5,
+	{"6",     1,   6,    0,       0x0e38},  //CLK_DIV_SEL_6,
+	{"6.25",  4,   25,   3,       0x0000},  //CLK_DIV_SEL_6p25,
+	{"7",     1,   7,    1,       0x3c78},  //CLK_DIV_SEL_7,
+	{"7.5",   2,   15,   2,       0x78f0},  //CLK_DIV_SEL_7p5,
+	{"12",    1,   12,   0,       0x0fc0},  //CLK_DIV_SEL_12,
+	{"14",    1,   14,   1,       0x3f80},  //CLK_DIV_SEL_14,
+	{"15",    1,   15,   2,       0x7f80},  //CLK_DIV_SEL_15,
+	{"2.5",   2,   5,    2,       0x5294},  //CLK_DIV_SEL_2p5,
+	{"4.67",  3,   14,   1,       0x0ccc},  //CLK_DIV_SEL_4p67,
+	{"2.33",  3,   7,    1,       0x1aaa},  //CLK_DIV_SEL_2p33,
 };
 
 /* ****************************************************
@@ -176,7 +175,7 @@ unsigned long long clk_vid_pll_div_calc(unsigned long long clk, unsigned int div
 {
 	unsigned long long clk_ret, num, den;
 
-	if (div_sel >= CLK_DIV_SEL_MAX) {
+	if (div_sel > CLK_DIV_SEL_MAX) {
 		LCDERR("clk_div_sel: Invalid parameter\n");
 		return 0;
 	}
@@ -497,7 +496,7 @@ static int lcd_clk_generate_p2p_with_tcon_div(struct lcd_clk_config_s *cconf,
 				LCDPR("fout=%d, xd=%d, clk_div_out=%d, tcon_div_sel=%d\n",
 					cconf->fout, xd, clk_div_out, tcon_div_sel);
 			}
-			for (clk_div_sel = CLK_DIV_SEL_1; clk_div_sel < cconf->data->div_sel_max;
+			for (clk_div_sel = CLK_DIV_SEL_1; clk_div_sel <= cconf->data->div_sel_max;
 				clk_div_sel++) {
 				clk_div_in = clk_vid_pll_div_calc(clk_div_out,
 						clk_div_sel, CLK_DIV_O2I);
@@ -539,7 +538,7 @@ static int lcd_clk_generate_p2p_without_tcon_div(struct lcd_clk_config_s *cconf,
 			LCDPR("fout=%d, xd=%d, clk_div_out=%d\n",
 				cconf->fout, xd, clk_div_out);
 		}
-		for (clk_div_sel = CLK_DIV_SEL_1; clk_div_sel < cconf->data->div_sel_max;
+		for (clk_div_sel = CLK_DIV_SEL_1; clk_div_sel <= cconf->data->div_sel_max;
 			clk_div_sel++) {
 			clk_div_in = clk_vid_pll_div_calc(clk_div_out,
 					clk_div_sel, CLK_DIV_O2I);
@@ -1070,7 +1069,7 @@ void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 			LCDPR("pll_fout=%lld, clk_div_in=%lld\n", pll_fout, clk_div_in);
 
 		clk_div_sel = CLK_DIV_SEL_1;
-		for (; clk_div_sel < cconf->data->div_sel_max; clk_div_sel++) {
+		for (; clk_div_sel <= cconf->data->div_sel_max; clk_div_sel++) {
 			clk_div_out = clk_vid_pll_div_calc(clk_div_in, clk_div_sel, CLK_DIV_I2O);
 			if (clk_div_out > cconf->data->div_out_fmax)
 				continue;
@@ -1149,7 +1148,7 @@ void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 					      cconf->fout, xd, clk_div_out);
 				}
 				clk_div_sel = CLK_DIV_SEL_1;
-				for (; clk_div_sel < cconf->data->div_sel_max; clk_div_sel++) {
+				for (; clk_div_sel <= cconf->data->div_sel_max; clk_div_sel++) {
 					clk_div_in = clk_vid_pll_div_calc(clk_div_out,
 							     clk_div_sel, CLK_DIV_O2I);
 					if (clk_div_in > cconf->data->div_in_fmax)
@@ -1222,7 +1221,7 @@ void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 						pixconf->fout, xd, clk_div_out);
 				}
 				for (clk_div_sel = CLK_DIV_SEL_1;
-					clk_div_sel < cconf->data->div_sel_max; clk_div_sel++) {
+					clk_div_sel <= cconf->data->div_sel_max; clk_div_sel++) {
 					clk_div_in = clk_vid_pll_div_calc(clk_div_out,
 							clk_div_sel, CLK_DIV_O2I);
 					if (clk_div_in > pixconf->data->div_in_fmax)
@@ -1367,7 +1366,7 @@ void lcd_clk_generate_prbs_clk(struct aml_lcd_drv_s *pdrv,
 			cconf->fout, pll_fout, clk_div_in);
 	}
 
-	for (clk_div_sel = CLK_DIV_SEL_1; clk_div_sel < cconf->data->div_sel_max; clk_div_sel++) {
+	for (clk_div_sel = CLK_DIV_SEL_1; clk_div_sel <= cconf->data->div_sel_max; clk_div_sel++) {
 		clk_div_out = clk_vid_pll_div_calc(clk_div_in, clk_div_sel, CLK_DIV_I2O);
 		if (clk_div_out > cconf->data->div_out_fmax)
 			continue;
@@ -1441,7 +1440,6 @@ void lcd_set_vid_pll_div_dft(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
 	unsigned int shift_val, shift_sel;
-	int i;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -1457,16 +1455,15 @@ void lcd_set_vid_pll_div_dft(struct aml_lcd_drv_s *pdrv)
 	lcd_ana_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
 	lcd_ana_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
 
-	i = 0;
-	while (lcd_clk_div_table[i].divider < cconf->data->div_sel_max) {
-		if (cconf->div_sel == lcd_clk_div_table[i].divider)
-			break;
-		i++;
+	if (cconf->data->div_sel_max == CLK_DIV_SEL_1 ||
+	    cconf->div_sel > cconf->data->div_sel_max ||
+	    cconf->div_sel >= ARRAY_SIZE(lcd_clk_div_table)) {
+		LCDERR("[%d]: invalid clk divider\n", pdrv->index);
+		return;
 	}
-	if (lcd_clk_div_table[i].divider == cconf->data->div_sel_max)
-		LCDERR("invalid clk divider\n");
-	shift_val = lcd_clk_div_table[i].shift_val;
-	shift_sel = lcd_clk_div_table[i].shift_sel;
+
+	shift_val = lcd_clk_div_table[cconf->div_sel].shift_val;
+	shift_sel = lcd_clk_div_table[cconf->div_sel].shift_sel;
 
 	if (shift_val == 0xffff) { /* if divide by 1 */
 		lcd_ana_setb(HHI_VID_PLL_CLK_DIV, 1, 18, 1);

@@ -557,7 +557,6 @@ static struct lcd_clk_data_s lcd_clk_data_tm2 = {
 	.xd_out_fmax = 750000000,
 	.od_cnt = 3,
 	.have_tcon_div = 1,
-	.have_pll_div = 1,
 	.phy_clk_location = 0,
 
 	.vclk_sel = 0,

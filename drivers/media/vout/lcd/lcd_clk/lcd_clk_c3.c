@@ -260,7 +260,6 @@ static struct lcd_clk_data_s lcd_clk_data_c3 = {
 	.xd_out_fmax = 200000000,
 	.od_cnt = 1,
 	.have_tcon_div = 0,
-	.have_pll_div = 0,
 	.phy_clk_location = 1,
 
 	.vclk_sel = 4, //gp0_pll
@@ -268,7 +267,7 @@ static struct lcd_clk_data_s lcd_clk_data_c3 = {
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 
-	.div_sel_max = 0,
+	.div_sel_max = CLK_DIV_SEL_1,
 	.xd_max = 128,
 	.phy_div_max = 128,
 

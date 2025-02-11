@@ -334,7 +334,6 @@ static void lcd_set_vid_pll_div_t7(struct aml_lcd_drv_s *pdrv)
 	struct lcd_clk_config_s *cconf;
 	unsigned int reg_vid_pll_div, reg_vid2_clk_ctrl;
 	unsigned int shift_val, shift_sel;
-	int i;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -366,16 +365,15 @@ static void lcd_set_vid_pll_div_t7(struct aml_lcd_drv_s *pdrv)
 	lcd_combo_dphy_setb(pdrv, reg_vid_pll_div, 0, 19, 1);
 	lcd_combo_dphy_setb(pdrv, reg_vid_pll_div, 0, 15, 1);
 
-	i = 0;
-	while (lcd_clk_div_table[i].divider < CLK_DIV_SEL_MAX) {
-		if (cconf->div_sel == lcd_clk_div_table[i].divider)
-			break;
-		i++;
-	}
-	if (lcd_clk_div_table[i].divider == CLK_DIV_SEL_MAX)
+	if (cconf->data->div_sel_max == CLK_DIV_SEL_1 ||
+	    cconf->div_sel > cconf->data->div_sel_max ||
+	    cconf->div_sel >= ARRAY_SIZE(lcd_clk_div_table)) {
 		LCDERR("[%d]: invalid clk divider\n", pdrv->index);
-	shift_val = lcd_clk_div_table[i].shift_val;
-	shift_sel = lcd_clk_div_table[i].shift_sel;
+		return;
+	}
+
+	shift_val = lcd_clk_div_table[cconf->div_sel].shift_val;
+	shift_sel = lcd_clk_div_table[cconf->div_sel].shift_sel;
 
 	if (shift_val == 0xffff) { /* if divide by 1 */
 		lcd_combo_dphy_setb(pdrv, reg_vid_pll_div, 1, 18, 1);
@@ -623,7 +621,6 @@ static void lcd_set_vid_pll_div_t3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
 	unsigned int shift_val, shift_sel;
-	int i;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -645,16 +642,15 @@ static void lcd_set_vid_pll_div_t3(struct aml_lcd_drv_s *pdrv)
 	lcd_ana_setb(ANACTRL_VID_PLL_CLK_DIV, 0, 19, 1);
 	lcd_ana_setb(ANACTRL_VID_PLL_CLK_DIV, 0, 15, 1);
 
-	i = 0;
-	while (lcd_clk_div_table[i].divider < cconf->data->div_sel_max) {
-		if (cconf->div_sel == lcd_clk_div_table[i].divider)
-			break;
-		i++;
-	}
-	if (lcd_clk_div_table[i].divider == cconf->data->div_sel_max)
+	if (cconf->data->div_sel_max == CLK_DIV_SEL_1 ||
+	    cconf->div_sel > cconf->data->div_sel_max ||
+	    cconf->div_sel >= ARRAY_SIZE(lcd_clk_div_table)) {
 		LCDERR("[%d]: invalid clk divider\n", pdrv->index);
-	shift_val = lcd_clk_div_table[i].shift_val;
-	shift_sel = lcd_clk_div_table[i].shift_sel;
+		return;
+	}
+
+	shift_val = lcd_clk_div_table[cconf->div_sel].shift_val;
+	shift_sel = lcd_clk_div_table[cconf->div_sel].shift_sel;
 
 	if (shift_val == 0xffff) { /* if divide by 1 */
 		lcd_ana_setb(ANACTRL_VID_PLL_CLK_DIV, 1, 18, 1);
@@ -1266,7 +1262,6 @@ static struct lcd_clk_data_s lcd_clk_data_t7_0 = {
 	.xd_out_fmax = 750000000,
 	.od_cnt = 3,
 	.have_tcon_div = 1,
-	.have_pll_div = 1,
 	.phy_clk_location = 0,
 
 	.vclk_sel = 0,
@@ -1329,7 +1324,6 @@ static struct lcd_clk_data_s lcd_clk_data_t7_1 = {
 	.xd_out_fmax = 750000000,
 	.od_cnt = 3,
 	.have_tcon_div = 1,
-	.have_pll_div = 1,
 	.phy_clk_location = 0,
 
 	.vclk_sel = 0,
@@ -1392,7 +1386,6 @@ static struct lcd_clk_data_s lcd_clk_data_t7_2 = {
 	.xd_out_fmax = 750000000,
 	.od_cnt = 3,
 	.have_tcon_div = 1,
-	.have_pll_div = 1,
 	.phy_clk_location = 0,
 
 	.vclk_sel = 0,
@@ -1455,7 +1448,6 @@ static struct lcd_clk_data_s lcd_clk_data_t3_0 = {
 	.xd_out_fmax = 800000000,
 	.od_cnt = 3,
 	.have_tcon_div = 1,
-	.have_pll_div = 1,
 	.phy_clk_location = 0,
 
 	.vclk_sel = 0,
@@ -1518,7 +1510,6 @@ static struct lcd_clk_data_s lcd_clk_data_t3_1 = {
 	.xd_out_fmax = 800000000,
 	.od_cnt = 3,
 	.have_tcon_div = 1,
-	.have_pll_div = 1,
 	.phy_clk_location = 0,
 
 	.vclk_sel = 0,
