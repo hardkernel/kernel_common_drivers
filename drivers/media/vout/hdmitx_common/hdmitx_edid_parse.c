@@ -1663,26 +1663,41 @@ static void hdmitx_edid_parse_hfscdb(struct rx_cap *prxcap,
 	prxcap->qms = !!(blockbuf[offset + 7] & (1 << 6));
 	prxcap->fapa_end_extended = !!(blockbuf[offset + 7] & (1 << 7));
 
-	if (count < 10)
+	if (count < 9)
 		return;
-	prxcap->vrr_max = (((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
-				blockbuf[offset + 9];
 	/*
-	 * Values of 1~99 are reserved.
-	 * Source shall interpret non-zero values less than 100 as a value of 100
-	 */
-	if (prxcap->vrr_max > 0 && prxcap->vrr_max < 100) {
-		HDMITX_INFO("edid: vrr_max is reserved value %d\n", prxcap->vrr_max);
-		prxcap->vrr_max = 100;
-	}
-	/*
+	 * HDMI_Spec_V2.1b. Chapter 6.5.1.4.5
 	 * Values of 49~63 are reserved.
 	 * Source shall interpret non-zero values higher than 48 as a value of 48
+	 */
+	/*
+	 * GCTS 2.1j for HDMI 2.1 Sources r8.docx Table 4-145
+	 * BVRR50-60：Bad VRRMIN; VRR disabled.
+	 * The HDMI_Spec_V2.1b standard is used here
 	 */
 	prxcap->vrr_min = (blockbuf[offset + 8] & 0x3f);
 	if (prxcap->vrr_min > 48) {
 		HDMITX_INFO("edid: vrr_min is reserved value %d\n", prxcap->vrr_min);
 		prxcap->vrr_min = 48;
+	}
+
+	if (count < 10)
+		return;
+	prxcap->vrr_max = (((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
+				blockbuf[offset + 9];
+	/*
+	 * HDMI_Spec_V2.1b. Chapter 6.5.1.4.5
+	 * Values of 1~99 are reserved.
+	 * Source shall interpret non-zero values less than 100 as a value of 100
+	 */
+	/*
+	 * GCTS 2.1j for HDMI 2.1 Sources r8.docx Table 4-145
+	 * BVRR48-85:Bad VRRMAX —ignored. Range=48-BRR.
+	 * The HDMI_Spec_V2.1b standard is used here
+	 */
+	if (prxcap->vrr_max > 0 && prxcap->vrr_max < 100) {
+		HDMITX_INFO("edid: vrr_max is reserved value %d\n", prxcap->vrr_max);
+		prxcap->vrr_max = 100;
 	}
 	prxcap->fapa_start_loc = !!(blockbuf[offset + 7] & (1 << 0));
 

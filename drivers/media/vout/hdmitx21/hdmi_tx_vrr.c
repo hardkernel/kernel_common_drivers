@@ -921,6 +921,16 @@ static void vrr_init_game_para(struct tx_vrr_params *para)
 	enum hdmi_vic brr_vic = conf->brr_vic;
 	u16 brr_vfront;
 	const struct hdmi_timing *timing;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+
+	/*
+	 * HDMI_Spec_V2.1b. Chapter 7.6.6
+	 * When Gaming-VRR is enabled in the VTEM (VRR_EN=1) and ALLM=1 in the SCDS,
+	 * the Source shall transmit the HF-VSIF and set ALlM_Mode=1. If ALLM=0,
+	 * then if the Source transmits the HF-VSIF, ALLM_Mode shall be cleared (=O).
+	 */
+	hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, tx_comm->rxcap.allm, NULL);
 
 	if (fva_factor == 0)
 		fva_factor = 1; /* at least be 1 */
@@ -962,6 +972,14 @@ static void vrr_init_qms_para(struct tx_vrr_params *para)
 	enum hdmi_vic brr_vic = conf->brr_vic;
 	u16 brr_vfront;
 	const struct hdmi_timing *timing;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+
+	/*
+	 * HDMI_Spec_V2.1b. Chapter 10.11
+	 * A Source shall clear ALLM_Mode when QMS_EN=1.
+	 */
+	hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
 
 	hdmitx_get_vrr_params(conf);
 	if (conf->type == T_VRR_GAME) {
@@ -1015,7 +1033,7 @@ static void vrr_init_qms_para(struct tx_vrr_params *para)
 }
 
 /* when exit game-vrr or qms-vrr, the MD of EMP will be set as 0 */
-static void hdmi_vrr_disable_emp_packet(struct tx_vrr_params *para)
+static void hdmi_vrr_disable_emp_packet(struct tx_vrr_params *para, enum vrr_type vrr_mode)
 {
 	struct emp_packet_st *vrr_pkt;
 
@@ -1029,7 +1047,10 @@ static void hdmi_vrr_disable_emp_packet(struct tx_vrr_params *para)
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_LAST, 1);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_SEQ_INDEX, 0);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_DS_TYPE, 0);
-	hdmi_emp_frame_set_member(vrr_pkt, CONF_SYNC, 1);
+	if (vrr_mode == T_VRR_GAME)
+		hdmi_emp_frame_set_member(vrr_pkt, CONF_SYNC, 0);
+	else if (vrr_mode == T_VRR_QMS)
+		hdmi_emp_frame_set_member(vrr_pkt, CONF_SYNC, 1);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_VFR, 1);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_AFR, 0);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_NEW, 0);
@@ -1653,12 +1674,13 @@ int hdmitx_set_vrr_rate(int _rate, void *data)
 	if (tmp_rate > 5990 * 2 && tmp_rate < 6010 * 2)
 		tmp_rate = 12000;
 	/* if rate is 0, then disable VRR packet */
-	if (vrr_info->type == T_VRR_NONE || (rate == 0 && vrr_info->type != T_VRR_GAME)) {
+	if (vrr_info->type == T_VRR_NONE || rate == 0) {
 		/* When disable VRR, here must clear vrr_para_tmp.
 		 * So when enter VRR next time, vrr packet will be updated again
 		 */
 		memset(&vrr_para.vrr_para_tmp, 0, sizeof(vrr_para.vrr_para_tmp));
-		hdmi_vrr_disable_emp_packet(&vrr_para);
+		hdmi_vrr_disable_emp_packet(&vrr_para, hdev->vrr_mode);
+		hdev->vrr_mode = T_VRR_NONE;
 		hdmitx_vrr_set_maxlncnt(fmt_para->timing.v_total);
 		HDMITX_INFO("qms: disable EMP packet\n");
 		return 0;

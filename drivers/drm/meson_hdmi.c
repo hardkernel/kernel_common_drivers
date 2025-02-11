@@ -2027,7 +2027,8 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		}
 
 		DRM_INFO("%s, set frame rate: %d\n", __func__, dst_vrefresh);
-		am_hdmi_info.hdmitx_dev->set_vframe_rate_hint(dst_vrefresh, &vrr_info);
+		if (am_hdmi_info.hdmitx_dev->set_vframe_rate_hint)
+			am_hdmi_info.hdmitx_dev->set_vframe_rate_hint(dst_vrefresh, &vrr_info);
 		return;
 	}
 
@@ -2067,10 +2068,15 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 			dst_vrefresh = meson_crtc_state->game_rate;
 			vrr_info.type = T_VRR_GAME;
 		}
-
-		am_hdmi_info.hdmitx_dev->set_vframe_rate_hint(dst_vrefresh, &vrr_info);
+		if (am_hdmi_info.hdmitx_dev->set_vframe_rate_hint)
+			am_hdmi_info.hdmitx_dev->set_vframe_rate_hint(dst_vrefresh, &vrr_info);
 		DRM_INFO("%s, vrr set rate hint, %d\n", __func__,
 			 dst_vrefresh);
+	} else {
+		vrr_info.type = T_VRR_NONE;
+		if (am_hdmi_info.hdmitx_dev->set_vframe_rate_hint)
+			am_hdmi_info.hdmitx_dev->set_vframe_rate_hint(0, &vrr_info);
+		DRM_INFO("%s, disable vrr\n", __func__);
 	}
 }
 
