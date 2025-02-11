@@ -7,7 +7,7 @@ $(MODULE_NAME)-y = usb_main.o
 
 PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
-ccflags-y += $(PR_FMT_DEFINE)
+ccflags-y += $(PR_FMT_DEFINE) #-DDEBUG
 
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/phy_meson_usb/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/usb/crgdrdphy/Makefile

@@ -145,7 +145,7 @@ int meson_synopsis_u3phy_init(struct amlogic_usb_v2 *phy)
 	ret = clk_bulk_prepare_enable(phy->clk_num, phy->clks);
 
 	if (ret) {
-		mup_err(phy->dev, "Failed to enable usb2 phy bus clock at %d\n",
+		mup_err(phy->dev, "Failed to enable usb phy bus clock at %d\n",
 							__LINE__);
 		return ret;
 	}
@@ -258,25 +258,19 @@ int meson_synopsis_u3phy_init(struct amlogic_usb_v2 *phy)
 
 int meson_synopsis_u3phy_exit(struct amlogic_usb_v2 *phy)
 {
-	int ret = 0;
-
 	if (phy->suspend_flag) {
 		mup_err(phy->dev, "%s excessive exit\n", __func__);
 		return -EBUSY;
 	}
 
-	ret = clk_bulk_prepare_enable(phy->clk_num, phy->clks);
-	if (ret) {
-		mup_err(phy->dev, "Failed to enable usb phy bus clock at %d\n",
-							__LINE__);
-		return ret;
-	}
+	clk_bulk_disable_unprepare(phy->clk_num, phy->clks);
+
 	/* Power off. */
 	writel(0x1d, phy->phy3_cfg);
 
 	phy->suspend_flag = 1;
 
-	return ret;
+	return 0;
 }
 
 static bool device_is_available(const struct device_node *device)
@@ -370,6 +364,9 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 	if (cnt < 0) {
 		mup_err(dev, "no clks? exit.");
 		return -EINVAL;
+	} else if (cnt > AML_USB_PHY_MAX_CLK_NUMBER) {
+		mup_err(dev, "too many clks. exit.");
+		return -EOVERFLOW;
 	}
 	mup_dbg(dev, "clk num: %d\n", cnt);
 	for (i = 0; i < cnt; i++) {
@@ -385,7 +382,7 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 
 	ret = devm_clk_bulk_get(dev, aml_u3phy->clk_num, aml_u3phy->clks);
 	if (ret) {
-		mup_dbg(dev, "Failed to get usb2 phy bus clocks\n");
+		mup_dbg(dev, "Failed to get usb phy bus clocks\n");
 		return ret;
 	}
 

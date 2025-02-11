@@ -10,5 +10,3 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_CRG) += crgdrdphy/phy-aml-crg-drd-otg.o
 
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_CRG) += crgdrdphy/phy-aml-m31-usb2.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_CRG) += crgdrdphy/phy-aml-m31-usb3.o
-
-$(MODULE_NAME)-$(CONFIG_AMLOGIC_CRG) += crgdrdphy/phy-aml-usb3.o

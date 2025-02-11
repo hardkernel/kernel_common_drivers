@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/acpi.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/reset.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/of.h>
@@ -69,6 +70,7 @@ struct crg_drd {
 	struct phy		*usb3_generic_phy[CRGDRD_USB3_MAX_PORTS];
 	int num_usb2_ports;
 	int num_usb3_ports;
+	struct reset_control *reset;
 
 	unsigned		super_speed_support:1;
 	bool		usb_phy_init;
@@ -86,6 +88,40 @@ static void crg_set_mode(struct crg_drd *crg, u32 mode)
 		tmp = readl(crg->regs + 0x20FC) & ~0x1;
 		writel(tmp, crg->regs + 0x20FC);
 	}
+}
+
+static int crg_reset_line_assert(struct crg_drd *crg, bool on)
+{
+	int ret;
+
+	if (on) {
+		ret = reset_control_assert(crg->reset);
+		if (ret)
+			dev_err(crg->dev, "%s %d ret %d.\n", __func__, on, ret);
+	} else {
+		ret = reset_control_deassert(crg->reset);
+		if (ret)
+			dev_err(crg->dev, "%s %d ret %d.\n", __func__, on, ret);
+	}
+
+	return ret;
+}
+
+static int crg_core_get_reset(struct crg_drd *crg)
+{
+	crg->reset = devm_reset_control_get(crg->dev, "udrd");
+	if (IS_ERR(crg->reset)) {
+		dev_err(crg->dev, "failed to get reset: %ld\n", PTR_ERR(crg->reset));
+		crg->reset = NULL;
+	}
+
+	return 0;
+}
+
+static int crg_core_power(struct crg_drd *crg, bool on)
+{
+	dev_dbg(crg->dev, "%s %d.\n", __func__, on);
+	return crg_reset_line_assert(crg, !on);
 }
 
 static int crg_phy_init(struct crg_drd *crg)
@@ -210,6 +246,8 @@ static int crg_core_init(struct crg_drd *crg)
 		return ret;
 	}
 
+	crg_core_power(crg, true);
+
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
 		crg_set_mode(crg, CRG_GCTL_PRTCAP_DEVICE);
@@ -245,6 +283,8 @@ static int crg_core_resume(struct crg_drd *crg)
 		crg_phy_exit(crg);
 		return ret;
 	}
+
+	crg_core_power(crg, true);
 
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -491,7 +531,7 @@ static int crg_host_init(struct crg_drd *crg)
 	/* Some quirky devices take >2s to turn on Rterm and begin polling.
 	 * this leads to wait_for_connected timeout when resuming.
 	 */
-	if (crg->usb3_phy && crg->usb3_phy->label && !strcmp(crg->usb3_phy->label, "aml-usb3phy"))
+	if (crg->super_speed_support)
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("resume_stuck_warm_reset");
 
 	if (prop_idx) {
@@ -655,6 +695,10 @@ static int crg_probe(struct platform_device *pdev)
 	if (ret)
 		goto err0;
 
+	ret = crg_core_get_reset(crg);
+	if (ret)
+		goto err0;
+
 	if (!dev->dma_mask) {
 		dev->dma_mask = dev->parent->dma_mask;
 		dev->dma_parms = dev->parent->dma_parms;
@@ -753,6 +797,7 @@ static void crg_shutdown(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	crg_host_exit(crg);
+	crg_core_power(crg, false);
 	crg_phy_power_off(crg);
 	crg_phy_exit(crg);
 
@@ -770,6 +815,7 @@ static void crg_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	crg_host_exit(crg);
+	crg_core_power(crg, false);
 	crg_phy_power_off(crg);
 	crg_phy_exit(crg);
 
@@ -795,6 +841,7 @@ static int crg_suspend_common(struct crg_drd *crg)
 		break;
 	}
 
+	crg_core_power(crg, false);
 	crg_phy_power_off(crg);
 	crg_phy_exit(crg);
 

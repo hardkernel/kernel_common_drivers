@@ -484,6 +484,8 @@ int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 	void __iomem *cfg = phy->phy_cfg[0];
 	int ret = 0;
 
+	mup_dbg(phy->dev, "%s: set mode %d.\n", __func__, mode);
+
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
 		reg0.d32 = readl(&phy->u2p_aml_regs[0]->r0);
@@ -514,6 +516,57 @@ int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 		mup_dbg(phy->dev, "ERROR %s unknown mode %d.\n", __func__, mode);
 		break;
 	}
+	return ret;
+}
+
+int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy,  struct meson_u2phy_priv *priv)
+{
+	int ret;
+
+	if (!phy->suspend_flag) {
+		mup_err(phy->dev, "%s excessive init\n", __func__);
+		return -EBUSY;
+	}
+
+	ret = clk_bulk_prepare_enable(phy->clk_num, phy->clks);
+	if (ret) {
+		mup_err(phy->dev, "Failed to enable usb2 phy bus clock at %d\n",
+							__LINE__);
+	}
+
+	meson_u2phy_hold_reset(phy, true);
+	meson_u2phy_usb_reset(phy);
+	usleep_range(49, 50);
+
+	mup_dbg(phy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
+			readl(&phy->u2p_aml_regs[0]->r0),
+			readl(&phy->u2p_aml_regs[0]->r1),
+			readl(&phy->u2p_aml_regs[0]->r2));
+
+	if (phy->suspend_flag && phy->current_mode != 0)
+		meson_u2phy_set_mode(phy, phy->current_mode);
+
+	usleep_range(50, 100);
+	meson_u2phy_reset_phycfg(phy);
+
+	priv->cali(phy);
+
+	ret = meson_usb2phy_wait_ready(phy, 200);
+	if (ret)
+		mup_err(phy->dev, " wait for ready timeout.\n");
+
+	ret = priv->set_pll(phy);
+	if (ret)
+		return ret;
+
+	mup_dbg(phy->dev, "end r0~r2 0x%x 0x%x 0x%x.\n",
+			readl(&phy->u2p_aml_regs[0]->r0),
+			readl(&phy->u2p_aml_regs[0]->r1),
+			readl(&phy->u2p_aml_regs[0]->r2));
+
+	if (phy->suspend_flag)
+		phy->suspend_flag = 0;
+
 	return ret;
 }
 
@@ -698,6 +751,9 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	if (cnt < 0) {
 		mup_err(dev, "no clks? exit.");
 		return -EINVAL;
+	} else if (cnt > AML_USB_PHY_MAX_CLK_NUMBER) {
+		mup_err(dev, "too many clks. exit.");
+		return -EOVERFLOW;
 	}
 	mup_dbg(dev, "clk num: %d\n", cnt);
 	for (i = 0; i < cnt; i++) {

@@ -136,8 +136,7 @@ static int meson_usb2phy_s7d_cali(struct amlogic_usb_v2 *mphy)
 static int meson_u2phy_s7d_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	int ret = 0;
-	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)
-				((struct meson_uphy_instance *)phy_get_drvdata(phy))->meson_uphy;
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	ret = meson_u2phy_set_mode(mphy, mode);
 
@@ -147,8 +146,7 @@ static int meson_u2phy_s7d_set_mode(struct phy *phy, enum phy_mode mode, int sub
 static int meson_u2phy_s7d_init(struct phy *phy)
 {
 	int ret;
-	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)
-				((struct meson_uphy_instance *)phy_get_drvdata(phy))->meson_uphy;
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	if (!mphy->suspend_flag) {
 		mup_err(mphy->dev, "%s excessive init\n", __func__);
@@ -197,24 +195,21 @@ static int meson_u2phy_s7d_init(struct phy *phy)
 
 static int meson_u2phy_s7d_exit(struct phy *phy)
 {
-	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)
-				((struct meson_uphy_instance *)phy_get_drvdata(phy))->meson_uphy;
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	return meson_u2phy_exit(mphy);
 }
 
 static int meson_u2phy_s7d_power_on(struct phy *phy)
 {
-	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)
-				((struct meson_uphy_instance *)phy_get_drvdata(phy))->meson_uphy;
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	return meson_u2phy_power_on(mphy);
 }
 
 static int meson_u2phy_s7d_power_off(struct phy *phy)
 {
-	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)
-				((struct meson_uphy_instance *)phy_get_drvdata(phy))->meson_uphy;
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	return meson_u2phy_power_off(mphy);
 }

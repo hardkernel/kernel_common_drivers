@@ -499,44 +499,6 @@ union phy_m31_r15 {
 	} b;
 };
 
-struct aml_usb3_phy {
-	struct usb_phy		phy;
-	struct device		*dev;
-	struct clk		*clk[3];
-	void __iomem	*cfg_reg;
-	void __iomem	*ctrl_reg;
-	void __iomem	*reset_reg;
-	void __iomem	*trim_reg;
-	phys_addr_t cfg_reg_phy;
-	phys_addr_t ctrl_reg_phy;
-	phys_addr_t reset_reg_phy;
-	phys_addr_t trim_reg_phy;
-	resource_size_t cfg_reg_size;
-	resource_size_t ctrl_reg_size;
-	resource_size_t reset_reg_size;
-	resource_size_t trim_reg_size;
-	u32 reset_level_shift;
-	u8 portnum;
-	u8 phy_id;
-	/* Reset static regs to default.
-	 * Edge trigger/level reset.
-	 */
-	u8 usb3_apb_reset_bit;
-	/* Reset dynamic regs to default.
-	 * Level  reset.
-	 */
-	u8 usb3_phy_reset_bit;
-	u8 usb3_controller_reset_bit;
-
-	u8 num_clk;
-	u32 ic_ver;
-	bool off;
-	bool pll_sw_cfg;
-	bool suspend;
-};
-
-#define	phy_to_amlusb3phy(p)	container_of((p), struct aml_usb3_phy, phy)
-
 void cr_bus_addr(unsigned int addr);
 int cr_bus_read(unsigned int addr);
 void cr_bus_write(unsigned int addr, unsigned int data);

@@ -78,8 +78,12 @@ struct meson_uphy_instance {
 	void *meson_uphy;
 };
 
-#define to_amlusbv2phy(phy)\
+#define gphy_to_amlusbv2phy(phy)\
 	((struct amlogic_usb_v2 *)((struct meson_uphy_instance *)\
+	phy_get_drvdata(phy))->meson_uphy)\
+
+#define gphy_to_amlusb3phy(phy)\
+	((struct aml_usb3_phy *)((struct meson_uphy_instance *)\
 	phy_get_drvdata(phy))->meson_uphy)\
 
 struct meson_uphy_pool {
@@ -114,6 +118,12 @@ struct meson_uphy_pdata {
 extern struct meson_uphy_pdata meson_uphy_s7_pdata;
 extern struct meson_uphy_pdata meson_uphy_s7d_pdata;
 extern struct meson_uphy_pdata meson_uphy_sc2_pdata;
+extern struct meson_uphy_pdata meson_uphy_s6_pdata;
+
+struct meson_u2phy_priv {
+	void (*cali)(struct amlogic_usb_v2 *phy);
+	int (*set_pll)(struct amlogic_usb_v2 *phy);
+};
 
 int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy);
 int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on);
@@ -133,10 +143,14 @@ int meson_usb2phy_wait_ready(struct amlogic_usb_v2 *phy, unsigned int timeout);
 int meson_u2phy_exit(struct amlogic_usb_v2 *phy);
 int meson_u2phy_power_on(struct amlogic_usb_v2 *phy);
 int meson_u2phy_power_off(struct amlogic_usb_v2 *phy);
+int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy,  struct meson_u2phy_priv *priv);
 int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_synopsis_u3phy_init(struct amlogic_usb_v2 *phy);
 int meson_synopsis_u3phy_exit(struct amlogic_usb_v2 *phy);
 int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance);
+int meson_aml_u3phy_init(struct aml_usb3_phy *phy);
+int meson_aml_u3phy_exit(struct aml_usb3_phy *phy);
+int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_m31_u2phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_m31_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *instance);

@@ -14,7 +14,7 @@ static int meson_usb2phy_sc2_cali(struct amlogic_usb_v2 *mphy)
 static int meson_u2phy_sc2_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	int ret = 0;
-	struct amlogic_usb_v2 *mphy = to_amlusbv2phy(phy);
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	ret = meson_u2phy_legacy_set_mode(mphy, mode);
 
@@ -24,7 +24,7 @@ static int meson_u2phy_sc2_set_mode(struct phy *phy, enum phy_mode mode, int sub
 static int meson_u2phy_sc2_init(struct phy *phy)
 {
 	int ret;
-	struct amlogic_usb_v2 *mphy = to_amlusbv2phy(phy);
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	if (!mphy->suspend_flag) {
 		mup_err(mphy->dev, "%s excessive init\n", __func__);
@@ -75,7 +75,7 @@ static int meson_u2phy_sc2_init(struct phy *phy)
 
 static int meson_u2phy_sc2_exit(struct phy *phy)
 {
-	struct amlogic_usb_v2 *mphy = to_amlusbv2phy(phy);
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	return meson_u2phy_exit(mphy);
 }
@@ -86,7 +86,7 @@ static int meson_u2phy_sc2_exit(struct phy *phy)
  */
 static int meson_u2phy_sc2_power_on(struct phy *phy)
 {
-	struct amlogic_usb_v2 *mphy = to_amlusbv2phy(phy);
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	if (mphy->otg_helper.otg_port)
 		return 0;
@@ -96,7 +96,7 @@ static int meson_u2phy_sc2_power_on(struct phy *phy)
 
 static int meson_u2phy_sc2_power_off(struct phy *phy)
 {
-	struct amlogic_usb_v2 *mphy = to_amlusbv2phy(phy);
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	if (mphy->otg_helper.otg_port)
 		return 0;
@@ -109,7 +109,7 @@ int meson_u2phy_sc2_configure(struct phy *phy, struct meson_uphy_configure_opts 
 	int ret = 0;
 
 	if (opts->otg_init) {
-		ret = meson_uphy_rtmux_otg_init(to_amlusbv2phy(phy));
+		ret = meson_uphy_rtmux_otg_init(gphy_to_amlusbv2phy(phy));
 		if (ret)
 			return ret;
 	}
@@ -120,7 +120,7 @@ int meson_u2phy_sc2_configure(struct phy *phy, struct meson_uphy_configure_opts 
 static int meson_u2phy_sc2_validate(struct phy *phy, enum phy_mode mode, int submode,
 				struct meson_uphy_configure_opts *opts)
 {
-	struct amlogic_usb_v2 *mphy = to_amlusbv2phy(phy);
+	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
 
 	if (mode == mphy->current_mode)
 		return 1;
@@ -130,12 +130,12 @@ static int meson_u2phy_sc2_validate(struct phy *phy, enum phy_mode mode, int sub
 
 static int meson_u3phy_sc2_init(struct phy *phy)
 {
-	return meson_synopsis_u3phy_init(to_amlusbv2phy(phy));
+	return meson_synopsis_u3phy_init(gphy_to_amlusbv2phy(phy));
 }
 
 static int meson_u3phy_sc2_exit(struct phy *phy)
 {
-	return meson_synopsis_u3phy_exit(to_amlusbv2phy(phy));	//return 0;
+	return meson_synopsis_u3phy_exit(gphy_to_amlusbv2phy(phy));
 }
 
 static struct meson_uphy_ops meson_u2phy_sc2_ops = {

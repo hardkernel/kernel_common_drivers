@@ -158,6 +158,40 @@ struct amlogic_usb_v2 {
 				void __iomem *reg);
 };
 
+struct aml_usb3_phy {
+	struct device		*dev;
+	struct clk_bulk_data clks[AML_USB_PHY_MAX_CLK_NUMBER];
+	int clk_num;
+	void __iomem	*cfg_reg;
+	void __iomem	*ctrl_reg;
+	void __iomem	*reset_reg;
+	void __iomem	*trim_reg;
+	u64 cfg_reg_phy;
+	u64 ctrl_reg_phy;
+	u64 reset_reg_phy;
+	u64 trim_reg_phy;
+	u64 cfg_reg_size;
+	u64 ctrl_reg_size;
+	u64 reset_reg_size;
+	u64 trim_reg_size;
+	u32 reset_level_shift;
+	u8 phy_id;
+	/* Reset static regs to default.
+	 * Edge trigger/level reset.
+	 */
+	u8 usb3_apb_reset_bit;
+	/* Reset dynamic regs to default.
+	 * Level  reset.
+	 */
+	u8 usb3_phy_reset_bit;
+	u8 usb3_controller_reset_bit;
+
+	u32 ic_ver;
+	bool off;
+	bool pll_sw_cfg;
+	bool suspend;
+};
+
 static inline void
 usb_phy_trim_tuning(struct usb_phy *x, int port, int default_val)
 {
