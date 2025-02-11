@@ -82,6 +82,7 @@ static int sec_data(struct swdmx_pid_filter *pid_filter, u8 *p, int len)
 	int n, left = len, sec_len;
 	u8 *sec = pid_filter->sec_data;
 	u8 crc = SWDMX_FALSE;
+	u8 crc_result = SWDMX_FALSE;
 
 	swdmx_log("%s enter\n", __func__);
 
@@ -125,11 +126,18 @@ static int sec_data(struct swdmx_pid_filter *pid_filter, u8 *p, int len)
 				if (!crc) {
 					if (swdmx_crc32(pid_filter->sec_data,
 							pid_filter->sec_recv)) {
-						swdmx_log("section crc error");
-						break;
+						swdmx_log("pid:0x%0x, section crc error\n",
+							pid_filter->pid);
+						crc = SWDMX_TRUE;
+						crc_result = SWDMX_FALSE;
+						continue;
 					}
 
 					crc = SWDMX_TRUE;
+					crc_result = SWDMX_TRUE;
+				} else {
+					if (!crc_result)
+						continue;
 				}
 			}
 

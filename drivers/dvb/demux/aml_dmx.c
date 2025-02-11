@@ -1334,9 +1334,15 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 static int _dmx_section_add_filter(struct sw_demux_sec_feed *sec_feed, int i)
 {
 	struct swdmx_secfilter_params params;
+	struct dmx_section_filter *sec_filter;
+	struct dmxdev_filter *filter;
 
 	params.pid = sec_feed->pid;
-	params.crc32 = sec_feed->check_crc;
+
+	sec_filter = (struct dmx_section_filter *)
+			&sec_feed->filter[i].section_filter;
+	filter = (struct dmxdev_filter *)sec_filter->priv;
+	params.crc32 = (filter->params.sec.flags & DMX_CHECK_CRC) ? 1 : 0;
 
 	memmove(&sec_feed->filter[i].section_filter.filter_value[1],
 	       &sec_feed->filter[i].section_filter.filter_value[3],
@@ -1367,6 +1373,7 @@ static int _dmx_section_add_filter(struct sw_demux_sec_feed *sec_feed, int i)
 	swdmx_sec_filter_add_section_cb(sec_feed->filter[i].secf, _sec_cb,
 					&sec_feed->filter[i].section_filter);
 
+	pr_dbg("pid:0x%0x, i:%d, crc:%d\n", params.pid, i, params.crc32);
 	if (swdmx_sec_filter_enable(sec_feed->filter[i].secf) != SWDMX_OK)
 		return -1;
 	return 0;
@@ -1421,6 +1428,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	feed->is_filtering = 1;
 
 	if (sec_feed->sec_out_elem) {
+		pr_dbg("%s same pid has pid filter\n", __func__);
 		mutex_unlock(demux->pmutex);
 		return 0;
 	}
