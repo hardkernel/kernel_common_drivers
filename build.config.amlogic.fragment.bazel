@@ -1,5 +1,5 @@
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
+# . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 
 COMMON_DRIVERS_DIR=../common_drivers
 . ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project/build.config.project

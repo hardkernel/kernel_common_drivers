@@ -251,7 +251,6 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo "========================================================"
 	echo "after compiling with bazel and organizing the document"
 	source ${KERNEL_DIR}/build.config.constants
-	source ${KERNEL_DIR}/build.config.common
 	export COMMON_OUT_DIR=$(readlink -m ${OUT_DIR:-${ROOT_DIR}/out${OUT_DIR_SUFFIX}/${BRANCH}})
 	export DIST_DIR=$(readlink -m ${DIST_DIR:-${COMMON_OUT_DIR}/dist})
 	source ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/amlogic_utils.sh

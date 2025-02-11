@@ -1,7 +1,7 @@
-From 60bba04ad42b3c8f0340ddd7dd9f6b115f03246f Mon Sep 17 00:00:00 2001
+From b5cefbfde5ff371fda304d151240945ae955f146 Mon Sep 17 00:00:00 2001
 From: Lei Zhang <lei.zhang@amlogic.com>
 Date: Wed, 28 Sep 2022 11:29:44 +0800
-Subject: [PATCH 04/32] riscv: dump register and pfn [2/3]
+Subject: [PATCH] riscv: dump register and pfn [2/3]
 
 PD#SWPL-94239
 
@@ -24,7 +24,7 @@ Change-Id: I9acbabb63e4647b8619c29f822d54ade9abcb1ba
  4 files changed, 27 insertions(+), 1 deletion(-)
 
 diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index 62545946ecf4..a941d1ebe440 100644
+index fa8f2da87a0a..9a93a8709d52 100644
 --- a/arch/riscv/Kconfig
 +++ b/arch/riscv/Kconfig
 @@ -51,7 +51,7 @@ config RISCV
@@ -73,7 +73,7 @@ index e3142d8a6e28..c3c48729e459 100644
  void show_regs(struct pt_regs *regs)
  {
 diff --git a/arch/riscv/kernel/traps.c b/arch/riscv/kernel/traps.c
-index 51ebfd23e007..33eeee6870b7 100644
+index 8ff8e8b36524..7f80cc2e4369 100644
 --- a/arch/riscv/kernel/traps.c
 +++ b/arch/riscv/kernel/traps.c
 @@ -33,6 +33,10 @@
@@ -86,7 +86,7 @@ index 51ebfd23e007..33eeee6870b7 100644
 +
  int show_unhandled_signals = 1;
  
- static DEFINE_SPINLOCK(die_lock);
+ static DEFINE_RAW_SPINLOCK(die_lock);
 @@ -122,6 +126,9 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
  		print_vma_addr(KERN_CONT " in ", instruction_pointer(regs));
  		pr_cont("\n");
@@ -98,10 +98,10 @@ index 51ebfd23e007..33eeee6870b7 100644
  	}
  
 diff --git a/arch/riscv/mm/init.c b/arch/riscv/mm/init.c
-index 0e8c20adcd98..8142863b31ee 100644
+index 8d167e09f1fe..365330818f73 100644
 --- a/arch/riscv/mm/init.c
 +++ b/arch/riscv/mm/init.c
-@@ -37,6 +37,10 @@
+@@ -38,6 +38,10 @@
  
  #include "../kernel/head.h"
  
@@ -112,7 +112,7 @@ index 0e8c20adcd98..8142863b31ee 100644
  u64 new_vmalloc[NR_CPUS / sizeof(u64) + 1];
  
  struct kernel_mapping kernel_map __ro_after_init;
-@@ -186,6 +190,10 @@ void __init mem_init(void)
+@@ -194,6 +198,10 @@ void __init mem_init(void)
  	swiotlb_init(swiotlb, SWIOTLB_VERBOSE);
  	memblock_free_all();
  

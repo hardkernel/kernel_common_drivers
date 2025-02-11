@@ -1,4 +1,4 @@
-From dd4330ebf5c540c9a4127fd692d1a57f0705c64b Mon Sep 17 00:00:00 2001
+From 03e5274337e8497b588f49879368371f408c6664 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Tue, 7 Feb 2023 17:19:36 +0800
 Subject: [PATCH] Merge branch 'android-mainline' into common-mainline [1/1]
@@ -9,10 +9,10 @@ Problem:
 record merge upstream information
 
 Solution:
-AML_KERNEL_VERSION	5
-UPSTREAM_VERSION	"f3dfc92a4f9d"
-AML_PATCH_VERSION	"f3dfc92a4f9d"
-MERGE_DATE		"2024-12-09"
+AML_KERNEL_VERSION      6
+UPSTREAM_VERSION        "fc99bcd94b4d"
+AML_PATCH_VERSION       "fc99bcd94b4d"
+MERGE_DATE              "2025-02-13"
 
 Verify:
 sc2
@@ -26,7 +26,7 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 
 diff --git a/include/linux/upstream_version.h b/include/linux/upstream_version.h
 new file mode 100644
-index 000000000000..bf02439d518f
+index 000000000000..4dcc7581f530
 --- /dev/null
 +++ b/include/linux/upstream_version.h
 @@ -0,0 +1,14 @@
@@ -38,10 +38,10 @@ index 000000000000..bf02439d518f
 +#ifndef _LINUX_UPSTREAM_VERSION_H
 +#define _LINUX_UPSTREAM_VERSION_H
 +
-+#define AML_KERNEL_VERSION	5
-+#define UPSTREAM_VERSION	"f3dfc92a4f9d"
-+#define AML_PATCH_VERSION	"f3dfc92a4f9d"
-+#define MERGE_DATE		"2024-12-09"
++#define AML_KERNEL_VERSION	6
++#define UPSTREAM_VERSION	"fc99bcd94b4d"
++#define AML_PATCH_VERSION	"fc99bcd94b4d"
++#define MERGE_DATE		"2025-02-13"
 +
 +#endif
 -- 

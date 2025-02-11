@@ -1,4 +1,4 @@
-From 371e9a689dcd1d95f01396e64900d505f4a4623f Mon Sep 17 00:00:00 2001
+From ed81998006c9f901eb0042731b58062326981173 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 16:24:49 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -53,8 +53,8 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/slab_common.c               | 43 +++++++++++++++++++++++++
  mm/slub.c                      | 32 +++++++++++++++++++
  mm/usercopy.c                  |  4 +++
- mm/vmscan.c                    | 17 ++++++++++
- 26 files changed, 296 insertions(+), 1 deletion(-)
+ mm/vmscan.c                    | 21 ++++++++++++
+ 26 files changed, 300 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index 06a4670bdb0b..515e6f726e95 100644
@@ -87,10 +87,10 @@ index 6e53ecfdfa12..6068578fecbc 100644
  
  static inline void arch_hdr_invariants(struct arch_hibernate_hdr_invariants *i)
 diff --git a/drivers/base/core.c b/drivers/base/core.c
-index 048ff98dbdfd..96c71f51608b 100644
+index d922cefc1e66..b27c22b64050 100644
 --- a/drivers/base/core.c
 +++ b/drivers/base/core.c
-@@ -3407,8 +3407,10 @@ static int device_add_class_symlinks(struct device *dev)
+@@ -3400,8 +3400,10 @@ static int device_add_class_symlinks(struct device *dev)
  
  	if (of_node) {
  		error = sysfs_create_link(&dev->kobj, of_node_kobj(of_node), "of_node");
@@ -102,7 +102,7 @@ index 048ff98dbdfd..96c71f51608b 100644
  	}
  
 diff --git a/drivers/of/base.c b/drivers/of/base.c
-index 20603d3c9931..eaf50ac8eb45 100644
+index 63161d0f72b4..3b3bfba6f16e 100644
 --- a/drivers/of/base.c
 +++ b/drivers/of/base.c
 @@ -166,7 +166,9 @@ void __of_phandle_cache_inv_entry(phandle handle)
@@ -220,7 +220,7 @@ index 8dabb224f941..3b7ddc52f767 100644
  {
  	if (!str)
 diff --git a/include/linux/android_kabi.h b/include/linux/android_kabi.h
-index 1fa329ee4d73..392b354153de 100644
+index 02ba25dbfdbf..7c8dde659f65 100644
 --- a/include/linux/android_kabi.h
 +++ b/include/linux/android_kabi.h
 @@ -84,11 +84,15 @@
@@ -237,8 +237,8 @@ index 1fa329ee4d73..392b354153de 100644
  #endif
 +#endif
  
- 
  /*
+  * ANDROID_KABI_BACKPORT_OK
 diff --git a/include/linux/android_vendor.h b/include/linux/android_vendor.h
 index af3014ccc82e..f5bce42c8d0d 100644
 --- a/include/linux/android_vendor.h
@@ -267,10 +267,10 @@ index af3014ccc82e..f5bce42c8d0d 100644
  
  #endif /* _ANDROID_VENDOR_H */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index eb7f85f51034..62676999c84f 100644
+index 00823bd13e51..4f1411af7e2e 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -117,7 +117,18 @@ extern int page_group_by_mobility_disabled;
+@@ -124,7 +124,18 @@ extern int page_group_by_mobility_disabled;
  struct free_area {
  	struct list_head	free_list[MIGRATE_TYPES];
  	unsigned long		nr_free;
@@ -291,7 +291,7 @@ index eb7f85f51034..62676999c84f 100644
  struct pglist_data;
  
 diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index a2b0716c1f27..0adaa9797759 100644
+index d904efb4574d..bdb5d84bcf20 100644
 --- a/include/linux/page-flags.h
 +++ b/include/linux/page-flags.h
 @@ -548,6 +548,9 @@ FOLIO_FLAG(swapbacked, FOLIO_HEAD_PAGE)
@@ -336,10 +336,10 @@ index 4ab5bdc898cf..3bd8f1c3019c 100644
  
  /* An illegal pointer value to mark the end of the shadow stack. */
 diff --git a/init/init_task.c b/init/init_task.c
-index 8827bd6f17b1..f8a86d752266 100644
+index 61e34b09c5c5..ead4b79e3917 100644
 --- a/init/init_task.c
 +++ b/init/init_task.c
-@@ -219,10 +219,12 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
+@@ -220,10 +220,12 @@ struct task_struct init_task __aligned(L1_CACHE_BYTES) = {
  #ifdef CONFIG_SECCOMP_FILTER
  	.seccomp	= { .filter_count = ATOMIC_INIT(0) },
  #endif
@@ -541,7 +541,7 @@ index ed4873e18c75..84761ffbfc2a 100644
  		     KASAN_PAGE_REDZONE, false);
  }
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f7ae78257ace..da8223fa0f8d 100644
+index 6df185f2a9de..039d734ed57a 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -71,6 +71,10 @@
@@ -555,7 +555,7 @@ index f7ae78257ace..da8223fa0f8d 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
  
-@@ -861,7 +865,15 @@ static inline void __free_one_page(struct page *page,
+@@ -915,7 +919,15 @@ static inline void __free_one_page(struct page *page,
  	else if (is_shuffle_order(order))
  		to_tail = shuffle_pick_tail();
  	else
@@ -571,7 +571,7 @@ index f7ae78257ace..da8223fa0f8d 100644
  
  	__add_to_free_list(page, zone, order, migratetype, to_tail);
  
-@@ -2659,7 +2671,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
+@@ -2733,7 +2745,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
  	pcp->alloc_factor >>= 1;
  	__count_vm_events(PGFREE, 1 << order);
  	pindex = order_to_pindex(migratetype, order);
@@ -587,7 +587,7 @@ index f7ae78257ace..da8223fa0f8d 100644
  	pcp->count += 1 << order;
  
  	batch = READ_ONCE(pcp->batch);
-@@ -4820,6 +4840,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+@@ -4958,6 +4978,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
  	 */
  	alloc_flags |= alloc_flags_nofragment(zonelist_zone(ac.preferred_zoneref), gfp);
  
@@ -597,7 +597,7 @@ index f7ae78257ace..da8223fa0f8d 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -7075,6 +7098,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -7213,6 +7236,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -640,10 +640,10 @@ index f7ae78257ace..da8223fa0f8d 100644
  bool has_managed_dma(void)
  {
 diff --git a/mm/show_mem.c b/mm/show_mem.c
-index ec885a398fa0..65b8941a1a25 100644
+index dbb5054ce8ca..7562740b2fab 100644
 --- a/mm/show_mem.c
 +++ b/mm/show_mem.c
-@@ -189,6 +189,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -194,6 +194,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  	int cpu, nid;
  	struct zone *zone;
  	pg_data_t *pgdat;
@@ -653,7 +653,7 @@ index ec885a398fa0..65b8941a1a25 100644
  
  	for_each_populated_zone(zone) {
  		if (zone_idx(zone) > max_zone_idx)
-@@ -372,6 +375,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -377,6 +380,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  
  			types[order] = 0;
  			for (type = 0; type < MIGRATE_TYPES; type++) {
@@ -663,7 +663,7 @@ index ec885a398fa0..65b8941a1a25 100644
  				if (!free_area_empty(area, type))
  					types[order] |= 1 << type;
  			}
-@@ -384,6 +390,12 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -389,6 +395,12 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  				show_migration_types(types[order]);
  		}
  		printk(KERN_CONT "= %lukB\n", K(total));
@@ -677,10 +677,10 @@ index ec885a398fa0..65b8941a1a25 100644
  
  	for_each_online_node(nid) {
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 893d32059915..6b8164fa414a 100644
+index e95d747d3432..3d3dd6d9185f 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -53,7 +53,11 @@ struct kmem_cache *kmem_cache;
+@@ -55,7 +55,11 @@ struct kmem_cache *kmem_cache;
  /*
   * Merge control. If this is set then no merging of slab caches will occur.
   */
@@ -692,7 +692,7 @@ index 893d32059915..6b8164fa414a 100644
  
  static int __init setup_slab_nomerge(char *str)
  {
-@@ -988,6 +992,9 @@ void __init create_kmalloc_caches(void)
+@@ -990,6 +994,9 @@ void __init create_kmalloc_caches(void)
  size_t __ksize(const void *object)
  {
  	struct folio *folio;
@@ -702,7 +702,7 @@ index 893d32059915..6b8164fa414a 100644
  
  	if (unlikely(object == ZERO_SIZE_PTR))
  		return 0;
-@@ -995,10 +1002,21 @@ size_t __ksize(const void *object)
+@@ -997,10 +1004,21 @@ size_t __ksize(const void *object)
  	folio = virt_to_folio(object);
  
  	if (unlikely(!folio_test_slab(folio))) {
@@ -724,7 +724,7 @@ index 893d32059915..6b8164fa414a 100644
  		return folio_size(folio);
  	}
  
-@@ -1073,9 +1091,18 @@ static void print_slabinfo_header(struct seq_file *m)
+@@ -1075,9 +1093,18 @@ static void print_slabinfo_header(struct seq_file *m)
  	 * without _too_ many complaints.
  	 */
  	seq_puts(m, "slabinfo - version: 2.1\n");
@@ -740,10 +740,10 @@ index 893d32059915..6b8164fa414a 100644
 +#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 +	seq_puts(m, " : <total bytes> <reclaim>");
 +#endif
+ 	trace_android_vh_print_slabinfo_header(m);
  	seq_putc(m, '\n');
  }
- 
-@@ -1098,18 +1125,34 @@ static void slab_stop(struct seq_file *m, void *p)
+@@ -1101,18 +1128,34 @@ static void slab_stop(struct seq_file *m, void *p)
  static void cache_show(struct kmem_cache *s, struct seq_file *m)
  {
  	struct slabinfo sinfo;
@@ -754,13 +754,13 @@ index 893d32059915..6b8164fa414a 100644
  
  	memset(&sinfo, 0, sizeof(sinfo));
  	get_slabinfo(s, &sinfo);
+ 
 +#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 +	strncpy(name, s->name, 31);
 +	seq_printf(m, "%-31s %6lu %6lu %6u %4u %4d",
 +		name, sinfo.active_objs, sinfo.num_objs, s->size,
 +		sinfo.objects_per_slab, (1 << sinfo.cache_order));
 +#else
- 
  	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
  		   s->name, sinfo.active_objs, sinfo.num_objs, s->size,
  		   sinfo.objects_per_slab, (1 << sinfo.cache_order));
@@ -775,14 +775,14 @@ index 893d32059915..6b8164fa414a 100644
 +	seq_printf(m, "%8lu, %s", total,
 +		(s->flags & SLAB_RECLAIM_ACCOUNT) ? "S_R" : "S_U");
 +#endif
+ 	trace_android_vh_cache_show(m, &sinfo, s);
  	seq_putc(m, '\n');
  }
- 
 diff --git a/mm/slub.c b/mm/slub.c
-index 5b832512044e..64fe8c271039 100644
+index 14db6006d5fa..9d40ae041f80 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -48,6 +48,9 @@
+@@ -49,6 +49,9 @@
  
  #include "internal.h"
  
@@ -792,7 +792,7 @@ index 5b832512044e..64fe8c271039 100644
  /*
   * Lock order:
   *   1. slab_mutex (Global Mutex)
-@@ -4206,11 +4209,29 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
+@@ -4233,11 +4236,29 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
  		flags = kmalloc_fix_flags(flags);
  
  	flags |= __GFP_COMP;
@@ -821,8 +821,8 @@ index 5b832512044e..64fe8c271039 100644
 +	#endif
  	}
  
- 	ptr = kasan_kmalloc_large(ptr, size, flags);
-@@ -4718,7 +4739,14 @@ void kfree(const void *object)
+ 	trace_android_vh_kmalloc_large_alloced(folio, order, flags);
+@@ -4750,7 +4771,14 @@ void kfree(const void *object)
  
  	folio = virt_to_folio(object);
  	if (unlikely(!folio_test_slab(folio))) {
@@ -837,7 +837,7 @@ index 5b832512044e..64fe8c271039 100644
  		return;
  	}
  
-@@ -5052,6 +5080,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
+@@ -5084,6 +5112,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
  
  static inline int calculate_order(unsigned int size)
  {
@@ -847,7 +847,7 @@ index 5b832512044e..64fe8c271039 100644
  	unsigned int order;
  	unsigned int min_objects;
  	unsigned int max_objects;
-@@ -5111,6 +5142,7 @@ static inline int calculate_order(unsigned int size)
+@@ -5143,6 +5174,7 @@ static inline int calculate_order(unsigned int size)
  	if (order <= MAX_PAGE_ORDER)
  		return order;
  	return -ENOSYS;
@@ -871,10 +871,10 @@ index 83c164aba6e0..5400ce215e2c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e362706dc110..b5b3767538ef 100644
+index a50709ba38f3..8c23b96650a0 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1048,6 +1048,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
+@@ -1058,6 +1058,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
@@ -892,7 +892,7 @@ index e362706dc110..b5b3767538ef 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1094,7 +1105,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1104,7 +1115,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -904,7 +904,7 @@ index e362706dc110..b5b3767538ef 100644
  			goto keep_locked;
  
  		/* folio_update_gen() tried to promote this page? */
-@@ -1834,8 +1849,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -1844,8 +1859,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
@@ -915,6 +915,31 @@ index e362706dc110..b5b3767538ef 100644
  
  	too_many = isolated > inactive;
  
+@@ -5902,9 +5919,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 			return false;
+ 	}
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 	trace_android_vh_should_continue_reclaim(&sc->android_vendor_data1,
+ 		&sc->nr_to_reclaim, &sc->nr_reclaimed, &continue_reclaim);
++#endif
+ #endif
+ 	if (!continue_reclaim)
+ 		return false;
+@@ -6297,10 +6316,12 @@ static void modify_scan_control(struct scan_control *sc)
+ {
+ 	bool file_is_tiny = false, may_writepage = true;
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 	trace_android_vh_modify_scan_control(&sc->android_vendor_data1,
+ 		&sc->nr_to_reclaim, sc->target_mem_cgroup, &file_is_tiny,
+ 		&may_writepage);
++#endif
+ #endif
+ 
+ 	if (file_is_tiny)
 -- 
 2.42.0
 

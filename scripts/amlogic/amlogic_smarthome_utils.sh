@@ -72,7 +72,7 @@ function set_default_parameters_for_smarthome () {
 	)
 	echo CC_CLANG=$CC_CLANG
 	if [[ $CC_CLANG -eq "1" ]]; then
-		source ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+		source ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
 		if [[ -n "${LLVM}" ]]; then
 			tool_args+=("LLVM=1")
 		fi

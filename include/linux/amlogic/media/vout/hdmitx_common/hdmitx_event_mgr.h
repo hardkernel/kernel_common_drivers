@@ -6,6 +6,8 @@
 #ifndef __HDMITX_UEVENT_MGR_H
 #define __HDMITX_UEVENT_MGR_H
 
+#include <linux/notifier.h>
+
 struct hdmitx_event_mgr {
 	/*for uevent*/
 	struct kobject *kobj;

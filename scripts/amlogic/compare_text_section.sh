@@ -52,9 +52,7 @@ fi
 
 if [[ ! -d ${BUILDTOOL_DIR} ]]; then
 	DEFAULT_BUILD_CONFIG_CONSTANTS=common/build.config.constants
-	DEFAULT_BUILD_CONFIG_COMMON=common/build.config.common
 	[[ -f ${DEFAULT_BUILD_CONFIG_CONSTANTS} ]] && source ${DEFAULT_BUILD_CONFIG_CONSTANTS}
-	[[ -f ${DEFAULT_BUILD_CONFIG_COMMON} ]] && source ${DEFAULT_BUILD_CONFIG_COMMON}
 
 	if [[ ! -d ${CLANG_PREBUILT_BIN} ]]; then
 		echo "--buildtool_dir not exit, --buildtool_dir ${BUILDTOOL_DIR}, Failed!"

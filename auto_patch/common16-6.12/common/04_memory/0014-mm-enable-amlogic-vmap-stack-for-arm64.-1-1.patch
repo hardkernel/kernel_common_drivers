@@ -1,4 +1,4 @@
-From cca0b538ba323422d392af0b4e7f3b92d36beaf0 Mon Sep 17 00:00:00 2001
+From 29b0a9b6e9b125b0be015513a59db943b1fdeb78 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 28 Nov 2024 15:15:07 +0800
 Subject: [PATCH] mm: add amlogic vmap stack for arm64. [1/1]
@@ -31,7 +31,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  arch/arm64/kernel/stacktrace.c             |  55 +++++++++
  arch/arm64/kernel/suspend.c                |   7 ++
  arch/arm64/mm/kasan_init.c                 |   4 +
- fs/proc/meminfo.c                          |   8 ++
+ fs/proc/meminfo.c                          |   9 ++
  include/linux/sched.h                      |   6 +
  include/linux/sched/task_stack.h           |   8 ++
  include/linux/vmalloc.h                    |   6 +
@@ -39,13 +39,13 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  lib/Kconfig.debug                          |   1 +
  mm/kmemleak.c                              |  25 +++++
  mm/vmalloc.c                               |   7 ++
- 22 files changed, 346 insertions(+), 1 deletion(-)
+ 22 files changed, 347 insertions(+), 1 deletion(-)
 
 diff --git a/Makefile b/Makefile
-index 267d2e8d3bff..79218771af92 100644
+index ab6e4a600f71..3e57886bd609 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -872,9 +872,11 @@ ifdef CONFIG_READABLE_ASM
+@@ -878,9 +878,11 @@ ifdef CONFIG_READABLE_ASM
  KBUILD_CFLAGS += -fno-reorder-blocks -fno-ipa-cp-clone -fno-partial-inlining
  endif
  
@@ -57,7 +57,7 @@ index 267d2e8d3bff..79218771af92 100644
  
  KBUILD_CFLAGS += $(stackp-flags-y)
  
-@@ -884,6 +886,11 @@ KBUILD_RUSTFLAGS += $(KBUILD_RUSTFLAGS-y)
+@@ -890,6 +892,11 @@ KBUILD_RUSTFLAGS += $(KBUILD_RUSTFLAGS-y)
  ifdef CONFIG_FRAME_POINTER
  KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
  KBUILD_RUSTFLAGS += -Cforce-frame-pointers=y
@@ -70,10 +70,10 @@ index 267d2e8d3bff..79218771af92 100644
  # Some targets (ARM with Thumb2, for example), can't be built with frame
  # pointers.  For those, we don't have FUNCTION_TRACER automatically
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 8de00bc0a3d3..59cffb058d28 100644
+index 75e96e5c80a8..c10d7890ff13 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -188,7 +188,7 @@ config ARM64
+@@ -189,7 +189,7 @@ config ARM64
  	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
@@ -451,7 +451,7 @@ index 1f9755ed5532..15ad0056aa90 100644
  	setup_boot_cpu_features();
  
 diff --git a/arch/arm64/kernel/stacktrace.c b/arch/arm64/kernel/stacktrace.c
-index 7c1fc6808a4e..6ed990f1623a 100644
+index e9cfb39f2161..b49ba36e14b0 100644
 --- a/arch/arm64/kernel/stacktrace.c
 +++ b/arch/arm64/kernel/stacktrace.c
 @@ -20,6 +20,10 @@
@@ -465,9 +465,9 @@ index 7c1fc6808a4e..6ed990f1623a 100644
  /*
   * Kernel unwind state
   *
-@@ -294,12 +298,59 @@ noinline noinstr void arch_bpf_stack_walk(bool (*consume_entry)(void *cookie, u6
- 	kunwind_stack_walk(arch_bpf_unwind_consume_entry, &data, current, NULL);
+@@ -295,12 +299,59 @@ noinline noinstr void arch_bpf_stack_walk(bool (*consume_entry)(void *cookie, u6
  }
+ EXPORT_SYMBOL_GPL(arch_stack_walk);
  
 +#ifdef CONFIG_AMLOGIC_VMAP
 +static noinline notrace void aml_dump_backtrace_entry(void *cookie,
@@ -525,7 +525,7 @@ index 7c1fc6808a4e..6ed990f1623a 100644
  
  void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
  		    const char *loglvl)
-@@ -316,7 +367,11 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+@@ -317,7 +368,11 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
  		return;
  
  	printk("%sCall trace:\n", loglvl);
@@ -586,20 +586,21 @@ index b65a29440a0c..86ab780cff80 100644
  	int l = root_level_idx(start), m = root_level_idx(end);
  
 diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 245171d9164b..28beb08ab26b 100644
+index 873996d11ad2..55a6d9a24ae0 100644
 --- a/fs/proc/meminfo.c
 +++ b/fs/proc/meminfo.c
-@@ -20,6 +20,9 @@
- #include <linux/zswap.h>
- #include <asm/page.h>
+@@ -23,6 +23,10 @@
  #include "internal.h"
+ #include <trace/hooks/mm.h>
+ 
 +#ifdef CONFIG_AMLOGIC_VMAP
 +#include <linux/amlogic/vmap_stack.h>
 +#endif
- 
++
  void __attribute__((weak)) arch_report_meminfo(struct seq_file *m)
  {
-@@ -108,8 +111,13 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ }
+@@ -111,8 +115,13 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
  	show_val_kb(m, "Slab:           ", sreclaimable + sunreclaim);
  	show_val_kb(m, "SReclaimable:   ", sreclaimable);
  	show_val_kb(m, "SUnreclaim:     ", sunreclaim);
@@ -614,10 +615,10 @@ index 245171d9164b..28beb08ab26b 100644
  	seq_printf(m, "ShadowCallStack:%8lu kB\n",
  		   global_node_page_state(NR_KERNEL_SCS_KB));
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index f0fba7ed8204..cc4193318a37 100644
+index 74173ef8ec30..1f9776af7cc7 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -1912,7 +1912,13 @@ extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
+@@ -1948,7 +1948,13 @@ extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
  #ifdef CONFIG_THREAD_INFO_IN_TASK
  # define task_thread_info(task)	(&(task)->thread_info)
  #elif !defined(__HAVE_THREAD_FUNCTIONS)
@@ -681,7 +682,7 @@ index ad2ce7a6ab7a..2ee2a5fe5a6c 100644
  
  #endif /* _LINUX_VMALLOC_H */
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 1dcc3fe2229f..00cd9fdee720 100644
+index 634a3102fd2f..838782016a9e 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -114,6 +114,10 @@
@@ -695,7 +696,7 @@ index 1dcc3fe2229f..00cd9fdee720 100644
  #include <trace/events/sched.h>
  
  #define CREATE_TRACE_POINTS
-@@ -353,6 +357,7 @@ static void free_thread_stack(struct task_struct *tsk)
+@@ -354,6 +358,7 @@ static void free_thread_stack(struct task_struct *tsk)
  
  #  else /* !CONFIG_VMAP_STACK */
  
@@ -703,7 +704,7 @@ index 1dcc3fe2229f..00cd9fdee720 100644
  static void thread_stack_free_rcu(struct rcu_head *rh)
  {
  	__free_pages(virt_to_page(rh), THREAD_SIZE_ORDER);
-@@ -364,9 +369,18 @@ static void thread_stack_delayed_free(struct task_struct *tsk)
+@@ -365,9 +370,18 @@ static void thread_stack_delayed_free(struct task_struct *tsk)
  
  	call_rcu(rh, thread_stack_free_rcu);
  }
@@ -722,7 +723,7 @@ index 1dcc3fe2229f..00cd9fdee720 100644
  	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
  					     THREAD_SIZE_ORDER);
  
-@@ -375,11 +389,16 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
+@@ -376,11 +390,16 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
  		return 0;
  	}
  	return -ENOMEM;
@@ -739,7 +740,7 @@ index 1dcc3fe2229f..00cd9fdee720 100644
  	tsk->stack = NULL;
  }
  
-@@ -545,6 +564,9 @@ void vm_area_free(struct vm_area_struct *vma)
+@@ -546,6 +565,9 @@ void vm_area_free(struct vm_area_struct *vma)
  
  static void account_kernel_stack(struct task_struct *tsk, int account)
  {
@@ -749,7 +750,7 @@ index 1dcc3fe2229f..00cd9fdee720 100644
  	if (IS_ENABLED(CONFIG_VMAP_STACK)) {
  		struct vm_struct *vm = task_stack_vm_area(tsk);
  		int i;
-@@ -559,6 +581,7 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
+@@ -560,6 +582,7 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
  		mod_lruvec_kmem_state(stack, NR_KERNEL_STACK_KB,
  				      account * (THREAD_SIZE / 1024));
  	}
@@ -757,7 +758,7 @@ index 1dcc3fe2229f..00cd9fdee720 100644
  }
  
  void exit_task_stack_account(struct task_struct *tsk)
-@@ -1109,7 +1132,9 @@ void set_task_stack_end_magic(struct task_struct *tsk)
+@@ -1105,7 +1128,9 @@ void set_task_stack_end_magic(struct task_struct *tsk)
  	unsigned long *stackend;
  
  	stackend = end_of_stack(tsk);
@@ -768,7 +769,7 @@ index 1dcc3fe2229f..00cd9fdee720 100644
  
  static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 5e9ce4e2979f..1ad414c08e85 100644
+index 7b9c14505a8d..004948d50fbb 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
 @@ -788,6 +788,7 @@ config SHRINKER_DEBUG
@@ -780,7 +781,7 @@ index 5e9ce4e2979f..1ad414c08e85 100644
  	  Enables the display of the minimum amount of free stack which each
  	  task has ever had available in the sysrq-T and sysrq-P debug output.
 diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 0400f5e8ac60..794b2a7784d4 100644
+index 5f878ee05ff8..d7b708bc3d05 100644
 --- a/mm/kmemleak.c
 +++ b/mm/kmemleak.c
 @@ -102,6 +102,9 @@
@@ -831,10 +832,10 @@ index 0400f5e8ac60..794b2a7784d4 100644
  			}
  		}
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 634162271c00..01a29a09d97c 100644
+index a74fd18e5eda..9a419691f19d 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -3085,10 +3085,17 @@ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
+@@ -3105,10 +3105,17 @@ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
  	vm->flags &= ~VM_UNINITIALIZED;
  }
  

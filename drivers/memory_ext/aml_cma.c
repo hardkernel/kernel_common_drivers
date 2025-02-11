@@ -161,7 +161,7 @@ void cma_sysfs_account_success_pages(struct cma *cma, unsigned long nr_pages)
 	atomic64_add(nr_pages, &cma->nr_pages_succeeded);
 }
 
-static void cma_sysfs_account_fail_pages(struct cma *cma, unsigned long nr_pages)
+void cma_sysfs_account_fail_pages(struct cma *cma, unsigned long nr_pages)
 {
 	atomic64_add(nr_pages, &cma->nr_pages_failed);
 }
