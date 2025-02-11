@@ -478,6 +478,7 @@ extern enum output_format_e output_format;
 
 extern unsigned int osd_pic_en;
 extern unsigned int slt_en;
+extern bool pq_rdma_init;
 
 void amvecm_size_info_update(int vpp_index);
 

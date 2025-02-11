@@ -427,6 +427,12 @@ static int index_rdma_part_ins(u32 reg)
 		reg == 0x39d2 || reg == 0x39d3)
 		table_index = 3;
 
+	/*use VIDEO_PARTITION_TABLE*/
+	if (reg == 0x5100 || reg ==  0x511e ||
+		reg == 0x5048 || reg == 0x5049 ||
+		reg == 0x504d)
+		table_index = 0;
+
 	return table_index;
 }
 
@@ -442,7 +448,7 @@ static inline void VSYNC_WRITE_VPP_REG(u32 reg,
 	/*table*/
 	index = index_rdma_part_ins(reg_offset);
 
-	if (index)
+	if (pq_rdma_init)
 		VSYNC_WR_TABLE_REG(index, reg_offset, value);
 	else
 		VSYNC_WR_MPEG_REG(reg_offset, value);
@@ -457,7 +463,7 @@ static inline u32 VSYNC_READ_VPP_REG(u32 reg)
 
 	index = index_rdma_part_ins(reg_offset);
 
-	if (index)
+	if (pq_rdma_init)
 		return VSYNC_RD_TABLE_REG(index, reg_offset);
 	else
 		return VSYNC_RD_MPEG_REG(reg_offset);
@@ -474,7 +480,7 @@ static inline void VSYNC_WRITE_VPP_REG_EX(u32 reg,
 
 	index = index_rdma_part_ins(reg);
 
-	if (index)
+	if (pq_rdma_init)
 		VSYNC_WR_TABLE_REG(index, reg, value);
 	else
 		VSYNC_WR_MPEG_REG(reg, value);
@@ -492,7 +498,7 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_EX(u32 reg,
 		reg = offset_addr(reg);
 	index = index_rdma_part_ins(reg);
 
-	if (index)
+	if (pq_rdma_init)
 		VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
 	else
 		VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
@@ -507,7 +513,7 @@ static inline u32 VSYNC_READ_VPP_REG_EX(u32 reg,
 		reg = offset_addr(reg);
 
 	index = index_rdma_part_ins(reg);
-	if (index)
+	if (pq_rdma_init)
 		return VSYNC_RD_TABLE_REG(index, reg);
 	else
 		return VSYNC_RD_MPEG_REG(reg);
@@ -523,7 +529,7 @@ static inline void VSYNC_WRITE_VPP_REG_BITS(u32 reg,
 	reg = offset_addr(reg);
 	index = index_rdma_part_ins(reg);
 
-	if (index)
+	if (pq_rdma_init)
 		VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
 	else
 		VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
@@ -611,7 +617,7 @@ static inline void VSYNC_WR_MPEG_REG_BITS_S5(u32 reg,
 	int index;
 
 	index = index_rdma_part_ins(reg);
-	if (index)
+	if (pq_rdma_init)
 		VSYNC_WR_TABLE_REG(index, reg, ((aml_read_vcbus(reg) &
 			     ~(((1L << (len)) - 1) << (start))) |
 			    (((value) & ((1L << (len)) - 1)) << (start))));
@@ -636,7 +642,7 @@ static inline void VSYNC_WRITE_VPP_REG_VPP_SEL(u32 reg,
 	} else if (vpp_sel == 0xfe) {
 		aml_write_vcbus(reg, value);
 	} else if (vpp_sel == 3) {
-		if (index)
+		if (pq_rdma_init)
 			PRE_VSYNC_WR_TABLE_REG(index, reg1, value);
 		else
 			PRE_VSYNC_WR_MPEG_REG(reg1, value);
@@ -645,7 +651,7 @@ static inline void VSYNC_WRITE_VPP_REG_VPP_SEL(u32 reg,
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_VPP1(reg1, value);
 	} else {
-		if (index)
+		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG(index, reg1, value);
 		else
 			VSYNC_WR_MPEG_REG(reg1, value);
@@ -666,7 +672,7 @@ static inline u32 VSYNC_READ_VPP_REG_VPP_SEL(u32 reg, int vpp_sel)
 	} else if (vpp_sel == 0xfe) {
 		ret = aml_read_vcbus(reg);
 	} else if (vpp_sel == 3) {
-		if (index)
+		if (pq_rdma_init)
 			ret = PRE_VSYNC_RD_TABLE_REG(index, reg1);
 		else
 			ret = PRE_VSYNC_RD_MPEG_REG(reg1);
@@ -675,7 +681,7 @@ static inline u32 VSYNC_READ_VPP_REG_VPP_SEL(u32 reg, int vpp_sel)
 	} else if (vpp_sel == 1) {
 		ret = VSYNC_RD_MPEG_REG_VPP1(reg1);
 	} else {
-		if (index)
+		if (pq_rdma_init)
 			ret = VSYNC_RD_TABLE_REG(index, reg1);
 		else
 			ret = VSYNC_RD_MPEG_REG(reg1);
@@ -700,7 +706,7 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(u32 reg,
 	} else if (vpp_sel == 0xfe) {
 		VSYNC_WR_MPEG_REG_BITS_S5(reg, value, start, len);
 	} else if (vpp_sel == 3) {
-		if (index)
+		if (pq_rdma_init)
 			PRE_VSYNC_WR_TABLE_REG_BITS(index, reg1, value, start, len);
 		else
 			PRE_VSYNC_WR_MPEG_REG_BITS(reg1, value, start, len);
@@ -709,7 +715,7 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(u32 reg,
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_BITS_VPP1(reg1, value, start, len);
 	} else {
-		if (index)
+		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG_BITS(index, reg1, value, start, len);
 		else
 			VSYNC_WR_MPEG_REG_BITS(reg1, value, start, len);
@@ -728,7 +734,7 @@ static inline void VSYNC_WRITE_VPP_REG_EX_VPP_SEL(u32 reg,
 	index = index_rdma_part_ins(reg);
 
 	if (vpp_sel == 3) {
-		if (index)
+		if (pq_rdma_init)
 			PRE_VSYNC_WR_TABLE_REG(index, reg, value);
 		else
 			PRE_VSYNC_WR_MPEG_REG(reg, value);
@@ -737,7 +743,7 @@ static inline void VSYNC_WRITE_VPP_REG_EX_VPP_SEL(u32 reg,
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_VPP1(reg, value);
 	} else {
-		if (index)
+		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG(index, reg, value);
 		else
 			VSYNC_WR_MPEG_REG(reg, value);
@@ -755,7 +761,7 @@ static inline u32 VSYNC_READ_VPP_REG_EX_VPP_SEL(u32 reg,
 	index = index_rdma_part_ins(reg);
 
 	if (vpp_sel == 3) {
-		if (index)
+		if (pq_rdma_init)
 			return PRE_VSYNC_RD_TABLE_REG(index, reg);
 		else
 			return PRE_VSYNC_RD_MPEG_REG(reg);
@@ -764,7 +770,7 @@ static inline u32 VSYNC_READ_VPP_REG_EX_VPP_SEL(u32 reg,
 	} else if (vpp_sel == 1) {
 		return VSYNC_RD_MPEG_REG_VPP1(reg);
 	} else {
-		if (index)
+		if (pq_rdma_init)
 			return VSYNC_RD_TABLE_REG(index, reg);
 		else
 			return VSYNC_RD_MPEG_REG(reg);
@@ -785,7 +791,7 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_EX_VPP_SEL(u32 reg,
 
 	index = index_rdma_part_ins(reg);
 	if (vpp_sel == 3) {
-		if (index)
+		if (pq_rdma_init)
 			PRE_VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
 		else
 			PRE_VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
@@ -794,7 +800,7 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_EX_VPP_SEL(u32 reg,
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_BITS_VPP1(reg, value, start, len);
 	} else {
-		if (index)
+		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
 		else
 			VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
