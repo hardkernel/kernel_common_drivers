@@ -9,6 +9,7 @@
 #include "hdr10plus.dtsi"
 #include "mesons7d_drm.dtsi"
 #include "mesons7d_audio.dtsi"
+#include "hardkernel_ir_map.dtsi"
 
 /delete-node/ &internal_ephy;
 /delete-node/ &pcie;
@@ -978,9 +979,11 @@
 };
 
 &ir {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+	map = <&hk_ir_maps>;
+	wakeup_map = <&hk_ir_wakeup_key>;
 };
 
 &spicc0 {
