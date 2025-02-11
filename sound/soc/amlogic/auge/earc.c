@@ -235,6 +235,8 @@ struct earc {
 
 	/* audio codec type for tx */
 	enum audio_coding_types tx_audio_coding_type;
+	/* audio codec type for rx */
+	enum audio_coding_types rx_audio_coding_type;
 	/* audio codec type for tx by ui kcontrol setting */
 	enum audio_coding_types ui_tx_audio_coding_type;
 	/* audio codec type for recording tx setting */
@@ -2027,9 +2029,10 @@ int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
-	enum audio_coding_types coding_type;
+	enum audio_coding_types coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 	enum attend_type type;
 	unsigned long flags;
+	int cs = 0;
 
 	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
 		return 0;
@@ -2039,11 +2042,19 @@ int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 
 	type = earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map);
 	spin_lock_irqsave(&p_earc->rx_lock, flags);
-	if (p_earc->stream_stable)
-		coding_type = earcrx_get_cs_fmt(p_earc->rx_dmac_map, type);
-	else
+	if (p_earc->stream_stable) {
+		/* eARC mode && cs is 0, set undefine */
+		if (type == ATNDTYP_EARC)
+			cs = earcrx_get_cs_iec958(p_earc->rx_dmac_map, 0);
+
+		if (type == ATNDTYP_ARC || cs)
+			coding_type = earcrx_get_cs_fmt(p_earc->rx_dmac_map, type);
+		else
+			coding_type = AUDIO_CODING_TYPE_UNDEFINED;
+
+	} else {
 		coding_type = AUDIO_CODING_TYPE_UNDEFINED;
-	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
+	}
 
 	if (p_earc->bch_err) {
 		if (coding_type == AUDIO_CODING_TYPE_PAUSE)
@@ -2052,6 +2063,14 @@ int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 			coding_type = AUDIO_CODING_TYPE_AC3_LAYOUT_B;
 	}
 
+	if (coding_type == AUDIO_CODING_TYPE_UNDEFINED)
+		earcrx_spdifin_mute(p_earc->rx_dmac_map, true);
+	else if (p_earc->rx_audio_coding_type == AUDIO_CODING_TYPE_UNDEFINED &&
+	    coding_type != AUDIO_CODING_TYPE_UNDEFINED)
+		earcrx_spdifin_mute(p_earc->rx_dmac_map, false);
+	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
+
+	p_earc->rx_audio_coding_type = coding_type;
 	ucontrol->value.integer.value[0] = coding_type;
 
 	return 0;
