@@ -2163,6 +2163,8 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 		} else if (l2a_def_val_local[reg].addr == 0x922) {
 			if (is_blind_scan && blind_scan_new != 0x2)
 				dvbs_wr_byte(0x922, 0xcc);
+			else
+				dvbs_wr_byte(0x922, l2a_def_val_local[reg].value);
 		} else if (l2a_def_val_local[reg].addr == 0xe60) {
 			dvbs_wr_byte(0xe60, 0x75);
 		} else if (l2a_def_val_local[reg].addr == 0x302) {
