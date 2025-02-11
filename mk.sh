@@ -236,7 +236,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 			fi
 		fi
 		[[ -d ${ROOT_DIR}/common_drivers ]] && google_args="${google_args} --config=common_drivers_on_top"
-		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  ${google_args} --config=fast --lto=thin
+		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  ${google_args} --config=fast
 	elif [[ "${ABI}" -eq "1" ]]; then
 		tools/bazel run //common:amlogic_abi_update_symbol_list ${args}
 		tools/bazel run //common:kernel_aarch64_abi_dist ${args}
