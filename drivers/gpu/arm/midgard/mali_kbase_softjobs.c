@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2011-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -39,6 +39,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/cache.h>
+#include <linux/version_compat_defs.h>
 
 #if !MALI_USE_CSF
 /**
@@ -502,6 +503,7 @@ static void kbasep_soft_event_cancel_job(struct kbase_jd_atom *katom)
 		kbase_js_sched_all(katom->kctx->kbdev);
 }
 
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 static void kbase_debug_copy_finish(struct kbase_jd_atom *katom)
 {
 	struct kbase_debug_copy_buffer *buffers = katom->softjob_data;
@@ -673,8 +675,8 @@ static int kbase_debug_copy_prepare(struct kbase_jd_atom *katom)
 		case KBASE_MEM_TYPE_IMPORTED_USER_BUF:
 		{
 			struct kbase_mem_phy_alloc *alloc = reg->gpu_alloc;
-			unsigned long nr_pages =
-				alloc->imported.user_buf.nr_pages;
+			const unsigned long nr_pages = alloc->imported.user_buf.nr_pages;
+			const unsigned long start = alloc->imported.user_buf.address;
 
 			if (alloc->imported.user_buf.mm != current->mm) {
 				ret = -EINVAL;
@@ -686,11 +688,9 @@ static int kbase_debug_copy_prepare(struct kbase_jd_atom *katom)
 				ret = -ENOMEM;
 				goto out_unlock;
 			}
-
-			ret = get_user_pages_fast(
-					alloc->imported.user_buf.address,
-					nr_pages, 0,
-					buffers[i].extres_pages);
+			kbase_gpu_vm_unlock(katom->kctx);
+			ret = get_user_pages_fast(start, nr_pages, 0, buffers[i].extres_pages);
+			kbase_gpu_vm_lock(katom->kctx);
 			if (ret != nr_pages) {
 				/* Adjust number of pages, so that we only
 				 * attempt to release pages in the array that we
@@ -728,7 +728,6 @@ out_cleanup:
 
 	return ret;
 }
-#endif /* !MALI_USE_CSF */
 
 #if KERNEL_VERSION(5, 6, 0) <= LINUX_VERSION_CODE
 static void *dma_buf_kmap_page(struct kbase_mem_phy_alloc *gpu_alloc,
@@ -751,7 +750,7 @@ static void *dma_buf_kmap_page(struct kbase_mem_phy_alloc *gpu_alloc,
 		if (page_index == page_num) {
 			*page = sg_page_iter_page(&sg_iter);
 
-			return kmap(*page);
+			return kbase_kmap(*page);
 		}
 		page_index++;
 	}
@@ -760,8 +759,18 @@ static void *dma_buf_kmap_page(struct kbase_mem_phy_alloc *gpu_alloc,
 }
 #endif
 
-int kbase_mem_copy_from_extres(struct kbase_context *kctx,
-		struct kbase_debug_copy_buffer *buf_data)
+/**
+ * kbase_mem_copy_from_extres() - Copy from external resources.
+ *
+ * @kctx:	kbase context within which the copying is to take place.
+ * @buf_data:	Pointer to the information about external resources:
+ *		pages pertaining to the external resource, number of
+ *		pages to copy.
+ *
+ * Return:      0 on success, error code otherwise.
+ */
+static int kbase_mem_copy_from_extres(struct kbase_context *kctx,
+				      struct kbase_debug_copy_buffer *buf_data)
 {
 	unsigned int i;
 	unsigned int target_page_nr = 0;
@@ -787,14 +796,13 @@ int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 		for (i = 0; i < buf_data->nr_extres_pages &&
 				target_page_nr < buf_data->nr_pages; i++) {
 			struct page *pg = buf_data->extres_pages[i];
-			void *extres_page = kmap(pg);
-
+			void *extres_page = kbase_kmap(pg);
 			if (extres_page) {
 				ret = kbase_mem_copy_to_pinned_user_pages(
 						pages, extres_page, &to_copy,
 						buf_data->nr_pages,
 						&target_page_nr, offset);
-				kunmap(pg);
+				kbase_kunmap(pg, extres_page);
 				if (ret)
 					goto out_unlock;
 			}
@@ -829,7 +837,7 @@ int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 						&target_page_nr, offset);
 
 #if KERNEL_VERSION(5, 6, 0) <= LINUX_VERSION_CODE
-				kunmap(pg);
+				kbase_kunmap(pg, extres_page);
 #else
 				dma_buf_kunmap(dma_buf, i, extres_page);
 #endif
@@ -848,7 +856,6 @@ out_unlock:
 	return ret;
 }
 
-#if !MALI_USE_CSF
 static int kbase_debug_copy(struct kbase_jd_atom *katom)
 {
 	struct kbase_debug_copy_buffer *buffers = katom->softjob_data;
@@ -866,6 +873,7 @@ static int kbase_debug_copy(struct kbase_jd_atom *katom)
 
 	return 0;
 }
+#endif /* IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST */
 #endif /* !MALI_USE_CSF */
 
 #define KBASEP_JIT_ALLOC_GPU_ADDR_ALIGNMENT ((u32)0x7)
@@ -935,6 +943,13 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 	int ret;
 	u32 i;
 
+	if (!kbase_mem_allow_alloc(kctx)) {
+		dev_dbg(kbdev->dev, "Invalid attempt to allocate JIT memory by %s/%d for ctx %d_%d",
+			current->comm, current->pid, kctx->tgid, kctx->id);
+		ret = -EINVAL;
+		goto fail;
+	}
+
 	/* For backwards compatibility, and to prevent reading more than 1 jit
 	 * info struct on jit version 1
 	 */
@@ -963,11 +978,6 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 			ret = -EINVAL;
 			goto free_info;
 		}
-		/* Clear any remaining bytes when user struct is smaller than
-		 * kernel struct. For jit version 1, this also clears the
-		 * padding bytes
-		 */
-		memset(((u8 *)info) + sizeof(*info), 0, sizeof(*info) - sizeof(*info));
 
 		ret = kbasep_jit_alloc_validate(kctx, info);
 		if (ret)
@@ -1541,6 +1551,7 @@ int kbase_process_soft_job(struct kbase_jd_atom *katom)
 	case BASE_JD_REQ_SOFT_EVENT_RESET:
 		kbasep_soft_event_update_locked(katom, BASE_JD_SOFT_EVENT_RESET);
 		break;
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 	case BASE_JD_REQ_SOFT_DEBUG_COPY:
 	{
 		int res = kbase_debug_copy(katom);
@@ -1549,6 +1560,7 @@ int kbase_process_soft_job(struct kbase_jd_atom *katom)
 			katom->event_code = BASE_JD_EVENT_JOB_INVALID;
 		break;
 	}
+#endif /* IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST */
 	case BASE_JD_REQ_SOFT_JIT_ALLOC:
 		ret = kbase_jit_allocate_process(katom);
 		break;
@@ -1654,8 +1666,10 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom)
 		if (katom->jc == 0)
 			return -EINVAL;
 		break;
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 	case BASE_JD_REQ_SOFT_DEBUG_COPY:
 		return kbase_debug_copy_prepare(katom);
+#endif /* IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST */
 	case BASE_JD_REQ_SOFT_EXT_RES_MAP:
 		return kbase_ext_res_prepare(katom);
 	case BASE_JD_REQ_SOFT_EXT_RES_UNMAP:
@@ -1687,9 +1701,11 @@ void kbase_finish_soft_job(struct kbase_jd_atom *katom)
 		kbase_sync_fence_in_remove(katom);
 		break;
 #endif /* CONFIG_SYNC_FILE */
+#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 	case BASE_JD_REQ_SOFT_DEBUG_COPY:
 		kbase_debug_copy_finish(katom);
 		break;
+#endif /* IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST */
 	case BASE_JD_REQ_SOFT_JIT_ALLOC:
 		kbase_jit_allocate_finish(katom);
 		break;
