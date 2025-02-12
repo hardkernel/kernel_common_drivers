@@ -238,10 +238,10 @@
 		status = "okay";
 		compatible = "amlogic, t6d-mbox-fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mbox wr fifo */
-		      <0xfe007180 0x80>,   /* mbox set reg */
-		      <0xfe007200 0x80>,   /* mbox clr reg */
-		      <0xfe007280 0x80>,   /* mbox sts reg */
-		      <0xfe007040 0xc0>;   /* mbox irqctrl reg */
+		      <0x0 0xfe007180 0x0 0x80>,   /* mbox set reg */
+		      <0x0 0xfe007200 0x0 0x80>,   /* mbox clr reg */
+		      <0x0 0xfe007280 0x0 0x80>,   /* mbox sts reg */
+		      <0x0 0xfe007040 0x0 0xc0>;   /* mbox irqctrl reg */
 		interrupts = <GIC_SPI 248 IRQ_TYPE_EDGE_RISING>;  /* mbox irq top */
 		mbox-irqmax = <32>;
 		mbox-irqctlr = <0x14>;
