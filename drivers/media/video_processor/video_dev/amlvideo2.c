@@ -408,6 +408,7 @@ struct amlvideo2_device {
 	int support_4k_capture;
 	u32 framebuffer_total_size;
 	int codec_mm_alloc;
+        int vpu_dma_mask;
 	bool is_one_buffer;
 };
 
@@ -7990,6 +7991,20 @@ static int amlvideo2_driver_probe(struct platform_device *pdev)
 	} else {
 		pr_info("support_4k %d for amlvideo2.%d\n",
 			aml2_dev->support_4k_capture, aml2_dev->node_id);
+	}
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "vpu_dma_mask", &aml2_dev->vpu_dma_mask);
+	if (ret) {
+		pr_err("amlvideo2 don't find vpu_dma_mask\n");
+		aml2_dev->vpu_dma_mask = 0;
+	}
+	if (aml2_dev->vpu_dma_mask) {
+		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(36));
+		if (ret < 0)
+			pr_err("dma_set_coherent_mask fail\n");
+		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
+		if (ret < 0)
+			pr_err("dma_set_mask fail\n");
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,

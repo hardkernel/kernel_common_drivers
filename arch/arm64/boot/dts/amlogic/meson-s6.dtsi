@@ -2160,17 +2160,19 @@
 		status = "disabled";
 	};
 
-	amlvideo2_0 {
+	amlvideo2_0: amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
+		vpu_dma_mask = <1>;  /* 0: <= 4G, 1: > 4G*/
 		status = "okay";
 		amlvideo2_id = <0>;
 		cma_mode = <1>;
 	};
 
-	amlvideo2_1 {
+	amlvideo2_1: amlvideo2_1 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
+		vpu_dma_mask = <1>;  /* 0: <= 4G, 1: > 4G*/
 		status = "okay";
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
