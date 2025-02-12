@@ -86,6 +86,8 @@ struct hdmitx_dev {
 	u8 frl_rate; /* for mode setting */
 	u8 dsc_en;
 
+	/* ignore fifo intr5 if hdmitx output disabled */
+	bool ignore_fifo_intr5;
 #ifdef CONFIG_AMLOGIC_DSC
 	/* pps data and clk info from dsc module */
 	struct dsc_offer_tx_data dsc_data;
