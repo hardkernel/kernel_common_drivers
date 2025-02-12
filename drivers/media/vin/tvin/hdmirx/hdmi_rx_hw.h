@@ -3658,4 +3658,5 @@ void rx_i2c_dump(void);
 void rx_add_timer(struct hdmirx_dev_s *rx_dev);
 void rx_del_timer(struct hdmirx_dev_s *rx_dev);
 void hdmirx_scdc_reset(u8 port);
+void aml_phy_offset_cal_handler(struct kthread_work *work);
 #endif

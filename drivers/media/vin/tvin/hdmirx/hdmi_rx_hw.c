@@ -3877,6 +3877,11 @@ bool rx_eq_done(u8 port)
 
 void aml_phy_offset_cal(void)
 {
+	kthread_queue_work(&phy_ofset_worker, &phy_ofset_work);
+}
+
+void aml_phy_offset_cal_handler(struct kthread_work *work)
+{
 	switch (rx_info.phy_ver) {
 	case PHY_VER_T5:
 		aml_phy_offset_cal_t5();

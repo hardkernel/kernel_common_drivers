@@ -727,7 +727,16 @@ void aml_phy_offset_cal_t7(void)
 	usleep_range(100, 110);
 	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL0,
 		T7_CDR_EQ_RSTB, 3);
-	usleep_range(10, 20);
+	usleep_range(10000, 11000);
+	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHA_CNTL1,
+			      T7_DFE_OFSETCAL_START, 0);
+	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL1,
+			      T7_OFST_CAL_START, 0);
+	hdmirx_wr_amlphy(T7_HHI_RX_APLL_CNTL0, 0x0);
+	hdmirx_wr_amlphy(T7_HHI_RX_APLL_CNTL1, 0x0);
+	hdmirx_wr_amlphy(T7_HHI_RX_APLL_CNTL2, 0x0);
+	hdmirx_wr_amlphy(T7_HHI_RX_APLL_CNTL3, 0x0);
+	hdmirx_wr_amlphy(T7_HHI_RX_APLL_CNTL4, 0x0);
 	if (log_level & PHY_LOG)
 		rx_pr("ofst cal\n");
 }
@@ -971,11 +980,6 @@ void aml_phy_cfg_t7(void)
 			rx_pr("\nphy reg init\n");
 		if (rx_info.aml_phy.ofst_en)
 			aml_phy_offset_cal_t7();
-		hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL1,
-				      T7_OFST_CAL_START, 0);
-		usleep_range(100, 110);
-		hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHA_CNTL1,
-				      T7_DFE_OFSETCAL_START, 0);
 		usleep_range(20, 30);
 		data32 = phy_misci_t7[idx][0];
 		hdmirx_wr_amlphy(T7_HHI_RX_PHY_MISC_CNTL0, data32);

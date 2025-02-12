@@ -1096,6 +1096,10 @@ extern struct kthread_worker frl1_worker;
 extern struct task_struct *frl1_worker_task;
 extern struct kthread_work frl1_work;
 
+extern struct kthread_worker phy_ofset_worker;
+extern struct task_struct *phy_ofset_worker_task;
+extern struct kthread_work phy_ofset_work;
+
 extern wait_queue_head_t tx_wait_queue;
 
 extern struct tasklet_struct rx_tasklet;

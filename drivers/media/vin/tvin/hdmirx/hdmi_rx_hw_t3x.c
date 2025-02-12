@@ -749,10 +749,14 @@ void aml_phy_offset_cal_t3x_20(u8 port)
 	usleep_range(10, 20);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, MSK(2, 12), 0X3, port);
 	usleep_range(10, 20);
-	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, _BIT(27), 1, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_DFE, T3X_20_SLICER_OFSTCAL_START, 1, port);
+	usleep_range(10000, 11000);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, T3X_20_OFSET_CAL_START, 1, port);
 	usleep_range(200, 210);
-	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, _BIT(27), 0, port);
-	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_DFE, _BIT(13), 0, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, T3X_20_OFSET_CAL_START, 0, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_DFE, T3X_20_SLICER_OFSTCAL_START, 0, port);
+	hdmirx_wr_amlphy_t3x(T3X_RG_RX20PLL_0, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_RG_RX20PLL_1, 0x0, port);
 	if (log_level & PHY_LOG)
 		rx_pr("ofst cal\n");
 }
@@ -1646,6 +1650,13 @@ void aml_phy_offset_cal_t3x_21(int port)
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, OFST_CAL_START, 0x1, port);
 	usleep_range(100, 110);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, CDR_RSTB, 0x1, port);
+	usleep_range(10000, 11000);
+	/* ofst stop */
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, OFST_CAL_START, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, DFE_OFST_CAL_START, 0x0, port);
+	/* turn off pll */
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL0, 0x0, port);
+	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PLL_CTRL1, 0x0, port);
 	if (log_level & PHY_LOG)
 		rx_pr("h21 ofst cal\n");
 }
@@ -1656,13 +1667,8 @@ void rx_21_frl_phy_cfg(u8 port)
 	u32 idx = rx[port].phy.phy_bw;
 
 	if (rx_info.aml_phy_21.pre_int_21[port]) {
-		if (rx_info.aml_phy_21.ofst_en) {
+		if (rx_info.aml_phy_21.ofst_en)
 			aml_phy_offset_cal_t3x_21(port);
-			usleep_range(1000, 1100);
-		}
-		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, OFST_CAL_START, 0x0, port);
-		usleep_range(100, 110);
-		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, DFE_OFST_CAL_START, 0x0, port);
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, DFE_TAP_EN, 0x1ff, port);
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, DFE_H1_PD, 0x0, port);
 

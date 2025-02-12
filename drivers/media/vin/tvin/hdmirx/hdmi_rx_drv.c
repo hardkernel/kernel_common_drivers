@@ -133,6 +133,10 @@ struct kthread_worker frl1_worker;
 struct task_struct *frl1_worker_task;
 struct kthread_work frl1_work;
 
+struct kthread_worker phy_ofset_worker;
+struct task_struct *phy_ofset_worker_task;
+struct kthread_work phy_ofset_work;
+
 /* TX does work_hpd_plugin work until RX resumes */
 wait_queue_head_t tx_wait_queue;
 
@@ -4137,6 +4141,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 					   &frl1_worker, "frl1 kthread worker");
 	kthread_init_work(&frl1_work, rx_frl_train_handler_1);
 	sched_setscheduler(frl1_worker_task, SCHED_FIFO, &param);
+
+	kthread_init_worker(&phy_ofset_worker);
+	phy_ofset_worker_task = kthread_run(kthread_worker_fn,
+					   &phy_ofset_worker, "phy ofset kthread worker");
+	kthread_init_work(&phy_ofset_work, aml_phy_offset_cal_handler);
+	sched_setscheduler(phy_ofset_worker_task, SCHED_FIFO, &param);
 
 	init_waitqueue_head(&tx_wait_queue);
 

@@ -744,10 +744,14 @@ void aml_phy_offset_cal_t5m(void)
 	usleep_range(10, 20);
 	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_CDR, MSK(2, 12), 0X3);
 	usleep_range(10, 20);
-	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_CDR, _BIT(27), 1);
-	usleep_range(200, 210);
-	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_CDR, _BIT(27), 0);
-	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHA_DFE, _BIT(13), 0);
+	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHA_DFE, T5M_SLICER_OFSTCAL_START, 1);
+	usleep_range(10, 20);
+	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_CDR, T5M_OFSET_CAL_START, 1);
+	usleep_range(10000, 11000);
+	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_CDR, T5M_OFSET_CAL_START, 0);
+	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHA_DFE, T5M_SLICER_OFSTCAL_START, 0);
+	hdmirx_wr_amlphy(T5M_RG_RX20PLL_0, 0x0);
+	hdmirx_wr_amlphy(T5M_RG_RX20PLL_1, 0x0);
 	if (log_level & PHY_LOG)
 		rx_pr("ofst cal\n");
 }

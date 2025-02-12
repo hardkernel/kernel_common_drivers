@@ -385,6 +385,7 @@ void aml_dfe_en_t6d(void)
 /* phy offset calibration based on different chip and board */
 void aml_phy_offset_cal_t6d(void)
 {
+	rx_pr("ofst cal task start\n");
 	//misc1 to do
 	hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1, 0xfb320000);
 	usleep_range(10, 20);
@@ -424,8 +425,17 @@ void aml_phy_offset_cal_t6d(void)
 	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, T6D_OFSET_CAL_START, 0x1);
 	usleep_range(100, 200);
 	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, T6D_CDR_RSTB, 0x1);
-	if (log_level & PHY_LOG)
-		rx_pr("ofst cal\n");
+	usleep_range(10000, 11000);
+	/* ofset stop */
+	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, T6D_OFSET_CAL_START, 0x0);
+	usleep_range(100, 110);
+	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHA_DFE, T6D_DFE_OFST_CAL_START, 0x0);
+	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHA_DFE, T6D_DCHA_DFE, 0x1f);
+	/* turn off pll*/
+	hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x0);
+	hdmirx_wr_amlphy(T6D_RG_RX20PLL_1, 0x0);
+	//if (log_level & PHY_LOG)
+	rx_pr("ofst cal task end\n");
 }
 
 /* hardware eye monitor */
@@ -551,13 +561,8 @@ void aml_phy_cfg_t6d(void)
 	u32 idx = rx[rx_info.main_port].phy.phy_bw;
 
 	if (rx_info.aml_phy.pre_int) {
-		if (rx_info.aml_phy.ofst_en) {
+		if (rx_info.aml_phy.ofst_en)
 			aml_phy_offset_cal_t6d();
-			usleep_range(1000, 1100);
-		}
-		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, T6D_OFSET_CAL_START, 0x0);
-		usleep_range(100, 110);
-		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHA_DFE, T6D_DFE_OFST_CAL_START, 0x0);
 		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHA_DFE, T6D_DCHA_DFE, 0x1f);
 
 		hdmirx_wr_amlphy(T6D_HDMIRX20PHY_DCHA_AFE, phy_dcha_t6d[idx][0]);
