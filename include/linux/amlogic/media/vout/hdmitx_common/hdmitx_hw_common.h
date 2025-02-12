@@ -44,6 +44,7 @@
 #define DDC_HDCP_22_LSTORE      (CMD_DDC_OFFSET + 0x10)
 
 #define DDC_GLITCH_FILTER_RESET (CMD_DDC_OFFSET + 0x11)
+#define DDC_I2C_RATE            (CMD_DDC_OFFSET + 0x12)
 #define DDC_SCDC_DIV40_SCRAMB   (CMD_DDC_OFFSET + 0x20)
 #define DDC_HDCP14_GET_BCAPS_RP (CMD_DDC_OFFSET + 0x30)
 #define DDC_HDCP14_GET_TOPO_INFO (CMD_DDC_OFFSET + 0x31)
@@ -195,6 +196,11 @@ enum hdmi_ll_mode {
 	HDMI_LL_MODE_AUTO = 0,
 	HDMI_LL_MODE_DISABLE,
 	HDMI_LL_MODE_ENABLE,
+};
+
+enum i2c_rate {
+	DDC_I2C_38K,
+	DDC_I2C_75K,
 };
 
 /*set packet cmd*/

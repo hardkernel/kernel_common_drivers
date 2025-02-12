@@ -2843,6 +2843,14 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *hw_comm, u32 cmd,
 		/*wait recover for resetting DDC*/
 		usleep_range(1000, 2000);
 		break;
+	case DDC_I2C_RATE:
+		if (argv == DDC_I2C_38K)
+			/* config i2c 37.5k */
+			hdmitx21_set_reg_bits(AON_CYP_CTL_IVCTX, 3, 0, 2);
+		else if (argv == DDC_I2C_75K)
+			/* config i2c 75k */
+			hdmitx21_set_reg_bits(AON_CYP_CTL_IVCTX, 2, 0, 2);
+		break;
 	case DDC_PIN_MUX_OP:
 		if (argv == PIN_MUX)
 			hdmitx21_ddc_hw_op(DDC_MUX_DDC);
