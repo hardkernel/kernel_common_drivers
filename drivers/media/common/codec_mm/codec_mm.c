@@ -680,7 +680,7 @@ static u8 *__codec_mm_vmap(ulong addr, u32 size, bool is_cache)
 
 	kfree(pages);
 
-	codec_pr_dbg(CODEC_DBG_TRACE_ALLOC_FREE,
+	codec_pr_dbg(CODEC_DBG_MEM_EXT_INFO,
 		"[VMAP] %s, pa(%lx) to va(%lx), size: %d, cache:%d\n",
 		__func__, page_start, (ulong)vaddr,
 		npages << PAGE_SHIFT, is_cache);
@@ -816,7 +816,7 @@ static int codec_mm_alloc_first(struct codec_mm_mgt_s *mgt,
 			/*default is no map */
 			mem->vbuffer = NULL;
 			mem->phy_addr = (unsigned long)mem->mem_handle;
-			if (debug_mode & 0x10)
+			if (debug_mode & 0x80)
 				pr_info("alloc flags:%d,align=%d,pages:%d,s:%d\n",
 					mem->flags,
 					mem->align2n,
@@ -989,7 +989,7 @@ static void codec_mm_clear_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_
 		}
 	} while (--max_retry > 0);
 
-	codec_pr_dbg(CODEC_DBG_TRACE_ALLOC_FREE, "codec mm have space:%x can alloc from: %d,%d,%d\n",
+	codec_pr_dbg(CODEC_DBG_MEM_EXT_INFO, "codec mm have space:%x can alloc from: %d,%d,%d\n",
 		have_space, can_from_sys, can_from_res, can_from_cma);
 }
 
@@ -1121,7 +1121,7 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 		return 0;
 
 	if (debug_mode & 0x10)
-		codec_pr_dbg(CODEC_DBG_ERR_INFO, "alloc flags:%d,align=%d,%d,pages:%d,s:%d try alloc mask:%x\n",
+		codec_pr_dbg(CODEC_DBG_MEM_EXT_INFO, "alloc flags:%d,align=%d,%d,pages:%d,s:%d try alloc mask:%x\n",
 			mem->flags, mem->align2n, align_2n,
 			mem->page_count, mem->buffer_size, alloc_trace_mask);
 
@@ -1267,18 +1267,15 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 			no_check_inst_id = true;
 		mem = get_mms_from_hashtable(size, align2n, inst_id, no_check_inst_id);
 		if (mem) {
-			mem->owner[0] = owner;
-			mem->flags = memflags;
-
 			if (debug_mode & 0x20)
-				pr_err("mem_id [%d] %s alloc size %d used %d at 0x%lx from %d,2n:%d,flags:%d tvp_flag %d alloc time %llu us tee alloc %llu us\n",
-					mem->mem_id, owner, mem->buffer_size, size, mem->phy_addr,
-					mem->from_flags,
-					align2n,
-					memflags,
+				pr_err("mem_id [%d] %s [%s] alloc size %d used %d at 0x%lx from %d,2n:%d,flags:%d tvp_flag %d alloc time %llu us tee alloc %llu us\n",
+					mem->mem_id, owner, mem->owner[0], mem->buffer_size, size,
+					mem->phy_addr, mem->from_flags, align2n, memflags,
 					!!(memflags & CODEC_MM_FLAGS_TVP),
 					mem->end_alloc_time - mem->start_alloc_time,
 					mem->tee_set_end_time - mem->tee_set_start_time);
+			mem->owner[0] = owner;
+			mem->flags = memflags;
 			return mem;
 		}
 	}
@@ -1300,7 +1297,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	} else { /*tvp not enabled*/
 		if (memflags & CODEC_MM_FLAGS_TVP) {
 			if (secure_mem_ctrl) {
-				if (debug_mode & 0x20)
+				if (debug_mode & 0x80)
 					pr_err("%s original size is %d align is %d memflags %d\n",
 						owner, size, align2n, memflags);
 				size = ALIGN(size, 1 << secure_mem_align2n);
@@ -1758,11 +1755,12 @@ unsigned long codec_mm_alloc_for_dma_ex(const char *owner,
 		return 0;
 	mem->ins_id = ins_id;
 	mem->ins_buffer_id = buffer_id;
-	codec_pr_dbg(CODEC_DBG_TRACE_ALLOC_FREE,
+	codec_pr_dbg(CODEC_DBG_MEM_EXT_INFO,
 			   "%s, for ins %d, buffer id:%d\n",
 			    mem->owner[0] ? mem->owner[0] : "no",
 			    mem->ins_id,
 			    buffer_id);
+
 	return mem->phy_addr;
 }
 EXPORT_SYMBOL(codec_mm_alloc_for_dma_ex);
@@ -3810,7 +3808,7 @@ bool codec_mm_scatter_available_check(int alloc)
 			codec_mm_scatter_get_reserved_size())
 			return true;
 	}
-	codec_pr_dbg(CODEC_DBG_MEM_WATERMARK,
+	codec_pr_dbg(CODEC_DBG_MEM_EXT_INFO,
 			"[%s]%s not enough. (watermark:%d/%d)\n", __func__,
 			mgt->codec_mm_for_linear ? "scatter watermark" : "reserved",
 			mgt->codec_mm_scatter_free_size,
@@ -3875,7 +3873,7 @@ void codec_mm_set_min_linear_size(int min_mem_val)
 				__func__, mgt->codec_mm_scatter_free_size);
 	}
 
-	codec_pr_dbg(CODEC_DBG_MEM_WATERMARK,
+	codec_pr_dbg(CODEC_DBG_MEM_EXT_INFO,
 				"[%s]linear:%d, scatter:%d/%d\n",
 				__func__, mgt->codec_mm_for_linear,
 				mgt->codec_mm_scatter_free_size,
