@@ -1895,34 +1895,42 @@ int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int 
 	return 0;
 }
 
+static char *err_msg[] = {
+	"resv mem",  /*0*/
+	"data_size", /*1*/
+	"block_cnt", /*2*/
+	"not ready", /*3*/
+	"data crc"   /*4*/
+};
+
 static int lcd_tcon_bin_path_update(unsigned int size)
 {
 	struct lcd_tcon_bin_path_header_s *header;
 	unsigned char *mem_vaddr;
-	unsigned int temp_crc32;
+	unsigned int temp_crc32, err_num = 0;
 
 	if (!tcon_rmem.bin_path_rmem.mem_vaddr) {
-		LCDERR("%s: get mem error\n", __func__);
-		return -1;
+		err_num = 0;
+		goto lcd_tcon_bin_path_update_err;
 	}
 	mem_vaddr = tcon_rmem.bin_path_rmem.mem_vaddr;
 	header = (struct lcd_tcon_bin_path_header_s *)mem_vaddr;
 	if (header->data_size < sizeof(*header)) {
-		LCDERR("%s: tcon_bin_path data_size error\n", __func__);
-		return -1;
+		err_num = 1;
+		goto lcd_tcon_bin_path_update_err;
 	}
 	if (header->block_cnt > 32) {
-		LCDERR("%s: tcon_bin_path block_cnt error\n", __func__);
-		return -1;
+		err_num = 2;
+		goto lcd_tcon_bin_path_update_err;
 	}
 	if (!header->ready) {
-		LCDERR("%s: tcon_bin_path not ready\n", __func__);
-		return -1;
+		err_num = 3;
+		goto lcd_tcon_bin_path_update_err;
 	}
 	temp_crc32 = cal_CRC32(0, &mem_vaddr[4], (header->data_size - 4));
 	if (header->crc32 != temp_crc32) {
-		LCDERR("%s: tcon_bin_path data crc error\n", __func__);
-		return -1;
+		err_num = 4;
+		goto lcd_tcon_bin_path_update_err;
 	}
 
 	tcon_mm_table.version = header->version;
@@ -1934,6 +1942,10 @@ static int lcd_tcon_bin_path_update(unsigned int size)
 	tcon_mm_table.bin_path_valid = 1;
 
 	return 0;
+
+lcd_tcon_bin_path_update_err:
+	LCDERR("%s: %s error\n", __func__, err_msg[err_num]);
+	return -1;
 }
 
 static int lcd_tcon_mm_table_config(void)

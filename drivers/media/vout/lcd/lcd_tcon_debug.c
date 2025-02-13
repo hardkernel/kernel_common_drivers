@@ -214,6 +214,7 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
 	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	struct lcd_tcon_bin_path_header_s *bin_path_header;
 	unsigned int size, file_size, cnt, m, sec_protect, sec_handle, *data;
 	unsigned char *mem_vaddr;
 	char *str;
@@ -266,8 +267,9 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 
 		if (tcon_rmem->bin_path_rmem.mem_vaddr) {
 			mem_vaddr = tcon_rmem->bin_path_rmem.mem_vaddr;
-			size = *(unsigned int *)&mem_vaddr[4];
-			cnt = *(unsigned int *)&mem_vaddr[16];
+			bin_path_header = (struct lcd_tcon_bin_path_header_s *)mem_vaddr;
+			size = bin_path_header->data_size;
+			cnt = bin_path_header->block_cnt;
 			if (size < (32 + 256 * cnt))
 				return len;
 			if (cnt > 32)
