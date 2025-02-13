@@ -2719,8 +2719,10 @@ void lcd_config_load_remove(struct aml_lcd_drv_s *pdrv)
 
 	lcd_tcon_remove(pdrv);
 	lcd_swpdf_deinit(pdrv);
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
 	if (pdrv->config.basic.lcd_type == LCD_MIPI)
 		lcd_mipi_dsi_init_table_free(&pdrv->config.control.mipi_cfg);
+#endif
 	lcd_resource_remove_all(pdrv);
 	lcd_timing_free_all(pdrv);
 	lcd_phy_free_all(pdrv);
