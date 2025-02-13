@@ -5636,16 +5636,22 @@ EXPORT_SYMBOL(get_postblend_test_pattern);
 static inline bool is_tv_panel(void)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
+	static bool tv_panel;
 
-	if (!vinfo || vinfo->mode == VMODE_INVALID)
-		return false;
+	/* for shutdown lcd disable case */
+	if (!vinfo || vinfo->mode == VMODE_NULL ||
+	    vinfo->mode == VMODE_INVALID)
+		return tv_panel;
 
 	/*panel*/
-	if (vinfo->viu_color_fmt == COLOR_FMT_RGB444 &&
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_TL1 || cur_dev->is_tv_panel))
-		return true;
+	if (!(vinfo->mode == VMODE_LCD ||
+		vinfo->mode == VMODE_DUMMY_ENCP))
+		//yuv
+		tv_panel = false;
 	else
-		return false;
+		//rgb
+		tv_panel = true;
+	return tv_panel;
 }
 
 static inline void mute_video(void)

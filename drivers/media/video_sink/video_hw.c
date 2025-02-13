@@ -6741,19 +6741,22 @@ EXPORT_SYMBOL(get_postblend_test_pattern);
 static inline bool is_tv_panel(void)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
+	static bool tv_panel;
 
-	if (!vinfo || vinfo->mode == VMODE_INVALID)
-		return false;
+	/* for shutdown lcd disable case */
+	if (!vinfo || vinfo->mode == VMODE_NULL ||
+	    vinfo->mode == VMODE_INVALID)
+		return tv_panel;
 
 	/*panel*/
 	if (!(vinfo->mode == VMODE_LCD ||
-		vinfo->mode == VMODE_DUMMY_ENCP)) {
+		vinfo->mode == VMODE_DUMMY_ENCP))
 		//yuv
-		return false;
-	} else {
+		tv_panel = false;
+	else
 		//rgb
-		return true;
-	}
+		tv_panel = true;
+	return tv_panel;
 }
 
 bool is_panel_output(void)
