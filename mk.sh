@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function show_help {
-	echo "USAGE: $0 [--nongki] [--abi]"
+	echo "USAGE: $0 [--abi]"
 	echo
 	echo "  --arch                  for ARCH, build 64 or 32 bit kernel, arm|arm64[default], require parameter value"
 	echo "  --abi                   for ABI, call build_abi.sh not build.sh, 1|0[default], not require parameter value"
@@ -29,6 +29,7 @@ function show_help {
 	echo "  --use_prebuilt_gki      for use prebuilt gki, require parameter value, https://ci.android.com/builds/submitted/10412065/kernel_aarch64/latest, --use_prebuilt_gki 10412065"
 	echo "  --kasan                 for build kernel with config kasan"
 	echo "  --fatload          	for force change to fatload mode in android build"
+	echo "  --clean          	for clean out directory"
 }
 
 # handle the dir parameters for amlogic_utils.sh
@@ -103,6 +104,8 @@ set -- "${ARGS[@]}" # other parameters are used as script parameters of build_ab
 set -e
 
 export_env_variable
+
+clean_build_out_directory
 
 copy_pre_commit
 

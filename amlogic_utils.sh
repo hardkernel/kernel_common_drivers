@@ -1545,6 +1545,10 @@ function handle_input_parameters () {
 			FATLOAD=1
 			shift
 			;;
+		--clean)
+			CLEAN=1
+			shift
+			;;
 		-h|--help)
 			show_help
 			exit 0
@@ -1654,6 +1658,17 @@ function set_default_parameters () {
 	fi
 }
 export -f set_default_parameters
+
+function clean_build_out_directory() {
+	if [[ -n ${CLEAN} ]]; then
+		if [[ -d bazel-out ]]; then
+			tools/bazel clean --async
+		fi
+		rm -rf out
+		exit
+	fi
+}
+export -f clean_build_out_directory
 
 function auto_patch_to_common_dir () {
 	#first auto patch when param parse end
