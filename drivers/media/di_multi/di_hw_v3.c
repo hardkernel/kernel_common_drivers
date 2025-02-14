@@ -6028,41 +6028,53 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 				di_mif->luma_x_start0 = 0;
 				di_mif->luma_x_end0 =
 					di_buf->vframe->width - 1;
-				if (di_reverse && DIM_IS_IC(T6D))
-					di_mif->luma_y_start0 = 1;
-				else
-					di_mif->luma_y_start0 = 0;
-				di_mif->luma_y_end0 =
-					di_buf->vframe->height - 1;
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
 					di_buf->vframe->width / 2 - 1;
-				di_mif->chroma_y_start0 = 0;
-				di_mif->chroma_y_end0 =
-					(di_buf->vframe->height + 1) / 2 - 1;
+				if (di_reverse && DIM_IS_IC(T6D)) {
+					di_mif->luma_y_start0 = 1;
+					di_mif->luma_y_end0 =
+						di_buf->vframe->height - 1;
+					di_mif->chroma_y_start0 = 1;
+					di_mif->chroma_y_end0 =
+						(di_buf->vframe->height + 1) / 2 - 1;
+				} else {
+					di_mif->luma_y_start0 = 0;
+					di_mif->luma_y_end0 =
+						di_buf->vframe->height - 1 - 1;
+					di_mif->chroma_y_start0 = 0;
+					di_mif->chroma_y_end0 =
+						(di_buf->vframe->height + 1) / 2 - 1 - 1;
+				}
 			} else {
 				di_mif->output_field_num = 1;
 				/* bottom */
 				di_mif->luma_x_start0 = 0;
 				di_mif->luma_x_end0 =
 					di_buf->vframe->width - 1;
-				if (di_reverse && DIM_IS_IC(T6D))
-					di_mif->luma_y_start0 = 0;
-				else
-					di_mif->luma_y_start0 = 1;
-				if (di_reverse && DIM_IS_IC(T6D))
-					di_mif->luma_y_end0 =
-					di_buf->vframe->height - 1 - 1;
-				else
-					di_mif->luma_y_end0 =
-					di_buf->vframe->height - 1;
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
 					di_buf->vframe->width / 2 - 1;
-				di_mif->chroma_y_start0 =
-					(di_mif->src_prog ? 0 : 1);
-				di_mif->chroma_y_end0 =
-					(di_buf->vframe->height + 1) / 2 - 1;
+				if (di_reverse && DIM_IS_IC(T6D)) {
+					di_mif->luma_y_start0 = 0;
+					di_mif->luma_y_end0 =
+						di_buf->vframe->height - 1 - 1;
+					di_mif->chroma_y_start0 = 0;
+					if (di_mif->src_prog)
+						di_mif->chroma_y_end0 =
+							(di_buf->vframe->height + 1) / 2 - 1;
+					else
+						di_mif->chroma_y_end0 =
+							(di_buf->vframe->height + 1) / 2 - 1 - 1;
+				} else {
+					di_mif->luma_y_start0 = 1;
+					di_mif->luma_y_end0 =
+						di_buf->vframe->height - 1;
+					di_mif->chroma_y_start0 =
+						(di_mif->src_prog ? 0 : 1);
+					di_mif->chroma_y_end0 =
+						(di_buf->vframe->height + 1) / 2 - 1;
+				}
 			}
 		}
 	}
