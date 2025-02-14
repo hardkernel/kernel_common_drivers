@@ -831,24 +831,18 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 	}
 
 	mutex_lock(&lcd_vout_mutex);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: fr_auto_flag: 0x%x, fr_adj_type: %d\n",
-			pdrv->index, pdrv->config.fr_auto_flag,
-			pdrv->config.timing.act_timing.fr_adjust_type);
-	}
 
 	info = &pdrv->vinfo;
-
 	if (!pdrv->config.fr_auto_flag) {
-		LCDPR("[%d]: %s: fr_auto_flag = 0x%x, disabled\n",
-		      pdrv->index, __func__, pdrv->config.fr_auto_flag);
+		LCDPR("[%d]: %s: fr_auto_flag = 0, disabled\n", pdrv->index, __func__);
 		mutex_unlock(&lcd_vout_mutex);
 		return 0;
 	}
 
 	if (duration == 0) { /* end hint */
-		LCDPR("[%d]: %s: return mode = %s, fr_auto_flag = 0x%x\n",
-			pdrv->index, __func__, info->name, pdrv->config.fr_auto_flag);
+		LCDPR("[%d]: %s: return mode: %s, fr_adj_type: %d\n",
+			pdrv->index, __func__, info->name,
+			pdrv->config.timing.act_timing.fr_adjust_type);
 
 		pdrv->fr_duration = 0;
 		if (pdrv->fr_mode == 0) {
@@ -876,8 +870,9 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 			mutex_unlock(&lcd_vout_mutex);
 			return -1;
 		}
-		LCDPR("[%d]: %s: fr_auto_flag = 0x%x, duration = %d, frame_rate = %d\n",
-		      pdrv->index, __func__, pdrv->config.fr_auto_flag, duration, duration / 100);
+		LCDPR("[%d]: %s: duration: %d, frame_rate: %d, fr_adj_type: %d\n",
+		      pdrv->index, __func__, duration, duration / 100,
+		      pdrv->config.timing.act_timing.fr_adjust_type);
 
 		for (i = 0; i < ARRAY_SIZE(lcd_std_fr); i++) {
 			if (duration ==
