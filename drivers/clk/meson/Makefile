@@ -154,6 +154,13 @@ CFLAGS_t5d.o += $(PR_FMT_DEFINE_T5D)
 CFLAGS_t5d-aoclk.o += $(PR_FMT_DEFINE_T5D)
 CFLAGS_t5d-main.o += $(PR_FMT_DEFINE_T5D)
 
+T6D_MODULE_NAME = amlogic-clk-soc-t6d
+obj-$(CONFIG_AMLOGIC_COMMON_CLK_T6D) += $(T6D_MODULE_NAME).o
+$(T6D_MODULE_NAME)-y += t6d.o
+PR_FMT_T6D = $(subst amlogic-,,$(T6D_MODULE_NAME))
+PR_FMT_DEFINE_T6D="-Dpr_fmt(fmt)= \"[$(PR_FMT_T6D)]: \" fmt"
+CFLAGS_t6d.o += $(PR_FMT_DEFINE_T6D)
+
 A5_MODULE_NAME = amlogic-clk-soc-a5
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_A5) += $(A5_MODULE_NAME).o
 $(A5_MODULE_NAME)-y += a5.o
