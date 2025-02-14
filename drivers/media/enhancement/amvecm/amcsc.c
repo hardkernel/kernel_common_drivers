@@ -4082,23 +4082,22 @@ int hdr10_primaries_changed(struct vframe_master_display_colour_s *p_mdc,
 
 uint32_t sink_dv_support(const struct vinfo_s *vinfo)
 {
-	if (!vinfo || !vinfo->name || !vinfo->vout_device ||
-	    !vinfo->vout_device->dv_info)
+	if (!vinfo || !vinfo->name || !vinfo->vout_device)
 		return 0;
-	if (vinfo->vout_device->dv_info->ieeeoui != 0x00d046)
+	if (vinfo->dv_info.ieeeoui != 0x00d046)
 		return 0;
-	if (vinfo->vout_device->dv_info->block_flag != CORRECT)
+	if (vinfo->dv_info.block_flag != CORRECT)
 		return 0;
 	/* for sink not support 60 dovi */
 	if (strstr(vinfo->name, "2160p60hz") ||
 	    strstr(vinfo->name, "2160p50hz")) {
-		if (!vinfo->vout_device->dv_info->sup_2160p60hz)
+		if (!vinfo->dv_info.sup_2160p60hz)
 			return 0;
 	}
 	/* for sink not support 120hz*/
 	if (strstr(vinfo->name, "120hz") ||
 	    strstr(vinfo->name, "100hz")) {
-		if (!vinfo->vout_device->dv_info->sup_1080p120hz)
+		if (!vinfo->dv_info.sup_1080p120hz)
 			return 0;
 	}
 	/* currently all sink not support 4k100/120 and 8k dv */
@@ -4122,12 +4121,12 @@ uint32_t sink_dv_support(const struct vinfo_s *vinfo)
 	/* for interlace output */
 	if (vinfo->height != vinfo->field_height)
 		return 0;
-	if (vinfo->vout_device->dv_info->ver == 2) {
-		if (vinfo->vout_device->dv_info->Interface <= 1)
+	if (vinfo->dv_info.ver == 2) {
+		if (vinfo->dv_info.Interface <= 1)
 			return 2; /* LL only */
 		else
 			return 3; /* STD & LL */
-	} else if (vinfo->vout_device->dv_info->low_latency) {
+	} else if (vinfo->dv_info.low_latency) {
 		return 3; /* STD & LL */
 	}
 	return 1; /* STD only */

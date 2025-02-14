@@ -1875,10 +1875,10 @@ void convert_hdmi_metadata(uint32_t *md)
 
 bool need_send_emp_meta(const struct vinfo_s *vinfo)
 {
-	if (!vinfo || !vinfo->vout_device || !vinfo->vout_device->dv_info)
+	if (!vinfo || !vinfo->vout_device || vinfo->dv_info.ieeeoui != 0x00d046)
 		return false;
 	return is_aml_tm2_stbmode() &&
-	(vinfo->vout_device->dv_info->dv_emp_cap || force_support_emp) &&
+	(vinfo->dv_info.dv_emp_cap || force_support_emp) &&
 	((dolby_vision_mode == AMDV_OUTPUT_MODE_IPT_TUNNEL) ||
 	dolby_vision_mode == AMDV_OUTPUT_MODE_IPT) &&
 	(dolby_vision_ll_policy == DOLBY_VISION_LL_DISABLE) &&
@@ -6971,7 +6971,7 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 
 #define NEW_DOLBY_SIGNAL_TYPE 0
 	if (!vsif || !vinfo || !p_setting ||
-	    !vinfo->vout_device || !vinfo->vout_device->dv_info)
+	    !vinfo->vout_device || vinfo->dv_info.ieeeoui != 0x00d046)
 		return -1;
 
 	if (multi_dv_mode) {
@@ -6986,13 +6986,13 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 				      m_setting->output_vsif.l11_md_present,
 				      src_content_flag, hdmi_in_allm,
 				      local_allm,
-				      vinfo->vout_device->dv_info->dm_version);
+				      vinfo->dv_info.dm_version);
 		/*Send L11 vsif in two cases*/
 		/*case 1: cp return output_vsif with L11 that is from source meta(sink-led or ott)*/
 		/*case 2: cp return content_info with L11 and sink_dm_ver >=2(hdmi in source-led)*/
 		/*case 3: todo... source contains game mode and sink support dv game mode*/
 		if (m_setting->dovi_ll_enable && (m_setting->output_vsif.l11_md_present ||
-		    (src_content_flag && vinfo->vout_device->dv_info->dm_version >= 2))) {
+		    (src_content_flag && vinfo->dv_info.dm_version >= 2))) {
 			vsif->ver2_l11_flag = 1;
 			vsif->vers.ver2_l11.low_latency = m_setting->dovi_ll_enable;
 #if NEW_DOLBY_SIGNAL_TYPE
@@ -7014,8 +7014,8 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 					     src_format, vsif->vers.ver2_l11.dobly_vision_signal,
 					     m_setting->output_vsif.dobly_vision_signal,
 					     vsif->vers.ver2_l11.src_dm_version);
-			if (vinfo->vout_device->dv_info &&
-			    vinfo->vout_device->dv_info->sup_backlight_control &&
+			if (vinfo->dv_info.ieeeoui == 0x00d046 &&
+				vinfo->dv_info.sup_backlight_control &&
 			    (m_setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
 				vsif->vers.ver2_l11.backlt_ctrl_MD_present = 1;
 				vsif->vers.ver2_l11.eff_tmax_PQ_hi =
@@ -7087,8 +7087,8 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 					     src_format, vsif->vers.ver2.dobly_vision_signal,
 					     m_setting->output_vsif.dobly_vision_signal,
 					     vsif->vers.ver2.src_dm_version);
-			if (vinfo->vout_device->dv_info &&
-			    vinfo->vout_device->dv_info->sup_backlight_control &&
+			if (vinfo->dv_info.ieeeoui == 0x00d046 &&
+				vinfo->dv_info.sup_backlight_control &&
 			    (m_setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
 				vsif->vers.ver2.backlt_ctrl_MD_present = 1;
 				vsif->vers.ver2.eff_tmax_PQ_hi =
@@ -7138,8 +7138,8 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 			pr_dv_dbg("src %d, dobly_vision_signal %d\n",
 				     src_format, vsif->vers.ver2.dobly_vision_signal);
 
-		if (vinfo->vout_device->dv_info &&
-		    vinfo->vout_device->dv_info->sup_backlight_control &&
+		if (vinfo->dv_info.ieeeoui == 0x00d046 &&
+			vinfo->dv_info.sup_backlight_control &&
 		    (setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
 			vsif->vers.ver2.backlt_ctrl_MD_present = 1;
 			vsif->vers.ver2.eff_tmax_PQ_hi =
@@ -7182,8 +7182,8 @@ static int prepare_emp_vsif_pkt
 	struct dovi_setting_s *setting;
 	struct m_dovi_setting_s *m_setting;
 
-	if (!vinfo || !p_setting ||
-		!vinfo->vout_device || !vinfo->vout_device->dv_info)
+	if (!vinfo || !p_setting || !vinfo->vout_device ||
+		vinfo->dv_info.ieeeoui != 0x00d046)
 		return -1;
 	memset(vsif_PB, 0, 32);
 
@@ -7198,7 +7198,7 @@ static int prepare_emp_vsif_pkt
 		/* source_dm_version */
 		vsif_PB[0] |= 3 << 5;
 
-		if (vinfo->vout_device->dv_info->sup_backlight_control &&
+		if (vinfo->dv_info.sup_backlight_control &&
 			(m_setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
 			vsif_PB[1] |= 1 << 7;
 			vsif_PB[1] |=
@@ -7225,7 +7225,7 @@ static int prepare_emp_vsif_pkt
 		/* source_dm_version */
 		vsif_PB[0] |= 3 << 5;
 
-		if (vinfo->vout_device->dv_info->sup_backlight_control &&
+		if (vinfo->dv_info.sup_backlight_control &&
 			(setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
 			vsif_PB[1] |= 1 << 7;
 			vsif_PB[1] |=
@@ -9250,20 +9250,20 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	}
 
 	if (dolby_vision_flags & FLAG_USE_SINK_MIN_MAX) {
-		if (vinfo->vout_device->dv_info->ieeeoui == 0x00d046) {
-			if (vinfo->vout_device->dv_info->ver == 0) {
+		if (vinfo->dv_info.ieeeoui == 0x00d046) {
+			if (vinfo->dv_info.ver == 0) {
 				/* need lookup PQ table ... */
-			} else if (vinfo->vout_device->dv_info->ver == 1) {
-				if (vinfo->vout_device->dv_info->tmax_lum) {
+			} else if (vinfo->dv_info.ver == 1) {
+				if (vinfo->dv_info.tmax_lum) {
 					/* Target max luminance = 100+50*CV */
 					graphic_max =
 					target_lumin_max =
-						(vinfo->vout_device->dv_info->tmax_lum
+						(vinfo->dv_info.tmax_lum
 						* 50 + 100);
 					/* Target min luminance = (CV/127)^2 */
 					graphic_min =
 					amdv_target_min =
-						(vinfo->vout_device->dv_info->tmin_lum ^ 2)
+						(vinfo->dv_info.tmin_lum ^ 2)
 						* 10000 / (127 * 127);
 				}
 			}
@@ -9342,24 +9342,23 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	if ((dolby_vision_flags & FLAG_DISABLE_LOAD_VSVDB) == 0) {
 		/* check if vsvdb is changed */
 		if (vinfo &&  vinfo->vout_device &&
-		    vinfo->vout_device->dv_info &&
-		    vinfo->vout_device->dv_info->ieeeoui == 0x00d046 &&
-		    vinfo->vout_device->dv_info->block_flag == CORRECT) {
+		    vinfo->dv_info.ieeeoui == 0x00d046 &&
+		    vinfo->dv_info.block_flag == CORRECT) {
 			if (new_dovi_setting.vsvdb_len
-				!= vinfo->vout_device->dv_info->length + 1)
+				!= vinfo->dv_info.length + 1)
 				new_dovi_setting.vsvdb_changed = 1;
 			else if (memcmp
 				(&new_dovi_setting.vsvdb_tbl[0],
-				 &vinfo->vout_device->dv_info->rawdata[0],
-				 vinfo->vout_device->dv_info->length + 1))
+				 &vinfo->dv_info.rawdata[0],
+				 vinfo->dv_info.length + 1))
 				new_dovi_setting.vsvdb_changed = 1;
 			memset(&new_dovi_setting.vsvdb_tbl[0],
 			       0, sizeof(new_dovi_setting.vsvdb_tbl));
 			memcpy(&new_dovi_setting.vsvdb_tbl[0],
-			       &vinfo->vout_device->dv_info->rawdata[0],
-			       vinfo->vout_device->dv_info->length + 1);
+			       &vinfo->dv_info.rawdata[0],
+			       vinfo->dv_info.length + 1);
 			new_dovi_setting.vsvdb_len =
-				vinfo->vout_device->dv_info->length + 1;
+				vinfo->dv_info.length + 1;
 			if (new_dovi_setting.vsvdb_changed &&
 			    new_dovi_setting.vsvdb_len) {
 				int k = 0;
@@ -10752,19 +10751,19 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	last_graphic_max = graphic_max;
 
 	if (dolby_vision_flags & FLAG_USE_SINK_MIN_MAX) {
-		if (vinfo->vout_device->dv_info->ieeeoui == 0x00d046) {
-			if (vinfo->vout_device->dv_info->ver == 0) {
+		if (vinfo->dv_info.ieeeoui == 0x00d046) {
+			if (vinfo->dv_info.ver == 0) {
 				/* need lookup PQ table ... */
-			} else if (vinfo->vout_device->dv_info->ver == 1) {
-				if (vinfo->vout_device->dv_info->tmax_lum) {
+			} else if (vinfo->dv_info.ver == 1) {
+				if (vinfo->dv_info.tmax_lum) {
 					/* Target max luminance = 100+50*CV */
 					graphic_max =
 					target_lumin_max =
-					(vinfo->vout_device->dv_info->tmax_lum * 50 + 100);
+					(vinfo->dv_info.tmax_lum * 50 + 100);
 					/* Target min luminance = (CV/127)^2 */
 					graphic_min =
 					amdv_target_min =
-					(vinfo->vout_device->dv_info->tmin_lum ^ 2) *
+					(vinfo->dv_info.tmin_lum ^ 2) *
 					10000 / (127 * 127);
 				}
 			}
@@ -10814,23 +10813,22 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	if ((dolby_vision_flags & FLAG_DISABLE_LOAD_VSVDB) == 0) {
 		/* check if vsvdb is changed */
 		if (vinfo &&  vinfo->vout_device &&
-		    vinfo->vout_device->dv_info &&
-		    vinfo->vout_device->dv_info->ieeeoui == 0x00d046 &&
-		    vinfo->vout_device->dv_info->block_flag == CORRECT) {
+		    vinfo->dv_info.ieeeoui == 0x00d046 &&
+		    vinfo->dv_info.block_flag == CORRECT) {
 			if (new_m_dovi_setting.vsvdb_len
-				!= vinfo->vout_device->dv_info->length + 1)
+				!= vinfo->dv_info.length + 1)
 				new_m_dovi_setting.vsvdb_changed = 1;
 			else if (memcmp(&new_m_dovi_setting.vsvdb_tbl[0],
-				&vinfo->vout_device->dv_info->rawdata[0],
-				vinfo->vout_device->dv_info->length + 1))
+				&vinfo->dv_info.rawdata[0],
+				vinfo->dv_info.length + 1))
 				new_m_dovi_setting.vsvdb_changed = 1;
 			memset(&new_m_dovi_setting.vsvdb_tbl[0],
 				0, sizeof(new_m_dovi_setting.vsvdb_tbl));
 			memcpy(&new_m_dovi_setting.vsvdb_tbl[0],
-				&vinfo->vout_device->dv_info->rawdata[0],
-				vinfo->vout_device->dv_info->length + 1);
+				&vinfo->dv_info.rawdata[0],
+				vinfo->dv_info.length + 1);
 			new_m_dovi_setting.vsvdb_len =
-				vinfo->vout_device->dv_info->length + 1;
+				vinfo->dv_info.length + 1;
 			if (new_m_dovi_setting.vsvdb_changed &&
 			    new_m_dovi_setting.vsvdb_len) {
 				int k = 0;
@@ -12344,8 +12342,8 @@ void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 	h = tv_dovi_setting->core1_reg_lut[49] & 0xfff;
 	v = (tv_dovi_setting->core1_reg_lut[49] >> 13) & 0xfff;
 	if (h == 0 || v == 0) {
-		h = tv_dovi_setting->video_width >> 16;
-		v = tv_dovi_setting->video_height >> 16;
+		h = tv_dovi_setting->video_width;
+		v = tv_dovi_setting->video_height;
 	}
 
 	if (vf->type & VIDTYPE_COMPRESS) {
@@ -12473,8 +12471,8 @@ void handle_aoi(u32 hsize, u32 vsize)
 	h = tv_dovi_setting->core1_reg_lut[49] & 0xfff;
 	v = (tv_dovi_setting->core1_reg_lut[49] >> 13) & 0xfff;
 	if (h == 0 || v == 0) {
-		h = tv_dovi_setting->video_width >> 16;
-		v = tv_dovi_setting->video_height >> 16;
+		h = tv_dovi_setting->video_width;
+		v = tv_dovi_setting->video_height;
 	}
 	if (debug_dolby & 1)
 		pr_dv_dbg("%s:aoi_info %d_%d %d %d,%d,%llx,%llx,[%d %d %d %d]\n",
@@ -12916,7 +12914,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 	if (dolby_vision_mode == AMDV_OUTPUT_MODE_BYPASS) {
 		if (!is_aml_tvmode()) {
 			if (vinfo && vinfo->vout_device &&
-			    !vinfo->vout_device->dv_info &&
+			    vinfo->dv_info.ieeeoui != 0x00d046 &&
 			    vsync_count < FLAG_VSYNC_CNT) {
 				vsync_count++;
 				update_amdv_core2_reg();
@@ -13906,7 +13904,7 @@ static int amdolby_vision_process_v2_stb
 
 	if (dolby_vision_mode == AMDV_OUTPUT_MODE_BYPASS) {
 		if (vinfo && vinfo->vout_device &&
-			!vinfo->vout_device->dv_info &&
+			vinfo->dv_info.ieeeoui != 0x00d046 &&
 			vsync_count < FLAG_VSYNC_CNT) {
 			vsync_count++;
 			update_amdv_core2_reg();
