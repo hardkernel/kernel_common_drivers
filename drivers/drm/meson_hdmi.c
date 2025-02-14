@@ -35,11 +35,11 @@
 #include <vout/vout_serve/vout_func.h>
 #include <enhancement/amvecm/amcsc.h>
 #include <drm/display/drm_hdcp_helper.h>
+#include <vout/hdmitx/hdmitx_check_valid.h>
 
 #include "meson_hdmi.h"
 #include "meson_vpu.h"
 #include "meson_crtc.h"
-#include "../media/vout/hdmitx/hdmitx_check_valid.h"
 
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12

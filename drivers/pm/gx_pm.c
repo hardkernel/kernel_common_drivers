@@ -25,7 +25,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/amlogic/pm.h>
 #include <linux/kobject.h>
-#include <../kernel/power/power.h>
+#include <power.h>
 #include <linux/amlogic/power_domain.h>
 #include <linux/syscore_ops.h>
 #include <linux/amlogic/gki_module.h>

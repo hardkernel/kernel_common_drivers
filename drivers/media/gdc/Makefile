@@ -13,5 +13,3 @@ ccflags-y +=-I$(PWD)/inc/api -I$(PWD)/inc/gdc -I$(PWD)/inc/sys
 ccflags-y +=-I$(PWD)/src/platform -I$(PWD)/src/fw_lib
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/common/ion_dev/
 ccflags-y += -I$(srctree)/drivers/staging/android/
-
-ccflags-y += -Wno-declaration-after-statement

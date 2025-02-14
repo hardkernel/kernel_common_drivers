@@ -13,7 +13,7 @@
 
 #include "atv_demod_debug.h"
 #include "atvauddemod_func.h"
-#include "aud_demod_settings.c"
+#include "aud_demod_settings_c.h"
 #include "atvdemod_func.h"
 #include "atv_demod_driver.h"
 #include "atv_demod_access.h"

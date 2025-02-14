@@ -60,7 +60,7 @@
 #include <linux/amlogic/secmon.h>
 #endif
 
-#include "../memory_debug/ddr_tool/dmc_monitor.h"
+#include <dmc_monitor.h>
 
 #ifndef CONFIG_RISCV
 #ifndef CONFIG_ARM64
