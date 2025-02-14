@@ -1585,7 +1585,7 @@ static int meson_hdmitx_update_dv_eotf(struct drm_display_mode *mode,
 	if (dvcap->ieeeoui != DV_IEEE_OUI || dvcap->block_flag != CORRECT)
 		return -ENODEV;
 
-	DRM_INFO("Mode %s,%d\n", mode->name, mode->flags);
+	DRM_DEBUG("Mode %s,%d\n", mode->name, mode->flags);
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return -EINVAL;
 
