@@ -136,18 +136,26 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/build.config.project
 		echo 						>> ${PROJECT_DIR}/build.config.project
 	fi
-	echo "FATLOAD=${FATLOAD}" 				>>  ${PROJECT_DIR}/build.config.project
-
-	[[ -f ${PROJECT_DIR}/build.config.gki10 ]] || touch ${PROJECT_DIR}/build.config.gki10
-	echo "# SPDX-License-Identifier: GPL-2.0" 		>  ${PROJECT_DIR}/build.config.gki10
-	echo 							>> ${PROJECT_DIR}/build.config.gki10
-	echo "GKI_CONFIG=${GKI_CONFIG}"				>> ${PROJECT_DIR}/build.config.gki10
-	echo "ANDROID_PROJECT=${ANDROID_PROJECT}"		>> ${PROJECT_DIR}/build.config.gki10
-	echo "COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR}" 	>> ${PROJECT_DIR}/build.config.gki10
-	echo "UPGRADE_PROJECT=${UPGRADE_PROJECT}"		>> ${PROJECT_DIR}/build.config.gki10
-	echo "DEV_CONFIGS=\"${DEV_CONFIGS}\""			>> ${PROJECT_DIR}/build.config.gki10
-	echo "KASAN=${KASAN}"					>> ${PROJECT_DIR}/build.config.gki10
-	echo "CHECK_GKI_20=${CHECK_GKI_20}"			>> ${PROJECT_DIR}/build.config.gki10
+	sed -i "/ANDROID_PROJECT/d" ${PROJECT_DIR}/build.config.project
+	echo "ANDROID_PROJECT=${ANDROID_PROJECT}"		>> ${PROJECT_DIR}/build.config.project
+	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/build.config.project
+	echo "UPGRADE_PROJECT=${UPGRADE_PROJECT}"		>> ${PROJECT_DIR}/build.config.project
+	sed -i "/DEV_CONFIGS/d" ${PROJECT_DIR}/build.config.project
+	echo "DEV_CONFIGS=\"${DEV_CONFIGS}\""			>> ${PROJECT_DIR}/build.config.project
+	sed -i "/GKI_CONFIG/d" ${PROJECT_DIR}/build.config.project
+	if [[ -z ${GKI_CONFIG} ]]; then
+		echo "GKI_CONFIG=non_gki"			>> ${PROJECT_DIR}/build.config.project
+	else
+		echo "GKI_CONFIG=${GKI_CONFIG}"			>> ${PROJECT_DIR}/build.config.project
+	fi
+	sed -i "/COMMON_DRIVERS_DIR/d" ${PROJECT_DIR}/build.config.project
+	echo "COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR}" 	>> ${PROJECT_DIR}/build.config.project
+	sed -i "/FATLOAD/d" ${PROJECT_DIR}/build.config.project
+	echo "FATLOAD=${FATLOAD}" 				>> ${PROJECT_DIR}/build.config.project
+	sed -i "/KASAN/d" ${PROJECT_DIR}/build.config.project
+	echo "KASAN=${KASAN}"					>> ${PROJECT_DIR}/build.config.project
+	sed -i "/CHECK_GKI_20/d" ${PROJECT_DIR}/build.config.project
+	echo "CHECK_GKI_20=${CHECK_GKI_20}"			>> ${PROJECT_DIR}/build.config.project
 
 	if [[ -z ${ANDROID_PROJECT} ]]; then
 		[[ -f ${PROJECT_DIR}/Kconfig.ext_modules ]] && rm -rf ${PROJECT_DIR}/Kconfig.ext_modules
@@ -185,7 +193,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	sed -i "/ANDROID_PROJECT/d" ${PROJECT_DIR}/project.bzl
 	echo "ANDROID_PROJECT = \"${ANDROID_PROJECT}\"" 	>> ${PROJECT_DIR}/project.bzl
 
-	sed -i "/ANDROID_MODULE/d" ${PROJECT_DIR}/project.bzl
+	sed -i "/EXTRA_ANDROID_MODULE/d" ${PROJECT_DIR}/project.bzl
 	if [[ -n ${ANDROID_PROJECT} && -z ${FATLOAD} ]]; then
 		echo "EXTRA_ANDROID_MODULE = True"		>> ${PROJECT_DIR}/project.bzl
 	else
@@ -193,7 +201,11 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	fi
 
 	sed -i "/GKI_CONFIG/d" ${PROJECT_DIR}/project.bzl
-	echo "GKI_CONFIG = \"${GKI_CONFIG}\""			>> ${PROJECT_DIR}/project.bzl
+	if [[ -z ${GKI_CONFIG} ]]; then
+		echo "GKI_CONFIG = \"non_gki\""			>> ${PROJECT_DIR}/project.bzl
+	else
+		echo "GKI_CONFIG = \"${GKI_CONFIG}\""		>> ${PROJECT_DIR}/project.bzl
+	fi
 
 	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/project.bzl
 	echo "UPGRADE_PROJECT = \"${UPGRADE_PROJECT}\"" 	>> ${PROJECT_DIR}/project.bzl

@@ -3,7 +3,6 @@ exports_files(["build.config.amlogic.bazel"])
 exports_files(["Kconfig.ext"])
 exports_files(["project/build.config.project"])
 exports_files(["build.config.amlogic"])
-exports_files(["project/build.config.gki10"])
 
 filegroup(
     name = "amlogic_build_config_fragment",
