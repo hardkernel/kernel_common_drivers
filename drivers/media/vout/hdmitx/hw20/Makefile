@@ -12,11 +12,11 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_reg_ops
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_enc_cfg_hw.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_ddc.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_checksha.o
-ifndef CONFIG_AMLOGIC_REMOVE_OLD
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_gxbb.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_gxtvbb.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_gxl.o
-endif
+
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_GXX) += vout/hdmitx/hw20/hdmitx_hw_gxbb.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_GXX) += vout/hdmitx/hw20/hdmitx_hw_gxtvbb.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_GXX) += vout/hdmitx/hw20/hdmitx_hw_gxl.o
+
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_txlx.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_clk.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_g12a.o

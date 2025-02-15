@@ -18,3 +18,9 @@ menuconfig AMLOGIC_UVM_ALLOCATOR
 	  say y to enable amlogic uvm allocator device driver.
 	  gralloc will call it to allocate dmabuf fd.
 
+config AMLOGIC_UVM_PROCESSOR
+	bool "Support to compile the uvm_xx_processor files"
+	default AMLOGIC_UVM_CORE
+	depends on !AMLOGIC_TXHD2_REMOVE
+	help
+	  support to compile the uvm_xx_processor files.

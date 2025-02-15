@@ -34,6 +34,13 @@ config AMLOGIC_LCD_TABLET
 		tablet mode mainly includes panel interface display
 		Through the environment variable is only choose panel
 
+config AMLOGIC_LCD_CLK_SOC
+	bool "Control lcd_clk_xxx file to build"
+	default AMLOGIC_LCD
+	depends on !AMLOGIC_C3_REMOVE
+	help
+	        Control lcd_clk_xxx file to build with AMLOGIC_C3_REMOVE
+
 if AMLOGIC_LCD
 source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/backlight/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_extern/Kconfig"

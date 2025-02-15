@@ -130,4 +130,47 @@ config AMLOGIC_CC
 
           To compile this driver as a module, choose M here: the
           module will be called amlogic-cc.
+
+config AMLOGIC_USB_DWC3_TRACE
+	bool "Used to control to build trace-meson.c"
+	depends on USB_DWC3 && TRACING
+	default y
+	help
+	  Used to control to build trace-meson.c
+
+config AMLOGIC_USB_DWC3_HOST
+	bool "Used to control to build host-meson.c"
+	depends on USB_DWC3 && (USB_DWC3_HOST || USB_DWC3_DUAL_ROLE)
+	default y
+	help
+	  Used to control to build host-meson.c
+
+config AMLOGIC_USB_DWC3_GADGET_AND_EP0
+	bool "Used to control to build gadget-meson.c and ep0-meson.c"
+	depends on USB_DWC3 && (USB_DWC3_GADGET || USB_DWC3_DUAL_ROLE)
+	default y
+	help
+	  Used to control to build gadget-meson.c and ep0-meson.c
+
+config AMLOGIC_USB_DWC3_DRD
+	bool "Used to control to build drd-meson.c"
+	depends on USB_DWC3 && USB_DWC3_DUAL_ROLE
+	default y
+	help
+	  Used to control to build drd-meson.c
+
+config AMLOGIC_USB_DWC3_ULPI
+	bool "Used to control to build ulpi-meson.c"
+	depends on USB_DWC3 && USB_DWC3_ULPI
+	default y
+	help
+	  Used to control to build ulpi-meson.c.
+
+config AMLOGIC_USB_DWC3_DEBUGFS
+	bool "Used to control to build debugfs-meson.c"
+	depends on USB_DWC3 && DEBUG_FS
+	default y
+	help
+	  Used to control to build debugfs-meson.c.
+
 endmenu

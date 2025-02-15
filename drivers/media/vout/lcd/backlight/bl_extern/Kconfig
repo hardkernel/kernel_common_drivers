@@ -3,6 +3,7 @@
 
 config AMLOGIC_BL_EXTERN
 	bool "Amlogic backlight extern driver support"
+	depends on AMLOGIC_BACKLIGHT
 	default n
 	help
 		Say Y if you want to use Amlogic backlight external controller.

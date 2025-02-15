@@ -4,33 +4,15 @@ CFLAGS_trace.o				:= -I$(src)
 
 #$(MODULE_NAME)-$(CONFIG_USB_DWC3)			+= dwc3-meson.o
 
-$(MODULE_NAME)-$(CONFIG_USB_DWC3)					+= dwc3_amlogic/core-meson.o
+$(MODULE_NAME)-$(CONFIG_USB_DWC3)				+= dwc3_amlogic/core-meson.o
 
-ifneq ($(CONFIG_USB_DWC3),)
-ifneq ($(CONFIG_TRACING),)
-	$(MODULE_NAME)-y				+= dwc3_amlogic/trace-meson.o
-endif
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_USB_DWC3_TRACE)			+= dwc3_amlogic/trace-meson.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_USB_DWC3_HOST)			+= dwc3_amlogic/host-meson.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_USB_DWC3_GADGET_AND_EP0)	+= dwc3_amlogic/gadget-meson.o dwc3_amlogic/ep0-meson.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_USB_DWC3_DRD)			+= dwc3_amlogic/drd-meson.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_USB_DWC3_ULPI)			+= dwc3_amlogic/ulpi-meson.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_USB_DWC3_DEBUGFS)		+= dwc3_amlogic/debugfs-meson.o
 
-ifneq ($(filter y,$(CONFIG_USB_DWC3_HOST) $(CONFIG_USB_DWC3_DUAL_ROLE)),)
-	$(MODULE_NAME)-y				+= dwc3_amlogic/host-meson.o
-endif
-
-ifneq ($(filter y,$(CONFIG_USB_DWC3_GADGET) $(CONFIG_USB_DWC3_DUAL_ROLE)),)
-	$(MODULE_NAME)-y				+= dwc3_amlogic/gadget-meson.o dwc3_amlogic/ep0-meson.o
-endif
-
-ifneq ($(CONFIG_USB_DWC3_DUAL_ROLE),)
-	$(MODULE_NAME)-y				+= dwc3_amlogic/drd-meson.o
-endif
-
-ifneq ($(CONFIG_USB_DWC3_ULPI),)
-	$(MODULE_NAME)-y				+= dwc3_amlogic/ulp-mesoni.o
-endif
-
-ifneq ($(CONFIG_DEBUG_FS),)
-	$(MODULE_NAME)-y				+= dwc3_amlogic/debugfs-meson.o
-endif
-endif
 
 ##
 # Platform-specific glue layers go here

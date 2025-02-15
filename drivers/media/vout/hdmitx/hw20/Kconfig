@@ -13,4 +13,12 @@ config AMLOGIC_HDMITX
 	This option is used to configure Amlogic drivers
         of the hdmi tx output
 
+config AMLOGIC_HDMITX_GXX
+	bool "AMLOGIC HDMITX driver compile"
+	depends on !AMLOGIC_REMOVE_OLD
+	default AMLOGIC_HDMITX
+	help
+	This option is used to compile Amlogic drivers
+        of the hdmi tx output
+
 endmenu

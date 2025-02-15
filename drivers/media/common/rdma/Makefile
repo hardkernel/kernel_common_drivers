@@ -2,6 +2,4 @@
 
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_RDMA) += common/rdma/rdma_mgr.o
 
-ifeq ($(CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA),y)
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_RDMA) += common/rdma/rdma.o
-endif
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA) += common/rdma/rdma.o
