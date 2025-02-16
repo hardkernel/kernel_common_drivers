@@ -48,6 +48,7 @@ static struct sec_dev_data_s sec_meson_dev;
 static u32 secure_cfg;
 static u32 log_level;
 static u32 debug_value;
+static int value_save[VPP_TOP_MAX] = {0,};
 
 static struct vpu_sec_reg_s reg_v1[] = {
 	{VIU_DATA_SEC, 1, 0, 1}, /* 00. OSD1 */
@@ -344,7 +345,6 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 	static u32 video_secure[VPP_TOP_MAX] = {0,};
 	static bool osd_secure_en[VPP_TOP_MAX] = {0,};
 	static bool video_secure_en[VPP_TOP_MAX] = {0,};
-	static int value_save[VPP_TOP_MAX] = {0,};
 	u32 value = 0, version = 0;
 	int secure_update = 0;
 	struct vd_secure_info_s vd_secure[MAX_SECURE_OUT];
@@ -802,12 +802,66 @@ static void vpu_security_remove(struct platform_device *pdev)
 	info->probed = 0;
 }
 
+#ifdef CONFIG_PM
+static int vpu_security_suspend(struct device *dev)
+{
+	int i;
+
+	/* to ensure that the registers inside secure_config() will be updated */
+	for (i = 0; i < VPP_TOP_MAX; i++)
+		value_save[i] = 0;
+	pr_info("call %s\n", __func__);
+
+	return 0;
+}
+
+static int vpu_security_resume(struct device *dev)
+{
+	pr_info("call %s\n", __func__);
+	return 0;
+}
+
+static int vpu_security_freeze(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < VPP_TOP_MAX; i++)
+		value_save[i] = 0;
+	pr_info("call %s\n", __func__);
+
+	return 0;
+}
+
+static int vpu_security_thaw(struct device *dev)
+{
+	pr_info("call %s\n", __func__);
+	return 0;
+}
+
+static int vpu_security_restore(struct device *dev)
+{
+	pr_info("call %s\n", __func__);
+	return 0;
+}
+
+static const struct dev_pm_ops vpu_security_pm_ops = {
+	.suspend = vpu_security_suspend,
+	.resume  = vpu_security_resume,
+	.freeze  = vpu_security_freeze,
+	.thaw    = vpu_security_thaw,
+	.restore = vpu_security_restore,
+};
+#endif
+
 static struct platform_driver vpu_security_driver = {
 	.probe = vpu_security_probe,
 	.remove = vpu_security_remove,
 	.driver = {
 		.name = "amlogic_vpu_security",
 		.of_match_table = vpu_security_dt_match,
+#ifdef CONFIG_PM
+		.pm = &vpu_security_pm_ops,
+#endif
 	},
 };
 
