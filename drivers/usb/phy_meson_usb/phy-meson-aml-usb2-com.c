@@ -40,6 +40,35 @@ int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 
 	if (phy->usb_reset_bit != -1U)
 		tmp |= BIT(phy->usb_reset_bit);
+
+	val = readl((void __iomem *)
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+
+	if (on) {
+		writel(val | tmp, (void __iomem	*)
+			((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+	} else {
+		writel(val & ~tmp, (void __iomem *)
+			((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+	}
+
+	mup_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
+			readl(phy->reset_regs + phy->reset_level));
+
+	return 0;
+}
+
+int meson_u2phy_comb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
+{
+	u32 val = 0;
+	size_t mask = 0;
+	u32 tmp = 0;
+
+	mup_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
+			readl(phy->reset_regs + phy->reset_level));
+
+	mask = (size_t)phy->reset_regs & 0xf;
+
 	if (phy->usb_comb_reset_bit != -1U)
 		tmp |= BIT(phy->usb_comb_reset_bit);
 
@@ -56,6 +85,15 @@ int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 
 	mup_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
 			readl(phy->reset_regs + phy->reset_level));
+
+	return 0;
+}
+
+int meson_u2phy_reset_comb(struct amlogic_usb_v2 *phy)
+{
+	meson_u2phy_comb_hold_reset(phy, false);
+	usleep_range(50, 100);
+	meson_u2phy_comb_hold_reset(phy, true);
 
 	return 0;
 }
@@ -97,6 +135,24 @@ int meson_u2phy_reset_phycfg(struct amlogic_usb_v2 *phy)
 	return 0;
 }
 
+/* Reg reset: alias for comb reset in some socs.
+ * The reg reset in t6d etc. is needed for usb2 960M mode but is known
+ * to reset both phy apb and comb apb. So the comb apb is need to be
+ * reinit-ed every time the controller driver resume which calls phy init.
+ *
+ * Normal u2phy reset scheme   T6D u2phy reset scheme
+ * ------------					------------
+ * |   PHY	  | <---phy reset	|	PHY    | <---phy reset
+ * ------------		|			------------
+ * | PHY APB  | <----			| PHY APB  | <---
+ * ------------					------------	|
+ *												|
+ * ------------					------------	|
+ * |	Xhc   | <---usb reset	|	 Xhc   | <---usb reset
+ * ------------					------------	|
+ * | COMB APB | <---comb reset	| COMB APB | <--+comb reset
+ * ------------					------------
+ */
 int meson_u2phy_reg_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 {
 	u32 val = 0, temp = 0;
@@ -107,8 +163,8 @@ int meson_u2phy_reg_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 
 	mask = (size_t)phy->reset_regs & 0xf;
 
-	if (phy->phy_reg_reset_level_bit[0] != -1U)
-		temp = temp | (1 << phy->phy_reg_reset_level_bit[0]);
+	if (phy->phy_reg_reset_bit != -1U)
+		temp = temp | (1 << phy->phy_reg_reset_bit);
 
 	val = readl((void __iomem		*)
 		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
@@ -126,7 +182,6 @@ int meson_u2phy_reg_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 	return 0;
 }
 
-/* Reset phy reg values. */
 int meson_u2phy_reg_reset(struct amlogic_usb_v2 *phy)
 {
 	int ret = 0;
@@ -188,6 +243,8 @@ int meson_u2phy_exit(struct amlogic_usb_v2 *phy)
 	}
 
 	ret = meson_u2phy_hold_reset(phy, false);
+	ret = meson_u2phy_reg_hold_reset(phy, false);
+	ret = meson_u2phy_comb_hold_reset(phy, false);
 
 	if (phy->suspend_flag == 0)
 		clk_bulk_disable_unprepare(phy->clk_num, phy->clks);
@@ -537,6 +594,9 @@ int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy,  struct meson_u2phy_priv *p
 	meson_u2phy_hold_reset(phy, true);
 	meson_u2phy_usb_reset(phy);
 	usleep_range(49, 50);
+	meson_u2phy_comb_hold_reset(phy, true);
+	usleep_range(50, 100);
+	meson_u2phy_reset_comb(phy);
 
 	mup_dbg(phy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
 			readl(&phy->u2p_aml_regs[0]->r0),
@@ -578,7 +638,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	int i, cnt, addr_i = 0, ret = 0;
 	u64 addr, size;
 
-	aml_u2phy = devm_kzalloc(dev, sizeof(*aml_u2phy), GFP_KERNEL);
+	aml_u2phy = kzalloc(sizeof(*aml_u2phy), GFP_KERNEL);
 	if (!aml_u2phy)
 		return -ENOMEM;
 
@@ -587,6 +647,10 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	mup_info(dev, "phy_id %d.\n", aml_u2phy->phy_id);
 	instance->meson_uphy = aml_u2phy;
 	get_device(dev);
+
+	aml_u2phy->portspeed = instance->port_speed;
+
+	mup_dbg(dev, "portspeed: %d\n", aml_u2phy->portspeed);
 
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
 	if (gpio_name) {
@@ -722,6 +786,13 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	mup_dbg(dev, "usb comb reset bit: %d\n", aml_u2phy->usb_comb_reset_bit);
 
+	ret = of_property_read_u32(dev->of_node, "phy-reg-reset-bit",
+							&aml_u2phy->phy_reg_reset_bit);
+	if (ret < 0)
+		aml_u2phy->phy_reg_reset_bit = -1U;
+
+	mup_dbg(dev, "usb reg reset bit: %d\n", aml_u2phy->phy_reg_reset_bit);
+
 	cnt = of_property_count_u32_elems(dev->of_node, "pll-settings");
 	if (cnt < 0) {
 		mup_err(dev, "no pll-settings? exit.");
@@ -741,11 +812,9 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	for (i = 0; i < 8; i++)
 		mup_dbg(dev, "pll-settings: 0x%x\n", aml_u2phy->pll_setting[i]);
 
-	ret = of_property_read_s32(dev->of_node, "portspeed", &aml_u2phy->portspeed);
-	if (ret < 0)
-		aml_u2phy->portspeed = MESON_USB_SPEED_HIGH;
+	ret = of_property_read_u32(dev->of_node, "clk-mux", &aml_u2phy->clk_mux);
 
-	mup_dbg(dev, "portspeed: %d\n", aml_u2phy->portspeed);
+	aml_u2phy->sw_hsp = of_property_read_bool(dev->of_node, "sw-hsp");
 
 	cnt = of_property_count_strings(dev->of_node, "clock-names");
 	if (cnt < 0) {
@@ -776,8 +845,8 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 		mup_dbg(dev, "%s %px.\n", aml_u2phy->clks[i].id, (void *)aml_u2phy->clks[i].clk);
 
 	/* Default OFF. */
-	//meson_u2phy_exit(aml_u2phy);
 	meson_u2phy_hold_reset(aml_u2phy, false);
+	/* Don't hold comb reset bit. Otg driver may want it. */
 	meson_u2phy_power_off(aml_u2phy);
 	aml_u2phy->suspend_flag = 1;
 

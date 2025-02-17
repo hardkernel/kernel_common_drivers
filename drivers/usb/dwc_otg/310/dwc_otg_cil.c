@@ -311,6 +311,7 @@ dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t *reg_base_addr, int host_only
 void dwc_otg_cil_remove(dwc_otg_core_if_t *core_if)
 {
 	dctl_data_t dctl = {.d32 = 0 };
+
 	/* Disable all interrupts */
 	DWC_MODIFY_REG32(&core_if->core_global_regs->gahbcfg, 1, 0);
 	DWC_WRITE_REG32(&core_if->core_global_regs->gintmsk, 0);
@@ -6246,14 +6247,16 @@ int dwc_otg_set_param_dev_perio_tx_fifo_size(dwc_otg_core_if_t *core_if,
 		(DWC_READ_REG32
 		(&core_if->core_global_regs->dtxfsiz[fifo_num]) >> 16)) {
 		if (DWC_READ_REG32
-			(&core_if->core_global_regs->dtxfsiz[fifo_num]) >> 16)
-			DWC_WARN("Value is larger then power-on FIFO size\n");
+			(&core_if->core_global_regs->dtxfsiz[fifo_num]) >> 16) {
+			DWC_DEBUG("Value is larger then power-on FIFO size\n");
+		}
 		if (dwc_otg_param_initialized
-		    (core_if->core_params->dev_perio_tx_fifo_size[fifo_num]))
-			DWC_ERROR
-			    ("`%d' invalid for parameter `dev_perio_fifo_size_%d'. Check HW configuration.\n",
-			     val, fifo_num);
-
+		    (core_if->core_params->dev_perio_tx_fifo_size[fifo_num])) {
+			DWC_DEBUG
+				("`%d' invalid for parameter `dev_perio_fifo_size_%d'.\n"
+					"Check HW configuration.\n",
+					val, fifo_num);
+		}
 		val = (DWC_READ_REG32(&core_if->core_global_regs->dtxfsiz[fifo_num]) >> 16);
 		retval = -DWC_E_INVALID;
 	}
@@ -6281,9 +6284,8 @@ int dwc_otg_set_param_en_multiple_tx_fifo(dwc_otg_core_if_t *core_if,
 		if (dwc_otg_param_initialized
 		    (core_if->core_params->en_multiple_tx_fifo))
 			DWC_ERROR
-			    ("%d invalid for parameter en_multiple_tx_fifo. Check HW configuration.\n",
-			     val);
-
+			    ("%d invalid for parameter en_multiple_tx_fifo.\n"
+					"Check HW configuration.\n", val);
 		val = 0;
 		retval = -DWC_E_INVALID;
 	}
@@ -6310,8 +6312,10 @@ int dwc_otg_set_param_dev_tx_fifo_size(dwc_otg_core_if_t *core_if, int32_t val,
 		return -DWC_E_INVALID;
 	}
 	if (val > txfifosize.b.depth) {
-		if (txfifosize.b.depth)
-			DWC_WARN("Value is larger then power-on FIFO size\n");
+		if (txfifosize.b.depth) {
+			DWC_DEBUG("Value is larger then power-on\n"
+				"FIFO size\n");
+		}
 		if (dwc_otg_param_initialized
 		    (core_if->core_params->dev_tx_fifo_size[fifo_num]))
 			DWC_ERROR

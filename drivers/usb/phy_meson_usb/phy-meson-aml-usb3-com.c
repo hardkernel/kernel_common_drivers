@@ -388,7 +388,7 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	u8 usb3_controller_reset_bit = 0;
 	u32 ic_ver = get_cpu_type();
 
-	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
+	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
@@ -514,7 +514,6 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 						reset_level_shift, usb3_apb_reset_bit,
 						usb3_phy_reset_bit, usb3_controller_reset_bit);
 
-	phy->dev = dev;
 	phy->cfg_reg = cfg_reg;
 	phy->ctrl_reg = ctrl_reg;
 	phy->trim_reg = trim_reg;

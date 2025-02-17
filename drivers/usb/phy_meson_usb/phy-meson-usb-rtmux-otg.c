@@ -204,8 +204,9 @@ static int meson_uphy_rtmux_id_pin_config(struct amlogic_usb_v2 *phy)
 	phy->otg_helper.idgpiodesc = desc;
 
 	id_irqnr = gpiod_to_irq(desc);
+	phy->otg_helper.irqline = id_irqnr;
 
-	ret = devm_request_irq(sysdev, id_irqnr,
+	ret = request_irq(id_irqnr,
 			       meson_uphy_rtmux_id_gpio_detect_irq,
 			       ID_GPIO_IRQ_FLAGS,
 			       "meson-usb-gpio-otg", phy);
@@ -219,6 +220,21 @@ static int meson_uphy_rtmux_id_pin_config(struct amlogic_usb_v2 *phy)
 	mup_dbg(phy->dev, "<%s> ok\n", __func__);
 
 	return 0;
+}
+
+static void meson_uphy_rtmux_id_pin_deconfig(struct amlogic_usb_v2 *phy)
+{
+	free_irq(phy->otg_helper.irqline, phy);
+
+	cancel_delayed_work_sync(&phy->otg_helper.id_gpio_work);
+
+	if (phy->otg_helper.idgpiodesc)
+		gpiod_put(phy->otg_helper.idgpiodesc);
+
+	if (phy->otg_helper.irqline)
+		gpiod_put(phy->otg_helper.idgpiodesc);
+
+	mup_dbg(phy->dev, "<%s> ok\n", __func__);
 }
 
 void meson_uphy_rtmux_otg_complete(struct meson_uphy_instance *instance)
@@ -281,9 +297,8 @@ int meson_uphy_rtmux_otg_parse(struct device *dev, struct meson_uphy_instance *i
 		xhci_port_a_mem = 0;
 		phy->xhci_port_a_addr = NULL;
 	} else {
-		phy->xhci_port_a_addr = devm_ioremap
-				(dev, (resource_size_t)xhci_port_a_mem,
-				MESON_UPHY_XHCI_PORT_A_MEM_SIZE);
+		phy->xhci_port_a_addr = ioremap((resource_size_t)xhci_port_a_mem,
+					MESON_UPHY_XHCI_PORT_A_MEM_SIZE);
 		if (!phy->xhci_port_a_addr)
 			return -ENOMEM;
 	}
@@ -360,6 +375,7 @@ int meson_uphy_rtmux_otg_init(struct amlogic_usb_v2 *phy)
 				mup_err(dev, " Cannot retrieve the irq prop.\n");
 				return -ENODEV;
 			}
+			phy->otg_helper.irqline = irq;
 			ret = request_irq(irq, meson_uphy_rtmux_otg_detect_irq,
 					     IRQF_SHARED | IRQ_LEVEL,
 					     "meson-usb-id-otg", phy);
@@ -400,5 +416,44 @@ int meson_uphy_rtmux_otg_init(struct amlogic_usb_v2 *phy)
 	}
 
 	return ret;
+}
+
+void meson_uphy_rtmux_otg_remove(struct meson_uphy_instance *instance)
+{
+	struct amlogic_usb_v2 *phy = (struct amlogic_usb_v2 *)instance->meson_uphy;
+
+	dev_dbg(phy->dev, "%s phy ist %d.\n", __func__, instance->index);
+
+	if (!phy) {
+		pr_err("%s non meson_uphy!", __func__);
+		return;
+	}
+
+	if (!phy->otg_helper.otg_port) {
+		dev_dbg(phy->dev, "%s not meson_uphy, skip.\n", __func__);
+		return;
+	}
+
+	dev_dbg(phy->dev, "%s phy dev ptr: %px.\n", __func__, phy->dev);
+
+	if (phy->xhci_port_a_addr)
+		iounmap(phy->xhci_port_a_addr);
+
+	if (phy->otg_helper.hwotg) {
+		if (phy->otg_helper.hwotg_type == MESON_USB_OTG_T_GPIO) {
+			meson_uphy_rtmux_id_pin_deconfig(phy);
+		} else if (phy->otg_helper.hwotg_type == MESON_USB_OTG_T_PHY) {
+			free_irq(phy->otg_helper.irqline, phy);
+			cancel_delayed_work_sync
+				(&phy->otg_helper.work);
+		}
+	}
+
+	/* Add this once the role switch is added. */
+//#if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
+//		if (phy->role_sw)
+//			usb_role_switch_unregister(phy->role_sw);
+//#endif
+	meson_u2phy_set_vbus_power(phy, 0);
 }
 

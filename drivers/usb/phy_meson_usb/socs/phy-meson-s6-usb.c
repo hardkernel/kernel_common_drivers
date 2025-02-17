@@ -169,4 +169,5 @@ struct meson_uphy_pdata meson_uphy_s6_pdata = {
 	.u2phy_parse = meson_aml_u2phy_parse,
 	.u3phy_parse = meson_aml_u3phy_parse,
 	.otg_parse = meson_u2phy_crg_otg_parse,
+	.otg_remove = meson_u2phy_crg_otg_remove,
 };

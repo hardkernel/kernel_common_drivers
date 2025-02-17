@@ -63,7 +63,6 @@ struct amlogic_crg_otg {
 #define HOST_MODE_MASK BIT(HOST_MODE)
 #define DEVICE_MODE_MASK BIT(DEVICE_MODE)
 #define OTG_MODE_MASK BIT(OTG_MODE)
-	struct dentry *debugfs_root;
 };
 
 static int amlogic_crg_otg_pm_cb(struct notifier_block *notifier,
@@ -131,104 +130,6 @@ static void set_mode(struct amlogic_crg_otg *phy, u8 mode)
 	phy->mode &= ~(HOST_MODE_MASK | DEVICE_MODE_MASK);
 	phy->mode |= BIT(mode);
 }
-
-static int mode_show(struct seq_file *s, void *unused)
-{
-	struct amlogic_crg_otg *phy = s->private;
-	int cnt;
-	char tmp[8] = {'\0'};
-	char buf[16];
-
-	if (phy->mode & HOST_MODE_MASK)
-		cnt = sprintf(tmp, "%s", "host");
-	if (phy->mode & DEVICE_MODE_MASK)
-		cnt = sprintf(tmp, "%s", "device");
-	if (phy->mode & OTG_MODE_MASK)
-		cnt = sprintf(buf, "%s-%s\n", "otg", tmp);
-	else
-		cnt = sprintf(buf, "%s-%s\n", "notg", tmp);
-
-	seq_printf(s, "%s", buf);
-
-	return 0;
-}
-
-static int mode_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mode_show, inode->i_private);
-}
-
-static ssize_t mode_write(struct file *file,  const char __user *ubuf,
-			       size_t count, loff_t *ppos)
-{
-	struct seq_file         *s = file->private_data;
-	struct amlogic_crg_otg *phy = s->private;
-	u8 i_mode = (u8)-1;
-	int ret = -EINVAL;
-	char                    buf[32];
-
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return ret;
-
-	buf[count - 1] = '\0';
-
-	if (phy->mode & OTG_MODE_MASK)
-		return ret;
-
-	au2p_dbg(phy->dev, "%s %lu", buf, (unsigned long)count);
-
-	if (!strncmp("host", buf, count))
-		i_mode = HOST_MODE;
-
-	if (!strncmp("device", buf, count))
-		i_mode = DEVICE_MODE;
-
-	if (i_mode == (u8)-1 || phy->mode & BIT(i_mode))
-		return ret;
-
-	if (i_mode == HOST_MODE) {
-		crg_gadget_exit();
-		amlogic_m31_set_vbus_power(phy, 1);
-		set_mode(phy, HOST_MODE);
-		crg_init();
-		ret = count;
-	} else if (i_mode == DEVICE_MODE) {
-		crg_exit();
-		set_mode(phy, DEVICE_MODE);
-		amlogic_m31_set_vbus_power(phy, 0);
-		crg_gadget_init();
-		if (UDC_exist_flag != 1) {
-			ret = crg_otg_write_UDC(crg_UDC_name);
-			if (ret == 0 || ret == -EBUSY)
-				UDC_exist_flag = 1;
-		}
-		ret = count;
-	}
-
-	return ret;
-}
-
-static const struct file_operations mode_fops = {
-	.open			= mode_open,
-	.write          = mode_write,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
-
-void amlogic_crg_otg_debugfs_init(struct amlogic_crg_otg *phy)
-{
-	phy->debugfs_root =
-			debugfs_create_dir("crg-drd-otg", amlogic_usb_debugfs_root);
-
-	debugfs_create_file("mode", 0644, phy->debugfs_root, phy, &mode_fops);
-}
-
-//void amlogic_crg_otg_debugfs_exit(struct amlogic_crg_otg *phy)
-//{
-//	debugfs_remove_recursive(phy->debugfs_root);
-//	phy->debugfs_root = NULL;
-//}
 
 static void amlogic_crg_otg_work(struct work_struct *work)
 {
@@ -494,8 +395,6 @@ NO_M31:
 		INIT_DELAYED_WORK(&phy->set_mode_work, amlogic_crg_otg_set_m_work);
 		schedule_delayed_work(&phy->set_mode_work, msecs_to_jiffies(500));
 	}
-
-	amlogic_crg_otg_debugfs_init(phy);
 
 	return 0;
 }

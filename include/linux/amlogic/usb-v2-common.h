@@ -39,6 +39,7 @@ struct amlogic_otg_helper {
 	struct delayed_work     set_mode_work;
 	struct delayed_work		id_gpio_work;
 	struct gpio_desc *idgpiodesc;
+	unsigned int irqline;
 	/*otg_mutex should be taken amlogic_crg_otg_work and
 	 *amlogic_crg_otg_set_m_work
 	 */
@@ -113,7 +114,7 @@ struct amlogic_usb_v2 {
 	u32 role_switch_default_mode;
 #endif
 	u32 version;
-	int portspeed;
+	u32 portspeed;
 	struct delayed_work	work;
 	struct delayed_work	id_gpio_work;
 	struct gpio_desc *usb_gpio_desc;
@@ -124,6 +125,7 @@ struct amlogic_usb_v2 {
 	int phy_version;
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER];
 	u32 phy_reg_reset_level_bit[USB_PHY_MAX_NUMBER];
+	u32 phy_reg_reset_bit;
 	u32 usb_reset_bit;
 	u32 usb_comb_reset_bit;
 	u32 pm_controller:1;

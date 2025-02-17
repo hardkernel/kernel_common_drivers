@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqreturn.h>
@@ -249,7 +248,7 @@ static int meson_u2phy_crg_otg_setup_role_switch(struct amlogic_usb_v2 *mphy)
 
 static int meson_u2phy_crg_otg_set_mode(struct amlogic_usb_v2 *mphy, enum meson_uphy_mode mode)
 {
-	int ret;
+	int ret = 0;
 
 	switch (mode) {
 	case MESON_USB_MODE_HOST:
@@ -312,7 +311,7 @@ static void meson_u2phy_crg_otg_work(struct work_struct *work)
 
 	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
 	reg2.b.usb_iddig_irq = 0;
-	/* PHY has reg val reset feature may reset otg related bits
+	/* PHY has comb reset feature may reset otg related bits
 	 * to default. Restore reg bits we concern.
 	 */
 	reg2.b.iddig_curr = curr;
@@ -402,6 +401,7 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 		irq = of_irq_get(dev->of_node, 0);
 		if (irq < 0)
 			return -ENODEV;
+		mphy->otg_helper.irqline = irq;
 		retval = request_irq(irq, meson_u2phy_crg_otg_detect_irq,
 				 IRQF_SHARED, "amlogic_botg_detect", mphy);
 
@@ -455,6 +455,52 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 	instance->pm_ops.freeze = meson_u2phy_crg_otg_freeze;
 	instance->pm_ops.thaw = meson_u2phy_crg_otg_thaw;
 	instance->pm_ops.restore = meson_u2phy_crg_otg_restore;
+	/* todo: PHY has comb reset feature may reset otg related bits
+	 * to default at suspend. Restore reg bits we concern at resume.
+	 */
 
 	return 0;
 }
+
+void meson_u2phy_crg_otg_remove(struct meson_uphy_instance *instance)
+{
+	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)instance->meson_uphy;
+
+	dev_dbg(mphy->dev, "%s entered.\n", __func__);
+
+	if (!mphy) {
+		pr_err("%s non meson_uphy!", __func__);
+		return;
+	}
+
+	if (!mphy->otg_helper.otg_port) {
+		dev_dbg(mphy->dev, "%s not meson_uphy, skip.\n", __func__);
+		return;
+	}
+
+	dev_dbg(mphy->dev, "%s phy dev ptr: %px.\n", __func__, mphy->dev);
+
+	unregister_pm_notifier(&mphy->otg_helper.pm_notifier);
+
+	if (mphy->otg_helper.irqline)
+		free_irq(mphy->otg_helper.irqline, mphy);
+
+#if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
+	if (mphy->role_sw)
+		usb_role_switch_unregister(mphy->role_sw);
+#endif
+
+	if (mphy->otg_helper.set_mode_work.work.func)
+		cancel_delayed_work_sync(&mphy->otg_helper.set_mode_work);
+	if (mphy->otg_helper.work.work.func)
+		cancel_delayed_work_sync(&mphy->otg_helper.work);
+
+	kfree(mphy->otg_helper.otg_mutex);
+
+	if (mphy->current_mode == PHY_MODE_USB_HOST)
+		crg_exit();
+
+	if (mphy->current_mode == PHY_MODE_USB_DEVICE)
+		crg_gadget_exit();
+}
+

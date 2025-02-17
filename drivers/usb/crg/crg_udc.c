@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
+#include <linux/reset.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/phy/phy.h>
@@ -334,6 +335,7 @@ struct crg_gadget_dev {
 	struct usb_gadget gadget;
 	struct usb_gadget_driver *gadget_driver;
 	struct crg_udc_lock crg_gadget_lock;
+	struct reset_control *reset;
 	struct phy *phy;
 
 	int irq;
@@ -500,12 +502,51 @@ static struct usb_endpoint_descriptor crg_udc_ep0_desc = {
 	.wMaxPacketSize = cpu_to_le16(64),
 };
 
+static int  crg_udc_reset_line_assert(struct crg_gadget_dev *crg_udc, bool on)
+{
+	int ret;
+
+	if (on) {
+		ret = reset_control_assert(crg_udc->reset);
+		if (ret)
+			dev_err(crg_udc->dev, "%s %d ret %d.\n", __func__, on, ret);
+	} else {
+		ret = reset_control_deassert(crg_udc->reset);
+		if (ret)
+			dev_err(crg_udc->dev, "%s %d ret %d.\n", __func__, on, ret);
+	}
+
+	return ret;
+}
+
+static int  crg_udc_core_get_reset(struct crg_gadget_dev *crg_udc)
+{
+	crg_udc->reset = of_reset_control_get_exclusive(crg_udc->dev->of_node, "udrd");
+	if (IS_ERR(crg_udc->reset)) {
+		dev_err(crg_udc->dev, "failed to get reset: %ld\n", PTR_ERR(crg_udc->reset));
+		crg_udc->reset = NULL;
+	}
+
+	return 0;
+}
+
+static int crg_udc_core_put_reset(struct crg_gadget_dev *crg_udc)
+{
+	if (crg_udc->reset)
+		reset_control_put(crg_udc->reset);
+
+	return 0;
+}
+
+static int crg_udc_core_power(struct crg_gadget_dev *crg_udc, bool on)
+{
+	dev_dbg(crg_udc->dev, "%s %d.\n", __func__, on);
+	return crg_udc_reset_line_assert(crg_udc, !on);
+}
+
 void crg_gadget_hold(struct crg_udc_lock *lock)
 {
-	struct crg_gadget_dev *crg_udc =
-		container_of(lock, struct crg_gadget_dev, crg_gadget_lock);
-
-	if (!crg_udc_suspend_reinit(crg_udc) && !lock->held) {
+	if (!lock->held) {
 		__pm_stay_awake(lock->wakesrc);
 		lock->held = true;
 	}
@@ -513,10 +554,7 @@ void crg_gadget_hold(struct crg_udc_lock *lock)
 
 void crg_gadget_drop(struct crg_udc_lock *lock)
 {
-	struct crg_gadget_dev *crg_udc =
-		container_of(lock, struct crg_gadget_dev, crg_gadget_lock);
-
-	if (!crg_udc_suspend_reinit(crg_udc) && lock->held) {
+	if (lock->held) {
 		__pm_relax(lock->wakesrc);
 		lock->held = false;
 	}
@@ -542,6 +580,7 @@ static int crg_issue_command(struct crg_gadget_dev *crg_udc,
 	u32 status;
 	bool check_complete = false;
 	u32 tmp;
+	u32 times = 4000;
 
 	tmp = reg_read(&uccr->control);
 	if (tmp & CRG_U3DC_CTRL_RUN)
@@ -571,6 +610,12 @@ static int crg_issue_command(struct crg_gadget_dev *crg_udc,
 	if (check_complete) {
 		do {
 			tmp = reg_read(&uccr->cmd_control);
+			udelay(5);
+			if (!--times) {
+				CRG_ERROR("%s time out, cmd_control: 0x%x\n",
+							__func__, tmp);
+				return -EIO;
+			}
 		} while (tmp & CRG_U3DC_CMD_CTRL_ACTIVE);
 
 		status = CRG_U3DC_CMD_CTRL_STATUS_GET(tmp);
@@ -2978,8 +3023,9 @@ static int crg_udc_reset(struct crg_gadget_dev *crg_udc, unsigned long flags)
 		count++;
 
 		if (count == 50) {
-			CRG_ERROR("reset error\n");
-			return -1;
+			CRG_ERROR("crg udc resetting...\n");
+			break;
+			//return -1;
 		}
 	} while ((tmp & CRG_U3DC_CTRL_SWRST) != 0);
 
@@ -3792,17 +3838,14 @@ void crg_handle_setup_pkt(struct crg_gadget_dev *crg_udc,
 			(setup_pkt->bRequestType & USB_DIR_IN) ?
 			DATA_STAGE_XFER :  DATA_STAGE_RECV;
 	}
-	spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
+
 	if (!crg_udc->async_cb_flag) {
 		CRG_ERROR("crg gadget setup pkt coming too quick!\n");
-		spin_lock_irqsave(&crg_udc->udc_lock, flags);
-		/* Complete any reqs on EP0 queue */
-		if (crg_udc->udc_ep[0].desc)
-			nuke(&crg_udc->udc_ep[0], -ESHUTDOWN, flags);
-		if (list_empty(&crg_udc->udc_ep[0].queue))
-			set_ep0_halt(crg_udc);
+		set_ep0_halt(crg_udc);
 		return;
 	}
+
+	spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
 	if (crg_udc->gadget_driver->setup(&crg_udc->gadget, setup_pkt) < 0) {
 		spin_lock_irqsave(&crg_udc->udc_lock, flags);
 		set_ep0_halt(crg_udc);
@@ -4317,7 +4360,17 @@ int crg_udc_handle_event(struct crg_gadget_dev *crg_udc,
 			setup_tag = GETF(EVE_TRB_SETUP_TAG, event->dw3);
 			CRG_DEBUG("setup_pkt = 0x%p, setup_tag = 0x%x\n",
 				setup_pkt, setup_tag);
-			if (crg_udc->setup_status != WAIT_FOR_SETUP) {
+			/* It is racy that the setup_status may be reset to WAIT_FOR_SETUP
+			 * by crg_udc_reset() after releasing and acquiring the lock
+			 * before set_ep0_halt(), causing the book-keeping setup_status
+			 * loses sync with the actual ep0 setup status. The next setup pkt
+			 * may sneak in and may trigger the list_add double add BUG of the
+			 * private status_req.
+			 * Workaround it by checking whether the ep0 req list is empty before
+			 * handling the setup packet.
+			 */
+			if (crg_udc->setup_status != WAIT_FOR_SETUP ||
+				!list_empty(&crg_udc->udc_ep[0].queue)) {
 				/*previous setup packet hasn't
 				 * completed yet. Just ignore the prev setup
 				 */
@@ -4577,6 +4630,80 @@ static const struct of_device_id of_crg_udc_match[] = {
 MODULE_DEVICE_TABLE(of, of_crg_udc_match);
 #endif
 
+static void crg_udc_cleanup(struct crg_gadget_dev *crg_udc)
+{
+	/* Optional. */
+	crg_udc->mmio_virt_base = NULL;
+	crg_udc->mmio_phys_base = NULL;
+	crg_udc->mmio_phys_len = 0;
+	crg_udc->uccr = NULL;
+	memset(crg_udc->uicr, 0x00, sizeof(crg_udc->uicr));
+
+	memset(&crg_udc->udc_lock, 0x00, sizeof(crg_udc->udc_lock));
+
+	/* Optional? */
+	crg_udc->dev = NULL;
+
+	/* Must clear. */
+	memset(&crg_udc->gadget, 0x00, sizeof(crg_udc->gadget));
+
+	/* Cleared in crg_gadget_stop. */
+	//crg_udc->gadget_driver = NULL;
+
+	memset(&crg_udc->crg_gadget_lock, 0x00, sizeof(crg_udc->crg_gadget_lock));
+	crg_udc->irq = 0;
+	crg_udc->vbus_task = NULL;
+
+	/* Reused. Don't clear or memory leaks. */
+	//memset(crg_udc->udc_ep, 0x00, sizeof(crg_udc->udc_ep));
+	//memset(&crg_udc->ep_cx, 0x00, sizeof(crg_udc->ep_cx));
+	//crg_udc->p_epcx = NULL;
+	//memset(crg_udc->udc_event, 0x00, sizeof(crg_udc->udc_event));
+
+	/* Must clear. */
+	crg_udc->status_req = NULL;
+	crg_udc->statusbuf = NULL;
+
+	memset(&crg_udc->sel_value, 0x00, sizeof(crg_udc->sel_value));
+	crg_udc->setup_fn_call_back = NULL;
+
+	/* Done in crg_udc_reset. */
+	//crg_udc->setup_status = 0;
+	//memset(crg_udc->ctrl_req_queue, 0x00, sizeof(crg_udc->ctrl_req_queue));
+	//crg_udc->ctrl_req_enq_idx = 0;
+	//crg_udc->device_state = 0;
+	//crg_udc->dev_addr = 0;
+	//crg_udc->num_enabled_eps = 0;
+
+	/* Not used. */
+	crg_udc->resume_state = 0;
+
+	crg_udc->setup_tag = 0;
+	crg_udc->set_tm = 0;
+
+	/* Cleared in crg_gadget_stop. */
+	//crg_udc->connected = 0;
+
+	/* Don't touch. */
+	//crg_udc->async_cb_flag = 0;
+
+	crg_udc->suspend_scheme = 0;
+	crg_udc->u2_RWE = 0;
+
+	/* Cleared in crg_udc_clear_portpm. */
+	//crg_udc->feature_u1_enable = 0;
+	//crg_udc->feature_u2_enable = 0;
+
+	/* Not used. */
+	crg_udc->setup_tag_mismatch_found = 0;
+
+	crg_udc->portsc_on_reconnecting = 0;
+
+	/* Optional. */
+	crg_udc->controller_type = 0;
+	crg_udc->phy_id = 0;
+}
+
 static int crg_udc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -4602,7 +4729,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	memset(&crg_udc_dev, 0, sizeof(struct crg_gadget_dev));
+	crg_udc_cleanup(&crg_udc_dev);
 
 	crg_udc = &crg_udc_dev;
 	crg_udc->dev = &pdev->dev;
@@ -4702,7 +4829,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 
 //	pdev->id = phy_id;
 
-	crg_udc->phy = devm_of_phy_get_by_index(crg_udc->dev, crg_udc->dev->of_node, 0);
+	crg_udc->phy = phy_get(crg_udc->dev, NULL);
 	if (IS_ERR(crg_udc->phy)) {
 		CRG_ERROR("Cannot get phy, check dts crg_udc node?\n");
 		ret = PTR_ERR(crg_udc->phy);
@@ -4723,12 +4850,13 @@ static int crg_udc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err0;
 
+	crg_udc_core_get_reset(crg_udc);
+	crg_udc_core_power(crg_udc, true);
+
 //	if (controller_type != USB_M31)
 //		amlogic_crg_device_usb2_init(phy_id);
 //	else
 //		amlogic_crg_m31_phy_init(crg_udc);
-
-	amlogic_crg_device_power(phy_id, false, true);
 
 	crg_udc->mmio_phys_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!crg_udc->mmio_phys_base) {
@@ -4795,7 +4923,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 		goto errfile;
 	}
 
-	if (!crg_udc->crg_gadget_lock.wakesrc && !crg_udc_suspend_reinit(crg_udc)) {
+	if (!crg_udc->crg_gadget_lock.wakesrc) {
 		crg_udc->crg_gadget_lock.wakesrc =
 			wakeup_source_register(NULL, "crg-gadget-connect");
 		if (!crg_udc->crg_gadget_lock.wakesrc)
@@ -4856,11 +4984,12 @@ static void crg_udc_remove(struct platform_device *pdev)
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
 
-	amlogic_crg_device_power(crg_udc->phy_id, false, false);
+	crg_udc_core_put_reset(crg_udc);
 
 	//	if (crg_udc->controller_type != USB_M31)
 	//		amlogic_crg_device_usb2_shutdown(g_device_phy_id);
 	phy_exit(crg_udc->phy);
+	phy_put(crg_udc->dev, crg_udc->phy);
 
 	crg_clk_disable_usb(pdev);
 	/*
@@ -4892,7 +5021,7 @@ static void crg_udc_shutdown(struct platform_device *pdev)
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
 
-	amlogic_crg_device_power(crg_udc->phy_id, false, false);
+	crg_udc_core_put_reset(crg_udc);
 
 //	if (crg_udc->controller_type != USB_M31)
 //		amlogic_crg_device_usb2_shutdown(g_device_phy_id);
@@ -5060,9 +5189,6 @@ static int crg_udc_suspend(struct device *dev)
 
 	crg_udc = &crg_udc_dev;
 
-	if (crg_udc_suspend_reinit(crg_udc))
-		amlogic_crg_device_power(crg_udc->phy_id, crg_udc_suspend_reinit(crg_udc), false);
-
 	ret = phy_exit(crg_udc->phy);
 	if (ret)
 		return ret;
@@ -5112,9 +5238,6 @@ static int crg_udc_resume(struct device *dev)
 
 	//if (crg_udc->controller_type != USB_M31)
 		//amlogic_crg_device_usb2_init(crg_udc->phy_id);
-
-	if (crg_udc_suspend_reinit(crg_udc))
-		amlogic_crg_device_power(crg_udc->phy_id, crg_udc_suspend_reinit(crg_udc), true);
 
 	return ret;
 }

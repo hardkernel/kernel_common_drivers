@@ -8,8 +8,6 @@
 #include <linux/debugfs.h>
 #include <linux/usb.h>
 
-extern struct dentry *amlogic_usb_debugfs_root;
-
 #if IS_ENABLED(CONFIG_AMLOGIC_USBPHY)
 int __init amlogic_new_usb3_v2_driver_init(void);
 #else
@@ -76,6 +74,7 @@ int __init amlogic_crg_drd_usb2_drv_init(void);
 int __init amlogic_crg_init(void);
 int __init amlogic_crg_drd_usb3_drv_init(void);
 int __init amlogic_crg_host_driver_init(void);
+void __exit amlogic_crg_host_driver_exit(void);
 int __init amlogic_usb3_m31_drv_init(void);
 int __init amlogic_usb2_m31_drv_init(void);
 int __init crg_otg_init(void);
@@ -101,6 +100,10 @@ static inline  int __init amlogic_crg_host_driver_init(void)
 	return -1;
 }
 
+static inline void __exit amlogic_crg_host_driver_exit(void)
+{
+}
+
 static inline int __init crg_otg_init(void)
 {
 	return -1;
@@ -123,10 +126,15 @@ static int __init amlogic_usb2_m31_drv_init(void)
 
 #if IS_ENABLED(CONFIG_MESON_USBPHY)
 int __init meson_uphy_drv_init(void);
+void __exit meson_uphy_drv_exit(void);
 #else
 static inline int __init meson_uphy_drv_init(void)
 {
 	return -1;
+}
+
+static inline void __exit meson_uphy_drv_exit(void);
+{
 }
 #endif
 
@@ -155,6 +163,7 @@ void __exit aml_xhci_plat_exit(void);
 int __init aml_xhci_hcd_init(void);
 void __exit aml_xhci_hcd_fini(void);
 int __init dwc_otg_init(void);
+void __exit dwc_otg_exit(void);
 #if IS_ENABLED(CONFIG_USB_DWC3)
 
 int __init aml_dwc3_init(void);

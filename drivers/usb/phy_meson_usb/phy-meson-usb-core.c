@@ -12,7 +12,7 @@ static int meson_uphy_init(struct phy *phy)
 	int ret = -EINVAL;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->init)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->init)
 			ret = ppool->pdata->u2phy_ops->init(phy);
 	} else {
 		if (ppool->pdata->u3phy_ops->init)
@@ -29,7 +29,7 @@ static int meson_uphy_power_on(struct phy *phy)
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->power_on)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->power_on)
 			ret = ppool->pdata->u2phy_ops->power_on(phy);
 	} else {
 		if (ppool->pdata->u3phy_ops->power_on)
@@ -46,7 +46,7 @@ static int meson_uphy_power_off(struct phy *phy)
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->power_off)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->power_off)
 			ret = ppool->pdata->u2phy_ops->power_off(phy);
 	} else {
 		if (ppool->pdata->u3phy_ops->power_off)
@@ -63,7 +63,7 @@ static int meson_uphy_exit(struct phy *phy)
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->exit)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->exit)
 			ret = ppool->pdata->u2phy_ops->exit(phy);
 	} else {
 		if (ppool->pdata->u3phy_ops->exit)
@@ -80,10 +80,10 @@ static int meson_uphy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->set_mode)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->set_mode)
 			ret = ppool->pdata->u2phy_ops->set_mode(phy, mode, submode);
 	} else {
-		if (ppool->pdata->u3phy_ops->set_mode)
+		if (ppool->pdata->u3phy_ops && ppool->pdata->u3phy_ops->set_mode)
 			ret = ppool->pdata->u3phy_ops->set_mode(phy, mode, submode);
 	}
 
@@ -97,11 +97,11 @@ static int meson_uphy_configure(struct phy *phy, union phy_configure_opts *opts)
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->configure)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->configure)
 			ret = ppool->pdata->u2phy_ops->configure(phy,
 					(struct meson_uphy_configure_opts *)opts);
 	} else {
-		if (ppool->pdata->u3phy_ops->configure)
+		if (ppool->pdata->u3phy_ops && ppool->pdata->u3phy_ops->configure)
 			ret = ppool->pdata->u3phy_ops->configure(phy,
 					(struct meson_uphy_configure_opts *)opts);
 	}
@@ -117,11 +117,11 @@ static int meson_uphy_validate(struct phy *phy, enum phy_mode mode, int submode,
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->validate)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->validate)
 			ret = ppool->pdata->u2phy_ops->validate(phy, mode, submode,
 					(struct meson_uphy_configure_opts *)opts);
 	} else {
-		if (ppool->pdata->u3phy_ops->validate)
+		if (ppool->pdata->u3phy_ops && ppool->pdata->u3phy_ops->validate)
 			ret = ppool->pdata->u3phy_ops->validate(phy, mode, submode,
 					(struct meson_uphy_configure_opts *)opts);
 	}
@@ -136,10 +136,10 @@ static int meson_uphy_calibrate(struct phy *phy)
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->calibrate)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->calibrate)
 			ret = ppool->pdata->u2phy_ops->calibrate(phy);
 	} else {
-		if (ppool->pdata->u3phy_ops->calibrate)
+		if (ppool->pdata->u3phy_ops && ppool->pdata->u3phy_ops->calibrate)
 			ret = ppool->pdata->u3phy_ops->calibrate(phy);
 	}
 
@@ -153,10 +153,10 @@ static int meson_uphy_connect(struct phy *phy, int port)
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->connect)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->connect)
 			ret = ppool->pdata->u2phy_ops->connect(phy, port);
 	} else {
-		if (ppool->pdata->u3phy_ops->connect)
+		if (ppool->pdata->u3phy_ops && ppool->pdata->u3phy_ops->connect)
 			ret = ppool->pdata->u3phy_ops->connect(phy, port);
 	}
 
@@ -170,10 +170,10 @@ static int meson_uphy_disconnect(struct phy *phy, int port)
 	int ret = 0;
 
 	if (instance->speed < MESON_USB_SPEED_SUPER) {
-		if (ppool->pdata->u2phy_ops->disconnect)
+		if (ppool->pdata->u2phy_ops && ppool->pdata->u2phy_ops->disconnect)
 			ret = ppool->pdata->u2phy_ops->disconnect(phy, port);
 	} else {
-		if (ppool->pdata->u3phy_ops->disconnect)
+		if (ppool->pdata->u3phy_ops && ppool->pdata->u3phy_ops->disconnect)
 			ret = ppool->pdata->u3phy_ops->disconnect(phy, port);
 	}
 
@@ -209,12 +209,15 @@ static int meson_uphy_parse(struct phy *phy)
 {
 	struct meson_uphy_instance *instance = phy_get_drvdata(phy);
 	struct meson_uphy_pool *ppool = dev_get_drvdata(phy->dev.parent);
-	int ret;
+	int ret = 0;
 
-	if (instance->speed < MESON_USB_SPEED_SUPER)
-		ret = ppool->pdata->u2phy_parse(&phy->dev, instance);
-	else
-		ret = ppool->pdata->u3phy_parse(&phy->dev, instance);
+	if (instance->speed < MESON_USB_SPEED_SUPER) {
+		if (ppool->pdata->u2phy_parse)
+			ret = ppool->pdata->u2phy_parse(&phy->dev, instance);
+	} else {
+		if (ppool->pdata->u3phy_parse)
+			ret = ppool->pdata->u3phy_parse(&phy->dev, instance);
+	}
 
 	return ret;
 }
@@ -225,10 +228,19 @@ static int meson_uphy_otg_parse(struct phy *phy)
 	struct meson_uphy_pool *ppool = dev_get_drvdata(phy->dev.parent);
 	int ret = 0;
 
-	if (ppool->pdata->otg_parse)
+	if (ppool->pdata->otg_parse && instance->speed < MESON_USB_SPEED_SUPER)
 		ret = ppool->pdata->otg_parse(&phy->dev, instance);
 
 	return ret;
+}
+
+static void meson_uphy_otg_remove(struct phy *phy)
+{
+	struct meson_uphy_instance *instance = phy_get_drvdata(phy);
+	struct meson_uphy_pool *ppool = dev_get_drvdata(phy->dev.parent);
+
+	if (ppool->pdata->otg_remove && instance->speed < MESON_USB_SPEED_SUPER)
+		ppool->pdata->otg_remove(instance);
 }
 
 static const struct phy_ops meson_uphy_generic_ops = {
@@ -242,7 +254,6 @@ static const struct phy_ops meson_uphy_generic_ops = {
 	.calibrate = meson_uphy_calibrate,
 	.connect = meson_uphy_connect,
 	.disconnect = meson_uphy_disconnect,
-	.owner		= THIS_MODULE,
 };
 
 static int meson_uphy_probe(struct platform_device *pdev)
@@ -255,7 +266,7 @@ static int meson_uphy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	int i = 0, ret = -EINVAL, u2port = 0, u3port = 0;
 
-	ppool = devm_kzalloc(dev, sizeof(*ppool), GFP_KERNEL);
+	ppool = kzalloc(sizeof(*ppool), GFP_KERNEL);
 	if (!ppool)
 		return -ENOMEM;
 
@@ -264,7 +275,7 @@ static int meson_uphy_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	ppool->nphys = of_get_child_count(np);
-	ppool->phys = devm_kcalloc(dev, ppool->nphys,
+	ppool->phys = kcalloc(ppool->nphys,
 				       sizeof(*ppool->phys), GFP_KERNEL);
 	if (!ppool->phys)
 		return -ENOMEM;
@@ -273,20 +284,19 @@ static int meson_uphy_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ppool);
 
 	for_each_child_of_node_scoped(np, child_np) {
-		instance = devm_kzalloc(dev, sizeof(*instance), GFP_KERNEL);
+		instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 		if (!instance)
 			return -ENOMEM;
 
 		ppool->phys[i] = instance;
 
-		phy = devm_phy_create(dev, child_np, &meson_uphy_generic_ops);
+		phy = phy_create(dev, child_np, &meson_uphy_generic_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy\n");
 			ret = PTR_ERR(phy);
 			goto err;
 		}
 
-		phy->id = i;
 		phy_set_drvdata(phy, instance);
 		instance->phy = phy;
 		ret = of_property_read_u32(phy->dev.of_node, "port-speed", &instance->port_speed);
@@ -303,13 +313,16 @@ static int meson_uphy_probe(struct platform_device *pdev)
 		ret = meson_uphy_parse(phy);
 		if (ret) {
 			dev_err(&phy->dev, "parse_props ret %d.\n", ret);
-			memset(&instance->meson_uphy, 0x00, sizeof(instance->meson_uphy));
 			goto err_parse;
 		}
 
-		if (of_property_read_bool(phy->dev.of_node, "phy-otg"))
-			meson_uphy_otg_parse(phy);
-
+		if (of_property_read_bool(phy->dev.of_node, "phy-otg")) {
+			ret = meson_uphy_otg_parse(phy);
+			if (ret) {
+				dev_err(&phy->dev, "parse_otg ret %d.\n", ret);
+				goto err_otg_parse;
+			}
+		}
 		i++;
 	}
 
@@ -317,15 +330,62 @@ static int meson_uphy_probe(struct platform_device *pdev)
 
 	return PTR_ERR_OR_ZERO(provider);
 
+err_otg_parse:
+	while (i--)
+		meson_uphy_otg_remove(ppool->phys[i]->phy);
 err_parse:
-		put_device(&phy->dev);
+	while (i--) {
+		put_device(&ppool->phys[i]->phy->dev);
+		kfree(ppool->phys[i]->meson_uphy);
+	}
 err_phy:
-		//phy_destroy(phy);
-		instance->phy = NULL;
+	while (i--) {
+		phy_set_drvdata(ppool->phys[i]->phy, NULL);
+		phy_destroy(ppool->phys[i]->phy);
+		ppool->phys[i]->phy = NULL;
+	}
 err:
+	while (i--) {
+		kfree(ppool->phys[i]);
 		ppool->phys[i] = NULL;
-		//kfree(instance);
-		return ret;
+	}
+	return ret;
+}
+
+static void meson_uphy_remove(struct platform_device *pdev)
+{
+	int i;
+	struct meson_uphy_pool *ppool = dev_get_drvdata(&pdev->dev);
+
+	dev_dbg(&pdev->dev, "%s started.\n", __func__);
+	for (i = 0; i < ppool->nphys; i++) {
+		dev_dbg(&ppool->phys[i]->phy->dev, "phy idx:%d ptr %px ref %d\n",
+				i, &ppool->phys[i]->phy->dev,
+				kref_read(&ppool->phys[i]->phy->dev.kobj.kref));
+
+		meson_uphy_otg_remove(ppool->phys[i]->phy);
+
+		/* FIXME: All low level phy structs now are allocated all-in-one.
+		 * Refactor to call private phy remove callback once things get
+		 * more complex.
+		 */
+		kfree(ppool->phys[i]->meson_uphy);
+		if (ppool->phys[i]->meson_uphy)
+			put_device(&ppool->phys[i]->phy->dev);
+
+		dev_dbg(&ppool->phys[i]->phy->dev, "ref %d\n",
+				kref_read(&ppool->phys[i]->phy->dev.kobj.kref));
+		phy_set_drvdata(ppool->phys[i]->phy, NULL);
+		phy_destroy(ppool->phys[i]->phy);
+		ppool->phys[i]->phy = NULL;
+
+		kfree(ppool->phys[i]);
+		ppool->phys[i] = NULL;
+		dev_dbg(&pdev->dev, "%s inst %d destroyed.\n", __func__, i);
+	}
+	platform_set_drvdata(pdev, NULL);
+	kfree(ppool);
+	dev_dbg(&pdev->dev, "%s finished.\n", __func__);
 }
 
 static const struct of_device_id meson_uphy_id_table[] = {
@@ -333,6 +393,7 @@ static const struct of_device_id meson_uphy_id_table[] = {
 	{ .compatible = "amlogic,u2phy-s7", .data = &meson_uphy_s7_pdata },
 	{ .compatible = "amlogic,u2phy-s7d", .data = &meson_uphy_s7d_pdata },
 	{ .compatible = "amlogic,uphy-s6", .data = &meson_uphy_s6_pdata },
+	{ .compatible = "amlogic,u2phy-t6d", .data = &meson_uphy_t6d_pdata },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, meson_uphy_id_table);
@@ -435,6 +496,7 @@ static const struct dev_pm_ops meson_uphy_pm_ops = {
 
 static struct platform_driver meson_uphy_driver = {
 	.probe		= meson_uphy_probe,
+	.remove		= meson_uphy_remove,
 	.driver		= {
 		.name	= "meson-usbphy",
 		.of_match_table = meson_uphy_id_table,
@@ -447,3 +509,7 @@ int __init meson_uphy_drv_init(void)
 	return platform_driver_register(&meson_uphy_driver);
 }
 
+void __exit meson_uphy_drv_exit(void)
+{
+	return platform_driver_unregister(&meson_uphy_driver);
+}

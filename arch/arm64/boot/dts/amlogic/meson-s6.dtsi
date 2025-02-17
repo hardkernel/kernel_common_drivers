@@ -962,6 +962,8 @@
 			clock-names = "usb_general";
 			version = <1>; /* 1: forbid vbus detect */
 			dma-64bit-support = <1>;
+			reset-names = "udrd";
+			resets = <&reset RESET_U2DRD>;
 		};
 
 		crg: crg@fe350000 {

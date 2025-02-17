@@ -219,4 +219,5 @@ struct meson_uphy_pdata meson_uphy_s7_pdata = {
 	.u2phy_parse = meson_aml_u2phy_parse,
 	.u3phy_parse = NULL,
 	.otg_parse = meson_u2phy_crg_otg_parse,
+	.otg_remove = meson_u2phy_crg_otg_remove,
 };

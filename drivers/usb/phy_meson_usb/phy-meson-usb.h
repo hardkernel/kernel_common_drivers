@@ -113,12 +113,17 @@ struct meson_uphy_pdata {
 	int (*u2phy_parse)(struct device *dev, struct meson_uphy_instance *instance);
 	int (*u3phy_parse)(struct device *dev, struct meson_uphy_instance *instance);
 	int (*otg_parse)(struct device *dev, struct meson_uphy_instance *instance);
+	void (*u2phy_remove)(struct meson_uphy_instance *instance);
+	void (*u3phy_remove)(struct meson_uphy_instance *instance);
+	/* For now, the otg stuffs are only kept in the u2phy struct. */
+	void (*otg_remove)(struct meson_uphy_instance *instance);
 };
 
 extern struct meson_uphy_pdata meson_uphy_s7_pdata;
 extern struct meson_uphy_pdata meson_uphy_s7d_pdata;
 extern struct meson_uphy_pdata meson_uphy_sc2_pdata;
 extern struct meson_uphy_pdata meson_uphy_s6_pdata;
+extern struct meson_uphy_pdata meson_uphy_t6d_pdata;
 
 struct meson_u2phy_priv {
 	void (*cali)(struct amlogic_usb_v2 *phy);
@@ -154,8 +159,10 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 int meson_m31_u2phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_m31_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *instance);
+void meson_u2phy_crg_otg_remove(struct meson_uphy_instance *instance);
 int meson_uphy_rtmux_otg_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_uphy_rtmux_otg_init(struct amlogic_usb_v2 *phy);
+void meson_uphy_rtmux_otg_remove(struct meson_uphy_instance *instance);
 int meson_uphy_rtmux_otg_register_notifier(struct notifier_block *nb);
 int meson_uphy_rtmux_otg_unregister_notifier(struct notifier_block *nb);
 void crg_exit(void);

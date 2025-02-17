@@ -72,6 +72,8 @@
 #include <linux/usb/hcd.h>
 #include <linux/workqueue.h>
 #include <linux/amlogic/gki_module.h>
+#include <linux/suspend.h>
+
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -99,6 +101,7 @@ extern void dwc_otg_adp_start(dwc_otg_core_if_t *core_if, uint8_t is_host);
 dwc_otg_device_t *g_dwc_otg_device[2];
 EXPORT_SYMBOL_GPL(g_dwc_otg_device);
 
+static struct platform_device *g_pdev[2];
 static struct platform_driver dwc_otg_driver;
 extern uint32_t g_dbg_lvl;
 
@@ -279,6 +282,41 @@ static const char *dma_config_name[] = {
 	"BURST_INCR16",
 	"DISABLE",
 };
+
+/* Protect against:
+ * dwc_otg_driver register after register & unregister after unregister.
+ * pm_cb executed when not registered.
+ */
+static int dwc2_driver_state;
+/* Protect against:
+ * Remove after remove;
+ * Probe after probe.
+ * Probe err/remove err indicator.
+ */
+static int dwc2_probe_state;
+
+#ifdef DWC_PCD_RESET
+/* Serialize init/exit&pm_cb. */
+DEFINE_MUTEX(dwc2_driver_lock);
+
+static void dwc2_driver_lock(void)
+{
+	mutex_lock(&dwc2_driver_lock);
+}
+
+static void dwc2_driver_unlock(void)
+{
+	mutex_unlock(&dwc2_driver_lock);
+}
+#else
+static void dwc2_driver_lock(void)
+{
+}
+
+static void dwc2_driver_unlock(void)
+{
+}
+#endif
 
 /**
  * This function is called during module intialization
@@ -765,6 +803,7 @@ static irqreturn_t dwc_otg_common_irq(int irq, void *dev)
  * executed. The device may or may not be electrically present. If it is
  * present, the driver stops device processing. Any resources used on behalf
  * of this device are freed.
+ * Caller should call the dwc2_driver_lock().
  *
  * @param _dev
  */
@@ -775,17 +814,29 @@ static void dwc_otg_driver_remove(struct platform_device *pdev)
 
 	DWC_DEBUGPL(DBG_ANY, "%s(%p)\n", __func__, pdev);
 
-	if (!otg_dev) {
-		/* Memory allocation for the dwc_otg_device failed. */
-		DWC_DEBUGPL(DBG_ANY, "%s: otg_dev NULL!\n", __func__);
+	if (unlikely(dwc2_probe_state != 1)) {
+		DWC_WARN("%s: dwc2_probe_state %d!\n", __func__, dwc2_probe_state);
 		return;
 	}
+
+	if (!otg_dev) {
+		/* Memory allocation for the dwc_otg_device failed. */
+		DWC_WARN("%s: otg_dev NULL!\n", __func__);
+		return;
+	}
+
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+		unregister_early_suspend(&otg_dev->usb_early_suspend);
+#endif
+		cancel_delayed_work_sync(&otg_dev->work);
+
 #ifndef DWC_DEVICE_ONLY
 	if (otg_dev->hcd) {
 		hcd_remove(pdev);
 	} else {
 		DWC_DEBUGPL(DBG_ANY, "%s: otg_dev->hcd NULL!\n", __func__);
-		return;
+		/* Current aml socs does not use "dwc hcd". */
+		//return -EINVAL;
 	}
 #endif
 
@@ -793,7 +844,7 @@ static void dwc_otg_driver_remove(struct platform_device *pdev)
 	if (otg_dev->pcd) {
 		pcd_remove(pdev);
 	} else {
-		DWC_DEBUGPL(DBG_ANY, "%s: otg_dev->pcd NULL!\n", __func__);
+		DWC_WARN("%s: otg_dev->pcd NULL!\n", __func__);
 		return;
 	}
 #endif
@@ -804,20 +855,26 @@ static void dwc_otg_driver_remove(struct platform_device *pdev)
 	 */
 	if (otg_dev->common_irq_installed) {
 		irq = platform_get_irq(pdev, 0);
-		if (irq < 0)
+		if (irq < 0) {
+			DWC_WARN("%s: no irq!\n", __func__);
 			return;
+		}
 		free_irq(irq, otg_dev);
 	} else {
-		DWC_DEBUGPL(DBG_ANY, "%s: There is no installed irq!\n", __func__);
+		DWC_WARN("%s: There is no installed irq!\n", __func__);
 		return;
 	}
 
 	if (otg_dev->core_if) {
 		if (otg_dev->core_if->vbus_power_pin != -2)
 			gpiod_put(otg_dev->core_if->usb_gpio_desc);
+
+		if (otg_dev->core_if->phy_port)
+			phy_put(otg_dev->gen_dev, otg_dev->core_if->phy_port);
+
 		dwc_otg_cil_remove(otg_dev->core_if);
 	} else {
-		DWC_DEBUGPL(DBG_ANY, "%s: otg_dev->core_if NULL!\n", __func__);
+		DWC_WARN("%s: otg_dev->core_if NULL!\n", __func__);
 		return;
 	}
 
@@ -835,12 +892,19 @@ static void dwc_otg_driver_remove(struct platform_device *pdev)
 	if (otg_dev->os_dep.base) {
 		iounmap(otg_dev->os_dep.base);
 	}
+
+	if (otg_dev->core_if->usb_peri_reg)
+		iounmap(otg_dev->core_if->usb_peri_reg);
+
 	DWC_FREE(otg_dev);
+	g_dwc_otg_device[pdev->id] = NULL;
 
 	/*
 	 * Clear the drvdata pointer.
 	 */
 	platform_set_drvdata(pdev, 0);
+
+	dwc2_probe_state = 0;
 
 	return;
 }
@@ -978,6 +1042,9 @@ void xhci_force_disable_port(void)
 	int controller_setting;
 	int controller_type;
 
+	if (!g_dwc_otg_device[0])
+		return;
+
 	/* If use gphy, the xhci_port_a is set in the complete of the otg driver. */
 	if (!g_dwc_otg_device[0]->core_if->phy_port) {
 		controller_type = g_dwc_otg_device[0]->core_if->controller_type;
@@ -1004,6 +1071,7 @@ void xhci_force_disable_port(void)
  * structure. A reference to the dwc_otg_device is saved in the
  * lm_device. This allows the driver to access the dwc_otg_device
  * structure on subsequent calls to driver methods for this device.
+ * Caller should call the dwc2_driver_lock().
  *
  * @param _dev Bus device
  */
@@ -1043,6 +1111,12 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	bool use_gphy;
 
 	dev_dbg(&pdev->dev, "dwc_otg_driver_probe(%p)\n", pdev);
+
+	if (unlikely(dwc2_probe_state != 0)) {
+		DWC_WARN("%s: dwc2_probe_state %d!\n", __func__, dwc2_probe_state);
+		retval = -EINVAL;
+		return retval;
+	}
 
 	if (dcount == 0) {
 		dcount++;
@@ -1128,9 +1202,8 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 				if (retval < 0)
 					return -EINVAL;
 
-				phy_reg_addr = devm_ioremap(&pdev->dev,
-					(resource_size_t)p_phy_reg_addr,
-					(unsigned long)phy_reg_addr_size);
+				phy_reg_addr = ioremap((resource_size_t)p_phy_reg_addr,
+							(unsigned long)phy_reg_addr_size);
 				if (!phy_reg_addr)
 					return -ENOMEM;
 			}
@@ -1196,7 +1269,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ctrl_reg_addr = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	ctrl_reg_addr = ioremap(res->start, resource_size(res));
 	if (!ctrl_reg_addr) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		DWC_FREE(dwc_otg_device);
@@ -1218,6 +1291,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	 * Device structure.
 	 */
 	g_dwc_otg_device[pdev->id] = dwc_otg_device;
+	g_pdev[pdev->id] = pdev;
 
 	dwc_otg_device->os_dep.pldev = pdev;
 	dwc_otg_device->gen_dev = &pdev->dev;
@@ -1254,8 +1328,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 
 	/* Phy inited by host controller driver(e.g. dwc3-meson). */
 	if (use_gphy) {
-		dwc_otg_device->core_if->phy_port =
-			devm_of_phy_get_by_index(&pdev->dev, pdev->dev.of_node, 0);
+		dwc_otg_device->core_if->phy_port = phy_get(dwc_otg_device->gen_dev, NULL);
 		if (IS_ERR(dwc_otg_device->core_if->phy_port)) {
 			dwc_otg_device->core_if->phy_port = NULL;
 			DWC_ERROR("Cannot get gphy, check dts dwc2_a node.\n");
@@ -1534,6 +1607,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		}
 	}
 
+	dwc2_probe_state = 1;
 	return 0;
 
 fail:
@@ -1602,16 +1676,132 @@ static int dwc2_resume(struct device *dev)
 	return 0;
 }
 
+static int dwc2_freeze(struct device *dev)
+{
+	return 0;
+}
+
+static int dwc2_restore(struct device *dev)
+{
+	return 0;
+}
+
+static int dwc2_thaw(struct device *dev)
+{
+	/* Done in dwc2_pm_cb. */
+//	struct platform_device *pdev = to_platform_device(dev);
+//	int ret = -EINVAL;
+//
+//	dwc2_driver_lock();
+//	if (dwc2_driver_state != 1) {
+//		dev_info(dev, "drv state:%d exit.\n", dwc2_driver_state);
+//		goto exit;
+//	}
+//	ret = dwc_otg_driver_probe(pdev);
+//exit:
+//	dwc2_driver_unlock();
+//	pr_err("%s ret %d.\n", __func__, ret);
+//	return ret;
+
+	return 0;
+}
+
+/* Consider only one dwc pcd controller because this is the only case for now
+ * and the future.
+ * Only non-otg socs(i.e. port mode is fixed at probe time) is ported now.
+ * FIXME: Right port mode should be recovered after hibernate for hw-otg socs
+ * and possible future sw-otg features and this should be handled in the
+ * phy-aml-new-usb3-v2.c.
+ */
+static int dwc2_pm_cb(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	struct dwc_otg_device *dd = g_dwc_otg_device[0];
+	struct platform_device *pdev;
+
+	DWC_DEBUG("%s called. pm_event:%lu.\n", __func__, pm_event);
+
+	dwc2_driver_lock();
+	if (dwc2_driver_state != 1) {
+		DWC_ERROR("dwc2 drv state:%d exit.\n", dwc2_driver_state);
+		goto exit;
+	}
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		if (!dd) {
+			DWC_ERROR("dwc2 no dwc_otg_device exit.\n");
+			goto exit;
+		}
+		pdev = dd->os_dep.pldev;
+		if (!pdev) {
+			DWC_ERROR("dwc2 no pldev exit.\n");
+			goto exit;
+		}
+		dwc_otg_driver_remove(pdev);
+		/* TODO: Is it really needed to off clk&power before
+		 * entering D3cold state?
+		 */
+		break;
+	case PM_POST_HIBERNATION:
+		pdev = g_pdev[0];
+		if (!pdev) {
+			DWC_ERROR("dwc2 no pldev exit.\n");
+			goto exit;
+		}
+		dwc_otg_driver_probe(pdev);
+		break;
+	case PM_SUSPEND_PREPARE:
+	case PM_POST_SUSPEND:
+	case PM_RESTORE_PREPARE:
+	case PM_POST_RESTORE:
+	default:
+		break;
+	}
+exit:
+	dwc2_driver_unlock();
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block dwc2_pm_nb = {
+	.notifier_call = dwc2_pm_cb,
+};
+
 static const struct dev_pm_ops dwc2_dev_pm_ops = {
 	.prepare	= dwc2_prepare,
 	.complete	= dwc2_complete,
-
-	SET_SYSTEM_SLEEP_PM_OPS(dwc2_suspend, dwc2_resume)
+	.suspend = dwc2_suspend,
+	.resume = dwc2_resume,
+	.freeze = dwc2_freeze,
+	.thaw = dwc2_thaw,
+	.poweroff = dwc2_suspend,
+	.restore = dwc2_restore,
+	//SET_SYSTEM_SLEEP_PM_OPS(dwc2_suspend, dwc2_resume)
 };
+
+static int dwc2_pm_notifier_register(void)
+{
+	return register_pm_notifier(&dwc2_pm_nb);
+}
+
+static int dwc2_pm_notifier_unregister(void)
+{
+	return unregister_pm_notifier(&dwc2_pm_nb);
+}
 
 #define DWC2_PM_OPS	(&(dwc2_dev_pm_ops))
 #else
 #define DWC2_PM_OPS	NULL
+static int dwc2_pm_notifier_register(void)
+{
+	return 0;
+}
+
+static int dwc2_pm_notifier_unregister(void)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_OF
@@ -1635,16 +1825,55 @@ static struct platform_driver dwc_otg_driver = {
 		.name	= "dwc_otg",
 		.of_match_table	= of_match_ptr(of_dwc2_match),
 		.pm	= DWC2_PM_OPS,
+#ifdef DWC_PCD_RESET
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+#endif
 	},
+#ifdef DWC_PCD_RESET
+	.prevent_deferred_probe = true,
+#endif
 };
 
 
 int __init dwc_otg_init(void)
 {
-	return platform_driver_register(&dwc_otg_driver);
+	int ret;
+
+	DWC_DEBUG("dwc2_a init\n");
+	dwc2_driver_lock();
+	if (dwc2_driver_state != 0) {
+		DWC_ERROR("dwc2_a already registered. exit\n");
+		ret = -EBUSY;
+		goto exit;
+	}
+	ret = platform_driver_register(&dwc_otg_driver);
+	if (ret) {
+		DWC_ERROR("dwc2_a register error %d, exit\n", ret);
+		goto exit;
+	}
+	dwc2_driver_state = 1;
+	dwc2_pm_notifier_register();
+exit:
+	dwc2_driver_unlock();
+	return ret;
+
 }
 
 //late_initcall(dwc_otg_init);
+void __exit dwc_otg_exit(void)
+{
+	DWC_DEBUG("dwc2_a exit\n");
+	dwc2_driver_lock();
+	if (dwc2_driver_state != 1) {
+		pr_info("dwc2_a not registered. exit\n");
+		goto exit;
+	}
+	dwc2_driver_state = 0;
+	platform_driver_unregister(&dwc_otg_driver);
+	dwc2_pm_notifier_unregister();
+exit:
+	dwc2_driver_unlock();
+}
 
 MODULE_DESCRIPTION(DWC_DRIVER_DESC);
 MODULE_AUTHOR("Synopsys Inc.");

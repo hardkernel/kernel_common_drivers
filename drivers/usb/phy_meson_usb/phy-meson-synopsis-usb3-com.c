@@ -273,34 +273,19 @@ int meson_synopsis_u3phy_exit(struct amlogic_usb_v2 *phy)
 	return 0;
 }
 
-static bool device_is_available(const struct device_node *device)
+static inline bool meson_synopsis_u3phy_muxed(void)
 {
-	const char *status;
-	int statlen;
-
-	if (!device)
-		return false;
-
-	status = of_get_property(device, "status", &statlen);
-	if (!status)
-		return true;
-
-	if (statlen > 0) {
-		if (!strcmp(status, "okay") || !strcmp(status, "ok"))
-			return true;
-	}
-
-	return false;
+	return of_device_is_available(of_find_node_by_name(NULL, "pcie")) ||
+			of_device_is_available(of_find_node_by_type(NULL, "pci"));
 }
 
 int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *aml_u3phy;
-	struct device_node *pcin;
 	int i, cnt, addr_i = 0, ret = 0;
 	u64 addr, size;
 
-	aml_u3phy = devm_kzalloc(dev, sizeof(*aml_u3phy), GFP_KERNEL);
+	aml_u3phy = kzalloc(sizeof(*aml_u3phy), GFP_KERNEL);
 	if (!aml_u3phy)
 		return -ENOMEM;
 
@@ -312,11 +297,10 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 
 	aml_u3phy->portnum = 1;
 
-	pcin = of_find_node_by_type(NULL, "pci");
-	if (pcin && device_is_available(pcin)) {
+	if (meson_synopsis_u3phy_muxed()) {
 		dev_info(dev,
 			"port muxed to pci-e, stop probing USB3 phy port%d.\n", aml_u3phy->phy_id);
-		/* TODO: track this path to phy destroy & dwc3 u3 support. */
+		/* TODO: track this path to phy destroy. */
 		return -ENODEV;
 	}
 
