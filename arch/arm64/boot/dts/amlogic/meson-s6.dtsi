@@ -255,7 +255,7 @@
 			>;
 		reg-names = "adla_reg\0adla_sram";
 		interrupt-names = "adla";
-		interrupts = <0 260 1>;
+		interrupts = <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_NNA>;
 		clock-names = "adla_core_clk";
 		power-domains=<&pwrdm PDID_S6_NNA_4T>;
