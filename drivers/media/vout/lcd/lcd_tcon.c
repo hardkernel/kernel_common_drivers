@@ -1540,6 +1540,8 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 	unsigned long long local_time[2];
 	unsigned long flags = 0;
 
+	if (!lcd_tcon_conf || lcd_tcon_conf->tcon_valid == 0)
+		return;
 	if (((pdrv->status & LCD_STATUS_IF_ON) == 0) ||
 	    ((pdrv->status & LCD_STATUS_TCON_RDY) == 0))
 		return;
@@ -3058,6 +3060,14 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 {
 	int i;
 	struct lcd_tcon_data_block_header_s *block_header;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	if (lcd_tcon_conf) {
+		/* lcd_tcon_conf == NULL; */
+		lcd_tcon_conf->tcon_valid = 0;
+	}
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
 	lcd_tcon_debug_file_remove(&tcon_local_cfg);
 	lcd_tcon_fw_finish(pdrv);
@@ -3130,11 +3140,6 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 
 	kfree(tcon_rmem.axi_rmem);
 	tcon_rmem.axi_rmem = NULL;
-
-	if (lcd_tcon_conf) {
-		/* lcd_tcon_conf == NULL; */
-		lcd_tcon_conf->tcon_valid = 0;
-	}
 
 	return 0;
 }

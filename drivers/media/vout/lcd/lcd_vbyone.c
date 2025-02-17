@@ -25,6 +25,7 @@
 #include "lcd_reg.h"
 #include "lcd_common.h"
 
+static spinlock_t vx1_intr_lock;
 static int vx1_fsm_acq_st;
 
 #define VX1_TRAINING_TIMEOUT    60  /* vsync cnt */
@@ -1274,6 +1275,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 #endif
 	unsigned int data32, data32_1, offset;
 	int encl_clk;
+	unsigned long flags = 0;
 
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
 		return IRQ_HANDLED;
@@ -1284,6 +1286,8 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 	if (vx1_conf->vsync_intr_en == 2 ||
 	    vx1_conf->vsync_intr_en == 4)
 		return IRQ_HANDLED;
+
+	spin_lock_irqsave(&vx1_intr_lock, flags);
 
 	if (pdrv->data->chip_type == LCD_CHIP_T5W ||
 	    pdrv->data->chip_type == LCD_CHIP_T7 ||
@@ -1361,6 +1365,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 					vx1_timeout_reset_flag = 1;
 					lcd_queue_work(&pdrv->vx1_reset_work);
 					vx1_lockn_wait_cnt = 0;
+					spin_unlock_irqrestore(&vx1_intr_lock, flags);
 					return IRQ_HANDLED;
 				}
 			}
@@ -1412,7 +1417,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 			lcd_vcbus_setb(reg_intr_ctrl, 0, 7, 1);
 		}
 
-		lcd_delay_us(20);
+		udelay(20); //can't sleep in interrupt context
 		if ((lcd_vcbus_read(reg_status) & 0x3f) == 0x20) {
 			vx1_lockn_wait_cnt = 0;
 			/* vx1_training_wait_cnt = 0; */
@@ -1425,6 +1430,8 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 	}
 	/* enable interrupt */
 	lcd_vcbus_setb(reg_unmask, VBYONE_INTR_UNMASK, 0, 15);
+
+	spin_unlock_irqrestore(&vx1_intr_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -1514,6 +1521,7 @@ int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 	unsigned int venc_vx1_irq = 0;
 
 	lcd_vbyone_interrupt_init(pdrv);
+	spin_lock_init(&vx1_intr_lock);
 
 	INIT_WORK(&pdrv->vx1_reset_work, lcd_vx1_timeout_reset);
 

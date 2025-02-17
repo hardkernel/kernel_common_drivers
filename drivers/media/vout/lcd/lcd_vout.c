@@ -1085,6 +1085,7 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	local_time[0] = sched_clock();
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
 
 	lcd_fr_lock(pdrv);
 
@@ -1103,7 +1104,6 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
-	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	if (pdrv->mute_switch) {
 		if (pdrv->mute_wait_cnt > 0) {
 			pdrv->mute_wait_cnt--;
