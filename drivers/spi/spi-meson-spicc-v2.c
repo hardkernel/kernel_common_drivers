@@ -697,6 +697,59 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
+{
+	bool activate = enable;
+
+	/*
+	 * Avoid calling into the driver (or doing delays) if the chip select
+	 * isn't actually changing from the last time this was called.
+	 */
+	if (!force && (spi->controller->last_cs_enable == enable) &&
+	    (spi->controller->last_cs_mode_high == (spi->mode & SPI_CS_HIGH)))
+		return;
+
+	spi->controller->last_cs_enable = enable;
+	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
+
+	if ((spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
+	    !spi->controller->set_cs_timing) && !activate) {
+		spi_delay_exec(&spi->cs_hold, NULL);
+	}
+
+	if (spi->mode & SPI_CS_HIGH)
+		enable = !enable;
+
+	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio)) {
+		if (!(spi->mode & SPI_NO_CS)) {
+			if (spi->cs_gpiod) {
+				/* Polarity handled by GPIO library */
+				gpiod_set_value_cansleep(spi->cs_gpiod, activate);
+			} else {
+				/*
+				 * invert the enable line, as active low is
+				 * default for SPI.
+				 */
+				gpio_set_value_cansleep(spi->cs_gpio, !enable);
+			}
+		}
+		/* Some SPI masters need both GPIO CS & slave_select */
+		if ((spi->controller->flags & SPI_MASTER_GPIO_SS) &&
+		    spi->controller->set_cs)
+			spi->controller->set_cs(spi, !enable);
+	} else if (spi->controller->set_cs) {
+		spi->controller->set_cs(spi, !enable);
+	}
+
+	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
+	    !spi->controller->set_cs_timing) {
+		if (activate)
+			spi_delay_exec(&spi->cs_setup, NULL);
+		else
+			spi_delay_exec(&spi->cs_inactive, NULL);
+	}
+}
+
 /*
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
@@ -714,6 +767,7 @@ static int meson_spicc_transfer_one_message(struct spi_controller *ctlr,
 	int ret = -EIO;
 
 	msg->actual_length = 0;
+	spi_set_cs(msg->spi, true, false);
 	if (!spicc_sem_down_read(spicc)) {
 		spicc_err("controller busy\n");
 		return -EBUSY;
@@ -727,6 +781,7 @@ static int meson_spicc_transfer_one_message(struct spi_controller *ctlr,
 		spicc_destroy_desc_table(spicc, desc_table, msg, paddr, desc_len);
 	}
 
+	spi_set_cs(msg->spi, false, false);
 	msg->status = ret;
 	spi_finalize_current_message(ctlr);
 	spicc_sem_up_write(spicc);
@@ -1259,6 +1314,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	ctlr->slave_abort = meson_spicc_slave_abort;
 	ctlr->can_dma = meson_spicc_can_dma;
 	ctlr->max_dma_len = SPICC_BLOCK_MAX;
+	ctlr->use_gpio_descriptors = true;
 	dma_set_max_seg_size(&pdev->dev, SPICC_BLOCK_MAX);
 	ret = devm_spi_register_master(&pdev->dev, ctlr);
 	if (ret) {
