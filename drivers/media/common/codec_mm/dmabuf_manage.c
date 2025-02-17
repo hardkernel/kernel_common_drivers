@@ -21,6 +21,8 @@
 #include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 #include <linux/amlogic/media/codec_mm/configs.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 #include <linux/amlogic/tee_drv.h>
 #endif
 
@@ -2243,6 +2245,33 @@ static struct class dmabuf_manage_class = {
 	.class_groups = dmabuf_manage_class_groups,
 };
 
+#if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
+static int dmabuf_manage_reboot_notifier(struct notifier_block *nb,
+	unsigned long action, void *data)
+{
+	mutex_lock(&g_no_head_mutex);
+	if (g_secmem_inited) {
+		if (g_shm_pool) {
+			tee_shm_free(g_shm_pool);
+			g_shm_pool = NULL;
+		}
+
+		if (g_secmem_context) {
+			tee_client_close_session(g_secmem_context, g_secmem_session.session);
+			tee_client_close_context(g_secmem_context);
+			g_secmem_context = NULL;
+		}
+		g_secmem_inited = 0;
+	}
+	mutex_unlock(&g_no_head_mutex);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block dmabuf_manage_reboot_nb = {
+	.notifier_call = dmabuf_manage_reboot_notifier,
+};
+#endif
+
 int __init dmabuf_manage_init(void)
 {
 	int ret;
@@ -2268,6 +2297,9 @@ int __init dmabuf_manage_init(void)
 	}
 	REG_PATH_CONFIGS(CONFIG_PATH, dmabuf_manage_configs);
 	INIT_LIST_HEAD(&pool_list);
+#if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
+	register_reboot_notifier(&dmabuf_manage_reboot_nb);
+#endif
 	pr_dbg("init done\n");
 	return 0;
 error_create:
@@ -2284,6 +2316,9 @@ void __exit dmabuf_manage_exit(void)
 	class_unregister(&dmabuf_manage_class);
 	class_destroy(&dmabuf_manage_class);
 	unregister_chrdev(dev_no, DEVICE_NAME);
+#if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
+	unregister_reboot_notifier(&dmabuf_manage_reboot_nb);
+#endif
 	pr_dbg("exit done\n");
 }
 
