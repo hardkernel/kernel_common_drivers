@@ -1122,13 +1122,13 @@ set_rst_reg:
 		flag++;
 	} else {
 		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
-		val &= ~BIT(amlogic->amlphy_rst_bit);
+		val &= ~BIT(amlogic->pcie_pipe_bit);
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
 		usleep_range(10, 20);
 
 		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
-		val |= BIT(amlogic->amlphy_rst_bit);
+		val |= BIT(amlogic->pcie_pipe_bit);
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
 		usleep_range(10, 20);
@@ -1607,6 +1607,9 @@ static int amlogic_pcie_do_pll_v1_set(struct amlogic_pcie *amlogic, int cnt)
 	}
 
 	if (cnt != amlogic->pll_setting_number) {
+		if (is_meson_s6_cpu() && is_meson_rev_b() && reg[0] == 0x10)
+			reg[1] |= BIT(5);
+
 		writel(reg[1], amlogic->phy_base + reg[0]);
 		usleep_range(100, 200);
 	} else {
@@ -1615,6 +1618,7 @@ static int amlogic_pcie_do_pll_v1_set(struct amlogic_pcie *amlogic, int cnt)
 		else
 			dev_dbg(dev, "aml pcie phy pll locked\n");
 	}
+	dev_dbg(dev, "aml pcie phy pll cnt=%d, reg[0]=0x%x, reg[1]=0x%x\n", cnt, reg[0], reg[1]);
 
 	return ret;
 }
@@ -1639,8 +1643,15 @@ int amlogic_pcie_set_phy_pll(struct amlogic_pcie *amlogic)
 		if (ret)
 			return ret;
 
-		for (i = 1; i <= amlogic->pll_setting_number; i++)
+		for (i = 1; i <= 6; i++)
 			ret = amlogic_pcie_do_pll_v1_set(amlogic, i);
+
+		for (i = 8; i <= amlogic->pll_setting_number; i++)
+			ret = amlogic_pcie_do_pll_v1_set(amlogic, i);
+
+		ret = amlogic_pcie_set_reset_for_aml_phy(amlogic);
+		if (ret)
+			return ret;
 		break;
 	case AMLOGIC_PHY_PLL_V2:
 		dev_dbg(dev, "amlogic pcie phy pll V2\n");
@@ -1667,14 +1678,18 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 	if (ret)
 		return ret;
 
-	/* bit13 : always use pll1 ref clk */
-	writel(readl(amlogic->phy_base + UPCRX_DR_REG1) | BIT(13),
-	       amlogic->phy_base + UPCRX_DR_REG1);
+	/*
+	 * bit13 : always use pll1 ref clk for debug
+	 * writel(readl(amlogic->phy_base + UPCRX_DR_REG1) | BIT(13),
+	 *       amlogic->phy_base + UPCRX_DR_REG1);
+	 */
 
 	/* fom bypass */
 	writel(0x42389800, amlogic->phy_base + EQVAL_CTRL_REG);
+
 	/* CTLE reset */
 	writel(0x2c032100, amlogic->phy_base + SW_CTRL_PMA_REG0);
+
 	/* LEQ timer */
 	writel(0x222e0, amlogic->phy_base + DELAY_TIME24);
 
@@ -1739,13 +1754,6 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 		}
 	}
 
-	/* set phy pll */
-	if (of_property_read_bool(dev_of_node(dev), "phy_pll_setting_1")) {
-		ret = amlogic_pcie_set_phy_pll(amlogic);
-		if (ret)
-			return ret;
-	}
-
 	/* GEN3 EQ */
 	for (i = 0; i < 4; i++) {
 		val = readl(amlogic->phy_base + REG_DCHD_EQ_LPBK_REG + i * 4);
@@ -1754,12 +1762,15 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 		writel(val, amlogic->phy_base + REG_DCHD_EQ_LPBK_REG + i * 4);
 	}
 
-	ret = amlogic_pcie_set_reset_for_aml_phy(amlogic);
-	if (ret)
-		return ret;
-
 	/* close RC EQ */
 	amlogic_pcieinter_write(amlogic, 0, PHYMAC_CFG);
+
+	/* set phy pll */
+	if (of_property_read_bool(dev_of_node(dev), "phy_pll_setting_1")) {
+		ret = amlogic_pcie_set_phy_pll(amlogic);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
