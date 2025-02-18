@@ -65,9 +65,6 @@ void set_hpll_od3_sc2(unsigned int div);
 void set_hpll_sspll_sc2(enum hdmi_vic vic);
 
 bool hdmitx_uboot_audio_en(void);
-void hdmitx_debugfs_init(void);
-
-struct dentry *hdmitx_get_dbgfsdentry(void);
 
 /* if 4k can support Y420, return 1.
  * when current cs == 420, and vic can support 420,

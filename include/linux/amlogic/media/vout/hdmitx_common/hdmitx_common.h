@@ -301,6 +301,8 @@ struct hdmitx_common {
 	struct hdmitx_tracer *tx_tracer;
 	struct hdmitx_event_mgr *event_mgr;
 	struct st_debug_param debug_param;
+	struct dentry *hdmitx_file_dbgfs;
+	struct proc_dir_entry *hdmitx_proc_dbgfs;
 	/*
 	 * the qms_log_id is referred from hw_sequence_id
 	 * if value is not changed, the skip massive qms log

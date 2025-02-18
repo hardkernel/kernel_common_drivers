@@ -3,25 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include <linux/module.h>
-#include <linux/pwm.h>
-#include <linux/list.h>
-#include <linux/mutex.h>
-#include <linux/err.h>
-#include <linux/slab.h>
-#include <linux/device.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_version.h>
+#include "../hdmitx_dump.h"
 #include "hdmitx_common.h"
-#include <linux/fs.h>
-#include <linux/proc_fs.h>
-#include <linux/types.h>
-
-#ifdef DEVICE_NAME
-#undef DEVICE_NAME
-#define DEVICE_NAME "amhdmitx" /* name is same as before */
-#endif
 
 static void dump32(struct seq_file *s, u32 start, u32 end)
 {
@@ -36,7 +19,7 @@ static void dump32(struct seq_file *s, u32 start, u32 end)
 
 static int dump_hdmi_phy_pll_show(struct seq_file *s, void *p)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_dev *hdev = s->private;
 
 	seq_puts(s, "\n--------HDMITX basic information --------\n");
 	seq_printf(s, "resolution: %s\n", hdev->tx_comm.fmt_para.name);
@@ -122,7 +105,7 @@ static const struct proc_ops dump_hdmi_phy_pll_reg_pops = {
 
 static int dump_regs_show(struct seq_file *s, void *p)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_dev *hdev = s->private;
 
 	seq_puts(s, "\n--------misc registers--------\n");
 
@@ -175,14 +158,14 @@ static int dump_regs_open(struct inode *inode, struct file *file)
 	return single_open(file, dump_regs_show, inode->i_private);
 }
 
-static const struct file_operations dump_busreg_fops = {
+static const struct file_operations dump_bus_reg_fops = {
 	.open		= dump_regs_open,
 	.read		= seq_read,
 	.write		= dump_regs_write,
 	.release	= single_release,
 };
 
-static const struct proc_ops dump_busreg_pops = {
+static const struct proc_ops dump_bus_reg_pops = {
 	.proc_open		= dump_regs_open,
 	.proc_read		= seq_read,
 	.proc_release	= single_release,
@@ -212,7 +195,7 @@ static void dumpcor(struct seq_file *s, u32 start, u32 end)
 
 static int dump_hdmireg_show(struct seq_file *s, void *p)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_dev *hdev = s->private;
 	u32 gate_status;
 
 	seq_puts(s, "\n--------HDMITX registers--------\n");
@@ -325,7 +308,7 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 	u32 reg;
 	u32 val;
 	u32 total, active, front, sync, back, blank;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_dev *hdev = s->private;
 
 	seq_puts(s, "\n--------vp fdet info--------\n");
 
@@ -643,6 +626,10 @@ static void hdmitx_parsing_vsifpkt(struct seq_file *s)
 
 static int dump_hdmipkt_show(struct seq_file *s, void *p)
 {
+	char *buf = NULL;
+	int len;
+	struct hdmitx_dev *hdev = s->private;
+
 	seq_puts(s, "\n--------HDMITX packets--------\n");
 	hdmitx_parsing_acrpkt(s);
 	hdmitx_parsing_audsamp(s);
@@ -653,6 +640,16 @@ static int dump_hdmipkt_show(struct seq_file *s, void *p)
 	hdmitx_parsing_audpkt(s);
 	hdmitx_parsing_audchannelst(s);
 	hdmitx_parsing_hdrpkt(s);
+
+	len = 2048;
+	buf = kcalloc(len, sizeof(char), GFP_KERNEL);
+	if (!buf) {
+		HDMITX_ERROR("%s kcalloc failed\n", __func__);
+		return 0;
+	}
+	hdev->hw_comm.pkt_dump(buf, len);
+	seq_printf(s, "%s\n", buf);
+	kfree(buf);
 
 	return 0;
 }
@@ -814,7 +811,7 @@ static int hdmitx_dump_cts_enc_clk_status(struct seq_file *s, void *p)
 {
 	u32 val[7];
 	u32 div;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_dev *hdev = s->private;
 	const char *crt_video_src_des[8] = {
 		[0] = "[16]vid_pll0_clk",
 		[1] = "[27]gp2_pll_clk",
@@ -936,7 +933,7 @@ static int dump_frl_status_show(struct seq_file *s, void *p)
 {
 	enum scdc_addr scdc_reg;
 	u8 val;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_dev *hdev = s->private;
 	static const char * const rate_string[] = {
 		[FRL_NONE] = "TMDS",
 		[FRL_3G3L] = "FRL_3G3L",
@@ -1002,21 +999,124 @@ static const struct file_operations dump_frl_status_fops = {
 	.release	= single_release,
 };
 
-struct hdmitx_dbg_files_s {
-	const char *name;
-	const umode_t mode;
-	const struct file_operations *fops;
-	const struct proc_ops *pops;
-};
-
 static const struct proc_ops dump_frl_status_pops = {
 	.proc_open		= dump_frl_status_open,
 	.proc_read		= seq_read,
 	.proc_release	= single_release,
 };
 
+static int hdmitx_basic_config_show(struct seq_file *s, void *v)
+{
+	dump_hdmitx_basic_config(s, v);
+	return 0;
+}
+
+static int dump_hdmitx_basic_config_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hdmitx_basic_config_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmitx_basic_config_fops = {
+	.open		= dump_hdmitx_basic_config_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmitx_basic_config_pops = {
+	.proc_open		= dump_hdmitx_basic_config_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
+static int dump_hdmirx_info_show(struct seq_file *s, void *v)
+{
+	hdmirx_info_show(s, v);
+	return 0;
+}
+
+static int dump_hdmirx_info_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_hdmirx_info_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmirx_info_fops = {
+	.open		= dump_hdmirx_info_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmirx_info_pops = {
+	.proc_open		= dump_hdmirx_info_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
+static int dump_clkmsr_show(struct seq_file *s, void *v)
+{
+	struct hdmitx_dev *hdev = s->private;
+	char buf[1024];
+
+	hdev->hw_comm.get_clk(buf, 1024);
+	seq_printf(s, "%s\n", buf);
+	return 0;
+}
+
+static int dump_clkmsr_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_clkmsr_show, inode->i_private);
+}
+
+static const struct file_operations dump_clkmsr_fops = {
+	.open		= dump_clkmsr_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
+static const struct proc_ops dump_clkmsr_pops = {
+	.proc_open		= dump_clkmsr_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
+static int hdmitx_dump_show(struct seq_file *s, void *v)
+{
+	dump_regs_show(s, v);
+	dump_hdmireg_show(s, v);
+	dump_hdmivpfdet_show(s, v);
+	dump_hdmipkt_show(s, v);
+	dump_hdmiver_show(s, v);
+	dump_audcts_show(s, v);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	dump_hdmivrr_show(s, v);
+#endif
+	dump_cts_enc_clk_show(s, v);
+	dump_frl_status_show(s, v);
+	dump_hdmi_phy_pll_show(s, v);
+	dump_clkmsr_show(s, v);
+	hdmitx_basic_config_show(s, v);
+	dump_hdmirx_info_show(s, v);
+	return 0;
+}
+
+static int dump_hdmitx_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hdmitx_dump_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmitx_fops = {
+	.open		= dump_hdmitx_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmitx_pops = {
+	.proc_open		= dump_hdmitx_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
-	{"bus_reg", S_IFREG | 0444, &dump_busreg_fops, &dump_busreg_pops},
+	{"bus_reg", S_IFREG | 0444, &dump_bus_reg_fops, &dump_bus_reg_pops},
 	{"hdmi_reg", S_IFREG | 0444, &dump_hdmireg_fops, &dump_hdmireg_pops},
 	{"hdmi_vpfdet", S_IFREG | 0444, &dump_hdmivpfdet_fops, &dump_hdmivpfdet_pops},
 	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops, &dump_hdmipkt_pops},
@@ -1029,51 +1129,19 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 	{"frl_status", S_IFREG | 0444, &dump_frl_status_fops, &dump_frl_status_pops},
 	{"hdmi_phy_pll_reg", S_IFREG | 0444, &dump_hdmi_phy_pll_reg_fops,
 		&dump_hdmi_phy_pll_reg_pops},
+	{"hdmitx_basic_config", S_IFREG | 0444, &dump_hdmitx_basic_config_fops,
+		&dump_hdmitx_basic_config_pops},
+	{"hdmirx_info", S_IFREG | 0444, &dump_hdmirx_info_fops, &dump_hdmirx_info_pops},
+	{"hdmi_clkmsr", S_IFREG | 0444, &dump_clkmsr_fops, &dump_clkmsr_pops},
+	{"hdmitx_dump", S_IFREG | 0444, &dump_hdmitx_fops, &dump_hdmitx_pops},
 };
 
-static struct dentry *hdmitx_file_dbgfs;
-void hdmitx21_debugfs_init(void)
+struct hdmitx_dbg_files_s *hdmitx21_get_dbg_files_s(void)
 {
-	struct dentry *entry;
-	int i;
-
-	if (hdmitx_file_dbgfs)
-		return;
-
-	hdmitx_file_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
-	if (!hdmitx_file_dbgfs) {
-		HDMITX_ERROR("can't create %s debugfs dir\n", DEVICE_NAME);
-		return;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(hdmitx_dbg_files); i++) {
-		entry = debugfs_create_file(hdmitx_dbg_files[i].name,
-			hdmitx_dbg_files[i].mode,
-			hdmitx_file_dbgfs, NULL,
-			hdmitx_dbg_files[i].fops);
-		if (!entry)
-			HDMITX_ERROR("debugfs create file %s failed\n",
-				hdmitx_dbg_files[i].name);
-	}
+	return hdmitx_dbg_files;
 }
 
-static struct proc_dir_entry *hdmitx_proc_dbgfs;
-void profs_hdmitx21_debugfs_init(void)
+int hdmitx21_get_dbg_files_count(void)
 {
-	struct proc_dir_entry *entry;
-	int i;
-
-	hdmitx_proc_dbgfs = proc_mkdir("amhdmitx", NULL);
-	if (!hdmitx_proc_dbgfs)
-		HDMITX_ERROR("Error creating proc entry");
-
-	for (i = 0; i < ARRAY_SIZE(hdmitx_dbg_files); i++) {
-		entry = proc_create(hdmitx_dbg_files[i].name,
-			hdmitx_dbg_files[i].mode,
-			hdmitx_proc_dbgfs,
-			hdmitx_dbg_files[i].pops);
-		if (!entry)
-			HDMITX_ERROR("debugfs create file %s failed\n",
-				hdmitx_dbg_files[i].name);
-	}
+	return ARRAY_SIZE(hdmitx_dbg_files);
 }

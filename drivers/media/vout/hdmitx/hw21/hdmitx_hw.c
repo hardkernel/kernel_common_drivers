@@ -776,8 +776,6 @@ void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 	global_tx_hw->base->get_clk = hdmitx_get_clk;
 	global_tx_hw->base->pkt_dump = hdmitx_pkt_dump;
 	hdmi_hwp_init(hdev, 0);
-	hdmitx21_debugfs_init();
-	profs_hdmitx21_debugfs_init();
 	hdmitx_hw_cntl_misc(global_tx_hw->base, MISC_AVMUTE_OP, CLR_AVMUTE);
 }
 

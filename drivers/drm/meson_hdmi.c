@@ -616,7 +616,7 @@ static int _get_hdr_info(const struct hdr_info *hdr, enum hdmi_info_index hdr_in
 	if (hdr_priority == 2 && hdr_info_index == hdmi_info_1)
 		return 0;
 
-	/*hdr10plugsupported*/
+	/* hdr10plus_supported */
 	if (hdr10p->ieeeoui == HDR10_PLUS_IEEE_OUI &&
 		hdr10p->application_version != 0xFF)
 		hdr_cap_value |= 1 << 0;

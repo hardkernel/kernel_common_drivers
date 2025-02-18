@@ -997,8 +997,6 @@ const struct file_operations hdcplog_ops = {
 	.open = hdcplog_open,
 };
 
-static struct dentry *hdmitx_dbgfs;
-
 int hdmitx20_hdcp_init(struct hdmitx_dev *hdev)
 {
 	struct dentry *entry;
@@ -1017,19 +1015,18 @@ int hdmitx20_hdcp_init(struct hdmitx_dev *hdev)
 
 	tx_comm->task_hdcp = kthread_run(hdmitx_hdcp_task,	(void *)hdev,
 				      "kthread_hdcp");
-
-	hdmitx_dbgfs = hdmitx_get_dbgfsdentry();
-	if (!hdmitx_dbgfs)
-		hdmitx_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
-	if (!hdmitx_dbgfs) {
+	if (!tx_comm->hdmitx_file_dbgfs)
+		tx_comm->hdmitx_file_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
+	if (!tx_comm->hdmitx_file_dbgfs) {
 		HDMITX_ERROR("can't create %s debugfs dir\n", DEVICE_NAME);
 		return 0;
 	}
 	entry = debugfs_create_file("hdcp_log", S_IFREG | 0444,
-			hdmitx_dbgfs, NULL,
+			tx_comm->hdmitx_file_dbgfs, NULL,
 			&hdcplog_ops);
 	if (!entry)
 		HDMITX_ERROR("debugfs create file %s failed\n", "hdcp_log");
+
 	return 0;
 }
 

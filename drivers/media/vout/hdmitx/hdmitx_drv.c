@@ -39,6 +39,7 @@
 #include "hdmitx_sysfs_common.h"
 #include "hdmitx_module.h"
 #include "hdmitx_compliance.h"
+#include "hdmitx_dump.h"
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 #include <linux/amlogic/media/sound/aout_notify.h>
 #endif
@@ -1569,6 +1570,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		tx_comm->hdmi_init = HDMITX20;
 	/* everything is ready, create sysfs here */
 	hdmitx_sysfs_common_create(dev, &hdev->tx_comm, &hdev->hw_comm);
+	hdmitx_common_debugfs_init(hdev);
+	hdmitx_common_profs_init(hdev);
 	HDMITX_INFO("amhdmitx_probe_end\n");
 
 	return r;

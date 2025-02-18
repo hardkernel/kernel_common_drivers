@@ -752,7 +752,6 @@ void hdmitx20_meson_init(struct hdmitx_dev *hdev)
 	hdmi_hwp_init(hdev);
 	hdmi_hwi_init(hdev);
 	hdmitx_hw_cntl_misc(global_tx_hw->base, MISC_AVMUTE_OP, CLR_AVMUTE);
-	hdmitx_debugfs_init();
 }
 
 static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)

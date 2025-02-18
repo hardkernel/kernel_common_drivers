@@ -165,8 +165,6 @@ void hdmitx21_sys_reset_s6(void);
 void hdmitx21_sys_reset_s7(void);
 void hdmitx21_sys_reset_s7d(void);
 
-void hdmitx21_debugfs_init(void);
-
 void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk);
 void hdmitx_t7_clock_gate_ctrl(bool en);
 void set21_s5_htxpll_clk_out(u32 clk, u32 div);
@@ -208,7 +206,6 @@ void hdmitx21_s5_clk_div_rst(u32 clk_idx);
 
 int hdmitx21_hpd_hw_op(enum hpd_op cmd);
 void hdmitx_hpd_irq_top_half_process(struct hdmitx_dev *hdev, bool hpd);
-void profs_hdmitx21_debugfs_init(void);
 
 #endif
 
