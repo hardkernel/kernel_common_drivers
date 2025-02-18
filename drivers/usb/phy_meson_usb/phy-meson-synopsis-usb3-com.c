@@ -390,7 +390,6 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 		mup_dbg(dev, "%s %px.\n", aml_u3phy->clks[i].id, (void *)aml_u3phy->clks[i].clk);
 
 	/* Default OFF. */
-	meson_synopsis_u3phy_exit(aml_u3phy);
 	writel(0x1d, aml_u3phy->phy3_cfg);
 	aml_u3phy->suspend_flag = 1;
 

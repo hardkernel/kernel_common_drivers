@@ -31,8 +31,6 @@ $(MODULE_NAME)-y	+= dwc_otg/310/dwc_otg_pcd_linux.o dwc_otg/310/dwc_otg_pcd.o dw
 $(MODULE_NAME)-y	+= dwc_otg/310/dwc_otg_hcd.o dwc_otg/310/dwc_otg_hcd_linux.o dwc_otg/310/dwc_otg_hcd_intr.o dwc_otg/310/dwc_otg_hcd_queue.o dwc_otg/310/dwc_otg_hcd_ddma.o
 $(MODULE_NAME)-y	+= dwc_otg/310/dwc_otg_adp.o
 $(MODULE_NAME)-y	+= dwc_otg/310/usbphy.o
-ifneq ($(CFI),)
 $(MODULE_NAME)-y	+= dwc_otg/310/dwc_otg_cfi.o
-endif
 $(MODULE_NAME)-y	+= dwc_otg/310/$(COMMON_PORT)/dwc_common_linux.o
 
