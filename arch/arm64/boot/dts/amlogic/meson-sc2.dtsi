@@ -1322,6 +1322,7 @@
 			"resetctrl",
 			"sysctrl",
 			"clkctrl";
+		frac_enable = <1>;
 		vend_data: vend_data{ /* Should modified by Customer */
 			vendor_name = "CUS_NAME"; /* Max Chars: 8 */
 			product_desc = "PRODUCT_NAME"; /* Max Chars: 16 */
