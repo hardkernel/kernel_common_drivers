@@ -195,6 +195,7 @@
 /*  V3.6.015 fix S4 dvbc search crash */
 /*  V3.6.016 fix t6d isdbt offset test failed */
 /*  V3.6.017 fix dvbs auto sr config(cause unlock) */
+/*  V3.6.018 get dvbs/s2 if config from get_if_frequency */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -211,8 +212,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.017"
-#define DTVDEMOD_VER	"2025/02/11: fix dvbs auto sr config(cause unlock)"
+#define AMLDTVDEMOD_VER "V3.6.018"
+#define DTVDEMOD_VER	"2025/02/24: get dvbs/s2 if config from get_if_frequency"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

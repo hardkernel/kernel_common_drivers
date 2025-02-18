@@ -407,6 +407,7 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 	int scan_time = 1;
 	bool found_tp = false;
 	unsigned int last_step_num = 0, cur_step_num = 0, percent_base = 0;
+	unsigned int tuner_if[3] = { 0 };
 
 	list_for_each_entry(tmp, &devp->demod_list, list) {
 		if (tmp->id == 0) {
@@ -457,8 +458,12 @@ void dvbs_blind_scan_new_work(struct work_struct *work)
 	//dvbs all reg init
 	dtvdemod_dvbs_set_ch(&demod->demod_status);
 
+	if (fe->ops.tuner_ops.get_if_frequency)
+		fe->ops.tuner_ops.get_if_frequency(fe, tuner_if);
+
+	devp->agc_direction = tuner_if[2];
 	if (devp->agc_direction) {
-		PR_DVBS("AGC direction: %d\n", devp->agc_direction);
+		PR_DVBS("AGC direction Negative\n");
 		dvbs_wr_byte(0x118, 0x04);
 	}
 
@@ -1216,6 +1221,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int ret = 0;
 	unsigned int tmp_sr = 0;
+	unsigned int tuner_if[3] = { 0 };
 
 	if (devp->blind_same_frec == 0)
 		PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d\n",
@@ -1233,14 +1239,18 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 
 	tuner_set_params(fe);
 
+	if (fe->ops.tuner_ops.get_if_frequency)
+		fe->ops.tuner_ops.get_if_frequency(fe, tuner_if);
+
 	if (devp->blind_scan_stop && tmp_sr < SR_LOW_THRD)
 		c->symbol_rate = tmp_sr;
 
 	dtvdemod_dvbs_set_ch(&demod->demod_status);
 	demod->time_start = jiffies_to_msecs(jiffies);
 
+	devp->agc_direction = tuner_if[2];
 	if (devp->agc_direction) {
-		PR_DVBS("AGC direction: %d\n", devp->agc_direction);
+		PR_DVBS("AGC direction Negative\n");
 		dvbs_wr_byte(0x118, 0x04);
 	}
 
