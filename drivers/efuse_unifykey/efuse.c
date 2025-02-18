@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/compat.h>
 #include <linux/amlogic/secmon.h>
+#include <linux/uuid.h>
 
 #define EFUSE_DEVICE_NAME   "efuse"
 #define EFUSE_CLASS_NAME    "efuse"
@@ -33,6 +34,15 @@ static struct aml_efuse_lockable_check efusecheck = {
 	.infos = NULL,
 };
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static int factory = 0;
+static int __init odroid_factory_cfg(char *arg)
+{
+	factory = 1;
+	return 0;
+}
+early_param("odroid-factory", odroid_factory_cfg);
+#endif
 struct efuse_obj_field_t efuse_field;
 #ifndef CONFIG_ARCH_MESON_ODROID_COMMON
 static char mrk_name[16] = {};
@@ -61,9 +71,9 @@ DEFINE_EFUSEKEY_SHOW_ATTR(mac)
 DEFINE_EFUSEKEY_SHOW_ATTR(mac_bt)
 DEFINE_EFUSEKEY_SHOW_ATTR(mac_wifi)
 DEFINE_EFUSEKEY_SHOW_ATTR(usid)
-#else
-#include <linux/uuid.h>
+#endif
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
 static int get_uuid(char *buf)
 {
 	ssize_t ret;
@@ -115,6 +125,55 @@ static ssize_t uuid_show(struct class *cla, struct class_attribute *attr, char *
 	);
 }
 
+static ssize_t uuid_store(struct class *cla, struct class_attribute *attr, const char *buf, size_t count)
+{
+	char raw[UUID_SIZE * 2];
+	uuid_t uuid;
+	loff_t pos;
+	struct efusekey_info info;
+	ssize_t ret;
+	int i, n = 0;
+
+	if (!factory)
+		return -EPERM;
+
+	if (uuid_parse(buf, &uuid)) {
+		pr_err("efuse: invalid uuid\n");
+		return  -EINVAL;
+	}
+
+	if (efuse_getinfo("uuid", &info) < 0) {
+		ret = -EINVAL;
+		pr_err("efuse: uuid is not found\n");
+		return ret;
+	}
+
+	pos = ((loff_t)(info.offset)) & 0xffffffff;
+	ret = efuse_read_usr(raw, UUID_SIZE * 2, &pos);
+	if (ret != UUID_SIZE * 2) {
+		ret = -EFAULT;
+		pr_err("efuse: read uuid data fail!\n");
+		return ret;
+	}
+
+	for (i = 0; i < UUID_SIZE; ++i) {
+		if (raw[i] != 0) {
+			n = 1;
+			break;
+		}
+	}
+
+	pr_info("efuse: write uuid %d ~ %d\n", n, n + 15);
+
+	pos = ((loff_t)(info.offset) + (n * UUID_SIZE)) & 0xffffffff;
+	if (0 > efuse_write_usr((char*)&uuid, UUID_SIZE, &pos)) {
+		pr_err("efuse: failed to burn uuid%d\n", n);
+		return -EFAULT;
+	}
+
+	return count;
+}
+
 static ssize_t mac_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
 	char uuid[UUID_SIZE];
@@ -150,8 +209,6 @@ DEFINE_EFUSEKEY_STORE_ATTR(mac)
 DEFINE_EFUSEKEY_STORE_ATTR(mac_bt)
 DEFINE_EFUSEKEY_STORE_ATTR(mac_wifi)
 DEFINE_EFUSEKEY_STORE_ATTR(usid)
-#else
-
 #endif
 #endif
 
@@ -1066,11 +1123,11 @@ static int get_efusecheck_info(struct device_node *np)
 exit:
 	return ret;
 }
-#else
-static int get_efusecheck_info(struct device_node *np) {return 0;}
 #endif
 
-#ifndef CONFIG_ARCH_MESON_ODROID_COMMON
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static int get_efusecheck_info(struct device_node *np) {return 0;}
+#else
 static char *efuse_obj_err_parse(uint32_t  efuse_obj_err_status)
 {
 	char *err_char = NULL;
@@ -1321,7 +1378,10 @@ static ssize_t efuse_mrk_show(struct class *class,
 }
 #endif
 
-#ifndef CONFIG_ARCH_MESON_ODROID_COMMON
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static CLASS_ATTR_RW(uuid);
+static CLASS_ATTR_RO(mac);
+#else
 static EFUSE_CLASS_ATTR(userdata);
 static EFUSE_CLASS_ATTR(mac);
 static EFUSE_CLASS_ATTR(mac_bt);
@@ -1333,13 +1393,13 @@ static CLASS_ATTR_WO(amlogic_set);
 static CLASS_ATTR_RO(secureboot_check);
 static EFUSE_CLASS_ATTR(checkburn);
 static CLASS_ATTR_RO(checklist);
-#else
-static CLASS_ATTR_RO(uuid);
-static CLASS_ATTR_RO(mac);
 #endif
 
 static struct attribute *efuse_class_attrs[] = {
-#ifndef CONFIG_ARCH_MESON_ODROID_COMMON
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	&class_attr_uuid.attr,
+	&class_attr_mac.attr,
+#else
 	&class_attr_userdata.attr,
 	&class_attr_mac.attr,
 	&class_attr_mac_bt.attr,
@@ -1351,9 +1411,6 @@ static struct attribute *efuse_class_attrs[] = {
 	&class_attr_secureboot_check.attr,
 	&class_attr_checkburn.attr,
 	&class_attr_checklist.attr,
-#else
-	&class_attr_uuid.attr,
-	&class_attr_mac.attr,
 #endif
 	NULL,
 };
