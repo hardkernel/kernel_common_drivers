@@ -180,6 +180,7 @@ ddk_module(
                 "vout/vout_serve/vout_notify.c",
                 "vout/vout_serve/vout_serve.c",
                 "vout/vout_serve/vout_func.c",
+                "vout/vout_serve/vout_null_server.c",
             ],
         },
         "CONFIG_AMLOGIC_VOUT2_SERVE": {

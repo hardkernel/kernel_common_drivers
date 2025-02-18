@@ -35,6 +35,7 @@
 
 /* Local Headers */
 #include "vout_func.h"
+#include "vout_null_server.h"
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -59,137 +60,6 @@ static unsigned int bist_mode2;
 
 static struct vout_cdev_s *vout2_cdev;
 static struct device *vout2_dev;
-
-/* **********************************************************
- * null display support
- * **********************************************************
- */
-static int nulldisp_index = VMODE_NULL_DISP_MAX;
-static struct vinfo_s nulldisp_vinfo[] = {
-	{
-		.name              = "null",
-		.mode              = VMODE_NULL,
-		.frac              = 0,
-		.width             = 1920,
-		.height            = 1080,
-		.field_height      = 1080,
-		.aspect_ratio_num  = 16,
-		.aspect_ratio_den  = 9,
-		.sync_duration_num = 60,
-		.sync_duration_den = 1,
-		.video_clk         = 148500000,
-		.htotal            = 2200,
-		.vtotal            = 1125,
-		.fr_adj_type       = VOUT_FR_ADJ_NONE,
-		.viu_color_fmt     = COLOR_FMT_RGB444,
-		.viu_mux           = ((3 << 4) | VIU_MUX_MAX),
-		.vout_device       = NULL,
-		.cur_enc_ppc       = 1,
-	},
-	{
-		.name              = "invalid",
-		.mode              = VMODE_INVALID,
-		.frac              = 0,
-		.width             = 1920,
-		.height            = 1080,
-		.field_height      = 1080,
-		.aspect_ratio_num  = 16,
-		.aspect_ratio_den  = 9,
-		.sync_duration_num = 60,
-		.sync_duration_den = 1,
-		.video_clk         = 148500000,
-		.htotal            = 2200,
-		.vtotal            = 1125,
-		.fr_adj_type       = VOUT_FR_ADJ_NONE,
-		.viu_color_fmt     = COLOR_FMT_RGB444,
-		.viu_mux           = ((3 << 4) | VIU_MUX_MAX),
-		.vout_device       = NULL,
-		.cur_enc_ppc       = 1,
-	}
-};
-
-static struct vinfo_s *nulldisp_get_current_info(void *data)
-{
-	if (nulldisp_index >= ARRAY_SIZE(nulldisp_vinfo))
-		return NULL;
-
-	return &nulldisp_vinfo[nulldisp_index];
-}
-
-static int nulldisp_set_current_vmode(enum vmode_e mode, void *data)
-{
-	return 0;
-}
-
-static enum vmode_e nulldisp_validate_vmode(char *name, unsigned int frac,
-					    void *data)
-{
-	enum vmode_e vmode = VMODE_MAX;
-	int i;
-
-	if (frac)
-		return VMODE_MAX;
-
-	for (i = 0; i < ARRAY_SIZE(nulldisp_vinfo); i++) {
-		if (strcmp(nulldisp_vinfo[i].name, name) == 0) {
-			vmode = nulldisp_vinfo[i].mode;
-			nulldisp_index = i;
-			break;
-		}
-	}
-
-	return vmode;
-}
-
-static int nulldisp_vmode_is_supported(enum vmode_e mode, void *data)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(nulldisp_vinfo); i++) {
-		if (nulldisp_vinfo[i].mode == (mode & VMODE_MODE_BIT_MASK))
-			return true;
-	}
-	return false;
-}
-
-static int nulldisp_disable(enum vmode_e cur_vmod, void *data)
-{
-	return 0;
-}
-
-static int nulldisp_vout_state;
-static int nulldisp_vout_set_state(int bit, void *data)
-{
-	nulldisp_vout_state |= (1 << bit);
-	return 0;
-}
-
-static int nulldisp_vout_clr_state(int bit, void *data)
-{
-	nulldisp_vout_state &= ~(1 << bit);
-	return 0;
-}
-
-static int nulldisp_vout_get_state(void *data)
-{
-	return nulldisp_vout_state;
-}
-
-static struct vout_server_s nulldisp_vout2_server = {
-	.name = "nulldisp_vout2_server",
-	.op = {
-		.get_vinfo          = nulldisp_get_current_info,
-		.set_vmode          = nulldisp_set_current_vmode,
-		.validate_vmode     = nulldisp_validate_vmode,
-		.vmode_is_supported = nulldisp_vmode_is_supported,
-		.disable            = nulldisp_disable,
-		.set_state          = nulldisp_vout_set_state,
-		.clr_state          = nulldisp_vout_clr_state,
-		.get_state          = nulldisp_vout_get_state,
-		.set_bist           = NULL,
-	},
-	.data = NULL,
-};
 
 /* ********************************************************** */
 
@@ -254,14 +124,14 @@ int set_vout2_mode_name(char *name)
 }
 EXPORT_SYMBOL(set_vout2_mode_name);
 
-static int set_vout2_mode(char *name)
+static int set_vout2_mode_type(char *name, int type_val)
 {
 	enum vmode_e mode;
 	unsigned int frac;
 	int ret = 0;
 
 	vout_trim_string(name);
-	VOUTPR("vout2: vmode set to %s\n", name);
+	VOUTPR("vout2: vmode set to %s, type_val=%d\n", name, type_val);
 
 	if (vout2_check_same_vmodeattr(name) &&
 		(strcmp(name, vout2_mode) == 0)) {
@@ -276,7 +146,7 @@ static int set_vout2_mode(char *name)
 			__func__, local_name, frac);
 	}
 
-	mode = validate_vmode2(local_name, frac);
+	mode = validate_vmode2(local_name, type_val, frac);
 	if (mode == VMODE_MAX) {
 		VOUTERR("vout2: no matched vout2 mode\n");
 		return -1;
@@ -314,12 +184,21 @@ static int set_vout2_init_mode(void)
 	enum vmode_e vmode;
 	unsigned int frac;
 	int ret = 0;
+	char *connector_type = NULL;
+	int type_val = 0;
+
+	connector_type = get_uboot_connector1_type();
+
+	if (connector_type)
+		type_val = convert_connector_type_to_val(connector_type);
+
+	VOUTPR("%s, type_val = %d\n", __func__, type_val);
 
 	memset(local_name, 0, sizeof(local_name));
 	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", vout2_mode_uboot);
 	frac = vout_parse_vout_name(local_name);
 
-	vout2_init_vmode = validate_vmode2(local_name, frac);
+	vout2_init_vmode = validate_vmode2(local_name, type_val, frac);
 	if (vout2_init_vmode >= VMODE_MAX) {
 		VOUTERR("vout2: no matched vout2_init mode %s, force to invalid\n",
 			vout2_mode_uboot);
@@ -367,10 +246,25 @@ static ssize_t vout2_mode_store(const struct class *class,
 			const char *buf, size_t count)
 {
 	char mode[64];
+	char *buf_orig, *parm[8] = {NULL};
+	long type_val = 0;
+	int ret;
+
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	vout_parse_param(buf_orig, (char **)&parm);
 
 	mutex_lock(&vout2_serve_mutex);
-	snprintf(mode, VMODE_NAME_LEN_MAX, "%s", buf);
-	set_vout2_mode(mode);
+	snprintf(mode, VMODE_NAME_LEN_MAX, "%s", parm[0]);
+
+	if (parm[1])
+		ret = kstrtoul(parm[1], 10, &type_val);
+
+	VOUTPR("%s, type_val = %ld\n", __func__, type_val);
+
+	set_vout2_mode_type(mode, type_val);
 	mutex_unlock(&vout2_serve_mutex);
 	return count;
 }
@@ -539,6 +433,7 @@ static ssize_t vout2_vinfo_show(const struct class *class,
 
 	len = sprintf(buf, "current vinfo2:\n"
 		"    name:                  %s\n"
+		"    connector_type:        %d\n"
 		"    mode:                  %d\n"
 		"    frac:                  %d\n"
 		"    width:                 %d\n"
@@ -562,7 +457,7 @@ static ssize_t vout2_vinfo_show(const struct class *class,
 		"    viu_mux:               0x%x\n"
 		"    cur_enc_ppc:           0x%x\n"
 		"    vpp_post_out_color_fmt:%d\n\n",
-		info->name, info->mode, info->frac,
+		info->name, info->connector_type, info->mode, info->frac,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->screen_real_width, info->screen_real_height,
@@ -636,6 +531,31 @@ static ssize_t vout2_cap_show(const struct class *class,
 	return ret;
 }
 
+static ssize_t vout2_connector_type_cap_show(const struct class *class,
+			     const struct class_attribute *attr, char *buf)
+{
+	int count = 0, i = 0;
+	ssize_t len = 0;
+	struct vout_connector_type_s *type_s;
+
+	type_s = kcalloc(MAX_CONNECTOR_TYPE_NUM, sizeof(*type_s), GFP_KERNEL);
+	if (!type_s)
+		return -ENOMEM;
+
+	count = vout_func_get_connector_type_cap(type_s);
+
+	if (!count) {
+		kfree(type_s);
+		return sprintf(buf, "current type_s is null\n");
+	}
+
+	for (i = 0; i < count; i++)
+		len += sprintf(buf + len, "%s     %d\n", type_s[i].name, type_s[i].connector_type);
+
+	kfree(type_s);
+	return len;
+}
+
 static struct class_attribute vout2_class_attrs[] = {
 	__ATTR(mode,      0644, vout2_mode_show, vout2_mode_store),
 	__ATTR(fr_policy, 0644, vout2_fr_policy_show, vout2_fr_policy_store),
@@ -644,7 +564,8 @@ static struct class_attribute vout2_class_attrs[] = {
 	__ATTR(bist,      0644, vout2_bist_show, vout2_bist_store),
 	__ATTR(bl_brightness, 0644, vout2_bl_brightness_show, vout2_bl_brightness_store),
 	__ATTR(vinfo,     0444, vout2_vinfo_show, NULL),
-	__ATTR(cap,       0644, vout2_cap_show, NULL)
+	__ATTR(cap,       0644, vout2_cap_show, NULL),
+	__ATTR(connector_type_cap,        0644, vout2_connector_type_cap_show, NULL),
 };
 
 static int vout2_attr_create(void)
@@ -985,7 +906,7 @@ static int aml_vout2_probe(struct platform_device *pdev)
 	ret = vout2_attr_create();
 	ret = vout2_fops_create();
 
-	vout2_register_server(&nulldisp_vout2_server);
+	vout2_register_server(&nulldisp_vout_server);
 
 	set_vout2_init_mode();
 
@@ -1001,7 +922,8 @@ static void aml_vout2_remove(struct platform_device *pdev)
 
 	vout2_attr_remove();
 	vout2_fops_remove();
-	vout2_unregister_server(&nulldisp_vout2_server);
+
+	vout2_unregister_server(&nulldisp_vout_server);
 }
 
 static void aml_vout2_shutdown(struct platform_device *pdev)

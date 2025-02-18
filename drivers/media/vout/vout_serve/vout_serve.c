@@ -33,6 +33,7 @@
 /* Local Headers */
 #include "vout_func.h"
 #include "vout_reg.h"
+#include "vout_null_server.h"
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -68,137 +69,16 @@ static bool enable_debugmode;
 
 int vout_debug_print;
 
-/* **********************************************************
- * null display support
- * **********************************************************
- */
-static int nulldisp_index = VMODE_NULL_DISP_MAX;
-static struct vinfo_s nulldisp_vinfo[] = {
-	{
-		.name              = "null",
-		.mode              = VMODE_NULL,
-		.frac              = 0,
-		.width             = 1920,
-		.height            = 1080,
-		.field_height      = 1080,
-		.aspect_ratio_num  = 16,
-		.aspect_ratio_den  = 9,
-		.sync_duration_num = 60,
-		.sync_duration_den = 1,
-		.video_clk         = 148500000,
-		.htotal            = 2200,
-		.vtotal            = 1125,
-		.fr_adj_type       = VOUT_FR_ADJ_NONE,
-		.viu_color_fmt     = COLOR_FMT_RGB444,
-		.viu_mux           = ((3 << 4) | VIU_MUX_MAX),
-		.vout_device       = NULL,
-		.cur_enc_ppc        = 1,
-	},
-	{
-		.name              = "invalid",
-		.mode              = VMODE_INVALID,
-		.frac              = 0,
-		.width             = 1920,
-		.height            = 1080,
-		.field_height      = 1080,
-		.aspect_ratio_num  = 16,
-		.aspect_ratio_den  = 9,
-		.sync_duration_num = 60,
-		.sync_duration_den = 1,
-		.video_clk         = 148500000,
-		.htotal            = 2200,
-		.vtotal            = 1125,
-		.fr_adj_type       = VOUT_FR_ADJ_NONE,
-		.viu_color_fmt     = COLOR_FMT_RGB444,
-		.viu_mux           = ((3 << 4) | VIU_MUX_MAX),
-		.vout_device       = NULL,
-		.cur_enc_ppc       = 1,
-	},
-};
-
-static struct vinfo_s *nulldisp_get_current_info(void *data)
+static int vout_print_enable(char *str)
 {
-	if (nulldisp_index >= ARRAY_SIZE(nulldisp_vinfo))
-		return NULL;
+	if (strncmp("1", str, 1) == 0)
+		vout_debug_print = 1;
+	else
+		vout_debug_print = 0;
 
-	return &nulldisp_vinfo[nulldisp_index];
+	return 1;
 }
-
-static int nulldisp_set_current_vmode(enum vmode_e mode, void *data)
-{
-	return 0;
-}
-
-static enum vmode_e nulldisp_validate_vmode(char *name, unsigned int frac,
-					    void *data)
-{
-	enum vmode_e vmode = VMODE_MAX;
-	int i;
-
-	if (frac)
-		return VMODE_MAX;
-
-	for (i = 0; i < ARRAY_SIZE(nulldisp_vinfo); i++) {
-		if (strcmp(nulldisp_vinfo[i].name, name) == 0) {
-			vmode = nulldisp_vinfo[i].mode;
-			nulldisp_index = i;
-			break;
-		}
-	}
-
-	return vmode;
-}
-
-static int nulldisp_vmode_is_supported(enum vmode_e mode, void *data)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(nulldisp_vinfo); i++) {
-		if (nulldisp_vinfo[i].mode == (mode & VMODE_MODE_BIT_MASK))
-			return true;
-	}
-	return false;
-}
-
-static int nulldisp_disable(enum vmode_e cur_vmod, void *data)
-{
-	return 0;
-}
-
-static int nulldisp_vout_state;
-static int nulldisp_vout_set_state(int bit, void *data)
-{
-	nulldisp_vout_state |= (1 << bit);
-	return 0;
-}
-
-static int nulldisp_vout_clr_state(int bit, void *data)
-{
-	nulldisp_vout_state &= ~(1 << bit);
-	return 0;
-}
-
-static int nulldisp_vout_get_state(void *data)
-{
-	return nulldisp_vout_state;
-}
-
-static struct vout_server_s nulldisp_vout_server = {
-	.name = "nulldisp_vout_server",
-	.op = {
-		.get_vinfo          = nulldisp_get_current_info,
-		.set_vmode          = nulldisp_set_current_vmode,
-		.validate_vmode     = nulldisp_validate_vmode,
-		.vmode_is_supported = nulldisp_vmode_is_supported,
-		.disable            = nulldisp_disable,
-		.set_state          = nulldisp_vout_set_state,
-		.clr_state          = nulldisp_vout_clr_state,
-		.get_state          = nulldisp_vout_get_state,
-		.get_disp_cap       = NULL,
-		.set_bist           = NULL,
-	},
-	.data = NULL,
-};
+__setup("vout_print=", vout_print_enable);
 
 /* ********************************************************** */
 static irqreturn_t vout_vsync_irq_handler(int irq, void *data)
@@ -310,14 +190,14 @@ int set_vout_mode_name(char *name)
 }
 EXPORT_SYMBOL(set_vout_mode_name);
 
-int set_vout_mode(char *name)
+static int set_vout_mode_type(char *name, int type_val)
 {
 	enum vmode_e mode;
 	unsigned int frac;
 	int ret = 0;
 
 	vout_trim_string(name);
-	VOUTPR("vmode set to %s\n", name);
+	VOUTPR("vmode set to %s, type_val=%d\n", name, type_val);
 
 	if ((vout_check_same_vmodeattr(name) &&
 	    (strcmp(name, vout_mode) == 0))) {
@@ -333,7 +213,55 @@ int set_vout_mode(char *name)
 			__func__, local_name, frac);
 	}
 
-	mode = validate_vmode(local_name, frac);
+	mode = validate_vmode(local_name, type_val, frac);
+	if (mode == VMODE_MAX) {
+		VOUTERR("no matched vout mode, exit\n");
+		return -1;
+	}
+
+	vout_set_uevent(VOUT_EVENT_MODE_CHANGE, 1);
+
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
+	ret = set_current_vmode(mode);
+	if (ret) {
+		VOUTERR("new mode %s set error\n", name);
+	} else {
+		memset(vout_mode, 0, sizeof(vout_mode));
+		snprintf(vout_mode, VMODE_NAME_LEN_MAX, "%s", name);
+		VOUTPR("new mode %s set ok\n", name);
+	}
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
+
+	vout_set_uevent(VOUT_EVENT_MODE_CHANGE, 0);
+
+	return ret;
+}
+
+int set_vout_mode(char *name)
+{
+	enum vmode_e mode;
+	unsigned int frac;
+	int type_val = 0;
+	int ret = 0;
+
+	vout_trim_string(name);
+	VOUTPR("vmode set to %s, type_val=%d\n", name, type_val);
+
+	if ((vout_check_same_vmodeattr(name) &&
+	    (strcmp(name, vout_mode) == 0))) {
+		VOUTPR("don't set the same mode as current, exit\n");
+		return -1;
+	}
+
+	memset(local_name, 0, sizeof(local_name));
+	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", name);
+	frac = vout_parse_vout_name(local_name);
+	if (vout_debug_print) {
+		VOUTPR("%s: local_name=%s, frac=%d\n",
+			__func__, local_name, frac);
+	}
+
+	mode = validate_vmode(local_name, type_val, frac);
 	if (mode == VMODE_MAX) {
 		VOUTERR("no matched vout mode, exit\n");
 		return -1;
@@ -372,12 +300,21 @@ static int set_vout_init_mode(void)
 	enum vmode_e vmode;
 	unsigned int frac;
 	int ret = 0;
+	char *connector_type = NULL;
+	int type_val = 0;
+
+	connector_type = get_uboot_connector0_type();
+
+	if (connector_type)
+		type_val = convert_connector_type_to_val(connector_type);
+
+	VOUTPR("%s, type_val = %d\n", __func__, type_val);
 
 	memset(local_name, 0, sizeof(local_name));
 	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", vout_mode_uboot);
 	frac = vout_parse_vout_name(local_name);
 
-	vout_init_vmode = validate_vmode(local_name, frac);
+	vout_init_vmode = validate_vmode(local_name, type_val, frac);
 	if (vout_init_vmode >= VMODE_MAX) {
 		VOUTERR("no matched vout_init mode %s, force to invalid\n",
 			vout_mode_uboot);
@@ -426,11 +363,26 @@ static ssize_t vout_mode_store(const struct class *class,
 			const char *buf, size_t count)
 {
 	char mode[VMODE_NAME_LEN_MAX];
+	char *buf_orig, *parm[8] = {NULL};
+	long type_val = 0;
+	int ret;
+
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+
+	vout_parse_param(buf_orig, (char **)&parm);
 
 	mutex_lock(&vout_serve_mutex);
 	if (!disable_modesysfs || enable_debugmode) {
-		snprintf(mode, VMODE_NAME_LEN_MAX, "%s", buf);
-		set_vout_mode(mode);
+		snprintf(mode, VMODE_NAME_LEN_MAX, "%s", parm[0]);
+
+		if (parm[1])
+			ret = kstrtoul(parm[1], 10, &type_val);
+
+		VOUTPR("%s, type_val = %ld\n", __func__, type_val);
+		set_vout_mode_type(mode, type_val);
 	} else {
 		VOUTPR("enable display/debug to set voutmode.\n");
 	}
@@ -629,6 +581,7 @@ static ssize_t vout_vinfo_show(const struct class *class,
 	fr = vout_frame_rate_measure(1);
 	len = sprintf(buf, "current vinfo:\n"
 		       "    name:                  %s\n"
+		       "    connector_type:        %d\n"
 		       "    mode:                  %d\n"
 		       "    frac:                  %d\n"
 		       "    width:                 %d\n"
@@ -656,7 +609,7 @@ static ssize_t vout_vinfo_show(const struct class *class,
 		       "    cs:                    %d\n"
 		       "    cd:                    %d\n"
 		       "    vpp_post_out_color_fmt:%d\n\n",
-		       info->name, info->mode, info->frac,
+		       info->name, info->connector_type, info->mode, info->frac,
 		       info->width, info->height, info->field_height,
 		       info->aspect_ratio_num, info->aspect_ratio_den,
 		       info->screen_real_width, info->screen_real_height,
@@ -731,6 +684,31 @@ static ssize_t vout_cap_show(const struct class *class,
 		return sprintf(buf, "null\n");
 
 	return ret;
+}
+
+static ssize_t vout_connector_type_cap_show(const struct class *class,
+			     const struct class_attribute *attr, char *buf)
+{
+	int count = 0, i = 0;
+	ssize_t len = 0;
+	struct vout_connector_type_s *type_s;
+
+	type_s = kcalloc(MAX_CONNECTOR_TYPE_NUM, sizeof(*type_s), GFP_KERNEL);
+	if (!type_s)
+		return -ENOMEM;
+
+	count = vout_func_get_connector_type_cap(type_s);
+
+	if (!count) {
+		kfree(type_s);
+		return sprintf(buf, "current type_s is null\n");
+	}
+
+	for (i = 0; i < count; i++)
+		len += sprintf(buf + len, "%s     %d\n", type_s[i].name, type_s[i].connector_type);
+
+	kfree(type_s);
+	return len;
 }
 
 static ssize_t vout_debug_mode_show(const struct class *class,
@@ -822,6 +800,7 @@ static struct class_attribute vout_class_attrs[] = {
 	__ATTR(bl_brightness, 0644, vout_bl_brightness_show, vout_bl_brightness_store),
 	__ATTR(vinfo,      0444, vout_vinfo_show, NULL),
 	__ATTR(cap,        0644, vout_cap_show, NULL),
+	__ATTR(connector_type_cap,        0644, vout_connector_type_cap_show, NULL),
 	__ATTR(debug,      0644, vout_debug_mode_show, vout_debug_mode_store),
 	__ATTR(vs_meas,    0644, vout_debug_vs_meas_show, vout_debug_vs_meas_store),
 	__ATTR(print,      0644, vout_debug_print_show, vout_debug_print_store),

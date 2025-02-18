@@ -722,7 +722,6 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	if (connector0_type && (is_valid_hdmi(connector0_type) ||
 		(strncmp("TV", connector0_type, 2) == 0))) {
 		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout_server.name);
-		global_tx_common->viu_sel |= BIT(0);
 		vout_register_server(&hdmitx_vout_server);
 		is_register = true;
 	}
@@ -731,7 +730,6 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	if (connector1_type && (is_valid_hdmi(connector1_type) ||
 		(strncmp("TV", connector1_type, 2) == 0))) {
 		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout2_server.name);
-		global_tx_common->viu_sel |= BIT(1);
 		vout2_register_server(&hdmitx_vout2_server);
 		is_register = true;
 	}
@@ -741,7 +739,6 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	if (connector2_type && (is_valid_hdmi(connector2_type) ||
 		(strncmp("TV", connector2_type, 2) == 0))) {
 		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout3_server.name);
-		global_tx_common->viu_sel |= BIT(2);
 		vout3_register_server(&hdmitx_vout3_server);
 		is_register = true;
 	}
@@ -755,14 +752,11 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	 */
 	if (!is_register) {
 		HDMITX_DEBUG("vout register all valid server\n");
-		global_tx_common->viu_sel |= BIT(0);
 		vout_register_server(&hdmitx_vout_server);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-		global_tx_common->viu_sel |= BIT(1);
 		vout2_register_server(&hdmitx_vout2_server);
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-		global_tx_common->viu_sel |= BIT(2);
 		vout3_register_server(&hdmitx_vout3_server);
 #endif
 	}

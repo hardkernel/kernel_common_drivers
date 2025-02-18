@@ -25,52 +25,16 @@ static struct vout_module_s vout_module = {
 		&vout_module.vout_server_list,
 		&vout_module.vout_server_list
 	},
-	.curr_vout_server = NULL,
+	.curr_vout_server = {NULL},
 	.next_vout_server = NULL,
-	.init_flag = 0,
+	.init_flag = {0},
 	/* vout_fr_policy:
 	 *    0: disable
 	 *    1: nearby (only for 60->59.94 and 30->29.97)
 	 *    2: force (60/50/30/24/59.94/23.97)
 	 */
-	.fr_policy = 0,
+	.fr_policy = {0},
 };
-
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-static struct vout_module_s vout2_module = {
-	.vout_server_list = {
-		&vout2_module.vout_server_list,
-		&vout2_module.vout_server_list
-	},
-	.curr_vout_server = NULL,
-	.next_vout_server = NULL,
-	.init_flag = 0,
-	/* vout_fr_policy:
-	 *    0: disable
-	 *    1: nearby (only for 60->59.94 and 30->29.97)
-	 *    2: force (60/50/30/24/59.94/23.97)
-	 */
-	.fr_policy = 0,
-};
-#endif
-
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-static struct vout_module_s vout3_module = {
-	.vout_server_list = {
-		&vout3_module.vout_server_list,
-		&vout3_module.vout_server_list
-	},
-	.curr_vout_server = NULL,
-	.next_vout_server = NULL,
-	.init_flag = 0,
-	/* vout_fr_policy:
-	 *    0: disable
-	 *    1: nearby (only for 60->59.94 and 30->29.97)
-	 *    2: force (60/50/30/24/59.94/23.97)
-	 */
-	.fr_policy = 0,
-};
-#endif
 
 static struct vinfo_s invalid_vinfo = {
 	.name              = "invalid",
@@ -90,6 +54,55 @@ static struct vinfo_s invalid_vinfo = {
 	.vout_device       = NULL,
 	.cur_enc_ppc       = 1,
 };
+
+static struct vout_connector_type_s connector_type_s[] = {
+	{100, "LVDS-A"},
+	{101, "LVDS-B"},
+	{102, "LVDS-C"},
+	{110, "VBYONE-A"},
+	{111, "VBYONE-B"},
+	{120, "MIPI-A"},
+	{121, "MIPI-B"},
+	{130, "EDP-A"},
+	{131, "EDP-B"},
+	{150, "DP-A"},
+	{151, "DP-B"},
+	{160, "HDMI-A-A"},
+	{161, "HDMI-A-B"},
+	{162, "HDMI-A-C"},
+	{170, "HDMI-B-A"},
+	{171, "HDMI-B-B"},
+	{172, "HDMI-B-C"},
+	{200, "MESON-DUMMYL"},
+	{201, "MESON-DUMMYP"},
+	{202, "MESON-DUMMYI"},
+	{13, "TV-1"},
+	{0, "NULL"},
+};
+
+int convert_connector_type_to_val(char *name)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(connector_type_s); i++) {
+		if (!strcmp(connector_type_s[i].name, name))
+			return connector_type_s[i].connector_type;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(convert_connector_type_to_val);
+
+char *convert_connector_type_to_str(int type)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(connector_type_s); i++) {
+		if (connector_type_s[i].connector_type == type)
+			return connector_type_s[i].name;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(convert_connector_type_to_str);
 
 struct vinfo_s *get_invalid_vinfo(int index, unsigned int flag)
 {
@@ -125,37 +138,52 @@ void vout_trim_string(char *str)
 }
 EXPORT_SYMBOL(vout_trim_string);
 
+void vout_parse_param(char *buf_orig, char **parm)
+{
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+}
+EXPORT_SYMBOL(vout_parse_param);
+
 struct vout_module_s *vout_func_get_vout_module(void)
 {
 	return &vout_module;
 }
 EXPORT_SYMBOL(vout_func_get_vout_module);
 
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-struct vout_module_s *vout_func_get_vout2_module(void)
-{
-	return &vout2_module;
-}
-EXPORT_SYMBOL(vout_func_get_vout2_module);
-#endif
-
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-struct vout_module_s *vout_func_get_vout3_module(void)
-{
-	return &vout3_module;
-}
-EXPORT_SYMBOL(vout_func_get_vout3_module);
-#endif
-
 static inline int vout_func_check_state(int index, unsigned int state,
 					struct vout_server_s *p_server)
 {
 	if (state & ~(1 << index)) {
-		VOUTERR("vout%d: server %s is activated by another vout\n",
+		VOUTPR("vout%d: server %s is activated by another vout\n",
 			index, p_server->name);
 		return -1;
 	}
 
+	return 0;
+}
+
+static inline int vout_func_check_connector_type(int type,
+					int connector_type)
+{
+	if (type != connector_type) {
+		if (vout_debug_print)
+			VOUTPR("not match");
+		return -1;
+	}
 	return 0;
 }
 
@@ -184,16 +212,7 @@ void vout_func_set_state(int index, enum vmode_e mode)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_module = &vout_module;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_module = &vout2_module;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_module = &vout3_module;
-#endif
+	p_module = &vout_module;
 
 	if (!p_module) {
 		VOUTERR("vout[%d]: %s: vout_module is NULL\n", index, __func__);
@@ -211,7 +230,7 @@ void vout_func_set_state(int index, enum vmode_e mode)
 					index, __func__, p_server->name, data);
 			}
 			if (p_server->op.vmode_is_supported(mode, data)) {
-				p_module->curr_vout_server = p_server;
+				p_module->curr_vout_server[index - 1] = p_server;
 				p_module->next_vout_server = NULL;
 				if (p_server->op.set_state)
 					p_server->op.set_state(index, data);
@@ -241,24 +260,15 @@ void vout_func_update_viu(int index)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_module = &vout_module;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_module = &vout2_module;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_module = &vout3_module;
-#endif
+	p_module = &vout_module;
 
 	if (!p_module) {
 		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
 		mutex_unlock(&vout_mutex);
 		return;
 	}
-	p_server = p_module->curr_vout_server;
-	flag = p_module->init_flag;
+	p_server = p_module->curr_vout_server[index - 1];
+	flag = p_module->init_flag[index - 1];
 
 	/*
 	 *VOUTPR("%s: before: 0x%04x=0x%08x, 0x%04x=0x%08x\n",
@@ -284,36 +294,28 @@ EXPORT_SYMBOL(vout_func_update_viu);
 int vout_func_set_vmode(int index, enum vmode_e mode)
 {
 	int ret = -1;
+	int viu_index = index - 1;
 	struct vout_module_s *p_module = NULL;
 	void *data;
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_module = &vout_module;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_module = &vout2_module;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_module = &vout3_module;
-#endif
+	p_module = &vout_module;
 
 	if (!p_module) {
 		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
 		mutex_unlock(&vout_mutex);
 		return -1;
 	}
-	if (!p_module->curr_vout_server) {
+	if (!p_module->curr_vout_server[viu_index]) {
 		VOUTERR("vout%d: %s: current_server is NULL\n", index, __func__);
 		mutex_unlock(&vout_mutex);
 		return -1;
 	}
-	data = p_module->curr_vout_server->data;
-	if (p_module->curr_vout_server->op.set_vmode)
-		ret = p_module->curr_vout_server->op.set_vmode(mode, data);
-	p_module->init_flag = 1;
+	data = p_module->curr_vout_server[viu_index]->data;
+	if (p_module->curr_vout_server[viu_index]->op.set_vmode)
+		ret = p_module->curr_vout_server[viu_index]->op.set_vmode(mode, data);
+	p_module->init_flag[viu_index] = 1;
 
 	mutex_unlock(&vout_mutex);
 
@@ -341,16 +343,7 @@ int vout_func_check_same_vmodeattr(int index, char *name)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_server = vout3_module.curr_vout_server;
-#endif
+	p_server = vout_module.curr_vout_server[index - 1];
 
 	if (p_server) {
 		data = p_server->data;
@@ -365,7 +358,7 @@ int vout_func_check_same_vmodeattr(int index, char *name)
 /*
  *interface export to client who want to set current vmode.
  */
-enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
+enum vmode_e vout_func_validate_vmode(int index, char *name, int type, unsigned int frac)
 {
 	enum vmode_e ret = VMODE_MAX;
 	struct vout_server_s  *p_server;
@@ -375,16 +368,7 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_module = &vout_module;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_module = &vout2_module;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_module = &vout3_module;
-#endif
+	p_module = &vout_module;
 
 	if (!p_module) {
 		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
@@ -397,16 +381,33 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
 		if (vout_debug_print) {
 			VOUTPR("vout[%d]: %s: list: server_name=%s, data=%px\n",
 				index, __func__, p_server->name, data);
+			VOUTPR("vout[%d]: %s: type in=%d, p_server->connector_type=%d\n",
+				index, __func__, type, p_server->connector_type);
 		}
 		/* check state for another vout */
 		if (p_server->op.get_state) {
 			state = p_server->op.get_state(data);
 			if (vout_func_check_state(index, state, p_server)) {
 				if (vout_debug_print) {
-					VOUTPR("vout[%d]: %s: check state: %d\n",
+					VOUTPR("vout[%d]: %s: check state continue: %d\n",
 						index, __func__, state);
 				}
 				continue;
+			}
+		}
+
+		if (type && p_server->connector_type) {
+			if (vout_func_check_connector_type(type, p_server->connector_type)) {
+				if (vout_debug_print) {
+					VOUTPR("vout[%d]: %s: check connector_type continue: %d\n",
+						index, __func__, p_server->connector_type);
+				}
+				continue;
+			}
+		} else {
+			if (vout_debug_print) {
+				VOUTPR("vout[%d]: %s: find vout only by mode name\n",
+								index, __func__);
 			}
 		}
 		if (p_server->op.validate_vmode) {
@@ -438,16 +439,8 @@ int vout_func_get_disp_cap(int index, char *buf)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_module = &vout_module;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_module = &vout2_module;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_module = &vout3_module;
-#endif
+	p_module = &vout_module;
+
 
 	if (!p_module) {
 		len = sprintf(buf, "vout%d: %s: vout_module is NULL\n",
@@ -473,6 +466,54 @@ int vout_func_get_disp_cap(int index, char *buf)
 	return len;
 }
 
+int vout_func_get_connector_type_cap(struct vout_connector_type_s *type_s)
+{
+	struct vout_server_s *p_server;
+	struct vout_module_s *p_module = NULL;
+	char *connector_type_str = NULL;
+	int i = 0;
+
+	mutex_lock(&vout_mutex);
+
+	p_module = &vout_module;
+
+	if (!p_module)
+		return 0;
+
+	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
+		if (strstr(p_server->name, "dummy_encl")) {
+			memcpy(&type_s[i++], &connector_type_s[15],
+					sizeof(struct vout_connector_type_s));
+		} else if (strstr(p_server->name, "dummy_encp")) {
+			memcpy(&type_s[i++], &connector_type_s[16],
+					sizeof(struct vout_connector_type_s));
+		} else if (strstr(p_server->name, "dummy_enci")) {
+			memcpy(&type_s[i++], &connector_type_s[17],
+					sizeof(struct vout_connector_type_s));
+		} else if (strstr(p_server->name, "cvbs")) {
+			memcpy(&type_s[i++], &connector_type_s[18],
+					sizeof(struct vout_connector_type_s));
+		} else if (strstr(p_server->name, "nulldisp")) {
+			memcpy(&type_s[i++], &connector_type_s[19],
+					sizeof(struct vout_connector_type_s));
+		} else {
+			type_s[i].connector_type = p_server->connector_type;
+			connector_type_str =
+				convert_connector_type_to_str(p_server->connector_type);
+
+			if (connector_type_str) {
+				memcpy(type_s[i].name, connector_type_str,
+						CONNECTOR_TYPE_NAME_LEN_MAX);
+			}
+			i++;
+		}
+	}
+
+	mutex_unlock(&vout_mutex);
+	return i;
+}
+EXPORT_SYMBOL(vout_func_get_connector_type_cap);
+
 int vout_func_set_vframe_rate_hint(int index, int duration)
 {
 	int ret = -1;
@@ -481,16 +522,7 @@ int vout_func_set_vframe_rate_hint(int index, int duration)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_server = vout3_module.curr_vout_server;
-#endif
+	p_server = vout_module.curr_vout_server[index - 1];
 
 	if (p_server) {
 		data = p_server->data;
@@ -514,16 +546,7 @@ int vout_func_get_vframe_rate_hint(int index)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_server = vout3_module.curr_vout_server;
-#endif
+	p_server = vout_module.curr_vout_server[index - 1];
 
 	if (p_server) {
 		data = p_server->data;
@@ -545,16 +568,7 @@ void vout_func_set_test_bist(int index, unsigned int bist)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_server = vout3_module.curr_vout_server;
-#endif
+	p_server = vout_module.curr_vout_server[index - 1];
 
 	if (p_server) {
 		if (p_server->op.set_bist)
@@ -572,16 +586,7 @@ void vout_func_set_bl_brightness(int index, unsigned int brightness)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_server = vout3_module.curr_vout_server;
-#endif
+	p_server = vout_module.curr_vout_server[index - 1];
 
 	if (p_server) {
 		data = p_server->data;
@@ -604,16 +609,7 @@ unsigned int vout_func_get_bl_brightness(int index)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_server = vout3_module.curr_vout_server;
-#endif
+	p_server = vout_module.curr_vout_server[index - 1];
 
 	if (p_server) {
 		data = p_server->data;
@@ -633,12 +629,7 @@ int vout_func_vout_suspend(int index)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
+	p_server = vout_module.curr_vout_server[index - 1];
 
 	if (p_server) {
 		if (p_server->op.vout_suspend)
@@ -656,16 +647,7 @@ int vout_func_vout_resume(int index)
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_server = vout3_module.curr_vout_server;
-#endif
+	p_server = vout_module.curr_vout_server[index - 1];
 
 	if (p_server) {
 		if (p_server->op.vout_resume) {
@@ -688,16 +670,7 @@ int vout_func_vout_shutdown(int index)
 	struct vout_server_s *p_server;
 	struct vout_module_s *p_module = NULL;
 
-	if (index == 1)
-		p_module = &vout_module;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_module = &vout2_module;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_module = &vout3_module;
-#endif
+	p_module = &vout_module;
 
 	if (!p_module) {
 		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
@@ -737,16 +710,7 @@ int vout_func_vout_register_server(int index,
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_module = &vout_module;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_module = &vout2_module;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_module = &vout3_module;
-#endif
+	p_module = &vout_module;
 
 	if (!p_module) {
 		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
@@ -789,16 +753,8 @@ int vout_func_vout_unregister_server(int index,
 
 	mutex_lock(&vout_mutex);
 
-	if (index == 1)
-		p_module = &vout_module;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_module = &vout2_module;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	else if (index == 3)
-		p_module = &vout3_module;
-#endif
+	p_module = &vout_module;
+
 
 	if (!p_module) {
 		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
@@ -815,8 +771,8 @@ int vout_func_vout_unregister_server(int index,
 			 * So you should change current vout server
 			 * first then remove it
 			 */
-			if (p_module->curr_vout_server == p_server)
-				p_module->curr_vout_server = NULL;
+			if (p_module->curr_vout_server[index - 1] == p_server)
+				p_module->curr_vout_server[index - 1] = NULL;
 
 			list_del(&mem_server->list);
 			mutex_unlock(&vout_mutex);

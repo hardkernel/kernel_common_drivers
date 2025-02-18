@@ -401,6 +401,7 @@ struct vinfo_s {
 	u32 vsw;
 	u32 vbp;
 	u32 vfp;
+	u32 connector_type;
 	unsigned char hdmichecksum[10];
 	enum vinfo_3d_e info_3d;
 	enum vout_fr_adj_type_e fr_adj_type;

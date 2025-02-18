@@ -59,13 +59,13 @@ struct vinfo_s *get_current_vinfo(void)
 	void *data;
 
 	p_module = vout_func_get_vout_module();
-	if (!IS_ERR_OR_NULL(p_module->curr_vout_server)) {
-		data = p_module->curr_vout_server->data;
-		if (p_module->curr_vout_server->op.get_vinfo)
-			vinfo = p_module->curr_vout_server->op.get_vinfo(data);
+	if (!IS_ERR_OR_NULL(p_module->curr_vout_server[VOUT_VIU0])) {
+		data = p_module->curr_vout_server[VOUT_VIU0]->data;
+		if (p_module->curr_vout_server[VOUT_VIU0]->op.get_vinfo)
+			vinfo = p_module->curr_vout_server[VOUT_VIU0]->op.get_vinfo(data);
 	}
 	if (!vinfo) /* avoid crash mistake */
-		vinfo = get_invalid_vinfo(1, p_module->init_flag);
+		vinfo = get_invalid_vinfo(1, p_module->init_flag[VOUT_VIU0]);
 
 	return vinfo;
 }
@@ -91,10 +91,10 @@ enum vmode_e get_current_vmode(void)
 	void *data;
 
 	p_module = vout_func_get_vout_module();
-	if (!IS_ERR_OR_NULL(p_module->curr_vout_server)) {
-		data = p_module->curr_vout_server->data;
-		if (p_module->curr_vout_server->op.get_vinfo) {
-			vinfo = p_module->curr_vout_server->op.get_vinfo(data);
+	if (!IS_ERR_OR_NULL(p_module->curr_vout_server[VOUT_VIU0])) {
+		data = p_module->curr_vout_server[VOUT_VIU0]->data;
+		if (p_module->curr_vout_server[VOUT_VIU0]->op.get_vinfo) {
+			vinfo = p_module->curr_vout_server[VOUT_VIU0]->op.get_vinfo(data);
 			if (vinfo)
 				mode = vinfo->mode;
 		}
@@ -112,13 +112,13 @@ const char *get_name_by_vmode(enum vmode_e mode)
 	void *data;
 
 	p_module = vout_func_get_vout_module();
-	if (!IS_ERR_OR_NULL(p_module->curr_vout_server)) {
-		data = p_module->curr_vout_server->data;
-		if (p_module->curr_vout_server->op.get_vinfo)
-			vinfo = p_module->curr_vout_server->op.get_vinfo(data);
+	if (!IS_ERR_OR_NULL(p_module->curr_vout_server[VOUT_VIU0])) {
+		data = p_module->curr_vout_server[VOUT_VIU0]->data;
+		if (p_module->curr_vout_server[VOUT_VIU0]->op.get_vinfo)
+			vinfo = p_module->curr_vout_server[VOUT_VIU0]->op.get_vinfo(data);
 	}
 	if (!vinfo)
-		vinfo = get_invalid_vinfo(1, p_module->init_flag);
+		vinfo = get_invalid_vinfo(1, p_module->init_flag[VOUT_VIU0]);
 	str = vinfo->name;
 
 	return str;
@@ -164,9 +164,9 @@ EXPORT_SYMBOL(vout_check_same_vmodeattr);
 /*
  *interface export to client who want to set current vmode.
  */
-enum vmode_e validate_vmode(char *name, unsigned int frac)
+enum vmode_e validate_vmode(char *name, int type, unsigned int frac)
 {
-	return vout_func_validate_vmode(1, name, frac);
+	return vout_func_validate_vmode(1, name, type, frac);
 }
 EXPORT_SYMBOL(validate_vmode);
 
@@ -196,7 +196,7 @@ int set_vframe_rate_policy(int policy)
 	if (!p_module)
 		return -1;
 
-	p_module->fr_policy = policy;
+	p_module->fr_policy[VOUT_VIU0] = policy;
 
 	return 0;
 }
@@ -213,7 +213,7 @@ int get_vframe_rate_policy(void)
 	if (!p_module)
 		return 0;
 
-	return p_module->fr_policy;
+	return p_module->fr_policy[VOUT_VIU0];
 }
 EXPORT_SYMBOL(get_vframe_rate_policy);
 

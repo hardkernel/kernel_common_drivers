@@ -90,17 +90,6 @@ static bool dv_support(void)
 	return false;
 }
 
-u32 meson_crtc_mask(struct drm_device *dev)
-{
-	struct drm_crtc *crtc;
-	u32 crtc_mask = 0;
-
-	drm_for_each_crtc(crtc, dev)
-		crtc_mask |= drm_crtc_mask(crtc);
-
-	return crtc_mask;
-}
-
 static void set_eotf_by_property(struct am_meson_crtc_state *state)
 {
 	if (state->crtc_eotf_by_property_flag) {
@@ -639,6 +628,18 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					to_am_meson_crtc_state(crtc->state);
 	struct meson_drm *priv = amcrtc->priv;
 	int hdrpolicy = 0;
+	struct drm_connector_state *new_conn_state;
+	struct meson_connector *mesonconn;
+	struct drm_connector *connector;
+	int i;
+
+	for_each_new_connector_in_state(old_atomic_state, connector, new_conn_state, i) {
+		if (new_conn_state->crtc == crtc) {
+			connector = new_conn_state->connector;
+			mesonconn = connector_to_meson_connector(connector);
+			break;
+		}
+	}
 
 	DRM_DEBUG("%s[%d]:in\n", __func__, amcrtc->crtc_index);
 	old_crtc_state = drm_atomic_get_old_crtc_state(old_atomic_state, crtc);
@@ -710,8 +711,11 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 			name = brr_name;
 	}
 
+	DRM_DEBUG("%s, connector_type = %d\n", __func__, mesonconn->connector_type);
+
 	if (meson_crtc_state->preset_vmode == VMODE_INVALID) {
-		mode = vout_func_validate_vmode(amcrtc->vout_index, name, 0);
+		mode = vout_func_validate_vmode(amcrtc->vout_index, name,
+			mesonconn->connector_type, 0);
 		if (mode == VMODE_MAX) {
 			DRM_ERROR("crtc [%d]: no matched vout mode\n", amcrtc->crtc_index);
 			return;
@@ -765,6 +769,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(crtc->state);
 	enum vmode_e mode;
+	int connector_type = 0;
 
 	DRM_INFO("%s-[%d]:in\n", __func__, amcrtc->crtc_index);
 	old_crtc_state = drm_atomic_get_old_crtc_state(old_atomic_state, crtc);
@@ -800,7 +805,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	/* disable output by config null
 	 * Todo: replace or delete it if have new method
 	 */
-	mode = vout_func_validate_vmode(amcrtc->vout_index, "null", 0);
+	mode = vout_func_validate_vmode(amcrtc->vout_index, "null", connector_type, 0);
 	if (mode == VMODE_MAX) {
 		DRM_ERROR("no matched vout mode\n");
 		return;

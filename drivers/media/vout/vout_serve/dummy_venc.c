@@ -101,7 +101,6 @@ struct dummy_venc_driver_s {
 	unsigned char status;
 	unsigned char vout_valid;
 	unsigned char viu_sel;
-	unsigned char crtc_sel;
 	unsigned char vinfo_index;
 
 	unsigned char clk_gate_state;
@@ -752,33 +751,10 @@ static struct vout_server_s dummy_encp_vout_server = {
 	.data = NULL,
 };
 
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-static struct vout_server_s dummy_encp_vout2_server = {
-	.name = "dummy_encp_vout2_server",
-	.op = {
-		.get_vinfo          = dummy_encp_get_current_info,
-		.set_vmode          = dummy_encp_set_current_vmode,
-		.validate_vmode     = dummy_encp_validate_vmode,
-		.vmode_is_supported = dummy_encp_vmode_is_supported,
-		.disable            = dummy_encp_disable,
-		.set_state          = dummy_encp_vout_set_state,
-		.clr_state          = dummy_encp_vout_clr_state,
-		.get_state          = dummy_encp_vout_get_state,
-		.set_bist           = NULL,
-#ifdef CONFIG_PM
-		.vout_suspend       = NULL,
-		.vout_resume        = NULL,
-#endif
-	},
-	.data = NULL,
-};
-#endif
-
 static void dummy_encp_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 {
 	venc_drv->vinfo_index = 0xff;
 	venc_drv->vinfo = NULL;
-	venc_drv->viu_sel = BIT(0);
 	dummy_encp_vout_server.data = (void *)venc_drv;
 	vout_register_server(&dummy_encp_vout_server);
 }
@@ -786,9 +762,6 @@ static void dummy_encp_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 static void dummy_encp_vout_server_remove(void)
 {
 	vout_unregister_server(&dummy_encp_vout_server);
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	vout2_unregister_server(&dummy_encp_vout2_server);
-#endif
 }
 
 /* **********************************************************
@@ -1118,47 +1091,16 @@ static struct vout_server_s dummy_enci_vout_server = {
 	.data = NULL,
 };
 
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-static struct vout_server_s dummy_enci_vout2_server = {
-	.name = "dummy_enci_vout2_server",
-	.op = {
-		.get_vinfo          = dummy_enci_get_current_info,
-		.set_vmode          = dummy_enci_set_current_vmode,
-		.validate_vmode     = dummy_enci_validate_vmode,
-		.vmode_is_supported = dummy_enci_vmode_is_supported,
-		.disable            = dummy_enci_disable,
-		.set_state          = dummy_enci_vout_set_state,
-		.clr_state          = dummy_enci_vout_clr_state,
-		.get_state          = dummy_enci_vout_get_state,
-		.set_bist           = NULL,
-#ifdef CONFIG_PM
-		.vout_suspend       = NULL,
-		.vout_resume        = NULL,
-#endif
-	},
-	.data = NULL,
-};
-#endif
-
 static void dummy_enci_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 {
-	venc_drv->crtc_sel = BIT(0);
 	venc_drv->vinfo = &dummy_enci_vinfo;
 	dummy_enci_vout_server.data = (void *)venc_drv;
 	vout_register_server(&dummy_enci_vout_server);
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	venc_drv->crtc_sel |= BIT(1);
-	dummy_enci_vout2_server.data = (void *)venc_drv;
-	vout2_register_server(&dummy_enci_vout2_server);
-#endif
 }
 
 static void dummy_enci_vout_server_remove(void)
 {
 	vout_unregister_server(&dummy_enci_vout_server);
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	vout2_unregister_server(&dummy_enci_vout2_server);
-#endif
 }
 
 /* **********************************************************
@@ -1494,120 +1436,19 @@ static struct vout_server_s dummy_encl_vout_server = {
 	.data = NULL,
 };
 
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-static struct vout_server_s dummy_encl_vout2_server = {
-	.name = "dummy_encl_vout2_server",
-	.op = {
-		.get_vinfo          = dummy_encl_get_current_info,
-		.set_vmode          = dummy_encl_set_current_vmode,
-		.validate_vmode     = dummy_encl_validate_vmode,
-		.vmode_is_supported = dummy_encl_vmode_is_supported,
-		.disable            = dummy_encl_disable,
-		.set_state          = dummy_encl_vout_set_state,
-		.clr_state          = dummy_encl_vout_clr_state,
-		.get_state          = dummy_encl_vout_get_state,
-		.set_bist           = NULL,
-#ifdef CONFIG_PM
-		.vout_suspend       = NULL,
-		.vout_resume        = NULL,
-#endif
-	},
-	.data = NULL,
-};
-#endif
-
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-static struct vout_server_s dummy_encl_vout3_server = {
-	.name = "dummy_encl_vout3_server",
-	.op = {
-		.get_vinfo          = dummy_encl_get_current_info,
-		.set_vmode          = dummy_encl_set_current_vmode,
-		.validate_vmode     = dummy_encl_validate_vmode,
-		.vmode_is_supported = dummy_encl_vmode_is_supported,
-		.disable            = dummy_encl_disable,
-		.set_state          = dummy_encl_vout_set_state,
-		.clr_state          = dummy_encl_vout_clr_state,
-		.get_state          = dummy_encl_vout_get_state,
-		.set_bist           = NULL,
-#ifdef CONFIG_PM
-		.vout_suspend       = NULL,
-		.vout_resume        = NULL,
-#endif
-	},
-	.data = NULL,
-};
-#endif
-
 static void dummy_encl_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 {
-	char *connector0_type;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	char *connector1_type;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	char *connector2_type;
-#endif
-	bool is_register = false;
-
-	venc_drv->crtc_sel = 0;
-
 	venc_drv->vinfo = &dummy_encl_vinfo;
 	if (venc_drv->vdata->venc_type == VENC_TYPE_ENCP)
 		venc_drv->vinfo->viu_mux = VIU_MUX_ENCP;
 
-	connector0_type = get_uboot_connector0_type();
-	if (strncmp("HDMI", connector0_type, 4) == 0) {
-		venc_drv->crtc_sel = BIT(0);
-		dummy_encl_vout_server.data = (void *)venc_drv;
-		vout_register_server(&dummy_encl_vout_server);
-		is_register = true;
-	}
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	connector1_type = get_uboot_connector1_type();
-	if (strncmp("HDMI", connector1_type, 4) == 0) {
-		venc_drv->crtc_sel |= BIT(1);
-		dummy_encl_vout2_server.data = (void *)venc_drv;
-		vout2_register_server(&dummy_encl_vout2_server);
-		is_register = true;
-	}
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	connector2_type = get_uboot_connector2_type();
-	if (strncmp("HDMI", connector2_type, 4) == 0) {
-		venc_drv->crtc_sel |= BIT(2);
-		dummy_encl_vout3_server.data = (void *)venc_drv;
-		vout3_register_server(&dummy_encl_vout3_server);
-		is_register = true;
-	}
-#endif
-
-	if (!is_register) {
-		venc_drv->crtc_sel |= BIT(0);
-		dummy_encl_vout_server.data = (void *)venc_drv;
-		vout_register_server(&dummy_encl_vout_server);
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-		venc_drv->crtc_sel |= BIT(1);
-		dummy_encl_vout2_server.data = (void *)venc_drv;
-		vout2_register_server(&dummy_encl_vout2_server);
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-		venc_drv->crtc_sel |= BIT(2);
-		dummy_encl_vout3_server.data = (void *)venc_drv;
-		vout3_register_server(&dummy_encl_vout3_server);
-#endif
-	}
+	dummy_encl_vout_server.data = (void *)venc_drv;
+	vout_register_server(&dummy_encl_vout_server);
 }
 
 static void dummy_encl_vout_server_remove(void)
 {
 	vout_unregister_server(&dummy_encl_vout_server);
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	vout2_unregister_server(&dummy_encl_vout2_server);
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	vout3_unregister_server(&dummy_encl_vout3_server);
-#endif
-
 }
 
 /* ********************************************************* */
@@ -2319,7 +2160,6 @@ static int meson_dummyl_bind(struct device *dev,
 
 	dummy_encl_drv->drm_instance.base.ver = MESON_DRM_CONNECTOR_V10;
 	if (bound_data->connector_component_bind) {
-		dummy_encl_drv->drm_instance.base.crtc_sel = dummy_encl_drv->crtc_sel;
 		dummy_encl_drv->drm_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_DUMMY_L,
@@ -2361,7 +2201,6 @@ static int meson_dummyp_bind(struct device *dev,
 
 	dummy_encp_drv->drm_instance_p.base.ver = MESON_DRM_CONNECTOR_V10;
 	if (bound_data->connector_component_bind) {
-		dummy_encp_drv->drm_instance_p.base.crtc_sel = dummy_encp_drv->crtc_sel;
 		dummy_encp_drv->drm_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_DUMMY_P,

@@ -39,6 +39,7 @@ struct meson_drm_thread {
 struct meson_connector {
 	struct drm_connector connector;
 	struct meson_drm *drm_priv;
+	int connector_type;
 	void (*update)(struct drm_connector_state *new_state,
 		struct drm_connector_state *old_state);
 };
@@ -59,6 +60,9 @@ enum atomic_mode_type {
 };
 
 struct meson_of_conf {
+	/*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+	u32 crtc_masks[ENCODER_MAX];
+
 	u32 vfm_mode;
 
 	u32 osd_afbc_mask;

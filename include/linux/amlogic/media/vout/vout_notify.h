@@ -14,6 +14,13 @@
 /* Local Headers */
 #include "vinfo.h"
 
+enum viu_index {
+	VOUT_VIU0 = 0,
+	VOUT_VIU1,
+	VOUT_VIU2,
+	MAX_VOUT,
+};
+
 struct vframe_match_s {
 	int fps;
 	int frame_rate; /* *100 */
@@ -46,17 +53,18 @@ struct vout_op_s {
 struct vout_server_s {
 	struct list_head list;
 	char *name;
+	int connector_type;
 	struct vout_op_s op;
 	void *data;
 };
 
 struct vout_module_s {
 	struct list_head vout_server_list;
-	struct vout_server_s *curr_vout_server;
+	struct vout_server_s *curr_vout_server[MAX_VOUT];
 	struct vout_server_s *next_vout_server;
-	unsigned int init_flag;
+	unsigned int init_flag[MAX_VOUT];
 	/* fr_policy: 0=disable, 1=nearby, 2=force */
-	unsigned int fr_policy;
+	unsigned int fr_policy[MAX_VOUT];
 };
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
@@ -177,7 +185,7 @@ void set_vout2_bist(unsigned int bist);
 void set_vout2_bl_brightness(unsigned int brightness);
 unsigned int get_vout2_bl_brightness(void);
 
-enum vmode_e validate_vmode2(char *name, unsigned int frac);
+enum vmode_e validate_vmode2(char *name, int type, unsigned int frac);
 void set_vout2_init(enum vmode_e mode);
 void update_vout2_viu(void);
 
@@ -408,7 +416,7 @@ int set_vout_vmode(enum vmode_e mode);
 int set_vout_mode_pre_process(enum vmode_e mode);
 int set_vout_mode_post_process(enum vmode_e mode);
 int set_vout_mode_name(char *name);
-enum vmode_e validate_vmode(char *name, unsigned int frac);
+enum vmode_e validate_vmode(char *name, int type, unsigned int frac);
 int set_current_vmode(enum vmode_e mode);
 void disable_vout_mode_set_sysfs(void);
 unsigned int vout_measure_freq(void);

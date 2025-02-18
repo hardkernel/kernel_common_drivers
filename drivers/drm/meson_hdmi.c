@@ -1790,12 +1790,13 @@ static int meson_hdmitx_choose_preset_mode(struct am_hdmi_tx *hdmitx,
 	char *modename, enum hdmi_vic vic)
 {
 	enum vmode_e vout_mode;
+	int type = am_hdmi_info.base.connector_type;
 	struct hdmitx_common *common = am_hdmi_info.hdmitx_dev->hdmitx_common;
 
 	meson_crtc_state->preset_vmode = VMODE_INVALID;
 
 	/* check if hdmi can support this mode. if not, set vmode to dummy*/
-	vout_mode = vout_func_validate_vmode(amcrtc->vout_index, modename, 0);
+	vout_mode = vout_func_validate_vmode(amcrtc->vout_index, modename, type, 0);
 	DRM_INFO(" %s validate vmode %s, %x\n", __func__, modename, vout_mode);
 	if (vout_mode != VMODE_HDMI && hdmitx_get_hpd_state(common)) {
 		DRM_INFO("no matched hdmi mode\n");
@@ -1806,7 +1807,8 @@ static int meson_hdmitx_choose_preset_mode(struct am_hdmi_tx *hdmitx,
 	}
 
 	if (hdmitx_common_check_valid_para_of_vic(common, vic)) {
-		vout_mode = vout_func_validate_vmode(amcrtc->vout_index, "dummy_l", 0);
+		type = 0;
+		vout_mode = vout_func_validate_vmode(amcrtc->vout_index, "dummy_l", type, 0);
 		meson_crtc_state->preset_vmode = vout_mode;
 	} else {
 		meson_crtc_state->preset_vmode = VMODE_HDMI;
@@ -2659,9 +2661,8 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 #endif
 	struct connector_hdcp_cb hdcp_cb;
 	int hdcp_ctl_lvl;
-	u32 crtc_mask = 0;
 
-	DRM_DEBUG("%s [%d]\n", __func__, __LINE__);
+	DRM_DEBUG("%s [%d] type =%d\n", __func__, __LINE__, type);
 	memset(&am_hdmi_info, 0, sizeof(am_hdmi_info));
 	am_hdmi_info.hdmitx_dev = to_meson_hdmitx_dev(intf);
 	tx_comm  = am_hdmi_info.hdmitx_dev->hdmitx_common;
@@ -2697,6 +2698,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	mesonconn = &am_hdmi->base;
 	mesonconn->drm_priv = priv;
 	mesonconn->update = meson_hdmitx_update;
+	mesonconn->connector_type = type;
 	encoder = &am_hdmi->encoder;
 	connector = &am_hdmi->base.connector;
 	am_hdmi->hdmi_type = type;
@@ -2754,15 +2756,8 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 			DRM_ERROR("[%s]: alloc name failed\n", __func__);
 	}
 
-	/*
-	 *Encoder possible_crtcs priority reference connector crtc_sel.
-	 */
-	crtc_mask = meson_crtc_mask(drm);
-	if (intf->crtc_sel)
-		encoder->possible_crtcs = intf->crtc_sel & crtc_mask;
-	else
-		encoder->possible_crtcs = BIT(0);
-
+	/* Encoder */
+	encoder->possible_crtcs = priv->of_conf.crtc_masks[ENCODER_HDMI];
 	drm_encoder_helper_add(encoder, &meson_hdmitx_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_hdmitx_encoder_funcs,
 			       encoder_type, "am_hdmi_encoder");

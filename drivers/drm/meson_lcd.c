@@ -414,13 +414,13 @@ int meson_panel_dev_bind(struct drm_device *drm,
 	struct drm_encoder *encoder = NULL;
 	struct meson_panel *panel_instance = NULL;
 	struct drm_property *type_prop = NULL;
+	struct meson_drm *priv = drm->dev_private;
 	char *connector_name = NULL;
 	int connector_type = type;
 	int encoder_type = DRM_MODE_ENCODER_LVDS;
 	int ret = 0;
-	u32 crtc_mask = 0;
 
-	DRM_INFO("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_INFO("[%s]-[%d] type=%d\n", __func__, __LINE__, type);
 
 	panel_instance = kzalloc(sizeof(*panel_instance), GFP_KERNEL);
 	if (!panel_instance) {
@@ -431,6 +431,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 	panel_instance->panel_type = type;
 	panel_instance->drm = drm;
 	panel_instance->panel_dev = to_meson_panel_dev(intf);
+	panel_instance->base.connector_type = type;
 	encoder = &panel_instance->encoder;
 	if (!encoder)
 		return -EINVAL;
@@ -495,15 +496,8 @@ int meson_panel_dev_bind(struct drm_device *drm,
 			__func__, type, connector_name, connector_type, encoder_type);
 	}
 
-	/*
-	 *Encoder possible_crtcs priority reference connector crtc_sel.
-	 */
-	crtc_mask = meson_crtc_mask(drm);
-	if (intf->crtc_sel)
-		encoder->possible_crtcs = intf->crtc_sel & crtc_mask;
-	else
-		encoder->possible_crtcs = BIT(0);
-
+	/* Encoder */
+	encoder->possible_crtcs = priv->of_conf.crtc_masks[ENCODER_LCD];
 	drm_encoder_helper_add(encoder, &meson_panel_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_panel_encoder_funcs,
 			       encoder_type, "am_lcd_encoder");

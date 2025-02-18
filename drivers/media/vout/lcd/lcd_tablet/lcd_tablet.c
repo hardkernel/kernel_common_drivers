@@ -1077,8 +1077,6 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 	pdrv->vout_server[0]->op.vout_suspend = lcd_suspend;
 	pdrv->vout_server[0]->op.vout_resume = lcd_resume;
 	pdrv->vout_server[0]->data = (void *)pdrv;
-	pdrv->viu_sel = 0;
-	pdrv->crtc_sel = 0;
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	curr_vout_connector = get_uboot_connector0_type();
@@ -1087,7 +1085,6 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 	if (!strcmp(lcd_connector, curr_vout_connector) ||
 	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
 		pdrv->viu_sel = 1;
-		pdrv->crtc_sel = BIT(0);
 		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout1_server", pdrv->index);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("[%u]: regist[0]: %s\n", pdrv->index, pdrv->vout_server[0]->name);
@@ -1100,7 +1097,6 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 	if (!strcmp(lcd_connector, curr_vout_connector) ||
 	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
 		pdrv->viu_sel = 2;
-		pdrv->crtc_sel |= BIT(1);
 		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout2_server", pdrv->index);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("[%u]: regist[0]: %s\n", pdrv->index, pdrv->vout_server[0]->name);
@@ -1113,7 +1109,6 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 	if (!strcmp(lcd_connector, curr_vout_connector) ||
 	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
 		pdrv->viu_sel = 3;
-		pdrv->crtc_sel |= BIT(2);
 		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout3_server", pdrv->index);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("[%u]: regist[0]: %s\n", pdrv->index, pdrv->vout_server[0]->name);
@@ -1139,7 +1134,6 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 				LCDPR("[%u]: regist[0]: %s\n",
 					pdrv->index, pdrv->vout_server[1]->name);
-			pdrv->crtc_sel |= BIT(0);
 			vout_register_server(pdrv->vout_server[1]);
 			return;
 		}
@@ -1151,7 +1145,6 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 				LCDPR("[%u]: regist[1]: %s\n",
 					pdrv->index, pdrv->vout_server[1]->name);
-			pdrv->crtc_sel |= BIT(1);
 			vout2_register_server(pdrv->vout_server[1]);
 			return;
 		}
@@ -1162,7 +1155,6 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 				LCDPR("[%u]: regist[1]: %s\n",
 					pdrv->index, pdrv->vout_server[1]->name);
-			pdrv->crtc_sel |= BIT(2);
 			vout3_register_server(pdrv->vout_server[1]);
 			return;
 		}
