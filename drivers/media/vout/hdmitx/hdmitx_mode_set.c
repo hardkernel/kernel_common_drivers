@@ -509,6 +509,8 @@ EXPORT_SYMBOL(hdmitx_common_disable_mode);
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 {
+	global_tx_common->hdmitx_vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_HDMIA_A
+		+ global_tx_common->enc_idx;
 	return &global_tx_common->hdmitx_vinfo;
 }
 
@@ -635,180 +637,23 @@ static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-static struct vout_server_s hdmitx_vout2_server = {
-	.name = "hdmitx_vout2_server",
-	.op = {
-		.get_vinfo = hdmitx_get_current_vinfo,
-		.set_vmode = hdmitx_set_current_vmode,
-		.validate_vmode = hdmitx_validate_vmode,
-		.check_same_vmodeattr = hdmitx_check_same_vmodeattr,
-		.vmode_is_supported = hdmitx_vmode_is_supported,
-		.disable = hdmitx_module_disable,
-		.set_state = hdmitx_vout_set_state,
-		.clr_state = hdmitx_vout_clr_state,
-		.get_state = hdmitx_vout_get_state,
-		.get_disp_cap = hdmitx_vout_get_disp_cap,
-		.set_vframe_rate_hint = NULL,
-		.get_vframe_rate_hint = NULL,
-		.set_bist = hdmitx_set_bist,
-#ifdef CONFIG_PM
-		.vout_suspend = NULL,
-		.vout_resume = NULL,
-#endif
-	},
-	.data = NULL,
-};
-#endif
-
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-static struct vout_server_s hdmitx_vout3_server = {
-	.name = "hdmitx_vout3_server",
-	.op = {
-		.get_vinfo = hdmitx_get_current_vinfo,
-		.set_vmode = hdmitx_set_current_vmode,
-		.validate_vmode = hdmitx_validate_vmode,
-		.check_same_vmodeattr = hdmitx_check_same_vmodeattr,
-		.vmode_is_supported = hdmitx_vmode_is_supported,
-		.disable = hdmitx_module_disable,
-		.set_state = hdmitx_vout_set_state,
-		.clr_state = hdmitx_vout_clr_state,
-		.get_state = hdmitx_vout_get_state,
-		.get_disp_cap = hdmitx_vout_get_disp_cap,
-		.set_vframe_rate_hint = NULL,
-		.get_vframe_rate_hint = NULL,
-		.set_bist = hdmitx_set_bist,
-#ifdef CONFIG_PM
-		.vout_suspend = NULL,
-		.vout_resume = NULL,
-#endif
-	},
-	.data = NULL,
-};
-#endif
-
-static int is_valid_hdmi(const char *input)
-{
-	static const char * const valid_hdmi_modes[] = {
-			"HDMI-A-A", /* venc0 */
-			"HDMI-A-B", /* venc1 */
-			"HDMI-A-C"  /* venc2 */
-	};
-
-	int num_modes = ARRAY_SIZE(valid_hdmi_modes);
-	int i;
-
-	for (i = 0; i < num_modes; i++) {
-		if (strcmp(input, valid_hdmi_modes[i]) == 0)
-			return 1; // Found a match
-	}
-	return 0; // No match found
-}
-
 void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx_hw)
 {
 	global_tx_common = tx_comm;
 	global_tx_hw = tx_hw;
-	char *connector0_type;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	char *connector1_type;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	char *connector2_type;
-#endif
-	bool is_register = false;
 
-	connector0_type = get_uboot_connector0_type();
-	if (connector0_type && (is_valid_hdmi(connector0_type) ||
-		(strncmp("TV", connector0_type, 2) == 0))) {
-		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout_server.name);
-		vout_register_server(&hdmitx_vout_server);
-		is_register = true;
-	}
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	connector1_type = get_uboot_connector1_type();
-	if (connector1_type && (is_valid_hdmi(connector1_type) ||
-		(strncmp("TV", connector1_type, 2) == 0))) {
-		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout2_server.name);
-		vout2_register_server(&hdmitx_vout2_server);
-		is_register = true;
-	}
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	hdmitx_vout_server.connector_type = DRM_MODE_CONNECTOR_MESON_HDMIA_A
+		+ tx_comm->enc_idx;
+	vout_register_server(&hdmitx_vout_server);
 #endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	connector2_type = get_uboot_connector2_type();
-	if (connector2_type && (is_valid_hdmi(connector2_type) ||
-		(strncmp("TV", connector2_type, 2) == 0))) {
-		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout3_server.name);
-		vout3_register_server(&hdmitx_vout3_server);
-		is_register = true;
-	}
-#endif
-
-	/*
-	 * g12a/g12b chip: uboot2015 & kernel5.15
-	 * connector_type env is not defined in uboot2015.
-	 * However, in some projects, HDMI output on the vout2 server.
-	 * So if no server has been registered, register all valid servers
-	 */
-	if (!is_register) {
-		HDMITX_DEBUG("vout register all valid server\n");
-		vout_register_server(&hdmitx_vout_server);
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-		vout2_register_server(&hdmitx_vout2_server);
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-		vout3_register_server(&hdmitx_vout3_server);
-#endif
-	}
 }
 
 void hdmitx_vout_uninit(void)
 {
-	char *connector0_type;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	char *connector1_type;
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	vout_unregister_server(&hdmitx_vout_server);
 #endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	char *connector2_type;
-#endif
-	bool is_register = false;
-
-	connector0_type = get_uboot_connector0_type();
-	if (connector0_type && (is_valid_hdmi(connector0_type) ||
-		(strncmp("TV", connector0_type, 2) == 0))) {
-		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout_server.name);
-		vout_unregister_server(&hdmitx_vout_server);
-		is_register = true;
-	}
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	connector1_type = get_uboot_connector1_type();
-	if (connector1_type && (is_valid_hdmi(connector1_type) ||
-		(strncmp("TV", connector1_type, 2) == 0))) {
-		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout2_server.name);
-		vout2_unregister_server(&hdmitx_vout2_server);
-		is_register = true;
-	}
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	connector2_type = get_uboot_connector2_type();
-	if (connector2_type && (is_valid_hdmi(connector2_type) ||
-		(strncmp("TV", connector2_type, 2) == 0))) {
-		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout3_server.name);
-		vout3_unregister_server(&hdmitx_vout3_server);
-		is_register = true;
-	}
-#endif
-
-	if (!is_register) {
-		HDMITX_INFO("vout register all valid server\n");
-		vout_unregister_server(&hdmitx_vout_server);
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-		vout2_unregister_server(&hdmitx_vout2_server);
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-		vout3_unregister_server(&hdmitx_vout3_server);
-#endif
-	}
 }
 
 static void hdmitx_bootup_parse_edid(struct hdmitx_common *tx_comm)

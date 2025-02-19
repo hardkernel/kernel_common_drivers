@@ -812,15 +812,9 @@ static void cvbs_init_vout(void)
 		cvbs_drv->vinfo = &cvbs_info[MODE_480CVBS];
 
 	if (vout_register_server(&cvbs_vout_server))
-		cvbs_log_err("register cvbs module server fail\n");
+		cvbs_log_err("register cvbs module server by env fail\n");
 	else
-		cvbs_log_info("register cvbs module server ok\n");
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	if (vout2_register_server(&cvbs_vout2_server))
-		cvbs_log_err("register cvbs module vout2 server fail\n");
-	else
-		cvbs_log_info("register cvbs module vout2 server ok\n");
-#endif
+		cvbs_log_info("register cvbs module server by env ok\n");
 }
 
 static char *cvbs_out_bist_str[] = {
