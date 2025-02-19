@@ -4299,7 +4299,7 @@ static MESON_T6D_SYS_GATE(t6d_sys_hdmirx20_aes,		CLKCTRL_SYS_CLK_EN0_REG1, 9);
 static MESON_T6D_SYS_GATE(t6d_sys_hdmirx_pclk,		CLKCTRL_SYS_CLK_EN0_REG1, 11);
 static MESON_T6D_SYS_GATE(t6d_sys_mmc_phy,		CLKCTRL_SYS_CLK_EN0_REG1, 12);
 static MESON_T6D_SYS_GATE(t6d_sys_mmc_dmc,		CLKCTRL_SYS_CLK_EN0_REG1, 13);
-static MESON_T6D_SYS_GATE(t6d_sys_pclk_sys_cpu_apb,	CLKCTRL_SYS_CLK_EN0_REG1, 14);
+static MESON_T6D_SYS_GATE(t6d_sys_pclk_cpu_apb,		CLKCTRL_SYS_CLK_EN0_REG1, 14);
 static MESON_T6D_SYS_GATE(t6d_sys_atv_demod,		CLKCTRL_SYS_CLK_EN0_REG1, 15);
 static MESON_T6D_SYS_GATE(t6d_sys_adec_top,		CLKCTRL_SYS_CLK_EN0_REG1, 16);
 static MESON_T6D_SYS_GATE(t6d_sys_vpu_intr,		CLKCTRL_SYS_CLK_EN0_REG1, 17);
@@ -4579,7 +4579,7 @@ static struct clk_hw_onecell_data t6d_hw_onecell_data = {
 		[CLKID_SYS_HDMIRX_PCLK]			= &t6d_sys_hdmirx_pclk.hw,
 		[CLKID_SYS_MMC_PHY]			= &t6d_sys_mmc_phy.hw,
 		[CLKID_SYS_MMC_DMC]			= &t6d_sys_mmc_dmc.hw,
-		[CLKID_SYS_PCLK_SYS_CPU_APB]		= &t6d_sys_pclk_sys_cpu_apb.hw,
+		[CLKID_SYS_PCLK_SYS_CPU_APB]		= &t6d_sys_pclk_cpu_apb.hw,
 		[CLKID_SYS_ATV_DEMOD]			= &t6d_sys_atv_demod.hw,
 		[CLKID_SYS_ADEC_TOP]			= &t6d_sys_adec_top.hw,
 		[CLKID_SYS_VPU_INTR]			= &t6d_sys_vpu_intr.hw,
@@ -4832,7 +4832,7 @@ static struct clk_regmap *const t6d_clk_regmaps[] = {
 	&t6d_sys_hdmirx_pclk,
 	&t6d_sys_mmc_phy,
 	&t6d_sys_mmc_dmc,
-	&t6d_sys_pclk_sys_cpu_apb,
+	&t6d_sys_pclk_cpu_apb,
 	&t6d_sys_atv_demod,
 	&t6d_sys_adec_top,
 	&t6d_sys_vpu_intr,
