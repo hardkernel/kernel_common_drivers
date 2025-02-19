@@ -1878,6 +1878,7 @@ int rdma_part_write_reg(int tbl_index, int handle, u32 adr, u32 val)
 				WRITE_VCBUS_REG(part_ins->rdma_item[i << 1],
 					part_ins->rdma_item[(i << 1) + 1]);
 			part_ins->rdma_item_count = 0;
+			rdma_tbl_count = part_ins->rdma_item_count;
 			part_ins->rdma_item[rdma_tbl_count << 1] = adr;
 			part_ins->rdma_item[(rdma_tbl_count << 1) + 1] = val;
 			part_ins->rdma_item_count++;
