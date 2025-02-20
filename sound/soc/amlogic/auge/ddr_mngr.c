@@ -2340,6 +2340,23 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.fr_reset_reg_offset   = &fr_reset_reg_offset_array_v2[0],
 	.fr_reset_reg_shift    = &fr_reset_reg_shift_array_v2[0],
 };
+
+static struct ddr_chipinfo t3_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.ugt                   = true,
+	.src_sel_ctrl          = true,
+	.asrc_src_sel_ctrl     = true,
+	.wakeup                = 2,
+	.toddr_num             = 5,
+	.frddr_num             = 5,
+	.fifo_depth            = FIFO_DEPTH_1K,
+	.chnum_sync            = true,
+	.burst_finished_flag   = true,
+	.to_srcs               = &toddr_srcs_v3[0],
+	.use_arb               = true,
+	.fr_reset_reg_offset   = &fr_reset_reg_offset_array_v2[0],
+	.fr_reset_reg_shift    = &fr_reset_reg_shift_array_v2[0],
+};
 #endif
 
 static struct ddr_chipinfo s1a_ddr_chipinfo = {
@@ -2484,6 +2501,10 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 	},
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	{
+		.compatible = "amlogic, t3-audio-ddr-manager",
+		.data       = &t3_ddr_chipinfo,
+	},
+	{
 		.compatible = "amlogic, p1-audio-ddr-manager",
 		.data       = &p1_ddr_chipinfo,
 	},
@@ -2553,6 +2574,7 @@ static struct ddr_info ddr_info[] = {
 	{EE_AUDIO_TODDR_B_CTRL0, EE_AUDIO_FRDDR_B_CTRL0, "toddr_b", "frddr_b"},
 	{EE_AUDIO_TODDR_C_CTRL0, EE_AUDIO_FRDDR_C_CTRL0, "toddr_c", "frddr_c"},
 	{EE_AUDIO_TODDR_D_CTRL0, EE_AUDIO_FRDDR_D_CTRL0, "toddr_d", "frddr_d"},
+	{EE_AUDIO_TODDR_E_CTRL0, EE_AUDIO_FRDDR_E_CTRL0, "toddr_e", "frddr_e"},
 };
 
 static int ddr_get_toddr_base_addr_by_idx(int idx)

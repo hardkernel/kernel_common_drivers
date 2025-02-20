@@ -738,7 +738,6 @@ static struct snd_soc_dai_driver extn_dai[] = {
 		},
 		.ops = &extn_dai_ops,
 	},
-	{},
 };
 
 static int frhdmirx_get_mode(struct snd_kcontrol *kcontrol,

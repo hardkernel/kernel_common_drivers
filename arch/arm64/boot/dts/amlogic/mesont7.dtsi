@@ -1883,7 +1883,8 @@
 		acodec:codec {
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t3_acodec";
-			reg = <0x0 0xfe01a000 0x0 0x1c>;
+			reg = <0x0 0xfe01a000 0x0 0x1c>, <0x0 0xFE330740 0x0 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <1>;
@@ -1911,6 +1912,7 @@
 		audiobus: audiobus@330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0x0 0xFE330000 0x0 0x3000>;
+			reg-names = "audio_bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
@@ -2043,7 +2045,7 @@
 			reg = <0x0 0xfe39c000 0x0 0x10c>;
 			#address-cells = <2>;
 			#size-cells = <2>;
-			status = "disabled";
+			status = "okay";
 			reg-names = "hdmirx-arc";
 		};
 
