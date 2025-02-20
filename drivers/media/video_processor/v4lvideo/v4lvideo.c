@@ -355,8 +355,10 @@ static void video_keeper_keep_mem(void *mem_handle, int type, int *id)
 	int keep_id = -1;
 	int slot_i = -1;
 
-	if (!mem_handle)
+	if (!mem_handle) {
+		pr_err("v4lvideo: mem handle is NULL.\n");
 		return;
+	}
 
 	spin_lock_irqsave(&mgr->lock, flags);
 	for (i = 0; i < MAX_KEEP_FRAME; i++) {
@@ -464,7 +466,7 @@ static void vf_keep(struct v4lvideo_dev *dev,
 	bool di_pw = false;
 
 	if (!file_private_data) {
-		V4LVID_ERR("%s error: file_private_data is NULL", __func__);
+		v4l_print(dev->inst, PRINT_ERROR, "%s: file_private_data is NULL", __func__);
 		return;
 	}
 
@@ -505,7 +507,7 @@ static void vf_keep(struct v4lvideo_dev *dev,
 			di_pw = true;
 		vf_ext_p = file_private_data->vf_ext_p;
 		if (!vf_ext_p) {
-			V4LVID_ERR("%s error: vf_ext is NULL", __func__);
+			v4l_print(dev->inst, PRINT_ERROR, "%s: vf_ext is NULL", __func__);
 			return;
 		}
 		vf_p = vf_ext_p;
@@ -554,7 +556,7 @@ void v4lvideo_keep_vf(struct file *file)
 
 	file_private_data = v4lvideo_get_file_private_data(file, false);
 	if (!file_private_data) {
-		V4LVID_ERR("vf_keep error: file_private_data is NULL");
+		pr_err("vf_keep error: file_private_data is NULL");
 		return;
 	}
 
@@ -643,7 +645,7 @@ static void vf_free(struct file_private_data *file_private_data)
 	} else if (flag & V4LVIDEO_FLAG_DI_V3) {
 		buf = (struct di_buffer *)file_private_data->private2;
 		di_release_keep_buf(buf);
-		pr_info("v4lvideo: %s: release di v3 buf\n", __func__);
+		v4l_print(inst_id, PRINT_OTHER, "%s: release di v3 buf\n", __func__);
 		return;
 	}
 
@@ -665,7 +667,7 @@ void v4lvideo_free_vf(struct file *file)
 
 	file_private_data = v4lvideo_get_file_private_data(file, false);
 	if (!file_private_data) {
-		V4LVID_ERR("vf_keep error: file_private_data is NULL");
+		pr_err("vf_keep error: file_private_data is NULL");
 		return;
 	}
 
@@ -709,7 +711,7 @@ void init_file_private_data(struct file_private_data *file_private_data)
 		file_private_data->cnt_file = NULL;
 		file_private_data->private = NULL;
 	} else {
-		V4LVID_ERR("%s is NULL!!", __func__);
+		pr_err("%s is NULL!!", __func__);
 	}
 }
 
@@ -791,7 +793,7 @@ void v4lvideo_release_map(int inst)
 		dev = list_entry(p, struct v4lvideo_dev, v4lvideo_devlist);
 		if (dev->inst == inst && dev->mapped) {
 			dev->mapped = false;
-			pr_debug("%s %d OK\n", __func__, dev->inst);
+			v4l_print(dev->inst, PRINT_OTHER, "%s %d OK\n", __func__, dev->inst);
 			break;
 		}
 	}
@@ -811,7 +813,7 @@ void v4lvideo_release_map_force(struct v4lvideo_dev *dev)
 
 	if (dev->mapped) {
 		dev->mapped = false;
-		pr_debug("%s %d OK\n", __func__, dev->inst);
+		v4l_print(dev->inst, PRINT_OTHER, "%s %d OK\n", __func__, dev->inst);
 	}
 
 	v4lvideo_devlist_unlock(flags);
@@ -1751,11 +1753,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct v4lvideo_dev *dev = video_drvdata(file);
 
-	dprintk(dev, 2, "%s\n", __func__);
-
+	v4l_print(dev->inst, PRINT_ERROR, "%s: v4lvideo enable.\n", __func__);
 	dev->provider_name = NULL;
-
-	dprintk(dev, 2, "returning from %s\n", __func__);
 
 	return 0;
 }
@@ -1764,7 +1763,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct v4lvideo_dev *dev = video_drvdata(file);
 
-	dprintk(dev, 2, "%s\n", __func__);
+	v4l_print(dev->inst, PRINT_ERROR, "%s: v4lvideo disable.\n", __func__);
 
 	/*
 	 * Typical driver might need to wait here until dma engine stops.
@@ -1809,9 +1808,11 @@ static int vidioc_open(struct file *file)
 	int i;
 
 	if (dev->fd_num > 0) {
-		pr_err("%s error\n", __func__);
+		v4l_print(dev->inst, PRINT_ERROR, "%s:  invalid param", __func__);
 		return -EBUSY;
 	}
+
+	v4l_print(dev->inst, PRINT_ERROR, "vidioc_open\n");
 
 	dev->fd_num++;
 	dev->vf_wait_cnt = 0;
@@ -1827,12 +1828,9 @@ static int vidioc_open(struct file *file)
 		dev->v4lvideo_file[i].free_before_unreg = false;
 	}
 
-	//dprintk(dev, 2, "vidioc_open\n");
-	V4LVID_DBG("v4lvideo open\n");
 	mutex_lock(&dev->mutex_opened);
 	dev->opened = true;
 	mutex_unlock(&dev->mutex_opened);
-	v4l_print(dev->inst, PRINT_COUNT, "open\n");
 
 	dev->dp_buf_mgr = buf_mgr_creat(DEC_TYPE_V4LVIDEO,
 		dev->inst,
@@ -1847,7 +1845,7 @@ static int vidioc_close(struct file *file)
 	int i;
 	u32 inst_id = dev->inst;
 
-	V4LVID_DBG("vidioc_close!!!!\n");
+	v4l_print(dev->inst, PRINT_ERROR, "vidioc_close!!!!\n");
 	if (dev->mapped)
 		v4lvideo_release_map_force(dev);
 
@@ -1965,8 +1963,9 @@ static int vidioc_try_fmt_vid_cap(struct file *file,
 
 	fmt = get_format(f);
 	if (!fmt) {
-		dprintk(dev, 1, "Fourcc format (0x%08x) unknown.\n",
-			f->fmt.pix.pixelformat);
+		v4l_print(dev->inst, PRINT_OTHER,
+			"%s: Fourcc format (0x%08x) unknown.\n",
+			__func__, f->fmt.pix.pixelformat);
 		return -EINVAL;
 	}
 
@@ -1996,15 +1995,16 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct v4lvideo_dev *dev = video_drvdata(file);
 
 	int ret = vidioc_try_fmt_vid_cap(file, priv, f);
-
-	if (ret < 0)
+	if (ret < 0) {
+		v4l_print(dev->inst, PRINT_OTHER, "%s: try cap failed.\n", __func__);
 		return ret;
+	}
 
 	dev->fmt = get_format(f);
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
 	if (dev->width == 0 || dev->height == 0)
-		V4LVID_ERR("ion buffer w/h info is invalid!!!!!!!!!!!\n");
+		v4l_print(dev->inst, PRINT_OTHER, "ion buffer w/h info is invalid!!!!!!!!!!!\n");
 
 	return 0;
 }
@@ -2020,7 +2020,7 @@ static void push_to_display_q(struct v4lvideo_dev *dev,
 	}
 
 	if (i == V4LVIDEO_POOL_SIZE) {
-		pr_err("v4lvideo: dq not find v4lvideo_file\n");
+		v4l_print(dev->inst, PRINT_ERROR, "dq not find v4lvideo_file\n");
 		return;
 	}
 
@@ -2042,8 +2042,10 @@ static struct v4lvideo_file_s *pop_from_display_q(struct v4lvideo_dev *dev)
 	struct v4lvideo_file_s *v4lvideo_file;
 
 	v4lvideo_file = v4l2q_pop(&dev->display_queue);
-	if (!v4lvideo_file)
+	if (!v4lvideo_file) {
+		v4l_print(dev->inst, PRINT_ERROR, "%s: display_q is NULL.\n", __func__);
 		return NULL;
+	}
 
 	atomic_set(&v4lvideo_file->on_use, false);
 	return v4lvideo_file;
@@ -2070,9 +2072,8 @@ static void v4lvideo_vf_put(struct v4lvideo_dev *dev, struct vframe_s *vf)
 	v4l_print(dev->inst, PRINT_OTHER, "put: frame_index=%d\n", vf->frame_index);
 
 	if (vf_put(vf, dev->vf_receiver_name) < 0) {
-		pr_err("v4lvideo: put err!!!\n");
+		v4l_print(dev->inst, PRINT_ERROR, "%s: put error.\n", __func__);
 		if (is_di_pw) {
-			pr_err("v4lvideo: put err, release di vf\n");
 			v4l_print(dev->inst, PRINT_OTHER,
 				"put: release frame_index=%d\n", vf->frame_index);
 			dim_post_keep_cmd_release2(vf);
@@ -2097,7 +2098,7 @@ static int vidioc_qbuf_1(struct file *file, void *priv, struct v4l2_buffer *p)
 	u32 inst_id = dev->inst;
 
 	if (p->index >= V4LVIDEO_POOL_SIZE) {
-		pr_err("ionvideo: dbuf: err index=%d\n", p->index);
+		v4l_print(dev->inst, PRINT_ERROR, "%s: err index=%d", __func__, p->index);
 		return -EINVAL;
 	}
 
@@ -2106,13 +2107,13 @@ static int vidioc_qbuf_1(struct file *file, void *priv, struct v4l2_buffer *p)
 	q_count[inst_id]++;
 	file_vf = fget(p->m.fd);
 	if (!file_vf) {
-		pr_err("v4lvideo: qbuf fget fail\n");
+		v4l_print(dev->inst, PRINT_ERROR, "%s: fget fail.\n", __func__);
 		return 0;
 	}
 
 	file_private_data = v4lvideo_get_file_private_data(file_vf, true);
 	if (!file_private_data) {
-		pr_err("v4lvideo: qbuf file_private_data NULL\n");
+		v4l_print(dev->inst, PRINT_ERROR, "%s: file_private_data is NULL.\n", __func__);
 		fput(file_vf);
 		return 0;
 	}
@@ -2125,7 +2126,7 @@ static int vidioc_qbuf_1(struct file *file, void *priv, struct v4l2_buffer *p)
 	mutex_lock(&dev->mutex_input);
 	if (vf_p) {
 		if (!v4lvideo_file) {
-			pr_err("%s: v4lvideo_file NULL\n", __func__);
+			v4l_print(dev->inst, PRINT_ERROR, "%s: vf_p is NULL.\n", __func__);
 			mutex_unlock(&dev->mutex_input);
 			return 0;
 		}
@@ -2140,10 +2141,10 @@ static int vidioc_qbuf_1(struct file *file, void *priv, struct v4l2_buffer *p)
 					v4lvideo_vf_put(dev, vf_p);
 				} else {
 					vf_free(file_private_data);
-					pr_err("%s: vfm is unreg\n", __func__);
+					v4l_print(dev->inst, PRINT_ERROR, "%s: not reg ", __func__);
 				}
 			} else {
-				pr_err("%s: maybe in unreg\n", __func__);
+				v4l_print(dev->inst, PRINT_ERROR, "%s: maybe in unreg\n", __func__);
 				if (v4lvideo_file->vf_type & VIDTYPE_DI_PW) {
 					dim_post_keep_cmd_release2(vf_p);
 					total_release_count[inst_id]++;
@@ -2156,7 +2157,7 @@ static int vidioc_qbuf_1(struct file *file, void *priv, struct v4l2_buffer *p)
 			}
 		}
 	} else {
-		dprintk(dev, 1,
+		v4l_print(dev->inst, PRINT_ERROR,
 			"%s: vf is NULL, at the start of playback\n", __func__);
 	}
 
@@ -2199,7 +2200,8 @@ void v4lvideo_recycle_vf(void *caller_data, struct file *file, int instance_id)
 	mutex_lock(&dev->mutex_input);
 	if (vf_p) {
 		if (!v4lvideo_file) {
-			pr_err("%s: vf_p && v4lvideo_file is NULL\n", __func__);
+			v4l_print(dev->inst, PRINT_ERROR, "%s: vf_p && v4lvideo_file is NULL.\n",
+				__func__);
 			mutex_unlock(&dev->mutex_input);
 			return;
 		}
@@ -2216,14 +2218,16 @@ void v4lvideo_recycle_vf(void *caller_data, struct file *file, int instance_id)
 					v4lvideo_vf_put(dev, vf_p);
 				} else {
 					vf_free(file_private_data);
-					pr_err("%s: vfm is unreg\n", __func__);
+					v4l_print(dev->inst, PRINT_ERROR, "%s: vfm is unreg",
+						__func__);
 				}
 			} else {
-				pr_err("%s: maybe in unreg, do nothing\n", __func__);
+				v4l_print(dev->inst, PRINT_ERROR, "%s: maybe in unreg, do nothing",
+					__func__);
 			}
 		}
 	} else {
-		pr_err("%s: vf is NULL!!!\n", __func__);
+		v4l_print(dev->inst, PRINT_ERROR, "%s: vf is NULL.\n", __func__);
 	}
 
 	v4l2_buffer = file_private_data->private2;
@@ -2238,7 +2242,7 @@ void v4lvideo_recycle_vf(void *caller_data, struct file *file, int instance_id)
 		v4l_print(dev->inst, PRINT_OTHER, "recycle 2 input_queue len=%d\n",
 			v4l2q_level(&dev->input_queue));
 	} else {
-		pr_err("%s: v4l2_buffer is NULL!!!\n", __func__);
+		v4l_print(dev->inst, PRINT_ERROR, "%s: v4l2 buffer is NULL.\n", __func__);
 	}
 
 	mutex_unlock(&dev->mutex_input);
@@ -2260,7 +2264,7 @@ static int vidioc_qbuf_2(struct file *file, void *priv, struct v4l2_buffer *p)
 	q_count[inst_id]++;
 	file_vf = fget(p->m.fd);
 	if (!file_vf) {
-		pr_err("v4lvideo: qbuf fget fail, fd=%d\n", p->m.fd);
+		v4l_print(dev->inst, PRINT_ERROR, "%s: fget fail, fd=%d.\n", __func__, p->m.fd);
 		return 0;
 	}
 	file_private_data = v4lvideo_get_file_private_data(file_vf, false);
@@ -2271,7 +2275,7 @@ static int vidioc_qbuf_2(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	file_private_data = v4lvideo_get_file_private_data(file_vf, true);
 	if (!file_private_data) {
-		pr_err("v4lvideo: qbuf file_private_data NULL\n");
+		v4l_print(dev->inst, PRINT_ERROR, "%s: file_private_data is NULL.\n", __func__);
 		fput(file_vf);
 		return 0;
 	}
@@ -2383,13 +2387,14 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	mutex_lock(&dev->mutex_input);
 
 	if (!dev->receiver_register) {
+		v4l_print(dev->inst, PRINT_OTHER, "%s: not reg receiver.\n", __func__);
 		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
 	}
 
 	buf = v4l2q_peek(&dev->input_queue);
 	if (!buf) {
-		dprintk(dev, 3, "No active queue to serve\n");
+		v4l_print(dev->inst, PRINT_OTHER, "%s: No active queue to serve\n", __func__);
 		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
 	}
@@ -2397,6 +2402,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf) {
 		dev->vf_wait_cnt++;
+		v4l_print(dev->inst, PRINT_OTHER, "%s: no vf.\n", __func__);
 		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
 	}
@@ -2410,6 +2416,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	if (vf->type & VIDTYPE_V4L_EOS) {
 		v4lvideo_vf_put(dev, vf);
+		v4l_print(dev->inst, PRINT_OTHER, "%s: EOS vf.\n", __func__);
 		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
 	}
@@ -2423,7 +2430,8 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 				vf_get_provider_name(provider_name);
 		}
 		dev->provider_name = provider_name;
-		pr_info("v4lvideo: provider name: %s\n",
+		v4l_print(dev->inst, PRINT_OTHER, "%s: provider name: %s\n",
+			__func__,
 			dev->provider_name ? dev->provider_name : "NULL");
 	}
 
@@ -2440,8 +2448,9 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 					vf->hdr10p_data_buf,
 					vf->hdr10p_data_size);
 		} else {
-			pr_info("v4lvideo: hdr10+ data size is %d, skip it!\n",
-					vf->hdr10p_data_size);
+			v4l_print(dev->inst, PRINT_OTHER, "%s: hdr10+ data size is %d, skip it!\n",
+				__func__,
+				vf->hdr10p_data_size);
 			dev->am_parm.hdr10p_data_size = 0;
 		}
 	} else {
@@ -2450,7 +2459,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	buf = v4l2q_pop(&dev->input_queue);
 	if (!buf) {
-		pr_err("pop buf is NULL\n");
+		v4l_print(dev->inst, PRINT_OTHER, "%s: input queue is NULL.\n", __func__);
 		v4lvideo_vf_put(dev, vf);
 		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
@@ -2459,7 +2468,8 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	file_vf = fget(buf->m.fd);
 	if (!file_vf) {
 		mutex_unlock(&dev->mutex_input);
-		pr_err("v4lvideo: dqbuf fget fail, fd=%d\n", buf->m.fd);
+		v4l_print(dev->inst, PRINT_OTHER, "%s: dqbuf fget fail, fd=%d.\n",
+			__func__, buf->m.fd);
 		return -EAGAIN;
 	}
 
@@ -2468,7 +2478,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		v4lvideo_vf_put(dev, vf);
 		mutex_unlock(&dev->mutex_input);
 		fput(file_vf);
-		pr_err("v4lvideo: file_private_data NULL\n");
+		v4l_print(dev->inst, PRINT_ERROR, "%s: file_private_data is NULL.\n", __func__);
 		return -EAGAIN;
 	}
 
@@ -2510,8 +2520,12 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	file_private_data->v4l_inst_id = dev->inst;
 	file_private_data->vf.src_fmt.dv_id = dev->dv_inst;
 	if ((alloc_sei & 2) && vf)
-		pr_info("vidioc dqbuf: vf %p(index %d), type %x, md_buf %p\n",
-			vf, vf->frame_index, vf->type, file_private_data->vf.src_fmt.md_buf);
+		v4l_print(dev->inst, PRINT_OTHER, "%s: vf %p(index %d), type %x, md_buf %p\n",
+			__func__,
+			vf,
+			vf->frame_index,
+			vf->type,
+			file_private_data->vf.src_fmt.md_buf);
 
 	v4lvideo_import_sei_data(vf,
 		&file_private_data->vf,
@@ -2556,7 +2570,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) &&
 		(vf->type & VIDTYPE_DI_PW || vf->type & VIDTYPE_INTERLACE) &&
 		vf->pts_us64 == dev->last_pts_us64) {
-		dprintk(dev, 1, "pts same\n");
+		v4l_print(dev->inst, PRINT_OTHER, "%s: pts same\n", __func__);
 		pts_tmp = dur2pts(vf->duration) * 100;
 		do_div(pts_tmp, 9);
 		pts_us64 = dev->last_pts_us64
@@ -2583,7 +2597,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if (vf->type_original & VIDTYPE_INTERLACE || vf->type & VIDTYPE_INTERLACE)
 		p->field = V4L2_FIELD_INTERLACED;
 
-	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
 	dq_count[inst_id]++;
 	v4l_print(dev->inst, PRINT_OTHER,
 		"v4lvideo: %s return vf:%p, frame_index:%d, v->pts_us64: %lld, out_pts %lld video_id:%d, fd=%d\n",
@@ -2677,13 +2690,14 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	u32 inst_id = dev->inst;
 
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
+		v4l_print(dev->inst, PRINT_ERROR, "unreg:v4lvideo inst=%d", dev->inst);
 		dev->receiver_register = false;
 		mutex_lock(&dev->mutex_input);
 		while (!v4l2q_empty(&dev->display_queue)) {
 			v4lvideo_file = pop_from_display_q(dev);
 			if (!v4lvideo_file) {
 				mutex_unlock(&dev->mutex_input);
-				pr_err("v4lvideo: unreg pop fail\n");
+				v4l_print(dev->inst, PRINT_ERROR, "unreg pop fail.\n");
 				return 0;
 			}
 			file_private_data = v4lvideo_file->private_data_p;
@@ -2695,13 +2709,12 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		mutex_lock(&v4lvideo_buf_mgr_mutex);
 		v4lvideo_instance_id++;
 		mutex_unlock(&v4lvideo_buf_mgr_mutex);
-
-		pr_err("unreg:v4lvideo inst=%d\n", dev->inst);
 		v4l_print(dev->inst, PRINT_COUNT,
 			"unreg get=%d, put=%d, release=%d\n",
 			total_get_count[inst_id], total_put_count[inst_id],
 			total_release_count[inst_id]);
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
+		v4l_print(dev->inst, PRINT_ERROR, "reg: inst = %d.\n", dev->inst);
 		mutex_lock(&dev->mutex_input);
 		v4l2q_init(&dev->display_queue,
 			   V4LVIDEO_POOL_SIZE,
@@ -2715,7 +2728,6 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		put_count[inst_id] = 0;
 		q_count[inst_id] = 0;
 		dq_count[inst_id] = 0;
-		pr_err("reg:v4lvideo inst=%d\n", dev->inst);
 		dev->receiver_register = true;
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		if (dev->vf_wait_cnt > 1) {
@@ -2811,7 +2823,6 @@ free_dev:
 static int v4lvideo_file_release(struct inode *inode, struct file *file)
 {
 	struct file_private_data *file_private_data = file->private_data;
-	/*pr_err("v4lvideo_file_release\n");*/
 
 	if (file_private_data) {
 		if (file_private_data->cnt_file) {
@@ -3710,7 +3721,7 @@ int __init v4lvideo_init(void)
 	}
 
 	if (ret < 0) {
-		V4LVID_ERR("v4lvideo: error %d while loading driver\n", ret);
+		pr_err("v4lvideo: error %d while loading driver\n", ret);
 		goto error1;
 	}
 
