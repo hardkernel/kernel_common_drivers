@@ -3261,7 +3261,6 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 {
 	struct hdmitx21_hw *tx21_hw = get_hdmitx21_hw_instance();
 	struct hdmitx_dev *hdev = container_of(tx21_hw, struct hdmitx_dev, tx21_hw);
-	struct arm_smccc_res res;
 
 	if ((cmd & CMD_MISC_OFFSET) != CMD_MISC_OFFSET) {
 		HDMITX_ERROR(HW "misc: w: invalid cmd 0x%x\n", cmd);
@@ -3335,9 +3334,6 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 1, 7, 1);
 		break;
 	case MISC_AUDIO_ACR_CTRL:
-		break;
-	case MISC_SUSFLAG:
-		arm_smccc_smc(HDCPTX_IOOPR, HDCP_SET_SUS_FLAG, !!argv, 0, 0, 0, 0, 0, &res);
 		break;
 	case MISC_VALIDATE_HDCP14_KEY:
 		return hdmitx_validate_hdcp14_key(hdev);

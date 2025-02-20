@@ -718,8 +718,6 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	}
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-	/* step1: keep hdcp auth state before suspend */
-	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_SUSFLAG, 1);
 	/*
 	 * under suspend, driver should not respond to mode setting,
 	 * as it may cause logic abnormal, most importantly,

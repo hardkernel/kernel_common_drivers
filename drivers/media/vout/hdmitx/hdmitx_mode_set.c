@@ -785,7 +785,6 @@ void hdmitx_common_late_resume(struct hdmitx_common *tx_comm)
 
 	/* step1: SW: status update */
 	tx_comm->suspend_flag = false;
-	hdmitx_hw_cntl_misc(tx_hw_base, MISC_SUSFLAG, 0);
 
 	/* step2: HW: reset HW */
 	hdmitx_hw_cntl(tx_hw_base, HDMITX_EARLY_SUSPEND_RESUME_CNTL,

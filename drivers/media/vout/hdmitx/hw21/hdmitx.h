@@ -58,7 +58,6 @@ enum hdcptx_oprcmd {
 	HDCP22_GET_TOPO,
 	CONF_ENC_IDX, /* 0: get idx; 1: set idx */
 	HDMITX_GET_RTERM, /* get the rterm value */
-	HDCP_SET_SUS_FLAG,
 	CHECK_SPEC_EDID
 };
 
