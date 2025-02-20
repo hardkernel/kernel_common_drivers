@@ -1504,7 +1504,6 @@ static int spinand_probe(struct spi_mem *mem)
 	if (ret)
 		goto err_spinand_cleanup;
 
-	auto_attach();
 	return 0;
 
 err_spinand_cleanup:
