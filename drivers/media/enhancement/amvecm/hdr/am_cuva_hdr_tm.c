@@ -261,7 +261,7 @@ static int get_maxl_e(int maxl)
 static void get_cuva_tm_maxl(enum cuva_func_e tm_func,
 	struct vframe_master_display_colour_s *p)
 {
-	int maxl = 400;
+	int maxl = 100;
 	int minl = 0;
 	int static_maxl = 4000;
 	struct vinfo_s *vinfo = get_current_vinfo();
@@ -307,7 +307,7 @@ static void get_cuva_tm_maxl(enum cuva_func_e tm_func,
 		 * in fact hdr10 output 1000 should be better
 		 * force output 1000 as default
 		 */
-		maxl = 1000;
+		maxl = 500;
 
 		minl = 47; /* e domin 47 : minl = 0.05*/
 
