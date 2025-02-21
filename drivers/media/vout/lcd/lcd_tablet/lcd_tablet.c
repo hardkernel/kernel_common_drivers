@@ -794,15 +794,21 @@ static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->config.timing.clk_change & LCD_CLK_CHANGE) {
 		clk_change = 1; //pdrv->config.timing.clk_change will clear in lcd_clk_change
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
-			lcd_vbyone_interrupt_enable(pdrv, 0);
+		if (pdrv->status & LCD_STATUS_IF_ON) {
+			if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+				lcd_vbyone_interrupt_enable(pdrv, 0);
+		}
 		lcd_clk_change(pdrv);
 	}
 
 	lcd_venc_change(pdrv);
 
-	if (clk_change && pdrv->config.basic.lcd_type == LCD_VBYONE)
-		lcd_vbyone_wait_stable(pdrv);
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		if (clk_change && pdrv->config.basic.lcd_type == LCD_VBYONE) {
+			lcd_vbyone_wait_stable(pdrv);
+			lcd_vbyone_interrupt_enable(pdrv, 1);
+		}
+	}
 
 	lcd_vout_notify_mode_change(pdrv);
 

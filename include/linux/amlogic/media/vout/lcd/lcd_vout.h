@@ -261,6 +261,9 @@ struct lvds_config_s {
 #define VX1_HPD_DATA_DELAY_DFT    10 /* 10ms */
 #define VX1_CDR_TRAINING_HOLD_DFT 200 /* 200ms */
 
+#define VX1_INTR_BIT_VX1          BIT(0)
+#define VX1_INTR_BIT_VS           BIT(1)
+
 struct vbyone_config_s {
 	unsigned int lane_count;
 	unsigned int region_num;
@@ -272,7 +275,6 @@ struct vbyone_config_s {
 	unsigned int intr_en;
 	unsigned int vsync_intr_en;
 
-	unsigned int intr_state;
 	unsigned int ctrl_flag;
 		/*  bit[0]:power_on_reset_en
 		 *  bit[1]:hpd_data_delay_en
@@ -287,8 +289,30 @@ struct vbyone_config_s {
 	/* hw filter */
 	unsigned int hw_filter_time; /* ms */
 	unsigned int hw_filter_cnt;
+	/*intr*/
+	unsigned int intr_state; /*bit[0]=vx1_intr, bit[1]=vsync_intr*/
+	unsigned char vx1_intr_en;
+	unsigned char vs_intr_en;
+	unsigned short clk_err_cnt;
+	unsigned short vsync_cnt;
+	unsigned char training_stable_cnt;
+	unsigned char timeout_reset_flag;
+	unsigned char vx1_fsm_acq_st;
+	unsigned char unstable_trg;
 
 	unsigned int slice;
+
+	/*reg*/
+	unsigned int reg_status;
+	unsigned int reg_insig_ctrl;
+	unsigned int reg_filter_l;
+	unsigned int reg_filter_h;
+	unsigned int reg_holder_l;
+	unsigned int reg_holder_h;
+	unsigned int reg_ctrl_l;
+	unsigned int reg_intr_ctrl;
+	unsigned int reg_intr_state;
+	unsigned int reg_intr_unmask;
 };
 
 /* mipi-dsi config */
@@ -952,7 +976,7 @@ struct aml_lcd_drv_s {
 	struct resource *res_vsync_irq[3];
 	struct resource *res_vx1_irq;
 	struct resource *res_tcon_irq;
-	struct timer_list pll_mnt_timer;
+	struct timer_list vx1_mnt_timer;
 	struct timer_list vs_none_timer;
 	struct completion vsync_done;
 	spinlock_t isr_lock; /* for mute and test isr */

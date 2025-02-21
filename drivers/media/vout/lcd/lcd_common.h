@@ -16,7 +16,8 @@
 
 /* 20250121: initial version*/
 /* 20250123: update lcd bootargs transfer by lrm */
-#define LCD_DRV_VERSION    "20250123"
+/* 20250221: optimize vbyone interrupt handler */
+#define LCD_DRV_VERSION    "20250221"
 
 #define CFMT_RGB565          0x05
 #define CFMT_RGB_6bit        0x06
@@ -168,7 +169,6 @@ void lcd_lvds_disable(struct aml_lcd_drv_s *pdrv);
 /* lcd vbyone*/
 void lcd_vbyone_enable(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_disable(struct aml_lcd_drv_s *pdrv);
-void lcd_vbyone_link_maintain_clear(void);
 void lcd_vbyone_wait_timing_stable(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_cdr_training_hold(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_vbyone_wait_hpd(struct aml_lcd_drv_s *pdrv);
@@ -180,6 +180,7 @@ void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_debug_cdr(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_debug_lock(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_debug_reset(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_probe(struct aml_lcd_drv_s *pdrv);
 
 /* lcd tcon */
 unsigned int lcd_tcon_reg_read(struct aml_lcd_drv_s *pdrv, unsigned int addr);

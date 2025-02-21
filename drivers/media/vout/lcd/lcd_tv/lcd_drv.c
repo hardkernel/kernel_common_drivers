@@ -117,6 +117,7 @@ int lcd_tv_driver_init(struct aml_lcd_drv_s *pdrv)
 		lcd_vbyone_wait_hpd(pdrv);
 		lcd_phy_set(pdrv, LCD_PHY_ON);
 		lcd_vbyone_power_on_wait_stable(pdrv);
+		lcd_vbyone_interrupt_enable(pdrv, 1);
 		break;
 	case LCD_MLVDS:
 		lcd_tcon_top_init(pdrv);
@@ -163,7 +164,6 @@ void lcd_tv_driver_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_lvds_dphy_set(pdrv, 0);
 		break;
 	case LCD_VBYONE:
-		lcd_vbyone_link_maintain_clear();
 		lcd_vbyone_interrupt_enable(pdrv, 0);
 		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_vbyone_pinmux_set(pdrv, 0);
@@ -219,8 +219,10 @@ int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (pdrv->status & LCD_STATUS_IF_ON) {
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+		if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
 			lcd_vbyone_wait_stable(pdrv);
+			lcd_vbyone_interrupt_enable(pdrv, 1);
+		}
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)

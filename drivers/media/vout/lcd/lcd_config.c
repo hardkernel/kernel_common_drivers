@@ -951,8 +951,8 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 				LCDERR("[%d]: failed to get vbyone_intr_enable\n", pdrv->index);
 		} else {
-			pctrl->vbyone_cfg.intr_en = para[0];
-			pctrl->vbyone_cfg.vsync_intr_en = para[1];
+			pctrl->vbyone_cfg.vx1_intr_en = para[0];
+			pctrl->vbyone_cfg.vs_intr_en = para[1];
 		}
 		ret = of_property_read_u32_array(child, "phy_attr", &para[0], 2);
 		if (ret) {
@@ -1551,8 +1551,8 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp, struct aml_lcd_dr
 		vx1->region_num  = json_get_obj_u32(jsp, parent, "region", 2);
 		vx1->color_fmt   = 4;
 		vx1->byte_mode   = (lcd_bits + 7) >> 3;
-		vx1->vsync_intr_en  = json_get_obj_u32(jsp, parent, "vsync_isr", 3);
-		vx1->intr_en        = json_get_obj_u32(jsp, parent, "vx1_isr", 1);
+		vx1->vs_intr_en     = json_get_obj_u32(jsp, parent, "vsync_isr", 3);
+		vx1->vx1_intr_en    = json_get_obj_u32(jsp, parent, "vx1_isr", 1);
 		vx1->hw_filter_time = json_get_obj_u32(jsp, parent, "filter_time", 0);
 		vx1->hw_filter_cnt  = json_get_obj_u32(jsp, parent, "filter_cnt", 0);
 		break;
@@ -2491,6 +2491,8 @@ static int lcd_config_load_from_ini(struct aml_lcd_drv_s *pdrv, unsigned char *p
 		pctrl->vbyone_cfg.color_fmt  = lcd_ini_get_val(inip, psec, "if_attr_3", 0);
 		pctrl->vbyone_cfg.phy_vswing = lcd_ini_get_val(inip, psec, "if_attr_4", 0);
 		pctrl->vbyone_cfg.phy_preem = lcd_ini_get_val(inip, psec, "if_attr_5", 0);
+		pctrl->vbyone_cfg.vx1_intr_en = lcd_ini_get_val(inip, psec, "if_attr_6", 0);
+		pctrl->vbyone_cfg.vs_intr_en = lcd_ini_get_val(inip, psec, "if_attr_7", 0);
 		pctrl->vbyone_cfg.hw_filter_time = lcd_ini_get_val(inip, psec, "if_attr_8", 0);
 		pctrl->vbyone_cfg.hw_filter_cnt = lcd_ini_get_val(inip, psec, "if_attr_9", 0);
 		pctrl->vbyone_cfg.ctrl_flag = 0;
@@ -2696,7 +2698,18 @@ int lcd_get_config(struct aml_lcd_drv_s *pdrv)
 	lcd_config_load_init(pdrv);
 	lcd_config_load_print(pdrv);
 
-	lcd_tcon_probe(pdrv);
+	/*interface probe*/
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_MLVDS:
+	case LCD_P2P:
+		lcd_tcon_probe(pdrv);
+		break;
+	case LCD_VBYONE:
+		lcd_vbyone_probe(pdrv);
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }

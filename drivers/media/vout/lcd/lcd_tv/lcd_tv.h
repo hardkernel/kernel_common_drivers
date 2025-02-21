@@ -15,8 +15,4 @@ int lcd_tv_driver_init(struct aml_lcd_drv_s *pdrv);
 void lcd_tv_driver_disable(struct aml_lcd_drv_s *pdrv);
 int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv);
 
-void lcd_vbyone_wait_stable(struct aml_lcd_drv_s *pdrv);
-int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv);
-void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv);
-
 #endif

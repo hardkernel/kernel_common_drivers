@@ -142,11 +142,9 @@ int lcd_tablet_driver_change(struct aml_lcd_drv_s *pdrv)
 	if (ret)
 		return -1;
 
-	if (pdrv->status & LCD_STATUS_ENCL_ON) {
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
-			if (pdrv->status & LCD_STATUS_IF_ON)
-				lcd_vbyone_interrupt_enable(pdrv, 0);
-		}
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+			lcd_vbyone_interrupt_enable(pdrv, 0);
 	}
 
 	if (!(pdrv->status & LCD_STATUS_ENCL_DUMMY)) {
@@ -154,9 +152,11 @@ int lcd_tablet_driver_change(struct aml_lcd_drv_s *pdrv)
 		lcd_venc_change(pdrv);
 	}
 
-	if ((pdrv->status & LCD_STATUS_ON) == LCD_STATUS_ON) {
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
 			lcd_vbyone_wait_stable(pdrv);
+			lcd_vbyone_interrupt_enable(pdrv, 1);
+		}
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -196,6 +196,7 @@ int lcd_tablet_driver_init(struct aml_lcd_drv_s *pdrv)
 		lcd_vbyone_wait_hpd(pdrv);
 		lcd_phy_set(pdrv, LCD_PHY_ON);
 		lcd_vbyone_power_on_wait_stable(pdrv);
+		lcd_vbyone_interrupt_enable(pdrv, 1);
 		break;
 	case LCD_MIPI:
 		lcd_phy_set(pdrv, LCD_PHY_ON);
@@ -234,7 +235,6 @@ void lcd_tablet_driver_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_lvds_dphy_set(pdrv, 0);
 		break;
 	case LCD_VBYONE:
-		lcd_vbyone_link_maintain_clear();
 		lcd_vbyone_interrupt_enable(pdrv, 0);
 		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_vbyone_pinmux_set(pdrv, 0);

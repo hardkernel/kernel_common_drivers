@@ -308,8 +308,8 @@ static int lcd_info_print_vbyone(struct aml_lcd_drv_s *pdrv, char *buf, int offs
 		"bit_rate      : %lluHz\n"
 		"phy_vswing    : 0x%x\n"
 		"phy_preem     : 0x%x\n"
-		"intr_en       : %u\n"
-		"vsync_intr_en : %u\n"
+		"vx1_intr_en   : %u\n"
+		"vs_intr_en    : %u\n"
 		"hw_filter_time: 0x%x\n"
 		"hw_filter_cnt : 0x%x\n"
 		"ctrl_flag     : 0x%x\n\n",
@@ -320,8 +320,8 @@ static int lcd_info_print_vbyone(struct aml_lcd_drv_s *pdrv, char *buf, int offs
 		pdrv->config.timing.bit_rate,
 		vx1_conf->phy_vswing,
 		vx1_conf->phy_preem,
-		vx1_conf->intr_en,
-		vx1_conf->vsync_intr_en,
+		vx1_conf->vx1_intr_en,
+		vx1_conf->vs_intr_en,
 		vx1_conf->hw_filter_time,
 		vx1_conf->hw_filter_cnt,
 		vx1_conf->ctrl_flag);
@@ -3341,68 +3341,40 @@ static ssize_t lcd_vx1_debug_store(struct device *dev, struct device_attribute *
 	vx1_conf = &pdrv->config.control.vbyone_cfg;
 	if (buf[0] == 'i') { /* intr */
 		ret = sscanf(buf, "intr %d %d", &val[0], &val[1]);
-		if (ret == 1) {
-			pr_info("set vbyone interrupt enable: %d\n", val[0]);
-			vx1_conf->intr_state = val[0];
-			lcd_vbyone_interrupt_enable(pdrv, vx1_conf->intr_state);
-		} else if (ret == 2) {
-			pr_info("set vbyone interrupt enable: %d %d\n",
-				val[0], val[1]);
-			vx1_conf->intr_state = val[0];
-			vx1_conf->intr_en = val[1];
-			lcd_vbyone_interrupt_enable(pdrv, vx1_conf->intr_state);
-		} else {
-			pr_info("vx1_intr_enable: %d %d\n",
-				vx1_conf->intr_state, vx1_conf->intr_en);
-			return -EINVAL;
+		if (ret == 2) {
+			lcd_vbyone_interrupt_enable(pdrv, 0);
+			vx1_conf->vx1_intr_en = val[0];
+			vx1_conf->vs_intr_en = val[1];
+			lcd_vbyone_interrupt_enable(pdrv, 1);
 		}
-	} else if (buf[0] == 'v') { /* vintr */
-		ret = sscanf(buf, "vintr %d", &val[0]);
-		if (ret == 1) {
-			pr_info("set vbyone vsync interrupt enable: %d\n", val[0]);
-			vx1_conf->vsync_intr_en = val[0];
-			lcd_vbyone_interrupt_enable(pdrv, vx1_conf->intr_state);
-		} else {
-			pr_info("vx1_vsync_intr_enable: %d\n", vx1_conf->vsync_intr_en);
-			return -EINVAL;
-		}
+		pr_info("vx1_intr_en: %d, vs_intr_en: %d, intr_state: 0x%x\n",
+			vx1_conf->vx1_intr_en, vx1_conf->vs_intr_en, vx1_conf->intr_state);
 	} else if (buf[0] == 'c') {
 		if (buf[1] == 't') { /* ctrl */
 			ret = sscanf(buf, "ctrl %x %d %d %d", &val[0], &val[1], &val[2], &val[3]);
 			if (ret == 4) {
-				pr_info("set vbyone ctrl_flag: 0x%x\n", val[0]);
-				pr_info("power_on_reset_delay: %dms\n", val[1]);
-				pr_info("hpd_data_delay: %dms\n", val[2]);
-				pr_info("cdr_training_hold: %dms\n", val[3]);
 				vx1_conf->ctrl_flag = val[0];
 				vx1_conf->power_on_reset_delay = val[1];
 				vx1_conf->hpd_data_delay = val[2];
 				vx1_conf->cdr_training_hold = val[3];
 				lcd_debug_config_update(pdrv);
-			} else {
-				pr_info("vbyone ctrl_flag: 0x%x\n", vx1_conf->ctrl_flag);
-				pr_info("power_on_reset_delay: %dms\n",
-					vx1_conf->power_on_reset_delay);
-				pr_info("hpd_data_delay: %dms\n", vx1_conf->hpd_data_delay);
-				pr_info("cdr_training_hold: %dms\n", vx1_conf->cdr_training_hold);
-				return -EINVAL;
 			}
+			pr_info("vbyone ctrl_flag: 0x%x\n", vx1_conf->ctrl_flag);
+			pr_info("power_on_reset_delay: %dms\n", vx1_conf->power_on_reset_delay);
+			pr_info("hpd_data_delay: %dms\n", vx1_conf->hpd_data_delay);
+			pr_info("cdr_training_hold: %dms\n", vx1_conf->cdr_training_hold);
 		} else if (buf[1] == 'd') { /* cdr */
 			lcd_vbyone_debug_cdr(pdrv);
 		}
 	} else if (buf[0] == 'f') { /* filter */
 		ret = sscanf(buf, "filter %x %x", &val[0], &val[1]);
 		if (ret == 2) {
-			pr_info("set vbyone hw_filter_time: 0x%x, hw_filter_cnt: 0x%x\n",
-				val[0], val[1]);
 			vx1_conf->hw_filter_time = val[0];
 			vx1_conf->hw_filter_cnt = val[1];
 			lcd_debug_config_update(pdrv);
-		} else {
-			pr_info("vbyone hw_filter_time: 0x%x, hw_filter_cnt: 0x%x\n",
-				vx1_conf->hw_filter_time, vx1_conf->hw_filter_cnt);
-			return -EINVAL;
 		}
+		pr_info("vbyone hw_filter_time: 0x%x, hw_filter_cnt: 0x%x\n",
+			vx1_conf->hw_filter_time, vx1_conf->hw_filter_cnt);
 	} else if (buf[0] == 'r') { /* rst */
 		lcd_vbyone_debug_reset(pdrv);
 	} else if (buf[0] == 'l') { /* lock */
@@ -3410,16 +3382,11 @@ static ssize_t lcd_vx1_debug_store(struct device *dev, struct device_attribute *
 	} else {
 		ret = sscanf(buf, "%d %d %d", &vx1_conf->lane_count,
 			     &vx1_conf->region_num, &vx1_conf->byte_mode);
-		if (ret == 3) {
-			pr_info("set vbyone config:\n"
-				"lane_count=%d, region_num=%d, byte_mode=%d\n",
-				vx1_conf->lane_count, vx1_conf->region_num,
-				vx1_conf->byte_mode);
+		if (ret == 3)
 			lcd_debug_config_update(pdrv);
-		} else {
-			pr_info("invalid data\n");
-			return -EINVAL;
-		}
+		pr_info("vbyone config: lane_count=%d, region_num=%d, byte_mode=%d\n",
+			vx1_conf->lane_count, vx1_conf->region_num,
+			vx1_conf->byte_mode);
 	}
 
 	return count;
