@@ -408,6 +408,7 @@ struct amlvideo2_device {
 	int support_4k_capture;
 	u32 framebuffer_total_size;
 	int codec_mm_alloc;
+	bool is_one_buffer;
 };
 
 struct crop_info_s {
@@ -5563,10 +5564,11 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *reqbufs)
 {
 	int ret = 0;
-#ifdef USE_SEMA_QBUF
 	struct v4l2_fh *vfh = file->private_data;
 	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
+	struct amlvideo2_device *aml2_dev = node->aml2_dev;
+#ifdef USE_SEMA_QBUF
 	struct amlvideo2_node_dmaqueue *dma_q = &node->vidq;
 #endif
 
@@ -5579,6 +5581,10 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			__func__, reqbufs->memory);
 		return -EINVAL;
 	}
+	if (reqbufs->count == 1)
+		aml2_dev->is_one_buffer = true;
+	else
+		aml2_dev->is_one_buffer = false;
 
 	if (amlvideo2_dbg_en)
 		pr_info("%s memory:%d,type:%d buff_num:%d\n", __func__,
@@ -5738,6 +5744,7 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 {
 		int ret;
 		struct amlvideo2_fh *fh = node->fh;
+		struct amlvideo2_device *aml2_dev = node->aml2_dev;
 		struct video_input_info video_input_parms;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 		struct vdin_v4l2_ops_s *vops = &node->vops;
@@ -5915,6 +5922,7 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 				para.cfmt = 1;
 			}
 		}
+		para.is_one_buffer = aml2_dev->is_one_buffer;
 		if (amlvideo2_dbg_en) {
 			pr_info("para.h_active: %d, para.v_active: %d,",
 				para.h_active, para.v_active);
@@ -5924,8 +5932,8 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 				fh->width, fh->height);
 			pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
 				vinfo->mode, para.scan_mode);
-			pr_info("node->vdin_device_num = %d .\n",
-				node->vdin_device_num);
+			pr_info("node->vdin_device_num = %d, is_one_buffer=%d.\n",
+				node->vdin_device_num, para.is_one_buffer);
 			pr_info("crop:top %d left %d width %d height %d\n",
 				para.crop[0], para.crop[1], para.crop[2], para.crop[3]);
 		}
@@ -6103,6 +6111,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 	struct amlvideo2_node_dmaqueue *dma_q = &node->vidq;
+	struct amlvideo2_device *aml2_dev = node->aml2_dev;
 	struct video_input_info video_input_parms;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	struct vdin_v4l2_ops_s *vops = &node->vops;
@@ -6315,6 +6324,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 			para.cfmt = 1;
 		}
 	}
+	para.is_one_buffer = aml2_dev->is_one_buffer;
 	if (amlvideo2_dbg_en) {
 		pr_info("para.h_active: %d, para.v_active: %d,",
 			para.h_active, para.v_active);
@@ -6324,8 +6334,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 			fh->width, fh->height);
 		pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
 			vinfo->mode, para.scan_mode);
-		pr_info("node->vdin_device_num = %d .\n",
-			node->vdin_device_num);
+		pr_info("node->vdin_device_num = %d, is_one_buffer=%d.\n",
+			node->vdin_device_num, para.is_one_buffer);
 		pr_info("crop:top %d left %d width %d height %d\n",
 			para.crop[0], para.crop[1], para.crop[2], para.crop[3]);
 	}
@@ -6383,6 +6393,7 @@ static int start_send_normal_frame(struct amlvideo2_fh *fh)
 {
 	int ret;
 	struct amlvideo2_node *node = fh->node;
+	struct amlvideo2_device *aml2_dev = node->aml2_dev;
 	struct amlvideo2_node_dmaqueue *dma_q = &node->vidq;
 	struct video_input_info video_input_parms;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
@@ -6570,6 +6581,7 @@ static int start_send_normal_frame(struct amlvideo2_fh *fh)
 			para.cfmt = 1;
 		}
 	}
+	para.is_one_buffer = aml2_dev->is_one_buffer;
 	if (amlvideo2_dbg_en) {
 		pr_info("para.h_active: %d, para.v_active: %d,",
 			para.h_active, para.v_active);
@@ -6579,8 +6591,8 @@ static int start_send_normal_frame(struct amlvideo2_fh *fh)
 			fh->width, fh->height);
 		pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
 			vinfo->mode, para.scan_mode);
-		pr_info("node->vdin_device_num = %d .\n",
-			node->vdin_device_num);
+		pr_info("node->vdin_device_num = %d, is_one_buffer=%d.\n",
+			node->vdin_device_num, para.is_one_buffer);
 		pr_info("crop:top %d left %d width %d height %d\n",
 			para.crop[0], para.crop[1], para.crop[2], para.crop[3]);
 	}
@@ -7092,7 +7104,8 @@ static int amlvideo2_vb2ops_queue_setup(struct vb2_queue *vq,
 
 	*num_planes = 1;
 	sizes[0] = fh->sizeimage;
-	*num_buffers = VIDEO_Q_BUFF_NUM;
+	if (*num_buffers > VIDEO_Q_BUFF_NUM)
+		*num_buffers = VIDEO_Q_BUFF_NUM;
 	while (sizes[0] * *num_buffers > vid_limit * 1024 * 1024)
 		(*num_buffers)--;
 

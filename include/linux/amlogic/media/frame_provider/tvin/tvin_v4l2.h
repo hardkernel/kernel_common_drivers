@@ -821,6 +821,7 @@ struct vdin_parm_s {
 
 	struct csi_parm_s csi_hw_info;
 	unsigned int crop[4]; /* 0~3: top left width height*/
+	bool is_one_buffer; /*1:screencap one buffer*/
 
 	/*for reserved */
 	uintptr_t reserved;
