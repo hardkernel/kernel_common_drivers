@@ -4624,11 +4624,11 @@ static int codec_mm_probe(struct platform_device *pdev)
 		pr_debug("codec_mm cma memory probed done\n");
 
 	pr_info("%s ok\n", __func__);
-	codec_mm_dev_set_dma_mask(DMA_BIT_MASK(64));
 
 	codec_mm_mgt_init(&pdev->dev);
 	codec_mm_scatter_mgt_init(&pdev->dev);
 	codec_mm_keeper_mgr_init();
+	codec_mm_dev_set_dma_mask(DMA_BIT_MASK(64));
 	amstream_test_init();
 	codec_mm_scatter_mgt_test();
 	REG_PATH_CONFIGS(CONFIG_PATH, codec_mm_configs);
