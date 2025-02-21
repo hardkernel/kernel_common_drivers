@@ -52,7 +52,7 @@
 		};
 
 		/* global autoconfigured region for contiguous allocations */
-		ramoops@0x06700000 {
+		ramoops@6700000 {
 			compatible = "ramoops";
 			reg = <0x0 0x06700000 0x0 0x00100000>;
 			record-size = <0x20000>;
