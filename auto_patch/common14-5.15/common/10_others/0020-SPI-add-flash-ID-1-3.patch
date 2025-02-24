@@ -1,0 +1,71 @@
+From 195c9c35ad53f537d18952c06134f1f76024563e Mon Sep 17 00:00:00 2001
+From: Wayne Zhang <wayne.zhang@amlogic.com>
+Date: Fri, 21 Feb 2025 09:04:47 +0000
+Subject: [PATCH] SPI: add flash ID [1/3]
+
+PD#SWPL-202773
+
+Problem:
+need nor flash support.
+
+Solution:
+add id support.
+
+Verify:
+T5W
+
+Signed-off-by: Wenbing Yu <wenbing.yu@amlogic.com>
+Signed-off-by: Feng Chen <feng.chen@amlogic.com>
+Change-Id: I0c2c11139a32aa03d46ff3ca70c7c2e0368667f2
+Signed-off-by: Wayne Zhang <wayne.zhang@amlogic.com>
+---
+ drivers/mtd/spi-nor/gigadevice.c | 3 +++
+ drivers/mtd/spi-nor/macronix.c   | 3 +++
+ drivers/mtd/spi-nor/winbond.c    | 3 +++
+ 3 files changed, 9 insertions(+)
+
+diff --git a/drivers/mtd/spi-nor/gigadevice.c b/drivers/mtd/spi-nor/gigadevice.c
+index 447d84bb2128..d867ff5972ca 100644
+--- a/drivers/mtd/spi-nor/gigadevice.c
++++ b/drivers/mtd/spi-nor/gigadevice.c
+@@ -50,6 +50,9 @@ static const struct flash_info gigadevice_parts[] = {
+ 			   SPI_NOR_4B_OPCODES | SPI_NOR_HAS_LOCK |
+ 			   SPI_NOR_HAS_TB | SPI_NOR_TB_SR_BIT6)
+ 		.fixups = &gd25q256_fixups },
++#ifdef	CONFIG_AMLOGIC_MODIFY
++	{ "GD25Q40C", INFO(0xC84013, 0x0, 64 * 1024,  8, SECT_4K) },
++#endif
+ };
+ 
+ const struct spi_nor_manufacturer spi_nor_gigadevice = {
+diff --git a/drivers/mtd/spi-nor/macronix.c b/drivers/mtd/spi-nor/macronix.c
+index 27498ed0cc0d..a37761f0bb5e 100644
+--- a/drivers/mtd/spi-nor/macronix.c
++++ b/drivers/mtd/spi-nor/macronix.c
+@@ -87,6 +87,9 @@ static const struct flash_info macronix_parts[] = {
+ 	{ "mx66u2g45g",	 INFO(0xc2253c, 0, 64 * 1024, 4096,
+ 			      SECT_4K | SPI_NOR_DUAL_READ |
+ 			      SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
++#ifdef	CONFIG_AMLOGIC_MODIFY
++	{ "MX25V4035F", INFO(0xC22313, 0x0, 64 * 1024,  8, 0)},
++#endif
+ };
+ 
+ static void macronix_default_init(struct spi_nor *nor)
+diff --git a/drivers/mtd/spi-nor/winbond.c b/drivers/mtd/spi-nor/winbond.c
+index 96573f61caf5..8621f4e8db91 100644
+--- a/drivers/mtd/spi-nor/winbond.c
++++ b/drivers/mtd/spi-nor/winbond.c
+@@ -102,6 +102,9 @@ static const struct flash_info winbond_parts[] = {
+ 			    SECT_4K | SPI_NOR_QUAD_READ | SPI_NOR_DUAL_READ) },
+ 	{ "w25q512jvq", INFO(0xef4020, 0, 64 * 1024, 1024,
+ 			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++#ifdef	CONFIG_AMLOGIC_MODIFY
++	{ "W25X40CL", INFO(0xEF3013, 0x0, 64 * 1024,  8, SECT_4K) },
++#endif
+ };
+ 
+ /**
+-- 
+2.47.0
+
