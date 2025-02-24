@@ -879,10 +879,8 @@ struct aml_lcd_drv_s {
 	unsigned char tcon_isr_bypass;
 	unsigned char probe_done;
 	unsigned char viu_sel;
-	unsigned char projection_en;
 	unsigned char vsync_none_timer_flag;
 	unsigned char clk_conf_num;
-	unsigned char vout_regist_on_ctrl;
 	char vsync_isr_name[3][15];
 	char vbyone_isr_name[10];
 	char output_name[30];
@@ -906,7 +904,7 @@ struct aml_lcd_drv_s {
 	struct lcd_reg_map_s *reg_map;
 	struct lcd_boot_ctrl_s *boot_ctrl;
 	struct lcd_debug_ctrl_s *debug_ctrl;
-	struct vout_server_s *vout_server[2];
+	struct vout_server_s *vout_server;
 	struct vrr_device_s *vrr_dev;
 	struct aml_fr_lock_s *fr_lock;
 #ifdef CONFIG_OF

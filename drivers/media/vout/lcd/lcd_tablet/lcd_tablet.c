@@ -26,6 +26,7 @@
 #endif
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <drm/amlogic/meson_connector_dev.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
@@ -36,8 +37,6 @@
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
 #include <linux/sched/clock.h>
-
-bool lcd_legacy_panel_disp_mode;
 
 static struct lcd_duration_s lcd_std_fr[] = {
 	{144, 144,    1,    0},
@@ -208,15 +207,8 @@ static void lcd_act_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 
-	if (lcd_legacy_panel_disp_mode) {
-		if (pdrv->index)
-			sprintf(pdrv->output_name, "panel%u", pdrv->index);
-		else
-			sprintf(pdrv->output_name, "panel");
-	} else {
-		str_add_vmode(pdrv->output_name, 0,
-			ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
-	}
+	str_add_vmode(pdrv->output_name, 0,
+		ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
 
 	pdrv->vinfo.width = ptiming->h_active;
 	pdrv->vinfo.height = ptiming->v_active;
@@ -240,6 +232,23 @@ static void lcd_act_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.vsw = ptiming->vsync_width;
 	pdrv->vinfo.vbp = ptiming->vsync_bp;
 	pdrv->vinfo.vfp = ptiming->vsync_fp;
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_LVDS:
+	case LCD_MLVDS:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_LVDS_A + pdrv->index;
+		break;
+	case LCD_VBYONE:
+	case LCD_P2P:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_VBYONE_A + pdrv->index;
+		break;
+	case LCD_MIPI:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_MIPI_A + pdrv->index;
+		break;
+	default:
+		pdrv->vinfo.connector_type = 0 + pdrv->index;
+		break;
+	}
+
 	pdrv->vinfo.cur_enc_ppc =  pdrv->config.timing.ppc;
 	switch (ptiming->fr_adjust_type) {
 	case 0:
@@ -275,15 +284,8 @@ static void lcd_dft_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 
-	if (lcd_legacy_panel_disp_mode) {
-		if (pdrv->index)
-			sprintf(pdrv->output_name, "panel%u", pdrv->index);
-		else
-			sprintf(pdrv->output_name, "panel");
-	} else {
-		str_add_vmode(pdrv->output_name, 0,
-			ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
-	}
+	str_add_vmode(pdrv->output_name, 0,
+		ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
 
 	pdrv->vinfo.name = pdrv->output_name;
 	pdrv->vinfo.mode = VMODE_LCD;
@@ -305,28 +307,32 @@ static void lcd_dft_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.vtotal = ptiming->v_period;
 	pdrv->vinfo.cur_enc_ppc = pdrv->config.timing.ppc;
 	pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_NONE;
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_LVDS:
+	case LCD_MLVDS:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_LVDS_A + pdrv->index;
+		break;
+	case LCD_VBYONE:
+	case LCD_P2P:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_VBYONE_A + pdrv->index;
+		break;
+	case LCD_MIPI:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_MIPI_A + pdrv->index;
+		break;
+	default:
+		pdrv->vinfo.connector_type = 0 + pdrv->index;
+		break;
+	}
 }
 
 static int lcd_tablet_outputmode_check(struct aml_lcd_drv_s *pdrv, char *mode)
 {
 	struct lcd_vmode_list_s *temp_list = pdrv->vmode_mgr.vmode_list_header;
 	char mode_name[48];
-	char lagecy_name[8] = "panel\0\0";
 	int i;
 
 	if (!mode || !temp_list)
 		return -1;
-
-	if (pdrv->index)
-		lagecy_name[5] = '0' + pdrv->index;
-	if (strcmp(mode, lagecy_name) == 0) {
-		lcd_legacy_panel_disp_mode = 1;
-		temp_list->info->duration_index = 0;
-		if (pdrv->vmode_mgr.cur_vmode_info != temp_list->info)
-			pdrv->vmode_mgr.next_vmode_info = temp_list->info;
-		LCDPR("[%d]: %s: legacy mode %s\n", pdrv->index, __func__, mode);
-		return 0;
-	}
 
 	while (temp_list) {
 		memset(mode_name, 0, 48);
@@ -667,6 +673,7 @@ static int lcd_vout_set_state(int index, void *data)
 
 	mutex_lock(&lcd_vout_mutex);
 	pdrv->vout_state |= (1 << index);
+	LCDPR("[%d]: %s: viu:[%d -> %d]\n", pdrv->index, __func__, pdrv->viu_sel, index);
 	pdrv->viu_sel = index;
 	mutex_unlock(&lcd_vout_mutex);
 
@@ -682,6 +689,7 @@ static int lcd_vout_clr_state(int index, void *data)
 
 	mutex_lock(&lcd_vout_mutex);
 	pdrv->vout_state &= ~(1 << index);
+	LCDPR("[%d]: %s: viu=%d, clear_viu=%d\n", pdrv->index, __func__, pdrv->viu_sel, index);
 	if (pdrv->viu_sel == index)
 		pdrv->viu_sel = LCD_VIU_SEL_NONE;
 	mutex_unlock(&lcd_vout_mutex);
@@ -704,14 +712,6 @@ static int lcd_vout_get_disp_cap(char *buf, void *data)
 
 	if (!pdrv)
 		return 0;
-
-	if (lcd_legacy_panel_disp_mode) {
-		if (pdrv->index)
-			ret = sprintf(buf, "panel%u\n", pdrv->index);
-		else
-			ret = sprintf(buf, "panel\n");
-		return ret;
-	}
 
 	temp_list = pdrv->vmode_mgr.vmode_list_header;
 	while (temp_list) {
@@ -737,7 +737,7 @@ static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac, void *data
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 
-	if (!pdrv || !mode || frac)
+	if (!pdrv || !mode)
 		return VMODE_MAX;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -1015,182 +1015,100 @@ static int lcd_resume(void *data)
 // * bind 3 vout op
 void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int cnt_idx, lcd_type = pdrv->config.basic.lcd_type;
+	unsigned int cnt_idx;
 	char *connector_name_list[5] = {"LVDS", "VBYONE", "MIPI", "EDP", "LCD"};
 	char *curr_vout_connector, *curr_vout_mode;
 	char lcd_connector[10];
-	char lagecy_name[8] = "panel\0\0";
-#if (defined(CONFIG_AMLOGIC_VOUT_SERVE) || defined(CONFIG_AMLOGIC_VOUT2_SERVE))
-	char *init_mode;
-#endif
 
-	if (pdrv->index)
-		lagecy_name[5] = '0' + pdrv->index;
+	pdrv->vout_server = kzalloc(sizeof(*pdrv->vout_server), GFP_KERNEL);
+	if (!pdrv->vout_server)
+		return;
+	pdrv->vout_server->name = kzalloc(32, GFP_KERNEL);
+	if (!pdrv->vout_server->name) {
+		kfree(pdrv->vout_server);
+		return;
+	}
 
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	init_mode = get_vout_mode_uboot();
-	if (strncmp(init_mode, "panel", 5) == 0)
-		lcd_legacy_panel_disp_mode = 1;
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	init_mode = get_vout2_mode_uboot();
-	if (strncmp(init_mode, "panel", 5) == 0)
-		lcd_legacy_panel_disp_mode = 1;
-#endif
-
-	if (lcd_type == LCD_LVDS || lcd_type == LCD_MLVDS)
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_LVDS:
+	case LCD_MLVDS:
 		cnt_idx = 0;
-	else if (lcd_type == LCD_VBYONE || lcd_type == LCD_P2P)
+		pdrv->vout_server->connector_type = DRM_MODE_CONNECTOR_MESON_LVDS_A + pdrv->index;
+		break;
+	case LCD_VBYONE:
+	case LCD_P2P:
 		cnt_idx = 1;
-	else if (lcd_type == LCD_MIPI)
+		pdrv->vout_server->connector_type = DRM_MODE_CONNECTOR_MESON_VBYONE_A + pdrv->index;
+		break;
+	case LCD_MIPI:
 		cnt_idx = 2;
-	else
-		cnt_idx = 4;
-
-	pdrv->vout_server[0] = kzalloc(sizeof(*pdrv->vout_server[0]), GFP_KERNEL);
-	if (!pdrv->vout_server[0])
-		return;
-	pdrv->vout_server[0]->name = kzalloc(32, GFP_KERNEL);
-	if (!pdrv->vout_server[0]->name) {
-		kfree(pdrv->vout_server[0]);
-		return;
+		pdrv->vout_server->connector_type = DRM_MODE_CONNECTOR_MESON_MIPI_A + pdrv->index;
+		break;
+	default:
+		cnt_idx = 3;
+		pdrv->vout_server->connector_type = 0 + pdrv->index;
+		break;
 	}
 
 	snprintf(lcd_connector, 10, "%s-%c", connector_name_list[cnt_idx], 'A' + pdrv->index);
 	lcd_dft_timing_update_vinfo(pdrv);
 
-	pdrv->vout_server[0]->op.get_vinfo = lcd_get_current_info;
-	pdrv->vout_server[0]->op.set_vmode = lcd_set_current_vmode;
-	pdrv->vout_server[0]->op.validate_vmode = lcd_validate_vmode;
-	pdrv->vout_server[0]->op.check_same_vmodeattr = lcd_check_same_vmodeattr;
-	pdrv->vout_server[0]->op.vmode_is_supported = lcd_vmode_is_supported;
-	pdrv->vout_server[0]->op.disable = lcd_vout_disable;
-	pdrv->vout_server[0]->op.set_state = lcd_vout_set_state;
-	pdrv->vout_server[0]->op.clr_state = lcd_vout_clr_state;
-	pdrv->vout_server[0]->op.get_state = lcd_vout_get_state;
-	pdrv->vout_server[0]->op.get_disp_cap = lcd_vout_get_disp_cap;
-	pdrv->vout_server[0]->op.set_vframe_rate_hint = lcd_set_vframe_rate_hint;
-	pdrv->vout_server[0]->op.get_vframe_rate_hint = lcd_get_vframe_rate_hint;
-	pdrv->vout_server[0]->op.set_bist = lcd_vout_debug_test;
-	pdrv->vout_server[0]->op.set_bl_brightness = lcd_vout_set_bl_brightness;
-	pdrv->vout_server[0]->op.get_bl_brightness = lcd_vout_get_bl_brightness;
-	pdrv->vout_server[0]->op.vout_suspend = lcd_suspend;
-	pdrv->vout_server[0]->op.vout_resume = lcd_resume;
-	pdrv->vout_server[0]->data = (void *)pdrv;
+	pdrv->vout_server->op.get_vinfo = lcd_get_current_info;
+	pdrv->vout_server->op.set_vmode = lcd_set_current_vmode;
+	pdrv->vout_server->op.validate_vmode = lcd_validate_vmode;
+	pdrv->vout_server->op.check_same_vmodeattr = lcd_check_same_vmodeattr;
+	pdrv->vout_server->op.vmode_is_supported = lcd_vmode_is_supported;
+	pdrv->vout_server->op.disable = lcd_vout_disable;
+	pdrv->vout_server->op.set_state = lcd_vout_set_state;
+	pdrv->vout_server->op.clr_state = lcd_vout_clr_state;
+	pdrv->vout_server->op.get_state = lcd_vout_get_state;
+	pdrv->vout_server->op.get_disp_cap = lcd_vout_get_disp_cap;
+	pdrv->vout_server->op.set_vframe_rate_hint = lcd_set_vframe_rate_hint;
+	pdrv->vout_server->op.get_vframe_rate_hint = lcd_get_vframe_rate_hint;
+	pdrv->vout_server->op.set_bist = lcd_vout_debug_test;
+	pdrv->vout_server->op.set_bl_brightness = lcd_vout_set_bl_brightness;
+	pdrv->vout_server->op.get_bl_brightness = lcd_vout_get_bl_brightness;
+	pdrv->vout_server->op.vout_suspend = lcd_suspend;
+	pdrv->vout_server->op.vout_resume = lcd_resume;
+	pdrv->vout_server->data = (void *)pdrv;
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	curr_vout_connector = get_uboot_connector0_type();
 	curr_vout_mode = get_vout_mode_uboot();
-	LCDPR("%s: panel_mode:%u, mode:%s\n", __func__, lcd_legacy_panel_disp_mode, curr_vout_mode);
-	if (!strcmp(lcd_connector, curr_vout_connector) ||
-	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
+	if (!strcmp(lcd_connector, curr_vout_connector))
 		pdrv->viu_sel = 1;
-		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout1_server", pdrv->index);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("[%u]: regist[0]: %s\n", pdrv->index, pdrv->vout_server[0]->name);
-		vout_register_server(pdrv->vout_server[0]);
-	}
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	curr_vout_connector = get_uboot_connector1_type();
 	curr_vout_mode = get_vout2_mode_uboot();
-	if (!strcmp(lcd_connector, curr_vout_connector) ||
-	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
+	if (!strcmp(lcd_connector, curr_vout_connector))
 		pdrv->viu_sel = 2;
-		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout2_server", pdrv->index);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("[%u]: regist[0]: %s\n", pdrv->index, pdrv->vout_server[0]->name);
-		vout2_register_server(pdrv->vout_server[0]);
-	}
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	curr_vout_connector = get_uboot_connector2_type();
 	curr_vout_mode = get_vout3_mode_uboot();
-	if (!strcmp(lcd_connector, curr_vout_connector) ||
-	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
+	if (!strcmp(lcd_connector, curr_vout_connector))
 		pdrv->viu_sel = 3;
-		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout3_server", pdrv->index);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("[%u]: regist[0]: %s\n", pdrv->index, pdrv->vout_server[0]->name);
-		vout3_register_server(pdrv->vout_server[0]);
-	}
 #endif
 
-	if (pdrv->vout_regist_on_ctrl & 0x7) {
-		pdrv->vout_server[1] = kzalloc(sizeof(*pdrv->vout_server[1]), GFP_KERNEL);
-		if (!pdrv->vout_server[1])
-			return;
-		memcpy(pdrv->vout_server[1], pdrv->vout_server[0], sizeof(*pdrv->vout_server[0]));
-
-		pdrv->vout_server[1]->name = kzalloc(32, GFP_KERNEL);
-		if (!pdrv->vout_server[1]->name) {
-			kfree(pdrv->vout_server[1]);
-			return;
-		}
+	sprintf(pdrv->vout_server->name, "lcd%d_vout_server", pdrv->index);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%u]: regist[0]: %s\n", pdrv->index, pdrv->vout_server->name);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-		if (pdrv->vout_regist_on_ctrl & 0x01 && pdrv->viu_sel != 1) {
-			sprintf(pdrv->vout_server[1]->name, "lcd%d_vout1_server", pdrv->index);
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%u]: regist[0]: %s\n",
-					pdrv->index, pdrv->vout_server[1]->name);
-			vout_register_server(pdrv->vout_server[1]);
-			return;
-		}
+	vout_register_server(pdrv->vout_server);
 #endif
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-
-		if (pdrv->vout_regist_on_ctrl & 0x02 && pdrv->viu_sel != 2) {
-			sprintf(pdrv->vout_server[1]->name, "lcd%d_vout2_server", pdrv->index);
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%u]: regist[1]: %s\n",
-					pdrv->index, pdrv->vout_server[1]->name);
-			vout2_register_server(pdrv->vout_server[1]);
-			return;
-		}
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-		if (pdrv->vout_regist_on_ctrl & 0x04 && pdrv->viu_sel != 3) {
-			sprintf(pdrv->vout_server[1]->name, "lcd%d_vout3_server", pdrv->index);
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%u]: regist[1]: %s\n",
-					pdrv->index, pdrv->vout_server[1]->name);
-			vout3_register_server(pdrv->vout_server[1]);
-			return;
-		}
-#endif
-	}
 }
 
 void lcd_tablet_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 {
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	if (pdrv->viu_sel == 1)
-		vout_unregister_server(pdrv->vout_server[0]);
-	else if (pdrv->vout_regist_on_ctrl & 0x01)
-		vout_unregister_server(pdrv->vout_server[1]);
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	if (pdrv->viu_sel == 2)
-		vout2_unregister_server(pdrv->vout_server[0]);
-	else if (pdrv->vout_regist_on_ctrl & 0x02)
-		vout2_unregister_server(pdrv->vout_server[1]);
-#endif
-#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	if (pdrv->viu_sel == 3)
-		vout3_unregister_server(pdrv->vout_server[0]);
-	else if (pdrv->vout_regist_on_ctrl & 0x04)
-		vout3_unregister_server(pdrv->vout_server[1]);
+	vout_unregister_server(pdrv->vout_server);
 #endif
 
-	kfree(pdrv->vout_server[1]->name);
-	kfree(pdrv->vout_server[1]);
-	pdrv->vout_server[1] = NULL;
-
-	kfree(pdrv->vout_server[0]->name);
-	kfree(pdrv->vout_server[0]);
-	pdrv->vout_server[0] = NULL;
-
+	kfree(pdrv->vout_server->name);
+	kfree(pdrv->vout_server);
+	pdrv->vout_server = NULL;
 }
 
 static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)

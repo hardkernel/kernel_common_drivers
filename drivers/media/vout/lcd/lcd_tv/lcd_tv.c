@@ -27,6 +27,7 @@
 #endif
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <drm/amlogic/meson_connector_dev.h>
 #include <linux/amlogic/media/vrr/vrr.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 
@@ -383,6 +384,23 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.vbp = ptiming->vsync_bp;
 	pdrv->vinfo.vfp = ptiming->vsync_fp;
 	pdrv->vinfo.viu_mux = VIU_MUX_ENCL;
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_LVDS:
+	case LCD_MLVDS:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_LVDS_A + pdrv->index;
+		break;
+	case LCD_VBYONE:
+	case LCD_P2P:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_VBYONE_A + pdrv->index;
+		break;
+	case LCD_MIPI:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_MIPI_A + pdrv->index;
+		break;
+	default:
+		pdrv->vinfo.connector_type = 0 + pdrv->index;
+		break;
+	}
+
 	pdrv->vinfo.cur_enc_ppc = pdrv->config.timing.ppc;
 	switch (ptiming->fr_adjust_type) {
 	case 0:
@@ -1105,52 +1123,85 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.vtotal = ptiming->v_period;
 	pdrv->vinfo.cur_enc_ppc = pdrv->config.timing.ppc;
 	pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_NONE;
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_LVDS:
+	case LCD_MLVDS:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_LVDS_A + pdrv->index;
+		break;
+	case LCD_VBYONE:
+	case LCD_P2P:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_VBYONE_A + pdrv->index;
+		break;
+	case LCD_MIPI:
+		pdrv->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_MIPI_A + pdrv->index;
+		break;
+	default:
+		pdrv->vinfo.connector_type = 0 + pdrv->index;
+		break;
+	}
 
 	kfree(mode);
 }
 
 void lcd_tv_vout_server_init(struct aml_lcd_drv_s *pdrv)
 {
-	pdrv->vout_server[0] = kzalloc(sizeof(*pdrv->vout_server[0]), GFP_KERNEL);
-	if (!pdrv->vout_server[0])
+	pdrv->vout_server = kzalloc(sizeof(*pdrv->vout_server), GFP_KERNEL);
+	if (!pdrv->vout_server)
 		return;
-	pdrv->vout_server[0]->name = kzalloc(32, GFP_KERNEL);
-	if (!pdrv->vout_server[0]->name) {
-		kfree(pdrv->vout_server[0]);
+	pdrv->vout_server->name = kzalloc(32, GFP_KERNEL);
+	if (!pdrv->vout_server->name) {
+		kfree(pdrv->vout_server);
 		return;
 	}
 
-	sprintf(pdrv->vout_server[0]->name, "lcd%d_vout_server", pdrv->index);
-	pdrv->vout_server[0]->op.get_vinfo = lcd_get_current_info;
-	pdrv->vout_server[0]->op.set_vmode = lcd_set_current_vmode;
-	pdrv->vout_server[0]->op.validate_vmode = lcd_validate_vmode;
-	pdrv->vout_server[0]->op.check_same_vmodeattr = lcd_check_same_vmodeattr;
-	pdrv->vout_server[0]->op.vmode_is_supported = lcd_vmode_is_supported;
-	pdrv->vout_server[0]->op.disable = lcd_vout_disable;
-	pdrv->vout_server[0]->op.set_state = lcd_vout_set_state;
-	pdrv->vout_server[0]->op.clr_state = lcd_vout_clr_state;
-	pdrv->vout_server[0]->op.get_state = lcd_vout_get_state;
-	pdrv->vout_server[0]->op.get_disp_cap = lcd_vout_get_disp_cap;
-	pdrv->vout_server[0]->op.set_vframe_rate_hint = lcd_set_vframe_rate_hint;
-	pdrv->vout_server[0]->op.get_vframe_rate_hint = lcd_get_vframe_rate_hint;
-	pdrv->vout_server[0]->op.set_bist = lcd_vout_debug_test;
-	pdrv->vout_server[0]->op.set_bl_brightness = lcd_vout_set_bl_brightness;
-	pdrv->vout_server[0]->op.get_bl_brightness = lcd_vout_get_bl_brightness;
-	pdrv->vout_server[0]->op.vout_suspend = lcd_suspend;
-	pdrv->vout_server[0]->op.vout_resume = lcd_resume;
-	pdrv->vout_server[0]->data = (void *)pdrv;
+	sprintf(pdrv->vout_server->name, "lcd%d_vout_server", pdrv->index);
+	pdrv->vout_server->op.get_vinfo = lcd_get_current_info;
+	pdrv->vout_server->op.set_vmode = lcd_set_current_vmode;
+	pdrv->vout_server->op.validate_vmode = lcd_validate_vmode;
+	pdrv->vout_server->op.check_same_vmodeattr = lcd_check_same_vmodeattr;
+	pdrv->vout_server->op.vmode_is_supported = lcd_vmode_is_supported;
+	pdrv->vout_server->op.disable = lcd_vout_disable;
+	pdrv->vout_server->op.set_state = lcd_vout_set_state;
+	pdrv->vout_server->op.clr_state = lcd_vout_clr_state;
+	pdrv->vout_server->op.get_state = lcd_vout_get_state;
+	pdrv->vout_server->op.get_disp_cap = lcd_vout_get_disp_cap;
+	pdrv->vout_server->op.set_vframe_rate_hint = lcd_set_vframe_rate_hint;
+	pdrv->vout_server->op.get_vframe_rate_hint = lcd_get_vframe_rate_hint;
+	pdrv->vout_server->op.set_bist = lcd_vout_debug_test;
+	pdrv->vout_server->op.set_bl_brightness = lcd_vout_set_bl_brightness;
+	pdrv->vout_server->op.get_bl_brightness = lcd_vout_get_bl_brightness;
+	pdrv->vout_server->op.vout_suspend = lcd_suspend;
+	pdrv->vout_server->op.vout_resume = lcd_resume;
+	pdrv->vout_server->data = (void *)pdrv;
+
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_LVDS:
+	case LCD_MLVDS:
+		pdrv->vout_server->connector_type = DRM_MODE_CONNECTOR_MESON_LVDS_A + pdrv->index;
+		break;
+	case LCD_VBYONE:
+	case LCD_P2P:
+		pdrv->vout_server->connector_type = DRM_MODE_CONNECTOR_MESON_VBYONE_A + pdrv->index;
+		break;
+	case LCD_MIPI:
+		pdrv->vout_server->connector_type = DRM_MODE_CONNECTOR_MESON_MIPI_A + pdrv->index;
+		break;
+	default:
+		pdrv->vout_server->connector_type = 0 + pdrv->index;
+		break;
+	}
 
 	lcd_vinfo_update_default(pdrv);
 
-	vout_register_server(pdrv->vout_server[0]);
+	vout_register_server(pdrv->vout_server);
 }
 
 void lcd_tv_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 {
-	vout_unregister_server(pdrv->vout_server[0]);
-	kfree(pdrv->vout_server[0]->name);
-	kfree(pdrv->vout_server[0]);
-	pdrv->vout_server[0] = NULL;
+	vout_unregister_server(pdrv->vout_server);
+	kfree(pdrv->vout_server->name);
+	kfree(pdrv->vout_server);
+	pdrv->vout_server = NULL;
 }
 
 static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
