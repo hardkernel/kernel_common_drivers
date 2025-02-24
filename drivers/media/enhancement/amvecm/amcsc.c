@@ -613,7 +613,7 @@ __setup("hdr_debug=", boot_hdr_debug);
 /*	BT2100_IPT = 6			*/
 /*	BT_BYPASS = 7			*/
 /* BT2020 = 2: 2020 + gamma not support in hdmi now */
-static uint force_output; /* 0: no force */
+uint force_output; /* 0: no force */
 module_param(force_output, uint, 0664);
 MODULE_PARM_DESC(force_output, "\n current force_output\n");
 
@@ -694,7 +694,7 @@ void set_force_output(enum output_format_e output)
 EXPORT_SYMBOL(set_force_output);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static uint hdr_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr, 2:auto */
+uint hdr_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr, 2:auto */
 module_param(hdr_mode, uint, 0664);
 MODULE_PARM_DESC(hdr_mode, "\n set hdr_mode\n");
 

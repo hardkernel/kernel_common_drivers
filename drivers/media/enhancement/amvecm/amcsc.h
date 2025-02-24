@@ -155,6 +155,7 @@ extern unsigned int vecm_latch_flag;
 extern signed int vd1_contrast_offset;
 extern signed int saturation_offset;
 extern uint sdr_mode;
+extern uint hdr_mode;
 extern uint hdr_flag;
 extern int video_rgb_ogo_xvy_mtx_latch;
 extern int video_rgb_ogo_xvy_mtx;
@@ -323,6 +324,7 @@ uint32_t sink_hdr_support_ori_cap(const struct vinfo_s *vinfo);
 extern uint osd_gamut_conv_type;
 extern uint gamut_conv_enable;
 extern uint hdr_policy;
+extern uint force_output;
 
 void force_toggle(void);
 int get_s5_slice_mode(void);

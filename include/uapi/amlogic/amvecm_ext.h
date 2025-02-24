@@ -779,4 +779,9 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_S_HDR_GAMUT_COEF _IOW(_VE_CM, 0x92, struct hdr_gamut_data_s)
 #define AMVECM_IOC_S_HDR_MTRX_COEF _IOW(_VE_CM, 0x93, struct hdr_mtrx_data_s)
 
+#define AMVECM_IOC_S_CM_CTRL     _IO(_VE_CM, 0xa0)
+#define AMVECM_IOC_S_FORCE_OUT   _IO(_VE_CM, 0xa1)
+#define AMVECM_IOC_S_HDR_POLICY  _IO(_VE_CM, 0xa2)
+#define AMVECM_IOC_S_HDR_MODE    _IO(_VE_CM, 0xa3)
+#define AMVECM_IOC_S_SDR_MODE    _IO(_VE_CM, 0xa4)
 #endif

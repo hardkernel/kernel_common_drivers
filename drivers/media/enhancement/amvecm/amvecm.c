@@ -4679,6 +4679,47 @@ static long amvecm_ioctl(struct file *file,
 			force_toggle();
 		}
 		break;
+	case AMVECM_IOC_S_CM_CTRL:
+		if (copy_from_user(&tmp,
+			(void __user *)arg,
+			sizeof(int)))
+			ret = -EFAULT;
+		else
+			cm_en = tmp;
+		pr_amvecm_dbg("AMVECM_IOC_S_CM_CTRL: %d\n", cm_en);
+		break;
+	case AMVECM_IOC_S_FORCE_OUT:
+		if (copy_from_user(&tmp,
+			(void __user *)arg,
+			sizeof(int)))
+			ret = -EFAULT;
+		else
+			force_output = tmp;
+		pr_amvecm_dbg("AMVECM_IOC_S_FORCE_OUT: %d\n", force_output);
+		break;
+	case AMVECM_IOC_S_HDR_POLICY:
+		if (copy_from_user(&tmp,
+			(void __user *)arg,
+			sizeof(int)))
+			ret = -EFAULT;
+		else
+			hdr_policy = tmp;
+		pr_amvecm_dbg("AMVECM_IOC_S_HDR_POLICY: %d\n", hdr_policy);
+		break;
+	case AMVECM_IOC_S_HDR_MODE:
+		if (copy_from_user(&tmp, (void __user *)arg, sizeof(int)))
+			ret = -EFAULT;
+		else
+			hdr_mode = tmp;
+		pr_amvecm_dbg("AMVECM_IOC_S_HDR_MODE: %d\n", hdr_mode);
+		break;
+	case AMVECM_IOC_S_SDR_MODE:
+		if (copy_from_user(&tmp, (void __user *)arg, sizeof(int)))
+			ret = -EFAULT;
+		else
+			sdr_mode = tmp;
+		pr_amvecm_dbg("AMVECM_IOC_S_SDR_MODE: %d\n", sdr_mode);
+		break;
 #endif
 	default:
 		ret = -EINVAL;
