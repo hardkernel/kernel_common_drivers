@@ -1510,7 +1510,7 @@
 };
 
 &drm_vpu {
-	status = "disabled";
+	status = "okay";
 	logo_addr = "0x3f800000";
 	/* 1:sel afbcd and can not be changed; 0:sel afbcd or mif according data source */
 	osd_axi_sel = <1>;
@@ -1775,7 +1775,7 @@
 };
 
 &aml_wifi{
-	status = "disabled";
+	status = "okay";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
