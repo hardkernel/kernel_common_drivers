@@ -1133,15 +1133,48 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 	}
 }
 
+static bool adc_check_lock_status(enum adc_chip_ver chip_id,
+	struct adc_pll_reg_addr *pll_addr)
+{
+	bool lock_status = false;
+	int i, addr = 0;
+
+	for (i = 0; i < 10; ++i) {
+		switch (chip_id) {
+		case ADC_CHIP_T5M:
+		case ADC_CHIP_T3X:
+		case ADC_CHIP_T6D:
+			addr = ANACTRL_ADC_PLL_STS;
+			break;
+		case ADC_CHIP_T3:
+			addr = pll_addr->adc_pll_cntl_7;
+			break;
+		case ADC_CHIP_S4:
+		case ADC_CHIP_S4D:
+			addr = pll_addr->adc_pll_cntl_0 + 0x10;
+			break;
+		default:
+			addr = pll_addr->adc_pll_cntl_0;
+		}
+		lock_status = adc_rd_hiu_bits(addr, 31, 1);
+
+		if (lock_status)
+			break;
+		usleep_range(100, 110);
+	}
+
+	return lock_status;
+}
+
 int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 {
-	unsigned int adc_pll_lock_cnt = 0, adc_pll_sts = 0;
+	unsigned int adc_pll_lock_cnt = 0;
+	bool adc_pll_sts = false;
 	int ret = 0;/* 0: success; -x: failed */
 	struct dfe_adcpll_para *p_dtv_para = p_para;/* only for dtv demod */
 	struct tvin_adc_dev *devp = adc_devp;
 	__maybe_unused struct adc_reg_addr *adc_addr;
 	struct adc_pll_reg_addr *pll_addr;
-	unsigned int reg_offset = 0;
 
 	if (!probe_finish || !devp) {
 		ret = -6;
@@ -1164,39 +1197,25 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 	switch (module_sel) {
 	case ADC_ATV_DEMOD:
 		mutex_lock(&devp->pll_mutex);
-		if (devp->pll_flg & (ADC_TVAFE | ADC_DTV_DEMOD)) {
-			ret = -1;
-			pr_err("%s:DEMOD fail!:%d\n", __func__, devp->pll_flg);
-			mutex_unlock(&devp->pll_mutex);
-			break;
-		}
 
 		if (devp->pll_flg & ADC_ATV_DEMOD) {
 			if (devp->print_en & ADC_DBG_EN)
-				pr_info("%s:DEMOD ATV had done!:%d\n",
+				pr_info("%s:ATV DEMOD PLL exist!:%d\n",
 					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
 		}
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			/* DADC CNTL for LIF signal input */
+			adc_dadc_atv_cntl_config(devp);
 			do {
-				/** DADC CNTL for LIF signal input **/
-				adc_dadc_atv_cntl_config(devp);
 				//pll config
 				adc_32m_pll_config(devp);
 				// adc pll status confirm
-				usleep_range(100, 101);
-				adc_pll_lock_cnt++;
-				if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
-				    devp->plat_data->chip_id == ADC_CHIP_T3X ||
-				    devp->plat_data->chip_id == ADC_CHIP_T6D)
-					adc_pll_sts = adc_rd_hiu_bits(ANACTRL_ADC_PLL_STS, 31, 1);
-				else if (devp->plat_data->chip_id == ADC_CHIP_T3)
-					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_7, 31, 1);
-				else
-					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_0, 31, 1);
-			} while (!adc_pll_sts && (adc_pll_lock_cnt < 10));
+				adc_pll_sts = adc_check_lock_status(devp->plat_data->chip_id,
+					pll_addr);
+			} while (!adc_pll_sts && (adc_pll_lock_cnt++ < 10));
 		} else {
 			do {
 				adc_32m_before_tm2_pll_config(devp);
@@ -1215,31 +1234,23 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		break;
 	case ADC_TVAFE:
 		mutex_lock(&devp->pll_mutex);
-		if (devp->pll_flg & (ADC_ATV_DEMOD | ADC_DTV_DEMOD)) {
-			ret = -2;
-			pr_err("%s:AFE fail!!!:%d\n", __func__, devp->pll_flg);
+		if (devp->pll_flg & ADC_TVAFE) {
+			if (devp->print_en & ADC_DBG_EN)
+				pr_info("%s:TVAFE PLL exist!:%d\n",
+					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
 		}
-
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			/* DADC CNTL for LIF signal input */
+			adc_dadc_av_cntl_config(devp);
 			do {
-				/** DADC CNTL for LIF signal input **/
-				adc_dadc_av_cntl_config(devp);
 				//pll config
 				adc_24m_pll_config(devp);
 				// adc pll status confirm
-				usleep_range(100, 101);
-				adc_pll_lock_cnt++;
-				if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
-				    devp->plat_data->chip_id == ADC_CHIP_T3X ||
-				    devp->plat_data->chip_id == ADC_CHIP_T6D)
-					adc_pll_sts = adc_rd_hiu_bits(ANACTRL_ADC_PLL_STS, 31, 1);
-				else if (devp->plat_data->chip_id == ADC_CHIP_T3)
-					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_7, 31, 1);
-				else
-					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_0, 31, 1);
-			} while (!adc_pll_sts && (adc_pll_lock_cnt < 10));
+				adc_pll_sts = adc_check_lock_status(devp->plat_data->chip_id,
+					pll_addr);
+			} while (!adc_pll_sts && (adc_pll_lock_cnt++ < 10));
 		} else {
 			do {
 				adc_24m_before_tm2_pll_config(devp);
@@ -1258,9 +1269,10 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		break;
 	case ADC_DTV_DEMOD:
 		mutex_lock(&devp->pll_mutex);
-		if (devp->pll_flg & (ADC_ATV_DEMOD | ADC_TVAFE)) {
-			ret = -3;
-			pr_err("%s:DDEMOD fail!:%d\n", __func__, devp->pll_flg);
+		if (devp->pll_flg & ADC_DTV_DEMOD) {
+			if (devp->print_en & ADC_DBG_EN)
+				pr_info("%s:DTV DEMOD PLL exist!:%d\n",
+					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
 		}
@@ -1285,31 +1297,14 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				case ADC_CHIP_T6D:
 					adc_set_dtvdemod_pll_by_delsys(devp, p_dtv_para);
 					break;
-
 				default:
 					adc_set_dtvdemod_dpll_by_clk(devp, p_dtv_para);
 					break;
 				}
 				// adc pll status confirm
-				usleep_range(100, 101);
-				adc_pll_lock_cnt++;
-				if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
-				    devp->plat_data->chip_id == ADC_CHIP_T3X ||
-				    devp->plat_data->chip_id == ADC_CHIP_T6D)
-					adc_pll_sts = adc_rd_hiu_bits(ANACTRL_ADC_PLL_STS, 31, 1);
-				else if (devp->plat_data->chip_id == ADC_CHIP_T3) {
-					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_7, 31, 1);
-				} else {
-					if (devp->plat_data->chip_id == ADC_CHIP_S4 ||
-					    devp->plat_data->chip_id == ADC_CHIP_S4D)
-						reg_offset = 0x10;
-					else
-						reg_offset = 0;
-
-					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 31, 1);
-				}
-
-			} while (!adc_pll_sts && (adc_pll_lock_cnt < 10));
+				adc_pll_sts = adc_check_lock_status(devp->plat_data->chip_id,
+					pll_addr);
+			} while (!adc_pll_sts && (adc_pll_lock_cnt++ < 10));
 
 			if (devp->plat_data->chip_id <= ADC_CHIP_S4)
 				adc_wr_hiu(0xf3, 0x00800000);
@@ -1357,15 +1352,13 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		break;
 	case ADC_DTV_DEMODPLL:
 		mutex_lock(&devp->pll_mutex);
-		if (devp->pll_flg & (ADC_ATV_DEMOD | ADC_TVAFE)) {
-			ret = -4;
+		if (devp->pll_flg & ADC_DTV_DEMODPLL) {
 			if (devp->print_en & ADC_DBG_EN)
-				pr_info("%s:DMODPLL fail!!!:%d\n", __func__,
-					devp->pll_flg);
+				pr_info("%s:DTV DEMODPLL exist!:%d\n",
+					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
 		}
-
 		if (!p_dtv_para) {
 			ret = -5;
 			if (devp->print_en & ADC_DBG_EN)
@@ -1417,7 +1410,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			//adc_pll_lock_cnt = 1;
 		}
 
-		devp->pll_flg |= ADC_DTV_DEMOD;
+		devp->pll_flg |= ADC_DTV_DEMODPLL;
 		mutex_unlock(&devp->pll_mutex);
 		//if (adc_pll_lock_cnt == 10 && devp->print_en)
 			//pr_info("%s: adc pll lock fail!!!\n", __func__);
