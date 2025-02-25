@@ -1761,19 +1761,19 @@ unsigned int vdin_get_meas_h_cnt64_t3x(unsigned int offset)
 
 unsigned int vdin_get_meas_v_stamp_t3x(struct vdin_dev_s *devp)
 {
-	unsigned int low_cnt, high_cnt;
+	u64 low_cnt, high_cnt;
+	u64 stamp = 0;
 
-	low_cnt  = rd(0, VDIN_INTF_MEAS_IND_TOTAL_COUNT0);
-	high_cnt = rd(0, VDIN_INTF_MEAS_IND_TOTAL_COUNT1);
+	/* [23:0] */
+	low_cnt  = rd(0, VDIN_INTF_MEAS_IND_TOTAL_COUNT0) & 0xffffff;
+	high_cnt = rd(0, VDIN_INTF_MEAS_IND_TOTAL_COUNT1) & 0xffffff;
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_CYCLE)
 		pr_info("low_cnt = %#x,high_cnt = %#x\n",
-			low_cnt, high_cnt);
-	/* [23:0] */
-	low_cnt  = low_cnt  & 0xffffff;
-	high_cnt = high_cnt & 0xffffff;
+			(u32)low_cnt, (u32)high_cnt);
+	stamp = ((high_cnt << 24) | low_cnt) / 2;
 
-	return ((high_cnt << 24) | low_cnt) / 2;
+	return (u32)stamp;
 }
 
 unsigned int vdin_get_active_h_t3x(unsigned int offset)
