@@ -32,9 +32,9 @@
 		serial4 = &uart_E;
 		i2c0 = &i2c1;
 		i2c1 = &i2c4;
-		i2c2 = &i2c0;
+		i2c2 = &i2c3;
 		i2c3 = &i2c2;
-		i2c4 = &i2c3;
+		i2c4 = &i2c0;
 		spi0 = &spicc0;
 		tsensor0 = &p_tsensor;
 	};
