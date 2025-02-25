@@ -400,9 +400,9 @@ void update_gfp_flags(gfp_t *gfp)
 	 * __GFP_NO_CMA.
 	 */
 	if (can_use_cma(*gfp))
-		*gfp |=  __GFP_MOVABLE;
+		*gfp |=  __GFP_CMA;
 	else
-		*gfp &= ~__GFP_MOVABLE;
+		*gfp &= ~__GFP_CMA;
 }
 
 #define ACTIVE_MIGRATE		3
