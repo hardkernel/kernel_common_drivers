@@ -271,6 +271,19 @@ void tsout_config_es_table(u32 es_entry, int pid,
 	WRITE_CBUS_REG(TS_OUTPUT_ES_TAB(es_entry), data.data);
 }
 
+int tsout_read_es_table(u32 es_entry, u32 *preset)
+{
+	union ES_TAB_FIELD data;
+
+	pr_dbg("%s es_entry:%d", __func__, es_entry);
+	data.data = 0;
+	data.data = READ_CBUS_REG(TS_OUTPUT_ES_TAB(es_entry));
+
+	if (preset)
+		*preset = data.b.reset;
+	return 0;
+}
+
 static void tee_tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
 {
 	struct tee_dmx_pcr_table_param param = {0};

@@ -4256,6 +4256,7 @@ int ts_output_update_filter(int dmx_no, int sid)
 		struct es_entry *es_slot = &es_table[i];
 		struct out_elem *pout = NULL;
 		u8 flag = 0;
+		u32 reset = 0;
 
 		if (es_slot->used) {
 			struct cb_entry *tmp_cb = NULL;
@@ -4276,10 +4277,12 @@ int ts_output_update_filter(int dmx_no, int sid)
 
 			if (flag) {
 				pout->sid = sid;
-				dprint("change dmx id:%d, filter sid:0x%0x, pid:0x%0x\n",
-					dmx_no, pout->sid, es_slot->pid);
+				/*get the reset status from es table*/
+				tsout_read_es_table(es_slot->buff_id, &reset);
+				dprint("change dmx id:%d, sid:0x%0x,pid:0x%0x, reset:0x%0x\n",
+					dmx_no, pout->sid, es_slot->pid, reset);
 				tsout_config_es_table(es_slot->buff_id, es_slot->pid,
-				      pout->sid, 0, !drop_dup, pout->format);
+						pout->sid, reset, !drop_dup, pout->format);
 			}
 		}
 	}
