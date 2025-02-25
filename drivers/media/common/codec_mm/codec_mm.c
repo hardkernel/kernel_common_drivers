@@ -422,10 +422,11 @@ static struct codec_mm_mgt_s *get_mem_mgt(void)
 };
 
 static void *codec_mm_extpool_alloc(struct extpool_mgt_s *tvp_pool,
-				    void **from_pool, int size)
+				    void **from_pool, int size, int align_2n)
 {
 	int i = 0;
 	void *handle = NULL;
+	int align_size = (1 << align_2n);
 
 	mutex_lock(&tvp_pool->pool_lock);
 	for (i = 0; i < tvp_pool->slot_num; i++) {
@@ -433,7 +434,8 @@ static void *codec_mm_extpool_alloc(struct extpool_mgt_s *tvp_pool,
 			mutex_unlock(&tvp_pool->pool_lock);
 			return NULL;
 		}
-		handle = (void *)gen_pool_alloc(tvp_pool->gen_pool[i], size);
+		handle = (void *)gen_pool_alloc_algo(tvp_pool->gen_pool[i], size,
+			gen_pool_first_fit_align, (void *)&align_size);
 		if (handle) {
 			*from_pool = tvp_pool->gen_pool[i];
 			mutex_unlock(&tvp_pool->pool_lock);
@@ -780,15 +782,16 @@ EXPORT_SYMBOL(is_reserved_ext_support);
 
 #ifdef CONFIG_CODEC_MM_EXT_POOL
 static int codec_mm_alloc_first(struct codec_mm_mgt_s *mgt,
-							struct codec_mm_s *mem)
+							struct codec_mm_s *mem, int align_2n)
 {
+	int align_size = (1 << align_2n);
+
 	if (!(mem->flags & CODEC_MM_FLAGS_RESERVED_EXT))
 		return 0;
 
 	if (mgt->total_reserved_ext_size > mem->buffer_size) {
-
-		mem->mem_handle = (void *)gen_pool_alloc(mgt->res_ext_pool,
-						mem->buffer_size);
+		mem->mem_handle = (void *)gen_pool_alloc_algo(mgt->res_ext_pool,
+			mem->buffer_size, gen_pool_first_fit_align, (void *)&align_size);
 		mem->from_flags =
 			AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT;
 		if (mem->mem_handle) {
@@ -864,8 +867,11 @@ bool alloc_from_res(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 	struct extpool_mgt_s *ptr_pool = &mgt->cma_res_pool;
 
 	if (mgt->res_pool) {
+		int align_size = (1 << align_2n);
+
 		*alloc_trace_mask |= 1 << 2;
-		mem->mem_handle = (void *)gen_pool_alloc(mgt->res_pool, mem->buffer_size);
+		mem->mem_handle = (void *)gen_pool_alloc_algo(mgt->res_pool, mem->buffer_size,
+			gen_pool_first_fit_align, (void *)&align_size);
 		mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED;
 		if (mem->mem_handle) {
 			/*default is no mapped */
@@ -879,7 +885,7 @@ bool alloc_from_res(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 		(ptr_pool->alloced_size + mem->buffer_size) <= ptr_pool->total_size) {
 		*alloc_trace_mask |= 1 << 3;
 		mem->mem_handle = (void *)codec_mm_extpool_alloc(ptr_pool,
-			&mem->from_ext, mem->buffer_size);
+			&mem->from_ext, mem->buffer_size, align_2n);
 		mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES;
 		if (mem->mem_handle) {
 			mem->phy_addr = (unsigned long)mem->mem_handle;
@@ -919,7 +925,7 @@ static void codec_mm_clear_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_
 
 #ifdef CONFIG_CODEC_MM_EXT_POOL
 	if (mem->flags & CODEC_MM_FLAGS_RESERVED_EXT) {
-		codec_mm_alloc_first(mgt, mem);
+		codec_mm_alloc_first(mgt, mem, align_2n);
 		return;
 	}
 #endif
@@ -978,7 +984,7 @@ static void codec_mm_secure_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm
 			return;
 
 		mem->mem_handle = (void *)codec_mm_extpool_alloc(&mgt->tvp_pool,
-			&mem->from_ext, mem->buffer_size);
+			&mem->from_ext, mem->buffer_size, align_2n);
 		mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP;
 		if (mem->mem_handle) {
 			/*no vaddr for TVP MEMORY */
@@ -988,7 +994,7 @@ static void codec_mm_secure_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm
 	} else {
 		do {
 			mem->mem_handle = (void *)codec_mm_extpool_alloc(&mgt->tvp_pool,
-				&mem->from_ext, mem->buffer_size);
+				&mem->from_ext, mem->buffer_size, align_2n);
 			if (mem->mem_handle) {
 				/*no vaddr for TVP MEMORY */
 				mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP;
