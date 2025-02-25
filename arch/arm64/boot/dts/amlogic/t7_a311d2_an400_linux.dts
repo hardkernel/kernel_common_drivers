@@ -1490,7 +1490,7 @@
 };
 
 &lcd {
-	status = "disabled";
+	status = "okay";
 	ports {
 		port {
 			#address-cells = <1>;
@@ -1504,7 +1504,7 @@
 };
 
 &lcd1 {
-	status = "disabled";
+	status = "okay";
 	ports {
 		port {
 			lcd1_to_drm: endpoint@0 {
@@ -1516,7 +1516,7 @@
 };
 
 &lcd2 {
-	status = "disabled";
+	status = "okay";
 	ports {
 		port {
 			lcd2_to_drm: endpoint@0 {

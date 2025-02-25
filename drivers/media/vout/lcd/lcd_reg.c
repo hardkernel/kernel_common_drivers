@@ -328,7 +328,7 @@ unsigned int lcd_vcbus_read(unsigned int reg)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	temp = vpu_vcbus_read(reg);
+	temp = aml_read_vcbus(reg);
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 	return temp;
 #endif
@@ -340,7 +340,7 @@ void lcd_vcbus_write(unsigned int reg, unsigned int value)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	vpu_vcbus_write(reg, value);
+	aml_write_vcbus(reg, value);
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 #endif
 };
@@ -351,7 +351,7 @@ void lcd_vcbus_setb(unsigned int reg, unsigned int value,
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	vpu_vcbus_write(reg, ((vpu_vcbus_read(reg) &
+	aml_write_vcbus(reg, ((aml_read_vcbus(reg) &
 		(~(((1L << len) - 1) << start))) |
 		((value & ((1L << len) - 1)) << start)));
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
@@ -364,7 +364,7 @@ unsigned int lcd_vcbus_getb(unsigned int reg,
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	temp = (vpu_vcbus_read(reg) >> start) & ((1L << len) - 1);
+	temp = (aml_read_vcbus(reg) >> start) & ((1L << len) - 1);
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 
 	return temp;
@@ -375,7 +375,7 @@ void lcd_vcbus_set_mask(unsigned int reg, unsigned int mask)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	vpu_vcbus_write(reg, (vpu_vcbus_read(reg) | (mask)));
+	aml_write_vcbus(reg, (aml_read_vcbus(reg) | (mask)));
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
 
@@ -384,7 +384,7 @@ void lcd_vcbus_clr_mask(unsigned int reg, unsigned int mask)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&lcd_reg_spinlock, flags);
-	vpu_vcbus_write(reg, (vpu_vcbus_read(reg) & (~(mask))));
+	aml_write_vcbus(reg, (aml_read_vcbus(reg) & (~(mask))));
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
 
