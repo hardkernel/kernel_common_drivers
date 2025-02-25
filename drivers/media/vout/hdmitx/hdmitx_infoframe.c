@@ -53,11 +53,6 @@ static struct hdmitx_common *global_tx_common;
  * functions to record the position.
  */
 int hdr_status_pos;
-/*
- * for SONY-KD-55A8F TV, need to mute more frames
- * when switch DV(LL)->HLG
- */
-static int hdr_mute_frame = 20;
 
 #ifdef CONFIG_AMLOGIC_HDMITX21
 /*
@@ -725,9 +720,11 @@ static void hdmitx_video_mute_op(bool flag)
 void hdr_unmute_work_func(struct work_struct *work)
 {
 	unsigned int mute_us;
+	struct hdmitx_common *tx_comm = container_of(work, struct hdmitx_common,
+			work_hdr_unmute);
 
-	if (hdr_mute_frame) {
-		mute_us = hdr_mute_frame * hdmitx_get_frame_duration();
+	if (tx_comm->hdr_mute_frame) {
+		mute_us = tx_comm->hdr_mute_frame * hdmitx_get_frame_duration();
 		usleep_range(mute_us, mute_us + 10);
 		hdmitx_video_mute_op(false);
 	}
@@ -1009,9 +1006,10 @@ void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		/* NOTE: for HDR <-> HLG, also need update last mode */
 		global_tx_common->hdmi_last_hdr_mode = global_tx_common->hdmi_current_hdr_mode;
 		/* only SDR->HDR10/SDR->HLG need mute */
-		if (hdr_mute_frame && save_last_hdr_mode == 0) {
+		if (global_tx_common->hdr_mute_frame && save_last_hdr_mode == 0) {
 			hdmitx_video_mute_op(true);
-			HDMITX_INFO("hdr: video mute %d frames\n", hdr_mute_frame);
+			HDMITX_INFO("hdr: video mute %d frames\n",
+				global_tx_common->hdr_mute_frame);
 			/*
 			 * force unmute after specific frames,
 			 * no need to check hdr status when unmute

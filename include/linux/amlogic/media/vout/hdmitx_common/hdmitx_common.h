@@ -541,10 +541,6 @@ enum frl_rate_enum hdmitx_select_frl_rate(u8 *dsc_en, u8 dsc_policy, enum hdmi_v
 /*edid related function.*/
 bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum);
 
-/*debug functions*/
-int hdmitx_load_edid_file(u32 type, char *path);
-int hdmitx_save_edid_file(unsigned char *rawedid, char *path);
-
 void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx_hw);
 void hdmitx_vout_uninit(void);
 struct vinfo_s *hdmitx_get_current_vinfo(void *data);

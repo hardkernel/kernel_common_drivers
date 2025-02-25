@@ -2039,7 +2039,8 @@ void print_hsty_hdmiaud_config_data(void)
 
 void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 {
-	char tmpbuf[128];
+	char tmpbuf[64];
+	char *tmpbuf2;
 	int i = 0;
 	int ret;
 	unsigned long value = 0;
@@ -2047,6 +2048,11 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 	struct scdc_locked_st *ch_st = &tx_comm->chlocked_st;
 	enum frl_rate_enum frl_rate;
 	struct hdmitx_dev *hdev = container_of(tx_comm, struct hdmitx_dev, tx_comm);
+	struct hdmitx_hw_common *tx_hw = tx_comm->tx_hw;
+	struct master_display_info_s data = {0};
+	struct hdr10plus_para hdr_data = {0x1, 0x2, 0x3};
+	struct cuva_hdr_vs_emds_para cuva_data = {0x1, 0x2, 0x3};
+	struct dv_vsif_para vsif_para = {0};
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
@@ -2152,7 +2158,118 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 		if (frl_rate && ced->rs_c_valid && ced->rs_c_cnt)
 			HDMITX_INFO("RSCC ErrCnt 0x%x\n", ced->rs_c_cnt);
 		memset(ced, 0, sizeof(*ced));
+	} else if (strncmp(tmpbuf, "fake_plug", 9) == 0) {
+		HDMITX_INFO("fake plug %s\n", tmpbuf);
+		if (tmpbuf[9] == '1' || tmpbuf[9] == '0') {
+			ret = kstrtoul(tmpbuf + 9, 10, &value);
+			tx_comm->hpd_state = value;
+			hdmitx_common_notify_hpd_status(tx_comm, false);
+			/* notify to drm hdmi */
+			hdmitx_fire_drm_hpd_cb_unlocked(tx_comm);
+		}
+		HDMITX_INFO("hpd_state: %d\n", tx_comm->hpd_state);
+	} else if (strncmp(tmpbuf, "hdr_mute_frame", 14) == 0) {
+		if (kstrtoul(tmpbuf + 14, 10, &value) == 0)
+			tx_comm->hdr_mute_frame = value;
+		HDMITX_INFO("hdr_mute_frame: %d\n", tx_comm->hdr_mute_frame);
+		return;
+	} else if (strncmp(tmpbuf, "is_hdcp_cts_te", 14) == 0) {
+		/* is hdcp cts test equipment */
+		HDMITX_INFO("%d\n", hdmitx_edid_only_support_sd(&tx_comm->rxcap));
+	} else if (strncmp(tmpbuf, "config", 6) == 0) {
+		tmpbuf2 = tmpbuf + 6;
+		HDMITX_INFO("config: %s\n", tmpbuf2);
+
+		if (strncmp(tmpbuf2, "info", 4) == 0) {
+			HDMITX_INFO("%x %x %x %x %x %x\n",
+				hdmitx_hw_get_hdr_st(tx_hw),
+				hdmitx_hw_get_dv_st(tx_hw),
+				hdmitx_hw_get_hdr10p_st(tx_hw),
+				hdmitx_hdr_en(tx_hw),
+				hdmitx_dv_en(tx_hw),
+				hdmitx_hdr10p_en(tx_hw)
+				);
+		} else if (strncmp(tmpbuf2, "sdr_hdr_dov", 11) == 0) {
+			/*
+			 * firstly stay at SDR state, then send hdr->dv packet to
+			 * emulate SDR->HDR->DV switch, DRM-TX-47
+			 */
+			/* step1: SDR-->HDR */
+			data.features = 0x00091000;
+			hdmitx_set_drm_pkt(&data);
+			/* mute_us = mute_frames * hdmitx_get_frame_duration(); */
+			/* usleep_range(mute_us, mute_us + 10); */
+			/* step2: HDR->DV_LL */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 1;
+			vsif_para.vers.ver2.dobly_vision_signal = 1;
+			hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+		} else if (strncmp(tmpbuf2, "sdr", 3) == 0) {
+			data.features = 0x00010100;
+			hdmitx_set_drm_pkt(&data);
+		} else if (strncmp(tmpbuf2, "hdr", 3) == 0) {
+			data.features = 0x00091000;
+			hdmitx_set_drm_pkt(&data);
+		} else if (strncmp(tmpbuf2, "sbtm", 4) == 0) {
+			struct vtem_sbtm_st sbtm = {
+				.sbtm_ver = 0x2,
+				.sbtm_mode = 0x3,
+				.sbtm_type = 0x1,
+				.grdm_min = 0x1,
+				.grdm_lum = 2,
+				/* MD2/3 */
+				.frmpblimitint = 0xdcba,
+			};
+			hdmitx_set_sbtm_pkt(&sbtm);
+		} else if (strncmp(tmpbuf2, "hlg", 3) == 0) {
+			data.features = 0x00091200;
+			hdmitx_set_drm_pkt(&data);
+		} else if (strncmp(tmpbuf2, "vsif", 4) == 0) {
+			if (tmpbuf2[4] == '1' && tmpbuf2[5] == '1') {
+				/* DV STD */
+				vsif_para.ver = 0x1;
+				vsif_para.length = 0x1b;
+				vsif_para.ver2_l11_flag = 0;
+				vsif_para.vers.ver2.low_latency = 0;
+				vsif_para.vers.ver2.dobly_vision_signal = 1;
+				hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
+			} else if (tmpbuf2[4] == '1' && tmpbuf2[5] == '0') {
+				/* DV STD packet, but dolby_vision_signal bit cleared */
+				vsif_para.ver = 0x1;
+				vsif_para.length = 0x1b;
+				vsif_para.ver2_l11_flag = 0;
+				vsif_para.vers.ver2.low_latency = 0;
+				vsif_para.vers.ver2.dobly_vision_signal = 0;
+				hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
+			} else if (tmpbuf2[4] == '4' && tmpbuf2[5] == '1') {
+				/* DV LL */
+				vsif_para.ver = 0x1;
+				vsif_para.length = 0x1b;
+				vsif_para.ver2_l11_flag = 0;
+				vsif_para.vers.ver2.low_latency = 1;
+				vsif_para.vers.ver2.dobly_vision_signal = 1;
+				hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+			}  else if (tmpbuf2[4] == '4' && tmpbuf2[5] == '0') {
+				/* DV LL packet, but dolby_vision_signal bit cleared */
+				vsif_para.ver = 0x1;
+				vsif_para.length = 0x1b;
+				vsif_para.ver2_l11_flag = 0;
+				vsif_para.vers.ver2.low_latency = 1;
+				vsif_para.vers.ver2.dobly_vision_signal = 0;
+				hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+			} else if (tmpbuf2[4] == '0') {
+				/* exit DV to SDR */
+				hdmitx_set_vsif_pkt(0, 0, NULL, true);
+			}
+		} else if (strncmp(tmpbuf2, "hdr10+", 6) == 0) {
+			hdmitx_set_hdr10plus_pkt(1, &hdr_data);
+		} else if (strncmp(tmpbuf2, "cuva", 4) == 0) {
+			hdmitx_set_cuva_hdr_vs_emds(&cuva_data);
+		}
 	}
+
 }
 
 void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
