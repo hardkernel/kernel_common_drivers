@@ -342,6 +342,15 @@ static const struct hdmi_timing edid_cea_modes_193[] = {
 		4400, 304, 88, 88, 128, 4096, 2250, 90, 8, 10, 72, 2160, 1, 1, 1, 256, 135, 1, 1},
 };
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+#define ODROID_TIMING_END HDMI_250_1920x720p60_8x3
+static const struct hdmi_timing edid_odroid[] = {
+	{HDMI_250_1920x720p60_8x3, "1920x720p60hz", NULL,
+		1, 44722, 59855, 111750,
+		2496, 576, 96, 192, 288, 1920, 748, 28, 3, 10, 15, 720, 1, 1, 1, 8, 3, 1, 1},
+};
+#endif
+
 /*VESA Timing, from legacy tx20/hdmi_parameters;
  *All names end with "V" to identify from cea modes.
  *!!! PLEASE UPDATE VESA_TIMING_END also when add new timing in vesa_modes.
@@ -415,6 +424,9 @@ const struct hdmi_timing *hdmitx_mode_index_to_hdmi_timing(u32 idx)
 	} all_timing_list[] = {
 		{ARRAY_SIZE(edid_cea_modes_0), edid_cea_modes_0},
 		{ARRAY_SIZE(edid_cea_modes_193), edid_cea_modes_193},
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		{ARRAY_SIZE(edid_odroid), edid_odroid},
+#endif
 		{ARRAY_SIZE(vesa_modes), vesa_modes},
 	};
 
@@ -439,6 +451,9 @@ const struct hdmi_timing *hdmitx_mode_vic_to_hdmi_timing(enum hdmi_vic vic)
 	} all_timing_list[] = {
 		{HDMI_0_UNKNOWN, HDMI_127_5120x2160p100_64x27, edid_cea_modes_0},
 		{HDMI_193_5120x2160p120_64x27, HDMI_219_4096x2160p120_256x135, edid_cea_modes_193},
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		{HDMI_250_1920x720p60_8x3, ODROID_TIMING_END, edid_odroid},
+#endif
 		{HDMITX_VESA_OFFSET, VESA_TIMING_END, vesa_modes},
 	};
 
