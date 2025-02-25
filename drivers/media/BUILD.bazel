@@ -896,7 +896,6 @@ ddk_module(
         "vout/cvbs/cvbs_mode.h",
         "enhancement/amvecm/amcsc.h",
         "vout/hdmitx/hdmitx_check_valid.h",
-        "vout/hdmitx/hdmitx_check_valid_header.h",
         "vout/hdmitx/hdmitx_log.h",
     ],
     linux_includes = [
