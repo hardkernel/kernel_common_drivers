@@ -1513,6 +1513,7 @@ void primary_swap_frame(struct video_layer_s *layer,
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	u32 vpp_index = layer->vpp_index;
 #endif
+	u32 ar, ar_prev;
 
 	ATRACE_COUNTER(__func__,  line);
 
@@ -1625,6 +1626,31 @@ void primary_swap_frame(struct video_layer_s *layer,
 				layer->dispbuf ? layer->dispbuf->width : 0,
 				layer->dispbuf ? layer->dispbuf->height : 0,
 				vf->width, vf->height,
+				layer->dispbuf, vf);
+	}
+
+	ar = (vf->ratio_control &
+		DISP_RATIO_ASPECT_RATIO_MASK) >>
+		DISP_RATIO_ASPECT_RATIO_BIT;
+	if (!ar && vf->height != 0)
+		ar = (vf->width << 8) / vf->height;
+
+	if (layer->dispbuf) {
+		ar_prev = (layer->dispbuf->ratio_control &
+			DISP_RATIO_ASPECT_RATIO_MASK) >>
+			DISP_RATIO_ASPECT_RATIO_BIT;
+		if (!ar_prev && layer->dispbuf->height != 0)
+			ar_prev = (layer->dispbuf->width << 8) /
+				layer->dispbuf->height;
+	} else {
+		ar_prev = 0;
+	}
+	if (!layer->dispbuf ||
+		ar != ar_prev) {
+		video_prop_status |= VIDEO_PROP_CHANGE_ASPEC_RATIO;
+		if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD1 ar changed: 0x%x->0x%x. cur:%p, new:%p\n",
+				ar_prev, ar,
 				layer->dispbuf, vf);
 	}
 
