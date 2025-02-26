@@ -202,6 +202,49 @@ struct tee_shm *tee_shm_alloc_priv_buf(struct tee_context *ctx, size_t size)
 }
 EXPORT_SYMBOL_GPL(tee_shm_alloc_priv_buf);
 
+static int want_pages_array(struct page ***res, size_t size,
+			    size_t start, unsigned int maxpages)
+{
+	unsigned int count = DIV_ROUND_UP(size + start, PAGE_SIZE);
+
+	if (count > maxpages)
+		count = maxpages;
+	WARN_ON(!count);	// caller should've prevented that
+	if (!*res) {
+		*res = kvmalloc_array(count, sizeof(struct page *), GFP_KERNEL);
+		if (!*res)
+			return 0;
+	}
+	return count;
+}
+
+static ssize_t iov_iter_extract_user_pages_gupflags(struct iov_iter *i,
+					   struct page ***pages,
+					   size_t maxsize,
+					   unsigned int maxpages,
+					   unsigned int gup_flags,
+					   size_t *offset0)
+{
+	unsigned long addr;
+	size_t offset;
+	int res;
+
+	maxsize = min_t(size_t, min_t(size_t, maxsize, i->count), MAX_RW_COUNT);
+
+	addr = (unsigned long)i->ubuf + i->iov_offset;
+	*offset0 = offset = addr % PAGE_SIZE;
+	addr &= PAGE_MASK;
+	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
+	if (!maxpages)
+		return -ENOMEM;
+	res = pin_user_pages_fast(addr, maxpages, gup_flags, *pages);
+	if (unlikely(res <= 0))
+		return res;
+	maxsize = min_t(size_t, maxsize, res * PAGE_SIZE - offset);
+	iov_iter_advance(i, maxsize);
+	return maxsize;
+}
+
 static struct tee_shm *
 register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,
 		int id)
@@ -249,8 +292,13 @@ register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,
 		goto err_free_shm;
 	}
 
-	len = iov_iter_extract_pages(iter, &shm->pages, LONG_MAX, num_pages, 0,
-				&off);
+	if (flags & TEE_SHM_USER_MAPPED)
+		len = iov_iter_extract_user_pages_gupflags(iter, &shm->pages, LONG_MAX,
+				num_pages, FOLL_WRITE | FOLL_LONGTERM, &off);
+	else
+		len = iov_iter_extract_pages(iter, &shm->pages, LONG_MAX, num_pages,
+				0, &off);
+
 	if (unlikely(len <= 0)) {
 		ret = len ? ERR_PTR(len) : ERR_PTR(-ENOMEM);
 		goto err_free_shm_pages;
