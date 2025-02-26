@@ -1417,6 +1417,7 @@ void fixed_buf_config(void);
 bool is_dv_unique_drm(struct vframe_s *vf);
 void dump_top1_frame(int force_w, int force_h);
 void copy_fixed_setting(void);
+bool is_av1_amdv(char *p);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_get_video_latency_for_gd1(void);
 #endif

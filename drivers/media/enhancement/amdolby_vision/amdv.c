@@ -5725,6 +5725,24 @@ static bool prepare_parser(int reset_flag)
 	return parser_ready;
 }
 
+bool is_av1_amdv(char *p)
+{
+	if (!p)
+		return false;
+
+	if (p[0] == 0xb5 &&
+		p[1] == 0x00 &&
+		p[2] == 0x3b &&
+		p[3] == 0x00 &&
+		p[4] == 0x00 &&
+		p[5] == 0x08 &&
+		p[6] == 0x00 &&
+		p[7] == 0x37)
+		return true;
+	else
+		return false;
+}
+
 int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 					 char *aux_buf,
 					 int aux_size,
@@ -5814,21 +5832,11 @@ int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 			goto parse_err;
 		}
 		if (type == DV_SEI || /* hevc t35 sei */
-			(type & 0xffff0000) == AV1_SEI) { /* av1 t35 obu */
+			((type & 0xffff0000) == AV1_SEI && is_av1_amdv(p))) {/*av1 t35 obu*/
 			*total_comp_size = 0;
 			*total_md_size = 0;
 
-			if ((type & 0xffff0000) == AV1_SEI &&
-			    p[0] == 0xb5 &&
-			    p[1] == 0x00 &&
-			    p[2] == 0x3b &&
-			    p[3] == 0x00 &&
-			    p[4] == 0x00 &&
-			    p[5] == 0x08 &&
-			    p[6] == 0x00 &&
-			    p[7] == 0x37 &&
-			    p[8] == 0xcd &&
-			    p[9] == 0x08) {
+			if ((type & 0xffff0000) == AV1_SEI) {
 				/* AV1 dv meta in obu */
 				*src_format = FORMAT_DOVI;
 				meta_buf[0] = 0;
@@ -6226,21 +6234,11 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			goto parse_err;
 		}
 		if (type == DV_SEI || /* hevc t35 sei */
-		(type & 0xffff0000) == AV1_SEI) { /* av1 t35 obu */
+			((type & 0xffff0000) == AV1_SEI && is_av1_amdv(p))) {/*av1 t35 obu*/
 			*total_comp_size = 0;
 			*total_md_size = 0;
 
-			if ((type & 0xffff0000) == AV1_SEI &&
-			    p[0] == 0xb5 &&
-			    p[1] == 0x00 &&
-			    p[2] == 0x3b &&
-			    p[3] == 0x00 &&
-			    p[4] == 0x00 &&
-			    p[5] == 0x08 &&
-			    p[6] == 0x00 &&
-			    p[7] == 0x37 &&
-			    p[8] == 0xcd &&
-			    p[9] == 0x08) {
+			if ((type & 0xffff0000) == AV1_SEI) {
 				/* AV1 dv meta in obu */
 				*src_format = FORMAT_DOVI;
 				meta_buf[0] = 0;

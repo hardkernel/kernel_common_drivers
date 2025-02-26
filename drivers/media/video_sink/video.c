@@ -5602,6 +5602,24 @@ static void vsync_fiq_down(void)
 #define HDR10P 0x02000000
 #endif
 
+bool check_av1_amdv(char *p)
+{
+	if (!p)
+		return false;
+
+	if (p[0] == 0xb5 &&
+		p[1] == 0x00 &&
+		p[2] == 0x3b &&
+		p[3] == 0x00 &&
+		p[4] == 0x00 &&
+		p[5] == 0x08 &&
+		p[6] == 0x00 &&
+		p[7] == 0x37)
+		return true;
+	else
+		return false;
+}
+
 bool check_av1_hdr10p(char *p)
 {
 	u32 country_code;
@@ -5631,6 +5649,7 @@ EXPORT_SYMBOL(check_av1_hdr10p);
 static char *check_media_sei(char *sei, u32 sei_size, u32 fmt_type, u32 *ret_size)
 {
 	char *ret = NULL;
+	char *ret_av1_hdr10p = NULL;
 	char *p, *cur_p;
 	u32 type = 0, size;
 	unsigned char nal_type;
@@ -5680,11 +5699,17 @@ static char *check_media_sei(char *sei, u32 sei_size, u32 fmt_type, u32 *ret_siz
 			   sei_type == (type & 0xffff0000) &&
 			   size > 6) {
 			/*av1 dv, double check nal type and payload type to distinguish hdr10p*/
-			if (!check_av1_hdr10p(p))
+			if (check_av1_hdr10p(p) && !ret_av1_hdr10p) {
+				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+					pr_info("find av1-hdr10p, need check if contains av1-dv\n");
+				ret_av1_hdr10p = cur_p;
+			}
+			if (check_av1_amdv(p)) {
+				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+					pr_info("find av1-dv\n");
 				ret = cur_p;
-			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
-				pr_info("check FMT_TYPE_DV_AV1 %px\n", ret);
-			break;
+				break;
+			}
 		} else if (fmt_type == FMT_TYPE_HDR10_PLUS && sei_type == type) {
 			/* TODO: double check nal type and payload type */
 			ret = cur_p;
@@ -5765,9 +5790,10 @@ static char *check_media_sei(char *sei, u32 sei_size, u32 fmt_type, u32 *ret_siz
 		}
 		p += size;
 	}
-	if (!ret && ret_size)
+	if (!ret && !ret_av1_hdr10p && ret_size)
 		*ret_size = 0;
-	return ret;
+
+	return ret ? ret : ret_av1_hdr10p;
 }
 
 static s32 clear_vframe_dovi_md_info(struct vframe_s *vf)
