@@ -1509,13 +1509,10 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 
 void aml_earctx_enable(bool enable)
 {
-	unsigned long flags;
-
 	if (!s_earc ||
 	    earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map) == ATNDTYP_DISCNCT)
 		return;
 
-	spin_lock_irqsave(&s_earc->tx_lock, flags);
 	if (s_earc->tx_dmac_clk_on) {
 		if (enable) {
 			if (!s_earc->hold_bus_flag)
@@ -1536,7 +1533,6 @@ void aml_earctx_enable(bool enable)
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_DISCONNECTED;
 		}
 	}
-	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 }
 
 static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
