@@ -102,8 +102,6 @@ struct alloc_caller {
 
 struct fun_symbol {
 	const char *name;
-	int full_match;
-	int matched;
 };
 
 static struct alloc_caller common_caller[COMMON_CALLER_SIZE];
@@ -114,73 +112,83 @@ static struct alloc_caller common_caller[COMMON_CALLER_SIZE];
  * functions
  */
 static struct fun_symbol common_func[] = {
-	{"__netdev_alloc_skb",			1, 0},
-	{"kmalloc_reserve",			1, 0},
-	{"__alloc_skb",				1, 0},
-	{"sk_prot_alloc",			1, 0},
-	{"sk_alloc",				1, 0},
-	{"__traceiter_android_vh_cma_alloc_bypass",	1, 0},
-	{"devm_kmalloc",			1, 0},
-	{"cma_alloc",				1, 0},
-	{"__cma_alloc",				1, 0},
-	{"__kasan_slab_alloc",			1, 0},
-	{"allocate_slab",			1, 0},
-	{"___slab_alloc",			1, 0},
-	{"kmem_cache_alloc_bulk_noprof",	1, 0},
-	{"__kmalloc_cache_node_noprof",		1, 0},
-	{"__kmalloc_cache_noprof",		1, 0},
-	{"__kmalloc_node_track_caller_noprof",	1, 0},
-	{"__kmalloc_noprof",			1, 0},
-	{"__kmalloc_node_noprof",		1, 0},
-	{"__kmalloc_large_node_noprof",		1, 0},
-	{"___kmalloc_large_node",		1, 0},
-	{"__kmalloc_large_noprof",		1, 0},
-	{"kmem_cache_alloc_node_noprof",	1, 0},
-	{"kmem_cache_alloc_lru_noprof",		1, 0},
-	{"kmem_cache_alloc_noprof",		1, 0},
-	{"alloc_pages_exact_nid_noprof",	1, 0},
-	{"alloc_pages_exact_noprof",		1, 0},
-	{"get_zeroed_page_noprof",		1, 0},
-	{"get_free_pages_noprof",		1, 0},
-	{"__folio_alloc_noprof",		1, 0},
-	{"__alloc_pages_noprof",		1, 0},
-	{"vzalloc_node_noprof",			1, 0},
-	{"vzalloc_noprof",			1, 0},
-	{"vmalloc_noprof",			1, 0},
-	{"__vmalloc_noprof",			1, 0},
-	{"__vmalloc_node_noprof",		1, 0},
-	{"__vmalloc_node_range_noprof",		1, 0},
-	{"trace_raw_output_kmem_cache_alloc",	1, 0},
-	{"trace_event_raw_event_kmem_cache_alloc", 1, 0},
-	{"__traceiter_mm_page_alloc",		1, 0},
-	{"__probestub_kmem_cache_alloc",	1, 0},
-	{"__traceiter_kmem_cache_alloc",	1, 0},
-	{"__vmalloc_array_noprof",		1, 0},
-	{"__kvmalloc_node_noprof",		1, 0},
-	{"kvmemdup",				1, 0},
-	{"kstrdup_const",			1, 0},
-	{"__kretprobe_trampoline_handler",	1, 0},
-	{"dma_alloc_contiguous",		1, 0},
-	{"dma_alloc_from_contiguous",		1, 0},
-	{"__dma_direct_alloc_pages",		1, 0},
-	{"dma_direct_alloc",			1, 0},
-	{"dma_alloc_pages",			1, 0},
-	{"dma_alloc_attrs",			1, 0},
-	{"aml_cma_alloc",			1, 0},
-	{"aml_cma_alloc_post_hook",		1, 0},
-	{"system_heap_allocate",		1, 0},
-	{"update_cma_page_trace",		1, 0},
-	{"aml_slub_alloc_large",		1, 0},
+	{"__netdev_alloc_skb",			},
+	{"kmalloc_reserve",			},
+	{"__alloc_skb",				},
+	{"sk_prot_alloc",			},
+	{"sk_alloc",				},
+	{"__traceiter_android_vh_cma_alloc_bypass",	},
+	{"devm_kmalloc",			},
+	{"cma_alloc",				},
+	{"__cma_alloc",				},
+	{"__kasan_slab_alloc",			},
+	{"alloc_pages_bulk_noprof",		},
+	{"shmem_alloc_and_add_folio",		},
+	{"allocate_slab",			},
+	{"alloc_slab_page",			},
+	{"___slab_alloc",			},
+	{"__slab_alloc",			},
+	{"__slab_alloc_node",			},
+	{"slab_alloc_node",			},
+	{"new_slab",				},
+	{"kmem_cache_alloc_bulk_noprof",	},
+	{"__kmalloc_cache_node_noprof",		},
+	{"__kmalloc_cache_noprof",		},
+	{"__kmalloc_node_track_caller_noprof",	},
+	{"__kmalloc_noprof",			},
+	{"__kmalloc_node_noprof",		},
+	{"__kmalloc_large_node_noprof",		},
+	{"___kmalloc_large_node",		},
+	{"__kmalloc_large_noprof",		},
+	{"kmem_cache_alloc_node_noprof",	},
+	{"kmem_cache_alloc_lru_noprof",		},
+	{"kmem_cache_alloc_noprof",		},
+	{"alloc_pages_exact_nid_noprof",	},
+	{"alloc_pages_exact_noprof",		},
+	{"get_zeroed_page_noprof",		},
+	{"get_free_pages_noprof",		},
+	{"__folio_alloc_noprof",		},
+	{"__alloc_pages_noprof",		},
+	{"__filemap_get_folio",			},
+	{"__get_node_page",			},
+	{"generic_perform_write",		},
+	{"vzalloc_node_noprof",			},
+	{"vzalloc_noprof",			},
+	{"vmalloc_noprof",			},
+	{"__vmalloc_noprof",			},
+	{"__vmalloc_node_noprof",		},
+	{"__vmalloc_node_range_noprof",		},
+	{"trace_raw_output_kmem_cache_alloc",	},
+	{"trace_event_raw_event_kmem_cache_alloc",	},
+	{"__traceiter_mm_page_alloc",		},
+	{"__probestub_kmem_cache_alloc",	},
+	{"__traceiter_kmem_cache_alloc",	},
+	{"__vmalloc_array_noprof",		},
+	{"__kvmalloc_node_noprof",		},
+	{"kvmemdup",				},
+	{"kstrdup_const",			},
+	{"__kretprobe_trampoline_handler",	},
+	{"dma_alloc_contiguous",		},
+	{"dma_alloc_from_contiguous",		},
+	{"__dma_direct_alloc_pages",		},
+	{"dma_direct_alloc",			},
+	{"dma_alloc_pages",			},
+	{"dma_alloc_attrs",			},
+	{"aml_cma_alloc",			},
+	{"aml_cma_alloc_post_hook",		},
+	{"system_heap_allocate",		},
+	{"update_cma_page_trace",		},
+	{"aml_slub_alloc_large",		},
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
-	{"alloc_pages_ret_handler",		1, 0},
-	{"page_alloc_callback",			1, 0},
-	{"set_page_trace",			1, 0},
-	{"find_back_trace",			1, 0},
+	{"alloc_pages_ret_handler",		},
+	{"page_alloc_callback",			},
+	{"set_page_trace",			},
+	{"find_back_trace",			},
 #endif
 #ifdef CONFIG_ARM
-	{"__dma_alloc",				1, 0},
-	{"arm_dma_alloc",			1, 0},
-	{"__alloc_from_contiguous",		1, 0},
+	{"__dma_alloc",				},
+	{"arm_dma_alloc",			},
+	{"__alloc_from_contiguous",		},
 #endif
 	{}		/* tail */
 };
@@ -404,17 +412,9 @@ static int match_common_caller(void *data, const char *name,
 		s = &common_func[i];
 		if (!s->name)
 			break;		/* end */
-		if (s->full_match && !s->matched) {
-			if (!strcmp(name, s->name)) {	/* strict match */
-				ret = setup_common_caller(addr);
-				s->matched = 1;
-				break;
-			}
-		} else if (!s->full_match) {
-			if (strstr(name, s->name)) {	/* contains */
-				setup_common_caller(addr);
-				break;
-			}
+		if (!strcmp(name, s->name)) {	/* strict match */
+			ret = setup_common_caller(addr);
+			break;
 		}
 	}
 	return 0;
@@ -679,7 +679,11 @@ static int find_static_common_symbol(void *data)
 }
 
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 static int backtrace_skip_limit = 2;
+#else
+static int backtrace_skip_limit = 1;
+#endif
 module_param(backtrace_skip_limit, int, 0644);
 
 static bool aml_dump_backtrace_entry(void *arg, unsigned long where)
