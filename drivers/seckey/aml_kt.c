@@ -132,6 +132,7 @@ static int aml_kt_lock(struct aml_kt_dev *dev)
 		if (cnt++ > KT_PENDING_WAIT_TIMEOUT) {
 			KT_LOGE("Error: wait KT ready timeout\n");
 			ret = KT_ERROR;
+			break;
 		}
 	}
 
@@ -196,8 +197,7 @@ static int aml_kt_read_pending(struct aml_kt_dev *dev)
 		reg_ret = ioread32((char *)dev->base_addr + dev->reg.cfg_offset);
 		if (cnt++ > KT_PENDING_WAIT_TIMEOUT) {
 			KT_LOGE("Error: wait KT pending done timeout\n");
-			ret = KT_ERROR;
-			return ret;
+			return KT_ERROR;
 		}
 	} while (reg_ret & (KT_PENDING << KTE_PENDING_OFFSET));
 

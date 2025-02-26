@@ -179,6 +179,7 @@ static int aml_mkl_lock(struct aml_mkl_dev *dev)
 			if (cnt++ > KL_PENDING_WAIT_TIMEOUT) {
 				KL_LOGE("Error: wait KL ready timeout\n");
 				ret = KL_STATUS_ERROR_TIMEOUT;
+				break;
 			}
 		}
 	} else {
@@ -186,6 +187,7 @@ static int aml_mkl_lock(struct aml_mkl_dev *dev)
 			if (cnt++ > KL_PENDING_WAIT_TIMEOUT) {
 				KL_LOGE("Error: wait KL ready timeout\n");
 				ret = KL_STATUS_ERROR_TIMEOUT;
+				break;
 			}
 		}
 	}
@@ -208,8 +210,7 @@ static int aml_mkl_read_pending(struct aml_mkl_dev *dev)
 		reg_ret = ioread32((char *)dev->base_addr + dev->reg.cfg_offset);
 		if (cnt++ > KL_PENDING_WAIT_TIMEOUT) {
 			KL_LOGE("Error: wait KL pending done timeout\n");
-			ret = KL_STATUS_ERROR_TIMEOUT;
-			return ret;
+			return KL_STATUS_ERROR_TIMEOUT;
 		}
 	} while (reg_ret & (1 << KL_PENDING_OFFSET));
 
@@ -223,11 +224,9 @@ static int aml_mkl_read_pending(struct aml_mkl_dev *dev)
 		ret = KL_STATUS_ERROR_BAD_STATE;
 		break;
 	case 2:
-		KL_LOGE("OTP Error code: %d\n", reg_ret);
-		ret = KL_STATUS_ERROR_OTP;
-		break;
 	case 3:
-		KL_LOGE("KL Deposit Error code: %d\n", reg_ret);
+	default:
+		KL_LOGE("OTP or KL error:%d\n", reg_ret);
 		ret = KL_STATUS_ERROR_DEPOSIT;
 		break;
 	}
