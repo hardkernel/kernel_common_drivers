@@ -3548,7 +3548,7 @@ int codec_mm_mgt_init(struct device *dev)
 
 	INIT_LIST_HEAD(&mgt->mem_list);
 	mgt->dev = dev;
-	mgt->alloc_from_sys_pages_max = 4;
+	mgt->alloc_from_sys_pages_max = 0;
 	if (mgt->rmem.size > 0) {
 		unsigned long aligned_addr;
 		int aligned_size;
