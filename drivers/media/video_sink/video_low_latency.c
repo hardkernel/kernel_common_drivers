@@ -82,13 +82,17 @@ static u32 lowlatency_proc_done;
 static u32 lowlatency_overflow_cnt;
 static u32 lowlatency_overrun_cnt;
 u32 lowlatency_overrun_recovery_cnt;
-static u32 lowlatency_max_proc_lines;
+static int lowlatency_max_proc_lines;
 static u32 lowlatency_max_enter_lines;
 static u32 lowlatency_max_exit_lines;
 static u32 lowlatency_min_enter_lines = 0xffffffff;
 static u32 lowlatency_min_exit_lines = 0xffffffff;
+static u32 lowlatency_rdma_proc_drop;
+static u32 lowlatency_rdma_err_drop;
+static u32 lowlatency_rdma_err2_drop;
+
 static u32 vsync_proc_done;
-static u32 line_threshold = 10;
+u32 frame_line_threshold = 10; /* n/100 */
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 static bool first_irq = true;
 #endif
@@ -107,6 +111,13 @@ static const struct vinfo_s *vinfo;
  */
 static unsigned int low_latency_ver;
 static u32 lowlatency_enable;
+
+u32 rdma_check_min_line, rdma_check_max_line;
+u32 rdma_line_threshold = 7; /* n/1000 */
+u32 rdma_add_delay_ms;
+u32 only_vpp_wake;
+
+static DEFINE_SPINLOCK(video_llm_lock);
 
 void get_low_latency_info(u32 *enable, u32 *version)
 {
@@ -127,6 +138,28 @@ void set_low_latency_info(u32 enable, u32 version)
 int get_low_latency_version(void)
 {
 	return lowlatency_enable ? low_latency_ver : 0;
+}
+
+void get_low_latency_params(u32 *p0, u32 *p1, u32 *p2, u32 *p3, u32 *p4, u32 *p5)
+{
+	if (p0 && p1 && p2 && p3 && p4 && p5) {
+		*p0 = frame_line_threshold;
+		*p1 = rdma_line_threshold;
+		*p2 = rdma_check_min_line;
+		*p3 = rdma_check_max_line;
+		*p4 = rdma_add_delay_ms;
+		*p5 = only_vpp_wake;
+	}
+}
+
+void set_low_latency_params(u32 p0, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5)
+{
+	frame_line_threshold = p0;
+	rdma_line_threshold = p1;
+	rdma_check_min_line = p2;
+	rdma_check_max_line = p3;
+	rdma_add_delay_ms = p4;
+	only_vpp_wake = p5;
 }
 
 u32 vsync_proc_drop;
@@ -1794,8 +1827,8 @@ int proc_lowlatency_frame(u8 instance_id)
 		vinfo_height = cur_vinfo->height;
 
 	start_line = get_active_start_line();
-	min_line = (vinfo_height * line_threshold) / 100 + start_line;
-	max_line = (vinfo_height * (100 - line_threshold)) / 100 + start_line;
+	min_line = (vinfo_height * frame_line_threshold) / 100 + start_line;
+	max_line = (vinfo_height * (100 - frame_line_threshold)) / 100 + start_line;
 	enc_line1 = get_cur_enc_line();
 	if (enc_line1 >= max_line || overrun_flag) {
 		lowlatency_proc_drop++;
@@ -1915,7 +1948,17 @@ ssize_t lowlatency_states_show(const struct class *cla,
 		atomic_read(&video_recv_cnt));
 	len += sprintf(buf + len,
 		"line threshold %d\n",
-		line_threshold);
+		frame_line_threshold);
+	len += sprintf(buf + len,
+		"rdma proc drop %llu\n",
+		(unsigned long long)lowlatency_rdma_proc_drop);
+	len += sprintf(buf + len,
+		"rdma err drop %llu\n",
+		(unsigned long long)lowlatency_rdma_err_drop);
+	len += sprintf(buf + len,
+		"rdma err2 drop %llu\n",
+		(unsigned long long)lowlatency_rdma_err2_drop);
+
 	return len;
 }
 
@@ -1945,6 +1988,9 @@ ssize_t lowlatency_states_store(const struct class *cla,
 	lowlatency_skip_frame_cnt = 0;
 	vsync_proc_drop = 0;
 	vsync_proc_done = 0;
+	lowlatency_rdma_proc_drop = 0;
+	lowlatency_rdma_err_drop = 0;
+	lowlatency_rdma_err2_drop = 0;
 	pr_info("Clear the lowlatency states information!\n");
 	return count;
 }
@@ -1954,25 +2000,96 @@ static int line_n_in;
 static struct task_struct *video_thread;
 static wait_queue_head_t frame_process_wq;
 static bool video_thread_init_done;
+static int wake_flag;
+
+void vpp_lowlatency_wakeup(void)
+{
+	u32 enc_line;
+
+	if (only_vpp_wake && !wake_flag)
+		return;
+
+	if (get_low_latency_version() != 2 || !video_thread_init_done)
+		return;
+	spin_lock(&video_llm_lock);
+	if (!atomic_read(&video_llm_wake) || !atomic_read(&video_llm_done)) {
+		spin_unlock(&video_llm_lock);
+		return;
+	}
+	atomic_set(&video_llm_wake, 0);
+	atomic_set(&video_llm_done, 0);
+	spin_unlock(&video_llm_lock);
+
+	line_n_in = 1;
+	wake_up_interruptible(&frame_process_wq);
+	enc_line = get_cur_enc_line();
+	if (debug_flag & DEBUG_FLAG_LATENCY)
+		pr_info("%s, wakeup enc_line:%d wake_flag:%d\n", __func__,
+			enc_line, wake_flag);
+}
 
 static irqreturn_t line_n_isr(int irq, void *dev_id)
 {
-	if (get_low_latency_version() == 2) {
-		if (debug_flag & DEBUG_FLAG_LATENCY)
-			pr_info("line_n isr\n");
-		line_n_in = 1;
-		if (video_thread_init_done)
-			wake_up_interruptible(&frame_process_wq);
-	}
+	wake_flag = 1;
+	vpp_lowlatency_wakeup();
+	wake_flag = 0;
+
 	return IRQ_HANDLED;
+}
+
+int vpp_low_latency_check(void)
+{
+	u32 enc_line, min_line, max_line, start_line, vinfo_height;
+	const struct vinfo_s *cur_vinfo;
+	static ulong last_vsync_count;
+
+	if (get_low_latency_version() != 2)
+		return 0;
+
+	cur_vinfo = get_current_vinfo();
+	if (!cur_vinfo) {
+		lowlatency_rdma_proc_drop++;
+		return -1;
+	}
+
+	if (cur_vinfo->field_height != cur_vinfo->height)
+		vinfo_height = cur_vinfo->field_height;
+	else
+		vinfo_height = cur_vinfo->height;
+
+	// check line count and configure only within the threshold range.
+	start_line = get_active_start_line();
+	min_line = 0;
+	max_line = (vinfo_height * (1000 - rdma_line_threshold)) / 1000 + 1 + start_line;
+	if (rdma_check_min_line)
+		min_line = rdma_check_min_line;
+	if (rdma_check_max_line)
+		max_line = rdma_check_max_line;
+
+	enc_line = get_cur_enc_line();
+	if (enc_line < min_line || enc_line > max_line) {
+		if (debug_flag & DEBUG_FLAG_LATENCY)
+			pr_info("%s enc_line:%d min_line:%d max_line:%d\n",
+				__func__, enc_line, min_line, max_line);
+		lowlatency_rdma_err_drop++;
+		return -1;
+	}
+
+	// avoid repeated configuration within the same vsync.
+	if (last_vsync_count == lowlatency_vsync_count) {
+		lowlatency_rdma_err2_drop++;
+		return -2;
+	}
+	last_vsync_count = lowlatency_vsync_count;
+
+	return 0;
 }
 
 static int process_frame(void)
 {
-	u32 enc_line1, enc_line2, last_line;
-	u32 min_line, max_line, start_line, vinfo_height;
+	int enc_line1, enc_line2;
+	int max_line, start_line, vinfo_height;
 	const struct vinfo_s *cur_vinfo;
-	bool err_flag = false;
 	static ulong last_vsync_count;
 
 	if (legacy_vpp)
@@ -1989,12 +2106,15 @@ static int process_frame(void)
 	else
 		vinfo_height = cur_vinfo->height;
 
+	if (rdma_add_delay_ms)
+		mdelay(rdma_add_delay_ms);
 	start_line = get_active_start_line();
-	min_line = (vinfo_height * line_threshold) / 100 + start_line;
-	max_line = (vinfo_height * (100 - line_threshold)) / 100 + start_line;
+
+	max_line = (vinfo_height * (100 - frame_line_threshold)) / 100 + start_line;
 	enc_line1 = get_cur_enc_line();
 	if (debug_flag & DEBUG_FLAG_LATENCY)
-		pr_info("process frame start, line:%d\n", enc_line1);
+		pr_info("process frame start, line:%d start_line:%d max_line:%d\n",
+			enc_line1, start_line, max_line);
 
 	if (enc_line1 >= max_line || overrun_flag) {
 		lowlatency_proc_drop++;
@@ -2011,23 +2131,6 @@ static int process_frame(void)
 		lowlatency_overflow_cnt++;
 		atomic_dec(&video_proc_lock);
 		return -4;
-	}
-
-	last_line = enc_line1;
-	while (enc_line1 < min_line) {
-		usleep_range(500, 600);
-		enc_line1 = get_cur_enc_line();
-		if (last_line == enc_line1) {
-			/* active line no change */
-			err_flag = true;
-			break;
-		}
-		last_line = enc_line1;
-	}
-	if (err_flag) {
-		lowlatency_err_drop++;
-		atomic_dec(&video_proc_lock);
-		return -5;
 	}
 
 	atomic_set(&video_inirq_flag, 1);
@@ -2081,6 +2184,7 @@ static int threadfunc(void *data)
 
 		start_time = ktime_get();
 		ret = process_frame();
+		atomic_set(&video_llm_done, 1);
 		diff_time = ktime_sub(ktime_get(), start_time);
 		time_cost_ms = ktime_to_ms(diff_time);
 		time_cost_us = ktime_to_us(diff_time);

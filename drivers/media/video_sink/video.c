@@ -689,6 +689,8 @@ atomic_t video_prevsync_inirq_flag = ATOMIC_INIT(0);
 atomic_t video_pause_flag = ATOMIC_INIT(0);
 atomic_t video_proc_lock = ATOMIC_INIT(0);
 atomic_t video_recv_cnt = ATOMIC_INIT(0);
+atomic_t video_llm_wake = ATOMIC_INIT(1);
+atomic_t video_llm_done = ATOMIC_INIT(1);
 int trickmode_duration;
 int trickmode_duration_count;
 u32 trickmode_vpts;
@@ -5462,6 +5464,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			lowlatency_overrun_recovery_cnt++;
 			vsync_cnt[VPP0]++;
 		}
+		atomic_set(&video_llm_wake, 1);
 		return IRQ_HANDLED;
 	}
 
@@ -13739,6 +13742,48 @@ static ssize_t lowlatency_en_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t lowlatency_debug_show(const struct class *cla,
+				     const struct class_attribute *attr,
+				     char *buf)
+{
+	ssize_t len = 0;
+	u32 p0 = 0, p1 = 0, p2 = 0, p3 = 0, p4 = 0, p5 = 0;
+
+	get_low_latency_params(&p0, &p1, &p2, &p3, &p4, &p5);
+
+	len += sprintf(buf + len,
+		"frame_line_threshold: %d\n", p0);
+	len += sprintf(buf + len,
+		"rdma_line_threshold: %d\n", p1);
+	len += sprintf(buf + len,
+		"rdma_check_min_line: %d\n", p2);
+	len += sprintf(buf + len,
+		"rdma_check_max_line: %d\n", p3);
+	len += sprintf(buf + len,
+		"rdma_add_delay_ms: %d\n", p4);
+	len += sprintf(buf + len,
+		"only_vpp_wake: %d\n", p5);
+
+	return len;
+}
+
+static ssize_t lowlatency_debug_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
+{
+	int p[6];
+
+	if (likely(parse_para(buf, 6, p) == 6)) {
+		/* default values: 10 7 0 0 0 0 */
+		set_low_latency_params(p[0], p[1], p[2], p[3], p[4], p[5]);
+	} else {
+		pr_err("invalid parameter\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -14376,6 +14421,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		lowlatency_en_show,
 		lowlatency_en_store),
+	__ATTR(lowlatency_debug,
+		0664,
+		lowlatency_debug_show,
+		lowlatency_debug_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

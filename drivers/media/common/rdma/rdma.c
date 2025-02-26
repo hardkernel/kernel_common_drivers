@@ -300,6 +300,11 @@ int _vsync_rdma_config(int rdma_type)
 		return 0;
 	}
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (rdma_type == EX_VSYNC_RDMA &&
+	    is_video_process_in_thread() && vpp_low_latency_check())
+		return -2;
+#endif
 	if (rdma_type == EX_VSYNC_RDMA) {
 		spin_lock_irqsave(&lock, flags);
 		force_rdma_config[rdma_type] = 1;

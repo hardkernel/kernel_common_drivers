@@ -44,6 +44,9 @@ extern bool over_field;
 extern bool dvel_status;
 #endif
 
+extern atomic_t video_llm_wake;
+extern atomic_t video_llm_done;
+
 ssize_t lowlatency_states_store(const struct class *cla,
 	const struct class_attribute *attr,
 	const char *buf, size_t count);
@@ -62,6 +65,8 @@ void vf_pq_process(struct vframe_s *vf,
 void get_low_latency_info(u32 *enable, u32 *version);
 void set_low_latency_info(u32 enable, u32 version);
 int get_low_latency_version(void);
+void get_low_latency_params(u32 *p0, u32 *p1, u32 *p2, u32 *p3, u32 *p4, u32 *p5);
+void set_low_latency_params(u32 p0, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5);
 void video_lowlatency_init(struct platform_device *pdev);
 void video_lowlatency_exit(void);
 void video_lowlatency_line_n_num(void);

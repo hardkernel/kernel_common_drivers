@@ -143,8 +143,9 @@
 // frc_20241016 frc disable when vsize change
 // frc_20241023 fix absolute value operation on unsigned int
 // frc_20241022 frc add std flow
+// frc_2024-1104 frc coverity
 
-#define FRC_FW_VER			"2024-1104 frc coverity"
+#define FRC_FW_VER			"2024-1108 frc add vpp low latency support"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -867,4 +868,5 @@ int frc_buf_set(struct frc_dev_s *frc_devp);
 void set_vsync_2to1_mode(u8 enable);
 void set_pre_vsync_mode(u8 enable);
 struct frc_fw_data_s *get_fw_data(void);
+int is_video_process_in_thread(void);
 #endif

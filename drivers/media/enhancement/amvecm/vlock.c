@@ -2849,7 +2849,7 @@ u32 vlock_fsm_to_en_func(struct stvlock_sig_sts *pvlock,
 		 (pvlock->output_hz != 100) && (pvlock->output_hz != 120))
 		pvlock->phlock_percent = 25;
 	else if (vlock_input_hz == 60 || vlock_input_hz == 120)
-		pvlock->phlock_percent = 30;
+		pvlock->phlock_percent = 50;
 	else
 		pvlock->phlock_percent = 40;
 
