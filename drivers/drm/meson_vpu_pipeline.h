@@ -332,7 +332,6 @@ struct meson_vpu_video_layer_info {
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
 	struct dma_fence *in_fence;
-	u32 vfm_mode;
 	bool is_uvm;
 	u32 status_changed;
 	int sec_en;
@@ -355,7 +354,6 @@ struct meson_vpu_video {
 	DECLARE_KFIFO(display_q, struct vframe_s *, BUFFER_NUM);
 	struct vframe_s vframe[BUFFER_NUM];
 	u32 video_path_reg;
-	u32 vfm_mode;
 	bool video_enabled;
 	struct dma_fence *fence;
 	struct dma_buf *dmabuf;

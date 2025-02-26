@@ -3437,12 +3437,6 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 
 static int vd_event_cb(int type, void *data, void *private_data)
 {
-	if (type & VFRAME_EVENT_RECEIVER_PUT)
-		;
-	else if (type & VFRAME_EVENT_RECEIVER_GET)
-		;
-	else if (type & VFRAME_EVENT_RECEIVER_FRAME_WAIT)
-		;
 	return 0;
 }
 

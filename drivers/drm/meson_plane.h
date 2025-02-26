@@ -103,7 +103,6 @@ struct am_video_plane {
 
 	struct meson_vpu_pipeline *pipeline;
 	spinlock_t lock; //used for video plane dma_fence
-	u32 vfm_mode;
 	/*video exted*/
 	struct drm_rect adjust_src;
 	struct drm_rect adjust_dst;

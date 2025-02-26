@@ -63,8 +63,6 @@ struct meson_of_conf {
 	/*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 	u32 crtc_masks[ENCODER_MAX];
 
-	u32 vfm_mode;
-
 	u32 osd_afbc_mask;
 
 	u32 crtcmask_osd[MESON_MAX_OSD];

@@ -1505,7 +1505,6 @@ static void meson_video_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tpixel_blend=%u\n", plane_info->pixel_blend);
 	/*TODO: vframe_s */
 	drm_printf(p, "\t\tis_uvm=%u\n", plane_info->is_uvm);
-	drm_printf(p, "\t\tvfm_mode=%u\n", plane_info->vfm_mode);
 }
 
 static const struct drm_plane_funcs am_osd_plane_funs = {
@@ -1776,7 +1775,6 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 
 	plane_info = &mvps->video_plane_info[video_plane->plane_index];
 	plane_info->plane_index = video_plane->plane_index;
-	plane_info->vfm_mode = video_plane->vfm_mode;
 	plane_info->zorder = state->zpos;
 	plane_info->rotation = state->rotation;
 
@@ -2648,8 +2646,6 @@ int am_meson_plane_create(struct meson_drm *priv)
 		if (!video_plane)
 			return -ENOMEM;
 
-		video_plane->vfm_mode = conf->vfm_mode;
-		pipeline->video[i]->vfm_mode = conf->vfm_mode;
 		priv->video_planes[i] = video_plane;
 		priv->num_planes++;
 	}

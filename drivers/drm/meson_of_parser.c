@@ -62,20 +62,6 @@ static void meson_connect_parse_config(struct drm_device *dev, struct meson_of_c
 	}
 }
 
-static void meson_video_parse_config(struct drm_device *dev, struct meson_of_conf *conf)
-{
-	u32 mode_flag = 0;
-	int ret;
-
-	ret = of_property_read_u32(dev->dev->of_node,
-				   "vfm_mode", &mode_flag);
-	if (ret)
-		DRM_DEBUG("%s parse vfm mode fail!\n", __func__);
-
-	DRM_DEBUG("%s:vfm_mode = %d\n", __func__, mode_flag);
-	conf->vfm_mode = mode_flag;
-}
-
 static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf *conf)
 {
 	u32 osd_afbc_mask = 0xff;
@@ -212,7 +198,6 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 		pipeline->num_video, conf->crtcmask_video);
 
 	meson_osd_parse_config(dev, conf);
-	meson_video_parse_config(dev, conf);
 	meson_connect_parse_config(dev, conf);
 	meson_parse_gfcd_config(dev, conf);
 }

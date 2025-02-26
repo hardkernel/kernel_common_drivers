@@ -28,7 +28,6 @@ static int video_axis_zoom = -1;
 module_param(video_axis_zoom, int, 0664);
 MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
 
-#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
 static void video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	struct video_display_frame_info_t *vf_info)
 {
@@ -56,7 +55,6 @@ static void video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	MESON_DRM_BLOCK("byte_stride:%d, signal_fmt:%d\n",
 				vf_info->byte_stride, vf_info->signal_fmt);
 }
-#endif
 
 static u32 video_type_get(u32 pixel_format)
 {
@@ -144,89 +142,6 @@ static u32 video_signal_fmt_cov(u32 signal_fmt)
 	return vframe_signal_fmt;
 }
 
-static int bind_video_fence_vframe(struct meson_vpu_video *video,
-			struct dma_fence *fence, u32 index, struct vframe_s *vf)
-{
-	struct vf_node *cur_node;
-	struct meson_video_plane_fence_info *info;
-
-	cur_node = kzalloc(sizeof(*cur_node), GFP_KERNEL);
-	if (!cur_node)
-		return -ENOMEM;
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		kfree(cur_node);
-		return -ENOMEM;
-	}
-	info->fence = fence;
-	info->vf = vf;
-	atomic_set(&info->refcount, 1);
-	cur_node->infos = info;
-
-	list_add_tail(&cur_node->vfm_node, &video->vfm_node[index]);
-	MESON_DRM_FENCE("%s, fence-%px, vf-%px\n", __func__, fence, vf);
-	return 0;
-}
-
-static void video_fence_signal(struct meson_vpu_video *video,
-			struct vframe_s *vf)
-{
-	struct vf_node *cur_node;
-	struct meson_video_plane_fence_info *info_cur;
-	struct list_head *p, *n;
-	int i;
-
-	for (i = 0; i < MESON_MAX_VIDEO; i++) {
-		list_for_each_safe(p, n, &video->vfm_node[i]) {
-			cur_node = list_entry(p, struct vf_node, vfm_node);
-			info_cur = cur_node->infos;
-			if (vf && info_cur->vf == vf) {
-				atomic_dec(&info_cur->refcount);
-				if (!atomic_read(&info_cur->refcount)) {
-					MESON_DRM_FENCE("%s, fence-%px, vf-%px\n",
-						__func__, info_cur->fence, vf);
-					dma_fence_signal(info_cur->fence);
-					dma_fence_put(info_cur->fence);
-					info_cur->fence = NULL;
-					info_cur->vf = NULL;
-					atomic_set(&info_cur->refcount, 0);
-					list_del_init(p);
-					kfree(cur_node);
-					return;
-				}
-			}
-		}
-	}
-}
-
-static void video_disable_fence(struct meson_vpu_video *video)
-{
-	struct vf_node *cur_node;
-	struct meson_video_plane_fence_info *info_cur;
-	struct list_head *p, *n;
-	int i;
-
-	for (i = 0; i < MESON_MAX_VIDEO; i++) {
-		list_for_each_safe(p, n, &video->vfm_node[i]) {
-			cur_node = list_entry(p, struct vf_node, vfm_node);
-			info_cur = cur_node->infos;
-			atomic_dec(&info_cur->refcount);
-			if (!atomic_read(&info_cur->refcount)) {
-				MESON_DRM_FENCE("%s, fence-%px, vf-%px\n",
-				__func__, info_cur->fence, info_cur->vf);
-				dma_fence_signal(info_cur->fence);
-				dma_fence_put(info_cur->fence);
-				info_cur->fence = NULL;
-				info_cur->vf = NULL;
-				atomic_set(&info_cur->refcount, 0);
-				list_del_init(p);
-				kfree(cur_node);
-			}
-		}
-	}
-}
-
 /*background data R[32:47] G[16:31] B[0:15] alpha[48:63]->
  *dummy data Y[16:23] Cb[8:15] Cr[0:7]
  */
@@ -250,71 +165,6 @@ void video_dummy_data_set(u64 crtc_bgcolor, bool crtc_bgcolor_flag)
 	set_post_blend_dummy_data(vpp_index, 1 << 24 | y << 16 | u << 8 | v, alpha);
 }
 
-/* -----------------------------------------------------------------
- *           provider operations
- * -----------------------------------------------------------------
- */
-static struct vframe_s *vp_vf_peek(void *op_arg)
-{
-	struct meson_vpu_video *video = (struct meson_vpu_video *)op_arg;
-	struct vframe_s *vf = NULL;
-
-	if (kfifo_peek(&video->ready_q, &vf))
-		return vf;
-	else
-		return NULL;
-}
-
-static struct vframe_s *vp_vf_get(void *op_arg)
-{
-	struct meson_vpu_video *video = (struct meson_vpu_video *)op_arg;
-	struct vframe_s *vf = NULL;
-
-	if (kfifo_get(&video->ready_q, &vf)) {
-		if (!vf)
-			return NULL;
-		return vf;
-	} else {
-		return NULL;
-	}
-}
-
-static void vp_vf_put(struct vframe_s *vf, void *op_arg)
-{
-	struct meson_vpu_video *video = (struct meson_vpu_video *)op_arg;
-
-	if (!vf)
-		return;
-
-	kfifo_put(&video->free_q, vf);
-
-	video_fence_signal(video, vf);
-}
-
-static int vp_event_cb(int type, void *data, void *private_data)
-{
-	return 0;
-}
-
-static int vp_vf_states(struct vframe_states *states, void *op_arg)
-{
-	struct meson_vpu_video *video = (struct meson_vpu_video *)op_arg;
-
-	states->vf_pool_size = BUFFER_NUM;
-	states->buf_recycle_num = 0;
-	states->buf_free_num = kfifo_len(&video->free_q);
-	states->buf_avail_num = kfifo_len(&video->ready_q);
-	return 0;
-}
-
-static const struct vframe_operations_s vp_vf_ops = {
-	.peek = vp_vf_peek,
-	.get  = vp_vf_get,
-	.put  = vp_vf_put,
-	.event_cb = vp_event_cb,
-	.vf_states = vp_vf_states,
-};
-
 static int video_check_state(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
@@ -322,7 +172,6 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_video_layer_info *plane_info;
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
-	int i;
 
 	if (state->checked)
 		return 0;
@@ -355,7 +204,6 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	mvvs->fb_size[1] = plane_info->fb_size[1];
 	mvvs->vf = plane_info->vf;
 	mvvs->is_uvm = plane_info->is_uvm;
-	video->vfm_mode = plane_info->vfm_mode;
 	mvvs->dmabuf = plane_info->dmabuf;
 	mvvs->crtc_index = plane_info->crtc_index;
 	mvvs->rotation = plane_info->rotation;
@@ -371,17 +219,6 @@ static int video_check_state(struct meson_vpu_block *vblk,
 		mvvs->repeat_frame = 1;
 	}
 
-	if (!video->vfm_mode && !video->video_path_reg) {
-		kfifo_reset(&video->ready_q);
-		kfifo_reset(&video->free_q);
-		kfifo_reset(&video->display_q);
-		for (i = 0; i < BUFFER_NUM; i++)
-			kfifo_put(&video->free_q, &video->vframe[i]);
-		vf_reg_provider(&video->vprov);
-		vf_notify_receiver(video->base.name,
-				   VFRAME_EVENT_PROVIDER_START, NULL);
-		video->video_path_reg = 1;
-	}
 	return 0;
 }
 
@@ -391,13 +228,11 @@ static void video_set_state(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
-#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
 	struct video_display_frame_info_t vf_info;
 	int ret;
-#endif
 	struct vframe_s *vf = NULL, *dec_vf = NULL, *vfp = NULL;
 	u32 pixel_format, src_h, byte_stride, pic_w, pic_h, fb_h;
-	u32 recal_src_w, recal_src_h;
+	u32 new_src_w, new_src_h;
 	u64 phy_addr, phy_addr2 = 0;
 
 	MESON_DRM_BLOCK("%s", __func__);
@@ -407,9 +242,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		return;
 	}
 
-#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
 	memset(&vf_info, 0, sizeof(vf_info));
-#endif
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;
 	fb_h = mvvs->fb_h;
@@ -446,9 +279,9 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			if (dec_vf->type & VIDTYPE_COMPRESS) {
 				pic_w = dec_vf->compWidth;
 				pic_h = dec_vf->compHeight;
-				recal_src_w = mvvs->src_w *
+				new_src_w = mvvs->src_w *
 							pic_w / dec_vf->width;
-				recal_src_h = mvvs->src_h *
+				new_src_h = mvvs->src_h *
 							pic_h / dec_vf->height;
 				vf->crop[0] = mvvs->src_y *
 							pic_h / dec_vf->height;
@@ -457,12 +290,12 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			} else {
 				pic_w = dec_vf->width;
 				pic_h = dec_vf->height;
-				recal_src_w = mvvs->src_w;
-				recal_src_h = mvvs->src_h;
+				new_src_w = mvvs->src_w;
+				new_src_h = mvvs->src_h;
 			}
 		} else {
-			recal_src_w = mvvs->src_w;
-			recal_src_h = mvvs->src_h;
+			new_src_w = mvvs->src_w;
+			new_src_h = mvvs->src_h;
 			if (dec_vf->type & VIDTYPE_COMPRESS) {
 				pic_w = dec_vf->compWidth;
 				pic_h = dec_vf->compHeight;
@@ -481,169 +314,78 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		if (mvvs->rotation == DRM_MODE_ROTATE_180)
 			vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
 
-		if (video->vfm_mode) {
-#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
-			vf_info.release_fence = video->fence;
-			vf_info.dmabuf = mvvs->dmabuf;
-			vf_info.dst_x = mvvs->dst_x;
-			vf_info.dst_y = mvvs->dst_y;
-			vf_info.dst_w = mvvs->dst_w;
-			vf_info.dst_h = mvvs->dst_h;
-			vf_info.crop_x = vf->crop[1];
-			vf_info.crop_y = vf->crop[0];
-			vf_info.crop_w = recal_src_w;
-			vf_info.crop_h = recal_src_h;
-			vf_info.buffer_w = pic_w;
-			vf_info.buffer_h = pic_h;
-			vf_info.zorder = mvvs->zorder;
-			vf_info.rotation = mvvs->rotation;
-			vf_info.input_fence = mvvs->in_fence;
-			vf_info.reserved[0] = 0;
-			vf_info.phy_addr[0] = mvvs->phy_addr[0];
-			vf_info.phy_addr[1] = mvvs->phy_addr[1];
+		vf_info.release_fence = video->fence;
+		vf_info.dmabuf = mvvs->dmabuf;
+		vf_info.dst_x = mvvs->dst_x;
+		vf_info.dst_y = mvvs->dst_y;
+		vf_info.dst_w = mvvs->dst_w;
+		vf_info.dst_h = mvvs->dst_h;
+		vf_info.crop_x = vf->crop[1];
+		vf_info.crop_y = vf->crop[0];
+		vf_info.crop_w = new_src_w;
+		vf_info.crop_h = new_src_h;
+		vf_info.buffer_w = pic_w;
+		vf_info.buffer_h = pic_h;
+		vf_info.zorder = mvvs->zorder;
+		vf_info.rotation = mvvs->rotation;
+		vf_info.input_fence = mvvs->in_fence;
+		vf_info.reserved[0] = 0;
+		vf_info.phy_addr[0] = mvvs->phy_addr[0];
+		vf_info.phy_addr[1] = mvvs->phy_addr[1];
 
-			dma_resv_lock(vf_info.dmabuf->resv, NULL);
+		dma_resv_lock(vf_info.dmabuf->resv, NULL);
 
-			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
-			if (!ret)
-				dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
-					      DMA_RESV_USAGE_WRITE);
+		ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
+		if (!ret)
+			dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
+					   DMA_RESV_USAGE_WRITE);
 
-			dma_resv_unlock(vf_info.dmabuf->resv);
+		dma_resv_unlock(vf_info.dmabuf->resv);
 
-			MESON_DRM_FENCE("dmabuf(%px), in-%px, release_fence(%px-%d)\n",
+		MESON_DRM_FENCE("dmabuf(%px), in-%px, release_fence(%px-%d)\n",
 				vf_info.dmabuf, vf_info.input_fence, vf_info.release_fence,
 				vf_info.release_fence ?
-					kref_read(&vf_info.release_fence->refcount) : -1);
+				kref_read(&vf_info.release_fence->refcount) : -1);
 
-			MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
+		MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
 				vf_info.crop_x, vf_info.crop_y, vf_info.crop_w, vf_info.crop_h,
 				vf_info.buffer_w, vf_info.buffer_h);
-			video_display_setframe(vblk->index, &vf_info, 0);
-#endif
-		} else {
-			/*crop bottow*/
-			if (pic_h > recal_src_h + vf->crop[0])
-				vf->crop[2] = pic_h - recal_src_h - vf->crop[0];
-			else
-				vf->crop[2] = 0;
 
-			/*crop right*/
-			if (pic_w > recal_src_w + vf->crop[1])
-				vf->crop[3] = pic_w - recal_src_w - vf->crop[1];
-			else
-				vf->crop[3] = 0;
-			MESON_DRM_BLOCK("vf-crop:%u, %u, %u, %u\n",
-					pic_w, pic_h, vf->crop[2], vf->crop[3]);
-			vf->flag |= VFRAME_FLAG_VIDEO_DRM;
-
-			if (!mvvs->repeat_frame) {
-				if (!kfifo_put(&video->ready_q, vf))
-					DRM_INFO("ready_q is full!\n");
-			}
-		}
-	} else {
-		if (video->vfm_mode) {
 #ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
-			vf_info.release_fence = video->fence;
-			video_vfm_convert_to_vfminfo(mvvs, &vf_info);
-			vf_info.phy_addr[0] = mvvs->phy_addr[0];
-			if (pixel_format == DRM_FORMAT_NV12 ||
-			    pixel_format == DRM_FORMAT_NV21) {
-				if (!mvvs->phy_addr[1])
-					vf_info.phy_addr[1] = phy_addr + byte_stride * fb_h;
-				else
-					vf_info.phy_addr[1] = mvvs->phy_addr[1];
-			}
-			vf_info.type = video_type_get(pixel_format);
-			vf_info.bitdepth = video_bitdepth_get(pixel_format);
-			vf_info.input_fence = mvvs->in_fence;
-			dma_resv_lock(vf_info.dmabuf->resv, NULL);
+		video_display_setframe(vblk->index, &vf_info, 0);
+#endif
+	} else {
+		vf_info.release_fence = video->fence;
+		video_vfm_convert_to_vfminfo(mvvs, &vf_info);
+		vf_info.phy_addr[0] = mvvs->phy_addr[0];
+		if (pixel_format == DRM_FORMAT_NV12 ||
+			pixel_format == DRM_FORMAT_NV21) {
+			if (!mvvs->phy_addr[1])
+				vf_info.phy_addr[1] = phy_addr + byte_stride * fb_h;
+			else
+				vf_info.phy_addr[1] = mvvs->phy_addr[1];
+		}
 
-			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
-			if (!ret)
-				dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
-							DMA_RESV_USAGE_WRITE);
+		vf_info.type = video_type_get(pixel_format);
+		vf_info.bitdepth = video_bitdepth_get(pixel_format);
+		vf_info.input_fence = mvvs->in_fence;
+		dma_resv_lock(vf_info.dmabuf->resv, NULL);
 
-			dma_resv_unlock(vf_info.dmabuf->resv);
-			MESON_DRM_FENCE("dmabuf(%px), in-%px, release_fence(%px-%d)\n",
+		ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
+		if (!ret)
+			dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
+					   DMA_RESV_USAGE_WRITE);
+
+		dma_resv_unlock(vf_info.dmabuf->resv);
+		MESON_DRM_FENCE("dmabuf(%px), in-%px, release_fence(%px-%d)\n",
 				vf_info.dmabuf, vf_info.input_fence, vf_info.release_fence,
 				vf_info.release_fence ?
-					kref_read(&vf_info.release_fence->refcount) : -1);
+				kref_read(&vf_info.release_fence->refcount) : -1);
 
-			video_display_setframe(vblk->index, &vf_info, 0);
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+		video_display_setframe(vblk->index, &vf_info, 0);
 #endif
-		} else {
-			if (pixel_format == DRM_FORMAT_NV12 ||
-			    pixel_format == DRM_FORMAT_NV21) {
-				if (!mvvs->phy_addr[1])
-					phy_addr2 = phy_addr + byte_stride * fb_h;
-				else
-					phy_addr2 = mvvs->phy_addr[1];
-			}
-
-			if (kfifo_get(&video->free_q, &vf) && vf) {
-				memset(vf, 0, sizeof(struct vframe_s));
-				vf->width = mvvs->src_w;
-				vf->height = mvvs->src_h;
-				vf->source_type = VFRAME_SOURCE_TYPE_OTHERS;
-				vf->source_mode = VFRAME_SOURCE_MODE_OTHERS;
-				vf->bitdepth = video_bitdepth_get(pixel_format);
-				vf->type = video_type_get(pixel_format);
-				vf->axis[0] = mvvs->dst_x;
-				vf->axis[1] = mvvs->dst_y;
-				vf->axis[2] = mvvs->dst_x + mvvs->dst_w - 1;
-				vf->axis[3] = mvvs->dst_y + mvvs->dst_h - 1;
-				vf->crop[0] = mvvs->src_y;/*crop top*/
-				vf->crop[1] = mvvs->src_x;/*crop left*/
-				/*vf->width is from mvvs->src_w which is the
-				 *valid content so the crop of bottom and right
-				 *could be 0
-				 */
-				vf->crop[2] = 0;/*crop bottow*/
-				vf->crop[3] = 0;/*crop right*/
-				vf->flag |= VFRAME_FLAG_VIDEO_DRM;
-				/*need sync with vpp*/
-				vf->canvas0Addr = (u32)-1;
-				/*Todo: if canvas0_config.endian = 1
-				 *support little endian is okay,could be removed.
-				 */
-				vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
-				if (mvvs->rotation == DRM_MODE_ROTATE_180)
-					vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
-
-				vf->plane_num = 1;
-				vf->canvas0_config[0].phy_addr = phy_addr;
-				vf->canvas0_config[0].width = byte_stride;
-				vf->canvas0_config[0].height = src_h;
-				vf->canvas0_config[0].block_mode =
-					CANVAS_BLKMODE_LINEAR;
-				/*big endian default support*/
-				vf->canvas0_config[0].endian = 0;
-				if (pixel_format == DRM_FORMAT_NV12 ||
-				    pixel_format == DRM_FORMAT_NV21) {
-					vf->plane_num = 2;
-					vf->canvas0_config[1].phy_addr = phy_addr2;
-					vf->canvas0_config[1].width = byte_stride;
-					vf->canvas0_config[1].height = src_h / 2;
-					vf->canvas0_config[1].block_mode =
-						CANVAS_BLKMODE_LINEAR;
-					/*big endian default support*/
-					vf->canvas0_config[1].endian = 0;
-				}
-				MESON_DRM_BLOCK("vframe info:type(0x%x),plane_num=%d\n",
-					  vf->type, vf->plane_num);
-				if (!kfifo_put(&video->ready_q, vf))
-					DRM_INFO("ready_q is full!\n");
-			} else {
-				DRM_INFO("free_q get fail!");
-			}
-		}
 	}
-
-	if (!video->vfm_mode && video->fence && vf && !mvvs->repeat_frame)
-		bind_video_fence_vframe(video, video->fence,
-				mvvs->plane_index, vf);
 
 	MESON_DRM_BLOCK("plane_index=%d,HW-video=%d, byte_stride=%d, rotate:%d\n",
 		  mvvs->plane_index, vblk->index, byte_stride, mvvs->rotation);
@@ -662,19 +404,14 @@ static void video_hw_enable(struct meson_vpu_block *vblk,
 		return;
 	}
 
-	if (video->vfm_mode && !video->video_enabled) {
+	if (!video->video_enabled) {
 		MESON_DRM_BLOCK("set %s enable.\n", video->base.name);
 #ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
-		video_display_setenable(vblk->index, 1);
+		video_display_control(vblk->index, 1);
 		video->video_enabled = 1;
 #endif
-		return;
 	}
 
-	if (!video->video_enabled) {
-		set_video_enabled(1, vblk->index);
-		video->video_enabled = 1;
-	}
 	MESON_DRM_BLOCK("%s enable done.\n", video->base.name);
 }
 
@@ -691,30 +428,16 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 
 	priv = video->base.pipeline->priv;
 
-	if (video->vfm_mode) {
-		DRM_INFO("%s dmabuf(%px), release_fence(%px), video_name(%s)\n",
+	DRM_INFO("%s dmabuf(%px), release_fence(%px), video_name(%s)\n",
 			__func__, video->dmabuf, video->fence, video->base.name);
 #ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
-		video_display_setenable(vblk->index, 0);
-		video->video_enabled = 0;
+	video_display_control(vblk->index, 0);
+	video->video_enabled = 0;
 #endif
-		video->fence = NULL;
-		video->dmabuf = NULL;
-		priv->disable_video_plane = 1;
-	} else {
-		video_disable_fence(video);
-		video->fence = NULL;
-		video->dmabuf = NULL;
-		if (video->video_enabled) {
-			set_video_enabled(0, vblk->index);
-			video->video_enabled = 0;
-		}
+	video->fence = NULL;
+	video->dmabuf = NULL;
+	priv->disable_video_plane = 1;
 
-		if (video->video_path_reg) {
-			vf_unreg_provider(&video->vprov);
-			video->video_path_reg = 0;
-		}
-	}
 	MESON_DRM_BLOCK("%s disable done.\n", video->base.name);
 }
 
@@ -726,7 +449,6 @@ static void video_dump_register(struct drm_printer *p,
 static void video_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
-	int i;
 	u32 w, h;
 
 	if (!vblk || !video) {
@@ -742,41 +464,7 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 	get_video_src_max_buffer(vblk->index, &w, &h);
 	video->src_max_size = w << 16 | h;
 
-	if (!video->vfm_mode) {
-		for (i = 0; i < MESON_MAX_VIDEO; i++)
-			INIT_LIST_HEAD(&video->vfm_node[i]);
-		INIT_KFIFO(video->ready_q);
-		INIT_KFIFO(video->free_q);
-		INIT_KFIFO(video->display_q);
-		kfifo_reset(&video->ready_q);
-		kfifo_reset(&video->free_q);
-		kfifo_reset(&video->display_q);
-		for (i = 0; i < BUFFER_NUM; i++)
-			kfifo_put(&video->free_q, &video->vframe[i]);
-		if (vblk->id == VIDEO1_BLOCK)
-			snprintf(video->vfm_map_chain, VP_MAP_STRUCT_SIZE,
-				 "%s %s", video->base.name,
-				 "amvideo");
-		else if (vblk->id == VIDEO2_BLOCK)
-			snprintf(video->vfm_map_chain, VP_MAP_STRUCT_SIZE,
-				 "%s %s", video->base.name,
-				 "videopip");
-		else if (vblk->id == VIDEO3_BLOCK)
-			snprintf(video->vfm_map_chain, VP_MAP_STRUCT_SIZE,
-				"%s %s", video->base.name,
-				"videopip2");
-		else
-			MESON_DRM_BLOCK("unsupported block id %d\n", vblk->id);
-
-		snprintf(video->vfm_map_id, VP_MAP_STRUCT_SIZE,
-			 "video-map-%d", vblk->index);
-		vfm_map_add(video->vfm_map_id, video->vfm_map_chain);
-		vf_provider_init(&video->vprov, video->base.name,
-					 &vp_vf_ops, video);
-	}
-
-	MESON_DRM_BLOCK("%s:%s done.vfm_mode:%d\n", __func__, video->base.name,
-			video->vfm_mode);
+	MESON_DRM_BLOCK("%s:%s done\n", __func__, video->base.name);
 }
 
 struct meson_vpu_block_ops video_ops = {

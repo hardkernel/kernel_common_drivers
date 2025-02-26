@@ -59,7 +59,6 @@
 		osd_ver = /bits/ 8 <OSD_V7>;
 		/* OSD1&OSD2 with afbc, OSD3 has no afbc */
 		osd_afbc_mask = <3>;
-		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;
 		crtc_masks = <0 1 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 

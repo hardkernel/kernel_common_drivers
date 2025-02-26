@@ -86,7 +86,7 @@ struct mbd_video_frame_info_t {
 	u32 reserved[10];
 };
 
-int video_display_setenable(int layer_index, int is_enable);
+int video_display_control(int layer_index, int is_enable);
 int video_display_setframe(int layer_index,
 			struct video_display_frame_info_t *frame_info,
 			int flags);

@@ -19,11 +19,11 @@
 #include "videodisplay_process.h"
 #include "videodisplay_interface.h"
 
-int video_display_setenable(int layer_index, int is_enable)
+int video_display_control(int layer_index, int is_enable)
 {
 	return vd_set_enable(layer_index, is_enable);
 }
-EXPORT_SYMBOL(video_display_setenable);
+EXPORT_SYMBOL(video_display_control);
 
 int video_display_setframe(int layer_index, struct video_display_frame_info_t *frame_info,
 			int flags)

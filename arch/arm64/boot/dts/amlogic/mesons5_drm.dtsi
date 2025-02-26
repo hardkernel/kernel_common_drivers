@@ -62,7 +62,6 @@
 		max_fb_size = <1>; /** 0:1080p fb 1:4k fb */
 		max_sizes = <8192 8192>;
 		osd_ver = /bits/ 8 <OSD_V7>;
-		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;
 		crtc_masks = <1 0 0>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 		crtcmask_of_osd = <0 0>; /* indicate the crtc mask of osd plane */
