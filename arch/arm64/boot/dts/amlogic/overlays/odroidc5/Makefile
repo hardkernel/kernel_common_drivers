@@ -19,4 +19,5 @@ dtb-y += dht11.dtbo \
          uart1.dtbo \
          uart1-with-ctsrts.dtbo \
          uart2.dtbo \
-         uart3.dtbo
+         uart3.dtbo \
+         weather_board_zero.dtbo
