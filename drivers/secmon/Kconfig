@@ -15,3 +15,9 @@ config AMLOGIC_DOLBY_FW
 	default n
 	help
 	  This is Dolby FW Driver.
+
+config AMLOGIC_STD
+	tristate "Amlogic secmon driver support std"
+	default n
+	help
+	  This is secmon driver support hibernate.

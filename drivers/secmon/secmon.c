@@ -301,7 +301,7 @@ static  struct platform_driver secmon_platform_driver = {
 	},
 };
 
-#ifdef CONFIG_STDSECUMEM
+#ifdef CONFIG_AMLOGIC_STD
 static int __init setup_secmon_nosave(void)
 {
 	unsigned long start_pfn = virt_to_pfn(secmon_start_virt);
@@ -317,7 +317,7 @@ int __init meson_secmon_init(void)
 	int ret;
 
 	ret = platform_driver_register(&secmon_platform_driver);
-#ifdef CONFIG_STDSECUMEM
+#ifdef CONFIG_AMLOGIC_STD
 	setup_secmon_nosave();
 #endif
 	WARN((secmon_dev_registered != DEV_REGISTERED),
