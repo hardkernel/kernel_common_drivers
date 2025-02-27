@@ -774,7 +774,7 @@ static int meson8b_suspend(struct device *dev)
 #endif
 
 	/*open wol, shutdown phy when not link*/
-	if ((wol_switch_from_user) && phydev->link) {
+	if (wol_switch_from_user && phydev && phydev->link) {
 		set_wol_notify_bl31(true);
 		set_wol_notify_bl30(dwmac, true);
 		/*our phy not support wol by now*/
@@ -848,7 +848,10 @@ static int meson8b_resume(struct device *dev)
 		priv->amlogic_task_action = 100;
 		stmmac_trigger_amlogic_task(priv);
 	} else {
-		if (internal_phy != 2) {
+		if (internal_phy == 2) {
+			if (phydev)
+				phy_resume(phydev);
+		} else {
 			if (dwmac->data->resume)
 				dwmac->data->resume(dwmac);
 		}
