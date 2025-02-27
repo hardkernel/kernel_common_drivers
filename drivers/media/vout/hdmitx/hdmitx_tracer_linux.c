@@ -12,6 +12,7 @@
 #define HDMI_TRACE_SIZE (BIT(12)) /* 4k */
 
 struct hdmitx_tracer {
+	enum hdmitx_event_log_bits event;
 	int previous_event;
 	int hdr10plus_event;
 	struct kfifo log_fifo;
@@ -110,6 +111,9 @@ static void hdmitx_logevents_handler(struct work_struct *work)
 
 	hdmitx_event_mgr_send_uevent(tracer->eventmgr,
 		HDMITX_CUR_ST_EVENT, ++cnt, false);
+
+	hdmitx_event_mgr_send_uevent(tracer->eventmgr,
+		HDMITX_TRACER_EVENT, tracer->event, false);
 }
 
 struct hdmitx_tracer *hdmitx_tracer_create(struct hdmitx_event_mgr *event_mgr)
@@ -180,6 +184,7 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 	else
 		tracer->hdr10plus_event = tracer->previous_event;
 
+	tracer->event = event;
 	/* after write trace, trigger uevent to save trace log */
 	schedule_work(&tracer->uevent_work);
 

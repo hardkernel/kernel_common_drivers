@@ -66,6 +66,10 @@ static struct hdmitx_uevent hdmi_events[] = {
 		.type = HDMITX_VMODE_AUDIO_EVENT,
 		.env = "hdmitx_vmode_audio=",
 	},
+	{
+		.type = HDMITX_TRACER_EVENT,
+		.env = "hdmitx_tracer=",
+	},
 	{ /* end of hdmi_events[] */
 		.type = HDMITX_NONE_EVENT,
 	},
