@@ -1014,7 +1014,6 @@ void lcd_mlvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 		break;
 	case LCD_CHIP_TXHD2:
 		if (on_off) {
-			lcd_combo_dphy_write(pdrv, COMBO_DPHY_CNTL0_TXHD2, 0x55555);
 			/* fifo_clk_sel[7:6]: 0=div6, 1=div 7, 2=div8, 3=div10 */
 			lcd_combo_dphy_write(pdrv, COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0_TXHD2,
 						(div_sel << 6));
