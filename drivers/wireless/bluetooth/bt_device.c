@@ -123,7 +123,7 @@ struct bt_dev_runtime_data {
 
 static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 {
-	pr_debug("[%s]: pid: %d comm: %s\n", __func__,
+	pr_info("[%s]: pid: %d comm: %s\n", __func__,
 		current->pid, current->comm);
 
 	if (pdata->gpio_reset > 0) {
@@ -134,9 +134,6 @@ static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 			gpio_direction_output(pdata->gpio_reset,
 				pdata->power_low_level);
 		}
-
-		if (down_time)
-			msleep(down_time);
 	}
 
 #ifndef CONTROL_POWER_EN_LINUX
@@ -151,7 +148,7 @@ static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 
 static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
 {
-	pr_debug("[%s]: pid: %d comm: %s\n", __func__,
+	pr_info("[%s]: pid: %d comm: %s\n", __func__,
 		current->pid, current->comm);
 
 	if (pdata->gpio_reset > 0) {
@@ -162,10 +159,7 @@ static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
 			gpio_direction_output(pdata->gpio_reset,
 				!pdata->power_low_level);
 		}
-
-		if (up_time)
-			msleep(up_time);
-	}
+}
 
 #ifndef CONTROL_POWER_EN_LINUX
 	if (pdata->gpio_en && pdata->power_on_pin_OD &&
