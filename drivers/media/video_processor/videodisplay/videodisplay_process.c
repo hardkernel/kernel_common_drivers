@@ -913,8 +913,7 @@ static void video_composer_uninit_buffer(struct videodisplay_dev *dev)
 	struct videodisplay_port_s *vd_port;
 
 	if (dev->buffer_status == UNINITIAL) {
-		vd_print(dev->index, PRINT_OTHER,
-			 "%s buffer have uninit already finished!\n", __func__);
+		vd_print(dev->index, PRINT_OTHER, "%s already finished!\n", __func__);
 		return;
 	}
 
@@ -972,22 +971,6 @@ static struct file_private_data *vc_get_file_private(struct videodisplay_dev *de
 	return file_private_data;
 }
 
-static void frames_put_file(struct videodisplay_dev *dev,
-			    struct received_frames_t *current_frames)
-{
-	struct file *file_vf;
-	int current_count;
-	int i;
-
-	current_count = current_frames->frames_info.frame_count;
-	for (i = 0; i < current_count; i++) {
-		file_vf = current_frames->file_vf[i];
-		fput(file_vf);
-		total_put_count++;
-		dev->fput_count++;
-	}
-}
-
 static void vd_private_q_init(struct videodisplay_dev *dev)
 {
 	int i;
@@ -1024,7 +1007,7 @@ static struct video_composer_private *vd_private_q_pop(struct videodisplay_dev *
 	struct video_composer_private *vc_private = NULL;
 
 	if (!kfifo_get(&dev->vc_private_q, &vc_private)) {
-		vd_print(dev->index, PRINT_ERROR, "get vc_private_q failed\n");
+		vd_print(dev->index, PRINT_ERROR, "%s: get vc_private_q failed\n", __func__);
 		vc_private = NULL;
 	} else {
 		vc_private->flag = 0;
@@ -1046,11 +1029,15 @@ static void vf_pop_display_q(struct videodisplay_dev *dev, struct vframe_s *vf)
 			if (dis_vf == vf)
 				break;
 			if (!kfifo_put(&dev->display_q, dis_vf))
-				vd_print(dev->index, PRINT_ERROR, "display_q is full!\n");
+				vd_print(dev->index, PRINT_ERROR,
+					"%s: display_q is full!\n",
+					__func__);
 		}
 		k--;
 		if (k < 0) {
-			vd_print(dev->index, PRINT_ERROR, "can find vf in display_q.\n");
+			vd_print(dev->index, PRINT_ERROR,
+				"%s: can find vf in display_q.\n",
+				__func__);
 			break;
 		}
 	}
@@ -1058,55 +1045,77 @@ static void vf_pop_display_q(struct videodisplay_dev *dev, struct vframe_s *vf)
 
 static void display_q_uninit(struct videodisplay_dev *dev)
 {
-	struct vframe_s *dis_vf = NULL;
-	int repeat_count;
+	struct vframe_s *vf = NULL;
 	int i;
 	bool is_mosaic_22 = false;
+	u32 dma_flag = 0;
 	struct file *file_vf;
+	struct vd_prepare_s *vd_prepare;
+	struct mbp_buffer_info_t *mpb_buf = NULL;
 
-	vd_print(dev->index, PRINT_QUEUE_STATUS, "unit display_q len=%d\n",
-		 kfifo_len(&dev->display_q));
+	vd_print(dev->index, PRINT_QUEUE_STATUS,
+		"%s: display_q len=%d\n",
+		__func__,
+		kfifo_len(&dev->display_q));
 
 	while (kfifo_len(&dev->display_q) > 0) {
-		if (kfifo_get(&dev->display_q, &dis_vf)) {
-			is_mosaic_22 = dis_vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
-			if (dis_vf->flag
-			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS && !is_mosaic_22) {
-				repeat_count = dis_vf->repeat_count;
-				vd_print(dev->index, PRINT_FENCE,
-					 "unit repeat_count=%d, frame_index=%d\n",
-					 repeat_count,
-					 dis_vf->frame_index);
-				if (dis_vf->fence &&
-					dis_vf->dec_fence_status == DEC_FENCE_SUCCESS) {
-					vd_print(dev->index, PRINT_FENCE,
-						 "unit put fence=%px\n",
-						 dis_vf->fence);
-					dma_fence_put(dis_vf->fence);
-				}
-				for (i = 0; i <= repeat_count; i++) {
-					fput(dis_vf->file_vf);
-					total_put_count++;
-					dev->fput_count++;
-				}
-			} else if (is_mosaic_22) {
+		if (kfifo_get(&dev->display_q, &vf)) {
+			vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
+			if (IS_ERR_OR_NULL(vd_prepare)) {
+				vd_print(dev->index, PRINT_ERROR,
+					"%s: prepare is NULL.\n",
+					__func__);
+				return;
+			}
+
+			is_mosaic_22 = vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
+			dma_flag = vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA;
+			if (is_mosaic_22) {
 				for (i = 0; i < 4; i++) {
-					file_vf = dis_vf->vc_private->mosaic_vf[i]->file_vf;
+					file_vf = vf->vc_private->mosaic_vf[i]->file_vf;
 					if (file_vf) {
 						fput(file_vf);
 						total_put_count++;
 						dev->fput_count++;
 					} else {
 						vd_print(dev->index, PRINT_ERROR,
-							"%s error!!!: i=%d fput fail\n",
-							__func__, i);
+							"%s error: i=%d fput fail\n",
+							__func__,
+							i);
 					}
 				}
-			} else if (!(dis_vf->flag
-				     & VFRAME_FLAG_VIDEO_COMPOSER)) {
-				vd_print(dev->index, PRINT_ERROR,
-					 "unit display_q flag is null, frame_index=%d\n",
-					 dis_vf->frame_index);
+			} else {
+				if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
+					file_vf = vf->file_vf;
+					vd_print(dev->index, PRINT_FENCE,
+						"%s: put frame_index=%d\n",
+						__func__,
+						vf->frame_index);
+					if (!dma_flag) {
+						dma_buf_put((struct dma_buf *)file_vf);
+						dma_fence_signal(vd_prepare->release_fence);
+						dma_fence_put(vd_prepare->release_fence);
+						vd_print(dev->index, PRINT_FENCE,
+							"%s: release_fence = %px\n",
+							__func__,
+							vd_prepare->release_fence);
+					} else {
+						vd_print(dev->index, PRINT_FENCE,
+							"%s:put dma buffer!!!\n",
+							__func__);
+						mpb_buf =
+							(struct mbp_buffer_info_t *)file_vf;
+						vf->vc_private->unlock_buffer_cb(mpb_buf);
+					}
+					dev->fput_count++;
+					total_put_count++;
+				} else if (!(vf->flag
+					& VFRAME_FLAG_VIDEO_COMPOSER)) {
+					vd_print(dev->index, PRINT_ERROR,
+						"%s: flag is null, frame_index=%d\n",
+						__func__,
+						vf->frame_index);
+				}
 			}
 		}
 	}
@@ -1115,52 +1124,76 @@ static void display_q_uninit(struct videodisplay_dev *dev)
 static void receive_q_uninit(struct videodisplay_dev *dev)
 {
 	int i = 0;
-	struct received_frames_t *received_frames = NULL;
+	int queue_count = 0;
 
-	vd_print(dev->index, PRINT_QUEUE_STATUS, "unit receive_q len=%d\n",
-		 kfifo_len(&dev->receive_q));
-	while (kfifo_len(&dev->receive_q) > 0) {
-		if (kfifo_get(&dev->receive_q, &received_frames))
-			frames_put_file(dev, received_frames);
-	}
+	queue_count = kfifo_len(&dev->receive_q);
+	vd_print(dev->index, PRINT_QUEUE_STATUS, "%s: receive_q len=%d\n", __func__, queue_count);
 
-	for (i = 0; i < FRAMES_INFO_POOL_SIZE; i++) {
-		atomic_set(&dev->received_frames[i].on_use,
-			   false);
-	}
+	for (i = 0; i < FRAMES_INFO_POOL_SIZE; i++)
+		atomic_set(&dev->received_frames[i].on_use, false);
 }
 
 static void ready_q_uninit(struct videodisplay_dev *dev)
 {
-	struct vframe_s *dis_vf = NULL;
-	int repeat_count;
-	int i;
+	struct vframe_s *vf = NULL;
+	u32 dma_flag = 0;
+	struct file *file_vf;
+	struct vd_prepare_s *vd_prepare;
+	struct mbp_buffer_info_t *mpb_buf = NULL;
 
-	vd_print(dev->index, PRINT_QUEUE_STATUS, "unit ready_q len=%d\n",
-		 kfifo_len(&dev->ready_q));
+	vd_print(dev->index, PRINT_QUEUE_STATUS, "%s: ready_q len=%d\n",
+		__func__,
+		kfifo_len(&dev->ready_q));
 
 	while (kfifo_len(&dev->ready_q) > 0) {
-		if (kfifo_get(&dev->ready_q, &dis_vf)) {
-			if (!dis_vf) {
+		if (kfifo_get(&dev->ready_q, &vf)) {
+			if (!vf) {
 				vd_print(dev->index, PRINT_ERROR, "%s: dis_vf is NULL\n", __func__);
 				break;
 			}
 
-			if (dis_vf->vc_private)
-				if (dis_vf->vc_private->srout_data) {
-					if (dis_vf->vc_private->srout_data->nn_status == NN_DONE)
-						dis_vf->vc_private->srout_data->nn_status =
-							NN_DISPLAYED;
-				}
+			vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
+			if (IS_ERR_OR_NULL(vd_prepare)) {
+				vd_print(dev->index, PRINT_ERROR,
+					"%s: prepare is NULL.\n",
+					__func__);
+				return;
+			}
 
-			if (dis_vf->flag
-			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
-				repeat_count = dis_vf->repeat_count;
-				for (i = 0; i <= repeat_count; i++) {
-					fput(dis_vf->file_vf);
-					total_put_count++;
-					dev->fput_count++;
+			if (vf->vc_private && vf->vc_private->srout_data) {
+				if (vf->vc_private->srout_data->nn_status == NN_DONE)
+					vf->vc_private->srout_data->nn_status = NN_DISPLAYED;
+			}
+
+			dma_flag = vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA;
+			if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
+				file_vf = vf->file_vf;
+				vd_print(dev->index, PRINT_FENCE,
+					"%s: put frame_index=%d\n",
+					__func__,
+					vf->frame_index);
+				if (!dma_flag) {
+					dma_buf_put((struct dma_buf *)file_vf);
+					dma_fence_signal(vd_prepare->release_fence);
+					dma_fence_put(vd_prepare->release_fence);
+					vd_print(dev->index, PRINT_FENCE,
+						"%s: release_fence = %px\n",
+						__func__,
+						vd_prepare->release_fence);
+				} else {
+					vd_print(dev->index, PRINT_FENCE,
+						"%s:put dma buffer!!!\n",
+						__func__);
+					mpb_buf = (struct mbp_buffer_info_t *)file_vf;
+					if (vf->vc_private)
+						vf->vc_private->unlock_buffer_cb(mpb_buf);
+					else
+						vd_print(dev->index, PRINT_FENCE,
+							"%s: vc_private is NULL.\n",
+							__func__);
 				}
+				dev->fput_count++;
+				total_put_count++;
 			}
 		}
 	}
@@ -1712,57 +1745,42 @@ static struct vframe_s *vd_get_vf_from_buf(struct videodisplay_dev *dev, struct 
 	return vf;
 }
 
-static int video_wait_file_fence(struct videodisplay_dev *dev,
-				   struct file *fence_file)
+static int video_wait_dma_fence(struct videodisplay_dev *dev,
+				   struct dma_fence *fence_file)
 {
-	struct sync_file *sync_file = NULL;
-	struct dma_fence *fence_obj = NULL;
 	int ret = 1;
 	u64 timestamp;
 	u64 time_cost;
 
-	if (!IS_ERR_OR_NULL(fence_file)) {
-		sync_file = (struct sync_file *)fence_file->private_data;
-	} else {
+	if (IS_ERR_OR_NULL(fence_file)) {
 		vd_print(dev->index, PRINT_FENCE, "wait: fence_file is NULL\n");
 		return 1;
 	}
 
-	if (!IS_ERR_OR_NULL(sync_file)) {
-		fence_obj = sync_file->fence;
-	} else {
-		vd_print(dev->index, PRINT_FENCE, "sync_file is NULL\n");
-		return 1;
+	vd_print(dev->index, PRINT_FENCE, "wait: fence_file is %px\n", fence_file);
+	timestamp = local_clock();
+	ret = dma_fence_wait_timeout(fence_file, false, msecs_to_jiffies(3000));
+	if (ret == 0) {
+		vd_print(dev->index, PRINT_ERROR, "fence wait timeout\n");
+		return 0;
 	}
 
-	if (fence_obj) {
-		vd_print(dev->index, PRINT_FENCE, "sync_file=%px, seqno=%lld\n",
-			sync_file, fence_obj->seqno);
-		timestamp = local_clock();
-		ret = dma_fence_wait_timeout(fence_obj, false, msecs_to_jiffies(3000));
-		if (ret == 0) {
-			vd_print(dev->index, PRINT_ERROR, "fence wait timeout\n");
-			return 0;
-		}
-
-		time_cost = local_clock() - timestamp;
-		dev->fence_wait_time_total += time_cost;
-		dev->fence_wait_count++;
-		if (dev->fence_wait_count == 100) {
-			vd_print(dev->index, PRINT_FENCE,
-				"wait fence avg=%lldns\n",
-				div64_u64(dev->fence_wait_time_total, dev->fence_wait_count));
-				dev->fence_wait_count = 0;
-				dev->fence_wait_time_total = 0;
-		}
-
+	time_cost = local_clock() - timestamp;
+	dev->fence_wait_time_total += time_cost;
+	dev->fence_wait_count++;
+	if (dev->fence_wait_count == 100) {
 		vd_print(dev->index, PRINT_FENCE,
-			 "wait fence, state: %d, wait cost time:%lldms\n",
-			 ret,
-			 div64_u64(time_cost, 1000000));
+			"wait fence avg=%lldns\n",
+			div64_u64(dev->fence_wait_time_total, dev->fence_wait_count));
+			dev->fence_wait_count = 0;
+			dev->fence_wait_time_total = 0;
 	}
 
-	fput(fence_file);
+	vd_print(dev->index, PRINT_FENCE,
+		 "wait fence, state: %d, wait cost time:%lldms\n",
+		 ret,
+		 div64_u64(time_cost, 1000000));
+
 	return 1;
 }
 
@@ -2086,6 +2104,7 @@ static bool detect_vf_usage(struct videodisplay_dev *dev,
 {
 	struct vframe_s *vf = NULL;
 	int count;
+	int num;
 	u32 frame_transform = 0;
 	struct frames_info_t *frames_info = NULL;
 	struct frame_info_t *frame_info = NULL;
@@ -2117,8 +2136,8 @@ static bool detect_vf_usage(struct videodisplay_dev *dev,
 	}
 
 	frames_info = &received_frames->frames_info;
-	frame_info = frames_info->frame_info;
-
+	num = frames_info->layer_index;
+	frame_info = &frames_info->frame_info[num];
 	detect_vf_type(frame_info, &is_dec_vf, &is_v4l_vf);
 	if (is_dec_vf || is_v4l_vf) {
 		vf = vd_get_vf_from_buf(dev, frame_info->dmabuf);
@@ -2135,7 +2154,6 @@ static bool detect_vf_usage(struct videodisplay_dev *dev,
 			vd_print(dev->index, PRINT_OTHER, "di already do rotate, vc needn't do.\n");
 		}
 	}
-
 	if (dev->output_duration >= 240 && dev->vinfo_w > 1920 && !*need_composer_ptr) {
 		if (vf && (vf->flag & VFRAME_FLAG_GAME_MODE)) {
 			vd_print(dev->index, PRINT_OTHER, "game mode no need force composer.\n");
@@ -2862,7 +2880,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 static void video_display_task(struct videodisplay_dev *dev)
 {
 	int num = 0;
-	struct file *fence_file = NULL;
+	struct dma_fence *fence_file = NULL;
 	struct received_frames_t *received_frames = NULL;
 	bool need_composer = false;
 	bool do_mosaic_22 = false;
@@ -2890,9 +2908,15 @@ static void video_display_task(struct videodisplay_dev *dev)
 		received_frames->is_tvp);
 	dev->is_drm_enable = received_frames->is_drm;
 	num = received_frames->frames_info.layer_index;
-	fence_file = (struct file *)received_frames->frames_info.frame_info[num].input_fence;
-	if (video_wait_file_fence(dev, fence_file) == 0)
+	fence_file = received_frames->frames_info.frame_info[num].input_fence;
+	if (video_wait_dma_fence(dev, fence_file) == 0)
 		return;
+	vd_print(dev->index, PRINT_OTHER,
+		"%s:wait fence done. dmabuf:%px, input_fence:%px, release_fence:%px.\n",
+		__func__,
+		received_frames->frames_info.frame_info[num].dmabuf,
+		received_frames->frames_info.frame_info[num].input_fence,
+		received_frames->frames_info.frame_info[num].release_fence);
 
 	if (!detect_vf_usage(dev, received_frames, &need_composer, &do_mosaic_22)) {
 		vd_print(dev->index, PRINT_ERROR, "%s: fail to get vf usage.\n", __func__);
@@ -3189,7 +3213,6 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 
 static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 {
-	int repeat_count;
 	struct file *file_vf;
 	struct vframe_s *display_vf = vf;
 	struct videodisplay_dev *dev = (struct videodisplay_dev *)op_arg;
@@ -3197,8 +3220,10 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 	struct mbp_buffer_info_t *mpb_buf = NULL;
 	bool enable_prelink = false;
 
-	if (!vf)
+	if (!vf) {
+		vd_print(dev->index, PRINT_ERROR, "%s: NULL param.", __func__);
 		return;
+	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	enable_prelink = dim_get_pre_link();
@@ -3259,7 +3284,6 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 			return;
 		}
 
-		repeat_count = vf->repeat_count;
 		file_vf = vf->file_vf;
 
 		vf_pop_display_q(dev, vf);
@@ -3284,9 +3308,8 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 				__func__,
 				vd_prepare_tmp->release_fence);
 		}
-
 		dev->fput_count++;
-		total_get_count++;
+		total_put_count++;
 		vd_prepare_data_q_put(dev, vd_prepare_tmp);
 		if (vf->vc_private) {
 			vd_private_q_recycle(dev, vf->vc_private);
@@ -3294,7 +3317,9 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 		}
 		vd_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
 			"%s: frame_index=%d, put_count=%lld.\n",
-			__func__, vf->frame_index, dev->fput_count);
+			__func__,
+			vf->frame_index,
+			dev->fput_count);
 	} else {
 		vf_pop_display_q(dev, display_vf);
 		videocomposer_vf_put(vf, op_arg);
@@ -3316,14 +3341,18 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 	bool enable_prelink = false;
 
 	if (kfifo_get(&dev->ready_q, &vf)) {
-		if (!vf)
+		if (!vf) {
+			vd_print(dev->index, PRINT_ERROR, "%s: vf is NULL.", __func__);
 			return NULL;
+		}
 
-		if (vf->flag & VFRAME_FLAG_FAKE_FRAME)
+		if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
+			vd_print(dev->index, PRINT_OTHER, "%s: fake vf.", __func__);
 			return vf;
+		}
 
 		if (!kfifo_put(&dev->display_q, vf))
-			vd_print(dev->index, PRINT_ERROR, "display_q is full!\n");
+			vd_print(dev->index, PRINT_ERROR, "%s: display_q is full!\n", __func__);
 		if (!(vf->flag & VFRAME_FLAG_VIDEO_COMPOSER))
 			pr_err("vd: vf_get: flag is null\n");
 
@@ -3400,11 +3429,13 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 		if (vf->dec_fence_status == DEC_FENCE_SUCCESS) {
 			vd_print(dev->index, PRINT_OTHER,
 				"%s: normal vframe, frame_index:%d fence:%px\n",
-				__func__, vf->frame_index, vf->fence);
+				__func__,
+				vf->frame_index,
+				vf->fence);
 			dma_fence_get(vf->fence);
 		} else if (vf->dec_fence_status == DEC_FENCE_ERR) {
 			vd_print(dev->index, PRINT_OTHER, "error vframe, frame_index:%d\n",
-			       vf->frame_index);
+				vf->frame_index);
 			vd_vf_put(vf, (void *)dev);
 			return NULL;
 		}
@@ -3610,31 +3641,29 @@ static int video_display_uninit(struct videodisplay_dev *dev)
 	dev->need_free_buffer = true;
 	wake_up_interruptible(&dev->wq);
 
-	time_left = wait_for_completion_timeout(&dev->task_done,
-						msecs_to_jiffies(500));
+	time_left = wait_for_completion_timeout(&dev->task_done, msecs_to_jiffies(500));
 	if (!time_left)
-		vd_print(dev->index, PRINT_ERROR, "unreg:wait timeout\n");
+		vd_print(dev->index, PRINT_ERROR, "%s: wait timeout\n", __func__);
 	else if (time_left < 100)
-		vd_print(dev->index, PRINT_ERROR,
-			 "unreg:wait time %d\n", time_left);
+		vd_print(dev->index, PRINT_ERROR, "%s: wait time %d\n", __func__, time_left);
 
 	display_q_uninit(dev);
 
 	if (dev->fence_creat_count != dev->fput_count) {
 		vd_print(dev->index, PRINT_ERROR,
-			 "uninit: fence_r=%lld, fence_c=%lld\n",
-			 dev->fence_release_count,
-			 dev->fence_creat_count);
+			"%s: fence_r=%lld, fence_c=%lld\n",
+			__func__,
+			dev->fence_release_count,
+			dev->fence_creat_count);
 		vd_print(dev->index, PRINT_ERROR,
-			 "uninit: received=%lld, new_cnt=%lld, fput=%lld, drop=%d\n",
-			 dev->received_count,
-			 dev->received_new_count,
-			 dev->fput_count,
-			 dev->drop_frame_count);
+			"%s: received=%lld, new_cnt=%lld, fget=%lld, fput=%lld\n",
+			__func__,
+			dev->received_count,
+			dev->received_new_count,
+			dev->fget_count,
+			dev->fput_count);
 	}
-	video_timeline_increase(dev,
-				dev->fence_creat_count
-				- dev->fence_release_count);
+	video_timeline_increase(dev, dev->fence_creat_count - dev->fence_release_count);
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
 	dev_array[dev->index] = NULL;
@@ -3850,12 +3879,6 @@ int vd_set_frames(int index, struct frames_info_t *frames_info)
 		return -EINVAL;
 	}
 
-	vd_print(dev->index, PRINT_OTHER,
-		"%s: receive_count=%d, index=%d.\n",
-		__func__,
-		frames_info->frame_count,
-		frames_info->layer_index);
-
 	time1 = dev->start_time;
 	do_gettimeofday(&time2);
 	time_us64 = (u64)1000000 * (time2.tv_sec - time1.tv_sec) + time2.tv_usec - time1.tv_usec;
@@ -3879,8 +3902,9 @@ int vd_set_frames(int index, struct frames_info_t *frames_info)
 		vd_print(dev->index, PRINT_ERROR, "%s: put to receive_q fail.\n", __func__);
 
 	vd_print(dev->index, PRINT_OTHER,
-		"%s: receive_q len is %d.\n",
+		"%s: receive_count=%d, receive_q len is %d.\n",
 		__func__,
+		receive_count,
 		kfifo_len(&dev->receive_q));
 	wake_up_interruptible(&dev->wq);
 
