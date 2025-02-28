@@ -1,0 +1,109 @@
+From 1a08c0ee52660fe5c25511b53b6372c0f0e3d886 Mon Sep 17 00:00:00 2001
+From: "luke.liu" <luke.liu@amlogic.com>
+Date: Fri, 28 Feb 2025 10:43:54 +0800
+Subject: [PATCH] std: mem size sign set [1/1]
+
+PD#SWPL-204046
+
+Problem:
+std seurmem and memsize handle
+
+Solution:
+std flow set
+
+Verify:
+s7
+
+Change-Id: I1c700ec916da43ebd3f8326f779fc72a8cc38375
+Signed-off-by: luke.liu <luke.liu@amlogic.com>
+---
+ kernel/power/snapshot.c | 27 +++++++++++++++++++++++++++
+ kernel/power/swap.c     |  9 +++++++++
+ 2 files changed, 36 insertions(+)
+
+diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+index 2b063e0a15c6..c7873cd8c4be 100644
+--- a/kernel/power/snapshot.c
++++ b/kernel/power/snapshot.c
+@@ -995,8 +995,16 @@ void __init register_nosave_region(unsigned long start_pfn, unsigned long end_pf
+ 		}
+ 	}
+ 	/* This allocation cannot fail */
++#ifndef CONFIG_AMLOGIC_STD
+ 	region = memblock_alloc(sizeof(struct nosave_region),
+ 				SMP_CACHE_BYTES);
++#else
++	if(!slab_is_available())
++		region = memblock_alloc(sizeof(struct nosave_region),
++				SMP_CACHE_BYTES);
++	else
++		region = kzalloc(sizeof(struct nosave_region), GFP_KERNEL);
++#endif
+ 	if (!region)
+ 		panic("%s: Failed to allocate %zu bytes\n", __func__,
+ 		      sizeof(struct nosave_region));
+@@ -1733,7 +1741,11 @@ int hibernate_preallocate_memory(void)
+ {
+ 	struct zone *zone;
+ 	unsigned long saveable, size, max_size, count, highmem, pages = 0;
++#ifdef CONFIG_AMLOGIC_STD
++	unsigned long alloc, save_highmem, pages_highmem, avail_normal, mini_pages;
++#else
+ 	unsigned long alloc, save_highmem, pages_highmem, avail_normal;
++#endif
+ 	ktime_t start, stop;
+ 	int error;
+
+@@ -1798,6 +1810,9 @@ int hibernate_preallocate_memory(void)
+
+ 	/* Estimate the minimum size of the image. */
+ 	pages = minimum_image_size(saveable);
++#ifdef CONFIG_AMLOGIC_STD
++	mini_pages = pages;
++#endif
+ 	/*
+ 	 * To avoid excessive pressure on the normal zone, leave room in it to
+ 	 * accommodate an image of the minimum size (unless it's already too
+@@ -1832,6 +1847,18 @@ int hibernate_preallocate_memory(void)
+ 	else
+ 		alloc = 0;
+ 	pages = preallocate_image_memory(alloc, avail_normal);
++#ifdef CONFIG_AMLOGIC_STD
++	/*
++	 * Define the mini_pages variable to be equivalent to the minimum size of
++	 * the std function to create an image. pages represents the maximum number
++	 * of pages that can be allocated. If pages is greater than mini_pages, it
++	 * means there is enough space to store the std image and the pre-allocation
++	 * is successful. Otherwise, it fails.
++	 */
++	if (pages >= mini_pages){
++		alloc = pages;
++	}
++#endif
+ 	if (pages < alloc) {
+ 		/* We have exhausted non-highmem pages, try highmem. */
+ 		alloc -= pages;
+diff --git a/kernel/power/swap.c b/kernel/power/swap.c
+index 6146c746371c..3d494d762754 100644
+--- a/kernel/power/swap.c
++++ b/kernel/power/swap.c
+@@ -34,7 +34,16 @@
+
+ #include "power.h"
+
++#ifdef CONFIG_AMLOGIC_STD
++/*
++ * If the std function needs to use the same image every time it resumes,
++ * then set HIBERNATE_SIG to "SWAPSPACE2". This way, every time it resumes,
++ * as long as it is "SWAPSPACE2", it will go through the wakeup process.
++ */
++#define HIBERNATE_SIG	"SWAPSPACE2"
++#else
+ #define HIBERNATE_SIG	"S1SUSPEND"
++#endif
+
+ /*
+  * When reading an {un,}compressed image, we may restore pages in place,
+--
+2.43.0
+
