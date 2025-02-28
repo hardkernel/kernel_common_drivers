@@ -1,4 +1,4 @@
-From 79bfa607291f8694b1274878d39fcbe4e92f0cf4 Mon Sep 17 00:00:00 2001
+From 3e6036503c0f860e46f6355efc66dfa3f1af80ae Mon Sep 17 00:00:00 2001
 From: Dezhen Wang <dezhen.wang@amlogic.com>
 Date: Tue, 15 Oct 2024 11:30:12 +0000
 Subject: [PATCH] scripts: separate the common_drivers dir from common dir
@@ -25,7 +25,7 @@ Signed-off-by: Dezhen Wang <dezhen.wang@amlogic.com>
  3 files changed, 19 insertions(+), 5 deletions(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index cb7ea71b22cd3..c604f6442a1f5 100644
+index 6dd4fe7eae7d..9b518d26577d 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
 @@ -1,6 +1,7 @@
@@ -36,7 +36,7 @@ index cb7ea71b22cd3..c604f6442a1f5 100644
  load("@bazel_skylib//lib:paths.bzl", "paths")
  load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
  load("@bazel_skylib//rules:write_file.bzl", "write_file")
-@@ -161,7 +162,7 @@ filegroup(
+@@ -172,7 +173,7 @@ filegroup(
              "cscope.*",
              "ncscope.*",
          ],
@@ -45,7 +45,7 @@ index cb7ea71b22cd3..c604f6442a1f5 100644
      visibility = ["//visibility:public"],
  )
  
-@@ -3047,5 +3048,14 @@ exports_files([
+@@ -3096,5 +3097,14 @@ exports_files([
      "Makefile",
  ])
  
@@ -63,7 +63,7 @@ index cb7ea71b22cd3..c604f6442a1f5 100644
 +    visibility = ["//visibility:public"],
 +)
 diff --git a/Makefile b/Makefile
-index c315c12932653..774c1490e93e7 100644
+index b6c7b40b0674..ab6e4a600f71 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -431,7 +431,11 @@ endif
@@ -80,18 +80,18 @@ index c315c12932653..774c1490e93e7 100644
  export DTC_INCLUDE ?= $(srctree)/$(COMMON_DRIVERS_DIR)/include
  # endif
 diff --git a/modules.bzl b/modules.bzl
-index a0adfda411a69..aeb695def6db1 100644
+index 4cd9565bab0b..ab79d4bcc209 100644
 --- a/modules.bzl
 +++ b/modules.bzl
 @@ -6,7 +6,7 @@ This module contains a full list of kernel modules
   compiled by GKI.
  """
  
--load("//common:common_drivers/modules.bzl", "ALL_MODULES_REMOVE")
-+load("//common_drivers:modules.bzl", "ALL_MODULES_REMOVE")
+-load("//common:common_drivers/modules.bzl", "AMLOGIC_REMOVE_KERNEL_MODULES")
++load("//common_drivers:modules.bzl", "AMLOGIC_REMOVE_KERNEL_MODULES")
  
  _COMMON_GKI_MODULES_LIST = [
      # keep sorted
 -- 
-2.46.0
+2.42.0
 

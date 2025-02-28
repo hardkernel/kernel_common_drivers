@@ -1,6 +1,14 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
 load("//common_drivers:project/project.bzl", "BUILD_TIME")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_memory_debug_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/memory_ext:page_trace",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+]
+amlogic_memory_debug_deps = [i for i in amlogic_memory_debug_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-memory-debug",
     srcs = glob([
@@ -150,15 +158,10 @@ ddk_module(
     ],
     local_defines = [
         "pr_fmt(fmt)=\"[memory-debug]: \" fmt",
-	"BUILD_TIME=\"{}\"".format(BUILD_TIME),
+        "BUILD_TIME=\"{}\"".format(BUILD_TIME),
     ],
     out = "amlogic-memory-debug.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/memory_ext:page_trace",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-    ],
+    deps = amlogic_memory_debug_deps,
 )

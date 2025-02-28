@@ -1,5 +1,12 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_crypto_dma_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+]
+amlogic_crypto_dma_deps = [i for i in amlogic_crypto_dma_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-crypto-dma",
     srcs = glob([
@@ -30,9 +37,5 @@ ddk_module(
     out = "amlogic-crypto-dma.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-    ],
+    deps = amlogic_crypto_dma_deps,
 )

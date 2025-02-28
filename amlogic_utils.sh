@@ -795,7 +795,7 @@ function modules_install() {
 	mkdir -p ${OUT_AMLOGIC_DIR}/symbols
 
 	if [[ ${BAZEL} == "1" ]]; then
-		BAZEL_OUT=`realpath bazel-out`
+		BAZEL_OUT=bazel-out/
 		while read module
 		do
 			module_name=${module##*/}

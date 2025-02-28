@@ -1,5 +1,9 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_mailbox_deps0 = [
+]
+amlogic_mailbox_deps = [i for i in amlogic_mailbox_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-mailbox",
     srcs = glob([

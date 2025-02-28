@@ -1,5 +1,9 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_rng_deps0 = [
+]
+amlogic_rng_deps = [i for i in amlogic_rng_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-rng",
     srcs = glob([

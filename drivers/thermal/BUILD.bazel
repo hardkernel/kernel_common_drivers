@@ -1,5 +1,13 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_thermal_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/secmon:amlogic-secmon",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+]
+amlogic_thermal_deps = [i for i in amlogic_thermal_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-thermal",
     srcs = glob([
@@ -50,10 +58,5 @@ ddk_module(
     out = "amlogic-thermal.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/secmon:amlogic-secmon",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-    ],
+    deps = amlogic_thermal_deps,
 )

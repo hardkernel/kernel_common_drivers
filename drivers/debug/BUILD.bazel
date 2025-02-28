@@ -1,5 +1,10 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_debug_iotrace_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+]
+amlogic_debug_iotrace_deps = [i for i in amlogic_debug_iotrace_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-debug-iotrace",
     srcs = glob([
@@ -20,11 +25,14 @@ ddk_module(
     out = "amlogic-debug-iotrace.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_debug_iotrace_deps,
 )
 
+amlogic_debug_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+]
+amlogic_debug_deps = [i for i in amlogic_debug_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-debug",
     srcs = glob([
@@ -85,12 +93,12 @@ ddk_module(
     out = "amlogic-debug.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-            ":amlogic-debug-iotrace",
-    ],
+    deps = amlogic_debug_deps,
 )
 
+amlogic_audio_utils_deps0 = [
+]
+amlogic_audio_utils_deps = [i for i in amlogic_audio_utils_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-audio-utils",
     srcs = glob([
@@ -112,6 +120,5 @@ ddk_module(
     out = "amlogic-audio-utils.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-    ],
+    deps = amlogic_audio_utils_deps,
 )

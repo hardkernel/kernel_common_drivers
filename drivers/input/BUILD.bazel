@@ -1,5 +1,15 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_input_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+    "//common_drivers/drivers/power:amlogic-power",
+    "//common_drivers/drivers/gpio:amlogic-gpio",
+    "//common_drivers/drivers/pm:amlogic-pm",
+]
+amlogic_input_deps = [i for i in amlogic_input_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-input",
     srcs = glob([
@@ -38,12 +48,5 @@ ddk_module(
     out = "amlogic-input.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-        "//common_drivers/drivers/power:amlogic-power",
-        "//common_drivers/drivers/gpio:amlogic-gpio",
-        "//common_drivers/drivers/pm:amlogic-pm",
-    ],
+    deps = amlogic_input_deps,
 )

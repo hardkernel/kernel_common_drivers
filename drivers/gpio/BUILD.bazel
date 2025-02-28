@@ -1,5 +1,10 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_gpio_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+]
+amlogic_gpio_deps = [i for i in amlogic_gpio_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-gpio",
     srcs = glob([
@@ -46,11 +51,14 @@ ddk_module(
     out = "amlogic-gpio.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    ],
+    deps = amlogic_gpio_deps,
 )
 
+amlogic_pinctrl_soc_deps0 = [
+    "//common_drivers/drivers/gpio:amlogic-gpio",
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool"
+]
+amlogic_pinctrl_soc_deps = [i for i in amlogic_pinctrl_soc_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-pinctrl-soc-s4",
     srcs = glob([
@@ -68,10 +76,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-s4.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -91,10 +96,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-c2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -114,10 +116,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-c3.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -137,10 +136,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-a1.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -160,10 +156,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-sc2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -183,10 +176,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-t3.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -206,10 +196,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-t7.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -229,10 +216,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-t5m.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -252,10 +236,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-g12a.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -275,10 +256,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-s5.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -298,10 +276,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-t5w.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -321,10 +296,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-t3x.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -344,10 +316,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-txhd2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -367,10 +336,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-c1.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -390,10 +356,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-s1a.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -413,10 +376,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-t5d.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -436,10 +396,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-a4.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -459,10 +416,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-a5.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -482,10 +436,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-tm2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -505,10 +456,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-s7.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -528,10 +476,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-s7d.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -551,10 +496,7 @@ ddk_module(
     out = "amlogic-pinctrl-soc-s6.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 
 ddk_module(
@@ -574,9 +516,6 @@ ddk_module(
     out = "amlogic-pinctrl-soc-t6d.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-gpio",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool"
-    ],
+    deps = amlogic_pinctrl_soc_deps,
 )
 

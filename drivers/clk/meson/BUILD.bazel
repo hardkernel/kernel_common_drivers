@@ -1,5 +1,12 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_clk_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+]
+amlogic_clk_deps = [i for i in amlogic_clk_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-clk",
     srcs = glob([
@@ -56,13 +63,17 @@ ddk_module(
     out = "amlogic-clk.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-    ],
+    deps = amlogic_clk_deps,
 )
 
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
+
+amlogic_clk_soc_deps0 = [
+    "//common_drivers/drivers/clk/meson:amlogic-clk",
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+]
+amlogic_clk_soc_deps = [i for i in amlogic_clk_soc_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-clk-soc-s4",
     srcs = glob([
@@ -80,11 +91,7 @@ ddk_module(
     out = "amlogic-clk-soc-s4.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -104,11 +111,7 @@ ddk_module(
     out = "amlogic-clk-soc-sc2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -128,11 +131,7 @@ ddk_module(
     out = "amlogic-clk-soc-c2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -152,11 +151,7 @@ ddk_module(
     out = "amlogic-clk-soc-c3.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -176,11 +171,7 @@ ddk_module(
     out = "amlogic-clk-soc-a1.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -200,11 +191,7 @@ ddk_module(
     out = "amlogic-clk-soc-t3.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -224,11 +211,7 @@ ddk_module(
     out = "amlogic-clk-soc-t7.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -248,11 +231,7 @@ ddk_module(
     out = "amlogic-clk-soc-t5m.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -276,11 +255,7 @@ ddk_module(
     out = "amlogic-clk-soc-g12a.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -300,11 +275,7 @@ ddk_module(
     out = "amlogic-clk-soc-s5.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -328,11 +299,7 @@ ddk_module(
     out = "amlogic-clk-soc-t5w.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -352,11 +319,7 @@ ddk_module(
     out = "amlogic-aoclk-soc-t5w.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -376,11 +339,7 @@ ddk_module(
     out = "amlogic-clk-soc-t3x.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -404,11 +363,7 @@ ddk_module(
     out = "amlogic-clk-soc-txhd2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -428,11 +383,7 @@ ddk_module(
     out = "amlogic-aoclk-soc-txhd2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -452,11 +403,7 @@ ddk_module(
     out = "amlogic-clk-soc-c1.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -476,11 +423,7 @@ ddk_module(
     out = "amlogic-clk-soc-s1a.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -504,11 +447,7 @@ ddk_module(
     out = "amlogic-clk-soc-t5d.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -528,11 +467,7 @@ ddk_module(
     out = "amlogic-clk-soc-t6d.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -552,11 +487,7 @@ ddk_module(
     out = "amlogic-clk-soc-a5.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -576,11 +507,7 @@ ddk_module(
     out = "amlogic-clk-soc-a4.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -604,11 +531,7 @@ ddk_module(
     out = "amlogic-clk-soc-tm2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -628,11 +551,7 @@ ddk_module(
     out = "amlogic-clk-soc-s6.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -652,11 +571,7 @@ ddk_module(
     out = "amlogic-clk-soc-s7.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )
 
 ddk_module(
@@ -676,9 +591,5 @@ ddk_module(
     out = "amlogic-clk-soc-s7d.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        ":amlogic-clk",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    ],
+    deps = amlogic_clk_soc_deps,
 )

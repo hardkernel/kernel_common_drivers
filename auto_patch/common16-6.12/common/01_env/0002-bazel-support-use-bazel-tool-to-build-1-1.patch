@@ -1,4 +1,4 @@
-From 39a8b4e7682ac84141fe8f3e9ce1caced12630ab Mon Sep 17 00:00:00 2001
+From eb5c03eaaeafb25bea4a56fa44dc1715528adaba Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Fri, 17 Mar 2023 17:35:31 +0800
 Subject: [PATCH] bazel: support use bazel tool to build [1/1]
@@ -88,14 +88,14 @@ index 407bb559650a..1c0b99f9f56f 100644
  source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
  source "$(COMMON_DRIVERS_DIR)/sound/Kconfig"
 diff --git a/modules.bzl b/modules.bzl
-index 5e613e7e78b2..97f044d1e434 100644
+index 5e613e7e78b2..4cd9565bab0b 100644
 --- a/modules.bzl
 +++ b/modules.bzl
 @@ -6,6 +6,8 @@ This module contains a full list of kernel modules
   compiled by GKI.
  """
  
-+load("//common:common_drivers/modules.bzl", "ALL_MODULES_REMOVE")
++load("//common:common_drivers/modules.bzl", "AMLOGIC_REMOVE_KERNEL_MODULES")
 +
  _COMMON_GKI_MODULES_LIST = [
      # keep sorted
@@ -104,7 +104,7 @@ index 5e613e7e78b2..97f044d1e434 100644
              arch,
          ))
  
-+    remove_modules_items = {module: None for module in depset(ALL_MODULES_REMOVE).to_list()}
++    remove_modules_items = {module: None for module in depset(AMLOGIC_REMOVE_KERNEL_MODULES).to_list()}
 +    gki_modules_list = [module for module in depset(gki_modules_list).to_list() if module not in remove_modules_items] \
 +			if remove_modules_items else gki_modules_list
 +

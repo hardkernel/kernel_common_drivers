@@ -23,11 +23,8 @@ CONFIG_AMLOGIC_MEDIA_TVIN_VBI=n
 CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT=n
 CONFIG_AMLOGIC_MEDIA_TVIN_BT656=n
 
-# amlogic-snd-codec-tl1.ko
-CONFIG_AMLOGIC_SND_CODEC_TL1_ACODEC=n
-
 # amlogic-dvb-ci.ko
 CONFIG_AMLOGIC_DVB_CI=n
 
-# amlogic-dvb-usbcam
+# amlogic-dvb-usb-cam.ko
 CONFIG_AMLOGIC_USBCAM=n

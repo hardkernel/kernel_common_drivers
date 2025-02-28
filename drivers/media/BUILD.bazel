@@ -1,5 +1,25 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+aml_media_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+    "//common_drivers/drivers/clk/meson:amlogic-clk",
+    "//common_drivers/drivers/gpio:amlogic-gpio",
+    "//common_drivers/drivers/power:amlogic-power",
+    "//common_drivers/drivers/pm:amlogic-pm",
+    "//common_drivers/drivers/secmon:amlogic-secmon",
+    "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+    "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
+    "//common_drivers/drivers/pwm:amlogic-pwm",
+    "//common_drivers/drivers/memory_ext:page_trace",
+    "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
+    "//common_drivers/drivers/tee:amlogic-tee",
+    "//common_drivers/drivers/dvb:amlogic-dvb",
+    "//common_drivers/drivers/aml_tee:tee",
+]
+aml_media_deps = [i for i in aml_media_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "aml_media",
     srcs = glob([
@@ -803,11 +823,11 @@ ddk_module(
                 "cec/hdmi_aocec_api.c",
                 "cec/hdmi_cec_dump.c",
             ],
-	    False: [
+            False: [
                 "cec/hdmi_ao_cec.c",
                 "cec/hdmi_aocec_api.c",
                 "cec/hdmi_cec_dump.c",
-	    ]
+            ]
         },
         "CONFIG_AMLOGIC_ATV_DEMOD": {
             True: [
@@ -956,26 +976,15 @@ ddk_module(
     out = "aml_media.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-        "//common_drivers/drivers/clk/meson:amlogic-clk",
-        "//common_drivers/drivers/gpio:amlogic-gpio",
-        "//common_drivers/drivers/power:amlogic-power",
-        "//common_drivers/drivers/pm:amlogic-pm",
-        "//common_drivers/drivers/secmon:amlogic-secmon",
-        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
-        "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
-        "//common_drivers/drivers/pwm:amlogic-pwm",
-        "//common_drivers/drivers/memory_ext:page_trace",
-        "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
-        "//common_drivers/drivers/tee:amlogic-tee",
-        "//common_drivers/drivers/dvb:amlogic-dvb",
-        "//common_drivers/drivers/aml_tee:tee",
-    ],
+    deps = aml_media_deps,
 )
 
+amlogic_camera_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+]
+amlogic_camera_deps = [i for i in amlogic_camera_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-camera",
     srcs = glob([
@@ -1005,9 +1014,5 @@ ddk_module(
     out = "amlogic-camera.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-    ],
+    deps = amlogic_camera_deps,
 )

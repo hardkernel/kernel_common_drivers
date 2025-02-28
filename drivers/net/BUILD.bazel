@@ -1,5 +1,9 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_phy_debug_deps0 = [
+]
+amlogic_phy_debug_deps = [i for i in amlogic_phy_debug_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-phy-debug",
     srcs = glob([
@@ -19,10 +23,13 @@ ddk_module(
     out = "amlogic-phy-debug.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-    ],
+    deps = amlogic_phy_debug_deps,
 )
 
+amlogic_inphy_deps0 = [
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+]
+amlogic_inphy_deps = [i for i in amlogic_inphy_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-inphy",
     srcs = glob([
@@ -42,11 +49,13 @@ ddk_module(
     out = "amlogic-inphy.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/net:amlogic-phy-debug",
-    ],
+    deps = amlogic_inphy_deps,
 )
 
+amlogic_realtek_deps0 = [
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+]
+amlogic_realtek_deps = [i for i in amlogic_realtek_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-realtek",
     srcs = glob([
@@ -66,11 +75,14 @@ ddk_module(
     out = "amlogic-realtek.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/net:amlogic-phy-debug",
-    ],
+    deps = amlogic_realtek_deps,
 )
 
+amlogic_mdio_g12a_deps0 = [
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+    "//common_drivers/drivers/net:amlogic-inphy",
+]
+amlogic_mdio_g12a_deps = [i for i in amlogic_mdio_g12a_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-mdio-g12a",
     srcs = glob([
@@ -90,14 +102,13 @@ ddk_module(
     out = "amlogic-mdio-g12a.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/net:amlogic-phy-debug",
-        "//common_drivers/drivers/net:amlogic-inphy",
-    ],
+    deps = amlogic_mdio_g12a_deps,
 )
 
-load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-
+stmmac_deps0 = [
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+]
+stmmac_deps = [i for i in stmmac_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "stmmac",
     srcs = glob([
@@ -149,11 +160,14 @@ ddk_module(
 
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/net:amlogic-phy-debug",
-    ],
+    deps = stmmac_deps,
 )
 
+stmmac_platform_deps0 = [
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+    "//common_drivers/drivers/net:stmmac",
+]
+stmmac_platform_deps = [i for i in stmmac_platform_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "stmmac-platform",
     srcs = glob([
@@ -174,12 +188,15 @@ ddk_module(
 
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/net:amlogic-phy-debug",
-        "//common_drivers/drivers/net:stmmac",
-    ],
+    deps = stmmac_platform_deps,
 )
 
+dwmac_meson_deps0 = [
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+    "//common_drivers/drivers/net:stmmac",
+    "//common_drivers/drivers/net:stmmac-platform",
+]
+dwmac_meson_deps = [i for i in dwmac_meson_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "dwmac-meson",
     srcs = glob([
@@ -200,13 +217,22 @@ ddk_module(
 
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/net:amlogic-phy-debug",
-        "//common_drivers/drivers/net:stmmac",
-        "//common_drivers/drivers/net:stmmac-platform",
-    ],
+    deps = dwmac_meson_deps,
 )
 
+dwmac_meson8b_deps0 = [
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+    "//common_drivers/drivers/net:stmmac",
+    "//common_drivers/drivers/net:stmmac-platform",
+    "//common_drivers/drivers/net:amlogic-mdio-g12a",
+    "//common_drivers/drivers/net:amlogic-inphy",
+    "//common_drivers/drivers/pm:amlogic-pm",
+    "//common_drivers/drivers/power:amlogic-power",
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+]
+dwmac_meson8b_deps = [i for i in dwmac_meson8b_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "dwmac-meson8b",
     srcs = glob([
@@ -227,20 +253,15 @@ ddk_module(
 
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/net:amlogic-phy-debug",
-        "//common_drivers/drivers/net:stmmac",
-        "//common_drivers/drivers/net:stmmac-platform",
-        "//common_drivers/drivers/net:amlogic-mdio-g12a",
-        "//common_drivers/drivers/net:amlogic-inphy",
-        "//common_drivers/drivers/pm:amlogic-pm",
-        "//common_drivers/drivers/power:amlogic-power",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-    ],
+    deps = dwmac_meson8b_deps,
 )
 
+dwmac_dwc_qos_eth_deps0 = [
+    "//common_drivers/drivers/net:amlogic-phy-debug",
+    "//common_drivers/drivers/net:stmmac",
+    "//common_drivers/drivers/net:stmmac-platform",
+]
+dwmac_dwc_qos_eth_deps = [i for i in dwmac_dwc_qos_eth_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "dwmac-dwc-qos-eth",
     srcs = glob([
@@ -261,10 +282,6 @@ ddk_module(
 
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/net:amlogic-phy-debug",
-        "//common_drivers/drivers/net:stmmac",
-        "//common_drivers/drivers/net:stmmac-platform",
-    ],
+    deps = dwmac_dwc_qos_eth_deps,
 )
 

@@ -1,5 +1,9 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_usb_cam_deps0 = [
+]
+amlogic_usb_cam_deps = [i for i in amlogic_usb_cam_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-usb-cam",
     srcs = glob([
@@ -22,6 +26,5 @@ ddk_module(
     out = "amlogic-usb-cam.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-    ],
+    deps = amlogic_usb_cam_deps,
 )

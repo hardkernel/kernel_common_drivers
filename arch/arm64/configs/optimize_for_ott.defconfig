@@ -1,5 +1,5 @@
 # maybe can remove in OTT project
-# aml_media.ko
+# aml_media.ko feature
 CONFIG_AMLOGIC_VOUT3_SERVE=n
 CONFIG_AMLOGIC_LCD=n
 CONFIG_AMLOGIC_LCD_TV=n
@@ -22,15 +22,6 @@ CONFIG_AMLOGIC_MEDIA_TVIN_AFE=n
 CONFIG_AMLOGIC_MEDIA_TVIN_VBI=n
 CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT=n
 CONFIG_AMLOGIC_MEDIA_TVIN_BT656=n
-
-# amlogic-snd-codec-tl1.ko
-# CONFIG_AMLOGIC_SND_CODEC_TL1_ACODEC=n
-
-# amlogic-dvb-ci.ko
-# CONFIG_AMLOGIC_DVB_CI=n
-
-# amlogic-dvb-usbcam
-# CONFIG_AMLOGIC_USBCAM=n
 
 # optimize for ott lowram version
 CONFIG_ZRAM_WRITEBACK=y

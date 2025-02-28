@@ -1,5 +1,13 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_socinfo_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+    "//common_drivers/drivers/secmon:amlogic-secmon",
+]
+amlogic_socinfo_deps = [i for i in amlogic_socinfo_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-socinfo",
     srcs = glob([
@@ -24,10 +32,5 @@ ddk_module(
     out = "amlogic-socinfo.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-        "//common_drivers/drivers/secmon:amlogic-secmon",
-    ],
+    deps = amlogic_socinfo_deps,
 )

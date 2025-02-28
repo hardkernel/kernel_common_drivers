@@ -1,5 +1,9 @@
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
 
+amlogic_gkitool_deps0 = [
+]
+amlogic_gkitool_deps = [i for i in amlogic_gkitool_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-gkitool",
     srcs = glob([
@@ -24,4 +28,5 @@ ddk_module(
     out = "amlogic-gkitool.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
+    deps = amlogic_gkitool_deps,
 )
