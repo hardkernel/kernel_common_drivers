@@ -327,7 +327,7 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	struct ldim_fw_custom_s *cus_fw = ldim_drv->cus_fw;
 	unsigned int n = 0;
-	unsigned int i, j, k;
+	unsigned int i, j, k, maxlen;
 	char *buf_orig, *ps, *token;
 	char **parm = NULL;
 	char str[3] = {' ', '\n', '\0'};
@@ -353,7 +353,7 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 	if (len == ret)
 		goto ldim_attr_store_end1;
 
-	parm = kcalloc(640, sizeof(char *), GFP_KERNEL);
+	parm = kcalloc(2500, sizeof(char *), GFP_KERNEL);
 	if (!parm) {
 		kfree(buf_orig);
 		mutex_unlock(&ldim_dbg_mutex);
@@ -368,6 +368,7 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 			continue;
 		parm[n++] = token;
 	}
+	maxlen = n;
 
 	seg_size = ldim_drv->conf->seg_row * ldim_drv->conf->seg_col;
 
@@ -440,16 +441,55 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 		LDIMPR("test_mode: %d\n", ldim_drv->test_bl_en);
 		ldim_drv->level_update = 1;
 	} else if (!strcmp(parm[0], "test_matrix")) {
-		if (parm[1]) {
-			if (!strcmp(parm[1], "r")) {
-				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
-				dbg_attr.mode = LDIM_DBG_ATTR_MODE_TEST_MATRIX;
+		if (!parm[1])
+			goto ldim_attr_store_err;
+
+		if (!strcmp(parm[1], "r")) {
+			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
+			dbg_attr.mode = LDIM_DBG_ATTR_MODE_TEST_MATRIX;
+			dbg_attr.index = 0;
+			ldim_drv->level_update = 1;
+			goto ldim_attr_store_end;
+		} else if (!strcmp(parm[1], "w")) {
+			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
+			dbg_attr.mode = LDIM_DBG_ATTR_MODE_TEST_MATRIX;
+			if (!strcmp(parm[2], "start")) {
+				//for tool multiple transmit
 				dbg_attr.index = 0;
-				ldim_drv->level_update = 1;
+				if (kstrtouint(parm[3], 0, &i) < 0)
+					goto ldim_attr_store_err;
+				if (kstrtouint(parm[4], 0, &j) < 0)
+					goto ldim_attr_store_err;
+				if (i != ldim_drv->conf->seg_row ||
+					j != ldim_drv->conf->seg_col)
+					goto ldim_attr_store_err;
+				if (!strcmp(parm[maxlen - 1], "end"))
+					maxlen = maxlen - 6;
+				else
+					maxlen = maxlen - 5;
+				for (k = 0; k < maxlen; k++) {
+					if (kstrtouint(parm[k + 5], 0, &j) < 0)
+						goto ldim_attr_store_err;
+					ldim_drv->test_matrix[k] = j;
+				}
+				dbg_attr.index = k;
 				goto ldim_attr_store_end;
-			} else if (!strcmp(parm[1], "w")) {
-				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
-				dbg_attr.mode = LDIM_DBG_ATTR_MODE_TEST_MATRIX;
+
+			} else if (!strcmp(parm[2], "mid")) {
+				//for tool multiple transmit
+				i = dbg_attr.index;
+				if (!strcmp(parm[maxlen - 1], "end"))
+					maxlen = maxlen - 4;
+				else
+					maxlen = maxlen - 3;
+				for (k = 0; k < maxlen; k++) {
+					if (kstrtouint(parm[k + 3], 0, &j) < 0)
+						goto ldim_attr_store_err;
+					ldim_drv->test_matrix[k + i] = j;
+				}
+				dbg_attr.index = k + i;
+				goto ldim_attr_store_end;
+			} else {
 				if (!parm[seg_size + 3])
 					goto ldim_attr_store_err;
 				if (kstrtouint(parm[2], 0, &i) < 0)
@@ -457,7 +497,7 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 				if (kstrtouint(parm[3], 0, &j) < 0)
 					goto ldim_attr_store_err;
 				if (i != ldim_drv->conf->seg_row ||
-				    j != ldim_drv->conf->seg_col)
+					j != ldim_drv->conf->seg_col)
 					goto ldim_attr_store_err;
 				for (i = 0; i < seg_size; i++) {
 					if (kstrtouint(parm[i + 4], 0, &j) < 0)
@@ -468,7 +508,6 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 				goto ldim_attr_store_end;
 			}
 		}
-		goto ldim_attr_store_err;
 	} else if (!strcmp(parm[0], "test_set")) {
 		if (parm[2]) {
 			if (kstrtouint(parm[1], 0, &i) < 0)
@@ -772,6 +811,7 @@ ldim_attr_store_end1:
 
 ldim_attr_store_err:
 	dbg_attr.cmd = LDIM_DBG_ATTR_CMD_ERR;
+	dbg_attr.index = 0;
 	pr_info("invalid cmd!!!\n");
 	kfree(buf_orig);
 	kfree(parm);
