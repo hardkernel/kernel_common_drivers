@@ -1685,7 +1685,7 @@ static int dv_core1a_set(u32 dm_count,
 
 	/*tm2 reva: use tvcore do detunnel*/
 	/*tm2 revb/T7: use core1 do detunnel*/
-	if (is_aml_stb_hdmimode() && core1_detunnel() && amdv_src) {
+	if (is_aml_stb_hdmimode() && core1_detunnel() && amdv_src && !disable_detunnel) {
 		/*bit 14~bit31: detunnel bit swap, 0x2c2d0:5-4-1-3-2-0*/
 		/*bit 29=1 disable el mem read/write, conflict with detunnel*/
 		VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL5, 0xb0b4001a);
@@ -2111,7 +2111,7 @@ static int dv_core1a_set(u32 dm_count,
 	#ifdef REMOVE_OLD_DV_FUNC
 	/*tm2 revb: standard in, use core1 do detunnel, set core1 diag=3*/
 	/*tm2 reva: standard in, use tvcore do detunnel, set core1 diag=0*/
-	if (is_aml_stb_hdmimode() && core1_detunnel() && amdv_src)
+	if (is_aml_stb_hdmimode() && core1_detunnel() && amdv_src && !disable_detunnel)
 		VSYNC_WR_DV_REG(AMDV_CORE1A_REG_START + 0xe7, 3);
 	else
 		VSYNC_WR_DV_REG(AMDV_CORE1A_REG_START + 0xe7, 0);
@@ -3616,9 +3616,8 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 						 AMDV_OUTPUT_MODE_IPT_TUNNEL,
 						 format[0] ==
 						 FORMAT_DOVI ||
-						 (format[0] ==
-						 FORMAT_DOVI_LL &&
-						 !dv_unique_drm),
+						 format[0] ==
+						 FORMAT_DOVI_LL,
 						 1,
 						 reset_core1a);
 					dv_core1b_set
@@ -3656,9 +3655,8 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 						 AMDV_OUTPUT_MODE_IPT_TUNNEL,
 						 format[0] ==
 						 FORMAT_DOVI ||
-						 (format[0] ==
-						 FORMAT_DOVI_LL &&
-						 !dv_unique_drm),
+						 format[0] ==
+						 FORMAT_DOVI_LL,
 						 1,
 						 reset_core1a);
 					dv_core1b_set

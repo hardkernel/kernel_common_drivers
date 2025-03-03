@@ -10283,6 +10283,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		req.aux_size = 0;
 		req.dv_enhance_exist = 0;
 		req.low_latency = 0;
+		req.is_dv_unique_drm = 0;
 
 		vf_notify_provider_by_name("dv_vdin",
 			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
@@ -10387,19 +10388,14 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			}
 		}
 
-		if (debug_dolby & 1) {
-			if (dv_vsem || vsem_if_size)
-				pr_dv_dbg("get %s:%d, md:%p %d,ll:%d,bit %x,type %x\n",
-					dv_vsem ? "vsem" : "vsif",
-					dv_vsem ? vsem_size : vsem_if_size,
-					req.aux_buf, req.aux_size,
-					req.low_latency,
-					vf->bitdepth, vf->type);
-			else
-				pr_dv_dbg("get aux data %p %d,ll:%d,bit %x,type %x\n",
-					req.aux_buf, req.aux_size,
-					req.low_latency, vf->bitdepth, vf->type);
-		}
+		if ((debug_dolby & 1) && (dv_vsem || vsem_if_size))
+			pr_dv_dbg("vdin get %s:%d,md:%p %d,ll:%d, unique:%d, bit %x,type %x %x\n",
+				dv_vsem ? "vsem" : dv_unique_drm ? "drm" : "vsif",
+				dv_vsem ? vsem_size : vsem_if_size,
+				req.aux_buf, req.aux_size,
+				req.low_latency,
+				req.is_dv_unique_drm,
+				vf->bitdepth, vf->source_type, vf->type);
 
 		/*check vsem_if_buf */
 		if (!dv_unique_drm && vsem_if_size &&
@@ -11107,8 +11103,13 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2,
 			if (!vf)
 				continue;
 			p_vf = vf;
-			id = vf->src_fmt.dv_id;
-			inst_id_1 = vf->src_fmt.dv_id;
+			if (dv_inst_valid(vf->src_fmt.dv_id)) {
+				id = vf->src_fmt.dv_id;
+				inst_id_1 = vf->src_fmt.dv_id;
+			} else {
+				id = 0;
+				inst_id_1 = 0;
+			}
 			if (id != vd1_inst_id)
 				pr_dv_dbg("check id1 %d %d\n", id, vd1_inst_id);
 
@@ -11134,8 +11135,13 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2,
 			if (!vf_2 || (!support_multi_core1() && !force_two_valid))
 				break;
 			p_vf = vf_2;
-			id = vf_2->src_fmt.dv_id;
-			inst_id_2 = vf_2->src_fmt.dv_id;
+			if (dv_inst_valid(vf_2->src_fmt.dv_id)) {
+				id = vf_2->src_fmt.dv_id;
+				inst_id_2 = vf_2->src_fmt.dv_id;
+			} else {
+				id = 1;
+				inst_id_2 = 1;
+			}
 			if (id != vd2_inst_id)
 				pr_dv_dbg("check id2 %d %d\n", id, vd2_inst_id);
 
@@ -13583,11 +13589,14 @@ static int amdolby_vision_process_v2_stb
 			enable_tunnel_for_capture();
 	}
 
-	if (vf && (debug_dolby & 0x8))
-		pr_dv_dbg("%s:vf %p(index %d),mode %d,%x,core1_on %d %d,pri %d\n",
-		     __func__, vf, vf->frame_index,
-		     dolby_vision_mode, dolby_vision_flags, dv_core1[0].core1_on,
-		     dv_core1[1].core1_on, pri_input);
+	if (vf) {
+		disable_detunnel = (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL) ? true : false;
+		if (debug_dolby & 8)
+			pr_dv_dbg("%s:vf %p(index %d),mode %d,%x,core1_on %d %d,pri %d, type %x, type_ext %x\n",
+				__func__, vf, vf->frame_index,
+				dolby_vision_mode, dolby_vision_flags, dv_core1[0].core1_on,
+				dv_core1[1].core1_on, pri_input, vf->type, vf->type_ext);
+	}
 
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
 		if (vf) {
