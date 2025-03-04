@@ -184,8 +184,8 @@ int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
 /* Set Source Product Descriptor InfoFrame */
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 {
-	u8 spd_db[28] = {0x00};
-	u32 len = 0;
+	int ret;
+	struct hdmi_spd_infoframe spd_info = {0};
 	struct vendor_info_data *vend_data;
 
 	if (hdev->tx_comm.config_data.vend_data) {
@@ -194,18 +194,14 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 		HDMITX_DEBUG_VIDEO("packet: can\'t get vendor data\n");
 		return;
 	}
-	if (vend_data->vendor_name) {
-		len = strlen(vend_data->vendor_name);
-		strncpy(&spd_db[0], vend_data->vendor_name,
-			(len > 8) ? 8 : len);
-	}
-	if (vend_data->product_desc) {
-		len = strlen(vend_data->product_desc);
-		strncpy(&spd_db[8], vend_data->product_desc,
-			(len > 16) ? 16 : len);
-	}
-	spd_db[24] = 0x1;
-	/* TODO hdev->hwop.setinfoframe(HDMI_INFOFRAME_TYPE_SPD, SPD_HB); */
+	if (!vend_data->vendor_name || !vend_data->product_desc)
+		return;
+
+	ret = hdmi_spd_infoframe_init(&spd_info, vend_data->vendor_name, vend_data->product_desc);
+	if (ret < 0)
+		HDMITX_DEBUG_VIDEO("packet: init spd failed\n");
+	spd_info.sdi = HDMI_SPD_SDI_DSTB; /* fixed value for ott/stb */
+	hdmi_spd_infoframe_set(&spd_info);
 }
 
 static DEFINE_MUTEX(vid_mute_mutex);
