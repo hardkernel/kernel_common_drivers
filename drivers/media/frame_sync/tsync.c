@@ -29,7 +29,7 @@
 /* #endif */
 #define TSYNC_DEVICE_NAME   "tsync"
 
-#if !defined(CONFIG_PREEMPT)
+#if !defined(CONFIG_PREEMPT) && !defined(CONFIG_PREEMPT_RT)
 #define CONFIG_AM_TIMESYNC_LOG
 #endif
 

@@ -2357,7 +2357,7 @@ static int create_session(u32 id)
 	session->first_apts.pts = AVS_INVALID_PTS;
 	session->last_apts.pts = AVS_INVALID_PTS;
 	session->wall_adj_thres = DEFAULT_WALL_ADJ_THRES;
-	session->lock = __SPIN_LOCK_UNLOCKED(session->lock);
+	spin_lock_init(&session->lock);
 	session->disc_thres_min = DISC_THRE_MIN;
 	session->disc_thres_max = DISC_THRE_MAX;
 	session->use_pcr = false;
@@ -2707,7 +2707,7 @@ int __init msync_init(void)
 		r = -ENXIO;
 		goto err3;
 	}
-	sync.lock = __SPIN_LOCK_UNLOCKED(sync.lock);
+	spin_lock_init(&sync.lock);
 	INIT_LIST_HEAD(&sync.head);
 	msync_update_mode();
 	sync.msync_notifier.notifier_call = msync_notify_callback;

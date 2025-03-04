@@ -1,0 +1,39 @@
+From 22aa7a86ebb7b67640be8b660ff6ca556077edaf Mon Sep 17 00:00:00 2001
+From: Lei Zhang <lei.zhang@amlogic.com>
+Date: Fri, 7 Mar 2025 11:00:37 +0800
+Subject: [PATCH] preempt_rt: correct vendor hook head file [1/1]
+
+PD#SWPL-201692
+
+Problem:
+build break with preempt-rt enabled
+
+Solution:
+include necessry head file
+
+Verify:
+on A5
+
+Change-Id: I6de9e6ac19cc02b74e30aecae480bf468e489438
+Signed-off-by: Lei Zhang <lei.zhang@amlogic.com>
+---
+ kernel/locking/rwsem.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/locking/rwsem.c b/kernel/locking/rwsem.c
+index d1ac321821aa..f301bd7813c0 100644
+--- a/kernel/locking/rwsem.c
++++ b/kernel/locking/rwsem.c
+@@ -28,6 +28,9 @@
+ #include <linux/rwsem.h>
+ #include <linux/atomic.h>
+ #include <trace/events/lock.h>
++#ifdef CONFIG_AMLOGIC_PREEMPT_RT
++#include <trace/hooks/rwsem.h>
++#endif
+
+ #ifndef CONFIG_PREEMPT_RT
+ #include "lock_events.h"
+--
+2.29.0
+

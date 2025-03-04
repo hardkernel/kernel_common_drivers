@@ -189,3 +189,11 @@ config AMLOGIC_F2FS_OPTIMIZATION
 	  This option is set up for Amlogic f2fs optimization,
 	  if you want to optimize f2fs, please set this config to y.
 
+config AMLOGIC_PREEMPT_RT
+	bool "Amlogic Fully Preemptible Kernel (Real-Time)"
+	default n
+	depends on AMLOGIC_DEBUG
+	depends on PREEMPT_RT
+	help
+	  this option is provided for AMLOGIC RT kernel
+
