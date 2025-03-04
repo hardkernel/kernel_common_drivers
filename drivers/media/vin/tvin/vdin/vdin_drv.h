@@ -1229,6 +1229,7 @@ struct vdin_dev_s {
 	unsigned int fs_open_cnt;
 	unsigned int rdma_undone_cnt;
 	struct vdin_dv_hw5_s dv_hw5;
+	bool is_one_buffer;
 };
 
 extern unsigned int max_ignore_frame_cnt;

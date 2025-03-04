@@ -583,10 +583,16 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	if (max_buffer_num > max_buf_num)
 		max_buffer_num = max_buf_num;
 
-	/* if vfmem_cfg_num define in dts, use dts's setting */
-	if (devp->frame_buff_num >= min_buf_num &&
-	    devp->frame_buff_num <= max_buf_num)
+	/*
+	 * if screencap one buffer, set buff num to 1,
+	 * else vfmem_cfg_num define in dts, use dts's setting
+	 */
+	if (devp->hw_core == VDIN_HW_CORE_LITE && devp->is_one_buffer) {
+		max_buffer_num = 1;
+		pr_info("screencap one buffer\n");
+	} else if (devp->frame_buff_num >= min_buf_num && devp->frame_buff_num <= max_buf_num) {
 		max_buffer_num = devp->frame_buff_num;
+	}
 
 	if (!devp->index && devp->frame_buff_num < VDIN_CANVAS_INTERLACED_MIN_CNT &&
 	    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
@@ -1033,7 +1039,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 	pr_info("vdin%d cma alloc %d buffers ok!\n", devp->index,
 		devp->vf_mem_max_cnt);
-	if (devp->vf_mem_max_cnt < min_buf_num) {
+	if (devp->vf_mem_max_cnt < min_buf_num && !devp->is_one_buffer) {
 		pr_info("vdin%d cma alloc num too less need release\n", devp->index);
 		vdin_cma_release(devp);
 		return 1;

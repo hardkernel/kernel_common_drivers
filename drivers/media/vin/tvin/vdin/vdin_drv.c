@@ -2075,6 +2075,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		return -1;
 	}
 
+	devp->is_one_buffer = para->is_one_buffer;
 	if (!IS_ERR_OR_NULL(vdin0_devp)) {
 		devp->matrix_pattern_mode = 0;
 		/* check input content is protected */
@@ -4218,7 +4219,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (devp->last_wr_vfe) {
 		/*add for force vdin buffer recycle*/
 		if (!next_wr_vfe &&
-		    (devp->flags & VDIN_FLAG_FORCE_RECYCLE))
+		    (devp->flags & VDIN_FLAG_FORCE_RECYCLE) &&
+		    !devp->is_one_buffer)
 			put_md = VDIN_VF_RECYCLE;
 		else
 			put_md = VDIN_VF_PUT;
@@ -4300,7 +4302,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	}
 
 	/* no buffer */
-	if (!next_wr_vfe) {
+	if (!next_wr_vfe && !devp->is_one_buffer) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
 		vdin_drop_frame_info(devp, "no next fe");
 		goto irq_handled;
@@ -4316,9 +4318,15 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	next_wr_vfe = provider_vf_get(devp->vfp);
 
 	if (!next_wr_vfe) {
-		devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
-		vdin_drop_frame_info(devp, "no next wr vfe");
-		goto irq_handled;
+		if (devp->is_one_buffer) {
+			next_wr_vfe = curr_wr_vfe;
+			if (!next_wr_vfe)
+				goto irq_handled;
+		} else {
+			devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
+			vdin_drop_frame_info(devp, "no next wr vfe");
+			goto irq_handled;
+		}
 	}
 
 	/* debug for video latency */
