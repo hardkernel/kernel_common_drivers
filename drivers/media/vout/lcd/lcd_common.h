@@ -17,7 +17,8 @@
 /* 20250121: initial version*/
 /* 20250123: update lcd bootargs transfer by lrm */
 /* 20250221: optimize vbyone interrupt handler */
-#define LCD_DRV_VERSION    "20250221"
+/* 20250304: support lcd_if early on with resume_type control */
+#define LCD_DRV_VERSION    "20250304"
 
 #define CFMT_RGB565          0x05
 #define CFMT_RGB_6bit        0x06
@@ -287,6 +288,7 @@ void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal);
 
 /* lcd driver */
+void lcd_power_if_early_on(struct aml_lcd_drv_s *pdrv);
 void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv);
 void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv);
 void lcd_proc_time_clear(struct aml_lcd_drv_s *pdrv);

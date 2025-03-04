@@ -960,6 +960,7 @@ void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv)
 {
 	struct aml_bl_drv_s *bdrv;
 	unsigned long long local_time[2];
+	unsigned int delay_ms;
 
 	if (!pdrv)
 		return;
@@ -972,7 +973,14 @@ void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv)
 	if (bdrv->probe_done == 0)
 		return;
 
+	if (pdrv->status & LCD_STATUS_BL_PRE_ON) {
+		bdrv->pre_on_time = local_time[0];
+		BLPR("[%d]: %s: pre_on\n", bdrv->index, __func__);
+		return;
+	}
+
 	if (bdrv->state & BL_STATE_BL_ON) {
+		bdrv->pre_on_time = 0;
 		BLPR("[%d]: %s already on\n", bdrv->index, __func__);
 		return;
 	}
@@ -982,13 +990,24 @@ void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv)
 	bdrv->on_request = 1;
 	/* lcd power on sequence control */
 	bl_pwm_ctrl_status_set(bdrv, 1);
+	if (bdrv->pre_on_time) {
+		local_time[1] = sched_clock();
+		delay_ms = lcd_do_div((local_time[1] - bdrv->pre_on_time), 1000000);
+		bdrv->pre_on_time = 0;
+		if (delay_ms < bdrv->bconf.power_on_delay)
+			delay_ms = bdrv->bconf.power_on_delay - delay_ms;
+		else
+			delay_ms = 0;
+	} else {
+		delay_ms = bdrv->bconf.power_on_delay;
+	}
 
 	if (bdrv->bconf.method < BL_CTRL_MAX) {
 #ifdef BL_POWER_ON_DELAY_WORK
-		lcd_queue_delayed_on_work(&bdrv->delayed_on_work,
-					  bdrv->bconf.power_on_delay);
+		lcd_queue_delayed_on_work(&bdrv->delayed_on_work, delay_ms);
 #else
-		lcd_delay_ms(bdrv->bconf.power_on_delay);
+		if (delay_ms)
+			lcd_delay_ms(delay_ms);
 		bl_on_function(bdrv);
 #endif
 	} else {
@@ -1014,6 +1033,8 @@ void bl_lcd_off_ctrl(struct aml_lcd_drv_s *pdrv)
 	if (bdrv->probe_done == 0)
 		return;
 
+	bdrv->pre_on_time = 0;
+	bdrv->on_request = 0;
 	if (!(bdrv->state & BL_STATE_BL_ON)) {
 		BLPR("[%d]: %s already off\n", bdrv->index, __func__);
 		return;
@@ -1021,7 +1042,6 @@ void bl_lcd_off_ctrl(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
 		BLPR("[%d]: %s\n", bdrv->index, __func__);
 
-	bdrv->on_request = 0;
 	bdrv->state &= ~BL_STATE_LCD_ON;
 	mutex_lock(&bl_level_mutex);
 	bdrv->state |= BL_STATE_BL_INIT_ON;

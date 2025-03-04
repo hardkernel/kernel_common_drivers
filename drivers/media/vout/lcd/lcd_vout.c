@@ -911,6 +911,23 @@ static void lcd_power_if_off(struct aml_lcd_drv_s *pdrv)
 	lcd_power_ctrl(pdrv, 0);
 }
 
+void lcd_power_if_early_on(struct aml_lcd_drv_s *pdrv)
+{
+	if ((pdrv->resume_type & (1 << 1)) == 0)
+		return;
+	LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	if ((pdrv->resume_type & (1 << 0))) {
+		pdrv->status |= LCD_STATUS_BL_PRE_ON;
+		lcd_queue_work(&pdrv->late_resume_work);
+	} else {
+		LCDPR("[%d]: directly if_early_on\n", pdrv->index);
+		pdrv->status |= (LCD_STATUS_POWER | LCD_STATUS_BL_PRE_ON);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+		lcd_if_enable_retry(pdrv);
+	}
+}
+
 void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long flags = 0;
@@ -948,6 +965,8 @@ void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv)
 	unsigned long long local_time[2];
 
 	if (!pdrv || pdrv->probe_done == 0)
+		return;
+	if ((pdrv->status & LCD_STATUS_BL_PRE_ON))
 		return;
 
 	local_time[0] = sched_clock();
@@ -2809,13 +2828,17 @@ static int lcd_resume(struct platform_device *pdev)
 	if (!pdrv)
 		return 0;
 
-	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0)
+	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: %s: vmode inactive, exit\n", pdrv->index, __func__);
 		return 0;
+	}
 
 	mutex_lock(&lcd_power_mutex);
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
 	pdrv->status |= LCD_STATUS_PREPARE;
+	lcd_power_if_early_on(pdrv);
 	LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
 	mutex_unlock(&lcd_power_mutex);
 

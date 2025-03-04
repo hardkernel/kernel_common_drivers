@@ -454,7 +454,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"[%d]: driver version: %s\n"
 		"config_check_glb: %d, config_check_para: 0x%x, config_check_en: %d\n"
 		"panel_type: %s, chip: %d, mode: %s, status: 0x%x\n"
-		"viu_sel: %d, isr_cnt: %d, resume_type: %d\n"
+		"viu_sel: %d, isr_cnt: %d, resume_type: 0x%x\n"
 		"fr_auto_flag: 0x%x, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
 		"fr_auto_policy(global): %d, fr_auto_cus: 0x%x, custom_pinmux: %d\n"
 		"mute_state: %d(real %d), test_flag: 0x%x\n"
@@ -1747,8 +1747,10 @@ static ssize_t lcd_debug_resume_show(struct device *dev, struct device_attribute
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "lcd resume type: %d(%s)\n",
-		pdrv->resume_type, pdrv->resume_type ? "workqueue" : "directly");
+	return sprintf(buf, "lcd resume type: 0x%x(%s %s)\n",
+		pdrv->resume_type,
+		(pdrv->resume_type & (1 << 0)) ? "workqueue" : "directly",
+		(pdrv->resume_type & (1 << 1)) ? "resume_if_on" : "late_resume_if_on");
 }
 
 static ssize_t lcd_debug_resume_store(struct device *dev, struct device_attribute *attr,
@@ -1758,13 +1760,13 @@ static ssize_t lcd_debug_resume_store(struct device *dev, struct device_attribut
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned int temp = 1;
 
-	ret = kstrtouint(buf, 10, &temp);
+	ret = kstrtouint(buf, 16, &temp);
 	if (ret) {
 		LCDERR("invalid data\n");
 		return -EINVAL;
 	}
 	pdrv->resume_type = (unsigned char)temp;
-	LCDPR("set lcd resume flag: %d\n", pdrv->resume_type);
+	LCDPR("set lcd resume_type: 0x%x\n", pdrv->resume_type);
 
 	return count;
 }

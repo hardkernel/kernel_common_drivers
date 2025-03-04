@@ -343,7 +343,7 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 
 	ret = of_property_read_u32(np, "resume_type", &val);
 	if (ret)
-		pdrv->resume_type = 1; /* default workqueue */
+		pdrv->resume_type = 0x1; /* default workqueue */
 	else
 		pdrv->resume_type = (unsigned char)val;
 

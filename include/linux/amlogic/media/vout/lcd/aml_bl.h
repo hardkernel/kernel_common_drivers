@@ -239,6 +239,8 @@ struct aml_bl_drv_s {
 
 	struct pinctrl *pin;
 	unsigned int pinmux_flag;
+
+	unsigned long long pre_on_time;
 };
 
 struct bl_pwm_init_config_s {

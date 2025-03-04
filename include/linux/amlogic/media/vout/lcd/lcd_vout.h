@@ -788,6 +788,7 @@ struct lcd_resource_s {
 #define LCD_STATUS_VMODE_ACTIVE  BIT(6) //control status
 
 #define LCD_STATUS_TCON_RDY      BIT(8)
+#define LCD_STATUS_BL_PRE_ON     BIT(12)
 
 #define LCD_VIU_SEL_NONE         0
 
@@ -888,7 +889,9 @@ struct aml_lcd_drv_s {
 	unsigned char key_valid;
 	unsigned char clk_path; /* 0=hpll, 1=gp0_pll */
 	unsigned char config_load;
-	unsigned char resume_type; /* 0=directly, 1=workqueue */
+	  /*bit[1]: 0=lcd_if late_resume(default), 1=lcd_if resume */
+	  /*bit[0]: 0=directly, 1=workqueue(default) */
+	unsigned char resume_type;
 	unsigned char init_flag; /* 0=none, 1=power on request */
 	unsigned char auto_test;
 	unsigned char test_state;

@@ -999,10 +999,18 @@ static int lcd_resume(void *data)
 	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0)
 		return 0;
 
-	if (pdrv->status & LCD_STATUS_POWER)
+	if (pdrv->status & LCD_STATUS_POWER) {
+		if (pdrv->status & LCD_STATUS_BL_PRE_ON) {
+			pdrv->status &= ~LCD_STATUS_BL_PRE_ON;
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+			bl_lcd_on_ctrl(pdrv);
+#endif
+			lcd_power_screen_restore(pdrv);
+		}
 		return 0;
+	}
 
-	if (pdrv->resume_type) {
+	if (pdrv->resume_type & (1 << 0)) {
 		lcd_queue_work(&pdrv->late_resume_work);
 	} else {
 		mutex_lock(&lcd_power_mutex);
