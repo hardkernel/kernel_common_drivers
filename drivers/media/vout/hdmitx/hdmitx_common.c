@@ -1386,6 +1386,9 @@ static inline void hdmitx_notify_hpd(int hpd, void *p)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
+	if (!hdev)
+		return;
+
 	if (hpd)
 		hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr,
 				HDMITX_PLUG, p);
@@ -1400,7 +1403,7 @@ int hdmitx_event_notifier_regist(struct notifier_block *nb)
 	int ret = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	if (!nb)
+	if (!nb || !hdev)
 		return ret;
 
 	ret = hdmitx_event_mgr_notifier_register(hdev->tx_comm.event_mgr,
@@ -1429,6 +1432,9 @@ int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
+	if (!hdev)
+		return -1;
+
 	return hdmitx_event_mgr_notifier_unregister(hdev->tx_comm.event_mgr,
 		(struct hdmitx_notifier_client *)nb);
 }
@@ -1438,6 +1444,9 @@ int get_hpd_state(void)
 {
 	int ret = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	if (!hdev)
+		return -1;
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
 	ret = hdev->tx_comm.hpd_state;
@@ -1450,6 +1459,9 @@ EXPORT_SYMBOL(get_hpd_state);
 struct vsdb_phyaddr *get_hdmitx_phy_addr(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	if (!hdev)
+		return NULL;
 
 	return &hdev->tx_comm.rxcap.vsdb_phy_addr;
 }
