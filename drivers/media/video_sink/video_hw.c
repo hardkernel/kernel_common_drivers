@@ -6903,24 +6903,11 @@ static inline void unmute_video(u8 layer_id)
 	vd_clip_setting(vpp_index, layer_id, &setting);
 }
 
-bool check_mute_fmt_by_vf_type(void)
-{
-	static u32 vf_type_save;
-
-	if (vd_layer[0].dispbuf &&
-		vf_type_save != vd_layer[0].dispbuf->type) {
-		vf_type_save = vd_layer[0].dispbuf->type;
-		return true;
-	}
-	return false;
-}
-
 void check_video_mute(void)
 {
 	check_video_mute_state();
 	if (video_mute_on) {
-		if (video_mute_status != VIDEO_MUTE_ON_VPP ||
-			check_mute_fmt_by_vf_type()) {
+		if (video_mute_status != VIDEO_MUTE_ON_VPP) {
 			mute_video(0);
 			if (is_aisr_enable(&vd_layer[0]))
 				aisr_sr1_nn_enable_sync(false);
