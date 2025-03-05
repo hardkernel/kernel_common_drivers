@@ -44,22 +44,6 @@ struct ldim_config_s {
 	unsigned char dev_index;
 };
 
-struct ldim_boost_s {
-	unsigned char en;
-	unsigned char mode;
-	unsigned short i_l100;
-	unsigned short i_l32;
-	unsigned short i_l100_val;
-	unsigned short i_l32_val;
-	unsigned char kp_l100;
-	unsigned char kp_l32;
-	unsigned char kp_cur;
-	unsigned short i_cur;
-	unsigned int apl;
-	unsigned int pre_apl;
-	int *iset;
-};
-
 struct spi_private_data {
 	int dev_idx;
 	unsigned int xlen;/*actually xfer len*/
@@ -86,14 +70,8 @@ struct ldim_dev_driver_s {
 	unsigned char dma_support;
 	unsigned char spi_sync;
 	unsigned int spi_line_n;/*vpp line n irq*/
-	//unsigned int spi_xlen[2];/*actually xfer len*/
-	//dma_addr_t spi_tx_dma[2];
-	//dma_addr_t spi_rx_dma[2];
-	//unsigned char *spi_tx_buf[2];
-	//unsigned char *spi_rx_buf[2];
 	unsigned int pwm_phase;
 	int spi_dev_num;
-	//char cur_spi_dev_idx;
 	int use_ctrl_cs;
 	int cs_hold_delay;
 	int cs_clk_delay;
@@ -125,6 +103,8 @@ struct ldim_dev_driver_s {
 	unsigned int init_off_cnt;
 	unsigned int hw_on_delay;
 	unsigned int hw_off_delay;
+	unsigned int *boundary_x;
+	unsigned int *boundary_y;
 
 	struct bl_pwm_config_s ldim_pwm_config;
 	struct bl_pwm_config_s analog_pwm_config;
@@ -217,7 +197,10 @@ struct aml_ldim_driver_s {
 	unsigned long long fw_time[10];
 	unsigned char time_msr_en;
 	unsigned int level_curve[5][2];
+	unsigned char pq_num;
+	unsigned int pq_size;
 
+	char *pqdata;
 	struct ldim_drv_data_s *data;
 	struct ldim_config_s *conf;
 	struct ldim_dev_driver_s *dev_drv;

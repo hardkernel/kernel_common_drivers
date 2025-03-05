@@ -314,13 +314,14 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 	else
 		bconf->en_sequence_reverse = val;
 
-	ret = of_property_read_u32(child, "bl_ldim_region_row_col", &para[0]);
+	ret = of_property_read_u32_array(child, "bl_ldim_region_row_col", &para[0], 2);
 	if (ret) {
-		ret = of_property_read_u32(child, "bl_ldim_zone_row_col", &para[0]);
-		if (ret == 0)
+		ret = of_property_read_u32_array(child, "bl_ldim_zone_row_col", &para[0], 2);
+		if (para[0] && para[1])
 			bconf->ldim_flag = 1;
 	} else {
-		bconf->ldim_flag = 1;
+		if (para[0] && para[1])
+			bconf->ldim_flag = 1;
 	}
 
 	switch (bconf->method) {

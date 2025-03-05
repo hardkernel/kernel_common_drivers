@@ -458,7 +458,7 @@ ldim_dev_get_config_from_dts_profile:
 		LDIMERR("ld_profile malloc failed\n");
 		goto ldim_dev_get_config_from_dts_next;
 	}
-	fw->profile = profile;
+	fw->param->profile = profile;
 	profile->mode = val;
 
 	if (profile->mode == 2) {
@@ -493,10 +493,10 @@ ldim_dev_get_config_from_dts_next:
 				i, i);
 			i = 32;
 		} else {
-			if (fw_cus) {
-				fw_cus->param[i] = val;
+			if (fw_cus && fw_cus->fw_param) {
+				fw_cus->fw_param->param[i] = val;
 				LDIMPR("param[%d] = %d\n",
-					i, fw_cus->param[i]);
+					i, fw_cus->fw_param->param[i]);
 			}
 		}
 	}
@@ -750,16 +750,35 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 	if (str) {
 		profile = kzalloc(sizeof(*profile), GFP_KERNEL);
 		strscpy(profile->file_path, str, sizeof(profile->file_path));
-		fw->profile = profile;
+		fw->param->profile = profile;
+	}
+
+	str = json_get_obj_str(jsp, child, "boundary_x", NULL);
+	if (str) {
+		cnt_max = lcd_get_str_array_cnt(str);
+		if (cnt_max > 0) {
+			dev_drv->boundary_x = kcalloc(cnt_max, sizeof(unsigned int), GFP_KERNEL);
+			if (dev_drv->boundary_x)
+				cnt = lcd_trans_str_array(str, dev_drv->boundary_x, cnt_max);
+		}
+	}
+	str = json_get_obj_str(jsp, child, "boundary_y", NULL);
+	if (str) {
+		cnt_max = lcd_get_str_array_cnt(str);
+		if (cnt_max > 0) {
+			dev_drv->boundary_y = kcalloc(cnt_max, sizeof(unsigned int), GFP_KERNEL);
+			if (dev_drv->boundary_y)
+				cnt = lcd_trans_str_array(str, dev_drv->boundary_y, cnt_max);
+		}
 	}
 
 //custom_params
 	child = json_get_object_child(jsp, parent, "custom_params");
-	if (child && fw_cus && fw_cus->param) {
+	if (child && fw_cus && fw_cus->fw_param && fw_cus->fw_param->param) {
 		cnt = json_get_array_size(jsp, child);
 		cnt = lcd_s32_constraint(cnt, 0, 32);
 		for (i = 0; i < cnt; i++)
-			fw_cus->param[i] = json_get_arr_u32(jsp, child, i, 0);
+			fw_cus->fw_param->param[i] = json_get_arr_u32(jsp, child, i, 0);
 	}
 
 //commands
@@ -1036,7 +1055,7 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 	profile = kzalloc(sizeof(*profile), GFP_KERNEL);
 	if (!profile)
 		goto ldim_dev_get_config_from_ini_next;
-	fw->profile = profile;
+	fw->param->profile = profile;
 	profile->mode = lcd_ini_get_val(inip, psec, "profile_mode", 0);
 	str = lcd_ini_get_str(inip, psec, "profile_path", "null");
 	strscpy(profile->file_path, str, sizeof(profile->file_path));
@@ -1046,12 +1065,29 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 	}
 
 ldim_dev_get_config_from_ini_next:
-	if (fw_cus && fw_cus->param) {
-		tmp_cnt = lcd_ini_get_array(inip, psec, "param_data", fw_cus->param, 32);
-		LDIMPR("custom param size = %d\n",  val);
+	init_len = lcd_ini_get_array_cnt(inip, psec, "boundary_x");
+	if (init_len > 0) {
+		dev_drv->boundary_x = kcalloc(init_len, sizeof(unsigned int), GFP_KERNEL);
+		if (dev_drv->boundary_x)
+			tmp_cnt = lcd_ini_get_array(inip, psec, "boundary_x",
+				dev_drv->boundary_x, init_len);
+	}
+
+	init_len = lcd_ini_get_array_cnt(inip, psec, "boundary_y");
+	if (init_len > 0) {
+		dev_drv->boundary_x = kcalloc(init_len, sizeof(unsigned int), GFP_KERNEL);
+		if (dev_drv->boundary_x)
+			tmp_cnt = lcd_ini_get_array(inip, psec, "boundary_y",
+				dev_drv->boundary_x, init_len);
+	}
+
+	if (fw_cus && fw_cus->fw_param && fw_cus->fw_param->param) {
+		tmp_cnt = lcd_ini_get_array(inip, psec, "param_data",
+			fw_cus->fw_param->param, 32);
+		LDIMPR("custom param size = %d\n",  tmp_cnt);
 		for (i = 0; i < tmp_cnt; i++) {
-			LDIMPR("fw_cus->param[%d] = %d = 0x%x\n",
-				i, fw_cus->param[i], fw_cus->param[i]);
+			LDIMPR("fw_cus->fw_param->param[%d] = %d = 0x%x\n",
+				i, fw_cus->fw_param->param[i], fw_cus->fw_param->param[i]);
 		}
 	}
 

@@ -20,36 +20,47 @@ static struct ldim_stts_s ldim_stts = {
 	.seg_hist = NULL,
 };
 
+static struct ldim_fw_config_s ldim_fw_conf = {
+	.seg_row = 1,
+	.seg_col = 1,
+	.hsize = 3840,
+	.vsize = 2160,
+	.func_en = 0,
+	.remap_en = 0,
+	.boundary_x = NULL,
+	.boundary_y = NULL,
+};
+
+static struct ldim_fw_param_s ldim_fw_param = {
+	.para_ver = 1,
+	.para_size = sizeof(struct ldim_fw_param_s),
+	.pq_header = 0,
+
+	.fw_sel = 0,
+	.res_update = 0,
+	.litgain = LD_DATA_MAX,
+
+	.conf = &ldim_fw_conf,
+	.rmem = NULL,
+	.stts = &ldim_stts,
+	.profile = NULL,
+	.ext_boost = NULL,
+	.iparam = NULL,
+	.oparam = NULL,
+};
+
 static struct ldim_fw_s ldim_fw = {
 	/* header */
 	.para_ver = FW_PARA_VER,
 	.para_size = sizeof(struct ldim_fw_s),
 	.alg_ver = "not installed",
-	.fw_sel = 0, /* bit0:hw/sw, bit1:no/have fw_cus */
 	.valid = 0,
 	.flag = 0,
 
-	.seg_col = 1,
-	.seg_row = 1,
-	.func_en = 1,
-	.remap_en = 0,
-	.res_update = 0,
-	.litgain = LD_DATA_MAX,
 	.fw_ctrl = FW_CTRL_LD_SEL,/*bit4:ld_sel*/
 	.fw_state = 0,
-	.iparam = NULL,
-	.oparam = NULL,
 
-	.bl_matrix_dbg = 0,
-	.fw_hist_print = 0,
-	.fw_print_frequent = 300,
-	.fw_print_lv = 0,
-
-	.conf = NULL,
-	.rmem = NULL,
-	.stts = &ldim_stts,
-	.profile = NULL,
-
+	.param = &ldim_fw_param,
 	.bl_matrix = NULL,
 
 	.fw_alg_frm = NULL,
@@ -64,6 +75,13 @@ static struct ldim_fw_s ldim_fw = {
 	.fw_debug_store = NULL,
 };
 
+struct ldim_cus_fw_param_s ldim_cus_fw_param = {
+	.para_ver = FW_PARA_VER,
+	.para_size = sizeof(struct ldim_cus_fw_param_s),
+
+	.param = NULL,
+};
+
 static struct ldim_fw_custom_s ldim_fw_cus = {
 	.valid = 0,
 	.seg_col = 1,
@@ -73,7 +91,7 @@ static struct ldim_fw_custom_s ldim_fw_cus = {
 	.fw_print_frequent = 200,
 	.fw_print_lv = 0,
 
-	.param = NULL,
+	.fw_param = &ldim_cus_fw_param,
 	.bl_matrix = NULL,
 
 	.fw_alg_frm = NULL,

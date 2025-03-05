@@ -30,8 +30,9 @@
 /*20240730: add fw iparam */
 /*20241030: add boost function */
 /*20241217: multiple spi support */
+/*20250316: optimize ldim_fw_s */
 
-#define LDIM_DRV_VER    "20241217"
+#define LDIM_DRV_VER    "20250316"
 
 enum spi_sync_type_e {
 	SPI_SYNC	= 0x00,
@@ -61,8 +62,7 @@ extern int ld_remap_lut[16][32];
 extern unsigned int ldc_gain_lut_array[16][64];
 extern unsigned int ldc_min_gain_lut[64];
 extern unsigned int ldc_dither_lut[32][16];
-extern struct fw_pqdata_s ldim_pq;
-extern struct fw_pq_s fw_pq;
+extern char *fw_pq;
 
 #define AML_LDIM_MODULE_NAME "aml_ldim"
 #define AML_LDIM_DRIVER_NAME "aml_ldim"

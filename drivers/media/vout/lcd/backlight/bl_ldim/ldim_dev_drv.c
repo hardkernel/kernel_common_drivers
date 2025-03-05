@@ -97,6 +97,8 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 	.init_off = NULL,
 	.init_on_cnt = 0,
 	.init_off_cnt = 0,
+	.boundary_x = NULL,
+	.boundary_y = NULL,
 
 	.ldim_pwm_config = {
 		.pwm_method = BL_PWM_POSITIVE,
@@ -1270,20 +1272,24 @@ static void ldim_dev_probe_func(struct work_struct *work)
 		goto ldim_dev_probe_func_fail1;
 
 	if (ldim_dev_drv.boost_conf.mode) {
-		if (ldim_drv->fw && ldim_drv->fw->iparam) {
-			ldim_drv->fw->iparam[2] = ldim_dev_drv.boost_conf.mode;
-			ldim_drv->fw->iparam[3] = ldim_dev_drv.boost_conf.i_l100;
-			ldim_drv->fw->iparam[4] = ldim_dev_drv.boost_conf.i_l32;
-			ldim_drv->fw->iparam[5] = ldim_dev_drv.boost_conf.i_l100_val;
-			ldim_drv->fw->iparam[6] = ldim_dev_drv.boost_conf.i_l32_val;
-			ldim_drv->fw->iparam[7] = ldim_dev_drv.boost_conf.kp_l100;
-			ldim_drv->fw->iparam[8] = ldim_dev_drv.boost_conf.kp_l32;
-			ldim_dev_drv.boost_conf.iset = &ldim_drv->fw->oparam[FW_IPARAM_LEN];
+		ldim_dev_drv.boost_conf.iset = kcalloc(ldim_dev_drv.zone_num,
+			sizeof(unsigned int), GFP_KERNEL);
+		if (!ldim_dev_drv.boost_conf.iset)
+			goto ldim_dev_probe_func_fail1;
+		if (ldim_drv->fw && ldim_drv->fw->param)
+			ldim_drv->fw->param->ext_boost = &ldim_dev_drv.boost_conf;
+	}
 
-			//default enable boost
-			if (ldim_dev_drv.boost_conf.en)
-				ldim_drv->fw->fw_ctrl |= FW_CTRL_BOOST_EN;
-		}
+	if (ldim_dev_drv.boundary_x) {
+		if (ldim_drv->fw && ldim_drv->fw->param)
+			ldim_drv->fw->param->conf->boundary_x = ldim_dev_drv.boundary_x;
+		LDIMPR("%s: use boundary_x\n", __func__);
+	}
+
+	if (ldim_dev_drv.boundary_y) {
+		if (ldim_drv->fw && ldim_drv->fw->param)
+			ldim_drv->fw->param->conf->boundary_x = ldim_dev_drv.boundary_y;
+		LDIMPR("%s: use boundary_y\n", __func__);
 	}
 
 	ldim_dev_drv.pwm_phase = ldim_dev_drv.ldim_pwm_config.pwm_phase;
@@ -1294,7 +1300,7 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	ldim_dev_class_create(&ldim_dev_drv);
 	ret = ldim_dev_add_driver(ldim_drv);
 	if (ret)
-		goto ldim_dev_probe_func_fail1;
+		goto ldim_dev_probe_func_fail2;
 	ldim_pwm_pinmux_ctrl(&ldim_dev_drv, 1);
 	ldim_set_duty_pwm(&ldim_dev_drv.ldim_pwm_config);
 
@@ -1306,13 +1312,13 @@ static void ldim_dev_probe_func(struct work_struct *work)
 			priv->xlen, &priv->tx_dma, GFP_KERNEL | GFP_DMA);
 		if (!priv->tx_buf) {
 			LDIMERR("%s: priv->tx_buf %d is error\n", __func__, i);
-			goto ldim_dev_probe_func_fail1;
+			goto ldim_dev_probe_func_fail2;
 		}
 		priv->rx_buf = dma_alloc_coherent(ldim_dev_drv.spi_dev[i]->controller->dev.parent,
 			priv->xlen, &priv->rx_dma, GFP_KERNEL | GFP_DMA);
 		if (!priv->rx_buf) {
 			LDIMERR("%s: priv->rx_buf %d is error\n", __func__, i);
-			goto ldim_dev_probe_func_fail2;
+			goto ldim_dev_probe_func_fail3;
 		}
 
 		LDIMPR("%s spi_dev_idx:%d, tx_dma=0x%lx, rx_dma=0x%lx\n", __func__,
@@ -1327,8 +1333,10 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	LDIMPR("%s: ok\n", __func__);
 	return;
 
-ldim_dev_probe_func_fail2:
+ldim_dev_probe_func_fail3:
 	kfree(priv->tx_buf);
+ldim_dev_probe_func_fail2:
+	kfree(ldim_dev_drv.boost_conf.iset);
 ldim_dev_probe_func_fail1:
 	kfree(ldim_dev_drv.bl_mapping);
 ldim_dev_probe_func_fail0:

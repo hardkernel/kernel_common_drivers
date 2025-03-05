@@ -420,8 +420,8 @@ static inline void ldim_data_mapping(struct aml_ldim_driver_s *ldim_drv, unsigne
 	unsigned int i, j, k, val, zone_max;
 	int iled;
 
-	if (ldim_drv->fw && ldim_drv->fw->oparam && dev_drv->boost_conf.en)
-		iled = ldim_drv->fw->oparam[1];
+	if (dev_drv->boost_conf.en)
+		iled = dev_drv->boost_conf.i_cur;
 	else
 		iled = dev_drv->boost_conf.i_l100;
 
