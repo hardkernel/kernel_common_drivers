@@ -998,9 +998,10 @@
 	//};
 
 	pdmin: pdmin {
-		mux { /* GPIOC_0, GPIOC_4 */
-			groups = "pdm_din0_c",
-				"pdm_dclk_c";
+		mux { /* GPIOA_6, GPIOA_7, GPIOA_8 */
+			groups = "pdm_din2_a",
+				"pdm_dclk_a",
+				"pdm_din0_a";
 			function = "pdm";
 		};
 	};
