@@ -197,6 +197,7 @@
 /*  V3.6.017 fix dvbs auto sr config(cause unlock) */
 /*  V3.6.018 get dvbs/s2 if config from get_if_frequency */
 /*  V3.6.019 fix dvbs blind scan lose TP for rda5815m */
+/*  V3.6.020 fix dvbt2 CICAM by ts clock 5.43 to 6.75MHz */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -213,8 +214,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.019"
-#define DTVDEMOD_VER	"2025/02/28: fix dvbs blind scan lose TP for rda5815m"
+#define AMLDTVDEMOD_VER "V3.6.020"
+#define DTVDEMOD_VER	"2025/03/05: fix dvbt2 CICAM by ts clock 5.43 to 6.75MHz"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
