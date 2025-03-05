@@ -231,6 +231,9 @@ void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	 */
 	dvbt_t2_wr_byte_bits(0x570, 1, 0, 1);
 
+	/* change T2 ts clock 5.43MHz(0x54b = 0xb0) to 6.75MHz to fix CI issue. */
+	dvbt_t2_wrb(0x54b, 0x40);
+
 	/* T2 MPLP config */
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M)) {
 		dvbt_t2_wrb(0x592, 0x11);
