@@ -347,6 +347,10 @@ struct dsi_dphy_s {
 	u16 clk_zero[2];
 	u16 clk_prepare[2];
 	u16 clk_pre[2];
+	u16 phy_hs2lp_time[2];
+	u16 phy_lp2hs_time[2];
+	u16 max_rd_time[2];
+
 	u32 init;
 	u32 wakeup;
 };

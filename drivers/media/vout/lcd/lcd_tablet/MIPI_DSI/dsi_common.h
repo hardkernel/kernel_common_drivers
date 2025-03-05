@@ -210,12 +210,6 @@ int dsi_read(struct aml_lcd_drv_s *pdrv, u8 *payload, u8 *rd_data, u8 rd_byte_le
 #define ACK_CTRL_GEN_RD               MIPI_DSI_DCS_REQ_ACK
 #define ACK_CTRL_DCS_RD               MIPI_DSI_DCS_REQ_ACK
 
-// DSI phy LP-HS switch control field
-#define PHY_SWITCH_FAST 0
-#define PHY_SWITCH_SLOW 1
-
-#define STOP_STATE_TO_HS_WAIT_TIME    PHY_SWITCH_FAST
-
 /* Range [0,3] */
 #define MIPI_DSI_VIRTUAL_CHAN_ID        0
 /* Define DSI command transfer type: high speed or low power */
