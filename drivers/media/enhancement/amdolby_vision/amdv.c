@@ -10979,6 +10979,7 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2,
 		if (p_funcs_stb && (video_num_change || pri_change))
 			p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
 	} else {/*only choose primary video to dv*/
+		cur_valid_video_num = 1;
 		new_m_dovi_setting.input[0].valid = 1;
 		new_m_dovi_setting.input[1].valid = 0;
 	}
