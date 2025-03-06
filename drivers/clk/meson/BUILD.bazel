@@ -303,26 +303,6 @@ ddk_module(
 )
 
 ddk_module(
-    name = "amlogic-aoclk-soc-t5w",
-    srcs = glob([
-        "**/*.h",
-    ]),
-    conditional_srcs = {
-        "CONFIG_AMLOGIC_COMMON_AO_CLK_T5W": {
-            True: ["t5w-aoclk.c"],
-        },
-    },
-    hdrs = [
-        "//common_drivers:soc_headers",
-    ],
-    local_defines = ["pr_fmt(fmt)=\"[aoclk-soc-t5w]: \" fmt"],
-    out = "amlogic-aoclk-soc-t5w.ko",
-    kernel_build = "//common_drivers:amlogic",
-    visibility = ["//visibility:public"],
-    deps = amlogic_clk_soc_deps,
-)
-
-ddk_module(
     name = "amlogic-clk-soc-t3x",
     srcs = glob([
         "**/*.h",
@@ -361,26 +341,6 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[clk-soc-txhd2]: \" fmt"],
     out = "amlogic-clk-soc-txhd2.ko",
-    kernel_build = "//common_drivers:amlogic",
-    visibility = ["//visibility:public"],
-    deps = amlogic_clk_soc_deps,
-)
-
-ddk_module(
-    name = "amlogic-aoclk-soc-txhd2",
-    srcs = glob([
-        "**/*.h",
-    ]),
-    conditional_srcs = {
-        "CONFIG_AMLOGIC_COMMON_AO_CLK_TXHD2": {
-            True: ["txhd2-aoclk.c"],
-        },
-    },
-    hdrs = [
-        "//common_drivers:soc_headers",
-    ],
-    local_defines = ["pr_fmt(fmt)=\"[aoclk-soc-txhd2]: \" fmt"],
-    out = "amlogic-aoclk-soc-txhd2.ko",
     kernel_build = "//common_drivers:amlogic",
     visibility = ["//visibility:public"],
     deps = amlogic_clk_soc_deps,
