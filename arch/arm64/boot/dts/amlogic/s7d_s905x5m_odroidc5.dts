@@ -711,6 +711,16 @@
 			gpios = <&gpio GPIOX_5 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	gpio-reset {
+		compatible = "linux,gpio-reset";
+
+		usb_hub {
+			gpios = <&gpio GPIOX_19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+			asserted-state = <0>;
+			duration-ms = <100>;
+		};
+	};
 };
 
 &gpio {
