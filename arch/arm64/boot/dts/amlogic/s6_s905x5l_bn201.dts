@@ -817,7 +817,6 @@
 };
 
 &CPU0 {
-	#cooling-cells = <2>;
 	operating-points-v2 = <&cpu_opp_table0>,
 						<&cpu_opp_table1>,
 						<&cpu_opp_table2_2000>,
