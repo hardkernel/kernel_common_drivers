@@ -2108,7 +2108,7 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 	init_completion(&pdrv->vsync_done);
 	if (pdrv->res_vsync_irq[0]) {
 		snprintf(pdrv->vsync_isr_name[0], 15, "lcd%d_vsync", pdrv->index);
-		if (request_irq(pdrv->res_vsync_irq[0]->start,
+		if (request_irq(pdrv->res_vsync_irq[0],
 				lcd_vsync_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[0], (void *)pdrv)) {
 			LCDERR("[%d]: can't request %s\n",
@@ -2123,7 +2123,7 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->res_vsync_irq[1]) {
 		snprintf(pdrv->vsync_isr_name[1], 15, "lcd%d_vsync2", pdrv->index);
-		if (request_irq(pdrv->res_vsync_irq[1]->start,
+		if (request_irq(pdrv->res_vsync_irq[1],
 				lcd_vsync2_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[1], (void *)pdrv)) {
 			LCDERR("[%d]: can't request %s\n",
@@ -2138,7 +2138,7 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->res_vsync_irq[2]) {
 		snprintf(pdrv->vsync_isr_name[2], 15, "lcd%d_vsync3", pdrv->index);
-		if (request_irq(pdrv->res_vsync_irq[2]->start,
+		if (request_irq(pdrv->res_vsync_irq[2],
 				lcd_vsync3_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[2], (void *)pdrv)) {
 			LCDERR("[%d]: can't request %s\n",
@@ -2164,11 +2164,11 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 static void lcd_vsync_irq_remove(struct aml_lcd_drv_s *pdrv)
 {
 	if (pdrv->res_vsync_irq[0])
-		free_irq(pdrv->res_vsync_irq[0]->start, (void *)pdrv);
+		free_irq(pdrv->res_vsync_irq[0], (void *)pdrv);
 	if (pdrv->res_vsync_irq[1])
-		free_irq(pdrv->res_vsync_irq[1]->start, (void *)pdrv);
+		free_irq(pdrv->res_vsync_irq[1], (void *)pdrv);
 	if (pdrv->res_vsync_irq[2])
-		free_irq(pdrv->res_vsync_irq[2]->start, (void *)pdrv);
+		free_irq(pdrv->res_vsync_irq[2], (void *)pdrv);
 
 	if (pdrv->vsync_none_timer_flag) {
 		del_timer_sync(&pdrv->vs_none_timer);
@@ -2406,11 +2406,11 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 
 	sprintf(lrm_dev_name, "lcd%d", pdrv->index);
 	lrm_resource_device_prepare(lrm_dev_name);
-	pdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
-	pdrv->res_vsync_irq[1] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
-	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
-	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
-	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
+	pdrv->res_vsync_irq[0] = platform_get_irq_byname(pdev, "vsync");
+	pdrv->res_vsync_irq[1] = platform_get_irq_byname(pdev, "vsync2");
+	pdrv->res_vsync_irq[2] = platform_get_irq_byname(pdev, "vsync3");
+	pdrv->res_vx1_irq = platform_get_irq_byname(pdev, "vbyone");
+	pdrv->res_tcon_irq = platform_get_irq_byname(pdev, "tcon");
 
 	lcd_clk_config_probe(pdrv);
 	lcd_config_default(pdrv, init_state);

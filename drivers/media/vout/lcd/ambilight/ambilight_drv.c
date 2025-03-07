@@ -227,7 +227,7 @@ static int amblt_vsync_irq_init(struct amblt_drv_s *amblt_drv)
 	if (!amblt_drv->res_vs_irq)
 		return -1;
 
-	if (request_irq(amblt_drv->res_vs_irq->start,
+	if (request_irq(amblt_drv->res_vs_irq,
 			amblt_vsync_isr, IRQF_SHARED, "amblt_vs", (void *)amblt_drv)) {
 		AMBLTERR("can't request amblt_vsync_isr\n");
 		return -1;
@@ -239,7 +239,7 @@ static int amblt_vsync_irq_init(struct amblt_drv_s *amblt_drv)
 static void amblt_vsync_irq_remove(struct amblt_drv_s *amblt_drv)
 {
 	if (amblt_drv->res_vs_irq)
-		free_irq(amblt_drv->res_vs_irq->start, (void *)amblt_drv);
+		free_irq(amblt_drv->res_vs_irq, (void *)amblt_drv);
 }
 
 static int amblt_get_config(struct amblt_drv_s *amblt_drv, struct platform_device *pdev)
@@ -261,7 +261,7 @@ static int amblt_get_config(struct amblt_drv_s *amblt_drv, struct platform_devic
 	//	__func__, amblt_drv->zone_h, amblt_drv->zone_v, amblt_drv->zone_size);
 	amblt_zone_pixel_init(amblt_drv);
 
-	amblt_drv->res_vs_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
+	amblt_drv->res_vs_irq = platform_get_irq_byname(pdev, "vsync");
 	if (!amblt_drv->res_vs_irq) {
 		AMBLTERR("%s: can't get vsync irq\n", __func__);
 		return -1;

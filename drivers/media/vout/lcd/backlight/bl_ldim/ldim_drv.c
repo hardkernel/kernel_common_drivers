@@ -1448,7 +1448,7 @@ int aml_ldim_remove(void)
 	kfree(ldim_driver.local_bl_matrix);
 	kfree(ldim_driver.cus_fw->param);
 
-	free_irq(bdrv->res_ldim_vsync_irq->start, (void *)"ldim_vsync");
+	free_irq(bdrv->res_ldim_vsync_irq, (void *)"ldim_vsync");
 
 	cdev_del(devp->aml_ldim_cdevp);
 	kfree(devp->aml_ldim_cdevp);

@@ -985,7 +985,7 @@ int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pdev, int 
 		aml_ldim_probe(pdev);
 #endif
 
-	bdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
+	bdrv->res_vsync_irq[0] = platform_get_irq_byname(pdev, "vsync");
 	if (!bdrv->res_vsync_irq[0]) {
 		ret = -ENODEV;
 		BLERR("[%d]: bl_vsync_irq[0] resource error\n", bdrv->index);

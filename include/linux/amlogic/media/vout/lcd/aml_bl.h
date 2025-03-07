@@ -232,9 +232,9 @@ struct aml_bl_drv_s {
 	struct device             *dev;
 	struct backlight_device   *bldev;
 	struct delayed_work       delayed_on_work;
-	struct resource *res_ldim_vsync_irq;
-	struct resource *res_ldim_pwm_vs_irq;
-	struct resource *res_vsync_irq[3];
+	int res_ldim_vsync_irq;
+	int res_ldim_pwm_vs_irq;
+	int res_vsync_irq[3];
 	/*struct resource *res_ldim_rdma_irq;*/
 
 	struct pinctrl *pin;

@@ -982,9 +982,9 @@ struct aml_lcd_drv_s {
 	struct work_struct mode_switch_on_work;
 	struct delayed_work init_on_delayed_work;
 	struct delayed_work test_delayed_work;
-	struct resource *res_vsync_irq[3];
-	struct resource *res_vx1_irq;
-	struct resource *res_tcon_irq;
+	int res_vsync_irq[3];
+	int res_vx1_irq;
+	int res_tcon_irq;
 	struct timer_list vx1_mnt_timer;
 	struct timer_list vs_none_timer;
 	struct completion vsync_done;

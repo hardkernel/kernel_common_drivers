@@ -1663,7 +1663,7 @@ static irqreturn_t bl_vsync_isr(int irq, void *data)
 static int bl_vsync_irq_init(struct aml_bl_drv_s *bdrv)
 {
 	if (bdrv->res_vsync_irq[0]) {
-		if (request_irq(bdrv->res_vsync_irq[0]->start,
+		if (request_irq(bdrv->res_vsync_irq[0],
 				bl_vsync_isr, IRQF_SHARED,
 				"bl_vsync", (void *)bdrv)) {
 			BLPR("[%d]: can't request bl_vsync_irq\n", bdrv->index);
@@ -1681,7 +1681,7 @@ static int bl_vsync_irq_init(struct aml_bl_drv_s *bdrv)
 static void bl_vsync_irq_remove(struct aml_bl_drv_s *bdrv)
 {
 	if (bdrv->res_vsync_irq[0])
-		free_irq(bdrv->res_vsync_irq[0]->start, (void *)"bl_vsync");
+		free_irq(bdrv->res_vsync_irq[0], (void *)"bl_vsync");
 }
 
 /***************************************************************/

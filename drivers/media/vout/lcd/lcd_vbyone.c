@@ -1238,7 +1238,7 @@ int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 		LCDERR("[%d]: res_vx1_irq is null\n", pdrv->index);
 		return -1;
 	}
-	venc_vx1_irq = pdrv->res_vx1_irq->start;
+	venc_vx1_irq = pdrv->res_vx1_irq;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: venc_vx1_irq: %d\n", pdrv->index, venc_vx1_irq);
 
@@ -1272,7 +1272,7 @@ void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv)
 	del_timer_sync(&pdrv->vx1_mnt_timer);
 
 	lcd_vbyone_interrupt_enable(pdrv, 0);
-	free_irq(pdrv->res_vx1_irq->start, (void *)pdrv);
+	free_irq(pdrv->res_vx1_irq, (void *)pdrv);
 	cancel_work_sync(&pdrv->vx1_reset_work);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
