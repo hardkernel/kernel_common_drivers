@@ -904,6 +904,11 @@ ddk_module(
         "common/rdma",
         "video_processor/videodisplay/",
         "vout/vout_serve",
+        "vout/hdmitx",
+        "vout/hdmitx/hw20",
+        "vout/hdmitx/hw21",
+        "vin/tvin/hdmirx",
+        "vin/tvin",
         "deinterlace",
         "di_multi",
         "di_multi/sc2",
@@ -938,6 +943,7 @@ ddk_module(
         "di_mini/sc2",
         "../../../common/drivers/media/tuners",
         "../../../common/include/media",
+        "../efuse_unifykey"
     ],
     local_defines = [
         "__module_param(name, type, perm)=",

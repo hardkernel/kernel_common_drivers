@@ -7,7 +7,7 @@
 #include <linux/printk.h>
 #include <linux/string.h>
 #include "hdmitx_checksha.h"
-#include "../hdmitx_log.h"
+#include "hdmitx_log.h"
 
 static void shamsg_reset(struct shamsg_t *msg)
 {

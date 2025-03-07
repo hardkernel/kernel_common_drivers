@@ -28,30 +28,31 @@
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
 #include <linux/gpio.h>
-#include <linux/amlogic/media/vout/vinfo.h>
-#include "hdmitx_hdcp_type.h"
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
+#include <linux/arm-smccc.h>
+
+#include <linux/amlogic/media/vout/vinfo.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_infoframe.h>
+#include <linux/amlogic/clk_measure.h>
+
+#include "hdmitx_hdcp_type.h"
 #include "hdmitx_mach_reg.h"
 #include "hdmitx_reg.h"
 #include "hdmitx_tvenc_conf.h"
 #include "hdmitx_common.h"
 #include "hdmitx_hw.h"
 #include "hdmitx_hw_clk.h"
-#include <linux/arm-smccc.h>
-#ifdef CONFIG_AMLOGIC_VPU
-#include <linux/amlogic/media/vpu/vpu.h>
-#endif
 #include "hdmitx_checksha.h"
 #include "hdmitx_reg_sc2.h"
 #include "hdmitx_debug_reg.h"
-
-#include "./../hdmitx_module.h"
-#include <linux/amlogic/clk_measure.h>
-#include "../hdmitx_compliance.h"
+#include "hdmitx_module.h"
+#include "hdmitx_compliance.h"
 #include "hdmitx_meson_drm.h"
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_infoframe.h>
 
 #define HDMITX_VIC_MASK			0xff
 

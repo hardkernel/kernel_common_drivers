@@ -4,7 +4,7 @@
  */
 
 #include <linux/delay.h>
-#include "../hdmitx_module.h"
+#include "hdmitx_module.h"
 #include "hdmitx_common.h"
 
 #define MAX_SUPPORTED_FRL_RATE FRL_12G4L /* TODO */

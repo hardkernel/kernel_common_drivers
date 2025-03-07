@@ -4,10 +4,10 @@
  */
 
 #include <linux/vmalloc.h>
-
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include <drm/amlogic/meson_drm_bind.h>
 #include <linux/component.h>
+
+#include <drm/amlogic/meson_drm_bind.h>
+
 #include "hdmitx_drm.h"
 #include "hdmitx_log.h"
 #include "hdmitx_check_valid.h"

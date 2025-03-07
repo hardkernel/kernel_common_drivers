@@ -11,12 +11,12 @@
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 #include "hdmitx_boot_parameters.h"
 #include "hdmitx_log.h"
 #include "hdmitx_check_valid.h"
-#include "../../../efuse_unifykey/efuse.h"
-#include <linux/amlogic/media/vout/vout_notify.h>
 #include "hdmitx_module.h"
+#include "efuse.h"
 
 int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,

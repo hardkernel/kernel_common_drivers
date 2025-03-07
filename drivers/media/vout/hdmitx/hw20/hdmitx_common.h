@@ -9,7 +9,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include "hdmitx_ddc.h"
 #include "hdmitx_reg.h"
-#include "../hdmitx_module.h"
+#include "hdmitx_module.h"
 
 int hdmitx_hpd_hw_op_gxbb(enum hpd_op cmd);
 int read_hpd_gpio_gxbb(void);

@@ -8,7 +8,6 @@
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_mode.h>
-#include <linux/amlogic/media/vout/vinfo.h>
 
 struct hdmi_format_para {
 	enum hdmi_vic vic;

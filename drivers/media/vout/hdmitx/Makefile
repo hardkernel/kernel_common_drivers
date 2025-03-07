@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
+ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx/hw20 \
+				-I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx/hw21 \
+				-I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin \
+				-I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/hdmirx \
+				-I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/efuse_unifykey
+
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_COMMON) += \
 							vout/hdmitx/hdmitx_boot_parameters.o \
 							vout/hdmitx/hdmitx_common.o \

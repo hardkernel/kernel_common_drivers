@@ -15,11 +15,11 @@
 #include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_version.h>
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/types.h>
 #include "hdmitx_module.h"
+#include "hdmitx_version.h"
 
 struct hdmitx_dbg_files_s {
 	const char *name;

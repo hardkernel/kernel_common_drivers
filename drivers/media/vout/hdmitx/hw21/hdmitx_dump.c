@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include "../hdmitx_dump.h"
+#include "hdmitx_dump.h"
 #include "hdmitx_common.h"
 
 static void dump32(struct seq_file *s, u32 start, u32 end)

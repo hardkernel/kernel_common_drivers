@@ -37,8 +37,8 @@
 
 #ifdef CONFIG_AMLOGIC_HDMITX21
 #include "hdmitx_module.h"
-#include "hw21/hdmitx.h"
-#include "hw21/hdmitx_enc_clk_config.h"
+#include "hdmitx.h"
+#include "hdmitx_enc_clk_config.h"
 #endif
 
 static struct hdmitx_common *global_tx_common;

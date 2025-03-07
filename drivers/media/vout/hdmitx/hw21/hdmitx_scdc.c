@@ -4,7 +4,7 @@
  */
 
 #include <linux/delay.h>
-#include "../hdmitx_module.h"
+#include "hdmitx_module.h"
 #include "hdmitx_common.h"
 
 void scdc21_config(struct hdmitx_dev *hdev)

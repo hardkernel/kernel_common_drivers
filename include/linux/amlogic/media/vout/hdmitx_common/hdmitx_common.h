@@ -12,6 +12,7 @@
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
+#include <linux/jiffies.h>
 
 #include <drm/amlogic/meson_connector_dev.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
@@ -20,13 +21,11 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_version.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_packet.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_infoframe.h>
-#include <linux/jiffies.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_config.h>
 #include <linux/amlogic/media/vout/dsc.h>
 #include <linux/amlogic/media/vrr/vrr.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_config.h>
 
 #define HDMITX20 20
 #define HDMITX21 21

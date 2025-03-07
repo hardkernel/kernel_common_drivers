@@ -4,11 +4,12 @@
  */
 
 #include <linux/amlogic/media/vout/vinfo.h>
-#include "hdmitx_dump.h"
-#include "hdmitx_check_valid.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
+
+#include "hdmitx_dump.h"
+#include "hdmitx_check_valid.h"
 
 #ifdef DEVICE_NAME
 #undef DEVICE_NAME

@@ -33,6 +33,14 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_config.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
+#include <linux/amlogic/media/sound/aout_notify.h>
+#endif
+
+#ifdef CONFIG_AMLOGIC_DSC
+#include <linux/amlogic/media/vout/dsc.h>
+#endif
+
 #include "hdmitx_log.h"
 #include "hdmitx_boot_parameters.h"
 #include "hdmitx_drm.h"
@@ -40,27 +48,20 @@
 #include "hdmitx_module.h"
 #include "hdmitx_compliance.h"
 #include "hdmitx_dump.h"
-#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
-#include <linux/amlogic/media/sound/aout_notify.h>
-#endif
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 
-#include "./hw20/hdmitx_common.h"
-#include "./hw20/hdmitx_hdcp.h"
+#include "hdmitx_common.h"
+#include "hdmitx_hdcp.h"
 #endif
+
 #if CONFIG_AMLOGIC_HDMITX21
 
-#include "./hw21/hdmitx.h"
+#include "hdmitx.h"
+#include "hdmitx_common.h"
+#include "tvin_global.h"
+#include "hdmi_rx_repeater.h"
 
-#include "./hw21/hdmitx_common.h"
-#include <../../vin/tvin/tvin_global.h>
-#include <../../vin/tvin/hdmirx/hdmi_rx_repeater.h>
-
-#endif
-
-#ifdef CONFIG_AMLOGIC_DSC
-#include <linux/amlogic/media/vout/dsc.h>
 #endif
 
 #define HDMI_TX_COUNT 32

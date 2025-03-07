@@ -17,7 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include "../hdmitx_module.h"
+#include "hdmitx_module.h"
 #include "hdmitx_common.h"
 
 int hdmitx21_set_audio(struct hdmitx_dev *hdev,

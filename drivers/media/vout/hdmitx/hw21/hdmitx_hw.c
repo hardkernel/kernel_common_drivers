@@ -33,7 +33,7 @@
 #include "hdmitx_enc_clk_config.h"
 #include <linux/amlogic/clk_measure.h>
 #include "hdmitx.h"
-#include "../hdmitx_compliance.h"
+#include "hdmitx_compliance.h"
 
 #define yuv2rgb  1
 #define rgb2yuv  2

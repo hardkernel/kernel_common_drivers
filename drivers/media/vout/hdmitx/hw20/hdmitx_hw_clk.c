@@ -9,13 +9,13 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/amlogic/clk_measure.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
 #include "hdmitx_common.h"
 #include "hdmitx_mach_reg.h"
 #include "hdmitx_reg_sc2.h"
 #include "hdmitx_hw_clk.h"
-#ifdef CONFIG_AMLOGIC_VPU
-#include <linux/amlogic/media/vpu/vpu.h>
-#endif
 
 #define SET_CLK_MAX_TIMES 10
 #define CLK_TOLERANCE 2 /* Unit: MHz */

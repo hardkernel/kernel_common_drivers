@@ -29,8 +29,8 @@
 #include <linux/extcon-provider.h>
 #include "hdmitx_reg.h"
 #include "hdmitx.h"
-#include <../../vin/tvin/hdmirx/hdmi_rx_repeater.h>
-#include "../hdmitx_module.h"
+#include "hdmitx_module.h"
+#include "hdmi_rx_repeater.h"
 
 #define TEE_HDCP_IOC_START _IOW('P', 0, int)
 #define TEE_HDCP_IOC_VALIDATE_KEY _IOWR('P', 0x1, int)

@@ -20,11 +20,8 @@
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include <linux/miscdevice.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>

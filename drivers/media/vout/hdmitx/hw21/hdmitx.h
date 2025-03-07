@@ -9,7 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include "hdmitx_hdcp.h"
-#include "../hdmitx_module.h"
+#include "hdmitx_module.h"
 
 /* L_0 will always be printed, set log level to L_1/2/3 for detail */
 #define L_0 0

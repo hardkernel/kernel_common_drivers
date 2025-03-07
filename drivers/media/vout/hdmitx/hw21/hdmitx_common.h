@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include "hdmitx.h"
-#include "../hdmitx_module.h"
+#include "hdmitx_module.h"
 #include "hdmitx_reg.h"
 #include "hdmitx_ddc.h"
 #include "hdmitx_register.h"

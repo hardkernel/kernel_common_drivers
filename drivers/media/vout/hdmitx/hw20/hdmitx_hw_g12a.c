@@ -7,7 +7,7 @@
 #include <linux/pinctrl/devinfo.h>
 #include "hdmitx_common.h"
 #include "hdmitx_mach_reg.h"
-#include "../hdmitx_compliance.h"
+#include "hdmitx_compliance.h"
 
 /*
  * NAME		PAD		PINMUX		GPIO

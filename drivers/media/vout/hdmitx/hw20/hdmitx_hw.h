@@ -7,7 +7,7 @@
 #define __HDMI_TX20_HW_H
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_hw_common.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_audio.h>
+#include "hdmitx_audio.h"
 
 struct hdmitx20_hw {
 	struct hdmitx_hw_common *base;
