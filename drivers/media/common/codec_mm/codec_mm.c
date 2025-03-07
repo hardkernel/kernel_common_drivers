@@ -37,6 +37,8 @@
 #endif
 #include <linux/swap.h>
 #include <linux/swapops.h>
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_CODEC_MM
+#include <trace/events/meson_atrace.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_CPU_INFO)
 #include <linux/amlogic/media/registers/cpu_version.h>
@@ -114,7 +116,7 @@ static u32 secure_mem_align2n;
 #define AV1_4K_FG_MEM_SIZE 342 // 3 segments 240M/70M/32M
 
 #define ALLOC_MAX_RETRY 1
-
+#define MAX_LOCAL_ID 0x3FF
 #define CODEC_MM_FOR_DMA_ONLY(flags) \
 	(((flags) & CODEC_MM_FLAGS_FROM_MASK) == CODEC_MM_FLAGS_DMA)
 
@@ -384,6 +386,7 @@ struct codec_mm_mgt_s {
 	int tee_clear_1_10ms_cnt;
 	int tee_clear_10_100ms_cnt;
 	int tee_clear_100ms_up_cnt;
+	u64 global_local_id;
 };
 
 #define PHY_OFF() offsetof(struct codec_mm_s, phy_addr)
@@ -1158,6 +1161,7 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 
 	if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA) {
 		mgt->alloced_cma_size -= mem->buffer_size;
+		ATRACE_COUNTER("codec_mm_cma_size", mgt->alloced_cma_size >> PAGE_SHIFT);
 	} else if (mem->from_flags ==
 		AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED) {
 		mgt->alloced_res_size -= mem->buffer_size;
@@ -1227,6 +1231,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	int count;
 	int ret;
 	unsigned long flags;
+	u32 local_id = 0;
 
 	if (secure_mem_ctrl && (memflags & CODEC_MM_FLAGS_TVP) &&
 		(memflags & CODEC_MM_FLAGS_FOR_TRY_PREALLOC)) {
@@ -1292,6 +1297,9 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	mem->flags = memflags;
 	INIT_LIST_HEAD(&mem->release_cb_list);
 	mem->release_cb_cnt = 0;
+	local_id = (mgt->global_local_id++) & MAX_LOCAL_ID;
+	mem->local_id = local_id * 1000000 + count;
+	ATRACE_ASYNC_BEGIN("codec_mm_alloc", mem->local_id);
 	ret = codec_mm_alloc_in(mgt, mem);
 	if (ret < 0) {
 		if (mgt->alloced_for_sc_cnt > 0 && /*have used for scatter.*/
@@ -1322,6 +1330,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 				owner, size, ret);
 		pr_err("mem flags %d %d, %d\n",
 		       memflags, mem->flags, align2n);
+		ATRACE_ASYNC_END("codec_mm_alloc", mem->local_id);
 		kfree(mem);
 		dump_mem_infos(NULL);
 		if (mgt->tvp_enable)
@@ -1333,6 +1342,9 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	spin_lock_init(&mem->lock);
 	spin_lock_irqsave(&mgt->lock, flags);
 	mem->mem_id = mgt->global_memid++;
+	ATRACE_ASYNC_END("codec_mm_alloc", mem->local_id);
+	ATRACE_COUNTER("codec_mm_alloc_id", mem->mem_id);
+	ATRACE_COUNTER("codec_mm_alloc_id", 0);
 	list_add_tail(&mem->list, &mgt->mem_list);
 	switch (mem->from_flags) {
 	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_PAGES:
@@ -1340,6 +1352,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		break;
 	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA:
 		mgt->alloced_cma_size += mem->buffer_size;
+		ATRACE_COUNTER("codec_mm_cma_size", mgt->alloced_cma_size >> PAGE_SHIFT);
 		break;
 	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP:
 		mgt->tvp_pool.alloced_size += mem->buffer_size;
@@ -1453,7 +1466,12 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 			pr_err("%s, error, i %d, release %d\n",
 					__func__, i, mem->release_cb_cnt);
 		}
+
+		ATRACE_ASYNC_BEGIN("codec_mm_free", mem->local_id);
 		codec_mm_free_in(mgt, mem);
+		ATRACE_ASYNC_END("codec_mm_free", mem->local_id);
+		ATRACE_COUNTER("codec_mm_free_id", mem->mem_id);
+		ATRACE_COUNTER("codec_mm_free_id", 0);
 		kfree(mem);
 		if (release_cb)
 			vfree(release_cb);
@@ -1473,17 +1491,25 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	struct codec_mm_s *mem = NULL;
-	void *vaddr = NULL;
+	void *vaddr;
 	dma_addr_t dma_handle = 0;
 	int buf_size = PAGE_ALIGN(size);
 	ulong flags;
-
-	vaddr = dma_alloc_coherent(mgt->dev, buf_size, &dma_handle, GFP_KERNEL);
-	if (!vaddr)
-		goto err;
+	u32 local_id = 0;
 
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
+		goto err;
+
+	mem->start_alloc_time = codec_mm_get_current_us();
+	local_id = (mgt->global_local_id++) & MAX_LOCAL_ID;
+	mem->local_id = local_id * 1000000 + (buf_size >> PAGE_SHIFT);
+	ATRACE_ASYNC_BEGIN("codec_mm_alloc", mem->local_id);
+	vaddr = dma_alloc_coherent(mgt->dev, buf_size, &dma_handle, GFP_KERNEL);
+	mem->end_alloc_time = codec_mm_get_current_us();
+	ATRACE_ASYNC_END("codec_mm_alloc", mem->local_id);
+
+	if (!vaddr)
 		goto err;
 
 	mem->owner[0]	= owner;
@@ -1495,10 +1521,12 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	spin_lock_irqsave(&mgt->lock, flags);
 
 	mem->mem_id = mgt->global_memid++;
-
+	ATRACE_COUNTER("codec_mm_alloc_id", mem->mem_id);
+	ATRACE_COUNTER("codec_mm_alloc_id", 0);
 	mgt->alloced_cma_size	+= buf_size;
 	mgt->alloced_from_coherent	+= buf_size;
 	mgt->total_alloced_size		+= buf_size;
+	ATRACE_COUNTER("codec_mm_cma_size", mgt->alloced_cma_size >> PAGE_SHIFT);
 	if (mgt->total_alloced_size > mgt->max_used_mem_size)
 		mgt->max_used_mem_size = mgt->total_alloced_size;
 	*handle				= (ulong)mem;
@@ -1508,13 +1536,13 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
 	codec_pr_dbg(CODEC_DBG_TRACE_ALLOC_FREE,
-			   "mem_id [%d] [%s] alloc coherent mem (phy %lx, vddr %px) size (%d).\n",
-			   mem->mem_id, owner, mem->phy_addr, vaddr, buf_size);
+			   "mem_id [%d] [%s] alloc coherent mem (phy %lx, vddr %px) size (%d) alloc_time %llu us.\n",
+			   mem->mem_id, owner, mem->phy_addr, vaddr, buf_size,
+			   mem->end_alloc_time - mem->start_alloc_time);
+
 	return vaddr;
 err:
 	kfree(mem);
-	if (vaddr)
-		dma_free_coherent(mgt->dev, buf_size, vaddr, dma_handle);
 
 	return NULL;
 }
@@ -1529,8 +1557,14 @@ void codec_mm_dma_free_coherent(ulong handle)
 	if (!handle)
 		return;
 
+	ATRACE_ASYNC_BEGIN("codec_mm_free", mem->local_id);
+
 	dma_free_coherent(mgt->dev, mem->buffer_size,
 		mem->vbuffer, mem->phy_addr);
+
+	ATRACE_ASYNC_END("codec_mm_free", mem->local_id);
+	ATRACE_COUNTER("codec_mm_free_id", mem->mem_id);
+	ATRACE_COUNTER("codec_mm_free_id", 0);
 
 	spin_lock_irqsave(&mgt->lock, flags);
 
@@ -1538,7 +1572,7 @@ void codec_mm_dma_free_coherent(ulong handle)
 	mgt->alloced_from_coherent	-= mem->buffer_size;
 	mgt->total_alloced_size		-= mem->buffer_size;
 	list_del(&mem->list);
-
+	ATRACE_COUNTER("codec_mm_cma_size", mgt->alloced_cma_size >> PAGE_SHIFT);
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
 	codec_pr_dbg(CODEC_DBG_TRACE_ALLOC_FREE,
@@ -2666,11 +2700,13 @@ static void dump_mem_infos(struct seq_file *m)
 				mem->from_flags,
 				atomic_read(&mem->use_cnt)
 				);
+			s += snprintf(pbuf + s, buf_size - tsize,
+				"tvp_flag %d, alloc time %llu us,",
+				!!(mem->flags & CODEC_MM_FLAGS_TVP),
+				mem->end_alloc_time - mem->start_alloc_time);
 			if (secure_mem_ctrl)
 				s += snprintf(pbuf + s, buf_size - tsize,
-					"tvp_flag %d, alloc time %llu us tee alloc %llu us,",
-					!!(mem->flags & CODEC_MM_FLAGS_TVP),
-					mem->end_alloc_time - mem->start_alloc_time,
+					"tee alloc %llu us,",
 					mem->tee_set_end_time - mem->tee_set_start_time);
 			s += snprintf(pbuf + s, buf_size - tsize,
 				"flags=%d,used:%u ms\n",
@@ -3359,6 +3395,7 @@ int codec_mm_mgt_init(struct device *dev)
 	codec_mm_tvp_segment_init();
 	default_cma_res_size = mgt->total_cma_size;
 	mgt->global_memid = 0;
+	mgt->global_local_id = 0;
 	mutex_init(&mgt->tvp_pool.pool_lock);
 	mutex_init(&mgt->cma_res_pool.pool_lock);
 	spin_lock_init(&mgt->lock);

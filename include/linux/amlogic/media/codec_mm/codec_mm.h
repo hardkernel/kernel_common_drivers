@@ -114,6 +114,7 @@ struct codec_mm_s {
 	u64 end_alloc_time;
 	u64 tee_set_start_time;
 	u64 tee_set_end_time;
+	u64 local_id;
 };
 
 struct codec_mm_cb_s;
