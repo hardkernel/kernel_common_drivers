@@ -113,6 +113,13 @@ struct meson_panel_dev {
 	int (*get_modes_vrr_range)(struct meson_panel_dev *panel, void *range, int max, int *num);
 };
 
+/*DisplayPort specified struct*/
+struct meson_DisplayPort_dev {
+	struct meson_connector_dev base;
+	int (*get_modes)(struct meson_DisplayPort_dev *dptx_dev,
+			 struct drm_display_mode **modes, int *num);
+};
+
 /*dummy_l specified struct*/
 struct meson_dummyl_dev {
 	struct meson_connector_dev base;
@@ -142,7 +149,10 @@ struct meson_dummyp_dev {
  *display service limit DRM connector type to range of u8 type
  */
 #define DRM_MODE_MESON_CONNECTOR_PANEL_START 99
-#define DRM_MODE_MESON_CONNECTOR_PANEL_END   150
+#define DRM_MODE_MESON_CONNECTOR_PANEL_END   148
+
+#define DRM_MODE_MESON_CONNECTOR_DP_START 149
+#define DRM_MODE_MESON_CONNECTOR_DP_END   158
 
 #define DRM_MODE_MESON_CONNECTOR_HDMI_START 159
 #define DRM_MODE_MESON_CONNECTOR_HDMI_END   190
@@ -160,6 +170,9 @@ enum {
 
 	DRM_MODE_CONNECTOR_MESON_EDP_A = 130,
 	DRM_MODE_CONNECTOR_MESON_EDP_B = 131,
+
+	DRM_MODE_CONNECTOR_MESON_DP_A = 150,
+	DRM_MODE_CONNECTOR_MESON_DP_B = 151,
 };
 
 enum {

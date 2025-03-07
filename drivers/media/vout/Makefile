@@ -16,3 +16,4 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/peripheral_lcd/Makef
 
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/dsc/Makefile
 
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/DisplayPort/Makefile

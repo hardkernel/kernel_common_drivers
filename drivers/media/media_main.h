@@ -157,6 +157,15 @@ static inline int cvbs_init_module(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_DisplayPort_TX
+int DisplayPort_TX_init(void);
+#else
+static inline int DisplayPort_TX_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_LCD
 int lcd_init(void);
 #else
