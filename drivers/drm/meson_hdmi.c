@@ -479,7 +479,13 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 		if (!tx_comm->edid_parse_in_hdmitx) {
 			DRM_INFO("[%s:%d]: edid parse in drm\n", __func__, __LINE__);
 			/* step1: SW: edid parse */
-			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			/* If edid is valid, parse edid, otherwise set fallback mode */
+			if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check,
+						tx_comm->EDID_buf))
+				hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			else
+				edid_set_fallback_mode(&tx_comm->rxcap);
+
 			hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
 			/* step3：SW: update ced status */
 			hdmitx_common_notify_ced_status(tx_comm);

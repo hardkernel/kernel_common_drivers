@@ -638,10 +638,15 @@ static void hdmitx_bootup_parse_edid(struct hdmitx_common *tx_comm)
 
 	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
-	hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-	/* update cec phy addr and audio data block */
-	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-	hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+	/* If edid is valid, parse edid, otherwise set fallback mode */
+	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf)) {
+		hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		/* update cec phy addr and audio data block */
+		hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+	} else {
+		edid_set_fallback_mode(&tx_comm->rxcap);
+	}
 	hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
 
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);

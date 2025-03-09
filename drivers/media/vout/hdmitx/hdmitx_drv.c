@@ -894,16 +894,11 @@ static void hdmitx21_reset_hdcp_param(struct hdmitx_dev *hdev)
 	hdmitx21_audio_mute_op(1, AUDIO_MUTE_PATH_3);
 }
 
-static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
+static void hdmitx_update_cec_and_audio_info(struct hdmitx_common *tx_comm)
 {
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-	unsigned long flags = 0;
+	if (!tx_comm)
+		return;
 
-	/* step1: SW: EDID read */
-	hdmitx_plugin_common_work(tx_comm);
-
-	/* step2: SW: update cec phy addr and audio data block */
-	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
 	/*
 	 * hdmitx edid parsing debug function, parsed in drm by default
@@ -916,13 +911,31 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
 	 */
 	if (tx_comm->edid_parse_in_hdmitx) {
 		HDMITX_INFO("edid parse in hdmitx\n");
-		hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		/* If edid is valid, parse edid, otherwise set fallback mode */
+		if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf))
+			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		else
+			edid_set_fallback_mode(&tx_comm->rxcap);
+
 		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
 		hdmitx_common_notify_ced_status(tx_comm);
 	}
 
 	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
 	hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+}
+
+static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
+{
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	unsigned long flags = 0;
+
+	/* step1: SW: EDID read */
+	hdmitx_plugin_common_work(tx_comm);
+
+	/* step2: SW: update cec phy addr and audio data block */
+	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
+	hdmitx_update_cec_and_audio_info(tx_comm);
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 
 	/* step3: SW: notify client modules and update uevent state */
@@ -2615,10 +2628,14 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, false);
 	/* need to update EDID in case TV changed during suspend */
 	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
-	if (tx_comm->hpd_state)
+	if (tx_comm->hpd_state) {
+		/* step1: SW: EDID read */
 		hdmitx_plugin_common_work(tx_comm);
-	else
+		/* step2: SW: update cec phy addr and audio data block */
+		hdmitx_update_cec_and_audio_info(tx_comm);
+	} else {
 		hdmitx_plugout_common_work(tx_comm);
+	}
 	hdmitx_common_notify_hpd_status(tx_comm, false);
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 

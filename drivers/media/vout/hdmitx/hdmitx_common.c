@@ -713,6 +713,43 @@ bool hdmitx_hdr10p_en(struct hdmitx_hw_common *tx_hw)
 		HDMI_HDR10P_TYPE;
 }
 
+/* index is hdmi 1.4 vic in vsif, value is hdmi2.0 vic */
+static const u32 hdmi14_4k_vics[] = {
+	/* 0 - dummy */
+	0,
+	/* 1 - 3840x2160@30Hz */
+	95,
+	/* 2 - 3840x2160@25Hz */
+	94,
+	/* 3 - 3840x2160@24Hz */
+	93,
+	/* 4 - 4096x2160@24Hz (SMPTE) */
+	98,
+};
+
+/*
+ * HDMI 1.4 introduces the 4 types of 4K resolutions
+ * 3840x2160@30/25/24Hz and 4096x2160@24Hz
+ * but no corresponding CEA-861-D VIC.
+ * so it uses VSIF.hdmi_vic as 1/2/3/4 to represent 4 types
+ * In CEA-861-F, here assigns the VIC 95/94/93/98 later
+ * this function converts 861-F 4k vic to VSIF.hdmi_vic
+ */
+u32 hdmitx_edid_get_hdmi14_4k_vic(u32 vic)
+{
+	u32 ret = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hdmi14_4k_vics); i++) {
+		if (vic == hdmi14_4k_vics[i]) {
+			ret = i;
+			break;
+		}
+	}
+
+	return ret;
+}
+
 int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
@@ -1310,6 +1347,60 @@ bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap)
 
 	return only_support_sd;
 }
+
+/*
+ * if the EDID is invalid, then set the fallback mode
+ * Resolution & RefreshRate:
+ *   1920x1080p60hz 16:9
+ *   1280x720p60hz 16:9 (default)
+ *   720x480p 16:9
+ * ColorSpace: RGB
+ * ColorDepth: 8bit
+ * audio : pcm
+ */
+void edid_set_fallback_mode(struct rx_cap *prxcap)
+{
+	struct vsdb_phyaddr *phyaddr;
+
+	if (!prxcap)
+		return;
+
+	HDMITX_INFO("set fallback mode\n");
+	/* EDID extended blk chk error, set the 720p60, rgb,8bit */
+	phyaddr = &prxcap->vsdb_phy_addr;
+	prxcap->ieeeoui = HDMI_IEEE_OUI;
+
+	/* set the default cec physical address as 0xffff */
+	phyaddr->a = 0xf;
+	phyaddr->b = 0xf;
+	phyaddr->c = 0xf;
+	phyaddr->d = 0xf;
+	phyaddr->valid = 0;
+
+	/* 165MHZ / 5 */
+	prxcap->Max_TMDS_Clock1 = DEFAULT_MAX_TMDS_CLK;
+	/* only RGB */
+	prxcap->native_Mode = 0;
+	/* only 8bit */
+	prxcap->dc_y444 = 0;
+	prxcap->VIC_count = 0x3;
+	prxcap->VIC[0] = HDMI_16_1920x1080p60_16x9;
+	prxcap->VIC[1] = HDMI_4_1280x720p60_16x9;
+	prxcap->VIC[2] = HDMI_3_720x480p60_16x9;
+	prxcap->native_vic = HDMI_4_1280x720p60_16x9;
+	HDMITX_INFO("set default vic 720p60hz\n");
+
+	prxcap->AUD_count = 1;
+	/* PCM */
+	prxcap->RxAudioCap[0].audio_format_code = 1;
+	/* 2ch */
+	prxcap->RxAudioCap[0].channel_num_max = 1;
+	/* 32/44.1/48 kHz */
+	prxcap->RxAudioCap[0].freq_cc = 7;
+	/* 16bit */
+	prxcap->RxAudioCap[0].cc3 = 1;
+}
+EXPORT_SYMBOL(edid_set_fallback_mode);
 
 #ifdef CONFIG_AMLOGIC_DSC
 /*

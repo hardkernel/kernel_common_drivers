@@ -14,5 +14,7 @@ int hdmitx_sysfs_common_create(struct device *dev,
 		struct hdmitx_hw_common *tx_hw);
 
 int hdmitx_sysfs_common_destroy(struct device *dev);
-
+ssize_t _show_aud_cap(struct rx_cap *prxcap, char *buf, int size);
+/* dump rx cap information in edid */
+int hdmitx_edid_print_sink_cap(const struct rx_cap *prxcap, char *buffer, int buffer_len);
 #endif

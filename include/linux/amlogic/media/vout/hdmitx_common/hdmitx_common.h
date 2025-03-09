@@ -424,6 +424,7 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 
 /*edid valid api*/
 bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap);
+void edid_set_fallback_mode(struct rx_cap *prxcap);
 
 /* Attach platform related functions to hdmitx_common;
  * Currently hdmitx_tracer, hdmitx_uevent_mgr is platform related;
@@ -444,6 +445,8 @@ int hdmitx_common_notify_ced_status(struct hdmitx_common *tx_comm);
 int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent);
 
 int hdmitx_set_uevent(struct hdmitx_common *tx_comm, enum hdmitx_event type, int val);
+
+u32 hdmitx_edid_get_hdmi14_4k_vic(u32 vic);
 /* packet api */
 /* mode = 0 , disable allm; mode 1: set allm; mode -1: */
 int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode);

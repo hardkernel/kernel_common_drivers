@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include "hdmitx_module.h"
 #include "hdmitx_version.h"
+#include "hdmitx_sysfs_common.h"
 
 struct hdmitx_dbg_files_s {
 	const char *name;
