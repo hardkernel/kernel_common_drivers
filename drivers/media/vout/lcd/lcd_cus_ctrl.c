@@ -362,7 +362,7 @@ static int lcd_cus_ctrl_attr_parse_extend_tmg_ini(struct aml_lcd_drv_s *pdrv,
 		tmg_temp.hsync_pol = val;
 		sprintf(str, "extend_tmg_%d_vpw", i);
 		tmg_temp.vsync_width = lcd_ini_get_val(inip, psec, str, 0);
-		if (tmg_temp.vsync_width)
+		if (tmg_temp.vsync_width == 0)
 			break;
 		sprintf(str, "extend_tmg_%d_vbp", i);
 		tmg_temp.vsync_bp = lcd_ini_get_val(inip, psec, str, 0);

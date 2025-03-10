@@ -255,18 +255,19 @@ void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDERR("[%d]: %s\n", pdrv->index, __func__);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	lcd_venc_op.venc_vrr_recovery(pdrv);
 }
 
+/*vsync stage*/
 void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
 {
 	if (!lcd_venc_op.venc_set_vtotal)
 		return;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDERR("[%d]: %s\n", pdrv->index, __func__);
+	if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	lcd_venc_op.venc_set_vtotal(pdrv, vtotal);
 }
