@@ -2001,16 +2001,33 @@ static int aml_sd_emmc_cali_v3(struct mmc_host *mmc,
 	struct mmc_command stop = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
+	struct meson_host *host = mmc_priv(mmc);
+	u64 capacity = 0;
+
+	if (mmc->card)
+		capacity = mmc->card->ext_csd.sectors - 4096;
 
 	cmd.opcode = opcode;
-	if (!strcmp(pattern, MMC_PATTERN_NAME))
-		cmd.arg = MMC_PATTERN_OFFSET;
-	else if (!strcmp(pattern, MMC_MAGIC_NAME))
-		cmd.arg = MMC_MAGIC_OFFSET;
-	else if (!strcmp(pattern, MMC_RANDOM_NAME))
-		cmd.arg = MMC_RANDOM_OFFSET;
-	else if (!strcmp(pattern, MMC_DTB_NAME))
-		cmd.arg = MMC_DTB_OFFSET;
+	if (host->reserved_out == 1 && capacity != 0) {
+		if (!strcmp(pattern, MMC_PATTERN_NAME))
+			cmd.arg = capacity;
+		else if (!strcmp(pattern, MMC_MAGIC_NAME))
+			cmd.arg = capacity + (MMC_PATTERN_SIZE >> 9);
+		else if (!strcmp(pattern, MMC_RANDOM_NAME))
+			cmd.arg = capacity + ((MMC_PATTERN_SIZE + MMC_MAGIC_SIZE) >> 9);
+		else if (!strcmp(pattern, MMC_DTB_NAME))
+			cmd.arg = MMC_DTB_OFFSET;
+	} else {
+		if (!strcmp(pattern, MMC_PATTERN_NAME))
+			cmd.arg = MMC_PATTERN_OFFSET;
+		else if (!strcmp(pattern, MMC_MAGIC_NAME))
+			cmd.arg = MMC_MAGIC_OFFSET;
+		else if (!strcmp(pattern, MMC_RANDOM_NAME))
+			cmd.arg = MMC_RANDOM_OFFSET;
+		else if (!strcmp(pattern, MMC_DTB_NAME))
+			cmd.arg = MMC_DTB_OFFSET;
+	}
+
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 	stop.opcode = MMC_STOP_TRANSMISSION;
 	stop.arg = 0;
@@ -3409,6 +3426,51 @@ static int mmc_intf3_win_tuning(struct mmc_host *mmc, u32 opcode)
 	return ret;
 }
 
+void mmc_pattern_check(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	int check_pass = 1;
+	u64 capacity = 0;
+	u64 offset = 0;
+	u32 *buf = NULL;
+	int i;
+
+	host->reserved_out = 0;
+	single_read_scan(mmc, MMC_READ_SINGLE_BLOCK, host->blk_test,
+			512, 1, MMC_PATTERN_OFFSET);
+	buf = (u32 *)host->blk_test;
+	for (i = 0; i < 128; i += 1) {
+		if (buf[i] != 0x55aa55aa) {
+			check_pass = 0;
+			break;
+		}
+	}
+
+	if (check_pass == 1)
+		return;
+
+	if (mmc->card) {
+		capacity = mmc->card->ext_csd.sectors;
+		check_pass = 1;
+		if (capacity != 0) {
+			offset = capacity - ((2 * SZ_1M) >> 9);
+			single_read_scan(mmc, MMC_READ_SINGLE_BLOCK, host->blk_test,
+					512, 1, offset);
+			buf = (u32 *)host->blk_test;
+			for (i = 0; i < 128; i += 1) {
+				if (buf[i] != 0x55aa55aa) {
+					check_pass = 0;
+					break;
+				}
+			}
+			if (check_pass == 1) {
+				host->reserved_out = 1;
+				pr_info("reserved partition out\n");
+			}
+		}
+	}
+}
+
 static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -3421,6 +3483,8 @@ static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		err = meson_mmc_fixadj_tuning(mmc, opcode);
 
 	host->is_tuning = 0;
+
+	mmc_pattern_check(mmc);
 
 	return err;
 }

@@ -200,6 +200,7 @@ struct meson_host {
 	bool mmc_stat_debug;
 	unsigned int req_size;
 	int run_low_mem;
+	int reserved_out;
 };
 
 struct wifi_clk_table {
@@ -407,10 +408,13 @@ extern struct mmc_host *sdio_host;
 #define		SZ_1M			0x00100000
 #define	MMC_PATTERN_NAME		"pattern"
 #define	MMC_PATTERN_OFFSET		((SZ_1M * (36 + 3)) / 512)
+#define	MMC_PATTERN_SIZE		(256 * 512)
 #define	MMC_MAGIC_NAME			"magic"
 #define	MMC_MAGIC_OFFSET		((SZ_1M * (36 + 6)) / 512)
+#define	MMC_MAGIC_SIZE			(256 * 512)
 #define	MMC_RANDOM_NAME			"random"
 #define	MMC_RANDOM_OFFSET		((SZ_1M * (36 + 7)) / 512)
+#define	MMC_RANDOM_SIZE			(256 * 512)
 #define	MMC_DTB_NAME			"dtb"
 #define	MMC_DTB_OFFSET			((SZ_1M * (36 + 4)) / 512)
 #define CALI_BLK_CNT	80
