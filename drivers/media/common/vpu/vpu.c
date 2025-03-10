@@ -56,6 +56,7 @@ static struct vpu_dev_s *vpu_dev_local[VPU_DEV_MAX];
 static unsigned int vpu_dev_num;
 static u32 vpu_clk_level_saved;
 static u32 vapb_clk_level_saved;
+static struct device *vpu_device;
 
 struct vpu_conf_s vpu_conf = {
 	.data = NULL,
@@ -3030,6 +3031,17 @@ static void vpu_early_suspend(struct early_suspend *h)
 {
 	if (!vpu_conf.data)
 		return;
+	if (vpu_conf.data->chip_type >= VPU_CHIP_SC2) {
+		unsigned int clk;
+
+		/* down vpu clk when suspend */
+		vpu_clk_level_saved = vpu_conf.clk_level;
+		vapb_clk_level_saved = clk_get_rate(vpu_conf.vapb_clk);
+
+		clk = vpu_clk_suspend.freq;
+		vapb_clk_switch(0);
+		set_vpu_clk(clk);
+	}
 
 	VPUPR("early_suspend clk: %uHz(0x%x)\n",
 	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)));
@@ -3037,8 +3049,31 @@ static void vpu_early_suspend(struct early_suspend *h)
 
 static void vpu_late_resume(struct early_suspend *h)
 {
+	unsigned int clk;
+	int ret;
+
 	if (!vpu_conf.data)
 		return;
+	ret = vpu_power_init_check();
+	if (!vpu_device)
+		return;
+	vpu_clktree_init(vpu_device);
+	if (ret)
+		vpu_power_init();
+
+	if (!vpu_conf.data)
+		return;
+
+	if (vpu_conf.data->chip_type >= VPU_CHIP_SC2) {
+		clk = vpu_clk_level_saved;
+
+		vapb_clk_switch(1);
+		set_vpu_clk(clk);
+	} else {
+		mutex_lock(&vpu_clk_mutex);
+		set_vpu_clk(vpu_conf.clk_level);
+		mutex_unlock(&vpu_clk_mutex);
+	}
 
 	VPUPR("late_resume clk: %uHz(0x%x)\n",
 	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)));
@@ -3085,6 +3120,7 @@ static int vpu_probe(struct platform_device *pdev)
 
 	vpu_debug_print_flag = 0;
 
+	vpu_device = &pdev->dev;
 	match = of_match_device(vpu_of_table, &pdev->dev);
 	if (!match) {
 		VPUERR("%s: no match table\n", __func__);
