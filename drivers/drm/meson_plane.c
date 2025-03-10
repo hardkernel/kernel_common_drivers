@@ -760,13 +760,15 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 		plane_info->dmabuf = ubo->dmabuf;
 	} else {
 		plane_info->dmabuf = meson_fb->bufp[0]->base.dma_buf;
+		plane_info->vf = NULL;
+		plane_info->is_uvm = 0;
 		if (!plane_info->dmabuf)
 			plane_info->dmabuf = meson_fb->bufp[0]->dmabuf;
 	}
 	if (!plane_info->dmabuf)
 		return -EINVAL;
 
-	DRM_DEBUG("%s dmabuf %px\n", __func__, plane_info->dmabuf);
+	DRM_DEBUG("%s dmabuf %px vf %px\n", __func__, plane_info->dmabuf, plane_info->vf);
 	#else
 	if (!fb)
 		return -EINVAL;
