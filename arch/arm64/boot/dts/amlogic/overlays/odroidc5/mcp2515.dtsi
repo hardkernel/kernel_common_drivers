@@ -33,7 +33,7 @@
 				reg = <0>;
 				clocks = <&can0_clk>;
 				interrupt-parent = <&gpio_intc>;
-				interrupts = <56 IRQ_TYPE_EDGE_FALLING>; /* GPIOX_5 */
+				interrupts = <46 IRQ_TYPE_EDGE_FALLING>; /* GPIOX_5 */
 				spi-max-frequency = <10000000>;
 				status = "okay";
 			};
