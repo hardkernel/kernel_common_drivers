@@ -1139,6 +1139,15 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 			new_crtc_state->connectors_changed = true;
 			DRM_ERROR("hdmitx_on changed, force modeset.\n");
 		}
+
+		DRM_DEBUG("update[%d], color_force[%d], cs[%d %d], cd[%d %d], frac_rate[%d %d]\n",
+			new_hdmitx_state->update, new_hdmitx_state->color_force,
+			old_hdmitx_state->color_attr_para.colorformat,
+			new_hdmitx_state->color_attr_para.colorformat,
+			old_hdmitx_state->color_attr_para.bitdepth,
+			new_hdmitx_state->color_attr_para.bitdepth,
+			old_hdmitx_state->frac_rate_policy,
+			new_hdmitx_state->frac_rate_policy);
 		/*force set mode.*/
 		if (new_hdmitx_state->update)
 			new_crtc_state->connectors_changed = true;

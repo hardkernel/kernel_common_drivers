@@ -631,7 +631,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct meson_drm *priv = amcrtc->priv;
 	int hdrpolicy = 0;
 	struct drm_connector_state *new_conn_state;
-	struct meson_connector *mesonconn;
+	struct meson_connector *mesonconn = NULL;
 	struct drm_connector *connector;
 	int i;
 
@@ -656,11 +656,11 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		DRM_ERROR("meson_crtc_enable NULL mode failed.\n");
 		return;
 	}
-	DRM_INFO("%s-[%d] in: new[%s], old[%s], vmode[%d-%d], uboot[%d]\n",
-		__func__, amcrtc->crtc_index,
-		adjusted_mode->name, old_mode->name,
+	DRM_INFO("%s-[%d] in: new[%s], old[%s], vmode[%d-%d], uboot[%d], compat[%d], vrr[%d]\n",
+		__func__, amcrtc->crtc_index, adjusted_mode->name, old_mode->name,
 		meson_crtc_state->vmode, meson_crtc_state->preset_vmode,
-		meson_crtc_state->uboot_mode_init);
+		meson_crtc_state->uboot_mode_init, priv->compat_mode,
+		crtc->state->vrr_enabled);
 	adjusted_vrefresh = drm_mode_vrefresh(adjusted_mode);
 
 	if (!priv->compat_mode) {
@@ -713,11 +713,15 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 			name = brr_name;
 	}
 
-	DRM_DEBUG("%s, connector_type = %d\n", __func__, mesonconn->connector_type);
-
 	if (meson_crtc_state->preset_vmode == VMODE_INVALID) {
+		if (!mesonconn) {
+			DRM_ERROR("not match crtc and mesonconn is NULL\n");
+			return;
+		}
 		mode = vout_func_validate_vmode(amcrtc->vout_index, name,
 			mesonconn->connector_type, 0);
+		DRM_DEBUG("%s, connector_type = %d, mode = %s, vmode =%d\n",
+			__func__, mesonconn->connector_type, name, mode);
 		if (mode == VMODE_MAX) {
 			DRM_ERROR("crtc [%d]: no matched vout mode\n", amcrtc->crtc_index);
 			return;
@@ -857,6 +861,11 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	new_state = to_am_meson_crtc_state(crtc_state);
+	DRM_DEBUG("modeset[%d]force_hint[%d]dv enable[%d %d]eotf[%d %d]dv mode[%d %d]brr[%d]\n",
+		atomic_state->allow_modeset, am_drm_param.crtc_force_hint,
+		cur_state->crtc_dv_enable, new_state->crtc_dv_enable,
+		cur_state->eotf_type_by_property, new_state->eotf_type_by_property,
+		cur_state->dv_mode, new_state->dv_mode, new_state->brr_update);
 	/*apply parameters need modeset.*/
 	if (atomic_state->allow_modeset) {
 		/*apply state value not set from property.*/
@@ -878,7 +887,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 		if (cur_state->hdr_conversion_ctrl != new_state->hdr_conversion_ctrl)
 			crtc_state->mode_changed = true;
 
-		if (cur_state->brr_update)
+		if (new_state->brr_update)
 			crtc_state->mode_changed = true;
 	}
 
