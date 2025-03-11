@@ -35,6 +35,7 @@
 #include <linux/amlogic/media/video_sink/video_keeper.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
+#include <linux/vmalloc.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
 #include <linux/amlogic/media/di/di.h>
