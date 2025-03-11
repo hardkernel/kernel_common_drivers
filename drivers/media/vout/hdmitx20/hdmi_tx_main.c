@@ -3713,6 +3713,12 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		if (ret)
 			hdev->tx_comm.hdcp_ctl_lvl = 0;
 
+		ret = of_property_read_u32(pdev->dev.of_node, "enable_hdr10plus", &val);
+		if (ret)
+			HDMITX_INFO("not find enable_hdr10plus\n");
+		else
+			hdev->tx_comm.enable_hdr10plus = val;
+
 		/* Get reg information */
 		ret = hdmitx_init_reg_map(pdev);
 	}

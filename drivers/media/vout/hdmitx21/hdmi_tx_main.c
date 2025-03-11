@@ -4610,6 +4610,12 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 				HDMITX_INFO("not find pwr_ctl\n");
 		}
 
+		ret = of_property_read_u32(pdev->dev.of_node, "enable_hdr10plus", &val);
+		if (ret)
+			HDMITX_INFO("not find enable_hdr10plus\n");
+		else
+			hdev->tx_comm.enable_hdr10plus = val;
+
 		/* Get reg information */
 		ret = hdmitx21_init_reg_map(pdev);
 		if (ret < 0)
