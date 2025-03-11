@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/hdmi.h>
+#include "hdmitx.h"
 #include "hdmitx_types.h"
 
 /* half for valid vic, half for vic with y420*/
@@ -313,14 +314,6 @@ struct vesa_standard_timing {
 	unsigned short vsync;
 	unsigned short tmds_clk; /* Value = Pixel clock ?? 10,000 */
 	enum hdmi_vic vesa_timing;
-};
-
-enum hdmi_color_depth {
-	COLORDEPTH_24B = 4,
-	COLORDEPTH_30B = 5,
-	COLORDEPTH_36B = 6,
-	COLORDEPTH_48B = 7,
-	COLORDEPTH_RESERVED = 11,
 };
 
 struct parse_cd {

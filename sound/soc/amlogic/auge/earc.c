@@ -50,7 +50,7 @@
 #endif
 
 #ifdef CONFIG_AMLOGIC_HDMITX
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #endif
 
 #define DRV_NAME "EARC"

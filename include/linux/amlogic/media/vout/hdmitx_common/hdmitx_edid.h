@@ -16,6 +16,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_mode.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_hw_common.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #endif
 
 struct hdmitx_common;

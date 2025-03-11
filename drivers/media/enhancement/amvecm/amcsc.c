@@ -61,7 +61,7 @@
 #include <linux/amlogic/gki_module.h>
 #include "color/ai_color.h"
 #include "hdr/am_cuva_hdr_tm.h"
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include "hdr/am_hdr_sbtm.h"
 
 uint debug_csc;
@@ -4193,7 +4193,7 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 	}
 
 	/*add 8bit hdr10 limitation except(sink-led and matchcontent*/
-	if (get_hdmi_colordepth(vinfo) == COLORDEPTH_24B) {
+	if (vinfo && vinfo->cd == COLORDEPTH_24B) {
 		if (is_amdv_enable() && get_hdr_policy() == 1 &&
 			sink_dv_support(vinfo) && get_amdv_ll_policy() == 0)
 			new_hdr_cap = hdr_cap;/*no 8bit limition,hdmi will trans 444-8=>422-12*/

@@ -7,7 +7,7 @@
  */
 
 #include <sound/pcm.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
 #include "sharebuffer.h"

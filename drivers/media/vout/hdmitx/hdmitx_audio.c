@@ -13,6 +13,7 @@
 #include <sound/control.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_log.h"
+#include "hdmitx_audio.h"
 
 /* Recommended N and Expected CTS for 32kHz */
 static const struct hdmi_audio_fs_ncts aud_32k_para = {

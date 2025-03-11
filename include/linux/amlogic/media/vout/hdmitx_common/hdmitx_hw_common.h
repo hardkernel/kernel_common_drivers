@@ -10,6 +10,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_mode.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 
 /*hw cntl cmd define, abstract from hdmi_tx_module.h*/
 #define CMD_DDC_OFFSET          (0x10 << 24)

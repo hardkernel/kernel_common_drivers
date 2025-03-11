@@ -5,7 +5,7 @@
 
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 

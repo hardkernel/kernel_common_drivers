@@ -24,6 +24,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_packet.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_infoframe.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_config.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include <linux/amlogic/media/vout/dsc.h>
 #include <linux/amlogic/media/vrr/vrr.h>
 
@@ -593,7 +594,6 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	struct notifier_block *block,
 	unsigned long cmd, void *para);
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
-enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
 int hdmitx_common_get_hdr_status(void);
@@ -647,10 +647,6 @@ typedef void (*pf_callback)(bool st);
 /* hdmitx21 external interface */
 #endif
 
-int get_hpd_state(void);
-int hdmitx_event_notifier_regist(struct notifier_block *nb);
-int hdmitx_event_notifier_unregist(struct notifier_block *nb);
-struct vsdb_phyaddr *get_hdmitx_phy_addr(void);
 int register_earcrx_callback(pf_callback callback);
 void unregister_earcrx_callback(void);
 void hdmitx_disable_frl_work(struct hdmitx_common *tx_comm);
@@ -662,23 +658,5 @@ int hdmitx_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *p
 int hdmitx_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
 int hdmitx_disable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
 int get_hdmitx_init(void);
-/*
- * HDMI TX output enable, such as ACRPacket/AudInfo/AudSample
- * enable: 1, normal output; 0: disable output
- */
-void hdmitx_ext_set_audio_output(int enable);
-
-/*
- * return Audio output status
- * 1: normal output status; 0: output disabled
- */
-int hdmitx_ext_get_audio_status(void);
-
-/*!!DEPRECATED API, DONT USE!!*/
-void get_attr(char attr[16]);
-void setup_attr(const char *buf);
-
-/* for eARC audio call */
-void hdmitx_ext_plugin_handler(void);
 
 #endif

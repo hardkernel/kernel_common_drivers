@@ -1307,19 +1307,6 @@ void get_hdmi_efuse(struct hdmitx_common *tx_comm)
 	}
 }
 
-enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo)
-{
-	enum hdmi_color_depth cd = COLORDEPTH_24B;
-
-	if (!vinfo)
-		return cd;
-
-	if (vinfo->cd)
-		cd = vinfo->cd;
-
-	return cd;
-}
-
 bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap)
 {
 	enum hdmi_vic vic;
@@ -1583,12 +1570,6 @@ struct vsdb_phyaddr *get_hdmitx_phy_addr(void)
 	return &hdev->tx_comm.rxcap.vsdb_phy_addr;
 }
 EXPORT_SYMBOL(get_hdmitx_phy_addr);
-
-void get_attr(char attr[16])
-{
-	HDMITX_ERROR("Not support tx20 %s anymore.\n", __func__);
-}
-EXPORT_SYMBOL(get_attr);
 
 void setup_attr(const char *buf)
 {
