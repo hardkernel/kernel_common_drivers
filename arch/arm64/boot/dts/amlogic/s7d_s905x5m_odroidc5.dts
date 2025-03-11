@@ -1099,3 +1099,9 @@
 &loopbacka {
 	status = "disabled";
 };
+
+&apb4 {
+	watchdog@2100 {
+		amlogic,feed_watchdog_mode = <0>;
+	};
+};
