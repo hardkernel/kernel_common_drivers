@@ -30,6 +30,15 @@
 int gamma_ctl = 1;
 int meson_gamma_ctl = -1;
 
+static int drm_get_dv_support_info(void)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	return get_dv_support_info();
+#else
+	return 0;
+#endif
+}
+
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool get_amdv_mode(void)
 {
@@ -40,13 +49,6 @@ bool is_amdv_enable(void)
 {
 	return false;
 }
-
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
-int get_dv_support_info(void)
-{
-	return 0;
-}
-#endif
 
 void set_amdv_ll_policy(int policy)
 {
@@ -380,7 +382,7 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 		*val = crtc_state->nonblock_by_vblank;
 		return 0;
 	} else if (property == meson_crtc->dv_support_info) {
-		*val = get_dv_support_info();
+		*val = drm_get_dv_support_info();
 		return 0;
 	}
 
@@ -472,7 +474,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
 	drm_printf(p, "\t\tdrm_policy_mask=%llu\n", priv->of_conf.drm_policy_mask);
-	drm_printf(p, "\t\tdv_support_info=%d\n", get_dv_support_info());
+	drm_printf(p, "\t\tdv_support_info=%d\n", drm_get_dv_support_info());
 
 	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
 		drm_printf(p, "\t\tgfcd_afbc_enable=%u\n",
