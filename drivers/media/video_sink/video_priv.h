@@ -1246,6 +1246,8 @@ bool is_plink_available(struct vframe_s *vf);
 int screen_orientation(void);
 #endif
 
+void safa_postsc_coef_lut_config(void);
+
 void hdmi_in_delay_maxmin_old(struct vframe_s *vf);
 void hdmi_in_delay_maxmin_new(struct vframe_s *vf);
 int vpp_set_super_scaler_regs(struct video_layer_s *layer,

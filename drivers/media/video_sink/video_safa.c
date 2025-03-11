@@ -433,25 +433,22 @@ static int pps_lut_tap8_s11_default[33][8] = {
 	{-8, 31, -85, 318, 318, -85, 31, -8}
 };
 
-static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
-	u32 SAFA_PPS_CNTL_SCALE_COEF_IDX,
+static void safa_pps_scale_set_coef(u32 SAFA_PPS_CNTL_SCALE_COEF_IDX,
 	u32 SAFA_PPS_CNTL_SCALE_COEF)
 {
 	int i;
-	u8 vpp_index = vsr->vpp_index;
-	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 
 	/*postsc coef lut*/
 	/* dir 4tap */
-	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0000);
+	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0000);
 	for (i = 0; i < 33; i++) {
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][0] >> 8) & 0xff) << 24) |
 			((pps_lut_tap4_s11_default[i][0]  & 0xff) << 16) |
 			(((pps_lut_tap4_s11_default[i][1] >> 8) & 0xff) << 8) |
 			((pps_lut_tap4_s11_default[i][1]  & 0xff) << 0));
 		/* 4tap */
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][2] >> 8) & 0xff) << 24) |
 			((pps_lut_tap4_s11_default[i][2]  & 0xff) << 16) |
 			(((pps_lut_tap4_s11_default[i][3] >> 8) & 0xff) << 8) |
@@ -459,29 +456,29 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 
 	/* hor 8tap */
-	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0080);
+	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0080);
 	for (i = 0; i < 33; i++) {
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap8_s11_default[i][0] >> 8) & 0xff) << 24) |
 			((pps_lut_tap8_s11_default[i][0]  & 0xff) << 16) |
 			(((pps_lut_tap8_s11_default[i][1] >> 8) & 0xff) << 8) |
 			((pps_lut_tap8_s11_default[i][1] & 0xff) << 0));
 
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap8_s11_default[i][2] >> 8) & 0xff) << 24) |
 			((pps_lut_tap8_s11_default[i][2] & 0xff) << 16) |
 			(((pps_lut_tap8_s11_default[i][3] >> 8) & 0xff) << 8) |
 			((pps_lut_tap8_s11_default[i][3] & 0xff) << 0));
 	}
 
-	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0100);
+	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0100);
 	for (i = 0; i < 33; i++) {
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap8_s11_default[i][4] >> 8) & 0xff) << 24) |
 			((pps_lut_tap8_s11_default[i][4] & 0xff) << 16) |
 			(((pps_lut_tap8_s11_default[i][5] >> 8) & 0xff) << 8) |
 			((pps_lut_tap8_s11_default[i][5] & 0xff) << 0));
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap8_s11_default[i][6] >> 8) & 0xff) << 24) |
 			((pps_lut_tap8_s11_default[i][6] & 0xff) << 16) |
 			(((pps_lut_tap8_s11_default[i][7] >> 8) & 0xff) << 8) |
@@ -489,14 +486,14 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 
 	/* hor 4tap */
-	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0180);
+	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0180);
 	for (i = 0; i < 33; i++) {
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][0] >> 8) & 0xff) << 24) |
 			((pps_lut_tap4_s11_default[i][0] & 0xff) << 16) |
 			(((pps_lut_tap4_s11_default[i][1] >> 8) & 0xff) << 8) |
 			((pps_lut_tap4_s11_default[i][1] & 0xff) << 0));
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][2] >> 8) & 0xff) << 24) |
 			((pps_lut_tap4_s11_default[i][2] & 0xff) << 16) |
 			(((pps_lut_tap4_s11_default[i][3] >> 8) & 0xff) << 8) |
@@ -504,29 +501,29 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 
 	/* ver 6tap */
-	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0200);
+	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0200);
 	for (i = 0; i < 33; i++) {
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap6_s11_default[i][0] >> 8) & 0xff) << 24) |
 			((pps_lut_tap6_s11_default[i][0]  & 0xff) << 16) |
 			(((pps_lut_tap6_s11_default[i][1] >> 8) & 0xff) << 8) |
 			((pps_lut_tap6_s11_default[i][1] & 0xff) << 0));
 
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap6_s11_default[i][2] >> 8) & 0xff) << 24) |
 			((pps_lut_tap6_s11_default[i][2] & 0xff) << 16) |
 			(((pps_lut_tap6_s11_default[i][3] >> 8) & 0xff) << 8) |
 			((pps_lut_tap6_s11_default[i][3] & 0xff) << 0));
 	}
 
-	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0280);
+	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0280);
 	for (i = 0; i < 33; i++) {
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap6_s11_default[i][4] >> 8) & 0xff) << 24) |
 			((pps_lut_tap6_s11_default[i][4] & 0xff) << 16) |
 			(((pps_lut_tap6_s11_default[i][5] >> 8) & 0xff) << 8) |
 			((pps_lut_tap6_s11_default[i][5] & 0xff) << 0));
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap6_s11_default[i][4] >> 8) & 0xff) << 24) |
 			((pps_lut_tap6_s11_default[i][4] & 0xff) << 16) |
 			(((pps_lut_tap6_s11_default[i][5] >> 8) & 0xff) << 8) |
@@ -534,15 +531,15 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 
 	/* ver 4tap */
-	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0300);
+	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0300);
 	for (i = 0; i < 33; i++) {
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][0] >> 8) & 0xff) << 24) |
 			((pps_lut_tap4_s11_default[i][0] & 0xff) << 16) |
 			(((pps_lut_tap4_s11_default[i][1] >> 8) & 0xff) << 8) |
 			((pps_lut_tap4_s11_default[i][1] & 0xff) << 0));
 
-		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][2] >> 8) & 0xff) << 24) |
 			((pps_lut_tap4_s11_default[i][2] & 0xff) << 16) |
 			(((pps_lut_tap4_s11_default[i][3] >> 8) & 0xff) << 8)  |
@@ -550,6 +547,16 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 }
 
+void safa_postsc_coef_lut_config(void)
+{
+	struct hw_vsr_safa_reg_s *vsr_reg;
+
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
+	safa_pps_scale_set_coef(vsr_reg->safa_pps_cntl_scale_coef_idx_luma,
+		vsr_reg->safa_pps_cntl_scale_coef_luma);
+	safa_pps_scale_set_coef(vsr_reg->safa_pps_cntl_scale_coef_idx_chro,
+		vsr_reg->safa_pps_cntl_scale_coef_chro);
+}
 static u32 safa_speed_up_handle(struct vsr_setting_s *vsr)
 {
 	struct vsr_safa_setting_s *vsr_safa = &vsr->vsr_safa;
@@ -1007,13 +1014,6 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			step,
 			analy_en);
 	if (safa_pps_top_en) {
-		//postsc coef lut config
-		safa_pps_scale_set_coef(vsr,
-			vsr_reg->safa_pps_cntl_scale_coef_idx_luma,
-			vsr_reg->safa_pps_cntl_scale_coef_luma);
-		safa_pps_scale_set_coef(vsr,
-			vsr_reg->safa_pps_cntl_scale_coef_idx_chro,
-			vsr_reg->safa_pps_cntl_scale_coef_chro);
 		if (pre_scaler[0].pre_hscaler_ntap == PRE_HSCALER_2TAP ||
 			pre_scaler[0].pre_vscaler_ntap == PRE_VSCALER_2TAP)
 			filt_num_c = 2;

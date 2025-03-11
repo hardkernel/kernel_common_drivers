@@ -14441,7 +14441,9 @@ static int _video_hw_init(void)
 	/* disable aisr_sr1_nn func */
 	if (cur_dev->aisr_support)
 		aisr_sr1_nn_enable_sync(0);
-
+	/* set postsc coef lut*/
+	if (cur_dev->vd1_vsr_safa_support)
+		safa_postsc_coef_lut_config();
 	/* Temp force set dmc */
 	if (!legacy_vpp) {
 		if (cur_dev->display_module == OLD_DISPLAY_MODULE ||
