@@ -788,7 +788,7 @@
 };
 
 &hdmirx {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 		&hdmirx_c_mux>;
 	en_4k_2_2k = <0>;

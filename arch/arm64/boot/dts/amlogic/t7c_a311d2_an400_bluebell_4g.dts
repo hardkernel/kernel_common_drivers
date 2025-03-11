@@ -780,7 +780,7 @@
 };
 
 &hdmirx {
-	status = "disabled";
+	status = "okay";
 };
 
 &amlvideo2_1 {

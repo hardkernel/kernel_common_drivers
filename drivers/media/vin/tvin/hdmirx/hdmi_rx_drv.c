@@ -22,6 +22,7 @@
 #include <linux/timer.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/of_irq.h>
 #include <linux/poll.h>
@@ -407,20 +408,23 @@ static const struct of_device_id hdmirx_dt_match[] = {
 int rx_init_reg_map(struct platform_device *pdev)
 {
 	int i;
-	struct resource *res = 0;
+	struct resource res;
 	int size = 0;
 	int ret = 0;
 
 	for (i = 0; i < MAP_ADDR_MODULE_NUM; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res) {
-			ret = -ENOMEM;
+		ret  = of_address_to_resource(pdev->dev.of_node, i, &res);
+		if (ret) {
+			ret = -ENXIO;
 			break;
 		}
-		size = resource_size(res);
-		rx_reg_maps[i].phy_addr = res->start;
-		rx_reg_maps[i].p = devm_ioremap(&pdev->dev,
-						     res->start, size);
+
+		size =  resource_size(&res);
+		if (res.start == 0 || size == 0)
+			continue;
+
+		rx_reg_maps[i].p = devm_ioremap(&pdev->dev, res.start, size);
+		rx_reg_maps[i].phy_addr = res.start;
 		rx_reg_maps[i].size = size;
 
 		//remove to echo reg_map > /sys/class/hdmirx/hdmirx0/debug;
@@ -433,18 +437,18 @@ int rx_init_reg_map(struct platform_device *pdev)
 int rx_init_irq(struct platform_device *pdev, struct hdmirx_dev_s *hdevp)
 {
 	int i;
-	struct resource *res = 0;
+	int res = 0;
 	int ret[4] = {0};
 
 	irqreturn_t (*irq_handler[4])(int, void*) = {
 		irq0_handler, irq1_handler, irq2_handler, irq3_handler};
 
 	for (i = 0; i < 4; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
+		res = platform_get_irq(pdev, i);
 		ret[i] = res ? 0 : -ENXIO;
 		if (!res)
 			break;
-		hdevp->irq[i] = res->start;
+		hdevp->irq[i] = res;
 		snprintf(hdevp->irq_name[i], sizeof(hdevp->irq_name[i]),
 			"hdmirx%d-irq", i);
 		if (request_irq(hdevp->irq[i], irq_handler[i],
