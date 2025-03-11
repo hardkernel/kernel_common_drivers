@@ -910,7 +910,7 @@ MODULE_DEVICE_TABLE(of, meson_pwm_matches);
 
 static int meson_pwm_init_channels(struct meson_pwm *meson)
 {
-	struct device *dev = &meson->chip->dev;
+	struct device *dev = pwmchip_parent(meson->chip);
 	struct clk_init_data init;
 	unsigned int i;
 	char name[255];
