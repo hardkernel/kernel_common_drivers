@@ -5720,7 +5720,11 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 	case MISC_HDMI_CLKS_CTRL:
 		break;
 	case MISC_GET_FRL_MODE:
+		return FRL_NONE;
+	case MISC_FRL_READY:
 		return 0;
+	case MISC_VRR_REGISTER:
+	case MISC_RESET_HDCP_PARAM:
 	default:
 		break;
 	}

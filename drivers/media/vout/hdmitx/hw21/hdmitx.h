@@ -259,7 +259,6 @@ struct hdcp_t {
 };
 
 /* hdcp related */
-extern unsigned int rx_hdcp2_ver;
 bool get_hdcp1_lstore(void);
 bool get_hdcp2_lstore(void);
 bool get_hdcp1_result(void);
@@ -335,7 +334,7 @@ void hdmitx_set_vrr_para(const struct vrr_conf_para *para);
 void hdmitx_vrr_set_maxlncnt(u32 max_lcnt);
 u32 hdmitx_vrr_get_maxlncnt(void);
 int hdmitx_set_vrr_rate(int duration, void *data);
-void hdmitx_unregister_vrr(struct hdmitx_dev *hdev);
+void hdmitx_unregister_vrr(u32 enc_idx);
 void hdmitx_register_vrr(struct hdmitx_dev *hdev);
 int hdmitx_dump_vrr_status(struct seq_file *s, void *p);
 void hdmitx_vrr_enable(void);

@@ -20,22 +20,6 @@
 #include "hdmitx_module.h"
 #include "hdmitx_common.h"
 
-int hdmitx21_set_audio(struct hdmitx_dev *hdev,
-		     struct aud_para *audio_param)
-{
-	int i, ret = -1;
-	u8 CHAN_STAT_BUF[24 * 2];
-
-	/* hdmi_audio_infoframe_init(info); */
-	for (i = 0; i < (24 * 2); i++)
-		CHAN_STAT_BUF[i] = 0;
-	if (hdev->hw_comm.setaudmode(&hdev->hw_comm, audio_param) >= 0) {
-		/* hdmi_audio_infoframe_set(info); */
-		ret = 0;
-	}
-	return ret;
-}
-
 static DEFINE_MUTEX(aud_mute_mutex);
 void hdmitx21_audio_mute_op(u32 flag, unsigned int path)
 {

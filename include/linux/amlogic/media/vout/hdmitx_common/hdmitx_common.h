@@ -338,6 +338,7 @@ struct hdmitx_common {
 
 	u8 def_stream_type;
 	u32 is_passthrough_switch;
+	bool dw_hdcp22_cap;
 	bool need_filter_hdcp_off;
 	u32 filter_hdcp_off_period;
 	bool not_restart_hdcp;
@@ -430,6 +431,7 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 /*edid valid api*/
 bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap);
 void edid_set_fallback_mode(struct rx_cap *prxcap);
+void hdmitx_update_cec_and_audio_info(struct hdmitx_common *tx_comm);
 
 /* Attach platform related functions to hdmitx_common;
  * Currently hdmitx_tracer, hdmitx_uevent_mgr is platform related;
@@ -567,12 +569,17 @@ ssize_t hdcp_mode_show(struct device *dev, struct device_attribute *attr,
 ssize_t hdcp_ver_show(struct device *dev, struct device_attribute *attr,
 			     char *buf);
 
-/* work for bootup when hpd is high */
-void hdmitx_bootup_plugin_work(struct hdmitx_common *tx_comm);
 /* common work for plugin/resume, which is done in lock */
 void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm);
 /* common work for plugout */
 void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm);
+/* bootup plugin/out handler */
+void hdmitx_bootup_plugin_handler(struct hdmitx_common *tx_comm);
+void hdmitx_bootup_plugout_handler(struct hdmitx_common *tx_comm);
+/* delaywork for plugin/plugout */
+void hdmitx_hpd_plugin_irq_handler(struct work_struct *work);
+void hdmitx_hpd_plugout_irq_handler(struct work_struct *work);
+
 /* common edid clear, which is done in lock */
 void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm);
 /* common work for late resume, which is done in lock */
@@ -661,7 +668,6 @@ void hdmitx_disable_hdcp(struct hdmitx_common *tx_comm);
 int hdmitx_pre_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
 int hdmitx_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
 int hdmitx_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
-int hdmitx_disable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
 int get_hdmitx_init(void);
 
 #endif

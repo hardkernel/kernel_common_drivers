@@ -69,10 +69,6 @@
 static struct class *hdmitx_class;
 static struct hdmitx_dev *hdmitx_device;
 static u8 hdmi_allm_passthough_en;
-unsigned int rx_hdcp2_ver;
-
-static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev);
-static void hdmitx21_reset_hdcp_param(struct hdmitx_dev *hdev);
 
 struct hdmitx_dev *get_hdmitx_device(void)
 {
@@ -733,8 +729,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	/* step2: clear ready status/disable phy/packets/hdcp HW */
 	hdmitx_common_output_disable(&hdev->tx_comm,
 		true, true, true, false);
-	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7)
-		hdmitx21_reset_hdcp_param(hdev);
+	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_RESET_HDCP_PARAM, 0);
 	/* step3: SW: post uevent to system */
 	hdmitx_set_uevent(&hdev->tx_comm, HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
 	hdmitx_set_uevent(&hdev->tx_comm, HDMITX_AUDIO_EVENT, 0);
@@ -877,261 +872,6 @@ static void hdmitx_audio_init(struct hdmitx_common *tx_comm, struct hdmitx_trace
 			hdmitx21_ext_get_audio_status);
 }
 
-/* action in suspend/plugout handler, should not be done when disable_module */
-static void hdmitx21_reset_hdcp_param(struct hdmitx_dev *hdev)
-{
-	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
-
-	hdmitx21_rst_stream_type(p_hdcp);
-	p_hdcp->saved_upstream_type = 0;
-	p_hdcp->rx_update_flag = 0;
-	rx_hdcp2_ver = 0;
-	hdev->dw_hdcp22_cap = false;
-	hdev->tx_comm.is_passthrough_switch = 0;
-	/* clear audio/video mute flag of stream type */
-	hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_2);
-	hdmitx21_audio_mute_op(1, AUDIO_MUTE_PATH_3);
-}
-
-static void hdmitx_update_cec_and_audio_info(struct hdmitx_common *tx_comm)
-{
-	if (!tx_comm)
-		return;
-
-	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
-	/*
-	 * hdmitx edid parsing debug function, parsed in drm by default
-	 *
-	 * Enable edid parse in hdmitx debug function command
-	 * echo edid_parse1 > /sys/class/amhdmitx/amhdmitx0/debug
-	 *
-	 * Disable edid parse in hdmitx debug function command
-	 * echo edid_parse0 > /sys/class/amhdmitx/amhdmitx0/debug
-	 */
-	if (tx_comm->edid_parse_in_hdmitx) {
-		HDMITX_INFO("edid parse in hdmitx\n");
-		/* If edid is valid, parse edid, otherwise set fallback mode */
-		if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf))
-			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-		else
-			edid_set_fallback_mode(&tx_comm->rxcap);
-
-		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
-		hdmitx_common_notify_ced_status(tx_comm);
-	}
-
-	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-	hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-}
-
-static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
-{
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-	unsigned long flags = 0;
-
-	/* step1: SW: EDID read */
-	hdmitx_plugin_common_work(tx_comm);
-
-	/* step2: SW: update cec phy addr and audio data block */
-	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
-	hdmitx_update_cec_and_audio_info(tx_comm);
-	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
-
-	/* step3: SW: notify client modules and update uevent state */
-	hdmitx_common_notify_hpd_status(tx_comm, false);
-}
-
-static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
-{
-	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
-		struct hdmitx_common, work_hpd_plugin);
-	struct hdmitx_dev *hdev = container_of(tx_comm, struct hdmitx_dev, tx_comm);
-
-	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-
-	/*
-	 * this may happen when just queue plugin work,
-	 * but plugout event happen at this time. no need
-	 * to continue plugin work.
-	 */
-	if (hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_HPD_GPI_ST, 0) == 0) {
-		HDMITX_INFO("plug out event come when plugin handle, abort handle\n");
-		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
-		return;
-	}
-	/*
-	 * only happen in such case:
-	 * hpd high when suspend->plugout->plugin->late resume, the
-	 * last plugin/resume flow sequence is unknown, will do
-	 * plugin handler only once
-	 */
-	if (hdev->tx_comm.last_hpd_handle_done_stat == HDMI_TX_HPD_PLUGIN) {
-		HDMITX_INFO("warning: continuous plugin, should not happen!\n");
-		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
-		return;
-	}
-	HDMITX_INFO(SYS "hpd_high\n");
-	hdmitx_process_plugin(hdev);
-
-	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
-
-	/* notify to drm hdmi */
-	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
-}
-
-/* common work for plugout flow, which should be done in lock */
-static void hdmitx_process_plugout(struct hdmitx_dev *hdev)
-{
-	hdmitx_plugout_common_work(&hdev->tx_comm);
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
-		hdmitx21_reset_hdcp_param(hdev);
-		/* for vsync loss when HPD loss */
-		hdmitx21_vid_pll_clk_check(hdev);
-	}
-	/*
-	 * after suspend, hdcp auth state(including topo info) should
-	 * keep not changed, thus that encrypted video stream can
-	 * recover playing normally after resume, specially for hdcp
-	 * repeater case
-	 */
-	if (!hdev->tx_comm.suspend_flag)
-		hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_SET_TOPO_INFO, 0);
-
-	/*
-	 * Reset the ll_enabled_in_auto_mode flag used for auto mode
-	 * status. If we are in auto mode, gaming signal should be enabled
-	 * when the request arrives again from the input device or playback
-	 * and not on hotplug.
-	 */
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7)
-		hdev->tx_comm.ll_enabled_in_auto_mode = false;
-	/* SW: notify event to user space and other modules */
-	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
-}
-
-/* plugout handle for hpd irq */
-static void hdmitx_hpd_plugout_irq_handler(struct work_struct *work)
-{
-	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
-		struct hdmitx_common, work_hpd_plugout);
-	struct hdmitx_dev *hdev = container_of(tx_comm, struct hdmitx_dev, tx_comm);
-
-	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-	if (hdev->tx_comm.last_hpd_handle_done_stat == HDMI_TX_HPD_PLUGOUT) {
-		HDMITX_INFO("continuous plugout handler, ignore\n");
-		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
-		return;
-	}
-	hdmitx_process_plugout(hdev);
-	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
-
-	/* notify to drm hdmi */
-	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
-}
-
-/* plugout handle only for bootup stage */
-static void hdmitx_bootup_plugout_handler(struct hdmitx_dev *hdev)
-{
-	hdmitx_process_plugout(hdev);
-}
-
-static void hdmitx_bootup_update_vinfo(struct hdmitx_dev *hdev)
-{
-	struct vinfo_s *vinfo = NULL;
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-
-	edidinfo_attach_to_vinfo(tx_comm);
-	update_vinfo_from_formatpara(tx_comm);
-
-	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
-		vinfo = hdmitx_get_current_vinfo(NULL);
-		if (vinfo) {
-			vinfo->cur_enc_ppc = 1;
-			if (hdev->frl_rate > FRL_NONE)
-				vinfo->cur_enc_ppc = 4;
-#ifdef CONFIG_AMLOGIC_DSC
-			/* can also use if (hdev->dsc_en) */
-			if (get_dsc_en()) {
-				if (hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_RGB)
-					vinfo->vpp_post_out_color_fmt = 1;
-				else
-					vinfo->vpp_post_out_color_fmt = 0;
-			} else {
-				vinfo->vpp_post_out_color_fmt = 0;
-			}
-#endif
-			HDMITX_INFO("vinfo: set cur_enc_ppc as %d, vpp color: %d\n",
-				vinfo->cur_enc_ppc, vinfo->vpp_post_out_color_fmt);
-		}
-	}
-
-	/* Should be started at end of output */
-	if (hdev->tx_comm.cedst_en) {
-		cancel_delayed_work(&hdev->tx_comm.work_cedst);
-		queue_delayed_work(hdev->tx_comm.cedst_wq, &hdev->tx_comm.work_cedst, 0);
-	}
-}
-
-static bool is_frl_ready(struct hdmitx_dev *hdev)
-{
-	enum frl_rate_enum tx_frl_rate =
-		hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0);
-	enum frl_rate_enum rx_frl_rate;
-
-	/* not check frl rate under TMDS output */
-	if (tx_frl_rate == FRL_NONE)
-		return true;
-	scdc_tx_frl_get_rx_rate((u8 *)&rx_frl_rate);
-	/* check frl_rate between TX and RX */
-	if (tx_frl_rate != rx_frl_rate) {
-		HDMITX_ERROR("tx_frl_rate: %d, rx_frl_rate: %d\n",
-			tx_frl_rate, rx_frl_rate);
-		return false;
-	} else {
-		return true;
-	}
-}
-
-/* check clk status when plug out in case no vsync */
-static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev)
-{
-	int clk[3];
-	int idx[3];
-
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type != MESON_CPU_ID_S5)
-		return;
-	/*
-	 * frl mode use fpll or gp2 pll, and won't go through
-	 * vid_clk0_div_top/tmds20_clk_div_top, no need to check.
-	 */
-	if (hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0))
-		return;
-
-	/* for S5, here need check the clk index 89 & 16 */
-	/* cts_htx_tmds_clk */
-	idx[0] = 92;
-	/* vid_pll0_clk */
-	idx[1] = 16;
-	/* htx_tmds20_clk */
-	idx[2] = 89;
-
-	clk[0] = meson_clk_measure(idx[0]);
-	clk[1] = meson_clk_measure(idx[1]);
-	if (clk[0] && clk[1])
-		return;
-
-	if (!clk[0]) {
-		HDMITX_DEBUG("%s the clock[%d] is %d\n", __func__, idx[0], clk[0]);
-		hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_CLK_DIV_RST, idx[0]);
-		HDMITX_INFO("after reset the clock[%d] is %d\n", idx[0], meson_clk_measure(idx[0]));
-	}
-	if (!clk[1]) {
-		HDMITX_DEBUG("%s the clock[%d] is %d\n",  __func__, idx[1], clk[1]);
-		hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_CLK_DIV_RST, idx[1]);
-		HDMITX_INFO("after reset the clock[%d] is %d\n", idx[1], meson_clk_measure(idx[1]));
-	}
-}
-
 /* used for status check when hdmi output setting done */
 static int hdmitx21_status_check(void *data)
 {
@@ -1189,60 +929,6 @@ static int hdmitx21_status_check(void *data)
 	return 0;
 }
 
-static void hdmitx_bootup_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
-{
-	struct vinfo_s *info = NULL;
-
-	/* step1: SW: EDID read/parse, notify client modules */
-	hdmitx_bootup_plugin_work(&hdev->tx_comm);
-
-	/*
-	 * During the kernel startup process, the HDR/DV module will use
-	 * vinfo information, it needs to attach vinfo after the EDID is
-	 * parsed and before the HDR/DV module is enabled.
-	 * so do as hdmitx_common_post_enable_mode()
-	 */
-	hdmitx_bootup_update_vinfo(hdev);
-
-	/* TODO: need remove/optimised, keep it temporarily */
-	if (set_audio) {
-		info = hdmitx_get_current_vinfo(NULL);
-		if (info && info->mode == VMODE_HDMI) {
-			if (hdev->tx_comm.tx_hw->chip_data->chip_type < MESON_CPU_ID_T7)
-				hdmitx20_set_audio(hdev, &hdev->tx_comm.cur_audio_param);
-			else
-				hdmitx21_set_audio(hdev, &hdev->tx_comm.cur_audio_param);
-		}
-	}
-
-	/* step2: SW: notify client modules and update uevent state */
-	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
-}
-
-/*
- * action which is done in lock, it copy the flow of plugin handler.
- * only set audio if it's already enable in uboot, only check edid
- * if hdmitx output is enabled under uboot.
- * uboot_output_state is indicated in ready flag, can be replaced by
- * HW state later
- */
-static void hdmitx_bootup_plugin_handler(struct hdmitx_dev *hdev)
-{
-	int frl_rate = FRL_NONE;
-
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
-		frl_rate = hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0);
-	/* if current mode is TMDS/nonFRL, then resend_div40 */
-	if (frl_rate == FRL_NONE) {
-		if (hdev->tx_comm.fmt_para.tmds_clk_div40)
-			hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_SCDC_DIV40_SCRAMB, 1);
-	} else {
-		if (!is_frl_ready(hdev))
-			hdev->tx_comm.ready = 0;
-	}
-	hdmitx_bootup_process_plugin(hdev, hdev->tx_comm.ready);
-}
-
 extern unsigned int __hdmitx_debug;
 static void hdmitx_internal_intr_handler(struct work_struct *work)
 {
@@ -1290,7 +976,7 @@ static void hdmitx_start_hdcp_handler(struct work_struct *work)
 			 */
 			HDMITX_INFO("hdcp should started by upstream, wait...\n");
 			/* timeout period: hdcp1.4 5S, hdcp2.2 2S */
-			if (rx_hdcp2_ver)
+			if (tx_comm->dw_hdcp22_cap)
 				timeout_sec = 2;
 			else
 				timeout_sec = hdev->up_hdcp_timeout_sec;
@@ -1591,9 +1277,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_HPD_IRQ_TOP_HALF, hpd_state);
 	/* actions in bottom half of plug intr */
 	if (hpd_state)
-		hdmitx_bootup_plugin_handler(hdev);
+		hdmitx_bootup_plugin_handler(tx_comm);
 	else
-		hdmitx_bootup_plugout_handler(hdev);
+		hdmitx_bootup_plugout_handler(tx_comm);
 	/*
 	 * When Sink-led output, the Color Space read from AVI Packet is RGB,
 	 * but the input to HDMITX is YUV444, so it is necessary to judge that
@@ -1634,7 +1320,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_sysfs_common_create(dev, &hdev->tx_comm, &hdev->hw_comm);
 	hdmitx_common_debugfs_init(hdev);
 	hdmitx_common_profs_init(hdev);
-	HDMITX_INFO("amhdmitx_probe_end\n");
+	if (tx_comm->ready && tx_comm->cedst_en)
+		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
+	HDMITX_INFO("amhdmitx probe_end\n");
 
 	return r;
 }
@@ -1852,13 +1540,12 @@ int hdmitx_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *p
 	else
 		ret = hdmitx21_set_display(hdev, para->vic);
 
-	if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7) {
-		hdmitx20_set_audio(hdev, &hdev->tx_comm.cur_audio_param);
-	} else {
-		if (ret >= 0)
+	if (ret >= 0) {
+		if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7)
 			restore_mute();
-		hdmitx21_set_audio(hdev, &hdev->tx_comm.cur_audio_param);
 	}
+	if (tx_comm->tx_hw->setaudmode)
+		tx_comm->tx_hw->setaudmode(tx_comm->tx_hw, &tx_comm->cur_audio_param);
 
 	return 0;
 }
@@ -1885,7 +1572,7 @@ int hdmitx_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_pa
 		 */
 		if (hdev->frl_rate == FRL_NONE) {
 			if (get_hdcp2_lstore())
-				hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
+				hdev->tx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
 			/*
 			 * 0: for hdmitx driver control hdcp
 			 * 1/2: drm driver or app control hdcp
@@ -1914,16 +1601,6 @@ int hdmitx_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_pa
 			vinfo->cur_enc_ppc, vinfo->vpp_post_out_color_fmt);
 	}
 
-	return 0;
-}
-
-int hdmitx_disable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para)
-{
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	struct hdmitx_dev *hdev = container_of(tx_comm, struct hdmitx_dev, tx_comm);
-
-	hdmitx_unregister_vrr(hdev);
-#endif
 	return 0;
 }
 

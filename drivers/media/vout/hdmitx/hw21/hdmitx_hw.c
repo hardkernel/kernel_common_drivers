@@ -2405,6 +2405,64 @@ static int hdmitx_validate_hdcp14_key(struct hdmitx_dev *hdev)
 	return ret;
 }
 
+/* action in suspend/plugout handler, should not be done when disable_module */
+static void hdmitx21_reset_hdcp_param(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_dev *hdev = container_of(tx_comm, struct hdmitx_dev, tx_comm);
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+
+	hdmitx21_rst_stream_type(p_hdcp);
+	p_hdcp->saved_upstream_type = 0;
+	p_hdcp->rx_update_flag = 0;
+	tx_comm->dw_hdcp22_cap = false;
+	tx_comm->is_passthrough_switch = 0;
+	/* clear audio/video mute flag of stream type */
+	hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_2);
+	hdmitx21_audio_mute_op(1, AUDIO_MUTE_PATH_3);
+}
+
+/* check clk status when plug out in case no vsync */
+static void hdmitx21_vid_pll_clk_check(struct hdmitx_hw_common *tx_hw)
+{
+	int clk[3];
+	int idx[3];
+
+	if (!tx_hw)
+		return;
+	if (tx_hw->chip_data->chip_type != MESON_CPU_ID_S5)
+		return;
+	/*
+	 * frl mode use fpll or gp2 pll, and won't go through
+	 * vid_clk0_div_top/tmds20_clk_div_top, no need to check.
+	 */
+	if (hdmitx_hw_cntl_misc(tx_hw, MISC_GET_FRL_MODE, 0))
+		return;
+
+	/* for S5, here need check the clk index 92 & 16 */
+	/* cts_htx_tmds_clk */
+	idx[0] = 92;
+	/* vid_pll0_clk */
+	idx[1] = 16;
+	/* htx_tmds20_clk */
+	idx[2] = 89;
+
+	clk[0] = meson_clk_measure(idx[0]);
+	clk[1] = meson_clk_measure(idx[1]);
+	if (clk[0] && clk[1])
+		return;
+
+	if (!clk[0]) {
+		HDMITX_DEBUG("%s the clock[%d] is %d\n", __func__, idx[0], clk[0]);
+		hdmitx_hw_cntl_misc(tx_hw, MISC_CLK_DIV_RST, idx[0]);
+		HDMITX_INFO("after reset the clock[%d] is %d\n", idx[0], meson_clk_measure(idx[0]));
+	}
+	if (!clk[1]) {
+		HDMITX_DEBUG("%s the clock[%d] is %d\n",  __func__, idx[1], clk[1]);
+		hdmitx_hw_cntl_misc(tx_hw, MISC_CLK_DIV_RST, idx[1]);
+		HDMITX_INFO("after reset the clock[%d] is %d\n", idx[1], meson_clk_measure(idx[1]));
+	}
+}
+
 static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
@@ -3256,11 +3314,31 @@ static int hdmitx_tmds_cedst(struct hdmitx_dev *hdev)
 	return scdc21_status_flags(hdev);
 }
 
+static bool hdmitx_frl_ready(void)
+{
+	enum frl_rate_enum tx_frl_rate = get_current_frl_rate();
+	enum frl_rate_enum rx_frl_rate;
+
+	/* not check frl rate under TMDS output */
+	if (tx_frl_rate == FRL_NONE)
+		return true;
+	scdc_tx_frl_get_rx_rate((u8 *)&rx_frl_rate);
+	/* check frl_rate between TX and RX */
+	if (tx_frl_rate != rx_frl_rate) {
+		HDMITX_ERROR("tx_frl_rate: %d, rx_frl_rate: %d\n",
+			tx_frl_rate, rx_frl_rate);
+		return false;
+	} else {
+		return true;
+	}
+}
+
 static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			    u32 argv)
 {
 	struct hdmitx21_hw *tx21_hw = get_hdmitx21_hw_instance();
 	struct hdmitx_dev *hdev = container_of(tx21_hw, struct hdmitx_dev, tx21_hw);
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
 	if ((cmd & CMD_MISC_OFFSET) != CMD_MISC_OFFSET) {
 		HDMITX_ERROR(HW "misc: w: invalid cmd 0x%x\n", cmd);
@@ -3273,6 +3351,8 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case MISC_CLR_FRL_MODE:
 		hdmitx21_set_reg_bits(FRL_LINK_RATE_CONFIG_IVCTX, 0, 0, 4);
 		break;
+	case MISC_FRL_READY:
+		return (int)hdmitx_frl_ready();
 	case MISC_CLK_DIV_RST:
 		/* TO confirm if only for S5 */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -3337,6 +3417,29 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case MISC_VALIDATE_HDCP14_KEY:
 		return hdmitx_validate_hdcp14_key(hdev);
+	case MISC_PRIVATE_PLUGOUT_PROCESS:
+		hdmitx21_reset_hdcp_param(tx_comm);
+		/* for vsync loss when HPD loss */
+		hdmitx21_vid_pll_clk_check(tx_comm->tx_hw);
+		/*
+		 * Reset the ll_enabled_in_auto_mode flag used for auto mode
+		 * status. If we are in auto mode, gaming signal should be enabled
+		 * when the request arrives again from the input device or playback
+		 * and not on hotplug.
+		 */
+		tx_comm->ll_enabled_in_auto_mode = false;
+		break;
+	case MISC_VRR_REGISTER:
+		#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (argv == 0)
+			hdmitx_unregister_vrr(tx_comm->enc_idx);
+		else
+			hdmitx_register_vrr(hdev);
+		#endif
+		break;
+	case MISC_RESET_HDCP_PARAM:
+		hdmitx21_reset_hdcp_param(tx_comm);
+		break;
 	default:
 		break;
 	}

@@ -73,7 +73,6 @@ struct hdmitx_dev {
 	/* hdcp */
 	struct delayed_work work_start_hdcp;
 	struct delayed_work work_drm_start_hdcp;
-	bool dw_hdcp22_cap;
 	void *am_hdcp;
 	struct miscdevice hdcp_comm_device;
 	unsigned long up_hdcp_timeout_sec;
@@ -133,9 +132,6 @@ int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
 
 int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type,
 		unsigned int param);
-
-int hdmitx20_set_audio(struct hdmitx_dev *hdmitx_device,
-		     struct aud_para *audio_param);
 
 int hdmitx20_init_reg_map(struct platform_device *pdev);
 /* for hdcp init */
@@ -204,9 +200,6 @@ void hdmi21_vframe_write_reg(u32 value);
 
 int hdmi21_set_3d(struct hdmitx_dev *hdev, int type,
 		u32 param);
-
-int hdmitx21_set_audio(struct hdmitx_dev *hdev,
-		     struct aud_para *audio_param);
 
 struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing *t);
 void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);

@@ -159,14 +159,12 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 	}
 
 	if (hdev->hw_comm.lstore == 0) {
-		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
+		if (get_hdcp2_lstore() && hdev->tx_comm.dw_hdcp22_cap) {
 			/* enable hdcp gate */
 			hdmitx21_ctrl_hdcp_gate(2, true);
 			hdev->tx_comm.hdcp_mode = 2;
-			rx_hdcp2_ver = 1;
 			hdcp_mode_set(2);
 		} else {
-			rx_hdcp2_ver = 0;
 			if (hdev->frl_rate > FRL_NONE && hdev->frl_rate < FRL_RATE_MAX) {
 				hdev->tx_comm.hdcp_mode = 0;
 				HDMITX_HDCP_INFO("[%s] should not enable hdcp1.4 under FRL mode\n",
@@ -181,14 +179,12 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 			}
 		}
 	} else if (hdev->hw_comm.lstore & 0x2) {
-		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
+		if (get_hdcp2_lstore() && hdev->tx_comm.dw_hdcp22_cap) {
 			hdmitx21_ctrl_hdcp_gate(2, true);
 			hdev->tx_comm.hdcp_mode = 2;
-			rx_hdcp2_ver = 1;
 			hdcp_mode_set(2);
 		} else {
 			hdmitx21_ctrl_hdcp_gate(0, false);
-			rx_hdcp2_ver = 0;
 			hdev->tx_comm.hdcp_mode = 0;
 		}
 	} else if (hdev->hw_comm.lstore & 0x1) {
@@ -875,7 +871,7 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 	} else if (p_hdcp->req_reauth_ver == 2) {
 		/* force hdcp2.x mode */
 		mutex_lock(&hdcp_mutex);
-		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
+		if (get_hdcp2_lstore() && hdev->tx_comm.dw_hdcp22_cap) {
 			hdev->tx_comm.hdcp_mode = 2;
 			hdcp_mode_set(2);
 		} else {
@@ -2193,7 +2189,7 @@ static int hdmitx21_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int l
 		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n\r");
 		return pos;
 	}
-	if (rx_hdcp2_ver) {
+	if (tx_comm->dw_hdcp22_cap) {
 		pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
 	} else {
 		/*
@@ -2223,10 +2219,10 @@ static int hdmitx21_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int l
 		} else if (hdmitx21_get_hdcp_mode() == 0) {
 			if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
 				pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
-				rx_hdcp2_ver = 1;
+				tx_comm->dw_hdcp22_cap = 1;
 			}
-			HDMITX_HDCP_INFO("%s: hdev->tx_comm.hdcp_mode: 0, rx_hdcp2_ver = %d\n",
-				__func__, rx_hdcp2_ver);
+			HDMITX_HDCP_INFO("%s: hdev->tx_comm.hdcp_mode: 0, rx_hdcp22_cap = %d\n",
+				__func__, tx_comm->dw_hdcp22_cap);
 		}
 	}
 	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
@@ -2407,10 +2403,10 @@ unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 	if (hdev->tx_comm.hdcp_mode == 0x1) {
 		rxhdcp = HDCP_MODE14;
 	} else if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
-		rx_hdcp2_ver = 1;
+		hdev->tx_comm.dw_hdcp22_cap = 1;
 		rxhdcp = HDCP_MODE22 | HDCP_MODE14;
 	} else {
-		rx_hdcp2_ver = 0;
+		hdev->tx_comm.dw_hdcp22_cap = 0;
 		rxhdcp = HDCP_MODE14;
 	}
 
@@ -2566,7 +2562,7 @@ static long hdcp_comm_ioctl(struct file *file,
 				HDMITX_HDCP_INFO("currently hdcp should started by upstream\n");
 			} else {
 				if (hdcp_key_store & BIT(1))
-					hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
+					hdev->tx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
 				hdmitx21_enable_hdcp(hdev);
 			}
 		}

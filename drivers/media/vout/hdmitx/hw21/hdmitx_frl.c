@@ -623,8 +623,8 @@ tx_lts_p3:
 			 * as ddc stall request in poll_update_flags() may
 			 * affect hdcp version read.
 			 */
-			if (!hdev->dw_hdcp22_cap)
-				hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
+			if (!hdev->tx_comm.dw_hdcp22_cap)
+				hdev->tx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
 			schedule_delayed_work(&hdev->work_start_hdcp, HZ / 4);
 		}
 		break;

@@ -104,6 +104,11 @@
 #define MISC_HDMI_CLKS_CTRL		(CMD_MISC_OFFSET + 0X22)
 #define MISC_VALIDATE_HDCP14_KEY	(CMD_MISC_OFFSET + 0x23)
 #define MISC_CLR_FRL_MODE		(CMD_MISC_OFFSET + 0x24)
+#define MISC_FRL_READY (CMD_MISC_OFFSET + 0x25)
+#define MISC_PRIVATE_PLUGOUT_PROCESS (CMD_MISC_OFFSET + 0x26)
+#define MISC_VRR_REGISTER (CMD_MISC_OFFSET + 0x27)
+/* reset hdcp param for suspend/plugout, not for mode switch */
+#define MISC_RESET_HDCP_PARAM (CMD_MISC_OFFSET + 0x28)
 
 /***********************************************************************
  *                          Get State //getstate

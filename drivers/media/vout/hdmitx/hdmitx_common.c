@@ -1390,6 +1390,37 @@ void edid_set_fallback_mode(struct rx_cap *prxcap)
 }
 EXPORT_SYMBOL(edid_set_fallback_mode);
 
+void hdmitx_update_cec_and_audio_info(struct hdmitx_common *tx_comm)
+{
+	if (!tx_comm)
+		return;
+
+	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+	/*
+	 * hdmitx edid parsing debug function, parsed in drm by default
+	 *
+	 * Enable edid parse in hdmitx debug function command
+	 * echo edid_parse1 > /sys/class/amhdmitx/amhdmitx0/debug
+	 *
+	 * Disable edid parse in hdmitx debug function command
+	 * echo edid_parse0 > /sys/class/amhdmitx/amhdmitx0/debug
+	 */
+	if (tx_comm->edid_parse_in_hdmitx) {
+		HDMITX_INFO("edid parse in hdmitx\n");
+		/* If edid is valid, parse edid, otherwise set fallback mode */
+		if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf))
+			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		else
+			edid_set_fallback_mode(&tx_comm->rxcap);
+
+		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+		hdmitx_common_notify_ced_status(tx_comm);
+	}
+
+	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+	hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+}
+
 #ifdef CONFIG_AMLOGIC_DSC
 /*
  * get the needed frl rate, refer to 2.1 spec table 7-37/38,

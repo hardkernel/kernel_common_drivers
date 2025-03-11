@@ -1618,11 +1618,11 @@ int hdmitx_set_vrr_rate(int rate, void *data)
 	return 1;
 }
 
-void hdmitx_unregister_vrr(struct hdmitx_dev *hdev)
+void hdmitx_unregister_vrr(u32 enc_idx)
 {
 	int ret;
 
-	ret = aml_vrr_unregister_device(hdev->tx_comm.enc_idx);
+	ret = aml_vrr_unregister_device(enc_idx);
 }
 
 static struct vinfo_s *hdmitx_get_curvinfo(void *data)
