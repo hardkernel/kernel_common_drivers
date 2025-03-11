@@ -10,7 +10,7 @@
 #include <linux/mutex.h>
 #include <linux/amlogic/aml_demod_common.h>
 #include <linux/amlogic/aml_tuner.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct tuner_ops {
 	bool dts_cfg; /*to check if tuner_config is from userspace or dts*/
