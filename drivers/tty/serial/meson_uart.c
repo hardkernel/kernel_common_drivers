@@ -44,7 +44,8 @@
 #define AML_UART_CLR_ERR		BIT(24)
 #define AML_UART_RX_INT_EN		BIT(27)
 #define AML_UART_TX_INT_EN		BIT(28)
-#define AML_UART_RX_RTS			BIT(31)
+#define AML_UART_INV_CTS		BIT(29)
+#define AML_UART_INV_RTS		BIT(31)
 #define AML_UART_STOP_BIN_LEN_MASK	(0x03 << 16)
 #define AML_UART_STOP_BIN_1SB		(0x00 << 16)
 #define AML_UART_STOP_BIN_2SB		(0x01 << 16)
@@ -66,7 +67,6 @@
 #define AML_UART_ERR			(AML_UART_PARITY_ERR | \
 					 AML_UART_FRAME_ERR  | \
 					 AML_UART_RX_FIFO_OVERFLOW)
-
 /* AML_UART_MISC bits */
 #define AML_UART_XMIT_IRQ(c)		(((c) & 0xff) << 8)
 #define AML_UART_RECV_IRQ(c)		((c) & 0xff)
@@ -101,28 +101,11 @@ static struct meson_uart_port *meson_ports[AML_UART_PORT_MAX];
 
 static void meson_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	u32 val;
-
-	if (port->line == 0)
-		return;
-
-	val = readl(port->membase + AML_UART_CONTROL);
-	if (mctrl & TIOCM_RTS)
-		val &= ~AML_UART_RX_RTS;
-	else
-		val |= AML_UART_RX_RTS;
-	writel(val, port->membase + AML_UART_CONTROL);
 }
 
 static unsigned int meson_uart_get_mctrl(struct uart_port *port)
 {
-	u32 val;
-
-	if (port->line == 0)
-		return TIOCM_CTS;
-
-	val = readl(port->membase + AML_UART_STATUS);
-	return (val & AML_UART_CTS) ? 0 : TIOCM_CTS;
+	return TIOCM_CTS;
 }
 
 static unsigned int meson_uart_tx_empty(struct uart_port *port)
@@ -167,7 +150,7 @@ static void meson_uart_shutdown(struct uart_port *port)
 	val = readl_relaxed(port->membase + AML_UART_CONTROL);
 	val &= ~(AML_UART_RX_EN | AML_UART_TX_EN);
 	val &= ~(AML_UART_RX_INT_EN | AML_UART_TX_INT_EN);
-	val |= AML_UART_RX_RTS;
+	val |= AML_UART_INV_RTS;
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -338,7 +321,7 @@ static int meson_uart_startup(struct uart_port *port)
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 	val |= (AML_UART_RX_INT_EN | AML_UART_TX_INT_EN);
-	val &= ~AML_UART_RX_RTS;
+	val &= ~AML_UART_INV_RTS;
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 
@@ -529,7 +512,7 @@ static int meson_uart_request_port(struct uart_port *port)
 	val = (AML_UART_RECV_IRQ(1) | AML_UART_XMIT_IRQ(port->fifosize / 2));
 	writel_relaxed(val, port->membase + AML_UART_MISC);
 
-	writel_relaxed(readl_relaxed(port->membase + AML_UART_CONTROL) | AML_UART_RX_RTS,
+	writel_relaxed(readl_relaxed(port->membase + AML_UART_CONTROL) | AML_UART_INV_RTS,
 			port->membase + AML_UART_CONTROL);
 
 	if (mup->for_bt)
@@ -610,11 +593,43 @@ out:
 
 #endif /* CONFIG_CONSOLE_POLL */
 
+static void meson_uart_throttle(struct uart_port *port)
+{
+	u32 val;
+
+	if (port->line == 0)
+		return;
+
+	val = readl_relaxed(port->membase + AML_UART_CONTROL);
+	if ((val & AML_UART_TWO_WIRE_EN))
+		return;
+
+	val |= AML_UART_INV_RTS;
+	writel_relaxed(val, port->membase + AML_UART_CONTROL);
+}
+
+static void meson_uart_unthrottle(struct uart_port *port)
+{
+	u32 val;
+
+	if (port->line == 0)
+		return;
+
+	val = readl_relaxed(port->membase + AML_UART_CONTROL);
+	if ((val & AML_UART_TWO_WIRE_EN))
+		return;
+
+	val &= ~AML_UART_INV_RTS;
+	writel_relaxed(val, port->membase + AML_UART_CONTROL);
+}
+
 static const struct uart_ops meson_uart_ops = {
 	.set_mctrl      = meson_uart_set_mctrl,
 	.get_mctrl      = meson_uart_get_mctrl,
 	.tx_empty	= meson_uart_tx_empty,
 	.start_tx	= meson_uart_start_tx,
+	.throttle	= meson_uart_throttle,
+	.unthrottle	= meson_uart_unthrottle,
 	.stop_tx	= meson_uart_stop_tx,
 	.stop_rx	= meson_uart_stop_rx,
 	.startup	= meson_uart_startup,
@@ -939,7 +954,7 @@ static int meson_uart_resume(struct platform_device *pdev)
 
 	val = readl_relaxed(port->membase + AML_UART_CONTROL);
 	if (!(val & AML_UART_TWO_WIRE_EN)) {
-		val &= ~(0x1 << 31);
+		val &= ~AML_UART_INV_RTS;
 		writel_relaxed(val, port->membase + AML_UART_CONTROL);
 	}
 
@@ -968,7 +983,7 @@ static int meson_uart_suspend(struct platform_device *pdev,
 	 */
 	if (!(val & AML_UART_TWO_WIRE_EN)) {
 		dev_info(&pdev->dev, "pull up rts");
-		val |= (0x1 << 31);
+		val |= AML_UART_INV_RTS;
 		writel_relaxed(val, port->membase + AML_UART_CONTROL);
 	}
 
