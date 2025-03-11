@@ -82,7 +82,7 @@ function pre_defconfig_cmds() {
 
 	if [[ -n ${KASAN} ]]; then
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-		${KCONFIG_DEFCONFIG} {KASAN_DEFCONFIG}
+		${KCONFIG_DEFCONFIG} ${KASAN_DEFCONFIG}
 	fi
 
 	if [[ -n ${CHECK_GKI_20} ]]; then
