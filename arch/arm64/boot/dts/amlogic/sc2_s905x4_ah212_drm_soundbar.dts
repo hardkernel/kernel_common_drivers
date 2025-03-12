@@ -511,7 +511,7 @@
 			};
 			tdmbcodec: codec {
 				prefix-names = "ad82128_c_30", "ad82128_c_31";
-				sound-dai = <&ad82128_30 &ad82128_31 &tas5805 &amlogic_codec>;
+				sound-dai = <&ad82128_30 &ad82128_31 &amlogic_codec>;
 			};
 		};
 
@@ -630,15 +630,6 @@
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
 		reg = <0x31>;
-		status = "okay";
-	};
-
-	tas5805: tas5805@30 {
-		compatible = "ti,tas5805";
-		#sound-dai-cells = <0>;
-		codec_name = "tas5805";
-		reg = <0x2e>;
-		reset_pin = <&gpio GPIOD_9 GPIOC_1 0>;
 		status = "okay";
 	};
 };
