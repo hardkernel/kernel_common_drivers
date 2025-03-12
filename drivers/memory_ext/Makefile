@@ -5,7 +5,6 @@ ccflags-y += -I$(src)/../memory_debug/ddr_tool
 # CFLAGS_REMOVE_aml_cma.o += -Wframe-larger-than=${CONFIG_FRAME_WARN}
 
 obj-$(CONFIG_AMLOGIC_PAGE_TRACE)        += page_trace.o
-obj-$(CONFIG_AMLOGIC_SLAB_TRACE)        += slab_trace.o
 obj-$(CONFIG_AMLOGIC_CMA)               += aml_cma.o
 obj-$(CONFIG_AMLOGIC_VMAP)              += vmap_stack.o
 obj-$(CONFIG_AMLOGIC_MEM_DEBUG)         += mem_debug.o
