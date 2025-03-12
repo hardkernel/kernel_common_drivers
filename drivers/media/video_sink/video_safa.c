@@ -1001,6 +1001,21 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		((glayer_info[0].src_height_max == 2160 && vsr->vsr_top.hsize_in > 2048) ||
 		(glayer_info[0].src_height_max == 1088 && vsr->vsr_top.hsize_in > 1024)))
 		analy_en = 0;
+	if (cur_dev->dejaggy_support || cur_dev->vsr_nonlinear_support) {
+		/*
+		 * if input output 1:1 enable safa_pps_top_en and disable postsc_en
+		 * but if enable non_linear need enable postsc_en
+		 */
+		if (!safa_pps_top_en) {
+			safa_pps_top_en = 1;
+			if (vsr_safa->nonlinear_4region_en)
+				postsc_en = 1;
+			else
+				postsc_en = 0;
+		}
+		rdma_wr_bits(vsr_reg->safa_pps_dejaggy_ctrl,
+			vsr_safa->dejaggy_en, 31, 1);
+	}
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
 		pr_info("%s:preh/v_en:%d, %d, pre_h/vsize:%d, %d, preh/v_ratio:%d, %d, postsc_en:%d step = %d analy_en = %d\n",
 			__func__,
@@ -1149,19 +1164,6 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	}
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		analy_en, 4, 1);
-	if (cur_dev->dejaggy_support) {
-		/*
-		 * if input output 1:1 need enable safa_pps_top_en and disable postsc_en
-		 */
-		if (!safa_pps_top_en) {
-			safa_pps_top_en = 1;
-			postsc_en = 0;
-		}
-		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-			postsc_en, 2, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_dejaggy_ctrl,
-			vsr_safa->dejaggy_en, 31, 1);
-	}
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		safa_pps_top_en, 8, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
