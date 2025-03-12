@@ -2914,25 +2914,30 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	}
 }
 
+/*
+ * refer to hdmi2.1b spec 10.4.1.4
+ * bit0: scrambling_enable
+ *		0, disable
+ *		1, enable
+ * bit1: TMDS_Bit_Clock_Ratio
+ *		0, 1/10
+ *		1, 1/40
+ */
 static void hdmitx_set_scdc_div40(u32 div40)
 {
-	u32 addr = 0x20;
-	u32 data;
+	u32 addr = DDC_SCDCDIV_ADDR;
+	u32 scram_en = 0;
+	u32 clk_ratio = 0;
+	u32 data = 0;
 
-	if (div40)
-		data = 0x3;
-	else
-		data = 0;
-	hdmitx21_set_reg_bits(HDCP2X_CTL_0_IVCTX, 0, 0, 1);
-	hdmitx21_wr_reg(LM_DDC_IVCTX, 0x80);
-	hdmitx21_wr_reg(DDC_ADDR_IVCTX, 0xa8); //SCDC slave addr
-	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, addr & 0xff); //SCDC slave offset
-	hdmitx21_wr_reg(DDC_DATA_AON_IVCTX, data & 0xff); //SCDC slave offset data to ddc fifo
-	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 0x01); //data length lo
-	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00); //data length hi
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x06); //DDC Write CMD
-	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), HZ / 100); //i2c process
-	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 100); //i2c done
+	if (div40) {
+		scram_en = 1;
+		clk_ratio = 1;
+	}
+
+	data |= scram_en;
+	data |= (clk_ratio << 1);
+	scdc21_wr_sink(addr, data);
 }
 
 static void set_t7_top_div40(u32 div40)

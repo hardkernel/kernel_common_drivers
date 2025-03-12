@@ -13,7 +13,14 @@
 
 #define DDC_EDID_ADDR 0xA0
 	#define DDC_EDIDSEG_ADDR 0x30
+
+/*
+ * refer to hdmi2.1b spec section 10.3.2 and 10.4
+ * 0xA8/0xA9: SCDC ADDR, bit0: 1 for read; 0 for write
+ * 0x20: TMDS Configuration, for send div40
+ */
 #define DDC_SCDC_ADDR 0xA8
+	#define DDC_SCDCDIV_ADDR 0x20
 
 #define SCDC_DEVICE_SOFTWARE_MAJOR_REVISION 0xdc
 #define SCDC_DEVICE_SOFTWARE_MINOR_REVISION 0xdd

@@ -25,6 +25,13 @@
 
 static DEFINE_MUTEX(ddc_mutex);
 
+static void ddc_print(int slave_addr, int reg_addr, int ddc_ret)
+{
+	if (ddc_ret)
+		HDMITX_INFO("DDC ret = %d, slave_addr = 0x%x, reg_addr = 0x%x\n",
+			ddc_ret, slave_addr, reg_addr);
+}
+
 void scdc21_rd_sink(u8 adr, u8 *val)
 {
 	hdmitx_ddcm_read(0, DDC_SCDC_ADDR, adr, val, 1, TPI_DDC_CMD_SEQUENTIAL_READ);
@@ -83,10 +90,11 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 
 void hdmi_ddc_error_reset(void)
 {
-	hdmitx21_set_reg_bits(TPI_DDC_MASTER_EN_IVCTX, 1, 7, 1);
+	hdmitx21_set_bit(TPI_DDC_MASTER_EN_IVCTX, BIT_TPI_DDC_MASTER_EN_HW_EN, true);
 	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_ABORT_TRANSACTION);
+	usleep_range(1, 2);
 	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLK_RESET);
-	hdmitx21_set_reg_bits(TPI_DDC_MASTER_EN_IVCTX, 0, 7, 1);
+	hdmitx21_set_bit(TPI_DDC_MASTER_EN_IVCTX, BIT_TPI_DDC_MASTER_EN_HW_EN, false);
 }
 
 u8 hdmi_ddc_busy_check(void)
@@ -118,14 +126,6 @@ static u8 ddc_tx_hdcp2x_check(void)
 	return val;
 }
 
-static void ddc_tx_ddc_error_reset(void)
-{
-	hdmitx21_set_bit(TPI_DDC_MASTER_EN_IVCTX, BIT_TPI_DDC_MASTER_EN_HW_EN, true);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_ABORT_TRANSACTION);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLK_RESET);
-	hdmitx21_set_bit(TPI_DDC_MASTER_EN_IVCTX, BIT_TPI_DDC_MASTER_EN_HW_EN, false);
-}
-
 static u8 ddc_tx_busy_check(void)
 {
 	return hdmitx21_rd_reg(DDC_STATUS_IVCTX) & BIT_DDC_STATUS_INPROG;
@@ -147,7 +147,7 @@ static bool ddc_wait_free(void)
 			usleep_range(2000, 2500);
 		}
 		HDMITX_INFO("ddc bus busy\n");
-		ddc_tx_ddc_error_reset();
+		hdmi_ddc_error_reset();
 		usleep_range(2000, 2500);
 	}
 	return false;
@@ -209,6 +209,7 @@ static void ddc_tx_error_check(enum ddc_err_t ds_ddc_error)
 {
 	if (ds_ddc_error) {
 		hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_ABORT_TRANSACTION);
+		usleep_range(1, 2);
 		hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLK_RESET);
 	}
 }
@@ -287,6 +288,7 @@ static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
 	/* disable the DDC master */
 	ddc_tx_disable();
 	mutex_unlock(&ddc_mutex);
+	ddc_print(slave_addr, reg_addr, ds_ddc_error);
 	return ds_ddc_error;
 }
 
@@ -300,6 +302,7 @@ static enum ddc_err_t _hdmitx_ddcm_write_(u8 seg_index,
 	if (!ddc_wait_free()) {
 		ddc_tx_scdc_clr(val);
 		mutex_unlock(&ddc_mutex);
+		ddc_print(slave_addr, reg_addr, ds_ddc_error);
 		return DDC_ERR_BUSY;
 	}
 
@@ -316,6 +319,7 @@ static enum ddc_err_t _hdmitx_ddcm_write_(u8 seg_index,
 	/* disable the DDC master */
 	ddc_tx_disable();
 	mutex_unlock(&ddc_mutex);
+	ddc_print(slave_addr, reg_addr, ds_ddc_error);
 	return ds_ddc_error;
 }
 
@@ -339,24 +343,6 @@ bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data)
 
 	ddc_err = _hdmitx_ddcm_write_(seg_index, slave_addr, reg_addr, data);
 	return (ddc_err == DDC_ERR_NONE) ? false : true;
-}
-
-enum ddc_err_t hdmitx_ddc_read_1byte(u8 slave_addr, u8 reg_addr, u8 *p_buf)
-{
-	hdmitx21_wr_reg(LM_DDC_IVCTX, 0x80);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLR_FIFO);
-	hdmitx21_wr_reg(DDC_ADDR_IVCTX, slave_addr & BIT_DDC_ADDR_REG);
-
-	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, reg_addr);
-	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 1);
-	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_SEQ_RD_NO_ACK);
-	/* Wait until I2C done */
-	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), HZ / 100);
-	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 100);
-	p_buf[0]  = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
-
-	return DDC_ERR_NONE;
 }
 
 bool is_rx_hdcp2ver(void)
