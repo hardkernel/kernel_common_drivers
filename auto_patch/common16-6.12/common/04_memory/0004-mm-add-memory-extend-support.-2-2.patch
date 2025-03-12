@@ -1,4 +1,4 @@
-From ed81998006c9f901eb0042731b58062326981173 Mon Sep 17 00:00:00 2001
+From 212cfb2925e8163b31e9d4d6b6ffd1eedb58afee Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 16:24:49 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -32,7 +32,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  arch/arm64/kernel/hibernate.c  |  3 ++
  drivers/base/core.c            |  2 ++
  drivers/of/base.c              |  4 +++
- drivers/of/of_reserved_mem.c   | 21 ++++++++++++
+ drivers/of/of_reserved_mem.c   | 22 ++++++++++++-
  fs/dcache.c                    |  4 +++
  fs/inode.c                     |  4 +++
  include/linux/android_kabi.h   |  4 +++
@@ -47,14 +47,15 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  kernel/module/kallsyms.c       |  6 ++++
  kernel/printk/printk.c         |  5 +++
  kernel/scs.c                   | 17 ++++++++++
+ mm/cma.c                       |  2 ++
  mm/kasan/common.c              |  7 ++++
  mm/page_alloc.c                | 58 ++++++++++++++++++++++++++++++++++
  mm/show_mem.c                  | 12 +++++++
  mm/slab_common.c               | 43 +++++++++++++++++++++++++
  mm/slub.c                      | 32 +++++++++++++++++++
  mm/usercopy.c                  |  4 +++
- mm/vmscan.c                    | 21 ++++++++++++
- 26 files changed, 300 insertions(+), 1 deletion(-)
+ mm/vmscan.c                    | 29 ++++++++++++++++-
+ 27 files changed, 309 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index 06a4670bdb0b..515e6f726e95 100644
@@ -102,7 +103,7 @@ index d922cefc1e66..b27c22b64050 100644
  	}
  
 diff --git a/drivers/of/base.c b/drivers/of/base.c
-index 63161d0f72b4..3b3bfba6f16e 100644
+index 4bb87e0cbaf1..771b0f9cb6ac 100644
 --- a/drivers/of/base.c
 +++ b/drivers/of/base.c
 @@ -166,7 +166,9 @@ void __of_phandle_cache_inv_entry(phandle handle)
@@ -130,7 +131,7 @@ index 63161d0f72b4..3b3bfba6f16e 100644
  
  	/* Symlink in /proc as required by userspace ABI */
 diff --git a/drivers/of/of_reserved_mem.c b/drivers/of/of_reserved_mem.c
-index 3286fe7e1758..f4a291d3005d 100644
+index 9ecee51266cf..05c66b609e67 100644
 --- a/drivers/of/of_reserved_mem.c
 +++ b/drivers/of/of_reserved_mem.c
 @@ -9,7 +9,9 @@
@@ -143,7 +144,7 @@ index 3286fe7e1758..f4a291d3005d 100644
  
  #include <linux/err.h>
  #include <linux/libfdt.h>
-@@ -127,8 +129,14 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
+@@ -130,8 +132,14 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
  
  		if (size &&
  		    early_init_dt_reserve_memory(base, size, nomap) == 0)
@@ -158,7 +159,7 @@ index 3286fe7e1758..f4a291d3005d 100644
  		else
  			pr_err("Reserved memory: failed to reserve memory for node '%s': base %pa, size %lu MiB\n",
  			       uname, &base, (unsigned long)(size / SZ_1M));
-@@ -361,8 +369,16 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
+@@ -444,8 +452,16 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
  
  		ret = initfn(rmem);
  		if (ret == 0) {
@@ -175,18 +176,19 @@ index 3286fe7e1758..f4a291d3005d 100644
  			break;
  		}
  	}
-@@ -465,6 +481,11 @@ void __init fdt_init_reserved_mem(void)
- 					nomap ? "nomap" : "map",
- 					reusable ? "reusable" : "non-reusable",
- 					rmem->name ? rmem->name : "unknown");
-+			#if defined(CONFIG_ARM) && defined(CONFIG_AMLOGIC_MEMORY_EXTEND)
-+				if (memblock_end_of_DRAM() > 0x30000000 &&
-+					rmem->size / SZ_1M > 100 && end < 0x30000000)
-+					pr_info("=== notice: This cma pool in low memory. ===\n");
-+			#endif
- 			}
- 		}
- 	}
+@@ -539,7 +555,11 @@ static void __init fdt_init_reserved_mem_node(struct reserved_mem *rmem)
+ 			nomap ? "nomap" : "map",
+ 			reusable ? "reusable" : "non-reusable",
+ 			rmem->name ? rmem->name : "unknown");
+-
++	#if defined(CONFIG_ARM) && defined(CONFIG_AMLOGIC_MEMORY_EXTEND)
++		if (memblock_end_of_DRAM() > 0x30000000 &&
++			rmem->size / SZ_1M > 100 && end < 0x30000000)
++			pr_info("=== notice: This cma pool in low memory. ===\n");
++	#endif
+ 		memblock_memsize_record(rmem->name, rmem->base,
+ 					rmem->size, nomap, reusable);
+ 		if (reusable && !of_flat_dt_is_compatible(node, "shared-dma-pool"))
 diff --git a/fs/dcache.c b/fs/dcache.c
 index 0f6b16ba30d0..da7e074aa44d 100644
 --- a/fs/dcache.c
@@ -204,10 +206,10 @@ index 0f6b16ba30d0..da7e074aa44d 100644
  {
  	if (!str)
 diff --git a/fs/inode.c b/fs/inode.c
-index 8dabb224f941..3b7ddc52f767 100644
+index bfd5d7929979..a14667461d9b 100644
 --- a/fs/inode.c
 +++ b/fs/inode.c
-@@ -2398,7 +2398,11 @@ static void __wait_on_freeing_inode(struct inode *inode, bool is_inode_hash_lock
+@@ -2402,7 +2402,11 @@ static void __wait_on_freeing_inode(struct inode *inode, bool is_inode_hash_lock
  	rcu_read_lock();
  }
  
@@ -267,7 +269,7 @@ index af3014ccc82e..f5bce42c8d0d 100644
  
  #endif /* _ANDROID_VENDOR_H */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 00823bd13e51..4f1411af7e2e 100644
+index 3ea5db2617f8..89484153cbd4 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
 @@ -124,7 +124,18 @@ extern int page_group_by_mobility_disabled;
@@ -291,10 +293,10 @@ index 00823bd13e51..4f1411af7e2e 100644
  struct pglist_data;
  
 diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index d904efb4574d..bdb5d84bcf20 100644
+index 32abd4eb213d..37e191608d47 100644
 --- a/include/linux/page-flags.h
 +++ b/include/linux/page-flags.h
-@@ -548,6 +548,9 @@ FOLIO_FLAG(swapbacked, FOLIO_HEAD_PAGE)
+@@ -554,6 +554,9 @@ FOLIO_FLAG(swapbacked, FOLIO_HEAD_PAGE)
   */
  PAGEFLAG(Private, private, PF_ANY)
  PAGEFLAG(Private2, private_2, PF_ANY) TESTSCFLAG(Private2, private_2, PF_ANY)
@@ -384,10 +386,10 @@ index 87866b037fbe..068c0ec91ac2 100644
  $(obj)/kheaders.o: $(obj)/kheaders_data.tar.xz
  
 diff --git a/kernel/dma/contiguous.c b/kernel/dma/contiguous.c
-index 4c14c7853d0c..6c86ad426515 100644
+index 0de38657260e..17c8a46a9f94 100644
 --- a/kernel/dma/contiguous.c
 +++ b/kernel/dma/contiguous.c
-@@ -479,7 +479,9 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
+@@ -484,7 +484,9 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
  
  	err = cma_init_reserved_mem(rmem->base, rmem->size, 0, rmem->name, &cma);
  	if (err) {
@@ -397,7 +399,7 @@ index 4c14c7853d0c..6c86ad426515 100644
  		return err;
  	}
  	/* Architecture specific contiguous memory fixup. */
-@@ -491,8 +493,10 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
+@@ -496,8 +498,10 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
  	rmem->ops = &rmem_cma_ops;
  	rmem->priv = cma;
  
@@ -436,7 +438,7 @@ index bf65e0c3c86f..0daac1bf3491 100644
  	    || mod_mem_type_is_init(type))
  		return false;
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index fb242739aec8..d55cb3eeca11 100644
+index 96fdbd87d418..c15e705e0bc7 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
 @@ -541,8 +541,13 @@ static u32 log_buf_len = __LOG_BUF_LEN;
@@ -515,6 +517,23 @@ index d7809affe740..aa4135c3c43e 100644
  		cache[i] = NULL;
  	}
  
+diff --git a/mm/cma.c b/mm/cma.c
+index 5798b3861cbb..7a14afc09cb3 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -511,10 +511,12 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
+ 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
+ 				bitmap_maxno, start, bitmap_count, mask,
+ 				offset);
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 		trace_android_rvh_bitmap_find_best_next_area(cma->bitmap,
+ 				bitmap_maxno, start, bitmap_count, mask,
+ 				offset, &bitmap_no, cma->android_vendor_data1);
++#endif
+ #endif
+ 		if (bitmap_no >= bitmap_maxno) {
+ 			if ((num_attempts < max_retries) && (ret == -EBUSY)) {
 diff --git a/mm/kasan/common.c b/mm/kasan/common.c
 index ed4873e18c75..84761ffbfc2a 100644
 --- a/mm/kasan/common.c
@@ -541,10 +560,10 @@ index ed4873e18c75..84761ffbfc2a 100644
  		     KASAN_PAGE_REDZONE, false);
  }
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6df185f2a9de..039d734ed57a 100644
+index 2e2dcea7999d..746e73b9ba01 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -71,6 +71,10 @@
+@@ -73,6 +73,10 @@
  #include <linux/amlogic/aml_cma.h>
  #endif
  
@@ -555,7 +574,7 @@ index 6df185f2a9de..039d734ed57a 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
  
-@@ -915,7 +919,15 @@ static inline void __free_one_page(struct page *page,
+@@ -923,7 +927,15 @@ static inline void __free_one_page(struct page *page,
  	else if (is_shuffle_order(order))
  		to_tail = shuffle_pick_tail();
  	else
@@ -571,7 +590,7 @@ index 6df185f2a9de..039d734ed57a 100644
  
  	__add_to_free_list(page, zone, order, migratetype, to_tail);
  
-@@ -2733,7 +2745,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
+@@ -2868,7 +2880,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
  	pcp->alloc_factor >>= 1;
  	__count_vm_events(PGFREE, 1 << order);
  	pindex = order_to_pindex(migratetype, order);
@@ -587,7 +606,7 @@ index 6df185f2a9de..039d734ed57a 100644
  	pcp->count += 1 << order;
  
  	batch = READ_ONCE(pcp->batch);
-@@ -4958,6 +4978,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+@@ -5142,6 +5162,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
  	 */
  	alloc_flags |= alloc_flags_nofragment(zonelist_zone(ac.preferred_zoneref), gfp);
  
@@ -597,7 +616,7 @@ index 6df185f2a9de..039d734ed57a 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -7213,6 +7236,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -7418,6 +7441,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -640,10 +659,10 @@ index 6df185f2a9de..039d734ed57a 100644
  bool has_managed_dma(void)
  {
 diff --git a/mm/show_mem.c b/mm/show_mem.c
-index dbb5054ce8ca..7562740b2fab 100644
+index 637d4ff87afd..2a3b72212776 100644
 --- a/mm/show_mem.c
 +++ b/mm/show_mem.c
-@@ -194,6 +194,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -195,6 +195,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  	int cpu, nid;
  	struct zone *zone;
  	pg_data_t *pgdat;
@@ -653,7 +672,7 @@ index dbb5054ce8ca..7562740b2fab 100644
  
  	for_each_populated_zone(zone) {
  		if (zone_idx(zone) > max_zone_idx)
-@@ -377,6 +380,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -378,6 +381,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  
  			types[order] = 0;
  			for (type = 0; type < MIGRATE_TYPES; type++) {
@@ -663,7 +682,7 @@ index dbb5054ce8ca..7562740b2fab 100644
  				if (!free_area_empty(area, type))
  					types[order] |= 1 << type;
  			}
-@@ -389,6 +395,12 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -390,6 +396,12 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  				show_migration_types(types[order]);
  		}
  		printk(KERN_CONT "= %lukB\n", K(total));
@@ -779,10 +798,10 @@ index e95d747d3432..3d3dd6d9185f 100644
  	seq_putc(m, '\n');
  }
 diff --git a/mm/slub.c b/mm/slub.c
-index 14db6006d5fa..9d40ae041f80 100644
+index 8eab8f476207..4347d5612af7 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -49,6 +49,9 @@
+@@ -48,6 +48,9 @@
  
  #include "internal.h"
  
@@ -792,7 +811,7 @@ index 14db6006d5fa..9d40ae041f80 100644
  /*
   * Lock order:
   *   1. slab_mutex (Global Mutex)
-@@ -4233,11 +4236,29 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
+@@ -4290,11 +4293,29 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
  		flags = kmalloc_fix_flags(flags);
  
  	flags |= __GFP_COMP;
@@ -822,7 +841,7 @@ index 14db6006d5fa..9d40ae041f80 100644
  	}
  
  	trace_android_vh_kmalloc_large_alloced(folio, order, flags);
-@@ -4750,7 +4771,14 @@ void kfree(const void *object)
+@@ -4807,7 +4828,14 @@ void kfree(const void *object)
  
  	folio = virt_to_folio(object);
  	if (unlikely(!folio_test_slab(folio))) {
@@ -837,7 +856,7 @@ index 14db6006d5fa..9d40ae041f80 100644
  		return;
  	}
  
-@@ -5084,6 +5112,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
+@@ -5141,6 +5169,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
  
  static inline int calculate_order(unsigned int size)
  {
@@ -847,7 +866,7 @@ index 14db6006d5fa..9d40ae041f80 100644
  	unsigned int order;
  	unsigned int min_objects;
  	unsigned int max_objects;
-@@ -5143,6 +5174,7 @@ static inline int calculate_order(unsigned int size)
+@@ -5200,6 +5231,7 @@ static inline int calculate_order(unsigned int size)
  	if (order <= MAX_PAGE_ORDER)
  		return order;
  	return -ENOSYS;
@@ -871,10 +890,22 @@ index 83c164aba6e0..5400ce215e2c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a50709ba38f3..8c23b96650a0 100644
+index 4bb5e3c52e60..d9e3507dd9a5 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1058,6 +1058,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
+@@ -910,9 +910,11 @@ static enum folio_references folio_check_references(struct folio *folio,
+ 	unsigned long vm_flags;
+ 	int ret = 0;
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 	trace_android_vh_page_should_be_protected(folio, sc->nr_scanned,
+ 		sc->priority, &sc->android_vendor_data1, &ret);
++#endif
+ #endif
+ 	trace_android_vh_check_folio_look_around_ref(folio, &ret);
+ 	if (ret)
+@@ -1101,6 +1103,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
@@ -892,7 +923,7 @@ index a50709ba38f3..8c23b96650a0 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1104,7 +1115,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1147,8 +1160,12 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -900,11 +931,13 @@ index a50709ba38f3..8c23b96650a0 100644
 +		if (!can_unmap_files(sc, folio))
 +	#else
  		if (!sc->may_unmap && folio_mapped(folio))
+-			goto keep_locked;
 +	#endif
- 			goto keep_locked;
++		    goto keep_locked;
  
- 		/* folio_update_gen() tried to promote this page? */
-@@ -1844,8 +1859,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
+ 		/*
+ 		 * The number of dirty pages determines if a node is marked
+@@ -1887,8 +1904,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
@@ -915,7 +948,19 @@ index a50709ba38f3..8c23b96650a0 100644
  
  	too_many = isolated > inactive;
  
-@@ -5902,9 +5919,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+@@ -2162,9 +2181,11 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 			}
+ 		}
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 		trace_android_vh_page_should_be_protected(folio, sc->nr_scanned,
+ 			sc->priority, &sc->android_vendor_data1, &should_protect);
++#endif
+ #endif
+ 		if (unlikely(should_protect)) {
+ 			nr_rotated += folio_nr_pages(folio);
+@@ -5988,9 +6009,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
  			return false;
  	}
  
@@ -927,7 +972,20 @@ index a50709ba38f3..8c23b96650a0 100644
  #endif
  	if (!continue_reclaim)
  		return false;
-@@ -6297,10 +6316,12 @@ static void modify_scan_control(struct scan_control *sc)
+@@ -6079,10 +6102,12 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
+ 				   sc->nr_scanned - scanned,
+ 				   sc->nr_reclaimed - reclaimed);
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 		trace_android_vh_shrink_node_memcgs_bypass(&sc->android_vendor_data1,
+ 				    partial, sc->nr_to_reclaim, sc->nr_reclaimed,
+ 				    sc->gfp_mask, sc->order, &bypass);
++#endif
+ #endif
+ 
+ 		/* If partial walks are allowed, bail once goal is reached */
+@@ -6391,10 +6416,12 @@ static void modify_scan_control(struct scan_control *sc)
  {
  	bool file_is_tiny = false, may_writepage = true;
  
@@ -941,5 +999,5 @@ index a50709ba38f3..8c23b96650a0 100644
  
  	if (file_is_tiny)
 -- 
-2.42.0
+2.46.0
 

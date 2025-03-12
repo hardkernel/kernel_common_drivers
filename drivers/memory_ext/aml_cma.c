@@ -1576,7 +1576,7 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 
 	//set_page_owner(page, order, gfp_flags);
 	page_table_check_alloc(page, order);
-	pgalloc_tag_add(page, current, 1 << order);
+	//pgalloc_tag_add(page, current, 1 << order);
 }
 
 static void aml_prep_compound_page(struct page *page, unsigned int order)

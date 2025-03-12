@@ -115,6 +115,7 @@ adjust_config_action
 build_part_of_kernel
 
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
+	source ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
 	if [[ "${GKI_CONFIG}" != "gki_20" && -n ${DDK_BUILD} ]]; then
 		echo "The drivers in the common_drivers directory can be compiled with DDK only in the gki_20 mode!!!"
 		exit
@@ -196,6 +197,8 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	fi
 
 	echo 							>> ${PROJECT_DIR}/project.bzl
+	echo "BRANCH = \"${BRANCH}\"" 				>> ${PROJECT_DIR}/project.bzl
+
 	echo "FULL_KERNEL_VERSION = \"${FULL_KERNEL_VERSION}\"" >> ${PROJECT_DIR}/project.bzl
 
 	echo "ANDROID_PROJECT = \"${ANDROID_PROJECT}\"" 	>> ${PROJECT_DIR}/project.bzl
@@ -273,8 +276,8 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		[[ -d ${ROOT_DIR}/common_drivers ]] && google_args="${google_args} --config=common_drivers_on_top"
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  ${google_args} --config=fast
 	elif [[ "${ABI}" -eq "1" ]]; then
-		tools/bazel run //common:amlogic_abi_update_symbol_list ${args}
-		tools/bazel run //common:kernel_aarch64_abi_dist ${args}
+		tools/bazel run //common_drivers:amlogic_abi_update_symbol_list ${args}
+		#tools/bazel run //common:kernel_aarch64_abi_update -- --print_git_commands
 		exit
 	elif [[ -n ${PREBUILT_GKI} ]]; then
 		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common_drivers:amlogic_dist ${args}

@@ -1,4 +1,4 @@
-From eb5c03eaaeafb25bea4a56fa44dc1715528adaba Mon Sep 17 00:00:00 2001
+From cd28ddb2de5a7d515fea4ed5f53c93076b9441b7 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Fri, 17 Mar 2023 17:35:31 +0800
 Subject: [PATCH] bazel: support use bazel tool to build [1/1]
@@ -20,11 +20,11 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  BUILD.bazel     | 10 ++++++++++
  Kbuild          | 12 +++++++++---
  drivers/Kconfig |  8 ++++++++
- modules.bzl     |  6 ++++++
- 4 files changed, 33 insertions(+), 3 deletions(-)
+ modules.bzl     |  5 +++++
+ 4 files changed, 32 insertions(+), 3 deletions(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index 86a2053888c7..6dd4fe7eae7d 100644
+index ac884896e4c4..8fd5d757964e 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
 @@ -45,6 +45,13 @@ package(
@@ -41,7 +41,7 @@ index 86a2053888c7..6dd4fe7eae7d 100644
  _GKI_AARCH64_MAKE_GOALS = [
      "Image",
      "Image.lz4",
-@@ -3088,3 +3095,6 @@ pkg_zip(
+@@ -3134,3 +3141,6 @@ pkg_zip(
  exports_files([
      "Makefile",
  ])
@@ -88,19 +88,18 @@ index 407bb559650a..1c0b99f9f56f 100644
  source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
  source "$(COMMON_DRIVERS_DIR)/sound/Kconfig"
 diff --git a/modules.bzl b/modules.bzl
-index 5e613e7e78b2..4cd9565bab0b 100644
+index 49700e6cf657..fe6762642e28 100644
 --- a/modules.bzl
 +++ b/modules.bzl
-@@ -6,6 +6,8 @@ This module contains a full list of kernel modules
+@@ -5,6 +5,7 @@
+ This module contains a full list of kernel modules
   compiled by GKI.
  """
- 
 +load("//common:common_drivers/modules.bzl", "AMLOGIC_REMOVE_KERNEL_MODULES")
-+
+ 
+ # LINT.IfChange
  _COMMON_GKI_MODULES_LIST = [
-     # keep sorted
-     "drivers/block/virtio_blk.ko",
-@@ -138,6 +140,10 @@ def get_gki_modules_list(arch = None):
+@@ -143,6 +144,10 @@ def get_gki_modules_list(arch = None):
              arch,
          ))
  
@@ -112,5 +111,5 @@ index 5e613e7e78b2..4cd9565bab0b 100644
  
  _KUNIT_FRAMEWORK_MODULES = [
 -- 
-2.42.0
+2.46.0
 

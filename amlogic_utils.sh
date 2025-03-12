@@ -956,7 +956,7 @@ function modules_install() {
 		        cp ${module} ${OUT_AMLOGIC_DIR}/symbols
 		done
 
-		pushd ${ROOT_DIR}/bazel-out
+		pushd ${ROOT_DIR}/bazel-out/k8-fastbuild
 		AMLOGIC_CONFIG=`find -name .config | grep amlogic_config`
 		KERNEL_AARCH64_CONFIG=`find -name .config | grep kernel_aarch64_config`
 		cp ${AMLOGIC_CONFIG} ${DIST_DIR}/amlogic.config

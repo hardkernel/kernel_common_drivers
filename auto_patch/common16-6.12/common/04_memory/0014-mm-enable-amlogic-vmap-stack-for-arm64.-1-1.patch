@@ -1,4 +1,4 @@
-From 29b0a9b6e9b125b0be015513a59db943b1fdeb78 Mon Sep 17 00:00:00 2001
+From c728ad712539359d8749855af512d23d9daad9cb Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 28 Nov 2024 15:15:07 +0800
 Subject: [PATCH] mm: add amlogic vmap stack for arm64. [1/1]
@@ -38,11 +38,10 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  kernel/fork.c                              |  25 +++++
  lib/Kconfig.debug                          |   1 +
  mm/kmemleak.c                              |  25 +++++
- mm/vmalloc.c                               |   7 ++
- 22 files changed, 347 insertions(+), 1 deletion(-)
+ 21 files changed, 340 insertions(+), 1 deletion(-)
 
 diff --git a/Makefile b/Makefile
-index ab6e4a600f71..3e57886bd609 100644
+index 29be973164d0..b3b405eedd48 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -878,9 +878,11 @@ ifdef CONFIG_READABLE_ASM
@@ -615,10 +614,10 @@ index 873996d11ad2..55a6d9a24ae0 100644
  	seq_printf(m, "ShadowCallStack:%8lu kB\n",
  		   global_node_page_state(NR_KERNEL_SCS_KB));
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 74173ef8ec30..1f9776af7cc7 100644
+index efedda2953ed..30aa044fdb3c 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -1948,7 +1948,13 @@ extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
+@@ -1949,7 +1949,13 @@ extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
  #ifdef CONFIG_THREAD_INFO_IN_TASK
  # define task_thread_info(task)	(&(task)->thread_info)
  #elif !defined(__HAVE_THREAD_FUNCTIONS)
@@ -666,10 +665,10 @@ index 6c2fef89a4fd..31898c056273 100644
  static inline int object_is_on_stack(const void *obj)
  {
 diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index ad2ce7a6ab7a..2ee2a5fe5a6c 100644
+index 321e75537239..10531ef5acec 100644
 --- a/include/linux/vmalloc.h
 +++ b/include/linux/vmalloc.h
-@@ -332,5 +332,11 @@ bool vmalloc_dump_obj(void *object);
+@@ -335,5 +335,11 @@ bool vmalloc_dump_obj(void *object);
  #else
  static inline bool vmalloc_dump_obj(void *object) { return false; }
  #endif
@@ -682,7 +681,7 @@ index ad2ce7a6ab7a..2ee2a5fe5a6c 100644
  
  #endif /* _LINUX_VMALLOC_H */
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 634a3102fd2f..838782016a9e 100644
+index 9505e10dd213..bc3a0c6032cb 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -114,6 +114,10 @@
@@ -740,7 +739,7 @@ index 634a3102fd2f..838782016a9e 100644
  	tsk->stack = NULL;
  }
  
-@@ -546,6 +565,9 @@ void vm_area_free(struct vm_area_struct *vma)
+@@ -522,6 +541,9 @@ void vm_area_free(struct vm_area_struct *vma)
  
  static void account_kernel_stack(struct task_struct *tsk, int account)
  {
@@ -750,7 +749,7 @@ index 634a3102fd2f..838782016a9e 100644
  	if (IS_ENABLED(CONFIG_VMAP_STACK)) {
  		struct vm_struct *vm = task_stack_vm_area(tsk);
  		int i;
-@@ -560,6 +582,7 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
+@@ -536,6 +558,7 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
  		mod_lruvec_kmem_state(stack, NR_KERNEL_STACK_KB,
  				      account * (THREAD_SIZE / 1024));
  	}
@@ -758,7 +757,7 @@ index 634a3102fd2f..838782016a9e 100644
  }
  
  void exit_task_stack_account(struct task_struct *tsk)
-@@ -1105,7 +1128,9 @@ void set_task_stack_end_magic(struct task_struct *tsk)
+@@ -1081,7 +1104,9 @@ void set_task_stack_end_magic(struct task_struct *tsk)
  	unsigned long *stackend;
  
  	stackend = end_of_stack(tsk);
@@ -769,7 +768,7 @@ index 634a3102fd2f..838782016a9e 100644
  
  static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 7b9c14505a8d..004948d50fbb 100644
+index 0478b3c75de5..e06f8399857c 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
 @@ -788,6 +788,7 @@ config SHRINKER_DEBUG
@@ -781,7 +780,7 @@ index 7b9c14505a8d..004948d50fbb 100644
  	  Enables the display of the minimum amount of free stack which each
  	  task has ever had available in the sysrq-T and sysrq-P debug output.
 diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 5f878ee05ff8..d7b708bc3d05 100644
+index 44bb798423dd..afbe7f441308 100644
 --- a/mm/kmemleak.c
 +++ b/mm/kmemleak.c
 @@ -102,6 +102,9 @@
@@ -831,28 +830,6 @@ index 5f878ee05ff8..d7b708bc3d05 100644
  				put_task_stack(p);
  			}
  		}
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index a74fd18e5eda..9a419691f19d 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -3105,10 +3105,17 @@ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
- 	vm->flags &= ~VM_UNINITIALIZED;
- }
- 
-+#ifdef CONFIG_AMLOGIC_VMAP
-+struct vm_struct *__get_vm_area_node(unsigned long size,
-+		unsigned long align, unsigned long shift, unsigned long flags,
-+		unsigned long start, unsigned long end, int node,
-+		gfp_t gfp_mask, const void *caller)
-+#else
- static struct vm_struct *__get_vm_area_node(unsigned long size,
- 		unsigned long align, unsigned long shift, unsigned long flags,
- 		unsigned long start, unsigned long end, int node,
- 		gfp_t gfp_mask, const void *caller)
-+#endif
- {
- 	struct vmap_area *va;
- 	struct vm_struct *area;
 -- 
-2.42.0
+2.46.0
 

@@ -25,11 +25,9 @@ load(
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kernel/kleaf:print_debug.bzl", "print_debug")
 
-# Always collect_unstripped_modules for common kernels.
-_COLLECT_UNSTRIPPED_MODULES = True
-
 def define_common_amlogic(
         name,
+        branch,
         outs,
         dtbo_srcs,
         build_config = None,
@@ -38,51 +36,20 @@ def define_common_amlogic(
         define_abi_targets = None,
         kmi_symbol_list = None,
         additional_kmi_symbol_lists = None,
-        kmi_symbol_list_add_only = None,
         module_grouping = None,
         unstripped_modules_archive = None,
         dist_dir = None,
         ext_modules = None,
         kconfig_ext = None,
         kconfig_ext_srcs = None):
-    """Define target for amlogic.
-
-    Note: This is a mixed build.
-
-    Requires [`define_common_kernels`](#define_common_kernels) to be called in the same package.
-
-    Args:
-        name: name of target. Usually `"amlogic"`.
-        build_config: See [kernel_build.build_config](#kernel_build-build_config). If `None`,
-          default to `"common_drivers/build.config.amlogic.bazel"`.
-        outs: See [kernel_build.outs](#kernel_build-outs).
-        module_outs: See [kernel_build.module_outs](#kernel_build-module_outs). The list of
-          in-tree kernel modules.
-        make_goals: See [kernel_build.make_goals](#kernel_build-make_goals).  A list of strings
-          defining targets for the kernel build.
-        define_abi_targets: See [kernel_abi.define_abi_targets](#kernel_abi-define_abi_targets).
-        kmi_symbol_list: See [kernel_build.kmi_symbol_list](#kernel_build-kmi_symbol_list).
-        kmi_symbol_list_add_only: See [kernel_abi.kmi_symbol_list_add_only](#kernel_abi-kmi_symbol_list_add_only).
-        module_grouping: See [kernel_abi.module_grouping](#kernel_abi-module_grouping).
-        unstripped_modules_archive: See [kernel_abi.unstripped_modules_archive](#kernel_abi-unstripped_modules_archive).
-        dist_dir: Argument to `copy_to_dist_dir`. If `None`, default is `"out/{BRANCH}/dist"`.
-    """
 
     if build_config == None:
         build_config = ":build.config.amlogic.bazel"
 
-    if kmi_symbol_list == None:
-        kmi_symbol_list = "//common:android/abi_gki_aarch64_amlogic" if define_abi_targets else None
-
-    if kmi_symbol_list_add_only == None:
-        kmi_symbol_list_add_only = True if define_abi_targets else None
+    kmi_symbol_list_add_only = True if define_abi_targets else None
 
     if dist_dir == None:
-        dist_dir = "out/android16-6.12/dist"
-        # dist_dir = "out/{branch}/dist".format(branch = BRANCH)
-
-    # Also refer to the list of ext modules for ABI monitoring targets
-    _kernel_modules = ext_modules;
+        dist_dir = "out/{}/dist".format(branch)
 
     kernel_build(
         name = name,
@@ -92,13 +59,13 @@ def define_common_amlogic(
         module_outs = module_outs,
         build_config = build_config,
         # Enable mixed build.
-        base_kernel = "//common:kernel_aarch64_download_or_build",
+        base_kernel = "//common:kernel_aarch64",
         # defconfig = "//common:arch/arm64/configs/gki_defconfig",
         # pre_defconfig_fragments = ["arch/arm64/configs/amlogic_gki.fragment"],
         # check_defconfig = "disabled",
         kmi_symbol_list = kmi_symbol_list,
         additional_kmi_symbol_lists = additional_kmi_symbol_lists,
-        collect_unstripped_modules = _COLLECT_UNSTRIPPED_MODULES,
+        collect_unstripped_modules = True,
         strip_modules = True,
         make_goals = make_goals,
         makefile = "//common:Makefile",
@@ -106,37 +73,31 @@ def define_common_amlogic(
         visibility = ["//visibility:public"],
     )
 
-    # enable ABI Monitoring
-    # based on the instructions here:
-    # https://android.googlesource.com/kernel/build/+/refs/heads/main/kleaf/docs/abi_device.md
-    # https://android-review.googlesource.com/c/kernel/build/+/2308912
     kernel_abi(
         name = name + "_abi",
         kernel_build = name,
         define_abi_targets = define_abi_targets,
-        kernel_modules = _kernel_modules,
-        kmi_symbol_list_add_only = kmi_symbol_list_add_only,
+        kernel_modules = ext_modules,
+        kmi_symbol_list_add_only = True,		#kmi_symbol_list_add_only,
         module_grouping = module_grouping,
-        unstripped_modules_archive = unstripped_modules_archive,
     )
 
     kernel_modules_install(
         name = name + "_modules_install",
         kernel_build = name,
         # List of external modules.
-        kernel_modules = _kernel_modules,
+        kernel_modules = ext_modules,
     )
 
     merged_kernel_uapi_headers(
         name = name + "_merged_kernel_uapi_headers",
         kernel_build = name,
-        kernel_modules = _kernel_modules,
+        kernel_modules = ext_modules,
     )
 
     initramfs(
         name = name + "_initramfs",
         kernel_modules_install = name + "_modules_install",
-        visibility = ["//visibility:private"],
     )
 
     dtbo(
@@ -149,8 +110,8 @@ def define_common_amlogic(
         name = name + "_dist_files",
         srcs = [
             name,
-            name + "_initramfs",
             name + "_dtbo",
+            name + "_initramfs",
             name + "_modules_install",
             name + "_merged_kernel_uapi_headers",
             # Mixed build: Additional GKI artifacts.
@@ -164,7 +125,7 @@ def define_common_amlogic(
     pkg_install(
         name = name + "_dist",
         srcs = [":" + name + "_dist_files"],
-        destdir = "out/android16-6.12/dist",
+        destdir = dist_dir,
     )
 
 def m_k_files():
