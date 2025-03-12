@@ -56,7 +56,7 @@ void handle_ini_parser_uninit(void *inip)
 static unsigned char *handle_ini_parser_init(int mem_size)
 {
 	unsigned char *local_ini_mem;
-	char *identifier;
+	unsigned char *identifier;
 	struct ini_s *ini_buf;
 	int total_size;
 
@@ -74,11 +74,8 @@ static unsigned char *handle_ini_parser_init(int mem_size)
 	ini_buf->mem_size = total_size - sizeof(struct ini_s);
 	ini_buf->mem_start_pos = sizeof(struct ini_s);
 
-	//init mem pointer
-	ini_buf->mem = local_ini_mem + ini_buf->mem_start_pos;
-
 	//init identifier:
-	identifier = (char *)ini_buf->mem;
+	identifier = local_ini_mem + ini_buf->mem_start_pos;
 	strscpy(identifier, INI_IDENTIFIER_STR, INI_MEM_DATA_OFFSET);
 
 	//init parser data offset
@@ -109,7 +106,7 @@ void *handle_ini_file_parse(const char *file_buf, int mem_size)
 		handle_ini_parser_uninit(local_ini_mem);
 		return NULL;
 	}
-	ini_buf->crc32 = cal_CRC32(0, ini_buf->mem, ini_buf->mem_cur_pos);
+	ini_buf->crc32 = cal_CRC32(0, local_ini_mem + ini_buf->mem_start_pos, ini_buf->mem_cur_pos);
 	return (void *)local_ini_mem;
 }
 
@@ -159,8 +156,7 @@ void *handle_ini_parser_dupmem(void *inip, int *buf_size)
 	ini_buf->total_size = size;
 	ini_buf->mem_size = ini_buf->mem_cur_pos;
 	p = (unsigned char *)local_ini_mem;
-	ini_buf->mem = p + ini_buf->mem_start_pos;
-	ini_buf->crc32 = cal_CRC32(0, ini_buf->mem, ini_buf->mem_cur_pos);
+	ini_buf->crc32 = cal_CRC32(0, p + ini_buf->mem_start_pos, ini_buf->mem_cur_pos);
 	*buf_size = size;
 
 	return local_ini_mem;

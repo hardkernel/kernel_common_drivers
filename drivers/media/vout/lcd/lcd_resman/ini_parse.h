@@ -52,7 +52,7 @@ struct ini_s {
 	int cur_section;   //global offset
 	int mem_start_pos; //offset by total buffer start
 	int mem_cur_pos;   //offset by mem start
-	unsigned char *mem;  //include magic_num
+	int reserved;      //for bit align
 };
 
 #define INI_PARSER_MEM_TRACE        0

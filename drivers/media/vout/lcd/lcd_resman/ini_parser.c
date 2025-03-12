@@ -39,48 +39,56 @@ static void ini_alloc_parse_mem_print(void)
 
 static char *pos_to_str(struct ini_s *ini_buf, unsigned int pos)
 {
+	unsigned char *local_ini_mem = (unsigned char *)ini_buf;
+
 	if (pos == 0 || pos > ini_buf->mem_size)
 		return NULL;
 
-	return (char *)(ini_buf->mem + pos);
+	return (char *)(local_ini_mem + ini_buf->mem_start_pos + pos);
 }
 
 static struct ini_line_s *pos_to_line(struct ini_s *ini_buf, unsigned int pos)
 {
+	unsigned char *local_ini_mem = (unsigned char *)ini_buf;
+
 	if (pos == 0 || pos > ini_buf->mem_size)
 		return NULL;
 
-	return (struct ini_line_s *)(ini_buf->mem + pos);
+	return (struct ini_line_s *)(local_ini_mem + ini_buf->mem_start_pos + pos);
 }
 
 static int line_to_pos(struct ini_s *ini_buf, struct ini_line_s *pline)
 {
 	unsigned char *p;
+	unsigned char *local_ini_mem = (unsigned char *)ini_buf;
 
 	if (!ini_buf || !pline)
 		return 0;
 
 	p = (unsigned char *)pline;
-	return (p - ini_buf->mem);
+	return (p - local_ini_mem - ini_buf->mem_start_pos);
 }
 
 static struct ini_section_s *pos_to_section(struct ini_s *ini_buf, unsigned int pos)
 {
+	unsigned char *local_ini_mem = (unsigned char *)ini_buf;
+
 	if (pos == 0 || pos > ini_buf->mem_size)
 		return NULL;
 
-	return (struct ini_section_s *)(ini_buf->mem + pos);
+	return (struct ini_section_s *)(local_ini_mem + ini_buf->mem_start_pos + pos);
 }
 
 static int section_to_pos(struct ini_s *ini_buf, struct ini_section_s *psec)
 {
 	unsigned char *p;
+	unsigned char *local_ini_mem = (unsigned char *)ini_buf;
 
 	if (!ini_buf || !psec)
 		return 0;
 
 	p = (unsigned char *)psec;
-	return (p - ini_buf->mem);
+	return (p - local_ini_mem - ini_buf->mem_start_pos);
 }
 
 /* Strip whitespace chars off end of given string, in place. Return s */
@@ -186,13 +194,11 @@ int ini_set_line_exist_key_val(struct ini_s *ini_buf, struct ini_section_s *psec
 	int pre_len, new_len, offset;
 	int tmp_size, new_pos;
 	int ret = 0, err_no = 0;
+	unsigned char *local_ini_mem = (unsigned char *)ini_buf;
 
 	if (!ini_buf || !psec || !pline || !new_value)
 		return -1;
-	if (!ini_buf->mem) {
-		INIERR("%s: ini mem error!\n", __func__);
-		return -1;
-	}
+
 
 	tmp_mem = kzalloc(ini_buf->total_size, GFP_KERNEL);
 	if (!tmp_mem) {
@@ -202,7 +208,6 @@ int ini_set_line_exist_key_val(struct ini_s *ini_buf, struct ini_section_s *psec
 	tmp_inip = (struct ini_s *)tmp_mem;
 	pre_mem = (void *)ini_buf;
 	memcpy(tmp_mem, pre_mem, sizeof(struct ini_s));
-	tmp_inip->mem = tmp_mem + tmp_inip->mem_start_pos;
 
 	tmp_name = pos_to_str(ini_buf, pline->name_pos);
 	tmp_value = pos_to_str(ini_buf, pline->value_pos);
@@ -224,7 +229,7 @@ int ini_set_line_exist_key_val(struct ini_s *ini_buf, struct ini_section_s *psec
 		ret = -1;
 		goto ini_set_line_exist_key_val_end;
 	}
-	memcpy(tmp_inip->mem, ini_buf->mem, new_pos);
+	memcpy(tmp_mem + tmp_inip->mem_start_pos, local_ini_mem + ini_buf->mem_start_pos, new_pos);
 	tmp_inip->mem_cur_pos = new_pos;
 
 	if (set_mode == INI_SET_KEY_VAL_MODE_OVERWRITE) { //overwrite new_value
@@ -378,7 +383,9 @@ int ini_set_line_exist_key_val(struct ini_s *ini_buf, struct ini_section_s *psec
 	}
 
 	//restore cur_mem
-	memcpy(ini_buf->mem, tmp_inip->mem, ini_buf->mem_size);
+	memcpy(local_ini_mem + ini_buf->mem_start_pos,
+		tmp_mem + tmp_inip->mem_start_pos,
+		ini_buf->mem_size);
 	ini_buf->mem_cur_pos = tmp_inip->mem_cur_pos;
 
 ini_set_line_exist_key_val_end:
@@ -400,13 +407,10 @@ int ini_set_line_exist_keys(struct ini_s *ini_buf, struct ini_section_s *psec,
 	unsigned char *tmp_mem;
 	int offset, tmp_size, new_pos;
 	int i, j, ret = 0, err_no = 0;
+	unsigned char *local_ini_mem = (unsigned char *)ini_buf;
 
 	if (!ini_buf || !psec || !new_line || !new_value)
 		return -1;
-	if (!ini_buf->mem) {
-		INIERR("%s: ini mem error!\n", __func__);
-		return -1;
-	}
 
 	tmp_mem = kzalloc(ini_buf->total_size, GFP_KERNEL);
 	if (!tmp_mem) {
@@ -415,7 +419,6 @@ int ini_set_line_exist_keys(struct ini_s *ini_buf, struct ini_section_s *psec,
 	}
 	tmp_inip = (struct ini_s *)tmp_mem;
 	memcpy(tmp_mem, (void *)ini_buf, sizeof(struct ini_s));
-	tmp_inip->mem = tmp_mem + tmp_inip->mem_start_pos;
 
 	new_pos = section_to_pos(ini_buf, psec);
 	tmp_psec = pos_to_section(tmp_inip, new_pos);
@@ -426,7 +429,7 @@ int ini_set_line_exist_keys(struct ini_s *ini_buf, struct ini_section_s *psec,
 	}
 
 	//save front sections
-	memcpy(tmp_inip->mem, ini_buf->mem, new_pos);
+	memcpy(tmp_mem + tmp_inip->mem_start_pos, local_ini_mem + ini_buf->mem_start_pos, new_pos);
 	tmp_inip->mem_cur_pos = new_pos;
 
 	//overwrite current section with new lines value
@@ -581,7 +584,9 @@ ini_set_line_exist_keys_cur_psec_next_line:
 	}
 
 	//restore cur_mem
-	memcpy(ini_buf->mem, tmp_inip->mem, ini_buf->mem_size);
+	memcpy(local_ini_mem + ini_buf->mem_start_pos,
+		tmp_mem + tmp_inip->mem_start_pos,
+		ini_buf->mem_size);
 	ini_buf->mem_cur_pos = tmp_inip->mem_cur_pos;
 
 ini_set_line_exist_keys_end:
