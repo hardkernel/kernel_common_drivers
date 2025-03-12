@@ -19,9 +19,9 @@
 #include "hdmitx_module.h"
 #include "hdmitx_common.h"
 
-static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device);
+static void hdmitx_set_spd_info(struct hdmitx21_dev *hdmitx_device);
 
-static void construct_avi_packet(struct hdmitx_dev *hdev)
+static void construct_avi_packet(struct hdmitx21_dev *hdev)
 {
 	struct hdmi_avi_infoframe *info = &hdev->tx_comm.infoframes.avi.avi;
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
@@ -86,8 +86,9 @@ static int is_dvi_device(struct rx_cap *prxcap)
 		return 0;
 }
 
-int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
+int hdmitx21_set_display(struct hdmitx_hw_common *hw_comm, enum hdmi_vic videocode)
 {
+	struct hdmitx21_dev *hdev = container_of(hw_comm, struct hdmitx21_dev, hw_comm);
 	struct hdmi_format_para *param = &hdev->tx_comm.fmt_para;
 	int ret = -1;
 	unsigned char buffer[31] = {0x87, 0x1, 26};
@@ -98,7 +99,7 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		HDMITX_INFO("VESA only support RGB format\n");
 	}
 
-	if (hdev->hw_comm.setdispmode(&hdev->hw_comm) >= 0) {
+	if (hw_comm->setdispmode(hw_comm) >= 0) {
 		construct_avi_packet(hdev);
 
 		/*
@@ -109,11 +110,11 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		 */
 		if (is_dvi_device(&hdev->tx_comm.rxcap)) {
 			HDMITX_INFO("Sink is DVI device\n");
-			hdmitx_hw_cntl_config(&hdev->hw_comm,
+			hdmitx_hw_cntl_config(hw_comm,
 				CONF_HDMI_DVI_MODE, DVI_MODE);
 		} else {
 			HDMITX_INFO("Sink is HDMI device\n");
-			hdmitx_hw_cntl_config(&hdev->hw_comm,
+			hdmitx_hw_cntl_config(hw_comm,
 				CONF_HDMI_DVI_MODE, HDMI_MODE);
 		}
 		if (videocode == HDMI_95_3840x2160p30_16x9 ||
@@ -138,14 +139,14 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			 */
 			HDMITX_INFO("hdr: %s: hdr.sdr pkt sent\n", __func__);
 			hdev->tx_comm.colormetry = 0;
-			hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_AVI_BT2020, CLR_AVI_BT2020);
-			hdmitx_hw_set_packet(&hdev->hw_comm, HDMI_PACKET_DRM, buffer);
+			hdmitx_hw_cntl_config(hw_comm, CONF_AVI_BT2020, CLR_AVI_BT2020);
+			hdmitx_hw_set_packet(hw_comm, HDMI_PACKET_DRM, buffer);
 		}
 		if (hdev->tx_comm.allm_mode) {
 			hdmitx_common_setup_vsif_packet(&hdev->tx_comm, VT_ALLM, 1, NULL);
-			hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_CT_MODE, SET_CT_OFF);
+			hdmitx_hw_cntl_config(hw_comm, CONF_CT_MODE, SET_CT_OFF);
 		} else {
-			hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_CT_MODE,
+			hdmitx_hw_cntl_config(hw_comm, CONF_CT_MODE,
 				hdev->tx_comm.ct_mode | hdev->tx_comm.it_content << 4);
 		}
 		hdmitx_set_spd_info(hdev);
@@ -155,7 +156,7 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 	return ret;
 }
 
-int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
+int hdmi21_set_3d(struct hdmitx21_dev *hdev, int type, u32 param)
 {
 	u8 db[28] = {0};
 	u8 *ven_db = &db[1];
@@ -182,7 +183,7 @@ int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
 }
 
 /* Set Source Product Descriptor InfoFrame */
-static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
+static void hdmitx_set_spd_info(struct hdmitx21_dev *hdev)
 {
 	int ret;
 	struct hdmi_spd_infoframe spd_info = {0};
@@ -208,7 +209,7 @@ static DEFINE_MUTEX(vid_mute_mutex);
 void hdmitx21_video_mute_op(u32 flag, unsigned int path)
 {
 	static unsigned int vid_mute_path;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	mutex_lock(&vid_mute_mutex);
 	if (flag == 0)

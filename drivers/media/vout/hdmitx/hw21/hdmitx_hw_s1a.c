@@ -7,7 +7,7 @@
 #include <linux/delay.h>
 #include "hdmitx_common.h"
 
-void s1a_reset_div_clk(struct hdmitx_dev *hdev)
+void s1a_reset_div_clk(struct hdmitx21_dev *hdev)
 {
 	/* vid_pll_div */
 	hd21_write_reg(RESETCTRL_RESET0, 1 << 19);

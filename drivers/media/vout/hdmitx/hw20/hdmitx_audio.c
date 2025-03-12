@@ -23,17 +23,18 @@
 
 void hdmitx20_audio_mute_op(unsigned int flag)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
+	struct hdmitx_hw_common *hw_comm = &hdev->hw_comm;
 
 	if (hdev->tx_comm.hdmi_init != HDMITX20)
 		return;
 
 	hdev->tx_comm.cur_audio_param.aud_output_en = flag;
 	if (flag == 0)
-		hdmitx_hw_cntl_config(&hdev->hw_comm,
+		hdmitx_hw_cntl_config(hw_comm,
 			CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	else
-		hdmitx_hw_cntl_config(&hdev->hw_comm,
+		hdmitx_hw_cntl_config(hw_comm,
 			CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
 }
 
@@ -45,14 +46,38 @@ void hdmitx20_ext_set_audio_output(bool enable)
 
 int hdmitx20_ext_get_audio_status(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
+	struct hdmitx_hw_common *hw_comm = &hdev->hw_comm;
 	int val;
 	static int val_st;
 
-	val = !!(hdmitx_hw_cntl_config(&hdev->hw_comm, CONF_GET_AUDIO_MUTE_ST, 0));
+	val = !!(hdmitx_hw_cntl_config(hw_comm, CONF_GET_AUDIO_MUTE_ST, 0));
 	if (val_st != val) {
 		val_st = val;
 		HDMITX_INFO("audio: get val = %d\n", val);
 	}
 	return val;
+}
+
+void hdmitx20_audio_init(struct hdmitx_common *tx_comm)
+{
+	bool audio_en;
+
+	audio_en = hdmitx_uboot_audio_en();
+
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
+	if (!tx_comm->pxp_mode && audio_en) {
+		struct aud_para *audpara = &tx_comm->cur_audio_param;
+
+		audpara->rate = FS_48K;
+		audpara->type = CT_PCM;
+		audpara->size = SS_16BITS;
+		audpara->chs = 2 - 1;
+	}
+	/* default audio clock is ON */
+	hdmitx20_audio_mute_op(1);
+#endif
+	hdmitx_audio_register_ctrl_callback(tx_comm->tx_tracer,
+		hdmitx20_ext_set_audio_output,
+		hdmitx20_ext_get_audio_status);
 }

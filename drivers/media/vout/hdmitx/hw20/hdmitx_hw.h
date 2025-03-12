@@ -14,10 +14,14 @@ struct hdmitx20_hw {
 };
 
 struct hdmitx20_hw *get_hdmitx20_hw_instance(void);
+struct hdmitx20_dev *get_hdmitx20_device(void);
 
 unsigned int hdmitx_rd_reg(unsigned int addr);
 
 
 int hdmitx_hpd_hw_op(enum hpd_op cmd);
+int hdmi_set_3d(struct hdmitx20_dev *hdmitx_device, int type,
+		unsigned int param);
+void hdmitx20_audio_init(struct hdmitx_common *tx_comm);
 
 #endif

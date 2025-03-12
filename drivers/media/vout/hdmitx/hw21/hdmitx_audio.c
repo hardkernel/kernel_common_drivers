@@ -24,7 +24,7 @@ static DEFINE_MUTEX(aud_mute_mutex);
 void hdmitx21_audio_mute_op(u32 flag, unsigned int path)
 {
 	static unsigned int aud_mute_path;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	mutex_lock(&aud_mute_mutex);
 	if (flag == 0)
@@ -54,7 +54,29 @@ void hdmitx21_ext_set_audio_output(bool enable)
 
 int hdmitx21_ext_get_audio_status(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	return !!hdev->tx_comm.cur_audio_param.aud_output_en;
+}
+
+void hdmitx21_audio_init(struct hdmitx_common *tx_comm)
+{
+	bool audio_en;
+
+	audio_en = hdmitx21_uboot_audio_en();
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
+	if (!tx_comm->pxp_mode && audio_en) {
+		struct aud_para *audpara = &tx_comm->cur_audio_param;
+
+		audpara->rate = FS_48K;
+		audpara->type = CT_PCM;
+		audpara->size = SS_16BITS;
+		audpara->chs = 2 - 1;
+	}
+	/* default audio clock is ON */
+	hdmitx21_audio_mute_op(1, 0);
+#endif
+	hdmitx_audio_register_ctrl_callback(tx_comm->tx_tracer,
+			hdmitx21_ext_set_audio_output,
+			hdmitx21_ext_get_audio_status);
 }

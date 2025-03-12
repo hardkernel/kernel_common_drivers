@@ -32,14 +32,14 @@ static inline unsigned int get_msr_cts(void);
 static int dump_hdmi_phy_pll_reg_show(struct seq_file *s, void *p)
 {
 	int i;
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 
 	seq_puts(s, "\n--------HDMITX basic information --------\n");
-	seq_printf(s, "resolution: %s\n", hdev->tx_comm.fmt_para.name);
-	seq_printf(s, "attr: %s\n", hdev->tx_comm.fmt_attr);
-	seq_printf(s, "tmds clock: %dkhz\n", hdev->tx_comm.fmt_para.tmds_clk);
+	seq_printf(s, "resolution: %s\n", tx_comm->fmt_para.name);
+	seq_printf(s, "attr: %s\n", tx_comm->fmt_attr);
+	seq_printf(s, "tmds clock: %dkhz\n", tx_comm->fmt_para.tmds_clk);
 
-	switch (hdev->tx20_hw.base->chip_data->chip_type) {
+	switch (tx_comm->tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_SC2:
 		if (reg_maps[ANACTRL_REG_IDX].phy_addr) {
 			seq_puts(s, "\n--------ANACTRL_HDMIPHY registers--------\n");
@@ -80,8 +80,8 @@ static const struct proc_ops  dump_hdmi_phy_pll_reg_pops = {
 static int dump_regs_show(struct seq_file *s, void *p)
 {
 	int i;
-	struct hdmitx_dev *hdev = s->private;
-	int chip_id = hdev->tx20_hw.base->chip_data->chip_type;
+	struct hdmitx_common *tx_comm = s->private;
+	int chip_id = tx_comm->tx_hw->chip_data->chip_type;
 
 	if (reg_maps[VPU_REG_IDX].phy_addr) {
 		seq_puts(s, "\n--------ENCP registers--------\n");
@@ -1222,14 +1222,14 @@ static void hdmitx_parsing_hdrpkt(struct seq_file *s)
 	unsigned int reg_adr;
 	unsigned char *conf;
 	unsigned int hcnt, vcnt;
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 
 	seq_puts(s, "\n--------parsing DRM/HDR--------\n");
 	seq_printf(s, "hdr_transfer_feature: 0x%x\n",
-		   hdev->tx_comm.hdr_transfer_feature);
+		   tx_comm->hdr_transfer_feature);
 	seq_printf(s, "hdmi_current_hdr_mode: 0x%x\n",
-		   hdev->tx_comm.hdmi_current_hdr_mode);
-	seq_printf(s, "hdmi_last_hdr_mode: 0x%x\n", hdev->tx_comm.hdmi_last_hdr_mode);
+		   tx_comm->hdmi_current_hdr_mode);
+	seq_printf(s, "hdmi_last_hdr_mode: 0x%x\n", tx_comm->hdmi_last_hdr_mode);
 
 	if (hdmitx_get_bit(HDMITX_DWC_FC_DATAUTO3, 6) &&
 	    hdmitx_get_bit(HDMITX_DWC_FC_PACKET_TX_EN, 7))
@@ -1331,16 +1331,16 @@ static void hdmitx_parsing_hdrpkt(struct seq_file *s)
 
 static void print_current_dv_hdr_(struct seq_file *s)
 {
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 
 	seq_printf(s, "hdmi_current_eotf_type: 0x%x\n",
-		   hdev->tx_comm.hdmi_current_eotf_type);
+		   tx_comm->hdmi_current_eotf_type);
 	seq_printf(s, "hdmi_current_tunnel_mode: 0x%x\n",
-		   hdev->tx_comm.hdmi_current_tunnel_mode);
+		   tx_comm->hdmi_current_tunnel_mode);
 	seq_printf(s, "hdr_transfer_feature: %d\n",
-		   hdev->tx_comm.hdr_transfer_feature);
-	seq_printf(s, "hdr_color_feature: %d\n", hdev->tx_comm.hdr_color_feature);
-	seq_printf(s, "colormetry: %d\n", hdev->tx_comm.colormetry);
+		   tx_comm->hdr_transfer_feature);
+	seq_printf(s, "hdr_color_feature: %d\n", tx_comm->hdr_color_feature);
+	seq_printf(s, "colormetry: %d\n", tx_comm->colormetry);
 }
 
 static void hdmitx_parsing_vsifpkt(struct seq_file *s)
@@ -1353,8 +1353,8 @@ static void hdmitx_parsing_vsifpkt(struct seq_file *s)
 	unsigned char *conf;
 	unsigned int ieee_code = 0;
 	unsigned int count;
-	struct hdmitx_dev *hdev = s->private;
-	struct hdmitx_hw_common *tx_hw_base = hdev->tx20_hw.base;
+	struct hdmitx_common *tx_comm = s->private;
+	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 
 	seq_puts(s, "\n--------parsing VSIF--------\n");
 
@@ -1639,10 +1639,10 @@ static const struct proc_ops dump_hdmirx_info_pops = {
 
 static int dump_clkmsr_show(struct seq_file *s, void *v)
 {
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 	char buf[1024];
 
-	hdev->hw_comm.get_clk(buf, 1024);
+	tx_comm->tx_hw->get_clk(buf, 1024);
 	seq_printf(s, "%s\n", buf);
 	return 0;
 }

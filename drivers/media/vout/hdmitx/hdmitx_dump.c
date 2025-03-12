@@ -20,9 +20,8 @@ const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
 
 int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 {
-	struct hdmitx_dev *hdev = s->private;
-	struct hdmitx_hw_common *hw_comm;
-	struct hdmitx_common *tx_comm;
+	struct hdmitx_common *tx_comm = s->private;
+	struct hdmitx_hw_common *hw_comm  = tx_comm->tx_hw;
 	u8 *conf;
 	u8 *tmp;
 	u32 colormetry;
@@ -38,8 +37,6 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	u32 hdcp_ret = 0;
 	u32 hdcp_lstore = 0;
 
-	hw_comm = &hdev->hw_comm;
-	tx_comm = &hdev->tx_comm;
 	seq_puts(s, "\n--------basic config--------\n");
 	seq_puts(s, "************\n");
 	seq_puts(s, "hdmi_config_info\n");
@@ -446,8 +443,7 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 	int block_num = 0;
 	char *buf = NULL;
 	int len;
-	struct hdmitx_dev *hdev = s->private;
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	struct hdmitx_common *tx_comm = s->private;
 	struct rx_cap *prxcap = &tx_comm->rxcap;
 	const struct dv_info *dv = &prxcap->dv_info;
 	const struct hdr_info *hdr = &prxcap->hdr_info;
@@ -791,21 +787,16 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-void hdmitx_common_debugfs_init(struct hdmitx_dev *hdev)
+void hdmitx_common_debugfs_init(struct hdmitx_common *tx_comm)
 {
 	struct dentry *entry;
 	struct hdmitx_dbg_files_s *dbg_files;
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	struct hdmitx_hw_common *hw_comm = tx_comm->tx_hw;
 	int count = 0;
 	int i;
 
-	if (hdev->tx_comm.hdmi_init == HDMITX21) {
-		dbg_files = hdmitx21_get_dbg_files_s();
-		count = hdmitx21_get_dbg_files_count();
-	} else if (hdev->tx_comm.hdmi_init == HDMITX20) {
-		dbg_files = hdmitx20_get_dbg_files_s();
-		count = hdmitx20_get_dbg_files_count();
-	}
+	dbg_files = hw_comm->chip_data->get_dbg_files();
+	count = hw_comm->chip_data->get_dbg_files_count();
 	if (!tx_comm->hdmitx_file_dbgfs)
 		tx_comm->hdmitx_file_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
 
@@ -817,7 +808,7 @@ void hdmitx_common_debugfs_init(struct hdmitx_dev *hdev)
 	for (i = 0; i < count; i++) {
 		entry = debugfs_create_file(dbg_files[i].name,
 			dbg_files[i].mode,
-			tx_comm->hdmitx_file_dbgfs, hdev,
+			tx_comm->hdmitx_file_dbgfs, tx_comm,
 			dbg_files[i].fops);
 		if (!entry)
 			HDMITX_ERROR("debugfs create file %s failed\n",
@@ -825,21 +816,16 @@ void hdmitx_common_debugfs_init(struct hdmitx_dev *hdev)
 	}
 }
 
-void hdmitx_common_profs_init(struct hdmitx_dev *hdev)
+void hdmitx_common_profs_init(struct hdmitx_common *tx_comm)
 {
 	struct proc_dir_entry *entry;
 	struct hdmitx_dbg_files_s *dbg_files;
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	struct hdmitx_hw_common *hw_comm = tx_comm->tx_hw;
 	int count = 0;
 	int i;
 
-	if (hdev->tx_comm.hdmi_init == HDMITX21) {
-		dbg_files = hdmitx21_get_dbg_files_s();
-		count = hdmitx21_get_dbg_files_count();
-	} else if (hdev->tx_comm.hdmi_init == HDMITX20) {
-		dbg_files = hdmitx20_get_dbg_files_s();
-		count = hdmitx20_get_dbg_files_count();
-	}
+	dbg_files = hw_comm->chip_data->get_dbg_files();
+	count = hw_comm->chip_data->get_dbg_files_count();
 	if (!tx_comm->hdmitx_proc_dbgfs)
 		tx_comm->hdmitx_proc_dbgfs = proc_mkdir("amhdmitx", NULL);
 	if (!tx_comm->hdmitx_proc_dbgfs)
@@ -849,7 +835,7 @@ void hdmitx_common_profs_init(struct hdmitx_dev *hdev)
 		entry = proc_create_data(dbg_files[i].name,
 			dbg_files[i].mode,
 			tx_comm->hdmitx_proc_dbgfs,
-			dbg_files[i].pops, hdev);
+			dbg_files[i].pops, tx_comm);
 		if (!entry)
 			HDMITX_ERROR("debugfs create file %s failed\n",
 				dbg_files[i].name);

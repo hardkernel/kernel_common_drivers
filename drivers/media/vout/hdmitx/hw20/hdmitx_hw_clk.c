@@ -66,7 +66,7 @@ void hdmitx_set_sys_clk(struct hdmitx_hw_common *tx_hw, unsigned char flag)
 	}
 }
 
-static void hdmitx_disable_encp_clk(struct hdmitx_dev *hdev)
+static void hdmitx_disable_encp_clk(struct hdmitx20_dev *hdev)
 {
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_SC2)
 		hd_set_reg_bits(P_CLKCTRL_VID_CLK_CTRL2, 0, 2, 1);
@@ -80,7 +80,7 @@ static void hdmitx_disable_encp_clk(struct hdmitx_dev *hdev)
 #endif
 }
 
-static void hdmitx_enable_encp_clk(struct hdmitx_dev *hdev)
+static void hdmitx_enable_encp_clk(struct hdmitx20_dev *hdev)
 {
 #ifdef CONFIG_AMLOGIC_VPU
 	if (hdev->tx_comm.encp_vpu_dev) {
@@ -95,7 +95,7 @@ static void hdmitx_enable_encp_clk(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 1, 2, 1);
 }
 
-static void hdmitx_disable_enci_clk(struct hdmitx_dev *hdev)
+static void hdmitx_disable_enci_clk(struct hdmitx20_dev *hdev)
 {
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_SC2)
 		hd_set_reg_bits(P_CLKCTRL_VID_CLK_CTRL2, 0, 0, 1);
@@ -117,7 +117,7 @@ static void hdmitx_disable_enci_clk(struct hdmitx_dev *hdev)
 		clk_disable_unprepare(hdev->tx_comm.hdmitx_clk_tree.venci_1_gate);
 }
 
-static void hdmitx_enable_enci_clk(struct hdmitx_dev *hdev)
+static void hdmitx_enable_enci_clk(struct hdmitx20_dev *hdev)
 {
 	if (hdev->tx_comm.hdmitx_clk_tree.venci_top_gate)
 		clk_prepare_enable(hdev->tx_comm.hdmitx_clk_tree.venci_top_gate);
@@ -179,7 +179,7 @@ void hdmitx_set_top_pclk(struct hdmitx_hw_common *tx_hw)
 		hd_set_reg_bits(P_HHI_GCLK_MPEG2, 1, 4, 1);
 }
 
-void hdmitx_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)
+void hdmitx_set_cts_hdcp22_clk(struct hdmitx20_dev *hdev)
 {
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_SC2:
@@ -223,7 +223,7 @@ void hdmitx_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)
 	}
 }
 
-void hdmitx_set_hdcp_pclk(struct hdmitx_dev *hdev)
+void hdmitx_set_hdcp_pclk(struct hdmitx20_dev *hdev)
 {
 	/* top hdcp pixel clock */
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_SC2)
@@ -232,7 +232,7 @@ void hdmitx_set_hdcp_pclk(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_HHI_GCLK_MPEG2, 1, 3, 1);
 }
 
-void hdmitx_set_hdmi_axi_clk(struct hdmitx_dev *hdev)
+void hdmitx_set_hdmi_axi_clk(struct hdmitx20_dev *hdev)
 {
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_TM2:
@@ -280,7 +280,7 @@ static void set_hpll_clk_out(struct hdmitx_hw_common *tx_hw, unsigned int clk)
 /* HERE MUST BE BIT OPERATION!!! */
 static void set_hpll_sspll(enum hdmi_vic vic)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_G12A:
@@ -873,7 +873,7 @@ static struct hw_enc_clk_val_group setting_3dfp_enc_clk_val[] = {
 		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
 };
 
-static void set_hdmitx_fe_clk(struct hdmitx_dev *hdev)
+static void set_hdmitx_fe_clk(struct hdmitx20_dev *hdev)
 {
 	unsigned int tmp = 0;
 	enum hdmi_vic vic = hdev->tx_comm.fmt_para.vic;
@@ -906,7 +906,7 @@ static void set_hdmitx_fe_clk(struct hdmitx_dev *hdev)
 	hd_set_reg_bits(hdmi_clk_cntl, tmp, 20, 4);
 }
 
-static void hdmitx_set_clk_(struct hdmitx_dev *hdev,
+static void hdmitx_set_clk_(struct hdmitx20_dev *hdev,
 		struct hw_enc_clk_val_group *test_clk)
 {
 	int i = 0;
@@ -1049,7 +1049,7 @@ static int likely_frac_rate_mode(char *m)
 		return 0;
 }
 
-static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
+static void hdmitx_check_frac_rate(struct hdmitx20_dev *hdev)
 {
 	enum hdmi_vic vic = hdev->tx_comm.fmt_para.vic;
 	const struct hdmi_timing *timing = NULL;
@@ -1071,7 +1071,7 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
  * and measure the pixel clock from hardware clkmsr
  * then compare above 2 clocks
  */
-static bool test_pixel_clk(struct hdmitx_dev *hdev, const struct hw_enc_clk_val_group *t)
+static bool test_pixel_clk(struct hdmitx20_dev *hdev, const struct hw_enc_clk_val_group *t)
 {
 	u32 idx;
 	u32 calc_pixel_clk;
@@ -1163,7 +1163,7 @@ static bool test_pixel_clk(struct hdmitx_dev *hdev, const struct hw_enc_clk_val_
 	return 0;
 }
 
-void hdmitx_set_clk(struct hdmitx_dev *hdev)
+void hdmitx_set_clk(struct hdmitx20_dev *hdev)
 {
 	int i = 0;
 	struct hw_enc_clk_val_group test_clks = {0};
@@ -1184,7 +1184,7 @@ void hdmitx_set_clk(struct hdmitx_dev *hdev)
 	}
 }
 
-void hdmitx_disable_clk(struct hdmitx_dev *hdev)
+void hdmitx_disable_clk(struct hdmitx20_dev *hdev)
 {
 	struct hdmitx20_hw *tx_hw = &hdev->tx20_hw;
 

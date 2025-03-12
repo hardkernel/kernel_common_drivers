@@ -159,18 +159,18 @@ void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb)
  * of 4Kp24/25/30
  */
 /* only used for DV_VSIF / CUVA VSIF / HDMI1.4b_VSIF / HDR10+ VSIF */
-int hdmi_vend_infoframe_get(struct hdmitx_dev *hdev, u8 *body)
+int hdmi_vend_infoframe_get(struct hdmitx_common *tx_comm, u8 *body)
 {
 	int ret;
 
-	if (!hdev || !body)
+	if (!tx_comm || !body)
 		return 0;
 
-	if (global_tx_common->rxcap.ifdb_present &&
-			global_tx_common->rxcap.additional_vsif_num >= 1) {
+	if (tx_comm->rxcap.ifdb_present &&
+			tx_comm->rxcap.additional_vsif_num >= 1) {
 		/* dolby cts case93 B1 */
 		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
-	} else if (!hdev->tx_comm.rxcap.ifdb_present) {
+	} else if (!tx_comm->rxcap.ifdb_present) {
 		/* dolby cts case92 B2 */
 		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR2, body);
 	} else {

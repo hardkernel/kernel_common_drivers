@@ -220,7 +220,7 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para, tx_comm->fmt_attr,
 					       sizeof(tx_comm->fmt_attr));
 
-	hdmitx_pre_enable_mode(tx_comm, para);
+	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_PRE_ENABLE_MODE, 0);
 
 	mutex_unlock(&tx_comm->valid_mutex);
 	return 0;
@@ -229,14 +229,14 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 static int hdmitx_common_enable_mode(struct hdmitx_common *tx_comm,
 				     struct hdmi_format_para *para)
 {
-	hdmitx_enable_mode(tx_comm, para);
+	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_ENABLE_MODE, 0);
 	return 0;
 }
 
 static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 					  struct hdmi_format_para *para)
 {
-	hdmitx_post_enable_mode(tx_comm, para);
+	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_POST_ENABLE_MODE, 0);
 
 	/*
 	 * attach vinfo, if hdr_cap and dv_cap change, the HDR/DV module will
@@ -462,7 +462,7 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	}
 
 	/* disable frl/dsc/vrr */
-	hdmitx_disable_21_work(tx_comm);
+	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_DISABLE_21_WORK, 0);
 
 	/* step3: clear edid */
 	if (edid_clear)
@@ -474,7 +474,7 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 
 	/* step5: reset hdcp */
 	if (hdcp_reset)
-		hdmitx_disable_hdcp(tx_comm);
+		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_DISABLE_HDCP, 0);
 
 	/* step6: SW: cancel ced work */
 	if (tx_comm->cedst_en)
@@ -719,7 +719,7 @@ void hdmitx_process_plugin(struct hdmitx_common *tx_comm, bool boot_flag, bool s
 	if (tx_comm->hdcp_mode != 0) {
 		HDMITX_INFO("hdcp: %d should not be enabled before signal ready\n",
 			tx_comm->hdcp_mode);
-		hdmitx_disable_hdcp(tx_comm);
+		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_DISABLE_HDCP, 0);
 	}
 	/* read EDID */
 	hdmitx_common_get_edid(tx_comm);

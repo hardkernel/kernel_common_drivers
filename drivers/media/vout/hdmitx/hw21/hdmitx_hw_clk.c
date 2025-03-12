@@ -28,7 +28,7 @@
 static u32 frac_rate;
 static void set_crt_video_enc(u32 vidx, u32 in_sel, u32 div_n);
 static void set_crt_video_enc2(u32 vidx, u32 in_sel, u32 div_n);
-static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev);
+static void hdmitx_check_frac_rate(struct hdmitx21_dev *hdev);
 
 /*
  * HDMITX Clock configuration
@@ -59,17 +59,17 @@ static inline int check_div(u32 div)
 	return div;
 }
 
-static void hdmitx_disable_encp_clk(struct hdmitx_dev *hdev)
+static void hdmitx_disable_encp_clk(struct hdmitx21_dev *hdev)
 {
 	//hd21_set_reg_bits(CLKCTRL_VID_CLK_CTRL2, 0, 2, 1);
 }
 
-static void hdmitx_enable_encp_clk(struct hdmitx_dev *hdev)
+static void hdmitx_enable_encp_clk(struct hdmitx21_dev *hdev)
 {
 	//hd21_set_reg_bits(CLKCTRL_VID_CLK_CTRL2, 1, 2, 1);
 }
 
-static void hdmitx_disable_enci_clk(struct hdmitx_dev *hdev)
+static void hdmitx_disable_enci_clk(struct hdmitx21_dev *hdev)
 {
 	//hd21_set_reg_bits(CLKCTRL_VID_CLK_CTRL2, 0, 0, 1);
 
@@ -83,7 +83,7 @@ static void hdmitx_disable_enci_clk(struct hdmitx_dev *hdev)
 		clk_disable_unprepare(hdev->tx_comm.hdmitx_clk_tree.venci_1_gate);
 }
 
-static void hdmitx_disable_tx_pixel_clk(struct hdmitx_dev *hdev)
+static void hdmitx_disable_tx_pixel_clk(struct hdmitx21_dev *hdev)
 {
 	//hd21_set_reg_bits(CLKCTRL_VID_CLK_CTRL2, 0, 5, 1);
 }
@@ -105,7 +105,7 @@ void hdmitx21_set_audioclk(bool en)
 void hdmitx21_set_default_clk(void)
 {
 	u32 data32;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	// Enable clk81_hdmitx_pclk
 	hd21_set_reg_bits(CLKCTRL_SYS_CLK_EN0_REG2, 1, 4, 1);
@@ -153,12 +153,12 @@ bool hdmitx21_is_basic_clk_en(void)
 	return true;
 }
 
-void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)
+void hdmitx21_set_cts_hdcp22_clk(struct hdmitx21_dev *hdev)
 {
 	//hd21_write_reg(CLKCTRL_HDCP22_CLK_CTRL, 0x01000100);
 }
 
-void hdmitx21_set_hdcp_pclk(struct hdmitx_dev *hdev)
+void hdmitx21_set_hdcp_pclk(struct hdmitx21_dev *hdev)
 {
 	/* top hdcp pixel clock */
 	hd21_set_reg_bits(CLKCTRL_SYS_CLK_EN0_REG2, 1, 3, 1);
@@ -166,7 +166,7 @@ void hdmitx21_set_hdcp_pclk(struct hdmitx_dev *hdev)
 
 static void set_hpll_clk_out(u32 clk)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	HDMITX_INFO("config HPLL = %d frac_rate = %d\n", clk, frac_rate);
 
@@ -188,7 +188,7 @@ static void set_hpll_clk_out(u32 clk)
 
 void hdmitx21_clks_gate_ctrl(bool en)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -219,7 +219,7 @@ void hdmitx21_clks_gate_ctrl(bool en)
 /* HERE MUST BE BIT OPERATION!!! */
 static void set_hpll_sspll(enum hdmi_vic vic)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -248,7 +248,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 
 static void set_hpll_od1(u32 div)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
@@ -262,7 +262,7 @@ static void set_hpll_od1(u32 div)
 
 static void set_hpll_od2(u32 div)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
@@ -276,7 +276,7 @@ static void set_hpll_od2(u32 div)
 
 static void set_hpll_od3(u32 div)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
@@ -394,7 +394,7 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 	int shift_val = 0;
 	int shift_sel = 0;
 	u32 reg_vid_pll = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_S1A:
@@ -510,14 +510,14 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 	hd21_set_reg_bits(reg_vid_pll, 1, 19, 1);
 }
 
-static void set_vid_clk_div(struct hdmitx_dev *hdev, u32 div)
+static void set_vid_clk_div(struct hdmitx21_dev *hdev, u32 div)
 {
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 16, 3);
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_DIV, div - 1, 0, 8);
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
 }
 
-static void set_hdmitx_enc_div(struct hdmitx_dev *hdev, u32 div)
+static void set_hdmitx_enc_div(struct hdmitx21_dev *hdev, u32 div)
 {
 	div = check_div(div);
 	if (div == -1)
@@ -531,7 +531,7 @@ static void set_hdmitx_enc_div(struct hdmitx_dev *hdev, u32 div)
 	}
 }
 
-static void set_hdmitx_fe_div(struct hdmitx_dev *hdev, u32 div)
+static void set_hdmitx_fe_div(struct hdmitx21_dev *hdev, u32 div)
 {
 	div = check_div(div);
 	if (div == -1)
@@ -543,7 +543,7 @@ static void set_hdmitx_fe_div(struct hdmitx_dev *hdev, u32 div)
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 9, 1);
 }
 
-static void set_hdmitx_pnx_div(struct hdmitx_dev *hdev, u32 div)
+static void set_hdmitx_pnx_div(struct hdmitx21_dev *hdev, u32 div)
 {
 	div = check_div(div);
 	if (div == -1)
@@ -555,7 +555,7 @@ static void set_hdmitx_pnx_div(struct hdmitx_dev *hdev, u32 div)
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 10, 1);
 }
 
-static void set_hdmitx_pixel_div(struct hdmitx_dev *hdev, u32 div)
+static void set_hdmitx_pixel_div(struct hdmitx21_dev *hdev, u32 div)
 {
 	div = check_div(div);
 	if (div == -1)
@@ -814,7 +814,7 @@ static struct hw_enc_clk_val_group setting_3dfp_enc_clk_val[] = {
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static void set_hdmitx_s5_htx_pll(struct hdmitx_dev *hdev)
+static void set_hdmitx_s5_htx_pll(struct hdmitx21_dev *hdev)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
@@ -914,7 +914,7 @@ static void set_hdmitx_s5_htx_pll(struct hdmitx_dev *hdev)
 	set21_s5_htxpll_clk_out(htx_vco, div);
 }
 
-void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev)
+void set_hdmitx_s7_htx_pll(struct hdmitx21_dev *hdev)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
@@ -983,7 +983,7 @@ void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev)
 	set21_s7_htxpll_clk_out(htx_vco, div);
 }
 
-void set_hdmitx_s7d_htx_pll(struct hdmitx_dev *hdev)
+void set_hdmitx_s7d_htx_pll(struct hdmitx21_dev *hdev)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
@@ -1054,7 +1054,7 @@ void set_hdmitx_s7d_htx_pll(struct hdmitx_dev *hdev)
 }
 #endif
 
-void set_hdmitx_s6_htx_pll(struct hdmitx_dev *hdev)
+void set_hdmitx_s6_htx_pll(struct hdmitx21_dev *hdev)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
@@ -1124,7 +1124,7 @@ void set_hdmitx_s6_htx_pll(struct hdmitx_dev *hdev)
 	set21_s6_htxpll_clk_out(htx_vco, div);
 }
 
-static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
+static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 			struct hw_enc_clk_val_group *test_clk)
 {
 	int i = 0;
@@ -1364,7 +1364,7 @@ int likely_frac_rate_mode(const char *m)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static void hdmitx_set_fpll_without_dsc(struct hdmitx_dev *hdev)
+static void hdmitx_set_fpll_without_dsc(struct hdmitx21_dev *hdev)
 {
 	u32 fpll_vco = 2376000;
 	u32 div = 1;
@@ -1439,7 +1439,7 @@ static void hdmitx_set_fpll_without_dsc(struct hdmitx_dev *hdev)
 #ifdef CONFIG_AMLOGIC_DSC
 /* debug only */
 static int fpll_pixel_clk; /* = 438504; for DSC 8k60 444 FRL6G4L 8 */
-static void hdmitx_set_fpll_with_dsc(struct hdmitx_dev *hdev)
+static void hdmitx_set_fpll_with_dsc(struct hdmitx21_dev *hdev)
 {
 	/* unit in khz */
 	u32 fpll_vco = 2376000;
@@ -1486,12 +1486,12 @@ static void hdmitx_set_fpll_with_dsc(struct hdmitx_dev *hdev)
 	hdmitx_set_s5_fpll(fpll_vco, div, pixel_od);
 }
 #else
-static void hdmitx_set_fpll_with_dsc(struct hdmitx_dev *hdev)
+static void hdmitx_set_fpll_with_dsc(struct hdmitx21_dev *hdev)
 {
 }
 #endif
 
-void hdmitx_set_fpll(struct hdmitx_dev *hdev)
+void hdmitx_set_fpll(struct hdmitx21_dev *hdev)
 {
 	if (hdev->dsc_en)
 		hdmitx_set_fpll_with_dsc(hdev);
@@ -1502,7 +1502,7 @@ void hdmitx_set_fpll(struct hdmitx_dev *hdev)
 #ifdef CONFIG_AMLOGIC_DSC
 /* for debug only */
 static int gp2_pll_enc0_clk;
-void hdmitx_set_gp2pll(struct hdmitx_dev *hdev)
+void hdmitx_set_gp2pll(struct hdmitx21_dev *hdev)
 {
 	/* unit in khz */
 	u32 gp2pll_vco = 2376000;
@@ -1546,14 +1546,14 @@ void hdmitx_set_gp2pll(struct hdmitx_dev *hdev)
 	hdmitx_set_s5_gp2pll(gp2pll_vco, div);
 }
 #else
-void hdmitx_set_gp2pll(struct hdmitx_dev *hdev)
+void hdmitx_set_gp2pll(struct hdmitx21_dev *hdev)
 {
 }
 #endif
 
 #endif
 
-void hdmitx_set_clkdiv(struct hdmitx_dev *hdev)
+void hdmitx_set_clkdiv(struct hdmitx21_dev *hdev)
 {
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_S5:
@@ -1566,7 +1566,7 @@ void hdmitx_set_clkdiv(struct hdmitx_dev *hdev)
 	}
 }
 
-static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
+static void hdmitx_check_frac_rate(struct hdmitx21_dev *hdev)
 {
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
@@ -1586,7 +1586,7 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
  * and measure the pixel clock from hardware clkmsr
  * then compare above 2 clocks
  */
-static bool test_pixel_clk(struct hdmitx_dev *hdev, const struct hw_enc_clk_val_group *t)
+static bool test_pixel_clk(struct hdmitx21_dev *hdev, const struct hw_enc_clk_val_group *t)
 {
 	u32 idx;
 	u32 calc_pixel_clk;
@@ -1678,7 +1678,7 @@ static bool test_pixel_clk(struct hdmitx_dev *hdev, const struct hw_enc_clk_val_
 	return 0;
 }
 
-void hdmitx21_set_clk(struct hdmitx_dev *hdev)
+void hdmitx21_set_clk(struct hdmitx21_dev *hdev)
 {
 	int i;
 	struct hw_enc_clk_val_group test_clks = {0};
@@ -1731,7 +1731,7 @@ void hdmitx21_set_clk(struct hdmitx_dev *hdev)
 	}
 }
 
-void hdmitx21_disable_clk(struct hdmitx_dev *hdev)
+void hdmitx21_disable_clk(struct hdmitx21_dev *hdev)
 {
 	/* cts_encp/enci_clk */
 	if (hdev->tx_comm.hdmitx_vinfo.viu_mux == VIU_MUX_ENCI)

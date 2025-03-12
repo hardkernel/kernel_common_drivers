@@ -19,12 +19,14 @@ static void dump32(struct seq_file *s, u32 start, u32 end)
 
 static int dump_hdmi_phy_pll_show(struct seq_file *s, void *p)
 {
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
+	struct hdmitx21_dev *hdev = container_of(tx_comm,
+		struct hdmitx21_dev, tx_comm);
 
 	seq_puts(s, "\n--------HDMITX basic information --------\n");
-	seq_printf(s, "resolution: %s\n", hdev->tx_comm.fmt_para.name);
-	seq_printf(s, "attr: %s\n", hdev->tx_comm.fmt_attr);
-	seq_printf(s, "tmds clock: %dkhz\n", hdev->tx_comm.fmt_para.tmds_clk);
+	seq_printf(s, "resolution: %s\n", tx_comm->fmt_para.name);
+	seq_printf(s, "attr: %s\n", tx_comm->fmt_attr);
+	seq_printf(s, "tmds clock: %dkhz\n", tx_comm->fmt_para.tmds_clk);
 	if (hdev->frl_rate != FRL_NONE) {
 		seq_printf(s, "frl rate: %d\n", hdev->frl_rate);
 		switch (hdev->frl_rate) {
@@ -105,13 +107,13 @@ static const struct proc_ops dump_hdmi_phy_pll_reg_pops = {
 
 static int dump_regs_show(struct seq_file *s, void *p)
 {
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 
 	seq_puts(s, "\n--------misc registers--------\n");
 
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
-		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
-		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
+		tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
+		tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
 		// ((0x0000 << 2) + 0xfe008000) ~ ((0x00e0 << 2) + 0xfe008000)
 		dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_CHIP_TEST_STS);
 		// ((0x0001 << 2) + 0xfe000000) ~ ((0x0126 << 2) + 0xfe000000)
@@ -195,7 +197,7 @@ static void dumpcor(struct seq_file *s, u32 start, u32 end)
 
 static int dump_hdmireg_show(struct seq_file *s, void *p)
 {
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 	u32 gate_status;
 
 	seq_puts(s, "\n--------HDMITX registers--------\n");
@@ -211,7 +213,7 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	dumpcor(s, DEBUG_MODE_EN_IVCTX, DROP_GEN_TYPE_5_IVCTX);
 	// 0x00000300 - 0x0000031a
 	dumpcor(s, TX_ZONE_CTL0_IVCTX, FIFO_10TO20_CTRL_IVCTX);
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
 		// 0x00000330 - 0x00000334
 		dumpcor(s, MHLHDMITXTOP_INTR_IVCTX, EMSC_ADCTC_LD_SEL_IVCTX);
 	}
@@ -224,9 +226,9 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	// 0x00000800 - 0x00000879
 	dumpcor(s, CP2TX_CTRL_0_IVCTX, CP2TX_IPT_CTR_39TO32_IVCTX);
 	// 0x000008a0 - 0x000008d0
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
-		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
-		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
+		tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
+		tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
 		gate_status = hdmitx21_get_gate_status();
 		if (gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP2X) {
 			dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
@@ -240,7 +242,7 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	}
 	// 0x00000900 - 0x00000933
 	dumpcor(s, SCRCTL_IVCTX, FRL_LTP_OVR_VAL1_IVCTX);
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
 		// 0x00000934 - 0x0000097a
 		dumpcor(s, RSVD1_HDMI2_IVCTX, H21TXSB_SPARE_9_IVCTX);
 		// 0x00000980 - 0x00000985
@@ -260,9 +262,9 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	// 0x00000f00 - 0x00000f27
 	dumpcor(s, D_HDR_GEN_CTL_IVCTX, D_HDR_FIFO_MEM_CTL_IVCTX);
 	// 0x00000f80 - 0x00000fa9
-	if (!(hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
-		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
-		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6))
+	if (!(tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
+		tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
+		tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S6))
 		dumpcor(s, DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
 	dump_infoframe_packets(s);
 	return 0;
@@ -308,11 +310,11 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 	u32 reg;
 	u32 val;
 	u32 total, active, front, sync, back, blank;
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 
 	seq_puts(s, "\n--------vp fdet info--------\n");
 
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_S7)
+	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_S7)
 		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 1, 1);//enable fdet gate
 	hdmitx21_wr_reg(VP_FDET_CLEAR_IVCTX, 0);
 	hdmitx21_wr_reg(VP_FDET_STATUS_IVCTX, 0);
@@ -565,7 +567,7 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 		seq_puts(s, "\n");
 	}
 
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7)
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S7)
 		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 1, 1);//disable fdet gate
 
 	return 0;
@@ -628,7 +630,7 @@ static int dump_hdmipkt_show(struct seq_file *s, void *p)
 {
 	char *buf = NULL;
 	int len;
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 
 	seq_puts(s, "\n--------HDMITX packets--------\n");
 	hdmitx_parsing_acrpkt(s);
@@ -647,7 +649,7 @@ static int dump_hdmipkt_show(struct seq_file *s, void *p)
 		HDMITX_ERROR("%s kcalloc failed\n", __func__);
 		return 0;
 	}
-	hdev->hw_comm.pkt_dump(buf, len);
+	tx_comm->tx_hw->pkt_dump(buf, len);
 	seq_printf(s, "%s\n", buf);
 	kfree(buf);
 
@@ -811,7 +813,7 @@ static int hdmitx_dump_cts_enc_clk_status(struct seq_file *s, void *p)
 {
 	u32 val[7];
 	u32 div;
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 	const char *crt_video_src_des[8] = {
 		[0] = "[16]vid_pll0_clk",
 		[1] = "[27]gp2_pll_clk",
@@ -823,7 +825,7 @@ static int hdmitx_dump_cts_enc_clk_status(struct seq_file *s, void *p)
 		[7] = "fclk_div7",
 	};
 
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_T7)
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_T7)
 		return 0;
 
 	val[0] = hd21_read_reg(CLKCTRL_VID_CLK0_CTRL);
@@ -933,7 +935,9 @@ static int dump_frl_status_show(struct seq_file *s, void *p)
 {
 	enum scdc_addr scdc_reg;
 	u8 val;
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
+	struct hdmitx21_dev *hdev = container_of(tx_comm,
+		struct hdmitx21_dev, tx_comm);
 	static const char * const rate_string[] = {
 		[FRL_NONE] = "TMDS",
 		[FRL_3G3L] = "FRL_3G3L",
@@ -1053,10 +1057,10 @@ static const struct proc_ops dump_hdmirx_info_pops = {
 
 static int dump_clkmsr_show(struct seq_file *s, void *v)
 {
-	struct hdmitx_dev *hdev = s->private;
+	struct hdmitx_common *tx_comm = s->private;
 	char buf[1024];
 
-	hdev->hw_comm.get_clk(buf, 1024);
+	tx_comm->tx_hw->get_clk(buf, 1024);
 	seq_printf(s, "%s\n", buf);
 	return 0;
 }

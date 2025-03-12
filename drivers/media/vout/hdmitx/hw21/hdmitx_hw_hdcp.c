@@ -37,7 +37,7 @@ bool hdcptx1_load_key(void)
 bool get_hdcp1_lstore(void)
 {
 	struct arm_smccc_res res;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	if (hdev->tx_comm.efuse_dis_hdcp_tx14)
 		return 0;
@@ -49,7 +49,7 @@ bool get_hdcp1_lstore(void)
 bool get_hdcp2_lstore(void)
 {
 	struct arm_smccc_res res;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S1A)
 		return 0;
@@ -72,7 +72,7 @@ bool get_hdcp1_result(void)
 bool get_hdcp2_result(void)
 {
 	struct arm_smccc_res res;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S1A)
 		return 0;
@@ -85,7 +85,7 @@ bool get_hdcp2_result(void)
 bool get_hdcp2_topo(void)
 {
 	struct arm_smccc_res res;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S1A)
 		return 0;
@@ -98,7 +98,7 @@ bool get_hdcp2_topo(void)
 void set_hdcp2_topo(u32 topo_type)
 {
 	struct arm_smccc_res res;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	HDMITX_INFO("%s: %d", __func__, topo_type);
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type != MESON_CPU_ID_S1A)

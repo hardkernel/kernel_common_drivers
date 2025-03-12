@@ -17,7 +17,9 @@
  * other devices
  */
 int hdcp_ksv_valid(unsigned char *dat);
-void hdmitx20_hdcp_exit(struct hdmitx_dev *hdev);
+void hdmitx20_hdcp_exit(struct hdmitx20_dev *hdev);
+/* for hdcp init */
+int hdmitx20_hdcp_init(struct hdmitx20_dev *hdev);
 
 /* drm hdmitx hdcp use */
 

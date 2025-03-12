@@ -82,7 +82,7 @@
 static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
 	hd_write_reg(P_HHI_HDMI_PLL_CNTL0, 0x0b3a0400 | (m & 0xff));
@@ -172,7 +172,7 @@ static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
 	return ret;
 }
 
-static inline int is_dongle_mode(struct hdmitx_dev *hdev)
+static inline int is_dongle_mode(struct hdmitx20_dev *hdev)
 {
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
@@ -206,7 +206,7 @@ static void set_hpll_hclk_dongle_5940m(void)
 
 void set_g12a_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	switch (clk) {
 	case 5940000:
@@ -556,7 +556,7 @@ void set_hpll_od3_g12a(unsigned int div)
 int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	if (!(hdev->tx_comm.pdev)) {
 		HDMITX_INFO("exit for null device of hdmitx!\n");
@@ -596,7 +596,7 @@ int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd)
 
 void set_hpll_sspll_g12a(enum hdmi_vic vic)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	switch (vic) {
 	case HDMI_16_1920x1080p60_16x9:
@@ -638,7 +638,7 @@ void hdmitx_phy_bandgap_en_g12(void)
 int hdmitx_ddc_hw_op_g12a(enum ddc_op cmd)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	if (!(hdev->tx_comm.pdev)) {
 		HDMITX_INFO("exit for null device of hdmitx!\n");

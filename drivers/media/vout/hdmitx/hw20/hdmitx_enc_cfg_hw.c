@@ -1630,7 +1630,7 @@ static inline void setreg(const struct reg_s *r)
 	hd_write_reg(r->reg, r->val);
 }
 
-static const struct reg_s *tvregs_setting_mode(struct hdmitx_dev *hdev)
+static const struct reg_s *tvregs_setting_mode(struct hdmitx20_dev *hdev)
 {
 	int i = 0;
 	enum hdmi_vic vic = hdev->tx_comm.fmt_para.vic;
@@ -1650,7 +1650,7 @@ static const struct reg_s *tvregs_setting_mode(struct hdmitx_dev *hdev)
 	return NULL;
 }
 
-void set_vmode_enc_hw(struct hdmitx_dev *hdev)
+void set_vmode_enc_hw(struct hdmitx20_dev *hdev)
 {
 	const struct reg_s *s = tvregs_setting_mode(hdev);
 	/* Turn off VDAC, no need any more for HDMITX */

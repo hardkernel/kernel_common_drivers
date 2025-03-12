@@ -7,6 +7,7 @@
 #define __HDMITX_HW_COMMON_H
 
 #include <linux/types.h>
+#include <linux/platform_device.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_mode.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
@@ -109,7 +110,12 @@
 #define MISC_VRR_REGISTER (CMD_MISC_OFFSET + 0x27)
 /* reset hdcp param for suspend/plugout, not for mode switch */
 #define MISC_RESET_HDCP_PARAM (CMD_MISC_OFFSET + 0x28)
-
+#define MISC_LOAD_HDCP14_KEY	(CMD_MISC_OFFSET + 0x29)
+#define MISC_DISABLE_HDCP		(CMD_MISC_OFFSET + 0x2a)
+#define MISC_PRE_ENABLE_MODE	(CMD_MISC_OFFSET + 0x2b)
+#define MISC_ENABLE_MODE		(CMD_MISC_OFFSET + 0x2c)
+#define MISC_POST_ENABLE_MODE	(CMD_MISC_OFFSET + 0x2d)
+#define MISC_DISABLE_21_WORK	(CMD_MISC_OFFSET + 0x2e)
 /***********************************************************************
  *                          Get State //getstate
  **********************************************************************/
@@ -272,9 +278,16 @@ enum amhdmitx_chip_e {
 	MESON_CPU_ID_MAX,
 };
 
+struct hdmitx_hw_common;
+
 struct amhdmitx_data_s {
 	enum amhdmitx_chip_e chip_type;
 	const char *chip_name;
+	struct hdmitx_common *(*alloc_instance)(struct device *device);
+	int (*init_reg_map)(struct platform_device *pdev);
+	void (*init_hw)(struct hdmitx_hw_common *tx_hw);
+	struct hdmitx_dbg_files_s *(*get_dbg_files)(void);
+	int (*get_dbg_files_count)(void);
 };
 
 /***********************************************************************
@@ -327,11 +340,14 @@ struct hdmitx_hw_common {
 	/*debug function*/
 	void (*debugfunc)(struct hdmitx_hw_common *tx_hw, const char *cmd_str);
 	int (*setdispmode)(struct hdmitx_hw_common *tx_hw);
+
 	u8 debug_hpd_lock;
 	/* dump packet information */
 	int (*pkt_dump)(char *buf, int len);
 	/* dump reg information */
 	int (*dump_debug_reg)(struct hdmitx_hw_common *tx_hw, char *buf, int len);
+
+	int (*hdcp_exit)(struct hdmitx_hw_common *tx_hw);
 
 	/* GPIO hpd/scl/sda members*/
 	int hdmitx_gpios_hpd;

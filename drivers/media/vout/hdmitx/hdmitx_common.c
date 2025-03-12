@@ -29,6 +29,15 @@ int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_quantization_range cr);
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 
+static struct vout_device_s hdmitx_vdev = {
+	.fresh_tx_hdr_pkt = hdmitx_set_drm_pkt,
+	.fresh_tx_sbtm_pkt = hdmitx_set_sbtm_pkt,
+	.fresh_tx_vsif_pkt = hdmitx_set_vsif_pkt,
+	.fresh_tx_hdr10plus_pkt = hdmitx_set_hdr10plus_pkt,
+	.fresh_tx_cuva_hdr_vsif = hdmitx_set_cuva_hdr_vsif,
+	.fresh_tx_cuva_hdr_vs_emds = hdmitx_set_cuva_hdr_vs_emds,
+};
+
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
 			   struct hdmitx_common_state *state)
 {
@@ -43,6 +52,8 @@ EXPORT_SYMBOL(hdmitx_get_init_state);
 int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *hw_comm)
 {
 	struct hdmitx_boot_param *boot_param = get_hdmitx_boot_params();
+
+	tx_comm->vdev = &hdmitx_vdev;
 
 	/*load tx boot params*/
 	tx_comm->hdr_priority = boot_param->hdr_mask;
@@ -87,6 +98,15 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	/*mutex init*/
 	mutex_init(&tx_comm->hdmimode_mutex);
 	mutex_init(&tx_comm->valid_mutex);
+
+	spin_lock_init(&tx_comm->edid_spinlock);
+
+	hdmitx_vout_init(tx_comm, hw_comm);
+	hdmitx_hdr_init(tx_comm);
+	hdmitx_packet_init(tx_comm);
+	/* get efuse ctrl state */
+	get_hdmi_efuse(tx_comm);
+
 	return 0;
 }
 
@@ -1537,16 +1557,16 @@ enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode)
 
 static inline void hdmitx_notify_hpd(int hpd, void *p)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_common *tx_comm = get_hdmitx_common();
 
-	if (!hdev)
+	if (!tx_comm)
 		return;
 
 	if (hpd)
-		hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr,
+		hdmitx_event_mgr_notify(tx_comm->event_mgr,
 				HDMITX_PLUG, p);
 	else
-		hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr,
+		hdmitx_event_mgr_notify(tx_comm->event_mgr,
 				HDMITX_UNPLUG, NULL);
 }
 
@@ -1554,20 +1574,20 @@ static inline void hdmitx_notify_hpd(int hpd, void *p)
 int hdmitx_event_notifier_regist(struct notifier_block *nb)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_common *tx_comm = get_hdmitx_common();
 
-	if (!nb || !hdev)
+	if (!nb || !tx_comm)
 		return ret;
 
-	ret = hdmitx_event_mgr_notifier_register(hdev->tx_comm.event_mgr,
+	ret = hdmitx_event_mgr_notifier_register(tx_comm->event_mgr,
 		(struct hdmitx_notifier_client *)nb);
 
 	/* update status when register */
 	if (!ret && nb->notifier_call) {
 		/* if (hdev->tx_comm.hdmi_repeater == 1) */
-		hdmitx_notify_hpd(hdev->tx_comm.hpd_state,
-			hdev->tx_comm.rxcap.edid_parsing ?
-			hdev->tx_comm.EDID_buf : NULL);
+		hdmitx_notify_hpd(tx_comm->hpd_state,
+			tx_comm->rxcap.edid_parsing ?
+			tx_comm->EDID_buf : NULL);
 		/* actually notify phy_addr is not used by CEC/hdmirx */
 		/* if (hdev->tx_comm.rxcap.physical_addr != 0xffff) { */
 		/* if (hdev->tx_comm.hdmi_repeater == 1) */
@@ -1583,12 +1603,12 @@ EXPORT_SYMBOL(hdmitx_event_notifier_regist);
 
 int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_common *tx_comm = get_hdmitx_common();
 
-	if (!hdev)
+	if (!tx_comm)
 		return -1;
 
-	return hdmitx_event_mgr_notifier_unregister(hdev->tx_comm.event_mgr,
+	return hdmitx_event_mgr_notifier_unregister(tx_comm->event_mgr,
 		(struct hdmitx_notifier_client *)nb);
 }
 EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
@@ -1596,14 +1616,14 @@ EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
 int get_hpd_state(void)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_common *tx_comm = get_hdmitx_common();
 
-	if (!hdev)
+	if (!tx_comm)
 		return -1;
 
-	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-	ret = hdev->tx_comm.hpd_state;
-	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+	mutex_lock(&tx_comm->hdmimode_mutex);
+	ret = tx_comm->hpd_state;
+	mutex_unlock(&tx_comm->hdmimode_mutex);
 
 	return ret;
 }
@@ -1611,12 +1631,12 @@ EXPORT_SYMBOL(get_hpd_state);
 
 struct vsdb_phyaddr *get_hdmitx_phy_addr(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_common *tx_comm = get_hdmitx_common();
 
-	if (!hdev)
+	if (!tx_comm)
 		return NULL;
 
-	return &hdev->tx_comm.rxcap.vsdb_phy_addr;
+	return &tx_comm->rxcap.vsdb_phy_addr;
 }
 EXPORT_SYMBOL(get_hdmitx_phy_addr);
 
@@ -1818,10 +1838,10 @@ bool hdmitx_common_chk_mode_attr_sup(struct hdmitx_common *tx_comm, char *mode, 
 	}
 
 	if (true) {
-		HDMITX_INFO("sname = %s\n", tst_para.sname);
-		HDMITX_INFO("char_clk = %d\n", tst_para.tmds_clk);
-		HDMITX_INFO("cd = %d\n", tst_para.cd);
-		HDMITX_INFO("cs = %d\n", tst_para.cs);
+		HDMITX_DEBUG("sname = %s\n", tst_para.sname);
+		HDMITX_DEBUG("char_clk = %d\n", tst_para.tmds_clk);
+		HDMITX_DEBUG("cd = %d\n", tst_para.cd);
+		HDMITX_DEBUG("cs = %d\n", tst_para.cs);
 	}
 
 	ret = hdmitx_common_validate_format_para(tx_comm, &tst_para);

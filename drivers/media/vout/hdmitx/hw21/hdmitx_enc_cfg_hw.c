@@ -34,7 +34,7 @@
 /* note, venc setting will be override on dsc encoder side
  * so this function is optional when dsc_en = 1
  */
-static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
+static void config_tv_enc_calc(struct hdmitx21_dev *hdev, enum hdmi_vic vic)
 {
 	const struct hdmi_timing *tp = NULL;
 	struct hdmi_timing timing = {0};
@@ -397,7 +397,7 @@ static void hdmi_tvenc1080i_set(enum hdmi_vic vic)
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 1, 1, 1);
 }
 
-void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
+void set_tv_encp_new(struct hdmitx21_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 	u32 enable)
 {
 	u32 reg_offset;
@@ -627,7 +627,7 @@ static void adjust_enci_for_hdmi(u8 enc_index,
 		HDMITX_INFO("Multi/miss timing settings on regENCI_DVI_VSO_B(E)LINE_EVN(ODD)!\n");
 }
 
-void set_tv_enci_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
+void set_tv_enci_new(struct hdmitx21_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 	u32 enable)
 {
 	u32 reg_offset;
@@ -773,7 +773,7 @@ void hdmitx21_venc_en(bool en, bool pi_mode)
 //--------------------------
 // Pbist config
 //--------------------------
-void hdmitx21_pbist_config(struct hdmitx_dev *hdev, enum hdmi_vic vic, int reg_pbist_en)
+void hdmitx21_pbist_config(struct hdmitx21_dev *hdev, enum hdmi_vic vic, int reg_pbist_en)
 {
 	const struct hdmi_timing *tp = NULL;
 	struct hdmi_timing timing = {0};

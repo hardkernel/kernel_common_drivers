@@ -40,7 +40,7 @@
 static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
 	hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x0b3a0400 | (m & 0xff));
@@ -478,7 +478,7 @@ void hdmitx_phy_bandgap_en_sc2(void)
 
 void set_phy_by_mode_sc2(unsigned int mode)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	switch (mode) {
 	/* 5.94/4.5/3.7Gbps */
@@ -524,7 +524,7 @@ void hdmitx_sys_reset_sc2(void)
 
 void set_hpll_sspll_sc2(enum hdmi_vic vic)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	switch (vic) {
 	case HDMI_16_1920x1080p60_16x9:

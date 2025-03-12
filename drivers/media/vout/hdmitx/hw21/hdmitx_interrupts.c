@@ -36,7 +36,7 @@ static pf_callback earc_hdmitx_hpdst;
 static void ddc_stall_req_handler(struct intr_t *intr);
 void hdmitx21_earc_hpdst(pf_callback cb)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	earc_hdmitx_hpdst = cb;
 	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX21)
@@ -193,7 +193,7 @@ static void _intr_enable(struct intr_t *pint, bool en)
 
 void hdcp_enable_intrs(bool en)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
 		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
@@ -224,7 +224,7 @@ void fifo_flow_enable_intrs(bool en)
 	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.intr5, en);
 }
 
-static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
+static void hdmitx_phy_bandgap_en(struct hdmitx21_dev *hdev)
 {
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
@@ -244,7 +244,7 @@ static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
 	}
 }
 
-void hdmitx_hpd_irq_top_half_process(struct hdmitx_dev *hdev, bool hpd)
+void hdmitx_hpd_irq_top_half_process(struct hdmitx21_dev *hdev, bool hpd)
 {
 	if (hpd) {
 		hdmitx_phy_bandgap_en(hdev);
@@ -263,7 +263,7 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 	u32 val;
 	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
 		struct hdmitx_common, work_internal_intr);
-	struct hdmitx_dev *hdev = container_of(tx_comm, struct hdmitx_dev, tx_comm);
+	struct hdmitx21_dev *hdev = container_of(tx_comm, struct hdmitx21_dev, tx_comm);
 	bool ret;
 
 	if (pint->st_data) {
@@ -358,7 +358,7 @@ static void intr_status_save_and_clear(void)
 {
 	int i;
 	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	u32 gate_status = hdmitx21_get_gate_status();
 	u32 tmp;
 
@@ -408,7 +408,7 @@ void intr_status_init_clear(void)
 	int i;
 	u32 st_data;
 	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	u32 gate_status = hdmitx21_get_gate_status();
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++, pint++) {
@@ -437,7 +437,7 @@ void intr_status_init_clear(void)
 static irqreturn_t intr_handler(int irq, void *dev)
 {
 	unsigned int top_intr_state;
-	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
+	struct hdmitx21_dev *hdev = (struct hdmitx21_dev *)dev;
 
 RE_ISR:
 	intr_status_save_and_clear();
@@ -463,13 +463,13 @@ RE_ISR:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static irqreturn_t vrr_vsync_intr_handler(int irq, void *dev)
 {
-	return hdmitx_vrr_vsync_handler((struct hdmitx_dev *)dev);
+	return hdmitx_vrr_vsync_handler((struct hdmitx21_dev *)dev);
 }
 #endif
 
 static irqreturn_t vsync_intr_handler(int irq, void *dev)
 {
-	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
+	struct hdmitx21_dev *hdev = (struct hdmitx21_dev *)dev;
 
 	if (hdev->tx_comm.vid_mute_op != VIDEO_NONE_OP) {
 		hdmitx_hw_cntl_config(&hdev->hw_comm,
@@ -489,14 +489,14 @@ static irqreturn_t vsync_intr_handler(int irq, void *dev)
 #ifdef CONFIG_AMLOGIC_DSC
 static irqreturn_t emp_vsync_intr_handler(int irq, void *dev)
 {
-	return hdmitx_emp_vsync_handler((struct hdmitx_dev *)dev);
+	return hdmitx_emp_vsync_handler((struct hdmitx21_dev *)dev);
 }
 #endif
 
 int hdmitx_setupirqs(struct hdmitx_hw_common *tx_hw)
 {
 	int r;
-	struct hdmitx_dev *phdev = get_hdmitx_device();
+	struct hdmitx21_dev *phdev = get_hdmitx21_device();
 
 	if (phdev->tx_comm.pxp_mode)
 		return -EINVAL;

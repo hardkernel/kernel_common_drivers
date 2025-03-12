@@ -516,7 +516,6 @@ int drm_hdmitx_common_register_hdcp_notify(struct hdmitx_common *tx_comm,
 int drm_hdmitx_common_get_dw_hdcp_topo_info(struct hdmitx_common *tx_comm);
 
 int hdmitx_get_connector(void);
-struct hdmitx_dev *get_hdmitx_device(void);
 void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
 /*******************************hdmitx common api end*******************************/
 
@@ -663,10 +662,5 @@ void unregister_earcrx_callback(void);
 void hdmitx_disable_frl_work(struct hdmitx_common *tx_comm);
 void hdmitx_disable_21_work(struct hdmitx_common *tx_comm);
 void hdmitx_clear_packets(struct hdmitx_common *tx_comm);
-void hdmitx_disable_hdcp(struct hdmitx_common *tx_comm);
-int hdmitx_pre_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
-int hdmitx_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
-int hdmitx_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para);
-int get_hdmitx_init(void);
 
 #endif

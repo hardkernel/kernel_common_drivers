@@ -308,7 +308,7 @@ void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	const u16 dsc_pkt_insert = (6 - 1) * 28 + 21;
 	u8 body[6 * 28];
 	struct dsc_offer_tx_data *dsc_data = container_of(pps, struct dsc_offer_tx_data, pps_data);
-	struct hdmitx_dev *hdev = container_of(dsc_data, struct hdmitx_dev, dsc_data);
+	struct hdmitx21_dev *hdev = container_of(dsc_data, struct hdmitx21_dev, dsc_data);
 
 	memset(body, 0, sizeof(body));
 	pps_data_map(body, pps, timing);
@@ -383,7 +383,7 @@ void hdmitx_dsc_cvtem_pkt_disable(void)
 	hdmitx21_wr_reg(DSC_PKT_INSERT_CTRL_IVCTX, 0x0);
 }
 
-irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev)
+irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx21_dev *hdev)
 {
 	struct dsc_offer_tx_data dsc_data;
 	struct hdmi_timing *timing;

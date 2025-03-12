@@ -43,7 +43,7 @@ int hdmitx_hpd_hw_op_txlx(enum hpd_op cmd)
 {
 	int ret = 0;
 
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	if (!(hdev->tx_comm.pdev)) {
 		HDMITX_INFO("exit for null device of hdmitx!\n");
@@ -95,7 +95,7 @@ int read_hpd_gpio_txlx(void)
 int hdmitx_ddc_hw_op_txlx(enum ddc_op cmd)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	if (!(hdev->tx_comm.pdev)) {
 		HDMITX_INFO("exit for null device of hdmitx!\n");

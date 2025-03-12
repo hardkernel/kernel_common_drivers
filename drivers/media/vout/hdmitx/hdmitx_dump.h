@@ -32,8 +32,8 @@ struct hdmitx_dbg_files_s {
 /* common api */
 int dump_hdmitx_basic_config(struct seq_file *s, void *p);
 int hdmirx_info_show(struct seq_file *s, void *v);
-void hdmitx_common_debugfs_init(struct hdmitx_dev *hdev);
-void hdmitx_common_profs_init(struct hdmitx_dev *hdev);
+void hdmitx_common_debugfs_init(struct hdmitx_common *tx_comm);
+void hdmitx_common_profs_init(struct hdmitx_common *tx_comm);
 
 /* hdmitx21 api */
 struct hdmitx_dbg_files_s *hdmitx21_get_dbg_files_s(void);

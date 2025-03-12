@@ -60,7 +60,7 @@ static int write_buff(const char *fmt, ...);
 
 static struct hdcplog_buf hdcplog_buf;
 
-unsigned int hdcp_get_downstream_ver(struct hdmitx_dev *hdev)
+unsigned int hdcp_get_downstream_ver(struct hdmitx20_dev *hdev)
 {
 	unsigned int ret = 14;
 
@@ -94,7 +94,7 @@ int hdcp_ksv_valid(unsigned char *dat)
 	return one_num == 20;
 }
 
-static int save_obs_val(struct hdmitx_dev *hdev, struct hdcp_obs_val *obs)
+static int save_obs_val(struct hdmitx20_dev *hdev, struct hdcp_obs_val *obs)
 {
 	return hdmitx_hw_cntl_ddc(hdev->tx20_hw.base,
 		DDC_HDCP14_SAVE_OBS, (unsigned long)obs);
@@ -156,8 +156,8 @@ static void pr_obs(struct hdcp_obs_val *obst0, struct hdcp_obs_val *obst1,
 static void _hdcp_do_work(struct work_struct *work)
 {
 	int ret = 0;
-	struct hdmitx_dev *hdev =
-		container_of(work, struct hdmitx_dev, work_do_hdcp.work);
+	struct hdmitx20_dev *hdev =
+		container_of(work, struct hdmitx20_dev, work_do_hdcp.work);
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
 	switch (tx_comm->hdcp_mode) {
@@ -190,13 +190,13 @@ static void _hdcp_do_work(struct work_struct *work)
 
 void hdmitx_hdcp_do_work(struct hdmitx_common *tx_comm)
 {
-	struct hdmitx_dev *hdev =
-		container_of(tx_comm, struct hdmitx_dev, tx_comm);
+	struct hdmitx20_dev *hdev =
+		container_of(tx_comm, struct hdmitx20_dev, tx_comm);
 
 	_hdcp_do_work(&hdev->work_do_hdcp.work);
 }
 
-void hdmitx_hdcp_status(struct hdmitx_dev *hdev, int hdmi_authenticated)
+void hdmitx_hdcp_status(struct hdmitx20_dev *hdev, int hdmi_authenticated)
 {
 	hdmitx_set_uevent(&hdev->tx_comm, HDMITX_HDCP_EVENT, hdmi_authenticated);
 	if (hdev->drm_hdcp_cb.callback)
@@ -207,7 +207,7 @@ void hdmitx_hdcp_status(struct hdmitx_dev *hdev, int hdmi_authenticated)
 static int hdmitx_hdcp_task(void *data)
 {
 	static int auth_trigger;
-	struct hdmitx_dev *hdev = (struct hdmitx_dev *)data;
+	struct hdmitx20_dev *hdev = (struct hdmitx20_dev *)data;
 
 	INIT_DELAYED_WORK(&hdev->work_do_hdcp, _hdcp_do_work);
 	while (hdev->tx_comm.hpd_event != 0xff) {
@@ -382,7 +382,7 @@ static unsigned int get_hdcp_downstream_ver(void)
 
 static unsigned int meson_hdcp_get_tx_key_version(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX20)
 		return 0;
@@ -715,7 +715,7 @@ static void am_hdmitx_set_hdmi_mode(void)
 static void am_hdmitx_set_out_mode(void)
 {
 	enum vmode_e vmode = get_current_vmode();
-	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+	struct hdmitx20_dev *hdmitx_dev = get_hdmitx20_device();
 	int last_hdcp_mode = HDCP_NULL;
 
 	if (vmode == VMODE_HDMI) {
@@ -745,7 +745,7 @@ static void am_hdmitx_set_out_mode(void)
 
 static void am_hdmitx_hdcp_disable(void)
 {
-	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+	struct hdmitx20_dev *hdmitx_dev = get_hdmitx20_device();
 
 	if (hdmitx_dev->tx_comm.hdcp_ctl_lvl >= 1)
 		meson_hdcp_disable();
@@ -754,7 +754,7 @@ static void am_hdmitx_hdcp_disable(void)
 
 static void am_hdmitx_hdcp_disconnect(void)
 {
-	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+	struct hdmitx20_dev *hdmitx_dev = get_hdmitx20_device();
 
 	if (hdmitx_dev->tx_comm.hdcp_ctl_lvl >= 1)
 		meson_hdcp_disconnect();
@@ -809,7 +809,7 @@ bool hdcp_tx22_daemon_ready(void)
 
 static int drm_hdmitx_register_hdcp_cb(struct drm_hdmitx_hdcp_cb *hdcp_cb)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	hdev->drm_hdcp_cb.callback = hdcp_cb->callback;
 	hdev->drm_hdcp_cb.data = hdcp_cb->data;
@@ -820,7 +820,7 @@ void meson_hdcp_init(void)
 {
 	int ret;
 	struct drm_hdmitx_hdcp_cb hdcp_cb;
-	struct hdmitx_dev *hdmitx_dev;
+	struct hdmitx20_dev *hdmitx_dev;
 
 	meson_hdcp.hdcp_debug_type = 0x3;
 	meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
@@ -841,7 +841,7 @@ void meson_hdcp_init(void)
 	hdcp_cb.data = &meson_hdcp;
 	drm_hdmitx_register_hdcp_cb(&hdcp_cb);
 
-	hdmitx_dev = get_hdmitx_device();
+	hdmitx_dev = get_hdmitx20_device();
 	hdmitx_dev->tx_comm.drm_hdcp.test_set_hdmi_mode = am_hdmitx_set_hdmi_mode;
 	hdmitx_dev->tx_comm.drm_hdcp.test_set_out_mode = am_hdmitx_set_out_mode;
 	hdmitx_dev->tx_comm.drm_hdcp.test_hdcp_disable = am_hdmitx_hdcp_disable;
@@ -866,7 +866,7 @@ void meson_hdcp_exit(void)
 /* apart from hdcp key, it will also check hdcp2.2 daemon status */
 unsigned int meson_hdcp_get_tx_cap(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 	unsigned int hdcp_tx_type = meson_hdcp_get_tx_key_version();
 
 	/* check hdcp daemon: android or daemon is running */
@@ -880,7 +880,7 @@ unsigned int meson_hdcp_get_tx_cap(void)
 unsigned int meson_hdcp_get_rx_cap(void)
 {
 	unsigned int ver = 0x0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	/*
 	 * note that during hdcp1.4 authentication, read hdcp version
@@ -908,7 +908,7 @@ unsigned int meson_hdcp_get_rx_cap(void)
 /* after TEE hdcp key valid, do hdcp22 init before tx22 start */
 void drm_hdmitx_hdcp22_init(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	hdmitx_hdcp_do_work(&hdev->tx_comm);
 	hdmitx_hw_cntl_ddc(&hdev->hw_comm,
@@ -918,7 +918,7 @@ void drm_hdmitx_hdcp22_init(void)
 /* echo 1/2 > hdcp_mode */
 void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
 	vic = hdmitx_hw_get_state(&hdev->hw_comm, STAT_VIDEO_VIC, 0);
@@ -947,7 +947,7 @@ void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 /* echo -1 > hdcp_mode;echo stop14/22 > hdcp_ctrl */
 void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_MUX_INIT, 1);
 	hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_GET_AUTH, 0);
@@ -967,7 +967,7 @@ void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 
 unsigned char drm_hdmitx_get_hdcp_topo_info(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
 	HDMITX_DEBUG("%s %d\n", __func__, hdev->tx_comm.hdcp22_type);
 	return hdev->tx_comm.hdcp22_type;
@@ -997,7 +997,7 @@ const struct file_operations hdcplog_ops = {
 	.open = hdcplog_open,
 };
 
-int hdmitx20_hdcp_init(struct hdmitx_dev *hdev)
+int hdmitx20_hdcp_init(struct hdmitx20_dev *hdev)
 {
 	struct dentry *entry;
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
@@ -1030,7 +1030,7 @@ int hdmitx20_hdcp_init(struct hdmitx_dev *hdev)
 	return 0;
 }
 
-void hdmitx20_hdcp_exit(struct hdmitx_dev *hdev)
+void hdmitx20_hdcp_exit(struct hdmitx20_dev *hdev)
 {
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 

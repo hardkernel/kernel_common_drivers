@@ -36,7 +36,6 @@
 /************************************
  *    hdmitx device structure
  *************************************/
-struct hdmitx_dev *get_hdmitx_device(void);
 
 /* for hdmitx 20 */
 struct drm_hdmitx_hdcp_cb {
@@ -44,11 +43,10 @@ struct drm_hdmitx_hdcp_cb {
 	void *data;
 };
 
-struct hdmitx_dev {
+struct hdmitx20_dev {
 	struct hdmitx_common tx_comm;
 	struct hdmitx_hw_common hw_comm;
 
-#ifdef CONFIG_AMLOGIC_HDMITX
 	struct hdmitx20_hw tx20_hw;
 	unsigned char hdcp_max_exceed_state;
 	unsigned int hdcp_max_exceed_cnt;
@@ -58,15 +56,12 @@ struct hdmitx_dev {
 	int hdcp_hpd_stick;	/* 1 not init & reset at plugout */
 	struct delayed_work work_do_hdcp;
 	struct drm_hdmitx_hdcp_cb drm_hdcp_cb;
+};
 
-	struct {
-		void (*setaudioinfoframe)(unsigned char *AUD_DB,
-					  unsigned char *CHAN_STAT_BUF);
-	} hwop;
+struct hdmitx21_dev {
+	struct hdmitx_common tx_comm;
+	struct hdmitx_hw_common hw_comm;
 
-#endif
-
-#ifdef CONFIG_AMLOGIC_HDMITX21
 	struct hdmitx21_hw tx21_hw;
 	/* dedicated for intr */
 	struct workqueue_struct *hdmi_intr_wq;
@@ -116,8 +111,9 @@ struct hdmitx_dev {
 	/* for dsc debug */
 	int emp_no;
 	int emp_verbose;
-#endif
 };
+
+struct hdmitx_common *get_hdmitx_common(void);
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 /***********************************************************************
@@ -127,27 +123,22 @@ extern struct aud_para hdmiaud_config_data;
 extern struct aud_para hsty_hdmiaud_config_data[8];
 extern unsigned int hsty_hdmiaud_config_loc, hsty_hdmiaud_config_num;
 
-int hdmitx_set_display(struct hdmitx_dev *hdmitx_device,
-		       enum hdmi_vic videocode);
-
-int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type,
-		unsigned int param);
+int hdmitx_set_display(struct hdmitx_hw_common *hw_comm, enum hdmi_vic videocode);
 
 int hdmitx20_init_reg_map(struct platform_device *pdev);
-/* for hdcp init */
-int hdmitx20_hdcp_init(struct hdmitx_dev *hdev);
 /* for debug */
 void print_hsty_hdmiaud_config_data(void);
 void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
 /***********************************************************************
  *    hdmitx hardware level interface
  ***********************************************************************/
-void hdmitx20_meson_init(struct hdmitx_dev *hdev);
+void hdmitx20_meson_init(struct hdmitx_hw_common *hw_comm);
 
 void hdmitx20_ext_set_audio_output(bool enable);
 int hdmitx20_ext_get_audio_status(void);
 void hdmitx20_audio_mute_op(unsigned int flag);
 int hdmitx_hdcp_opr(unsigned int val);
+struct hdmitx_common *hdmitx20_alloc_instance(struct device *device);
 #endif
 
 #ifdef CONFIG_AMLOGIC_HDMITX21
@@ -191,14 +182,12 @@ struct aspect_ratio_list {
 /***********************************************************************
  *    hdmitx protocol level interface
  **********************************************************************/
-void hdmitx21_dither_config(struct hdmitx_dev *hdev);
 
-int hdmitx21_set_display(struct hdmitx_dev *hdev,
-		       enum hdmi_vic videocode);
+int hdmitx21_set_display(struct hdmitx_hw_common *hw_comm, enum hdmi_vic videocode);
 
 void hdmi21_vframe_write_reg(u32 value);
 
-int hdmi21_set_3d(struct hdmitx_dev *hdev, int type,
+int hdmi21_set_3d(struct hdmitx21_dev *hdev, int type,
 		u32 param);
 
 struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing *t);
@@ -206,11 +195,13 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
 /***********************************************************************
  *    hdmitx hardware level interface
  ***********************************************************************/
-void hdmitx21_meson_init(struct hdmitx_dev *hdev);
+void hdmitx21_meson_init(struct hdmitx_hw_common *hw_comm);
 int hdmitx21_init_reg_map(struct platform_device *pdev);
 
 void hdmitx21_ext_set_audio_output(bool enable);
 int hdmitx21_ext_get_audio_status(void);
+struct hdmitx_common *hdmitx21_alloc_instance(struct device *device);
+
 #endif
 
 #endif

@@ -5,4 +5,4 @@
 
 #include "hdmitx_common.h"
 
-void set_vmode_enc_hw(struct hdmitx_dev *hdev);
+void set_vmode_enc_hw(struct hdmitx20_dev *hdev);

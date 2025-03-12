@@ -8,7 +8,7 @@
 #include "hdmitx_module.h"
 #include "hdmitx_common.h"
 
-void scdc_config(struct hdmitx_dev *hdev)
+void scdc_config(struct hdmitx20_dev *hdev)
 {
 	/*
 	 * from hdmi2.1/2.0 spec chapter 10.4, prior to accessing
@@ -36,7 +36,7 @@ void scdc_config(struct hdmitx_dev *hdev)
 }
 
 /* update CED, 10.4.1.8 */
-static int scdc_ced_cnt(struct hdmitx_dev *hdev)
+static int scdc_ced_cnt(struct hdmitx20_dev *hdev)
 {
 	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
 	u8 raw[7];
@@ -79,7 +79,7 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 
 /* update scdc status flags, 10.4.1.7 */
 /* ignore STATUS_FLAGS_1, all bits are RSVD */
-int scdc_status_flags(struct hdmitx_dev *hdev)
+int scdc_status_flags(struct hdmitx20_dev *hdev)
 {
 	u8 st = 0;
 	u8 locked_st = 0;

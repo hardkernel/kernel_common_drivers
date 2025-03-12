@@ -26,7 +26,7 @@
 #define AVI_INFOFRAMES_VERSION    0x02
 #define AVI_INFOFRAMES_LENGTH     0x0D
 
-static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device);
+static void hdmitx_set_spd_info(struct hdmitx20_dev *hdmitx_device);
 
 static void hdmi_tx_construct_avi_packet(struct hdmi_format_para *video_param,
 					 char *AVI_DB)
@@ -50,10 +50,11 @@ static int is_dvi_device(struct rx_cap *prxcap)
 		return 0;
 }
 
-int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
+int hdmitx_set_display(struct hdmitx_hw_common *hw_comm, enum hdmi_vic videocode)
 {
+	struct hdmitx20_dev *hdev =
+	    container_of(hw_comm, struct hdmitx20_dev, hw_comm);
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
-	struct hdmitx_hw_common *tx_hw_base = &hdev->hw_comm;
 	int i, ret = -1;
 	unsigned char AVI_DB[32];
 	unsigned char AVI_HB[32];
@@ -81,11 +82,11 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			 */
 			if (is_dvi_device(&hdev->tx_comm.rxcap)) {
 				HDMITX_INFO("Sink is DVI device\n");
-				hdmitx_hw_cntl_config(tx_hw_base,
+				hdmitx_hw_cntl_config(hw_comm,
 					CONF_HDMI_DVI_MODE, DVI_MODE);
 			} else {
 				HDMITX_INFO("Sink is HDMI device\n");
-				hdmitx_hw_cntl_config(tx_hw_base,
+				hdmitx_hw_cntl_config(hw_comm,
 					CONF_HDMI_DVI_MODE, HDMI_MODE);
 			}
 			hdmi_tx_construct_avi_packet(para, (char *)AVI_DB);
@@ -113,16 +114,16 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			 *	unsigned char buffer[31] = {0x87, 0x1, 26};
 			 *	HDMITX_INFO("hdr: %s: hdr.sdr pkt sent\n", __func__);
 			 *	hdev->tx_comm.colormetry = 0;
-			 *	hdmitx_hw_cntl_config(tx_hw_base, CONF_AVI_BT2020, CLR_AVI_BT2020);
-			 *	hdmitx_hw_set_packet(tx_hw_base, HDMI_PACKET_DRM, buffer);
+			 *	hdmitx_hw_cntl_config(hw_comm, CONF_AVI_BT2020, CLR_AVI_BT2020);
+			 *	hdmitx_hw_set_packet(hw_comm, HDMI_PACKET_DRM, buffer);
 			 * }
 			 */
 			if (hdev->tx_comm.allm_mode) {
 				hdmitx_common_setup_vsif_packet(&hdev->tx_comm, VT_ALLM, 1, NULL);
-				hdmitx_hw_cntl_config(tx_hw_base, CONF_CT_MODE,
+				hdmitx_hw_cntl_config(hw_comm, CONF_CT_MODE,
 					SET_CT_OFF);
 			} else {
-				hdmitx_hw_cntl_config(tx_hw_base, CONF_CT_MODE,
+				hdmitx_hw_cntl_config(hw_comm, CONF_CT_MODE,
 					hdev->tx_comm.ct_mode);
 			}
 			ret = 0;
@@ -133,7 +134,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 	return ret;
 }
 
-int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
+int hdmi_set_3d(struct hdmitx20_dev *hdev, int type, unsigned int param)
 {
 	unsigned char buffer[31] = {0};
 	struct hdmitx_hw_common *tx_hw_base = &hdev->hw_comm;
@@ -157,7 +158,7 @@ int hdmi_set_3d(struct hdmitx_dev *hdev, int type, unsigned int param)
 
 /* Set Source Product Descriptor InfoFrame
  */
-static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
+static void hdmitx_set_spd_info(struct hdmitx20_dev *hdev)
 {
 	unsigned char buffer[31] = {0x83, 0x1, 0x19};
 	unsigned int len = 0;

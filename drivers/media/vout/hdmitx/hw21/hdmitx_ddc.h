@@ -109,7 +109,7 @@ enum ddc_op {
 	DDC_UNMUX_DDC,
 };
 
-struct hdmitx_dev;
+struct hdmitx21_dev;
 
 int hdmitx21_ddc_hw_op(enum ddc_op cmd);
 
@@ -119,9 +119,9 @@ void scdc21_sequential_rd_sink(u8 adr, u8 *val, u8 len);
 void scdc21_wr_sink(u8 adr, u8 val);
 uint32_t hdcp21_rd_hdcp14_ver(void);
 uint32_t hdcp21_rd_hdcp22_ver(void);
-void scdc21_config(struct hdmitx_dev *hdev);
+void scdc21_config(struct hdmitx21_dev *hdev);
 void edid21_read_head_8bytes(void);
-int scdc21_status_flags(struct hdmitx_dev *hdev);
+int scdc21_status_flags(struct hdmitx21_dev *hdev);
 void hdmitx21_read_edid(u8 *rx_edid);
 #endif  /* __HDMI_TX_SCDC_H__ */
 

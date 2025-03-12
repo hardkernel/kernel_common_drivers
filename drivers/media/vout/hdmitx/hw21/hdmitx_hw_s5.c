@@ -81,7 +81,7 @@ static const char od_map[17] = {
 	[16] = 4,
 };
 
-void disable_hdmitx_s5_plls(struct hdmitx_dev *hdev)
+void disable_hdmitx_s5_plls(struct hdmitx21_dev *hdev)
 {
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0);
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0);
@@ -206,7 +206,7 @@ void set21_s5_htxpll_clk_out(const u32 clk, const u32 div)
 {
 	u32 div1;
 	u32 div2;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
 	enum hdmi_color_depth cd = COLORDEPTH_24B;
 
@@ -361,7 +361,7 @@ void hdmitx_set_s5_gp2pll(u32 clk, u32 div)
 	hd21_set_reg_bits(CLKCTRL_GP2PLL_CTRL0, od_map[div], 10, 3);
 }
 
-void hdmitx_set_s5_tmds_clk_div(struct hdmitx_dev *hdev)
+void hdmitx_set_s5_tmds_clk_div(struct hdmitx21_dev *hdev)
 {
 	if (!hdev)
 		return;
@@ -419,7 +419,7 @@ void hdmitx_s5_phy_keep_clk_todig(bool en)
 	}
 }
 
-void hdmitx_s5_phy_pre_init(struct hdmitx_dev *hdev)
+void hdmitx_s5_phy_pre_init(struct hdmitx21_dev *hdev)
 {
 	enum frl_rate_enum frl_rate = hdev->frl_rate;
 
@@ -614,7 +614,7 @@ void hdmitx21_s5_clk_div_rst(u32 clk_idx)
  * CLKCTRL_HDMI_CLK_CTRL bit8 gate for cts_hdmitx_sys_clk
  * it's necessary for register access of hdmitx top
  */
-void hdmitx_s5_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
+void hdmitx_s5_clock_gate_ctrl(struct hdmitx21_dev *hdev, bool en)
 {
 	int gate_bit_mask = hdev->tx21_hw.gate_bit_mask;
 

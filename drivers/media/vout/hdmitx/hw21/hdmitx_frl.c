@@ -367,7 +367,7 @@ static void tx_train_fsm(struct work_struct *work)
 		struct frl_work, dwork);
 	struct frl_train_t *p = container_of(frl_work,
 		struct frl_train_t, timer_frl_flt);
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	if (p->last_state != p->flt_tx_state) {
 		HDMITX_INFO("FRL: %s to %s\n", flt_tx_string[p->last_state],
@@ -685,7 +685,7 @@ void frl_tx_stop(void)
 	stop_frl_transmission(p_frl_train);
 }
 
-void frl_tx_training_handler(struct hdmitx_dev *hdev)
+void frl_tx_training_handler(struct hdmitx21_dev *hdev)
 {
 	struct rx_cap *rxcap;
 

@@ -24,6 +24,7 @@ struct hdmitx21_hw {
 };
 
 struct hdmitx21_hw *get_hdmitx21_hw_instance(void);
+struct hdmitx21_dev *get_hdmitx21_device(void);
 #define to_hdmitx21_hw(x)	container_of(x, struct hdmitx21_hw, base)
 
 #endif

@@ -7,7 +7,7 @@
 #include "hdmitx_module.h"
 #include "hdmitx_common.h"
 
-void scdc21_config(struct hdmitx_dev *hdev)
+void scdc21_config(struct hdmitx21_dev *hdev)
 {
 	/* TMDS 1/40 & Scramble */
 	scdc21_wr_sink(SCDC_TMDS_CFG,
@@ -15,7 +15,7 @@ void scdc21_config(struct hdmitx_dev *hdev)
 }
 
 /* update CED, 10.4.1.8 */
-static int scdc_ced_cnt(struct hdmitx_dev *hdev)
+static int scdc_ced_cnt(struct hdmitx21_dev *hdev)
 {
 	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
 	enum frl_rate_enum frl_rate;
@@ -64,7 +64,7 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 	return chksum != 0;
 }
 
-static int scdc_rsed_cnt(struct hdmitx_dev *hdev)
+static int scdc_rsed_cnt(struct hdmitx21_dev *hdev)
 {
 	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
 	u8 raw[2] = {0};
@@ -83,7 +83,7 @@ static int scdc_rsed_cnt(struct hdmitx_dev *hdev)
 
 /* update scdc status flags, 10.4.1.7 */
 /* ignore STATUS_FLAGS_1, all bits are RSVD */
-int scdc21_status_flags(struct hdmitx_dev *hdev)
+int scdc21_status_flags(struct hdmitx21_dev *hdev)
 {
 	u8 st = 0;
 	u8 locked_st = 0;

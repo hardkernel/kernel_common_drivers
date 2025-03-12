@@ -7,6 +7,7 @@
 #define __HDMI_TX_DDC_H__
 
 #include <linux/types.h>
+#include "hdmitx_module.h"
 
 #define EDID_SLAVE	0x50
 	#define EDIDSEG_ADR	0x30
@@ -81,9 +82,9 @@ void scdc_rd_sink(u8 adr, u8 *val);
 void scdc_wr_sink(u8 adr, u8 val);
 uint32_t hdcp_rd_hdcp14_ver(void);
 uint32_t hdcp_rd_hdcp22_ver(void);
-void scdc_config(struct hdmitx_dev *hdev);
+void scdc_config(struct hdmitx20_dev *hdev);
 void edid_read_head_8bytes(void);
-int scdc_status_flags(struct hdmitx_dev *hdev);
+int scdc_status_flags(struct hdmitx20_dev *hdev);
 void hdmitx_read_edid(unsigned char *rx_edid);
 
 #endif  /* __HDMI_TX_SCDC_H__ */

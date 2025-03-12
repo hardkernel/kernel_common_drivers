@@ -37,7 +37,7 @@ static const char od_map[9] = {
 	0, 0, 1, 0, 2, 0, 0, 0, 3,
 };
 
-void disable_hdmitx_s6_plls(struct hdmitx_dev *hdev)
+void disable_hdmitx_s6_plls(struct hdmitx21_dev *hdev)
 {
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0);
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0);
@@ -84,7 +84,7 @@ void set21_s6_htxpll_clk_out(const u32 clk, u32 div)
 	u32 pll_od20 = 0;
 	u32 pll_od21 = 0;
 	u32 pll_od1 = 0;
-	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
 	enum hdmi_color_depth cd = COLORDEPTH_24B;
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
@@ -271,7 +271,7 @@ void set21_hpll_sspll_s6(enum hdmi_vic vic)
  * CLKCTRL_HDMI_CLK_CTRL bit8 gate for cts_hdmitx_sys_clk
  * it's necessary for register access of hdmitx top
  */
-void hdmitx_s6_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
+void hdmitx_s6_clock_gate_ctrl(struct hdmitx21_dev *hdev, bool en)
 {
 	int gate_bit_mask = hdev->tx21_hw.gate_bit_mask;
 
