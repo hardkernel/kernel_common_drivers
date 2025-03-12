@@ -207,10 +207,7 @@ static struct clk_regmap txhd2_cecb_32k_clkout = {
 };
 
 /* Array of all clocks provided by this provider */
-// Todo: need owner to review
-#if CONFIG_AMLOGIC_KERNEL_VERSION < 16612
-static struct clk_hw_onecell_data txhd2_aoclkc_hw_onecell_data = {
-	.hws = {
+static struct clk_hw *txhd2_aoclkc_hw_clks[] = {
 		[CLKID_AO_CLK81] =	&txhd2_aoclk81.hw,
 		[CLKID_SARADC_MUX] =	&txhd2_saradc_mux.hw,
 		[CLKID_SARADC_DIV] =	&txhd2_saradc_div.hw,
@@ -229,10 +226,7 @@ static struct clk_hw_onecell_data txhd2_aoclkc_hw_onecell_data = {
 		[CLKID_CECB_32K_MUX_PRE] = &txhd2_cecb_32k_sel_pre.hw,
 		[CLKID_CECB_32K_CLKOUT]	= &txhd2_cecb_32k_clkout.hw,
 		[NR_AOCLKS]		= NULL,
-	},
-	.num = NR_AOCLKS,
 };
-#endif
 
 /* Convenience table to populate regmap in .probe */
 static struct clk_regmap *const txhd2_aoclkc_clk_regmaps[] __initconst = {
@@ -258,10 +252,10 @@ static struct clk_regmap *const txhd2_aoclkc_clk_regmaps[] __initconst = {
 const struct meson_eeclkc_data txhd2_aoclkc_data = {
 	.regmap_clks = txhd2_aoclkc_clk_regmaps,
 	.regmap_clk_num = ARRAY_SIZE(txhd2_aoclkc_clk_regmaps),
-// Todo: need owner to review
-#if CONFIG_AMLOGIC_KERNEL_VERSION < 16612
-	.hw_onecell_data = &txhd2_aoclkc_hw_onecell_data,
-#endif
+	.hw_clks = {
+			.hws	= txhd2_aoclkc_hw_clks,
+			.num	= ARRAY_SIZE(txhd2_aoclkc_hw_clks),
+	},
 };
 
 static const struct of_device_id clkc_match_table[] = {

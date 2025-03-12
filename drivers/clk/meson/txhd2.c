@@ -2817,23 +2817,23 @@ static MESON_TXHD2_SYS_GATE(txhd2_clk81_mute,		HHI_GCLK_MPEG2, 29);
 static MESON_TXHD2_SYS_GATE(txhd2_clk81_gic,		HHI_GCLK_MPEG2, 30);
 static MESON_TXHD2_SYS_GATE(txhd2_clk81_aucpu,		HHI_GCLK_MPEG2, 31);
 
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_venci0,	HHI_GCLK_OTHER, 1);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_venci1,	HHI_GCLK_OTHER, 2);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_vencp0,	HHI_GCLK_OTHER, 3);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_vencp1,	HHI_GCLK_OTHER, 4);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_venct0,	HHI_GCLK_OTHER, 5);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_venct1,	HHI_GCLK_OTHER, 6);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_other,	HHI_GCLK_OTHER, 7);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_enci,		HHI_GCLK_OTHER, 8);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_encp,		HHI_GCLK_OTHER, 9);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_venci0,	HHI_GCLK_OTHER, 1);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_venci1,	HHI_GCLK_OTHER, 2);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_vencp0,	HHI_GCLK_OTHER, 3);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_vencp1,	HHI_GCLK_OTHER, 4);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_venct0,	HHI_GCLK_OTHER, 5);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_venct1,	HHI_GCLK_OTHER, 6);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_other,	HHI_GCLK_OTHER, 7);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_enci,		HHI_GCLK_OTHER, 8);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_encp,		HHI_GCLK_OTHER, 9);
 static MESON_TXHD2_SYS_GATE(txhd2_clk81_dac_clk,		HHI_GCLK_OTHER, 10);
 static MESON_TXHD2_SYS_GATE(txhd2_clk81_enc480p,		HHI_GCLK_OTHER, 20);
 static MESON_TXHD2_SYS_GATE(txhd2_clk81_random,		HHI_GCLK_OTHER, 21);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_enct,		HHI_GCLK_OTHER, 22);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_encl,		HHI_GCLK_OTHER, 23);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_venclmmc,	HHI_GCLK_OTHER, 24);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_vencl,	HHI_GCLK_OTHER, 25);
-static MESON_TXHD2_SYS_GATE(txhd2_clk81_vclk2_other1,	HHI_GCLK_OTHER, 26);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_enct,		HHI_GCLK_OTHER, 22);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_encl,		HHI_GCLK_OTHER, 23);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_venclmmc,	HHI_GCLK_OTHER, 24);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_vencl,	HHI_GCLK_OTHER, 25);
+static MESON_TXHD2_SYS_GATE(txhd2_clk81_other1,	HHI_GCLK_OTHER, 26);
 
 static MESON_TXHD2_SYS_GATE(txhd2_clk81_dma,		HHI_GCLK_SP_MPEG, 0);
 static MESON_TXHD2_SYS_GATE(txhd2_clk81_efuse,		HHI_GCLK_SP_MPEG, 1);
@@ -2914,23 +2914,23 @@ static struct clk_hw_onecell_data txhd2_hw_onecell_data = {
 		[CLKID_CLK81_VPU_INTR]		= &txhd2_clk81_vpu_int.hw,
 		[CLKID_CLK81_DEMOD_COMB]	= &txhd2_clk81_demod_com.hw,
 		[CLKID_CLK81_GIC]		= &txhd2_clk81_gic.hw,
-		[CLKID_CLK81_VCLK2_VENCI0]	= &txhd2_clk81_vclk2_venci0.hw,
-		[CLKID_CLK81_VCLK2_VENCI1]	= &txhd2_clk81_vclk2_venci1.hw,
-		[CLKID_CLK81_VCLK2_VENCP0]	= &txhd2_clk81_vclk2_vencp0.hw,
-		[CLKID_CLK81_VCLK2_VENCP1]	= &txhd2_clk81_vclk2_vencp1.hw,
-		[CLKID_CLK81_VCLK2_VENCT0]	= &txhd2_clk81_vclk2_venct0.hw,
-		[CLKID_CLK81_VCLK2_VENCT1]	= &txhd2_clk81_vclk2_venct1.hw,
-		[CLKID_CLK81_VCLK2_OTHER]	= &txhd2_clk81_vclk2_other.hw,
-		[CLKID_CLK81_VCLK2_ENCI]	= &txhd2_clk81_vclk2_enci.hw,
-		[CLKID_CLK81_VCLK2_ENCP]	= &txhd2_clk81_vclk2_encp.hw,
+		[CLKID_CLK81_VCLK2_VENCI0]	= &txhd2_clk81_venci0.hw,
+		[CLKID_CLK81_VCLK2_VENCI1]	= &txhd2_clk81_venci1.hw,
+		[CLKID_CLK81_VCLK2_VENCP0]	= &txhd2_clk81_vencp0.hw,
+		[CLKID_CLK81_VCLK2_VENCP1]	= &txhd2_clk81_vencp1.hw,
+		[CLKID_CLK81_VCLK2_VENCT0]	= &txhd2_clk81_venct0.hw,
+		[CLKID_CLK81_VCLK2_VENCT1]	= &txhd2_clk81_venct1.hw,
+		[CLKID_CLK81_VCLK2_OTHER]	= &txhd2_clk81_other.hw,
+		[CLKID_CLK81_VCLK2_ENCI]	= &txhd2_clk81_enci.hw,
+		[CLKID_CLK81_VCLK2_ENCP]	= &txhd2_clk81_encp.hw,
 		[CLKID_CLK81_DAC_CLK]		= &txhd2_clk81_dac_clk.hw,
 		[CLKID_CLK81_ENC480P]		= &txhd2_clk81_enc480p.hw,
 		[CLKID_CLK81_RANDOM]		= &txhd2_clk81_random.hw,
-		[CLKID_CLK81_VCLK2_ENCT]	= &txhd2_clk81_vclk2_enct.hw,
-		[CLKID_CLK81_VCLK2_ENCL]	= &txhd2_clk81_vclk2_encl.hw,
-		[CLKID_CLK81_VCLK2_VENCLMMC]	= &txhd2_clk81_vclk2_venclmmc.hw,
-		[CLKID_CLK81_VCLK2_VENCL]	= &txhd2_clk81_vclk2_vencl.hw,
-		[CLKID_CLK81_VCLK2_OTHER1]	= &txhd2_clk81_vclk2_other1.hw,
+		[CLKID_CLK81_VCLK2_ENCT]	= &txhd2_clk81_enct.hw,
+		[CLKID_CLK81_VCLK2_ENCL]	= &txhd2_clk81_encl.hw,
+		[CLKID_CLK81_VCLK2_VENCLMMC]	= &txhd2_clk81_venclmmc.hw,
+		[CLKID_CLK81_VCLK2_VENCL]	= &txhd2_clk81_vencl.hw,
+		[CLKID_CLK81_VCLK2_OTHER1]	= &txhd2_clk81_other1.hw,
 		[CLKID_CLK81_DMA]		= &txhd2_clk81_dma.hw,
 		[CLKID_CLK81_EFUSE]		= &txhd2_clk81_efuse.hw,
 		[CLKID_CLK81_ROM_BOOT]		= &txhd2_clk81_rom_boot.hw,
@@ -3232,23 +3232,23 @@ static struct clk_regmap *const txhd2_cpu_clk_regmaps[] __initconst = {
 	&txhd2_clk81_mute,
 	&txhd2_clk81_gic,
 	&txhd2_clk81_aucpu,
-	&txhd2_clk81_vclk2_venci0,
-	&txhd2_clk81_vclk2_venci1,
-	&txhd2_clk81_vclk2_vencp0,
-	&txhd2_clk81_vclk2_vencp1,
-	&txhd2_clk81_vclk2_venct0,
-	&txhd2_clk81_vclk2_venct1,
-	&txhd2_clk81_vclk2_other,
-	&txhd2_clk81_vclk2_enci,
-	&txhd2_clk81_vclk2_encp,
+	&txhd2_clk81_venci0,
+	&txhd2_clk81_venci1,
+	&txhd2_clk81_vencp0,
+	&txhd2_clk81_vencp1,
+	&txhd2_clk81_venct0,
+	&txhd2_clk81_venct1,
+	&txhd2_clk81_other,
+	&txhd2_clk81_enci,
+	&txhd2_clk81_encp,
 	&txhd2_clk81_dac_clk,
 	&txhd2_clk81_enc480p,
 	&txhd2_clk81_random,
-	&txhd2_clk81_vclk2_enct,
-	&txhd2_clk81_vclk2_encl,
-	&txhd2_clk81_vclk2_venclmmc,
-	&txhd2_clk81_vclk2_vencl,
-	&txhd2_clk81_vclk2_other1,
+	&txhd2_clk81_enct,
+	&txhd2_clk81_encl,
+	&txhd2_clk81_venclmmc,
+	&txhd2_clk81_vencl,
+	&txhd2_clk81_other1,
 	&txhd2_clk81_dma,
 	&txhd2_clk81_efuse,
 	&txhd2_clk81_rom_boot,
