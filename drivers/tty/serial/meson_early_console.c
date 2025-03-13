@@ -107,18 +107,13 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 				    u_int count)
 {
 	unsigned long flags;
-	int locked;
+	bool locked = true;
 	u32 val, tmp;
 
-	local_irq_save(flags);
-	if (port->sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = spin_trylock(&port->lock);
-	} else {
-		spin_lock(&port->lock);
-		locked = 1;
-	}
+	if (oops_in_progress)
+		locked = spin_trylock_irqsave(&port->lock, flags);
+	else
+		spin_lock_irqsave(&port->lock, flags);
 
 	val = readl_relaxed(port->membase + AML_UART_CONTROL);
 	tmp = val & ~(AML_UART_TX_INT_EN | AML_UART_RX_INT_EN);
@@ -128,8 +123,7 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 	if (locked)
-		spin_unlock(&port->lock);
-	local_irq_restore(flags);
+		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void meson_serial_early_console_write(struct console *co,
