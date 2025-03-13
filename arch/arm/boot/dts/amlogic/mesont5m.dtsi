@@ -21,6 +21,7 @@
 #include "meson-valhall.dtsi"
 #include <dt-bindings/mailbox/t5m-mbox.h>
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include <dt-bindings/leds/leds-meson.h>
 
@@ -2017,50 +2018,13 @@
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			cpucore_cool_cluster0 {
-				cluster_id = <0>;
-				node_name = "cpucore_cool0";
-				device_type = "cpucore";
-			};
 			gpufreq_cool {
 				dyn_coeff = <358>;
 				node_name = "valhall";
 				device_type = "gpufreq";
 			};
-			ddr0_cool {
-				ddr_reg = <0xfe0364b4 0xfe036648>;
-				ddr_status = <13>;
-				ddr_bits = <0 15>,<0 31>;
-				ddr_data = <12022 12022 12022 9616 7512 7512 6010
-				4808 4808 3756 3756 3004 1502 >;
-				gpu_data = <0x106c3033 0x106c3033 0x106c3033 0x106c3033
-					0x106c3033 0x106c3033 0x106c3033 0x106c3033 0x106c3033
-					0x106c3033 0x106c3033 0x106c3033 0x106c3033>;
-				node_name = "ddr_cool0";
-				device_type = "ddr";
-			};
-			ddr1_cool {
-				ddr_reg = <0xfe0344b4 0xfe034648>;
-				ddr_status = <13>;
-				ddr_bits = <0 15>,<0 31>;
-				ddr_data = <12022 12022 12022 9616 7512 7512 6010
-				4808 4808 3756 3756 3004 1502 >;
-				gpu_data = <0x106c3033 0x106c3033 0x106c3033 0x106c3033
-					0x106c3033 0x106c3033 0x106c3033 0x106c3033 0x106c3033
-					0x106c3033 0x106c3033 0x106c3033 0x106c3033>;
-				node_name = "ddr_cool1";
-				device_type = "ddr";
-			};
 		};
-		ddr_cool0:ddr_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		ddr_cool1:ddr_cool1 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>;
-		};
+
 	};/*meson cooling devices end*/
 
 	thermal_zones: thermal-zones {
@@ -2080,36 +2044,17 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				cpu_hot: trip-point@2 {
-					temperature = <55000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				cpu_critical: trip-point@3 {
+				cpu_critical: trip-point@2 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
 			};
 			cooling-maps {
-				cpufreq_cooling_map {
+				cooling_map {
 					trip = <&cpu_control>;
-					cooling-device = <&CPU0 0 8>;
-					contribution = <1024>;
-				};
-				gpufreq_cooling_map {
-					trip = <&cpu_control>;
-					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-				ddr0_cooling_map {
-					trip = <&cpu_hot>;
-					cooling-device = <&ddr_cool0 0 THERMAL_NO_LIMIT>;
-					contribution = <1024>;
-				};
-				ddr1_cooling_map {
-					trip = <&cpu_hot>;
-					cooling-device = <&ddr_cool1 0 THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 0 8>,
+							 <&gpu 0 3>;
 					contribution = <1024>;
 				};
 			};
@@ -2138,6 +2083,71 @@
 			};
 		};
 	};/*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		reg = <0xfe036814 0x4>,
+		      <0xfe0368a4 0x4>;
+		reg-names = "type-addr",
+			    "freq-addr";
+		type-mask = <8 8>;
+		freq-mask = <0 16>;
+		status = "okay";
+
+		ddr3 {
+			particle = <DDR3_PARTICLE>;
+			particle-flag = <DDR_TYPE_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			refresh-constant-value;
+			caddr = <0xfe0344b4>,
+				<0xfe034648>,
+				<0xfe0364b4>,
+				<0xfe036648>;
+			caddr-mask = <0 16 0 32>,
+				     <0 16 0 32>;
+			cstep-val = <70000 75000 80000 85000 90000>,
+				    <95000 100000 105000 110000 115000 120000>;
+			caddr-val = <12022 0x106c3033 12022 0x106c3033>,
+				    <9616 0x106c3033 9616 0x106c3033>,
+				    <7512 0x106c3033 7512 0x106c3033>,
+				    <7512 0x106c3033 7512 0x106c3033>,
+				    <6010 0x106c3033 6010 0x106c3033>,
+				    <4808 0x106c3033 4808 0x106c3033>,
+				    <4808 0x106c3033 4808 0x106c3033>,
+				    <3756 0x106c3033 3756 0x106c3033>,
+				    <3756 0x106c3033 3756 0x106c3033>,
+				    <3004 0x106c3033 3004 0x106c3033>,
+				    <1502 0x106c3033 1502 0x106c3033>;
+		};
+
+		ddr4 {
+			particle = <DDR4_PARTICLE>;
+			particle-flag = <DDR_TYPE_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			refresh-constant-value;
+			caddr = <0xfe0344b4>,
+				<0xfe034648>,
+				<0xfe0364b4>,
+				<0xfe036648>;
+			caddr-mask = <0 16 0 32>,
+				     <0 16 0 32>;
+			cstep-val = <70000 75000 80000 85000 90000>,
+				    <95000 100000 105000 110000 115000 120000>;
+			caddr-val = <12022 0x106c3033 12022 0x106c3033>,
+				    <9616 0x106c3033 9616 0x106c3033>,
+				    <7512 0x106c3033 7512 0x106c3033>,
+				    <7512 0x106c3033 7512 0x106c3033>,
+				    <6010 0x106c3033 6010 0x106c3033>,
+				    <4808 0x106c3033 4808 0x106c3033>,
+				    <4808 0x106c3033 4808 0x106c3033>,
+				    <3756 0x106c3033 3756 0x106c3033>,
+				    <3756 0x106c3033 3756 0x106c3033>,
+				    <3004 0x106c3033 3004 0x106c3033>,
+				    <1502 0x106c3033 1502 0x106c3033>;
+		};
+	};
 
 	crg30_otg: crg30otg@fe03a000 {
 		compatible = "amlogic, amlogic-crg-otg";
