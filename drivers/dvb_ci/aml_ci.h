@@ -10,6 +10,7 @@
 #include "cimcu/dvb_ca_en50221_cimcu.h"
 //#include "cimax/dvb_ca_en50221_cimax.h"
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 enum aml_dvb_io_type_e {
 	AML_DVB_IO_TYPE_IOBUS = 0,
@@ -46,6 +47,7 @@ struct aml_ci {
 	int				id;
 	struct class			class;
 	int				raw_mode;
+	struct regulator		*regulator_vcc5v;
 
 	int (*ci_init)(struct platform_device *pdev, struct aml_ci *ci);
 	int (*ci_exit)(struct aml_ci *ci);

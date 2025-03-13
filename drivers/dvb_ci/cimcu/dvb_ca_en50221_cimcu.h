@@ -8,7 +8,7 @@
 
 #include <linux/list.h>
 #include <uapi/amlogic/dvb/ca.h>
-
+#include <uapi/amlogic/aml_ca_ext.h>
 #include <linux/amlogic/media/dvb-core/dvbdev.h>
 
 #define DVB_CA_EN50221_POLL_CAM_PRESENT	1
@@ -128,7 +128,8 @@ enum {
 	CI_PARAMS_CIPLUS_ENABLE,
 	CI_PARAMS_CI_PROFIRE,
 	CI_PARAMS_SLOT_STATUS_VALIDATE,
-	CI_PARAMS_READ_TUPLE_TIME
+	CI_PARAMS_READ_TUPLE_TIME,
+	CI_PARAMS_FORCE_WAKEUP
 };
 
 int cimcu_get_param(int type);

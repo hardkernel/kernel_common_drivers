@@ -735,10 +735,36 @@ static int aml_gio_power(struct aml_pcmcia *pc, int enable)
 
 	if (enable == AML_PWR_OPEN) {
 		/*hi level ,open power*/
-		ret = aml_set_gpio_out(ci_bus_dev->pwr_pin, AML_GPIO_LOW);
+		if (ci_bus_dev->regulator_vcc5v) {
+			if (!ci_bus_dev->regulator_vcc5v_enabled) {
+				ret = regulator_enable(ci_bus_dev->regulator_vcc5v);
+				pr_dbg("%s regulator vcc5v enable ret=%d\r\n", __func__, ret);
+				if (ret)
+					pr_error("%s regulator vcc5v enable failed: %d\n",
+						__func__, ret);
+				else
+					ci_bus_dev->regulator_vcc5v_enabled = 1;
+			}
+		} else {
+			ret = aml_set_gpio_out(ci_bus_dev->pwr_pin, AML_GPIO_LOW);
+			pr_dbg("%s aml_set_gpio_out ret=%d\r\n", __func__, ret);
+		}
 	} else {
 		/*low level ,close power*/
-		ret = aml_set_gpio_in(ci_bus_dev->pwr_pin);
+		if (ci_bus_dev->regulator_vcc5v) {
+			if (ci_bus_dev->regulator_vcc5v_enabled) {
+				ret = regulator_disable(ci_bus_dev->regulator_vcc5v);
+				pr_dbg("%s regulator vcc5v disable ret=%d\r\n", __func__, ret);
+				if (ret)
+					pr_error("%s regulator vcc5v disable failed: %d\n",
+						__func__, ret);
+				else
+					ci_bus_dev->regulator_vcc5v_enabled = 0;
+			}
+		} else {
+			ret = aml_set_gpio_in(ci_bus_dev->pwr_pin);
+			pr_dbg("%s aml_set_gpio_in ret=%d\r\n", __func__, ret);
+		}
 	}
 
 	return ret;
@@ -964,19 +990,22 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 		}
 		ci_bus_dev->cd_pin2 = ci_bus_dev->cd_pin1;
 		ci_bus_dev->cd_pin2_value = ci_bus_dev->cd_pin1_value;
-		ci_bus_dev->pwr_pin = NULL;
 		pr_dbg("ci_bus_dev->cd_pin1_value==%d\r\n", ci_bus_dev->cd_pin1_value);
 		ci_bus_dev->irq = gpiod_to_irq(ci_bus_dev->cd_pin1);
 		pr_dbg("ci_bus_dev->irq==%d  get from gpio cd1\r\n", ci_bus_dev->irq);
 
-		ret = ci_bus_get_gpio_by_name(ci_bus_dev,
-			&ci_bus_dev->pwr_pin, &ci_bus_dev->pwr_pin_value,
-			"pwr_pin", OUTPUT, OUTLEVEL_HIGH);
-		if (ret) {
-			pr_error("dvb ci pwr_pin pin request failed\n");
-			return -1;
+		ci_bus_dev->pwr_pin = NULL;
+		if (!ci_bus_dev->regulator_vcc5v) {
+			pr_dbg("No vcc5v-supply. Try pwr_pin.\n");
+			ret = ci_bus_get_gpio_by_name(ci_bus_dev,
+				&ci_bus_dev->pwr_pin, &ci_bus_dev->pwr_pin_value,
+				"pwr_pin", OUTPUT, OUTLEVEL_HIGH);
+			if (ret) {
+				pr_error("dvb ci pwr_pin pin request failed\n");
+				return -1;
+			}
+			aml_set_gpio_in(ci_bus_dev->pwr_pin);
 		}
-		aml_set_gpio_in(ci_bus_dev->pwr_pin);
 
 		/*get le pin*/
 		ci_bus_dev->le_pin = NULL;
@@ -1090,6 +1119,9 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev)
 	/*init io device type*/
 	ci_bus_dev->io_device_type = ci_dev->io_type;
 	pr_dbg("*********ci bus Dev type [%d]\n", ci_dev->io_type);
+	/*init regulator_vcc5v*/
+	ci_bus_dev->regulator_vcc5v = ci_dev->regulator_vcc5v;
+	ci_bus_dev->regulator_vcc5v_enabled = 0;
 	/*get config from dts*/
 	aml_ci_bus_get_config_from_dts(ci_bus_dev);
 	//iomap ci reg
@@ -1662,6 +1694,19 @@ static int dvb_ca_en50221_parse_attributes(void)
 	return 0;
 }
 
+static ssize_t detect_cd_pin_show(const struct class *class,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	int ret;
+
+	ret = aml_gio_get_cd1(&ci_bus.pc);
+	ret = sprintf(buf, "pin value %d\n\t", ret);
+	return ret;
+}
+
+static CLASS_ATTR_RO(detect_cd_pin);
+
 static ssize_t reset_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
@@ -1707,6 +1752,17 @@ static ssize_t pwr_store(const struct class *class,
 		enable = (int)value;
 	ret = aml_gio_power(&ci_bus.pc, enable);
 	return size;
+}
+
+void aml_ci_slot_set_start(int arg)
+{
+	ci_bus.pc.start_work = arg;
+	aml_pcmcia_detect_cam(&ci_bus.pc);
+}
+
+int aml_ci_slot_get_start(void)
+{
+	return ci_bus.pc.start_work;
 }
 
 static CLASS_ATTR_RW(pwr);
@@ -1900,6 +1956,7 @@ static struct attribute *aml_ci_bus_attrs[] = {
 	&class_attr_pwr.attr,
 	&class_attr_start.attr,
 	&class_attr_wakeup.attr,
+	&class_attr_detect_cd_pin.attr,
 	NULL
 };
 

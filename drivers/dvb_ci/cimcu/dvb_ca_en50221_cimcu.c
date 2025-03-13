@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -16,7 +15,7 @@
 #include <linux/compat.h>
 
 #include <linux/amlogic/media/dvb-core/dvb_ringbuffer.h>
-
+#include "../aml_ci_bus.h"
 #include "dvb_ca_en50221_cimcu.h"
 
 #define READ_LPDU_PKT
@@ -27,6 +26,7 @@ static int dvb_ca_ciplus_enable;
 static unsigned int dvb_ca_ci_profire;
 static unsigned int ca_slotstate_validate_t = 1;
 static unsigned int read_tuple_time_t = 500;
+static int force_wakeup = 1;
 
 #define dprintk(fmt, args...) \
 do {\
@@ -1289,7 +1289,7 @@ static int dvb_ca_en50221_thread(void *data)
 			if (ca->pub->get_slot_wakeup(ca->pub, 0) == 0)
 				usleep_range(dvb_ca_en50221_usleep, dvb_ca_en50221_usleep + 100);
 		}
-		ca->wakeup = 0;
+		ca->wakeup = force_wakeup;
 
 		/* go through all the slots processing them */
 		for (slot = 0; slot < ca->slot_count; slot++) {
@@ -1425,6 +1425,8 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 	int err = 0;
 	int slot;
 	u8 info = 0x80;
+	int start;
+	u8 speedup = 0;
 
 	if (mutex_lock_interruptible(&ca->ioctl_mutex)) {
 		dprintk("ci lock interrupt error\r\n");
@@ -1473,6 +1475,19 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 		break;
 	}
 
+	case CA_SPEED_UP: {
+		if (copy_from_user(&speedup, (void __user *)parg, 1)) {
+			dprintk("ioctl speedup failed");
+			break;
+		}
+		if (speedup)
+			force_wakeup = 1;
+		else
+			force_wakeup = 0;
+		dprintk("ioctl set speedup %d", speedup);
+		break;
+	}
+
 	case CA_GET_SLOT_INFO: {
 		struct ca_slot_info *info = parg;
 
@@ -1505,7 +1520,16 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 		}
 		break;
 	}
-
+	case CA_SET_START: {
+		start = (long)parg;
+		aml_ci_slot_set_start(start);
+		break;
+	}
+	case CA_GET_START: {
+		u8 *status = parg;
+		*status = aml_ci_slot_get_start();
+		break;
+	}
 	default:
 		err = -EINVAL;
 		break;
@@ -2065,6 +2089,8 @@ int dvb_ca_en50221_cimcu_init(struct dvb_adapter *dvb_adapter,
 		goto exit;
 	}
 	kref_init(&ca->refcount);
+	force_wakeup = 0;
+
 	ca->pub = pubca;
 	ca->flags = flags;
 	ca->slot_count = slot_count;
@@ -2160,6 +2186,8 @@ int cimcu_get_param(int type)
 		return ca_slotstate_validate_t;
 	else if (type == CI_PARAMS_READ_TUPLE_TIME)
 		return read_tuple_time_t;
+	else if (type == CI_PARAMS_FORCE_WAKEUP)
+		return force_wakeup;
 	return -1;
 }
 
@@ -2177,5 +2205,7 @@ int cimcu_set_param(int type, int value)
 		ca_slotstate_validate_t = value;
 	else if (type == CI_PARAMS_READ_TUPLE_TIME)
 		read_tuple_time_t = value;
+	else if (type == CI_PARAMS_FORCE_WAKEUP)
+		force_wakeup = value;
 	return 0;
 }

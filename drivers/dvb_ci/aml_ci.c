@@ -257,6 +257,17 @@ static int aml_ci_get_config_from_dts(struct platform_device *pdev,
 		pr_dbg("%s: 0x%x\n", buf, value);
 		ci->raw_mode = value;
 	}
+	ci->regulator_vcc5v = NULL;
+	if (of_find_property(pdev->dev.of_node, "vcc5v-supply", NULL)) {
+		ci->regulator_vcc5v = devm_regulator_get(&pdev->dev, "vcc5v");
+		if (IS_ERR_OR_NULL(ci->regulator_vcc5v)) {
+			pr_error("failed in regulator vcc5v %ld\n",
+				PTR_ERR(ci->regulator_vcc5v));
+			ci->regulator_vcc5v = NULL;
+		} else {
+			pr_dbg("Use regulator_vcc5v\n");
+		}
+	}
 	return 0;
 }
 
@@ -376,6 +387,8 @@ static ssize_t ci_params_show(const struct class *class,
 	total += ret;
 	ret = sprintf(buf + total, "read_tuple_time:%d\n", cimcu_get_param(5));
 	total += ret;
+	ret = sprintf(buf + total, "force_wakeup:%d\n", cimcu_get_param(6));
+	total += ret;
 	ret = sprintf(buf + total, "ci_bus_debug:%d\n", aml_ci_bus_get_param(0));
 	total += ret;
 	ret = sprintf(buf + total, "ci_bus_set_delay:%d\n", aml_ci_bus_get_param(1));
@@ -420,6 +433,8 @@ static ssize_t ci_params_store(const struct class *class,
 		cimcu_set_param(CI_PARAMS_SLOT_STATUS_VALIDATE, param_value);
 	else if (!strncmp(param_name, "read_tuple_time", strlen("read_tuple_time")))
 		cimcu_set_param(CI_PARAMS_READ_TUPLE_TIME, param_value);
+	else if (!strncmp(param_name, "force_wakeup", strlen("force_wakeup")))
+		cimcu_set_param(CI_PARAMS_FORCE_WAKEUP, param_value);
 	else if (!strncmp(param_name, "ci_bus_debug", strlen("ci_bus_debug")))
 		aml_ci_bus_set_param(CI_PARAMS_CI_BUS_DEBUG, param_value);
 	else if (!strncmp(param_name, "ci_bus_set_delay", strlen("ci_bus_set_delay")))

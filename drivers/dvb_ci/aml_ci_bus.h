@@ -9,6 +9,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
 #include "aml_pcmcia.h"
 #include "aml_ci.h"
 #include <linux/amlogic/media/dvb-core/dvb_ca_en50221.h>
@@ -47,6 +48,9 @@ struct aml_ci_bus {
 	/*for raw mode used*/
 	int used;
 	int raw_mode;
+	/*use regulator to control power*/
+	struct regulator *regulator_vcc5v;
+	int regulator_vcc5v_enabled;
 };
 
 enum aml_gpio_select_e {
@@ -190,6 +194,9 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev);
 int aml_ci_bus_exit(struct aml_ci *ci);
 int aml_ci_bus_mod_init(void);
 void aml_ci_bus_mod_exit(void);
+void aml_ci_slot_set_start(int arg);
+int aml_ci_slot_get_start(void);
+
 enum {
 	CI_PARAMS_CI_BUS_DEBUG,
 	CI_PARAMS_CI_BUS_SET_DELAY,
@@ -198,4 +205,5 @@ enum {
 
 int aml_ci_bus_get_param(int type);
 int aml_ci_bus_set_param(int type, int value);
+
 #endif				/* __AML_CI_BUS_H_ */
