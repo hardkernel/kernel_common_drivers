@@ -78,50 +78,39 @@ struct am_hdmi_tx {
 	bool android_path;
 	bool recovery_mode;
 
-	/*amlogic property: force hdmitx update
-	 *colorspace/colordepth from sysfs.
-	 */
-	struct drm_property *update_attr_prop;
-	struct drm_property *color_space_prop;
-	struct drm_property *color_depth_prop;
-	struct drm_property *avmute_prop;
-	struct drm_property *hdmi_hdr_status_prop;
-	/* May be changed by hdr_priority */
-	struct drm_property *hdr_cap_property;
-	/* TV's real hdr capability that not changed by hdr_priority */
-	struct drm_property *hdr_cap_rx_property;
-	/* May be changed by hdr_priority */
-	struct drm_property *dv_cap_property;
-	/* TV's real dv capability that not changed by hdr_priority */
-	struct drm_property *dv_cap_rx_property;
-	struct drm_property *hdcp_ver_prop;
-	struct drm_property *hdcp_mode_property;
-	struct drm_property *hdcp_topo_property;
-	struct drm_property *hdr_priority_prop;
-	struct drm_property *contenttype_cap_prop;
-	struct drm_property *allm_prop;
-	struct drm_property *ready_prop;
-	struct drm_property *type_prop;
-	/*
-	 * Whether the current edid is valid
-	 * 0:edid is invalid
-	 * 1:edid is valid
-	 */
-	struct drm_property *edid_valid_prop;
 	/*
 	 * HWC enable hdcp flow
 	 * 0: IVCX chip don't need: T7/S5/S6/S7/S7D/S1A
 	 * 1: SNPS chip need: SC2/S4/G12/SM1
 	 */
 	struct drm_property *hdcp_user_prop;
-	int hdmi_type;
+	struct drm_property *hdcp_topo_prop;
+	struct drm_property *hdcp_ver_prop;
+	struct drm_property *hdcp_mode_prop;
+	/* May be changed by hdr_priority */
+	struct drm_property *hdr_cap_prop;
+	/* TV's real hdr capability that not changed by hdr_priority */
+	struct drm_property *hdr_cap_rx_prop;
+	struct drm_property *dv_cap_prop;
+	/* TV's real dv capability that not changed by hdr_priority */
+	struct drm_property *dv_cap_rx_prop;
+	struct drm_property *dc_cap_prop;
+	struct drm_property *contenttype_cap_prop;
+	struct drm_property *allm_cap_prop;
+	struct drm_property *allm_prop;
+
+	/*amlogic property: force hdmitx update
+	 *colorspace/colordepth from sysfs.
+	 */
+	struct drm_property *update_attr_prop;
+	struct drm_property *avmute_prop;
+	struct drm_property *ready_prop;
 	struct drm_property *frac_rate_policy_prop;
 	/*
 	 * if HDMI plugin even once time, then set 1
 	 * if never hdmi plugin, then keep as 0
 	 */
 	struct drm_property *hdmi_used_prop;
-
 	/*
 	 * the current HDMI RX device type
 	 * 1 none
@@ -129,9 +118,20 @@ struct am_hdmi_tx {
 	 * 4 sink
 	 */
 	struct drm_property *sink_type_prop;
+	/*
+	 * Whether the current edid is valid
+	 * 0:edid is invalid
+	 * 1:edid is valid
+	 */
+	struct drm_property *edid_valid_prop;
+
+	struct drm_property *color_space_prop;
+	struct drm_property *color_depth_prop;
+	struct drm_property *hdmi_hdr_status_prop;
+	struct drm_property *hdr_priority_prop;
+	struct drm_property *type_prop;
+	int hdmi_type;
 	struct drm_property *static_meta_prop;
-	struct drm_property *allm_cap_prop;
-	struct drm_property *dc_cap_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;

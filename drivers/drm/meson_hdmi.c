@@ -958,25 +958,25 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->hdmi_hdr_status_prop) {
 		*val = hdmitx_common_get_hdr_status();
 		return 0;
-	} else if (property == am_hdmi->hdr_cap_property) {
+	} else if (property == am_hdmi->hdr_cap_prop) {
 		*val = get_hdr_info();
 		return 0;
-	} else if (property == am_hdmi->hdr_cap_rx_property) {
+	} else if (property == am_hdmi->hdr_cap_rx_prop) {
 		*val = get_hdr_info_rx();
 		return 0;
-	} else if (property == am_hdmi->dv_cap_property) {
+	} else if (property == am_hdmi->dv_cap_prop) {
 		*val = get_dv_info();
 		return 0;
-	} else if (property == am_hdmi->dv_cap_rx_property) {
+	} else if (property == am_hdmi->dv_cap_rx_prop) {
 		*val = get_dv_info_rx();
 		return 0;
 	} else if (property == am_hdmi->hdcp_ver_prop) {
 		*val = hdcp_rx_ver();
 		return 0;
-	} else if (property == am_hdmi->hdcp_mode_property) {
+	} else if (property == am_hdmi->hdcp_mode_prop) {
 		*val = get_hdcp_mode();
 		return 0;
-	} else if (property == am_hdmi->hdcp_topo_property) {
+	} else if (property == am_hdmi->hdcp_topo_prop) {
 		*val = drm_hdmitx_common_get_dw_hdcp_topo_info();
 		return 0;
 	} else if (property == am_hdmi->contenttype_cap_prop) {
@@ -2207,6 +2207,58 @@ static const struct of_device_id am_meson_hdmi_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, am_meson_hdmi_dt_ids);
 
+struct meson_range_prop_info {
+	u64 init_val;
+	u64 min;
+	u64 max;
+	u32 flags;
+	char *prop_name;
+};
+
+static struct meson_range_prop_info range_props[] = {
+	{0, 0, 1, 0, "hdcp_user"},
+	{0, 0, 1, 0, "hdcp_topo"},
+	{0, 0, 36, 0, "hdcp_ver"},
+	{0, 0, 36, 0, "hdcp_mode"},
+	{0, 0, 64, 0, "hdr_cap"},
+	{0, 0, 64, 0, "hdr_cap_rx"},
+	{0, 0, 512, 0, "dv_cap"},
+	{0, 0, 512, 0, "dv_cap_rx"},
+	{0, 0,  1 << COLOR_MAX_ATTR, 0, "dc_cap"},
+	{0, 0, 1023, 0, "contenttype_cap"},
+	{0, 0, 1, 0, "allm_cap"},
+	{0, 0, 3, 0, "allm"},
+	{0, 0, 1, 0, "UPDATE"},
+	{0, 0, 1, 0, "MESON_DRM_HDMITX_PROP_AVMUTE"},
+	{0, 0, 1, 0, "ready"},
+	{0, 0, 1, 0, "FRAC_RATE_POLICY"},
+	{0, 0, 1, 0, "hdmi_used"},
+	{0, 0, 8, 0, "sink_type"},
+	{0, 0, 1, 0, "edid_valid"},
+};
+
+static void meson_hdmitx_create_range_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	int i;
+	struct meson_range_prop_info *info;
+	struct drm_property *prop;
+	struct drm_property **props = &am_hdmi->hdcp_user_prop;
+
+	for (i = 0; i < ARRAY_SIZE(range_props); i++, props++) {
+		info = &range_props[i];
+		prop = drm_property_create_range(drm_dev, info->flags, info->prop_name,
+						 info->min, info->max);
+		if (prop) {
+			*(props) = prop;
+			drm_object_attach_property(&am_hdmi->base.connector.base, prop,
+						   info->init_val);
+		} else {
+			DRM_ERROR("Failed to %s property\n", info->prop_name);
+		}
+	}
+}
+
 static const struct drm_prop_enum_list hdmi_hdr_status_enum_list[] = {
 	{ HDR10PLUS_VSIF, "HDR10Plus-VSIF" },
 	{ dolbyvision_std, "DolbyVision-Std" },
@@ -2230,52 +2282,6 @@ static void meson_hdmitx_init_hdmi_hdr_status_property(struct drm_device *drm_de
 		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
 	} else {
 		DRM_ERROR("Failed to hdmi_hdr_status property\n");
-	}
-}
-
-static void meson_hdmitx_init_hdcp_ver_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0,
-			"hdcp_ver", 0, 36);
-
-	if (prop) {
-		am_hdmi->hdcp_ver_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to hdcp_ver property\n");
-	}
-}
-
-static void meson_hdmitx_init_hdcp_mode_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0,
-			"hdcp_mode", 0, 36);
-
-	if (prop) {
-		am_hdmi->hdcp_mode_property = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to hdcp_mode property\n");
-	}
-}
-
-static void meson_hdmitx_init_hdcp_topo_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "hdcp_topo");
-	if (prop) {
-		am_hdmi->hdcp_topo_property = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to hdcp_topo property\n");
 	}
 }
 
@@ -2336,170 +2342,6 @@ static void meson_hdmitx_init_colordepth_property(struct drm_device *drm_dev,
 	}
 }
 
-static void meson_hdmitx_init_hdr_cap_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0,
-			"hdr_cap", 0, 64);
-
-	if (prop) {
-		am_hdmi->hdr_cap_property = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to hdr_cap property\n");
-	}
-}
-
-static void meson_hdmitx_init_dv_cap_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0,
-			"dv_cap", 0, 512);
-
-	if (prop) {
-		am_hdmi->dv_cap_property = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to dv_cap property\n");
-	}
-}
-
-static void meson_hdmitx_init_dv_cap_rx_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0,
-			"dv_cap_rx", 0, 512);
-
-	if (prop) {
-		am_hdmi->dv_cap_rx_property = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to dv_cap_rx property\n");
-	}
-}
-
-static void meson_hdmitx_init_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "UPDATE");
-	if (prop) {
-		am_hdmi->update_attr_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to UPDATE property\n");
-	}
-}
-
-static void meson_hdmitx_init_avmute_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "MESON_DRM_HDMITX_PROP_AVMUTE");
-	if (prop) {
-		am_hdmi->avmute_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to AVMUTE property\n");
-	}
-}
-
-static void meson_hdmitx_init_ready_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "ready");
-	if (prop) {
-		am_hdmi->ready_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to init ready property\n");
-	}
-}
-
-static void meson_hdmitx_init_frac_rate_policy_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "FRAC_RATE_POLICY");
-	if (prop) {
-		am_hdmi->frac_rate_policy_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to init FRAC_RATE_POLICY property\n");
-	}
-}
-
-static void meson_hdmitx_init_hdmi_used_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "hdmi_used");
-	if (prop) {
-		am_hdmi->hdmi_used_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to init hdmi_used property\n");
-	}
-}
-
-static void meson_hdmitx_init_sink_type_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0, "sink_type", 0, 8);
-	if (prop) {
-		am_hdmi->sink_type_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to init sink_type property\n");
-	}
-}
-
-static void meson_hdmitx_init_contenttype_cap_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0,
-			"contenttype_cap", 0, 1023);
-
-	if (prop) {
-		am_hdmi->contenttype_cap_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to contenttype_cap property\n");
-	}
-}
-
-static void meson_hdmitx_init_allm_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0,
-			"allm", 0, 3);
-
-	if (prop) {
-		am_hdmi->allm_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to allm property\n");
-	}
-}
-
 static void meson_hdmitx_init_hdr_priority_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -2518,50 +2360,6 @@ static void meson_hdmitx_init_hdr_priority_property(struct drm_device *drm_dev,
 	}
 }
 
-static void meson_hdmitx_init_edid_valid_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "edid_valid");
-	if (prop) {
-		am_hdmi->edid_valid_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to init edid_valid property\n");
-	}
-}
-
-static void meson_hdmitx_init_hdcp_user_prop(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "hdcp_user");
-	if (prop) {
-		am_hdmi->hdcp_user_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to init hdcp_user property\n");
-	}
-}
-
-static void meson_hdmitx_init_hdr_cap_rx_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0,
-			"hdr_cap_rx", 0, 64);
-
-	if (prop) {
-		am_hdmi->hdr_cap_rx_property = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to hdr_cap_rx property\n");
-	}
-}
-
 static void meson_hdmitx_init_static_meta_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -2573,35 +2371,6 @@ static void meson_hdmitx_init_static_meta_property(struct drm_device *drm_dev,
 		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
 	} else {
 		DRM_ERROR("Failed to create hdr static metadata property\n");
-	}
-}
-
-static void meson_hdmitx_init_allm_cap_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_bool(drm_dev, 0, "allm_cap");
-	if (prop) {
-		am_hdmi->allm_cap_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to init allm_cap property\n");
-	}
-}
-
-static void meson_hdmitx_init_dc_cap_property(struct drm_device *drm_dev,
-						  struct am_hdmi_tx *am_hdmi)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(drm_dev, 0, "dc_cap", 0, 1 << COLOR_MAX_ATTR);
-
-	if (prop) {
-		am_hdmi->dc_cap_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
-	} else {
-		DRM_ERROR("Failed to init dc_cap property\n");
 	}
 }
 
@@ -2793,31 +2562,13 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	drm_connector_attach_vrr_capable_property(connector);
 
 	/*amlogic prop*/
-	meson_hdmitx_init_property(drm, am_hdmi);
 	meson_hdmitx_init_colordepth_property(drm, am_hdmi);
 	meson_hdmitx_init_colorspace_property(drm, am_hdmi);
-	meson_hdmitx_init_avmute_property(drm, am_hdmi);
 	meson_hdmitx_init_hdmi_hdr_status_property(drm, am_hdmi);
 	/*Getting hdr cap, don't similar to hdmitx sys hdr_cap node*/
-	meson_hdmitx_init_hdr_cap_property(drm, am_hdmi);
-	meson_hdmitx_init_hdr_cap_rx_property(drm, am_hdmi);
 	meson_hdmitx_init_static_meta_property(drm, am_hdmi);
-	meson_hdmitx_init_dv_cap_property(drm, am_hdmi);
-	meson_hdmitx_init_dv_cap_rx_property(drm, am_hdmi);
-	meson_hdmitx_init_hdcp_ver_property(drm, am_hdmi);
-	meson_hdmitx_init_hdcp_mode_property(drm, am_hdmi);
-	meson_hdmitx_init_hdcp_topo_property(drm, am_hdmi);
-	meson_hdmitx_init_contenttype_cap_property(drm, am_hdmi);
-	meson_hdmitx_init_allm_property(drm, am_hdmi);
 	meson_hdmitx_init_hdr_priority_property(drm, am_hdmi);
-	meson_hdmitx_init_ready_property(drm, am_hdmi);
-	meson_hdmitx_init_edid_valid_property(drm, am_hdmi);
-	meson_hdmitx_init_hdcp_user_prop(drm, am_hdmi);
-	meson_hdmitx_init_frac_rate_policy_property(drm, am_hdmi);
-	meson_hdmitx_init_hdmi_used_property(drm, am_hdmi);
-	meson_hdmitx_init_sink_type_property(drm, am_hdmi);
-	meson_hdmitx_init_allm_cap_property(drm, am_hdmi);
-	meson_hdmitx_init_dc_cap_property(drm, am_hdmi);
+	meson_hdmitx_create_range_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;
