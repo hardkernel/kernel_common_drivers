@@ -395,7 +395,7 @@ struct meson_gpio_irq_controller {
 	u32 *shadow;
 	int shadow_size;
 #endif
-	spinlock_t lock;		//
+	raw_spinlock_t lock;		//
 };
 
 static void meson_gpio_irq_update_bits(struct meson_gpio_irq_controller *ctl,
@@ -466,14 +466,14 @@ meson_sc2_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
 
 	if (type == IRQ_TYPE_EDGE_BOTH) {
 		val |= BIT(ctl->params->edge_both_offset + (idx));
-		spin_lock_irqsave(&ctl->lock, flags);
+		raw_spin_lock_irqsave(&ctl->lock, flags);
 		meson_gpio_irq_update_bits(ctl, REG_EDGE_POL_EXTR,
 					   BIT(ctl->params->edge_both_offset + (idx)), val);
-		spin_unlock_irqrestore(&ctl->lock, flags);
+		raw_spin_unlock_irqrestore(&ctl->lock, flags);
 		return 0;
 	}
 
-	spin_lock_irqsave(&ctl->lock, flags);
+	raw_spin_lock_irqsave(&ctl->lock, flags);
 
 	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_EDGE_FALLING))
 		val |= BIT(ctl->params->pol_low_offset + (idx));
@@ -484,7 +484,7 @@ meson_sc2_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
 	meson_gpio_irq_update_bits(ctl, REG_EDGE_POL,
 				   REG_EDGE_POL_MASK_SC2(idx), val);
 
-	spin_unlock_irqrestore(&ctl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctl->lock, flags);
 
 	return 0;
 };
@@ -504,14 +504,14 @@ meson_p1_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
 
 	if (type == IRQ_TYPE_EDGE_BOTH) {
 		val |= BIT(params->edge_both_offset + (idx));
-		spin_lock_irqsave(&ctl->lock, flags);
+		raw_spin_lock_irqsave(&ctl->lock, flags);
 		meson_gpio_irq_update_bits(ctl, params->both_sel_reg,
 					   BIT(params->edge_both_offset + (idx)), val);
-		spin_unlock_irqrestore(&ctl->lock, flags);
+		raw_spin_unlock_irqrestore(&ctl->lock, flags);
 		return 0;
 	}
 
-	spin_lock_irqsave(&ctl->lock, flags);
+	raw_spin_lock_irqsave(&ctl->lock, flags);
 
 	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_EDGE_FALLING)) {
 		val = 0;
@@ -525,7 +525,7 @@ meson_p1_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
 		meson_gpio_irq_update_bits(ctl, params->edge_sel_reg, BIT(idx), val);
 	}
 
-	spin_unlock_irqrestore(&ctl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctl->lock, flags);
 
 	return 0;
 };
@@ -543,19 +543,19 @@ meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 #endif
 
 #ifndef CONFIG_AMLOGIC_MODIFY
-	spin_lock(&ctl->lock);
+	raw_spin_lock(&ctl->lock);
 #else
-	spin_lock_irqsave(&ctl->lock, flags);
+	raw_spin_lock_irqsave(&ctl->lock, flags);
 #endif
 	/* Find a free channel */
 #ifndef CONFIG_AMLOGIC_MODIFY
 	idx = find_first_zero_bit(ctl->channel_map, NUM_CHANNEL);
 	if (idx >= NUM_CHANNEL) {
-		spin_unlock(&ctl->lock);
+		raw_spin_unlock(&ctl->lock);
 #else
 	idx = find_first_zero_bit(ctl->channel_map, ctl->channel_num);
 	if (idx >= ctl->channel_num) {
-		spin_unlock_irqrestore(&ctl->lock, flags);
+		raw_spin_unlock_irqrestore(&ctl->lock, flags);
 #endif
 		pr_err("No channel available\n");
 		return -ENOSPC;
@@ -579,9 +579,9 @@ meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 	*channel_hwirq = &ctl->channel_irqs[idx];
 
 #ifndef CONFIG_AMLOGIC_MODIFY
-	spin_unlock(&ctl->lock);
+	raw_spin_unlock(&ctl->lock);
 #else
-	spin_unlock_irqrestore(&ctl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctl->lock, flags);
 #endif
 
 	pr_debug("hwirq %lu assigned to channel %d - irq %u\n",
@@ -669,18 +669,18 @@ static int meson_gpio_irq_type_setup(struct meson_gpio_irq_controller *ctl,
 	}
 
 #ifndef CONFIG_AMLOGIC_MODIFY
-	spin_lock(&ctl->lock);
+	raw_spin_lock(&ctl->lock);
 #else
-	spin_lock_irqsave(&ctl->lock, flags);
+	raw_spin_lock_irqsave(&ctl->lock, flags);
 #endif
 
 	meson_gpio_irq_update_bits(ctl, REG_EDGE_POL,
 				   REG_EDGE_POL_MASK(params, idx), val);
 
 #ifndef CONFIG_AMLOGIC_MODIFY
-	spin_unlock(&ctl->lock);
+	raw_spin_unlock(&ctl->lock);
 #else
-	spin_unlock_irqrestore(&ctl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctl->lock, flags);
 #endif
 
 	return 0;
@@ -909,7 +909,7 @@ static int meson_gpio_irq_of_init(struct device_node *node,
 	if (!ctl)
 		return -ENOMEM;
 
-	spin_lock_init(&ctl->lock);
+	raw_spin_lock_init(&ctl->lock);
 
 	ctl->base = of_iomap(node, 0);
 	if (!ctl->base) {
