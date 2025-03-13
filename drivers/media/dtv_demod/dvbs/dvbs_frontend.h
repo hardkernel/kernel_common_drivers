@@ -34,6 +34,8 @@ int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod);
 int amdemod_stat_dvbs_islock(struct aml_dtvdemod *demod,
 		enum fe_delivery_system delsys);
 void dvbs_blind_scan_new_work2(struct aml_dtvdemod *demod);
+void dvbs_blind_scan_wait_search(struct aml_dtvdemod *demod,
+		unsigned int cur_freq);
 
 #endif
 

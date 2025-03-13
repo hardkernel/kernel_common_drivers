@@ -1,0 +1,40 @@
+From 700ec22ee611d8abd43afa99fd347ecac139672a Mon Sep 17 00:00:00 2001
+From: "nengwen.chen" <nengwen.chen@amlogic.com>
+Date: Mon, 28 Apr 2025 16:00:05 +0800
+Subject: [PATCH] dvb: add DTV_BLIND_SCAN_STEP_NEXT [2/2]
+
+PD#NONE
+
+Problem:
+add DTV_BLIND_SCAN_STEP_NEXT.
+
+Solution:
+add DTV_BLIND_SCAN_STEP_NEXT.
+
+Verify:
+T6D.
+
+Change-Id: I65e56041ccd078a94898f3f30113170cdb88da92
+Signed-off-by: nengwen.chen <nengwen.chen@amlogic.com>
+---
+ include/uapi/linux/dvb/aml_fe_ext.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/uapi/linux/dvb/aml_fe_ext.h b/include/uapi/linux/dvb/aml_fe_ext.h
+index 5c91181afb4b2..e10b059a96a0a 100644
+--- a/include/uapi/linux/dvb/aml_fe_ext.h
++++ b/include/uapi/linux/dvb/aml_fe_ext.h
+@@ -65,8 +65,9 @@ struct fe_blind_scan_parameters {
+ #define DTV_SINGLE_CABLE_BANK           113
+ #define DTV_SINGLE_CABLE_UNCOMMITTED    114
+ #define DTV_SINGLE_CABLE_COMMITTED      115
++#define DTV_BLIND_SCAN_STEP_NEXT        116
+ /* Blind scan end*/
+-#define DTV_DELIVERY_SUB_SYSTEM			116
++#define DTV_DELIVERY_SUB_SYSTEM			117
+ #define AML_DTV_MAX_COMMAND		DTV_DELIVERY_SUB_SYSTEM
+ 
+ #define SYS_ANALOG		(SYS_DVBC_ANNEX_C + 1)
+-- 
+2.49.0
+

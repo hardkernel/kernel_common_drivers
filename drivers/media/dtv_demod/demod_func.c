@@ -2182,7 +2182,10 @@ void demod_init_local(struct dvb_frontend *fe, unsigned int symb_rate_kbs,
 #endif
 		} else if (l2a_def_val_local[reg].addr == 0x912 &&
 			tuner_find_by_name(fe, "rda5815m")) {
-			dvbs_wr_byte(0x912, 0x9f);
+			if (is_blind_scan)
+				dvbs_wr_byte(0x912, 0x99);
+			else
+				dvbs_wr_byte(0x912, 0x9f);
 		} else if (l2a_def_val_local[reg].addr == 0x913) {
 			dvbs_wr_byte(0x913, dvbs_agc_target);
 		} else if (l2a_def_val_local[reg].addr == 0x308 &&
@@ -2198,6 +2201,12 @@ void demod_init_local(struct dvb_frontend *fe, unsigned int symb_rate_kbs,
 		}
 		reg++;
 	} while (1);
+
+	//bit0: 0 - Negative, 1 - Positive(default)
+	if (devp->agc_direction)
+		dvbs_write_bits(0x118, 0x0, 0x0, 1);
+	else
+		dvbs_write_bits(0x118, 0x1, 0x0, 1);
 }
 
 void dvbs2_reg_initial(struct dvb_frontend *fe, unsigned int symb_rate_kbs,

@@ -9,6 +9,7 @@
 
 #define BLIND_SEARCH_AGC2BANDWIDTH_40 (40)
 #define BLIND_SEARCH_AGC2BANDWIDTH_60 (60)
+#define BLIND_SEARCH_AGC2BANDWIDTH_70 (70)
 #define BLIND_SEARCH_AGC2BANDWIDTH_80 (80)
 #define BLIND_SEARCH_POW_TH           (25000)
 #define BLIND_SEARCH_POW_TH2          (28000)
@@ -175,8 +176,8 @@ void dvbs_fft_reg_term(unsigned int reg_val[60]);
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
 	int frq, struct fft_search_result *search_result);
 void dvbs_blind_fft_result_handle(struct fft_total_result *total_result);
-unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
-		int *next_step_khz1, int *signal_state);
+unsigned int dvbs_blind_check_AGC2_bandwidth_new(struct aml_dtvdemod *demod,
+		int *next_step_khz, int *next_step_khz1, int *signal_state);
 unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz);
 void dvbs_set_iq_swap(unsigned int iq_swap);
 unsigned int dvbs_get_iq_swap(void);

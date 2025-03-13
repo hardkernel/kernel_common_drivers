@@ -2822,7 +2822,7 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 			PR_INFO("blind_scan already started\n");
 			break;
 		}
-		PR_INFO("DTV_START_BLIND_SCAN\n");
+		PR_INFO("DTV_START_BLIND_SCAN blind_scan_new %d\n", blind_scan_new);
 		devp->blind_scan_stop = 0;
 		schedule_work(&devp->blind_scan_work);
 		PR_INFO("schedule blind scan workqueue\n");
@@ -2830,11 +2830,20 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 
 	case DTV_CANCEL_BLIND_SCAN:
 		devp->blind_scan_stop = 1;
+		devp->singlecable_param.version = 0;
 		PR_INFO("DTV_CANCEL_BLIND_SCAN\n");
 		/* Normally, need to call cancel_work_sync()
 		 * wait to workqueue exit,
 		 * but this will cause a deadlock.
 		 */
+		break;
+	case DTV_BLIND_SCAN_STEP_NEXT:
+		if (demod->blind_step == DTVBLIND_SCAN_STEP_LOCK) {
+			PR_INFO("blind_scan already is step lock\n");
+			break;
+		}
+		demod->blind_step = DTVBLIND_SCAN_STEP_LOCK;
+		PR_INFO("blind_scan step lock\n");
 		break;
 	case DTV_SINGLE_CABLE_VER:
 		/* not singlecable: 0, 1.0X - 1(EN50494), 2.0X - 2(EN50607) */
@@ -3171,6 +3180,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	demod->suspended = false;
 	demod->freq = 0;
 	demod->plp_id = 0xfff;
+	demod->blind_step = DTVBLIND_SCAN_NORMAL;
 
 	/* select dvbc module for s4 and S4D */
 	if (devp->data->hw_ver == DTVDEMOD_HW_S4 ||
