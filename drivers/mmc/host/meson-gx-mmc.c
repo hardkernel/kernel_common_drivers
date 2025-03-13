@@ -3092,11 +3092,15 @@ out:
 	}
 
 	if (ret == IRQ_HANDLED) {
+#ifndef CONFIG_PREEMPT_RT
 		meson_mmc_read_resp(host->mmc, cmd);
 		if (cmd->error && !host->is_tuning)
 			pr_err("cmd = %d, arg = 0x%x, dev_status = 0x%x\n",
 					cmd->opcode, cmd->arg, cmd->resp[0]);
 		meson_mmc_request_done(host->mmc, cmd->mrq);
+#else
+		ret = IRQ_WAKE_THREAD;
+#endif
 	} else if (ret == IRQ_NONE) {
 		dev_warn(host->dev,
 				"Unexpected IRQ! status=0x%08x, irq_en=0x%08x\n",
