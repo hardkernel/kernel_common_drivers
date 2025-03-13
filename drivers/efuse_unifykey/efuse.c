@@ -34,6 +34,7 @@ static struct aml_efuse_lockable_check efusecheck = {
 	.infos = NULL,
 };
 
+#ifndef MODULE
 #ifdef CONFIG_ARCH_MESON_ODROID_COMMON
 static int factory = 0;
 static int __init odroid_factory_cfg(char *arg)
@@ -42,6 +43,7 @@ static int __init odroid_factory_cfg(char *arg)
 	return 0;
 }
 early_param("odroid-factory", odroid_factory_cfg);
+#endif
 #endif
 struct efuse_obj_field_t efuse_field;
 #ifndef CONFIG_ARCH_MESON_ODROID_COMMON
@@ -125,6 +127,7 @@ static ssize_t uuid_show(struct class *cla, struct class_attribute *attr, char *
 	);
 }
 
+#ifndef MODULE
 static ssize_t uuid_store(struct class *cla, struct class_attribute *attr, const char *buf, size_t count)
 {
 	char raw[UUID_SIZE * 2];
@@ -173,6 +176,7 @@ static ssize_t uuid_store(struct class *cla, struct class_attribute *attr, const
 
 	return count;
 }
+#endif
 
 static ssize_t mac_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
@@ -1379,7 +1383,11 @@ static ssize_t efuse_mrk_show(struct class *class,
 #endif
 
 #ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+#ifndef MODULE
 static CLASS_ATTR_RW(uuid);
+#else
+static CLASS_ATTR_RO(uuid);
+#endif
 static CLASS_ATTR_RO(mac);
 #else
 static EFUSE_CLASS_ATTR(userdata);
