@@ -165,3 +165,6 @@ sphinx_*/
 
 # amlogic drivers
 /common_drivers/
+
+# android project
+project
