@@ -27,12 +27,14 @@
 #include <linux/reboot.h>
 #include <linux/amlogic/clk_measure.h>
 #include <linux/delay.h>
+#include <linux/component.h>
 
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_config.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <drm/amlogic/meson_drm_bind.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 #include <linux/amlogic/media/sound/aout_notify.h>
 #endif
@@ -43,7 +45,6 @@
 
 #include "hdmitx_log.h"
 #include "hdmitx_boot_parameters.h"
-#include "hdmitx_drm.h"
 #include "hdmitx_sysfs_common.h"
 #include "hdmitx_module.h"
 #include "hdmitx_compliance.h"
@@ -1427,6 +1428,63 @@ static void hdmitx_vrr_init(struct hdmitx_dev *hdev)
 		hdmitx21_vrr_init(hdev);
 }
 
+static int meson_hdmitx_bind(struct device *dev,
+			      struct device *master, void *data)
+{
+	int drm_hdmitx_id;
+	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
+	struct meson_drm_bound_data *bound_data = data;
+	struct hdmitx_common *tx_common = &hdev->tx_comm;
+
+	if (bound_data->connector_component_bind) {
+		drm_hdmitx_id = bound_data->connector_component_bind
+			(bound_data->drm,
+			DRM_MODE_CONNECTOR_MESON_HDMIA_A + hdev->tx_comm.enc_idx,
+			&tx_common->base);
+		HDMITX_DEBUG("%s hdmi [%d]\n", __func__, drm_hdmitx_id);
+		tx_common->drm_hdmitx_id = drm_hdmitx_id;
+	} else {
+		HDMITX_ERROR("no bind func from drm.\n");
+	}
+
+	return 0;
+}
+
+static void meson_hdmitx_unbind(struct device *dev,
+				 struct device *master, void *data)
+{
+	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
+	struct meson_drm_bound_data *bound_data = data;
+	struct hdmitx_common *tx_common = &hdev->tx_comm;
+
+	if (bound_data->connector_component_unbind) {
+		bound_data->connector_component_unbind(bound_data->drm,
+			DRM_MODE_CONNECTOR_MESON_HDMIA_A + hdev->tx_comm.enc_idx,
+			&tx_common->base);
+		HDMITX_INFO("%s success\n", __func__);
+	} else {
+		HDMITX_ERROR("no unbind func.\n");
+	}
+}
+
+/*drm component bind ops*/
+static const struct component_ops meson_hdmitx_bind_ops = {
+	.bind	= meson_hdmitx_bind,
+	.unbind	= meson_hdmitx_unbind,
+};
+
+int hdmitx_bind_meson_drm(struct device *device)
+{
+	return component_add(device, &meson_hdmitx_bind_ops);
+}
+
+int hdmitx_unbind_meson_drm(struct device *device)
+{
+	component_del(device, &meson_hdmitx_bind_ops);
+
+	return 0;
+}
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -1509,10 +1567,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* init work and delay work */
 	hdmitx_work_init(hdev);
 
-	set_hdcp_common_instance(&hdev->tx_comm);
 	hdmitx_hdcp_init(hdev);
 	/* bind drm before hdmi event */
-	hdmitx_bind_meson_drm(&pdev->dev, &hdev->tx_comm, &hdev->hw_comm);
+	hdmitx_bind_meson_drm(&pdev->dev);
 	/* init power_uevent state */
 	hdmitx_set_uevent(&hdev->tx_comm, HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	/* reset EDID/vinfo */
@@ -2092,7 +2149,7 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 		else if (value == 2 && hdev->tx_comm.drm_hdcp.test_hdcp_disconnect)
 			hdev->tx_comm.drm_hdcp.test_hdcp_disconnect();
 	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
-		HDMITX_INFO("test drm_hdcp_ver: %d\n", drm_hdmitx_common_get_rx_hdcp_cap());
+		HDMITX_INFO("test drm_hdcp_ver: %d\n", drm_hdmitx_common_get_rx_hdcp_cap(tx_comm));
 	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
 		if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7) {
 			HDMITX_INFO("hdcp result: hdcp22: %d topo: %d, hdcp14: %d\n",
@@ -2510,7 +2567,7 @@ static void amhdmitx_remove(struct platform_device *pdev)
 	hdmitx_sysfs_common_destroy(dev);
 
 	/* unbind from drm */
-	hdmitx_unbind_meson_drm(&pdev->dev, &hdev->tx_comm, &hdev->hw_comm);
+	hdmitx_unbind_meson_drm(&pdev->dev);
 
 	cancel_work_sync(&hdev->tx_comm.work_hdr);
 	cancel_work_sync(&hdev->tx_comm.work_hdr_unmute);

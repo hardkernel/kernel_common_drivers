@@ -2189,7 +2189,7 @@ static void meson_cvbs_unbind(struct device *dev,
 
 	if (bound_data->connector_component_unbind) {
 		bound_data->connector_component_unbind(bound_data->drm,
-			DRM_MODE_CONNECTOR_TV, hdev->drm_cvbs_id);
+			DRM_MODE_CONNECTOR_TV, &drm_cvbs_instance.base);
 		pr_info("%s cvbs [%d]\n", __func__, hdev->drm_cvbs_id);
 	} else {
 		pr_err("no unbind func from drm.\n");

@@ -246,7 +246,6 @@ ddk_module(
             True: [
                 "vout/hdmitx/hdmitx_boot_parameters.c",
                 "vout/hdmitx/hdmitx_common.c",
-                "vout/hdmitx/hdmitx_drm.c",
                 "vout/hdmitx/hdmitx_sysfs_common.c",
                 "vout/hdmitx/hdmitx_edid_parse.c",
                 "vout/hdmitx/hdmitx_hw_common.c",

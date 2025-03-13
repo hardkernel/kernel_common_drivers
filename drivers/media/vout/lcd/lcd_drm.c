@@ -387,7 +387,7 @@ static void meson_lcd_unbind(struct device *dev, struct device *master, void *da
 	if (bound_data->connector_component_unbind) {
 		bound_data->connector_component_unbind(bound_data->drm,
 			drm_lcd_wrappers[index].drm_lcd_type,
-			drm_lcd_wrappers[index].drm_id);
+			&drm_lcd_wrappers[index].drm_lcd_instance.base);
 		LCDPR("[%d]: %s: connector_type: 0x%x, drm_id: %d\n",
 			index, __func__,
 			drm_lcd_wrappers[index].drm_lcd_type,

@@ -137,7 +137,7 @@ struct am_hdmi_tx {
 	struct cec_notifier	*cec_notifier;
 #endif
 
-	struct meson_hdmitx_dev *hdmitx_dev;
+	struct meson_connector_dev *hdmitx_dev;
 
 	struct hdr_info hdr_info;
 	struct dv_info dv_info;
@@ -173,7 +173,7 @@ struct am_hdmitx_connector_state {
 int meson_hdmitx_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf);
 int meson_hdmitx_dev_unbind(struct drm_device *drm,
-	int type, int connector_id);
+	int type, struct meson_connector_dev *intf);
 
 void convert_attrstr(char *attr_str, struct hdmitx_color_attr *attr_param);
 

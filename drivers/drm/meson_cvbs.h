@@ -32,6 +32,6 @@ struct am_cvbs_connector_state {
 int meson_cvbs_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf);
 int meson_cvbs_dev_unbind(struct drm_device *drm,
-	int type, int connector_id);
+	int type, struct meson_connector_dev *intf);
 
 #endif

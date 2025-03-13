@@ -23,7 +23,7 @@ struct meson_dummyp {
 int meson_dummyp_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf);
 int meson_dummyp_dev_unbind(struct drm_device *drm,
-	int type, int connector_id);
+	int type, struct meson_connector_dev *intf);
 
 #endif
 

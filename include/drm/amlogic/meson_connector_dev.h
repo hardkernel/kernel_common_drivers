@@ -17,26 +17,9 @@ enum {
 	MESON_DRM_CONNECTOR_V10 = 0,
 };
 
-struct drm_hdmitx_timing_para {
-	char name[DRM_DISPLAY_MODE_LEN];
-	int pi_mode;
-	u32 pix_repeat_factor;
-	u32 h_pol;
-	u32 v_pol;
-
-	u32 pixel_freq;
-	u32 h_active;
-	u32 h_front;
-	u32 h_sync;
-	u32 h_total;
-	u32 v_active;
-	u32 v_front;
-	u32 v_sync;
-	u32 v_total;
-};
-
 struct meson_connector_dev {
 	int ver;
+	struct drm_connector *conn;
 
 	/*copy from vout_op_s*/
 	struct vinfo_s *(*get_vinfo)(void *data);
@@ -88,14 +71,6 @@ struct connector_hdcp_cb {
 	void (*hdcp_notify)(void *data, int type, int auth_result);
 	void *data;
 };
-
-struct meson_hdmitx_dev {
-	struct meson_connector_dev base;
-	struct hdmitx_common *hdmitx_common;
-	struct hdmitx_hw_common *hw_common;
-};
-
-#define to_meson_hdmitx_dev(x)	container_of(x, struct meson_hdmitx_dev, base)
 
 /*hdmitx specified struct end.*/
 

@@ -15,7 +15,7 @@ struct meson_drm_bound_data {
 		int type, struct meson_connector_dev *intf);
 	/*unbind from drm and return operation result.*/
 	int (*connector_component_unbind)(struct drm_device *drm,
-		int type, int connector_id);
+		int type, struct meson_connector_dev *intf);
 };
 
 #endif

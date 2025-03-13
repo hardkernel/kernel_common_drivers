@@ -152,6 +152,8 @@ struct scdc_locked_st {
 };
 
 struct hdmitx_common {
+	struct meson_connector_dev base;
+	int drm_hdmitx_id;
 	struct hdmitx_hw_common *tx_hw;
 	struct hdcp_ctrl_ops *hdcp_ctrl_ops;
 	struct drm_hdcp_ctrl_ops *drm_hdcp_ctrl_ops;
@@ -403,6 +405,8 @@ struct hdmitx_common {
 #endif
 };
 
+#define to_hdmitx_common(x)	container_of(x, struct hdmitx_common, base)
+
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
 			   struct hdmitx_common_state *state);
 
@@ -492,16 +496,16 @@ void hdmitx_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf);
 int hdmitx_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int len);
 
 /* drm hdcp api */
-int drm_hdmitx_common_hdcp_init(void);
-int drm_hdmitx_common_hdcp_exit(void);
-int drm_hdmitx_common_hdcp_enable(int hdcp_type);
-int drm_hdmitx_common_hdcp_disable(void);
-int drm_hdmitx_common_hdcp_disconnect(void);
-unsigned int drm_hdmitx_common_get_tx_hdcp_cap(void);
-unsigned int drm_hdmitx_common_get_rx_hdcp_cap(void);
-int drm_hdmitx_common_register_hdcp_notify(struct connector_hdcp_cb *cb);
-int drm_hdmitx_common_get_dw_hdcp_topo_info(void);
-void set_hdcp_common_instance(struct hdmitx_common *tx_comm);
+int drm_hdmitx_common_hdcp_init(struct hdmitx_common *tx_comm);
+int drm_hdmitx_common_hdcp_exit(struct hdmitx_common *tx_comm);
+int drm_hdmitx_common_hdcp_enable(struct hdmitx_common *tx_comm, int hdcp_type);
+int drm_hdmitx_common_hdcp_disable(struct hdmitx_common *tx_comm);
+int drm_hdmitx_common_hdcp_disconnect(struct hdmitx_common *tx_comm);
+unsigned int drm_hdmitx_common_get_tx_hdcp_cap(struct hdmitx_common *tx_comm);
+unsigned int drm_hdmitx_common_get_rx_hdcp_cap(struct hdmitx_common *tx_comm);
+int drm_hdmitx_common_register_hdcp_notify(struct hdmitx_common *tx_comm,
+					   struct connector_hdcp_cb *cb);
+int drm_hdmitx_common_get_dw_hdcp_topo_info(struct hdmitx_common *tx_comm);
 
 int hdmitx_get_connector(void);
 struct hdmitx_dev *get_hdmitx_device(void);
@@ -580,15 +584,14 @@ unsigned int hdmitx_get_frame_duration(void);
 
 /*******************************drm hdmitx api*******************************/
 
-unsigned int hdmitx_common_get_contenttypes(void);
-int hdmitx_common_set_contenttype(int content_type);
-const struct dv_info *hdmitx_common_get_dv_info(void);
-const struct dv_info *hdmitx_common_get_dv_info_rx(void);
-const struct hdr_info *hdmitx_common_get_hdr_info(void);
-const struct hdr_info *hdmitx_common_get_hdr_info_rx(void);
-int hdmitx_common_get_vic_list(int **vics);
-bool hdmitx_common_chk_mode_attr_sup(char *mode, char *attr);
-int hdmitx_common_get_timing_para(int vic, struct drm_hdmitx_timing_para *para);
+unsigned int hdmitx_common_get_contenttypes(struct hdmitx_common *tx_comm);
+int hdmitx_common_set_contenttype(struct hdmitx_common *tx_comm, int content_type);
+const struct dv_info *hdmitx_common_get_dv_info(struct hdmitx_common *tx_comm);
+const struct dv_info *hdmitx_common_get_dv_info_rx(struct hdmitx_common *tx_comm);
+const struct hdr_info *hdmitx_common_get_hdr_info(struct hdmitx_common *tx_comm);
+const struct hdr_info *hdmitx_common_get_hdr_info_rx(struct hdmitx_common *tx_comm);
+int hdmitx_common_get_vic_list(struct hdmitx_common *tx_comm, int **vics);
+bool hdmitx_common_chk_mode_attr_sup(struct hdmitx_common *tx_comm, char *mode, char *attr);
 void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	struct hdmitx_hw_common *tx_hw_base,
 	struct notifier_block *block,
@@ -596,10 +599,12 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
-int hdmitx_common_get_hdr_status(void);
-u32 hdmitx_common_get_vrr_cap(void);
-int hdmitx_common_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_group);
-int hdmitx_common_set_vframe_rate_hint(int rate, void *data);
+int hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm);
+u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm);
+int hdmitx_common_get_vrr_mode_group(struct hdmitx_common *tx_comm,
+				     struct hdmitx_vrr_mode_group *group,
+				     int max_group);
+int hdmitx_common_set_vframe_rate_hint(struct hdmitx_common *tx_comm, int rate, void *data);
 
 /* hdmitx diff */
 #ifdef CONFIG_AMLOGIC_HDMITX

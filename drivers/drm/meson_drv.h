@@ -27,8 +27,6 @@
 #define MESON_MAX_OSD		4
 #define MESON_MAX_VIDEO		3
 
-extern struct am_hdmi_tx am_hdmi_info;
-
 struct meson_drm_thread {
 	struct kthread_worker worker;
 	struct drm_device *dev;
@@ -163,7 +161,7 @@ struct meson_drm {
 int meson_connector_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf);
 int meson_connector_dev_unbind(struct drm_device *drm,
-	int type, int connector_id);
+	int type, struct meson_connector_dev *intf);
 
 /*meson mode config atomic func*/
 int meson_atomic_commit(struct drm_device *dev,

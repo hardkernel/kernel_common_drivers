@@ -9,7 +9,6 @@ ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx/hw20 \
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_COMMON) += \
 							vout/hdmitx/hdmitx_boot_parameters.o \
 							vout/hdmitx/hdmitx_common.o \
-							vout/hdmitx/hdmitx_drm.o \
 							vout/hdmitx/hdmitx_sysfs_common.o \
 							vout/hdmitx/hdmitx_edid_parse.o \
 							vout/hdmitx/hdmitx_hw_common.o \

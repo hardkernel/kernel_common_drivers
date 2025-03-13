@@ -437,6 +437,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 		return -EINVAL;
 
 	connector = &panel_instance->base.connector;
+	intf->conn = connector;
 
 	if (type > DRM_MODE_MESON_CONNECTOR_PANEL_START &&
 		type < DRM_MODE_MESON_CONNECTOR_PANEL_END) {
@@ -561,15 +562,14 @@ free_resource:
 }
 
 int meson_panel_dev_unbind(struct drm_device *drm,
-	int type, int connector_id)
+	int type, struct meson_connector_dev *intf)
 {
-	struct drm_connector *connector =
-		drm_connector_lookup(drm, 0, connector_id);
+	struct drm_connector *connector = intf->conn;
 	struct meson_panel *drm_lcd = 0;
 
 	if (!connector)
-		DRM_ERROR("%s got invalid connector id %d\n",
-			__func__, connector_id);
+		DRM_ERROR("%s got invalid connector id\n",
+			__func__);
 
 	drm_lcd = connector_to_meson_panel(connector);
 	if (!drm_lcd)

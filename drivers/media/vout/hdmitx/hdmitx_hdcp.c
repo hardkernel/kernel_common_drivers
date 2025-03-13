@@ -5,101 +5,99 @@
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 
-/*!!Only one instance supported.*/
-static struct hdmitx_common *global_tx_common;
-
 /* use drm */
-int drm_hdmitx_common_hdcp_init(void)
+int drm_hdmitx_common_hdcp_init(struct hdmitx_common *tx_comm)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init();
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init();
 		return 0;
 	}
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_hdcp_init);
 
-int drm_hdmitx_common_hdcp_exit(void)
+int drm_hdmitx_common_hdcp_exit(struct hdmitx_common *tx_comm)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_exit();
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_exit();
 		return 0;
 	}
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_hdcp_exit);
 
-int drm_hdmitx_common_hdcp_enable(int hdcp_type)
+int drm_hdmitx_common_hdcp_enable(struct hdmitx_common *tx_comm, int hdcp_type)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_enable(hdcp_type);
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_enable(hdcp_type);
 		return 0;
 	}
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_hdcp_enable);
 
-int drm_hdmitx_common_hdcp_disable(void)
+int drm_hdmitx_common_hdcp_disable(struct hdmitx_common *tx_comm)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_disable();
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_disable();
 		return 0;
 	}
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_hdcp_disable);
 
-int drm_hdmitx_common_hdcp_disconnect(void)
+int drm_hdmitx_common_hdcp_disconnect(struct hdmitx_common *tx_comm)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_disconnect();
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_disconnect();
 		return 0;
 	}
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_hdcp_disconnect);
 
-unsigned int drm_hdmitx_common_get_tx_hdcp_cap(void)
+unsigned int drm_hdmitx_common_get_tx_hdcp_cap(struct hdmitx_common *tx_comm)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		return global_tx_common->drm_hdcp_ctrl_ops->get_tx_hdcp_cap();
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		return tx_comm->drm_hdcp_ctrl_ops->get_tx_hdcp_cap();
 	}
 	return 0;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_get_tx_hdcp_cap);
 
-unsigned int drm_hdmitx_common_get_rx_hdcp_cap(void)
+unsigned int drm_hdmitx_common_get_rx_hdcp_cap(struct hdmitx_common *tx_comm)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		return global_tx_common->drm_hdcp_ctrl_ops->get_rx_hdcp_cap();
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		return tx_comm->drm_hdcp_ctrl_ops->get_rx_hdcp_cap();
 	}
 	return 0;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_get_rx_hdcp_cap);
 
-int drm_hdmitx_common_register_hdcp_notify(struct connector_hdcp_cb *cb)
+int drm_hdmitx_common_register_hdcp_notify(struct hdmitx_common *tx_comm,
+					   struct connector_hdcp_cb *cb)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		global_tx_common->drm_hdcp_ctrl_ops->register_hdcp_notify(cb);
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		tx_comm->drm_hdcp_ctrl_ops->register_hdcp_notify(cb);
 		return 0;
 	}
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_register_hdcp_notify);
 
-int drm_hdmitx_common_get_dw_hdcp_topo_info(void)
+int drm_hdmitx_common_get_dw_hdcp_topo_info(struct hdmitx_common *tx_comm)
 {
-	if (global_tx_common && global_tx_common->drm_hdcp_ctrl_ops &&
-		global_tx_common->drm_hdcp_ctrl_ops->hdcp_init) {
-		global_tx_common->drm_hdcp_ctrl_ops->get_dw_hdcp_topo_info();
+	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
+		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
+		tx_comm->drm_hdcp_ctrl_ops->get_dw_hdcp_topo_info();
 		return 0;
 	}
 	return -EINVAL;
@@ -120,10 +118,3 @@ int hdmitx_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int len)
 	else
 		return -EINVAL;
 }
-
-void set_hdcp_common_instance(struct hdmitx_common *tx_comm)
-{
-	if (tx_comm)
-		global_tx_common = tx_comm;
-}
-

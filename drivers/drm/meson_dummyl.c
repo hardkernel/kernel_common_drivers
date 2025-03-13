@@ -212,6 +212,8 @@ int meson_dummyl_dev_bind(struct drm_device *drm,
 
 	/* Connector */
 	connector = &am_dummyl->base.connector;
+	intf->conn = connector;
+
 	drm_connector_helper_add(connector, &meson_dummyl_helper_funcs);
 	ret = drm_connector_init(drm, connector, &meson_dummyl_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
@@ -246,15 +248,15 @@ free_resource:
 }
 
 int meson_dummyl_dev_unbind(struct drm_device *drm,
-	int type, int connector_id)
+	int type, struct meson_connector_dev *intf)
 {
-	struct drm_connector *connector =
-		drm_connector_lookup(drm, 0, connector_id);
+	struct drm_connector *connector = intf->conn;
+
 	struct meson_dummyl *am_dummyl = 0;
 
 	if (!connector)
-		DRM_ERROR("%s got invalid connector id %d\n",
-			__func__, connector_id);
+		DRM_ERROR("%s got invalid connector id\n",
+			__func__);
 
 	am_dummyl = connector_to_meson_dummyl(connector);
 	if (!am_dummyl)

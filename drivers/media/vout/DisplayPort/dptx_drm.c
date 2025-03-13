@@ -178,7 +178,7 @@ static void meson_DisplayPort_unbind(struct device *dev, struct device *master, 
 	if (bound_data->connector_component_unbind) {
 		bound_data->connector_component_unbind(bound_data->drm,
 			drm_dptx_wrappers[dptx->idx].drm_type,
-			drm_dptx_wrappers[dptx->idx].drm_id);
+			&drm_dptx_wrappers[dptx->idx].drm_dptx_instance.base);
 		DPTXPR(dptx->idx, LOG_I, "%s: connector_type: 0x%x, drm_id: %d", __func__,
 			drm_dptx_wrappers[dptx->idx].drm_type,
 			drm_dptx_wrappers[dptx->idx].drm_id);

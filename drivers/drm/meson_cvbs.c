@@ -346,6 +346,7 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 
 	encoder = &am_drm_cvbs->encoder;
 	connector = &am_drm_cvbs->base.connector;
+	intf->conn = connector;
 
 	/* Encoder */
 	encoder->possible_crtcs = priv->of_conf.crtc_masks[ENCODER_CVBS];
@@ -389,7 +390,7 @@ cvbs_err:
 }
 
 int meson_cvbs_dev_unbind(struct drm_device *drm,
-	int type, int connector_id)
+	int type, struct meson_connector_dev *intf)
 {
 	am_drm_cvbs->base.connector.funcs->destroy(&am_drm_cvbs->base.connector);
 	am_drm_cvbs->encoder.funcs->destroy(&am_drm_cvbs->encoder);

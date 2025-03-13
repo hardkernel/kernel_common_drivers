@@ -71,13 +71,13 @@ int meson_connector_dev_bind(struct drm_device *drm,
 EXPORT_SYMBOL(meson_connector_dev_bind);
 
 int meson_connector_dev_unbind(struct drm_device *drm,
-	int type, int connector_id)
+	int type, struct meson_connector_dev *intf)
 {
 	/*amlogic extend lcd*/
 	if (type > DRM_MODE_MESON_CONNECTOR_PANEL_START &&
 		type < DRM_MODE_MESON_CONNECTOR_PANEL_END) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		return meson_panel_dev_unbind(drm, type, connector_id);
+		return meson_panel_dev_unbind(drm, type, intf);
 #else
 		pr_err("Panel connector is not supported!\n");
 		return -1;
@@ -88,26 +88,26 @@ int meson_connector_dev_unbind(struct drm_device *drm,
 #ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
 	case DRM_MODE_CONNECTOR_HDMIA:
 	case DRM_MODE_CONNECTOR_HDMIB:
-		return meson_hdmitx_dev_unbind(drm, type, connector_id);
+		return meson_hdmitx_dev_unbind(drm, type, intf);
 #endif
 
 #ifndef CONFIG_AMLOGIC_DRM_CUT_CVBS
 	case DRM_MODE_CONNECTOR_TV:
-		return meson_cvbs_dev_unbind(drm, type, connector_id);
+		return meson_cvbs_dev_unbind(drm, type, intf);
 #endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case DRM_MODE_CONNECTOR_LVDS:
 	case DRM_MODE_CONNECTOR_DSI:
 	case DRM_MODE_CONNECTOR_eDP:
-		return meson_panel_dev_unbind(drm, type, connector_id);
+		return meson_panel_dev_unbind(drm, type, intf);
 #endif
 
 	case DRM_MODE_CONNECTOR_MESON_DUMMY_L:
-		return meson_dummyl_dev_unbind(drm, type, connector_id);
+		return meson_dummyl_dev_unbind(drm, type, intf);
 
 	case DRM_MODE_CONNECTOR_MESON_DUMMY_P:
-		return meson_dummyp_dev_unbind(drm, type, connector_id);
+		return meson_dummyp_dev_unbind(drm, type, intf);
 
 	default:
 		pr_err("unknown connector tye %d\n", type);
