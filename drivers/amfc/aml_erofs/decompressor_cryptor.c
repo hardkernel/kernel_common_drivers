@@ -58,12 +58,13 @@ int z_erofs_load_crypto_config(struct super_block *sb,
 
 static void *z_erofs_crypto_handle_inplace_io(struct z_erofs_decompress_req *rq,
 					    void *inpage,
+					    void *out,
 					    unsigned int *inputmargin,
 					    int *maptype,
 					    bool support_0padding)
 {
 	unsigned int nrpages_in, nrpages_out;
-	unsigned int ofull, oend, inputsize, total, i, j;
+	unsigned int ofull, oend, inputsize, total, i;
 	struct page **in;
 	void *src, *tmp;
 
@@ -74,22 +75,21 @@ static void *z_erofs_crypto_handle_inplace_io(struct z_erofs_decompress_req *rq,
 	nrpages_out = ofull >> PAGE_SHIFT;
 
 	if (rq->inplace_io) {
-		//if (rq->partial_decoding)
-		//	goto docopy;
-		for (i = 0; i < nrpages_in; ++i) {
-			WARN_ON(!rq->in[i]);
-			for (j = 0; j < nrpages_out; ++j) {
-				if (rq->out[j] == rq->in[i])
-					goto docopy;
-			}
-		}
+		if (rq->partial_decoding)
+			goto docopy;
+		for (i = 0; i < nrpages_in; ++i)
+			if (rq->out[nrpages_out - nrpages_in + i] != rq->in[i])
+				goto docopy;
+		kunmap_local(inpage);
+		*maptype = 3;
+		return out + ((nrpages_out - nrpages_in) << PAGE_SHIFT);
 	}
 
 	if (nrpages_in <= 1) {
 		*maptype = 0;
 		return inpage;
 	}
-	kunmap_atomic(inpage);
+	kunmap_local(inpage);
 	might_sleep();
 	src = erofs_vm_map_ram(rq->in, nrpages_in);
 	if (!src)
@@ -103,7 +103,7 @@ docopy:
 	src = z_erofs_get_gbuf(nrpages_in);
 	if (!src) {
 		WARN_ON(1);
-		kunmap_atomic(inpage);
+		kunmap_local(inpage);
 		return ERR_PTR(-EFAULT);
 	}
 
@@ -114,9 +114,9 @@ docopy:
 			min_t(unsigned int, total, PAGE_SIZE - *inputmargin);
 
 		if (!inpage)
-			inpage = kmap_atomic(*in);
+			inpage = kmap_local_page(*in);
 		memcpy(tmp, inpage + *inputmargin, page_copycnt);
-		kunmap_atomic(inpage);
+		kunmap_local(inpage);
 		inpage = NULL;
 		tmp += page_copycnt;
 		total -= page_copycnt;
@@ -139,7 +139,7 @@ static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *
 
 	WARN_ON(!*rq->in);
 	inputmargin = 0;
-	headpage = kmap_atomic(*rq->in);
+	headpage = kmap_local_page(*rq->in);
 
 	sbi = EROFS_SB(rq->sb);
 
@@ -162,7 +162,7 @@ static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *
 #endif
 
 	rq->inputsize -= inputmargin;
-	src = z_erofs_crypto_handle_inplace_io(rq, headpage, &inputmargin,
+	src = z_erofs_crypto_handle_inplace_io(rq, headpage, out, &inputmargin,
 					       &maptype, support_0padding);
 	if (IS_ERR(src))
 		return PTR_ERR(src);
@@ -191,7 +191,7 @@ static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *
 	}
 
 	if (maptype == 0) {
-		kunmap_atomic(src);
+		kunmap_local(src);
 	} else if (maptype == 1) {
 		vm_unmap_ram(src, PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT);
 	} else if (maptype == 2) {
@@ -225,9 +225,9 @@ static int z_erofs_crypto_prepare_dstpages(struct z_erofs_decompress_req *rq,
 			j = 0;
 
 		/* 'valid' bounced can only be tested after a complete round */
-		if (test_bit(j, bounced)) {
-			WARN_ON(i < crypto_max_distance_pages);
-			WARN_ON(top >= crypto_max_distance_pages);
+		if (!rq->fillgaps && test_bit(j, bounced)) {
+			DBG_BUGON(i < crypto_max_distance_pages);
+			DBG_BUGON(top >= crypto_max_distance_pages);
 			available[top++] = rq->out[i - crypto_max_distance_pages];
 		}
 
@@ -252,10 +252,10 @@ static int z_erofs_crypto_prepare_dstpages(struct z_erofs_decompress_req *rq,
 
 		if (top) {
 			victim = available[--top];
-			get_page(victim);
 		} else {
-			victim = erofs_allocpage(pagepool,
-						 GFP_KERNEL | __GFP_NOFAIL);
+			victim = __erofs_allocpage(pagepool, rq->gfp, true);
+			if (!victim)
+				return -ENOMEM;
 			set_page_private(victim, Z_EROFS_SHORTLIVED_PAGE);
 		}
 		rq->out[i] = victim;
@@ -275,7 +275,7 @@ int z_erofs_crypto_decompress(struct z_erofs_decompress_req *rq,
 	/* one optimized fast path only for non bigpcluster cases yet */
 	if (rq->inputsize <= PAGE_SIZE && nrpages_out == 1 && !rq->inplace_io) {
 		WARN_ON(!*rq->out);
-		dst = kmap(*rq->out);
+		dst = kmap_local_page(*rq->out);
 		dst_maptype = 0;
 		goto dstmap_out;
 	}
@@ -298,7 +298,7 @@ dstmap_out:
 	ret = z_erofs_crypto_decompress_mem(rq, dst + rq->pageofs_out);
 
 	if (!dst_maptype)
-		kunmap(*rq->out);
+		kunmap_local(dst);
 	else if (dst_maptype == 2)
 		vm_unmap_ram(dst, nrpages_out);
 
