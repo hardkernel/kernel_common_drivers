@@ -647,8 +647,24 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+	struct phy_device *phydev = ndev->phydev;
+	struct phy_driver *phydrv;
+#endif
 	int ret;
 
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+	support_gpio_wol = !!priv->wolopts;
+
+	phydrv = phydev->drv;
+	if (phydrv) {
+		set_wol_notify_bl30(dwmac, 0);
+
+		ret = phydrv->suspend(phydev);
+		if (!ret)
+			phydev->suspended = true;
+	}
+#else
 	if (internal_phy == 2) {
 		set_wol_notify_bl31(0);
 		set_wol_notify_bl30(dwmac, 2);
@@ -657,6 +673,7 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 		set_wol_notify_bl30(dwmac, 0);
 	}
 
+#endif
 	pr_info("aml_eth_shutdown\n");
 	ret = stmmac_suspend(priv->device);
 	if (internal_phy != 2) {
@@ -742,10 +759,20 @@ static int meson8b_suspend(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
 	struct phy_device *phydev = ndev->phydev;
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+	struct phy_driver *phydrv;
+#endif
 	int ret;
 
 	if (!phydev)
 		return 0;
+
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+	phydrv = phydev->drv;
+
+	support_gpio_wol = !!priv->wolopts;
+#endif
+
 	/*open wol, shutdown phy when not link*/
 	if ((wol_switch_from_user) && phydev->link) {
 		set_wol_notify_bl31(true);
@@ -767,6 +794,11 @@ static int meson8b_suspend(struct device *dev)
 			pr_info("wzh exphy wol\n");
 			set_wol_notify_bl31(false);
 			set_wol_notify_bl30(dwmac, false);
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+			ret = phydrv->suspend(phydev);
+			if (!ret)
+				phydev->suspended = true;
+#endif
 		}
 		ret = stmmac_suspend(dev);
 		if (internal_phy != 2) {
@@ -784,12 +816,19 @@ static int meson8b_resume(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
 	struct phy_device *phydev = ndev->phydev;
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+	struct phy_driver *phydrv;
+#endif
 	int ret;
 
 	if (!phydev)
 		return 0;
 
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+	phydrv = phydev->drv;
+#else
 	priv->wolopts = 0;
+#endif
 
 	if ((wol_switch_from_user) && (without_reset)) {
 		ret = stmmac_resume(dev);
@@ -837,7 +876,18 @@ static int meson8b_resume(struct device *dev)
 		pm_wakeup_event(dev, 5000);
 		priv->amlogic_task_action = 102;
 		stmmac_trigger_amlogic_task(priv);
+
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+		if (phydev->suspended) {
+			phydrv->resume(phydev);
+			phydev->suspended = false;
+		}
+#endif
 	}
+
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+	support_gpio_wol = 0;
+#endif
 
 	return ret;
 }
