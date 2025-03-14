@@ -1362,6 +1362,7 @@
 		compatible = "amlogic, amvideom-t6d";
 		dev_name = "amvideom";
 		status = "okay";
+		vpp0_hold_line = <7>;
 		interrupts = <GIC_SPI 194 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync";
 	};
