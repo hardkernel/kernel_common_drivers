@@ -20,7 +20,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data);
 static struct hdmitx_common *global_tx_common;
 static struct hdmitx_hw_common *global_tx_hw;
 
-void hdmi_physical_size_to_vinfo(struct hdmitx_common *tx_comm)
+static void hdmi_physical_size_to_vinfo(struct hdmitx_common *tx_comm)
 {
 	u32 width, height;
 	struct vinfo_s *info = &tx_comm->hdmitx_vinfo;
@@ -40,7 +40,7 @@ void hdmi_physical_size_to_vinfo(struct hdmitx_common *tx_comm)
 	}
 }
 
-void rxlatency_to_vinfo(struct hdmitx_common *tx_comm)
+static void rxlatency_to_vinfo(struct hdmitx_common *tx_comm)
 {
 	struct vinfo_s *info = &tx_comm->hdmitx_vinfo;
 
@@ -50,7 +50,7 @@ void rxlatency_to_vinfo(struct hdmitx_common *tx_comm)
 	info->rx_latency.i_aLatency = tx_comm->rxcap.i_aLatency;
 }
 
-void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm)
+static void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm)
 {
 	struct vinfo_s *info = &tx_comm->hdmitx_vinfo;
 	struct hdmi_format_para *para = &tx_comm->fmt_para;
@@ -73,16 +73,15 @@ void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm)
 	memcpy(info->hdmichecksum, tx_comm->rxcap.hdmichecksum, 10);
 }
 
-void edidinfo_detach_to_vinfo(struct hdmitx_common *tx_comm)
+static void edidinfo_detach_to_vinfo(struct vinfo_s *info)
 {
-	struct vinfo_s *info = &tx_comm->hdmitx_vinfo;
-
 	memset(&info->dv_info, 0, sizeof(info->dv_info));
 	memset(&info->hdr_info, 0, sizeof(info->hdr_info));
 	memset(&info->rx_latency, 0, sizeof(info->rx_latency));
 
 	info->screen_real_width = 0;
 	info->screen_real_height = 0;
+	memset(info->hdmichecksum, 0, sizeof(info->hdmichecksum));
 }
 
 static int calc_vinfo_from_hdmi_timing(const struct hdmi_timing *timing, struct vinfo_s *tx_vinfo)
@@ -122,7 +121,7 @@ static int calc_vinfo_from_hdmi_timing(const struct hdmi_timing *timing, struct 
 	return 0;
 }
 
-void update_vinfo_from_formatpara(struct hdmitx_common *tx_comm)
+static void update_vinfo_from_formatpara(struct hdmitx_common *tx_comm)
 {
 	struct vinfo_s *vinfo = &tx_comm->hdmitx_vinfo;
 	struct hdmi_format_para *fmtpara = &tx_comm->fmt_para;
@@ -141,25 +140,13 @@ void update_vinfo_from_formatpara(struct hdmitx_common *tx_comm)
 	/* dynamic info, always need set */
 	vinfo->cs = fmtpara->cs;
 	vinfo->cd = fmtpara->cd;
-}
-
-/* update ppc and color fmt info for vpp, only for FRL/DSC */
-static void hdmitx_update_ppc_vinfo(struct hdmitx_common *tx_comm, int frl_rate, int dsc_en)
-{
-	struct vinfo_s *vinfo = NULL;
-
-	if (!tx_comm) {
-		HDMITX_ERROR("%s NULL tx_comm pointer\n", __func__);
-		return;
-	}
-
-	vinfo = &tx_comm->hdmitx_vinfo;
+	/* update ppc and color fmt info for vpp, only for FRL/DSC */
 	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
 		vinfo->cur_enc_ppc = 1;
-		if (frl_rate > FRL_NONE)
+		if (fmtpara->frl_rate > FRL_NONE)
 			vinfo->cur_enc_ppc = 4;
 #ifdef CONFIG_AMLOGIC_DSC
-		if (dsc_en) {
+		if (fmtpara->dsc_en) {
 			if (tx_comm->fmt_para.cs == HDMI_COLORSPACE_RGB)
 				vinfo->vpp_post_out_color_fmt = 1;
 			else
@@ -173,10 +160,23 @@ static void hdmitx_update_ppc_vinfo(struct hdmitx_common *tx_comm, int frl_rate,
 	}
 }
 
-static void reset_vinfo(struct vinfo_s *tx_vinfo)
+static void hdmitx_update_vinfo(struct hdmitx_common *tx_comm)
+{
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm pointer\n", __func__);
+		return;
+	}
+
+	edidinfo_attach_to_vinfo(tx_comm);
+	update_vinfo_from_formatpara(tx_comm);
+}
+
+static void hdmitx_reset_vinfo(struct vinfo_s *tx_vinfo)
 {
 	tx_vinfo->name = "invalid";
 	tx_vinfo->mode = VMODE_MAX;
+
+	edidinfo_detach_to_vinfo(tx_vinfo);
 }
 
 static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
@@ -238,17 +238,16 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 {
 	hdmitx_post_enable_mode(tx_comm, para);
 
-	if (tx_comm->cedst_en) {
-		cancel_delayed_work(&tx_comm->work_cedst);
-		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
-	}
 	/*
 	 * attach vinfo, if hdr_cap and dv_cap change, the HDR/DV module will
 	 * call the packet sending function, need to set ready flag to 1 first
 	 */
 	tx_comm->ready = 1;
-	edidinfo_attach_to_vinfo(tx_comm);
-	update_vinfo_from_formatpara(tx_comm);
+	hdmitx_update_vinfo(tx_comm);
+	if (tx_comm->cedst_en) {
+		cancel_delayed_work(&tx_comm->work_cedst);
+		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
+	}
 
 	/*
 	 * need set audio mode again when set video mode, so send the event
@@ -453,7 +452,7 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	 * normally. In disable mode, first detach vinfo, notify HDR/DV to no longer
 	 * send packets, and then set ready to 0
 	 */
-	edidinfo_detach_to_vinfo(tx_comm);
+	hdmitx_reset_vinfo(&tx_comm->hdmitx_vinfo);
 
 	/* step2: HW: disable hdmitx phy, SW: clear status */
 	if (phy_dis) {
@@ -493,7 +492,6 @@ int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 		true, true, true, false);
 
 	hdmitx_format_para_reset(&tx_comm->fmt_para);
-	reset_vinfo(&tx_comm->hdmitx_vinfo);
 
 	if (new_state)
 		para = &new_state->para;
@@ -661,156 +659,6 @@ void hdmitx_vout_uninit(void)
 #endif
 }
 
-static void hdmitx_bootup_parse_edid(struct hdmitx_common *tx_comm)
-{
-	unsigned long flags = 0;
-
-	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
-	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
-	/* If edid is valid, parse edid, otherwise set fallback mode */
-	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf)) {
-		hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-		/* update cec phy addr and audio data block */
-		hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-		hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-	} else {
-		edid_set_fallback_mode(&tx_comm->rxcap);
-	}
-	hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
-
-	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
-}
-
-/* work for bootup when hpd is high, the different with hdmitx_plugin_common_work()
- * is that EDID is parsed
- */
-static void hdmitx_bootup_plugin_work(struct hdmitx_common *tx_comm)
-{
-	/* trace event */
-	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGIN);
-
-	tx_comm->tx_hw->hw_sequence_id = get_jiffies_64();
-	HDMITX_INFO("plugin sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
-
-	/* SW: start rxsense check */
-	if (tx_comm->rxsense_policy) {
-		cancel_delayed_work(&tx_comm->work_rxsense);
-		queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense, 0);
-	}
-
-	/* SW/HW: read/parse EDID */
-	/* there may be such case:
-	 * hpd rising & hpd level high (0.6S > HZ/2)-->
-	 * plugin handler-->hpd falling & hpd level low(0.05S)-->
-	 * continue plugin handler, EDID read normal,
-	 * post plugin uevent-->
-	 * plugout handler(may be filtered and skipped):
-	 * stop hdcp/clear edid, post plugout uevent-->
-	 * system plugin handle: set hdmi mode/hdcp auth-->
-	 * system plugout handle: set non-hdmi mode(but hdcp is still running)-->
-	 * hpd rising & keep level high-->plugin handler, EDID read abnormal
-	 * as hdcp auth is running and may access DDC when reading EDID.
-	 * so need to disable hdcp auth before EDID reading
-	 */
-	if (tx_comm->hdcp_mode != 0) {
-		HDMITX_INFO("hdcp: %d should not be enabled before signal ready\n",
-			tx_comm->hdcp_mode);
-		hdmitx_disable_hdcp(tx_comm);
-	}
-
-	/* read edid */
-	hdmitx_common_get_edid(tx_comm);
-	/* edid parse */
-	hdmitx_bootup_parse_edid(tx_comm);
-
-	/* SW: update flags */
-	if (tx_comm->cedst_policy == 1)
-		tx_comm->cedst_en = !!tx_comm->rxcap.scdc_present;
-
-	tx_comm->hpd_state = 1;
-	tx_comm->already_used = 1;
-
-	/* SW: special for hdcp repeater */
-	if (tx_comm->tx_hw->hdcp_repeater_en)
-		rx_set_repeater_support(1);
-
-	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGIN;
-}
-
-/* common work for plugin/resume, which is done in lock */
-void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm)
-{
-	/* trace event */
-	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGIN);
-
-	tx_comm->tx_hw->hw_sequence_id = get_jiffies_64();
-	HDMITX_INFO("sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
-
-	/* SW: start rxsense check */
-	if (tx_comm->rxsense_policy) {
-		cancel_delayed_work(&tx_comm->work_rxsense);
-		queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense, 0);
-	}
-
-	/* SW/HW: read/parse EDID */
-	/* there may be such case:
-	 * hpd rising & hpd level high (0.6S > HZ/2)-->
-	 * plugin handler-->hpd falling & hpd level low(0.05S)-->
-	 * continue plugin handler, EDID read normal,
-	 * post plugin uevent-->
-	 * plugout handler(may be filtered and skipped):
-	 * stop hdcp/clear edid, post plugout uevent-->
-	 * system plugin handle: set hdmi mode/hdcp auth-->
-	 * system plugout handle: set non-hdmi mode(but hdcp is still running)-->
-	 * hpd rising & keep level high-->plugin handler, EDID read abnormal
-	 * as hdcp auth is running and may access DDC when reading EDID.
-	 * so need to disable hdcp auth before EDID reading
-	 */
-	if (tx_comm->hdcp_mode != 0) {
-		HDMITX_INFO("hdcp: %d should not be enabled before signal ready\n",
-			tx_comm->hdcp_mode);
-		hdmitx_disable_hdcp(tx_comm);
-	}
-
-	/*read edid*/
-	hdmitx_common_get_edid(tx_comm);
-
-	tx_comm->hpd_state = 1;
-	tx_comm->already_used = 1;
-
-	/* SW: special for hdcp repeater */
-	if (tx_comm->tx_hw->hdcp_repeater_en)
-		rx_set_repeater_support(1);
-
-	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGIN;
-}
-
-/* common work for plugout flow, witch should be done in lock */
-void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm)
-{
-	HDMITX_INFO(SYS "hpd_low\n");
-	/* trace event */
-	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGOUT);
-
-	tx_comm->tx_hw->hw_sequence_id = 0;
-	HDMITX_INFO("sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
-
-	/* step1: disable output */
-	hdmitx_common_output_disable(tx_comm, true, true, true, tx_comm->forced_edid ? 0 : 1);
-	/*
-	 * after suspend, hdcp auth state(including topo info) should
-	 * keep not changed, thus that encrypted video stream can
-	 * recover playing normally after resume, specially for hdcp
-	 * repeater case
-	 */
-	if (!tx_comm->suspend_flag)
-		hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_SET_TOPO_INFO, 0);
-
-	/* step2: SW: status update */
-	tx_comm->hpd_state = 0;
-	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGOUT;
-}
-
 void hdmitx_common_late_resume(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
@@ -830,92 +678,70 @@ void hdmitx_common_late_resume(struct hdmitx_common *tx_comm)
 		HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP, false);
 }
 
-/***hotplug handler start***/
-/* plugin process for hotplug, not for bootup */
-static void hdmitx_process_plugin(struct hdmitx_common *tx_comm)
-{
-	unsigned long flags = 0;
-
-	if (!tx_comm) {
-		HDMITX_ERROR("%s NULL tx_comm pointer\n", __func__);
-		return;
-	}
-	/* step1: SW: EDID read */
-	hdmitx_plugin_common_work(tx_comm);
-
-	/* step2: SW: update cec phy addr and audio data block */
-	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
-	hdmitx_update_cec_and_audio_info(tx_comm);
-	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
-
-	/* step3: SW: notify client modules and update uevent state */
-	hdmitx_common_notify_hpd_status(tx_comm, false);
-}
-
-static void hdmitx_bootup_update_vinfo(struct hdmitx_common *tx_comm, int frl_rate, int dsc_en)
-{
-	if (!tx_comm) {
-		HDMITX_ERROR("%s NULL tx_comm pointer\n", __func__);
-		return;
-	}
-
-	edidinfo_attach_to_vinfo(tx_comm);
-	update_vinfo_from_formatpara(tx_comm);
-	hdmitx_update_ppc_vinfo(tx_comm, frl_rate, dsc_en);
-}
-
-/*
- * plugin handle only for bootup stage.
- * action should be done in lock, it copy the flow of
- * plugin handler except for
- * 1.edid is parsed in bootup plugin handler
- * 2.audio mode is set in bootup plugin handler(to be moved)
- * 3.vinfo is updated in bootup plugin handler
- * only set audio if it's already enable in uboot.
- * uboot_output_state is indicated in ready flag, can be replaced by
- * HW state later
+/* plugin process: action should be done in lock
+ * 1.whole edid is parsed in hdmi side for bootup
+ * while only phy_addr/audio_cap is parsed in hdmi
+ * side for non-bootup case
+ * 2.audio mode is set in bootup case(to be moved)
  */
-void hdmitx_bootup_plugin_handler(struct hdmitx_common *tx_comm)
+void hdmitx_process_plugin(struct hdmitx_common *tx_comm, bool boot_flag, bool set_audio)
 {
-	int frl_rate = FRL_NONE;
-	int dsc_en = 0;
-
 	if (!tx_comm) {
 		HDMITX_ERROR("%s NULL tx_comm pointer\n", __func__);
 		return;
 	}
+	/* trace event */
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGIN);
 
-	/* step1: resend div40 if necessary */
-	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
-		frl_rate = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_GET_FRL_MODE, 0);
-	/* if current mode is TMDS/nonFRL, then resend_div40 */
-	if (frl_rate == FRL_NONE) {
-		if (tx_comm->fmt_para.tmds_clk_div40)
-			hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_SCDC_DIV40_SCRAMB, 1);
-	} else {
-		if (!hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_FRL_READY, 0))
-			tx_comm->ready = 0;
+	tx_comm->tx_hw->hw_sequence_id = get_jiffies_64();
+	HDMITX_INFO("plugin sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
+
+	/* step1: SW: start rxsense check */
+	if (tx_comm->rxsense_policy) {
+		cancel_delayed_work(&tx_comm->work_rxsense);
+		queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense, 0);
 	}
 
-	dsc_en = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_TX_DSC_EN, 0);
-
-	/* step2: SW: EDID read/parse, update vinfo */
-	hdmitx_bootup_plugin_work(tx_comm);
-	/*
-	 * During the kernel startup process, the HDR/DV module will use
-	 * vinfo information, it needs to attach vinfo after the EDID is
-	 * parsed and before the HDR/DV module is enabled.
-	 * so do as hdmitx_common_post_enable_mode()
+	/* step2: SW: read/parse EDID */
+	/* there may be such case:
+	 * hpd rising & hpd level high (0.6S > HZ/2)-->
+	 * plugin handler-->hpd falling & hpd level low(0.05S)-->
+	 * continue plugin handler, EDID read normal,
+	 * post plugin uevent-->
+	 * plugout handler(may be filtered and skipped):
+	 * stop hdcp/clear edid, post plugout uevent-->
+	 * system plugin handle: set hdmi mode/hdcp auth-->
+	 * system plugout handle: set non-hdmi mode(but hdcp is still running)-->
+	 * hpd rising & keep level high-->plugin handler, EDID read abnormal
+	 * as hdcp auth is running and may access DDC when reading EDID.
+	 * so need to disable hdcp auth before EDID reading
 	 */
-	hdmitx_bootup_update_vinfo(tx_comm, frl_rate, dsc_en);
+	if (tx_comm->hdcp_mode != 0) {
+		HDMITX_INFO("hdcp: %d should not be enabled before signal ready\n",
+			tx_comm->hdcp_mode);
+		hdmitx_disable_hdcp(tx_comm);
+	}
+	/* read EDID */
+	hdmitx_common_get_edid(tx_comm);
+	/* parse EDID */
+	hdmitx_edid_process(tx_comm, boot_flag, false);
 
+	/* step3: SW: status update */
+	tx_comm->hpd_state = 1;
+	tx_comm->already_used = 1;
+	/* SW: special for hdcp repeater */
+	if (tx_comm->tx_hw->hdcp_repeater_en)
+		rx_set_repeater_support(1);
+	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGIN;
+
+	/* step4: SW: set audio */
 	/* TODO: need remove/optimised, keep it temporarily */
-	if (tx_comm->ready) {
-		if (tx_comm->tx_hw && tx_comm->tx_hw->setaudmode)
+	if (set_audio) {
+		if (tx_comm->tx_hw->setaudmode)
 			tx_comm->tx_hw->setaudmode(tx_comm->tx_hw, &tx_comm->cur_audio_param);
 	}
 
-	/* step3: SW: notify client modules and update uevent state */
+	/* step5: SW: notify client modules and update uevent state */
 	hdmitx_common_notify_hpd_status(tx_comm, false);
 }
 
@@ -952,7 +778,7 @@ void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 		return;
 	}
 	HDMITX_INFO(SYS "hpd_high\n");
-	hdmitx_process_plugin(tx_comm);
+	hdmitx_process_plugin(tx_comm, false, false);
 
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 
@@ -961,18 +787,30 @@ void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 }
 
 /* common process for plugout flow, which should be done in lock */
-static void hdmitx_process_plugout(struct hdmitx_common *tx_comm)
+void hdmitx_process_plugout(struct hdmitx_common *tx_comm)
 {
 	if (!tx_comm) {
 		HDMITX_ERROR("%s NULL tx_comm pointer\n", __func__);
 		return;
 	}
 
-	hdmitx_plugout_common_work(tx_comm);
+	HDMITX_INFO(SYS "hpd_low\n");
+	/* trace event */
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGOUT);
+
+	tx_comm->tx_hw->hw_sequence_id = 0;
+	HDMITX_INFO("sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
+
+	/* step1: disable output */
+	hdmitx_common_output_disable(tx_comm, true, true, true, tx_comm->forced_edid ? 0 : 1);
 	/* private process for plugout */
 	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_PRIVATE_PLUGOUT_PROCESS, 0);
 
-	/* SW: notify event to user space and other modules */
+	/* step2: SW: status update */
+	tx_comm->hpd_state = 0;
+	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGOUT;
+
+	/* step3: SW: notify event to user space and other modules */
 	hdmitx_common_notify_hpd_status(tx_comm, false);
 }
 
@@ -999,10 +837,52 @@ void hdmitx_hpd_plugout_irq_handler(struct work_struct *work)
 	hdmitx_fire_drm_hpd_cb_unlocked(tx_comm);
 }
 
-/* plugout handle only for bootup stage */
-void hdmitx_bootup_plugout_handler(struct hdmitx_common *tx_comm)
+static bool hdmitx_check_bootup_output_ready(struct hdmitx_common *tx_comm)
 {
-	hdmitx_process_plugout(tx_comm);
+	bool ready = false;
+
+	if (!tx_comm || !tx_comm->tx_hw)
+		return false;
+
+	if (tx_comm->tx_hw->getstate(tx_comm->tx_hw, STAT_TX_OUTPUT, 0))
+		ready = true;
+	if (ready) {
+		if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
+			if (!hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_FRL_READY, 0))
+				ready = false;
+		}
+	}
+
+	return ready;
+}
+
+/* similar as hdmitx_common_post_enable_mode() for bootup
+ * except for resend div40 if output ready. it should be done in lock
+ */
+void hdmitx_bootup_post_process(struct hdmitx_common *tx_comm)
+{
+	int frl_rate = FRL_NONE;
+
+	tx_comm->ready = hdmitx_check_bootup_output_ready(tx_comm);
+
+	if (tx_comm->ready) {
+		if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
+			frl_rate = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_GET_FRL_MODE, 0);
+		/* if current mode is TMDS/nonFRL, then resend_div40 */
+		if (frl_rate == FRL_NONE) {
+			if (tx_comm->fmt_para.tmds_clk_div40)
+				hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_SCDC_DIV40_SCRAMB, 1);
+		}
+		/*
+		 * During the kernel startup process, the HDR/DV module will use
+		 * vinfo information, it needs to attach vinfo after the EDID is
+		 * parsed and before the HDR/DV module is enabled.
+		 * so do as hdmitx_common_post_enable_mode()
+		 */
+		hdmitx_update_vinfo(tx_comm);
+		if (tx_comm->cedst_en)
+			queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
+	}
 }
 
 void hdmitx_ext_plugin_handler(void)

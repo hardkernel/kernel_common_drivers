@@ -57,7 +57,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->max_refreshrate = 60;
 	tx_comm->rxcap.edid_check = boot_param->edid_check;
 	/* by default, edid parse in plug interrupt is handled in drm */
-	tx_comm->edid_parse_in_hdmitx = false;
+	tx_comm->edid_parse_dbg = false;
 
 	tx_comm->tx_hw = hw_comm;
 	if (tx_comm->tx_hw)
@@ -636,16 +636,6 @@ int hdmitx_common_parse_vic_in_edid(struct hdmitx_common *tx_comm, const char *m
 	return prefer_vic;
 }
 EXPORT_SYMBOL(hdmitx_common_parse_vic_in_edid);
-
-int hdmitx_common_notify_ced_status(struct hdmitx_common *tx_comm)
-{
-	/* if cedst_en is 1, ced detection will be enabled in hdmitx_common_post_enable_mode */
-	if (tx_comm->cedst_policy == 1)
-		tx_comm->cedst_en = !!tx_comm->rxcap.scdc_present;
-
-	return 0;
-}
-EXPORT_SYMBOL(hdmitx_common_notify_ced_status);
 
 int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent)
 {
@@ -1346,7 +1336,7 @@ bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap)
  * ColorDepth: 8bit
  * audio : pcm
  */
-void edid_set_fallback_mode(struct rx_cap *prxcap)
+static void edid_set_fallback_mode(struct rx_cap *prxcap)
 {
 	struct vsdb_phyaddr *phyaddr;
 
@@ -1388,38 +1378,65 @@ void edid_set_fallback_mode(struct rx_cap *prxcap)
 	/* 16bit */
 	prxcap->RxAudioCap[0].cc3 = 1;
 }
-EXPORT_SYMBOL(edid_set_fallback_mode);
 
-void hdmitx_update_cec_and_audio_info(struct hdmitx_common *tx_comm)
+static int hdmitx_update_ced_en(struct hdmitx_common *tx_comm)
 {
+	/* if cedst_en is 1, ced detection will be enabled in hdmitx_common_post_enable_mode */
+	if (tx_comm->cedst_policy == 1)
+		tx_comm->cedst_en = !!tx_comm->rxcap.scdc_present;
+
+	return 0;
+}
+
+void hdmitx_edid_process(struct hdmitx_common *tx_comm, bool boot_flag, bool drm_parse_part)
+{
+	unsigned long flags = 0;
+	bool edid_valid = false;
+
 	if (!tx_comm)
 		return;
 
-	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
-	/*
-	 * hdmitx edid parsing debug function, parsed in drm by default
-	 *
-	 * Enable edid parse in hdmitx debug function command
-	 * echo edid_parse1 > /sys/class/amhdmitx/amhdmitx0/debug
-	 *
-	 * Disable edid parse in hdmitx debug function command
-	 * echo edid_parse0 > /sys/class/amhdmitx/amhdmitx0/debug
-	 */
-	if (tx_comm->edid_parse_in_hdmitx) {
-		HDMITX_INFO("edid parse in hdmitx\n");
-		/* If edid is valid, parse edid, otherwise set fallback mode */
-		if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf))
-			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-		else
-			edid_set_fallback_mode(&tx_comm->rxcap);
+	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 
+	edid_valid = hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf);
+
+	if (boot_flag || tx_comm->edid_parse_dbg) {
+		hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+		/* if edid is valid, parse edid, otherwise set fallback mode */
+		if (edid_valid) {
+			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_update_ced_en(tx_comm);
+			/* parse cec phy addr and audio data block */
+			hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		} else {
+			edid_set_fallback_mode(&tx_comm->rxcap);
+		}
 		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
-		hdmitx_common_notify_ced_status(tx_comm);
+	} else if (!drm_parse_part) {
+		hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+		/* step1: hdmitx parse part */
+		if (edid_valid) {
+			/* parse cec phy addr and audio data block */
+			hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		} else {
+			edid_set_fallback_mode(&tx_comm->rxcap);
+		}
+		HDMITX_DEBUG_EDID("parse phy_addr/audio on hdmi side\n");
+	} else {
+		/* step2: drm parse part */
+		if (edid_valid) {
+			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_update_ced_en(tx_comm);
+		}
+		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+		HDMITX_DEBUG_EDID("parse most parts on drm side\n");
 	}
 
-	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-	hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 }
+EXPORT_SYMBOL(hdmitx_edid_process);
 
 #ifdef CONFIG_AMLOGIC_DSC
 /*

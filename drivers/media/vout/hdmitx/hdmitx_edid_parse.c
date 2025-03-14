@@ -361,7 +361,6 @@ bool hdmitx_edid_check_data_valid(u8 edid_check, unsigned char *buf)
 
 	return true;
 }
-EXPORT_SYMBOL(hdmitx_edid_check_data_valid);
 
 static void edid_parsing_id_manufacturer_name(struct rx_cap *prxcap,
 					   u8 *data)
@@ -2659,7 +2658,6 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 
 	return 0;
 }
-EXPORT_SYMBOL(hdmitx_edid_parse);
 
 void hdmitx_edid_buffer_clear(u8 *edid_buf, int size)
 {

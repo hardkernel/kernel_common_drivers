@@ -371,7 +371,7 @@ struct hdmitx_common {
 	 * true: edid parse in hdmitx
 	 * false(default): edid parse in drm
 	 */
-	bool edid_parse_in_hdmitx;
+	bool edid_parse_dbg;
 	/* hdmitx bist */
 	unsigned int bist_lock:1;
 
@@ -430,8 +430,14 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 
 /*edid valid api*/
 bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap);
-void edid_set_fallback_mode(struct rx_cap *prxcap);
-void hdmitx_update_cec_and_audio_info(struct hdmitx_common *tx_comm);
+
+/* for bootup case or debug purpose, need to parse whole edid in hdmi side
+ * for other case(plugin/resume), parse edid in two steps:
+ * step1: drm_parse_part = false, only parse phy_addr(for cec)/audio(for audio cap)
+ * part on hdmi side
+ * step2: drm_parse_part = true, parse other data blocks on drm side
+ */
+void hdmitx_edid_process(struct hdmitx_common *tx_comm, bool boot_flag, bool drm_parse_part);
 
 /* Attach platform related functions to hdmitx_common;
  * Currently hdmitx_tracer, hdmitx_uevent_mgr is platform related;
@@ -555,11 +561,6 @@ bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum);
 void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx_hw);
 void hdmitx_vout_uninit(void);
 struct vinfo_s *hdmitx_get_current_vinfo(void *data);
-void update_vinfo_from_formatpara(struct hdmitx_common *tx_comm);
-void edidinfo_detach_to_vinfo(struct hdmitx_common *tx_comm);
-void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm);
-void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_common *tx_comm);
-void set_dummy_dv_info(struct vout_device_s *vdev);
 void hdmitx_build_fmt_attr_str(struct hdmitx_common *tx_comm);
 void hdmitx_current_status(enum hdmitx_event_log_bits event);
 ssize_t hdcp_lstore_show(struct device *dev, struct device_attribute *attr,
@@ -570,12 +571,10 @@ ssize_t hdcp_ver_show(struct device *dev, struct device_attribute *attr,
 			     char *buf);
 
 /* common work for plugin/resume, which is done in lock */
-void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm);
-/* common work for plugout */
-void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm);
-/* bootup plugin/out handler */
-void hdmitx_bootup_plugin_handler(struct hdmitx_common *tx_comm);
-void hdmitx_bootup_plugout_handler(struct hdmitx_common *tx_comm);
+void hdmitx_process_plugin(struct hdmitx_common *tx_comm, bool boot_flag, bool set_audio);
+/* common work for plugout, which is done in lock */
+void hdmitx_process_plugout(struct hdmitx_common *tx_comm);
+void hdmitx_bootup_post_process(struct hdmitx_common *tx_comm);
 /* delaywork for plugin/plugout */
 void hdmitx_hpd_plugin_irq_handler(struct work_struct *work);
 void hdmitx_hpd_plugout_irq_handler(struct work_struct *work);

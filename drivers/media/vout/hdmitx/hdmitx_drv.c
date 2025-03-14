@@ -1277,9 +1277,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_HPD_IRQ_TOP_HALF, hpd_state);
 	/* actions in bottom half of plug intr */
 	if (hpd_state)
-		hdmitx_bootup_plugin_handler(tx_comm);
+		hdmitx_process_plugin(tx_comm, true, tx_comm->ready);
 	else
-		hdmitx_bootup_plugout_handler(tx_comm);
+		hdmitx_process_plugout(tx_comm);
 	/*
 	 * When Sink-led output, the Color Space read from AVI Packet is RGB,
 	 * but the input to HDMITX is YUV444, so it is necessary to judge that
@@ -1290,9 +1290,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	 * load fmt para from hw info
 	 */
 	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
-	/* TODO: not consider VESA mode witch HW VIC = 0 */
-	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
-		hdev->tx_comm.ready = 1;
 	/*
 	 * update fmt_attr string from fmt_para, note that fmt_attr is already
 	 * set by hdmitx_common_init() with boot arg, and below is un-necessary,
@@ -1301,17 +1298,19 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	 */
 	hdmitx_format_para_rebuild_fmtattr_str(&hdev->tx_comm.fmt_para,
 		hdev->tx_comm.fmt_attr, sizeof(hdev->tx_comm.fmt_attr));
-	/* load init hdr state for HW info */
+	/* load init hdr state from HW info */
 	hdmitx_hdr_state_init(tx_comm);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	/* init vrr */
-	hdmitx_vrr_init(hdev);
-#endif
+	hdmitx_bootup_post_process(tx_comm);
+
 	/* after unlock, now can take actions of bottom half of hpd irq */
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 	/* notify to drm hdmi */
 	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	/* init vrr */
+	hdmitx_vrr_init(hdev);
+#endif
 	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7)
 		tx_comm->hdmi_init = HDMITX21;
 	else
@@ -1320,8 +1319,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_sysfs_common_create(dev, &hdev->tx_comm, &hdev->hw_comm);
 	hdmitx_common_debugfs_init(hdev);
 	hdmitx_common_profs_init(hdev);
-	if (tx_comm->ready && tx_comm->cedst_en)
-		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
 	HDMITX_INFO("amhdmitx probe_end\n");
 
 	return r;
@@ -1852,26 +1849,17 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 			 * Enable edid parse in hdmitx debug function command
 			 * echo edid_parse1 > /sys/class/amhdmitx/amhdmitx0/debug
 			 */
-			hdev->tx_comm.edid_parse_in_hdmitx = true;
-			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
-					hdev->tx_comm.edid_parse_in_hdmitx);
+			hdev->tx_comm.edid_parse_dbg = true;
+			HDMITX_INFO("edid_parse_dbg = %d\n",
+					hdev->tx_comm.edid_parse_dbg);
 		} else if (tmpbuf[10] == '0') {
 			/*
 			 * Disable edid parse in hdmitx debug function command
 			 * echo edid_parse0 > /sys/class/amhdmitx/amhdmitx0/debug
 			 */
-			hdev->tx_comm.edid_parse_in_hdmitx = false;
-			HDMITX_INFO("edid_parse_in_hdmitx = %d\n",
-					hdev->tx_comm.edid_parse_in_hdmitx);
-		}
-	} else if (strncmp(tmpbuf, "vinfo", 5) == 0) {
-		ret = kstrtoul(tmpbuf + 5, 10, &value);
-		if (value ==  0) {
-			edidinfo_detach_to_vinfo(&hdev->tx_comm);
-			HDMITX_INFO("detach vinfo\n");
-		} else if (value ==  1) {
-			edidinfo_attach_to_vinfo(&hdev->tx_comm);
-			HDMITX_INFO("attach vinfo\n");
+			hdev->tx_comm.edid_parse_dbg = false;
+			HDMITX_INFO("edid_parse_dbg = %d\n",
+					hdev->tx_comm.edid_parse_dbg);
 		}
 	} else if (strncmp(tmpbuf, "cedst_count", 11) == 0) {
 		frl_rate = hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0);
@@ -2360,15 +2348,10 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, false);
 	/* need to update EDID in case TV changed during suspend */
 	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
-	if (tx_comm->hpd_state) {
-		/* step1: SW: EDID read */
-		hdmitx_plugin_common_work(tx_comm);
-		/* step2: SW: update cec phy addr and audio data block */
-		hdmitx_update_cec_and_audio_info(tx_comm);
-	} else {
-		hdmitx_plugout_common_work(tx_comm);
-	}
-	hdmitx_common_notify_hpd_status(tx_comm, false);
+	if (tx_comm->hpd_state)
+		hdmitx_process_plugin(tx_comm, false, false);
+	else
+		hdmitx_process_plugout(tx_comm);
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 
 	/* notify to drm hdmi */
@@ -2402,14 +2385,6 @@ static int amhdmitx_pm_resume(struct device *dev)
 	return amhdmitx_resume(pdev);
 }
 
-static void hdmitx_init_uboot_mode(enum vmode_e mode)
-{
-	if (!(mode & VMODE_INIT_BIT_MASK))
-		HDMITX_ERROR("warning, echo /sys/class/display/mode is disabled\n");
-	else
-		HDMITX_INFO("already display in uboot\n");
-}
-
 static int amhdmitx_pm_restore(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -2434,27 +2409,23 @@ static int amhdmitx_pm_restore(struct device *dev)
 	 * as which did in driver probe
 	 */
 	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
+	hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_HPD_IRQ_TOP_HALF, tx_comm->hpd_state);
+	/* actions in bottom half of plug intr */
+	/* need to parse EDID as vinfo need edid information */
 	if (tx_comm->hpd_state)
-		hdmitx_plugin_common_work(tx_comm);
+		hdmitx_process_plugin(tx_comm, true, false);
 	else
-		hdmitx_plugout_common_work(tx_comm);
-
+		hdmitx_process_plugout(tx_comm);
 	/* load fmt para from hw info */
 	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
-	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
-		tx_comm->ready = 1;
-	else
-		tx_comm->ready = 0;
 	/* rebuild fmt attr */
 	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para,
 		tx_comm->fmt_attr, sizeof(tx_comm->fmt_attr));
 	/* load init hdr state for HW info */
 	hdmitx_hdr_state_init(tx_comm);
-	hdmitx_common_notify_hpd_status(tx_comm, false);
+	hdmitx_bootup_post_process(tx_comm);
 	mutex_unlock(&tx_comm->hdmimode_mutex);
-	/* in case TV set changed after suspend, need to update vinfo */
-	if (tx_comm->ready == 1)
-		hdmitx_init_uboot_mode(VMODE_INIT_BIT_MASK);
+
 	/* notify to drm hdmi */
 	hdmitx_fire_drm_hpd_cb_unlocked(tx_comm);
 	return 0;

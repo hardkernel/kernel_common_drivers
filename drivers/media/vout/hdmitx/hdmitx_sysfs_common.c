@@ -541,7 +541,10 @@ static ssize_t edid_store(struct device *dev,
 		if (strncmp(argv[1], "0000000000000000", 16) == 0) {
 			HDMITX_INFO("%s[%d] get current RX edid\n", __func__, __LINE__);
 			tx_comm->forced_edid = 0;
+			/* read EDID with DDC */
 			hdmitx_common_get_edid(tx_comm);
+			/* parse whole edid */
+			hdmitx_edid_process(tx_comm, true, false);
 			goto PROCESS_END;
 		}
 
@@ -551,17 +554,8 @@ static ssize_t edid_store(struct device *dev,
 		ret = hdmitx_load_edid_file(tx_comm, 1, argv[1]);
 		if (ret == 1) {
 			tx_comm->forced_edid = 1;
-			hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
-			/* If edid is valid, parse edid, otherwise set fallback mode */
-			if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check,
-						tx_comm->EDID_buf)) {
-				hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-				hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-				hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-			} else {
-				edid_set_fallback_mode(&tx_comm->rxcap);
-			}
-			hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+			/* parse whole edid */
+			hdmitx_edid_process(tx_comm, true, false);
 			hdmitx_edid_print(tx_comm->EDID_buf);
 			HDMITX_INFO("%s[%d] using the fixed edid\n", __func__, __LINE__);
 		}
