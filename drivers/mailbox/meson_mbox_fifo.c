@@ -539,9 +539,15 @@ static int mbox_fifo_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+#ifndef CONFIG_PREEMPT_RT
 	err = request_threaded_irq(mbox_irq, mbox_handler,
 				   NULL, IRQF_ONESHOT | IRQF_NO_SUSPEND,
 				   DRIVER_NAME, mbox_cons);
+#else
+	err = request_threaded_irq(mbox_irq, NULL,
+				   mbox_handler, IRQF_ONESHOT | IRQF_NO_SUSPEND,
+				   DRIVER_NAME, mbox_cons);
+#endif
 	if (err) {
 		dev_err(dev, "request irq error\n");
 		return err;
