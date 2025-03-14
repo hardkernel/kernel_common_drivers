@@ -3,23 +3,32 @@
 #ifndef __AML_REGS_H_
 #define __AML_REGS_H_
 
+enum {
+	GAIN_VER1 = 1,
+	GAIN_VER2 = 2,
+	GAIN_VER3 = 3,
+};
+
 enum clk_sel {
-	MASTER_A,
-	MASTER_B,
-	MASTER_C,
-	MASTER_D,
-	MASTER_E,
-	MASTER_F,
-	SLAVE_A,
-	SLAVE_B,
-	SLAVE_C,
-	SLAVE_D,
-	SLAVE_E,
-	SLAVE_F,
-	SLAVE_G,
-	SLAVE_H,
-	SLAVE_I,
-	SLAVE_J
+	MASTER_A = 0,
+	MASTER_B = 1,
+	MASTER_C = 2,
+	MASTER_D = 3,
+	MASTER_E = 4,
+	MASTER_F = 5,
+	SLAVE_A  = 6,
+	SLAVE_B  = 7,
+	SLAVE_C  = 8,
+	SLAVE_D  = 9,
+	SLAVE_E  = 10,
+	SLAVE_TXHD2_HDMIRX = 10,
+	SLAVE_F  = 11,
+	SLAVE_HDMIRX = 11,
+	SLAVE_G  = 12,
+	SLAVE_H  = 13,
+	SLAVE_I  = 14,
+	SLAVE_HDMIRXB = 14,
+	SLAVE_J  = 15
 };
 
 struct register_table {
@@ -689,6 +698,10 @@ struct register_table {
 #define EE_AUDIO_SPDIFOUT_B_CHSTSA         0x1b1
 #define EE_AUDIO_SPDIFOUT_B_CHSTSB         0x1b2
 #define EE_AUDIO_SPDIFOUT_B_MUTE_VAL       0x1b3
+#define EE_AUDIO_SPDIFOUT_B_GAIN2          0x1b4
+#define EE_AUDIO_SPDIFOUT_B_GAIN3          0x1b5
+#define EE_AUDIO_SPDIFOUT_B_GAIN_EN        0x1b6
+#define EE_AUDIO_SPDIFOUT_B_GAIN_CTRL      0x1b7
 
 /*
  *	AUDIO LOCKER
@@ -1606,4 +1619,17 @@ struct register_table {
 #define EE_AUDIO_PCPD_MON_B_STAT0          0x3c8
 #define EE_AUDIO_PCPD_MON_B_STAT1          0x3c9
 
+/*mixer*/
+#define EE_AUDIO_MIXER_COEF0               0x185
+#define EE_AUDIO_MIXER_COEF1               0x186
+#define EE_AUDIO_MIXER_COEF2               0x187
+#define EE_AUDIO_MIXER_COEF3               0x188
+#define EE_AUDIO_MIXER_THD                 0x189
+#define EE_AUDIO_MIXER_CTRL0               0x18a
+#define EE_AUDIO_MIXER_CTRL1               0x18b
+#define EE_AUDIO_MIXER_CTRL2               0x18c
+#define EE_AUDIO_MIXER_CTRL3               0x18d
+#define EE_AUDIO_MIXER_CTRL4               0x18e
+#define EE_AUDIO_MIXER_STATUS1             0x18f
+#define EE_AUDIO_SW_RESET1                 0x0b
 #endif

@@ -18,6 +18,9 @@
 #define LANE_MAX2 6
 #define LANE_MAX3 8
 
+#define HDMIRX_A	1
+#define HDMIRX_B	2
+
 /* TODO: fix me, now based by tl1 */
 enum tdmin_src {
 	PAD_TDMINA_DIN = 0,
@@ -58,6 +61,12 @@ struct pcm_setting {
 	bool sclk_ws_inv;
 	/* Standardization value by normal setting */
 	unsigned int standard_sysclk;
+
+	unsigned int fmt;
+	unsigned int tdmin_src_hdmirx;
+	unsigned int tdmout_master;
+	bool use_vadtop;
+	int ext_amp_ws_inv;
 };
 
 void aml_tdm_enable(struct aml_audio_controller *actrl,
@@ -79,14 +88,7 @@ void aml_tdm_fifo_ctrl(struct aml_audio_controller *actrl,
 void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	struct pcm_setting *p_config,
 	unsigned int clk_sel,
-	unsigned int index,
-	unsigned int fmt,
-	unsigned int capture_active,
-	unsigned int playback_active,
-	bool tdmin_src_hdmirx,
-	bool tdmin_src_hdmirxb,
-	bool use_vadtop,
-	int ext_amp_ws_inv);
+	unsigned int index);
 
 void aml_update_tdmin_skew(struct aml_audio_controller *actrl,
 			   int idx, int skew, bool use_vadtop);

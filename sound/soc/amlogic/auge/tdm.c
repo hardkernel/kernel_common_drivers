@@ -51,6 +51,7 @@
 #include "audio_utils.h"
 #include "card.h"
 #include "audio_controller.h"
+#include "mixer_hw.h"
 
 #define DRV_NAME "snd_tdm"
 
@@ -151,6 +152,9 @@ struct aml_tdm {
 	int tdmout_lane_mute_status[LANE_MAX3];
 	bool earc_use_48k;
 	int ext_amp_ws_inv;
+	int mixer_en;
+	int pcpd_timeout_cnt;
+	unsigned int tdmout_master;
 };
 
 #define to_aml_tdm(x)   container_of(x, struct aml_tdm, clk_nb)
@@ -389,6 +393,11 @@ static int aml_set_tdm_mclk_s4(struct aml_tdm *p_tdm,
 	int ret = -1;
 	bool force_mpll = is_force_mpll_clk();
 
+	if (freq == 0) {
+		dev_err(p_tdm->dev, "%s(), clk 0 err\n", __func__);
+		return 0;
+	}
+
 	pr_info("%s: force_mpll = %d, freq = %d\n", __func__, force_mpll, freq);
 	if (IS_ERR(p_tdm->clk_src_cd)) {
 		pr_err("%s: please make sure S4 DTS support 2 clk source\n", __func__);
@@ -444,6 +453,11 @@ static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm,
 	bool mpll_change = false;
 	char *clk_name;
 
+	if (freq == 0) {
+		dev_err(p_tdm->dev, "%s(), clk 0 err\n", __func__);
+		return 0;
+	}
+
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
 	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		if (p_tdm->syssrc_clk_rate &&
@@ -490,6 +504,11 @@ static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm,
 	int ret = -1;
 	char *clk_name = (char *)__clk_get_name(p_tdm->clk);
 	int ratio = 0;
+
+	if (freq == 0) {
+		dev_err(p_tdm->dev, "%s(), clk 0 err\n", __func__);
+		return 0;
+	}
 
 	if (IS_ERR(p_tdm->clk_src_cd) || strcmp(clk_name, "hifi_pll")) {
 		pr_err("%s: please make sure DTS support 2 clk source\n", __func__);
@@ -590,8 +609,6 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq, bool tune)
 
 int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture_active)
 {
-	bool tdmin_src_hdmirx = false;
-	bool tdmin_src_hdmirxb = false;
 	if (!p_tdm)
 		return -EINVAL;
 
@@ -618,17 +635,19 @@ int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture_active
 	}
 
 	p_tdm->setting.sclk_ws_inv = p_tdm->chipinfo->sclk_ws_inv;
+	p_tdm->setting.fmt = fmt;
+	p_tdm->setting.use_vadtop = p_tdm->chipinfo->use_vadtop;
+	p_tdm->setting.ext_amp_ws_inv = p_tdm->ext_amp_ws_inv;
+	p_tdm->setting.tdmout_master = p_tdm->tdmout_master;
+	p_tdm->setting.tdmin_src_hdmirx = 0;
 
 	if (!strcmp(p_tdm->tdmin_src_name, SRC_HDMIRX))
-		tdmin_src_hdmirx = true;
+		p_tdm->setting.tdmin_src_hdmirx = HDMIRX_A;
 	else if (!strcmp(p_tdm->tdmin_src_name, SRC_HDMIRXB))
-		tdmin_src_hdmirxb = true;
+		p_tdm->setting.tdmin_src_hdmirx = HDMIRX_B;
+
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
-			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1,
-			   tdmin_src_hdmirx,
-			   tdmin_src_hdmirxb,
-			   p_tdm->chipinfo->use_vadtop,
-			   p_tdm->ext_amp_ws_inv);
+			   p_tdm->clk_sel, p_tdm->id);
 	if (p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		int ret = clk_prepare_enable(p_tdm->mclk);
 
@@ -1044,7 +1063,83 @@ static int tdm_port_pcpd_detect_set(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+
+static int tdm_port_pcpd_timeout_sample_count_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.enumerated.item[0] = p_tdm->pcpd_timeout_cnt;
+
+	return 0;
+}
+
+static int tdm_port_pcpd_timeout_sample_count_set(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+	int value = ucontrol->value.enumerated.item[0];
+
+	if (!pc_pd) {
+		pr_err("%s:pcpd monitor null!\n", __func__);
+		return 0;
+	}
+
+	if (value < 0 || value > 0x20000) {
+		pr_err("%s:sample cnt error!\n", __func__);
+		return 0;
+	}
+
+	p_tdm->pcpd_timeout_cnt = value;
+	if (pc_pd)
+		aml_pcpd_monitor_timeout(pc_pd, p_tdm->pcpd_timeout_cnt);
+
+	return 0;
+}
+
+static int tdm_port_pcpd_timeout_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+
+	if (!pc_pd) {
+		pr_err("%s:pcpd monitor null!\n", __func__);
+		return 0;
+	}
+
+	ucontrol->value.enumerated.item[0] = pc_pd->pcpd_timeout;
+
+	return 0;
+}
 #endif
+
+static int tdm_set_function_pins(struct aml_tdm *p_tdm, bool on)
+{
+	struct pinctrl_state *ps = NULL;
+	int ret = 0;
+
+	if (IS_ERR_OR_NULL(p_tdm->pin_ctl))
+		return 0;
+
+	if (on)
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_pins");
+	else
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
+
+	if (IS_ERR_OR_NULL(ps))
+		return 0;
+
+	ret = pinctrl_select_state(p_tdm->pin_ctl, ps);
+	if (ret)
+		dev_err(p_tdm->dev, "failed set pdm function: %d\n", on);
+
+	return 0;
+}
 
 static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 	/*TDMOUT_B gain, enable data * gain*/
@@ -1094,6 +1189,12 @@ static const struct snd_kcontrol_new snd_tdm_c_controls[] = {
 				0,
 				tdmout_get_mute_enum,
 				tdmout_set_mute_enum),
+#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+	SOC_SINGLE_EXT("TDMOUT_C Software Gain",
+				0, 0, 100, 0,
+				tdmout_softgain_get,
+				tdmout_softgain_set),
+#endif
 };
 
 static const struct snd_kcontrol_new snd_tdm_d_controls[] = {
@@ -1109,28 +1210,45 @@ static const struct snd_kcontrol_new snd_tdm_d_controls[] = {
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static const struct snd_kcontrol_new snd_pcpd_controls[] = {
+static const struct snd_kcontrol_new snd_pcpd_controls_a[] = {
 	SOC_SINGLE_EXT("Pc_Pd_Monitor_A Detect enable",
 				0, 0, 1, 0,
 				tdm_port_pcpd_detect_get,
 				tdm_port_pcpd_detect_set),
 
-	SOC_SINGLE_EXT("Pc_Pd_Monitor_B Detect enable",
-				0, 0, 1, 0,
-				tdm_port_pcpd_detect_get,
-				tdm_port_pcpd_detect_set),
-
-};
-
-static const struct snd_kcontrol_new snd_hdmirx_type_controls[] = {
 	SOC_ENUM_EXT("Pc_Pd_Monitor_A Audio Type",
 				hdmi_audio_type_enum,
 				hdmiin_audio_type_get_enum,
 				NULL),
+
+	SOC_SINGLE_EXT("Pc_Pd_Monitor_A TimeOut Sample Count",
+				0, 0, 0x20000, 0,
+				tdm_port_pcpd_timeout_sample_count_get,
+				tdm_port_pcpd_timeout_sample_count_set),
+	SOC_SINGLE_BOOL_EXT("Pc_Pd_Monitor_A TimeOut",
+				0,
+				tdm_port_pcpd_timeout_get,
+				NULL),
+};
+
+static const struct snd_kcontrol_new snd_pcpd_controls_b[] = {
+	SOC_SINGLE_EXT("Pc_Pd_Monitor_B Detect enable",
+				0, 0, 1, 0,
+				tdm_port_pcpd_detect_get,
+				tdm_port_pcpd_detect_set),
 	SOC_ENUM_EXT("Pc_Pd_Monitor_B Audio Type",
 				hdmi_audio_type_enum,
 				hdmiin_audio_type_get_enum,
 				NULL),
+	SOC_SINGLE_EXT("Pc_Pd_Monitor_B TimeOut Sample Count",
+				0, 0, 0x20000, 0,
+				tdm_port_pcpd_timeout_sample_count_get,
+				tdm_port_pcpd_timeout_sample_count_set),
+	SOC_SINGLE_BOOL_EXT("Pc_Pd_Monitor_B TimeOut",
+				0,
+				tdm_port_pcpd_timeout_get,
+				NULL),
+
 };
 #endif
 
@@ -1373,6 +1491,7 @@ static int aml_tdm_open(struct snd_soc_component *component, struct snd_pcm_subs
 			dev_err(dev, "failed to claim from ddr\n");
 			goto err_ddr;
 		}
+		aml_frddr_mixer_set(p_tdm->fddr, p_tdm->mixer_en);
 	} else {
 		p_tdm->tddr = aml_audio_register_toddr(dev,
 			aml_tdm_ddr_isr, substream, 0);
@@ -1453,6 +1572,10 @@ static int aml_tdm_prepare(struct snd_soc_component *component, struct snd_pcm_s
 				p_tdm->chipinfo->use_vadtop);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_reset(p_tdm, runtime->channels);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (p_tdm->mixer_en)
+				mixer_fifo_reset();
+#endif
 		}
 
 		/* current define 1ms for reference fifo delay */
@@ -1834,6 +1957,14 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 					p_tdm->id);
 			return -EINVAL;
 		}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (p_tdm->mixer_en) {
+			mixer_format_set(runtime->channels, bit_depth,
+					tdmout_get_frddr_type(bit_depth));
+			mixer_source_set(fifo_id);
+			mixer_fddr_rate(fr, 0);
+		}
+#endif
 		aml_frddr_set_format(fr,
 			runtime->channels,
 			runtime->rate,
@@ -1934,6 +2065,10 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 				 p_tdm->id);
 			/*don't change this flow*/
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (p_tdm->mixer_en)
+				mixer_en(true);
+#endif
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 			aml_aed_top_enable(p_tdm->fddr, true);
 #endif
 			aml_tdm_enable(p_tdm->actrl,
@@ -2009,6 +2144,10 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 				tdm_sharebuffer_mute(p_tdm, true);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 			aml_aed_top_enable(p_tdm->fddr, false);
+#endif
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (p_tdm->mixer_en)
+				mixer_en(false);
 #endif
 			aml_tdm_enable(p_tdm->actrl,
 				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable,
@@ -2232,18 +2371,19 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (p_tdm->pcpd_monitor_src) {
 		struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
-
-		ret = snd_soc_add_dai_controls(cpu_dai,
-						&snd_pcpd_controls[pc_pd->pcpd_id],
-						1);
-		if (ret < 0)
-			pr_err("failed add snd pcpd monitor controls\n");
-
-		ret = snd_soc_add_dai_controls(cpu_dai,
-						&snd_hdmirx_type_controls[pc_pd->pcpd_id],
-						1);
-		if (ret < 0)
-			pr_err("failed add snd hdmirx_type controls\n");
+		if (pc_pd->pcpd_id == 0) {
+			ret = snd_soc_add_dai_controls(cpu_dai,
+				snd_pcpd_controls_a,
+				ARRAY_SIZE(snd_pcpd_controls_a));
+			if (ret < 0)
+				pr_err("failed add snd pcpd monitora controls\n");
+		} else if (pc_pd->pcpd_id == 1) {
+			ret = snd_soc_add_dai_controls(cpu_dai,
+				snd_pcpd_controls_b,
+				ARRAY_SIZE(snd_pcpd_controls_b));
+			if (ret < 0)
+				pr_err("failed add snd pcpd monitorb controls\n");
+		}
 	}
 #endif
 	return 0;
@@ -2662,6 +2802,12 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 	}
 
+	ret = of_property_read_u32(node, "mixer_enable",
+			&p_tdm->mixer_en);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
+	}
+
 	/* default no same source */
 	if (p_tdm->chipinfo->same_src_fn) {
 		int ss = 0;
@@ -2804,6 +2950,11 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	else
 		pr_debug("TDM id %d ext_amp_ws_inv:%d\n",
 			p_tdm->id, p_tdm->ext_amp_ws_inv);
+
+	ret = of_property_read_u32(node, "tdmout_master", &p_tdm->tdmout_master);
+	if (ret < 0)
+		p_tdm->tdmout_master = 0;
+
 	ret = of_property_read_u32(node, "ctrl_gain", &p_tdm->ctrl_gain_enable);
 	if (ret < 0)
 		p_tdm->ctrl_gain_enable = 0;
@@ -2915,16 +3066,7 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 			regulator_disable(p_tdm->regulator_vcc3v3);
 	}
 
-	/*mute default clk */
-	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *ps = NULL;
-
-		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_gpio");
-		if (!IS_ERR_OR_NULL(ps)) {
-			pinctrl_select_state(p_tdm->pin_ctl, ps);
-			pr_info("%s tdm pins disable!\n", __func__);
-		}
-	}
+	tdm_set_function_pins(p_tdm, false);
 
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
@@ -2991,15 +3133,7 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	if (p_tdm->start_clk_enable == 1)
 		aml_set_default_tdm_clk(p_tdm);
 
-	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *state = NULL;
-		state = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_pins");
-		if (!IS_ERR_OR_NULL(state)) {
-			ret = pinctrl_select_state(p_tdm->pin_ctl, state);
-			pr_info("%s tdm pins enable id:%d ret:%d\n", __func__,
-				p_tdm->id, ret);
-		}
-	}
+	tdm_set_function_pins(p_tdm, true);
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
 }
@@ -3010,15 +3144,8 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 	int ret = 0;
 
 	/*mute default clk */
-	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *ps = NULL;
-
-		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_gpio");
-		if (!IS_ERR_OR_NULL(ps)) {
-			ret = pinctrl_select_state(p_tdm->pin_ctl, ps);
-			pr_info("%s tdm pins disable! ret:%d\n", __func__, ret);
-		}
-	}
+	if (p_tdm->start_clk_enable)
+		tdm_set_function_pins(p_tdm, false);
 
 	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
 		regulator_disable(p_tdm->regulator_vcc5v);
@@ -3041,7 +3168,7 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 			while (__clk_is_enabled(p_tdm->clk_src_cd))
 				clk_disable_unprepare(p_tdm->clk_src_cd);
 	}
-	pr_info("1030 %s tdm:(%d)\n", __func__, p_tdm->id);
+	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 }
 
 #ifdef CONFIG_HIBERNATION
@@ -3053,6 +3180,7 @@ static int aml_tdm_platform_restore(struct device *dev)
 	p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
 	if (IS_ERR(p_tdm->pin_ctl))
 		pr_err("aml_tdm_get_pins error!\n");
+	aml_tdm_arb_config(p_tdm->actrl, p_tdm->chipinfo->use_arb);
 	audiobus_write(EE_AUDIO_FRDDR_A_CTRL0, 0);
 	aml_tdm_platform_resume(pdev);
 
@@ -3089,15 +3217,7 @@ static int aml_tdm_platform_freeze(struct device *dev)
 	}
 
 	/*mute default clk */
-	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *ps = NULL;
-
-		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_gpio");
-		if (!IS_ERR_OR_NULL(ps)) {
-			ret = pinctrl_select_state(p_tdm->pin_ctl, ps);
-			pr_info("%s tdm pins disable! ret:%d\n", __func__, ret);
-		}
-	}
+	tdm_set_function_pins(p_tdm, false);
 
 	return 0;
 }

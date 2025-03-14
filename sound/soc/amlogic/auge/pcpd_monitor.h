@@ -42,10 +42,12 @@ struct pcpd_monitor {
 	struct toddr *tddr;
 	struct aml_audio_controller *actrl;
 	struct regmap *reg_map;
+	int pcpd_timeout;
 };
 
 int pcpd_monitor_check_audio_type(struct pcpd_monitor *pc_pd);
 int aml_pcpd_monitor_enable(struct pcpd_monitor *pc_pd, int enable);
 int aml_pcpd_monitor_init(struct pcpd_monitor *pc_pd);
+int aml_pcpd_monitor_timeout(struct pcpd_monitor *pc_pd, int sample_cnt);
 
 #endif

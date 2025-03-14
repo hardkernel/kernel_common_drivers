@@ -1226,7 +1226,8 @@
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t5w_acodec";
 			status = "okay";
-			reg = <0x0 0xfe01a000 0x0 0x1c>;
+			reg = <0x0 0xFE01A000 0x0 0x2000>, <0x0 0xFE330740 0x0 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <2>;

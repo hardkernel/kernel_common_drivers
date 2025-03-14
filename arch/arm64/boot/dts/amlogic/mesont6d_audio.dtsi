@@ -14,7 +14,8 @@
 		acodec:codec {
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t6d_acodec";
-			reg = <0x0 0xFE01A000 0x0 0x6c>;
+			reg = <0x0 0xFE01A000 0x0 0x6c>, <0x0 0xFE330740 0x0 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <0>;

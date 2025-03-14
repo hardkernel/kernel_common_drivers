@@ -46,6 +46,8 @@ defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 	if (!is_raw)
 		return 0;
 #endif
+	if (pc_pd->pcpd_timeout)
+		return 0;
 	for (i = 0; i < total_num; i++) {
 		if (pc == type_texts[i].pc) {
 			audio_type = type_texts[i].aud_type;
@@ -84,7 +86,18 @@ static int aml_pcpd_monitor_mask(struct pcpd_monitor *pc_pd)
 int aml_pcpd_monitor_enable(struct pcpd_monitor *pc_pd, int enable)
 {
 	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL0, 1 << 31, enable << 31);
-	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL5, 0x7 | 0x7 << 4, 0x7);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL5, 0x7 << 4, 0x1 << 4);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL4, 0xffffff, 32768);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL4, 0x1 << 31, 0x1 << 31);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL5, 0x7 << 0, 0x7 << 0);
+	//mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL4, 0x1 << 31, 0x1 << 31);
+	return 0;
+}
+
+int aml_pcpd_monitor_timeout(struct pcpd_monitor *pc_pd, int sample_cnt)
+{
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL4, 0x1 << 31, 0x1 << 31);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL4, 0xffffff, sample_cnt);
 
 	return 0;
 }
@@ -117,14 +130,17 @@ int aml_pcpd_monitor_init(struct pcpd_monitor *pc_pd)
 static int aml_pcpd_monitor_status(struct pcpd_monitor *pc_pd)
 {
 	int status;
-	int i;
 
-	status = mmio_read(pc_pd->reg_map, AUDIO_PCPD_MON_STAT1);
-	for (i = 0; i < 3; i++) {
-		if (status & (1 << i))
-			mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL5,
-					0x1 << (8 + i), 1 << (8 + i));
+	status = mmio_read(pc_pd->reg_map, AUDIO_PCPD_MON_STAT0);
+	if (status & (1 << 2)) {
+		pc_pd->pcpd_timeout = 1;
+		pr_info("pcpd change pcm:%s\n", __func__);
 	}
+
+	if (status & (1 << 0))
+		pc_pd->pcpd_timeout = 0;
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL5, 0x7 << 8, 0x7 << 8);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL5, 0x7 << 8, 0x0 << 8);
 
 	return 0;
 }

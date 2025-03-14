@@ -22,12 +22,13 @@
 #define AED_POST_EQ_FILTER_SIZE_CH      (24)
 #define AED_POST_EQ_FILTER_RAM_ADD      (304)
 
+#define AED_3D_FILTER_PARAM_BYTE        (77)
 #define AED_3D_SURROUND_BAND            (2)
 #define AED_3D_SURROUND_SIZE            (12)
 #define AED_3D_SURROUND_RAM_ADD         (198)
 
 #define AED_FULLBAND_DRC_SIZE_V3        (10)
-#define AED_FULLBAND_DRC_BYTES_V3       (136)
+#define AED_FULLBAND_DRC_BYTES_V3       (121)
 #define AED_FULLBAND_DRC_GROUP_SIZE_V3  (1)
 #define AED_FULLBAND_DRC_OFFSET_V3      (7)
 #define AED_FULLBAND_FILTER_RAM_ADD     (294)
@@ -35,7 +36,7 @@
 #define AED_SINGLE_BAND_DRC_SIZE_V3     (12)
 #define AED_MULTIBAND_DRC_SIZE_V3       (36)
 #define AED_MULTIBAND_DRC_BANDS_V3      (3)
-#define AED_MULTIBAND_DRC_PARAM_BYTE_V3 (158) /*"0x%8.8x "*/
+#define AED_MULTIBAND_DRC_PARAM_BYTE_V3 (143) /*"0x%8.8x "*/
 #define AED_MULTIBAND_DRC_OFFSET        (5)
 #define AED_MULTIBAND_FILTER_RAM_ADD    (258)
 

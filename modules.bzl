@@ -235,6 +235,8 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/sound/soc:amlogic-snd-codec-tl1",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-sy6026l.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-sy6026l",
+    "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-t6d.ko",
+    "//common_drivers/sound/soc:amlogic-snd-codec-t6d",
 ]
 
 AMLOGIC_UPGRADE_COMMON_MODULES = [

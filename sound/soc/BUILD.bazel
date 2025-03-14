@@ -116,6 +116,38 @@ ddk_module(
     deps = amlogic_snd_codec_tl1_deps,
 )
 
+amlogic_snd_codec_t6d_deps0 = [
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/debug:amlogic-debug",
+    "//common_drivers/drivers/pm:amlogic-pm",
+    "//common_drivers/drivers/power:amlogic-power",
+]
+amlogic_snd_codec_t6d_deps = [i for i in amlogic_snd_codec_t6d_deps0 if i in AMLOGIC_DDK_MODULES]
+ddk_module(
+    name = "amlogic-snd-codec-t6d",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_CODEC_T6D_ACODEC": {
+            True: [
+                "codecs/amlogic/aml_codec_t6d_acodec.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-t6d]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-t6d.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = amlogic_snd_codec_t6d_deps,
+)
 amlogic_snd_codec_ad82584f_deps0 = [
 ]
 amlogic_snd_codec_ad82584f_deps = [i for i in amlogic_snd_codec_ad82584f_deps0 if i in AMLOGIC_DDK_MODULES]
@@ -415,6 +447,8 @@ ddk_module(
                 "amlogic/auge/locker_hw.c",
                 "amlogic/auge/resample.c",
                 "amlogic/auge/resample_hw.c",
+				"amlogic/auge/effects.c",
+				"amlogic/auge/effects_hw.c",
                 "amlogic/auge/effects_v2.c",
                 "amlogic/auge/effects_hw_v2.c",
                 "amlogic/auge/effects_v3.c",
@@ -427,6 +461,8 @@ ddk_module(
                 "amlogic/auge/vad_dev.c",
                 "amlogic/auge/earc.c",
                 "amlogic/auge/earc_hw.c",
+				"amlogic/auge/mixer.c",
+				"amlogic/auge/mixer_hw.c",
                 "amlogic/auge/card.c",
                 "amlogic/auge/pcpd_monitor.c",
                 "amlogic/common/iec_info.c",

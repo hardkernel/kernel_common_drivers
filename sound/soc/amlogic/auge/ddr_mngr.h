@@ -268,7 +268,7 @@ struct frddr {
 	int irq;
 	bool in_use;
 	struct ddr_chipinfo *chipinfo;
-
+	int mixer_exist;
 	bool reserved;
 };
 
@@ -346,7 +346,7 @@ void aml_frddr_select_dst_ss(struct frddr *fr,
 	enum frddr_dest dst, int sel, bool enable);
 
 int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel);
-
+void aml_fddr_force_finish(struct frddr *fr);
 unsigned int aml_frddr_get_fifo_infos(struct frddr *fr,
 		unsigned int period_bytes, unsigned int one_ms_fifo_size);
 void aml_frddr_set_fifos(struct frddr *fr,
@@ -382,6 +382,8 @@ void aml_aed_set_frddr_reserved(void);
 void get_toddr_bits_config(enum toddr_src src,
 	int bit_depth, int *msb, int *lsb);
 int aml_check_and_release_sharebuffer(struct frddr *fr, enum frddr_dest ss_sel);
+int aml_frddr_mixer_set(struct frddr *fr, int exist);
+int mixer_fddr_rate(struct frddr *fr, int en);
 
 #endif
 

@@ -26,6 +26,7 @@
 #define DRV_NAME "Effects"
 //#define DEBUG
 #define AED_REG_NUM	13
+#define AED_REG_NUM_V5	8
 
 /*
  * AED Diagram
@@ -70,11 +71,11 @@ struct audioeffect {
 	unsigned int syssrc_clk_rate;
 	/* store user setting */
 	u32 user_setting[AED_REG_NUM];
-
 };
 
 struct audioeffect *s_effect;
 /* Restore AED register parameters after standby */
+/* for VERSION4 and before */
 static unsigned int aed_restore_list[AED_REG_NUM] = {
 	AED_EQ_VOLUME,
 	AED_EQ_VOLUME_SLEW_CNT,
@@ -89,6 +90,18 @@ static unsigned int aed_restore_list[AED_REG_NUM] = {
 	AED_EQ_EN,
 	AED_MDRC_CNTL,
 	AED_DRC_CNTL,
+};
+
+/* for VERSION5 and later */
+static unsigned int aed_restore_list_v5[AED_REG_NUM_V5] = {
+	AEQ_MIX0_LL,
+	AEQ_MIX0_RL,
+	AEQ_MIX0_LR,
+	AEQ_MIX0_RR,
+	AED_STATUS_CTRL,
+	AED_EQ_VOLUME_VAL,
+	AED_MUTE_CTRL,
+	AED_CLIP_THD_V3,
 };
 
 struct audioeffect *get_audioeffects(void)
@@ -818,9 +831,16 @@ static int effect_platform_suspend(struct platform_device *pdev, pm_message_t st
 {
 	struct audioeffect *p_effect = dev_get_drvdata(&pdev->dev);
 	int i = 0;
+	int version;
 
-	for (i = 0; i < ARRAY_SIZE(aed_restore_list); i++)
-		p_effect->user_setting[i] = eqdrc_read(aed_restore_list[i]);
+	version = check_aed_version();
+	if (version > VERSION4) {
+		for (; i < ARRAY_SIZE(aed_restore_list_v5); i++)
+			p_effect->user_setting[i] = eqdrc_read(aed_restore_list_v5[i]);
+	} else {
+		for (; i < ARRAY_SIZE(aed_restore_list); i++)
+			p_effect->user_setting[i] = eqdrc_read(aed_restore_list[i]);
+	}
 
 	aml_set_aed(0, p_effect->effect_module);
 
@@ -837,6 +857,7 @@ static int effect_platform_resume(struct platform_device *pdev)
 	struct audioeffect *p_effect = dev_get_drvdata(&pdev->dev);
 	int ret;
 	int i = 0;
+	int version;
 
 	if (!IS_ERR(p_effect->clk)) {
 		audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
@@ -860,8 +881,14 @@ static int effect_platform_resume(struct platform_device *pdev)
 	}
 	effect_init(pdev);
 
-	for (i = 0; i < ARRAY_SIZE(aed_restore_list); i++)
-		eqdrc_write(aed_restore_list[i], p_effect->user_setting[i]);
+	version = check_aed_version();
+	if (version > VERSION4) {
+		for (; i < ARRAY_SIZE(aed_restore_list_v5); i++)
+			eqdrc_write(aed_restore_list_v5[i], p_effect->user_setting[i]);
+	} else {
+		for (; i < ARRAY_SIZE(aed_restore_list); i++)
+			eqdrc_write(aed_restore_list[i], p_effect->user_setting[i]);
+	}
 
 	pr_debug("%s\n", __func__);
 	return 0;

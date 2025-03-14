@@ -849,13 +849,13 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 					unmute_later);
 			}
 			if (p_earc->rx_cs_mute != mute) {
-				if (!mute)
+				if (!mute) {
 					/* EARCRX_ERR_CORRECT_CTRL0 force mode disable */
 					mmio_update_bits(p_earc->rx_dmac_map,
 						EARCRX_ERR_CORRECT_CTRL0,
 						0x3,
 						0x0);
-
+				}
 				p_earc->rx_cs_mute = mute;
 				dev_info(p_earc->dev, "ARCRX_C_CH_STATUS_CHANGE, mute %d,\n", mute);
 			}
@@ -1889,6 +1889,36 @@ static int earcrx_arc_get_stable(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int earcrx_arc_get_enable(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	enum attend_type type;
+
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
+		return 0;
+	type = earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map);
+	ucontrol->value.integer.value[0] = (bool)(type == ATNDTYP_ARC);
+
+	return 0;
+}
+
+static int earcrx_arc_set_enable(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->rx_cmdc_map))
+		return 0;
+
+	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map,
+		(bool)ucontrol->value.integer.value[0]);
+
+	return 0;
+}
+
 static int earctx_get_attend_type(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
@@ -2895,6 +2925,11 @@ static const struct snd_kcontrol_new earc_tx_controls[] = {
 };
 
 static const struct snd_kcontrol_new earc_rx_controls[] = {
+	SOC_SINGLE_BOOL_EXT("eARC RX ARC Switch",
+			    0,
+			    earcrx_arc_get_enable,
+			    earcrx_arc_set_enable),
+
 	SOC_ENUM_EXT("eARC_RX attended type",
 		     attended_type_enum,
 		     earcrx_get_attend_type,
@@ -3573,7 +3608,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 
 void earc_platform_remove(struct platform_device *pdev)
 {
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+#ifdef CONFIG_AMLOGIC_HDMITX21
 	if (!IS_ERR_OR_NULL(s_earc->rx_top_map))
 		unregister_earcrx_callback();
 #endif

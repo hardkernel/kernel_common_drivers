@@ -335,6 +335,21 @@ void aml_spdifout_select_aed(bool enable, int spdifout_id)
 	audiobus_update_bits(reg, 0x1 << 31, enable << 31);
 }
 
+void aml_spdifout_get_aed_info(int spdifout_id,	int *bitwidth, int *frddrtype)
+{
+	unsigned int reg, offset, val;
+
+	offset = EE_AUDIO_SPDIFOUT_B_CTRL1
+			- EE_AUDIO_SPDIFOUT_CTRL1;
+	reg = EE_AUDIO_SPDIFOUT_CTRL1 + offset * spdifout_id;
+
+	val = audiobus_read(reg);
+	if (bitwidth)
+		*bitwidth = (val >> 8) & 0x1f;
+	if (frddrtype)
+		*frddrtype = (val >> 4) & 0x7;
+}
+
 void enable_spdif_to_hdmitx_dat(bool enable)
 {
 	int val = !!enable;

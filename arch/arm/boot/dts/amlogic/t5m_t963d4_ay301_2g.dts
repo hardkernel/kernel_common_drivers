@@ -1151,7 +1151,7 @@
 
 &earc {
 	suspend-clk-off = <1>;
-	status = "disabled";
+	status = "okay";
 };
 
 &audio_data {

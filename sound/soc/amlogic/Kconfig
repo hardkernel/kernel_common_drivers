@@ -13,6 +13,12 @@ config AMLOGIC_SND_SOC
 	  to select the audio interfaces to support below.
 	  Amlogic ALSA SOC Driver
 
+config AMLOGIC_AUDIO_CUT
+	bool "audio cut"
+	default n
+	help
+		remove some for audio
+
 config AMLOGIC_SND_SOC_AUGE
 	bool "Amlogic Auge Asoc"
 	depends on AMLOGIC_SND_SOC

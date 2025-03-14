@@ -28,6 +28,7 @@
 #endif
 #include "card.h"
 
+#include "effects.h"
 #include "iomap.h"
 #include "regs.h"
 #include "misc.h"
@@ -167,6 +168,7 @@ struct aml_card_data {
 	bool mic_det_enable;
 	bool av_mute_enable;
 	bool spk_mute_enable;
+	int irq_exception64;
 	enum audio_hal_format hal_fmt;
 	/* for I2S to HDMI output audio type */
 	enum aud_codec_types hdmi_audio_type;
@@ -1298,6 +1300,50 @@ static int card_resume_post(struct snd_soc_card *card)
 	return 0;
 }
 
+static irqreturn_t aml_audio_exception64_isr(int irq, void *dev_id)
+{
+	unsigned int intrpt_status0, intrpt_status1;
+
+	intrpt_status0 = audiobus_read(EE_AUDIO_EXCEPTION_IRQ_STS0);
+	intrpt_status1 = audiobus_read(EE_AUDIO_EXCEPTION_IRQ_STS1);
+
+	/* clear irq bits immediately */
+	audiobus_write(EE_AUDIO_EXCEPTION_IRQ_CLR0, intrpt_status0);
+	audiobus_write(EE_AUDIO_EXCEPTION_IRQ_CLR1, intrpt_status1);
+
+	pr_debug("0 - 31 exception status is 0x%x\n", intrpt_status0);
+	pr_debug("32 - 63 exception status is 0x%x\n", intrpt_status1);
+
+	/* TODO handle exception */
+
+	return IRQ_HANDLED;
+}
+
+static int register_audio_exception64_isr(int irq_exception64)
+{
+	int ret = 0;
+
+	/* open irq mask, default is close
+	 * audiobus_write(EE_AUDIO_EXCEPTION_IRQ_MASK0, 0xfffdff3f);
+	 * audiobus_write(EE_AUDIO_EXCEPTION_IRQ_MASK1, 0xffc3777f);
+
+	 * set threshold value
+	 * audiobus_write(EE_AUDIO_ARB_CTRL1, 0xffff);
+	 * audiobus_write(EE_AUDIO_SPDIFIN_CTRL7, 0xffff);
+	 */
+
+	ret = request_irq(irq_exception64,
+			  aml_audio_exception64_isr,
+			  0,
+			  "audio_exception64",
+			  NULL);
+
+	if (ret)
+		pr_err("failed claim irq_exception64 %u, ret: %d\n", irq_exception64, ret);
+
+	return ret;
+}
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static void aml_card_early_suspend(struct early_suspend *h)
 {
@@ -1437,6 +1483,11 @@ static int aml_card_probe(struct platform_device *pdev)
 		       sizeof(priv->dai_props->codec_dai));
 	}
 
+	priv->irq_exception64 =
+		platform_get_irq_byname(pdev, "audio_exception64");
+	if (priv->irq_exception64 > 0)
+		register_audio_exception64_isr(priv->irq_exception64);
+
 	platform_set_drvdata(pdev, priv);
 	snd_soc_card_set_drvdata(&priv->snd_card, priv);
 
@@ -1453,6 +1504,9 @@ static int aml_card_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
+	card_add_effects_init(&priv->snd_card);
+#endif
 	if (priv->hp_det_enable == 1 || priv->mic_det_enable == 1) {
 		priv->hp_detect_flag = -1;
 		priv->hp_last_state = -1;
@@ -1516,6 +1570,8 @@ static void aml_card_remove(struct platform_device *pdev)
 	aml_card_remove_jack(&priv->mic_jack);
 	jack_audio_stop_timer(priv);
 
+	if (priv->irq_exception64 > 0)
+		free_irq(priv->irq_exception64, NULL);
 	aml_card_clean_reference(card);
 }
 

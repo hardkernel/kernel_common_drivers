@@ -6,7 +6,7 @@
 #ifndef __TDM_MATCH_TABLE_H__
 #define __TDM_MATCH_TABLE_H__
 
-#include "tdm_gain_version.h"
+#include "tdm_hw.h"
 
 /* For OE function V1:
  * OE is set by EE_AUDIO_TDMOUT_A_CTRL0 & EE_AUDIO_TDMOUT_A_CTRL1
