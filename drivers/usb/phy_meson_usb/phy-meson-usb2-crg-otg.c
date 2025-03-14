@@ -137,7 +137,6 @@ static int meson_u2phy_crg_otg_pm_cb(struct notifier_block *notifier,
 static int meson_u2phy_crg_otg_init(struct amlogic_usb_v2 *mphy)
 {
 	union usb_r1_v2 r1 = {.d32 = 0};
-	union u2p_r2_v2 reg2 = {.d32 = 0};
 	struct usb_aml_regs_v2 usb_crg_otg_aml_regs;
 
 	if (mphy->phy3_cfg) {
@@ -147,13 +146,6 @@ static int meson_u2phy_crg_otg_init(struct amlogic_usb_v2 *mphy)
 		r1.b.u3h_fladj_30mhz_reg = 0x20;
 		writel(r1.d32, usb_crg_otg_aml_regs.usb_r_v2[1]);
 	}
-
-	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
-	reg2.b.iddig_en0 = 1;
-	reg2.b.iddig_en1 = 1;
-	reg2.b.iddig_th = 255;
-	writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
-
 	return 0;
 }
 
@@ -165,7 +157,7 @@ static int meson_u2phy_crg_otg_role_switch_set(struct usb_role_switch *sw,
 	u32 mode;
 	int ret;
 
-	mup_info(mphy->dev, " MODE=%u, %s\n", role, __func__);
+	mup_dbg(mphy->dev, " MODE=%u, %s\n", role, __func__);
 
 	switch (role) {
 	case USB_ROLE_HOST:
@@ -293,7 +285,7 @@ static int meson_u2phy_crg_otg_set_mode(struct amlogic_usb_v2 *mphy, enum meson_
 static void meson_u2phy_crg_otg_work(struct work_struct *work)
 {
 	struct amlogic_usb_v2 *mphy = container_of(work, struct amlogic_usb_v2,
-								otg_helper.set_mode_work.work);
+								otg_helper.work.work);
 	union u2p_r2_v2 reg2;
 	bool curr;
 
@@ -311,12 +303,13 @@ static void meson_u2phy_crg_otg_work(struct work_struct *work)
 
 	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
 	reg2.b.usb_iddig_irq = 0;
+
 	/* PHY has comb reset feature may reset otg related bits
 	 * to default. Restore reg bits we concern.
 	 */
 	reg2.b.iddig_curr = curr;
 	writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
-	meson_u2phy_crg_otg_init(mphy);
+	meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_OTG);
 
 	mup_dbg(mphy->dev, "otg_work r0, r1, r2: 0x%x 0x%x 0x%x.\n",
 			readl(&mphy->u2p_aml_regs[0]->r0),
@@ -355,7 +348,7 @@ static irqreturn_t meson_u2phy_crg_otg_detect_irq(int irq, void *dev)
 	reg2.b.usb_iddig_irq = 0;
 	writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
 
-	schedule_delayed_work(&mphy->work, msecs_to_jiffies(100));
+	schedule_delayed_work(&mphy->otg_helper.work, msecs_to_jiffies(100));
 
 	return IRQ_HANDLED;
 }
@@ -383,8 +376,11 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 				get_otg_mode(), mphy->otg_helper.hwotg);
 
 	mphy->otg_helper.mode_work_flag = 0;
-	mphy->otg_helper.otg_mutex = kmalloc(sizeof(*mphy->otg_helper.otg_mutex),
+	mphy->otg_helper.otg_mutex = kzalloc(sizeof(*mphy->otg_helper.otg_mutex),
 				GFP_KERNEL);
+	if (!mphy->otg_helper.otg_mutex)
+		return -ENOMEM;
+
 	mutex_init(mphy->otg_helper.otg_mutex);
 
 	INIT_DELAYED_WORK(&mphy->otg_helper.work, meson_u2phy_crg_otg_work);
@@ -412,8 +408,6 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 		}
 	}
 
-	/* The otg driver firstly touches the phy reg. The reset maybe low at boot. */
-	meson_u2phy_hold_reset(mphy, true);
 #if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
 	if (get_otg_mode())
 		mphy->role_switch_default_mode = USB_DEVICE_ONLY;
@@ -441,6 +435,18 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 			meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_HOST);
 		}
 	} else {
+		/* The hw otg configuration is slightly different. The otg helper must firstly
+		 * configure the phy reg to enable otg irq but the otg config in the reg maybe
+		 * reset during phy init called by controller driver afterwards so init the phy
+		 * here then do the otg stuffs.
+		 */
+		retval = instance->phy->ops->init(instance->phy);
+		if (retval)
+			dev_err(dev, "init phy failed at %s.\n", __func__);
+
+		/* The otg driver firstly touches the phy reg. The reset maybe low at boot. */
+//		meson_u2phy_hold_reset(mphy, true);
+
 		meson_u2phy_crg_otg_set_mode(mphy, MESON_USB_MODE_OTG);
 
 		/* The usb2_phy_cfg iddig bit is default 0 and may not change to 1 instantly
@@ -449,7 +455,12 @@ int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *in
 		 */
 		mphy->otg_helper.mode_work_flag = 1;
 		INIT_DELAYED_WORK(&mphy->otg_helper.set_mode_work, meson_u2phy_crg_otg_set_m_work);
-		schedule_delayed_work(&mphy->otg_helper.set_mode_work, msecs_to_jiffies(500));
+		schedule_delayed_work(&mphy->otg_helper.set_mode_work, msecs_to_jiffies(1000));
+
+		mup_dbg(mphy->dev, "otg r0~r2 0x%x 0x%x 0x%x.\n",
+				readl(&mphy->u2p_aml_regs[0]->r0),
+				readl(&mphy->u2p_aml_regs[0]->r1),
+				readl(&mphy->u2p_aml_regs[0]->r2));
 	}
 
 	instance->pm_ops.freeze = meson_u2phy_crg_otg_freeze;

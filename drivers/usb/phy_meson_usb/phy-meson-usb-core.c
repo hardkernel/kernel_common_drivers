@@ -390,6 +390,7 @@ static void meson_uphy_remove(struct platform_device *pdev)
 
 static const struct of_device_id meson_uphy_id_table[] = {
 	{ .compatible = "amlogic,uphy-sc2", .data = &meson_uphy_sc2_pdata },
+	{ .compatible = "amlogic,uphy-t7c", .data = &meson_uphy_t7c_pdata },
 	{ .compatible = "amlogic,u2phy-s7", .data = &meson_uphy_s7_pdata },
 	{ .compatible = "amlogic,u2phy-s7d", .data = &meson_uphy_s7d_pdata },
 	{ .compatible = "amlogic,uphy-s6", .data = &meson_uphy_s6_pdata },

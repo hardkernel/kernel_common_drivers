@@ -111,7 +111,7 @@ static int crg_core_get_reset(struct crg_drd *crg)
 {
 	crg->reset = of_reset_control_get_exclusive(crg->dev->of_node, "udrd");
 	if (IS_ERR(crg->reset)) {
-		dev_err(crg->dev, "failed to get reset: %ld\n", PTR_ERR(crg->reset));
+		dev_dbg(crg->dev, "failed to get reset: %ld\n", PTR_ERR(crg->reset));
 		crg->reset = NULL;
 	}
 

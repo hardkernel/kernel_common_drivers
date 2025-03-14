@@ -523,7 +523,7 @@ static int  crg_udc_core_get_reset(struct crg_gadget_dev *crg_udc)
 {
 	crg_udc->reset = of_reset_control_get_exclusive(crg_udc->dev->of_node, "udrd");
 	if (IS_ERR(crg_udc->reset)) {
-		dev_err(crg_udc->dev, "failed to get reset: %ld\n", PTR_ERR(crg_udc->reset));
+		dev_dbg(crg_udc->dev, "failed to get reset: %ld\n", PTR_ERR(crg_udc->reset));
 		crg_udc->reset = NULL;
 	}
 
