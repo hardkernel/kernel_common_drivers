@@ -104,7 +104,7 @@ bool force_bypass_from_prebld_to_vadj1;/* t3/t5w, 1d93 bit0 -> 1d26 bit8*/
 static int is_muted;
 
 struct vpp_post_info_t core3_slice_info;
-
+static char md_value[1024];
 /* -1: invalid osd index
  *  0: osd is disabled
  *  1: osd is enabled
@@ -3362,7 +3362,6 @@ void dolby_core3_meta_reg_set(u32 slice_num,
 {
 	int i;
 	int j;
-	char md_value[1024];
 	int data_len;
 	u32 crc_val[PKT_NUM_MAX];
 

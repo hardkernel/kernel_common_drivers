@@ -640,6 +640,7 @@ struct dv_inst_s {
 	int vsem_if_size;
 	enum input_mode_enum input_mode;
 	u32 err_parse_cnt;
+	char *meta_buf;
 };
 
 /*hw5 video info*/

@@ -73,6 +73,7 @@ const char level_str[4][10] = {
 
 bool update_top2_cfg;
 
+static char meta_buf[1024];
 void dump_top1_frame(int force_w, int force_h)
 {
 #ifdef CONFIG_AMLOGIC_ENABLE_VIDEO_PIPELINE_DUMP_DATA
@@ -607,7 +608,6 @@ int parse_sei_and_meta_ext_hw5(struct vframe_s *vf,
 	unsigned int rpu_size = 0;
 	enum signal_format_enum *src_format = (enum signal_format_enum *)fmt;
 	static int parse_process_count;
-	char meta_buf[1024];
 	struct video_inst_s *v_inst_info;
 
 	if (id == 0) /*top1*/

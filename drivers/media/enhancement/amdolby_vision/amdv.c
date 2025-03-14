@@ -632,6 +632,7 @@ u32 other_reg[MAX_REG_CNT];
 /*bit0: 1=> use old rdma api. use new api by default*/
 /*bit1: 1=> print_info*/
 u32 amdv_debug;
+static char meta_buf[1024];
 
 bool is_aml_gxm(void)
 {
@@ -2803,6 +2804,12 @@ int amdv_create_inst(void)
 			dv_inst[i].metadata_parser = NULL;
 			dv_inst[i].layer_id = VD_PATH_MAX;
 			dv_inst[i].mapped = false;
+
+			dv_inst[i].meta_buf = vmalloc(MD_BUF_SIZE);
+			if (dv_inst[i].meta_buf)
+				memset(dv_inst[0].meta_buf, 0, MD_BUF_SIZE);
+			else
+				goto fail_create;
 		}
 
 		for (i = 0; i < NUM_IPCORE1; i++) {
@@ -5767,7 +5774,6 @@ int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 	unsigned int rpu_size = 0;
 	enum signal_format_enum *src_format = (enum signal_format_enum *)fmt;
 	static int parse_process_count;
-	char meta_buf[1024];
 	static u32 last_play_id;
 	static u32 err_parse_cnt;
 
@@ -6200,7 +6206,6 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 	int rpu_ret = 0;
 	unsigned int rpu_size = 0;
 	enum signal_format_enum *src_format = (enum signal_format_enum *)fmt;
-	char meta_buf[1024];
 	int dv_id = vf->src_fmt.dv_id;
 
 	if (!dv_inst_valid(dv_id)) {
@@ -6241,11 +6246,11 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			if ((type & 0xffff0000) == AV1_SEI) {
 				/* AV1 dv meta in obu */
 				*src_format = FORMAT_DOVI;
-				meta_buf[0] = 0;
-				meta_buf[1] = 0;
-				meta_buf[2] = 0;
-				meta_buf[3] = 0x01;
-				meta_buf[4] = 0x19;
+				dv_inst[dv_id].meta_buf[0] = 0;
+				dv_inst[dv_id].meta_buf[1] = 0;
+				dv_inst[dv_id].meta_buf[2] = 0;
+				dv_inst[dv_id].meta_buf[3] = 0x01;
+				dv_inst[dv_id].meta_buf[4] = 0x19;
 				if (p[11] & 0x10) {
 					rpu_size = 0x100;
 					rpu_size |= (p[11] & 0x0f) << 4;
@@ -6255,9 +6260,9 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 						break;
 					}
 					for (i = 0; i < rpu_size; i++) {
-						meta_buf[5 + i] =
+						dv_inst[dv_id].meta_buf[5 + i] =
 							(p[12 + i] & 0x07) << 5;
-						meta_buf[5 + i] |=
+						dv_inst[dv_id].meta_buf[5 + i] |=
 							(p[13 + i] >> 3) & 0x1f;
 					}
 					rpu_size += 5;
@@ -6265,9 +6270,9 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 					rpu_size = (p[10] & 0x1f) << 3;
 					rpu_size |= (p[11] >> 5) & 0x07;
 					for (i = 0; i < rpu_size; i++) {
-						meta_buf[5 + i] =
+						dv_inst[dv_id].meta_buf[5 + i] =
 							(p[11 + i] & 0x0f) << 4;
-						meta_buf[5 + i] |=
+						dv_inst[dv_id].meta_buf[5 + i] |=
 							(p[12 + i] >> 4) & 0x0f;
 					}
 					rpu_size += 5;
@@ -6275,47 +6280,41 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			} else {
 				/* HEVC dv meta in sei */
 				*src_format = FORMAT_DOVI;
-				if (size > (sizeof(meta_buf) - 3))
-					size = (sizeof(meta_buf) - 3);
-				meta_buf[0] = 0;
-				meta_buf[1] = 0;
-				meta_buf[2] = 0;
-				memcpy(&meta_buf[3], p + 1, size - 1);
+				if (size > (sizeof(dv_inst[dv_id].meta_buf) - 3))
+					size = (sizeof(dv_inst[dv_id].meta_buf) - 3);
+				dv_inst[dv_id].meta_buf[0] = 0;
+				dv_inst[dv_id].meta_buf[1] = 0;
+				dv_inst[dv_id].meta_buf[2] = 0;
+				memcpy(&dv_inst[dv_id].meta_buf[3], p + 1, size - 1);
 				rpu_size = size + 2;
 			}
 			if ((debug_dolby & 4) && dump_enable_f(dv_id)) {
 				pr_dv_dbg("[inst%d]metadata(%d):\n", dv_id + 1, rpu_size);
 				for (i = 0; i < size; i += 16)
 					pr_info("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-						meta_buf[i],
-						meta_buf[i + 1],
-						meta_buf[i + 2],
-						meta_buf[i + 3],
-						meta_buf[i + 4],
-						meta_buf[i + 5],
-						meta_buf[i + 6],
-						meta_buf[i + 7],
-						meta_buf[i + 8],
-						meta_buf[i + 9],
-						meta_buf[i + 10],
-						meta_buf[i + 11],
-						meta_buf[i + 12],
-						meta_buf[i + 13],
-						meta_buf[i + 14],
-						meta_buf[i + 15]);
+						dv_inst[dv_id].meta_buf[i],
+						dv_inst[dv_id].meta_buf[i + 1],
+						dv_inst[dv_id].meta_buf[i + 2],
+						dv_inst[dv_id].meta_buf[i + 3],
+						dv_inst[dv_id].meta_buf[i + 4],
+						dv_inst[dv_id].meta_buf[i + 5],
+						dv_inst[dv_id].meta_buf[i + 6],
+						dv_inst[dv_id].meta_buf[i + 7],
+						dv_inst[dv_id].meta_buf[i + 8],
+						dv_inst[dv_id].meta_buf[i + 9],
+						dv_inst[dv_id].meta_buf[i + 10],
+						dv_inst[dv_id].meta_buf[i + 11],
+						dv_inst[dv_id].meta_buf[i + 12],
+						dv_inst[dv_id].meta_buf[i + 13],
+						dv_inst[dv_id].meta_buf[i + 14],
+						dv_inst[dv_id].meta_buf[i + 15]);
 			}
 
-			if (tv_mode) {
-				if (!p_funcs_tv) {
-					ret = 1;
-					goto parse_err;
-				}
-			} else {
-				if (!p_funcs_stb) {
-					ret = 1;
-					goto parse_err;
-				}
+			if (!p_funcs_stb) {
+				ret = 1;
+				goto parse_err;
 			}
+
 			/* prepare metadata parser */
 			if (!dv_inst[dv_id].metadata_parser) {
 				pr_dv_error
@@ -6327,28 +6326,16 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 
 			md_size = 0;
 			comp_size = 0;
-			if (is_aml_tvmode()) {
-				rpu_ret =
-				p_funcs_tv->metadata_parser_process
-				(meta_buf, rpu_size,
-				 comp_buf +
-				 *total_comp_size,
-				 &comp_size,
-				 md_buf + *total_md_size,
-				 &md_size,
-				 true);
-			} else {
-				rpu_ret =
-				p_funcs_stb->multi_mp_process
-				(dv_inst[dv_id].metadata_parser,
-				 meta_buf, rpu_size,
-				 comp_buf +
-				 *total_comp_size,
-				 &comp_size,
-				 md_buf + *total_md_size,
-				 &md_size,
-				 true, DV_TYPE_DOVI);
-			}
+			rpu_ret =
+			p_funcs_stb->multi_mp_process
+			(dv_inst[dv_id].metadata_parser,
+			 dv_inst[dv_id].meta_buf, rpu_size,
+			 comp_buf +
+			 *total_comp_size,
+			 &comp_size,
+			 md_buf + *total_md_size,
+			 &md_size,
+			 true, DV_TYPE_DOVI);
 
 			if (rpu_ret < 0) {
 				pr_dv_error
@@ -6488,32 +6475,25 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			memcpy(p_atsc_md.sei_2094, payload_2094_sei,
 			       len_2094_sei);
 			size = sizeof(struct dv_atsc);
-			if (size > sizeof(meta_buf))
-				size = sizeof(meta_buf);
-			memcpy(meta_buf, (unsigned char *)(&p_atsc_md), size);
+			if (size > sizeof(dv_inst[dv_id].meta_buf))
+				size = sizeof(dv_inst[dv_id].meta_buf);
+			memcpy(dv_inst[dv_id].meta_buf, (unsigned char *)(&p_atsc_md), size);
 			if ((debug_dolby & 4) && dump_enable_f(dv_id)) {
 				pr_dv_dbg("[inst%d]metadata(%d):\n", dv_id + 1, size);
 				for (i = 0; i < size; i += 8)
 					pr_info("\t%02x %02x %02x %02x %02x %02x %02x %02x\n",
-						meta_buf[i],
-						meta_buf[i + 1],
-						meta_buf[i + 2],
-						meta_buf[i + 3],
-						meta_buf[i + 4],
-						meta_buf[i + 5],
-						meta_buf[i + 6],
-						meta_buf[i + 7]);
+						dv_inst[dv_id].meta_buf[i],
+						dv_inst[dv_id].meta_buf[i + 1],
+						dv_inst[dv_id].meta_buf[i + 2],
+						dv_inst[dv_id].meta_buf[i + 3],
+						dv_inst[dv_id].meta_buf[i + 4],
+						dv_inst[dv_id].meta_buf[i + 5],
+						dv_inst[dv_id].meta_buf[i + 6],
+						dv_inst[dv_id].meta_buf[i + 7]);
 			}
-			if (tv_mode) {
-				if (!p_funcs_tv) {
-					ret = 1;
-					goto parse_err;
-				}
-			} else {
-				if (!p_funcs_stb) {
-					ret = 1;
-					goto parse_err;
-				}
+			if (!p_funcs_stb) {
+				ret = 1;
+				goto parse_err;
 			}
 			/* prepare metadata parser */
 			if (!dv_inst[dv_id].metadata_parser) {
@@ -6527,25 +6507,15 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			md_size = 0;
 			comp_size = 0;
 
-			if (is_aml_tvmode())
-				rpu_ret =
-				p_funcs_tv->metadata_parser_process
-				(meta_buf, size,
-				comp_buf + *total_comp_size,
-				&comp_size,
-				md_buf + *total_md_size,
-				&md_size,
-				true);
-			else
-				rpu_ret =
-				p_funcs_stb->multi_mp_process
-				(dv_inst[dv_id].metadata_parser,
-				 meta_buf, size,
-				 comp_buf + *total_comp_size,
-				 &comp_size,
-				 md_buf + *total_md_size,
-				 &md_size,
-				 true, DV_TYPE_ATSC);
+			rpu_ret =
+			p_funcs_stb->multi_mp_process
+			(dv_inst[dv_id].metadata_parser,
+			 dv_inst[dv_id].meta_buf, size,
+			 comp_buf + *total_comp_size,
+			 &comp_size,
+			 md_buf + *total_md_size,
+			 &md_size,
+			 true, DV_TYPE_ATSC);
 
 			if (rpu_ret < 0) {
 				pr_dv_error
@@ -19216,6 +19186,10 @@ static void amdolby_vision_remove(struct platform_device *pdev)
 					vfree(dv_inst[i].comp_buf[1]);
 					dv_inst[i].comp_buf[1] = NULL;
 				}
+				if (dv_inst[i].meta_buf) {
+					vfree(dv_inst[i].meta_buf);
+					dv_inst[i].meta_buf = NULL;
+				}
 			}
 		} else {
 			if (metadata_parser) {
@@ -19373,6 +19347,10 @@ static void amdolby_vision_shutdown(struct platform_device *pdev)
 				if (dv_inst[i].comp_buf[1]) {
 					vfree(dv_inst[i].comp_buf[1]);
 					dv_inst[i].comp_buf[1] = NULL;
+				}
+				if (dv_inst[i].meta_buf) {
+					vfree(dv_inst[i].meta_buf);
+					dv_inst[i].meta_buf = NULL;
 				}
 			}
 		} else {
