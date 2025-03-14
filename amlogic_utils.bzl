@@ -166,3 +166,17 @@ def define_common_amlogic(
         srcs = [":" + name + "_dist_files"],
         destdir = "out/android16-6.12/dist",
     )
+
+def m_k_files():
+    native.filegroup(
+        name = "m_k_files",
+        srcs = native.glob(
+            [
+               "Kconfig",
+               "**/Kconfig",
+               "Makefile",
+               "**/Makefile",
+            ],
+        ),
+        visibility = ["//visibility:public"],
+    )

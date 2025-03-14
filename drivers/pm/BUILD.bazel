@@ -1,5 +1,8 @@
-load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
 load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+
+m_k_files()
 
 amlogic_pm_deps0 = [
     "//common_drivers/drivers/gki_tool:amlogic-gkitool",

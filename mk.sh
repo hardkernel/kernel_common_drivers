@@ -177,7 +177,6 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		[[ -f ${PROJECT_DIR}/project.bzl ]] && rm -f ${PROJECT_DIR}/project.bzl
 		touch ${PROJECT_DIR}/project.bzl
 		echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/project.bzl
-		echo 						>> ${PROJECT_DIR}/project.bzl
 
 		echo 						>> ${PROJECT_DIR}/project.bzl
 		echo "EXT_MODULES_ANDROID = [" 			>> ${PROJECT_DIR}/project.bzl
@@ -197,51 +196,45 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	fi
 
 	echo 							>> ${PROJECT_DIR}/project.bzl
-	sed -i "/FULL_KERNEL_VERSION/d" ${PROJECT_DIR}/project.bzl
 	echo "FULL_KERNEL_VERSION = \"${FULL_KERNEL_VERSION}\"" >> ${PROJECT_DIR}/project.bzl
 
-	echo 							>> ${PROJECT_DIR}/project.bzl
-	sed -i "/ANDROID_PROJECT/d" ${PROJECT_DIR}/project.bzl
 	echo "ANDROID_PROJECT = \"${ANDROID_PROJECT}\"" 	>> ${PROJECT_DIR}/project.bzl
 
-	sed -i "/EXTRA_ANDROID_MODULE/d" ${PROJECT_DIR}/project.bzl
 	if [[ -n ${ANDROID_PROJECT} && -z ${FATLOAD} ]]; then
 		echo "EXTRA_ANDROID_MODULE = True"		>> ${PROJECT_DIR}/project.bzl
 	else
 		echo "EXTRA_ANDROID_MODULE = False"		>> ${PROJECT_DIR}/project.bzl
 	fi
 
-	sed -i "/GKI_CONFIG/d" ${PROJECT_DIR}/project.bzl
 	if [[ -z ${GKI_CONFIG} ]]; then
 		echo "GKI_CONFIG = \"non_gki\""			>> ${PROJECT_DIR}/project.bzl
 	else
 		echo "GKI_CONFIG = \"${GKI_CONFIG}\""		>> ${PROJECT_DIR}/project.bzl
 	fi
 
-	sed -i "/BUILD_TIME/d" ${PROJECT_DIR}/project.bzl
 	echo "BUILD_TIME = \"${BUILD_TIME}\""			>> ${PROJECT_DIR}/project.bzl
 
 	cd ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/
 	COMMON_DRIVER_RELEASE=$(git rev-parse --verify HEAD)
 	cd - >> /dev/null
-	sed -i "/COMMON_DRIVER_RELEASE/d" ${PROJECT_DIR}/project.bzl
 	echo "COMMON_DRIVER_RELEASE = \"${COMMON_DRIVER_RELEASE}\"" >> ${PROJECT_DIR}/project.bzl
 
-	sed -i "/DDK_BUILD/d" ${PROJECT_DIR}/project.bzl
 	if [[ "${DDK_BUILD}" == "1" ]]; then
 		echo "DDK_BUILD = True"				>> ${PROJECT_DIR}/project.bzl
 	else
 		echo "DDK_BUILD = False"			>> ${PROJECT_DIR}/project.bzl
 	fi
 
-	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/project.bzl
 	echo "UPGRADE_PROJECT = \"${UPGRADE_PROJECT}\"" 	>> ${PROJECT_DIR}/project.bzl
 
+	echo 							>> ${PROJECT_DIR}/project.bzl
 	echo "DTBO_DEVICETREE = ["				>> ${PROJECT_DIR}/project.bzl
 	if [[ -n ${DTBO_DEVICETREE} ]]; then
 		echo "    \"${DTBO_DEVICETREE}\","		>> ${PROJECT_DIR}/project.bzl
 	fi
 	echo "]"						>> ${PROJECT_DIR}/project.bzl
+
+	make_kconfig_and_makefile_filesrc
 
 	[[ -f ${PROJECT_DIR}/dtb.bzl ]] || touch ${PROJECT_DIR}/dtb.bzl
 	echo "# SPDX-License-Identifier: GPL-2.0" 		>  ${PROJECT_DIR}/dtb.bzl

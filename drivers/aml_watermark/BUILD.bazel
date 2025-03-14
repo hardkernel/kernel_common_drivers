@@ -1,4 +1,7 @@
-load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+
+m_k_files()
 
 ddk_module(
     name = "aml_watermark",

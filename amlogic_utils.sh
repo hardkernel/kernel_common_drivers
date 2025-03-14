@@ -2151,3 +2151,19 @@ function build_ext_module_without_bazel {
 	echo "========================================================"
 }
 export -f build_ext_module_without_bazel
+
+function make_kconfig_and_makefile_filesrc () {
+	temp_file=`mktemp /tmp/files.XXXXXXXXXXXX`
+
+	find ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR} -name BUILD.bazel > ${temp_file}
+	sed -i 's|.*common_drivers/\(.*\)/[^/]*$|  "//common_drivers\/\1:m_k_files",|' ${temp_file}
+	sed -i '/.*\/BUILD\.bazel/d' ${temp_file}
+
+	echo 						>> ${PROJECT_DIR}/project.bzl
+	echo "COMMON_DRIVERS_KCONFIG_AND_MAKEFILE = [" 	>> ${PROJECT_DIR}/project.bzl
+	cat ${temp_file}				>> ${PROJECT_DIR}/project.bzl
+	echo "]" 					>> ${PROJECT_DIR}/project.bzl
+	rm ${temp_file}
+}
+
+export -f make_kconfig_and_makefile_filesrc

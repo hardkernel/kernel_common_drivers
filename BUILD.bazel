@@ -1,5 +1,5 @@
-load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:project/project.bzl", "COMMON_DRIVERS_KCONFIG_AND_MAKEFILE")
 ddk_headers(
     name = "soc_headers",
     hdrs = glob([
@@ -37,7 +37,7 @@ filegroup(
             "customer/**",
             "rootfs_base.cpio.gz.uboot",
         ],
-    ),
+    ) + COMMON_DRIVERS_KCONFIG_AND_MAKEFILE,
     visibility = ["//visibility:public"],
 )
 
