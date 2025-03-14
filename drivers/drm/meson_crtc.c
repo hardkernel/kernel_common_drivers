@@ -877,7 +877,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 		if (cur_state->hdr_conversion_ctrl != new_state->hdr_conversion_ctrl)
 			crtc_state->mode_changed = true;
 
-		if (cur_state->brr_update)
+		if (new_state->brr_update)
 			crtc_state->mode_changed = true;
 	}
 
