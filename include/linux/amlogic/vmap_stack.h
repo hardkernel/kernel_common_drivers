@@ -44,13 +44,13 @@
 #define CACHE_MAINTAIN_DELAY		(HZ / 2)
 
 struct aml_vmap {
-	spinlock_t vmap_lock;		/* for address space */
+	raw_spinlock_t vmap_lock;		/* for address space */
 	unsigned int start_bit;
 	int cached_pages;
 	struct vm_struct *root_vm;
 	unsigned long *bitmap;
 	struct list_head list;
-	spinlock_t page_lock;		/* for cached pages */
+	raw_spinlock_t page_lock;		/* for cached pages */
 };
 
 #ifdef CONFIG_ARM64

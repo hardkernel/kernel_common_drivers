@@ -316,16 +316,16 @@ static struct page *get_vmap_cached_page(int *remain)
 	unsigned long flags;
 	struct page *page;
 
-	spin_lock_irqsave(&avmap->page_lock, flags);
+	raw_spin_lock_irqsave(&avmap->page_lock, flags);
 	if (unlikely(!avmap->cached_pages)) {
-		spin_unlock_irqrestore(&avmap->page_lock, flags);
+		raw_spin_unlock_irqrestore(&avmap->page_lock, flags);
 		return NULL;
 	}
 	page = list_first_entry(&avmap->list, struct page, lru);
 	list_del(&page->lru);
 	avmap->cached_pages--;
 	*remain = avmap->cached_pages;
-	spin_unlock_irqrestore(&avmap->page_lock, flags);
+	raw_spin_unlock_irqrestore(&avmap->page_lock, flags);
 
 	return page;
 }
@@ -787,13 +787,13 @@ void *aml_stack_alloc(int node, struct task_struct *tsk)
 	struct page *page;
 	unsigned long addr, map_addr, flags;
 
-	spin_lock_irqsave(&avmap->vmap_lock, flags);
+	raw_spin_lock_irqsave(&avmap->vmap_lock, flags);
 	raw_start = avmap->start_bit;
 	bitmap_no = find_next_zero_bit(avmap->bitmap, MAX_TASKS,
 				       avmap->start_bit);
 	avmap->start_bit = bitmap_no + 1; /* next idle address space */
 	if (bitmap_no >= MAX_TASKS) {
-		spin_unlock_irqrestore(&avmap->vmap_lock, flags);
+		raw_spin_unlock_irqrestore(&avmap->vmap_lock, flags);
 		/*
 		 * if vmap address space is full, we still need to try
 		 * to get stack from kmalloc
@@ -803,13 +803,13 @@ void *aml_stack_alloc(int node, struct task_struct *tsk)
 		return (void *)addr;
 	}
 	bitmap_set(avmap->bitmap, bitmap_no, 1);
-	spin_unlock_irqrestore(&avmap->vmap_lock, flags);
+	raw_spin_unlock_irqrestore(&avmap->vmap_lock, flags);
 
 	page = alloc_page(THREADINFO_GFP | __GFP_ZERO | __GFP_HIGHMEM);
 	if (!page) {
-		spin_lock_irqsave(&avmap->vmap_lock, flags);
+		raw_spin_lock_irqsave(&avmap->vmap_lock, flags);
 		bitmap_clear(avmap->bitmap, bitmap_no, 1);
-		spin_unlock_irqrestore(&avmap->vmap_lock, flags);
+		raw_spin_unlock_irqrestore(&avmap->vmap_lock, flags);
 		E("allocation page failed\n");
 		return NULL;
 	}
@@ -856,24 +856,24 @@ void aml_stack_free(struct task_struct *tsk)
 	#endif
 		vmap_mmu_set(page, addr, 0);
 		/* supplement for stack page cache first */
-		spin_lock_irqsave(&avmap->page_lock, flags);
+		raw_spin_lock_irqsave(&avmap->page_lock, flags);
 		if (avmap->cached_pages < VMAP_CACHE_PAGE) {
 			list_add_tail(&page->lru, &avmap->list);
 			avmap->cached_pages++;
-			spin_unlock_irqrestore(&avmap->page_lock, flags);
+			raw_spin_unlock_irqrestore(&avmap->page_lock, flags);
 			clear_highpage(page);	/* clear for next use */
 		} else {
-			spin_unlock_irqrestore(&avmap->page_lock, flags);
+			raw_spin_unlock_irqrestore(&avmap->page_lock, flags);
 			__free_page(page);
 		}
 		update_vmap_stack(-1);
 	}
 	bitmap_no = (stack - (unsigned long)avmap->root_vm->addr) / THREAD_SIZE;
-	spin_lock_irqsave(&avmap->vmap_lock, flags);
+	raw_spin_lock_irqsave(&avmap->vmap_lock, flags);
 	bitmap_clear(avmap->bitmap, bitmap_no, 1);
 	if (bitmap_no < avmap->start_bit)
 		avmap->start_bit = bitmap_no;
-	spin_unlock_irqrestore(&avmap->vmap_lock, flags);
+	raw_spin_unlock_irqrestore(&avmap->vmap_lock, flags);
 }
 
 #if DEBUG_VMAP
@@ -926,9 +926,9 @@ static int vmap_task(void *data)
 			msleep_interruptible(20);
 			continue;
 		}
-		spin_lock_irqsave(&v->page_lock, flags);
+		raw_spin_lock_irqsave(&v->page_lock, flags);
 		cnt = v->cached_pages;
-		spin_unlock_irqrestore(&v->page_lock, flags);
+		raw_spin_unlock_irqrestore(&v->page_lock, flags);
 		if (cnt >= VMAP_CACHE_PAGE) {
 			D("cache full cnt:%d\n", cnt);
 			continue;
@@ -945,10 +945,10 @@ static int vmap_task(void *data)
 			}
 			list_add(&page->lru, &head);
 		}
-		spin_lock_irqsave(&v->page_lock, flags);
+		raw_spin_lock_irqsave(&v->page_lock, flags);
 		list_splice(&head, &v->list);
 		v->cached_pages += i;
-		spin_unlock_irqrestore(&v->page_lock, flags);
+		raw_spin_unlock_irqrestore(&v->page_lock, flags);
 		atomic_set(&vmap_cache_flag, 0);
 		E("add %d pages, cnt:%d\n", i, cnt);
 	}
@@ -1003,8 +1003,8 @@ void __init thread_stack_cache_init(void)
 		avmap->root_vm->size);
 
 	INIT_LIST_HEAD(&avmap->list);
-	spin_lock_init(&avmap->page_lock);
-	spin_lock_init(&avmap->vmap_lock);
+	raw_spin_lock_init(&avmap->page_lock);
+	raw_spin_lock_init(&avmap->vmap_lock);
 
 	for (i = 0; i < VMAP_CACHE_PAGE; i++) {
 		list_add(&page->lru, &avmap->list);

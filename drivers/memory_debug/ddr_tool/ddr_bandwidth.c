@@ -287,7 +287,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	if (db->stat_flag)  /* stop update usage stat if flag set */
 		return;
 
-	spin_lock_irqsave(&aml_db->lock, flags);
+	raw_spin_lock_irqsave(&aml_db->lock, flags);
 	/* update max sample */
 	if (db->cur_sample.total_bandwidth > db->max_sample.total_bandwidth)
 		memcpy(&db->max_sample, &db->cur_sample,
@@ -321,7 +321,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	if (dmc_is_asymmetry(aml_db))
 		cal_ddr_usage_single(db);
 
-	spin_unlock_irqrestore(&aml_db->lock, flags);
+	raw_spin_unlock_irqrestore(&aml_db->lock, flags);
 }
 
 static irqreturn_t dmc_irq_handler(int irq, void *dev_instance)
@@ -385,7 +385,7 @@ static void clear_bandwidth_statistics(void)
 	int i;
 
 	/* clear flag and start statistics */
-	spin_lock_irqsave(&aml_db->lock, flags);
+	raw_spin_lock_irqsave(&aml_db->lock, flags);
 	memset(&aml_db->max_sample, 0, sizeof(struct ddr_bandwidth_sample));
 	memset(aml_db->usage_stat, 0, 10 * sizeof(int));
 	memset(&aml_db->avg, 0, sizeof(struct ddr_avg_bandwidth));
@@ -397,7 +397,7 @@ static void clear_bandwidth_statistics(void)
 			memset(&aml_db->data_extern[i].avg, 0, sizeof(struct ddr_avg_bandwidth));
 		}
 	}
-	spin_unlock_irqrestore(&aml_db->lock, flags);
+	raw_spin_unlock_irqrestore(&aml_db->lock, flags);
 }
 
 static int format_port(char *buf, u64 port_mask)
@@ -1819,7 +1819,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	if (aml_db->ops && aml_db->ops->get_freq)
 		aml_db->ops->get_freq(aml_db);
 
-	spin_lock_init(&aml_db->lock);
+	raw_spin_lock_init(&aml_db->lock);
 	aml_db->clock_count = DEFAULT_CLK_CNT;
 	aml_db->mode = MODE_DISABLE;
 	aml_db->threshold = DEFAULT_THRESHOLD * aml_db->bytes_per_cycle *

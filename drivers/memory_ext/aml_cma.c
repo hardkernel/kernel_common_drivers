@@ -105,7 +105,7 @@ int cma_debug_level;
 static int allow_cma_tasks;
 static unsigned long cma_isolated;
 static struct list_head work_list;
-static spinlock_t work_list_lock;		/* protect job list */
+static raw_spinlock_t work_list_lock;		/* protect job list */
 
 static atomic_t cma_allocate;
 
@@ -1009,16 +1009,16 @@ static int __nocfi cma_boost_work_func(void *cma_data)
 			       __func__, this_cpu, c_work->cpu);
 		}
 again:
-		spin_lock(&work_list_lock);
+		raw_spin_lock(&work_list_lock);
 		if (list_empty(&work_list)) {
 			/* NO job todo ? */
-			spin_unlock(&work_list_lock);
+			raw_spin_unlock(&work_list_lock);
 			cma_debug(1, NULL, "%s,%d, list empty\n", __func__, __LINE__);
 			goto next;
 		}
 		job = list_first_entry(&work_list, struct work_cma, list);
 		list_del(&job->list);
-		spin_unlock(&work_list_lock);
+		raw_spin_unlock(&work_list_lock);
 
 		INIT_LIST_HEAD(&cc.migratepages);
 		pfn      = job->pfn;
@@ -1030,9 +1030,9 @@ again:
 		if (!ret) {
 			goto again;
 		} else if (ret == -EBUSY) {
-			spin_lock(&work_list_lock);
+			raw_spin_lock(&work_list_lock);
 			list_add(&job->list, &work_list);
-			spin_unlock(&work_list_lock);
+			raw_spin_unlock(&work_list_lock);
 			cma_debug(1, pfn_to_page(pfn), "contig migrate ebusy\n");
 			goto again;
 		} else {
@@ -1136,7 +1136,7 @@ static int __init init_cma_boost_task(void)
 	struct cma_pcp *work;
 	char task_name[20] = {};
 	INIT_LIST_HEAD(&work_list);
-	spin_lock_init(&work_list_lock);
+	raw_spin_lock_init(&work_list_lock);
 
 	for_each_possible_cpu(cpu) {
 		memset(task_name, 0, sizeof(task_name));
@@ -1207,7 +1207,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		pr_err("cnt too large: %ld, delta: %ld, count: %ld\n", cnt, delta, count);
 		return -ENOMEM;
 	}
-	spin_lock(&work_list_lock);
+	raw_spin_lock(&work_list_lock);
 	if (!list_empty(&work_list))
 		INIT_LIST_HEAD(&work_list);
 	for (i = 0; i < cnt; i++) {
@@ -1219,7 +1219,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 			job[i].count = count - i * delta;
 		list_add(&job[i].list, &work_list);
 	}
-	spin_unlock(&work_list_lock);
+	raw_spin_unlock(&work_list_lock);
 	i = 0;
 
 	atomic_set(&ok, 0);

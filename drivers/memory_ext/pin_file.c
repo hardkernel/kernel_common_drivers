@@ -130,9 +130,9 @@ void aml_set_pin_locked_file(struct page *page)
 	unsigned long pfn;
 
 	pfn = page_to_pfn(page);
-	spin_lock_irqsave(&aml_pin->pin_file_lock, flags);
+	raw_spin_lock_irqsave(&aml_pin->pin_file_lock, flags);
 	bitmap_set(aml_pin->bitmap, pfn, 1);
-	spin_unlock_irqrestore(&aml_pin->pin_file_lock, flags);
+	raw_spin_unlock_irqrestore(&aml_pin->pin_file_lock, flags);
 }
 
 void aml_clear_pin_locked_file(struct page *page)
@@ -141,9 +141,9 @@ void aml_clear_pin_locked_file(struct page *page)
 	unsigned long pfn;
 
 	pfn = page_to_pfn(page);
-	spin_lock_irqsave(&aml_pin->pin_file_lock, flags);
+	raw_spin_lock_irqsave(&aml_pin->pin_file_lock, flags);
 	bitmap_clear(aml_pin->bitmap, pfn, 1);
-	spin_unlock_irqrestore(&aml_pin->pin_file_lock, flags);
+	raw_spin_unlock_irqrestore(&aml_pin->pin_file_lock, flags);
 }
 
 /* borrow the poking_init function, which comes from init/main.c */
@@ -165,6 +165,6 @@ void __init poking_init(void)
 		return;
 	}
 
-	spin_lock_init(&aml_pin->pin_file_lock);
+	raw_spin_lock_init(&aml_pin->pin_file_lock);
 }
 

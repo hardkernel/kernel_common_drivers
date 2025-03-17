@@ -7,7 +7,7 @@
 #define __PIN_FILE_H__
 
 struct aml_pin_file {
-	spinlock_t pin_file_lock;		/* for address space */
+	raw_spinlock_t pin_file_lock;		/* for address space */
 	unsigned int start_bit;
 	int cached_pages;
 	struct vm_struct *root_vm;
