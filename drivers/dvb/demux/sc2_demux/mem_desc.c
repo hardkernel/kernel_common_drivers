@@ -167,7 +167,7 @@ static int cache_init(int cache_level)
 		pr_dbg_mem("%s size:%d alloc finish\n", __func__, total_size);
 		second_cache->start_virt =
 		(unsigned long)codec_mm_phys_to_virt(second_cache->start_phys);
-		if (IS_ERR_OR_NULL((const void *)second_cache->start_phys)) {
+		if (IS_ERR_OR_NULL((const void *)second_cache->start_virt)) {
 			codec_mm_free_for_dma("dmx", second_cache->start_phys);
 			vfree(second_cache);
 			dprint("phys to virt addr failed\n");
