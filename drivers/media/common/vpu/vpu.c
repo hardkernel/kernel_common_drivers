@@ -57,9 +57,7 @@ static unsigned int vpu_dev_num;
 static u32 vpu_clk_level_saved;
 static u32 vapb_clk_level_saved;
 static struct device *vpu_device;
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-static int early_suspend_flag;
-#endif
+static bool suspend_status;
 
 struct vpu_conf_s vpu_conf = {
 	.data = NULL,
@@ -3032,7 +3030,7 @@ static const struct of_device_id vpu_of_table[] = {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static void vpu_early_suspend(struct early_suspend *h)
 {
-	if (!vpu_conf.data || early_suspend_flag)
+	if (!vpu_conf.data || suspend_status)
 		return;
 	if (vpu_conf.data->chip_type >= VPU_CHIP_SC2) {
 		unsigned int clk;
@@ -3045,9 +3043,9 @@ static void vpu_early_suspend(struct early_suspend *h)
 		vapb_clk_switch(0);
 		set_vpu_clk(clk);
 	}
-	early_suspend_flag = 1;
-	VPUPR("early_suspend clk: %uHz(0x%x)\n",
-	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)));
+	suspend_status = true;
+	VPUPR("early_suspend clk: %uHz(0x%x) suspend_status = %d\n",
+	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)), suspend_status);
 }
 
 static void vpu_late_resume(struct early_suspend *h)
@@ -3055,10 +3053,7 @@ static void vpu_late_resume(struct early_suspend *h)
 	unsigned int clk;
 	int ret;
 
-	if (!early_suspend_flag)
-		return;
-	early_suspend_flag = 0;
-	if (!vpu_conf.data)
+	if (!vpu_conf.data || !suspend_status)
 		return;
 	ret = vpu_power_init_check();
 	if (!vpu_device)
@@ -3066,10 +3061,8 @@ static void vpu_late_resume(struct early_suspend *h)
 	vpu_clktree_init(vpu_device);
 	if (ret)
 		vpu_power_init();
-
 	if (!vpu_conf.data)
 		return;
-
 	if (vpu_conf.data->chip_type >= VPU_CHIP_SC2) {
 		clk = vpu_clk_level_saved;
 
@@ -3080,9 +3073,9 @@ static void vpu_late_resume(struct early_suspend *h)
 		set_vpu_clk(vpu_conf.clk_level);
 		mutex_unlock(&vpu_clk_mutex);
 	}
-
-	VPUPR("late_resume clk: %uHz(0x%x)\n",
-	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)));
+	suspend_status = false;
+	VPUPR("late_resume clk: %uHz(0x%x) suspend_status = %d\n",
+	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)), suspend_status);
 }
 
 static struct early_suspend vpu_early_suspend_handler = {
@@ -3240,11 +3233,7 @@ static int restore_clk(int restore_flag)
 
 static int vpu_suspend(struct device *dev)
 {
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	if (early_suspend_flag)
-		return 0;
-#endif
-	if (!vpu_conf.data)
+	if (!vpu_conf.data || suspend_status)
 		return 0;
 
 	if (vpu_conf.data->chip_type >= VPU_CHIP_SC2) {
@@ -3258,8 +3247,9 @@ static int vpu_suspend(struct device *dev)
 		vapb_clk_switch(0);
 		set_vpu_clk(clk);
 	}
-	VPUPR("suspend clk: %uHz(0x%x)\n",
-	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)));
+	suspend_status = true;
+	VPUPR("suspend clk: %uHz(0x%x) suspend_status = %d\n",
+	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)), suspend_status);
 	return 0;
 }
 
@@ -3268,11 +3258,8 @@ static int vpu_resume(struct device *dev)
 	unsigned int clk;
 	int ret;
 
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	if (!early_suspend_flag)
+	if (!suspend_status)
 		return 0;
-	early_suspend_flag = 0;
-#endif
 	ret = vpu_power_init_check();
 	vpu_clktree_init(dev);
 	if (ret)
@@ -3291,8 +3278,9 @@ static int vpu_resume(struct device *dev)
 		set_vpu_clk(vpu_conf.clk_level);
 		mutex_unlock(&vpu_clk_mutex);
 	}
-	VPUPR("resume clk: %uHz(0x%x)\n",
-	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)));
+	suspend_status = false;
+	VPUPR("resume clk: %uHz(0x%x) suspend_status = %d\n",
+	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)), suspend_status);
 	return 0;
 }
 
