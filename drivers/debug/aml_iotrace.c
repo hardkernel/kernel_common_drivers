@@ -26,6 +26,9 @@
 #include <linux/sched/clock.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+#include <linux/amlogic/aml_iotm.h>
+#endif
 
 #define AML_PERSISTENT_RAM_SIG (0x4c4d41) /* AML */
 
@@ -109,7 +112,7 @@ static int module_debug_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("module_debug=", module_debug_setup);
 
@@ -129,7 +132,7 @@ static int ramoops_io_en_setup(char *buf)
 }
 __setup("ramoops_io_en=", ramoops_io_en_setup);
 
-int ramoops_io_dump;
+int ramoops_io_dump = 1;
 
 static int ramoops_io_dump_setup(char *buf)
 {
@@ -1235,6 +1238,9 @@ int __init aml_iotrace_init(void)
 
 	if (ramoops_io_en || module_debug)
 		register_module_notifier(&module_base_nb);
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+	iotm_init();
+#endif
 
 	if (!ramoops_io_en)
 		return 0;
@@ -1264,8 +1270,10 @@ int __init aml_iotrace_init(void)
 	 * V4: iotrace read/write use vendor hooks
 	 *	   depends on 13-5.15-16 or 14-5.15-9
 	 * V5: modify iotrace data, delay free module init_layout memory
+	 * V6: iotm_v1 support
+	 * V7: iotm_v2 support
 	 */
-	pr_info("iotrace V5\n");
+	pr_info("iotrace V6\n");
 
 	return 0;
 }

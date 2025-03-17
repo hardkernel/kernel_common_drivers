@@ -17,6 +17,13 @@ ddk_module(
                 "ftrace_ramoops.c",
             ],
         },
+	"CONFIG_AMLOGIC_DEBUG_IOTM": {
+	    True: [
+		"aml_iotm.c",
+		"iotm_v1.c",
+		"iotm_v2.c",
+	    ],
+	},
     },
     hdrs = [
         "//common_drivers:soc_headers",

@@ -40,9 +40,14 @@
 #include <linux/panic_notifier.h>
 #include <linux/sysrq.h>
 #include <asm/cacheflush.h>
+#include <linux/list_sort.h>
+#include <linux/of_address.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 #include <linux/amlogic/aml_iotrace.h>
 #endif
+
+#include <linux/amlogic/aml_iotm.h>
+
 #include <sched.h>
 
 #include "lockup.h"
@@ -63,6 +68,17 @@
 #define LONG_SMC		(500 * 1000000)		/* 500 ms*/
 #define ENTRY			10
 #define INVALID_IRQ	     -1
+
+#define ALIGN_4_BYTES(x) (((x) + 3) & ~3)
+
+struct dts_info {
+	char name[32];
+	phys_addr_t start;
+	phys_addr_t end;
+	struct list_head list;
+};
+
+static LIST_HEAD(dts_list);
 
 static unsigned long long isr_long_thr = LONG_ISR;
 static unsigned long isr_ratio_thr = 50;
@@ -92,14 +108,12 @@ static int fiq_check_en = 1;
 
 static int fiq_check_en_setup(char *str)
 {
-	if (!strcmp(str, "1")) {
+	if (!strcmp(str, "1"))
 		fiq_check_en = 1;
-		return 0;
-	}
-	if (!strcmp(str, "0")) {
+
+	if (!strcmp(str, "0"))
 		fiq_check_en = 0;
-		return 0;
-	}
+
 	return 1;
 }
 __setup("fiq_check_en=", fiq_check_en_setup);
@@ -108,14 +122,12 @@ static int fiq_check_show_regs_en;
 
 static int fiq_check_show_regs_en_setup(char *str)
 {
-	if (!strcmp(str, "1")) {
+	if (!strcmp(str, "1"))
 		fiq_check_show_regs_en = 1;
-		return 0;
-	}
-	if (!strcmp(str, "0")) {
+
+	if (!strcmp(str, "0"))
 		fiq_check_show_regs_en = 0;
-		return 0;
-	}
+
 	return 1;
 }
 __setup("fiq_check_show_regs_en=", fiq_check_show_regs_en_setup);
@@ -192,6 +204,8 @@ static void __maybe_unused isr_in_hook(void *data, int irq, struct irqaction *ac
 		aml_pstore_write(AML_PSTORE_TYPE_IRQ, &rec, irqs_disabled(), 0);
 #endif
 
+	iotm_sw_record_write(IOTM_SW_IRQ_IN, 0, irq);
+
 	cpu = smp_processor_id();
 
 	info = per_cpu_ptr(infos, cpu);
@@ -238,6 +252,8 @@ static void __maybe_unused isr_out_hook(void *data, int irq, struct irqaction *a
 	if ((ramoops_ftrace_en) && (ramoops_trace_mask & TRACE_MASK_IRQ))
 		aml_pstore_write(AML_PSTORE_TYPE_IRQ, &rec, irqs_disabled(), 0);
 #endif
+
+	iotm_sw_record_write(IOTM_SW_IRQ_OUT, 0, irq);
 
 	now = sched_clock();
 	delta = now - isr_info->exec_start_time;
@@ -361,6 +377,11 @@ static void smc_in_hook(unsigned long smcid, unsigned long val, bool noret)
 #endif
 
 	if (noret)
+		iotm_sw_record_write(IOTM_SW_SMC_NORET_IN, val, smcid);
+	else
+		iotm_sw_record_write(IOTM_SW_SMC_IN, val, smcid);
+
+	if (noret)
 		return;
 
 	if (!initialized || !smc_check_en)
@@ -390,6 +411,8 @@ static void smc_out_hook(unsigned long smcid, unsigned long val)
 	if ((ramoops_ftrace_en) && (ramoops_trace_mask & TRACE_MASK_SMC))
 		aml_pstore_write(AML_PSTORE_TYPE_SMC, &rec, irqs_disabled(), 0);
 #endif
+
+	iotm_sw_record_write(IOTM_SW_SMC_OUT, val, smcid);
 
 	if (!initialized || !smc_check_en)
 		return;
@@ -1055,6 +1078,28 @@ static struct notifier_block debug_panic_notifier = {
 	.notifier_call = debug_panic_notifier_func,
 };
 
+static void __maybe_unused schedule_hook(void *data, struct task_struct *prev,
+					struct task_struct *next, struct rq *rq)
+{
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	struct iotrace_record rec = {
+		.type = RECORD_TYPE_SCHED_SWITCH,
+		.curr_pid = prev->pid,
+		.next_pid = next->pid,
+	};
+
+	if (ramoops_ftrace_en && (ramoops_trace_mask & TRACE_MASK_SCHED)) {
+		strscpy(rec.curr_comm, prev->comm, sizeof(rec.curr_comm));
+		strscpy(rec.next_comm, next->comm, sizeof(rec.next_comm));
+
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, &rec, irqs_disabled(), 0);
+	}
+
+#endif
+
+	iotm_sched_record_write(next->comm);
+}
+
 int debug_lockup_init(void)
 {
 	int cpu;
@@ -1084,12 +1129,96 @@ int debug_lockup_init(void)
 
 	register_trace_android_vh_ftrace_format_check(ftrace_format_check_hook, NULL);
 
+	register_trace_android_rvh_schedule(schedule_hook, NULL);
 #endif
 	initialized = 1;
 
 #if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
 	fiq_debug_addr_init();
 #endif
+
+	return 0;
+}
+
+static void add_dts_info(const char *name, phys_addr_t start, phys_addr_t end)
+{
+	struct dts_info *new_node;
+
+	new_node = kmalloc(sizeof(*new_node), GFP_KERNEL);
+	if (!new_node)
+		return;
+
+	strscpy(new_node->name, name, sizeof(new_node->name));
+	new_node->start = ALIGN_4_BYTES(start);
+	new_node->end = ALIGN_4_BYTES(end);
+	INIT_LIST_HEAD(&new_node->list);
+
+	list_add_tail(&new_node->list, &dts_list);
+}
+
+static int reg_cmp(void *priv, const struct list_head *a, const struct list_head *b)
+{
+	struct dts_info *reg_a = list_entry(a, struct dts_info, list);
+	struct dts_info *reg_b = list_entry(b, struct dts_info, list);
+
+	if (reg_a->start < reg_b->start)
+		return -1;
+	else if (reg_a->start > reg_b->start)
+		return 1;
+	else if (reg_a->end < reg_b->end)
+		return -1;
+	else if (reg_a->end > reg_b->end)
+		return 1;
+	return 0;
+}
+
+static void free_register_list(void)
+{
+	struct dts_info *node, *temp;
+
+	list_for_each_entry_safe(node, temp, &dts_list, list) {
+		list_del(&node->list);
+		kfree(node);
+	}
+}
+
+/* Gets the register range of all nodes in the DTS */
+static void node_reg_info_init(void)
+{
+	struct device_node *dn = of_find_all_nodes(NULL);
+	struct resource res;
+	int index;
+	char *reg_name;
+
+	while (dn) {
+		index = 0;
+		while (!of_address_to_resource(dn, index++, &res)) {
+			char *buffer = kstrdup(res.name, GFP_KERNEL);
+			char *origin_buffer = buffer;
+
+			reg_name = strsep(&buffer, "@");
+			if (reg_name)
+				add_dts_info(reg_name, res.start, res.end);
+
+			kfree(origin_buffer);
+		}
+		dn = of_find_all_nodes(dn);
+	}
+}
+
+static int dts_reg_show(struct seq_file *m, void *v)
+{
+	struct dts_info *node;
+
+	node_reg_info_init();
+
+	list_sort(NULL, &dts_list, reg_cmp);
+
+	list_for_each_entry(node, &dts_list, list) {
+		seq_printf(m, "%s: [%pa - %pa]\n", node->name, &node->start, &node->end);
+	}
+
+	free_register_list();
 
 	return 0;
 }
@@ -1120,6 +1249,7 @@ static const struct file_operations sysrq_trigger_debug_ops = {
 int aml_debug_init(void)
 {
 	static struct dentry *debug_lockup;
+	struct proc_dir_entry *aml_regmap;
 
 	debug_lockup = debugfs_create_dir("aml_debug", NULL);
 	if (IS_ERR_OR_NULL(debug_lockup)) {
@@ -1129,5 +1259,13 @@ int aml_debug_init(void)
 	}
 	debugfs_create_file("sysrq-trigger", S_IFREG | 0664,
 			    debug_lockup, NULL, &sysrq_trigger_debug_ops);
+
+	aml_regmap = proc_create_single_data("aml_regmap",
+					0400, NULL, dts_reg_show, NULL);
+	if (!aml_regmap) {
+		pr_err("fail to create /proc/aml_regmap\n");
+		return -ENOMEM;
+	}
+
 	return 0;
 }
