@@ -94,8 +94,8 @@ int skip_num = 4;
 module_param(skip_num, int, 0664);
 MODULE_PARM_DESC(skip_num, "\n skip_num\n");
 
-int width_limit = 1900;
-int height_limit = 1050;
+int width_limit = 1300;
+int height_limit = 720;
 int lc_reset_done;
 int lc_en_chflg = 0xff;
 static int lc_flag = 0xff;
@@ -2665,6 +2665,15 @@ void lc_process(struct vframe_s *vf,
 	if (chip_type_id == chip_t6d && lc_vd_info) {
 		height = lc_vd_info->vd1_dout_vsize;
 		width = lc_vd_info->vd1_dout_hsize;
+
+		if (amlc_debug == 0x10) {
+			pr_info("[lc_vd_info] out_v/hsize: %d/%d\n",
+				lc_vd_info->vd1_dout_vsize,
+				lc_vd_info->vd1_dout_hsize);
+			pr_info("[lc_vd_info] in_v/hsize: %d/%d\n",
+				lc_vd_info->vd1_in_vsize,
+				lc_vd_info->vd1_in_hsize);
+		}
 	} else {
 		height = sps_h_in << sps_v_en;
 		width = sps_w_in << sps_h_en;
