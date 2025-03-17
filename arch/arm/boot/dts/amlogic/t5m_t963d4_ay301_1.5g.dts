@@ -56,9 +56,9 @@
 			status = "disabled";
 		};
 
-		ramoops@7400000 {
+		ramoops@6C00000 {
 			compatible = "ramoops";
-			reg = <0x07400000 0x00100000>;
+			reg = <0x06C00000 0x00100000>;
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
@@ -83,7 +83,8 @@
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x05000000 0x3400000>;
+			alignment = <0x00100000>;
+			reg = <0x05000000 0x1C00000>;
 		};
 
 		logo_reserved:linux,meson-fb {
