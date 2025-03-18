@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
@@ -18,7 +18,7 @@ enum AM_CI_IO_MODE {
 struct ci_rw_param {
 	enum AM_CI_IO_MODE mode;
 	int addr;
-	u8 value;
+	__u8 value;
 };
 
 #define AMCI_IOC_MAGIC  'D'

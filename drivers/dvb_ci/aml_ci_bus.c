@@ -21,7 +21,7 @@
 
 #include "aml_ci_bus.h"
 #include "aml_ci.h"
-#include "amci.h"
+#include <uapi/amlogic/amci.h>
 
 //can see jtag dts and driver to select gpio function.
 //write dts config for cam/tsin/out
