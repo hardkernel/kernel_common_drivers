@@ -325,14 +325,19 @@ int __init amlogic_heap_secure_dma_buf_init(void)
 		kfree(secure_heap);
 		return ret;
 	}
-	err = tee_protect_mem_by_type(TEE_MEM_TYPE_GPU,
-				      (u32)mem->base,
-				      (u32)mem->size,
-				      &secure_heap_handle);
-	if (err)
-		pr_err("%s: tee protect gpu mem fail!\n", __func__);
-	else
-		pr_info("tee protect gpu mem done.\n");
+
+	if (mem->base > 0 && mem->size > 0) {
+		err = tee_protect_mem_by_type(TEE_MEM_TYPE_GPU,
+						(u32)mem->base,
+						(u32)mem->size,
+						&secure_heap_handle);
+		if (err)
+			pr_err("%s: tee protect gpu mem fail!\n", __func__);
+		else
+			pr_info("tee protect gpu mem done.\n");
+	} else {
+		pr_info("No secure configurate for gpu");
+	}
 
 	dma_coerce_mask_and_coherent(dma_heap_get_dev(secure_heap),
 		DMA_BIT_MASK(64));

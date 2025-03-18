@@ -399,27 +399,16 @@ static struct codec_mm_mgt_s *get_mem_mgt(void)
 {
 	static struct codec_mm_mgt_s mgt;
 	static int inited;
-	int ret = 0;
-	int handle = 0;
 
 	if (!inited) {
 		memset(&mgt, 0, sizeof(struct codec_mm_mgt_s));
-		/*If tee_protect_tvp_mem is not implement
-		 *will return 0xFFFFFFF we used to init use
-		 *which mode
-		 */
-		ret = tee_protect_tvp_mem(0, 0, &handle);
-		if (ret == 0xFFFFFFFF) {
-			tvp_mode = 0;
-			tvp_dynamic_increase_disable = 1;
-		} else {
-			tvp_mode = 1;
-		}
+		tvp_dynamic_increase_disable = 0;
+		tvp_mode = 1;
 		mutex_init(&mgt.tvp_protect_lock);
 		inited++;
 	}
 	return &mgt;
-};
+}
 
 static void *codec_mm_extpool_alloc(struct extpool_mgt_s *tvp_pool,
 				    void **from_pool, int size, int align_2n)
