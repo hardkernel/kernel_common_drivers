@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/clock/amlogic,t7-clkc.h>
+#include <dt-bindings/clock/amlogic,t7-scmi-clkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/t7-pd.h>
@@ -62,11 +63,11 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_A73_CLK>,
-				<&clkc CLKID_A73_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
+			clocks = <&clkc CLKID_A73_CLK>;
+				// //<&clkc CLKID_A73_DYN_CLK>,
+				//<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
-				"low_freq_clk_parent",
+				// //"low_freq_clk_parent",
 				"high_freq_clk_parent";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -82,11 +83,11 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_A73_CLK>,
-				<&clkc CLKID_A73_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
+			clocks = <&clkc CLKID_A73_CLK>;
+				//<&clkc CLKID_A73_DYN_CLK>,
+				//<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
-				"low_freq_clk_parent",
+				//"low_freq_clk_parent",
 				"high_freq_clk_parent";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -102,11 +103,11 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_A73_CLK>,
-				<&clkc CLKID_A73_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
+			clocks = <&clkc CLKID_A73_CLK>;
+				//<&clkc CLKID_A73_DYN_CLK>,
+				//<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
-				"low_freq_clk_parent",
+				//"low_freq_clk_parent",
 				"high_freq_clk_parent";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -122,11 +123,11 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_A73_CLK>,
-				<&clkc CLKID_A73_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
+			clocks = <&clkc CLKID_A73_CLK>;
+				//<&clkc CLKID_A73_DYN_CLK>,
+				//<&clkc CLKID_SYS_PLL>;
 			clock-names = "core_clk",
-				"low_freq_clk_parent",
+				//"low_freq_clk_parent",
 				"high_freq_clk_parent";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -142,11 +143,11 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS1_PLL>;
+			clocks = <&clkc CLKID_CPU_CLK>;
+				// <&clkc CLKID_CPU_DYN_CLK>,
+				// <&clkc CLKID_SYS1_PLL>;
 			clock-names = "core_clk",
-				"low_freq_clk_parent",
+				//"low_freq_clk_parent",
 				"high_freq_clk_parent";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -162,11 +163,11 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS1_PLL>;
+			clocks = <&clkc CLKID_CPU_CLK>;
+				// <&clkc CLKID_CPU_DYN_CLK>,
+				// <&clkc CLKID_SYS1_PLL>;
 			clock-names = "core_clk",
-				"low_freq_clk_parent",
+				//"low_freq_clk_parent",
 				"high_freq_clk_parent";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -182,11 +183,11 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS1_PLL>;
+			clocks = <&clkc CLKID_CPU_CLK>;
+				// <&clkc CLKID_CPU_DYN_CLK>,
+				// <&clkc CLKID_SYS1_PLL>;
 			clock-names = "core_clk",
-				"low_freq_clk_parent",
+				//"low_freq_clk_parent",
 				"high_freq_clk_parent";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -202,11 +203,11 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS1_PLL>;
+			clocks = <&clkc CLKID_CPU_CLK>;
+				// <&clkc CLKID_CPU_DYN_CLK>,
+				// <&clkc CLKID_SYS1_PLL>;
 			clock-names = "core_clk",
-				"low_freq_clk_parent",
+				//"low_freq_clk_parent",
 				"high_freq_clk_parent";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -419,6 +420,34 @@
 		compatible = "amlogic, dolby_fw";
 		mem_size = <0x100000>;
 		status = "okay";
+	};
+
+	shmem {
+		compatible = "mmio-sram";
+		reg = <0x0 0x050f6000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x050f6000 0x100>;
+
+		scmi_shmem: shmem@0 {
+			compatible = "arm,scmi-shmem";
+			reg = <0x0 0x100>;
+		};
+	};
+
+	firmware {
+		scmi: scmi {
+			compatible = "arm,scmi-smc";
+			arm,smc-id = <0x820000C1>;
+			shmem = <&scmi_shmem>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+		};
 	};
 
 	jtag {
@@ -1271,12 +1300,14 @@
 				compatible = "amlogic,t7-clkc";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0x49c>,
-				      <0x0 0x8000 0x0 0x320>,
-				      <0x0 0xe040 0x0 0xbc>;
-				reg-names = "basic", "pll",
-					    "cpu_clk";
-				clocks = <&xtal>;
-				clock-names = "xtal";
+				      <0x0 0x8000 0x0 0x320>;
+				reg-names = "basic", "pll";
+				clocks = <&xtal>,
+					 <&scmi_clk CLKID_FIXED_PLL_DCO>,
+					 <&scmi_clk CLKID_FIXED_PLL>;
+				clock-names = "xtal",
+						  "fixed_pll_dco",
+					      "fixed_pll";
 				status = "okay";
 			};
 
