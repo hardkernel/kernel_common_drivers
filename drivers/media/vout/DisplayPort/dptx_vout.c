@@ -821,18 +821,18 @@ void __exit DisplayPort_TX_exit(void)
 	platform_driver_unregister(&DisplayPort_platform_driver);
 }
 
-static int dptx_boot_ctrl_setup(u8 idx, char *str)
+static void dptx_boot_ctrl_setup(u8 idx, char *str)
 {
-	int ret = 0;
+	int ret;
 	unsigned int data32 = 0;
 
 	if (!str)
-		return -EINVAL;
+		return;
 
 	ret = kstrtouint(str, 16, &data32);
 	if (ret) {
 		DPTXPR(idx, LOG_E, "%s: invalid (%s)", __func__, str);
-		return -EINVAL;
+		return;
 	}
 
 	/*
@@ -857,19 +857,18 @@ static int dptx_boot_ctrl_setup(u8 idx, char *str)
 	// dptx_print_level = data32 >> 30;
 
 	DPTXPR(idx, LOG_I, "boot[0x%8x] ", data32);
-	return 0;
 }
 
 static int __dptx0_boot_ctrl_setup(char *str)
 {
 	dptx_boot_ctrl_setup(0, str);
-	return 0;
+	return 1;
 }
 
 static int __dptx1_boot_ctrl_setup(char *str)
 {
 	dptx_boot_ctrl_setup(1, str);
-	return 0;
+	return 1;
 }
 
 static int __dptx_debug_setup(char *str)
@@ -887,7 +886,7 @@ static int __dptx_debug_setup(char *str)
 	}
 
 	dptx_print_level = data32 & 0x3;
-	return 0;
+	return 1;
 }
 
 __setup("dptx0=", __dptx0_boot_ctrl_setup);
