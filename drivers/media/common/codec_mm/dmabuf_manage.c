@@ -2181,10 +2181,12 @@ u64 dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
 	u32 version)
 {
 	struct secure_pool_info *pool = NULL;
+#if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
 	u64 res = 0;
+	u32 allocsize = 0;
+#endif
 	u64 addr = 0;
 	u64 phyaddr = 0;
-	u32 allocsize = 0;
 	struct block_node *block = NULL;
 
 	mutex_lock(&g_secure_pool_mutex);
