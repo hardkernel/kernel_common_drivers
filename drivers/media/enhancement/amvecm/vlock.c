@@ -661,7 +661,9 @@ static unsigned int vlock_check_input_hz(struct vframe_s *vf)
 		if (duration != 0)
 			ret_hz = (96000 + duration / 2) / duration;
 
-		if (diff(ret_hz, 60) <= 1)
+		if (duration >= 1585 && duration <= 1595)
+			ret_hz = 61;
+		else if (diff(ret_hz, 60) <= 1)
 			ret_hz = 60;
 		else if (diff(ret_hz, 50) <= 1)
 			ret_hz = 50;
