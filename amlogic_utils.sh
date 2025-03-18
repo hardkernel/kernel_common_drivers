@@ -836,7 +836,7 @@ function modules_install() {
 			done
 
 			touch ${module} ${OUT_AMLOGIC_DIR}/ext_modules/ext_modules.order
-			for order_file in `find ${BAZEL_OUT} -name "modules.order.*" | grep "amlogic"`; do
+			for order_file in `find ${BAZEL_OUT} -name "modules.order" | grep -v "modules_install" | grep -v "common_drivers"`; do
 				order_file_dir=${order_file#*/extra/}
 				order_file_dir=${order_file_dir%/modules.order.*}
 				if [[ ! "${EXT_MODULES_ANDROID_AUTO_LOAD}" =~ "${order_file_dir}" ]]; then
