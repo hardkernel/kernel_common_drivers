@@ -50,6 +50,11 @@ struct pa1_acodec_priv {
 	unsigned int dsp_status;
 	struct snd_soc_component *component;
 	unsigned int pa1_page;
+	unsigned int debug_top_reg;
+	int debug_top_val;
+	unsigned int debug_dsp_reg;
+	int debug_dsp_val;
+	unsigned int debug_reset_pin;
 };
 
 const struct regmap_config pa1_acodec_regmap = {
@@ -353,15 +358,13 @@ void pa1_aed_eq_taps(struct snd_soc_component *component, unsigned int eq_taps)
 void pa1_aed_get_ram_coeff(struct snd_soc_component *component, int add,
 				int len, unsigned int *params)
 {
-	int i, ctrl_v;
+	int i;
 	unsigned int *p = params;
 
 	top_conversion_to_dsp(component);
-	for (i = 0; i < len; i++, p++) {
-		ctrl_v = add + i;
-		snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
+	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, add);
+	for (i = 0; i < len; i++, p++)
 		*p = snd_soc_component_read(component, PA1_AEQ_COEF_DATA);
-	}
 }
 
 void pa1_aed_set_ram_coeff(struct snd_soc_component *component, int add,
@@ -447,13 +450,13 @@ void pa1_aed_set_multiband_drc_coeff(struct snd_soc_component *component, int ba
 	for (i = 0; i < 2; i++, p++)
 		snd_soc_component_write(component, PA1_AEQ_COEF_DATA, *p);
 
-	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + 6;
+	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + PA1_MULTIBAND_ADDRESS_OFFSET1;
 	p = &PA1_MULTIBAND_DRC_COEFF[band * PA1_AED_SINGLE_BAND_DRC_SIZE + 2];
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
 	for (i = 0; i < 10; i++, p++)
 		snd_soc_component_write(component, PA1_AEQ_COEF_DATA, *p);
 
-	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2 + 36;
+	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2 + PA1_MULTIBAND_ADDRESS_OFFSET2;
 	p = &PA1_MULTIBAND_DRC_COEFF[band * PA1_AED_SINGLE_BAND_DRC_SIZE + 12];
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
 	for (i = 0; i < 2; i++, p++)
@@ -463,35 +466,24 @@ void pa1_aed_set_multiband_drc_coeff(struct snd_soc_component *component, int ba
 void pa1_aed_get_multiband_drc_coeff(struct snd_soc_component *component,
 				int band, unsigned int *params)
 {
-	int i, ctrl_v, add;
-	unsigned int value = 0;
+	int i, ctrl_v;
 	unsigned int *p = params;
 
 	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2;
 	top_conversion_to_dsp(component);
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
-	value = snd_soc_component_read(component, PA1_AEQ_COEF_DATA);
+	for (i = 0; i < 2; i++, p++)
+		*p = snd_soc_component_read(component, PA1_AEQ_COEF_DATA);
 
-	*p++ = cpu_to_be32(value);
-
-	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + 6;
+	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + PA1_MULTIBAND_ADDRESS_OFFSET1;
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
-	value = snd_soc_component_read(component, PA1_AEQ_COEF_DATA);
+	for (i = 0; i < 10; i++, p++)
+		*p = snd_soc_component_read(component, PA1_AEQ_COEF_DATA);
 
-	*p++ = cpu_to_be32(value);
-
-	add = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + 8;
-	for (i = 0; i < 8; i++, p++) {
-		ctrl_v = add + i;
-		snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
-		value = snd_soc_component_read(component, PA1_AEQ_COEF_DATA);
-		*p++ = cpu_to_be32(value);
-	}
-
-	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2 + 36;
+	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2 + PA1_MULTIBAND_ADDRESS_OFFSET2;
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
-	value = snd_soc_component_read(component, PA1_AEQ_COEF_DATA);
-	*p++ = cpu_to_be32(value);
+	for (i = 0; i < 2; i++, p++)
+		*p = snd_soc_component_read(component, PA1_AEQ_COEF_DATA);
 }
 
 void pa1_aed_set_multiband_drc_param(struct snd_soc_component *component)
@@ -537,12 +529,8 @@ static int pa1_mixer_get_3D_Surround_params(struct snd_kcontrol *kcontrol,
 
 	pa1_aed_get_ram_coeff(component, PA1_3D_SURROUND_RAM_ADD, PA1_AED_FULLBAND_DRC_SIZE, p);
 
-	for (i = 0; i < PA1_AED_FULLBAND_DRC_SIZE; i++) {
-		if (i == 5)
-			p++;
-		else
-			*value++ = cpu_to_be32(*p++);
-	}
+	for (i = 0; i < PA1_AED_FULLBAND_DRC_SIZE; i++)
+		*value++ = cpu_to_be32(*p++);
 
 	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0x0);
 	dsp_conversion_to_top(component);
@@ -557,7 +545,7 @@ static int pa1_mixer_set_3D_Surround_params(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int tmp_data[PA1_FILTER_PARAM_SIZE + 2] = {0};
 	unsigned int *p_data = &tmp_data[0];
-	char tmp_string[PA1_FILTER_PARAM_BYTE];
+	char tmp_string[AED_3D_FILTER_PARAM_BYTE];
 	char *p_string = &tmp_string[0];
 	unsigned int *p = &PA1_3D_SURROUND_COEFF[0];
 	int num, i, band_id, addr;
@@ -565,11 +553,11 @@ static int pa1_mixer_set_3D_Surround_params(struct snd_kcontrol *kcontrol,
 
 	if (!val)
 		return -ENOMEM;
-	memcpy(p_string, val, PA1_FILTER_PARAM_BYTE);
+	memcpy(p_string, val, AED_3D_FILTER_PARAM_BYTE);
 
-	num = pa1_str2int(p_string, p_data, PA1_FILTER_PARAM_BYTE);
+	num = pa1_str2int(p_string, p_data, AED_3D_FILTER_PARAM_BYTE);
 	band_id = tmp_data[0];
-	if (num != (PA1_FILTER_PARAM_SIZE + 1) || band_id >= PA1_3D_SURROUND_BAND) {
+	if (num != (PA1_FILTER_PARAM_SIZE + 2) || band_id >= PA1_3D_SURROUND_BAND) {
 		pr_err("Error: parma_num = %d, band_id = %d\n",
 			num, tmp_data[0]);
 		return 0;
@@ -705,10 +693,7 @@ static int pa1_mixer_get_fullband_DRC_params(struct snd_kcontrol *kcontrol,
 	pa1_aed_get_ram_coeff(component, PA1_FULLBAND_FILTER_RAM_ADD, len, p);
 
 	for (i = 0; i < len; i++)
-		if (i == 1 || i == 3)
-			p++;
-		else
-			*value++ = cpu_to_be32(*p++);
+		*value++ = cpu_to_be32(*p++);
 
 	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0x0);
 	dsp_conversion_to_top(component);
@@ -768,6 +753,7 @@ static int pa1_mixer_get_multiband_DRC_params(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int *value = (unsigned int *)ucontrol->value.bytes.data;
+	unsigned int *p = &PA1_MULTIBAND_DRC_COEFF[0];
 	int i;
 
 	dsp_conversion_to_top(component);
@@ -776,8 +762,13 @@ static int pa1_mixer_get_multiband_DRC_params(struct snd_kcontrol *kcontrol,
 	top_conversion_to_dsp(component);
 	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0xf);
 
-	for (i = 0; i < 3; i++)
-		pa1_aed_get_multiband_drc_coeff(component, i, value);
+	for (i = 0; i < 3; i++) {
+		p = &PA1_MULTIBAND_DRC_COEFF[i * PA1_AED_SINGLE_BAND_DRC_SIZE];
+		pa1_aed_get_multiband_drc_coeff(component, i, p);
+	}
+	p = &PA1_MULTIBAND_DRC_COEFF[0];
+	for (i = 0; i < PA1_AED_MULTIBAND_DRC_SIZE; i++)
+		*value++ = cpu_to_be32(*p++);
 
 	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0x0);
 	dsp_conversion_to_top(component);
@@ -939,7 +930,156 @@ static int pa1_mixer_set_crossover_params(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int pa1_mixer_i2c_top_read(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+	unsigned int value = 0, reg = 0;
+
+	reg = pa1_acodec->debug_top_reg;
+	dsp_conversion_to_top(component);
+	value = snd_soc_component_read(component, reg);
+	pr_debug("%s(), reg = 0x%x, value = 0x%x\n", __func__, reg, value);
+	ucontrol->value.integer.value[0] = value;
+
+	return 0;
+}
+
+static int pa1_mixer_i2c_top_reg_write(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+
+	pa1_acodec->debug_top_reg = ucontrol->value.integer.value[0];
+
+	pr_debug("%s(), reg = 0x%x\n", __func__, pa1_acodec->debug_top_reg);
+
+	return 0;
+}
+
+static int pa1_mixer_i2c_top_val_write(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+
+	pa1_acodec->debug_top_val = ucontrol->value.integer.value[0];
+
+	pr_debug("%s(), reg = 0x%x, value = 0x%x\n", __func__,
+		pa1_acodec->debug_top_reg, pa1_acodec->debug_top_val);
+	dsp_conversion_to_top(component);
+	snd_soc_component_write(component,
+		pa1_acodec->debug_top_reg, pa1_acodec->debug_top_val);
+	return 0;
+}
+
+static int pa1_mixer_i2c_dsp_read(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+	unsigned int value = 0, reg = 0;
+
+	reg = pa1_acodec->debug_dsp_reg;
+	top_conversion_to_dsp(component);
+	value = snd_soc_component_read(component, reg);
+	pr_debug("%s(), reg = 0x%x, value = 0x%x\n", __func__, reg, value);
+	ucontrol->value.integer.value[0] = value;
+
+	return 0;
+}
+
+static int pa1_mixer_i2c_dsp_reg_write(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+
+	pa1_acodec->debug_dsp_reg = ucontrol->value.integer.value[0];
+
+	pr_debug("%s(), reg = 0x%x\n", __func__, pa1_acodec->debug_dsp_reg);
+
+	return 0;
+}
+
+static int pa1_mixer_i2c_dsp_val_write(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+
+	pa1_acodec->debug_dsp_val = ucontrol->value.integer.value[0];
+
+	pr_debug("%s(), reg = 0x%x, value = 0x%x\n", __func__,
+		pa1_acodec->debug_dsp_reg, pa1_acodec->debug_dsp_val);
+	top_conversion_to_dsp(component);
+	snd_soc_component_write(component,
+		pa1_acodec->debug_dsp_reg, pa1_acodec->debug_dsp_val);
+	return 0;
+}
+
+static int pa1_mixer_pdn_status_read(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+	struct pa1_acodec_platform_data *pdata = pa1_acodec->pdata;
+
+	ucontrol->value.integer.value[0] = pdata->reset_pin;
+
+	return 0;
+}
+
+static int pa1_mixer_pdn_reset_pin(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+	struct pa1_acodec_platform_data *pdata = pa1_acodec->pdata;
+	int ret;
+
+	pa1_acodec->debug_reset_pin = ucontrol->value.integer.value[0];
+
+	ret = gpio_request(pdata->reset_pin, NULL);
+	if (ret < 0)
+		return -1;
+	if (pa1_acodec->debug_reset_pin == 0) {
+		ret = gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
+		usleep_range(10 * 500, 10 * 1000);
+		pr_debug("ret = %d, Set PA1 Reset Pin low!\n", ret);
+	} else {
+		ret = gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
+		usleep_range(10 * 500, 10 * 1000);
+		pr_debug("ret = %d, Set PA1 Reset Pin high!\n", ret);
+	}
+	gpio_free(pdata->reset_pin);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new pa1_acodec_vol_control[] = {
+	SOC_SINGLE_EXT("PA1 I2C Top Read",
+		0, 0, 0xfffffff, 0,
+		pa1_mixer_i2c_top_read, pa1_mixer_i2c_top_reg_write),
+
+	SOC_SINGLE_EXT("PA1 I2C Top Write",
+		0, 0, 0xfffffff, 0,
+		pa1_mixer_i2c_top_read, pa1_mixer_i2c_top_val_write),
+
+	SOC_SINGLE_EXT("PA1 I2C DSP Read",
+		0, 0, 0xfffffff, 0,
+		pa1_mixer_i2c_dsp_read, pa1_mixer_i2c_dsp_reg_write),
+
+	SOC_SINGLE_EXT("PA1 I2C DSP Write",
+		0, 0, 0xfffffff, 0,
+		pa1_mixer_i2c_dsp_read, pa1_mixer_i2c_dsp_val_write),
+
+	SOC_SINGLE_EXT("PA1 PDN Control",
+		0, 0, 0x1, 0,
+		pa1_mixer_pdn_status_read, pa1_mixer_pdn_reset_pin),
+
 	SOC_SINGLE_EXT_TLV("PA1 AED master volume",
 			PA1_AED_EQ_VOLUME_VAL, 20, 0x3FF, 1,
 			pa1_mixer_aed_read, pa1_mixer_aed_write,
@@ -968,7 +1108,7 @@ static const struct snd_kcontrol_new pa1_acodec_vol_control[] = {
 			pa1_mixer_aed_read, pa1_mixer_aed_write),
 
 	SND_SOC_BYTES_EXT("PA1 AED 3D Surround Parameters",
-			PA1_AED_FULLBAND_DRC_BYTES,
+			AED_3D_FILTER_PARAM_BYTE,
 			pa1_mixer_get_3D_Surround_params,
 			pa1_mixer_set_3D_Surround_params),
 
@@ -1198,6 +1338,10 @@ static void pa1_effect_init(struct snd_soc_component *component)
 	pa1_aed_enable_dsp_process_module(component);
 	/* set master & channel volume gain to 0dB */
 	pa1_aed_set_volume(component, 0xc0, 0xc0, 0xc0);
+	/* need reset dsp after dsp update all setting */
+	top_conversion_to_dsp(component);
+	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0xf);
+	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0x0);
 }
 
 static void pa1_playback_mode(struct snd_soc_component *component)
@@ -1205,12 +1349,29 @@ static void pa1_playback_mode(struct snd_soc_component *component)
 	int j;
 
 	dsp_conversion_to_top(component);
-	snd_soc_component_write(component, PA1_RESET_CTRL, 0x10);
 	msleep(20);
 	for (j = 0; j < ARRAY_SIZE(pa1_reg_set); j++)
 		snd_soc_component_write(component, pa1_reg_set[j][0],
 							pa1_reg_set[j][1]);
 }
+
+#ifdef PA1_debug
+static void pa1_ana_reg_read(struct snd_soc_component *component)
+{
+	int j;
+	int ana_reg_val = 0;
+
+	dsp_conversion_to_top(component);
+	msleep(20);
+	for (j = 0; j < ARRAY_SIZE(ana_reg_read); j++) {
+		ana_reg_val = (unsigned int)snd_soc_component_read32(component,
+							ana_reg_read[j]);
+		msleep(20);
+		pr_debug("%s, read analog reg value!!! analog reg address = %d, analog reg value = %d\n",
+					__func__, ana_reg_read[j], ana_reg_val);
+	}
+}
+#endif
 
 static int pa1_acodec_snd_resume(struct snd_soc_component *component)
 {
@@ -1259,6 +1420,10 @@ static int pa1_acodec_probe(struct snd_soc_component *component)
 	pa1_playback_mode(component);
 	msleep(30);
 	pa1_effect_init(component);
+#ifdef PA1_debug
+	msleep(30);
+	pa1_ana_reg_read(component);
+#endif
 
 	return 0;
 }

@@ -88,11 +88,14 @@
 #define PA1_AED_MULTIBAND_DRC_BANDS		(3)
 #define PA1_AED_MULTIBAND_DRC_OFFSET		(5)
 #define PA1_MULTIBAND_FILTER_RAM_ADD		(226)
+#define PA1_MULTIBAND_ADDRESS_OFFSET1		(6)
+#define PA1_MULTIBAND_ADDRESS_OFFSET2		(36)
 
 #define PA1_CROSSOVER_FILTER_SIZE		(24)
 #define PA1_CROSSOVER_FILTER_RAM_ADD		(202)
 #define PA1_CROSSOVER_FILTER_BAND		(4)
 
+#define AED_3D_FILTER_PARAM_BYTE		(77)
 #define PA1_3D_SURROUND_BAND			(2)
 #define PA1_AED_3D_SURROUND_SIZE		(12)
 #define PA1_3D_SURROUND_RAM_ADD			(190)
@@ -262,6 +265,76 @@ static unsigned int PA1_MULTIBAND_DRC_COEFF[PA1_AED_MULTIBAND_DRC_SIZE] = {
 	0x00000000,
 };
 
+#ifdef PA1_debug
+static const int pa1_reg_set[][2] = {
+	/* vision D reg set */
+	{ PA1_ANA_TRIM_4, 0x72 },
+	{ PA1_PLL_CTRL1, 0xb4 },
+	{ PA1_PLL_CTRL0, 0x34 },
+	{ PA1_AUTOCONFIG_CTRL, 0x1 },
+	{ PA1_PINMUX_IE, 0x1b },
+	{ PA1_DEVICE_CTRL2, 0x84 },
+	{ PA1_PIN_CONTROL1, 0x2 },
+	{ PA1_ANA_FORCE7, 0x0 },
+	{ PA1_ANA_FORCE2, 0x10 },
+	{ PA1_ANA_FORCE6, 0x20 },
+	{ PA1_FAULT_CLEAR, 0xFF },
+	{ PA1_FAULT_CLEAR, 0x0 },
+	{ PA1_MISC_CONTROL, 0x20 },
+	{ PA1_MISC_CONTROL, 0x0 },
+	{ PA1_PIN_CONTROL2, 0x3f },
+	{ PA1_PINMUX_IE, 0x1f },
+	{ PA1_DAC_CTRL1, 0x5d },
+	{ PA1_DAC_CTRL2, 0x5d },
+	{ PA1_ANA_CTRL1, 0xbc },
+	{ PA1_ANA_CTRL2, 0x9 },
+	{ PA1_SS_CTRL2, 0x80 },
+	{ PA1_ANA_CTRL0, 0x80 },
+	/* enter play mode */
+	{ PA1_DEVICE_CTRL2, 0x85 },
+};
+#endif
+
+static const int pa1_reg_set[][2] = {
+	/* vision E reg set */
+	{ PA1_PINMUX_IE, 0x1b },
+	/* no need set 15M */
+	//{ PA1_ANA_TRIM_4, 0x72 },
+	{ PA1_PLL_CTRL0, 0x34 },
+	{ PA1_AUTOCONFIG_CTRL, 0x1 },
+	{ PA1_PINMUX_IE, 0x1b },
+	{ PA1_DEVICE_CTRL2, 0x84 },
+	{ PA1_ANA_FORCE7, 0 },
+	{ PA1_FAULT_CLEAR, 0xFF },
+	{ PA1_FAULT_CLEAR, 0x0 },
+	{ PA1_MISC_CONTROL, 0x20 },
+	{ PA1_MISC_CONTROL, 0x0 },
+	{ PA1_PIN_CONTROL2, 0x3f },
+	{ PA1_PINMUX_IE, 0x1f },
+
+	/* ana reg set */
+	/* dac gain -4dB -> pvdd=12V */
+	{ PA1_DAC_CTRL1, 0xd3 },
+	{ PA1_DAC_CTRL2, 0xd3 },
+	/* hiz lower power disable(must add) */
+	{ PA1_ANA_CTRL1, 0xbc },
+	{ PA1_ANA_CTRL2, 33 },
+
+	{ PA1_VCM_ADJ, 104 },
+
+	/* 83: btl: 1-bd, 33-1spw, 65-hybrid */
+	////{ PA1_ANA_CTRL2, 0x1 },
+
+	////{ PA1_VCM_ADJ, 0xa8 },
+	{ PA1_SS_CTRL2, 0x80 },
+	{ PA1_PIN_CONTROL2, 0x1b },
+	{ PA1_ANA_CTRL0, 0x74 },
+
+	/* enter play mode */
+	{ PA1_DEVICE_CTRL2, 0x85 },
+};
+
+#ifdef PA1_debug
 static const int pa1_reg_set[][2] = {
 	/* vision C dig reg set */
 	{ PA1_ANA_TRIM_4, 0x72 },
@@ -287,6 +360,25 @@ static const int pa1_reg_set[][2] = {
 	/* enter play mode */
 	{ PA1_DEVICE_CTRL2, 0x85 },
 };
+#endif
+
+#ifdef PA1_debug
+static const int ana_reg_read[] = {
+	0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9,
+	0xa, 0xb, 0xc, 0xd, 0xf, 0x10, 0x11,
+	0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+	0x19, 0x1b, 0x1c, 0x1e, 0x1f, 0x20, 0x23,
+	0x24, 0x25, 0x26, 0x28, 0x29, 0x2a, 0x2b,
+	0x2c, 0x2d, 0x2e, 0x2f, 0x31, 0x32, 0x33,
+	0x34, 0x35, 0x36, 0x38, 0x39, 0x3a, 0x4c,
+	0x4e, 0x4f, 0x51, 0x52, 0x53, 0x54, 0x55,
+	0x5e, 0x5f, 0x60, 0x62, 0x63, 0x65, 0x66,
+	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e,
+	0x6f, 0x70, 0x71, 0x74, 0x75, 0x76, 0x78,
+	0x7c, 0x7d, 0x7e, 0x7f, 0x80, 0x81, 0x82,
+	0x83, 0x84,
+};
+#endif
 
 struct pa1_acodec_platform_data {
 	int reset_pin;
