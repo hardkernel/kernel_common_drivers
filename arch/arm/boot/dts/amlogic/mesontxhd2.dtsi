@@ -18,6 +18,7 @@
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include "meson-ir-map.dtsi"
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include <dt-bindings/reset/amlogic,meson-txhd2-reset.h>
 #include "mesongxbb-gpu-mali450.dtsi"
@@ -28,7 +29,6 @@
 	cpus:cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-
 		CPU0:cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
@@ -378,29 +378,6 @@
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			ddr_cool {
-				ddr_reg = <0xff6384b4 0xff638224>; /*ddr gpu*/
-				ddr_status = <13>;
-				ddr_bits = <0 15>,
-							<0 31>;
-				ddr_data = <9616 9616 9616 7512 6010 4808 3756
-				3434 3004 2404 2002 1716 1502 >;
-				gpu_data = <0x28202820 0x28202820 0x28202820 0x28202820
-					0x18101810 0x18101810 0x18101810 0x18101810 0x18101810
-					0x02010201 0x02010201 0x02010201 0x02010201>;
-				ddr_data1 = <9616 9616 9616 7512 6010 4808 3756
-				3434 3004 2404 2002 1716 1502>;
-				gpu_data1 = <0x28202820 0x28202820 0x28202820 0x28202820
-					0x18101810 0x18101810 0x18101810 0x18101810 0x18101810
-					0x02010201 0x02010201 0x02010201 0x02010201>;
-				ddr_data2 = <9616 9616 9616 7512 6010 4808 3756
-				3434 3004 2404 2002 1716 1502>;
-				gpu_data2 = <0x28202820 0x28202820 0x28202820 0x28202820
-					0x18101810 0x18101810 0x18101810 0x18101810 0x18101810
-					0x02010201 0x02010201 0x02010201 0x02010201>;
-				node_name = "ddr_cool0";
-				device_type = "ddr";
-			};
 			cpucore_cool {
 				cluster_core_num = <3>;
 				cluster_cores = <1 2 3>;
@@ -409,22 +386,12 @@
 			};
 			gpufreq_cool {
 				dyn_coeff = <245>;
-				node_name = "bifrost";
+				node_name = "mali";
 				device_type = "gpufreq";
 			};
-			media_cool {
-				node_name = "media_cool0";
-				device_type = "media";
-			};
-		};
-		ddr_cool0:ddr_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore:cpucore {
 			#cooling-cells = <2>; /* min followed by max */
-		};
-		media_cool0:media_cool0 {
-			#cooling-cells = <2>;
 		};
 	};/*meson cooling devices end*/
 
@@ -445,46 +412,22 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				pddr_change: trip-point@2 {
-					temperature = <55000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				pcritical: trip-point@3 {
+				pcritical: trip-point@2 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
-				pmedia_change: trip-point@4 {
-					temperature = <85000>;
-					hysteresis = <10000>;
-					type = "hot";
-				};
-				pcpucore: trip-point@5 {
+				pcpucore: trip-point@3 {
 					temperature = <95000>;
 					hysteresis = <10000>;
 					type = "hot";
 				};
 			};
 			cooling-maps {
-				cpufreq_cooling_map {
+				cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&CPU0 0 5>;
-					contribution = <1024>;
-				};
-				ddr_cooling_map {
-					trip = <&pddr_change>;
-					cooling-device = <&ddr_cool0 0 2>;
-					contribution = <1024>;
-				};
-				gpufreq_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-				media_cooling_map {
-					trip = <&pmedia_change>;
-					cooling-device = <&media_cool0 0 2>;
+					cooling-device = <&CPU0 0 5>,
+							 <&gpu 0 3>;
 					contribution = <1024>;
 				};
 				cpucore_cooling_map {
@@ -495,6 +438,42 @@
 			};
 		};
 	}; /*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		reg = <0xff800240 0x4>,
+		      <0xff6388a8 0x4>;
+		reg-names = "sip-addr",
+			    "freq-addr";
+		sip-mask = <19 1>;
+		freq-mask = <0 16>;
+		status = "okay";
+
+		sip {
+			particle = <SIP_PARTICLE>;
+			particle-flag = <DDR_SIP_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			refresh-constant-value;
+			caddr = <0xff6384b4>,
+				<0xff638224>;
+			caddr-mask = <0 16>,
+				     <0 32>;
+			cstep-val = <70000 75000 80000 85000 90000>,
+				    <95000 100000 105000 110000 115000 120000>;
+			caddr-val = <9616 0x28202820>,
+				    <7512 0x28202820>,
+				    <6010 0x18101810>,
+				    <4808 0x18101810>,
+				    <3756 0x18101810>,
+				    <3434 0x18101810>,
+				    <3004 0x18101810>,
+				    <2404 0x02010201>,
+				    <2002 0x02010201>,
+				    <1716 0x02010201>,
+				    <1502 0x02010201>;
+		};
+	};
 
 	single_cpu_opp_table0: single_cpu_opp_table0 {
 		compatible = "operating-points-v2";

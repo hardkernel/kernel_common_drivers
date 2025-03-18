@@ -571,28 +571,6 @@
 		<&single_cpu_opp_table3>;
 };
 
-&meson_cooldev {
-	cooling_devices {
-		ddr_cool {
-			ddr_data = <9616 9616 9616 9616 9616 9616 9616
-			9616 9616 9616 9616 9616 9616 >;
-			gpu_data = <0x28202820 0x28202820 0x28202820 0x28202820
-			0x28202820 0x28202820 0x28202820 0x28202820 0x28202820
-			0x28202820 0x28202820 0x28202820 0x28202820>;
-		};
-	};
-};
-
-&thermal_zones {
-	soc_thermal {
-		trips {
-			trip-point@2 {
-				temperature = <65000>;
-			};
-		};
-	};
-};
-
 &acodec {
 	diff_output = <1>;
 	/*0: 0dB; 1: 6dB; 2: 12dB; 3: 18dB;*/
@@ -680,6 +658,22 @@
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
 		};
+	};
+};
+
+&ddr_control {
+	nosip {
+		particle = <NOSIP_PARTICLE>;
+		particle-flag = <DDR_SIP_FLAG>;
+		condition-type = <DDR_THERMAL>;
+		zone-name = "soc_thermal";
+		refresh-constant-value;
+		caddr = <0xff6384b4>,
+			<0xff638224>;
+		caddr-mask = <0 16>,
+			     <0 32>;
+		cstep-val = <70000>;
+		caddr-val = <9616 0x28202820>;
 	};
 };
 
