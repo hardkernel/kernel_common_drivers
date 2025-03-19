@@ -10,11 +10,11 @@
 #include <drm/drm.h>
 #include <drm/drm_print.h>
 
-#define MESON_DRM_UT_FENCE		0x200  /* fence message */
-#define MESON_DRM_UT_REG		0x400  /* register message */
-#define MESON_DRM_UT_FBDEV		0x800  /* fbdev message */
-#define MESON_DRM_UT_TRAVERSE	0X1000  /* pipeline traverse message */
-#define MESON_DRM_UT_BLOCK		0X2000  /* vpu block message */
+#define MESON_DRM_UT_FENCE		(DRM_UT_DRMRES + 1)  /* fence message */
+#define MESON_DRM_UT_REG		(DRM_UT_DRMRES + 2)  /* register message */
+#define MESON_DRM_UT_FBDEV		(DRM_UT_DRMRES + 3)  /* fbdev message */
+#define MESON_DRM_UT_TRAVERSE		(DRM_UT_DRMRES + 4)  /* pipeline traverse message */
+#define MESON_DRM_UT_BLOCK		(DRM_UT_DRMRES + 5)  /* vpu block message */
 
 #define MESON_DRM_FENCE(fmt, ...)						\
 	__drm_dbg(MESON_DRM_UT_FENCE, fmt, ## __VA_ARGS__)
