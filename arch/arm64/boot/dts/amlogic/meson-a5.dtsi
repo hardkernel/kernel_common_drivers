@@ -720,66 +720,48 @@
 			};
 		};
 
-		crg_phy_20: crgphy20@fe03c000 {
-			compatible = "amlogic, amlogic-crg-drd-usb2";
-			status = "disable";
-			#phy-cells = <0>;
-			reg = <0x0 0xfe03a000 0x0 0x80
-					0x0 0xFE002000 0x0 0x100
-					0x0 0xfe03c000 0x0 0x2000>;
-			pll-setting-1 = <0x09400414>;
-			pll-setting-2 = <0x927E0000>;
-			pll-setting-3 = <0xac5f69e5>;
-			pll-setting-4 = <0xbe18>;
-			pll-setting-5 = <0x7>;
-			pll-setting-6 = <0x78000>;
-			pll-setting-7 = <0xe0004>;
-			pll-setting-8 = <0xe000c>;
-			dis-thred-enhance = <0x2>;/**t7-0x38:bit[26-27]**/
-			version = <3>;
-			//power-domains = <&pwrdm PDID_SC2_USB_COMB>;
-			phy0-reset-level-bit = <8>;
-			usb-reset-bit = <4>;
-			reset-level = <0x40>;
-			pwr-ctl = <0>;
-			clocks = <&clkc CLKID_SYS_USB>;
-			clock-names = "crg_general";
-			phy-id = <0>;
-			usb-phy-trim-reg = <0xfe010330>;
-		};
-
-		crg3_phy_20: crg3phy20@fe03a080 {
-			compatible = "amlogic, amlogic-crg-drd-usb3";
-			status = "disable";
-			#phy-cells = <0>;
-			reg = <0x0 0xfe03a080 0x0 0x20>;
-			phy1-reg = <0xfe03c000>;
-			phy1-reg-size = <0x2000>;
-			reset-reg = <0xFE002000>;
-			reset-reg-size = <0x100>;
-			reset-level = <0x40>;
-			phy-id = <0>;
-		};
-
-		crg20_otg: crg20otg@fe03a000 {
-			compatible = "amlogic, amlogic-crg-otg-v2";
+		usbphy0: usbphy0@0xfe03a020 {
+			compatible = "amlogic,u2phy-a5";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			//ranges = <0 0 0 0x1000>;
 			status = "disabled";
-			usb2-phy-reg = <0xfe03a000>;
-			usb2-phy-reg-size = <0x80>;
-			usb3-phy-reg = <0xfe03a080>;
-			usb3-phy-reg-size = <0x20>;
-			interrupts = <0 129 IRQ_TYPE_EDGE_RISING>;
-			regulator = <1>;
+			u2p0port0: u2p@0 {
+				#phy-cells = <0>;
+				port-speed = <0x0>; /* 0~2: HS HSP SS */
+				reg = <0xfe03a000 0x80
+						0xfe002000 0x100
+						0xfe010330 0x4
+						0xfe03c000 0x2000
+						0xfe03a080 0x20>;
+				reset-level = <0x40>;
+				phy-reset-level-bits = <8>;
+				usb-reset-bit = <4>;
+				pll-settings = <0x09400414
+								0x927E0000
+								0xac5f69e5
+								0xbe18
+								0x7
+								0x78000
+								0xe0004
+								0xe000c>;
+				dis-thred-enhance = <0x2>;
+				clocks = <&clkc CLKID_SYS_USB>;
+				clock-names = "crg_general";
+				phy-otg;
+				interrupts = <0 129 IRQ_TYPE_EDGE_RISING>;
+				regulator;
+			};
 		};
 
 		crg2_drd: crg2drd@fdd00000 {
 			status = "disabled";
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
 			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
-			usb-phy = <&crg_phy_20>, <&crg3_phy_20>;
+			phys = <&u2p0port0>;
+			phy-names = "usb2-phy";
 			cpu-type = "gxl";
 			clock-src = "usb3.0";
-
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 		};
@@ -792,11 +774,9 @@
 			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
 			clock-src = "usb0"; /** clock src */
 			port-speed = <3>; /** 0: default, high, 1: full */
-			phy-reg = <0xfe03a020>;
-			phy-reg-size = <0xa0>;
+			phys = <&u2p0port0>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "usb_general";
-			phy-id = <0>;
 		};
 
 		dummy_codec:dummy{

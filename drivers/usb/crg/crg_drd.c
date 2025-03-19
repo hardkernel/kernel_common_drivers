@@ -198,6 +198,9 @@ static int crg_core_get_phy(struct crg_drd *crg)
 	else if (crg->usb3_phy->flags == AML_USB3_PHY_ENABLE)
 		crg->super_speed_support = true;
 
+	if (crg->usb2_phy)
+		return 0;
+
 	for (i = 0; i < crg->num_usb2_ports; i++) {
 		if (crg->num_usb2_ports == 1)
 			snprintf(phy_name, sizeof(phy_name), "usb2-phy");
@@ -801,14 +804,27 @@ err0:
 static void crg_shutdown(struct platform_device *pdev)
 {
 	struct crg_drd     *crg = platform_get_drvdata(pdev);
+	int i;
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	crg_host_exit(crg);
-	crg_core_power(crg, false);
-	crg_core_put_reset(crg);
 	crg_phy_power_off(crg);
 	crg_phy_exit(crg);
+	crg_host_exit(crg);
+	if (crg->regs)
+		iounmap(crg->regs);
+
+	crg_core_power(crg, false);
+	crg_core_put_reset(crg);
+
+	for (i = 0; i < crg->num_usb2_ports; i++) {
+		if (crg->usb2_generic_phy[i])
+			phy_put(crg->dev, crg->usb2_generic_phy[i]);
+	}
+	for (i = 0; i < crg->num_usb3_ports; i++) {
+		if (crg->usb3_generic_phy[i])
+			phy_put(crg->dev, crg->usb3_generic_phy[i]);
+	}
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -824,19 +840,23 @@ static void crg_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
+	crg_phy_power_off(crg);
+	crg_phy_exit(crg);
 	crg_host_exit(crg);
 	if (crg->regs)
 		iounmap(crg->regs);
 
 	crg_core_power(crg, false);
 	crg_core_put_reset(crg);
-	crg_phy_power_off(crg);
-	crg_phy_exit(crg);
 
-	for (i = 0; i < crg->num_usb2_ports; i++)
-		phy_put(crg->dev, crg->usb2_generic_phy[i]);
-	for (i = 0; i < crg->num_usb3_ports; i++)
-		phy_put(crg->dev, crg->usb3_generic_phy[i]);
+	for (i = 0; i < crg->num_usb2_ports; i++) {
+		if (crg->usb2_generic_phy[i])
+			phy_put(crg->dev, crg->usb2_generic_phy[i]);
+	}
+	for (i = 0; i < crg->num_usb3_ports; i++) {
+		if (crg->usb3_generic_phy[i])
+			phy_put(crg->dev, crg->usb3_generic_phy[i]);
+	}
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);

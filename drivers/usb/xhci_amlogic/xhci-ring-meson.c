@@ -3219,6 +3219,13 @@ irqreturn_t aml_xhci_irq(struct usb_hcd *hcd)
 			ret = IRQ_HANDLED;
 				aml_xhci_info(xhci, "irq is set, but the status register=0x%08x\n",
 							status);
+			/* Interrupt comes when the host is halted
+			 * (e.g. being removed). Bail out.
+			 */
+			if (xhci->xhc_state & XHCI_STATE_HALTED) {
+				aml_xhci_info(xhci, "irq comes when the host is halted?\n");
+				goto out;
+			}
 		} else {
 			ret = IRQ_NONE;
 			goto out;

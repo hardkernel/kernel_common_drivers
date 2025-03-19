@@ -44,39 +44,6 @@ __retry:
 	goto __retry;
 }
 
-static void meson_usb2phy_s7_set_calibration_trim(struct amlogic_usb_v2 *phy)
-{
-	u32 value = 0;
-	u32 cali, i;
-	u8 cali_en;
-
-	if (!phy->usb_phy_trim_reg) {
-		mup_err(phy->dev, "No usb-phy-trim-reg\n");
-		return;
-	}
-
-	cali = readl(phy->usb_phy_trim_reg);
-	cali_en = (cali >> 12) & 0x1;
-	cali = cali >> 8;
-	if (cali_en) {
-		cali = cali & 0xf;
-		/* s7 modify. */
-		cali = cali + 2;
-		if (cali > 12)
-			cali = 12;
-	} else {
-		cali = phy->pll_setting[4];
-	}
-	value = readl(phy->phy_cfg[0] + 0x10);
-	value &= (~0xfff);
-	for (i = 0; i < cali; i++)
-		value |= (1 << i);
-
-	writel(value, phy->phy_cfg[0] + 0x10);
-
-	mup_dbg(phy->dev, "phy trim value= 0x%08x\n", value);
-}
-
 static int meson_usb2phy_s7_cali_disc_squelch
 			(struct amlogic_usb_v2 *mphy)
 {
@@ -95,7 +62,7 @@ static int meson_usb2phy_s7_cali_disc_squelch
 
 static int meson_usb2phy_s7_cali(struct amlogic_usb_v2 *mphy)
 {
-	meson_usb2phy_s7_set_calibration_trim(mphy);
+	meson_usb2phy_set_calibration_trim(mphy);
 	meson_usb2phy_s7_cali_disc_squelch(mphy);
 	return 0;
 }

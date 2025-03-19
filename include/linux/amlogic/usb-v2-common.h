@@ -39,6 +39,9 @@ struct amlogic_otg_helper {
 	struct delayed_work     set_mode_work;
 	struct delayed_work		id_gpio_work;
 	struct gpio_desc *idgpiodesc;
+	struct regulator *usb_regulator_ao1v8;
+	struct regulator *usb_regulator_ao3v3;
+	struct regulator *usb_regulator_vcc5v;
 	unsigned int irqline;
 	/*otg_mutex should be taken amlogic_crg_otg_work and
 	 *amlogic_crg_otg_set_m_work

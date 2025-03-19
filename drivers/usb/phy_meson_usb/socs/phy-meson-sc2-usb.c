@@ -8,6 +8,7 @@
 static int meson_usb2phy_sc2_cali(struct amlogic_usb_v2 *mphy)
 {
 	meson_usb2phy_legacy_cali(mphy);
+	meson_usb2phy_legacy_cali_disc_squelch(mphy);
 	return 0;
 }
 

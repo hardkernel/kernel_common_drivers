@@ -34,8 +34,9 @@ static int meson_u2phy_crg_otg_thaw(struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 
-	if (mphy->phy3_cfg)
-		writel(mphy->otg_helper.pm_buf.usb_r1.d32, mphy->phy3_cfg + 4);
+	if (mphy->usb_aml_regs)
+		writel(mphy->otg_helper.pm_buf.usb_r1.d32,
+			&mphy->usb_aml_regs->r1);
 	writel(mphy->otg_helper.pm_buf.u2p_r2.d32,
 			&mphy->u2p_aml_regs[0]->r2);
 	writel(mphy->otg_helper.pm_buf.u2p_r0.d32,
@@ -70,8 +71,8 @@ static int meson_u2phy_crg_otg_hibernation_prepare(struct amlogic_usb_v2 *mphy)
 
 	mphy->otg_helper.pm_buf.u2p_r0.d32 =
 			readl(&mphy->u2p_aml_regs[0]->r0);
-	if (mphy->phy3_cfg)
-		mphy->otg_helper.pm_buf.usb_r1.d32 = readl(mphy->phy3_cfg + 4);
+	if (mphy->usb_aml_regs)
+		mphy->otg_helper.pm_buf.usb_r1.d32 = readl(&mphy->usb_aml_regs->r1);
 	return 0;
 }
 
@@ -83,7 +84,9 @@ static int meson_u2phy_crg_otg_post_hibernation(struct amlogic_usb_v2 *mphy)
 	//pr_err("line state: %d recover to %d\n",
 	//	reg2.b.iddig_curr, phy->pm_buf.u2p_r2.b.iddig_curr);
 
-	writel(mphy->otg_helper.pm_buf.usb_r1.d32, mphy->phy3_cfg + 4);
+	if (mphy->usb_aml_regs)
+		writel(mphy->otg_helper.pm_buf.usb_r1.d32,
+			&mphy->usb_aml_regs->r1);
 	writel(mphy->otg_helper.pm_buf.u2p_r2.d32,
 			&mphy->u2p_aml_regs[0]->r2);
 	writel(mphy->otg_helper.pm_buf.u2p_r0.d32,
@@ -137,15 +140,20 @@ static int meson_u2phy_crg_otg_pm_cb(struct notifier_block *notifier,
 static int meson_u2phy_crg_otg_init(struct amlogic_usb_v2 *mphy)
 {
 	union usb_r1_v2 r1 = {.d32 = 0};
-	struct usb_aml_regs_v2 usb_crg_otg_aml_regs;
+	union u2p_r2_v2 reg2;
 
-	if (mphy->phy3_cfg) {
-		usb_crg_otg_aml_regs.usb_r_v2[1] = mphy->phy3_cfg + 4;
-
-		r1.d32 = readl(usb_crg_otg_aml_regs.usb_r_v2[1]);
+	if (mphy->usb_aml_regs) {
+		r1.d32 = readl(&mphy->usb_aml_regs->r1);
 		r1.b.u3h_fladj_30mhz_reg = 0x20;
-		writel(r1.d32, usb_crg_otg_aml_regs.usb_r_v2[1]);
+		writel(r1.d32, &mphy->usb_aml_regs->r1);
 	}
+
+	reg2.d32 = readl(&mphy->u2p_aml_regs[0]->r2);
+	reg2.b.iddig_en0 = 1;
+	reg2.b.iddig_en1 = 1;
+	reg2.b.iddig_th = 255;
+	writel(reg2.d32, &mphy->u2p_aml_regs[0]->r2);
+
 	return 0;
 }
 

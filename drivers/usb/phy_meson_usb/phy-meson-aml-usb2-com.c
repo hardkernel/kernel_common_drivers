@@ -280,6 +280,41 @@ int meson_usb2phy_legacy_set_pll(struct amlogic_usb_v2 *phy)
 	return 0;
 }
 
+/* The set_usb_phy_trim_tuning in the phy driver before is not used since k5.15
+ * due to GKI requirements.
+ */
+
+/* FIXME: Some socs will enter this with no pll_dis_thred_enhance prop. Is it a BUG? */
+void meson_usb2phy_legacy_cali_disc_squelch(struct amlogic_usb_v2 *phy)
+{
+	void __iomem	*reg = phy->phy_cfg[0];
+	u32 val;
+
+	/* BIT_5_0 set to MAX. */
+	writel(0x3f, reg + 0xC);
+
+	/* Extended disconnect threshold bit[26-27] */
+	val = readl(reg + 0x38);
+	val &= ~0xc000000;
+	val |= (phy->pll_dis_thred_enhance << 26 & 0xc000000);
+	writel(val, reg + 0x38);
+}
+
+void meson_usb2phy_legacy_cali_disc_squelch_n(struct amlogic_usb_v2 *phy)
+{
+	void __iomem	*reg = phy->phy_cfg[0];
+	u32 val;
+
+	/* BIT_5_0 set to MAX. */
+	writel(0x3f, reg + 0xC);
+
+	val = readl(reg + 0x38);
+	val &= ~0x18000000;
+	val |= (phy->pll_dis_thred_enhance << 27 & 0x18000000);
+	writel(val, reg + 0x38);
+}
+
+/* i.e. phy_version != 3 && phy_version != 0 */
 void meson_usb2phy_legacy_cali(struct amlogic_usb_v2 *phy)
 {
 	u32 val;
@@ -291,31 +326,22 @@ void meson_usb2phy_legacy_cali(struct amlogic_usb_v2 *phy)
 		val = 0x800001f;
 	writel(val | readl(reg + 0x10), reg + 0x10);
 
-	writel(0x3f, reg + 0xC);
-	/* Extended disconnect threshold bit[26-27] */
-	val = readl(reg + 0x38);
-	val &= ~0xc000000;
-	val |= (phy->pll_dis_thred_enhance << 26 & 0xc000000);
-	writel(val, reg + 0x38);
-
 	writel(phy->pll_setting[3], reg + 0x50);
 	writel(0x2a, reg + 0x54);
 	writel(0x78000, reg + 0x34);
 }
 
+/* i.e. phy_version == 3 */
 void meson_usb2phy_legacy_cali_n(struct amlogic_usb_v2 *phy)
 {
 	void __iomem	*reg = phy->phy_cfg[0];
 
-	/* phy_version == 3 */
-	writel(phy->pll_setting[3], reg + 0x50);
-	writel(0x2a, reg + 0x54);
 	/**phy_version == 3, 0x10 set value in usb_set_calibration_trim**/
 	/**phy_version == 3, 0x08 no longer contains the default value of 0x10**/
+
 	writel(phy->pll_setting[3], reg + 0x50);
-	writel(phy->pll_setting[4], reg + 0x10);
-	writel(0, reg + 0x38);
-	writel(phy->pll_setting[5], reg + 0x34);
+	writel(0x2a, reg + 0x54);
+	writel(0x78000, reg + 0x34);
 }
 
 /* Legacy multi-port roothub. Typical seen in socs contains the dwc2_a pcd.*/
@@ -540,7 +566,6 @@ void meson_usb2phy_set_calibration_trim(struct amlogic_usb_v2 *phy)
 int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 {
 	union u2p_r0_v2 reg0;
-	union u2p_r2_v2 reg2;
 	void __iomem *cfg = phy->phy_cfg[0];
 	int ret = 0;
 
@@ -573,12 +598,6 @@ int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 		writel(reg0.d32, &phy->u2p_aml_regs[0]->r0);
 		/* ID DETECT: usb2_otg_aca_en set to 0 */
 		writel(readl(cfg + 0x54) & (~(1 << 2)), (cfg + 0x54));
-
-		reg2.d32 = readl(&phy->u2p_aml_regs[0]->r2);
-		reg2.b.iddig_en0 = 1;
-		reg2.b.iddig_en1 = 1;
-		reg2.b.iddig_th = 255;
-		writel(reg2.d32, &phy->u2p_aml_regs[0]->r2);
 		/* reg32_20[7] bypass_otg_det default 0. */
 
 		/* FIXME: The current_mode is Used by phy init when resuming.
@@ -831,6 +850,9 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	for (i = 0; i < 8; i++)
 		mup_dbg(dev, "pll-settings: 0x%x\n", aml_u2phy->pll_setting[i]);
+
+	ret = of_property_read_u32(dev->of_node,
+		"dis-thred-enhance", &aml_u2phy->pll_dis_thred_enhance);
 
 	ret = of_property_read_u32(dev->of_node, "clk-mux", &aml_u2phy->clk_mux);
 

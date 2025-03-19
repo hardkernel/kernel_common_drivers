@@ -7,8 +7,14 @@
 
 /* USB 2 */
 
+static void meson_usb2phy_t7c_cali(struct amlogic_usb_v2 *mphy)
+{
+	meson_usb2phy_legacy_cali(mphy);
+	meson_usb2phy_legacy_cali_disc_squelch(mphy);
+}
+
 static struct meson_u2phy_priv meson_u2phy_t7c_priv = {
-	.cali = meson_usb2phy_legacy_cali,
+	.cali = meson_usb2phy_t7c_cali,
 	.set_pll = meson_usb2phy_legacy_set_pll,
 };
 
