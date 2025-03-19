@@ -927,13 +927,13 @@ static int get_efusecheck_info(struct device_node *np)
 	phandle = of_get_property(np, "check", NULL);
 	if (!phandle) {
 		ret = -EINVAL;
-		pr_err("failed to find match efuse key\n");
+		pr_err("failed to find match efuse check\n");
 		goto exit;
 	}
 	np_ec = of_find_node_by_phandle(be32_to_cpup(phandle));
 	if (!np_ec) {
 		ret = -EINVAL;
-		pr_err("failed to find device node efusekey\n");
+		pr_err("failed to find device node check\n");
 		goto exit;
 	}
 
@@ -1000,7 +1000,7 @@ static char *efuse_obj_err_parse(uint32_t  efuse_obj_err_status)
 		err_char = "size not match";
 		break;
 	case EFUSE_OBJ_ERR_NOT_SUPPORT:
-		err_char = "not support";
+		err_char = "cmd not support";
 		break;
 	case EFUSE_OBJ_ERR_ACCESS:
 		err_char = "access denied";
@@ -1010,6 +1010,9 @@ static char *efuse_obj_err_parse(uint32_t  efuse_obj_err_status)
 		break;
 	case EFUSE_OBJ_ERR_TAG:
 		err_char = "invalid encrypted data tag. check device pub key and re-encrypt";
+		break;
+	case EFUSE_OBJ_ERR_SOC_NOT_SUPPORT:
+		err_char = "soc not support";
 		break;
 	case EFUSE_OBJ_ERR_INTERNAL:
 	case EFUSE_OBJ_ERR_OTHER_INTERNAL:

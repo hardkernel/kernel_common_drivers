@@ -230,7 +230,7 @@ u32 efuse_obj_write(u32 obj_id, char *name, u8 *buff, u32 size)
 	struct cpumask task_cpumask;
 
 	if (efuse_obj_cmd_status != 1)
-		return EFUSE_OBJ_ERR_NOT_FOUND;
+		return EFUSE_OBJ_ERR_SOC_NOT_SUPPORT;
 
 	cpumask_copy(&task_cpumask, current->cpus_ptr);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
@@ -293,7 +293,7 @@ u32 efuse_obj_read(u32 obj_id, char *name, u8 *buff, u32 *size)
 	struct cpumask task_cpumask;
 
 	if (efuse_obj_cmd_status != 1)
-		return EFUSE_OBJ_ERR_NOT_FOUND;
+		return EFUSE_OBJ_ERR_SOC_NOT_SUPPORT;
 
 	cpumask_copy(&task_cpumask, current->cpus_ptr);
 	set_cpus_allowed_ptr(current, cpumask_of(0));
