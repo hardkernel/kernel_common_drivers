@@ -270,6 +270,9 @@ struct composer_dev {
 	struct vframe_s enhance_vf[DMA_BUF_COUNT];
 	u32 drop_frame_count;
 	struct received_frames_t last_frames;
+	struct src_data_para ge2d_src_data;
+	struct composer_vf_para dewarp_vframe_para;
+	struct vicp_data_config_s vicp_data_config;
 	struct timeval start_time;
 	u32 vinfo_w;
 	u32 vinfo_h;

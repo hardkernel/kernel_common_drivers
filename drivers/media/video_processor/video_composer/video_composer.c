@@ -2642,7 +2642,6 @@ static void vframe_composer(struct composer_dev *dev)
 	struct vframe_s *dst_vf = NULL;
 	int count;
 	struct dst_buf_t *dst_buf = NULL;
-	struct src_data_para src_data;
 	u32 drop_count = 0;
 	unsigned long addr = 0;
 	struct output_axis dst_axis;
@@ -2653,8 +2652,9 @@ static void vframe_composer(struct composer_dev *dev)
 	bool is_dec_vf = false, is_v4l_vf = false;
 	bool is_tvp = false;
 	bool is_fixtunnel = false;
-	struct composer_vf_para vframe_para;
-	struct vicp_data_config_s data_config;
+	struct src_data_para *src_data;
+	struct composer_vf_para *vframe_para;
+	struct vicp_data_config_s *data_config;
 	struct crop_info_s crop_info;
 	ulong buf_addr[3];
 	int fbc_init_ctrl, fbc_pip_mode;
@@ -2934,11 +2934,12 @@ static void vframe_composer(struct composer_dev *dev)
 
 		if (dev->dev_choice == COMPOSER_WITH_DEWARP) {
 			vc_print(dev->index, PRINT_OTHER, "use dewarp composer.\n");
-			memset(&vframe_para, 0, sizeof(vframe_para));
-			ret = config_dewarp_vframe(&vframe_para, &common_para);
+			vframe_para = &dev->dewarp_vframe_para;
+			memset(vframe_para, 0, sizeof(*vframe_para));
+			ret = config_dewarp_vframe(vframe_para, &common_para);
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "dewarp config err.\n");
-			dev->dewarp_para.vf_para = &vframe_para;
+			dev->dewarp_para.vf_para = vframe_para;
 			ret = load_dewarp_firmware(&dev->dewarp_para);
 			if (ret != 0) {
 				vc_print(dev->index, PRINT_ERROR, "load firmware failed.\n");
@@ -2949,7 +2950,8 @@ static void vframe_composer(struct composer_dev *dev)
 				vc_print(dev->index, PRINT_ERROR, "dewarp data composer failed.\n");
 		} else if (dev->dev_choice == COMPOSER_WITH_VICP) {
 			vc_print(dev->index, PRINT_OTHER, "use vicp composer.\n");
-			memset(&data_config, 0, sizeof(struct vicp_data_config_s));
+			data_config = &dev->vicp_data_config;
+			memset(data_config, 0, sizeof(struct vicp_data_config_s));
 			config_vicp_input_data(src_vf,
 					addr,
 					vframe_info_cur->buffer_w,
@@ -2959,7 +2961,7 @@ static void vframe_composer(struct composer_dev *dev)
 					1,
 					VICP_COLOR_FORMAT_YUV420,
 					8,
-					&data_config.input_data);
+					&data_config->input_data);
 
 			if (vicp_output_dev == 1) {
 				mifout_en = 1;
@@ -3004,39 +3006,40 @@ static void vframe_composer(struct composer_dev *dev)
 				fbc_init_ctrl,
 				fbc_pip_mode,
 				VFRAME_SIGNAL_FMT_SDR,
-				&data_config.output_data);
-			data_config.data_option.rotation_mode =
+				&data_config->output_data);
+			data_config->data_option.rotation_mode =
 				map_rotationmode_from_vc_to_vicp(vframe_info_cur->transform);
-			data_config.data_option.crop_info.left = crop_info.left;
-			data_config.data_option.crop_info.top = crop_info.top;
-			data_config.data_option.crop_info.width = crop_info.width;
-			data_config.data_option.crop_info.height = crop_info.height;
-			data_config.data_option.output_axis.left = display_axis.left;
-			data_config.data_option.output_axis.top = display_axis.top;
-			data_config.data_option.output_axis.width = display_axis.width;
-			data_config.data_option.output_axis.height = display_axis.height;
+			data_config->data_option.crop_info.left = crop_info.left;
+			data_config->data_option.crop_info.top = crop_info.top;
+			data_config->data_option.crop_info.width = crop_info.width;
+			data_config->data_option.crop_info.height = crop_info.height;
+			data_config->data_option.output_axis.left = display_axis.left;
+			data_config->data_option.output_axis.top = display_axis.top;
+			data_config->data_option.output_axis.width = display_axis.width;
+			data_config->data_option.output_axis.height = display_axis.height;
 
-			data_config.data_option.shrink_mode =
+			data_config->data_option.shrink_mode =
 				(enum vicp_shrink_mode_e)vicp_shrink_mode;
 			if (count > 1)
-				data_config.data_option.rdma_enable = true;
+				data_config->data_option.rdma_enable = true;
 			else
-				data_config.data_option.rdma_enable = false;
-			data_config.data_option.input_source_count = count;
-			data_config.data_option.input_source_number = i;
-			data_config.data_option.security_enable = is_tvp;
-			data_config.data_option.skip_mode = skip_mode[vf_dev[i]];
-			data_config.data_option.compress_rate = lossy_compress_rate;
+				data_config->data_option.rdma_enable = false;
+			data_config->data_option.input_source_count = count;
+			data_config->data_option.input_source_number = i;
+			data_config->data_option.security_enable = is_tvp;
+			data_config->data_option.skip_mode = skip_mode[vf_dev[i]];
+			data_config->data_option.compress_rate = lossy_compress_rate;
 
-			ret = vicp_data_composer(&data_config);
+			ret = vicp_data_composer(data_config);
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "vicp composer failed\n");
 		} else {
 			vc_print(dev->index, PRINT_OTHER, "use ge2d composer.\n");
+			src_data = &dev->ge2d_src_data;
 			if (vframe_info_cur->buffer_format == YUV444)
-				src_data.is_yuv444 = true;
+				src_data->is_yuv444 = true;
 			else
-				src_data.is_yuv444 = false;
+				src_data->is_yuv444 = false;
 			ret = config_ge2d_data(src_vf,
 				addr,
 				vframe_info_cur->buffer_w,
@@ -3047,7 +3050,7 @@ static void vframe_composer(struct composer_dev *dev)
 				crop_info.top,
 				crop_info.width,
 				crop_info.height,
-				&src_data);
+				src_data);
 			if (ret < 0)
 				continue;
 			transform_tmp = vframe_info_cur->transform;
@@ -3069,7 +3072,7 @@ static void vframe_composer(struct composer_dev *dev)
 			dev->ge2d_para.position_width = display_axis.width;
 			dev->ge2d_para.position_height = display_axis.height;
 
-			ret = ge2d_data_composer(&src_data, &dev->ge2d_para);
+			ret = ge2d_data_composer(src_data, &dev->ge2d_para);
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "ge2d composer failed\n");
 		}
