@@ -326,8 +326,7 @@ struct hdmitx_common {
 	struct master_display_info_s drm_config_data;
 	struct hdr10plus_para hdr10p_config_data;
 	struct aud_para hdmiaud_config_data;
-	/* diff */
-#ifdef CONFIG_AMLOGIC_HDMITX
+	/**********only used for hdmitx20**********/
 	/* in board dts file, here can add
 	 * &amhdmitx {
 	 *     hdcp_type_policy = <1>;
@@ -339,12 +338,11 @@ struct hdmitx_common {
 	int hdcp_tst_sig;
 	struct hdcprp_topo *topo_info;
 	bool hdcp22_type;
-
-#endif
+	/**********only used for hdmitx20 end**********/
 
 	enum hdmi_ll_mode ll_user_set_mode; /* ll setting: 0/AUTOMATIC, 1/Always OFF, 2/ALWAYS ON */
 	bool ll_enabled_in_auto_mode; /* ll_mode enabled in auto or not */
-#ifdef CONFIG_AMLOGIC_HDMITX21
+	/**********only used for hdmitx21**********/
 	u32 aon_output:1; /* always output in bl30 */
 
 	u8 def_stream_type;
@@ -360,8 +358,8 @@ struct hdmitx_common {
 	 * 1: read only 1 byte of hdcp msg
 	 */
 	u8 poll_rx_status_mtd;
+	/**********only used for hdmitx21 end**********/
 
-#endif
 	/* hdr info */
 	enum hdmi_hdr_transfer hdr_transfer_feature;
 	enum hdmi_hdr_color hdr_color_feature;
@@ -616,26 +614,19 @@ int hdmitx_common_get_vrr_mode_group(struct hdmitx_common *tx_comm,
 				     int max_group);
 int hdmitx_common_set_vframe_rate_hint(struct hdmitx_common *tx_comm, int rate, void *data);
 
-/* hdmitx diff */
-#ifdef CONFIG_AMLOGIC_HDMITX
+/**********only used for hdmitx20**********/
 #define HDCP_SLAVE	0x3a
 #define HDCP2_RD_MSG	0x80
-
 unsigned int get_hdcp22_base(void);
 bool is_hdcp22_stop_state(void);
 void hdmitx_reset_tv_hdcp(void);
 u32 ddc_read_1byte(u8 slave, uint8_t offset_addr, uint8_t *data);
 void hdmitx_hdcp_do_work(struct hdmitx_common *tx_comm);
-int hdmitx20_device_init(struct hdmitx_common *tx_comm);
+/**********only used for hdmitx20 end**********/
 
-#endif
-#ifdef CONFIG_AMLOGIC_HDMITX21
+/**********only used for hdmitx21**********/
 ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,
 	char *buf);
-int hdmitx21_device_init(struct hdmitx_common *tx_comm);
-#endif
+/**********only used for hdmitx21 end**********/
 
-void hdmitx_disable_frl_work(struct hdmitx_common *tx_comm);
-void hdmitx_disable_21_work(struct hdmitx_common *tx_comm);
-void hdmitx_clear_packets(struct hdmitx_common *tx_comm);
 #endif

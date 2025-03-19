@@ -21,13 +21,8 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_hw_common.h>
 #include <linux/amlogic/media/vout/hdmi_tx_repeater.h>
 #include "hdmitx_log.h"
-#ifdef CONFIG_AMLOGIC_HDMITX
 #include "./hw20/hdmitx_hw.h"
-#endif
-#ifdef CONFIG_AMLOGIC_HDMITX21
 #include "./hw21/hdmitx_hw.h"
-#include "./hw21/hdmitx_ddc.h"
-#endif
 #ifdef CONFIG_AMLOGIC_DSC
 #include <linux/amlogic/media/vout/dsc.h>
 #endif
@@ -37,7 +32,6 @@
  *    hdmitx device structure
  *************************************/
 
-/* for hdmitx 20 */
 struct drm_hdmitx_hdcp_cb {
 	void (*callback)(void *data, int auth);
 	void *data;
@@ -116,7 +110,7 @@ struct hdmitx21_dev {
 /* common api */
 void hdmitx_ext_instance_init(struct hdmitx_common *tx_comm);
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+/***** use for hdmitx 20 start *****/
 /***********************************************************************
  *    hdmitx protocol level interface
  **********************************************************************/
@@ -128,7 +122,6 @@ int hdmitx_set_display(struct hdmitx_hw_common *hw_comm, enum hdmi_vic videocode
 
 int hdmitx20_init_reg_map(struct platform_device *pdev);
 /* for debug */
-void print_hsty_hdmiaud_config_data(void);
 void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
 /***********************************************************************
  *    hdmitx hardware level interface
@@ -140,10 +133,9 @@ int hdmitx20_ext_get_audio_status(void);
 void hdmitx20_audio_mute_op(unsigned int flag);
 int hdmitx_hdcp_opr(unsigned int val);
 struct hdmitx_common *hdmitx20_alloc_instance(struct device *device);
-#endif
+/***** use for hdmitx 20 end *****/
 
-#ifdef CONFIG_AMLOGIC_HDMITX21
-
+/***** use for hdmitx 21 start *****/
 struct hdr_dynamic_struct {
 	u32 type;
 	u32 hd_len;/*hdr_dynamic_length*/
@@ -203,8 +195,9 @@ void hdmitx21_ext_set_audio_output(bool enable);
 int hdmitx21_ext_get_audio_status(void);
 struct hdmitx_common *hdmitx21_alloc_instance(struct device *device);
 
-#endif
+/***** use for hdmitx 21 end *****/
 
 int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 	enum vsif_type type, int on, void *param);
+void hdmitx_clear_packets(struct hdmitx_common *tx_comm);
 #endif

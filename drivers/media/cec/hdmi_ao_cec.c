@@ -2523,6 +2523,7 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 	unsigned int tmp = 0;
 	unsigned int phy_addr = 0xffff;
 	unsigned char port_id = 0;
+
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	tmp |= (hdmitx_ext_get_hpd_state() << 4);
 #endif

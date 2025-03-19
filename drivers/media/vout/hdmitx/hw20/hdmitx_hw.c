@@ -5762,6 +5762,7 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 	case MISC_POST_ENABLE_MODE:
 	case MISC_LOAD_HDCP14_KEY:
 	case MISC_DISABLE_21_WORK:
+	case MISC_DISABLE_FRL_WORK:
 	default:
 		break;
 	}
@@ -6945,5 +6946,8 @@ void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 		ret = kstrtoul(tmpbuf + 10, 10, &value);
 		hdev->max_exceed = value;
 		HDMITX_INFO("%d", hdev->max_exceed);
+	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
+		HDMITX_INFO("hdcp result: hdcp22: %d topo: %d, hdcp14: %d\n",
+		hdmitx_hdcp_opr(7), hdmitx_hdcp_opr(0xe), hdmitx_hdcp_opr(2));
 	}
 }

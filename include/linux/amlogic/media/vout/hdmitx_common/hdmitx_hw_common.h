@@ -117,6 +117,7 @@
 #define MISC_POST_ENABLE_MODE	(CMD_MISC_OFFSET + 0x2d)
 #define MISC_DISABLE_21_WORK	(CMD_MISC_OFFSET + 0x2e)
 #define MISC_READ_HPD_GPIO		(CMD_MISC_OFFSET + 0x2f)
+#define MISC_DISABLE_FRL_WORK	(CMD_MISC_OFFSET + 0x30)
 /***********************************************************************
  *                          Get State //getstate
  **********************************************************************/
@@ -294,6 +295,7 @@ struct hdmitx_ops {
 	void (*init_hw)(struct hdmitx_hw_common *tx_hw);
 	struct hdmitx_dbg_files_s *(*get_dbg_files)(void);
 	int (*get_dbg_files_count)(void);
+	void (*sw_debugfunc)(struct hdmitx_common *tx_comm, const char *cmd_str);
 };
 
 struct amhdmitx_data_s {

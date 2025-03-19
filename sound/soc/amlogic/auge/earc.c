@@ -49,7 +49,7 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #endif
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #endif
 
@@ -785,7 +785,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			u8 status = earcrx_cmdc_get_tx_stat_bits(p_earc->rx_cmdc_map);
 
 			/* bit 1: HDMI_HPD, bit 7: EARC_VALID */
-			#ifdef CONFIG_AMLOGIC_HDMITX
+			#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 			if (status == 0x81 && p_earc->bit_status_check == 0x80) {
 				hdmitx_ext_plugin_handler();
 				dev_info(p_earc->dev, "hdmitx ext plugin handler\n");
@@ -3573,7 +3573,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(p_earc->rx_top_map)) {
 		p_earc->rx_ui_flag = 1;
 		earcrx_cmdc_setup(p_earc);
-#ifdef CONFIG_AMLOGIC_HDMITX21
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		register_earcrx_callback(earc_hdmitx_hpdst);
 #endif
 		p_earc->rx_latency = EARCRX_DEFAULT_LATENCY;

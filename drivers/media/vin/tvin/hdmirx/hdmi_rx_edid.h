@@ -881,7 +881,7 @@ extern enum edid_delivery_mothed_e edid_delivery_mothed;
 extern unsigned int edid_reset_max;
 extern u8 edid_port_type[4];
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 extern u32 tx_hdr_priority;
 #endif
 //edid auto start
@@ -940,7 +940,7 @@ void get_edid_standard_timing_info(u8 *p_edid, struct edid_standard_timing *edid
 void rm_unsupported_st(u8 *p_edid,
 	struct edid_standard_timing *edid_st_info, unsigned int refresh_rate);
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 					unsigned char *audio_block);
 void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid);

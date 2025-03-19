@@ -207,7 +207,7 @@ static bool early_suspend_flag;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 struct notifier_block vrr_notify;
 #endif
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 struct notifier_block tx_notify;
 #endif
 
@@ -1507,7 +1507,7 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop, u8 port)
 		rx[port].vs_info_details.hdmi_allm | (rx[port].vs_info_details.dv_allm << 1);
 	prop->latency.it_content = rx[port].cur.it_content;
 	prop->latency.cn_type = rx[port].cur.cn_type;
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (rx_info.main_port_open  &&
 		(latency_info.allm_mode != rx[port].vs_info_details.hdmi_allm ||
 		latency_info.it_content != rx[port].cur.it_content ||
@@ -4207,7 +4207,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hdevp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&hdevp->timer);
 	rx_info.boot_flag = true;
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (rx_info.chip_id == CHIP_ID_TM2 ||
 	    rx_info.chip_id == CHIP_ID_T7) {
 		tx_notify.notifier_call = rx_hdmi_tx_notify_handler;
@@ -4396,7 +4396,7 @@ static void hdmirx_remove(struct platform_device *pdev)
 	rx_pr("hdmirx: driver removed ok.\n");
 }
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 int get_tx_boot_hdr_priority(char *str)
 {
 	unsigned int val = 0;

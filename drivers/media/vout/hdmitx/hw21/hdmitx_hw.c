@@ -3572,6 +3572,38 @@ static bool hdmitx_frl_ready(void)
 	}
 }
 
+static void hdmitx_disable_frl_work(struct hdmitx_common *tx_comm)
+{
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
+		frl_tx_stop();
+		hdmitx_set_frl_rate_none(tx_comm);
+	}
+}
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+/* hdmi21 specific functions disable */
+static void hdmitx_disable_21_work(struct hdmitx_common *tx_comm)
+{
+#ifdef CONFIG_AMLOGIC_DSC
+	struct hdmitx21_dev *hdev = container_of(tx_comm, struct hdmitx21_dev, tx_comm);
+#endif
+
+	/* old chip not have this function */
+	if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7)
+		return;
+	frl_tx_stop();
+	hdmitx_set_frl_rate_none(tx_comm);
+	hdmitx_vrr_disable();
+#ifdef CONFIG_AMLOGIC_DSC
+	if (tx_comm->tx_hw->hdmi_tx_cap.dsc_capable) {
+		aml_dsc_enable(false);
+		hdmitx_dsc_cvtem_pkt_disable();
+		hdev->dsc_en = 0;
+	}
+#endif
+}
+#endif
+
 static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			    u32 argv)
 {
@@ -3693,6 +3725,9 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		return hdmitx21_post_enable_mode(tx_comm);
 	case MISC_DISABLE_21_WORK:
 		hdmitx_disable_21_work(tx_comm);
+		break;
+	case MISC_DISABLE_FRL_WORK:
+		hdmitx_disable_frl_work(tx_comm);
 		break;
 	case MISC_READ_HPD_GPIO:
 		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
@@ -5495,32 +5530,11 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 		ret = kstrtoul(tmpbuf + 11, 10, &value);
 		hdev->emp_verbose = value;
 		HDMITX_INFO("emp_verbose :%d\n", hdev->emp_verbose);
+	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
+		HDMITX_INFO("hdcp filtered result: hdcp22: %d topo: %d, hdcp14: %d\n",
+		get_hdcp2_result(), get_hdcp2_topo(), get_hdcp1_result());
 	}
 }
-
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-/* hdmi21 specific functions disable */
-void hdmitx_disable_21_work(struct hdmitx_common *tx_comm)
-{
-#ifdef CONFIG_AMLOGIC_DSC
-	struct hdmitx21_dev *hdev = container_of(tx_comm, struct hdmitx21_dev, tx_comm);
-#endif
-
-	/* old chip not have this function */
-	if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7)
-		return;
-	frl_tx_stop();
-	hdmitx_set_frl_rate_none(tx_comm);
-	hdmitx_vrr_disable();
-#ifdef CONFIG_AMLOGIC_DSC
-	if (tx_comm->tx_hw->hdmi_tx_cap.dsc_capable) {
-		aml_dsc_enable(false);
-		hdmitx_dsc_cvtem_pkt_disable();
-		hdev->dsc_en = 0;
-	}
-#endif
-}
-#endif
 
 static void hdmitx_pre_display_init(struct hdmitx21_dev *hdev)
 {

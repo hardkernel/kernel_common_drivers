@@ -383,7 +383,7 @@ static int aml_media_video_delay_get_enum(struct snd_kcontrol *kcontrol,
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 static int i2s_to_hdmitx_format_get_enum(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -521,7 +521,7 @@ static const struct snd_kcontrol_new snd_user_controls[] = {
 			aml_media_video_delay_get_enum,
 			NULL),
 #endif
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	SOC_ENUM_EXT("HDMITX Audio Source Select",
 			hdmitx_src_select_enum,
 			hdmitx_src_select_get_enum,

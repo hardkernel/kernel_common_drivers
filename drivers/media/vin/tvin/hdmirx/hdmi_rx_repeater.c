@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -249,7 +249,7 @@ void rx_check_repeat(u8 port)
 		memset(&pre_topo, 0, sizeof(pre_topo));
 		memset(&hdcp_convert_topo, 0, sizeof(hdcp_convert_topo));
 		rx[port].hdcp.topo_updated = 0;
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		hdmitx_reauth_request(0);
 #endif
 		//rx_start_repeater_auth();
@@ -267,7 +267,7 @@ void rx_check_repeat(u8 port)
 		if (log_level & HDCP_LOG)
 			rx_pr("step5-%d\n", data8);
 		rx[port].hdcp.stream_type = data8;
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		hdmitx_reauth_request(data8 | STREAMTYPE_UPDATE);
 #endif
 		rx[port].hdcp.stream_manage_rcvd = false;

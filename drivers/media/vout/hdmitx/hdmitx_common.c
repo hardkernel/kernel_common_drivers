@@ -82,7 +82,10 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	hdmitx_format_para_reset(&tx_comm->fmt_para);
 
 	tx_comm->ready = 0;
-	tx_comm->hdcp_user = 1;
+	if (hw_comm->chip_data->chip_type < MESON_CPU_ID_T7)
+		tx_comm->hdcp_user = 1;
+	else
+		tx_comm->hdcp_user = 0;
 	tx_comm->hdr_mute_frame = 20;
 	/* no RxSense by default */
 	tx_comm->rxsense_policy = 0;

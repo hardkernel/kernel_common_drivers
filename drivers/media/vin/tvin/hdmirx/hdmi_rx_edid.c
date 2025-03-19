@@ -32,7 +32,7 @@ static char edid_buf3[EDID_BUF_SIZE] = {0};
 static char edid_buf4[EDID_BUF_SIZE] = {0};
 u8 edid_port_type[4];
 char edid_cur[EDID_SIZE] = {0};
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 //0: hdmi repeater
 //1: use tx edid directly
 //2: use default edid.
@@ -629,7 +629,7 @@ void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 {
 	//if (hdmirx_repeat_support())
 		//return;
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (tx_hdr_priority == 1) {
 		//remove DV
 		edid_rm_db_by_tag(p_edid, EXTENDED_VSVDB_TAG);
@@ -3149,7 +3149,7 @@ void rx_blk_index_print(struct cta_blk_parse_info *blk_info)
 		rx_data_blk_index_print(&blk_info->db_info[i]);
 }
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 void rx_edid_physical_addr(int a, int b, int c, int d)
 {
 	//tx_hpd_event = E_RCV;
@@ -3322,7 +3322,7 @@ bool rx_set_vsvdb(unsigned char *data, unsigned int len)
 }
 EXPORT_SYMBOL(rx_set_vsvdb);
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data, unsigned char *audio_block)
 {
 	if (rx_info.chip_id == CHIP_ID_NONE)
@@ -3740,7 +3740,7 @@ void edid_rm_db_by_idx(u8 *p_edid, u8 blk_idx)
 	}
 }
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 static void rpt_edid_extension_num_extraction(unsigned char *p_edid)
 {
 	u_int i;
@@ -5191,7 +5191,7 @@ bool hdmi_rx_top_edid_update(void)
 			rx_edid_update_vrr_info(pedid);
 		if (allm_update_en)
 			rx_edid_update_allm_info(pedid);
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		rpt_edid_extraction(pedid);
 #endif
 		for (j = 0; j <= ext_blk_num; ++j)

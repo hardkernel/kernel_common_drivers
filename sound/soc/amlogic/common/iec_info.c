@@ -521,7 +521,7 @@ void notify_hdmitx_to_prepare(void)
 #endif
 }
 
-#if defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21)
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 unsigned int aml_audio_hdmiout_mute_flag;
 /* call HDMITX API to enable/disable internal audio out */
 int aml_get_hdmi_out_audio(struct snd_kcontrol *kcontrol,

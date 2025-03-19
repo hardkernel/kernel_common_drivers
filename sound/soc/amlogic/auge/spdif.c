@@ -906,7 +906,7 @@ static const struct snd_kcontrol_new snd_spdif_controls[] = {
 				spdifin_source_get_enum,
 				spdifin_source_set_enum),
 
-#if defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21)
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	SOC_SINGLE_BOOL_EXT("Audio hdmi-out mute",
 				0, aml_get_hdmi_out_audio,
 				aml_set_hdmi_out_audio),

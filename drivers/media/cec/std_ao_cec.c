@@ -2664,6 +2664,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	}
 #endif
 #endif
+
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (hdmitx_ext_get_hpd_state() &&
 	    tx_phy_addr &&
@@ -2691,6 +2692,7 @@ tag_cec_allocate_adapter_fail:
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	unregister_cec_callback();
 #endif
+
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	hdmitx_event_notifier_unregist(&hdmitx_notifier_nb);
 #endif

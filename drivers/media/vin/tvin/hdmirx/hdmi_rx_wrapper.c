@@ -564,7 +564,7 @@ void rx_update_edid_callback(u32 tvin_port, u32 hdr_priority)
 	u8 port;
 
 	port = (tvin_port - TVIN_PORT_HDMI0) & 0xff;
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	tx_hdr_priority = hdr_priority;
 #endif
 	rx_pr(" edid update:%d\n", hdr_priority);
@@ -709,7 +709,7 @@ static int rx_dwc_irq_handler(void)
 			rx_pr("[*aksv*\n");
 			rx[port].hdcp.hdcp_version = HDCP_VER_14;
 			rx[port].hdcp.hdcp_source = true;
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 			if (hdmirx_repeat_support())
 				rx_start_repeater_auth();
 #endif
@@ -2663,7 +2663,7 @@ static void signal_status_init(u8 port)
 		rx_set_frl_train_sts(E_FRL_TRAIN_START, port);
 		rx[port].var.frl_rate = FRL_OFF;
 	}
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (rx_info.chip_id == CHIP_ID_T7)
 		hdmitx_update_latency_mode(&latency_info);
 #endif
@@ -3019,7 +3019,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(allm_func_en, i++);
 	pr_var(edid_auto_sel, i++);
 	//pr_var(hdcp_array_len, i++);
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	pr_var(hdcp_len, i++);
 	pr_var(hdcp_repeat_depth, i++);
 	pr_var(up_phy_addr, i++);
@@ -3333,7 +3333,7 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(allm_func_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(edid_auto_sel), &edid_auto_sel, value))
 		return pr_var(edid_auto_sel, index);
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (set_pr_var(tmpbuf, var_to_str(hdcp_len), &hdcp_len, value))
 		return pr_var(hdcp_len, index);
 	if (set_pr_var(tmpbuf, var_to_str(hdcp_repeat_depth), &hdcp_repeat_depth, value))
@@ -4086,7 +4086,7 @@ void hdmirx_close_port(u8 port)
 	rx_aud_pll_ctl(0, port);
 	port_hpd_rst_flag |= (1 << port);
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (rx_info.chip_id == CHIP_ID_T7) {
 		latency_info.allm_mode = 0;
 		latency_info.it_content = 0;
@@ -7124,7 +7124,7 @@ int hdmirx_debug(const char *buf, int size)
 		} else if (tmpbuf[5] == '4') {
 			if (kstrtou32(tmpbuf + 6, 16, &value) < 0)
 				return -EINVAL;
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 			tx_hdr_priority = value;
 #endif
 			rx_pr(" edid update:%d\n", value);
@@ -7625,7 +7625,7 @@ void hdmirx_timer_t3x_pre(void)
 	if (rx_info.main_port_open || rx[rx_info.main_port].resume_flag) {
 		rx_nosig_monitor(rx_info.main_port);
 		rx_cable_clk_monitor(rx_info.main_port);
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		rx_check_repeat(rx_info.main_port);
 #endif
 		if (!(rpt_only_mode && !rx[rx_info.main_port].hdcp.repeat)) {

@@ -17524,12 +17524,12 @@ unsigned int amdv_check_enable(void)
 				dolby_vision_on = true;
 				if (uboot_dv_source_led_yuv ||
 					uboot_dv_sink_led) {
-					#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 					if (uboot_dv_source_led_yuv)
 						setup_attr("422,12bit");
 					else
 						setup_attr("444,8bit");
-					#endif
+#endif
 				}
 				if (vinfo && vinfo->vout_device &&
 				    vinfo->vout_device->fresh_tx_vsif_pkt) {

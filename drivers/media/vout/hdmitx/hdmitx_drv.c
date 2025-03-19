@@ -49,39 +49,20 @@
 #include "hdmitx_vout.h"
 #include "hdmitx_hdr.h"
 
-#ifdef CONFIG_AMLOGIC_HDMITX
-
-#include "hdmitx_common.h"
-#include "hdmitx_hdcp.h"
-#endif
-
-#if CONFIG_AMLOGIC_HDMITX21
-
-#include "hdmitx.h"
-#include "hdmitx_common.h"
-
-#endif
-
 #define HDMI_TX_COUNT 32
 static struct class *hdmitx_class;
 
+#ifdef CONFIG_OF
+#ifdef CONFIG_AMLOGIC_HDMITX
 static struct hdmitx_ops hdmitx20_ops = {
 	.alloc_instance = hdmitx20_alloc_instance,
 	.init_reg_map = hdmitx20_init_reg_map,
 	.init_hw = hdmitx20_meson_init,
 	.get_dbg_files = hdmitx20_get_dbg_files_s,
 	.get_dbg_files_count = hdmitx20_get_dbg_files_count,
+	.sw_debugfunc = hdmitx20_sw_debugfunc,
 };
 
-static struct hdmitx_ops hdmitx21_ops = {
-	.alloc_instance = hdmitx21_alloc_instance,
-	.init_reg_map = hdmitx21_init_reg_map,
-	.init_hw = hdmitx21_meson_init,
-	.get_dbg_files = hdmitx21_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
-};
-
-#ifdef CONFIG_OF
 static struct amhdmitx_data_s amhdmitx_data_g12a = {
 	.chip_type = MESON_CPU_ID_G12A,
 	.chip_name = "g12a",
@@ -110,6 +91,16 @@ static struct amhdmitx_data_s amhdmitx_data_tm2 = {
 	.chip_type = MESON_CPU_ID_TM2,
 	.chip_name = "tm2",
 	.hdmitx_ops = &hdmitx20_ops,
+};
+#endif
+#ifdef CONFIG_AMLOGIC_HDMITX21
+static struct hdmitx_ops hdmitx21_ops = {
+	.alloc_instance = hdmitx21_alloc_instance,
+	.init_reg_map = hdmitx21_init_reg_map,
+	.init_hw = hdmitx21_meson_init,
+	.get_dbg_files = hdmitx21_get_dbg_files_s,
+	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
+	.sw_debugfunc = hdmitx21_sw_debugfunc,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_t7 = {
@@ -147,8 +138,10 @@ static struct amhdmitx_data_s amhdmitx_data_s6 = {
 	.chip_name = "s6",
 	.hdmitx_ops = &hdmitx21_ops,
 };
+#endif
 
 static const struct of_device_id meson_amhdmitx_of_match[] = {
+#ifdef CONFIG_AMLOGIC_HDMITX
 	{
 		.compatible	 = "amlogic, amhdmitx-g12a",
 		.data = &amhdmitx_data_g12a,
@@ -169,6 +162,8 @@ static const struct of_device_id meson_amhdmitx_of_match[] = {
 		.compatible	 = "amlogic, amhdmitx-tm2",
 		.data = &amhdmitx_data_tm2,
 	},
+#endif
+#ifdef CONFIG_AMLOGIC_HDMITX21
 	{
 		.compatible	 = "amlogic, amhdmitx-t7",
 		.data = &amhdmitx_data_t7,
@@ -193,6 +188,7 @@ static const struct of_device_id meson_amhdmitx_of_match[] = {
 		.compatible	 = "amlogic, amhdmitx-s6",
 		.data = &amhdmitx_data_s6,
 	},
+#endif
 	{},
 };
 #else
@@ -569,14 +565,6 @@ static const struct file_operations amhdmitx_fops = {
 	.release  = amhdmitx_release,
 };
 
-void hdmitx_disable_frl_work(struct hdmitx_common *tx_comm)
-{
-	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
-		frl_tx_stop();
-		hdmitx_set_frl_rate_none(tx_comm);
-	}
-}
-
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 static void hdmitx_early_suspend(struct early_suspend *h)
@@ -912,28 +900,6 @@ void hdmitx_clear_packets(struct hdmitx_common *tx_comm)
 	hdmitx_clear_all_infoframe_pkt(tx_comm);
 }
 
-void print_hsty_hdmiaud_config_data(void)
-{
-	struct aud_para *data;
-	unsigned int arr_cnt, pr_loc;
-	unsigned int print_num;
-
-	pr_loc = hsty_hdmiaud_config_loc - 1;
-	if (hsty_hdmiaud_config_num > 8)
-		print_num = 8;
-	else
-		print_num = hsty_hdmiaud_config_num;
-	HDMITX_INFO("******hdmitx_audpara have trans %d times******\n",
-		hsty_hdmiaud_config_num);
-	for (arr_cnt = 0; arr_cnt < print_num; arr_cnt++) {
-		HDMITX_INFO("***hsty_hdmiaud_config_data[%u]***\n", arr_cnt);
-		data = &hsty_hdmiaud_config_data[pr_loc];
-		HDMITX_INFO("type: %u, chnum: %u, samrate: %u, samsize: %u\n",
-			data->type, data->chs, data->rate, data->size);
-		pr_loc = pr_loc > 0 ? pr_loc - 1 : 7;
-	}
-}
-
 void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 {
 	char tmpbuf[64];
@@ -985,14 +951,6 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 			tx_comm->drm_hdcp.test_hdcp_disconnect();
 	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
 		HDMITX_INFO("test drm_hdcp_ver: %d\n", drm_hdmitx_common_get_rx_hdcp_cap(tx_comm));
-	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
-		if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7) {
-			HDMITX_INFO("hdcp result: hdcp22: %d topo: %d, hdcp14: %d\n",
-			hdmitx_hdcp_opr(7), hdmitx_hdcp_opr(0xe), hdmitx_hdcp_opr(2));
-		} else {
-			HDMITX_INFO("hdcp filtered result: hdcp22: %d topo: %d, hdcp14: %d\n",
-			get_hdcp2_result(), get_hdcp2_topo(), get_hdcp1_result());
-		}
 	} else if (strncmp(tmpbuf, "avmute_frame", 12) == 0) {
 		ret = kstrtoul(tmpbuf + 12, 10, &value);
 		tx_comm->debug_param.avmute_frame = value;

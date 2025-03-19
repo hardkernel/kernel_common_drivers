@@ -1168,7 +1168,7 @@ extern u32 edid_auto_sel;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
 #endif
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 extern struct notifier_block tx_notify;
 void hdmitx_update_latency_mode(struct tvin_latency_s *latency_info);
 #endif

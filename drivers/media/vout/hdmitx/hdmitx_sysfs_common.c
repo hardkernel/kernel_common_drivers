@@ -918,7 +918,7 @@ static ssize_t phy_store(struct device *dev,
 	if (strncmp(buf, "0", 1) == 0) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		/* for s5 frl mode */
-		hdmitx_disable_frl_work(tx_comm);
+		hdmitx_hw_cntl_misc(tx_hw, MISC_DISABLE_FRL_WORK, 0);
 #endif
 		tx_hw->tmds_phy_op = TMDS_PHY_DISABLE;
 		/*
@@ -1591,10 +1591,7 @@ static ssize_t debug_store(struct device *dev,
 	if (strncmp(buf, "hw ", 3) == 0) {
 		tx_hw->debugfunc(tx_hw, buf + 3);
 	} else if (strncmp(buf, "sw ", 3) == 0) {
-		if (tx_hw->chip_data->chip_type < MESON_CPU_ID_T7)
-			hdmitx20_sw_debugfunc(tx_comm, buf + 3);
-		else
-			hdmitx21_sw_debugfunc(tx_comm, buf + 3);
+		tx_hw->chip_data->hdmitx_ops->sw_debugfunc(tx_comm, buf + 3);
 		hdmitx_common_sw_debugfunc(tx_comm, buf + 3);
 	/* Compatible with the original commonly used debug cmd */
 	} else if ((strncmp(buf, "bist", 4) == 0) ||
@@ -3134,6 +3131,7 @@ static ssize_t dump_debug_reg_show(struct device *dev,
 
 static DEVICE_ATTR_RO(dump_debug_reg);
 #endif
+
 /*********************************************************/
 int hdmitx_sysfs_common_create(struct device *dev,
 		struct hdmitx_common *tx_comm,

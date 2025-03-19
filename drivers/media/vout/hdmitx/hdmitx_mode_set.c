@@ -13,6 +13,7 @@
 #include "hdmitx_log.h"
 #include "hdmitx_check_valid.h"
 #include "hdmitx_vout.h"
+#include "hdmitx_module.h"
 
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 

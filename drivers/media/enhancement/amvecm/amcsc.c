@@ -3796,8 +3796,7 @@ EXPORT_SYMBOL(sink_dv_support);
 uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 {
 	u32 new_hdr_cap = 0;
-#ifdef CONFIG_AMLOGIC_HDMITX21
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	u32 hdr_cap = 0;
 	u32 dv_cap = 0;
@@ -3873,7 +3872,6 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 			vinfo->hdr_info.hdr10plus_info.application_version,
 			vinfo->mode,
 			hdr_cap, new_hdr_cap);
-#endif
 #endif
 #endif
 	return new_hdr_cap;
