@@ -264,7 +264,7 @@ static int meson_uphy_probe(struct platform_device *pdev)
 	struct meson_uphy_pool *ppool;
 	struct meson_uphy_instance *instance;
 	struct phy *phy;
-	int i = 0, ret = -EINVAL, u2port = 0, u3port = 0;
+	int i = 0, ret = -EINVAL, u2port = 0, u3port = 0, r_i;
 
 	ppool = kzalloc(sizeof(*ppool), GFP_KERNEL);
 	if (!ppool)
@@ -331,23 +331,23 @@ static int meson_uphy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(provider);
 
 err_otg_parse:
-	while (i--)
-		meson_uphy_otg_remove(ppool->phys[i]->phy);
+	for (r_i = i;  r_i >= 0; r_i--)
+		meson_uphy_otg_remove(ppool->phys[r_i]->phy);
 err_parse:
-	while (i--) {
-		put_device(&ppool->phys[i]->phy->dev);
-		kfree(ppool->phys[i]->meson_uphy);
+	for (r_i = i;  r_i >= 0; r_i--) {
+		put_device(&ppool->phys[r_i]->phy->dev);
+		kfree(ppool->phys[r_i]->meson_uphy);
 	}
 err_phy:
-	while (i--) {
-		phy_set_drvdata(ppool->phys[i]->phy, NULL);
-		phy_destroy(ppool->phys[i]->phy);
-		ppool->phys[i]->phy = NULL;
+	for (r_i = i;  r_i >= 0; r_i--) {
+		phy_set_drvdata(ppool->phys[r_i]->phy, NULL);
+		phy_destroy(ppool->phys[r_i]->phy);
+		ppool->phys[r_i]->phy = NULL;
 	}
 err:
-	while (i--) {
-		kfree(ppool->phys[i]);
-		ppool->phys[i] = NULL;
+	for (r_i = i;  r_i >= 0; r_i--) {
+		kfree(ppool->phys[r_i]);
+		ppool->phys[r_i] = NULL;
 	}
 	return ret;
 }
@@ -394,6 +394,7 @@ static const struct of_device_id meson_uphy_id_table[] = {
 	{ .compatible = "amlogic,uphy-sc2", .data = &meson_uphy_sc2_pdata },
 	{ .compatible = "amlogic,uphy-t7c", .data = &meson_uphy_t7c_pdata },
 	{ .compatible = "amlogic,u2phy-a5", .data = &meson_uphy_a5_pdata },
+	{ .compatible = "amlogic,u2phy-txhd2", .data = &meson_uphy_txhd2_pdata },
 	{ .compatible = "amlogic,u2phy-s7", .data = &meson_uphy_s7_pdata },
 	{ .compatible = "amlogic,u2phy-s7d", .data = &meson_uphy_s7d_pdata },
 	{ .compatible = "amlogic,uphy-s6", .data = &meson_uphy_s6_pdata },

@@ -122,6 +122,7 @@ struct meson_uphy_pdata {
 extern struct meson_uphy_pdata meson_uphy_sc2_pdata;
 extern struct meson_uphy_pdata meson_uphy_t7c_pdata;
 extern struct meson_uphy_pdata meson_uphy_a5_pdata;
+extern struct meson_uphy_pdata meson_uphy_txhd2_pdata;
 extern struct meson_uphy_pdata meson_uphy_s7_pdata;
 extern struct meson_uphy_pdata meson_uphy_s7d_pdata;
 extern struct meson_uphy_pdata meson_uphy_s6_pdata;

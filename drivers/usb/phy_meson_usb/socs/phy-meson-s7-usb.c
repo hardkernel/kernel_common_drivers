@@ -60,11 +60,10 @@ static int meson_usb2phy_s7_cali_disc_squelch
 	return 0;
 }
 
-static int meson_usb2phy_s7_cali(struct amlogic_usb_v2 *mphy)
+static void meson_usb2phy_s7_cali(struct amlogic_usb_v2 *mphy)
 {
 	meson_usb2phy_set_calibration_trim(mphy);
 	meson_usb2phy_s7_cali_disc_squelch(mphy);
-	return 0;
 }
 
 static int meson_u2phy_s7_set_mode(struct phy *phy, enum phy_mode mode, int submode)
