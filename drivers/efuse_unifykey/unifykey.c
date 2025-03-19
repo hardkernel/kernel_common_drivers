@@ -1228,6 +1228,24 @@ static ssize_t lock_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t total_size_show(const struct class *cla,
+			    const struct class_attribute *attr,
+			    char *buf)
+{
+	struct aml_uk_dev *ukdev;
+	ssize_t n = 0;
+
+	ukdev = container_of(cla, struct aml_uk_dev, cls);
+	if (ukdev->size == 0) {
+		pr_err("keysize get fail\n");
+		return -EINVAL;
+	}
+	n = sprintf(buf, "%d\n", ukdev->size);
+	buf[n] = 0;
+
+	return n;
+}
+
 static const char *unifykeys_help_str = {
 "Usage:\n"
 "echo 1 > attach //initialise unifykeys\n"
@@ -1302,6 +1320,7 @@ static CLASS_ATTR_WO(write);
 static CLASS_ATTR_RO(read);
 static CLASS_ATTR_RW(attach);
 static CLASS_ATTR_RW(lock);
+static CLASS_ATTR_RO(total_size);
 
 static struct attribute *unifykey_class_attrs[] = {
 	&class_attr_version.attr,
@@ -1316,6 +1335,7 @@ static struct attribute *unifykey_class_attrs[] = {
 	&class_attr_read.attr,
 	&class_attr_attach.attr,
 	&class_attr_lock.attr,
+	&class_attr_total_size.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(unifykey_class);
