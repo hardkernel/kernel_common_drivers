@@ -346,21 +346,19 @@ struct dv_info {
 };
 
 struct vout_device_s {
-	void (*fresh_tx_hdr_pkt)(struct master_display_info_s *data);
-	void (*fresh_tx_sbtm_pkt)(struct vtem_sbtm_st *data);
-	void (*fresh_tx_vsif_pkt)(enum eotf_type type,
+	void (*fresh_tx_hdr_pkt)(void *tx_instance, struct master_display_info_s *data);
+	void (*fresh_tx_sbtm_pkt)(void *tx_instance, struct vtem_sbtm_st *data);
+	void (*fresh_tx_vsif_pkt)(void *tx_instance, enum eotf_type type,
 				  enum mode_type tunnel_mode,
 				  struct dv_vsif_para *data,
 				  bool signal_sdr);
-	void (*fresh_tx_hdr10plus_pkt)(unsigned int flag,
+	void (*fresh_tx_hdr10plus_pkt)(void *tx_instance, unsigned int flag,
 				       struct hdr10plus_para *data);
-	void (*fresh_tx_cuva_hdr_vsif)(struct cuva_hdr_vsif_para *data);
-	void (*fresh_tx_cuva_hdr_vs_emds)(struct cuva_hdr_vs_emds_para *data);
-	void (*fresh_tx_emp_pkt)(unsigned char *data, unsigned int type,
+	void (*fresh_tx_cuva_hdr_vsif)(void *tx_instance, struct cuva_hdr_vsif_para *data);
+	void (*fresh_tx_cuva_hdr_vs_emds)(void *tx_instance, struct cuva_hdr_vs_emds_para *data);
+	void (*fresh_tx_emp_pkt)(void *tx_instance, unsigned char *data, unsigned int type,
 				 unsigned int size);
-	void (*get_attr)(char attr[16]);
-	void (*setup_attr)(const char *buf);
-	void (*video_mute)(unsigned int flag);
+	void *tx_instance;
 };
 
 #define LATENCY_INVALID_UNKNOWN	0

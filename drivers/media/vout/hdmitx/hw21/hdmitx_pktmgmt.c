@@ -27,10 +27,13 @@
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 
 #include "hdmitx_common.h"
 #include "hdmitx_enc_clk_config.h"
 #include "hdmitx.h"
+#include "hdmitx_packet.h"
+#include "hdmitx_log.h"
 
 static DEFINE_SPINLOCK(tpi_lock);
 static void tpi_info_send(u8 sel, u8 *data, bool no_chksum_flag)
@@ -199,7 +202,7 @@ void hdmitx_infoframe_send(u16 info_type, u8 *body)
 	_tpi_infoframe_wrrd(1, info_type, body);
 }
 
-int hdmitx_infoframe_rawget(u16 info_type, u8 *body)
+int hdmitx_infoframe_raw_get(u16 info_type, u8 *body)
 {
 	return _tpi_infoframe_wrrd(0, info_type, body);
 }
@@ -401,3 +404,523 @@ irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx21_dev *hdev)
 }
 #endif
 
+/*
+ * now this interface should be not used, otherwise need
+ * adjust as hdmi_vend_infoframe_rawset fistly
+ */
+void hdmi_vend_infoframe_set(struct hdmitx_common *tx_comm, struct hdmi_vendor_infoframe *info)
+{
+	u8 body[31] = {0};
+
+	if (!tx_comm) {
+		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
+		return;
+	}
+
+	if (!info) {
+		if (tx_comm->rxcap.ifdb_present)
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+		else
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		return;
+	}
+
+	hdmi_vendor_infoframe_pack(info, body, sizeof(body));
+	if (tx_comm->rxcap.ifdb_present)
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	else
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+}
+
+/*
+ * refer to DV Consumer Decoder for Source Devices
+ * System Development Guide Kit version chapter 4.4.8 Game
+ * content signaling:
+ * 1.if DV sink device that supports ALLM with
+ * InfoFrame Data Block (IFDB), HF-VSIF with ALLM_Mode = 1
+ * should comes after Dolby VSIF with L11_MD_Present = 1 and
+ * Content_Type[3:0] = 0x2(case B1)
+ * 2.DV sink device that supports ALLM without
+ * InfoFrame Data Block (IFDB), Dolby VSIF with L11_MD_Present
+ * = 1 and Content_Type[3:0] = 0x2 should comes after HF-VSIF
+ * with  ALLM_Mode = 1(case B2), or should only send Dolby VSIF,
+ * not send HF-VSIF(case A)
+ */
+/* only used for DV_VSIF / HDMI1.4b_VSIF / CUVA_VSIF / HDR10+ VSIF */
+void hdmi_vend_infoframe_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!tx_comm) {
+		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
+		return;
+	}
+
+	if (!hb || !pb) {
+		if (!tx_comm->rxcap.ifdb_present)
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		else
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	if (tx_comm->rxcap.ifdb_present &&
+		tx_comm->rxcap.additional_vsif_num >= 1) {
+		/* dolby cts case93 B1 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	} else if (!tx_comm->rxcap.ifdb_present) {
+		/* dolby cts case92 B2 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	} else {
+		/* case89 ifdb_present but no additional_vsif, should not send HF-VSIF */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	}
+}
+
+/* only used for HF-VSIF */
+void hdmi_vend_infoframe2_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!tx_comm) {
+		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
+		return;
+	}
+
+	if (!hb || !pb) {
+		if (!tx_comm->rxcap.ifdb_present)
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+		else
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	if (tx_comm->rxcap.ifdb_present &&
+		tx_comm->rxcap.additional_vsif_num >= 1) {
+		/* dolby cts case93 B1 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	} else if (!tx_comm->rxcap.ifdb_present) {
+		/* dolby cts case92 B2 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	} else {
+		/* case89 ifdb_present but no additional_vsif, currently
+		 * no DV-VSIF enabled, then send HF-VSIF
+		 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	}
+}
+
+/* refer DV HDMI 1.4b/2.0/2.1 Transmission
+ * 1.DV source device signals the video-timing
+ * format by using the CTA VICs in its AVI InfoFrame
+ * 2.DV source must not simultaneously transmit
+ * a DV and any form of H14b VSIF, even for the case
+ * of 4Kp24/25/30
+ */
+/* only used for DV_VSIF / CUVA VSIF / HDMI1.4b_VSIF / HDR10+ VSIF */
+int hdmi_vend_infoframe_get(struct hdmitx_common *tx_comm, u8 *body)
+{
+	int ret;
+
+	if (!tx_comm || !body)
+		return 0;
+
+	if (tx_comm->rxcap.ifdb_present &&
+			tx_comm->rxcap.additional_vsif_num >= 1) {
+		/* dolby cts case93 B1 */
+		ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	} else if (!tx_comm->rxcap.ifdb_present) {
+		/* dolby cts case92 B2 */
+		ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	} else {
+		/* case89 */
+		ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	}
+	return ret;
+}
+
+/* not used */
+void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info)
+{
+	u8 buffer[31] = {0};
+
+	if (!info) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, NULL);
+		return;
+	}
+
+	/* refer to CTA-861-H Page 69 */
+	if (info->video_code >= 128)
+		info->version = 0x3;
+	else
+		info->version = 0x2;
+	hdmi_avi_infoframe_pack_renew(info, buffer, sizeof(buffer));
+	/* the hardware writes the buffer data to the register */
+	hdmitx_infoframe_send(HDMI_PACKET_AVI, buffer);
+}
+
+void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!hb || !pb) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, body);
+}
+
+int hdmi_avi_infoframe_get(u8 *body)
+{
+	int ret;
+
+	if (!body)
+		return 0;
+	ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_AVI, body);
+	return ret;
+}
+
+int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, enum avi_component_conf conf, u8 val)
+{
+	struct hdmi_avi_infoframe *frame = NULL;
+	struct hdmi_format_para *para = NULL;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
+		return -EINVAL;
+	}
+
+	frame = &tx_comm->infoframe.avi.avi;
+	para = &tx_comm->fmt_para;
+
+	switch (conf) {
+	case CONF_AVI_CS:
+		frame->colorspace = val;
+		break;
+	case CONF_AVI_BT2020:
+		if (val == SET_AVI_BT2020) {
+			frame->colorimetry = HDMI_COLORIMETRY_EXTENDED;
+			frame->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_BT2020;
+			HDMITX_DEBUG_PACKET("avi_colorimetry: bt2020\n");
+		}
+		if (val == CLR_AVI_BT2020) {
+			if (para->timing.v_total <= 576) {
+				/* SD formats */
+				frame->colorimetry = HDMI_COLORIMETRY_ITU_601;
+				frame->extended_colorimetry = 0;
+				HDMITX_DEBUG_PACKET("avi_colorimetry: bt601\n");
+			} else {
+				frame->colorimetry = HDMI_COLORIMETRY_ITU_709;
+				frame->extended_colorimetry = 0;
+				HDMITX_DEBUG_PACKET("avi_colorimetry: bt709\n");
+			}
+		}
+		break;
+	case CONF_AVI_Q01:
+		frame->quantization_range = val;
+		break;
+	case CONF_AVI_YQ01:
+		frame->ycc_quantization_range = val;
+		break;
+	case CONF_AVI_VIC:
+		frame->video_code = val;
+		break;
+	case CONF_AVI_AR:
+		frame->picture_aspect = val;
+		break;
+	case CONF_AVI_CT_TYPE:
+		frame->itc = (val >> 4) & 0x1;
+		val = val & 0xf;
+		if (val == SET_CT_OFF)
+			frame->content_type = 0;
+		else if (val == SET_CT_GRAPHICS)
+			frame->content_type = 0;
+		else if (val == SET_CT_PHOTO)
+			frame->content_type = 1;
+		else if (val == SET_CT_CINEMA)
+			frame->content_type = 2;
+		else if (val == SET_CT_GAME)
+			frame->content_type = 3;
+		break;
+	default:
+		break;
+	}
+	hdmi_avi_infoframe_set(frame);
+	return 0;
+}
+
+void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info)
+{
+	u8 body[31] = {0};
+
+	if (!info) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_SPD, NULL);
+		return;
+	}
+
+	hdmi_spd_infoframe_pack(info, body, sizeof(body));
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_SPD, body);
+}
+
+void hdmi_audio_infoframe_set(struct hdmi_audio_infoframe *info)
+{
+	u8 body[31] = {0};
+
+	if (!info) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AUDIO, NULL);
+		return;
+	}
+
+	hdmi_audio_infoframe_pack(info, body, sizeof(body));
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AUDIO, body);
+}
+
+void hdmi_audio_infoframe_rawset(u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!hb || !pb) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AUDIO, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AUDIO, body);
+}
+
+void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info)
+{
+	u8 body[31] = {0};
+
+	if (!info) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, NULL);
+		return;
+	}
+
+	hdmi_drm_infoframe_pack(info, body, sizeof(body));
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, body);
+}
+
+void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!hb || !pb) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, body);
+}
+
+/* for only 8bit, not used */
+void hdmi_gcppkt_manual_set(bool en)
+{
+	u8 body[31] = {0};
+
+	body[0] = HDMI_PACKET_TYPE_GCP;
+	if (en)
+		hdmitx_infoframe_send(HDMI_PACKET_TYPE_GCP, body);
+	else
+		hdmitx_infoframe_send(HDMI_PACKET_TYPE_GCP, NULL);
+}
+
+int hdmi_emp_infoframe_get(enum emp_type type, u8 *body)
+{
+	int ret;
+	u16 pkt_type;
+
+	if (!body)
+		return -1;
+
+	pkt_type = (HDMI_INFOFRAME_TYPE_EMP << 8) | type;
+	ret = hdmitx_infoframe_raw_get(pkt_type, (u8 *)body);
+	return ret;
+}
+
+/*
+ * EMP packets is different as other packets
+ * no checksum, the successive packets in a video frame...
+ */
+void hdmi_emp_infoframe_set(enum emp_type type, struct emp_packet_st *info)
+{
+	u8 body[31] = {0};
+	u8 *md;
+	u16 pkt_type;
+
+	pkt_type = (HDMI_INFOFRAME_TYPE_EMP << 8) | type;
+	if (!info) {
+		hdmitx_infoframe_send(pkt_type, NULL);
+		return;
+	}
+
+	/* head body, 3bytes */
+	body[0] = info->header.header;
+	body[1] = info->header.first << 7 | info->header.last << 6;
+	body[2] = info->header.seq_idx;
+	/* packet body, 28bytes */
+	body[3] = info->body.emp0.new << 7 |
+		info->body.emp0.end << 6 |
+		info->body.emp0.ds_type << 4 |
+		info->body.emp0.afr << 3 |
+		info->body.emp0.vfr << 2 |
+		info->body.emp0.sync << 1;
+	/* RSVD */
+	body[4] = 0;
+	body[5] = info->body.emp0.org_id;
+	body[6] = info->body.emp0.ds_tag >> 8 & 0xff;
+	body[7] = info->body.emp0.ds_tag & 0xff;
+	body[8] = info->body.emp0.ds_length >> 8 & 0xff;
+	body[9] = info->body.emp0.ds_length & 0xff;
+	md = &body[10];
+	switch (info->type) {
+	case EMP_TYPE_VRR_GAME:
+		md[0] = info->body.emp0.md.game_md.fva_factor_m1 << 4 |
+			info->body.emp0.md.game_md.vrr_en << 0;
+		md[1] = info->body.emp0.md.game_md.base_vfront;
+		md[2] = info->body.emp0.md.game_md.brr_rate >> 8 & 3;
+		md[3] = info->body.emp0.md.game_md.brr_rate & 0xff;
+		break;
+	case EMP_TYPE_VRR_QMS:
+		md[0] = info->body.emp0.md.qms_md.qms_en << 2 |
+			info->body.emp0.md.qms_md.m_const << 1;
+		md[1] = info->body.emp0.md.qms_md.base_vfront;
+		md[2] = info->body.emp0.md.qms_md.next_tfr << 3 |
+			(info->body.emp0.md.qms_md.brr_rate >> 8 & 3);
+		md[3] = info->body.emp0.md.qms_md.brr_rate & 0xff;
+		break;
+	case EMP_TYPE_SBTM:
+		md[0] = info->body.emp0.md.sbtm_md.sbtm_ver << 0;
+		md[1] = info->body.emp0.md.sbtm_md.sbtm_mode << 0 |
+			info->body.emp0.md.sbtm_md.sbtm_type << 2 |
+			info->body.emp0.md.sbtm_md.grdm_min << 4 |
+			info->body.emp0.md.sbtm_md.grdm_lum << 6;
+		md[2] = (info->body.emp0.md.sbtm_md.frmpblimitint >> 8) & 0x3f;
+		md[3] = info->body.emp0.md.sbtm_md.frmpblimitint & 0xff;
+		break;
+	default:
+		break;
+	}
+	hdmitx_infoframe_send(pkt_type, body);
+}
+
+/*
+ * this is only configuring the EMP frame body, not send by HW
+ * then call hdmi_emp_infoframe_set to send out
+ */
+void hdmi_emp_frame_set_member(struct emp_packet_st *info,
+	enum emp_component_conf conf, u32 val)
+{
+	if (!info)
+		return;
+
+	switch (conf) {
+	case CONF_HEADER_INIT:
+		/* fixed value */
+		info->header.header = HDMI_INFOFRAME_TYPE_EMP;
+		break;
+	case CONF_HEADER_LAST:
+		info->header.last = !!val;
+		break;
+	case CONF_HEADER_FIRST:
+		info->header.first = !!val;
+		break;
+	case CONF_HEADER_SEQ_INDEX:
+		info->header.seq_idx = val;
+		break;
+	case CONF_SYNC:
+		info->body.emp0.sync = !!val;
+		break;
+	case CONF_VFR:
+		info->body.emp0.vfr = !!val;
+		break;
+	case CONF_AFR:
+		info->body.emp0.afr = !!val;
+		break;
+	case CONF_DS_TYPE:
+		info->body.emp0.ds_type = val & 3;
+		break;
+	case CONF_END:
+		info->body.emp0.end = !!val;
+		break;
+	case CONF_NEW:
+		info->body.emp0.new = !!val;
+		break;
+	case CONF_ORG_ID:
+		info->body.emp0.org_id = val;
+		break;
+	case CONF_DATA_SET_TAG:
+		info->body.emp0.ds_tag = val;
+		break;
+	case CONF_DATA_SET_LENGTH:
+		info->body.emp0.ds_length = val;
+		break;
+	case CONF_VRR_EN:
+		info->body.emp0.md.game_md.vrr_en = !!val;
+		break;
+	case CONF_FACTOR_M1:
+		info->body.emp0.md.game_md.fva_factor_m1 = val;
+		break;
+	case CONF_QMS_EN:
+		info->body.emp0.md.qms_md.qms_en = !!val;
+		break;
+	case CONF_M_CONST:
+		info->body.emp0.md.qms_md.m_const = !!val;
+		break;
+	case CONF_BASE_VFRONT:
+		info->body.emp0.md.qms_md.base_vfront = val;
+		break;
+	case CONF_NEXT_TFR:
+		info->body.emp0.md.qms_md.next_tfr = val;
+		break;
+	case CONF_BASE_REFRESH_RATE:
+		info->body.emp0.md.qms_md.brr_rate = val & 0x3ff;
+		break;
+	case CONF_SBTM_VER:
+		info->body.emp0.md.sbtm_md.sbtm_ver = val & 0xf;
+		break;
+	case CONF_SBTM_MODE:
+		info->body.emp0.md.sbtm_md.sbtm_mode = val & 0x3;
+		break;
+	case CONF_SBTM_TYPE:
+		info->body.emp0.md.sbtm_md.sbtm_type = val & 0x3;
+		break;
+	case CONF_SBTM_GRDM_MIN:
+		info->body.emp0.md.sbtm_md.grdm_min = val & 0x3;
+		break;
+	case CONF_SBTM_GRDM_LUM:
+		info->body.emp0.md.sbtm_md.grdm_lum = val & 0x3;
+		break;
+	case CONF_SBTM_FRMPBLIMITINT:
+		info->body.emp0.md.sbtm_md.frmpblimitint = val & 0x3fff;
+		break;
+	default:
+		break;
+	}
+}
+
+/* internal API */
+void hdmi_sbtm_infoframe_rawset(u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!hb || !pb) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_SBTM, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_SBTM, body);
+}

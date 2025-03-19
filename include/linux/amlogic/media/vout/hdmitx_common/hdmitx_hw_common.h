@@ -196,6 +196,10 @@ enum avi_component_conf {
 	CONF_GET_AVI_SCAN_INFO,
 };
 
+/* CONF_AVI_BT2020 */
+#define CLR_AVI_BT2020      0
+#define SET_AVI_BT2020      1
+
 /* CN TYPE define */
 enum {
 	SET_CT_OFF = 0,
@@ -226,6 +230,7 @@ enum i2c_rate {
 #define HDMI_PACKET_HBR         6
 #define HDMI_PACKET_DRM		0x86
 #define HDMI_PACKET_EMP		0x87
+#define HDMI_PACKET_EMP_SBTM (HDMI_PACKET_EMP + 0x100)
 
 #define HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH       0x3
 #define HDMITX_HWCMD_TURNOFF_HDMIHW           0x4
@@ -321,11 +326,11 @@ struct hdmitx_hw_common {
 	/* Other control */
 	int (*cntl)(struct hdmitx_hw_common *tx_hw, unsigned int cmd, unsigned int arg);
 
-	/* In original setpacket, there are many policies, like
+	/* In original set_packet, there are many policies, like
 	 *	if ((DB[4] >> 4) == T3D_FRAME_PACKING)
 	 * Need a only pure data packet to call
 	 */
-	void (*setpacket)(int type, unsigned char *buffer);
+	void (*set_packet)(int type, void *buffer);
 	void (*disablepacket)(int type);
 
 	/* Audio/Video/System Status */

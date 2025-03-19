@@ -23,7 +23,7 @@ static void hdmitx_set_spd_info(struct hdmitx21_dev *hdmitx_device);
 
 static void construct_avi_packet(struct hdmitx21_dev *hdev)
 {
-	struct hdmi_avi_infoframe *info = &hdev->tx_comm.infoframes.avi.avi;
+	struct hdmi_avi_infoframe *info = &hdev->tx_comm.infoframe.avi.avi;
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	enum hdmi_scan_mode scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
@@ -166,13 +166,13 @@ int hdmi21_set_3d(struct hdmitx21_dev *hdev, int type, u32 param)
 	u8 ven_hb[3];
 	struct hdmi_vendor_infoframe *info;
 
-	info = &hdev->tx_comm.infoframes.vend.vendor.hdmi;
+	info = &hdev->tx_comm.infoframe.vend.vendor.hdmi;
 
 	ven_hb[0] = 0x81;
 	ven_hb[1] = 0x01;
 	ven_hb[2] = 0x6;
 	if (type == T3D_DISABLE) {
-		hdmi_vend_infoframe_rawset(ven_hb, db);
+		hdmi_vend_infoframe_rawset(&hdev->tx_comm, ven_hb, db);
 	} else {
 		ven_db[0] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
 		ven_db[1] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
@@ -180,7 +180,7 @@ int hdmi21_set_3d(struct hdmitx21_dev *hdev, int type, u32 param)
 		ven_db[3] = 0x40;
 		ven_db[4] = type << 4;
 		ven_db[5] = param << 4;
-		hdmi_vend_infoframe_rawset(ven_hb, db);
+		hdmi_vend_infoframe_rawset(&hdev->tx_comm, ven_hb, db);
 	}
 	return 0;
 }

@@ -249,7 +249,7 @@ ddk_module(
                 "vout/hdmitx/hdmitx_sysfs_common.c",
                 "vout/hdmitx/hdmitx_edid_parse.c",
                 "vout/hdmitx/hdmitx_hw_common.c",
-                "vout/hdmitx/hdmitx_packet.c",
+                "vout/hdmitx/hdmitx_hdr.c",
                 "vout/hdmitx/hdmitx_mode.c",
                 "vout/hdmitx/hdmitx_format_para.c",
                 "vout/hdmitx/hdmitx_mode_set.c",

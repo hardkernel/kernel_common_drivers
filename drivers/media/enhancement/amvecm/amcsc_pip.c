@@ -2481,9 +2481,9 @@ void hdmi_packet_process(int signal_change_flag,
 	struct vout_device_s *vdev = NULL;
 	struct master_display_info_s send_info;
 	enum output_format_e cur_output_format = output_format;
-	void (*f_h10)(unsigned int flag,
+	void (*f_h10)(void *tx_instance, unsigned int flag,
 		      struct hdr10plus_para *data);
-	void (*f_h)(struct master_display_info_s *data);
+	void (*f_h)(void *tx_instance, struct master_display_info_s *data);
 	struct hdr10plus_para *h10_para;
 	struct vd_signal_info_s vd_signal;
 
@@ -2579,7 +2579,7 @@ void hdmi_packet_process(int signal_change_flag,
 					      (void *)NULL,
 					      vpp_index);
 		} else if (f_h10) {
-			f_h10(0, h10_para);
+			f_h10(vdev->tx_instance, 0, h10_para);
 		}
 		pr_csc(4, "am_vecm: vd%d hdmi clean hdr10+ pkt\n",
 		       vd_path + 1);
@@ -2596,9 +2596,9 @@ void hdmi_packet_process(int signal_change_flag,
 		} else if (vdev->fresh_tx_cuva_hdr_vsif &&
 			vdev->fresh_tx_cuva_hdr_vs_emds) {
 			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1)
-				vdev->fresh_tx_cuva_hdr_vsif(NULL);
+				vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, NULL);
 			else
-				vdev->fresh_tx_cuva_hdr_vs_emds(NULL);
+				vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, NULL);
 		}
 		pr_csc(4, "am_vecm: vd%d hdmi clean cuva pkt\n",
 			vd_path + 1);
@@ -2742,9 +2742,9 @@ void hdmi_packet_process(int signal_change_flag,
 					      vpp_index);
 		} else {
 			if (f_h)
-				f_h(&send_info);
+				f_h(vdev->tx_instance, &send_info);
 			if (f_h10)
-				f_h10(1, h10_para);
+				f_h10(vdev->tx_instance, 1, h10_para);
 		}
 		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 		return;
@@ -2761,10 +2761,12 @@ void hdmi_packet_process(int signal_change_flag,
 		} else {
 			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
 				if (vdev->fresh_tx_cuva_hdr_vsif)
-					vdev->fresh_tx_cuva_hdr_vsif(hdmitx_vsif_param);
+					vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance,
+						hdmitx_vsif_param);
 			} else {
 				if (vdev->fresh_tx_cuva_hdr_vs_emds)
-					vdev->fresh_tx_cuva_hdr_vs_emds(hdmitx_edms_param);
+					vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance,
+						hdmitx_edms_param);
 			}
 		}
 		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
@@ -2777,7 +2779,7 @@ void hdmi_packet_process(int signal_change_flag,
 			return;
 		}
 		last_signal_type = vd_signal.signal_type;
-		f_h(&send_info);
+		f_h(vdev->tx_instance, &send_info);
 		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 	}
 }

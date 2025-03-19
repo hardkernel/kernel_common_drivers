@@ -37,7 +37,6 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_infoframe.h>
 #include <linux/amlogic/clk_measure.h>
 
 #include "hdmitx_hdcp_type.h"
@@ -54,6 +53,7 @@
 #include "hdmitx_compliance.h"
 #include "hdmitx_meson_drm.h"
 #include "hdmitx_hdcp.h"
+#include "hdmitx_infoframe.h"
 
 #define HDMITX_VIC_MASK			0xff
 
@@ -125,7 +125,7 @@ struct ksv_lists_ {
 
 static struct ksv_lists_ tmp_ksv_lists;
 
-static void hdmitx_set_packet(int type, unsigned char *buffer);
+static void hdmitx_set_packet(int type, void *buffer);
 static void hdmitx_disable_packet(int type);
 static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw);
 static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
@@ -767,7 +767,7 @@ void hdmitx20_meson_init(struct hdmitx_hw_common *hw_comm)
 	hw_comm->cntlmisc = hdmitx_cntl_misc;
 	hw_comm->validatemode = hdmitx_validate_mode;
 	hw_comm->calc_format_para = hdmitx_calc_formatpara;
-	hw_comm->setpacket = hdmitx_set_packet;
+	hw_comm->set_packet = hdmitx_set_packet;
 	hw_comm->disablepacket = hdmitx_disable_packet;
 	hw_comm->cntlddc = hdmitx_cntl_ddc;
 	hw_comm->cntl = hdmitx_cntl;
@@ -2492,7 +2492,7 @@ static enum hdmi_tf_type hdmitx_get_cur_hdr10p_st(void)
 	return type;
 }
 
-static void hdmitx_set_packet(int type, unsigned char *buffer)
+static void hdmitx_set_packet(int type, void *pkt_param)
 {
 	int i;
 	int pkt_data_len = 0;
@@ -2500,6 +2500,7 @@ static void hdmitx_set_packet(int type, unsigned char *buffer)
 	static unsigned char *virt_ptr;
 	static unsigned char *virt_ptr_align32bit;
 	unsigned long phys_ptr;
+	u8 *buffer = NULL;
 
 	switch (type) {
 	case HDMI_PACKET_AVI:
@@ -2507,7 +2508,7 @@ static void hdmitx_set_packet(int type, unsigned char *buffer)
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 	/* 21 allm will use vendor2 */
 	case HDMI_INFOFRAME_TYPE_VENDOR2:
-		if (!buffer) {
+		if (!pkt_param) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 3, 1);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x0);
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID0, 0x00);
@@ -2517,6 +2518,7 @@ static void hdmitx_set_packet(int type, unsigned char *buffer)
 				hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD0 + i, 0x00);
 			return;
 		}
+		buffer = (u8 *)pkt_param;
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, buffer[2]);
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID0, buffer[4]);
 		hdmitx_wr_reg(HDMITX_DWC_FC_VSDIEEEID1, buffer[5]);
@@ -2562,7 +2564,7 @@ static void hdmitx_set_packet(int type, unsigned char *buffer)
 		break;
 	case HDMI_PACKET_DRM:
 		pkt_data_len = 26;
-		if (!buffer) {
+		if (!pkt_param) {
 			for (i = 0; i < pkt_data_len + 2; i++)
 				hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB01 + i, 0);
 
@@ -2571,6 +2573,7 @@ static void hdmitx_set_packet(int type, unsigned char *buffer)
 					    0, 7, 1);
 			return;
 		}
+		buffer = (u8 *)pkt_param;
 		/* Ignore HB[0] */
 		hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB01, buffer[1]);
 		hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB02, buffer[2]);
@@ -2583,6 +2586,9 @@ static void hdmitx_set_packet(int type, unsigned char *buffer)
 		pkt_data_len = 9;
 		break;
 	case HDMI_SOURCE_DESCRIPTION:
+		if (!pkt_param)
+			break;
+		buffer = (u8 *)pkt_param;
 		pkt_data_len = 25;
 		for (i = 0; i < 25; i++)
 			hdmitx_wr_reg(HDMITX_DWC_FC_SPDVENDORNAME0 + i, buffer[4 + i]);
@@ -2591,10 +2597,11 @@ static void hdmitx_set_packet(int type, unsigned char *buffer)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
 		break;
 	case HDMI_PACKET_EMP:
-		if (!buffer) {
+		if (!pkt_param) {
 			hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 0, 0, 1);
 			return;
 		}
+		buffer = (u8 *)pkt_param;
 		/* init virt_ptr and virt_ptr_align32bit */
 		if (!virt_ptr) {
 			virt_ptr = kzalloc((sizeof(buffer) + 0x1f), GFP_KERNEL);
@@ -2619,6 +2626,7 @@ static void hdmitx_set_packet(int type, unsigned char *buffer)
 		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL1, 1, 17, 1);
 		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL1, 120, 0, 16);
 		break;
+	case HDMI_PACKET_EMP_SBTM:
 	default:
 		break;
 	}

@@ -7664,13 +7664,13 @@ void update_hdr10_plus_pkt(bool enable,
 		    sink_support_hdr(vinfo) &&
 		    (!sink_support_dv(vinfo))) {
 			pr_csc(2, "update hdr10_plus_pkt: DISABLE_VSIF\n");
-			vdev->fresh_tx_hdr10plus_pkt(HDR10_PLUS_DISABLE_VSIF,
+			vdev->fresh_tx_hdr10plus_pkt(vdev->tx_instance, HDR10_PLUS_DISABLE_VSIF,
 						     &cur_hdr10plus_params);
 		} else {
 #endif
 			pr_csc(2, "update hdr10_plus_pkt: ZERO_VSIF\n");
-			vdev->fresh_tx_hdr_pkt(send_info);
-			vdev->fresh_tx_hdr10plus_pkt(HDR10_PLUS_ZERO_VSIF,
+			vdev->fresh_tx_hdr_pkt(vdev->tx_instance, send_info);
+			vdev->fresh_tx_hdr10plus_pkt(vdev->tx_instance, HDR10_PLUS_ZERO_VSIF,
 						     &cur_hdr10plus_params);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		}
@@ -7737,14 +7737,14 @@ void update_cuva_pkt(bool enable,
 		    (!sink_support_dv(vinfo))) {
 			pr_csc(2, "%s: DISABLE_VSIF\n", __func__);
 			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1)
-				vdev->fresh_tx_cuva_hdr_vsif(NULL);
+				vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, NULL);
 			else
-				vdev->fresh_tx_cuva_hdr_vs_emds(NULL);
+				vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, NULL);
 		} else {
 			pr_csc(2, "%s: ZERO_VSIF\n", __func__);
-			vdev->fresh_tx_hdr_pkt(send_info);
-			vdev->fresh_tx_cuva_hdr_vsif(NULL);
-			vdev->fresh_tx_cuva_hdr_vs_emds(NULL);
+			vdev->fresh_tx_hdr_pkt(vdev->tx_instance, send_info);
+			vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, NULL);
+			vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, NULL);
 		}
 		cuva_pkt_update = CUVA_PKT_IDLE;
 		pr_csc(2, "%s off\n", __func__);
@@ -7782,8 +7782,8 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path,
 	if (hdr10_plus_pkt_update == HDRPLUS_PKT_UPDATE) {
 		if (!vdev)
 			return;
-		vdev->fresh_tx_hdr_pkt(&cur_send_info);
-		vdev->fresh_tx_hdr10plus_pkt(hdr10_plus_pkt_on,
+		vdev->fresh_tx_hdr_pkt(vdev->tx_instance, &cur_send_info);
+		vdev->fresh_tx_hdr10plus_pkt(vdev->tx_instance, hdr10_plus_pkt_on,
 					     &cur_hdr10plus_params);
 		if (get_hdr10_plus_pkt_delay() > 1)
 			hdr10_plus_pkt_update = HDRPLUS_PKT_REPEAT;
@@ -7794,8 +7794,8 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path,
 		(get_hdr10_plus_pkt_delay() > 1)) {
 		if (!vdev)
 			return;
-		vdev->fresh_tx_hdr_pkt(&cur_send_info);
-		vdev->fresh_tx_hdr10plus_pkt(hdr10_plus_pkt_on,
+		vdev->fresh_tx_hdr_pkt(vdev->tx_instance, &cur_send_info);
+		vdev->fresh_tx_hdr10plus_pkt(vdev->tx_instance, hdr10_plus_pkt_on,
 					     &cur_hdr10plus_params);
 		pr_csc(2, "send hdr10_plus_pkt repeat\n");
 	}
@@ -7834,11 +7834,11 @@ void send_cuva_pkt(enum vd_path_e vd_path,
 	if (cuva_pkt_update == CUVA_PKT_UPDATE) {
 		if (!vdev)
 			return;
-		vdev->fresh_tx_hdr_pkt(&cur_send_info);
+		vdev->fresh_tx_hdr_pkt(vdev->tx_instance, &cur_send_info);
 		if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1)
-			vdev->fresh_tx_cuva_hdr_vsif(&cur_cuva_params);
+			vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, &cur_cuva_params);
 		else
-			vdev->fresh_tx_cuva_hdr_vs_emds(&cur_edms_params);
+			vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, &cur_edms_params);
 		if (get_cuva_pkt_delay() > 1)
 			cuva_pkt_update = CUVA_PKT_REPEAT;
 		else
@@ -7851,9 +7851,9 @@ void send_cuva_pkt(enum vd_path_e vd_path,
 		if (!vdev)
 			return;
 		if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1)
-			vdev->fresh_tx_cuva_hdr_vsif(&cur_cuva_params);
+			vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, &cur_cuva_params);
 		else
-			vdev->fresh_tx_cuva_hdr_vs_emds(&cur_edms_params);
+			vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, &cur_edms_params);
 		pr_csc(2, "%s repeat cuva_pkt_update = %d\n",
 			__func__,
 			cuva_pkt_update);
@@ -7902,9 +7902,9 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 	enum vd_path_e vd_path, enum vpp_index_e vpp_index)
 {
 	struct vout_device_s *vdev = NULL;
-	void (*f_h10)(unsigned int flag,
+	void (*f_h10)(void *tx_instance, unsigned int flag,
 		      struct hdr10plus_para *data);
-	void (*f_h)(struct master_display_info_s *data);
+	void (*f_h)(void *tx_instance, struct master_display_info_s *data);
 	struct hdr10plus_para *h10_para;
 	struct master_display_info_s send_info;
 	struct vd_signal_info_s vd_signal;
@@ -7947,14 +7947,14 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 			amvecm_cp_hdr_info(&send_info, p);
 			if (vdev) {
 				if (f_h)
-					f_h(&send_info);
+					f_h(vdev->tx_instance, &send_info);
 			}
 
 			if (cur_csc_type[vd_path] ==
 				VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) {
 				if (vdev) {
 					if (f_h10)
-						f_h10(0,
+						f_h10(vdev->tx_instance, 0,
 						      h10_para);
 				}
 			}
@@ -7986,7 +7986,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 			amvecm_cp_hdr_info(&send_info, p);
 			if (vdev) {
 				if (f_h)
-					f_h(&send_info);
+					f_h(vdev->tx_instance, &send_info);
 			}
 			vd_signal.signal_type = SIGNAL_HDR10;
 			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
@@ -8030,7 +8030,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 			amvecm_cp_hdr_info(&send_info, p);
 			if (vdev) {
 				if (f_h)
-					f_h(&send_info);
+					f_h(vdev->tx_instance, &send_info);
 			}
 			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 
@@ -8072,7 +8072,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 			amvecm_cp_hdr_info(&send_info, p);
 			if (vdev) {
 				if (f_h)
-					f_h(&send_info);
+					f_h(vdev->tx_instance, &send_info);
 			}
 			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 			if (hdmi_csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB) {
@@ -8104,10 +8104,10 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 				} else {
 					/* send HDR10 DRM packet */
 					if (f_h)
-						f_h(&send_info);
+						f_h(vdev->tx_instance, &send_info);
 					/* send hdr10 plus info */
 					if (f_h10)
-						f_h10(1, h10_para);
+						f_h10(vdev->tx_instance, 1, h10_para);
 				}
 				vd_signal.signal_type = SIGNAL_HDR10PLUS;
 				notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
@@ -8131,11 +8131,11 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 				if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
 					if (vdev && vdev->fresh_tx_cuva_hdr_vsif)
 						vdev->fresh_tx_cuva_hdr_vsif
-						(hdmitx_vsif_param);
+						(vdev->tx_instance, hdmitx_vsif_param);
 				} else {
 					if (vdev && vdev->fresh_tx_cuva_hdr_vs_emds)
 						vdev->fresh_tx_cuva_hdr_vs_emds
-						(hdmitx_edms_param);
+						(vdev->tx_instance, hdmitx_edms_param);
 				}
 			}
 			vd_signal.signal_type = SIGNAL_CUVA;
@@ -8178,23 +8178,25 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 			if (cur_csc_type[vd_path] <= VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				if (vdev) {
 					if (f_h)
-						f_h(&send_info);
+						f_h(vdev->tx_instance, &send_info);
 				}
 			} else if (cur_csc_type[vd_path] ==
 				   VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) {
 				if (vdev) {
 					if (f_h)
-						f_h(&send_info);
+						f_h(vdev->tx_instance, &send_info);
 					if (f_h10)
-						f_h10(0, h10_para);
+						f_h10(vdev->tx_instance, 0, h10_para);
 				}
 			} else if (cur_csc_type[vd_path] == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) {
 				if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
 					if (vdev && vdev->fresh_tx_cuva_hdr_vsif)
-						vdev->fresh_tx_cuva_hdr_vsif(NULL);
+						vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance,
+							NULL);
 				} else {
 					if (vdev && vdev->fresh_tx_cuva_hdr_vs_emds)
-						vdev->fresh_tx_cuva_hdr_vs_emds(NULL);
+						vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance,
+							NULL);
 				}
 			}
 			vd_signal.signal_type = SIGNAL_SDR;

@@ -18,6 +18,7 @@
 #include "hdmitx_check_valid.h"
 #include "hdmitx_module.h"
 #include "efuse.h"
+#include "hdmitx_hdr.h"
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -54,6 +55,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	struct hdmitx_boot_param *boot_param = get_hdmitx_boot_params();
 
 	tx_comm->vdev = &hdmitx_vdev;
+	tx_comm->vdev->tx_instance = tx_comm;
 
 	/*load tx boot params*/
 	tx_comm->hdr_priority = boot_param->hdr_mask;
@@ -103,7 +105,6 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 
 	hdmitx_vout_init(tx_comm, hw_comm);
 	hdmitx_hdr_init(tx_comm);
-	hdmitx_packet_init(tx_comm);
 	/* get efuse ctrl state */
 	get_hdmi_efuse(tx_comm);
 
@@ -828,6 +829,97 @@ enum hdmi_scan_mode hdmitx_check_scan_info(struct rx_cap *prxcap,
 		}
 	}
 	return scan_mode;
+}
+
+/* ALLM HF_VSIF/HDMI14 VSIF */
+int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
+	enum vsif_type type, int on, void *param)
+{
+	u8 len = 0;
+	/* transmission usage, excluding checksum */
+	u8 buffer[31] = {0x81, 0x1, 0};
+	u32 ieeeoui = 0;
+	u32 vic = 0;
+	struct hdmitx_hw_common *tx_hw = NULL;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
+		return -EINVAL;
+	}
+	tx_hw = tx_comm->tx_hw;
+	if (!tx_hw) {
+		HDMITX_ERROR("hdr: [%s]: null tx_hw param\n", __func__);
+		return -EINVAL;
+	}
+
+	if (type >= VT_MAX)
+		return -EINVAL;
+
+	switch (type) {
+	case VT_DEFAULT:
+		break;
+	case VT_HDMI14_4K:
+		ieeeoui = HDMI_IEEE_OUI;
+		len = 5;
+		vic = hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic);
+		if (vic > 0) {
+			buffer[2] = len;
+			buffer[4] = GET_OUI_BYTE0(ieeeoui);
+			buffer[5] = GET_OUI_BYTE1(ieeeoui);
+			buffer[6] = GET_OUI_BYTE2(ieeeoui);
+			buffer[7] = vic & 0xf;
+			buffer[8] = 0x20;
+			hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, 0);
+			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, buffer);
+		} else {
+			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+			HDMITX_INFO("clear vsif for non-4k mode.\n");
+			return -EINVAL;
+		}
+		break;
+	case VT_ALLM:
+		ieeeoui = HDMI_FORUM_IEEE_OUI;
+		len = 5;
+		/* Fixed value */
+		buffer[7] = 0x1;
+		if (on) {
+			buffer[2] = len;
+			buffer[4] = GET_OUI_BYTE0(ieeeoui);
+			buffer[5] = GET_OUI_BYTE1(ieeeoui);
+			buffer[6] = GET_OUI_BYTE2(ieeeoui);
+			/* set bit1, ALLM_MODE */
+			buffer[8] |= 1 << 1;
+			/* reset vic which may be reset by VT_HDMI14_4K */
+			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0)
+				hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, tx_comm->fmt_para.vic);
+			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR2, buffer);
+		} else {
+			/* clear bit1, ALLM_MODE */
+			buffer[8] &= ~(1 << 1);
+			/*
+			 * 1.When the Source stops transmitting the HF-VSIF,
+			 * the Sink shall interpret this as an indication
+			 * that transmission of features described in this
+			 * Infoframe has stopped
+			 * 2.When a Source is utilizing the HF-VSIF for ALLM
+			 * signaling only and indicates the Sink should
+			 * revert from low-latency Mode to its previous mode,
+			 * the Source should send ALLM Mode = 0 to quickly
+			 * and reliably request the change. If a Source
+			 * indicates ALLM Mode = 0 in this manner, the
+			 * Source should transmit an HF-VSIF with ALLM Mode = 0
+			 * for at least 4 frames but for not more than 1 second.
+			 */
+			/* hdmi_vend_infoframe2_rawset(hb, vsif_db); */
+			/* wait for 4frames ~ 1S, then stop send HF-VSIF */
+			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 1;
 }
 
 int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode)

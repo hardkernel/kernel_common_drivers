@@ -12,7 +12,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_COMMON) += \
 							vout/hdmitx/hdmitx_sysfs_common.o \
 							vout/hdmitx/hdmitx_edid_parse.o \
 							vout/hdmitx/hdmitx_hw_common.o \
-							vout/hdmitx/hdmitx_packet.o \
+							vout/hdmitx/hdmitx_hdr.o \
 							vout/hdmitx/hdmitx_mode.o \
 							vout/hdmitx/hdmitx_format_para.o \
 							vout/hdmitx/hdmitx_mode_set.o \

@@ -204,4 +204,6 @@ struct hdmitx_common *hdmitx21_alloc_instance(struct device *device);
 
 #endif
 
+int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
+	enum vsif_type type, int on, void *param);
 #endif

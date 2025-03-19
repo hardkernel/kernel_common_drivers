@@ -10,6 +10,7 @@
 #include <linux/spinlock.h>
 #include "hdmitx_hdcp.h"
 #include "hdmitx_module.h"
+#include "hdmitx_packet.h"
 
 /* L_0 will always be printed, set log level to L_1/2/3 for detail */
 #define L_0 0
@@ -83,27 +84,6 @@ int hdmitx21_init_reg_map(struct platform_device *pdev);
 void hdmitx21_set_audioclk(bool en);
 void hdmitx21_disable_clk(struct hdmitx21_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
-
-/* there are 2 ways to send out infoframe
- * xxx_infoframe_set() will take use of struct xxx_infoframe_set
- * xxx_infoframe_rawset() will directly send with rawdata
- * if info, hb, or pb == NULL, disable send infoframe
- */
-void hdmi_vend_infoframe_set(struct hdmi_vendor_infoframe *info);
-void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb);
-void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb);
-int hdmi_vend_infoframe_get(struct hdmitx_common *tx_comm, u8 *body);
-void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb);
-int hdmi_avi_infoframe_get(u8 *body);
-void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info);
-void hdmi_audio_infoframe_set(struct hdmi_audio_infoframe *info);
-void hdmi_audio_infoframe_rawset(u8 *hb, u8 *pb);
-void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info);
-void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
-
-void hdmitx_dhdr_send(u8 *body, int max_size);
-void hdmitx21_write_dhdr_sram(void);
-void hdmitx21_read_dhdr_sram(void);
 
 struct mvrr_const_val {
 	/* unit: 100  6000, 5994, 5000, 3000, 2997, 2500, 2400, 2397 */

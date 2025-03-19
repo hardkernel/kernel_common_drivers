@@ -21,8 +21,6 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_packet.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_infoframe.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_config.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include <linux/amlogic/media/vout/dsc.h>
@@ -229,6 +227,17 @@ struct hdmitx_common {
 	/* HDR format state */
 	u32 hdmi_last_hdr_mode;
 	u32 hdmi_current_hdr_mode;
+	/*
+	 * There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
+	 * hdmi drivers to send out related HDMI infoframe
+	 * hdmitx_set_drm_pkt() is for HDR 2084 SMPTE, HLG, etc.
+	 * hdmitx_set_vsif_pkt() is for DV
+	 * hdmitx_set_hdr10plus_pkt is for HDR10+
+	 * Front modules may call the 2nd, and next call the 1st, and the realted flags
+	 * are remained the same. So, add hdr_status_pos and place it in the above 3
+	 * functions to record the position.
+	 */
+	u8 hdr_status_pos;
 
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	u32 frac_rate_policy;
@@ -356,7 +365,7 @@ struct hdmitx_common {
 	enum hdmi_hdr_color hdr_color_feature;
 	unsigned int colormetry;
 	/* hdmitx infoframe */
-	struct hdmitx_infoframe infoframes;
+	struct hdmitx_infoframe infoframe;
 	/* hdr work */
 	struct work_struct work_hdr;
 	struct work_struct work_hdr_unmute;
@@ -490,10 +499,6 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 			       struct hdmitx_common_state *new_state);
 int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode);
-
-/*packet api*/
-int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
-	enum vsif_type type, int on, void *param);
 
 unsigned int hdmitx_get_frame_duration(struct hdmitx_common *tx_comm);
 

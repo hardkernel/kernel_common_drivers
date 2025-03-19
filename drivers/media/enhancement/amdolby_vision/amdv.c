@@ -7445,7 +7445,8 @@ static bool send_hdmi_pkt
 
 		if (vinfo && vinfo->vout_device &&
 		    vinfo->vout_device->fresh_tx_hdr_pkt)
-			vinfo->vout_device->fresh_tx_hdr_pkt(&hdr10_data);
+			vinfo->vout_device->fresh_tx_hdr_pkt(vinfo->vout_device->tx_instance,
+				&hdr10_data);
 #ifdef HDMI_SEND_ALL_PKT
 		if (vinfo && vinfo->vout_device &&
 			vinfo->vout_device->fresh_tx_vsif_pkt) {
@@ -7458,7 +7459,7 @@ static bool send_hdmi_pkt
 				true);
 #else
 			vinfo->vout_device->fresh_tx_vsif_pkt
-				(0, 0, NULL, true);
+				(vinfo->vout_device->tx_instance, 0, 0, NULL, true);
 #endif
 		}
 #endif
@@ -7546,7 +7547,8 @@ static bool send_hdmi_pkt
 					&vsif, vsif_emp, 15, false);
 #else
 				vinfo->vout_device->fresh_tx_vsif_pkt
-					(EOTF_T_LL_MODE,
+					(vinfo->vout_device->tx_instance,
+					EOTF_T_LL_MODE,
 					diagnostic_enable
 					? RGB_10_12BIT : YUV422_BIT12,
 					&vsif, false);
@@ -7563,7 +7565,7 @@ static bool send_hdmi_pkt
 				false);
 #else
 				vinfo->vout_device->fresh_tx_vsif_pkt
-				(EOTF_T_DOLBYVISION,
+				(vinfo->vout_device->tx_instance, EOTF_T_DOLBYVISION,
 				dolby_vision_mode ==
 				AMDV_OUTPUT_MODE_IPT_TUNNEL
 				? RGB_8BIT : YUV422_BIT12, &vsif,
@@ -7607,7 +7609,7 @@ static bool send_hdmi_pkt
 				    vinfo->vout_device->fresh_tx_hdr_pkt) {
 					pr_dv_dbg("fresh tx_hdr_pkt zero\n");
 					vinfo->vout_device->fresh_tx_hdr_pkt
-					(&hdr10_data);
+					(vinfo->vout_device->tx_instance, &hdr10_data);
 					last_dst_format = dst_format;
 				}
 			}
@@ -7633,7 +7635,7 @@ static bool send_hdmi_pkt
 					true);
 #else
 					vinfo->vout_device->fresh_tx_vsif_pkt
-						(0, 0, NULL, true);
+						(vinfo->vout_device->tx_instance, 0, 0, NULL, true);
 #endif
 
 					last_dst_format = dst_format;
@@ -7651,7 +7653,7 @@ static bool send_hdmi_pkt
 					true);
 #else
 					vinfo->vout_device->fresh_tx_vsif_pkt
-						(0, 0, NULL, true);
+						(vinfo->vout_device->tx_instance, 0, 0, NULL, true);
 #endif
 					last_dst_format = dst_format;
 					sdr_transition_delay = 0;
@@ -7668,7 +7670,8 @@ static bool send_hdmi_pkt
 					false);
 #else
 					vinfo->vout_device->fresh_tx_vsif_pkt
-						(0, 0, NULL, false);
+						(vinfo->vout_device->tx_instance,
+						0, 0, NULL, false);
 #endif
 					}
 					sdr_transition_delay++;
@@ -7716,13 +7719,13 @@ static void send_hdmi_pkt_ahead
 			vinfo->vout_device->fresh_tx_vsif_pkt) {
 			if (dovi_ll_enable)
 				vinfo->vout_device->fresh_tx_vsif_pkt
-					(EOTF_T_DV_AHEAD,
+					(vinfo->vout_device->tx_instance, EOTF_T_DV_AHEAD,
 					diagnostic_enable
 					? RGB_10_12BIT : YUV422_BIT12,
 					&vsif, false);
 			else
 				vinfo->vout_device->fresh_tx_vsif_pkt
-					(EOTF_T_DV_AHEAD,
+					(vinfo->vout_device->tx_instance, EOTF_T_DV_AHEAD,
 					(amdv_target_mode ==
 					dovi_ll_enable)
 					? YUV422_BIT12 : RGB_8BIT, &vsif,
@@ -13191,7 +13194,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 					p_vout = vinfo->vout_device;
 					if (p_vout->fresh_tx_hdr10plus_pkt)
 						p_vout->fresh_tx_hdr10plus_pkt
-							(0, NULL);
+							(p_vout->tx_instance, 0, NULL);
 				}
 				enable_amdv(1);
 				bypass_pps_path(pps_state);
@@ -14165,7 +14168,7 @@ static int amdolby_vision_process_v2_stb
 			    vinfo && vinfo->vout_device &&
 			    vinfo->vout_device->fresh_tx_hdr10plus_pkt)
 				vinfo->vout_device->fresh_tx_hdr10plus_pkt
-				(0, NULL);
+				(vinfo->vout_device->tx_instance, 0, NULL);
 
 			enable_amdv(1);
 			bypass_pps_path(pps_state);
@@ -17521,7 +17524,7 @@ unsigned int amdv_check_enable(void)
 				if (vinfo && vinfo->vout_device &&
 				    vinfo->vout_device->fresh_tx_vsif_pkt) {
 					vinfo->vout_device->fresh_tx_vsif_pkt
-						(0, 0, NULL, true);
+						(vinfo->vout_device->tx_instance, 0, 0, NULL, true);
 				}
 				//enable_amdv(0);
 				//amdv_on_in_uboot = 0;

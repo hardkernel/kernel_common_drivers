@@ -12,7 +12,7 @@
 struct hdmitx21_hw {
 	struct hdmitx_hw_common *base;
 	u32 enc_idx;
-	struct hdmitx_infoframe *infoframes;
+	struct hdmitx_infoframe *infoframe;
 	/*
 	 * For use with s7 and later chips, default 0
 	 * 1: new clk config, encp/pixel clk is directly configured by the pll simulation part.

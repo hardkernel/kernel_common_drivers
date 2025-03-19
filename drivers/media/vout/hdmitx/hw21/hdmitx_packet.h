@@ -6,12 +6,15 @@
 #ifndef __HDMITX_PACKET_H
 #define __HDMITX_PACKET_H
 
-struct hdmi_packet_t {
-	u8 hb[3];
-	u8 pb[28];
-	/* padding to 32 bytes */
-	u8 no_used;
-};
+#include <linux/types.h>
+#include <linux/kernel.h>
+#include <linux/hdmi.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include "hdmitx_infoframe.h"
+
+#define HDMI_INFOFRAME_TYPE_EMP 0x7f
+/* SBTM-EM PKT use GEN5*/
+#define HDMI_INFOFRAME_TYPE_SBTM 0xA
 
 enum emp_component_conf {
 	CONF_HEADER_INIT,
@@ -105,15 +108,58 @@ struct emp_packet_st {
 	} body;
 };
 
-#define HDMI_INFOFRAME_TYPE_EMP 0x7f
+/* general packet send api */
+void hdmitx_infoframe_send(u16 info_type, u8 *body);
+int hdmitx_infoframe_raw_get(u16 info_type, u8 *body);
 
-void hdmitx_packet_init(struct hdmitx_common *tx_comm);
-void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data);
-void hdmitx_set_sbtm_pkt(struct vtem_sbtm_st *data);
+/* there are 2 ways to send out infoframe
+ * xxx_infoframe_set() will take use of struct xxx_infoframe_set
+ * xxx_infoframe_rawset() will directly send with rawdata
+ * if info, hb, or pb == NULL, disable send infoframe
+ */
+
+/* avi raw data get from reg */
+int hdmi_avi_infoframe_get(u8 *body);
+/* avi set */
+void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info);
+/* avi raw set, for backup */
+void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb);
+/* avi param_config */
+int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, enum avi_component_conf conf, u8 val);
+
+/* vsif set, deprecated */
+void hdmi_vend_infoframe_set(struct hdmitx_common *tx_comm, struct hdmi_vendor_infoframe *info);
+/* vsif set, only used for DV_VSIF / HDMI1.4b_VSIF / CUVA_VSIF / HDR10+ VSIF */
+void hdmi_vend_infoframe_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb);
+/* only used for HF-VSIF */
+void hdmi_vend_infoframe2_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb);
+/* vsif raw data get from reg, only used for DV_VSIF / CUVA VSIF / HDMI1.4b_VSIF / HDR10+ VSIF */
+int hdmi_vend_infoframe_get(struct hdmitx_common *tx_comm, u8 *body);
+
+/* spd infoframe set */
+void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info);
+
+/* audio infoframe set */
+void hdmi_audio_infoframe_set(struct hdmi_audio_infoframe *info);
+/* audio infoframe raw set, for backup */
+void hdmi_audio_infoframe_rawset(u8 *hb, u8 *pb);
+
+/* drm infoframe set, both deprecated */
+void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info);
+void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
+
+/* dhdr set */
+void hdmitx_dhdr_send(u8 *body, int max_size);
+/* dhdr test api */
+void hdmitx21_write_dhdr_sram(void);
+void hdmitx21_read_dhdr_sram(void);
+
 void hdmi_emp_infoframe_set(enum emp_type type, struct emp_packet_st *info);
 void hdmi_emp_frame_set_member(struct emp_packet_st *info,
 	enum emp_component_conf conf, u32 val);
 int hdmi_emp_infoframe_get(enum emp_type type, u8 *body);
+
+/* sbtm test api */
 void hdmi_sbtm_infoframe_rawset(u8 *hb, u8 *pb);
 
 #endif

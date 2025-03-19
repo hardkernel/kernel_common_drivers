@@ -920,7 +920,7 @@ void sbtm_send_sbtmem_pkt(struct vinfo_s *vinfo)
 
 	if (vinfo && vinfo->vout_device &&
 		vinfo->vout_device->fresh_tx_sbtm_pkt)
-		vinfo->vout_device->fresh_tx_sbtm_pkt(sbtmem);
+		vinfo->vout_device->fresh_tx_sbtm_pkt(vinfo->vout_device->tx_instance, sbtmem);
 
 	/*pr_sbtm_dbg("%s: fresh_tx_sbtm_pkt.\n", __func__);*/
 }

@@ -50,6 +50,7 @@
 #include "hdmitx_compliance.h"
 #include "hdmitx_dump.h"
 #include "hdmitx_vout.h"
+#include "hdmitx_hdr.h"
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 
@@ -758,8 +759,6 @@ static void hdmitx_cedst_process(struct work_struct *work)
 
 static void hdmitx_work_init(struct hdmitx_common *tx_comm)
 {
-	INIT_WORK(&tx_comm->work_hdr, hdr_work_func);
-	INIT_WORK(&tx_comm->work_hdr_unmute, hdr_unmute_work_func);
 	tx_comm->hdmi_hpd_wq = alloc_ordered_workqueue(DEVICE_NAME,
 					WQ_HIGHPRI | __WQ_LEGACY | WQ_MEM_RECLAIM);
 	/* for rx sense feature */
@@ -1283,7 +1282,7 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 			 */
 			/* step1: SDR-->HDR */
 			data.features = 0x00091000;
-			hdmitx_set_drm_pkt(&data);
+			hdmitx_set_drm_pkt(tx_comm, &data);
 			/* mute_us = mute_frames * hdmitx_get_frame_duration(); */
 			/* usleep_range(mute_us, mute_us + 10); */
 			/* step2: HDR->DV_LL */
@@ -1292,13 +1291,13 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 			vsif_para.ver2_l11_flag = 0;
 			vsif_para.vers.ver2.low_latency = 1;
 			vsif_para.vers.ver2.dobly_vision_signal = 1;
-			hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+			hdmitx_set_vsif_pkt(tx_comm, 4, 0, &vsif_para, false);
 		} else if (strncmp(tmpbuf2, "sdr", 3) == 0) {
 			data.features = 0x00010100;
-			hdmitx_set_drm_pkt(&data);
+			hdmitx_set_drm_pkt(tx_comm, &data);
 		} else if (strncmp(tmpbuf2, "hdr", 3) == 0) {
 			data.features = 0x00091000;
-			hdmitx_set_drm_pkt(&data);
+			hdmitx_set_drm_pkt(tx_comm, &data);
 		} else if (strncmp(tmpbuf2, "sbtm", 4) == 0) {
 			struct vtem_sbtm_st sbtm = {
 				.sbtm_ver = 0x2,
@@ -1309,10 +1308,10 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 				/* MD2/3 */
 				.frmpblimitint = 0xdcba,
 			};
-			hdmitx_set_sbtm_pkt(&sbtm);
+			hdmitx_set_sbtm_pkt(tx_comm, &sbtm);
 		} else if (strncmp(tmpbuf2, "hlg", 3) == 0) {
 			data.features = 0x00091200;
-			hdmitx_set_drm_pkt(&data);
+			hdmitx_set_drm_pkt(tx_comm, &data);
 		} else if (strncmp(tmpbuf2, "vsif", 4) == 0) {
 			if (tmpbuf2[4] == '1' && tmpbuf2[5] == '1') {
 				/* DV STD */
@@ -1321,7 +1320,7 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 				vsif_para.ver2_l11_flag = 0;
 				vsif_para.vers.ver2.low_latency = 0;
 				vsif_para.vers.ver2.dobly_vision_signal = 1;
-				hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
+				hdmitx_set_vsif_pkt(tx_comm, 1, 1, &vsif_para, false);
 			} else if (tmpbuf2[4] == '1' && tmpbuf2[5] == '0') {
 				/* DV STD packet, but dolby_vision_signal bit cleared */
 				vsif_para.ver = 0x1;
@@ -1329,7 +1328,7 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 				vsif_para.ver2_l11_flag = 0;
 				vsif_para.vers.ver2.low_latency = 0;
 				vsif_para.vers.ver2.dobly_vision_signal = 0;
-				hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
+				hdmitx_set_vsif_pkt(tx_comm, 1, 1, &vsif_para, false);
 			} else if (tmpbuf2[4] == '4' && tmpbuf2[5] == '1') {
 				/* DV LL */
 				vsif_para.ver = 0x1;
@@ -1337,7 +1336,7 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 				vsif_para.ver2_l11_flag = 0;
 				vsif_para.vers.ver2.low_latency = 1;
 				vsif_para.vers.ver2.dobly_vision_signal = 1;
-				hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+				hdmitx_set_vsif_pkt(tx_comm, 4, 0, &vsif_para, false);
 			}  else if (tmpbuf2[4] == '4' && tmpbuf2[5] == '0') {
 				/* DV LL packet, but dolby_vision_signal bit cleared */
 				vsif_para.ver = 0x1;
@@ -1345,15 +1344,15 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 				vsif_para.ver2_l11_flag = 0;
 				vsif_para.vers.ver2.low_latency = 1;
 				vsif_para.vers.ver2.dobly_vision_signal = 0;
-				hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+				hdmitx_set_vsif_pkt(tx_comm, 4, 0, &vsif_para, false);
 			} else if (tmpbuf2[4] == '0') {
 				/* exit DV to SDR */
-				hdmitx_set_vsif_pkt(0, 0, NULL, true);
+				hdmitx_set_vsif_pkt(tx_comm, 0, 0, NULL, true);
 			}
 		} else if (strncmp(tmpbuf2, "hdr10+", 6) == 0) {
-			hdmitx_set_hdr10plus_pkt(1, &hdr_data);
+			hdmitx_set_hdr10plus_pkt(tx_comm, 1, &hdr_data);
 		} else if (strncmp(tmpbuf2, "cuva", 4) == 0) {
-			hdmitx_set_cuva_hdr_vs_emds(&cuva_data);
+			hdmitx_set_cuva_hdr_vs_emds(tx_comm, &cuva_data);
 		}
 	}
 
