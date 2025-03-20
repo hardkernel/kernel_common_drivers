@@ -588,7 +588,6 @@ RE_RSV_INFO:
 			pr_info("blk good but read failed:%llx,%d\n",
 				(u64)offset, error);
 			rsv_info->valid_node->status |= ECC_ABNORMAL_FLAG;
-			ret = -1;
 			continue;
 		}
 
