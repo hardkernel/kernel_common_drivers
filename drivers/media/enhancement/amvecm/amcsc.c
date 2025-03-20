@@ -708,7 +708,9 @@ MODULE_PARM_DESC(sdr_mode, "\n set sdr_mode\n");
 uint sdr_process_mode[VD_PATH_MAX];
 uint cur_sdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static int sdr_saturation_offset = 20; /* 0: sdr->sdr, 1:sdr->hdr */
+#endif
 
 uint force_csc_type = 0xff;
 uint range_control;/*range_control 0:limit 1:full*/
@@ -812,6 +814,7 @@ int knee_factor; /* 0 ~ 256, 128 = 0.5 */
 int knee_interpolation_mode = 1; /* 0: linear, 1: cubic */
 
 #define NUM_MATRIX_PARAM 16
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static uint customer_matrix_param[NUM_MATRIX_PARAM] = {
 	0, 0, 0,
 	0x0d49, 0x1b4d, 0x1f6b,
@@ -820,9 +823,8 @@ static uint customer_matrix_param[NUM_MATRIX_PARAM] = {
 	0, 0, 0,
 	1
 };
-
 static bool customer_matrix_en = true;
-
+#endif
 #define INORM	50000
 #define BL		16
 
