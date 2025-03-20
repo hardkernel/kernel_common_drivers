@@ -31,7 +31,8 @@
 /* 2025.01.10 keep irq off when early suspend */
 /* 2024.1.13 close hdcp auth done irq */
 /* 2024.1.17 correct clk_ctrl register address */
-#define RX_HW_VER "ver.2024/1/17"
+/* 2025.03.31 fix some 2.1 cts problem */
+#define RX_HW_VER "ver.2025/03/25"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -3655,4 +3656,5 @@ void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod);
 void rx_i2c_dump(void);
 void rx_add_timer(struct hdmirx_dev_s *rx_dev);
 void rx_del_timer(struct hdmirx_dev_s *rx_dev);
+void hdmirx_scdc_reset(u8 port);
 #endif

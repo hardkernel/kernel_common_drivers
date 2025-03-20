@@ -74,7 +74,7 @@ static int clk_unstable_max;
 static int clk_stable_max;
 static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
-static int fpll_stable_max = 50;
+static int fpll_stable_max = 10;
 static int reset_pcs_en;
 static int force_avi_stable;
 int fsm_debug;
@@ -105,18 +105,18 @@ int color_bar_lvl;
 int reset_pcs_flag;
 int reset_pcs_cnt = 10;
 int port_debug_en;
-int fpll_ready_max = 1;
+int fpll_ready_max = 100;
 int rx_emp_dbg_en;
 int frl_lock_det_max = 10;
 //for rs err test
 int frl_debug_en;
 int rs_err_chk;
 int err_cnt = 100;
-bool cts_ced_err_test;
+bool cts_ced_err_test = true;
 int edid_seg_flag[4];
 int hpd_wait_dbg;
 int dump_aud_max = 1;
-
+int frl_extra_stable_cnt[7] = {0, 20, 20, 20, 20, 60, 60};
 //static int auds_rcv_sts;
 //module_param(auds_rcv_sts, int, 0664);
 //MODULE_PARM_DESC(auds_rcv_sts, "auds_rcv_sts");
@@ -445,9 +445,9 @@ void hdmirx_fsm_var_init(void)
 	case CHIP_ID_T3X:
 		hbr_force_8ch = 1; //use it to enable hdr2spdif
 		sig_stable_err_max = 5;
-		sig_stable_max = 4;
+		sig_stable_max = 20;
 		fps_unready_max = 3;
-		dwc_rst_wait_cnt_max = 30;
+		dwc_rst_wait_cnt_max = 110;
 		spec_dev_wait_cnt_max = 200;
 		clk_unstable_max = 50;
 		esd_phy_rst_max = 4;
@@ -469,6 +469,7 @@ void hdmirx_fsm_var_init(void)
 		aud_sr_stb_max = 10;
 		clk_stable_max = 3;
 		rx_phy_level = 5;
+		detect_time_min = 20;
 		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
@@ -4223,6 +4224,7 @@ void rx_5v_monitor(void)
 						rx[i].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 						rx_clr_edid_type(i);
 						rx_edid_reset(i);
+						hdmirx_scdc_reset(i);
 					} else {
 						rx_info.aml_phy_21.pre_int_21[i] = 1;
 					}
@@ -4233,6 +4235,7 @@ void rx_5v_monitor(void)
 						rx[i].tx_type = DEV_UNKNOWN;
 						rx[i].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 						rx_clr_edid_type(i);
+						hdmirx_scdc_reset(i);
 					}
 				}
 				if (hdmirx_repeat_support()) {
@@ -5828,13 +5831,8 @@ void rx_port2_main_state_machine(void)
 		break;
 	case FLT_RX_LTS_P:
 		// sb sr not sync, set hpd low to retry
-		if (!rx_lts_p_syn_detect(rx[port].var.frl_rate, port)) {
+		if (!rx_lts_p_syn_detect(rx[port].var.frl_rate, port))
 			rx[port].var.flt_update = 1;
-			if (fsm_debug & 0x1) {
-				rx[port].state = FSM_HPD_LOW;
-				break;
-			}
-		}
 		RX_LTS_P_FRL_START(port);
 		rx[port].stable_timestamp = rx_info.timestamp;
 		rx[port].state = FSM_WAIT_FRL_TRN_DONE;
@@ -5959,8 +5957,6 @@ void rx_port2_main_state_machine(void)
 		rx[port].var.sig_unstable_cnt = 0;
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
-		//reset_pcs(port);
-		//rx_pkt_initial(port);
 		rx[port].var.check_dsc_de_cnt = 0;
 		rx_switch_to_self_hsync(port, false);
 		rx_clr_f_det(true, port);
@@ -5977,13 +5973,12 @@ void rx_port2_main_state_machine(void)
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 			break;
 		}
-		if (fsm_debug & 0x2)
-			break;
 		rx_clr_f_det(false, port);
 		memcpy(&rx[port].pre, &rx[port].cur, sizeof(struct rx_video_info));
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
-			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
+			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
+				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
 				rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
 				rx[port].var.de_stable = true;
@@ -6030,7 +6025,8 @@ void rx_port2_main_state_machine(void)
 			rx_irq_en(IRQ_EN_HDCP, port);
 			rx[port].var.sig_stable_cnt = 0;
 			rx[port].var.de_stable = false;
-			if (rx[port].var.sig_unstable_cnt < sig_unstable_max) {
+			if (rx[port].var.sig_unstable_cnt < sig_unstable_max +
+				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
 				rx[port].var.sig_unstable_cnt++;
 				if (!rx[port].var.frl_rate && rx_phy_level & 0x1 &&
 					(rx[port].var.sig_unstable_cnt >= reset_pcs_flag &&
@@ -6043,7 +6039,10 @@ void rx_port2_main_state_machine(void)
 				}
 				break;
 			}
-			rx[port].state = FSM_FRL_FLT_READY;
+			if (rx[port].var.frl_rate)
+				rx[port].state = FSM_WAIT_FRL_TRN_DONE;
+			else
+				rx[port].state = FSM_FRL_FLT_READY;
 		}
 		break;
 	case FSM_SIG_STABLE_TO_READY:
@@ -6131,9 +6130,14 @@ void rx_port2_main_state_machine(void)
 			rx[port].dump_aud_cnt = 0;
 			break;
 		} else if (!rx_is_timing_stable(port)) {
-			skip_frame(skip_frame_cnt, port, "fsm2 timing skip");
+			skip_frame(skip_frame_cnt, port, "fsm3 timing skip");
+			//fpll stable too slow may cause overlap and timing unstable
+			//so set cnt larger to pass cts
+			//use other condition to judge signal stable
 			if (sig_unready_max)
 				chk_cnt = sig_unready_max;
+			else if (rx[port].var.frl_rate)
+				chk_cnt = FRL_UNREADY_MAX;
 			else
 				chk_cnt = get_frame_interval_cnt(1, port);
 			if (++rx[port].var.sig_unready_cnt >= chk_cnt) {
@@ -6151,7 +6155,10 @@ void rx_port2_main_state_machine(void)
 				//rx_sw_reset(2, port);
 				rx_irq_en(IRQ_EN_HDCP, port);
 				hdmirx_output_en(false);
-				rx[port].state = FSM_FRL_FLT_READY;
+				if (rx[port].var.frl_rate)
+					rx[port].state = FSM_WAIT_FRL_TRN_DONE;
+				else
+					rx[port].state = FSM_FRL_FLT_READY;
 				rx[port].var.vic_check_en = false;
 				rx[port].skip = 0;
 				rx[port].var.mute_cnt = 0;
@@ -6330,13 +6337,8 @@ void rx_port3_main_state_machine(void)
 		break;
 	case FLT_RX_LTS_P:
 		// sb sr not sync, set hpd low to retry
-		if (!rx_lts_p_syn_detect(rx[port].var.frl_rate, port)) {
+		if (!rx_lts_p_syn_detect(rx[port].var.frl_rate, port))
 			rx[port].var.flt_update = 1;
-			if (fsm_debug & 0x1) {
-				rx[port].state = FSM_HPD_LOW;
-				break;
-			}
-		}
 		rx[port].stable_timestamp = rx_info.timestamp;
 		RX_LTS_P_FRL_START(port);
 		if (rx_is_need_edid_reset(port))
@@ -6357,6 +6359,8 @@ void rx_port3_main_state_machine(void)
 		if (is_fpll_err(port)) {
 			if (rx[port].var.fpll_stable_cnt++ < fpll_stable_max)
 				break;
+			rx[port].state = FSM_HPD_LOW;
+			break;
 		}
 		if (cts_ced_err_test)
 			rx_rcc_err_frl_config(port);
@@ -6461,8 +6465,6 @@ void rx_port3_main_state_machine(void)
 		rx[port].var.sig_unstable_cnt = 0;
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
-		//reset_pcs(port);
-		//rx_pkt_initial(port);
 		rx[port].var.check_dsc_de_cnt = 0;
 		rx_switch_to_self_hsync(port, false);
 		rx_clr_f_det(true, port);
@@ -6479,13 +6481,12 @@ void rx_port3_main_state_machine(void)
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 			break;
 		}
-		if (fsm_debug & 0x2)
-			break;
 		rx_clr_f_det(false, port);
 		memcpy(&rx[port].pre, &rx[port].cur, sizeof(struct rx_video_info));
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
-			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
+			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
+				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
 				rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
 				rx[port].var.de_stable = true;
@@ -6532,7 +6533,8 @@ void rx_port3_main_state_machine(void)
 			rx_irq_en(IRQ_EN_HDCP, port);
 			rx[port].var.sig_stable_cnt = 0;
 			rx[port].var.de_stable = false;
-			if (rx[port].var.sig_unstable_cnt < sig_unstable_max) {
+			if (rx[port].var.sig_unstable_cnt < sig_unstable_max +
+				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
 				rx[port].var.sig_unstable_cnt++;
 				if (!rx[port].var.frl_rate && rx_phy_level & 0x1 &&
 					(rx[port].var.sig_unstable_cnt >= reset_pcs_flag &&
@@ -6545,7 +6547,10 @@ void rx_port3_main_state_machine(void)
 				}
 				break;
 			}
-			rx[port].state = FSM_FRL_FLT_READY;
+			if (rx[port].var.frl_rate)
+				rx[port].state = FSM_WAIT_FRL_TRN_DONE;
+			else
+				rx[port].state = FSM_FRL_FLT_READY;
 		}
 		break;
 	case FSM_SIG_STABLE_TO_READY:
@@ -6632,8 +6637,13 @@ void rx_port3_main_state_machine(void)
 			break;
 		} else if (!rx_is_timing_stable(port)) {
 			skip_frame(skip_frame_cnt, port, "fsm3 timing skip");
+			//fpll stable too slow may cause overlap and timing unstable
+			//so set cnt larger to pass cts
+			//use other condition to judge signal stable
 			if (sig_unready_max)
 				chk_cnt = sig_unready_max;
+			else if (rx[port].var.frl_rate)
+				chk_cnt = FRL_UNREADY_MAX;
 			else
 				chk_cnt = get_frame_interval_cnt(1, port);
 			if (++rx[port].var.sig_unready_cnt >= chk_cnt) {
@@ -6651,7 +6661,10 @@ void rx_port3_main_state_machine(void)
 				//rx_sw_reset(2, port);
 				rx_irq_en(IRQ_EN_HDCP, port);
 				hdmirx_output_en(false);
-				rx[port].state = FSM_FRL_FLT_READY;
+				if (rx[port].var.frl_rate)
+					rx[port].state = FSM_WAIT_FRL_TRN_DONE;
+				else
+					rx[port].state = FSM_FRL_FLT_READY;
 				rx[port].var.vic_check_en = false;
 				rx[port].skip = 0;
 				rx[port].var.mute_cnt = 0;

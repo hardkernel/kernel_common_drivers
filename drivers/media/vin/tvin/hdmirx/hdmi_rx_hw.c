@@ -4338,6 +4338,8 @@ void cor_config(u8 port)
 	//clr gcp wr; disable hw avmute for [T7,T5M)
 	hdmirx_wr_cor(DEC_AV_MUTE_DP2_IVCRX, 0x20, port);
 
+	//[2] en=0:rs error calculation on error valid bit
+	hdmirx_wr_bits_cor(H21RXSB_CTRL2_M42H_IVCRX, _BIT(2), 1, port);
 	//DPLL
 	if (rx[port].var.frl_rate) {
 		//frl_debug todo
@@ -7890,5 +7892,14 @@ void rx_del_timer(struct hdmirx_dev_s *rx_dev)
 	} else {
 		if (log_level & DBG_LOG)
 			rx_pr("timer does not exist\n");
+	}
+}
+
+void hdmirx_scdc_reset(u8 port)
+{
+	if (rx_info.chip_id == CHIP_ID_T3X || rx_info.main_port == port) {
+		hdmirx_wr_bits_cor(RX_C0_SRST2_AON_IVCRX, _BIT(5), 1, port);
+		hdmirx_wr_bits_cor(RX_C0_SRST2_AON_IVCRX, _BIT(5), 0, port);
+		hdmirx_wr_cor(SCDCS_100MS_IN_1MS_CNT_SCDC_IVCRX, 0x1, port);
 	}
 }

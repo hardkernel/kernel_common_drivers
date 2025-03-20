@@ -59,7 +59,7 @@ int cal_phy_time;
 int pll_band = 5;
 int cdr_bw = 4;
 int vpcore1_select = 1;
-
+int give_n = 0x8000;
 enum frl_train_sts_e frl_train_sts = E_FRL_TRAIN_START;
 enum frl_train_sts_e frl_train_sts1 = E_FRL_TRAIN_START;
 
@@ -2221,9 +2221,9 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 
 	//0505 dbg config give_n
 	/* config give_n to 0x2000(8192) */
-	hdmirx_wr_cor(H21RXSB_GN2_M42H_IVCRX, 0x0, port);
-	hdmirx_wr_cor(H21RXSB_GN1_M42H_IVCRX, 0x20, port);
-	hdmirx_wr_cor(H21RXSB_GN0_M42H_IVCRX, 0x0, port);
+	hdmirx_wr_cor(H21RXSB_GN2_M42H_IVCRX, (give_n >> 16) & 0xf, port);
+	hdmirx_wr_cor(H21RXSB_GN1_M42H_IVCRX, (give_n >> 8) & 0xff, port);
+	hdmirx_wr_cor(H21RXSB_GN0_M42H_IVCRX, (give_n >> 0) & 0xff, port);
 
 	//0505 dbg config post_div
 	hdmirx_wr_cor(H21RXSB_POSTDIV_M42H_IVCRX, 0x2, port);
@@ -2294,7 +2294,7 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 		return;
 	}
 	/* tclk = flclk * o_req_m / give_n / post_div */
-	tclk = flclk * o_req_m / 8192 / 2;
+	tclk = flclk * o_req_m / give_n / 2;
 	//rx_pr("flclk * o_req_m=%ld\n", flclk * o_req_m);
 	//rx_pr("flclk * o_req_m / 8192=%ld\n", flclk * o_req_m / 8192);
 	//rx_pr("flclk * o_req_m / 8192 / 2=%ld\n", flclk * o_req_m / 8192 / 2);
@@ -2325,7 +2325,7 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 			rx_pr("error,vco>3.2G!\n");
 	}
 	/* fpll cntl2[9:4]*/
-	if (pre_div >= 64) {
+	if (pre_div >= 50) {
 		pre_div = 64;
 		hdmirx_wr_cor(H21RXSB_PREDIV_M42H_IVCRX, 0, port);
 	} else {
@@ -2434,9 +2434,9 @@ void rx_21_fpll_calculation1(int f_rate, u8 port)
 		rx_pr("fpll cal,port=%d\n", port);
 	//0505 dbg config give_n
 	/* config give_n to 0x2000(8192) */
-	hdmirx_wr_cor(H21RXSB_GN2_M42H_IVCRX, 0x0, port);
-	hdmirx_wr_cor(H21RXSB_GN1_M42H_IVCRX, 0x20, port);
-	hdmirx_wr_cor(H21RXSB_GN0_M42H_IVCRX, 0x0, port);
+	hdmirx_wr_cor(H21RXSB_GN2_M42H_IVCRX, (give_n >> 16) & 0xf, port);
+	hdmirx_wr_cor(H21RXSB_GN1_M42H_IVCRX, (give_n >> 8) & 0xff, port);
+	hdmirx_wr_cor(H21RXSB_GN0_M42H_IVCRX, (give_n >> 0) & 0xff, port);
 
 	//0505 dbg config post_div
 	hdmirx_wr_cor(H21RXSB_POSTDIV_M42H_IVCRX, 0x2, port);
@@ -2506,7 +2506,7 @@ void rx_21_fpll_calculation1(int f_rate, u8 port)
 		return;
 	}
 	/* tclk = flclk * o_req_m / give_n / post_div */
-	tclk = flclk * o_req_m / 8192 / 2;
+	tclk = flclk * o_req_m / give_n / 2;
 	//rx_pr("flclk * o_req_m=%ld\n", flclk * o_req_m);
 	//rx_pr("flclk * o_req_m / 8192=%ld\n", flclk * o_req_m / 8192);
 	//rx_pr("flclk * o_req_m / 8192 / 2=%ld\n", flclk * o_req_m / 8192 / 2);
@@ -2537,7 +2537,7 @@ void rx_21_fpll_calculation1(int f_rate, u8 port)
 			rx_pr("error,vco>3.2G!\n");
 	}
 	/* fpll cntl2[9:4]*/
-	if (pre_div >= 64) {
+	if (pre_div >= 50) {
 		pre_div = 64;
 		hdmirx_wr_cor(H21RXSB_PREDIV_M42H_IVCRX, 0, port);
 	} else {
@@ -4757,7 +4757,7 @@ void hdmirx_frl_config(u8 port)
 	data8 |= (0 << 5);  //[5]  ri_accm_err_manu_clr
 	data8 |= (1 << 4);  //[4]  ri_mask_sw_reset
 	data8 |= (0 << 3);  //[3]  ri_en_dis_cnt_mask
-	data8 |= (0 << 2);  //[2]  ri_en_dis_vld_mask
+	data8 |= (1 << 2);  //[2]  ri_en_dis_vld_mask
 	data8 |= (0 << 1);  //[1]  ri_en_mask
 	data8 |= (0 << 0);  //[0]  ri_rs_err_cnt_sel
 	hdmirx_wr_cor(H21RXSB_CTRL2_M42H_IVCRX, data8, port);

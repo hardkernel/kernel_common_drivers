@@ -171,6 +171,8 @@ extern int vga_tuning_max;
 extern int cal_phy_time;
 extern int pll_band;
 extern int cdr_bw;
+extern int give_n;
+
 /*--------------------------function declare------------------*/
 /* T3X */
 void aml_phy_init_t3x(u8 port);
