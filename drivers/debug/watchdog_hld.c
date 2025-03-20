@@ -167,7 +167,7 @@ static void watchdog_enable(unsigned int cpu)
 	struct hrtimer *hrtimer = raw_cpu_ptr(&watchdog_hrtimer);
 
 	/* kick off the timer for the hardlockup detector */
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED_HARD);
 	hrtimer->function = watchdog_timer_fn;
 
 	/* Enable the perf event */
@@ -175,7 +175,7 @@ static void watchdog_enable(unsigned int cpu)
 
 	/* done here because hrtimer_start can only pin to smp_processor_id() */
 	hrtimer_start(hrtimer, ns_to_ktime(sample_period),
-		      HRTIMER_MODE_REL_PINNED);
+		      HRTIMER_MODE_REL_PINNED_HARD);
 }
 
 static void watchdog_disable(unsigned int cpu)

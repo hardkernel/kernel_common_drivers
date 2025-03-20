@@ -114,7 +114,7 @@ static int cpu_mhz_period_ms_set(const char *buffer, const struct kernel_param *
 	hrtimer_cancel(&cpu_mhz_timer);
 
 	if (cpu_mhz_period_ms)
-		hrtimer_start(&cpu_mhz_timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+		hrtimer_start(&cpu_mhz_timer, ktime_set(1, 0), HRTIMER_MODE_REL_HARD);
 
 	return 0;
 }
@@ -149,11 +149,11 @@ module_param_cb(cpu_mhz, &cpu_mhz_ops, NULL, 0644);
 
 int cpu_mhz_init(void)
 {
-	hrtimer_init(&cpu_mhz_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&cpu_mhz_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
 	cpu_mhz_timer.function = test_mhz_hrtimer_func;
 
 	if (cpu_mhz_period_ms)
-		hrtimer_start(&cpu_mhz_timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+		hrtimer_start(&cpu_mhz_timer, ktime_set(1, 0), HRTIMER_MODE_REL_HARD);
 
 	return 0;
 }
