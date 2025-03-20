@@ -62,130 +62,93 @@
 
 #include "hdmitx.h"
 #include "hdmitx_common.h"
-#include "tvin_global.h"
-#include "hdmi_rx_repeater.h"
 
 #endif
 
 #define HDMI_TX_COUNT 32
 static struct class *hdmitx_class;
-static struct hdmitx_common *global_tx_comm;
-static u8 hdmi_allm_passthough_en;
 
-struct hdmitx_common *get_hdmitx_common(void)
-{
-	return global_tx_comm;
-}
+static struct hdmitx_ops hdmitx20_ops = {
+	.alloc_instance = hdmitx20_alloc_instance,
+	.init_reg_map = hdmitx20_init_reg_map,
+	.init_hw = hdmitx20_meson_init,
+	.get_dbg_files = hdmitx20_get_dbg_files_s,
+	.get_dbg_files_count = hdmitx20_get_dbg_files_count,
+};
+
+static struct hdmitx_ops hdmitx21_ops = {
+	.alloc_instance = hdmitx21_alloc_instance,
+	.init_reg_map = hdmitx21_init_reg_map,
+	.init_hw = hdmitx21_meson_init,
+	.get_dbg_files = hdmitx21_get_dbg_files_s,
+	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
+};
 
 #ifdef CONFIG_OF
 static struct amhdmitx_data_s amhdmitx_data_g12a = {
 	.chip_type = MESON_CPU_ID_G12A,
 	.chip_name = "g12a",
-	.alloc_instance = hdmitx20_alloc_instance,
-	.init_reg_map = hdmitx20_init_reg_map,
-	.init_hw = hdmitx20_meson_init,
-	.get_dbg_files = hdmitx20_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx20_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx20_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_g12b = {
 	.chip_type = MESON_CPU_ID_G12B,
 	.chip_name = "g12b",
-	.alloc_instance = hdmitx20_alloc_instance,
-	.init_reg_map = hdmitx20_init_reg_map,
-	.init_hw = hdmitx20_meson_init,
-	.get_dbg_files = hdmitx20_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx20_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx20_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_sm1 = {
 	.chip_type = MESON_CPU_ID_SM1,
 	.chip_name = "sm1",
-	.alloc_instance = hdmitx20_alloc_instance,
-	.init_reg_map = hdmitx20_init_reg_map,
-	.init_hw = hdmitx20_meson_init,
-	.get_dbg_files = hdmitx20_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx20_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx20_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_sc2 = {
 	.chip_type = MESON_CPU_ID_SC2,
 	.chip_name = "sc2",
-	.alloc_instance = hdmitx20_alloc_instance,
-	.init_reg_map = hdmitx20_init_reg_map,
-	.init_hw = hdmitx20_meson_init,
-	.get_dbg_files = hdmitx20_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx20_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx20_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_tm2 = {
 	.chip_type = MESON_CPU_ID_TM2,
 	.chip_name = "tm2",
-	.alloc_instance = hdmitx20_alloc_instance,
-	.init_reg_map = hdmitx20_init_reg_map,
-	.init_hw = hdmitx20_meson_init,
-	.get_dbg_files = hdmitx20_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx20_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx20_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_t7 = {
 	.chip_type = MESON_CPU_ID_T7,
 	.chip_name = "t7",
-	.alloc_instance = hdmitx21_alloc_instance,
-	.init_reg_map = hdmitx21_init_reg_map,
-	.init_hw = hdmitx21_meson_init,
-	.get_dbg_files = hdmitx21_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx21_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_s5 = {
 	.chip_type = MESON_CPU_ID_S5,
 	.chip_name = "s5",
-	.alloc_instance = hdmitx21_alloc_instance,
-	.init_reg_map = hdmitx21_init_reg_map,
-	.init_hw = hdmitx21_meson_init,
-	.get_dbg_files = hdmitx21_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx21_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_s1a = {
 	.chip_type = MESON_CPU_ID_S1A,
 	.chip_name = "s1a",
-	.alloc_instance = hdmitx21_alloc_instance,
-	.init_reg_map = hdmitx21_init_reg_map,
-	.init_hw = hdmitx21_meson_init,
-	.get_dbg_files = hdmitx21_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx21_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_s7 = {
 	.chip_type = MESON_CPU_ID_S7,
 	.chip_name = "s7",
-	.alloc_instance = hdmitx21_alloc_instance,
-	.init_reg_map = hdmitx21_init_reg_map,
-	.init_hw = hdmitx21_meson_init,
-	.get_dbg_files = hdmitx21_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx21_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_s7d = {
 	.chip_type = MESON_CPU_ID_S7D,
 	.chip_name = "s7d",
-	.alloc_instance = hdmitx21_alloc_instance,
-	.init_reg_map = hdmitx21_init_reg_map,
-	.init_hw = hdmitx21_meson_init,
-	.get_dbg_files = hdmitx21_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx21_ops,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_s6 = {
 	.chip_type = MESON_CPU_ID_S6,
 	.chip_name = "s6",
-	.alloc_instance = hdmitx21_alloc_instance,
-	.init_reg_map = hdmitx21_init_reg_map,
-	.init_hw = hdmitx21_meson_init,
-	.get_dbg_files = hdmitx21_get_dbg_files_s,
-	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
+	.hdmitx_ops = &hdmitx21_ops,
 };
 
 static const struct of_device_id meson_amhdmitx_of_match[] = {
@@ -531,7 +494,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 				HDMITX_INFO("not find pwr_ctl\n");
 		}
 		/* Get reg information */
-		ret = hw_comm->chip_data->init_reg_map(pdev);
+		ret = hw_comm->chip_data->hdmitx_ops->init_reg_map(pdev);
 		if (ret < 0)
 			HDMITX_ERROR("ERROR: hdmitx io_remap fail!\n");
 
@@ -859,12 +822,11 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		chip_data->chip_type,
 		chip_data->chip_name);
 	/* allocate address space */
-	tx_comm = chip_data->alloc_instance(device);
+	tx_comm = chip_data->hdmitx_ops->alloc_instance(device);
 	if (!tx_comm)
 		return -ENOMEM;
 	hw_comm = tx_comm->tx_hw;
 	hw_comm->chip_data = chip_data;
-	global_tx_comm = tx_comm;
 	dev_set_drvdata(device, tx_comm);
 
 	ret = amhdmitx_get_dt_info(pdev, tx_comm);
@@ -912,7 +874,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	tx_comm->reboot_nb.notifier_call = hdmitx_reboot_notifier;
 	register_reboot_notifier(&tx_comm->reboot_nb);
 	/* init hw */
-	hw_comm->chip_data->init_hw(hw_comm);
+	hw_comm->chip_data->hdmitx_ops->init_hw(hw_comm);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 	tx_comm->hdmitx_notifier_nb_a = hdmitx_notifier_nb_a;
@@ -975,141 +937,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	return r;
 }
 
-/*
- * for game console-> hdmirx -> hdmitx -> TV
- * interface for hdmirx module
- * ret: false if not update, true if updated
- */
-bool hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
-{
-	struct hdmitx_common *tx_comm = global_tx_comm;
-	bool it_content = false;
-
-	if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7)
-		return false;
-	/*
-	 * when switch between hdmirx source(ALLM) and hdmitx home(non-ALLM),
-	 * the ALLM/1.4 Game will change, need to mute before change
-	 */
-	bool video_mute = false;
-
-	if (!hdmi_allm_passthough_en)
-		return false;
-	if (!latency_info)
-		return false;
-
-	HDMITX_INFO("%s: ll_enabled_in_auto_mode: %d, ll_user_set_mode:%d\n",
-		__func__, tx_comm->ll_enabled_in_auto_mode, tx_comm->ll_user_set_mode);
-
-	if (tx_comm->ll_user_set_mode != HDMI_LL_MODE_AUTO) {
-		HDMITX_INFO("%s:non-auto mode,return, allm_mode: %d, it_content: %d, cn_type: %d\n",
-			__func__,
-			latency_info->allm_mode,
-			latency_info->it_content,
-			latency_info->cn_type);
-		return false;
-	}
-	HDMITX_INFO("%s: allm_mode: %d, it_content: %d, cn_type: %d\n",
-		__func__, latency_info->allm_mode, latency_info->it_content, latency_info->cn_type);
-	if (tx_comm->allm_mode == latency_info->allm_mode &&
-		tx_comm->it_content == latency_info->it_content &&
-		tx_comm->ct_mode == latency_info->cn_type) {
-		HDMITX_INFO("latency_info not changed, exit\n");
-		return false;
-	}
-	/* refer to allm_mode_store() */
-	if (latency_info->allm_mode) {
-		if (tx_comm->rxcap.allm) {
-			//if (hdmitx_dv_en(tx_comm->tx_hw) &&
-				//(hdev->rxcap.ifdb_present &&
-				//hdev->rxcap.additional_vsif_num < 1)) {
-				//HDMITX_INFO("%s: DV enabled, but ifdb_present: %d,
-				//additional_vsif_num: %d\n",
-				//__func__, hdev->rxcap.ifdb_present,
-				//hdev->rxcap.additional_vsif_num);
-				//return false;
-			//}
-			if (!get_rx_active_sts()) {
-				video_mute = true;
-				/* hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4); */
-				hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_VIDEO_MUTE_OP,
-					VIDEO_MUTE);
-			}
-			tx_comm->allm_mode = 1;
-			HDMITX_INFO("%s: enabling ALLM\n", __func__);
-			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 1, NULL);
-			tx_comm->ct_mode = 0;
-			tx_comm->it_content = 0;
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE, SET_CT_OFF);
-		}
-	} else {
-		if (!get_rx_active_sts()) {
-			video_mute = true;
-			/* hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4); */
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
-		}
-		/* disable ALLM firstly */
-		if (tx_comm->allm_mode == 1) {
-			tx_comm->allm_mode = 0;
-			HDMITX_INFO("%s: disabling ALLM before enable/disable game mode\n",
-			__func__);
-			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
-			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0 &&
-				!hdmitx_dv_en(tx_comm->tx_hw) &&
-				!hdmitx_hdr10p_en(tx_comm->tx_hw))
-				hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
-		}
-		tx_comm->it_content = latency_info->it_content;
-		it_content = tx_comm->it_content;
-		if (tx_comm->rxcap.cnc3 && latency_info->cn_type == GAME) {
-			tx_comm->ct_mode = 1;
-			HDMITX_INFO("%s: enabling GAME mode\n", __func__);
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_GAME | it_content << 4);
-		} else if (tx_comm->rxcap.cnc0 && latency_info->cn_type == GRAPHICS &&
-		    latency_info->it_content == 1) {
-			tx_comm->ct_mode = 2;
-			HDMITX_INFO("%s: enabling GRAPHICS mode\n", __func__);
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_GRAPHICS | it_content << 4);
-		} else if (tx_comm->rxcap.cnc1 && latency_info->cn_type == PHOTO) {
-			tx_comm->ct_mode = 3;
-			HDMITX_INFO("%s: enabling PHOTO mode\n", __func__);
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_PHOTO | it_content << 4);
-		} else if (tx_comm->rxcap.cnc2 && latency_info->cn_type == CINEMA) {
-			tx_comm->ct_mode = 4;
-			HDMITX_INFO("%s: enabling CINEMA mode\n", __func__);
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_CINEMA | it_content << 4);
-		} else {
-			tx_comm->ct_mode = 0;
-			HDMITX_INFO("%s: No GAME or CT mode\n", __func__);
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_OFF | it_content << 4);
-		}
-	}
-	return true;
-}
-EXPORT_SYMBOL(hdmitx_update_latency_info);
-
 void hdmitx_clear_packets(struct hdmitx_common *tx_comm)
 {
 	hdmitx_clear_all_infoframe_pkt(tx_comm);
 }
-
-void hdmitx_ext_plugin_handler(void)
-{
-	struct hdmitx_common *tx_comm = get_hdmitx_common();
-
-	if (tx_comm) {
-		mutex_lock(&tx_comm->hdmimode_mutex);
-		hdmitx_common_get_edid(tx_comm);
-		mutex_unlock(&tx_comm->hdmimode_mutex);
-		HDMITX_INFO("read edid by erac\n");
-	}
-}
-EXPORT_SYMBOL(hdmitx_ext_plugin_handler);
 
 void print_hsty_hdmiaud_config_data(void)
 {

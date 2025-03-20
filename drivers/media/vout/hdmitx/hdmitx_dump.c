@@ -795,8 +795,8 @@ void hdmitx_common_debugfs_init(struct hdmitx_common *tx_comm)
 	int count = 0;
 	int i;
 
-	dbg_files = hw_comm->chip_data->get_dbg_files();
-	count = hw_comm->chip_data->get_dbg_files_count();
+	dbg_files = hw_comm->chip_data->hdmitx_ops->get_dbg_files();
+	count = hw_comm->chip_data->hdmitx_ops->get_dbg_files_count();
 	if (!tx_comm->hdmitx_file_dbgfs)
 		tx_comm->hdmitx_file_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
 
@@ -824,8 +824,8 @@ void hdmitx_common_profs_init(struct hdmitx_common *tx_comm)
 	int count = 0;
 	int i;
 
-	dbg_files = hw_comm->chip_data->get_dbg_files();
-	count = hw_comm->chip_data->get_dbg_files_count();
+	dbg_files = hw_comm->chip_data->hdmitx_ops->get_dbg_files();
+	count = hw_comm->chip_data->hdmitx_ops->get_dbg_files_count();
 	if (!tx_comm->hdmitx_proc_dbgfs)
 		tx_comm->hdmitx_proc_dbgfs = proc_mkdir("amhdmitx", NULL);
 	if (!tx_comm->hdmitx_proc_dbgfs)

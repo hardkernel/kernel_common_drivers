@@ -266,6 +266,7 @@ ddk_module(
                 "vout/hdmitx/hdmitx_hdcp.c",
                 "vout/hdmitx/hdmitx_infoframe.c",
                 "vout/hdmitx/hdmitx_dump.c",
+                "vout/hdmitx/hdmitx_ext.c",
                 "vout/hdmitx/hdmitx_drv.c",
             ],
         },

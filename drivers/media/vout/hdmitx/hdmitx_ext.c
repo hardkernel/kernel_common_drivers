@@ -1,0 +1,215 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include "tvin_global.h"
+#include "hdmitx_log.h"
+#include "hdmi_rx_repeater.h"
+#include "hdmitx_module.h"
+
+static struct hdmitx_common *tx_common_instance;
+static u8 hdmi_allm_passthough_en;
+
+static inline void hdmitx_notify_hpd(int hpd, void *p)
+{
+	if (!tx_common_instance)
+		return;
+
+	if (hpd)
+		hdmitx_event_mgr_notify(tx_common_instance->event_mgr,
+				HDMITX_PLUG, p);
+	else
+		hdmitx_event_mgr_notify(tx_common_instance->event_mgr,
+				HDMITX_UNPLUG, NULL);
+}
+
+/* for notify to cec */
+int hdmitx_event_notifier_regist(struct notifier_block *nb)
+{
+	int ret = 0;
+
+	if (!nb || !tx_common_instance)
+		return ret;
+
+	ret = hdmitx_event_mgr_notifier_register(tx_common_instance->event_mgr,
+		(struct hdmitx_notifier_client *)nb);
+
+	/* update status when register */
+	if (!ret && nb->notifier_call) {
+		/* if (hdev->tx_comm.hdmi_repeater == 1) */
+		hdmitx_notify_hpd(tx_common_instance->hpd_state,
+			tx_common_instance->rxcap.edid_parsing ?
+			tx_common_instance->EDID_buf : NULL);
+		/* actually notify phy_addr is not used by CEC/hdmirx */
+		/* if (hdev->tx_comm.rxcap.physical_addr != 0xffff) { */
+		/* if (hdev->tx_comm.hdmi_repeater == 1) */
+		/* hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr, */
+		/* HDMITX_PHY_ADDR_VALID, */
+		/* &hdev->tx_comm.rxcap.physical_addr); */
+		/* } */
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(hdmitx_event_notifier_regist);
+
+int hdmitx_event_notifier_unregist(struct notifier_block *nb)
+{
+	if (!tx_common_instance)
+		return -1;
+
+	return hdmitx_event_mgr_notifier_unregister(tx_common_instance->event_mgr,
+		(struct hdmitx_notifier_client *)nb);
+}
+EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
+
+int hdmitx_ext_get_hpd_state(void)
+{
+	int ret = 0;
+
+	if (!tx_common_instance)
+		return -1;
+
+	mutex_lock(&tx_common_instance->hdmimode_mutex);
+	ret = tx_common_instance->hpd_state;
+	mutex_unlock(&tx_common_instance->hdmimode_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(hdmitx_ext_get_hpd_state);
+
+struct vsdb_phyaddr *hdmitx_get_phy_addr(void)
+{
+	if (!tx_common_instance)
+		return NULL;
+
+	return &tx_common_instance->rxcap.vsdb_phy_addr;
+}
+EXPORT_SYMBOL(hdmitx_get_phy_addr);
+
+/*
+ * for game console-> hdmirx -> hdmitx -> TV
+ * interface for hdmirx module
+ * ret: false if not update, true if updated
+ */
+bool hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
+{
+	struct hdmitx_common *tx_comm = tx_common_instance;
+	bool it_content = false;
+
+	if (!tx_comm)
+		return false;
+	if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7)
+		return false;
+	/*
+	 * when switch between hdmirx source(ALLM) and hdmitx home(non-ALLM),
+	 * the ALLM/1.4 Game will change, need to mute before change
+	 */
+	bool video_mute = false;
+
+	if (!hdmi_allm_passthough_en)
+		return false;
+	if (!latency_info)
+		return false;
+
+	HDMITX_DEBUG("%s: ll_enabled_in_auto_mode: %d, ll_user_set_mode:%d\n",
+		__func__, tx_comm->ll_enabled_in_auto_mode, tx_comm->ll_user_set_mode);
+
+	if (tx_comm->ll_user_set_mode != HDMI_LL_MODE_AUTO)
+		return false;
+	if (tx_comm->allm_mode == latency_info->allm_mode &&
+		tx_comm->it_content == latency_info->it_content &&
+		tx_comm->ct_mode == latency_info->cn_type) {
+		HDMITX_DEBUG("latency_info not changed, exit\n");
+		return false;
+	}
+	/* refer to allm_mode_store() */
+	if (latency_info->allm_mode) {
+		if (tx_comm->rxcap.allm) {
+			//if (hdmitx_dv_en(tx_comm->tx_hw) &&
+				//(hdev->rxcap.ifdb_present &&
+				//hdev->rxcap.additional_vsif_num < 1)) {
+				//HDMITX_INFO("%s: DV enabled, but ifdb_present: %d,
+				//additional_vsif_num: %d\n",
+				//__func__, hdev->rxcap.ifdb_present,
+				//hdev->rxcap.additional_vsif_num);
+				//return false;
+			//}
+			if (!get_rx_active_sts()) {
+				video_mute = true;
+				/* hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4); */
+				hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_VIDEO_MUTE_OP,
+					VIDEO_MUTE);
+			}
+			tx_comm->allm_mode = 1;
+			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 1, NULL);
+			tx_comm->ct_mode = 0;
+			tx_comm->it_content = 0;
+			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE, SET_CT_OFF);
+		}
+	} else {
+		if (!get_rx_active_sts()) {
+			video_mute = true;
+			/* hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4); */
+			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
+		}
+		/* disable ALLM firstly */
+		if (tx_comm->allm_mode == 1) {
+			tx_comm->allm_mode = 0;
+			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
+			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0 &&
+				!hdmitx_dv_en(tx_comm->tx_hw) &&
+				!hdmitx_hdr10p_en(tx_comm->tx_hw))
+				hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
+		}
+		tx_comm->it_content = latency_info->it_content;
+		it_content = tx_comm->it_content;
+		if (tx_comm->rxcap.cnc3 && latency_info->cn_type == GAME) {
+			tx_comm->ct_mode = 1;
+			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
+				SET_CT_GAME | it_content << 4);
+		} else if (tx_comm->rxcap.cnc0 && latency_info->cn_type == GRAPHICS &&
+		    latency_info->it_content == 1) {
+			tx_comm->ct_mode = 2;
+			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
+				SET_CT_GRAPHICS | it_content << 4);
+		} else if (tx_comm->rxcap.cnc1 && latency_info->cn_type == PHOTO) {
+			tx_comm->ct_mode = 3;
+			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
+				SET_CT_PHOTO | it_content << 4);
+		} else if (tx_comm->rxcap.cnc2 && latency_info->cn_type == CINEMA) {
+			tx_comm->ct_mode = 4;
+			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
+				SET_CT_CINEMA | it_content << 4);
+		} else {
+			tx_comm->ct_mode = 0;
+			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
+				SET_CT_OFF | it_content << 4);
+		}
+	}
+	return true;
+}
+EXPORT_SYMBOL(hdmitx_update_latency_mode);
+
+void hdmitx_ext_plugin_handler(void)
+{
+	struct hdmitx_common *tx_comm = tx_common_instance;
+
+	if (tx_comm) {
+		mutex_lock(&tx_comm->hdmimode_mutex);
+		hdmitx_common_get_edid(tx_comm);
+		mutex_unlock(&tx_comm->hdmimode_mutex);
+		HDMITX_INFO("read edid by erac\n");
+	}
+}
+EXPORT_SYMBOL(hdmitx_ext_plugin_handler);
+
+void hdmitx_ext_instance_init(struct hdmitx_common *tx_comm)
+{
+	if (!tx_comm)
+		return;
+
+	tx_common_instance = tx_comm;
+}

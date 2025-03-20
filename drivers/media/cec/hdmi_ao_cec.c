@@ -360,9 +360,9 @@ static bool check_physical_addr_valid(int timeout)
 		if (phy_addr_test)
 			break;
 		/* physical address for box */
-		if (get_hpd_state() &&
-		    get_hdmitx_phy_addr() &&
-		    get_hdmitx_phy_addr()->valid == 0) {
+		if (hdmitx_ext_get_hpd_state() &&
+		    hdmitx_get_phy_addr() &&
+		    hdmitx_get_phy_addr()->valid == 0) {
 			msleep(40);
 			timeout--;
 		} else {
@@ -978,7 +978,7 @@ static ssize_t port_status_show(const struct class *cla,
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	unsigned int tx_hpd;
 
-	tx_hpd = get_hpd_state();
+	tx_hpd = hdmitx_ext_get_hpd_state();
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
 		tmp = tx_hpd;
 		return sprintf(buf, "%x\n", tmp);
@@ -1001,7 +1001,7 @@ static ssize_t pin_status_show(const struct class *cla,
 	unsigned int tx_hpd;
 	char p;
 
-	tx_hpd = get_hpd_state();
+	tx_hpd = hdmitx_ext_get_hpd_state();
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
 		if (!tx_hpd) {
 			pin_status = 0;
@@ -1505,7 +1505,7 @@ static ssize_t conn_status_show(const struct class *cla,
 	unsigned int tmp = 0;
 
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
-	tmp |= (get_hpd_state() << 4);
+	tmp |= (hdmitx_ext_get_hpd_state() << 4);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	tmp |= (hdmirx_get_connect_info() & 0xF);
@@ -1657,7 +1657,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		 */
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		if (cec_dev->dev_type != CEC_TV_ADDR) {
-			if (get_hpd_state() == 0) {
+			if (hdmitx_ext_get_hpd_state() == 0) {
 				cec_dev->phy_addr = 0xffff;
 			} else {
 				tmp = cec_get_cur_phy_addr();
@@ -1833,7 +1833,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 				tmp = 0;
 		} else {
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
-			tmp = get_hpd_state();
+			tmp = hdmitx_ext_get_hpd_state();
 #else
 			tmp = 0;
 #endif
@@ -2524,7 +2524,7 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 	unsigned int phy_addr = 0xffff;
 	unsigned char port_id = 0;
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
-	tmp |= (get_hpd_state() << 4);
+	tmp |= (hdmitx_ext_get_hpd_state() << 4);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	tmp |= (hdmirx_get_connect_info() & 0xF);

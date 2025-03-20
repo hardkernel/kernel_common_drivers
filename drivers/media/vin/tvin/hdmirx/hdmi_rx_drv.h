@@ -1170,9 +1170,9 @@ extern struct notifier_block vrr_notify;
 #endif
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern struct notifier_block tx_notify;
-void hdmitx_update_latency_info(struct tvin_latency_s *latency_info);
+void hdmitx_update_latency_mode(struct tvin_latency_s *latency_info);
 #endif
-void __weak hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
+void __weak hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
 {
 }
 

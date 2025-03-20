@@ -105,6 +105,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 
 	hdmitx_vout_init(tx_comm, hw_comm);
 	hdmitx_hdr_init(tx_comm);
+	hdmitx_ext_instance_init(tx_comm);
 	/* get efuse ctrl state */
 	get_hdmi_efuse(tx_comm);
 
@@ -1719,91 +1720,6 @@ enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode)
 	return frl_rate;
 }
 #endif
-
-static inline void hdmitx_notify_hpd(int hpd, void *p)
-{
-	struct hdmitx_common *tx_comm = get_hdmitx_common();
-
-	if (!tx_comm)
-		return;
-
-	if (hpd)
-		hdmitx_event_mgr_notify(tx_comm->event_mgr,
-				HDMITX_PLUG, p);
-	else
-		hdmitx_event_mgr_notify(tx_comm->event_mgr,
-				HDMITX_UNPLUG, NULL);
-}
-
-/* for notify to cec */
-int hdmitx_event_notifier_regist(struct notifier_block *nb)
-{
-	int ret = 0;
-	struct hdmitx_common *tx_comm = get_hdmitx_common();
-
-	if (!nb || !tx_comm)
-		return ret;
-
-	ret = hdmitx_event_mgr_notifier_register(tx_comm->event_mgr,
-		(struct hdmitx_notifier_client *)nb);
-
-	/* update status when register */
-	if (!ret && nb->notifier_call) {
-		/* if (hdev->tx_comm.hdmi_repeater == 1) */
-		hdmitx_notify_hpd(tx_comm->hpd_state,
-			tx_comm->rxcap.edid_parsing ?
-			tx_comm->EDID_buf : NULL);
-		/* actually notify phy_addr is not used by CEC/hdmirx */
-		/* if (hdev->tx_comm.rxcap.physical_addr != 0xffff) { */
-		/* if (hdev->tx_comm.hdmi_repeater == 1) */
-		/* hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr, */
-		/* HDMITX_PHY_ADDR_VALID, */
-		/* &hdev->tx_comm.rxcap.physical_addr); */
-		/* } */
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(hdmitx_event_notifier_regist);
-
-int hdmitx_event_notifier_unregist(struct notifier_block *nb)
-{
-	struct hdmitx_common *tx_comm = get_hdmitx_common();
-
-	if (!tx_comm)
-		return -1;
-
-	return hdmitx_event_mgr_notifier_unregister(tx_comm->event_mgr,
-		(struct hdmitx_notifier_client *)nb);
-}
-EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
-
-int get_hpd_state(void)
-{
-	int ret = 0;
-	struct hdmitx_common *tx_comm = get_hdmitx_common();
-
-	if (!tx_comm)
-		return -1;
-
-	mutex_lock(&tx_comm->hdmimode_mutex);
-	ret = tx_comm->hpd_state;
-	mutex_unlock(&tx_comm->hdmimode_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL(get_hpd_state);
-
-struct vsdb_phyaddr *get_hdmitx_phy_addr(void)
-{
-	struct hdmitx_common *tx_comm = get_hdmitx_common();
-
-	if (!tx_comm)
-		return NULL;
-
-	return &tx_comm->rxcap.vsdb_phy_addr;
-}
-EXPORT_SYMBOL(get_hdmitx_phy_addr);
 
 void setup_attr(const char *buf)
 {

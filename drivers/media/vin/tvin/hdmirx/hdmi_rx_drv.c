@@ -1515,7 +1515,7 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop, u8 port)
 		latency_info.allm_mode  = rx[port].vs_info_details.hdmi_allm;
 		latency_info.it_content = rx[port].cur.it_content;
 		latency_info.cn_type  = rx[port].cur.cn_type;
-		hdmitx_update_latency_info(&latency_info);
+		hdmitx_update_latency_mode(&latency_info);
 	}
 #endif
 }

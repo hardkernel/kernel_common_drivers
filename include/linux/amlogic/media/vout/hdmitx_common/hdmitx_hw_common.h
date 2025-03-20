@@ -287,14 +287,18 @@ enum amhdmitx_chip_e {
 
 struct hdmitx_hw_common;
 
-struct amhdmitx_data_s {
-	enum amhdmitx_chip_e chip_type;
-	const char *chip_name;
+struct hdmitx_ops {
 	struct hdmitx_common *(*alloc_instance)(struct device *device);
 	int (*init_reg_map)(struct platform_device *pdev);
 	void (*init_hw)(struct hdmitx_hw_common *tx_hw);
 	struct hdmitx_dbg_files_s *(*get_dbg_files)(void);
 	int (*get_dbg_files_count)(void);
+};
+
+struct amhdmitx_data_s {
+	enum amhdmitx_chip_e chip_type;
+	const char *chip_name;
+	struct hdmitx_ops *hdmitx_ops;
 };
 
 /***********************************************************************

@@ -113,7 +113,8 @@ struct hdmitx21_dev {
 	int emp_verbose;
 };
 
-struct hdmitx_common *get_hdmitx_common(void);
+/* common api */
+void hdmitx_ext_instance_init(struct hdmitx_common *tx_comm);
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 /***********************************************************************

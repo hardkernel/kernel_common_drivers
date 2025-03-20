@@ -2665,7 +2665,7 @@ static void signal_status_init(u8 port)
 	}
 #ifdef CONFIG_AMLOGIC_HDMITX
 	if (rx_info.chip_id == CHIP_ID_T7)
-		hdmitx_update_latency_info(&latency_info);
+		hdmitx_update_latency_mode(&latency_info);
 #endif
 }
 
@@ -4091,7 +4091,7 @@ void hdmirx_close_port(u8 port)
 		latency_info.allm_mode = 0;
 		latency_info.it_content = 0;
 		latency_info.cn_type = 0;
-		hdmitx_update_latency_info(&latency_info);
+		hdmitx_update_latency_mode(&latency_info);
 	}
 #endif
 	/* clear vpp mute, such as after unplug */

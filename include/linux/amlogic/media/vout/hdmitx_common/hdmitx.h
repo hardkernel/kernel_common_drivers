@@ -158,8 +158,8 @@ int hdmitx_ext_get_audio_status(void);
 void hdmitx_ext_plugin_handler(void);
 
 /* cec and hdmirx */
-int get_hpd_state(void);
-struct vsdb_phyaddr *get_hdmitx_phy_addr(void);
+int hdmitx_ext_get_hpd_state(void);
+struct vsdb_phyaddr *hdmitx_get_phy_addr(void);
 int hdmitx_event_notifier_regist(struct notifier_block *nb);
 int hdmitx_event_notifier_unregist(struct notifier_block *nb);
 
