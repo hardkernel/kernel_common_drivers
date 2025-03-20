@@ -35,9 +35,6 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <drm/amlogic/meson_drm_bind.h>
-#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
-#include <linux/amlogic/media/sound/aout_notify.h>
-#endif
 
 #ifdef CONFIG_AMLOGIC_DSC
 #include <linux/amlogic/media/vout/dsc.h>
@@ -572,26 +569,6 @@ static const struct file_operations amhdmitx_fops = {
 	.release  = amhdmitx_release,
 };
 
-#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
-
-static int hdmitx_notify_callback_a(struct notifier_block *block,
-				    unsigned long cmd, void *para);
-static struct notifier_block hdmitx_notifier_nb_a = {
-	.notifier_call	= hdmitx_notify_callback_a,
-};
-
-static int hdmitx_notify_callback_a(struct notifier_block *block,
-				    unsigned long cmd, void *para)
-{
-	struct hdmitx_common *tx_comm = container_of(block,
-		struct hdmitx_common, hdmitx_notifier_nb_a);
-
-	hdmitx_audio_notify_callback(tx_comm, tx_comm->tx_hw, block, cmd, para);
-	return 0;
-}
-
-#endif
-
 void hdmitx_disable_frl_work(struct hdmitx_common *tx_comm)
 {
 	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
@@ -652,7 +629,6 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		}
 	}
 	mutex_lock(&tx_comm->hdmimode_mutex);
-	hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	hdmitx_common_late_resume(tx_comm);
 	HDMITX_INFO(SYS "Late Resume\n");
 	mutex_unlock(&tx_comm->hdmimode_mutex);
@@ -875,12 +851,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	register_reboot_notifier(&tx_comm->reboot_nb);
 	/* init hw */
 	hw_comm->chip_data->hdmitx_ops->init_hw(hw_comm);
-
-#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
-	tx_comm->hdmitx_notifier_nb_a = hdmitx_notifier_nb_a;
-	if (!tx_comm->pxp_mode)
-		aout_register_client(&tx_comm->hdmitx_notifier_nb_a);
-#endif
 	/* init work and delay work */
 	hdmitx_work_init(tx_comm);
 	/* bind drm before hdmi event */

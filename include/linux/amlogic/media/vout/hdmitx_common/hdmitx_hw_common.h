@@ -116,6 +116,7 @@
 #define MISC_ENABLE_MODE		(CMD_MISC_OFFSET + 0x2c)
 #define MISC_POST_ENABLE_MODE	(CMD_MISC_OFFSET + 0x2d)
 #define MISC_DISABLE_21_WORK	(CMD_MISC_OFFSET + 0x2e)
+#define MISC_READ_HPD_GPIO		(CMD_MISC_OFFSET + 0x2f)
 /***********************************************************************
  *                          Get State //getstate
  **********************************************************************/
@@ -176,7 +177,7 @@
 	#define AUDIO_MUTE          0x1
 	#define AUDIO_UNMUTE        0x2
 #define CONF_CLR_AUDINFO_PACKET (CMD_CONF_OFFSET + 0x1000 + 0x01)
-#define CONF_GET_AUDIO_MUTE_ST  (CMD_CONF_OFFSET + 0x1000 + 0x02)
+#define CONF_GET_UBOOT_AUDIO_ST (CMD_CONF_OFFSET + 0x1000 + 0x02)
 
 #define CONF_ASPECT_RATIO       (CMD_CONF_OFFSET + 0x101a)
 #define CONF_HW_INIT			(CMD_CONF_OFFSET + 0x101b)

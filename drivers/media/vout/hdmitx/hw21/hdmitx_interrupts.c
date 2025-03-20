@@ -31,19 +31,7 @@ static void intr2_sw_handler(struct intr_t *);
 static void intr5_sw_handler(struct intr_t *);
 static void top_hpd_intr_stub_handler(struct intr_t *);
 
-static pf_callback earc_hdmitx_hpdst;
-
 static void ddc_stall_req_handler(struct intr_t *intr);
-void hdmitx21_earc_hpdst(pf_callback cb)
-{
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
-
-	earc_hdmitx_hpdst = cb;
-	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX21)
-		return;
-	if (cb && hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO))
-		cb(true);
-}
 
 union intr_u hdmi_all_intrs = {
 	.entity = {
@@ -248,11 +236,11 @@ void hdmitx_hpd_irq_top_half_process(struct hdmitx21_dev *hdev, bool hpd)
 {
 	if (hpd) {
 		hdmitx_phy_bandgap_en(hdev);
-		if (earc_hdmitx_hpdst)
-			earc_hdmitx_hpdst(true);
+		if (hdev->tx_comm.earc_hdmitx_hpdst)
+			hdev->tx_comm.earc_hdmitx_hpdst(true);
 	} else {
-		if (earc_hdmitx_hpdst)
-			earc_hdmitx_hpdst(false);
+		if (hdev->tx_comm.earc_hdmitx_hpdst)
+			hdev->tx_comm.earc_hdmitx_hpdst(false);
 	}
 }
 

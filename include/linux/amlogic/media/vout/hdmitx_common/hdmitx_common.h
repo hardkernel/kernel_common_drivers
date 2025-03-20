@@ -149,6 +149,8 @@ struct scdc_locked_st {
 	u8 ch3_locked:1;
 };
 
+typedef void (*pf_callback)(bool st);
+
 struct hdmitx_common {
 	struct meson_connector_dev base;
 	int drm_hdmitx_id;
@@ -406,6 +408,7 @@ struct hdmitx_common {
 	struct device *pdev; /* for pinctrl*/
 	struct pinctrl_state *pinctrl_i2c;
 	struct pinctrl_state *pinctrl_default;
+	pf_callback earc_hdmitx_hpdst;
 
 #ifdef CONFIG_AMLOGIC_VPU
 	struct vpu_dev_s *encp_vpu_dev;
@@ -603,10 +606,6 @@ const struct hdr_info *hdmitx_common_get_hdr_info(struct hdmitx_common *tx_comm)
 const struct hdr_info *hdmitx_common_get_hdr_info_rx(struct hdmitx_common *tx_comm);
 int hdmitx_common_get_vic_list(struct hdmitx_common *tx_comm, int **vics);
 bool hdmitx_common_chk_mode_attr_sup(struct hdmitx_common *tx_comm, char *mode, char *attr);
-void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
-	struct hdmitx_hw_common *tx_hw_base,
-	struct notifier_block *block,
-	unsigned long cmd, void *para);
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
@@ -636,35 +635,6 @@ ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,
 int hdmitx21_device_init(struct hdmitx_common *tx_comm);
 #endif
 
-/*
- * below are extern functions declaration
- * only for hdmitx20/21 module internally
- */
-typedef void (*pf_callback)(bool st);
-
-#ifdef CONFIG_AMLOGIC_HDMITX
-	void hdmitx_earc_hpdst(pf_callback cb);
-#else
-	#define hdmitx_earc_hpdst NULL
-#endif
-
-#ifdef CONFIG_AMLOGIC_HDMITX21
-	void hdmitx21_earc_hpdst(pf_callback cb);
-#else
-	#define hdmitx21_earc_hpdst NULL
-#endif
-
-#ifdef CONFIG_AMLOGIC_HDMITX
-/* hdmitx20 external interface */
-
-#endif
-
-#ifdef CONFIG_AMLOGIC_HDMITX21
-/* hdmitx21 external interface */
-#endif
-
-int register_earcrx_callback(pf_callback callback);
-void unregister_earcrx_callback(void);
 void hdmitx_disable_frl_work(struct hdmitx_common *tx_comm);
 void hdmitx_disable_21_work(struct hdmitx_common *tx_comm);
 void hdmitx_clear_packets(struct hdmitx_common *tx_comm);

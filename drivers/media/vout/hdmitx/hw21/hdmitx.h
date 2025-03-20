@@ -29,11 +29,6 @@
 #define VIDEO_MUTE_PATH_2 0x4000000 //mute by stream type 1
 #define VIDEO_MUTE_PATH_3 0x2000000 //mute by rx request auth
 
-#define AUDIO_MUTE_PATH_1 0x8000000 //mute by audio module
-#define AUDIO_MUTE_PATH_2 0x4000000 //mute by aud_mote sysfs node
-#define AUDIO_MUTE_PATH_3 0x2000000 //mute by stream type 1
-#define AUDIO_MUTE_PATH_4 0x1000000 //mute by rx request auth
-
 #define AVMUTE_PATH_1 0x80 //mute by avmute sysfs node
 #define AVMUTE_PATH_2 0x40 //mute by upstream side request re-auth
 
@@ -78,8 +73,6 @@ void hdmi_ddc_error_reset(void);
 
 int hdmitx21_hdcp_init(struct hdmitx21_dev *hdev);
 void hdmitx21_hdcp_exit(struct hdmitx21_dev *hdev);
-bool hdmitx21_uboot_audio_en(void);
-void hdmitx21_audio_init(struct hdmitx_common *tx_comm);
 int hdmitx21_init_reg_map(struct platform_device *pdev);
 void hdmitx21_set_audioclk(bool en);
 void hdmitx21_disable_clk(struct hdmitx21_dev *hdev);

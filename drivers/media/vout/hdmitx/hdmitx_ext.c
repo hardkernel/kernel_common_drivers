@@ -8,6 +8,7 @@
 #include "hdmitx_log.h"
 #include "hdmi_rx_repeater.h"
 #include "hdmitx_module.h"
+#include "hdmitx_audio.h"
 
 static struct hdmitx_common *tx_common_instance;
 static u8 hdmi_allm_passthough_en;
@@ -193,14 +194,106 @@ bool hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
 }
 EXPORT_SYMBOL(hdmitx_update_latency_mode);
 
-void hdmitx_ext_plugin_handler(void)
+void hdmitx_ext_set_audio_output(int enable)
+{
+	if (!tx_common_instance)
+		return;
+
+	hdmitx_audio_mute_op(tx_common_instance, enable, AUDIO_MUTE_PATH_1);
+	HDMITX_INFO("audio: enable:%d\n", enable);
+	hdmitx_tracer_write_event(tx_common_instance->tx_tracer,
+			enable ? HDMITX_AUDIO_UNMUTE : HDMITX_AUDIO_MUTE);
+}
+EXPORT_SYMBOL(hdmitx_ext_set_audio_output);
+
+int hdmitx_ext_get_audio_status(void)
+{
+	if (!tx_common_instance)
+		return 0;
+
+	return !!tx_common_instance->cur_audio_param.aud_output_en;
+}
+EXPORT_SYMBOL(hdmitx_ext_get_audio_status);
+
+/* Nofity client */
+static BLOCKING_NOTIFIER_HEAD(aout_notifier_list);
+/*
+ * aout_register_client - register a client notifier
+ * @nb: notifier block to callback on events
+ */
+int aout_register_client(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&aout_notifier_list, nb);
+}
+EXPORT_SYMBOL(aout_register_client);
+
+/*
+ * aout_unregister_client - unregister a client notifier
+ * @nb: notifier block to callback on events
+ */
+int aout_unregister_client(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&aout_notifier_list, nb);
+}
+EXPORT_SYMBOL(aout_unregister_client);
+
+/*
+ * aout_notifier_call_chain - notify clients of fb_events
+ */
+int aout_notifier_call_chain(unsigned long val, void *v)
+{
+	return blocking_notifier_call_chain(&aout_notifier_list, val, v);
+}
+EXPORT_SYMBOL_GPL(aout_notifier_call_chain);
+
+static void hdmitx_earc_hpdst(pf_callback cb)
 {
 	struct hdmitx_common *tx_comm = tx_common_instance;
 
-	if (tx_comm) {
-		mutex_lock(&tx_comm->hdmimode_mutex);
-		hdmitx_common_get_edid(tx_comm);
-		mutex_unlock(&tx_comm->hdmimode_mutex);
+	if (!tx_comm)
+		return;
+	tx_comm->earc_hdmitx_hpdst = cb;
+	if (cb && hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_READ_HPD_GPIO, 0))
+		cb(true);
+}
+
+/*
+ * ARC IN audio capture not working due to init
+ * sequence issue of eARC driver and HDMI Tx driver.
+ * when eARC driver try to register_earcrx_callback,
+ * HDMI Tx driver probe/init is not finish, that lead
+ * register_earcrx_callback fail and eARC driver
+ * doesn't know if HDMI Tx cable plug in/out.
+ * so don't check hdmitx init or not. TODO
+ */
+int register_earcrx_callback(pf_callback callback)
+{
+/*
+ * when eARC driver try to register_earcrx_callback,
+ * HDMI Tx driver probe/init is not finish, that just
+ * register_earcrx_callback, and later probe and plugin will
+ * notify eARC HDMI Tx cable plug in/out.
+ * so don't check hdmitx init
+ */
+	hdmitx_earc_hpdst(callback);
+
+	return 0;
+}
+EXPORT_SYMBOL(register_earcrx_callback);
+
+void unregister_earcrx_callback(void)
+{
+	hdmitx_earc_hpdst(NULL);
+}
+EXPORT_SYMBOL(unregister_earcrx_callback);
+
+void hdmitx_ext_plugin_handler(void)
+{
+	/* read edid by earc*/
+	if (tx_common_instance) {
+		mutex_lock(&tx_common_instance->hdmimode_mutex);
+		hdmitx_common_get_edid(tx_common_instance);
+		mutex_unlock(&tx_common_instance->hdmimode_mutex);
 		HDMITX_INFO("read edid by erac\n");
 	}
 }

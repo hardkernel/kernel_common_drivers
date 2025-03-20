@@ -638,7 +638,7 @@ static void hdmi_hwp_init(struct hdmitx21_dev *hdev, u8 reset)
 	audio_mute_op(1); /* enable audio default */
 }
 
-bool hdmitx21_uboot_audio_en(void)
+static bool hdmitx_uboot_audio_en(void)
 {
 	u32 data;
 
@@ -992,7 +992,7 @@ void hdmitx21_meson_init(struct hdmitx_hw_common *hw_comm)
 	hdmi_hwp_init(h21_dev, 0);
 	hdmitx_hw_cntl_misc(hw_comm, MISC_AVMUTE_OP, CLR_AVMUTE);
 	/* load init audio fmt for HW info */
-	hdmitx21_audio_init(tx_comm);
+	hdmitx_audio_init(tx_comm);
 }
 
 static void phy_hpll_off(void)
@@ -2641,7 +2641,7 @@ static void hdmitx21_reset_hdcp_param(struct hdmitx_common *tx_comm)
 	tx_comm->is_passthrough_switch = 0;
 	/* clear audio/video mute flag of stream type */
 	hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_2);
-	hdmitx21_audio_mute_op(1, AUDIO_MUTE_PATH_3);
+	hdmitx_audio_mute_op(tx_comm, 1, AUDIO_MUTE_PATH_3);
 }
 
 /* check clk status when plug out in case no vsync */
@@ -3397,6 +3397,8 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case CONF_AUDIO_MUTE_OP:
 		audio_mute_op(argv == AUDIO_MUTE ? 0 : 1);
 		break;
+	case CONF_GET_UBOOT_AUDIO_ST:
+		return hdmitx_uboot_audio_en();
 	case CONF_VIDEO_MUTE_OP:
 		if (argv == VIDEO_MUTE) {
 			if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_T7) {
@@ -3692,6 +3694,8 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case MISC_DISABLE_21_WORK:
 		hdmitx_disable_21_work(tx_comm);
 		break;
+	case MISC_READ_HPD_GPIO:
+		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
 	default:
 		break;
 	}
@@ -5703,8 +5707,8 @@ static void restore_mute(void)
 		hdmitx21_video_mute_op(0, 0);
 	}
 	if (!(atomic_sub_and_test(0, &kref_audio_mute))) {
-		HDMITX_INFO("%s: hdmitx21_audio_mute_op(0,0) call\n", __func__);
-		hdmitx21_audio_mute_op(0, 0);
+		HDMITX_INFO("%s: hdmitx_audio_mute_op(0,0) call\n", __func__);
+		hdmitx_audio_mute_op(&hdev->tx_comm, 0, 0);
 	}
 }
 

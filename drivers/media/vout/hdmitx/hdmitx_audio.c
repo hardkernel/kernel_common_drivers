@@ -619,11 +619,39 @@ static void hdmitx_set_i2s_mask(struct aud_para *tx_aud_param, char ch_num, char
 	tx_aud_param->aud_output_i2s_ch = update_flag;
 }
 
-void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
-	struct hdmitx_hw_common *tx_hw_base,
-	struct notifier_block *block,
+static DEFINE_MUTEX(aud_mute_mutex);
+void hdmitx_audio_mute_op(struct hdmitx_common *tx_comm, u32 flag, unsigned int path)
+{
+	static unsigned int aud_mute_path;
+
+	mutex_lock(&aud_mute_mutex);
+	if (flag == 0)
+		aud_mute_path |= path;
+	else
+		aud_mute_path &= ~path;
+
+	tx_comm->cur_audio_param.aud_output_en = !aud_mute_path;
+
+	if (flag == 0) {
+		HDMITX_INFO("audio: AUD_MUTE path = 0x%x\n", path);
+		hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
+	} else {
+		/* unmute only if none of the paths are muted */
+		if (aud_mute_path == 0) {
+			HDMITX_INFO("audio: AUD_UNMUTE path = 0x%x\n", path);
+			hdmitx_hw_cntl_config(tx_comm->tx_hw,
+					CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
+		}
+	}
+	mutex_unlock(&aud_mute_mutex);
+}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
+static int hdmitx_audio_notify_callback(struct notifier_block *block,
 	unsigned long cmd, void *para)
 {
+	struct hdmitx_common *tx_comm = container_of(block,
+		struct hdmitx_common, hdmitx_notifier_nb_a);
 	struct aud_para *tx_aud_param = &tx_comm->cur_audio_param;
 	/* front audio module callback parameters */
 	struct aud_para *aud_param = (struct aud_para *)para;
@@ -631,11 +659,11 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
 
 	if (aud_param->prepare) {
-		hdmitx_hw_cntl_misc(tx_hw_base, MISC_AUDIO_ACR_CTRL, 0);
-		hdmitx_hw_cntl_misc(tx_hw_base, MISC_AUDIO_PREPARE, 0);
+		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AUDIO_ACR_CTRL, 0);
+		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AUDIO_PREPARE, 0);
 		tx_aud_param->type = CT_PREPARE;
 		HDMITX_INFO("audio: prepare\n");
-		return;
+		return 0;
 	}
 	HDMITX_INFO("audio: type:%lu rate:%d size:%d chs:%d i2s_ch_mask:%d aud_src_if:%d\n",
 		cmd, n_rate, n_size, aud_param->chs,
@@ -655,42 +683,41 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	memcpy(tx_aud_param->status, aud_param->status, sizeof(aud_param->status));
 
 	tx_aud_param->aud_notify_update = 1;
-	tx_hw_base->setaudmode(tx_hw_base, tx_aud_param);
+	tx_comm->tx_hw->setaudmode(tx_comm->tx_hw, tx_aud_param);
 	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_AUDIO_MODE_SETTING);
 	tx_aud_param->aud_notify_update = 0;
 	HDMITX_DEBUG_AUDIO("audio: set audio end\n");
-}
-
-struct hdmitx_tracer *tx_tracer;
-static audio_en_callback cb_set_audio_output_en;
-static audio_st_callback cb_get_audio_status;
-
-int hdmitx_audio_register_ctrl_callback(struct hdmitx_tracer *tracer,
-						audio_en_callback cb1, audio_st_callback cb2)
-{
-	if (!cb1 || !cb2)
-		return -1;
-
-	tx_tracer = tracer;
-	cb_set_audio_output_en = cb1;
-	cb_get_audio_status = cb2;
 
 	return 0;
 }
 
-void hdmitx_ext_set_audio_output(int enable)
-{
-	cb_set_audio_output_en ? cb_set_audio_output_en(enable) : 0;
-	if (cb_set_audio_output_en && tx_tracer)
-		hdmitx_tracer_write_event(tx_tracer,
-			enable ? HDMITX_AUDIO_UNMUTE : HDMITX_AUDIO_MUTE);
-}
-EXPORT_SYMBOL(hdmitx_ext_set_audio_output);
+static struct notifier_block hdmitx_notifier_nb_a = {
+	.notifier_call	= hdmitx_audio_notify_callback,
+};
+#endif
 
-int hdmitx_ext_get_audio_status(void)
+void hdmitx_audio_init(struct hdmitx_common *tx_comm)
 {
-	if (cb_get_audio_status)
-		return cb_get_audio_status();
-	return 0;
+	bool audio_en;
+
+	if (!tx_comm)
+		return;
+
+	audio_en = hdmitx_hw_cntl_config(tx_comm->tx_hw,
+			CONF_GET_UBOOT_AUDIO_ST, 0);
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
+	if (!tx_comm->pxp_mode && audio_en) {
+		struct aud_para *audpara = &tx_comm->cur_audio_param;
+
+		audpara->rate = FS_48K;
+		audpara->type = CT_PCM;
+		audpara->size = SS_16BITS;
+		audpara->chs = 2 - 1;
+	}
+	/* default audio clock is ON */
+	hdmitx_audio_mute_op(tx_comm, 1, 0);
+	tx_comm->hdmitx_notifier_nb_a = hdmitx_notifier_nb_a;
+	if (!tx_comm->pxp_mode)
+		aout_register_client(&tx_comm->hdmitx_notifier_nb_a);
+#endif
 }
-EXPORT_SYMBOL(hdmitx_ext_get_audio_status);

@@ -160,19 +160,6 @@ static DEFINE_MUTEX(aud_mutex);
 /* Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit. */
 #define TX_COLOR_DEPTH		 COLORDEPTH_24B
 
-static pf_callback earc_hdmitx_hpdst;
-
-void hdmitx_earc_hpdst(pf_callback cb)
-{
-	struct hdmitx20_dev *hdev = get_hdmitx20_device();
-
-	earc_hdmitx_hpdst = cb;
-	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX20)
-		return;
-	if (cb && hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO))
-		cb(true);
-}
-
 int hdmitx_hpd_hw_op(enum hpd_op cmd)
 {
 	switch (global_tx_hw->base->chip_data->chip_type) {
@@ -619,7 +606,7 @@ static void hdmi_hwi_init(struct hdmitx20_dev *hdev)
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SCDC_UPDATE,  data32);
 }
 
-bool hdmitx_uboot_audio_en(void)
+static bool hdmitx_uboot_audio_en(void)
 {
 	unsigned int data;
 
@@ -784,7 +771,7 @@ void hdmitx20_meson_init(struct hdmitx_hw_common *hw_comm)
 	hdmi_hwi_init(hdev);
 	hdmitx_hw_cntl_misc(hw_comm, MISC_AVMUTE_OP, CLR_AVMUTE);
 	/* load init audio fmt for HW info */
-	hdmitx20_audio_init(&hdev->tx_comm);
+	hdmitx_audio_init(&hdev->tx_comm);
 }
 
 static void hdmitx_phy_bandgap_en(struct hdmitx20_dev *hdev)
@@ -809,11 +796,11 @@ static void hdmitx_hpd_irq_top_half_process(struct hdmitx20_dev *hdev, bool hpd)
 {
 	if (hpd) {
 		hdmitx_phy_bandgap_en(hdev);
-		if (earc_hdmitx_hpdst)
-			earc_hdmitx_hpdst(true);
+		if (hdev->tx_comm.earc_hdmitx_hpdst)
+			hdev->tx_comm.earc_hdmitx_hpdst(true);
 	} else {
-		if (earc_hdmitx_hpdst)
-			earc_hdmitx_hpdst(false);
+		if (hdev->tx_comm.earc_hdmitx_hpdst)
+			hdev->tx_comm.earc_hdmitx_hpdst(false);
 	}
 }
 
@@ -2085,7 +2072,7 @@ static void hdmitx_set_phy(struct hdmitx20_dev *hdev)
 	else
 		phy_addr = P_HHI_HDMI_PHY_CNTL0;
 
-	if (earc_hdmitx_hpdst && chip_id == MESON_CPU_ID_SC2)
+	if (hdev->tx_comm.earc_hdmitx_hpdst && chip_id == MESON_CPU_ID_SC2)
 		hd_write_reg(phy_addr, 0x0b4242);
 	else
 		hd_write_reg(phy_addr, 0x0);
@@ -2943,21 +2930,6 @@ static void audio_mute_op(bool flag)
 	}
 	HDMITX_INFO("audio: state %s\n", flag == 0 ? "AUDIO_MUTE" : "AUDIO_UNMUTE");
 	mutex_unlock(&aud_mutex);
-}
-
-static bool audio_get_mute_st(void)
-{
-	bool st[4];
-
-	st[0] = hdmitx_get_bit(HDMITX_TOP_CLK_CNTL, 2);
-	st[1] = hdmitx_get_bit(HDMITX_TOP_CLK_CNTL, 3);
-	st[2] = hdmitx_get_bit(HDMITX_DWC_FC_PACKET_TX_EN, 0);
-	st[3] = hdmitx_get_bit(HDMITX_DWC_FC_PACKET_TX_EN, 3);
-
-	if (st[0] && st[1] && st[2] && st[3])
-		return true;
-
-	return false;
 }
 
 struct aud_para hsty_hdmiaud_config_data[8];
@@ -5343,8 +5315,8 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 	case CONF_AUDIO_MUTE_OP:
 		audio_mute_op(argv == AUDIO_MUTE ? 0 : 1);
 		break;
-	case CONF_GET_AUDIO_MUTE_ST:
-		return audio_get_mute_st();
+	case CONF_GET_UBOOT_AUDIO_ST:
+		return hdmitx_uboot_audio_en();
 	case CONF_VIDEO_MUTE_OP:
 		if (argv == VIDEO_MUTE) {
 			if (hdev->tx_comm.tx_hw->chip_data->chip_type < MESON_CPU_ID_SC2)
@@ -5781,6 +5753,8 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		return FRL_NONE;
 	case MISC_FRL_READY:
 		return 0;
+	case MISC_READ_HPD_GPIO:
+		return hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO);
 	case MISC_VRR_REGISTER:
 	case MISC_RESET_HDCP_PARAM:
 	case MISC_PRE_ENABLE_MODE:
@@ -5953,7 +5927,8 @@ static void hdmi_phy_suspend(void)
 		break;
 	}
 
-	if (earc_hdmitx_hpdst && hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_SC2)
+	if (hdev->tx_comm.earc_hdmitx_hpdst &&
+			hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_SC2)
 		hd_write_reg(phy_cntl0, 0x0b4242);
 	else
 		hd_write_reg(phy_cntl0, 0x0);

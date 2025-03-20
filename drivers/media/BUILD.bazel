@@ -273,7 +273,6 @@ ddk_module(
         "CONFIG_AMLOGIC_HDMITX": {
             True: [
                 "vout/hdmitx/hw20/hdmitx_video.c",
-                "vout/hdmitx/hw20/hdmitx_audio.c",
                 "vout/hdmitx/hw20/esm_hdcp_tx.c",
                 "vout/hdmitx/hw20/hdmitx_hdcp.c",
                 "vout/hdmitx/hw20/hdmitx_scdc.c",
@@ -303,7 +302,6 @@ ddk_module(
         "CONFIG_AMLOGIC_HDMITX21": {
             True: [
                 "vout/hdmitx/hw21/hdmitx_video.c",
-                "vout/hdmitx/hw21/hdmitx_audio.c",
                 "vout/hdmitx/hw21/hdmitx_hdcp.c",
                 "vout/hdmitx/hw21/hdmitx_scdc.c",
                 "vout/hdmitx/hw21/hdmitx_vrr.c",

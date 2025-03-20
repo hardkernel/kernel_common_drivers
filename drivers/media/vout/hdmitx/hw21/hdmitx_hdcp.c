@@ -895,10 +895,11 @@ static void hdcp_stream_mute_whandler(struct work_struct *work)
 {
 	struct hdcp_t *p_hdcp = container_of((struct delayed_work *)work,
 		struct hdcp_t, stream_mute_wk);
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	/* not care race condition, use the last mute status */
 	hdmitx21_video_mute_op(!p_hdcp->stream_mute, VIDEO_MUTE_PATH_2);
-	hdmitx21_audio_mute_op(!p_hdcp->stream_mute, AUDIO_MUTE_PATH_3);
+	hdmitx_audio_mute_op(&hdev->tx_comm, !p_hdcp->stream_mute, AUDIO_MUTE_PATH_3);
 }
 
 /*
