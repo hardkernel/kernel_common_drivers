@@ -978,19 +978,11 @@
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			cpucore_cool_cluster0 {
-				cluster_id = <0>;
-				device_type = "cpucore";
-				node_name = "cpucore0";
-			};
 			gpufreq_cool {
 				dyn_coeff = <160>;
 				device_type = "gpufreq";
 				node_name = "bifrost";
 			};
-		};
-		cpucore0:cpucore0 {
-			#cooling-cells = <2>;
 		};
 	};
 
@@ -1011,12 +1003,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				phot: trip-point@2 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				pcritical: trip-point@3 {
+				pcritical: trip-point@2 {
 					temperature = <105000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -1026,11 +1013,6 @@
 				cpufreq_cooling_map {
 					trip = <&pcontrol>;
 					cooling-device = <&cpu0 0 7>;
-					contribution = <1024>;
-				};
-				cpucore_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&cpucore0 0 4>;
 					contribution = <1024>;
 				};
 				gpufreq_cooling_map {
@@ -1056,12 +1038,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				dhot: trip-point@2 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				dcritical: trip-point@3 {
+				dcritical: trip-point@2 {
 					temperature = <105000>;
 					hysteresis = <1000>;
 					type = "critical";

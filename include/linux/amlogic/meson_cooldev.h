@@ -7,19 +7,11 @@
 #define __MESON_COOLDEV_H__
 
 enum cool_dev_type {
-	COOL_DEV_TYPE_CPU_CORE = 0,
-	COOL_DEV_TYPE_GPU_FREQ,
-	COOL_DEV_TYPE_GPU_CORE,
-	COOL_DEV_TYPE_DDR,
+	COOL_DEV_TYPE_GPU_FREQ = 0,
 	COOL_DEV_TYPE_MAX
 };
 
 struct cool_dev {
-	int ddr_reg_cnt;
-	u32 *ddr_reg;
-	u32 ddr_status;
-	u32 (*ddr_bits)[2];
-	u32 (*ddr_data)[20];
 	char *device_type;
 	struct device_node *np;
 	struct thermal_cooling_device *cooling_dev;
@@ -39,6 +31,5 @@ int meson_gcooldev_min_update(struct thermal_cooling_device *cdev)
 }
 #endif
 extern struct platform_driver meson_cooldev_platdrv;
-int meson_get_cooldev_type(struct thermal_cooling_device *cdev);
 #endif
 

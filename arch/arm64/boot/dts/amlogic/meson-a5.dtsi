@@ -1228,22 +1228,6 @@
 		#thermal-sensor-cells = <1>;
 	};
 
-	meson_cooldev: meson-cooldev@0 {
-		status = "okay";
-		compatible = "amlogic, meson-cooldev";
-		cooling_devices {
-			cpucore_cool_cluster0 {
-				cluster_core_num = <3>;
-				cluster_cores = <1 2 3>;
-				node_name = "cpucore";
-				device_type = "cpucore";
-			};
-		};
-		cpucore:cpucore {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-	};/*meson cooling devices end*/
-
 	thermal-zones {
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
@@ -1266,19 +1250,6 @@
 					hysteresis = <1000>;
 					type = "critical";
 				};
-				phot: trip-point@3 {
-					temperature = <65000>;
-					hysteresis = <1000>;
-					type = "hot";
-				};
-				/* It's beneficial to add this node
-				 * to optimize control in the hot state
-				 */
-				virtual_hot: trip-point@4 {
-					temperature = <10000>;
-					hysteresis = <1000>;
-					type = "hot";
-				};
 			};
 
 			cooling-maps {
@@ -1287,11 +1258,6 @@
 					cooling-device = <&CPU0 0 8>;
 					contribution = <1024>;
 				};
-//				cpucore_cooling_map {
-//					trip = <&phot>;
-//					cooling-device = <&cpucore 0 3>;
-//					contribution = <1024>;
-//				};
 			};
 		};
 	};/*thermal zone end*/

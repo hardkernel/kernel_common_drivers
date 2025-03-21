@@ -1444,34 +1444,11 @@
 		status = "disabled";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			cpucore_cool_cluster0 {
-				cluster_id = <0>;
-				node_name = "cpucore_cool0";
-				device_type = "cpucore";
-			};
 			gpufreq_cool {
 				dyn_coeff = <358>;
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
-			ddr0_cool {
-				ddr_reg = <0xfe0364b4 0xfe0365b4>;
-				ddr_status = <13>;
-				ddr_bits = <0 15>,<0 15>;
-				ddr_data = <0x1858 0x1858 0x1858 0x1858 0x1858 0x1858 0x1379 0xf37
-					0xf37 0xc2c 0x9bc 0x79b 0x616>;
-				gpu_data = <0xc2c 0xc2c 0xc2c 0xc2c 0xc2c 0xc2c 0x9bc 0x79b
-					0x79b 0x616 0x4de 0x3cd 0x30b>;
-				node_name = "ddr_cool0";
-				device_type = "ddr";
-			};
-		};
-
-		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>;
-		};
-		ddr_cool0:ddr_cool0 {
-			#cooling-cells = <2>;
 		};
 	};/*meson cooling devices end*/
 
@@ -1492,12 +1469,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				cpu_hot: trip-point@2 {
-					temperature = <55000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				cpu_critical: trip-point@3 {
+				cpu_critical: trip-point@2 {
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -1512,11 +1484,6 @@
 				gpufreq_cooling_map {
 					trip = <&cpu_control>;
 					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-				ddr0_cooling_map {
-					trip = <&cpu_hot>;
-					cooling-device = <&ddr_cool0 0 THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 			};

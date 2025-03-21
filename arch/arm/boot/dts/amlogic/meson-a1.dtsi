@@ -144,20 +144,6 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		meson_cooldev: meson-cooldev@0 {
-			status = "okay";
-			compatible = "amlogic, meson-cooldev";
-			cooling_devices {
-				cpucore_cool_cluster0 {
-					cluster_id = <0>;
-					device_type = "cpucore";
-					node_name = "cpucore0";
-				};
-			};
-			cpucore0:cpucore0 {
-				#cooling-cells = <2>;
-			};
-		};
 		/*meson cooling devices end*/
 		thermal-zones {
 			soc_thermal:soc_thermal {
@@ -176,12 +162,7 @@
 						hysteresis = <2000>;
 						type = "passive";
 					};
-					phot: trip-point@2 {
-						temperature = <85000>;
-						hysteresis = <5000>;
-						type = "hot";
-					};
-					pcritical: trip-point@3 {
+					pcritical: trip-point@2 {
 						temperature = <110000>;
 						hysteresis = <1000>;
 						type = "critical";

@@ -2094,31 +2094,16 @@
 	};
 
 	meson_cooldev: meson-cooldev@0 {
-			status = "okay";
-			compatible = "amlogic, meson-cooldev";
-			cooling_devices {
-				cpucore_cool_cluster0 {
-					cluster_id = <0>;
-					node_name = "cpucore_cool0";
-					device_type = "cpucore";
-				};
-				gpufreq_cool {
-					dyn_coeff = <215>;
-					node_name = "bifrost";
-					device_type = "gpufreq";
-				};
-				gpucore_cool {
-					node_name = "gpucore_cool0";
-					device_type = "gpucore";
-				};
+		status = "okay";
+		compatible = "amlogic, meson-cooldev";
+		cooling_devices {
+			gpufreq_cool {
+				dyn_coeff = <215>;
+				node_name = "bifrost";
+				device_type = "gpufreq";
 			};
-			cpucore_cool0:cpucore_cool0 {
-				#cooling-cells = <2>; /* min followed by max */
-			};
-			gpucore_cool0:gpucore_cool0 {
-				#cooling-cells = <2>; /* min followed by max */
-			};
-		};/*meson cooling devices end*/
+		};
+	};/*meson cooling devices end*/
 
 	thermal-zones {
 		status = "okay";
@@ -2138,12 +2123,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				phot: trip-point@2 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				pcritical: trip-point@3 {
+				pcritical: trip-point@2 {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -2156,21 +2136,9 @@
 					cooling-device = <&CPU0 0 THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
-				cpucore_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&cpucore_cool0 0
-							  THERMAL_NO_LIMIT>;
-					contribution = <1024>;
-				};
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
 					cooling-device = <&gpu 0
-							  THERMAL_NO_LIMIT>;
-					contribution = <1024>;
-				};
-				gpucore_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&gpucore_cool0 0
 							  THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
@@ -2192,12 +2160,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				dhot: trip-point@2 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				dcritical: trip-point@3 {
+				dcritical: trip-point@2 {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";

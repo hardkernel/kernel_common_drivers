@@ -2478,34 +2478,11 @@
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			cpucore_cool_cluster0 {
-				cluster_id = <0>;
-				node_name = "cpucore_cool0";
-				device_type = "cpucore";
-			};
-			cpucore_cool_cluster1 {
-				cluster_id = <1>;
-				node_name = "cpucore_cool1";
-				device_type = "cpucore";
-			};
 			gpufreq_cool {
 				dyn_coeff = <358>;
 				node_name = "valhall";
 				device_type = "gpufreq";
 			};
-			gpucore_cool {
-				node_name = "gpucore_cooldev";
-				device_type = "gpucore";
-			};
-		};
-		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>;
-		};
-		cpucore_cool1:cpucore_cool1 {
-			#cooling-cells = <2>;
-		};
-		gpucore_cooldev:gpucore_cooldev {
-			#cooling-cells = <2>;
 		};
 	};/*meson cooling devices end*/
 
@@ -2527,12 +2504,7 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				gpuhot: trip-point@2 {
-					temperature = <100000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				gpucritical: trip-point@3 {
+				gpucritical: trip-point@2 {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -2542,11 +2514,6 @@
 				gpufreq_cooling_map {
 					trip = <&gpucontrol>;
 					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-				gpucore_cooling_map {
-					trip = <&gpuhot>;
-					cooling-device = <&gpucore_cooldev 0 1>;
 					contribution = <1024>;
 				};
 			};
@@ -2568,23 +2535,13 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				a55hot: trip-point@2 {
-					temperature = <100000>;
-					hysteresis = <5000>;
-					type = "hot";
-				};
-				a55critical: trip-point@3 {
+				a55critical: trip-point@2 {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
 			};
 			cooling-maps {
-				cpucore_cooling_map {
-					trip = <&a55hot>;
-					cooling-device = <&cpucore_cool0 0 2>;
-					contribution = <1024>;
-				};
 				cpufreq_cooling_map1 {
 					trip = <&a55control>;
 					cooling-device = <&CPU0 0 8>;

@@ -27,19 +27,9 @@ ddk_module(
                 "meson_cooldev.c",
             ],
         },
-        "CONFIG_AMLOGIC_CPUCORE_THERMAL": {
-            True: [
-                "cpucore_cooling.c",
-            ],
-        },
         "CONFIG_AMLOGIC_GPU_THERMAL": {
             True: [
                 "gpu_cooling.c",
-            ],
-        },
-        "CONFIG_AMLOGIC_GPUCORE_THERMAL": {
-            True: [
-                "gpucore_cooling.c",
             ],
         },
         "CONFIG_AMLOGIC_DDR_THERMAL": {

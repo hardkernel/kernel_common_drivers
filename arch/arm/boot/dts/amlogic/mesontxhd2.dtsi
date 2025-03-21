@@ -342,20 +342,11 @@
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			cpucore_cool {
-				cluster_core_num = <3>;
-				cluster_cores = <1 2 3>;
-				node_name = "cpucore";
-				device_type = "cpucore";
-			};
 			gpufreq_cool {
 				dyn_coeff = <245>;
 				node_name = "mali";
 				device_type = "gpufreq";
 			};
-		};
-		cpucore:cpucore {
-			#cooling-cells = <2>; /* min followed by max */
 		};
 	};/*meson cooling devices end*/
 
@@ -381,22 +372,12 @@
 					hysteresis = <1000>;
 					type = "critical";
 				};
-				pcpucore: trip-point@3 {
-					temperature = <95000>;
-					hysteresis = <10000>;
-					type = "hot";
-				};
 			};
 			cooling-maps {
 				cooling_map {
 					trip = <&pcontrol>;
 					cooling-device = <&CPU0 0 5>,
 							 <&gpu 0 3>;
-					contribution = <1024>;
-				};
-				cpucore_cooling_map {
-					trip = <&pcpucore>;
-					cooling-device = <&cpucore 0 2>;
 					contribution = <1024>;
 				};
 			};

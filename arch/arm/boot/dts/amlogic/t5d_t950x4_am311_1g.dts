@@ -1065,16 +1065,6 @@
 	free = <7680 24288 28528 32600 32768 36624>;
 };
 
-&thermal_zones {
-	soc_thermal: soc_thermal {
-		trips {
-			pddr_change1: trip-point@3 {
-				temperature = <75000>;
-			};
-		};
-	};
-};
-
 &amlvecm {
 	compatible = "amlogic, vecm-t5d";
 	dev_name = "aml_vecm";

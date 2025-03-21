@@ -3114,27 +3114,11 @@
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
-			cpucore_cool_cluster0 {
-				cluster_id = <0>;
-				node_name = "cpucore_cool0";
-				device_type = "cpucore";
-			};
-			cpucore_cool_cluster1 {
-				cluster_id = <1>;
-				node_name = "cpucore_cool1";
-				device_type = "cpucore";
-			};
 			gpufreq_cool {
 				dyn_coeff = <358>;
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
-		};
-		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>;
-		};
-		cpucore_cool1:cpucore_cool1 {
-			#cooling-cells = <2>;
 		};
 	};/*meson cooling devices end*/
 

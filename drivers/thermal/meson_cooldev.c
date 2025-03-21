@@ -12,19 +12,11 @@
 #include <linux/of.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu_cooling.h>
-#include "cpucore_cooling.h"
-#include <linux/amlogic/gpucore_cooling.h>
 #include <linux/amlogic/gpu_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
 #include <linux/cpu.h>
 
-enum cluster_type {
-	CLUSTER_BIG = 0,
-	CLUSTER_LITTLE,
-	NUM_CLUSTERS
-};
-
-char *cooldev_name[COOL_DEV_TYPE_MAX] = {"cpucore", "gpufreq", "gpucore", "ddr"};
+char *cooldev_name[COOL_DEV_TYPE_MAX] = {"gpufreq"};
 
 struct meson_cooldev {
 	int cool_dev_num;
@@ -47,23 +39,6 @@ int get_cool_dev_type(char *type)
 	return COOL_DEV_TYPE_MAX;
 }
 
-int meson_get_cooldev_type(struct thermal_cooling_device *cdev)
-{
-	int i;
-
-	for (i = 0; i < COOL_DEV_TYPE_MAX; i++) {
-		if (strstr(cdev->type, cooldev_name[i]))
-			return get_cool_dev_type(cooldev_name[i]);
-	}
-	return COOL_DEV_TYPE_MAX;
-}
-
-int meson_gcooldev_min_update(struct thermal_cooling_device *cdev)
-{
-	return 0;
-}
-EXPORT_SYMBOL(meson_gcooldev_min_update);
-
 static int register_cool_dev(struct platform_device *pdev,
 			     int index, struct device_node *child)
 {
@@ -81,16 +56,6 @@ static int register_cool_dev(struct platform_device *pdev,
 	}
 
 	switch (get_cool_dev_type(cool->device_type)) {
-	case COOL_DEV_TYPE_CPU_CORE:
-		node = of_find_node_by_name(NULL, node_name);
-		if (!node) {
-			pr_err("thermal: can't find node\n");
-			return -EINVAL;
-		}
-		cool->np = node;
-
-		cool->cooling_dev = cpucore_cooling_register(cool->np, child);
-		break;
 	/* GPU is KO, just save these parameters */
 	case COOL_DEV_TYPE_GPU_FREQ:
 		node = of_find_node_by_name(NULL, node_name);
@@ -110,17 +75,6 @@ static int register_cool_dev(struct platform_device *pdev,
 		}
 		save_gpu_cool_para(coeff, cool->np, pp);
 		return 0;
-
-	case COOL_DEV_TYPE_GPU_CORE:
-		node = of_find_node_by_name(NULL, node_name);
-		if (!node) {
-			pr_err("thermal: can't find node\n");
-			return -EINVAL;
-		}
-		cool->np = node;
-		save_gpucore_thermal_para(cool->np);
-		return 0;
-
 	default:
 		pr_err("thermal: unknown type:%s\n", cool->device_type);
 		return -EINVAL;
