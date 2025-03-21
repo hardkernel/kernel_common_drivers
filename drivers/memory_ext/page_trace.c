@@ -31,6 +31,9 @@
 #include <trace/events/kmem.h>
 #include <linux/mm_types.h>
 #include <linux/oom.h>
+#ifdef CONFIG_KASAN
+#include <kasan/kasan.h>
+#endif
 
 #define DEBUG_PAGE_TRACE	0
 
@@ -1816,11 +1819,7 @@ void __init page_trace_mem_init(void)
 
 	find_static_common_symbol(NULL);
 #ifdef CONFIG_KASAN	/* open multi_shot for kasan */
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 #if IS_ENABLED(CONFIG_KASAN_KUNIT_TEST) || IS_ENABLED(CONFIG_KASAN_MODULE_TEST)
-	kasan_save_enable_multi_shot();
-#endif
-#else
 	kasan_save_enable_multi_shot();
 #endif
 #endif

@@ -19,7 +19,10 @@ ddk_module(
     },
     hdrs = [
         "//common_drivers:soc_headers",
+        "//common:mm/kasan/kasan.h",
+        "//common:mm/slab.h",
     ],
+    linux_includes = ["../../../common/mm"],
     local_defines = ["pr_fmt(fmt)=\"[page_trace]: \" fmt"],
     out = "page_trace.ko",
     kernel_build = "//common_drivers:amlogic",
