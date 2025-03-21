@@ -201,6 +201,78 @@ void cm_wr_api(unsigned int addr, unsigned int data,
 }
 #endif
 
+int parse_mask_int(int val, int start, int len)
+{
+	unsigned int ret = 0xffffffff;
+	int tmp = 32 - len;
+
+	if (tmp < 0)
+		tmp = 0;
+
+	ret = ((val >> start) << tmp) >> tmp;
+
+	return ret;
+}
+
+void write_reg_by_mask(unsigned int addr, unsigned int mask,
+	unsigned int val, unsigned int write_mode, int vpp_index)
+{
+	unsigned int i = 0;
+	unsigned int data = 0;
+	unsigned int start = 0;
+	unsigned int len = 0;
+	unsigned int update_flag = 0;
+	unsigned int match_flag = 0;
+
+	if (!mask || !addr)
+		return;
+
+	pr_amcm_dbg("[%s] addr:0x%x, val:0x%x, mask:0x%x\n",
+		__func__, addr, val, mask);
+
+	for (i = 0; i < 32; i++) {
+		if (!match_flag &&
+			((mask & (1 << i)) == 1)) {
+			start = i;
+			match_flag = 1;
+			pr_amcm_dbg("[%s] start:%d, match_flag:%d\n",
+				__func__, start, match_flag);
+		}
+
+		if (match_flag) {
+			if ((mask & (1 << i)) == 0) {
+				len = i - start;
+				match_flag = 0;
+				update_flag = 1;
+				pr_amcm_dbg("[%s] start:%d, len:%d\n",
+					__func__, start, len);
+			} else if (i == 31) {
+				len = 32 - start;
+				match_flag = 0;
+				update_flag = 1;
+				pr_amcm_dbg("[%s] 31 start:%d, len:%d\n",
+					__func__, start, len);
+			}
+		}
+
+		if (update_flag && len) {
+			data = parse_mask_int(val, start, len);
+
+			pr_amcm_dbg("[%s] addr:0x%x, rdma:%d, val:0x%x, start/len:%d/%d\n",
+				__func__, addr, write_mode, data, start, len);
+
+			if (write_mode)
+				VSYNC_WRITE_VPP_REG_BITS_EX_VPP_SEL(addr,
+					data, start, len, 0, vpp_index);
+			else
+				WRITE_VPP_REG_BITS(addr, data,
+					start, len);
+
+			update_flag = 0;
+		}
+	}
+}
+
 void am_set_regmap(struct am_regs_s *p, int vpp_index)
 {
 	unsigned short i;
@@ -429,17 +501,9 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 				}
 #endif
 
-				if (pq_reg_wr_rdma) {
-					temp = READ_VPP_REG(addr);
-					VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr,
-						(temp & (~mask)) |
-						(val & mask), 0, vpp_index);
-				} else {
-					temp = aml_read_vcbus_s(addr);
-					WRITE_VPP_REG(addr,
-						(temp & (~mask)) |
-						(val & mask));
-				}
+				write_reg_by_mask(addr, mask,
+					val, pq_reg_wr_rdma, vpp_index);
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 				/*for slice1 sr*/
 				if (chip_type_id == chip_t3x &&
