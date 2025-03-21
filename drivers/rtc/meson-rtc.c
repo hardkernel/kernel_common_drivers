@@ -468,7 +468,7 @@ static int meson_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->rtc_dev))
 		return PTR_ERR(rtc->rtc_dev);
 
-	ret = devm_request_irq(&pdev->dev, rtc->irq, meson_rtc_handler,
+	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL, meson_rtc_handler,
 			       IRQF_ONESHOT, "meson-rtc alarm", rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ%d request failed, ret = %d\n",
