@@ -10,29 +10,31 @@ config AMLOGIC_LCD
 	default n
 	help
 		LCD output module
-		support tv mode and tablet mode
-		Through the inside of the DTS file "mode" is
-		to choose a TV mode or tablet mode
+		Include LVDS, MIPI-DPI
 
-config AMLOGIC_LCD_TV
-	bool "LCD TV Output Module"
+config AMLOGIC_LCD_VBYONE
+	bool "LCD V-BY-ONE Output Module"
 	default n
 	depends on AMLOGIC_LCD
 	help
-		LCD TV output module
-		Configure the LCD output model for TV output
-		TV mode mainly includes vbyone and an LVDS interface display
-		Through the environment variable is to choose panel_type lcd_index
+		LCD V-BY-ONE output module
+		Configure the LCD output model for V-BY-ONE output
 
-config AMLOGIC_LCD_TABLET
-	bool "LCD Tablet Output Module"
+config AMLOGIC_LCD_TCON
+	bool "LCD TCON Output Module"
 	default n
 	depends on AMLOGIC_LCD
 	help
-		LCD Tablet output module
-		Configure the LCD output model for Tablet output
-		tablet mode mainly includes panel interface display
-		Through the environment variable is only choose panel
+		LCD tcon output module
+		Configure the LCD output model for tcon output
+
+config AMLOGIC_LCD_MIPI_DSI
+	bool "LCD MIPI_DSI Output Module"
+	default n
+	depends on AMLOGIC_LCD
+	help
+		LCD MIPI_DSI output module
+		Configure the LCD output model for MIPI_DSI output
 
 config AMLOGIC_LCD_CLK_SOC
 	bool "Control lcd_clk_xxx file to build"

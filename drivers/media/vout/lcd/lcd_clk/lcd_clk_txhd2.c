@@ -25,6 +25,7 @@
 #include "lcd_clk_config.h"
 #include "lcd_clk_ctrl.h"
 #include "lcd_clk_utils.h"
+#include "../connectors/lcd_connector.h"
 
 static void lcd_pll_ss_init_txhd2(struct lcd_clk_config_s *cconf)
 {
@@ -356,6 +357,7 @@ static int lcd_set_mlvds_clk_phase_txhd2(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_set_tcon_clk_txhd2(struct aml_lcd_drv_s *pdrv)
 {
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	struct lcd_config_s *pconf = &pdrv->config;
 
 	if (pdrv->status & LCD_STATUS_IF_ON)
@@ -382,6 +384,7 @@ static void lcd_set_tcon_clk_txhd2(struct aml_lcd_drv_s *pdrv)
 
 	/* global reset tcon */
 	lcd_tcon_global_reset(pdrv);
+#endif
 }
 
 static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)

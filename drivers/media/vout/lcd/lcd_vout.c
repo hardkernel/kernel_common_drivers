@@ -44,7 +44,7 @@
 #endif
 #include "lcd_reg.h"
 #include "lcd_common.h"
-
+#include "./connectors/lcd_connector.h"
 #include <linux/amlogic/gki_module.h>
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 
@@ -689,8 +689,10 @@ static void lcd_mode_switch_data_on(struct aml_lcd_drv_s *pdrv)
 					power_step[i].type, power_step[i].index,
 					power_step[i].value, power_step[i].delay);
 			}
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 			if (pdrv->config.basic.lcd_type == LCD_P2P)
 				lcd_tcon_reload(pdrv);
+#endif
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
@@ -733,8 +735,10 @@ static void lcd_mode_switch_data_off(struct aml_lcd_drv_s *pdrv)
 
 	lcd_power_screen_black(pdrv);
 
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	if (pdrv->config.basic.lcd_type == LCD_P2P)
 		lcd_tcon_reload_pre(pdrv);
+#endif
 }
 
 static void lcd_power_encl_on(struct aml_lcd_drv_s *pdrv)
@@ -1109,16 +1113,22 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	lcd_fr_lock(pdrv);
 
 	switch (pdrv->config.basic.lcd_type) {
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 	case LCD_MIPI:
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	case LCD_VBYONE:
 		if (pdrv->vbyone_vsync_handler)
 			pdrv->vbyone_vsync_handler(pdrv);
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	case LCD_MLVDS:
 	case LCD_P2P:
 		lcd_tcon_vsync_isr(pdrv);
 		break;
+#endif
 	default:
 		break;
 	}
@@ -1940,9 +1950,11 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	default:
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 		ret = lcd_tcon_ioctl_handler(pdrv, mcd_nr, arg);
 		if (ret)
 			LCDERR("[%d]: not support ioctl cmd_nr: 0x%x\n", pdrv->index, mcd_nr);
+#endif
 		break;
 	}
 
@@ -2179,16 +2191,12 @@ static void lcd_vsync_irq_remove(struct aml_lcd_drv_s *pdrv)
 static void lcd_init_vout(struct aml_lcd_drv_s *pdrv)
 {
 	switch (pdrv->mode) {
-#ifdef CONFIG_AMLOGIC_LCD_TV
 	case LCD_MODE_TV:
 		lcd_tv_vout_server_init(pdrv);
 		break;
-#endif
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
 	case LCD_MODE_TABLET:
 		lcd_tablet_vout_server_init(pdrv);
 		break;
-#endif
 	default:
 		LCDERR("[%d]: invalid lcd mode: %d\n", pdrv->index, pdrv->mode);
 		break;
@@ -2201,16 +2209,12 @@ static int lcd_mode_init(struct aml_lcd_drv_s *pdrv)
 		return -1;
 
 	switch (pdrv->mode) {
-#ifdef CONFIG_AMLOGIC_LCD_TV
 	case LCD_MODE_TV:
 		lcd_mode_tv_init(pdrv);
 		break;
-#endif
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
 	case LCD_MODE_TABLET:
 		lcd_mode_tablet_init(pdrv);
 		break;
-#endif
 	default:
 		LCDERR("[%d]: invalid lcd mode: %d\n", pdrv->index, pdrv->mode);
 		break;
@@ -2258,18 +2262,14 @@ static int lcd_config_remove(struct aml_lcd_drv_s *pdrv)
 	lcd_config_load_remove(pdrv);
 	lcd_fr_lock_deinit(pdrv);
 	switch (pdrv->mode) {
-#ifdef CONFIG_AMLOGIC_LCD_TV
 	case LCD_MODE_TV:
 		lcd_tv_vout_server_remove(pdrv);
 		lcd_mode_tv_remove(pdrv);
 		break;
-#endif
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
 	case LCD_MODE_TABLET:
 		lcd_tablet_vout_server_remove(pdrv);
 		lcd_mode_tablet_remove(pdrv);
 		break;
-#endif
 	default:
 		LCDPR("[%d]: invalid lcd mode\n", pdrv->index);
 		break;
@@ -2283,16 +2283,12 @@ static int lcd_config_remove(struct aml_lcd_drv_s *pdrv)
 static void lcd_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 {
 	switch (pdrv->mode) {
-#ifdef CONFIG_AMLOGIC_LCD_TV
 	case LCD_MODE_TV:
 		lcd_tv_vout_server_remove(pdrv);
 		break;
-#endif
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
 	case LCD_MODE_TABLET:
 		lcd_tablet_vout_server_remove(pdrv);
 		break;
-#endif
 	default:
 		LCDPR("[%d]: %s: invalid lcd mode\n", pdrv->index, __func__);
 		break;

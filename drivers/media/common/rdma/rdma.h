@@ -82,15 +82,17 @@ int is_in_vsync_isr_viu2(u8 cur_cpuid);
 int is_in_vsync_isr_viu3(u8 cur_cpuid);
 int is_video_process_in_thread(void);
 bool get_lowlatency_mode(void);
+#ifdef CONFIG_AMLOGIC_LCD
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 int is_in_ldim_vsync_isr(u8 cur_cpuid);
 #endif
 #ifdef CONFIG_AMLOGIC_AMBILIGHT
 int is_in_amblt_vsync_isr(u8 cur_cpuid);
 #endif
-//#ifdef CONFIG_AMLOGIC_LCD
+//#ifdef CONFIG_AMLOGIC_LCD_TCON
 //int is_in_tcon_vsync_isr(u8 cur_cpuid);
 //#endif
+#endif
 void set_rdma_channel_enable(u8 rdma_en);
 u32 get_cur_enc_line(void);
 unsigned int rdma_hw_done_bit(void);

@@ -14,6 +14,7 @@
 #include "../../../lcd_common.h"
 #include "../dsi_common.h"
 #include "../dsi_ctrl/dsi_ctrl.h"
+#include "../../lcd_connector.h"
 
 int mipi_dsi_check_state(struct aml_lcd_drv_s *pdrv, u8 reg, u8 cnt)
 {

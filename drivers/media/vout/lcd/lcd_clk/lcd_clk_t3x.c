@@ -22,6 +22,7 @@
 #include "lcd_clk_config.h"
 #include "lcd_clk_ctrl.h"
 #include "lcd_clk_utils.h"
+#include "../connectors/lcd_connector.h"
 
 static void lcd_pll_ss_init(struct lcd_clk_config_s *cconf)
 {
@@ -521,9 +522,9 @@ static void lcd_clk_disable(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_set_tcon_clk_t3x(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_clk_config_s *cconf;
+#ifdef CONFIG_AMLOGIC_LCD_TCON
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 
-	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf || pdrv->index) /* tcon_clk only valid or lcd0 */
 		return;
 
@@ -541,6 +542,7 @@ static void lcd_set_tcon_clk_t3x(struct aml_lcd_drv_s *pdrv)
 	}
 
 	lcd_tcon_global_reset(pdrv);
+#endif
 }
 
 static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)

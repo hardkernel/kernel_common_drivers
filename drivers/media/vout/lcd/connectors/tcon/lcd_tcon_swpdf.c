@@ -10,8 +10,8 @@
 #include <linux/of.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/spinlock.h>
-#include "lcd_common.h"
-#include "lcd_reg.h"
+#include "../../lcd_common.h"
+#include "../../lcd_reg.h"
 #include "lcd_tcon.h"
 #include "lcd_tcon_swpdf.h"
 

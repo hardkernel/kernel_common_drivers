@@ -1480,15 +1480,17 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
 		(cur_cpuid != rdma_done_cpuid ||
 		(!is_in_vsync_isr(cur_cpuid) &&
+#ifdef CONFIG_AMLOGIC_LCD
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 		!is_in_ldim_vsync_isr(cur_cpuid) &&
 #endif
 #ifdef CONFIG_AMLOGIC_AMBILIGHT
 		!is_in_amblt_vsync_isr(cur_cpuid) &&
 #endif
-//#ifdef CONFIG_AMLOGIC_LCD
+//#ifdef CONFIG_AMLOGIC_LCD_TCON
 //		!is_in_tcon_vsync_isr(cur_cpuid) &&
 //#endif
+#endif
 		!is_in_pre_vsync_isr(cur_cpuid) &&
 		!is_in_vsync_isr_viu2(cur_cpuid) &&
 		!is_in_vsync_isr_viu3(cur_cpuid)

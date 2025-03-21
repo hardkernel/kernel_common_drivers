@@ -913,7 +913,7 @@ static int bl_config_load_from_ini(struct aml_bl_drv_s *bdrv)
 		bl_pwm_config_init(pwm_combo0);
 		bl_pwm_config_init(pwm_combo1);
 		break;
-#ifdef CONFIG_AML_LCD_BL_LDIM
+#ifdef CONFIG_AMLOGIC_LCD_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		bconf->ldim_flag = 1;
 		break;

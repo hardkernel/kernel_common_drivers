@@ -33,7 +33,7 @@
 #include "lcd_common.h"
 #include "lcd_reg.h"
 #include "lcd_clk/lcd_clk_config.h"
-#include "lcd_tcon_swpdf.h"
+#include "./connectors/lcd_connector.h"
 
 /* **********************************
  * lcd type
@@ -198,21 +198,24 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 	}
 
 	pctrl = &pconf->control;
-	if (pconf->basic.lcd_type == LCD_RGB) {
+	switch (pconf->basic.lcd_type) {
+	case LCD_RGB:
 		LCDPR("type = %d\n", pctrl->rgb_cfg.type);
 		LCDPR("clk_pol = %d\n", pctrl->rgb_cfg.clk_pol);
 		LCDPR("de_valid = %d\n", pctrl->rgb_cfg.de_valid);
 		LCDPR("sync_valid = %d\n", pctrl->rgb_cfg.sync_valid);
 		LCDPR("rb_swap = %d\n", pctrl->rgb_cfg.rb_swap);
 		LCDPR("bit_swap = %d\n", pctrl->rgb_cfg.bit_swap);
-	} else if ((pconf->basic.lcd_type == LCD_BT656) ||
-		   (pconf->basic.lcd_type == LCD_BT1120)) {
+		break;
+	case LCD_BT656:
+	case LCD_BT1120:
 		LCDPR("clk_phase = 0x%x\n", pctrl->bt_cfg.clk_phase);
 		LCDPR("field_type = %d\n", pctrl->bt_cfg.field_type);
 		LCDPR("mode_422 = %d\n", pctrl->bt_cfg.mode_422);
 		LCDPR("yc_swap = %d\n", pctrl->bt_cfg.yc_swap);
 		LCDPR("cbcr_swap = %d\n", pctrl->bt_cfg.cbcr_swap);
-	} else if (pconf->basic.lcd_type == LCD_LVDS) {
+		break;
+	case LCD_LVDS:
 		LCDPR("lvds_repack = %d\n", pctrl->lvds_cfg.lvds_repack);
 		LCDPR("pn_swap = %d\n", pctrl->lvds_cfg.pn_swap);
 		LCDPR("dual_port = %d\n", pctrl->lvds_cfg.dual_port);
@@ -220,28 +223,37 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 		LCDPR("lane_reverse = %d\n", pctrl->lvds_cfg.lane_reverse);
 		LCDPR("phy_vswing = 0x%x\n", pctrl->lvds_cfg.phy_vswing);
 		LCDPR("phy_preem = 0x%x\n", pctrl->lvds_cfg.phy_preem);
-	} else if (pconf->basic.lcd_type == LCD_VBYONE) {
+		break;
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
+	case LCD_VBYONE:
 		LCDPR("lane_count = %d\n", pctrl->vbyone_cfg.lane_count);
 		LCDPR("byte_mode = %d\n", pctrl->vbyone_cfg.byte_mode);
 		LCDPR("region_num = %d\n", pctrl->vbyone_cfg.region_num);
 		LCDPR("color_fmt = %d\n", pctrl->vbyone_cfg.color_fmt);
 		LCDPR("phy_vswing = 0x%x\n", pctrl->vbyone_cfg.phy_vswing);
 		LCDPR("phy_preem = 0x%x\n", pctrl->vbyone_cfg.phy_preem);
-	} else if (pconf->basic.lcd_type == LCD_MLVDS) {
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TCON
+	case LCD_MLVDS:
 		LCDPR("channel_num = %d\n", pctrl->mlvds_cfg.channel_num);
 		LCDPR("channel_sel0 = 0x%x\n", pctrl->mlvds_cfg.channel_sel0);
 		LCDPR("channel_sel1 = 0x%x\n", pctrl->mlvds_cfg.channel_sel1);
 		LCDPR("clk_phase = 0x%x\n", pctrl->mlvds_cfg.clk_phase);
 		LCDPR("phy_vswing = 0x%x\n", pctrl->mlvds_cfg.phy_vswing);
 		LCDPR("phy_preem = 0x%x\n", pctrl->mlvds_cfg.phy_preem);
-	} else if (pconf->basic.lcd_type == LCD_P2P) {
+		break;
+	case LCD_P2P:
 		LCDPR("p2p_type = 0x%x\n", pctrl->p2p_cfg.p2p_type);
 		LCDPR("lane_num = %d\n", pctrl->p2p_cfg.lane_num);
 		LCDPR("channel_sel0 = 0x%x\n", pctrl->p2p_cfg.channel_sel0);
 		LCDPR("channel_sel1 = 0x%x\n", pctrl->p2p_cfg.channel_sel1);
 		LCDPR("phy_vswing = 0x%x\n", pctrl->p2p_cfg.phy_vswing);
 		LCDPR("phy_preem = 0x%x\n", pctrl->p2p_cfg.phy_preem);
-	} else if (pconf->basic.lcd_type == LCD_MIPI) {
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
+	case LCD_MIPI:
 		if (pctrl->mipi_cfg.check_en) {
 			LCDPR("check_reg = 0x%02x\n", pctrl->mipi_cfg.check_reg);
 			LCDPR("check_cnt = %d\n", pctrl->mipi_cfg.check_cnt);
@@ -253,6 +265,10 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 		LCDPR("video_mode_type = %d\n", pctrl->mipi_cfg.video_mode_type);
 		LCDPR("clk_always_hs = %d\n", pctrl->mipi_cfg.clk_always_hs);
 		LCDPR("extern_init = %d\n", pctrl->mipi_cfg.extern_init);
+		break;
+#endif
+	default:
+		break;
 	}
 
 	kfree(pr_buf);
@@ -933,6 +949,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		phy_cfg->ext_pullup = (pctrl->lvds_cfg.phy_vswing >> 4) & 0x3;
 		phy_cfg->preem_level = pctrl->lvds_cfg.phy_preem;
 		break;
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	case LCD_VBYONE:
 		ret = of_property_read_u32_array(child, "vbyone_attr", &para[0], 4);
 		if (ret) {
@@ -1019,6 +1036,8 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			}
 		}
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	case LCD_MLVDS:
 		ret = of_property_read_u32_array(child, "minilvds_attr", &para[0], 6);
 		if (ret) {
@@ -1085,6 +1104,8 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		phy_cfg->ext_pullup = (pctrl->p2p_cfg.phy_vswing >> 4) & 0x3;
 		phy_cfg->preem_level = pctrl->p2p_cfg.phy_preem;
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 	case LCD_MIPI:
 		ret = of_property_read_u32_array(child, "mipi_attr", &para[0], 8);
 		if (ret) {
@@ -1100,9 +1121,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		pctrl->mipi_cfg.clk_always_hs = para[6];
 		pctrl->mipi_cfg.user_pkt_size = para[7];
 
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
 		lcd_mipi_dsi_init_table_detect(pdrv, child);
-#endif
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		ret = of_property_read_u32_array(child, "extern_init", &para[0], 1);
 		if (ret) {
@@ -1113,10 +1132,10 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			lcd_extern_dev_index_add(pdrv->index, para[0]);
 		}
 #endif
-
 		phy_cfg->vswing_level = 0;
 		phy_cfg->preem_level = 0;
 		break;
+#endif
 	default:
 		LCDERR("[%d]: invalid lcd type\n", pdrv->index);
 		break;
@@ -1195,7 +1214,7 @@ config_phy_adv_attr_done:
 }
 
 /* json parse =================================================================================== */
-
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 static struct num_str_s p2p_type_name[] = {
 	{P2P_CEDS, "CEDS"},
 	{P2P_CMPI, "CMPI"},
@@ -1206,6 +1225,7 @@ static struct num_str_s p2p_type_name[] = {
 	{P2P_USIT, "USIT"},
 	{P2P_MAX,  "Invalid"}
 };
+#endif
 
 static struct num_str_s vmode_switch_name[] = {
 	{LCD_VMODE_SWITCH_NONE,  "NONE"},
@@ -1518,15 +1538,21 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp, struct aml_lcd_dr
 {
 	struct json_s *parent;
 	struct lvds_config_s   *lvds;
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	struct vbyone_config_s *vx1;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 	struct dsi_config_s    *mipi;
+	int cnt = 0, cnt_max, i = 0;
+	unsigned int *nums = NULL, nums_size = 0;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	struct mlvds_config_s  *mlvds;
 	struct p2p_config_s    *p2p;
+#endif
 	union lcd_ctrl_config_u *cfg;
 	int type, lcd_bits = pdrv->config.timing.base_timing->lcd_bits;
 	const char *str;
-	unsigned int *nums = NULL, nums_size = 0;
-	int cnt = 0, cnt_max, i = 0;
 
 	parent = json_get_object_child(jsp, jsp->root, "interface");
 	if (!parent) {
@@ -1546,6 +1572,7 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp, struct aml_lcd_dr
 		lvds->dual_port    = json_get_obj_u32(jsp, parent, "dual_port", 1);
 		lvds->pn_swap      = json_get_obj_u32(jsp, parent, "pn_swap", 0);
 		break;
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	case LCD_VBYONE:
 		vx1 = &cfg->vbyone_cfg;
 		vx1->lane_count  = json_get_obj_u32(jsp, parent, "lane_num", 8);
@@ -1557,6 +1584,8 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp, struct aml_lcd_dr
 		vx1->hw_filter_time = json_get_obj_u32(jsp, parent, "filter_time", 0);
 		vx1->hw_filter_cnt  = json_get_obj_u32(jsp, parent, "filter_cnt", 0);
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	case LCD_P2P:
 		p2p = &cfg->p2p_cfg;
 		p2p->lane_num = json_get_obj_u32(jsp, parent, "lane_num", 0);
@@ -1568,6 +1597,8 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp, struct aml_lcd_dr
 		mlvds = &cfg->mlvds_cfg;
 		mlvds->channel_num  = json_get_obj_u32(jsp, parent, "lane_num", 0);
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 	case LCD_MIPI:
 		mipi = &cfg->mipi_cfg;
 		mipi->lane_num = json_get_obj_u32(jsp, parent, "data_lane", 0);
@@ -1655,6 +1686,7 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp, struct aml_lcd_dr
 		nums = NULL;
 
 		break;
+#endif
 	default:
 		LCDERR("can't match valid interface\n");
 		return -1;
@@ -1889,6 +1921,7 @@ static int lcd_panel_parse_optical(struct json_parse_s *jsp, struct aml_lcd_drv_
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 static int lcd_panel_parse_swpdf(struct json_parse_s *jsp, struct aml_lcd_drv_s *pdrv)
 {
 	s32 pat_cnt, blk_cnt = 0, act_cnt = 0, i = 0, k = 0;
@@ -1984,6 +2017,7 @@ static int lcd_panel_parse_swpol(struct json_parse_s *jsp, struct aml_lcd_drv_s 
 {
 	return 0;
 }
+#endif
 
 int lcd_config_load_from_json(struct aml_lcd_drv_s *pdrv, unsigned char *panel_file)
 {
@@ -2024,15 +2058,15 @@ int lcd_config_load_from_json(struct aml_lcd_drv_s *pdrv, unsigned char *panel_f
 	/*parse vlock*/
 	lcd_panel_parse_vlock(jsp, pdrv);
 
-	if (pdrv->config.basic.lcd_type == LCD_MLVDS ||
-	    pdrv->config.basic.lcd_type == LCD_P2P) {
+#ifdef CONFIG_AMLOGIC_LCD_TCON
+	if (pdrv->config.basic.lcd_type == LCD_MLVDS || pdrv->config.basic.lcd_type == LCD_P2P) {
 		/*parse sw_pdf*/
 		lcd_panel_parse_swpdf(jsp, pdrv);
 
 		/*parse sw_pol,   todo*/
 		lcd_panel_parse_swpol(jsp, pdrv);
 	}
-
+#endif
 	/*parse hdr*/
 	lcd_panel_parse_optical(jsp, pdrv);
 
@@ -2485,6 +2519,7 @@ static int lcd_config_load_from_ini(struct aml_lcd_drv_s *pdrv, unsigned char *p
 		phy_cfg->ext_pullup = (pctrl->lvds_cfg.phy_vswing >> 4) & 0x3;
 		phy_cfg->preem_level = pctrl->lvds_cfg.phy_preem;
 		break;
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	case LCD_VBYONE:
 		pctrl->vbyone_cfg.lane_count = lcd_ini_get_val(inip, psec, "if_attr_0", 0);
 		pctrl->vbyone_cfg.region_num = lcd_ini_get_val(inip, psec, "if_attr_1", 0);
@@ -2506,6 +2541,8 @@ static int lcd_config_load_from_ini(struct aml_lcd_drv_s *pdrv, unsigned char *p
 		phy_cfg->ext_pullup = (pctrl->vbyone_cfg.phy_vswing >> 4) & 0x3;
 		phy_cfg->preem_level = pctrl->vbyone_cfg.phy_preem;
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	case LCD_MLVDS:
 		pctrl->mlvds_cfg.channel_num = lcd_ini_get_val(inip, psec, "if_attr_0", 0);
 		pctrl->mlvds_cfg.channel_sel0 =
@@ -2542,9 +2579,9 @@ static int lcd_config_load_from_ini(struct aml_lcd_drv_s *pdrv, unsigned char *p
 		phy_cfg->ext_pullup = (pctrl->p2p_cfg.phy_vswing >> 4) & 0x3;
 		phy_cfg->preem_level = pctrl->p2p_cfg.phy_preem;
 		break;
+#endif
 	default:
-		LCDERR("[%d]: unsupport lcd_type: %d\n",
-		       pdrv->index, pconf->basic.lcd_type);
+		LCDERR("[%d]: unsupport lcd_type: %d\n", pdrv->index, pconf->basic.lcd_type);
 		break;
 	}
 
@@ -2701,13 +2738,17 @@ int lcd_get_config(struct aml_lcd_drv_s *pdrv)
 
 	/*interface probe*/
 	switch (pdrv->config.basic.lcd_type) {
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	case LCD_MLVDS:
 	case LCD_P2P:
 		lcd_tcon_probe(pdrv);
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	case LCD_VBYONE:
 		lcd_vbyone_probe(pdrv);
 		break;
+#endif
 	default:
 		break;
 	}
@@ -2720,9 +2761,11 @@ void lcd_config_load_remove(struct aml_lcd_drv_s *pdrv)
 	if (!pdrv)
 		return;
 
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	lcd_tcon_remove(pdrv);
 	lcd_swpdf_deinit(pdrv);
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 	if (pdrv->config.basic.lcd_type == LCD_MIPI)
 		lcd_mipi_dsi_init_table_free(&pdrv->config.control.mipi_cfg);
 #endif

@@ -31,8 +31,8 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include "lcd_common.h"
-#include "lcd_reg.h"
+#include "../../lcd_common.h"
+#include "../../lcd_reg.h"
 #include "lcd_tcon.h"
 
 static unsigned int lcd_tcon_fw_reg_read(struct lcd_tcon_fw_s *fw, unsigned int bit_flag,

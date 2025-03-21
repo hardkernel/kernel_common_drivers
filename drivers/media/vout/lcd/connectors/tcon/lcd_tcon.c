@@ -43,12 +43,13 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 #include <linux/amlogic/tee.h>
 #endif
-#include "lcd_common.h"
-#include "lcd_reg.h"
+#include "../../lcd_common.h"
+#include "../../lcd_reg.h"
 #include "lcd_tcon.h"
 #include "lcd_tcon_pdf.h"
 #include "lcd_tcon_swpdf.h"
 #include "lcd_tcon_rdma.h"
+#include "../lcd_connector.h"
 
 enum {
 	TCON_AXI_MEM_TYPE_OD = 0,
@@ -72,6 +73,7 @@ static struct tcon_mem_map_table_s tcon_mm_table = {
 
 	.core_reg_bin = NULL,
 };
+
 static struct lcd_tcon_local_cfg_s tcon_local_cfg;
 
 static void lcd_tcon_data_multi_current_set(struct tcon_mem_map_table_s *mm_table,
@@ -2812,6 +2814,7 @@ static struct lcd_tcon_config_s tcon_data_t5m = {
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
+
 static struct lcd_tcon_config_s tcon_data_t5w = {
 	.tcon_valid = 0,
 

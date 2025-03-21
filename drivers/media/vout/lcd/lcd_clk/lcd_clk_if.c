@@ -812,6 +812,9 @@ static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_c
 	}
 
 	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_C3:
+		lcd_clk_config_chip_init_c3(pdrv, cconf);
+		break;
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 	case LCD_CHIP_G12A:
 	case LCD_CHIP_SM1:
@@ -836,11 +839,6 @@ static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_c
 	case LCD_CHIP_T5W:
 		lcd_clk_config_chip_init_t5w(pdrv, cconf);
 		break;
-#endif
-	case LCD_CHIP_C3:
-		lcd_clk_config_chip_init_c3(pdrv, cconf);
-		break;
-#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	case LCD_CHIP_T3X:
 		lcd_clk_config_chip_init_t3x(pdrv, cconf);
 		break;

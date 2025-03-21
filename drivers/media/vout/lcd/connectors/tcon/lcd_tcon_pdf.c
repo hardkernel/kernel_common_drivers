@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include "lcd_common.h"
-#include "lcd_reg.h"
+#include "../../lcd_common.h"
+#include "../../lcd_reg.h"
 #include "lcd_tcon_pdf.h"
 
 struct tcon_reg_map_s {

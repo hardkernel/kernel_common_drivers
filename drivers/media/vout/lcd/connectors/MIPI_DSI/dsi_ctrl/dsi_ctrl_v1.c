@@ -13,7 +13,6 @@
 #include "../../../lcd_reg.h"
 #include "../../../lcd_common.h"
 #include "../dsi_common.h"
-#include "../../lcd_tablet.h"
 #include "./dsi_ctrl.h"
 #include "./dsi_ctrl_v1.h"
 
@@ -694,7 +693,6 @@ static void mipi_dsi_non_burst_packet_config(struct lcd_config_s *pconf)
 	hactive = pconf->timing.act_timing.h_active / port_cnt;
 	den = pconf->control.mipi_cfg.factor_denominator;
 	num = pconf->control.mipi_cfg.factor_numerator;
-
 
 	lane_num = dconf->lane_num;
 	bit_rate_required = pconf->timing.act_timing.pixel_clk;

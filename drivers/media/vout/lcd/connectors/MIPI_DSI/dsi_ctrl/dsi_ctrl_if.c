@@ -171,6 +171,7 @@ void dsi_host_reset(struct aml_lcd_drv_s *pdrv, u8 port)
 
 	dsi_ctrl_op->host_reset(pdrv, port);
 }
+
 void lcd_dsi_if_bind(struct aml_lcd_drv_s *pdrv)
 {
 	switch (pdrv->data->chip_type) {

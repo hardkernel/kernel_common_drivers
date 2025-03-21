@@ -14,8 +14,9 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
-#include "lcd_reg.h"
-#include "lcd_common.h"
+#include "../lcd_reg.h"
+#include "../lcd_common.h"
+#include "./lcd_connector.h"
 
 void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 {

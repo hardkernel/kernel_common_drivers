@@ -1,0 +1,281 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#include <linux/init.h>
+#include <linux/version.h>
+#include <linux/types.h>
+#include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/string.h>
+#include <linux/kernel.h>
+#include <linux/interrupt.h>
+#include <linux/delay.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+#include <linux/of.h>
+#include <linux/reset.h>
+#include <linux/clk.h>
+#include <linux/sched/clock.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
+#include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/media/vout/lcd/lcd_notify.h>
+#include <drm/amlogic/meson_connector_dev.h>
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+#include <linux/amlogic/media/vout/lcd/aml_bl.h>
+#endif
+#include "./lcd_reg.h"
+#include "./lcd_common.h"
+#include <linux/sched/clock.h>
+#include "./connectors/lcd_connector.h"
+
+int lcd_mode_get_vframe_rate_hint(void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if (!pdrv)
+		return 0;
+
+	return pdrv->fr_duration;
+}
+
+void lcd_mode_vout_debug_test(unsigned int num, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if (!pdrv)
+		return;
+
+	lcd_debug_test(pdrv, num);
+}
+
+void lcd_mode_vout_set_bl_brightness(unsigned int brightness, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+	struct aml_bl_drv_s *bdrv;
+#endif
+
+	if (!pdrv)
+		return;
+
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+	bdrv = aml_bl_get_driver(pdrv->index);
+	aml_bl_set_level_brightness(bdrv, brightness);
+#endif
+}
+
+unsigned int lcd_mode_vout_get_bl_brightness(void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+	struct aml_bl_drv_s *bdrv;
+#endif
+	unsigned int ret = 0;
+
+	if (!pdrv)
+		return 0;
+
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+	bdrv = aml_bl_get_driver(pdrv->index);
+	ret = aml_bl_get_level_brightness(bdrv);
+#endif
+	return ret;
+}
+
+int lcd_mode_suspend(void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if (!pdrv)
+		return -1;
+
+	mutex_lock(&lcd_power_mutex);
+	lcd_proc_time_clear(pdrv);
+	pdrv->init_flag = 0;
+	pdrv->status &= ~LCD_STATUS_POWER;
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF | LCD_EVENT_ENCL_DUMMY, (void *)pdrv);
+	LCDPR("[%d]: early_suspend finished\n", pdrv->index);
+	mutex_unlock(&lcd_power_mutex);
+	return 0;
+}
+
+int lcd_mode_resume(void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if (!pdrv)
+		return -1;
+
+	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0)
+		return 0;
+
+	if (pdrv->status & LCD_STATUS_POWER) {
+		if (pdrv->status & LCD_STATUS_BL_PRE_ON) {
+			pdrv->status &= ~LCD_STATUS_BL_PRE_ON;
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+			bl_lcd_on_ctrl(pdrv);
+#endif
+			lcd_power_screen_restore(pdrv);
+		}
+		return 0;
+	}
+
+	if (pdrv->resume_type & (1 << 0)) {
+		lcd_queue_work(&pdrv->late_resume_work);
+	} else {
+		mutex_lock(&lcd_power_mutex);
+		LCDPR("[%d]: directly lcd late_resume\n", pdrv->index);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE,
+						(void *)pdrv);
+		lcd_if_enable_retry(pdrv);
+		pdrv->status |= LCD_STATUS_POWER;
+		LCDPR("[%d]: late_resume finished\n", pdrv->index);
+		mutex_unlock(&lcd_power_mutex);
+	}
+
+	return 0;
+}
+
+struct vinfo_s *lcd_mode_get_current_info(void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if (!pdrv)
+		return NULL;
+	return &pdrv->vinfo;
+}
+
+int lcd_mode_check_same_vmodeattr(char *mode, void *data)
+{
+	return 1;
+}
+
+int lcd_mode_vmode_is_supported(enum vmode_e mode, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	mode &= VMODE_MODE_BIT_MASK;
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s vmode = %d, lcd_vmode = %d\n",
+		      pdrv->index, __func__, mode, VMODE_LCD);
+	}
+
+	if (mode == VMODE_LCD)
+		return true;
+
+	return false;
+}
+
+int lcd_mode_vout_set_state(int index, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if (!pdrv)
+		return -1;
+
+	mutex_lock(&lcd_vout_mutex);
+	pdrv->vout_state |= (1 << index);
+	LCDPR("[%d]: %s: viu:[%d -> %d]\n", pdrv->index, __func__, pdrv->viu_sel, index);
+	pdrv->viu_sel = index;
+	mutex_unlock(&lcd_vout_mutex);
+
+	return 0;
+}
+
+int lcd_mode_vout_clr_state(int index, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if (!pdrv)
+		return -1;
+
+	mutex_lock(&lcd_vout_mutex);
+	pdrv->vout_state &= ~(1 << index);
+	LCDPR("[%d]: %s: viu=%d, clear_viu=%d\n", pdrv->index, __func__, pdrv->viu_sel, index);
+	if (pdrv->viu_sel == index)
+		pdrv->viu_sel = LCD_VIU_SEL_NONE;
+	mutex_unlock(&lcd_vout_mutex);
+
+	return 0;
+}
+
+int lcd_mode_vout_get_state(void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	return pdrv->vout_state;
+}
+
+void lcd_mode_vmode_switch(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned long long local_time[2];
+
+	if (pdrv->config.timing.switch_type == LCD_VMODE_SWITCH_NONE)
+		return;
+
+	//step 1: switch off
+	local_time[0] = sched_clock();
+	if (pdrv->status & LCD_STATUS_POWER) {
+		/* include lcd_vout_mutex */
+		aml_lcd_notifier_call_chain(pdrv->switch_off_event, (void *)pdrv);
+	}
+	local_time[1] = sched_clock();
+	pdrv->proc_time.switch_off_time = local_time[1] - local_time[0];
+
+	//step 2: driver change
+	if (pdrv->status & LCD_STATUS_PREPARE) {
+		mutex_lock(&lcd_vout_mutex);
+		lcd_connector_driver_change(pdrv);
+		mutex_unlock(&lcd_vout_mutex);
+	}
+
+	//step 3: switch on
+	lcd_queue_work(&pdrv->mode_switch_on_work);
+}
+
+int lcd_mode_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
+{
+	int clk_change = 0;
+
+	if (!pdrv)
+		return -1;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	lcd_vout_notify_mode_change_pre(pdrv);
+
+	lcd_frame_rate_change(pdrv);
+
+	if (pdrv->config.timing.clk_change & LCD_CLK_CHANGE) {
+		clk_change = 1; //pdrv->config.timing.clk_change will clear in lcd_clk_change
+		if (pdrv->status & LCD_STATUS_IF_ON) {
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
+			if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+				lcd_vbyone_interrupt_enable(pdrv, 0);
+#endif
+		}
+		lcd_clk_change(pdrv);
+	}
+
+	lcd_venc_change(pdrv);
+
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
+		if (clk_change && pdrv->config.basic.lcd_type == LCD_VBYONE) {
+			lcd_vbyone_wait_stable(pdrv);
+			lcd_vbyone_interrupt_enable(pdrv, 1);
+		}
+#endif
+	}
+
+	lcd_vout_notify_mode_change(pdrv);
+
+	return 0;
+}

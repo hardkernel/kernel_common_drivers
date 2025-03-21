@@ -968,9 +968,9 @@ struct aml_lcd_drv_s {
 
 	void (*driver_init_pre)(struct aml_lcd_drv_s *pdrv);
 	void (*driver_disable_post)(struct aml_lcd_drv_s *pdrv);
-	int (*driver_init)(struct aml_lcd_drv_s *pdrv);
+	void (*driver_init)(struct aml_lcd_drv_s *pdrv);
 	void (*driver_disable)(struct aml_lcd_drv_s *pdrv);
-	int (*driver_change)(struct aml_lcd_drv_s *pdrv);
+	void (*driver_change)(struct aml_lcd_drv_s *pdrv);
 	void (*module_reset)(struct aml_lcd_drv_s *pdrv);
 	void (*module_tiny_reset)(struct aml_lcd_drv_s *pdrv);
 	void (*phy_set)(struct aml_lcd_drv_s *pdrv, int status);

@@ -23,8 +23,9 @@
 #include "lcd_clk_config.h"
 #include "lcd_clk_ctrl.h"
 #include "lcd_clk_utils.h"
+#include "../connectors/lcd_connector.h"
 
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);

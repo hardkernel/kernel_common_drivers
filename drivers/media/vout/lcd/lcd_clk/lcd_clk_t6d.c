@@ -21,6 +21,7 @@
 #include "lcd_clk_config.h"
 #include "lcd_clk_ctrl.h"
 #include "lcd_clk_utils.h"
+#include "../connectors/lcd_connector.h"
 
 static unsigned int tcon_div_t6d[][3] = {
 	/* vx1pll_div214h, vx1pll_phase_div_en, vx1pll_clk1x_selh */
@@ -326,6 +327,7 @@ static int lcd_set_mlvds_clk_phase_t6d(struct aml_lcd_drv_s *pdrv)
 /* tcon run base clk, include register access */
 static void lcd_set_tcon_clk_t6d(struct aml_lcd_drv_s *pdrv)
 {
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	struct lcd_config_s *pconf = &pdrv->config;
 
 	if (pconf->basic.lcd_type != LCD_MLVDS)
@@ -350,6 +352,7 @@ static void lcd_set_tcon_clk_t6d(struct aml_lcd_drv_s *pdrv)
 
 	/* global reset tcon */
 	lcd_tcon_global_reset(pdrv);
+#endif
 }
 
 static void lcd_prbs_config_clk_t6d(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prbs_mode,

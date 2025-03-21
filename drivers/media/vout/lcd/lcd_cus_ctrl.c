@@ -19,7 +19,7 @@
 
 #include <linux/amlogic/media/vout/lcd/lcd_model.h>
 #include "lcd_common.h"
-#include "lcd_tcon_swpdf.h"
+#include "./connectors/lcd_connector.h"
 
 #define UFR_TMG_PARSE        "cus_ctrl ufr_tmg"
 #define DFR_TMG_PARSE        "cus_ctrl dfr_tmg"
@@ -591,6 +591,7 @@ lcd_cus_parse_phy_err:
 	return -1;
 }
 
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 static int lcd_cus_ctrl_attr_parse_tcon_sw_pol_ini(struct aml_lcd_drv_s *pdrv,
 		void *inip, void *psec, struct lcd_cus_ctrl_attr_config_s *attr_conf)
 {
@@ -602,6 +603,7 @@ static int lcd_cus_ctrl_attr_parse_tcon_sw_pdf_ini(struct aml_lcd_drv_s *pdrv,
 {
 	return 0;
 }
+#endif
 
 int lcd_cus_ctrl_load_from_ini(struct aml_lcd_drv_s *pdrv, void *inip, void *psec,
 			       unsigned char version)
@@ -667,12 +669,14 @@ int lcd_cus_ctrl_load_from_ini(struct aml_lcd_drv_s *pdrv, void *inip, void *pse
 			}
 			ret = lcd_cus_ctrl_attr_parse_tuning_attr_ini(pdrv, inip, psec, &attr_conf);
 			break;
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 		case LCD_CUS_CTRL_TYPE_TCON_SW_POL:
 			ret = lcd_cus_ctrl_attr_parse_tcon_sw_pol_ini(pdrv, inip, psec, &attr_conf);
 			break;
 		case LCD_CUS_CTRL_TYPE_TCON_SW_PDF:
 			ret = lcd_cus_ctrl_attr_parse_tcon_sw_pdf_ini(pdrv, inip, psec, &attr_conf);
 			break;
+#endif
 		default:
 			LCDERR("[%d]: %s: invalid attr_type: 0x%x\n",
 				pdrv->index, __func__, attr_conf.attr_type);

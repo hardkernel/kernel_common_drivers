@@ -55,7 +55,9 @@ enum clktree_type {
 
 void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status);
 void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status);
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv);
+#endif
 /* ****************************************************
  * lcd clk chip init help func
  * ****************************************************

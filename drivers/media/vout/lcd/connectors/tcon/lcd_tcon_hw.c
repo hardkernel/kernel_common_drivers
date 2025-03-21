@@ -15,8 +15,8 @@
 #include <linux/reset.h>
 #include <linux/sched/clock.h>
 #include <linux/amlogic/media/vout/lcd/lcd_model.h>
-#include "lcd_common.h"
-#include "lcd_reg.h"
+#include "../../lcd_common.h"
+#include "../../lcd_reg.h"
 #include "lcd_tcon.h"
 #include "lcd_tcon_pdf.h"
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)

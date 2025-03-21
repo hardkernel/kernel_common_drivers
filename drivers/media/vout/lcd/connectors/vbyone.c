@@ -22,8 +22,9 @@
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
-#include "lcd_reg.h"
-#include "lcd_common.h"
+#include "../lcd_reg.h"
+#include "../lcd_common.h"
+#include "./lcd_connector.h"
 
 static spinlock_t vx1_intr_lock;
 
@@ -109,7 +110,7 @@ void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
 		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 3, 8, 2);
 		lcd_vcbus_write(reg_rst, 0x1ff);
 		udelay(5);
-		/* realease PHY */
+		/* release PHY */
 		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 0, 8, 2);
 		lcd_vcbus_write(reg_rst, 0);
 	} else if (pdrv->data->chip_type == LCD_CHIP_T3X) {
@@ -131,7 +132,7 @@ void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
 		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 3, 8, 2);
 		lcd_vcbus_write(reg_rst, 0x3);
 		udelay(5);
-		/* realease PHY */
+		/* release PHY */
 		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 0, 8, 2);
 		lcd_vcbus_write(reg_rst, 0);
 	} else if (pdrv->data->chip_type == LCD_CHIP_T5W ||
@@ -155,7 +156,7 @@ void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
 		lcd_ana_setb(reg_phy_tx_ctrl0, 3, 8, 2);
 		lcd_vcbus_write(reg_rst, 0x1ff);
 		udelay(5);
-		/* realease PHY */
+		/* release PHY */
 		lcd_ana_setb(reg_phy_tx_ctrl0, 0, 8, 2);
 		lcd_vcbus_write(reg_rst, 0);
 	} else {
@@ -163,7 +164,7 @@ void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
 		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
 		lcd_vcbus_write(VBO_SOFT_RST, 0x1ff);
 		udelay(5);
-		/* realease PHY */
+		/* release PHY */
 		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 8, 2);
 		lcd_vcbus_write(VBO_SOFT_RST, 0);
 	}
@@ -1211,7 +1212,7 @@ static void lcd_vbyone_interrupt_init(struct aml_lcd_drv_s *pdrv)
 	/* not wait lockn to 1 in FSM_ACQ */
 	lcd_vcbus_setb(vx1_conf->reg_ctrl_l, 1, 10, 1);
 	/* lcd_vcbus_setb(VBO_CTRL_L, 0, 9, 1);*/   /*use sw pll_lock */
-	/* reg_pll_lock = 1 to realease force to FSM_ACQ*/
+	/* reg_pll_lock = 1 to release force to FSM_ACQ*/
 	/*lcd_vcbus_setb(VBO_CTRL_H, 1, 13, 1); */
 
 	/* vx1 interrupt setting */

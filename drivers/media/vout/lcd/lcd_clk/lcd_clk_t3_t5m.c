@@ -21,6 +21,7 @@
 #include "lcd_clk_config.h"
 #include "lcd_clk_ctrl.h"
 #include "lcd_clk_utils.h"
+#include "../connectors/lcd_connector.h"
 
 static void lcd_pll_ss_init(struct lcd_clk_config_s *cconf)
 {
@@ -431,6 +432,7 @@ static int lcd_set_mlvds_clk_phase(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 {
+#ifdef CONFIG_AMLOGIC_LCD_TCON
 	struct lcd_clk_config_s *cconf;
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int freq;
@@ -475,6 +477,7 @@ static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 	}
 
 	lcd_tcon_global_reset(pdrv);
+#endif
 }
 
 static int lcd_clk_reg_dump_t3(struct aml_lcd_drv_s *pdrv, char *buf, int offset)

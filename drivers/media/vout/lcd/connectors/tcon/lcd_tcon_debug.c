@@ -21,10 +21,11 @@
 
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
-#include "lcd_reg.h"
-#include "lcd_common.h"
+#include "../../lcd_reg.h"
+#include "../../lcd_common.h"
 #include "lcd_tcon.h"
 #include "lcd_tcon_pdf.h"
+#include "../lcd_connector.h"
 
 //1: unlocked, 0: locked, negative: locked, possible waiters
 struct mutex lcd_tcon_dbg_mutex;

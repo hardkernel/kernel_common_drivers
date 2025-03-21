@@ -5,8 +5,8 @@
 
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/kfifo.h>
-#include "lcd_common.h"
-#include "lcd_reg.h"
+#include "../../lcd_common.h"
+#include "../../lcd_reg.h"
 #include "lcd_tcon_rdma.h"
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA

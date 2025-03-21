@@ -11,9 +11,12 @@
 #include <linux/kernel.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include "../../lcd_common.h"
-#include "../lcd_tablet.h"
 #include "./dsi_common.h"
 #include "./dsi_ctrl/dsi_ctrl.h"
+#include "../lcd_connector.h"
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN
+#include "../../lcd_extern/lcd_extern.h"
+#endif
 
 char *dsi_op_mode_table[] = {"Video", "Command"};
 
@@ -38,7 +41,6 @@ char *dsi_video_data_type_table[] = {
 	"12bit YCbCr 4:2:0",
 	"un-support type",
 };
-
 
 void dsi_config_print_helper(struct lcd_config_s *pconf, u8 pr_flag)
 {
@@ -620,7 +622,7 @@ static void dsi_panel_init(struct aml_lcd_drv_s *pdrv)
 		LCDPR("[%d]: %s table\n", pdrv->index, __func__);
 	}
 
-#ifdef CONFIG_AML_LCD_EXTERN
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	struct lcd_extern_driver_s *edrv;
 	struct lcd_extern_dev_s *edev;
 
@@ -650,7 +652,7 @@ static void dsi_panel_deinit(struct aml_lcd_drv_s *pdrv)
 		LCDPR("[%d]: %s table\n", pdrv->index, __func__);
 	}
 
-#ifdef CONFIG_AML_LCD_EXTERN
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	struct lcd_extern_driver_s *edrv;
 	struct lcd_extern_dev_s *edev;
 
