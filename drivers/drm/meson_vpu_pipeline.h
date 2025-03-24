@@ -782,8 +782,6 @@ int video_pipeline_block_check(struct meson_video_sub_pipeline *pipeline,
 		       struct drm_atomic_state *state);
 int video_pipeline_block_update(struct meson_video_sub_pipeline *pipeline,
 			struct drm_atomic_state *old_state, int plane_index);
-int video_pipeline_block_async_update(struct meson_video_sub_pipeline *sub_pipeline,
-			struct drm_atomic_state *new_state, int plane_index);
 int vpu_pipeline_osd_check(struct meson_vpu_sub_pipeline *sub_pipeline,
 		       struct drm_atomic_state *state);
 int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,

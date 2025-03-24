@@ -766,41 +766,8 @@ int video_pipeline_block_update(struct meson_video_sub_pipeline *sub_pipeline,
 
 	if (affected_blocks & BIT(mvb->id)) {
 		if (new_mvsps->enable_blocks & BIT(mvb->id)) {
-			mvb->ops->update_video_state(mvb, mvbs, old_mvbs, new_mvsps);
 			mvb->ops->enable(mvb, mvbs);
-		} else {
-			mvb->ops->disable(mvb, mvbs);
-		}
-	}
-
-	return 0;
-}
-
-int video_pipeline_block_async_update(struct meson_video_sub_pipeline *sub_pipeline,
-			struct drm_atomic_state *new_state, int plane_index)
-{
-	int crtc_index;
-	struct meson_vpu_block *mvb;
-	struct meson_vpu_block_state *mvbs, *old_mvbs;
-	struct meson_video_sub_pipeline_state *old_mvsps, *new_mvsps;
-	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipe;
-	struct meson_vpu_video *mvv = pipeline->video[plane_index];
-	unsigned long affected_blocks = 0;
-
-	crtc_index = sub_pipeline->index;
-	mvb = &mvv->base;
-
-	mvbs = meson_vpu_block_get_state(mvb, new_state);
-	old_mvbs = priv_to_block_state(mvb->obj.state);
-	old_mvsps = meson_video_pipeline_get_state(sub_pipeline, new_state);
-	new_mvsps = priv_to_video_sub_pipe_state(sub_pipeline->obj.state);
-
-	affected_blocks = old_mvsps->enable_blocks | new_mvsps->enable_blocks;
-
-	if (affected_blocks & BIT(mvb->id)) {
-		if (new_mvsps->enable_blocks & BIT(mvb->id)) {
 			mvb->ops->update_video_state(mvb, mvbs, old_mvbs, new_mvsps);
-			mvb->ops->enable(mvb, mvbs);
 		} else {
 			mvb->ops->disable(mvb, mvbs);
 		}

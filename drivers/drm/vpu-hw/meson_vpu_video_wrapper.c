@@ -168,6 +168,8 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_video_layer_info *plane_info;
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
+	struct meson_vpu_block_state *old_mvbs = priv_to_block_state(vblk->obj.state);
+	struct meson_vpu_video_state *old_mvvs = to_video_state(old_mvbs);
 
 	if (state->checked)
 		return 0;
@@ -206,14 +208,16 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	mvvs->signal_fmt = video_signal_fmt_cov(plane_info->signal_fmt);
 	mvvs->in_fence = plane_info->in_fence;
 
-	MESON_DRM_BLOCK("video->dmabuf-%px plane_info->dmabuf-%px\n",
-		video->dmabuf, plane_info->dmabuf);
-	if (video->dmabuf != plane_info->dmabuf) {
+	MESON_DRM_BLOCK("mvvs->dmabuf-%px old_mvvs->dmabuf-%px\n",
+		mvvs->dmabuf, old_mvvs->dmabuf);
+
+	if (mvvs->dmabuf != old_mvvs->dmabuf)
 		mvvs->repeat_frame = 0;
-		video->dmabuf = plane_info->dmabuf;
-	} else {
+	else
 		mvvs->repeat_frame = 1;
-	}
+
+	if (mvvs->repeat_frame == 1)
+		MESON_DRM_FENCE("check,video repeat frame! dma_buf:%px\n", mvvs->dmabuf);
 
 	return 0;
 }
@@ -307,14 +311,18 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		vf_info.phy_addr[0] = mvvs->phy_addr[0];
 		vf_info.phy_addr[1] = mvvs->phy_addr[1];
 
-		dma_resv_lock(vf_info.dmabuf->resv, NULL);
+		if (mvvs->repeat_frame) {
+			dma_fence_get(vf_info.release_fence);
+		} else {
+			dma_resv_lock(vf_info.dmabuf->resv, NULL);
 
-		ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
-		if (!ret)
-			dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
-					   DMA_RESV_USAGE_WRITE);
+			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
+			if (!ret)
+				dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
+							DMA_RESV_USAGE_WRITE);
 
-		dma_resv_unlock(vf_info.dmabuf->resv);
+			dma_resv_unlock(vf_info.dmabuf->resv);
+		}
 
 		MESON_DRM_FENCE("dmabuf(%px), in-%px, release_fence(%px-%d)\n",
 				vf_info.dmabuf, vf_info.input_fence, vf_info.release_fence,
@@ -344,14 +352,18 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		vf_info.type = video_type_get(pixel_format);
 		vf_info.bitdepth = video_bitdepth_get(pixel_format);
 		vf_info.input_fence = mvvs->in_fence;
-		dma_resv_lock(vf_info.dmabuf->resv, NULL);
+		if (mvvs->repeat_frame) {
+			dma_fence_get(vf_info.release_fence);
+		} else {
+			dma_resv_lock(vf_info.dmabuf->resv, NULL);
 
-		ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
-		if (!ret)
-			dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
-					   DMA_RESV_USAGE_WRITE);
+			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
+			if (!ret)
+				dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
+							DMA_RESV_USAGE_WRITE);
 
-		dma_resv_unlock(vf_info.dmabuf->resv);
+			dma_resv_unlock(vf_info.dmabuf->resv);
+		}
 		MESON_DRM_FENCE("dmabuf(%px), in-%px, release_fence(%px-%d)\n",
 				vf_info.dmabuf, vf_info.input_fence, vf_info.release_fence,
 				vf_info.release_fence ?
