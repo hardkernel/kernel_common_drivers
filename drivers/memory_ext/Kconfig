@@ -185,8 +185,8 @@ config AMLOGIC_PIN_LOCKED_FILE_V2
 config AMLOGIC_PCIE_DMA_OPS
 	tristate "Amlogic PCIE dma_ops"
 	depends on AMLOGIC_MEMORY_EXTEND
-	select DMA_DIRECT_REMAP
-	select SWIOTLB
+	select DMA_DIRECT_REMAP if AMLOGIC_BREAK_GKI
+	select SWIOTLB if AMLOGIC_BREAK_GKI
 	default n
 	help
 		custom a dma_ops to limit the memory for PCIE device
