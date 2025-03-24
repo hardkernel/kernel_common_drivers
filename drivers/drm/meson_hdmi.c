@@ -344,15 +344,134 @@ static int meson_hdmitx_decide_color_attr
 	return 0;
 }
 
-static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connector *connector)
+/*
+ * Calculate the alternate clock for the CEA mode
+ * (60Hz vs. 59.94Hz etc.)
+ */
+static unsigned int
+cea_mode_alternate_clock(const struct drm_display_mode *cea_mode)
+{
+	unsigned int clock = cea_mode->clock;
+
+	if (drm_mode_vrefresh(cea_mode) % 6 != 0)
+		return clock;
+
+	/*
+	 * edid_cea_modes contains the 59.94Hz
+	 * variant for 240 and 480 line modes,
+	 * and the 60Hz variant otherwise.
+	 */
+	clock = DIV_ROUND_CLOSEST(clock * 1000, 1001);
+
+	return clock;
+}
+
+static void meson_hdmitx_add_alter_mode(struct drm_connector *connector,
+			 struct drm_display_mode *mode, int vic)
+{
+	struct drm_display_mode *newmode;
+	unsigned int clock1, clock2;
+	struct drm_device *dev = connector->dev;
+
+	clock1 = mode->clock;
+	clock2 = cea_mode_alternate_clock(mode);
+
+	if (clock1 == clock2)
+		return;
+
+	newmode = drm_mode_duplicate(dev, mode);
+	if (!newmode)
+		return;
+
+	newmode->clock = clock2;
+	if (mode->vdisplay == 2160 && mode->hdisplay == 4096)
+		sprintf(newmode->name, "smpte%dhz",
+			drm_mode_vrefresh(newmode) - 1);
+	else
+		sprintf(newmode->name, "%d%s%dhz", mode->vdisplay,
+			mode->flags & DRM_MODE_FLAG_INTERLACE ? "i" : "p",
+			drm_mode_vrefresh(newmode) - 1);
+
+	drm_mode_probed_add(connector, newmode);
+}
+
+static void meson_hdmitx_convert_timing_para(int vic,
+					     struct drm_display_mode *mode,
+					     bool edid_vic)
+{
+	const struct hdmi_timing *timing;
+	char *strp = NULL;
+
+	timing = hdmitx_mode_vic_to_hdmi_timing(vic);
+	if (!timing) {
+		DRM_ERROR("Get timing by vic [%d] failed.\n", vic);
+		return;
+	}
+	if (timing->sname) {
+		memcpy(mode->name, timing->sname,
+		       (strlen(timing->sname) < DRM_DISPLAY_MODE_LEN) ?
+		       strlen(timing->sname) : DRM_DISPLAY_MODE_LEN);
+	} else if (timing->name) {
+		memcpy(mode->name, timing->name,
+		       (strlen(timing->name) < DRM_DISPLAY_MODE_LEN) ?
+		       strlen(timing->name) : DRM_DISPLAY_MODE_LEN);
+	} else {
+		DRM_ERROR(" func %s get vic %d without name\n", __func__, vic);
+		return;
+	}
+
+	mode->name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
+	/* remove _4x3 suffix, in case misunderstand */
+	strp = strstr(mode->name, "_4x3");
+	if (strp)
+		*strp = '\0';
+
+	mode->type = DRM_MODE_TYPE_DRIVER;
+	mode->clock = timing->pixel_freq;
+
+	mode->hdisplay = timing->h_active;
+	mode->hsync_start = timing->h_active + timing->h_front;
+	mode->hsync_end = timing->h_active + timing->h_front + timing->h_sync;
+
+	mode->htotal = timing->h_total;
+	/* for 480i/576i, horizontal timing is repeated */
+	if (timing->pixel_repetition_factor) {
+		mode->hdisplay >>= 1;
+		mode->hsync_start >>= 1;
+		mode->hsync_end >>= 1;
+		mode->htotal >>= 1;
+		mode->clock >>= 1;
+	}
+
+	/*use hskew to distinguish whether it's qms mode or edid mode*/
+	if (edid_vic)
+		mode->hskew = 1;
+	else
+		mode->hskew = 0;
+
+	mode->flags |= timing->h_pol ?
+		DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
+
+	mode->vdisplay = timing->v_active;
+	mode->vsync_start = timing->v_active + timing->v_front;
+	mode->vsync_end = timing->v_active + timing->v_front + timing->v_sync;
+	mode->vtotal = timing->v_total;
+	mode->vscan = 0;
+	mode->flags |= timing->v_pol ?
+		DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
+
+	if (!timing->pi_mode)
+		mode->flags |= DRM_MODE_FLAG_INTERLACE;
+}
+
+static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connector *connector,
+					bool edid_vic)
 {
 	struct drm_display_mode *mode, *pref_mode = NULL;
 	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
 	bool pref_flag;
 	struct meson_drm *priv;
 	struct meson_of_conf *conf;
-	const struct hdmi_timing *timing;
-	char *strp = NULL;
 	int i;
 
 	if (!am_hdmitx) {
@@ -364,68 +483,13 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connect
 	conf = &priv->of_conf;
 
 	for (i = 0; i < count; i++) {
-		timing = hdmitx_mode_vic_to_hdmi_timing(vics[i]);
-		if (!timing) {
-			DRM_ERROR("Get timing by vic [%d] failed.\n", vics[i]);
-			continue;
-		}
-
 		mode = drm_mode_create(connector->dev);
 		if (!mode) {
 			DRM_ERROR("drm mode create failed.\n");
 			continue;
 		}
 
-		if (timing->sname) {
-			memcpy(mode->name, timing->sname,
-				   (strlen(timing->sname) < DRM_DISPLAY_MODE_LEN) ?
-				   strlen(timing->sname) : DRM_DISPLAY_MODE_LEN);
-		} else if (timing->name) {
-			memcpy(mode->name, timing->name,
-				   (strlen(timing->name) < DRM_DISPLAY_MODE_LEN) ?
-				   strlen(timing->name) : DRM_DISPLAY_MODE_LEN);
-		} else {
-			DRM_ERROR(" func %s get vic %d without name\n", __func__, vics[i]);
-			return -1;
-		}
-
-		mode->name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
-		/* remove _4x3 suffix, in case misunderstand */
-		strp = strstr(mode->name, "_4x3");
-		if (strp)
-			*strp = '\0';
-
-		mode->type = DRM_MODE_TYPE_DRIVER;
-		mode->clock = timing->pixel_freq;
-
-		mode->hdisplay = timing->h_active;
-		mode->hsync_start = timing->h_active + timing->h_front;
-		mode->hsync_end = timing->h_active + timing->h_front + timing->h_sync;
-
-		mode->htotal = timing->h_total;
-		/* for 480i/576i, horizontal timing is repeated */
-		if (timing->pixel_repetition_factor) {
-			mode->hdisplay >>= 1;
-			mode->hsync_start >>= 1;
-			mode->hsync_end >>= 1;
-			mode->htotal >>= 1;
-			mode->clock >>= 1;
-		}
-
-		mode->hskew = 0;
-		mode->flags |= timing->h_pol ?
-			DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
-
-		mode->vdisplay = timing->v_active;
-		mode->vsync_start = timing->v_active + timing->v_front;
-		mode->vsync_end = timing->v_active + timing->v_front + timing->v_sync;
-		mode->vtotal = timing->v_total;
-		mode->vscan = 0;
-		mode->flags |= timing->v_pol ?
-			DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
-
-		if (!timing->pi_mode)
-			mode->flags |= DRM_MODE_FLAG_INTERLACE;
+		meson_hdmitx_convert_timing_para(vics[i], mode, edid_vic);
 
 		/*for recovery ui*/
 		if (hdmitx_set_smaller_pref) {
@@ -459,6 +523,7 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connect
 		}
 
 		drm_mode_probed_add(connector, mode);
+		meson_hdmitx_add_alter_mode(connector, mode, vics[i]);
 
 		DRM_DEBUG("add mode [%s]\n", mode->name);
 	}
@@ -556,12 +621,12 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	}
 
 	if (count) {
-		meson_hdmitx_mode_probed_add(count, vics, connector);
+		meson_hdmitx_mode_probed_add(count, vics, connector, true);
 		kfree(vics);
 	}
 
 	if (count1)
-		meson_hdmitx_mode_probed_add(count1, vrr_list, connector);
+		meson_hdmitx_mode_probed_add(count1, vrr_list, connector, false);
 
 	/*TODO:add dummy mode temp.*/
 	if (am_hdmitx->base.drm_priv->dummyl_from_hdmitx) {
@@ -2174,6 +2239,29 @@ static int meson_hdmitx_encoder_autoselect_attr(struct drm_encoder *encoder,
 	return ret;
 }
 
+static bool meson_hdmitx_is_alter_mode(struct drm_display_mode *mode)
+{
+	u8 vic;
+	struct drm_display_mode vic_mode = {0};
+
+	mode->hskew = 0;
+	vic = drm_match_cea_mode(mode);
+	if (vic) {
+		meson_hdmitx_convert_timing_para(vic, &vic_mode, false);
+		DRM_INFO("vic-%d, name-%s, %s\n", vic, mode->name, vic_mode.name);
+
+		if (drm_mode_vrefresh(mode) % 6 == 0 &&
+		    cea_mode_alternate_clock(&vic_mode) == mode->clock) {
+			strncpy(mode->name, vic_mode.name, DRM_DISPLAY_MODE_LEN);
+			return true;
+		}
+		return false;
+	}
+
+	DRM_ERROR("Invalid Modeline " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+	return false;
+}
+
 static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 					     struct drm_crtc_state *crtc_state,
 					     struct drm_connector_state *conn_state)
@@ -2190,10 +2278,20 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	u64 sequence_id = hdmitx_state->hcs.state_sequence_id;
 	int ret = 0;
 	char attr_str[HDMITX_ATTR_LEN_MAX];
+	bool is_alter;
 
 	/* do not atomic check if hpd is low*/
 	if (strstr(modename, "dummy") || !hdmitx_get_hpd_state(common))
 		return 0;
+
+	is_alter = meson_hdmitx_is_alter_mode(adj_mode);
+	if (is_alter) {
+		hdmitx_state->frac_rate_policy = true;
+		common->frac_rate_policy = true;
+	} else {
+		hdmitx_state->frac_rate_policy = false;
+		common->frac_rate_policy = false;
+	}
 
 	if (crtc_state->vrr_enabled &&
 		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
