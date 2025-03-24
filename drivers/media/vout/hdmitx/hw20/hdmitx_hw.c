@@ -5544,6 +5544,7 @@ static int hdmitx_tmds_rxsense(void)
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL0, 1, 16, 1);
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 1, 23, 1);
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 0, 24, 1);
