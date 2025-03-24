@@ -388,13 +388,15 @@ static ssize_t ao_enable_store(struct device *dev,
 {
 	struct meson_ir_chip *chip = dev_get_drvdata(dev);
 	int ret, enable;
-	u32 data[2] = {IR_MBOX_CMD_SET_STATUS};
+	u32 data[3] = {IR_MBOX_CMD_SET_STATUS};
 
 	ret = kstrtoint(buf, 0, &enable);
-	if (ret != 0 || (enable != 0 && enable != 1))
+	if (ret != 0)
 		return -EINVAL;
 
 	data[1] = enable;
+	if (enable == 2)
+		data[2] = chip->protocol;
 	meson_ir_mbox_transfer(chip, data, sizeof(data));
 
 	return count;
