@@ -59,6 +59,7 @@ struct frame_info_t {
 	struct dma_buf *dmabuf;
 	struct dma_fence *input_fence;
 	struct dma_fence *release_fence;
+	struct dma_fence *present_fence;
 	u64 phy_addr[2];
 	u32 byte_stride;
 	u32 buffer_w;

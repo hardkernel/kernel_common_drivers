@@ -911,6 +911,7 @@ struct video_composer_private {
 	struct vframe_s *mosaic_vf[4];
 	struct vframe_s *mosaic_src_vf[4];
 	struct vframe_s mosaic_dst_vf[4];
+	struct dma_fence *present_fence;
 };
 
 int get_current_frame_para(int *top, int *left, int *bottom, int *right);

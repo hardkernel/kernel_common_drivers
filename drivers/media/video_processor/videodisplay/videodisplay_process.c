@@ -2894,6 +2894,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 
 	dev->last_file = (struct file *)frame_info->dmabuf;
 	vf->vc_private = vd_private_q_pop(dev);
+	vf->vc_private->present_fence = frame_info->present_fence;
 	vf->file_vf = (struct file *)(frame_info->dmabuf);
 	vf->repeat_count = 0;
 	dev->vd_prepare_last = vd_prepare;
