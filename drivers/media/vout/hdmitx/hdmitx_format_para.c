@@ -215,4 +215,3 @@ int hdmitx_format_para_rebuild_fmtattr_str(struct hdmi_format_para *para, char *
 	HDMITX_DEBUG("rebuild fmt_string %s from (%d,%d)\n", attr_str, para->cs, para->cd);
 	return 0;
 }
-

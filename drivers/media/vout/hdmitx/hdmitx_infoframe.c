@@ -724,7 +724,7 @@ void hdr_unmute_work_func(struct work_struct *work)
 			work_hdr_unmute);
 
 	if (tx_comm->hdr_mute_frame) {
-		mute_us = tx_comm->hdr_mute_frame * hdmitx_get_frame_duration();
+		mute_us = tx_comm->hdr_mute_frame * hdmitx_get_frame_duration(tx_comm);
 		usleep_range(mute_us, mute_us + 10);
 		hdmitx_video_mute_op(false);
 	}

@@ -49,6 +49,7 @@
 #include "hdmitx_module.h"
 #include "hdmitx_compliance.h"
 #include "hdmitx_dump.h"
+#include "hdmitx_vout.h"
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 
@@ -957,14 +958,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	 * load fmt para from hw info
 	 */
 	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
-	/*
-	 * update fmt_attr string from fmt_para, note that fmt_attr is already
-	 * set by hdmitx_common_init() with boot arg, and below is un-necessary,
-	 * and it will set attr sysfs node as empty if hdmitx not enabled under
-	 * uboot as fmt para is in reset state
-	 */
-	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para,
-		tx_comm->fmt_attr, sizeof(tx_comm->fmt_attr));
 	/* load init hdr state from HW info */
 	hdmitx_hdr_state_init(tx_comm);
 	hdmitx_bootup_post_process(tx_comm);
@@ -1105,6 +1098,19 @@ void hdmitx_clear_packets(struct hdmitx_common *tx_comm)
 {
 	hdmitx_clear_all_infoframe_pkt(tx_comm);
 }
+
+void hdmitx_ext_plugin_handler(void)
+{
+	struct hdmitx_common *tx_comm = get_hdmitx_common();
+
+	if (tx_comm) {
+		mutex_lock(&tx_comm->hdmimode_mutex);
+		hdmitx_common_get_edid(tx_comm);
+		mutex_unlock(&tx_comm->hdmimode_mutex);
+		HDMITX_INFO("read edid by erac\n");
+	}
+}
+EXPORT_SYMBOL(hdmitx_ext_plugin_handler);
 
 void print_hsty_hdmiaud_config_data(void)
 {
@@ -1540,9 +1546,6 @@ static int amhdmitx_pm_restore(struct device *dev)
 		hdmitx_process_plugout(tx_comm);
 	/* load fmt para from hw info */
 	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
-	/* rebuild fmt attr */
-	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para,
-		tx_comm->fmt_attr, sizeof(tx_comm->fmt_attr));
 	/* load init hdr state for HW info */
 	hdmitx_hdr_state_init(tx_comm);
 	hdmitx_bootup_post_process(tx_comm);

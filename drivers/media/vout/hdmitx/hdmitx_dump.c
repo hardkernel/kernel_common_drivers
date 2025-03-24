@@ -314,12 +314,12 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 		if (hdmitx_hw_cntl_ddc(hw_comm, DDC_HDCP_14_LSTORE, 0))
 			hdcp_lstore |= BIT(0);
 		else
-			hdmitx_current_status(HDMITX_HDCP_AUTH_NO_14_KEYS_ERROR);
+			hdmitx_current_status(tx_comm, HDMITX_HDCP_AUTH_NO_14_KEYS_ERROR);
 		if (hdmitx_hw_cntl_ddc(hw_comm,
 			DDC_HDCP_22_LSTORE, 0))
 			hdcp_lstore |= BIT(1);
 		else
-			hdmitx_current_status(HDMITX_HDCP_AUTH_NO_22_KEYS_ERROR);
+			hdmitx_current_status(tx_comm, HDMITX_HDCP_AUTH_NO_22_KEYS_ERROR);
 	}
 	if ((hdcp_lstore & 0x3) == 0x3) {
 		seq_puts(s, "14+22\n");

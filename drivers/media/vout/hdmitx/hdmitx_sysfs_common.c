@@ -51,8 +51,10 @@ static ssize_t attr_show(struct device *dev,
 	int pos = 0;
 	char fmt_attr[16];
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
+	struct hdmi_format_para *para = &tx_comm->fmt_para;
 
-	hdmitx_get_attr(tx_comm, fmt_attr);
+	hdmitx_format_para_rebuild_fmtattr_str(para, fmt_attr, sizeof(fmt_attr));
+
 	pos = snprintf(buf, PAGE_SIZE, "%s\n\r", fmt_attr);
 
 	return pos;
@@ -65,11 +67,9 @@ static ssize_t test_attr_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-	char fmt_attr[16] = {0};
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 
-	memcpy(fmt_attr, tx_comm->tst_fmt_attr, sizeof(fmt_attr));
-	pos = snprintf(buf, PAGE_SIZE, "%s\n\r", fmt_attr);
+	pos = snprintf(buf, PAGE_SIZE, "%s\n\r", tx_comm->tst_fmt_attr);
 
 	return pos;
 }
@@ -914,7 +914,7 @@ static ssize_t phy_store(struct device *dev,
 	int delay_frame = 5;
 
 	HDMITX_INFO("%s %s\n", __func__, buf);
-	mute_us = hdmitx_get_frame_duration();
+	mute_us = hdmitx_get_frame_duration(tx_comm);
 	if (strncmp(buf, "0", 1) == 0) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		/* for s5 frl mode */
@@ -1925,7 +1925,7 @@ static ssize_t disp_mode_store(struct device *dev,
 	int ret = 0;
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 
-	ret = set_disp_mode(tx_comm, buf);
+	ret = set_disp_mode_debug(tx_comm, buf);
 	if (ret < 0)
 		HDMITX_ERROR("%s: set mode failed\n", __func__);
 	return count;
@@ -2260,12 +2260,12 @@ ssize_t hdcp_lstore_show(struct device *dev,
 		if (hdmitx_hw_cntl_ddc(tx_hw, DDC_HDCP_14_LSTORE, 0))
 			lstore |= BIT(0);
 		else
-			hdmitx_current_status(HDMITX_HDCP_AUTH_NO_14_KEYS_ERROR);
+			hdmitx_current_status(tx_comm, HDMITX_HDCP_AUTH_NO_14_KEYS_ERROR);
 		if (hdmitx_hw_cntl_ddc(tx_hw,
 			DDC_HDCP_22_LSTORE, 0))
 			lstore |= BIT(1);
 		else
-			hdmitx_current_status(HDMITX_HDCP_AUTH_NO_22_KEYS_ERROR);
+			hdmitx_current_status(tx_comm, HDMITX_HDCP_AUTH_NO_22_KEYS_ERROR);
 	}
 	if ((lstore & 0x3) == 0x3) {
 		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14+22\n");

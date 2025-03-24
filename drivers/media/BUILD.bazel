@@ -253,6 +253,7 @@ ddk_module(
                 "vout/hdmitx/hdmitx_mode.c",
                 "vout/hdmitx/hdmitx_format_para.c",
                 "vout/hdmitx/hdmitx_mode_set.c",
+                "vout/hdmitx/hdmitx_vout.c",
                 "vout/hdmitx/hdmitx_audio.c",
                 "vout/hdmitx/hdmitx_tracer_linux.c",
                 "vout/hdmitx/hdmitx_event_mgr_linux.c",

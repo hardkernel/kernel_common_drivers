@@ -220,7 +220,7 @@ static int hdmitx_hdcp_task(void *data)
 			auth_trigger);
 			// Only collect the metric when hdmi is plugged in.
 			if (hdev->tx_comm.hpd_state == 1) {
-				hdmitx_current_status(auth_trigger
+				hdmitx_current_status(&hdev->tx_comm, auth_trigger
 					? HDMITX_HDCP_AUTH_SUCCESS
 					: HDMITX_HDCP_AUTH_FAILURE);
 			}
@@ -306,7 +306,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_VIC, 0);
 
 	if (hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_RXSENSE, 0) == 0)
-		hdmitx_current_status(HDMITX_HDCP_DEVICE_NOT_READY_ERROR);
+		hdmitx_current_status(tx_comm, HDMITX_HDCP_DEVICE_NOT_READY_ERROR);
 	/*
 	 * there's risk:
 	 * hdcp2.2 start auth-->enter early suspend, stop hdcp-->
@@ -328,7 +328,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
 			DDC_HDCP_OP, HDCP14_OFF);
 		hdmitx_hdcp_do_work(tx_comm);
-		hdmitx_current_status(HDMITX_HDCP_NOT_ENABLED);
+		hdmitx_current_status(tx_comm, HDMITX_HDCP_NOT_ENABLED);
 	}
 	if (strncmp(buf, "1", 1) == 0) {
 		if (vic == HDMI_17_720x576p50_4x3 || vic == HDMI_18_720x576p50_16x9)
@@ -337,7 +337,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		hdmitx_hdcp_do_work(tx_comm);
 		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
 			DDC_HDCP_OP, HDCP14_ON);
-		hdmitx_current_status(HDMITX_HDCP_HDCP_1_ENABLED);
+		hdmitx_current_status(tx_comm, HDMITX_HDCP_HDCP_1_ENABLED);
 	}
 	if (strncmp(buf, "2", 1) == 0) {
 		if (tx_comm->efuse_dis_hdcp_tx22) {
@@ -349,7 +349,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		hdmitx_hdcp_do_work(tx_comm);
 		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
 			DDC_HDCP_MUX_INIT, 2);
-		hdmitx_current_status(HDMITX_HDCP_HDCP_2_ENABLED);
+		hdmitx_current_status(tx_comm, HDMITX_HDCP_HDCP_2_ENABLED);
 	}
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 }
@@ -962,7 +962,7 @@ void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 
 	hdev->tx_comm.hdcp_mode = 0;
 	hdmitx_hdcp_do_work(&hdev->tx_comm);
-	hdmitx_current_status(HDMITX_HDCP_NOT_ENABLED);
+	hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_NOT_ENABLED);
 }
 
 unsigned char drm_hdmitx_get_hdcp_topo_info(void)

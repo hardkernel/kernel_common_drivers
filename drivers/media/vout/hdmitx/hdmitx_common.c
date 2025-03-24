@@ -344,18 +344,6 @@ bool hdmitx_common_get_hdmi_used_state(struct hdmitx_common *tx_comm)
 }
 EXPORT_SYMBOL(hdmitx_common_get_hdmi_used_state);
 
-int hdmitx_setup_attr(struct hdmitx_common *tx_comm, const char *buf)
-{
-	char attr[16] = {0};
-	int len = strlen(buf);
-
-	if (len <= 16)
-		memcpy(attr, buf, len);
-	memcpy(tx_comm->fmt_attr, attr, sizeof(tx_comm->fmt_attr));
-	return 0;
-}
-EXPORT_SYMBOL(hdmitx_setup_attr);
-
 int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16])
 {
 	memcpy(attr, tx_comm->fmt_attr, sizeof(tx_comm->fmt_attr));
@@ -845,7 +833,7 @@ EXPORT_SYMBOL(hdmitx_common_avmute_locked);
 
 /********************************Debug function***********************************/
 
-int hdmitx_common_edid_tracer_post_proc(struct hdmitx_common *tx_comm, struct rx_cap *prxcap)
+static int hdmitx_common_edid_tracer_post_proc(struct hdmitx_common *tx_comm, struct rx_cap *prxcap)
 {
 	struct dv_info *dv;
 	struct hdr_info *hdr;
@@ -873,7 +861,6 @@ int hdmitx_common_edid_tracer_post_proc(struct hdmitx_common *tx_comm, struct rx
 
 	return 0;
 }
-EXPORT_SYMBOL(hdmitx_common_edid_tracer_post_proc);
 
 int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 {
@@ -973,6 +960,11 @@ void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm)
 	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
 	/* if (tx_comm->hdmi_repeater == 1) */
 	/* rx_edid_physical_addr(0, 0, 0, 0); */
+}
+
+void hdmitx_current_status(struct hdmitx_common *tx_comm, enum hdmitx_event_log_bits event)
+{
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, event);
 }
 
 void hdmitx_hdr_state_init(struct hdmitx_common *tx_comm)
@@ -1247,10 +1239,10 @@ enum frl_rate_enum hdmitx_select_frl_rate(u8 *dsc_en, u8 dsc_policy, enum hdmi_v
 	return frl_rate;
 }
 
-unsigned int hdmitx_get_frame_duration(void)
+unsigned int hdmitx_get_frame_duration(struct hdmitx_common *tx_comm)
 {
 	unsigned int frame_duration;
-	struct vinfo_s *vinfo = hdmitx_get_current_vinfo(NULL);
+	struct vinfo_s *vinfo = hdmitx_get_current_vinfo(tx_comm);
 
 	if (!vinfo || !vinfo->sync_duration_num)
 		return 0;

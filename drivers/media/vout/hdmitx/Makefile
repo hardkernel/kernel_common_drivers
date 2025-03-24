@@ -16,6 +16,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_COMMON) += \
 							vout/hdmitx/hdmitx_mode.o \
 							vout/hdmitx/hdmitx_format_para.o \
 							vout/hdmitx/hdmitx_mode_set.o \
+							vout/hdmitx/hdmitx_vout.o \
 							vout/hdmitx/hdmitx_audio.o \
 							vout/hdmitx/hdmitx_tracer_linux.o \
 							vout/hdmitx/hdmitx_event_mgr_linux.o \

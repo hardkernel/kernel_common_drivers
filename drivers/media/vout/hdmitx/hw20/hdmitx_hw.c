@@ -4529,7 +4529,8 @@ static void hdcp_ksv_sha1_calc(struct hdmitx20_dev *hdev)
 				valid = HDCP_KSVLIST_VALID;
 			} else {
 				valid = HDCP_KSVLIST_INVALID;
-				hdmitx_current_status(HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR);
+				hdmitx_current_status(&hdev->tx_comm,
+						      HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR);
 			}
 			ksv_sha_matched = valid;
 		}
@@ -4591,7 +4592,7 @@ static void hdcptx_events_handle(struct timer_list *t)
 			topo14->max_devs_exceeded = 1;
 			topo14->max_cascade_exceeded = 1;
 			hdev->hdcp_max_exceed_state = 1;
-			hdmitx_current_status(HDMITX_HDCP_AUTH_TOPOLOGY_ERROR);
+			hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_AUTH_TOPOLOGY_ERROR);
 		}
 	}
 
@@ -4649,16 +4650,17 @@ static void hdcptx_events_handle(struct timer_list *t)
 		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 			DDC_HDCP14_SAVE_OBS, (unsigned long)&obs_cur);
 		if (obs_cur.intstat & (3 << 3))
-			hdmitx_current_status(HDMITX_HDCP_I2C_ERROR);
+			hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_I2C_ERROR);
 		if (((obs_cur.obs0 >> 4) == 3) && (((obs_cur.obs0 >> 1) & 0x7) == 0))
-			hdmitx_current_status(HDMITX_HDCP_AUTH_R0_MISMATCH_ERROR);
+			hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_AUTH_R0_MISMATCH_ERROR);
 		if (((obs_cur.obs0 >> 4) == 9) && (((obs_cur.obs0 >> 1) & 0x7) == 2))
-			hdmitx_current_status(HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR);
+			hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR);
 		if (((obs_cur.obs0 >> 4) == 8) && (((obs_cur.obs0 >> 1) & 0x7) == 1))
-			hdmitx_current_status(HDMITX_HDCP_AUTH_REPEATER_DELAY_ERROR);
+			hdmitx_current_status(&hdev->tx_comm,
+					      HDMITX_HDCP_AUTH_REPEATER_DELAY_ERROR);
 	}
 	if (st_flag & (1 << 4))
-		hdmitx_current_status(HDMITX_HDCP_I2C_ERROR);
+		hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_I2C_ERROR);
 
 	if (st_flag & (1 << 1)) {
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
@@ -4781,7 +4783,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *tx_hw,
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_SOFTRSTZ, 0);
 		break;
 	case DDC_EDID_READ_DATA:
-		hdmitx_read_edid(hdev->tx_comm.EDID_buf);
+		hdmitx_read_edid(&hdev->tx_comm, hdev->tx_comm.EDID_buf);
 		break;
 	case DDC_GLITCH_FILTER_RESET:
 		hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 6, 1);

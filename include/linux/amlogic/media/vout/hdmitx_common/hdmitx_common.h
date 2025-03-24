@@ -477,8 +477,6 @@ int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode);
 int hdmitx_common_avmute_locked(struct hdmitx_common *tx_comm,
 		int mute_flag, int mute_path_hint);
 
-/*edid tracer post-processing*/
-int hdmitx_common_edid_tracer_post_proc(struct hdmitx_common *tx_comm, struct rx_cap *prxcap);
 /*read edid raw data and parse edid to rxcap*/
 int hdmitx_common_get_edid(struct hdmitx_common *tx_comm);
 
@@ -491,13 +489,13 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 				       char *mode, char *attr, bool brr_valid);
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 			       struct hdmitx_common_state *new_state);
-int set_disp_mode(struct hdmitx_common *tx_comm, const char *mode);
+int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode);
 
 /*packet api*/
 int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 	enum vsif_type type, int on, void *param);
 
-unsigned int hdmitx_get_frame_duration(void);
+unsigned int hdmitx_get_frame_duration(struct hdmitx_common *tx_comm);
 
 /* hdcp api*/
 void hdmitx_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf);
@@ -532,7 +530,6 @@ bool hdmitx_common_get_edid_valid_state(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_hdcp_user_state(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_hdmi_used_state(struct hdmitx_common *tx_comm);
 
-int hdmitx_setup_attr(struct hdmitx_common *tx_comm, const char *buf);
 int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16]);
 
 int hdmitx_get_hdrinfo(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo);
@@ -559,9 +556,9 @@ bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum);
 
 void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx_hw);
 void hdmitx_vout_uninit(void);
-struct vinfo_s *hdmitx_get_current_vinfo(void *data);
+struct vinfo_s *hdmitx_get_current_vinfo(void *tx_comm);
 void hdmitx_build_fmt_attr_str(struct hdmitx_common *tx_comm);
-void hdmitx_current_status(enum hdmitx_event_log_bits event);
+void hdmitx_current_status(struct hdmitx_common *tx_comm, enum hdmitx_event_log_bits event);
 ssize_t hdcp_lstore_show(struct device *dev, struct device_attribute *attr,
 				char *buf);
 ssize_t hdcp_mode_show(struct device *dev, struct device_attribute *attr,
@@ -585,7 +582,6 @@ void hdmitx_common_late_resume(struct hdmitx_common *tx_comm);
 /* common disable hdmitx output api */
 void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	bool phy_dis, bool hdcp_reset, bool pkt_clear, bool edid_clear);
-unsigned int hdmitx_get_frame_duration(void);
 
 /*******************************drm hdmitx api*******************************/
 

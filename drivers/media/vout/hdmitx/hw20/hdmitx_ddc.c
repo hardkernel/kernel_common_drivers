@@ -240,7 +240,7 @@ void edid_read_head_8bytes(void)
  * Note: read 8 Bytes of EDID data every time
  */
 #define EDID_WAIT_TIMEOUT	10
-void hdmitx_read_edid(unsigned char *rx_edid)
+void hdmitx_read_edid(struct hdmitx_common *tx_comm, unsigned char *rx_edid)
 {
 	unsigned int timeout = 0;
 	unsigned int timeout_cnt = 0;
@@ -271,7 +271,7 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 			timeout_cnt++;
 		}
 		if (timeout == EDID_WAIT_TIMEOUT)
-			hdmitx_current_status(HDMITX_EDID_I2C_ERROR);
+			hdmitx_current_status(tx_comm, HDMITX_EDID_I2C_ERROR);
 
 		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 1 << 1);
 		/* Read back 8 bytes */
