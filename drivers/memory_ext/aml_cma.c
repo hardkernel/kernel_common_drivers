@@ -1174,7 +1174,7 @@ module_init(init_cma_boost_task);
 int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 {
 	struct cpumask has_work;
-	int cpu, cpus, i = 0, ret = 0, ebusy = 0, einv = 0;
+	int cpu, cpus, i = 0, ret = 0, ebusy = 0, einv = 0, eintr = 0;
 	atomic_t ok;
 	unsigned long delta;
 	unsigned long cnt;
@@ -1240,14 +1240,18 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		work = &per_cpu(cma_pcp_thread, cpu);
 		wait_for_completion(&work->end);
 		if (work->ret) {
-			if (work->ret != -EBUSY)
-				einv++;
-			else
+			if (work->ret == -EBUSY)
 				ebusy++;
+			else if (work->ret == -EINTR)
+				eintr++;
+			else
+				einv++;
 		}
 	}
 
-	if (einv)
+	if (eintr)
+		ret = -EINTR;
+	else if (einv)
 		ret = -EINVAL;
 	else if (ebusy)
 		ret = -EBUSY;
