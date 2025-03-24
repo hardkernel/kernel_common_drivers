@@ -1629,6 +1629,10 @@ function set_default_parameters () {
 	else
 		echo "WARNING: no git, auto patch skip!!!"
 		export SYS_SKIP_GIT=1
+		if [[ ${ONLY_PATCH} -eq "1" ]]; then
+			cd ${CURRENT_DIR}
+			exit
+		fi
 	fi
 
 	if [[ ! -f ${BUILD_DIR}/build_abi.sh && ${BAZEL} == 0 ]]; then
