@@ -695,6 +695,22 @@
 		states = <1800000 1
 			  3300000 0>;
 	};
+
+	gpio_power_buttons: gpio-power-buttons {
+		compatible = "gpio-keys";
+		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpio_power: gpio-power {
+			label = "Power Button";
+			linux,code = <KEY_POWER>;
+			wakeup-source;
+
+			gpios = <&gpio GPIOX_5 GPIO_ACTIVE_LOW>;
+		};
+	};
 };
 
 &gpio {
