@@ -1386,11 +1386,47 @@ static const struct of_device_id meson_s7d_pinctrl_dt_match[] = {
 	{ },
 };
 
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+extern int irq_meson_gpio_suspend(struct irq_desc *desc, int on);
+
+static void meson_pinctrl_shutdown(struct platform_device *pdev)
+{
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(meson_s7d_periphs_banks); i++) {
+		struct meson_bank *bank = &meson_s7d_periphs_banks[i];
+		for (j = bank->irq_first; j <= bank->irq_last; j++) {
+			struct irq_desc *desc = irq_to_desc(j);
+			irq_meson_gpio_suspend(desc, 1);
+		}
+	}
+}
+
+static int meson_pinctrl_suspend(struct platform_device *pdev,
+		pm_message_t state)
+{
+	meson_pinctrl_shutdown(pdev);
+	return 0;
+}
+
+static int meson_pinctrl_resume(struct platform_device *pdev)
+{
+	irq_meson_gpio_suspend(NULL, 0);
+
+	return 0;
+}
+#endif
+
 static struct platform_driver meson_s7d_pinctrl_driver = {
 	.probe  = meson_pinctrl_probe,
 	.driver = {
 		.name	= "meson-s7d-pinctrl",
 	},
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+	.suspend = meson_pinctrl_suspend,
+	.resume = meson_pinctrl_resume,
+	.shutdown = meson_pinctrl_shutdown,
+#endif
 };
 
 #ifndef MODULE

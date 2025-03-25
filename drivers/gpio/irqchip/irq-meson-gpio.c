@@ -17,6 +17,9 @@
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <linux/amlogic/glb_timer.h>
 #endif
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+#include <linux/amlogic/aml_mbox.h>
+#endif
 
 #define NUM_CHANNEL 8
 #define MAX_INPUT_MUX 256
@@ -25,6 +28,10 @@
 #define REG_PIN_03_SEL	0x04
 #define REG_PIN_47_SEL	0x08
 #define REG_FILTER_SEL	0x0c
+
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+static struct mbox_chan *mbox_chan = NULL;
+#endif
 
 /* use for A1 like chips */
 #define REG_PIN_A1_SEL	0x04
@@ -924,6 +931,12 @@ static int meson_gpio_irq_of_init(struct device_node *node,
 	platform_set_drvdata(pdev, ctl);
 #endif /* CONFIG_AMLOGIC_MODIFY */
 
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+	mbox_chan = aml_mbox_request_channel_byidx(irq_dev, 0);
+	if (IS_ERR_OR_NULL(mbox_chan))
+		mbox_chan = NULL;
+#endif
+
 	return 0;
 
 free_channel_irqs:
@@ -976,6 +989,38 @@ static const struct dev_pm_ops meson_gpio_irq_pm_ops = {
 	.restore = meson_gpio_irq_restore,
 };
 #endif /* CONFIG_AMLOGIC_MODIFY */
+
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+int irq_meson_gpio_suspend(struct irq_desc *desc, int on)
+{
+	struct irq_data *data;
+	u32 *channel_hwirq;
+	u32 buf[4];
+
+	if (on) {
+		if (!desc)
+			return 0;
+
+		data = &desc->irq_data;
+		channel_hwirq = irq_data_get_irq_chip_data(data);
+		if (*channel_hwirq == 0)
+			return -EINVAL;
+
+		buf[0] = 151 + data->hwirq;
+		buf[1] = 1;             // Currently support LOW only
+		buf[2] = (1 << 0);      // EVENT_SHORT
+		buf[3] = 2;		// DUMMY
+	} else {
+		buf[0] = 0xffffffff;
+	}
+
+	aml_mbox_transfer_data(mbox_chan, MBOX_CMD_SET_KEYPAD,
+			&buf, sizeof(buf), NULL, 0, MBOX_SYNC);
+
+	return 0;
+}
+EXPORT_SYMBOL(irq_meson_gpio_suspend);
+#endif
 
 static const struct of_device_id meson_gpio_irq_match_table[] = {
 	{ .compatible = "amlogic,meson-gpio-intc" },
