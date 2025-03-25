@@ -1,6 +1,7 @@
 # dtb-y += overlay.dtbo
 
 dtb-y += dht11.dtbo \
+         gpio_power_button.dtbo \
          hktft32.dtbo \
          i2c0.dtbo \
          i2c1.dtbo \
