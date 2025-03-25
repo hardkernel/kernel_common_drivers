@@ -1268,23 +1268,6 @@ static ssize_t amvecm_enable_hdr10plus_show
 	return sprintf(buf, "%d\n", enable_hdr10plus);
 }
 
-static ssize_t amvecm_enable_hdr10plus_store
-	 (struct class *cla,
-	  struct class_attribute *attr,
-	  const char *buf, size_t count)
-{
-	size_t r;
-	int value = 0;
-
-	pr_info("set enable_hdr10plus: %s\n", buf);
-	r = kstrtoint(buf, 0, &value);
-	if (r != 0)
-		return -EINVAL;
-	enable_hdr10plus = value;
-	pr_info("current enable_hdr10plus is %d\n", value);
-	return count;
-}
-
 /* #endif */
 
 unsigned int pr_hist;
@@ -15273,8 +15256,7 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_slt_vl_lock_st_show,
 		amvecm_slt_vl_lock_st_store),
 	__ATTR(enable_hdr10plus, 0644,
-		amvecm_enable_hdr10plus_show,
-		amvecm_enable_hdr10plus_store),
+		amvecm_enable_hdr10plus_show, NULL),
 	__ATTR(hdr_param_dbg, 0644,
 		amvecm_hdr_param_show,
 		amvecm_hdr_param_store),
