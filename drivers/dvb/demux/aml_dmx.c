@@ -411,6 +411,9 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 		}
 	}
 
+	if (!pdmx->sc2_input)
+		recovery_dmx_input(pdmx);
+
 	if (!pdmx->sc2_input) {
 		dprint("first set DMX_SET_INPUT to local\n");
 		if (enable_w_mutex)
