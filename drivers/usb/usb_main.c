@@ -45,12 +45,16 @@ int get_otg_mode(void)
 }
 EXPORT_SYMBOL(get_otg_mode);
 
+/* TODO: Remove all these phy init once the phy porting is done.
+ * You can still use legacy phy driver by undefining this MARCO.
+ */
+#define AML_USBPHY_REMOVE_LEGACY
+
 static int __init usb_main_init(void)
 {
 	pr_debug("### %s() start\n", __func__);
 
-	/* TODO: Remove all phy init once the phy porting is done. */
-#ifndef AML_USBPHY_REMOVE_LEGEACY
+#ifndef AML_USBPHY_REMOVE_LEGACY
 	call_sub_init(amlogic_new_c2_usb2_v2_driver_init);//usbc2phy
 	call_sub_init(amlogic_new_c2_usb3_v2_driver_init);//usbc2phy
 	call_sub_init(amlogic_new_usb3_v3_driver_init); //usb3v3phy
@@ -60,7 +64,7 @@ static int __init usb_main_init(void)
 
 	call_sub_init(meson_uphy_drv_init);
 
-#ifndef AML_USBPHY_REMOVE_LEGEACY
+#ifndef AML_USBPHY_REMOVE_LEGACY
 	call_sub_init(amlogic_new_usb2_v2_driver_init); //usb2phy/amlogic_usb2_phy.ko
 	call_sub_init(amlogic_new_usb3_v2_driver_init);	//usb3v2phy/amlogic_usb3_v2_phy.ko
 	call_sub_init(amlogic_usb2_m31_drv_init);	//crgdrdphy/
@@ -71,7 +75,7 @@ static int __init usb_main_init(void)
 	call_sub_init(aml_xhci_plat_init);
 	call_sub_init(aml_dwc3_init);
 
-#ifndef AML_USBPHY_REMOVE_LEGEACY
+#ifndef AML_USBPHY_REMOVE_LEGACY
 	call_sub_init(amlogic_crg_init);		//crg/amlogic_usb_crg.ko
 	call_sub_init(amlogic_new_otg_driver_init);	//usbotg/amlogic_usb_otg.ko
 	call_sub_init(amlogic_crg_drd_usb2_drv_init);	//crgdrdphy/amlogic_usb2_crg_drd_phy.ko
@@ -80,7 +84,7 @@ static int __init usb_main_init(void)
 
 	call_sub_init(amlogic_crg_host_driver_init);
 
-#ifndef AML_USBPHY_REMOVE_LEGEACY
+#ifndef AML_USBPHY_REMOVE_LEGACY
 	call_sub_init(crg_otg_init);	//crgdrdphy/
 	call_sub_init(crg_otg_v2_init);	//crgdrdphy/
 #endif

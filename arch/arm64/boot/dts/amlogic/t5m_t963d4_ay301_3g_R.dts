@@ -1342,66 +1342,51 @@
 	};
 };
 
-&crg30_otg {
-	status = "disabled";
-	controller-type = <1>;
-	//gpio-vbus-power = "GPIOM_8";
-	//gpios = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
-};
-
 &ethmac {
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
 };
 
+&usbphy0 {
+	status = "okay";
+	u2p@0 {
+		status = "okay";
+		controller-type = <1>;
+	};
+	u3p@0 {
+		status = "okay";
+	};
+};
+
+&usbphy1 {
+	status = "okay";
+	u2p@0 {
+		status = "okay";
+	};
+};
+
+&usbphy2 {
+	status = "okay";
+	u2p@0 {
+		status = "okay";
+	};
+};
+
 &crg20 {
-	compatible = "amlogic, crg-host-drd";
-	status = "disabled";
+	status = "okay";
 };
 
 &crg21 {
-	compatible = "amlogic, crg-host-drd";
-	status = "disabled";
+	status = "okay";
 };
 
 &crg30_drd {
-	compatible = "amlogic, crg-drd";
-	status = "disabled";
-};
-
-&usb2_m31_0_phy {
 	status = "okay";
-};
-
-&usb3_m31_0_phy {
-	status = "okay";
-	portnum = <1>;
-};
-
-&crg_phy_20 {
-	status = "disabled";
-	portnum = <1>;
-};
-
-&crg3_phy_20 {
-	status = "disabled";
-	portnum = <0>;
-};
-
-&crg_phy_21 {
-	status = "disabled";
-	portnum = <1>;
-};
-
-&crg3_phy_21 {
-	status = "disabled";
-	portnum = <0>;
 };
 
 &crg_udc_3 {
-	status = "disabled";
-	controller-type = <4>;
+	status = "okay";
 };
 
 &spicc0 {	//for TCON

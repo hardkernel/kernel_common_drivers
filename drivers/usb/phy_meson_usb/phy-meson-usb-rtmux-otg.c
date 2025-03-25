@@ -52,40 +52,29 @@ static void meson_uphy_rtmux_otg_notifier_call(unsigned long is_device_on)
 			(&meson_uphy_rtmux_otg_notifier_list, is_device_on, NULL);
 }
 
-static int meson_uphy_rtmux_otg_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode,
-											bool locked)
+/* The pdata->u2phy_ops->set_mode is naturally serialized. */
+static int meson_uphy_rtmux_otg_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode)
 {
 	int ret = 0;
 	struct meson_uphy_instance *inst = dev_get_drvdata(phy->dev);
-	struct phy *gphy = inst->phy;
-	const struct meson_uphy_pdata *pdata = ((struct meson_uphy_pool *)
-				dev_get_drvdata(gphy->dev.parent))->pdata;
+	const struct meson_uphy_pdata *pdata = inst->domain_pool->pdata;
 
 	switch (mode) {
 	case MESON_USB_MODE_HOST:
 		meson_u2phy_set_vbus_power(phy, 1);
 		meson_uphy_rtmux_otg_notifier_call(0);
-		if (locked)
-			pdata->u2phy_ops->set_mode(gphy, PHY_MODE_USB_HOST, 0);
-		else
-			phy_set_mode(gphy, PHY_MODE_USB_HOST);
+		pdata->u2phy_ops->set_mode(phy, MESON_USB_MODE_HOST);
 		break;
 	case MESON_USB_MODE_DEVICE:
-		if (locked)
-			pdata->u2phy_ops->set_mode(gphy, PHY_MODE_USB_DEVICE, 0);
-		else
-			phy_set_mode(gphy, PHY_MODE_USB_DEVICE);
+		pdata->u2phy_ops->set_mode(phy, MESON_USB_MODE_DEVICE);
 		meson_uphy_rtmux_otg_notifier_call(1);
 		meson_u2phy_set_vbus_power(phy, 0);
 		break;
 	case MESON_USB_MODE_OTG:
-		if (locked)
-			pdata->u2phy_ops->set_mode(gphy, PHY_MODE_USB_OTG, 0);
-		else
-			phy_set_mode(gphy, PHY_MODE_USB_OTG);
+		pdata->u2phy_ops->set_mode(phy, MESON_USB_MODE_OTG);
 		break;
 	default:
-		mup_err(phy->dev, "%s: unknown phy mode.\n", __func__);
+		dev_err(phy->dev, "%s: unknown phy mode.\n", __func__);
 		ret = -EINVAL;
 		break;
 	}
@@ -103,18 +92,18 @@ static void meson_uphy_rtmux_otg_work(struct work_struct *work)
 	if (phy->otg_helper.iddig_type == 1) {
 		r5.d32 = readl(&phy->usb_aml_regs->r5);
 		if (r5.b.iddig_curr == 0)
-			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST, false);
+			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST);
 		else
-			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE, false);
+			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE);
 
 		r5.b.usb_iddig_irq = 0;
 		writel(r5.d32, &phy->usb_aml_regs->r5);
 	} else if (phy->otg_helper.iddig_type == 0) {
 		reg2.d32 = readl(&phy->u2p_aml_regs[0]->r2);
 		if (reg2.b.iddig_curr == 0)
-			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST, false);
+			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST);
 		else
-			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE, false);
+			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE);
 
 		reg2.b.usb_iddig_irq = 0;
 		writel(reg2.d32, &phy->u2p_aml_regs[0]->r2);
@@ -129,7 +118,7 @@ static irqreturn_t  meson_uphy_rtmux_otg_detect_irq(int irq, void *data)
 
 	if (phy->otg_helper.iddig_type == 1) {
 		if (!phy->usb_aml_regs) {
-			mup_err(phy->dev, "No u3 usb reg set. Double check the dts node?\n");
+			dev_err(phy->dev, "No u3 usb reg set. Double check the dts node?\n");
 			return IRQ_HANDLED;
 		}
 		r5.d32 = readl(&phy->usb_aml_regs->r5);
@@ -137,7 +126,7 @@ static irqreturn_t  meson_uphy_rtmux_otg_detect_irq(int irq, void *data)
 		writel(r5.d32, &phy->usb_aml_regs->r5);
 	} else if (phy->otg_helper.iddig_type == 0) {
 		if (!phy->u2p_aml_regs[0]) {
-			mup_err(phy->dev, "No u2 usb reg set. Double check the dts node?\n");
+			dev_err(phy->dev, "No u2 usb reg set. Double check the dts node?\n");
 			return IRQ_HANDLED;
 		}
 		reg2.d32 = readl(&phy->u2p_aml_regs[0]->r2);
@@ -159,9 +148,9 @@ static void meson_uphy_rtmux_id_gpio_work(struct work_struct *work)
 	id_gpio_status = gpiod_get_value(phy->otg_helper.idgpiodesc);
 
 	if (id_gpio_status == 1)
-		meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST, false);
+		meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST);
 	else
-		meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE, false);
+		meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE);
 }
 
 static struct device *meson_uphydev_to_sysdev(struct amlogic_usb_v2 *phy)
@@ -197,7 +186,7 @@ static int meson_uphy_rtmux_id_pin_config(struct amlogic_usb_v2 *phy)
 
 	desc = gpiod_get_index(sysdev, NULL, 1, GPIOD_IN);
 	if (IS_ERR(desc)) {
-		mup_err(phy->dev, "fail to get id-gpioirq\n");
+		dev_err(phy->dev, "fail to get id-gpioirq\n");
 		return -ENODEV;
 	}
 
@@ -212,12 +201,12 @@ static int meson_uphy_rtmux_id_pin_config(struct amlogic_usb_v2 *phy)
 			       "meson-usb-gpio-otg", phy);
 
 	if (ret) {
-		mup_err(phy->dev, "failed to request ret=%d, id_irqnr=%d\n",
+		dev_err(phy->dev, "failed to request ret=%d, id_irqnr=%d\n",
 		       ret, id_irqnr);
 		return -ENODEV;
 	}
 
-	mup_dbg(phy->dev, "<%s> ok\n", __func__);
+	dev_dbg(phy->dev, "<%s> ok\n", __func__);
 
 	return 0;
 }
@@ -234,16 +223,16 @@ static void meson_uphy_rtmux_id_pin_deconfig(struct amlogic_usb_v2 *phy)
 	if (phy->otg_helper.irqline)
 		gpiod_put(phy->otg_helper.idgpiodesc);
 
-	mup_dbg(phy->dev, "<%s> ok\n", __func__);
+	dev_dbg(phy->dev, "<%s> ok\n", __func__);
 }
 
 void meson_uphy_rtmux_otg_complete(struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *phy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 
-	if (phy->current_mode == PHY_MODE_USB_HOST)
+	if (phy->current_mode == MESON_USB_MODE_HOST)
 		resume_xhci_port_a();
-	else if (phy->current_mode == PHY_MODE_USB_DEVICE)
+	else if (phy->current_mode == MESON_USB_MODE_DEVICE)
 		force_disable_xhci_port_a();
 }
 
@@ -258,7 +247,7 @@ int meson_uphy_rtmux_otg_suspend(struct meson_uphy_instance *instance)
 	if (phy->otg_helper.hwotg && phy->otg_helper.hwotg_type == MESON_USB_OTG_T_GPIO)
 		flush_delayed_work(&phy->otg_helper.id_gpio_work);
 
-	if (phy->current_mode == PHY_MODE_USB_HOST)
+	if (phy->current_mode == MESON_USB_MODE_HOST)
 		meson_u2phy_set_vbus_power(phy, 0);
 
 	return 0;
@@ -268,7 +257,7 @@ int meson_uphy_rtmux_otg_resume(struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *phy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 
-	if (phy->current_mode == PHY_MODE_USB_HOST)
+	if (phy->current_mode == MESON_USB_MODE_HOST)
 		meson_u2phy_set_vbus_power(phy, 1);
 
 	return 0;
@@ -306,23 +295,23 @@ int meson_uphy_rtmux_otg_parse(struct device *dev, struct meson_uphy_instance *i
 	if (phy->otg_helper.hwotg) {
 		ret = of_property_read_u32(dev->of_node, "otg-type", &phy->otg_helper.hwotg_type);
 		if (ret < 0) {
-			mup_err(dev, " Please set the otg type in the dts node.\n");
+			dev_err(dev, " Please set the otg type in the dts node.\n");
 			return ret;
 		}
 
 		ret = of_property_read_u32(dev->of_node, "iddig-type", &phy->otg_helper.iddig_type);
 		if (ret < 0) {
-			mup_err(dev, " Please set the otg type in the dts node.\n");
+			dev_err(dev, " Please set the otg type in the dts node.\n");
 			return ret;
 		}
 
 		if (phy->otg_helper.iddig_type == 1 && !phy->usb_aml_regs) {
-			mup_err(dev, " Please set the usb_aml_regs in the dts node.\n");
+			dev_err(dev, " Please set the usb_aml_regs in the dts node.\n");
 			return -EINVAL;
 		}
 	}
 
-	mup_dbg(dev, "controller_type %d\n"
+	dev_dbg(dev, "controller_type %d\n"
 			"force_device_mode %d\n"
 			"otg %d type %d\n"
 			"xhci_port_a addr 0x%x mem %px",
@@ -346,7 +335,7 @@ int meson_uphy_rtmux_otg_init(struct amlogic_usb_v2 *phy)
 	int ret = 0;
 
 	if (!phy->otg_helper.otg_port) {
-		mup_err(dev, "%s Not OTG port. Exit.\n", __func__);
+		dev_err(dev, "%s Not OTG port. Exit.\n", __func__);
 		return -ENODEV;
 	}
 
@@ -356,23 +345,23 @@ int meson_uphy_rtmux_otg_init(struct amlogic_usb_v2 *phy)
 		if (phy->otg_helper.hwotg_type == MESON_USB_OTG_T_GPIO) {
 			ret = meson_uphy_rtmux_id_pin_config(phy);
 			if (ret) {
-				mup_err(dev, "request of gpio-irq failed\n");
+				dev_err(dev, "request of gpio-irq failed\n");
 				return ret;
 			}
-			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_OTG, true);
+			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_OTG);
 			INIT_DELAYED_WORK(&phy->otg_helper.id_gpio_work,
 							meson_uphy_rtmux_id_gpio_work);
 			if (gpiod_get_value(phy->otg_helper.idgpiodesc) == 1)
-				meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE, true);
+				meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE);
 			else
-				meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST, true);
+				meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST);
 		} else if (phy->otg_helper.hwotg_type == MESON_USB_OTG_T_PHY) {
 			union usb_r5_v2 r5 = {.d32 = 0};
 			union u2p_r2_v2 reg2;
 
 			irq = of_irq_get(dev->of_node, 0);
 			if (irq < 0) {
-				mup_err(dev, " Cannot retrieve the irq prop.\n");
+				dev_err(dev, " Cannot retrieve the irq prop.\n");
 				return -ENODEV;
 			}
 			phy->otg_helper.irqline = irq;
@@ -381,38 +370,38 @@ int meson_uphy_rtmux_otg_init(struct amlogic_usb_v2 *phy)
 					     "meson-usb-id-otg", phy);
 
 			if (ret) {
-				mup_err(dev, "request of irq%d failed\n",
+				dev_err(dev, "request of irq%d failed\n",
 					irq);
 				ret = -EBUSY;
 				return ret;
 			}
-			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_OTG, true);
+			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_OTG);
 			INIT_DELAYED_WORK(&phy->otg_helper.work, meson_uphy_rtmux_otg_work);
 			if (phy->otg_helper.iddig_type == 1) {
 				r5.d32 = readl(&phy->usb_aml_regs->r5);
 				if (r5.b.iddig_curr == 0)
 					meson_uphy_rtmux_otg_set_mode(phy,
-						MESON_USB_MODE_HOST, true);
+						MESON_USB_MODE_HOST);
 				else
 					meson_uphy_rtmux_otg_set_mode(phy,
-						MESON_USB_MODE_DEVICE, true);
+						MESON_USB_MODE_DEVICE);
 			} else if (phy->otg_helper.iddig_type == 0) {
 				reg2.d32 = readl(&phy->u2p_aml_regs[0]->r2);
 				if (reg2.b.iddig_curr == 0)
 					meson_uphy_rtmux_otg_set_mode(phy,
-						MESON_USB_MODE_HOST, true);
+						MESON_USB_MODE_HOST);
 				else
 					meson_uphy_rtmux_otg_set_mode(phy,
-						MESON_USB_MODE_DEVICE, true);
+						MESON_USB_MODE_DEVICE);
 			}
 		}  else {
-			mup_err(dev, "otg type %d not supported\n", phy->otg_helper.hwotg_type);
+			dev_err(dev, "otg type %d not supported\n", phy->otg_helper.hwotg_type);
 		}
 	} else {
 		if (get_otg_mode() || phy->otg_helper.controller_type == USB_DEVICE_ONLY)
-			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE, true);
+			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_DEVICE);
 		else if (phy->otg_helper.controller_type == USB_HOST_ONLY)
-			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST, true);
+			meson_uphy_rtmux_otg_set_mode(phy, MESON_USB_MODE_HOST);
 	}
 
 	return ret;

@@ -59,44 +59,34 @@ static void meson_usb2phy_txhd2_cali(struct amlogic_usb_v2 *mphy)
 }
 
 static struct meson_u2phy_priv meson_u2phy_txhd2_priv = {
+	.set_mode = meson_u2phy_set_mode,
 	.cali = meson_usb2phy_txhd2_cali,
 	.set_pll = meson_usb2phy_txhd2_set_pll,
 };
 
-static int meson_u2phy_txhd2_set_mode(struct phy *phy, enum phy_mode mode, int submode)
+static int meson_u2phy_txhd2_set_mode(void *phy, enum meson_uphy_mode mode)
 {
-	int ret = 0;
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
-
-	ret = meson_u2phy_set_mode(mphy, mode);
-
-	return ret;
+	return meson_u2phy_set_mode((struct amlogic_usb_v2 *)phy, mode);
 }
 
-static int meson_u2phy_txhd2_init(struct phy *phy)
+static int meson_u2phy_txhd2_init(void *phy)
 {
-	return meson_u2phy_aml_init(gphy_to_amlusbv2phy(phy), &meson_u2phy_txhd2_priv);
+	return meson_u2phy_aml_init((struct amlogic_usb_v2 *)phy, &meson_u2phy_txhd2_priv);
 }
 
-static int meson_u2phy_txhd2_exit(struct phy *phy)
+static int meson_u2phy_txhd2_exit(void *phy)
 {
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
-
-	return meson_u2phy_exit(mphy);
+	return meson_u2phy_exit((struct amlogic_usb_v2 *)phy);
 }
 
-static int meson_u2phy_txhd2_power_on(struct phy *phy)
+static int meson_u2phy_txhd2_power_on(void *phy)
 {
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
-
-	return meson_u2phy_power_on(mphy);
+	return meson_u2phy_power_on((struct amlogic_usb_v2 *)phy);
 }
 
-static int meson_u2phy_txhd2_power_off(struct phy *phy)
+static int meson_u2phy_txhd2_power_off(void *phy)
 {
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
-
-	return meson_u2phy_power_off(mphy);
+	return meson_u2phy_power_off((struct amlogic_usb_v2 *)phy);
 }
 
 static struct meson_uphy_ops meson_u2phy_txhd2_ops = {

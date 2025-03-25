@@ -51,7 +51,7 @@ static inline unsigned int  meson_aml_u3phy_read_reg32(struct aml_usb3_phy *phy,
 	phys_addr_t pa = meson_aml_u3phy_virt_to_phy(phy, reg);
 	u32 val = readl(reg);
 
-	mup_dbg(phy->dev, "read: %pa, 0x%x.\n", &pa, val);
+	dev_dbg(phy->dev, "read: %pa, 0x%x.\n", &pa, val);
 	pa = 0;
 
 	return val;
@@ -62,9 +62,9 @@ static inline void  meson_aml_u3phy_modify_reg32(struct aml_usb3_phy *phy,
 {
 	phys_addr_t pa = meson_aml_u3phy_virt_to_phy(phy, reg);
 
-	mup_dbg(phy->dev, "initial: %pa, 0x%x.\n", &pa, readl(reg));
+	dev_dbg(phy->dev, "initial: %pa, 0x%x.\n", &pa, readl(reg));
 	writel((readl(reg) & ~clear_mask) | set_mask, reg);
-	mup_dbg(phy->dev, "modified: %pa, 0x%x.\n", &pa, readl(reg));
+	dev_dbg(phy->dev, "modified: %pa, 0x%x.\n", &pa, readl(reg));
 	pa = 0;
 }
 
@@ -73,9 +73,9 @@ static inline void  meson_aml_u3phy_write_reg32(struct aml_usb3_phy *phy,
 {
 	phys_addr_t pa = meson_aml_u3phy_virt_to_phy(phy, reg);
 
-	mup_dbg(phy->dev, "initial: %pa, 0x%x.\n", &pa, readl(reg));
+	dev_dbg(phy->dev, "initial: %pa, 0x%x.\n", &pa, readl(reg));
 	writel(val, reg);
-	mup_dbg(phy->dev, "written: %pa, 0x%x.\n", &pa, readl(reg));
+	dev_dbg(phy->dev, "written: %pa, 0x%x.\n", &pa, readl(reg));
 	pa = 0;
 }
 
@@ -86,7 +86,7 @@ static int  meson_aml_u3phy_set_clk(struct aml_usb3_phy *phy, bool on)
 	if (on) {
 		ret = clk_bulk_prepare_enable(phy->clk_num, phy->clks);
 		if (ret) {
-			mup_err(phy->dev, "Failed to enable usb phy bus clock at %d\n",
+			dev_err(phy->dev, "Failed to enable usb phy bus clock at %d\n",
 								__LINE__);
 			return ret;
 		}
@@ -104,7 +104,7 @@ static void  meson_aml_u3phy_set_power_off_quirks(struct aml_usb3_phy *phy)
 		meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
 							BIT(phy->usb3_apb_reset_bit),
 							BIT(phy->usb3_apb_reset_bit));
-		mup_dbg(phy->dev, "ic_ver:0x%x, set power quirks entered.", phy->ic_ver);
+		dev_dbg(phy->dev, "ic_ver:0x%x, set power quirks entered.", phy->ic_ver);
 		/*  The ctrl reg default value is power consuming. */
 		meson_aml_u3phy_write_reg32(phy, 0x71, phy->ctrl_reg + 0x4);
 		meson_aml_u3phy_write_reg32(phy, 0x0, phy->ctrl_reg + 0x8);
@@ -366,7 +366,7 @@ int meson_aml_u3phy_exit(struct aml_usb3_phy *phy)
 	meson_aml_u3phy_set_clk(phy, false);
 	meson_aml_u3phy_set_hw_on(phy, false);
 
-	mup_dbg(phy->dev, "reset level final: 0x%x.\n",
+	dev_dbg(phy->dev, "reset level final: 0x%x.\n",
 				readl(phy->reset_reg + phy->reset_level_shift));
 
 	return 0;
@@ -394,13 +394,13 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	phy->phy_id = instance->index;
 	phy->dev = dev;
-	mup_dbg(dev, "phy_id %d.\n", phy->phy_id);
+	dev_dbg(dev, "phy_id %d.\n", phy->phy_id);
 	instance->meson_uphy = phy;
 	get_device(dev);
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &phy->cfg_reg_phy, &phy->cfg_reg_size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d(id-%d)\n",
+		dev_err(dev, "failed to get address %d(id-%d)\n",
 			addr_i, phy->phy_id);
 		return ret;
 	}
@@ -410,13 +410,13 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	if (IS_ERR(cfg_reg))
 		return PTR_ERR(cfg_reg);
 
-	mup_dbg(dev, "USB3 phy probe:cfg_reg_phy:%llx, iomap cfg_reg:%px, s:%llx\n",
+	dev_dbg(dev, "USB3 phy probe:cfg_reg_phy:%llx, iomap cfg_reg:%px, s:%llx\n",
 			phy->cfg_reg_phy, cfg_reg, phy->cfg_reg_size);
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &phy->reset_reg_phy,
 						&phy->reset_reg_size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d(id-%d)\n",
+		dev_err(dev, "failed to get address %d(id-%d)\n",
 			addr_i, phy->phy_id);
 		return ret;
 	}
@@ -426,12 +426,12 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	if (IS_ERR(reset_reg))
 		return PTR_ERR(reset_reg);
 
-	mup_dbg(dev, "USB3 phy probe:reset_phy:%llx, iomap reset_reg:%px, s:%llx\n",
+	dev_dbg(dev, "USB3 phy probe:reset_phy:%llx, iomap reset_reg:%px, s:%llx\n",
 			phy->reset_reg_phy, reset_reg, phy->reset_reg_size);
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &phy->ctrl_reg_phy, &phy->ctrl_reg_size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d(id-%d)\n",
+		dev_err(dev, "failed to get address %d(id-%d)\n",
 			addr_i, phy->phy_id);
 		return ret;
 	}
@@ -441,12 +441,12 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	if (IS_ERR(ctrl_reg))
 		return PTR_ERR(ctrl_reg);
 
-	mup_dbg(dev, "USB3 phy probe:ctrl_phy:%llx, iomap ctrl_reg:%px, s:%llx\n",
+	dev_dbg(dev, "USB3 phy probe:ctrl_phy:%llx, iomap ctrl_reg:%px, s:%llx\n",
 			phy->ctrl_reg_phy, ctrl_reg, phy->ctrl_reg_size);
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &phy->trim_reg_phy, &phy->trim_reg_size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d(id-%d), This usb phy has no trim reg?\n",
+		dev_err(dev, "failed to get address %d(id-%d), This usb phy has no trim reg?\n",
 			addr_i, phy->phy_id);
 		return ret;
 	}
@@ -455,7 +455,7 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	if (IS_ERR(trim_reg))
 		return PTR_ERR(trim_reg);
 
-	mup_dbg(dev, "USB3 phy probe:trim_phy:%llx, iomap trim_reg:%px, s:%llx\n",
+	dev_dbg(dev, "USB3 phy probe:trim_phy:%llx, iomap trim_reg:%px, s:%llx\n",
 			phy->trim_reg_phy, trim_reg, phy->trim_reg_size);
 
 	phy_off = of_property_read_bool(dev->of_node, "off");
@@ -481,33 +481,33 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	cnt = of_property_count_strings(dev->of_node, "clock-names");
 	if (cnt < 0) {
-		mup_err(dev, "no clks? exit.");
+		dev_err(dev, "no clks? exit.");
 		return -EINVAL;
 	} else if (cnt > AML_USB_PHY_MAX_CLK_NUMBER) {
-		mup_err(dev, "too many clks. exit.");
+		dev_err(dev, "too many clks. exit.");
 		return -EOVERFLOW;
 	}
 	phy->clk_num = cnt;
-	mup_dbg(dev, "clk num: %d\n", cnt);
+	dev_dbg(dev, "clk num: %d\n", cnt);
 	for (i = 0; i < cnt; i++) {
 		ret = of_property_read_string_index(dev->of_node, "clock-names",
 									i, &phy->clks[i].id);
 		if (ret < 0) {
-			mup_err(dev, "read clk-names idx:%d err", i);
+			dev_err(dev, "read clk-names idx:%d err", i);
 			return -EINVAL;
 		}
 	}
 
 	ret = devm_clk_bulk_get(dev, phy->clk_num, phy->clks);
 	if (ret) {
-		mup_dbg(dev, "Failed to get usb phy bus clocks\n");
+		dev_dbg(dev, "Failed to get usb phy bus clocks\n");
 		return ret;
 	}
 
 	for (i = 0; i < phy->clk_num; i++)
-		mup_dbg(dev, "%s %px.\n", phy->clks[i].id, (void *)phy->clks[i].clk);
+		dev_dbg(dev, "%s %px.\n", phy->clks[i].id, (void *)phy->clks[i].clk);
 
-	mup_dbg(dev, "USB3 phy_off:%d, pll_sw_cfg:%d, phy_id:%d, clk_num:%d\n"
+	dev_dbg(dev, "USB3 phy_off:%d, pll_sw_cfg:%d, phy_id:%d, clk_num:%d\n"
 						 "reset_level_shift:0x%x, usb3-apb-reset-bit:%d\n"
 						 "usb3-phy-reset-bit:%d, usb3-controller-reset-bit:%d\n",
 						phy_off, pll_sw_cfg, phy->phy_id, phy->clk_num,

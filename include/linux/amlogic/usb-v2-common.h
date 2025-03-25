@@ -25,6 +25,12 @@ enum aml_usb_phy_mode {
 	AML_USB_PHY_MODE_USB_OTG,
 };
 
+enum meson_uphy_mode {
+	MESON_USB_MODE_HOST,
+	MESON_USB_MODE_DEVICE,
+	MESON_USB_MODE_OTG,
+};
+
 struct meson_uphy_configure_opts {
 #define MESON_USB_DEVICE_TEST_MODE_COMPL 0
 #define	MESON_USB_DEVICE_TEST_JK_COMPL	 1
@@ -81,6 +87,9 @@ struct amlogic_usb_v2 {
 	void __iomem	*regs;
 	void __iomem	*reset_regs;
 	void __iomem	*phy_cfg[4];
+	/* For usb2 phy, only used in otg driver for m31 phy
+	 * or legacy synopsis phy.
+	 */
 	void __iomem	*phy3_cfg;
 	void __iomem	*phy3_cfg_r1;
 	void __iomem	*phy3_cfg_r2;
@@ -111,7 +120,7 @@ struct amlogic_usb_v2 {
 	int vbus_power_pin_work_mask;
 	int otg;
 	struct amlogic_otg_helper otg_helper;
-	enum phy_mode current_mode;
+	enum meson_uphy_mode current_mode;
 #if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
 	struct usb_role_switch	*role_sw;
 	u32 role_switch_default_mode;

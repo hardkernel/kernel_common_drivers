@@ -17,29 +17,12 @@
 #include <linux/amlogic/usb-v2-common.h>
 #include <linux/phy/phy.h>
 
-extern bool meson_usb2phy_dbg;
-
-#define mup_dbg(dev, fmt, args...)	\
-		dev_dbg(dev, fmt, ## args)
-
-#define mup_info(dev, fmt, args...)	\
-		dev_info(dev, fmt, ## args)
-
-#define mup_err(dev, fmt, args...)	\
-		dev_err(dev, fmt, ## args)
-
 #define MESON_UPHY_XHCI_PORT_A_MEM_SIZE 4UL
 
 enum meson_uphy_port_speed {
 	MESON_USB_SPEED_HIGH,
 	MESON_USB_SPEED_HIGH_PLUS, /* Meson's private enhanced 960M. */
 	MESON_USB_SPEED_SUPER,
-};
-
-enum meson_uphy_mode {
-	MESON_USB_MODE_HOST,
-	MESON_USB_MODE_DEVICE,
-	MESON_USB_MODE_OTG,
 };
 
 /* meson phy struct to struct phy glue layer. */
@@ -75,6 +58,7 @@ struct meson_uphy_instance {
 		int (*runtime_resume)(struct meson_uphy_instance *instance);
 		int (*runtime_idle)(struct meson_uphy_instance *instance);
 	} pm_ops;
+	struct meson_uphy_pool *domain_pool;
 	void *meson_uphy;
 };
 
@@ -86,6 +70,10 @@ struct meson_uphy_instance {
 	((struct aml_usb3_phy *)((struct meson_uphy_instance *)\
 	phy_get_drvdata(phy))->meson_uphy)\
 
+#define gphy_to_m31usb3phy(phy)\
+	((struct amlogic_usb_m31 *)((struct meson_uphy_instance *)\
+	phy_get_drvdata(phy))->meson_uphy)\
+
 struct meson_uphy_pool {
 	struct device *dev;
 	const struct meson_uphy_pdata *pdata;
@@ -94,17 +82,17 @@ struct meson_uphy_pool {
 };
 
 struct meson_uphy_ops {
-	int	(*init)(struct phy *phy);
-	int	(*exit)(struct phy *phy);
-	int	(*power_on)(struct phy *phy);
-	int	(*power_off)(struct phy *phy);
-	int	(*set_mode)(struct phy *phy, enum phy_mode mode, int submode);
-	int	(*configure)(struct phy *phy, struct meson_uphy_configure_opts *opts);
-	int	(*validate)(struct phy *phy, enum phy_mode mode, int submode,
+	int	(*init)(void *phy);
+	int	(*exit)(void *phy);
+	int	(*power_on)(void *phy);
+	int	(*power_off)(void *phy);
+	int	(*set_mode)(void *phy, enum meson_uphy_mode mode);
+	int	(*configure)(void *phy, struct meson_uphy_configure_opts *opts);
+	int	(*validate)(void *phy, enum meson_uphy_mode mode,
 				struct meson_uphy_configure_opts *opts);
-	int	(*calibrate)(struct phy *phy);
-	int	(*connect)(struct phy *phy, int port);
-	int	(*disconnect)(struct phy *phy, int port);
+	int	(*calibrate)(void *phy);
+	int	(*connect)(void *phy, int port);
+	int	(*disconnect)(void *phy, int port);
 };
 
 struct meson_uphy_pdata {
@@ -122,6 +110,8 @@ struct meson_uphy_pdata {
 extern struct meson_uphy_pdata meson_uphy_sc2_pdata;
 extern struct meson_uphy_pdata meson_uphy_t7c_pdata;
 extern struct meson_uphy_pdata meson_uphy_a5_pdata;
+extern struct meson_uphy_pdata meson_uphy_t5m_aml_pdata;
+extern struct meson_uphy_pdata meson_uphy_t5m_m31_pdata;
 extern struct meson_uphy_pdata meson_uphy_txhd2_pdata;
 extern struct meson_uphy_pdata meson_uphy_s7_pdata;
 extern struct meson_uphy_pdata meson_uphy_s7d_pdata;
@@ -129,6 +119,7 @@ extern struct meson_uphy_pdata meson_uphy_s6_pdata;
 extern struct meson_uphy_pdata meson_uphy_t6d_pdata;
 
 struct meson_u2phy_priv {
+	int (*set_mode)(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode);
 	void (*cali)(struct amlogic_usb_v2 *phy);
 	int (*set_pll)(struct amlogic_usb_v2 *phy);
 };
@@ -146,9 +137,9 @@ void meson_usb2phy_legacy_cali_disc_squelch(struct amlogic_usb_v2 *phy);
 void meson_usb2phy_legacy_cali_disc_squelch_n(struct amlogic_usb_v2 *phy);
 void meson_usb2phy_legacy_cali(struct amlogic_usb_v2 *phy);
 void meson_usb2phy_legacy_cali_n(struct amlogic_usb_v2 *phy);
-int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode);
+int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode);
 void meson_usb2phy_set_calibration_trim(struct amlogic_usb_v2 *phy);
-int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode);
+int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode);
 int meson_usb2phy_wait_ready(struct amlogic_usb_v2 *phy, unsigned int timeout);
 int meson_u2phy_exit(struct amlogic_usb_v2 *phy);
 int meson_u2phy_power_on(struct amlogic_usb_v2 *phy);
@@ -163,6 +154,10 @@ int meson_aml_u3phy_exit(struct aml_usb3_phy *phy);
 int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_m31_u2phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_m31_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance);
+int meson_m31_u3phy_init(struct amlogic_usb_m31 *phy);
+int meson_m31_u3phy_exit(struct amlogic_usb_m31 *phy);
+int meson_m31_u3phy_set_mode(struct amlogic_usb_m31 *phy, enum meson_uphy_mode mode);
+int meson_u2phy_m31_set_test_mode(struct amlogic_usb_v2 *phy, u32 test_mode);
 int meson_u2phy_crg_otg_parse(struct device *dev, struct meson_uphy_instance *instance);
 void meson_u2phy_crg_otg_remove(struct meson_uphy_instance *instance);
 int meson_u2phy_crg_otg_v2_parse(struct device *dev, struct meson_uphy_instance *instance);

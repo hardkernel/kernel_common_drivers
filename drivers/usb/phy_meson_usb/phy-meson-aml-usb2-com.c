@@ -12,7 +12,7 @@ int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy)
 {
 	static int	init_count;
 
-	mup_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
 				readl(phy->reset_regs + phy->reset_level));
 	if (!init_count) {
 		init_count++;
@@ -22,7 +22,7 @@ int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy)
 		else
 			writel((0x1 << phy->usb_reset_bit), phy->reset_regs);
 	}
-	mup_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
 				readl(phy->reset_regs + phy->reset_level));
 	return 0;
 }
@@ -33,7 +33,7 @@ int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 	size_t mask = 0;
 	u32 tmp = 0;
 
-	mup_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
 			readl(phy->reset_regs + phy->reset_level));
 
 	mask = (size_t)phy->reset_regs & 0xf;
@@ -52,7 +52,7 @@ int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 			((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	}
 
-	mup_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
 			readl(phy->reset_regs + phy->reset_level));
 
 	return 0;
@@ -64,7 +64,7 @@ int meson_u2phy_comb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 	size_t mask = 0;
 	u32 tmp = 0;
 
-	mup_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
 			readl(phy->reset_regs + phy->reset_level));
 
 	mask = (size_t)phy->reset_regs & 0xf;
@@ -83,7 +83,7 @@ int meson_u2phy_comb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 			((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	}
 
-	mup_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
 			readl(phy->reset_regs + phy->reset_level));
 
 	return 0;
@@ -103,7 +103,7 @@ int meson_u2phy_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 	u32 val = 0, temp = 0;
 	size_t mask = 0;
 
-	mup_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
 				readl(phy->reset_regs + phy->reset_level));
 	mask = (size_t)phy->reset_regs & 0xf;
 
@@ -119,7 +119,7 @@ int meson_u2phy_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 		writel(val & ~temp, (void __iomem	*)
 			((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	}
-	mup_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
 				readl(phy->reset_regs + phy->reset_level));
 
 	return 0;
@@ -158,7 +158,7 @@ int meson_u2phy_reg_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 	u32 val = 0, temp = 0;
 	size_t mask = 0;
 
-	mup_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
 				readl(phy->reset_regs + phy->reset_level));
 
 	mask = (size_t)phy->reset_regs & 0xf;
@@ -176,7 +176,7 @@ int meson_u2phy_reg_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 		writel(val & ~temp, (void __iomem	*)
 			((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	}
-	mup_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
+	dev_dbg(phy->dev, "%s after: 0x%x.\n", __func__,
 				readl(phy->reset_regs + phy->reset_level));
 
 	return 0;
@@ -200,7 +200,7 @@ err:
 
 void meson_u2phy_set_vbus_power(struct amlogic_usb_v2 *phy, bool is_power_on)
 {
-	mup_dbg(phy->dev, "%s %d pin:%d.\n", __func__, is_power_on, phy->vbus_power_pin);
+	dev_dbg(phy->dev, "%s %d pin:%d.\n", __func__, is_power_on, phy->vbus_power_pin);
 
 	if (phy->vbus_power_pin == -1)
 		return;
@@ -238,7 +238,7 @@ int meson_u2phy_exit(struct amlogic_usb_v2 *phy)
 	int ret = 0;
 
 	if (phy->suspend_flag) {
-		mup_err(phy->dev, "%s excessive exit\n", __func__);
+		dev_err(phy->dev, "%s excessive exit\n", __func__);
 		return -EBUSY;
 	}
 
@@ -382,12 +382,12 @@ static void meson_u2phy_legacy_force_disable_xhci_port_a(struct amlogic_usb_v2 *
 		if (phy->otg_helper.iddig_type == 0) {
 			reg2.d32 = readl(&phy->u2p_aml_regs[0]->r2);
 			if (reg2.b.iddig_curr != 1)
-				mup_err(phy->dev, "%s id state mismatch. expect 1, actual %d.\n",
+				dev_err(phy->dev, "%s id state mismatch. expect 1, actual %d.\n",
 							__func__, reg2.b.iddig_curr);
 		} else {
 			r5.d32 = readl(&phy->usb_aml_regs->r5);
 			if (r5.b.iddig_curr != 1)
-				mup_err(phy->dev, "%s id state mismatch. expect 1, actual %d.\n",
+				dev_err(phy->dev, "%s id state mismatch. expect 1, actual %d.\n",
 							__func__, r5.b.iddig_curr);
 		}
 	}
@@ -407,18 +407,18 @@ static void meson_u2phy_legacy_resume_xhci_port_a(struct amlogic_usb_v2 *phy)
 		if (phy->otg_helper.iddig_type == 0) {
 			reg2.d32 = readl(&phy->u2p_aml_regs[0]->r2);
 			if (reg2.b.iddig_curr != 0)
-				mup_err(phy->dev, "%s id state mismatch. expect 0, actual %d.\n",
+				dev_err(phy->dev, "%s id state mismatch. expect 0, actual %d.\n",
 							__func__, reg2.b.iddig_curr);
 		} else {
 			r5.d32 = readl(&phy->usb_aml_regs->r5);
 			if (r5.b.iddig_curr != 0)
-				mup_err(phy->dev, "%s id state mismatch. expect 0, actual %d.\n",
+				dev_err(phy->dev, "%s id state mismatch. expect 0, actual %d.\n",
 							__func__, r5.b.iddig_curr);
 		}
 	}
 }
 
-int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
+int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode)
 {
 	union u2p_r0_v2 reg0;
 	union u2p_r2_v2 reg2;
@@ -429,11 +429,11 @@ int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 	void __iomem *cfg = phy->phy_cfg[0];
 	int ret = 0;
 
-	mup_dbg(phy->dev, "%s: set mode %d.\n", __func__, mode);
+	dev_dbg(phy->dev, "%s: set mode %d.\n", __func__, mode);
 
 	switch (mode) {
-	case PHY_MODE_USB_HOST:
-		mup_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
+	case MESON_USB_MODE_HOST:
+		dev_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
 				readl(&phy->u2p_aml_regs[0]->r0));
 		meson_u2phy_legacy_resume_xhci_port_a(phy);
 		/* FIXME: SOCs ported yet are observed that only the otg port has the
@@ -456,12 +456,12 @@ int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 		reg0.b.host_device = 1;
 		reg0.b.POR = 0;
 		writel(reg0.d32, &phy->u2p_aml_regs[0]->r0);
-		mup_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
+		dev_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
 				readl(&phy->u2p_aml_regs[0]->r0));
-		phy->current_mode = PHY_MODE_USB_HOST;
+		phy->current_mode = MESON_USB_MODE_HOST;
 		break;
-	case PHY_MODE_USB_DEVICE:
-		mup_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
+	case MESON_USB_MODE_DEVICE:
+		dev_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
 				readl(&phy->u2p_aml_regs[0]->r0));
 		meson_u2phy_legacy_force_disable_xhci_port_a(phy);
 
@@ -486,15 +486,15 @@ int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 		reg0.b.host_device = 0;
 		reg0.b.POR = 0;
 		writel(reg0.d32, &phy->u2p_aml_regs[0]->r0);
-		mup_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
+		dev_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
 				readl(&phy->u2p_aml_regs[0]->r0));
 
-		phy->current_mode = PHY_MODE_USB_DEVICE;
+		phy->current_mode = MESON_USB_MODE_DEVICE;
 		break;
-	case PHY_MODE_USB_OTG:
-		mup_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
+	case MESON_USB_MODE_OTG:
+		dev_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
 				readl(&phy->u2p_aml_regs[0]->r0));
-		mup_dbg(phy->dev, "%s: r5:0x%x.\n", __func__,
+		dev_dbg(phy->dev, "%s: r5:0x%x.\n", __func__,
 				readl(&phy->usb_aml_regs->r5));
 		if (phy->otg_helper.iddig_type == 0) {
 			reg2.d32 = readl(&phy->u2p_aml_regs[0]->r2);
@@ -508,7 +508,7 @@ int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 			r5.b.iddig_en1 = 1;
 			r5.b.iddig_th = 255;
 			writel(r5.d32, &phy->usb_aml_regs->r5);
-			mup_dbg(phy->dev, "%s: r5:0x%x.\n", __func__,
+			dev_dbg(phy->dev, "%s: r5:0x%x.\n", __func__,
 					readl(&phy->usb_aml_regs->r5));
 		}
 
@@ -518,13 +518,13 @@ int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 		/* usb2_otg_vbusdet_en set to 1. */
 		reg0.b.DRVVBUS0 = 1;
 		writel(reg0.d32, &phy->u2p_aml_regs[0]->r0);
-		mup_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
+		dev_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
 				readl(&phy->u2p_aml_regs[0]->r0));
 		/* ID DETECT: usb2_otg_aca_en set to 0 */
 		writel(readl(cfg + 0x54) & (~(1 << 2)), (cfg + 0x54));
 		break;
 	default:
-		mup_dbg(phy->dev, "ERROR %s unknown mode %d.\n", __func__, mode);
+		dev_dbg(phy->dev, "ERROR %s unknown mode %d.\n", __func__, mode);
 		break;
 	}
 	return ret;
@@ -537,7 +537,7 @@ void meson_usb2phy_set_calibration_trim(struct amlogic_usb_v2 *phy)
 	u8 cali_en;
 
 	if (!phy->usb_phy_trim_reg) {
-		mup_err(phy->dev, "No usb-phy-trim-reg\n");
+		dev_err(phy->dev, "No usb-phy-trim-reg\n");
 		return;
 	}
 
@@ -558,39 +558,39 @@ void meson_usb2phy_set_calibration_trim(struct amlogic_usb_v2 *phy)
 
 	writel(value, phy->phy_cfg[0] + 0x10);
 
-	mup_dbg(phy->dev, "phy trim value= 0x%08x\n", value);
+	dev_dbg(phy->dev, "phy trim value= 0x%08x\n", value);
 }
 
 /* Single port roothub. Typical seen in socs contains the crgdrd controller.*/
 
-int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
+int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode)
 {
 	union u2p_r0_v2 reg0;
 	void __iomem *cfg = phy->phy_cfg[0];
 	int ret = 0;
 
-	mup_dbg(phy->dev, "%s: set mode %d.\n", __func__, mode);
+	dev_dbg(phy->dev, "%s: set mode %d.\n", __func__, mode);
 
 	switch (mode) {
-	case PHY_MODE_USB_HOST:
+	case MESON_USB_MODE_HOST:
 		reg0.d32 = readl(&phy->u2p_aml_regs[0]->r0);
 		reg0.b.host_device = 1;
 		reg0.b.POR = 0;
 		//reg0.b.IDPULLUP0 = 1;
 		//reg0.b.DRVVBUS0 = 1;
 		writel(reg0.d32, &phy->u2p_aml_regs[0]->r0);
-		phy->current_mode = PHY_MODE_USB_HOST;
+		phy->current_mode = MESON_USB_MODE_HOST;
 		break;
-	case PHY_MODE_USB_DEVICE:
+	case MESON_USB_MODE_DEVICE:
 		reg0.d32 = readl(&phy->u2p_aml_regs[0]->r0);
 		reg0.b.host_device = 0;
 		reg0.b.POR = 0;
 		//reg0.b.IDPULLUP0 = 1;
 		//reg0.b.DRVVBUS0 = 1;
 		writel(reg0.d32, &phy->u2p_aml_regs[0]->r0);
-		phy->current_mode = PHY_MODE_USB_DEVICE;
+		phy->current_mode = MESON_USB_MODE_DEVICE;
 		break;
-	case PHY_MODE_USB_OTG:
+	case MESON_USB_MODE_OTG:
 		reg0.d32 = readl(&phy->u2p_aml_regs[0]->r0);
 		reg0.b.IDPULLUP0 = 1;
 		/* vbus detect feature, not used but set for compatibility. */
@@ -606,7 +606,7 @@ int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum phy_mode mode)
 		//phy->current_mode = PHY_MODE_USB_OTG;
 		break;
 	default:
-		mup_dbg(phy->dev, "ERROR %s unknown mode %d.\n", __func__, mode);
+		dev_dbg(phy->dev, "ERROR %s unknown mode %d.\n", __func__, mode);
 		break;
 	}
 	return ret;
@@ -617,17 +617,17 @@ int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy,  struct meson_u2phy_priv *p
 	int ret;
 
 	if (!phy->suspend_flag) {
-		mup_err(phy->dev, "%s excessive init\n", __func__);
+		dev_err(phy->dev, "%s excessive init\n", __func__);
 		return 0;
 	}
 
 	ret = clk_bulk_prepare_enable(phy->clk_num, phy->clks);
 	if (ret) {
-		mup_err(phy->dev, "Failed to enable usb2 phy bus clock at %d\n",
+		dev_err(phy->dev, "Failed to enable usb2 phy bus clock at %d\n",
 							__LINE__);
 	}
 
-	mup_dbg(phy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
+	dev_dbg(phy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
 			readl(&phy->u2p_aml_regs[0]->r0),
 			readl(&phy->u2p_aml_regs[0]->r1),
 			readl(&phy->u2p_aml_regs[0]->r2));
@@ -639,28 +639,29 @@ int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy,  struct meson_u2phy_priv *p
 	usleep_range(50, 100);
 	//meson_u2phy_reset_comb(phy);
 
-	mup_dbg(phy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
+	dev_dbg(phy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
 			readl(&phy->u2p_aml_regs[0]->r0),
 			readl(&phy->u2p_aml_regs[0]->r1),
 			readl(&phy->u2p_aml_regs[0]->r2));
 
 	if (phy->suspend_flag && phy->current_mode != 0)
-		meson_u2phy_set_mode(phy, phy->current_mode);
+		priv->set_mode(phy, phy->current_mode);
 
 	usleep_range(50, 100);
 	meson_u2phy_reset_phycfg(phy);
+	usleep_range(50, 100);
 
 	priv->cali(phy);
 
 	ret = meson_usb2phy_wait_ready(phy, 200);
 	if (ret)
-		mup_err(phy->dev, " wait for ready timeout.\n");
+		dev_err(phy->dev, " wait for ready timeout.\n");
 
 	ret = priv->set_pll(phy);
 	if (ret)
 		return ret;
 
-	mup_dbg(phy->dev, "end r0~r2 0x%x 0x%x 0x%x.\n",
+	dev_dbg(phy->dev, "end r0~r2 0x%x 0x%x 0x%x.\n",
 			readl(&phy->u2p_aml_regs[0]->r0),
 			readl(&phy->u2p_aml_regs[0]->r1),
 			readl(&phy->u2p_aml_regs[0]->r2));
@@ -685,13 +686,13 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	aml_u2phy->phy_id = instance->index;
 	aml_u2phy->dev = dev;
-	mup_info(dev, "phy_id %d.\n", aml_u2phy->phy_id);
+	dev_info(dev, "phy_id %d.\n", aml_u2phy->phy_id);
 	instance->meson_uphy = aml_u2phy;
 	get_device(dev);
 
 	aml_u2phy->portspeed = instance->port_speed;
 
-	mup_dbg(dev, "portspeed: %d\n", aml_u2phy->portspeed);
+	dev_dbg(dev, "portspeed: %d\n", aml_u2phy->portspeed);
 
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
 	if (gpio_name) {
@@ -710,7 +711,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d (id-%d)\n", addr_i,
+		dev_err(dev, "failed to get address %d (id-%d)\n", addr_i,
 			aml_u2phy->phy_id);
 		return ret;
 	}
@@ -719,12 +720,12 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	if (IS_ERR(aml_u2phy->regs))
 		return PTR_ERR(aml_u2phy->regs);
 
-	mup_dbg(dev, "phy_mem:0x%llx, iomap phy_base:0x%px\n",
+	dev_dbg(dev, "phy_mem:0x%llx, iomap phy_base:0x%px\n",
 						addr, aml_u2phy->regs);
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d(id-%d)\n", addr_i,
+		dev_err(dev, "failed to get address %d(id-%d)\n", addr_i,
 			aml_u2phy->phy_id);
 		return ret;
 	}
@@ -733,26 +734,28 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	if (IS_ERR(aml_u2phy->reset_regs))
 		return PTR_ERR(aml_u2phy->reset_regs);
 
-	mup_dbg(dev, "reset_mem:0x%llx, iomap reset_base:0x%px\n",
+	dev_dbg(dev, "reset_mem:0x%llx, iomap reset_base:0x%px\n",
 						addr, aml_u2phy->reset_regs);
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
-	if (ret || !addr)
-		mup_err(dev, "failed to get address %d(id-%d)\n", addr_i,
+	if (ret || !addr) {
+		dev_err(dev, "failed to get address %d(id-%d)\n", addr_i,
 			aml_u2phy->phy_id);
-
-	aml_u2phy->usb_phy_trim_reg = devm_ioremap(dev, (resource_size_t)addr,
-									(resource_size_t)size);
-	if (IS_ERR(aml_u2phy->usb_phy_trim_reg))
 		aml_u2phy->usb_phy_trim_reg = NULL;
+	} else {
+		aml_u2phy->usb_phy_trim_reg = devm_ioremap(dev, (resource_size_t)addr,
+								(resource_size_t)size);
+		if (IS_ERR(aml_u2phy->usb_phy_trim_reg))
+			aml_u2phy->usb_phy_trim_reg = NULL;
+	}
 
-	mup_dbg(dev, "usb_phy_trim_reg:0x%llx, iomap usb_phy_trim_reg:0x%px\n",
+	dev_dbg(dev, "usb_phy_trim_reg:0x%llx, iomap usb_phy_trim_reg:0x%px\n",
 						addr, aml_u2phy->usb_phy_trim_reg);
 
 	for (i = 0; i < aml_u2phy->portnum; i++) {
 		ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 		if (ret) {
-			mup_err(dev, "failed to get address resource %d (id-%d)\n",
+			dev_err(dev, "failed to get address resource %d (id-%d)\n",
 				addr_i, aml_u2phy->phy_id);
 			return ret;
 		}
@@ -762,7 +765,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 		if (IS_ERR(aml_u2phy->phy_cfg[i]))
 			return PTR_ERR(aml_u2phy->phy_cfg[i]);
 
-		mup_dbg(dev, "phy_cfg%d_mem:0x%llx, iomap phy_cfg%d_base:0x%px\n",
+		dev_dbg(dev, "phy_cfg%d_mem:0x%llx, iomap phy_cfg%d_base:0x%px\n",
 							i, addr, i,
 							aml_u2phy->phy_cfg[i]);
 
@@ -772,7 +775,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	/* Legacy phy only */
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 	if (ret) {
-		mup_err(dev, "failed to get address resource %d (id-%d)\n",
+		dev_err(dev, "failed to get address resource %d (id-%d)\n",
 			addr_i, aml_u2phy->phy_id);
 	} else {
 		aml_u2phy->usb_aml_regs = devm_ioremap(dev, (resource_size_t)addr,
@@ -781,7 +784,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 		if (IS_ERR(aml_u2phy->usb_aml_regs))
 			return PTR_ERR(aml_u2phy->usb_aml_regs);
 
-		mup_dbg(dev, "usb_aml_regs_mem:0x%llx, iomap usb_aml_regs:0x%px\n",
+		dev_dbg(dev, "usb_aml_regs_mem:0x%llx, iomap usb_aml_regs:0x%px\n",
 					addr, aml_u2phy->usb_aml_regs);
 	}
 
@@ -789,7 +792,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	ret = of_property_read_u32(dev->of_node, "version", &aml_u2phy->phy_version);
 	if (ret < 0)
 		aml_u2phy->phy_version = 0;
-	mup_dbg(dev, "phy version:0x%x\n", aml_u2phy->phy_version);
+	dev_dbg(dev, "phy version:0x%x\n", aml_u2phy->phy_version);
 
 	ret = of_property_read_u32(dev->of_node, "reset-level", &aml_u2phy->reset_level);
 	if (ret < 0)
@@ -802,39 +805,39 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 								aml_u2phy->phy_reset_level_bit,
 								aml_u2phy->portnum);
 	if (ret == -EOVERFLOW) {
-		mup_err(dev, "phy-reset-level-bits should contains %d values\n",
+		dev_err(dev, "phy-reset-level-bits should contains %d values\n",
 								aml_u2phy->portnum);
 	} else if (ret < 0) {
-		mup_err(dev, "no phy-reset-level-bits? exit.\n");
+		dev_err(dev, "no phy-reset-level-bits? exit.\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < aml_u2phy->portnum; i++)
-		mup_dbg(dev, "phy%d_reset_level bits: %d\n", i, aml_u2phy->phy_reset_level_bit[i]);
+		dev_dbg(dev, "phy%d_reset_level bits: %d\n", i, aml_u2phy->phy_reset_level_bit[i]);
 
 	ret = of_property_read_u32(dev->of_node, "usb-reset-bit", &aml_u2phy->usb_reset_bit);
 	if (ret < 0)
 		aml_u2phy->usb_reset_bit = -1U;
 
-	mup_dbg(dev, "usb reset bit: %d\n", aml_u2phy->usb_reset_bit);
+	dev_dbg(dev, "usb reset bit: %d\n", aml_u2phy->usb_reset_bit);
 
 	ret = of_property_read_u32(dev->of_node, "usb-comb-reset-bit",
 								&aml_u2phy->usb_comb_reset_bit);
 	if (ret < 0)
 		aml_u2phy->usb_comb_reset_bit = -1U;
 
-	mup_dbg(dev, "usb comb reset bit: %d\n", aml_u2phy->usb_comb_reset_bit);
+	dev_dbg(dev, "usb comb reset bit: %d\n", aml_u2phy->usb_comb_reset_bit);
 
 	ret = of_property_read_u32(dev->of_node, "phy-reg-reset-bit",
 							&aml_u2phy->phy_reg_reset_bit);
 	if (ret < 0)
 		aml_u2phy->phy_reg_reset_bit = -1U;
 
-	mup_dbg(dev, "usb reg reset bit: %d\n", aml_u2phy->phy_reg_reset_bit);
+	dev_dbg(dev, "usb reg reset bit: %d\n", aml_u2phy->phy_reg_reset_bit);
 
 	cnt = of_property_count_u32_elems(dev->of_node, "pll-settings");
 	if (cnt < 0) {
-		mup_err(dev, "no pll-settings? exit.");
+		dev_err(dev, "no pll-settings? exit.");
 		return -EINVAL;
 	}
 
@@ -842,14 +845,14 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 									aml_u2phy->pll_setting,
 									cnt);
 	if (ret == -EOVERFLOW) {
-		mup_err(dev, "pll-settings should contains %d values\n", cnt);
+		dev_err(dev, "pll-settings should contains %d values\n", cnt);
 	} else if (ret < 0) {
-		mup_err(dev, "no pll-settings? exit.\n");
+		dev_err(dev, "no pll-settings? exit.\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < 8; i++)
-		mup_dbg(dev, "pll-settings: 0x%x\n", aml_u2phy->pll_setting[i]);
+		dev_dbg(dev, "pll-settings: 0x%x\n", aml_u2phy->pll_setting[i]);
 
 	ret = of_property_read_u32(dev->of_node,
 		"dis-thred-enhance", &aml_u2phy->pll_dis_thred_enhance);
@@ -860,18 +863,18 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	cnt = of_property_count_strings(dev->of_node, "clock-names");
 	if (cnt < 0) {
-		mup_err(dev, "no clks? exit.");
+		dev_err(dev, "no clks? exit.");
 		return -EINVAL;
 	} else if (cnt > AML_USB_PHY_MAX_CLK_NUMBER) {
-		mup_err(dev, "too many clks. exit.");
+		dev_err(dev, "too many clks. exit.");
 		return -EOVERFLOW;
 	}
-	mup_dbg(dev, "clk num: %d\n", cnt);
+	dev_dbg(dev, "clk num: %d\n", cnt);
 	for (i = 0; i < cnt; i++) {
 		ret = of_property_read_string_index(dev->of_node, "clock-names",
 									i, &aml_u2phy->clks[i].id);
 		if (ret < 0) {
-			mup_err(dev, "read clk-names idx:%d err", i);
+			dev_err(dev, "read clk-names idx:%d err", i);
 			return -EINVAL;
 		}
 	}
@@ -879,12 +882,12 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	ret = devm_clk_bulk_get(dev, aml_u2phy->clk_num, aml_u2phy->clks);
 	if (ret) {
-		mup_dbg(dev, "Failed to get usb2 phy bus clocks\n");
+		dev_dbg(dev, "Failed to get usb2 phy bus clocks\n");
 		return ret;
 	}
 
 	for (i = 0; i < aml_u2phy->clk_num; i++)
-		mup_dbg(dev, "%s %px.\n", aml_u2phy->clks[i].id, (void *)aml_u2phy->clks[i].clk);
+		dev_dbg(dev, "%s %px.\n", aml_u2phy->clks[i].id, (void *)aml_u2phy->clks[i].clk);
 
 	/* Default OFF. */
 	meson_u2phy_hold_reset(aml_u2phy, false);

@@ -337,6 +337,7 @@ struct crg_gadget_dev {
 	struct crg_udc_lock crg_gadget_lock;
 	struct reset_control *reset;
 	struct phy *phy;
+	struct phy *u3phy;
 
 	int irq;
 	struct task_struct *vbus_task;
@@ -4836,6 +4837,15 @@ static int crg_udc_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
+	crg_udc->u3phy = phy_get(crg_udc->dev, "usb3-phy");
+	if (IS_ERR(crg_udc->u3phy)) {
+		dev_info(crg_udc->dev, "no u3phy.\n");
+		crg_udc->u3phy = NULL;
+	}
+
+	if (crg_udc->phy == crg_udc->u3phy)
+		CRG_ERROR("u3phy obj same as u2phy , check prop: phy-names?\n");
+
 	if (crg_clk_enable_usb(pdev)) {
 		dev_err(&pdev->dev, "Set crg_udc PHY clock failed!\n");
 		ret = -ENODEV;
@@ -4846,7 +4856,16 @@ static int crg_udc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err0;
 
+	ret = phy_init(crg_udc->u3phy);
+	if (ret)
+		goto err0;
+
 	ret = phy_set_mode(crg_udc->phy, PHY_MODE_USB_DEVICE);
+	if (ret)
+		goto err0;
+
+	/* Now only used by m31 phy to disable u3 feature for udc. */
+	ret = phy_set_mode(crg_udc->u3phy, PHY_MODE_USB_DEVICE);
 	if (ret)
 		goto err0;
 
@@ -4988,8 +5007,12 @@ static void crg_udc_remove(struct platform_device *pdev)
 
 	//	if (crg_udc->controller_type != USB_M31)
 	//		amlogic_crg_device_usb2_shutdown(g_device_phy_id);
+	phy_exit(crg_udc->u3phy);
 	phy_exit(crg_udc->phy);
-	phy_put(crg_udc->dev, crg_udc->phy);
+	if (crg_udc->phy)
+		phy_put(crg_udc->dev, crg_udc->phy);
+	if (crg_udc->u3phy)
+		phy_put(crg_udc->dev, crg_udc->u3phy);
 
 	crg_clk_disable_usb(pdev);
 	/*

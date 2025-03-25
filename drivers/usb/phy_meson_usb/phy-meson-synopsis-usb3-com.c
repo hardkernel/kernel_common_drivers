@@ -135,17 +135,17 @@ int meson_synopsis_u3phy_init(struct amlogic_usb_v2 *phy)
 	int ret = 0, i = 0;
 	u32 data = 0;
 
-	mup_dbg(phy->dev, "meson_synopsis_u3phy init start.\n");
+	dev_dbg(phy->dev, "meson_synopsis_u3phy init start.\n");
 
 	if (!phy->suspend_flag) {
-		mup_err(phy->dev, "%s excessive init\n", __func__);
+		dev_err(phy->dev, "%s excessive init\n", __func__);
 		return -EBUSY;
 	}
 
 	ret = clk_bulk_prepare_enable(phy->clk_num, phy->clks);
 
 	if (ret) {
-		mup_err(phy->dev, "Failed to enable usb phy bus clock at %d\n",
+		dev_err(phy->dev, "Failed to enable usb phy bus clock at %d\n",
 							__LINE__);
 		return ret;
 	}
@@ -252,14 +252,14 @@ int meson_synopsis_u3phy_init(struct amlogic_usb_v2 *phy)
 
 	phy->suspend_flag = 0;
 
-	mup_dbg(phy->dev, "meson_synopsis_u3phy init end.\n");
+	dev_dbg(phy->dev, "meson_synopsis_u3phy init end.\n");
 	return 0;
 }
 
 int meson_synopsis_u3phy_exit(struct amlogic_usb_v2 *phy)
 {
 	if (phy->suspend_flag) {
-		mup_err(phy->dev, "%s excessive exit\n", __func__);
+		dev_err(phy->dev, "%s excessive exit\n", __func__);
 		return -EBUSY;
 	}
 
@@ -291,7 +291,7 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 
 	aml_u3phy->phy_id = instance->index;
 	aml_u3phy->dev = dev;
-	mup_dbg(dev, "phy_id %d.\n", aml_u3phy->phy_id);
+	dev_dbg(dev, "phy_id %d.\n", aml_u3phy->phy_id);
 	instance->meson_uphy = aml_u3phy;
 	get_device(dev);
 
@@ -309,11 +309,11 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 		aml_u3phy->version = 0;
 
 	if (!aml_u3phy->version)
-		mup_info(dev, "Normal phy.\n");
+		dev_info(dev, "Normal phy.\n");
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d(id-%d)\n",
+		dev_err(dev, "failed to get address %d(id-%d)\n",
 			addr_i, aml_u3phy->phy_id);
 		return ret;
 	}
@@ -321,19 +321,19 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 	if (IS_ERR(aml_u3phy->regs))
 		return PTR_ERR(aml_u3phy->regs);
 	aml_u3phy->usb_aml_regs = aml_u3phy->regs;
-	mup_dbg(dev, "phy_mem:0x%llx, iomap phy_base:0x%px\n",
+	dev_dbg(dev, "phy_mem:0x%llx, iomap phy_base:0x%px\n",
 						addr, aml_u3phy->regs);
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d(id-%d)\n",
+		dev_err(dev, "failed to get address %d(id-%d)\n",
 			addr_i, aml_u3phy->phy_id);
 		return ret;
 	}
 	aml_u3phy->phy3_cfg = devm_ioremap(dev, (resource_size_t)addr, (resource_size_t)size);
 	if (IS_ERR(aml_u3phy->phy3_cfg))
 		return PTR_ERR(aml_u3phy->phy3_cfg);
-	mup_dbg(dev, "phy_cfg_mem:0x%llx, iomap phy_cfg_base:0x%px\n",
+	dev_dbg(dev, "phy_cfg_mem:0x%llx, iomap phy_cfg_base:0x%px\n",
 						addr, aml_u3phy->phy3_cfg);
 	aml_u3phy->phy3_cfg_r1 = (void __iomem *)
 			((unsigned long)aml_u3phy->phy3_cfg + 4 * 1);
@@ -346,18 +346,18 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 
 	cnt = of_property_count_strings(dev->of_node, "clock-names");
 	if (cnt < 0) {
-		mup_err(dev, "no clks? exit.");
+		dev_err(dev, "no clks? exit.");
 		return -EINVAL;
 	} else if (cnt > AML_USB_PHY_MAX_CLK_NUMBER) {
-		mup_err(dev, "too many clks. exit.");
+		dev_err(dev, "too many clks. exit.");
 		return -EOVERFLOW;
 	}
-	mup_dbg(dev, "clk num: %d\n", cnt);
+	dev_dbg(dev, "clk num: %d\n", cnt);
 	for (i = 0; i < cnt; i++) {
 		ret = of_property_read_string_index(dev->of_node, "clock-names",
 									i, &aml_u3phy->clks[i].id);
 		if (ret < 0) {
-			mup_err(dev, "read clk-names idx:%d err", i);
+			dev_err(dev, "read clk-names idx:%d err", i);
 			return -EINVAL;
 		}
 	}
@@ -366,12 +366,12 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 
 	ret = devm_clk_bulk_get(dev, aml_u3phy->clk_num, aml_u3phy->clks);
 	if (ret) {
-		mup_dbg(dev, "Failed to get usb phy bus clocks\n");
+		dev_dbg(dev, "Failed to get usb phy bus clocks\n");
 		return ret;
 	}
 
 	for (i = 0; i < aml_u3phy->clk_num; i++)
-		mup_dbg(dev, "%s %px.\n", aml_u3phy->clks[i].id, (void *)aml_u3phy->clks[i].clk);
+		dev_dbg(dev, "%s %px.\n", aml_u3phy->clks[i].id, (void *)aml_u3phy->clks[i].clk);
 
 	/* Default OFF. */
 	writel(0x1d, aml_u3phy->phy3_cfg);

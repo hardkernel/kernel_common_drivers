@@ -749,7 +749,7 @@
 				clocks = <&clkc CLKID_SYS_USB>;
 				clock-names = "crg_general";
 				phy-otg;
-				interrupts = <0 129 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 129 IRQ_TYPE_EDGE_RISING>;
 				regulator;
 			};
 		};
@@ -757,10 +757,9 @@
 		crg2_drd: crg2drd@fdd00000 {
 			status = "disabled";
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
-			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
 			phys = <&u2p0port0>;
 			phy-names = "usb2-phy";
-			cpu-type = "gxl";
 			clock-src = "usb3.0";
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
@@ -769,10 +768,8 @@
 		crg_udc_2: crgudc2@fdd00000 {
 			compatible = "amlogic, crg_udc";
 			status = "disable";
-			device_name = "crg_udc_2";
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
-			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
-			clock-src = "usb0"; /** clock src */
+			interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
 			port-speed = <3>; /** 0: default, high, 1: full */
 			phys = <&u2p0port0>;
 			clocks = <&clkc CLKID_SYS_USB>;

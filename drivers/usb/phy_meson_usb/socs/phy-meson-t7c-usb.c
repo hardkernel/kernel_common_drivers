@@ -14,52 +14,42 @@ static void meson_usb2phy_t7c_cali(struct amlogic_usb_v2 *mphy)
 }
 
 static struct meson_u2phy_priv meson_u2phy_t7c_priv = {
+	.set_mode = meson_u2phy_set_mode,
 	.cali = meson_usb2phy_t7c_cali,
 	.set_pll = meson_usb2phy_legacy_set_pll,
 };
 
-static int meson_u2phy_t7c_set_mode(struct phy *phy, enum phy_mode mode, int submode)
+static int meson_u2phy_t7c_set_mode(void *phy, enum meson_uphy_mode mode)
 {
-	int ret = 0;
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
-
-	ret = meson_u2phy_set_mode(mphy, mode);
-
-	return ret;
+	return meson_u2phy_set_mode((struct amlogic_usb_v2 *)phy, mode);
 }
 
-static int meson_u2phy_t7c_init(struct phy *phy)
+static int meson_u2phy_t7c_init(void *phy)
 {
-	return meson_u2phy_aml_init(gphy_to_amlusbv2phy(phy), &meson_u2phy_t7c_priv);
+	return meson_u2phy_aml_init((struct amlogic_usb_v2 *)phy, &meson_u2phy_t7c_priv);
 }
 
-static int meson_u2phy_t7c_exit(struct phy *phy)
+static int meson_u2phy_t7c_exit(void *phy)
 {
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
-
-	return meson_u2phy_exit(mphy);
+	return meson_u2phy_exit((struct amlogic_usb_v2 *)phy);
 }
 
-static int meson_u2phy_t7c_power_on(struct phy *phy)
+static int meson_u2phy_t7c_power_on(void *phy)
 {
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
-
-	return meson_u2phy_power_on(mphy);
+	return meson_u2phy_power_on((struct amlogic_usb_v2 *)phy);
 }
 
-static int meson_u2phy_t7c_power_off(struct phy *phy)
+static int meson_u2phy_t7c_power_off(void *phy)
 {
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
-
-	return meson_u2phy_power_off(mphy);
+	return meson_u2phy_power_off((struct amlogic_usb_v2 *)phy);
 }
 
 /* USB 3 */
 #define PCIE_PLL_RATE 100000000
 
-static int meson_u3phy_t7c_exit(struct phy *phy)
+static int meson_u3phy_t7c_exit(void *phy)
 {
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
+	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)phy;
 
 	if (mphy->portnum <= 0)
 		return 0;
@@ -254,9 +244,9 @@ static void meson_u3phy_t7c_config(struct amlogic_usb_v2 *phy)
 	udelay(2);
 }
 
-static int meson_u3phy_t7c_init(struct phy *phy)
+static int meson_u3phy_t7c_init(void *phy)
 {
-	struct amlogic_usb_v2 *mphy = gphy_to_amlusbv2phy(phy);
+	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)phy;
 	union usb_r3_v2 r3 = {.d32 = 0};
 	union usb_r7_v2 r7 = {.d32 = 0};
 	union phy3_r2 p3_r2 = {.d32 = 0};
@@ -374,7 +364,7 @@ int meson_u3phy_t7c_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	phy->phy_id = instance->index;
 	phy->dev = dev;
-	mup_dbg(dev, "phy_id %d.\n", phy->phy_id);
+	dev_dbg(dev, "phy_id %d.\n", phy->phy_id);
 	instance->meson_uphy = phy;
 	get_device(dev);
 
@@ -383,14 +373,14 @@ int meson_u3phy_t7c_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 	if (ret) {
-		mup_err(dev, "failed to get address %d(id-%d)\n",
+		dev_err(dev, "failed to get address %d(id-%d)\n",
 			addr_i, phy->phy_id);
 		return ret;
 	}
 	phy->regs = devm_ioremap(dev, (resource_size_t)addr, (resource_size_t)size);
 	if (IS_ERR(phy->regs))
 		return PTR_ERR(phy->regs);
-	mup_dbg(dev, "phy_mem:0x%llx, iomap phy_base:0x%px\n",
+	dev_dbg(dev, "phy_mem:0x%llx, iomap phy_base:0x%px\n",
 						addr, phy->regs);
 
 	retval = of_property_read_u32(dev->of_node, "phy1-reg", &phy31_mem);
