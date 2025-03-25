@@ -880,24 +880,54 @@ ddk_module(
                 "dtv_demod/amlfrontend.c",
                 "dtv_demod/demod_dbg.c",
                 "dtv_demod/aml_demod.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC": {
+            True: [
                 "dtv_demod/atsc/atsc_func.c",
                 "dtv_demod/atsc/atsc_frontend.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC": {
+            True: [
                 "dtv_demod/dvbc/dvbc_func.c",
                 "dtv_demod/dvb_qam/dvbc_v2.c",
                 "dtv_demod/dvb_qam/dvbc_v3.c",
                 "dtv_demod/dvbc/dvbc_frontend.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT": {
+            True: [
                 "dtv_demod/dvbt/dvbt_v2.c",
                 "dtv_demod/dvbt/dvbt_frontend.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB": {
+            True: [
                 "dtv_demod/dtmb/dtmb_func.c",
                 "dtv_demod/dtmb/dtmb_frontend.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS": {
+            True: [
                 "dtv_demod/dvbs/dvbs.c",
                 "dtv_demod/dvbs/dvbs_frontend.c",
                 "dtv_demod/dvbs/dvbs_diseqc.c",
                 "dtv_demod/dvbs/dvbs_singlecable.c",
                 "dtv_demod/dvbs/lnb_controller/gpio/gpio_lnbc.c",
                 "dtv_demod/dvbs/lnb_controller/wt20_1811/wt20_1811.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT": {
+            True: [
                 "dtv_demod/isdbt/isdbt_func.c",
                 "dtv_demod/isdbt/isdbt_frontend.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B": {
+            True: [
+                "dtv_demod/dvb_qam/dvbc_v2.c",
+                "dtv_demod/dvb_qam/dvbc_v3.c",
                 "dtv_demod/j83b/j83b_frontend.c",
             ],
         },
@@ -996,15 +1026,6 @@ ddk_module(
         "MODIFY_TIMESTAMP_INC_WITH_PLL",
         "CALC_CACHED_TIME",
         "DVB_CORE_ORI=1",
-        "AML_DEMOD_SUPPORT_DTMB",
-        "AML_DEMOD_SUPPORT_ATSC",
-        "AML_DEMOD_SUPPORT_ISDBT",
-        "AML_DEMOD_SUPPORT_DVBT",
-        "AML_DEMOD_SUPPORT_J83B",
-        "AML_DEMOD_SUPPORT_DVBS",
-        "AML_DEMOD_SUPPORT_DVBC",
-        "AML_DVBS_SUPPORT_GPIO_LNBC",
-        "AML_DVBS_SUPPORT_I2C_LNBC",
     ],
     out = "aml_media.ko",
     kernel_build = "//common_drivers:amlogic",

@@ -12,10 +12,10 @@
 #include "aml_demod.h"
 #include "dvb_frontend.h"
 #include "amlfrontend.h"
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 #include "addr_dtmb_top.h"
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 #include "addr_atsc_demod.h"
 #include "addr_atsc_eq.h"
 #include "addr_atsc_cntr.h"
@@ -32,7 +32,7 @@
 #include "fpga_func.h"
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 #define SR_LOW_THRD	11000000
 #endif
 
@@ -96,10 +96,10 @@
 
 /* debug info=====================================================*/
 extern int aml_demod_debug;
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 extern bool dvbt2_mplp_retune;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 extern unsigned char blind_scan_new;
 #endif
 
@@ -226,7 +226,7 @@ void tuner_set_params(struct dvb_frontend *fe);
 int tuner_get_ch_power(struct dvb_frontend *fe);
 
 /* atsc */
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 unsigned int atsc_read_reg_v4(unsigned int addr);
 void atsc_write_reg_v4(unsigned int addr, unsigned int data);
 void atsc_write_reg(unsigned int reg_addr, unsigned int reg_data);
@@ -236,7 +236,7 @@ unsigned int atsc_read_iqr_reg(void);
 #endif
 
 /* dvbc\j83b */
-#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 void qam_write_reg(struct aml_dtvdemod *demod,
 	unsigned int reg_addr, unsigned int reg_data);
 unsigned int qam_read_reg(struct aml_dtvdemod *demod, unsigned int reg_addr);
@@ -245,14 +245,14 @@ void qam_write_bits(struct aml_dtvdemod *demod,
 		const u32 start, const u32 len);
 void dvbc_write_reg(unsigned int addr, unsigned int data);
 unsigned int dvbc_read_reg(unsigned int addr);
-#endif /*AML_DEMOD_SUPPORT_VBC||AML_DEMOD_SUPPORT_J83B*/
+#endif /*AMLOGIC_DEMOD_SUPPORT_VBC||CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B*/
 
 /* dtmb */
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 void dtmb_write_reg(unsigned int reg_addr, unsigned int reg_data);
 unsigned int dtmb_read_reg(unsigned int reg_addr);
 void dtmb_write_reg_bits(u32 addr, const u32 data, const u32 start, const u32 len);
-#endif /*AML_DEMOD_SUPPORT_DTMB*/
+#endif /*CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB*/
 
 
 /* demod functions */
@@ -506,7 +506,7 @@ void front_write_bits(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
 unsigned int front_read_reg(unsigned int addr);
 
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 unsigned int isdbt_read_reg_v4(unsigned int addr);
 void  isdbt_write_reg_v4(unsigned int addr, unsigned int data);
 #endif
@@ -527,7 +527,7 @@ unsigned int demod_get_sys_clk(struct aml_dtvdemod *demod);
 
 /*register access api new*/
 /* isdbt */
-#if defined AML_DEMOD_SUPPORT_ISDBT || defined AML_DEMOD_SUPPORT_DVBT
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 int dvbt_isdbt_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dvbt *demod_dvbt);
 void dvbt_isdbt_wr_reg(unsigned int addr, unsigned int data);
@@ -536,23 +536,23 @@ void dvbt_isdbt_wr_bits_new(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
 unsigned int dvbt_isdbt_rd_reg(unsigned int addr);
 unsigned int dvbt_isdbt_rd_reg_new(unsigned int addr);
-#endif /*AML_DEMOD_SUPPORT_ISDBT*/
+#endif /*CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT*/
 
 /* dvbt */
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 void dvbt_t2_wrb(unsigned int addr, unsigned char data);
 void dvbt_t2_write_w(unsigned int addr, unsigned int data);
 void dvbt_t2_wr_byte_bits(u32 addr, const u32 data, const u32 start, const u32 len);
 void dvbt_t2_wr_word_bits(u32 addr, const u32 data, const u32 start, const u32 len);
 unsigned int dvbt_t2_read_w(unsigned int addr);
 char dvbt_t2_rdb(unsigned int addr);
-#endif /*AML_DEMOD_SUPPORT_DVBT*/
+#endif /*CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT*/
 
 void riscv_ctl_write_reg(unsigned int addr, unsigned int data);
 unsigned int riscv_ctl_read_reg(unsigned int addr);
 
 /* dvbs */
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
 void dvbs_wr_byte(unsigned int addr, unsigned char data);
@@ -571,7 +571,7 @@ unsigned int t5w_read_ambus_reg(unsigned int addr);
 
 void demod_enable_frontend_agc(struct aml_dtvdemod *demod,
 		enum fe_delivery_system delsys, bool enable);
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 void fe_l2a_set_symbol_rate(struct fe_l2a_internal_param *pparams, unsigned int symbol_rate);
 void fe_l2a_get_agc2accu(struct fe_l2a_internal_param *pparams, unsigned int *pintegrator);
 void float_division(long long dividend, unsigned int divisor, int *integer, unsigned int *decimal);

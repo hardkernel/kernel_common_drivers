@@ -44,33 +44,33 @@
 #include "aml_demod.h"
 #include "demod_func.h"
 #include "demod_dbg.h"
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 #include "dvbt_func.h"
 #include "dvbt_frontend.h"
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 #include "isdbt_func.h"
 #include "isdbt_frontend.h"
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 #include "dvbs.h"
 #include "dvbs_frontend.h"
 #include "dvbs_diseqc.h"
 #include "dvbs_singlecable.h"
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 #include "dvbc_func.h"
 #include "dvbc_frontend.h"
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 #include "dtmb_func.h"
 #include "dtmb_frontend.h"
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 #include "atsc_frontend.h"
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 #include "j83b_frontend.h"
 #endif
 
@@ -82,19 +82,19 @@
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 unsigned char dtmb_new_driver = 1;
 MODULE_PARM_DESC(dtmb_new_driver, "");
 __module_param(dtmb_new_driver, byte, 0644);
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 MODULE_PARM_DESC(dvbc_new_driver, "");
 static unsigned char dvbc_new_driver;
 __module_param(dvbc_new_driver, byte, 0644);
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 static unsigned char dvbtx_auto;
 MODULE_PARM_DESC(dvbtx_auto, "");
 __module_param(dvbtx_auto, byte, 0644);
@@ -272,7 +272,7 @@ static void set_agc_pinmux(struct aml_dtvdemod *demod,
 	char *diseqc_out_name = NULL, *diseqc_in_name = NULL;
 
 	switch (delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		/* dvbs connects to rf agc pin due to no IF */
@@ -450,7 +450,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 	dtvdemod_vdac_enable(1);/*on*/
 	demod_32k_ctrl(1);
 	demod->en_detect = 0;/**/
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	dtmb_poll_stop(demod);/*polling mode*/
 #endif
 
@@ -464,7 +464,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 	}
 
 	switch (delsys) {
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		ret = Gxtv_Demod_Dtmb_Init(demod);
 		if (ret)
@@ -477,7 +477,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x8);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		ret = gxtv_demod_dvbc_init(demod, ADC_MODE);
@@ -490,7 +490,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		timer_set_max(demod, D_TIMER_SET, 4000);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		ret = dtvdemod_atsc_init(demod);
@@ -501,7 +501,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 			timer_set_max(demod, D_TIMER_DETECT, demod->timeout_atsc_ms);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		ret = dtvdemod_j83b_init(demod);
 		if (ret)
@@ -511,7 +511,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 			timer_set_max(demod, D_TIMER_DETECT, demod->timeout_atsc_ms);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 		ret = dvbt_init(demod);
 		if (ret)
@@ -539,7 +539,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		timer_set_max(demod, D_TIMER_DETECT, demod->timeout_dvbt_ms);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = dvbt_isdbt_init(demod);
 		if (ret)
@@ -553,7 +553,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		dvbt_isdbt_wr_reg((0x10 << 2), devp->mem_start);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		ret = dtvdemod_dvbs2_init(demod);
@@ -583,7 +583,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 	bool really_leave = true;
 	struct aml_dtvdemod *tmp = NULL;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	struct dtv_frontend_properties *c = &demod->frontend.dtv_property_cache;
 	struct aml_diseqc *diseqc = &devp->diseqc;
 #endif
@@ -609,7 +609,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		dtvpll_init_flag(0);
 
 	switch (delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		gxtv_demod_dvbc_uninit(demod);
@@ -623,12 +623,12 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 	case SYS_DVBC_ANNEX_B:
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 		demod->last_qam_mode = QAM_MODE_NUM;
 		demod->atsc_mode = 0;
 #endif
 		break;
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		if (demod->act_dtmb) {
 			dtmb_poll_stop(demod); /*polling mode*/
@@ -639,14 +639,14 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		}
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 		/* disable dvbt mode to avoid hang when switch to other demod */
 		demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 		break;
 #endif
-#if defined AML_DEMOD_SUPPORT_ISDBT || defined AML_DEMOD_SUPPORT_DVBT
+#if defined CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_ISDBT:
 	case SYS_DVBT2:
 		demod->plp_id = 0xffff;
@@ -661,7 +661,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		/*disable irq*/
@@ -711,7 +711,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3_cpu() && ldelsys == SYS_DTMB) {
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 		dtmb_write_reg(0x7, 0x6ffffd);
 		//dtmb_write_reg(0x47, 0xed33221);
 		dtmb_write_reg_bits(0x47, 0x1, 22, 1);
@@ -722,7 +722,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 #endif
 	} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
 		demod_is_t5d_cpu(devp)) && ldelsys == SYS_DVBT2) {
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 		dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
@@ -740,7 +740,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 #endif
 	} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
 		demod_is_t5d_cpu(devp)) && ldelsys == SYS_ISDBT) {
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
@@ -1299,7 +1299,7 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 #endif
 
 	/* diseqc sel */
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	ret = of_property_read_string(pdev->dev.of_node, "diseqc_name",
 			&devp->diseqc.name);
 	if (ret)
@@ -1475,7 +1475,7 @@ static void blind_scan_work(struct work_struct *work)
 	}
 
 	switch (demod->last_delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		//the 3rd version of the dvbs blind scan algorithm solution
@@ -1485,7 +1485,7 @@ static void blind_scan_work(struct work_struct *work)
 			dvbs_blind_scan_new_work(work);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 		//only s4d support the new dvbc_blind_scan mode now
 		if (is_meson_s4d_cpu())
@@ -1543,12 +1543,12 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 	demod_init_mutex();
 	INIT_LIST_HEAD(&devp->demod_list);
 	mutex_init(&devp->lock);
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	mutex_init(&devp->diseqc.mutex_tx_msg);
 	mutex_init(&devp->diseqc.mutex_rx_msg);
 #endif
 	dtvdemod_clktree_probe(&pdev->dev);
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	atsc_set_version(devp->atsc_version);
 #endif
 
@@ -1727,7 +1727,7 @@ static int dtvdemod_leave_mode(struct amldtvdemod_device_s *devp)
 		 */
 		delsys = demod->last_delsys;
 		if (delsys != SYS_UNDEFINED) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 			if ((delsys == SYS_DVBS || delsys == SYS_DVBS2) &&
 					devp->singlecable_param.version)
 				PR_INFO("singlecable ODU_poweroff\n");//TODO
@@ -2085,7 +2085,7 @@ static int aml_dtvdm_set_parameters(struct dvb_frontend *fe)
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		break;
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		timer_begain(demod, D_TIMER_DETECT);
@@ -2096,25 +2096,25 @@ static int aml_dtvdm_set_parameters(struct dvb_frontend *fe)
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		break;
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		timer_begain(demod, D_TIMER_DETECT);
 		demod->en_detect = 1; /*fist set*/
 		ret = dvbt_isdbt_set_frontend(fe);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		ret = gxtv_demod_atsc_set_frontend(fe);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		ret = gxtv_demod_j83b_set_frontend(fe);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		ret = gxtv_demod_dtmb_set_frontend(fe);
 		break;
@@ -2148,41 +2148,41 @@ static int aml_dtvdm_get_frontend(struct dvb_frontend *fe,
 	}
 
 	switch (delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		ret = dtvdemod_dvbs_get_frontend(fe, p);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		ret = gxtv_demod_dvbc_get_frontend(fe, p);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		ret = gxtv_demod_dvbt_get_frontend(fe, p);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = gxtv_demod_isdbt_get_frontend(fe, p);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		ret = gxtv_demod_atsc_get_frontend(fe, p);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		ret = gxtv_demod_j83b_get_frontend(fe, p);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		ret = gxtv_demod_dtmb_get_frontend(fe, p);
 		break;
@@ -2281,7 +2281,7 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 	case SYS_DVBS2:
 		*status = demod->last_status;
 		break;
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (dvbc_new_driver)
@@ -2307,7 +2307,7 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 	case SYS_DVBC_ANNEX_B:
 		*status = demod->last_status;
 		break;
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		if (dtmb_new_driver)
 			*status = demod->last_status;
@@ -2345,19 +2345,19 @@ static int aml_dtvdm_read_ber(struct dvb_frontend *fe, u32 *ber)
 	}
 
 	switch (delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		ret = dtvdemod_dvbs_read_ber(fe, ber);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		ret = gxtv_demod_dvbc_read_ber(fe, ber);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 		ret = dvbt_read_ber(fe, ber);
 		break;
@@ -2365,23 +2365,23 @@ static int aml_dtvdm_read_ber(struct dvb_frontend *fe, u32 *ber)
 	case SYS_DVBT2:
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = dvbt_isdbt_read_ber(fe, ber);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		ret = gxtv_demod_atsc_read_ber(fe, ber);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		ret = gxtv_demod_j83b_read_ber(fe, ber);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		ret = gxtv_demod_dtmb_read_ber(fe, ber);
 		break;
@@ -2414,41 +2414,41 @@ static int aml_dtvdm_read_signal_strength(struct dvb_frontend *fe,
 	}
 
 	switch (delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		ret = dtvdemod_dvbs_read_signal_strength(fe, (s16 *)strength);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		ret = gxtv_demod_dvbc_read_signal_strength(fe, (s16 *)strength);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		ret = gxtv_demod_dvbt_read_signal_strength(fe, (s16 *)strength);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = gxtv_demod_isdbt_read_signal_strength(fe, (s16 *)strength);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		ret = gxtv_demod_atsc_read_signal_strength(fe, (s16 *)strength);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		ret = gxtv_demod_j83b_read_signal_strength(fe, (s16 *)strength);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		ret = gxtv_demod_dtmb_read_signal_strength(fe, (s16 *)strength);
 		break;
@@ -2480,19 +2480,19 @@ static int aml_dtvdm_read_snr(struct dvb_frontend *fe, u16 *snr)
 	}
 
 	switch (delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		ret = dvbs_read_snr(fe, snr);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		ret = gxtv_demod_dvbc_read_snr(fe, snr);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 		ret = dvbt_read_snr(fe, snr);
 		break;
@@ -2501,23 +2501,23 @@ static int aml_dtvdm_read_snr(struct dvb_frontend *fe, u16 *snr)
 		ret = dvbt2_read_snr(fe, snr);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = gxtv_demod_dvbt_isdbt_read_snr(fe, snr);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		ret = gxtv_demod_atsc_read_snr(fe, snr);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		ret = gxtv_demod_j83b_read_snr(fe, snr);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		ret = gxtv_demod_dtmb_read_snr(fe, snr);
 		break;
@@ -2552,35 +2552,35 @@ static int aml_dtvdm_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		break;
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		ret = gxtv_demod_dvbc_read_ucblocks(fe, ucblocks);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		ret = gxtv_demod_dvbt_read_ucblocks(fe, ucblocks);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = gxtv_demod_isdbt_read_ucblocks(fe, ucblocks);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		ret = gxtv_demod_atsc_read_ucblocks(fe, ucblocks);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		ret = gxtv_demod_j83b_read_ucblocks(fe, ucblocks);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		ret = gxtv_demod_dtmb_read_ucblocks(fe, ucblocks);
 		break;
@@ -2608,33 +2608,33 @@ static void aml_dtvdm_release(struct dvb_frontend *fe)
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		break;
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		gxtv_demod_dvbc_release(fe);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		gxtv_demod_atsc_release(fe);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		gxtv_demod_j83b_release(fe);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		gxtv_demod_dtmb_release(fe);
 		break;
@@ -2680,13 +2680,13 @@ static int aml_dtvdm_tune(struct dvb_frontend *fe, bool re_tune,
 	}
 
 	switch (delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		ret = dtvdemod_dvbs_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (dvbc_new_driver)
@@ -2695,7 +2695,7 @@ static int aml_dtvdm_tune(struct dvb_frontend *fe, bool re_tune,
 			gxtv_demod_dvbc_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
 		if (dvbtx_auto)
 			ret = dvbtx_tune(fe, re_tune, mode_flags, delay, status);
@@ -2710,23 +2710,23 @@ static int aml_dtvdm_tune(struct dvb_frontend *fe, bool re_tune,
 			ret = dvbt2_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = dvbt_isdbt_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		ret = gxtv_demod_atsc_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	case SYS_DVBC_ANNEX_B:
 		ret = gxtv_demod_j83b_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case SYS_DTMB:
 		if (dtmb_new_driver)
 			ret = dtmb_tune(fe, re_tune, mode_flags, delay, status);
@@ -2771,7 +2771,7 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_DVBT2_PLP_ID:
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		if (dvbt2_mplp_retune || demod_is_t5d_cpu(devp)) {
 			demod->plp_id = tvp->u.data;
 		} else {
@@ -2875,7 +2875,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	struct isdbt_tmcc_info tmcc_info;
 #endif
 	s16 strength = 0;
@@ -2893,7 +2893,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 	case DTV_DELIVERY_SYSTEM:
 		tvp->u.data = demod->last_delsys;
 		switch (demod->last_delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 		case SYS_DVBS:
 		case SYS_DVBS2:
 			tvp->u.data = dvbs_get_s_s2_system();
@@ -2906,7 +2906,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			break;
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		case SYS_DVBT2:
 			if (demod->last_status == 0x1F) {
 				tvp->reserved[0] = demod->real_para.modulation;
@@ -2932,7 +2932,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			break;
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 		case SYS_DVBC_ANNEX_A:
 		case SYS_DVBC_ANNEX_C:
 			if (demod->last_status == 0x1F) {
@@ -2950,7 +2950,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_DVBT2_PLP_ID:
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		/* plp nums & ids */
 		tvp->u.buffer.reserved1[0] = demod->real_para.plp_num;
 		if (tvp->u.buffer.reserved2 && demod->real_para.plp_num > 0) {
@@ -3000,7 +3000,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		else
 			tvp->u.data = 2; // tsin2.
 		break;
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case DTV_ISDBT_PARTIAL_RECEPTION:
 		if (demod->last_delsys == SYS_ISDBT && demod->last_status == 0x1F) {
 			isdbt_get_tmcc_info(&tmcc_info);
@@ -3013,41 +3013,41 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 #endif
 	case DTV_STAT_SIGNAL_STRENGTH:
 		switch (demod->last_delsys) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 		case SYS_DVBS:
 		case SYS_DVBS2:
 			dtvdemod_dvbs_read_signal_strength(fe, &strength);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 		case SYS_DVBC_ANNEX_A:
 		case SYS_DVBC_ANNEX_C:
 			gxtv_demod_dvbc_read_signal_strength(fe, &strength);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		case SYS_DVBT:
 		case SYS_DVBT2:
 			gxtv_demod_dvbt_read_signal_strength(fe, &strength);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 		case SYS_ISDBT:
 			gxtv_demod_isdbt_read_signal_strength(fe, &strength);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 		case SYS_ATSC:
 		case SYS_ATSCMH:
 			gxtv_demod_atsc_read_signal_strength(fe, &strength);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 		case SYS_DVBC_ANNEX_B:
 			gxtv_demod_j83b_read_signal_strength(fe, &strength);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 		case SYS_DTMB:
 			gxtv_demod_dtmb_read_signal_strength(fe, &strength);
 			break;
@@ -3150,21 +3150,21 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	demod->id = devp->index;
 	demod->act_dtmb = false;
 
-#if defined AML_DEMOD_SUPPORT_ATSC || defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	demod->timeout_atsc_ms = TIMEOUT_ATSC;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	demod->timeout_dvbt_ms = TIMEOUT_DVBT;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	demod->timeout_dvbs_ms = TIMEOUT_DVBS;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	demod->timeout_dvbc_ms = TIMEOUT_DVBC;
 #endif
 
 	demod->timeout_ddr_leave = TIMEOUT_DDR_LEAVE;
-#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	demod->last_qam_mode = QAM_MODE_NUM;
 #endif
 	demod->last_lock = -1;
@@ -3392,7 +3392,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	memcpy(&demod->frontend.ops, &aml_dtvdm_ops, sizeof(struct dvb_frontend_ops));
 
 	/*diseqc attach*/
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	if (!IS_ERR_OR_NULL(devp->diseqc.name))
 		aml_diseqc_attach(devp->dev, &demod->frontend);
 #endif

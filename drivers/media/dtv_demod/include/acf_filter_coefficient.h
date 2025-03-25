@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
-#if defined AML_DEMOD_SUPPORT_ISDBT || defined AML_DEMOD_SUPPORT_DVBT
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 void program_acf(int acf1[20], int acf2[33])
 {
 	int i;

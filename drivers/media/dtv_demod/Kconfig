@@ -14,5 +14,55 @@ config AMLOGIC_DTV_DEMOD
 		N: disable
 		M: build as module
 
+if AMLOGIC_DTV_DEMOD
+
+config AMLOGIC_DEMOD_SUPPORT_DTMB
+	bool "Amlogic DTVDEMOD DTMB support"
+	depends on !AMLOGIC_ZAPPER_CUT
+	default n
+	help
+		if support DTMB driver.
+
+config AMLOGIC_DEMOD_SUPPORT_ATSC
+	bool "Amlogic DTVDEMOD ATSC support"
+	depends on !AMLOGIC_ZAPPER_CUT
+	default n
+	help
+		if support ATSC driver.
+
+config AMLOGIC_DEMOD_SUPPORT_ISDBT
+	bool "Amlogic DTVDEMOD ISDBT support"
+	depends on !AMLOGIC_ZAPPER_CUT
+	default n
+	help
+		if support ISDBT driver.
+
+config AMLOGIC_DEMOD_SUPPORT_DVBT
+	bool "Amlogic DTVDEMOD DVBT support"
+	depends on !AMLOGIC_ZAPPER_CUT
+	default n
+	help
+		if support DVBT driver.
+
+config AMLOGIC_DEMOD_SUPPORT_J83B
+	bool "Amlogic DTVDEMOD J83B support"
+	default n
+	help
+		if support J83B driver.
+
+config AMLOGIC_DEMOD_SUPPORT_DVBS
+	bool "Amlogic DTVDEMOD DVBS support"
+	default n
+	help
+		if support DVBS driver.
+
+config AMLOGIC_DEMOD_SUPPORT_DVBC
+	bool "Amlogic DTVDEMOD DVBC support"
+	default n
+	help
+		if support DVBC driver.
+
+endif
+
 endmenu
 

@@ -7,10 +7,10 @@
 #define _AMLFRONTEND_H
 
 #include "depend.h"
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 #include "dvbs_diseqc.h"
 #endif
-#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 #include "dvbc_func.h"
 #endif
 
@@ -198,6 +198,7 @@
 /*  V3.6.018 get dvbs/s2 if config from get_if_frequency */
 /*  V3.6.019 fix dvbs blind scan lose TP for rda5815m */
 /*  V3.6.020 fix dvbt2 CICAM by ts clock 5.43 to 6.75MHz */
+/*  V3.6.021 use kernel configs instead of macros */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -214,44 +215,44 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.020"
-#define DTVDEMOD_VER	"2025/03/05: fix dvbt2 CICAM by ts clock 5.43 to 6.75MHz"
+#define AMLDTVDEMOD_VER "V3.6.021"
+#define DTVDEMOD_VER	"2025/03/25: use kernel configs instead of macros"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
-#if defined AML_DEMOD_SUPPORT_ATSC || defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 #define THRD_TUNER_STRENGTH_ATSC (-87)
 #define TIMEOUT_ATSC		3000
 #define TIMEOUT_ATSC_STD	1500
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 #define THRD_TUNER_STRENGTH_J83 (-76)
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 /* tested on BTC, sensitivity of demod is -100dBm */
 #define THRD_TUNER_STRENGTH_DVBT (-101)
 #define TIMEOUT_DVBT		3000
 #define TIMEOUT_DVBT2		5000
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 #define THRD_TUNER_STRENGTH_DVBS (-79)
 #define TIMEOUT_DVBS		2000
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 #define THRD_TUNER_STRENGTH_DTMB (-100)
 #define TIMEOUT_DTMB		2500
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 #define THRD_TUNER_STRENGTH_DVBC (-87)
 #define TIMEOUT_DVBC		4000
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 #define THRD_TUNER_STRENGTH_ISDBT (-90)
 #define TIMEOUT_ISDBT		3000
 #endif
@@ -437,27 +438,27 @@ struct aml_dtvdemod {
 	unsigned int freq_dvbc;
 	enum fe_modulation atsc_mode;
 	unsigned int timeout_atsc_ms;
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	unsigned int timeout_dvbt_ms;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	unsigned int timeout_dvbs_ms;
 #endif
 	unsigned int time_start;
 	unsigned int time_passed;
 	enum fe_status last_status;
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	unsigned int timeout_dvbc_ms;
 #endif
 	int autoflags;
 	int auto_flags_trig;
 	unsigned int p1_peak;
 
-#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 	enum qam_md_e auto_qam_mode;
 	enum qam_md_e last_qam_mode;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	enum qam_md_e auto_qam_list[5];
 #endif
 	unsigned int auto_times;
@@ -564,7 +565,7 @@ struct amldtvdemod_device_s {
 	struct work_struct blind_scan_work;
 
 	/* diseqc */
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	struct aml_diseqc diseqc;
 #endif
 
@@ -599,7 +600,7 @@ struct amldtvdemod_device_s {
 
 struct amldtvdemod_device_s *dtvdemod_get_dev(void);
 
-#if defined AML_DEMOD_SUPPORT_ISDBT || defined AML_DEMOD_SUPPORT_DVBT
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 static inline void __iomem *gbase_dvbt_isdbt(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -608,7 +609,7 @@ static inline void __iomem *gbase_dvbt_isdbt(void)
 }
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 static inline void __iomem *gbase_dvbt_t2(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -617,8 +618,8 @@ static inline void __iomem *gbase_dvbt_t2(void)
 }
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC || \
-	defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC || \
+	defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 static inline void __iomem *gbase_dvbs(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -641,7 +642,7 @@ static inline void __iomem *gbase_dvbc_2(void)
 }
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 static inline void __iomem *gbase_dtmb(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -650,7 +651,7 @@ static inline void __iomem *gbase_dtmb(void)
 }
 #endif
 
-#if defined AML_DEMOD_SUPPORT_ATSC || defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 static inline void __iomem *gbase_atsc(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -659,7 +660,7 @@ static inline void __iomem *gbase_atsc(void)
 }
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 static inline void __iomem *gbase_isdbt(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();

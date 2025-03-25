@@ -31,7 +31,7 @@
 #include "aml_demod.h"
 #include "demod_func.h"
 #include "demod_dbg.h"
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 #include "dtmb_func.h"
 #endif
 #include <linux/slab.h>
@@ -220,7 +220,7 @@ static long aml_demod_ioctl(struct file *file,
 	case AML_DEMOD_GET_SYS:
 		/*demod_get_sys(&demod_i2c, (struct aml_demod_sys *)arg); */
 		break;
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case AML_DEMOD_DVBC_SET_CH:
 		dvbc_set_ch(demod, (struct aml_demod_dvbc *)arg,
 			&demod->frontend);
@@ -230,7 +230,7 @@ static long aml_demod_ioctl(struct file *file,
 		dvbc_status(demod, (struct aml_demod_sts *)arg, NULL);
 		break;
 #endif
-#if defined AML_DEMOD_SUPPORT_ISDBT || defined AML_DEMOD_SUPPORT_DVBT
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case AML_DEMOD_DVBT_SET_CH:
 		dvbt_isdbt_set_ch(demod, (struct aml_demod_dvbt *)arg);
 		break;
@@ -239,12 +239,12 @@ static long aml_demod_ioctl(struct file *file,
 		/*dvbt_status(&demod_sta, &demod_i2c,*/
 		/* (struct aml_demod_sts *)arg); */
 		break;
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 	case AML_DEMOD_DTMB_SET_CH:
 		dtmb_set_ch(demod, (struct aml_demod_dtmb *)arg);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case AML_DEMOD_ATSC_SET_CH:
 		atsc_set_ch(demod, (struct aml_demod_atsc *)arg);
 		break;
@@ -274,7 +274,7 @@ static long aml_demod_ioctl(struct file *file,
 		/* } */
 		mem_read((struct aml_demod_mem *)arg);
 		break;
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 	case AML_DEMOD_ATSC_IRQ:
 		atsc_read_iqr_reg();
 		break;

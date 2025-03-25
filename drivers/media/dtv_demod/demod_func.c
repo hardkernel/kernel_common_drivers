@@ -7,7 +7,7 @@
 
 #include "demod_func.h"
 #include "amlfrontend.h"
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 #include "dvbt_func.h"
 #endif
 #include "aml_demod.h"
@@ -27,19 +27,19 @@ MODULE_PARM_DESC(front_agc_target, "");
 static unsigned int front_agc_target;
 __module_param(front_agc_target, int, 0644);
 
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 unsigned int diseqc_out_invert = 1;
 MODULE_PARM_DESC(diseqc_out_invert, "");
 __module_param(diseqc_out_invert, int, 0644);
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 static unsigned char dvbs_agc_target = 0x50;
 MODULE_PARM_DESC(dvbs_agc_target, "");
 __module_param(dvbs_agc_target, byte, 0644);
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 static struct stchip_register_t l2a_def_val_local[] = {
 	{0x200,    0x8c},/* REG_RL2A_DVBSX_FSK_FSKTFC2 */
 	{0x201,    0x45},/* REG_RL2A_DVBSX_FSK_FSKTFC1 */
@@ -1785,7 +1785,7 @@ int clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 	return sts_pll;
 }
 
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 void dtmb_write_reg(unsigned int reg_addr, unsigned int reg_data)
 {
 	if (!get_dtvpll_init_flag())
@@ -1829,7 +1829,7 @@ void dtmb_write_reg_bits(u32 addr, const u32 data, const u32 start, const u32 le
 }
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 void atsc_write_reg(unsigned int reg_addr, unsigned int reg_data)
 {
 	unsigned int data;
@@ -1929,7 +1929,7 @@ unsigned int atsc_read_iqr_reg(void)
 }
 #endif
 
-#if defined AML_DEMOD_SUPPORT_ISDBT || defined AML_DEMOD_SUPPORT_DVBT
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 void dvbt_isdbt_wr_reg(unsigned int addr, unsigned int data)
 {
 	if (!get_dtvpll_init_flag())
@@ -2001,7 +2001,7 @@ unsigned int dvbt_isdbt_rd_reg_new(unsigned int addr)
 }
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 void dvbt_t2_wrb(unsigned int addr, unsigned char data)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -2086,7 +2086,7 @@ char dvbt_t2_rdb(unsigned int addr)
 }
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 /* only for T5D T2 use, have to set top 0x10 = 0x97 before any access */
 void riscv_ctl_write_reg(unsigned int addr, unsigned int data)
 {
@@ -2099,7 +2099,7 @@ unsigned int riscv_ctl_read_reg(unsigned int addr)
 }
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 void dvbs_wr_byte(unsigned int addr, unsigned char data)
 {
 	if (!get_dtvpll_init_flag())
@@ -2148,7 +2148,7 @@ void demod_init_local(struct dvb_frontend *fe, unsigned int symb_rate_kbs,
 			unsigned int is_blind_scan)
 {
 	unsigned int reg = 0;
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	unsigned char data = 0;
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 #endif
@@ -2169,7 +2169,7 @@ void demod_init_local(struct dvb_frontend *fe, unsigned int symb_rate_kbs,
 		} else if (l2a_def_val_local[reg].addr == 0xe60) {
 			dvbs_wr_byte(0xe60, 0x75);
 		} else if (l2a_def_val_local[reg].addr == 0x302) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 			if (!devp->diseqc.tone_on)
 				data = l2a_def_val_local[reg].value | 0x2;
 			else
@@ -2188,7 +2188,7 @@ void demod_init_local(struct dvb_frontend *fe, unsigned int symb_rate_kbs,
 		} else if (l2a_def_val_local[reg].addr == 0x308 &&
 			(devp->data->hw_ver == DTVDEMOD_HW_S1A ||
 			devp->data->hw_ver == DTVDEMOD_HW_T6D)) {
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 			dvbs_wr_byte(0x308, l2a_def_val_local[reg].value |
 				(diseqc_out_invert << 3));
 #endif
@@ -2491,7 +2491,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 		if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x1000000);
 		break;
-#ifdef AML_DEMOD_SUPPORT_DVBS
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
@@ -2555,12 +2555,12 @@ void demod_set_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
 		}
 
 		switch (demod_reg->mode) {
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 		case REG_MODE_DTMB:
 			dtmb_write_reg(demod_reg->addr, demod_reg->val);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 		case REG_MODE_DVBT_ISDBT:
 			if (demod_reg->access_mode == ACCESS_WORD)
 				dvbt_isdbt_wr_reg_new(demod_reg->addr, demod_reg->val);
@@ -2569,13 +2569,13 @@ void demod_set_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
 						    demod_reg->start_bit, demod_reg->bit_width);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		case REG_MODE_DVBT_T2:
 			if (demod_reg->access_mode == ACCESS_BYTE)
 				dvbt_t2_wrb(demod_reg->addr, demod_reg->val);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 		case REG_MODE_ATSC:
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 				atsc_write_reg_v4(demod_reg->addr, demod_reg->val);
@@ -2586,7 +2586,7 @@ void demod_set_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
 		case REG_MODE_OTHERS:
 			demod_set_cbus_reg(demod_reg->val, demod_reg->addr);
 			break;
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 		case REG_MODE_DVBC_J83B:
 			qam_write_reg(demod, demod_reg->addr, demod_reg->val);
 			break;
@@ -2634,24 +2634,24 @@ void demod_get_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
 			demod_reg->addr = demod_reg->addr + gphybase_demod();
 
 		switch (demod_reg->mode) {
-#ifdef AML_DEMOD_SUPPORT_DTMB
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 		case REG_MODE_DTMB:
 			demod_reg->val = dtmb_read_reg(demod_reg->addr);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 		case REG_MODE_DVBT_ISDBT:
 			demod_reg->val = dvbt_isdbt_rd_reg_new(demod_reg->addr);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		case REG_MODE_DVBT_T2:
 			if (demod_reg->access_mode == ACCESS_BYTE)
 				demod_reg->val = dvbt_t2_rdb(demod_reg->addr);
 
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_ATSC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 		case REG_MODE_ATSC:
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 				demod_reg->val = atsc_read_reg_v4(demod_reg->addr);
@@ -2659,7 +2659,7 @@ void demod_get_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
 				demod_reg->val = atsc_read_reg(demod_reg->addr);
 			break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_J83B
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 		case REG_MODE_DVBC_J83B:
 			demod_reg->val = qam_read_reg(demod, demod_reg->addr);
 			break;
@@ -2806,7 +2806,7 @@ void monitor_isdbt(void)
 }
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 /*dvbc_write_reg -> apb_write_reg in dvbc_func*/
 /*dvbc_read_reg -> apb_read_reg in dvbc_func*/
 #if 0
@@ -2949,7 +2949,7 @@ unsigned int front_read_reg(unsigned int addr)
 	return tmp;
 }
 
-#ifdef AML_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 void  isdbt_write_reg_v4(unsigned int addr, unsigned int data)
 {
 	demod_mutex_lock();
@@ -2974,8 +2974,8 @@ unsigned int isdbt_read_reg_v4(unsigned int addr)
 }
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC || \
-	defined AML_DEMOD_SUPPORT_J83B
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC || \
+	defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
 /*dvbc v3:*/
 void qam_write_reg(struct aml_dtvdemod *demod,
 		unsigned int reg_addr, unsigned int reg_data)
@@ -3309,7 +3309,7 @@ int is_s1a_dvbc_disabled(void)
 	return ret;
 }
 
-#if defined AML_DEMOD_SUPPORT_DVBT || defined AML_DEMOD_SUPPORT_ISDBT
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 static int coef[] = {
 	0xf900, 0xfe00, 0x0000, 0x0000, 0x0100, 0x0100, 0x0000, 0x0000,
 	0xfd00, 0xf700, 0x0000, 0x0000, 0x4c00, 0x0000, 0x0000, 0x0000,
@@ -4077,7 +4077,7 @@ void demod_enable_frontend_agc(struct aml_dtvdemod *demod,
 	}
 }
 
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 void fe_l2a_set_symbol_rate(struct fe_l2a_internal_param *pparams, unsigned int symbol_rate)
 {
 	//unsigned int reg_field2, reg_field1, reg_field0;

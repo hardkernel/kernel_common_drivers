@@ -21,7 +21,7 @@ static unsigned char blind_spectrum_invert = 1;
 module_param(blind_spectrum_invert, byte, 0644);
 MODULE_PARM_DESC(blind_spectrum_invert, "");
 
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 static struct timer_list mytimer;
 
 static void dvbc_cci_timer(struct timer_list *timer)
@@ -43,7 +43,7 @@ void dvbc_timer_exit(void)
 }
 #endif
 
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod,
 		struct fe_l2a_internal_param *pparams, unsigned int spectrum_invert)
 {

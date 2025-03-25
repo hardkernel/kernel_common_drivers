@@ -672,7 +672,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	/*dvbc_set_auto_symtrack(demod); */
 }
 
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
