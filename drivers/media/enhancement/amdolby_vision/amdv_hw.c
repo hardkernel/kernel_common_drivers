@@ -333,12 +333,25 @@ void adjust_vpotch_tv(void)
 		if (debug_dma_start_line) {
 			dma_start_line = debug_dma_start_line;
 		} else if (vinfo) {
-			if (vinfo && vinfo->width >= 1920 &&
-				vinfo->height >= 1080 &&
-				vinfo->field_height >= 1080)
-				dma_start_line = 0x400;
-			else
-				dma_start_line = 0x180;
+			if (is_video_process_in_thread()) {
+				if (vinfo && vinfo->width >= 3840 &&
+					vinfo->height >= 2160 &&
+					vinfo->field_height >= 2160)
+					dma_start_line = 0x800;
+				else if (vinfo && vinfo->width >= 1920 &&
+					vinfo->height >= 1080 &&
+					vinfo->field_height >= 1080)
+					dma_start_line = 0x400;
+				else
+					dma_start_line = 0x180;
+			} else {
+				if (vinfo && vinfo->width >= 1920 &&
+					vinfo->height >= 1080 &&
+					vinfo->field_height >= 1080)
+					dma_start_line = 0x400;
+				else
+					dma_start_line = 0x180;
+			}
 			if (is_aml_tvmode()) {
 				if (debug_vpotch != 0xFFFF)
 					vpotch = debug_vpotch;
@@ -755,10 +768,10 @@ int tv_dv_core1_set(u64 *dma_data,
 
 		if (is_aml_t3() || is_aml_t5w() || is_aml_t5m())
 			WRITE_VPP_DV_REG(AMDV_TV_AXI2DMA_CTRL3,
-				 0x88000000 | dma_start_line);
+				0x88000000 | dma_start_line);
 		else
 			WRITE_VPP_DV_REG(AMDV_TV_AXI2DMA_CTRL3,
-				 0x80000000 | dma_start_line);
+				0x80000000 | dma_start_line);
 		if (is_aml_t7()) {
 			WRITE_VPP_DV_REG(AMDV_TV_AXI2DMA_CTRL0, 0x01000040);
 			WRITE_VPP_DV_REG(AMDV_TV_AXI2DMA_CTRL0, 0x80400040);

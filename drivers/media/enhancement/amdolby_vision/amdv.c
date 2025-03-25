@@ -249,6 +249,7 @@ struct m_fixed_setting_s fixed_setting;
 static unsigned int dma_size = 30032;
 static dma_addr_t dma_paddr;
 static void *dma_vaddr;
+static u64 *last_dma_data;
 
 #define CRC_BUFF_SIZE (256 * 1024)
 static char *crc_output_buf;
@@ -2133,6 +2134,39 @@ void copy_fixed_setting(void)
 	}
 }
 
+int amdv_update_last_setting(void)
+{
+	u64 *dma_data;
+	int i;
+	u64 *p;
+
+	if (!last_dma_data || !dma_vaddr)
+		return -1;
+
+	if (is_aml_tm2_tvmode() ||
+	    is_aml_t3_tvmode() ||
+	    is_aml_t5w() ||
+	    is_aml_t5m() ||
+	    (is_aml_tm2_stbmode() && is_aml_stb_hdmimode() &&
+	    !core1_detunnel())) {
+		dma_data = last_dma_data;
+		memcpy(dma_vaddr, dma_data, 8 * TV_DMA_TBL_SIZE);
+	} else if (is_aml_t7_tvmode() ||
+		(is_aml_t7_stbmode() && is_aml_stb_hdmimode() &&
+		!core1_detunnel())) {
+		dma_data = last_dma_data;
+		p = (u64 *)dma_vaddr;
+		/*Write 128bit, DMA address jump 128bit * 16, then write 128bit */
+		for (i = 0; i < TV_DMA_TBL_SIZE; i += 2) {
+			memcpy((void *)p, dma_data, 16);
+			dma_data += 2;
+			p += 2 * 16;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(amdv_update_last_setting);
+
 int amdv_update_setting(void)
 {
 	u64 *dma_data;
@@ -2665,6 +2699,9 @@ void amdv_init_receiver(void *pdev)
 	if (is_aml_t7())
 		alloc_size = dma_size * 16; /*t7 need dma addr align to 128bit*/
 	alloc_size = (alloc_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	last_dma_data = vmalloc(alloc_size);
+	if (last_dma_data)
+		memset(last_dma_data, 0, alloc_size);
 	dma_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
 		alloc_size, &dma_paddr, GFP_KERNEL);
 	pr_info("get dma_vaddr %px %pad\n", dma_vaddr, &dma_paddr);
@@ -8810,6 +8847,9 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 
 	/* TV core */
 	if (is_aml_tvmode()) {
+		if (last_dma_data)
+			memcpy(last_dma_data, tv_dovi_setting->core1_reg_lut,
+				8 * TV_DMA_TBL_SIZE);
 		if (src_format != tv_dovi_setting->src_format ||
 			(dolby_vision_flags & FLAG_CERTIFICATION)) {
 			pq_config_set_flag = false;
@@ -19106,7 +19146,10 @@ static void amdolby_vision_remove(struct platform_device *pdev)
 		vfree(vsem_md_buf);
 		vsem_md_buf = NULL;
 	}
-
+	if (last_dma_data) {
+		vfree(last_dma_data);
+		last_dma_data = NULL;
+	}
 	if (is_aml_hw5()) {
 		if (top1_v_info.metadata_parser) {
 			if (p_funcs_tv && p_funcs_tv->multi_mp_release)
@@ -19268,6 +19311,10 @@ static void amdolby_vision_shutdown(struct platform_device *pdev)
 	if (vsem_md_buf) {
 		vfree(vsem_md_buf);
 		vsem_md_buf = NULL;
+	}
+	if (last_dma_data) {
+		vfree(last_dma_data);
+		last_dma_data = NULL;
 	}
 	if (is_aml_hw5()) {
 		if (top1_v_info.metadata_parser) {

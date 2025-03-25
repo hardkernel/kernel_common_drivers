@@ -1422,4 +1422,5 @@ bool is_av1_amdv(char *p);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_get_video_latency_for_gd1(void);
 #endif
+int is_video_process_in_thread(void);
 #endif
