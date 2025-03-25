@@ -7,9 +7,9 @@ menu "Amlogic OSD Module"
 config AMLOGIC_MEDIA_FB
 	bool "Amlogic OSD Support"
 	depends on FB
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	select FB_CFB_FILLRECT if AMLOGIC_BREAK_GKI
+	select FB_CFB_COPYAREA if AMLOGIC_BREAK_GKI
+	select FB_CFB_IMAGEBLIT if AMLOGIC_BREAK_GKI
 	select AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 #	depends on AMLOGIC_MEDIA_CANVAS
 #	depends on AMLOGIC_VOUT_SERVE
