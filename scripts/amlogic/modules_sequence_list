@@ -2,6 +2,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-debug-iotrace
 	amlogic-uart
 	amlogic-hwspinlock
+	amlogic-soc-sym_helper.ko
 	amlogic-gkitool
 	amlogic-memory-debug
 	amlogic-secmon

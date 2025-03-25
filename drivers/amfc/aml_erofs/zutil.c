@@ -38,13 +38,13 @@ void *z_erofs_get_gbuf(unsigned int requiredpages)
 {
 	struct z_erofs_gbuf *gbuf;
 
-	migrate_disable();
+	f_migrate_disable();
 	gbuf = &z_erofs_gbufpool[z_erofs_gbuf_id()];
 	spin_lock(&gbuf->lock);
 	/* check if the buffer is too small */
 	if (requiredpages > gbuf->nrpages) {
 		spin_unlock(&gbuf->lock);
-		migrate_enable();
+		f_migrate_enable();
 		/* (for sparse checker) pretend gbuf->lock is still taken */
 		__acquire(gbuf->lock);
 		return NULL;
@@ -59,7 +59,7 @@ void z_erofs_put_gbuf(void *ptr) __releases(gbuf->lock)
 	gbuf = &z_erofs_gbufpool[z_erofs_gbuf_id()];
 	DBG_BUGON(gbuf->ptr != ptr);
 	spin_unlock(&gbuf->lock);
-	migrate_enable();
+	f_migrate_enable();
 }
 
 int z_erofs_gbuf_growsize(unsigned int nrpages)
@@ -87,7 +87,7 @@ int z_erofs_gbuf_growsize(unsigned int nrpages)
 			tmp_pages[j] = gbuf->pages[j];
 		do {
 			last = j;
-			j = alloc_pages_bulk_array(GFP_KERNEL, nrpages,
+			j = f_alloc_pages_bulk_array(GFP_KERNEL, nrpages,
 						   tmp_pages);
 			if (last == j)
 				goto out;
@@ -216,7 +216,7 @@ void erofs_release_pages(struct page **pagepool)
 
 static bool erofs_workgroup_get(struct erofs_workgroup *grp)
 {
-	if (lockref_get_not_zero(&grp->lockref))
+	if (f_lockref_get_not_zero(&grp->lockref))
 		return true;
 
 	spin_lock(&grp->lockref.lock);
@@ -287,7 +287,7 @@ static void  __erofs_workgroup_free(struct erofs_workgroup *grp)
 
 void erofs_workgroup_put(struct erofs_workgroup *grp)
 {
-	if (lockref_put_or_lock(&grp->lockref))
+	if (f_lockref_put_or_lock(&grp->lockref))
 		return;
 
 	DBG_BUGON(__lockref_is_dead(&grp->lockref));
@@ -321,7 +321,7 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 	 */
 	DBG_BUGON(__xa_erase(&sbi->managed_pslots, grp->index) != grp);
 
-	lockref_mark_dead(&grp->lockref);
+	f_lockref_mark_dead(&grp->lockref);
 	free = true;
 out:
 	spin_unlock(&grp->lockref.lock);

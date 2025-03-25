@@ -19,6 +19,7 @@
 #include <linux/vmalloc.h>
 #include <linux/iomap.h>
 #include "erofs_fs.h"
+#include <linux/amlogic/symbols.h>
 
 /* redefine pr_fmt "erofs: " */
 #undef pr_fmt
@@ -323,7 +324,7 @@ static inline unsigned int erofs_inode_datalayout(unsigned int ifmt)
 static inline struct folio *erofs_grab_folio_nowait(struct address_space *as,
 						    pgoff_t index)
 {
-	return __filemap_get_folio(as, index,
+	return f___filemap_get_folio(as, index,
 			FGP_LOCK|FGP_CREAT|FGP_NOFS|FGP_NOWAIT,
 			readahead_gfp_mask(as) & ~__GFP_RECLAIM);
 }
@@ -379,7 +380,7 @@ struct erofs_map_dev {
 
 extern const struct super_operations erofs_sops;
 
-extern const struct address_space_operations erofs_aops;
+extern struct address_space_operations erofs_aops;
 extern const struct address_space_operations erofs_fileio_aops;
 extern const struct address_space_operations z_erofs_aops;
 extern const struct address_space_operations erofs_fscache_access_aops;
@@ -389,7 +390,7 @@ extern const struct inode_operations erofs_symlink_iops;
 extern const struct inode_operations erofs_fast_symlink_iops;
 extern const struct inode_operations erofs_dir_iops;
 
-extern const struct file_operations erofs_file_fops;
+extern struct file_operations erofs_file_fops;
 extern const struct file_operations erofs_dir_fops;
 
 extern const struct iomap_ops z_erofs_iomap_report_ops;

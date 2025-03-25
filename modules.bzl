@@ -53,6 +53,8 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/drivers/amfc:amlogic-soc-erofs",
     "common_drivers/drivers/amfc/aml_zram/aml-zram.ko",
     "//common_drivers/drivers/amfc:aml-zram",
+    "common_drivers/drivers/amfc/sym_helper/amlogic-soc-sym_helper.ko",
+    "//common_drivers/drivers/amfc:amlogic-soc-sym_helper",
     "common_drivers/drivers/aml_tee/optee/optee.ko",
     "//common_drivers/drivers/aml_tee:optee",
     "common_drivers/drivers/aml_tee/tee.ko",

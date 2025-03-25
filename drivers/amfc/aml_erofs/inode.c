@@ -20,7 +20,7 @@ static int erofs_fill_symlink(struct inode *inode, void *kaddr,
 	    off > i_blocksize(inode))
 		return 0;
 
-	inode->i_link = kmemdup_nul(kaddr + m_pofs, inode->i_size, GFP_KERNEL);
+	inode->i_link = f_kmemdup_nul(kaddr + m_pofs, inode->i_size, GFP_KERNEL);
 	return inode->i_link ? 0 : -ENOMEM;
 }
 
@@ -214,8 +214,11 @@ static int erofs_fill_inode(struct inode *inode)
 		inode->i_op = &erofs_generic_iops;
 		if (erofs_inode_is_data_compressed(vi->datalayout))
 			inode->i_fop = &generic_ro_fops;
-		else
-			inode->i_fop = &erofs_file_fops;
+		else {
+			erofs_file_fops.get_unmapped_area = f_thp_get_unmapped_area,
+			erofs_file_fops.splice_read = f_filemap_splice_read,
+			inode->i_fop = (const struct file_operations *)&erofs_file_fops;
+		}
 		break;
 	case S_IFDIR:
 		inode->i_op = &erofs_dir_iops;
@@ -251,7 +254,9 @@ static int erofs_fill_inode(struct inode *inode)
 		err = -EOPNOTSUPP;
 #endif
 	} else {
-		inode->i_mapping->a_ops = &erofs_aops;
+		erofs_aops.invalidate_folio = f_iomap_invalidate_folio,
+		erofs_aops.release_folio = f_iomap_release_folio,
+		inode->i_mapping->a_ops = (const struct address_space_operations *)&erofs_aops;
 #ifdef CONFIG_AMLOGIC_EROFS_ONDEMAND
 		if (erofs_is_fscache_mode(inode->i_sb))
 			inode->i_mapping->a_ops = &erofs_fscache_access_aops;

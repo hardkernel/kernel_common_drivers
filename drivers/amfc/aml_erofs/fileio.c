@@ -26,8 +26,8 @@ static void erofs_fileio_ki_complete(struct kiocb *iocb, long ret)
 
 	if (ret > 0) {
 		if (ret != rq->bio.bi_iter.bi_size) {
-			bio_advance(&rq->bio, ret);
-			zero_fill_bio(&rq->bio);
+			f_bio_advance(&rq->bio, ret);
+			f_zero_fill_bio(&rq->bio);
 		}
 		ret = 0;
 	}
@@ -39,7 +39,7 @@ static void erofs_fileio_ki_complete(struct kiocb *iocb, long ret)
 			erofs_onlinefolio_end(fi.folio, ret);
 		}
 	}
-	bio_uninit(&rq->bio);
+	f_bio_uninit(&rq->bio);
 	kfree(rq);
 }
 
@@ -56,9 +56,9 @@ static void erofs_fileio_rq_submit(struct erofs_fileio_rq *rq)
 	if (test_opt(&EROFS_SB(rq->sb)->opt, DIRECT_IO) &&
 	    rq->iocb.ki_filp->f_mode & FMODE_CAN_ODIRECT)
 		rq->iocb.ki_flags = IOCB_DIRECT;
-	iov_iter_bvec(&iter, ITER_DEST, rq->bvecs, rq->bio.bi_vcnt,
+	f_iov_iter_bvec(&iter, ITER_DEST, rq->bvecs, rq->bio.bi_vcnt,
 		      rq->bio.bi_iter.bi_size);
-	ret = vfs_iocb_iter_read(rq->iocb.ki_filp, &rq->iocb, &iter);
+	ret = f_vfs_iocb_iter_read(rq->iocb.ki_filp, &rq->iocb, &iter);
 	if (ret != -EIOCBQUEUED)
 		erofs_fileio_ki_complete(&rq->iocb, ret);
 }
@@ -68,7 +68,7 @@ static struct erofs_fileio_rq *erofs_fileio_rq_alloc(struct erofs_map_dev *mdev)
 	struct erofs_fileio_rq *rq = kzalloc(sizeof(*rq),
 					     GFP_KERNEL | __GFP_NOFAIL);
 
-	bio_init(&rq->bio, NULL, rq->bvecs, BIO_MAX_VECS, REQ_OP_READ);
+	f_bio_init(&rq->bio, NULL, rq->bvecs, BIO_MAX_VECS, REQ_OP_READ);
 	rq->iocb.ki_filp = mdev->m_dif->file;
 	rq->sb = mdev->m_sb;
 	return rq;
@@ -118,8 +118,8 @@ static int erofs_fileio_scan_folio(struct erofs_fileio *io, struct folio *folio)
 				break;
 			}
 			bvec_set_folio(&bv, folio, len, cur);
-			iov_iter_bvec(&iter, ITER_DEST, &bv, 1, len);
-			if (copy_to_iter(src, len, &iter) != len) {
+			f_iov_iter_bvec(&iter, ITER_DEST, &bv, 1, len);
+			if (F_copy_to_iter(src, len, &iter) != len) {
 				erofs_put_metabuf(&buf);
 				err = -EIO;
 				break;
@@ -150,7 +150,7 @@ io_retry:
 			}
 			if (!attached++)
 				erofs_onlinefolio_split(folio);
-			if (!bio_add_folio(&io->rq->bio, folio, len, cur))
+			if (!f_bio_add_folio(&io->rq->bio, folio, len, cur))
 				goto io_retry;
 			io->dev.m_pa += len;
 		}

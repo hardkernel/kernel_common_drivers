@@ -196,7 +196,7 @@ int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
 {
 	const char *padend;
 
-	padend = memchr_inv(padbuf, 0, padbufsize);
+	padend = f_memchr_inv(padbuf, 0, padbufsize);
 	if (!padend)
 		return -EFSCORRUPTED;
 	rq->inputsize -= padend - padbuf;
@@ -448,7 +448,7 @@ int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
 		if (!tmppage)
 			return -ENOMEM;
 		set_page_private(tmppage, Z_EROFS_SHORTLIVED_PAGE);
-		copy_highpage(tmppage, rq->in[j]);
+		f_copy_highpage(tmppage, rq->in[j]);
 		rq->in[j] = tmppage;
 	}
 	return 0;

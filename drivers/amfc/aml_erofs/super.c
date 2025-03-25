@@ -92,7 +92,7 @@ static void erofs_inode_init_once(void *ptr)
 static struct inode *erofs_alloc_inode(struct super_block *sb)
 {
 	struct erofs_inode *vi =
-		alloc_inode_sb(sb, erofs_inode_cachep, GFP_KERNEL);
+		f_alloc_inode_sb(sb, erofs_inode_cachep, GFP_KERNEL);
 
 	if (!vi)
 		return NULL;
@@ -176,7 +176,7 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 			erofs_err(sb, "empty device tag @ pos %llu", *pos);
 			return -EINVAL;
 		}
-		dif->path = kmemdup_nul(dis->tag, sizeof(dis->tag), GFP_KERNEL);
+		dif->path = f_kmemdup_nul(dis->tag, sizeof(dis->tag), GFP_KERNEL);
 		if (!dif->path)
 			return -ENOMEM;
 	}
@@ -188,14 +188,14 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 		dif->fscache = fscache;
 	} else if (!sbi->devs->flatdev) {
 		file = erofs_is_fileio_mode(sbi) ?
-				filp_open(dif->path, O_RDONLY | O_LARGEFILE, 0) :
-				bdev_file_open_by_path(dif->path,
+				f_filp_open(dif->path, O_RDONLY | O_LARGEFILE, 0) :
+				f_bdev_file_open_by_path(dif->path,
 						BLK_OPEN_READ, sb->s_type, NULL);
 		if (IS_ERR(file))
 			return PTR_ERR(file);
 
 		if (!erofs_is_fileio_mode(sbi)) {
-			dif->dax_dev = fs_dax_get_by_bdev(file_bdev(file),
+			dif->dax_dev = fs_dax_get_by_bdev(f_file_bdev(file),
 					&dif->dax_part_off, NULL, NULL);
 		} else if (!S_ISREG(file_inode(file)->i_mode)) {
 			fput(file);
@@ -566,14 +566,14 @@ static struct dentry *erofs_get_parent(struct dentry *child)
 	unsigned int d_type;
 	int err;
 
-	err = erofs_namei(d_inode(child), &dotdot_name, &nid, &d_type);
+	err = erofs_namei(d_inode(child), dotdot_name_t, &nid, &d_type);
 	if (err)
 		return ERR_PTR(err);
 	return d_obtain_alias(erofs_iget(child->d_sb, nid));
 }
 
-static const struct export_operations erofs_export_ops = {
-	.encode_fh = generic_encode_ino32_fh,
+static struct export_operations erofs_export_ops = {
+//	.encode_fh = generic_encode_ino32_fh,
 	.fh_to_dentry = erofs_fh_to_dentry,
 	.fh_to_parent = erofs_fh_to_parent,
 	.get_parent = erofs_get_parent,
@@ -590,7 +590,7 @@ static void erofs_set_sysfs_name(struct super_block *sb)
 		super_set_sysfs_name_generic(sb, "%s", sbi->fsid);
 	else if (erofs_is_fileio_mode(sbi))
 		super_set_sysfs_name_generic(sb, "%s",
-					     bdi_dev_name(sb->s_bdi));
+					     f_bdi_dev_name(sb->s_bdi));
 	else
 		super_set_sysfs_name_id(sb);
 }
@@ -616,7 +616,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 			if (err)
 				return err;
 		}
-		err = super_setup_bdi(sb);
+		err = f_super_setup_bdi(sb);
 		if (err)
 			return err;
 	} else {
@@ -660,7 +660,8 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_time_gran = 1;
 	sb->s_xattr = erofs_xattr_handlers;
-	sb->s_export_op = &erofs_export_ops;
+	erofs_export_ops.encode_fh = f_generic_encode_ino32_fh,
+	sb->s_export_op = (const struct export_operations *)&erofs_export_ops;
 
 	if (test_opt(&sbi->opt, POSIX_ACL))
 		sb->s_flags |= SB_POSIXACL;
@@ -718,9 +719,9 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 	int ret;
 
 	if (IS_ENABLED(CONFIG_AMLOGIC_EROFS_ONDEMAND) && sbi->fsid)
-		return get_tree_nodev(fc, erofs_fc_fill_super);
+		return f_get_tree_nodev(fc, erofs_fc_fill_super);
 
-	ret = get_tree_bdev_flags(fc, erofs_fc_fill_super,
+	ret = f_get_tree_bdev_flags(fc, erofs_fc_fill_super,
 		IS_ENABLED(CONFIG_AMLOGIC_EROFS_BACKED_BY_FILE) ?
 			GET_TREE_BDEV_QUIET_LOOKUP : 0);
 #ifdef CONFIG_AMLOGIC_EROFS_BACKED_BY_FILE
@@ -729,14 +730,14 @@ static int erofs_fc_get_tree(struct fs_context *fc)
 
 		if (!fc->source)
 			return invalf(fc, "No source specified");
-		file = filp_open(fc->source, O_RDONLY | O_LARGEFILE, 0);
+		file = f_filp_open(fc->source, O_RDONLY | O_LARGEFILE, 0);
 		if (IS_ERR(file))
 			return PTR_ERR(file);
 		sbi->dif0.file = file;
 
 		if (S_ISREG(file_inode(sbi->dif0.file)->i_mode) &&
 		    sbi->dif0.file->f_mapping->a_ops->read_folio)
-			return get_tree_nodev(fc, erofs_fc_fill_super);
+			return f_get_tree_nodev(fc, erofs_fc_fill_super);
 	}
 #endif
 	return ret;
@@ -885,6 +886,11 @@ static int __init erofs_module_init(void)
 
 	if (!amfc_supported())
 		return -ENODEV;
+
+	if (!symbol_fixed()) {
+		pr_emerg("%s, %d, symbol fix failed\n", __func__, __LINE__);
+		return -EINVAL;
+	}
 	old_erofs = get_fs_type("erofs");
 	if (old_erofs)
 		unregister_filesystem(old_erofs);
@@ -969,19 +975,19 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	struct erofs_mount_opts *opt = &sbi->opt;
 
 	if (IS_ENABLED(CONFIG_AMLOGIC_EROFS_XATTR))
-		seq_puts(seq, test_opt(opt, XATTR_USER) ?
+		f_seq_puts(seq, test_opt(opt, XATTR_USER) ?
 				",user_xattr" : ",nouser_xattr");
 	if (IS_ENABLED(CONFIG_AMLOGIC_EROFS_POSIX_ACL))
-		seq_puts(seq, test_opt(opt, POSIX_ACL) ? ",acl" : ",noacl");
+		f_seq_puts(seq, test_opt(opt, POSIX_ACL) ? ",acl" : ",noacl");
 	if (IS_ENABLED(CONFIG_AMLOGIC_EROFS_ZIP))
 		seq_printf(seq, ",cache_strategy=%s",
 			  erofs_param_cache_strategy[opt->cache_strategy].name);
 	if (test_opt(opt, DAX_ALWAYS))
-		seq_puts(seq, ",dax=always");
+		f_seq_puts(seq, ",dax=always");
 	if (test_opt(opt, DAX_NEVER))
-		seq_puts(seq, ",dax=never");
+		f_seq_puts(seq, ",dax=never");
 	if (erofs_is_fileio_mode(sbi) && test_opt(opt, DIRECT_IO))
-		seq_puts(seq, ",directio");
+		f_seq_puts(seq, ",directio");
 #ifdef CONFIG_AMLOGIC_EROFS_ONDEMAND
 	if (sbi->fsid)
 		seq_printf(seq, ",fsid=%s", sbi->fsid);

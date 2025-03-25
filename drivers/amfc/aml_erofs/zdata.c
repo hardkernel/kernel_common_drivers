@@ -609,7 +609,7 @@ int erofs_try_to_free_all_cached_folios(struct erofs_sb_info *sbi,
 				continue;
 			pcl->compressed_bvecs[i].page = NULL;
 			folio_detach_private(folio);
-			folio_unlock(folio);
+			f_folio_unlock(folio);
 		}
 	}
 	return 0;
@@ -901,7 +901,7 @@ static int z_erofs_read_fragment(struct super_block *sb, struct folio *folio,
 			erofs_put_metabuf(&buf);
 			return PTR_ERR(src);
 		}
-		memcpy_to_folio(folio, cur, src, cnt);
+		f_memcpy_to_folio(folio, cur, src, cnt);
 	}
 	erofs_put_metabuf(&buf);
 	return 0;
@@ -1437,7 +1437,7 @@ repeat:
 		if (likely(folio->private == pcl))  {
 			/* don't submit cache I/Os again if already uptodate */
 			if (folio_test_uptodate(folio)) {
-				folio_unlock(folio);
+				f_folio_unlock(folio);
 				bvec->bv_page = NULL;
 			}
 			return;
@@ -1451,7 +1451,7 @@ repeat:
 		DBG_BUGON(1); /* referenced managed folios can't be truncated */
 		tocache = true;
 	}
-	folio_unlock(folio);
+	f_folio_unlock(folio);
 	folio_put(folio);
 out_allocfolio:
 	page = __erofs_allocpage(&f->pagepool, gfp, true);
@@ -1471,7 +1471,7 @@ out_allocfolio:
 	folio = page_folio(page);
 out_tocache:
 	if (!tocache || bs != PAGE_SIZE ||
-	    filemap_add_folio(mc, folio, pcl->obj.index + nr, gfp)) {
+	    f_filemap_add_folio(mc, folio, pcl->obj.index + nr, gfp)) {
 		/* turn into a temporary shortlived folio (1 ref) */
 		folio->private = (void *)Z_EROFS_SHORTLIVED_PAGE;
 		return;
@@ -1549,7 +1549,7 @@ static void z_erofs_endio(struct bio *bio)
 
 		if (!err)
 			folio_mark_uptodate(folio);
-		folio_unlock(folio);
+		f_folio_unlock(folio);
 	}
 	if (err)
 		q->eio = true;
@@ -1622,7 +1622,7 @@ drain_io:
 					submit_bio(bio);
 
 				if (memstall) {
-					psi_memstall_leave(&pflags);
+					f_psi_memstall_leave(&pflags);
 					memstall = 0;
 				}
 				bio = NULL;
@@ -1639,7 +1639,7 @@ drain_io:
 
 			if (unlikely(PageWorkingset(bvec.bv_page)) &&
 			    !memstall) {
-				psi_memstall_enter(&pflags);
+				f_psi_memstall_enter(&pflags);
 				memstall = 1;
 			}
 
@@ -1681,7 +1681,7 @@ drain_io:
 			submit_bio(bio);
 	}
 	if (memstall)
-		psi_memstall_leave(&pflags);
+		f_psi_memstall_leave(&pflags);
 
 	/*
 	 * although background is preferred, no one is pending for submission.
@@ -1712,7 +1712,7 @@ static int z_erofs_runqueue(struct z_erofs_decompress_frontend *f,
 		return err;
 
 	/* wait until all bios are completed */
-	wait_for_completion_io(&io[JQ_SUBMIT].u.done);
+	f_wait_for_completion_io(&io[JQ_SUBMIT].u.done);
 
 	/* handle synchronous decompress queue in the caller context */
 	return z_erofs_decompress_queue(&io[JQ_SUBMIT], &f->pagepool) ?: err;
@@ -1762,7 +1762,7 @@ static void z_erofs_pcluster_readmore(struct z_erofs_decompress_frontend *f,
 		folio = erofs_grab_folio_nowait(inode->i_mapping, index);
 		if (!IS_ERR_OR_NULL(folio)) {
 			if (folio_test_uptodate(folio))
-				folio_unlock(folio);
+				f_folio_unlock(folio);
 			else
 				z_erofs_scan_folio(f, folio, !!rac);
 			folio_put(folio);

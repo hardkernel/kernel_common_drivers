@@ -23,18 +23,18 @@ static inline const char *erofs_xattr_prefix(unsigned int idx,
 {
 	const struct xattr_handler *handler = NULL;
 
-	static const struct xattr_handler * const xattr_handler_map[] = {
+	static const struct xattr_handler * xattr_handler_map[] = {
 		[EROFS_XATTR_INDEX_USER] = &erofs_xattr_user_handler,
-#ifdef CONFIG_AMLOGIC_EROFS_POSIX_ACL
-		[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] = &nop_posix_acl_access,
-		[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] = &nop_posix_acl_default,
-#endif
 		[EROFS_XATTR_INDEX_TRUSTED] = &erofs_xattr_trusted_handler,
 #ifdef CONFIG_AMLOGIC_EROFS_SECURITY
 		[EROFS_XATTR_INDEX_SECURITY] = &erofs_xattr_security_handler,
 #endif
 	};
 
+#ifdef CONFIG_AMLOGIC_EROFS_POSIX_ACL
+	xattr_handler_map[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] = (const struct xattr_handler *)nop_posix_acl_access_t;
+	xattr_handler_map[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] = (const struct xattr_handler *)nop_posix_acl_default_t;
+#endif
 	if (idx && idx < ARRAY_SIZE(xattr_handler_map))
 		handler = xattr_handler_map[idx];
 

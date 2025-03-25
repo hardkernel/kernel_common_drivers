@@ -5,6 +5,7 @@ config AMLOGIC_EROFS
 	depends on BLOCK
 	select FS_IOMAP
 	select LIBCRC32C
+	select AMLOGIC_SYM_HELPER
 	help
 	  EROFS (Enhanced Read-Only File System) is a lightweight read-only
 	  file system with modern designs (e.g. no buffer heads, inline

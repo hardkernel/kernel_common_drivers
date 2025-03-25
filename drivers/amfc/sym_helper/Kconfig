@@ -1,0 +1,6 @@
+config AMLOGIC_SYM_HELPER
+	tristate "Amlogic symbol helper"
+	depends on AMLOGIC_AMFC
+	default n
+	help
+		Amlogic symbole help driver for modules use gki symbols

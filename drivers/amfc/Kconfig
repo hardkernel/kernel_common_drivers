@@ -32,3 +32,4 @@ config AMFC_BASE
 
 source "$(COMMON_DRIVERS_DIR)/drivers/amfc/aml_erofs/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/amfc/aml_zram/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/amfc/sym_helper/Kconfig"

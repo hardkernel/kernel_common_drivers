@@ -399,7 +399,7 @@ int erofs_getxattr(struct inode *inode, int index, const char *name,
 
 	/* reserved flag is non-zero if there's any change of on-disk format */
 	if (erofs_sb_has_xattr_filter(sbi) && !sbi->xattr_filter_reserved) {
-		hashbit = xxh32(name, strlen(name),
+		hashbit = f_xxh32(name, strlen(name),
 				EROFS_XATTR_FILTER_SEED + index);
 		hashbit &= EROFS_XATTR_FILTER_BITS - 1;
 		if (vi->xattr_name_filter & (1U << hashbit))

@@ -36,9 +36,9 @@ void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,
 		if (folio_file_page(folio, index) != buf->page)
 			erofs_unmap_metabuf(buf);
 	}
-	if (!folio || !folio_contains(folio, index)) {
+	if (!folio || !f_folio_contains(folio, index)) {
 		erofs_put_metabuf(buf);
-		folio = read_mapping_folio(buf->mapping, index, buf->file);
+		folio = f_read_mapping_folio(buf->mapping, index, buf->file);
 		if (IS_ERR(folio))
 			return folio;
 	}
@@ -192,7 +192,7 @@ static void erofs_fill_from_devinfo(struct erofs_map_dev *map,
 	map->m_dif = dif;
 	map->m_bdev = NULL;
 	if (dif->file && S_ISBLK(file_inode(dif->file)->i_mode))
-		map->m_bdev = file_bdev(dif->file);
+		map->m_bdev = f_file_bdev(dif->file);
 }
 
 int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *map)
@@ -271,7 +271,7 @@ void erofs_onlinefolio_end(struct folio *folio, int err)
 	if (v & ~EROFS_ONLINEFOLIO_EIO)
 		return;
 	folio->private = 0;
-	folio_end_read(folio, !(v & EROFS_ONLINEFOLIO_EIO));
+	f_folio_end_read(folio, !(v & EROFS_ONLINEFOLIO_EIO));
 }
 
 static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
@@ -378,7 +378,7 @@ int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
  */
 static int erofs_read_folio(struct file *file, struct folio *folio)
 {
-	return iomap_read_folio(folio, &erofs_iomap_ops);
+	return f_iomap_read_folio(folio, &erofs_iomap_ops);
 }
 
 static void erofs_readahead(struct readahead_control *rac)
@@ -423,13 +423,13 @@ static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 }
 
 /* for uncompressed (aligned) files and raw access for other files */
-const struct address_space_operations erofs_aops = {
+struct address_space_operations erofs_aops = {
 	.read_folio = erofs_read_folio,
 	.readahead = erofs_readahead,
 	.bmap = erofs_bmap,
 	.direct_IO = noop_direct_IO,
-	.release_folio = iomap_release_folio,
-	.invalidate_folio = iomap_invalidate_folio,
+	//.release_folio = iomap_release_folio,
+	//.invalidate_folio = iomap_invalidate_folio,
 };
 
 #ifdef CONFIG_FS_DAX
@@ -465,10 +465,10 @@ static int erofs_file_mmap(struct file *file, struct vm_area_struct *vma)
 #define erofs_file_mmap	generic_file_readonly_mmap
 #endif
 
-const struct file_operations erofs_file_fops = {
+struct file_operations erofs_file_fops = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= erofs_file_read_iter,
 	.mmap		= erofs_file_mmap,
-	.get_unmapped_area = thp_get_unmapped_area,
-	.splice_read	= filemap_splice_read,
+//	.get_unmapped_area = thp_get_unmapped_area,
+//	.splice_read	= filemap_splice_read,
 };

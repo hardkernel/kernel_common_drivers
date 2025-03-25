@@ -67,7 +67,7 @@ static void erofs_fscache_req_complete(struct erofs_fscache_rq *req)
 			continue;
 		if (!failed)
 			folio_mark_uptodate(folio);
-		folio_unlock(folio);
+		f_folio_unlock(folio);
 	}
 	rcu_read_unlock();
 }
@@ -197,7 +197,7 @@ struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev)
 	struct erofs_fscache_bio *io;
 
 	io = kmalloc(sizeof(*io), GFP_KERNEL | __GFP_NOFAIL);
-	bio_init(&io->bio, NULL, io->bvecs, BIO_MAX_VECS, REQ_OP_READ);
+	f_bio_init(&io->bio, NULL, io->bvecs, BIO_MAX_VECS, REQ_OP_READ);
 	io->io.private = mdev->m_dif->fscache->cookie;
 	io->io.end_io = erofs_fscache_bio_endio;
 	refcount_set(&io->io.ref, 1);
@@ -210,7 +210,7 @@ void erofs_fscache_submit_bio(struct bio *bio)
 			struct erofs_fscache_bio, bio);
 	int ret;
 
-	iov_iter_bvec(&io->io.iter, ITER_DEST, io->bvecs, bio->bi_vcnt,
+	f_iov_iter_bvec(&io->io.iter, ITER_DEST, io->bvecs, bio->bi_vcnt,
 		      bio->bi_iter.bi_size);
 	ret = erofs_fscache_read_io_async(io->io.private,
 				bio->bi_iter.bi_sector << 9, &io->io);
@@ -231,7 +231,7 @@ static int erofs_fscache_meta_read_folio(struct file *data, struct folio *folio)
 	req = erofs_fscache_req_alloc(folio->mapping,
 				folio_pos(folio), folio_size(folio));
 	if (!req) {
-		folio_unlock(folio);
+		f_folio_unlock(folio);
 		return ret;
 	}
 
@@ -281,7 +281,7 @@ static int erofs_fscache_data_read_slice(struct erofs_fscache_rq *req)
 			return PTR_ERR(src);
 
 		iov_iter_xarray(&iter, ITER_DEST, &mapping->i_pages, pos, PAGE_SIZE);
-		if (copy_to_iter(src, size, &iter) != size) {
+		if (F_copy_to_iter(src, size, &iter) != size) {
 			erofs_put_metabuf(&buf);
 			return -EFAULT;
 		}
@@ -344,7 +344,7 @@ static int erofs_fscache_read_folio(struct file *file, struct folio *folio)
 	req = erofs_fscache_req_alloc(folio->mapping,
 			folio_pos(folio), folio_size(folio));
 	if (!req) {
-		folio_unlock(folio);
+		f_folio_unlock(folio);
 		return -ENOMEM;
 	}
 
