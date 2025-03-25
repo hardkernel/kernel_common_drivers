@@ -8,7 +8,6 @@ menu "Video frame queue Support"
 
 config AMLOGIC_MEDIA_UTILS
 		tristate "Amlogic video frame queue support"
-		select VIDEOBUF_GEN
 		depends on AMLOGIC_MEDIA_GE2D
 		default n
 		help
