@@ -441,6 +441,7 @@ static int lcd_info_print_p2p(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	struct lcd_config_s *pconf;
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned int sync_duration, mute_state = 0;
 	int n, len = 0, i, pr_len = 4 * 1024, base_id = 0, tag_id = 0, tag_id2 = 0;
 	char *pr_buf = NULL;
@@ -537,7 +538,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pconf->timing.pll_ctrl, pconf->timing.div_ctrl,
 		pconf->timing.clk_ctrl);
 
-	if (pconf->timing.clk_mode == LCD_CLK_MODE_INDEPENDENCE) {
+	if (cconf && cconf->pll_mode == LCD_PLL_MODE_DUAL_PLL) {
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n,
 			"pll_ctrl2 0x%08x\n"

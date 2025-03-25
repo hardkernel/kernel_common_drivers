@@ -823,7 +823,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 
 	ret = of_property_read_u32(child, "clk_mode", &val);
 	if (ret)
-		pconf->timing.clk_mode = LCD_CLK_MODE_DEPENDENCE;
+		pconf->timing.clk_mode = LCD_BIT_RATE_FIXED;
 	else
 		pconf->timing.clk_mode = val;
 
@@ -1311,7 +1311,7 @@ static int lcd_panel_parse_timing(struct json_parse_s *jsp, struct aml_lcd_drv_s
 		return -1;
 	}
 	tims->ppc      = json_get_obj_u32(jsp, parent, "ppc_mode", 1);
-	tims->clk_mode = json_get_obj_u32(jsp, parent, "clk_mode", LCD_CLK_MODE_DEPENDENCE);
+	tims->clk_mode = json_get_obj_u32(jsp, parent, "clk_mode", LCD_BIT_RATE_FIXED);
 	tims->pll_flag = json_get_obj_u32(jsp, parent, "pll_flag", 1);
 
 	parent         = json_get_object_child(jsp, parent, "pre_de");

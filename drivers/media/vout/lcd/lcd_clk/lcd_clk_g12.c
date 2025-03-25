@@ -960,15 +960,38 @@ static void lcd_clk_path_change_g12b(struct aml_lcd_drv_s *pdrv, int sel)
 	if (!cconf)
 		return;
 
-	if (sel)
+	if (sel) {
 		cconf->data = &lcd_clk_data_g12b_path1;
-	else
+		cconf->pll_id = 1;
+	} else {
 		cconf->data = &lcd_clk_data_g12b_path0;
+		cconf->pll_id = 0;
+	}
 	cconf->pll_od_fb = cconf->data->pll_od_fb;
 }
 
-void lcd_clk_config_chip_init_g12a(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
+struct lcd_clk_config_s *lcd_clk_config_chip_init_g12a(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_clk_config_s *cconf;
+	unsigned int size;
+
+	if (!pdrv)
+		return NULL;
+
+	if (!pdrv->clk_conf) {
+		pdrv->clk_conf_num = 1;
+		size = pdrv->clk_conf_num * sizeof(struct lcd_clk_config_s);
+		cconf = kcalloc(pdrv->clk_conf_num, sizeof(struct lcd_clk_config_s), GFP_KERNEL);
+		if (!cconf) {
+			LCDERR("[%d]: %s: Not enough memory\n", pdrv->index, __func__);
+			return NULL;
+		}
+		pdrv->clk_conf = (void *)cconf;
+	} else {
+		size = pdrv->clk_conf_num * sizeof(struct lcd_clk_config_s);
+		cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
+	}
+	memset(cconf, 0, size);
 	if (pdrv->clk_path) {
 		cconf->data = &lcd_clk_data_g12a_path1;
 		cconf->pll_od_fb = lcd_clk_data_g12a_path1.pll_od_fb;
@@ -978,17 +1001,41 @@ void lcd_clk_config_chip_init_g12a(struct aml_lcd_drv_s *pdrv, struct lcd_clk_co
 		cconf->pll_od_fb = lcd_clk_data_g12a_path0.pll_od_fb;
 		cconf->clk_path_change = lcd_clk_path_change_g12a;
 	}
+	return cconf;
 }
 
-void lcd_clk_config_chip_init_g12b(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
+struct lcd_clk_config_s *lcd_clk_config_chip_init_g12b(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_clk_config_s *cconf = NULL;
+	unsigned int size;
+
+	if (!pdrv)
+		return NULL;
+
+	pdrv->clk_conf_num = 1;
+	if (!pdrv->clk_conf) {
+		size = pdrv->clk_conf_num * sizeof(struct lcd_clk_config_s);
+		cconf = kcalloc(pdrv->clk_conf_num, sizeof(struct lcd_clk_config_s), GFP_KERNEL);
+		if (!cconf) {
+			LCDERR("[%d]: %s: Not enough memory\n", pdrv->index, __func__);
+			return NULL;
+		}
+	} else {
+		size = pdrv->clk_conf_num * sizeof(struct lcd_clk_config_s);
+		cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
+		memset(cconf, 0, size);
+	}
+
 	if (pdrv->clk_path) {
 		cconf->data = &lcd_clk_data_g12b_path1;
+		cconf->pll_id = 1;
 		cconf->pll_od_fb = lcd_clk_data_g12b_path1.pll_od_fb;
-		cconf->clk_path_change = lcd_clk_path_change_g12b;
 	} else {
 		cconf->data = &lcd_clk_data_g12b_path0;
+		cconf->pll_id = 0;
 		cconf->pll_od_fb = lcd_clk_data_g12b_path0.pll_od_fb;
-		cconf->clk_path_change = lcd_clk_path_change_g12b;
 	}
+	cconf->clk_path_change = lcd_clk_path_change_g12b;
+
+	return cconf;
 }

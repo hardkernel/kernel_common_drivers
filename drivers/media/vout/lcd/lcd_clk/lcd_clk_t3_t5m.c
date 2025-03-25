@@ -829,8 +829,28 @@ static struct lcd_clk_data_s lcd_clk_data_t3_1 = {
 	.prbs_test = lcd_clk_prbs_test_t3,
 };
 
-void lcd_clk_config_chip_init_t3(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
+struct lcd_clk_config_s *lcd_clk_config_chip_init_t3(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_clk_config_s *cconf;
+	unsigned int size;
+
+	if (!pdrv)
+		return NULL;
+
+	if (!pdrv->clk_conf) {
+		pdrv->clk_conf_num = 1;
+		size = pdrv->clk_conf_num * sizeof(struct lcd_clk_config_s);
+		cconf = kcalloc(pdrv->clk_conf_num, sizeof(struct lcd_clk_config_s), GFP_KERNEL);
+		if (!cconf) {
+			LCDERR("[%d]: %s: Not enough memory\n", pdrv->index, __func__);
+			return NULL;
+		}
+		pdrv->clk_conf = (void *)cconf;
+	} else {
+		size = pdrv->clk_conf_num * sizeof(struct lcd_clk_config_s);
+		cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
+	}
+	memset(cconf, 0, size);
 	cconf->clk_path_change = NULL;
 	if (pdrv->index == 0) {
 		cconf->data = &lcd_clk_data_t3_0;
@@ -841,4 +861,5 @@ void lcd_clk_config_chip_init_t3(struct aml_lcd_drv_s *pdrv, struct lcd_clk_conf
 		cconf->pll_od_fb = lcd_clk_data_t3_1.pll_od_fb;
 		cconf->pll_id = 1;
 	}
+	return cconf;
 }

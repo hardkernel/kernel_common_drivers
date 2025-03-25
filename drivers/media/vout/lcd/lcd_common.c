@@ -1177,7 +1177,7 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	switch (p2p_type) {
 	case P2P_CEDS:
 	case P2P_EPI: /*24to28*/
-		if (clk_mode == LCD_CLK_MODE_DEPENDENCE)
+		if (clk_mode == LCD_BIT_RATE_FIXED)
 			band_width = band_width *  lcd_bits;
 		else //independence & dependence_adapt
 			band_width = band_width * (lcd_bits + 4);
@@ -1188,7 +1188,7 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	case P2P_CSPI:
 	case P2P_ISP:
 	case P2P_CMPI: /*24to27*/
-		if (clk_mode == LCD_CLK_MODE_DEPENDENCE) {
+		if (clk_mode == LCD_BIT_RATE_FIXED) {
 			band_width = band_width * lcd_bits;
 		} else { //independence & dependence_adapt
 			/* 8/9 coding */
@@ -1196,7 +1196,7 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 		}
 		break;
 	case P2P_USIT: /*9to10*/
-		if (clk_mode == LCD_CLK_MODE_DEPENDENCE)
+		if (clk_mode == LCD_BIT_RATE_FIXED)
 			band_width = band_width * lcd_bits;
 		else //independence & dependence_adapt
 			band_width = lcd_do_div((band_width * lcd_bits * 10), 9);

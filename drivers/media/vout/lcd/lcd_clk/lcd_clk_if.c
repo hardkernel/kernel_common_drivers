@@ -47,6 +47,10 @@ struct lcd_clk_config_s *get_lcd_clk_config(struct aml_lcd_drv_s *pdrv)
 	struct lcd_clk_config_s *cconf;
 	int i;
 
+	if (!pdrv) {
+		LCDERR("%s: pdrv is null\n", __func__);
+		return NULL;
+	}
 	if (!pdrv->clk_conf) {
 		LCDERR("[%d]: %s: clk_config is null\n", pdrv->index, __func__);
 		return NULL;
@@ -402,7 +406,7 @@ void lcd_vlock_m_update(int index, unsigned int vlock_m)
 	if (!cconf || !cconf->data)
 		return;
 
-	if (pdrv->config.timing.clk_mode == LCD_CLK_MODE_INDEPENDENCE) {
+	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
 		LCDERR("%s: clk_mode independence, can't adjust single pll m\n", __func__);
 		return;
 	}
@@ -430,7 +434,7 @@ void lcd_vlock_frac_update(int index, unsigned int vlock_frac)
 	if (!cconf || !cconf->data)
 		return;
 
-	if (pdrv->config.timing.clk_mode == LCD_CLK_MODE_INDEPENDENCE) {
+	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
 		LCDERR("%s: clk_mode independence, can't adjust single pll frac\n", __func__);
 		return;
 	}
@@ -803,87 +807,70 @@ void lcd_clk_config_parameter_init(struct aml_lcd_drv_s *pdrv)
 	//lcd_clk_ss_param_init(pdrv); in lcd_config_init()->lcd_clk_generate_parameter()
 }
 
-static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
+void lcd_clk_config_probe(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_clk_config_s *cconf = NULL;
 	unsigned int i;
 
-	for (i = 0; i < pdrv->clk_conf_num; i++) {
-		cconf[i].pll_id = pdrv->index + i;
-		cconf[i].fin = FIN_FREQ;
-	}
-
 	switch (pdrv->data->chip_type) {
-	case LCD_CHIP_C3:
-		lcd_clk_config_chip_init_c3(pdrv, cconf);
-		break;
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 	case LCD_CHIP_G12A:
 	case LCD_CHIP_SM1:
-		lcd_clk_config_chip_init_g12a(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_g12a(pdrv);
 		break;
 	case LCD_CHIP_G12B:
-		lcd_clk_config_chip_init_g12b(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_g12b(pdrv);
 		break;
 	case LCD_CHIP_TM2:
-		lcd_clk_config_chip_init_tm2(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_tm2(pdrv);
 		break;
 	case LCD_CHIP_T5D:
-		lcd_clk_config_chip_init_t5d(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_t5d(pdrv);
 		break;
 	case LCD_CHIP_T7:
-		lcd_clk_config_chip_init_t7(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_t7(pdrv);
 		break;
 	case LCD_CHIP_T5M: //the same as t3, but only support 1 driver
 	case LCD_CHIP_T3: /* only one pll */
-		lcd_clk_config_chip_init_t3(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_t3(pdrv);
 		break;
 	case LCD_CHIP_T5W:
-		lcd_clk_config_chip_init_t5w(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_t5w(pdrv);
 		break;
+#endif
+	case LCD_CHIP_C3:
+		cconf = lcd_clk_config_chip_init_c3(pdrv);
+		break;
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	case LCD_CHIP_T3X:
-		lcd_clk_config_chip_init_t3x(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_t3x(pdrv);
 		break;
 	case LCD_CHIP_TXHD2:
-		lcd_clk_config_chip_init_txhd2(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_txhd2(pdrv);
 		break;
 	case LCD_CHIP_S6:
-		lcd_clk_config_chip_init_s6(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_s6(pdrv);
 		break;
 	case LCD_CHIP_T6D:
-		lcd_clk_config_chip_init_t6d(pdrv, cconf);
+		cconf = lcd_clk_config_chip_init_t6d(pdrv);
 		break;
+
 #endif
 	default:
 		LCDPR("[%d]: %s: invalid chip type\n", pdrv->index, __func__);
-		return -1;
+		return;
 	}
+	pdrv->clk_conf = (void *)cconf;
+	if (!cconf)
+		return;
+
+	for (i = 0; i < pdrv->clk_conf_num; i++)
+		cconf[i].fin = FIN_FREQ;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_CLK) {
 		if (cconf->data->clk_config_init_print)
 			cconf->data->clk_config_init_print(pdrv);
 	}
-
-	return 0;
-}
-
-void lcd_clk_config_probe(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_clk_config_s *cconf;
-	int ret;
-
-	if (pdrv->config.timing.clk_mode == LCD_CLK_MODE_INDEPENDENCE)
-		pdrv->clk_conf_num = 2;
-	else
-		pdrv->clk_conf_num = 1;
-
-	cconf = kcalloc(pdrv->clk_conf_num, sizeof(struct lcd_clk_config_s), GFP_KERNEL);
-	if (!cconf)
-		return;
-	pdrv->clk_conf = (void *)cconf;
-
-	ret = lcd_clk_config_chip_init(pdrv, cconf);
-	if (ret)
-		return;
 
 	lcd_clktree_bind(pdrv, 1);
 }
