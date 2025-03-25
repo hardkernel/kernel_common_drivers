@@ -354,7 +354,7 @@ int VSYNC_WR_MPEG_REG_VPP_SEL(u32 adr, u32 val, int vpp_sel);
 /* table1:hdr; table2:sr dnlp lc;table3:other modules*/
 static int index_rdma_part_ins(u32 reg)
 {
-	int table_index = 0;
+	int table_index = 1;
 
 	if ((reg >= 0x3800 && reg <= 0x384c) ||
 		(reg >= 0x3850 && reg <= 0x389c) ||
