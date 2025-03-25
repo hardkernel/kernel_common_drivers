@@ -1001,15 +1001,49 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 			HDMITX_INFO("RSCC ErrCnt 0x%x\n", ced->rs_c_cnt);
 		memset(ced, 0, sizeof(*ced));
 	} else if (strncmp(tmpbuf, "fake_plug", 9) == 0) {
+		bool update_hpd = false;
 		HDMITX_INFO("fake plug %s\n", tmpbuf);
-		if (tmpbuf[9] == '1' || tmpbuf[9] == '0') {
-			ret = kstrtoul(tmpbuf + 9, 10, &value);
-			tx_comm->hpd_state = value;
+		ret = kstrtoul(tmpbuf + 9, 10, &value);
+		mutex_lock(&tx_comm->hdmimode_mutex);
+		/*
+		 * before write 0 to fake_plug, echo hpd_lock1 > debug to ignore
+		 * hpd event; before write 1 to fake_plug, echo hpd_lock0 > debug
+		 * to respond hpd event normally
+		 */
+		switch (value) {
+		case 0:
+			/* Fake Plugout */
+			tx_comm->hpd_state = 0;
+			update_hpd = true;
+			break;
+		case 1:
+			/*
+			 * Fake Plugin
+			 * If real HPD is low:
+			 *	Do not send notify (wait for TV to pull HPD high)
+			 * If real HPD is high:
+			 *	Assume EDID remains unchanged
+			 *	Notify system/DRM to configure HDMI mode
+			 */
+			if (hdmitx_hw_cntl_misc(tx_hw, MISC_HPD_GPI_ST, 0) == 1) {
+				tx_comm->hpd_state = 1;
+				update_hpd = true;
+			}
+			break;
+		default:
+			HDMITX_INFO("invalid input: only 0 or 1 is supported\n");
+			break;
+		}
+		if (update_hpd) {
 			hdmitx_common_notify_hpd_status(tx_comm, false);
+			mutex_unlock(&tx_comm->hdmimode_mutex);
 			/* notify to drm hdmi */
 			hdmitx_fire_drm_hpd_cb_unlocked(tx_comm);
+			HDMITX_INFO("hpd_state: %d\n", tx_comm->hpd_state);
+		} else {
+			mutex_unlock(&tx_comm->hdmimode_mutex);
+			HDMITX_INFO("do not send notify\n");
 		}
-		HDMITX_INFO("hpd_state: %d\n", tx_comm->hpd_state);
 	} else if (strncmp(tmpbuf, "hdr_mute_frame", 14) == 0) {
 		if (kstrtoul(tmpbuf + 14, 10, &value) == 0)
 			tx_comm->hdr_mute_frame = value;
