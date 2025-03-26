@@ -6,7 +6,7 @@ menu "MESON hw spin lock Support"
 
 config AMLOGIC_HWSPINLOCK
 	tristate "MESON HW SPIN LOCK"
-	select HWSPINLOCK
+	depends on HWSPINLOCK
 	help
 		MESON HWSPIN LOCK.
 		.
