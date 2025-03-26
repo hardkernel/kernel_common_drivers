@@ -3,8 +3,6 @@
 config AMLOGIC_EROFS
 	tristate "EROFS filesystem support"
 	depends on BLOCK
-	select FS_IOMAP
-	select LIBCRC32C
 	select AMLOGIC_SYM_HELPER
 	help
 	  EROFS (Enhanced Read-Only File System) is a lightweight read-only
@@ -39,7 +37,6 @@ config AMLOGIC_EROFS_DEBUG
 config AMLOGIC_EROFS_XATTR
 	bool "EROFS extended attributes"
 	depends on AMLOGIC_EROFS
-	select XXHASH
 	default y
 	help
 	  Extended attributes are name:value pairs associated with inodes by
@@ -51,7 +48,6 @@ config AMLOGIC_EROFS_XATTR
 config AMLOGIC_EROFS_POSIX_ACL
 	bool "EROFS Access Control Lists"
 	depends on AMLOGIC_EROFS_XATTR
-	select FS_POSIX_ACL
 	default y
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
@@ -95,7 +91,6 @@ config AMLOGIC_EROFS_BACKED_BY_FILE
 config AMLOGIC_EROFS_ZIP
 	bool "EROFS Data Compression Support"
 	depends on AMLOGIC_EROFS
-	select LZ4_DECOMPRESS
 	default y
 	help
 	  Enable fixed-sized output compression for EROFS.
@@ -105,8 +100,6 @@ config AMLOGIC_EROFS_ZIP
 config AMLOGIC_EROFS_ZIP_LZMA
 	bool "EROFS LZMA compressed data support"
 	depends on AMLOGIC_EROFS_ZIP
-	select XZ_DEC
-	select XZ_DEC_MICROLZMA
 	help
 	  Saying Y here includes support for reading EROFS file systems
 	  containing LZMA compressed data, specifically called microLZMA. It
@@ -118,7 +111,6 @@ config AMLOGIC_EROFS_ZIP_LZMA
 config AMLOGIC_EROFS_ZIP_DEFLATE
 	bool "EROFS DEFLATE compressed data support"
 	depends on AMLOGIC_EROFS_ZIP
-	select ZLIB_INFLATE
 	help
 	  Saying Y here includes support for reading EROFS file systems
 	  containing DEFLATE compressed data.  It gives better compression
@@ -133,7 +125,6 @@ config AMLOGIC_EROFS_ZIP_DEFLATE
 config AMLOGIC_EROFS_ZIP_ZSTD
 	bool "EROFS Zstandard compressed data support"
 	depends on AMLOGIC_EROFS_ZIP
-	select ZSTD_DECOMPRESS
 	help
 	  Saying Y here includes support for reading EROFS file systems
 	  containing Zstandard compressed data.  It gives better compression
@@ -148,10 +139,6 @@ config AMLOGIC_EROFS_ZIP_ZSTD
 config AMLOGIC_EROFS_ONDEMAND
 	bool "EROFS fscache-based on-demand read support (deprecated)"
 	depends on AMLOGIC_EROFS
-	select NETFS_SUPPORT
-	select FSCACHE
-	select CACHEFILES
-	select CACHEFILES_ONDEMAND
 	help
 	  This permits EROFS to use fscache-backed data blobs with on-demand
 	  read support.
