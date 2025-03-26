@@ -261,8 +261,7 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 		}
 
 		if (demod->last_lock >= lock_continuous_cnt)
-			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
-				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
+			*status = FE_LOCKED;
 		else
 			*status = 0;
 	} else {

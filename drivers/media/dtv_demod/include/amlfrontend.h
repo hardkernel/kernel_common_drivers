@@ -199,6 +199,7 @@
 /*  V3.6.019 fix dvbs blind scan lose TP for rda5815m */
 /*  V3.6.020 fix dvbt2 CICAM by ts clock 5.43 to 6.75MHz */
 /*  V3.6.021 use kernel configs instead of macros */
+/*  V3.6.022 fix low probability missing dvbt channel */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -215,8 +216,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.021"
-#define DTVDEMOD_VER	"2025/03/25: use kernel configs instead of macros"
+#define AMLDTVDEMOD_VER "V3.6.022"
+#define DTVDEMOD_VER	"2025/03/26: fix low probability missing dvbt channel"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -259,6 +260,9 @@
 
 #define TIMEOUT_DDR_LEAVE	50
 
+#ifndef FE_LOCKED
+#define FE_LOCKED (FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC)
+#endif
 
 enum DEMOD_TUNER_IF {
 	DEMOD_4M_IF = 4000,

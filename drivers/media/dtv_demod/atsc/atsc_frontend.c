@@ -89,9 +89,7 @@ int gxtv_demod_atsc_read_status(struct dvb_frontend *fe,
 
 	if (!devp->demod_thread) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 		return 0;
 	}
 
@@ -116,9 +114,7 @@ int gxtv_demod_atsc_read_status(struct dvb_frontend *fe,
 
 	if (s == 1) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 	} else {
 		ilock = 0;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
@@ -609,8 +605,7 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 		}
 
 		if (lock_status >= lock_continuous_cnt)
-			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
-				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
+			*status = FE_LOCKED;
 		else
 			*status = 0;
 	} else {

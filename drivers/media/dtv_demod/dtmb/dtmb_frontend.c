@@ -74,9 +74,7 @@ void dtmb_save_status(struct aml_dtvdemod *demod, unsigned int s)
 	struct poll_machie_s *pollm = &demod->poll_machie;
 
 	if (s) {
-		pollm->last_s =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		pollm->last_s = FE_LOCKED;
 
 	} else {
 		pollm->last_s = FE_TIMEDOUT;
@@ -281,9 +279,7 @@ int dtmb_poll_v2(struct dvb_frontend *fe, enum fe_status *status)
 
 	if (s == 1) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 	} else {
 		ilock = 0;
 		*status = FE_TIMEDOUT;
@@ -323,9 +319,7 @@ int gxtv_demod_dtmb_read_status_old(struct dvb_frontend *fe,
 
 	if (s == 1) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 	} else {
 		ilock = 0;
 		*status = FE_TIMEDOUT;
@@ -519,8 +513,7 @@ int gxtv_demod_dtmb_tune(struct dvb_frontend *fe, bool re_tune,
 			dtmb_poll_start_tune(demod, DTMBM_NO_SIGNEL_CHECK);
 
 		} else if (firstdetect == 2) {  /*need check*/
-			*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+			*status = FE_LOCKED;
 			dtmb_poll_start_tune(demod, DTMBM_HV_SIGNEL_CHECK);
 
 		} else if (firstdetect == 0) {
@@ -542,8 +535,7 @@ int gxtv_demod_dtmb_tune(struct dvb_frontend *fe, bool re_tune,
 	*delay = HZ / 4;
 	gxtv_demod_dtmb_read_status_old(fe, status);
 
-	if (*status == (FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-		FE_HAS_VITERBI | FE_HAS_SYNC))
+	if (*status == FE_LOCKED)
 		dtmb_poll_start_tune(demod, DTMBM_HV_SIGNEL_CHECK);
 	else
 		dtmb_poll_start_tune(demod, DTMBM_NO_SIGNEL_CHECK);
@@ -653,8 +645,7 @@ static void dtmb_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 		}
 
 		if (lock_status >= lock_continuous_cnt)
-			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
-				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
+			*status = FE_LOCKED;
 		else
 			*status = 0;
 	} else {

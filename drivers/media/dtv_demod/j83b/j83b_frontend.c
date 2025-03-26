@@ -243,9 +243,7 @@ int gxtv_demod_j83b_read_status(struct dvb_frontend *fe,
 
 	if (!devp->demod_thread) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 		return 0;
 	}
 
@@ -257,9 +255,7 @@ int gxtv_demod_j83b_read_status(struct dvb_frontend *fe,
 
 	if (s == 1) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 	} else {
 		ilock = 0;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
@@ -377,8 +373,7 @@ int j83b_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tu
 		is_signal = true;
 		timeout = TIMEOUT_ATSC;
 
-		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 		demod->real_para.modulation = amdemod_qam_fe(demod->auto_qam_mode);
 		demod->real_para.symbol = demod->demod_status.symb_rate;
 
