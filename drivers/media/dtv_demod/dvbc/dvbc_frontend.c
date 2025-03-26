@@ -82,9 +82,7 @@ int gxtv_demod_dvbc_read_status_timer(struct dvb_frontend *fe,
 
 	if (demod_sts.ch_sts & 0x1) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 		qam_write_reg(demod, 0x62, 0xd009);
 	} else {
 		qam_write_reg(demod, 0x62, 0x1f00d009);
@@ -849,9 +847,7 @@ int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 				__func__, demod->id, c->frequency);
 			break;
 		case 1:
-			*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+			*status = FE_LOCKED;
 			demod->last_status = *status;
 			demod->fast_search_finish = true;
 			PR_DBG("%s [id %d] [%d] >>>lock<<< [qam %d]\n",
@@ -1077,8 +1073,7 @@ int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tu
 	if (s == 5) {
 		time_start_qam = 0;
 		fsm_status = 1;
-		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 		demod->real_para.modulation = dvbc_get_dvbc_qam(demod->auto_qam_mode);
 		demod->real_para.symbol = sr * 1000;
 
@@ -1200,8 +1195,7 @@ int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tu
 		}
 
 		if (lock_status >= lock_continuous_cnt)
-			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
-				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
+			*status = FE_LOCKED;
 		else
 			*status = 0;
 	} else {

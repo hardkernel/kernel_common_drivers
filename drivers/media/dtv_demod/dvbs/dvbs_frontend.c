@@ -1118,9 +1118,7 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 	s = amdemod_stat_dvbs_islock(demod, SYS_DVBS);
 	if (s == 1) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 
 		if (devp->blind_scan_stop) {
 			/* limiting frequency offset is too large. */

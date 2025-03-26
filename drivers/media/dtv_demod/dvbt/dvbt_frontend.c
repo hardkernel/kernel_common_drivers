@@ -42,7 +42,7 @@
 
 //dvb-t
 MODULE_PARM_DESC(dvbt_reset_per_times, "");
-static unsigned int dvbt_reset_per_times = 40;
+static unsigned int dvbt_reset_per_times = 26;
 module_param(dvbt_reset_per_times, int, 0644);
 
 //dvb-t2
@@ -141,6 +141,11 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 
 	cur_time = jiffies_to_msecs(jiffies);
 	demod->time_passed = cur_time - demod->time_start;
+	if (demod->time_passed < 50) {
+		no_signal_cnt = 0;
+		unlock_cnt = 0;
+		reset_time = 0;
+	}
 
 	if (devp->tuner_strength_limit)
 		strength_limit = devp->tuner_strength_limit;
@@ -187,9 +192,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 	s = amdemod_stat_dvbt_islock(demod, SYS_DVBT);
 	if (s == 1) {
 		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 
 		//dBx10.
 		demod->real_para.snr = (((dvbt_t2_rdb(CHC_CIR_SNR1) & 0x7) << 8) |
@@ -321,8 +324,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 		/* increase agc target to make signal strong enough for locking */
 		dvbt_t2_wrb(0x15d6, 0xa0);
 
-	if (*status ==
-	    (FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC)) {
+	if (*status == FE_LOCKED) {
 		dvbt_t2_wr_byte_bits(0x2906, 2, 3, 4);
 		dvbt_t2_wrb(0x2815, 0x02);
 	} else {
@@ -331,7 +333,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 	}
 
 	if (reset_per_times) {
-		if (*status == FE_TIMEDOUT)
+		if (*status != FE_LOCKED)
 			unlock_cnt++;
 		else
 			unlock_cnt = 0;
@@ -339,12 +341,12 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 			unlock_cnt = 0;
 			dvbt_rst_demod(demod, fe);
 			reset_time = cur_time;
+			PR_DVBT("do a demod reset\n");
 		}
 	}
 
 	if (demod->last_lock != ilock) {
-		if (*status == (FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-		    FE_HAS_VITERBI | FE_HAS_SYNC)) {
+		if (*status == FE_LOCKED) {
 			PR_INFO("%s [id %d]: !!  >> LOCKT << !!, freq:%d\n",
 					__func__, demod->id, fe->dtv_property_cache.frequency);
 			demod->last_lock = ilock;
@@ -674,8 +676,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	}
 
 	if (demod->last_lock == CONTINUE_TIMES_LOCK) {
-		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-				FE_HAS_VITERBI | FE_HAS_SYNC;
+		*status = FE_LOCKED;
 		demod->real_para.snr = snr;
 		demod->real_para.modulation = dvbt2_reg_to_fe_modulation(modu);
 		demod->real_para.coderate = dvbt2_reg_to_fe_coderate(cr);
