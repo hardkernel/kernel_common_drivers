@@ -51,20 +51,7 @@ static void rxlatency_to_vinfo(struct hdmitx_common *tx_comm)
 static void edidinfo_attach_to_vinfo(struct hdmitx_common *tx_comm)
 {
 	struct vinfo_s *info = &tx_comm->hdmitx_vinfo;
-	struct hdmi_format_para *para = &tx_comm->fmt_para;
 	struct rx_cap *prxcap = &tx_comm->rxcap;
-
-	/* if currently config_csc_en is true, and EDID
-	 * support 422, Need to switch small mode in output
-	 * hdr10/hlg/hdr10plus, Since hdmitx csc does not support
-	 * 420 conversion, the hdr capability of 420 is blocked.
-	 * Otherwise, the 8-bit output will shield the HDR capability.
-	 */
-	if (para->cd == COLORDEPTH_24B && !tx_comm->hdr_8bit_en) {
-		if (!tx_comm->config_csc_en || !is_support_y422(prxcap) ||
-				para->cs == HDMI_COLORSPACE_YUV420)
-			memset(&info->hdr_info, 0, sizeof(struct hdr_info));
-	}
 
 	rxlatency_to_vinfo(tx_comm);
 	hdmi_physical_size_to_vinfo(tx_comm);

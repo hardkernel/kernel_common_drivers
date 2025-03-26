@@ -4,10 +4,6 @@
  */
 
 #include <linux/amlogic/media/vout/vinfo.h>
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-#include <linux/amlogic/media/amvecm/amvecm.h>
-#endif
-
 #include "hdmitx_dump.h"
 #include "hdmitx_check_valid.h"
 
@@ -648,15 +644,8 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 	}
 
 	seq_puts(s, "\n******hdr_cap******\n");
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
-	if (hdr10p->ieeeoui == HDR10_PLUS_IEEE_OUI &&
-		hdr10p->application_version != 0xFF &&
-		is_hdr10plus_enable())
-#else
 	if (hdr10p->ieeeoui == HDR10_PLUS_IEEE_OUI &&
 			hdr10p->application_version != 0xFF)
-#endif
 		hdr10plus_supported = 1;
 	seq_printf(s, "HDR10Plus Supported: %d\n",
 		hdr10plus_supported);

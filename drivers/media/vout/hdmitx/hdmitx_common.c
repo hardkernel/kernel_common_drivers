@@ -20,10 +20,6 @@
 #include "efuse.h"
 #include "hdmitx_hdr.h"
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-#include <linux/amlogic/media/amvecm/amvecm.h>
-#endif
-
 int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,
 		enum hdmi_colorspace cs, enum hdmi_color_depth cd,
@@ -356,51 +352,12 @@ int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16])
 }
 EXPORT_SYMBOL(hdmitx_get_attr);
 
-/*
- * hdr_priority definition:
- *   strategy1: bit[3:0]
- *       0: original cap
- *       1: disable DV cap
- *       2: disable DV and hdr cap
- *   strategy2:
- *       bit4: 1: disable dv  0:enable dv
- *       bit5: 1: disable hdr10/hdr10+  0: enable hdr10/hdr10+
- *       bit6: 1: disable hlg  0: enable hlg
- *   bit28-bit31 choose strategy: bit[31:28]
- *       0: strategy1
- *       1: strategy2
- */
-
-/* dv_info */
-static void enable_dv_info(struct dv_info *des, const struct dv_info *src)
-{
-	if (!des || !src)
-		return;
-
-	memcpy(des, src, sizeof(*des));
-}
-
 static void disable_dv_info(struct dv_info *des)
 {
 	if (!des)
 		return;
 
 	memset(des, 0, sizeof(*des));
-}
-
-/* hdr10 */
-static void enable_hdr10_info(struct hdr_info *des, const struct hdr_info *src)
-{
-	if (!des || !src)
-		return;
-
-	des->hdr_support |= (src->hdr_support) & BIT(2);
-	des->static_metadata_type1 = src->static_metadata_type1;
-	des->lumi_max = src->lumi_max;
-	des->lumi_avg = src->lumi_avg;
-	des->lumi_min = src->lumi_min;
-	des->lumi_peak = src->lumi_peak;
-	des->ldim_support = src->ldim_support;
 }
 
 static void disable_hdr10_info(struct hdr_info *des)
@@ -426,29 +383,6 @@ static void disable_hdr10p_info(struct hdr10_plus_info *des)
 	memset(des, 0, sizeof(*des));
 }
 
-static void enable_hdr10p_info(struct hdr10_plus_info *des, const struct hdr10_plus_info *src)
-{
-	if (!des || !src)
-		return;
-
-	memcpy(des, src, sizeof(*des));
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
-	if (!is_hdr10plus_enable())
-		disable_hdr10p_info(des);
-#endif
-}
-
-/* hlg */
-static void enable_hlg_info(struct hdr_info *des, const struct hdr_info *src)
-{
-	if (!des || !src)
-		return;
-
-	des->hdr_support |= (src->hdr_support) & BIT(3);
-}
-
 static void disable_hlg_info(struct hdr_info *des)
 {
 	if (!des)
@@ -457,27 +391,33 @@ static void disable_hlg_info(struct hdr_info *des)
 	des->hdr_support &= ~BIT(3);
 }
 
-static void enable_all_hdr_info(struct rx_cap *prxcap, struct hdr_info *hdr_info,
-		struct dv_info *dv_info)
+static void enable_all_hdr_info(struct hdmitx_common *tx_comm, struct rx_cap *prxcap,
+		struct hdr_info *hdr_info, struct dv_info *dv_info)
 {
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	struct hdr10_plus_info *hdr10p_info = NULL;
-#endif
-	if (!prxcap || !hdr_info || !dv_info)
+	struct hdmi_format_para *para = NULL;
+
+	if (!tx_comm || !prxcap || !hdr_info || !dv_info)
 		return;
+
+	para = &tx_comm->fmt_para;
 
 	memcpy(hdr_info, &prxcap->hdr_info, sizeof(prxcap->hdr_info));
 	memcpy(dv_info, &prxcap->dv_info, sizeof(prxcap->dv_info));
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	hdr10p_info = &hdr_info->hdr10plus_info;
-	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
-	if (!is_hdr10plus_enable())
-		disable_hdr10p_info(hdr10p_info);
-#endif
+	/*
+	 * if currently config_csc_en is true, and EDID
+	 * support 422, Need to switch small mode in output
+	 * hdr10/hlg/hdr10plus, Since hdmitx csc does not support
+	 * 420 conversion, the hdr capability of 420 is blocked.
+	 * Otherwise, the 8-bit output will shield the HDR capability.
+	 */
+	if (para->cd == COLORDEPTH_24B && !tx_comm->hdr_8bit_en) {
+		if (!tx_comm->config_csc_en || !is_support_y422(prxcap) ||
+				para->cs == HDMI_COLORSPACE_YUV420)
+			memset(hdr_info, 0, sizeof(struct hdr_info));
+	}
 }
 
-static void update_hdr_strategy1(struct hdmitx_common *tx_comm, struct hdr_info *hdr_info,
+static void update_hdr_strategy_linux(struct hdmitx_common *tx_comm, struct hdr_info *hdr_info,
 		struct dv_info *dv_info, u32 strategy)
 {
 	struct rx_cap *prxcap;
@@ -487,12 +427,9 @@ static void update_hdr_strategy1(struct hdmitx_common *tx_comm, struct hdr_info 
 
 	prxcap = &tx_comm->rxcap;
 	/* init hdr_info and dv_info */
-	enable_all_hdr_info(prxcap, hdr_info, dv_info);
+	enable_all_hdr_info(tx_comm, prxcap, hdr_info, dv_info);
 
 	switch (strategy) {
-	case 0:
-		enable_all_hdr_info(prxcap, hdr_info, dv_info);
-		break;
 	case 1:
 		disable_dv_info(dv_info);
 		break;
@@ -507,7 +444,7 @@ static void update_hdr_strategy1(struct hdmitx_common *tx_comm, struct hdr_info 
 	}
 }
 
-static void update_hdr_strategy2(struct hdmitx_common *tx_comm, struct hdr_info *hdr_info,
+static void update_hdr_strategy_android(struct hdmitx_common *tx_comm, struct hdr_info *hdr_info,
 		struct dv_info *dv_info, u32 strategy)
 {
 	struct rx_cap *prxcap;
@@ -517,29 +454,35 @@ static void update_hdr_strategy2(struct hdmitx_common *tx_comm, struct hdr_info 
 
 	prxcap = &tx_comm->rxcap;
 	/* init hdr_info and dv_info */
-	enable_all_hdr_info(prxcap, hdr_info, dv_info);
+	enable_all_hdr_info(tx_comm, prxcap, hdr_info, dv_info);
 
 	/* bit4: 1 disable dv  0 enable dv */
 	if (strategy & BIT(4))
 		disable_dv_info(dv_info);
-	else
-		enable_dv_info(dv_info, &prxcap->dv_info);
 	/* bit5: 1 disable hdr10/hdr10+   0 enable hdr10/hdr10+ */
 	if (strategy & BIT(5)) {
 		disable_hdr10_info(hdr_info);
 		disable_hdr10p_info(&hdr_info->hdr10plus_info);
-	} else {
-		enable_hdr10_info(hdr_info, &prxcap->hdr_info);
-		enable_hdr10p_info(&hdr_info->hdr10plus_info,
-			&prxcap->hdr_info.hdr10plus_info);
 	}
 	/* bit6: 1 disable hlg   0 enable hlg */
 	if (strategy & BIT(6))
 		disable_hlg_info(hdr_info);
-	else
-		enable_hlg_info(hdr_info, &prxcap->hdr_info);
 }
 
+/*
+ * hdr_priority definition:
+ *   strategy_linux: bit[3:0]
+ *       0: original cap
+ *       1: disable DV cap
+ *       2: disable DV and hdr cap
+ *   strategy_android:
+ *       bit4: 1: disable dv  0:enable dv
+ *       bit5: 1: disable hdr10/hdr10+  0: enable hdr10/hdr10+
+ *       bit6: 1: disable hlg  0: enable hlg
+ *   bit28-bit31 choose strategy: bit[31:28]
+ *       0: strategy_linux
+ *       1: strategy_android
+ */
 int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority,
 		struct hdr_info *hdr_info, struct dv_info *dv_info)
 {
@@ -558,11 +501,11 @@ int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority,
 	switch (choose) {
 	case 0:
 		strategy = tx_comm->hdr_priority & 0xf;
-		update_hdr_strategy1(tx_comm, hdr_info, dv_info, strategy);
+		update_hdr_strategy_linux(tx_comm, hdr_info, dv_info, strategy);
 		break;
 	case 1:
 		strategy = tx_comm->hdr_priority & 0xf0;
-		update_hdr_strategy2(tx_comm, hdr_info, dv_info, strategy);
+		update_hdr_strategy_android(tx_comm, hdr_info, dv_info, strategy);
 		break;
 	default:
 		break;

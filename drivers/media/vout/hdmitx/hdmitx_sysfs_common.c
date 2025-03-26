@@ -11,9 +11,6 @@
 
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-#include <linux/amlogic/media/amvecm/amvecm.h>
-#endif
 
 #include "hdmitx_sysfs_common.h"
 #include "hdmitx_log.h"
