@@ -33,6 +33,7 @@ static struct vout_device_s hdmitx_vdev = {
 	.fresh_tx_hdr10plus_pkt = hdmitx_set_hdr10plus_pkt,
 	.fresh_tx_cuva_hdr_vsif = hdmitx_set_cuva_hdr_vsif,
 	.fresh_tx_cuva_hdr_vs_emds = hdmitx_set_cuva_hdr_vs_emds,
+	.fresh_tx_input_vpp_info = hdmitx_sync_input_vpp_info,
 };
 
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
@@ -95,6 +96,13 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->hdcp_mode = 0;
 	/* default audio configure is on */
 	tx_comm->cur_audio_param.aud_output_en = 1;
+
+	/* reset hdmitx csc para */
+	tx_comm->in_colorimetry = 0xff;
+	tx_comm->out_colorimetry = 0xff;
+	tx_comm->in_color_range = 0xff;
+	tx_comm->out_color_range = 0xff;
+	tx_comm->in_color_fmt = 0xff;
 
 	/*mutex init*/
 	mutex_init(&tx_comm->hdmimode_mutex);
@@ -273,6 +281,9 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 
 		return ret;
 	}
+
+	ret = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_QMS_INFO, 0);
+	HDMITX_INFO("qms: uboot brr %d qms_en %d\n", ret & 0xffff, ret >> 16);
 
 	HDMITX_INFO("%s hdmi is not enabled\n", __func__);
 	return hdmitx_format_para_reset(para);
@@ -1914,6 +1925,21 @@ int hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm)
 	return SDR;
 }
 EXPORT_SYMBOL(hdmitx_common_get_hdr_status);
+
+void hdmitx_get_qms_init_state(struct hdmitx_common *tx_comm, u32 *brr, u32 *qms_en)
+{
+	int value;
+
+	if (!tx_comm || !brr || !qms_en)
+		return;
+
+	value = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_QMS_INFO, 0);
+	*brr = value & 0xffff;
+	*qms_en = value >> 16;
+	if (*qms_en)
+		HDMITX_INFO("qms: brr %d qms_en %d\n", *brr, *qms_en);
+}
+EXPORT_SYMBOL(hdmitx_get_qms_init_state);
 
 u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm)
 {

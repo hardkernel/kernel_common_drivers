@@ -241,6 +241,26 @@ struct hdmitx_common {
 	u32 hdmi_last_hdr_mode;
 	u32 hdmi_current_hdr_mode;
 	/*
+	 * color standard
+	 * 0: 709
+	 * 1: 601
+	 * 2: 2020
+	 * 3: 2020c
+	 */
+	u8 in_colorimetry;
+	u8 out_colorimetry;
+	/*
+	 * vid/pc
+	 * 0: limit; 1: full
+	 */
+	u8 in_color_range;
+	u8 out_color_range;
+	/*
+	 * yc/rgb
+	 * 0: yuv; 1: rgb
+	 */
+	u8 in_color_fmt;
+	/*
 	 * There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
 	 * hdmi drivers to send out related HDMI infoframe
 	 * hdmitx_set_drm_pkt() is for HDR 2084 SMPTE, HLG, etc.
@@ -619,6 +639,7 @@ void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
 int hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm);
+void hdmitx_get_qms_init_state(struct hdmitx_common *tx_common, u32 *brr, u32 *qms_en);
 u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm);
 int hdmitx_common_get_vrr_mode_group(struct hdmitx_common *tx_comm,
 				     struct hdmitx_vrr_mode_group *group,

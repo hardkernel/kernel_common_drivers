@@ -125,6 +125,7 @@
 #define STAT_VIDEO_CLK			(CMD_STAT_OFFSET + 0x01)
 #define STAT_VIDEO_CS			(CMD_STAT_OFFSET + 0x02)
 #define STAT_VIDEO_CD			(CMD_STAT_OFFSET + 0x03)
+#define STAT_VIDEO_QMS_INFO		(CMD_STAT_OFFSET + 0x04)
 #define STAT_AUDIO_FORMAT		(CMD_STAT_OFFSET + 0x10)
 #define STAT_AUDIO_CHANNEL		(CMD_STAT_OFFSET + 0x11)
 #define STAT_AUDIO_CLK_STABLE	(CMD_STAT_OFFSET + 0x12)
@@ -133,6 +134,7 @@
 #define STAT_TX_HDR				(CMD_STAT_OFFSET + 0x21) /*hdmitx_get_cur_hdr_st*/
 #define STAT_TX_DV				(CMD_STAT_OFFSET + 0x22) /*hdmitx_get_cur_dv_st*/
 #define STAT_TX_HDR10P			(CMD_STAT_OFFSET + 0x23) /*hdmitx_get_cur_hdr10p_st*/
+#define STAT_TX_CUVA			(CMD_STAT_OFFSET + 0x24) /*hdmitx_get_cur_cuva/vivid_st*/
 #define STAT_TX_PHY				(CMD_STAT_OFFSET + 0x30)
 #define STAT_TX_OUTPUT			(CMD_STAT_OFFSET + 0x31) /*if hdmitx have output*/
 #define STAT_TX_DSC_EN			(CMD_STAT_OFFSET + 0x32) /* if hdmitx have enable dsc */
@@ -167,6 +169,7 @@
 #define CONFIG_ALLM             (CMD_CONF_OFFSET + 0x1000 + 0x08)
 	#define ENABLE_ALLM         1
 	#define DISABLE_ALLM        0
+#define VP_CMS_CSC0_MULTI_CSC   (CMD_CONF_OFFSET + 0x1000 + 0x09)
 
 /* Audio part */
 #define CONF_CLR_AVI_PACKET     (CMD_CONF_OFFSET + 0x04)

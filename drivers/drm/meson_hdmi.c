@@ -582,8 +582,8 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 
 	/* get vrr capability */
 	vrr_cap = hdmitx_common_get_vrr_cap(tx_comm);
-	drm_connector_set_vrr_capable_property(connector, vrr_cap & QMS_VRR_SUP);
-
+	DRM_DEBUG("%s support vrr_cap[%d]\n", __func__, vrr_cap);
+	drm_connector_set_vrr_capable_property(connector, vrr_cap);
 	/*add modes from hdmitx instead of edid*/
 	count = hdmitx_common_get_vic_list(tx_comm, &vics);
 
@@ -1332,11 +1332,19 @@ void meson_hdmitx_reset(struct drm_connector *connector)
 void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 	const struct drm_connector_state *state)
 {
+	int i, num_group = 0;
+	struct hdmitx_vrr_mode_group *group;
+	struct hdmitx_vrr_mode_group *groups;
 	struct drm_connector *connector = state->connector;
 	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
 	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmi->hdmitx_dev);
 	struct am_hdmitx_connector_state *hdmitx_state =
 		to_am_hdmitx_connector_state(state);
+
+	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
+	if (groups)
+		num_group = hdmitx_common_get_vrr_mode_group(tx_comm, groups,
+							      MAX_VRR_MODE_GROUP);
 
 	drm_printf(p, "\tdrm hdmitx state:\n");
 	drm_printf(p, "\t\t android_path:[%d]\n", am_hdmi->android_path);
@@ -1363,10 +1371,22 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 		   hdmitx_state->hdr_priority);
 
 	drm_printf(p, "\t\t drm to hdmitx timing state:\n");
-	drm_printf(p, "\t\t\t vic:[%d], cs:[%d], cd:[%d], name:[%s]",
+	drm_printf(p, "\t\t\t vic:[%d], cs:[%d], cd:[%d], name:[%s]\n",
 		   hdmitx_state->hcs.para.vic, hdmitx_state->hcs.para.cs,
 		   hdmitx_state->hcs.para.cd, hdmitx_state->hcs.para.name);
 	drm_printf(p, "\t\t\t frac_rate_policy:[%d]\n", hdmitx_state->frac_rate_policy);
+	drm_printf(p, "\t\t qms vrr info:\n");
+	for (i = 0; i < num_group; i++) {
+		group = &groups[i];
+		drm_printf(p, "\t\t\t %u,%u,%u-%u,%u\n", group->width, group->height,
+			   group->vrr_min, group->vrr_max, group->brr_vic);
+	}
+	drm_printf(p, "\t\t game vrr info:\n");
+	for (i = 0; i < num_group; i++) {
+		group = &groups[i];
+		drm_printf(p, "\t\t\t %u,%u,%u-%u,%u\n", group->width, group->height,
+			   group->game_vrr_min, group->game_vrr_max, group->game_brr_vic);
+	}
 }
 
 static bool meson_hdmitx_is_hdcp_running(struct am_hdmi_tx *am_hdmi)
@@ -1856,11 +1876,20 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *am_hdmi,
 		group = &groups[i];
 		if (group->width == adj_mode->hdisplay &&
 		    group->height == adj_mode->vdisplay) {
-			if (group->vrr_max / VRR_DIV >= brr) {
+			if (crtc_state->vrr_type == DRM_VRR_QMS &&
+			    group->vrr_max / VRR_DIV >= brr) {
 				brr = group->vrr_max / VRR_DIV;
 				vic = group->brr_vic;
 				am_hdmi->min_vfreq = group->vrr_min / VRR_DIV;
 				am_hdmi->max_vfreq = group->vrr_max / VRR_DIV;
+			}
+
+			if (crtc_state->vrr_type == DRM_VRR_GAME &&
+			    group->game_vrr_max / VRR_DIV >= brr) {
+				brr = group->game_vrr_max / VRR_DIV;
+				vic = group->game_brr_vic;
+				am_hdmi->min_vfreq = group->game_vrr_min / VRR_DIV;
+				am_hdmi->max_vfreq = group->game_vrr_max / VRR_DIV;
 			}
 		}
 	}
@@ -2066,6 +2095,7 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 {
 	struct am_hdmi_tx *am_hdmi = encoder_to_am_hdmi(encoder);
 	struct drm_connector *conn = &am_hdmi->base.connector;
+	struct vrr_setting_info vrr_info;
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(encoder->crtc->state);
 	struct drm_connector_state *conn_state =
@@ -2090,9 +2120,19 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	}
 
 	if (meson_crtc_state->seamless) {
-		dst_vrefresh = meson_crtc_state->base.vrr_enabled ? mode_vrefresh : 0;
+		if (meson_crtc_state->vrr_type == DRM_VRR_QMS) {
+			dst_vrefresh = meson_crtc_state->base.vrr_enabled ? mode_vrefresh : 0;
+			dst_vrefresh *= 100;
+			vrr_info.type = T_VRR_QMS;
+		}
+
+		if (meson_crtc_state->vrr_type == DRM_VRR_GAME) {
+			dst_vrefresh = meson_crtc_state->game_rate;
+			vrr_info.type = T_VRR_GAME;
+		}
+
 		DRM_INFO("%s, set frame rate: %d\n", __func__, dst_vrefresh);
-		hdmitx_common_set_vframe_rate_hint(tx_comm, dst_vrefresh * 100, NULL);
+		hdmitx_common_set_vframe_rate_hint(tx_comm, dst_vrefresh, &vrr_info);
 		return;
 	}
 
@@ -2125,9 +2165,23 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	}
 
 	if (meson_crtc_state->base.vrr_enabled) {
-		hdmitx_common_set_vframe_rate_hint(tx_comm, mode_vrefresh * 100, NULL);
+		if (meson_crtc_state->vrr_type == DRM_VRR_QMS) {
+			dst_vrefresh = mode_vrefresh * 100;
+			vrr_info.type = T_VRR_QMS;
+		}
+
+		if (meson_crtc_state->vrr_type == DRM_VRR_GAME) {
+			dst_vrefresh = meson_crtc_state->game_rate;
+			vrr_info.type = T_VRR_GAME;
+		}
+
+		hdmitx_common_set_vframe_rate_hint(tx_comm, dst_vrefresh, &vrr_info);
 		DRM_INFO("%s, vrr set rate hint, %d\n", __func__,
-			 mode_vrefresh  * 100);
+			 dst_vrefresh);
+	} else {
+		vrr_info.type = T_VRR_NONE;
+		hdmitx_common_set_vframe_rate_hint(tx_comm, 0, &vrr_info);
+		DRM_INFO("%s, disable vrr\n", __func__);
 	}
 }
 
@@ -2279,6 +2333,7 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	int ret = 0;
 	char attr_str[HDMITX_ATTR_LEN_MAX];
 	bool is_alter;
+	u32 brr = 0, qms_en = 0;
 
 	/* do not atomic check if hpd is low*/
 	if (strstr(modename, "dummy") || !hdmitx_get_hpd_state(common))
@@ -2291,6 +2346,13 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	} else {
 		hdmitx_state->frac_rate_policy = false;
 		common->frac_rate_policy = false;
+	}
+
+	if (meson_crtc_state->uboot_mode_init == 1) {
+		DRM_INFO("%s[%d]\n", __func__, __LINE__);
+		hdmitx_get_qms_init_state(common, &brr, &qms_en);
+		if (brr && qms_en)
+			crtc_state->vrr_enabled = true;
 	}
 
 	if (crtc_state->vrr_enabled &&
@@ -2828,6 +2890,7 @@ int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 			void *data, struct drm_file *file_priv)
 {
 	int i, num_group = 0;
+	char *mode_name;
 	struct drm_connector *connector;
 	struct drm_mode_object *mo;
 	struct hdmitx_common *tx_comm;
@@ -2860,7 +2923,13 @@ int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 		groups->groups[i].height = hdmi_groups[i].height;
 		groups->groups[i].vrr_min = hdmi_groups[i].vrr_min / VRR_DIV;
 		groups->groups[i].vrr_max = hdmi_groups[i].vrr_max / VRR_DIV;
-		memcpy(groups->groups[i].modename, hdmi_groups[i].modename, DRM_DISPLAY_MODE_LEN);
+		groups->groups[i].game_vrr_min = hdmi_groups[i].game_vrr_min;
+		groups->groups[i].game_vrr_max = hdmi_groups[i].game_vrr_max;
+		groups->groups[i].game_brr_vic = hdmi_groups[i].game_brr_vic;
+
+		mode_name = groups->groups[i].modename;
+		strncpy(mode_name, hdmi_groups[i].modename, DRM_DISPLAY_MODE_LEN);
+		mode_name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
 	}
 	groups->num = num_group;
 

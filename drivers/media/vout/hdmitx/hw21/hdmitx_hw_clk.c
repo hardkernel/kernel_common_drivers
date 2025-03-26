@@ -1196,7 +1196,7 @@ static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 		hdmitx_set_s7_htx_pll(hdev);
 		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
-		if (hdev->tx21_hw.clk_config)
+		if (hdev->tx21_hw.clk_analog_path)
 			return;
 		if (cs != HDMI_COLORSPACE_YUV422) {
 			if (cd == COLORDEPTH_36B)
@@ -1213,7 +1213,7 @@ static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 		hdmitx_set_s7d_htx_pll(hdev);
 		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
-		if (hdev->tx21_hw.clk_config)
+		if (hdev->tx21_hw.clk_analog_path)
 			return;
 
 		if (cs != HDMI_COLORSPACE_YUV422) {
@@ -1231,7 +1231,7 @@ static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 		hdmitx_set_s6_htx_pll(hdev);
 		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
-		if (hdev->tx21_hw.clk_config) {
+		if (hdev->tx21_hw.clk_analog_path) {
 			/* bit15
 			 * 1: Analog frequency division
 			 * 0: Digital frequency division(default)

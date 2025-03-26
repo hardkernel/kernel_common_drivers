@@ -49,6 +49,15 @@ enum vinfo_3d_e {
 
 #define SUPPORT_2020	0x01
 
+/* vpp_post_out_range */
+#define HDMI_LIMIT_COLOR_RANGE   0
+#define HDMI_FULL_COLOR_RANGE    1
+/* vpp_post_out_colorimetry */
+#define HDMI_709_COLORIMETRY     0
+#define HDMI_601_COLORIMETRY     1
+#define HDMI_2020_COLORIMETRY    2
+#define HDMI_2020C_COLORIMETRY   3
+
 /* master_display_info for display device */
 struct master_display_info_s {
 	u32 present_flag;
@@ -358,6 +367,8 @@ struct vout_device_s {
 	void (*fresh_tx_cuva_hdr_vs_emds)(void *tx_instance, struct cuva_hdr_vs_emds_para *data);
 	void (*fresh_tx_emp_pkt)(void *tx_instance, unsigned char *data, unsigned int type,
 				 unsigned int size);
+	/* used for SDR case, yuv/rgb, limit/full, 601/709 dynamic switching */
+	void (*fresh_tx_input_vpp_info)(void *tx_instance);
 	void *tx_instance;
 };
 
@@ -423,6 +434,11 @@ struct vinfo_s {
 	u8 cur_enc_ppc;
 	/* 0: yuv, 1: rgb */
 	u8 vpp_post_out_color_fmt;
+
+	/* 0: limit, 1: full */
+	u8 vpp_post_out_range:1;
+	/* 0: 709, 1: 601, 2:2020, 3:2020c */
+	u8 vpp_post_out_colorimetry:2;
 
 	/*dv need get the cd/cd of hdmitx.*/
 	enum hdmi_color_depth cd;

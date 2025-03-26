@@ -9,6 +9,18 @@
 #include <linux/types.h>
 #include <linux/hdmi.h>
 
+enum vrr_type {
+	T_VRR_NONE,
+	T_VRR_GAME,
+	T_VRR_QMS,
+	T_VRR_MAX,
+};
+
+struct vrr_setting_info {
+	enum vrr_type type; /* if type is T_VRR_NONE, means exit VRR mode */
+	bool gpu_drive_vsync; /* reserved, not support now */
+};
+
 enum hdcp_ver_e {
 	HDCPVER_NONE = 0,
 	HDCPVER_14,
@@ -96,6 +108,7 @@ enum hdmi_tf_type {
 	HDMI_DV_VSIF_LL		= HDMI_DV_TYPE | 2,
 	HDMI_HDR10P_TYPE = 0x30,
 	HDMI_HDR10P_DV_VSIF	= HDMI_HDR10P_TYPE | 1,
+	HDMI_CUVA_TYPE = 0x40,
 };
 
 enum hdmi_hdr_status {
@@ -142,12 +155,6 @@ enum hdmi_phy_para {
 	HDMI_PHYPARA_LT3G, /* 1080p60hz 444 12bit */
 	HDMI_PHYPARA_DEF = HDMI_PHYPARA_LT3G,
 	HDMI_PHYPARA_270M, /* 480p60hz 444 8bit */
-};
-
-enum vrr_type {
-	T_VRR_NONE,
-	T_VRR_GAME,
-	T_VRR_QMS,
 };
 
 enum emp_type {

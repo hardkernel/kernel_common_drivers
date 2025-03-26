@@ -2477,6 +2477,29 @@ static enum hdmi_tf_type hdmitx_get_cur_hdr10p_st(void)
 	return type;
 }
 
+static enum hdmi_tf_type hdmitx_get_cur_cuva_st(void)
+{
+	enum hdmi_tf_type type = HDMI_NONE;
+	unsigned int ieee_code = 0;
+
+	/*
+	 * Only when sending cuva emp, the value of register HDMITX_TOP_EMP_CNTL0 bit0
+	 * will be written to 1
+	 */
+	if (hdmitx_get_bit(HDMITX_TOP_EMP_CNTL0, 0))
+		return HDMI_CUVA_TYPE;
+
+	if (!hdmitx_vsif_en())
+		return type;
+
+	ieee_code = GET_IEEEOUI();
+
+	if (ieee_code == CUVA_IEEEOUI)
+		type = HDMI_CUVA_TYPE;
+
+	return type;
+}
+
 static void hdmitx_set_packet(int type, void *pkt_param)
 {
 	int i;
@@ -5522,6 +5545,8 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		break;
 	case CONFIG_ALLM:
 		break;
+	case VP_CMS_CSC0_MULTI_CSC:
+		break;
 	default:
 		break;
 	}
@@ -5875,6 +5900,7 @@ static int hdmitx_get_state(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 
 	switch (cmd) {
 	case STAT_VIDEO_VIC:
+	case STAT_VIDEO_QMS_INFO:
 		return (int)get_vic_from_pkt();
 	case STAT_VIDEO_CS:
 		return (int)get_cs_from_pkt();
@@ -5894,6 +5920,8 @@ static int hdmitx_get_state(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		return hdmitx_get_cur_dv_st();
 	case STAT_TX_HDR10P:
 		return hdmitx_get_cur_hdr10p_st();
+	case STAT_TX_CUVA:
+		return hdmitx_get_cur_cuva_st();
 	default:
 		break;
 	}

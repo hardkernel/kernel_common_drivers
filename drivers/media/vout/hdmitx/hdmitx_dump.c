@@ -8,8 +8,6 @@
 #include "hdmitx_dump.h"
 #include "hdmitx_check_valid.h"
 
-const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
-
 int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 {
 	struct hdmitx_common *tx_comm = s->private;

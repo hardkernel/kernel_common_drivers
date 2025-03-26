@@ -18,8 +18,6 @@
 #include "hdmitx_check_valid.h"
 #include "hdmitx_module.h"
 
-const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
-
 /************************common sysfs*************************/
 static ssize_t hdmi_efuse_state_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
@@ -1935,6 +1933,13 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 	struct hdmitx_hw_common *tx_hw = tx_comm->tx_hw;
 
+	type = hdmitx_hw_get_state(tx_hw, STAT_TX_CUVA, 0);
+	if (type) {
+		if (type == HDMI_CUVA_TYPE) {
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "CUVA/VIVID-VSIF-OR-EMP");
+			return pos;
+		}
+	}
 	type = hdmitx_hw_get_state(tx_hw, STAT_TX_HDR10P, 0);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF) {

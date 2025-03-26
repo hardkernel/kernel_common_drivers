@@ -178,6 +178,8 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->brr_update = false;
 	new_state->brr = cur_state->brr;
 	new_state->seamless = false;
+	new_state->vrr_type = cur_state->vrr_type;
+	new_state->game_rate = cur_state->game_rate;
 	strncpy(new_state->brr_mode, cur_state->brr_mode, DRM_DISPLAY_MODE_LEN);
 	new_state->crtc_bgcolor_flag = cur_state->crtc_bgcolor_flag;
 	new_state->crtc_bgcolor = cur_state->crtc_bgcolor;
@@ -384,6 +386,12 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->dv_support_info) {
 		*val = drm_get_dv_support_info();
 		return 0;
+	} else if (property == meson_crtc->vrr_type_property) {
+		*val = crtc_state->vrr_type;
+		return 0;
+	} else if (property == meson_crtc->game_rate_property) {
+		*val = crtc_state->game_rate;
+		return 0;
 	}
 
 	return ret;
@@ -424,6 +432,12 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	} else if (property == meson_crtc->nonblock_by_vblank_property) {
 		crtc_state->nonblock_by_vblank = val;
+		return 0;
+	} else if (property == meson_crtc->vrr_type_property) {
+		crtc_state->vrr_type = val;
+		return 0;
+	} else if (property == meson_crtc->game_rate_property) {
+		crtc_state->game_rate = val;
 		return 0;
 	}
 
@@ -1288,7 +1302,7 @@ static void meson_crtc_init_nonblock_by_vblank_property(struct drm_device *drm_d
 }
 
 static void meson_crtc_init_dv_support_info_property(struct drm_device *drm_dev,
-						  struct am_meson_crtc *amcrtc)
+						    struct am_meson_crtc *amcrtc)
 {
 	struct drm_property *prop;
 
@@ -1298,6 +1312,41 @@ static void meson_crtc_init_dv_support_info_property(struct drm_device *drm_dev,
 		drm_object_attach_property(&amcrtc->base.base, prop, 0);
 	} else {
 		DRM_ERROR("Failed to dv_support_info property\n");
+	}
+}
+
+static const struct drm_prop_enum_list drm_vrr_type_enum_list[] = {
+	{ DRM_VRR_QMS, "QMS-VRR"}, /* QMS VRR */
+	{ DRM_VRR_GAME, "GAME-VRR"}, /* GAME VRR */
+};
+
+static void meson_crtc_init_vrr_type_property(struct drm_device *drm_dev,
+					      struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_enum(drm_dev, 0, "VRR_TYPE",
+					drm_vrr_type_enum_list, ARRAY_SIZE(drm_vrr_type_enum_list));
+	if (prop) {
+		amcrtc->vrr_type_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to init vrr_type property\n");
+	}
+}
+
+static void meson_crtc_init_game_rate_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "GAME_RATE",
+					0, USHRT_MAX);
+	if (prop) {
+		amcrtc->game_rate_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to init game_rate property\n");
 	}
 }
 
@@ -1383,6 +1432,8 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_nonblock_by_vblank_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_support_info_property(priv->drm, amcrtc);
 	meson_crtc_add_max_out_property(priv->drm, amcrtc);
+	meson_crtc_init_vrr_type_property(priv->drm, amcrtc);
+	meson_crtc_init_game_rate_property(priv->drm, amcrtc);
 
 	priv->crtcs[priv->num_crtcs++] = amcrtc;
 

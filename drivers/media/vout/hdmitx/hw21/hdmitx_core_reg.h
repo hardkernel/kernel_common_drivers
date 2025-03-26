@@ -2467,6 +2467,42 @@
 
 #define VP_CMS_CSC0_PIXCAP_IN_CR_IVCTX 0x0D1C
 
+/*
+ * bit[0] enable
+ *	0: disable
+ *	1: enable
+ * bit[1] CSC_CONFIG
+ *	0: ip CSC_CONFIG
+ *	1: sw CSC_CONFIG
+ * bit[3:2] out_std
+ *	0: 709;
+ *	1: 601
+ *	2: 2020
+ *	3: 2020c
+ * [4] out_pc
+ *	0: limit range
+ *	1: full range
+ * [5] out_rgb
+ *	0: yuv
+ *	1: rgb
+ * [7:6] in_std
+ *	0: 709
+ *	1: 601
+ *	2: 2020
+ *	3: 2020c
+ * [8] in_pc
+ *	0: limit range
+ *	1: full range
+ * [9] in_rgb
+ *	0: yuv
+ *	1: rgb
+ * [10] dither_enable
+ *	0: dither_disable
+ *	1: dither_enable
+ * [11] disable_saturation
+ *	0: disable_saturation
+ *	1: enable_saturation
+ */
 #define VP_CMS_CSC0_MULTI_CSC_CONFIG_IVCTX 0x0D20
 
 #define VP_CMS_CSC0_MULTI_CSC_MULTCOEFF_ADDR_IVCTX 0x0D22

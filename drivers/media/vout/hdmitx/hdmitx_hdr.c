@@ -1179,6 +1179,12 @@ void hdmitx_clear_all_infoframe_pkt(struct hdmitx_common *tx_comm)
 	tx_comm->hdmi_current_hdr_mode = 0;
 	tx_comm->hdmi_last_hdr_mode = 0;
 	tx_comm->hdr10plus_feature = 0;
+	/* reset hdmitx csc para */
+	tx_comm->in_colorimetry = 0xff;
+	tx_comm->out_colorimetry = 0xff;
+	tx_comm->in_color_range = 0xff;
+	tx_comm->out_color_range = 0xff;
+	tx_comm->in_color_fmt = 0xff;
 
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 }
@@ -1204,5 +1210,80 @@ void hdmitx_hdr_init(struct hdmitx_common *tx_comm)
 
 	INIT_WORK(&tx_comm->work_hdr, hdr_work_func);
 	INIT_WORK(&tx_comm->work_hdr_unmute, hdr_unmute_work_func);
+}
+
+void hdmitx_sync_input_vpp_info(void *tx_instance)
+{
+	struct hdmitx_common *tx_comm = (struct hdmitx_common *)tx_instance;
+	struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
+	enum hdmi_colorspace cs = tx_comm->fmt_para.cs;
+	enum hdmi_vic vic = tx_comm->fmt_para.vic;
+	struct rx_cap *prxcap = &tx_comm->rxcap;
+	u32 data = 0;
+
+	if (!info)
+		return;
+
+	/* DSC and YUV mode does not require CSC */
+	if (tx_comm->fmt_para.dsc_en || cs != HDMI_COLORSPACE_RGB) {
+		data = 0;
+		hdmitx_hw_cntl_config(tx_comm->tx_hw, VP_CMS_CSC0_MULTI_CSC, data);
+		return;
+	}
+
+	if (tx_comm->in_colorimetry != info->vpp_post_out_colorimetry ||
+			tx_comm->in_color_range != info->vpp_post_out_range ||
+			tx_comm->in_color_fmt != info->vpp_post_out_color_fmt) {
+		tx_comm->in_colorimetry = info->vpp_post_out_colorimetry;
+		tx_comm->in_color_range = info->vpp_post_out_range;
+		tx_comm->in_color_fmt = info->vpp_post_out_color_fmt;
+		HDMITX_INFO("%s: vpp input: color_range = %d, colorimetry = %d\n",
+				__func__, tx_comm->in_color_range, tx_comm->in_colorimetry);
+
+		if (tx_comm->in_colorimetry == HDMI_709_COLORIMETRY) {
+			tx_comm->out_colorimetry = HDMI_709_COLORIMETRY;
+		} else if (tx_comm->in_colorimetry == HDMI_601_COLORIMETRY) {
+			tx_comm->out_colorimetry = HDMI_601_COLORIMETRY;
+		} else if (tx_comm->in_colorimetry == HDMI_2020_COLORIMETRY) {
+			/* check if this TV supports BT2020 */
+			if (prxcap->colorimetry_data & 0xc0)
+				tx_comm->out_colorimetry = HDMI_2020_COLORIMETRY;
+			else
+				/* default is 709 color space */
+				tx_comm->out_colorimetry = HDMI_709_COLORIMETRY;
+		} else if (tx_comm->in_colorimetry == HDMI_2020C_COLORIMETRY) {
+			/* check if this TV supports BT2020C */
+			if (prxcap->colorimetry_data & 0x20)
+				tx_comm->out_colorimetry = HDMI_2020C_COLORIMETRY;
+			else
+				/* default is 709 color space */
+				tx_comm->out_colorimetry = HDMI_709_COLORIMETRY;
+		}
+		/* The default IT mode of BT2020RGB is full range */
+		if (vic <= HDMI_1_640x480p60_4x3 &&
+				(prxcap->video_capability_data & 0x40))
+			tx_comm->out_color_range = HDMI_FULL_COLOR_RANGE;
+		else
+			tx_comm->out_color_range = info->vpp_post_out_range;
+
+		HDMITX_INFO("%s: hdmi output: color_range = %d, colorimetry = %d\n",
+				__func__, tx_comm->out_color_range, tx_comm->out_colorimetry);
+
+		switch (tx_comm->tx_hw->chip_data->chip_type) {
+		case MESON_CPU_ID_S5:
+		case MESON_CPU_ID_T7:
+			if (cs == HDMI_COLORSPACE_RGB) {
+				data = (tx_comm->out_colorimetry << 2) |
+						(tx_comm->out_color_range << 4) | (1 << 5) |
+						(info->vpp_post_out_colorimetry << 6) |
+						(info->vpp_post_out_range << 8) |
+						(info->vpp_post_out_color_fmt << 9);
+				hdmitx_hw_cntl_config(tx_comm->tx_hw, VP_CMS_CSC0_MULTI_CSC, data);
+			}
+			break;
+		default:
+			break;
+		}
+	}
 }
 

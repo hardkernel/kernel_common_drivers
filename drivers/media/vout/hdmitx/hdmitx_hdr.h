@@ -22,5 +22,6 @@ void hdmitx_set_cuva_hdr_vs_emds(void *tx_instance, struct cuva_hdr_vs_emds_para
 void hdmitx_set_sbtm_pkt(void *tx_instance, struct vtem_sbtm_st *data);
 
 void hdmitx_clear_all_infoframe_pkt(struct hdmitx_common *tx_comm);
+void hdmitx_sync_input_vpp_info(void *tx_instance);
 
 #endif

@@ -54,7 +54,7 @@ struct hdmitx21_hw {
 	 * through [ 49]hdmi_vx1_pix_clk to encp/pixel clk
 	 * CLKCTRL_VID_CLK0_CTRL clk source should select vid_pix_clk.
 	 */
-	u8 clk_config;
+	u8 clk_analog_path;
 	int gate_bit_mask; /* for ctrl phy/pll/clk */
 };
 
