@@ -2973,11 +2973,31 @@ static void vd_dispbuf_init(u8 layer_id)
 	}
 }
 
+static void signal_present_fence(u32 layer_id)
+{
+	struct vframe_s *dispbuf = NULL;
+	struct video_composer_private *vc = NULL;
+
+	if (layer_id >= MAX_VD_LAYER)
+		return;
+
+	dispbuf = get_dispbuf(layer_id);
+	if (dispbuf && dispbuf->vc_private) {
+		vc = dispbuf->vc_private;
+		if (vc->present_fence) {
+			dma_fence_signal(vc->present_fence);
+			dma_fence_put(vc->present_fence);
+			vc->present_fence = NULL;
+		}
+	}
+}
+
 void put_buffer_proc(void)
 {
 	int i;
 
 	for (i = 0; i < 3; i++) {
+		signal_present_fence(i);
 		if (gvideo_recv[i])
 			gvideo_recv[i]->func->early_proc(gvideo_recv[i], over_field ? 1 : 0);
 	}
@@ -2988,6 +3008,7 @@ static inline int recvx_early_proc(u8 path_index)
 	if (atomic_read(&video_unreg_flag))
 		return -1;
 
+	signal_present_fence(path_index);
 	check_src_fmt_change();
 	if (!get_lowlatency_mode()) {
 		if (gvideo_recv[path_index]) {
@@ -3012,6 +3033,7 @@ static int amvideo_early_proc(u8 layer_id)
 	u16 line = glayer_info[0].layer_top;
 #endif
 
+	signal_present_fence(layer_id);
 	vd_dispbuf_to_put(layer_id);
 	get_count_pip[0] = 0;
 
@@ -3117,6 +3139,7 @@ static int amvideo_early_proc(u8 layer_id)
 
 static int pipx_early_proc(u8 path_index)
 {
+	signal_present_fence(path_index);
 	vd_dispbuf_to_put(path_index);
 	get_count_pip[path_index] = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
