@@ -48,8 +48,8 @@ config AMLOGIC_PDD
 	bool "Amlogic PDD (Power Down Detection) driver"
 	depends on OF
 	depends on REGMAP_MMIO
-	select IRQ_DOMAIN
-	select GENERIC_IRQ_CHIP
+	depends on IRQ_DOMAIN
+	depends on GENERIC_IRQ_CHIP
 	help
 	  Say yes here to build support for the PDD found in Amlogic SoCs.
 
