@@ -1046,9 +1046,7 @@ static void vf_pop_display_q(struct videodisplay_dev *dev, struct vframe_s *vf)
 static void display_q_uninit(struct videodisplay_dev *dev)
 {
 	struct vframe_s *vf = NULL;
-	int i;
-	bool is_mosaic_22 = false;
-	u32 dma_flag = 0;
+	int i, repeat_count;
 	struct file *file_vf;
 	struct vd_prepare_s *vd_prepare;
 	struct mbp_buffer_info_t *mpb_buf = NULL;
@@ -1068,9 +1066,8 @@ static void display_q_uninit(struct videodisplay_dev *dev)
 				return;
 			}
 
-			is_mosaic_22 = vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
-			dma_flag = vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA;
-			if (is_mosaic_22) {
+			if (vf->type_ext & VIDTYPE_EXT_MOSAIC_22) {
+				vd_print(dev->index, PRINT_OTHER, "%s: mosaic_22 mode\n", __func__);
 				for (i = 0; i < 4; i++) {
 					file_vf = vf->vc_private->mosaic_vf[i]->file_vf;
 					if (file_vf) {
@@ -1084,38 +1081,44 @@ static void display_q_uninit(struct videodisplay_dev *dev)
 							i);
 					}
 				}
-			} else {
-				if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
-					file_vf = vf->file_vf;
-					vd_print(dev->index, PRINT_FENCE,
-						"%s: put frame_index=%d\n",
-						__func__,
-						vf->frame_index);
-					if (!dma_flag) {
-						dma_buf_put((struct dma_buf *)file_vf);
-						dma_fence_signal(vd_prepare->release_fence);
-						dma_fence_put(vd_prepare->release_fence);
+
+				continue;
+			}
+
+			repeat_count = vf->repeat_count;
+			if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
+				file_vf = vf->file_vf;
+				vd_print(dev->index, PRINT_FENCE,
+					"%s: frame_index=%d, repeat_count=%d.\n",
+					__func__,
+					vf->frame_index,
+					repeat_count);
+				for (i = 0; i <= repeat_count; i++) {
+					if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA) {
+						vd_print(dev->index, PRINT_FENCE,
+							"%s:put dma buffer!!!\n",
+							__func__);
+						mpb_buf = (struct mbp_buffer_info_t *)file_vf;
+						vf->vc_private->unlock_buffer_cb(mpb_buf);
+
+					} else {
 						vd_print(dev->index, PRINT_FENCE,
 							"%s: release_fence = %px\n",
 							__func__,
 							vd_prepare->release_fence);
-					} else {
-						vd_print(dev->index, PRINT_FENCE,
-							"%s:put dma buffer!!!\n",
-							__func__);
-						mpb_buf =
-							(struct mbp_buffer_info_t *)file_vf;
-						vf->vc_private->unlock_buffer_cb(mpb_buf);
+						dma_buf_put((struct dma_buf *)file_vf);
+						dma_fence_signal(vd_prepare->release_fence);
+						dma_fence_put(vd_prepare->release_fence);
 					}
+
 					dev->fput_count++;
 					total_put_count++;
-				} else if (!(vf->flag
-					& VFRAME_FLAG_VIDEO_COMPOSER)) {
-					vd_print(dev->index, PRINT_ERROR,
-						"%s: flag is null, frame_index=%d\n",
-						__func__,
-						vf->frame_index);
 				}
+			} else if (!(vf->flag & VFRAME_FLAG_VIDEO_COMPOSER)) {
+				vd_print(dev->index, PRINT_ERROR,
+					"%s: flag is null, frame_index=%d\n",
+					__func__,
+					vf->frame_index);
 			}
 		}
 	}
@@ -1136,10 +1139,10 @@ static void receive_q_uninit(struct videodisplay_dev *dev)
 static void ready_q_uninit(struct videodisplay_dev *dev)
 {
 	struct vframe_s *vf = NULL;
-	u32 dma_flag = 0;
 	struct file *file_vf;
 	struct vd_prepare_s *vd_prepare;
 	struct mbp_buffer_info_t *mpb_buf = NULL;
+	int i, repeat_count;
 
 	vd_print(dev->index, PRINT_QUEUE_STATUS, "%s: ready_q len=%d\n",
 		__func__,
@@ -1165,22 +1168,23 @@ static void ready_q_uninit(struct videodisplay_dev *dev)
 					vf->vc_private->srout_data->nn_status = NN_DISPLAYED;
 			}
 
-			dma_flag = vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA;
-			if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
-				file_vf = vf->file_vf;
-				vd_print(dev->index, PRINT_FENCE,
-					"%s: put frame_index=%d\n",
+			if (!(vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS)) {
+				vd_print(dev->index, PRINT_OTHER,
+					"%s: no VD flag, frame_index=%d\n",
 					__func__,
 					vf->frame_index);
-				if (!dma_flag) {
-					dma_buf_put((struct dma_buf *)file_vf);
-					dma_fence_signal(vd_prepare->release_fence);
-					dma_fence_put(vd_prepare->release_fence);
-					vd_print(dev->index, PRINT_FENCE,
-						"%s: release_fence = %px\n",
-						__func__,
-						vd_prepare->release_fence);
-				} else {
+				continue;
+			}
+
+			file_vf = vf->file_vf;
+			repeat_count = vf->repeat_count;
+			vd_print(dev->index, PRINT_FENCE,
+				"%s: frame_index=%d, repeat_count=%d.\n",
+				__func__,
+				vf->frame_index,
+				repeat_count);
+			for (i = 0; i <= repeat_count; i++) {
+				if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA) {
 					vd_print(dev->index, PRINT_FENCE,
 						"%s:put dma buffer!!!\n",
 						__func__);
@@ -1191,7 +1195,16 @@ static void ready_q_uninit(struct videodisplay_dev *dev)
 						vd_print(dev->index, PRINT_FENCE,
 							"%s: vc_private is NULL.\n",
 							__func__);
+				} else {
+					dma_buf_put((struct dma_buf *)file_vf);
+					dma_fence_signal(vd_prepare->release_fence);
+					dma_fence_put(vd_prepare->release_fence);
+					vd_print(dev->index, PRINT_FENCE,
+						"%s: release_fence = %px\n",
+						__func__,
+						vd_prepare->release_fence);
 				}
+
 				dev->fput_count++;
 				total_put_count++;
 			}
@@ -2719,7 +2732,6 @@ static void vframe_display(struct videodisplay_dev *dev,
 		is_repeat_vf = true;
 
 	if (is_repeat_vf) {
-		dma_buf_put(frame_info->dmabuf);
 		vd_prepare = dev->vd_prepare_last;
 	} else {
 		vd_prepare = vd_prepare_data_q_get(dev);
@@ -2776,6 +2788,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 		return;
 	}
 
+	dev->received_new_count++;
 	receive_new_count++;
 	/* copy to uvm vf */
 	vf_ext = vf->uvm_vf;
@@ -3219,6 +3232,7 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 	struct vd_prepare_s *vd_prepare_tmp;
 	struct mbp_buffer_info_t *mpb_buf = NULL;
 	bool enable_prelink = false;
+	int i, repeat_count;
 
 	if (!vf) {
 		vd_print(dev->index, PRINT_ERROR, "%s: NULL param.", __func__);
@@ -3271,6 +3285,7 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 		vf->canvas0_config[1].phy_addr,
 		vf->width,
 		vf->height);
+	repeat_count = vf->repeat_count;
 
 	if (dev->is_drm_enable) {
 		if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
@@ -3290,35 +3305,38 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 		if (!file_vf)
 			vd_print(dev->index, PRINT_ERROR, "put: file error!!!\n");
 
-		if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA) {
-			vd_print(dev->index, PRINT_FENCE, "put dma buffer!!!\n");
-			mpb_buf = (struct mbp_buffer_info_t *)file_vf;
-			if (IS_ERR_OR_NULL(mpb_buf)) {
-				vd_print(dev->index, PRINT_ERROR,
-					"%s: mpb_buf is NULL.\n",
-					__func__);
+		for (i = 0; i <= repeat_count; i++) {
+			if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA) {
+				vd_print(dev->index, PRINT_FENCE, "put dma buffer!!!\n");
+				mpb_buf = (struct mbp_buffer_info_t *)file_vf;
+				if (IS_ERR_OR_NULL(mpb_buf)) {
+					vd_print(dev->index, PRINT_ERROR,
+						"%s: mpb_buf is NULL.\n",
+						__func__);
+				}
+				vf->vc_private->unlock_buffer_cb(mpb_buf);
+			} else {
+				dma_buf_put((struct dma_buf *)file_vf);
+				dma_fence_signal(vd_prepare_tmp->release_fence);
+				dma_fence_put(vd_prepare_tmp->release_fence);
+				vd_print(dev->index, PRINT_FENCE,
+					"%s: release_fence = %px\n",
+					__func__,
+					vd_prepare_tmp->release_fence);
 			}
-			vf->vc_private->unlock_buffer_cb(mpb_buf);
-		} else {
-			dma_buf_put((struct dma_buf *)file_vf);
-			dma_fence_signal(vd_prepare_tmp->release_fence);
-			dma_fence_put(vd_prepare_tmp->release_fence);
-			vd_print(dev->index, PRINT_FENCE,
-				"%s: release_fence = %px\n",
-				__func__,
-				vd_prepare_tmp->release_fence);
+			dev->fput_count++;
+			total_put_count++;
 		}
-		dev->fput_count++;
-		total_put_count++;
 		vd_prepare_data_q_put(dev, vd_prepare_tmp);
 		if (vf->vc_private) {
 			vd_private_q_recycle(dev, vf->vc_private);
 			vf->vc_private = NULL;
 		}
 		vd_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
-			"%s: frame_index=%d, put_count=%lld.\n",
+			"%s: frame_index=%d, repeat_count=%d, put_count=%lld.\n",
 			__func__,
 			vf->frame_index,
+			vf->repeat_count,
 			dev->fput_count);
 	} else {
 		vf_pop_display_q(dev, display_vf);
