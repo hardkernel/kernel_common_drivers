@@ -561,7 +561,7 @@ void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info)
 		info->version = 0x2;
 	hdmi_avi_infoframe_pack_renew(info, buffer, sizeof(buffer));
 	/* the hardware writes the buffer data to the register */
-	hdmitx_infoframe_send(HDMI_PACKET_AVI, buffer);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, buffer);
 }
 
 void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb)
@@ -649,6 +649,9 @@ int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, enum avi_component_
 			frame->content_type = 2;
 		else if (val == SET_CT_GAME)
 			frame->content_type = 3;
+		break;
+	case CONF_AVI_SCAN_INFO:
+		frame->scan_mode = val;
 		break;
 	default:
 		break;

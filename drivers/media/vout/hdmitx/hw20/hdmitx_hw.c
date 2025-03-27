@@ -5367,7 +5367,6 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 			ret = 0;
 		break;
 	case CONF_AVI_SCAN_INFO:
-		HDMITX_INFO("%s argv = %d\n", __func__, argv);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, argv & 0x3, 4, 2);
 		break;
 	case CONF_GET_AVI_SCAN_INFO:

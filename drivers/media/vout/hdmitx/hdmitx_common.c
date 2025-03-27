@@ -2025,6 +2025,7 @@ int hdmitx_common_set_scan_info(struct hdmitx_common *tx_comm, enum hdmi_scan_mo
 	 * If it is supported, set it. If not supported, set the supported value
 	 */
 	scan_info = hdmitx_check_scan_info(prxcap, val, vic);
+	HDMITX_INFO("set scan_info: %d\n", scan_info);
 	hdmitx_hw_cntl_config(tx_hw_base, CONF_AVI_SCAN_INFO, scan_info);
 
 	return 0;
