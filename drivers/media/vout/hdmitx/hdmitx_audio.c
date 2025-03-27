@@ -619,12 +619,11 @@ static void hdmitx_set_i2s_mask(struct aud_para *tx_aud_param, char ch_num, char
 	tx_aud_param->aud_output_i2s_ch = update_flag;
 }
 
-static DEFINE_MUTEX(aud_mute_mutex);
 void hdmitx_audio_mute_op(struct hdmitx_common *tx_comm, u32 flag, unsigned int path)
 {
 	static unsigned int aud_mute_path;
 
-	mutex_lock(&aud_mute_mutex);
+	mutex_lock(&tx_comm->aud_mute_mutex);
 	if (flag == 0)
 		aud_mute_path |= path;
 	else
@@ -643,7 +642,7 @@ void hdmitx_audio_mute_op(struct hdmitx_common *tx_comm, u32 flag, unsigned int 
 					CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
 		}
 	}
-	mutex_unlock(&aud_mute_mutex);
+	mutex_unlock(&tx_comm->aud_mute_mutex);
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
@@ -690,10 +689,6 @@ static int hdmitx_audio_notify_callback(struct notifier_block *block,
 
 	return 0;
 }
-
-static struct notifier_block hdmitx_notifier_nb_a = {
-	.notifier_call	= hdmitx_audio_notify_callback,
-};
 #endif
 
 void hdmitx_audio_init(struct hdmitx_common *tx_comm)
@@ -716,7 +711,7 @@ void hdmitx_audio_init(struct hdmitx_common *tx_comm)
 	}
 	/* default audio clock is ON */
 	hdmitx_audio_mute_op(tx_comm, 1, 0);
-	tx_comm->hdmitx_notifier_nb_a = hdmitx_notifier_nb_a;
+	tx_comm->hdmitx_notifier_nb_a.notifier_call = hdmitx_audio_notify_callback;
 	if (!tx_comm->pxp_mode)
 		aout_register_client(&tx_comm->hdmitx_notifier_nb_a);
 #endif

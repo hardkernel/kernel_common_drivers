@@ -183,14 +183,18 @@ struct hdmitx_common {
 	unsigned char EDID_buf[EDID_MAX_BLOCK * 128];
 	struct rx_cap rxcap;
 	/****** hdmitx state ******/
-	/* Normally, after the HPD in or late resume, there will reading EDID, and
+	/*
+	 * Normally, after the HPD in or late resume, there will reading EDID, and
 	 * notify application to select a hdmi mode output. But during the mode
 	 * setting moment, there may be HPD out. It will clear the edid data, ..., etc.
 	 * To avoid such case, here adds the hdmimode_mutex to let the HPD in, HPD out
 	 * handler and mode setting sequentially.
 	 */
 	struct mutex hdmimode_mutex;
-	struct mutex valid_mutex;	/* check valid mode need mutex */
+	/* check valid mode need mutex */
+	struct mutex valid_mutex;
+	/* hdmitx_audio_mute_op need mutex */
+	struct mutex aud_mute_mutex;
 	atomic_t kref_video_mute;
 	unsigned char vid_mute_op;
 
@@ -200,7 +204,8 @@ struct hdmitx_common {
 	enum hdmi_eotf last_drm_eotf;
 	/* 1, connect; 0, disconnect */
 	unsigned char hpd_state;
-	/* if HDMI plugin even once time, then set 1
+	/*
+	 * if HDMI plugin even once time, then set 1
 	 * if never hdmi plugin, then keep as 0
 	 * for android ott.
 	 */

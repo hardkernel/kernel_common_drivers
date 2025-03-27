@@ -99,6 +99,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	/*mutex init*/
 	mutex_init(&tx_comm->hdmimode_mutex);
 	mutex_init(&tx_comm->valid_mutex);
+	mutex_init(&tx_comm->aud_mute_mutex);
 
 	spin_lock_init(&tx_comm->edid_spinlock);
 
