@@ -13587,14 +13587,12 @@ static ssize_t lcevc_en_store(const struct class *cla,
 			lcevc_en = true;
 		else
 			lcevc_en = false;
-		if (video_lcevc.vd2_vd1_shared_vf) {
-			if (lcevc_en)
-				video_lcevc.alpha = lcevc_alpha;
-			else
-				video_lcevc.alpha = 0x100;
-			vd_layer[1].property_changed = true;
-			force_vpp_blend_update = true;
-		}
+		if (lcevc_en)
+			video_lcevc.alpha = lcevc_alpha;
+		else
+			video_lcevc.alpha = 0x100;
+		vd_layer[1].property_changed = true;
+		force_vpp_blend_update = true;
 	}
 	return count;
 }
