@@ -90,6 +90,7 @@ config AMLOGIC_COMMON_CLK_SC2
 	depends on AMLOGIC_COMMON_CLK_MESON_PLL
 	depends on AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV
 	depends on AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 	depends on MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic AH219 and AH212
@@ -176,16 +177,16 @@ config AMLOGIC_COMMON_CLK_G12A
 	tristate "G12 and SM1 SoC clock controllers support"
 	depends on ARM64
 	default n
-	select AMLOGIC_COMMON_CLK_MESON_REGMAP
-	select AMLOGIC_COMMON_CLK_MESON_DUALDIV
-	select AMLOGIC_COMMON_CLK_MESON_MPLL
-	select AMLOGIC_COMMON_CLK_MESON_PLL
-	select AMLOGIC_COMMON_CLK_MESON_AO_CLKC
-	select AMLOGIC_COMMON_CLK_MESON_EE_CLKC
-	select AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV
-	select AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
-	select AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
-	select MFD_SYSCON
+	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
+	depends on AMLOGIC_COMMON_CLK_MESON_DUALDIV
+	depends on AMLOGIC_COMMON_CLK_MESON_MPLL
+	depends on AMLOGIC_COMMON_CLK_MESON_PLL
+	depends on AMLOGIC_COMMON_CLK_MESON_AO_CLKC
+	depends on AMLOGIC_COMMON_CLK_MESON_EE_CLKC
+	depends on AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV
+	depends on AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
+	depends on MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic S905D2, S905X2 and S905Y2
 	  devices, aka g12a. Say Y if you want peripherals to work.
@@ -311,6 +312,7 @@ config AMLOGIC_COMMON_CLK_S7D
 	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
 	depends on AMLOGIC_COMMON_CLK_MESON_DUALDIV
 	depends on AMLOGIC_COMMON_CLK_MESON_PLL
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 	depends on MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic S7D
@@ -321,6 +323,7 @@ config AMLOGIC_COMMON_CLK_S7
 	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
 	depends on AMLOGIC_COMMON_CLK_MESON_DUALDIV
 	depends on AMLOGIC_COMMON_CLK_MESON_PLL
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 	depends on MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic S7
@@ -331,6 +334,7 @@ config AMLOGIC_COMMON_CLK_S6
 	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
 	depends on AMLOGIC_COMMON_CLK_MESON_DUALDIV
 	depends on AMLOGIC_COMMON_CLK_MESON_PLL
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 	depends on MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic S6
