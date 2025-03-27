@@ -207,7 +207,7 @@ static bool force_support_emp;
 
 static unsigned int amdv_src_format;
 static enum signal_format_enum graphic_fmt = FORMAT_SDR;
-enum signal_format_enum g_dst_format;
+enum signal_format_enum g_dst_format = FORMAT_INVALID;
 
 unsigned int force_mel;
 
@@ -4240,21 +4240,7 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 				return mode_change;
 			}
 
-			if (/*cur_csc_type[VD1_PATH] != 0xffff &&
-			    (get_hdr_module_status(VD1_PATH, VPP_TOP0)
-			     == HDR_MODULE_ON)*/0) {
-				if (dolby_vision_mode != AMDV_OUTPUT_MODE_BYPASS) {
-					if (debug_dolby & 1)
-						pr_dv_dbg("src=%d, hdr module=ON, dv BYPASS\n",
-							src_format);
-					*mode = AMDV_OUTPUT_MODE_BYPASS;
-					mode_change = 1;
-				} else {
-					if (debug_dolby & 1)
-						pr_dv_dbg("src=%d, but hdr ON, dv keep BYPASS\n",
-							     src_format);
-				}
-			} else if ((src_format == FORMAT_DOVI) ||
+			if ((src_format == FORMAT_DOVI) ||
 				(src_format == FORMAT_DOVI_LL) ||
 				((src_format == FORMAT_HDR10) &&
 				(dolby_vision_hdr10_policy &
@@ -4420,20 +4406,6 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 				*mode = AMDV_OUTPUT_MODE_BYPASS;
 				mode_change = 1;
 			}
-		} else if (cur_csc_type[VD1_PATH] != 0xffff &&
-			(get_hdr_module_status(VD1_PATH, VPP_TOP0) == HDR_MODULE_ON)) {
-			/*if vpp is playing hlg/hdr10+*/
-			/*dolby need bypass at this time*/
-			if (dolby_vision_mode !=
-				AMDV_OUTPUT_MODE_BYPASS) {
-				if (debug_dolby & 2)
-					pr_dv_dbg
-				("src=%d, hdr module on, dovi output->BYPASS\n",
-					 src_format);
-				*mode = AMDV_OUTPUT_MODE_BYPASS;
-				mode_change = 1;
-			}
-			return mode_change;
 		} else if (is_aml_stb_hdmimode() &&
 			(src_format == FORMAT_DOVI) &&
 			sink_support_dv(vinfo)) {
@@ -4524,20 +4496,8 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 			}
 			return mode_change;
 		}
-		if (cur_csc_type[VD1_PATH] != 0xffff &&
-		    get_hdr_module_status(VD1_PATH, VPP_TOP0) == HDR_MODULE_ON &&
-		    (!(src_format == FORMAT_DOVI ||
-		    src_format == FORMAT_DOVI_LL))) {
-			/* bypass dolby incase VPP is not in sdr mode */
-			if (dolby_vision_mode !=
-				AMDV_OUTPUT_MODE_BYPASS) {
-				pr_dv_dbg("hdr module on, dovi output -> AMDV_OUTPUT_MODE_BYPASS\n");
-				*mode = AMDV_OUTPUT_MODE_BYPASS;
-				mode_change = 1;
-			}
-			return mode_change;
-		} else if (is_aml_stb_hdmimode() &&
-			(src_format == FORMAT_DOVI)) {
+		if (is_aml_stb_hdmimode() &&
+			src_format == FORMAT_DOVI) {
 			/* HDMI DV sink-led in and TV support */
 			if (sink_support_dv(vinfo)) {
 				/* support dv sink-led or source-led*/
@@ -4812,25 +4772,6 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 				*mode = AMDV_OUTPUT_MODE_BYPASS;
 				mode_change = 1;
 			}
-		} else if (cur_csc_type[VD1_PATH] != 0xffff &&
-			   (get_hdr_module_status(VD1_PATH, VPP_TOP0)
-			   == HDR_MODULE_ON)) {
-			/*if vpp is playing hlg/hdr10+*/
-			/*dolby need bypass at this time*/
-			if (dolby_vision_mode !=
-				AMDV_OUTPUT_MODE_BYPASS) {
-				if (debug_dolby & 2)
-					pr_dv_dbg
-				("src=%d, hdr module on, dovi output->BYPASS\n",
-					 src_format);
-				*mode = AMDV_OUTPUT_MODE_BYPASS;
-				mode_change = 1;
-			} else {
-				if (debug_dolby & 1)
-					pr_dv_dbg("src=%d, but hdr ON, dv keep BYPASS\n",
-						     src_format);
-			}
-			return mode_change;
 		} else if (is_aml_stb_hdmimode() &&
 			(src_format == FORMAT_DOVI) &&
 			sink_support_dv(vinfo)) {
@@ -4948,20 +4889,8 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 			}
 			return mode_change;
 		}
-		if (cur_csc_type[VD1_PATH] != 0xffff &&
-		    get_hdr_module_status(VD1_PATH, VPP_TOP0) == HDR_MODULE_ON &&
-		    (!(src_format == FORMAT_DOVI ||
-		    src_format == FORMAT_DOVI_LL))) {
-			/* bypass dolby incase VPP is not in sdr mode */
-			if (dolby_vision_mode !=
-				AMDV_OUTPUT_MODE_BYPASS) {
-				pr_dv_dbg("hdr module on, AMDV_OUTPUT_MODE_BYPASS\n");
-				*mode = AMDV_OUTPUT_MODE_BYPASS;
-				mode_change = 1;
-			}
-			return mode_change;
-		} else if (is_aml_stb_hdmimode() &&
-			   (src_format == FORMAT_DOVI)) {
+		if (is_aml_stb_hdmimode() &&
+			   src_format == FORMAT_DOVI) {
 			/* HDMI DV sink-led in and TV support */
 			if (sink_support_dv(vinfo)) {
 				/* support dv sink-led or source-led*/
@@ -11321,6 +11250,7 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2,
 		if (p_funcs_stb && (video_num_change || pri_change))
 			p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
 	} else {/*only choose primary video to dv*/
+		cur_valid_video_num = 1;
 		new_m_dovi_setting.input[0].valid = 1;
 		new_m_dovi_setting.input[1].valid = 0;
 	}
@@ -11666,9 +11596,7 @@ int amdv_wait_metadata_v1(struct vframe_s *vf)
 				amdv_wait_on = true;
 
 				/*dv off->on, delay vfream*/
-				if (dolby_vision_policy ==
-				    AMDV_FOLLOW_SOURCE &&
-				    dolby_vision_mode ==
+				if (dolby_vision_mode ==
 				    AMDV_OUTPUT_MODE_BYPASS &&
 				    mode ==
 				    AMDV_OUTPUT_MODE_IPT_TUNNEL &&
@@ -11676,6 +11604,8 @@ int amdv_wait_metadata_v1(struct vframe_s *vf)
 				    !vf_is_fel(vf)) {
 					amdv_wait_count =
 					amdv_wait_delay;
+					pr_dv_dbg("dolby_vision wait count=%d\n",
+						amdv_wait_delay);
 				} else {
 					amdv_wait_count = 0;
 				}
@@ -11836,9 +11766,7 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 				amdv_wait_on = true;
 
 				/*dv off->on, delay vfream*/
-				if (dolby_vision_policy ==
-				    AMDV_FOLLOW_SOURCE &&
-				    dolby_vision_mode ==
+				if (dolby_vision_mode ==
 				    AMDV_OUTPUT_MODE_BYPASS &&
 				    mode ==
 				    AMDV_OUTPUT_MODE_IPT_TUNNEL &&
@@ -11846,6 +11774,8 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 				    !vf_is_fel(vf)) {
 					dv_inst[dv_id].amdv_wait_count =
 					amdv_wait_delay;
+					pr_dv_dbg("dolby_vision wait count=%d\n",
+						dv_inst[dv_id].amdv_wait_count);
 				} else {
 					dv_inst[dv_id].amdv_wait_count = 0;
 				}
@@ -15929,6 +15859,9 @@ static long amdolby_vision_ioctl(struct file *file,
 	int dark_detail = 0;
 	char *user_cfg_data = NULL;
 	int bypass_pd = 0;
+	bool amdv_enable;
+	u32 amdv_ll_policy;
+	u32 amdv_policy;
 
 	if (debug_dolby & 0x200)
 		pr_info("[DV]: %s: cmd_nr = 0x%x\n",
@@ -15944,7 +15877,7 @@ static long amdolby_vision_ioctl(struct file *file,
 		return ret;
 	}
 
-	if (!get_load_config_status() && cmd != DV_IOC_SET_DV_CONFIG_FILE &&
+	if (is_aml_tvmode() && !get_load_config_status() && cmd != DV_IOC_SET_DV_CONFIG_FILE &&
 		cmd != DV_IOC_SET_DV_CONFIG_DATA) {
 		pr_info("[DV] no config file, pq ioctl disable!\n");
 		return ret;
@@ -16285,6 +16218,39 @@ static long amdolby_vision_ioctl(struct file *file,
 		} else {
 			ret = -EFAULT;
 		}
+		break;
+	case DV_IOC_SET_DV_ENABLE:
+		if (copy_from_user(&amdv_enable, argp, sizeof(bool)) == 0) {
+			set_amdv_enable(amdv_enable);
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: DV_IOC_SET_DV_ENABLE: %d\n", amdv_enable);
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_GET_DV_HDR10_POLICY:
+		put_user(dolby_vision_hdr10_policy, (unsigned int __user *)argp);
+		break;
+	case DV_IOC_SET_DV_LL_POLICY:
+		if (copy_from_user(&amdv_ll_policy, argp, sizeof(uint32_t)) == 0) {
+			set_amdv_ll_policy(amdv_ll_policy);
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: DV_IOC_SET_DV_LL_POLICY: %d\n", amdv_ll_policy);
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_SET_DV_POLICY:
+		if (copy_from_user(&amdv_policy, argp, sizeof(uint32_t)) == 0) {
+			set_amdv_policy(amdv_policy);
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: DV_IOC_SET_DV_POLICY: %d\n", amdv_policy);
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_GET_DV_STATUS:
+		put_user(dolby_vision_status, (uint32_t __user *)argp);
 		break;
 	default:
 		ret = -EINVAL;
