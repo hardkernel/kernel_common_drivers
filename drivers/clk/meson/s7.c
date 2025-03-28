@@ -2501,6 +2501,7 @@ static struct clk_regmap vpu_clkb_div = {
 			&vpu_clkb_tmp.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
