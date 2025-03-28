@@ -4,8 +4,8 @@
  */
 
 #include <linux/delay.h>
-#include "hdmitx_module.h"
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 
 #define MAX_SUPPORTED_FRL_RATE FRL_12G4L /* TODO */
 #define FRL_RATE_ERR 0xff
@@ -568,7 +568,7 @@ tx_lts_p1:
 		 * and Super Block structure
 		 */
 		start_frl_transmission(p, true);
-		fifo_flow_enable_intrs(1);
+		hdmitx_fifo_flow_enable_intrs(1);
 		frl_tx_pattern_stop();
 		clear_flt_update(p);
 		HDMITX_INFO("LTS:P cost %ld ms\n", (g_flt_1_e - g_flt_1 + 3) / 4);

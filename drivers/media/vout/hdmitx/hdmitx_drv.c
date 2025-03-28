@@ -48,6 +48,7 @@
 #include "hdmitx_dump.h"
 #include "hdmitx_vout.h"
 #include "hdmitx_hdr.h"
+#include "hdmitx_audio.h"
 
 #define HDMI_TX_COUNT 32
 static struct class *hdmitx_class;
@@ -893,11 +894,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	HDMITX_INFO("amhdmitx_probe_end\n");
 
 	return r;
-}
-
-void hdmitx_clear_packets(struct hdmitx_common *tx_comm)
-{
-	hdmitx_clear_all_infoframe_pkt(tx_comm);
 }
 
 void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)

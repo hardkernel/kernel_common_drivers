@@ -18,8 +18,8 @@
 #include <linux/cdev.h>
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include "hdmitx_hw.h"
 #include "hdmitx_module.h"
-#include "hdmitx_common.h"
 
 /* Old definitions */
 #define TYPE_AVI_INFOFRAMES       0x82

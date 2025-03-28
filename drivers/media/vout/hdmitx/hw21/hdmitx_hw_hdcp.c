@@ -22,7 +22,8 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/arm-smccc.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 
 bool hdcptx1_load_key(void)
 {
@@ -427,7 +428,7 @@ void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val)
 	hdmitx21_seq_rd_reg(AKSV_1_IVCTX, p_val->b, KSV_SIZE);
 }
 
-void hdcptx_ctrl_gate(int hdcp_mode, bool en)
+static void hdcptx_ctrl_gate(int hdcp_mode, bool en)
 {
 	if (hdcp_mode == 1) {
 		hdmitx21_set_bit(HDMITX_TOP_CLK_GATE, BIT_HDMITX_TOP_CLK_GATE_HDCP1X, en);
@@ -439,6 +440,21 @@ void hdcptx_ctrl_gate(int hdcp_mode, bool en)
 		hdmitx21_set_bit(HDMITX_TOP_CLK_GATE, BIT_HDMITX_TOP_CLK_GATE_HDCP1X, en);
 		hdmitx21_set_bit(HDMITX_TOP_CLK_GATE, BIT_HDMITX_TOP_CLK_GATE_HDCP2X, en);
 		HDMITX_DEBUG("hdcp gate %d\n", en);
+	}
+}
+
+void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en)
+{
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
+
+	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
+	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
+	case MESON_CPU_ID_S6:
+		hdcptx_ctrl_gate(hdcp_mode, en);
+		break;
+	default:
+		break;
 	}
 }
 

@@ -6,7 +6,8 @@
 #include <linux/printk.h>
 #include <linux/delay.h>
 #include <linux/arm-smccc.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 
 /* Min 3GHz */
 #define MIN_HTXPLL_VCO 3000000
@@ -37,7 +38,7 @@ static const char od_map[9] = {
 	0, 0, 1, 0, 2, 0, 0, 0, 3,
 };
 
-void disable_hdmitx_s6_plls(struct hdmitx21_dev *hdev)
+void hdmitx_disable_s6_plls(struct hdmitx21_dev *hdev)
 {
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0);
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0);
@@ -75,7 +76,7 @@ static void set_s6_htxpll_clk_other(const u32 clk, const bool frl_en)
 	WAIT_FOR_PLL_LOCKED(ANACTRL_HDMIPLL_CTRL0);
 }
 
-void set21_s6_htxpll_clk_out(const u32 clk, u32 div)
+void hdmitx_set_s6_htxpll_clk_out(const u32 clk, u32 div)
 {
 	u32 pll_od0 = 0;
 	u32 pll_od00 = 0;
@@ -175,7 +176,7 @@ void set21_s6_htxpll_clk_out(const u32 clk, u32 div)
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, pll_od0, 20, 6);
 }
 
-void set21_phy_by_mode_s6(u32 mode)
+void hdmitx_set_phy_by_mode_s6(u32 mode)
 {
 	struct arm_smccc_res res;
 	/* this will get from efuse */
@@ -241,7 +242,7 @@ void hdmitx21_sys_reset_s6(void)
 	hd21_write_reg(RESETCTRL_RESET0, 1 << 16);
 }
 
-void set21_hpll_sspll_s6(enum hdmi_vic vic)
+void hdmitx_set_hpll_sspll_s6(enum hdmi_vic vic)
 {
 	switch (vic) {
 	case HDMI_16_1920x1080p60_16x9:

@@ -27,10 +27,11 @@
 #include <linux/spinlock.h>
 #include <linux/spinlock_types.h>
 #include <linux/extcon-provider.h>
-#include "hdmitx_reg.h"
-#include "hdmitx.h"
-#include "hdmitx_module.h"
+#include "hdmitx_core_reg.h"
+#include "hdmitx_hw_core.h"
+#include "hdmitx_hw_platform.h"
 #include "hdmi_rx_repeater.h"
+#include "hdmitx_audio.h"
 
 #define TEE_HDCP_IOC_START _IOW('P', 0, int)
 #define TEE_HDCP_IOC_VALIDATE_KEY _IOWR('P', 0x1, int)
@@ -2137,21 +2138,6 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 		msleep_interruptible(200);
 	}
 	return 0;
-}
-
-void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en)
-{
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
-
-	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
-	case MESON_CPU_ID_S7:
-	case MESON_CPU_ID_S7D:
-	case MESON_CPU_ID_S6:
-		hdcptx_ctrl_gate(hdcp_mode, en);
-		break;
-	default:
-		break;
-	}
 }
 
 static void hdmitx21_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf)

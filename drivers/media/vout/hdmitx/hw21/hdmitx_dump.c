@@ -4,7 +4,8 @@
  */
 
 #include "hdmitx_dump.h"
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 
 static void dump32(struct seq_file *s, u32 start, u32 end)
 {
@@ -266,7 +267,7 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 		tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
 		tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S6))
 		dumpcor(s, DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
-	dump_infoframe_packets(s);
+	hdmitx_dump_infoframe_packets(s);
 	return 0;
 }
 

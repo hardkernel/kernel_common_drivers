@@ -14,6 +14,7 @@
 #include "hdmitx_check_valid.h"
 #include "hdmitx_vout.h"
 #include "hdmitx_module.h"
+#include "hdmitx_hdr.h"
 
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 
@@ -254,7 +255,7 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 
 	/* step4: HW: clear packets */
 	if (pkt_clear)
-		hdmitx_clear_packets(tx_comm);
+		hdmitx_clear_all_infoframe_pkt(tx_comm);
 
 	/* step5: reset hdcp */
 	if (hdcp_reset)

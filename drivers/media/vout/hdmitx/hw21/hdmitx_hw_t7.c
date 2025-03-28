@@ -5,7 +5,7 @@
 
 #include <linux/printk.h>
 #include <linux/delay.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #define WAIT_FOR_PLL_LOCKED(_reg) \
@@ -117,7 +117,7 @@ static bool set_hpll_hclk_v3(u32 m, u32 frac_val)
 	return ret; /* return hpll locked status */
 }
 
-void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
+void hdmitx_set_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 {
 	switch (clk) {
 	case 5940000:
@@ -321,7 +321,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 }
 #endif
 
-void set21_hpll_od1_t7(u32 div)
+void hdmitx_set_hpll_od1_t7(u32 div)
 {
 	switch (div) {
 	case 1:
@@ -341,7 +341,7 @@ void set21_hpll_od1_t7(u32 div)
 	}
 }
 
-void set21_hpll_od2_t7(u32 div)
+void hdmitx_set_hpll_od2_t7(u32 div)
 {
 	switch (div) {
 	case 1:
@@ -358,7 +358,7 @@ void set21_hpll_od2_t7(u32 div)
 	}
 }
 
-void set21_hpll_od3_t7(u32 div)
+void hdmitx_set_hpll_od3_t7(u32 div)
 {
 	switch (div) {
 	case 1:
@@ -394,7 +394,7 @@ void hdmitx21_sys_reset_t7(void)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-void set21_phy_by_mode_t7(u32 mode)
+void hdmitx_set_phy_by_mode_t7(u32 mode)
 {
 	switch (mode) {
 	case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
@@ -419,7 +419,7 @@ void set21_phy_by_mode_t7(u32 mode)
 	}
 }
 
-void set21_hpll_sspll_t7(enum hdmi_vic vic)
+void hdmitx_set_hpll_sspll_t7(enum hdmi_vic vic)
 {
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 

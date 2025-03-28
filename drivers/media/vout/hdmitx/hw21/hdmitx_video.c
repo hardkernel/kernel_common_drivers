@@ -17,7 +17,8 @@
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include "hdmitx_module.h"
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_packet.h"
 
 static void hdmitx_set_spd_info(struct hdmitx21_dev *hdmitx_device);
 

@@ -6,6 +6,9 @@
 #ifndef __HDMITX_HDR_H
 #define __HDMITX_HDR_H
 
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/vinfo.h>
+
 void hdmitx_hdr_init(struct hdmitx_common *tx_comm);
 void hdr_unmute_work_func(struct work_struct *work);
 void hdr_work_func(struct work_struct *work);

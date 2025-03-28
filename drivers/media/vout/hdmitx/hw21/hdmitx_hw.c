@@ -29,13 +29,13 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/arm-smccc.h>
-#include "hdmitx_common.h"
-#include "hdmitx_hw.h"
-#include "hdmitx_enc_clk_config.h"
 #include <linux/amlogic/clk_measure.h>
-#include "hdmitx.h"
+#include "hdmitx_hw_core.h"
+#include "hdmitx_hw_platform.h"
 #include "hdmitx_compliance.h"
 #include "hdmitx_packet.h"
+#include "hdmitx_audio.h"
+#include "hdmitx_module.h"
 
 #define yuv2rgb  1
 #define rgb2yuv  2
@@ -550,7 +550,7 @@ static void hdmi_hwp_init(struct hdmitx21_dev *hdev, u8 reset)
 		HDMITX_INFO("uboot already enabled hdmitx\n");
 		/* enable fifo intr if uboot hdmitx output ready */
 		hdev->ignore_fifo_intr5 = false;
-		fifo_flow_enable_intrs(1);
+		hdmitx_fifo_flow_enable_intrs(1);
 		hdev->frl_rate = get_current_frl_rate();
 		if (hdev->frl_rate > hdev->hw_comm.hdmi_tx_cap.tx_max_frl_rate)
 			HDMITX_ERROR("current frl_rate %d is larger than tx_max_frl_rate %d\n",
@@ -1022,11 +1022,11 @@ static void set_phy_by_mode(u32 mode)
 
 	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_S1A:
-		set21_phy_by_mode_s1a(mode);
+		hdmitx_set_phy_by_mode_s1a(mode);
 		break;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case MESON_CPU_ID_T7:
-		set21_phy_by_mode_t7(mode);
+		hdmitx_set_phy_by_mode_t7(mode);
 		break;
 	case MESON_CPU_ID_S5:
 		tmds_clk = hdev->tx_comm.fmt_para.tmds_clk;
@@ -1034,13 +1034,13 @@ static void set_phy_by_mode(u32 mode)
 		hdmitx_set_s5_phypara(hdev->frl_rate, tmds_clk);
 		break;
 	case MESON_CPU_ID_S7D:
-		set21_phy_by_mode_s7d(mode);
+		hdmitx_set_phy_by_mode_s7d(mode);
 		break;
 	case MESON_CPU_ID_S7:
-		set21_phy_by_mode_s7(mode);
+		hdmitx_set_phy_by_mode_s7(mode);
 		break;
 	case MESON_CPU_ID_S6:
-		set21_phy_by_mode_s6(mode);
+		hdmitx_set_phy_by_mode_s6(mode);
 		break;
 #endif
 	default:
@@ -1593,7 +1593,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 	u32 data32;
 	enum hdmi_vic vic = para->timing.vic;
 
-	fifo_flow_enable_intrs(0);
+	hdmitx_fifo_flow_enable_intrs(0);
 	/* gp2 setting has been set for fe/enc for dsc*/
 	hdmitx21_set_clk(hdev);
 
@@ -1664,12 +1664,12 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 	if (para->timing.pi_mode == 0 &&
 	    (para->timing.v_active == 480 || para->timing.v_active == 576)) {
 		hd21_write_reg(VPU_VENC_CTRL, 0); // sel enci timming
-		set_tv_enci_new(hdev, hdev->tx_comm.enc_idx, vic, 1);
+		hdmitx_set_tv_enci_new(hdev, hdev->tx_comm.enc_idx, vic, 1);
 		/* for s1a, s7 */
 		hdmitx_enable_enci_clk();
 	} else {
 		hd21_write_reg(VPU_VENC_CTRL, 1); // sel encp timming
-		set_tv_encp_new(hdev, hdev->tx_comm.enc_idx, vic, 1);
+		hdmitx_set_tv_encp_new(hdev, hdev->tx_comm.enc_idx, vic, 1);
 		/* for s1a, s7 */
 		hdmitx_enable_encp_clk();
 	}
@@ -1864,7 +1864,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 			msleep_interruptible(2);
 			hdev->ignore_fifo_intr5 = false;
 			/* there's fifo intr state clear before enable fifo intr */
-			fifo_flow_enable_intrs(1);
+			hdmitx_fifo_flow_enable_intrs(1);
 		}
 
 		/* fix dsc snow screen issue and dsc cts HFR1-85,Iter-04 snow screen:
@@ -1879,7 +1879,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 			frl_tx_training_handler(hdev);
 #endif
 	} else {
-		fifo_flow_enable_intrs(1);
+		hdmitx_fifo_flow_enable_intrs(1);
 	}
 	return 0;
 }
@@ -2431,7 +2431,7 @@ static void hdmitx_uninit(struct hdmitx_hw_common *hw_comm)
 	free_irq(h21_dev->tx_comm.irq_hpd, (void *)h21_dev);
 	HDMITX_DEBUG("power off hdmi, unmux hpd\n");
 
-	fifo_flow_enable_intrs(0);
+	hdmitx_fifo_flow_enable_intrs(0);
 	phy_hpll_off();
 	hdmitx21_hpd_hw_op(HPD_UNMUX_HPD);
 
@@ -3648,11 +3648,11 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		if (argv == TMDS_PHY_ENABLE) {
 			hdmitx_phy_pre_init(hdev);
 			hdmi_phy_wakeup(hdev);
-			fifo_flow_enable_intrs(1);
+			hdmitx_fifo_flow_enable_intrs(1);
 		}
 		/* This action will be executed in vsync interrupt */
 		if (argv == TMDS_PHY_DISABLE) {
-			fifo_flow_enable_intrs(0);
+			hdmitx_fifo_flow_enable_intrs(0);
 			hdev->ignore_fifo_intr5 = true;
 			hdmi_phy_suspend();
 		}

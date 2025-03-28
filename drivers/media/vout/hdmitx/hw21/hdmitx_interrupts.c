@@ -25,7 +25,8 @@
 #include <linux/timekeeping.h>
 #include <linux/gpio.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 
 static void intr2_sw_handler(struct intr_t *);
 static void intr5_sw_handler(struct intr_t *);
@@ -162,7 +163,7 @@ static void intr5_sw_handler(struct intr_t *intr)
 	hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
 	hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
 	/* enable fifo intr */
-	fifo_flow_enable_intrs(true);
+	hdmitx_fifo_flow_enable_intrs(true);
 	HDMITX_INFO("%s INTR5_SW_TPI_IVCTX pfifo rst\n", __func__);
 }
 
@@ -205,7 +206,7 @@ void hdcp_enable_intrs(bool en)
 	}
 }
 
-void fifo_flow_enable_intrs(bool en)
+void hdmitx_fifo_flow_enable_intrs(bool en)
 {
 	if (en)
 		hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
@@ -378,7 +379,7 @@ static void intr_status_save_and_clear(void)
 			(hdmitx21_rd_reg(pint->intr_mask_reg) & pint->mask_data) &&
 			(pint->st_data & pint->mask_data)) {
 			/* disable intr5 */
-			fifo_flow_enable_intrs(false);
+			hdmitx_fifo_flow_enable_intrs(false);
 			/* reset fifo */
 			hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 2, 1);
 			hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 2, 1);

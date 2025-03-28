@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef __HDMI_TX_REG_H__
-#define __HDMI_TX_REG_H__
+#ifndef __HDMITX_CORE_REG_H__
+#define __HDMITX_CORE_REG_H__
 
 /* TOP-level wrapper registers addresses
  * bit24: 1 means secure access
@@ -2715,4 +2715,4 @@
 
 #define DSC_PKT_SPARE_9_IVCTX 0x0FA9
 
-#endif  /* __HDMI_TX_REG_H__ */
+#endif  /* __HDMITX_CORE_REG_H__ */

@@ -125,7 +125,6 @@ void scdc21_rd_sink(u8 adr, u8 *val);
 void scdc21_sequential_rd_sink(u8 adr, u8 *val, u8 len);
 void scdc21_wr_sink(u8 adr, u8 val);
 uint32_t hdcp21_rd_hdcp14_ver(void);
-uint32_t hdcp21_rd_hdcp22_ver(void);
 void scdc21_config(struct hdmitx21_dev *hdev);
 void edid21_read_head_8bytes(void);
 int scdc21_status_flags(struct hdmitx21_dev *hdev);

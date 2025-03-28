@@ -6,7 +6,8 @@
 #include <linux/printk.h>
 #include <linux/delay.h>
 #include <linux/arm-smccc.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 
 /* for HTX_PLL_CNTL0 or HTX_PLL_CNTL3
  * [31] lock_st [2] lock_st_rst  [1] pll_rst
@@ -81,7 +82,7 @@ static const char od_map[17] = {
 	[16] = 4,
 };
 
-void disable_hdmitx_s5_plls(struct hdmitx21_dev *hdev)
+void hdmitx_disable_s5_plls(struct hdmitx21_dev *hdev)
 {
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0);
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0);
@@ -202,7 +203,7 @@ static void set_s5_htxpll_clk_4_5_6g(const u32 clk, const bool frl_en)
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 2, 1);
 }
 
-void set21_s5_htxpll_clk_out(const u32 clk, const u32 div)
+void hdmitx_set_s5_htxpll_clk_out(const u32 clk, const u32 div)
 {
 	u32 div1;
 	u32 div2;
@@ -255,7 +256,7 @@ void set21_s5_htxpll_clk_out(const u32 clk, const u32 div)
 	}
 }
 
-void set_frl_hpll_od(enum frl_rate_enum rate)
+void hdmitx_set_frl_hpll_od(enum frl_rate_enum rate)
 {
 	if (rate == FRL_NONE || rate > FRL_12G4L) {
 		HDMITX_INFO("frl: wrong rate %d\n", rate);
@@ -573,7 +574,7 @@ void hdmitx21_sys_reset_s5(void)
 	hd21_write_reg(RESETCTRL_RESET0, 1 << 16); /* hdmitx_apb */
 }
 
-void set21_hpll_sspll_s5(enum hdmi_vic vic)
+void hdmitx_set_hpll_sspll_s5(enum hdmi_vic vic)
 {
 	switch (vic) {
 	case HDMI_16_1920x1080p60_16x9:

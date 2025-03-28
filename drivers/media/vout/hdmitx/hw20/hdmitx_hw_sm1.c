@@ -4,7 +4,7 @@
  */
 
 #include <linux/printk.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw.h"
 #include "hdmitx_mach_reg.h"
 
 void set_phy_by_mode_sm1(unsigned int mode)

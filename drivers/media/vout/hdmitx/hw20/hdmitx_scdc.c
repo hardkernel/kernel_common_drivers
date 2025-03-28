@@ -4,11 +4,11 @@
  */
 
 #include <linux/delay.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_ddc.h"
-#include "hdmitx_module.h"
-#include "hdmitx_common.h"
+#include "hdmitx_hw.h"
 
-void scdc_config(struct hdmitx20_dev *hdev)
+void scdc_config(struct hdmitx_common *tx_comm)
 {
 	/*
 	 * from hdmi2.1/2.0 spec chapter 10.4, prior to accessing
@@ -26,19 +26,19 @@ void scdc_config(struct hdmitx20_dev *hdev)
 	 * if change to > 3.4Gbps mode, or change from > 3.4Gbps
 	 * to < 3.4Gbps mode, need to forcely update clk ratio
 	 */
-	if (hdev->tx_comm.fmt_para.tmds_clk_div40)
+	if (tx_comm->fmt_para.tmds_clk_div40)
 		scdc_wr_sink(TMDS_CFG, 3);
-	else if (hdev->tx_comm.rxcap.scdc_present ||
-		hdev->tx_comm.pre_tmds_clk_div40)
+	else if (tx_comm->rxcap.scdc_present ||
+		tx_comm->pre_tmds_clk_div40)
 		scdc_wr_sink(TMDS_CFG, 0);
 	else
 		HDMITX_INFO("ERR: SCDC not present, should not send 1:10\n");
 }
 
 /* update CED, 10.4.1.8 */
-static int scdc_ced_cnt(struct hdmitx20_dev *hdev)
+static int scdc_ced_cnt(struct hdmitx_common *tx_comm)
 {
-	struct ced_cnt *ced = &hdev->tx_comm.ced_cnt;
+	struct ced_cnt *ced = &tx_comm->ced_cnt;
 	u8 raw[7];
 	u8 chksum;
 	int i;
@@ -46,7 +46,7 @@ static int scdc_ced_cnt(struct hdmitx20_dev *hdev)
 	memset(raw, 0, sizeof(raw));
 	memset(ced, 0, sizeof(struct ced_cnt));
 
-	if (!hdev->tx_comm.rxcap.scdc_present)
+	if (!tx_comm->rxcap.scdc_present)
 		HDMITX_DEBUG("ERR: SCDC not present, should not access SCDC\n");
 	chksum = 0;
 	for (i = 0; i < 7; i++) {
@@ -79,34 +79,34 @@ static int scdc_ced_cnt(struct hdmitx20_dev *hdev)
 
 /* update scdc status flags, 10.4.1.7 */
 /* ignore STATUS_FLAGS_1, all bits are RSVD */
-int scdc_status_flags(struct hdmitx20_dev *hdev)
+int scdc_status_flags(struct hdmitx_common *tx_comm)
 {
 	u8 st = 0;
 	u8 locked_st = 0;
 
-	if (!hdev->tx_comm.rxcap.scdc_present)
+	if (!tx_comm->rxcap.scdc_present)
 		HDMITX_DEBUG("ERR: SCDC not present, should not access SCDC\n");
 
 	scdc_rd_sink(UPDATE_0, &st);
 	if (st & STATUS_UPDATE) {
 		scdc_rd_sink(STATUS_FLAGS_0, &locked_st);
-		hdev->tx_comm.chlocked_st.clock_detected = locked_st & (1 << 0);
-		hdev->tx_comm.chlocked_st.ch0_locked = !!(locked_st & (1 << 1));
-		hdev->tx_comm.chlocked_st.ch1_locked = !!(locked_st & (1 << 2));
-		hdev->tx_comm.chlocked_st.ch2_locked = !!(locked_st & (1 << 3));
+		tx_comm->chlocked_st.clock_detected = locked_st & (1 << 0);
+		tx_comm->chlocked_st.ch0_locked = !!(locked_st & (1 << 1));
+		tx_comm->chlocked_st.ch1_locked = !!(locked_st & (1 << 2));
+		tx_comm->chlocked_st.ch2_locked = !!(locked_st & (1 << 3));
 	}
 	if (st & CED_UPDATE)
-		scdc_ced_cnt(hdev);
+		scdc_ced_cnt(tx_comm);
 	if (st & (STATUS_UPDATE | CED_UPDATE))
 		scdc_wr_sink(UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE));
 	if (st & STATUS_UPDATE) {
-		if (!hdev->tx_comm.chlocked_st.clock_detected)
+		if (!tx_comm->chlocked_st.clock_detected)
 			HDMITX_INFO("ced: clock undetected\n");
-		if (!hdev->tx_comm.chlocked_st.ch0_locked)
+		if (!tx_comm->chlocked_st.ch0_locked)
 			HDMITX_INFO("ced: ch0 unlocked\n");
-		if (!hdev->tx_comm.chlocked_st.ch1_locked)
+		if (!tx_comm->chlocked_st.ch1_locked)
 			HDMITX_INFO("ced: ch1 unlocked\n");
-		if (!hdev->tx_comm.chlocked_st.ch2_locked)
+		if (!tx_comm->chlocked_st.ch2_locked)
 			HDMITX_INFO("ced: ch2 unlocked\n");
 	}
 

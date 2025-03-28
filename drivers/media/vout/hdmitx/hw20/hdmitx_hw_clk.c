@@ -12,7 +12,7 @@
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
-#include "hdmitx_common.h"
+#include "hdmitx_hw.h"
 #include "hdmitx_mach_reg.h"
 #include "hdmitx_reg_sc2.h"
 #include "hdmitx_hw_clk.h"

@@ -3,10 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef __REGISTER_H__
-#define __REGISTER_H__
-
-#include "hdmitx_reg.h"
+#ifndef __HDMITX_PLATFORM_REG_H__
+#define __HDMITX_PLATFORM_REG_H__
 
 u32 hd_rd_reg(u32 addr);
 void hd_wr_reg(u32 addr, u32 val);
@@ -405,5 +403,5 @@ void init_reg_map(u32 type);
 #define VPU_HDMI_MATRIX_PRE_OFFSET2   VPUCTRL_REG_ADDR(0x278e)
 #define VPU_HDMI_MATRIX_EN_CTRL       VPUCTRL_REG_ADDR(0x278f)
 
-#endif // __REGISTER_H__
+#endif
 

@@ -5,7 +5,7 @@
 
 #include <linux/printk.h>
 #include <linux/kernel.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw.h"
 #include "hdmitx_mach_reg.h"
 
 /*

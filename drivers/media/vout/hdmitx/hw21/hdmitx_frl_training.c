@@ -26,11 +26,9 @@
 #include <linux/arm-smccc.h>
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
-#include <linux/amlogic/media/vout/vinfo.h>
 
-#include "hdmitx_common.h"
-#include "hdmitx_enc_clk_config.h"
-#include "hdmitx.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 /*
  * Config hdmitx Data Flow metering
  * bw_type: 1: Full BW

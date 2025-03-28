@@ -22,7 +22,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/amlogic/media/vout/vinfo.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw.h"
 #include "hdmitx_mach_reg.h"
 
 #define MREG_END_MARKER 0xFFFF

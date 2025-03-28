@@ -5,15 +5,15 @@
 
 #include <linux/printk.h>
 #include <linux/delay.h>
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
 
-void s1a_reset_div_clk(struct hdmitx21_dev *hdev)
+void hdmitx_s1a_reset_div_clk(struct hdmitx21_dev *hdev)
 {
 	/* vid_pll_div */
 	hd21_write_reg(RESETCTRL_RESET0, 1 << 19);
 }
 
-void set21_s1a_hpll_clk_out(u32 frac_rate, u32 clk)
+void hdmitx_set_s1a_hpll_clk_out(u32 frac_rate, u32 clk)
 {
 	switch (clk) {
 	/* hdmi txpll ctrl3<18> set 0 */
@@ -494,7 +494,7 @@ void set21_s1a_hpll_clk_out(u32 frac_rate, u32 clk)
 	}
 }
 
-void set21_phy_by_mode_s1a(u32 mode)
+void hdmitx_set_phy_by_mode_s1a(u32 mode)
 {
 	switch (mode) {
 	/* SD format, 480p/576p, 270Mbps*/

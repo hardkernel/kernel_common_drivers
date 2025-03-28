@@ -24,7 +24,7 @@
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
 
-#include "hdmitx_common.h"
+#include "hdmitx_hw.h"
 #include "hdmitx_reg.h"
 #include "hdmitx_reg_ops.h"
 

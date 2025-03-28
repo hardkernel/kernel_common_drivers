@@ -21,7 +21,7 @@
 #include <linux/of_address.h>
 #include <linux/arm-smccc.h>
 
-#include "hdmitx_common.h"
+#include "hdmitx_hw_platform.h"
 
 struct reg_map reg21_maps[REG_IDX_END] = {0};
 int hdmitx21_init_reg_map(struct platform_device *pdev)

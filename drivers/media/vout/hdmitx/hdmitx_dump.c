@@ -4,13 +4,9 @@
  */
 
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_dump.h"
 #include "hdmitx_check_valid.h"
-
-#ifdef DEVICE_NAME
-#undef DEVICE_NAME
-#define DEVICE_NAME "amhdmitx" /* name is same as before */
-#endif
 
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
 

@@ -22,10 +22,9 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/amlogic/media/vout/vinfo.h>
-#include "hdmitx_common.h"
-#include "hdmitx_enc_clk_config.h"
-#include "hdmitx_register.h"
-#include "hdmitx.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_platform_reg.h"
+#include "hdmitx_hw_core.h"
 
 /* ENCP_VIDEO_H/V are used for fetching video data from VPP
  * and send data to ENCP_DVI/DE_H/V* via a fifo (pixel delay)
@@ -397,7 +396,7 @@ static void hdmi_tvenc1080i_set(enum hdmi_vic vic)
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 1, 1, 1);
 }
 
-void set_tv_encp_new(struct hdmitx21_dev *hdev, u32 enc_index, enum hdmi_vic vic,
+void hdmitx_set_tv_encp_new(struct hdmitx21_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 	u32 enable)
 {
 	u32 reg_offset;
@@ -434,7 +433,7 @@ void set_tv_encp_new(struct hdmitx21_dev *hdev, u32 enc_index, enum hdmi_vic vic
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 0, 3);
 	else
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 0, 3);
-} /* set_tv_encp_new */
+} /* hdmitx_set_tv_encp_new */
 
 static void config_tv_enci(enum hdmi_vic vic)
 {
@@ -627,7 +626,7 @@ static void adjust_enci_for_hdmi(u8 enc_index,
 		HDMITX_INFO("Multi/miss timing settings on regENCI_DVI_VSO_B(E)LINE_EVN(ODD)!\n");
 }
 
-void set_tv_enci_new(struct hdmitx21_dev *hdev, u32 enc_index, enum hdmi_vic vic,
+void hdmitx_set_tv_enci_new(struct hdmitx21_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 	u32 enable)
 {
 	u32 reg_offset;
@@ -750,7 +749,7 @@ void set_tv_enci_new(struct hdmitx21_dev *hdev, u32 enc_index, enum hdmi_vic vic
 		// So for 420 mode, we need to delay Vsync by 1 line as well,
 		//to meet the VESA display timing spec.
 		0);
-} /* set_tv_enci_new */
+} /* hdmitx_set_tv_enci_new */
 
 void hdmitx21_venc_en(bool en, bool pi_mode)
 {

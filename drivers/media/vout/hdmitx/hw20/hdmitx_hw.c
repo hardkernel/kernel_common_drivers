@@ -42,18 +42,16 @@
 #include "hdmitx_hdcp_type.h"
 #include "hdmitx_mach_reg.h"
 #include "hdmitx_reg.h"
-#include "hdmitx_tvenc_conf.h"
-#include "hdmitx_common.h"
 #include "hdmitx_hw.h"
 #include "hdmitx_hw_clk.h"
 #include "hdmitx_checksha.h"
 #include "hdmitx_reg_sc2.h"
 #include "hdmitx_debug_reg.h"
-#include "hdmitx_module.h"
 #include "hdmitx_compliance.h"
 #include "hdmitx_meson_drm.h"
 #include "hdmitx_hdcp.h"
 #include "hdmitx_infoframe.h"
+#include "hdmitx_audio.h"
 
 #define HDMITX_VIC_MASK			0xff
 
@@ -2213,7 +2211,7 @@ static void hdmitx_set_scdc(struct hdmitx20_dev *hdev)
 	}
 
 	set_tmds_clk_div40(para->tmds_clk_div40);
-	scdc_config(hdev);
+	scdc_config(&hdev->tx_comm);
 	hdev->tx_comm.pre_tmds_clk_div40 = para->tmds_clk_div40;
 }
 
@@ -5600,7 +5598,7 @@ static int hdmitx_tmds_rxsense(void)
 /* 0 means TMDS ok */
 static int hdmitx_tmds_cedst(struct hdmitx20_dev *hdev)
 {
-	return scdc_status_flags(hdev);
+	return scdc_status_flags(&hdev->tx_comm);
 }
 
 static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,

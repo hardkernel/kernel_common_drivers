@@ -20,9 +20,8 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/amlogic/media/vout/vinfo.h>
-#include "hdmitx_module.h"
-#include "hdmitx.h"
-#include "hdmitx_enc_clk_config.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 #include "hdmitx_check_valid.h"
 
 /* BRR 720p60hz */

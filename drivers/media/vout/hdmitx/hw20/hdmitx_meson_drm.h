@@ -6,8 +6,6 @@
 #ifndef _MESON_DRM_HDMITX_H
 #define _MESON_DRM_HDMITX_H
 
-#include "hdmitx_module.h"
-
 void drm_hdmitx_hdcp22_init(void);
 
 unsigned int meson_hdcp_get_tx_cap(void);

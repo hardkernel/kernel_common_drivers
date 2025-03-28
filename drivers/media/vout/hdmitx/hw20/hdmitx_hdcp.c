@@ -31,9 +31,8 @@
 #include <linux/extcon-provider.h>
 #include "hdmitx_hdcp_type.h"
 #include "hdmitx_ddc.h"
-#include "hdmitx_module.h"
+#include "hdmitx_hw.h"
 #include <linux/uaccess.h>
-#include "hdmitx_common.h"
 #include "hdmitx_hdcp.h"
 
 #include <drm/drmP.h>

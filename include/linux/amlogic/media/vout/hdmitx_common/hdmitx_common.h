@@ -28,6 +28,7 @@
 
 #define HDMITX20 20
 #define HDMITX21 21
+#define DEVICE_NAME "amhdmitx"
 
 #define HDMI_TX_POOL_NUM  6
 #define HDMI_TX_RESOURCE_NUM 4
@@ -110,6 +111,11 @@ static const u8 dsc_max_slices_num[] = {
 	8,
 	12,
 	16
+};
+
+struct drm_hdmitx_hdcp_cb {
+	void (*callback)(void *data, int auth);
+	void *data;
 };
 
 struct drm_hdmitx_hdcp {

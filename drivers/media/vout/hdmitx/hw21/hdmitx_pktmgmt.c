@@ -29,9 +29,8 @@
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 
-#include "hdmitx_common.h"
-#include "hdmitx_enc_clk_config.h"
-#include "hdmitx.h"
+#include "hdmitx_hw_platform.h"
+#include "hdmitx_hw_core.h"
 #include "hdmitx_packet.h"
 #include "hdmitx_log.h"
 
@@ -112,7 +111,7 @@ static int tpi_info_get(u8 sel, u8 *data)
 	return 31; /* fixed value */
 }
 
-void dump_infoframe_packets(struct seq_file *s)
+void hdmitx_dump_infoframe_packets(struct seq_file *s)
 {
 	int i, j;
 	u8 body[32] = {0};
