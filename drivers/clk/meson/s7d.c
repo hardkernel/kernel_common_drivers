@@ -1147,7 +1147,7 @@ MESON_CLK_COMPOSITE_RW(vpu_clkb_tmp, CLKCTRL_VPU_CLKB_CTRL, 0x3, 20,
 		       0, CLK_SET_RATE_PARENT);
 
 MESON_CLK_DIV_RW(vpu_clkb_div, CLKCTRL_VPU_CLKB_CTRL, 0, 8, NULL, 0,
-		 &vpu_clkb_tmp.hw, 0);
+		 &vpu_clkb_tmp.hw, CLK_SET_RATE_PARENT);
 
 MESON_CLK_GATE_RW(vpu_clkb, CLKCTRL_VPU_CLKB_CTRL, 8, 0,
 		  &vpu_clkb_div.hw, CLK_SET_RATE_PARENT);
