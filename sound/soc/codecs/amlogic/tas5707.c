@@ -877,22 +877,6 @@ static int tas5707_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int aml_tas5707_platform_suspend(struct device *dev)
-{
-	struct tas5707_priv *tas5707 = dev_get_drvdata(dev);
-
-	tas5707_resume(tas5707->component);
-	return 0;
-}
-
-static int aml_tas5707_platform_resume(struct device *dev)
-{
-	struct tas5707_priv *tas5707 = dev_get_drvdata(dev);
-
-	tas5707_suspend(tas5707->component);
-	return 0;
-}
-
 static int aml_tas5707_platform_restore(struct device *dev)
 {
 	struct tas5707_priv *tas5707 = dev_get_drvdata(dev);
@@ -926,8 +910,6 @@ static const struct dev_pm_ops meson_tas5707_pm_ops = {
 	 */
 	.restore = aml_tas5707_platform_restore,
 	.freeze = aml_tas5707_platform_freeze,
-	.suspend = aml_tas5707_platform_suspend,
-	.resume  = aml_tas5707_platform_resume,
 };
 
 static const struct i2c_device_id tas5707_i2c_id[] = {

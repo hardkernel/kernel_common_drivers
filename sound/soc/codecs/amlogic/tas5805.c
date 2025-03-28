@@ -1263,22 +1263,6 @@ static void tas5805m_i2c_shutdown(struct i2c_client *i2c)
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 }
 
-static int aml_tas5805m_platform_suspend(struct device *dev)
-{
-	struct tas5805m_priv *data = dev_get_drvdata(dev);
-
-	tas5805m_snd_suspend(data->component);
-	return 0;
-}
-
-static int aml_tas5805m_platform_resume(struct device *dev)
-{
-	struct tas5805m_priv *data = dev_get_drvdata(dev);
-
-	tas5805m_snd_resume(data->component);
-	return 0;
-}
-
 static int aml_tas5805m_platform_restore(struct device *dev)
 {
 	struct tas5805m_priv *data = dev_get_drvdata(dev);
@@ -1312,8 +1296,6 @@ static const struct dev_pm_ops meson_tas5805m_pm_ops = {
 	 */
 	.restore = aml_tas5805m_platform_restore,
 	.freeze = aml_tas5805m_platform_freeze,
-	.suspend = aml_tas5805m_platform_suspend,
-	.resume  = aml_tas5805m_platform_resume,
 };
 
 static const struct i2c_device_id tas5805m_i2c_id[] = {

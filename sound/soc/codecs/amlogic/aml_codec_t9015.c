@@ -633,9 +633,6 @@ static int aml_T9015_acodec_platform_freeze(struct device *dev)
 static const struct dev_pm_ops meson_T9015_pm_ops = {
 	.restore = aml_T9015_acodec_platform_restore,
 	.freeze = aml_T9015_acodec_platform_freeze,
-	.suspend = aml_T9015_acodec_platform_restore,
-	.resume = aml_T9015_acodec_platform_freeze,
-
 };
 
 static struct platform_driver aml_T9015_codec_platform_driver = {

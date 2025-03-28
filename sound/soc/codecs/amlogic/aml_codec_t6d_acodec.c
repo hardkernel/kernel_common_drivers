@@ -793,8 +793,7 @@ static int am_acodec_dai_set_bias_level
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (component->dapm.bias_level == SND_SOC_BIAS_OFF)
-			snd_soc_component_cache_sync(component);
+		snd_soc_component_cache_sync(component);
 		break;
 
 	case SND_SOC_BIAS_OFF:

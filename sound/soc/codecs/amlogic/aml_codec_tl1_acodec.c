@@ -663,11 +663,9 @@ static int tl1_acodec_dai_set_bias_level
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (component->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			snd_soc_component_cache_sync(component);
-			snd_soc_component_write(component, ACODEC_0, tl1_acodec_init_list[0].def);
-			snd_soc_component_write(component, ACODEC_8, tl1_acodec_init_list[8].def);
-		}
+		snd_soc_component_cache_sync(component);
+		snd_soc_component_write(component, ACODEC_0, tl1_acodec_init_list[0].def);
+		snd_soc_component_write(component, ACODEC_8, tl1_acodec_init_list[8].def);
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -1176,24 +1174,6 @@ static const struct of_device_id aml_tl1_acodec_dt_match[] = {
 	{},
 };
 
-static int aml_acodec_platform_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct tl1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
-
-	tl1_acodec_suspend(aml_acodec->component);
-	return 0;
-}
-
-static int aml_acodec_platform_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct tl1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
-
-	tl1_acodec_resume(aml_acodec->component);
-	return 0;
-}
-
 static int aml_acodec_platform_restore(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1220,8 +1200,6 @@ static int aml_acodec_platform_freeze(struct device *dev)
 static const struct dev_pm_ops meson_acodec_pm_ops = {
 	.restore = aml_acodec_platform_restore,
 	.freeze = aml_acodec_platform_freeze,
-	.suspend = aml_acodec_platform_suspend,
-	.resume = aml_acodec_platform_resume,
 };
 
 static struct platform_driver aml_tl1_acodec_platform_driver = {
