@@ -25,6 +25,44 @@
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hw_core.h"
 
+static bool hdmitx_ddc_bus_wait_free(void)
+{
+	u8 tmo1 = 10;
+	u8 tmo2 = 2;
+
+	while (tmo2--) {
+		tmo1 = 10;
+		while (tmo1--) {
+			if (!hdmi_ddc_busy_check())
+				return true;
+			usleep_range(1000, 2000);
+		}
+		hdmi_ddc_error_reset();
+		usleep_range(1000, 2000);
+	}
+	return false;
+}
+
+bool hdcptx_ddc_check_busy(void)
+{
+	enum ddc_err_t error = DDC_ERR_NONE;
+	u8 time_out_ms = 7;
+
+	usleep_range(2000, 3000);
+	do {
+		if (!hdmitx_ddc_bus_wait_free()) {
+			error = DDC_ERR_BUSY;
+			time_out_ms--;
+			if (!time_out_ms)
+				return false;
+			usleep_range(2000, 3000);
+		} else {
+			error = DDC_ERR_NONE;
+		}
+	} while (error != DDC_ERR_NONE);
+	return true;
+}
+
 bool hdcptx1_load_key(void)
 {
 	struct arm_smccc_res res;
@@ -35,26 +73,24 @@ bool hdcptx1_load_key(void)
 	return res.a0 == 1;
 }
 
-bool get_hdcp1_lstore(void)
+bool get_hdcp1_lstore(struct hdmitx_common *tx_comm)
 {
 	struct arm_smccc_res res;
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->tx_comm.efuse_dis_hdcp_tx14)
+	if (tx_comm->efuse_dis_hdcp_tx14)
 		return 0;
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP14_KEY_READY, 0, 0, 0, 0, 0, 0, &res);
 
 	return res.a0 == 1;
 }
 
-bool get_hdcp2_lstore(void)
+bool get_hdcp2_lstore(struct hdmitx_common *tx_comm)
 {
 	struct arm_smccc_res res;
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S1A)
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S1A)
 		return 0;
-	if (hdev->tx_comm.efuse_dis_hdcp_tx22)
+	if (tx_comm->efuse_dis_hdcp_tx22)
 		return 0;
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_KEY_READY, 0, 0, 0, 0, 0, 0, &res);
 
@@ -70,12 +106,11 @@ bool get_hdcp1_result(void)
 	return res.a0 == 1;
 }
 
-bool get_hdcp2_result(void)
+bool get_hdcp2_result(enum amhdmitx_chip_e chip_type)
 {
 	struct arm_smccc_res res;
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S1A)
+	if (chip_type == MESON_CPU_ID_S1A)
 		return 0;
 
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_RESULT, 0, 0, 0, 0, 0, 0, &res);
@@ -83,12 +118,11 @@ bool get_hdcp2_result(void)
 	return res.a0 == 1;
 }
 
-bool get_hdcp2_topo(void)
+bool get_hdcp2_topo(enum amhdmitx_chip_e chip_type)
 {
 	struct arm_smccc_res res;
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S1A)
+	if (chip_type == MESON_CPU_ID_S1A)
 		return 0;
 
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_GET_TOPO, 0, 0, 0, 0, 0, 0, &res);
@@ -96,13 +130,12 @@ bool get_hdcp2_topo(void)
 	return res.a0 == 1;
 }
 
-void set_hdcp2_topo(u32 topo_type)
+void set_hdcp2_topo(enum amhdmitx_chip_e chip_type, u32 topo_type)
 {
 	struct arm_smccc_res res;
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	HDMITX_INFO("%s: %d", __func__, topo_type);
-	if (hdev->tx_comm.tx_hw->chip_data->chip_type != MESON_CPU_ID_S1A)
+	if (chip_type != MESON_CPU_ID_S1A)
 		arm_smccc_smc(HDCPTX_IOOPR, HDCP22_SET_TOPO, topo_type, 0, 0, 0, 0, 0, &res);
 }
 
@@ -394,7 +427,7 @@ void hdcptx2_src_auth_start(u8 content_type)
 	/* mostly, ddc bus is already free after previous stop
 	 * operation, now double check
 	 */
-	if (!ddc_bus_wait_free())
+	if (!hdmitx_ddc_bus_wait_free())
 		HDMITX_INFO("%s: reset during ddc busy!!\n", __func__);
 	reset_val = hdmitx21_rd_reg(HDCP2X_TX_SRST_IVCTX);
 	//hdmitx21_set_bit(HDCP2X_TX_SRST_IVCTX, BIT(5), true);
@@ -443,11 +476,9 @@ static void hdcptx_ctrl_gate(int hdcp_mode, bool en)
 	}
 }
 
-void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en)
+void hdmitx21_ctrl_hdcp_gate(enum amhdmitx_chip_e chip_type, int hdcp_mode, bool en)
 {
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
-
-	switch (hdev->tx_comm.tx_hw->chip_data->chip_type) {
+	switch (chip_type) {
 	case MESON_CPU_ID_S7:
 	case MESON_CPU_ID_S7D:
 	case MESON_CPU_ID_S6:

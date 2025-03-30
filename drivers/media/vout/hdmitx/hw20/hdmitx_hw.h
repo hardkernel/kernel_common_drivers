@@ -41,7 +41,6 @@ struct hdmitx20_dev {
 
 	int hdcp_hpd_stick;	/* 1 not init & reset at plugout */
 	struct delayed_work work_do_hdcp;
-	struct drm_hdmitx_hdcp_cb drm_hdcp_cb;
 };
 
 struct hdmitx20_hw *get_hdmitx20_hw_instance(void);

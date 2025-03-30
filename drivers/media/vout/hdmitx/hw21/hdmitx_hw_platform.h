@@ -65,14 +65,6 @@ struct hdmitx21_dev {
 	struct hdmitx21_hw tx21_hw;
 	/* dedicated for intr */
 	struct workqueue_struct *hdmi_intr_wq;
-	/* hdcp */
-	struct delayed_work work_start_hdcp;
-	struct delayed_work work_drm_start_hdcp;
-	void *am_hdcp;
-	struct miscdevice hdcp_comm_device;
-	unsigned long up_hdcp_timeout_sec;
-	struct delayed_work work_up_hdcp_timeout;
-	u32 hdcp_debug_delay;
 
 	atomic_t kref_audio_mute;
 

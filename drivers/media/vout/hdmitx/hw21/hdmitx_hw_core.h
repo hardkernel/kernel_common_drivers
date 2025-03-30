@@ -12,6 +12,7 @@
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hdcp.h"
 #include "hdmitx_packet.h"
+#include "hdmi_rx_repeater.h"
 
 /* L_0 will always be printed, set log level to L_1/2/3 for detail */
 #define L_0 0
@@ -43,7 +44,7 @@
 
 /* 1. interrupts struct */
 struct intr_t;
-typedef void(*hdmi_intr_cb)(struct intr_t *);
+typedef void(*hdmi_intr_cb)(struct intr_t *, void *);
 
 struct intr_t {
 	const u32 intr_mask_reg;
@@ -105,7 +106,8 @@ struct hdcp_work {
 	struct delayed_work dwork;
 };
 
-struct hdcp_t {
+/* hw21 core private hdcp struct */
+struct hdcptx21_core_priv {
 	bool hdcptx_enabled;
 	bool ds_auth;
 	bool encryption_enabled;
@@ -117,6 +119,8 @@ struct hdcp_t {
 	bool csm_msg_sent;
 	bool csm_valid;
 	enum hdcp_fail_types_t fail_type;
+	/* only used for limit print when failure */
+	enum hdcp_fail_types_t fail_reason;
 	enum hdcp_ver_t req_hdcp_ver;
 	enum hdcp_content_type_t content_type;
 	enum hdcp_stat_t hdcp_state;
@@ -136,10 +140,40 @@ struct hdcp_t {
 	struct hdcp_work timer_hdcp_start;
 	struct hdcp_work timer_ddc_check_nak;
 	struct hdcp_work timer_update_csm;
+
+	/* for ksv/receiver_id list forward */
 	struct delayed_work ksv_notify_wk;
+	/* for hdcp reauth from upstream */
 	struct delayed_work req_reauth_wk;
+	/* for mute operation under stream type1 */
 	struct delayed_work stream_mute_wk;
+	/* for stream type propagate */
 	struct delayed_work stream_type_wk;
+
+	/* for upstream side request auth timeout */
+	unsigned long up_hdcp_timeout_sec;
+	struct delayed_work work_up_hdcp_timeout;
+	/* work for hdcp started by hdmitx driver */
+	struct delayed_work work_tx_start_hdcp;
+	/* work for hdcp started by linux/drm */
+	struct delayed_work work_drm_start_hdcp;
+	u32 hdcp_debug_delay;
+
+	/* hdcp stop & start should be mutexed */
+	struct mutex hdcptx_auth_mutex;
+	/*
+	 * case1: upstream side update stream type
+	 * case2: hdmitx itself update stream type
+	 * when hdmirx-hdmitx passthrough enabled,
+	 * the sequence of two cases is not certain,
+	 * need to use the type of case1 at last.
+	 * need to mutex csm_message.streamid_type
+	 * and also make stream type management
+	 * message sent only once
+	 * it may involve hdcptx_auth_mutex inside!
+	 */
+	struct mutex stream_type_mutex;
+
 	/* audio/video mute if upstream type = 1 */
 	bool stream_mute;
 	/* hdmirx side request flag, see hdmi_rx_repeater.h
@@ -168,6 +202,32 @@ struct hdcp_t {
 	 * set this flag true after hdcp1.4 key loaded
 	 */
 	bool hdcp14_key_loaded;
+	struct hdmitx_common *bind_instance;
+
+	u8 def_stream_type;
+
+	/*
+	 * hdcp fail event method 2: don't stop-restart hdcp auth
+	 * only for special project.
+	 * when start play game movie, it will switch from
+	 * DV STD to DV LL, hdcp will stop and restart after
+	 * mode setting done.
+	 * now provide an option: when DV STD <-> DV LL
+	 * switch caused by game movie, systemcontrol write 1
+	 * to not_restart_hdcp node before do mode switch, it
+	 * means that this colorspace(mode) switch will only
+	 * switch mode, but won't stop->restart hdcp action to
+	 * prevent hdcp fail uevent sent to app.
+	 * note:
+	 * 1.not sure if it will always work on different TV.
+	 * 2.after mode switch done, not_restart_hdcp will be self cleared
+	 */
+	bool not_restart_hdcp;
+	/* switch mode by passthrough hdmirx input format to downstream hdmitx output
+	 * if yes, system_control will write this node to 1.
+	 * only for special hdmitx21 project.
+	 */
+	u32 is_passthrough_switch;
 };
 
 /* 4. VRR struct */
@@ -285,16 +345,16 @@ u8 scdc_tx_source_test_cfg_get(void);
 void scdc_tx_frl_get_rx_rate(u8 *data);
 
 /* 3. hdcp related */
-bool get_hdcp1_lstore(void);
-bool get_hdcp2_lstore(void);
+bool get_hdcp1_lstore(struct hdmitx_common *tx_comm);
+bool get_hdcp2_lstore(struct hdmitx_common *tx_comm);
 bool get_hdcp1_result(void);
-bool get_hdcp2_result(void);
+bool get_hdcp2_result(enum amhdmitx_chip_e chip_type);
 bool hdcptx1_load_key(void);
 bool is_rx_hdcp2ver(void);
-void hdcp_mode_set(unsigned int mode);
+void hdcptx_mode_set(struct hdcptx21_core_priv *p_hdcp, unsigned int mode);
 void hdcp_enable_intrs(bool en);
-void hdcp1x_intr_handler(struct intr_t *intr);
-void hdcp2x_intr_handler(struct intr_t *intr);
+void hdcp1x_intr_handler(struct intr_t *intr, void *intr_para);
+void hdcp2x_intr_handler(struct intr_t *intr, void *intr_para);
 void intr_status_save_clr_cp2txs(u8 regs[]);
 void hdcptx_init_reg(void);
 void hdcptx2_src_auth_start(u8 content_type);
@@ -304,12 +364,10 @@ void hdcptx1_auth_stop(void);
 void hdcptx1_encryption_update(bool en);
 void hdcptx2_encryption_update(bool en);
 void hdcptx2_reauth_send(void);
-void ddc_toggle_sw_tpi(void);
 bool hdcptx2_ds_rptr_capability(void);
 bool hdcptx1_ds_rptr_capability(void);
 void hdcptx1_ds_bksv_read(u8 *p_bksv, u8 ksv_bytes);
 u8 hdcptx1_ksv_v_get(void);
-bool hdcp1x_ksv_valid(u8 *dat);
 void hdcptx1_protection_enable(bool en);
 void hdcptx1_intermed_ri_check_enable(bool en);
 void hdcptx2_ds_rcv_id_read(u8 *p_rcv_id);
@@ -330,23 +388,30 @@ void hdcptx2_smng_auto(bool en);
 u8 hdcp2x_get_state_st(void);
 void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val);
 u8 hdmitx_reauth_request(u8 hdcp_version);
-void set_hdcp2_topo(u32 topo_type);
-bool get_hdcp2_topo(void);
-void hdmitx21_enable_hdcp(struct hdmitx21_dev *hdev);
-void hdmitx21_disable_hdcp(struct hdmitx21_dev *hdev);
-void hdmitx21_rst_stream_type(struct hdcp_t *hdcp);
-bool hdcp_need_control_by_upstream(struct hdmitx_hw_common *tx_hw);
-u32 hdmitx21_get_hdcp_mode(void);
+void set_hdcp2_topo(enum amhdmitx_chip_e chip_type, u32 topo_type);
+bool get_hdcp2_topo(enum amhdmitx_chip_e chip_type);
+void hdmitx21_enable_hdcp(struct hdmitx_common *tx_comm);
+void hdmitx21_disable_hdcp(struct hdcptx21_core_priv *p_hdcp);
+void hdmitx21_rst_stream_type(struct hdcptx21_core_priv *hdcp);
+bool hdcptx_need_ctrl_by_upstream(bool hdcp_rpt_en);
+u32 hdmitx21_get_hdcp_mode(struct hdmitx_common *tx_comm);
 void hdcptx_en_aes_dualpipe(bool en);
+u8 hdcptx_reauth_request(void *hdcptx_priv, u8 hdcp_version);
 extern unsigned long hdcp_reauth_dbg;
 extern unsigned long streamtype_dbg;
 extern unsigned long en_fake_rcv_id;
-int hdmitx21_hdcp_init(struct hdmitx21_dev *hdev);
-void hdmitx21_hdcp_exit(struct hdmitx21_dev *hdev);
+
+int hdmitx21_hdcp_init(struct hdmitx_common *tx_comm);
+void hdmitx21_hdcp_uninit(struct hdmitx_common *tx_comm);
+void ddc_toggle_sw_tpi(void);
+bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len, u8 read_cmd);
+bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data);
+bool hdcptx_ddc_check_busy(void);
 
 /* hdcp platform related */
-void tee_comm_dev_reg(struct hdmitx21_dev *hdev);
-void tee_comm_dev_unreg(struct hdmitx21_dev *hdev);
+int hdmitx_hdcp_stat_monitor_task(void *data);
+void tee_comm_dev_reg(struct miscdevice *hdcp_misc_dev, const struct file_operations *fops);
+void tee_comm_dev_unreg(struct miscdevice *hdcp_misc_dev);
 void drm_hdmitx_start_hdcp_handler(struct work_struct *work);
 void hdmitx_start_hdcp_handler(struct work_struct *work);
 void hdmitx_up_hdcp_timeout_handler(struct work_struct *work);
@@ -358,7 +423,7 @@ void hdmitx21_av_mute_op(u32 flag, unsigned int path);
 void hdmitx21_video_mute_op(struct hdmitx_hw_common *hw_comm, u32 flag, unsigned int path);
 
 /* hdcp clk gate related */
-void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en);
+void hdmitx21_ctrl_hdcp_gate(enum amhdmitx_chip_e chip_type, int hdcp_mode, bool en);
 u32 hdmitx21_get_gate_status(void);
 
 /* 4. VRR parts */

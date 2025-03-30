@@ -51,7 +51,13 @@
 #define DDC_HDCP14_GET_BCAPS_RP (CMD_DDC_OFFSET + 0x30)
 #define DDC_HDCP14_GET_TOPO_INFO (CMD_DDC_OFFSET + 0x31)
 #define DDC_HDCP_SET_TOPO_INFO  (CMD_DDC_OFFSET + 0x32)
+#define DDC_HDCP_GET_TOPO_INFO  (CMD_DDC_OFFSET + 0x33)
 #define DDC_HDCP14_SAVE_OBS     (CMD_DDC_OFFSET + 0x40)
+/* for hdcp_tx22 ready check on linux platform */
+#define DDC_HDCP_22_PRIVATE_KEY_RDY  (CMD_DDC_OFFSET + 0x41)
+/* check hdcp22 support or not by DDC read */
+#define DDC_GET_RX_HDCP22_VER (CMD_DDC_OFFSET + 0x42)
+#define DDC_REQ_HDCP_AUTH (CMD_DDC_OFFSET + 0x43)
 
 /***********************************************************************
  *             MISC control, hpd, hpll //cntlmisc
@@ -373,10 +379,6 @@ struct hdmitx_hw_common {
 	int hdmitx_gpios_scl;
 	int hdmitx_gpios_sda;
 
-	/* hdcp repeater enable, such as on T7 platform */
-	u32 hdcp_repeater_en:1;
-	/* hdcp tx key */
-	u32 lstore;
 	/* soc/hdmitx driver capability */
 	struct tx_cap hdmi_tx_cap;
 	/* phy state */

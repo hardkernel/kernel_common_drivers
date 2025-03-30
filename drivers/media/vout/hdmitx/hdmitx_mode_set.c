@@ -347,9 +347,9 @@ void hdmitx_process_plugin(struct hdmitx_common *tx_comm, bool boot_flag, bool s
 	 * as hdcp auth is running and may access DDC when reading EDID.
 	 * so need to disable hdcp auth before EDID reading
 	 */
-	if (tx_comm->hdcp_mode != 0) {
+	if (tx_comm->hdcptx_comm.hdcp_mode != 0) {
 		HDMITX_INFO("hdcp: %d should not be enabled before signal ready\n",
-			tx_comm->hdcp_mode);
+			tx_comm->hdcptx_comm.hdcp_mode);
 		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_DISABLE_HDCP, 0);
 	}
 	/* read EDID */
@@ -361,7 +361,7 @@ void hdmitx_process_plugin(struct hdmitx_common *tx_comm, bool boot_flag, bool s
 	tx_comm->hpd_state = 1;
 	tx_comm->already_used = 1;
 	/* SW: special for hdcp repeater */
-	if (tx_comm->tx_hw->hdcp_repeater_en)
+	if (tx_comm->hdcptx_comm.hdcp_rpt_en)
 		rx_set_repeater_support(1);
 	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGIN;
 

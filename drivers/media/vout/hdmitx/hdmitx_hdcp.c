@@ -3,25 +3,192 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/delay.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include "hdmitx_log.h"
+
+static int hdmi_authenticated;
+MODULE_PARM_DESC(hdmi_authenticated, "\n hdmi_authenticated\n");
+module_param(hdmi_authenticated, int, 0444);
+
+/* bit1: hdcp22 key, bit0: hdcp1.4 key */
+unsigned int hdcptx_get_key_store(struct hdmitx_common *tx_comm)
+{
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!", __func__);
+		return 0;
+	}
+
+	if (tx_comm->hdcptx_comm.hdcp_lstore < 0x10) {
+		tx_comm->hdcptx_comm.hdcp_lstore = 0;
+		if (hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_14_LSTORE, 0))
+			tx_comm->hdcptx_comm.hdcp_lstore |= HDCP_MODE14;
+		if (hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_22_LSTORE, 0))
+			tx_comm->hdcptx_comm.hdcp_lstore |= HDCP_MODE22;
+	}
+
+	HDMITX_DEBUG("%s tx hdcp [%d]\n", __func__, tx_comm->hdcptx_comm.hdcp_lstore);
+	return tx_comm->hdcptx_comm.hdcp_lstore & (HDCP_MODE14 | HDCP_MODE22);
+}
+
+unsigned int hdcptx_get_rx_version(struct hdmitx_common *tx_comm)
+{
+	unsigned int hdcprx_cap = 0;
+
+	/*
+	 * 1.if TX don't have HDCP22 key, skip RX hdcp22 ver.
+	 * 2.note that during hdcp1.4 authentication, read hdcp version
+	 * of connected TV set(capable of hdcp2.2) may cause TV
+	 * switch its hdcp mode, and flash screen. should not
+	 * read hdcp version of sink during hdcp1.4 authentication.
+	 * if hdcp1.4 authentication currently, force return hdcp1.4
+	 */
+	if (tx_comm->hdcptx_comm.hdcp_mode == 0x1) {
+		hdcprx_cap = HDCP_MODE14;
+	} else if (hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_22_LSTORE, 0) &&
+		hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_GET_RX_HDCP22_VER, 0)) {
+		tx_comm->hdcptx_comm.dw_hdcp22_cap = 1;
+		hdcprx_cap = HDCP_MODE22 | HDCP_MODE14;
+	} else {
+		/* must assume RX support HDCP14, otherwise affect 1A-03 */
+		tx_comm->hdcptx_comm.dw_hdcp22_cap = 0;
+		hdcprx_cap = HDCP_MODE14;
+	}
+	return hdcprx_cap;
+}
+
+/* 40 * 200ms = 8s */
+#define HDCP_AUTH_TIMEOUT (40)
+
+static void hdcptx_result_notify_drm(struct hdmitx_common *tx_comm, int auth)
+{
+	int hdcp_auth_result = HDCP_AUTH_UNKNOWN;
+	void *cb_data = NULL;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!", __func__);
+		return;
+	}
+
+	cb_data = tx_comm->hdcptx_comm.tx_hdcp_cb.data;
+
+	if (tx_comm->hdcptx_comm.hdcp_mode &&
+		tx_comm->hdcptx_comm.hdcp_auth_result == HDCP_AUTH_UNKNOWN) {
+		if (auth == 1) {
+			hdcp_auth_result = HDCP_AUTH_OK;
+		} else if (auth == 0) {
+			tx_comm->hdcptx_comm.hdcp_fail_cnt++;
+
+			if (tx_comm->hdcptx_comm.hdcp_fail_cnt > HDCP_AUTH_TIMEOUT)
+				hdcp_auth_result = HDCP_AUTH_FAIL;
+		}
+
+		HDMITX_DEBUG_HDCP("HDCP cb %d vs %d\n",
+			tx_comm->hdcptx_comm.hdcp_auth_result, auth);
+
+		if (hdcp_auth_result != tx_comm->hdcptx_comm.hdcp_auth_result) {
+			tx_comm->hdcptx_comm.hdcp_auth_result = hdcp_auth_result;
+			if (tx_comm->hdcptx_comm.tx_hdcp_cb.hdcp_notify)
+				tx_comm->hdcptx_comm.tx_hdcp_cb.hdcp_notify(cb_data,
+					tx_comm->hdcptx_comm.hdcp_mode,
+					tx_comm->hdcptx_comm.hdcp_auth_result);
+		}
+	}
+}
+
+/* hdcp monitor task, check hdcp auth status every 200ms */
+int hdmitx_hdcp_stat_monitor_task(void *data)
+{
+	static int auth_stat;
+	static int cnt;
+	int filter_period;
+	struct hdmitx_common *tx_comm = (struct hdmitx_common *)data;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("NULL tx_comm instance\n", __func__);
+		return -1;
+	}
+
+	filter_period = tx_comm->hdcptx_comm.filter_hdcp_off_period * 10;
+	while (tx_comm->hpd_event != 0xff) {
+		hdmi_authenticated = hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_GET_AUTH, 0);
+		if (auth_stat != hdmi_authenticated) {
+			/* hdcp fail uevent filter for special application */
+			if (hdmi_authenticated == 0 && tx_comm->hdcptx_comm.need_filter_hdcp_off) {
+				for (cnt = 0; cnt < filter_period; cnt++) {
+					if (!tx_comm->hdcptx_comm.need_filter_hdcp_off) {
+						HDMITX_HDCP_INFO("exit filter, mode %d auth: %d\n",
+							tx_comm->hdcptx_comm.hdcp_mode,
+							hdmi_authenticated);
+						break;
+					}
+					msleep_interruptible(100);
+					hdmi_authenticated = hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
+						DDC_HDCP_GET_AUTH, 0);
+					if (hdmi_authenticated)
+						break;
+				}
+				HDMITX_HDCP_INFO("%d, after filtering auth is: %d, time:%dms\n",
+					tx_comm->hdcptx_comm.hdcp_mode,
+					hdmi_authenticated, cnt * 100);
+				if (hdmi_authenticated &&
+					tx_comm->hdcptx_comm.need_filter_hdcp_off) {
+					tx_comm->hdcptx_comm.need_filter_hdcp_off = false;
+					continue;
+				}
+			}
+			/* self cleared after filter period expired */
+			tx_comm->hdcptx_comm.need_filter_hdcp_off = false;
+			/* hdcp fail uevent filter end */
+
+			/* uevent report */
+			hdmitx_set_uevent(tx_comm, HDMITX_HDCP_EVENT, hdmi_authenticated);
+			auth_stat = hdmi_authenticated;
+			HDMITX_HDCP_INFO("mode %d, auth: %d\n",
+				tx_comm->hdcptx_comm.hdcp_mode, auth_stat);
+
+			/* status update, only collect the metric when hdmi is plugged in. */
+			if (tx_comm->hpd_state == 1) {
+				hdmitx_current_status(tx_comm, auth_stat ?
+					HDMITX_HDCP_AUTH_SUCCESS : HDMITX_HDCP_AUTH_FAILURE);
+			}
+
+			/* notify hdcp result to drm */
+			if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0)
+				hdcptx_result_notify_drm(tx_comm, auth_stat);
+		}
+		msleep_interruptible(200);
+	}
+	return 0;
+}
 
 /* use drm */
 int drm_hdmitx_common_hdcp_init(struct hdmitx_common *tx_comm)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_init) {
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_init();
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (tx_comm->hdcptx_comm.drm_hdcp_init) {
+		tx_comm->hdcptx_comm.drm_hdcp_init(tx_comm);
 		return 0;
 	}
+	HDMITX_DEBUG_HDCP("%s\n", __func__);
+
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_hdcp_init);
 
 int drm_hdmitx_common_hdcp_exit(struct hdmitx_common *tx_comm)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_exit) {
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_exit();
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (tx_comm->hdcptx_comm.drm_hdcp_exit) {
+		tx_comm->hdcptx_comm.drm_hdcp_exit(tx_comm);
 		return 0;
 	}
 	return -EINVAL;
@@ -30,9 +197,13 @@ EXPORT_SYMBOL(drm_hdmitx_common_hdcp_exit);
 
 int drm_hdmitx_common_hdcp_enable(struct hdmitx_common *tx_comm, int hdcp_type)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_enable) {
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_enable(hdcp_type);
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (tx_comm->hdcptx_comm.drm_hdcp_enable) {
+		tx_comm->hdcptx_comm.drm_hdcp_enable(tx_comm, hdcp_type);
 		return 0;
 	}
 	return -EINVAL;
@@ -41,9 +212,13 @@ EXPORT_SYMBOL(drm_hdmitx_common_hdcp_enable);
 
 int drm_hdmitx_common_hdcp_disable(struct hdmitx_common *tx_comm)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_disable) {
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_disable();
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (tx_comm->hdcptx_comm.drm_hdcp_disable) {
+		tx_comm->hdcptx_comm.drm_hdcp_disable(tx_comm);
 		return 0;
 	}
 	return -EINVAL;
@@ -52,69 +227,129 @@ EXPORT_SYMBOL(drm_hdmitx_common_hdcp_disable);
 
 int drm_hdmitx_common_hdcp_disconnect(struct hdmitx_common *tx_comm)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_disconnect) {
-		tx_comm->drm_hdcp_ctrl_ops->hdcp_disconnect();
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (tx_comm->hdcptx_comm.drm_hdcp_disconnect) {
+		tx_comm->hdcptx_comm.drm_hdcp_disconnect(tx_comm);
 		return 0;
 	}
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_hdcp_disconnect);
 
+/* bit1: hdcp22, bit0: hdcp1.4 */
 unsigned int drm_hdmitx_common_get_tx_hdcp_cap(struct hdmitx_common *tx_comm)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->get_tx_hdcp_cap) {
-		return tx_comm->drm_hdcp_ctrl_ops->get_tx_hdcp_cap();
+	unsigned int hdcptx_cap = 0;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+		return 0;
 	}
-	return 0;
+	/* check hdcp key load status */
+	hdcptx_cap = hdcptx_get_key_store(tx_comm);
+	/* check additional private hdcp daemon status */
+	if (!hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_22_PRIVATE_KEY_RDY, 0))
+		hdcptx_cap &= HDCP_MODE14;
+
+	HDMITX_DEBUG("%s tx hdcp [%d]\n", __func__, hdcptx_cap);
+	return hdcptx_cap;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_get_tx_hdcp_cap);
 
+/* bit1: hdcp22, bit0: hdcp1.4 */
 unsigned int drm_hdmitx_common_get_rx_hdcp_cap(struct hdmitx_common *tx_comm)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->get_rx_hdcp_cap) {
-		return tx_comm->drm_hdcp_ctrl_ops->get_rx_hdcp_cap();
+	unsigned int hdcprx_cap = 0;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+		return 0;
 	}
-	return 0;
+
+	hdcprx_cap = hdcptx_get_rx_version(tx_comm);
+	HDMITX_DEBUG("%s rx hdcp [%d]\n", __func__, hdcprx_cap);
+
+	return hdcprx_cap;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_get_rx_hdcp_cap);
 
 int drm_hdmitx_common_register_hdcp_notify(struct hdmitx_common *tx_comm,
 					   struct connector_hdcp_cb *cb)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->register_hdcp_notify) {
-		tx_comm->drm_hdcp_ctrl_ops->register_hdcp_notify(cb);
-		return 0;
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	if (!cb) {
+		HDMITX_ERROR("%s NULL callback!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (tx_comm->hdcptx_comm.tx_hdcp_cb.hdcp_notify)
+		HDMITX_ERROR("register hdcp notify again!?\n");
+
+	tx_comm->hdcptx_comm.tx_hdcp_cb.hdcp_notify = cb->hdcp_notify;
+	tx_comm->hdcptx_comm.tx_hdcp_cb.data = cb->data;
+
+	HDMITX_DEBUG("%s\n", __func__);
+	return 0;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_register_hdcp_notify);
 
+/*
+ * get downstream hdcp topo info:
+ * return 1 if downstream devices are all capable of hdcp2.2/2.3
+ * return 0 if downstream contains hdcp1.4 or hdcp2.0 legacy device
+ */
 int drm_hdmitx_common_get_dw_hdcp_topo_info(struct hdmitx_common *tx_comm)
 {
-	if (tx_comm && tx_comm->drm_hdcp_ctrl_ops &&
-		tx_comm->drm_hdcp_ctrl_ops->get_dw_hdcp_topo_info) {
-		tx_comm->drm_hdcp_ctrl_ops->get_dw_hdcp_topo_info();
-		return 0;
-	}
-	return -EINVAL;
+	int hdcp22_topo = 0;
+
+	hdcp22_topo = hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_GET_TOPO_INFO, 0);
+	HDMITX_DEBUG("%s hdcp22_topo: %d\n", __func__, hdcp22_topo);
+
+	return hdcp22_topo;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_get_dw_hdcp_topo_info);
 /* use drm end */
 
+void tee_comm_dev_reg(struct miscdevice *hdcp_misc_dev, const struct file_operations *fops)
+{
+	int ret;
+
+	if (!hdcp_misc_dev || !fops) {
+		HDMITX_ERROR("null hdcp communicate device or file ops\n");
+		return;
+	}
+	hdcp_misc_dev->minor = MISC_DYNAMIC_MINOR;
+	hdcp_misc_dev->name = "tee_comm_hdcp";
+	hdcp_misc_dev->fops = fops;
+
+	ret = misc_register(hdcp_misc_dev);
+	if (ret < 0)
+		HDMITX_ERROR("%s misc_register fail\n", __func__);
+}
+
+void tee_comm_dev_unreg(struct miscdevice *hdcp_misc_dev)
+{
+	misc_deregister(hdcp_misc_dev);
+}
+
 void hdmitx_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf)
 {
-	if (tx_comm && tx_comm->hdcp_ctrl_ops->set_hdcp_mode)
-		tx_comm->hdcp_ctrl_ops->set_hdcp_mode(tx_comm, buf);
+	if (tx_comm && tx_comm->hdcptx_comm.set_hdcp_mode)
+		tx_comm->hdcptx_comm.set_hdcp_mode(tx_comm, buf);
 }
 
 int hdmitx_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int len)
 {
-	if (tx_comm && tx_comm->hdcp_ctrl_ops->get_hdcp_ver)
-		return tx_comm->hdcp_ctrl_ops->get_hdcp_ver(tx_comm, buf, len);
+	if (tx_comm && tx_comm->hdcptx_comm.get_hdcp_ver)
+		return tx_comm->hdcptx_comm.get_hdcp_ver(tx_comm, buf, len);
 	else
 		return -EINVAL;
 }

@@ -42,7 +42,7 @@ int hdmitx_event_notifier_regist(struct notifier_block *nb)
 		/* if (hdev->tx_comm.hdmi_repeater == 1) */
 		hdmitx_notify_hpd(tx_common_instance->hpd_state,
 			tx_common_instance->rxcap.edid_parsing ?
-			tx_common_instance->EDID_buf : NULL);
+			tx_common_instance->edid_buf : NULL);
 		/* actually notify phy_addr is not used by CEC/hdmirx */
 		/* if (hdev->tx_comm.rxcap.physical_addr != 0xffff) { */
 		/* if (hdev->tx_comm.hdmi_repeater == 1) */
@@ -193,6 +193,15 @@ bool hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
 	return true;
 }
 EXPORT_SYMBOL(hdmitx_update_latency_mode);
+
+/* for request reauth from upstream side, for example: hdmirx of T7 */
+u8 hdmitx_reauth_request(u8 hdcp_version)
+{
+	if (!tx_common_instance || !tx_common_instance->hdcptx_comm.hdcp_rpt_en)
+		return 0;
+	return hdmitx_hw_cntl_ddc(tx_common_instance->tx_hw, DDC_REQ_HDCP_AUTH, hdcp_version);
+}
+EXPORT_SYMBOL(hdmitx_reauth_request);
 
 void hdmitx_ext_set_audio_output(int enable)
 {

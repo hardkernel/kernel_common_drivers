@@ -104,7 +104,7 @@ static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 		}
 	} else {
 		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_SM1 &&
-		    hdmitx_find_vendor_6g(hdev->tx_comm.EDID_buf) &&
+		    hdmitx_find_vendor_6g(hdev->tx_comm.edid_buf) &&
 		    (para->vic == HDMI_96_3840x2160p50_16x9 ||
 		    para->vic == HDMI_97_3840x2160p60_16x9 ||
 		    para->vic == HDMI_106_3840x2160p50_64x27 ||

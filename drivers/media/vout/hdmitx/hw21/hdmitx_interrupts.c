@@ -28,11 +28,10 @@
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hw_core.h"
 
-static void intr2_sw_handler(struct intr_t *);
-static void intr5_sw_handler(struct intr_t *);
-static void top_hpd_intr_stub_handler(struct intr_t *);
-
-static void ddc_stall_req_handler(struct intr_t *intr);
+static void intr2_sw_handler(struct intr_t *, void *intr_para);
+static void intr5_sw_handler(struct intr_t *, void *intr_para);
+static void top_hpd_intr_stub_handler(struct intr_t *, void *intr_para);
+static void ddc_stall_req_handler(struct intr_t *intr, void *intr_para);
 
 union intr_u hdmi_all_intrs = {
 	.entity = {
@@ -127,13 +126,13 @@ void intr_status_save_clr_cp2txs(u8 regs[])
 	hdmi_all_intrs.entity.cp2tx_intr3.st_data = 0;
 }
 
-static void top_hpd_intr_stub_handler(struct intr_t *intr)
+static void top_hpd_intr_stub_handler(struct intr_t *intr, void *intr_para)
 {
 	/* clear intr state asap */
 	/* intr->st_data = 0; */
 }
 
-static void intr2_sw_handler(struct intr_t *intr)
+static void intr2_sw_handler(struct intr_t *intr, void *intr_para)
 {
 	static u32 vsync_cnt;
 
@@ -155,7 +154,7 @@ static void intr2_sw_handler(struct intr_t *intr)
  * twice-->enable fifo intr.
  * there's delay between intr top and bottom half
  */
-static void intr5_sw_handler(struct intr_t *intr)
+static void intr5_sw_handler(struct intr_t *intr, void *intr_para)
 {
 	/* clear intr state asap */
 	intr->st_data = 0;
@@ -167,7 +166,7 @@ static void intr5_sw_handler(struct intr_t *intr)
 	HDMITX_INFO("%s INTR5_SW_TPI_IVCTX pfifo rst\n", __func__);
 }
 
-static void ddc_stall_req_handler(struct intr_t *intr)
+static void ddc_stall_req_handler(struct intr_t *intr, void *intr_para)
 {
 	/* clear intr state asap */
 	intr->st_data = 0;
@@ -187,9 +186,9 @@ void hdcp_enable_intrs(bool en)
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7 ||
 		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
 		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
-		if (hdev->tx_comm.hdcp_mode == 1) {
+		if (hdev->tx_comm.hdcptx_comm.hdcp_mode == 1) {
 			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.tpi_intr, en);
-		} else if (hdev->tx_comm.hdcp_mode == 2) {
+		} else if (hdev->tx_comm.hdcptx_comm.hdcp_mode == 2) {
 			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr0, en);
 			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr1, en);
 			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr2, en);
@@ -329,7 +328,7 @@ next:
 			val = pint->st_data;
 			/* clear st_data asap in callback function */
 			if (pint->callback)
-				pint->callback(pint);
+				pint->callback(pint, (void *)tx_comm);
 		} else {
 			pint->st_data = 0;
 		}

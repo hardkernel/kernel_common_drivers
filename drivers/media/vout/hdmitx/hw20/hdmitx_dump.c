@@ -1668,6 +1668,7 @@ static int hdmitx_dump_show(struct seq_file *s, void *v)
 {
 	dump_regs_show(s, v);
 	dump_hdmireg_show(s, v);
+	dump_hdmitiming_show(s, v);
 	dump_hdmipkt_show(s, v);
 	dump_hdmiver_show(s, v);
 	dump_audcts_show(s, v);

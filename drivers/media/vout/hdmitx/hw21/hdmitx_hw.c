@@ -915,15 +915,18 @@ static void amhdmitx_infoframe_init(struct hdmitx_common *tx_comm)
 static void hdmitx21_private_data_init(struct hdmitx21_dev *h21_dev)
 {
 	struct hdmitx_common *tx_comm = &h21_dev->tx_comm;
+	struct hdcptx21_core_priv *p_hdcp = (struct hdcptx21_core_priv *)tx_comm->hdcptx_priv;
 
-	h21_dev->tx_comm.def_stream_type = DEFAULT_STREAM_TYPE;
-
-	h21_dev->tx_comm.need_filter_hdcp_off = false;
+	if (p_hdcp) {
+		p_hdcp->def_stream_type = DEFAULT_STREAM_TYPE;
+		p_hdcp->not_restart_hdcp = false;
+		/* wait for upstream start hdcp auth 5S */
+		p_hdcp->up_hdcp_timeout_sec = 5;
+	}
+	h21_dev->tx_comm.hdcptx_comm.need_filter_hdcp_off = false;
 	/* default 6S */
-	h21_dev->tx_comm.filter_hdcp_off_period = 6;
-	h21_dev->tx_comm.not_restart_hdcp = false;
-	/* wait for upstream start hdcp auth 5S */
-	h21_dev->up_hdcp_timeout_sec = 5;
+	h21_dev->tx_comm.hdcptx_comm.filter_hdcp_off_period = 6;
+
 	/* ll mode init values */
 	h21_dev->tx_comm.ll_enabled_in_auto_mode = false;
 	h21_dev->tx_comm.ll_user_set_mode = HDMI_LL_MODE_AUTO;
@@ -932,30 +935,23 @@ static void hdmitx21_private_data_init(struct hdmitx21_dev *h21_dev)
 
 	h21_dev->dfm_type = -1;
 	h21_dev->csc_type = 1;
-	/* create misc device for communication with TEE: hdcp key load ready notify */
-	tee_comm_dev_reg(h21_dev);
 	/* enable analog frequency division by default on S7 and later chip */
 	if (h21_dev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_S7)
 		h21_dev->tx21_hw.clk_analog_path = 1;
-	hdmitx_init_gate_bit_mask(h21_dev);
 
-	/* hdcp related work scheduled in system workqueue */
-	INIT_DELAYED_WORK(&h21_dev->work_start_hdcp, hdmitx_start_hdcp_handler);
-	INIT_DELAYED_WORK(&h21_dev->work_up_hdcp_timeout, hdmitx_up_hdcp_timeout_handler);
-	/* for linux start hdcp */
-	INIT_DELAYED_WORK(&h21_dev->work_drm_start_hdcp, drm_hdmitx_start_hdcp_handler);
+	hdmitx_init_gate_bit_mask(h21_dev);
 	INIT_DELAYED_WORK(&tx_comm->work_internal_intr, hdmitx_top_intr_handler);
 	/* interrupt handler need to be scheduled in high priority */
 	h21_dev->hdmi_intr_wq = alloc_workqueue("hdmitx_intr_wq",
 		WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
 	/* s5 init status check task */
 	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
-		tx_comm->task = kthread_run(hdmitx21_status_check, (void *)h21_dev,
+		tx_comm->task_clk_check = kthread_run(hdmitx21_status_check, (void *)h21_dev,
 					"kthread_hdmist_check");
 
 	amhdmitx_infoframe_init(tx_comm);
 	/* hdcp init */
-	hdmitx21_hdcp_init(h21_dev);
+	hdmitx21_hdcp_init(tx_comm);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* init vrr */
 	hdmitx21_vrr_init(h21_dev);
@@ -2458,8 +2454,7 @@ static void hdmitx_uninit(struct hdmitx_hw_common *hw_comm)
 	struct hdmitx21_dev *h21_dev = container_of(hw_comm, struct hdmitx21_dev, hw_comm);
 	struct hdmitx_common *tx_comm = &h21_dev->tx_comm;
 
-	hdmitx21_hdcp_exit(h21_dev);
-	tee_comm_dev_unreg(h21_dev);
+	hdmitx21_hdcp_uninit(tx_comm);
 	destroy_workqueue(h21_dev->hdmi_intr_wq);
 
 	free_irq(h21_dev->tx_comm.irq_hpd, (void *)h21_dev);
@@ -2470,7 +2465,7 @@ static void hdmitx_uninit(struct hdmitx_hw_common *hw_comm)
 	hdmitx21_hpd_hw_op(HPD_UNMUX_HPD);
 
 	if (hw_comm->chip_data->chip_type == MESON_CPU_ID_S5)
-		kthread_stop(tx_comm->task);
+		kthread_stop(tx_comm->task_clk_check);
 }
 
 static void hw_reset_dbg(void)
@@ -2647,7 +2642,7 @@ static int hdmitx_validate_hdcp14_key(struct hdmitx21_dev *hdev)
 		hdcp14_gate_status =
 			hdmitx21_get_gate_status() & BIT_HDMITX_TOP_CLK_GATE_HDCP1X;
 		if (!hdcp14_gate_status)
-			hdmitx21_ctrl_hdcp_gate(1, true);
+			hdmitx21_ctrl_hdcp_gate(hdev->tx_comm.tx_hw->chip_data->chip_type, 1, true);
 	}
 	/* load key into HW for crc check */
 	ret = hdcptx1_load_key();
@@ -2657,7 +2652,8 @@ static int hdmitx_validate_hdcp14_key(struct hdmitx21_dev *hdev)
 	/* recover hdcp1.4 gate status */
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_S7) {
 		if (!hdcp14_gate_status)
-			hdmitx21_ctrl_hdcp_gate(1, false);
+			hdmitx21_ctrl_hdcp_gate(hdev->tx_comm.tx_hw->chip_data->chip_type,
+				1, false);
 	}
 	return ret;
 }
@@ -2665,14 +2661,19 @@ static int hdmitx_validate_hdcp14_key(struct hdmitx21_dev *hdev)
 /* action in suspend/plugout handler, should not be done when disable_module */
 static void hdmitx21_reset_hdcp_param(struct hdmitx_common *tx_comm)
 {
-	struct hdmitx21_dev *hdev = container_of(tx_comm, struct hdmitx21_dev, tx_comm);
-	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+	struct hdcptx21_core_priv *p_hdcp;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("NULL tx_comm instance!\n", __func__);
+		return;
+	}
+	p_hdcp = (struct hdcptx21_core_priv *)tx_comm->hdcptx_priv;
 
 	hdmitx21_rst_stream_type(p_hdcp);
 	p_hdcp->saved_upstream_type = 0;
 	p_hdcp->rx_update_flag = 0;
-	tx_comm->dw_hdcp22_cap = false;
-	tx_comm->is_passthrough_switch = 0;
+	p_hdcp->is_passthrough_switch = 0;
+	tx_comm->hdcptx_comm.dw_hdcp22_cap = false;
 	/* clear audio/video mute flag of stream type */
 	hdmitx21_video_mute_op(tx_comm->tx_hw, 1, VIDEO_MUTE_PATH_2);
 	hdmitx_audio_mute_op(tx_comm, 1, AUDIO_MUTE_PATH_3);
@@ -3169,7 +3170,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *hw_comm, u32 cmd,
 	case DDC_RESET_EDID:
 		break;
 	case DDC_EDID_READ_DATA:
-		hdmitx21_read_edid(hdev->tx_comm.EDID_buf);
+		hdmitx21_read_edid(hdev->tx_comm.edid_buf);
 		break;
 	case DDC_GLITCH_FILTER_RESET:
 		hdmitx21_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 6, 1);
@@ -3208,16 +3209,32 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *hw_comm, u32 cmd,
 		hdev->tx_comm.pre_tmds_clk_div40 = (argv == 1);
 		break;
 	case DDC_HDCP_SET_TOPO_INFO:
-		set_hdcp2_topo(!!argv);
+		set_hdcp2_topo(hdev->tx_comm.tx_hw->chip_data->chip_type, !!argv);
 		break;
 	case DDC_HDCP_GET_BKSV:
 		tmp_char = (u8 *)argv;
 		hdcptx1_ds_bksv_read(tmp_char, 5);
 		break;
 	case DDC_HDCP_14_LSTORE:
-		return get_hdcp1_lstore();
+		return get_hdcp1_lstore(&hdev->tx_comm);
 	case DDC_HDCP_22_LSTORE:
-		return get_hdcp2_lstore();
+		return get_hdcp2_lstore(&hdev->tx_comm);
+	case DDC_HDCP_22_PRIVATE_KEY_RDY:
+		/* no additional hdcp_tx22 need for hdmitx21, always treat it as ready */
+		return 1;
+	case DDC_GET_RX_HDCP22_VER:
+		return is_rx_hdcp2ver();
+	case DDC_HDCP_GET_AUTH:
+		if (hdev->tx_comm.hdcptx_comm.hdcp_mode == 1)
+			return (int)get_hdcp1_result();
+		else if (hdev->tx_comm.hdcptx_comm.hdcp_mode == 2)
+			return (int)get_hdcp2_result(hdev->tx_comm.tx_hw->chip_data->chip_type);
+		else
+			return 0;
+	case DDC_HDCP_GET_TOPO_INFO:
+		return (int)get_hdcp2_topo(hdev->tx_comm.tx_hw->chip_data->chip_type);
+	case DDC_REQ_HDCP_AUTH:
+		return hdcptx_reauth_request(hdev->tx_comm.hdcptx_priv, argv & 0xFF);
 	default:
 		break;
 	}
@@ -3729,7 +3746,7 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 {
 	struct hdmitx21_dev *hdev = container_of(tx_hw, struct hdmitx21_dev, hw_comm);
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+	struct hdcptx21_core_priv *p_hdcp = (struct hdcptx21_core_priv *)tx_comm->hdcptx_priv;
 
 	if ((cmd & CMD_MISC_OFFSET) != CMD_MISC_OFFSET) {
 		HDMITX_ERROR(HW "misc: w: invalid cmd 0x%x\n", cmd);
@@ -3835,7 +3852,7 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx21_reset_hdcp_param(tx_comm);
 		break;
 	case MISC_DISABLE_HDCP:
-		hdmitx21_disable_hdcp(hdev);
+		hdmitx21_disable_hdcp(p_hdcp);
 		break;
 	case MISC_PRE_ENABLE_MODE:
 		return hdmitx21_pre_enable_mode(tx_comm);
@@ -4107,7 +4124,7 @@ static int hdmi_move_hdr_pkt(bool flag)
 
 static void hdmitx_enable_null_pkt(struct hdmitx21_dev *hdev)
 {
-	u32 *edid_ptr = (u32 *)hdev->tx_comm.EDID_buf;
+	u32 *edid_ptr = (u32 *)hdev->tx_comm.edid_buf;
 	struct arm_smccc_res res;
 
 	arm_smccc_smc(HDCPTX_IOOPR, CHECK_SPEC_EDID, edid_ptr[2],
@@ -4314,7 +4331,7 @@ static void config_hdmi21_tx(struct hdmitx21_dev *hdev)
 	 * On Huawei TVs, HDR will cause a flickering screen,
 	 * and HDR PKT needs to be moved behind VSYNC on S7 or S7D
 	 */
-	if (hdmitx_find_hdr_pkt_delay_to_vsync(hdev->tx_comm.EDID_buf))
+	if (hdmitx_find_hdr_pkt_delay_to_vsync(hdev->tx_comm.edid_buf))
 		hdmi_move_hdr_pkt(true);
 	else
 		hdmi_move_hdr_pkt(false);
@@ -5515,7 +5532,7 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 	int ret;
 	unsigned long value = 0;
 	struct hdmitx21_dev *hdev = container_of(tx_comm, struct hdmitx21_dev, tx_comm);
-	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+	struct hdcptx21_core_priv *p_hdcp = (struct hdcptx21_core_priv *)tx_comm->hdcptx_priv;
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
@@ -5557,7 +5574,8 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 		HDMITX_INFO("aud_mute :%lu\n", value);
 	} else if (strncmp(tmpbuf, "hdcp_timeout", 12) == 0) {
 		ret = kstrtoul(tmpbuf + 12, 10, &value);
-		hdev->up_hdcp_timeout_sec = value;
+		if (p_hdcp)
+			p_hdcp->up_hdcp_timeout_sec = value;
 	} else if (strncmp(tmpbuf, "avmute_ms", 10) == 0) {
 		ret = kstrtoul(tmpbuf + 10, 10, &value);
 		avmute_ms = value;
@@ -5572,13 +5590,9 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 		ret = kstrtoul(tmpbuf + 15, 10, &value);
 		set_output_mute(!!value);
 		HDMITX_INFO("set VPP output mute :%d\n", !!value);
-	} else if (strncmp(tmpbuf, "hdcp_reauth", 11) == 0) {
-		ret = kstrtoul(tmpbuf + 11, 16, &value);
-		if (ret != 0)
-			return;
-		HDMITX_INFO("hdcp reauth: %lu\n", value);
-		hdmitx_reauth_request(value & 0xFF);
 	} else if (strncmp(tmpbuf, "propagate_stream_type", 21) == 0) {
+		if (!p_hdcp)
+			return;
 		if (p_hdcp->ds_repeater && p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
 			HDMITX_INFO("%d\n", p_hdcp->csm_message.streamid_type & 0xFF);
 		} else {
@@ -5586,6 +5600,8 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 				p_hdcp->ds_repeater, p_hdcp->hdcp_type);
 		}
 	} else if (strncmp(tmpbuf, "cont_smng_method", 16) == 0) {
+		if (!p_hdcp)
+			return;
 		/*
 		 * content stream management update method:
 		 * when upstream side received new content stream
@@ -5596,17 +5612,41 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 		 * message with new stream type to downstream
 		 * 1: init new re-auth with downstream
 		 */
-		ret = kstrtoul(tmpbuf + 16, 10, &value);
-		if (value == 0 || value == 1) {
+		if (isdigit(buf[16])) {
+			value = buf[16] - '0';
 			HDMITX_INFO("set cont_smng_method as %d\n", value);
 			p_hdcp->cont_smng_method = value;
-		} else {
-			HDMITX_INFO("current cont_smng_method: %d\n", p_hdcp->cont_smng_method);
+		}
+	}  else if (strncmp(buf, "def_stream_type", 15) == 0) {
+		if (!p_hdcp)
+			return;
+		if (isdigit(buf[15])) {
+			value = buf[15] - '0';
+			HDMITX_INFO("set def_stream_type as %d\n", value);
+			p_hdcp->def_stream_type = !!value;
+		}
+	} else if (strncmp(buf, "is_passthrough_switch", 21) == 0) {
+		if (!p_hdcp)
+			return;
+		if (isdigit(buf[21])) {
+			value = buf[21] - '0';
+			HDMITX_INFO("set is_passthrough_switch as %d\n", value);
+			p_hdcp->is_passthrough_switch = !!value;
+		}
+	} else if (strncmp(buf, "not_restart_hdcp", 16) == 0) {
+		if (!p_hdcp)
+			return;
+		if (isdigit(buf[16])) {
+			value = buf[16] - '0';
+			HDMITX_INFO("set not_restart_hdcp as %d\n", value);
+			p_hdcp->not_restart_hdcp = !!value;
 		}
 	} else if (strncmp(tmpbuf, "hdcp_delay", 10) == 0) {
+		if (!p_hdcp)
+			return;
 		ret = kstrtoul(tmpbuf + 10, 10, &value);
 		HDMITX_INFO("hdcp_delay :%d\n", value);
-		hdev->hdcp_debug_delay = value;
+		p_hdcp->hdcp_debug_delay = value;
 	} else if (strncmp(tmpbuf, "vrr_mode", 8) == 0) {
 		switch (hdev->vrr_mode) {
 		case T_VRR_GAME:
@@ -5696,7 +5736,9 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 		HDMITX_INFO("emp_verbose :%d\n", hdev->emp_verbose);
 	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
 		HDMITX_INFO("hdcp filtered result: hdcp22: %d topo: %d, hdcp14: %d\n",
-		get_hdcp2_result(), get_hdcp2_topo(), get_hdcp1_result());
+		get_hdcp2_result(tx_comm->tx_hw->chip_data->chip_type),
+		get_hdcp2_topo(tx_comm->tx_hw->chip_data->chip_type),
+		get_hdcp1_result());
 	}
 }
 
@@ -5772,7 +5814,7 @@ static int hdmitx21_pre_enable_mode(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx21_dev *hdev = container_of(tx_comm, struct hdmitx21_dev, tx_comm);
 	struct hdmi_format_para *para = &tx_comm->fmt_para;
-
+	struct hdcptx21_core_priv *p_hdcp = (struct hdcptx21_core_priv *)tx_comm->hdcptx_priv;
 #ifdef CONFIG_AMLOGIC_DSC
 	struct dsc_notifier_data_s dsc_notifier_data;
 	int ret = -1;
@@ -5785,8 +5827,8 @@ static int hdmitx21_pre_enable_mode(struct hdmitx_common *tx_comm)
 	 * if mode changed as it's different with uboot mode,
 	 * hdcp is not stopped firstly, and may hdcp fail
 	 */
-	if (!hdcp_need_control_by_upstream(&hdev->hw_comm))
-		hdmitx21_disable_hdcp(hdev);
+	if (!hdcptx_need_ctrl_by_upstream(tx_comm->tx_hw->chip_data->chip_type))
+		hdmitx21_disable_hdcp(p_hdcp);
 
 	hdev->frl_rate = FRL_NONE;
 	hdev->dsc_en = 0;
@@ -5909,6 +5951,7 @@ static int hdmitx21_enable_mode(struct hdmitx_common *tx_comm)
 static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx21_dev *hdev = container_of(tx_comm, struct hdmitx21_dev, tx_comm);
+	struct hdcptx21_core_priv *p_hdcp = (struct hdcptx21_core_priv *)tx_comm->hdcptx_priv;
 	struct vinfo_s *vinfo = NULL;
 #ifdef CONFIG_AMLOGIC_DSC
 	struct hdmi_format_para *para = &tx_comm->fmt_para;
@@ -5918,9 +5961,9 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 	 * wait for TV detect signal stable,
 	 * otherwise hdcp may easily auth fail
 	 */
-	if (hdev->tx_comm.not_restart_hdcp) {
+	if (p_hdcp && p_hdcp->not_restart_hdcp) {
 		/* self clear */
-		hdev->tx_comm.not_restart_hdcp = 0;
+		p_hdcp->not_restart_hdcp = false;
 		HDMITX_INFO("special mode switch, not start hdcp\n");
 	} else {
 		/*
@@ -5928,14 +5971,14 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 		 * hdcp is started after training passed
 		 */
 		if (hdev->frl_rate == FRL_NONE) {
-			if (get_hdcp2_lstore())
-				tx_comm->dw_hdcp22_cap = is_rx_hdcp2ver();
+			if (get_hdcp2_lstore(tx_comm))
+				tx_comm->hdcptx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
 			/*
 			 * 0: for hdmitx driver control hdcp
 			 * 1/2: drm driver or app control hdcp
 			 */
-			if (tx_comm->hdcp_ctl_lvl == 0)
-				schedule_delayed_work(&hdev->work_start_hdcp, HZ / 4);
+			if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0 && p_hdcp)
+				schedule_delayed_work(&p_hdcp->work_tx_start_hdcp, HZ / 4);
 		}
 	}
 

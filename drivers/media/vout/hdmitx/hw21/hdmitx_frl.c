@@ -368,6 +368,7 @@ static void tx_train_fsm(struct work_struct *work)
 	struct frl_train_t *p = container_of(frl_work,
 		struct frl_train_t, timer_frl_flt);
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
+	struct hdcptx21_core_priv *p_hdcp = (struct hdcptx21_core_priv *)hdev->tx_comm.hdcptx_priv;
 
 	if (p->last_state != p->flt_tx_state) {
 		HDMITX_INFO("FRL: %s to %s\n", flt_tx_string[p->last_state],
@@ -546,7 +547,7 @@ tx_lts_4:
 			HDMITX_INFO("LTS:L cost %ld ms\n", (g_flt_1_e - g_flt_1 + 3) / 4);
 			frl_tx_callback(FRL_EVENT_LEGACY);
 			/* disable hdcp if fallback to legacy mode */
-			hdmitx21_disable_hdcp(hdev);
+			hdmitx21_disable_hdcp(p_hdcp);
 			p->flt_timeout = 0;
 		}
 		// if (p->ds_frl_support && p->req_frl_mode)
@@ -617,15 +618,15 @@ tx_lts_p3:
 		}
 		/* start hdcp after training pass */
 		/* if no hdcp2.2 key on board, then skip */
-		if (get_hdcp2_lstore() &&
-			hdmitx21_get_hdcp_mode() == 0) {
+		if (get_hdcp2_lstore(&hdev->tx_comm) &&
+			hdmitx21_get_hdcp_mode(&hdev->tx_comm) == 0) {
 			/* get downstream hdcp2.2 version in certain place,
 			 * as ddc stall request in poll_update_flags() may
 			 * affect hdcp version read.
 			 */
-			if (!hdev->tx_comm.dw_hdcp22_cap)
-				hdev->tx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
-			schedule_delayed_work(&hdev->work_start_hdcp, HZ / 4);
+			if (!hdev->tx_comm.hdcptx_comm.dw_hdcp22_cap)
+				hdev->tx_comm.hdcptx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
+			schedule_delayed_work(&p_hdcp->work_tx_start_hdcp, HZ / 4);
 		}
 		break;
 	}

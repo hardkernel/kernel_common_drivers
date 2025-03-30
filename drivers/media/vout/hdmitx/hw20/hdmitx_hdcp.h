@@ -7,42 +7,25 @@
 #define __HDMI_TX_HDCP_H
 #include <linux/miscdevice.h>
 #include <drm/amlogic/meson_connector_dev.h>
-/*
- * hdmi_tx_hdcp.c
- * version 1.0
- */
 
-/* Notice: the HDCP key setting has been moved to uboot
- * On MBX project, it is too late for HDCP get from
- * other devices
- */
-int hdcp_ksv_valid(unsigned char *dat);
-void hdmitx20_hdcp_exit(struct hdmitx20_dev *hdev);
-/* for hdcp init */
-int hdmitx20_hdcp_init(struct hdmitx20_dev *hdev);
-
-/* drm hdmitx hdcp use */
+/* linux/drm hdcp usage only start */
 
 /* ioctl numbers */
 enum {
 	TEE_HDCP_START,
+	/*
+	 * TEE_HDCP_END not used, but should not change position
+	 * as the later ioctl commands are used
+	 */
 	TEE_HDCP_END,
 	HDCP_DAEMON_LOAD_END,
 	HDCP_DAEMON_REPORT,
-	HDCP_EXE_VER_SET,
-	HDCP_TX_VER_REPORT,
-	HDCP_DOWNSTR_VER_REPORT,
-	HDCP_EXE_VER_REPORT
 };
 
 #define TEE_HDCP_IOC_START    _IOW('P', TEE_HDCP_START, int)
 #define TEE_HDCP_IOC_END    _IOW('P', TEE_HDCP_END, int)
 #define HDCP_DAEMON_IOC_LOAD_END    _IOW('P', HDCP_DAEMON_LOAD_END, int)
 #define HDCP_DAEMON_IOC_REPORT    _IOR('P', HDCP_DAEMON_REPORT, int)
-#define HDCP_EXE_VER_IOC_SET    _IOW('P', HDCP_EXE_VER_SET, int)
-#define HDCP_TX_VER_IOC_REPORT    _IOR('P', HDCP_TX_VER_REPORT, int)
-#define HDCP_DOWNSTR_VER_IOC_REPORT    _IOR('P', HDCP_DOWNSTR_VER_REPORT, int)
-#define HDCP_EXE_VER_IOC_REPORT    _IOR('P', HDCP_EXE_VER_REPORT, int)
 
 enum {
 	HDCP_TX22_DISCONNECT = 0,
@@ -61,52 +44,39 @@ enum {
 #define TIMER_CHECK	(1 * HZ / 2)
 #define TIMER_CHK_CNT 60
 
-struct meson_hdmitx_hdcp {
-	struct miscdevice hdcp_comm_device;
-	wait_queue_head_t hdcp_comm_queue;
-	/* bit0:hdcp14 bit 1:hdcp22 */
-	unsigned int hdcp_tx_type;
-	/* bit0:hdcp14 bit 1:hdcp22 */
-	unsigned int hdcp_downstream_type;
+/* only for linux/drm */
+struct hdcptx20_core_priv {
 	/* 0: null hdcp 1: hdcp14 2: hdcp22 */
 	unsigned int hdcp_execute_type;
-	/* 0: null hdcp 1: hdcp14 2: hdcp22 */
-	unsigned int hdcp_debug_type;
+	bool hdcp_en;
 
-	unsigned int hdcp_en;
-	int hdcp_poll_report;
-	int hdcp_auth_result;
-	int hdcp_fail_cnt;
-	int hdcp_report;
+	/* for hdcp_tx22 daemon load check */
 	int hdcp22_daemon_state;
-
-	struct connector_hdcp_cb drm_hdcp_cb;
-	struct timer_list daemon_load_timer;
 	unsigned int key_chk_cnt;
+	struct timer_list daemon_load_timer;
 	struct delayed_work notify_work;
+
+	/* for poll status by hdcp_tx22 daemon */
+	int hdcp_poll_report;
+	int hdcp_report;
+	wait_queue_head_t hdcp_comm_queue;
+
+	struct hdmitx_common *bind_instance;
 };
 
-void meson_hdcp_init(void);
-void meson_hdcp_exit(void);
+bool is_hdcp22_stop_state(struct hdmitx_common *tx_comm);
+bool drm_hdcp_tx22_daemon_ready(struct hdmitx_common *tx_comm);
+unsigned int hdcptx_get_key_store(struct hdmitx_common *tx_comm);
+unsigned int hdcptx_get_rx_version(struct hdmitx_common *tx_comm);
+void tee_comm_dev_reg(struct miscdevice *hdcp_misc_dev, const struct file_operations *fops);
+void tee_comm_dev_unreg(struct miscdevice *hdcp_misc_dev);
 
-void meson_hdcp_enable(int hdcp_type);
-void meson_hdcp_disable(void);
-void meson_hdcp_disconnect(void);
+/* linux/drm hdcp usage only end */
 
-void meson_hdcp_reg_result_notify(struct connector_hdcp_cb *cb);
-
-bool hdcp_tx22_daemon_ready(void);
-
-unsigned int meson_hdcp_get_rx_cap(void);
-unsigned int meson_hdcp_get_tx_cap(void);
-bool is_hdcp22_stop_state(void);
-unsigned char drm_hdmitx_get_hdcp_topo_info(void);
-
-void drm_hdmitx_hdcp22_init(void);
-
-void drm_hdmitx_enable_hdcp_mode(unsigned int content_type);
-void drm_hdmitx_disable_hdcp_mode(unsigned int content_type);
-
+int hdcp_ksv_valid(unsigned char *dat);
+int hdmitx20_hdcp_init(struct hdmitx20_dev *hdev);
+void hdmitx20_hdcp_uninit(struct hdmitx20_dev *hdev);
+int hdmitx_hdcp_stat_monitor_task(void *data);
 int esm_init(void);
 void esm_exit(void);
 

@@ -275,7 +275,7 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 
 	seq_puts(s, "******hdcp******\n");
 	seq_puts(s, "hdcp mode:");
-	switch (tx_comm->hdcp_mode) {
+	switch (tx_comm->hdcptx_comm.hdcp_mode) {
 	case 1:
 		seq_puts(s, "14");
 		break;
@@ -286,7 +286,7 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 		seq_puts(s, "off");
 		break;
 	}
-	if (tx_comm->hdcp_mode > 0) {
+	if (tx_comm->hdcptx_comm.hdcp_mode > 0) {
 		hdcp_ret = hdmitx_hw_cntl_ddc(hw_comm,
 						      DDC_HDCP_GET_AUTH, 0);
 		if (hdcp_ret == 1)
@@ -296,20 +296,13 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	}
 
 	seq_puts(s, "hdcp_lstore:");
-	/* if current TX is RP-TX, then return lstore as 00 */
-	/* hdcp_lstore is used under only TX */
-	hdcp_lstore = hw_comm->lstore;
+	hdcp_lstore = tx_comm->hdcptx_comm.hdcp_lstore;
 	if (hdcp_lstore < 0x10) {
 		hdcp_lstore = 0;
 		if (hdmitx_hw_cntl_ddc(hw_comm, DDC_HDCP_14_LSTORE, 0))
 			hdcp_lstore |= BIT(0);
-		else
-			hdmitx_current_status(tx_comm, HDMITX_HDCP_AUTH_NO_14_KEYS_ERROR);
-		if (hdmitx_hw_cntl_ddc(hw_comm,
-			DDC_HDCP_22_LSTORE, 0))
+		if (hdmitx_hw_cntl_ddc(hw_comm,	DDC_HDCP_22_LSTORE, 0))
 			hdcp_lstore |= BIT(1);
-		else
-			hdmitx_current_status(tx_comm, HDMITX_HDCP_AUTH_NO_22_KEYS_ERROR);
 	}
 	if ((hdcp_lstore & 0x3) == 0x3) {
 		seq_puts(s, "14+22\n");
@@ -331,7 +324,7 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	for (i = 0; i < 5; i++)
 		seq_printf(s, "%02x", bksv_buf[i]);
 
-	seq_printf(s, "hdcp_ctl_lvl:%d\n", tx_comm->hdcp_ctl_lvl);
+	seq_printf(s, "hdcp_ctl_lvl:%d\n", tx_comm->hdcptx_comm.hdcp_ctl_lvl);
 
 	seq_puts(s, "******scdc******\n");
 	seq_printf(s, "div40:%d\n", tx_comm->pre_tmds_clk_div40);
@@ -462,7 +455,7 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 
 	seq_puts(s, "\n******rawedid******\n");
 
-	block_num = hdmitx_edid_valid_block_num(tx_comm->EDID_buf);
+	block_num = hdmitx_edid_valid_block_num(tx_comm->edid_buf);
 	if (block_num <= 8)
 		num = block_num * 128;
 	else
@@ -470,13 +463,13 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 
 	for (i = 0; i < num; i++)
 		seq_printf(s, "%02x",
-			tx_comm->EDID_buf[i]);
+			tx_comm->edid_buf[i]);
 
 	seq_puts(s, "\n");
 
 	seq_puts(s, "\nedid_parsing:");
 	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check,
-		tx_comm->EDID_buf))
+		tx_comm->edid_buf))
 		seq_puts(s, "ok\n");
 	else
 		seq_puts(s, "ng\n");

@@ -43,12 +43,9 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 
-/*
- * hdmi_tx_hdcp.c
- * version 1.1
- */
-
-static int hdmi_authenticated;
+static void drm_hdmitx_disable_hdcp_mode(unsigned int content_type);
+static void drm_hdmitx_enable_hdcp_mode(unsigned int content_type);
+static void drm_tx_hdcp22_init(struct hdmitx_common *tx_comm);
 
 static DEFINE_MUTEX(mutex);
 /* obs_cur, record current obs */
@@ -58,26 +55,6 @@ static struct hdcp_obs_val obs_last;
 static int write_buff(const char *fmt, ...);
 
 static struct hdcplog_buf hdcplog_buf;
-
-unsigned int hdcp_get_downstream_ver(struct hdmitx20_dev *hdev)
-{
-	unsigned int ret = 14;
-
-	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
-	if (hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_22_LSTORE, 0) == 0)
-		if (hdcp_rd_hdcp22_ver())
-			ret = 22;
-		else
-			ret = 14;
-	else
-		ret = 14;
-	return ret;
-}
-
-/* Notice: the HDCP key setting has been moved to uboot
- * On MBX project, it is too late for HDCP get from
- * other devices
- */
 
 /* verify ksv, 20 ones and 20 zeroes */
 int hdcp_ksv_valid(unsigned char *dat)
@@ -93,9 +70,9 @@ int hdcp_ksv_valid(unsigned char *dat)
 	return one_num == 20;
 }
 
-static int save_obs_val(struct hdmitx20_dev *hdev, struct hdcp_obs_val *obs)
+static int save_obs_val(struct hdmitx_hw_common *tx_hw, struct hdcp_obs_val *obs)
 {
-	return hdmitx_hw_cntl_ddc(hdev->tx20_hw.base,
+	return hdmitx_hw_cntl_ddc(tx_hw,
 		DDC_HDCP14_SAVE_OBS, (unsigned long)obs);
 }
 
@@ -159,14 +136,14 @@ static void _hdcp_do_work(struct work_struct *work)
 		container_of(work, struct hdmitx20_dev, work_do_hdcp.work);
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
-	switch (tx_comm->hdcp_mode) {
+	switch (tx_comm->hdcptx_comm.hdcp_mode) {
 	case 2:
 		/* hdev->HWOp.CntlMisc(hdev, MISC_HDCP_CLKDIS, 1); */
 		/* schedule_delayed_work(&hdev->work_do_hdcp, HZ / 50); */
 		break;
 	case 1:
 		mutex_lock(&mutex);
-		ret = save_obs_val(hdev, &obs_cur);
+		ret = save_obs_val(tx_comm->tx_hw, &obs_cur);
 		/* ret is NZ, then update obs_last */
 		if (ret) {
 			pr_obs(&obs_last, &obs_cur, ret);
@@ -193,41 +170,6 @@ void hdmitx_hdcp_do_work(struct hdmitx_common *tx_comm)
 		container_of(tx_comm, struct hdmitx20_dev, tx_comm);
 
 	_hdcp_do_work(&hdev->work_do_hdcp.work);
-}
-
-void hdmitx_hdcp_status(struct hdmitx20_dev *hdev, int hdmi_authenticated)
-{
-	hdmitx_set_uevent(&hdev->tx_comm, HDMITX_HDCP_EVENT, hdmi_authenticated);
-	if (hdev->drm_hdcp_cb.callback)
-		hdev->drm_hdcp_cb.callback(hdev->drm_hdcp_cb.data,
-			hdmi_authenticated);
-}
-
-static int hdmitx_hdcp_task(void *data)
-{
-	static int auth_trigger;
-	struct hdmitx20_dev *hdev = (struct hdmitx20_dev *)data;
-
-	INIT_DELAYED_WORK(&hdev->work_do_hdcp, _hdcp_do_work);
-	while (hdev->tx_comm.hpd_event != 0xff) {
-		hdmi_authenticated = hdmitx_hw_cntl_ddc(&hdev->hw_comm,
-			DDC_HDCP_GET_AUTH, 0);
-		hdmitx_hdcp_status(hdev, hdmi_authenticated);
-		if (auth_trigger != hdmi_authenticated) {
-			auth_trigger = hdmi_authenticated;
-			HDMITX_INFO("hdcptx: %d  auth: %d\n", hdev->tx_comm.hdcp_mode,
-			auth_trigger);
-			// Only collect the metric when hdmi is plugged in.
-			if (hdev->tx_comm.hpd_state == 1) {
-				hdmitx_current_status(&hdev->tx_comm, auth_trigger
-					? HDMITX_HDCP_AUTH_SUCCESS
-					: HDMITX_HDCP_AUTH_FAILURE);
-			}
-		}
-		msleep_interruptible(200);
-	}
-
-	return 0;
 }
 
 static int read_buff(char *p)
@@ -323,7 +265,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 	hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_MUX_INIT, 1);
 	hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_GET_AUTH, 0);
 	if (strncmp(buf, "0", 1) == 0) {
-		tx_comm->hdcp_mode = 0;
+		tx_comm->hdcptx_comm.hdcp_mode = 0;
 		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
 			DDC_HDCP_OP, HDCP14_OFF);
 		hdmitx_hdcp_do_work(tx_comm);
@@ -332,7 +274,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 	if (strncmp(buf, "1", 1) == 0) {
 		if (vic == HDMI_17_720x576p50_4x3 || vic == HDMI_18_720x576p50_16x9)
 			usleep_range(500000, 500010);
-		tx_comm->hdcp_mode = 1;
+		tx_comm->hdcptx_comm.hdcp_mode = 1;
 		hdmitx_hdcp_do_work(tx_comm);
 		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
 			DDC_HDCP_OP, HDCP14_ON);
@@ -344,7 +286,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 			mutex_unlock(&tx_comm->hdmimode_mutex);
 			return;
 		}
-		tx_comm->hdcp_mode = 2;
+		tx_comm->hdcptx_comm.hdcp_mode = 2;
 		hdmitx_hdcp_do_work(tx_comm);
 		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
 			DDC_HDCP_MUX_INIT, 2);
@@ -356,7 +298,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 static int hdmitx20_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int len)
 {
 	int pos = 0;
-	u32 ver = meson_hdcp_get_rx_cap();
+	u32 ver = hdcptx_get_rx_version(tx_comm);
 
 	if (ver == 0x3)
 		pos += snprintf(buf + pos, len - pos, "22\n\r");
@@ -364,94 +306,30 @@ static int hdmitx20_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int l
 	return pos;
 }
 
-/***** Move the code in meson_hdcp.c here *****/
-static struct meson_hdmitx_hdcp meson_hdcp;
-
-static unsigned int get_hdcp_downstream_ver(void)
+/* for linux/drm start */
+static void drm_hdmitx_hdcp_disable(struct hdmitx_common *tx_comm)
 {
-	unsigned int hdcp_downstream_type = meson_hdcp_get_rx_cap();
+	struct hdcptx_common *hdcptx_comm;
+	struct hdcptx20_core_priv *p_hdcp;
 
-	HDMITX_INFO("downstream support hdcp14: %d\n",
-		 hdcp_downstream_type & 0x1);
-	HDMITX_INFO("downstream support hdcp22: %d\n",
-		 (hdcp_downstream_type & 0x2) >> 1);
-
-	return hdcp_downstream_type;
-}
-
-static unsigned int meson_hdcp_get_tx_key_version(void)
-{
-	struct hdmitx20_dev *hdev = get_hdmitx20_device();
-
-	if (!hdev || hdev->tx_comm.hdmi_init != HDMITX20)
-		return 0;
-
-	if (hdev->hw_comm.lstore < 0x10) {
-		hdev->hw_comm.lstore = 0;
-		if (hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_14_LSTORE, 0))
-			hdev->hw_comm.lstore += 1;
-		if (hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_22_LSTORE, 0))
-			hdev->hw_comm.lstore += 2;
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return;
+	}
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
+		return;
+	if (!tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
+		return;
 	}
 
-	HDMITX_INFO("hdmitx support hdcp14: %d, hdcp22: %d\n",
-		hdev->hw_comm.lstore & 0x1, (hdev->hw_comm.lstore & 0x2) >> 1);
-	return hdev->hw_comm.lstore & 0x3;
-}
+	hdcptx_comm = &tx_comm->hdcptx_comm;
+	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
 
-int meson_hdcp_get_valid_type(int request_type_mask)
-{
-	int type;
-	unsigned int hdcp_tx_type = meson_hdcp_get_tx_cap();
-
-	HDMITX_INFO("%s usr_type: %d, key_store: %d\n",
-		 __func__, request_type_mask, hdcp_tx_type);
-	if (hdcp_tx_type)
-		meson_hdcp.hdcp_downstream_type = get_hdcp_downstream_ver();
-	switch (hdcp_tx_type & 0x3) {
-	case 0x3:
-		if ((meson_hdcp.hdcp_downstream_type & 0x2) &&
-			(request_type_mask & 0x2))
-			type = HDCP_MODE22;
-		else if ((meson_hdcp.hdcp_downstream_type & 0x1) &&
-			 (request_type_mask & 0x1))
-			type = HDCP_MODE14;
-		else
-			type = HDCP_NULL;
-		break;
-	case 0x2:
-		if ((meson_hdcp.hdcp_downstream_type & 0x2) &&
-			(request_type_mask & 0x2))
-			type = HDCP_MODE22;
-		else
-			type = HDCP_NULL;
-		break;
-	case 0x1:
-		if ((meson_hdcp.hdcp_downstream_type & 0x1) &&
-			(request_type_mask & 0x1))
-			type = HDCP_MODE14;
-		else
-			type = HDCP_NULL;
-		break;
-	default:
-		type = HDCP_NULL;
-		HDMITX_INFO("[%s]: TX no hdcp key\n", __func__);
-		break;
-	}
-	return type;
-}
-
-static int am_get_hdcp_exe_type(void)
-{
-	return meson_hdcp_get_valid_type(meson_hdcp.hdcp_debug_type);
-}
-
-void meson_hdcp_disable(void)
-{
-	if (!meson_hdcp.hdcp_en)
+	if (!p_hdcp->hdcp_en)
 		return;
 
-	HDMITX_INFO("[%s]: %d\n", __func__, meson_hdcp.hdcp_execute_type);
+	HDMITX_INFO("[%s]: %d\n", __func__, p_hdcp->hdcp_execute_type);
 	/*
 	 * when switch mode under hdcp1.4, should not
 	 * trigger hdcp_tx22 daemon to change status.
@@ -459,232 +337,229 @@ void meson_hdcp_disable(void)
 	 * enter polling(driver hdcp2.2 start) per 5ms
 	 * which cause high cpu CPU utilization
 	 */
-	if (meson_hdcp.hdcp_execute_type == HDCP_MODE22) {
-		if (meson_hdcp.hdcp_report == HDCP_TX22_START) {
+	if (p_hdcp->hdcp_execute_type == HDCP_MODE22) {
+		if (p_hdcp->hdcp_report == HDCP_TX22_START) {
 			/* notify hdcp_tx22 to stop hdcp22 */
-			meson_hdcp.hdcp_report = HDCP_TX22_STOP;
-			wake_up(&meson_hdcp.hdcp_comm_queue);
+			p_hdcp->hdcp_report = HDCP_TX22_STOP;
+			wake_up(&p_hdcp->hdcp_comm_queue);
 			/* wait for hdcp_tx22 stop hdcp22 done */
 			msleep_interruptible(200);
 		}
 		drm_hdmitx_disable_hdcp_mode(HDCP_MODE22);
 		/* notify hdcp_tx22 to enter hdcp22 init state(DISCONNECT) */
-		meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
-		wake_up(&meson_hdcp.hdcp_comm_queue);
-	} else if (meson_hdcp.hdcp_execute_type == HDCP_MODE14) {
+		p_hdcp->hdcp_report = HDCP_TX22_DISCONNECT;
+		wake_up(&p_hdcp->hdcp_comm_queue);
+	} else if (p_hdcp->hdcp_execute_type == HDCP_MODE14) {
 		drm_hdmitx_disable_hdcp_mode(HDCP_MODE14);
 	}
-	meson_hdcp.hdcp_execute_type = HDCP_NULL;
-	meson_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
-	meson_hdcp.hdcp_en = 0;
-	meson_hdcp.hdcp_fail_cnt = 0;
+	p_hdcp->hdcp_execute_type = HDCP_NULL;
+	p_hdcp->hdcp_en = false;
+	hdcptx_comm->hdcp_auth_result = HDCP_AUTH_UNKNOWN;
+	hdcptx_comm->hdcp_fail_cnt = 0;
 }
 
-bool is_hdcp22_stop_state(void)
+/*
+ * currently for linux hdcp_tx22 daemon only,
+ * note that android hdcp_tx22 will also read it
+ */
+bool is_hdcp22_stop_state(struct hdmitx_common *tx_comm)
 {
-	return meson_hdcp.hdcp_report == HDCP_TX22_STOP;
-}
+	struct hdcptx20_core_priv *p_hdcp;
 
-void meson_hdcp_disconnect(void)
-{
-	/* if (meson_hdcp.hdcp_execute_type == HDCP_MODE22) */
-		/* drm_hdmitx_disable_hdcp_mode(HDCP_MODE22); */
-	/* else if (meson_hdcp.hdcp_execute_type  == HDCP_MODE14) */
-		/* drm_hdmitx_disable_hdcp_mode(HDCP_MODE14); */
-	meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
-	meson_hdcp.hdcp_downstream_type = 0;
-	/*
-	 * TODO: for suspend/resume, need to stop/start hdcp22
-	 * need to keep exe type
-	 */
-	meson_hdcp.hdcp_execute_type = HDCP_NULL;
-	meson_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
-	meson_hdcp.hdcp_en = 0;
-	meson_hdcp.hdcp_fail_cnt = 0;
-	HDMITX_INFO("[%s]: HDCP_TX22_DISCONNECT\n", __func__);
-	wake_up(&meson_hdcp.hdcp_comm_queue);
-}
-
-static void meson_hdmitx_hdcp_cb(void *data, int auth)
-{
-	struct meson_hdmitx_hdcp *hdcp_data = (struct meson_hdmitx_hdcp *)data;
-	int hdcp_auth_result = HDCP_AUTH_UNKNOWN;
-
-	if (hdcp_data->hdcp_en &&
-		hdcp_data->hdcp_auth_result == HDCP_AUTH_UNKNOWN) {
-		if (auth == 1) {
-			hdcp_auth_result = HDCP_AUTH_OK;
-		} else if (auth == 0) {
-			hdcp_data->hdcp_fail_cnt++;
-
-			if (hdcp_data->hdcp_fail_cnt > HDCP_AUTH_TIMEOUT)
-				hdcp_auth_result = HDCP_AUTH_FAIL;
-		}
-
-		HDMITX_INFO("HDCP cb %d vs %d\n", hdcp_data->hdcp_auth_result, auth);
-
-		if (hdcp_auth_result != hdcp_data->hdcp_auth_result) {
-			hdcp_data->hdcp_auth_result = hdcp_auth_result;
-			if (meson_hdcp.drm_hdcp_cb.hdcp_notify)
-				meson_hdcp.drm_hdcp_cb.hdcp_notify
-					(meson_hdcp.drm_hdcp_cb.data,
-					hdcp_data->hdcp_execute_type,
-					hdcp_data->hdcp_auth_result);
-		}
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return false;
 	}
+	/* add logic if need to be used in android in the future */
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
+		return false;
+	if (!tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
+		return false;
+	}
+	p_hdcp = tx_comm->hdcptx_priv;
+
+	return p_hdcp->hdcp_report == HDCP_TX22_STOP;
 }
 
-void meson_hdcp_reg_result_notify(struct connector_hdcp_cb *cb)
+static void drm_hdmitx_hdcp_disconnect(struct hdmitx_common *tx_comm)
 {
-	if (meson_hdcp.drm_hdcp_cb.hdcp_notify)
-		HDMITX_INFO("Register hdcp notify again!?\n");
+	struct hdcptx_common *hdcptx_comm;
+	struct hdcptx20_core_priv *p_hdcp;
 
-	meson_hdcp.drm_hdcp_cb.hdcp_notify = cb->hdcp_notify;
-	meson_hdcp.drm_hdcp_cb.data = cb->data;
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return;
+	}
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
+		return;
+	if (!tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
+		return;
+	}
+	hdcptx_comm = &tx_comm->hdcptx_comm;
+	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
+
+	p_hdcp->hdcp_report = HDCP_TX22_DISCONNECT;
+	p_hdcp->hdcp_execute_type = HDCP_NULL;
+	p_hdcp->hdcp_en = false;
+	hdcptx_comm->hdcp_auth_result = HDCP_AUTH_UNKNOWN;
+	hdcptx_comm->hdcp_fail_cnt = 0;
+	HDMITX_INFO("[%s]: HDCP_TX22_DISCONNECT\n", __func__);
+	wake_up(&p_hdcp->hdcp_comm_queue);
 }
 
-void meson_hdcp_enable(int hdcp_type)
+static void drm_hdmitx_hdcp_enable(struct hdmitx_common *tx_comm, int hdcp_type)
 {
+	struct hdcptx_common *hdcptx_comm;
+	struct hdcptx20_core_priv *p_hdcp;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return;
+	}
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
+		return;
+	if (!tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
+		return;
+	}
+	hdcptx_comm = &tx_comm->hdcptx_comm;
+	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
+
 	if (hdcp_type == HDCP_NULL)
 		return;
 
 	/* hdcp enabled, but may not start auth as key not ready */
-	meson_hdcp.hdcp_en = 1;
-	meson_hdcp.hdcp_fail_cnt = 0;
-	meson_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
-	meson_hdcp.hdcp_execute_type = hdcp_type;
+	p_hdcp->hdcp_en = true;
+	p_hdcp->hdcp_execute_type = hdcp_type;
+	hdcptx_comm->hdcp_fail_cnt = 0;
+	hdcptx_comm->hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 
-	if (meson_hdcp.hdcp_execute_type == HDCP_MODE22) {
-		if (meson_hdcp.hdcp22_daemon_state != HDCP22_DAEMON_DONE) {
+	if (p_hdcp->hdcp_execute_type == HDCP_MODE22) {
+		if (p_hdcp->hdcp22_daemon_state != HDCP22_DAEMON_DONE) {
 			HDMITX_INFO("[%s]: hdcp_tx22 not ready, delay hdcp auth\n", __func__);
 			return;
 		}
 		drm_hdmitx_enable_hdcp_mode(2);
-		meson_hdcp.hdcp_report = HDCP_TX22_START;
+		p_hdcp->hdcp_report = HDCP_TX22_START;
 		msleep(50);
-		wake_up(&meson_hdcp.hdcp_comm_queue);
-	} else if (meson_hdcp.hdcp_execute_type == HDCP_MODE14) {
+		wake_up(&p_hdcp->hdcp_comm_queue);
+	} else if (p_hdcp->hdcp_execute_type == HDCP_MODE14) {
 		drm_hdmitx_enable_hdcp_mode(1);
 	}
-	HDMITX_INFO("[%s]: report=%d, use_type=%u, execute=%u\n",
-		 __func__, meson_hdcp.hdcp_report,
-		 meson_hdcp.hdcp_debug_type, meson_hdcp.hdcp_execute_type);
+	HDMITX_INFO("[%s]: report=%d, execute=%u\n",
+		 __func__, p_hdcp->hdcp_report, p_hdcp->hdcp_execute_type);
 }
 
 static long hdcp_comm_ioctl(struct file *file,
 	unsigned int cmd,
 	unsigned long arg)
 {
-	int rtn_val;
+	int ret;
 	unsigned int out_size;
-	int hdcp_type = HDCP_NULL;
+	struct hdcptx_common *hdcptx_comm = file->private_data;
+	struct hdmitx_common *tx_comm;
+	struct hdcptx20_core_priv *p_hdcp;
+
+	if (!hdcptx_comm) {
+		HDMITX_ERROR("%s NULL hdcptx_comm instance\n", __func__);
+		return -EINVAL;
+	}
+	tx_comm = container_of(hdcptx_comm, struct hdmitx_common, hdcptx_comm);
+	if (!tx_comm || !tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL tx_comm or NULL hdcp_private instance\n", __func__);
+		return -EINVAL;
+	}
+	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
 
 	switch (cmd) {
 	case TEE_HDCP_IOC_START:
 		/* notify by TEE, hdcp key ready, echo 2 > hdcp_mode */
-		rtn_val = 0;
-		meson_hdcp.hdcp_tx_type = meson_hdcp_get_tx_key_version();
-		if (meson_hdcp.hdcp_tx_type & 0x2) {
+		ret = 0;
+		if (hdcptx_get_key_store(tx_comm) & 0x2) {
 			/*
 			 * when bootup, if hdcp22 init after hdcp14 auth,
 			 * hdcp path will switch to hdcp22. need to delay
 			 * hdcp auth to cover this issue.
 			 */
-			drm_hdmitx_hdcp22_init();
+			drm_tx_hdcp22_init(tx_comm);
 		}
 		HDMITX_INFO("hdcp key load ready\n");
-		break;
-	case TEE_HDCP_IOC_END:
-		rtn_val = 0;
 		break;
 	case HDCP_DAEMON_IOC_LOAD_END:
 		/* hdcp_tx22 load ready (after TEE key ready) */
 		HDMITX_INFO("IOC_LOAD_END %d, %d\n",
-			 meson_hdcp.hdcp_report, meson_hdcp.hdcp_poll_report);
-		if (meson_hdcp.hdcp22_daemon_state == HDCP22_DAEMON_TIMEOUT)
+			 p_hdcp->hdcp_report, p_hdcp->hdcp_poll_report);
+		if (p_hdcp->hdcp22_daemon_state == HDCP22_DAEMON_TIMEOUT)
 			HDMITX_INFO("hdcp22 key load late than TIMEOUT.\n");
-		meson_hdcp.hdcp22_daemon_state = HDCP22_DAEMON_DONE;
-		meson_hdcp.hdcp_poll_report = meson_hdcp.hdcp_report;
-		rtn_val = 0;
+		p_hdcp->hdcp22_daemon_state = HDCP22_DAEMON_DONE;
+		p_hdcp->hdcp_poll_report = p_hdcp->hdcp_report;
+		ret = 0;
 		break;
 	case HDCP_DAEMON_IOC_REPORT:
-		rtn_val = copy_to_user((void __user *)arg,
-				       (void *)&meson_hdcp.hdcp_report,
-				       sizeof(meson_hdcp.hdcp_report));
-		if (rtn_val != 0) {
-			out_size = sizeof(meson_hdcp.hdcp_report);
+		ret = copy_to_user((void __user *)arg,
+				       (void *)&p_hdcp->hdcp_report,
+				       sizeof(p_hdcp->hdcp_report));
+		if (ret != 0) {
+			out_size = sizeof(p_hdcp->hdcp_report);
 			HDMITX_INFO("out_size: %u, left_size: %u\n",
-				 out_size, rtn_val);
-			rtn_val = -1;
-		}
-		break;
-	case HDCP_EXE_VER_IOC_SET:
-		if (arg > 2) {
-			rtn_val = -1;
-		} else {
-			meson_hdcp.hdcp_debug_type = arg;
-			rtn_val = 0;
-			if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO)) {
-				meson_hdcp_disable();
-				hdcp_type = am_get_hdcp_exe_type();
-				meson_hdcp_enable(hdcp_type);
-			}
-		}
-		break;
-	case HDCP_TX_VER_IOC_REPORT:
-		rtn_val = copy_to_user((void __user *)arg,
-				       (void *)&meson_hdcp.hdcp_tx_type,
-				       sizeof(meson_hdcp.hdcp_tx_type));
-		if (rtn_val != 0) {
-			out_size = sizeof(meson_hdcp.hdcp_tx_type);
-			HDMITX_INFO("out_size: %u, left_size: %u\n",
-				 out_size, rtn_val);
-			rtn_val = -1;
-		}
-		break;
-	case HDCP_DOWNSTR_VER_IOC_REPORT:
-		rtn_val = copy_to_user((void __user *)arg,
-				       (void *)&meson_hdcp.hdcp_downstream_type,
-				       sizeof(meson_hdcp.hdcp_downstream_type));
-		if (rtn_val != 0) {
-			out_size = sizeof(meson_hdcp.hdcp_downstream_type);
-			HDMITX_INFO("out_size: %u, left_size: %u\n",
-				 out_size, rtn_val);
-			rtn_val = -1;
-		}
-		break;
-	case HDCP_EXE_VER_IOC_REPORT:
-		rtn_val = copy_to_user((void __user *)arg,
-				       (void *)&meson_hdcp.hdcp_execute_type,
-				       sizeof(meson_hdcp.hdcp_execute_type));
-		if (rtn_val != 0) {
-			out_size = sizeof(meson_hdcp.hdcp_execute_type);
-			HDMITX_INFO("out_size: %u, left_size: %u\n",
-				 out_size, rtn_val);
-			rtn_val = -1;
+				 out_size, ret);
+			ret = -1;
 		}
 		break;
 	default:
-		rtn_val = -EPERM;
+		ret = -EPERM;
 	}
-	return rtn_val;
+	return ret;
+}
+
+static int hdcp_communicate_open(struct inode *inode, struct file *file)
+{
+	struct hdcptx_common *hdcptx_comm = container_of(file->private_data,
+		struct hdcptx_common, hdcp_misc_dev);
+
+	file->private_data = hdcptx_comm;
+	return 0;
+}
+
+static int hdcp_communicate_release(struct inode *inode, struct file *file)
+{
+	file->private_data = NULL;
+	return 0;
 }
 
 static unsigned int hdcp_comm_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
+	struct hdcptx_common *hdcptx_comm = file->private_data;
+	struct hdmitx_common *tx_comm;
+	struct hdcptx20_core_priv *p_hdcp;
 
-	HDMITX_INFO("hdcp_poll %d, %d\n", meson_hdcp.hdcp_report, meson_hdcp.hdcp_poll_report);
-	poll_wait(file, &meson_hdcp.hdcp_comm_queue, wait);
-	if (meson_hdcp.hdcp_report != meson_hdcp.hdcp_poll_report) {
+	if (!hdcptx_comm) {
+		HDMITX_ERROR("%s NULL hdcptx_comm instance\n", __func__);
+		return -EINVAL;
+	}
+	tx_comm = container_of(hdcptx_comm, struct hdmitx_common, hdcptx_comm);
+	if (!tx_comm || !tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL tx_comm or NULL hdcp_private instance\n", __func__);
+		return -EINVAL;
+	}
+	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
+
+	HDMITX_INFO("hdcp_poll %d, %d\n", p_hdcp->hdcp_report, p_hdcp->hdcp_poll_report);
+	poll_wait(file, &p_hdcp->hdcp_comm_queue, wait);
+	if (p_hdcp->hdcp_report != p_hdcp->hdcp_poll_report) {
 		mask = POLLIN | POLLRDNORM;
-		meson_hdcp.hdcp_poll_report = meson_hdcp.hdcp_report;
+		p_hdcp->hdcp_poll_report = p_hdcp->hdcp_report;
 	}
 	return mask;
 }
 
 static const struct file_operations hdcp_comm_file_operations = {
 	.owner = THIS_MODULE,
+	.open = hdcp_communicate_open,
+	.release = hdcp_communicate_release,
 	.unlocked_ioctl = hdcp_comm_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = hdcp_comm_ioctl,
@@ -692,230 +567,124 @@ static const struct file_operations hdcp_comm_file_operations = {
 	.poll = hdcp_comm_poll,
 };
 
-/* debug interface begin */
-static void am_hdmitx_set_hdmi_mode(void)
-{
-	enum vmode_e vmode = get_current_vmode();
-
-	if (vmode == VMODE_HDMI) {
-		HDMITX_INFO("set_hdmi_mode manually\n");
-	} else {
-		HDMITX_ERROR("set_hdmi_mode manually fail! vmode:%d\n", vmode);
-		return;
-	}
-
-	/* TODO: sync meson_hdmi.c meson_hdmitx_encoder_atomic_enable() */
-	set_vout_mode_pre_process(vmode);
-	set_vout_vmode(vmode);
-	set_vout_mode_post_process(vmode);
-}
-
-/* set hdmi+hdcp mode */
-static void am_hdmitx_set_out_mode(void)
-{
-	enum vmode_e vmode = get_current_vmode();
-	struct hdmitx20_dev *hdmitx_dev = get_hdmitx20_device();
-	int last_hdcp_mode = HDCP_NULL;
-
-	if (vmode == VMODE_HDMI) {
-		HDMITX_INFO("set_out_mode\n");
-	} else {
-		HDMITX_ERROR("set_out_mode fail! vmode:%d\n", vmode);
-		return;
-	}
-
-	if (hdmitx_dev->tx_comm.hdcp_ctl_lvl > 0) {
-		hdmitx_common_avmute_locked(&hdmitx_dev->tx_comm,
-			SET_AVMUTE, AVMUTE_PATH_HDMITX);
-		last_hdcp_mode = meson_hdcp.hdcp_execute_type;
-		meson_hdcp_disable();
-	}
-	/* TODO: sync meson_hdmi.c meson_hdmitx_encoder_atomic_enable() */
-	set_vout_mode_pre_process(vmode);
-	set_vout_vmode(vmode);
-	set_vout_mode_post_process(vmode);
-	/* msleep(1000); */
-	if (hdmitx_dev->tx_comm.hdcp_ctl_lvl > 0) {
-		hdmitx_common_avmute_locked(&hdmitx_dev->tx_comm,
-			CLR_AVMUTE, AVMUTE_PATH_HDMITX);
-		meson_hdcp_enable(last_hdcp_mode);
-	}
-}
-
-static void am_hdmitx_hdcp_disable(void)
-{
-	struct hdmitx20_dev *hdmitx_dev = get_hdmitx20_device();
-
-	if (hdmitx_dev->tx_comm.hdcp_ctl_lvl >= 1)
-		meson_hdcp_disable();
-	HDMITX_INFO("hdcp disable manually\n");
-}
-
-static void am_hdmitx_hdcp_disconnect(void)
-{
-	struct hdmitx20_dev *hdmitx_dev = get_hdmitx20_device();
-
-	if (hdmitx_dev->tx_comm.hdcp_ctl_lvl >= 1)
-		meson_hdcp_disconnect();
-	HDMITX_INFO("hdcp disconnect manually\n");
-}
-
-/***** debug interface end *****/
-
-static void meson_hdcp_key_notify(struct work_struct *work)
+static void drm_hdcptx_key_notify(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct meson_hdmitx_hdcp *meson_hdcp =
-		container_of(dwork, struct meson_hdmitx_hdcp,
-			     notify_work);
+	struct hdcptx20_core_priv *p_hdcp =
+			container_of(dwork, struct hdcptx20_core_priv, notify_work);
+	struct hdmitx_common *tx_comm;
 
-	meson_hdcp->drm_hdcp_cb.hdcp_notify(meson_hdcp->drm_hdcp_cb.data,
+	if (!p_hdcp || !p_hdcp->bind_instance) {
+		HDMITX_ERROR("%s NULL tx_comm or NULL hdcp_private instance\n", __func__);
+		return;
+	}
+	tx_comm = p_hdcp->bind_instance;
+
+	tx_comm->hdcptx_comm.tx_hdcp_cb.hdcp_notify(tx_comm->hdcptx_comm.tx_hdcp_cb.data,
 		HDCP_KEY_UPDATE, HDCP_AUTH_UNKNOWN);
 }
 
-void hdcp_key_check(struct timer_list *timer)
+static void drm_hdcp_tx22_daemon_check(struct timer_list *timer)
 {
-	struct meson_hdmitx_hdcp *meson_hdcp =
-		container_of(timer, struct meson_hdmitx_hdcp,
-			     daemon_load_timer);
+	struct hdcptx20_core_priv *p_hdcp =
+		container_of(timer, struct hdcptx20_core_priv, daemon_load_timer);
 
+	if (!p_hdcp) {
+		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
+		return;
+	}
 	/*send notify when key load finished or timeout.*/
-	if (meson_hdcp->hdcp22_daemon_state == HDCP22_DAEMON_DONE) {
+	if (p_hdcp->hdcp22_daemon_state == HDCP22_DAEMON_DONE) {
 		HDMITX_INFO("hdcp_tx22 load ready, stop timer\n");
-		/*meson_hdcp->key_chk_cnt = 0;*/
-		schedule_delayed_work(&meson_hdcp->notify_work, HZ / 100);
-	} else if (meson_hdcp->key_chk_cnt++ < TIMER_CHK_CNT) {
-		meson_hdcp->daemon_load_timer.expires = jiffies + TIMER_CHECK;
-		add_timer(&meson_hdcp->daemon_load_timer);
+		schedule_delayed_work(&p_hdcp->notify_work, HZ / 100);
+	} else if (p_hdcp->key_chk_cnt++ < TIMER_CHK_CNT) {
+		p_hdcp->daemon_load_timer.expires = jiffies + TIMER_CHECK;
+		add_timer(&p_hdcp->daemon_load_timer);
 	} else {
 		HDMITX_INFO("hdcp_tx22 load timeout\n");
-		meson_hdcp->hdcp22_daemon_state = HDCP22_DAEMON_TIMEOUT;
-		/*meson_hdcp->key_chk_cnt = 0;*/
-		schedule_delayed_work(&meson_hdcp->notify_work, 0);
+		p_hdcp->hdcp22_daemon_state = HDCP22_DAEMON_TIMEOUT;
+		schedule_delayed_work(&p_hdcp->notify_work, 0);
 	}
 }
 
-bool hdcp_tx22_daemon_ready(void)
+bool drm_hdcp_tx22_daemon_ready(struct hdmitx_common *tx_comm)
 {
-	bool ret = false;
+	struct hdcptx20_core_priv *p_hdcp;
 
-	if (meson_hdcp.hdcp22_daemon_state != HDCP22_DAEMON_DONE)
-		ret = false;
-	else
-		ret = true;
-	return ret;
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return false;
+	}
+	/* for android platform, always treat it as ready */
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
+		return true;
+	if (!tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
+		return false;
+	}
+	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
+
+	return p_hdcp->hdcp22_daemon_state == HDCP22_DAEMON_DONE;
 }
 
-static int drm_hdmitx_register_hdcp_cb(struct drm_hdmitx_hdcp_cb *hdcp_cb)
+static void drm_hdmitx_hdcp_init(struct hdmitx_common *tx_comm)
 {
-	struct hdmitx20_dev *hdev = get_hdmitx20_device();
+	struct hdcptx_common *hdcptx_comm;
+	struct hdcptx20_core_priv *p_hdcp;
 
-	hdev->drm_hdcp_cb.callback = hdcp_cb->callback;
-	hdev->drm_hdcp_cb.data = hdcp_cb->data;
-	return 0;
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return;
+	}
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
+		return;
+	if (!tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
+		return;
+	}
+	hdcptx_comm = &tx_comm->hdcptx_comm;
+	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
+
+	/* init common part */
+	hdcptx_comm->hdcp_auth_result = HDCP_AUTH_UNKNOWN;
+	hdcptx_comm->hdcp_fail_cnt = 0;
+	hdcptx_comm->tx_hdcp_cb.hdcp_notify = NULL;
+	hdcptx_comm->tx_hdcp_cb.data = NULL;
+
+	/* init private part */
+	p_hdcp->hdcp_report = HDCP_TX22_DISCONNECT;
+	p_hdcp->hdcp_en = false;
+	/* p_hdcp->hdcp_execute_type = 0; */
 }
 
-void meson_hdcp_init(void)
+static void drm_hdmitx_hdcp_exit(struct hdmitx_common *tx_comm)
 {
-	int ret;
-	struct drm_hdmitx_hdcp_cb hdcp_cb;
-	struct hdmitx20_dev *hdmitx_dev;
+	struct hdcptx_common *hdcptx_comm;
 
-	meson_hdcp.hdcp_debug_type = 0x3;
-	meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
-	meson_hdcp.hdcp_en = 0;
-	meson_hdcp.hdcp22_daemon_state = HDCP22_DAEMON_LOADING;
-	init_waitqueue_head(&meson_hdcp.hdcp_comm_queue);
-	meson_hdcp.hdcp_comm_device.minor = MISC_DYNAMIC_MINOR;
-	meson_hdcp.hdcp_comm_device.name = "tee_comm_hdcp";
-	meson_hdcp.hdcp_comm_device.fops = &hdcp_comm_file_operations;
-	meson_hdcp.drm_hdcp_cb.hdcp_notify = NULL;
-	meson_hdcp.drm_hdcp_cb.data = NULL;
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return;
+	}
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
+		return;
+	hdcptx_comm = &tx_comm->hdcptx_comm;
 
-	ret = misc_register(&meson_hdcp.hdcp_comm_device);
-	if (ret < 0)
-		HDMITX_ERROR("%s misc_register fail\n", __func__);
-
-	hdcp_cb.callback = meson_hdmitx_hdcp_cb;
-	hdcp_cb.data = &meson_hdcp;
-	drm_hdmitx_register_hdcp_cb(&hdcp_cb);
-
-	hdmitx_dev = get_hdmitx20_device();
-	hdmitx_dev->tx_comm.drm_hdcp.test_set_hdmi_mode = am_hdmitx_set_hdmi_mode;
-	hdmitx_dev->tx_comm.drm_hdcp.test_set_out_mode = am_hdmitx_set_out_mode;
-	hdmitx_dev->tx_comm.drm_hdcp.test_hdcp_disable = am_hdmitx_hdcp_disable;
-	hdmitx_dev->tx_comm.drm_hdcp.test_hdcp_enable = meson_hdcp_enable;
-	hdmitx_dev->tx_comm.drm_hdcp.test_hdcp_disconnect = am_hdmitx_hdcp_disconnect;
-
-	INIT_DELAYED_WORK(&meson_hdcp.notify_work, meson_hdcp_key_notify);
-	meson_hdcp.key_chk_cnt = 0;
-	timer_setup(&meson_hdcp.daemon_load_timer, hdcp_key_check, 0);
-	meson_hdcp.daemon_load_timer.expires = jiffies + TIMER_CHECK;
-	add_timer(&meson_hdcp.daemon_load_timer);
-}
-
-void meson_hdcp_exit(void)
-{
-	misc_deregister(&meson_hdcp.hdcp_comm_device);
-	del_timer_sync(&meson_hdcp.daemon_load_timer);
-	cancel_delayed_work(&meson_hdcp.notify_work);
-}
-
-/* bit[1]: hdcp22, bit[0]: hdcp14 */
-/* apart from hdcp key, it will also check hdcp2.2 daemon status */
-unsigned int meson_hdcp_get_tx_cap(void)
-{
-	struct hdmitx20_dev *hdev = get_hdmitx20_device();
-	unsigned int hdcp_tx_type = meson_hdcp_get_tx_key_version();
-
-	/* check hdcp daemon: android or daemon is running */
-	if (hdev->tx_comm.hdcp_ctl_lvl > 0 && !hdcp_tx22_daemon_ready())
-		hdcp_tx_type &= 0x1;
-
-	return hdcp_tx_type & 0x3;
-}
-
-/* bit[1]: hdcp22, bit[0]: hdcp14 */
-unsigned int meson_hdcp_get_rx_cap(void)
-{
-	unsigned int ver = 0x0;
-	struct hdmitx20_dev *hdev = get_hdmitx20_device();
-
-	/*
-	 * note that during hdcp1.4 authentication, read hdcp version
-	 * of connected TV set(capable of hdcp2.2) may cause TV
-	 * switch its hdcp mode, and flash screen. should not
-	 * read hdcp version of sink during hdcp1.4 authentication.
-	 * if hdcp1.4 authentication currently, force return hdcp1.4
-	 */
-	if (hdev->tx_comm.hdcp_mode == 1)
-		return 0x1;
-	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
-	if (hdmitx_hw_cntl_ddc(&hdev->hw_comm,
-		DDC_HDCP_22_LSTORE, 0) == 0)
-		return 0x1;
-
-	/* Detect RX support HDCP22 */
-	ver = hdcp_rd_hdcp22_ver();
-	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
-	if (ver)
-		return 0x3;
-	else
-		return 0x1;
+	/* reset common part, keep private part */
+	hdcptx_comm->hdcp_auth_result = HDCP_AUTH_UNKNOWN;
+	hdcptx_comm->hdcp_fail_cnt = 0;
+	hdcptx_comm->tx_hdcp_cb.hdcp_notify = NULL;
+	hdcptx_comm->tx_hdcp_cb.data = NULL;
 }
 
 /* after TEE hdcp key valid, do hdcp22 init before tx22 start */
-void drm_hdmitx_hdcp22_init(void)
+static void drm_tx_hdcp22_init(struct hdmitx_common *tx_comm)
 {
-	struct hdmitx20_dev *hdev = get_hdmitx20_device();
-
-	hdmitx_hdcp_do_work(&hdev->tx_comm);
-	hdmitx_hw_cntl_ddc(&hdev->hw_comm,
-		DDC_HDCP_MUX_INIT, 2);
+	hdmitx_hdcp_do_work(tx_comm);
+	hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_MUX_INIT, 2);
 }
 
 /* echo 1/2 > hdcp_mode */
-void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
+static void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 {
 	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
@@ -927,12 +696,12 @@ void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 		hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_MUX_INIT, 1);
 		if (vic == HDMI_17_720x576p50_4x3 || vic == HDMI_18_720x576p50_16x9)
 			usleep_range(500000, 500010);
-		hdev->tx_comm.hdcp_mode = 1;
+		hdev->tx_comm.hdcptx_comm.hdcp_mode = 1;
 		hdmitx_hdcp_do_work(&hdev->tx_comm);
 		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
 			DDC_HDCP_OP, HDCP14_ON);
 	} else if (content_type == 2) {
-		hdev->tx_comm.hdcp_mode = 2;
+		hdev->tx_comm.hdcptx_comm.hdcp_mode = 2;
 		hdmitx_hdcp_do_work(&hdev->tx_comm);
 		/*
 		 * for drm hdcp_tx22, esm init only once
@@ -944,7 +713,7 @@ void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 }
 
 /* echo -1 > hdcp_mode;echo stop14/22 > hdcp_ctrl */
-void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
+static void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 {
 	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
@@ -959,37 +728,29 @@ void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 			DDC_HDCP_OP, HDCP22_OFF);
 	}
 
-	hdev->tx_comm.hdcp_mode = 0;
+	hdev->tx_comm.hdcptx_comm.hdcp_mode = 0;
 	hdmitx_hdcp_do_work(&hdev->tx_comm);
 	hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_NOT_ENABLED);
 }
 
-unsigned char drm_hdmitx_get_hdcp_topo_info(void)
+/* for linux/drm end */
+
+static void hdcptx_20_ctrl_ops_init(struct hdcptx_common *hdcptx_comm)
 {
-	struct hdmitx20_dev *hdev = get_hdmitx20_device();
+	if (!hdcptx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return;
+	}
 
-	HDMITX_DEBUG("%s %d\n", __func__, hdev->tx_comm.hdcp22_type);
-	return hdev->tx_comm.hdcp22_type;
+	hdcptx_comm->drm_hdcp_init = drm_hdmitx_hdcp_init;
+	hdcptx_comm->drm_hdcp_exit = drm_hdmitx_hdcp_exit;
+	hdcptx_comm->drm_hdcp_enable = drm_hdmitx_hdcp_enable;
+	hdcptx_comm->drm_hdcp_disable = drm_hdmitx_hdcp_disable;
+	hdcptx_comm->drm_hdcp_disconnect = drm_hdmitx_hdcp_disconnect;
+
+	hdcptx_comm->set_hdcp_mode = hdmitx20_set_hdcp_mode;
+	hdcptx_comm->get_hdcp_ver = hdmitx20_get_hdcp_ver;
 }
-
-/* DRM HDCP API */
-static struct drm_hdcp_ctrl_ops tx20_drm_hdcp_ctrl_ops = {
-	.hdcp_init = meson_hdcp_init,
-	.hdcp_exit = meson_hdcp_exit,
-	.hdcp_enable = meson_hdcp_enable,
-	.hdcp_disable = meson_hdcp_disable,
-	.hdcp_disconnect = meson_hdcp_disconnect,
-	.get_tx_hdcp_cap = meson_hdcp_get_tx_cap,
-	.get_rx_hdcp_cap = meson_hdcp_get_rx_cap,
-	.register_hdcp_notify = meson_hdcp_reg_result_notify,
-	.get_dw_hdcp_topo_info = drm_hdmitx_get_hdcp_topo_info,
-};
-
-/* HDCP API */
-static struct hdcp_ctrl_ops tx20_hdcp_ctrl_ops = {
-	.set_hdcp_mode = hdmitx20_set_hdcp_mode,
-	.get_hdcp_ver = hdmitx20_get_hdcp_ver,
-};
 
 const struct file_operations hdcplog_ops = {
 	.read = hdcplog_read,
@@ -999,21 +760,40 @@ const struct file_operations hdcplog_ops = {
 int hdmitx20_hdcp_init(struct hdmitx20_dev *hdev)
 {
 	struct dentry *entry;
+	struct hdcptx20_core_priv *p_hdcp;
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
-	tx_comm->drm_hdcp_ctrl_ops = &tx20_drm_hdcp_ctrl_ops;
-	tx_comm->hdcp_ctrl_ops = &tx20_hdcp_ctrl_ops;
-	if (!hdev->tx_comm.hdtx_dev) {
-		HDMITX_DEBUG_HDCP("exit for null device of hdmitx!\n");
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
 		return -ENODEV;
 	}
 
+	hdcptx_20_ctrl_ops_init(&tx_comm->hdcptx_comm);
 	esm_init();
 	memset(&hdcplog_buf, 0, sizeof(hdcplog_buf));
 	init_waitqueue_head(&hdcplog_buf.wait);
+	tx_comm->hdcptx_comm.task_hdcp = kthread_run(hdmitx_hdcp_stat_monitor_task,
+		(void *)tx_comm, "kthread_hdcp");
+	INIT_DELAYED_WORK(&hdev->work_do_hdcp, _hdcp_do_work);
 
-	tx_comm->task_hdcp = kthread_run(hdmitx_hdcp_task,	(void *)hdev,
-				      "kthread_hdcp");
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0) {
+		p_hdcp = kzalloc(sizeof(*p_hdcp), GFP_KERNEL);
+		if (!p_hdcp) {
+			HDMITX_ERROR("%s no enough mem for hdcp private struct\n", __func__);
+			return -ENOMEM;
+		}
+		INIT_DELAYED_WORK(&p_hdcp->notify_work, drm_hdcptx_key_notify);
+		p_hdcp->hdcp22_daemon_state = HDCP22_DAEMON_LOADING;
+		p_hdcp->key_chk_cnt = 0;
+		p_hdcp->bind_instance = tx_comm;
+		init_waitqueue_head(&p_hdcp->hdcp_comm_queue);
+		timer_setup(&p_hdcp->daemon_load_timer, drm_hdcp_tx22_daemon_check, 0);
+		p_hdcp->daemon_load_timer.expires = jiffies + TIMER_CHECK;
+		add_timer(&p_hdcp->daemon_load_timer);
+
+		tee_comm_dev_reg(&tx_comm->hdcptx_comm.hdcp_misc_dev, &hdcp_comm_file_operations);
+		tx_comm->hdcptx_priv = p_hdcp;
+	}
 	if (!tx_comm->hdmitx_file_dbgfs)
 		tx_comm->hdmitx_file_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
 	if (!tx_comm->hdmitx_file_dbgfs) {
@@ -1029,18 +809,30 @@ int hdmitx20_hdcp_init(struct hdmitx20_dev *hdev)
 	return 0;
 }
 
-void hdmitx20_hdcp_exit(struct hdmitx20_dev *hdev)
+void hdmitx20_hdcp_uninit(struct hdmitx20_dev *hdev)
 {
+	struct hdcptx20_core_priv *p_hdcp;
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
-	if (hdev && tx_comm) {
-		kthread_stop(tx_comm->task_hdcp);
-		cancel_delayed_work_sync(&hdev->work_do_hdcp);
-		kfree(tx_comm->topo_info);
-		tx_comm->topo_info = NULL;
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return;
 	}
+
 	esm_exit();
+	kthread_stop(tx_comm->hdcptx_comm.task_hdcp);
+	cancel_delayed_work_sync(&hdev->work_do_hdcp);
+	kfree(tx_comm->topo_info);
+	tx_comm->topo_info = NULL;
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0) {
+		p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
+		if (p_hdcp) {
+			del_timer_sync(&p_hdcp->daemon_load_timer);
+			cancel_delayed_work(&p_hdcp->notify_work);
+			tee_comm_dev_unreg(&tx_comm->hdcptx_comm.hdcp_misc_dev);
+			kfree(p_hdcp);
+		}
+		tx_comm->hdcptx_priv = NULL;
+	}
 }
 
-MODULE_PARM_DESC(hdmi_authenticated, "\n hdmi_authenticated\n");
-module_param(hdmi_authenticated, int, 0444);

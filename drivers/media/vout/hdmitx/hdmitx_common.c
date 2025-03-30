@@ -96,9 +96,6 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 
 	/*load tx boot params*/
 	tx_comm->hdr_priority = boot_param->hdr_mask;
-	/* rxcap.hdmichecksum save the edid checksum of kernel */
-	/* memcpy(tx_comm->rxcap.hdmichecksum, boot_param->edid_chksum, */
-		/* sizeof(tx_comm->rxcap.hdmichecksum)); */
 	memcpy(tx_comm->fmt_attr, boot_param->color_attr, sizeof(tx_comm->fmt_attr));
 
 	tx_comm->frac_rate_policy = boot_param->fraction_refreshrate;
@@ -112,7 +109,6 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->tx_hw = hw_comm;
 	if (tx_comm->tx_hw)
 		tx_comm->tx_hw->hdmi_tx_cap.dsc_policy = boot_param->dsc_policy;
-	hw_comm->hdcp_repeater_en = 0;
 
 	tx_comm->debug_param.avmute_frame = 0;
 
@@ -120,9 +116,12 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 
 	tx_comm->ready = 0;
 	if (hw_comm->chip_data->chip_type < MESON_CPU_ID_T7)
-		tx_comm->hdcp_user = 1;
+		tx_comm->hdcptx_comm.hdcp_user = 1;
 	else
-		tx_comm->hdcp_user = 0;
+		tx_comm->hdcptx_comm.hdcp_user = 0;
+	tx_comm->hdcptx_comm.hdcp_rpt_en = 0;
+	tx_comm->hdcptx_comm.hdcp_mode = 0;
+
 	tx_comm->hdr_mute_frame = 20;
 	/* no RxSense by default */
 	tx_comm->rxsense_policy = 0;
@@ -133,7 +132,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->flag_3dtb = 0;
 	tx_comm->vid_mute_op = VIDEO_NONE_OP;
 	tx_comm->vid_mute_op = VIDEO_NONE_OP;
-	tx_comm->hdcp_mode = 0;
+
 	/* default audio configure is on */
 	tx_comm->cur_audio_param.aud_output_en = 1;
 
@@ -144,7 +143,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->out_color_range = 0xff;
 	tx_comm->in_color_fmt = 0xff;
 
-	/*mutex init*/
+	/* mutex init */
 	mutex_init(&tx_comm->hdmimode_mutex);
 	mutex_init(&tx_comm->valid_mutex);
 	mutex_init(&tx_comm->aud_mute_mutex);
@@ -369,7 +368,7 @@ EXPORT_SYMBOL(hdmitx_get_hpd_state);
 /* TODO: no mutex */
 unsigned char *hdmitx_get_raw_edid(struct hdmitx_common *tx_comm)
 {
-	return tx_comm->EDID_buf;
+	return tx_comm->edid_buf;
 }
 EXPORT_SYMBOL(hdmitx_get_raw_edid);
 
@@ -388,7 +387,7 @@ EXPORT_SYMBOL(hdmitx_common_get_edid_valid_state);
 
 bool hdmitx_common_get_hdcp_user_state(struct hdmitx_common *tx_comm)
 {
-	return tx_comm->hdcp_user;
+	return tx_comm->hdcptx_comm.hdcp_user;
 }
 EXPORT_SYMBOL(hdmitx_common_get_hdcp_user_state);
 
@@ -674,7 +673,7 @@ int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_ue
 	 */
 	/* if (tx_comm->hdmi_repeater == 1) { */
 	if (tx_comm->hpd_state)
-		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_PLUG, tx_comm->EDID_buf);
+		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_PLUG, tx_comm->edid_buf);
 	else
 		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_UNPLUG, NULL);
 
@@ -1043,7 +1042,7 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 		HDMITX_INFO("using fixed edid\n");
 		return 0;
 	}
-	hdmitx_edid_buffer_clear(tx_comm->EDID_buf, sizeof(tx_comm->EDID_buf));
+	hdmitx_edid_buffer_clear(tx_comm->edid_buf, sizeof(tx_comm->edid_buf));
 
 	/* reset i2c before edid read */
 	hdmitx_hw_cntl_misc(tx_hw_base, MISC_I2C_RESET, 0);
@@ -1051,13 +1050,13 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_PIN_MUX_OP, PIN_MUX);
 	/* start reading edid first time */
 	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
-	if (hdmitx_edid_is_all_zeros(tx_comm->EDID_buf)) {
+	if (hdmitx_edid_is_all_zeros(tx_comm->edid_buf)) {
 		HDMITX_INFO("First read edid all 0 data\n");
 		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_GLITCH_FILTER_RESET, 0);
 		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
 	}
 	/* If EDID is not correct at first time, then retry */
-	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf) == false) {
+	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->edid_buf) == false) {
 		struct timespec64 kts;
 		struct rtc_time tm;
 
@@ -1076,7 +1075,7 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 
 		/* start reading edid second time */
 		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
-		if (hdmitx_edid_is_all_zeros(tx_comm->EDID_buf)) {
+		if (hdmitx_edid_is_all_zeros(tx_comm->edid_buf)) {
 			hdmitx_hw_cntl_ddc(tx_hw_base, DDC_GLITCH_FILTER_RESET, 0);
 			hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
 		}
@@ -1098,7 +1097,7 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 	/* tx_comm->rxcap.vsdb_phy_addr.c, */
 	/* tx_comm->rxcap.vsdb_phy_addr.d); */
 	/* } */
-	hdmitx_edid_print(tx_comm->EDID_buf);
+	hdmitx_edid_print(tx_comm->edid_buf);
 
 	return 0;
 }
@@ -1129,7 +1128,7 @@ bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum)
 void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm)
 {
 	/* clear edid */
-	hdmitx_edid_buffer_clear(tx_comm->EDID_buf, sizeof(tx_comm->EDID_buf));
+	hdmitx_edid_buffer_clear(tx_comm->edid_buf, sizeof(tx_comm->edid_buf));
 	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
 	/* if (tx_comm->hdmi_repeater == 1) */
 	/* rx_edid_physical_addr(0, 0, 0, 0); */
@@ -1583,17 +1582,17 @@ void hdmitx_edid_process(struct hdmitx_common *tx_comm, bool boot_flag, bool drm
 
 	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 
-	edid_valid = hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf);
+	edid_valid = hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->edid_buf);
 
 	if (boot_flag || tx_comm->edid_parse_dbg) {
 		hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
 		/* if edid is valid, parse edid, otherwise set fallback mode */
 		if (edid_valid) {
-			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->edid_buf);
 			hdmitx_update_ced_en(tx_comm);
 			/* parse cec phy addr and audio data block */
-			hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-			hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->edid_buf);
+			hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->edid_buf);
 		} else {
 			edid_set_fallback_mode(&tx_comm->rxcap);
 		}
@@ -1603,8 +1602,8 @@ void hdmitx_edid_process(struct hdmitx_common *tx_comm, bool boot_flag, bool drm
 		/* step1: hdmitx parse part */
 		if (edid_valid) {
 			/* parse cec phy addr and audio data block */
-			hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-			hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->edid_buf);
+			hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->edid_buf);
 		} else {
 			edid_set_fallback_mode(&tx_comm->rxcap);
 		}
@@ -1612,7 +1611,7 @@ void hdmitx_edid_process(struct hdmitx_common *tx_comm, bool boot_flag, bool drm
 	} else {
 		/* step2: drm parse part */
 		if (edid_valid) {
-			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->edid_buf);
 			hdmitx_update_ced_en(tx_comm);
 		}
 		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);

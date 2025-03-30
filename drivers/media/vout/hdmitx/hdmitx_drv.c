@@ -399,9 +399,9 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "repeater_tx", &val);
 		if (!ret)
-			hw_comm->hdcp_repeater_en = val;
+			tx_comm->hdcptx_comm.hdcp_rpt_en = val;
 		else
-			hw_comm->hdcp_repeater_en = 0;
+			tx_comm->hdcptx_comm.hdcp_rpt_en = 0;
 		/* Get repeater_tx information */
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "hdmi_repeater", &val);
@@ -411,7 +411,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 			tx_comm->hdmi_repeater = 1;
 		/* if it's not hdmi repeater, then should not support hdcp repeater */
 		if (tx_comm->hdmi_repeater == 0)
-			hw_comm->hdcp_repeater_en = 0;
+			tx_comm->hdcptx_comm.hdcp_rpt_en = 0;
 		/* Get cedst_en information */
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "cedst_en", &val);
@@ -444,10 +444,10 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 		}
 		/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
 		ret = of_property_read_u32(pdev->dev.of_node,
-			   "hdcp_ctl_lvl", &tx_comm->hdcp_ctl_lvl);
+			   "hdcp_ctl_lvl", &tx_comm->hdcptx_comm.hdcp_ctl_lvl);
 		if (ret)
-			tx_comm->hdcp_ctl_lvl = 0;
-		HDMITX_INFO("hdcp_ctl_lvl[%d-%d]\n", tx_comm->hdcp_ctl_lvl, ret);
+			tx_comm->hdcptx_comm.hdcp_ctl_lvl = 0;
+		HDMITX_INFO("hdcp_ctl_lvl[%d-%d]\n", tx_comm->hdcptx_comm.hdcp_ctl_lvl, ret);
 		/* Get vendor information */
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "vend-data", &val);
@@ -573,7 +573,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)h->param;
 	bool need_rst_ratio;
 
-	need_rst_ratio = hdmitx_find_vendor_ratio(tx_comm->EDID_buf);
+	need_rst_ratio = hdmitx_find_vendor_ratio(tx_comm->edid_buf);
 	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
 		if (tx_comm->aon_output) {
 			HDMITX_INFO("%s return, HDMI signal enabled\n", __func__);
@@ -727,7 +727,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	struct hdmitx_event_mgr *tx_uevent_mgr;
 	struct amhdmitx_data_s *chip_data;
 	const struct of_device_id *match;
-
 	bool hpd_state;
 
 	HDMITX_INFO("amhdmitx_probe_start\n");
@@ -750,9 +749,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hw_comm->chip_data = chip_data;
 	dev_set_drvdata(device, tx_comm);
 
-	ret = amhdmitx_get_dt_info(pdev, tx_comm);
-	/* init tx_common */
 	hdmitx_common_init(tx_comm, hw_comm);
+	/* note that dts config will override the default config when init */
+	ret = amhdmitx_get_dt_info(pdev, tx_comm);
 
 	r = alloc_chrdev_region(&tx_comm->hdmitx_id, 0, HDMI_TX_COUNT,
 				DEVICE_NAME);
@@ -806,7 +805,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_set_uevent(tx_comm, HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	/* reset EDID/vinfo */
 	if (!tx_comm->forced_edid) {
-		hdmitx_edid_buffer_clear(tx_comm->EDID_buf, sizeof(tx_comm->EDID_buf));
+		hdmitx_edid_buffer_clear(tx_comm->edid_buf, sizeof(tx_comm->edid_buf));
 		hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
 	}
 	/*
@@ -894,18 +893,20 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 	} else if (strncmp(tmpbuf, "hdcp_mode", 9) == 0) {
 		ret = kstrtoul(tmpbuf + 9, 16, &value);
 		if (ret == 0 && value <= 2)
-			tx_comm->drm_hdcp.test_hdcp_mode = value - 0;
-		HDMITX_INFO("test drm_hdcp_mode: %d\n", tx_comm->drm_hdcp.test_hdcp_mode);
+			tx_comm->hdcptx_comm.test_hdcp_mode = value - 0;
+		HDMITX_INFO("test hdcptx_comm_mode: %d\n", tx_comm->hdcptx_comm.test_hdcp_mode);
 	} else if (strncmp(tmpbuf, "drm_hdcp_op", 11) == 0) {
 		ret = kstrtoul(tmpbuf + 11, 16, &value);
-		if (value == 0 && tx_comm->drm_hdcp.test_hdcp_disable)
-			tx_comm->drm_hdcp.test_hdcp_disable();
-		else if (value == 1 && tx_comm->drm_hdcp.test_hdcp_enable)
-			tx_comm->drm_hdcp.test_hdcp_enable(tx_comm->drm_hdcp.test_hdcp_mode);
-		else if (value == 2 && tx_comm->drm_hdcp.test_hdcp_disconnect)
-			tx_comm->drm_hdcp.test_hdcp_disconnect();
+		if (value == 0 && tx_comm->hdcptx_comm.drm_hdcp_disable)
+			tx_comm->hdcptx_comm.drm_hdcp_disable(tx_comm);
+		else if (value == 1 && tx_comm->hdcptx_comm.drm_hdcp_enable)
+			tx_comm->hdcptx_comm.drm_hdcp_enable(tx_comm,
+				tx_comm->hdcptx_comm.test_hdcp_mode);
+		else if (value == 2 && tx_comm->hdcptx_comm.drm_hdcp_disconnect)
+			tx_comm->hdcptx_comm.drm_hdcp_disconnect(tx_comm);
 	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
-		HDMITX_INFO("test drm_hdcp_ver: %d\n", drm_hdmitx_common_get_rx_hdcp_cap(tx_comm));
+		HDMITX_INFO("test drm_hdcp_ver: %d\n",
+			drm_hdmitx_common_get_rx_hdcp_cap(tx_comm));
 	} else if (strncmp(tmpbuf, "avmute_frame", 12) == 0) {
 		ret = kstrtoul(tmpbuf + 12, 10, &value);
 		tx_comm->debug_param.avmute_frame = value;
@@ -1165,7 +1166,7 @@ static void _amhdmitx_suspend(struct hdmitx_common *tx_comm)
 	tx_comm->last_hpd_handle_done_stat = HDMI_TX_NONE;
 	if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7) {
 		/* drm tx22 enters AUTH_STOP, don't do hdcp22 IP reset */
-		if (tx_comm->hdcp_ctl_lvl > 0)
+		if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0)
 			return;
 
 		hdmitx_hw_cntl_misc(hw_comm, MISC_DIS_HPLL, 0);
@@ -1238,7 +1239,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	 * may resume after start hdcp22, i2c
 	 * reactive will force mux to hdcp14
 	 */
-	if (tx_comm->hdcp_ctl_lvl > 0)
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0)
 		return 0;
 	hdmitx_hw_cntl_misc(tx_hw_base, MISC_ESMCLK_CTRL, 1);
 

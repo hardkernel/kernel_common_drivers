@@ -45,27 +45,56 @@ struct hdmitx_common_state {
 typedef void (*audio_en_callback)(bool enable);
 typedef int (*audio_st_callback)(void);
 
-struct hdcp_ctrl_ops {
+struct hdcptx_common {
+	/* device which communicate with hdcp_tx22 daemon and tee_hdcp
+	 * note: should not move its position in struct
+	 */
+	struct miscdevice hdcp_misc_dev;
+
+	/* current hdcp mode, 2: hdcp2.2, 1: hdcp1.4, 8: hdcp off */
+	u8 hdcp_mode;
+	u8 test_hdcp_mode;
+	/* hdcp tx key status */
+	u32 hdcp_lstore;
+	/* hdcp repeater enable, such as on T7 platform */
+	bool hdcp_rpt_en;
+
+	/* 1: downstream is repeater, 0: downstream is receiver */
+	int hdcp_bcaps_repeater;
+	/* downstream device hdcp2.2 capability */
+	bool dw_hdcp22_cap;
+	/* hdcp status check timer */
+	struct task_struct *task_hdcp;
+
+	/* policy related */
+	/* HWC to enable hdcp flow 1: for SNPS chip, 0: for hdmitx21 chip */
+	bool hdcp_user;
+	/* hdcp control level, 0: android, 1:drm driver, 2: linux app */
+	u32 hdcp_ctl_lvl;
+	/* not send hdcp fail uevent during filter period when hdcp off.
+	 * only for special hdmitx21 project. if need to enable this feature,
+	 * need to set need_filter_hdcp_off = 1 and configure
+	 * the filter period by set filter_hdcp_off_period(second)
+	 */
+	bool need_filter_hdcp_off;
+	u32 filter_hdcp_off_period;
+
+	/* linux/drm fallback */
+	int hdcp_auth_result;
+	int hdcp_fail_cnt;
+	/* hdcp result callback for drm */
+	struct connector_hdcp_cb tx_hdcp_cb;
+
+	/* diff hw20/hw21, for sysfs operation */
 	void (*set_hdcp_mode)(struct hdmitx_common *tx_comm, const char *buf);
 	int (*get_hdcp_ver)(struct hdmitx_common *tx_comm, char *buf, int len);
-};
 
-struct drm_hdcp_ctrl_ops {
-	/*hdcp apis*/
-	void (*hdcp_init)(void);
-	void (*hdcp_exit)(void);
-	void (*hdcp_enable)(int hdcp_type);
-	void (*hdcp_disable)(void);
-	void (*hdcp_disconnect)(void);
-
-	unsigned int (*get_tx_hdcp_cap)(void);
-	unsigned int (*get_rx_hdcp_cap)(void);
-	void (*register_hdcp_notify)(struct connector_hdcp_cb *cb);
-	/* get downstream hdcp topo info:
-	 * return 1 if downstream devices are all capable of hdcp2.2/2.3
-	 * return 0 if downstream contains hdcp1.4 or hdcp2.0 legacy device
-	 */
-	unsigned char (*get_dw_hdcp_topo_info)(void);
+	/* diff hw20/hw21, for linux/drm control */
+	void (*drm_hdcp_init)(struct hdmitx_common *tx_comm);
+	void (*drm_hdcp_exit)(struct hdmitx_common *tx_comm);
+	void (*drm_hdcp_enable)(struct hdmitx_common *tx_comm, int hdcp_type);
+	void (*drm_hdcp_disable)(struct hdmitx_common *tx_comm);
+	void (*drm_hdcp_disconnect)(struct hdmitx_common *tx_comm);
 };
 
 struct drm_vrr_ctrl_ops {
@@ -113,26 +142,6 @@ static const u8 dsc_max_slices_num[] = {
 	16
 };
 
-struct drm_hdmitx_hdcp_cb {
-	void (*callback)(void *data, int auth);
-	void *data;
-};
-
-struct drm_hdmitx_hdcp {
-	int hdcp_auth_result;
-	int hdcp_fail_cnt;
-	/* hdcp result callback */
-	struct connector_hdcp_cb drm_hdcp_cb;
-	/* drm hdcp debug function, not common api.*/
-	int test_hdcp_mode;
-	void (*test_set_hdcp_mode)(unsigned int user_type);
-	void (*test_set_hdmi_mode)(void);
-	void (*test_set_out_mode)(void);
-	void (*test_hdcp_disable)(void);
-	void (*test_hdcp_enable)(int hdcp_mode);
-	void (*test_hdcp_disconnect)(void);
-};
-
 struct ced_cnt {
 	bool ch0_valid;
 	u16 ch0_cnt:15;
@@ -158,31 +167,60 @@ struct scdc_locked_st {
 typedef void (*pf_callback)(bool st);
 
 struct hdmitx_common {
-	struct meson_connector_dev base;
-	int drm_hdmitx_id;
-	struct hdmitx_hw_common *tx_hw;
-	struct hdcp_ctrl_ops *hdcp_ctrl_ops;
-	struct drm_hdcp_ctrl_ops *drm_hdcp_ctrl_ops;
-	struct drm_vrr_ctrl_ops *drm_vrr_ctrl_ops;
-	struct connector_hpd_cb drm_hpd_cb;/*drm hpd notify*/
-
-	struct cdev cdev; /* The cdev structure */
+	/* 1. general platform device related */
+	struct cdev cdev;
 	dev_t hdmitx_id;
 	struct device *hdtx_dev;
-	/* dedicated for hpd event */
+	/* Indicates current status, HDMITX20/HDMITX21 */
+	int hdmi_init;
+	/* for platform pinmux */
+	struct device *pdev;
+	struct notifier_block reboot_nb;
+
+	/* 2. drm connector/vout related */
+	struct meson_connector_dev base;
+	int drm_hdmitx_id;
+	struct drm_vrr_ctrl_ops *drm_vrr_ctrl_ops;
+	struct connector_hpd_cb drm_hpd_cb;
+	struct vinfo_s hdmitx_vinfo;
+	struct vout_device_s *vdev;
+
+	/* 3. hdmitx internal HW function pointer */
+	struct hdmitx_hw_common *tx_hw;
+
+	/* 4. HPD related */
+	/* workqueue dedicated for hpd event */
 	struct workqueue_struct *hdmi_hpd_wq;
+	struct delayed_work work_hpd_plugin;
+	struct delayed_work work_hpd_plugout;
+	/* save the last plug out/in work done state */
+	enum hdmi_event_t last_hpd_handle_done_stat;
+	/* 1: connect; 0: disconnect */
+	unsigned char hpd_state;
+	/*
+	 * if HDMI plugin even once time, then set 1
+	 * if never hdmi plugin, then keep as 0
+	 * only for android ott.
+	 */
+	u32 already_used;
+	/* 0xff: always running, TO BE REMOVED */
+	u8 hpd_event;
 
-	char fmt_attr[16];
-	/* for pxp test */
-	char tst_fmt_attr[16];
-
-	/*edid related*/
-	/* edid hdr/dv cap lock, hdr/dv handle in irq, need spinlock*/
+	/* 5. edid related */
+	/* edid hdr/dv cap lock, hdr/dv handle in irq, need spinlock */
 	spinlock_t edid_spinlock;
-	u32 forced_edid; /* for external loading EDID */
-	unsigned char EDID_buf[EDID_MAX_BLOCK * 128];
+	/* for external loading EDID */
+	u32 forced_edid;
+	unsigned char edid_buf[EDID_MAX_BLOCK * 128];
 	struct rx_cap rxcap;
-	/****** hdmitx state ******/
+	/*
+	 * edid parse debug flag
+	 * true: edid parse in hdmitx
+	 * false(default): edid parse in drm
+	 */
+	bool edid_parse_dbg;
+
+	/* 6. video mode set related */
 	/*
 	 * Normally, after the HPD in or late resume, there will reading EDID, and
 	 * notify application to select a hdmi mode output. But during the mode
@@ -191,55 +229,14 @@ struct hdmitx_common {
 	 * handler and mode setting sequentially.
 	 */
 	struct mutex hdmimode_mutex;
-	/* check valid mode need mutex */
+	/* mode valid check during mode set or sysfs test */
 	struct mutex valid_mutex;
-	/* hdmitx_audio_mute_op need mutex */
-	struct mutex aud_mute_mutex;
-	atomic_t kref_video_mute;
-	unsigned char vid_mute_op;
-
-	/* save the last plug out/in work done state */
-	enum hdmi_event_t last_hpd_handle_done_stat;
-	/* save the last drm infoframe eotf */
-	enum hdmi_eotf last_drm_eotf;
-	/* 1, connect; 0, disconnect */
-	unsigned char hpd_state;
-	/*
-	 * if HDMI plugin even once time, then set 1
-	 * if never hdmi plugin, then keep as 0
-	 * for android ott.
-	 */
-	u32 already_used;
-
 	/* indicate hdmitx output ready, sw/hw mode setting done */
 	bool ready;
-	/*
-	 * 1 :HWC to enable hdcp flow in SNPS chip
-	 * 0 :IVCX chip don't need
-	 */
-	bool hdcp_user;
-	/*if hdmitx is in early suspend.*/
+	/* if hdmitx is in suspend state. */
 	bool suspend_flag;
-	/*current hdcp mode, 2.1 or 1.4*/
-	u8 hdcp_mode;
-	/* hdcp2.2 bcaps */
-	int hdcp_bcaps_repeater;
-	/* allm_mode: 1/on 0/off */
-	u32 allm_mode;
-	/* contenttype:0/off 1/game, 2/graphics, 3/photo, 4/cinema */
-	u32 ct_mode;
-	bool it_content;
-	/* When hdr_priority is 1, then dv_info will be all 0;
-	 * when hdr_priority is 2, then dv_info/hdr_info will be all 0
-	 * App won't get real dv_cap/hdr_cap, but can get real dv_cap2/hdr_cap2
-	 */
-	u32 hdr_priority;
-	u32 hdr_8bit_en;
 	/*current format para.*/
 	struct hdmi_format_para fmt_para;
-	/* HDR format state */
-	u32 hdmi_last_hdr_mode;
-	u32 hdmi_current_hdr_mode;
 	/*
 	 * color standard
 	 * 0: 709
@@ -260,7 +257,57 @@ struct hdmitx_common {
 	 * 0: yuv; 1: rgb
 	 */
 	u8 in_color_fmt;
+	/* 0.1% clock shift, 1080p60hz->59.94hz */
+	u32 frac_rate_policy;
+	bool pre_tmds_clk_div40;
+	/* for bootargs & sysfs node */
+	char fmt_attr[16];
+	/* for pxp test */
+	char tst_fmt_attr[16];
+	/* Indicates spread spectrum, 1/on 0/off */
+	u32 sspll;
+	u32 flag_3dfp:1;
+	u32 flag_3dtb:1;
+	u32 flag_3dss:1;
+	/* check clk stauts after mode set */
+	struct task_struct *task_clk_check;
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *encp_vpu_dev;
+	struct vpu_dev_s *enci_vpu_dev;
+	struct vpu_dev_s *hdmi_vpu_dev;
+	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
+#endif
 
+	/* 7. audio mode related */
+	struct aud_para cur_audio_param;
+	/* save the last audio param */
+	struct aud_para hdmiaud_config_data;
+	struct notifier_block hdmitx_notifier_nb_a;
+	/* hdmitx_audio_mute_op need mutex */
+	struct mutex aud_mute_mutex;
+
+	/* 8. earc related */
+	pf_callback earc_hdmitx_hpdst;
+
+	/* 9.hdcp realted */
+	struct hdcptx_common hdcptx_comm;
+	/* hw private hdcp struct */
+	void *hdcptx_priv;
+
+	/* 10. HDR related */
+	u32 hdr_priority;
+	u32 hdr_8bit_en;
+	/*for color space conversion*/
+	bool config_csc_en;
+	u32 hdmi_last_hdr_mode;
+	u32 hdmi_current_hdr_mode;
+	/*
+	 * for SONY-KD-55A8F TV, need to mute more frames(default 20 frames)
+	 * when switch DV(LL)->HLG
+	 */
+	int hdr_mute_frame;
+	/* hdr mute operation */
+	unsigned char vid_mute_op;
 	/*
 	 * When exiting hdr10plus, hdmitx_set_hdr10plus_pkt will be
 	 * called first to send a hdr10plus vsif packet with all zeros.
@@ -271,44 +318,52 @@ struct hdmitx_common {
 	 * all_zero_hdr10plus_pkt to false
 	 */
 	bool all_zero_hdr10plus_pkt;
+	/* save the last sent infoframe */
+	struct vsif_debug_save vsif_debug_info;
+	struct master_display_info_s drm_config_data;
+	struct hdr10plus_para hdr10p_config_data;
+	/* save the last sent hdr param */
+	enum hdmi_hdr_transfer hdr_transfer_feature;
+	enum hdmi_hdr_color hdr_color_feature;
+	unsigned int colormetry;
+	/* hdr work */
+	struct work_struct work_hdr;
+	struct work_struct work_hdr_unmute;
+	/* hdr10plus flag */
+	unsigned int hdr10plus_feature;
+	/* amdv info */
+	enum eotf_type hdmi_current_eotf_type;
+	enum mode_type hdmi_current_tunnel_mode;
+	bool hdmi_current_signal_sdr;
+	/* hdmitx infoframe */
+	struct hdmitx_infoframe infoframe;
 
-	/* 0.1% clock shift, 1080p60hz->59.94hz */
-	u32 frac_rate_policy;
-	/* Indicates spread spectrum, 1/on 0/off */
-	u32 sspll;
-	/* Indicates current status, HDMITX20/HDMITX21 */
-	int hdmi_init;
-	/*
-	 * for SONY-KD-55A8F TV, need to mute more frames(default 20 frames)
-	 * when switch DV(LL)->HLG
-	 */
-	int hdr_mute_frame;
-	/*DRM related*/
-	struct drm_hdmitx_hdcp drm_hdcp;
-	/* vrr related*/
+	/* 11. vrr related*/
 	struct vrr_device_s hdmitx_vrr_dev;
-
-	bool pre_tmds_clk_div40;
-
-	u32 flag_3dfp:1;
-	u32 flag_3dtb:1;
-	u32 flag_3dss:1;
-	/* audio */
-	/* if switching from 48k pcm to 48k DD, the ACR/N parameter is same,
-	 * so there is no need to update ACR/N. but for mode change, different
-	 * sample rate, need to update ACR/N.
+	/*
+	 * the qms_log_id is referred from hw_sequence_id
+	 * if value is not changed, the skip massive qms log
 	 */
-	struct aud_para cur_audio_param;
-	/*audio end*/
+	u64 qms_log_id;
 
-	/****** device config ******/
+	/* 12. allm related */
+	/* allm_mode: 1/on 0/off */
+	u32 allm_mode;
+	/* contenttype:0/off 1/game, 2/graphics, 3/photo, 4/cinema */
+	u32 ct_mode;
+	bool it_content;
+	/* below are only for special hdmitx21 project */
+	/* ll setting: 0/AUTOMATIC, 1/Always OFF, 2/ALWAYS ON */
+	enum hdmi_ll_mode ll_user_set_mode;
+	/* ll_mode enabled in auto or not */
+	bool ll_enabled_in_auto_mode;
+
+	/* 13. configuration from dts or efuse ******/
 	/* 0: TV product, 1: stb/soundbar product;
 	 * used to check if need to notify edid to
 	 * upstream hdmirx.
 	 */
 	u32 hdmi_repeater;
-	/*hdcp control type config*/
-	u32 hdcp_ctl_lvl;
 	/* enc index: for non-ott product*/
 	u32 enc_idx;
 	/*soc limitation config*/
@@ -323,11 +378,16 @@ struct hdmitx_common {
 	bool efuse_dis_hdmi_tx3d;	/* 3d */
 	bool efuse_dis_hdcp_tx14;	/* s1a hdcptx14 */
 	u32 max_refreshrate;
-	/*for color space conversion*/
-	bool config_csc_en;
+	u32 hdmi_rext; /* Rext resistor */
+	struct hdmi_config_platform_data config_data;
+	u32 pxp_mode:1;
+	u32 arc_rx_en;
+	struct hdmitx_clk_tree_s hdmitx_clk_tree;
+	struct pinctrl_state *pinctrl_i2c;
+	struct pinctrl_state *pinctrl_default;
 
-	/***** ced/rxsense related *****/
-	bool cedst_en; /* configure in DTS */
+	/* 14. ced/rxsense related */
+	bool cedst_en;
 	u32 cedst_policy;
 	struct workqueue_struct *cedst_wq;
 	struct delayed_work work_cedst;
@@ -337,26 +397,18 @@ struct hdmitx_common {
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
 
-	/***** VOUT related: TO move out *****/
-	struct vinfo_s hdmitx_vinfo;
-	struct vout_device_s *vdev;
-
-	/****** debug & log ******/
+	/* 15. debug & log */
 	struct hdmitx_tracer *tx_tracer;
 	struct hdmitx_event_mgr *event_mgr;
 	struct st_debug_param debug_param;
 	struct dentry *hdmitx_file_dbgfs;
 	struct proc_dir_entry *hdmitx_proc_dbgfs;
-	/*
-	 * the qms_log_id is referred from hw_sequence_id
-	 * if value is not changed, the skip massive qms log
-	 */
-	u64 qms_log_id;
+	/* hdmitx bist */
+	unsigned int bist_lock:1;
+	atomic_t kref_video_mute;
+	/* always output in bl30, for debug on hdmitx21 */
+	u32 aon_output:1;
 
-	struct vsif_debug_save vsif_debug_info;
-	struct master_display_info_s drm_config_data;
-	struct hdr10plus_para hdr10p_config_data;
-	struct aud_para hdmiaud_config_data;
 	/**********only used for hdmitx20**********/
 	/* in board dts file, here can add
 	 * &amhdmitx {
@@ -369,19 +421,6 @@ struct hdmitx_common {
 	int hdcp_tst_sig;
 	struct hdcprp_topo *topo_info;
 	bool hdcp22_type;
-	/**********only used for hdmitx20 end**********/
-
-	enum hdmi_ll_mode ll_user_set_mode; /* ll setting: 0/AUTOMATIC, 1/Always OFF, 2/ALWAYS ON */
-	bool ll_enabled_in_auto_mode; /* ll_mode enabled in auto or not */
-	/**********only used for hdmitx21**********/
-	u32 aon_output:1; /* always output in bl30 */
-
-	u8 def_stream_type;
-	u32 is_passthrough_switch;
-	bool dw_hdcp22_cap;
-	bool need_filter_hdcp_off;
-	u32 filter_hdcp_off_period;
-	bool not_restart_hdcp;
 	/* enable poll rx_status for workaround of special hdcp2.2 TV */
 	bool en_poll_rx_status;
 	/* poll rx_status workaround method:
@@ -389,62 +428,13 @@ struct hdmitx_common {
 	 * 1: read only 1 byte of hdcp msg
 	 */
 	u8 poll_rx_status_mtd;
-	/**********only used for hdmitx21 end**********/
+	/**********only used for hdmitx20 end**********/
 
-	/* hdr info */
-	enum hdmi_hdr_transfer hdr_transfer_feature;
-	enum hdmi_hdr_color hdr_color_feature;
-	unsigned int colormetry;
-	/* hdmitx infoframe */
-	struct hdmitx_infoframe infoframe;
-	/* hdr work */
-	struct work_struct work_hdr;
-	struct work_struct work_hdr_unmute;
-	/* hdr10plus flag */
-	unsigned int hdr10plus_feature;
-	/* amdv info */
-	enum eotf_type hdmi_current_eotf_type;
-	enum mode_type hdmi_current_tunnel_mode;
-	bool hdmi_current_signal_sdr;
-	/*
-	 * edid parse debug flag
-	 * true: edid parse in hdmitx
-	 * false(default): edid parse in drm
-	 */
-	bool edid_parse_dbg;
-	/* hdmitx bist */
-	unsigned int bist_lock:1;
-
-	u32 hdmi_rext; /* Rext resistor */
-	u32 pxp_mode:1;
-	struct hdmi_config_platform_data config_data;
+	/* 16. interrupt related */
 	u32 irq_hpd;
 	u32 irq_viu1_vsync;
 	u32 irq_vrr_vsync;
-	u32 arc_rx_en;
-	struct hdmitx_clk_tree_s hdmitx_clk_tree;
-	/*Platform related.*/
-	struct notifier_block reboot_nb;
-	/* audio related */
-	struct notifier_block hdmitx_notifier_nb_a;
-	/* task */
-	struct task_struct *task_hdcp;
-	struct task_struct *task;
-	struct delayed_work work_hpd_plugin;
-	struct delayed_work work_hpd_plugout;
 	struct delayed_work work_internal_intr;
-	u8 hpd_event; /* 1, plugin; 2, plugout */
-	struct device *pdev; /* for pinctrl*/
-	struct pinctrl_state *pinctrl_i2c;
-	struct pinctrl_state *pinctrl_default;
-	pf_callback earc_hdmitx_hpdst;
-
-#ifdef CONFIG_AMLOGIC_VPU
-	struct vpu_dev_s *encp_vpu_dev;
-	struct vpu_dev_s *enci_vpu_dev;
-	struct vpu_dev_s *hdmi_vpu_dev;
-	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
-#endif
 };
 
 #define to_hdmitx_common(x)	container_of(x, struct hdmitx_common, base)
@@ -654,7 +644,7 @@ int hdmitx_common_set_vframe_rate_hint(struct hdmitx_common *tx_comm, int rate, 
 #define HDCP_SLAVE	0x3a
 #define HDCP2_RD_MSG	0x80
 unsigned int get_hdcp22_base(void);
-bool is_hdcp22_stop_state(void);
+bool is_hdcp22_stop_state(struct hdmitx_common *tx_comm);
 void hdmitx_reset_tv_hdcp(void);
 u32 ddc_read_1byte(u8 slave, uint8_t offset_addr, uint8_t *data);
 void hdmitx_hdcp_do_work(struct hdmitx_common *tx_comm);

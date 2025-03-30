@@ -234,9 +234,9 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 		if (gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP2X) {
 			dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
 		} else {
-			hdmitx21_ctrl_hdcp_gate(2, true);
+			hdmitx21_ctrl_hdcp_gate(tx_comm->tx_hw->chip_data->chip_type, 2, true);
 			dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
-			hdmitx21_ctrl_hdcp_gate(2, false);
+			hdmitx21_ctrl_hdcp_gate(tx_comm->tx_hw->chip_data->chip_type, 2, false);
 		}
 	} else {
 		dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);

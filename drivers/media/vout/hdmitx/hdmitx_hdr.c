@@ -1195,7 +1195,6 @@ void hdmitx_hdr_init(struct hdmitx_common *tx_comm)
 		return;
 
 	/* init hdr para */
-	tx_comm->last_drm_eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	tx_comm->hdr_transfer_feature = T_UNKNOWN;
 	tx_comm->hdr_color_feature = C_UNKNOWN;
 	tx_comm->colormetry = 0;

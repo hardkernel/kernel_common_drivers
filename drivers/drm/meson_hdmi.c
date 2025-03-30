@@ -2701,7 +2701,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 
 	am_hdmi->hdmitx_dev = intf;
 	tx_comm  = to_hdmitx_common(intf);
-	hdcp_ctl_lvl = tx_comm->hdcp_ctl_lvl;
+	hdcp_ctl_lvl = tx_comm->hdcptx_comm.hdcp_ctl_lvl;
 	DRM_DEBUG("hdcp_ctl_lvl=%d\n", hdcp_ctl_lvl);
 
 	if (hdcp_ctl_lvl == 0) {

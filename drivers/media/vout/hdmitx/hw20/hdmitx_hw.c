@@ -48,7 +48,6 @@
 #include "hdmitx_reg_sc2.h"
 #include "hdmitx_debug_reg.h"
 #include "hdmitx_compliance.h"
-#include "hdmitx_meson_drm.h"
 #include "hdmitx_hdcp.h"
 #include "hdmitx_infoframe.h"
 #include "hdmitx_audio.h"
@@ -535,7 +534,7 @@ static void hdmi_hwi_init(struct hdmitx20_dev *hdev)
 
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 7, 1);
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, 0x67);
-	if (hdmitx_find_vendor_null_pkt(hdev->tx_comm.EDID_buf)) {
+	if (hdmitx_find_vendor_null_pkt(hdev->tx_comm.edid_buf)) {
 		hdmitx_wr_reg(HDMITX_TOP_DISABLE_NULL, 0x6);
 		HDMITX_INFO("special TV, need enable NULL packet\n");
 	} else {
@@ -587,7 +586,7 @@ static void hdmi_hwi_init(struct hdmitx20_dev *hdev)
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SS_SCL_HCNT_0, 0xcf);
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SS_SCL_LCNT_1, 0);
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SS_SCL_LCNT_0, 0xff);
-	if (global_tx_hw->base->hdcp_repeater_en == 1) {
+	if (hdev->tx_comm.hdcptx_comm.hdcp_rpt_en == 1) {
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_SS_SCL_HCNT_0, 0x67);
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_SS_SCL_LCNT_0, 0x78);
 	}
@@ -3083,7 +3082,7 @@ static void hdmitx_uninit(struct hdmitx_hw_common *tx_hw)
 	free_irq(hdev->tx_comm.irq_hpd, (void *)hdev);
 	HDMITX_DEBUG("power off hdmi, unmux hpd\n");
 
-	hdmitx20_hdcp_exit(hdev);
+	hdmitx20_hdcp_uninit(hdev);
 
 	phy_pll_off();
 	hdmitx_hpd_hw_op(HPD_UNMUX_HPD);
@@ -4611,7 +4610,7 @@ static void hdcptx_events_handle(struct timer_list *t)
 			ksv[i] = (unsigned char)
 				hdmitx_rd_reg(HDMITX_DWC_HDCPREG_BKSV0 + i);
 		/* if downstream is only RX */
-		if (global_tx_hw->base->hdcp_repeater_en == 1 && hdev->tx_comm.topo_info) {
+		if (hdev->tx_comm.hdcptx_comm.hdcp_rpt_en == 1 && hdev->tx_comm.topo_info) {
 			hdcp_ksv_store(hdev->tx_comm.topo_info, ksv, 5);
 			if (tmp_ksv_lists.valid) {
 				int cnt = get_hdcp_device_count();
@@ -4784,7 +4783,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *tx_hw,
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_SOFTRSTZ, 0);
 		break;
 	case DDC_EDID_READ_DATA:
-		hdmitx_read_edid(&hdev->tx_comm, hdev->tx_comm.EDID_buf);
+		hdmitx_read_edid(&hdev->tx_comm, hdev->tx_comm.edid_buf);
 		break;
 	case DDC_GLITCH_FILTER_RESET:
 		hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 6, 1);
@@ -4891,9 +4890,9 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *tx_hw,
 		}
 		break;
 	case DDC_HDCP_GET_AUTH:
-		if (hdev->tx_comm.hdcp_mode == 1)
+		if (hdev->tx_comm.hdcptx_comm.hdcp_mode == 1)
 			return hdmitx_hdcp_opr(2);
-		if (hdev->tx_comm.hdcp_mode == 2)
+		if (hdev->tx_comm.hdcptx_comm.hdcp_mode == 2)
 			return hdmitx_hdcp_opr(7);
 		else
 			return 0;
@@ -4902,6 +4901,18 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *tx_hw,
 		return hdmitx_hdcp_opr(0xa);
 	case DDC_HDCP_22_LSTORE:
 		return hdmitx_hdcp_opr(0xb);
+	case DDC_HDCP_22_PRIVATE_KEY_RDY:
+		/*
+		 * check hdcp_tx22 daemon running state for linux.
+		 * for android platform, always treat it as ready
+		 */
+		if (hdev->tx_comm.hdcptx_comm.hdcp_ctl_lvl > 0 &&
+			!drm_hdcp_tx22_daemon_ready(&hdev->tx_comm))
+			return 0;
+		else
+			return 1;
+	case DDC_GET_RX_HDCP22_VER:
+		return hdcp_rd_hdcp22_ver();
 	case DDC_HDCP14_GET_TOPO_INFO:
 		topo14 = (struct hdcprp14_topo *)argv;
 		/* if rx is not repeater, directly return */
@@ -4923,6 +4934,8 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *tx_hw,
 			hdmitx_hdcp_opr(0xd);
 		}
 		break;
+	case DDC_HDCP_GET_TOPO_INFO:
+		return hdmitx_hdcp_opr(0xe);
 	case DDC_SCDC_DIV40_SCRAMB:
 		/* from hdmi2.1/2.0 spec chapter 10.4, prior to accessing
 		 * the SCDC, source devices shall verify that the attached
@@ -4958,6 +4971,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *tx_hw,
 		break;
 	case DDC_HDCP14_GET_BCAPS_RP:
 		return !!(hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS3) & (1 << 6));
+	case DDC_REQ_HDCP_AUTH:
 	default:
 		break;
 	}
@@ -6404,7 +6418,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (default_phase << 2);
 	data32 |= (0 << 1);
 	data32 |= (0 << 0);
-	if (!global_tx_hw->base->hdcp_repeater_en)
+	if (!hdev->tx_comm.hdcptx_comm.hdcp_rpt_en)
 		hdmitx_wr_reg(HDMITX_DWC_FC_GCP, data32);
 
 	/* write AVI Infoframe packet configuration */
@@ -6966,8 +6980,8 @@ static void hdmitx20_disable_hdcp(struct hdmitx_common *tx_comm)
 	/* HW: mux to hdcp14 & hdcp14 off, DDC free */
 	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_HDCP_MUX_INIT, 1);
 	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_HDCP_OP, HDCP14_OFF);
-	tx_comm->hdcp_mode = 0;
-	tx_comm->hdcp_bcaps_repeater = 0;
+	tx_comm->hdcptx_comm.hdcp_mode = 0;
+	tx_comm->hdcptx_comm.hdcp_bcaps_repeater = 0;
 }
 
 void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
@@ -6991,12 +7005,6 @@ void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 			hdev->hdcp_hpd_stick = 0;
 		HDMITX_DEBUG_HPD("%sstick hpd\n",
 			(hdev->hdcp_hpd_stick) ? "" : "un");
-	} else if (strncmp(tmpbuf, "drm_set_hdmi", 12) == 0) {
-		if (tx_comm->drm_hdcp.test_set_hdmi_mode)
-			tx_comm->drm_hdcp.test_set_hdmi_mode();
-	} else if (strncmp(tmpbuf, "drm_set_out", 11) == 0) {
-		if (tx_comm->drm_hdcp.test_set_out_mode)
-			tx_comm->drm_hdcp.test_set_out_mode();
 	} else if (strncmp(tmpbuf, "hdcp_max_exceed", 15) == 0) {
 		HDMITX_INFO("%d", hdev->hdcp_max_exceed_state);
 	} else if (strncmp(tmpbuf, "max_exceed", 10) == 0) {

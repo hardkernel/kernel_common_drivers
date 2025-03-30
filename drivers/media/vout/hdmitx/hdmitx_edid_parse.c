@@ -2440,30 +2440,30 @@ static void check_dv_truly_support(struct rx_cap *prxcap, struct dv_info *dv)
 	}
 }
 
-static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *EDID_buf)
+static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *edid_buf)
 {
 	unsigned char checksum;
 	unsigned char zero_numbers;
 	unsigned char cta_block_count;
 	int i;
 
-	if (!prxcap || !EDID_buf)
+	if (!prxcap || !edid_buf)
 		return;
 
-	edid_parsing_id_manufacturer_name(prxcap, &EDID_buf[8]);
-	edid_parsing_id_product_code(prxcap, &EDID_buf[0x0A]);
-	edid_parsing_id_serial_number(prxcap, &EDID_buf[0x0C]);
+	edid_parsing_id_manufacturer_name(prxcap, &edid_buf[8]);
+	edid_parsing_id_product_code(prxcap, &edid_buf[0x0A]);
+	edid_parsing_id_serial_number(prxcap, &edid_buf[0x0C]);
 
-	edid_established_timings(prxcap, &EDID_buf[0x23]);
+	edid_established_timings(prxcap, &edid_buf[0x23]);
 
-	edid_manufacture_date_parse(prxcap, &EDID_buf[16]);
+	edid_manufacture_date_parse(prxcap, &edid_buf[16]);
 
-	edid_version_parse(prxcap, &EDID_buf[18]);
+	edid_version_parse(prxcap, &edid_buf[18]);
 
-	edid_physical_size_parse(prxcap, &EDID_buf[21]);
-	prxcap->blk0_chksum = EDID_buf[0x7F];
+	edid_physical_size_parse(prxcap, &edid_buf[21]);
+	prxcap->blk0_chksum = edid_buf[0x7F];
 
-	cta_block_count = hdmitx_edid_get_cta_block_count(EDID_buf);
+	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);
 
 	/*
 	 * only one block, need parse continue, at the end of parse, it will determine
@@ -2478,12 +2478,12 @@ static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *EDI
 		checksum = 0;
 		zero_numbers = 0;
 		for (i = 0; i < 128; i++) {
-			checksum += EDID_buf[i];
-			if (EDID_buf[i] == 0)
+			checksum += edid_buf[i];
+			if (edid_buf[i] == 0)
 				zero_numbers++;
 		}
 		HDMITX_DEBUG_EDID("edid blk0 checksum:%d ext_flag:%d\n",
-			checksum, EDID_buf[0x7e]);
+			checksum, edid_buf[0x7e]);
 		if ((checksum & 0xff) == 0)
 			prxcap->ieeeoui = 0;
 		else
@@ -2767,7 +2767,7 @@ unsigned int hdmitx_edid_valid_block_num(unsigned char *edid_buf)
 }
 
 /*
- * print out EDID_buf
+ * print out edid_buf
  */
 void hdmitx_edid_print(u8 *edid_buf)
 {
