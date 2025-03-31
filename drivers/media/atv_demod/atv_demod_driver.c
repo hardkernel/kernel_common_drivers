@@ -80,7 +80,8 @@
 /* 2024/11/22 --- V4.03 --- Revert V4.02 commit. */
 /* 2024/12/27 --- V4.04 --- add vfmt_cnt config to fix cvbs detect. */
 /* 2025/07/04 --- V4.05 --- fix coverity issues */
-#define AMLATVDEMOD_VER "V4.05"
+/* 2025/04/21 --- V4.06 --- fix IO V4L2_READ_STATUS call and sync. */
+#define AMLATVDEMOD_VER "V4.06"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 

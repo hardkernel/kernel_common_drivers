@@ -155,13 +155,15 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 		if (IS_ERR(amlatvdemod_devp->agc_pin)) {
 			amlatvdemod_devp->agc_pin = NULL;
 			pr_err("%s:get agc pins fail\n", __func__);
+
+			return -2;
 		}
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	err_code = adc_set_pll_cntl(1, ADC_ATV_DEMOD, NULL);
 	if (err_code) {
-		pr_dbg("%s:adc set pll error %d\n", __func__, err_code);
+		pr_err("%s:adc set pll error %d\n", __func__, err_code);
 
 		if (!IS_ERR_OR_NULL(amlatvdemod_devp->agc_pin)) {
 			/*
@@ -288,6 +290,8 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	struct atv_demod_parameters *p = &priv->atvdemod_param;
 	struct analog_parameters ptuner = { 0 };
 
+	mutex_lock(&atv_demod_list_mutex);
+
 	priv->standby = true;
 
 	/* tuner config, no need cvbs format, just audio mode. */
@@ -340,12 +344,25 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 
 		pr_dbg("%s:frequency %d\n", __func__, p->param.frequency);
 	}
+
+	mutex_unlock(&atv_demod_list_mutex);
 }
 
 static int atv_demod_has_signal(struct dvb_frontend *fe, u16 *signal)
 {
 	int vpll_lock = 0;
 	int line_lock = 0;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
+
+	mutex_lock(&atv_demod_list_mutex);
+
+	*signal = V4L2_TIMEDOUT;
+
+	if (!priv || priv->state != ATVDEMOD_STATE_WORK) {
+		mutex_unlock(&atv_demod_list_mutex);
+
+		return -EPERM;
+	}
 
 	retrieve_vpll_carrier_lock(&vpll_lock);
 
@@ -362,12 +379,16 @@ static int atv_demod_has_signal(struct dvb_frontend *fe, u16 *signal)
 				__func__, vpll_lock, line_lock);
 	}
 
+	mutex_unlock(&atv_demod_list_mutex);
+
 	return 0;
 }
 
 static void atv_demod_standby(struct dvb_frontend *fe)
 {
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
+
+	mutex_lock(&atv_demod_list_mutex);
 
 	if (priv->state != ATVDEMOD_STATE_IDEL) {
 		atv_demod_leave_mode(fe);
@@ -376,6 +397,8 @@ static void atv_demod_standby(struct dvb_frontend *fe)
 	}
 
 	pr_info("%s:OK\n", __func__);
+
+	mutex_unlock(&atv_demod_list_mutex);
 }
 
 static void atv_demod_tuner_status(struct dvb_frontend *fe)
@@ -384,7 +407,21 @@ static void atv_demod_tuner_status(struct dvb_frontend *fe)
 
 static int atv_demod_get_afc(struct dvb_frontend *fe, s32 *afc)
 {
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
+
+	mutex_lock(&atv_demod_list_mutex);
+
+	*afc = 0;
+
+	if (!priv || priv->state != ATVDEMOD_STATE_WORK) {
+		mutex_unlock(&atv_demod_list_mutex);
+
+		return -EPERM;
+	}
+
 	*afc = retrieve_vpll_carrier_afc();
+
+	mutex_unlock(&atv_demod_list_mutex);
 
 	return 0;
 }
