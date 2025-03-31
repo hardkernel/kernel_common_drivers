@@ -3849,8 +3849,7 @@ static struct clk_regmap t3_vpu_clkb = {
 			&t3_vpu_clkb_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
-				CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
 	},
 };
 
