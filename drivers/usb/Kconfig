@@ -5,7 +5,7 @@ menu "USB Support"
 config AMLOGIC_USB
 	bool "Amlogic USB controller support"
 	default n
-	select USB_PHY
+	select USB_PHY if AMLOGIC_BREAK_GKI
 	depends on USB
 	help
 	  DWC_OTG
