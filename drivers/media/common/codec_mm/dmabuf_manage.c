@@ -1787,39 +1787,26 @@ static long dmabuf_manage_release_channel(u32 id_high, u32 id_low)
 
 static void dmabuf_manage_dump_secure_pool(struct secure_pool_info *pool)
 {
-	char buf[1024] = { 0 };
-	u32 size = 1024;
-	u32 s = 0;
-	u32 tsize = 0;
-	char *pbuf = buf;
 	u32 block_count = 0;
 	struct list_head *pos = NULL;
 	struct list_head *tmp = NULL;
 	struct block_node *block = NULL;
 
 	if (pool) {
-		s = snprintf(pbuf, size - tsize,
-			"Pool Ver %d %d Id %d %d Block size %x\n",
+		pr_inf("Pool Ver %d %d Id %d %d Block size %x\n",
 			pool->version, pool->channel_register,
 			pool->id_high, pool->id_low, pool->block_size);
-		tsize += s;
-		pbuf += s;
 
 		if (!list_empty(&pool->block_node)) {
 			list_for_each_safe(pos, tmp, &pool->block_node) {
 				block = list_entry(pos, struct block_node, node);
 				if (block) {
-					s = snprintf(pbuf, size - tsize,
-						"Block Count %x addr %llx size %x\n", block_count,
+					pr_inf("Block Count %x addr %llx size %x\n", block_count,
 						block->addr, block->size);
-					tsize += s;
-					pbuf += s;
 					block_count++;
 				}
 			}
 		}
-
-		pr_error("%s", buf);
 	}
 }
 
