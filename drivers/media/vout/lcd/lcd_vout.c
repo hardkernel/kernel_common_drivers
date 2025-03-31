@@ -693,6 +693,8 @@ static void lcd_mode_switch_data_on(struct aml_lcd_drv_s *pdrv)
 			if (pdrv->config.basic.lcd_type == LCD_P2P)
 				lcd_tcon_reload(pdrv);
 #endif
+			// phy param maybe change update phy register
+			lcd_phy_set(pdrv, LCD_PHY_ON);
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
