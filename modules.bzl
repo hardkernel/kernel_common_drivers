@@ -39,7 +39,6 @@ AMLOGIC_COMMON_MODULES = [
     "drivers/i2c/i2c-dev.ko",
     "drivers/leds/leds-gpio.ko",
     "drivers/media/dvb-core/dvb-core.ko",
-    "drivers/mmc/host/cqhci.ko",
     "drivers/net/mdio/mdio-mux.ko",
     "drivers/net/pcs/pcs_xpcs.ko",
     "drivers/regulator/gpio-regulator.ko",

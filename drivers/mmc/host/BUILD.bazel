@@ -26,7 +26,15 @@ ddk_module(
             ],
         },
         "CONFIG_AMLOGIC_MMC_CQHCI": {
-            True: ["meson-cqhci.c"],
+            True: [
+		"meson-cqhci.c",
+		"cqhci-core.c",
+	    ],
+        },
+	"CONFIG_AMLOGIC_MMC_CRYPTO": {
+            True: [
+		"cqhci-crypto.c",
+	    ],
         },
     },
     hdrs = [

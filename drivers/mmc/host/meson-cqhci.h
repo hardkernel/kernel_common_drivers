@@ -13,8 +13,10 @@
 #include <linux/completion.h>
 #include <linux/wait.h>
 #include <linux/irqreturn.h>
+#include <linux/amlogic/aml_sd.h>
 
-#include "../drivers/mmc/host/cqhci.h"
+#include "cqhci.h"
+#include "cqhci-crypto.h"
 /* The resp returned by cmd19 and cmd52/3 can't use the same mask */
 #define SDIO_RESP_ERR_MASK      0x0
 

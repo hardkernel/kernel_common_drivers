@@ -11,12 +11,21 @@ config AMLOGIC_MMC_MESON_GX
 
 config AMLOGIC_MMC_CQHCI
          tristate "Amlogic MMC CQHCI Host Controller support"
-         depends on MMC_CQHCI
          help
            This selects support for the Amlogic MMC CQHCI Host Controller
-           found on the P1/A5/T5M/*/ family of SoCs.  This controller is
+           found on the P1/A5/T5M/... family of SoCs.  This controller is
            MMC 5.1 compliant and supports SD, eMMC and SDIO interfaces.
            If you have a controller with this interface, say Y here.
+
+config AMLOGIC_MMC_CRYPTO
+	tristate "Amlogic MMC Crypto Engine Support"
+	depends on BLK_INLINE_ENCRYPTION && MMC_CRYPTO
+	default y
+	help
+	  Enable Crypto Engine Support in MMC.
+	  Enabling this makes it possible for the kernel to use the crypto
+	  capabilities of the MMC device (if present) to perform crypto
+	  operations on data being transferred to/from the device.
 
 config AMLOGIC_MMC_RPMB
          tristate "Amlogic MMC RPMB support"

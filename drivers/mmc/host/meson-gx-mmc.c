@@ -1542,7 +1542,7 @@ static void meson_mmc_request_done(struct mmc_host *mmc,
 	if (host->needs_pre_post_req)
 		meson_mmc_post_req(mmc, mrq, 0);
 	aml_sd_emmc_check_sdio_irq(host);
-#if IS_ENABLED(CONFIG_AMLOGIC_MMC_CQHCI)
+#if IS_ENABLED(CONFIG_AMLOGIC_MMC_CRYPTO)
 	if (host->enable_inline_crypto)
 		meson_crypto_post_req(mmc, mrq);
 #endif
@@ -1918,7 +1918,7 @@ static void meson_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	/* Stop execution */
 	writel(0, host->regs + SD_EMMC_START);
 
-#if IS_ENABLED(CONFIG_AMLOGIC_MMC_CQHCI)
+#if IS_ENABLED(CONFIG_AMLOGIC_MMC_CRYPTO)
 	if (host->enable_inline_crypto)
 		meson_crypto_prepare_req(mmc, mrq);
 #endif
