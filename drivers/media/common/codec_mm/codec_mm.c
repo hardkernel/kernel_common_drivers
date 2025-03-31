@@ -1318,7 +1318,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 			pr_err("not enough mem for %s size %d, ret=%d\n",
 				owner, size, ret);
 		else
-			pr_err("not enough mem for %s size %d, ret=%d due to mem fragmentation\n",
+			pr_err("not enough mem for %s size %d, ret=%d (fragmentation or thread killed)\n",
 				owner, size, ret);
 		pr_err("mem flags %d %d, %d\n",
 		       memflags, mem->flags, align2n);
