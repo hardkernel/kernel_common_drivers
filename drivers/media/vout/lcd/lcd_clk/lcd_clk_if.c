@@ -102,21 +102,24 @@ static void lcd_bit_rate_match_phy(struct aml_lcd_drv_s *pdrv)
 	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
 	struct phy_attr_s *phy;
 	int i = 0;
-	unsigned int phy_clk;
+	unsigned int bit_rate;
 
 	phy_cfg->act_phy = phy_cfg->phys[0];// if not matched, use default
-	phy_clk = lcd_do_div(pdrv->config.timing.bit_rate, 1000000);
+	bit_rate = lcd_do_div(pdrv->config.timing.bit_rate, 1000000);
 	for (i = 0; i < phy_cfg->group_num; i++) {
 		phy = phy_cfg->phys[i];
-		if (phy->phy_clk < phy_clk - 20 || phy->phy_clk > phy_clk + 20)
+		if (phy->phy_clk < bit_rate - 20 || phy->phy_clk > bit_rate + 20)
 			continue;
 
 		phy_cfg->act_phy = phy_cfg->phys[i];
-		LCDPR("%s act_phy[%d], clk:%d\n", __func__, i, phy_cfg->act_phy->phy_clk);
+		LCDPR("[%d]: bit_rate=%d, match phy[%d]=%d\n",
+			pdrv->index, bit_rate, i, phy->phy_clk);
 		return;
 	}
-	if (phy_cfg->phys[0]->phy_clk)
-		LCDPR("no phy_clk matched, use default(phy[0])\n");
+	if (phy_cfg->phys[0]->phy_clk) {
+		LCDPR("[%d]: bit_rate=%d, no phy_clk matched, use default(phy[0]=%d)\n",
+			pdrv->index, bit_rate, phy_cfg->phys[0]->phy_clk);
+	}
 }
 
 static void lcd_phy_match_ss(struct aml_lcd_drv_s *pdrv)
@@ -138,8 +141,7 @@ static void lcd_phy_match_ss(struct aml_lcd_drv_s *pdrv)
 		tim->ss_mode = phy->ss.mode;
 	}
 
-	LCDPR("[%d]:match ss_level=%d, ss_freq=%d, ss_mode=%d\n",
-		pdrv->index, tim->ss_level, tim->ss_freq, tim->ss_mode);
+	lcd_clk_ss_param_init(pdrv);
 }
 
 void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
@@ -172,7 +174,6 @@ void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 		cconf->data->clk_generate_parameter(pdrv);
 	lcd_bit_rate_match_phy(pdrv);
 	lcd_phy_match_ss(pdrv);
-	lcd_clk_ss_param_init(pdrv);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);

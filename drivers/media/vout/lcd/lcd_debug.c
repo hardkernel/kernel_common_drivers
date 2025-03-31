@@ -1100,6 +1100,8 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 	pdrv->vinfo.std_duration = sync_duration / 100;
 	pdrv->vinfo.video_clk = pconf->timing.enc_clk;
 
+	lcd_clk_generate_parameter(pdrv);
+
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_interrupt_enable(pdrv, 0);
