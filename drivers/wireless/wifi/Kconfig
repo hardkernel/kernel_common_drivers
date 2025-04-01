@@ -2,8 +2,8 @@
 
 menuconfig AMLOGIC_WIFI
 	bool "WiFi support"
-	select WIRELESS_EXT
-	select WEXT_PRIV
+	select WIRELESS_EXT if AMLOGIC_BREAK_GKI
+	select WEXT_PRIV if AMLOGIC_BREAK_GKI
 	default n
 	help
 		select y to support wifi
