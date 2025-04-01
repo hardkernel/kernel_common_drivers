@@ -12367,7 +12367,8 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	frc_switch_flag = frc_ready_to_switch();
 #endif
 	if (layer->layer_id == 0 && vinfo) {
-		if (src_width > 4096 && src_height > 2160) {
+		if ((src_width > 4096 && src_height >= 2160) ||
+			(src_width >= 4096 && src_height > 2160)) {
 			/* input: (4k-8k] */
 			slice_num = 4;
 			vd1s1_vd2_prebld_en = 0;
