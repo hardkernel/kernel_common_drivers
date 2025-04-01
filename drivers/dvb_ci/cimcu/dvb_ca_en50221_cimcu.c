@@ -15,7 +15,7 @@
 #include <linux/sched/signal.h>
 #include <linux/compat.h>
 
-#include "dvb_ringbuffer.h"
+#include <linux/amlogic/media/dvb-core/dvb_ringbuffer.h>
 
 #include "dvb_ca_en50221_cimcu.h"
 

@@ -11,7 +11,6 @@ obj-$(CONFIG_AMLOGIC_DVB_DMX) = $(MODULE_NAME_DEMUX).o
 # ccflags-y += $(PR_FMT__DEMUX_DEFINE)
 
 ccflags-y += -I$(srctree)/include
-ccflags-y += -I$(srctree)/include/media
 ccflags-y += -I$(srctree)/include/uapi
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/include/linux/amlogic
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/include/uapi

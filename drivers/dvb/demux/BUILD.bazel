@@ -5,6 +5,7 @@ load("//common_drivers:amlogic_utils.bzl", "m_k_files")
 m_k_files()
 
 amlogic_dvb_demux_deps0 = [
+    "//common_drivers/drivers/media/dvb-core:dvb-core",
     "//common_drivers/drivers/media:aml_media",
     "//common_drivers/drivers/dvb:amlogic-dvb",
     "//common_drivers/drivers/pwm:amlogic-pwm",
@@ -53,7 +54,6 @@ ddk_module(
         "//common_drivers:soc_headers",
     ],
     linux_includes = [
-        "../../../../common/include/media",
     ],
     local_defines = [
         "pr_fmt(fmt)=\"[dvb-demux]: \" fmt",

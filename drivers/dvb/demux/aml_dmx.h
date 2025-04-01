@@ -7,15 +7,15 @@
 #define _AML_DMX_H_
 
 #include <linux/list.h>
-#include <media/aml_demux_ext.h>
+#include <linux/amlogic/media/dvb-core/aml_demux_ext.h>
 
 #include "sw_demux/swdemux.h"
 #include "sc2_demux/ts_output.h"
 #include "sc2_demux/ts_input.h"
 #include "sc2_demux/mem_desc.h"
-#include "demux.h"
-#include "dvbdev.h"
-#include <dmxdev.h>
+#include <linux/amlogic/media/dvb-core/demux.h>
+#include <linux/amlogic/media/dvb-core/dvbdev.h>
+#include <linux/amlogic/media/dvb-core/dmxdev.h>
 #include <linux/platform_device.h>
 
 struct sw_demux_ts_feed {

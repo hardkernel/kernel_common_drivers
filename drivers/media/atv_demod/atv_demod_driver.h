@@ -9,7 +9,7 @@
 
 #include <linux/amlogic/cpu_version.h>
 #include <media/v4l2-device.h>
-#include <dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 #include "atv_demod_v4l2.h"
 
 

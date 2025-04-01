@@ -5,7 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/i2c.h>
-#include <uapi/linux/dvb/aml_fe_ext.h>
+#include <uapi/amlogic/dvb/aml_fe_ext.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_atvdemod.h>
@@ -13,7 +13,7 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 
 #include <tuner-i2c.h>
-#include <dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 
 #include "atvdemod_func.h"
 #include "atvauddemod_func.h"

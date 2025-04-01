@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/string.h>
-#include <linux/dvb/dmx.h>
+#include <uapi/amlogic/dvb/dmx.h>
 #include <linux/version.h>
 #include <linux/module.h>
 #include "../aml_dvb.h"

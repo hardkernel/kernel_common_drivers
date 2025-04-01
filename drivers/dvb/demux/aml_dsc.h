@@ -7,8 +7,8 @@
 #define _AML_DSC_H_
 
 #include "sw_demux/swdemux.h"
-#include "dvbdev.h"
-#include "dmxdev.h"
+#include <linux/amlogic/media/dvb-core/dvbdev.h>
+#include <linux/amlogic/media/dvb-core/dmxdev.h>
 #include <linux/device.h>
 
 #define MAX_DSC_CHAN_NUM  20

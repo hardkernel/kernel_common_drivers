@@ -7,7 +7,7 @@
 #define __AML_TUNER_H__
 
 #include <linux/amlogic/aml_demod_common.h>
-#include <media/dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 
 struct tuner_module {
 	char *name;

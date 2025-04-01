@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/amlogic/media/amvecm/cm.h>
-#include <linux/dvb/frontend.h>
+#include <uapi/amlogic/dvb/frontend.h>
 #include <uapi/amlogic/tvin.h>
 
 enum {

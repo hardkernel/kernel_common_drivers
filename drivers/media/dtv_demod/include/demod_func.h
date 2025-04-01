@@ -10,7 +10,7 @@
 #include <linux/types.h>
 
 #include "aml_demod.h"
-#include "dvb_frontend.h"
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 #include "amlfrontend.h"
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 #include "addr_dtmb_top.h"

@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/sysfs.h>
 #include <linux/of.h>
-#include <dvbdev.h>
+#include <linux/amlogic/media/dvb-core/dvbdev.h>
 
 #include "aml_ci.h"
 

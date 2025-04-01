@@ -7,7 +7,7 @@
 #define __AML_DTVDEMOD_H__
 
 #include <linux/amlogic/aml_demod_common.h>
-#include <media/dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 
 struct demod_module {
 	char *name;

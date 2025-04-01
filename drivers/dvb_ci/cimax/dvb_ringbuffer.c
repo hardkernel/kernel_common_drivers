@@ -10,7 +10,7 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 
-#include "dvb_ringbuffer.h"
+#include <linux/amlogic/media/dvb-core/dvb_ringbuffer.h>
 
 #define PKT_READY 0
 #define PKT_DISPOSED 1

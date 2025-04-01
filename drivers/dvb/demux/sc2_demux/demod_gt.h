@@ -6,6 +6,6 @@
 #ifndef __AML_DEMOD_GT_H__
 #define __AML_DEMOD_GT_H__
 
-#include  "dvb_frontend.h"
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 
 #endif	/*__AML_DEMOD_GT_H__*/

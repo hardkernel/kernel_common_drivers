@@ -1,0 +1,51 @@
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+
+m_k_files()
+
+amlogic_dvb_core_deps0 = [
+    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+]
+amlogic_dvb_core_deps = [i for i in amlogic_dvb_core_deps0 if i in AMLOGIC_DDK_MODULES]
+ddk_module(
+    name = "dvb-core",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_DVB_CORE": {
+        True: [
+                "dvbdev.c",
+                "dmxdev.c",
+                "dvb_demux.c",
+                "dvb_ca_en50221.c",
+                "dvb_frontend.c",
+				"dvb_ringbuffer.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DVB_NET": {
+        True: [
+                "dvb_net.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_DVB_MMAP": {
+        True: [
+                "dvb_vb2.c",
+            ],
+        },
+    },
+    hdrs = [
+        "//common_drivers:soc_headers",
+    ],
+    linux_includes = [
+        "../../../../common/include/media",
+    ],
+    local_defines = [
+    ],
+    out = "dvb-core.ko",
+    kernel_build = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+    deps = amlogic_dvb_core_deps,
+)

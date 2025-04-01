@@ -26,9 +26,9 @@
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/tee_demux.h>
 #include <linux/amlogic/cpu_version.h>
-#include <media/dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 
-#include <linux/dvb/aml_dmx_ext.h>
+#include <uapi/amlogic/dvb/aml_dmx_ext.h>
 
 #include "aml_dvb.h"
 #include "dmx_log.h"

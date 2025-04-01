@@ -5,7 +5,7 @@
 
 #ifndef __DVBS_FUNC_H__
 #define __DVBS_FUNC_H__
-#include "dvb_frontend.h"
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 
 #define BLIND_SEARCH_AGC2BANDWIDTH_40 (40)
 #define BLIND_SEARCH_AGC2BANDWIDTH_60 (60)

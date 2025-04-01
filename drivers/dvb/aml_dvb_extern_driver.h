@@ -7,7 +7,7 @@
 #define __AML_DVB_EXTERN_DRIVER_H__
 
 #include <linux/device.h>
-#include <media/dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 
 #ifdef AML_DVB_EXTERN_EN_EARLY_SUSPEND
 #if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)

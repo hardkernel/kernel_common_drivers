@@ -6,7 +6,7 @@
 #ifndef __ATV_DEMOD_OPS_H__
 #define __ATV_DEMOD_OPS_H__
 
-#include <dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 #include <tuner-i2c.h>
 
 #include "atv_demod_driver.h"

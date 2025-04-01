@@ -7,7 +7,7 @@
 #include <linux/dma-buf.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <media/aml_demux_ext.h>
+#include <linux/amlogic/media/dvb-core/aml_demux_ext.h>
 #include "dma_buf_manage.h"
 
 #define dprintk(level, fmt, arg...)						\

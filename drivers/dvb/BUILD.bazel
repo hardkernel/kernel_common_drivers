@@ -13,6 +13,7 @@ ddk_headers(
 )
 
 amlogic_dvb_headers_deps0 = [
+    "//common_drivers/drivers/media/dvb-core:dvb-core",
     "//common_drivers/drivers/gki_tool:amlogic-gkitool",
     "//common_drivers/drivers/debug:amlogic-debug-iotrace",
     "//common_drivers/drivers/debug:amlogic-debug",

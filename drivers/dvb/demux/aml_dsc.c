@@ -29,9 +29,9 @@
 #include <linux/amlogic/media/utils/amstream.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/clk.h>
-#include <linux/dvb/aml_ca_ext.h>
+#include <uapi/amlogic/dvb/aml_ca_ext.h>
 #include <linux/version.h>
-#include <linux/dvb/aml_dmx_ext.h>
+#include <uapi/amlogic/dvb/aml_dmx_ext.h>
 #include "aml_dvb.h"
 #include "dmx_log.h"
 #include <linux/compat.h>

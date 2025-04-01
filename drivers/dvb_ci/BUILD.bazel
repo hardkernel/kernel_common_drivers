@@ -5,6 +5,7 @@ load("//common_drivers:amlogic_utils.bzl", "m_k_files")
 m_k_files()
 
 amlogic_dvb_ci_deps0 = [
+    "//common_drivers/drivers/media/dvb-core:dvb-core",
     "//common_drivers/drivers/dvb:amlogic-dvb",
     "//common_drivers/drivers/tee:amlogic-tee",
     "//common_drivers/drivers/memory_debug:amlogic-memory-debug",

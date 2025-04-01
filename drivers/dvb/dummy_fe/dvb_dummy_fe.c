@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/dvb/frontend.h>
-#include <media/dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/sched.h>

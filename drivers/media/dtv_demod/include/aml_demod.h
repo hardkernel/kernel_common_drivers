@@ -15,7 +15,7 @@
 #define u32_t u32
 #define u64_t u64
 #include <linux/amlogic/cpu_version.h>
-#include <linux/dvb/aml_fe_ext.h>
+#include <uapi/amlogic/dvb/aml_fe_ext.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
 

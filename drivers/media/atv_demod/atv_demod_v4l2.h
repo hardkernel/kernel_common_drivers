@@ -8,7 +8,7 @@
 
 #include <linux/amlogic/aml_atvdemod.h>
 #include <media/v4l2-device.h>
-#include <dvb_frontend.h>
+#include <linux/amlogic/media/dvb-core/dvb_frontend.h>
 
 /** generic attach function. */
 #if (defined CONFIG_AMLOGIC_ATV_DEMOD ||\

@@ -11,7 +11,7 @@
 #include <linux/gpio/consumer.h>
 #include "aml_pcmcia.h"
 #include "aml_ci.h"
-#include "dvb_ca_en50221.h"
+#include <linux/amlogic/media/dvb-core/dvb_ca_en50221.h>
 
 /* aml spi dev */
 struct aml_ci_bus {

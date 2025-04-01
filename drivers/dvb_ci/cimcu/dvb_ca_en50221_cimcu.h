@@ -7,9 +7,9 @@
 #define _DVB_CA_EN50221_CIMCU_H_
 
 #include <linux/list.h>
-#include <linux/dvb/ca.h>
+#include <uapi/amlogic/dvb/ca.h>
 
-#include "dvbdev.h"
+#include <linux/amlogic/media/dvb-core/dvbdev.h>
 
 #define DVB_CA_EN50221_POLL_CAM_PRESENT	1
 #define DVB_CA_EN50221_POLL_CAM_CHANGED	2
