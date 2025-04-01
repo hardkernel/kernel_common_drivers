@@ -909,7 +909,8 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 	struct hdmitx_hw_common *tx_hw = tx_comm->tx_hw;
 	struct master_display_info_s data = {0};
 	struct hdr10plus_para hdr_data = {0x1, 0x2, 0x3};
-	struct cuva_hdr_vs_emds_para cuva_data = {0x1, 0x2, 0x3};
+	struct cuva_hdr_vs_emds_para cuva_emp_data = {0x1, 0x2, 0x3};
+	struct cuva_hdr_vsif_para cuva_vsif_data = {0x1, 0x1, 0x1};
 	struct dv_vsif_para vsif_para = {0};
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
@@ -1106,8 +1107,10 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 			}
 		} else if (strncmp(tmpbuf2, "hdr10+", 6) == 0) {
 			hdmitx_set_hdr10plus_pkt(tx_comm, 1, &hdr_data);
-		} else if (strncmp(tmpbuf2, "cuva", 4) == 0) {
-			hdmitx_set_cuva_hdr_vs_emds(tx_comm, &cuva_data);
+		} else if (strncmp(tmpbuf2, "cuva_vsif", 9) == 0) {
+			hdmitx_set_cuva_hdr_vsif(tx_comm, &cuva_vsif_data);
+		} else if (strncmp(tmpbuf2, "cuva_emp", 8) == 0) {
+			hdmitx_set_cuva_hdr_vs_emds(tx_comm, &cuva_emp_data);
 		}
 	}
 

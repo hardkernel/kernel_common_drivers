@@ -1010,7 +1010,7 @@ void hdmitx_set_cuva_hdr_vsif(void *tx_instance, struct cuva_hdr_vsif_para *data
 	buffer[5] = GET_OUI_BYTE1(CUVA_IEEEOUI);
 	buffer[6] = GET_OUI_BYTE2(CUVA_IEEEOUI);
 	buffer[7] = data->system_start_code;
-	buffer[8] = (data->version_code & 0xf) << 4;
+	buffer[8] = (data->version_code & 0xf) << 4 | (data->monitor_mode_en & 0x1) << 3;
 	hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, buffer);
 	if (hdmi_vic_4k_flag)
 		hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, vic & 0xff);
