@@ -18,7 +18,8 @@
 /* 20230705: change be311 config value */
 /* 20231114: S4D adjust adc clk config */
 /* 20240902: TXHD2 configuration optimized */
-#define ADC_VER "20240902: TXHD2 configuration optimized"
+/* 20250304: update T6D adc param */
+#define ADC_VER "20250221: update T6D adc param"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000

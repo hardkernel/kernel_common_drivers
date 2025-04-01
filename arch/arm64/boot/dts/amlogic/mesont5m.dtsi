@@ -2217,6 +2217,7 @@
 		status = "okay";
 		interrupts = <0 210 1>;
 		flag_cma = <1>;/*1:share with codec_mm;0:kzalloc*/
+		interrupt-names = "vsync_int";
 	};
 
 	unifykey {

@@ -2201,6 +2201,7 @@
 		compatible = "amlogic, vbi";
 		status = "okay";
 		interrupts = <0 210 1>;
+		interrupt-names = "vsync_int";
 	};
 
 	unifykey {

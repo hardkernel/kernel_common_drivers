@@ -608,6 +608,7 @@
 		compatible = "amlogic, vbi";
 		status = "okay";
 		interrupts = <0 83 1>;
+		interrupt-names = "vsync_int";
 	};
 
 	jtag {

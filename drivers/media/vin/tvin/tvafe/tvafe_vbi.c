@@ -205,7 +205,6 @@ static void vbi_dto_set(struct vbi_dev_s *devp)
 static void vbi_slicer_type_set(struct vbi_dev_s *devp)
 {
 	enum vbi_slicer_e slicer_type = devp->slicer->type;
-
 	vbi_hw_reset(devp);
 	switch (slicer_type) {
 	case VBI_TYPE_USCC:
@@ -2647,13 +2646,18 @@ static int vbi_probe(struct platform_device *pdev)
 	vbi_dev->slicer->state = VBI_STATE_FREE;
 	vbi_dev->vbi_function_sel |= VBI_BYPASS_CHECK_DATA;//close check weather has teletext
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		tvafe_pr_err("%s: can't get irq resource\n", __func__);
-		ret = -ENXIO;
-		goto fail_get_resource_irq;
+	vbi_dev->vs_irq = of_irq_get_byname(pdev->dev.of_node, "vsync_int");
+	if (vbi_dev->vs_irq <= 0) {
+		/* get irq from resource */
+		res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+		if (!res) {
+			tvafe_pr_err("%s: can't get vsync irq resource\n", __func__);
+			ret = -ENXIO;
+			goto fail_get_resource_irq;
+		}
+		vbi_dev->vs_irq = res->start;
 	}
-	vbi_dev->vs_irq = res->start;
+
 	snprintf(vbi_dev->irq_name, sizeof(vbi_dev->irq_name),
 			"vbi-irq");
 	tvafe_pr_info("vbi irq: %d\n", vbi_dev->vs_irq);

@@ -213,7 +213,7 @@ static int adc_32m_pll_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x021a4605);
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100c0);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x02301325);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x0230132f);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x07091051);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x100100c0);
 		usleep_range(20, 25);
@@ -287,7 +287,7 @@ static int adc_24m_pll_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x021a4605);
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100b4);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x02301325);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x0230132f);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x07011c00);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x100100b4);
 		usleep_range(20, 25);
@@ -355,7 +355,7 @@ static int adc_dpll_dvbt_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x021a4605);
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100b4);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x02301325);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x0230132f);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x07051010);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x100100b4);
 		usleep_range(20, 25);
@@ -438,7 +438,7 @@ static int adc_dpll_dvbs_config(struct tvin_adc_dev *devp,
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x10070487);
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100b4);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x02301325);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x0230132f);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x07010340);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x100100b4);
 		usleep_range(20, 25);
