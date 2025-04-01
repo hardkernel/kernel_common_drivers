@@ -734,6 +734,10 @@
 			"", "", ""; // GPIO_TEST_N, GPIO_CC1, GPIO_CC2
 };
 
+&gpio_intc {
+	mboxes = <&mbox_fifo S7D_REE2AO_KEYPAD>;
+};
+
 &i2c1 {
 	status = "disabled";
 	pinctrl-0 = <&i2c1_pins4>;
