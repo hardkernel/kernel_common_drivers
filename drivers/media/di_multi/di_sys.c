@@ -4085,17 +4085,6 @@ static int dim_probe(struct platform_device *pdev)
 
 	//di_pr_info("%s allocate rdma channel %d.\n", __func__,
 	//	   di_devp->rdma_handle);
-	if (is_meson_g12a_cpu()	||
-	    is_meson_g12b_cpu()	||
-	    is_meson_tl1_cpu()	||
-	    is_meson_tm2_cpu()	||
-	    DIM_IS_IC(T5)	||
-	    DIM_IS_IC(T5DB)	||
-	    DIM_IS_IC(T5D)	||
-	    is_meson_sm1_cpu()	||
-	    DIM_IS_IC_EF(SC2))
-		dimp_set(edi_mp_clock_low_ratio, 18000000);
-
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
@@ -4367,7 +4356,7 @@ static void dim_shutdown(struct platform_device *pdev)
 
 	if (is_meson_txlx_cpu())
 		dim_top_gate_control(true, true);
-	else
+	else if (DIM_IS_IC_BF(TXLX))
 		DIM_DI_WR(DI_CLKG_CTRL, 0x2);
 
 	if (!is_meson_txlx_cpu())

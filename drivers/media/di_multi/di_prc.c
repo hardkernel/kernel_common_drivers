@@ -940,7 +940,7 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 	[edi_mp_hdr_ctrl]  = {"hdr_ctrl:uint:0",
 			edi_mp_hdr_ctrl, 0},
 	[edi_mp_clock_low_ratio]  = {"clock_low_ratio:0:not set",
-				edi_mp_clock_low_ratio, 60000000},
+				edi_mp_clock_low_ratio, 20000000},
 	/********************
 	 * edi_mp_shr_cfg
 	 * b[31]	cfg enable
