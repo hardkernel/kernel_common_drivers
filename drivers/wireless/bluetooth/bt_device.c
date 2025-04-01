@@ -285,75 +285,6 @@ static void bt_device_on(struct bt_dev_data *pdata, unsigned long down_time, uns
 	}
 }
 
-/*The system calls this function when GPIOC_14 interrupt occurs*/
-static irqreturn_t bt_interrupt(int irq, void *dev_id)
-{
-	struct bt_dev_data *pdata = (struct bt_dev_data *)dev_id;
-
-	if (btirq_flag == 1) {
-		schedule_work(&pdata->btwakeup_work);
-		pr_debug("freeze: test BT IRQ\n");
-	}
-
-	return IRQ_HANDLED;
-}
-
-static enum hrtimer_restart btwakeup_timer_handler(struct hrtimer *timer)
-{
-	struct bt_dev_data *pdata  = container_of(timer,
-			struct bt_dev_data, timer);
-
-	if  (!gpio_get_value(pdata->gpio_btwakeup) && cnt  < 5)
-		cnt++;
-	if (cnt >= 5 && cnt < 15) {
-		if (gpio_get_value(pdata->gpio_btwakeup))
-			flag_p++;
-		else if (!gpio_get_value(pdata->gpio_btwakeup))
-			flag_n++;
-		cnt++;
-	}
-	pr_debug("%s power: %d,netflix:%d\n", __func__, flag_p, flag_n);
-	if (flag_p >= 7) {
-		pr_info("%s power: %d\n", __func__, flag_p);
-		btwake_evt = 2;
-		cnt = 0;
-		flag_p = 0;
-		btirq_flag = 0;
-		input_event(pdata->input_dev,
-			EV_KEY, KEY_POWER, 1);
-		input_sync(pdata->input_dev);
-		input_event(pdata->input_dev,
-			EV_KEY, KEY_POWER, 0);
-		input_sync(pdata->input_dev);
-	} else if (flag_n >= 7) {
-		pr_info("%s netflix: %d\n", __func__, flag_n);
-		btwake_evt = 2;
-		cnt = 0;
-		flag_n = 0;
-		btirq_flag = 0;
-		input_event(pdata->input_dev, EV_KEY, 133, 1);
-		input_sync(pdata->input_dev);
-		input_event(pdata->input_dev, EV_KEY, 133, 0);
-		input_sync(pdata->input_dev);
-	}
-	if (btwake_evt != 2 && cnt != 0)
-		hrtimer_start(&pdata->timer,
-			ktime_set(0, 20 * 1000000), HRTIMER_MODE_REL);
-	return HRTIMER_NORESTART;
-}
-
-static void get_btwakeup_irq_work(struct work_struct *work)
-{
-	struct bt_dev_data *pdata  = container_of(work,
-		struct bt_dev_data, btwakeup_work);
-
-	if (btwake_evt == 2)
-		return;
-	pr_debug("%s btwake_evt = %d", __func__, btwake_evt);
-	hrtimer_start(&pdata->timer,
-			ktime_set(0, 100 * 1000000), HRTIMER_MODE_REL);
-}
-
 static int bt_set_block(void *data, bool blocked)
 {
 	struct bt_dev_data *pdata = data;
@@ -389,12 +320,9 @@ static void bt_lateresume(struct early_suspend *h)
 static int bt_suspend(struct platform_device *pdev,
 		      pm_message_t state)
 {
-	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
-
 	btwake_evt = 0;
 
 	pr_info("bt suspend\n");
-	disable_irq(prdata->pdata->irqno_wakeup);
 
 	return 0;
 }
@@ -404,7 +332,7 @@ static int bt_resume(struct platform_device *pdev)
 	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
 
 	pr_info("bt resume\n");
-	enable_irq(prdata->pdata->irqno_wakeup);
+
 	btwake_evt = 0;
 
 	if ((get_resume_method() == RTC_WAKEUP) ||
@@ -583,30 +511,6 @@ static int bt_probe(struct platform_device *pdev)
 	register_early_suspend(&bt_early_suspend);
 #endif
 
-	/*1.Set BT_WAKE_HOST to the input state;*/
-	/*2.Get interrupt number(irqno_wakeup).*/
-	if (pdata->gpio_btwakeup > 0) {
-		pdata->irqno_wakeup = gpio_to_irq(pdata->gpio_btwakeup);
-
-		/*Register interrupt service function*/
-		ret = request_irq(pdata->irqno_wakeup, bt_interrupt,
-			IRQF_TRIGGER_FALLING, "bt-irq", (void *)pdata);
-		if (ret < 0)
-			pr_err("request_irq error ret=%d\n", ret);
-
-		//disable_irq(pdata->irqno_wakeup);
-
-		ret = device_init_wakeup(&pdev->dev, 1);
-		if (ret)
-			pr_err("device_init_wakeup failed: %d\n", ret);
-		/*Wake up the interrupt*/
-		ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irqno_wakeup);
-		if (ret)
-			pr_err("dev_pm_set_wake_irq failed: %d\n", ret);
-
-		INIT_WORK(&pdata->btwakeup_work, get_btwakeup_irq_work);
-	}
-
 	//input
 	input_dev = input_allocate_device();
 	if (!input_dev) {
@@ -635,9 +539,6 @@ static int bt_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	pdata->input_dev = input_dev;
-
-	hrtimer_init(&pdata->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	pdata->timer.function = btwakeup_timer_handler;
 
 	return 0;
 
