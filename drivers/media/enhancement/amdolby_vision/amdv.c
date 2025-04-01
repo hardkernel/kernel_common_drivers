@@ -6246,8 +6246,8 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			} else {
 				/* HEVC dv meta in sei */
 				*src_format = FORMAT_DOVI;
-				if (size > (sizeof(dv_inst[dv_id].meta_buf) - 3))
-					size = (sizeof(dv_inst[dv_id].meta_buf) - 3);
+				if (size > (MD_BUF_SIZE - 3))
+					size = (MD_BUF_SIZE - 3);
 				dv_inst[dv_id].meta_buf[0] = 0;
 				dv_inst[dv_id].meta_buf[1] = 0;
 				dv_inst[dv_id].meta_buf[2] = 0;
@@ -6441,8 +6441,8 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			memcpy(p_atsc_md.sei_2094, payload_2094_sei,
 			       len_2094_sei);
 			size = sizeof(struct dv_atsc);
-			if (size > sizeof(dv_inst[dv_id].meta_buf))
-				size = sizeof(dv_inst[dv_id].meta_buf);
+			if (size > MD_BUF_SIZE)
+				size = MD_BUF_SIZE;
 			memcpy(dv_inst[dv_id].meta_buf, (unsigned char *)(&p_atsc_md), size);
 			if ((debug_dolby & 4) && dump_enable_f(dv_id)) {
 				pr_dv_dbg("[inst%d]metadata(%d):\n", dv_id + 1, size);
