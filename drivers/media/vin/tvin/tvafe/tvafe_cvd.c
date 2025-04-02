@@ -108,7 +108,7 @@ static int cdto_adj_step = TVAFE_CVD2_CDTO_ADJ_STEP;
 
 /* cnt*10ms,delay for fmt shift counter */
 static unsigned int cvd2_shift_cnt_atv = 6;
-static unsigned int cvd2_shift_cnt_av = 2;
+static unsigned int cvd2_shift_cnt_av = 6;
 
 /*force the fmt for chrome off,for example ntsc pal_i 12*/
 static unsigned int config_force_fmt;
@@ -1555,7 +1555,7 @@ static bool tvafe_cvd2_sig_unstable(struct tvafe_cvd2_s *cvd2)
 {
 	bool ret = false;
 
-	if (cvd2->hw.no_sig)
+	if (cvd2->hw.no_sig || (!cvd2->hw.h_lock && !cvd2->hw.v_lock))
 		ret = true;
 
 	return ret;
@@ -2063,10 +2063,8 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		if (!cvd2->hw.chroma_lock && cvd2->hw.no_color_burst &&
 			!cvd2->hw.h_lock && !cvd2->hw.no_sig) {
 			if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
-				W_APB_BIT(TVFE_CLAMP_INTF, 0x0,
-					  CLAMP_EN_BIT, CLAMP_EN_WID);
-			} else if (IS_TVAFE_ATV_SRC(cvd2->vd_port)) {
-				tvafe_cvd2_rst();
+				W_APB_BIT(TVFE_RST_CTRL, 0x1, DCLK_RST_BIT, DCLK_RST_WID);
+				W_APB_BIT(TVFE_RST_CTRL, 0x0, DCLK_RST_BIT, DCLK_RST_WID);
 			}
 		}
 		/* manual mode => go directly to the manual format */
@@ -2085,12 +2083,6 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				tvafe_try_format(cvd2, mem,
 						TVIN_SIG_FMT_CVBS_PAL_I);
 				cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-				if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
-					if (!R_APB_BIT(TVFE_CLAMP_INTF,
-						CLAMP_EN_BIT, CLAMP_EN_WID))
-						W_APB_BIT(TVFE_CLAMP_INTF, 0x1,
-						CLAMP_EN_BIT, CLAMP_EN_WID);
-				}
 				cvd2->info.ntsc_switch_cnt = 0;
 				try_format_cnt = 0;
 				cvd_pr_flag = false;
@@ -2342,7 +2334,7 @@ inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 	tvafe_cvd2_search_video_mode(cvd2, mem);
 
 	/* init if no signal input */
-	if (cvd2->hw.no_sig || reinit_scan) {
+	if (tvafe_cvd2_sig_unstable(cvd2) || reinit_scan) {
 		reinit_scan = false;
 		ret = true;
 		tvafe_cvd2_reinit(cvd2);
