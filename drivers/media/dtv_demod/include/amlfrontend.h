@@ -203,6 +203,7 @@
 /*  V3.7.001 fix dvbt2 mplp tune */
 /*  V3.7.002 fix debug cmd compile and style error */
 /*  V3.7.003 fix dvbc_auto_qam_process stack allocation */
+/*  V3.7.004 fix isdbt frontend(t6d) and ambus(t5m) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -219,8 +220,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.7.003"
-#define DTVDEMOD_VER	"2025/05/28 fix dvbc_auto_qam_process stack allocation"
+#define AMLDTVDEMOD_VER "V3.7.004"
+#define DTVDEMOD_VER	"2025/06/04 fix isdbt frontend(t6d) and ambus(t5m)"
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

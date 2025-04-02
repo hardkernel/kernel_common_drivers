@@ -25,7 +25,7 @@
 
 MODULE_PARM_DESC(front_agc_target, "");
 static unsigned int front_agc_target;
-module_param(front_agc_target, int, 0644);
+module_param(front_agc_target, uint, 0644);
 
 #ifdef AML_DEMOD_SUPPORT_DVBS
 unsigned int diseqc_out_invert = 1;
@@ -2394,8 +2394,12 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
 					 ADC_2S_COMPLEMENT_WID);
 			front_write_reg(SFIFO_OUT_LENS, 1);
-			front_write_bits(TEST_BUS, 1, DC_ARB_EN_BIT, DC_ARB_EN_WID);
-			if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+
+			/* T5M and after remove to tune. */
+			if (devp->data->hw_ver < DTVDEMOD_HW_T5M)
+				front_write_bits(TEST_BUS, 1, DC_ARB_EN_BIT, DC_ARB_EN_WID);
+
+			if (devp->data->hw_ver >= DTVDEMOD_HW_T6D)
 				demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x200000);
 		}
 		break;
@@ -2532,6 +2536,74 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 	PR_ERR("%s: %d done\n", __func__, demod->demod_status.delsys);
 
 	return 0;
+}
+
+void demod_set_top_frontend(enum fe_delivery_system delsys)
+{
+	switch (delsys) {
+	case SYS_ISDBT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T6D)) {
+			front_write_reg(0x36, 0x0);
+			front_write_reg(0x37, 0x0);
+
+			front_write_reg(0x20, 0x6011b);//0xe20=6011b
+			front_write_reg(0x21, 0x10122);
+			front_write_reg(0x22, 0x7200a16);
+			front_write_reg(0x23, 0x42190190);
+			front_write_reg(0x26, 0x18000f0f);
+
+			front_write_reg(0x28, 0x20003030);
+			//front_write_reg(0x29, 0x140a100e);
+			front_write_reg(0x2a, 0x4404101a);
+			front_write_reg(0x2c, 0x8c042214);//31bit:disable src search
+			front_write_reg(0x2d, 0x00007011);
+			front_write_reg(0x2b, 0x302f4000);
+			front_write_reg(0x27, 0x03555555);
+			front_write_reg(0x2e, 0x00400000);
+			front_write_reg(0x2f, 0x00000005);
+			front_write_reg(0x40, 0x061e81bc);
+			front_write_reg(0x36, 0x3fffffff);
+			front_write_reg(0x37, 0x3fffffff);
+
+			front_write_reg(0x41, 0x1450a9);
+			front_write_reg(0x42, 0x187b7);
+			front_write_reg(0x43, 0x7977b0);
+			front_write_reg(0x44, 0x7e901f);
+			front_write_reg(0x45, 0x3c036);
+			front_write_reg(0x46, 0x177f1);
+			front_write_reg(0x47, 0x7d97d8);
+			front_write_reg(0x48, 0x7ea006);
+			front_write_reg(0x49, 0x1b020);
+			front_write_reg(0x4a, 0x14000);
+			front_write_reg(0x4b, 0x7ee7e7);
+			front_write_reg(0x4c, 0x7ed7fd);
+			front_write_reg(0x4d, 0xc014);
+			front_write_reg(0x4e, 0x11006);
+			front_write_reg(0x4f, 0x7f87f0);
+			front_write_reg(0x50, 0x7f17f9);
+			front_write_reg(0x51, 0x400d);
+			front_write_reg(0x52, 0xe008);
+			front_write_reg(0x53, 0x7fe7f7);
+			front_write_reg(0x54, 0x7f47f8);
+			front_write_reg(0x55, 0x7);
+			front_write_reg(0x56, 0xa008);
+			front_write_reg(0x57, 0x27fb);
+			front_write_reg(0x58, 0x7f87f9);
+			front_write_reg(0x59, 0x7fd003);
+			front_write_reg(0x5a, 0x6006);
+			front_write_reg(0x5b, 0x37ff);
+			front_write_reg(0x5c, 0x7fc7fb);
+			front_write_reg(0x5d, 0x7fc000);
+			front_write_reg(0x5e, 0x3004);
+			front_write_reg(0x5f, 0x4002);
+			front_write_reg(0x60, 0x7ff7fe);
+			front_write_reg(0x61, 0x7fe);
+		}
+		break;
+
+	default:
+		break;
+	}
 }
 
 void demod_set_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
@@ -3578,6 +3650,7 @@ void ofdm_initial(int bandwidth,
 	| (3 << 19) | (3 << 15) |  (1000 << 4) | 9);
 	/* {8'd0,1'd1,4'd3,4'd3,11'd50,4'd9});//FSM_1 */
 	dvbt_isdbt_wr_reg((0x28 << 2), (100 << 13) | 1000);
+
 	/* {8'd0,11'd40,13'd50});//FSM_2 */
 	dvbt_isdbt_wr_reg((0x29 << 2), (31 << 20) | (1 << 16) |
 	(24 << 9) | (3 << 6) | 20);
@@ -3586,7 +3659,6 @@ void ofdm_initial(int bandwidth,
 	dvbt_isdbt_wr_reg((0x29 << 2),
 			dvbt_isdbt_rd_reg((0x29 << 2)) |
 			0x7f << 9 | 0x7f << 20);
-
 	if (mode == 0) {	/* DVBT */
 		if (bandwidth == 0) {	/* 8M */
 			switch (samplerate) {
@@ -3871,68 +3943,15 @@ void ofdm_initial(int bandwidth,
 		dvbt_isdbt_rd_reg((0x02 << 2)) | (1 << 0));
 	dvbt_isdbt_wr_reg((0x02 << 2),
 		dvbt_isdbt_rd_reg((0x02 << 2)) | (1 << 24));
-/* dvbt_check_status(); */
+	/* dvbt_check_status(); */
 
-	if (is_meson_t6d_cpu()) {
-		front_write_reg(0x36, 0x0);
-		front_write_reg(0x37, 0x0);
-
-		front_write_reg(0x20, 0x6011b);
-		front_write_reg(0x20, 0x6011b);//0xe20=6011b
-		front_write_reg(0x21, 0x10122);
-		front_write_reg(0x22, 0x7200a16);
-		front_write_reg(0x23, 0x42190190);
-		front_write_reg(0x26, 0x1a000f0f);
-
-		front_write_reg(0x28, 0x20003030);
-		front_write_reg(0x2a, 0x4404101a);
-		front_write_reg(0x2c, 0x8c042214);//31bit:disable src search
-		front_write_reg(0x2d, 0x00007011);
-		front_write_reg(0x2b, 0x302f4000);
-		front_write_reg(0x27, 0x03555555);
-		front_write_reg(0x2e, 0x00400000);
-		front_write_reg(0x2f, 0x00000005);
-		front_write_reg(0x40, 0x061e81bc);
-		front_write_reg(0x36, 0x3fffffff);
-		front_write_reg(0x37, 0x3fffffff);
-
-		front_write_reg(0x41, 0x1450a9);
-		front_write_reg(0x42, 0x187b7);
-		front_write_reg(0x43, 0x7977b0);
-		front_write_reg(0x44, 0x7e901f);
-		front_write_reg(0x45, 0x3c036);
-		front_write_reg(0x46, 0x177f1);
-		front_write_reg(0x47, 0x7d97d8);
-		front_write_reg(0x48, 0x7ea006);
-		front_write_reg(0x49, 0x1b020);
-		front_write_reg(0x4a, 0x14000);
-		front_write_reg(0x4b, 0x7ee7e7);
-		front_write_reg(0x4c, 0x7ed7fd);
-		front_write_reg(0x4d, 0xc014);
-		front_write_reg(0x4e, 0x11006);
-		front_write_reg(0x4f, 0x7f87f0);
-		front_write_reg(0x50, 0x7f17f9);
-		front_write_reg(0x51, 0x400d);
-		front_write_reg(0x52, 0xe008);
-		front_write_reg(0x53, 0x7fe7f7);
-		front_write_reg(0x54, 0x7f47f8);
-		front_write_reg(0x55, 0x7);
-		front_write_reg(0x56, 0xa008);
-		front_write_reg(0x57, 0x27fb);
-		front_write_reg(0x58, 0x7f87f9);
-		front_write_reg(0x59, 0x7fd003);
-		front_write_reg(0x5a, 0x6006);
-		front_write_reg(0x5b, 0x37ff);
-		front_write_reg(0x5c, 0x7fc7fb);
-		front_write_reg(0x5d, 0x7fc000);
-		front_write_reg(0x5e, 0x3004);
-		front_write_reg(0x5f, 0x4002);
-		front_write_reg(0x60, 0x7ff7fe);
-		front_write_reg(0x61, 0x7fe);
-
-		dvbt_isdbt_wr_reg(0x8 << 2, 0x00013000);//bypass ISDBT frontend
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T6D)) {
+		// ISDBT use top frontend and bypass ISDBT frontend
+		if (mode == 1) {
+			demod_set_top_frontend(SYS_ISDBT);
+			dvbt_isdbt_wr_reg(0x8 << 2, 0x00013000);
+		}
 	}
-
 }
 
 int dvbt_isdbt_set_ch(struct aml_dtvdemod *demod,

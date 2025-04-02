@@ -89,62 +89,8 @@ void isdbt_reset_demod(void)
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 0));
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 24));
 
-	if (is_meson_t6d_cpu()) {
-		front_write_reg(0x36, 0x0);
-		front_write_reg(0x37, 0x0);
-
-		front_write_reg(0x20, 0x6011b);
-		front_write_reg(0x20, 0x6011b);//0xe20=6011b
-		front_write_reg(0x21, 0x10122);
-		front_write_reg(0x22, 0x7200a16);
-		front_write_reg(0x23, 0x42190190);
-		front_write_reg(0x26, 0x1a000f0f);
-
-		front_write_reg(0x28, 0x20003030);
-		front_write_reg(0x2a, 0x4404101a);
-		front_write_reg(0x2c, 0x8c042214);//31bit:disable src search
-		front_write_reg(0x2d, 0x00007011);
-		front_write_reg(0x2b, 0x302f4000);
-		front_write_reg(0x27, 0x03555555);
-		front_write_reg(0x2e, 0x00400000);
-		front_write_reg(0x2f, 0x00000005);
-		front_write_reg(0x40, 0x061e81bc);
-		front_write_reg(0x36, 0x3fffffff);
-		front_write_reg(0x37, 0x3fffffff);
-
-		front_write_reg(0x41, 0x1450a9);
-		front_write_reg(0x42, 0x187b7);
-		front_write_reg(0x43, 0x7977b0);
-		front_write_reg(0x44, 0x7e901f);
-		front_write_reg(0x45, 0x3c036);
-		front_write_reg(0x46, 0x177f1);
-		front_write_reg(0x47, 0x7d97d8);
-		front_write_reg(0x48, 0x7ea006);
-		front_write_reg(0x49, 0x1b020);
-		front_write_reg(0x4a, 0x14000);
-		front_write_reg(0x4b, 0x7ee7e7);
-		front_write_reg(0x4c, 0x7ed7fd);
-		front_write_reg(0x4d, 0xc014);
-		front_write_reg(0x4e, 0x11006);
-		front_write_reg(0x4f, 0x7f87f0);
-		front_write_reg(0x50, 0x7f17f9);
-		front_write_reg(0x51, 0x400d);
-		front_write_reg(0x52, 0xe008);
-		front_write_reg(0x53, 0x7fe7f7);
-		front_write_reg(0x54, 0x7f47f8);
-		front_write_reg(0x55, 0x7);
-		front_write_reg(0x56, 0xa008);
-		front_write_reg(0x57, 0x27fb);
-		front_write_reg(0x58, 0x7f87f9);
-		front_write_reg(0x59, 0x7fd003);
-		front_write_reg(0x5a, 0x6006);
-		front_write_reg(0x5b, 0x37ff);
-		front_write_reg(0x5c, 0x7fc7fb);
-		front_write_reg(0x5d, 0x7fc000);
-		front_write_reg(0x5e, 0x3004);
-		front_write_reg(0x5f, 0x4002);
-		front_write_reg(0x60, 0x7ff7fe);
-		front_write_reg(0x61, 0x7fe);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T6D)) {
+		demod_set_top_frontend(SYS_ISDBT);
 
 		dvbt_isdbt_wr_reg(0x8 << 2, 0x00013000);//bypass ISDBT frontend
 	}
@@ -307,7 +253,8 @@ int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 
 	/*polling*/
 	dvbt_isdbt_read_status(fe, status, re_tune);
-	isdbt_get_tmcc_info(NULL);
+	if (*status == FE_LOCKED)
+		isdbt_get_tmcc_info(NULL);
 
 	return 0;
 }
@@ -344,6 +291,9 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	struct aml_demod_dvbt param;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	unsigned int front_0x38 = 0, front_0x39 = 0;
+	unsigned int abus_en_dly = 0, dc_arb_enable = 0;
+	int retry_count = 2;
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
@@ -381,6 +331,45 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 
 		if (is_meson_t5w_cpu())
 			t5w_write_ambus_reg(0xe138, 0x1, 23, 1);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M)) {
+		front_0x38 = front_read_reg(DEMOD_FRONT_REG38);
+		front_0x39 = front_read_reg(DEMOD_FRONT_REG39);
+		PR_INFO("before 0x38 %#x, 0x39 %#x\n",
+				front_0x38, front_0x39);
+		dc_arb_enable = front_0x39 & 0x40000000;
+		if (dc_arb_enable) {
+			//0x39[29], enable abus_en delay logic
+			front_write_bits(DEMOD_FRONT_REG39, 0x1, 29, 1);
+			//0x39[30], set dc_arb_enable = 0
+			front_write_bits(DEMOD_FRONT_REG39, 0x0, 30, 1);
+
+			//0x38[31], when read abus_en_dly = 0,
+			//then continue the following flow of closing demod.
+			front_0x38 = front_read_reg(DEMOD_FRONT_REG38);
+			abus_en_dly = front_0x38 & 0x80000000;
+			PR_INFO("after 0x38 %#x, abus_en_dly %#x\n",
+					front_0x38, abus_en_dly);
+			while (abus_en_dly && retry_count--) {
+				msleep(20);
+				abus_en_dly = front_read_reg(DEMOD_FRONT_REG38) & 0x80000000;
+				PR_INFO("retry_count %d, 0x38 %#x\n", retry_count,
+					front_read_reg(DEMOD_FRONT_REG38));
+			}
+
+			//0x39[29], disable abus_en delay logic
+			front_write_bits(DEMOD_FRONT_REG39, 0x0, 29, 1);
+
+			if (abus_en_dly) {
+				PR_ERR("abus_en_dly ERROR!\n");
+
+				abus_en_dly = front_read_reg(DEMOD_FRONT_REG38) & 0x80000000;
+				PR_INFO("after disable abus_en_dly_en, abus_en_dly %#x\n",
+						abus_en_dly);
+			}
+		}
+
+		//0x39[30], set dc_arb_enable = 1
+		front_write_bits(DEMOD_FRONT_REG39, 0x1, 30, 1);
 	}
 
 	tuner_set_params(fe);
