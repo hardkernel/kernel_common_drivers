@@ -2159,14 +2159,16 @@ static void filter_unstable_vsync_t3x(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 
-	if (devp->index || devp->debug.bypass_filter_vsync ||
-	    vdin_is_convert_to_nv21(devp->format_convert))
+	if (devp->index || devp->debug.bypass_filter_vsync)
 		return;
 
 	wr_bits(offset, VDIN0_SYNC_CONVERT_SYNC_CTRL0, 1, HSYNC_MASK_EN_BIT, HSYNC_MASK_EN_WID);
 	wr_bits(offset, VDIN0_SYNC_CONVERT_SYNC_CTRL0, 1, VSYNC_MASK_EN_BIT, VSYNC_MASK_EN_WID);
 	wr_bits(offset, VDIN0_WRMIF_CTRL2, 1, T3X_WR_DATA_EXT_EN_BIT, T3X_WR_DATA_EXT_EN_WID);
-	wr_bits(offset, VDIN0_WRMIF_CTRL2, 7, T3X_WR_WORDS_LIM_BIT, T3X_WR_WORDS_LIM_WID);
+	if (vdin_is_convert_to_nv21(devp->format_convert))
+		wr_bits(offset, VDIN0_WRMIF_CTRL2, 4, T3X_WR_WORDS_LIM_BIT, T3X_WR_WORDS_LIM_WID);
+	else
+		wr_bits(offset, VDIN0_WRMIF_CTRL2, 7, T3X_WR_WORDS_LIM_BIT, T3X_WR_WORDS_LIM_WID);
 //	wr_bits(offset, VDIN0_WRMIF_CTRL3, 1, VDIN0_WRMIF_CTRL3_31_BIT, VDIN0_WRMIF_CTRL3_31_WID);
 	wr_bits(offset, VDIN0_WRMIF_CTRL3, 1, VDIN0_WRMIF_CTRL3_1_BIT, VDIN0_WRMIF_CTRL3_1_WID);
 //	wr_bits(offset, VDIN0_WRMIF_CTRL3, 0, VDIN0_WRMIF_CTRL3_3_BIT, VDIN0_WRMIF_CTRL3_3_WID);

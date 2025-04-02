@@ -4046,7 +4046,10 @@ static void filter_unstable_vsync(struct vdin_dev_s *devp)
 	wr_bits(offset, VDIN_SYNC_MASK, 1, 16, 1);/*hsync mask enable*/
 	wr_bits(offset, VDIN_SYNC_MASK, 1, 17, 1);/*vsync mask enable*/
 	wr_bits(offset, VDIN_WR_CTRL2, 1, 9, 2);/*write data ext en*/
-	wr_bits(offset, VDIN_WR_CTRL2, 7, 16, 3);/*write words limit*/
+	if (vdin_is_convert_to_nv21(devp->format_convert))
+		wr_bits(offset, VDIN_WR_CTRL2, 4, 16, 3);/*write words limit*/
+	else
+		wr_bits(offset, VDIN_WR_CTRL2, 7, 16, 3);/*write words limit*/
 	wr_bits(offset, VDIN_WR_CTRL, 0, 27, 1);/*eol=0*/
 }
 
