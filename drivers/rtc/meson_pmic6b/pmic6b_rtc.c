@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/amlogic/pmic/meson_pmic6b.h>
 #include <linux/delay.h>
+#include "main.h"
 
 /* PMIC6B rtc private data */
 struct pmic6b_rtc {

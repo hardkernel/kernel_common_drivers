@@ -15,6 +15,7 @@
 #include <linux/amlogic/aml_mbox.h>
 #include <linux/mailbox_client.h>
 #include <linux/delay.h>
+#include "main.h"
 /*
  * Seconds sinc epoch time
  */

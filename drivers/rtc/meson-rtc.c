@@ -13,6 +13,7 @@
 #include <linux/amlogic/rtc.h>
 #include <dt-bindings/rtc/amlogic,rtc.h>
 #include <linux/amlogic/aml_mbox.h>
+#include "main.h"
 
 #define RTC_CALIBRATION
 
