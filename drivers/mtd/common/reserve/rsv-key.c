@@ -55,7 +55,7 @@ s32 amlnf_key_read(u8 *buf, u32 len, u32 *actual_length)
 		return -ENOMEM;
 
 	rsv_ops->_get_device(rsv_handler->mtd);
-	meson_rsv_key_read(key_ptr, keysize);
+	aml_key->read(aml_key, key_ptr, keysize);
 	rsv_ops->_release_device(rsv_handler->mtd);
 	memcpy(buf, key_ptr, min_t(int, keysize, len));
 
@@ -102,7 +102,7 @@ s32 amlnf_key_write(u8 *buf, u32 len, u32 *actual_length)
 
 	memcpy(key_ptr, buf, keysize);
 	rsv_ops->_get_device(rsv_handler->mtd);
-	error = meson_rsv_key_write(key_ptr, len);
+	error = aml_key->write(aml_key, key_ptr, len);
 	rsv_ops->_release_device(rsv_handler->mtd);
 
 	kfree(key_ptr);

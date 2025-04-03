@@ -177,8 +177,7 @@ static int spinand_mtd_block_markbad(struct mtd_info *mtd, loff_t offs)
 		if (bad_block == NAND_BLOCK_GOOD) {
 			buf = meson_spinand->block_status;
 			buf[pos.eraseblock] = NAND_BLOCK_BAD;
-			meson_rsv_bbt_write((u_char *)buf,
-					    meson_spinand->rsv->bbt->size);
+			meson_rsv_bbt_write((u_char *)buf, meson_rsv_get_bbt_size());
 		}
 		mutex_unlock(&spinand->lock);
 		return 0;
@@ -388,7 +387,7 @@ static int meson_parse_partitions(struct mtd_info *master,
 	struct meson_partition_platform_data *pdata;
 	struct mtd_partition *part;
 	loff_t offset;
-	u32 rsv_block_num = meson_rsv_get_block_cnt(NAND_RSV_INDEX);
+	u32 rsv_block_num = meson_rsv_get_block_cnt();
 	int i = 0;
 
 	pdata = meson_partition_parse_platform_data(mtd_get_of_node(master));

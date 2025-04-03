@@ -703,8 +703,7 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 	u32 pages_per_blk_shift, bbt_size;
 	int each_boot_pages, boot_num, bbt_pages;
 	u32 configure_data;
-	u32 rsv_blocks_num = meson_rsv_get_block_cnt(NAND_RSV_INDEX);
-	u32 rsv_gap_blocks_num = meson_rsv_get_block_cnt(NAND_GAP_INDEX);
+	u32 rsv_blocks_num = meson_rsv_get_block_cnt();
 	struct _nand_page0 *p_nand_page0 = NULL;
 	struct _nand_page0_sc2 *p_nand_page0_sc2 = NULL;
 	struct _ext_info *p_ext_info = NULL;
@@ -714,7 +713,7 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 	u8 dir = 0;
 
 	pages_per_blk_shift = nand->phys_erase_shift - nand->page_shift;
-	bbt_size = nfc->rsv->bbt->size;
+	bbt_size = meson_rsv_get_bbt_size();
 
 	if (nfc->param_from_dts.bl_mode) {
 		boot_num = nfc->param_from_dts.fip_copies;
@@ -766,9 +765,7 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 	bbt_pages = (bbt_size + mtd->writesize - 1) /
 		    mtd->writesize;
 	p_ext_info->bbt_occupy_pages = bbt_pages;
-	p_ext_info->bbt_start_block =
-		(BOOT_TOTAL_PAGES >> pages_per_blk_shift) +
-		rsv_gap_blocks_num;
+	p_ext_info->bbt_start_block = BBT_START_BLOCK;
 	if (nfc->param_from_dts.bl_mode) {
 		p_fip_info->version = 1;
 		p_fip_info->mode = NAND_FIPMODE_DISCRETE;
@@ -1660,45 +1657,6 @@ int meson_nand_scan_shipped_bbt(struct nand_chip *nand)
 	return 0;
 }
 
-int meson_nand_bbt_check(struct nand_chip *nand)
-{
-	int phys_erase_shift;
-	int ret = 0;
-	s8 *buf = NULL;
-
-	struct mtd_info *mtd = nand_to_mtd(nand);
-	struct meson_nfc *nfc = nand_get_controller_data(mtd_to_nand(mtd));
-
-	phys_erase_shift = mtd->erasesize_shift;
-	ret = meson_rsv_scan(nfc->rsv->bbt);
-	if (ret != 0 && (ret != (-1))) {
-		pr_info("scan bbt table failed\n");
-		return ret;
-	}
-
-	ret = 0;
-	buf = nfc->block_status;
-	if (nfc->rsv->bbt->valid == 1) {
-		pr_info("%s %d bbt is valid,reading\n",
-			__func__, __LINE__);
-		meson_rsv_read(nfc->rsv->bbt, (u_char *)buf);
-	} else {
-		pr_info("%s %d bbt is invalid, scanning\n",
-			__func__, __LINE__);
-		memset(nfc->block_status, 0,
-		       mtd->size >> phys_erase_shift);
-		meson_nand_scan_shipped_bbt(nand);
-		meson_rsv_bbt_write((u_char *)buf, nfc->rsv->bbt->size);
-	}
-
-	if (nand->options & NAND_SKIP_BBTSCAN) {
-		nand->bbt = nfc->block_status;
-		mtd_to_nand(aml_mtd_info[0])->bbt = nfc->block_status;
-	}
-
-	return 0;
-}
-
 int meson_nand_block_isbad(struct mtd_info *mtd, loff_t offs)
 {
 	struct nand_device *nand = mtd_to_nanddev(mtd);
@@ -1744,7 +1702,7 @@ int meson_nand_block_markbad(struct mtd_info *mtd, loff_t offs)
 		} else if (block_status == NAND_BLOCK_GOOD) {
 			nfc->block_status[pos.eraseblock] = NAND_BLOCK_BAD;
 			buf = nfc->block_status;
-			meson_rsv_bbt_write((u_char *)buf, nfc->rsv->bbt->size);
+			meson_rsv_bbt_write((u_char *)buf, meson_rsv_get_bbt_size());
 			ret = 0;
 		}
 	}

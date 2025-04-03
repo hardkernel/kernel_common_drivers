@@ -46,7 +46,7 @@ static int storage_get_and_parse_ssp(struct mtd_info *mtd)
 {
 	struct storage_startup_parameter *ssp;
 	union storage_independent_parameter *sip;
-	u32 rsv_block_num = meson_rsv_get_block_cnt(NAND_RSV_INDEX);
+	u32 rsv_block_num = meson_rsv_get_block_cnt();
 
 	ssp = &g_ssp;
 	memset(ssp, 0, sizeof(struct storage_startup_parameter));

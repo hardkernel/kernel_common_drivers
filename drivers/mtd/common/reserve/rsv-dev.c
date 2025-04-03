@@ -95,7 +95,7 @@ static ssize_t __meson_rsv_read(struct file *file, char __user *buf,
 
 	mutex_lock(&user->lock);
 	rsv_ops->_get_device(rsv_handler->mtd);
-	ret = info->read(vbuf, info->size);
+	ret = info->read(info, vbuf, info->size);
 	if (ret) {
 		pr_info("%s: %s: failed %d\n", __func__, info->name, ret);
 		goto exit;
@@ -143,7 +143,7 @@ static ssize_t __meson_rsv_write(struct file *file, const char __user *buf,
 	mutex_lock(&user->lock);
 	rsv_ops->_get_device(rsv_handler->mtd);
 	if (info->valid) {
-		ret = info->read(vbuf, info->size);
+		ret = info->read(info, vbuf, info->size);
 		if (ret) {
 			pr_info("%s: %s: failed %d\n", __func__,
 				info->name, ret);
@@ -154,7 +154,7 @@ static ssize_t __meson_rsv_write(struct file *file, const char __user *buf,
 		count = info->size - *ppos;
 
 	ret = copy_from_user(vbuf + *ppos, buf, count);
-	ret = info->write(vbuf, info->size);
+	ret = info->write(info, vbuf, info->size);
 	if (ret) {
 		pr_info("%s: %s: failed %d\n", __func__, info->name, ret);
 		goto exit;
@@ -240,4 +240,3 @@ exit_err:
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("xianjun.liu <xianjun.liu@amlogic.com>");
 MODULE_DESCRIPTION("Amlogic's Meson MTD RESVER Management driver");
-

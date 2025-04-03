@@ -16,6 +16,8 @@
 #define DEFAULT_NAND_DTB_BLOCK_NUM 4
 #define DEFAULT_NAND_DDR_BLOCK_NUM 0
 
+#define RSV_NAND_MAGIC  "nrsv"
+#define GAP_NAND_MAGIC  "ngap"
 #define BBT_NAND_MAGIC	"nbbt"
 #define ENV_NAND_MAGIC	"nenv"
 #define KEY_NAND_MAGIC	"nkey"
@@ -31,22 +33,10 @@
 #define BBT_START_BLOCK     20
 #define BBT_TOTAL_BLOCKS    4
 
-enum meson_rsv_blk_cnt {
-	NAND_RSV_INDEX = 0,
-	NAND_GAP_INDEX,
-	NAND_BBT_INDEX,
-	NAND_ENV_INDEX,
-	NAND_KEY_INDEX,
-	NAND_DTB_INDEX,
-	NAND_DDR_INDEX,
-	NAND_RSV_END_INDEX
-};
-
 struct meson_rsv_part_t {
-	char name[32];
+	char name[8];
 	u32 block_cnt;
 	u32 size;
-	u32 index;
 	u32 block_start;
 };
 
@@ -61,8 +51,8 @@ struct meson_rsv_info_t {
 	u_char valid;
 	u_char init;
 	void *handler;
-	int (*read)(u_char *dest, size_t size);
-	int (*write)(u_char *src, size_t size);
+	int (*read)(struct meson_rsv_info_t *rsv_info, u_char *dest, size_t size);
+	int (*write)(struct meson_rsv_info_t *rsv_info, u_char *src, size_t size);
 };
 
 struct valid_node_t {
@@ -98,22 +88,17 @@ struct meson_rsv_ops {
 	void (*_release_device)(struct mtd_info *mtd);
 };
 
+#define MAX_MESON_RSV_INFO_NUM 8
+
 struct meson_rsv_handler_t {
 	struct mtd_info *mtd;
 	unsigned long long freenodebitmask;
-	struct free_node_t *free_node[DEFAULT_NAND_RSV_BLOCK_NUM];
-	struct meson_rsv_info_t *bbt;
-	struct meson_rsv_info_t *env;
-	struct meson_rsv_info_t *key;
-	struct meson_rsv_info_t *dtb;
+	struct free_node_t *free_node;
+	int entries;
+	struct meson_rsv_info_t rsv_info[MAX_MESON_RSV_INFO_NUM];
 	struct meson_rsv_ops rsv_ops;
 	s8 *bbt_buf;
 };
-
-int meson_rsv_key_read(u_char *dest, size_t size);
-int meson_rsv_key_write(u_char *source, size_t size);
-int meson_rsv_erase_protect(struct meson_rsv_handler_t *handler,
-			    uint32_t block_addr);
 
 #include<linux/cdev.h>
 #define DTB_CDEV_NAME "dtb"
@@ -134,12 +119,16 @@ int meson_rsv_prase_parameter_from_dtb(struct mtd_info *mtd,
 int meson_rsv_prase_parameter_from_cmdline(struct mtd_info *mtd);
 int meson_rsv_register_cdev(struct meson_rsv_info_t *info, char *name);
 int meson_rsv_register_unifykey(struct meson_rsv_info_t *key);
+size_t meson_rsv_get_bbt_size(void);
 int meson_rsv_bbt_write(u_char *source, size_t size);
+int meson_rsv_bbt_read(u_char *source, size_t size);
 int meson_rsv_init(struct mtd_info *mtd, struct meson_rsv_handler_t *handler);
-int meson_rsv_check(struct meson_rsv_info_t *rsv_info);
-int meson_rsv_scan(struct meson_rsv_info_t *rsv_info);
-int meson_rsv_read(struct meson_rsv_info_t *rsv_info, u_char *buf);
-u32 meson_rsv_get_block_cnt(enum meson_rsv_blk_cnt name);
+
+u32 meson_rsv_get_block_cnt(void);
+int meson_rsv_name2index(const char *name);
+void meson_rsv_check_all_except_bbt(void);
+int meson_rsv_check_bbt(void);
+char *aml_nand_get_rsv_cmdline(void);
 
 s32 amlnf_key_read(u8 *buf, u32 len, u32 *actual_length);
 s32 amlnf_key_write(u8 *buf, u32 len, u32 *actual_length);
