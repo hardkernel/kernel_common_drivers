@@ -37,6 +37,9 @@
 #include <linux/usb/composite.h>
 #include <linux/configfs.h>
 #include <linux/suspend.h>
+#include <linux/device/driver.h>
+
+#include "../../../../../common/drivers/base/base.h"
 
 #define CRG_MTP_WR 1
 #define MAX_PACKET_SIZE 1024
@@ -5162,18 +5165,32 @@ int crg_rewrite_otg_write_UDC(void)
 		return -ENODEV;
 
 	gi = container_of(cdev, struct gadget_info, cdev);
-
-	if (!gi->composite.gadget_driver.udc_name)
+	mutex_lock(&gi->lock);
+	if (!gi->composite.gadget_driver.udc_name) {
+		mutex_unlock(&gi->lock);
+		pr_info("f=%s, l=%u,---udc_name=null\n", __func__, __LINE__);
 		return -1;
+	}
 
 	len = strlen(gi->composite.gadget_driver.udc_name);
 	name = kstrdup(gi->composite.gadget_driver.udc_name, GFP_KERNEL);
-	if (!name)
+	if (!name) {
+		mutex_unlock(&gi->lock);
 		return -ENOMEM;
+	}
 	if (name[len - 1] == '\n')
 		name[len - 1] = '\0';
 
-	mutex_lock(&gi->lock);
+	if (!gi->composite.gadget_driver.driver.p) {
+		pr_info("gi->composite.gadget_driver.driver.p is NULL\n");
+		ret = -ENODEV;
+		goto err;
+	}
+	if (!gi->composite.gadget_driver.driver.p->kobj.sd) {
+		pr_info("gi->composite.gadget_driver.driver.p->kobj.sd is NULL\n");
+		ret = -ENODEV;
+		goto err;
+	}
 	ret = usb_gadget_unregister_driver(&gi->composite.gadget_driver);
 	if (ret)
 		goto err;
