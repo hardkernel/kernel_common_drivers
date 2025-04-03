@@ -25,5 +25,5 @@
 #define MBOX_IRQMASK		0xffffffff
 
 int __init mbox_fifo_init(void);
-void mbox_fifo_exit(void);
+void __exit mbox_fifo_exit(void);
 #endif

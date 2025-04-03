@@ -7,9 +7,9 @@
 #define __MESON_MBOX_PL_H__
 
 int __init mbox_pl_v0_init(void);
-void mbox_pl_v0_exit(void);
+void __exit mbox_pl_v0_exit(void);
 int __init mbox_pl_v1_init(void);
-void mbox_pl_v1_exit(void);
+void __exit mbox_pl_v1_exit(void);
 int __init mbox_pl_v2_init(void);
-void mbox_pl_v2_exit(void);
+void __exit mbox_pl_v2_exit(void);
 #endif

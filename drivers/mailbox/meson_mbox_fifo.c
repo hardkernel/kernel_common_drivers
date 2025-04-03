@@ -136,7 +136,7 @@ static void mbox_fifo_clr(void __iomem *to, long count)
 	}
 }
 
-void mbox_irq_clean(struct aml_mbox_chan *aml_chan, bool ack)
+static void mbox_irq_clean(struct aml_mbox_chan *aml_chan, bool ack)
 {
 	u64 h_sts, l_sts;
 	u64 mask;
@@ -220,7 +220,7 @@ mbox_isr_handler_done:
 	writel(~0, aml_chan->mbox_fclr_addr);
 }
 
-void mbox_ack_isr_handler(struct mbox_chan *mbox_chan)
+static void mbox_ack_isr_handler(struct mbox_chan *mbox_chan)
 {
 	struct aml_mbox_chan *aml_chan = mbox_chan->con_priv;
 	struct aml_mbox_data *aml_data = mbox_chan->active_req;
