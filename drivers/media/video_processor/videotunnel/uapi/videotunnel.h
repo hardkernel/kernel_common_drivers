@@ -52,6 +52,7 @@ enum vt_video_status_e {
 	VT_VIDEO_STATUS_COLOR_ALWAYS = 5,
 	VT_VIDEO_STATUS_COLOR_DISABLE = 6,
 	VT_VIDEO_STATUS_HOLD_FRAME = 7,
+	VT_VIDEO_STATUS_COLOR_ALWAYS_FOR_VRR = 8,
 };
 
 enum vt_video_type_e {

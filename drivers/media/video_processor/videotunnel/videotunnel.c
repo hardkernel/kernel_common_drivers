@@ -961,6 +961,8 @@ static int vt_resend_rect_process_locked(struct vt_instance *instance,
 static int vt_resend_cmd_process_locked(struct vt_instance *instance,
 					struct vt_session *session)
 {
+	bool cmd_status = false;
+	bool cmd_color = false;
 	int ret = 0;
 	struct vt_cmd *cmd = NULL;
 
@@ -985,25 +987,39 @@ static int vt_resend_cmd_process_locked(struct vt_instance *instance,
 		mutex_unlock(&instance->cmd_lock);
 	}
 
-	if (instance->last_cmd.cmd == VT_VIDEO_SET_STATUS) {
-		if (instance->last_cmd.cmd_data == VT_VIDEO_STATUS_HIDE ||
-			instance->last_cmd.cmd_data == VT_VIDEO_STATUS_COLOR_ALWAYS ||
-			instance->last_cmd.cmd_data == VT_VIDEO_STATUS_HOLD_FRAME) {
-			cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-			if (!cmd)
-				return -ENOMEM;
+	if (instance->last_cmd.cmd == VT_VIDEO_SET_STATUS &&
+		(instance->last_cmd.cmd_data == VT_VIDEO_STATUS_HIDE ||
+		 instance->last_cmd.cmd_data == VT_VIDEO_STATUS_COLOR_ALWAYS ||
+		 instance->last_cmd.cmd_data == VT_VIDEO_STATUS_HOLD_FRAME))
+		cmd_status = true;
 
-			cmd->cmd = instance->last_cmd.cmd;
-			cmd->cmd_data = instance->last_cmd.cmd_data;
+	if (instance->last_cmd.cmd == VT_VIDEO_SET_COLOR_BLACK ||
+		instance->last_cmd.cmd == VT_VIDEO_SET_COLOR_BLUE ||
+		instance->last_cmd.cmd == VT_VIDEO_SET_COLOR_GREEN)
+		cmd_color = true;
 
-			mutex_lock(&instance->cmd_lock);
-			kfifo_put(&instance->fifo_cmd, cmd);
+	if (cmd_status || cmd_color) {
+		cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+		if (!cmd)
+			return -ENOMEM;
 
-			session->cmd_status++;
-			vt_debug(VT_DEBUG_CMD, "vt [%d] resend cmd:%d data:%d\n",
-				instance->id, cmd->cmd, cmd->cmd_data);
-			mutex_unlock(&instance->cmd_lock);
-		}
+		cmd->cmd = instance->last_cmd.cmd;
+		cmd->cmd_data = instance->last_cmd.cmd_data;
+
+		/*
+		 * COLOR_ALWAYS_FOR_VRR means we need show color buffer until receive new
+		 * cmd COLOR_DISABLE or display mode changed (consumer will reconnect)
+		 */
+		if (cmd_color && cmd->cmd_data == VT_VIDEO_STATUS_COLOR_ALWAYS_FOR_VRR)
+			cmd->cmd_data = VT_VIDEO_STATUS_COLOR_ONCE;
+
+		mutex_lock(&instance->cmd_lock);
+		kfifo_put(&instance->fifo_cmd, cmd);
+
+		session->cmd_status++;
+		vt_debug(VT_DEBUG_CMD, "vt [%d] resend cmd:%d data:%d\n",
+			instance->id, cmd->cmd, cmd->cmd_data);
+		mutex_unlock(&instance->cmd_lock);
 	}
 
 	ret = vt_resend_rect_process_locked(instance, VT_VIDEO_SET_SOURCE_CROP);
@@ -1199,7 +1215,8 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 			data->video_cmd == VT_VIDEO_SET_DISPLAY_FRAME) {
 		/* no instance or instance has no consumer */
 		if (!instance || !instance->consumer) {
-			vt_debug(VT_DEBUG_CMD, "vt [%d] set solid color, no consumer", id);
+			vt_debug(VT_DEBUG_CMD, "vt [%d] video cmd %d, no consumer",
+				id, data->video_cmd);
 			return -ENOTCONN;
 		}
 	} else {
