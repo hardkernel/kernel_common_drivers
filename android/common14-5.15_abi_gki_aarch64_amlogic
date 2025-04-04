@@ -105,3 +105,6 @@
   drm_plane_enable_fb_damage_clips
   drm_simple_display_pipe_init
   memdup_user_nul
+
+# st7789v3_tft_170x320.ko
+  spi_bus_type
