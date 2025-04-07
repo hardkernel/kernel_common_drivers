@@ -87,6 +87,8 @@ struct ksymbol {
 	unsigned int name_len;
 };
 
+int __symbol_fixed;
+
 #ifdef CONFIG_ARM64
 static struct ksymbol module_symbols[] = {
 	KSYM_FUN(xxh32),
@@ -137,8 +139,6 @@ static struct ksymbol module_symbols[] = {
 	KSYM_OBJ(nop_posix_acl_default),
 	{}
 };
-
-int __symbol_fixed;
 
 /* see struct proc_dir_entry in fs/proc/internal.h */
 struct proc_node {
@@ -421,6 +421,10 @@ int symbol_fix(void)
 }
 #else
 /* for arm32 */
+#include <linux/xxhash.h>
+#include <linux/psi.h>
+#include <linux/posix_acl_xattr.h>
+
 int symbol_fix(void)
 {
 	/*--------- erofs symbols ----------*/
@@ -467,9 +471,9 @@ int symbol_fix(void)
 	FUN_ASSIGN(iov_iter_bvec);
 	FUN_ASSIGN(kmemdup_nul);
 	FUN_ASSIGN(memchr_inv);
-	OBJ_ASSIGN(dotdot_name);
-	OBJ_ASSIGN(nop_posix_acl_access);
-	OBJ_ASSIGN(nop_posix_acl_default);
+	dotdot_name_t = (struct qstr *)&dotdot_name;
+	nop_posix_acl_access_t = (struct xattr_handler *)&nop_posix_acl_access;
+	nop_posix_acl_default_t = (struct xattr_handler *)&nop_posix_acl_default;
 
 	__symbol_fixed = 1;
 	return 0;
@@ -506,7 +510,9 @@ int __init sym_helper_init(void)
 void __exit sym_helper_exit(void)
 {
 	__symbol_fixed = 0;
+#ifdef CONFIG_ARM64
 	memset(module_symbols, 0, sizeof(module_symbols));
+#endif
 }
 module_init(sym_helper_init);
 module_exit(sym_helper_exit);
