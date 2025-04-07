@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/power_domain.h>
 
 unsigned long pwr_ctrl_psci_smc(int power_domain, bool power_control)

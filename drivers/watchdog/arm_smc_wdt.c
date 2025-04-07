@@ -7,7 +7,7 @@
  * Based on mtk_wdt.c
  */
 
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>

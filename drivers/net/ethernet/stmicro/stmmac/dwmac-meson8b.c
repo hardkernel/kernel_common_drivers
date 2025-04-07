@@ -28,7 +28,7 @@
 #endif
 #include <linux/input.h>
 #include <linux/amlogic/pm.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #endif
 #include <linux/amlogic/aml_phy_debug.h>
 #endif

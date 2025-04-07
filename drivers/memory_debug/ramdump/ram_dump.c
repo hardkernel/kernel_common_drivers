@@ -33,7 +33,7 @@
 #include <linux/sched/clock.h>
 #include <linux/amlogic/ramdump.h>
 #include <linux/amlogic/reboot.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/of.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>

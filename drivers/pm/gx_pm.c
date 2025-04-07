@@ -22,7 +22,7 @@
 #include <linux/cpuidle.h>
 #include <asm/cpuidle.h>
 #include <uapi/linux/psci.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/pm.h>
 #include <linux/kobject.h>
 #include <power.h>

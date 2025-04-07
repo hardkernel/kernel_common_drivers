@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/stacktrace.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/io.h>
 #include <linux/amlogic/gki_module.h>
 #include <linux/kprobes.h>

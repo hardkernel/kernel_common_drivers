@@ -21,7 +21,7 @@
 #include <linux/amlogic/reboot.h>
 //#include <asm/compiler.h>
 #include <linux/kdebug.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/panic_notifier.h>
 #include <linux/syscore_ops.h>
 #include <linux/cpu.h>

@@ -20,7 +20,7 @@
 #include <linux/amlogic/gki_module.h>
 #include <trace/hooks/traps.h>
 #include <linux/amlogic/aml_iotm.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/panic_notifier.h>
 #include <linux/timer.h>
 #include <linux/syscore_ops.h>

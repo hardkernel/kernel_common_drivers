@@ -28,7 +28,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 #include <linux/amlogic/media/registers/regs/viu_regs.h>
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>

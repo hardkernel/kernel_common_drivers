@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/slab.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/io.h>
 #include <linux/amlogic/secmon.h>
 

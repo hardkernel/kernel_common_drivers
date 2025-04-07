@@ -5,7 +5,7 @@
 #ifndef OPTEE_SMC_H
 #define OPTEE_SMC_H
 
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/bitops.h>
 
 #define OPTEE_SMC_STD_CALL_VAL(func_num) \

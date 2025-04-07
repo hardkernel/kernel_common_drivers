@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/platform_device.h>
 
 #include <linux/amlogic/tee.h>

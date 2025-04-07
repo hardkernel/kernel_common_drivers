@@ -6,7 +6,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>

@@ -12,7 +12,7 @@
 #if !defined(_TRACE_OPTEE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_OPTEE_H
 
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/tracepoint.h>
 #include "optee_private.h"
 

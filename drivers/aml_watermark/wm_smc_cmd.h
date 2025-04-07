@@ -6,7 +6,7 @@
 #ifndef __WM_SMC_CMD__
 #define __WM_SMC_CMD__
 
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 #define OPTEE_SMC_STD_CALL_VAL(func_num) \
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_STD_CALL, ARM_SMCCC_SMC_32, \

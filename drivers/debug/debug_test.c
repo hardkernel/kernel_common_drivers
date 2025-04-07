@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/stacktrace.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/kprobes.h>
 #include <linux/time.h>
 #include <linux/delay.h>

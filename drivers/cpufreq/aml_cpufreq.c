@@ -28,7 +28,7 @@
 #include <linux/energy_model.h>
 #include <linux/cpu_cooling.h>
 #include <linux/thermal.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/proc_fs.h>
 #include <linux/amlogic/gki_module.h>
 

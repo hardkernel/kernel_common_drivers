@@ -13,7 +13,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/io.h>

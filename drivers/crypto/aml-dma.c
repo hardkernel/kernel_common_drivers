@@ -31,7 +31,7 @@
 #include <crypto/internal/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/of_platform.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include "aml-crypto-dma.h"
 #include "aml-sha-dma.h"
 #include "aml-sha3-dma.h"

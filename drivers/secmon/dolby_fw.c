@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include "dolby_fw.h"
 #include <linux/amlogic/secmon.h>
 

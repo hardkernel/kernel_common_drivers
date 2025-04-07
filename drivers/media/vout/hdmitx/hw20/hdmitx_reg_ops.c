@@ -19,7 +19,7 @@
 #include <linux/cdev.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 #include "hdmitx_hw.h"
 #include "hdmitx_reg.h"

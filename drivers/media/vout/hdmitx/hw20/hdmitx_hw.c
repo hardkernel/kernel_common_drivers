@@ -24,13 +24,13 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
 #include <linux/gpio.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 #include <linux/amlogic/media/vout/vinfo.h>
 #ifdef CONFIG_AMLOGIC_VPU

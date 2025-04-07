@@ -59,7 +59,7 @@
 #include <linux/ctype.h>/* for parse_para_pq */
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/spinlock.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/gki_module.h>

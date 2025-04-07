@@ -27,7 +27,7 @@
 #include <linux/of_reserved_mem.h>
 
 #include <linux/amba/bus.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <trace/hooks/iommu.h>
 #include <linux/amlogic/tee.h>
 #include <linux/dma-map-ops.h>

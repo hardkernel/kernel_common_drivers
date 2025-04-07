@@ -20,7 +20,7 @@
 #include <linux/sysfs.h>
 #include <linux/random.h>
 #include <linux/amlogic/secmon.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include "soc_info.h"
 
 extern void __iomem *socinfo_sharemem_base;

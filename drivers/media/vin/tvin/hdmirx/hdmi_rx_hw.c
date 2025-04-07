@@ -25,7 +25,7 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/media/video_sink/video.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>

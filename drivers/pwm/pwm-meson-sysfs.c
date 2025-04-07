@@ -14,7 +14,7 @@
 #include <linux/amlogic/pwm-meson.h>
 #include <linux/amlogic/pwm-meson-tee.h>
 #include <linux/amlogic/secure_pwm_i2c.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 /**
  * pwm_constant_enable()

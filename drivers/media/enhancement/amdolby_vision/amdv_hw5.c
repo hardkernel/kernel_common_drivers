@@ -34,7 +34,7 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/lut_dma/lut_dma.h>
 

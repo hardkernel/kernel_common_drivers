@@ -25,7 +25,7 @@
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/amlogic/cpu_version.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/highmem.h>
 #include <linux/of.h>
 #include <linux/of_address.h>

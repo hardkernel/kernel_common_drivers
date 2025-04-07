@@ -37,7 +37,7 @@
 /*#include <mach/am_regs.h>*/
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/aml_atvdemod.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 /* Local include */
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>

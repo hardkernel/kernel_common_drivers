@@ -19,7 +19,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/cma.h>
 #endif
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/memblock.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>

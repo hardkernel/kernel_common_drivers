@@ -38,7 +38,7 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 
 static unsigned int dv_ll_output_mode = AMDV_OUTPUT_MODE_HDR10;

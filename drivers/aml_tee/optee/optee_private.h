@@ -6,7 +6,7 @@
 #ifndef OPTEE_PRIVATE_H
 #define OPTEE_PRIVATE_H
 
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/rhashtable.h>
 #include <linux/semaphore.h>
 #include <linux/amlogic/tee_drv.h>

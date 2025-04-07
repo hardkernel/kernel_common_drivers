@@ -43,7 +43,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/gki_module.h>
 #include <linux/amlogic/cpu_version.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/highmem.h>
 #include <linux/amlogic/amfc_regs.h>
 #include <linux/amlogic/amfc.h>

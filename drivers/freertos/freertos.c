@@ -22,7 +22,7 @@
 #include <linux/of_platform.h>
 #include <linux/printk.h>
 #include <linux/string.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/psci.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>

@@ -606,7 +606,7 @@ static void do_polling_work(struct work_struct *work)
 #define AUCPU_MAX_FW_SZ		(48 * SZ_1K)
 #include <linux/fs.h>
 #include <linux/firmware.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 #define FID_FW_LOAD (0x82000077)
 #define   FW_TYPE_AUCPU (0)

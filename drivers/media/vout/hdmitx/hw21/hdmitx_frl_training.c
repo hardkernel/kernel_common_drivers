@@ -23,7 +23,7 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
 

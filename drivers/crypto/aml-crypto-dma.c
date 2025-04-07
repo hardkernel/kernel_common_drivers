@@ -21,7 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>

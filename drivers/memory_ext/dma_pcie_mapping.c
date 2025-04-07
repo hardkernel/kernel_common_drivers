@@ -13,7 +13,7 @@
 #include <linux/pci-ats.h>
 #include <linux/platform_device.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/tee.h>
 
 #include <linux/dma-mapping.h>

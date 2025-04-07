@@ -10,11 +10,11 @@
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/pinctrl/consumer.h>
 
 #include <linux/amlogic/jtag.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/interrupt.h>
 #include <linux/ctype.h>
 #ifdef CONFIG_MACH_MESON8B

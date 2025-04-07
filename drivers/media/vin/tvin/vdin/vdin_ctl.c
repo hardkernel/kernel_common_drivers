@@ -32,7 +32,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-map-ops.h>
 #include <linux/sched/clock.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/media/vrr/vrr.h>
 
 #include <linux/amlogic/media/video_sink/video.h>

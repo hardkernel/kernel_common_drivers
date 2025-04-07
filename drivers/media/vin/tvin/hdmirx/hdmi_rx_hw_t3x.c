@@ -21,7 +21,7 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>

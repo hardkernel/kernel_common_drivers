@@ -43,7 +43,7 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/clk.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/debugfs.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>

@@ -17,7 +17,7 @@
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 #include <linux/vmalloc.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/memcontrol.h>
 #include <linux/kthread.h>
 #include <linux/mm.h>

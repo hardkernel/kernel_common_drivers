@@ -5,7 +5,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include "clk-regmap.h"
 
 static int clk_regmap_check_is_satisfied(struct clk_hw *hw)

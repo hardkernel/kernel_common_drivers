@@ -28,7 +28,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/aml_crypto.h>
 #include "aml-crypto-dma.h"
 #include <linux/compat.h>

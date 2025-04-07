@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/compiler.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/hdmi.h>
 
 /******************sync from upstream start: drivers/video/hdmi.c*************************/

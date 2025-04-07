@@ -23,12 +23,12 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/kthread.h>
 
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/vinfo.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/clk_measure.h>
 #include "hdmitx_hw_core.h"
 #include "hdmitx_hw_platform.h"

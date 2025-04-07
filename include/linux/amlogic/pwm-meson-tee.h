@@ -20,7 +20,7 @@
 #include <linux/pwm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/secure_pwm_i2c.h>
 
 #define PWM_MESON_TEE_DRV_CMP			"amlogic,meson-pwm-tee"

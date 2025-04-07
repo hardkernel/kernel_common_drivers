@@ -19,7 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/amlogic/cpu_info.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/cpu_version.h>
 #ifdef CONFIG_AMLOGIC_SHOW_CPU_CHIPID
 #include <linux/seq_file.h>

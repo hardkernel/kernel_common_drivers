@@ -11,7 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/amlogic/clk_measure.h>
 #include <linux/kallsyms.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 static struct clk *debug_clk;
 

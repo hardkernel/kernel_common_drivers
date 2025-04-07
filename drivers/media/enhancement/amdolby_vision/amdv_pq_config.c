@@ -26,7 +26,7 @@
 #include <linux/ctype.h>/* for parse_para_pq */
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/firmware.h>
 
 static u32 tv_max_lin = 200;

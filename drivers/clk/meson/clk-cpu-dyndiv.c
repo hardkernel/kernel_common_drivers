@@ -6,7 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/module.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include "clk-regmap.h"
 #include "clk-cpu-dyndiv.h"
 

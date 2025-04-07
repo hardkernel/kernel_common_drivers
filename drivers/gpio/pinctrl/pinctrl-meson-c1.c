@@ -5,7 +5,7 @@
 
 #include <linux/module.h>
 #include <dt-bindings/gpio/meson-c1-gpio.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include "pinctrl-meson.h"
 #include "pinctrl-meson-axg-pmx.h"
 

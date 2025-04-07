@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include "clk-regmap.h"
 #include "clk-pll.h"
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 
 #define FIXED_FRAC_WEIGHT_PRECISION	100000
 #define MESON_PLL_THRESHOLD_RATE	1500000000

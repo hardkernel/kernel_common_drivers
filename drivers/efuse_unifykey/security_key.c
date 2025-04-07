@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/kallsyms.h>

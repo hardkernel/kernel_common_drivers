@@ -16,7 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/cpu_cooling.h>
 #include <linux/pm_domain.h>
-#include <linux/arm-smccc.h>
+#include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/secmon.h>
 #include "ddr_control.h"
 #include <linux/amlogic/meson_cooldev.h>
