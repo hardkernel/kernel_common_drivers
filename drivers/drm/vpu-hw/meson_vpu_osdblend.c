@@ -351,11 +351,25 @@ void s7d_osdblend_global_alpha_set(struct meson_vpu_block *vblk,
 			  struct rdma_reg_ops *reg_ops,
 			  struct meson_vpu_pipeline_state *mvps)
 {
-	u32 val, global_alpha, core2_val;
-	int i;
+	u32 val, core2_val, alpha[MESON_MAX_OSDS] = {0};
+	int i, j, num_plane = 0;
 
 	val = meson_drm_read_reg(VIU_OSD_BLEND_DUMMY_ALPHA);
 	MESON_DRM_BLOCK("dummy alpha read val=0x%x", val);
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (mvps->plane_info[i].enable) {
+			alpha[i] = mvps->plane_info[i].global_alpha >> 8;
+			num_plane++;
+		}
+	}
+
+	for (i = 0; i < num_plane; i++) {
+		for (j = (1 + i); j < num_plane; j++) {
+			if (alpha[i] > alpha[j])
+				swap(alpha[i], alpha[j]);
+		}
+	}
 
 	/*
 	 *recovery the dummy alpha value.
@@ -368,15 +382,15 @@ void s7d_osdblend_global_alpha_set(struct meson_vpu_block *vblk,
 	val = (((val & (0x7fff800)) << 2) | core2_val);
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (mvps->plane_info[i].enable) {
-			global_alpha = mvps->plane_info[i].global_alpha >> 8;
-			if (global_alpha == 0xff)
-				global_alpha = 0x100;
+			if (alpha[i] == 0xff)
+				alpha[i] = 0x100;
 
 			val &= (~osd_global_alpha[i].mask);
-			val |= (global_alpha << osd_global_alpha[i].offset);
+			val |= (alpha[i] << osd_global_alpha[i].offset);
 		}
 	}
 	reg_ops->rdma_write_reg(VIU_OSD_BLEND_DUMMY_ALPHA, val);
+	MESON_DRM_BLOCK("enable_count:%d alpha:0x%x 0x%x", num_plane, alpha[0], alpha[1]);
 }
 
 enum osd_channel_e osd2channel(u8 osd_index)
