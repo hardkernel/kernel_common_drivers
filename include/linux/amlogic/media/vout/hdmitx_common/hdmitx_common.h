@@ -97,13 +97,6 @@ struct hdcptx_common {
 	void (*drm_hdcp_disconnect)(struct hdmitx_common *tx_comm);
 };
 
-struct drm_vrr_ctrl_ops {
-	/* vrr apis */
-	u32 (*get_vrr_cap)(void);
-	int (*get_vrr_mode_group)(struct hdmitx_vrr_mode_group *groups, int max_group);
-	int (*set_vframe_rate_hint)(int duration, void *data);
-};
-
 struct hdmitx_clk_tree_s {
 	/* hdmitx clk tree */
 	struct clk *hdmi_clk_vapb;
@@ -212,6 +205,7 @@ struct hdmitx_common {
 	/* for external loading EDID */
 	u32 forced_edid;
 	unsigned char edid_buf[EDID_MAX_BLOCK * 128];
+	u32 edid_mask_qms:1;
 	struct rx_cap rxcap;
 	/*
 	 * edid parse debug flag

@@ -432,7 +432,7 @@ void tx_vrr_params_init(void);
 void hdmitx_set_vrr_para(const struct vrr_conf_para *para);
 void hdmitx_vrr_set_maxlncnt(u32 max_lcnt);
 u32 hdmitx_vrr_get_maxlncnt(void);
-int hdmitx_set_vrr_rate(int duration, void *data);
+int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int duration, void *data);
 void hdmitx_unregister_vrr(u32 enc_idx);
 void hdmitx_register_vrr(struct hdmitx21_dev *hdev);
 int hdmitx_dump_vrr_status(struct seq_file *s, void *p);
@@ -486,8 +486,6 @@ void hdmi_gcppkt_manual_set(bool en);
 
 /* 8. drm hdcp/vrr */
 unsigned int drm_hdmitx_get_rx_hdcp_cap(void);
-u32 drm_hdmitx_get_vrr_cap(void);
-int drm_hdmitx_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_group);
 
 /* 9. others */
 void hdmitx_soft_reset(u32 bits);

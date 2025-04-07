@@ -83,9 +83,6 @@ struct hdmitx21_dev {
 	/* if equals to 1, means current video & audio output are blank */
 	enum vrr_type vrr_mode; /* 1: GAME-VRR, 2: QMS-VRR,  0: default no-VRR */
 
-	/* configure for I2S: 8ch in, 2ch out */
-	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
-	u32 edid_mask_qms:1;
 	/*
 	 * debug only, should be positive value. if it is N, then vysnc_handler
 	 * will handle N frames, then it will be 0, and vysnc_handler is pending

@@ -80,6 +80,13 @@ int hdmitx_hw_set_phy(struct hdmitx_hw_common *tx_hw, int flag)
 }
 EXPORT_SYMBOL(hdmitx_hw_set_phy);
 
+int hdmitx_hw_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int rate, void *vrr_info)
+{
+	if (tx_hw->set_vrr_rate)
+		tx_hw->set_vrr_rate(tx_hw, rate, vrr_info);
+	return 0;
+}
+
 enum hdmi_tf_type hdmitx_hw_get_hdr_st(struct hdmitx_hw_common *tx_hw)
 {
 	return hdmitx_hw_get_state(tx_hw, STAT_TX_HDR, 0);

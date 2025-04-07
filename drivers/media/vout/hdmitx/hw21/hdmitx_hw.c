@@ -986,6 +986,7 @@ void hdmitx21_meson_init(struct hdmitx_hw_common *hw_comm)
 	hw_comm->setdispmode = hdmitx_set_dispmode;
 	hw_comm->get_clk = hdmitx_get_clk;
 	hw_comm->pkt_dump = hdmitx_pkt_dump;
+	hw_comm->set_vrr_rate = hdmitx_set_vrr_rate;
 	hdmitx21_private_data_init(h21_dev);
 	hdmi_hwp_init(h21_dev, 0);
 	hdmitx_hw_cntl_misc(hw_comm, MISC_AVMUTE_OP, CLR_AVMUTE);
@@ -3021,7 +3022,7 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 
 		data.type = buf[5] - '0';
 		if (kstrtoul(buf + 6, 10, &rate) == 0)
-			hdmitx_set_vrr_rate((int)rate, &data);
+			hdmitx_set_vrr_rate(tx_hw, (int)rate, &data);
 #endif
 	}
 }
@@ -5573,10 +5574,10 @@ void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 
 	if (strncmp(tmpbuf, "maskqms", 7) == 0) {
 		if (tmpbuf[7] == '1')
-			hdev->edid_mask_qms = 1;
+			tx_comm->edid_mask_qms = 1;
 		if (tmpbuf[7] == '0')
-			hdev->edid_mask_qms = 0;
-		HDMITX_INFO("mask edid qms %d\n", hdev->edid_mask_qms);
+			tx_comm->edid_mask_qms = 0;
+		HDMITX_INFO("mask edid qms %d\n", tx_comm->edid_mask_qms);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else if (strncmp(tmpbuf, "frl", 3) == 0) {
 		if (strncmp(tmpbuf + 3, "stop", 4) == 0) {

@@ -41,4 +41,9 @@ struct hdmitx_common *hdmitx21_alloc_instance(struct device *device);
 void hdmitx_ext_instance_init(struct hdmitx_common *tx_comm);
 int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 	enum vsif_type type, int on, void *param);
+u32 reduce_0p1_percent(u32 value);
+u32 reduce_1p3_percent(u32 value);
+extern const enum hdmi_vic qms_brr_list[9];
+extern const enum hdmi_vic game_brr_list[13];
+
 #endif

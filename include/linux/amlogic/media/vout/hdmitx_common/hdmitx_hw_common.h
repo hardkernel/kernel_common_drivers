@@ -368,6 +368,9 @@ struct hdmitx_hw_common {
 	void (*debugfunc)(struct hdmitx_hw_common *tx_hw, const char *cmd_str);
 	int (*setdispmode)(struct hdmitx_hw_common *tx_hw);
 
+	/* set vrr rate */
+	int (*set_vrr_rate)(struct hdmitx_hw_common *tx_hw, int rate, void *vrr_info);
+
 	u8 debug_hpd_lock;
 	/* dump packet information */
 	int (*pkt_dump)(char *buf, int len);
@@ -412,6 +415,7 @@ int hdmitx_hw_disable_packet(struct hdmitx_hw_common *tx_hw,
 	int type);
 int hdmitx_hw_set_phy(struct hdmitx_hw_common *tx_hw,
 	int flag);
+int hdmitx_hw_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int rate, void *vrr_info);
 
 enum hdmi_tf_type hdmitx_hw_get_hdr_st(struct hdmitx_hw_common *tx_hw);
 enum hdmi_tf_type hdmitx_hw_get_dv_st(struct hdmitx_hw_common *tx_hw);
