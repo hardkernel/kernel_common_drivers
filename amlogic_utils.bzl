@@ -15,6 +15,7 @@ load(
     "kernel_build",
     "kernel_build_config",
     "kernel_compile_commands",
+    "kernel_dtstree",
     "kernel_filegroup",
     "kernel_images",
     "kernel_kythe",
@@ -41,7 +42,8 @@ def define_common_amlogic(
         dist_dir = None,
         ext_modules = None,
         kconfig_ext = None,
-        kconfig_ext_srcs = None):
+        kconfig_ext_srcs = None,
+        ddk_module_defconfig_fragments = None):
 
     if build_config == None:
         build_config = ":build.config.amlogic.bazel"
@@ -50,6 +52,15 @@ def define_common_amlogic(
 
     if dist_dir == None:
         dist_dir = "out/{}/dist".format(branch)
+
+    kernel_dtstree(
+        name = name + "_dtstree",
+        srcs = native.glob([
+            "arch/arm64/boot/dts/**",
+            "include/dt-bindings/**",
+        ]),
+        makefile = "arch/arm64/boot/dts/Makefile",
+    )
 
     kernel_build(
         name = name,
@@ -63,6 +74,7 @@ def define_common_amlogic(
         # defconfig = "//common:arch/arm64/configs/gki_defconfig",
         # pre_defconfig_fragments = ["arch/arm64/configs/amlogic_gki.fragment"],
         # check_defconfig = "disabled",
+        ddk_module_defconfig_fragments = ddk_module_defconfig_fragments,
         kmi_symbol_list = kmi_symbol_list,
         additional_kmi_symbol_lists = additional_kmi_symbol_lists,
         collect_unstripped_modules = True,
@@ -70,6 +82,7 @@ def define_common_amlogic(
         make_goals = make_goals,
         makefile = "//common:Makefile",
         kconfig_ext = kconfig_ext,
+        dtstree = ":" + name + "_dtstree",
         visibility = ["//visibility:public"],
     )
 

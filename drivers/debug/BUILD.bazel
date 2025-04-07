@@ -87,9 +87,14 @@ ddk_module(
     },
     hdrs = [
         "//common_drivers:soc_headers",
-        "//common:amlogic_kernel_headers_unsafe",
         "//common_drivers:arch/arm64/configs/amlogic_gki.fragment",
         "//common:mm/cma.h",
+        "//common:kernel/sched/sched.h",
+        "//common:kernel/sched/cpupri.h",
+        "//common:kernel/sched/cpudeadline.h",
+        "//common:kernel/sched/ext.h",
+        "//common:kernel/sched/stats.h",
+        "//common:kernel/sched/features.h",
         "//common:kernel/workqueue_internal.h",
     ],
     linux_includes = [

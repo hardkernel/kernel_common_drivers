@@ -402,6 +402,11 @@ ddk_module(
         "**/*.h",
     ]),
     conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC": {
+            True: [
+                "amlogic/sound_init.c",
+            ],
+        },
         "CONFIG_AMLOGIC_SND_SOC_AUGE": {
             True: [
                 "amlogic/auge/clks/clk-g12a.c",

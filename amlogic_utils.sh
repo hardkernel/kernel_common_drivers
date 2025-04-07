@@ -12,7 +12,7 @@ function real_path() {
 function pre_defconfig_cmds() {
 	export OUT_AMLOGIC_DIR=$(readlink -m ${COMMON_OUT_DIR}/amlogic)
 	MERGE_CONFIG_SCRIPT_PATH=${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig
-	if [ "${ARCH}" = "arm" ]; then
+	if [ "${ARCH}" == "arm" ]; then
 		export PATH=${PATH}:/usr/bin/
 	fi
 
@@ -29,8 +29,8 @@ function pre_defconfig_cmds() {
 				${ROOT_DIR}/${GKI_BASE_CONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG} ${temp_file}
 			else
 				KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-				${ROOT_DIR}/${GKI_BASE_CONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG_GKI10} \
-				${ROOT_DIR}/${FRAGMENT_CONFIG_DEBUG} ${temp_file}
+				${ROOT_DIR}/${GKI_BASE_CONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG} \
+				${ROOT_DIR}/${FRAGMENT_CONFIG_GKI10} ${ROOT_DIR}/${FRAGMENT_CONFIG_DEBUG} ${temp_file}
 			fi
 		fi
 		rm ${temp_file}
@@ -101,7 +101,7 @@ function pre_defconfig_cmds() {
 
 	if [[ -n ${KASAN} ]]; then
 		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-				${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${KASAN_DEFCONFIG}
+				${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${FRAGMENT_CONFIG_KASAN}
 	fi
 }
 export -f pre_defconfig_cmds
@@ -306,7 +306,7 @@ function extra_cmds() {
 	let line=${file_last_line}-${ramdisk_last_line}
 	tail -n ${line} modules.order > vendor_dlkm_modules
 	export MODULES_LIST=${src_dir}/vendor_boot_modules
-	if [[ "${ARCH}" = "arm64" && -z ${FAST_BUILD} ]]; then
+	if [[ "${ARCH}" == "arm64" && -z ${FAST_BUILD} ]]; then
 		export VENDOR_DLKM_MODULES_LIST=${src_dir}/vendor_dlkm_modules
 	fi
 
@@ -1242,7 +1242,7 @@ function adjust_config_action () {
 			(cd ${KERNEL_DIR} && make ${TOOL_ARGS} O=${OUT_DIR} "${MAKE_ARGS[@]}" savedefconfig)
 			${KERNEL_DIR}/scripts/diffconfig ${orig_config} ${out_config} > ${changed_config}
 			${KERNEL_DIR}/scripts/diffconfig ${orig_defconfig} ${out_defconfig} > ${changed_defconfig}
-			if [ "${ARCH}" = "arm" ]; then
+			if [ "${ARCH}" == "arm" ]; then
 				cp ${out_defconfig} ${GKI_BASE_CONFIG}
 			fi
 			set +x # show the difference between the gki_defconfig and the config after make menuconfig
@@ -1323,9 +1323,9 @@ function build_part_of_kernel () {
 
 		if [[ -n ${IMAGE} ]]; then
 			set -x
-			if [ "${ARCH}" = "arm64" ]; then
+			if [ "${ARCH}" == "arm64" ]; then
 				(cd ${OUT_DIR} && make O=${OUT_DIR} ${TOOL_ARGS} "${MAKE_ARGS[@]}" -j$(nproc) Image)
-			elif [ "${ARCH}" = "arm" ]; then
+			elif [ "${ARCH}" == "arm" ]; then
 				(cd ${OUT_DIR} && make O=${OUT_DIR} ${TOOL_ARGS} "${MAKE_ARGS[@]}" -j$(nproc) LOADADDR=0x2008000 uImage)
 			fi
 			set +x
@@ -1574,7 +1574,7 @@ function handle_input_parameters () {
 export -f handle_input_parameters
 
 function set_default_parameters () {
-	if [ "${ARCH}" = "arm" ]; then
+	if [ "${ARCH}" == "arm" ]; then
 		CONFIGFILE=${ROOT_DIR}/${FRAGMENT_CONFIG}
 		if [[ -f "${CONFIGFILE}" && `grep "CONFIG_AMLOGIC_RAMDUMP_TEXTOFFSET=y" "${CONFIGFILE}"` ]]; then
 			ARGS+=("LOADADDR=0x02008000")
@@ -1606,6 +1606,19 @@ function set_default_parameters () {
 		BUILD_DIR=build
 	fi
 
+	if [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} ]]; then
+		if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
+			AUTO_PATCH=False
+		elif [[ "${DDK_BUILD}" == "1" ]]; then
+			PATCH_PARM=lunch
+		else
+			AUTO_PATCH=True
+		fi
+	else
+		AUTO_PATCH=True
+	fi
+	export AUTO_PATCH
+
 	version_message=$(grep -rn BRANCH= ${KERNEL_DIR}/build.config.constants)
 	if [[ -z ${version_message} ]]; then
 		version_message=$(grep -rn BRANCH= ${KERNEL_DIR}/build.config.common)
@@ -1625,7 +1638,9 @@ function set_default_parameters () {
 	fi
 
 	if [[ -d ${KERNEL_DIR}/.git ]]; then
-		auto_patch_to_common_dir
+		if [[ "${AUTO_PATCH}" == "True" || "${PATCH_PARM}" == "lunch" ]]; then
+			auto_patch_to_common_dir
+		fi
 	else
 		echo "WARNING: no git, auto patch skip!!!"
 		export SYS_SKIP_GIT=1

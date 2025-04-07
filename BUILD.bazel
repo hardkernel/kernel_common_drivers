@@ -1,5 +1,19 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
 load("//common_drivers:project/project.bzl", "COMMON_DRIVERS_KCONFIG_AND_MAKEFILE")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+
+config_setting(
+    name = "common_drivers_on_top_dir",
+    flag_values = {":common_drivers_on_top": "True"},
+    visibility = ["//visibility:public"],
+)
+
+bool_flag(
+    name = "common_drivers_on_top",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
 ddk_headers(
     name = "soc_headers",
     hdrs = glob([

@@ -1,7 +1,7 @@
-From cd28ddb2de5a7d515fea4ed5f53c93076b9441b7 Mon Sep 17 00:00:00 2001
+From dd5ea40a4c4fe56975cdc3ac00fab0bc0dfe82e0 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Fri, 17 Mar 2023 17:35:31 +0800
-Subject: [PATCH] bazel: support use bazel tool to build [1/1]
+Subject: [PATCH 2/2] bazel: support use bazel tool to build [1/1]
 
 PD#SWPL-112151
 
@@ -17,14 +17,12 @@ sc2
 Change-Id: I96e80b97ed481f32239955748ffa52e7d40a85aa
 Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 ---
- BUILD.bazel     | 10 ++++++++++
- Kbuild          | 12 +++++++++---
- drivers/Kconfig |  8 ++++++++
- modules.bzl     |  5 +++++
- 4 files changed, 32 insertions(+), 3 deletions(-)
+ BUILD.bazel | 9 ++++++++-
+ modules.bzl | 5 +++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index ac884896e4c4..8fd5d757964e 100644
+index 34d4b31f5854..eb1ccc0beddd 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
 @@ -45,6 +45,13 @@ package(
@@ -41,61 +39,24 @@ index ac884896e4c4..8fd5d757964e 100644
  _GKI_AARCH64_MAKE_GOALS = [
      "Image",
      "Image.lz4",
-@@ -3134,3 +3141,6 @@ pkg_zip(
- exports_files([
-     "Makefile",
- ])
-+
-+load("//common:common_drivers/amlogic.bzl", "define_amlogic")
-+define_amlogic()
-diff --git a/Kbuild b/Kbuild
-index bd26c93f68ef..88e1b7633843 100644
---- a/Kbuild
-+++ b/Kbuild
-@@ -97,6 +97,12 @@ obj-$(CONFIG_SAMPLES)	+= samples/
- obj-$(CONFIG_NET)	+= net/
- obj-y			+= virt/
- obj-y			+= $(ARCH_DRIVERS)
--obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/drivers/
--obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/sound/
--obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/samples/
-+ifeq ($(CONFIG_AMLOGIC_IN_KERNEL_MODULES),y)
-+ifeq ($(CONFIG_AMLOGIC_DDK_BUILD),y)
-+	obj-y		+= $(COMMON_DRIVERS_DIR)/drivers/tty/serial/
-+else
-+	obj-y		+= $(COMMON_DRIVERS_DIR)/drivers/
-+	obj-y		+= $(COMMON_DRIVERS_DIR)/sound/
-+	obj-y		+= $(COMMON_DRIVERS_DIR)/samples/
-+endif
-+endif
-diff --git a/drivers/Kconfig b/drivers/Kconfig
-index 407bb559650a..1c0b99f9f56f 100644
---- a/drivers/Kconfig
-+++ b/drivers/Kconfig
-@@ -299,6 +299,14 @@ config AMLOGIC_KERNEL_VERSION
- 	  so the default value is 15606
- 	  the driver uses it to adapt different kernel versions
+@@ -165,7 +172,7 @@ filegroup(
+             "cscope.*",
+             "ncscope.*",
+         ],
+-    ),
++    ) + ["//common_drivers:common_drivers_sources"],
+     visibility = ["//visibility:public"],
+ )
  
-+config AMLOGIC_DDK_BUILD
-+	bool "Amlogic ddk_module build"
-+	default n
-+	help
-+	  this option is provide for control use ddk_module()
-+	  to build common_drivers's drivers,
-+	  if you don't enable this, it will use in-tree mode build.
-+
- if AMLOGIC_IN_KERNEL_MODULES
- source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
- source "$(COMMON_DRIVERS_DIR)/sound/Kconfig"
 diff --git a/modules.bzl b/modules.bzl
-index 49700e6cf657..fe6762642e28 100644
+index 49700e6cf657..226f1273559b 100644
 --- a/modules.bzl
 +++ b/modules.bzl
 @@ -5,6 +5,7 @@
  This module contains a full list of kernel modules
   compiled by GKI.
  """
-+load("//common:common_drivers/modules.bzl", "AMLOGIC_REMOVE_KERNEL_MODULES")
++load("//common_drivers:modules.bzl", "AMLOGIC_REMOVE_KERNEL_MODULES")
  
  # LINT.IfChange
  _COMMON_GKI_MODULES_LIST = [
@@ -111,5 +72,5 @@ index 49700e6cf657..fe6762642e28 100644
  
  _KUNIT_FRAMEWORK_MODULES = [
 -- 
-2.46.0
+2.42.0
 

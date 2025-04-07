@@ -1,1 +1,1 @@
-build:common_drivers_on_top --//common:common_drivers_on_top"
+build:common_drivers_on_top --//common_drivers:common_drivers_on_top"

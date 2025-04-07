@@ -165,6 +165,8 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo "CHECK_GKI_20=${CHECK_GKI_20}"			>> ${PROJECT_DIR}/build.config.project
 	sed -i "/DDK_BUILD/d" ${PROJECT_DIR}/build.config.project
 	echo "DDK_BUILD=${DDK_BUILD}"				>> ${PROJECT_DIR}/build.config.project
+	sed -i "/AUTO_PATCH/d" ${PROJECT_DIR}/build.config.project
+	echo "AUTO_PATCH=${AUTO_PATCH}"				>> ${PROJECT_DIR}/build.config.project
 	BUILD_TIME=`date +%Y.%m.%d-%H.%M.%S`
 	sed -i "/BUILD_TIME/d" ${PROJECT_DIR}/build.config.project
 	echo "BUILD_TIME=${BUILD_TIME}"				>> ${PROJECT_DIR}/build.config.project
@@ -214,6 +216,8 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	else
 		echo "GKI_CONFIG = \"${GKI_CONFIG}\""		>> ${PROJECT_DIR}/project.bzl
 	fi
+
+	echo "AUTO_PATCH = \"${AUTO_PATCH}\""			>> ${PROJECT_DIR}/project.bzl
 
 	echo "BUILD_TIME = \"${BUILD_TIME}\""			>> ${PROJECT_DIR}/project.bzl
 
