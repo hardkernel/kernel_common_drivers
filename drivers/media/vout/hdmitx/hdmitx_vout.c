@@ -188,16 +188,22 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 	return 0;
 }
 
-static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac, void *data)
+static enum vmode_e hdmitx_validate_vmode(char *_mode, unsigned int frac, void *data)
 {
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)data;
 	struct vinfo_s *vinfo = &tx_comm->hdmitx_vinfo;
 	const struct hdmi_timing *timing = 0;
+	char conv_name[32] = {0};
+	char *mode = _mode;
 
 	/* vout validate vmode only used to confirm the mode is
 	 * supported by this server. And dont check with edid,
 	 * maybe we dont have edid when this function called.
 	 */
+	if (is_mode_name_frac(mode)) {
+		convert_name_frac2int(mode, conv_name);
+		mode = conv_name;
+	}
 	timing = hdmitx_mode_match_timing_name(mode);
 	if (hdmitx_common_validate_vic(tx_comm, timing->vic) == 0) {
 		/*should save mode name to vinfo, will be used in set_vmode*/
@@ -206,7 +212,7 @@ static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac, void *d
 		return VMODE_HDMI;
 	}
 
-	HDMITX_ERROR("%s validate %s fail\n", __func__, mode);
+	HDMITX_ERROR("%s validate %s fail\n", __func__, _mode);
 	return VMODE_MAX;
 }
 

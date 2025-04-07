@@ -468,6 +468,9 @@ int hdmitx_common_build_format_para(struct hdmitx_common *tx_comm,
 /* For bootup init: init hdmi_format_para from hw configs.*/
 int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		struct hdmi_format_para *para);
+/*mode name api*/
+bool is_mode_name_frac(const char *name);
+void convert_name_frac2int(const char *name, char *conv_name);
 
 /*edid valid api*/
 bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap);

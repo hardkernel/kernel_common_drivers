@@ -561,6 +561,57 @@ const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name)
 	return INVALID_HDMI_TIMING;
 }
 
+struct hdmi_mode_name {
+	char *integer_name;
+	char *frac_name;
+};
+
+static const struct hdmi_mode_name names[] = {
+	{"24hz", "23hz"},
+	{"30hz", "29hz"},
+	{"48hz", "47hz"},
+	{"60hz", "59hz"},
+	{"120hz", "119hz"},
+	{"240hz", "239hz"},
+};
+
+bool is_mode_name_frac(const char *name)
+{
+	int i;
+
+	if (!name)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(names); i++) {
+		if (strstr(name, names[i].frac_name))
+			return true;
+	}
+	return false;
+}
+
+void convert_name_frac2int(const char *name, char *conv_name)
+{
+	int i;
+	bool match = false;
+
+	if (!name || !conv_name)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(names); i++) {
+		if (strstr(name, names[i].frac_name)) {
+			match = true;
+			break;
+		}
+	}
+	if (match) {
+		char *tmp = strstr(name, names[i].frac_name);
+		int len = tmp - name;
+
+		strncpy(conv_name, name, len);
+		strcat(conv_name, names[i].integer_name);
+	}
+}
+
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic)
 {
 	const struct hdmi_timing *timing =
