@@ -11,19 +11,19 @@
 
 #define TCON_FW_PARA_VER            3
 
-enum tcon_fw_chip_e {
-	TCON_CHIP_TL1 = 0,
-	TCON_CHIP_TM2,   /* 1 */
-	TCON_CHIP_T5,    /* 2 */
-	TCON_CHIP_T5D,   /* 3 */
-	TCON_CHIP_T3,	 /* 4 */
-	TCON_CHIP_T5W,	 /* 5 */
-	TCON_CHIP_T5M,	 /* 6 */
-	TCON_CHIP_T3X,	 /* 7 */
-	TCON_CHIP_TXHD2, /* 8 */
-	TCON_CHIP_T6D,   /* 9 */
-	TCON_CHIP_MAX,
-};
+#define TCON_CHIP_TL1      0
+#define TCON_CHIP_TM2      1
+#define TCON_CHIP_T5       2
+#define TCON_CHIP_T5D      3
+#define TCON_CHIP_T3       4
+#define TCON_CHIP_T5W      5
+#define TCON_CHIP_T5M      6
+#define TCON_CHIP_T3X      7
+#define TCON_CHIP_TXHD2    8
+#define TCON_CHIP_T6D      9
+#define TCON_CHIP_T6W      10
+#define TCON_CHIP_T6X      11
+#define TCON_CHIP_MAX      0xff
 
 enum tcon_fw_if_type_e {
 	TCON_IF_MLVDS = 0,
