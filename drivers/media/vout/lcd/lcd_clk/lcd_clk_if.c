@@ -589,7 +589,7 @@ int lcd_clk_set_dummy(struct aml_lcd_drv_s *pdrv, int status)
 #endif
 		lcd_set_clk(pdrv);
 	}
-	LCDPR("[%d]: %s status: %d\n", pdrv->index, __func__, status);
+	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 	return 0;
 }
 

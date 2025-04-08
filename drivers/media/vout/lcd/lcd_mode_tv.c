@@ -592,11 +592,11 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 		if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
 			//workaround for drm resume
 			aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
-			pdrv->status |= LCD_STATUS_PREPARE;
+			pdrv->status |= LCD_STATE_PREPARE;
 
 			lcd_power_if_early_on(pdrv);
 		}
-		pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
+		pdrv->status |= LCD_STATE_VMODE_ACTIVE;
 		LCDPR("[%d]: fixed timing, exit vmode change\n", pdrv->index);
 		return -1;
 	}
@@ -621,7 +621,7 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 		if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
 			//workaround for drm resume
 			aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
-			pdrv->status |= LCD_STATUS_PREPARE;
+			pdrv->status |= LCD_STATE_PREPARE;
 		} else {
 			if (pdrv->vmode_switch) {
 				lcd_mode_vmode_switch(pdrv);
@@ -642,7 +642,7 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	lcd_vrr_dev_update(pdrv);
 
 	pdrv->vmode_switch = 0;
-	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
+	pdrv->status |= LCD_STATE_VMODE_ACTIVE;
 
 	mutex_unlock(&lcd_power_mutex);
 
@@ -657,7 +657,7 @@ static int lcd_vout_disable(enum vmode_e cur_vmod, void *data)
 		return -1;
 
 	mutex_lock(&lcd_vout_mutex);
-	pdrv->status &= ~LCD_STATUS_VMODE_ACTIVE;
+	pdrv->status &= ~LCD_STATE_VMODE_ACTIVE;
 	mutex_unlock(&lcd_vout_mutex);
 
 	return 0;

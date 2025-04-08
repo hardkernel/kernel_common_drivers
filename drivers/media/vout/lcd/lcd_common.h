@@ -18,7 +18,8 @@
 /* 20250123: update lcd bootargs transfer by lrm */
 /* 20250221: optimize vbyone interrupt handler */
 /* 20250304: support lcd_if early on with resume_type control */
-#define LCD_DRV_VERSION    "20250304"
+/* 20250402: protect dummy state for lcd manual power on */
+#define LCD_DRV_VERSION    "20250402"
 
 #define CFMT_RGB565          0x05
 #define CFMT_RGB_6bit        0x06

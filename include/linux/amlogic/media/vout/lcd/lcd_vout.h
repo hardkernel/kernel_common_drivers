@@ -785,14 +785,15 @@ struct lcd_resource_s {
 
 #define LCD_STATUS_IF_ON         BIT(0) //real status
 #define LCD_STATUS_ENCL_ON       BIT(1) //real status
-#define LCD_STATUS_ENCL_DUMMY   BIT(2) //real status
-#define LCD_STATUS_ON         (LCD_STATUS_IF_ON | LCD_STATUS_ENCL_ON)
-#define LCD_STATUS_POWER         BIT(4) //control status
-#define LCD_STATUS_PREPARE       BIT(5) //control status
-#define LCD_STATUS_VMODE_ACTIVE  BIT(6) //control status
+#define LCD_STATUS_ENCL_DUMMY    BIT(2) //real status
+#define LCD_STATUS_ON            (LCD_STATUS_IF_ON | LCD_STATUS_ENCL_ON)
+#define LCD_STATE_POWER          BIT(4) //control state
+#define LCD_STATE_PREPARE        BIT(5) //control state
+#define LCD_STATE_VMODE_ACTIVE   BIT(6) //control state
+#define LCD_STATE_DUMMY          BIT(7) //control state
 
-#define LCD_STATUS_TCON_RDY      BIT(8)
-#define LCD_STATUS_BL_PRE_ON     BIT(12)
+#define LCD_STATUS_TCON_RDY      BIT(8) //real status
+#define LCD_STATE_BL_PRE_ON      BIT(12) //control state
 
 #define LCD_VIU_SEL_NONE         0
 

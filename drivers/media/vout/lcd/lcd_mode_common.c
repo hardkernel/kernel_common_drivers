@@ -99,9 +99,10 @@ int lcd_mode_suspend(void *data)
 	mutex_lock(&lcd_power_mutex);
 	lcd_proc_time_clear(pdrv);
 	pdrv->init_flag = 0;
-	pdrv->status &= ~LCD_STATUS_POWER;
+	pdrv->status &= ~LCD_STATE_POWER;
+	pdrv->status |= LCD_STATE_DUMMY;
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF | LCD_EVENT_ENCL_DUMMY, (void *)pdrv);
-	LCDPR("[%d]: early_suspend finished\n", pdrv->index);
+	LCDPR("[%d]: early_suspend finished, status=0x%x\n", pdrv->index, pdrv->status);
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }
@@ -113,12 +114,12 @@ int lcd_mode_resume(void *data)
 	if (!pdrv)
 		return -1;
 
-	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0)
+	if ((pdrv->status & LCD_STATE_VMODE_ACTIVE) == 0)
 		return 0;
 
-	if (pdrv->status & LCD_STATUS_POWER) {
-		if (pdrv->status & LCD_STATUS_BL_PRE_ON) {
-			pdrv->status &= ~LCD_STATUS_BL_PRE_ON;
+	if (pdrv->status & LCD_STATE_POWER) {
+		if (pdrv->status & LCD_STATE_BL_PRE_ON) {
+			pdrv->status &= ~LCD_STATE_BL_PRE_ON;
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 			bl_lcd_on_ctrl(pdrv);
 #endif
@@ -131,12 +132,13 @@ int lcd_mode_resume(void *data)
 		lcd_queue_work(&pdrv->late_resume_work);
 	} else {
 		mutex_lock(&lcd_power_mutex);
-		LCDPR("[%d]: directly lcd late_resume\n", pdrv->index);
+		LCDPR("[%d]: directly lcd late_resume, status=0x%x\n", pdrv->index, pdrv->status);
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE,
 						(void *)pdrv);
 		lcd_if_enable_retry(pdrv);
-		pdrv->status |= LCD_STATUS_POWER;
-		LCDPR("[%d]: late_resume finished\n", pdrv->index);
+		pdrv->status |= LCD_STATE_POWER;
+		pdrv->status &= ~LCD_STATE_DUMMY;
+		LCDPR("[%d]: late_resume finished, status=0x%x\n", pdrv->index, pdrv->status);
 		mutex_unlock(&lcd_power_mutex);
 	}
 
@@ -222,7 +224,7 @@ void lcd_mode_vmode_switch(struct aml_lcd_drv_s *pdrv)
 
 	//step 1: switch off
 	local_time[0] = sched_clock();
-	if (pdrv->status & LCD_STATUS_POWER) {
+	if (pdrv->status & LCD_STATE_POWER) {
 		/* include lcd_vout_mutex */
 		aml_lcd_notifier_call_chain(pdrv->switch_off_event, (void *)pdrv);
 	}
@@ -230,7 +232,7 @@ void lcd_mode_vmode_switch(struct aml_lcd_drv_s *pdrv)
 	pdrv->proc_time.switch_off_time = local_time[1] - local_time[0];
 
 	//step 2: driver change
-	if (pdrv->status & LCD_STATUS_PREPARE) {
+	if (pdrv->status & LCD_STATE_PREPARE) {
 		mutex_lock(&lcd_vout_mutex);
 		lcd_connector_driver_change(pdrv);
 		mutex_unlock(&lcd_vout_mutex);

@@ -610,7 +610,7 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	lcd_vrr_dev_update(pdrv);
 
 	pdrv->vmode_switch = 0;
-	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
+	pdrv->status |= LCD_STATE_VMODE_ACTIVE;
 
 	mutex_unlock(&lcd_power_mutex);
 	return ret;
@@ -627,7 +627,7 @@ static int lcd_vout_disable(enum vmode_e cur_vmod, void *data)
 	lcd_vrr_dev_unregister(pdrv);
 
 	pdrv->init_flag = 0;
-	pdrv->status &= ~(LCD_STATUS_VMODE_ACTIVE | LCD_STATUS_PREPARE | LCD_STATUS_POWER);
+	pdrv->status &= ~(LCD_STATE_VMODE_ACTIVE | LCD_STATE_PREPARE | LCD_STATE_POWER);
 	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
 	LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
 	mutex_unlock(&lcd_power_mutex);
@@ -1016,7 +1016,7 @@ int lcd_mode_tablet_init(struct aml_lcd_drv_s *pdrv)
 	pdrv->driver_change       = lcd_connector_driver_change;
 	pdrv->fr_adjust           = lcd_connector_frame_rate_adjust;
 
-	if (pdrv->status & LCD_STATUS_VMODE_ACTIVE)
+	if (pdrv->status & LCD_STATE_VMODE_ACTIVE)
 		lcd_vrr_dev_register(pdrv);
 
 	return 0;

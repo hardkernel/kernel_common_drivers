@@ -1762,12 +1762,12 @@ static ssize_t lcd_debug_enable_store(struct device *dev, struct device_attribut
 		mutex_lock(&lcd_power_mutex);
 		aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
-		pdrv->status |= (LCD_STATUS_PREPARE | LCD_STATUS_POWER);
+		pdrv->status |= (LCD_STATE_PREPARE | LCD_STATE_POWER);
 		mutex_unlock(&lcd_power_mutex);
 	} else {
 		mutex_lock(&lcd_power_mutex);
 		lcd_proc_time_clear(pdrv);
-		pdrv->status &= ~(LCD_STATUS_PREPARE | LCD_STATUS_POWER);
+		pdrv->status &= ~(LCD_STATE_PREPARE | LCD_STATE_POWER);
 		aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
 		mutex_unlock(&lcd_power_mutex);
 	}
@@ -1859,14 +1859,19 @@ lcd_debug_power_store_next:
 	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, temp);
 	if (temp) {
 		if (pdrv->status & LCD_STATUS_ENCL_ON) {
+			if (pdrv->status & LCD_STATE_DUMMY) {
+				LCDERR("%s: exit for dummy_state: 0x%x\n", __func__, pdrv->status);
+				mutex_unlock(&lcd_power_mutex);
+				return -EINVAL;
+			}
 			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
 			lcd_if_enable_retry(pdrv);
-			pdrv->status |= LCD_STATUS_POWER;
+			pdrv->status |= LCD_STATE_POWER;
 		} else {
 			LCDERR("%s: can't power on when driver disable\n", __func__);
 		}
 	} else {
-		pdrv->status &= ~LCD_STATUS_POWER;
+		pdrv->status &= ~LCD_STATE_POWER;
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 	}
 	mutex_unlock(&lcd_power_mutex);
