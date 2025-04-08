@@ -1041,7 +1041,7 @@ void dvbt2_get_plp_dbg(void)
 void dvbt2_set_plpid(char id)
 {
 	dvbt_t2_wrb(0x806, id);
-	PR_INFO("%s: %d\n", __func__, id);
+	usleep_range(10000, 10001);
 }
 
 static int calcul_carrier_offset(struct aml_dtvdemod *demod)

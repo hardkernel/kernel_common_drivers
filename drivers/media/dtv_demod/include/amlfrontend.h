@@ -200,6 +200,7 @@
 /*  V3.6.020 fix dvbt2 CICAM by ts clock 5.43 to 6.75MHz */
 /*  V3.6.021 fix low probability missing dvbt channel */
 /*  V3.6.022 switch dvb-t/t2 top agc to inner agc on T6D */
+/*  V3.7.001 fix dvbt2 mplp tune */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -216,9 +217,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.022"
-#define DTVDEMOD_VER	"2025/04/09: switch dvb-t/t2 top agc to inner agc on T6D"
-#define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
+#define AMLDTVDEMOD_VER "V3.7.001"
+#define DTVDEMOD_VER	"2025/05/22: fix dvbt2 mplp tune"
+#define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #if defined AML_DEMOD_SUPPORT_ATSC || defined AML_DEMOD_SUPPORT_J83B

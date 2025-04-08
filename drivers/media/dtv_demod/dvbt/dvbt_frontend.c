@@ -619,6 +619,8 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 
 		PR_DVBT("data plp: %d (0x%x)\n", data_plp, data_plp);
 		PR_DVBT("common plp: %d (0x%x)\n", common_plp, common_plp);
+		if (!demod_is_t5d_cpu(devp))
+			PR_DVBT("cur plp: %d\n", dvbt_t2_rdb(0x806));
 	}
 
 	PR_DVBT("code_rate=%d, modu=%d, ldpc=%d, snr=%d dBx10, l1post=%d\n",
@@ -818,6 +820,11 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 	if (!demod_is_t5d_cpu(devp) && !dvbt2_mplp_retune && demod->freq == c->frequency / 1000) {
 		PR_INFO("same freq and mplp_retune %d not retune\n",
 				dvbt2_mplp_retune);
+
+		demod->last_lock = 0;
+		demod->last_status = 0;
+		demod->p1_peak = 0;
+		real_para_clear(&demod->real_para);
 
 		demod->time_start = jiffies_to_msecs(jiffies);
 
