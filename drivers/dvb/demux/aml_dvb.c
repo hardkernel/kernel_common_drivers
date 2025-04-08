@@ -953,6 +953,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		goto INIT_ERR;
 	dmx_regist_dmx_class();
 	ts_clone_probe(pdev);
+	alp_tlv_probe(pdev);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 	register_tsync_callbackfunc(TSYNC_AMLDMX_PCR_GET, demux_get_pcr);
 #endif

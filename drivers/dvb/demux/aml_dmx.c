@@ -37,6 +37,7 @@
 #include "sc2_demux/ts_clone.h"
 #include "sc2_demux/dvb_reg.h"
 #include "sc2_demux/dma_buf_manage.h"
+#include "sc2_demux/frontend.h"
 #include "sw_demux/swdemux_internal.h"
 #include "../aucpu/aml_aucpu.h"
 #include "aml_dsc.h"
@@ -3707,6 +3708,7 @@ static CLASS_ATTR_RW(ts_clone);
 static CLASS_ATTR_RW(dump_ringbuffer);
 static CLASS_ATTR_RW(adjust_mem);
 static CLASS_ATTR_RW(dmx_params);
+static CLASS_ATTR_RW(alp_tlv);
 
 static struct attribute *aml_dmx_class_attrs[] = {
 #ifdef OPEN_REGISTER_NODE
@@ -3722,6 +3724,7 @@ static struct attribute *aml_dmx_class_attrs[] = {
 	&class_attr_dump_ringbuffer.attr,
 	&class_attr_adjust_mem.attr,
 	&class_attr_dmx_params.attr,
+	&class_attr_alp_tlv.attr,
 	NULL
 };
 

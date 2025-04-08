@@ -1073,6 +1073,26 @@ void demod_config_tsinb_clk(u8 v)
 	WRITE_SYS_REG(TS_INB_CLK_CTRL, data);
 }
 
+unsigned int alp_tlv_get_config(int tsin)
+{
+#define CFG_ALP_ADDR    (SECURE_BASE + 0x334)
+	unsigned int addr = 0;
+
+	addr = CFG_ALP_ADDR + tsin  * 4;
+
+	return READ_CBUS_REG(addr);
+}
+
+void alp_tlv_set_config(int tsin, unsigned int value)
+{
+#define CFG_ALP_ADDR    (SECURE_BASE + 0x334)
+	unsigned int addr = 0;
+
+	addr = CFG_ALP_ADDR + tsin * 4;
+
+	WRITE_CBUS_REG(addr, value);
+}
+
 void sc2_dump_register(void)
 {
 	int i = 0;

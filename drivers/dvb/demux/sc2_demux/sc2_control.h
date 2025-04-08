@@ -162,4 +162,6 @@ void demod_config_tsinb_clk(u8 v);
 /*****************************************************/
 void sc2_dump_register(void);
 int sc2_control_debug(int direct, char *param_name, int *param_value);
+unsigned int alp_tlv_get_config(int tsin);
+void alp_tlv_set_config(int tsin, unsigned int value);
 #endif
