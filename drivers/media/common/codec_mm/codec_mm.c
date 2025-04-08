@@ -1235,7 +1235,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		(memflags & CODEC_MM_FLAGS_FOR_TRY_PREALLOC)) {
 		bool no_check_inst_id = false;
 
-		if (strcmp(owner, DMA_BUF_CODEC_MM) == 0)
+		if (strcmp(owner, DMA_BUF_CODEC_MM) == 0 || strcmp(owner, SCATTER_MEM) == 0)
 			no_check_inst_id = true;
 		mem = get_mms_from_hashtable(size, align2n, inst_id, no_check_inst_id);
 		if (mem) {

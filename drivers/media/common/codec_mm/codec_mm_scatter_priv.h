@@ -10,6 +10,8 @@
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_scatter.h>
 
+#define SCATTER_MEM "SCATTER_MEM"
+
 struct codec_mm_slot {
 	struct codec_mm_s *mm;
 	unsigned long page_header;

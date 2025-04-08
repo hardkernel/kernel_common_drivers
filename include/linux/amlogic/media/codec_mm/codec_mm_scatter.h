@@ -128,5 +128,6 @@ int codec_mm_scatter_owner_register(char *owner_name,
 		int keep_size, int is_tvp);
 int codec_mm_scatter_owner_unregister(int owner_id,
 		int is_tvp);
+u32 codec_mm_scatter_get_slot_size(bool is_tvp);
 
 #endif

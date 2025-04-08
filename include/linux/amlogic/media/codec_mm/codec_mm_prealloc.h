@@ -11,6 +11,7 @@ enum prealloc_mem_type {
 	PREALLOC_AVBC_HEADER_TYPE = 1,
 	PREALLOC_WK_TYPE = 2,
 	PREALLOC_MV_TYPE = 3,
+	PREALLOC_SC_TYPE = 4,
 };
 
 void release_prealloc_job(int inst_identify);

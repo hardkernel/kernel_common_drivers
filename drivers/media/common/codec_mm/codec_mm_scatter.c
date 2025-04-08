@@ -40,8 +40,6 @@
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_CODEC_MM
 #include <trace/events/meson_atrace.h>
 
-#define SCATTER_MEM "SCATTER_MEM"
-
 #ifndef MIN
 #define MIN(a, b) ({ \
 			const typeof(a) _a = a; \
@@ -1036,7 +1034,8 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 		mm = codec_mm_alloc(SCATTER_MEM, try_alloc_size, 0,
 				    CODEC_MM_FLAGS_FOR_VDECODER |
 				    CODEC_MM_FLAGS_FOR_SCATTER |
-				    (smgt->tvp_mode ? CODEC_MM_FLAGS_TVP : 0),
+				    (smgt->tvp_mode ?
+				    CODEC_MM_FLAGS_TVP | CODEC_MM_FLAGS_FOR_TRY_PREALLOC : 0),
 					-1
 				);
 		if (mm) {
@@ -2939,6 +2938,14 @@ int codec_mm_dump_free_slots(void)
 	codec_mm_dump_free_slots_in(codec_mm_get_scatter_mgt(1));
 	return 0;
 }
+
+u32 codec_mm_scatter_get_slot_size(bool is_tvp)
+{
+	struct codec_mm_scatter_mgt *mgt = codec_mm_get_scatter_mgt(is_tvp);
+
+	return mgt->try_alloc_in_cma_page_cnt * PAGE_SIZE;
+}
+EXPORT_SYMBOL(codec_mm_scatter_get_slot_size);
 
 int codec_mm_dump_scatter(struct codec_mm_scatter *mms,	void *buf, int size)
 {
