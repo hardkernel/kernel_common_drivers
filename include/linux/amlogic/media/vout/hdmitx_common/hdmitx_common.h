@@ -260,17 +260,17 @@ struct hdmitx_common {
 	 * 0: yuv; 1: rgb
 	 */
 	u8 in_color_fmt;
+
 	/*
-	 * There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
-	 * hdmi drivers to send out related HDMI infoframe
-	 * hdmitx_set_drm_pkt() is for HDR 2084 SMPTE, HLG, etc.
-	 * hdmitx_set_vsif_pkt() is for DV
-	 * hdmitx_set_hdr10plus_pkt is for HDR10+
-	 * Front modules may call the 2nd, and next call the 1st, and the realted flags
-	 * are remained the same. So, add hdr_status_pos and place it in the above 3
-	 * functions to record the position.
+	 * When exiting hdr10plus, hdmitx_set_hdr10plus_pkt will be
+	 * called first to send a hdr10plus vsif packet with all zeros.
+	 * At this time, all_zero_hdr10plus_pkt needs to be set to true.
+	 * Then, when hdmitx_set_drm_pkt is called to disable the drm
+	 * infoframe, if all_zero_hdr10plus_pkt is true, it is necessary
+	 * to disable the hdr10plus vsif packet with all zeros and set
+	 * all_zero_hdr10plus_pkt to false
 	 */
-	u8 hdr_status_pos;
+	bool all_zero_hdr10plus_pkt;
 
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	u32 frac_rate_policy;

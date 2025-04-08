@@ -128,11 +128,11 @@ static void hdmitx_set_sdr_pkt(struct hdmitx_common *tx_comm)
 		 * disable DRM packets completely ONLY if hdr transfer
 		 * feature and color feature still demand SDR.
 		 */
-		if (tx_comm->hdr_status_pos == 4) {
+		if (tx_comm->all_zero_hdr10plus_pkt) {
 			/* zero hdr10plus VSIF being sent - disable it */
 			HDMITX_INFO("hdr: [%s]: disable hdr10plus vsif pkt\n", __func__);
 			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
-			tx_comm->hdr_status_pos = 0;
+			tx_comm->all_zero_hdr10plus_pkt = false;
 		}
 		/* update hdr mode flag */
 		tx_comm->hdmi_current_hdr_mode = 0;
@@ -223,12 +223,12 @@ void hdmitx_set_drm_pkt(void *tx_instance, struct master_display_info_s *data)
 		}
 	}
 
-	if (tx_comm->hdr_status_pos == 4) {
+	if (tx_comm->all_zero_hdr10plus_pkt) {
 		/* zero hdr10plus VSIF being sent - disable it */
 		HDMITX_INFO("hdr: [%s]: disable hdr10plus zero vsif pkt\n", __func__);
 		/* TODO, maybe need recover hdmi1.4b_vsif when 4k */
 		hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
-		tx_comm->hdr_status_pos = 0;
+		tx_comm->all_zero_hdr10plus_pkt = false;
 	}
 
 	if (tx_comm->hdr_transfer_feature != hdr_transfer_feature ||
@@ -475,7 +475,7 @@ void hdmitx_set_hdr10plus_pkt(void *tx_instance, unsigned int flag, struct hdr10
 		tx_comm->hdr10plus_feature = 0;
 		if (hdmi_vic_4k_flag)
 			hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, vic & 0xff);
-		tx_comm->hdr_status_pos = 4;
+		tx_comm->all_zero_hdr10plus_pkt = true;
 		/* When hdr10plus mode ends, clear hdr10plus_event flag */
 		hdmitx_tracer_clean_hdr10plus_event(tx_comm->tx_tracer,
 					HDMITX_HDR_MODE_HDR10PLUS);
@@ -1206,7 +1206,7 @@ void hdmitx_hdr_init(struct hdmitx_common *tx_comm)
 	tx_comm->hdmi_current_tunnel_mode = YUV422_BIT12;
 	tx_comm->hdmi_current_signal_sdr = 0;
 
-	tx_comm->hdr_status_pos = 0;
+	tx_comm->all_zero_hdr10plus_pkt = false;
 
 	INIT_WORK(&tx_comm->work_hdr, hdr_work_func);
 	INIT_WORK(&tx_comm->work_hdr_unmute, hdr_unmute_work_func);
