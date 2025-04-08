@@ -200,6 +200,7 @@
 /*  V3.6.020 fix dvbt2 CICAM by ts clock 5.43 to 6.75MHz */
 /*  V3.6.021 use kernel configs instead of macros */
 /*  V3.6.022 fix low probability missing dvbt channel */
+/*  V3.6.023 switch dvb-t/t2 top agc to inner agc on T6D */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -216,8 +217,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.022"
-#define DTVDEMOD_VER	"2025/03/26: fix low probability missing dvbt channel"
+#define AMLDTVDEMOD_VER "V3.6.023"
+#define DTVDEMOD_VER	"2025/04/09: switch dvb-t/t2 top agc to inner agc on T6D"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
