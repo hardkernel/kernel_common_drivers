@@ -8,5 +8,6 @@ ccflags-y += $(PR_FMT_DEFINE)
 
 obj-$(CONFIG_AMLOGIC_REGULATOR) = $(MODULE_NAME).o
 $(MODULE_NAME)-y = main.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_REGULATOR_PWM) += pwm-regulator.o
 
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/regulator/meson_pmic6b/Makefile

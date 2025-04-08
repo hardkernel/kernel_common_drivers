@@ -13,7 +13,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-pinctrl
 	amlogic-mailbox
 	amlogic-pwm
-	pwm-regulator
+	amlogic-regulator.ko
 	amlogic-reset
 	amlogic-power
 	amlogic-cpuinfo
@@ -32,7 +32,6 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-pm.ko
 	amlogic-adc.ko
 	amlogic-input.ko
-	amlogic-regulator.ko
 	amlogic-watchdog.ko
 	aml-dvb.ko
 	aml_media.ko

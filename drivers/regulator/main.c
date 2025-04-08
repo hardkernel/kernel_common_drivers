@@ -11,6 +11,7 @@
 static int __init regulator_main_init(void)
 {
 	pr_debug("### %s() start\n", __func__);
+	call_sub_init(pwm_regulator_driver_init);
 	call_sub_init(meson_pmic6b_regulator_init);
 	pr_debug("### %s() end\n", __func__);
 	return 0;
@@ -19,6 +20,7 @@ static int __init regulator_main_init(void)
 static void __exit regulator_main_exit(void)
 {
 	meson_pmic6b_regulator_exit();
+	pwm_regulator_driver_exit();
 }
 
 module_init(regulator_main_init);
