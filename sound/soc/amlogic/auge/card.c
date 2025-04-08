@@ -771,7 +771,7 @@ static void audio_jack_detect(struct aml_card_data *card_data)
 	INIT_WORK(&card_data->work, jack_work_func);
 
 	jack_audio_start_timer(card_data,
-			msecs_to_jiffies(5000));
+			msecs_to_jiffies(2500));
 }
 
 static void audio_extcon_register(struct aml_card_data *priv,
