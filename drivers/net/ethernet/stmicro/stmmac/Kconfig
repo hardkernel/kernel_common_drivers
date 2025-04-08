@@ -5,7 +5,7 @@ config AMLOGIC_ETH_PRIVE
 	help
 	  Currently has a driver for the Amlogic PHY debug
 
-config STMMAC_ETH
+config AMLOGIC_STMMAC_ETH
 	tristate "STMicroelectronics Multi-Gigabit Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
 	depends on PTP_1588_CLOCK_OPTIONAL
@@ -19,21 +19,21 @@ config STMMAC_ETH
 	  This is the driver for the Ethernet IPs built around a
 	  Synopsys IP Core.
 
-if STMMAC_ETH
+if AMLOGIC_STMMAC_ETH
 
 config STMMAC_SELFTESTS
 	bool "Support for STMMAC Selftests"
 	depends on INET
-	depends on STMMAC_ETH
+	depends on AMLOGIC_STMMAC_ETH
 	default n
 	help
 	  This adds support for STMMAC Selftests using ethtool. Enable this
 	  feature if you are facing problems with your HW and submit the test
 	  results to the netdev Mailing List.
 
-config STMMAC_PLATFORM
+config AMLOGIC_STMMAC_PLATFORM
 	tristate "STMMAC Platform bus support"
-	depends on STMMAC_ETH
+	depends on AMLOGIC_STMMAC_ETH
 	select MFD_SYSCON if AMLOGIC_BREAK_GKI
 	default y
 	help
@@ -45,9 +45,9 @@ config STMMAC_PLATFORM
 
 	  If unsure, say N.
 
-if STMMAC_PLATFORM
+if AMLOGIC_STMMAC_PLATFORM
 
-config DWMAC_DWC_QOS_ETH
+config AMLOGIC_DWMAC_DWC_QOS_ETH
 	tristate "Support for snps,dwc-qos-ethernet.txt DT binding."
 	select CRC32 if AMLOGIC_BREAK_GKI
 	select MII if AMLOGIC_BREAK_GKI
@@ -57,7 +57,7 @@ config DWMAC_DWC_QOS_ETH
 
 config DWMAC_GENERIC
 	tristate "Generic driver for DWMAC"
-	default STMMAC_PLATFORM
+	default AMLOGIC_STMMAC_PLATFORM
 	help
 	  Generic DWMAC driver for platforms that don't require any
 	  platform specific code to function or is using platform
@@ -113,7 +113,7 @@ config DWMAC_MEDIATEK
 
 	  This selects the MT2712 SoC support for the stmmac driver.
 
-config DWMAC_MESON
+config AMLOGIC_DWMAC_MESON
 	tristate "Amlogic Meson dwmac support"
 	depends on OF && COMMON_CLK
 	help
@@ -235,7 +235,7 @@ config DWMAC_IMX8
 config DWMAC_INTEL_PLAT
 	tristate "Intel dwmac support"
 	depends on OF && COMMON_CLK
-	depends on STMMAC_ETH
+	depends on AMLOGIC_STMMAC_ETH
 	help
 	  Support for ethernet controllers on Intel SoCs
 
@@ -275,7 +275,7 @@ endif
 config DWMAC_INTEL
 	tristate "Intel GMAC support"
 	default X86
-	depends on X86 && STMMAC_ETH && PCI
+	depends on X86 && AMLOGIC_STMMAC_ETH && PCI
 	depends on COMMON_CLK
 	help
 	  This selects the Intel platform specific bus support for the
@@ -284,7 +284,7 @@ config DWMAC_INTEL
 config DWMAC_LOONGSON
 	tristate "Loongson PCI DWMAC support"
 	default MACH_LOONGSON64
-	depends on (MACH_LOONGSON64 || COMPILE_TEST) && STMMAC_ETH && PCI
+	depends on (MACH_LOONGSON64 || COMPILE_TEST) && AMLOGIC_STMMAC_ETH && PCI
 	depends on COMMON_CLK
 	help
 	  This selects the LOONGSON PCI bus support for the stmmac driver,
@@ -292,7 +292,7 @@ config DWMAC_LOONGSON
 
 config STMMAC_PCI
 	tristate "STMMAC PCI bus support"
-	depends on STMMAC_ETH && PCI
+	depends on AMLOGIC_STMMAC_ETH && PCI
 	depends on COMMON_CLK
 	help
 	  This selects the platform specific bus support for the stmmac driver.

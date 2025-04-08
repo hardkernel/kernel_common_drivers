@@ -15,7 +15,7 @@ DEFCONFIG=amlogic_gki10_defconfig
 COMMON_DRIVERS_DIR=../common_drivers
 
 GKI_CHECK_CONFIG_WHITE_LIST="
-	CONFIG_STMMAC_ETH
+	CONFIG_AMLOGIC_STMMAC_ETH
 "
 
 ARM64_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig

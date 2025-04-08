@@ -118,7 +118,7 @@ ddk_module(
         "**/*.h",
     ]),
     conditional_srcs = {
-        "CONFIG_STMMAC_ETH": {
+        "CONFIG_AMLOGIC_STMMAC_ETH": {
             True: [
                 "ethernet/stmicro/stmmac/stmmac_main.c",
                 "ethernet/stmicro/stmmac/stmmac_ethtool.c",
@@ -177,7 +177,7 @@ ddk_module(
         "**/*.h",
     ]),
     conditional_srcs = {
-        "CONFIG_STMMAC_PLATFORM": {
+        "CONFIG_AMLOGIC_STMMAC_PLATFORM": {
             True: [
                 "ethernet/stmicro/stmmac/stmmac_platform.c",
             ],
@@ -206,7 +206,7 @@ ddk_module(
         "**/*.h",
     ]),
     conditional_srcs = {
-        "CONFIG_DWMAC_MESON": {
+        "CONFIG_AMLOGIC_DWMAC_MESON": {
             True: [
                 "ethernet/stmicro/stmmac/dwmac-meson.c",
             ],
@@ -242,7 +242,7 @@ ddk_module(
         "**/*.h",
     ]),
     conditional_srcs = {
-        "CONFIG_DWMAC_MESON": {
+        "CONFIG_AMLOGIC_DWMAC_MESON": {
             True: [
                 "ethernet/stmicro/stmmac/dwmac-meson8b.c",
             ],
@@ -271,7 +271,7 @@ ddk_module(
         "**/*.h",
     ]),
     conditional_srcs = {
-        "CONFIG_DWMAC_DWC_QOS_ETH": {
+        "CONFIG_AMLOGIC_DWMAC_DWC_QOS_ETH": {
             True: [
                 "ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.c",
             ],
