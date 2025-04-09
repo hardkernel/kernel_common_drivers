@@ -94,6 +94,7 @@ struct meson_ir_dev {
 	u8 debug_enable;
 	u8 enable;
 	u8 ir_learning_on;
+	u8 use_fifo;
 	u8 is_probed;
 
 	unsigned int input_dev_num;

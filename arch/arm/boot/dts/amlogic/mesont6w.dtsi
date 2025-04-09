@@ -750,6 +750,7 @@
 				wakeup_map = <&ir_wakeup_key>;
 				mboxes = <&mbox_fifo T6W_REE2AO_IR>;
 				max_frame_time = <200>;
+				use_fifo = <1>;
 			};
 
 			ir1: ir1@fe084180 {

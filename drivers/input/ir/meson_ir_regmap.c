@@ -895,6 +895,11 @@ static int meson_ir_contr_init(struct meson_ir_chip *chip, int type,
 	chip->ir_contr[id].get_custom_code   = (*reg_proto)->get_custom_code;
 	chip->ir_contr[id].set_custom_code   = (*reg_proto)->set_custom_code;
 
+	if (chip->r_dev->ir_learning_on && chip->r_dev->use_fifo)
+		regmap_write(chip->ir_contr[id].base, REG_FIFO_CTL, FIFO_REG_VAL);
+	else
+		regmap_write(chip->ir_contr[id].base, REG_FIFO_CTL, 0);
+
 	return 0;
 }
 

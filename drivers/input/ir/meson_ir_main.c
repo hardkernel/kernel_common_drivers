@@ -480,6 +480,58 @@ static void meson_ir_workqueue(struct work_struct *work)
 	meson_ir_input_mouse_configure(chip->r_dev);
 }
 
+static void meson_ir_get_fifo_work(struct work_struct *work)
+{
+	struct meson_ir_chip *chip = container_of(work, struct meson_ir_chip,
+						  get_fifo_workqueue);
+	struct meson_ir_dev *r_dev = chip->r_dev;
+	int val;
+	int is_fifo_pending, is_fifo_timeout, is_fifo_empty;
+	enum raw_event_type type = RAW_SPACE;
+
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FIFO_CTL, &val);
+	is_fifo_pending = (val >> 30) & 0x01;
+	is_fifo_timeout = (val >> 29) & 0x01;
+	is_fifo_empty = (val >> 27) & 0x01;
+
+	/*disable  interrupt*/
+	regmap_update_bits(chip->ir_contr[chip->ir_work].base, REG_FIFO_CTL,
+			   GENMASK(23, 22), 0);
+
+	if (is_fifo_pending || is_fifo_timeout) {
+		/*clear state*/
+		regmap_update_bits(chip->ir_contr[chip->ir_work].base,
+				REG_FIFO_CTL, GENMASK(30, 29), GENMASK(30, 29));
+
+		for (; !is_fifo_empty; ) {
+			regmap_read(chip->ir_contr[chip->ir_work].base,
+				    REG_WIDTH_NEW, &val);
+			val = val & GENMASK(12, 0);
+
+			if (r_dev->ir_learning_on) {
+				r_dev->pulses->pulse[r_dev->pulses->len] = val;
+				r_dev->pulses->pulse[r_dev->pulses->len] |=
+						(r_dev->pulses->len % 2) << 31;
+
+				r_dev->pulses->len++;
+			} else if (MULTI_IR_SOFTWARE_DECODE(chip->protocol)) {
+				val = val * 10 * 1000;
+				type = RAW_PULSE;
+				meson_ir_raw_event_store_edge(r_dev, type, val);
+				meson_ir_raw_event_handle(r_dev);
+			}
+
+			regmap_read(chip->ir_contr[chip->ir_work].base,
+				    REG_FIFO_CTL, &val);
+			is_fifo_empty = (val >> 27) & 0x01;
+		}
+	}
+
+	/*enable interrupt*/
+	regmap_update_bits(chip->ir_contr[chip->ir_work].base, REG_FIFO_CTL,
+			   GENMASK(23, 22), GENMASK(23, 22));
+}
+
 static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 {
 	struct meson_ir_chip *rc = (struct meson_ir_chip *)dev_id;
@@ -499,6 +551,11 @@ static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 	if (r_dev->ir_learning_on) {
 		if (r_dev->pulses->len >= r_dev->max_learned_pulse)
 			return IRQ_HANDLED;
+
+		if (r_dev->use_fifo) {
+			queue_work(system_wq, &rc->get_fifo_workqueue);
+			return IRQ_HANDLED;
+		}
 
 		/*get pulse durations*/
 		r_dev->pulses->pulse[r_dev->pulses->len] = val & GENMASK(30, 0);
@@ -520,6 +577,11 @@ static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 	 *multi-format IR controller
 	 */
 	if (MULTI_IR_SOFTWARE_DECODE(rc->protocol)) {
+		if (r_dev->ir_learning_on) {
+			queue_work(system_wq, &rc->get_fifo_workqueue);
+			return IRQ_HANDLED;
+		}
+
 		rc->ir_work = MULTI_IR_ID;
 		duration = val * 10 * 1000;
 		type = RAW_PULSE;
@@ -762,6 +824,10 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 		chip->protocol = 1;
 	}
 
+	ret = of_property_read_bool(pdev->dev.of_node, "use_fifo");
+	if (ret)
+		chip->r_dev->use_fifo = 1;
+
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "led_blink", &chip->r_dev->led_blink);
 	if (ret)
@@ -967,6 +1033,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 					"amremote%d", chip->dev_no);
 
 	INIT_WORK(&chip->ir_workqueue, meson_ir_workqueue);
+	INIT_WORK(&chip->get_fifo_workqueue, meson_ir_get_fifo_work);
 	tasklet_setup(&chip->tasklet, meson_ir_tasklet);
 	chip->tasklet.data = (unsigned long)chip;
 

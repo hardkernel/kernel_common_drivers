@@ -18,6 +18,7 @@
 
 #define CURSOR_MOVE_ACCELERATE {0, 2, 2, 4, 4, 6, 8, 10, 12, 14, 16, 18}
 #define DEBUG_BUFFER_SIZE  4096
+#define FIFO_REG_VAL ((1 << 31) | (7 << 21) | (80 << 13) | (5000 << 0))
 
 enum IR_CONTR_NUMBER {
 	MULTI_IR_ID = 0,
@@ -138,6 +139,7 @@ struct meson_ir_chip {
 	unsigned char ir_work;
 	struct tasklet_struct tasklet;
 	struct work_struct ir_workqueue;
+	struct work_struct get_fifo_workqueue;
 	struct mbox_chan *mbox_chan;
 };
 
