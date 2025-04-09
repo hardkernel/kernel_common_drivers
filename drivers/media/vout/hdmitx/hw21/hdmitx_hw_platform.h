@@ -198,7 +198,6 @@ struct hdmitx21_dev *get_hdmitx21_device(void);
 
 #define to_hdmitx21_hw(x)	container_of(x, struct hdmitx21_hw, base)
 
-int hdmitx21_set_display(struct hdmitx_hw_common *hw_comm, enum hdmi_vic videocode);
 int likely_frac_rate_mode(const char *m);
 
 /* 1. reg map */

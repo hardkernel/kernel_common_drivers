@@ -2,7 +2,6 @@
 
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx
 
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX21) += vout/hdmitx/hw21/hdmitx_video.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX21) += vout/hdmitx/hw21/hdmitx_hdcp.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX21) += vout/hdmitx/hw21/hdmitx_scdc.o
 ifndef CONFIG_AMLOGIC_ZAPPER_CUT

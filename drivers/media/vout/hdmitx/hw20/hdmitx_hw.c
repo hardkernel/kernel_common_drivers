@@ -5626,6 +5626,35 @@ static int hdmitx_tmds_cedst(struct hdmitx20_dev *hdev)
 	return scdc_status_flags(&hdev->tx_comm);
 }
 
+/* Set Source Product Descriptor InfoFrame
+ */
+static void hdmitx_set_spd_info(struct hdmitx_common *tx_comm)
+{
+	unsigned char buffer[31] = {0x83, 0x1, 0x19};
+	unsigned int len = 0;
+	struct vendor_info_data *vend_data;
+	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+
+	if (tx_comm->config_data.vend_data) {
+		vend_data = tx_comm->config_data.vend_data;
+	} else {
+		HDMITX_DEBUG_VIDEO("packet: can\'t get vendor data\n");
+		return;
+	}
+	if (vend_data->vendor_name) {
+		len = strlen(vend_data->vendor_name);
+		strncpy(&buffer[4], vend_data->vendor_name,
+			(len > 8) ? 8 : len);
+	}
+	if (vend_data->product_desc) {
+		len = strlen(vend_data->product_desc);
+		strncpy(&buffer[12], vend_data->product_desc,
+			(len > 16) ? 16 : len);
+	}
+	buffer[28] = 0x1;
+	hdmitx_hw_set_packet(tx_hw_base, HDMI_SOURCE_DESCRIPTION, buffer);
+}
+
 static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 			    unsigned int argv)
 {
@@ -5778,6 +5807,9 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		return 0;
 	case MISC_READ_HPD_GPIO:
 		return hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO);
+	case MISC_SET_SPD_INFO:
+		hdmitx_set_spd_info(tx_comm);
+		break;
 	case MISC_VRR_REGISTER:
 	case MISC_RESET_HDCP_PARAM:
 	case MISC_PRE_ENABLE_MODE:
@@ -5785,6 +5817,7 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 	case MISC_LOAD_HDCP14_KEY:
 	case MISC_DISABLE_21_WORK:
 	case MISC_DISABLE_FRL_WORK:
+	case MISC_CONSTRUCT_AVI_PACKET:
 	default:
 		break;
 	}
@@ -6916,10 +6949,9 @@ struct hdmitx20_dev *get_hdmitx20_device(void)
 static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm)
 {
 	int ret;
-	struct hdmitx_hw_common *hw_comm = tx_comm->tx_hw;
 
 	/* if vic is HDMI_UNKNOWN, hdmitx_set_display will disable HDMI */
-	ret = hdmitx_set_display(hw_comm, tx_comm->fmt_para.vic);
+	ret = hdmitx_set_display(tx_comm, tx_comm->fmt_para.vic);
 
 	if (tx_comm->tx_hw->setaudmode)
 		tx_comm->tx_hw->setaudmode(tx_comm->tx_hw, &tx_comm->cur_audio_param);

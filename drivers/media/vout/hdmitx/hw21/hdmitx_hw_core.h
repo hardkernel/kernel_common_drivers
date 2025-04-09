@@ -355,7 +355,7 @@ void hdmitx_up_hdcp_timeout_handler(struct work_struct *work);
 extern unsigned long avmute_ms;
 extern unsigned long vid_mute_ms;
 void hdmitx21_av_mute_op(u32 flag, unsigned int path);
-void hdmitx21_video_mute_op(u32 flag, unsigned int path);
+void hdmitx21_video_mute_op(struct hdmitx_hw_common *hw_comm, u32 flag, unsigned int path);
 
 /* hdcp clk gate related */
 void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en);

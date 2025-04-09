@@ -118,6 +118,8 @@
 #define MISC_DISABLE_21_WORK	(CMD_MISC_OFFSET + 0x2e)
 #define MISC_READ_HPD_GPIO		(CMD_MISC_OFFSET + 0x2f)
 #define MISC_DISABLE_FRL_WORK	(CMD_MISC_OFFSET + 0x30)
+#define MISC_SET_SPD_INFO		(CMD_MISC_OFFSET + 0x31)
+#define MISC_CONSTRUCT_AVI_PACKET	(CMD_MISC_OFFSET + 0x32)
 /***********************************************************************
  *                          Get State //getstate
  **********************************************************************/

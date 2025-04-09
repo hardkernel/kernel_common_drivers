@@ -46,6 +46,46 @@ void hdmitx_get_init_state(struct hdmitx_common *tx_common,
 }
 EXPORT_SYMBOL(hdmitx_get_init_state);
 
+static void hdmitx_rxsense_process(struct work_struct *work)
+{
+	int sense;
+	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
+		struct hdmitx_common, work_rxsense);
+
+	sense = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_RXSENSE, 0);
+	hdmitx_set_uevent(tx_comm, HDMITX_RXSENSE_EVENT, sense);
+	queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense, HZ);
+}
+
+static void hdmitx_cedst_process(struct work_struct *work)
+{
+	int ced;
+	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
+		struct hdmitx_common, work_cedst);
+
+	ced = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_CEDST, 0);
+	/* firstly send as 0, then real ced, A trigger signal */
+	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, 0);
+	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, ced);
+	queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, HZ);
+}
+
+static void hdmitx_work_init(struct hdmitx_common *tx_comm)
+{
+	tx_comm->hdmi_hpd_wq = alloc_ordered_workqueue(DEVICE_NAME,
+					WQ_HIGHPRI | __WQ_LEGACY | WQ_MEM_RECLAIM);
+	/* for rx sense feature */
+	tx_comm->rxsense_wq = alloc_workqueue("hdmitx_rxsense",
+					   WQ_SYSFS | WQ_FREEZABLE, 0);
+	INIT_DELAYED_WORK(&tx_comm->work_rxsense, hdmitx_rxsense_process);
+	/* for cedst feature */
+	tx_comm->cedst_wq = alloc_workqueue("hdmitx_cedst",
+					 WQ_SYSFS | WQ_FREEZABLE, 0);
+	INIT_DELAYED_WORK(&tx_comm->work_cedst, hdmitx_cedst_process);
+	INIT_DELAYED_WORK(&tx_comm->work_hpd_plugin, hdmitx_hpd_plugin_irq_handler);
+	INIT_DELAYED_WORK(&tx_comm->work_hpd_plugout, hdmitx_hpd_plugout_irq_handler);
+}
+
 /* init hdmitx_common struct which is done only when driver probe */
 int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *hw_comm)
 {
@@ -110,7 +150,8 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	mutex_init(&tx_comm->aud_mute_mutex);
 
 	spin_lock_init(&tx_comm->edid_spinlock);
-
+	/* init work and delay work */
+	hdmitx_work_init(tx_comm);
 	hdmitx_vout_init(tx_comm, hw_comm);
 	hdmitx_hdr_init(tx_comm);
 	hdmitx_ext_instance_init(tx_comm);

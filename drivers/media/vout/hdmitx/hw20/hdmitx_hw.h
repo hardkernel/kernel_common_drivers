@@ -47,13 +47,10 @@ struct hdmitx20_dev {
 struct hdmitx20_hw *get_hdmitx20_hw_instance(void);
 struct hdmitx20_dev *get_hdmitx20_device(void);
 
-int hdmitx_set_display(struct hdmitx_hw_common *hw_comm, enum hdmi_vic videocode);
 int hdmitx_hdcp_opr(unsigned int val);
 
 unsigned int hdmitx_rd_reg(unsigned int addr);
 int hdmitx_hpd_hw_op(enum hpd_op cmd);
-int hdmi_set_3d(struct hdmitx20_dev *hdmitx_device, int type,
-		unsigned int param);
 
 int hdmitx_hpd_hw_op_gxbb(enum hpd_op cmd);
 int read_hpd_gpio_gxbb(void);

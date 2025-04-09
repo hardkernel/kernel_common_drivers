@@ -533,6 +533,7 @@ int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode);
 
 unsigned int hdmitx_get_frame_duration(struct hdmitx_common *tx_comm);
+int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic videocode);
 
 /* hdcp api*/
 void hdmitx_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf);

@@ -661,50 +661,6 @@ static struct early_suspend hdmitx_early_suspend_handler = {
 };
 #endif
 
-static void hdmitx_rxsense_process(struct work_struct *work)
-{
-	int sense;
-	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
-		struct hdmitx_common, work_rxsense);
-
-	sense = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_RXSENSE, 0);
-	hdmitx_set_uevent(tx_comm, HDMITX_RXSENSE_EVENT, sense);
-	queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense, HZ);
-}
-
-static void hdmitx_cedst_process(struct work_struct *work)
-{
-	int ced;
-	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
-		struct hdmitx_common, work_cedst);
-
-	ced = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_CEDST, 0);
-	/* firstly send as 0, then real ced, A trigger signal */
-	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, 0);
-	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, ced);
-	queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, HZ);
-}
-
-static void hdmitx_work_init(struct hdmitx_common *tx_comm)
-{
-	tx_comm->hdmi_hpd_wq = alloc_ordered_workqueue(DEVICE_NAME,
-					WQ_HIGHPRI | __WQ_LEGACY | WQ_MEM_RECLAIM);
-	/* for rx sense feature */
-	tx_comm->rxsense_wq = alloc_workqueue("hdmitx_rxsense",
-					   WQ_SYSFS | WQ_FREEZABLE, 0);
-	INIT_DELAYED_WORK(&tx_comm->work_rxsense, hdmitx_rxsense_process);
-	/* for cedst feature */
-	tx_comm->cedst_wq = alloc_workqueue("hdmitx_cedst",
-					 WQ_SYSFS | WQ_FREEZABLE, 0);
-	INIT_DELAYED_WORK(&tx_comm->work_cedst, hdmitx_cedst_process);
-	INIT_DELAYED_WORK(&tx_comm->work_hpd_plugin, hdmitx_hpd_plugin_irq_handler);
-	INIT_DELAYED_WORK(&tx_comm->work_hpd_plugout, hdmitx_hpd_plugout_irq_handler);
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	hdmitx_early_suspend_handler.param = tx_comm;
-	register_early_suspend(&hdmitx_early_suspend_handler);
-#endif
-}
-
 static int meson_hdmitx_bind(struct device *dev,
 			      struct device *master, void *data)
 {
@@ -838,10 +794,12 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		HDMITX_PLATFORM_TRACER, tx_tracer);
 	tx_comm->reboot_nb.notifier_call = hdmitx_reboot_notifier;
 	register_reboot_notifier(&tx_comm->reboot_nb);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	hdmitx_early_suspend_handler.param = tx_comm;
+	register_early_suspend(&hdmitx_early_suspend_handler);
+#endif
 	/* init hw */
 	hw_comm->chip_data->hdmitx_ops->init_hw(hw_comm);
-	/* init work and delay work */
-	hdmitx_work_init(tx_comm);
 	/* bind drm before hdmi event */
 	hdmitx_bind_meson_drm(device);
 	/* init power_uevent state */

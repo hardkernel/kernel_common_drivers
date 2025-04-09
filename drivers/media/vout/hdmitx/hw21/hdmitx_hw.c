@@ -2674,7 +2674,7 @@ static void hdmitx21_reset_hdcp_param(struct hdmitx_common *tx_comm)
 	tx_comm->dw_hdcp22_cap = false;
 	tx_comm->is_passthrough_switch = 0;
 	/* clear audio/video mute flag of stream type */
-	hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_2);
+	hdmitx21_video_mute_op(tx_comm->tx_hw, 1, VIDEO_MUTE_PATH_2);
 	hdmitx_audio_mute_op(tx_comm, 1, AUDIO_MUTE_PATH_3);
 }
 
@@ -3649,6 +3649,81 @@ static void hdmitx_disable_21_work(struct hdmitx_common *tx_comm)
 }
 #endif
 
+/* Set Source Product Descriptor InfoFrame */
+static void hdmitx_set_spd_info(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	struct hdmi_spd_infoframe spd_info = {0};
+	struct vendor_info_data *vend_data;
+
+	if (hdev->tx_comm.config_data.vend_data) {
+		vend_data = hdev->tx_comm.config_data.vend_data;
+	} else {
+		HDMITX_DEBUG_VIDEO("packet: can\'t get vendor data\n");
+		return;
+	}
+	if (!vend_data->vendor_name || !vend_data->product_desc)
+		return;
+
+	ret = hdmi_spd_infoframe_init(&spd_info, vend_data->vendor_name, vend_data->product_desc);
+	if (ret < 0)
+		HDMITX_DEBUG_VIDEO("packet: init spd failed\n");
+	spd_info.sdi = HDMI_SPD_SDI_DSTB; /* fixed value for ott/stb */
+	hdmi_spd_infoframe_set(&spd_info);
+}
+
+static void hdmitx_construct_avi_packet(struct hdmitx21_dev *hdev)
+{
+	struct hdmi_avi_infoframe *info = &hdev->tx_comm.infoframe.avi.avi;
+	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
+	enum hdmi_scan_mode scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
+
+	hdmi_avi_infoframe_init(info);
+	info->version = 2;
+	info->colorspace = para->cs;
+	if (para->timing.v_active <= 576)
+		info->colorimetry = HDMI_COLORIMETRY_ITU_601;
+	else
+		info->colorimetry = HDMI_COLORIMETRY_ITU_709;
+	info->picture_aspect = HDMI_PICTURE_ASPECT_16_9;
+	info->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
+	info->itc = 0;
+	info->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+	info->quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
+	info->nups = HDMI_NUPS_UNKNOWN;
+	info->video_code = para->timing.vic;
+	if (para->timing.vic == HDMI_95_3840x2160p30_16x9 ||
+	    para->timing.vic == HDMI_94_3840x2160p25_16x9 ||
+	    para->timing.vic == HDMI_93_3840x2160p24_16x9 ||
+	    para->timing.vic == HDMI_98_4096x2160p24_256x135)
+		/* HDMI Spec V1.4b P151 */
+		if (!hdev->frl_rate)
+			/* TODO, clear under FRL */
+			info->video_code = 0;
+	/* refer to CTA-861-H Page 69 */
+	if (info->video_code >= 128)
+		info->version = 3;
+	info->ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+	info->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
+	info->pixel_repeat = 0;
+	if (para->timing.pi_mode == 0) {
+		/* interlaced modes */
+		if (para->timing.h_active == 1440)
+			info->pixel_repeat = 1;
+		if (para->timing.h_active == 2880)
+			info->pixel_repeat = 3;
+	}
+	info->top_bar = 0;
+	info->bottom_bar = 0;
+	info->left_bar = 0;
+	info->right_bar = 0;
+	/* underscan */
+	info->scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->timing.vic);
+
+	hdmi_avi_infoframe_set(info);
+}
+
 static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			    u32 argv)
 {
@@ -3776,6 +3851,12 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case MISC_READ_HPD_GPIO:
 		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
+	case MISC_SET_SPD_INFO:
+		hdmitx_set_spd_info(hdev);
+		break;
+	case MISC_CONSTRUCT_AVI_PACKET:
+		hdmitx_construct_avi_packet(hdev);
+		break;
 	default:
 		break;
 	}
@@ -5798,10 +5879,11 @@ static void restore_mute(void)
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	atomic_t kref_video_mute = hdev->tx_comm.kref_video_mute;
 	atomic_t kref_audio_mute = hdev->kref_audio_mute;
+	struct hdmitx_hw_common *hw_comm = &hdev->hw_comm;
 
 	if (!(atomic_sub_and_test(0, &kref_video_mute))) {
 		HDMITX_INFO("%s: hdmitx21_video_mute_op(0, 0) call\n", __func__);
-		hdmitx21_video_mute_op(0, 0);
+		hdmitx21_video_mute_op(hw_comm, 0, 0);
 	}
 	if (!(atomic_sub_and_test(0, &kref_audio_mute))) {
 		HDMITX_INFO("%s: hdmitx_audio_mute_op(0,0) call\n", __func__);
@@ -5812,10 +5894,9 @@ static void restore_mute(void)
 static int hdmitx21_enable_mode(struct hdmitx_common *tx_comm)
 {
 	int ret;
-	struct hdmitx_hw_common *hw_comm = tx_comm->tx_hw;
 
 	/* if vic is HDMI_UNKNOWN, hdmitx_set_display will disable HDMI */
-	ret = hdmitx21_set_display(hw_comm, tx_comm->fmt_para.vic);
+	ret = hdmitx_set_display(tx_comm, tx_comm->fmt_para.vic);
 
 	if (ret >= 0)
 		restore_mute();
@@ -5880,3 +5961,26 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 	return 0;
 }
 
+static DEFINE_MUTEX(vid_mute_mutex);
+void hdmitx21_video_mute_op(struct hdmitx_hw_common *hw_comm, u32 flag, unsigned int path)
+{
+	static unsigned int vid_mute_path;
+
+	mutex_lock(&vid_mute_mutex);
+	if (flag == 0)
+		vid_mute_path |= path;
+	else
+		vid_mute_path &= ~path;
+
+	if (flag == 0) {
+		HDMITX_INFO("%s: VID_MUTE path=0x%x\n", __func__, path);
+		hdmitx_hw_cntl_config(hw_comm, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
+	} else {
+		/* unmute only if none of the paths are muted */
+		if (vid_mute_path == 0) {
+			HDMITX_INFO("%s: VID_UNMUTE path=0x%x\n", __func__, path);
+			hdmitx_hw_cntl_config(hw_comm, CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
+		}
+	}
+	mutex_unlock(&vid_mute_mutex);
+}

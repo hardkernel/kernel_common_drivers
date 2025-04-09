@@ -515,3 +515,77 @@ void hdmitx_bootup_post_process(struct hdmitx_common *tx_comm)
 			queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
 	}
 }
+
+int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic videocode)
+{
+	struct hdmitx_hw_common *hw_comm = tx_comm->tx_hw;
+	struct hdmi_format_para *para = &tx_comm->fmt_para;
+	int ret = -1;
+	unsigned char buffer[31] = {0x87, 0x1, 26};
+
+	HDMITX_DEBUG_VIDEO("%s set VIC = %d\n", __func__, videocode);
+
+	if (videocode >= HDMITX_VESA_OFFSET) {
+		para->cs = HDMI_COLORSPACE_RGB;
+		para->cd = COLORDEPTH_24B;
+		HDMITX_INFO("VESA only support RGB format\n");
+	}
+
+	if (hw_comm->setdispmode(hw_comm) >= 0) {
+		hdmitx_hw_cntl_misc(hw_comm, MISC_CONSTRUCT_AVI_PACKET, 0);
+		/* HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
+		 * other VSDB, No GB or DI expected
+		 * TMDS_MODE[hdmi_config]
+		 * 0: DVI Mode	   1: HDMI Mode
+		 */
+		/*
+		 * HDMI Identifier = HDMI_IEEE_OUI 0x000c03
+		 * If not, treated as a DVI Device
+		 */
+		if (tx_comm->rxcap.ieeeoui != HDMI_IEEE_OUI) {
+			HDMITX_INFO("Sink is DVI device\n");
+			hdmitx_hw_cntl_config(hw_comm,
+				CONF_HDMI_DVI_MODE, DVI_MODE);
+		} else {
+			HDMITX_INFO("Sink is HDMI device\n");
+			hdmitx_hw_cntl_config(hw_comm,
+				CONF_HDMI_DVI_MODE, HDMI_MODE);
+		}
+
+		if (videocode == HDMI_95_3840x2160p30_16x9 ||
+			videocode == HDMI_94_3840x2160p25_16x9 ||
+			videocode == HDMI_93_3840x2160p24_16x9 ||
+			videocode == HDMI_98_4096x2160p24_256x135) {
+			hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
+		} else if ((!tx_comm->flag_3dfp) && (!tx_comm->flag_3dtb) &&
+				(!tx_comm->flag_3dss)) {
+			/* For non-4kx2k mode setting */
+			hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 0, NULL);
+		}
+
+		/* if TV support traditional SDR, then enable hdr.sdr packet by default */
+		if (tx_comm->rxcap.hdr_info.hdr_support & 0x1) {
+			/*
+			 * only for hdr.sdr packet send after mode setting,
+			 * for sync purpose, should not use work queue,
+			 * no uevent/trace for such case
+			 */
+			HDMITX_INFO("hdr: %s: hdr.sdr pkt sent\n", __func__);
+			tx_comm->colormetry = 0;
+			hdmitx_hw_cntl_config(hw_comm, CONF_AVI_BT2020, CLR_AVI_BT2020);
+			hdmitx_hw_set_packet(hw_comm, HDMI_PACKET_DRM, buffer);
+		}
+		if (tx_comm->allm_mode) {
+			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 1, NULL);
+			hdmitx_hw_cntl_config(hw_comm, CONF_CT_MODE,
+				SET_CT_OFF);
+		} else {
+			hdmitx_hw_cntl_config(hw_comm, CONF_CT_MODE,
+				tx_comm->ct_mode);
+		}
+		ret = 0;
+	}
+	hdmitx_hw_cntl_misc(hw_comm, MISC_SET_SPD_INFO, 0);
+
+	return ret;
+}

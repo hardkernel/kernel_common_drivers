@@ -797,6 +797,7 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 	struct hdcp_t *p_hdcp = container_of((struct delayed_work *)work,
 			struct hdcp_t, req_reauth_wk);
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_hw_common *hw_comm = &hdev->hw_comm;
 
 	/* once receive hdcp auth from upstream side, cancel timeout */
 	cancel_delayed_work(&hdev->work_up_hdcp_timeout);
@@ -829,11 +830,11 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 	 */
 	if (hdcp_reauth_dbg == 1) {
 		/* before re-auth, do both video mute + avmute */
-		hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_3);
+		hdmitx21_video_mute_op(hw_comm, 0, VIDEO_MUTE_PATH_3);
 		hdmitx_common_avmute_locked(&hdev->tx_comm, SET_AVMUTE, AVMUTE_PATH_2);
 		msleep_interruptible(avmute_ms);
 		hdmitx21_disable_hdcp(hdev);
-		hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_3);
+		hdmitx21_video_mute_op(hw_comm, 1, VIDEO_MUTE_PATH_3);
 		/* msleep_interruptible(vid_mute_ms); */
 		hdmitx_common_avmute_locked(&hdev->tx_comm, CLR_AVMUTE, AVMUTE_PATH_2);
 	} else if (hdcp_reauth_dbg == 4) {
@@ -846,13 +847,13 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 				return;
 			}
 		}
-		hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_3);
+		hdmitx21_video_mute_op(hw_comm, 0, VIDEO_MUTE_PATH_3);
 		mdelay(20);
 
 		hdmitx_common_avmute_locked(&hdev->tx_comm, SET_AVMUTE, AVMUTE_PATH_2);
 		msleep_interruptible(avmute_ms);
 		hdmitx21_disable_hdcp(hdev);
-		hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_3);
+		hdmitx21_video_mute_op(hw_comm, 1, VIDEO_MUTE_PATH_3);
 		msleep_interruptible(vid_mute_ms);
 		hdmitx_common_avmute_locked(&hdev->tx_comm, CLR_AVMUTE, AVMUTE_PATH_2);
 	}
@@ -899,7 +900,7 @@ static void hdcp_stream_mute_whandler(struct work_struct *work)
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
 	/* not care race condition, use the last mute status */
-	hdmitx21_video_mute_op(!p_hdcp->stream_mute, VIDEO_MUTE_PATH_2);
+	hdmitx21_video_mute_op(&hdev->hw_comm, !p_hdcp->stream_mute, VIDEO_MUTE_PATH_2);
 	hdmitx_audio_mute_op(&hdev->tx_comm, !p_hdcp->stream_mute, AUDIO_MUTE_PATH_3);
 }
 
