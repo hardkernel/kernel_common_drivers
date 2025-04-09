@@ -52,7 +52,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[spi]: \" fmt"],
     out = "amlogic-spi.ko",

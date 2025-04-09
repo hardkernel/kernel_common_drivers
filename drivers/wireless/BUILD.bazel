@@ -39,7 +39,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:drivers/gpio/gpiolib.h",
         "//common:drivers/gpio/gpiolib-of.h",
     ],

@@ -152,7 +152,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "ddr_tool/dmc_monitor.h",
         "ddr_tool/ddr_port.h",
     ],

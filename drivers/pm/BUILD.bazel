@@ -28,7 +28,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:kernel/power/power.h",
     ],
     linux_includes = [

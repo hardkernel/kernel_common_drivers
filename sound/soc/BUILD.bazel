@@ -20,7 +20,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -48,7 +47,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -76,7 +74,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -104,7 +101,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -137,7 +133,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -164,7 +159,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -192,7 +186,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -220,7 +213,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -248,7 +240,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -276,7 +267,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -304,7 +294,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -332,7 +321,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -365,7 +353,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [
@@ -494,7 +481,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = [
         "amlogic/common",

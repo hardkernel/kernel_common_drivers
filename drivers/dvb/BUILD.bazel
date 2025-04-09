@@ -54,7 +54,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         ":amlogic-dvb_headers",
     ],
     linux_includes = [

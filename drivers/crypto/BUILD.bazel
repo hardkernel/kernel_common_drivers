@@ -33,7 +33,8 @@ ddk_module(
             ],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = [
         "pr_fmt(fmt)=\"[crypto-dma]: \" fmt",
     ],

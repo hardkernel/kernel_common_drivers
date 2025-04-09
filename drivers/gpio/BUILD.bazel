@@ -39,7 +39,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:drivers/gpio/gpiolib.h",
         "//common:drivers/pinctrl/core.h",
         "//common:drivers/pinctrl/pinctrl-utils.h",
@@ -73,7 +72,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s4]: \" fmt"],
     out = "amlogic-pinctrl-soc-s4.ko",
@@ -93,7 +91,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-c2]: \" fmt"],
     out = "amlogic-pinctrl-soc-c2.ko",
@@ -113,7 +110,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-c3]: \" fmt"],
     out = "amlogic-pinctrl-soc-c3.ko",
@@ -133,7 +129,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-a1]: \" fmt"],
     out = "amlogic-pinctrl-soc-a1.ko",
@@ -153,7 +148,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-sc2]: \" fmt"],
     out = "amlogic-pinctrl-soc-sc2.ko",
@@ -173,7 +167,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t3]: \" fmt"],
     out = "amlogic-pinctrl-soc-t3.ko",
@@ -193,7 +186,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t7]: \" fmt"],
     out = "amlogic-pinctrl-soc-t7.ko",
@@ -213,7 +205,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t5m]: \" fmt"],
     out = "amlogic-pinctrl-soc-t5m.ko",
@@ -233,7 +224,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-g12a]: \" fmt"],
     out = "amlogic-pinctrl-soc-g12a.ko",
@@ -253,7 +243,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s5]: \" fmt"],
     out = "amlogic-pinctrl-soc-s5.ko",
@@ -273,7 +262,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t5w]: \" fmt"],
     out = "amlogic-pinctrl-soc-t5w.ko",
@@ -293,7 +281,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t3x]: \" fmt"],
     out = "amlogic-pinctrl-soc-t3x.ko",
@@ -313,7 +300,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-txhd2]: \" fmt"],
     out = "amlogic-pinctrl-soc-txhd2.ko",
@@ -333,7 +319,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-c1]: \" fmt"],
     out = "amlogic-pinctrl-soc-c1.ko",
@@ -353,7 +338,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s1a]: \" fmt"],
     out = "amlogic-pinctrl-soc-s1a.ko",
@@ -373,7 +357,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t5d]: \" fmt"],
     out = "amlogic-pinctrl-soc-t5d.ko",
@@ -393,7 +376,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-a4]: \" fmt"],
     out = "amlogic-pinctrl-soc-a4.ko",
@@ -413,7 +395,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-a5]: \" fmt"],
     out = "amlogic-pinctrl-soc-a5.ko",
@@ -433,7 +414,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-tm2]: \" fmt"],
     out = "amlogic-pinctrl-soc-tm2.ko",
@@ -453,7 +433,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s7]: \" fmt"],
     out = "amlogic-pinctrl-soc-s7.ko",
@@ -473,7 +452,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s7d]: \" fmt"],
     out = "amlogic-pinctrl-soc-s7d.ko",
@@ -493,7 +471,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s6]: \" fmt"],
     out = "amlogic-pinctrl-soc-s6.ko",
@@ -513,7 +490,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t6d]: \" fmt"],
     out = "amlogic-pinctrl-soc-t6d.ko",

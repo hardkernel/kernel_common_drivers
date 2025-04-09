@@ -43,7 +43,8 @@ def define_common_amlogic(
         ext_modules = None,
         kconfig_ext = None,
         kconfig_ext_srcs = None,
-        ddk_module_defconfig_fragments = None):
+        ddk_module_defconfig_fragments = None,
+        ddk_module_headers = None):
 
     if build_config == None:
         build_config = ":build.config.amlogic.bazel"
@@ -75,6 +76,7 @@ def define_common_amlogic(
         # pre_defconfig_fragments = ["arch/arm64/configs/amlogic_gki.fragment"],
         # check_defconfig = "disabled",
         ddk_module_defconfig_fragments = ddk_module_defconfig_fragments,
+        ddk_module_headers = ddk_module_headers,
         kmi_symbol_list = kmi_symbol_list,
         additional_kmi_symbol_lists = additional_kmi_symbol_lists,
         collect_unstripped_modules = True,

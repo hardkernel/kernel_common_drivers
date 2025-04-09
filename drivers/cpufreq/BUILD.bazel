@@ -23,7 +23,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:drivers/opp/opp.h",
     ],
     linux_includes = [

@@ -21,7 +21,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[i2c]: \" fmt"],
     out = "amlogic-i2c.ko",

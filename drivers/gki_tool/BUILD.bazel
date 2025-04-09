@@ -21,7 +21,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:kernel/module/internal.h",
     ],
     linux_includes = [

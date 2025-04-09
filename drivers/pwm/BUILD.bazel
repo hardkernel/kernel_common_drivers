@@ -31,7 +31,8 @@ ddk_module(
             True: ["pwm-meson-tee.c"],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = ["pr_fmt(fmt)=\"[pwm]: \" fmt"],
     out = "amlogic-pwm.ko",
     kernel_build = "//common_drivers:amlogic",

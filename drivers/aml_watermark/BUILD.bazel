@@ -16,7 +16,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     out = "aml_watermark.ko",
     kernel_build = "//common_drivers:amlogic",

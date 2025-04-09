@@ -38,4 +38,5 @@ def define_amlogic():
         kconfig_ext_srcs = KCONFIG_EXT_SRCS,
         make_goals = _AMLOGIC_MAKE_GOALS,
         ddk_module_defconfig_fragments = None,
+        ddk_module_headers = [":soc_headers"],
     )

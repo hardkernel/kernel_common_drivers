@@ -173,7 +173,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:drivers/usb/host/xhci-mvebu.h",
     ],
     local_defines = [

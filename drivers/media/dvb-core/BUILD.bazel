@@ -37,7 +37,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = [
         "../../../../common/include/media",

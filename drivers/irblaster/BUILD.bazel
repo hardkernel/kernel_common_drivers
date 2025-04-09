@@ -22,7 +22,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[amlogic-irblaster]: \" fmt"],
     out = "amlogic-irblaster.ko",

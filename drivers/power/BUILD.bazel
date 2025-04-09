@@ -33,7 +33,8 @@ ddk_module(
             True: ["meson_pmic6b/pmic6b_battery.c"],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = ["pr_fmt(fmt)=\"[power]: \" fmt"],
     out = "amlogic-power.ko",
     kernel_build = "//common_drivers:amlogic",

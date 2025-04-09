@@ -25,7 +25,8 @@ ddk_module(
             True: ["reset-meson-dos.c"],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = ["pr_fmt(fmt)=\"[reset]: \" fmt"],
     out = "amlogic-reset.ko",
     kernel_build = "//common_drivers:amlogic",

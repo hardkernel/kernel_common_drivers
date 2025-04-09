@@ -19,7 +19,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:drivers/watchdog/watchdog_core.h"
     ],
     linux_includes = [
@@ -49,7 +48,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[smc-watchdog]: \" fmt"],
     out = "amlogic-smc-watchdog.ko",

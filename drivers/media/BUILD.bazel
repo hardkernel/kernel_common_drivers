@@ -958,7 +958,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "common/rdma/rdma.h",
         "video_processor/videodisplay/videodisplay_interface.h",
         "vout/vout_serve/vout_func.h",
@@ -1062,7 +1061,8 @@ ddk_module(
             ],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = ["pr_fmt(fmt)=\"[camera]: \" fmt"],
     copts = [
         "-Wframe-larger-than=3072",

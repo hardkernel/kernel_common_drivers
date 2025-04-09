@@ -18,7 +18,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:mm/kasan/kasan.h",
         "//common:mm/slab.h",
     ],
@@ -49,7 +48,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h",
     ],
     linux_includes = [
@@ -87,7 +85,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:mm/internal.h",
         "//common:mm/vma.h",
     ],
@@ -121,7 +118,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = ["../memory_debug/ddr_tool"],
     local_defines = [
@@ -148,7 +144,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = [],
     local_defines = [

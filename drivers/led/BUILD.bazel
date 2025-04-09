@@ -51,7 +51,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
 
     local_defines = [

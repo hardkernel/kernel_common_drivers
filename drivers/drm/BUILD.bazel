@@ -94,7 +94,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:drivers/pci/pci.h",
     ],
     linux_includes = [

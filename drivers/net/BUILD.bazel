@@ -20,7 +20,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[amlogic-phy-debug]: \" fmt"],
     out = "amlogic-phy-debug.ko",
@@ -46,7 +45,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[amlogic-inphy]: \" fmt"],
     out = "amlogic-inphy.ko",
@@ -72,7 +70,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[amlogic-realtek]: \" fmt"],
     out = "amlogic-realtek.ko",
@@ -99,7 +96,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[mdio-g12a]: \" fmt"],
     out = "amlogic-mdio-g12a.ko",
@@ -156,7 +152,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = [],
     out = "stmmac.ko",
@@ -184,7 +179,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = [],
     out = "stmmac-platform.ko",
@@ -213,7 +207,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = [],
     out = "dwmac-meson.ko",
@@ -249,7 +242,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = [],
     out = "dwmac-meson8b.ko",
@@ -278,7 +270,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     linux_includes = [],
     out = "dwmac-dwc-qos-eth.ko",

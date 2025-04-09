@@ -24,7 +24,8 @@ ddk_module(
             ],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = [
     ],
     out = "amlogic-soc-amfc.ko",
@@ -93,7 +94,8 @@ ddk_module(
             ],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = [
     ],
     out = "amlogic-soc-erofs.ko",
@@ -139,7 +141,8 @@ ddk_module(
              ],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = [
     ],
     out = "aml-zram.ko",
@@ -164,7 +167,8 @@ ddk_module(
             ],
         },
     },
-    hdrs = ["//common_drivers:soc_headers"],
+    hdrs = [
+    ],
     local_defines = [
     ],
     out = "amlogic-soc-sym_helper.ko",

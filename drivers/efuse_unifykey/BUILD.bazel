@@ -46,7 +46,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "efuse.h",
     ],
     local_defines = ["pr_fmt(fmt)=\"[efuse-unifykey]: \" fmt"],

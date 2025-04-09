@@ -40,7 +40,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common:drivers/thermal/thermal_debugfs.h",
         "//common:drivers/thermal/thermal_hwmon.h",
     ],

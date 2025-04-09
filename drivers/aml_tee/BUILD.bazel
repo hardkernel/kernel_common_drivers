@@ -27,7 +27,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     out = "tee.ko",
     kernel_build = "//common_drivers:amlogic",
@@ -55,7 +54,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     out = "optee.ko",
     kernel_build = "//common_drivers:amlogic",

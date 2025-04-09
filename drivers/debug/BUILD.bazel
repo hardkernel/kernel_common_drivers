@@ -29,7 +29,6 @@ ddk_module(
 	},
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = ["pr_fmt(fmt)=\"[debug-iotrace]: \" fmt"],
     out = "amlogic-debug-iotrace.ko",
@@ -86,7 +85,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
         "//common_drivers:arch/arm64/configs/amlogic_gki.fragment",
         "//common:mm/cma.h",
         "//common:kernel/sched/sched.h",
@@ -127,7 +125,6 @@ ddk_module(
         },
     },
     hdrs = [
-        "//common_drivers:soc_headers",
     ],
     local_defines = [
             "pr_fmt(fmt)=\"[audio-utils]: \" fmt",
