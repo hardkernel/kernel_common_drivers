@@ -235,4 +235,5 @@ config AMLOGIC_PINCTRL_MESON_T6X
 	  when enable this config.
 	  T6X pinctrl can work.
 	  otherwise T6X pinctrl can't work
+
 endif
