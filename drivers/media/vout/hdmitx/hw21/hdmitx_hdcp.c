@@ -905,7 +905,7 @@ static void hdcptx_req_reauth_whandler(struct work_struct *work)
 		return;
 	}
 	if (!tx_comm->ready) {
-		schedule_delayed_work(&p_hdcp->req_reauth_wk, HZ);
+		schedule_delayed_work(&p_hdcp->req_reauth_wk, msecs_to_jiffies(1000));
 		HDMITX_HDCP_INFO("hdmitx signal not done, delay hdcp re-auth\n");
 		mutex_unlock(&tx_comm->hdmimode_mutex);
 		return;
@@ -1672,7 +1672,8 @@ static void hdcp2x_process_intr(struct hdcptx21_core_priv *p_hdcp, u8 int_reg[])
 			} else {
 				smng_times = 0;
 				HDMITX_HDCP_INFO("hdcptx2: M' hash fail, restart auth\n");
-				schedule_delayed_work(&p_hdcp->req_reauth_wk, HZ);
+				schedule_delayed_work(&p_hdcp->req_reauth_wk,
+						msecs_to_jiffies(1000));
 			}
 		} else {
 			schedule_delayed_work(&p_hdcp->req_reauth_wk, 0);
@@ -1876,9 +1877,6 @@ static bool hdcptx_schedule_work(struct workqueue_struct *wq, struct hdcp_work *
 	HDMITX_DEBUG_HDCP("hdcptx: schedule %s: delay %d ms  period %d ms\n",
 		work->name, delay_ms, period_ms);
 
-	delay_ms = (delay_ms + 3) / 4;
-	period_ms = (period_ms + 3) / 4;
-
 	work->delay_ms = 0;
 	work->period_ms = period_ms;
 
@@ -1888,9 +1886,11 @@ static bool hdcptx_schedule_work(struct workqueue_struct *wq, struct hdcp_work *
 	}
 
 	if (delay_ms)
-		return queue_delayed_work(wq, &work->dwork, delay_ms);
+		return queue_delayed_work(wq, &work->dwork,
+				msecs_to_jiffies(delay_ms));
 	else
-		return queue_delayed_work(wq, &work->dwork, period_ms);
+		return queue_delayed_work(wq, &work->dwork,
+				msecs_to_jiffies(period_ms));
 }
 
 /*
@@ -2726,7 +2726,7 @@ void hdmitx_start_hdcp_handler(struct work_struct *work)
 			else
 				timeout_sec = p_hdcp->up_hdcp_timeout_sec;
 			schedule_delayed_work(&p_hdcp->work_up_hdcp_timeout,
-				timeout_sec * HZ);
+					msecs_to_jiffies(timeout_sec * 1000));
 		}
 	} else {
 		mutex_lock(&tx_comm->hdmimode_mutex);

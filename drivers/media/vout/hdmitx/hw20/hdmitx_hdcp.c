@@ -139,7 +139,7 @@ static void _hdcp_do_work(struct work_struct *work)
 	switch (tx_comm->hdcptx_comm.hdcp_mode) {
 	case 2:
 		/* hdev->HWOp.CntlMisc(hdev, MISC_HDCP_CLKDIS, 1); */
-		/* schedule_delayed_work(&hdev->work_do_hdcp, HZ / 50); */
+		/* schedule_delayed_work(&hdev->work_do_hdcp, 5); */
 		break;
 	case 1:
 		mutex_lock(&mutex);
@@ -151,7 +151,7 @@ static void _hdcp_do_work(struct work_struct *work)
 		}
 		mutex_unlock(&mutex);
 		/* log time frequency */
-		schedule_delayed_work(&hdev->work_do_hdcp, HZ / 20);
+		schedule_delayed_work(&hdev->work_do_hdcp, msecs_to_jiffies(50));
 		break;
 	case 0:
 	default:
@@ -596,7 +596,7 @@ static void drm_hdcp_tx22_daemon_check(struct timer_list *timer)
 	/*send notify when key load finished or timeout.*/
 	if (p_hdcp->hdcp22_daemon_state == HDCP22_DAEMON_DONE) {
 		HDMITX_INFO("hdcp_tx22 load ready, stop timer\n");
-		schedule_delayed_work(&p_hdcp->notify_work, HZ / 100);
+		schedule_delayed_work(&p_hdcp->notify_work, msecs_to_jiffies(10));
 	} else if (p_hdcp->key_chk_cnt++ < TIMER_CHK_CNT) {
 		p_hdcp->daemon_load_timer.expires = jiffies + TIMER_CHECK;
 		add_timer(&p_hdcp->daemon_load_timer);

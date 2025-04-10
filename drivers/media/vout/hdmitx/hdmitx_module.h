@@ -21,6 +21,8 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_hw_common.h>
 #include <linux/amlogic/media/vout/hdmi_tx_repeater.h>
 
+#define HDMITX_HZ  250
+
 /***** use for hdmitx 20 start *****/
 int hdmitx20_init_reg_map(struct platform_device *pdev);
 void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);

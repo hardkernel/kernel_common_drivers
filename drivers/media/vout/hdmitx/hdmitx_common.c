@@ -54,7 +54,8 @@ static void hdmitx_rxsense_process(struct work_struct *work)
 
 	sense = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_RXSENSE, 0);
 	hdmitx_set_uevent(tx_comm, HDMITX_RXSENSE_EVENT, sense);
-	queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense, HZ);
+	queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense,
+			msecs_to_jiffies(1000));
 }
 
 static void hdmitx_cedst_process(struct work_struct *work)
@@ -67,7 +68,8 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	/* firstly send as 0, then real ced, A trigger signal */
 	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, 0);
 	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, ced);
-	queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, HZ);
+	queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst,
+			msecs_to_jiffies(1000));
 }
 
 static void hdmitx_work_init(struct hdmitx_common *tx_comm)

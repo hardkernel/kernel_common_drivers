@@ -1803,7 +1803,8 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 			__func__, __LINE__, get_current_frl_rate(), h_total, cs, cd, h_unstable);
 		if (!h_unstable) {
 			while (loop--) {
-				hdmitx21_poll_reg(SYS_STAT_IVCTX, 1 << 0, ~(1 << 0), HZ / 100);
+				hdmitx21_poll_reg(SYS_STAT_IVCTX, 1 << 0, ~(1 << 0),
+						HDMITX_HZ / 100);
 				if (is_deep_phase_unstable(cs, cd)) {
 					/* reset pfifo */
 					hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 1, 1);
@@ -6000,7 +6001,8 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 			 * 1/2: drm driver or app control hdcp
 			 */
 			if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0 && p_hdcp)
-				schedule_delayed_work(&p_hdcp->work_tx_start_hdcp, HZ / 4);
+				schedule_delayed_work(&p_hdcp->work_tx_start_hdcp,
+						msecs_to_jiffies(250));
 		}
 	}
 

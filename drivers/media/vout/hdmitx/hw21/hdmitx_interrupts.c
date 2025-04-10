@@ -286,7 +286,7 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 			hdmitx_hpd_irq_top_half_process(hdev, true);
 			ret = queue_delayed_work(hdev->tx_comm.hdmi_hpd_wq,
 				&hdev->tx_comm.work_hpd_plugin,
-				hdev->tx_comm.pxp_mode ? 0 : HZ / 2);
+				hdev->tx_comm.pxp_mode ? 0 : msecs_to_jiffies(500));
 			if (!ret)
 				HDMITX_DEBUG("HDMI plugin work is already in the queue\n");
 		}

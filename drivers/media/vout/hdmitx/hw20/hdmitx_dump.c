@@ -9,6 +9,7 @@
 #include "hdmitx_reg_ops.h"
 #include "hdmitx_reg.h"
 #include "hdmitx_reg_sc2.h"
+#include "hdmitx_module.h"
 
 #define PR_BUS(a) \
 	do { \
@@ -185,7 +186,7 @@ static const struct proc_ops  dump_bus_reg_pops = {
 		     reg_adr < (b) + 1; reg_adr++) { \
 			hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x1); \
 			hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, 1 << 1, \
-					2 * HZ); \
+					2 * HDMITX_HZ); \
 			reg_val = hdmitx_rd_reg(reg_adr); \
 			seq_printf(s, "[0x%x]: 0x%x\n", reg_adr, reg_val); \
 		} \

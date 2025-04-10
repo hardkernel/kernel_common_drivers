@@ -51,6 +51,7 @@
 #include "hdmitx_hdcp.h"
 #include "hdmitx_infoframe.h"
 #include "hdmitx_audio.h"
+#include "hdmitx_module.h"
 
 #define HDMITX_VIC_MASK			0xff
 
@@ -840,7 +841,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	if (dat_top & (1 << 1)) {
 		hdmitx_hpd_irq_top_half_process(hdev, true);
 		ret = queue_delayed_work(hdev->tx_comm.hdmi_hpd_wq,
-				   &hdev->tx_comm.work_hpd_plugin, HZ / 2);
+				   &hdev->tx_comm.work_hpd_plugin, msecs_to_jiffies(500));
 		if (!ret)
 			HDMITX_DEBUG_HPD("HDMI plugin work is already in the queue\n");
 	}
@@ -866,7 +867,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	}
 	/* internal interrupt */
 	if (dat_top & (1 << 0))
-		schedule_delayed_work(&hdev->tx_comm.work_internal_intr, HZ / 10);
+		schedule_delayed_work(&hdev->tx_comm.work_internal_intr,
+				msecs_to_jiffies(100));
 
 	if (dat_top & (1 << 3)) {
 		unsigned int rd_nonce_mode =
@@ -4415,7 +4417,7 @@ static int get_hdcp_depth(void)
 	int ret;
 
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
-	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HZ);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HDMITX_HZ);
 	ret = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1) & 0x7;
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
 
@@ -4427,7 +4429,7 @@ static bool get_hdcp_max_cascade(void)
 	bool ret;
 
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
-	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HZ);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HDMITX_HZ);
 	ret = (hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1) >> 3) & 0x1;
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
 
@@ -4439,7 +4441,7 @@ static bool get_hdcp_max_devs(void)
 	bool ret;
 
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
-	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HZ);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HDMITX_HZ);
 	ret = (hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0) >> 7) & 0x1;
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
 
@@ -4451,7 +4453,7 @@ static int get_hdcp_device_count(void)
 	int ret;
 
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
-	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HZ);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HDMITX_HZ);
 	ret = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0) & 0x7f;
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
 
@@ -4461,7 +4463,7 @@ static int get_hdcp_device_count(void)
 static void get_hdcp_bstatus(int *ret1, int *ret2)
 {
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
-	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HZ);
+	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HDMITX_HZ);
 	*ret1 = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0);
 	*ret2 = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1);
 	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
@@ -4919,7 +4921,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *tx_hw,
 		if (!(hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS3) & (1 << 6)))
 			return 0;
 		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
-		hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HZ);
+		hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HDMITX_HZ);
 		val = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0);
 		topo14->device_count = val & 0x7f;
 		topo14->max_devs_exceeded = !!(val & 0x80);

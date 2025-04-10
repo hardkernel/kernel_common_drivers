@@ -626,7 +626,7 @@ tx_lts_p3:
 			 */
 			if (!hdev->tx_comm.hdcptx_comm.dw_hdcp22_cap)
 				hdev->tx_comm.hdcptx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
-			schedule_delayed_work(&p_hdcp->work_tx_start_hdcp, HZ / 4);
+			schedule_delayed_work(&p_hdcp->work_tx_start_hdcp, msecs_to_jiffies(250));
 		}
 		break;
 	}
