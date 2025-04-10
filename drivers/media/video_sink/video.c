@@ -760,6 +760,7 @@ int last_mode_3d;
 static void update_process_hdmi_avsync_flag(bool flag);
 static void hdmi_in_delay_maxmin_reset(void);
 static int is_interlaced(struct vinfo_s *vinfo);
+static void set_aisr_en(int en);
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 static unsigned int det_stb_cnt = 30;
@@ -6947,6 +6948,16 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		}
 		mutex_unlock(&video_layer_mutex);
 		break;
+	case AMSTREAM_IOC_SET_AISR_EN:
+		{
+			u32 val;
+
+			if (copy_from_user(&val, argp, sizeof(u32)) == 0)
+				set_aisr_en(val);
+			else
+				ret = -EFAULT;
+		}
+		break;
 
 	default:
 		return -EINVAL;
@@ -7027,6 +7038,7 @@ static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_GET_NEW_FRAME_COUNT:
 	case AMSTREAM_IOC_SET_VIDEO_MUTE:
 	case AMSTREAM_IOC_GET_VIDEO_MUTE:
+	case AMSTREAM_IOC_SET_AISR_EN:
 		arg = (unsigned long)compat_ptr(arg);
 		return amvideo_ioctl(file, cmd, arg);
 	case AMSTREAM_IOC_TRICKMODE:
@@ -12113,6 +12125,15 @@ static ssize_t aisr_en_show(struct class *cla,
 	return snprintf(buf, 40, "aisr en:%d\n", aisr_en);
 }
 
+static void set_aisr_en(int en)
+{
+	if (en != aisr_en) {
+		aisr_en = en;
+		aisr_sr1_nn_enable_sync(aisr_en);
+		if (cur_dev->vd1_vsr_safa_support)
+			vd_layer[0].property_changed = true;
+	}
+}
 static ssize_t aisr_en_store(struct class *cla,
 				 struct class_attribute *attr,
 				 const char *buf, size_t count)
@@ -12125,12 +12146,7 @@ static ssize_t aisr_en_store(struct class *cla,
 		pr_err("kstrtoint err\n");
 		return -EINVAL;
 	}
-	if (res != aisr_en) {
-		aisr_en = res;
-		aisr_sr1_nn_enable_sync(aisr_en);
-		if (cur_dev->vd1_vsr_safa_support)
-			vd_layer[0].property_changed = true;
-	}
+	set_aisr_en(res);
 	return count;
 }
 
