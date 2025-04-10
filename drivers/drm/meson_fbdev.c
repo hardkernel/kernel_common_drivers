@@ -918,15 +918,20 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 	if (drmdev->primary_plane) {
 		drmdev->ui_config.overlay_flag = 0;
 		fbdev = am_meson_create_drm_fbdev(dev, drmdev->primary_plane);
-		fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + drmdev->fbdev_zorder[0];
-		DRM_INFO("create fbdev for primary plane [%p]\n", fbdev);
+		if (fbdev) {
+			fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + drmdev->fbdev_zorder[0];
+			fbdev_cnt++;
+			MESON_DRM_FBDEV("create fbdev for primary plane [%p]\n", fbdev);
+		} else {
+			DRM_ERROR("create fbdev for primary plane failed\n");
+		}
 	}
 
 	/*only create fbdev for viu1*/
 	for (i = 0; i < MESON_MAX_OSD; i++) {
 		osd_plane = drmdev->osd_planes[i];
 		if (!osd_plane)
-			break;
+			continue;
 
 		if (osd_plane->base.type == DRM_PLANE_TYPE_PRIMARY)
 			continue;
@@ -936,7 +941,7 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 		if (fbdev) {
 			fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + drmdev->fbdev_zorder[i];
 			fbdev_cnt++;
-			DRM_INFO("create fbdev for plane (%d %d) zorder=%d\n",
+			MESON_DRM_FBDEV("create fbdev for plane (%d %d) zorder=%d\n",
 				i, osd_plane->plane_index, drmdev->fbdev_zorder[i]);
 		} else {
 			DRM_ERROR("create fbdev for plane %d failed\n", i);
