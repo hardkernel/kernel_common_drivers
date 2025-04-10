@@ -2977,7 +2977,7 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	struct meson_host *host = dev_id;
 	struct mmc_command *cmd;
 	struct mmc_data *data;
-	u32 irq_en, status, raw_status;
+	u32 irq_en, status, raw_status, cfg;
 	irqreturn_t ret = IRQ_NONE;
 
 	if (WARN_ON(!host))
@@ -3075,8 +3075,21 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 		goto out;
 	}
 
-	if (status & (IRQ_CRC_ERR | IRQ_TIMEOUTS))
+	if (status & (IRQ_CRC_ERR | IRQ_TIMEOUTS)) {
 		aml_host_bus_fsm_show(host->mmc, status);
+	} else if (aml_card_type_sdio(host) && (cmd->opcode == SD_IO_RW_EXTENDED) &&
+		   data && (data->flags == MMC_DATA_READ) &&
+		   (status & IRQ_END_OF_CHAIN) && !(status & IRQ_SDIO)) {
+		/*
+		 * After the CMD53 read command, turn on CFG_CLK_ALWAYS_ON and
+		 * then turn off CFG_CLK_ALWAYS_ON to keep the clock output for sdio
+		 */
+		cfg = readl(host->regs + SD_EMMC_CFG);
+		cfg |= CFG_CLK_ALWAYS_ON;
+		writel(cfg, host->regs + SD_EMMC_CFG);
+		cfg &= ~CFG_CLK_ALWAYS_ON;
+		writel(cfg, host->regs + SD_EMMC_CFG);
+	}
 
 	meson_mmc_read_resp(host->mmc, cmd);
 
