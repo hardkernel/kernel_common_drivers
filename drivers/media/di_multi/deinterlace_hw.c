@@ -2999,12 +2999,14 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 				di_mif1_linear_rd_cfg(di_mtnprd_mif,
 						      T6D_MTNRD_CTRL1,
 						      T6D_MTNRD_CTRL2,
-						      T6D_MTNRD_BADDR);
+						      T6D_MTNRD_BADDR,
+						      op);
 			else if (di_mtnprd_mif->linear)
 				di_mif1_linear_rd_cfg(di_mtnprd_mif,
 						      MTNRD_CTRL1,
 						      MTNRD_CTRL2,
-						      MTNRD_BADDR);
+						      MTNRD_BADDR,
+						      op);
 			else
 				DIM_VSC_WR_MPG_BT(MTNRD_CTRL1,
 						  di_mtnprd_mif->canvas_num, 16, 8);

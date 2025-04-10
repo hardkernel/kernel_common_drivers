@@ -563,11 +563,15 @@ static void di_mif1_stride2(unsigned int per_bits,
 void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_S *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,
-			unsigned int BADDR)
+			unsigned int BADDR,
+			const struct reg_acc *op_in)
 {
 	unsigned int stride;
 	const struct reg_acc *op = &di_pre_regset;
 	unsigned int x_size;
+
+	if (op_in)
+		op = op_in;
 
 //	dbg_ic("%s:\n", __func__);
 	//di_mif1_stride(mif, &stride);
@@ -700,7 +704,8 @@ static void set_ma_pre_mif_t7(void *pre,
 	di_mif1_linear_rd_cfg(contp2rd_mif,
 			      CONTRD_CTRL1,
 			      CONTRD_CTRL2,
-			      CONTRD_BADDR);
+			      CONTRD_BADDR,
+			      &di_pre_regset);
 
 	op->bwr(CONT2RD_SCOPE_X, contp2rd_mif->start_x, 0, 13);
 	op->bwr(CONT2RD_SCOPE_X, contp2rd_mif->end_x, 16, 13);
@@ -712,7 +717,8 @@ static void set_ma_pre_mif_t7(void *pre,
 	di_mif1_linear_rd_cfg(contprd_mif,
 			      CONT2RD_CTRL1,
 			      CONT2RD_CTRL2,
-			      CONT2RD_BADDR);
+			      CONT2RD_BADDR,
+			      &di_pre_regset);
 
 	/* current field mtn canvas index. */
 	op->bwr(MTNWR_X, mtnwr_mif->start_x, 16, 13);
@@ -754,7 +760,7 @@ static void set_post_mtnrd_mif_t7(struct DI_SIM_MIF_S *mtnprd_mif,
 				      (mtnprd_mif->start_y));
 	//DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, mtnprd_mif->canvas_num, 16, 8);
 	DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, 0, 0, 3);
-	di_mif1_linear_rd_cfg(mtnprd_mif, MTNRD_CTRL1, MTNRD_CTRL2, MTNRD_BADDR);
+	di_mif1_linear_rd_cfg(mtnprd_mif, MTNRD_CTRL1, MTNRD_CTRL2, MTNRD_BADDR, op);
 }
 #endif
 //dimh_enable_mc_di_pre_g12
@@ -4180,7 +4186,7 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 		op->bwr(MTNRD_CTRL1, ppcfg->mtnrd_mif->canvas_num, 16, 8);
 	} else {
 		ppcfg->mtnrd_mif->per_bits	= 4;
-		di_mif1_linear_rd_cfg(ppcfg->mtnrd_mif, MTNRD_CTRL1, MTNRD_CTRL2, MTNRD_BADDR);
+		di_mif1_linear_rd_cfg(ppcfg->mtnrd_mif, MTNRD_CTRL1, MTNRD_CTRL2, MTNRD_BADDR, op);
 	}
 
 	//mc vector read mif
@@ -4190,7 +4196,8 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 		di_mif1_linear_rd_cfg(ppcfg->mcvecrd_mif,
 			      MCVECRD_CTRL1,
 			      MCVECRD_CTRL2,
-			      MCVECRD_BADDR);
+			      MCVECRD_BADDR,
+			      op);
 	}
 	if (ppcfg->mcvecwr_mif->linear) {
 		ppcfg->mcinford_mif->per_bits	= 16;
@@ -4199,7 +4206,8 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 		di_mif1_linear_rd_cfg(ppcfg->mcinford_mif,
 			      MCINFRD_CTRL1,
 			      MCINFRD_CTRL2,
-			      MCINFRD_BADDR);
+			      MCINFRD_BADDR,
+			      op);
 		di_mif1_linear_wr_cfg(ppcfg->mcvecwr_mif,
 				MCVECWR_STRIDE, MCVECWR_BADDR);
 		di_mif1_linear_wr_cfg(ppcfg->mcinfowr_mif,
@@ -4210,11 +4218,13 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 		di_mif1_linear_rd_cfg(ppcfg->contprd_mif,
 			      CONTRD_CTRL1,
 			      CONTRD_CTRL2,
-			      CONTRD_BADDR);
+			      CONTRD_BADDR,
+			      op);
 		di_mif1_linear_rd_cfg(ppcfg->contp2rd_mif,
 			      CONT2RD_CTRL1,
 			      CONT2RD_CTRL2,
-			      CONT2RD_BADDR);
+			      CONT2RD_BADDR,
+			      op);
 
 		di_mif1_linear_wr_cfg(ppcfg->contwr_mif, CONTWR_STRIDE, CONTWR_BADDR);
 	}
@@ -6869,7 +6879,8 @@ static void set_rs_mif(struct DI_SIM_MIF_S   *mif,
 	if (mif->linear)
 		di_mif1_linear_rd_cfg(mif, reg[EIRN_SR2_CTRL1],
 				  reg[EIRN_SR2_CTRL2],	//CONTRD_CTRL2
-				  reg[EIRN_SR2_BADDR]);	//CONTRD_BADDR
+				  reg[EIRN_SR2_BADDR],	//CONTRD_BADDR
+				  op);
 	else
 		op->bwr(reg[EIRN_SR2_CTRL1], mif->canvas_num, 16, 8);
 }
