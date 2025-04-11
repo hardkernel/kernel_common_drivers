@@ -65,6 +65,7 @@ void should_wakeup_kswap(gfp_t gfp_mask, int order,
 }
 EXPORT_SYMBOL(should_wakeup_kswap);
 
+#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 void adjust_redzone_end(const void *ptr, size_t size, unsigned long *p_end)
 {
 	if (PageOwnerPriv1(virt_to_page(ptr)))
@@ -177,3 +178,4 @@ int aml_free_nonslab_page(struct folio *folio, void *object)
 
 	return 0;
 }
+#endif

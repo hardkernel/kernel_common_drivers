@@ -1,0 +1,27 @@
+From 6cb9a8163628df83025ccbf9d267e87c1a79b007 Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Sun, 13 Apr 2025 21:54:09 +0800
+Subject: [PATCH] remove slab large.
+
+Change-Id: Ic5c5b0613daee99bdcf28a26717dc6909862f243
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ mm/usercopy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index 2503696a94e28..229af97e78de7 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -195,7 +195,7 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+ 		/* Check slab allocator for flags and size. */
+ 		__check_heap_object(ptr, n, folio_slab(folio), to_user);
+ 	} else if (folio_test_large(folio)) {
+-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
+ 		if (unlikely(folio_test_owner_priv_1(folio)))
+ 			return;
+ #endif
+--
+2.42.0
+
