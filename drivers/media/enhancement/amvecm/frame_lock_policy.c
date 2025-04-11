@@ -849,6 +849,8 @@ void frame_lock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts, u16 line)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	unsigned int fr = frame_lock_show_vout_framerate();
+
 	if (probe_ok == 0) {
 		return;
 	}
@@ -860,6 +862,13 @@ void frame_lock_process(struct vframe_s *vf,
 		}
 		return;
 	}
+
+	if (!vf)
+		return;
+
+	if ((vf->vf_vrr_param.vin_base_fps == 60 && fr >= 60200) ||
+		(vf->vf_vrr_param.vin_base_fps == 120 && fr >= 120400))
+		vrr_skip_frame_cnt = 10;
 
 	frame_sts.vrr_frame_lock_type =
 		frame_lock_check_lock_type(cur_video_sts, vf);
