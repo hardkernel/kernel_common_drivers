@@ -405,6 +405,7 @@ int get_vout_mode_uboot_state(void);
 int get_vout2_mode_uboot_state(void);
 int get_vout3_mode_uboot_state(void);
 char *get_uboot_connector0_type(void);
+int convert_connector_type_to_val(char *name);
 
 int set_vout_mode(char *name);
 int get_vout_mode_cap(char *buf);

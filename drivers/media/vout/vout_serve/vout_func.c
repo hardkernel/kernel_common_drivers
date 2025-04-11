@@ -14,7 +14,7 @@
 /* Amlogic Headers */
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
-
+#include <drm/amlogic/meson_connector_dev.h>
 /* Local Headers */
 #include "vout_func.h"
 
@@ -56,28 +56,28 @@ static struct vinfo_s invalid_vinfo = {
 };
 
 static struct vout_connector_type_s connector_type_s[] = {
-	{100, "LVDS-A"},
-	{101, "LVDS-B"},
-	{102, "LVDS-C"},
-	{110, "VBYONE-A"},
-	{111, "VBYONE-B"},
-	{120, "MIPI-A"},
-	{121, "MIPI-B"},
-	{130, "EDP-A"},
-	{131, "EDP-B"},
-	{150, "DP-A"},
-	{151, "DP-B"},
-	{160, "HDMI-A-A"},
-	{161, "HDMI-A-B"},
-	{162, "HDMI-A-C"},
-	{170, "HDMI-B-A"},
-	{171, "HDMI-B-B"},
-	{172, "HDMI-B-C"},
-	{200, "MESON-DUMMYL"},
-	{201, "MESON-DUMMYP"},
-	{202, "MESON-DUMMYI"},
-	{13, "TV-1"},
-	{0, "NULL"},
+	{DRM_MODE_CONNECTOR_MESON_LVDS_A, "LVDS-A"},
+	{DRM_MODE_CONNECTOR_MESON_LVDS_B, "LVDS-B"},
+	{DRM_MODE_CONNECTOR_MESON_LVDS_C, "LVDS-C"},
+	{DRM_MODE_CONNECTOR_MESON_VBYONE_A, "VBYONE-A"},
+	{DRM_MODE_CONNECTOR_MESON_VBYONE_B, "VBYONE-B"},
+	{DRM_MODE_CONNECTOR_MESON_MIPI_A, "MIPI-A"},
+	{DRM_MODE_CONNECTOR_MESON_MIPI_B, "MIPI-B"},
+	{DRM_MODE_CONNECTOR_MESON_EDP_A, "EDP-A"},
+	{DRM_MODE_CONNECTOR_MESON_EDP_B, "EDP-B"},
+	{DRM_MODE_CONNECTOR_MESON_DP_A, "DP-A"},
+	{DRM_MODE_CONNECTOR_MESON_DP_B, "DP-B"},
+	{DRM_MODE_CONNECTOR_MESON_HDMIA_A, "HDMI-A-A"},
+	{DRM_MODE_CONNECTOR_MESON_HDMIA_B, "HDMI-A-B"},
+	{DRM_MODE_CONNECTOR_MESON_HDMIA_C, "HDMI-A-C"},
+	{DRM_MODE_CONNECTOR_MESON_HDMIB_A, "HDMI-B-A"},
+	{DRM_MODE_CONNECTOR_MESON_HDMIB_B, "HDMI-B-B"},
+	{DRM_MODE_CONNECTOR_MESON_HDMIB_C, "HDMI-B-C"},
+	{DRM_MODE_CONNECTOR_MESON_DUMMY_L, "MESON-DUMMYL"},
+	{DRM_MODE_CONNECTOR_MESON_DUMMY_P, "MESON-DUMMYP"},
+	{DRM_MODE_CONNECTOR_MESON_DUMMY_I, "MESON-DUMMYI"},
+	{DRM_MODE_CONNECTOR_TV, "TV-1"},
+	{DRM_MODE_CONNECTOR_Unknown, "NULL"},
 };
 
 int convert_connector_type_to_val(char *name)

@@ -3462,12 +3462,18 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 {
 	int ret = 0;
 	struct hdmitx21_dev *hdev = container_of(tx_hw, struct hdmitx21_dev, hw_comm);
-	enum vmode_e vmode = get_current_vmode();
+	char *connector_type = NULL;
+	int type_val = 0;
 
 	if ((cmd & CMD_CONF_OFFSET) != CMD_CONF_OFFSET) {
 		HDMITX_ERROR(HW "config: invalid cmd 0x%x\n", cmd);
 		return -1;
 	}
+
+	/* get the device information of the main screen */
+	connector_type = get_uboot_connector0_type();
+	if (connector_type)
+		type_val = convert_connector_type_to_val(connector_type);
 
 	switch (cmd) {
 	case CONF_HDMI_DVI_MODE:
@@ -3485,7 +3491,8 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		if (argv == VIDEO_MUTE) {
 			if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_T7) {
 				/* T7 use vpp mute pattern when hdmi is the main screen*/
-				if (vmode == VMODE_HDMI) {
+				if (type_val == DRM_MODE_CONNECTOR_MESON_HDMIA_A ||
+						type_val == DRM_MODE_CONNECTOR_MESON_HDMIA_C) {
 					set_output_mute(true);
 				} else {
 					hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
@@ -3507,7 +3514,8 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		if (argv == VIDEO_UNMUTE) {
 			if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_T7) {
 				/* T7 use vpp mute pattern when hdmi is the main screen*/
-				if (vmode == VMODE_HDMI) {
+				if (type_val == DRM_MODE_CONNECTOR_MESON_HDMIA_A ||
+						type_val == DRM_MODE_CONNECTOR_MESON_HDMIA_C) {
 					set_output_mute(false);
 				} else {
 					hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 3, 1);

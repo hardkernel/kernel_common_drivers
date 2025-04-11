@@ -543,12 +543,14 @@ int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority,
 {
 	u32 choose = 0;
 	u32 strategy = 0;
+	unsigned long flags = 0;
 
 	if (!hdr_info || !dv_info || !tx_comm) {
 		HDMITX_ERROR("%s fail\n", __func__);
 		return 0;
 	}
 
+	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 	tx_comm->hdr_priority = hdr_priority;
 	HDMITX_DEBUG("%s, set hdr_prio: %u\n", __func__, hdr_priority);
 	/* choose strategy: bit[31:28] */
@@ -565,6 +567,8 @@ int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority,
 	default:
 		break;
 	}
+	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
+
 	return 0;
 }
 EXPORT_SYMBOL(hdmitx_set_hdr_priority);

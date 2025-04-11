@@ -33,7 +33,6 @@ void vout_trim_string(char *str);
 void vout_parse_param(char *buf_orig, char **parm);
 
 struct vinfo_s *get_invalid_vinfo(int index, unsigned int flag);
-int convert_connector_type_to_val(char *name);
 char *convert_connector_type_to_str(int type);
 int vout_func_get_connector_type_cap(struct vout_connector_type_s *type_s);
 struct vout_module_s *vout_func_get_vout_module(void);

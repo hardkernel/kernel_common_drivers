@@ -111,6 +111,9 @@ struct meson_dummyp_dev {
 /*dummy_p specified type*/
 #define DRM_MODE_CONNECTOR_MESON_DUMMY_P  201
 
+/*dummy_i specified type*/
+#define DRM_MODE_CONNECTOR_MESON_DUMMY_I  202
+
 #define to_meson_panel_dev(x)	container_of(x, struct meson_panel_dev, base)
 #define to_meson_dummyl_dev(x)	container_of(x, struct meson_dummyl_dev, base)
 #define to_meson_dummyp_dev(x)	container_of(x, struct meson_dummyp_dev, base)
