@@ -198,8 +198,7 @@ static bool mua_is_valid_dmabuf(int fd)
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR_OR_NULL(dmabuf)) {
-		MUA_PRINTK(MUA_ERROR, "invalid dmabuf. %s %d\n",
-			   __func__, __LINE__);
+		MUA_PRINTK(MUA_ERROR, "invalid dmabuf. %s %d\n", __func__, __LINE__);
 		return false;
 	}
 
@@ -291,7 +290,13 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 	}
 
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
 	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	if (!out) {
+		kfree(in);
+		return -ENOMEM;
+	}
 
 	if ((vf->bitdepth & BITDEPTH_YMASK)  == BITDEPTH_Y10)
 		in->img.bitdep = 10;
@@ -403,7 +408,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 	buffer = container_of(obj, struct mua_buffer, base);
 	if (!buffer)
-		return 0;
+		return -EINVAL;
 	MUA_PRINTK(MUA_INFO, "%s.dmabuf(%px) buf_scalar=%d WxH: %dx%d\n",
 		__func__, dmabuf, scalar, buffer->width, buffer->height);
 
@@ -533,8 +538,9 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	src_sgt = buffer->sg_table;
 	num_pages = PAGE_ALIGN(new_size) / PAGE_SIZE;
 	tmp = vmalloc(sizeof(struct page *) * num_pages);
+	if (!tmp)
+		return -ENOMEM;
 	page_array = tmp;
-
 	pgprot = pgprot_writecombine(PAGE_KERNEL);
 
 	for_each_sg(src_sgt->sgl, sg, src_sgt->nents, i) {
@@ -604,8 +610,10 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	struct dma_buf_attachment *attachment = NULL;
 
 	buffer = container_of(obj, struct mua_buffer, base);
-	memset(&info, 0, sizeof(info));
+	if (!buffer)
+		return -EINVAL;
 
+	memset(&info, 0, sizeof(info));
 	MUA_PRINTK(MUA_INFO, "%s, %d.\n", __func__, __LINE__);
 
 	if (!enable_screencap && current->tgid == mua_dev->pid &&
@@ -665,12 +673,12 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 		MUA_PRINTK(MUA_ERROR, "none uvm buffer allocated.\n");
 		return -ENODEV;
 	}
-
 	src_sgt = buffer->sg_table;
 	num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
 	tmp = vmalloc(sizeof(struct page *) * num_pages);
+	if (!tmp)
+		return -ENOMEM;
 	page_array = tmp;
-
 	pgprot = pgprot_writecombine(PAGE_KERNEL);
 
 	for_each_sg(src_sgt->sgl, sg, src_sgt->nents, i) {
@@ -699,7 +707,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 
 	//start to filldata
 	meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
-
+	vunmap(vaddr);
 	if (src_sgt && attachment) {
 		dma_buf_unmap_attachment(attachment, src_sgt, DMA_BIDIRECTIONAL);
 		dma_buf_detach(idmabuf, attachment);
@@ -721,6 +729,8 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 
 	memset(&info, 0, sizeof(info));
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 	buffer->size = alloc_buf_size;
 	buffer->dev = mua_dev;
 	buffer->byte_stride = data->byte_stride;
@@ -745,8 +755,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		if (!heap) {
 			MUA_PRINTK(MUA_ERROR, "%s: dma_heap_find fail. heap name is %s\n",
 				   __func__, name);
-			kfree(buffer);
-			return -ENOMEM;
+			goto free_buffer;
 		}
 
 		idmabuf = dma_heap_buffer_alloc(heap, alloc_buf_size, O_RDWR,
@@ -754,8 +763,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		if (IS_ERR_OR_NULL(idmabuf)) {
 			MUA_PRINTK(MUA_ERROR, "%s: dma_heap_buffer_alloc fail. name is %s\n",
 				__func__, name);
-			kfree(buffer);
-			return -ENOMEM;
+			goto free_buffer;
 		}
 		MUA_PRINTK(MUA_INFO, "%s: idmabuf(%px) alloc success. heap name is %s, flags=%u\n",
 			__func__, idmabuf, name, data->flags);
@@ -769,16 +777,13 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
 		if (!attachment) {
 			MUA_PRINTK(MUA_ERROR, "%s: Failed to set dma attach", __func__);
-			kfree(buffer);
-			return -ENOMEM;
+			goto free_buffer;
 		}
 
 		sg = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
 		if (!sg) {
 			MUA_PRINTK(MUA_ERROR, "%s: Failed to get dma sg", __func__);
-			dma_buf_detach(idmabuf, attachment);
-			kfree(buffer);
-			return -ENOMEM;
+			goto detach_dma_buf;
 		}
 
 		info.sgt = sg;
@@ -799,8 +804,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		MUA_PRINTK(MUA_INFO, "UVM FLAGS is MUA_DELAY_ALLOC, %px\n", info.obj);
 	} else {
 		MUA_PRINTK(MUA_ERROR, "unsupported MUA FLAGS.\n");
-		kfree(buffer);
-		return -EINVAL;
+		goto free_buffer;
 	}
 
 	dmabuf_bind_uvm_alloc(dmabuf, &info);
@@ -808,63 +812,54 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		dma_buf_unmap_attachment(attachment, info.sgt, DMA_BIDIRECTIONAL);
 		dma_buf_detach(idmabuf, attachment);
 	}
-
 	return 0;
+
+detach_dma_buf:
+	dma_buf_detach(idmabuf, attachment);
+free_buffer:
+	kfree(buffer);
+	return -ENOMEM;
 }
 
-static int mua_set_commit_display(int fd, int commit_display)
+static int mua_set_commit_display(struct dma_buf *dmabuf, int commit_display)
 {
-	struct dma_buf *dmabuf;
 	struct uvm_buf_obj *obj;
 	struct mua_buffer *buffer;
 
-	dmabuf = dma_buf_get(fd);
-	if (IS_ERR_OR_NULL(dmabuf)) {
-		MUA_PRINTK(MUA_ERROR, "invalid dmabuf fd\n");
-		return -EINVAL;
-	}
-
 	obj = dmabuf_get_uvm_buf_obj(dmabuf);
 	if (IS_ERR_OR_NULL(obj)) {
-		dma_buf_put(dmabuf);
 		MUA_PRINTK(MUA_ERROR, "%s: invalid obj dmabuf\n", __func__);
 		return -EINVAL;
 	}
 
 	buffer = container_of(obj, struct mua_buffer, base);
+	if (!buffer)
+		return -EINVAL;
 	buffer->commit_display = commit_display;
 
-	dma_buf_put(dmabuf);
 	return 0;
 }
 
-static int mua_get_meta_data(int fd, ulong arg)
+static int mua_get_meta_data(struct dma_buf *dmabuf, int fd, ulong arg)
 {
-	struct dma_buf *dmabuf;
 	struct vframe_s *vfp;
 	struct uvm_meta_data meta;
 
-	dmabuf = dma_buf_get(fd);
-	if (IS_ERR_OR_NULL(dmabuf)) {
-		MUA_PRINTK(MUA_ERROR, "invalid dmabuf fd\n");
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+		MUA_PRINTK(MUA_ERROR, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-
 	vfp = dmabuf_get_vframe(dmabuf);
 	if (IS_ERR_OR_NULL(vfp)) {
-		dmabuf_put_vframe(dmabuf);
-		dma_buf_put(dmabuf);
 		MUA_PRINTK(MUA_DBG, "vframe is null.\n");
-		return -EINVAL;
+		goto put_vframe;
 	}
 	/* check source type. */
 	if (!vfp->meta_data_size ||
 		vfp->meta_data_size > META_DATA_SIZE) {
 		MUA_PRINTK(MUA_DBG, "meta data size: %d is invalid.\n",
 			vfp->meta_data_size);
-		dmabuf_put_vframe(dmabuf);
-		dma_buf_put(dmabuf);
-		return -EINVAL;
+		goto put_vframe;
 	}
 
 	meta.fd = fd;
@@ -872,29 +867,27 @@ static int mua_get_meta_data(int fd, ulong arg)
 	meta.size = vfp->meta_data_size;
 	if (!vfp->meta_data_buf) {
 		MUA_PRINTK(MUA_ERROR, "vfp->meta_data_buf is NULL.\n");
-		dmabuf_put_vframe(dmabuf);
-		dma_buf_put(dmabuf);
-		return -EINVAL;
+		goto put_vframe;
 	}
 	memcpy(meta.data, vfp->meta_data_buf, vfp->meta_data_size);
 	dmabuf_put_vframe(dmabuf);
 
 	if (copy_to_user((void __user *)arg, &meta, sizeof(meta))) {
 		MUA_PRINTK(MUA_ERROR, "meta data copy err.\n");
-		dma_buf_put(dmabuf);
 		return -EFAULT;
 	}
 
-	dma_buf_put(dmabuf);
-
 	return 0;
+
+put_vframe:
+	dmabuf_put_vframe(dmabuf);
+	return -EINVAL;
 }
 
-static int mua_attach(int fd, int type, char *buf)
+static int mua_attach(struct dma_buf *dmabuf, int fd, int type, char *buf)
 {
 	struct uvm_hook_mod_info info;
 	int ret = 0;
-	struct dma_buf *dmabuf = NULL;
 
 	memset(&info, 0, sizeof(struct uvm_hook_mod_info));
 	info.type = PROCESS_INVALID;
@@ -904,78 +897,48 @@ static int mua_attach(int fd, int type, char *buf)
 	switch (type) {
 	case PROCESS_NN:
 		ret = attach_nn_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	case PROCESS_AIPQ:
 		ret = attach_aipq_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	case PROCESS_AIFACE:
 		ret = attach_aiface_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	case PROCESS_AICOLOR:
 		ret = attach_aicolor_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	case PROCESS_LCEVC:
 		ret = attach_lcevc_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	default:
 		MUA_PRINTK(MUA_DBG, "mod_type is not valid.\n");
 	}
 	if (ret) {
-		MUA_PRINTK(MUA_ERROR, "get hook_mod_info failed\n");
+		MUA_PRINTK(MUA_ERROR, "attach hook_mod_info failed\n");
 		return -EINVAL;
 	}
 
-	dmabuf = dma_buf_get(fd);
-	MUA_PRINTK(MUA_INFO, "core_attach: type:%d dmabuf:%px.\n",
-		type, dmabuf);
-
-	if (IS_ERR_OR_NULL(dmabuf)) {
-		MUA_PRINTK(MUA_ERROR, "Invalid dmabuf %s %d\n", __func__, __LINE__);
-		return -EINVAL;
-	}
-
-	if (!dmabuf_is_uvm(dmabuf)) {
-		dma_buf_put(dmabuf);
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		MUA_PRINTK(MUA_ERROR, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
+	MUA_PRINTK(MUA_INFO, "core_attach: type:%d dmabuf:%px.\n", type, dmabuf);
 
 	if (info.type >= VF_SRC_DECODER && info.type < PROCESS_INVALID)
 		ret = uvm_attach_hook_mod(dmabuf, &info);
 
-	dma_buf_put(dmabuf);
 	return ret;
 }
 
-static int mua_detach(int fd, int type)
+static int mua_detach(struct dma_buf *dmabuf, int type)
 {
 	int ret = 0;
 	int index = 0;
-	struct dma_buf *dmabuf = NULL;
 
-	dmabuf = dma_buf_get(fd);
-
-	if (IS_ERR_OR_NULL(dmabuf)) {
-		MUA_PRINTK(MUA_ERROR, "Invalid dmabuf %s %d\n", __func__, __LINE__);
-		return -EINVAL;
-	}
-
-	if (!dmabuf_is_uvm(dmabuf)) {
-		dma_buf_put(dmabuf);
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		MUA_PRINTK(MUA_ERROR, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-
 	MUA_PRINTK(MUA_INFO, "[%s]: dmabuf %px.\n",  __func__, dmabuf);
 
 	for (index = VF_SRC_DECODER; index < PROCESS_INVALID; index++) {
@@ -984,8 +947,6 @@ static int mua_detach(int fd, int type)
 			ret &= uvm_detach_hook_mod(dmabuf, index);
 		}
 	}
-
-	dma_buf_put(dmabuf);
 
 	return ret;
 }
@@ -1056,11 +1017,12 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		MUA_PRINTK(MUA_INFO, "mua_ioctl_attach: shared_fd=%d, mode_type=%d\n",
-			data.hook_data.shared_fd,
-			data.hook_data.mode_type);
-		ret = mua_attach(data.hook_data.shared_fd,
-						data.hook_data.mode_type,
-						data.hook_data.data_buf);
+			fd, data.hook_data.mode_type);
+		dmabuf = dma_buf_get(fd);
+		ret = mua_attach(dmabuf, fd,
+				 data.hook_data.mode_type,
+				 data.hook_data.data_buf);
+		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_INFO, "mua_attach fail.\n");
 			return -EINVAL;
@@ -1075,10 +1037,11 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		MUA_PRINTK(MUA_INFO, "mua_ioctl_detach: shared_fd=%d, mode_type=%d\n",
-			data.hook_data.shared_fd,
-			data.hook_data.mode_type);
-		ret = mua_detach(data.hook_data.shared_fd,
-						data.hook_data.mode_type);
+			fd, data.hook_data.mode_type);
+		dmabuf = dma_buf_get(fd);
+		ret = mua_detach(dmabuf,
+				 data.hook_data.mode_type);
+		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_INFO, "mua_detach fail.\n");
 			return -EINVAL;
@@ -1091,8 +1054,8 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		dmabuf = dma_buf_get(fd);
 		ret = meson_uvm_getinfo(dmabuf,
-						data.hook_data.mode_type,
-						data.hook_data.data_buf);
+					data.hook_data.mode_type,
+					data.hook_data.data_buf);
 		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_INFO, "meson_uvm_getinfo fail.\n");
@@ -1109,8 +1072,8 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		dmabuf = dma_buf_get(fd);
 		ret = meson_uvm_setinfo(dmabuf,
-						data.hook_data.mode_type,
-						data.hook_data.data_buf);
+					data.hook_data.mode_type,
+					data.hook_data.data_buf);
 		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_INFO, "meson_uvm_setinfo fail.\n");
@@ -1201,7 +1164,9 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!mua_is_valid_dmabuf(fd))
 			return -EINVAL;
 
-		ret = mua_set_commit_display(fd, data.fd_data.data);
+		dmabuf = dma_buf_get(fd);
+		ret = mua_set_commit_display(dmabuf, data.fd_data.data);
+		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_ERROR, "invalid dmabuf fd.\n");
 			return -EINVAL;
@@ -1244,7 +1209,9 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		MUA_PRINTK(MUA_DBG, "%s LINE:%d.\n", __func__, __LINE__);
-		ret = mua_get_meta_data(data.meta_data.fd, arg);
+		dmabuf = dma_buf_get(fd);
+		ret = mua_get_meta_data(dmabuf, fd, arg);
+		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_INFO, "get meta data fail.\n");
 			return -EINVAL;
