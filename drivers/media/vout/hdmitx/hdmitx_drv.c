@@ -59,9 +59,10 @@ static struct hdmitx_ops hdmitx20_ops = {
 	.alloc_instance = hdmitx20_alloc_instance,
 	.init_reg_map = hdmitx20_init_reg_map,
 	.init_hw = hdmitx20_meson_init,
+	.uninit_hw = hdmitx20_meson_uninit,
 	.get_dbg_files = hdmitx20_get_dbg_files_s,
 	.get_dbg_files_count = hdmitx20_get_dbg_files_count,
-	.sw_debugfunc = hdmitx20_sw_debugfunc,
+	.sw_debug_func = hdmitx20_sw_debug_func,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_g12a = {
@@ -99,9 +100,10 @@ static struct hdmitx_ops hdmitx21_ops = {
 	.alloc_instance = hdmitx21_alloc_instance,
 	.init_reg_map = hdmitx21_init_reg_map,
 	.init_hw = hdmitx21_meson_init,
+	.uninit_hw = hdmitx21_meson_uninit,
 	.get_dbg_files = hdmitx21_get_dbg_files_s,
 	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
-	.sw_debugfunc = hdmitx21_sw_debugfunc,
+	.sw_debug_func = hdmitx21_sw_debug_func,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_t7 = {
@@ -572,6 +574,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 {
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)h->param;
 	bool need_rst_ratio;
+	u32 arg = 0;
 
 	need_rst_ratio = hdmitx_find_vendor_ratio(tx_comm->edid_buf);
 	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
@@ -596,14 +599,15 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	/* step2: clear ready status/disable phy/packets/hdcp HW */
 	hdmitx_common_output_disable(tx_comm,
 		true, true, true, false);
-	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_RESET_HDCP_PARAM, 0);
+	hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_PARAM_RESET, NULL, NULL);
 	/* step3: SW: post uevent to system */
 	hdmitx_set_uevent(tx_comm, HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
 	hdmitx_set_uevent(tx_comm, HDMITX_AUDIO_EVENT, 0);
 
-	if (need_rst_ratio)
-		hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_SCDC_DIV40_SCRAMB, 0);
-
+	if (need_rst_ratio) {
+		arg = 0;
+		hdmitx_hw_cntl(tx_comm->tx_hw, DDC_SCDC_DIV40_SCRAMB, (void *)&arg, NULL);
+	}
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 }
 
@@ -635,16 +639,17 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct hdmitx_common *tx_comm = container_of(nb, struct hdmitx_common, reboot_nb);
+	u32 arg = TMDS_PHY_DISABLE;
 
 	hdmitx_common_avmute_locked(tx_comm, SET_AVMUTE, AVMUTE_PATH_HDMITX);
-	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+	hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_PHY_OP, (void *)&arg, NULL);
 	tx_comm->ready = 0;
 
 	/* disable frl/dsc/vrr */
-	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_DISABLE_21_WORK, 0);
+	hdmitx_hw_cntl(tx_comm->tx_hw, MODE_FLOW_DISABLE_21_WORK, NULL, NULL);
 
-	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_DISABLE_HDCP, 0);
-	hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_RESET_HDCP_PARAM, 0);
+	hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_DISABLE, NULL, NULL);
+	hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_PARAM_RESET, NULL, NULL);
 
 	if (tx_comm->rxsense_policy)
 		cancel_delayed_work(&tx_comm->work_rxsense);
@@ -815,11 +820,11 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	 */
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	/* enable irq firstly before any hpd handler to prevent missing irq. */
-	hw_comm->setupirq(hw_comm);
+	hw_comm->setup_irq(hw_comm);
 	/* actions in top half of plug intr */
-	hpd_state = !!hdmitx_hw_cntl_misc(hw_comm,
-		MISC_HPD_GPI_ST, 0);
-	hdmitx_hw_cntl_misc(hw_comm, MISC_HPD_IRQ_TOP_HALF, hpd_state);
+	hpd_state = !!hdmitx_hw_cntl(hw_comm,
+		PLATFORM_GET_HPD_GPI_ST, NULL, NULL);
+	hdmitx_hw_cntl(hw_comm, MODE_FLOW_HPD_IRQ_TOP_HALF, (void *)&hpd_state, NULL);
 	/* actions in bottom half of plug intr */
 	if (hpd_state)
 		hdmitx_process_plugin(tx_comm, true, tx_comm->ready);
@@ -853,7 +858,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	return r;
 }
 
-void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
+void hdmitx_common_sw_debug_func(struct hdmitx_common *tx_comm, const char *buf)
 {
 	char tmpbuf[64];
 	char *tmpbuf2;
@@ -937,7 +942,7 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 					tx_comm->edid_parse_dbg);
 		}
 	} else if (strncmp(tmpbuf, "cedst_count", 11) == 0) {
-		frl_rate = hdmitx_hw_cntl_misc(tx_hw, MISC_GET_FRL_MODE, 0);
+		frl_rate = hdmitx_hw_cntl(tx_hw, FRL_GET_MODE, NULL, NULL);
 		if (!frl_rate && !ch_st->clock_detected)
 			HDMITX_INFO("clock undetected\n");
 		if (!ch_st->ch0_locked)
@@ -984,7 +989,7 @@ void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *buf)
 			 *	Assume EDID remains unchanged
 			 *	Notify system/DRM to configure HDMI mode
 			 */
-			if (hdmitx_hw_cntl_misc(tx_hw, MISC_HPD_GPI_ST, 0) == 1) {
+			if (hdmitx_hw_cntl(tx_hw, PLATFORM_GET_HPD_GPI_ST, NULL, NULL) == 1) {
 				tx_comm->hpd_state = 1;
 				update_hpd = true;
 			}
@@ -1120,7 +1125,10 @@ static void amhdmitx_remove(struct platform_device *pdev)
 
 	/* unbind from drm */
 	hdmitx_unbind_meson_drm(&pdev->dev);
-
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	unregister_early_suspend(&hdmitx_early_suspend_handler);
+#endif
+	unregister_reboot_notifier(&tx_comm->reboot_nb);
 	cancel_work_sync(&tx_comm->work_hdr);
 	cancel_work_sync(&tx_comm->work_hdr_unmute);
 	cancel_delayed_work(&tx_comm->work_hpd_plugout);
@@ -1132,8 +1140,8 @@ static void amhdmitx_remove(struct platform_device *pdev)
 	cancel_delayed_work(&tx_comm->work_cedst);
 	destroy_workqueue(tx_comm->cedst_wq);
 
-	if (hw_comm->uninit)
-		hw_comm->uninit(hw_comm);
+	if (hw_comm->chip_data->hdmitx_ops->uninit_hw)
+		hw_comm->chip_data->hdmitx_ops->uninit_hw(hw_comm);
 	tx_comm->hpd_event = 0xff;
 	hdmitx_vout_uninit();
 
@@ -1153,6 +1161,7 @@ static void amhdmitx_remove(struct platform_device *pdev)
 static void _amhdmitx_suspend(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *hw_comm = tx_comm->tx_hw;
+	bool arg = false;
 
 	/*
 	 * if HPD is high before suspend, and there were hpd
@@ -1169,9 +1178,10 @@ static void _amhdmitx_suspend(struct hdmitx_common *tx_comm)
 		if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0)
 			return;
 
-		hdmitx_hw_cntl_misc(hw_comm, MISC_DIS_HPLL, 0);
-		hdmitx_hw_cntl_ddc(hw_comm, DDC_RESET_HDCP, 0);
-		hdmitx_hw_cntl_misc(hw_comm, MISC_ESMCLK_CTRL, 0);
+		hdmitx_hw_cntl(hw_comm, PLATFORM_DIS_HPLL, NULL, NULL);
+		hdmitx_hw_cntl(hw_comm, HDCP_RESET, NULL, NULL);
+		arg = false;
+		hdmitx_hw_cntl(hw_comm, PLATFORM_ESM_CLK_CTRL, (void *)&arg, NULL);
 		HDMITX_INFO("amhdmitx: suspend and reset hdcp\n");
 	}
 }
@@ -1193,14 +1203,15 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 {
 	struct hdmitx_common *tx_comm = dev_get_drvdata(&pdev->dev);
 	struct hdmitx_hw_common *hw_comm = tx_comm->tx_hw;
+	bool arg = false;
 
-	hdmitx_hw_cntl_misc(hw_comm, MISC_HDMI_CLKS_CTRL, 0);
+	hdmitx_hw_cntl(hw_comm, PLATFORM_HDMI_CLKS_CTRL, (void *)&arg, NULL);
 
 	/*
 	 * after suspend, VPU power domain will be powered off,
 	 * so hdcp1.4 key otp/crc need to be loaded again
 	 */
-	hdmitx_hw_cntl_misc(hw_comm, MISC_LOAD_HDCP14_KEY, 0);
+	hdmitx_hw_cntl(hw_comm, HDCP14_KEY_LOAD, (void *)&arg, NULL);
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, true);
 	_amhdmitx_suspend(tx_comm);
 
@@ -1212,9 +1223,10 @@ static int amhdmitx_resume(struct platform_device *pdev)
 {
 	struct hdmitx_common *tx_comm = dev_get_drvdata(&pdev->dev);
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+	bool arg = true;
 
 	HDMITX_INFO("amhdmitx: resume\n");
-	hdmitx_hw_cntl_misc(tx_hw_base, MISC_HDMI_CLKS_CTRL, 1);
+	hdmitx_hw_cntl(tx_hw_base, PLATFORM_HDMI_CLKS_CTRL, (void *)&arg, NULL);
 	/*
 	 * Since the S7 chip, in order to optimize power consumption, it will turn off and on the
 	 * vpu power domain when standby and wakes up.When it is turned off, the reg of the relevant
@@ -1222,11 +1234,11 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	 * required top register.
 	 */
 	if (tx_hw_base->chip_data->chip_type >= MESON_CPU_ID_S7)
-		hdmitx_hw_cntl_config(tx_hw_base, CONF_HW_INIT, 1);
+		hdmitx_hw_cntl(tx_hw_base, CORE_MISC_HW_INIT, (void *)&arg, NULL);
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, false);
 	/* need to update EDID in case TV changed during suspend */
-	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
+	tx_comm->hpd_state = !!(hdmitx_hw_cntl(tx_hw_base, PLATFORM_GET_HPD_GPI_ST, NULL, NULL));
 	if (tx_comm->hpd_state)
 		hdmitx_process_plugin(tx_comm, false, false);
 	else
@@ -1241,10 +1253,10 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	 */
 	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0)
 		return 0;
-	hdmitx_hw_cntl_misc(tx_hw_base, MISC_ESMCLK_CTRL, 1);
+	hdmitx_hw_cntl(tx_hw_base, PLATFORM_ESM_CLK_CTRL, (void *)&arg, NULL);
 
 	if (tx_hw_base->chip_data->chip_type < MESON_CPU_ID_G12A)
-		hdmitx_hw_cntl_misc(tx_hw_base, MISC_I2C_RESET, 0);
+		hdmitx_hw_cntl(tx_hw_base, DDC_I2C_RESET, NULL, NULL);
 	return 0;
 }
 
@@ -1269,6 +1281,7 @@ static int amhdmitx_pm_restore(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct hdmitx_common *tx_comm = dev_get_drvdata(&pdev->dev);
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+	bool arg = false;
 
 	if (tx_hw_base->chip_data->chip_type < MESON_CPU_ID_T7)
 		return -1;
@@ -1280,14 +1293,15 @@ static int amhdmitx_pm_restore(struct device *dev)
 	 * need to do hw init as did in driver probe in case HW is
 	 * in power down or unknown state
 	 */
-	hdmitx_hw_cntl_config(tx_hw_base, CONF_HW_INIT, 0);
+	hdmitx_hw_cntl(tx_hw_base, CORE_MISC_HW_INIT, (void *)&arg, NULL);
 	/*
 	 * after suspend to disk and before resume, it may change TV set,
 	 * need to update EDID/HPD/fmt_para by current HW status
 	 * as which did in driver probe
 	 */
-	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
-	hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_IRQ_TOP_HALF, tx_comm->hpd_state);
+	tx_comm->hpd_state = !!hdmitx_hw_cntl(tx_hw_base, PLATFORM_GET_HPD_GPI_ST, NULL, NULL);
+	arg = !!tx_comm->hpd_state;
+	hdmitx_hw_cntl(tx_hw_base, MODE_FLOW_HPD_IRQ_TOP_HALF, (void *)&arg, NULL);
 	/* actions in bottom half of plug intr */
 	/* need to parse EDID as vinfo need edid information */
 	if (tx_comm->hpd_state)
@@ -1318,15 +1332,16 @@ const struct dev_pm_ops hdmitx_pm = {
 static void amhdmitx_shutdown(struct platform_device *pdev)
 {
 	struct hdmitx_common *tx_comm = dev_get_drvdata(&pdev->dev);
+	bool arg = false;
 
 	_amhdmitx_suspend(tx_comm);
 
 	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
 		if (tx_comm->aon_output) {
-			hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_DISABLE_HDCP, 0);
+			hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_DISABLE, NULL, NULL);
 			return;
 		}
-		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_HDMI_CLKS_CTRL, 0);
+		hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_HDMI_CLKS_CTRL, (void *)&arg, NULL);
 	}
 }
 

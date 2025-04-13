@@ -99,6 +99,7 @@ bool hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
 {
 	struct hdmitx_common *tx_comm = tx_common_instance;
 	bool it_content = false;
+	u32 arg = 0;
 
 	if (!tx_comm)
 		return false;
@@ -140,21 +141,24 @@ bool hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
 			//}
 			if (!get_rx_active_sts()) {
 				video_mute = true;
+				arg = VIDEO_MUTE;
 				/* hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4); */
-				hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_VIDEO_MUTE_OP,
-					VIDEO_MUTE);
+				hdmitx_hw_cntl(tx_comm->tx_hw, VPU_VIDEO_MUTE_OP,
+					(void *)&arg, NULL);
 			}
 			tx_comm->allm_mode = 1;
 			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 1, NULL);
 			tx_comm->ct_mode = 0;
 			tx_comm->it_content = 0;
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE, SET_CT_OFF);
+			arg = SET_CT_OFF;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_AVI_CT, (void *)&arg, NULL);
 		}
 	} else {
 		if (!get_rx_active_sts()) {
 			video_mute = true;
+			arg = VIDEO_MUTE;
 			/* hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4); */
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
+			hdmitx_hw_cntl(tx_comm->tx_hw, VPU_VIDEO_MUTE_OP, (void *)&arg, NULL);
 		}
 		/* disable ALLM firstly */
 		if (tx_comm->allm_mode == 1) {
@@ -169,25 +173,30 @@ bool hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
 		it_content = tx_comm->it_content;
 		if (tx_comm->rxcap.cnc3 && latency_info->cn_type == GAME) {
 			tx_comm->ct_mode = 1;
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_GAME | it_content << 4);
+			arg = SET_CT_GAME | it_content << 4;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_AVI_CT,
+				(void *)&arg, NULL);
 		} else if (tx_comm->rxcap.cnc0 && latency_info->cn_type == GRAPHICS &&
 		    latency_info->it_content == 1) {
 			tx_comm->ct_mode = 2;
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_GRAPHICS | it_content << 4);
+			arg = SET_CT_GRAPHICS | it_content << 4;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_AVI_CT,
+				(void *)&arg, NULL);
 		} else if (tx_comm->rxcap.cnc1 && latency_info->cn_type == PHOTO) {
 			tx_comm->ct_mode = 3;
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_PHOTO | it_content << 4);
+			arg = SET_CT_PHOTO | it_content << 4;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_AVI_CT,
+				(void *)&arg, NULL);
 		} else if (tx_comm->rxcap.cnc2 && latency_info->cn_type == CINEMA) {
 			tx_comm->ct_mode = 4;
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_CINEMA | it_content << 4);
+			arg = SET_CT_CINEMA | it_content << 4;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_AVI_CT,
+				(void *)&arg, NULL);
 		} else {
 			tx_comm->ct_mode = 0;
-			hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE,
-				SET_CT_OFF | it_content << 4);
+			arg = SET_CT_OFF | it_content << 4;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_AVI_CT,
+				(void *)&arg, NULL);
 		}
 	}
 	return true;
@@ -199,7 +208,7 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 {
 	if (!tx_common_instance || !tx_common_instance->hdcptx_comm.hdcp_rpt_en)
 		return 0;
-	return hdmitx_hw_cntl_ddc(tx_common_instance->tx_hw, DDC_REQ_HDCP_AUTH, hdcp_version);
+	return hdmitx_hw_cntl(tx_common_instance->tx_hw, HDCP_REQ_AUTH, &hdcp_version, NULL);
 }
 EXPORT_SYMBOL(hdmitx_reauth_request);
 
@@ -262,7 +271,7 @@ static void hdmitx_earc_hpdst(pf_callback cb)
 	if (!tx_comm)
 		return;
 	tx_comm->earc_hdmitx_hpdst = cb;
-	if (cb && hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_READ_HPD_GPIO, 0))
+	if (cb && hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_GET_HPD_GPI_ST, NULL, NULL))
 		cb(true);
 }
 

@@ -107,7 +107,7 @@ static int calc_vinfo_from_hdmi_timing(struct hdmitx_common *tx_comm,
 	return 0;
 }
 
-static void update_vinfo_from_formatpara(struct hdmitx_common *tx_comm)
+static void update_vinfo_from_format_para(struct hdmitx_common *tx_comm)
 {
 	struct vinfo_s *vinfo = &tx_comm->hdmitx_vinfo;
 	struct hdmi_format_para *fmtpara = &tx_comm->fmt_para;
@@ -154,7 +154,7 @@ void hdmitx_update_vinfo(struct hdmitx_common *tx_comm)
 	}
 
 	edidinfo_attach_to_vinfo(tx_comm);
-	update_vinfo_from_formatpara(tx_comm);
+	update_vinfo_from_format_para(tx_comm);
 }
 
 void hdmitx_reset_vinfo(struct vinfo_s *tx_vinfo)

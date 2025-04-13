@@ -53,7 +53,7 @@ static void hdmitx_rxsense_process(struct work_struct *work)
 	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
 		struct hdmitx_common, work_rxsense);
 
-	sense = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_RXSENSE, 0);
+	sense = hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_RXSENSE, NULL, NULL);
 	hdmitx_set_uevent(tx_comm, HDMITX_RXSENSE_EVENT, sense);
 	queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense,
 			msecs_to_jiffies(1000));
@@ -65,7 +65,7 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
 		struct hdmitx_common, work_cedst);
 
-	ced = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_CEDST, 0);
+	ced = hdmitx_hw_cntl(tx_comm->tx_hw, DDC_GET_CEDST, NULL, NULL);
 	/* firstly send as 0, then real ced, A trigger signal */
 	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, 0);
 	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, ced);
@@ -259,13 +259,13 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 		tst_para.cs, tst_para.cd, tst_para.cr);
 	if (ret != 0) {
 		hdmitx_format_para_reset(new_para);
-		HDMITX_DEBUG("build formatpara [%s,%s] return error %d\n", mode, attr, ret);
+		HDMITX_DEBUG("build format_para [%s,%s] return error %d\n", mode, attr, ret);
 		goto out;
 	}
 
 	ret = hdmitx_common_validate_format_para(tx_comm, new_para);
 	if (ret)
-		HDMITX_DEBUG("validate formatpara [%s,%s] return error %d\n",
+		HDMITX_DEBUG("validate format_para [%s,%s] return error %d\n",
 			     mode, attr, ret);
 out:
 	mutex_unlock(&tx_comm->valid_mutex);
@@ -283,18 +283,18 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 	enum hdmi_tf_type amdv_type;
 	bool dsc_en = false;
 
-	if (hdmitx_hw_get_state(tx_hw, STAT_TX_OUTPUT, 0)) {
+	if (hdmitx_hw_cntl(tx_hw, CORE_MISC_GET_OUTPUT_ST, NULL, NULL)) {
 		/* TODO: it has not consider VESA mode witch HW VIC = 0 */
-		para->vic = hdmitx_hw_get_state(tx_hw, STAT_VIDEO_VIC, 0);
-		para->cs = hdmitx_hw_get_state(tx_hw, STAT_VIDEO_CS, 0);
-		para->cd = hdmitx_hw_get_state(tx_hw, STAT_VIDEO_CD, 0);
+		para->vic = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_AVI_VIC, NULL, NULL);
+		para->cs = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_AVI_CS, NULL, NULL);
+		para->cd = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_GCP_CD, NULL, NULL);
 		/*
 		 * when STD DV has already output in uboot, the real cs is rgb
 		 * but hdmi CSC actually uses the Y444. So here needs to reassign
 		 * the para->cs as YUV444
 		 */
 		if (para->cs == HDMI_COLORSPACE_RGB) {
-			amdv_type = hdmitx_hw_get_state(tx_hw, STAT_TX_DV, 0);
+			amdv_type = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_AMDV_ST, NULL, NULL);
 			if (amdv_type == HDMI_DV_VSIF_STD)
 				para->cs = HDMI_COLORSPACE_YUV444;
 		}
@@ -303,7 +303,7 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		 * when already output in uboot, use uboot fmt_attr to update cs cd
 		 * if dsc is enabled, as cd from HW register is 8bit under dsc
 		 */
-		if (hdmitx_hw_get_state(tx_hw, STAT_TX_DSC_EN, 0)) {
+		if (hdmitx_hw_cntl(tx_hw, DSC_GET_TX_EN, NULL, NULL)) {
 			hdmitx_parse_color_attr(tx_comm->fmt_attr, &para->cs, &para->cd, &para->cr);
 			dsc_en = true;
 		}
@@ -315,7 +315,7 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 			HDMITX_DEBUG("%s init ok\n", __func__);
 			/* for bootup, override build format with HW state */
 			para->dsc_en = dsc_en;
-			para->frl_rate = hdmitx_hw_cntl_misc(tx_hw, MISC_GET_FRL_MODE, 0);
+			para->frl_rate = hdmitx_hw_cntl(tx_hw, FRL_GET_MODE, NULL, NULL);
 			hdmitx_format_para_print(para, NULL);
 		} else {
 			HDMITX_INFO("%s: init uboot format para fail (%d,%d,%d)\n",
@@ -325,7 +325,7 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		return ret;
 	}
 
-	ret = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_QMS_INFO, 0);
+	ret = hdmitx_hw_cntl(tx_comm->tx_hw, QMS_GET_INFO, NULL, NULL);
 	HDMITX_INFO("qms: uboot brr %d qms_en %d\n", ret & 0xffff, ret >> 16);
 
 	HDMITX_INFO("%s hdmi is not enabled\n", __func__);
@@ -699,7 +699,8 @@ bool hdmitx_hdr_en(struct hdmitx_hw_common *tx_hw)
 	if (!tx_hw)
 		return false;
 
-	return (hdmitx_hw_get_state(tx_hw, STAT_TX_HDR, 0) & HDMI_HDR_TYPE) == HDMI_HDR_TYPE;
+	return (hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_HDR_ST, NULL, NULL) & HDMI_HDR_TYPE) ==
+		HDMI_HDR_TYPE;
 }
 
 bool hdmitx_dv_en(struct hdmitx_hw_common *tx_hw)
@@ -707,7 +708,8 @@ bool hdmitx_dv_en(struct hdmitx_hw_common *tx_hw)
 	if (!tx_hw)
 		return false;
 
-	return (hdmitx_hw_get_state(tx_hw, STAT_TX_DV, 0) & HDMI_DV_TYPE) == HDMI_DV_TYPE;
+	return (hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_AMDV_ST, NULL, NULL) & HDMI_DV_TYPE) ==
+		HDMI_DV_TYPE;
 }
 
 bool hdmitx_hdr10p_en(struct hdmitx_hw_common *tx_hw)
@@ -715,7 +717,7 @@ bool hdmitx_hdr10p_en(struct hdmitx_hw_common *tx_hw)
 	if (!tx_hw)
 		return false;
 
-	return (hdmitx_hw_get_state(tx_hw, STAT_TX_HDR10P, 0) & HDMI_HDR10P_TYPE) ==
+	return (hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_HDR10P_ST, NULL, NULL) & HDMI_HDR10P_TYPE) ==
 		HDMI_HDR10P_TYPE;
 }
 
@@ -847,6 +849,7 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 	u32 ieeeoui = 0;
 	u32 vic = 0;
 	struct hdmitx_hw_common *tx_hw = NULL;
+	u32 arg = 0;
 
 	if (!tx_comm) {
 		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
@@ -875,10 +878,11 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			buffer[6] = GET_OUI_BYTE2(ieeeoui);
 			buffer[7] = vic & 0xf;
 			buffer[8] = 0x20;
-			hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, 0);
-			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, buffer);
+			arg = 0;
+			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_AVI_VIC, (void *)&arg, NULL);
+			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_VSIF1, buffer, NULL);
 		} else {
-			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_VSIF1, NULL, NULL);
 			HDMITX_INFO("clear vsif for non-4k mode.\n");
 			return -EINVAL;
 		}
@@ -896,9 +900,11 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			/* set bit1, ALLM_MODE */
 			buffer[8] |= 1 << 1;
 			/* reset vic which may be reset by VT_HDMI14_4K */
-			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0)
-				hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, tx_comm->fmt_para.vic);
-			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR2, buffer);
+			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0) {
+				arg = tx_comm->fmt_para.vic;
+				hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_AVI_VIC, (void *)&arg, NULL);
+			}
+			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_VSIF2, buffer, NULL);
 		} else {
 			/* clear bit1, ALLM_MODE */
 			buffer[8] &= ~(1 << 1);
@@ -918,7 +924,7 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			 */
 			/* hdmi_vend_infoframe2_rawset(hb, vsif_db); */
 			/* wait for 4frames ~ 1S, then stop send HF-VSIF */
-			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_VSIF2, NULL, NULL);
 		}
 		break;
 	default:
@@ -931,6 +937,7 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+	u32 arg = 0;
 
 	/* disable ALLM HF-VSIF, recover HDMI1.4 4k VSIF if it's legacy 4k24/25/30hz */
 	if (mode == 0) {
@@ -946,14 +953,15 @@ int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode)
 		tx_comm->allm_mode = 1;
 		hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 1, NULL);
 		tx_comm->ct_mode = 0;
-		hdmitx_hw_cntl_config(tx_hw_base, CONF_CT_MODE, SET_CT_OFF);
+		arg = SET_CT_OFF;
+		hdmitx_hw_cntl(tx_hw_base, AUX_PKT_CONF_AVI_CT, (void *)&arg, NULL);
 	}
 	/* disable ALLM HF-VSIF, not recover HDMI1.4 legacy 4k VSIF */
 	if (mode == -1) {
 		if (tx_comm->allm_mode == 1) {
 			tx_comm->allm_mode = 0;
-			/* just for hdmitx20, TODO: remove later */
-			hdmitx_hw_disable_packet(tx_hw_base, HDMI_PACKET_VEND);
+			/* just for hdmitx20 */
+			hdmitx_hw_cntl(tx_hw_base, AUX_PKT_DIS_VSIF, NULL, NULL);
 			/* common for hdmitx20/21 to disable HF-VSIF */
 			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
 		}
@@ -981,21 +989,25 @@ int hdmitx_common_avmute_locked(struct hdmitx_common *tx_comm,
 	static unsigned int global_avmute_mask;
 	unsigned int mute_us =
 		tx_comm->debug_param.avmute_frame * get_frame_duration(&tx_comm->hdmitx_vinfo);
+	u32 arg = 0;
 
 	mutex_lock(&avmute_mutex);
 	if (mute_flag == SET_AVMUTE) {
 		global_avmute_mask |= mute_path_hint;
 		HDMITX_DEBUG("%s: AVMUTE path=0x%x\n", __func__, mute_path_hint);
-		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AVMUTE_OP, SET_AVMUTE);
+		arg = SET_AVMUTE;
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONFIG_AVMUTE, (void *)&arg, NULL);
 	} else if (mute_flag == CLR_AVMUTE) {
 		global_avmute_mask &= ~mute_path_hint;
 		/* unmute only if none of the paths are muted */
 		if (global_avmute_mask == 0) {
 			HDMITX_DEBUG("%s: AV UNMUTE path=0x%x\n", __func__, mute_path_hint);
-			hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AVMUTE_OP, CLR_AVMUTE);
+			arg = CLR_AVMUTE;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONFIG_AVMUTE, (void *)&arg, NULL);
 		}
 	} else if (mute_flag == OFF_AVMUTE) {
-		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AVMUTE_OP, OFF_AVMUTE);
+		arg = OFF_AVMUTE;
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONFIG_AVMUTE, (void *)&arg, NULL);
 	}
 	if (mute_flag == SET_AVMUTE) {
 		if (tx_comm->debug_param.avmute_frame > 0)
@@ -1044,8 +1056,10 @@ static int hdmitx_common_edid_tracer_post_proc(struct hdmitx_common *tx_comm, st
 int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+	u32 arg = 0;
 
-	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_I2C_RATE, DDC_I2C_50K);
+	arg = DDC_I2C_50K;
+	hdmitx_hw_cntl(tx_hw_base, DDC_I2C_RATE, (void *)&arg, NULL);
 	if (tx_comm->forced_edid) {
 		HDMITX_INFO("using fixed edid\n");
 		return 0;
@@ -1053,22 +1067,24 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 	hdmitx_edid_buffer_clear(tx_comm->edid_buf, sizeof(tx_comm->edid_buf));
 
 	/* reset i2c before edid read */
-	hdmitx_hw_cntl_misc(tx_hw_base, MISC_I2C_RESET, 0);
-	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_RESET_EDID, 0);
-	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_PIN_MUX_OP, PIN_MUX);
+	hdmitx_hw_cntl(tx_hw_base, DDC_I2C_RESET, NULL, NULL);
+	hdmitx_hw_cntl(tx_hw_base, DDC_RESET_EDID, NULL, NULL);
+	arg = PIN_MUX;
+	hdmitx_hw_cntl(tx_hw_base, DDC_PIN_MUX_OP, (void *)&arg, NULL);
 	/* start reading edid first time */
-	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
+	hdmitx_hw_cntl(tx_hw_base, DDC_EDID_READ_DATA, NULL, NULL);
 	if (hdmitx_edid_is_all_zeros(tx_comm->edid_buf)) {
 		HDMITX_INFO("First read edid all 0 data\n");
-		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_GLITCH_FILTER_RESET, 0);
-		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
+		hdmitx_hw_cntl(tx_hw_base, DDC_GLITCH_FILTER_RESET, NULL, NULL);
+		hdmitx_hw_cntl(tx_hw_base, DDC_EDID_READ_DATA, NULL, NULL);
 	}
 	/* If EDID is not correct at first time, then retry */
 	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->edid_buf) == false) {
 		struct timespec64 kts;
 		struct rtc_time tm;
 
-		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_I2C_RATE, DDC_I2C_25K);
+		arg = DDC_I2C_25K;
+		hdmitx_hw_cntl(tx_hw_base, DDC_I2C_RATE, (void *)&arg, NULL);
 		HDMITX_INFO("config i2c 25k and read edid again\n");
 		msleep(20);
 		ktime_get_real_ts64(&kts);
@@ -1082,12 +1098,13 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 		msleep(80);
 
 		/* start reading edid second time */
-		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
+		hdmitx_hw_cntl(tx_hw_base, DDC_EDID_READ_DATA, NULL, NULL);
 		if (hdmitx_edid_is_all_zeros(tx_comm->edid_buf)) {
-			hdmitx_hw_cntl_ddc(tx_hw_base, DDC_GLITCH_FILTER_RESET, 0);
-			hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
+			hdmitx_hw_cntl(tx_hw_base, DDC_GLITCH_FILTER_RESET, NULL, NULL);
+			hdmitx_hw_cntl(tx_hw_base, DDC_EDID_READ_DATA, NULL, NULL);
 		}
-		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_I2C_RATE, DDC_I2C_50K);
+		arg = DDC_I2C_50K;
+		hdmitx_hw_cntl(tx_hw_base, DDC_I2C_RATE, (void *)&arg, NULL);
 		HDMITX_INFO("Recovery i2c 50k\n");
 		msleep_interruptible(20);
 	}
@@ -1155,7 +1172,7 @@ void hdmitx_hdr_state_init(struct hdmitx_common *tx_comm)
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 
 	hdr_type = hdmitx_hw_get_hdr_st(tx_hw_base);
-	colorimetry = hdmitx_hw_cntl_config(tx_hw_base, CONF_GET_AVI_BT2020, 0);
+	colorimetry = hdmitx_hw_cntl(tx_hw_base, AUX_PKT_GET_AVI_BT2020, NULL, NULL);
 	/* 1:standard HDR, 2:non-standard, 3:HLG, 0:other */
 	if (hdr_type == HDMI_HDR_SMPTE_2084) {
 		if (colorimetry == HDMI_EXTENDED_COLORIMETRY_BT2020)
@@ -1768,6 +1785,7 @@ EXPORT_SYMBOL(hdmitx_common_get_contenttypes);
 int hdmitx_common_set_contenttype(struct hdmitx_common *tx_comm, int content_type)
 {
 	int ret = 0;
+	u32 arg = 0;
 
 	/* for content type game function conflict with ALLM, so
 	 * reset allm to enable contenttype.
@@ -1780,7 +1798,8 @@ int hdmitx_common_set_contenttype(struct hdmitx_common *tx_comm, int content_typ
 		hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
 
 	/*reset previous ct.*/
-	hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_CT_MODE, SET_CT_OFF);
+	arg = SET_CT_OFF;
+	hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_AVI_CT, (void *)&arg, NULL);
 	tx_comm->ct_mode = 0;
 
 	switch (content_type) {
@@ -1803,9 +1822,9 @@ int hdmitx_common_set_contenttype(struct hdmitx_common *tx_comm, int content_typ
 		ret = -EINVAL;
 		break;
 	};
-
-	hdmitx_hw_cntl_config(tx_comm->tx_hw,
-		CONF_CT_MODE, content_type);
+	arg = content_type;
+	hdmitx_hw_cntl(tx_comm->tx_hw,
+		AUX_PKT_CONF_AVI_CT, (void *)&arg, NULL);
 	tx_comm->ct_mode = content_type;
 
 	return ret;
@@ -1933,7 +1952,7 @@ bool hdmitx_common_chk_mode_attr_sup(struct hdmitx_common *tx_comm, char *mode, 
 		tst_para.cs, tst_para.cd, tst_para.cr);
 	if (ret != 0) {
 		hdmitx_format_para_reset(&tst_para);
-		HDMITX_ERROR("build formatpara [%s,%s] return error %d\n", mode, attr, ret);
+		HDMITX_ERROR("build format_para [%s,%s] return error %d\n", mode, attr, ret);
 		mutex_unlock(&tx_comm->valid_mutex);
 		return false;
 	}
@@ -1947,7 +1966,7 @@ bool hdmitx_common_chk_mode_attr_sup(struct hdmitx_common *tx_comm, char *mode, 
 
 	ret = hdmitx_common_validate_format_para(tx_comm, &tst_para);
 	if (ret != 0) {
-		HDMITX_ERROR("validate formatpara [%s,%s] return error %d\n", mode, attr, ret);
+		HDMITX_ERROR("validate format_para [%s,%s] return error %d\n", mode, attr, ret);
 		mutex_unlock(&tx_comm->valid_mutex);
 		return false;
 	}
@@ -1961,26 +1980,26 @@ int hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm)
 {
 	enum hdmi_tf_type type = HDMI_NONE;
 
-	type = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_TX_HDR10P, 0);
+	type = hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_GET_HDR10P_ST, NULL, NULL);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF)
 			return HDR10PLUS_VSIF;
 	}
-	type = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_TX_DV, 0);
+	type = hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_GET_AMDV_ST, NULL, NULL);
 	if (type) {
 		if (type == HDMI_DV_VSIF_STD)
-			return dolbyvision_std;
+			return DOLBYVISION_STD;
 		else if (type == HDMI_DV_VSIF_LL)
-			return dolbyvision_lowlatency;
+			return DOLBYVISION_LOWLATENCY;
 	}
-	type = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_TX_HDR, 0);
+	type = hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_GET_HDR_ST, NULL, NULL);
 	if (type) {
 		if (type == HDMI_HDR_SMPTE_2084)
 			return HDR10_GAMMA_ST2084;
 		else if (type == HDMI_HDR_HLG)
 			return HDR10_GAMMA_HLG;
 		else if (type == HDMI_HDR_HDR)
-			return HDR10_others;
+			return HDR10_OTHERS;
 	}
 
 	/* default is SDR */
@@ -1995,7 +2014,7 @@ void hdmitx_get_qms_init_state(struct hdmitx_common *tx_comm, u32 *brr, u32 *qms
 	if (!tx_comm || !brr || !qms_en)
 		return;
 
-	value = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_QMS_INFO, 0);
+	value = hdmitx_hw_cntl(tx_comm->tx_hw, QMS_GET_INFO, NULL, NULL);
 	*brr = value & 0xffff;
 	*qms_en = value >> 16;
 	if (*qms_en)
@@ -2404,7 +2423,7 @@ enum hdmi_scan_mode hdmitx_common_get_scan_info(struct hdmitx_common *tx_comm)
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 	enum hdmi_scan_mode scan_info = HDMI_SCAN_MODE_NONE;
 
-	scan_info = hdmitx_hw_cntl_config(tx_hw_base, CONF_GET_AVI_SCAN_INFO, 0);
+	scan_info = hdmitx_hw_cntl(tx_hw_base, AUX_PKT_GET_AVI_SCAN, NULL, NULL);
 
 	return scan_info;
 }
@@ -2416,15 +2435,17 @@ int hdmitx_common_set_scan_info(struct hdmitx_common *tx_comm, enum hdmi_scan_mo
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 	struct rx_cap *prxcap = &tx_comm->rxcap;
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	u32 arg = 0;
 
-	vic = hdmitx_hw_get_state(tx_hw_base, STAT_VIDEO_VIC, 0);
+	vic = hdmitx_hw_cntl(tx_hw_base, AUX_PKT_GET_AVI_VIC, NULL, NULL);
 	/*
 	 * need to check whether the value set through the UI is supported by the TV,
 	 * If it is supported, set it. If not supported, set the supported value
 	 */
 	scan_info = hdmitx_check_scan_info(prxcap, val, vic);
 	HDMITX_INFO("set scan_info: %d\n", scan_info);
-	hdmitx_hw_cntl_config(tx_hw_base, CONF_AVI_SCAN_INFO, scan_info);
+	arg = scan_info;
+	hdmitx_hw_cntl(tx_hw_base, AUX_PKT_CONF_AVI_SCAN, (void *)&arg, NULL);
 
 	return 0;
 }

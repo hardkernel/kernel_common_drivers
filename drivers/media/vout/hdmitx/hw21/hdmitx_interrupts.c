@@ -33,7 +33,7 @@ static void intr5_sw_handler(struct intr_t *, void *intr_para);
 static void top_hpd_intr_stub_handler(struct intr_t *, void *intr_para);
 static void ddc_stall_req_handler(struct intr_t *intr, void *intr_para);
 
-union intr_u hdmi_all_intrs = {
+union intr_u hdmi_all_intr = {
 	.entity = {
 		.top_intr = {
 			.intr_mask_reg = HDMITX_TOP_INTR_MASKN,
@@ -116,14 +116,14 @@ union intr_u hdmi_all_intrs = {
 
 void intr_status_save_clr_cp2txs(u8 regs[])
 {
-	regs[0] = hdmi_all_intrs.entity.cp2tx_intr0.st_data;
-	regs[1] = hdmi_all_intrs.entity.cp2tx_intr1.st_data;
-	regs[2] = hdmi_all_intrs.entity.cp2tx_intr2.st_data;
-	regs[3] = hdmi_all_intrs.entity.cp2tx_intr3.st_data;
-	hdmi_all_intrs.entity.cp2tx_intr0.st_data = 0;
-	hdmi_all_intrs.entity.cp2tx_intr1.st_data = 0;
-	hdmi_all_intrs.entity.cp2tx_intr2.st_data = 0;
-	hdmi_all_intrs.entity.cp2tx_intr3.st_data = 0;
+	regs[0] = hdmi_all_intr.entity.cp2tx_intr0.st_data;
+	regs[1] = hdmi_all_intr.entity.cp2tx_intr1.st_data;
+	regs[2] = hdmi_all_intr.entity.cp2tx_intr2.st_data;
+	regs[3] = hdmi_all_intr.entity.cp2tx_intr3.st_data;
+	hdmi_all_intr.entity.cp2tx_intr0.st_data = 0;
+	hdmi_all_intr.entity.cp2tx_intr1.st_data = 0;
+	hdmi_all_intr.entity.cp2tx_intr2.st_data = 0;
+	hdmi_all_intr.entity.cp2tx_intr3.st_data = 0;
 }
 
 static void top_hpd_intr_stub_handler(struct intr_t *intr, void *intr_para)
@@ -162,7 +162,7 @@ static void intr5_sw_handler(struct intr_t *intr, void *intr_para)
 	hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
 	hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
 	/* enable fifo intr */
-	hdmitx_fifo_flow_enable_intrs(true);
+	hdmitx_fifo_flow_enable_intr(true);
 	HDMITX_INFO("%s INTR5_SW_TPI_IVCTX pfifo rst\n", __func__);
 }
 
@@ -179,7 +179,7 @@ static void _intr_enable(struct intr_t *pint, bool en)
 		hdmitx21_set_bit(HDMITX_TOP_INTR_MASKN, pint->intr_top_bit, en);
 }
 
-void hdcp_enable_intrs(bool en)
+void hdcp_enable_intr(bool en)
 {
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
@@ -187,29 +187,29 @@ void hdcp_enable_intrs(bool en)
 		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D ||
 		hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
 		if (hdev->tx_comm.hdcptx_comm.hdcp_mode == 1) {
-			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.tpi_intr, en);
+			_intr_enable((struct intr_t *)&hdmi_all_intr.entity.tpi_intr, en);
 		} else if (hdev->tx_comm.hdcptx_comm.hdcp_mode == 2) {
-			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr0, en);
-			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr1, en);
-			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr2, en);
+			_intr_enable((struct intr_t *)&hdmi_all_intr.entity.cp2tx_intr0, en);
+			_intr_enable((struct intr_t *)&hdmi_all_intr.entity.cp2tx_intr1, en);
+			_intr_enable((struct intr_t *)&hdmi_all_intr.entity.cp2tx_intr2, en);
 			/* hpd rising/falling intr have no actual handle, no need to enable */
-			/* _intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr3, en); */
+			/* _intr_enable((struct intr_t *)&hdmi_all_intr.entity.cp2tx_intr3, en); */
 		}
 	} else {
-		_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.tpi_intr, en);
-		_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr0, en);
-		_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr1, en);
-		_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr2, en);
+		_intr_enable((struct intr_t *)&hdmi_all_intr.entity.tpi_intr, en);
+		_intr_enable((struct intr_t *)&hdmi_all_intr.entity.cp2tx_intr0, en);
+		_intr_enable((struct intr_t *)&hdmi_all_intr.entity.cp2tx_intr1, en);
+		_intr_enable((struct intr_t *)&hdmi_all_intr.entity.cp2tx_intr2, en);
 		/* hpd rising/falling intr have no actual handle, no need to enable */
-		/* _intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr3, en); */
+		/* _intr_enable((struct intr_t *)&hdmi_all_intr.entity.cp2tx_intr3, en); */
 	}
 }
 
-void hdmitx_fifo_flow_enable_intrs(bool en)
+void hdmitx_fifo_flow_enable_intr(bool en)
 {
 	if (en)
 		hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
-	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.intr5, en);
+	_intr_enable((struct intr_t *)&hdmi_all_intr.entity.intr5, en);
 }
 
 static void hdmitx_phy_bandgap_en(struct hdmitx21_dev *hdev)
@@ -247,7 +247,7 @@ void hdmitx_hpd_irq_top_half_process(struct hdmitx21_dev *hdev, bool hpd)
 void hdmitx_top_intr_handler(struct work_struct *work)
 {
 	int i;
-	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
+	struct intr_t *pint = (struct intr_t *)&hdmi_all_intr;
 	u32 val;
 	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
 		struct hdmitx_common, work_internal_intr);
@@ -315,7 +315,7 @@ next:
 	/* already called top_intr.callback, next others */
 
 	/* note: the callback sequence is as the member sequence of
-	 * intr_u.entity, instead of the sequence of hdmi_all_intrs
+	 * intr_u.entity, instead of the sequence of hdmi_all_intr
 	 */
 	for (i = 1; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
 		pint++;
@@ -345,7 +345,7 @@ next:
 static void intr_status_save_and_clear(void)
 {
 	int i;
-	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
+	struct intr_t *pint = (struct intr_t *)&hdmi_all_intr;
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	u32 gate_status = hdmitx21_get_gate_status();
 	u32 tmp;
@@ -378,7 +378,7 @@ static void intr_status_save_and_clear(void)
 			(hdmitx21_rd_reg(pint->intr_mask_reg) & pint->mask_data) &&
 			(pint->st_data & pint->mask_data)) {
 			/* disable intr5 */
-			hdmitx_fifo_flow_enable_intrs(false);
+			hdmitx_fifo_flow_enable_intr(false);
 			/* reset fifo */
 			hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 2, 1);
 			hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 2, 1);
@@ -395,7 +395,7 @@ void intr_status_init_clear(void)
 {
 	int i;
 	u32 st_data;
-	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
+	struct intr_t *pint = (struct intr_t *)&hdmi_all_intr;
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	u32 gate_status = hdmitx21_get_gate_status();
 
@@ -458,16 +458,19 @@ static irqreturn_t vrr_vsync_intr_handler(int irq, void *dev)
 static irqreturn_t vsync_intr_handler(int irq, void *dev)
 {
 	struct hdmitx21_dev *hdev = (struct hdmitx21_dev *)dev;
+	u32 arg;
 
 	if (hdev->tx_comm.vid_mute_op != VIDEO_NONE_OP) {
-		hdmitx_hw_cntl_config(&hdev->hw_comm,
-			CONF_VIDEO_MUTE_OP, hdev->tx_comm.vid_mute_op);
+		arg = hdev->tx_comm.vid_mute_op;
+		hdmitx_hw_cntl(&hdev->hw_comm,
+			VPU_VIDEO_MUTE_OP, (void *)&arg, NULL);
 		hdev->tx_comm.vid_mute_op = VIDEO_NONE_OP;
 	}
 
 	if (hdev->tx_comm.tx_hw->tmds_phy_op == TMDS_PHY_DISABLE) {
-		hdmitx_hw_cntl_misc(&hdev->hw_comm,
-			MISC_TMDS_PHY_OP, hdev->tx_comm.tx_hw->tmds_phy_op);
+		arg = hdev->tx_comm.tx_hw->tmds_phy_op;
+		hdmitx_hw_cntl(&hdev->hw_comm,
+			PLATFORM_PHY_OP, (void *)&arg, NULL);
 		hdev->tx_comm.tx_hw->tmds_phy_op = TMDS_PHY_NONE;
 	}
 
@@ -481,7 +484,7 @@ static irqreturn_t emp_vsync_intr_handler(int irq, void *dev)
 }
 #endif
 
-int hdmitx_setupirqs(struct hdmitx_hw_common *tx_hw)
+int hdmitx_setup_irqs(struct hdmitx_hw_common *tx_hw)
 {
 	int r;
 	struct hdmitx21_dev *phdev = get_hdmitx21_device();

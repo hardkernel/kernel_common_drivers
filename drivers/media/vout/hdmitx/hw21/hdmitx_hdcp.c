@@ -141,7 +141,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_common *tx_comm)
 	}
 
 	if (tx_comm->hdcptx_comm.hdcp_lstore == 0) {
-		if (hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_22_LSTORE, 0) &&
+		if (hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_22_LSTORE, NULL, NULL) &&
 			tx_comm->hdcptx_comm.dw_hdcp22_cap) {
 			/* enable hdcp gate */
 			hdmitx21_ctrl_hdcp_gate(tx_comm->tx_hw->chip_data->chip_type, 2, true);
@@ -1933,7 +1933,7 @@ static void hdcptx_auth_start(struct hdcptx21_core_priv *p_hdcp)
 		hdcp_mode = p_hdcp->req_hdcp_ver;
 		if (p_hdcp->hdcptx_enabled) {
 			hdcptx_reset_ksv_fifo(p_hdcp);
-			hdcp_enable_intrs(1);
+			hdcp_enable_intr(1);
 			hdcptx_schedule_work(p_hdcp->hdcp_wq, &p_hdcp->timer_hdcp_rcv_auth,
 				HDCP_STAGE1_RETRY_TIMER, 0);
 			if (hdcp_mode == HDCP_VER_HDCP1X) {
@@ -2454,7 +2454,7 @@ static int hdmitx_validate_hdcp_key(struct hdmitx_common *tx_comm, int hdcp_mode
 			ret = 1;
 	} else if (hdcp_mode == 1) {
 		if (get_hdcp1_lstore(tx_comm))
-			ret = hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_VALIDATE_HDCP14_KEY, 0);
+			ret = hdmitx_hw_cntl(tx_comm->tx_hw, HDCP14_KEY_VALIDATE, NULL, NULL);
 	}
 
 	return ret;
@@ -2683,6 +2683,7 @@ void hdmitx_start_hdcp_handler(struct work_struct *work)
 		struct hdcptx21_core_priv, work_tx_start_hdcp);
 	struct hdmitx_common *tx_comm;
 	unsigned long timeout_sec;
+	u32 arg = 0;
 
 	if (!p_hdcp || !p_hdcp->bind_instance) {
 		HDMITX_ERROR("%s NULL tx_comm or NULL hdcp_private instance\n", __func__);
@@ -2704,7 +2705,8 @@ void hdmitx_start_hdcp_handler(struct work_struct *work)
 				mutex_unlock(&tx_comm->hdmimode_mutex);
 				return;
 			}
-			hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AVMUTE_OP, CLR_AVMUTE);
+			arg = CLR_AVMUTE;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONFIG_AVMUTE, (void *)&arg, NULL);
 			hdmitx21_enable_hdcp(tx_comm);
 			mutex_unlock(&tx_comm->hdmimode_mutex);
 		} else {
@@ -2737,7 +2739,8 @@ void hdmitx_start_hdcp_handler(struct work_struct *work)
 			mutex_unlock(&tx_comm->hdmimode_mutex);
 			return;
 		}
-		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AVMUTE_OP, CLR_AVMUTE);
+		arg = CLR_AVMUTE;
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONFIG_AVMUTE, (void *)&arg, NULL);
 		hdmitx21_enable_hdcp(tx_comm);
 		mutex_unlock(&tx_comm->hdmimode_mutex);
 	}
@@ -2750,6 +2753,7 @@ void hdmitx_up_hdcp_timeout_handler(struct work_struct *work)
 	struct hdcptx21_core_priv *p_hdcp = container_of((struct delayed_work *)work,
 		struct hdcptx21_core_priv, work_up_hdcp_timeout);
 	struct hdmitx_common *tx_comm;
+	u32 arg = 0;
 
 	if (!p_hdcp || !p_hdcp->bind_instance) {
 		HDMITX_ERROR("%s NULL tx_comm or NULL hdcp_private instance\n", __func__);
@@ -2768,7 +2772,8 @@ void hdmitx_up_hdcp_timeout_handler(struct work_struct *work)
 			mutex_unlock(&tx_comm->hdmimode_mutex);
 			return;
 		}
-		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AVMUTE_OP, CLR_AVMUTE);
+		arg = CLR_AVMUTE;
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONFIG_AVMUTE, (void *)&arg, NULL);
 		hdmitx21_enable_hdcp(tx_comm);
 		mutex_unlock(&tx_comm->hdmimode_mutex);
 	} else {

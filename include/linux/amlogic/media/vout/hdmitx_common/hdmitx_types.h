@@ -113,10 +113,10 @@ enum hdmi_tf_type {
 
 enum hdmi_hdr_status {
 	HDR10PLUS_VSIF = 0,
-	dolbyvision_std = 1,
-	dolbyvision_lowlatency = 2,
+	DOLBYVISION_STD = 1,
+	DOLBYVISION_LOWLATENCY = 2,
 	HDR10_GAMMA_ST2084 = 3,
-	HDR10_others,
+	HDR10_OTHERS,
 	HDR10_GAMMA_HLG,
 	SDR,
 };
@@ -133,8 +133,6 @@ enum hdmi_3d_type {
 	T3D_SBS_HALF = 8,
 	T3D_DISABLE,
 };
-
-#define HDMI_INFOFRAME_TYPE_VENDOR2 (0x81 | 0x100)
 
 enum frl_rate_enum {
 	FRL_NONE = 0,
@@ -184,8 +182,6 @@ enum TARGET_FRAME_RATE {
 	TFR_120,
 	TFR_MAX,
 };
-
-#define HDMI_PACKET_TYPE_GCP 0x3
 
 struct hdmitx_infoframe {
 	u32 enable;

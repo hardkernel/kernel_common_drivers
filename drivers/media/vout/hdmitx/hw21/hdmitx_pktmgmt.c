@@ -587,7 +587,7 @@ int hdmi_avi_infoframe_get(u8 *body)
 	return ret;
 }
 
-int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, enum avi_component_conf conf, u8 val)
+int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, u32 avi_cmd, u8 val)
 {
 	struct hdmi_avi_infoframe *frame = NULL;
 	struct hdmi_format_para *para = NULL;
@@ -600,11 +600,11 @@ int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, enum avi_component_
 	frame = &tx_comm->infoframe.avi.avi;
 	para = &tx_comm->fmt_para;
 
-	switch (conf) {
-	case CONF_AVI_CS:
+	switch (avi_cmd) {
+	case AUX_PKT_SET_AVI_CS:
 		frame->colorspace = val;
 		break;
-	case CONF_AVI_BT2020:
+	case AUX_PKT_CONF_AVI_BT2020:
 		if (val == SET_AVI_BT2020) {
 			frame->colorimetry = HDMI_COLORIMETRY_EXTENDED;
 			frame->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_BT2020;
@@ -623,19 +623,19 @@ int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, enum avi_component_
 			}
 		}
 		break;
-	case CONF_AVI_Q01:
+	case AUX_PKT_CONF_AVI_Q01:
 		frame->quantization_range = val;
 		break;
-	case CONF_AVI_YQ01:
+	case AUX_PKT_CONF_AVI_YQ01:
 		frame->ycc_quantization_range = val;
 		break;
-	case CONF_AVI_VIC:
+	case AUX_PKT_SET_AVI_VIC:
 		frame->video_code = val;
 		break;
-	case CONF_AVI_AR:
+	case AUX_PKT_CONF_AVI_ASPECT:
 		frame->picture_aspect = val;
 		break;
-	case CONF_AVI_CT_TYPE:
+	case AUX_PKT_CONF_AVI_CT:
 		frame->itc = (val >> 4) & 0x1;
 		val = val & 0xf;
 		if (val == SET_CT_OFF)
@@ -649,7 +649,7 @@ int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, enum avi_component_
 		else if (val == SET_CT_GAME)
 			frame->content_type = 3;
 		break;
-	case CONF_AVI_SCAN_INFO:
+	case AUX_PKT_CONF_AVI_SCAN:
 		frame->scan_mode = val;
 		break;
 	default:

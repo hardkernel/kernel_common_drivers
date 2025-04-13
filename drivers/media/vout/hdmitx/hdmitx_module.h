@@ -25,15 +25,17 @@
 
 /***** use for hdmitx 20 start *****/
 int hdmitx20_init_reg_map(struct platform_device *pdev);
-void hdmitx20_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
+void hdmitx20_sw_debug_func(struct hdmitx_common *tx_comm, const char *cmd_str);
 void hdmitx20_meson_init(struct hdmitx_hw_common *hw_comm);
+void hdmitx20_meson_uninit(struct hdmitx_hw_common *tx_hw);
 struct hdmitx_common *hdmitx20_alloc_instance(struct device *device);
 /***** use for hdmitx 20 end *****/
 
 /***** use for hdmitx 21 start *****/
 int hdmitx21_init_reg_map(struct platform_device *pdev);
-void hdmitx21_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
+void hdmitx21_sw_debug_func(struct hdmitx_common *tx_comm, const char *cmd_str);
 void hdmitx21_meson_init(struct hdmitx_hw_common *hw_comm);
+void hdmitx21_meson_uninit(struct hdmitx_hw_common *tx_hw);
 struct hdmitx_common *hdmitx21_alloc_instance(struct device *device);
 /***** use for hdmitx 21 end *****/
 

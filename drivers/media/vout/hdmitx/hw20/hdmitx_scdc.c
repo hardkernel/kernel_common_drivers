@@ -29,7 +29,7 @@ void scdc_config(struct hdmitx_common *tx_comm)
 	if (tx_comm->fmt_para.tmds_clk_div40)
 		scdc_wr_sink(TMDS_CFG, 3);
 	else if (tx_comm->rxcap.scdc_present ||
-		tx_comm->pre_tmds_clk_div40)
+		tx_comm->tx_hw->pre_tmds_clk_div40)
 		scdc_wr_sink(TMDS_CFG, 0);
 	else
 		HDMITX_INFO("ERR: SCDC not present, should not send 1:10\n");

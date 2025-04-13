@@ -72,8 +72,7 @@ int hdcp_ksv_valid(unsigned char *dat)
 
 static int save_obs_val(struct hdmitx_hw_common *tx_hw, struct hdcp_obs_val *obs)
 {
-	return hdmitx_hw_cntl_ddc(tx_hw,
-		DDC_HDCP14_SAVE_OBS, (unsigned long)obs);
+	return hdmitx_hw_cntl(tx_hw, HDCP14_SAVE_OBS, (void *)obs, NULL);
 }
 
 static void pr_obs(struct hdcp_obs_val *obst0, struct hdcp_obs_val *obst1,
@@ -132,13 +131,15 @@ static void pr_obs(struct hdcp_obs_val *obst0, struct hdcp_obs_val *obst1,
 static void _hdcp_do_work(struct work_struct *work)
 {
 	int ret = 0;
+	bool arg;
 	struct hdmitx20_dev *hdev =
 		container_of(work, struct hdmitx20_dev, work_do_hdcp.work);
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
 	switch (tx_comm->hdcptx_comm.hdcp_mode) {
 	case 2:
-		/* hdev->HWOp.CntlMisc(hdev, MISC_HDCP_CLKDIS, 1); */
+		/* arg = true; */
+		/* hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_CLKDIS, (void *)&arg, NULL); */
 		/* schedule_delayed_work(&hdev->work_do_hdcp, 5); */
 		break;
 	case 1:
@@ -159,7 +160,8 @@ static void _hdcp_do_work(struct work_struct *work)
 		memset(&obs_cur, 0, sizeof(obs_cur));
 		memset(&obs_last, 0, sizeof(obs_last));
 		mutex_unlock(&mutex);
-		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_HDCP_CLKDIS, 0);
+		arg = false;
+		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_CLKDIS, (void *)&arg, NULL);
 		break;
 	}
 }
@@ -244,9 +246,10 @@ out:
 static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf)
 {
 	enum hdmi_vic vic =
-		hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_VIC, 0);
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_GET_AVI_VIC, NULL, NULL);
+	u32 arg;
 
-	if (hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_TMDS_RXSENSE, 0) == 0)
+	if (hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_RXSENSE, NULL, NULL) == 0)
 		hdmitx_current_status(tx_comm, HDMITX_HDCP_DEVICE_NOT_READY_ERROR);
 	/*
 	 * there's risk:
@@ -262,12 +265,13 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		return;
 	}
 	HDMITX_INFO(SYS "hdcp: set mode as %s\n", buf);
-	hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_MUX_INIT, 1);
-	hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_GET_AUTH, 0);
+	arg = 1;
+	hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_MUX_INIT, (void *)&arg, NULL);
+	hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_GET_AUTH_RESULT, NULL, NULL);
 	if (strncmp(buf, "0", 1) == 0) {
 		tx_comm->hdcptx_comm.hdcp_mode = 0;
-		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
-			DDC_HDCP_OP, HDCP14_OFF);
+		arg = HDCP14_OFF;
+		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_MODE_OP, (void *)&arg, NULL);
 		hdmitx_hdcp_do_work(tx_comm);
 		hdmitx_current_status(tx_comm, HDMITX_HDCP_NOT_ENABLED);
 	}
@@ -276,8 +280,8 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 			usleep_range(500000, 500010);
 		tx_comm->hdcptx_comm.hdcp_mode = 1;
 		hdmitx_hdcp_do_work(tx_comm);
-		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
-			DDC_HDCP_OP, HDCP14_ON);
+		arg = HDCP14_ON;
+		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_MODE_OP, (void *)&arg, NULL);
 		hdmitx_current_status(tx_comm, HDMITX_HDCP_HDCP_1_ENABLED);
 	}
 	if (strncmp(buf, "2", 1) == 0) {
@@ -288,8 +292,8 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		}
 		tx_comm->hdcptx_comm.hdcp_mode = 2;
 		hdmitx_hdcp_do_work(tx_comm);
-		hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
-			DDC_HDCP_MUX_INIT, 2);
+		arg = 2;
+		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_MUX_INIT, (void *)&arg, NULL);
 		hdmitx_current_status(tx_comm, HDMITX_HDCP_HDCP_2_ENABLED);
 	}
 	mutex_unlock(&tx_comm->hdmimode_mutex);
@@ -679,8 +683,10 @@ static void drm_hdmitx_hdcp_exit(struct hdmitx_common *tx_comm)
 /* after TEE hdcp key valid, do hdcp22 init before tx22 start */
 static void drm_tx_hdcp22_init(struct hdmitx_common *tx_comm)
 {
+	u32 arg = 2;
+
 	hdmitx_hdcp_do_work(tx_comm);
-	hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_MUX_INIT, 2);
+	hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_MUX_INIT, (void *)&arg, NULL);
 }
 
 /* echo 1/2 > hdcp_mode */
@@ -688,18 +694,20 @@ static void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 {
 	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	u32 arg;
 
-	vic = hdmitx_hw_get_state(&hdev->hw_comm, STAT_VIDEO_VIC, 0);
-	hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_GET_AUTH, 0);
+	vic = hdmitx_hw_cntl(&hdev->hw_comm, AUX_PKT_GET_AVI_VIC, NULL, NULL);
+	hdmitx_hw_cntl(&hdev->hw_comm, HDCP_GET_AUTH_RESULT, NULL, NULL);
 
 	if (content_type == 1) {
-		hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_MUX_INIT, 1);
+		arg = 1;
+		hdmitx_hw_cntl(&hdev->hw_comm, HDCP_MUX_INIT, (void *)&arg, NULL);
 		if (vic == HDMI_17_720x576p50_4x3 || vic == HDMI_18_720x576p50_16x9)
 			usleep_range(500000, 500010);
 		hdev->tx_comm.hdcptx_comm.hdcp_mode = 1;
 		hdmitx_hdcp_do_work(&hdev->tx_comm);
-		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
-			DDC_HDCP_OP, HDCP14_ON);
+		arg = HDCP14_ON;
+		hdmitx_hw_cntl(&hdev->hw_comm, HDCP_MODE_OP, (void *)&arg, NULL);
 	} else if (content_type == 2) {
 		hdev->tx_comm.hdcptx_comm.hdcp_mode = 2;
 		hdmitx_hdcp_do_work(&hdev->tx_comm);
@@ -707,8 +715,8 @@ static void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 		 * for drm hdcp_tx22, esm init only once
 		 * don't do HDCP22 IP reset after init done!
 		 */
-		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
-			DDC_HDCP_MUX_INIT, 3);
+		arg = 3;
+		hdmitx_hw_cntl(&hdev->hw_comm, HDCP_MUX_INIT, (void *)&arg, NULL);
 	}
 }
 
@@ -716,16 +724,17 @@ static void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 static void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 {
 	struct hdmitx20_dev *hdev = get_hdmitx20_device();
+	u32 arg = 1;
 
-	hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_MUX_INIT, 1);
-	hdmitx_hw_cntl_ddc(&hdev->hw_comm, DDC_HDCP_GET_AUTH, 0);
+	hdmitx_hw_cntl(&hdev->hw_comm, HDCP_MUX_INIT, (void *)&arg, NULL);
+	hdmitx_hw_cntl(&hdev->hw_comm, HDCP_GET_AUTH_RESULT, NULL, NULL);
 
 	if (content_type == 1) {
-		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
-			DDC_HDCP_OP, HDCP14_OFF);
+		arg = HDCP14_OFF;
+		hdmitx_hw_cntl(&hdev->hw_comm, HDCP_MODE_OP, (void *)&arg, NULL);
 	} else if (content_type == 2) {
-		hdmitx_hw_cntl_ddc(&hdev->hw_comm,
-			DDC_HDCP_OP, HDCP22_OFF);
+		arg = HDCP22_OFF;
+		hdmitx_hw_cntl(&hdev->hw_comm, HDCP_MODE_OP, (void *)&arg, NULL);
 	}
 
 	hdev->tx_comm.hdcptx_comm.hdcp_mode = 0;

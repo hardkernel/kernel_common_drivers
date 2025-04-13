@@ -237,11 +237,11 @@ static struct hdmitx_color_attr *meson_hdmitx_get_candidate_attr_list
 	/* filter some color value options, aimed at some modes. */
 	if (crtc_state->crtc_eotf_type ==
 			HDMI_EOTF_MESON_DOLBYVISION ||
-			hdr_status == dolbyvision_std) {
+			hdr_status == DOLBYVISION_STD) {
 		attr_list = dv_color_attr_list;
 	} else if (crtc_state->crtc_eotf_type ==
 			HDMI_EOTF_MESON_DOLBYVISION_LL ||
-			hdr_status == dolbyvision_lowlatency) {
+			hdr_status == DOLBYVISION_LOWLATENCY) {
 		attr_list = dv_ll_color_attr_list;
 	} else if (!strcmp(outputmode, MODE_4K2K60HZ) ||
 	    !strcmp(outputmode, MODE_4K2K50HZ) ||
@@ -2495,10 +2495,10 @@ static void meson_hdmitx_create_range_property(struct drm_device *drm_dev,
 
 static const struct drm_prop_enum_list hdmi_hdr_status_enum_list[] = {
 	{ HDR10PLUS_VSIF, "HDR10Plus-VSIF" },
-	{ dolbyvision_std, "DolbyVision-Std" },
-	{ dolbyvision_lowlatency, "DolbyVision-Lowlatency" },
+	{ DOLBYVISION_STD, "DolbyVision-Std" },
+	{ DOLBYVISION_LOWLATENCY, "DolbyVision-Lowlatency" },
 	{ HDR10_GAMMA_ST2084, "HDR10-GAMMA_ST2084" },
-	{ HDR10_others, "HDR10-others" },
+	{ HDR10_OTHERS, "HDR10-others" },
 	{ HDR10_GAMMA_HLG, "HDR10-GAMMA_HLG" },
 	{ SDR, "SDR" }
 };

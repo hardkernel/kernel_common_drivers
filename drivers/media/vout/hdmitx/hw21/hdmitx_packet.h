@@ -15,6 +15,13 @@
 #define HDMI_INFOFRAME_TYPE_EMP 0x7f
 /* SBTM-EM PKT use GEN5*/
 #define HDMI_INFOFRAME_TYPE_SBTM 0xA
+#define HDMI_PACKET_TYPE_GCP 0x3
+#define HDMI_INFOFRAME_EMP_VRR_GAME ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_VRR_GAME))
+#define HDMI_INFOFRAME_EMP_VRR_QMS ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_VRR_QMS))
+#define HDMI_INFOFRAME_EMP_VRR_SBTM ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_SBTM))
+#define HDMI_INFOFRAME_EMP_VRR_DSC ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_DSC))
+#define HDMI_INFOFRAME_EMP_VRR_DHDR ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_DHDR))
+#define HDMI_INFOFRAME_TYPE_VENDOR2 (0x81 | 0x100)
 
 enum emp_component_conf {
 	CONF_HEADER_INIT,
@@ -125,8 +132,7 @@ void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info);
 /* avi raw set, for backup */
 void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb);
 /* avi param_config */
-int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, enum avi_component_conf conf, u8 val);
-
+int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, u32 avi_cmd, u8 val);
 /* vsif set, deprecated */
 void hdmi_vend_infoframe_set(struct hdmitx_common *tx_comm, struct hdmi_vendor_infoframe *info);
 /* vsif set, only used for DV_VSIF / HDMI1.4b_VSIF / CUVA_VSIF / HDR10+ VSIF */

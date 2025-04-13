@@ -622,6 +622,7 @@ static void hdmitx_set_i2s_mask(struct aud_para *tx_aud_param, char ch_num, char
 void hdmitx_audio_mute_op(struct hdmitx_common *tx_comm, u32 flag, unsigned int path)
 {
 	static unsigned int aud_mute_path;
+	u32 arg = 0;
 
 	mutex_lock(&tx_comm->aud_mute_mutex);
 	if (flag == 0)
@@ -633,13 +634,14 @@ void hdmitx_audio_mute_op(struct hdmitx_common *tx_comm, u32 flag, unsigned int 
 
 	if (flag == 0) {
 		HDMITX_INFO("audio: AUD_MUTE path = 0x%x\n", path);
-		hdmitx_hw_cntl_config(tx_comm->tx_hw, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
+		arg = AUDIO_MUTE;
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_MUTE_OP, (void *)&arg, NULL);
 	} else {
 		/* unmute only if none of the paths are muted */
 		if (aud_mute_path == 0) {
 			HDMITX_INFO("audio: AUD_UNMUTE path = 0x%x\n", path);
-			hdmitx_hw_cntl_config(tx_comm->tx_hw,
-					CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
+			arg = AUDIO_UNMUTE;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_MUTE_OP, (void *)&arg, NULL);
 		}
 	}
 	mutex_unlock(&tx_comm->aud_mute_mutex);
@@ -658,8 +660,8 @@ static int hdmitx_audio_notify_callback(struct notifier_block *block,
 	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
 
 	if (aud_param->prepare) {
-		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AUDIO_ACR_CTRL, 0);
-		hdmitx_hw_cntl_misc(tx_comm->tx_hw, MISC_AUDIO_PREPARE, 0);
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_ACR_CTRL, NULL, NULL);
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_PREPARE, NULL, NULL);
 		tx_aud_param->type = CT_PREPARE;
 		HDMITX_INFO("audio: prepare\n");
 		return 0;
@@ -682,7 +684,7 @@ static int hdmitx_audio_notify_callback(struct notifier_block *block,
 	memcpy(tx_aud_param->status, aud_param->status, sizeof(aud_param->status));
 
 	tx_aud_param->aud_notify_update = 1;
-	tx_comm->tx_hw->setaudmode(tx_comm->tx_hw, tx_aud_param);
+	tx_comm->tx_hw->set_aud_mode(tx_comm->tx_hw, tx_aud_param);
 	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_AUDIO_MODE_SETTING);
 	tx_aud_param->aud_notify_update = 0;
 	HDMITX_DEBUG_AUDIO("audio: set audio end\n");
@@ -698,8 +700,8 @@ void hdmitx_audio_init(struct hdmitx_common *tx_comm)
 	if (!tx_comm)
 		return;
 
-	audio_en = hdmitx_hw_cntl_config(tx_comm->tx_hw,
-			CONF_GET_UBOOT_AUDIO_ST, 0);
+	audio_en = hdmitx_hw_cntl(tx_comm->tx_hw,
+			AUDIO_GET_UBOOT_ST, NULL, NULL);
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 	if (!tx_comm->pxp_mode && audio_en) {
 		struct aud_para *audpara = &tx_comm->cur_audio_param;

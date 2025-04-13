@@ -21,9 +21,9 @@ unsigned int hdcptx_get_key_store(struct hdmitx_common *tx_comm)
 
 	if (tx_comm->hdcptx_comm.hdcp_lstore < 0x10) {
 		tx_comm->hdcptx_comm.hdcp_lstore = 0;
-		if (hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_14_LSTORE, 0))
+		if (hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_14_LSTORE, NULL, NULL))
 			tx_comm->hdcptx_comm.hdcp_lstore |= HDCP_MODE14;
-		if (hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_22_LSTORE, 0))
+		if (hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_22_LSTORE, NULL, NULL))
 			tx_comm->hdcptx_comm.hdcp_lstore |= HDCP_MODE22;
 	}
 
@@ -45,8 +45,8 @@ unsigned int hdcptx_get_rx_version(struct hdmitx_common *tx_comm)
 	 */
 	if (tx_comm->hdcptx_comm.hdcp_mode == 0x1) {
 		hdcprx_cap = HDCP_MODE14;
-	} else if (hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_22_LSTORE, 0) &&
-		hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_GET_RX_HDCP22_VER, 0)) {
+	} else if (hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_22_LSTORE, NULL, NULL) &&
+		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP22_GET_RX_VER, NULL, NULL)) {
 		tx_comm->hdcptx_comm.dw_hdcp22_cap = 1;
 		hdcprx_cap = HDCP_MODE22 | HDCP_MODE14;
 	} else {
@@ -111,7 +111,8 @@ int hdmitx_hdcp_stat_monitor_task(void *data)
 
 	filter_period = tx_comm->hdcptx_comm.filter_hdcp_off_period * 10;
 	while (tx_comm->hpd_event != 0xff) {
-		hdmi_authenticated = hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_GET_AUTH, 0);
+		hdmi_authenticated = hdmitx_hw_cntl(tx_comm->tx_hw,
+			HDCP_GET_AUTH_RESULT, NULL, NULL);
 		if (auth_stat != hdmi_authenticated) {
 			/* hdcp fail uevent filter for special application */
 			if (hdmi_authenticated == 0 && tx_comm->hdcptx_comm.need_filter_hdcp_off) {
@@ -123,8 +124,8 @@ int hdmitx_hdcp_stat_monitor_task(void *data)
 						break;
 					}
 					msleep_interruptible(100);
-					hdmi_authenticated = hdmitx_hw_cntl_ddc(tx_comm->tx_hw,
-						DDC_HDCP_GET_AUTH, 0);
+					hdmi_authenticated = hdmitx_hw_cntl(tx_comm->tx_hw,
+						HDCP_GET_AUTH_RESULT, NULL, NULL);
 					if (hdmi_authenticated)
 						break;
 				}
@@ -252,7 +253,7 @@ unsigned int drm_hdmitx_common_get_tx_hdcp_cap(struct hdmitx_common *tx_comm)
 	/* check hdcp key load status */
 	hdcptx_cap = hdcptx_get_key_store(tx_comm);
 	/* check additional private hdcp daemon status */
-	if (!hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_22_PRIVATE_KEY_RDY, 0))
+	if (!hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_22_PRIVATE_KEY_RDY, NULL, NULL))
 		hdcptx_cap &= HDCP_MODE14;
 
 	HDMITX_DEBUG("%s tx hdcp [%d]\n", __func__, hdcptx_cap);
@@ -310,7 +311,7 @@ int drm_hdmitx_common_get_dw_hdcp_topo_info(struct hdmitx_common *tx_comm)
 {
 	int hdcp22_topo = 0;
 
-	hdcp22_topo = hdmitx_hw_cntl_ddc(tx_comm->tx_hw, DDC_HDCP_GET_TOPO_INFO, 0);
+	hdcp22_topo = hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_GET_TOPO_INFO, NULL, NULL);
 	HDMITX_DEBUG("%s hdcp22_topo: %d\n", __func__, hdcp22_topo);
 
 	return hdcp22_topo;

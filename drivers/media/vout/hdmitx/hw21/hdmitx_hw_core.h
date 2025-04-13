@@ -34,12 +34,6 @@
 #define AVMUTE_PATH_1 0x80 //mute by avmute sysfs node
 #define AVMUTE_PATH_2 0x40 //mute by upstream side request re-auth
 
-#define HDMI_INFOFRAME_EMP_VRR_GAME ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_VRR_GAME))
-#define HDMI_INFOFRAME_EMP_VRR_QMS ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_VRR_QMS))
-#define HDMI_INFOFRAME_EMP_VRR_SBTM ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_SBTM))
-#define HDMI_INFOFRAME_EMP_VRR_DSC ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_DSC))
-#define HDMI_INFOFRAME_EMP_VRR_DHDR ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_DHDR))
-
 #define HDCPTX_IOOPR		0x820000ab
 
 /* 1. interrupts struct */
@@ -318,9 +312,9 @@ struct frl_train_t {
 
 /* 1. interrupts */
 void hdmitx_top_intr_handler(struct work_struct *work);
-int hdmitx_setupirqs(struct hdmitx_hw_common *tx_hw);
+int hdmitx_setup_irqs(struct hdmitx_hw_common *tx_hw);
 void intr_status_init_clear(void);
-void hdmitx_fifo_flow_enable_intrs(bool en);
+void hdmitx_fifo_flow_enable_intr(bool en);
 
 /* 2. DDC/SCDC related */
 u8 hdmi_ddc_status_check(void);
@@ -352,7 +346,7 @@ bool get_hdcp2_result(enum amhdmitx_chip_e chip_type);
 bool hdcptx1_load_key(void);
 bool is_rx_hdcp2ver(void);
 void hdcptx_mode_set(struct hdcptx21_core_priv *p_hdcp, unsigned int mode);
-void hdcp_enable_intrs(bool en);
+void hdcp_enable_intr(bool en);
 void hdcp1x_intr_handler(struct intr_t *intr, void *intr_para);
 void hdcp2x_intr_handler(struct intr_t *intr, void *intr_para);
 void intr_status_save_clr_cp2txs(u8 regs[]);

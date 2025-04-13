@@ -569,7 +569,7 @@ tx_lts_p1:
 		 * and Super Block structure
 		 */
 		start_frl_transmission(p, true);
-		hdmitx_fifo_flow_enable_intrs(1);
+		hdmitx_fifo_flow_enable_intr(1);
 		frl_tx_pattern_stop();
 		clear_flt_update(p);
 		HDMITX_INFO("LTS:P cost %ld ms\n", (g_flt_1_e - g_flt_1 + 3) / 4);

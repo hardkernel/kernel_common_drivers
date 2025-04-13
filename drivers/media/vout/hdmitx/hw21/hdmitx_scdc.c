@@ -25,7 +25,7 @@ static int scdc_ced_cnt(struct hdmitx21_dev *hdev)
 
 	memset(raw, 0, sizeof(raw));
 	memset(ced, 0, sizeof(struct ced_cnt));
-	frl_rate = hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0);
+	frl_rate = hdmitx_hw_cntl(&hdev->hw_comm, FRL_GET_MODE, NULL, NULL);
 
 	chksum = 0;
 	len = 7; /* 0x50 ~ 0x56 */
@@ -88,7 +88,7 @@ int scdc21_status_flags(struct hdmitx21_dev *hdev)
 	u8 locked_st = 0;
 	enum frl_rate_enum frl_rate;
 
-	frl_rate = hdmitx_hw_cntl_misc(&hdev->hw_comm, MISC_GET_FRL_MODE, 0);
+	frl_rate = hdmitx_hw_cntl(&hdev->hw_comm, FRL_GET_MODE, NULL, NULL);
 	scdc21_rd_sink(SCDC_UPDATE_0, &st);
 	if (st & STATUS_UPDATE) {
 		scdc21_rd_sink(SCDC_STATUS_FLAGS_0, &locked_st);

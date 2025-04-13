@@ -13,7 +13,6 @@ struct hdmi_format_para {
 	enum hdmi_vic vic;
 	unsigned char *name;
 	unsigned char *sname;
-
 	struct hdmi_timing timing;
 
 	enum hdmi_color_depth cd; /* cd8, cd10 or cd12 */
@@ -28,6 +27,10 @@ struct hdmi_format_para {
 	u8 dsc_en;
 	enum frl_rate_enum frl_rate;
 	/*hw related information end*/
+
+	/* for future usage */
+	u8 port_type;
+	u8 port_id;
 };
 
 int hdmitx_format_para_reset(struct hdmi_format_para *para);
@@ -37,7 +40,7 @@ int hdmitx_format_para_reset(struct hdmi_format_para *para);
  */
 int hdmitx_format_para_print(struct hdmi_format_para *para, char *log_buf);
 
-/* fmt_attr is still used by userspace, need rebuild this string from formatpara.
+/* fmt_attr is still used by userspace, need rebuild this string from format para.
  * TODO: remove it when we delete fmt_attr sysfs.
  */
 int hdmitx_format_para_rebuild_fmtattr_str(struct hdmi_format_para *para, char *attr_str, int len);

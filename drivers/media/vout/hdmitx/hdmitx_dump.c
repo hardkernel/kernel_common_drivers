@@ -16,7 +16,7 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	u8 *tmp;
 	u32 colormetry;
 	u32 hcnt, vcnt;
-	char bksv_buf[5];
+	u8 bksv_buf[5];
 	int cs, cd, i;
 	char buf[512];
 	enum hdmi_vic vic;
@@ -34,12 +34,12 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 
 	seq_printf(s, "display_mode in:%s\n", get_vout_mode_internal());
 
-	vic = hdmitx_hw_get_state(hw_comm, STAT_VIDEO_VIC, 0);
+	vic = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AVI_VIC, NULL, NULL);
 	seq_printf(s, "display_mode out:%s\n", hdmitx_mode_get_timing_name(vic));
 
 	seq_printf(s, "attr in:%s\n\r", tx_comm->tst_fmt_attr);
 	seq_puts(s, "attr out:");
-	cs = hdmitx_hw_get_state(hw_comm, STAT_VIDEO_CS, 0);
+	cs = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AVI_CS, NULL, NULL);
 	switch (cs & 0x3) {
 	case 0:
 		conf = "RGB";
@@ -56,7 +56,7 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	}
 	seq_printf(s, "%s,", conf);
 
-	cd = hdmitx_hw_get_state(hw_comm, STAT_VIDEO_CD, 0);
+	cd = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_GCP_CD, NULL, NULL);
 	switch (cd) {
 	case 4:
 		conf = "8bit";
@@ -76,19 +76,19 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	seq_printf(s, "%s\n", conf);
 
 	seq_puts(s, "hdr_status:");
-	type = hdmitx_hw_get_state(hw_comm, STAT_TX_HDR10P, 0);
+	type = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_HDR10P_ST, NULL, NULL);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF)
 			seq_puts(s, "HDR10Plus-VSIF");
 	}
-	type = hdmitx_hw_get_state(hw_comm, STAT_TX_DV, 0);
+	type = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AMDV_ST, NULL, NULL);
 	if (type) {
 		if (type == HDMI_DV_VSIF_STD)
 			seq_puts(s, "DolbyVision-Std");
 		else if (type == HDMI_DV_VSIF_LL)
 			seq_puts(s, "DolbyVision-Lowlatency");
 	}
-	type = hdmitx_hw_get_state(hw_comm, STAT_TX_HDR, 0);
+	type = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_HDR_ST, NULL, NULL);
 	if (type) {
 		if (type == HDMI_HDR_SMPTE_2084)
 			seq_puts(s, "HDR10-GAMMA_ST2084");
@@ -287,8 +287,8 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 		break;
 	}
 	if (tx_comm->hdcptx_comm.hdcp_mode > 0) {
-		hdcp_ret = hdmitx_hw_cntl_ddc(hw_comm,
-						      DDC_HDCP_GET_AUTH, 0);
+		hdcp_ret = hdmitx_hw_cntl(hw_comm,
+			HDCP_GET_AUTH_RESULT, NULL, NULL);
 		if (hdcp_ret == 1)
 			seq_puts(s, ": succeed\n");
 		else
@@ -299,9 +299,9 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	hdcp_lstore = tx_comm->hdcptx_comm.hdcp_lstore;
 	if (hdcp_lstore < 0x10) {
 		hdcp_lstore = 0;
-		if (hdmitx_hw_cntl_ddc(hw_comm, DDC_HDCP_14_LSTORE, 0))
+		if (hdmitx_hw_cntl(hw_comm, HDCP_14_LSTORE, NULL, NULL))
 			hdcp_lstore |= BIT(0);
-		if (hdmitx_hw_cntl_ddc(hw_comm,	DDC_HDCP_22_LSTORE, 0))
+		if (hdmitx_hw_cntl(hw_comm, HDCP_22_LSTORE, NULL, NULL))
 			hdcp_lstore |= BIT(1);
 	}
 	if ((hdcp_lstore & 0x3) == 0x3) {
@@ -318,8 +318,7 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	seq_puts(s, "hdcp_ver:");
 	hdmitx_get_hdcp_ver(tx_comm, buf, 512);
 	seq_printf(s, "%s\n", buf);
-	hdmitx_hw_cntl_ddc(hw_comm, DDC_HDCP_GET_BKSV,
-			(unsigned long)bksv_buf);
+	hdmitx_hw_cntl(hw_comm, HDCP_GET_BKSV, NULL, bksv_buf);
 	seq_puts(s, "HDCP14 BKSV: ");
 	for (i = 0; i < 5; i++)
 		seq_printf(s, "%02x", bksv_buf[i]);
@@ -327,7 +326,7 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	seq_printf(s, "hdcp_ctl_lvl:%d\n", tx_comm->hdcptx_comm.hdcp_ctl_lvl);
 
 	seq_puts(s, "******scdc******\n");
-	seq_printf(s, "div40:%d\n", tx_comm->pre_tmds_clk_div40);
+	seq_printf(s, "div40:%d\n", tx_comm->tx_hw->pre_tmds_clk_div40);
 
 	seq_puts(s, "******hdmi_pll******\n");
 	seq_printf(s, "sspll:%d\n", tx_comm->sspll);

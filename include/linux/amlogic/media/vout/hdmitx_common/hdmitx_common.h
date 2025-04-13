@@ -253,7 +253,6 @@ struct hdmitx_common {
 	u8 in_color_fmt;
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	u32 frac_rate_policy;
-	bool pre_tmds_clk_div40;
 	/* for bootargs & sysfs node */
 	char fmt_attr[16];
 	/* for pxp test */
@@ -539,7 +538,7 @@ int drm_hdmitx_common_register_hdcp_notify(struct hdmitx_common *tx_comm,
 int drm_hdmitx_common_get_dw_hdcp_topo_info(struct hdmitx_common *tx_comm);
 
 int hdmitx_get_connector(void);
-void hdmitx_common_sw_debugfunc(struct hdmitx_common *tx_comm, const char *cmd_str);
+void hdmitx_common_sw_debug_func(struct hdmitx_common *tx_comm, const char *cmd_str);
 /*******************************hdmitx common api end*******************************/
 
 int hdmitx_register_hpd_cb(struct hdmitx_common *tx_comm, struct connector_hpd_cb *hpd_cb);
