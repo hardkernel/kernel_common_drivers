@@ -1242,7 +1242,10 @@ static void t3_scaler_register_init(struct meson_vpu_block *vblk,
 		return;
 
 	/* default: osd_sc_path_sel -- before osd_blend or after hdr */
-	reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x0, 0, 1);
+	if (scaler->scaler1_position == BEFORE_OSDBLEND)
+		reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x1, 0, 1);
+	else
+		reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x0, 0, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 0, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 0x1, 0, 1);
 	vblk->init_done = 1;
@@ -1307,8 +1310,10 @@ static void t6d_scaler_register_init(struct meson_vpu_block *vblk,
 	if (scaler->scaler1_position == BEFORE_OSDBLEND) {
 		/* default: osd_sc_path_sel -- before osd_blend or after hdr */
 		reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x1, 0, 1);
-		reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 0, 1);
+	} else {
+		reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x0, 0, 1);
 	}
+	reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 0, 1);
 
 	if (scaler->alpha_mode == ALPHA_PROC)
 		reg_ops->rdma_write_reg(scaler->reg->vpp_osd_sc_div_alpha, 0xb1);

@@ -39,10 +39,6 @@
 #define VIU_VD1_PATH_CTRL                          0x1a73
 #define VIU_VD2_PATH_CTRL                          0x1a74
 
-#define VIU_OSD1_PATH_CTRL                         0x1a76
-#define VIU_OSD2_PATH_CTRL                         0x1a77
-#define VIU_OSD3_PATH_CTRL                         0x1a78
-
 #define OSD1_HDR_IN_SIZE                           0x1a5a
 #define OSD2_HDR_IN_SIZE                           0x1a5b
 #define OSD3_HDR_IN_SIZE                           0x1a5c

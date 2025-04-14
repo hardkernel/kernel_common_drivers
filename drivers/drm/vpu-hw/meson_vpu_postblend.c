@@ -598,10 +598,6 @@ static void t6d_postblend_set_state(struct meson_vpu_block *vblk,
 	crtcmask_osd = amc->priv->of_conf.crtcmask_osd;
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
-	scope.h_start = mvps->vpp_scope_x;
-	scope.v_start = mvps->vpp_scope_y;
-	scope.h_end = scope.h_start + mvps->scaler_param[0].output_width - 1;
-	scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
 
 	if (vblk->ops->init_register)
 		vblk->ops->init_register(vblk, state);
@@ -1261,11 +1257,6 @@ static void independ_path_default_regs(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x0, 4, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x0, 4, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 0x0, 4, 1);
-
-	/* default: osd1_sc_path_sel -- before osd_blend or after hdr */
-	reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x0, 0, 1);
-	reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 0, 1);
-	reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 0x1, 0, 1);
 
 	/* default: osd byp dolby */
 	reg_ops->rdma_write_reg_bits(VIU_VD1_PATH_CTRL, 0x1, 16, 1);
