@@ -1038,6 +1038,7 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 
+	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_I2C_RATE, DDC_I2C_50K);
 	if (tx_comm->forced_edid) {
 		HDMITX_INFO("using fixed edid\n");
 		return 0;
@@ -1060,8 +1061,8 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 		struct timespec64 kts;
 		struct rtc_time tm;
 
-		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_I2C_RATE, DDC_I2C_38K);
-		HDMITX_INFO("config i2c 37.5k and read edid again\n");
+		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_I2C_RATE, DDC_I2C_25K);
+		HDMITX_INFO("config i2c 25k and read edid again\n");
 		msleep(20);
 		ktime_get_real_ts64(&kts);
 		rtc_time64_to_tm(kts.tv_sec, &tm);
@@ -1079,8 +1080,8 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 			hdmitx_hw_cntl_ddc(tx_hw_base, DDC_GLITCH_FILTER_RESET, 0);
 			hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
 		}
-		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_I2C_RATE, DDC_I2C_75K);
-		HDMITX_INFO("Recovery i2c 75k\n");
+		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_I2C_RATE, DDC_I2C_50K);
+		HDMITX_INFO("Recovery i2c 50k\n");
 		msleep_interruptible(20);
 	}
 

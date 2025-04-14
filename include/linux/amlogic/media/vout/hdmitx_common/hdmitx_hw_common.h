@@ -229,7 +229,9 @@ enum hdmi_ll_mode {
 };
 
 enum i2c_rate {
+	DDC_I2C_25K,
 	DDC_I2C_38K,
+	DDC_I2C_50K,
 	DDC_I2C_75K,
 };
 
