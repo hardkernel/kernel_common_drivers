@@ -19,6 +19,7 @@
 #include "hdmitx_module.h"
 #include "efuse.h"
 #include "hdmitx_hdr.h"
+#include "hdmitx_compliance.h"
 
 int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,
@@ -1619,6 +1620,20 @@ void hdmitx_edid_process(struct hdmitx_common *tx_comm, bool boot_flag, bool drm
 		}
 		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
 		HDMITX_DEBUG_EDID("parse most parts on drm side\n");
+	}
+
+	if (hdmitx_find_vendor_audio_ddp_pop(tx_comm->edid_buf) &&
+		tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
+		/* special sony TV, report only support pcm format */
+		tx_comm->rxcap.AUD_count = 1;
+		/* PCM */
+		tx_comm->rxcap.RxAudioCap[0].audio_format_code = 1;
+		/* 2ch */
+		tx_comm->rxcap.RxAudioCap[0].channel_num_max = 1;
+		/* 32/44.1/48 kHz */
+		tx_comm->rxcap.RxAudioCap[0].freq_cc = 7;
+		/* 16bit */
+		tx_comm->rxcap.RxAudioCap[0].cc3 = 1;
 	}
 
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);

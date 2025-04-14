@@ -48,6 +48,13 @@ static struct edid_venddat_t vendor_hdcp22_non_std_tv[] = {
 	/* Add new vendor data here */
 };
 
+static struct edid_venddat_t vendor_audio_ddp_pop_tv[] = {
+	/* Sony 65x8566e */
+	{ {0x4d, 0xd9, 0x03, 0xf9, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1b} },
+	{ {0x4d, 0xd9, 0x03, 0xf3, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1a} }
+	/* Add new vendor data here */
+};
+
 /* HDMIPLL_CTRL3/4 under 4k50/60hz 6G mode should use the setting
  * witch is used under 4k59.94hz, specially for SAMSUNG UA55KS7300JXXZ
  * flash screen/no signal issue on SM1/SC2
@@ -142,6 +149,25 @@ bool hdmitx_find_vendor_hdcp22_non_std(unsigned char *edid_buf)
 		if (memcmp(&edid_buf[8], vendor_hdcp22_non_std_tv[i].data,
 		    sizeof(vendor_hdcp22_non_std_tv[i].data)) == 0)
 			return true;
+	}
+	return false;
+}
+
+/* On sony 65x8566e TV,
+ * when plugin there is video and no audio,
+ * then the audio output, there maybe noise sound under ddp format
+ */
+bool hdmitx_find_vendor_audio_ddp_pop(unsigned char *edid_buf)
+{
+	int i;
+
+	if (!edid_buf)
+		return false;
+	for (i = 0; i < ARRAY_SIZE(vendor_audio_ddp_pop_tv); i++) {
+		if (memcmp(&edid_buf[8], vendor_audio_ddp_pop_tv[i].data,
+		    sizeof(vendor_audio_ddp_pop_tv[i].data)) == 0) {
+			return true;
+		}
 	}
 	return false;
 }
