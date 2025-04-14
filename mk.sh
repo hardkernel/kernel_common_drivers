@@ -81,9 +81,9 @@ if [[ ! -f ${KERNEL_DIR}/init/main.c ]]; then
 	exit
 fi
 if [[ -z "${COMMON_DRIVERS_DIR}" ]]; then
-	if [[ -d ${KERNEL_DIR}/../common_drivers ]]; then
+	if [[ -f ${KERNEL_DIR}/../common_drivers/amlogic_utils.sh ]]; then
 		COMMON_DRIVERS_DIR=../common_drivers
-	elif [[ -d "${KERNEL_DIR}/common_drivers" ]]; then
+	elif [[ -f "${KERNEL_DIR}/common_drivers/amlogic_utils.sh" ]]; then
 		COMMON_DRIVERS_DIR=common_drivers
 	fi
 fi
@@ -243,6 +243,9 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		echo "    \"${DTBO_DEVICETREE}\","		>> ${PROJECT_DIR}/project.bzl
 	fi
 	echo "]"						>> ${PROJECT_DIR}/project.bzl
+
+	echo "VENDOR_KERNEL_BUILD = \"${VENDOR_KERNEL_BUILD}\""	>> ${PROJECT_DIR}/project.bzl
+	echo							>> ${PROJECT_DIR}/project.bzl
 
 	make_kconfig_and_makefile_filesrc
 

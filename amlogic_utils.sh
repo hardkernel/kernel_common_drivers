@@ -2170,7 +2170,7 @@ export -f build_ext_module_without_bazel
 function make_kconfig_and_makefile_filesrc () {
 	temp_file=`mktemp /tmp/files.XXXXXXXXXXXX`
 
-	find ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR} -name BUILD.bazel > ${temp_file}
+	find "${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}" -path "${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project" -prune -o -name BUILD.bazel -print > "${temp_file}"
 	sed -i 's|.*common_drivers/\(.*\)/[^/]*$|  "//common_drivers\/\1:m_k_files",|' ${temp_file}
 	sed -i '/.*\/BUILD\.bazel/d' ${temp_file}
 
