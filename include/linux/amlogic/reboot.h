@@ -18,6 +18,8 @@
 #define	MESON_KERNEL_PANIC                  12
 #define	MESON_RECOVERY_QUIESCENT_REBOOT     14
 #define	MESON_FFV_REBOOT                    15
+#define	MESON_FACTORY_MODE_REBOOT           16
+#define	MESON_BIST_MODE_REBOOT              17
 #define	MESON_MAX_REBOOT                    128
 
 struct reboot_reason_str {

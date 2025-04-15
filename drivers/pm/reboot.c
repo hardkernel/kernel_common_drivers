@@ -55,6 +55,8 @@ static struct reboot_reason_str reboot_reason_name[MESON_MAX_REBOOT] = {
 	[MESON_RECOVERY_QUIESCENT_REBOOT] = {
 		.name = "recovery quiescent reboot" },
 	[MESON_FFV_REBOOT] = { .name = "ffv reboot" },
+	[MESON_FACTORY_MODE_REBOOT] = { .name = "factory mode reboot" },
+	[MESON_BIST_MODE_REBOOT] = { .name = "bist mode reboot" },
 };
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
@@ -170,6 +172,10 @@ static u32 parse_reason(const char *cmd)
 			reboot_reason = MESON_RECOVERY_QUIESCENT_REBOOT;
 		else if (strcmp(cmd, "ffv_reboot") == 0)
 			reboot_reason = MESON_FFV_REBOOT;
+		else if (strcmp(cmd, "factory") == 0)
+			reboot_reason = MESON_FACTORY_MODE_REBOOT;
+		else if (strcmp(cmd, "Diagnostic") == 0)
+			reboot_reason = MESON_BIST_MODE_REBOOT;
 	} else {
 		if (kernel_panic) {
 			if (strcmp(kernel_panic, "kernel_panic") == 0)
