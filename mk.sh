@@ -116,6 +116,9 @@ build_part_of_kernel
 
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
 	source ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
+	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
+		DDK_BUILD=1
+	fi
 	if [[ "${GKI_CONFIG}" != "gki_20" && -n ${DDK_BUILD} ]]; then
 		echo "The drivers in the common_drivers directory can be compiled with DDK only in the gki_20 mode!!!"
 		exit
