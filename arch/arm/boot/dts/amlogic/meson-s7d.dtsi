@@ -1076,6 +1076,7 @@
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-s7d";
 		status = "okay";
+		memory-region = <&dmc_reserved>;
 		reg = <0xfe036000 0x400>;
 		reg_base = <0xfe036000>;
 		interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH

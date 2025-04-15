@@ -59,7 +59,7 @@
 
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
-			reg = <0x0 0x0 0x0 0x80000>;
+			reg = <0x0 0x0 0x0 0x10000>;
 		};
 
 		debug_reserved:linux,iotrace {
