@@ -79,9 +79,15 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 	 */
 	tx_comm->ready = 1;
 	hdmitx_update_vinfo(tx_comm);
-	if (tx_comm->cedst_en) {
+	if (para->tmds_clk) {
+		tx_comm->cedst_en = 1;
+		tx_comm->ced_check_count = 0;
 		cancel_delayed_work(&tx_comm->work_cedst);
-		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
+		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst,
+				msecs_to_jiffies(2000));
+	} else if (tx_comm->cedst_policy == 0) {
+		tx_comm->cedst_en = 0;
+		cancel_delayed_work(&tx_comm->work_cedst);
 	}
 
 	/*
@@ -263,9 +269,9 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	if (hdcp_reset)
 		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_DISABLE, NULL, NULL);
 
-	/* step6: SW: cancel ced work */
+	/* step6: SW: cancel ced work in sync to make sure it won't queued again */
 	if (tx_comm->cedst_en)
-		cancel_delayed_work(&tx_comm->work_cedst);
+		cancel_delayed_work_sync(&tx_comm->work_cedst);
 }
 
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
@@ -287,6 +293,8 @@ int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 		para = NULL;
 	/* unregister when disable current mode */
 	hdmitx_hw_cntl(tx_comm->tx_hw, VRR_REGISTER, (void *)&arg, NULL);
+	memset(&tx_comm->ced_cnt, 0, sizeof(tx_comm->ced_cnt));
+	memset(&tx_comm->ch_locked_st, 0, sizeof(tx_comm->ch_locked_st));
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 
 	return 0;
@@ -459,7 +467,8 @@ void hdmitx_hpd_plugout_irq_handler(struct work_struct *work)
 
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	if (tx_comm->last_hpd_handle_done_stat == HDMI_TX_HPD_PLUGOUT) {
-		HDMITX_INFO("continuous plugout handler, ignore\n");
+		HDMITX_INFO("continuous plugout handler, send HDMITX_LINK_UNSTABLE uevent\n");
+		hdmitx_set_uevent(tx_comm, HDMITX_LINK_UNSTABLE, 1);
 		mutex_unlock(&tx_comm->hdmimode_mutex);
 		return;
 	}

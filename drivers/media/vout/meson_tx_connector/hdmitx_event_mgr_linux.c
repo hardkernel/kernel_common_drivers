@@ -70,6 +70,14 @@ static struct hdmitx_uevent hdmi_events[] = {
 		.type = HDMITX_TRACER_EVENT,
 		.env = "hdmitx_tracer=",
 	},
+	{
+		.type = HDMITX_LINK_UNSTABLE,
+		.env = "hdmitx_link_unstable=",
+	},
+	{
+		.type = HDMITX_INCOMPATIBLE_CABLE,
+		.env = "hdmitx_incompatible_cable=",
+	},
 	{ /* end of hdmi_events[] */
 		.type = HDMITX_NONE_EVENT,
 	},

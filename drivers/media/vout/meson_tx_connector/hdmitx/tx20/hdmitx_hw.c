@@ -819,8 +819,10 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdmitx_hpd_irq_top_half_process(hdev, true);
 		ret = queue_delayed_work(hdev->tx_comm.hdmi_hpd_wq,
 				   &hdev->tx_comm.work_hpd_plugin, msecs_to_jiffies(500));
-		if (!ret)
-			HDMITX_DEBUG_HPD("HDMI plugin work is already in the queue\n");
+		if (!ret) {
+			HDMITX_DEBUG_HPD("too much plugin, send HDMITX_LINK_UNSTABLE uevent\n");
+			hdmitx_set_uevent(&hdev->tx_comm, HDMITX_LINK_UNSTABLE, 1);
+		}
 	}
 	/* HPD falling */
 	if (dat_top & (1 << 2)) {
@@ -839,8 +841,10 @@ static irqreturn_t intr_handler(int irq, void *dev)
 
 		ret = queue_delayed_work(hdev->tx_comm.hdmi_hpd_wq,
 			&hdev->tx_comm.work_hpd_plugout, 0);
-		if (!ret)
-			HDMITX_DEBUG_HPD("HDMI plugout work is already in the queue\n");
+		if (!ret) {
+			HDMITX_DEBUG_HPD("too much plugout, send HDMITX_LINK_UNSTABLE uevent\n");
+			hdmitx_set_uevent(&hdev->tx_comm, HDMITX_LINK_UNSTABLE, 1);
+		}
 	}
 	/* internal interrupt */
 	if (dat_top & (1 << 0))

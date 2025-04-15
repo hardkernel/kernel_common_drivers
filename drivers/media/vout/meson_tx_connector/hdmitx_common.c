@@ -20,6 +20,11 @@
 #include "efuse.h"
 #include "hdmitx_hdr.h"
 #include "hdmitx_compliance.h"
+#include "hdmitx_ddc.h"
+
+#define MAX_ERR_CNT       0x7fff
+#define ERR_CNT_THRESHOLD 1000
+#define ERR_CNT_CHECK_NUM 10
 
 int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,
@@ -64,13 +69,61 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	int ced;
 	struct hdmitx_common *tx_comm = container_of((struct delayed_work *)work,
 		struct hdmitx_common, work_cedst);
+	u16 ch0_cnt = 0;
+	u16 ch1_cnt = 0;
+	u16 ch2_cnt = 0;
+	u8 ch0_locked = 0;
+	u8 ch1_locked = 0;
+	u8 ch2_locked = 0;
+
+	if (!tx_comm->ready) {
+		HDMITX_INFO("signal disabled, cancel ced process\n");
+		return;
+	}
 
 	ced = hdmitx_hw_cntl(tx_comm->tx_hw, DDC_GET_CEDST, NULL, NULL);
 	/* firstly send as 0, then real ced, A trigger signal */
 	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, 0);
 	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, ced);
+	if (ced & CED_UPDATE) {
+		if (tx_comm->ced_cnt.ch0_valid)
+			ch0_cnt = tx_comm->ced_cnt.ch0_cnt;
+		if (tx_comm->ced_cnt.ch1_valid)
+			ch1_cnt = tx_comm->ced_cnt.ch1_cnt;
+		if (tx_comm->ced_cnt.ch2_valid)
+			ch2_cnt = tx_comm->ced_cnt.ch2_cnt;
+	}
+
+	if (ced & STATUS_UPDATE) {
+		ch0_locked = tx_comm->ch_locked_st.ch0_locked;
+		ch1_locked = tx_comm->ch_locked_st.ch1_locked;
+		ch2_locked = tx_comm->ch_locked_st.ch2_locked;
+	}
+
+	/*
+	 * case 1
+	 * If ced is updated, read the value of ced. If it is between the threshold and
+	 * the maximum value, report the uevent of HDMITX_INCOMPATIBLE_CABLE
+	 *
+	 * case 2
+	 * If the ced status is updated, read the lock information value of ced. If it
+	 * is 0, report the HDMITX_INCOMPATIBLE_CABLE uevent
+	 */
+	if (((ced & CED_UPDATE) && ((ch0_cnt >= ERR_CNT_THRESHOLD && ch0_cnt < MAX_ERR_CNT) ||
+			(ch1_cnt >= ERR_CNT_THRESHOLD && ch1_cnt < MAX_ERR_CNT) ||
+			(ch2_cnt >= ERR_CNT_THRESHOLD && ch2_cnt < MAX_ERR_CNT))) ||
+			((ced & STATUS_UPDATE) && (ch0_locked == 0 ||
+			ch1_locked == 0 || ch2_locked == 0))) {
+		HDMITX_INFO("too mutch err cnt, send HDMITX_INCOMPATIBLE_CABLE event\n");
+		hdmitx_set_uevent(tx_comm, HDMITX_INCOMPATIBLE_CABLE, 1);
+	}
 	queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst,
 			msecs_to_jiffies(1000));
+
+	/* After setting the mode, detect the err count information of ced for 10s */
+	tx_comm->ced_check_count += 1;
+	if (tx_comm->ced_check_count > ERR_CNT_CHECK_NUM)
+		cancel_delayed_work(&tx_comm->work_cedst);
 }
 
 static void hdmitx_work_init(struct hdmitx_common *tx_comm)
@@ -145,6 +198,9 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->in_color_range = 0xff;
 	tx_comm->out_color_range = 0xff;
 	tx_comm->in_color_fmt = 0xff;
+
+	/* ced check count init */
+	tx_comm->ced_check_count = 0;
 
 	/* mutex init */
 	mutex_init(&tx_comm->hdmimode_mutex);

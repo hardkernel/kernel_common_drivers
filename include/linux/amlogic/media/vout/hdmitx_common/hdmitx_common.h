@@ -402,6 +402,7 @@ struct hdmitx_common {
 	struct delayed_work work_rxsense;
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st ch_locked_st;
+	u16 ced_check_count;
 
 	/* 15. debug & log */
 	struct hdmitx_tracer *tx_tracer;
