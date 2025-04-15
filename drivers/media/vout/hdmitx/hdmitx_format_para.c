@@ -68,6 +68,7 @@ void hdmitx_parse_color_attr(char const *attr_str,
 	if (i == sizeof(parse_cr_) / sizeof(struct parse_cr))
 		*cr = HDMI_QUANTIZATION_RANGE_FULL;
 }
+EXPORT_SYMBOL(hdmitx_parse_color_attr);
 
 int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,

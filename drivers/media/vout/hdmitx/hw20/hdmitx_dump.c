@@ -33,11 +33,13 @@ static inline unsigned int get_msr_cts(void);
 static int dump_hdmi_phy_pll_reg_show(struct seq_file *s, void *p)
 {
 	int i;
+	char fmt_attr[16];
 	struct hdmitx_common *tx_comm = s->private;
 
 	seq_puts(s, "\n--------HDMITX basic information --------\n");
 	seq_printf(s, "resolution: %s\n", tx_comm->fmt_para.name);
-	seq_printf(s, "attr: %s\n", tx_comm->fmt_attr);
+	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para, fmt_attr, sizeof(fmt_attr));
+	seq_printf(s, "attr: %s\n", fmt_attr);
 	seq_printf(s, "tmds clock: %dkhz\n", tx_comm->fmt_para.tmds_clk);
 
 	switch (tx_comm->tx_hw->chip_data->chip_type) {

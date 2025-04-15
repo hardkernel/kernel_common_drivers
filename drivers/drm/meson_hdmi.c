@@ -41,8 +41,6 @@
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12
 
-bool attr_force_debugfs;
-char attr_debugfs[16];
 static struct drm_connector *tx_conn;
 
 /*for hw limitation, limit to 1080p/720p for recovery ui.*/
@@ -120,32 +118,6 @@ static struct hdmitx_common *meson_get_hdmitx_common(struct drm_connector *conne
 	return to_hdmitx_common(am_hdmi->hdmitx_dev);
 }
 
-void convert_attrstr(char *attr_str,
-	struct hdmitx_color_attr *attr_param)
-{
-	attr_param->colorformat = HDMI_COLORSPACE_YUV444;
-	attr_param->bitdepth = 8;
-
-	if (strstr(attr_str, "420"))
-		attr_param->colorformat = HDMI_COLORSPACE_YUV420;
-	else if (strstr(attr_str, "422"))
-		attr_param->colorformat = HDMI_COLORSPACE_YUV422;
-	else if (strstr(attr_str, "444"))
-		attr_param->colorformat = HDMI_COLORSPACE_YUV444;
-	else if (strstr(attr_str, "rgb"))
-		attr_param->colorformat = HDMI_COLORSPACE_RGB;
-
-	/*parse colorspace success*/
-	if (attr_param->colorformat != HDMI_COLORSPACE_RESERVED6) {
-		if (strstr(attr_str, "12bit"))
-			attr_param->bitdepth = 12;
-		else if (strstr(attr_str, "10bit"))
-			attr_param->bitdepth = 10;
-		else if (strstr(attr_str, "8bit"))
-			attr_param->bitdepth = 8;
-	}
-}
-
 static enum hdmi_color_depth bitdepth_to_colordepth(int bitdepth)
 {
 	enum hdmi_color_depth color_depth;
@@ -196,33 +168,6 @@ static int colordepth_to_bitdepth(enum hdmi_color_depth color_depth)
 	return bitdepth;
 }
 
-static void build_hdmitx_attr_str(char *attr_str, u32 format, u32 bit_depth)
-{
-	const char *colorspace;
-
-	switch (format) {
-	case HDMI_COLORSPACE_YUV420:
-		colorspace = "420";
-		break;
-	case HDMI_COLORSPACE_YUV422:
-		colorspace = "422";
-		break;
-	case HDMI_COLORSPACE_YUV444:
-		colorspace = "444";
-		break;
-	case HDMI_COLORSPACE_RGB:
-		colorspace = "rgb";
-		break;
-	default:
-		colorspace = "rgb";
-		DRM_ERROR("Unknown colospace value %d\n", format);
-		break;
-	};
-
-	sprintf(attr_str, "%s,%dbit", colorspace, bit_depth);
-	DRM_DEBUG("%s:%s = %u+%u\n", __func__, attr_str, format, bit_depth);
-}
-
 static struct hdmitx_color_attr *meson_hdmitx_get_candidate_attr_list
 	(struct am_hdmi_tx *am_hdmi, struct am_meson_crtc_state *crtc_state)
 {
@@ -263,7 +208,6 @@ static bool meson_hdmitx_test_color_attr(struct am_hdmi_tx *am_hdmi,
 	char *outputmode = crtc_state->base.adjusted_mode.name;
 	struct hdmitx_color_attr *attr_list = NULL;
 	struct hdmitx_common *common = to_hdmitx_common(am_hdmi->hdmitx_dev);
-	char attr_str[HDMITX_ATTR_LEN_MAX];
 
 	if (test_attr->colorformat == HDMI_COLORSPACE_RESERVED6)
 		return false;
@@ -278,10 +222,10 @@ static bool meson_hdmitx_test_color_attr(struct am_hdmi_tx *am_hdmi,
 			attr_list->bitdepth == test_attr->bitdepth) {
 			memset(&comm_state, 0, sizeof(comm_state));
 			comm_state.state_sequence_id = sequence_id;
-			build_hdmitx_attr_str(attr_str,
-				attr_list->colorformat, attr_list->bitdepth);
 			if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
-					attr_str, false)) {
+					attr_list->colorformat,
+					bitdepth_to_colordepth(attr_list->bitdepth),
+					false)) {
 				DRM_DEBUG("%s success [%d]+[%d]\n", __func__,
 					attr_list->colorformat,
 					attr_list->bitdepth);
@@ -304,7 +248,6 @@ static int meson_hdmitx_decide_color_attr
 	char *outputmode = crtc_state->base.adjusted_mode.name;
 	struct hdmitx_color_attr *attr_list = NULL;
 	struct hdmitx_common *common = to_hdmitx_common(am_hdmi->hdmitx_dev);
-	char attr_str[HDMITX_ATTR_LEN_MAX];
 
 	if (!outputmode) {
 		DRM_ERROR("%s current mode empty.\n", __func__);
@@ -318,10 +261,10 @@ static int meson_hdmitx_decide_color_attr
 			break;
 		memset(&comm_state, 0, sizeof(comm_state));
 		comm_state.state_sequence_id = sequence_id;
-		build_hdmitx_attr_str(attr_str,
-			attr_list->colorformat, attr_list->bitdepth);
+
 		if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
-				attr_str, false)) {
+				attr_list->colorformat,
+				bitdepth_to_colordepth(attr_list->bitdepth), false)) {
 			attr->colorformat = attr_list->colorformat;
 			attr->bitdepth = attr_list->bitdepth;
 			DRM_DEBUG("%s get fmt attr [%d]+[%d]\n",
@@ -997,8 +940,7 @@ static int am_hdmitx_connector_atomic_set_property
 		hdmitx_state->ready = val;
 		return 0;
 	} else if (property == am_hdmi->frac_rate_policy_prop) {
-		hdmitx_state->frac_rate_policy = val;
-		tx_comm->frac_rate_policy = val;
+		DRM_DEBUG("frac rate property was not used\n");
 		return 0;
 	} else if (property == am_hdmi->scan_info_prop) {
 		hdmitx_state->scan_info = val;
@@ -1081,7 +1023,7 @@ static int am_hdmitx_connector_atomic_get_property
 		*val = hdmitx_common_get_hdcp_user_state(tx_comm);
 		return 0;
 	} else if (property == am_hdmi->frac_rate_policy_prop) {
-		*val = tx_comm->frac_rate_policy;
+		*val = tx_comm->fmt_para.frac_mode;
 		return 0;
 	} else if (property == am_hdmi->hdmi_used_prop) {
 		*val = hdmitx_common_get_hdmi_used_state(tx_comm);
@@ -1123,74 +1065,6 @@ static int am_hdmitx_connector_atomic_get_property
 				property->base.id, property->name);
 	return -EINVAL;
 	}
-}
-
-#ifdef CONFIG_DEBUG_FS
-static ssize_t meson_connector_attr_write(struct file *file, const char __user *ubuf,
-				size_t len, loff_t *offp)
-{
-	if (len > sizeof(attr_debugfs) - 1)
-		return -EINVAL;
-
-	if (copy_from_user(attr_debugfs, ubuf, len))
-		return -EFAULT;
-	if (attr_debugfs[len - 1] == '\n')
-		attr_debugfs[len - 1] = '\0';
-	attr_debugfs[len] = '\0';
-
-	attr_force_debugfs = true;
-	return len;
-}
-
-static int meson_connector_attr_show(struct seq_file *sf, void *data)
-{
-	struct drm_connector *connector = (struct drm_connector *)data;
-	struct hdmitx_common *tx_comm = meson_get_hdmitx_common(connector);
-
-	hdmitx_get_attr(tx_comm, attr_debugfs);
-	seq_printf(sf, "hdmitx_attr: %s\n", attr_debugfs);
-	return 0;
-}
-
-static int meson_connector_attr_open(struct inode *inode, struct file *file)
-{
-	struct drm_connector *connector = inode->i_private;
-
-	return single_open(file, meson_connector_attr_show, connector);
-}
-
-static const struct file_operations meson_connector_attr_fops = {
-	.owner = THIS_MODULE,
-	.open = meson_connector_attr_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = meson_connector_attr_write,
-};
-
-static int meson_connector_debugfs_init(struct drm_connector *connector,
-		struct dentry *root)
-{
-	struct dentry *entry;
-
-	entry = debugfs_create_file("hdmitx_attr", 0644, root,
-			connector, &meson_connector_attr_fops);
-	if (!entry) {
-		DRM_ERROR("create attr debugfs node error\n");
-		debugfs_remove_recursive(root);
-	}
-	return 0;
-}
-#endif
-
-static int am_hdmitx_connector_late_register(struct drm_connector *connector)
-{
-	#ifdef CONFIG_DEBUG_FS
-	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
-
-	meson_connector_debugfs_init(&am_hdmitx->base.connector, connector->debugfs_entry);
-	#endif
-	return 0;
 }
 
 static void am_hdmitx_connector_destroy(struct drm_connector *connector)
@@ -1254,8 +1128,8 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 			new_hdmitx_state->color_attr_para.colorformat,
 			old_hdmitx_state->color_attr_para.bitdepth,
 			new_hdmitx_state->color_attr_para.bitdepth,
-			old_hdmitx_state->frac_rate_policy,
-			new_hdmitx_state->frac_rate_policy);
+			old_hdmitx_state->hcs.para.frac_mode,
+			new_hdmitx_state->hcs.para.frac_mode);
 		/*force set mode.*/
 		if (new_hdmitx_state->update)
 			new_crtc_state->connectors_changed = true;
@@ -1270,8 +1144,8 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 			}
 		}
 
-		if (new_hdmitx_state->frac_rate_policy !=
-				old_hdmitx_state->frac_rate_policy) {
+		if (new_hdmitx_state->hcs.para.frac_mode !=
+				old_hdmitx_state->hcs.para.frac_mode) {
 			new_crtc_state->mode_changed = true;
 		}
 	}
@@ -1302,7 +1176,6 @@ struct drm_connector_state *meson_hdmitx_atomic_duplicate_state
 	new_state->pref_hdr_policy = cur_state->pref_hdr_policy;
 	new_state->allm_mode = cur_state->allm_mode;
 	cur_state->hcs.state_sequence_id = am_hdmi->sequence_id;
-	new_state->frac_rate_policy = cur_state->frac_rate_policy;
 	new_state->metadata = cur_state->metadata;
 	memcpy(&new_state->hcs, &cur_state->hcs, sizeof(struct hdmitx_common_state));
 
@@ -1397,7 +1270,7 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\t\t vic:[%d], cs:[%d], cd:[%d], name:[%s]\n",
 		   hdmitx_state->hcs.para.vic, hdmitx_state->hcs.para.cs,
 		   hdmitx_state->hcs.para.cd, hdmitx_state->hcs.para.name);
-	drm_printf(p, "\t\t\t frac_rate_policy:[%d]\n", hdmitx_state->frac_rate_policy);
+	drm_printf(p, "\t\t\t frac_rate_policy:[%d]\n", hdmitx_state->hcs.para.frac_mode);
 	drm_printf(p, "\t\t qms vrr info:\n");
 	for (i = 0; i < num_group; i++) {
 		group = &groups[i];
@@ -1701,7 +1574,6 @@ static const struct drm_connector_funcs am_hdmi_connector_funcs = {
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.atomic_set_property	= am_hdmitx_connector_atomic_set_property,
 	.atomic_get_property	= am_hdmitx_connector_atomic_get_property,
-	.late_register = am_hdmitx_connector_late_register,
 	.destroy		= am_hdmitx_connector_destroy,
 	.reset			= meson_hdmitx_reset,
 	.atomic_duplicate_state	= meson_hdmitx_atomic_duplicate_state,
@@ -2001,7 +1873,6 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc_state->crtc);
 	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmi->hdmitx_dev);
 	char *modename = adj_mode->name;
-	int ret = 0;
 
 	DRM_DEBUG("%s[%d]: enter\n", __func__, __LINE__);
 
@@ -2021,25 +1892,6 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	DRM_INFO("%s enter:attr[%d-%d]\n", __func__,
 		attr->colorformat, attr->bitdepth);
 	meson_hdmitx_decide_eotf_type(am_hdmi, meson_crtc_state, hdmitx_state);
-
-	/*check force attr info: from uboot set or debugfs;
-	 *for uboot: it may not support dv, but kernel support dv, the attr
-	 *from uboot is not valid.
-	 */
-	if (attr_force_debugfs) {
-		attr_force_debugfs = false;
-		convert_attrstr(attr_debugfs, attr);
-		ret = hdmitx_common_build_format_para(tx_comm,
-					&hdmitx_state->hcs.para, vic,
-					tx_comm->frac_rate_policy,
-					attr->colorformat,
-					bitdepth_to_colordepth(attr->bitdepth),
-					HDMI_QUANTIZATION_RANGE_FULL);
-		if (ret < 0)
-			DRM_ERROR("format para build fail\n");
-
-		DRM_INFO("debugfs attr\n");
-	}
 }
 
 static
@@ -2270,10 +2122,9 @@ static int meson_hdmitx_encoder_autoselect_attr(struct drm_encoder *encoder,
 	meson_hdmitx_decide_eotf_type(am_hdmi, meson_crtc_state, hdmitx_state);
 
 	if (hdmitx_state->color_force) {
-		char attr_str[16];
-
-		build_hdmitx_attr_str(attr_str, attr->colorformat, attr->bitdepth);
-		if (hdmitx_common_chk_mode_attr_sup(tx_comm, modename, attr_str)) {
+		if (!hdmitx_common_validate_mode_locked(tx_comm, &hdmitx_state->hcs,
+							modename, attr->colorformat,
+				bitdepth_to_colordepth(attr->bitdepth), 1)) {
 			DRM_DEBUG("color property setting successfully\n");
 		} else {
 			hdmitx_state->color_force = false;
@@ -2303,7 +2154,7 @@ static int meson_hdmitx_encoder_autoselect_attr(struct drm_encoder *encoder,
 	}
 
 	ret = hdmitx_common_build_format_para(tx_comm, &hdmitx_state->hcs.para,
-					      vic, tx_comm->frac_rate_policy,
+					      vic, tx_comm->fmt_para.frac_mode,
 					      attr->colorformat,
 					      bitdepth_to_colordepth(attr->bitdepth),
 					      HDMI_QUANTIZATION_RANGE_FULL);
@@ -2354,7 +2205,6 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	struct hdmitx_common *common = to_hdmitx_common(am_hdmi->hdmitx_dev);
 	u64 sequence_id = hdmitx_state->hcs.state_sequence_id;
 	int ret = 0;
-	char attr_str[HDMITX_ATTR_LEN_MAX];
 	bool is_alter;
 	u32 brr = 0, qms_en = 0;
 
@@ -2364,11 +2214,9 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 
 	is_alter = meson_hdmitx_is_alter_mode(adj_mode);
 	if (is_alter) {
-		hdmitx_state->frac_rate_policy = true;
-		common->frac_rate_policy = true;
+		hdmitx_state->hcs.para.frac_mode = true;
 	} else {
-		hdmitx_state->frac_rate_policy = false;
-		common->frac_rate_policy = false;
+		hdmitx_state->hcs.para.frac_mode = false;
 	}
 
 	if (meson_crtc_state->uboot_mode_init == 1) {
@@ -2389,12 +2237,11 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	DRM_DEBUG("%s[%d]: enter\n", __func__, __LINE__);
 
 	if (meson_crtc_state->uboot_mode_init == 1) {
-		DRM_INFO("%s[%d] uboot get: %d\n", __func__, __LINE__, common->frac_rate_policy);
+		DRM_INFO("%s[%d] uboot get: %d\n", __func__, __LINE__, common->fmt_para.frac_mode);
 		hdmitx_get_init_state(common, &hdmitx_state->hcs);
 		attr->colorformat = hdmitx_state->hcs.para.cs;
 		attr->bitdepth = colordepth_to_bitdepth(hdmitx_state->hcs.para.cd);
 		hdmitx_state->hdr_priority = hdmitx_state->hcs.hdr_priority;
-		hdmitx_state->frac_rate_policy = common->frac_rate_policy;
 	}
 
 	/*The recovery mode not have composer to set attr*/
@@ -2402,10 +2249,10 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 		meson_hdmitx_decide_color_attr(am_hdmi, meson_crtc_state,
 						 attr, sequence_id);
 
-	build_hdmitx_attr_str(attr_str, attr->colorformat, attr->bitdepth);
-
 	ret = hdmitx_common_validate_mode_locked(common, &hdmitx_state->hcs,
-						 modename, attr_str, meson_crtc_state->valid_brr);
+						 modename, attr->colorformat,
+						 bitdepth_to_colordepth(attr->bitdepth),
+						 meson_crtc_state->valid_brr);
 	/*
 	 * ret == 0
 	 * mode and attr are supported, don't need to match mode and attr
@@ -2417,8 +2264,10 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 		ret = meson_hdmitx_encoder_autoselect_attr(encoder, crtc_state, conn_state);
 	}
 
-	DRM_DEBUG("vic:%d, cs:%d, cd:%d ret:%d\n", hdmitx_state->hcs.para.vic,
-		 hdmitx_state->hcs.para.cs, hdmitx_state->hcs.para.cd, ret);
+	DRM_DEBUG("vic:%d, cs:%d, cd:%d frac:%d ret:%d\n", hdmitx_state->hcs.para.vic,
+		 hdmitx_state->hcs.para.cs, hdmitx_state->hcs.para.cd,
+		 hdmitx_state->hcs.para.frac_mode, ret);
+
 
 	return ret;
 }
@@ -2533,12 +2382,10 @@ static void meson_hdmitx_init_colorspace_property(struct drm_device *drm_dev,
 {
 	struct drm_property *prop;
 
-	char attr_init[16];
-	struct hdmitx_color_attr attr_param;
+	int colorformat, bitdepth;
 	struct hdmitx_common *common = to_hdmitx_common(am_hdmi->hdmitx_dev);
 
-	hdmitx_get_attr(common, attr_init);
-	convert_attrstr(attr_init, &attr_param);
+	hdmitx_get_attr(common, &colorformat, &bitdepth);
 
 	prop = drm_property_create_enum(drm_dev, 0, "color_space",
 					hdmi_color_space_enum_list,
@@ -2546,7 +2393,7 @@ static void meson_hdmitx_init_colorspace_property(struct drm_device *drm_dev,
 	if (prop) {
 		am_hdmi->color_space_prop = prop;
 		drm_object_attach_property(&am_hdmi->base.connector.base, prop,
-		attr_param.colorformat);
+		colorformat);
 	} else {
 		DRM_ERROR("Failed to color_space property\n");
 	}
@@ -2557,12 +2404,10 @@ static void meson_hdmitx_init_colordepth_property(struct drm_device *drm_dev,
 {
 	struct drm_property *prop;
 
-	char attr_init[16];
-	struct hdmitx_color_attr attr_param;
+	int colorformat, bitdepth;
 	struct hdmitx_common *common = to_hdmitx_common(am_hdmi->hdmitx_dev);
 
-	hdmitx_get_attr(common, attr_init);
-	convert_attrstr(attr_init, &attr_param);
+	hdmitx_get_attr(common, &colorformat, &bitdepth);
 
 	prop = drm_property_create_range(drm_dev, 0,
 			"color_depth", 0, 16);
@@ -2570,7 +2415,7 @@ static void meson_hdmitx_init_colordepth_property(struct drm_device *drm_dev,
 	if (prop) {
 		am_hdmi->color_depth_prop = prop;
 		drm_object_attach_property(&am_hdmi->base.connector.base, prop,
-		attr_param.bitdepth);
+		colordepth_to_bitdepth(bitdepth));
 	} else {
 		DRM_ERROR("Failed to color_depth property\n");
 	}
@@ -2896,16 +2741,28 @@ int am_meson_mode_testattr_ioctl(struct drm_device *dev,
 {
 	struct drm_connector *connector;
 	struct hdmitx_common *tx_comm;
+	struct hdmitx_common_state *new_state;
+	enum hdmi_colorspace cs;
+	enum hdmi_color_depth cd;
+	enum hdmi_quantization_range cr;
 	struct drm_mode_test_attr *f = data;
 
 	connector = tx_conn;
 	tx_comm = meson_get_hdmitx_common(connector);
+	hdmitx_parse_color_attr(f->attr, &cs, &cd, &cr);
 
-	if (hdmitx_common_chk_mode_attr_sup(tx_comm, f->modename, f->attr))
+	new_state = kzalloc(sizeof(*new_state), GFP_KERNEL);
+	if (!new_state)
+		return -ENOMEM;
+
+	new_state->state_sequence_id = hdmitx_get_hpd_hw_sequence_id(tx_comm);
+
+	if (!hdmitx_common_validate_mode_locked(tx_comm, new_state, f->modename, cs, cd, 1))
 		f->valid = 1;
 	else
 		f->valid = 0;
 
+	kfree(new_state);
 	return 0;
 }
 

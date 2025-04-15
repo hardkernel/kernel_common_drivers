@@ -20,13 +20,15 @@ static void dump32(struct seq_file *s, u32 start, u32 end)
 
 static int dump_hdmi_phy_pll_show(struct seq_file *s, void *p)
 {
+	char fmt_attr[16];
 	struct hdmitx_common *tx_comm = s->private;
 	struct hdmitx21_dev *hdev = container_of(tx_comm,
 		struct hdmitx21_dev, tx_comm);
 
 	seq_puts(s, "\n--------HDMITX basic information --------\n");
 	seq_printf(s, "resolution: %s\n", tx_comm->fmt_para.name);
-	seq_printf(s, "attr: %s\n", tx_comm->fmt_attr);
+	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para, fmt_attr, sizeof(fmt_attr));
+	seq_printf(s, "attr: %s\n", fmt_attr);
 	seq_printf(s, "tmds clock: %dkhz\n", tx_comm->fmt_para.tmds_clk);
 	if (hdev->frl_rate != FRL_NONE) {
 		seq_printf(s, "frl rate: %d\n", hdev->frl_rate);

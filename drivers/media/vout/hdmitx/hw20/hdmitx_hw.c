@@ -2206,7 +2206,7 @@ void hdmitx_set_enc_hw(struct hdmitx20_dev *hdev)
 
 	set_vmode_enc_hw(hdev);
 
-	if (hdev->tx_comm.flag_3dfp) {
+	if (para->flag_3dfp) {
 		hd_write_reg(P_VPU_HDMI_SETTING, 0x8c);
 	} else {
 		switch (para->vic) {
@@ -2364,7 +2364,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct hdmi_forma
 	}
 	HDMITX_DEBUG("adjust decouple fifo\n");
 	/* For 3D, enable phy by SystemControl at last step */
-	if (!hdev->tx_comm.flag_3dfp && !hdev->tx_comm.flag_3dtb && !hdev->tx_comm.flag_3dss)
+	if (!para->flag_3dfp && !para->flag_3dtb && !para->flag_3dss)
 		hdmitx_set_phy(hdev);
 	return 0;
 }
@@ -6571,7 +6571,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32  = (t->h_blank >> 8) & 0x1f;
 	hdmitx_wr_reg(HDMITX_DWC_FC_INHBLANK1,  data32);
 
-	if (hdev->tx_comm.flag_3dfp) {
+	if (para->flag_3dfp) {
 		data32 = v_active * 2 + t->v_blank;
 		hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV0, data32 & 0xff);
 		hdmitx_wr_reg(HDMITX_DWC_FC_INVACTV1, (data32 >> 8) & 0x1f);
@@ -6777,7 +6777,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 7, 1);
 
 	/* If RX  support 3D, then enable 3D send out */
-	if (hdev->tx_comm.flag_3dfp || hdev->tx_comm.flag_3dtb || hdev->tx_comm.flag_3dss) {
+	if (para->flag_3dfp || para->flag_3dtb || para->flag_3dss) {
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 3, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
 	} else {

@@ -31,6 +31,10 @@ struct hdmi_format_para {
 	/* for future usage */
 	u8 port_type;
 	u8 port_id;
+
+	u32 flag_3dfp:1;
+	u32 flag_3dtb:1;
+	u32 flag_3dss:1;
 };
 
 int hdmitx_format_para_reset(struct hdmi_format_para *para);

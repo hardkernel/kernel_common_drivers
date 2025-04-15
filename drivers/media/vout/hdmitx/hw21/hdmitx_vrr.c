@@ -1248,7 +1248,7 @@ int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int _rate, void *data)
 	/* check current rate, should less or equal than current rate of BRR */
 	tmp_rate = fmt_para->timing.v_freq / 10;
 	/* TODO, BRR mode should have frac_rate_policy as 0 */
-	if (tx_comm->frac_rate_policy == 1)
+	if (fmt_para->frac_mode == 1)
 		tmp_rate = tmp_rate + 2 + tmp_rate / 1000;
 	if (tmp_rate > 5990 && tmp_rate < 6010)
 		tmp_rate = 6000;
@@ -1311,7 +1311,7 @@ int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int _rate, void *data)
 		 * QMS: 1080p24   set frac_rate_policy as 0 and fr_hint as 24
 		 * QMS: 1080p23.976   set frac_rate_policy as 1 and fr_hint as 24
 		 */
-		if (tx_comm->frac_rate_policy && para.type == T_VRR_QMS) {
+		if (fmt_para->frac_mode && para.type == T_VRR_QMS) {
 			switch (rate) {
 			case 2400:
 			case 3000:
@@ -1328,7 +1328,7 @@ int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int _rate, void *data)
 		para.duration = rate;
 	}
 	updata_vinfo_sync_duration(&tx_comm->hdmitx_vinfo, rate,
-		hdev->vrr_mode == T_VRR_GAME ? 0 : tx_comm->frac_rate_policy,
+		hdev->vrr_mode == T_VRR_GAME ? 0 : fmt_para->frac_mode,
 		(fmt_para->timing.v_freq + 999) / 1000);
 
 	para.vrr_enabled = 1;

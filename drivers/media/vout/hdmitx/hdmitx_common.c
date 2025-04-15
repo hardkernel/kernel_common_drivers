@@ -92,6 +92,7 @@ static void hdmitx_work_init(struct hdmitx_common *tx_comm)
 /* init hdmitx_common struct which is done only when driver probe */
 int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *hw_comm)
 {
+	struct hdmi_format_para *para = &tx_comm->fmt_para;
 	struct hdmitx_boot_param *boot_param = get_hdmitx_boot_params();
 
 	tx_comm->vdev = &hdmitx_vdev;
@@ -99,9 +100,6 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 
 	/*load tx boot params*/
 	tx_comm->hdr_priority = boot_param->hdr_mask;
-	memcpy(tx_comm->fmt_attr, boot_param->color_attr, sizeof(tx_comm->fmt_attr));
-
-	tx_comm->frac_rate_policy = boot_param->fraction_refreshrate;
 	tx_comm->config_csc_en = boot_param->config_csc;
 	tx_comm->res_1080p = 0;
 	tx_comm->max_refreshrate = 60;
@@ -115,7 +113,9 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 
 	tx_comm->debug_param.avmute_frame = 0;
 
-	hdmitx_format_para_reset(&tx_comm->fmt_para);
+	hdmitx_format_para_reset(para);
+	para->frac_mode = boot_param->fraction_refreshrate;
+	hdmitx_parse_color_attr(boot_param->color_attr, &para->cs, &para->cd, &para->cr);
 
 	tx_comm->ready = 0;
 	if (hw_comm->chip_data->chip_type < MESON_CPU_ID_T7)
@@ -130,9 +130,9 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->rxsense_policy = 0;
 	/* enable or disable HDMITX SSPLL, enable by default */
 	tx_comm->sspll = 1;
-	tx_comm->flag_3dfp = 0;
-	tx_comm->flag_3dss = 0;
-	tx_comm->flag_3dtb = 0;
+	para->flag_3dfp = 0;
+	para->flag_3dss = 0;
+	para->flag_3dtb = 0;
 	tx_comm->vid_mute_op = VIDEO_NONE_OP;
 	tx_comm->vid_mute_op = VIDEO_NONE_OP;
 
@@ -217,11 +217,11 @@ EXPORT_SYMBOL(hdmitx_common_build_format_para);
  */
 int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 				       struct hdmitx_common_state *new_state,
-				       char *mode, char *attr, bool brr_valid)
+				       char *mode, enum hdmi_colorspace cs,
+				       enum hdmi_color_depth cd, bool brr_valid)
 {
 	int ret = 0;
 	struct hdmi_format_para *new_para;
-	struct hdmi_format_para tst_para;
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
 	new_para = &new_state->para;
@@ -235,7 +235,7 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	mutex_lock(&tx_comm->valid_mutex);
 
-	if (!mode || !attr) {
+	if (!mode) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -249,24 +249,25 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 
 	ret = hdmitx_common_validate_vic(tx_comm, vic);
 	if (ret != 0) {
-		HDMITX_DEBUG("validate vic [%s,%s]-%d return error %d\n", mode, attr, vic, ret);
+		HDMITX_DEBUG("validate vic [%s,cs:%d,cd:%d]-%d return error %d\n",
+			     mode, cs, cd, vic, ret);
 		goto out;
 	}
 
-	hdmitx_parse_color_attr(attr, &tst_para.cs, &tst_para.cd, &tst_para.cr);
 	ret = hdmitx_common_build_format_para(tx_comm,
-		new_para, vic, brr_valid ? 0 : tx_comm->frac_rate_policy,
-		tst_para.cs, tst_para.cd, tst_para.cr);
+		new_para, vic, brr_valid ? 0 : new_para->frac_mode,
+		cs, cd, HDMI_QUANTIZATION_RANGE_FULL);
 	if (ret != 0) {
 		hdmitx_format_para_reset(new_para);
-		HDMITX_DEBUG("build format_para [%s,%s] return error %d\n", mode, attr, ret);
+		HDMITX_DEBUG("build formatpara [%s,cs:%d,cd:%d] return error %d\n",
+			     mode, cs, cd, ret);
 		goto out;
 	}
 
 	ret = hdmitx_common_validate_format_para(tx_comm, new_para);
 	if (ret)
-		HDMITX_DEBUG("validate format_para [%s,%s] return error %d\n",
-			     mode, attr, ret);
+		HDMITX_DEBUG("validate formatpara [%s,cs:%d,cd:%d] return error %d\n",
+			     mode, cs, cd, ret);
 out:
 	mutex_unlock(&tx_comm->valid_mutex);
 	mutex_unlock(&tx_comm->hdmimode_mutex);
@@ -280,6 +281,7 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 {
 	int ret = 0;
 	struct hdmitx_hw_common *tx_hw = tx_comm->tx_hw;
+	struct hdmitx_boot_param *boot_param = get_hdmitx_boot_params();
 	enum hdmi_tf_type amdv_type;
 	bool dsc_en = false;
 
@@ -304,12 +306,13 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		 * if dsc is enabled, as cd from HW register is 8bit under dsc
 		 */
 		if (hdmitx_hw_cntl(tx_hw, DSC_GET_TX_EN, NULL, NULL)) {
-			hdmitx_parse_color_attr(tx_comm->fmt_attr, &para->cs, &para->cd, &para->cr);
+			hdmitx_parse_color_attr(boot_param->color_attr,
+						&para->cs, &para->cd, &para->cr);
 			dsc_en = true;
 		}
 
 		ret = hdmitx_common_build_format_para(tx_comm, para, para->vic,
-			tx_comm->frac_rate_policy, para->cs, para->cd,
+			para->frac_mode, para->cs, para->cd,
 			HDMI_QUANTIZATION_RANGE_FULL);
 		if (ret == 0) {
 			HDMITX_DEBUG("%s init ok\n", __func__);
@@ -400,9 +403,10 @@ bool hdmitx_common_get_hdmi_used_state(struct hdmitx_common *tx_comm)
 }
 EXPORT_SYMBOL(hdmitx_common_get_hdmi_used_state);
 
-int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16])
+int hdmitx_get_attr(struct hdmitx_common *tx_comm, int *cs, int *cd)
 {
-	memcpy(attr, tx_comm->fmt_attr, sizeof(tx_comm->fmt_attr));
+	*cs = tx_comm->fmt_para.cs;
+	*cd = tx_comm->fmt_para.cd;
 	return 0;
 }
 EXPORT_SYMBOL(hdmitx_get_attr);
@@ -1913,68 +1917,6 @@ int hdmitx_common_get_vic_list(struct hdmitx_common *tx_comm, int **vics)
 	return count;
 }
 EXPORT_SYMBOL(hdmitx_common_get_vic_list);
-
-/* similar as hdmitx_common_validate_mode_locked() but without lock,
- * it's almost the same as valid_mode_store()
- * validation step:
- * step1, check if mode related VIC is supported in EDID
- * step2, check if VIC is supported by SOC hdmitx
- * step3, build format with mode/attr and check if it's
- * supported by EDID/hdmitx_cap
- */
-bool hdmitx_common_chk_mode_attr_sup(struct hdmitx_common *tx_comm, char *mode, char *attr)
-{
-	struct hdmi_format_para tst_para;
-	enum hdmi_vic vic = HDMI_0_UNKNOWN;
-	int ret = 0;
-
-	if (!mode || !attr)
-		return false;
-
-	mutex_lock(&tx_comm->valid_mutex);
-	vic = hdmitx_common_parse_vic_in_edid(tx_comm, mode);
-	if (vic == HDMI_0_UNKNOWN) {
-		HDMITX_ERROR("%s: get vic from (%s) fail\n", __func__, mode);
-		mutex_unlock(&tx_comm->valid_mutex);
-		return false;
-	}
-
-	ret = hdmitx_common_validate_vic(tx_comm, vic);
-	if (ret != 0) {
-		HDMITX_ERROR("validate vic [%s,%s]-%d return error %d\n", mode, attr, vic, ret);
-		mutex_unlock(&tx_comm->valid_mutex);
-		return false;
-	}
-
-	hdmitx_parse_color_attr(attr, &tst_para.cs, &tst_para.cd, &tst_para.cr);
-	ret = hdmitx_common_build_format_para(tx_comm,
-		&tst_para, vic, tx_comm->frac_rate_policy,
-		tst_para.cs, tst_para.cd, tst_para.cr);
-	if (ret != 0) {
-		hdmitx_format_para_reset(&tst_para);
-		HDMITX_ERROR("build format_para [%s,%s] return error %d\n", mode, attr, ret);
-		mutex_unlock(&tx_comm->valid_mutex);
-		return false;
-	}
-
-	if (true) {
-		HDMITX_DEBUG("sname = %s\n", tst_para.sname);
-		HDMITX_DEBUG("char_clk = %d\n", tst_para.tmds_clk);
-		HDMITX_DEBUG("cd = %d\n", tst_para.cd);
-		HDMITX_DEBUG("cs = %d\n", tst_para.cs);
-	}
-
-	ret = hdmitx_common_validate_format_para(tx_comm, &tst_para);
-	if (ret != 0) {
-		HDMITX_ERROR("validate format_para [%s,%s] return error %d\n", mode, attr, ret);
-		mutex_unlock(&tx_comm->valid_mutex);
-		return false;
-	}
-
-	mutex_unlock(&tx_comm->valid_mutex);
-	return true;
-}
-EXPORT_SYMBOL(hdmitx_common_chk_mode_attr_sup);
 
 int hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm)
 {

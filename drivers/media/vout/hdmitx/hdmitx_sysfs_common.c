@@ -58,13 +58,13 @@ static ssize_t attr_show(struct device *dev,
 static DEVICE_ATTR_RO(attr);
 
 /* for pxp test */
+static char test_fmt_attr[16];
 static ssize_t test_attr_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 
-	pos = snprintf(buf, PAGE_SIZE, "%s\n\r", tx_comm->tst_fmt_attr);
+	pos = snprintf(buf, PAGE_SIZE, "%s\n\r", test_fmt_attr);
 
 	return pos;
 }
@@ -73,10 +73,8 @@ static ssize_t test_attr_store(struct device *dev,
 		   struct device_attribute *attr,
 		   const char *buf, size_t count)
 {
-	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
-
-	strncpy(tx_comm->tst_fmt_attr, buf, sizeof(tx_comm->tst_fmt_attr));
-	tx_comm->tst_fmt_attr[15] = '\0';
+	strncpy(test_fmt_attr, buf, sizeof(test_fmt_attr));
+	test_fmt_attr[15] = '\0';
 
 	return count;
 }
@@ -865,7 +863,7 @@ static ssize_t frac_rate_policy_store(struct device *dev,
 		val = buf[0] - '0';
 		HDMITX_DEBUG("set frac_rate_policy as %d\n", val);
 		if (val == 0 || val == 1)
-			tx_comm->frac_rate_policy = val;
+			tx_comm->fmt_para.frac_mode = val;
 		else
 			HDMITX_INFO("only accept as 0 or 1\n");
 	}
@@ -881,7 +879,7 @@ static ssize_t frac_rate_policy_show(struct device *dev,
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
-		tx_comm->frac_rate_policy);
+		tx_comm->fmt_para.frac_mode);
 
 	return pos;
 }
@@ -1535,7 +1533,7 @@ static ssize_t valid_mode_store(struct device *dev,
 		hdmitx_parse_color_attr(attrstr, &tst_para.cs, &tst_para.cd, &tst_para.cr);
 		HDMITX_DEBUG("parse cs %d cd %d\n", tst_para.cs, tst_para.cd);
 		ret = hdmitx_common_build_format_para(tx_comm,
-			&tst_para, vic, tx_comm->frac_rate_policy,
+			&tst_para, vic, 0,
 			tst_para.cs, tst_para.cd, tst_para.cr);
 		if (ret != 0) {
 			HDMITX_DEBUG("build format para failed %d\n", ret);
@@ -1920,7 +1918,7 @@ static ssize_t disp_mode_store(struct device *dev,
 	int ret = 0;
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 
-	ret = set_disp_mode_debug(tx_comm, buf);
+	ret = set_disp_mode_debug(tx_comm, buf, test_fmt_attr);
 	if (ret < 0)
 		HDMITX_ERROR("%s: set mode failed\n", __func__);
 	return count;

@@ -37,7 +37,6 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	vic = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AVI_VIC, NULL, NULL);
 	seq_printf(s, "display_mode out:%s\n", hdmitx_mode_get_timing_name(vic));
 
-	seq_printf(s, "attr in:%s\n\r", tx_comm->tst_fmt_attr);
 	seq_puts(s, "attr out:");
 	cs = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AVI_CS, NULL, NULL);
 	switch (cs & 0x3) {
@@ -262,11 +261,11 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	}
 	seq_printf(s, "audio sample size: %s\n", conf);
 
-	if (tx_comm->flag_3dfp)
+	if (tx_comm->fmt_para.flag_3dfp)
 		conf = "FramePacking";
-	else if (tx_comm->flag_3dss)
+	else if (tx_comm->fmt_para.flag_3dss)
 		conf = "SidebySide";
-	else if (tx_comm->flag_3dtb)
+	else if (tx_comm->fmt_para.flag_3dtb)
 		conf = "TopButtom";
 	else
 		conf = "off";

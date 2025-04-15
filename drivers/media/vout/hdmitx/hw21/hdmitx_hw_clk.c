@@ -1254,7 +1254,7 @@ static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 	/* YUV 422 always use 24B mode */
 	if (cs == HDMI_COLORSPACE_YUV422)
 		cd = COLORDEPTH_24B;
-	if (hdev->tx_comm.flag_3dfp) {
+	if (para->flag_3dfp) {
 		p_enc = &setting_3dfp_enc_clk_val[0];
 		for (j = 0; j < sizeof(setting_3dfp_enc_clk_val)
 			/ sizeof(struct hw_enc_clk_val_group); j++) {
@@ -1570,7 +1570,7 @@ static void hdmitx_check_frac_rate(struct hdmitx21_dev *hdev)
 {
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
-	frac_rate = hdev->tx_comm.frac_rate_policy;
+	frac_rate = para->frac_mode;
 	if (para && para->timing.name && likely_frac_rate_mode(para->timing.name)) {
 		;
 	} else {
@@ -1578,7 +1578,7 @@ static void hdmitx_check_frac_rate(struct hdmitx21_dev *hdev)
 		frac_rate = 0;
 	}
 
-	HDMITX_DEBUG("frac_rate = %d\n", hdev->tx_comm.frac_rate_policy);
+	HDMITX_DEBUG("frac_rate = %d\n", para->frac_mode);
 }
 
 /*

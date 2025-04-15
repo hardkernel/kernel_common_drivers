@@ -163,7 +163,7 @@ static int hdmitx_common_do_mode_setting_test(struct hdmitx_common *tx_comm,
 
 	hdmitx_parse_color_attr(attr_str, &new_para.cs, &new_para.cd, &new_para.cr);
 	ret = hdmitx_common_build_format_para(tx_comm, &new_para,
-					      vic, tx_comm->frac_rate_policy,
+					      vic, 0,
 					      new_para.cs, new_para.cd,
 					      HDMI_QUANTIZATION_RANGE_FULL);
 	if (ret < 0) {
@@ -191,7 +191,7 @@ fail:
 	return ret;
 }
 
-int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode)
+int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode, char *test_fmt_attr)
 {
 	int ret = 0;
 	enum hdmi_vic vic;
@@ -221,7 +221,7 @@ int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode)
 	/* return -EINVAL; */
 	/* } */
 	ret = hdmitx_common_do_mode_setting_test(tx_comm,
-					  vic, tx_comm->tst_fmt_attr);
+					  vic, test_fmt_attr);
 	return ret;
 }
 
@@ -565,8 +565,8 @@ int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic videocode)
 			videocode == HDMI_93_3840x2160p24_16x9 ||
 			videocode == HDMI_98_4096x2160p24_256x135) {
 			hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
-		} else if ((!tx_comm->flag_3dfp) && (!tx_comm->flag_3dtb) &&
-				(!tx_comm->flag_3dss)) {
+		} else if ((!para->flag_3dfp) && (!para->flag_3dtb) &&
+				(!para->flag_3dss)) {
 			/* For non-4kx2k mode setting */
 			hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 0, NULL);
 		}

@@ -912,9 +912,10 @@ static void hdmitx_set_clk_(struct hdmitx20_dev *hdev,
 	int i = 0;
 	int j = 0;
 	struct hw_enc_clk_val_group *p_enc = NULL;
-	enum hdmi_vic vic = hdev->tx_comm.fmt_para.vic;
-	enum hdmi_colorspace cs = hdev->tx_comm.fmt_para.cs;
-	enum hdmi_color_depth cd = hdev->tx_comm.fmt_para.cd;
+	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+	enum hdmi_vic vic = para->vic;
+	enum hdmi_colorspace cs = para->cs;
+	enum hdmi_color_depth cd = para->cd;
 	struct hdmitx_hw_common *tx_hw = hdev->tx_comm.tx_hw;
 
 	if (!test_clk)
@@ -924,7 +925,7 @@ static void hdmitx_set_clk_(struct hdmitx20_dev *hdev,
 	if (cs == HDMI_COLORSPACE_YUV422)
 		cd = COLORDEPTH_24B;
 
-	if (hdev->tx_comm.flag_3dfp) {
+	if (para->flag_3dfp) {
 		p_enc = &setting_3dfp_enc_clk_val[0];
 		for (j = 0; j < sizeof(setting_3dfp_enc_clk_val)
 			/ sizeof(struct hw_enc_clk_val_group); j++) {
@@ -1054,7 +1055,7 @@ static void hdmitx_check_frac_rate(struct hdmitx20_dev *hdev)
 	enum hdmi_vic vic = hdev->tx_comm.fmt_para.vic;
 	const struct hdmi_timing *timing = NULL;
 
-	frac_rate = hdev->tx_comm.frac_rate_policy;
+	frac_rate = hdev->tx_comm.fmt_para.frac_mode;
 	timing = hdmitx_mode_vic_to_hdmi_timing(vic);
 	if (timing && timing->name && likely_frac_rate_mode(timing->name)) {
 		;
@@ -1063,7 +1064,7 @@ static void hdmitx_check_frac_rate(struct hdmitx20_dev *hdev)
 		frac_rate = 0;
 	}
 
-	HDMITX_DEBUG("frac_rate = %d\n", hdev->tx_comm.frac_rate_policy);
+	HDMITX_DEBUG("frac_rate = %d\n", hdev->tx_comm.fmt_para.frac_mode);
 }
 
 /*

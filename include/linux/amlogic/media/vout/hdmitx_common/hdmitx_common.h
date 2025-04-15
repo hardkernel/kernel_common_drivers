@@ -251,17 +251,8 @@ struct hdmitx_common {
 	 * 0: yuv; 1: rgb
 	 */
 	u8 in_color_fmt;
-	/* 0.1% clock shift, 1080p60hz->59.94hz */
-	u32 frac_rate_policy;
-	/* for bootargs & sysfs node */
-	char fmt_attr[16];
-	/* for pxp test */
-	char tst_fmt_attr[16];
 	/* Indicates spread spectrum, 1/on 0/off */
 	u32 sspll;
-	u32 flag_3dfp:1;
-	u32 flag_3dtb:1;
-	u32 flag_3dss:1;
 	/* check clk stauts after mode set */
 	struct task_struct *task_clk_check;
 #ifdef CONFIG_AMLOGIC_VPU
@@ -513,10 +504,11 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 				  struct hdmitx_common_state *old);
 int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 				       struct hdmitx_common_state *new_state,
-				       char *mode, char *attr, bool brr_valid);
+				       char *mode,  enum hdmi_colorspace cs,
+				       enum hdmi_color_depth cd, bool brr_valid);
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 			       struct hdmitx_common_state *new_state);
-int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode);
+int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode, char *fmt_attr);
 
 unsigned int hdmitx_get_frame_duration(struct hdmitx_common *tx_comm);
 int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic videocode);
@@ -554,7 +546,7 @@ bool hdmitx_common_get_edid_valid_state(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_hdcp_user_state(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_hdmi_used_state(struct hdmitx_common *tx_comm);
 
-int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16]);
+int hdmitx_get_attr(struct hdmitx_common *tx_comm, int *cs, int *cd);
 
 int hdmitx_get_hdrinfo(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo);
 int hdmitx_get_hdrinfo_rx(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo);
@@ -621,7 +613,6 @@ const struct dv_info *hdmitx_common_get_dv_info_rx(struct hdmitx_common *tx_comm
 const struct hdr_info *hdmitx_common_get_hdr_info(struct hdmitx_common *tx_comm);
 const struct hdr_info *hdmitx_common_get_hdr_info_rx(struct hdmitx_common *tx_comm);
 int hdmitx_common_get_vic_list(struct hdmitx_common *tx_comm, int **vics);
-bool hdmitx_common_chk_mode_attr_sup(struct hdmitx_common *tx_comm, char *mode, char *attr);
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);

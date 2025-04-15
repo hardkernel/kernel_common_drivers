@@ -116,11 +116,11 @@ static void update_vinfo_from_format_para(struct hdmitx_common *tx_comm)
 	calc_vinfo_from_hdmi_timing(tx_comm, &fmtpara->timing, vinfo);
 	/*
 	 * vinfo->info_3d = NON_3D;
-	 * if (tx_comm->flag_3dfp)
+	 * if (fmtpara->flag_3dfp)
 	 *	 vinfo->info_3d = FP_3D;
-	 * if (tx_comm->flag_3dtb)
+	 * if (fmtpara->flag_3dtb)
 	 *	 vinfo->info_3d = TB_3D;
-	 * if (tx_comm->flag_3dss)
+	 * if (fmtpara->flag_3dss)
 	 *	 vinfo->info_3d = SS_3D;
 	 */
 	/* dynamic info, always need set */
