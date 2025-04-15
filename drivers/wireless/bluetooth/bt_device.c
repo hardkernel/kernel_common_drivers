@@ -46,6 +46,7 @@ static struct early_suspend bt_early_suspend;
 #define POWER_EVENT_DEF     0
 #define POWER_EVENT_RESET   1
 #define POWER_EVENT_EN      2
+#define KEY_NETFLIX (133)
 //#define CONTROL_POWER_EN_LINUX
 
 char bt_addr[18] = "";
@@ -331,27 +332,42 @@ static int bt_resume(struct platform_device *pdev)
 {
 	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
 
-	pr_info("bt resume\n");
-
 	btwake_evt = 0;
+	unsigned int rm = get_resume_method();
 
-	if ((get_resume_method() == RTC_WAKEUP) ||
-		(get_resume_method() == AUTO_WAKEUP)) {
+	switch (rm) {
+	case RTC_WAKEUP:
+	case AUTO_WAKEUP:
 		btwake_evt = 1;
-		btirq_flag = 1;
-	    flag_n = 0;
+		btirq_flag = 0;
+		flag_n = 0;
 		flag_p = 0;
 		cnt = 0;
+		break;
+	case BT_WAKEUP:
+		if (!distinguish_module()) {
+			input_event(prdata->pdata->input_dev,
+				EV_KEY, KEY_POWER, 1);
+			input_sync(prdata->pdata->input_dev);
+			input_event(prdata->pdata->input_dev,
+				EV_KEY, KEY_POWER, 0);
+			input_sync(prdata->pdata->input_dev);
+		}
+		break;
+	case REMOTE_CUS_WAKEUP:
+		if (!distinguish_module()) {
+			input_event(prdata->pdata->input_dev,
+				EV_KEY, KEY_NETFLIX, 1);
+			input_sync(prdata->pdata->input_dev);
+			input_event(prdata->pdata->input_dev,
+				EV_KEY, KEY_NETFLIX, 0);
+			input_sync(prdata->pdata->input_dev);
+		}
+		break;
+	default:
+		break;
 	}
-	if (!distinguish_module() && get_resume_method() == BT_WAKEUP) {
-		input_event(prdata->pdata->input_dev,
-			EV_KEY, KEY_POWER, 1);
-		input_sync(prdata->pdata->input_dev);
-		input_event(prdata->pdata->input_dev,
-			EV_KEY, KEY_POWER, 0);
-		input_sync(prdata->pdata->input_dev);
-	}
-
+	pr_info("%s:wakeup reason: %d \r", __func__, rm);
 	return 0;
 }
 
