@@ -9,6 +9,7 @@
 #include <linux/kfifo.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 #include <dt-bindings/display/meson-drm-ids.h>
 #include "vpu-hw/meson_vpu_reg.h"
 #include "meson_drv.h"
@@ -354,7 +355,7 @@ struct meson_vpu_video_layer_info {
 	u32 rotation;
 	u32 repeat_frame;
 	struct vframe_s *vf;
-	struct dma_buf *dmabuf;
+	struct dma_buf *dmabuf[DRM_FORMAT_MAX_PLANES];
 	struct dma_fence *in_fence;
 	bool is_uvm;
 	u32 status_changed;
@@ -365,6 +366,7 @@ struct meson_vpu_video_layer_info {
 struct meson_vpu_disable_work {
 	struct work_struct work;
 	struct meson_vpu_video *video;
+	struct dma_buf *dmabuf[DRM_FORMAT_MAX_PLANES];
 	u32 idx;
 };
 
@@ -380,10 +382,13 @@ struct meson_vpu_video {
 	u32 video_path_reg;
 	bool video_enabled;
 	struct dma_fence *fence;
-	struct dma_buf *dmabuf;
+	struct dma_buf *dmabuf[DRM_FORMAT_MAX_PLANES];
 	struct list_head vfm_node[MESON_MAX_VIDEO];
-	struct workqueue_struct *disable_wq;
 	struct meson_vpu_disable_work worker;
+	struct task_struct *disable_thread;
+	bool disable_thread_should_stop;
+	wait_queue_head_t disable_wq;
+	atomic_t work_pending;
 
 	/* capability of video plane */
 	u32 video_cap;
@@ -436,7 +441,7 @@ struct meson_vpu_video_state {
 	u32 repeat_frame;
 	u32 rotation;
 	struct vframe_s *vf;
-	struct dma_buf *dmabuf;
+	struct dma_buf *dmabuf[DRM_FORMAT_MAX_PLANES];
 	struct dma_fence *in_fence;
 	bool is_uvm;
 	int sec_en;

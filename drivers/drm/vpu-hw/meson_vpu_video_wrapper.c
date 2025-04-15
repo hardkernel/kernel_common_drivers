@@ -53,7 +53,7 @@ static u32 video_bpp_get(u32 pixel_format)
 static void video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	struct video_display_frame_info_t *vf_info)
 {
-	vf_info->dmabuf = mvvs->dmabuf;
+	vf_info->dmabuf = mvvs->dmabuf[0];
 	vf_info->dst_x = mvvs->dst_x;
 	vf_info->dst_y = mvvs->dst_y;
 	vf_info->dst_w = mvvs->dst_w;
@@ -228,16 +228,17 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	mvvs->fb_size[1] = plane_info->fb_size[1];
 	mvvs->vf = plane_info->vf;
 	mvvs->is_uvm = plane_info->is_uvm;
-	mvvs->dmabuf = plane_info->dmabuf;
+	mvvs->dmabuf[0] = plane_info->dmabuf[0];
+	mvvs->dmabuf[1] = plane_info->dmabuf[1];
 	mvvs->crtc_index = plane_info->crtc_index;
 	mvvs->rotation = plane_info->rotation;
 	mvvs->signal_fmt = video_signal_fmt_cov(plane_info->signal_fmt);
 	mvvs->in_fence = plane_info->in_fence;
 
-	MESON_DRM_BLOCK("mvvs->dmabuf-%px old_mvvs->dmabuf-%px\n",
-		mvvs->dmabuf, old_mvvs->dmabuf);
+	MESON_DRM_BLOCK("video->dmabuf-%px plane_info->dmabuf-%px\n", video->dmabuf[0],
+		plane_info->dmabuf[0]);
 
-	if (mvvs->dmabuf != old_mvvs->dmabuf)
+	if (mvvs->dmabuf[0] != old_mvvs->dmabuf[0])
 		mvvs->repeat_frame = 0;
 	else
 		mvvs->repeat_frame = 1;
@@ -266,7 +267,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 
 	MESON_DRM_BLOCK("%s", __func__);
 
-	if (!vblk || !mvvs->dmabuf) {
+	if (!vblk || !mvvs->dmabuf[0]) {
 		MESON_DRM_BLOCK("set_state break for NULL.\n");
 		return;
 	}
@@ -302,7 +303,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		vf->crop[0] = mvvs->src_y;/*crop top*/
 		vf->crop[1] = mvvs->src_x;/*crop left*/
 
-		is_process_drm_vf = is_valid_mod_type(mvvs->dmabuf, PROCESS_DRM);
+		is_process_drm_vf = is_valid_mod_type(mvvs->dmabuf[0], PROCESS_DRM);
 
 		/*
 		 *if video_axis_zoom = 1, means the video anix is
@@ -372,7 +373,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
 
 		vf_info.release_fence = video->fence;
-		vf_info.dmabuf = mvvs->dmabuf;
+		vf_info.dmabuf = mvvs->dmabuf[0];
 		vf_info.dst_x = mvvs->dst_x;
 		vf_info.dst_y = mvvs->dst_y;
 		vf_info.dst_w = mvvs->dst_w;
@@ -485,35 +486,76 @@ static void video_disable_work_func(struct work_struct *works)
 {
 	struct meson_vpu_disable_work *worker = container_of(works,
 		struct meson_vpu_disable_work, work);
+
 #ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
-	video_display_control(worker->idx, 0);
+		video_display_control(worker->idx, 0);
 #endif
+
+	MESON_DRM_BLOCK("dmabuf:%px %px.\n", worker->dmabuf[0], worker->dmabuf[1]);
+
+	if (worker->dmabuf[0])
+		dma_buf_put(worker->dmabuf[0]);
+
+	if (worker->dmabuf[1])
+		dma_buf_put(worker->dmabuf[1]);
+
 	worker->video->video_enabled = 0;
+	worker->dmabuf[0] = NULL;
+	worker->dmabuf[1] = NULL;
+}
+
+static int video_disable_thread_func(void *data)
+{
+	struct meson_vpu_video *video = data;
+
+	while (!kthread_should_stop()) {
+		wait_event_interruptible(video->disable_wq,
+		atomic_read(&video->work_pending) ||
+		kthread_should_stop());
+
+		if (atomic_read(&video->work_pending)) {
+			video_disable_work_func(&video->worker.work);
+			atomic_set(&video->work_pending, 0);
+		}
+	}
+	return 0;
 }
 
 static void video_hw_disable(struct meson_vpu_block *vblk,
 			     struct meson_video_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
-	struct meson_vpu_disable_work *worker;
+	struct meson_vpu_disable_work *worker = &video->worker;
 	struct meson_drm *priv;
+	int i;
 
 	if (!video) {
 		MESON_DRM_BLOCK("disable break for NULL.\n");
 		return;
 	}
 
-	worker = &video->worker;
 	priv = video->base.pipeline->priv;
 
 	DRM_INFO("%s dmabuf(%px), release_fence(%px), video_name(%s)\n",
-			__func__, video->dmabuf, video->fence, video->base.name);
+		__func__, video->dmabuf[0], video->fence, video->base.name);
 	worker->idx = vblk->index;
 	worker->video = video;
-	if (video->disable_wq)
-		queue_work(video->disable_wq, &worker->work);
+
+	for (i = 0; i < 2; i++) {
+		if (video->dmabuf[i]) {
+			worker->dmabuf[i] = video->dmabuf[i];
+			get_dma_buf(video->dmabuf[i]);
+		}
+	}
+
+	if (video->disable_thread) {
+		atomic_set(&video->work_pending, 1);
+		wake_up(&video->disable_wq);
+	}
+
 	video->fence = NULL;
-	video->dmabuf = NULL;
+	video->dmabuf[0] = NULL;
+	video->dmabuf[1] = NULL;
 	priv->disable_video_plane = 1;
 
 	MESON_DRM_BLOCK("%s disable done.\n", video->base.name);
@@ -542,11 +584,30 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 	get_video_src_max_buffer(vblk->index, &w, &h);
 	video->src_max_size = w << 16 | h;
 
-	video->disable_wq = alloc_workqueue("disable_wq",
-				WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
-	INIT_WORK(&video->worker.work, video_disable_work_func);
+	init_waitqueue_head(&video->disable_wq);
+	atomic_set(&video->work_pending, 0);
+	video->disable_thread = kthread_create(video_disable_thread_func,
+	video, "disable_kthread");
+
+	if (!IS_ERR(video->disable_thread)) {
+		set_user_nice(video->disable_thread, -20);
+		wake_up_process(video->disable_thread);
+	} else {
+		video->disable_thread = NULL;
+	}
 
 	MESON_DRM_BLOCK("%s:%s done\n", __func__, video->base.name);
+}
+
+static void video_hw_fini(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_video *video = to_video_block(vblk);
+
+	if (video->disable_thread) {
+		kthread_stop(video->disable_thread);
+		video->disable_thread = NULL;
+	}
+	MESON_DRM_BLOCK("%s:%s done.\n", __func__, video->base.name);
 }
 
 struct meson_vpu_block_ops video_ops = {
@@ -556,4 +617,5 @@ struct meson_vpu_block_ops video_ops = {
 	.disable_video = video_hw_disable,
 	.dump_register = video_dump_register,
 	.init = video_hw_init,
+	.fini = video_hw_fini,
 };

@@ -914,28 +914,37 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	}
 	if (meson_fb->bufp[1] && meson_fb->bufp[1] != meson_fb->bufp[0] &&
 	    (fb->format->format == DRM_FORMAT_NV12 ||
-				  fb->format->format == DRM_FORMAT_NV21))
+				  fb->format->format == DRM_FORMAT_NV21 ||
+				  fb->format->format == DRM_FORMAT_NV61 ||
+				  fb->format->format == DRM_FORMAT_NV16)) {
 		phyaddr1 = am_meson_gem_object_get_phyaddr(drv,
 							   meson_fb->bufp[1],
 							   &fb_size[1]);
+		plane_info->dmabuf[1] = meson_fb->bufp[1]->base.dma_buf;
+		if (!plane_info->dmabuf[1])
+			plane_info->dmabuf[1] = meson_fb->bufp[1]->dmabuf;
+	} else {
+		plane_info->dmabuf[1] = NULL;
+	}
+
 	/* start to get vframe from uvm */
 	if (meson_fb->bufp[0]->is_uvm) {
 		dmabuf = meson_fb->bufp[0]->base.dma_buf;
 		plane_info->vf = get_vf_from_uvm(dmabuf);
 		plane_info->is_uvm = meson_fb->bufp[0]->is_uvm;
-		plane_info->dmabuf = dmabuf;
+		plane_info->dmabuf[0] = dmabuf;
 	} else {
-		plane_info->dmabuf = meson_fb->bufp[0]->base.dma_buf;
+		plane_info->dmabuf[0] = meson_fb->bufp[0]->base.dma_buf;
 		plane_info->vf = NULL;
 		plane_info->is_uvm = 0;
-		if (!plane_info->dmabuf)
-			plane_info->dmabuf = meson_fb->bufp[0]->dmabuf;
+		if (!plane_info->dmabuf[0])
+			plane_info->dmabuf[0] = meson_fb->bufp[0]->dmabuf;
 	}
-	if (!plane_info->dmabuf)
+	if (!plane_info->dmabuf[0])
 		return -EINVAL;
 
-	DRM_DEBUG("%s dmabuf %px, is_uvm %d, vf %px\n",
-		__func__, plane_info->dmabuf, plane_info->is_uvm, plane_info->vf);
+	DRM_DEBUG("dmabuf %px, %px, is_uvm %d, vf %px\n", plane_info->dmabuf[0],
+		plane_info->dmabuf[1], plane_info->is_uvm, plane_info->vf);
 	#else
 	if (!fb)
 		return -EINVAL;
