@@ -896,9 +896,12 @@ am_meson_gem_prime_import_sg_table(struct drm_device *dev,
 		return  ERR_PTR(-ENOMEM);
 	}
 
-	DRM_DEBUG("%s: %px, sg_table %p\n", __func__, meson_gem_obj, sgt);
+	DRM_DEBUG_PRIME("%px, sg_table %px, %d %d\n", meson_gem_obj, sgt,
+		   meson_gem_obj->base.handle_count, dmabuf_is_uvm(attach->dmabuf));
+
 	meson_gem_obj->sg = sgt;
 	meson_gem_obj->addr = sg_dma_address(sgt->sgl);
+	meson_gem_obj->is_uvm = dmabuf_is_uvm(attach->dmabuf);
 	return &meson_gem_obj->base;
 }
 
@@ -915,12 +918,16 @@ struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 		int ret;
 
 		handle = dmabuf->priv;
+		DRM_DEBUG_PRIME("info:%px %px %px\n", dmabuf, handle, handle->ua->obj);
 		if (handle->ua && handle->ua->obj) {
 			ubo = handle->ua->obj;
 
+			DRM_DEBUG_PRIME("dev: %px %px %px\n", ubo->dev, dev, dev->dev);
 			if (ubo->dev == dev->dev) {
 				meson_gem_obj = uvm_to_gem_obj(ubo);
 				drm_gem_object_get(&meson_gem_obj->base);
+				DRM_DEBUG_PRIME("same device-%px %d\n", meson_gem_obj,
+					     meson_gem_obj->base.handle_count);
 				return &meson_gem_obj->base;
 			}
 
@@ -930,7 +937,7 @@ struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 		meson_gem_obj = kzalloc(sizeof(*meson_gem_obj), GFP_KERNEL);
 		if (!meson_gem_obj)
 			return ERR_PTR(-ENOMEM);
-		DRM_DEBUG("%s skeleton uvm alloc %px\n", __func__, meson_gem_obj);
+		DRM_DEBUG_PRIME("skeleton uvm alloc %px\n", meson_gem_obj);
 		meson_gem_obj->base.funcs = &meson_gem_object_funcs;
 		meson_gem_obj->is_uvm = true;
 		meson_gem_obj->ubo.dmabuf = dmabuf;

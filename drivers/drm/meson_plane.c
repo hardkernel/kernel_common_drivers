@@ -15,6 +15,7 @@
 #include <linux/amlogic/media/osd/osd_logo.h>
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
+#include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 #include "meson_plane.h"
 #include "meson_crtc.h"
 #include "meson_vpu.h"
@@ -836,6 +837,47 @@ static int meson_plane_fb_check(struct drm_plane *plane,
 	return 0;
 }
 
+static struct vframe_s *get_vf_from_uvm(struct dma_buf *dmabuf)
+{
+	struct vframe_s *vf = NULL;
+	bool is_dec_vf = false;
+	struct file_private_data *file_private_data = NULL;
+	struct uvm_hook_mod *uhmod;
+
+	if (!dmabuf)
+		return NULL;
+
+	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
+	if (is_dec_vf) {
+		vf = dmabuf_get_vframe(dmabuf);
+		if (vf) {
+			DRM_DEBUG("vframe_type = 0x%x, vframe_flag = 0x%x.\n",
+				vf->type, vf->flag);
+			dmabuf_put_vframe(dmabuf);
+		} else {
+			DRM_DEBUG("vf is NULL.\n");
+		}
+	} else {
+		uhmod = uvm_get_hook_mod(dmabuf,
+						 VF_PROCESS_V4LVIDEO);
+		if (!uhmod) {
+			DRM_DEBUG("uhmod is NULL\n");
+			return NULL;
+		}
+		if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+			DRM_DEBUG("file_private_data is NULL.\n");
+			return NULL;
+		}
+
+		file_private_data = uhmod->arg;
+		uvm_put_hook_mod(dmabuf,
+					 VF_PROCESS_V4LVIDEO);
+		vf = &file_private_data->vf;
+	}
+
+	return vf;
+}
+
 static int meson_video_plane_fb_check(struct drm_plane *plane,
 				      struct drm_plane_state *new_state,
 				struct meson_vpu_video_layer_info *plane_info)
@@ -845,7 +887,7 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 	struct meson_drm *drv = video_plane->drv;
 	struct am_meson_fb *meson_fb;
-	struct uvm_buf_obj *ubo;
+	struct dma_buf *dmabuf;
 	#else
 	struct drm_gem_cma_object *gem;
 	#endif
@@ -878,11 +920,10 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 							   &fb_size[1]);
 	/* start to get vframe from uvm */
 	if (meson_fb->bufp[0]->is_uvm) {
-		ubo = &meson_fb->bufp[0]->ubo;
-		plane_info->vf = dmabuf_get_vframe(ubo->dmabuf);
-		dmabuf_put_vframe(ubo->dmabuf);
+		dmabuf = meson_fb->bufp[0]->base.dma_buf;
+		plane_info->vf = get_vf_from_uvm(dmabuf);
 		plane_info->is_uvm = meson_fb->bufp[0]->is_uvm;
-		plane_info->dmabuf = ubo->dmabuf;
+		plane_info->dmabuf = dmabuf;
 	} else {
 		plane_info->dmabuf = meson_fb->bufp[0]->base.dma_buf;
 		plane_info->vf = NULL;
