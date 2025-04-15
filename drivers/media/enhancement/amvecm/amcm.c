@@ -232,7 +232,7 @@ void write_reg_by_mask(unsigned int addr, unsigned int mask,
 
 	for (i = 0; i < 32; i++) {
 		if (!match_flag &&
-			((mask & (1 << i)) == 1)) {
+			(mask & (1 << i))) {
 			start = i;
 			match_flag = 1;
 			pr_amcm_dbg("[%s] start:%d, match_flag:%d\n",
