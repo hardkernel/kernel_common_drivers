@@ -1606,16 +1606,22 @@ function set_default_parameters () {
 		BUILD_DIR=build
 	fi
 
-	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
-		AUTO_PATCH=False
-	elif [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} ]]; then
+	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  && "${GKI_CONFIG}" == "gki_20" ]]; then
+		DDK_BUILD=1
+	fi
+
+	if [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} ]]; then
 		if [[ "${DDK_BUILD}" == "1" ]]; then
-			PATCH_PARM=lunch
+			if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
+				AUTO_PATCH=False  #google ddk kernel build
+			else
+				PATCH_PARM=lunch  #amlogic trunk ddk kernel build
+			fi
 		else
-			AUTO_PATCH=True
+			AUTO_PATCH=True  #gki2.0 but not ddk build
 		fi
 	else
-		AUTO_PATCH=True
+		AUTO_PATCH=True  #none gki_20
 	fi
 	export AUTO_PATCH
 
