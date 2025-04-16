@@ -336,7 +336,7 @@ static int meson_spicc_config(struct spicc_device *spicc,
 		spicc->cfg_bus.b.ss_leading_gap = 5;
 		spicc->config_ss_trailing_gap = 1;
 		spicc->cfg_bus.b.tx_tuning = 0;
-		spicc->cfg_bus.b.rx_tuning = 7; /* 7 SCLK */
+		spicc->cfg_bus.b.rx_tuning = 0; /* 0 SCLK */
 		spicc->cfg_bus.b.dummy_ctl = 0;
 	}
 
