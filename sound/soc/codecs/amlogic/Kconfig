@@ -88,6 +88,17 @@ config AMLOGIC_SND_CODEC_T6D_ACODEC
 	  AML t6d acodec,
 	  AML t6d acodec,
 	  this codec is internal
+
+config AMLOGIC_SND_CODEC_GXLX4_ACODEC
+	tristate "Amlogic Audio GXLX4 acodec"
+	depends on AMLOGIC_SND_SOC_CODECS
+	default n
+	help
+	  Amlogic Audio codec,
+	  AML gxlx4 acodec,
+	  AML gxlx4 acodec,
+	  this codec is internal
+
 config AMLOGIC_SND_CODEC_A1_ACODEC
 	tristate "Amlogic Audio A1 acodec"
 	depends on AMLOGIC_SND_SOC_CODECS
