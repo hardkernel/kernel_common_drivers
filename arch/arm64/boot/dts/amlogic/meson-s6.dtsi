@@ -2294,7 +2294,7 @@
 		codec_mm_alloc = <1>;
 	};
 
-	amvdec_csi {
+	amvdec_csi: amvdec_csi {
 		compatible = "amlogic, amvdec_csi-s6";
 		status = "okay";
 		csi_id = <0>;

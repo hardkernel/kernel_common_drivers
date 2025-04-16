@@ -799,6 +799,10 @@
 	};
 };
 
+&amvdec_csi {
+	squlech_mode = <1>;
+};
+
 &i2c0 {
 	status = "okay";
 	pinctrl-names="default";
