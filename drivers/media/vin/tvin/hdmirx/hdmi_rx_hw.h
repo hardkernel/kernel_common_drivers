@@ -32,7 +32,8 @@
 /* 2024.1.13 close hdcp auth done irq */
 /* 2024.1.17 correct clk_ctrl register address */
 /* 2025.03.31 fix some 2.1 cts problem */
-#define RX_HW_VER "ver.2025/03/25"
+/* 2025.05.06 set hpd low after cor reset */
+#define RX_HW_VER "ver.2025/05/06"
 
 #define K_TEST_CHK_ERR_CNT
 

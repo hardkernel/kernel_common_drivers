@@ -2718,6 +2718,14 @@ void monitor_hdcp22_sts(void)
 	}
 }
 
+bool rx_is_need_recovery_after_cor_reset(u8 port)
+{
+	//cor rst clear scdc info and may intterupt hdcp and ...
+	//deal with hdcp effect on hdcp monitor
+	//deal with scdc here,to do
+	return rx[port].phy.clk_rate != 0;
+}
+
 void rx_cor_reset(u8 port)
 {
 	u8 rst_lvl;

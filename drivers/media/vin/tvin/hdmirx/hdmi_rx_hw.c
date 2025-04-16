@@ -4025,6 +4025,8 @@ void rx_afifo_monitor(u8 port)
 			afifo_overflow_cnt = 0;
 			hdmirx_output_en(false);
 			hdmirx_cor_reset();
+			if (rx_is_need_recovery_after_cor_reset(port))
+				rx[port].fsm_ext_state = FSM_HPD_LOW;
 			//hdmirx_hbr2spdif(0);
 			//rx_set_cur_hpd(0, 5);
 			//rx[rx_info.main_port].state = FSM_5V_LOST;

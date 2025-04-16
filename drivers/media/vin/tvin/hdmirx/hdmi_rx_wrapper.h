@@ -214,5 +214,6 @@ bool __weak get_video_mute_val(u32 owner)
 
 void rx_monitor_error_counter(u8 port);
 void rx_fsm_print_handler(struct work_struct *work);
+bool rx_is_need_recovery_after_cor_reset(u8 port);
 
 #endif
