@@ -1606,10 +1606,10 @@ function set_default_parameters () {
 		BUILD_DIR=build
 	fi
 
-	if [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} ]]; then
-		if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
-			AUTO_PATCH=False
-		elif [[ "${DDK_BUILD}" == "1" ]]; then
+	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
+		AUTO_PATCH=False
+	elif [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} ]]; then
+		if [[ "${DDK_BUILD}" == "1" ]]; then
 			PATCH_PARM=lunch
 		else
 			AUTO_PATCH=True
