@@ -1962,6 +1962,18 @@
 		status = "okay";
 	};
 
+	v2d {
+		compatible = "amlogic, v2d";
+		dev_name = "v2d";
+		status = "okay";
+	};
+
+	videodisplay {
+		compatible = "amlogic, videodisplay";
+		dev_name = "videodisplay";
+		status = "okay";
+	};
+
 	video_composer {
 		compatible = "amlogic, video_composer";
 		vpu_dma_mask = <1>;  /* 0: <= 4G, 1: > 4G*/
