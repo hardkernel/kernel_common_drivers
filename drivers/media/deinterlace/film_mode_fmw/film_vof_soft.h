@@ -56,6 +56,7 @@
 extern uint pr_pd;
 extern bool prt_flg;
 extern char debug_str[];
+extern int pd_vof;
 
 /* Software: Film Detection and VOF parameters */
 struct sFlmDatSt {

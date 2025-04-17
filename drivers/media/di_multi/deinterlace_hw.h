@@ -838,6 +838,7 @@ struct dvfm_s {
 	unsigned int src_h; //temp
 	void *vf_ext;
 	unsigned int sum_reg_cnt;
+	struct caller_mng_s caller_mng;
 };
 
 struct di_buf_s;
@@ -1077,7 +1078,8 @@ unsigned int dw_get_h(void);
 void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_S *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,
-			unsigned int BADDR);
+			unsigned int BADDR,
+			const struct reg_acc *op_in);
 void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,

@@ -197,6 +197,7 @@ bool dip_plink_check_ponly_dct(struct di_ch_s *pch, struct vframe_s *vframe);
 
 bool dim_config_crc_icl(void);
 unsigned int dim_is_ic_sub(void);
+unsigned int dim_is_ic_link(void);
 
 /************************************************
  * sct

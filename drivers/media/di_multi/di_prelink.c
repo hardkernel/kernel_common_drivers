@@ -31,7 +31,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/video_sink/video.h>
-
+#include <linux/amlogic/media/di/di_interface.h>
 #define MAX_DI_HOLD_CTRL_CNT 20
 #define MAX_SCREEN_RATIO 400
 //#define AUTO_NR_DISABLE		(1)
@@ -2831,6 +2831,7 @@ static enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 		vf = buffer->vf;
 		ndvfm->c.ori_vf = vf;
 		memcpy(&ndvfm->c.vf_in_cp, vf, sizeof(ndvfm->c.vf_in_cp));
+		ndvfm->c.in_dvfm.caller_mng = buffer->caller_mng;
 		dim_dvf_cp(&ndvfm->c.in_dvfm, vf, 0);
 		count_4k(itf, &ndvfm->c.in_dvfm);
 		if (IS_COMP_MODE(ndvfm->c.in_dvfm.vfs.type)) {
@@ -2842,6 +2843,15 @@ static enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 		//buffer_l->phy_addr	= vf->canvas0_config[0].phy_addr;//tmp
 		dim_print("%s:0x%lx\n", __func__,
 			  (unsigned long)vf->canvas0_config[0].phy_addr);
+		dbg_link("empty pre %x,%lx,frame_index=%d,queued=%d,dropped=%d,dummy=%d,file:%px\n",
+			vf->type,
+			vf->canvas0_config[0].phy_addr,
+			vf->frame_index,
+			buffer->caller_mng.queued,
+			buffer->caller_mng.dropped,
+			buffer->caller_mng.dummy,
+			buffer->caller_mng.src_file);
+
 	}
 	flg_q = qin->ops.put(qin, mvf);
 
@@ -2937,12 +2947,14 @@ static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf)
 			PR_ERR("%s:3:%d,%d\n", __func__, i, bindex);
 			continue;
 		}
-		if (buffer->vf)
+		if (buffer->vf) {
 			buffer->vf->decontour_pre = ins->c.vfm_cp.decontour_pre;
-		else
+			buffer->caller_mng = ins->c.caller_mng;
+		} else {
 			PR_WARN("%s:no vf:0x%px,0x%x\n",
 				__func__, buffer,
 				buffer->flag);
+		}
 		ins->c.vfm_cp.decontour_pre = NULL;
 		memset(&ins->c, 0, sizeof(ins->c));
 		qbuf_in(pbufq, QBF_NINS_Q_IDLE, bindex);
@@ -3329,7 +3341,10 @@ int dpvpp_pre_display(struct vframe_s *vfm,
 	}
 	dbg_plink3("diff:0x%x\n", diff);
 	ndvfm->c.sts_diff = diff;//dbg only;
+#ifdef HIS_CODE
+	/* di will not influence FRC work flow*/
 	set_holdreg_by_in_out(vfm, para, op);
+ #endif
 	if (diff & EDIM_DVPP_DIFF_ALL) {
 		dim_print("%s:vfm:0x%px, in_para:0x%px, o:0x%px\n",
 		__func__, vfm, in_para, out_para);
@@ -3715,7 +3730,7 @@ static void dpvpph_size_change(struct dim_pvpp_ds_s *ds,
 #define FIX_CHAN2_DISABLE	(1) //chan2_disable
 /* copy from dimh_enable_di_pre_aml */
 static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
-			    bool pw_en, /* fix 1 for p vpp link ?*/
+			    unsigned int mode_param,
 			    unsigned char pre_vdin_link,
 			    /* fix 0 ? and bypass mem ?*/
 			    void *pre)
@@ -3731,6 +3746,11 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 	u32 val;
 	bool mem_bit8 = 1;
 	bool cp_mode = false;
+	unsigned int sample_value;
+	unsigned int pw_en; /* fix 1 for p vpp link ?*/
+
+	pw_en = mode_param & DI_BIT0;
+	sample_value = mode_param & DI_BIT1;
 
 	if (!pw_en || dim_is_pre_link_l())
 		pre_link_en = 1;
@@ -3803,12 +3823,12 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 					    (pre_vdin_link << 14)	   |
 					    (1 << 21)	| /*chan2 t/b reverse*/
 					    /* under prelink mode, need enable upsample filter */
-					    (2 << 23)  |
+					    (sample_value << 23)  |
 					    /* mode_422c444 [24:23] */
 					    (0 << 25)  |
 					    /* contrd en */
 					    /* under prelink mode, need enable upsample filter */
-					    (2 << 26)  |
+					    (sample_value << 26)  |
 					    /* mode_444c422 [27:26] */
 					    pre_field_num << 29);
 				val = op_in->rd(DI_TOP_PRE_CTRL);
@@ -3844,11 +3864,11 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 					  (1 << 21)	| /*invertNRfield num*/
 					  (1 << 22)	| /* MTN after NR. */
 					  /* under prelink mode, need enable upsample filter */
-					  (2 << 23)  |
+					  (sample_value << 23)  |
 					  /* mode_422c444 [24:23] */
 					  (0 << 25)	| /* contrd en */
 					  /* under prelink mode, need enable upsample filter */
-					  (2 << 26)  |
+					  (sample_value << 26)  |
 					  /* mode_444c422 [27:26] */
 					  ((mem_bypass ? 1 : 0) << 28)   |
 					  pre_field_num << 29);
@@ -4075,6 +4095,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 	struct dvfm_s *dvfm_dm;
 	unsigned int out_fmt;
 	struct pvpp_buf_cfg_s *buf_cfg;
+	struct di_buffer *buffer;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 
@@ -4318,6 +4339,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 	out_dvfm->src_w = ndvfm->c.src_w;
 	out_dvfm->vf_ext = ndvfm->c.ori_vf;
 	out_dvfm->sum_reg_cnt = itf->sum_reg_cnt;
+	out_dvfm->caller_mng = ndvfm->c.in_dvfm.caller_mng;
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
 		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_in;
@@ -4356,6 +4378,11 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 		vtype_fill_d(itf, vfm, &ndvfm->c.vf_in_cp, &ndvfm->c.out_dvfm);
 		dim_print("%s:link\n", __func__);
 		didbg_vframe_out_save(itf->bind_ch, vfm, 6);
+		if (itf->etype == EDIM_NIN_TYPE_INS) {
+			buffer = &itf->buf_bf[vfm->index];
+			buffer->caller_mng = out_dvfm->caller_mng;
+		}
+
 		dpvpp_put_ready_vf(itf, ds, vfm);
 
 		return true;
@@ -4445,7 +4472,7 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 			op->wr(DI_AFBCE0_HOLD_CTRL, 0x0);
 			op->wr(DI_AFBCE1_HOLD_CTRL, 0x0);
 		}
-		if (DIM_IS_IC(T6D)) {
+		if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4)) {
 			dbg_plink1("c_sw:t6d\n");
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 9, 1);
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 8, 1);
@@ -4528,6 +4555,7 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	struct pvpp_buf_cfg_s *buf_cfg;
 	unsigned short t5d_cnt;
 	unsigned int cp_mode = 0;
+	unsigned int sample_mode = 2;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 	/* ndvfm_last */
@@ -4554,6 +4582,9 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 		in_dvfm->vfs.width = winc->x_size;
 		in_dvfm->vfs.height = winc->y_size;
 	}
+
+	if (DIM_IS_IC(T6D) && in_dvfm->vfs.width <= 1280)
+		sample_mode = 0;
 
 	ds->mif_wr.tst_not_setcontr = 0;
 	if (dim_is_pre_link_l() || !hw->en_pst_wr_test) { //tmp
@@ -4676,6 +4707,15 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 			dpvpph_pre_to_link();
 			afbcd_enable_only_t5dvb(op_in, true);
 			dpvpph_prelink_sw(op_in, true);
+		} else {
+			if (DIM_IS_IC(T6D)) {
+				if (in_dvfm->vfs.type & VIDTYPE_COMPRESS) {
+					dim_print("vf type:0x%x\n", in_dvfm->vfs.type);
+					afbcd_enable_only_t5dvb(op_in, true);
+				} else {
+					dim_print("no-afbc :0x%x\n", in_dvfm->vfs.type);
+				}
+			}
 		}
 	}
 	/* mif in*/
@@ -4789,7 +4829,7 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	if (cp_mode)
 		bypass_mem |= DI_BIT2;
 	dpvpph_enable_di_pre_aml(hw->op,
-				 hw->en_pst_wr_test, bypass_mem << 4, NULL);
+				 hw->en_pst_wr_test | sample_mode, bypass_mem << 4, NULL);
 	dct_pst(hw->op, ndvfm);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* enable mc pre mif*/
@@ -4889,6 +4929,7 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	struct dim_pvpp_hw_s *hw;
 	unsigned short t5d_cnt;
 	unsigned int cp_mode = 0;
+	unsigned int sample_mode = 2;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 
@@ -4913,6 +4954,8 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 		in_dvfm->vfs.width = winc->x_size;
 		in_dvfm->vfs.height = winc->y_size;
 	}
+	if (DIM_IS_IC(T6D) && in_dvfm->vfs.width <= 1280)
+		sample_mode = 0;
 
 	ds->mif_wr.tst_not_setcontr = 0;
 	if (dim_is_pre_link_l() || !hw->en_pst_wr_test) { //tmp
@@ -5130,7 +5173,7 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	if (cp_mode)
 		bypass_mem |= DI_BIT2;
 	dpvpph_enable_di_pre_aml(hw->op,
-				 hw->en_pst_wr_test, bypass_mem << 4, NULL);
+				 hw->en_pst_wr_test | sample_mode, bypass_mem << 4, NULL);
 	dct_pst(hw->op, ndvfm);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* enable mc pre mif*/

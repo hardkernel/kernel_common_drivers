@@ -73,8 +73,6 @@
 
 #include "register.h"
 #include "nr_downscale.h"
-#include "../deinterlace/deinterlace_dbg.h"
-
 
 #include "di_pre.h"
 #include "di_post.h"
@@ -223,10 +221,16 @@ bool mm_codec_alloc(const char *owner, size_t count,
 	if (cma_mode == 4 && !istvp)
 		flags = CODEC_MM_FLAGS_CMA_FIRST |
 			CODEC_MM_FLAGS_CPU;
-	o->addr = codec_mm_alloc_for_dma(owner,
-					 count,
+	o->mem_handle = codec_mm_alloc(owner,
+					 count << PAGE_SHIFT,
 					 0,
-					 flags);
+					 flags,
+					 -1);
+	if (!o->mem_handle) {
+		PR_ERR("%s: failed\n", __func__);
+		return false;
+	}
+	o->addr = o->mem_handle->phy_addr;
 	if (o->addr == 0) {
 		PR_ERR("%s: failed\n", __func__);
 		return false;
@@ -271,13 +275,13 @@ bool dim_mm_alloc(int cma_mode, size_t count, struct dim_mm_s *o,
 bool dim_mm_release(int cma_mode,
 		    struct page *pages,
 		    int count,
-		    unsigned long addr)
+		    struct codec_mm_s *mm)
 {
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	bool ret = true;
 
 	if (cma_mode == 3 || cma_mode == 4)
-		codec_mm_free_for_dma(DEVICE_NAME, addr);
+		codec_mm_release(mm, DEVICE_NAME);
 	else
 		ret = dma_release_from_contiguous(&de_devp->pdev->dev,
 						  pages,
@@ -304,6 +308,7 @@ bool cma_alloc_blk_block(struct dim_mm_blk_s *blk_buf,
 	}
 	blk_buf->pages	= omm.ppage;
 	blk_buf->mem_start	= omm.addr;
+	blk_buf->mem_handle	= omm.mem_handle;
 	blk_buf->flg.b.page	= size_page;
 	blk_buf->flg_alloc	= true;
 	return true;
@@ -320,10 +325,11 @@ void cma_release_blk_block(struct dim_mm_blk_s *blk_buf,
 	dim_mm_release_api(cma_type,
 			   blk_buf->pages,
 			   blk_buf->flg.b.page,
-			   blk_buf->mem_start);
+			   blk_buf->mem_handle);
 	blk_buf->pages = NULL;
 	blk_buf->flg.d32 = 0;
 	blk_buf->flg_alloc = false;
+	blk_buf->mem_handle = NULL;
 }
 
 unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
@@ -339,6 +345,7 @@ unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
 	if (!ret) /*failed*/
 		return 0;
 	mmt->mem_start = omm.addr;
+	mmt->mem_handle = omm.mem_handle;
 	mmt->total_pages = omm.ppage;
 	return 1;
 }
@@ -355,10 +362,11 @@ static bool dim_cma_release_total(void)
 	}
 	ret = dim_mm_release(cfgg(MEM_FLAG), mmt->total_pages,
 			     mmt->mem_size >> PAGE_SHIFT,
-			     mmt->mem_start);
+			     mmt->mem_handle);
 	if (ret) {
 		mmt->total_pages = NULL;
 		mmt->mem_start = 0;
+		mmt->mem_handle = NULL;
 		mmt->mem_size = 0;
 		lret = true;
 	} else {
@@ -382,11 +390,11 @@ bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o,
 bool dim_mm_release_api(int cma_mode,
 			struct page *pages,
 			int count,
-			unsigned long addr)
+			struct codec_mm_s *mm)
 {
 	bool ret = false;
 #ifdef CONFIG_CMA
-	ret = dim_mm_release(cma_mode, pages, count, addr);
+	ret = dim_mm_release(cma_mode, pages, count, mm);
 #endif
 	return ret;
 }
@@ -670,7 +678,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 					     blk_buf->pages,
 					     //blk_buf->size_page,
 					     blk_buf->flg.b.page,
-					     blk_buf->mem_start);
+					     blk_buf->mem_handle);
 			if (ret) {
 				dbg_mem2("blk r:%d:st[0x%lx] size_p[0x%x]\n",
 					 blk_buf->header.index,
@@ -751,7 +759,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 					     blk_buf->pages,
 					     //blk_buf->size_page,
 					     blk_buf->flg.b.page,
-					     blk_buf->mem_start);
+					     blk_buf->mem_handle);
 			if (ret) {
 				dbg_mem2("blk r:%d:st[0x%lx] size_p[0x%x]\n",
 					 blk_buf->header.index,
@@ -828,6 +836,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 
 			blk_buf->mem_start	= omm.addr;
 			blk_buf->pages		= omm.ppage;
+			blk_buf->mem_handle	= omm.mem_handle;
 			blk_buf->flg.d32	= cmd->flg.d32;
 			//blk_buf->size_page	= cmdbyte->b.page;
 
@@ -1525,6 +1534,9 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 	dbg_mem2("\t:%s: adr:0x%lx,size:%d\n", "nr",
 		 buf_p->nr_adr,
 		 mm->cfg.nr_size);
+	dbg_mem2("\t:%s: adr:0x%lx,size:%d\n", "nr",
+		 buf_p->nr_uv_adr,
+		 mm->cfg.y_size);
 	#endif
 	//msleep(100);
 	#ifdef DBG_TEST_CRC_P
@@ -2121,7 +2133,9 @@ bool mem_cfg(struct di_ch_s *pch)
 }
 
 #ifdef AFBC_DBG
-unsigned int sleep_cnt;
+static unsigned int sleep_cnt;
+module_param(sleep_cnt, uint, 0664);
+MODULE_PARM_DESC(sleep_cnt, "debug sleep_cnt");
 #endif
 
 /************************************************
@@ -3888,6 +3902,13 @@ static const struct di_meson_data  data_t6d = {
 		IC_SUPPORT_POST_VPP_LINK
 };
 
+static const struct di_meson_data  data_gxlx4 = {
+	.name = "dim_gxlx4",// base on t6d
+	.ic_id	= DI_IC_ID_GXLX4,
+	.support = IC_SUPPORT_TB	|
+		IC_SUPPORT_POST_VPP_LINK
+};
+
 #endif
 
 /* #ifdef CONFIG_USE_OF */
@@ -3929,6 +3950,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_s7d,
 	}, {	.compatible = "amlogic, dim-t6d",
 		.data = &data_t6d,
+	}, {	.compatible = "amlogic, dim-gxlx4",
+	.data = &data_gxlx4,
 #endif
 	}, {}
 };
@@ -3977,7 +4000,7 @@ static int dim_probe(struct platform_device *pdev)
 		PR_ERR("%s: failed to create class\n", __func__);
 		goto fail_class_create;
 	}
-	di_attr_create(di_pdev->pclss);
+
 	di_devp = di_pdev;
 	/* *********new********* */
 	di_pdev->data_l = NULL;
@@ -4074,17 +4097,6 @@ static int dim_probe(struct platform_device *pdev)
 
 	//di_pr_info("%s allocate rdma channel %d.\n", __func__,
 	//	   di_devp->rdma_handle);
-	if (is_meson_g12a_cpu()	||
-	    is_meson_g12b_cpu()	||
-	    is_meson_tl1_cpu()	||
-	    is_meson_tm2_cpu()	||
-	    DIM_IS_IC(T5)	||
-	    DIM_IS_IC(T5DB)	||
-	    DIM_IS_IC(T5D)	||
-	    is_meson_sm1_cpu()	||
-	    DIM_IS_IC_EF(SC2))
-		dimp_set(edi_mp_clock_low_ratio, 18000000);
-
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
@@ -4232,7 +4244,7 @@ static int dim_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
 	register_media_cooling();
 #endif
-	PR_INF("%s:ok\n", __func__);
+	PR_INF("%s: ok\n", __func__);
 	return ret;
 
 fail_cdev_add:
@@ -4356,7 +4368,7 @@ static void dim_shutdown(struct platform_device *pdev)
 
 	if (is_meson_txlx_cpu())
 		dim_top_gate_control(true, true);
-	else
+	else if (DIM_IS_IC_BF(TXLX))
 		DIM_DI_WR(DI_CLKG_CTRL, 0x2);
 
 	if (!is_meson_txlx_cpu())

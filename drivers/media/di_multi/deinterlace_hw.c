@@ -250,6 +250,9 @@ static void crc_init(void)//debug crc init
 		return;
 	if (DIM_IS_IC_EF(SC2))
 		DIM_DI_WR_REG_BITS(DI_CRC_CHK0, 0x7, 0, 3);
+	else if ((DIM_IS_IC(T5)) || (DIM_IS_IC(T5D)))
+		dbg_tst("just for coverity\n");
+		//test crc DIM_DI_WR_REG_BITS(DI_T5_CRC_CHK0, 0x7, 0, 3);
 }
 
 void dimh_init_field_mode(unsigned short height)
@@ -1269,12 +1272,6 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					    (0 << 25)		| /* contrd en */
 					    ((mem_bypass ? 1 : 0) << 28)   |
 					    pre_field_num << 29);
-			if (DIM_IS_IC(S7D)) {
-				DIM_RDMA_WR_BITS(DI_WRARB_UGT_L1C1, 0x3, 4, 2);
-				DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 1, 1);
-				DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 3, 1);
-				dbg_reg("205d:0x%x 37ca:0x%x\n", RD(0x205d), RD(0x37ca));
-			}
 		}
 	} else {
 		if (madi_en) {
@@ -3002,12 +2999,14 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 				di_mif1_linear_rd_cfg(di_mtnprd_mif,
 						      T6D_MTNRD_CTRL1,
 						      T6D_MTNRD_CTRL2,
-						      T6D_MTNRD_BADDR);
+						      T6D_MTNRD_BADDR,
+						      op);
 			else if (di_mtnprd_mif->linear)
 				di_mif1_linear_rd_cfg(di_mtnprd_mif,
 						      MTNRD_CTRL1,
 						      MTNRD_CTRL2,
-						      MTNRD_BADDR);
+						      MTNRD_BADDR,
+						      op);
 			else
 				DIM_VSC_WR_MPG_BT(MTNRD_CTRL1,
 						  di_mtnprd_mif->canvas_num, 16, 8);
@@ -4301,6 +4300,9 @@ void dim_pre_gate_control_sc2(bool gate, bool mc_enable)
 			/* disable me clk gate */
 			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 1, 12, 2);
 		}
+		if (IS_IC(dil_get_cpuver_flag(), GXLX4) ||
+			    (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1))
+			DIM_DI_WR_REG_BITS(NR2_SW_EN, 1, 10, 2);
 	}
 }
 
@@ -4421,12 +4423,12 @@ static bool di_pre_idle(void)
 {
 	bool ret = false;
 
-	if (DIM_IS_IC_EF(S5) && !DIM_IS_IC(S7D) && !DIM_IS_IC(T6D)) {
+	if (DIM_IS_IC_EF(S5) && !DIM_IS_IC(S7D) && !DIM_IS_IC(T6D) && !DIM_IS_IC(GXLX4)) {
 		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
 			PRE_ID_MASK_S5) == PRE_ID_MASK_S5)
 			ret = true;
 	} else if ((DIM_IS_IC_EF(T3) || DIM_IS_IC(T5D) || DIM_IS_IC(T5DB) ||
-	    DIM_IS_IC(T5) || DIM_IS_IC(T6D)) && !DIM_IS_IC(S7D)) {
+	    DIM_IS_IC(T5) || DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4)) && !DIM_IS_IC(S7D)) {
 		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
 			PRE_ID_MASK_T5) == PRE_ID_MASK_T5)
 			ret = true;
@@ -4497,6 +4499,14 @@ void dim_arb_sw(bool on)
 				}
 				if (!di_pre_idle())
 					PR_ERR("%s:2\n", __func__);
+				dim_print("%s:%x,%x,%x,%x,%x,%x,%x\n", __func__,
+					DIM_RDMA_RD(REG_VPU_ARB_DBG_STAT_L1C1),
+					DIM_RDMA_RD(0x17c7),
+					DIM_RDMA_RD(0x17c9),
+					DIM_RDMA_RD(0x1700),
+					DIM_RDMA_RD(0x1701),
+					DIM_RDMA_RD(0x37cd),
+					DIM_RDMA_RD(0x1730));
 			}
 		}
 		if (di_pre_idle())
@@ -4548,9 +4558,6 @@ void di_async_txhd2(void)
 {
 	unsigned int mask, val1, val2, val3;
 
-	if (!DIM_IS_IC_TXHD2 && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T3) && !DIM_IS_IC(S7D))
-		return;
-
 	/* reset inp/mem/nr wr mif */
 	mask = 0x5400;
 	val1 = RD(VIUB_SW_RESET);
@@ -4563,6 +4570,10 @@ void di_async_txhd2(void)
 		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 1, 22, 1);
 		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 0, 22, 1);
 	}
+	/* for arb update mcvec write mif UGT*/
+	DIM_RDMA_WR_BITS(DI_WRARB_UGT_L1C1, 0x3, 4, 2);
+	DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 1, 1);
+	DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 3, 1);
 	/* reset di axi arb */
 	//DIM_RDMA_WR_BITS(VIUB_SW_RESET0, 1, 14, 1);
 	//DIM_RDMA_WR_BITS(VIUB_SW_RESET0, 0, 14, 1);
@@ -4955,6 +4966,9 @@ void dimh_combing_pd22_window_config(unsigned int width, unsigned int height)
 
 void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 {
+	unsigned int i = 0;
+	unsigned int blend_arry[] = {0, 1, 2, 3, 0, 1, 2};
+	int arry_length = ARRAY_SIZE(blend_arry);
 	if (DIM_IS_REV(SC2, MAJOR)) {
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
 				  wins->regs[0].win_vs, 17, 12);
@@ -5021,46 +5035,53 @@ void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 			? 1 : 0, 16, 1);
 	}
 
+	for (i = 0; i < 4; i++) {
+		if (wins->regs[i].blend_mode > arry_length - 1) {
+			pr_err("regs[%d]:blend_mode is over size\n", i);
+			wins->regs[i].blend_mode = PULL_DOWN_EI;
+		}
+	}
+
 	if (DIM_IS_REV(SC2, SUB)) {
-		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[0].blend_mode,
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_arry[wins->regs[0].blend_mode],
 			8, 2);
 		set_sc2overlap_table(DI_BLEND_CTRL,
 				  (wins->regs[1].win_ve > wins->regs[1].win_vs)
 				  ? 1 : 0, 17, 1);
-		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[1].blend_mode,
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_arry[wins->regs[1].blend_mode],
 			10, 2);
 
 		set_sc2overlap_table(DI_BLEND_CTRL,
 				  (wins->regs[2].win_ve > wins->regs[2].win_vs)
 				  ? 1 : 0, 18, 1);
-		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[2].blend_mode,
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_arry[wins->regs[2].blend_mode],
 			12, 2);
 
 		set_sc2overlap_table(DI_BLEND_CTRL,
 				  (wins->regs[3].win_ve > wins->regs[3].win_vs)
 				  ? 1 : 0, 19, 1);
-		set_sc2overlap_table(DI_BLEND_CTRL,
-				  wins->regs[3].blend_mode, 14, 2);
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_arry[wins->regs[3].blend_mode],
+			14, 2);
 	} else {
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[0].blend_mode,
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_arry[wins->regs[0].blend_mode],
 			8, 2);
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
 				  (wins->regs[1].win_ve > wins->regs[1].win_vs)
 				  ? 1 : 0, 17, 1);
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[1].blend_mode,
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_arry[wins->regs[1].blend_mode],
 			10, 2);
 
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
 				  (wins->regs[2].win_ve > wins->regs[2].win_vs)
 				  ? 1 : 0, 18, 1);
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[2].blend_mode,
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_arry[wins->regs[2].blend_mode],
 			12, 2);
 
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
 				  (wins->regs[3].win_ve > wins->regs[3].win_vs)
 				  ? 1 : 0, 19, 1);
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
-				  wins->regs[3].blend_mode, 14, 2);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_arry[wins->regs[3].blend_mode],
+			14, 2);
 	}
 }
 

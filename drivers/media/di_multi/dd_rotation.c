@@ -327,7 +327,7 @@ enum RT_BYPASS_ID {
 	RT_BYPASS_EOS,
 };
 
-static unsigned int _bypass_checkvf(struct vframe_s *vf)
+static unsigned int _bypasse_checkvf(struct vframe_s *vf)
 {
 	unsigned int x, y;
 
@@ -374,7 +374,7 @@ static u32 _is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 
 	ret = _bypass_checkother(pch);
 	if (!ret && vf)
-		ret = _bypass_checkvf(vf);
+		ret = _bypasse_checkvf(vf);
 	//debug only
 	if (pch->c.last_bypass != ret) {
 		PR_INF("%s:ch[%d]:%d->%d\n", __func__,

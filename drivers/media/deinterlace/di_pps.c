@@ -211,6 +211,19 @@ static int chroma_filter_table[] = {
 	COEF_3D_FILTER		  /* can not change */
 };
 
+static unsigned int vert_scaler_filter = 0xff;
+module_param_named(di_vert_scaler_filter, vert_scaler_filter, uint, 0664);
+
+static unsigned int vert_chroma_scaler_filter = 0xff;
+module_param_named(di_vert_chroma_scaler_filter, vert_chroma_scaler_filter,
+		   uint, 0664);
+
+static unsigned int horz_scaler_filter = 0xff;
+module_param(horz_scaler_filter, uint, 0664);
+MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
+
+bool pre_scaler_en = true;
+module_param_named(di_pre_scaler_en, pre_scaler_en, bool, 0664);
 #endif
 unsigned int di_filt_coef0[] =   //bicubic
 {

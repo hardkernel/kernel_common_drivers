@@ -743,6 +743,7 @@ struct di_hdct_s {
 	struct dim_nins_s *curr_nins;
 	unsigned int statusx[DI_CHANNEL_MAX]; /* read only */
 	unsigned int statust;/* read only */
+	bool flag_nv21;
 };
 
 struct di_dct_ops_s {
@@ -1414,6 +1415,7 @@ struct di_mm_cfg_s {
 	unsigned int size_local_page;/*2020 for blk*/
 	unsigned int size_post_page;/*2020 for blk*/
 	unsigned int nr_size;
+	unsigned int y_size;
 	unsigned int count_size;
 	unsigned int mcinfo_size;
 	unsigned int mv_size;
@@ -1472,6 +1474,7 @@ struct dim_mm_t_s {
 	unsigned long	mem_start;
 	unsigned int	mem_size;
 	struct page	*total_pages;
+	struct codec_mm_s *mem_handle;
 };
 
 struct di_mm_st_s {
@@ -1756,6 +1759,7 @@ struct dim_sub_mem_s {
 	unsigned long	mem_start;
 	struct page	*pages;
 	unsigned int	cnt;
+	struct codec_mm_s *mem_handle;
 };
 
 #define DIM_BLK_NUB	25 /* buf number*/
@@ -1777,6 +1781,7 @@ struct dim_mm_blk_s {
 	struct dim_sub_mem_s	*hf_buff;
 	bool	flg_hf;
 	atomic_t	p_ref_mem;
+	struct codec_mm_s *mem_handle;
 };
 
 /*que buf block end*/
@@ -1930,6 +1935,7 @@ struct dsub_nins_s {
 	struct vframe_s vfm_cp;
 	struct dim_wmode_s	wmode; /*tmp*/
 	unsigned int cnt;
+	struct caller_mng_s caller_mng;
 };
 
 struct dim_nins_s {
@@ -1950,7 +1956,7 @@ enum QBF_NDIS_Q_TYPE {
 	QBF_NDIS_Q_NUB,
 };
 
-#define DIM_NDIS_NUB	(POST_BUF_NUM - 2) /* buf number*/
+#define DIM_NDIS_NUB	(18) /* buf number*/
 
 struct dsub_ndis_s {
 	struct di_buf_s *di_buf;
@@ -2162,6 +2168,7 @@ struct di_ch_s {
 	unsigned int sts_keep	: 1,
 			rev	: 31;
 	struct di_ch_sub_s c;
+	bool buf_420;
 };
 
 struct dim_policy_s {

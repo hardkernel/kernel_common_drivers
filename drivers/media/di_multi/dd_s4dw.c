@@ -616,7 +616,7 @@ enum ES4DW_BYPASS_ID {
 	ES4DW_BYPASS_EOS,
 };
 
-static unsigned int s4dw_bypass_checkvf(struct vframe_s *vf)
+static unsigned int s4dw_bypasse_checkvf(struct vframe_s *vf)
 {
 	unsigned int x, y;
 
@@ -664,7 +664,7 @@ static u32 s4dw_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 
 	ret = s4dw_bypass_checkother(pch);
 	if (!ret && vf)
-		ret = s4dw_bypass_checkvf(vf);
+		ret = s4dw_bypasse_checkvf(vf);
 	//debug only
 	if (pch->c.last_bypass != ret) {
 		PR_INF("%s:ch[%d]:%d->%d\n", __func__,

@@ -380,6 +380,27 @@ static unsigned int combing_very_p_480i[] = {
 	0x00000131
 };
 
+static unsigned int combing_very_p_480i_t6d[] = {
+	0x00202015,	/* 0 */
+	0x1A1A3A62,	/* 1 */
+	0x15200301,	/* 2 */
+	0x01200440,	/* 3 */
+	0x32210404,	/* 4 */
+	0x0D5A1520,	/* 5 */
+	0x0A0A0201,	/* 6 */
+	0x1A1A2662,	/* 7 */
+	0x0D200302,	/* 8 */
+	0x04040606,	/* 9 */
+	0x05080344,	/* 10 */
+	/*idea from mingliang.dong & vlsi zheng.bao begin*/
+	0x60000404, /* 0x40020a04*/
+	0x0001FF12, /* 0x0001ff0c */
+	0x00200204, /* 0x00400204 */
+	0x00012002, /* 0x00016404 */
+	/*idea from mingliang.dong & vlsi zheng.bao end*/
+	0x00000131
+};
+
 static unsigned int di_mtn_p_mode;
 
 void com_patch_pre_sw_set(unsigned int mode)
@@ -408,8 +429,12 @@ void com_patch_pre_sw_set(unsigned int mode)
 	} else if (mode == 2) {
 		memcpy(p1, &combing_bias_p_480i[0],
 		       sizeof(combing_bias_p_480i));
-		memcpy(p2, &combing_very_p_480i[0],
-		       sizeof(combing_very_p_480i));
+		if (IS_IC(dil_get_cpuver_flag(), T6D) && dim_is_link() == 1)
+			memcpy(p2, &combing_very_p_480i_t6d[0],
+			       sizeof(combing_very_p_480i_t6d));
+		else
+			memcpy(p2, &combing_very_p_480i[0],
+			       sizeof(combing_very_p_480i));
 		di_mtn_p_mode = 2;
 	}
 }
@@ -704,6 +729,8 @@ unsigned int adp_set_mtn_ctrl10(unsigned int diff, unsigned int dlvel,
 	int istp = 0, idats = 0, idatm = 0, idatr = 0;
 	unsigned int rst = 0;
 
+	if (IS_IC(dil_get_cpuver_flag(), T6D) && dim_is_link() == 1)
+		combing_pure_still_setting[9] = 0x04040606;
 	if (
 		(frame_diff_avg < small_local_mtn) &&
 		(frame_diff_avg > small_local_mtn1))
@@ -1131,13 +1158,18 @@ void adaptive_combing_new(unsigned int field_diff,
 		DI_Wr(0x1742, 0x15200101);
 		DI_Wr(0x1743, 0x01200440);
 		DI_Wr(0x1744, 0x74200D0D);
-		DI_Wr(0x17ad, 0x02020606);
 		DI_Wr(0x17ae, 0x05080304);
 		DI_Wr(0x17a9, 0x0D5A1520);
 		DI_Wr(0x17aa, 0x0A0A0201);
 		DI_Wr(0x17ab, 0x1A1A2662);
 		DI_Wr(0x17ac, 0x0D200302);
 		DI_Wr(0x17af, 0x40020a04);
+		if ((IS_IC(dil_get_cpuver_flag(), T6D) ||
+			IS_IC(dil_get_cpuver_flag(), T5DB)) &&
+			(dim_is_link() == 1))
+			DI_Wr(0x17ad, 0x04040606);
+		else
+			DI_Wr(0x17ad, 0x02020606);
 		//pr_info("F TEST\n");
 	} else {
 		DI_Wr(0x1741, 0x0A0A1A22);

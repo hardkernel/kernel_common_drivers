@@ -429,6 +429,8 @@ static bool dpvpp_post_bypass(struct dimn_itf_s *itf,
 					buffer->vf->di_flag &=
 						~(DI_FLAG_DI_PSTVPPLINK | DI_FLAG_DI_LOCAL_BUF);
 					buffer->vf->di_flag |= DI_FLAG_DI_PVPPLINK_BYPASS;
+					if (di_buf)
+						buffer->caller_mng = di_buf->caller_mng;
 				}
 				dvfm->c.di_buf = NULL;
 				if (di_buf)
@@ -603,10 +605,11 @@ static void dpvpp_post_fill_outvf(struct vframe_s *vfm,
 	}
 	dbg_plink2("%s bitdepth: 0x%x\n", __func__, vfm->bitdepth);
 #endif
-	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T5)) {
+	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T5) || DIM_IS_IC(T6D)) {
 		if (di_reverse)
 			vfm->flag |= (VFRAME_FLAG_MIRROR_H |
 			VFRAME_FLAG_MIRROR_V);
+		dbg_plink2("%s di_reverse: 0x%x\n", __func__, di_reverse);
 	}
 }
 
@@ -680,6 +683,7 @@ static void dpvpp_post_feed_buffer(struct dimn_itf_s *itf,
 	memset(&ndvfm->c, 0, sizeof(ndvfm->c));
 	ndvfm->c.cnt_in = itf->c.sum_pre_get;
 	ndvfm->c.di_buf = di_buf;
+	ndvfm->c.di_buf->caller_mng = di_buf->caller_mng;
 	ndvfm->c.ori_in = dpvpp_get_bypass_post_frame(itf->bind_ch, di_buf);
 	if (ndvfm->c.ori_in) {
 		is_bypass = true;
@@ -762,6 +766,7 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 	struct dvfm_s *dvfm_dm;
 	unsigned int out_fmt;
 	struct pvpp_dis_para_in_s *dis_para_demo;
+	struct di_buffer *buffer;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 
@@ -828,7 +833,8 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 
 		memcpy(dvfm_dm,
 			   in_dvfm, sizeof(*in_dvfm));
-		dim_dvf_type_p_change(dvfm_dm, out_fmt);
+		if (chg != 2)
+			dim_dvf_type_p_change(dvfm_dm, out_fmt);
 		dvfm_dm->flg_afbce_set = false;
 		if (itf->etype == EDIM_NIN_TYPE_VFM)
 			dvfm_dm->is_itf_vfm = 1;
@@ -925,6 +931,8 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 	out_dvfm->src_w = ndvfm->c.src_w;
 	out_dvfm->vf_ext = ndvfm->c.ori_vf;
 	out_dvfm->sum_reg_cnt = itf->sum_reg_cnt;
+	out_dvfm->caller_mng = ndvfm->c.di_buf->caller_mng;
+
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
 		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_in;
@@ -940,6 +948,10 @@ static bool dpvpp_fill_post_frame(struct dimn_itf_s *itf)
 	post_vtype_fill_d(itf, vfm, &ndvfm->c.vf_in_cp, &ndvfm->c.out_dvfm);
 	dim_print("%s:link\n", __func__);
 	didbg_vframe_out_save(itf->bind_ch, vfm, 6);
+	if (itf->etype == EDIM_NIN_TYPE_INS) {
+		buffer = &itf->buf_bf[vfm->index];
+		buffer->caller_mng = out_dvfm->caller_mng;
+	}
 	dpvpp_put_ready_vf(itf, ds, vfm);
 	return true;
 }
@@ -1113,12 +1125,23 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 	dim_secure_sw_post(channel);
 	dim_ddbg_mod_save(EDI_DBG_MOD_POST_SETB, channel, ppost->frame_cnt);
 	/* make sure the height is even number */
-	di_start_x = para->win.x_st;
 	di_width = para->win.x_size;
-	di_end_x = di_width + di_start_x - 1;
-	di_start_y = para->win.y_st;
 	di_height = para->win.y_size;
-	di_end_y = di_height + di_start_y - 1;
+	if (di_reverse && (DIM_IS_IC(T5DB) || DIM_IS_IC(T5) || DIM_IS_IC(T6D))) {
+		di_start_x = para->win.orig_w - para->win.x_st - di_width;
+		di_end_x = di_width + di_start_x - 1;
+		if (di_end_x > (para->win.orig_w - 1))
+			di_end_x = para->win.orig_w - 1;
+		di_start_y = para->win.orig_h - para->win.y_st - di_height;
+		di_end_y = di_height + di_start_y - 1;
+		if (di_end_y > (para->win.orig_h - 1))
+			di_end_y = para->win.orig_h - 1;
+	} else {
+		di_start_x = para->win.x_st;
+		di_end_x = di_width + di_start_x - 1;
+		di_start_y = para->win.y_st;
+		di_end_y = di_height + di_start_y - 1;
+	}
 	if (di_height & 1)
 		di_height++;
 
@@ -1180,6 +1203,7 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 
 		/******************************************/
 		/* bit mode config */
+		dbg_reg("di_buf->vframe->bitdepth :0x%x\n", di_buf->vframe->bitdepth);
 		if (di_buf->vframe->bitdepth & BITDEPTH_Y10) {
 			u8 bit_mode;
 			u32 bitdepth = di_buf->vframe->bitdepth;

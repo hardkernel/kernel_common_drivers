@@ -973,7 +973,7 @@ static const unsigned int *afbc_get_addrp(enum EAFBC_DEC eidx)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
-	if (DIM_IS_IC(T6D)) {	//0809
+	if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4)) {	//0809
 		if (eidx > 1) {
 			PR_ERR("%s:t6d idx overflow %d\n", __func__, eidx);
 			return &reg_afbc_t6d[0][0];
@@ -996,7 +996,7 @@ static const unsigned int *afbc_get_addrp(enum EAFBC_DEC eidx)
 
 	return &reg_afbc_v5[eidx][0];
 #else
-	if (DIM_IS_IC(T6D)) {
+	if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4)) {
 		if (eidx > 1) {
 			PR_ERR("%s:t6d idx overflow %d\n", __func__, eidx);
 			return &reg_afbc_t6d[0][0];
@@ -1048,7 +1048,7 @@ static void dump_afbcd_reg(void)
 	pr_info("---- dump afbc EAFBC_DEC0 reg -----\n");
 	for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
 		if (pafd_ctr->fb.ver < AFBCD_V5) {
-			if (DIM_IS_IC(T6D))
+			if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4))
 				afbc_reg = reg_afbc_t6d[EAFBC_DEC0][i];
 			else
 				afbc_reg = reg_afbc[EAFBC_DEC0][i];
@@ -1062,7 +1062,7 @@ static void dump_afbcd_reg(void)
 	pr_info("---- dump afbc EAFBC_DEC1 reg -----\n");
 	for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
 		if (pafd_ctr->fb.ver < AFBCD_V5) {
-			if (DIM_IS_IC(T6D))
+			if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4))
 				afbc_reg = reg_afbc_t6d[EAFBC_DEC1][i];
 			else
 				afbc_reg = reg_afbc[EAFBC_DEC1][i];
@@ -1164,7 +1164,7 @@ const unsigned int *afbc_get_inp_base(void)
 	if (!pafd_ctr)
 		return NULL;
 
-	if (DIM_IS_IC(T6D)) {
+	if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4)) {
 		if (pafd_ctr->fb.pre_dec > 1) {
 			PR_ERR("%s:t6d idx overflow %d\n",
 				__func__, pafd_ctr->fb.pre_dec);
@@ -1619,7 +1619,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	pafd_ctr = &di_afdp->ctr;
 	pafd_ctr->en_ponly_afbcd = false;
 
-	if (IS_IC(cid, T6D)) {
+	if (IS_IC(cid, T6D) || IS_IC(cid, GXLX4)) {
 #ifndef T6D_AFBC_TEST
 		if (cfgg(T5DB_AFBCD_EN))
 			afbc_cfg = 0;
@@ -3417,7 +3417,7 @@ static void afbc_tm2_sw_inp(bool on, const struct reg_acc *op)
 		else
 			op->bwr(VIUB_MISC_CTRL0, 0, 16, 1);
 		return;
-	} else if (DIM_IS_IC(T6D)) {
+	} else if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4)) {
 		//for t6d: bit 15 is afbc_inp_sel, 0:mif; 1:afbcd
 		if (on)
 			op->bwr(VIUB_MISC_CTRL0, 1, 15, 1);
@@ -3434,7 +3434,7 @@ static void afbc_tm2_sw_inp(bool on, const struct reg_acc *op)
 /* only for tm2, sc2 is chang*/
 static void afbc_tm2_sw_mem(bool on, const struct reg_acc *op)
 {
-	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T6D))
+	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4))
 		return;
 	if (!op) {
 		PR_ERR("%s:no op\n", __func__);
@@ -3841,7 +3841,8 @@ void disable_afbcd_t5dvb(void)
 	const unsigned int *reg;
 	unsigned int reg_AFBC_ENABLE;
 
-	if (!afbc_is_supported() || !DIM_IS_IC(T5DB) || cfgg(EN_PRE_LINK) || !DIM_IS_IC(T6D))
+	if (!afbc_is_supported() || !DIM_IS_IC(T5DB) ||
+		cfgg(EN_PRE_LINK) || !DIM_IS_IC(T6D) || !DIM_IS_IC(GXLX4))
 		return;
 	dbg_mem2("%s\n", __func__);
 	reg = afbc_get_addrp(pafd_ctr->fb.pre_dec);
@@ -3856,7 +3857,7 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 	unsigned int val;
 	unsigned int en = 0;
 
-	if (!DIM_IS_IC(T5DB) && !DIM_IS_IC(T6D))
+	if (!DIM_IS_IC(T5DB) && !DIM_IS_IC(T6D) && !DIM_IS_IC(GXLX4))
 		return;
 	if (afbc_is_supported_for_plink()) {
 		dbg_reg("afbc_is_supported_for_plink\n");
@@ -3895,7 +3896,7 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 				/* afbcd is shared */
 				op->wr(VD1_AFBCD0_MISC_CTRL, 0x401200);
 			}
-		} else if (DIM_IS_IC(T6D)) {
+		} else if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4)) {
 			if (en == 1) {
 			/*afbcd is share*/
 				op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 9, 1);	//tmp reg_vpp_2mad_en
@@ -4265,6 +4266,9 @@ static void afbc_input_sw(bool on)
 		dim_print("%s:reg=0x%x:sw=%d\n", __func__, reg_AFBC_ENABLE, on);
 		if (on)
 			reg_wrb(reg_AFBC_ENABLE, 1, 8, 1);
+		else
+			dbg_tst("just for coverity\n");
+			//reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
 	}
 
 	if (pafd_ctr->en_set.b.mem) {
@@ -4300,7 +4304,7 @@ void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx)
 	seq_printf(s, "dump reg:afd[%d]\n", eidx);
 
 	if (pafd_ctr->fb.ver < AFBCD_V5) {
-		if (DIM_IS_IC(T6D) && eidx > 1) {
+		if ((DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4)) && eidx > 1) {
 			seq_printf(s, "t6d:eidx[%d] is overflow for ver[%d]\n",
 				   eidx, pafd_ctr->fb.ver);
 			return;
@@ -4311,7 +4315,7 @@ void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx)
 			return;
 		}
 		for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
-			if (DIM_IS_IC(T6D))
+			if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4))
 				addr = reg_afbc_t6d[eidx][i];
 			else
 				addr = reg_afbc[eidx][i];

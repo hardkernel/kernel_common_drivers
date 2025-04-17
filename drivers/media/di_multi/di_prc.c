@@ -487,6 +487,9 @@ void di_cfg_top_dts(void)
 	if (cfgg(EN_POST_LINK) && !IS_IC_SUPPORT(POST_VPP_LINK))
 		PR_WARN("not support post_vpp link?\n");
 
+	if (!cfgg(EN_POST_LINK))
+		di_reverse = false;
+
 	/* tb */
 	if (cfgg(TB) && !IS_IC_SUPPORT(TB)) {
 		PR_WARN("TB not support\n");
@@ -935,7 +938,7 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 	[edi_mp_hdr_ctrl]  = {"hdr_ctrl:uint:0",
 			edi_mp_hdr_ctrl, 0},
 	[edi_mp_clock_low_ratio]  = {"clock_low_ratio:0:not set",
-				edi_mp_clock_low_ratio, 60000000},
+				edi_mp_clock_low_ratio, 20000000},
 	/********************
 	 * edi_mp_shr_cfg
 	 * b[31]	cfg enable
@@ -2216,6 +2219,10 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			link_mode = EPVPP_API_MODE_POST;
 		else
 			link_mode = EPVPP_API_MODE_PRE;
+
+		if (IS_IC_SUPPORT(POST_VPP_LINK))
+			de_devp->is_link = cfgg(EN_POST_LINK);
+
 		i_ret = dpvpp_try_reg(pch, vframe, link_mode);
 		if (i_ret) {
 			if (link_mode == EPVPP_API_MODE_PRE) {
@@ -4610,7 +4617,7 @@ void bufq_ndis_unreg(struct di_ch_s *pch)
 		}
 	}
 	//dbg_unreg_flg = 1;
-	dbg_reg("%s:%d\n", __func__, len);
+	dbg_mem2("%s:%d\n", __func__, len);
 
 	/* check keep */
 
@@ -4714,6 +4721,7 @@ void ndrd_int(struct di_ch_s *pch)
 
 	pq = &pch->ndis_que_kback;
 	qfp_int(pq, "np_kback", 0); /* unlock */
+	dbg_mem2("%s:\n", __func__);
 }
 
 void ndrd_exit(struct di_ch_s *pch)
@@ -4725,6 +4733,7 @@ void ndrd_exit(struct di_ch_s *pch)
 
 	pq = &pch->ndis_que_kback;
 	qfp_release(pq);
+	dbg_mem2("%s:\n", __func__);
 }
 
 void ndrd_reset(struct di_ch_s *pch)
@@ -4733,6 +4742,7 @@ void ndrd_reset(struct di_ch_s *pch)
 
 	pq = &pch->ndis_que_ready;
 	pq->ops.reset(NULL, pq);
+	dbg_mem2("%s:\n", __func__);
 }
 
 /* vfm is vframe or di_buffer */
@@ -4746,6 +4756,7 @@ void ndrd_qin(struct di_ch_s *pch, void *vfm)
 	pq = &pch->ndis_que_ready;
 	ubuf.qbc = (struct qs_buf_s *)vfm;
 	pq->ops.in(NULL, pq, ubuf);
+	dbg_mem2("%s: qindex %d\n", __func__, ubuf.qbc->index);
 }
 
 /* @ary_note: only one caller: vfm peek */
@@ -4862,7 +4873,7 @@ void dip_itf_ndrd_ins_m2_out(struct di_ch_s *pch)
 		if (buffer->flag & DI_FLAG_EOS)
 			dbg_reg("%s:ch[%d]:eos\n", __func__, pch->ch_id);
 
-		dim_print("done:0x%px:flag:0x%x\n", buffer, buffer->flag);
+		dbg_mem2("done:0x%px:flag:0x%x\n", buffer, buffer->flag);
 		if (buffer->vf)
 			dim_dbg_vf_cvs(pch, buffer->vf, 10);
 
@@ -5244,7 +5255,7 @@ static bool ndis_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_buf)
 			buffer = (struct di_buffer *)in_ori;
 			buffer->flag |= DI_FLAG_BUF_BY_PASS;
 		}
-
+		dbg_mem2("%s\n", __func__);
 		ndrd_qin(pch, in_ori);
 		return true;
 	}
@@ -5256,7 +5267,7 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	struct dim_ndis_s *dis;
 	struct di_buffer *buffer;
 
-	dbg_post_ref("%s [0x%x]\n", __func__, di_buf->datacrc);
+	dbg_mem2("%s [0x%x]\n", __func__, di_buf->datacrc);
 	//dis = ndisq_peek(pch, QBF_NDIS_Q_IDLE);
 	dis = ndis_move(pch, QBF_NDIS_Q_IDLE, QBF_NDIS_Q_USED);
 	dbg_post_ref("%s [0x%x]\n", __func__, di_buf->datacrc);
@@ -5313,6 +5324,7 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 				dis->c.dbuff.flag |= DI_FLAG_P;
 			dis->c.dbuff.crcout = di_buf->datacrc;
 			dis->c.dbuff.nrcrcout = di_buf->nrcrc;
+			dis->c.dbuff.caller_mng = di_buf->caller_mng;
 			dbg_post_ref("00%s: %x\n", __func__, di_buf->datacrc);
 			dbg_post_ref("01%s: %x\n", __func__, di_buf->nrcrc);
 			ndrd_qin(pch, &dis->c.dbuff);
@@ -5340,6 +5352,7 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 			dbg_post_ref("03%s: %x\n", __func__, di_buf->nrcrc);
 			dis->c.dbuff.crcout = di_buf->datacrc;
 			dis->c.dbuff.nrcrcout = di_buf->nrcrc;
+			dis->c.dbuff.caller_mng = di_buf->caller_mng;
 			ndrd_qin(pch, &dis->c.pbuff);
 		}
 	}
@@ -5648,7 +5661,7 @@ void dip_init_pq_ops(void)
 
 	/* hw l1 ops*/
 	if (IS_IC_EF(ic_id, SC2)) {
-		if (DIM_IS_IC(T6D))
+		if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4))
 			get_datal()->hop_l1 = &dim_ops_l1_v6_t6d;
 		else if (DIM_IS_IC(T3X))
 			get_datal()->hop_l1 = &dim_ops_l1_v5;
@@ -5775,6 +5788,16 @@ unsigned int dim_is_ic_sub(void)
 		return 0;
 	else
 		return de_devp->sub_v;
+}
+
+unsigned int dim_is_ic_link(void)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
+	else
+		return de_devp->is_link;
 }
 
 /************************************************
@@ -7107,7 +7130,7 @@ static int hf_release_clear_one_buf(struct dim_mng_hf_s *hmng,
 	rret = dim_mm_release_api(cfgg(MEM_FLAG),
 		hf_buff->pages,
 		hf_buff->cnt,
-		hf_buff->mem_start);
+		hf_buff->mem_handle);
 	if (rret) {
 		back_index = hf_buff->index;
 		memset(hf_buff, 0, sizeof(*hf_buff));
@@ -7264,6 +7287,7 @@ bool dim_mng_hf_alloc(struct di_ch_s *pch,
 		hfmng_q_put(EMNG_Q_IDLE, hf_buff);
 	} else {
 		hf_buff->mem_start = omm.addr;
+		hf_buff->mem_handle = omm.mem_handle;
 		hf_buff->cnt = hf_size >> PAGE_SHIFT;
 		hf_buff->pages = omm.ppage;
 

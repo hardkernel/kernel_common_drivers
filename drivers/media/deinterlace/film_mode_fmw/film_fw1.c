@@ -22,8 +22,19 @@
 #include "film_vof_soft.h"
 #include "../deinterlace.h"
 #include "../register.h"
+#include "../../di_multi/di_reg_v3.h"
+
 static int test_cnt = 1024;
 module_param_named(test_cnt, test_cnt, int, 0664);
+
+int pd_vof = 1;
+module_param_named(pd_vof, pd_vof, int, 0664);
+
+static int reg0_min_thd = 300000;
+module_param_named(reg0_min_thd, reg0_min_thd, int, 0664);
+
+static int reg1_min_thd = 120000;
+module_param_named(reg1_min_thd, reg1_min_thd, int, 0664);
 
 static int DIweavedetec(struct sFlmSftPar *pPar, int nDif01);
 /* Software parameters (registers) */
@@ -279,6 +290,11 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int pd22_diff02_chk = 0;
 	int pd22_mcdi_flag = 1;
 	int pd22_diff12_chk = 0;
+
+	static int grad_p_pre, grad_n_pre;
+	static int Wif01_W01_pre, Wif02_W01_pre, Wif01_W02_pre, Wif02_W02_pre;
+	int grad_p, grad_n;
+	int Wif01_W01, Wif02_W01, Wif01_W02, Wif02_W02;
 
 	DI_Wr(DI_INFO_ADDR, 2);
 	old_dif01 = (Rd(DI_INFO_DATA) & 0xffffff);   /*old dif01*/
@@ -813,6 +829,37 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	}
 	if (pd22_mcdi_flag == 0 && *rFlmPstMod == 1 && pPar->flm22_force == 0)
 		*rFlmPstMod = 0;
+
+	/*patch for VOF 2-2 ,add by guoyao*/
+	if (pd_vof) {
+		grad_p = Rd(DI_PD_RO_SUM_P);
+		grad_n = Rd(DI_PD_RO_SUM_N);
+		Wif01_W01 = rROFldDif01[1];
+		Wif02_W01 = rROFrmDif02[1];
+		Wif01_W02 = rROFldDif01[2];
+		Wif02_W02 = rROFrmDif02[2];
+
+		if (*rFlmPstMod == 1) {
+			if ((MIN(Wif01_W01, Wif01_W01_pre) < reg0_min_thd) &&
+			    (MIN(Wif01_W02, Wif01_W02_pre) > reg1_min_thd)) {
+				*rFlmPstMod = 0;
+				nS1 = 22;
+			}
+		}
+		if (pr_pd) {
+			pr_info("grad_p=%7d, grad_p_diff=%7d, grad_p_min =%7d, min_D01W1=%7d, min_D02W1=%7d, min_D01W2=%7d, min_D02W2=%7d\n",
+				grad_p, ABS(grad_p - grad_p_pre), MIN(grad_p, grad_p_pre),
+				MIN(Wif01_W01, Wif01_W01_pre), MAX(Wif02_W01, Wif02_W01_pre),
+				MIN(Wif01_W02, Wif01_W02_pre), MAX(Wif02_W02, Wif02_W02_pre));
+		}
+
+		grad_p_pre = grad_p;
+		grad_n_pre = grad_n;
+		Wif01_W01_pre = Wif01_W01;
+		Wif02_W01_pre = Wif02_W01;
+		Wif01_W02_pre = Wif01_W02;
+		Wif02_W02_pre = Wif02_W02;
+	}
 
 	if (pr_pd) {
 		pr_info("tMod = %d, nS1 = %d, *rFlmSltPre = %d,pd22_mcdi_flag=%d,pd22_diff12_chk=%d\n",

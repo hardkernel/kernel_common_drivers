@@ -405,7 +405,7 @@ void dim_dump_pre_stru(struct di_pre_stru_s *ppre)
 	pr_info("vdin2nr		   = %d\n",
 		ppre->vdin2nr);
 	pr_info("bypass_pre		   = %s\n",
-		ppre->by_pass_pre ? "true" : "false");
+		ppre->bypass_pre ? "true" : "false");
 	pr_info("invert_flag	   = %s\n",
 		ppre->invert_flag ? "true" : "false");
 }
@@ -466,7 +466,7 @@ static int dump_di_pre_stru_seq(struct seq_file *seq, void *v,
 	seq_printf(seq, "%-25s = %d\n", "vdin2nr",
 		   di_pre_stru_p->vdin2nr);
 	seq_printf(seq, "%-25s = %s\n", "bypass_pre",
-		   di_pre_stru_p->by_pass_pre ? "true" : "false");
+		   di_pre_stru_p->bypass_pre ? "true" : "false");
 	seq_printf(seq, "%-25s = %s\n", "invert_flag",
 		   di_pre_stru_p->invert_flag ? "true" : "false");
 	seq_printf(seq, "%-25s = %s\n", "is_disable_nr",

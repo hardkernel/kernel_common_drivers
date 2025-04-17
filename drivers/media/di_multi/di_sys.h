@@ -32,6 +32,7 @@ struct dim_mm_s {
 	struct page	*ppage;
 	unsigned long	addr;
 	unsigned int	flg;/*bit0 for tvp*/
+	struct codec_mm_s *mem_handle;
 };
 
 bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o,
@@ -39,7 +40,7 @@ bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o,
 bool dim_mm_release_api(int cma_mode,
 			struct page *pages,
 			int count,
-			unsigned long addr);
+			struct codec_mm_s *mm);
 //bool dim_cma_top_alloc(unsigned int ch);
 //bool dim_cma_top_release(unsigned int ch);
 bool mm_cma_alloc(struct device *dev, size_t count,

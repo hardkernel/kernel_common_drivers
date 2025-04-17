@@ -99,9 +99,9 @@
 #define MAX_LOCAL_BUF_NUM			(5)//(7)
 #define MAX_LOCAL_BUF_NUM_REAL			(MAX_LOCAL_BUF_NUM << 1)
 //#define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
-#define POST_BUF_NUM				(25)
+#define POST_BUF_NUM				(20)
 #define MAX_POST_BUF_NUM			(POST_BUF_NUM + 3)//(11)	/*(5)*/ /* 16 */
-#define POST_BUF_NUM_DEF			(21)	//test only (POST_BUF_NUM)//
+#define POST_BUF_NUM_DEF			(11)	//test only (POST_BUF_NUM)//
 #define VFRAME_TYPE_IN				1
 #define VFRAME_TYPE_LOCAL			2
 #define VFRAME_TYPE_POST			3
@@ -393,6 +393,7 @@ struct di_buf_s {
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
 	bool bit_8_flag;
 #endif
+	struct caller_mng_s caller_mng;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -519,6 +520,7 @@ struct di_dev_s {
 	struct vpu_dev_s *dim_vpu_pd_post;
 	bool is_crc_ic;
 	unsigned int sub_v;
+	unsigned int is_link;
 	unsigned int di_pre_nrcrc[MAX_CRC_COUNT_NUM];
 	unsigned int getcrccount;
 	unsigned int setcrccount;
@@ -636,7 +638,7 @@ struct di_pre_stru_s {
 /*for static pic*/
 	int	static_frame_count;
 	bool force_interlace;
-	bool by_pass_pre;
+	bool bypass_pre;
 	bool invert_flag;
 //	bool vdin_source; /* ary 2020-06-12: no*/
 	int cma_release_req;

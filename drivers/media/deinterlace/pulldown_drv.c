@@ -22,7 +22,7 @@
 #include <linux/device.h>
 #include "deinterlace_hw.h"
 #include "deinterlace_dbg.h"
-
+#include "register.h"
 #include "di_pqa.h"
 static unsigned int field_diff_rate;
 
@@ -103,6 +103,16 @@ unsigned int pulldown_detection(struct pulldown_detected_s *res,
 	bool flm32 = false, flm22 = false, flmxx = false;
 	unsigned int pulldown_info;
 
+	unsigned int xsize = Rd(DI_PRE_SIZE) & 0x1FFF;
+	unsigned int ysize = (Rd(DI_PRE_SIZE) >> 16) & 0x1FFF;
+
+	if (pd_vof) {
+		Wr(DI_MC_CTRL, 0x3);
+		Wr(DI_MC_REG0_X, xsize - 1);
+		Wr(DI_MC_REG0_Y, ysize * 4 / 5 - 1);
+		Wr(DI_MC_REG1_X, xsize - 1);
+		Wr(DI_MC_REG1_Y, (ysize * 4 / 5 << 16) + ysize - 1);
+	}
 	read_pulldown_info(&glb_frame_mot_num,
 		&glb_field_mot_num);
 

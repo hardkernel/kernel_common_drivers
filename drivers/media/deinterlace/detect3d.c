@@ -439,6 +439,11 @@ det3d_info.score_3d_tb, det3d_info.score_3d_int, det3d_info.score_3d_chs);
 	return det3d_info.tfw_det3d_fmt;
 }
 
+module_param(chessbd_vrate, int, 0644);
+MODULE_PARM_DESC(chessbd_vrate, "\n the chessboard 3d fmt vertical rate\n");
+module_param(det3d_debug, bool, 0644);
+MODULE_PARM_DESC(det3d_debug, "\n print the information of 3d detection\n");
+
 static const struct detect3d_op_s di_ops_3d = {
 	.det3d_config		= det3d_config,
 	.det3d_fmt_detect	= det3d_fmt_detect,

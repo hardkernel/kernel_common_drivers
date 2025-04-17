@@ -43,6 +43,7 @@ static const struct di_ext_ops di_ext = {
 	.new_get_input_buffer_num	= new_get_input_buffer_num,
 	.config_crc_ic		= dim_config_crc_icl,
 	.dim_ic_sub		= dim_is_ic_sub,
+	.dim_is_link		= dim_is_ic_link,
 	.pvpp_link_display	= dim_pvpp_link_display,
 	.pvpp_link_check_vf	= dpvpp_check_vf,
 	.pvpp_link_check_act = dpvpp_check_di_act,

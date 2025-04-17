@@ -315,9 +315,12 @@ int dim_tb_detect(struct vframe_tb_s *vf, int data1, unsigned int ch)
 		      DIM_TB_DETECT_W, DIM_TB_DETECT_H,
 		      CANVAS_ADDR_NOWRAP,
 		      CANVAS_BLKMODE_LINEAR);
-	op->bwr(NRDSWR_CTRL, di_tb_canvas, 0, 8);
+
+	if (!DIM_IS_IC(T6D) && !DIM_IS_IC(GXLX4))
+		op->bwr(NRDSWR_CTRL, di_tb_canvas, 0, 8);
+
 	if (DIM_IS_IC_EF(T7)) {
-		if (DIM_IS_IC(T6D))
+		if (DIM_IS_IC(T6D) || DIM_IS_IC(GXLX4))
 			di_mif1_linear_wr_cfgds
 				(pcfg->di_detect_buf[pcfg->di_tb_buff_wptr].paddr,
 				T6D_NRDSWMIF_CTRL3, T6D_NRDSWMIF_CTRL4);

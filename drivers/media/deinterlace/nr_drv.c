@@ -44,16 +44,6 @@ unsigned int autonr_en = 0x1;
 bool nr4ne_en;
 bool nr_ctrl_reg;
 bool nr_demo_flag;
-unsigned int cue_en = 1;
-unsigned int cue_en_force_disable;
-unsigned int glb_fieldck_en = true;
-unsigned int invert_cue_phase;
-unsigned int cue_pr_cnt;
-unsigned int cue_glb_mot_check_en = true;
-/********************************************
- * debug cue_en
- ********************************************/
-unsigned int cue_en_last;
 
 static void nr_gate_control(bool gate);
 static void nr_gate_control_op(bool gate, const struct reg_acc *op);
@@ -431,7 +421,8 @@ static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
 	pq_temp |= (1 << 18);
 	pq_temp |= (1 << 3);
 	Wr(NR4_TOP_CTRL, pq_temp);
-	if (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) {
+	if ((IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) ||
+		IS_IC(dil_get_cpuver_flag(), GXLX4)) {
 		pq_temp = Rd(NR4_TOP_CTRL);
 		pq_temp &= ~(1 << 3);
 		Wr(NR4_TOP_CTRL, pq_temp);
@@ -503,7 +494,11 @@ static void nr2_config_op(unsigned short width, unsigned short height,
 			op->wr(NR2_FRM_SIZE, (height << 16) |  width);
 			op->wr(NR2_SW_EN, 0x70);
 			Wr(NR4_TOP_CTRL, 0xf8ff4);
-			}
+		}
+		if (IS_IC(dil_get_cpuver_flag(), GXLX4)) {
+			op->wr(NR2_FRM_SIZE, (height << 16) |  width);//size as 0x1703
+			op->wr(NR2_SW_EN, 0x71);  //check by vlsi 0x71
+		}
 		pq_temp = Rd(NR4_TOP_CTRL);
 		if (nr2_en) {
 			pq_temp |= (1 << 2);
@@ -524,6 +519,15 @@ static void nr2_config_op(unsigned short width, unsigned short height,
 		op->bwr(NR2_SW_EN, nr2_en, 4, 1);
 	}
 }
+
+static bool cue_en = true;
+module_param_named(cue_en, cue_en, bool, 0664);
+/********************************************
+ * debug cue_en
+ ********************************************/
+static bool cue_en_last;
+static bool cue_en_force_disable;
+module_param_named(cue_en_force_disable, cue_en_force_disable, bool, 0664);
 
 /*
  * workaround for nframe count
@@ -1346,6 +1350,15 @@ static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
 			pdnrprm->sw_gbs_vld_flg, pdnrprm->prm_sw_gbs_ctrl);
 }
 
+static bool invert_cue_phase;
+module_param_named(invert_cue_phase, invert_cue_phase, bool, 0644);
+
+static unsigned int cue_pr_cnt;
+module_param_named(cue_pr_cnt, cue_pr_cnt, uint, 0644);
+
+static bool cue_glb_mot_check_en = true;
+module_param_named(cue_glb_mot_check_en, cue_glb_mot_check_en, bool, 0644);
+
 /* confirm with vlsi-liuyanling, cue_process_irq is no use */
 /* when CUE disable					*/
 
@@ -1436,10 +1449,18 @@ void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 			op->bwr(DI_NR_CTRL0, 0, 26, 1);
 	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
-		if (cue_en)
+		if (cue_en) {
+			if (IS_IC(dil_get_cpuver_flag(), GXLX4) ||
+			    (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1))
+				op->bwr(NR2_SW_EN, 2, 10, 2);
 			op->bwr(NR2_CUE_MODE, 3, 10, 2);
+		}
+
 	}
 }
+
+static bool glb_fieldck_en = true;
+module_param_named(glb_fieldck_en, glb_fieldck_en, bool, 0644);
 
 /* confirm with vlsi-liuyanling, cue_process_irq is no use */
 /* when CUE disable					*/
@@ -2306,6 +2327,17 @@ static int dnr_prm_init(DNR_PRM_t *pPrm)
 }
 
 static DEVICE_ATTR(dnr_param, 0664, dnr_param_show, dnr_param_store);
+static void xlr_debug(bool enable, const struct reg_acc *op)
+{
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
+	/*debug XLR 2024-11-11*/
+	op->bwr(XLR_CTRL, enable, 21, 1);
+	op->bwr(XLR_CTRL, enable, 22, 1);
+}
 
 static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 {
@@ -2385,6 +2417,11 @@ static ssize_t nr_dbg_store(struct device *dev,
 			nr_demo_mode(false, &dio_pre_regset);
 			pr_info("nr demo disable\n");
 		}
+	} else if (!strcmp(parm[0], "xlr")) {
+		if (!strcmp(parm[1], "on"))
+			xlr_debug(true, &dio_pre_regset);
+		if (!strcmp(parm[1], "off"))
+			xlr_debug(false, &dio_pre_regset);
 	}
 
 	kfree(buf_orig);
@@ -2598,6 +2635,8 @@ void nr_drv_init(struct device *dev)
 		dynamic_dm_chk = false;
 		autonr_en = 0x0;
 	}
+	if (IS_IC(dil_get_cpuver_flag(), GXLX4))
+		autonr_en = 0x0; //check by vlsi
 }
 
 static void nr_hw_init(void)

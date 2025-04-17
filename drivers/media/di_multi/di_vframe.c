@@ -78,6 +78,10 @@ static void nins_m_recycle(struct di_ch_s *pch)
 		ins = nins_move(pch, QBF_NINS_Q_RECYCLE, QBF_NINS_Q_IDLE);
 		vfm = (struct vframe_s *)ins->c.ori;
 		if (vfm) {
+			dbg_link("i-p:O:vf %x,canvas0 addr:%lx\\n",
+				vfm->type,
+				vfm->canvas0_config[0].phy_addr);
+
 			pw_vf_put(vfm, ch);
 			pw_vf_notify_provider(ch,
 					      VFRAME_EVENT_RECEIVER_PUT, NULL);
@@ -179,6 +183,9 @@ static bool nins_m_in_vf(struct di_ch_s *pch)
 		}
 		pins = (struct dim_nins_s *)pbufq->pbuf[index].qbc;
 		pins->c.ori = vf;
+		dbg_link("i-p: in:vf:%x,canvas0 addr:%lx\n",
+						vf->type,
+						vf->canvas0_config[0].phy_addr);
 		pins->c.cnt = pch->in_cnt;
 		pch->in_cnt++;
 		//pins->c.etype = EDIM_NIN_TYPE_VFM;
@@ -651,6 +658,9 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 		PR_ERR("ndis2[%d]\n", ndis2->header.index);
 	}
 	didbg_vframe_out_save(channel, vframe_ret, 4);
+	dbg_link("%s:i-p: vf[0x%px:0x%x],%d\n", __func__,
+						vframe_ret, vframe_ret->type,
+						vframe_ret->height);
 	dim_tr_ops.post_get(vframe_ret->index_disp);
 	atomic_set(&pch->vf_get_idle, 1); /* check set */
 	return vframe_ret;
@@ -762,6 +772,9 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
 
 	ndis1 = (struct dim_ndis_s *)vf->private_data;
 	if (IS_ERR_OR_NULL(ndis1)) {
+		dbg_link("i-p:O :vf bypass:vf %x,canvas0 addr:%lx\\n",
+						vf->type,
+						vf->canvas0_config[0].phy_addr);
 		pw_vf_put(vf, channel);
 		pw_vf_notify_provider(channel,
 				      VFRAME_EVENT_RECEIVER_PUT, NULL);
@@ -774,6 +787,9 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
 			     channel,
 			     ndis1->header.index));
 	//task_send_ready();
+	dbg_link("i-p:O :vf %x,canvas0 addr:%lx\n",
+						vf->type,
+						vf->canvas0_config[0].phy_addr);
 }
 
 #endif
@@ -862,9 +878,11 @@ struct vframe_s *di_vf_l_peek(unsigned int channel)
 
 	if (vframe_ret) {
 		dim_tr_ops.post_peek(9);
+		dbg_link("i-p: peek:ok\n");
 	} else {
 //		task_send_ready(22);
 		dim_tr_ops.post_peek(4);
+		dbg_link("i-p: peek:null\n");
 	}
 	return vframe_ret;
 }
@@ -1226,6 +1244,10 @@ static struct vframe_s *di_vf_peek(void *arg)
 		return dpvpp_vf_ops(pch->link_mode)->peek(pch->itf.p_itf);
 	if (is_bypss2_complete(ch)) {
 		vfm = dim_nbypass_peek(pch);
+		dbg_link("PE:vf %x,caddr:%lx\n",
+							vfm->type,
+							vfm->canvas0_config[0].phy_addr);
+
 		if (vfm)
 			return vfm;
 		return pw_vf_peek(ch);
@@ -1261,6 +1283,9 @@ static struct vframe_s *di_vf_get(void *arg)
 			dbg_ic("%s vf:%p, index:%d, pts_us64:0x%llx, video_id:%d\n",
 				__func__, vfm, vfm->index, vfm->pts_us64,
 				vfm->vf_ud_param.ud_param.instance_id);
+			dbg_link("i-p: GE:vf %x,caddr:%lx\\n",
+				vfm->type,
+				vfm->canvas0_config[0].phy_addr);
 			return vfm;
 		}
 		vfm = pw_vf_get(ch);
@@ -1274,7 +1299,7 @@ static struct vframe_s *di_vf_get(void *arg)
 
 	vfm = di_vf_l_get(ch);
 	if (vfm)
-		dbg_ic("%s vf:%p, index:%d, pts_us64:0x%llx, video_id:%d, sum_pst:%d\n",
+		dbg_link("%s vf:%p, index:%d, pts_us64:0x%llx, video_id:%d, sum_pst:%d\n",
 			__func__, vfm, vfm->index, vfm->pts_us64,
 			vfm->vf_ud_param.ud_param.instance_id, get_sum_pst_g(ch));
 	return vfm;
@@ -1297,6 +1322,10 @@ static void di_vf_put(struct vframe_s *vf, void *arg)
 		return;
 	}
 	if (is_bypss2_complete(ch)) {
+		dbg_link("i-p:B:vf %x,canvas0 addr:%lx\n",
+					vf->type,
+					vf->canvas0_config[0].phy_addr);
+
 		pw_vf_put(vf, ch);
 		pw_vf_notify_provider(ch,
 				      VFRAME_EVENT_RECEIVER_PUT, NULL);
@@ -1351,7 +1380,7 @@ struct vframe_s *pw_vf_get(unsigned int ch)
 	struct vframe_s *vf = vf_get(di_rev_name[ch]);
 
 	if (vf)
-		dbg_ic("%s bypass:%d, vf:%p, index:%d, pts_us64:0x%llx, video_id:%d\n",
+		dbg_link("%s bypass:%d, vf:%p, index:%d, pts_us64:0x%llx, video_id:%d\n",
 			__func__, is_bypss2_complete(ch), vf,
 			vf->index, vf->pts_us64, vf->vf_ud_param.ud_param.instance_id);
 	return vf;

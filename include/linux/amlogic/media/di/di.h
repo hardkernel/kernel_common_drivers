@@ -136,4 +136,5 @@ bool dim_pq_db_sel(unsigned int idx, unsigned int mode, unsigned int *pdate);
 void dim_pq_db_setreg(unsigned int nub, unsigned int *preg);
 bool dim_config_crc_ic(void);
 unsigned int dim_ic_sub(void);
+unsigned int dim_is_link(void);
 #endif /* VIDEO_H */

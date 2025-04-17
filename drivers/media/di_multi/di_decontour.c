@@ -183,6 +183,7 @@ static void set_dcntr_grid_mif(u32 x_start,
 	u32 y_start,
 	u32 y_end,
 	u32 mode,
+	bool flag_nv21,
 	u32 canvas_addr0,
 	u32 canvas_addr1,
 	u32 canvas_addr2,
@@ -279,8 +280,11 @@ static void set_dcntr_grid_mif(u32 x_start,
 	op->wr(DCNTR_GRID_DUMMY_PIXEL,   0x00808000);
 
 	if (mode == 2)
-		op->wr(DCNTR_GRID_GEN_REG2, 1);
+		if (flag_nv21)
+			op->wr(DCNTR_GRID_GEN_REG2, 1);
 	/*0:NOT NV12 or NV21;1:NV12 (CbCr);2:NV21 (CrCb)*/
+		else
+			op->wr(DCNTR_GRID_GEN_REG2, 2);
 	else
 		op->wr(DCNTR_GRID_GEN_REG2, 0);
 
@@ -339,6 +343,7 @@ static void dcntr_grid_rdmif(int canvas_id0,
 	int src_vsize,
 	int src_fmt, /*1=RGB/YCBCR, 0=422 (2 bytes/pixel) */
 	/*2:420,two canvas(nv21) 3:420,three*/
+	bool flag_nv21,
 	int mif_x_start,
 	int mif_x_end,
 	int mif_y_start,
@@ -424,6 +429,7 @@ static void dcntr_grid_rdmif(int canvas_id0,
 		mif_y_start,
 		mif_y_end,
 		src_fmt,
+		flag_nv21,
 		canvas_id0,
 		canvas_id1,
 		canvas_id2,
@@ -1456,10 +1462,14 @@ static unsigned int dct_sft_prepare(struct di_ch_s *pch,
 		hdct->src_fmt = 0;
 		hdct->need_ds = true;
 	/*422 is one plane, post not support, need pre out nv21*/
-	} else if ((vf->type & VIDTYPE_VIU_NV21) ||
+	} else if ((vf->type & VIDTYPE_VIU_NV21) || (vf->type & VIDTYPE_VIU_NV12) ||
 		   (vf->type & 0x10000000)) {
 		/*hdmi in dw is nv21 VIDTYPE_DW_NV21*/
 		hdct->src_fmt = 2;
+		if (vf->type & VIDTYPE_VIU_NV21)
+			hdct->flag_nv21 = 1;
+		else
+			hdct->flag_nv21 = 0;
 	} else {
 		dbg_dctp("not support format vf->type =%x\n", vf->type);
 		/*current one support 422 nv21*/
@@ -1857,6 +1867,7 @@ static void dct_hw_set(struct dim_nins_s *pnin)
 		src_vsize,   /*int src_vsize,*/
 		hdct->src_fmt, /*1 = RGB/YCBCR(3 bytes/pixel), */
 		/*0=422 (2 bytes/pixel) 2:420 (two canvas)*/
+		hdct->flag_nv21,
 		hdct->grid_x_start,	     /*int mif_x_start,*/
 		hdct->grid_x_start + hdct->grid_x_size - 1, /*int mif_x_end  ,*/
 		hdct->grid_y_start,	     /*int mif_y_start,*/
