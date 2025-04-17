@@ -223,6 +223,7 @@ int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv)
 
 int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_boot_ctrl_s *boot_ctrl = pdrv->boot_ctrl;
 	int ret = 0;
 
 	if (!lcd_venc_op.get_venc_init_config) {
@@ -231,6 +232,23 @@ int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)
 	}
 
 	ret = lcd_venc_op.get_venc_init_config(pdrv);
+
+	if (ret & 0x2) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+			LCDPR("%s: load boot_ctrl from regs:", __func__);
+			LCDPR("\tlcd_type        : %d", boot_ctrl->lcd_type);
+			LCDPR("\tadvanced_flag   : %d", boot_ctrl->advanced_flag);
+			LCDPR("\tcustom_pinmux   : %d", boot_ctrl->custom_pinmux);
+			LCDPR("\tdccd_flag       : %d", boot_ctrl->dccd_flag);
+			LCDPR("\tppc             : %d", boot_ctrl->ppc);
+			LCDPR("\tclk_mode        : %d", boot_ctrl->clk_mode);
+			LCDPR("\tframe_rate      : %d", boot_ctrl->frame_rate);
+			LCDPR("\tinit_level      : %d", boot_ctrl->init_level);
+			LCDPR("\tif_state        : %d", boot_ctrl->if_state);
+			LCDPR("\tbl_state        : %d", boot_ctrl->bl_state);
+		}
+	}
+
 	return ret;
 }
 

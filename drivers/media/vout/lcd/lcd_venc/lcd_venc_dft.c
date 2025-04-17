@@ -335,36 +335,25 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 
 	val = lcd_vcbus_read(L_STH1_HS_ADDR);
 	valid = (val >> 9) & 0xf;
-	if (valid == 0xa) {
+	if (boot_ctrl && valid == 0xa) {
 		boot_ctrl->init_level = val & 0xf;
 		boot_ctrl->if_state = (val >> 4) & 0x1;
 		boot_ctrl->dccd_flag = (val >> 5) & 0x1;
 		valid = (val >> 6) & 0x7f;
 
-		val = lcd_vcbus_read(L_STH1_HS_ADDR + 1);
+		val = lcd_vcbus_read(L_STH1_HE_ADDR);
 		boot_ctrl->frame_rate = val & 0x1fff;
 
-		val = lcd_vcbus_read(L_STH1_HS_ADDR + 2);
+		val = lcd_vcbus_read(L_STH1_VS_ADDR);
 		boot_ctrl->lcd_type = val & 0xf;
 		boot_ctrl->clk_mode = (val >> 4) & 0xf;
 		boot_ctrl->ppc = (val >> 8) & 0x3;
 		boot_ctrl->custom_pinmux = (val >> 10) & 0x1;
+		boot_ctrl->bl_state = (val >> 11) & 0x1;
 
-		val = lcd_vcbus_read(L_STH1_HS_ADDR + 3);
+		val = lcd_vcbus_read(L_STH1_VE_ADDR);
 		boot_ctrl->advanced_flag = val & 0xff;
 
-		if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
-			LCDPR("%s: load boot_ctrl from regs:", __func__);
-			LCDPR("\tlcd_type        : %d", boot_ctrl->lcd_type);
-			LCDPR("\tadvanced_flag   : %d", boot_ctrl->advanced_flag);
-			LCDPR("\tcustom_pinmux   : %d", boot_ctrl->custom_pinmux);
-			LCDPR("\tdccd_flag       : %d", boot_ctrl->dccd_flag);
-			LCDPR("\tppc             : %d", boot_ctrl->ppc);
-			LCDPR("\tclk_mode        : %d", boot_ctrl->clk_mode);
-			LCDPR("\tframe_rate      : %d", boot_ctrl->frame_rate);
-			LCDPR("\tinit_level      : %d", boot_ctrl->init_level);
-			LCDPR("\tif_state        : %d", boot_ctrl->if_state);
-		}
 		init_state |= 0x2;
 	}
 
