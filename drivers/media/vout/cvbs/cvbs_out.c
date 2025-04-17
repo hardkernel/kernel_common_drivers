@@ -2156,12 +2156,6 @@ static void cvbsout_shutdown(struct platform_device *pdev)
 	cvbs_log_info("%s\n", __func__);
 }
 
-static struct meson_cvbs_dev drm_cvbs_instance = {
-	.base = {
-		.ver = MESON_DRM_CONNECTOR_V10,
-	},
-};
-
 static int meson_cvbs_bind(struct device *dev,
 			      struct device *master, void *data)
 {
@@ -2172,7 +2166,7 @@ static int meson_cvbs_bind(struct device *dev,
 		hdev->drm_cvbs_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_TV,
-			&drm_cvbs_instance.base);
+			&hdev->base);
 		cvbs_log_dbg("%s cvbs [%d]\n", __func__, hdev->drm_cvbs_id);
 	} else {
 		cvbs_log_err("no bind func from drm.\n");
@@ -2189,7 +2183,7 @@ static void meson_cvbs_unbind(struct device *dev,
 
 	if (bound_data->connector_component_unbind) {
 		bound_data->connector_component_unbind(bound_data->drm,
-			DRM_MODE_CONNECTOR_TV, &drm_cvbs_instance.base);
+			DRM_MODE_CONNECTOR_TV, &hdev->base);
 		pr_info("%s cvbs [%d]\n", __func__, hdev->drm_cvbs_id);
 	} else {
 		pr_err("no unbind func from drm.\n");

@@ -24,6 +24,8 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <drm/amlogic/meson_connector_dev.h>
+
 #include "cvbs_mode.h"
 
 /* sync kernel 4.9 code */
@@ -97,6 +99,7 @@ struct dts_perf_config {
 #define CVBS_FLAG_EN_VDAC   BIT(1)
 
 struct cvbs_drv_s {
+	struct meson_connector_dev base;
 	struct vinfo_s *vinfo;
 	struct cdev   *cdev;
 	dev_t         devno;

@@ -20,25 +20,6 @@ enum {
 struct meson_connector_dev {
 	int ver;
 	struct drm_connector *conn;
-
-	/*copy from vout_op_s*/
-	struct vinfo_s *(*get_vinfo)(void *data);
-	int (*set_vmode)(enum vmode_e vmode, void *data);
-	enum vmode_e (*validate_vmode)(char *name, unsigned int frac,
-				       void *data);
-	int (*check_same_vmodeattr)(char *name, void *data);
-	int (*vmode_is_supported)(enum vmode_e vmode, void *data);
-	int (*disable)(enum vmode_e vmode, void *data);
-	int (*set_state)(int state, void *data);
-	int (*clr_state)(int state, void *data);
-	int (*get_state)(void *data);
-	int (*get_disp_cap)(char *buf, void *data);
-	int (*set_vframe_rate_hint)(int policy, void *data);
-	int (*get_vframe_rate_hint)(void *data);
-	void (*set_bist)(unsigned int num, void *data);
-	int (*vout_suspend)(void *data);
-	int (*vout_resume)(void *data);
-	int (*vout_shutdown)(void *data);
 };
 
 /*hdmitx specified struct*/
@@ -74,13 +55,6 @@ struct connector_hdcp_cb {
 
 /*hdmitx specified struct end.*/
 
-/*cvbs specified struct*/
-struct meson_cvbs_dev {
-	struct meson_connector_dev base;
-};
-
-/*cvbs specified struct*/
-
 /*panel specified struct*/
 struct meson_panel_dev {
 	struct meson_connector_dev base;
@@ -88,25 +62,8 @@ struct meson_panel_dev {
 	int (*get_modes_vrr_range)(struct meson_panel_dev *panel, void *range, int max, int *num);
 };
 
-/*DisplayPort specified struct*/
-struct meson_DisplayPort_dev {
-	struct meson_connector_dev base;
-	int (*get_modes)(struct meson_DisplayPort_dev *dptx_dev,
-			 struct drm_display_mode **modes, int *num);
-};
-
-/*dummy_l specified struct*/
-struct meson_dummyl_dev {
-	struct meson_connector_dev base;
-};
-
 /*dummy_l specified type*/
 #define DRM_MODE_CONNECTOR_MESON_DUMMY_L  200
-
-/*dummy_p specified struct*/
-struct meson_dummyp_dev {
-	struct meson_connector_dev base;
-};
 
 /*dummy_p specified type*/
 #define DRM_MODE_CONNECTOR_MESON_DUMMY_P  201
@@ -115,8 +72,6 @@ struct meson_dummyp_dev {
 #define DRM_MODE_CONNECTOR_MESON_DUMMY_I  202
 
 #define to_meson_panel_dev(x)	container_of(x, struct meson_panel_dev, base)
-#define to_meson_dummyl_dev(x)	container_of(x, struct meson_dummyl_dev, base)
-#define to_meson_dummyp_dev(x)	container_of(x, struct meson_dummyp_dev, base)
 
 /*lcd specified struct*/
 

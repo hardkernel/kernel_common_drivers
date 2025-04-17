@@ -95,8 +95,7 @@ struct dummy_venc_data_s {
 
 struct dummy_venc_driver_s {
 	struct device *dev;
-	struct meson_dummyl_dev drm_instance;
-	struct meson_dummyp_dev drm_instance_p;
+	struct meson_connector_dev dummy_base;
 	int drm_id;
 	unsigned char status;
 	unsigned char vout_valid;
@@ -2158,12 +2157,12 @@ static int meson_dummyl_bind(struct device *dev,
 {
 	struct meson_drm_bound_data *bound_data = data;
 
-	dummy_encl_drv->drm_instance.base.ver = MESON_DRM_CONNECTOR_V10;
+	dummy_encl_drv->dummy_base.ver = MESON_DRM_CONNECTOR_V10;
 	if (bound_data->connector_component_bind) {
 		dummy_encl_drv->drm_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_DUMMY_L,
-			&dummy_encl_drv->drm_instance.base);
+			&dummy_encl_drv->dummy_base);
 		pr_debug("%s dummyl[%d]\n", __func__, dummy_encl_drv->drm_id);
 	} else {
 		pr_err("no bind func from drm.\n");
@@ -2179,7 +2178,7 @@ static void meson_dummyl_unbind(struct device *dev,
 
 	if (bound_data->connector_component_unbind) {
 		bound_data->connector_component_unbind(bound_data->drm,
-			DRM_MODE_CONNECTOR_MESON_DUMMY_L, &dummy_encl_drv->drm_instance.base);
+			DRM_MODE_CONNECTOR_MESON_DUMMY_L, &dummy_encl_drv->dummy_base);
 		pr_err("%s dummyl[%d]\n", __func__, dummy_encl_drv->drm_id);
 	} else {
 		pr_err("no unbind func from drm.\n");
@@ -2199,12 +2198,12 @@ static int meson_dummyp_bind(struct device *dev,
 {
 	struct meson_drm_bound_data *bound_data = data;
 
-	dummy_encp_drv->drm_instance_p.base.ver = MESON_DRM_CONNECTOR_V10;
+	dummy_encp_drv->dummy_base.ver = MESON_DRM_CONNECTOR_V10;
 	if (bound_data->connector_component_bind) {
 		dummy_encp_drv->drm_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_DUMMY_P,
-			&dummy_encp_drv->drm_instance_p.base);
+			&dummy_encp_drv->dummy_base);
 		pr_err("%s dummyp[%d]\n", __func__, dummy_encp_drv->drm_id);
 	} else {
 		pr_err("no bind func from drm.\n");
@@ -2220,7 +2219,7 @@ static void meson_dummyp_unbind(struct device *dev,
 
 	if (bound_data->connector_component_unbind) {
 		bound_data->connector_component_unbind(bound_data->drm,
-			DRM_MODE_CONNECTOR_MESON_DUMMY_P, &dummy_encp_drv->drm_instance_p.base);
+			DRM_MODE_CONNECTOR_MESON_DUMMY_P, &dummy_encp_drv->dummy_base);
 		pr_err("%s dummyp[%d]\n", __func__, dummy_encp_drv->drm_id);
 	} else {
 		pr_err("no unbind func from drm.\n");

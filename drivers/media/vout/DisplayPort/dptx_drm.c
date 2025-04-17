@@ -27,7 +27,7 @@ static int meson_DisplayPort_bind(struct device *dev, struct device *master, voi
 static void meson_DisplayPort_unbind(struct device *dev, struct device *master, void *data);
 
 struct drm_DisplayPort_wrapper {
-	struct meson_DisplayPort_dev drm_dptx_instance;
+	struct meson_panel_dev drm_dptx_instance;
 	struct dptx_drv_s *dptx_drv;
 	int drm_type;
 	int drm_id;
@@ -92,7 +92,7 @@ static void dptx_drm_vmode_add(struct dptx_drv_s *dptx, struct drm_display_mode 
 		__func__, pmode->name, pmode->clock, pmode->htotal, pmode->vtotal);
 }
 
-static int get_dptx_modes(struct meson_DisplayPort_dev *dptx_drm_dev,
+static int get_dptx_modes(struct meson_panel_dev *dptx_drm_dev,
 		struct drm_display_mode **modes, int *num)
 {
 	struct drm_DisplayPort_wrapper *wrapper = to_drm_dptx_wrapper(dptx_drm_dev);
