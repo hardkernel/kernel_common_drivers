@@ -55,6 +55,12 @@ static struct edid_venddat_t vendor_audio_ddp_pop_tv[] = {
 	/* Add new vendor data here */
 };
 
+static struct edid_venddat_t vendor_hdcp_delay[] = {
+	/* Mi L55M5-EC */
+	{ {0x61, 0xa4, 0x4a, 0x00, 0x01, 0x00, 0x00, 0x00, 0x06, 0x1c} }
+	/* Add new vendor data here */
+};
+
 /* HDMIPLL_CTRL3/4 under 4k50/60hz 6G mode should use the setting
  * witch is used under 4k59.94hz, specially for SAMSUNG UA55KS7300JXXZ
  * flash screen/no signal issue on SM1/SC2
@@ -172,3 +178,22 @@ bool hdmitx_find_vendor_audio_ddp_pop(unsigned char *edid_buf)
 	return false;
 }
 
+/*
+ * there will be no signal or display black screen when switch
+ * from 4k24/25/30hz 444/rgb,8bit to 444/rgb,10/12bit, need to add
+ * longer wait after mode set and before hdcp auth
+ */
+bool hdmitx_find_vendor_hdcp_delay(unsigned char *edid_buf)
+{
+	int i;
+
+	if (!edid_buf)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(vendor_hdcp_delay); i++) {
+		if (memcmp(&edid_buf[8], vendor_hdcp_delay[i].data,
+		    sizeof(vendor_hdcp_delay[i].data)) == 0)
+			return true;
+	}
+	return false;
+}

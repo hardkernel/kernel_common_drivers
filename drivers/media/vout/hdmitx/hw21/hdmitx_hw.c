@@ -6008,9 +6008,14 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 			 * 0: for hdmitx driver control hdcp
 			 * 1/2: drm driver or app control hdcp
 			 */
-			if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0 && p_hdcp)
-				schedule_delayed_work(&p_hdcp->work_tx_start_hdcp,
-						msecs_to_jiffies(250));
+			if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0 && p_hdcp) {
+				if (hdmitx_find_vendor_hdcp_delay(tx_comm->edid_buf))
+					schedule_delayed_work(&p_hdcp->work_tx_start_hdcp,
+						msecs_to_jiffies(750));
+				else
+					schedule_delayed_work(&p_hdcp->work_tx_start_hdcp,
+						msecs_to_jiffies(500));
+			}
 		}
 	}
 
