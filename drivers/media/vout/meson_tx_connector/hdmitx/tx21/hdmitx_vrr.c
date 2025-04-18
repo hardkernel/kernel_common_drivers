@@ -778,6 +778,8 @@ int hdmitx_dump_vrr_status(struct seq_file *s, void *p)
 		seq_puts(s, "type: QMS-VRR\n");
 		break;
 	case T_VRR_NONE:
+		seq_puts(s, "type: VRR-NONE\n");
+		break;
 	default:
 		return 0;
 	}

@@ -1980,6 +1980,7 @@ u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm)
 	if (prxcap->qms || prxcap->vrr_max || prxcap->vrr_min) {
 		vrr_cap |= prxcap->qms ? QMS_VRR_SUP : 0;
 		vrr_cap |= prxcap->vrr_min ? GAMING_VRR_SUP : 0;
+		HDMITX_DEBUG("%s get vrr cap : %d\n", __func__, vrr_cap);
 		return vrr_cap;
 	}
 

@@ -1059,6 +1059,9 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->scan_info_prop) {
 		*val = hdmitx_common_get_scan_info(tx_comm);
 		return 0;
+	} else if (property == am_hdmi->vrr_capable_type_prop) {
+		*val = hdmitx_common_get_vrr_cap(tx_comm);
+		return 0;
 	} else {
 		DRM_ERROR("[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]\n",
 				connector->base.id, connector->name,
@@ -2318,6 +2321,7 @@ static struct meson_range_prop_info range_props[] = {
 	{0, 0, 1, 0, "hdmi_used"},
 	{0, 0, 8, 0, "sink_type"},
 	{0, 0, 1, 0, "edid_valid"},
+	{0, 0, 3, 0, "vrr_capable_type"},
 };
 
 static void meson_hdmitx_create_range_property(struct drm_device *drm_dev,
