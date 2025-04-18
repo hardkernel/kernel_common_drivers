@@ -296,6 +296,7 @@ static u32 meson_ir_getkeycode(struct meson_ir_dev *dev, u32 scancode)
 {
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
 	struct meson_ir_map_tab_list *ct = chip->cur_tab;
+	int cus_code;
 	int index;
 
 	if (!ct) {
@@ -310,8 +311,17 @@ static u32 meson_ir_getkeycode(struct meson_ir_dev *dev, u32 scancode)
 		return BTN_LEFT;
 	}
 
+lookup_again:
 	index = meson_ir_lookup_by_scancode(&ct->tab, scancode);
 	if (index < 0) {
+		cus_code = chip->ir_contr[chip->ir_work].get_custom_code(chip);
+		list_for_each_entry_continue(ct, &chip->map_tab_head, list) {
+			if (ct->tab.custom_code == cus_code) {
+				chip->cur_tab = ct;
+				dev->keyup_delay = ct->tab.release_delay;
+				goto lookup_again;
+			}
+		}
 		dev_err(chip->dev, "scancode %d undefined\n", scancode);
 		return KEY_RESERVED;
 	}
