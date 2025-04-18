@@ -36,6 +36,8 @@
 #include "clk-pll.h"
 #include <linux/amlogic/arm-smccc.h>
 
+#define PLL_LOCK_RETRY_CNT_MAX		10
+
 #define FIXED_FRAC_WEIGHT_PRECISION	100000
 #define MESON_PLL_THRESHOLD_RATE	1500000000
 /*
@@ -465,94 +467,6 @@ static int meson_clk_pcie_pll_enable(struct clk_hw *hw)
 	return -EIO;
 }
 
-static int meson_clk_pll_enable(struct clk_hw *hw)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-
-	/* do nothing if the PLL is already enabled */
-	if (clk_hw_is_enabled(hw))
-		return 0;
-
-	/* Make sure the pll is in reset */
-	if (MESON_PARM_APPLICABLE(&pll->rst)) {
-		if (pll->flags & CLK_MESON_PLL_RSTN)
-			meson_parm_write(clk->map, &pll->rst, 0);
-		else
-			meson_parm_write(clk->map, &pll->rst, 1);
-	}
-
-	/* Make sure bit is 0 before enable pll */
-	if (MESON_PARM_APPLICABLE(&pll->current_en))
-		meson_parm_write(clk->map, &pll->current_en, 0);
-
-	/* Enable the pll */
-	meson_parm_write(clk->map, &pll->en, 1);
-
-	/* Make sure the pll is in lock reset */
-	if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
-		if (pll->flags & CLK_MESON_PLL_L_RSTN)
-			meson_parm_write(clk->map, &pll->l_rst, 0);
-		else
-			meson_parm_write(clk->map, &pll->l_rst, 1);
-	}
-
-	/* Make sure the pll force lock is clear */
-	if (MESON_PARM_APPLICABLE(&pll->fl))
-		meson_parm_write(clk->map, &pll->fl, 0);
-
-	/*
-	 * Compared with the previous SoCs, self-adaption current module
-	 * is newly added for A1, keep the new power-on sequence to enable the
-	 * PLL. The sequence is:
-	 * 1. enable the pll, delay for 10us
-	 * 2. enable the pll self-adaption current module, delay for 40us
-	 * 3. enable the lock detect module
-	 */
-	if (MESON_PARM_APPLICABLE(&pll->current_en)) {
-		udelay(10);
-		meson_parm_write(clk->map, &pll->current_en, 1);
-		udelay(40);
-	} else {
-		/*
-		 * Delay 50us to wait for PLL to stabilize, otherwise PLL may
-		 * have a lock failure (especially in low temperature scenarios).
-		 */
-		udelay(50);
-	}
-
-	if (MESON_PARM_APPLICABLE(&pll->l_detect)) {
-		meson_parm_write(clk->map, &pll->l_detect, 1);
-		meson_parm_write(clk->map, &pll->l_detect, 0);
-	}
-
-	/* Take the pll out reset */
-	if (MESON_PARM_APPLICABLE(&pll->rst)) {
-		if (pll->flags & CLK_MESON_PLL_RSTN)
-			meson_parm_write(clk->map, &pll->rst, 1);
-		else
-			meson_parm_write(clk->map, &pll->rst, 0);
-	}
-
-	/* Take the pll out lock reset */
-	if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
-		udelay(20);
-		if (pll->flags & CLK_MESON_PLL_L_RSTN)
-			meson_parm_write(clk->map, &pll->l_rst, 1);
-		else
-			meson_parm_write(clk->map, &pll->l_rst, 0);
-	}
-
-	if (meson_clk_pll_wait_lock(hw))
-		return -EIO;
-
-	/* Make sure the pll force lock is set */
-	if (MESON_PARM_APPLICABLE(&pll->fl))
-		meson_parm_write(clk->map, &pll->fl, 1);
-
-	return 0;
-}
-
 static void meson_clk_pll_disable(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
@@ -573,13 +487,102 @@ static void meson_clk_pll_disable(struct clk_hw *hw)
 	meson_parm_write(clk->map, &pll->en, 0);
 }
 
+static int meson_clk_pll_enable(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	int retry = 0;
+
+	/* do nothing if the PLL is already enabled */
+	if (clk_hw_is_enabled(hw))
+		return 0;
+
+	do {
+		/* Make sure the pll is disabled */
+		meson_clk_pll_disable(hw);
+
+		/* Make sure bit is 0 before enable pll */
+		if (MESON_PARM_APPLICABLE(&pll->current_en))
+			meson_parm_write(clk->map, &pll->current_en, 0);
+
+		/* Enable the pll */
+		meson_parm_write(clk->map, &pll->en, 1);
+
+		/* Make sure the pll is in lock reset */
+		if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
+			if (pll->flags & CLK_MESON_PLL_L_RSTN)
+				meson_parm_write(clk->map, &pll->l_rst, 0);
+			else
+				meson_parm_write(clk->map, &pll->l_rst, 1);
+		}
+
+		/* Make sure the pll force lock is clear */
+		if (MESON_PARM_APPLICABLE(&pll->fl))
+			meson_parm_write(clk->map, &pll->fl, 0);
+
+		/*
+		 * Compared with the previous SoCs, self-adaption current module
+		 * is newly added for A1, keep the new power-on sequence to enable the
+		 * PLL. The sequence is:
+		 * 1. enable the pll, delay for 10us
+		 * 2. enable the pll self-adaption current module, delay for 40us
+		 * 3. enable the lock detect module
+		 */
+		if (MESON_PARM_APPLICABLE(&pll->current_en)) {
+			udelay(10);
+			meson_parm_write(clk->map, &pll->current_en, 1);
+			udelay(40);
+		} else {
+			/*
+			 * Delay 50us to wait for PLL to stabilize, otherwise PLL may
+			 * have a lock failure (especially in low temperature scenarios).
+			 */
+			udelay(50);
+		}
+
+		if (MESON_PARM_APPLICABLE(&pll->l_detect)) {
+			meson_parm_write(clk->map, &pll->l_detect, 1);
+			meson_parm_write(clk->map, &pll->l_detect, 0);
+		}
+
+		/* Take the pll out reset */
+		if (MESON_PARM_APPLICABLE(&pll->rst)) {
+			if (pll->flags & CLK_MESON_PLL_RSTN)
+				meson_parm_write(clk->map, &pll->rst, 1);
+			else
+				meson_parm_write(clk->map, &pll->rst, 0);
+		}
+
+		/* Take the pll out lock reset */
+		if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
+			udelay(20);
+			if (pll->flags & CLK_MESON_PLL_L_RSTN)
+				meson_parm_write(clk->map, &pll->l_rst, 1);
+			else
+				meson_parm_write(clk->map, &pll->l_rst, 0);
+		}
+
+		if (!meson_clk_pll_wait_lock(hw)) {
+			/* Make sure the pll force lock is set */
+			if (MESON_PARM_APPLICABLE(&pll->fl))
+				meson_parm_write(clk->map, &pll->fl, 1);
+
+			return 0;
+		}
+	} while (retry > PLL_LOCK_RETRY_CNT_MAX);
+
+	pr_warn("%s: PLL lock failed!!!\n", clk_hw_get_name(hw));
+
+	return -EIO;
+}
+
 static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long parent_rate)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 	unsigned int enabled, m, n, frac, od;
-	int ret, retry_cnt = 0;
+	int ret;
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
@@ -588,7 +591,6 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (ret)
 		return ret;
 
-retry:
 	enabled = meson_clk_pll_is_enabled(hw);
 
 	/* Don't disable pll if it's just changing frac */
@@ -611,17 +613,7 @@ retry:
 	if (!enabled)
 		return 0;
 
-	ret = meson_clk_pll_enable(hw);
-	if (ret) {
-		if (retry_cnt < 10) {
-			retry_cnt++;
-			pr_warn("%s: pll did not lock, retry %d\n",
-				clk_hw_get_name(hw), retry_cnt);
-			goto retry;
-		}
-	}
-
-	return ret;
+	return meson_clk_pll_enable(hw);
 }
 
 static int meson_clk_pll_save_context(struct clk_hw *hw)
