@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/di_multi/deinterlace_hw.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef _DI_HW_H
@@ -686,7 +673,7 @@ void dim_post_gate_control(bool gate);
 void dim_post_gate_control_sc2(bool gate);
 void dim_set_power_control(unsigned char enable);
 void dim_hw_disable(bool mc_enable);
-void dimh_enable_di_pre_mif(bool enable, bool mc_enable);
+void dimh_enable_di_pre_mif(bool enable, bool mc_enable, bool nr_only);
 void dimh_enable_di_post_mif(enum gate_mode_e mode);
 
 void dimh_combing_pd22_window_config(unsigned int width, unsigned int height);
@@ -722,7 +709,7 @@ void dim_arb_sw(bool on);
 void dbg_set_DI_PRE_CTRL(void);
 void di_async_reset2(void);	/*2019-04-05 add for debug*/
 void di_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in,
-			  bool en_link);
+			  bool en_link, bool nr_only);
 void di_async_txhd2(void);
 
 enum DI_HW_POST_CTRL {
@@ -866,7 +853,7 @@ struct dim_hw_opsv_s {
 	void (*pst_mif_update_csv)(struct DI_MIF_S *mif,
 				   enum DI_MIF0_ID mif_index,
 				   const struct reg_acc *op);
-	void (*pre_mif_sw)(bool enable, const struct reg_acc *op, bool en_link);
+	void (*pre_mif_sw)(bool enable, const struct reg_acc *op, bool en_link, bool nr_only);
 	void (*pst_mif_sw)(bool on, enum DI_MIF0_SEL sel);
 	void (*pst_mif_rst)(enum DI_MIF0_SEL sel);
 	void (*pst_mif_rev)(bool rev, enum DI_MIF0_SEL sel);

@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/di_multi/dd_s4dw.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -2163,13 +2150,13 @@ static void s4dw_pre_set(unsigned int channel)
 	//di_lock_irqfiq_save(irq_flag2);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* enable mc pre mif*/
-		dimh_enable_di_pre_mif(true, /*dimp_get(edi_mp_mcpre_en)*/mc_en);
+		dimh_enable_di_pre_mif(true, /*dimp_get(edi_mp_mcpre_en)*/mc_en, true);
 		dim_pre_frame_reset_g12(ppre->madi_enable,
 					ppre->mcdi_enable);
 	} else {
 		dim_pre_frame_reset();
 		/* enable mc pre mif*/
-		dimh_enable_di_pre_mif(true, /*dimp_get(edi_mp_mcpre_en)*/mc_en);
+		dimh_enable_di_pre_mif(true, /*dimp_get(edi_mp_mcpre_en)*/mc_en, true);
 	}
 	/*dbg_set_DI_PRE_CTRL();*/
 	atomic_set(&get_hw_pre()->flg_wait_int, 1);
@@ -2420,9 +2407,9 @@ static bool s4dw_wait_int_process(void)
 				if (DIM_IS_IC_EF(SC2))
 					opl1()->pre_gl_sw(false);
 #ifdef TMP_S4DW_MC_EN
-				dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
+				dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en), false);
 #else
-				dimh_enable_di_pre_mif(false, false);
+				dimh_enable_di_pre_mif(false, false, false);
 #endif
 				pre->pres->pre_de_irq_timeout_count++;
 

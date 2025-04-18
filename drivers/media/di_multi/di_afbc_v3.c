@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/deinterlace/sc2/di_afbc_v3.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -175,10 +162,12 @@ static const struct reg_acc di_normal_regset = {
 #define BITS_EAFBC_CFG_6DEC_2ENC   DI_BIT8
 #define BITS_EAFBC_CFG_6DEC_2ENC2  DI_BIT9
 #define BITS_EAFBC_CFG_6DEC_1ENC3  DI_BIT10
-#define BITS_EAFBC_CFG_FORCE_MEM      DI_BIT15
-#define BITS_EAFBC_CFG_FORCE_CHAN2     DI_BIT14
-#define BITS_EAFBC_CFG_FORCE_NR       DI_BIT13
+
+#define BITS_EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY DI_BIT11
 #define BITS_EAFBC_CFG_FORCE_IF1       DI_BIT12
+#define BITS_EAFBC_CFG_FORCE_NR       DI_BIT13
+#define BITS_EAFBC_CFG_FORCE_CHAN2     DI_BIT14
+#define BITS_EAFBC_CFG_FORCE_MEM      DI_BIT15
 
 #define BITS_EAFBC_CFG_MEM	   DI_BIT31
 
@@ -298,6 +287,10 @@ static bool is_cfg(enum EAFBC_CFG cfg_cmd)
 				BITS_EAFBC_CFG_6DEC_2ENC		|
 				BITS_EAFBC_CFG_6DEC_2ENC2		|
 				BITS_EAFBC_CFG_6DEC_1ENC3))
+			ret = true;
+		break;
+	case EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY:
+		if (afbc_cfg & BITS_EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY)
 			ret = true;
 		break;
 	}
@@ -1187,13 +1180,13 @@ static bool afbc_is_supported(void)
 	bool ret = false;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
-	/* TXHD2 not support afbc input with post write mode */
-	if (!pafd_ctr || is_cfg(EAFBC_CFG_DISABLE) || DIM_IS_IC_TXHD2) {
-#ifdef PRINT_BASIC
-		dim_print("%s:false\n", __func__);
-#endif
+	if (!pafd_ctr)
 		return false;
-	}
+
+	/* When enabling afbcd_plink_only, not support afbc input for post write */
+	if (is_cfg(EAFBC_CFG_DISABLE) || pafd_ctr->fb.afbcd_plink_only)
+		return false;
+
 	if (pafd_ctr->fb.ver != AFBCD_NONE)
 		ret = true;
 
@@ -1207,7 +1200,8 @@ static bool afbc_is_supported_for_plink(void)
 
 	if (!pafd_ctr)
 		return false;
-	if (is_cfg(EAFBC_CFG_DISABLE) && !pafd_ctr->en_ponly_afbcd)
+
+	if (is_cfg(EAFBC_CFG_DISABLE) && !pafd_ctr->fb.afbcd_plink_only)
 		return false;
 
 	if (pafd_ctr->fb.ver != AFBCD_NONE)
@@ -1549,10 +1543,14 @@ static unsigned char afbc_cnt_sgn_mode(unsigned int sgn)
 
 static void afbc_cfg_mode_set(unsigned int mode, union afbc_blk_s *en_cfg)
 {
+	struct afbcd_ctr_s *pafd_ctr;
+
+	pafd_ctr = &di_afdp->ctr;
+
 	if (!en_cfg)
 		return;
 
-	if (is_cfg(EAFBC_CFG_DISABLE)) {
+	if (is_cfg(EAFBC_CFG_DISABLE) && !pafd_ctr->fb.afbcd_plink_only) {
 		en_cfg->d8 = 0;
 		return;
 	}
@@ -1567,14 +1565,32 @@ static void afbc_cfg_mode_set(unsigned int mode, union afbc_blk_s *en_cfg)
 static void afbc_get_mode_from_cfg(void)
 {
 	struct afbcd_ctr_s *pafd_ctr;
+	static u32 last_afbc_cfg;
 
 	pafd_ctr = &di_afdp->ctr;
+
+	/* update afbcd_plink_only when reg */
+	if (pafd_ctr && pafd_ctr->fb.shared_afbcd) {
+		if (IS_IC_SUPPORT(PRE_VPP_LINK) && cfgg(EN_PRE_LINK) &&
+			!is_cfg(EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY))
+			pafd_ctr->fb.afbcd_plink_only = 1;
+		else
+			pafd_ctr->fb.afbcd_plink_only = 0;
+	}
+	dim_print("%s:afbcd_plink_only[%d] shared_afbcd[%d] link cfg:[%d %d %d]\n",
+		  __func__, pafd_ctr->fb.afbcd_plink_only, pafd_ctr->fb.shared_afbcd,
+		  IS_IC_SUPPORT(PRE_VPP_LINK) ? 1 : 0,
+		  cfgg(EN_PRE_LINK) ? 1 : 0,
+		  is_cfg(EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY) ? 1 : 0);
+
 	/*******************************
 	 * cfg for debug:
 	 ******************************/
-	if (!afbc_cfg)
+	if (!afbc_cfg && last_afbc_cfg == afbc_cfg)
 		return;
-	if (is_cfg(EAFBC_CFG_DISABLE)) {
+
+	last_afbc_cfg = afbc_cfg;
+	if (is_cfg(EAFBC_CFG_DISABLE) && !pafd_ctr->fb.afbcd_plink_only) {
 		pafd_ctr->fb.mode = 0;
 	} else if (afbc_cfg & (BITS_EAFBC_CFG_INP_AFBC |
 			BITS_EAFBC_CFG_6DEC_2ENC |
@@ -1590,7 +1606,9 @@ static void afbc_get_mode_from_cfg(void)
 			pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
 	} else {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (pafd_ctr->fb.ver >= AFBCD_V5)
+		if (pafd_ctr->fb.afbcd_plink_only || pafd_ctr->fb.shared_afbcd)
+			pafd_ctr->fb.mode = AFBC_WK_IN;
+		else if (pafd_ctr->fb.ver >= AFBCD_V5)
 			pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
 		else if (pafd_ctr->fb.ver >= AFBCD_V4)
 			pafd_ctr->fb.mode = AFBC_WK_P;
@@ -1617,24 +1635,20 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		return;
 	}
 	pafd_ctr = &di_afdp->ctr;
-	pafd_ctr->en_ponly_afbcd = false;
-
+	pafd_ctr->fb.afbcd_plink_only = 0;
+	pafd_ctr->fb.shared_afbcd = 0;
 	if (IS_IC(cid, T6D) || IS_IC(cid, GXLX4)) {
-#ifndef T6D_AFBC_TEST
 		if (cfgg(T5DB_AFBCD_EN))
 			afbc_cfg = 0;
 		else
 			afbc_cfg = BITS_EAFBC_CFG_DISABLE;
-
-		if (afbc_cfg && IS_IC_SUPPORT(PRE_VPP_LINK) &&
-			cfgg(EN_PRE_LINK))
-			pafd_ctr->en_ponly_afbcd = true;
-#else
-		afbc_cfg = 0;
-#endif
-
 		memcpy(&pafd_ctr->fb, &cafbc_v4_t6d, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_IN;
+		if (IS_IC_SUPPORT(PRE_VPP_LINK) && cfgg(EN_PRE_LINK))
+			pafd_ctr->fb.afbcd_plink_only = 1;
+		else
+			pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 1;
 	} else if (IS_IC_EF(cid, SC2)) {
 		//afbc_cfg = BITS_EAFBC_CFG_4K;
 		afbc_cfg = 0;
@@ -1643,6 +1657,8 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 			pafd_ctr->fb.mode = AFBC_WK_IN;//JUST 1afbc D
 		else
 			pafd_ctr->fb.mode = AFBC_WK_P;
+		pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 0;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else if (IS_IC(cid, T5DB)) {
@@ -1650,12 +1666,13 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 			afbc_cfg = 0;
 		else
 			afbc_cfg = BITS_EAFBC_CFG_DISABLE;
-		if (afbc_cfg && IS_IC_SUPPORT(PRE_VPP_LINK) &&
-		    cfgg(EN_PRE_LINK))
-			pafd_ctr->en_ponly_afbcd = true;
-
 		memcpy(&pafd_ctr->fb, &cafbc_v4_t5dvb, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_IN;
+		if (IS_IC_SUPPORT(PRE_VPP_LINK) && cfgg(EN_PRE_LINK))
+			pafd_ctr->fb.afbcd_plink_only = 1;
+		else
+			pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 1;
 	} else if (IS_IC_EF(cid, T5D)) { //unsupport afbc
 		pafd_ctr->fb.ver = AFBCD_NONE;
 		pafd_ctr->fb.sp.b.inp = 0;
@@ -1666,13 +1683,19 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v4_tm2, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_P;
+		pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 0;
 	} else if (IS_IC_EF(cid, TM2B)) {
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v4_tm2, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_P;
+		pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 0;
 	} else if (IS_IC_EF(cid, TL1)) {
 		memcpy(&pafd_ctr->fb, &cafbc_v3_tl1, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_IN;
+		pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 0;
 	} else if (IS_IC_EF(cid, G12A)) {
 		pafd_ctr->fb.ver = AFBCD_V2;
 		pafd_ctr->fb.sp.b.inp = 1;
@@ -1717,8 +1740,8 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	//afbc_cfg = BITS_EAFBC_CFG_DISABLE;
 	dbg_mem("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
 	       afbc_get_version(), pafd_ctr->fb.mode);
-	pr_debug("%s:ok:en_ponly_afbcd[%d]\n", __func__,
-		pafd_ctr->en_ponly_afbcd);
+	pr_debug("%s:ok:afbcd_plink_only[%d] shared_afbcd[%d]\n", __func__,
+		pafd_ctr->fb.afbcd_plink_only, pafd_ctr->fb.shared_afbcd);
 }
 
 /*
@@ -3672,7 +3695,7 @@ static void afbc_sw_tl2(bool en, const struct reg_acc *op_in)
 {
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
-	if (pafd_ctr->en_ponly_afbcd) { //only for t5dvb
+	if (pafd_ctr->fb.afbcd_plink_only) { //only for t5dvb
 		afbc_tm2_sw_inp(en, op_in);
 		return;
 	}
@@ -3841,24 +3864,27 @@ void disable_afbcd_t5dvb(void)
 	const unsigned int *reg;
 	unsigned int reg_AFBC_ENABLE;
 
-	if (!afbc_is_supported() || !DIM_IS_IC(T5DB) ||
-		cfgg(EN_PRE_LINK) || !DIM_IS_IC(T6D) || !DIM_IS_IC(GXLX4))
+	if (!afbc_is_supported() || cfgg(EN_PRE_LINK))
 		return;
-	dbg_mem2("%s\n", __func__);
-	reg = afbc_get_addrp(pafd_ctr->fb.pre_dec);
-	reg_AFBC_ENABLE = reg[EAFBC_ENABLE];
 
-	dim_print("%s:reg=0x%x:sw=off\n", __func__, reg_AFBC_ENABLE);
-	reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
+	if (pafd_ctr && pafd_ctr->fb.shared_afbcd) {
+		reg = afbc_get_addrp(pafd_ctr->fb.pre_dec);
+		reg_AFBC_ENABLE = reg[EAFBC_ENABLE];
+
+		dim_print("%s:reg=0x%x:sw=off\n", __func__, reg_AFBC_ENABLE);
+		reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
+	}
 }
 
 void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 {
 	unsigned int val;
 	unsigned int en = 0;
+	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
-	if (!DIM_IS_IC(T5DB) && !DIM_IS_IC(T6D) && !DIM_IS_IC(GXLX4))
+	if (!pafd_ctr || !pafd_ctr->fb.shared_afbcd)
 		return;
+
 	if (afbc_is_supported_for_plink()) {
 		dbg_reg("afbc_is_supported_for_plink\n");
 		if (vpp_link) {
@@ -3922,28 +3948,16 @@ static void afbc_reg_sw(bool on)
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 	struct afbc_fb_s tmp;
 
-	if (!afbc_is_supported())
+	/* mux/power registers need be set under both afbc post write and prelink mode */
+	if (!afbc_is_supported() && !pafd_ctr->fb.afbcd_plink_only)
 		return;
+
 	dbg_pl("%s:sw[%d]\n", __func__, on);
 	if (on) {
 		if (pafd_ctr->fb.ver <= AFBCD_V3)
 			afbc_power_sw(true, &di_normal_regset);
-		else if (pafd_ctr->fb.ver == AFBCD_V4) {
+		else if (pafd_ctr->fb.ver == AFBCD_V4)
 			reg_wrb(DI_AFBCE_CTRL, 0x01, 4, 1);
-#ifdef _HIS_CODE_ //move to afbcd_enable_only_t5dvb
-			if (DIM_IS_IC(T5DB) && afbc_is_supported()) {
-				/* afbcd is shared */
-				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 22, 1);
-				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 10, 1);
-				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 12, 1);
-				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 1, 1);
-				dbg_reg("%s:t5d vb on\n 0x%x,0x%x\n",
-					__func__,
-					VD1_AFBCD0_MISC_CTRL,
-					reg_rd(VD1_AFBCD0_MISC_CTRL));
-			}
-#endif
-		}
 	}
 	if (!on) {
 		if (pafd_ctr->fb.ver <= AFBCD_V3) {
@@ -4267,8 +4281,7 @@ static void afbc_input_sw(bool on)
 		if (on)
 			reg_wrb(reg_AFBC_ENABLE, 1, 8, 1);
 		else
-			dbg_tst("just for coverity\n");
-			//reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
+			reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
 	}
 
 	if (pafd_ctr->en_set.b.mem) {
@@ -4474,8 +4487,10 @@ static void afbc_input_sw_op(bool on, const struct reg_acc *op)
 			reg_val = op->rd(reg_AFBC_ENABLE);
 			reg_val |= 1 << 8;
 			op->wr(reg_AFBC_ENABLE, reg_val);
-		} else {
-			;//reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
+		} else if (!pafd_ctr->fb.afbcd_plink_only) {
+			reg_val = op->rd(reg_AFBC_ENABLE);
+			reg_val &= ~(1 << 8);
+			op->wr(reg_AFBC_ENABLE, reg_val);
 		}
 	}
 
@@ -4518,24 +4533,10 @@ static void afbc_reg_sw_op(bool on, const struct reg_acc *op)
 	}
 	dbg_pl("%s:sw[%d]\n", __func__, on);
 	if (on) {
-		if (pafd_ctr->fb.ver <= AFBCD_V3) {
+		if (pafd_ctr->fb.ver <= AFBCD_V3)
 			afbc_power_sw(true, op);
-		} else if (pafd_ctr->fb.ver == AFBCD_V4) {
+		else if (pafd_ctr->fb.ver == AFBCD_V4)
 			op->bwr(DI_AFBCE_CTRL, 0x01, 4, 1);
-#ifdef _HIS_CODE_ //move to afbcd_enable_only_t5dvb
-			if (DIM_IS_IC(T5DB) && afbc_is_supported()) {
-				/* afbcd is shared */
-				op->bwr(VD1_AFBCD0_MISC_CTRL, 0x01, 22, 1);
-				op->bwr(VD1_AFBCD0_MISC_CTRL, 0x01, 10, 1);
-				op->bwr(VD1_AFBCD0_MISC_CTRL, 0x01, 12, 1);
-				op->bwr(VD1_AFBCD0_MISC_CTRL, 0x01, 1, 1);
-				dbg_reg("%s:t5d vb on\n 0x%x,0x%x\n",
-					__func__,
-					VD1_AFBCD0_MISC_CTRL,
-					op->rd(VD1_AFBCD0_MISC_CTRL));
-			}
-#endif
-		}
 	}
 	if (!on) {
 		if (pafd_ctr->fb.ver <= AFBCD_V3) {
@@ -4633,10 +4634,7 @@ static void afbc_check_chg_level_dvfm(struct dvfm_s *vf,
 	/*check support*/
 	if (pctr->fb.ver == AFBCD_NONE)
 		return;
-#ifdef HIS_CODE
-	if (is_cfg(EAFBC_CFG_DISABLE))
-		return;
-#endif
+
 	if (pctr->fb.ver < AFBCD_V4 || pctr->fb.mode < AFBC_WK_P) {
 		if (!(vf->vfs.type & VIDTYPE_COMPRESS)) {
 			if (pctr->b.en) {
@@ -5538,16 +5536,28 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 
 		/*mem*/
 		if (pafd_ctr->en_set.b.mem) {
-			if (is_cfg(EAFBC_CFG_FORCE_MEM))
+			if (!ndvfm->c.set_cfg.b.en_mem_afbcd &&
+				!is_src_real_i_dvfm(mem_vf2) &&
+				pafd_ctr->en_set.b.inp &&
+				pafd_ctr->en_set.b.enc_nr) {
+				if (mem_vf2->vfs.type & VIDTYPE_COMPRESS_LOSS)
+					cfg.reg_lossy_en = 1;
+				enable_afbc_input_local_dvfm(ds, inp_vf2,
+							pafd_ctr->fb.mem_dec,
+							pcfg,
+							win_in,
+							op_in);
+			} else if (is_cfg(EAFBC_CFG_FORCE_MEM)) {
 				enable_afbc_input_local_dvfm(ds, mem_vf2,
 							pafd_ctr->fb.mem_dec,
 							pcfg,
 							win_mem,
 							op_in);
-			else
+			} else {
 				afbc_update_level1_dvfm(mem_vf2,
 						   pafd_ctr->fb.mem_dec,
 						   op_in);
+			}
 		}
 
 #ifdef MARK_DEADCODE_HIS
@@ -5581,9 +5591,22 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 			afbc_update_level1_dvfm(inp_vf2, pafd_ctr->fb.pre_dec, op_in);
 
 		/*mem*/
-		if (pafd_ctr->en_set.b.mem)
-			afbc_update_level1_dvfm(mem_vf2, pafd_ctr->fb.mem_dec, op_in);
-
+		if (pafd_ctr->en_set.b.mem) {
+			if (!ndvfm->c.set_cfg.b.en_mem_afbcd &&
+				!is_src_real_i_dvfm(mem_vf2) &&
+				pafd_ctr->en_set.b.inp &&
+				pafd_ctr->en_set.b.enc_nr) {
+				if (mem_vf2->vfs.type & VIDTYPE_COMPRESS_LOSS)
+					cfg.reg_lossy_en = 1;
+				enable_afbc_input_local_dvfm(ds, inp_vf2,
+							pafd_ctr->fb.mem_dec,
+							pcfg,
+							win_in,
+							op_in);
+			} else {
+				afbc_update_level1_dvfm(mem_vf2, pafd_ctr->fb.mem_dec, op_in);
+			}
+		}
 #ifdef MARK_DEADCODE_HIS
 		/*chan2_vf is NULL the follow condition cannot be true*/
 		if (pafd_ctr->en_set.b.chan2 && chan2_vf)

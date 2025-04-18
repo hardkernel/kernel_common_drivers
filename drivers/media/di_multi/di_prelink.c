@@ -275,6 +275,14 @@ static bool dpvpp_dbg_mem_fl_in(void)
 	return false;
 }
 
+static bool dpvpp_dbg_mem_skip_wr_done_check(void)
+{
+	if (tst_pre_vpp & DI_BIT29)
+		return true;
+
+	return false;
+}
+
 static bool dpvpp_dbg_force_disable_pre_hold(void)
 {
 	if (tst_pre_vpp & DI_BIT30)
@@ -746,6 +754,7 @@ irqreturn_t dpvpp_pre_irq(int irq, void *dev_instance)
 	} else if ((data32 & 1) && !(mask32 & 1)) {
 		dim_print("irq pre NRWR ==\n");
 		flag = 1;
+		ds->nr_wr_done++;
 	} else {
 		dim_print("irq pre DI IRQ 0x%x ==\n", data32);
 		flag = 0;
@@ -3179,7 +3188,7 @@ int dpvpp_pre_unreg_bypass(void)
 		dim_afds()->pvpp_sw_setting_op(false, hw->op);
 		//dpvpph_pre_data_mif_ctrl(false, hw->op);
 		dpvpph_reverse_mif_ctrl(0, 0, hw->op);
-		opl1()->pre_mif_sw(false, hw->op, true);
+		opl1()->pre_mif_sw(false, hw->op, true, true);
 		dpvpph_prelink_sw(hw->op, false);
 	}
 	if (hw->dis_ch != hw->dct_ch && !hw->dct_flg) {
@@ -3491,7 +3500,7 @@ DISPLAY_BYPASS:
 		//be sure vpp can display
 		dim_afds()->pvpp_sw_setting_op(false, hw->op); //disable afbcd
 		//dpvpph_pre_data_mif_ctrl(false, hw->op);
-		opl1()->pre_mif_sw(false, hw->op, true);
+		opl1()->pre_mif_sw(false, hw->op, true, true);
 		dpvpph_reverse_mif_ctrl(0, 0, hw->op);
 		dpvpph_prelink_sw(hw->op, false);
 		atomic_add(DI_BIT8, &itf->c.dbg_display_sts);	/* dbg only */
@@ -3563,7 +3572,7 @@ static void dpvpph_reg_setting(const struct reg_acc *op_in)
 			#endif
 		}
 
-		dimh_enable_di_pre_mif(false, FIX_MC_PRE_EN);
+		dimh_enable_di_pre_mif(false, FIX_MC_PRE_EN, false);
 		if (DIM_IS_IC_EF(SC2))
 			dim_pre_gate_control_sc2(true,
 						 FIX_MC_PRE_EN);
@@ -3711,9 +3720,11 @@ static void dpvpph_size_change(struct dim_pvpp_ds_s *ds,
 	if (DIM_IS_IC_EF(SC2)) {
 		//for crash test if (!ppre->cur_prog_flag)
 		dim_pulldown_info_clear_g12a(hw->op);
-		dim_sc2_afbce_rst(0, op);
-		dbg_mem2("pre reset-----\n");
-
+		if (ds->cnt_display == 0) {
+			/* reset action need one vsync earlier, so use cpu write */
+			dim_sc2_afbce_rst(0, hw->op_n);
+			dbg_plink1("%s:pre reset-----\n", __func__);
+		}
 		sc2_pre_cfg = &ds->pre_top_cfg;//&get_hw_pre()->pre_top_cfg;
 		dim_print("%s:cfg[%px]:inp[%d]\n", __func__,
 			  sc2_pre_cfg, sc2_pre_cfg->b.afbc_inp);
@@ -3914,8 +3925,10 @@ static void dpvpph_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in)
 		/*****************************************/
 		if (dim_afds() && dim_afds()->is_used())
 			dim_afds()->inp_sw_op(true, op_in);
+#ifdef HIS_CODE
 		if (dim_afds() && !dim_afds()->is_used_chan2())
 			op_in->bwr(DI_CHAN2_GEN_REG, 1, 0, 1);
+#endif
 
 		if (dim_afds() && !dim_afds()->is_used_mem())
 			op_in->bwr(DI_MEM_GEN_REG, 1, 0, 1);
@@ -4667,7 +4680,8 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	/* check mem */
 	if (ndvfm->c.set_cfg.b.en_mem_cp_in) {
 		memcpy(&ndvfm->c.mem_dvfm, in_dvfm,	sizeof(ndvfm->c.mem_dvfm));
-	} else if (!ndvfm->c.cnt_display || !ndvfm_last) {//tmp
+	} else if (!ndvfm->c.cnt_display || !ndvfm_last ||
+		(!dpvpp_dbg_mem_skip_wr_done_check() && ds->nr_wr_done < 2)) {
 		ref_en = false;
 		//ndvfm->c.set_cfg.b.en_mem_cvs = false;
 		ndvfm->c.set_cfg.b.en_mem_mif = false;
@@ -4833,15 +4847,15 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	dct_pst(hw->op, ndvfm);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* enable mc pre mif*/
-		//dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
+		//dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en), true);
 		//is dimh_enable_di_pre_mif
 #ifdef HIS_CODE
 		if (DIM_IS_IC_EF(SC2))
-			opl1()->pre_mif_sw(true, op_in);
+			opl1()->pre_mif_sw(true, op_in, true, true);
 		else
 			dpvpph_pre_data_mif_ctrl(true, op_in);
 #else
-		opl1()->pre_mif_sw(true, op_in, true);
+		opl1()->pre_mif_sw(true, op_in, true, true);
 #endif
 		dpvpph_reverse_mif_ctrl(hw->dis_c_para.plink_reverse,
 							hw->dis_c_para.plink_hv_mirror, op_in);
@@ -4849,7 +4863,7 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	} else { /* not test */
 		dpvpph_pre_frame_reset(op_in);
 		/* enable mc pre mif*/
-		//dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
+		//dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en), true);
 		dpvpph_pre_data_mif_ctrl(true, op_in);
 	}
 	dbg_mem("update all\n");
@@ -5037,7 +5051,8 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	/* check mem */
 	if (ndvfm->c.set_cfg.b.en_mem_cp_in) {
 		memcpy(&ndvfm->c.mem_dvfm, in_dvfm,	sizeof(ndvfm->c.mem_dvfm));
-	} else if (!ndvfm->c.cnt_display || !ndvfm_last) {//tmp
+	} else if (!ndvfm->c.cnt_display || !ndvfm_last ||
+		(!dpvpp_dbg_mem_skip_wr_done_check() && ds->nr_wr_done < 2)) {
 		ref_en = false;
 		ndvfm->c.set_cfg.b.en_mem_cvs = false;
 		ndvfm->c.set_cfg.b.en_mem_mif = false;
@@ -5177,15 +5192,15 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	dct_pst(hw->op, ndvfm);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* enable mc pre mif*/
-		//dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
+		//dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en), true);
 		//is dimh_enable_di_pre_mif
 #ifdef HIS_CODE
 		if (DIM_IS_IC_EF(SC2))
-			opl1()->pre_mif_sw(true, op_in);
+			opl1()->pre_mif_sw(true, op_in, true, true);
 		else
 			dpvpph_pre_data_mif_ctrl(true, op_in);
 #else
-		opl1()->pre_mif_sw(true, op_in, true);
+		opl1()->pre_mif_sw(true, op_in, true, true);
 #endif
 		dpvpph_reverse_mif_ctrl(hw->dis_c_para.plink_reverse,
 							hw->dis_c_para.plink_hv_mirror, op_in);
@@ -5193,7 +5208,7 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	} else {
 		dpvpph_pre_frame_reset(op_in);
 		/* enable mc pre mif*/
-		//dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
+		//dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en), true);
 		dpvpph_pre_data_mif_ctrl(true, op_in);
 	}
 }

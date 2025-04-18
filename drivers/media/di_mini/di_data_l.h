@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/di_multi/di_data_l.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __DI_DATA_L_H__
@@ -2500,7 +2487,6 @@ struct pvpp_buf_cfg_s {
 /***************************************************/
 struct dim_pvpp_hw_s {
 	bool active;
-	//bool en_ponly_afbcd;
 //no used	atomic_t reg_top; /* @ary 11-08 add */
 	atomic_t link_on_byvpp;
 	atomic_t link_on_bydi;

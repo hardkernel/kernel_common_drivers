@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/deinterlace/sc2/di_hw_v3.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -5500,7 +5487,7 @@ static void hw_init_v3(void)
 }
 
 static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in,
-				    bool en_link)
+				    bool en_link, bool nr_only)
 {
 	const struct reg_acc *op;
 
@@ -5519,7 +5506,7 @@ static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in,
 				dim_afds()->inp_sw(true);
 		}
 
-		if (dim_afds() && !dim_afds()->is_used_chan2())
+		if (dim_afds() && !dim_afds()->is_used_chan2() && !nr_only)
 			op->bwr(DI_SC2_CHAN2_GEN_REG, 1, 0, 1);
 
 		if (dim_afds() && !dim_afds()->is_used_mem())
@@ -6346,11 +6333,11 @@ void dim_sc2_afbce_rst(unsigned int ec_nub, const struct reg_acc *op)
 	//PR_INF("%s:[%d]\n", __func__, ec_nub);
 	val = op->rd(DI_TOP_CTRL1);
 	if (ec_nub == 0) {
-		val1 = val | (1 << 25); //bit 25
-		val = val & ~(1 << 25);
-	} else {
-		val1 = val | (1 << 23); //bit 23
+		val1 = val | (1 << 23); //bit 23 nr afbce
 		val = val & ~(1 << 23);
+	} else {
+		val1 = val | (1 << 25); //bit 25 di post afbce
+		val = val & ~(1 << 25);
 	}
 	op->wr(DI_TOP_CTRL1, val1); /*default*/
 	op->wr(DI_TOP_CTRL1, val); /*default*/

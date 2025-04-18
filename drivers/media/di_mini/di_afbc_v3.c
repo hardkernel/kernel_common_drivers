@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/deinterlace/sc2/di_afbc_v3.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -174,6 +161,7 @@ static const struct reg_acc di_normal_regset = {
 #define BITS_EAFBC_CFG_6DEC_2ENC   DI_BIT8
 #define BITS_EAFBC_CFG_6DEC_2ENC2  DI_BIT9
 #define BITS_EAFBC_CFG_6DEC_1ENC3  DI_BIT10
+#define BITS_EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY DI_BIT11
 #define BITS_EAFBC_CFG_FORCE_MEM      DI_BIT15
 #define BITS_EAFBC_CFG_FORCE_CHAN2     DI_BIT14
 #define BITS_EAFBC_CFG_FORCE_NR       DI_BIT13
@@ -296,6 +284,10 @@ static bool is_cfg(enum EAFBC_CFG cfg_cmd)
 				BITS_EAFBC_CFG_6DEC_2ENC		|
 				BITS_EAFBC_CFG_6DEC_2ENC2		|
 				BITS_EAFBC_CFG_6DEC_1ENC3))
+			ret = true;
+		break;
+	case EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY:
+		if (afbc_cfg & BITS_EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY)
 			ret = true;
 		break;
 	}
@@ -986,7 +978,7 @@ static bool afbc_is_supported_for_plink(void)
 
 	if (!pafd_ctr)
 		return false;
-	if (is_cfg(EAFBC_CFG_DISABLE) && !pafd_ctr->en_ponly_afbcd)
+	if (is_cfg(EAFBC_CFG_DISABLE) && !pafd_ctr->fb.afbcd_plink_only)
 		return false;
 
 	if (pafd_ctr->fb.ver != AFBCD_NONE)
@@ -1377,8 +1369,8 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		return;
 	}
 	pafd_ctr = &di_afdp->ctr;
-	pafd_ctr->en_ponly_afbcd = false;
-
+	pafd_ctr->fb.afbcd_plink_only = 0;
+	pafd_ctr->fb.shared_afbcd = 0;
 	if (IS_IC_EF(cid, SC2)) {
 		//afbc_cfg = BITS_EAFBC_CFG_4K;
 		afbc_cfg = 0;
@@ -1387,6 +1379,8 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 			pafd_ctr->fb.mode = AFBC_WK_IN;//JUST 1afbc D
 		else
 			pafd_ctr->fb.mode = AFBC_WK_P;
+		pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 0;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else if (IS_IC(cid, T5DB)) {
@@ -1394,11 +1388,14 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 			afbc_cfg = 0;
 		else
 			afbc_cfg = BITS_EAFBC_CFG_DISABLE;
-		if (afbc_cfg && IS_IC_SUPPORT(PRE_VPP_LINK) &&
-		    cfgg(EN_PRE_LINK))
-			pafd_ctr->en_ponly_afbcd = true;
 
 		memcpy(&pafd_ctr->fb, &cafbc_v4_t5dvb, sizeof(pafd_ctr->fb));
+		if (afbc_cfg && IS_IC_SUPPORT(PRE_VPP_LINK) &&
+		    cfgg(EN_PRE_LINK))
+			pafd_ctr->fb.afbcd_plink_only = 1;
+		else
+			pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 1;
 		pafd_ctr->fb.mode = AFBC_WK_IN;
 	} else if (IS_IC_EF(cid, T5D)) { //unsupport afbc
 		pafd_ctr->fb.ver = AFBCD_NONE;
@@ -1409,13 +1406,19 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	} else if (IS_IC_EF(cid, T5)) { //afbc config same with tm2b
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v4_tm2, sizeof(pafd_ctr->fb));
+		pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 0;
 		pafd_ctr->fb.mode = AFBC_WK_P;
 	} else if (IS_IC_EF(cid, TM2B)) {
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v4_tm2, sizeof(pafd_ctr->fb));
+		pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 0;
 		pafd_ctr->fb.mode = AFBC_WK_P;
 	} else if (IS_IC_EF(cid, TL1)) {
 		memcpy(&pafd_ctr->fb, &cafbc_v3_tl1, sizeof(pafd_ctr->fb));
+		pafd_ctr->fb.afbcd_plink_only = 0;
+		pafd_ctr->fb.shared_afbcd = 0;
 		pafd_ctr->fb.mode = AFBC_WK_IN;
 	} else if (IS_IC_EF(cid, G12A)) {
 		pafd_ctr->fb.ver = AFBCD_V2;
@@ -1461,8 +1464,8 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	//afbc_cfg = BITS_EAFBC_CFG_DISABLE;
 	dbg_mem("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
 	       afbc_get_version(), pafd_ctr->fb.mode);
-	PR_INF("%s:ok:en_ponly_afbcd[%d]\n", __func__,
-		pafd_ctr->en_ponly_afbcd);
+	PR_INF("%s:ok:afbcd_plink_only[%d]\n", __func__,
+		pafd_ctr->fb.afbcd_plink_only);
 }
 
 /*
@@ -3079,7 +3082,7 @@ static void afbc_sw_tl2(bool en, const struct reg_acc *op_in)
 {
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
-	if (pafd_ctr->en_ponly_afbcd) { //only for t5dvb
+	if (pafd_ctr->fb.afbcd_plink_only) { //only for t5dvb
 		afbc_tm2_sw_inp(en, op_in);
 		return;
 	}

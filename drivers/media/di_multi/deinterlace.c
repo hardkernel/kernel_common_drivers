@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/di_multi/deinterlace.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -4195,18 +4182,21 @@ void dim_pre_de_process(unsigned int channel)
 	 */
 	//di_lock_irqfiq_save(irq_flag2);
 	if (DIM_IS_IC_EF(T6D)) {
-		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
+		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en),
+			IS_I_SRC(ppre->cur_inp_type) ? false : true);
 		dim_pre_frame_reset_t6d(ppre->madi_enable,
 					ppre->mcdi_enable);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* enable mc pre mif*/
-		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
+		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en),
+			IS_I_SRC(ppre->cur_inp_type) ? false : true);
 		dim_pre_frame_reset_g12(ppre->madi_enable,
 					ppre->mcdi_enable);
 	} else {
 		dim_pre_frame_reset();
 		/* enable mc pre mif*/
-		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
+		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en),
+			IS_I_SRC(ppre->cur_inp_type) ? false : true);
 	}
 	/*dbg_set_DI_PRE_CTRL();*/
 	atomic_set(&get_hw_pre()->flg_wait_int, 1);
@@ -7456,7 +7446,7 @@ void dim_irq_pre(void)
 		//if ((data32 & 0x200) && de_devp->nrds_enable)
 			//dim_nr_ds_irq();
 		/* disable mif */
-		dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
+		dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en), false);
 		dcntr_dis();
 
 		ppre->pre_de_busy = 0;
@@ -10932,7 +10922,7 @@ void di_unreg_setting(bool plink)
 	dim_dw_unreg_setting();
 	dim_pps_disable();//tmp
 
-	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
+	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en), false);
 	post_close_new();	/*2018-11-29*/
 	//dimh_afbc_reg_sw(false);
 	if (dim_afds())
@@ -11550,7 +11540,7 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 			#endif
 		}
 
-		dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
+		dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en), false);
 		if (DIM_IS_IC_EF(SC2))
 			dim_pre_gate_control_sc2(true,
 						 dimp_get(edi_mp_mcpre_en));

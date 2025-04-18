@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/deinterlace/di_pqa.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __DI_PQA_H__
@@ -295,11 +282,11 @@ enum EAFBC_CFG {
 	EAFBC_CFG_FORCE_CHAN2,
 	EAFBC_CFG_FORCE_NR,
 	EAFBC_CFG_FORCE_IF1,
+	EAFBC_CFG_DISABLE_AFBCD_LINK_ONLY, /* disable afbcd_plink_only */
 	EAFBC_CFG_MEM,		/* = AFBCD_V4 */
 	EAFBC_CFG_6DEC_2ENC,
 	EAFBC_CFG_6DEC_2ENC2, /* for none afbc in use afbc*/
 	EAFBC_CFG_6DEC_1ENC3, /* base 2, out is nv21 */
-
 };
 
 enum EAFBC_STS {
@@ -362,7 +349,10 @@ struct afbc_fb_s {
 		if1_dec		: 4,
 		if2_dec		: 4;
 
-		//rev4		: 8;
+	/* this is used for T5D/TXHD2/T6D/GXLX4, afbcd support only with prelink mode */
+	unsigned char afbcd_plink_only : 1,
+		shared_afbcd : 1,
+		rev : 6;
 };
 
 struct afbcdv1_ctr_s {
@@ -469,7 +459,6 @@ struct afbcd_ctr_s {
 	unsigned int pst_in_h;
 	unsigned int pst_in_w;
 	unsigned int pst_in_bitdepth;
-	bool en_ponly_afbcd; //this is used for T5D VB only P-ONLY mode used AFBCD
 	//unsigned int pst_o_h;
 	//unsigned int pst_o_w;
 };

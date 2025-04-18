@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/di_multi/deinterlace_hw.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/string.h>
@@ -3667,7 +3654,7 @@ void dimh_enable_di_post_mif(enum gate_mode_e mode)
 
 void dim_hw_disable(bool mc_enable)
 {
-	dimh_enable_di_pre_mif(false, mc_enable);
+	dimh_enable_di_pre_mif(false, mc_enable, false);
 	DIM_DI_WR(DI_POST_SIZE, (32 - 1) | ((128 - 1) << 16));
 
 /* ary: have set in pst_mif_sw*/
@@ -4857,7 +4844,7 @@ static void ma_pre_mif_ctrl(bool enable)
  */
 //static
 void di_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in,
-			  bool en_link)
+			  bool en_link, bool nr_only)
 {
 	if (enable) {
 		/*****************************************/
@@ -4867,7 +4854,7 @@ void di_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in,
 			else
 				dim_afds()->inp_sw(true);
 		}
-		if (dim_afds() && !dim_afds()->is_used_chan2())
+		if (dim_afds() && !dim_afds()->is_used_chan2() && !nr_only)
 			op_in->bwr(DI_CHAN2_GEN_REG, 1, 0, 1);
 
 		if (dim_afds() && !dim_afds()->is_used_mem())
@@ -4906,7 +4893,7 @@ void di_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in,
 }
 
 static atomic_t mif_flag;
-void dimh_enable_di_pre_mif(bool en, bool mc_enable)
+void dimh_enable_di_pre_mif(bool en, bool mc_enable, bool nr_only)
 {
 	if (atomic_read(&mif_flag))
 		return;
@@ -4927,7 +4914,7 @@ void dimh_enable_di_pre_mif(bool en, bool mc_enable)
 		ma_pre_mif_ctrl(en);
 	}
 
-	opl1()->pre_mif_sw(en, &di_pre_regset, false);
+	opl1()->pre_mif_sw(en, &di_pre_regset, false, nr_only);
 	atomic_set(&mif_flag, 0);
 }
 
