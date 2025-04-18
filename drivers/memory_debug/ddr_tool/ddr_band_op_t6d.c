@@ -114,6 +114,7 @@ static void t6d_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 	} else {
 		val = (0x1 << 7);	/* select device */
 		writel(val, db->ddr_reg1 + off);
+		val = readl(db->ddr_reg1 + off1);
 		val |= (1 << subport);
 		writel(val, db->ddr_reg1 + off1);
 	}
@@ -145,7 +146,7 @@ static void t6d_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 	unsigned int val;
 
 	/* enable all channel */
-	val =  (0x01 << 31) |	/* enable bit */
+	val =  (db->mode << 31) |	/* enable bit */
 	       (0xff <<  0);
 	writel(val, db->ddr_reg1 + DMC_MON_CTRL0);
 }
