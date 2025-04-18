@@ -1046,6 +1046,13 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->dc_cap_prop) {
 		*val = get_dc_cap();
 		return 0;
+	} else if (property == am_hdmi->vrr_capable_type_prop) {
+		u8 vrr_cap = 0;
+
+		if (am_hdmi->hdmitx_dev->get_vrr_cap)
+			vrr_cap = am_hdmi->hdmitx_dev->get_vrr_cap();
+		*val = vrr_cap;
+		return 0;
 	}
 
 	return -EINVAL;
@@ -2508,6 +2515,22 @@ static void meson_hdmitx_init_frac_rate_policy_property(struct drm_device *drm_d
 	}
 }
 
+static void meson_hdmitx_init_vrr_capable_type_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"vrr_capable_type", 0, 3);
+
+	if (prop) {
+		am_hdmi->vrr_capable_type_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to vrr_capable_type property\n");
+	}
+}
+
 static void meson_hdmitx_init_hdmi_used_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -2893,6 +2916,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_sink_type_property(drm, am_hdmi);
 	meson_hdmitx_init_allm_cap_property(drm, am_hdmi);
 	meson_hdmitx_init_dc_cap_property(drm, am_hdmi);
+	meson_hdmitx_init_vrr_capable_type_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

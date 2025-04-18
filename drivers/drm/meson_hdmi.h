@@ -120,6 +120,15 @@ struct am_hdmi_tx {
 	int hdmi_type;
 	struct drm_property *frac_rate_policy_prop;
 	/*
+	 * TV VRR Capability
+	 * Range: 0-3
+	 * BIT(0): QMS
+	 * BIT(1): GAME
+	 * Android uses vrr_capable
+	 * Linux uses vrr_capable_type
+	 */
+	struct drm_property *vrr_capable_type_prop;
+	/*
 	 * if HDMI plugin even once time, then set 1
 	 * if never hdmi plugin, then keep as 0
 	 */

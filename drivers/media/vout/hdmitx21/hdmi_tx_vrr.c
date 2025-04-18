@@ -821,6 +821,8 @@ int hdmitx_dump_vrr_status(struct seq_file *s, void *p)
 		seq_puts(s, "type: QMS-VRR\n");
 		break;
 	case T_VRR_NONE:
+		seq_puts(s, "type: VRR-NONE\n");
+		break;
 	default:
 		return 0;
 	}
@@ -1281,6 +1283,7 @@ u32 drm_hdmitx_get_vrr_cap(void)
 	if (prxcap->qms || prxcap->vrr_max || prxcap->vrr_min) {
 		vrr_cap |= prxcap->qms ? QMS_VRR_SUP : 0;
 		vrr_cap |= prxcap->vrr_min ? GAMING_VRR_SUP : 0;
+		HDMITX_DEBUG("%s get vrr cap : %d\n", __func__, vrr_cap);
 		return vrr_cap;
 	}
 
