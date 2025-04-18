@@ -1606,24 +1606,19 @@ function set_default_parameters () {
 		BUILD_DIR=build
 	fi
 
-	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  && "${GKI_CONFIG}" == "gki_20" ]]; then
+	if [[ "${GKI_CONFIG}" == "gki_20" ]]; then
 		DDK_BUILD=1
 	fi
 
 	if [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} ]]; then
-		if [[ "${DDK_BUILD}" == "1" ]]; then
-			if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
-				AUTO_PATCH=False  #google ddk kernel build
-			else
-				PATCH_PARM=lunch  #amlogic trunk ddk kernel build
-			fi
+		if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
+			AUTO_PATCH=False	# google kernel build
 		else
-			AUTO_PATCH=True  #gki2.0 but not ddk build
+			PATCH_PARM=non_common	# amlogic kernel build
 		fi
 	else
-		AUTO_PATCH=True  #none gki_20
+		AUTO_PATCH=True			# Non-GKI 2.0 build
 	fi
-	export AUTO_PATCH
 
 	version_message=$(grep -rn BRANCH= ${KERNEL_DIR}/build.config.constants)
 	if [[ -z ${version_message} ]]; then
@@ -1644,7 +1639,7 @@ function set_default_parameters () {
 	fi
 
 	if [[ -d ${KERNEL_DIR}/.git ]]; then
-		if [[ "${AUTO_PATCH}" == "True" || "${PATCH_PARM}" == "lunch" ]]; then
+		if [[ "${AUTO_PATCH}" == "True" || "${PATCH_PARM}" == "lunch" || "${PATCH_PARM}" == "non_common" ]]; then
 			auto_patch_to_common_dir
 		fi
 	else

@@ -121,7 +121,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		exit
 	fi
 	args="$@ --config=fast"
-	[[ -n ${DDK_BUILD} ]] && args="${args} --jobs=12 --experimental_optimize_ddk_config_actions"
+	[[ -n ${DDK_BUILD} ]] && args="${args} --jobs=12 --experimental_optimize_ddk_config_actions --debug_modpost_warn"
 	[[ -z ${SYS_SKIP_GIT} ]] && args="${args} --config=stamp"
 	[[ -z ${PREBUILT_GKI} ]] && args="${args}"
 	[[ -z ${GKI_CONFIG} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
@@ -280,7 +280,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 								--nokmi_symbol_list_strict_mode"
 			fi
 		fi
-		[[ -d ${ROOT_DIR}/common_drivers ]] && google_args="${google_args} --config=common_drivers_on_top"
+		[[ -d ${ROOT_DIR}/common_drivers ]] && google_args="${google_args} --config=common_drivers_on_top --debug_modpost_warn"
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  ${google_args} --config=fast
 	elif [[ "${ABI}" -eq "1" ]]; then
 		tools/bazel run //common_drivers:amlogic_abi_update_symbol_list ${args}

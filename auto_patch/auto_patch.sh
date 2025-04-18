@@ -72,15 +72,17 @@ function traverse_patch_dir()
 	# git am common and common_driver patches
 	echo "Auto Patch Start"
 	{
-		local common_change_id=$(cd ${KERNEL_DIR} && git log -n 400 |grep "Change-Id:" | awk '{print $2}')
-		for file in `ls ${PATCHES_PATH}/common`; do
-			# echo file=$file
-			if [ -d ${PATCHES_PATH}/common/${file} ]; then
-				for patch in `find ${PATCHES_PATH}/common/${file} -name "*.patch" | sort`; do
-					am_patch ${patch} ${KERNEL_DIR} "${common_change_id[@]}"
-				done
-			fi
-		done
+		if [[ "${PATCH_PARM}" != "non_common" ]]; then
+			local common_change_id=$(cd ${KERNEL_DIR} && git log -n 400 |grep "Change-Id:" | awk '{print $2}')
+			for file in `ls ${PATCHES_PATH}/common`; do
+				# echo file=$file
+				if [ -d ${PATCHES_PATH}/common/${file} ]; then
+					for patch in `find ${PATCHES_PATH}/common/${file} -name "*.patch" | sort`; do
+						am_patch ${patch} ${KERNEL_DIR} "${common_change_id[@]}"
+					done
+				fi
+			done
+		fi
 	} &
 
 	{

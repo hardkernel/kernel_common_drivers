@@ -85,6 +85,10 @@ def define_common_amlogic(
         makefile = "//common:Makefile",
         kconfig_ext = kconfig_ext,
         dtstree = ":" + name + "_dtstree",
+        kcflags = [
+            "-I${ROOT_DIR}/common_drivers/include",
+            "-I${ROOT_DIR}/common_drivers/include/uapi",
+        ],
         visibility = ["//visibility:public"],
     )
 
