@@ -55,6 +55,27 @@ struct wifi_clk_table wifi_clk[WIFI_CLOCK_TABLE_MAX] = {
 struct mmc_host *sdio_host;
 static char *caps2_quirks = "none";
 
+static void mmc_info_stat(struct meson_host *host,
+		struct mmc_command *cmd)
+{
+	struct mmc_data *data = cmd->data;
+	int rw_mode = 0;
+	long long xfer_bytes = 0;
+
+	if (data->flags & MMC_DATA_WRITE)
+		rw_mode = 1;
+	xfer_bytes = data->blksz * data->blocks;
+	switch (rw_mode) {
+	case 0:
+		host->mmc_stat.r_io_cnt++;
+		host->mmc_stat.r_total_cnt += xfer_bytes;
+		break;
+	case 1:
+		host->mmc_stat.w_io_cnt++;
+		host->mmc_stat.w_total_cnt += xfer_bytes;
+	}
+}
+
 static inline u32 aml_mv_dly1_nommc(u32 x)
 {
 	return (x) | ((x) << 6) | ((x) << 12) | ((x) << 18);
@@ -1844,6 +1865,8 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 
 	/* data? */
 	if (data) {
+		if (host->mmc_stat_debug && aml_card_type_mmc(host))
+			mmc_info_stat(host, cmd);
 		data->bytes_xfered = 0;
 		cmd_cfg |= CMD_CFG_DATA_IO;
 		cmd_cfg |= FIELD_PREP(CMD_CFG_TIMEOUT_MASK,
@@ -3694,6 +3717,40 @@ static int erase_count_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(erase_count);
 
+static int mmc_rw_info_start_show(struct seq_file *s, void *data)
+{
+	struct mmc_host	*mmc = s->private;
+	struct meson_host *host = mmc_priv(mmc);
+
+	host->mmc_stat_debug = 1;
+	memset(&host->mmc_stat, 0, sizeof(struct mmc_stat_t));
+
+	seq_puts(s, "mmc rw info start ....\n");
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(mmc_rw_info_start);
+
+static int mmc_rw_info_end_show(struct seq_file *s, void *data)
+{
+	struct mmc_host	*mmc = s->private;
+	struct meson_host *host = mmc_priv(mmc);
+
+	host->mmc_stat_debug = 0;
+	pr_info("mmc rw info statistic:\n");
+
+	if (host->debug_flag)
+		pr_info("read io total:%lld ,write io total:%lld\n",
+		host->mmc_stat.r_io_cnt, host->mmc_stat.w_io_cnt);
+	pr_info("total read data: %llu(byte)\n",
+		host->mmc_stat.r_total_cnt);
+	pr_info("total write data: %llu(byte)\n",
+		host->mmc_stat.w_total_cnt);
+
+	seq_puts(s, "mmc rw info end done.\n");
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(mmc_rw_info_end);
+
 static int card_proc_show(struct seq_file *m, void *v)
 {
 	seq_puts(m, "null node\n");
@@ -4079,6 +4136,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 				&fops_write_size);
 		debugfs_create_file("erase_count", 0400, host->debugfs_root,
 				mmc, &erase_count_fops);
+		debugfs_create_file("rw_info_start", 0400, host->debugfs_root,
+				mmc, &mmc_rw_info_start_fops);
+		debugfs_create_file("rw_info_end", 0400, host->debugfs_root,
+				mmc, &mmc_rw_info_end_fops);
 	}
 #endif
 	if (device_property_read_u32(host->dev, "cali_blk_cnt", &cali_blk_cnt) <= 0)

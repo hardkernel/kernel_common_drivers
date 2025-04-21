@@ -134,6 +134,13 @@ struct aml_tuning_para {
 
 };
 
+struct mmc_stat_t {
+	s64 r_io_cnt;
+	s64 r_total_cnt;
+	s64 w_io_cnt;
+	s64 w_total_cnt;
+};
+
 struct meson_host {
 	struct device		*dev;
 	struct meson_mmc_data *data;
@@ -203,6 +210,8 @@ struct meson_host {
 	struct dentry *debugfs_root;
 	struct clk *src_clk;
 	unsigned int vendor_id;
+	struct mmc_stat_t mmc_stat;
+	bool mmc_stat_debug;
 };
 
 struct wifi_clk_table {
