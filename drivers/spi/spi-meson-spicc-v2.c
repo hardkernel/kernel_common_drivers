@@ -626,6 +626,7 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_ARCH_MESON_ODROID_COMMON
 /*
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
@@ -717,6 +718,190 @@ end:
 
 	return ret;
 }
+#else
+
+static void hk_spi_set_cs(struct spi_device *spi, bool enable, bool force)
+{
+	bool activate = enable;
+
+	/*
+	 * Avoid calling into the driver (or doing delays) if the chip select
+	 * isn't actually changing from the last time this was called.
+	 */
+	if (!force && (spi->controller->last_cs_enable == enable) &&
+	    (spi->controller->last_cs_mode_high == (spi->mode & SPI_CS_HIGH)))
+		return;
+
+	spi->controller->last_cs_enable = enable;
+	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
+
+	if ((spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
+	    !spi->controller->set_cs_timing) && !activate) {
+		spi_delay_exec(&spi->cs_hold, NULL);
+	}
+
+	if (spi->mode & SPI_CS_HIGH)
+		enable = !enable;
+
+	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio)) {
+		if (!(spi->mode & SPI_NO_CS)) {
+			if (spi->cs_gpiod) {
+				/* Polarity handled by GPIO library */
+				gpiod_set_value_cansleep(spi->cs_gpiod, activate);
+			} else {
+				/*
+				 * invert the enable line, as active low is
+				 * default for SPI.
+				 */
+				gpio_set_value_cansleep(spi->cs_gpio, !enable);
+			}
+		}
+		/* Some SPI masters need both GPIO CS & slave_select */
+		if ((spi->controller->flags & SPI_MASTER_GPIO_SS) &&
+		    spi->controller->set_cs)
+			spi->controller->set_cs(spi, !enable);
+	} else if (spi->controller->set_cs) {
+		spi->controller->set_cs(spi, !enable);
+	}
+
+	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
+	    !spi->controller->set_cs_timing) {
+		if (activate)
+			spi_delay_exec(&spi->cs_setup, NULL);
+		else
+			spi_delay_exec(&spi->cs_inactive, NULL);
+	}
+}
+
+static int hk_sw_transfer(struct spi_controller *ctlr, struct spi_message *msg, struct list_head *ptr, int desc_num)
+{
+	struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
+	struct device *dev = &spicc->pdev->dev;
+	struct spicc_controller_data *cdata = msg->spi->controller_data;
+	unsigned long ms = spicc_xfer_time_max(spicc, msg->frame_length);
+	struct spi_transfer *xfer;
+	struct spicc_descriptor *descs, *desc;
+	struct spicc_descriptor_extra *exdescs, *exdesc;
+	dma_addr_t descs_paddr;
+	int descs_len;
+	int ret = -EIO;
+	int i;
+	int original_desc_num = desc_num;
+
+	if (spicc->config_ss_trailing_gap)
+		desc_num++;
+
+	/* alloc descriptor/extra-descriptor table */
+	descs = kcalloc(desc_num, sizeof(*desc) + sizeof(*exdesc),
+			GFP_KERNEL | GFP_DMA);
+	if (!descs) {
+		return -ENOMEM;
+	}
+	descs_len = sizeof(*desc) * desc_num;
+	exdescs = (struct spicc_descriptor_extra *)(descs + desc_num);
+
+	/* config descriptor for each xfer */
+	desc = descs;
+	exdesc = exdescs;
+
+	xfer = list_first_entry(ptr, typeof(*xfer), transfer_list);
+	for (i = 0; i < original_desc_num; ++i) {
+		ret = spicc_config_desc_one_transfer(spicc, xfer,
+		desc++, exdesc++, cdata);
+		if (ret) {
+			dev_err(dev, "config descriptor failed\n");
+			goto end;
+		}
+		xfer = list_next_entry(xfer, transfer_list);
+	}
+	spicc_configure_last_desc(spicc, --desc);
+
+	hk_spi_set_cs(msg->spi, true, false);
+
+	descs_paddr = dma_map_single(dev, (void *)descs,
+				     descs_len, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, descs_paddr);
+	if (ret) {
+		dev_err(dev, "desc table map failed\n");
+		goto end;
+	}
+
+	reinit_completion(&spicc->completion);
+	spicc_desc_pending(spicc, descs_paddr, false, true);
+	if (wait_for_completion_timeout(&spicc->completion,
+			spi_controller_is_slave(spicc->controller) ?
+			MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(ms)))
+		ret = spicc->status ? -EIO : 0;
+	else
+		ret = -ETIMEDOUT;
+
+	dma_unmap_single(dev, descs_paddr, descs_len, DMA_TO_DEVICE);
+	end:
+	hk_spi_set_cs(msg->spi, false, false);
+		desc = descs;
+	exdesc = exdescs;
+
+	xfer = list_entry(ptr, typeof(*xfer), transfer_list);
+	for (i = 0; i < desc_num; ++i) {
+		spicc_deconfig_desc_one_transfer(spicc, xfer, desc++, exdesc++);
+		xfer = list_next_entry(xfer, transfer_list);
+	}
+	kfree(descs);
+
+	return ret;
+}
+
+/*
+ * spi_transfer_one_message - Default implementation of transfer_one_message()
+ *
+ * This is a standard implementation of transfer_one_message() for
+ * drivers which implement a transfer_one() operation.  It provides
+ * standard handling of delays and chip select management.
+ */
+static int hk_sw_meson_spicc_transfer_one_message(struct spi_controller *ctlr,
+					    struct spi_message *msg)
+{
+	struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
+	struct device *dev = &spicc->pdev->dev;
+	struct spi_transfer *xfer;
+	int desc_num = 0;
+	int ret = -EIO;
+	struct list_head *ptr;
+
+	if (!spicc_sem_down_read(spicc)) {
+		spi_finalize_current_message(ctlr);
+		dev_err(dev, "controller busy\n");
+		return -EBUSY;
+	}
+
+	ptr = &msg->transfers;
+
+	/*calculate the desc number for end of transfers or cs_change set 1*/
+	list_for_each_entry(xfer, &msg->transfers, transfer_list)
+	{
+		++desc_num;
+
+		// Changes the state of the cs pin if it is the last element in the list or cs_change is set.
+		if (list_is_last(&xfer->transfer_list, &msg->transfers) || xfer->cs_change) {
+			ret = hk_sw_transfer(ctlr, msg, ptr, desc_num);
+			if (ret != 0) break;
+
+			ptr = &(xfer)->transfer_list;
+			desc_num = 0;
+		}
+	}
+
+	spi_finalize_current_message(ctlr);
+	spicc_sem_up_write(spicc);
+
+	if (!ret)
+		msg->actual_length = msg->frame_length;
+	msg->status = ret;
+
+	return ret;
+}
+
+#endif
 
 static int meson_spicc_prepare_message(struct spi_controller *ctlr,
 				       struct spi_message *message)
@@ -1241,7 +1426,12 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	ctlr->cleanup = meson_spicc_cleanup;
 	ctlr->prepare_message = meson_spicc_prepare_message;
 	ctlr->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	ctlr->transfer_one_message = hk_sw_meson_spicc_transfer_one_message;
+	ctlr->use_gpio_descriptors = true;
+#else
 	ctlr->transfer_one_message = meson_spicc_transfer_one_message;
+#endif
 	ctlr->slave_abort = meson_spicc_slave_abort;
 	ctlr->can_dma = meson_spicc_can_dma;
 	ctlr->max_dma_len = SPICC_BLOCK_MAX;
