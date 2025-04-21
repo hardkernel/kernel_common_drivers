@@ -82,7 +82,8 @@ static int amlogic_saradc_to_gpio_probe(struct platform_device *pdev)
 	while (priv->channels[priv->num_channels].indio_dev)
 		priv->num_channels++;
 
-	priv->thresholds = devm_kzalloc(dev, sizeof(*priv->thresholds), GFP_KERNEL);
+	priv->thresholds = devm_kcalloc(dev, priv->num_channels,
+					sizeof(*priv->thresholds), GFP_KERNEL);
 	if (!priv->thresholds)
 		return -ENOMEM;
 
