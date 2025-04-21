@@ -559,6 +559,10 @@ void cec_spd_info_init(void)
 	//TCL and loki has a same spd vendor id,we set tx_type
 	//to edid1.4 for fix loki issue, if TCL found this device issue
 	//we should change tv_type back to 8(scdc).
+	cec_add_spd_info(4, 0x080046, "BDP-S470");
+	cec_add_spd_info(4, 0x080046, "BDP-S570");
+	cec_add_spd_info(4, 0x080046, "BDP-S790");
+	cec_add_spd_info(4, 0x080046, "STR-DH790");
 	cec_add_spd_info(4, 0x080046, "STR-DH590");
 	cec_add_spd_info(4, 0x00a0de, "RX-V385");
 	cec_add_spd_info(4, 0x0005cd, "AVR-X1600H");
@@ -649,8 +653,9 @@ void cec_message_op(unsigned char *msg, unsigned char len)
 					}
 				}
 				if (i < 4) {
-					cec_spd_hdmirx_notify(current_spd_info[i].port_id,
-						info->handle_type);
+					if (current_spd_info[i].vendor_id != 0)
+						cec_spd_hdmirx_notify(current_spd_info[i].port_id,
+							info->handle_type);
 				} else {
 					if (cec_spd_unknown_index(&i) == 1) {
 						//just one unknown device
@@ -683,8 +688,9 @@ void cec_message_op(unsigned char *msg, unsigned char len)
 					}
 				}
 				if (i < 4) {
-					cec_spd_hdmirx_notify(current_spd_info[i].port_id,
-						info->handle_type);
+					if (current_spd_info[i].osd_name[0] != 0)
+						cec_spd_hdmirx_notify(current_spd_info[i].port_id,
+							info->handle_type);
 				} else {
 					if (cec_spd_unknown_index(&i) == 1) {
 						//just one unknown device
