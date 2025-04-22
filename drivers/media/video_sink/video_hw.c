@@ -7183,7 +7183,12 @@ static inline void vdx_test_pattern_output(u32 index, u32 on, u32 color)
 		return;
 	}
 	if (on) {
-		if (!is_tv_panel()) {
+		if (!is_tv_panel() ||
+			((!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
+			cur_dev->display_module == OLD_DISPLAY_MODULE) &&
+			vd_layer[0].dispbuf &&
+			(vd_layer[0].dispbuf->type & VIDTYPE_RGB_444))) {
+		/* vd1 hdr core after vd1 clip */
 			u32 R, G, B;
 
 			R = (color & 0xff0000) >> 16;
