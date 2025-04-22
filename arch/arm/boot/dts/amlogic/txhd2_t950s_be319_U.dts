@@ -233,6 +233,11 @@
 			status = "disabled";
 		};
 
+		ramdump_data@0 {
+			reg = <0x0 0x0>;
+			status = "disabled"; /* disabled as default */
+		};
+
 		/* global autoconfigured region for contiguous allocations */
 
 		ramoops@6700000 {

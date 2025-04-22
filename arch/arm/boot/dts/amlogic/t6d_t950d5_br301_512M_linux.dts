@@ -56,6 +56,11 @@
 			status = "disabled";
 		};
 
+		ramdump_data@0 {
+			reg = <0x0 0x0>;
+			status = "disabled"; /* disabled as default */
+		};
+
 		ramoops@6300000 {
 			compatible = "ramoops";
 			reg = <0x06300000 0x00100000>;

@@ -42,6 +42,12 @@
 		#size-cells = <2>;
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
+
+		ramdump_bl33z@0 {
+			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		ramoops@7400000 {
 			compatible = "ramoops";
 			reg = <0x0 0x07400000 0x0 0x00100000>;

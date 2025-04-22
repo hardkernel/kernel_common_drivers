@@ -35,6 +35,7 @@
 #include <linux/amlogic/reboot.h>
 #include <linux/amlogic/arm-smccc.h>
 #include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
 #include <linux/fs_struct.h>
@@ -53,6 +54,9 @@
 #ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
 #include "../../crypto/aml-crypto-dma.h"
 #endif
+#include <linux/string.h>
+#include <linux/crypto.h>
+#include <crypto/hash.h>
 
 #ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
 struct ramdump_dma_info {
@@ -80,22 +84,20 @@ void __iomem *cfg_sticky_reg;   // REG_MDUMP_CPUBOOT_STATUS
 
 #define WAIT_TIMEOUT		(40ULL * 1000 * 1000 * 1000)
 #define SAVE_DATA_BY_INIT_RC_SHELL			1
-#define RESERVE_MEM_BY_RAMDUMP_DTS_NODE		1
 
 struct ramdump {
-	unsigned long		mem_size;
-	unsigned long		mem_base;
+	unsigned long       mem_size;
+	unsigned long       mem_base;
 #ifdef SAVE_DATA_BY_INIT_RC_SHELL
-	//void __iomem		*mem_base;
-	struct mutex		lock;
-	struct kobject		*kobj;
-#else
-	unsigned long long	tick;
-	void				*mnt_buf;
-	const char			*storage_device;
+	struct mutex        read_lock;  // Protects ramdump read operations
+	struct kobject      *kobj;
+	loff_t              last_logged_off;
+	phys_addr_t         window_paddr;
+	void                *window_vaddr;
+	size_t              window_size;
 #endif
-	struct delayed_work	work;
-	int			disable;
+	struct delayed_work work;
+	int                 disable;
 };
 
 static struct ramdump *ram;
@@ -147,20 +149,6 @@ static int early_ramdump_para(char *buf)
 		}
 		ramdump_disable = 0;
 		ramdump_parse_info();
-
-#ifndef RESERVE_MEM_BY_RAMDUMP_DTS_NODE
-		ret = memblock_reserve(ramdump_base, PAGE_ALIGN(ramdump_size));
-		if (ret < 0) {
-			pr_info("%s, reserve memblock %lx - %lx failed\n",
-				__func__, ramdump_base,
-				ramdump_base + PAGE_ALIGN(ramdump_size));
-			ramdump_disable = 1;
-		} else {
-			pr_info("%s, reserve memblock %lx - %lx OK\n",
-				__func__, ramdump_base,
-				ramdump_base + PAGE_ALIGN(ramdump_size));
-		}
-#endif
 	}
 	return 0;
 }
@@ -168,6 +156,8 @@ static int early_ramdump_para(char *buf)
 early_param("ramdump", early_ramdump_para);
 
 #ifdef SAVE_DATA_BY_INIT_RC_SHELL
+#define DUMP_LOG_STEP      (200 * 1024 * 1024ULL)
+#define MAP_WINDOW_SIZE    (4 * 1024 * 1024)
 static ssize_t ramdump_bin_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buf, loff_t off, size_t count)
@@ -182,27 +172,47 @@ static ssize_t ramdump_bin_read(struct file *filp, struct kobject *kobj,
 	if (off + count > ram->mem_size)
 		count = ram->mem_size - off;
 
-	p = (void *)phys_to_virt(ram->mem_base + off);
+#ifndef CONFIG_ARM64
+	if (!ram->window_vaddr ||
+		(ramdump_base + off) < ram->window_paddr ||
+		(ramdump_base + off + count - 1) >= (ram->window_paddr + ram->window_size)) {
+		if (ram->window_vaddr) {
+			memunmap(ram->window_vaddr);
+			ram->window_vaddr = NULL;
+		}
 
-	mutex_lock(&ram->lock);
+		ram->window_paddr = ramdump_base + ALIGN_DOWN(off, MAP_WINDOW_SIZE);
+		ram->window_size  = MAP_WINDOW_SIZE;
+		ram->window_vaddr  = memremap(ram->window_paddr, ram->window_size, MEMREMAP_WB);
+		if (!ram->window_vaddr)
+			return -ENOMEM;
+	}
+
+	p = (void *)(ram->window_vaddr + (ramdump_base + off - ram->window_paddr));
+#else
+	p = (void *)(ram->mem_base + off);
+#endif
+
+	mutex_lock(&ram->read_lock);
 	memcpy(buf, p, count);
-	mutex_unlock(&ram->lock);
+	mutex_unlock(&ram->read_lock);
 
-	/* debug when read end */
+	/* Log when offset moves forward by 200MB */
+	if (off >= ram->last_logged_off + DUMP_LOG_STEP) {
+		pr_info("%s, read offset: 0x%llx (%llu MB) count: %zu\n",
+			__func__, (unsigned long long)off,
+			(unsigned long long)(off >> 20), count);
+		ram->last_logged_off = off;
+	}
+
+	/* Log once at the end of the dump */
 	if (off + count >= ram->mem_size)
-		pr_info("%s, p=%p %p, off:%lli, c:%zi\n",
-			__func__, buf, p, off, count);
+		pr_info("%s, read finished. Total: 0x%llx (%llu MB)\n", __func__,
+			(unsigned long long)ram->mem_size,
+			(unsigned long long)(ram->mem_size >> 20));
 
 	return count;
 }
-
-int ramdump_disabled(void)
-{
-	if (ram)
-		return ram->disable;
-	return 0;
-}
-EXPORT_SYMBOL(ramdump_disabled);
 
 static void meson_set_reboot_reason(int reboot_reason)
 {
@@ -240,6 +250,16 @@ static struct bin_attribute ramdump_attr = {
 	.read  = ramdump_bin_read,
 	.write = ramdump_bin_write,
 };
+
+#endif /* end SAVE_DATA_BY_INIT_RC_SHELL */
+
+int ramdump_disabled(void)
+{
+	if (ram)
+		return ram->disable;
+	return 0;
+}
+EXPORT_SYMBOL(ramdump_disabled);
 
 #ifdef CONFIG_ARM64
 /* arm64: kill flush_cache_all() 68234df4ea79
@@ -329,8 +349,6 @@ noinline void ramdump_sync_data(void)
 	flush_cache_all();
 }
 #endif
-
-#endif /* end SAVE_DATA_BY_INIT_RC_SHELL */
 
 /*
  * clear memory to avoid large amount of memory not used.
@@ -528,6 +546,85 @@ static int ramdump_dma_copy(void)
 }
 #endif
 
+#if defined(CONFIG_ARM64)
+static int ramdump_verify_md5_sum(const void *addr, size_t size)
+{
+	struct crypto_shash *tfm;
+	struct shash_desc *desc;
+	u8 result[RAMDUMP_MD5_DIGEST_SIZE];
+	char result_str[RAMDUMP_MD5_STRING_LEN + 1] = {0};
+	struct device_node *chosen_node;
+	const char *cmdline_md5;
+	int i, ret = -EINVAL;
+	int desc_size;
+
+	pr_info("%s, arm64 start.\n", __func__);
+	tfm = crypto_alloc_shash("md5", 0, 0);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	desc_size = sizeof(*desc) + crypto_shash_descsize(tfm);
+	desc = kzalloc(desc_size, GFP_KERNEL);
+	if (!desc) {
+		ret = -ENOMEM;
+		goto out_free_tfm;
+	}
+
+	desc->tfm = tfm;
+
+	ret = crypto_shash_digest(desc, addr, size, result);
+	if (ret)
+		goto out_free_desc;
+
+	for (i = 0; i < RAMDUMP_MD5_DIGEST_SIZE; i++)
+		snprintf(result_str + i * 2, 3, "%02x", result[i]);
+
+	pr_info("%s, calculated md5: %s\n", __func__, result_str);
+
+	chosen_node = of_find_node_by_path("/chosen");
+	if (!chosen_node) {
+		pr_err("%s, cannot find /chosen node\n", __func__);
+		ret = -ENOENT;
+		goto out_free_desc;
+	}
+
+	ret = of_property_read_string(chosen_node, "bootargs", &cmdline_md5);
+	if (ret) {
+		pr_err("%s, cannot get bootargs property\n", __func__);
+		ret = -ENOENT;
+		goto out_free_desc;
+	}
+
+	cmdline_md5 = strstr(cmdline_md5, "androidboot.ramdumpmd5=");
+	if (!cmdline_md5) {
+		pr_err("%s, No found cmdline androidboot.ramdumpmd5!\n", __func__);
+		ret = -ENOENT;
+		goto out_free_desc;
+	}
+
+	cmdline_md5 += strlen("androidboot.ramdumpmd5=");
+	if (strncmp(cmdline_md5, result_str, RAMDUMP_MD5_STRING_LEN) == 0) {
+		pr_info("%s, MD5 match OK\n", __func__);
+		ret = 0;
+	} else {
+		pr_err("%s, MD5 mismatch!\n", __func__);
+		ret = -EFAULT;
+	}
+
+out_free_desc:
+	kfree(desc);
+out_free_tfm:
+	crypto_free_shash(tfm);
+	return ret;
+}
+#else
+static int ramdump_verify_md5_sum(const void *addr, size_t size)
+{
+	pr_info("%s, arm32 mem no-map, exit.\n", __func__);
+	return 0;
+}
+#endif
+
 static int panic_notify(struct notifier_block *self,
 			unsigned long cmd, void *ptr)
 {
@@ -584,8 +681,11 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	if (ramdump_base && ramdump_size) {
 		pr_info("%s, memremap start, paddr area: 0x%08lx - 0x%08lx\n",
 				__func__, ramdump_base, ramdump_base + PAGE_ALIGN(ramdump_size));
-		//vaddr = ioremap_cache(ramdump_base, PAGE_ALIGN(ramdump_size));
+#if defined(CONFIG_ARM64)
 		vaddr = memremap(ramdump_base, PAGE_ALIGN(ramdump_size), MEMREMAP_WB);
+#else
+		vaddr = phys_to_virt(ramdump_base); //do nothing, memremap 4KB on each bin_read
+#endif
 		if (vaddr)
 			ram->mem_base = (unsigned long)vaddr;
 	}
@@ -609,6 +709,8 @@ static int __init ramdump_probe(struct platform_device *pdev)
 				pr_err("%s, create sysfs compmsg failed\n", __func__);
 				goto err1;
 			}
+
+			ramdump_verify_md5_sum((void *)ram->mem_base, ram->mem_size);
 #endif	/* end SAVE_DATA_BY_INIT_RC_SHELL */
 		}
 
