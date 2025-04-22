@@ -12,6 +12,9 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 {
 	struct hdmitx_common *tx_comm = s->private;
 	struct hdmitx_hw_common *hw_comm  = tx_comm->tx_hw;
+	struct hdmi_format_para *para = &tx_comm->fmt_para;
+	struct hdmi_timing *timing = &para->timing;
+	char fmt_attr[16] = {0};
 	u8 *conf;
 	u8 *tmp;
 	u32 colormetry;
@@ -28,15 +31,14 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	u32 hdcp_lstore = 0;
 
 	seq_puts(s, "\n--------basic config--------\n");
-	seq_puts(s, "************\n");
-	seq_puts(s, "hdmi_config_info\n");
-	seq_puts(s, "************\n");
-
+	seq_puts(s, "******hdmi video config******\n");
 	seq_printf(s, "display_mode in:%s\n", get_vout_mode_internal());
 
 	vic = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AVI_VIC, NULL, NULL);
 	seq_printf(s, "display_mode out:%s\n", hdmitx_mode_get_timing_name(vic));
 
+	hdmitx_format_para_rebuild_fmt_attr_str(para, fmt_attr, sizeof(fmt_attr));
+	seq_printf(s, "attr in:%s\n\r", fmt_attr);
 	seq_puts(s, "attr out:");
 	cs = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AVI_CS, NULL, NULL);
 	switch (cs & 0x3) {
@@ -102,17 +104,188 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 		/* default is SDR */
 		seq_puts(s, "SDR");
 	seq_puts(s, "\n");
-
-	seq_puts(s, "******config******\n");
 	seq_printf(s, "cur_VIC: %d\n", tx_comm->fmt_para.vic);
 	hdmitx_format_para_print(&tx_comm->fmt_para, buf);
 	seq_printf(s, "%s\n", buf);
+	if (tx_comm->fmt_para.flag_3dfp)
+		conf = "FramePacking";
+	else if (tx_comm->fmt_para.flag_3dss)
+		conf = "SidebySide";
+	else if (tx_comm->fmt_para.flag_3dtb)
+		conf = "TopButtom";
+	else
+		conf = "off";
+	seq_printf(s, "3D config: %s\n", conf);
+	seq_puts(s, "\n");
 
+	seq_puts(s, "******hdcp******\n");
+	seq_puts(s, "hdcp mode:");
+	switch (tx_comm->hdcptx_comm.hdcp_mode) {
+	case 1:
+		seq_puts(s, "14");
+		break;
+	case 2:
+		seq_puts(s, "22");
+		break;
+	default:
+		seq_puts(s, "off");
+		break;
+	}
+	if (tx_comm->hdcptx_comm.hdcp_mode > 0) {
+		hdcp_ret = hdmitx_hw_cntl(hw_comm,
+			HDCP_GET_AUTH_RESULT, NULL, NULL);
+		if (hdcp_ret == 1)
+			seq_puts(s, ": succeed\n");
+		else
+			seq_puts(s, ": fail\n");
+	}
+
+	seq_puts(s, "hdcp_lstore:");
+	hdcp_lstore = tx_comm->hdcptx_comm.hdcp_lstore;
+	if (hdcp_lstore < 0x10) {
+		hdcp_lstore = 0;
+		if (hdmitx_hw_cntl(hw_comm, HDCP_14_LSTORE, NULL, NULL))
+			hdcp_lstore |= BIT(0);
+		if (hdmitx_hw_cntl(hw_comm, HDCP_22_LSTORE, NULL, NULL))
+			hdcp_lstore |= BIT(1);
+	}
+	if ((hdcp_lstore & 0x3) == 0x3) {
+		seq_puts(s, "14+22\n");
+	} else {
+		if (hdcp_lstore & 0x1)
+			seq_puts(s, "14\n");
+		if (hdcp_lstore & 0x2)
+			seq_puts(s, "22\n");
+		if ((hdcp_lstore & 0xf) == 0)
+			seq_puts(s, "00\n");
+	}
+
+	seq_puts(s, "hdcp_ver:");
+	hdmitx_get_hdcp_ver(tx_comm, buf, 512);
+	seq_printf(s, "%s\n", buf);
+	hdmitx_hw_cntl(hw_comm, HDCP_GET_BKSV, NULL, bksv_buf);
+	seq_puts(s, "HDCP14 BKSV: ");
+	for (i = 0; i < 5; i++)
+		seq_printf(s, "%02x", bksv_buf[i]);
+
+	seq_printf(s, "hdcp_ctl_lvl:%d\n", tx_comm->hdcptx_comm.hdcp_ctl_lvl);
+
+	seq_puts(s, "******hdmi_pll******\n");
+	seq_printf(s, "sspll:%d\n", tx_comm->sspll);
+
+	seq_puts(s, "******dv_vsif_info******\n");
+	data = &tx_comm->vsif_debug_info.data;
+	seq_printf(s, "type: %u, tunnel: %u, sigsdr: %u\n",
+		tx_comm->vsif_debug_info.type,
+		tx_comm->vsif_debug_info.tunnel_mode,
+		tx_comm->vsif_debug_info.signal_sdr);
+	seq_puts(s, "dv_vsif_para:\n");
+	seq_printf(s, "ver: %u len: %u\n", data->ver, data->length);
+	seq_printf(s, "ll: %u dvsig: %u\n", data->vers.ver2.low_latency,
+		data->vers.ver2.dobly_vision_signal);
+	seq_printf(s, "bcMD: %u axMD: %u\n", data->vers.ver2.backlt_ctrl_MD_present,
+		data->vers.ver2.auxiliary_MD_present);
+	seq_printf(s, "PQhi: %u PQlow: %u\n", data->vers.ver2.eff_tmax_PQ_hi,
+		data->vers.ver2.eff_tmax_PQ_low);
+	seq_printf(s, "auxiliary_runmode: %u, auxiliary_runversion: %u, ",
+		data->vers.ver2.auxiliary_runmode,
+		data->vers.ver2.auxiliary_runversion);
+	seq_printf(s, "axdbg: %u\n", data->vers.ver2.auxiliary_debug0);
+	seq_puts(s, "\n");
+
+	seq_puts(s, "***drm_config_data***\n");
+	hdr_transfer_feature = (tx_comm->drm_config_data.features >> 8) & 0xff;
+	hdr_color_feature = (tx_comm->drm_config_data.features >> 16) & 0xff;
+	colormetry = (tx_comm->drm_config_data.features >> 30) & 0x1;
+	seq_printf(s, "tf=%u, cf=%u, colormetry=%u\n", hdr_transfer_feature, hdr_color_feature,
+		colormetry);
+	seq_puts(s, "primaries:\n");
+	for (vcnt = 0; vcnt < 3; vcnt++) {
+		for (hcnt = 0; hcnt < 2; hcnt++)
+			seq_printf(s, "%u, ",
+			tx_comm->drm_config_data.primaries[vcnt][hcnt]);
+		seq_puts(s, "\n");
+	}
+	seq_puts(s, "white_point: ");
+	for (hcnt = 0; hcnt < 2; hcnt++)
+		seq_printf(s, "%u, ", tx_comm->drm_config_data.white_point[hcnt]);
+	seq_puts(s, "\n");
+	seq_puts(s, "luminance: ");
+	for (hcnt = 0; hcnt < 2; hcnt++)
+		seq_printf(s, "%u, ",
+		tx_comm->drm_config_data.luminance[hcnt]);
+	seq_puts(s, "\n");
+	seq_printf(s, "max_content: %u, ",
+		tx_comm->drm_config_data.max_content);
+	seq_printf(s, "max_frame_average: %u\n",
+		tx_comm->drm_config_data.max_frame_average);
+	seq_puts(s, "\n");
+
+	seq_puts(s, "***hdr10p_config_data***\n");
+	seq_printf(s, "appver: %u, tlum: %u, avgrgb: %u\n",
+		tx_comm->hdr10p_config_data.application_version,
+		tx_comm->hdr10p_config_data.targeted_max_lum,
+		tx_comm->hdr10p_config_data.average_maxrgb);
+	tmp = tx_comm->hdr10p_config_data.distribution_values;
+	seq_puts(s, "distribution_values:\n");
+	for (vcnt = 0; vcnt < 3; vcnt++) {
+		for (hcnt = 0; hcnt < 3; hcnt++)
+			seq_printf(s, "%u, ", tmp[vcnt * 3 + hcnt]);
+		seq_puts(s, "\n");
+	}
+	seq_printf(s, "nbca: %u, knpx: %u, knpy: %u\n",
+		tx_comm->hdr10p_config_data.num_bezier_curve_anchors,
+		tx_comm->hdr10p_config_data.knee_point_x,
+		tx_comm->hdr10p_config_data.knee_point_y);
+	tmp = tx_comm->hdr10p_config_data.bezier_curve_anchors;
+	seq_puts(s, "bezier_curve_anchors:\n");
+	for (vcnt = 0; vcnt < 3; vcnt++) {
+		for (hcnt = 0; hcnt < 3; hcnt++)
+			seq_printf(s, "%u, ", tmp[vcnt * 3 + hcnt]);
+		seq_puts(s, "\n");
+	}
+	seq_printf(s, "gof: %u, ndf: %u\n",
+		tx_comm->hdr10p_config_data.graphics_overlay_flag,
+		tx_comm->hdr10p_config_data.no_delay_flag);
+	seq_puts(s, "\n");
+
+	seq_puts(s, "***current timing param***\n");
+	seq_printf(s, "vic: %d\n", timing->vic);
+	seq_printf(s, "name: %s\n", timing->name);
+	seq_printf(s, "enc_idx: %d\n", tx_comm->enc_idx);
+	if (timing->sname)
+		seq_printf(s, "sname: %s\n", timing->sname);
+	seq_printf(s, "pi_mode: %c\n", timing->pi_mode ? 'P' : 'I');
+	seq_printf(s, "h/v_freq: %d/%d\n", timing->h_freq, timing->v_freq);
+	seq_printf(s, "pixel_freq: %d\n", timing->pixel_freq);
+	seq_printf(s, "h_total: %d\n", timing->h_total);
+	seq_printf(s, "h_blank: %d\n", timing->h_blank);
+	seq_printf(s, "h_front: %d\n", timing->h_front);
+	seq_printf(s, "h_sync: %d\n", timing->h_sync);
+	seq_printf(s, "h_back: %d\n", timing->h_back);
+	seq_printf(s, "h_active: %d\n", timing->h_active);
+	seq_printf(s, "v_total: %d\n", timing->v_total);
+	seq_printf(s, "v_blank: %d\n", timing->v_blank);
+	seq_printf(s, "v_front: %d\n", timing->v_front);
+	seq_printf(s, "v_sync: %d\n", timing->v_sync);
+	seq_printf(s, "v_back: %d\n", timing->v_back);
+	seq_printf(s, "v_active: %d\n", timing->v_active);
+	seq_printf(s, "v_sync_ln: %d\n", timing->v_sync_ln);
+	seq_printf(s, "h/v_pol: %d/%d\n", timing->h_pol, timing->v_pol);
+	seq_printf(s, "h/v_pict: %d/%d\n", timing->h_pict, timing->v_pict);
+	seq_printf(s, "h/v_pixel: %d/%d\n", timing->h_pixel, timing->v_pixel);
+
+	seq_puts(s, "***hdmi audio config***\n");
 	if (tx_comm->cur_audio_param.aud_output_en)
 		conf = "on";
 	else
 		conf = "off";
 	seq_printf(s, "audio config: %s\n", conf);
+	seq_printf(s, "type: %u, chnum: %u, samrate: %u, samsize: %u\n",
+		tx_comm->hdmiaud_config_data.type,
+		tx_comm->hdmiaud_config_data.chs,
+		tx_comm->hdmiaud_config_data.rate,
+		tx_comm->hdmiaud_config_data.size);
 
 	switch (tx_comm->cur_audio_param.aud_src_if) {
 	case AUD_SRC_IF_SPDIF:
@@ -261,158 +434,37 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	}
 	seq_printf(s, "audio sample size: %s\n", conf);
 
-	if (tx_comm->fmt_para.flag_3dfp)
-		conf = "FramePacking";
-	else if (tx_comm->fmt_para.flag_3dss)
-		conf = "SidebySide";
-	else if (tx_comm->fmt_para.flag_3dtb)
-		conf = "TopButtom";
-	else
-		conf = "off";
-	seq_printf(s, "3D config: %s\n", conf);
-	seq_puts(s, "\n");
+	seq_puts(s, "***efuse_config***\n");
+	seq_printf(s, "FEAT_DISABLE_HDMI_60HZ = %d\n",
+		tx_comm->efuse_dis_hdmi_4k60);
+	seq_printf(s, "FEAT_DISABLE_OUTPUT_4K = %d\n\r",
+		tx_comm->efuse_dis_output_4k);
+	seq_printf(s, "FEAT_DISABLE_HDCP_TX_22 = %d\n\r",
+		tx_comm->efuse_dis_hdcp_tx22);
+	seq_printf(s, "FEAT_DISABLE_HDMI_TX_3D = %d\n\r",
+		tx_comm->efuse_dis_hdmi_tx3d);
+	seq_printf(s, "FEAT_DISABLE_HDMI = %d\n\r",
+		tx_comm->efuse_dis_hdcp_tx14);
 
-	seq_puts(s, "******hdcp******\n");
-	seq_puts(s, "hdcp mode:");
-	switch (tx_comm->hdcptx_comm.hdcp_mode) {
-	case 1:
-		seq_puts(s, "14");
-		break;
-	case 2:
-		seq_puts(s, "22");
-		break;
-	default:
-		seq_puts(s, "off");
-		break;
-	}
-	if (tx_comm->hdcptx_comm.hdcp_mode > 0) {
-		hdcp_ret = hdmitx_hw_cntl(hw_comm,
-			HDCP_GET_AUTH_RESULT, NULL, NULL);
-		if (hdcp_ret == 1)
-			seq_puts(s, ": succeed\n");
-		else
-			seq_puts(s, ": fail\n");
-	}
+	seq_puts(s, "***dts_config_data***\n");
+	seq_printf(s, "pxp_mode: %d, dongle_mode: %d\n\r",
+		tx_comm->pxp_mode, tx_comm->tx_hw->dongle_mode);
+	seq_printf(s, "res_1080p: %d, max_refreshrate: %d, tx_max_frl_rate: %d\n\r",
+		tx_comm->res_1080p, tx_comm->max_refreshrate,
+		tx_comm->tx_hw->hdmi_tx_cap.tx_max_frl_rate);
+	seq_printf(s, "hdcp_ctl_lvl: %d, hdcp_type_policy: %d, hdcp_rpt_en: %d\n\r",
+		tx_comm->hdcptx_comm.hdcp_ctl_lvl, tx_comm->hdcp_type_policy,
+		tx_comm->hdcptx_comm.hdcp_rpt_en);
+	seq_printf(s, "hdcp_ctl_lvl: %d, hdcp_type_policy: %d, hdcp_rpt_en: %d\n\r",
+		tx_comm->hdcptx_comm.hdcp_ctl_lvl, tx_comm->hdcp_type_policy,
+		tx_comm->hdcptx_comm.hdcp_rpt_en);
+	seq_printf(s, "cedst_en: %d, rxsense_policy: %d\n\r",
+		tx_comm->cedst_en, tx_comm->rxsense_policy);
+	seq_printf(s, "hdr_8bit_en: %d, enc_idx: %d arc_rx_en: %d\n\r",
+		tx_comm->hdr_8bit_en, tx_comm->enc_idx, tx_comm->arc_rx_en);
 
-	seq_puts(s, "hdcp_lstore:");
-	hdcp_lstore = tx_comm->hdcptx_comm.hdcp_lstore;
-	if (hdcp_lstore < 0x10) {
-		hdcp_lstore = 0;
-		if (hdmitx_hw_cntl(hw_comm, HDCP_14_LSTORE, NULL, NULL))
-			hdcp_lstore |= BIT(0);
-		if (hdmitx_hw_cntl(hw_comm, HDCP_22_LSTORE, NULL, NULL))
-			hdcp_lstore |= BIT(1);
-	}
-	if ((hdcp_lstore & 0x3) == 0x3) {
-		seq_puts(s, "14+22\n");
-	} else {
-		if (hdcp_lstore & 0x1)
-			seq_puts(s, "14\n");
-		if (hdcp_lstore & 0x2)
-			seq_puts(s, "22\n");
-		if ((hdcp_lstore & 0xf) == 0)
-			seq_puts(s, "00\n");
-	}
-
-	seq_puts(s, "hdcp_ver:");
-	hdmitx_get_hdcp_ver(tx_comm, buf, 512);
-	seq_printf(s, "%s\n", buf);
-	hdmitx_hw_cntl(hw_comm, HDCP_GET_BKSV, NULL, bksv_buf);
-	seq_puts(s, "HDCP14 BKSV: ");
-	for (i = 0; i < 5; i++)
-		seq_printf(s, "%02x", bksv_buf[i]);
-
-	seq_printf(s, "hdcp_ctl_lvl:%d\n", tx_comm->hdcptx_comm.hdcp_ctl_lvl);
-
-	seq_puts(s, "******scdc******\n");
-	seq_printf(s, "div40:%d\n", tx_comm->tx_hw->pre_tmds_clk_div40);
-
-	seq_puts(s, "******hdmi_pll******\n");
-	seq_printf(s, "sspll:%d\n", tx_comm->sspll);
-
-	seq_puts(s, "******dv_vsif_info******\n");
-	data = &tx_comm->vsif_debug_info.data;
-	seq_printf(s, "type: %u, tunnel: %u, sigsdr: %u\n",
-		tx_comm->vsif_debug_info.type,
-		tx_comm->vsif_debug_info.tunnel_mode,
-		tx_comm->vsif_debug_info.signal_sdr);
-	seq_puts(s, "dv_vsif_para:\n");
-	seq_printf(s, "ver: %u len: %u\n", data->ver, data->length);
-	seq_printf(s, "ll: %u dvsig: %u\n", data->vers.ver2.low_latency,
-		data->vers.ver2.dobly_vision_signal);
-	seq_printf(s, "bcMD: %u axMD: %u\n", data->vers.ver2.backlt_ctrl_MD_present,
-		data->vers.ver2.auxiliary_MD_present);
-	seq_printf(s, "PQhi: %u PQlow: %u\n", data->vers.ver2.eff_tmax_PQ_hi,
-		data->vers.ver2.eff_tmax_PQ_low);
-	seq_printf(s, "auxiliary_runmode: %u, auxiliary_runversion: %u, ",
-		data->vers.ver2.auxiliary_runmode,
-		data->vers.ver2.auxiliary_runversion);
-	seq_printf(s, "axdbg: %u\n", data->vers.ver2.auxiliary_debug0);
-	seq_puts(s, "\n");
-
-	seq_puts(s, "***drm_config_data***\n");
-	hdr_transfer_feature = (tx_comm->drm_config_data.features >> 8) & 0xff;
-	hdr_color_feature = (tx_comm->drm_config_data.features >> 16) & 0xff;
-	colormetry = (tx_comm->drm_config_data.features >> 30) & 0x1;
-	seq_printf(s, "tf=%u, cf=%u, colormetry=%u\n", hdr_transfer_feature, hdr_color_feature,
-		colormetry);
-	seq_puts(s, "primaries:\n");
-	for (vcnt = 0; vcnt < 3; vcnt++) {
-		for (hcnt = 0; hcnt < 2; hcnt++)
-			seq_printf(s, "%u, ",
-			tx_comm->drm_config_data.primaries[vcnt][hcnt]);
-		seq_puts(s, "\n");
-	}
-	seq_puts(s, "white_point: ");
-	for (hcnt = 0; hcnt < 2; hcnt++)
-		seq_printf(s, "%u, ", tx_comm->drm_config_data.white_point[hcnt]);
-	seq_puts(s, "\n");
-	seq_puts(s, "luminance: ");
-	for (hcnt = 0; hcnt < 2; hcnt++)
-		seq_printf(s, "%u, ",
-		tx_comm->drm_config_data.luminance[hcnt]);
-	seq_puts(s, "\n");
-	seq_printf(s, "max_content: %u, ",
-		tx_comm->drm_config_data.max_content);
-	seq_printf(s, "max_frame_average: %u\n",
-		tx_comm->drm_config_data.max_frame_average);
-	seq_puts(s, "\n");
-
-	seq_puts(s, "***hdr10p_config_data***\n");
-	seq_printf(s, "appver: %u, tlum: %u, avgrgb: %u\n",
-		tx_comm->hdr10p_config_data.application_version,
-		tx_comm->hdr10p_config_data.targeted_max_lum,
-		tx_comm->hdr10p_config_data.average_maxrgb);
-	tmp = tx_comm->hdr10p_config_data.distribution_values;
-	seq_puts(s, "distribution_values:\n");
-	for (vcnt = 0; vcnt < 3; vcnt++) {
-		for (hcnt = 0; hcnt < 3; hcnt++)
-			seq_printf(s, "%u, ", tmp[vcnt * 3 + hcnt]);
-		seq_puts(s, "\n");
-	}
-	seq_printf(s, "nbca: %u, knpx: %u, knpy: %u\n",
-		tx_comm->hdr10p_config_data.num_bezier_curve_anchors,
-		tx_comm->hdr10p_config_data.knee_point_x,
-		tx_comm->hdr10p_config_data.knee_point_y);
-	tmp = tx_comm->hdr10p_config_data.bezier_curve_anchors;
-	seq_puts(s, "bezier_curve_anchors:\n");
-	for (vcnt = 0; vcnt < 3; vcnt++) {
-		for (hcnt = 0; hcnt < 3; hcnt++)
-			seq_printf(s, "%u, ", tmp[vcnt * 3 + hcnt]);
-		seq_puts(s, "\n");
-	}
-	seq_printf(s, "gof: %u, ndf: %u\n",
-		tx_comm->hdr10p_config_data.graphics_overlay_flag,
-		tx_comm->hdr10p_config_data.no_delay_flag);
-	seq_puts(s, "\n");
-
-	seq_puts(s, "***hdmiaud_config_data***\n");
-	seq_printf(s,
-		"type: %u, chnum: %u, samrate: %u, samsize: %u\n",
-		tx_comm->hdmiaud_config_data.type,
-		tx_comm->hdmiaud_config_data.chs,
-		tx_comm->hdmiaud_config_data.rate,
-		tx_comm->hdmiaud_config_data.size);
+	seq_printf(s, "hdmitx already_used = %d\n\r",
+		tx_comm->already_used);
 
 	return 0;
 }
@@ -473,6 +525,13 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 		seq_puts(s, "ng\n");
 
 	seq_puts(s, "\n******edid******\n");
+	seq_puts(s, "sink type:");
+	if (!tx_comm->hpd_state)
+		seq_puts(s, " none\n");
+	else if (tx_comm->rxcap.vsdb_phy_addr.b)
+		seq_puts(s, " repeater\n");
+	else
+		seq_puts(s, " sink\n");
 	hdmitx_edid_print_sink_cap(&tx_comm->rxcap, buf, len);
 	seq_printf(s, buf);
 	memset(buf, 0, len * sizeof(char));
@@ -756,6 +815,9 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 	seq_puts(s, "\n******aud_cap******\n");
 	_show_aud_cap(prxcap, buf, len);
 	seq_printf(s, buf);
+
+	seq_printf(s, "content_cap: game(%d)/cinema(%d)/photo(%d)/graphics(%d), allm_cap: %d\n",
+		prxcap->cnc3, prxcap->cnc2, prxcap->cnc1, prxcap->cnc0, prxcap->allm);
 	kfree(buf);
 
 	return 0;

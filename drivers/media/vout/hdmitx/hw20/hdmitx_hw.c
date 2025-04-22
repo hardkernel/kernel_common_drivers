@@ -46,7 +46,6 @@
 #include "hdmitx_hw_clk.h"
 #include "hdmitx_checksha.h"
 #include "hdmitx_reg_sc2.h"
-#include "hdmitx_debug_reg.h"
 #include "hdmitx_compliance.h"
 #include "hdmitx_hdcp.h"
 #include "hdmitx_infoframe.h"
@@ -60,7 +59,6 @@ static struct hdmitx20_dev *tx20_dev;
 
 static ssize_t hdmitx_get_clk(char *buf, int len);
 static int hdmitx_pkt_dump(char *buf, int len);
-static int hdmitx_debug_reg_dump(struct hdmitx_hw_common *tx_hw, char *buf, int len);
 static void hdmitx20_disable_hdcp(struct hdmitx_common *tx_comm);
 static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm);
 static int read_phy_status(struct hdmitx_hw_common *tx_hw);
@@ -743,7 +741,6 @@ void hdmitx20_meson_init(struct hdmitx_hw_common *hw_comm)
 	hw_comm->set_disp_mode = hdmitx_set_dispmode;
 	hw_comm->get_clk = hdmitx_get_clk;
 	hw_comm->pkt_dump = hdmitx_pkt_dump;
-	hw_comm->dump_debug_reg = hdmitx_debug_reg_dump;
 	hdmitx20_private_data_init(hdev);
 	hdmi_hwp_init(hdev);
 	hdmi_hwi_init(hdev);
@@ -2935,39 +2932,6 @@ static void hw_reset_dbg(void)
 	hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINWIDTH, val3);
 }
 
-#define DUMP_CVREG_SECTION(_start, _end) \
-do { \
-	typeof(_start) start = (_start); \
-	typeof(_end) end = (_end); \
-	if (start > end) { \
-		HDMITX_INFO("Error start = 0x%x > end = 0x%x\n", \
-			((start & 0xffff) >> 2), ((end & 0xffff) >> 2)); \
-		break; \
-	} \
-	HDMITX_INFO("Start = 0x%x[0x%x]   End = 0x%x[0x%x]\n", \
-		start, ((start & 0xffff) >> 2), end, ((end & 0xffff) >> 2)); \
-	for (addr = start; addr < end + 1; addr += 4) {	\
-		val = hd_read_reg(addr); \
-		if (val) \
-			HDMITX_INFO("0x%08x[0x%04x]: 0x%08x\n", addr, \
-				((addr & 0xffff) >> 2), val); \
-		} \
-} while (0)
-
-#define DUMP_HDMITXREG_SECTION(_start, _end) \
-do { \
-	typeof(_start) start = (_start); \
-	typeof(_end) end = (_end); \
-	if (start > end) \
-		break; \
-\
-	for (addr = start; addr < end + 1; addr++) { \
-		val = hdmitx_rd_reg(addr); \
-		if (val) \
-			HDMITX_INFO("[0x%08x]: 0x%08x\n", addr, val); \
-	} \
-} while (0)
-
 static void mode420_half_horizontal_para(void)
 {
 	unsigned int hactive = 0;
@@ -2997,44 +2961,6 @@ static void mode420_half_horizontal_para(void)
 	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINDELAY1, ((hfront >> 8) & 0x1f));
 	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINWIDTH0, (hsync & 0xff));
 	hdmitx_wr_reg(HDMITX_DWC_FC_HSYNCINWIDTH1, ((hsync >> 8) & 0x3));
-}
-
-static int hdmitx_debug_reg_dump(struct hdmitx_hw_common *tx_hw, char *buf, int len)
-{
-	int i, pos = 0;
-	int cnt;
-	unsigned int val;
-	struct hdmitx_dbgreg_s **reg;
-
-	if (!tx_hw->chip_data || !buf || !len)
-		return pos;
-	reg = hdmitx_get_dbgregs(tx_hw->chip_data->chip_type);
-
-	if (!reg)
-		return pos;
-
-	for (; *reg; reg++) {
-		if (!(*reg)->rd_reg_func || !(*reg)->get_reg_paddr ||
-			!(*reg)->name || !(*reg)->reg) {
-			HDMITX_ERROR("lack dump reg member\n");
-			continue;
-		}
-		cnt = snprintf(buf + pos, len - pos, "%s\n", (*reg)->name);
-		if (cnt < 0)
-			return cnt;
-		pos += cnt;
-		for (i = 0; (*reg)->reg[i] != REGS_END; i++) {
-			val = (*reg)->rd_reg_func((*reg)->reg[i]);
-			cnt = snprintf(buf + pos, len - pos,
-				"[0x%08x]0x%08x\n",
-				(*reg)->get_reg_paddr((*reg)->reg[i]), val);
-			if (cnt < 0)
-				return cnt;
-			pos += cnt;
-		}
-	}
-
-	return pos;
 }
 
 static ssize_t hdmitx_get_clk(char *buf, int size)

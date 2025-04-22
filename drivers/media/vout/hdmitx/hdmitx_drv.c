@@ -31,7 +31,6 @@
 
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_config.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <drm/amlogic/meson_drm_bind.h>
@@ -469,26 +468,6 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 			if (ret)
 				HDMITX_INFO("not find vend_init_data\n");
 		}
-		/* Get power control */
-		ret = of_property_read_u32(pdev->dev.of_node,
-					   "pwr-ctrl", &val);
-		if (ret)
-			HDMITX_INFO("not find match pwr-ctl\n");
-		if (ret == 0) {
-			phandler = val;
-			init_data = of_find_node_by_phandle(phandler);
-			if (!init_data)
-				HDMITX_INFO("not find device node\n");
-			tx_comm->config_data.pwr_ctl = kzalloc((sizeof(struct hdmi_pwr_ctl)) *
-				HDMI_TX_PWR_CTRL_NUM, GFP_KERNEL);
-			if (!tx_comm->config_data.pwr_ctl)
-				HDMITX_INFO("can not get pwr_ctl mem\n");
-			else
-				memset(tx_comm->config_data.pwr_ctl,
-					0, sizeof(struct hdmi_pwr_ctl));
-			if (ret)
-				HDMITX_INFO("not find pwr_ctl\n");
-		}
 		/* Get reg information */
 		ret = hw_comm->chip_data->hdmitx_ops->init_reg_map(pdev);
 		if (ret < 0)
@@ -577,13 +556,6 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	u32 arg = 0;
 
 	need_rst_ratio = hdmitx_find_vendor_ratio(tx_comm->edid_buf);
-	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
-		if (tx_comm->aon_output) {
-			HDMITX_INFO("%s return, HDMI signal enabled\n", __func__);
-			return;
-		}
-	}
-
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	/*
 	 * under suspend, driver should not respond to mode setting,
@@ -615,12 +587,6 @@ static void hdmitx_late_resume(struct early_suspend *h)
 {
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)h->param;
 
-	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
-		if (tx_comm->aon_output) {
-			HDMITX_INFO("%s return, HDMI signal already enabled\n", __func__);
-			return;
-		}
-	}
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	hdmitx_common_late_resume(tx_comm);
 	HDMITX_INFO(SYS "Late Resume\n");
@@ -874,8 +840,9 @@ void hdmitx_common_sw_debug_func(struct hdmitx_common *tx_comm, const char *buf)
 	struct cuva_hdr_vs_emds_para cuva_emp_data = {0x1, 0x2, 0x3};
 	struct cuva_hdr_vsif_para cuva_vsif_data = {0x1, 0x1, 0x1};
 	struct dv_vsif_para vsif_para = {0};
+	static char test_fmt_attr[16];
 
-	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
+	while ((buf[i]) && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
 		i++;
 	}
@@ -1110,8 +1077,25 @@ void hdmitx_common_sw_debug_func(struct hdmitx_common *tx_comm, const char *buf)
 		} else if (strncmp(tmpbuf2, "cuva_emp", 8) == 0) {
 			hdmitx_set_cuva_hdr_vs_emds(tx_comm, &cuva_emp_data);
 		}
+	} else if (strncmp(tmpbuf, "test_attr", 9) == 0) {
+		/* for pxp test */
+		strncpy(test_fmt_attr, tmpbuf + 9, sizeof(test_fmt_attr));
+		test_fmt_attr[15] = '\0';
+		HDMITX_INFO("set test attr: %s\n", test_fmt_attr);
+	} else if (strncmp(tmpbuf, "disp_mode", 9) == 0) {
+		ret = set_disp_mode_debug(tx_comm, tmpbuf + 9, test_fmt_attr);
+		if (ret < 0)
+			HDMITX_ERROR("%s: set mode[%s]+[%s] failed\n",
+				__func__, tmpbuf + 9, test_fmt_attr);
+	} else if (strncmp(tmpbuf, "sspll", 5) == 0) {
+		ret = kstrtoul(tmpbuf + 5, 10, &value);
+		tx_comm->sspll = value & 0xFF;
+		HDMITX_INFO("set sspll: %d\n", tx_comm->sspll);
+	} else if (strncmp(tmpbuf, "force_frac", 10) == 0) {
+		ret = kstrtoul(tmpbuf + 10, 10, &value);
+		tx_comm->force_frac_mode = value & 0x3;
+		HDMITX_INFO("set force_frac_mode: 0x%x\n", tx_comm->force_frac_mode);
 	}
-
 }
 
 static void amhdmitx_remove(struct platform_device *pdev)
@@ -1337,10 +1321,7 @@ static void amhdmitx_shutdown(struct platform_device *pdev)
 	_amhdmitx_suspend(tx_comm);
 
 	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
-		if (tx_comm->aon_output) {
-			hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_DISABLE, NULL, NULL);
-			return;
-		}
+		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_DISABLE, NULL, NULL);
 		hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_HDMI_CLKS_CTRL, (void *)&arg, NULL);
 	}
 }

@@ -66,8 +66,6 @@ struct hdmitx21_dev {
 	/* dedicated for intr */
 	struct workqueue_struct *hdmi_intr_wq;
 
-	atomic_t kref_audio_mute;
-
 	u8 manual_frl_rate; /* for manual setting */
 	u8 frl_rate; /* for mode setting */
 	u8 dsc_en;

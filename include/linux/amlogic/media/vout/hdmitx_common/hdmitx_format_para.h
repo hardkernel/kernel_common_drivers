@@ -47,7 +47,7 @@ int hdmitx_format_para_print(struct hdmi_format_para *para, char *log_buf);
 /* fmt_attr is still used by userspace, need rebuild this string from format para.
  * TODO: remove it when we delete fmt_attr sysfs.
  */
-int hdmitx_format_para_rebuild_fmtattr_str(struct hdmi_format_para *para, char *attr_str, int len);
+int hdmitx_format_para_rebuild_fmt_attr_str(struct hdmi_format_para *para, char *attr_str, int len);
 
 /* parse attr string to get enum cs/cd/cr */
 void hdmitx_parse_color_attr(char const *attr_str,

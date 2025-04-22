@@ -27,7 +27,7 @@ static int dump_hdmi_phy_pll_show(struct seq_file *s, void *p)
 
 	seq_puts(s, "\n--------HDMITX basic information --------\n");
 	seq_printf(s, "resolution: %s\n", tx_comm->fmt_para.name);
-	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para, fmt_attr, sizeof(fmt_attr));
+	hdmitx_format_para_rebuild_fmt_attr_str(&tx_comm->fmt_para, fmt_attr, sizeof(fmt_attr));
 	seq_printf(s, "attr: %s\n", fmt_attr);
 	seq_printf(s, "tmds clock: %dkhz\n", tx_comm->fmt_para.tmds_clk);
 	if (hdev->frl_rate != FRL_NONE) {

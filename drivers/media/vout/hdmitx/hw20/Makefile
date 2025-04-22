@@ -23,4 +23,3 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_g12a
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_sm1.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_tm2.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_hw_sc2.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hw20/hdmitx_debug_reg.o

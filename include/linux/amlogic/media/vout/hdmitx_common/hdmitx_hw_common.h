@@ -315,8 +315,6 @@ struct hdmitx_hw_common {
 	void (*debug_func)(struct hdmitx_hw_common *tx_hw, const char *cmd_str);
 	/* dump packet information */
 	int (*pkt_dump)(char *buf, int len);
-	/* dump reg information */
-	int (*dump_debug_reg)(struct hdmitx_hw_common *tx_hw, char *buf, int len);
 	ssize_t (*get_clk)(char *buf, int len);
 
 	u8 debug_hpd_lock;

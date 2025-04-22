@@ -2295,39 +2295,6 @@ void hdmitx21_meson_uninit(struct hdmitx_hw_common *hw_comm)
 		kthread_stop(tx_comm->task_clk_check);
 }
 
-#define DUMP_CVREG_SECTION(_start, _end) \
-do { \
-	typeof(_start) start = (_start); \
-	typeof(_end) end = (_end); \
-	if (start > end) { \
-		HDMITX_INFO("Error start = 0x%x > end = 0x%x\n", \
-			((start & 0xffff) >> 2), ((end & 0xffff) >> 2)); \
-		break; \
-	} \
-	HDMITX_INFO("Start = 0x%x[0x%x]   End = 0x%x[0x%x]\n", \
-		start, ((start & 0xffff) >> 2), end, ((end & 0xffff) >> 2)); \
-	for (addr = start; addr < end + 1; addr += 4) {	\
-		val = hd21_read_reg(addr); \
-		if (val) \
-			HDMITX_INFO("0x%08x[0x%04x]: 0x%08x\n", addr, \
-				((addr & 0xffff) >> 2), val); \
-		} \
-} while (0)
-
-#define DUMP_HDMITXREG_SECTION(_start, _end) \
-do { \
-	typeof(_start) start = (_start); \
-	typeof(_end) end = (_end); \
-	if (start > end) \
-		break; \
-\
-	for (addr = start; addr < end + 1; addr++) { \
-		val = hdmitx21_rd_reg(addr); \
-		if (val) \
-			HDMITX_INFO("[0x%08x]: 0x%08x\n", addr, val); \
-	} \
-} while (0)
-
 static ssize_t hdmitx_get_clk(char *buf, int size)
 {
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
@@ -6162,23 +6129,6 @@ static int hdmitx21_pre_enable_mode(struct hdmitx_common *tx_comm)
 	return 0;
 }
 
-static void restore_mute(void)
-{
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
-	atomic_t kref_video_mute = hdev->tx_comm.kref_video_mute;
-	atomic_t kref_audio_mute = hdev->kref_audio_mute;
-	struct hdmitx_hw_common *hw_comm = &hdev->hw_comm;
-
-	if (!(atomic_sub_and_test(0, &kref_video_mute))) {
-		HDMITX_INFO("%s: hdmitx21_video_mute_op(0, 0) call\n", __func__);
-		hdmitx21_video_mute_op(hw_comm, 0, 0);
-	}
-	if (!(atomic_sub_and_test(0, &kref_audio_mute))) {
-		HDMITX_INFO("%s: hdmitx_audio_mute_op(0,0) call\n", __func__);
-		hdmitx_audio_mute_op(&hdev->tx_comm, 0, 0);
-	}
-}
-
 static int hdmitx21_enable_mode(struct hdmitx_common *tx_comm)
 {
 	int ret;
@@ -6186,8 +6136,6 @@ static int hdmitx21_enable_mode(struct hdmitx_common *tx_comm)
 	/* if vic is HDMI_UNKNOWN, hdmitx_set_display will disable HDMI */
 	ret = hdmitx_set_display(tx_comm, tx_comm->fmt_para.vic);
 
-	if (ret >= 0)
-		restore_mute();
 	if (tx_comm->tx_hw->set_aud_mode)
 		tx_comm->tx_hw->set_aud_mode(tx_comm->tx_hw, &tx_comm->cur_audio_param);
 

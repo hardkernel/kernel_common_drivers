@@ -21,7 +21,6 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_config.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include <linux/amlogic/media/vout/dsc.h>
 #include <linux/amlogic/media/vrr/vrr.h>
@@ -159,6 +158,22 @@ struct scdc_locked_st {
 
 typedef void (*pf_callback)(bool st);
 
+struct vendor_info_data {
+	u8 *vendor_name; /* Max Chars: 8 */
+	/* vendor_id, 3 Bytes, Refer to
+	 * http://standards.ieee.org/develop/regauth/oui/oui.txt
+	 */
+	u8 *product_desc; /* Max Chars: 16 */
+	u8 *cec_osd_string; /* Max Chars: 14 */
+	u32 cec_config; /* 4 bytes: use to control cec switch on/off */
+	u32 vendor_id;
+};
+
+struct hdmi_config_platform_data {
+	struct vendor_info_data *vend_data;
+	/* additional config data */
+};
+
 struct hdmitx_common {
 	/* 1. general platform device related */
 	struct cdev cdev;
@@ -231,6 +246,11 @@ struct hdmitx_common {
 	bool suspend_flag;
 	/*current format para.*/
 	struct hdmi_format_para fmt_para;
+	/* for debug, it will override the frac mode set by drm.
+	 * bit1: 1: force enable, 0: force disable
+	 * bit0: 1: force fractional mode, 0: force non-fractional mode;
+	 */
+	u8 force_frac_mode;
 	/*
 	 * color standard
 	 * 0: 709
@@ -389,9 +409,6 @@ struct hdmitx_common {
 	struct proc_dir_entry *hdmitx_proc_dbgfs;
 	/* hdmitx bist */
 	unsigned int bist_lock:1;
-	atomic_t kref_video_mute;
-	/* always output in bl30, for debug on hdmitx21 */
-	u32 aon_output:1;
 
 	/**********only used for hdmitx20**********/
 	/* in board dts file, here can add

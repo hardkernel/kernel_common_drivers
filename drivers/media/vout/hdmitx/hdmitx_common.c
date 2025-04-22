@@ -196,8 +196,14 @@ int hdmitx_common_build_format_para(struct hdmitx_common *tx_comm,
 		enum hdmi_colorspace cs, enum hdmi_color_depth cd, enum hdmi_quantization_range cr)
 {
 	int ret = 0;
+	u32 frac_mode = frac_rate_policy;
 
-	ret = hdmitx_format_para_init(para, vic, frac_rate_policy, cs, cd, cr);
+	/* override frac_mode set by drm for debug */
+	if (tx_comm->force_frac_mode & 0x2) {
+		frac_mode = tx_comm->force_frac_mode & 0x1;
+		HDMITX_INFO("%s force frac_mode: %d\n", __func__, frac_mode);
+	}
+	ret = hdmitx_format_para_init(para, vic, frac_mode, cs, cd, cr);
 	if (ret == 0)
 		ret = hdmitx_hw_calc_format_para(tx_comm->tx_hw, para);
 	if (ret < 0)

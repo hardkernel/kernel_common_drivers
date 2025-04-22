@@ -161,6 +161,7 @@ int hdmitx_format_para_print(struct hdmi_format_para *para, char *log_buf)
 
 		pos += snprintf(buf + pos, len - pos, "format_para: TMDS %d DIV40 %d,%d\n",
 			para->tmds_clk, para->tmds_clk_div40, para->scrambler_en);
+		pos += snprintf(buf + pos, len - pos, "tmds_clk: %d\n", para->tmds_clk);
 
 		pos += snprintf(buf + pos, len - pos, "format_para: frl_rate %d, dsc_en: %d\n",
 			para->frl_rate, para->dsc_en);
@@ -174,7 +175,7 @@ int hdmitx_format_para_print(struct hdmi_format_para *para, char *log_buf)
 	return pos;
 }
 
-int hdmitx_format_para_rebuild_fmtattr_str(struct hdmi_format_para *para, char *attr_str, int len)
+int hdmitx_format_para_rebuild_fmt_attr_str(struct hdmi_format_para *para, char *attr_str, int len)
 {
 	int i = 0;
 	const char *conf;
