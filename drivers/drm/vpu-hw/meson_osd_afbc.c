@@ -1919,22 +1919,22 @@ static void osd_afbc_hw_enable(struct meson_vpu_block *vblk,
 }
 
 static void osd_afbc_hw_disable(struct meson_vpu_block *vblk,
-				struct meson_vpu_block_state *state)
+				struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
 	u32 osd_index = vblk->index;
 
-	osd_afbc_enable(vblk, state->sub->reg_ops, osd_index, 0);
+	osd_afbc_enable(vblk, sub_pipeline->reg_ops, osd_index, 0);
 	MESON_DRM_BLOCK("%s disable called.\n", afbc->base.name);
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void t7_osd_afbc_hw_disable(struct meson_vpu_block *vblk,
-				   struct meson_vpu_block_state *state)
+				   struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
 
-	t7_osd_afbc_enable(vblk, state->sub->reg_ops,
+	t7_osd_afbc_enable(vblk, sub_pipeline->reg_ops,
 					afbc->status_regs, vblk->index, 0);
 	MESON_DRM_BLOCK("%s disable called.\n", afbc->base.name);
 }

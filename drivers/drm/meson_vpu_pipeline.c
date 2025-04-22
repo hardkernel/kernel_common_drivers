@@ -741,7 +741,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			mvb->ops->update_state(mvb, mvbs, old_mvbs, new_mvsps);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
-			mvb->ops->disable(mvb, mvbs);
+			mvb->ops->disable(mvb, sub_pipeline);
 		}
 	}
 
@@ -792,7 +792,7 @@ int video_pipeline_block_update(struct meson_video_sub_pipeline *sub_pipeline,
 			mvb->ops->enable(mvb, mvbs);
 			mvb->ops->update_video_state(mvb, mvbs, old_mvbs, new_mvsps);
 		} else {
-			mvb->ops->disable(mvb, mvbs);
+			mvb->ops->disable_video(mvb, sub_pipeline);
 		}
 	}
 
@@ -838,12 +838,8 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			if (!mvb || mvb->type != MESON_BLK_VPPBLEND || mvb->index != crtc_index)
 				continue;
 
-			mvbs = meson_vpu_block_get_new_state(mvb, old_state);
-			if (!mvbs)
-				mvbs = meson_vpu_block_get_state(mvb, old_state);
-			mvbs->sub = pipeline->subs[crtc_index];
 			if (mvb->ops && mvb->ops->disable)
-				mvb->ops->disable(mvb, mvbs);
+				mvb->ops->disable(mvb, sub_pipeline);
 		}
 	}
 
@@ -865,12 +861,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			DRM_DEBUG("Disable block %s: mvbs new-%p, old-%p\n",
 				mvb->name, mvbs, old_mvbs);
 
-			if (!old_mvbs || !old_mvbs->sub) {
-				DRM_DEBUG("old_mvbs or sub is invalid.\n");
-				continue;
-			}
-
-			mvb->ops->disable(mvb, old_mvbs);
+			mvb->ops->disable(mvb, sub_pipeline);
 		}
 	}
 

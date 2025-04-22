@@ -122,6 +122,7 @@ struct meson_vpu_block;
 struct meson_vpu_block_state;
 struct meson_video_sub_pipeline_state;
 struct meson_vpu_sub_pipeline_state;
+struct meson_vpu_sub_pipeline;
 
 /* vpu block ops */
 struct meson_vpu_block_ops {
@@ -144,7 +145,9 @@ struct meson_vpu_block_ops {
 	void (*enable)(struct meson_vpu_block *vblk,
 		       struct meson_vpu_block_state *new_state);
 	void (*disable)(struct meson_vpu_block *vblk,
-			struct meson_vpu_block_state *old_state);
+			    struct meson_vpu_sub_pipeline *sub_pipeline);
+	void (*disable_video)(struct meson_vpu_block *vblk,
+			    struct meson_video_sub_pipeline *sub_pipeline);
 	void (*dump_register)(struct drm_printer *p, struct meson_vpu_block *vblk);
 	void (*init)(struct meson_vpu_block *vblk);
 	void (*init_register)(struct meson_vpu_block *vblk,

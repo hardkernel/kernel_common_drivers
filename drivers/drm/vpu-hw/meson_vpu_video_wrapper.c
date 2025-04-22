@@ -492,7 +492,7 @@ static void video_disable_work_func(struct work_struct *works)
 }
 
 static void video_hw_disable(struct meson_vpu_block *vblk,
-			     struct meson_vpu_block_state *state)
+			     struct meson_video_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_disable_work *worker;
@@ -553,7 +553,7 @@ struct meson_vpu_block_ops video_ops = {
 	.check_video_state = video_check_state,
 	.update_video_state = video_set_state,
 	.enable = video_hw_enable,
-	.disable = video_hw_disable,
+	.disable_video = video_hw_disable,
 	.dump_register = video_dump_register,
 	.init = video_hw_init,
 };

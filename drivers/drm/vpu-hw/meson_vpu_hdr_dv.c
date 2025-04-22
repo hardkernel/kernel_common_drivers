@@ -185,7 +185,7 @@ static void hdr_enable(struct meson_vpu_block *vblk,
 }
 
 static void hdr_disable(struct meson_vpu_block *vblk,
-			struct meson_vpu_block_state *state)
+			struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 
@@ -276,7 +276,7 @@ static void db_enable(struct meson_vpu_block *vblk,
 }
 
 static void db_disable(struct meson_vpu_block *vblk,
-			  struct meson_vpu_block_state *state)
+			  struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_db *mvd = to_db_block(vblk);
 

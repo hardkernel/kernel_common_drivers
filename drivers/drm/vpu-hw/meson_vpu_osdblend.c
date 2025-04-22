@@ -1428,7 +1428,7 @@ static void osdblend_hw_enable(struct meson_vpu_block *vblk,
 }
 
 static void osdblend_hw_disable(struct meson_vpu_block *vblk,
-				struct meson_vpu_block_state *state)
+				struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 

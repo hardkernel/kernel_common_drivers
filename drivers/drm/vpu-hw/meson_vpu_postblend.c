@@ -748,7 +748,7 @@ static void t3x_postblend_set_state(struct meson_vpu_block *vblk,
 }
 
 static void s6_postblend_hw_disable(struct meson_vpu_block *vblk,
-				 struct meson_vpu_block_state *state)
+				 struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 //	u32 vppx_bld;
 //	int crtc_index = vblk->index;
@@ -757,7 +757,7 @@ static void s6_postblend_hw_disable(struct meson_vpu_block *vblk,
 //	struct postblend1_reg_s *reg1 = postblend->reg1;
 
 	if (vblk->index == 0) {
-		vpp_osd1_postblend_mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
+		vpp_osd1_postblend_mux_set(vblk, sub_pipeline->reg_ops, postblend->reg, VPP_NULL);
 	} else if (vblk->index == 1 || vblk->index == 2) {
 //		vppx_bld = reg_ops->rdma_read_reg(reg1->vpp_bld_ctrl);
 //		vppx_bld = vppx_bld & 0xffffff0f;
@@ -786,7 +786,7 @@ static void postblend_hw_enable(struct meson_vpu_block *vblk,
 }
 
 static void postblend_hw_disable(struct meson_vpu_block *vblk,
-				 struct meson_vpu_block_state *state)
+				 struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	u32 vppx_bld;
 	int crtc_index = vblk->index;
@@ -794,7 +794,7 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 	struct postblend1_reg_s *reg1 = postblend->reg1;
 
 	if (vblk->index == 0) {
-		vpp_osd1_postblend_mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
+		vpp_osd1_postblend_mux_set(vblk, sub_pipeline->reg_ops, postblend->reg, VPP_NULL);
 	} else if (vblk->index == 1 || vblk->index == 2) {
 		vppx_bld = meson_drm_read_reg(reg1->vpp_bld_ctrl);
 		vppx_bld = vppx_bld & 0xffffff0f;
@@ -806,7 +806,7 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 			MESON_DRM_BLOCK("invalid crtc index\n");
 
 		drm_postblend_notify_amvideo();
-		drm_wait_one_vblank(state->sub->pipeline->priv->drm, crtc_index);
+		drm_wait_one_vblank(sub_pipeline->pipeline->priv->drm, crtc_index);
 	}
 
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
@@ -908,21 +908,21 @@ static void s6_postblend_set_state(struct meson_vpu_block *vblk,
 }
 
 static void g12b_postblend_hw_disable(struct meson_vpu_block *vblk,
-		struct meson_vpu_block_state *state)
+		struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 
 	if (vblk->index == 0)
-		vpp_osd1_postblend_mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
+		vpp_osd1_postblend_mux_set(vblk, sub_pipeline->reg_ops, postblend->reg, VPP_NULL);
 
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
 }
 
 static void txhd2_postblend_hw_disable(struct meson_vpu_block *vblk,
-		struct meson_vpu_block_state *state)
+		struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
-	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	struct rdma_reg_ops *reg_ops = sub_pipeline->reg_ops;
 	u32 project_en = reg_ops->rdma_read_reg(VPP_PROJECTOR) & (1 << 27);
 
 	if (vblk->index == 0) {
@@ -935,14 +935,14 @@ static void txhd2_postblend_hw_disable(struct meson_vpu_block *vblk,
 }
 
 static void s5_postblend_hw_disable(struct meson_vpu_block *vblk,
-				    struct meson_vpu_block_state *state)
+				    struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	u32 vpp1_bld;
 	int crtc_index = vblk->index;
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 
 	if (crtc_index == 0) {
-		vpp_osd1_postblend_5mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
+		vpp_osd1_postblend_5mux_set(vblk, sub_pipeline->reg_ops, postblend->reg, VPP_NULL);
 	} else if (crtc_index == 1) {
 		vpp1_bld = meson_drm_read_reg(VPP1_BLD_CTRL_T3X);
 		vpp1_bld = vpp1_bld & 0xffffff0f;

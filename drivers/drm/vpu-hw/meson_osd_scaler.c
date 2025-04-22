@@ -1074,7 +1074,7 @@ static void scaler_hw_enable(struct meson_vpu_block *vblk,
 }
 
 static void scaler_hw_disable(struct meson_vpu_block *vblk,
-			      struct meson_vpu_block_state *state)
+			      struct meson_vpu_sub_pipeline *sub_pipeline)
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
 
