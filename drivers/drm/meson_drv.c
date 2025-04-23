@@ -200,7 +200,7 @@ int am_meson_set_connector_force_ioctl(struct drm_device *dev,
 static const struct drm_ioctl_desc meson_ioctls[] = {
 	#ifdef CONFIG_AMLOGIC_DRM_USE_ION
 	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 	#endif
 	DRM_IOCTL_DEF_DRV(MESON_ASYNC_ATOMIC, meson_async_atomic_ioctl,
 			  0),
@@ -212,7 +212,7 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MESON_ADDFB2, am_meson_mode_addfb2_ioctl, 0),
 	#if IS_ENABLED(CONFIG_SYNC_FILE)
 	DRM_IOCTL_DEF_DRV(MESON_DMABUF_EXPORT_SYNC_FILE, am_meson_dmabuf_export_sync_file_ioctl,
-			  DRM_MASTER),
+			  0),
 	DRM_IOCTL_DEF_DRV(MESON_CREAT_PRESENT_FENCE,
 			meson_crtc_creat_present_fence_ioctl, 0),
 	#endif
@@ -461,6 +461,18 @@ static void am_meson_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct meson_drm *priv = drm->dev_private;
+	struct meson_drm_thread *drm_thread;
+	int i;
+
+	/* flush kworker of commit thread and stop the thread */
+	for (i = 0; i < drm->mode_config.num_crtc; i++) {
+		drm_thread = &priv->commit_thread[i];
+		if (drm_thread->thread) {
+			kthread_flush_worker(&drm_thread->worker);
+			kthread_stop(drm_thread->thread);
+			drm_thread->thread = NULL;
+		}
+	}
 
 	meson_drm_sysfs_unregister(drm);
 	drm_dev_unregister(drm);

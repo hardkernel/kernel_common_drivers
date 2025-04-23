@@ -32,6 +32,11 @@ module_param(video_axis_zoom, int, 0664);
 MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
 
 static int force_gfcd_mode;
+
+static int bypass_video_crop;
+module_param(bypass_video_crop, int, 0664);
+MODULE_PARM_DESC(bypass_video_crop, "bypass_video_crop");
+
 static int osd_enable[MESON_MAX_OSDS];
 
 static u64 afbc_modifier[] = {
@@ -675,76 +680,79 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 	orig_w = plane_info->src_w;
 	orig_h = plane_info->src_h;
 
-	/*negative position process*/
-	if (plane_info->dst_x < 0) {
-		plane_info->src_x = (-plane_info->dst_x) * plane_info->src_w / plane_info->dst_w;
-		plane_info->dst_w += state->crtc_x;
-		DRM_DEBUG("x<0:src_x=%d, dst_w=%d\n", plane_info->src_x, plane_info->dst_w);
-		if (plane_info->dst_w > 0) {
-			plane_info->src_w -= plane_info->src_x;
-			plane_info->dst_x = 0;
-		} else {
-			plane_info->enable = 0;
+	if (!bypass_video_crop) {
+		/*negative position process*/
+		if (plane_info->dst_x < 0) {
+			plane_info->src_x = (-plane_info->dst_x) *
+				plane_info->src_w / plane_info->dst_w;
+			plane_info->dst_w += state->crtc_x;
+			DRM_DEBUG("x<0:src_x=%d, dst_w=%d\n", plane_info->src_x, plane_info->dst_w);
+			if (plane_info->dst_w > 0) {
+				plane_info->src_w -= plane_info->src_x;
+				plane_info->dst_x = 0;
+			} else {
+				plane_info->enable = 0;
+			}
+			DRM_DEBUG("x<0:src_x=%d, src_w=%d, dst_x=%d, dst_w=%d, enable=%d\n",
+				plane_info->src_x, plane_info->src_w,
+				plane_info->dst_x, plane_info->dst_w, plane_info->enable);
 		}
-		DRM_DEBUG("x<0:src_x=%d, src_w=%d, dst_x=%d, dst_w=%d, enable=%d\n",
-			plane_info->src_x, plane_info->src_w,
-			plane_info->dst_x, plane_info->dst_w, plane_info->enable);
-	}
 
-	if (plane_info->dst_y < 0) {
-		plane_info->src_y = (-plane_info->dst_y) * plane_info->src_h / plane_info->dst_h;
-		plane_info->dst_h += state->crtc_y;
-		DRM_DEBUG("y<0:src_y=%d, dst_h=%d\n", plane_info->src_y, plane_info->dst_h);
-		if (plane_info->dst_h > 0) {
-			plane_info->src_h -= plane_info->src_y;
-			plane_info->dst_y = 0;
-		} else {
-			plane_info->enable = 0;
+		if (plane_info->dst_y < 0) {
+			plane_info->src_y = (-plane_info->dst_y) *
+				plane_info->src_h / plane_info->dst_h;
+			plane_info->dst_h += state->crtc_y;
+			DRM_DEBUG("y<0:src_y=%d, dst_h=%d\n", plane_info->src_y, plane_info->dst_h);
+			if (plane_info->dst_h > 0) {
+				plane_info->src_h -= plane_info->src_y;
+				plane_info->dst_y = 0;
+			} else {
+				plane_info->enable = 0;
+			}
+			DRM_DEBUG("y<0:src_y=%d, src_h=%d, dst_y=%d, dst_h=%d, enable=%d\n",
+				plane_info->src_y, plane_info->src_h,
+				plane_info->dst_y, plane_info->dst_h, plane_info->enable);
 		}
-		DRM_DEBUG("y<0:src_y=%d, src_h=%d, dst_y=%d, dst_h=%d, enable=%d\n",
-			plane_info->src_y, plane_info->src_h,
-			plane_info->dst_y, plane_info->dst_h, plane_info->enable);
-	}
 
-	/*overdisplay process*/
-	if ((plane_info->dst_x + plane_info->dst_w) > mode->hdisplay) {
-		if (plane_info->dst_x >= mode->hdisplay) {
-			plane_info->enable = 0;
-		} else {
-			crop_w = plane_info->dst_x + plane_info->dst_w - mode->hdisplay;
-			plane_info->src_w -= crop_w * orig_w / state->crtc_w;
-			DRM_DEBUG("(x+w)>hdisplay:origw=%d, cropw=%d, src_w=%d\n",
-				orig_w, crop_w, plane_info->src_w);
-			if (plane_info->src_w < 0)
-				plane_info->src_w = 0;
+		/*overdisplay process*/
+		if ((plane_info->dst_x + plane_info->dst_w) > mode->hdisplay) {
+			if (plane_info->dst_x >= mode->hdisplay) {
+				plane_info->enable = 0;
+			} else {
+				crop_w = plane_info->dst_x + plane_info->dst_w - mode->hdisplay;
+				plane_info->src_w -= crop_w * orig_w / state->crtc_w;
+				DRM_DEBUG("(x+w)>hdisplay:origw=%d, cropw=%d, src_w=%d\n",
+					orig_w, crop_w, plane_info->src_w);
+				if (plane_info->src_w < 0)
+					plane_info->src_w = 0;
 
-			plane_info->dst_w -= crop_w;
-			if (plane_info->dst_w < 0)
-				plane_info->dst_w = 0;
+				plane_info->dst_w -= crop_w;
+				if (plane_info->dst_w < 0)
+					plane_info->dst_w = 0;
+			}
+			DRM_DEBUG("(x+w)>hdisplay:src_w=%d, dst_w=%d, enable=%d\n",
+				plane_info->src_w, plane_info->dst_w, plane_info->enable);
 		}
-		DRM_DEBUG("(x+w)>hdisplay:src_w=%d, dst_w=%d, enable=%d\n",
-			plane_info->src_w, plane_info->dst_w, plane_info->enable);
-	}
 
-	if ((plane_info->dst_y + plane_info->dst_h) > mode->vdisplay) {
-		if (plane_info->dst_y >= mode->vdisplay) {
-			plane_info->enable = 0;
-		} else {
-			crop_h = plane_info->dst_y + plane_info->dst_h - mode->vdisplay;
-			plane_info->src_h -= crop_h * orig_h / state->crtc_h;
-			DRM_DEBUG("(y+h)>vdisplay:origh=%d, croph=%d, src_h=%d\n",
-				orig_h, crop_h, plane_info->src_h);
-			if (plane_info->src_h < 0)
-				plane_info->src_h = 0;
+		if ((plane_info->dst_y + plane_info->dst_h) > mode->vdisplay) {
+			if (plane_info->dst_y >= mode->vdisplay) {
+				plane_info->enable = 0;
+			} else {
+				crop_h = plane_info->dst_y + plane_info->dst_h - mode->vdisplay;
+				plane_info->src_h -= crop_h * orig_h / state->crtc_h;
+				DRM_DEBUG("(y+h)>vdisplay:origh=%d, croph=%d, src_h=%d\n",
+					orig_h, crop_h, plane_info->src_h);
+				if (plane_info->src_h < 0)
+					plane_info->src_h = 0;
 
-			plane_info->dst_h -= crop_h;
-			if (plane_info->dst_h < 0)
-				plane_info->dst_h = 0;
+				plane_info->dst_h -= crop_h;
+				if (plane_info->dst_h < 0)
+					plane_info->dst_h = 0;
+			}
+			DRM_DEBUG("(y+h)>vdisplay:src_h=%d, dst_h=%d, enable=%d\n",
+				plane_info->src_h, plane_info->dst_h, plane_info->enable);
 		}
-		DRM_DEBUG("(y+h)>vdisplay:src_h=%d, dst_h=%d, enable=%d\n",
-			plane_info->src_h, plane_info->dst_h, plane_info->enable);
 	}
-
 	DRM_DEBUG("modified:src[(%d %d), %dx%d], dst[(%d %d), %dx%d]\n",
 		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h,
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
@@ -895,6 +903,11 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	phys_addr_t phyaddr, phyaddr1 = 0;
 
 	#ifdef CONFIG_AMLOGIC_DRM_USE_ION
+	if (!fb) {
+		DRM_INFO("fb is NULL!\n");
+		return -EINVAL;
+	}
+
 	meson_fb = container_of(fb, struct am_meson_fb, base);
 	if (!meson_fb)
 		return -EINVAL;
@@ -913,10 +926,10 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 	if (meson_fb->bufp[1] && meson_fb->bufp[1] != meson_fb->bufp[0] &&
-	    (fb->format->format == DRM_FORMAT_NV12 ||
-				  fb->format->format == DRM_FORMAT_NV21 ||
-				  fb->format->format == DRM_FORMAT_NV61 ||
-				  fb->format->format == DRM_FORMAT_NV16)) {
+		(fb->format->format == DRM_FORMAT_NV12 ||
+				fb->format->format == DRM_FORMAT_NV21 ||
+				fb->format->format == DRM_FORMAT_NV61 ||
+				fb->format->format == DRM_FORMAT_NV16)) {
 		phyaddr1 = am_meson_gem_object_get_phyaddr(drv,
 							   meson_fb->bufp[1],
 							   &fb_size[1]);
@@ -934,9 +947,9 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 		plane_info->is_uvm = meson_fb->bufp[0]->is_uvm;
 		plane_info->dmabuf[0] = dmabuf;
 	} else {
-		plane_info->dmabuf[0] = meson_fb->bufp[0]->base.dma_buf;
 		plane_info->vf = NULL;
 		plane_info->is_uvm = 0;
+		plane_info->dmabuf[0] = meson_fb->bufp[0]->base.dma_buf;
 		if (!plane_info->dmabuf[0])
 			plane_info->dmabuf[0] = meson_fb->bufp[0]->dmabuf;
 	}
@@ -2022,6 +2035,7 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	ret = meson_video_plane_fb_check(plane, state, plane_info);
 	if (ret < 0) {
 		plane_info->enable = 0;
+		video_pipeline_block_check(mvsp, atomic_state);
 		DRM_DEBUG("plane%d fb is NULL,disable the plane!\n",
 			  plane_info->plane_index);
 		return 0;
@@ -2292,9 +2306,9 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 	struct meson_video_sub_pipeline *sub_pipe;
 	struct am_meson_crtc *amcrtc;
-	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_pipeline *pipeline = video_plane->pipeline;
 	struct meson_vpu_video *mvv;
-	int crtc_index;
+	int crtc_index = 0;
 	struct drm_plane_state *old_plane_state;
 	struct drm_plane_state *new_state;
 	int i;
@@ -2315,10 +2329,11 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 
 	DRM_DEBUG("%s plane_index-%d, crtc-%p\n", __func__,
 		video_plane->plane_index, new_state->crtc);
+	if (new_state->crtc) {
+		amcrtc = to_am_meson_crtc(new_state->crtc);
+		crtc_index = amcrtc->crtc_index;
+	}
 
-	amcrtc = to_am_meson_crtc(new_state->crtc);
-	pipeline = amcrtc->priv->pipeline;
-	crtc_index = amcrtc->crtc_index;
 	sub_pipe = &pipeline->video_subs[crtc_index];
 	mvv = pipeline->video[video_plane->plane_index];
 

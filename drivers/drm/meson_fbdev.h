@@ -13,6 +13,10 @@ void am_meson_drm_fbdev_fini(struct drm_device *dev);
 
 /*keep sync with amlogic osd/fbdev.*/
 #define FBIOGET_OSD_DMABUF               0x46fc
+#define FBIOSET_OSD_DST_RESOLUTION       0x46fd
+#define FBIOGET_OSD_ZORDER               0x46fe
+#define FBIOSET_OSD_ZORDER               0x46ff
+
 #define FBIO_WAITFORVSYNC          _IOW('F', 0x20, __u32)
 #define FBIO_WAITFORVSYNC_64       _IOW('F', 0x21, __u32)
 
@@ -21,6 +25,13 @@ void am_meson_drm_fbdev_fini(struct drm_device *dev);
 #define AFBC_BODY_BYTE_ALIGNMENT         1024
 #define AFBC_TILED_HEADERS_WIDEBLK_WIDTH_ALIGN         256
 #define AFBC_TILED_HEADERS_WIDEBLK_HEIGHT_ALIGN        64
+
+struct region   {
+	int x;
+	int y;
+	u32 w;
+	u32 h;
+};
 
 struct fb_dmabuf_export {
 	/*idx only used in legacy android implement, not used now.*/
@@ -53,6 +64,7 @@ struct meson_drm_fbdev {
 	u32 fbdev_rec_palette[256];
 	bool blank;
 	bool vscreen_info_changed;
+	struct region dst_changed;
 };
 
 extern struct am_meson_logo logo;

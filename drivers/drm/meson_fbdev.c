@@ -202,7 +202,8 @@ static int am_meson_drm_fbdev_sync(struct fb_info *info)
 
 static int am_meson_drm_fbdev_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 {
-	int count, index, r;
+	int count, index;
+	int r = 0;
 	u16 *red, *green, *blue, *transp;
 	u16 trans = 0xffff;
 
@@ -255,57 +256,6 @@ am_meson_drm_fbdev_setcolreg(unsigned int regno, unsigned int red, unsigned int 
 	}
 
 	return 0;
-}
-
-static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
-				    unsigned int cmd, unsigned long arg)
-{
-	int ret = 0, crtc_index = 0, i = 0;
-	u32 val;
-	void __user *argp = (void __user *)arg;
-	struct fb_dmabuf_export fbdma;
-	struct drm_fb_helper *helper = info->par;
-	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
-	struct drm_plane *plane = fbdev->plane;
-	struct am_meson_fb *meson_fb;
-
-	memset(&fbdma, 0, sizeof(fbdma));
-	MESON_DRM_FBDEV("%s CMD   [%x] - [%d] IN\n", __func__, cmd, plane->index);
-
-	/*amlogic fbdev ioctl, used by gpu fbdev backend.*/
-	if (cmd == FBIOGET_OSD_DMABUF) {
-		meson_fb = container_of(helper->fb, struct am_meson_fb, base);
-		fbdma.fd = dma_buf_fd(meson_fb->bufp[0]->dmabuf, O_CLOEXEC);
-		fbdma.flags = O_CLOEXEC;
-		dma_buf_get(fbdma.fd);
-		ret = copy_to_user(argp, &fbdma, sizeof(fbdma)) ? -EFAULT : 0;
-	} else if (cmd == FBIO_WAITFORVSYNC) {
-		if (plane->crtc)
-			crtc_index = plane->crtc->index;
-		else if (fbdev->modeset.crtc)
-			crtc_index = fbdev->modeset.crtc->index;
-		else
-			crtc_index = 0;
-
-		drm_wait_one_vblank(helper->dev, crtc_index);
-		val = meson_drm_read_reg(rdma_chk_addr[plane->index]);
-
-		while (i < MAX_RETRY_CNT && val != frame_seq[plane->index]) {
-			usleep_range(2000, 2500);
-			i++;
-			val = meson_drm_read_reg(rdma_chk_addr[plane->index]);
-		}
-
-		if (i == MAX_RETRY_CNT)
-			DRM_ERROR("%s timeout, frame seq %u-%u\n", __func__,
-				  frame_seq[plane->index], val);
-
-		MESON_DRM_FBDEV("wait for vsync last for %d ms, %u-%u\n", i * 2,
-			  frame_seq[plane->index], val);
-	}
-
-	MESON_DRM_FBDEV("%s CMD   [%x] - [%d] OUT\n", __func__, cmd, plane->index);
-	return ret;
 }
 
 /**
@@ -565,10 +515,17 @@ retry:
 	}
 
 	drm_mode_get_hv_timing(&mode_set->crtc->mode, &hdisplay, &vdisplay);
-	plane_state->crtc_x = 0;
-	plane_state->crtc_y = 0;
-	plane_state->crtc_w = hdisplay;
-	plane_state->crtc_h = vdisplay;
+	if (fbdev->dst_changed.w && fbdev->dst_changed.h) {
+		plane_state->crtc_x = fbdev->dst_changed.x;
+		plane_state->crtc_y = fbdev->dst_changed.y;
+		plane_state->crtc_w = fbdev->dst_changed.w;
+		plane_state->crtc_h = fbdev->dst_changed.h;
+	} else {
+		plane_state->crtc_x = 0;
+		plane_state->crtc_y = 0;
+		plane_state->crtc_w = hdisplay;
+		plane_state->crtc_h = vdisplay;
+	}
 
 	drm_atomic_set_fb_for_plane(plane_state, fb_helper->fb);
 	if (fb_helper->fb) {
@@ -624,6 +581,45 @@ backoff:
 	goto retry;
 }
 
+static void meson_drm_modeset_lock_crtc(struct drm_crtc *crtc,
+			struct drm_plane *plane, struct drm_modeset_acquire_ctx *ctx)
+{
+	int ret;
+
+	drm_modeset_acquire_init(ctx, 0);
+
+retry:
+	ret = drm_modeset_lock(&crtc->mutex, ctx);
+	if (ret)
+		goto fail;
+
+	if (plane) {
+		ret = drm_modeset_lock(&plane->mutex, ctx);
+		if (ret)
+			goto fail;
+
+		if (plane->crtc) {
+			ret = drm_modeset_lock(&plane->crtc->mutex, ctx);
+			if (ret)
+				goto fail;
+		}
+	}
+
+	return;
+
+fail:
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(ctx);
+		goto retry;
+	}
+}
+
+void meson_drm_modeset_unlock_crtc(struct drm_crtc *crtc, struct drm_modeset_acquire_ctx *ctx)
+{
+	drm_modeset_drop_locks(ctx);
+	drm_modeset_acquire_fini(ctx);
+}
+
 /**
  * the implement if different from drm_fb_helper.
  * for plane based fbdev, we only disable corresponding plane
@@ -635,6 +631,8 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	struct drm_device *dev = helper->dev;
 	struct meson_drm *priv = dev->dev_private;
+	struct drm_crtc *crtc = fbdev->plane->crtc;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	if (blank == 0) {
@@ -645,17 +643,111 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 	} else {
 		MESON_DRM_FBDEV("meson_fbdev[%s-%p] goto blank.\n",
 			fbdev->plane->name, fbdev->plane->fb);
-		drm_modeset_lock_all(dev);
+
+		if (!crtc)
+			return 0;
+
+		meson_drm_modeset_lock_crtc(crtc, fbdev->plane,  &ctx);
 		if (priv->pan_async_commit_ran) {
 			DRM_INFO("Force to wait one vblank!\n");
 			drm_wait_one_vblank(dev, 0);
 		}
 		drm_atomic_helper_disable_plane(fbdev->plane, dev->mode_config.acquire_ctx);
-		drm_modeset_unlock_all(dev);
+		meson_drm_modeset_unlock_crtc(crtc, &ctx);
 
 		fbdev->blank = true;
 	}
 
+	return ret;
+}
+
+static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
+				    unsigned int cmd, unsigned long arg)
+{
+	int ret = 0, crtc_index = 0, i = 0;
+	u32 val;
+	void __user *argp = (void __user *)arg;
+	struct fb_dmabuf_export fbdma;
+	struct drm_fb_helper *helper = info->par;
+	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
+	struct drm_plane *plane = fbdev->plane;
+	struct am_meson_fb *meson_fb;
+	struct region dst = {0};
+	u32 zorder = 0;
+
+	memset(&fbdma, 0, sizeof(fbdma));
+	MESON_DRM_FBDEV("%s CMD [%x] - [%d] IN\n", __func__, cmd, plane->index);
+
+	/*amlogic fbdev ioctl, used by gpu fbdev backend.*/
+	if (cmd == FBIOGET_OSD_DMABUF) {
+		meson_fb = container_of(helper->fb, struct am_meson_fb, base);
+		fbdma.fd = dma_buf_fd(meson_fb->bufp[0]->dmabuf, O_CLOEXEC);
+		fbdma.flags = O_CLOEXEC;
+		dma_buf_get(fbdma.fd);
+		ret = copy_to_user(argp, &fbdma, sizeof(fbdma)) ? -EFAULT : 0;
+	} else if (cmd == FBIO_WAITFORVSYNC) {
+		if (plane->crtc)
+			crtc_index = plane->crtc->index;
+		else if (fbdev->modeset.crtc)
+			crtc_index = fbdev->modeset.crtc->index;
+		else
+			crtc_index = 0;
+
+		drm_wait_one_vblank(helper->dev, crtc_index);
+		val = meson_drm_read_reg(rdma_chk_addr[plane->index]);
+
+		while (i < MAX_RETRY_CNT && val != frame_seq[plane->index]) {
+			usleep_range(2000, 2500);
+			i++;
+			val = meson_drm_read_reg(rdma_chk_addr[plane->index]);
+		}
+
+		if (i == MAX_RETRY_CNT)
+			DRM_ERROR("%s timeout, frame seq %u-%u\n", __func__,
+				  frame_seq[plane->index], val);
+
+		MESON_DRM_FBDEV("wait for vsync last for %d ms, %u-%u\n", i * 2,
+			  frame_seq[plane->index], val);
+	} else if (cmd == FBIOSET_OSD_DST_RESOLUTION) {
+		ret = copy_from_user(&dst, argp, sizeof(struct region)) ? -EFAULT : 0;
+		if (ret) {
+			DRM_ERROR("%s, set dst region error and not change\n", __func__);
+			memset(&fbdev->dst_changed, 0, sizeof(struct region));
+		} else if ((dst.w == 0) || (dst.h == 0)) {
+			MESON_DRM_FBDEV("%s, restore mode resolution by clearing w(%d) or h(%d)\n",
+				__func__, dst.w, dst.h);
+			memset(&fbdev->dst_changed, 0, sizeof(struct region));
+		} else {
+			MESON_DRM_FBDEV("%s, set dst region is [%d, %d, %d x %d]\n",
+				__func__, dst.x, dst.y, dst.w, dst.h);
+			memcpy(&fbdev->dst_changed, &dst, sizeof(struct region));
+		}
+	} else if (cmd == FBIOGET_OSD_ZORDER) {
+		zorder = fbdev->zorder;
+		ret = copy_to_user(argp, &zorder, sizeof(zorder)) ? -EFAULT : 0;
+		MESON_DRM_FBDEV("%s, get plane %d zorder and value is%d(%d)\n",
+			__func__, plane->index, zorder, fbdev->zorder);
+	} else if (cmd == FBIOSET_OSD_ZORDER) {
+		ret = copy_from_user(&zorder, argp, sizeof(zorder)) ? -EFAULT : 0;
+		if (ret) {
+			DRM_ERROR("%s, set plane %d zorder error and not change\n",
+				__func__, plane->index);
+		} else if ((zorder < 65) || (zorder > 128)) {
+			DRM_ERROR("%s, plane %d zorder value %d is out of range\n",
+				__func__, plane->index, zorder);
+			ret = -EFAULT;
+		} else {
+			MESON_DRM_FBDEV("%s, set plane %d zorder and value is %d\n",
+				__func__, plane->index, zorder);
+			fbdev->zorder = zorder;
+			ret = am_meson_drm_fb_pan_display(&info->var, info);
+		}
+	} else {
+		DRM_ERROR("invalid fbdev ioctl cmd[%x]\n", cmd);
+		ret = -EFAULT;
+	}
+
+	MESON_DRM_FBDEV("%s CMD [%x] - [%d] OUT\n", __func__, cmd, plane->index);
 	return ret;
 }
 
