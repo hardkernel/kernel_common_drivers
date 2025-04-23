@@ -1384,10 +1384,10 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_s *rd_mif, int urgent, int hold_line)
 	set_rdmif_general_reg(general_reg);
 
 	memset(&general_reg2, 0x0, sizeof(struct vicp_rdmif_general_reg2_s));
-	if (rd_mif->set_separate_en == 2)
-		general_reg2.color_map = 1;
+	if (rd_mif->swap_cbcr)
+		general_reg2.color_map = 1;/* 1: NV12  2:NV21*/
 	else
-		general_reg2.color_map = 0;
+		general_reg2.color_map = 2;
 	general_reg2.x_rev0 = rd_mif->rev_x;
 	general_reg2.y_rev0 = rd_mif->rev_x;
 	set_rdmif_general_reg2(general_reg2);
@@ -1536,7 +1536,7 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_s *wr_mif, int wrmif_en)
 	wrmif_control.rgb_mode = rgb_mode;
 	wrmif_control.h_conv = 0;
 	wrmif_control.v_conv = 0;
-	wrmif_control.swap_cbcr = 0;//wr_mif->swap_cbcr;/*1 NV12, 0 NV21*/
+	wrmif_control.swap_cbcr = wr_mif->swap_cbcr;/*1 NV12, 0 NV21*/
 	wrmif_control.urgent = 0;
 	wrmif_control.word_limit = 4;
 	wrmif_control.data_ext_ena = 0;
@@ -1633,6 +1633,47 @@ static void set_vid_cmpr_crc(int rotation_en)
 
 	return set_crc_control(crc_reg);
 }
+
+static void dump_dma(int width, int height, unsigned long addr, int flag)
+{
+#ifdef CONFIG_AMLOGIC_ENABLE_VIDEO_PIPELINE_DUMP_DATA
+	struct file *fp = NULL;
+	char name_buf[32];
+	int data_size_y, data_size_uv;
+	u8 *data_y;
+	u8 *data_uv;
+	loff_t pos;
+	unsigned long addr_uv;
+
+	if (flag == 0)
+		snprintf(name_buf, sizeof(name_buf), "/data/src_vframe_%d.yuv", dump_yuv_flag);
+	else
+		snprintf(name_buf, sizeof(name_buf), "/data/dst_vframe_%d.yuv", dump_yuv_flag);
+
+	data_size_y = width * height;
+	data_size_uv = width * height / 2;
+	addr_uv = addr + data_size_y;
+	data_y = codec_mm_vmap(addr, data_size_y);
+	data_uv = codec_mm_vmap(addr_uv, data_size_uv);
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp) || !data_y || !data_uv) {
+		vicp_print(VICP_ERROR, "%s: vmap failed.\n", __func__);
+		return;
+	}
+	pos = fp->f_pos;
+	kernel_write(fp, data_y, data_size_y, &pos);
+	fp->f_pos = pos;
+	vicp_print(VICP_ERROR, "%s: write %u size to addr%p\n", __func__, data_size_y, data_y);
+	codec_mm_unmap_phyaddr(data_y);
+	pos = fp->f_pos;
+	kernel_write(fp, data_uv, data_size_uv, &pos);
+	fp->f_pos = pos;
+	vicp_print(VICP_ERROR, "%s: write %u size to addr%p\n", __func__, data_size_uv, data_uv);
+	codec_mm_unmap_phyaddr(data_uv);
+	filp_close(fp, NULL);
+#endif
+}
+
 static void dump_yuv(int flag, struct vframe_s *vframe)
 {
 #ifdef CONFIG_AMLOGIC_ENABLE_VIDEO_PIPELINE_DUMP_DATA
@@ -2294,10 +2335,13 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			vid_cmpr_top->film_lut_addr = 0;
 		}
 
-		if (current_dump_flag != dump_yuv_flag) {
+		if (input_vframe->type & VIDTYPE_VIU_NV12)
+			vid_cmpr_top->src_need_swap_cbcr = 1;
+		else
+			vid_cmpr_top->src_need_swap_cbcr = 0;
+
+		if (current_dump_flag != dump_yuv_flag)
 			dump_yuv(0, input_vframe);
-			current_dump_flag = dump_yuv_flag;
-		}
 	} else {
 		input_dma = &data_config->input_data.data_dma;
 		vid_cmpr_top->src_compress = 0;
@@ -2341,6 +2385,10 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		vid_cmpr_top->src_need_swap_cbcr = input_dma->need_swap_cbcr;
 		vid_cmpr_top->film_grain_en = 0;
 		vid_cmpr_top->film_lut_addr = 0;
+
+		if (current_dump_flag != dump_yuv_flag)
+			dump_dma(input_dma->data_width, input_dma->data_height,
+				input_dma->buf_addr, 0);
 	}
 	vid_cmpr_top->src_win_bgn_h = data_config->data_option.crop_info.left;
 	vid_cmpr_top->src_win_end_h = data_config->data_option.crop_info.left
@@ -2590,6 +2638,12 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 		}
 	}
 
+	if (ret != -2 && current_dump_flag != dump_yuv_flag) {
+		if (vid_cmpr_top->wrmif_en)
+			dump_dma(vid_cmpr_top->out_hsize_bgnd, vid_cmpr_top->out_vsize_bgnd,
+				vid_cmpr_top->wrmif_canvas0_addr0, 1);
+		current_dump_flag = dump_yuv_flag;
+	}
 	vicp_print(VICP_DUMP_REG, "%s: set reg end.\n", __func__);
 
 	return ret;
