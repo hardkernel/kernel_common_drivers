@@ -1945,6 +1945,9 @@ static void s7d_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	afbc->afbc_regs = &afbc_osd_regs[vblk->index];
 	afbc->status_regs = &afbc_status_regs;
 	afbc->shift_bits = 1;
+#if defined(CONFIG_ARCH_MESON_ODROIDC5)
+	afbc->num_of_4k_osd = 1;
+#endif
 
 	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
 
