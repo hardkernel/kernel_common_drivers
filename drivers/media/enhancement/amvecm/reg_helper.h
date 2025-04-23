@@ -428,9 +428,18 @@ static int index_rdma_part_ins(u32 reg)
 		table_index = 3;
 
 	/*use VIDEO_PARTITION_TABLE*/
-	if (reg == 0x5100 || reg ==  0x511e ||
-		reg == 0x5048 || reg == 0x5049 ||
-		reg == 0x504d)
+	if (chip_type_id >= chip_s7d &&
+		(reg == 0x5048 || reg == 0x5049 ||
+		reg == 0x504d || reg == 0x5100))
+		table_index = 0;
+
+	if ((chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) &&
+		reg == 0x511e)
+		table_index = 0;
+
+	if (chip_type_id == chip_t6d &&
+		reg == 0x5125)
 		table_index = 0;
 
 	return table_index;

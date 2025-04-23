@@ -203,13 +203,14 @@ void cm_wr_api(unsigned int addr, unsigned int data,
 
 int parse_mask_int(int val, int start, int len)
 {
-	unsigned int ret = 0xffffffff;
+	unsigned int ret = 0;
 	int tmp = 32 - len;
 
 	if (tmp < 0)
 		tmp = 0;
 
-	ret = ((val >> start) << tmp) >> tmp;
+	ret = ~((0xffffffff >> len) << len);
+	ret &= ((val >> start) << tmp) >> tmp;
 
 	return ret;
 }
@@ -258,7 +259,7 @@ void write_reg_by_mask(unsigned int addr, unsigned int mask,
 		if (update_flag && len) {
 			data = parse_mask_int(val, start, len);
 
-			pr_amcm_dbg("[%s] addr:0x%x, rdma:%d, val:0x%x, start/len:%d/%d\n",
+			pr_amcm_dbg("[%s] addr:0x%x, rdma:%d, data:0x%x, start/len:%d/%d\n",
 				__func__, addr, write_mode, data, start, len);
 
 			if (write_mode)
