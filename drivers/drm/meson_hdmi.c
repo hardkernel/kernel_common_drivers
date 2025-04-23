@@ -32,7 +32,7 @@
 #include <vout/vout_serve/vout_func.h>
 #include <enhancement/amvecm/amcsc.h>
 #include <drm/display/drm_hdcp_helper.h>
-#include <vout/hdmitx/hdmitx_check_valid.h>
+#include <vout/meson_tx_connector/hdmitx_check_valid.h>
 
 #include "meson_hdmi.h"
 #include "meson_vpu.h"
@@ -1002,7 +1002,7 @@ static int am_hdmitx_connector_atomic_get_property
 		*val = drm_hdmitx_common_get_dw_hdcp_topo_info(tx_comm);
 		return 0;
 	} else if (property == am_hdmi->contenttype_cap_prop) {
-		*val = hdmitx_common_get_contenttypes(tx_comm);
+		*val = hdmitx_common_get_content_types(tx_comm);
 		return 0;
 	} else if (property == am_hdmi->allm_prop) {
 		*val = hdmitx_state->allm_mode;
@@ -1080,7 +1080,7 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	struct drm_crtc_state *new_crtc_state = NULL;
 	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
 	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmi->hdmitx_dev);
-	unsigned int hdmitx_content_type = hdmitx_common_get_contenttypes(tx_comm);
+	unsigned int hdmitx_content_type = hdmitx_common_get_content_types(tx_comm);
 	struct am_meson_crtc_state *meson_crtc_state;
 
 	if (!state) {
@@ -1248,7 +1248,7 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\t hdr_cap:[%d]\n", get_hdr_info(am_hdmi, tx_comm));
 	drm_printf(p, "\t\t dv_cap:[%d]\n", get_dv_info(am_hdmi, tx_comm));
 	drm_printf(p, "\t\t contenttype_cap:[%d]\n",
-		   hdmitx_common_get_contenttypes(tx_comm));
+		   hdmitx_common_get_content_types(tx_comm));
 
 	drm_printf(p, "\t\t avmute:[%d]\n", hdmitx_state->avmute);
 	drm_printf(p, "\t\t hdmi_hdr_status:[%d]\n",

@@ -106,7 +106,7 @@ struct raw_block {
 	char raw[MAX_RAW_LEN];
 };
 
-struct rx_audiocap {
+struct rx_audio_cap {
 	u8 audio_format_code;
 	u8 channel_num_max;
 	u8 freq_cc;
@@ -128,10 +128,10 @@ struct dolby_vsadb_cap {
 struct rx_cap {
 	/*
 	 * If the display does not provide a VCDB then the Source should assume that
-	 * CE Video Formats are overscanned by the display and that IT Video Format
+	 * CE Video Formats are over scanned by the display and that IT Video Format
 	 * behavior is indicated by CEA Extension byte 3 bit 7 (underscan).
 	 * If underscan=1 then the Source should assume that IT Video Formats are
-	 * underscanned and if underscan=0, that IT Video Formats are overscanned
+	 * underscanned and if underscan=0, that IT Video Formats are over scanned
 	 */
 	u8 underscan;
 	u32 native_Mode;
@@ -151,7 +151,7 @@ struct rx_cap {
 	u32 vesa_timing[VESA_MAX_TIMING];
 
 	/*audio*/
-	struct rx_audiocap RxAudioCap[AUD_MAX_NUM];
+	struct rx_audio_cap RxAudioCap[AUD_MAX_NUM];
 	u8 AUD_count;
 	u8 RxSpeakerAllocation;
 	struct dolby_vsadb_cap dolby_vsadb_cap;

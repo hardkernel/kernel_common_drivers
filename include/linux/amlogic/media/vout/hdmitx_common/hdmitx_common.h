@@ -381,7 +381,7 @@ struct hdmitx_common {
 	bool efuse_dis_hdcp_tx22;	/* hdcptx22 */
 	bool efuse_dis_hdmi_tx3d;	/* 3d */
 	bool efuse_dis_hdcp_tx14;	/* s1a hdcptx14 */
-	u32 max_refreshrate;
+	u32 max_refresh_rate;
 	u32 hdmi_rext; /* Rext resistor */
 	struct hdmi_config_platform_data config_data;
 	u32 pxp_mode:1;
@@ -399,7 +399,7 @@ struct hdmitx_common {
 	struct workqueue_struct *rxsense_wq;
 	struct delayed_work work_rxsense;
 	struct ced_cnt ced_cnt;
-	struct scdc_locked_st chlocked_st;
+	struct scdc_locked_st ch_locked_st;
 
 	/* 15. debug & log */
 	struct hdmitx_tracer *tx_tracer;
@@ -528,7 +528,7 @@ int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode, char *fmt_attr);
 
 unsigned int hdmitx_get_frame_duration(struct hdmitx_common *tx_comm);
-int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic videocode);
+int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic video_code);
 
 /* hdcp api*/
 void hdmitx_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *buf);
@@ -623,7 +623,7 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 
 /*******************************drm hdmitx api*******************************/
 
-unsigned int hdmitx_common_get_contenttypes(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_content_types(struct hdmitx_common *tx_comm);
 int hdmitx_common_set_contenttype(struct hdmitx_common *tx_comm, int content_type);
 const struct dv_info *hdmitx_common_get_dv_info(struct hdmitx_common *tx_comm);
 const struct dv_info *hdmitx_common_get_dv_info_rx(struct hdmitx_common *tx_comm);

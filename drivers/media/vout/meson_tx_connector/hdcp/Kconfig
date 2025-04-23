@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#
+# TX_HDCP
+#
+menu "Amlogic TX HDCP Module"
+
+config AMLOGIC_HDCP_TX
+	bool "AMLOGIC TX_CONNECTOR HDCP"
+	default n
+	help
+	This option is used to configure Amlogic HDCP
+        of the tx_connector
+
+endmenu
