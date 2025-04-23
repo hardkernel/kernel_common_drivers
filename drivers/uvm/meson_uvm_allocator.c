@@ -26,18 +26,11 @@
 
 #include <linux/amlogic/media/dev_ion.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
-#include <linux/amlogic/media/meson_uvm_allocator.h>
+#include <linux/amlogic/meson_uvm_allocator.h>
+#include <linux/amlogic/meson_uvm_interface.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_WRAPPER
 #include <linux/amlogic/media/avbc_wrapper_interface.h>
-#include <linux/amlogic/media/registers/cpu_version.h>
-#include <linux/amlogic/media/codec_mm/codec_mm.h>
 #endif
-#include "meson_uvm_nn_processor.h"
-#include "meson_uvm_aipq_processor.h"
-#include "meson_uvm_aiface_processor.h"
-#include "meson_uvm_aicolor_processor.h"
-#include "meson_uvm_buffer_info.h"
-#include "meson_uvm_lcevc_processor.h"
 
 static struct mua_device *mua_dev;
 
@@ -80,7 +73,7 @@ static int get_header_size(int w, int h)
 	w = ALIGN(w, 64);
 	h = ALIGN(h, 64);
 
-	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_SM1) && IS_8K_SIZE(w, h))
+	if (IS_8K_SIZE(w, h))
 		return MMU_COMPRESS_HEADER_SIZE_8K;
 
 	if (IS_4K_SIZE(w, h))
@@ -265,7 +258,6 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 	struct avbc_output *out;
 	int ret = -1;
 	size_t buf_size = 0;
-	u8 *virt_addr;
 
 	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
 	if (is_dec_vf) {
@@ -324,12 +316,8 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 			buffer->byte_stride, buffer->height) * 2 / 3;
 	MUA_PRINTK(MUA_INFO, "fill dummy data buf size=%zu\n", buf_size);
 
-	virt_addr = codec_mm_vmap_noncache(buffer->paddr, buf_size * 3 / 2);
-
-	memset(virt_addr, 0x15, buf_size);
-	memset(virt_addr + buf_size, 0x80, buf_size / 2);
-
-	codec_mm_unmap_phyaddr(virt_addr);
+	memset(phys_to_virt(buffer->paddr), 0x15, buf_size);
+	memset(phys_to_virt(buffer->paddr) + buf_size, 0x80, buf_size / 2);
 
 	out->img.bitdep = in->img.bitdep;
 	if (buffer->byte_stride == buffer->width && in->img.bitdep == 10) {
@@ -379,7 +367,7 @@ int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, vo
 			__func__, buffer->width, buffer->height,
 			buffer->byte_stride, buffer->align, buffer->idmabuf[1]->size);
 #ifdef CONFIG_AMLOGIC_V4L_VIDEO3
-	v4lvideo_data_copy(&val_data, dmabuf, buffer->align);
+	AMLOGIC_V4LVIDEO_data_copy(&val_data, dmabuf, buffer->align);
 #endif
 
 	return 0;
@@ -894,25 +882,7 @@ static int mua_attach(struct dma_buf *dmabuf, int fd, int type, char *buf)
 	info.arg = NULL;
 	info.acquire_fence = NULL;
 
-	switch (type) {
-	case PROCESS_NN:
-		ret = attach_nn_hook_mod_info(fd, buf, &info);
-		break;
-	case PROCESS_AIPQ:
-		ret = attach_aipq_hook_mod_info(fd, buf, &info);
-		break;
-	case PROCESS_AIFACE:
-		ret = attach_aiface_hook_mod_info(fd, buf, &info);
-		break;
-	case PROCESS_AICOLOR:
-		ret = attach_aicolor_hook_mod_info(fd, buf, &info);
-		break;
-	case PROCESS_LCEVC:
-		ret = attach_lcevc_hook_mod_info(fd, buf, &info);
-		break;
-	default:
-		MUA_PRINTK(MUA_DBG, "mod_type is not valid.\n");
-	}
+	ret = AMLOGIC_ATTACH_uvm_info(fd, type, buf);
 	if (ret) {
 		MUA_PRINTK(MUA_ERROR, "attach hook_mod_info failed\n");
 		return -EINVAL;
@@ -1222,16 +1192,15 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!mua_is_valid_dmabuf(fd))
 			return -EINVAL;
 
-		ret = get_uvm_video_info(fd, &data.fd_info);
+		ret = AMLOGIC_GET_UVM_video_info(fd, &data.fd_info);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_INFO, "get video %d info fail.\n", fd);
 			return ret;
-		} else {
-			MUA_PRINTK(MUA_INFO,
-				   "get video %d info type:%x, timestamp:%lld, buffer size:%ux%u.\n",
-				   fd, data.fd_info.type, data.fd_info.timestamp,
-				   data.fd_info.buf_width, data.fd_info.buf_height);
 		}
+		MUA_PRINTK(MUA_INFO,
+			   "get video %d info type:%x, timestamp:%lld, buffer size:%ux%u.\n",
+			   fd, data.fd_info.type, data.fd_info.timestamp,
+			   data.fd_info.buf_width, data.fd_info.buf_height);
 
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
@@ -1312,15 +1281,17 @@ static struct platform_driver mua_driver = {
 	.remove = mua_remove,
 };
 
-int __init mua_init(void)
+static int __init mua_init(void)
 {
 	return platform_driver_register(&mua_driver);
 }
 
-void __exit mua_exit(void)
+static void __exit mua_exit(void)
 {
 	platform_driver_unregister(&mua_driver);
 }
 
-//MODULE_DESCRIPTION("AMLOGIC uvm dmabuf allocator device driver");
-//MODULE_LICENSE("GPL");
+module_init(mua_init);
+module_exit(mua_exit);
+MODULE_IMPORT_NS(DMA_BUF);
+MODULE_LICENSE("GPL v2");

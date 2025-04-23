@@ -28,11 +28,11 @@ static bool is_dv_video(const struct vframe_s *vfp)
 {
 	/* dolby vision: bit 30 */
 	/*
-	u32 dv_flag = (1 << 30);
-
-	if (vfp->signal_type & dv_flag)
-		return true;
-	*/
+	 *u32 dv_flag = (1 << 30);
+	 *
+	 *if (vfp->signal_type & dv_flag)
+	 *return true;
+	 */
 
 	if (!vfp->discard_dv_data)
 		return true;

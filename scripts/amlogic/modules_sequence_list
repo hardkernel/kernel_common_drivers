@@ -34,6 +34,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-input.ko
 	amlogic-watchdog.ko
 	aml-dvb.ko
+	aml_uvm.ko
 	aml_media.ko
 	amlogic-camera.ko
 	amlogic-rtc-virtual.ko

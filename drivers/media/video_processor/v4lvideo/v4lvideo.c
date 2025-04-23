@@ -38,6 +38,7 @@
 #include <linux/vmalloc.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
+#include <linux/amlogic/meson_uvm_interface.h>
 #include <linux/amlogic/media/di/di.h>
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/am_com.h>
@@ -3726,6 +3727,8 @@ int __init v4lvideo_init(void)
 		goto error1;
 	}
 
+	register_amlogic_v4lvideo_data_copy_fun(v4lvideo_data_copy);
+
 	return 0;
 
 error1:
@@ -3736,6 +3739,7 @@ error1:
 
 void __exit v4lvideo_exit(void)
 {
+	unregister_amlogic_v4lvideo_data_copy_fun();
 	v4lvideo_v4l2_release();
 	device_destroy(&v4lvideo_class, MKDEV(V4LVIDEO_MAJOR, 0));
 	unregister_chrdev(V4LVIDEO_MAJOR, V4LVIDEO_DEVICE_NAME);

@@ -528,6 +528,7 @@ static int convert_rgb24_to_y8_process(struct ge2d_output_t *output)
 
 	return 0;
 }
+
 void free_aipq_data(void *arg)
 {
 	if (arg) {

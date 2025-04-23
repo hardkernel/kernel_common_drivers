@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+#
+# uvm core configuration
+#
+
+config AMLOGIC_UVM_PROCESSOR
+	bool "Support to compile the uvm_xx_processor files"
+	default AMLOGIC_UVM_CORE
+	depends on !AMLOGIC_TXHD2_REMOVE
+	help
+	  support to compile the uvm_xx_processor files.

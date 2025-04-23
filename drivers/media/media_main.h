@@ -246,9 +246,9 @@ static int amlogic_heap_secure_dma_buf_init(void)
 #endif
 
 #ifdef CONFIG_AMLOGIC_UVM_CORE
-int mua_init(void);
+int attach_uvm_processor_init(void);
 #else
-static inline int mua_init(void)
+static inline int attach_uvm_processor_init(void)
 {
 	return 0;
 }

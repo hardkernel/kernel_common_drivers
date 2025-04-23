@@ -6,7 +6,7 @@
 #ifndef __MESON_UVM_BUFFER_INFO_H_
 #define __MESON_UVM_BUFFER_INFO_H_
 
-#include <linux/amlogic/media/meson_uvm_allocator.h>
+#include <linux/amlogic/meson_uvm_allocator.h>
 
 enum uvm_video_type {
 	AM_VIDEO_NORMAL      = 0x0,

@@ -72,7 +72,7 @@ static int __init media_main_init(void)
 	call_sub_init(ion_init);
 	call_sub_init(add_meson_cma_heap);
 	call_sub_init(amlogic_heap_secure_dma_buf_init);
-	call_sub_init(mua_init);
+	call_sub_init(attach_uvm_processor_init);
 	call_sub_init(vfm_class_init);
 	call_sub_init(ge2d_init_module);
 	call_sub_init(vicp_init_module);

@@ -23,10 +23,9 @@
 #include <linux/pagemap.h>
 #include <linux/iosys-map.h>
 
-#include <linux/amlogic/meson_uvm_core.h>
-#include <linux/amlogic/media/meson_uvm_allocator.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
-#include "meson_uvm_nn_processor.h"
+#include <linux/amlogic/meson_uvm_allocator.h>
+#include <linux/amlogic/meson_uvm_core.h>
 
 static int uvm_debug_level = UVM_ERROR;
 module_param(uvm_debug_level, int, 0644);
@@ -543,7 +542,7 @@ bool dmabuf_uvm_realloc(struct dma_buf *dmabuf)
 	struct uvm_handle *handle;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(UVM_ERROR, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		UVM_PRINTK(UVM_DBG, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return false;
 	}
 	handle = dmabuf->priv;
@@ -562,7 +561,7 @@ struct uvm_buf_obj *dmabuf_get_uvm_buf_obj(struct dma_buf *dmabuf)
 	struct uvm_handle *handle;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(UVM_ERROR, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		UVM_PRINTK(UVM_DBG, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return ERR_PTR(-EINVAL);
 	}
 	handle = dmabuf->priv;
@@ -1179,7 +1178,7 @@ int dmabuf_get_uvm_buf_real_size(struct dma_buf *dmabuf)
 	struct uvm_handle *handle;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(UVM_ERROR, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		UVM_PRINTK(UVM_DBG, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 	handle = dmabuf->priv;

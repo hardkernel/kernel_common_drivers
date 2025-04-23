@@ -51,7 +51,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 #include <linux/amlogic/media/frc/frc_common.h>
 #endif
-#include "../common/uvm/meson_uvm_nn_processor.h"
+#include "../common/uvm_process/meson_uvm_nn_processor.h"
 
 #include "video_priv.h"
 #include "video_hw_s5.h"

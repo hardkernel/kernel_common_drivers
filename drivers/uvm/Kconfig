@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+#
+# uvm core configuration
+#
+
+config AMLOGIC_UVM
+	tristate "UVM support"
+	default n
+	help
+		Select to enable AMLOGIC UVM driver
+
+config AMLOGIC_UVM_ALLOCATOR
+	bool "Amlogic uvm allocator device driver"
+	default n
+	depends on AMLOGIC_UVM
+	help
+	  say y to enable amlogic uvm allocator device driver.
+	  gralloc will call it to allocate dmabuf fd.
+
+config AMLOGIC_UVM_CORE
+	bool "Amlogic unified video memory management"
+	default n
+	depends on AMLOGIC_UVM_ALLOCATOR
+	help
+	  say y to enable Amlogic unified video memory management.
+	  The uvm core is dmabuf wrap vframe framework.
+
+#
+# media wrapper support configuration
+#
+
+config AMLOGIC_MEDIA_WRAPPER
+	tristate "MediaWrapper support"
+	default n
+	help
+		Select to enable AMLOGIC MediaWrapper

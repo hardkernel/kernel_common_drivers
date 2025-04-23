@@ -235,8 +235,9 @@ int attach_nn_hook_mod_info(int shared_fd,
 	int src_interlace_flag = 0;
 	struct vframe_s *vf = NULL;
 	int output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
-	memset(&nn_sr_t, 0, sizeof(struct vf_nn_sr_t));
 	int di_backend_en = 0;
+
+	memset(&nn_sr_t, 0, sizeof(struct vf_nn_sr_t));
 
 	if (!uvm_open_nn) {
 		ai_sr_info->hf_phy_addr = 0;

@@ -48,7 +48,7 @@
 #include <linux/amlogic/media/resource_mgr/resourcemanage.h>
 #include "../../gdc/inc/api/gdc_api.h"
 #include "../common/video_pp_common.h"
-#include "../../common/uvm/meson_uvm_lcevc_processor.h"
+#include "../../common/uvm_process/meson_uvm_lcevc_processor.h"
 #include <linux/amlogic/media/media_proxy/AmlVideoUserdata.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #include <linux/amlogic/media/di/di_interface.h>

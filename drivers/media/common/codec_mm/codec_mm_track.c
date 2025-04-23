@@ -29,7 +29,7 @@
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_state.h>
-#ifdef CONFIG_AMLOGIC_UVM_CORE
+#ifdef CONFIG_AMLOGIC_HEAP_CODEC_MM
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
 #endif
 #include "codec_mm_track_priv.h"
