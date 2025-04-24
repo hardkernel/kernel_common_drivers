@@ -438,6 +438,10 @@ static int index_rdma_part_ins(u32 reg)
 		reg == 0x511e)
 		table_index = 0;
 
+	if (chip_type_id == chip_s6 &&
+		reg == 0x518a)
+		table_index = 0;
+
 	if (chip_type_id == chip_t6d &&
 		reg == 0x5125)
 		table_index = 0;
