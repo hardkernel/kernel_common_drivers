@@ -535,6 +535,7 @@ void vpp_probe_en_set(u32 enable);
 bool is_di_hf_y_reverse(void);
 void set_post_blend_dummy_data(u32 vpp_index,
 	u32 dummy_data, u32 dummy_alpha);
+void get_post_blend_dummy_data(u32 *dummy_data, u32 *dummy_alpha);
 struct vpp_post_info_t *get_vpp_post_amdv_info(void);
 struct vpp_post_info_t *get_vpp_post_amvecm_info(void);
 struct vd_proc_info_t *get_vd_proc_amdv_info(void);

@@ -6931,6 +6931,16 @@ void set_post_blend_dummy_data(u32 vpp_index,
 }
 EXPORT_SYMBOL(set_post_blend_dummy_data);
 
+void get_post_blend_dummy_data(u32 *dummy_data, u32 *dummy_alpha)
+{
+	if (!dummy_data || !dummy_alpha)
+		return;
+
+	*dummy_data = vd_layer[0].video_en_bg_color;
+	*dummy_alpha = vd_layer[0].dummy_alpha;
+}
+EXPORT_SYMBOL(get_post_blend_dummy_data);
+
 /*return index: 0 post vsync, 3 pre vsync*/
 u32 get_vpp_vsync_index(u32 layerid)
 {

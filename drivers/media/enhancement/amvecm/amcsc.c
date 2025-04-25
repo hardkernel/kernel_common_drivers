@@ -8920,6 +8920,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	static bool amdv_enable;
 	int s5_silce_mode = get_s5_slice_mode();
 	unsigned int max_output_lum_sdr = 0;
+	u32 dummy_data;
+	u32 dummy_alpha;
 
 	if (vpp_index == VPP_TOP1)
 		vinfo = get_current_vinfo2();
@@ -9389,6 +9391,18 @@ int amvecm_matrix_process(struct vframe_s *vf,
 						PROC_FLAG_FORCE_PROCESS;
 			}
 		}
+	}
+
+	if (vinfo) {
+		get_post_blend_dummy_data(&dummy_data, &dummy_alpha);
+
+		if (vinfo->vpp_post_out_range)
+			set_post_blend_dummy_data(vpp_index, 0x1008080, dummy_alpha);
+		else
+			set_post_blend_dummy_data(vpp_index, 0x1108080, dummy_alpha);
+
+		pr_csc(300, "%s: set dummy_data(%d) dummy_alpha(%d) outrange(%d)\n",
+			__func__, dummy_data, dummy_alpha, vinfo->vpp_post_out_range);
 	}
 
 	return 0;
