@@ -105,6 +105,25 @@ static void meson_property_change_valid_put(struct drm_property *property,
 		drm_property_blob_put(obj_to_blob(ref));
 }
 
+bool is_am_osd_async_commit(struct drm_atomic_state *atomic_state)
+{
+	struct drm_plane *plane = NULL;
+	struct drm_plane_state *new_plane_state = NULL;
+	int i, n_planes = 0;
+
+	if (!atomic_state->async_update)
+		return false;
+
+	for_each_new_plane_in_state(atomic_state, plane,  new_plane_state, i)
+		n_planes++;
+
+	/* FIXME: we support only single plane updates for now */
+	if (n_planes != 1)
+		DRM_WARN("only single plane async updates are supported\n");
+
+	return !strncmp(plane->name, "osd", 3);
+}
+
 /**
  * Most of the implementation is the same as drm_atomic_get_crtc_state,
  * but this function removes the call to drm_modeset_lock.
@@ -114,6 +133,7 @@ static struct drm_crtc_state *
 meson_drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 			  struct drm_crtc *crtc)
 {
+	int ret;
 	int index = drm_crtc_index(crtc);
 	struct drm_crtc_state *crtc_state;
 
@@ -122,12 +142,12 @@ meson_drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 	crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
 	if (crtc_state)
 		return crtc_state;
-	/*
-	 * amlogic modify:
-	 * ret = drm_modeset_lock(&crtc->mutex, state->acquire_ctx);
-	 * if (ret)
-	 *	return ERR_PTR(ret);
-	 */
+
+	if (!state->async_update || is_am_osd_async_commit(state)) {
+		ret = drm_modeset_lock(&crtc->mutex, state->acquire_ctx);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	crtc_state = crtc->funcs->atomic_duplicate_state(crtc);
 	if (!crtc_state)

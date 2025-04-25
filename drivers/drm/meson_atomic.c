@@ -27,6 +27,7 @@
 #include <drm/drm_fb_dma_helper.h>
 
 #include "meson_drv.h"
+#include "meson_async_atomic.h"
 #include "meson_crtc.h"
 #include "meson_plane.h"
 #include "meson_writeback.h"
@@ -458,6 +459,7 @@ int meson_atomic_commit(struct drm_device *dev,
 	struct drm_crtc *dest_crtc = NULL;
 	struct meson_drm *priv = dev->dev_private;
 	bool is_parallel = check_parallel_commit(state, &dest_crtc);
+	bool is_osd_async;
 
 	DRM_DEBUG("wait for no shutdown start!\n");
 	wait_event_interruptible(priv->wq_shut_ctrl,
@@ -469,7 +471,11 @@ int meson_atomic_commit(struct drm_device *dev,
 	else
 		crtc_index = find_first_new_crtc(state);
 
+	is_osd_async = is_am_osd_async_commit(state);
 	if (state->async_update) {
+		if (is_osd_async)
+			meson_commit_reenter_inc(priv, crtc_index, ASYNC_MODE);
+
 		priv->pan_async_commit_ran = true;
 		ret = drm_atomic_helper_prepare_planes(dev, state);
 		if (ret)
@@ -477,6 +483,8 @@ int meson_atomic_commit(struct drm_device *dev,
 
 		drm_atomic_helper_async_commit(dev, state);
 		drm_atomic_helper_cleanup_planes(dev, state);
+		if (is_osd_async)
+			meson_commit_reenter_dec(priv, crtc_index, ASYNC_MODE);
 
 		return 0;
 	}

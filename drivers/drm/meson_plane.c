@@ -2411,7 +2411,8 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 	struct am_meson_crtc *amcrtc;
 	struct meson_vpu_pipeline *pipeline;
 	struct drm_private_obj *obj;
-	struct drm_private_state *old_obj_state, *new_obj_state;
+	struct drm_private_state *new_obj_state;
+	struct meson_vpu_sub_pipeline_state *cur_sps, *new_sps;
 	int i, crtc_index;
 
 	old_plane_state = drm_atomic_get_old_plane_state(state, plane);
@@ -2443,14 +2444,13 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 	plane->state->crtc_h = new_state->crtc_h;
 	swap(plane->state->fb, new_state->fb);
 
-	for_each_oldnew_private_obj_in_state(state, obj, old_obj_state, new_obj_state, i) {
-		WARN_ON(obj->state != old_obj_state);
-
-		old_obj_state->state = state;
-		new_obj_state->state = NULL;
-
-		state->private_objs[i].state = old_obj_state;
-		obj->state = new_obj_state;
+	for_each_new_private_obj_in_state(state, obj, new_obj_state, i) {
+		if (obj != &sub_pipe->obj)
+			continue;
+		new_sps = priv_to_sub_pipeline_state(new_obj_state);
+		cur_sps = priv_to_sub_pipeline_state(obj->state);
+		cur_sps->plane_info[osd_plane->plane_index] =
+					new_sps->plane_info[osd_plane->plane_index];
 	}
 
 	vpu_pipeline_prepare_update(pipeline, new_state->crtc->mode.vdisplay,

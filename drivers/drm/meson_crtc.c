@@ -18,6 +18,7 @@
 #endif
 #include <enhancement/amvecm/amcsc.h>
 #include "meson_drm_rdma.h"
+#include "meson_async_atomic.h"
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DRM
 #include <trace/events/meson_atrace.h>
@@ -925,7 +926,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	/*check plane-update*/
-	if (!atomic_state->async_update)
+	if (!atomic_state->async_update || is_am_osd_async_commit(atomic_state))
 		ret = vpu_pipeline_check(amcrtc->pipeline->subs[crtc->index], atomic_state);
 
 	return ret;

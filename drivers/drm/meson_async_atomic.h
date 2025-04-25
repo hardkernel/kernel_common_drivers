@@ -10,5 +10,6 @@
 
 int meson_async_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
+bool is_am_osd_async_commit(struct drm_atomic_state *atomic_state);
 
 #endif
