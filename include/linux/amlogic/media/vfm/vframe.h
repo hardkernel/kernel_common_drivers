@@ -664,6 +664,7 @@ struct vframe_s {
 	u64 disp_pts_us64;
 	u64 timestamp;
 	u32 flag;
+	u32 priority;
 
 	unsigned int fmeter0_hcnt[4];
 	unsigned int fmeter1_hcnt[4];
