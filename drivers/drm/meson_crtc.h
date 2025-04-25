@@ -20,6 +20,7 @@
 enum {
 	MESON_HDR_POLICY_FOLLOW_SINK = 0,
 	MESON_HDR_POLICY_FOLLOW_SOURCE,
+	MESON_HDR_POLICY_FOLLOW_FORCE_MODE,
 };
 
 enum {
@@ -70,6 +71,8 @@ struct am_meson_crtc_state {
 	bool crtc_eotf_by_property_flag;
 	/*eotf value by property*/
 	u8 eotf_type_by_property;
+	/* force output by property */
+	u8 force_output_type;
 	/*crtc background*/
 	bool crtc_bgcolor_flag;
 	u64 crtc_bgcolor;
@@ -114,6 +117,7 @@ struct am_meson_crtc {
 	struct drm_property *osd_pixelformat_property;
 	struct drm_property *hdr_conversion_ctrl_property;
 	struct drm_property *hdr_conversion_cap_property;
+	struct drm_property *force_output;
 	struct drm_property *drm_policy_property;
 	struct drm_property *nonblock_by_vblank_property;
 	/*vpu pipeline dolby core cap*/
