@@ -108,6 +108,7 @@ struct uvm_fd_info {
 	u32 crop_top;
 	u32 crop_right;
 	u32 crop_bottom;
+	u32 priority;
 	u32 reserve[4];
 };
 

@@ -1184,9 +1184,9 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return ret;
 		}
 		MUA_PRINTK(MUA_INFO,
-			   "get video %d info type:%x, timestamp:%lld, buffer size:%ux%u.\n",
+			   "get video %d info type:%x, timestamp:%lld, buffer size:%ux%u. priority %u\n",
 			   fd, data.fd_info.type, data.fd_info.timestamp,
-			   data.fd_info.buf_width, data.fd_info.buf_height);
+			   data.fd_info.buf_width, data.fd_info.buf_height, data.fd_info.priority);
 
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
