@@ -620,6 +620,63 @@ struct db_aicolor_param_s {
 	int reg_hue_shift3;
 };
 
+enum ve_source_input_e {
+	SOURCE_INVALID = -1,
+	SOURCE_TV = 0,
+	SOURCE_AV1,
+	SOURCE_AV2,
+	SOURCE_YPBPR1,
+	SOURCE_YPBPR2,
+	SOURCE_HDMI1,
+	SOURCE_HDMI2,
+	SOURCE_HDMI3,
+	SOURCE_HDMI4,
+	SOURCE_VGA,
+	SOURCE_MPEG,
+	SOURCE_DTV,
+	SOURCE_SVIDEO,
+	SOURCE_IPTV,
+	SOURCE_DUMMY,
+	SOURCE_SPDIF,
+	SOURCE_ADTV,
+	SOURCE_MAX,
+};
+
+enum hdr_mtrx_type_e {
+	MATRIX_MODE_IN = 0,
+	MATRIX_MODE_OUT,
+	MATRIX_MODE_MAX
+};
+
+struct hdr_mtrx_data_s {
+	enum hdr_mtrx_type_e mtrx_type;
+	int coef[9];
+	int pos_offset[3];
+	int pre_offset[3];
+};
+
+struct hdr_gamut_data_s {
+	int coef[9];
+};
+
+struct hdr_parameter_reg_s {
+	int reg_comp_th_in;
+	int reg_conv_rs_in;
+	int reg_clmod_in;
+	int reg_comp_th_out;
+	int reg_conv_rs_out;
+	int reg_clmod_out;
+	int reg_cgain_oft[2];
+	int reg_cgain_coef[3];
+	int reg_adpscl_mode;
+	int reg_adpscl_bypass[3];
+	int reg_adpscl_shift[3];
+	int reg_adpscl_beta[3];
+	int reg_adpscl_beta_s[3];
+	int reg_adpscl_ys_coef[3];
+	int reg_gmut_shift;
+};
+
 #define AMVECM_IOC_G_HIST_AVG			_IOW(_VE_CM, 0x22, struct ve_hist_s)
 #define AMVECM_IOC_VE_DNLP_EN			_IO(_VE_CM, 0x23)
 #define AMVECM_IOC_VE_DNLP_DIS			_IO(_VE_CM, 0x24)
@@ -718,6 +775,9 @@ struct db_aicolor_param_s {
 
 /* hdr gamut and in/out matrix control */
 #define AMVECM_IOC_S_HDR_TOP_CTRL_MODE _IO(_VE_CM, 0x90)
+#define AMVECM_IOC_S_HDR_PARAM_REG _IOW(_VE_CM, 0x91, struct hdr_parameter_reg_s)
+#define AMVECM_IOC_S_HDR_GAMUT_COEF _IOW(_VE_CM, 0x92, struct hdr_gamut_data_s)
+#define AMVECM_IOC_S_HDR_MTRX_COEF _IOW(_VE_CM, 0x93, struct hdr_mtrx_data_s)
 
 #define AMVECM_IOC_S_CM_CTRL     _IO(_VE_CM, 0xa0)
 #define AMVECM_IOC_S_FORCE_OUT   _IO(_VE_CM, 0xa1)

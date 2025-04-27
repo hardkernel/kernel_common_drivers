@@ -262,7 +262,7 @@ enum vpp_transfer_characteristic_e {
 	VPP_ST2084 = 0x2,
 	VPP_ST2094_40 = 0x4,
 };
-
+/*
 enum ve_source_input_e {
 	SOURCE_INVALID = -1,
 	SOURCE_TV = 0,
@@ -284,6 +284,7 @@ enum ve_source_input_e {
 	SOURCE_ADTV,
 	SOURCE_MAX,
 };
+*/
 
 /*pq_timing:
  *SD/HD/FHD/UHD for DTV/MEPG,
