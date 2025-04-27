@@ -1268,15 +1268,20 @@ void hdmitx_hdr_init(struct hdmitx_common *tx_comm)
 void hdmitx_sync_input_vpp_info(void *tx_instance)
 {
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)tx_instance;
-	struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
-	enum hdmi_colorspace cs = tx_comm->fmt_para.cs;
-	enum hdmi_vic vic = tx_comm->fmt_para.vic;
-	struct rx_cap *prxcap = &tx_comm->rxcap;
+	struct vinfo_s *info = hdmitx_get_current_vinfo(tx_comm);
+	struct rx_cap *prxcap = NULL;
+	enum hdmi_colorspace cs = HDMI_COLORSPACE_RGB;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 	u32 data = 0;
 
-	if (!info)
+	if (!tx_instance || !info) {
+		HDMITX_ERROR("[%s]: null tx_instance param\n", __func__);
 		return;
+	}
 
+	cs = tx_comm->fmt_para.cs;
+	vic = tx_comm->fmt_para.vic;
+	prxcap = &tx_comm->rxcap;
 	/* DSC and YUV mode does not require CSC */
 	if (tx_comm->fmt_para.dsc_en || cs != HDMI_COLORSPACE_RGB) {
 		data = 0;

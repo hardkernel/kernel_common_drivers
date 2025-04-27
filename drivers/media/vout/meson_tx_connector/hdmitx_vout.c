@@ -170,6 +170,11 @@ struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 {
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)data;
 
+	if (!data) {
+		HDMITX_ERROR("%s tx_comm instance is null\n", __func__);
+		return NULL;
+	}
+
 	tx_comm->hdmitx_vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_HDMIA_A
 		+ tx_comm->enc_idx;
 	/* update hdr_info and dv_info */

@@ -1669,7 +1669,7 @@ static ssize_t hdr_priority_mode_store(struct device *dev,
 
 	if (val == tx_comm->hdr_priority)
 		return count;
-	info = hdmitx_get_current_vinfo(NULL);
+	info = hdmitx_get_current_vinfo(tx_comm);
 	if (!info)
 		return count;
 	mutex_lock(&tx_comm->hdmimode_mutex);
