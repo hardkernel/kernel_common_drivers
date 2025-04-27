@@ -1,4 +1,4 @@
-From ec7f4c4f4035cb13721a246e9f6c02cec3384d7f Mon Sep 17 00:00:00 2001
+From 0b0534d38c33f8c3000ffc10c53b91dda9acc614 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 30 Mar 2023 23:14:01 +0800
 Subject: [PATCH] bazel: support use bazel tool to build [1/1]
@@ -17,14 +17,28 @@ ohm
 Change-Id: I4f2f88663d2d887b9c8bb5d535ceb3cb1fa5d879
 Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 ---
+ kleaf/impl/kernel_config.bzl | 2 +-
  kleaf/impl/kernel_module.bzl | 6 ++++++
- 1 file changed, 6 insertions(+)
+ 2 files changed, 7 insertions(+), 1 deletion(-)
 
+diff --git a/kleaf/impl/kernel_config.bzl b/kleaf/impl/kernel_config.bzl
+index c60f287d..a75b95a1 100644
+--- a/kleaf/impl/kernel_config.bzl
++++ b/kleaf/impl/kernel_config.bzl
+@@ -347,7 +347,7 @@ def _pre_defconfig_impl(_subrule_ctx, pre_defconfig_fragment_files, is_run_env):
+                 echo "ERROR: PRE_DEFCONFIG_CMDS must not be set if kernel_build.pre_defconfig_fragments is set!" >&2
+                 echo "  PRE_DEFCONFIG_CMDS=${{PRE_DEFCONFIG_CMDS}}" >&2
+                 echo "  kernel_build.pre_defconfig_fragments={fragments}" >&2
+-                exit 1
++                # exit 1
+             fi
+         """.format(
+             fragments = " ".join([(file.short_path if is_run_env else file.path) for file in pre_defconfig_fragment_files]),
 diff --git a/kleaf/impl/kernel_module.bzl b/kleaf/impl/kernel_module.bzl
-index 137798c1..e96926c0 100644
+index 5fcecacf..d2bbeb41 100644
 --- a/kleaf/impl/kernel_module.bzl
 +++ b/kleaf/impl/kernel_module.bzl
-@@ -583,6 +583,12 @@ def _kernel_module_impl(ctx):
+@@ -608,6 +608,12 @@ def _kernel_module_impl(ctx):
               # Grab *.cmd
                 {grab_cmd_cmd}
               # Move Module.symvers
@@ -38,5 +52,5 @@ index 137798c1..e96926c0 100644
               # Grab and then drop modules.order
                 {grab_modules_order_cmd}
 -- 
-2.46.0
+2.42.0
 

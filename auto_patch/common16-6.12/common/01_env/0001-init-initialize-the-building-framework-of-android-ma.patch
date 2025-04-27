@@ -1,8 +1,8 @@
-From 38b4ffad0e05ffb65b77fde5bfd9debf52f4b3ac Mon Sep 17 00:00:00 2001
+From 86745f623c51da7e44f4ccf9fd9f2adb13d15cb7 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
-Subject: [PATCH 1/2] init: initialize the building framework of
- android-mainline for amlogic [1/1]
+Subject: [PATCH] init: initialize the building framework of android-mainline
+ for amlogic [1/1]
 
 PD#SWPL-109858
 
@@ -27,10 +27,10 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  6 files changed, 145 insertions(+), 81 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
-index 56972adb5031..99d1c4ff15a1 100644
+index a61e4778d011..b0f871c07ad4 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -177,3 +177,6 @@ sphinx_*/
+@@ -178,3 +178,6 @@ sphinx_*/
  
  # Rust analyzer configuration
  /rust-project.json
@@ -55,7 +55,7 @@ index 464b34a08f51..88e1b7633843 100644
 +endif
 +endif
 diff --git a/Makefile b/Makefile
-index 6518c2f1eb33..22a08aaa63f9 100644
+index dcbca86c9a78..e27c94904eb2 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -428,6 +428,20 @@ ifneq ($(SRCARCH),$(SUBARCH))
@@ -79,7 +79,7 @@ index 6518c2f1eb33..22a08aaa63f9 100644
  KCONFIG_CONFIG	?= .config
  export KCONFIG_CONFIG
  
-@@ -825,6 +839,18 @@ endif # need-config
+@@ -832,6 +846,18 @@ endif # need-config
  
  KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
  
@@ -98,7 +98,7 @@ index 6518c2f1eb33..22a08aaa63f9 100644
  ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
  KBUILD_CFLAGS += -O2
  KBUILD_RUSTFLAGS += -Copt-level=2
-@@ -1169,6 +1195,9 @@ ifeq ($(KBUILD_EXTMOD),)
+@@ -1181,6 +1207,9 @@ ifeq ($(KBUILD_EXTMOD),)
  endif
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)include/uapi
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)arch/$(SRCARCH)/include/uapi
@@ -108,7 +108,7 @@ index 6518c2f1eb33..22a08aaa63f9 100644
  
  ifeq ($(KBUILD_EXTMOD),)
  
-@@ -1438,10 +1467,22 @@ endif
+@@ -1450,10 +1479,22 @@ endif
  ifneq ($(dtstree),)
  
  %.dtb: dtbs_prepare
@@ -434,7 +434,7 @@ index fb50bd4f4103..fc6e0b0b1536 100644
  configfiles = $(wildcard $(srctree)/kernel/configs/$(1) $(srctree)/arch/$(SRCARCH)/configs/$(1))
  all-config-fragments = $(call configfiles,*.config)
 diff --git a/usr/include/Makefile b/usr/include/Makefile
-index 771e32872b2a..7b73dfeb4c61 100644
+index 58173cfe5ff1..f442dc4a4a51 100644
 --- a/usr/include/Makefile
 +++ b/usr/include/Makefile
 @@ -8,6 +8,10 @@
@@ -447,7 +447,7 @@ index 771e32872b2a..7b73dfeb4c61 100644
 +
  # In theory, we do not care -m32 or -m64 for header compile tests.
  # It is here just because CONFIG_CC_CAN_LINK is tested with -m32 or -m64.
- UAPI_CFLAGS += $(filter -m32 -m64 --target=%, $(KBUILD_CFLAGS))
+ UAPI_CFLAGS += $(filter -m32 -m64 --target=%, $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS))
 -- 
 2.42.0
 

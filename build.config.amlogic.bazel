@@ -22,6 +22,7 @@ GKI_CHECK_CONFIG_WHITE_LIST="
 DTC_INCLUDE=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/include
 
 ARM64_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig
+ARM64_PRE_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/tv_gki.fragment
 FRAGMENT_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.fragment
 FRAGMENT_CONFIG_GKI10=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.10
 FRAGMENT_CONFIG_DEBUG=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.debug
@@ -46,10 +47,10 @@ function pre_defconfig_cmds() {
 			echo "CONFIG_AMLOGIC_DDK_BUILD=y" >> ${temp_file}
 		fi
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-		${ARM64_DEFCONFIG} ${FRAGMENT_CONFIG} ${temp_file}
+		${ARM64_DEFCONFIG} ${ARM64_PRE_DEFCONFIG} ${FRAGMENT_CONFIG} ${temp_file}
 	else
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-		${ARM64_DEFCONFIG} ${FRAGMENT_CONFIG} ${FRAGMENT_CONFIG_GKI10} ${FRAGMENT_CONFIG_DEBUG} ${temp_file}
+		${ARM64_DEFCONFIG} ${ARM64_PRE_DEFCONFIG} ${FRAGMENT_CONFIG} ${FRAGMENT_CONFIG_GKI10} ${FRAGMENT_CONFIG_DEBUG} ${temp_file}
 	fi
 
 	if [[ ${UPGRADE_PROJECT} == r || ${UPGRADE_PROJECT} == R || ${UPGRADE_PROJECT} == s || ${UPGRADE_PROJECT} == S \
@@ -94,7 +95,7 @@ function pre_defconfig_cmds() {
 			echo "${configs}=n" >> ${temp_file}
 		done
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-		${ARM64_DEFCONFIG} ${FRAGMENT_CONFIG} ${temp_file}
+		${ARM64_DEFCONFIG} ${ARM64_PRE_DEFCONFIG} ${FRAGMENT_CONFIG} ${temp_file}
 	fi
 
 	rm ${temp_file}

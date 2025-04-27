@@ -1,4 +1,4 @@
-From e446a62cc18bc9aa8034471743d2f312930bf158 Mon Sep 17 00:00:00 2001
+From a61f189472d330cb6397059a9ca382ada29132c5 Mon Sep 17 00:00:00 2001
 From: "biao.sun" <biao.sun@amlogic.com>
 Date: Wed, 9 Apr 2025 02:30:14 +0000
 Subject: [PATCH] sched: opt task_struct android_vendor_data [1/1]
@@ -21,20 +21,20 @@ Signed-off-by: biao.sun <biao.sun@amlogic.com>
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 82650a6fb544..4e220156d761 100644
+index c3f17b416004..caa1744d6791 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -1591,7 +1591,9 @@ struct task_struct {
+@@ -1593,7 +1593,9 @@ struct task_struct {
  #endif
  	ANDROID_VENDOR_DATA_ARRAY(1, 6);
  	ANDROID_OEM_DATA_ARRAY(1, 6);
 -
-+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG) && (IS_ENABLED(CONFIG_AMLOGIC_MEMORY_OPT) || !defined(CONFIG_ANDROID_VENDOR_OEM_DATA))
++#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG) && !defined(CONFIG_ANDROID_VENDOR_OEM_DATA)
 +	u64 android_vendor_data1[5];
 +#endif
  #ifdef CONFIG_KRETPROBES
  	struct llist_head               kretprobe_instances;
  #endif
 -- 
-2.46.0
+2.42.0
 

@@ -23,7 +23,6 @@ load(
     "kernel_unstripped_modules_archive",
     "merged_kernel_uapi_headers",
 )
-load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kernel/kleaf:print_debug.bzl", "print_debug")
 
 def define_common_amlogic(
@@ -71,7 +70,7 @@ def define_common_amlogic(
         module_outs = module_outs,
         build_config = build_config,
         # Enable mixed build.
-        base_kernel = "//common:kernel_aarch64",
+        base_kernel = "//common:kernel_aarch64_tv",
         # defconfig = "//common:arch/arm64/configs/gki_defconfig",
         # pre_defconfig_fragments = ["arch/arm64/configs/amlogic_gki.fragment"],
         # check_defconfig = "disabled",
