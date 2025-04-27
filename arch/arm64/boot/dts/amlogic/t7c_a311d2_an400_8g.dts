@@ -1209,6 +1209,7 @@
 }; /* end of audiobus */
 
 &earc {
+	compatible = "amlogic, t7-snd-earc-tx";
 	status = "okay";
 };
 

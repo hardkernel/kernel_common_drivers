@@ -3075,6 +3075,28 @@ struct earc_chipinfo t7_earc_chipinfo = {
 	.arc_version = T7_ARC,
 };
 
+struct earc_chipinfo t7_earc_chipinfo_rx = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = false,
+	.rterm_on = true,
+	.chnum_mult_mode = true,
+	.unstable_tick_sel = true,
+	.rx_enable = true,
+	.tx_enable = false,
+	.arc_version = T7_ARC,
+};
+
+struct earc_chipinfo t7_earc_chipinfo_tx = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = false,
+	.rterm_on = true,
+	.chnum_mult_mode = true,
+	.unstable_tick_sel = true,
+	.rx_enable = false,
+	.tx_enable = true,
+	.arc_version = T7_ARC,
+};
+
 struct earc_chipinfo t3_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = false,
@@ -3149,8 +3171,19 @@ static const struct of_device_id earc_device_id[] = {
 		.data = &sc2_earc_chipinfo,
 	},
 	{
+		/* enable both eARC TX and eARC RX */
 		.compatible = "amlogic, t7-snd-earc",
 		.data = &t7_earc_chipinfo,
+	},
+	{
+		/* enable eARC RX only for soundbar */
+		.compatible = "amlogic, t7-snd-earc-rx",
+		.data = &t7_earc_chipinfo_rx,
+	},
+	{
+		/* enable eARC TX only for BDS */
+		.compatible = "amlogic, t7-snd-earc-tx",
+		.data = &t7_earc_chipinfo_tx,
 	},
 	{
 		.compatible = "amlogic, t3-snd-earc",
