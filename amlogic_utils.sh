@@ -1610,7 +1610,7 @@ function set_default_parameters () {
 		DDK_BUILD=1
 	fi
 
-	if [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} ]]; then
+	if [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} && -z ${KASAN} ]]; then
 		if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
 			AUTO_PATCH=False	# google kernel build
 		else

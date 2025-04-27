@@ -121,7 +121,8 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		exit
 	fi
 	args="$@ --config=fast"
-	[[ -n ${DDK_BUILD} ]] && args="${args} --jobs=12 --experimental_optimize_ddk_config_actions --debug_modpost_warn"
+	[[ -n ${DDK_BUILD} ]] && args="${args} --jobs=12 --experimental_optimize_ddk_config_actions"
+	[[ -n ${DDK_BUILD} && -n ${ANDROID_PROJECT} ]] && args="${args} --debug_modpost_warn"
 	[[ -z ${SYS_SKIP_GIT} ]] && args="${args} --config=stamp"
 	[[ -z ${PREBUILT_GKI} ]] && args="${args}"
 	[[ -z ${GKI_CONFIG} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
