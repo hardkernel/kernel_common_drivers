@@ -562,7 +562,6 @@ int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority,
 
 	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 	tx_comm->hdr_priority = hdr_priority;
-	HDMITX_DEBUG("%s, set hdr_prio: %u\n", __func__, hdr_priority);
 	/* choose strategy: bit[31:28] */
 	choose = (tx_comm->hdr_priority >> 28) & 0xf;
 	switch (choose) {

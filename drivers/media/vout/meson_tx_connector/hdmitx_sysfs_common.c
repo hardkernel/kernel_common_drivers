@@ -1206,6 +1206,7 @@ static ssize_t valid_mode_store(struct device *dev,
 	char modename[32], attrstr[32];
 	struct hdmi_format_para tst_para;
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	char conv_name[32] = {0};
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 
 	mutex_lock(&tx_comm->valid_mutex);
@@ -1217,6 +1218,16 @@ static ssize_t valid_mode_store(struct device *dev,
 	cvalid_mode[31] = '\0';
 	if (cvalid_mode[0])
 		valid_mode = pre_process_str(cvalid_mode, modename, attrstr);
+
+	/*
+	 * hwc and system control use the valid mode node
+	 * will use the fraction mode name check
+	 * and need transfer to int and go on
+	 */
+	if (tx_comm->frac_enable && is_mode_name_frac(modename)) {
+		convert_name_frac2int(modename, conv_name);
+		strncpy(modename, conv_name, sizeof(conv_name));
+	}
 
 	if (valid_mode) {
 		vic = hdmitx_common_parse_vic_in_edid(tx_comm, modename);

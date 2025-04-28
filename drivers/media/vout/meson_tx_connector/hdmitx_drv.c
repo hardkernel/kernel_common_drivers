@@ -468,6 +468,15 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 			if (ret)
 				HDMITX_INFO("not find vend_init_data\n");
 		}
+
+		/* is_preferred_frac_mode 0: not support, 1: support */
+		ret = of_property_read_u32(pdev->dev.of_node, "frac_enable", &val);
+		if (!ret)
+			tx_comm->frac_enable = val;
+		else
+			tx_comm->frac_enable = 0;
+		HDMITX_INFO("frac_enable[%d-%d]\n", tx_comm->frac_enable, ret);
+
 		/* Get reg information */
 		ret = hw_comm->chip_data->hdmitx_ops->init_reg_map(pdev);
 		if (ret < 0)

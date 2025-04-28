@@ -389,6 +389,8 @@ struct hdmitx_common {
 	struct hdmitx_clk_tree_s hdmitx_clk_tree;
 	struct pinctrl_state *pinctrl_i2c;
 	struct pinctrl_state *pinctrl_default;
+	/* kernel 6.12 or later, /amhdmitx/frac_enable should be set as default 1 */
+	bool frac_enable;
 
 	/* 14. ced/rxsense related */
 	bool cedst_en;
