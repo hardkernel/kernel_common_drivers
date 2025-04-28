@@ -134,3 +134,6 @@
   snd_timer_start
   snd_timer_stop
 
+# amlogic-input.ko
+  sysfs_emit_at
+  strreplace
