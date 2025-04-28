@@ -572,6 +572,10 @@ int vout_notify_callback_viu2(struct notifier_block *block, unsigned long cmd,
 		vppx_vsync_pts_inc_scale_base[0] = info->sync_duration_num;
 		pr_info("new_vmode_vpp[0]: %s, %s\n",
 			new_vmode_vpp[0], old_vmode_vpp[0]);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+		set_vout2_change(1);
+		pr_info("VOUT_EVENT_MODE_CHANGE reset vout2_change_flag\n");
+#endif
 		break;
 	case VOUT_EVENT_OSD_PREBLEND_ENABLE:
 		break;

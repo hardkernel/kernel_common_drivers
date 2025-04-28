@@ -753,6 +753,21 @@ void set_hdr_module_status(enum vd_path_e vd_path, int status)
 }
 EXPORT_SYMBOL(set_hdr_module_status);
 
+/* for t7 vd2 hdmi tx mode change*/
+unsigned int vout2_change_flag;
+
+void set_vout2_change(unsigned int flag)
+{
+	vout2_change_flag = flag;
+}
+EXPORT_SYMBOL(set_vout2_change);
+
+unsigned int get_vout2_change(void)
+{
+	return vout2_change_flag;
+}
+EXPORT_SYMBOL(get_vout2_change);
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #define PROC_FLAG_FORCE_PROCESS 1
 static uint video_process_flags[VD_PATH_MAX];
@@ -8767,6 +8782,13 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		     !is_video_layer_on(VD2_PATH) &&
 		     !is_amdv_on()) ||
 		     vpp_index == VPP_TOP1) {
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 &&
+				vd_path == VD2_PATH &&
+				get_vout2_change()) {
+				set_vout2_change(0);
+				signal_change_flag |= SIG_FORCE_CHG;
+				pr_csc(4, "%s vout2 mode changed\n", __func__);
+			}
 			para =
 			hdr10p_meta_updated ?
 			&hdmitx_hdr10plus_params[vd_path] : NULL;
@@ -9248,6 +9270,12 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			null_vf_cnt[vd_path] = 1;
 			toggle_frame = 1;
 			pr_csc(8, "vd%d: dv enable->disable\n", vd_path + 1);
+		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 &&
+			vd_path == VD2_PATH &&
+			get_vout2_change()) {
+			null_vf_cnt[vd_path] = 1;
+			toggle_frame = 1;
+			pr_csc(8, "vout2 hdmitx mode changed\n");
 		} else {
 			toggle_frame = 0;
 		}

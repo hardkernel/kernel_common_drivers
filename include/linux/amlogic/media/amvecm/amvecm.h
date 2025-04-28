@@ -559,6 +559,7 @@ void set_hdr_output(int out);
 
 void enable_osd1_mtx(unsigned int en);
 void set_cur_hdr_policy(uint policy);
+void set_vout2_change(unsigned int flag);
 bool di_api_mov_sel(unsigned int mode,
 		    unsigned int *pdate);
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,

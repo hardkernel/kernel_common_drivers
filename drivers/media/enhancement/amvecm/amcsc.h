@@ -175,6 +175,8 @@ void set_hdr_policy(int policy);
 void set_cur_hdr_policy(uint policy);
 enum output_format_e get_force_output(void);
 void set_force_output(enum output_format_e output);
+void set_vout2_change(unsigned int flag);
+unsigned int get_vout2_change(void);
 
 /* 0: hdr->hdr, 1:hdr->sdr, 2:hdr->hlg */
 extern uint hdr_process_mode[VD_PATH_MAX];
