@@ -1121,7 +1121,8 @@ static const struct dma_fence_ops am_meson_video_plane_fence_ops = {
 	.release = am_meson_video_fence_release,
 };
 
-static struct dma_fence *am_meson_video_create_fence(spinlock_t *lock)
+static struct dma_fence *am_meson_video_create_fence(spinlock_t *lock,
+		struct am_video_plane *video_plane)
 {
 	struct dma_fence *fence;
 
@@ -1130,7 +1131,7 @@ static struct dma_fence *am_meson_video_create_fence(spinlock_t *lock)
 		return NULL;
 
 	dma_fence_init(fence, &am_meson_video_plane_fence_ops,
-		lock, 0, 0);
+		lock, video_plane->context, ++video_plane->seqno);
 
 	return fence;
 }
@@ -1145,13 +1146,14 @@ static int meson_video_prepare_fence(struct drm_plane *plane,
 	/*creat implicit fence as out_fence, and next will directly
 	 *export to video composer module
 	 */
-	fence = am_meson_video_create_fence(&video_plane->lock);
+	fence = am_meson_video_create_fence(&video_plane->lock, video_plane);
 	if (!fence)
 		return -ENOMEM;
 
 	mvv->fence = fence;
-	MESON_DRM_FENCE("creat fence %s fence(%px) plane_index%d\n",
-		__func__, fence, video_plane->plane_index);
+	MESON_DRM_FENCE("creat fence %s fence(%px) seq:(%llx,%llx),plane_index%d\n",
+		__func__, fence, video_plane->context, video_plane->seqno,
+		video_plane->plane_index);
 	return 0;
 }
 
@@ -2838,6 +2840,9 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 		DRM_INFO("no memory to alloc video plane\n");
 		return 0;
 	}
+
+	video_plane->context = dma_fence_context_alloc(1);
+	video_plane->seqno = 0;
 
 	min_zpos = VIDEO_PLANE_BEGIN_ZORDER;
 	max_zpos = VIDEO_PLANE_END_ZORDER;

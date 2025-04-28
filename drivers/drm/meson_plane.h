@@ -95,6 +95,10 @@ struct am_video_plane {
 	int plane_index;
 	int plane_type;
 
+	/*release fence context*/
+	u64 context;
+	u64 seqno;
+
 	struct drm_property *signal_fmt_property;
 
 	struct drm_property *video_cap_property;

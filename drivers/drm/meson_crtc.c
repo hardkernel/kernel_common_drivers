@@ -258,7 +258,8 @@ static const struct dma_fence_ops meson_crtc_fence_ops = {
 	.get_timeline_name = meson_crtc_fence_get_timeline_name,
 };
 
-struct dma_fence *meson_crtc_create_fence(spinlock_t *lock)
+struct dma_fence *meson_crtc_create_fence(spinlock_t *lock,
+		struct drm_crtc *crtc)
 {
 	struct dma_fence *fence;
 
@@ -267,7 +268,7 @@ struct dma_fence *meson_crtc_create_fence(spinlock_t *lock)
 		return NULL;
 
 	dma_fence_init(fence, &meson_crtc_fence_ops, lock,
-		       0, 0);
+		       crtc->fence_context, ++crtc->fence_seqno);
 
 	return fence;
 }
@@ -298,7 +299,7 @@ int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 		return -EEXIST;
 	}
 
-	fence = meson_crtc_create_fence(&pre_fence->lock);
+	fence = meson_crtc_create_fence(&pre_fence->lock, crtc);
 	if (!fence)
 		return -ENOMEM;
 
@@ -1418,6 +1419,8 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	atomic_set(&amcrtc->commit_num, 0);
 	mutex_init(&amcrtc->commit_mutex);
 	spin_lock_init(&amcrtc->present_fence.lock);
+	crtc->fence_context = dma_fence_context_alloc(1);
+	crtc->fence_seqno = 0;
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);
