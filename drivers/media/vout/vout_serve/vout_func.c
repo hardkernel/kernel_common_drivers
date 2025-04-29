@@ -441,14 +441,6 @@ int vout_func_get_disp_cap(int index, char *buf)
 
 	p_module = &vout_module;
 
-
-	if (!p_module) {
-		len = sprintf(buf, "vout%d: %s: vout_module is NULL\n",
-			      index, __func__);
-		mutex_unlock(&vout_mutex);
-		return len;
-	}
-
 	len = 0;
 	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
 		data = p_server->data;
@@ -476,9 +468,6 @@ int vout_func_get_connector_type_cap(struct vout_connector_type_s *type_s)
 	mutex_lock(&vout_mutex);
 
 	p_module = &vout_module;
-
-	if (!p_module)
-		return 0;
 
 	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
 		if (strstr(p_server->name, "dummy_encl")) {

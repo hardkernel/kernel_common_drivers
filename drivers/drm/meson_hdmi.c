@@ -1240,10 +1240,8 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 	if (groups)
 		num_group = hdmitx_common_get_vrr_mode_group(tx_comm, groups,
 							      MAX_VRR_MODE_GROUP);
-	if (!num_group) {
+	if (!num_group)
 		DRM_ERROR("get vrr error or not support qms\n");
-		kfree(groups);
-	}
 
 	drm_printf(p, "\tdrm hdmitx state:\n");
 	drm_printf(p, "\t\t android_path:[%d]\n", am_hdmi->android_path);
@@ -1286,6 +1284,8 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 		drm_printf(p, "\t\t\t %u,%u,%u-%u,%u\n", group->width, group->height,
 			   group->game_vrr_min, group->game_vrr_max, group->game_brr_vic);
 	}
+
+	kfree(groups);
 }
 
 static bool meson_hdmitx_is_hdcp_running(struct am_hdmi_tx *am_hdmi)
@@ -2002,11 +2002,12 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 			dst_vrefresh = meson_crtc_state->base.vrr_enabled ? mode_vrefresh : 0;
 			dst_vrefresh *= 100;
 			vrr_info.type = T_VRR_QMS;
-		}
-
-		if (meson_crtc_state->vrr_type == DRM_VRR_GAME) {
+		} else if (meson_crtc_state->vrr_type == DRM_VRR_GAME) {
 			dst_vrefresh = meson_crtc_state->game_rate;
 			vrr_info.type = T_VRR_GAME;
+		} else {
+			dst_vrefresh = 0;
+			vrr_info.type = T_VRR_NONE;
 		}
 
 		DRM_INFO("%s, set frame rate: %d\n", __func__, dst_vrefresh);
@@ -2046,11 +2047,12 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		if (meson_crtc_state->vrr_type == DRM_VRR_QMS) {
 			dst_vrefresh = mode_vrefresh * 100;
 			vrr_info.type = T_VRR_QMS;
-		}
-
-		if (meson_crtc_state->vrr_type == DRM_VRR_GAME) {
+		} else if (meson_crtc_state->vrr_type == DRM_VRR_GAME) {
 			dst_vrefresh = meson_crtc_state->game_rate;
 			vrr_info.type = T_VRR_GAME;
+		} else {
+			dst_vrefresh = 0;
+			vrr_info.type = T_VRR_NONE;
 		}
 
 		hdmitx_common_set_vframe_rate_hint(tx_comm, dst_vrefresh, &vrr_info);
