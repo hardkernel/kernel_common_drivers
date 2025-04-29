@@ -170,7 +170,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->eotf_type_by_property = cur_state->eotf_type_by_property;
 	new_state->dv_mode = cur_state->dv_mode;
 	new_state->preset_vmode = VMODE_INVALID;
-	new_state->vmode = cur_state->vmode;
+	new_state->vmode = cur_state->vmode & VMODE_MODE_BIT_MASK;
 	new_state->prev_vrefresh = cur_state->prev_vrefresh;
 	new_state->prev_height = cur_state->prev_height;
 	new_state->hdr_conversion_ctrl = cur_state->hdr_conversion_ctrl;
