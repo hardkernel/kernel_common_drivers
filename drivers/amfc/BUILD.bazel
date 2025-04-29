@@ -1,17 +1,8 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
 
 m_k_files()
 
-amlogic_soc_amfc_deps0 = [
-    "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-]
-amlogic_soc_amfc_deps = [i for i in amlogic_soc_amfc_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-soc-amfc",
     srcs = glob([
@@ -29,20 +20,17 @@ ddk_module(
     local_defines = [
     ],
     out = "amlogic-soc-amfc.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_soc_amfc_deps,
+    deps = [
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
 )
 
-amlogic_soc_erofs_deps0 = [
-    "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-    "//common_drivers/drivers/amfc:amlogic-soc-sym_helper",
-]
-amlogic_soc_erofs_deps = [i for i in amlogic_soc_erofs_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-soc-erofs",
     srcs = glob([
@@ -99,19 +87,18 @@ ddk_module(
     local_defines = [
     ],
     out = "amlogic-soc-erofs.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_soc_erofs_deps,
+    deps = [
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+        "//common_drivers/drivers/amfc:amlogic-soc-sym_helper",
+    ],
 )
 
-aml_zram_deps0 = [
-    "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-]
-aml_zram_deps = [i for i in aml_zram_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "aml-zram",
     srcs = glob([
@@ -146,15 +133,17 @@ ddk_module(
     local_defines = [
     ],
     out = "aml-zram.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = aml_zram_deps,
+    deps = [
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
 )
 
-amlogic_soc_sym_helper_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-]
-amlogic_soc_sym_helper_deps = [i for i in amlogic_soc_sym_helper_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-soc-sym_helper",
     srcs = glob([
@@ -172,7 +161,9 @@ ddk_module(
     local_defines = [
     ],
     out = "amlogic-soc-sym_helper.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_soc_sym_helper_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    ],
 )

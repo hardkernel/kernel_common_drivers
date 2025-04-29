@@ -1,13 +1,8 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
 
 m_k_files()
 
-amlogic_debug_iotrace_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-]
-amlogic_debug_iotrace_deps = [i for i in amlogic_debug_iotrace_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-debug-iotrace",
     srcs = glob([
@@ -32,16 +27,13 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[debug-iotrace]: \" fmt"],
     out = "amlogic-debug-iotrace.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_debug_iotrace_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    ]
 )
 
-amlogic_debug_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-]
-amlogic_debug_deps = [i for i in amlogic_debug_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-debug",
     srcs = glob([
@@ -104,14 +96,14 @@ ddk_module(
         "GKI_CONFIG=\"../../arch/arm64/configs/amlogic_gki.fragment\"",
     ],
     out = "amlogic-debug.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_debug_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+    ],
 )
 
-amlogic_audio_utils_deps0 = [
-]
-amlogic_audio_utils_deps = [i for i in amlogic_audio_utils_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-audio-utils",
     srcs = glob([
@@ -130,7 +122,8 @@ ddk_module(
             "pr_fmt(fmt)=\"[audio-utils]: \" fmt",
     ],
     out = "amlogic-audio-utils.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_audio_utils_deps,
+    deps = [
+    ],
 )

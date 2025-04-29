@@ -1,29 +1,8 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
 
 m_k_files()
 
-aml_drm_deps0 = [
-    "//common_drivers/drivers/uvm:aml_uvm",
-    "//common_drivers/drivers/media:aml_media",
-    "//common_drivers/drivers/dvb:amlogic-dvb",
-    "//common_drivers/drivers/tee:amlogic-tee",
-    "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
-    "//common_drivers/drivers/memory_ext:page_trace",
-    "//common_drivers/drivers/pwm:amlogic-pwm",
-    "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
-    "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-    "//common_drivers/drivers/pm:amlogic-pm",
-    "//common_drivers/drivers/power:amlogic-power",
-    "//common_drivers/drivers/gpio:amlogic-gpio",
-    "//common_drivers/drivers/clk/meson:amlogic-clk",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-]
-aml_drm_deps = [i for i in aml_drm_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "aml_drm",
     srcs = glob([
@@ -106,7 +85,25 @@ ddk_module(
         "pr_fmt(fmt)=\"[aml_drm]: \" fmt",
     ],
     out = "aml_drm.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = aml_drm_deps,
+    deps = [
+        "//common_drivers/drivers/uvm:aml_uvm",
+        "//common_drivers/drivers/media:aml_media",
+        "//common_drivers/drivers/dvb:amlogic-dvb",
+        "//common_drivers/drivers/tee:amlogic-tee",
+        "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
+        "//common_drivers/drivers/memory_ext:page_trace",
+        "//common_drivers/drivers/pwm:amlogic-pwm",
+        "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+        "//common_drivers/drivers/gpio:amlogic-gpio",
+        "//common_drivers/drivers/clk/meson:amlogic-clk",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    ],
 )

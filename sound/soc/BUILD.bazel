@@ -1,12 +1,8 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
 
 m_k_files()
 
-amlogic_snd_codec_dummy_deps0 = [
-]
-amlogic_snd_codec_dummy_deps = [i for i in amlogic_snd_codec_dummy_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-dummy",
     srcs = glob([
@@ -26,14 +22,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-dummy]: \" fmt",
     ],
     out = "amlogic-snd-codec-dummy.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_dummy_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_a1_deps0 = [
-]
-amlogic_snd_codec_a1_deps = [i for i in amlogic_snd_codec_a1_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-a1",
     srcs = glob([
@@ -53,14 +47,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-a1]: \" fmt",
     ],
     out = "amlogic-snd-codec-a1.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_a1_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_t9015_deps0 = [
-]
-amlogic_snd_codec_t9015_deps = [i for i in amlogic_snd_codec_t9015_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-t9015",
     srcs = glob([
@@ -80,14 +72,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-t9015]: \" fmt",
     ],
     out = "amlogic-snd-codec-t9015.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_t9015_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_tl1_deps0 = [
-]
-amlogic_snd_codec_tl1_deps = [i for i in amlogic_snd_codec_tl1_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-tl1",
     srcs = glob([
@@ -107,19 +97,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-tl1]: \" fmt",
     ],
     out = "amlogic-snd-codec-tl1.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_tl1_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_t6d_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/pm:amlogic-pm",
-    "//common_drivers/drivers/power:amlogic-power",
-]
-amlogic_snd_codec_t6d_deps = [i for i in amlogic_snd_codec_t6d_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-t6d",
     srcs = glob([
@@ -139,19 +122,17 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-t6d]: \" fmt",
     ],
     out = "amlogic-snd-codec-t6d.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_t6d_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+    ],
 )
 
-amlogic_snd_codec_gxlx4_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/pm:amlogic-pm",
-    "//common_drivers/drivers/power:amlogic-power",
-]
-amlogic_snd_codec_gxlx4_deps = [i for i in amlogic_snd_codec_gxlx4_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-gxlx4",
     srcs = glob([
@@ -171,14 +152,17 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-gxlx4]: \" fmt",
     ],
     out = "amlogic-snd-codec-gxlx4.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_gxlx4_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+    ],
 )
 
-amlogic_snd_codec_ad82584f_deps0 = [
-]
-amlogic_snd_codec_ad82584f_deps = [i for i in amlogic_snd_codec_ad82584f_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-ad82584f",
     srcs = glob([
@@ -198,14 +182,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-ad82584f]: \" fmt",
     ],
     out = "amlogic-snd-codec-ad82584f.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_ad82584f_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_tlv320adc3101_deps0 = [
-]
-amlogic_snd_codec_tlv320adc3101_deps = [i for i in amlogic_snd_codec_tlv320adc3101_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-tlv320adc3101",
     srcs = glob([
@@ -225,14 +207,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-tlv320adc3101]: \" fmt",
     ],
     out = "amlogic-snd-codec-tlv320adc3101.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_tlv320adc3101_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_tas5707_deps0 = [
-]
-amlogic_snd_codec_tas5707_deps = [i for i in amlogic_snd_codec_tas5707_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-tas5707",
     srcs = glob([
@@ -252,14 +232,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-tas5707]: \" fmt",
     ],
     out = "amlogic-snd-codec-tas5707.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_tas5707_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_tas5805_deps0 = [
-]
-amlogic_snd_codec_tas5805_deps = [i for i in amlogic_snd_codec_tas5805_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-tas5805",
     srcs = glob([
@@ -279,14 +257,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-tas5805]: \" fmt",
     ],
     out = "amlogic-snd-codec-tas5805.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_tas5805_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_pa1_deps0 = [
-]
-amlogic_snd_codec_pa1_deps = [i for i in amlogic_snd_codec_pa1_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-pa1",
     srcs = glob([
@@ -306,14 +282,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-pa1]: \" fmt",
     ],
     out = "amlogic-snd-codec-pa1.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_pa1_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_tas5805m_deps0 = [
-]
-amlogic_snd_codec_tas5805m_deps = [i for i in amlogic_snd_codec_tas5805m_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-tas5805m",
     srcs = glob([
@@ -333,14 +307,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-tas5805m]: \" fmt",
     ],
     out = "amlogic-snd-codec-tas5805m.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_tas5805m_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_ad82128_deps0 = [
-]
-amlogic_snd_codec_ad82128_deps = [i for i in amlogic_snd_codec_ad82128_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-ad82128",
     srcs = glob([
@@ -360,19 +332,12 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-ad82128]: \" fmt",
     ],
     out = "amlogic-snd-codec-ad82128.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_ad82128_deps,
+    deps = [
+    ],
 )
 
-amlogic_snd_codec_sy6026l_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/pm:amlogic-pm",
-    "//common_drivers/drivers/power:amlogic-power",
-]
-amlogic_snd_codec_sy6026l_deps = [i for i in amlogic_snd_codec_sy6026l_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-codec-sy6026l",
     srcs = glob([
@@ -392,30 +357,17 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-codec-sy6026l]: \" fmt",
     ],
     out = "amlogic-snd-codec-sy6026l.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_codec_sy6026l_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+    ],
 )
 
-amlogic_snd_soc_deps0 = [
-    "//common_drivers/drivers/media:aml_media",
-    "//common_drivers/drivers/dvb:amlogic-dvb",
-    "//common_drivers/drivers/tee:amlogic-tee",
-    "//common_drivers/drivers/pwm:amlogic-pwm",
-    "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
-    "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
-    "//common_drivers/drivers/memory_ext:page_trace",
-    "//common_drivers/drivers/gpio:amlogic-gpio",
-    "//common_drivers/drivers/pm:amlogic-pm",
-    "//common_drivers/drivers/power:amlogic-power",
-    "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-    "//common_drivers/drivers/clk/meson:amlogic-clk",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-]
-amlogic_snd_soc_deps = [i for i in amlogic_snd_soc_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-snd-soc",
     srcs = glob([
@@ -472,8 +424,8 @@ ddk_module(
                 "amlogic/auge/locker_hw.c",
                 "amlogic/auge/resample.c",
                 "amlogic/auge/resample_hw.c",
-				"amlogic/auge/effects.c",
-				"amlogic/auge/effects_hw.c",
+                "amlogic/auge/effects.c",
+                "amlogic/auge/effects_hw.c",
                 "amlogic/auge/effects_v2.c",
                 "amlogic/auge/effects_hw_v2.c",
                 "amlogic/auge/effects_v3.c",
@@ -486,8 +438,8 @@ ddk_module(
                 "amlogic/auge/vad_dev.c",
                 "amlogic/auge/earc.c",
                 "amlogic/auge/earc_hw.c",
-				"amlogic/auge/mixer.c",
-				"amlogic/auge/mixer_hw.c",
+                "amlogic/auge/mixer.c",
+                "amlogic/auge/mixer_hw.c",
                 "amlogic/auge/card.c",
                 "amlogic/auge/pcpd_monitor.c",
                 "amlogic/common/iec_info.c",
@@ -524,7 +476,24 @@ ddk_module(
         "pr_fmt(fmt)=\"[snd-soc]: \" fmt",
     ],
     out = "amlogic-snd-soc.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_snd_soc_deps,
+    deps = [
+        "//common_drivers/drivers/media:aml_media",
+        "//common_drivers/drivers/dvb:amlogic-dvb",
+        "//common_drivers/drivers/tee:amlogic-tee",
+        "//common_drivers/drivers/pwm:amlogic-pwm",
+        "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
+        "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
+        "//common_drivers/drivers/memory_ext:page_trace",
+        "//common_drivers/drivers/gpio:amlogic-gpio",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+        "//common_drivers/drivers/clk/meson:amlogic-clk",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    ],
 )

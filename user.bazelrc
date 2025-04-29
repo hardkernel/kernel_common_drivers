@@ -1,1 +1,2 @@
 build:common_drivers_on_top --//common_drivers:common_drivers_on_top"
+try-import %workspace%/project/sei/adt4/device.bazelrc

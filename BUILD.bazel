@@ -1,6 +1,62 @@
-load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:project/project.bzl", "COMMON_DRIVERS_KCONFIG_AND_MAKEFILE")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load(
+    "//build/kernel/kleaf:kernel.bzl",
+    "kernel_dtstree",
+    "kernel_build_config",
+)
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
+load(":project/project.bzl", "project_configs")
+
+label_flag(
+    name = "kernel",
+    build_setting_default = "//common_drivers:amlogic",
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "use_amlogic_kernel",
+    flag_values = {":kernel": "//common_drivers:amlogic"},
+)
+
+config_setting(
+    name = "use_adt4_kernel",
+    flag_values = {":kernel": "//project/sei/adt4:adt4"},
+)
+
+label_flag(
+    name = "build_config",
+    build_setting_default = "//common_drivers:amlogic_build_config",
+    visibility = ["//visibility:public"],
+)
+
+_SET_PROJECT_DIR_CMD = "PROJECT_DIR=\"{project_dir}\"".format(
+    project_dir = paths.join(
+        package_relative_label(":x").workspace_root,
+        package_relative_label(":x").package,
+    ),
+)
+
+write_file(
+    name = "set_project_dir",
+    out = "set_project_dir/build.config.project",
+    content = [
+        _SET_PROJECT_DIR_CMD,
+        "",
+    ],
+    visibility = ["//visibility:public"],  # TODO: This should be private
+)
+
+kernel_build_config(
+    name = "amlogic_build_config",
+    srcs = [
+        # do not sort
+        ":set_project_dir",
+        "project/build.config.project",
+        "build.config.amlogic.bazel",
+    ],
+)
 
 config_setting(
     name = "common_drivers_on_top_dir",
@@ -51,7 +107,7 @@ filegroup(
             "customer/**",
             "rootfs_base.cpio.gz.uboot",
         ],
-    ) + COMMON_DRIVERS_KCONFIG_AND_MAKEFILE,
+    ) + project_configs.COMMON_DRIVERS_KCONFIG_AND_MAKEFILE,
     visibility = ["//visibility:public"],
 )
 
@@ -61,9 +117,21 @@ filegroup(
         ":common_drivers_sources",
         "//common:kernel_aarch64_sources",
     ],
+    visibility = ["//visibility:public"],
+)
+
+kernel_dtstree(
+    name = "dtstree",
+    srcs = glob([
+        "arch/arm64/boot/dts/**",
+        "include/dt-bindings/**",
+    ]),
+    makefile = "arch/arm64/boot/dts/Makefile",
+    visibility = ["//visibility:public"],
 )
 
 COMMON_DRIVERS_DIR = "common_drivers"
-load("//common_drivers:amlogic.bzl", "define_amlogic")
-define_amlogic()
+load(":amlogic.bzl", "define_amlogic")
+
+define_amlogic(name="amlogic", project_configs=project_configs)
 

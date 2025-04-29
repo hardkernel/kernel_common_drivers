@@ -1,13 +1,8 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
 
 m_k_files()
 
-amlogic_gpio_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-]
-amlogic_gpio_deps = [i for i in amlogic_gpio_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-gpio",
     srcs = glob([
@@ -51,16 +46,17 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[gpio]: \" fmt"],
     out = "amlogic-gpio.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_gpio_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+    ],
 )
 
-amlogic_pinctrl_soc_deps0 = [
+amlogic_pinctrl_soc_deps = [
     "//common_drivers/drivers/gpio:amlogic-gpio",
     "//common_drivers/drivers/gki_tool:amlogic-gkitool"
 ]
-amlogic_pinctrl_soc_deps = [i for i in amlogic_pinctrl_soc_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-pinctrl-soc-s4",
     srcs = glob([
@@ -75,7 +71,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s4]: \" fmt"],
     out = "amlogic-pinctrl-soc-s4.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -94,7 +90,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-c2]: \" fmt"],
     out = "amlogic-pinctrl-soc-c2.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -113,7 +109,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-c3]: \" fmt"],
     out = "amlogic-pinctrl-soc-c3.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -132,7 +128,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-a1]: \" fmt"],
     out = "amlogic-pinctrl-soc-a1.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -151,7 +147,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-sc2]: \" fmt"],
     out = "amlogic-pinctrl-soc-sc2.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -170,7 +166,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t3]: \" fmt"],
     out = "amlogic-pinctrl-soc-t3.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -189,7 +185,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t7]: \" fmt"],
     out = "amlogic-pinctrl-soc-t7.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -208,7 +204,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t5m]: \" fmt"],
     out = "amlogic-pinctrl-soc-t5m.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -227,7 +223,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-g12a]: \" fmt"],
     out = "amlogic-pinctrl-soc-g12a.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -246,7 +242,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s5]: \" fmt"],
     out = "amlogic-pinctrl-soc-s5.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -265,7 +261,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t5w]: \" fmt"],
     out = "amlogic-pinctrl-soc-t5w.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -284,7 +280,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t3x]: \" fmt"],
     out = "amlogic-pinctrl-soc-t3x.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -303,7 +299,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-txhd2]: \" fmt"],
     out = "amlogic-pinctrl-soc-txhd2.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -322,7 +318,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-c1]: \" fmt"],
     out = "amlogic-pinctrl-soc-c1.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -341,7 +337,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s1a]: \" fmt"],
     out = "amlogic-pinctrl-soc-s1a.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -360,7 +356,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t5d]: \" fmt"],
     out = "amlogic-pinctrl-soc-t5d.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -379,7 +375,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-a4]: \" fmt"],
     out = "amlogic-pinctrl-soc-a4.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -398,7 +394,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-a5]: \" fmt"],
     out = "amlogic-pinctrl-soc-a5.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -417,7 +413,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-tm2]: \" fmt"],
     out = "amlogic-pinctrl-soc-tm2.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -436,7 +432,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s7]: \" fmt"],
     out = "amlogic-pinctrl-soc-s7.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -455,7 +451,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s7d]: \" fmt"],
     out = "amlogic-pinctrl-soc-s7d.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -474,7 +470,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-s6]: \" fmt"],
     out = "amlogic-pinctrl-soc-s6.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )
@@ -493,7 +489,7 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t6d]: \" fmt"],
     out = "amlogic-pinctrl-soc-t6d.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = amlogic_pinctrl_soc_deps,
 )

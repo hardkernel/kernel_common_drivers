@@ -1,17 +1,8 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
 
 m_k_files()
 
-amlogic_pcie_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-]
-amlogic_pcie_deps = [i for i in amlogic_pcie_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-pcie",
     srcs = glob([
@@ -51,7 +42,13 @@ ddk_module(
         "pr_fmt(fmt)=\"[pcie]: \" fmt",
     ],
     out = "amlogic-pcie.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_pcie_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
 )

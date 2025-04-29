@@ -1,17 +1,9 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:project/project.bzl", "GKI_CONFIG", "BUILD_TIME", "COMMON_DRIVER_RELEASE")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select", "gki_config", "build_time", "common_drivers_release")
 
 m_k_files()
 
-amlogic_cpuinfo_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-]
-amlogic_cpuinfo_deps = [i for i in amlogic_cpuinfo_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-cpuinfo",
     srcs = glob([
@@ -30,12 +22,17 @@ ddk_module(
     ],
     local_defines = [
         "pr_fmt(fmt)=\"[cpu_info]: \" fmt",
-        "GKI_CONFIG=\"{}\"".format(GKI_CONFIG),
-        "BUILD_TIME=\"{}\"".format(BUILD_TIME),
-        "COMMON_DRIVER_RELEASE=\"{}\"".format(COMMON_DRIVER_RELEASE),
+        "GKI_CONFIG=\"{}\"".format(gki_config),
+        "BUILD_TIME=\"{}\"".format(build_time),
+        "COMMON_DRIVERS_RELEASE=\"{}\"".format(common_drivers_release),
     ],
     out = "amlogic-cpuinfo.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_cpuinfo_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
 )

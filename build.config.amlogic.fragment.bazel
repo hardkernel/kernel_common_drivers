@@ -1,5 +1,4 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
-# . ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
 
 COMMON_DRIVERS_DIR=../common_drivers
 . ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project/build.config.project
@@ -8,10 +7,6 @@ COMMON_DRIVERS_DIR=../common_drivers
 
 echo "Base Kernel parm: LTO=${LTO} GKI_CONFIG=${GKI_CONFIG} ANDROID_PROJECT=${ANDROID_PROJECT} FATLOAD=${FATLOAD} KASAN=${KASAN} CHECK_GKI_20=${CHECK_GKI_20}"
 
-# DEFCONFIG=amlogic_gki_defconfig
-
-ARM64_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig
-ARM64_PRE_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/tv_gki.fragment
 FRAGMENT_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.fragment
 FRAGMENT_CONFIG_GKI10=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.10
 FRAGMENT_CONFIG_DEBUG=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.debug
@@ -19,10 +14,11 @@ FRAGMENT_CONFIG_UPGRADE=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm
 FRAGMENT_CONFIG_UPGRADE_P=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_upgrade_p.defconfig
 FRAGMENT_CONFIG_KASAN=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_kasan.defconfig
 
-function pre_defconfig_cmds() {
-	KCONFIG_DEFCONFIG=${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/${DEFCONFIG}
+function post_defconfig_cmds() {
+	ARM64_DEFCONFIG=${OUT_DIR}/.config
+	KCONFIG_DEFCONFIG=${ARM64_DEFCONFIG}.tmp
 	MERGE_CONFIG_SCRIPT_PATH=${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig
-	local temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
+	local temp_file=`mktemp .tmp.config.XXXXXXXXXXXX`
 
 	if [[ ${GKI_CONFIG} == gki_20 ]]; then
 		if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
@@ -39,7 +35,7 @@ function pre_defconfig_cmds() {
 			echo "CONFIG_DEVTMPFS=y" >> ${temp_file}
 		fi
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-				${ARM64_DEFCONFIG} ${ARM64_PRE_DEFCONFIG} ${temp_file}
+				${ARM64_DEFCONFIG} ${temp_file}
 	else
 		echo "CONFIG_MODULE_SIG_ALL=y" > ${temp_file}
 		if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
@@ -48,7 +44,7 @@ function pre_defconfig_cmds() {
 		fi
 
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-				${ARM64_DEFCONFIG} ${ARM64_PRE_DEFCONFIG} ${FRAGMENT_CONFIG} ${FRAGMENT_CONFIG_GKI10} \
+				${ARM64_DEFCONFIG} ${FRAGMENT_CONFIG} ${FRAGMENT_CONFIG_GKI10} \
 				${FRAGMENT_CONFIG_DEBUG} ${temp_file}
 
 		if [[ ${UPGRADE_PROJECT} == r || ${UPGRADE_PROJECT} == R || ${UPGRADE_PROJECT} == s || ${UPGRADE_PROJECT} == S \
@@ -89,16 +85,11 @@ function pre_defconfig_cmds() {
 
 	if [[ -n ${CHECK_GKI_20} ]]; then
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
-				${ARM64_DEFCONFIG} ${ARM64_PRE_DEFCONFIG}
+				${ARM64_DEFCONFIG}
 	fi
 
 	rm ${temp_file}
-}
-export -f pre_defconfig_cmds
-PRE_DEFCONFIG_CMDS=pre_defconfig_cmds
-
-function post_defconfig_cmds() {
-	rm -f ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/${DEFCONFIG}
+	mv ${ARM64_DEFCONFIG}.tmp ${ARM64_DEFCONFIG}
 }
 export -f post_defconfig_cmds
 POST_DEFCONFIG_CMDS=post_defconfig_cmds

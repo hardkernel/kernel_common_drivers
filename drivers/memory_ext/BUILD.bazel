@@ -1,12 +1,8 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
 
 m_k_files()
 
-page_trace_deps0 = [
-]
-page_trace_deps = [i for i in page_trace_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "page_trace",
     srcs = glob([
@@ -24,19 +20,12 @@ ddk_module(
     linux_includes = ["../../../common/mm"],
     local_defines = ["pr_fmt(fmt)=\"[page_trace]: \" fmt"],
     out = "page_trace.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = page_trace_deps0,
+    deps = [
+    ],
 )
 
-aml_smmu_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-    "//common_drivers/drivers/tee:amlogic-tee",
-]
-aml_smmu_deps = [i for i in aml_smmu_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "aml_smmu",
     srcs = glob([
@@ -62,18 +51,17 @@ ddk_module(
         "__module_param_array_named(name, array, type, nump, perm)=",
     ],
     out = "aml_smmu.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = aml_smmu_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+        "//common_drivers/drivers/tee:amlogic-tee",
+    ]
 )
 
-aml_cma_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/memory_ext:page_trace",
-]
-aml_cma_deps = [i for i in aml_cma_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "aml_cma",
     srcs = glob([
@@ -93,20 +81,16 @@ ddk_module(
         "pr_fmt(fmt)=\"[smmu]: \" fmt",
     ],
     out = "aml_cma.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = aml_cma_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/memory_ext:page_trace",
+    ],
 )
 
-user_fault_deps0 = [
-    "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-    "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-    "//common_drivers/drivers/debug:amlogic-debug",
-    "//common_drivers/drivers/memory_ext:page_trace",
-    "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
-    "//common_drivers/drivers/secmon:amlogic-secmon",
-]
-user_fault_deps = [i for i in user_fault_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "user_fault",
     srcs = glob([
@@ -125,14 +109,18 @@ ddk_module(
     ],
     out = "user_fault.ko",
 
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = user_fault_deps,
+    deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/memory_ext:page_trace",
+        "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
+        "//common_drivers/drivers/secmon:amlogic-secmon",
+    ],
 )
 
-mem_debug_deps0 = [
-]
-mem_debug_deps = [i for i in mem_debug_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "mem_debug",
     srcs = glob([
@@ -151,7 +139,8 @@ ddk_module(
     ],
     out = "mem_debug.ko",
 
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = mem_debug_deps,
+    deps = [
+    ],
 )

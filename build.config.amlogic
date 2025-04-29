@@ -1,7 +1,7 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
 . ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/amlogic_utils.sh
 
-if [[ -n ${ANDROID_PROJECT} ]]; then
+if [[ -n ${ANDROID_PROJECT} && -z ${PACKAGE} ]]; then
 	KCONFIG_EXT_MODULES_PREFIX=$(realpath ${MAIN_FOLDER} --relative-to ${KERNEL_DIR})/
 	KCONFIG_PROJECT_PREFIX=${COMMON_DRIVERS_DIR}/project/
 fi

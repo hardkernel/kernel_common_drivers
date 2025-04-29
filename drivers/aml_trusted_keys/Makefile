@@ -11,6 +11,6 @@ ccflags-y += $(PR_FMT_DEFINE)
 BUILD_TIME := $(shell date +%Y.%m.%d-%H.%M.%S)
 ccflags-y += "-DBUILD_TIME=\"$(BUILD_TIME)\""
 
-COMMON_DRIVER_RELEASE=$(subst -g,, $(shell $(srctree)/scripts/setlocalversion $(srctree)/$(COMMON_DRIVERS_DIR)))
-COMMON_DRIVER_RELEASE_DEFINE="-DCOMMON_DRIVER_RELEASE=\"$(COMMON_DRIVER_RELEASE)\""
-ccflags-y += $(COMMON_DRIVER_RELEASE_DEFINE)
+COMMON_DRIVERS_RELEASE=$(subst -g,, $(shell $(srctree)/scripts/setlocalversion $(srctree)/$(COMMON_DRIVERS_DIR)))
+COMMON_DRIVERS_RELEASE_DEFINE="-DCOMMON_DRIVERS_RELEASE=\"$(COMMON_DRIVERS_RELEASE)\""
+ccflags-y += $(COMMON_DRIVERS_RELEASE_DEFINE)

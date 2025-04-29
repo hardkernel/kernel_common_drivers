@@ -575,7 +575,7 @@ function adjust_sequence_modules_loading() {
 
 	GKI_MODULES_LOAD_BLACK_LIST=()
 	if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" == "arm64" ]]; then
-		gki_modules_temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
+		gki_modules_temp_file=`mktemp ${OUT_AMLOGIC_DIR}/tmp/config.XXXXXXXXXXXX`
 		cat ${ROOT_DIR}/${KERNEL_DIR}/modules.bzl |grep ko | while read LINE
 		do
 			echo $LINE | sed 's/^[^"]*"//' | sed 's/".*$//' >> ${gki_modules_temp_file}
@@ -790,42 +790,38 @@ function modules_install() {
 	echo $OUT_AMLOGIC_DIR
 	rm -rf ${OUT_AMLOGIC_DIR}
 	mkdir -p ${OUT_AMLOGIC_DIR}
+	mkdir -p ${OUT_AMLOGIC_DIR}/tmp
 	mkdir -p ${OUT_AMLOGIC_DIR}/modules
 	mkdir -p ${OUT_AMLOGIC_DIR}/ext_modules
 	mkdir -p ${OUT_AMLOGIC_DIR}/symbols
 
+	if [[ -n ${PACKAGE} ]]; then
+		project_name=${ANDROID_PROJECT}
+	else
+		project_name="amlogic"
+	fi
+	project_modules_install="${project_name}_modules_install"
+	project_config="${project_name}_config"
 	if [[ ${BAZEL} == "1" ]]; then
+		mkdir ${OUT_AMLOGIC_DIR}/system_dlkm
+		cp ${DIST_DIR}/system_dlkm_staging_archive.tar.gz ${OUT_AMLOGIC_DIR}/system_dlkm/
+		(cd ${OUT_AMLOGIC_DIR}/system_dlkm; tar zxf system_dlkm_staging_archive.tar.gz; find lib/modules/ -type f -name "*.ko" -exec cp {} ${OUT_AMLOGIC_DIR}/modules \;)
 		BAZEL_OUT=bazel-out/
 		while read module
 		do
 			module_name=${module##*/}
-			if [[ -z ${ANDROID_PROJECT} || ${module} == kernel/* ]]; then
-				if [[ -f ${DIST_DIR}/${module_name} ]]; then
+			if [[ -f ${DIST_DIR}/${module_name} ]]; then
+				if [[ "${module}" == "kernel/"* || "${module}" == *"/common_drivers/"* || *"${module_name}"* == "${EXT_MODULES_ANDROID_AUTO_LOAD}" ]]; then
 					cp ${DIST_DIR}/${module_name} ${OUT_AMLOGIC_DIR}/modules
 				else
-					module=`find ${BAZEL_OUT} -name ${module_name} | grep "amlogic_modules_install"`
-					cp ${module} ${OUT_AMLOGIC_DIR}/modules
+					cp ${DIST_DIR}/${module_name} ${OUT_AMLOGIC_DIR}/ext_modules
 				fi
-			elif [[ ${module} == extra/* ]]; then
-				local dist_dir=${OUT_AMLOGIC_DIR}/modules
-				if [[ ! ${module} =~ common_drivers ]]; then
-					echo extra_module=${module}
-					dist_dir=${OUT_AMLOGIC_DIR}/ext_modules
-					module=${module#*/}
-					for ext_module in ${EXT_MODULES_ANDROID_AUTO_LOAD}; do
-						if [[ "${module}" =~ "${ext_module}" ]]; then
-							dist_dir=${OUT_AMLOGIC_DIR}/modules
-							break
-						fi
-					done
-				fi
-				cp ${DIST_DIR}/${module_name} ${dist_dir}
-			else
+			elif [[ ! -f ${OUT_AMLOGIC_DIR}/modules/${module_name} ]]; then
 				echo "warning unrecognized module: ${module}"
 			fi
 		done < ${DIST_DIR}/modules.load
 
-		dep_file=`find ${BAZEL_OUT} -name "*.dep" | grep "amlogic"`
+		dep_file=`find ${BAZEL_OUT} -name "*.dep" | grep -w "${project_modules_install}"`
 		cp ${dep_file} ${OUT_AMLOGIC_DIR}/modules/full_modules.dep
 		if [[ -n ${ANDROID_PROJECT} ]]; then
 			grep -E "^kernel/|^extra/common_drivers/|^common_drivers/" ${dep_file} > ${OUT_AMLOGIC_DIR}/modules/modules1.dep
@@ -945,20 +941,13 @@ function modules_install() {
 	popd
 
 	if [[ ${BAZEL} == "1" ]]; then
-		if [[ -f ${DIST_DIR}/vmlinux ]]; then
-			cp ${DIST_DIR}/vmlinux ${OUT_AMLOGIC_DIR}/symbols
-		else
-			vmlinux_file=`find ${BAZEL_OUT} -name vmlinux | grep kernel_aarch64`
-			cp ${vmlinux_file} ${OUT_AMLOGIC_DIR}/symbols
-		fi
-
-		find ${BAZEL_OUT} -name *.ko | grep "unstripped" | while read module; do
-		        cp ${module} ${OUT_AMLOGIC_DIR}/symbols
-		done
+		cp ${DIST_DIR}/vmlinux ${OUT_AMLOGIC_DIR}/symbols
+		cp ${DIST_DIR}/System.map ${OUT_AMLOGIC_DIR}/symbols
+		tar -xzf ${DIST_DIR}/unstripped_modules.tar.gz -C ${OUT_AMLOGIC_DIR}/symbols --strip-components=1 unstripped/
 
 		pushd ${ROOT_DIR}/bazel-out/k8-fastbuild
-		AMLOGIC_CONFIG=`find -name .config | grep amlogic_config`
-		KERNEL_AARCH64_CONFIG=`find -name .config | grep kernel_aarch64_config`
+		AMLOGIC_CONFIG=`find -name .config | grep -w "${project_config}"`
+		KERNEL_AARCH64_CONFIG=`find -name .config | grep kernel_aarch64_tv_config`
 		cp ${AMLOGIC_CONFIG} ${DIST_DIR}/amlogic.config
 		cp ${KERNEL_AARCH64_CONFIG} ${DIST_DIR}/.config
 		cp ${AMLOGIC_CONFIG} ${OUT_AMLOGIC_DIR}/symbols/amlogic.config
@@ -1138,7 +1127,7 @@ function abi_symbol_list_detect () { # detect symbol information that should be 
 			continue
 		fi
 
-		local symbol_tmp=`mktemp tmp.XXXXXXXXXXXX`
+		local symbol_tmp=`mktemp ${OUT_AMLOGIC_DIR}/tmp/tmp.XXXXXXXXXXXX`
 		reorganized_abi_symbol_list_file "${file}"
 
 		if [[ -s ${symbol_tmp} ]]; then
@@ -1416,13 +1405,15 @@ export -f build_part_of_kernel
 
 function export_env_variable () {
 	export ABI BUILD_CONFIG LTO KMI_SYMBOL_LIST_STRICT_MODE CHECK_DEFCONFIG MANUAL_INSMOD_MODULE ARCH
-	export KERNEL_DIR COMMON_DRIVERS_DIR BUILD_DIR ANDROID_PROJECT GKI_CONFIG UPGRADE_PROJECT ANDROID_VERSION FAST_BUILD CHECK_GKI_20 DEV_CONFIGS
-	export FULL_KERNEL_VERSION BAZEL PREBUILT_GKI KASAN FATLOAD DDK_BUILD
+	export KERNEL_DIR COMMON_DRIVERS_DIR BUILD_DIR ANDROID_PROJECT GKI_CONFIG UPGRADE_PROJECT ANDROID_VERSION
+	export FAST_BUILD CHECK_GKI_20 DEV_CONFIGS
+	export FULL_KERNEL_VERSION BAZEL PREBUILT_GKI KASAN FATLOAD DDK_BUILD PACKAGE
 
 	echo ROOT_DIR=$ROOT_DIR
-	echo ABI=${ABI} BUILD_CONFIG=${BUILD_CONFIG} LTO=${LTO} KMI_SYMBOL_LIST_STRICT_MODE=${KMI_SYMBOL_LIST_STRICT_MODE} CHECK_DEFCONFIG=${CHECK_DEFCONFIG} MANUAL_INSMOD_MODULE=${MANUAL_INSMOD_MODULE} FATLOAD=${FATLOAD} DDK_BUILD=${DDK_BUILD}
-	echo KERNEL_DIR=${KERNEL_DIR} COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR} BUILD_DIR=${BUILD_DIR} ANDROID_PROJECT=${ANDROID_PROJECT} GKI_CONFIG=${GKI_CONFIG} UPGRADE_PROJECT=${UPGRADE_PROJECT} ANDROID_VERSION=${ANDROID_VERSION}  FAST_BUILD=${FAST_BUILD} CHECK_GKI_20=${CHECK_GKI_20}
-	echo FULL_KERNEL_VERSION=${FULL_KERNEL_VERSION} BAZEL=${BAZEL} PREBUILT_GKI=${PREBUILT_GKI} KASAN=${KASAN}
+	echo ABI=${ABI} BUILD_CONFIG=${BUILD_CONFIG} LTO=${LTO} KMI_SYMBOL_LIST_STRICT_MODE=${KMI_SYMBOL_LIST_STRICT_MODE} CHECK_DEFCONFIG=${CHECK_DEFCONFIG} MANUAL_INSMOD_MODULE=${MANUAL_INSMOD_MODULE} ARCH=${ARCH}
+	echo KERNEL_DIR=${KERNEL_DIR} COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR} BUILD_DIR=${BUILD_DIR} ANDROID_PROJECT=${ANDROID_PROJECT} GKI_CONFIG=${GKI_CONFIG} UPGRADE_PROJECT=${UPGRADE_PROJECT} ANDROID_VERSION=${ANDROID_VERSION}
+	echo FAST_BUILD=${FAST_BUILD} CHECK_GKI_20=${CHECK_GKI_20}
+	echo FULL_KERNEL_VERSION=${FULL_KERNEL_VERSION} BAZEL=${BAZEL} PREBUILT_GKI=${PREBUILT_GKI} KASAN=${KASAN} FATLOAD=${FATLOAD} DDK_BUILD=${DDK_BUILD} PACKAGE=${PACKAGE}
 	echo MENUCONFIG=${MENUCONFIG} BASICCONFIG=${BASICCONFIG} IMAGE=${IMAGE} MODULES=${MODULES} DTB_BUILD=${DTB_BUILD}
 	echo AMLOGIC_R_USER_DIFFCONFIG=${AMLOGIC_R_USER_DIFFCONFIG} CONFIG_BOOTIMAGE=${CONFIG_BOOTIMAGE}
 }
@@ -1553,6 +1544,14 @@ function handle_input_parameters () {
 			DDK_BUILD=1
 			shift
 			;;
+		--package)
+			ANDROID_PROJECT=$2
+			PACKAGE=1
+			BAZEL=1
+			GKI_CONFIG=gki_20
+			VA=1
+			shift
+			;;
 		-h|--help)
 			show_help
 			exit 0
@@ -1611,7 +1610,7 @@ function set_default_parameters () {
 	fi
 
 	if [[ -n ${ANDROID_PROJECT} && "${GKI_CONFIG}" == "gki_20" && -z ${FATLOAD} && -z ${KASAN} ]]; then
-		if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
+		if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} || "${PACKAGE}" == "1" ]]; then
 			AUTO_PATCH=False	# google kernel build
 		else
 			PATCH_PARM=non_common	# amlogic kernel build
@@ -1712,6 +1711,190 @@ function auto_patch_to_common_dir () {
 	fi
 }
 export -f auto_patch_to_common_dir
+
+function build_kernel_with_bazel() {
+	source ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
+	if [[ "${GKI_CONFIG}" != "gki_20" && -n ${DDK_BUILD} ]]; then
+		echo "The drivers in the common_drivers directory can be compiled with DDK only in the gki_20 mode!!!"
+		exit
+	fi
+	args="$@ --config=fast"
+	[[ -n ${DDK_BUILD} ]] && args="${args} --jobs=12 --experimental_optimize_ddk_config_actions"
+	[[ -n ${DDK_BUILD} && -n ${ANDROID_PROJECT} ]] && args="${args} --debug_modpost_warn"
+	[[ -z ${SYS_SKIP_GIT} ]] && args="${args}"
+	[[ -z ${PREBUILT_GKI} ]] && args="${args}"
+	[[ -z ${GKI_CONFIG} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
+	[[ -d ${ROOT_DIR}/common_drivers ]] && args="${args} --config=common_drivers_on_top"
+
+	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project
+	[[ -d ${PROJECT_DIR} ]] || mkdir -p ${PROJECT_DIR}
+
+	#pushd ${ROOT_DIR}/${KERNEL_DIR}
+	#git checkout android/abi_gki_aarch64_amlogic
+	#cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic >> android/abi_gki_aarch64_amlogic
+	#cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic.10 >> android/abi_gki_aarch64_amlogic
+	#cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic.debug >> android/abi_gki_aarch64_amlogic
+	#cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic.illegal >> android/abi_gki_aarch64_amlogic
+	#popd
+
+	if [[ ! -f ${PROJECT_DIR}/build.config.project ]]; then
+		touch ${PROJECT_DIR}/build.config.project
+		echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/build.config.project
+		echo 						>> ${PROJECT_DIR}/build.config.project
+	fi
+	sed -i "/ANDROID_PROJECT/d" ${PROJECT_DIR}/build.config.project
+	echo "ANDROID_PROJECT=${ANDROID_PROJECT}"		>> ${PROJECT_DIR}/build.config.project
+	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/build.config.project
+	echo "UPGRADE_PROJECT=${UPGRADE_PROJECT}"		>> ${PROJECT_DIR}/build.config.project
+	sed -i "/DEV_CONFIGS/d" ${PROJECT_DIR}/build.config.project
+	echo "DEV_CONFIGS=\"${DEV_CONFIGS}\""			>> ${PROJECT_DIR}/build.config.project
+	sed -i "/GKI_CONFIG/d" ${PROJECT_DIR}/build.config.project
+	if [[ -z ${GKI_CONFIG} ]]; then
+		echo "GKI_CONFIG=non_gki"			>> ${PROJECT_DIR}/build.config.project
+	else
+		echo "GKI_CONFIG=${GKI_CONFIG}"			>> ${PROJECT_DIR}/build.config.project
+	fi
+	sed -i "/COMMON_DRIVERS_DIR/d" ${PROJECT_DIR}/build.config.project
+	echo "COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR}" 	>> ${PROJECT_DIR}/build.config.project
+	sed -i "/FATLOAD/d" ${PROJECT_DIR}/build.config.project
+	echo "FATLOAD=${FATLOAD}" 				>> ${PROJECT_DIR}/build.config.project
+	sed -i "/KASAN/d" ${PROJECT_DIR}/build.config.project
+	echo "KASAN=${KASAN}"					>> ${PROJECT_DIR}/build.config.project
+	sed -i "/CHECK_GKI_20/d" ${PROJECT_DIR}/build.config.project
+	echo "CHECK_GKI_20=${CHECK_GKI_20}"			>> ${PROJECT_DIR}/build.config.project
+	sed -i "/DDK_BUILD/d" ${PROJECT_DIR}/build.config.project
+	echo "DDK_BUILD=${DDK_BUILD}"				>> ${PROJECT_DIR}/build.config.project
+	sed -i "/AUTO_PATCH/d" ${PROJECT_DIR}/build.config.project
+	echo "AUTO_PATCH=${AUTO_PATCH}"				>> ${PROJECT_DIR}/build.config.project
+	BUILD_TIME=`date +%Y.%m.%d-%H.%M.%S`
+	sed -i "/BUILD_TIME/d" ${PROJECT_DIR}/build.config.project
+	echo "BUILD_TIME=${BUILD_TIME}"				>> ${PROJECT_DIR}/build.config.project
+
+	if [[ -z ${ANDROID_PROJECT} ]]; then
+		[[ -f ${PROJECT_DIR}/Kconfig.ext_modules ]] && rm -rf ${PROJECT_DIR}/Kconfig.ext_modules
+		touch ${PROJECT_DIR}/Kconfig.ext_modules
+		echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/Kconfig.ext_modules
+		echo 						>> ${PROJECT_DIR}/Kconfig.ext_modules
+
+		[[ -f ${PROJECT_DIR}/project.bzl ]] && rm -f ${PROJECT_DIR}/project.bzl
+		touch ${PROJECT_DIR}/project.bzl
+		echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/project.bzl
+		echo 						>> ${PROJECT_DIR}/project.bzl
+
+		echo 						>> ${PROJECT_DIR}/project.bzl
+		echo "project_configs = struct ("		>> ${PROJECT_DIR}/project.bzl
+		echo "    EXT_MODULES_ANDROID = [" 		>> ${PROJECT_DIR}/project.bzl
+		echo "    ]," 					>> ${PROJECT_DIR}/project.bzl
+
+		echo 						>> ${PROJECT_DIR}/project.bzl
+		echo "    MODULES_OUT_REMOVE = [" 		>> ${PROJECT_DIR}/project.bzl
+		echo "    ]," 					>> ${PROJECT_DIR}/project.bzl
+
+		echo 						>> ${PROJECT_DIR}/project.bzl
+		echo "    MODULES_OUT_ADD = [" 			>> ${PROJECT_DIR}/project.bzl
+		echo "    ]," 					>> ${PROJECT_DIR}/project.bzl
+
+		echo 						>> ${PROJECT_DIR}/project.bzl
+		echo "    KCONFIG_EXT_SRCS = [" 		>> ${PROJECT_DIR}/project.bzl
+		echo "    ]," 					>> ${PROJECT_DIR}/project.bzl
+	fi
+
+	echo 							>> ${PROJECT_DIR}/project.bzl
+	echo "    BRANCH = \"${BRANCH}\"," 			>> ${PROJECT_DIR}/project.bzl
+
+	echo "    FULL_KERNEL_VERSION = \"${FULL_KERNEL_VERSION}\"," >> ${PROJECT_DIR}/project.bzl
+
+	echo "    ANDROID_PROJECT = \"${ANDROID_PROJECT}\"," 	>> ${PROJECT_DIR}/project.bzl
+
+	if [[ -n ${ANDROID_PROJECT} && -z ${FATLOAD} ]]; then
+		echo "    EXTRA_ANDROID_MODULE = True,"		>> ${PROJECT_DIR}/project.bzl
+	else
+		echo "    EXTRA_ANDROID_MODULE = False,"	>> ${PROJECT_DIR}/project.bzl
+	fi
+
+	if [[ -z ${GKI_CONFIG} ]]; then
+		echo "    GKI_CONFIG = \"non_gki\","		>> ${PROJECT_DIR}/project.bzl
+	else
+		echo "    GKI_CONFIG = \"${GKI_CONFIG}\","	>> ${PROJECT_DIR}/project.bzl
+	fi
+
+	echo "    AUTO_PATCH = \"${AUTO_PATCH}\","		>> ${PROJECT_DIR}/project.bzl
+
+	echo "    BUILD_TIME = \"${BUILD_TIME}\","		>> ${PROJECT_DIR}/project.bzl
+
+	cd ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/
+	COMMON_DRIVERS_RELEASE=$(git rev-parse --verify HEAD)
+	cd - >> /dev/null
+	echo "    COMMON_DRIVERS_RELEASE = \"${COMMON_DRIVERS_RELEASE}\"," >> ${PROJECT_DIR}/project.bzl
+
+	if [[ "${DDK_BUILD}" == "1" ]]; then
+		echo "    DDK_BUILD = True,"			>> ${PROJECT_DIR}/project.bzl
+	else
+		echo "    DDK_BUILD = False,"			>> ${PROJECT_DIR}/project.bzl
+	fi
+
+	echo "    UPGRADE_PROJECT = \"${UPGRADE_PROJECT}\"," 	>> ${PROJECT_DIR}/project.bzl
+
+	echo 							>> ${PROJECT_DIR}/project.bzl
+	echo "    DTBO_DEVICETREE = ["				>> ${PROJECT_DIR}/project.bzl
+	if [[ -n ${DTBO_DEVICETREE} ]]; then
+		echo "        \"${DTBO_DEVICETREE}\","		>> ${PROJECT_DIR}/project.bzl
+	fi
+	echo "    ],"						>> ${PROJECT_DIR}/project.bzl
+
+	echo "    VENDOR_KERNEL_BUILD = \"${VENDOR_KERNEL_BUILD}\","	>> ${PROJECT_DIR}/project.bzl
+	echo							>> ${PROJECT_DIR}/project.bzl
+
+	echo "    AMLOGIC_DTBS = ["				>> ${PROJECT_DIR}/project.bzl
+	grep -rn -E 'dtbo-y|dtb-y' ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/*/Makefile | awk -F 'Makefile| |=+' '{print "        \"" $NF "\","}' >> ${PROJECT_DIR}/project.bzl
+	echo "    ],"						>> ${PROJECT_DIR}/project.bzl
+	echo							>> ${PROJECT_DIR}/project.bzl
+
+	make_kconfig_and_makefile_filesrc
+	echo							>> ${PROJECT_DIR}/project.bzl
+
+	echo ")"						>> ${PROJECT_DIR}/project.bzl
+
+	if [[ "${GKI_CONFIG}" != "gki_20" || -n ${KASAN} || -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
+		args="${args} --gki_build_config_fragment=//common_drivers:amlogic_build_config_fragment"
+	fi
+
+	if [[ ${GKI_CONFIG} != gki_20 || -n ${KASAN} || -n ${CHECK_GKI_20} ]]; then
+		args="${args} --allow_undeclared_modules"
+	fi
+
+	[[ -n ${KASAN} ]] && args="${args} --kasan"
+
+	if [[ -n ${CHECK_GKI_20} ]]; then
+		args="${args} --lto=none --notrim --nokmi_symbol_list_strict_mode"
+	fi
+
+	echo args=${args}
+	set -x
+	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
+		if [[ ${GKI_CONFIG} != gki_20 || ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} =~ "--kasan" ]]; then
+			GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} \
+								--gki_build_config_fragment=//common_drivers:amlogic_build_config_fragment \
+								--allow_undeclared_modules"
+			if [[ -z ${GKI_CONFIG} ]]; then
+				GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} --notrim \
+								--nokmi_symbol_list_strict_mode"
+			fi
+		fi
+		[[ -d ${ROOT_DIR}/common_drivers ]] && google_args="${google_args} --config=common_drivers_on_top --debug_modpost_warn"
+		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  ${google_args} --config=fast
+	elif [[ "${ABI}" -eq "1" ]]; then
+		tools/bazel run //common_drivers:amlogic_abi_update_symbol_list ${args}
+		#tools/bazel run //common:kernel_aarch64_abi_update -- --print_git_commands
+		exit
+	elif [[ -n ${PREBUILT_GKI} ]]; then
+		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common_drivers:amlogic_dist ${args}
+	else
+		tools/bazel run //common_drivers:amlogic_dist ${args}
+	fi
+	set +x
+}
+export -f build_kernel_with_bazel
 
 function build_ext_modules() {
 	for EXT_MOD in ${EXT_MODULES}; do
@@ -2128,7 +2311,7 @@ function generate_lzma_format_image () {
 export -f generate_lzma_format_image
 
 function build_ext_module_without_bazel {
-	if [ ${BAZEL} != 1 ];then
+	if [[ ${BAZEL} != 1 || "${PACKAGE}" == 1 ]]; then
 		return
 	fi
 	echo "========================================================"
@@ -2169,16 +2352,16 @@ function build_ext_module_without_bazel {
 export -f build_ext_module_without_bazel
 
 function make_kconfig_and_makefile_filesrc () {
-	temp_file=`mktemp /tmp/files.XXXXXXXXXXXX`
+	temp_file=`mktemp ${OUT_AMLOGIC_DIR}/tmp/files.XXXXXXXXXXXX`
 
 	find "${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}" -path "${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project" -prune -o -name BUILD.bazel -print > "${temp_file}"
-	sed -i 's|.*common_drivers/\(.*\)/[^/]*$|  "//common_drivers\/\1:m_k_files",|' ${temp_file}
+	sed -i 's|.*common_drivers/\(.*\)/[^/]*$|        "//common_drivers\/\1:m_k_files",|' ${temp_file}
 	sed -i '/.*\/BUILD\.bazel/d' ${temp_file}
 
 	echo 						>> ${PROJECT_DIR}/project.bzl
-	echo "COMMON_DRIVERS_KCONFIG_AND_MAKEFILE = [" 	>> ${PROJECT_DIR}/project.bzl
-	cat ${temp_file}				>> ${PROJECT_DIR}/project.bzl
-	echo "]" 					>> ${PROJECT_DIR}/project.bzl
+	echo "    COMMON_DRIVERS_KCONFIG_AND_MAKEFILE = [" 	>> ${PROJECT_DIR}/project.bzl
+	cat ${temp_file} | sort				>> ${PROJECT_DIR}/project.bzl
+	echo "    ]," 					>> ${PROJECT_DIR}/project.bzl
 	rm ${temp_file}
 }
 

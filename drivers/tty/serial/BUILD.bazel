@@ -1,12 +1,8 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
-load("//common_drivers:modules.bzl", "AMLOGIC_DDK_MODULES")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files")
+load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
 
 m_k_files()
 
-amlogic_uart_deps0 = [
-]
-amlogic_uart_deps = [i for i in amlogic_uart_deps0 if i in AMLOGIC_DDK_MODULES]
 ddk_module(
     name = "amlogic-uart",
     srcs = glob([
@@ -24,6 +20,8 @@ ddk_module(
     ],
     local_defines = ["pr_fmt(fmt)=\"[uart]: \" fmt"],
     out = "amlogic-uart.ko",
-    kernel_build = "//common_drivers:amlogic",
+    kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
+    deps = [
+    ],
 )
