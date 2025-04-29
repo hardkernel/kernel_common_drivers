@@ -12270,6 +12270,32 @@ void vd_clip_setting_s5(u8 vpp_index, u8 layer_id,
 		vd2_clip_setting_s5(vpp_index, &vd_layer[layer_id], setting);
 }
 
+void post_blend_dummy_data_update_s5(u32 vpp_index)
+{
+	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
+	struct vpp_post_blend_reg_s *vpp_reg = &vpp_post_reg.vpp_post_blend_reg;
+
+	u32 bg_color;
+
+	if (vd_layer[0].enabled)
+		bg_color = vd_layer[0].video_en_bg_color;
+	else
+		bg_color = vd_layer[0].video_dis_bg_color;
+
+	/* for channel background setting
+	 * no auto flag, return
+	 */
+	if (!(bg_color & VIDEO_AUTO_POST_BLEND_DUMMY))
+		return;
+
+	rdma_wr(vpp_reg->vpp_post_blend_blend_dummy_data, bg_color & 0x00ffffff);
+	rdma_wr_bits(vpp_reg->vpp_post_blend_dummy_alpha,
+		vd_layer[0].dummy_alpha | 0x000 << 16, 0, 32);
+	rdma_wr_bits(vpp_reg->vpp_post_blend_dummy_alpha1,
+		0x000 | 0x000 << 16, 0, 32);
+}
+
 void vpp_post_blend_update_s5(const struct vinfo_s *vinfo, u8 vpp_index)
 {
 	struct vpp_post_input_s *vpp_input;
@@ -12291,6 +12317,7 @@ void vpp_post_blend_update_s5(const struct vinfo_s *vinfo, u8 vpp_index)
 	vpp_post_param_set(vpp_input, &g_vpp_post.vpp0_post);
 	vpp_post_set(vpp_index, &g_vpp_post);
 	update_vpp_post_amdv_info(vpp_index, &g_vpp_post);
+	post_blend_dummy_data_update_s5(vpp_index);
 }
 
 void vpp1_post_blend_update_s5(const struct vinfo_s *vinfo)
@@ -13448,7 +13475,7 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 	vd_layer[0].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[1].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[2].misc_reg_offt = 0 + cur_dev->vpp_off;
-	vd_layer[0].dummy_alpha = 0x7fffffff;
+	vd_layer[0].dummy_alpha = 0x100;
 	cur_dev->mif_linear = p_amvideo->mif_linear;
 	cur_dev->display_module = p_amvideo->display_module;
 	cur_dev->max_vd_layers = p_amvideo->max_vd_layers;

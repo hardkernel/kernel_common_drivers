@@ -6924,6 +6924,9 @@ void set_post_blend_dummy_data(u32 vpp_index,
 		vd_layer[0].video_en_bg_color = dummy_data;
 		vd_layer[0].video_dis_bg_color = dummy_data;
 		vd_layer[0].dummy_alpha = dummy_alpha;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		force_vpp_blend_update = true;
+#endif
 	}
 }
 EXPORT_SYMBOL(set_post_blend_dummy_data);

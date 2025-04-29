@@ -8218,6 +8218,7 @@ static ssize_t video_background_store(const struct class *cla,
 			 parsed[0], parsed[1]);
 		vd_layer[0].video_en_bg_color = parsed[0];
 		vd_layer[0].video_dis_bg_color = parsed[1];
+		force_vpp_blend_update = true;
 	} else {
 		pr_err("video_background: wrong input params\n");
 		return -EINVAL;

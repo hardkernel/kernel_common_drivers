@@ -487,8 +487,8 @@ static void vpp_post_blend_set(u32 vpp_index,
 	}
 	rdma_wr(vpp_reg->vpp_postblend_h_v_size,
 		vpp_blend->bld_out_padding_w | vpp_blend->bld_out_padding_h << 16);
-	rdma_wr(vpp_reg->vpp_post_blend_blend_dummy_data,
-		vpp_blend->bld_dummy_data);
+	//rdma_wr(vpp_reg->vpp_post_blend_blend_dummy_data,
+	//	vpp_blend->bld_dummy_data);
 	rdma_wr_bits(vpp_reg->vpp_post_blend_dummy_alpha,
 		0x100 | 0x000 << 16, 0, 32);
 	// blend0_dummy_alpha|blend1_dummy_alpha<<16
