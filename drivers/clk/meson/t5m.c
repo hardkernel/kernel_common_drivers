@@ -216,6 +216,11 @@ static struct clk_regmap t5m_gp0_pll = {
 			.shift   = 0,
 			.width   = 9,
 		},
+		.frac = {
+			.reg_off = ANACTRL_GP0PLL_CTRL1,
+			.shift   = 0,
+			.width   = 17,
+		},
 		.n = {
 			.reg_off = ANACTRL_GP0PLL_CTRL0,
 			.shift   = 16,
@@ -240,7 +245,7 @@ static struct clk_regmap t5m_gp0_pll = {
 		.od_max = 4,
 		.init_regs = t5m_gp0_init_regs,
 		.init_count = ARRAY_SIZE(t5m_gp0_init_regs),
-		.flags = CLK_MESON_PLL_FIXED_N,
+		.flags = CLK_MESON_PLL_FIXED_N | CLK_MESON_PLL_NOINIT_ENABLED,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
@@ -252,7 +257,7 @@ static struct clk_regmap t5m_gp0_pll = {
 		/*
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
