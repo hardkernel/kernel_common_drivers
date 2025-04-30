@@ -12379,6 +12379,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	static bool last_amdv_status;
 	static bool amdv_status;
 #endif
+	bool sideband = false;
 
 	if (cur_dev->display_module != S5_DISPLAY_MODULE)
 		return;
@@ -12557,6 +12558,17 @@ slice_calc_exit:
 	}
 	last_amdv_status = amdv_status;
 #endif
+	//game && 4k2k120hz output && 4k input && > 60hz, enable vpu sideband
+	//duration = 1600 60hz, duration = 800 120hz
+	if ((vf->flag & VFRAME_FLAG_GAME_MODE) &&
+		(vinfo->width > 1920 && vinfo->height >= 1080 &&
+		(vinfo->sync_duration_num /
+		vinfo->sync_duration_den >= 120)) &&
+		(src_width >= 3840 && src_height >= 2160) &&
+		vf->duration < 1500)
+		sideband = true;
+	if (video_is_meson_t3x_cpu())
+		set_vpu_sideband_enable(sideband);
 }
 
 /* for dw */

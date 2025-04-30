@@ -193,4 +193,5 @@ int vpu_arb_register(enum vpu_arb_mod_e module, void *cb);
 int vpu_arb_unregister(enum vpu_arb_mod_e module);
 int vpu_arb_config(enum vpu_arb_mod_e module, u32 urgent_value);
 void init_di_arb_urgent(void);
+void set_vpu_sideband_enable(u32 enable);
 #endif

@@ -209,5 +209,4 @@ void vpu_power_on(void);
 void vpu_power_off(void);
 void vpu_power_on_new(void);
 void vpu_power_off_new(void);
-
 #endif

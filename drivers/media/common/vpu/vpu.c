@@ -43,7 +43,10 @@
 /* v20231129: add s6 support */
 #define VPU_VERSION        "v20240123"
 
-int vpu_debug_print_flag;
+u32 vpu_sideband_en = 0xff; /* 1:enable, 0:disable, 0xff:auto */
+u32 vpu_sideband_level_up;
+u32 vpu_sideband_level_down;
+int vpu_debug_print_flag = 1;
 unsigned int vpu_print_level;
 static spinlock_t vpu_mem_lock;
 static spinlock_t vpu_clk_gate_lock;
@@ -1769,6 +1772,161 @@ static ssize_t vpu_debug_reg_store(const struct class *class,
 	return count;
 }
 
+static u32 vpu_arb_urg_ctrl;
+static u32 vpp_ofifo_urg_ctrl;
+static u32 vpp_ofifo_urg_ctrl_slice1;
+//static u32 vpp_ofifo_urg_ctrl_slice2;
+//static u32 vpp_ofifo_urg_ctrl_slice3;
+
+static void set_vpu_sideband_init(void)
+{
+	u32 sideband_up = 0, sideband_down = 0;
+	u32 sideband_level = 0;
+	u32 dmc_reg_value = 0;
+
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7) {
+		vpu_arb_urg_ctrl = VPU_ARB_URG_CTRL;
+		vpp_ofifo_urg_ctrl = VPP_OFIFO_URG_CTRL;
+		//bit15； urgent_ctrl_en
+		//fifo cnt < 256xsideband_down pixel
+		//fifo cnt > 256xsideband_up pixel, sideband worked
+		sideband_level = vpu_vcbus_read(vpp_ofifo_urg_ctrl);
+		sideband_level |= 1 << 15;
+		sideband_up = 8;
+		sideband_down = 5;
+		sideband_level |= (sideband_up << 6 | sideband_down);
+		//set vpu sideband level
+		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
+
+		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
+		//block cpu and gpu
+		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, 0xFFFFB);
+		vpu_dmc1_write(DMC_AXI2_CHAN_CTRL1, 0xFFFFB);
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+		vpu_arb_urg_ctrl = VPU_ARB_URG_CTRL1_T3X;
+		vpp_ofifo_urg_ctrl = VPP_OFIFO_URG_CTRL_T3X;
+		vpp_ofifo_urg_ctrl_slice1 = VPP_SLICE1_OFIFO_URG_CTRL_T3X;
+		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
+		//bit15； urgent_ctrl_en
+		//fifo cnt < 256xsideband_down pixel
+		//fifo cnt > 256xsideband_up pixel, sideband worked
+		sideband_level = vpu_vcbus_read(vpp_ofifo_urg_ctrl);
+		sideband_level |= 1 << 15;
+		sideband_up = 8;
+		sideband_down = 5;
+		sideband_level |= (sideband_up << 6 | sideband_down);
+		//set vpu sideband level
+		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
+		vpu_vcbus_write(vpp_ofifo_urg_ctrl_slice1, sideband_level);
+
+		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
+		//enable vpu read, block cpu and gpu
+		dmc_reg_value = vpu_dmc0_read(DMC_AXI2_CHAN_CTRL1);
+		dmc_reg_value |= ((0 << 16) | (1 << 20) | (1 << 26));
+		//pr_info("dmc_reg_value=0x%x\n", dmc_reg_value);
+		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
+		vpu_dmc1_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
+	}
+}
+
+void set_vpu_sideband_enable(u32 enable)
+{
+	static u32 enable_pre;
+
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+		if (vpu_sideband_en != 0xff)
+			enable = vpu_sideband_en;
+		else if (enable == 0xff)
+			return;
+		if (enable != enable_pre) {
+			//enable sideband
+			vpu_vcbus_setb(vpu_arb_urg_ctrl, enable, 28, 1);
+			//enable vpp0 ofifo
+			vpu_vcbus_setb(vpu_arb_urg_ctrl, enable, 0, 1);
+			if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+				vpu_dmc0_setb(DMC_AXI2_CHAN_CTRL1, enable, 16, 1);
+				vpu_dmc1_setb(DMC_AXI2_CHAN_CTRL1, enable, 16, 1);
+			}
+			VPUPR("%s,enable=%d, enable_pre=%d, vpu_sideband_en=%d\n",
+				__func__, enable, enable_pre, vpu_sideband_en);
+		}
+		enable_pre = enable;
+	}
+}
+EXPORT_SYMBOL(set_vpu_sideband_enable);
+
+static void set_vpu_sideband_level_set(u32 sideband_up, u32 sideband_down)
+{
+	u32 sideband_level;
+
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+		//set vpu sideband level
+		//bit15； urgent_ctrl_en
+		//fifo cnt < 256xsideband_down pixel
+		//fifo cnt > 256xsideband_up pixel, sideband worked
+		sideband_level = vpu_vcbus_read(vpp_ofifo_urg_ctrl);
+		sideband_level &= ~0xfff;
+		sideband_level |= 1 << 15;
+		sideband_level |= (sideband_up << 6 | sideband_down);
+		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
+		if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+			//set vpu sideband level
+			vpu_vcbus_write(vpp_ofifo_urg_ctrl_slice1, sideband_level);
+		}
+	}
+}
+
+static ssize_t vpu_sideband_show(const struct class *class,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	return sprintf(buf, "vpu_sideband_en: %d\n",
+		vpu_sideband_en);
+}
+
+static ssize_t vpu_sideband_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int res;
+
+	ret = kstrtoint(buf, 0, &res);
+	vpu_sideband_en = res;
+	set_vpu_sideband_enable(res);
+	pr_info("set vpu_sideband_en: %d\n", res);
+
+	return count;
+}
+
+static ssize_t vpu_sideband_level_show(const struct class *class,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	return sprintf(buf, "vpu sideband level up/down(%d~%d)\n",
+		vpu_sideband_level_up,
+		vpu_sideband_level_down);
+}
+
+static ssize_t vpu_sideband_level_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		vpu_sideband_level_up = parsed[0];
+		vpu_sideband_level_down = parsed[1];
+		set_vpu_sideband_level_set(vpu_sideband_level_up, vpu_sideband_level_down);
+	} else {
+		pr_err("echo sideband_level_up  sideband_level_down > vpu_sideband_level\n");
+		return -EINVAL;
+	}
+	return count;
+}
+
 static struct class_attribute vpu_debug_class_attrs[] = {
 	__ATTR(clk,         0644, NULL, vpu_clk_debug),
 	__ATTR(mem,         0644, NULL, vpu_mem_debug),
@@ -1783,6 +1941,8 @@ static struct class_attribute vpu_debug_class_attrs[] = {
 	__ATTR(print,       0644, vpu_debug_print_show, vpu_debug_print_store),
 	__ATTR(reg,         0644, vpu_debug_reg_show, vpu_debug_reg_store),
 	__ATTR(info,        0444, vpu_debug_info, NULL),
+	__ATTR(sideband_en,    0644, vpu_sideband_show, vpu_sideband_store),
+	__ATTR(sideband_level, 0644, vpu_sideband_level_show, vpu_sideband_level_store),
 	__ATTR(help,        0444, vpu_debug_help, NULL),
 };
 
@@ -3213,6 +3373,9 @@ static int vpu_probe(struct platform_device *pdev)
 	mutex_lock(&vpu_clk_mutex);
 	set_vpu_clk(vpu_conf.clk_level);
 	mutex_unlock(&vpu_clk_mutex);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	set_vpu_sideband_init();
+#endif
 	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
 		vpu_conf.data->chip_type == VPU_CHIP_S6 ||
 		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
