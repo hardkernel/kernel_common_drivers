@@ -338,6 +338,9 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics,
 	struct drm_display_mode *mode, *pref_mode = NULL;
 	struct drm_hdmitx_timing_para para;
 	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+#endif
 	bool pref_flag;
 	struct meson_drm *priv;
 	struct meson_of_conf *conf;
@@ -440,6 +443,14 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics,
 					pref_mode = mode;
 			}
 		}
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+		if (count == 1) {
+			pref_mode = mode;
+		} else {
+			if (vics[i] == tx_comm->rxcap.dtd[0].vic)
+				pref_mode = mode;
+		}
+#endif
 
 		drm_mode_probed_add(connector, mode);
 
