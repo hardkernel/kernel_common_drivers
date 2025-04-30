@@ -50,6 +50,7 @@ struct codec_mm_scatter_owner {
 	char owner_name[SC_OWEN_NAME_LEN];
 	u32 owner_id;
 	u32 cache_keep_size;
+	u32 limited_size;
 	struct list_head owner_list;
 };
 
@@ -129,5 +130,8 @@ int codec_mm_scatter_owner_register(char *owner_name,
 int codec_mm_scatter_owner_unregister(int owner_id,
 		int is_tvp);
 u32 codec_mm_scatter_get_slot_size(bool is_tvp);
+
+int codec_mm_scatter_set_limited_size(u32 owner_id,
+	u32 limited_size, int is_tvp);
 
 #endif

@@ -72,6 +72,11 @@ int scatter_swap_threshold_size = 20;
  * bit[4]	scatter info
  * bit[5]	slot info
  */
+static int scatter_limited_extra_size;
+module_param(scatter_limited_extra_size, int, 0644);
+static bool enable_scatter_limited_func = true;
+module_param(enable_scatter_limited_func, bool, 0644);
+
 int scatter_debug_mode = 1;
 module_param(scatter_debug_mode, int, 0644);
 
@@ -89,6 +94,7 @@ module_param(scatter_debug_mode, int, 0644);
 #define DUMP_PR_LEVEL	0x0F
 #define DUMP_SC_INFO	0x10
 #define DUMP_SLOT_INFO	0x20
+#define DUMP_NORMAL_INFO	0x40
 
 /*#define PHY_ADDR_NEED_64BITS*/
 #if PAGE_SHIFT >= 12
@@ -246,6 +252,7 @@ struct codec_mm_scatter_mgt {
 	int free_10_100ms_cnt;
 	int free_100ms_up_cnt;
 
+	u64 total_limited_size;
 	struct device *dev;
 	struct delayed_work dealy_work;
 	int scatter_task_run_num;
@@ -966,7 +973,7 @@ static inline int codec_mm_slot_init_bitmap(struct codec_mm_slot *slot)
  *flags : 1. don't used codecmm.
  */
 static struct codec_mm_slot *
-codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
+codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags, bool is_cache)
 {
 	struct codec_mm_slot *slot;
 	struct codec_mm_s *mm;
@@ -975,6 +982,22 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 	int tvp_free_size = 0;
 	int cma_free_size = 0;
 	int alloc_unit_pages = scatter_get_unit_pages();
+	int total_slot_page_size;
+
+	if (enable_scatter_limited_func && is_cache && smgt->total_limited_size &&
+		!smgt->force_cache_on) {
+		codec_mm_list_lock(smgt);
+		total_slot_page_size = smgt->total_page_num - smgt->one_page_cnt;
+		if (total_slot_page_size >= smgt->total_limited_size) {
+			if (scatter_debug_mode & DUMP_NORMAL_INFO)
+				INFO_LOG("total %d total_limited %llu cache %d alloced %d\n",
+					total_slot_page_size, smgt->total_limited_size,
+						smgt->cached_pages, smgt->alloced_page_num);
+			codec_mm_list_unlock(smgt);
+			return NULL;
+		}
+		codec_mm_list_unlock(smgt);
+	}
 
 	/* don't alloc less than one PAGE. */
 	if (try_alloc_size > 0 && try_alloc_size <= PAGE_SIZE)
@@ -1413,7 +1436,7 @@ static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
 					alloc_pages, smgt->cached_pages, smgt->keep_size_PAGE);
 			}
 			/*codec_mm_scatter_info_dump(NULL, 0);*/
-			slot = codec_mm_slot_alloc(smgt, alloc_pages * PAGE_SIZE, 0);
+			slot = codec_mm_slot_alloc(smgt, alloc_pages * PAGE_SIZE, 0, is_cache);
 			if (!slot) {
 				u32 alloc_pages =
 					 smgt->try_alloc_in_cma_page_cnt / 4;
@@ -1422,7 +1445,7 @@ static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
 				 */
 				pr_dbg(INSTR1,  alloc_pages);
 				slot = codec_mm_slot_alloc(smgt, alloc_pages *
-							   PAGE_SIZE, 0);
+							   PAGE_SIZE, 0, is_cache);
 				if (!slot) {
 					pr_dbg("slot alloc 4M fail!\n");
 					break;
@@ -3102,6 +3125,55 @@ int codec_mm_scatter_size(int is_tvp)
 }
 EXPORT_SYMBOL(codec_mm_scatter_size);
 
+void codec_mm_scatter_update_limited_size(struct codec_mm_scatter_mgt *smgt)
+{
+	struct codec_mm_scatter_owner *owner, *tmp;
+	u64 total_size = 0;
+
+	list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list)
+		total_size += owner->limited_size;
+
+	codec_mm_list_lock(smgt);
+	smgt->total_limited_size = total_size;
+	smgt->total_limited_size += scatter_limited_extra_size;
+	if (scatter_debug_mode & DUMP_NORMAL_INFO)
+		INFO_LOG("update limited total_size %llu scatter_limited_extra_size %d\n",
+			smgt->total_limited_size, scatter_limited_extra_size);
+	codec_mm_list_unlock(smgt);
+}
+
+int codec_mm_scatter_set_limited_size(u32 owner_id,
+	u32 limited_size, int is_tvp)
+{
+	struct codec_mm_scatter_mgt *smgt;
+	struct codec_mm_scatter_owner *owner, *tmp;
+	int ret = -1;
+
+	smgt = codec_mm_get_scatter_mgt(is_tvp);
+
+	spin_lock(&smgt->owner_list_lock);
+	if (!list_empty(&smgt->user_list)) {
+		list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list) {
+			if (owner_id == owner->owner_id) {
+				if (scatter_debug_mode & DUMP_NORMAL_INFO)
+					INFO_LOG("id[%d] update limited size %d to %d\n",
+						owner->owner_id, owner->limited_size, limited_size);
+				owner->limited_size = limited_size;
+				ret = 0;
+				break;
+			}
+		}
+		codec_mm_scatter_update_limited_size(smgt);
+	}
+	spin_unlock(&smgt->owner_list_lock);
+	if (ret == -1)
+		ERR_LOG("[%s] owner_id %d set limited size %d\n",
+			__func__, owner_id, limited_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(codec_mm_scatter_set_limited_size);
+
 static void codec_mm_scatter_update_owner_config
 		(struct codec_mm_scatter_mgt *smgt)
 {
@@ -3154,23 +3226,26 @@ int codec_mm_scatter_owner_unregister(int owner_id,
 {
 	struct codec_mm_scatter_owner *owner, *tmp;
 	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(is_tvp);
+	int ret = -1;
 
 	spin_lock(&smgt->owner_list_lock);
-	if (!list_empty(&smgt->user_list))
+	if (!list_empty(&smgt->user_list)) {
 		list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list) {
 			if (owner_id == owner->owner_id) {
 				list_del(&owner->owner_list);
 				kfree(owner);
-				codec_mm_scatter_update_owner_config(smgt);
-				spin_unlock(&smgt->owner_list_lock);
-				return 0;
+				ret = 0;
+				break;
 			}
 		}
+		codec_mm_scatter_update_owner_config(smgt);
+		codec_mm_scatter_update_limited_size(smgt);
+	}
 	spin_unlock(&smgt->owner_list_lock);
-
-	ERR_LOG("not found %d owner in %s owner list\n",
+	if (ret == -1)
+		ERR_LOG("not found %d owner in %s owner list\n",
 			owner_id, is_tvp ? "tvp" : "normal");
-	return -EINVAL;
+	return ret;
 }
 EXPORT_SYMBOL(codec_mm_scatter_owner_unregister);
 
@@ -3183,8 +3258,8 @@ void codec_mm_scatter_owner_dump(void)
 	if (!list_empty(&smgt->user_list)) {
 		INFO_LOG("start dump normal scatter owner:\n");
 		list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list)
-			INFO_LOG("[%d]%s, keep size:%d\n", owner->owner_id,
-				owner->owner_name, owner->cache_keep_size);
+			INFO_LOG("[%d]%s, keep size:%d limited size %u\n", owner->owner_id,
+				owner->owner_name, owner->cache_keep_size, owner->limited_size);
 	} else {
 		INFO_LOG("normal scatter owner list empty.\n");
 	}
@@ -3193,8 +3268,8 @@ void codec_mm_scatter_owner_dump(void)
 	if (!list_empty(&smgt->user_list)) {
 		INFO_LOG("start dump secure scatter owner:\n");
 		list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list)
-			INFO_LOG("[%d]%s keep size:%d\n", owner->owner_id,
-				owner->owner_name, owner->cache_keep_size);
+			INFO_LOG("[%d]%s keep size:%d limited size %u\n", owner->owner_id,
+				owner->owner_name, owner->cache_keep_size, owner->limited_size);
 	} else {
 		INFO_LOG("secure scatter owner list empty.\n");
 	}
@@ -3427,11 +3502,9 @@ static int codec_mm_scatter_scatter_arrange(struct codec_mm_scatter_mgt *smgt)
 			n++;
 		}
 	}
-	if (first_free_mms) {
+	if (first_free_mms)
 		list_move_tail(&mms->list, &smgt->scatter_list);
-		if (scatter_debug_mode & DUMP_SC_INFO)
-			codec_mm_dump_all_scatters_in(smgt);
-	}
+
 	codec_mm_list_unlock(smgt);
 
 	return 0;
