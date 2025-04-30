@@ -756,9 +756,9 @@
 			"", "", "", "", // GPIOH 8 ~ GPIOH 11
 
 			"PIN_33", "PIN_35", "PIN_32", "PIN_36", // GPIOX 0 ~ GPIOX 3
-			"PIN_15", "PIN_11", "PIN_22", "PIN_26", // GPIOX 4 ~ GPIOX 7
+			"PIN_15", "PIN_11", "PIN_12", "PIN_26", // GPIOX 4 ~ GPIOX 7
 			"PIN_19", "PIN_21", "PIN_24", "PIN_23", // GPIOX 8 ~ GPIOX 11
-			"PIN_8", "PIN_10", "PIN_12", "PIN_13", // GPIOX 12 ~ GPIOX 15
+			"PIN_8", "PIN_10", "PIN_22", "PIN_13", // GPIOX 12 ~ GPIOX 15
 			"", "PIN_3", "PIN_5", "", // GPIOX 16 ~ GPIOX 19
 
 			"", "", "", "", // GPIOZ 0 ~ GPIOZ 3
