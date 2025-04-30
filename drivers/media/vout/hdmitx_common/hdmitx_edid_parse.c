@@ -2704,11 +2704,22 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	if (_check_base_structure(edid_check, edid_buf))
 		_edid_parse_base_structure(prxcap, edid_buf);
 
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+	/*
+	 * move parts that may contain cea timing parse behind
+	 * VDB parse, so that to not affect VDB index which
+	 * will be used in Y420CMDB map
+	 */
+	edid_parseceatiming(prxcap, &edid_buf[0x36]);
+	edid_standardtiming(prxcap, &edid_buf[0x26], 8);
+#endif
+
 	for (i = 1; i <= cta_block_count; i++) {
 		if (edid_buf[i * 0x80] == 0x02 || edid_check & 0x01)
 			hdmitx_edid_cta_block_parse(prxcap, &edid_buf[i * 0x80]);
 	}
 
+#if !defined(CONFIG_ARCH_MESON_ODROID_COMMON)
 	/*
 	 * move parts that may contain cea timing parse behind
 	 * VDB parse, so that to not affect VDB index which
@@ -2716,6 +2727,7 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	 */
 	edid_standardtiming(prxcap, &edid_buf[0x26], 8);
 	edid_parseceatiming(prxcap, &edid_buf[0x36]);
+#endif
 /*
  * Because DTDs are not able to represent some Video Formats, which can be
  * represented as SVDs and might be preferred by Sinks, the first DTD in the
