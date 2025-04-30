@@ -1025,7 +1025,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
 	logo_addr = "0x1f800000";
@@ -1109,7 +1109,8 @@
 };
 
 &drm_subsystem {
-	fbdev_sizes = <1280 720 1280 1440 32>;
+	fbdev_sizes = <1920 1080 1920 2160 32>;
+	pref_mode = "1080p";
 };
 
 &amlvecm {
