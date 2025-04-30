@@ -1082,7 +1082,10 @@ static __nocfi u32 vaddr_to_paddr(unsigned long vaddr)
 	pgd_f = phys_to_virt(ttbr1_el1);
 	local_init_mm = container_of(&pgd_f, struct mm_struct, pgd);
 #else
-	local_init_mm = init_task.active_mm;
+	/* local_init_mm may be NULL for compiler optimization */
+	WRITE_ONCE(local_init_mm, init_task.active_mm);
+	if (!local_init_mm)
+		goto failed;
 #endif
 	/* table walking */
 	pgd = pgd_offset(local_init_mm, vaddr);
