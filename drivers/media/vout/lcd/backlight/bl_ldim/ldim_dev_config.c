@@ -1069,16 +1069,16 @@ ldim_dev_get_config_from_ini_next:
 	if (init_len > 0) {
 		dev_drv->boundary_x = kcalloc(init_len, sizeof(unsigned int), GFP_KERNEL);
 		if (dev_drv->boundary_x)
-			tmp_cnt = lcd_ini_get_array(inip, psec, "boundary_x",
+			lcd_ini_get_array(inip, psec, "boundary_x",
 				dev_drv->boundary_x, init_len);
 	}
 
 	init_len = lcd_ini_get_array_cnt(inip, psec, "boundary_y");
 	if (init_len > 0) {
-		dev_drv->boundary_x = kcalloc(init_len, sizeof(unsigned int), GFP_KERNEL);
-		if (dev_drv->boundary_x)
-			tmp_cnt = lcd_ini_get_array(inip, psec, "boundary_y",
-				dev_drv->boundary_x, init_len);
+		dev_drv->boundary_y = kcalloc(init_len, sizeof(unsigned int), GFP_KERNEL);
+		if (dev_drv->boundary_y)
+			lcd_ini_get_array(inip, psec, "boundary_y",
+				dev_drv->boundary_y, init_len);
 	}
 
 	if (fw_cus && fw_cus->fw_param && fw_cus->fw_param->param) {

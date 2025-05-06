@@ -794,7 +794,8 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				return -EFAULT;
 			}
 		} else {
-			ldim_driver.pq_num = ldim_buff.len / ldim_driver.pq_size;
+			if (ldim_driver.pq_size)
+				ldim_driver.pq_num = ldim_buff.len / ldim_driver.pq_size;
 		}
 
 		ldim_driver.pqdata =  kcalloc(ldim_buff.len, sizeof(char), GFP_KERNEL);

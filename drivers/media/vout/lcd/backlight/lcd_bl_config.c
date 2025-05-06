@@ -317,8 +317,10 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 	ret = of_property_read_u32_array(child, "bl_ldim_region_row_col", &para[0], 2);
 	if (ret) {
 		ret = of_property_read_u32_array(child, "bl_ldim_zone_row_col", &para[0], 2);
-		if (para[0] && para[1])
-			bconf->ldim_flag = 1;
+		if (ret == 0) {
+			if (para[0] && para[1])
+				bconf->ldim_flag = 1;
+		}
 	} else {
 		if (para[0] && para[1])
 			bconf->ldim_flag = 1;
