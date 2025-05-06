@@ -43,10 +43,7 @@
 /* v20231129: add s6 support */
 #define VPU_VERSION        "v20240123"
 
-u32 vpu_sideband_en = 0xff; /* 1:enable, 0:disable, 0xff:auto */
-u32 vpu_sideband_level_up;
-u32 vpu_sideband_level_down;
-int vpu_debug_print_flag = 1;
+int vpu_debug_print_flag;
 unsigned int vpu_print_level;
 static spinlock_t vpu_mem_lock;
 static spinlock_t vpu_clk_gate_lock;
@@ -1772,6 +1769,10 @@ static ssize_t vpu_debug_reg_store(const struct class *class,
 	return count;
 }
 
+static u32 vpu_sideband_en = 0xff; /* 1:enable, 0:disable, 0xff:auto */
+static u32 vpu_sideband_level_up;
+static u32 vpu_sideband_level_down;
+static u32 vpu_sideband_block_device;
 static u32 vpu_arb_urg_ctrl;
 static u32 vpp_ofifo_urg_ctrl;
 static u32 vpp_ofifo_urg_ctrl_slice1;
@@ -1798,6 +1799,9 @@ static void set_vpu_sideband_init(void)
 		//set vpu sideband level
 		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
 
+		dmc_reg_value = vpu_dmc0_read(DMC_AXI2_CHAN_CTRL1);
+		dmc_reg_value |= ((0 << 16) | 0xfb);
+		pr_info("dmc_reg_value=0x%x\n", dmc_reg_value);
 		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
 		//block cpu and gpu
 		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, 0xFFFFB);
@@ -1927,6 +1931,98 @@ static ssize_t vpu_sideband_level_store(const struct class *class,
 	return count;
 }
 
+static ssize_t sideband_block_device_show_t7c(char *buf)
+{
+	ssize_t len = 0;
+
+	const char *axi_device_usage_str = {
+	"Usage:\n"
+	"bit0: CPU/A73/A53/GPU async interface\n"
+	"bit1: reserved\n"
+	"bit2: VPU Async interface\n"
+	"bit3: NNA Async interface\n"
+	"bit4: device/usb/pcie/hdmi rx Async interface\n"
+	"bit5: reserved for dmc_test\n"
+	"bit6: DOS/GE2D interface\n"
+	"bit7: device2/isp/demux/dsp Async interface\n"
+	"bit8: reserved\n"
+	"echo 'value' > /sys/class/vpu/sideband_block_device\n"
+	};
+	len += sprintf(buf + len, "%s\n", axi_device_usage_str);
+	len += sprintf(buf + len, "sideband_block_device: %d\n", vpu_sideband_block_device);
+	return len;
+}
+
+static ssize_t sideband_block_device_show_t3x(char *buf)
+{
+	ssize_t len = 0;
+
+	const char *axi_device_usage_str = {
+	"Usage:\n"
+	"bit0: CPU/A55   async interface\n"
+	"bit1: FRC Async interface\n"
+	"bit2: VPU Async interface\n"
+	"bit3: DOS Async interface\n"
+	"bit4: system Async interface\n"
+	"bit5: reserved for dmc_test\n"
+	"bit6: GPU async interface\n"
+	"bit7: VGE Async interface\n"
+	"bit8: NNA Async interface\n"
+	"echo 'value' > /sys/class/vpu/sideband_block_device\n"
+	};
+	len += sprintf(buf + len, "%s\n", axi_device_usage_str);
+	len += sprintf(buf + len, "sideband_block_device: 0x%x\n", vpu_sideband_block_device);
+	return len;
+}
+
+static void set_vpu_sideband_block_device(u32 block_device)
+{
+	unsigned int dmc_reg_value;
+
+	dmc_reg_value = vpu_dmc0_read(DMC_AXI2_CHAN_CTRL1);
+
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7) {
+		dmc_reg_value &= ~0xff;
+		dmc_reg_value |= (block_device << 0);
+
+		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
+		vpu_dmc1_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+		dmc_reg_value &= ~0xff00000;
+		dmc_reg_value |= (block_device << 20);
+
+		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
+		vpu_dmc1_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
+	}
+}
+
+static ssize_t vpu_sideband_block_device_show(const struct class *class,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	ssize_t len = 0;
+
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7)
+		len = sideband_block_device_show_t7c(buf);
+	else if (vpu_conf.data->chip_type == VPU_CHIP_T3X)
+		len = sideband_block_device_show_t3x(buf);
+	return len;
+}
+
+static ssize_t vpu_sideband_block_device_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned int ret;
+	unsigned int res;
+
+	ret = kstrtoint(buf, 0, &res);
+	vpu_sideband_block_device = res;
+	set_vpu_sideband_block_device(res);
+
+	return count;
+}
+
 static struct class_attribute vpu_debug_class_attrs[] = {
 	__ATTR(clk,         0644, NULL, vpu_clk_debug),
 	__ATTR(mem,         0644, NULL, vpu_mem_debug),
@@ -1943,6 +2039,8 @@ static struct class_attribute vpu_debug_class_attrs[] = {
 	__ATTR(info,        0444, vpu_debug_info, NULL),
 	__ATTR(sideband_en,    0644, vpu_sideband_show, vpu_sideband_store),
 	__ATTR(sideband_level, 0644, vpu_sideband_level_show, vpu_sideband_level_store),
+	__ATTR(sideband_block_device, 0644, vpu_sideband_block_device_show,
+		vpu_sideband_block_device_store),
 	__ATTR(help,        0444, vpu_debug_help, NULL),
 };
 

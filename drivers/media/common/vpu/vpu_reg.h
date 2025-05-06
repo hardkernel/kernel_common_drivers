@@ -113,6 +113,23 @@
 //VPU_ARB_URG_CTRL
 #define VPU_ARB_URG_CTRL1_S5        0x2741
 #define VPU_ARB_URG_CTRL1_T3X       0x2735
+//bit29	super urgent enable
+//bit28	sideband enable
+//bit13	arb wr0/arb wr2 sideband cntl by vdin1 line fifo
+//bit12	arb wr0/arb wr2 sideband cntl by vdin0 line fifo
+//bit11	arb rd3  sideband ctrl by vpp2 line fifo
+//bit10	arb rd3  sideband ctrl by vpp1 line fifo
+//bit9	arb rd3  sideband ctrl by rdma
+//bit8	arb rd3  sideband ctrl by vpp0 line fifo
+//bit7	arb rd2  sideband ctrl by vpp2 line fifo
+//bit6	arb rd2  sideband ctrl by vpp1 line fifo
+//bit5	arb rd2  sideband ctrl by rdma
+//bit4	arb rd2  sideband ctrl by vpp0 line fifo
+//bit3	arb rd0  sideband ctrl by vpp2 line fifo
+//bit2	arb rd0  sideband ctrl by vpp1 line fifo
+//bit1	arb rd0  sideband ctrl by rdma
+//bit0	arb rd0  sideband ctrl by vpp0 line fifo
+//simple describe:
 //bit0: arb0 rd enable
 //bit4: arb2 rd enable
 //bit12:arb wr0 enable
@@ -121,11 +138,15 @@
 #define VPU_ARB_URG_CTRL_T3X           0x2747
 //not used
 #define VPP_OFIFO_URG_CTRL_T3X         0x2505
-//Bit 31:16  reg_urg_ofifo_hold_ctrl   //unsigned, RW, default = 0
-//Bit 15:0   reg_ofifo_urg_ctrl        //unsigned, RW, default = 0
+//bit15:  urgent_ctrl_en
+//bit12:  urg_init_value
+//bit6-11: unurgent_value
+//bit0-5: urgent_vlaue
 #define VPP_SLICE1_OFIFO_URG_CTRL_T3X   0x2605
-//Bit 31:16  reg_urg_ofifo_hold_ctrl    //unsigned, RW, default = 0
-//Bit 15:0   reg_ofifo_urg_ctrl        //unsigned, RW, default = 0
+//bit15:  urgent_ctrl_en
+//bit12:  urg_init_value
+//bit6-11: unurgent_value
+//bit0-5: urgent_vlaue
 
 //t3x dmc regs:
    //bit 8.   enable dmc request of axibus chan 7.	NNA Async interface.
@@ -139,6 +160,7 @@
    //bit 0.   enable dmc request of axibus chan 0.	CPU/A55   async interface.
 
 #define DMC_AXI2_CHAN_CTRL1                        0x008a
+//t3x
    //bit 31:29. not used.
    //bit 28:20. when write/read side band signal used to block other request.
    //configure which master we can block. each bit for  one master.
@@ -156,6 +178,31 @@
    //bit 11:8.   the ARQOS value when side band read  urgent
    //control signal = 1 while bit 18 enabled.
    //bit 7:0.    Not used.
+
+//t7c
+//t7c dmc regs:
+   //bit 8.   enable dmc request of axibus chan 7.	reserved.
+   //bit 7.   enable dmc request of axibus chan 7.	device2/isp/demux/dsp Async interface.
+   //bit 6.   enable dmc request of axibus chan 6.	DOS/GE2D interface.
+   //bit 5.   enable dmc request of axibus chan 5.	reserved for dmc_test.
+   //bit 4.   enable dmc request of axibus chan 4.	device/usb/pcie/hdmi rx Async interface.
+   //bit 3.   enable dmc request of axibus chan 3.	NNA Async interface.
+   //bit 2.   enable dmc request of axibus chan 2.	VPU Async interface.
+   //bit 1.   enable dmc request of axibus chan 1.	reserved.
+   //bit 0.   enable dmc request of axibus chan 0.	CPU/A73/A53/GPU async interface.
+
+//bit 31:20. not used.
+//bit 19. use side band write urgent control signal to control AWQOS.  1: enabe. 0: disable.
+//bit 18. use side band read urgent control signal to control ARQOS.  1: enabe. 0: disable.
+//bit 17. use side band write urgent control signal to block other master request.
+//1: enable. 0 disable.
+//bit 16. use side band read urgent control signal to block other master request.
+//1: enable. 0 disable.
+//bit 15:12.  the AWQOS value when side band write urgent control signal = 1 while bit 19 enabled.
+//bit 11:8.   the ARQOS value when side band read urgent control signal = 1 while bit 18 enabled.
+//bit 7:0.	  when write/read side band signal used to block other request.
+//configure which master we can block.each bit for  one master.
+//Note. don't block VPU and CPU or other urgent request.
 
 int vpu_ioremap(struct platform_device *pdev, int *reg_map_table);
 
