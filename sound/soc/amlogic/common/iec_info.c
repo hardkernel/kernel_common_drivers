@@ -212,6 +212,8 @@ enum audio_coding_types iec_61937_pc_to_coding_type(unsigned int pc)
 	int data_type = pc & 0x1f;
 	int subdata_type = (pc >> 5) & 0x3;
 	int frames;
+	int data_type_dependent_info = (pc >> 8) & 0x1f;
+	int dts_repetition_period = data_type_dependent_info & 0x7;
 	enum audio_coding_types coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 
 	pr_debug("%s pc:%#x, data_type:%#x, subdata_type:%#x\n",
@@ -235,7 +237,10 @@ enum audio_coding_types iec_61937_pc_to_coding_type(unsigned int pc)
 		coding_type = AUDIO_CODING_TYPE_DTS;
 		break;
 	case 17:
-		coding_type = AUDIO_CODING_TYPE_DTS_HD;
+		if (dts_repetition_period < DTS_REPETITION_SIZE_8192)
+			coding_type = AUDIO_CODING_TYPE_DTS_HD;
+		else
+			coding_type = AUDIO_CODING_TYPE_DTS_HD_MA;
 		break;
 	case 3:
 		coding_type = AUDIO_CODING_TYPE_PAUSE;

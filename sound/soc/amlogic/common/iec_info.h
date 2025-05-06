@@ -110,6 +110,15 @@ struct iec_cnsmr_cs {
 	int CGMS_A;
 };
 
+enum dts_repetition_period_frame_size {
+	DTS_REPETITION_SIZE_512,
+	DTS_REPETITION_SIZE_1024,
+	DTS_REPETITION_SIZE_2048,
+	DTS_REPETITION_SIZE_4096,
+	DTS_REPETITION_SIZE_8192,
+	DTS_REPETITION_SIZE_16384,
+};
+
 /* use new enum for eARC */
 enum audio_coding_types {
 	AUDIO_CODING_TYPE_UNDEFINED          = 0,
