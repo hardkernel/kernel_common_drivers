@@ -797,6 +797,8 @@ static void mipi_dsi_phy_config(struct aml_lcd_drv_s *pdrv, u32 dsi_bitrate)
 	t_ui = div_around(1000000 * 100, dsi_bitrate / 1000); /*100*ns */
 	dphy->t_ui = t_ui;
 	temp = t_ui * 8; /* lane_byte cycle time */
+	if (temp == 0)
+		return;
 
 	dphy->lp_tesc[0]    = ((DPHY_TIME_LP_TESC(t_ui) + temp / 2) / temp) & 0xff;
 	dphy->lp_tesc[1]    = dphy->lp_tesc[0] * temp / 100;
