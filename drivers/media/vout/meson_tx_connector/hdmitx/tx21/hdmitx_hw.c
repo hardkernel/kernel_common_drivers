@@ -3702,6 +3702,33 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case AUX_PKT_CLR_DV_VS10_SIG:
 		break;
+	case AUX_PKT_SET_AVI_CS:
+		if (!input_argv) {
+			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
+			ret = -1;
+			break;
+		}
+		arg = *((u32 *)input_argv);
+		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_SET_AVI_CS, arg);
+		break;
+	case AUX_PKT_CONF_AVI_Q01:
+		if (!input_argv) {
+			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
+			ret = -1;
+			break;
+		}
+		arg = *((u32 *)input_argv);
+		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_CONF_AVI_Q01, arg);
+		break;
+	case AUX_PKT_CONF_AVI_YQ01:
+		if (!input_argv) {
+			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
+			ret = -1;
+			break;
+		}
+		arg = *((u32 *)input_argv);
+		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_CONF_AVI_YQ01, arg);
+		break;
 	case AUX_PKT_CONF_AVI_CT:
 		if (!input_argv) {
 			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
