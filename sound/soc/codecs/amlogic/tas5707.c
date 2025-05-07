@@ -16,6 +16,11 @@
 #include <sound/tlv.h>
 
 #include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/pm.h>
+#include <linux/regulator/consumer.h>
+#include <linux/clk-provider.h>
+#include <linux/clk.h>
+
 #include "tas57xx.h"
 #include "tas5707.h"
 
@@ -157,12 +162,11 @@ struct tas5707_priv {
 	unsigned int mclk;
 	unsigned int EQ_enum_value;
 	unsigned int DRC_enum_value;
+	bool  request_done;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
 };
-
-static int reset_pin_setting;
 
 static int tas5707_set_EQ_enum(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol);
@@ -533,19 +537,18 @@ static int reset_tas5707_GPIO(struct snd_soc_component *component)
 		return -1;
 	}
 
-	if (pdata->reset_pin > 0 && !reset_pin_setting) {
-		// request amp PD pin control GPIO
-		ret = gpio_request(pdata->reset_pin, NULL);
+	if (!tas5707->request_done && pdata->reset_pin > 0) {
+		ret = devm_gpio_request_one(component->dev, pdata->reset_pin,
+							GPIOF_OUT_INIT_LOW,
+							"tas5707-reset-pin");
 		if (ret < 0)
-			dev_err(component->dev, "failed to request gpio: %d\n", ret);
-
-		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
-		usleep_range(900, 1000);
-		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
-		mdelay(15);
-		reset_pin_setting = 1;
-		gpio_free(pdata->reset_pin);
+			return -1;
+		tas5707->request_done = true;
 	}
+	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
+	usleep_range(900, 1000);
+	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
+	mdelay(15);
 
 	return 0;
 }
@@ -670,6 +673,8 @@ static int tas5707_init(struct snd_soc_component *component)
 
 static int tas5707_probe(struct snd_soc_component *component)
 {
+	struct tas5707_priv *tas5707 = snd_soc_component_get_drvdata(component);
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	tas5707->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	tas5707->early_suspend.suspend = tas5707_early_suspend;
@@ -677,6 +682,7 @@ static int tas5707_probe(struct snd_soc_component *component)
 	tas5707->early_suspend.param = component;
 	register_early_suspend(&tas5707->early_suspend);
 #endif
+	tas5707->component = component;
 
 	tas5707_init(component);
 
@@ -697,7 +703,6 @@ static int tas5707_suspend(struct snd_soc_component *component)
 {
 	struct tas5707_priv *tas5707 = snd_soc_component_get_drvdata(component);
 	struct tas57xx_platform_data *pdata = tas5707->pdata;
-	int ret;
 
 	if (pdata && pdata->suspend_func)
 		pdata->suspend_func();
@@ -709,15 +714,9 @@ static int tas5707_suspend(struct snd_soc_component *component)
 	tas5707->ch_mute = snd_soc_component_read(component, DDX_SOFT_MUTE);
 	tas5707_set_bias_level(component, SND_SOC_BIAS_OFF);
 
-	if (pdata && pdata->reset_pin >= 0  && reset_pin_setting) {
-		// request amp PD pin control GPIO
-		ret = gpio_request(pdata->reset_pin, NULL);
-		if (ret < 0)
-			dev_err(component->dev, "failed to request gpio: %d\n", ret);
-		gpio_direction_output(pdata->reset_pin, 0);
+	if (pdata && pdata->reset_pin >= 0) {
+		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 		usleep_range(9, 15);
-		reset_pin_setting = 0;
-		gpio_free(pdata->reset_pin);
 	}
 
 	return 0;
@@ -856,7 +855,6 @@ static int tas5707_i2c_probe(struct i2c_client *i2c)
 		dev_set_name(&i2c->dev, "%s", codec_name);
 
 	i2c_set_clientdata(i2c, tas5707);
-
 	ret = snd_soc_register_component(&i2c->dev, &soc_codec_dev_tas5707,
 				     &tas5707_dai, 1);
 	if (ret != 0)

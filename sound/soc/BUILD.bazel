@@ -235,6 +235,11 @@ ddk_module(
     kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = [
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/pm:amlogic-pm",
+        "//common_drivers/drivers/power:amlogic-power",
     ],
 )
 
