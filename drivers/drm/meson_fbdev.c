@@ -1299,6 +1299,9 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 			fbdev_cnt++;
 			DRM_INFO("create fbdev for plane (%d %d) zorder=%d\n",
 				i, osd_plane->plane_index, drmdev->fbdev_zorder[i]);
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+			drmdev->osd_fbdevs[i] = fbdev;
+#endif
 		} else {
 			DRM_ERROR("create fbdev for plane %d failed\n", i);
 			break;
