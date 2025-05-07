@@ -145,7 +145,7 @@ static void meson_uart_shutdown(struct uart_port *port)
 	if (port->line == 0)
 		return;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	val = readl_relaxed(port->membase + AML_UART_CONTROL);
 	val &= ~(AML_UART_RX_EN | AML_UART_TX_EN);
@@ -153,7 +153,7 @@ static void meson_uart_shutdown(struct uart_port *port)
 	val |= AML_UART_INV_RTS;
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void meson_uart_start_tx(struct uart_port *port)
@@ -186,17 +186,15 @@ static void meson_transmit_chars(struct uart_port *port)
 	unsigned char ch;
 	int count = 256;
 
-	spin_lock(&port->lock);
-
 	if (port->x_char) {
 		writel_relaxed(port->x_char, port->membase + AML_UART_WFIFO);
 		port->icount.tx++;
 		port->x_char = 0;
-		goto clear_and_return;
+		return;
 	}
 
 	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port))
-		goto clear_and_return;
+		return;
 
 	spin_lock(&mup->wr_lock);
 
@@ -216,10 +214,7 @@ static void meson_transmit_chars(struct uart_port *port)
 	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
- clear_and_return:
-	spin_unlock(&port->lock);
 	return;
-
 }
 
 static void meson_receive_chars(struct uart_port *port)
@@ -228,7 +223,6 @@ static void meson_receive_chars(struct uart_port *port)
 	char flag;
 	u32 status, ch, mode;
 
-	spin_lock(&port->lock);
 	do {
 		flag = TTY_NORMAL;
 		port->icount.rx++;
@@ -272,7 +266,7 @@ static void meson_receive_chars(struct uart_port *port)
 			if (port->sysrq)
 				flag = TTY_BREAK;
 
-			if (uart_handle_sysrq_char(port, ch))
+			if (uart_prepare_sysrq_char(port, ch))
 				continue;
 		}
 #endif
@@ -280,15 +274,15 @@ static void meson_receive_chars(struct uart_port *port)
 		uart_insert_char(port, status, AML_UART_RX_FIFO_OVERFLOW, ch, flag);
 
 	} while (!(readl_relaxed(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY));
-	spin_unlock(&port->lock);
 
 	tty_flip_buffer_push(tport);
-
 }
 
 static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = (struct uart_port *)dev_id;
+
+	uart_port_lock(port);
 
 	if (!(readl_relaxed(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY))
 		meson_receive_chars(port);
@@ -297,6 +291,7 @@ static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 	    ((readl(port->membase + AML_UART_CONTROL)) & AML_UART_TX_INT_EN))
 		meson_transmit_chars(port);
 
+	uart_unlock_and_check_sysrq(port);
 	return IRQ_HANDLED;
 }
 
@@ -309,6 +304,9 @@ static int meson_uart_startup(struct uart_port *port)
 {
 	u32 val;
 	int ret = 0;
+	unsigned long flags;
+
+	uart_port_lock_irqsave(port, &flags);
 
 	val = readl_relaxed(port->membase + AML_UART_CONTROL);
 	val |= (AML_UART_RX_RST | AML_UART_TX_RST | AML_UART_CLR_ERR);
@@ -324,6 +322,7 @@ static int meson_uart_startup(struct uart_port *port)
 	val &= ~AML_UART_INV_RTS;
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
+	uart_port_unlock_irqrestore(port, flags);
 
 	return ret;
 }
@@ -386,7 +385,7 @@ static void meson_uart_set_termios(struct uart_port *port,
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	cflags = termios->c_cflag;
 	iflags = termios->c_iflag;
@@ -435,7 +434,8 @@ static void meson_uart_set_termios(struct uart_port *port,
 	}
 
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
-	spin_unlock_irqrestore(&port->lock, flags);
+
+	uart_port_unlock_irqrestore(port, flags);
 
 	baud = uart_get_baud_rate(port, termios, old, 50, 4000000);
 	/* Should never happen, Just trick coverity detect */
@@ -546,14 +546,14 @@ static int meson_uart_poll_get_char(struct uart_port *port)
 	u32 c;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	if (readl(port->membase + AML_UART_STATUS) & AML_UART_RX_EMPTY)
 		c = NO_POLL_CHAR;
 	else
 		c = readl(port->membase + AML_UART_RFIFO);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return c;
 }
@@ -564,7 +564,7 @@ static void meson_uart_poll_put_char(struct uart_port *port, unsigned char c)
 	u32 reg;
 	int ret;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Wait until FIFO is empty or timeout */
 	ret = readl_poll_timeout_atomic(port->membase + AML_UART_STATUS, reg,
@@ -588,7 +588,7 @@ static void meson_uart_poll_put_char(struct uart_port *port, unsigned char c)
 		dev_err(port->dev, "Timeout waiting for UART TX EMPTY\n");
 
 out:
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 #endif /* CONFIG_CONSOLE_POLL */
@@ -675,9 +675,9 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 	u32 val, tmp;
 
 	if (oops_in_progress)
-		locked = spin_trylock_irqsave(&port->lock, flags);
+		locked = uart_port_trylock_irqsave(port, &flags);
 	else
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 
 	val = readl_relaxed(port->membase + AML_UART_CONTROL);
 	tmp = val & ~(AML_UART_TX_INT_EN | AML_UART_RX_INT_EN);
@@ -687,7 +687,7 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 	if (locked)
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static void meson_serial_console_write(struct console *co, const char *s,
