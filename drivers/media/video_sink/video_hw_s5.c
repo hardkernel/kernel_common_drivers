@@ -5489,6 +5489,9 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				pps_din_vsize = sr0_dout_vsize;
 				pps_in_ovlap_hsize = vd_proc_unit->vd_proc_sr0.h_scaleup_en ?
 					overlap_hsize * 2 : overlap_hsize;
+				if (vd_proc_unit->vd_proc_sr0.h_scaleup_en &&
+					!vd_proc_unit->vd_proc_sr1.h_scaleup_en)
+					slice_x_st >>= 1;
 			} else {
 				/* SR0_AFTER_PPS */
 				pps_din_hsize = s1_din_hsize_tmp;
