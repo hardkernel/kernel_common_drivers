@@ -1717,6 +1717,15 @@
 	};
 };
 
+&drm_subsystem {
+	crtc_masks = <3 3 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+	/**
+	 *  dual display uses OSD4 on VPP1 for some app(index starts from 1)
+	 */
+	crtcmask_of_osd = <0 0 1 0>; /* indicate the crtc mask of osd plane */
+	vpu_block_select = <&vpu_blocks_path2>;
+};
+
 &amvideom {
 	display_device_cnt = <2>;
 	vpp0_layer_count = <2>;

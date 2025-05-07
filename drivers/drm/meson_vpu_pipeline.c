@@ -905,14 +905,23 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 	struct device_node *child, *vpu_block_node;
 	struct meson_vpu_pipeline *pipeline;
 
-	child = of_get_child_by_name(np, "vpu_topology");
-	if (!child)
-		return -ENODEV;
+	if (of_property_read_bool(np, "vpu_block_select")) {
+		vpu_block_node = of_parse_phandle(np, "vpu_block_select", 0);
+		if (!vpu_block_node) {
+			DRM_ERROR("Failed to parse vpu_block_select phandle\n");
+			of_node_put(np);
+			return -ENODEV;
+		}
+	} else {
+		child = of_get_child_by_name(np, "vpu_topology");
+		if (!child)
+			return -ENODEV;
 
-	vpu_block_node = of_get_child_by_name(child, "vpu_blocks");
-	if (!vpu_block_node) {
-		of_node_put(child);
-		return -ENODEV;
+		vpu_block_node = of_get_child_by_name(child, "vpu_blocks");
+		if (!vpu_block_node) {
+			of_node_put(child);
+			return -ENODEV;
+		}
 	}
 
 	pipeline = kzalloc(sizeof(*pipeline), GFP_KERNEL);

@@ -2083,8 +2083,6 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 		old_plane_info = &old_mvps->plane_info[osd_plane->plane_index];
 		if (plane_info->src_w != old_plane_info->src_w ||
 			plane_info->src_h != old_plane_info->src_h ||
-			plane_info->dst_x != old_plane_info->dst_x ||
-			plane_info->dst_y != old_plane_info->dst_y ||
 			plane_info->dst_w != old_plane_info->dst_w ||
 			plane_info->dst_h != old_plane_info->dst_h ||
 			plane_info->zorder != old_plane_info->zorder ||
