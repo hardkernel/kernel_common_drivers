@@ -446,16 +446,14 @@ void hdmi_vend_infoframe_set(struct hdmitx_common *tx_comm, struct hdmi_vendor_i
  * not send HF-VSIF(case A)
  */
 /* only used for DV_VSIF / HDMI1.4b_VSIF / CUVA_VSIF / HDR10+ VSIF */
-void hdmi_vend_infoframe_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb)
+void hdmi_vend_infoframe_rawset(struct hdmitx_common *tx_comm, u8 *body)
 {
-	u8 body[31] = {0};
-
 	if (!tx_comm) {
 		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
 		return;
 	}
 
-	if (!hb || !pb) {
+	if (!body) {
 		if (!tx_comm->rxcap.ifdb_present)
 			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
 		else
@@ -463,8 +461,6 @@ void hdmi_vend_infoframe_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb)
 		return;
 	}
 
-	memcpy(body, hb, 3);
-	memcpy(&body[3], pb, 28);
 	if (tx_comm->rxcap.ifdb_present &&
 		tx_comm->rxcap.additional_vsif_num >= 1) {
 		/* dolby cts case93 B1 */
@@ -480,16 +476,14 @@ void hdmi_vend_infoframe_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb)
 }
 
 /* only used for HF-VSIF */
-void hdmi_vend_infoframe2_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb)
+void hdmi_vend_infoframe2_rawset(struct hdmitx_common *tx_comm, u8 *body)
 {
-	u8 body[31] = {0};
-
 	if (!tx_comm) {
 		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
 		return;
 	}
 
-	if (!hb || !pb) {
+	if (!body) {
 		if (!tx_comm->rxcap.ifdb_present)
 			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
 		else
@@ -497,8 +491,6 @@ void hdmi_vend_infoframe2_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb)
 		return;
 	}
 
-	memcpy(body, hb, 3);
-	memcpy(&body[3], pb, 28);
 	if (tx_comm->rxcap.ifdb_present &&
 		tx_comm->rxcap.additional_vsif_num >= 1) {
 		/* dolby cts case93 B1 */

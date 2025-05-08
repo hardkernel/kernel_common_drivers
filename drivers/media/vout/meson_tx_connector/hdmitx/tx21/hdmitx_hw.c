@@ -3745,18 +3745,18 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case AUX_PKT_SET_VSIF2:
 		if (!input_argv) {
 			if (cmd == AUX_PKT_SET_VSIF2)
-				hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+				hdmi_vend_infoframe2_rawset(tx_comm, NULL);
 			else
-				hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+				hdmi_vend_infoframe_rawset(tx_comm, NULL);
 			break;
 		}
 		pkt_byte = (u8 *)input_argv;
 		/* vsif_db[0] is checksum, requires software calculation */
 		/* TODO: memcpy(&vsif_db[1], DB, 27); */
 		if (cmd == AUX_PKT_SET_VSIF2)
-			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, pkt_byte);
+			hdmi_vend_infoframe2_rawset(tx_comm, pkt_byte);
 		else
-			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, pkt_byte);
+			hdmi_vend_infoframe_rawset(tx_comm, pkt_byte);
 		break;
 	case AUX_PKT_SET_DRM:
 		if (!input_argv) {

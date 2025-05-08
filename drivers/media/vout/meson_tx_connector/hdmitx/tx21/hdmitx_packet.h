@@ -136,9 +136,9 @@ int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, u32 avi_cmd, u8 val
 /* vsif set, deprecated */
 void hdmi_vend_infoframe_set(struct hdmitx_common *tx_comm, struct hdmi_vendor_infoframe *info);
 /* vsif set, only used for DV_VSIF / HDMI1.4b_VSIF / CUVA_VSIF / HDR10+ VSIF */
-void hdmi_vend_infoframe_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb);
+void hdmi_vend_infoframe_rawset(struct hdmitx_common *tx_comm, u8 *body);
 /* only used for HF-VSIF */
-void hdmi_vend_infoframe2_rawset(struct hdmitx_common *tx_comm, u8 *hb, u8 *pb);
+void hdmi_vend_infoframe2_rawset(struct hdmitx_common *tx_comm, u8 *body);
 /* vsif raw data get from reg, only used for DV_VSIF / CUVA VSIF / HDMI1.4b_VSIF / HDR10+ VSIF */
 int hdmi_vend_infoframe_get(struct hdmitx_common *tx_comm, u8 *body);
 
