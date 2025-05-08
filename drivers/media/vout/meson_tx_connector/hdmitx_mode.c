@@ -773,3 +773,18 @@ void hdmitx_mode_print_all_mode_table(void)
 	HDMITX_INFO("-----------------%s end --------------\n", __func__);
 }
 
+bool hdmitx_mode_aspect_ratio_is_64_27_vic(enum hdmi_vic vic)
+{
+	const struct hdmi_timing *timing;
+
+	/* don't support 64:27 aspect ratio */
+	timing = hdmitx_mode_vic_to_hdmi_timing(vic);
+	if (!timing)
+		return false;
+
+	if (timing->h_pict == 64 && timing->v_pict == 27)
+		return true;
+
+	return false;
+}
+
