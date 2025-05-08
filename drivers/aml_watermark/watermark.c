@@ -168,15 +168,6 @@ static void init_watermark_status(void)
 
 	g_wm_sts.vxwm_enabled = (vxwm.a0 == TEEC_SUCCESS);
 	g_wm_sts.ngwm_enabled = (ngwm.a0 == TEEC_SUCCESS);
-
-	if (g_wm_sts.vxwm_enabled)
-		DEBUG("vxwm is enable");
-	else
-		DEBUG("vxwm is disable");
-	if (g_wm_sts.ngwm_enabled)
-		DEBUG("ngwm is enable");
-	else
-		DEBUG("ngwm is disable");
 }
 
 static bool has_vxwm_plugin(void)
