@@ -12,6 +12,8 @@
 #include <asm/daifflags.h>
 #endif
 
+#include "main.h"
+
 static DEFINE_PER_CPU(unsigned long, kprobe_busy_flags);
 
 static int kprobe_busy_disable_irq;
@@ -80,9 +82,48 @@ static struct kprobe kp_kprobe_busy_end = {
 	.pre_handler = kprobe_busy_end_pre_handler,
 };
 
+#include <linux/tty.h>
+static int ignore_check_tty_count = 20000;
+module_param(ignore_check_tty_count, int, 0644);
+
+static int __nocfi __kprobes check_tty_count_pre_handler(struct kprobe *p, struct pt_regs *regs)
+{
+#ifdef CONFIG_ARM64
+	struct tty_struct *tty = (struct tty_struct *)regs->regs[0];
+
+	if (tty->count >= ignore_check_tty_count) {
+		//directly return to lr (eg: kretprobe_trampoline_handler)
+		instruction_pointer_set(regs, regs->regs[30]);
+
+		return 1;
+	}
+#endif
+
+#ifdef CONFIG_ARM
+	struct tty_struct *tty = (struct tty_struct *)regs->ARM_r0;
+
+	if (tty->count >= ignore_check_tty_count) {
+		//directly return to lr (eg: kretprobe_trampoline_handler)
+		instruction_pointer_set(regs, regs->ARM_lr);
+		return 1;
+	}
+#endif
+
+	return 0;
+}
+
+static struct kprobe kp_check_tty_count = {
+	.symbol_name = "check_tty_count",
+	.pre_handler = check_tty_count_pre_handler,
+};
+
 int aml_kprobes_init(void)
 {
 	int ret;
+
+	ret = register_kprobe(&kp_check_tty_count);
+	if (ret)
+		pr_err("register_kprobe: kp_check_tty_count failed:%d\n", ret);
 
 	ret = register_kprobe(&kp_kprobe_busy_begin);
 	if (ret) {
