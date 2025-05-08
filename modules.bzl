@@ -84,6 +84,8 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t5m",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-t5w.ko",
     "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t5w",
+    "common_drivers/drivers/clk/meson/amlogic-clk-soc-t6d.ko",
+    "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t6d",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-t7.ko",
     "//common_drivers/drivers/clk/meson:amlogic-clk-soc-t7",
     "common_drivers/drivers/cpufreq/amlogic-cpufreq.ko",
