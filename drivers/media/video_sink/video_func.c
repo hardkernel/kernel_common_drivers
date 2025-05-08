@@ -92,6 +92,10 @@
 static unsigned int vpp_new_frame;
 #endif
 #endif
+#ifdef CONFIG_AMLOGIC_LCD
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#endif
+
 /* local var */
 static u32 blend_conflict_cnt;
 static u32 stop_update;
@@ -1522,6 +1526,10 @@ void primary_swap_frame(struct video_layer_s *layer,
 		return;
 
 	vf = vf1;
+#ifdef CONFIG_AMLOGIC_LCD
+	if (vf->vf_vrr_param.qms_en || vf->vf_vrr_param.qms_plus_en)
+		lcd_set_sw_vrr_target_fr(layer->vpp_index, vf->fps);
+#endif
 	layer_info = &glayer_info[0];
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (layer->need_switch_vf && IS_DI_POST(vf->type) &&
@@ -5353,6 +5361,10 @@ void pre_vsync_process(void)
 	struct cur_line_info_t *cur_line_info = NULL;
 	int enc_line;
 	bool do_fun = false;
+	const struct vinfo_s *vinfo = get_current_vinfo();
+
+	vsync_pts_inc_scale = vinfo->sync_duration_den;
+	vsync_pts_inc_scale_base = vinfo->sync_duration_num;
 
 	if (cur_dev->vsync_2to1_enable && frc_n2m_worked()) {
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
@@ -5489,7 +5501,10 @@ void post_vsync_process(void)
 	struct cur_line_info_t *cur_line_info = NULL;
 	int enc_line;
 	bool do_fun = false;
+	const struct vinfo_s *vinfo = get_current_vinfo();
 
+	vsync_pts_inc_scale = vinfo->sync_duration_den;
+	vsync_pts_inc_scale_base = vinfo->sync_duration_num;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	iotrace_misc_record_write(RECORD_TYPE_VSYNC_IN, 0, 0, 0);
 #endif
