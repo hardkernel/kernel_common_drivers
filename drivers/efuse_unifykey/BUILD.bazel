@@ -49,5 +49,6 @@ ddk_module(
         "//common_drivers/drivers/debug:amlogic-debug-iotrace",
         "//common_drivers/drivers/debug:amlogic-debug",
         "//common_drivers/drivers/secmon:amlogic-secmon",
+        "//common_drivers/drivers/mmc/host:amlogic-mmc",
     ],
 )

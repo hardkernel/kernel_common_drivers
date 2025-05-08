@@ -188,23 +188,6 @@ static int spinand_mtd_block_markbad(struct mtd_info *mtd, loff_t offs)
 	return -EINVAL;
 }
 
-int meson_spinand_bbt_check(struct mtd_info *mtd)
-{
-	struct meson_spinand *meson_spinand = meson_spinand_global;
-	int ret;
-
-	ret = meson_rsv_scan(meson_spinand->rsv->bbt);
-	if (ret != 0 && (ret != (-1)))
-		return ret;
-
-	if (meson_spinand->rsv->bbt->valid == 1) {
-		pr_debug("%s %d bbt is valid, reading.\n", __func__, __LINE__);
-		meson_rsv_read(meson_spinand->rsv->bbt,
-			       (u_char *)meson_spinand->block_status);
-	}
-	return 0;
-}
-
 int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd)
 {
 	struct meson_spinand *meson_spinand = NULL;
@@ -242,6 +225,7 @@ int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd)
 	mtd->writesize_shift = ffs(mtd->writesize) - 1;
 
 	meson_spinand->rsv->mtd = mtd;
+	meson_spinand->rsv->bbt_buf = meson_spinand->block_status;
 	meson_spinand->rsv->rsv_ops._erase = meson_spinand_rsv_erase;
 	meson_spinand->rsv->rsv_ops._write_oob = meson_spinand_rsv_write_oob;
 	meson_spinand->rsv->rsv_ops._read_oob = meson_spinand_rsv_read_oob;
@@ -249,19 +233,11 @@ int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd)
 	meson_spinand->rsv->rsv_ops._block_isbad = meson_spinand_rsv_isbad;
 	meson_spinand->rsv->rsv_ops._get_device = meson_spinand_rsv_get_device;
 	meson_spinand->rsv->rsv_ops._release_device = meson_spinand_rsv_release_device;
-	meson_rsv_init(mtd, meson_spinand->rsv);
-
-	err = meson_spinand_bbt_check(mtd);
+	err = meson_rsv_init(mtd, meson_spinand->rsv);
 	if (err) {
-		pr_err("Couldn't search or uncorrected bad block table\n");
-		err = -ENODEV;
+		pr_err("meson_rsv_init failed\n");
 		goto exit_error;
 	}
-#ifndef CONFIG_MTD_ENV_IN_NAND
-	meson_rsv_check(meson_spinand->rsv->env);
-#endif
-	meson_rsv_check(meson_spinand->rsv->key);
-	meson_rsv_check(meson_spinand->rsv->dtb);
 
 	return 0;
 exit_error:
@@ -410,21 +386,26 @@ int meson_add_mtd_partitions(struct mtd_info *mtd)
 	struct mtd_partition *part;
 	loff_t offset;
 	u32 rsv_block_num = meson_rsv_get_block_cnt(NAND_RSV_INDEX);
-	int i = 0, ret;
+	int i = 0;
 
-	pdata = meson_partition_parse_platform_data(mtd_get_of_node(mtd));
-	if (!pdata) {
-		pr_err("no partition in dts, init partition from env!\n");
-		mtd->name = "aml-nand";
-		ret = mtd_device_parse_register(mtd, meson_mtd_types, NULL, NULL, 0);
-		if (ret)
-			return ret;
+	mtd->name = "aml-mtd";
+	if (mtd_device_parse_register(mtd, meson_mtd_types, NULL, NULL, 0) == 0) {
+		if (!mtd_has_partitions(mtd)) {
+			if (device_is_registered(&mtd->dev))
+				mtd_device_unregister(mtd);
+			goto parse_dtb;
+		}
+		pr_debug("init partition from env!\n");
 #ifdef CONFIG_NAND_ENCRYPTION
-		aml_nand_param_check_and_layout_init(mtd);
 		mtd_loop_encrypted_partition(mtd);
 #endif
 		return 0;
 	}
+
+parse_dtb:
+	pdata = meson_partition_parse_platform_data(mtd_get_of_node(mtd));
+	if (!pdata)
+		return -1;
 
 	/* bootloader */
 	part = pdata->part;

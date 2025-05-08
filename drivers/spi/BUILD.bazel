@@ -13,7 +13,6 @@ ddk_module(
             True: [
                 "module-init.c",
                 "spi-meson-mem.c",
-                "page_info.c",
             ],
         },
         "CONFIG_AMLOGIC_SPI_MESON_SPICC": {

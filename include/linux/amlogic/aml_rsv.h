@@ -28,6 +28,9 @@
 #define POWER_ABNORMAL_FLAG	0x01
 #define ECC_ABNORMAL_FLAG	0x02
 
+#define BBT_START_BLOCK     20
+#define BBT_TOTAL_BLOCKS    4
+
 enum meson_rsv_blk_cnt {
 	NAND_RSV_INDEX = 0,
 	NAND_GAP_INDEX,
@@ -39,11 +42,12 @@ enum meson_rsv_blk_cnt {
 	NAND_RSV_END_INDEX
 };
 
-struct meson_rsv_block_t {
-	char para_rsv_name[32];
+struct meson_rsv_part_t {
+	char name[32];
 	u32 block_cnt;
 	u32 size;
 	u32 index;
+	u32 block_start;
 };
 
 struct meson_rsv_info_t {
@@ -103,7 +107,7 @@ struct meson_rsv_handler_t {
 	struct meson_rsv_info_t *key;
 	struct meson_rsv_info_t *dtb;
 	struct meson_rsv_ops rsv_ops;
-	void *priv;
+	s8 *bbt_buf;
 };
 
 int meson_rsv_key_read(u_char *dest, size_t size);
@@ -125,7 +129,8 @@ struct meson_rsv_user_t {
 	struct mutex lock;
 };
 
-int meson_rsv_prase_parameter_from_dtb(struct mtd_info *mtd);
+int meson_rsv_prase_parameter_from_dtb(struct mtd_info *mtd,
+	struct device_node *part_np);
 int meson_rsv_prase_parameter_from_cmdline(struct mtd_info *mtd);
 int meson_rsv_register_cdev(struct meson_rsv_info_t *info, char *name);
 int meson_rsv_register_unifykey(struct meson_rsv_info_t *key);
@@ -135,4 +140,7 @@ int meson_rsv_check(struct meson_rsv_info_t *rsv_info);
 int meson_rsv_scan(struct meson_rsv_info_t *rsv_info);
 int meson_rsv_read(struct meson_rsv_info_t *rsv_info, u_char *buf);
 u32 meson_rsv_get_block_cnt(enum meson_rsv_blk_cnt name);
+
+s32 amlnf_key_read(u8 *buf, u32 len, u32 *actual_length);
+s32 amlnf_key_write(u8 *buf, u32 len, u32 *actual_length);
 #endif/* __MESON_RSV_H_ */

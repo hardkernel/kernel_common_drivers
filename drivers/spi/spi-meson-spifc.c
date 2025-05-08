@@ -18,7 +18,6 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <linux/amlogic/aml_pageinfo.h>
-#include "page_info.h"
 
 /* register map */
 #define REG_CMD			0x00
@@ -290,13 +289,16 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	struct meson_spifc *spifc;
 	void __iomem *base;
 	unsigned int rate;
-	u8 *boot_info;
 	int ret = 0;
+#if IS_ENABLED(CONFIG_AMLOGIC_MTD_COMMON)
+	u8 *boot_info;
+#endif
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct meson_spifc));
 	if (!master)
 		return -ENOMEM;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_MTD_COMMON)
 	boot_info = devm_kzalloc(&pdev->dev,
 				 MAX_BYTES_IN_BOOTINFO,
 				 GFP_KERNEL);
@@ -304,6 +306,7 @@ static int meson_spifc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	page_info_pre_init(boot_info, PAGE_INFO_V1);
+#endif
 	platform_set_drvdata(pdev, master);
 
 	spifc = spi_controller_get_devdata(master);

@@ -48,6 +48,5 @@ ddk_module(
         "//common_drivers/drivers/debug:amlogic-debug-iotrace",
         "//common_drivers/drivers/debug:amlogic-debug",
         "//common_drivers/drivers/secmon:amlogic-secmon",
-        "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
     ],
 )

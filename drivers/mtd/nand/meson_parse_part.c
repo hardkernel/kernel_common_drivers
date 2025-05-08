@@ -160,7 +160,7 @@ static int parse_meson_partitions(struct mtd_info *master,
 	}
 
 	if (nr_parts == 0)
-		return 0;
+		return -EPROBE_DEFER;
 
 	parts = kcalloc(nr_parts, sizeof(*parts), GFP_KERNEL);
 	if (!parts)
@@ -219,9 +219,11 @@ static int parse_meson_partitions(struct mtd_info *master,
 
 	i = 0;
 	if (!strncmp((char *)parts[i].name, NAND_BOOT_NAME,
-		     strlen((const char *)NAND_BOOT_NAME))) {
+		     strlen((const char *)NAND_BOOT_NAME)) ||
+	    !strcmp((char *)parts[i].name, "bl2")) {
 		parts[i].offset = 0;
-		parts[i].size = ((uint64_t)master->writesize * BOOT_TOTAL_PAGES);
+		if (!parts[i].size)
+			parts[i].size = ((uint64_t)master->writesize * BOOT_TOTAL_PAGES);
 	} else {
 		ret = adjust_part_offset(master, nr_parts, parts);
 		if (ret)

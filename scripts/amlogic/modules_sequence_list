@@ -18,8 +18,8 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-power
 	amlogic-cpuinfo
 	amlogic-cpufreq
-	amlogic-efuse-unifykey
 	amlogic-mmc
+	amlogic-efuse-unifykey
 	amlogic-i2c.ko
 	amlogic-spi.ko
 	amlogic-rng.ko

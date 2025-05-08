@@ -4,28 +4,42 @@
  */
 
 #include "page_info.h"
+#include <linux/mtd/nand.h>
+//#include <linux/amlogic/aml_spi_nand.h>
 
 struct boot_info *page_info;
+static int page_info_state;
+
+enum BOOT_LAYOUT_VERS {
+	BOOT_DISCRETE_DEFAULT = 0,
+	BOOT_DISCRETE_ALL,
+	BOOT_DISCRETE_BL2,
+	BOOT_DISCRETE_MAX,
+};
 
 unsigned char page_info_get_data_lanes_mode(void)
 {
 	return page_info->dev_cfg0.bus_width & 0x0f;
 }
+EXPORT_SYMBOL_GPL(page_info_get_data_lanes_mode);
 
 unsigned char page_info_get_cmd_lanes_mode(void)
 {
 	return page_info->dev_cfg1.ca_lanes & 0x0f;
 }
+EXPORT_SYMBOL_GPL(page_info_get_cmd_lanes_mode);
 
 unsigned char page_info_get_addr_lanes_mode(void)
 {
 	return (page_info->dev_cfg1.ca_lanes >> 4) & 0x0f;
 }
+EXPORT_SYMBOL_GPL(page_info_get_addr_lanes_mode);
 
 unsigned char page_info_get_frequency_index(void)
 {
 	return page_info->host_cfg.frequency_index;
 }
+EXPORT_SYMBOL_GPL(page_info_get_frequency_index);
 
 unsigned char page_info_get_adj_index(void)
 {
@@ -36,26 +50,31 @@ unsigned char page_info_get_work_mode(void)
 {
 	return (page_info->host_cfg.mode_rx_adj >> 6) & 0x3;
 }
+EXPORT_SYMBOL_GPL(page_info_get_work_mode);
 
 unsigned char page_info_get_line_delay1(void)
 {
 	return page_info->host_cfg.lines_delay[0];
 }
+EXPORT_SYMBOL_GPL(page_info_get_line_delay1);
 
 unsigned char page_info_get_line_delay2(void)
 {
 	return page_info->host_cfg.lines_delay[1];
 }
+EXPORT_SYMBOL_GPL(page_info_get_line_delay2);
 
 unsigned char page_info_get_core_div(void)
 {
 	return page_info->host_cfg.core_div;
 }
+EXPORT_SYMBOL_GPL(page_info_get_core_div);
 
 unsigned char page_info_get_bus_cycle(void)
 {
 	return page_info->host_cfg.bus_cycle;
 }
+EXPORT_SYMBOL_GPL(page_info_get_bus_cycle);
 
 unsigned char page_info_get_device_ecc_disable(void)
 {
@@ -66,11 +85,25 @@ unsigned int page_info_get_n2m_command(void)
 {
 	return page_info->host_cfg.n2m_cmd;
 }
+EXPORT_SYMBOL_GPL(page_info_get_n2m_command);
+
+void page_info_set_n2m_command(unsigned int n2m_cmd)
+{
+	page_info->host_cfg.n2m_cmd = n2m_cmd;
+}
+EXPORT_SYMBOL_GPL(page_info_set_n2m_command);
 
 unsigned int page_info_get_page_size(void)
 {
 	return page_info->dev_cfg0.page_size;
 }
+EXPORT_SYMBOL_GPL(page_info_get_page_size);
+
+void page_info_set_page_size(unsigned int page_size)
+{
+	page_info->dev_cfg0.page_size = page_size;
+}
+EXPORT_SYMBOL_GPL(page_info_set_page_size);
 
 unsigned char page_info_get_planes(void)
 {
@@ -91,6 +124,7 @@ unsigned char page_info_get_cs_deselect_time(void)
 {
 	return page_info->dev_cfg1.cs_deselect_time;
 }
+EXPORT_SYMBOL_GPL(page_info_get_cs_deselect_time);
 
 unsigned char page_info_get_dummy_cycles(void)
 {
@@ -101,6 +135,7 @@ unsigned int page_info_get_block_size(void)
 {
 	return page_info->dev_cfg1.block_size;
 }
+EXPORT_SYMBOL_GPL(page_info_get_block_size);
 
 unsigned short *page_info_get_bbt(void)
 {
@@ -164,10 +199,11 @@ void page_info_initialize(unsigned int default_n2m,
 	page_info->dev_cfg1.cs_deselect_time = 0xFF;
 	page_info->dev_cfg1.dummy_cycles = 0xFF;
 }
+EXPORT_SYMBOL_GPL(page_info_initialize);
 
 int get_page_info_version(void)
 {
-	return page_info->version;
+	return page_info->version & 0x0F;
 }
 EXPORT_SYMBOL_GPL(get_page_info_version);
 
@@ -177,12 +213,85 @@ int get_page_info_size(void)
 }
 EXPORT_SYMBOL_GPL(get_page_info_size);
 
+static void page_info_set_boot_layout(u8 boot_layout)
+{
+	page_info->version |= ((boot_layout & 0x0F) << 4);
+}
+
+static int get_boot_layout_type(u32 boot_layout)
+{
+	return (boot_layout & 0x0F);
+}
+
+static int get_bl2_copy_number(u32 boot_layout)
+{
+	return ((boot_layout >> 8) & 0x0F);
+}
+
+static int get_bl2_pages_per_copy(u32 boot_layout)
+{
+	return ((boot_layout >> 12) & 0xFFFF);
+}
+
+static u32 get_boot_layout_info(struct mtd_info *mtd)
+{
+	static bool read;
+	static u32 boot_layout;
+
+	if (read)
+		return boot_layout;
+
+	if (of_property_read_u32(dev_of_node(mtd->dev.parent),
+					"boot_layout", &boot_layout))
+		pr_info("%s: not found boot_layout in dts\n", __func__);
+	else
+		pr_info("%s: found boot_layout(0x%x) in dts\n", __func__, boot_layout);
+
+	read = true;
+
+	return boot_layout;
+}
+
+unsigned int get_bl2_total_pages(struct mtd_info *mtd)
+{
+	static u32 bl2_total_pages;
+	u32 boot_layout, bl2_copy_number;
+
+	if (bl2_total_pages)
+		return bl2_total_pages;
+
+	boot_layout = get_boot_layout_info(mtd);
+	bl2_copy_number = get_bl2_copy_number(boot_layout);
+
+	if (bl2_copy_number)
+		bl2_total_pages = bl2_copy_number * get_bl2_pages_per_copy(boot_layout);
+	else
+		bl2_total_pages = NAND_BOOT_MAX_PAGES;
+
+	return bl2_total_pages;
+}
+EXPORT_SYMBOL_GPL(get_bl2_total_pages);
+
+static unsigned int do_checksum(unsigned char *buf, int len)
+{
+	unsigned int i, checksum = 0;
+
+	for (i = 0; i < len; i++)
+		checksum += buf[i];
+
+	return checksum;
+}
+
 static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, u32 fip_copies)
 {
 	struct nand_device *dev = mtd_to_nanddev(mtd);
-	unsigned char ecc_steps, *temp;
-	unsigned int checksum = 0, i;
+	unsigned char ecc_steps;
+	unsigned int check_len = sizeof(struct boot_info), i;
 	enum PAGE_INFO_V page_info_ver;
+	u32 boot_layout;
+
+	boot_layout = get_boot_layout_info(mtd);
+	page_info_set_boot_layout(boot_layout);
 
 	page_info_ver = get_page_info_version();
 	memcpy(page_info->magic, BOOTINFO_MAGIC, strlen(BOOTINFO_MAGIC));
@@ -210,28 +319,33 @@ static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, 
 		/* for compatible,  C3 use this field  */
 		i = mtd->erasesize_shift + mtd->writesize_shift;
 		page_info->reserved[2] = ((mtd->size >> i) ? (mtd->size >> i) : 1) & 0x3;
+		check_len = 20;
 	}
 
 	if (page_info_ver != PAGE_INFO_V3)
-		goto _cal_sum;
+		goto _do_final;
 
 	ecc_steps = mtd->writesize >> 9;
+	/* slc nand */
+	if (cmd == 0)
+		page_info->host_cfg.n2m_cmd = (DEFAULT_ECC_MODE & (~0x3F)) | ecc_steps;
 	page_info->host_cfg.frequency_index = 0xFF;
 	page_info->dev_cfg1.ca_lanes = 0;
 	page_info->dev_cfg1.cs_deselect_time = 0xFF;
 	page_info->dev_cfg1.dummy_cycles = 0xFF;
 	page_info->dev_cfg1.block_size = mtd->erasesize;
-	page_info->dev_cfg1.is_gang_programer = 0;
+	page_info->dev_cfg1.is_gang_programmer = 0;
 	page_info->dev_cfg1.xor_bbt_start_block |= (1 << 24);
 	page_info->dev_cfg1.block_num_in_chip = mtd->size >> mtd->erasesize_shift;
 
-_cal_sum:
+_do_final:
+	if (get_boot_layout_type(boot_layout) == BOOT_DISCRETE_BL2 ||
+	    get_bl2_copy_number(boot_layout) > 2)
+		page_info->dev_cfg1.enable_bbt = 1;
+
 	page_info->checksum = 0;
-	temp = (unsigned char *)page_info;
-	for (i = 0; i < sizeof(struct boot_info); i++)
-		checksum += temp[i];
-	page_info->checksum = checksum;
-	pr_info("page info updated checksum : 0x%x\n", checksum);
+	page_info->checksum = do_checksum((unsigned char *)page_info, check_len);
+	pr_info("page info updated checksum : 0x%x\n", page_info->checksum);
 }
 
 static void page_info_dump_info(void)
@@ -279,6 +393,18 @@ static void page_info_dump_info(void)
 	pr_info("n2m_cmd: 0x%x\n", n2m_cmd);
 }
 
+void page_info_set_state(enum PAGE_INFO_STATE state)
+{
+	page_info_state = state;
+}
+EXPORT_SYMBOL_GPL(page_info_set_state);
+
+int page_info_get_state(void)
+{
+	return page_info_state;
+}
+EXPORT_SYMBOL_GPL(page_info_get_state);
+
 unsigned char *page_info_post_init(struct mtd_info *mtd, u8 cmd, u32 fip_size, u32 fip_copies)
 {
 	page_info_init_from_mtd(mtd, cmd, fip_size, fip_copies);
@@ -290,22 +416,32 @@ EXPORT_SYMBOL_GPL(page_info_post_init);
 int page_info_pre_init(u8 *boot_info, int version)
 {
 	page_info = (struct boot_info *)boot_info;
-	page_info->version = version;
+	page_info->version |= (version & 0x0F);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(page_info_pre_init);
 
-bool page_info_is_page(int page)
+bool page_info_is_page(struct mtd_info *mtd, int page)
 {
 	enum PAGE_INFO_V page_info_ver;
+	bool is_info_page = 0;
+	u32 boot_layout = get_boot_layout_info(mtd);
+	int pages_per_copy = get_bl2_pages_per_copy(boot_layout);
+	int bl2_copy_number = get_bl2_copy_number(boot_layout);
 
-	page_info_ver = get_page_info_version();
-	if (page_info_ver == PAGE_INFO_V1)
-		return unlikely(((page % 128) == 31) && (page < 1024));
-	else if (page_info_ver == PAGE_INFO_V2 || page_info_ver == PAGE_INFO_V3)
-		return unlikely(!(page % 128) && (page < 1024));
-	else
-		return 0;
+	if (!pages_per_copy) {
+		page_info_ver = get_page_info_version();
+		if (page_info_ver == PAGE_INFO_V1)
+			is_info_page =
+			unlikely(((page % 128) == 31) && (page < NAND_BOOT_MAX_PAGES));
+		else if (page_info_ver == PAGE_INFO_V2 || page_info_ver == PAGE_INFO_V3)
+			is_info_page = unlikely(!(page % 128) && (page < NAND_BOOT_MAX_PAGES));
+	} else {
+		if (page < pages_per_copy * bl2_copy_number)
+			is_info_page = unlikely(!(page % pages_per_copy));
+	}
+
+	return is_info_page;
 }
 EXPORT_SYMBOL_GPL(page_info_is_page);
 

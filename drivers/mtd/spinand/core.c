@@ -652,7 +652,8 @@ static int spinand_read_page(struct spinand_device *spinand,
 	int page = nanddev_pos_to_row(nand, &req->pos);
 	int version = get_page_info_version();
 
-	if (version != PAGE_INFO_V1 && page < SPI_NAND_BOOT_TOTAL_PAGES)
+	if (version != PAGE_INFO_V1 &&
+	    page < get_bl2_total_pages(nanddev_to_mtd(nand)))
 		nanddev_pos_next_page(nand, &last_req.pos);
 
 	return _spinand_read_page(spinand, &last_req);
@@ -695,7 +696,7 @@ static int spinand_write_page(struct spinand_device *spinand,
 			      struct nand_page_io_req *req)
 {
 	struct nand_device *nand = spinand_to_nand(spinand);
-	struct mtd_info *mtd = &nand->mtd;
+	struct mtd_info *mtd = nanddev_to_mtd(nand);
 	struct nand_page_io_req last_req  = *req;
 	int page = nanddev_pos_to_row(nand, &req->pos);
 	int version = get_page_info_version();
@@ -704,7 +705,7 @@ static int spinand_write_page(struct spinand_device *spinand,
 	u8 *buf, *info;
 	int ret = 0;
 
-	if (!req->pos.target && page_info_is_page(page)) {
+	if (!req->pos.target && page_info_is_page(mtd, page)) {
 		/* for infopage v1 need to describe the tpl information */
 		spinand_get_tpl_info(&fip_size, &fip_copies);
 		last_req.datalen = mtd->writesize;
@@ -719,17 +720,20 @@ static int spinand_write_page(struct spinand_device *spinand,
 			nanddev_pos_next_page(nand, &last_req.pos);
 		pr_info("%s: write infopage at page :%d\n", __func__,
 					nanddev_pos_to_row(nand, &last_req.pos));
+		page_info_set_state(PAGE_INFO_DOING);
 		ret = _spinand_write_page(spinand, &last_req);
 		kfree(buf);
 		if (ret) {
 			pr_err("%s: fail to write infopage at page :%d\n", __func__,
 					nanddev_pos_to_row(nand, &last_req.pos));
+			page_info_set_state(PAGE_INFO_DONE);
 			return ret;
 		}
 		last_req = *req;
+		page_info_set_state(PAGE_INFO_DONE);
 	}
 	/* information page is in front of BL2 */
-	if (page < SPI_NAND_BOOT_TOTAL_PAGES && version != PAGE_INFO_V1)
+	if (page < get_bl2_total_pages(mtd) && version != PAGE_INFO_V1)
 		nanddev_pos_next_page(nand, &last_req.pos);
 
 	return _spinand_write_page(spinand, &last_req);
@@ -801,11 +805,11 @@ int spinand_mtd_read_unlock(struct mtd_info *mtd, loff_t from,
 
 		ret = spinand_select_target(spinand, iter.req.pos.target);
 		if (ret)
-			break;
+			return ret;
 
 		ret = spinand_read_page(spinand, &iter.req);
 		if (ret < 0 && ret != -EBADMSG)
-			break;
+			return ret;
 
 		if (ret == -EBADMSG)
 			ecc_failed = true;
@@ -818,9 +822,9 @@ int spinand_mtd_read_unlock(struct mtd_info *mtd, loff_t from,
 	}
 
 	if (ecc_failed && !ret)
-		ret = -EBADMSG;
+		return -EBADMSG;
 
-	return ret ? ret : max_bitflips;
+	return max_bitflips >= mtd->bitflip_threshold ? -EUCLEAN : 0;
 }
 
 static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
@@ -1089,6 +1093,7 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 	&toshiba_spinand_manufacturer,
 	&winbond_spinand_manufacturer,
 	&dosilicon_spinand_manufacturer,
+	&foresee_spinand_manufacturer,
 };
 
 static int spinand_manufacturer_match(struct spinand_device *spinand,
@@ -1443,7 +1448,7 @@ static int spinand_init(struct spinand_device *spinand)
 	/* Propagate ECC information to mtd_info */
 	mtd->ecc_strength = nanddev_get_ecc_conf(nand)->strength;
 	mtd->ecc_step_size = nanddev_get_ecc_conf(nand)->step_size;
-	mtd->bitflip_threshold = mtd->ecc_strength;
+	mtd->bitflip_threshold = DIV_ROUND_UP(mtd->ecc_strength * 3, 4);
 
 	return 0;
 
@@ -1499,7 +1504,6 @@ static int spinand_probe(struct spi_mem *mem)
 	if (ret)
 		goto err_spinand_cleanup;
 
-	auto_attach();
 	return 0;
 
 err_spinand_cleanup:
