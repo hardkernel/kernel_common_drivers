@@ -449,10 +449,8 @@ static void update_hdr_strategy1(struct hdmitx_common *tx_comm, u32 strategy)
 		return;
 
 	prxcap = &tx_comm->rxcap;
+	enable_all_hdr_info(prxcap);
 	switch (strategy) {
-	case 0:
-		enable_all_hdr_info(prxcap);
-		break;
 	case 1:
 		disable_dv_info(&prxcap->dv_info);
 		break;
