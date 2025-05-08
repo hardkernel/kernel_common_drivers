@@ -696,6 +696,8 @@ void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 	struct meson_connector *meson_conn;
 	struct am_drm_writeback *drm_writeback;
 	struct drm_connector_state *new_conn_state, *old_conn_state;
+	struct drm_device *dev = old_state->dev;
+	struct meson_drm *priv = dev->dev_private;
 	int i;
 
 	/*do  update which dont need       pipe change.*/
@@ -711,7 +713,20 @@ void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 			meson_conn->update(new_conn_state, old_conn_state);
 	}
 
-	/*use */
-	meson_atomic_helper_commit_tail_rpm(old_state);
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
+
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	drm_atomic_helper_fake_vblank(old_state);
+
+	drm_atomic_helper_commit_hw_done(old_state);
+
+	if (!priv->disable_video_plane && !get_nonblock_by_vblank_flag(old_state))
+		meson_drm_atomic_helper_wait_for_vblanks(dev, old_state);
+	priv->disable_video_plane = 0;
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
 }
 

@@ -770,6 +770,8 @@ struct meson_vpu_pipeline_state {
 #define priv_to_pipeline_state(x) container_of(x, \
 		struct meson_vpu_pipeline_state, obj)
 
+#define VPU_PIPELINE_GET_PM_STATE(p) ((p)->priv->pm_state)
+
 int vpu_pipeline_video_check(struct meson_vpu_pipeline *pipeline,
 		       struct drm_atomic_state *state);
 int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *pipeline,

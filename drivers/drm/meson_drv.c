@@ -735,6 +735,7 @@ static int am_meson_drm_pm_suspend(struct device *dev)
 		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
 		return 0;
 	}
+	priv->pm_state = DRM_PM_SUSPEND;
 	drm = priv->drm;
 	if (!drm) {
 		DRM_ERROR("%s: Failed to get drm device!\n", __func__);

@@ -1494,6 +1494,7 @@ static void osd_hw_disable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_osd *osd;
 	struct osd_mif_reg_s *reg;
+	enum drm_pm_state pm_state;
 	u8 version;
 
 	if (!vblk) {
@@ -1504,9 +1505,10 @@ static void osd_hw_disable(struct meson_vpu_block *vblk,
 	osd = to_osd_block(vblk);
 	reg = osd->reg;
 	version = vblk->pipeline->osd_version;
+	pm_state = VPU_PIPELINE_GET_PM_STATE(vblk->pipeline);
 
 	/*G12B should always enable,avoid afbc decoder error*/
-	if (version != OSD_V2 && version != OSD_V3)
+	if ((version != OSD_V2 && version != OSD_V3) || pm_state == DRM_PM_SUSPEND)
 		osd_block_enable(vblk, state->sub->reg_ops, reg, 0);
 	MESON_DRM_BLOCK("%s disable done.\n", osd->base.name);
 }
