@@ -646,7 +646,6 @@ static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
 static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_atomic_state *old_atomic_state)
 {
-	int ret;
 	char *name, *brr_name;
 	enum vmode_e mode;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
@@ -769,27 +768,16 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	DRM_INFO("%s-[%d]: enable mode %s final vmode %d\n",
 		__func__, amcrtc->crtc_index, name, mode);
 
-	if (mode == VMODE_DUMMY_ENCL ||
-		mode == VMODE_DUMMY_ENCI ||
-		mode == VMODE_DUMMY_ENCP) {
-		ret = vout_func_set_current_vmode(amcrtc->vout_index, mode);
-		if (ret)
-			DRM_ERROR("crtc[%d]: new mode[%d] set error\n",
-				amcrtc->crtc_index, mode);
-		else
-			meson_vout_update_mode_name(amcrtc->vout_index, name, "dummy");
-	} else {
-		if (meson_crtc_state->uboot_mode_init)
-			mode |= VMODE_INIT_BIT_MASK;
+	if (meson_crtc_state->uboot_mode_init)
+		mode |= VMODE_INIT_BIT_MASK;
 
-		if (meson_crtc_state->seamless) {
-			drm_crtc_vblank_on(crtc);
-			return;
-		}
-
-		vout_func_set_state(amcrtc->vout_index, mode);
-		vout_func_update_viu(amcrtc->vout_index);
+	if (meson_crtc_state->seamless) {
+		drm_crtc_vblank_on(crtc);
+		return;
 	}
+
+	vout_func_set_state(amcrtc->vout_index, mode);
+	vout_func_update_viu(amcrtc->vout_index);
 
 	meson_crtc_state->vmode = mode;
 	pipeline->subs[amcrtc->crtc_index]->vmode = mode;

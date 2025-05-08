@@ -39,7 +39,7 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               meson_vpu_pipeline_private.o \
                               meson_debugfs.o meson_vpu_util.o \
                               meson_drm_bind.o\
-                              meson_dummyl.o meson_dummyp.o \
+                              meson_dummy.o \
                               meson_drm_rdma.o \
                               vpu-hw/meson_vpu_video_wrapper.o \
                               vpu-hw/meson_vpu_osd_mif.o \
