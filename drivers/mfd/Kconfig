@@ -18,9 +18,9 @@ if AMLOGIC_MFD
 config AMLOGIC_MFD_PMIC6B
 	bool "Amlogic MFD PMIC6B"
 	depends on I2C
-	select MFD_CORE
-	select REGMAP_I2C
-	select REGMAP_IRQ
+	depends on MFD_CORE
+	depends on REGMAP_I2C
+	depends on REGMAP_IRQ
 	default n
 	help
 	  Say yes here to add support for the Amlogic MFD PMIC.

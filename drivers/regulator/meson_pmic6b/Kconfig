@@ -33,7 +33,7 @@ config AMLOGIC_REGULATOR_PMIC6B
 	bool "Amlogic REGULATOR PMIC6B"
 	depends on AMLOGIC_MFD
 	depends on AMLOGIC_MFD_PMIC6B
-	select REGMAP_I2C
+	depends on REGMAP_I2C
 	default n
 	help
 	  This driver is for amlogic pmic6b, it is different from pmic6.
