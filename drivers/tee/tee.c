@@ -704,6 +704,8 @@ u32 tee_protect_mem(u32 type, u32 level,
 
 	if (!handle)
 		return -EINVAL;
+	if (!size || !start)
+		return -EINVAL;
 
 	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
 	if (IS_ERR(ctx)) {
@@ -809,6 +811,9 @@ u32 tee_register_mem(u32 type, phys_addr_t pa, size_t size)
 	uuid_t uuid = PTA_TVP_UUID;
 	struct tee_param param[TEE_PARAM_NUM] = { 0 };
 	struct tee_context *ctx = NULL;
+
+	if (!pa || !size)
+		return  -EINVAL;
 
 	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
 	if (IS_ERR(ctx)) {
