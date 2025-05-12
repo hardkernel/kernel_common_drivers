@@ -246,6 +246,9 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 		}
 	} else if (is_aml_s7d() || is_aml_s6()) {
 		if (vinfo) {
+			if (vinfo->sync_duration_den)
+				sync_duration_num = vinfo->sync_duration_num /
+					vinfo->sync_duration_den;
 			if (debug_dolby & 2)
 				pr_dv_dbg("vinfo %d %d %d, graphics_h %d\n",
 					vinfo->width,
@@ -256,14 +259,9 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 				vinfo->height < 720 &&
 				vinfo->field_height < 720)
 				g_vpotch = 0x60;
-			else if (vinfo->width == 1280 &&
-				vinfo->height == 720 &&
-				vinfo->field_height == 720)
+			else if (vinfo->width <= 3840 &&
+				vinfo->height <= 2160 && sync_duration_num <= 60)
 				g_vpotch = 0x70;
-			else if (vinfo->width <= 1920 &&
-				vinfo->height <= 1080 &&
-				vinfo->field_height <= 1080)
-				g_vpotch = 0x48;
 			else
 				g_vpotch = 0x20;
 
