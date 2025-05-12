@@ -1257,9 +1257,6 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_P2I_H_V_SIZE,
 			vsr->vsr_top.hsize_out << 16 | vsr->vsr_top.vsize_out);
 	}
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-		frm2fld_en, 26, 1);
-
 }
 
 static void sharpness_and_dir_interp_enable(struct vsr_setting_s *vsr)
