@@ -196,7 +196,8 @@ void dsi_init_table_print(struct dsi_config_s *dconf);
 int dsi_run_oneline_cmd(struct aml_lcd_drv_s *pdrv, u8 port,
 			u8 *payload, u8 *rd_back, u32 rd_back_len);
 int dsi_read(struct aml_lcd_drv_s *pdrv, u8 *payload, u8 *rd_data, u8 rd_byte_len);
-
+int dsi_exec_init_table(struct aml_lcd_drv_s *pdrv,
+		u8 *payload, u32 pld_limit, u8 *rd_back, u32 rd_back_max);
 /* DSI setting */
 // DSI escape mode command ack control field
 #define MIPI_DSI_DCS_NO_ACK  0

@@ -381,12 +381,7 @@ int lcd_extern_add_dev(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s
 	int ret = -1;
 
 	if (strcmp(edev->config.name, "ext_default") == 0) {
-		if (edev->config.type == LCD_EXTERN_MIPI)
-			ret = lcd_extern_mipi_default_probe(edrv, edev);
-		else
-			ret = lcd_extern_default_probe(edrv, edev);
-	} else if (strcmp(edev->config.name, "mipi_default") == 0) {
-		ret = lcd_extern_mipi_default_probe(edrv, edev);
+		ret = lcd_extern_default_probe(edrv, edev);
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_CS602
 	} else if (strcmp(edev->config.name, "i2c_CS602") == 0) {
 		ret = lcd_extern_i2c_CS602_probe(edrv, edev);
@@ -475,51 +470,6 @@ static int lcd_extern_init_dynamic_print(char *buf, struct lcd_extern_config_s *
 				len += sprintf(buf + len, "0x%02x,", table[i + 2 + j]);
 
 init_table_dynamic_print_i2c_spi_next:
-			len += sprintf(buf + len, "\n");
-			i += (size + 2);
-		}
-		break;
-	case LCD_EXTERN_MIPI:
-		while ((i + 1) < max_len) {
-			type = table[i];
-			size = table[i + 1];
-			if (type == LCD_EXT_CMD_TYPE_END) {
-				if (size == 0xff) {
-					len += sprintf(buf + len, "  0x%02x,0x%02x,\n",
-						type, size);
-					break;
-				}
-				if (size == 0) {
-					len += sprintf(buf + len, "  0x%02x,%d,\n", type, size);
-					break;
-				}
-				size = 0;
-			}
-
-			len += sprintf(buf + len, "  0x%02x,%d,", type, size);
-			if (size == 0)
-				goto init_table_dynamic_print_mipi_next;
-			if (i + 2 + size > max_len) {
-				len += sprintf(buf + len, "size out of support\n");
-				break;
-			}
-
-			if (type == LCD_EXT_CMD_TYPE_GPIO ||
-			    type == LCD_EXT_CMD_TYPE_DELAY) {
-				for (j = 0; j < size; j++)
-					len += sprintf(buf + len, "%d,", table[i + 2 + j]);
-			} else if ((type & 0xf) == 0x0) {
-				len += sprintf(buf + len, "  init_%s wrong data_type: 0x%02x\n",
-					       flag ? "on" : "off", type);
-				break;
-			} else {
-				size = table[i + DSI_CMD_SIZE_INDEX];
-				len += sprintf(buf + len, "  0x%02x,%d,", type, size);
-				for (j = 0; j < size; j++)
-					len += sprintf(buf + len, "0x%02x,", table[i + 2 + j]);
-			}
-
-init_table_dynamic_print_mipi_next:
 			len += sprintf(buf + len, "\n");
 			i += (size + 2);
 		}
@@ -678,23 +628,6 @@ static ssize_t lcd_extern_info_show(struct device *dev,
 				len += lcd_extern_init_fixed_print(buf + len, &edev->config, 1);
 				len += lcd_extern_init_fixed_print(buf + len, &edev->config, 0);
 			}
-			break;
-		case LCD_EXTERN_MIPI:
-			len += sprintf(buf + len,
-				"type:            mipi(%d)\n"
-				"table_loaded:    %d\n"
-				"cmd_size:        %d\n"
-				"table_init_on_cnt:  %d\n"
-				"table_init_off_cnt: %d\n",
-				edev->config.type,
-				edev->config.table_init_loaded,
-				edev->config.cmd_size,
-				edev->config.table_init_on_cnt,
-				edev->config.table_init_off_cnt);
-			if (edev->config.cmd_size != LCD_EXT_CMD_SIZE_DYNAMIC)
-				break;
-			len += lcd_extern_init_dynamic_print(buf + len, &edev->config, 1);
-			len += lcd_extern_init_dynamic_print(buf + len, &edev->config, 0);
 			break;
 		case LCD_EXTERN_SIMPLE:
 			len += sprintf(buf + len,

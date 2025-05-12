@@ -74,7 +74,6 @@ int lcd_extern_power_cmd(struct lcd_extern_driver_s *edrv,
 
 /* specific API */
 int lcd_extern_default_probe(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev);
-int lcd_extern_mipi_default_probe(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev);
 
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_ANX6862_7911
 int lcd_extern_i2c_ANX6862_7911_probe(struct lcd_extern_driver_s *edrv,

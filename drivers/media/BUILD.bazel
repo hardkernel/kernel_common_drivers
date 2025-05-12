@@ -414,7 +414,6 @@ ddk_module(
                 "vout/lcd/lcd_extern/ext_spi_dev.c",
                 "vout/lcd/lcd_extern/ext_func.c",
                 "vout/lcd/lcd_extern/ext_default.c",
-                "vout/lcd/lcd_extern/mipi_default.c",
             ],
         },
         "CONFIG_AMLOGIC_LCD_EXTERN_I2C_OLED": {

@@ -14,7 +14,6 @@
 enum lcd_extern_type_e {
 	LCD_EXTERN_I2C = 0,
 	LCD_EXTERN_SPI,
-	LCD_EXTERN_MIPI,
 	LCD_EXTERN_SIMPLE,
 	LCD_EXTERN_MAX,
 };

@@ -300,22 +300,6 @@ static int lcd_extern_get_config_dts(struct device_node *np,
 			break;
 		ret = lcd_extern_init_table_handle_dts(edrv, edev, child);
 		break;
-	case LCD_EXTERN_MIPI:
-		ret = of_property_read_u32(child, "cmd_size", &val);
-		if (ret) {
-			EXTPR("[%d]: %s: no cmd_size\n", edrv->index, econf->name);
-			econf->cmd_size = 0;
-		} else {
-			econf->cmd_size = (unsigned char)val;
-		}
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			EXTPR("[%d]: %s: cmd_size = %d\n",
-			      edrv->index, econf->name, econf->cmd_size);
-		}
-		if (econf->cmd_size != LCD_EXT_CMD_SIZE_DYNAMIC)
-			break;
-		ret = lcd_extern_init_table_handle_dts(edrv, edev, child);
-		break;
 	case LCD_EXTERN_SIMPLE:
 		ret = of_property_read_u32(child, "cmd_size", &val);
 		if (ret) {
@@ -344,7 +328,6 @@ static int lcd_extern_get_config_dts(struct device_node *np,
 static struct num_str_s ext_type_name[] = {
 	{LCD_EXTERN_I2C,    "LCD_EXTERN_I2C"},
 	{LCD_EXTERN_SPI,    "LCD_EXTERN_SPI"},
-	{LCD_EXTERN_MIPI,   "LCD_EXTERN_MIPI"},
 	{LCD_EXTERN_MAX, "LCD_EXTERN_MAX"},
 };
 
@@ -559,11 +542,6 @@ static int lcd_extern_get_config_ini(struct lcd_extern_driver_s *edrv,
 		str_info_len += sprintf(str_info + str_info_len, "spi clk_freq=%d, clk_pol=%d",
 					edev->config.spi_clk_freq, edev->config.spi_clk_pol);
 		if (edev->config.cmd_size == 0)
-			init_cmd_valid = 0;
-		break;
-	case LCD_EXTERN_MIPI:
-		edev->config.cmd_size = lcd_ini_get_val(inip, psec, "value_9", 0);
-		if (edev->config.cmd_size != LCD_EXT_CMD_SIZE_DYNAMIC)
 			init_cmd_valid = 0;
 		break;
 	case LCD_EXTERN_SIMPLE:

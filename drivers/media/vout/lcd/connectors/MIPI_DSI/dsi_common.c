@@ -15,7 +15,7 @@
 #include "./dsi_ctrl/dsi_ctrl.h"
 #include "../lcd_connector.h"
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
-#include "../../lcd_extern/lcd_extern.h"
+#include <linux/amlogic/media/vout/lcd/lcd_extern.h>
 #endif
 
 char *dsi_op_mode_table[] = {"Video", "Command"};
@@ -459,7 +459,7 @@ int dsi_run_oneline_cmd(struct aml_lcd_drv_s *pdrv, u8 port,
 	return ret;
 }
 
-static int dsi_exec_init_table(struct aml_lcd_drv_s *pdrv,
+int dsi_exec_init_table(struct aml_lcd_drv_s *pdrv,
 		u8 *payload, u32 pld_limit, u8 *rd_back, u32 rd_back_max)
 {
 	u16 i = 0, j = 0, step = 0;
@@ -617,16 +617,11 @@ static void dsi_panel_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct dsi_config_s *dconf = &pdrv->config.control.mipi_cfg;
 
-	if (dconf->dsi_init_on) {
-		dsi_exec_init_table(pdrv, dconf->dsi_init_on, DSI_INIT_ON_MAX, NULL, 0);
-		LCDPR("[%d]: %s table\n", pdrv->index, __func__);
-	}
-
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	struct lcd_extern_driver_s *edrv;
 	struct lcd_extern_dev_s *edev;
 
-	if (dconf->extern_init >= LCD_EXTERN_INDEX_INVALID) {
+	if (dconf->extern_init == LCD_EXTERN_INDEX_INVALID) {
 		LCDPR("[%d]: %s extern [%d] invalid\n", pdrv->index, __func__, dconf->extern_init);
 		return;
 	}
@@ -636,11 +631,17 @@ static void dsi_panel_init(struct aml_lcd_drv_s *pdrv)
 		LCDPR("[%d]: no lcd_extern dev\n", pdrv->index);
 		return;
 	}
-	if (edev->config.table_init_on) {
-		dsi_exec_init_table(pdrv, edev->config.table_init_on, DSI_INIT_ON_MAX, NULL, 0);
+	// remove support on dsi cmd on extern driver
+	if (edev->config.table_init_on && edev->power_on) {
+		edev->power_on(edrv, edev);
 		LCDPR("[%d]: [extern]%s dsi init on\n", pdrv->index, edev->config.name);
 	}
 #endif
+
+	if (dconf->dsi_init_on) {
+		dsi_exec_init_table(pdrv, dconf->dsi_init_on, DSI_INIT_ON_MAX, NULL, 0);
+		LCDPR("[%d]: %s table\n", pdrv->index, __func__);
+	}
 }
 
 static void dsi_panel_deinit(struct aml_lcd_drv_s *pdrv)
@@ -656,7 +657,7 @@ static void dsi_panel_deinit(struct aml_lcd_drv_s *pdrv)
 	struct lcd_extern_driver_s *edrv;
 	struct lcd_extern_dev_s *edev;
 
-	if (dconf->extern_init >= LCD_EXTERN_INDEX_INVALID) {
+	if (dconf->extern_init == LCD_EXTERN_INDEX_INVALID) {
 		LCDPR("[%d]: %s extern [%d] invalid\n", pdrv->index, __func__, dconf->extern_init);
 		return;
 	}
@@ -666,8 +667,8 @@ static void dsi_panel_deinit(struct aml_lcd_drv_s *pdrv)
 		LCDPR("[%d]: no lcd_extern dev\n", pdrv->index);
 		return;
 	}
-	if (edev->config.table_init_off) {
-		dsi_exec_init_table(pdrv, edev->config.table_init_off, DSI_INIT_OFF_MAX, NULL, 0);
+	if (edev->config.table_init_off && edev->power_off) {
+		edev->power_off(edrv, edev);
 		LCDPR("[%d]: [extern]%s dsi init off\n", pdrv->index, edev->config.name);
 	}
 #endif
