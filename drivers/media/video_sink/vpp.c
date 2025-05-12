@@ -1157,8 +1157,13 @@ static int vpp_process_speed_check
 			else
 				orig_w = vf->width;
 			/* w <= 1280, DI will enable dm chroma, pixel clock need x3 */
-			if (orig_w <= 1280)
-				input_time_us *= 3;
+			if (orig_w <= 1280) {
+				/* for txhd2 and t6d (DI clk <= 400000000), 10% more */
+				if (clk_in_pps <= 400000000)
+					input_time_us = (input_time_us * 3 * 11) / 10;
+				else
+					input_time_us *= 3;
+			}
 
 			dummy_time_us = display_time_us;
 			display_time_us = (height_out * display_time_us) / vtotal;
