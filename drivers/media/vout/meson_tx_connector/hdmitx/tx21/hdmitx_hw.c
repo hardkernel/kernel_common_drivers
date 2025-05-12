@@ -3434,6 +3434,15 @@ static void hdmi_phy_wakeup(struct hdmitx21_dev *hdev)
 	hdmitx_set_phy(hdev);
 }
 
+static int hdmitx21_check_input_argv(u32 cmd, void *input_argv)
+{
+	if (!input_argv) {
+		HDMITX_ERROR("cmd[0x%x] null input arg\n", cmd);
+		return -1;
+	}
+	return 0;
+}
+
 static int hdmitx21_hw_cntl_ddc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			      void *input_argv, void *output_struct)
 {
@@ -3448,11 +3457,9 @@ static int hdmitx21_hw_cntl_ddc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	}
 	switch (cmd) {
 	case DDC_PIN_MUX_OP:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		if (arg == PIN_MUX)
 			hdmitx21_ddc_hw_op(DDC_MUX_DDC);
@@ -3478,11 +3485,9 @@ static int hdmitx21_hw_cntl_ddc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	 * config i2c 50k: AON_CYP_CTL_IVCTX as default, DDC_DELAY_CNT_IVCTX as 0x3d
 	 */
 	case DDC_I2C_RATE:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		switch (arg) {
 		case DDC_I2C_25K:
@@ -3509,11 +3514,9 @@ static int hdmitx21_hw_cntl_ddc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		}
 		break;
 	case DDC_SCDC_DIV40_SCRAMB:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		if (arg == 1) {
 			hdmitx_set_scdc_div40(1);
@@ -3559,11 +3562,9 @@ static int hdmitx21_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	}
 	switch (cmd) {
 	case HDCP_SET_TOPO_INFO:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		set_hdcp2_topo(hdev->tx_comm.tx_hw->chip_data->chip_type, !!arg);
 		break;
@@ -3595,21 +3596,17 @@ static int hdmitx21_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		else
 			return 0;
 	case HDCP_REQ_AUTH:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u8 *)input_argv);
 		return hdcptx_reauth_request(hdev->tx_comm.hdcptx_priv, arg & 0xFF);
 	case HDCP14_KEY_VALIDATE:
 		return hdmitx_validate_hdcp14_key(hdev);
 	case HDCP14_KEY_LOAD:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((bool *)input_argv);
 		p_hdcp->hdcp14_key_loaded = !!arg;
 		break;
@@ -3644,11 +3641,9 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 
 	switch (cmd) {
 	case AUX_PKT_CONFIG_AVMUTE:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		config_avmute(arg);
 		break;
@@ -3657,31 +3652,25 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case AUX_PKT_CLR_AVI:
 		break;
 	case AUX_PKT_CONF_AVI_ASPECT:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_SET_AVI_VIC, arg >> 2);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_CONF_AVI_ASPECT,
 			arg & 0x3);
 		break;
 	case AUX_PKT_CONF_AVI_BT2020:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_CONF_AVI_BT2020, arg);
 		break;
 	case AUX_PKT_SET_AVI_VIC:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_SET_AVI_VIC, arg & 0xff);
 		break;
@@ -3689,11 +3678,9 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		ret = get_extended_colorimetry_from_avi(hdev);
 		break;
 	case AUX_PKT_CONF_AVI_SCAN:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_CONF_AVI_SCAN, arg & 0x3);
 		break;
@@ -3703,38 +3690,30 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case AUX_PKT_CLR_DV_VS10_SIG:
 		break;
 	case AUX_PKT_SET_AVI_CS:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_SET_AVI_CS, arg);
 		break;
 	case AUX_PKT_CONF_AVI_Q01:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_CONF_AVI_Q01, arg);
 		break;
 	case AUX_PKT_CONF_AVI_YQ01:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_CONF_AVI_YQ01, arg);
 		break;
 	case AUX_PKT_CONF_AVI_CT:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmi_avi_infoframe_config(tx_comm, AUX_PKT_CONF_AVI_CT, arg);
 		break;
@@ -3769,11 +3748,9 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, pkt_byte);
 		break;
 	case AUX_PKT_SET_EMP:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		pkt_byte = (u8 *)input_argv;
 		hdmitx_dhdr_send(pkt_byte, sizeof(struct hdmi_packet_t) * 3);
 		break;
@@ -3847,11 +3824,9 @@ static int hdmitx21_hw_cntl_audio(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	}
 	switch (cmd) {
 	case AUDIO_MUTE_OP:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		audio_mute_op(arg == AUDIO_MUTE ? 0 : 1);
 		break;
@@ -3882,11 +3857,9 @@ static int hdmitx21_hw_cntl_allm(struct hdmitx_hw_common *tx_hw, u32 cmd,
 
 	switch (cmd) {
 	case ALLM_CONFIG:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		if (arg == ENABLE_ALLM)
 			hdmi_tx_enable_ll_mode(true);
@@ -3969,11 +3942,9 @@ static int hdmitx21_hw_cntl_vrr(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	switch (cmd) {
 	case VRR_REGISTER:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		if (arg == 0)
 			hdmitx_unregister_vrr(tx_comm->enc_idx);
@@ -4005,11 +3976,9 @@ static int hdmitx21_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 
 	switch (cmd) {
 	case CORE_MISC_SET_HDMI_DVI_MODE:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmitx_hdmi_dvi_config(hdev, (arg == DVI_MODE) ? 1 : 0);
 		break;
@@ -4017,29 +3986,23 @@ static int hdmitx21_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		ret = hdmitx_get_hdmi_dvi_config(hdev);
 		break;
 	case CORE_MISC_HW_INIT:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((bool *)input_argv);
 		hdmi_hwp_init(hdev, !!arg);
 		break;
 	case CORE_MISC_VP_CMS_CSC:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmitx21_vp_cms_csc0_multi_csc_config(arg);
 		break;
 	case CORE_MISC_TRIGGER_HPD:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		if (arg == 1)
 			hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
@@ -4071,21 +4034,17 @@ static int hdmitx21_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case PLATFORM_CLK_DIV_RST:
 		/* TO confirm if only for S5 */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmitx21_s5_clk_div_rst(arg);
 #endif
 		break;
 	case PLATFORM_HPD_MUX_OP:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		if (arg == PIN_MUX)
 			arg = HPD_MUX_HPD;
@@ -4095,11 +4054,9 @@ static int hdmitx21_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case PLATFORM_GET_HPD_GPI_ST:
 		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
 	case PLATFORM_PHY_OP:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		if (arg == TMDS_PHY_ENABLE) {
 			hdmitx_phy_pre_init(hdev);
@@ -4115,11 +4072,9 @@ static int hdmitx21_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case PLATFORM_RXSENSE:
 		return hdmitx_tmds_rxsense();
 	case PLATFORM_HDMI_CLKS_CTRL:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((bool *)input_argv);
 		hdmitx21_clks_gate_ctrl(!!arg);
 		break;
@@ -4146,11 +4101,9 @@ static int hdmitx21_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, u32 cmd,
 
 	switch (cmd) {
 	case VPU_VIDEO_MUTE_OP:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		connector_type = get_uboot_connector0_type();
 		if (connector_type)
@@ -4194,11 +4147,9 @@ static int hdmitx21_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		}
 		break;
 	case VPU_CONFIG_CSC_EN:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		if (arg == CSC_ENABLE)
 			tx_comm->config_csc_en = true;
@@ -4208,11 +4159,9 @@ static int hdmitx21_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case VPU_CONFIG_CSC:
 		if (!tx_comm->config_csc_en)
 			break;
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((u32 *)input_argv);
 		hdmitx21_color_convert(hdev, arg);
 		break;
@@ -4240,11 +4189,9 @@ static int hdmitx21_hw_cntl_flow_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 
 	switch (cmd) {
 	case MODE_FLOW_HPD_IRQ_TOP_HALF:
-		if (!input_argv) {
-			HDMITX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
+		ret = hdmitx21_check_input_argv(cmd, input_argv);
+		if (ret < 0)
 			break;
-		}
 		arg = *((bool *)input_argv);
 		hdmitx_hpd_irq_top_half_process(hdev, !!arg);
 		break;
