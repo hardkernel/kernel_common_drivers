@@ -42,6 +42,8 @@
 #define HDMITX_MAX_BPC	12
 
 static struct drm_connector *tx_conn;
+/* confirm whether the current mode is integer mode or frac mode */
+static bool meson_hdmitx_is_alter_mode(struct drm_display_mode *mode);
 
 /*for hw limitation, limit to 1080p/720p for recovery ui.*/
 static bool hdmitx_set_smaller_pref = true;
@@ -1989,6 +1991,7 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(encoder->crtc);
 	enum vmode_e vmode = meson_crtc_state->vmode;
 	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmi->hdmitx_dev);
+	bool is_alter;
 
 	DRM_DEBUG("%s[%d]\n", __func__, __LINE__);
 
@@ -1997,6 +2000,12 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		return;
 	}
 
+	is_alter = meson_hdmitx_is_alter_mode(mode);
+	if (is_alter) {
+		vrr_info.frac_mode = true;
+	} else {
+		vrr_info.frac_mode = false;
+	}
 	if (meson_crtc_state->seamless) {
 		if (meson_crtc_state->vrr_type == DRM_VRR_QMS) {
 			dst_vrefresh = meson_crtc_state->base.vrr_enabled ? mode_vrefresh : 0;

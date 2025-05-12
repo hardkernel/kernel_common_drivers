@@ -1244,8 +1244,8 @@ int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int _rate, void *data)
 		HDMITX_INFO("vrr: invalid type %d\n", vrr_info->type);
 		return -1;
 	}
+	fmt_para->frac_mode = vrr_info->frac_mode;
 	hdev->vrr_mode = vrr_info ? vrr_info->type : T_VRR_QMS;
-
 	/* check current rate, should less or equal than current rate of BRR */
 	tmp_rate = fmt_para->timing.v_freq / 10;
 	/* TODO, BRR mode should have frac_rate_policy as 0 */

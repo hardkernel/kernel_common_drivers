@@ -2361,6 +2361,8 @@ EXPORT_SYMBOL(hdmitx_common_get_vrr_mode_group);
 
 int hdmitx_common_set_vframe_rate_hint(struct hdmitx_common *tx_comm, int rate, void *data)
 {
+	if (!tx_comm || !tx_comm->tx_hw)
+		return -EINVAL;
 	return hdmitx_hw_set_vrr_rate(tx_comm->tx_hw, rate, data);
 }
 EXPORT_SYMBOL(hdmitx_common_set_vframe_rate_hint);
