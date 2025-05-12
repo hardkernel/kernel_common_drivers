@@ -123,7 +123,6 @@ struct vad {
 
 #ifdef __VAD_DUMP_DATA__
 	struct file *fp;
-	mm_segment_t fs;
 	loff_t pos;
 #endif
 	struct vad_chipinfo *chipinfo;
@@ -338,6 +337,14 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 
 		p_vad->addr = curr_addr;
 
+		#ifdef __VAD_DUMP_DATA__
+		p_vad->pos = p_vad->fp->f_pos;
+		kernel_write(p_vad->fp,
+				p_vad->vad_whole_buf + (p_vad->dma_buffer.bytes - send_size),
+				send_size, &p_vad->pos);
+		p_vad->fp->f_pos = p_vad->pos;
+		#endif
+
 		return vad_transfer_data_to_algorithm(p_vad,
 			p_vad->vad_whole_buf + (p_vad->dma_buffer.bytes - send_size),
 			frame_count1, rate, chnum, bitdepth);
@@ -346,6 +353,8 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 	read_bytes = frame_count * chnum * bytes_per_sample;
 
 	do {
+		if (kthread_should_stop())
+			break;
 		if (p_vad->chipinfo &&
 			p_vad->chipinfo->vad_top &&
 			p_vad->a2v_buf)
@@ -371,7 +380,8 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 
 		if (bytes < read_bytes) {
 			/* can't use sleep as cpd is idle, timer is invalid */
-			schedule();
+			if (!kthread_should_stop())
+				schedule();
 			timeout_cnt++;
 			if (timeout_cnt >= timeout_max_cnt)
 				break;
@@ -421,9 +431,11 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 		p_vad->addr = start + read_bytes - tmp_bytes;
 	}
 #ifdef __VAD_DUMP_DATA__
-	set_fs(KERNEL_DS);
-	vfs_write(p_vad->fp, p_vad->buf, read_bytes, &p_vad->pos);
+	p_vad->pos = p_vad->fp->f_pos;
+	kernel_write(p_vad->fp, p_vad->buf, read_bytes, &p_vad->pos);
+	p_vad->fp->f_pos = p_vad->pos;
 #endif
+
 	return vad_transfer_data_to_algorithm(p_vad,
 		p_vad->buf, frame_count, rate, chnum, bitdepth);
 }
@@ -570,6 +582,7 @@ static int vad_init(struct vad *p_vad)
 						"vad freeze: Creating thread failed\n");
 				return err;
 			}
+			get_task_struct(p_vad->thread);
 			vad_wakeup_count = 0;
 		}
 
@@ -579,7 +592,6 @@ static int vad_init(struct vad *p_vad)
 			pr_err("create file %s error/n", VAD_DUMP_FILE_NAME);
 			return -1;
 		}
-		p_vad->fs = get_fs();
 		p_vad->pos = 0;
 #endif
 
@@ -615,14 +627,15 @@ static void vad_deinit(struct vad *p_vad)
 	if (p_vad->level == LEVEL_KERNEL) {
 #ifdef __VAD_DUMP_DATA__
 		if (p_vad->fp) {
-			set_fs(p_vad->fs);
 			filp_close(p_vad->fp, NULL);
 		}
 #endif
 		if (p_vad->thread) {
 			kthread_stop(p_vad->thread);
+			put_task_struct(p_vad->thread);
 			p_vad->thread = NULL;
 		}
+		memset(p_vad->dma_buffer.area, 0x0, p_vad->dma_buffer.bytes);
 		kfree(p_vad->buf);
 		p_vad->buf = NULL;
 	}
@@ -1284,8 +1297,8 @@ static int vad_platform_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-	/* time = 200ms * 10 = 2s */
-	p_vad->wakeup_timeout_fs_count = 200;
+	/* time = 400 * 10ms = 4s */
+	p_vad->wakeup_timeout_fs_count = 400;
 
 	return 0;
 }
