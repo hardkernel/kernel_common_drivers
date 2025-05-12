@@ -1496,8 +1496,10 @@ static int vdin_v4l2_release(struct file *file)
 		return -EFAULT;
 
 	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
-		dprintk(0, "%s error VDIN_FLAG_DEC_STARTED\n", __func__);
-		return -EPERM;
+		dprintk(0, "%s warning VDIN_FLAG_DEC_STARTED\n", __func__);
+		ret = vdin_v4l2_stop_tvin(devp);
+		if (ret < 0)
+			dprintk(0, "%s vdin_v4l2_stop_tvin failed with %d\n", __func__, ret);
 	}
 
 	/*release que*/
