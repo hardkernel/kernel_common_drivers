@@ -1087,6 +1087,7 @@ static int meson_pwm_probe(struct platform_device *pdev)
 #endif
 	spin_lock_init(&meson->lock);
 	meson->chip->ops = &meson_pwm_ops;
+	meson->chip->atomic = true;
 	meson->data->num_parents = match->num_parents;
 	meson->data->double_channel = match->double_channel;
 #ifdef CONFIG_AMLOGIC_MODIFY

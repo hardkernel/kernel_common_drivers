@@ -369,6 +369,7 @@ static int meson_pwm_tee_probe(struct platform_device *pdev)
 
 	spin_lock_init(&meson->lock);
 	meson->chip->ops = &meson_pwm_tee_ops;
+	meson->chip->atomic = true;
 
 	err = meson_pwm_tee_init_channels(meson);
 	if (err < 0)
