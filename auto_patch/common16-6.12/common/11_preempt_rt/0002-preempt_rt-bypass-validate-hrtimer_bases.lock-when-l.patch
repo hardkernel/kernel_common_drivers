@@ -1,0 +1,54 @@
+From b01674c72106c28c1885d7470dbe1ddcb2e20af7 Mon Sep 17 00:00:00 2001
+From: Lei Zhang <lei.zhang@amlogic.com>
+Date: Fri, 23 May 2025 10:07:12 +0800
+Subject: [PATCH] preempt_rt: bypass validate hrtimer_bases.lock when lockdep
+ enabled [1/1]
+
+PD#SWPL-212273
+
+Problem:
+with CONFIG_PROVE_LOCKING=y, it consume too much time in validate chain of
+hrtimer_bases.lock
+
+Solution:
+bypass validate hrtimer_bases.lock
+
+Verify:
+on A5
+
+Change-Id: I0a5311eca4209b4cbc0bca8529a5bd0ae40a75f1
+Signed-off-by: Lei Zhang <lei.zhang@amlogic.com>
+---
+ kernel/time/hrtimer.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
+index 36d66c8aa5d4..e6dbf111f0fc 100644
+--- a/kernel/time/hrtimer.c
++++ b/kernel/time/hrtimer.c
+@@ -179,12 +179,22 @@ struct hrtimer_clock_base *lock_hrtimer_base(const struct hrtimer *timer,
+ {
+ 	struct hrtimer_clock_base *base;
+
++#ifdef CONFIG_AMLOGIC_PREEMPT_RT
++	lockdep_off();
++#endif
+ 	for (;;) {
+ 		base = READ_ONCE(timer->base);
+ 		if (likely(base != &migration_base)) {
+ 			raw_spin_lock_irqsave(&base->cpu_base->lock, *flags);
++#ifdef CONFIG_AMLOGIC_PREEMPT_RT
++			if (likely(base == timer->base)) {
++				lockdep_on();
++				return base;
++			}
++#else
+ 			if (likely(base == timer->base))
+ 				return base;
++#endif
+ 			/* The timer has migrated to another CPU: */
+ 			raw_spin_unlock_irqrestore(&base->cpu_base->lock, *flags);
+ 		}
+--
+2.29.0
+
