@@ -112,10 +112,15 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 	 */
 	if (state->polarity == PWM_POLARITY_INVERSED)
 		duty = period - duty;
-	/*when tee is locked, clk rate fixed and should not be changed*/
 	fin_freq = channel->rate;
+	if (fin_freq == 0) {
+		dev_err(&meson->chip->dev, "invalid source clock frequency\n");
+		return -EINVAL;
+	}
 
-	cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * period, NSEC_PER_SEC);
+	dev_dbg(&meson->chip->dev, "fin_freq: %lu Hz\n", fin_freq);
+	channel->pre_div = DIV64_U64_ROUND_CLOSEST(fin_freq * (u64)period, NSEC_PER_SEC * 0xffffLL);
+	cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * period, NSEC_PER_SEC * (channel->pre_div + 1));
 	if (cnt > 0xffff) {
 		dev_err(&meson->chip->dev, "unable to get period cnt\n");
 		return -EINVAL;
@@ -130,7 +135,8 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 		channel->hi = 0;
 		channel->lo = cnt;
 	} else {
-		duty_cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * duty, NSEC_PER_SEC);
+		duty_cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * duty,
+			NSEC_PER_SEC * (channel->pre_div + 1));
 
 		dev_dbg(&meson->chip->dev, "duty=%llu duty_cnt=%u\n", duty, duty_cnt);
 		if (duty_cnt == 0)
@@ -148,6 +154,8 @@ static void meson_pwm_tee_enable(struct meson_pwm_tee *meson, struct pwm_device 
 	struct meson_pwm_tee_channel *channel = &meson->channels[pwm->hwpwm];
 	u32 value;
 	struct arm_smccc_res res;
+	unsigned long set_clk;
+	u32 err;
 
 	/*when tee is locked, clk rate fixed and should not be changed*/
 	// err = clk_set_rate(channel->clk, channel->rate);
@@ -172,6 +180,19 @@ static void meson_pwm_tee_enable(struct meson_pwm_tee *meson, struct pwm_device 
 	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
 				 SECID_PWM_ENABLE_MAIN, value, 0, 0, 0, &res);
 #endif
+	/*get_clk_rate()not use in Interrupt context*/
+	if (channel->clk_div == channel->pre_div)
+		return;
+
+	set_clk = channel->rate;
+	if (set_clk == 0)
+		dev_err(&meson->chip->dev, "invalid source clock frequency\n");
+
+	set_clk /= (channel->pre_div + 1);
+	err = clk_set_rate(channel->clk, set_clk);
+	if (err)
+		pr_err("%s: error in setting pwm clk rate!\n", __func__);
+	channel->clk_div = channel->pre_div;
 }
 
 static void meson_pwm_tee_disable(struct meson_pwm_tee *meson, struct pwm_device *pwm)
