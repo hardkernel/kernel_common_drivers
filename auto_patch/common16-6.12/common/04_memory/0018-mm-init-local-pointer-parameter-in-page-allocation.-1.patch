@@ -1,0 +1,38 @@
+From f97cc8c7b4abf0aa267b9e968fa8d262b94f2ef0 Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Wed, 14 May 2025 10:35:48 +0800
+Subject: [PATCH] mm: init local pointer parameter in page allocation. [1/1]
+
+PD#SWPL-213163
+
+Problem:
+system crash when close INIT_STACK_ALL_ZERO.
+
+Solution:
+init local pointer parameter.
+
+Verify:
+sc2.
+
+Change-Id: Ica4a82f6ea512144548be30732f7ad0ba030d12d
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 69f1e350351f3..14ef0538e8130 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5172,7 +5172,7 @@ EXPORT_SYMBOL_GPL(alloc_pages_bulk_noprof);
+ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+ 				      int preferred_nid, nodemask_t *nodemask)
+ {
+-	struct page *page;
++	struct page *page = NULL;
+ 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
+ 	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
+ 	struct alloc_context ac = { };
+-- 
+2.42.0
+
