@@ -31,7 +31,7 @@
 #include "v2d_vicp_composer.h"
 
 #define MAX_LAYER_COUNT		9
-#define V2D_POOL_SIZE		16
+#define V2D_POOL_SIZE		32
 #define BUFFER_LEN		4
 #define V2D_SET_ENABLE_MODE	1
 #define V2D_SET_DISABLE_MODE	0

@@ -1135,9 +1135,23 @@ static void receive_q_uninit(struct videodisplay_dev *dev)
 {
 	int i = 0;
 	int queue_count = 0;
+	int num = 0;
+	struct received_frames_t *received_frames = NULL;
+	struct dma_fence *release_fence;
 
 	queue_count = kfifo_len(&dev->receive_q);
 	vd_print(dev->index, PRINT_QUEUE_STATUS, "%s: receive_q len=%d\n", __func__, queue_count);
+
+	while (kfifo_len(&dev->receive_q) > 0) {
+		vd_print(dev->index, PRINT_QUEUE_STATUS, "%s: receive_q len=%d\n",
+			__func__, kfifo_len(&dev->receive_q));
+		if (kfifo_get(&dev->receive_q, &received_frames)) {
+			num = received_frames->frames_info.layer_index;
+			release_fence = received_frames->frames_info.frame_info[num].release_fence;
+			dma_fence_signal(release_fence);
+			dma_fence_put(release_fence);
+		}
+	}
 
 	for (i = 0; i < FRAMES_INFO_POOL_SIZE; i++)
 		atomic_set(&dev->received_frames[i].on_use, false);
@@ -2945,14 +2959,15 @@ static void video_display_task(struct videodisplay_dev *dev)
 	dev->is_drm_enable = received_frames->is_drm;
 	num = received_frames->frames_info.layer_index;
 	fence_file = received_frames->frames_info.frame_info[num].input_fence;
-	if (video_wait_dma_fence(dev, fence_file) == 0)
-		return;
 	vd_print(dev->index, PRINT_OTHER,
-		"%s:wait fence done. dmabuf:%px, input_fence:%px, release_fence:%px.\n",
+		"%s:dmabuf:%px, input_fence:%px, release_fence:%px.\n",
 		__func__,
 		received_frames->frames_info.frame_info[num].dmabuf,
 		received_frames->frames_info.frame_info[num].input_fence,
 		received_frames->frames_info.frame_info[num].release_fence);
+
+	if (video_wait_dma_fence(dev, fence_file) == 0)
+		return;
 
 	if (!detect_vf_usage(dev, received_frames, &need_composer, &do_mosaic_22)) {
 		vd_print(dev->index, PRINT_ERROR, "%s: fail to get vf usage.\n", __func__);

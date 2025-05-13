@@ -396,7 +396,6 @@ struct file_private_data *v2d_get_file_private_data(struct file *file_vf,
 	memset(file_private_data, 0, sizeof(struct file_private_data));
 
 	memset(&info, 0, sizeof(struct uvm_hook_mod_info));
-	v2d_print(0, PRINT_OTHER, "uvm attch\n");
 	info.type = VF_PROCESS_V4LVIDEO;
 	info.arg = file_private_data;
 	info.free = v2d_free_fd_private;
@@ -650,7 +649,7 @@ static void init_output_buffer_size(struct v2d_dev *dev,
 		if (buf_height > BUFFER_4K_HEIGHT)
 			buf_height = BUFFER_4K_HEIGHT;
 	} else {
-		if (dev->work_mode == V2D_MODE_COMPOSER &&
+		if (dev->work_mode == V2D_MODE_ROTATE &&
 			dev->dev_choice != COMPOSER_WITH_DEWARP) {
 			buf_width = BUFFER_720_WIDTH;
 			buf_height = BUFFER_720_HEIGHT;
@@ -906,8 +905,8 @@ static int v2d_wait_file_fence(struct v2d_dev *dev,
 	}
 
 	if (fence_obj) {
-		v2d_print(dev->index, PRINT_FENCE, "sync_file=%px, seqno=%lld\n",
-			sync_file, fence_obj->seqno);
+		v2d_print(dev->index, PRINT_FENCE, "sync_file=%px, fence_obj=%px, seqno=%lld\n",
+			sync_file, fence_obj, fence_obj->seqno);
 		timestamp = local_clock();
 		ret = dma_fence_wait_timeout(fence_obj,
 					     false, msecs_to_jiffies(3000));
@@ -1405,14 +1404,16 @@ static void v2d_fence_signal_cb(struct dma_fence *fence, struct dma_fence_cb *cb
 		if (!kfifo_put(&dev->display_q, display_data))
 			v2d_print(dev->index, PRINT_ERROR, "error, display_q overflow!\n");
 	}
-	if (i == len) {
-		v2d_print(dev->index, PRINT_ERROR,
-			"recycle failed, could not find the match display_data!\n");
-		return;
-	}
 
 	fput(need_recycle_file);
 	fput(fence_file);
+
+	if (i == len) {
+		v2d_print(dev->index, PRINT_OTHER,
+			"recycle failed, may be at uninit process?\n");
+		return;
+	}
+
 	dev->buffer_release_count++;
 
 	atomic_set(&display_data->on_use, false);
@@ -1428,8 +1429,8 @@ static void v2d_fence_signal_cb(struct dma_fence *fence, struct dma_fence_cb *cb
 		v2d_print(dev->index, PRINT_ERROR, "error, free_q is empty\n");
 
 	v2d_print(dev->index, PRINT_FENCE,
-		"wait dma_fence:%px done, display_q:%d\n",
-		fence, kfifo_len(&dev->display_q));
+		"wait dma_fence:%px done, display_q:%d free_q:%d\n",
+		fence, kfifo_len(&dev->display_q), kfifo_len(&dev->free_q));
 }
 
 static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_vf,
@@ -1623,7 +1624,13 @@ static int v2d_config_uninit(struct v2d_dev *dev)
 	else if (time_left < 100)
 		v2d_print(dev->index, PRINT_ERROR,
 			 "unreg:do file wait time left:%d\n", time_left);
-
+	if (dev->fence_creat_count != dev->fence_signal_count) {
+		v2d_print(dev->index, PRINT_ERROR,
+			 "uninit: fence_r=%lld, fence_c=%lld\n",
+			 dev->fence_signal_count,
+			 dev->fence_creat_count);
+		v2d_timeline_increase(dev, dev->fence_creat_count - dev->fence_signal_count);
+	}
 	display_q_uninit(dev);
 	v2d_uninit_buffer(dev);
 	receive_q_uninit(dev);
@@ -1644,13 +1651,12 @@ static int v2d_set_enable(struct v2d_dev *dev, u32 val)
 			"set_enable repeat, dev index =%d\n", dev->index);
 		return 0;
 	}
+	dev->status_enabled = val;
 
 	if (val == V2D_SET_ENABLE_MODE)
 		v2d_config_init(dev);
 	else if (val == V2D_SET_DISABLE_MODE)
 		v2d_config_uninit(dev);
-
-	dev->status_enabled = val;
 
 	return 0;
 }
@@ -1688,8 +1694,6 @@ static int v2d_set_frames(struct v2d_dev *dev,
 		return -EINVAL;
 	}
 
-	v2d_print(dev->index, PRINT_OTHER, "%s: inside set_frames!\n", __func__);
-
 	i = v2d_get_received_frame_free_index(dev);
 	if (!kfifo_get(&dev->file_free_q, &dmabuf)) {
 		v2d_print(dev->index, PRINT_ERROR, "peek free dma_buf fail!!!\n");
@@ -1722,14 +1726,20 @@ static int v2d_set_frames(struct v2d_dev *dev,
 				return -EINVAL;
 			}
 			dev->received_frames[i].input_fence[j] = fence_file;
+		} else {
+			dev->received_frames[i].input_fence[j] = NULL;
 		}
 		dev->received_frames[i].input_file[j] = file_vf;
 
 		v2d_print(dev->index, PRINT_OTHER,
-			"%s:input_fd:%d, file_vf = 0x%px, fget_count=%d, total_get_count:%d.\n",
+			"%s:num:%d trans:%d, in_fd:%d(0x%px), in_fence:%d(0x%px), fget=%d, total_get:%d.\n",
 			__func__,
+			j,
+			vframe_info_cur->transform,
 			vframe_info_cur->fd,
 			file_vf,
+			vframe_info_cur->fence_fd,
+			fence_file,
 			dev->fget_count,
 			total_get_count);
 		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
@@ -1766,6 +1776,7 @@ static int v2d_set_frames(struct v2d_dev *dev,
 	}
 
 	out_fence_fd = v2d_timeline_create_fence(dev);
+	output_fence_file = fget(out_fence_fd);
 	if (!kfifo_put(&dev->file_wait_q, dmabuf))
 		v2d_print(dev->index, PRINT_ERROR, "put file_wait fail\n");
 	v2d_print(dev->index, PRINT_OTHER,
@@ -1792,10 +1803,10 @@ static int v2d_set_frames(struct v2d_dev *dev,
 	set_output_buffer_area(dev, frames_info, &dev->received_frames[i], src_vf);
 
 	v2d_print(dev->index, PRINT_PATTERN,
-		"%s done, out_fd:%d out_fence:%d out_file:%px received_new_count:%d\n",
-		__func__, out_fd, out_fence_fd, dmabuf->file, dev->received_new_count);
+		"%s done, out_file:%d(%px) out_fence:%d(%px), received_new_count:%d\n",
+		__func__, out_fd, dmabuf->file,
+		out_fence_fd, output_fence_file, dev->received_new_count);
 
-	output_fence_file = fget(out_fence_fd);
 	fput(output_fence_file);
 	v2d_print(dev->index, PRINT_AXIS,
 		"output_axis:dst_x:%d dst_y:%d dst_w:%d dst_h:%d\n",
@@ -2017,6 +2028,8 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 		input_vf = NULL;
 		file_vf = received_frames->input_file[vf_dev[i]];
 		fence_file = received_frames->input_fence[vf_dev[i]];
+		v2d_print(dev->index, PRINT_OTHER, "%s: file_vf:%px fence_file:%px.\n",
+			__func__, file_vf, fence_file);
 		if (v2d_wait_file_fence(dev, fence_file) == 0)
 			continue;
 		memcpy(&v2d_composer_param.frame_crop, &received_frames->crop_info[vf_dev[i]],
