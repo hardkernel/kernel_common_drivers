@@ -1424,12 +1424,41 @@ meson_plane_duplicate_state(struct drm_plane *plane)
 	return &meson_plane_state->base;
 }
 
+static struct drm_plane_state *
+meson_video_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct am_meson_video_plane_state *meson_plane_state;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	DRM_DEBUG("%s (%s)\n", __func__, plane->name);
+
+	meson_plane_state = kzalloc(sizeof(*meson_plane_state), GFP_KERNEL);
+	if (!meson_plane_state)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane,
+						  &meson_plane_state->base);
+	return &meson_plane_state->base;
+}
+
 static void meson_plane_destroy_state(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
 	struct am_meson_plane_state *meson_plane_state;
 
 	meson_plane_state = to_am_meson_plane_state(state);
+	__drm_atomic_helper_plane_destroy_state(&meson_plane_state->base);
+	kfree(meson_plane_state);
+}
+
+static void meson_video_plane_destroy_state(struct drm_plane *plane,
+				      struct drm_plane_state *state)
+{
+	struct am_meson_video_plane_state *meson_plane_state;
+
+	meson_plane_state = to_am_meson_video_plane_state(state);
 	__drm_atomic_helper_plane_destroy_state(&meson_plane_state->base);
 	kfree(meson_plane_state);
 }
@@ -1460,14 +1489,16 @@ static void meson_osd_plane_reset(struct drm_plane *plane)
 
 static void meson_video_plane_reset(struct drm_plane *plane)
 {
-	struct am_meson_plane_state *meson_plane_state;
+	struct am_meson_video_plane_state *meson_plane_state;
 	int zpos = 0;
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 
 	zpos = video_plane->plane_index + VIDEO_PLANE_BEGIN_ZORDER;
 
 	if (plane->state) {
-		meson_plane_destroy_state(plane, plane->state);
+		meson_plane_state = to_am_meson_video_plane_state(plane->state);
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+		kfree(meson_plane_state);
 		plane->state = NULL;
 	}
 
@@ -1750,8 +1781,8 @@ static const struct drm_plane_funcs am_video_plane_funs = {
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.destroy		= drm_plane_cleanup,
 	.reset			= meson_video_plane_reset,
-	.atomic_duplicate_state = meson_plane_duplicate_state,
-	.atomic_destroy_state	= meson_plane_destroy_state,
+	.atomic_duplicate_state = meson_video_plane_duplicate_state,
+	.atomic_destroy_state	= meson_video_plane_destroy_state,
 	.atomic_set_property = meson_video_plane_atomic_set_property,
 	.atomic_get_property = meson_video_plane_atomic_get_property,
 	.format_mod_supported = am_meson_vpu_check_video_format_mod,
