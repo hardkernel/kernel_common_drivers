@@ -8,6 +8,7 @@
 
 #include <linux/ioctl.h>
 #include <linux/types.h>
+#include <trace/events/meson_atrace.h>
 
 #define RESMAN_IOC_MAGIC  'R'
 
@@ -21,6 +22,29 @@
 #define RESMAN_IOC_GET_SYS_DEBUG_LEVEL				_IOR(RESMAN_IOC_MAGIC, 0x08, int)
 
 #define RESMAN_SUPPORT_PREEMPT		1
+
+#define MAIN_INFO                 0x1
+#define FULL_INFO                 0x2
+#define MODULE_ONE                0x100
+#define MODULE_TWO                0x200
+/*
+ * bit0   --- Main Path
+ * bit1   --- Full Path
+ * bit 8  --- Module one
+ * bit 9  --- Module two
+ */
+extern int pipe_kpi_debug;
+#define PR_PIPE_KPI_LOG_INFO(level, fmt, ...)				\
+	do {									\
+		if (pipe_kpi_debug & (level))						\
+			pr_info("%s: " fmt, __func__, ##__VA_ARGS__);\
+	} while (0)
+
+#define PR_PIPE_KPI_INFO(name, value, level, fmt, ...)					\
+	do {											\
+		PR_PIPE_KPI_LOG_INFO(level, fmt, ##__VA_ARGS__);				\
+		ATRACE_COUNTER_WITH_TAG(KERNEL_ATRACE_TAG_PIPE_KPI, name, value);	\
+	} while (0)
 
 struct resman_para {
 	__u32 k;

@@ -227,6 +227,10 @@ static struct class *resman_class;
 static char *resman_configs;
 static char *debug_info;
 
+int pipe_kpi_debug;
+EXPORT_SYMBOL(pipe_kpi_debug);
+module_param(pipe_kpi_debug, int, 0644);
+
 module_param(resman_debug, int, 0644);
 module_param(preempt_timeout_ms, int, 0644);
 
