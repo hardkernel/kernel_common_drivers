@@ -89,16 +89,11 @@ static unsigned int iec_rate_to_csfs(unsigned int rate)
 	return csfs;
 }
 
-/* expand unsupport csfs asoundef.h */
-#define AML_IEC958_AES3_CON_FS_128000  (11 << 0)
-#define AML_IEC958_AES3_CON_FS_352800  (13 << 0)
-#define AML_IEC958_AES3_CON_FS_384000  (5 << 0)
-
-unsigned int iec_rate_from_csfs(unsigned int csfs, bool h)
+unsigned int iec_rate_from_csfs(unsigned int csfs)
 {
 	unsigned int rate = 0;
 
-	switch (csfs) {
+	switch (csfs & IEC958_AES3_CON_FS) {
 	case IEC958_AES3_CON_FS_22050:
 		rate = 22050;
 		break;
@@ -129,17 +124,18 @@ unsigned int iec_rate_from_csfs(unsigned int csfs, bool h)
 	case IEC958_AES3_CON_FS_192000:
 		rate = 192000;
 		break;
-	case AML_IEC958_AES3_CON_FS_128000:
+	case IEC958_AES3_CON_FS_128000:
 		rate = 128000;
 		break;
-	case AML_IEC958_AES3_CON_FS_352800:
-		if (h)
-			rate = 705600;
-		else
-			rate = 352800;
+	/* asoundef.h typo 352400 should be 352800 */
+	case IEC958_AES3_CON_FS_352400:
+		rate = 352800;
 		break;
-	case AML_IEC958_AES3_CON_FS_384000:
+	case IEC958_AES3_CON_FS_384000:
 		rate = 384000;
+		break;
+	case IEC958_AES3_CON_FS_705600:
+		rate = 705600;
 		break;
 	case IEC958_AES3_CON_FS_NOTID:
 		rate = 0;
@@ -383,10 +379,37 @@ void iec_get_channel_status_info(struct iec958_chsts *chsts,
 		} else if (codec_type == AUD_CODEC_TYPE_TRUEHD ||
 			   codec_type == AUD_CODEC_TYPE_DTS_HD_MA) {
 			/* True HD, MA */
-			chsts->chstat1_l = IEC958_AES3_CON_FS_768000 << 8;
-			chsts->chstat1_r = IEC958_AES3_CON_FS_768000 << 8;
-			chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_192000;
-			chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_192000;
+			if (rate_bit == SNDRV_PCM_RATE_192000) {
+				chsts->chstat1_l = IEC958_AES3_CON_FS_768000 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_768000 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_192000;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_192000;
+			} else if (rate_bit == SNDRV_PCM_RATE_96000) {
+				chsts->chstat1_l = IEC958_AES3_CON_FS_384000 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_384000 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_96000;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_96000;
+			} else if (rate_bit == SNDRV_PCM_RATE_48000) {
+				chsts->chstat1_l = IEC958_AES3_CON_FS_192000 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_192000 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_48000;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_48000;
+			} else if (rate_bit == SNDRV_PCM_RATE_176400) {
+				chsts->chstat1_l = IEC958_AES3_CON_FS_705600 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_705600 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_176400;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_176400;
+			} else if (rate_bit == SNDRV_PCM_RATE_88200) {
+				chsts->chstat1_l = IEC958_AES3_CON_FS_352400 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_352400 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_88200;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_88200;
+			} else if (rate_bit == SNDRV_PCM_RATE_44100) {
+				chsts->chstat1_l = IEC958_AES3_CON_FS_176400 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_176400 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_44100;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_44100;
+			}
 		} else {
 			/* DTS,DD */
 			if (rate_bit == SNDRV_PCM_RATE_32000) {
