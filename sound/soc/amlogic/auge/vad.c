@@ -28,6 +28,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/suspend.h>
 
 #include <linux/amlogic/pm.h>
 #include <linux/pm_wakeirq.h>
@@ -120,6 +121,9 @@ struct vad {
 	bool wake_up_flag;
 	int vad_fs_count;
 	int wakeup_timeout_fs_count;
+	int last_addr;
+	int last_cur_addr;
+	int curr_addr;
 
 #ifdef __VAD_DUMP_DATA__
 	struct file *fp;
@@ -280,14 +284,12 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 {
 	unsigned char *hwbuf;
 	int bytes = 0, read_bytes = 0;
-	int start, end, size, last_addr, curr_addr;
-	int last_cur_addr = 0;
+	int start, end, size;
 	int chnum, bitdepth, rate, bytes_per_sample;
 	int frame_count = VAD_READ_FRAME_COUNT;
 	unsigned int timeout_cnt = 0;
-	unsigned int timeout_max_cnt = 20;
-	if (!p_vad)
-		return -EINVAL;
+	unsigned int timeout_max_cnt = 200;
+	int ret;
 
 	if (!p_vad->tddr || !p_vad->tddr->actrl ||
 		!p_vad->tddr->in_use)
@@ -297,7 +299,6 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 	size  = p_vad->dma_buffer.bytes;
 	start = p_vad->dma_buffer.addr;
 	end   = start + size;
-	last_addr = p_vad->addr;
 
 	chnum    = p_vad->tddr->fmt.ch_num;
 	bitdepth = p_vad->tddr->fmt.bit_depth;
@@ -325,17 +326,20 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 				pr_info("%s:wait switch to vad buffer!\n", __func__);
 				continue;
 			}
-			curr_addr = aml_toddr_get_position(p_vad->tddr);
-			if (curr_addr < start || start > end || curr_addr > end)
+			p_vad->curr_addr = aml_toddr_get_position(p_vad->tddr);
+			if (p_vad->curr_addr < start || start > end || p_vad->curr_addr > end)
 				continue;
 			break;
 		}
 		pr_info("%s copy vad whole buffer, start:%x, end:%x, curr_addr:%x, last_addr:%x\n",
-			__func__, start, end, curr_addr, last_addr);
-		memcpy(p_vad->vad_whole_buf, hwbuf + curr_addr - start, end - curr_addr);
-		memcpy(p_vad->vad_whole_buf + end - curr_addr, hwbuf, curr_addr - start);
+			__func__, start, end, p_vad->curr_addr, p_vad->last_addr);
+		memcpy(p_vad->vad_whole_buf, hwbuf + p_vad->curr_addr - start,
+				end - p_vad->curr_addr);
+		memcpy(p_vad->vad_whole_buf + end - p_vad->curr_addr, hwbuf,
+				p_vad->curr_addr - start);
 
-		p_vad->addr = curr_addr;
+		p_vad->addr = p_vad->curr_addr;
+		p_vad->last_addr = p_vad->addr;
 
 		#ifdef __VAD_DUMP_DATA__
 		p_vad->pos = p_vad->fp->f_pos;
@@ -344,10 +348,12 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 				send_size, &p_vad->pos);
 		p_vad->fp->f_pos = p_vad->pos;
 		#endif
-
-		return vad_transfer_data_to_algorithm(p_vad,
+		ret = vad_transfer_data_to_algorithm(p_vad,
 			p_vad->vad_whole_buf + (p_vad->dma_buffer.bytes - send_size),
 			frame_count1, rate, chnum, bitdepth);
+		memset(p_vad->vad_whole_buf + (p_vad->dma_buffer.bytes - send_size),
+				0x0, send_size);
+		return ret;
 	}
 
 	read_bytes = frame_count * chnum * bytes_per_sample;
@@ -358,25 +364,25 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 		if (p_vad->chipinfo &&
 			p_vad->chipinfo->vad_top &&
 			p_vad->a2v_buf)
-			curr_addr = toddr_vad_get_status2(p_vad->tddr);
+			p_vad->curr_addr = toddr_vad_get_status2(p_vad->tddr);
 		else
-			curr_addr = aml_toddr_get_position(p_vad->tddr);
-		if (last_cur_addr == curr_addr)
+			p_vad->curr_addr = aml_toddr_get_position(p_vad->tddr);
+		if (p_vad->last_cur_addr == p_vad->curr_addr)
 			continue;
-		last_cur_addr = curr_addr;
-		if (curr_addr < start || curr_addr > end ||
-			last_addr < start || last_addr > end) {
-			pr_info("%s line:%d, start:%x,end:%x, addr:%x, curr_addr=%x\n",
+		p_vad->last_cur_addr = p_vad->curr_addr;
+		if (p_vad->curr_addr < start || p_vad->curr_addr > end ||
+			p_vad->last_addr < start || p_vad->last_addr > end) {
+			pr_info("%s line:%d, start:%x,end:%x, addr:%x, curr_addr=%x, last_addr:%x\n",
 				__func__, __LINE__,
 				start,
 				end,
 				p_vad->addr,
-				curr_addr);
-			p_vad->addr = curr_addr;
+				p_vad->curr_addr, p_vad->last_addr);
+			p_vad->addr = p_vad->curr_addr;
 			return 0;
 		}
 
-		bytes = (curr_addr - last_addr + size) % size;
+		bytes = (p_vad->curr_addr - p_vad->last_addr + size) % size;
 
 		if (bytes < read_bytes) {
 			/* can't use sleep as cpd is idle, timer is invalid */
@@ -389,17 +395,17 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 	} while (bytes < read_bytes);
 
 	if (!p_vad->buf) {
-		p_vad->buf = kzalloc(read_bytes, GFP_KERNEL);
+		p_vad->buf = vmalloc(size);
 		if (!p_vad->buf)
 			return -ENOMEM;
 	}
-	memset(p_vad->buf, 0x0, read_bytes);
+	memset(p_vad->buf, 0x0, size);
 
 	pr_debug("start:%x,end:%x, curr_addr:%x, last_addr:%x, offset:%d, read_bytes:%d\n",
 		start,
 		end,
-		curr_addr,
-		last_addr,
+		p_vad->curr_addr,
+		p_vad->last_addr,
 		bytes,
 		read_bytes);
 
@@ -407,37 +413,62 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 	if (p_vad->chipinfo &&
 	    p_vad->chipinfo->vad_top &&
 	    p_vad->a2v_buf) {
-		if (last_addr + read_bytes <= end)
-			p_vad->addr = last_addr + read_bytes;
+		if (p_vad->last_addr + read_bytes <= end)
+			p_vad->addr = p_vad->last_addr + read_bytes;
 		else
-			p_vad->addr = start + read_bytes - (end - last_addr);
+			p_vad->addr = start + read_bytes - (end - p_vad->last_addr);
 		return 0;
 	}
 
-	if (last_addr + read_bytes <= end) {
-		memcpy(p_vad->buf,
-			hwbuf + last_addr - start,
-			read_bytes);
-		p_vad->addr = last_addr + read_bytes;
-	} else {
-		int tmp_bytes = end - last_addr;
+	if (bytes > read_bytes) {
+		if (p_vad->last_addr + bytes <= end) {
+			memcpy(p_vad->buf,
+				hwbuf + p_vad->last_addr - start,
+				bytes);
+			p_vad->addr = p_vad->last_addr + bytes;
+		} else {
+			int tmp_bytes = end - p_vad->last_addr;
 
-		memcpy(p_vad->buf,
-			hwbuf + last_addr - start,
-			tmp_bytes);
-		memcpy(p_vad->buf + tmp_bytes,
-			hwbuf,
-			read_bytes - tmp_bytes);
-		p_vad->addr = start + read_bytes - tmp_bytes;
+			memcpy(p_vad->buf,
+				hwbuf + p_vad->last_addr - start,
+				tmp_bytes);
+			memcpy(p_vad->buf + tmp_bytes,
+				hwbuf,
+				bytes - tmp_bytes);
+			p_vad->addr = start + bytes - tmp_bytes;
+		}
+		frame_count = bytes / (chnum * bytes_per_sample);
+	} else {
+		if (p_vad->last_addr + read_bytes <= end) {
+			memcpy(p_vad->buf,
+				hwbuf + p_vad->last_addr - start,
+				read_bytes);
+			p_vad->addr = p_vad->last_addr + read_bytes;
+		} else {
+			int tmp_bytes = end - p_vad->last_addr;
+
+			memcpy(p_vad->buf,
+				hwbuf + p_vad->last_addr - start,
+				tmp_bytes);
+			memcpy(p_vad->buf + tmp_bytes,
+				hwbuf,
+				read_bytes - tmp_bytes);
+			p_vad->addr = start + read_bytes - tmp_bytes;
+		}
+		frame_count = read_bytes / (chnum * bytes_per_sample);
 	}
+
+	p_vad->last_addr = p_vad->addr;
 #ifdef __VAD_DUMP_DATA__
 	p_vad->pos = p_vad->fp->f_pos;
 	kernel_write(p_vad->fp, p_vad->buf, read_bytes, &p_vad->pos);
 	p_vad->fp->f_pos = p_vad->pos;
 #endif
 
-	return vad_transfer_data_to_algorithm(p_vad,
+	ret = vad_transfer_data_to_algorithm(p_vad,
 		p_vad->buf, frame_count, rate, chnum, bitdepth);
+	memset(p_vad->buf, 0x0, frame_count * chnum * bytes_per_sample);
+	return ret;
 }
 
 static int vad_freeze_thread(void *data)
@@ -449,7 +480,7 @@ static int vad_freeze_thread(void *data)
 		return 0;
 
 	current->flags |= PF_NOFREEZE;
-	p_vad->vad_whole_buf = vmalloc(p_vad->dma_buffer.bytes);
+
 	dev_info(p_vad->dev, "vad: freeze thread start\n");
 
 	for (;;) {
@@ -479,12 +510,12 @@ static int vad_freeze_thread(void *data)
 			vad_notify_user_space(p_vad);
 		}
 		init = false;
+
 		/* can't use sleep as cpd is idle, timer is invalid */
 		if (!kthread_should_stop())
 			schedule();
 	}
 
-	vfree(p_vad->vad_whole_buf);
 	dev_info(p_vad->dev, "vad: freeze thread exit\n");
 	return 0;
 }
@@ -585,7 +616,9 @@ static int vad_init(struct vad *p_vad)
 			get_task_struct(p_vad->thread);
 			vad_wakeup_count = 0;
 		}
-
+		p_vad->last_addr = 0;
+		p_vad->last_cur_addr = 0;
+		p_vad->curr_addr = 0;
 #ifdef __VAD_DUMP_DATA__
 		p_vad->fp = filp_open(VAD_DUMP_FILE_NAME, O_RDWR | O_CREAT, 0666);
 		if (IS_ERR(p_vad->fp)) {
@@ -1299,6 +1332,10 @@ static int vad_platform_probe(struct platform_device *pdev)
 	}
 	/* time = 400 * 10ms = 4s */
 	p_vad->wakeup_timeout_fs_count = 400;
+	p_vad->vad_whole_buf = vmalloc(p_vad->dma_buffer.bytes);
+	if (!p_vad->vad_whole_buf)
+		return -ENOMEM;
+	dev_dbg(p_vad->dev, "vmalloc vad_whole_buf(s) success\n");
 
 	return 0;
 }
@@ -1346,6 +1383,7 @@ static void vad_platform_remove(struct platform_device *pdev)
 
 	/* free buffer */
 	snd_dma_free_pages(&p_vad->dma_buffer);
+	vfree(p_vad->vad_whole_buf);
 }
 
 static void vad_platform_shutdown(struct platform_device *pdev)
