@@ -135,8 +135,8 @@ def define_common_amlogic(
             name + "_unstripped_modules_archive",
             name + "_merged_kernel_uapi_headers",
             # Mixed build: Additional GKI artifacts.
-            "//common:kernel_aarch64",
-            "//common:kernel_aarch64_additional_artifacts",
+            "//common:kernel_aarch64_tv",
+            "//common:kernel_aarch64_tv_additional_artifacts",
         ],
         strip_prefix = strip_prefix.files_only(),
         visibility = ["//visibility:private"],
