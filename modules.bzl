@@ -109,6 +109,8 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/drivers/dvb_usbci:amlogic-usb-cam",
     "common_drivers/drivers/dvb/demux/amlogic-dvb-demux.ko",
     "//common_drivers/drivers/dvb/demux:amlogic-dvb-demux",
+    "common_drivers/drivers/dvb/dummy_fe/amlogic-dummy-fe.ko",
+    "//common_drivers/drivers/dvb/dummy_fe:amlogic-dummy-fe",
     "common_drivers/drivers/efuse_unifykey/amlogic-efuse-unifykey.ko",
     "//common_drivers/drivers/efuse_unifykey:amlogic-efuse-unifykey",
     "common_drivers/drivers/gki_tool/amlogic-gkitool.ko",
