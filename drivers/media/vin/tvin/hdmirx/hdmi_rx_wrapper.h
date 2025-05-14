@@ -49,7 +49,8 @@
 /* 2024.12.16 remove fsm restart on t3x */
 /* 2024.12.19 add protection when not in hdmi source */
 /* 2024.12.24 rx statemachine hold when resume on other src*/
-#define RX_WRAPPER_VER "ver.2024/12/24"
+/* 2025.5.14 No delay added after checking hdcp */
+#define RX_WRAPPER_VER "ver.2025/05/14"
 
 struct freq_ref_s {
 	bool interlace;

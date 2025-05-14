@@ -4698,10 +4698,12 @@ void rx_main_state_machine(void)
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
 				get_timing_fmt(port);
-				if ((rx_info.timestamp - rx[port].stable_timestamp <
-					detect_time_min) &&
-					rx[port].min_time_en)
-					break;
+				if (rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					if ((rx_info.timestamp - rx[port].stable_timestamp <
+						detect_time_min) &&
+						rx[port].min_time_en)
+						break;
+				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
