@@ -55,11 +55,6 @@
 #define VCOM_PROVIDER_NAME_SIZE 32
 #define PATTEN_FACTOR_MAX 5
 
-enum buffer_format_t {
-	NV21 = 0,
-	YUV444 = 1,
-};
-
 struct frame_info_t {
 	struct dma_buf *dmabuf;
 	struct dma_fence *input_fence;

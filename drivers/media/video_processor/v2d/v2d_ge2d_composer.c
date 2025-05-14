@@ -681,12 +681,12 @@ int v2d_config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w,
 
 		VIDEOCOM_INFO("buffer_w(%d), data_w(%d)\n", buf_w, data_w);
 		if (buf_w > data_w) {
-			if (data->is_yuv444)
+			if (data->buf_format == V2D_SRC_YUV444)
 				data->canvas0_config[0].width = buf_w * 3;
 			else
 				data->canvas0_config[0].width = buf_w;
 		} else {
-			if (data->is_yuv444)
+			if (data->buf_format == V2D_SRC_YUV444)
 				data->canvas0_config[0].width = data_w * 3;
 			else
 				data->canvas0_config[0].width = data_w;
@@ -712,11 +712,14 @@ int v2d_config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w,
 		data->canvas0_config[1].endian = 0;
 		data->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		data->source_type = 0;
-		if (data->is_yuv444) {
+		if (data->buf_format == V2D_SRC_YUV444) {
 			data->type = VIDTYPE_VIU_SINGLE_PLANE
 				| VIDTYPE_VIU_FIELD
 				| VIDTYPE_VIU_444;
 			data->plane_num = 1;
+		} else if (data->buf_format == V2D_SRC_NV12) {
+			data->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV12;
+			data->plane_num = 2;
 		} else {
 			data->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21;
 			data->plane_num = 2;

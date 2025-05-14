@@ -135,11 +135,6 @@ enum v2d_transform_t {
 	V2D_TRANSFORM_FLIP_V_ROT_90 = V2D_TRANSFORM_FLIP_V | V2D_TRANSFORM_ROT_90,
 };
 
-enum buffer_format_t {
-	NV21 = 0,
-	YUV444 = 1,
-};
-
 enum output_buf_mode_t {
 	BUFFER_MODE_UNINIT = 0,
 	BUFFER_MODE_GE2D,

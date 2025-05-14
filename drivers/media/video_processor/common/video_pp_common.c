@@ -136,6 +136,8 @@ int get_ge2d_input_format(struct vframe_s *vf)
 			format = GE2D_FORMAT_S16_YUV422;
 		else if (vf->type & VIDTYPE_VIU_NV21)
 			format = GE2D_FORMAT_M24_NV21;
+		else if (vf->type & VIDTYPE_VIU_NV12)
+			format = GE2D_FORMAT_M24_NV12;
 		else if (vf->type & VIDTYPE_VIU_444)
 			format = GE2D_FORMAT_S24_YUV444;
 		else
@@ -148,6 +150,9 @@ int get_ge2d_input_format(struct vframe_s *vf)
 		else if (vf->type & VIDTYPE_VIU_NV21)
 			format = GE2D_FORMAT_M24_NV21
 				| (GE2D_FORMAT_M24_NV21B & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_NV12)
+			format = GE2D_FORMAT_M24_NV12
+				| (GE2D_FORMAT_M24_NV12B & (3 << 3));
 		else if (vf->type & VIDTYPE_VIU_444)
 			format = GE2D_FORMAT_S24_YUV444
 				| (GE2D_FORMAT_S24_YUV444B & (3 << 3));
@@ -162,6 +167,9 @@ int get_ge2d_input_format(struct vframe_s *vf)
 		else if (vf->type & VIDTYPE_VIU_NV21)
 			format = GE2D_FORMAT_M24_NV21
 				| (GE2D_FORMAT_M24_NV21T & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_NV12)
+			format = GE2D_FORMAT_M24_NV12
+				| (GE2D_FORMAT_M24_NV12T & (3 << 3));
 		else if (vf->type & VIDTYPE_VIU_444)
 			format = GE2D_FORMAT_S24_YUV444
 				| (GE2D_FORMAT_S24_YUV444T & (3 << 3));
@@ -206,6 +214,8 @@ int get_ge2d_input_format(struct vframe_s *vf)
 			format = GE2D_FORMAT_S16_YUV422;
 		else if (vf->type & VIDTYPE_VIU_NV21)
 			format = GE2D_FORMAT_M24_NV21;
+		else if (vf->type & VIDTYPE_VIU_NV12)
+			format = GE2D_FORMAT_M24_NV12;
 		else if (vf->type & VIDTYPE_VIU_444)
 			format = GE2D_FORMAT_S24_YUV444;
 		else

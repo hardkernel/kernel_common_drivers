@@ -1152,10 +1152,7 @@ static int config_ge2d_param(struct v2d_dev *dev,
 	ge2d_data = &v2d_composer_param->composer_device_param.ge2d_data;
 
 	v2d_print(dev->index, PRINT_OTHER, "use ge2d composer.\n");
-	if (vframe_info_cur->buffer_format == YUV444)
-		ge2d_data->is_yuv444 = true;
-	else
-		ge2d_data->is_yuv444 = false;
+	ge2d_data->buf_format = vframe_info_cur->buffer_format;
 	ret = v2d_config_ge2d_data(v2d_composer_param->input_vf,
 		v2d_composer_param->addr,
 		vframe_info_cur->buffer_w,

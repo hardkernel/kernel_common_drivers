@@ -2652,7 +2652,7 @@ static void vframe_composer(struct composer_dev *dev)
 	bool is_dec_vf = false, is_v4l_vf = false;
 	bool is_tvp = false;
 	bool is_fixtunnel = false;
-	struct src_data_para *src_data;
+	struct src_data_para *src_data = NULL;
 	struct composer_vf_para *vframe_para;
 	struct vicp_data_config_s *data_config;
 	struct crop_info_s crop_info;
@@ -3036,10 +3036,7 @@ static void vframe_composer(struct composer_dev *dev)
 		} else {
 			vc_print(dev->index, PRINT_OTHER, "use ge2d composer.\n");
 			src_data = &dev->ge2d_src_data;
-			if (vframe_info_cur->buffer_format == YUV444)
-				src_data->is_yuv444 = true;
-			else
-				src_data->is_yuv444 = false;
+			src_data->buf_format = vframe_info_cur->buffer_format;
 			ret = config_ge2d_data(src_vf,
 				addr,
 				vframe_info_cur->buffer_w,
@@ -4360,6 +4357,12 @@ static void video_composer_task(struct composer_dev *dev)
 					| VIDTYPE_VIU_FIELD
 					| VIDTYPE_VIU_444;
 				vf->bitdepth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+			} else if (frame_info->buffer_format == NV12_VC) {
+				vf->plane_num = 2;
+				vf->type = VIDTYPE_PROGRESSIVE
+					| VIDTYPE_VIU_FIELD
+					| VIDTYPE_VIU_NV12;
+				vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 			} else {
 				vf->plane_num = 2;
 				vf->type = VIDTYPE_PROGRESSIVE

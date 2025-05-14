@@ -16,6 +16,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <api/gdc_api.h>
 #include "v2d_dewarp_composer.h"
+#include "v2d_util.h"
 
 #define GDC_FIRMWARE_PATH    "/vendor/lib/firmware/gdc/"
 
@@ -349,9 +350,13 @@ int v2d_config_dewarp_vframe(struct dewarp_vf_para_s *vframe_para,
 		vframe_para->dst_endian = 0;
 		vframe_para->is_tvp = pic_info_in->is_tvp;
 	} else {
-		if (pic_info_in->format == 1) {
+		if (pic_info_in->format == V2D_SRC_YUV444) {
 			vframe_para->src_vf_format = YUV444_P;
 			vframe_para->src_buf_stride0 = pic_info_in->align_w * 3;
+		} else if (pic_info_in->format == V2D_SRC_NV12) {
+			vframe_para->uvswap_enable = 1;
+			vframe_para->src_vf_format = NV12;
+			vframe_para->src_buf_stride0 = pic_info_in->align_w;
 		} else {
 			vframe_para->src_vf_format = NV12;
 			vframe_para->src_buf_stride0 = pic_info_in->align_w;
