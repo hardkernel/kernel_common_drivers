@@ -241,11 +241,11 @@
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@6700000 {
 			compatible = "ramoops";
-			reg = <0x06700000 0x00100000>;
-			record-size = <0x20000>;
+			reg = <0x06700000 0x00080000>;/* addr set in uboot */
+			record-size = <0x30000>;
 			console-size = <0x40000>;
-			ftrace-size = <0x80000>;
-			pmsg-size = <0x20000>;
+			ftrace-size = <0x0>;
+			pmsg-size = <0x10000>;
 		};
 
 		debug_reserved:linux,iotrace {

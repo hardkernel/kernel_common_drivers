@@ -111,11 +111,10 @@
 		ramoops@8800000 {
 			compatible = "ramoops";
 			reg = <0x08800000 0x00100000>;
-			record-size = <0x20000>;
-			console-size = <0x20000>;
-			ftrace-size = <0x80000>;
-			pmsg-size = <0x0>;
-			no-map;
+			record-size = <0x30000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x0>;
+			pmsg-size = <0x10000>;
 		};
 
 		dmc_reserved:linux,dmc_monitor {
