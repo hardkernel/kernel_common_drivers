@@ -167,7 +167,7 @@ ddk_module(
     local_defines = [
         "pr_fmt(fmt)=\"[amlogic-usb]: \" fmt",
         "LM_INTERFACE",
-        "DEBUG",
+        #"DEBUG",
         "DWC_HS_ELECT_TST",
         "linux",
         "DWC_LINUX",
