@@ -10,6 +10,8 @@
 #include <linux/clk-provider.h>
 #include <linux/amlogic/aml_storage.h>
 
+#define NAND_SUBPAGE_WRITE ((unsigned int)((~NAND_NO_SUBPAGE_WRITE) ^ 0xFFFFFFFF))
+
 #define NAND_TIMING_MODE0  0x0
 #define NAND_TIMING_MODE1  0x1
 #define NAND_TIMING_MODE2  0x2

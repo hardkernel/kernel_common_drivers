@@ -230,13 +230,13 @@ static void meson_nfc_cmd_seed(struct meson_nfc *nfc, u32 seed)
 }
 
 static void meson_nfc_cmd_access(struct nand_chip *nand, int raw, bool dir,
-				 int scrambler)
+				 int scrambler, int data_len)
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(mtd_to_nand(mtd));
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	u32 bch = meson_chip->bch_mode, cmd;
-	int len = mtd->writesize, pages;
+	int len = data_len > 0 ? data_len : mtd->writesize, pages;
 	int dma_unit_size = nand->ecc.size;
 
 	if (raw) {
@@ -455,14 +455,14 @@ static void meson_nfc_get_user_byte(struct nand_chip *nand, u8 *oob_buf)
 }
 
 static int meson_nfc_ecc_correct(struct nand_chip *nand, u32 *bitflips,
-				 u64 *correct_bitmap)
+				 u64 *correct_bitmap, int ecc_nsteps)
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	__le64 *info;
 	int ret = 0, i;
 
-	for (i = 0; i < nand->ecc.steps; i++) {
+	for (i = 0; i < ecc_nsteps; i++) {
 		info = &meson_chip->info_buf[i];
 		if (ECC_ERR_CNT(*info) != ECC_UNCORRECTABLE) {
 			mtd->ecc_stats.corrected += ECC_ERR_CNT(*info);
@@ -581,7 +581,7 @@ static int meson_nfc_write_buf(struct nand_chip *nand, u8 *buf, int len)
 }
 
 static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
-						int page, bool in)
+						int page, int offset, bool in)
 {
 	const struct nand_sdr_timings *sdr =
 		nand_get_sdr_timings(nand_get_interface_config(nand));
@@ -605,6 +605,9 @@ static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 		addrs[1] = cs | NFC_CMD_ALE | 0;
 		row_start = 2;
 	}
+
+	for (i = 0; i < row_start && offset; i++)
+		addrs[i] |= ROW_ADDER(offset, i);
 
 	addrs[row_start] = cs | NFC_CMD_ALE | ROW_ADDER(page, 0);
 	addrs[row_start + 1] = cs | NFC_CMD_ALE | ROW_ADDER(page, 1);
@@ -638,23 +641,21 @@ static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 }
 
 static int meson_nfc_write_page_sub(struct nand_chip *nand,
-				    int page, int raw)
+				    int page, int offset, int len, int raw)
 {
 	const struct nand_sdr_timings *sdr =
 		nand_get_sdr_timings(nand_get_interface_config(nand));
-	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
-	int data_len, info_len;
+	int data_len = len, info_len;
 	u32 cmd;
 	int ret;
 
 	meson_nfc_select_chip(nand, nand->cur_cs);
 
-	data_len =  mtd->writesize + mtd->oobsize;
 	info_len = nand->ecc.steps * PER_INFO_BYTE;
 
-	ret = meson_nfc_rw_cmd_prepare_and_execute(nand, page, DIRWRITE);
+	ret = meson_nfc_rw_cmd_prepare_and_execute(nand, page, offset, DIRWRITE);
 	if (ret)
 		return ret;
 
@@ -667,10 +668,10 @@ static int meson_nfc_write_page_sub(struct nand_chip *nand,
 	if (nand->options & NAND_NEED_SCRAMBLING) {
 		meson_nfc_cmd_seed(nfc, page);
 		meson_nfc_cmd_access(nand, raw, DIRWRITE,
-				     NFC_CMD_SCRAMBLER_ENABLE);
+				     NFC_CMD_SCRAMBLER_ENABLE, data_len);
 	} else {
 		meson_nfc_cmd_access(nand, raw, DIRWRITE,
-				     NFC_CMD_SCRAMBLER_DISABLE);
+				     NFC_CMD_SCRAMBLER_DISABLE, data_len);
 	}
 
 	cmd = nfc->param.chip_select | NFC_CMD_CLE | NAND_CMD_PAGEPROG;
@@ -685,10 +686,12 @@ static int meson_nfc_write_page_raw(struct nand_chip *nand, const u8 *buf,
 				    int oob_required, int page)
 {
 	u8 *oob_buf = nand->oob_poi;
+	struct mtd_info *mtd = nand_to_mtd(nand);
+	int len = mtd->writesize + mtd->oobsize;
 
 	meson_nfc_set_data_oob(nand, buf, oob_buf);
 
-	return meson_nfc_write_page_sub(nand, page, 1);
+	return meson_nfc_write_page_sub(nand, page, 0, len, 1);
 }
 
 static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
@@ -787,12 +790,13 @@ static int meson_nfc_write_page_hwecc(struct nand_chip *nand,
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	u8 *oob_buf = nand->oob_poi;
+	int len = mtd->writesize + mtd->oobsize;
 
 	memcpy(meson_chip->data_buf, buf, mtd->writesize);
 	memset(meson_chip->info_buf, 0, nand->ecc.steps * PER_INFO_BYTE);
 	meson_nfc_set_user_byte(nand, oob_buf);
 
-	return meson_nfc_write_page_sub(nand, page, 0);
+	return meson_nfc_write_page_sub(nand, page, 0, len, 0);
 }
 
 static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
@@ -803,6 +807,7 @@ static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
+	int len = mtd->writesize + mtd->oobsize;
 	u8 boot_num;
 	int each_boot_pages, ecc_size, bch_mode;
 	u8 *oob_buf = nand->oob_poi;
@@ -836,7 +841,7 @@ static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 		info = page_info_post_init(aml_mtd_info[1], 0, 0, 0);
 		memset(meson_chip->data_buf, 0x00, mtd->writesize + mtd->oobsize);
 		memcpy(meson_chip->data_buf, info, get_page_info_size());
-		meson_nfc_write_page_sub(nand, page, 0);
+		meson_nfc_write_page_sub(nand, page, 0, len, 0);
 	} else {
 		if (page % each_boot_pages == 0) {
 			meson_info_page0_prepare(nand, nand->data_buf);
@@ -847,7 +852,7 @@ static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 				nand->ecc.size = NAND_ECC_UNIT_SHORT;
 			}
 			memcpy(meson_chip->data_buf, nand->data_buf, mtd->writesize);
-			meson_nfc_write_page_sub(nand, page, 0);
+			meson_nfc_write_page_sub(nand, page, 0, len, 0);
 			nand->ecc.size = ecc_size;
 			meson_chip->bch_mode = bch_mode;
 			nand->options &= ~NAND_NEED_SCRAMBLING;
@@ -873,20 +878,61 @@ WRITE_BAD_BLOCK:
 		nand_get_device(nand);
 	}
 	memcpy(meson_chip->data_buf, buf, mtd->writesize);
-	meson_nfc_write_page_sub(nand, page, 0);//fixed it
+	meson_nfc_write_page_sub(nand, page, 0, len, 0);//fixed it
 	return 0;
 }
 
+static int meson_nfc_write_subpage_hwecc_tc58nvg2s0(struct nand_chip *nand,
+			     u32 offset, u32 data_len, const uint8_t *data_buf,
+			     int oob_required, int page)
+{
+	struct mtd_info *mtd = nand_to_mtd(nand);
+	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
+	u8 *oob_buf = nand->oob_poi;
+	int len = mtd->writesize + mtd->oobsize;
+
+	memset(meson_chip->data_buf, 0xff, mtd->writesize);
+	memset(meson_chip->info_buf, 0xff, nand->ecc.steps * PER_INFO_BYTE);
+
+	meson_nfc_set_user_byte(nand, oob_buf);
+	memcpy(meson_chip->data_buf + offset, data_buf + offset, data_len);
+
+	return meson_nfc_write_page_sub(nand, page, 0, len, 0);
+}
+
+static int meson_nfc_write_subpage_hwecc(struct nand_chip *nand,
+			     u32 offset, u32 data_len, const uint8_t *data_buf,
+			     int oob_required, int page)
+{
+	struct mtd_info *mtd = nand_to_mtd(nand);
+	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
+	u8 *oob_buf = nand->oob_poi;
+	int data_ecc_alsize = nand->ecc.size + nand->ecc.bytes + 2;
+	int column, start_step;
+
+	start_step = offset / nand->ecc.size;
+	column = (start_step * data_ecc_alsize) + (offset & (nand->ecc.size - 1));
+
+	memset(meson_chip->data_buf, 0xff, mtd->writesize);
+	memset(meson_chip->info_buf, 0xff, nand->ecc.steps * PER_INFO_BYTE);
+
+	meson_nfc_set_user_byte(nand, oob_buf);
+	memcpy(meson_chip->data_buf, data_buf + offset, data_len);
+
+	return meson_nfc_write_page_sub(nand, page, column, data_len, 0);
+}
+
 static void meson_nfc_check_ecc_pages_valid(struct meson_nfc *nfc,
-					    struct nand_chip *nand, int raw)
+					    struct nand_chip *nand, int ecc_nsteps, int raw)
 {
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	__le64 *info;
 	u32 neccpages;
 	int ret, cnt = 100000;
-	int info_len = nand->ecc.steps * PER_INFO_BYTE;
+	int info_len = ecc_nsteps * PER_INFO_BYTE;
 
-	neccpages = raw ? 1 : nand->ecc.steps;
+	neccpages = raw ? 1 : ecc_nsteps;
+
 	info = &meson_chip->info_buf[neccpages - 1];
 	do {
 		usleep_range(10, 15);
@@ -899,27 +945,26 @@ static void meson_nfc_check_ecc_pages_valid(struct meson_nfc *nfc,
 
 	} while (cnt--);
 
-	dev_err(nfc->dev, "NAND ECC timeout, reboot! 0x%llx, 0x%x\n", *info, nand->ecc.steps);
+	dev_err(nfc->dev, "NAND ECC timeout, reboot! 0x%llx, 0x%x\n", *info, ecc_nsteps);
 	dump_stack();
 	kernel_restart(NULL);
 }
 
 static int meson_nfc_read_page_sub(struct nand_chip *nand,
-				   int page, int raw)
+				   int page, int offset, int len, int raw)
 {
-	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
-	int data_len, info_len;
+	int data_len = len, info_len, ecc_nsteps;
 	int ret;
 
 	meson_nfc_select_chip(nand, nand->cur_cs);
 
-	data_len =  mtd->writesize + mtd->oobsize;
-	info_len = nand->ecc.steps * PER_INFO_BYTE;
+	ecc_nsteps = len / nand->ecc.size;
+	info_len = ecc_nsteps * PER_INFO_BYTE;
 
 	memset(meson_chip->info_buf, 0, info_len);
-	ret = meson_nfc_rw_cmd_prepare_and_execute(nand, page, DIRREAD);
+	ret = meson_nfc_rw_cmd_prepare_and_execute(nand, page, offset, DIRREAD);
 	if (ret)
 		return ret;
 
@@ -932,14 +977,14 @@ static int meson_nfc_read_page_sub(struct nand_chip *nand,
 	if (nand->options & NAND_NEED_SCRAMBLING) {
 		meson_nfc_cmd_seed(nfc, page);
 		meson_nfc_cmd_access(nand, raw, DIRREAD,
-				     NFC_CMD_SCRAMBLER_ENABLE);
+				     NFC_CMD_SCRAMBLER_ENABLE, data_len);
 	} else {
 		meson_nfc_cmd_access(nand, raw, DIRREAD,
-				     NFC_CMD_SCRAMBLER_DISABLE);
+				     NFC_CMD_SCRAMBLER_DISABLE, data_len);
 	}
 
 	ret = meson_nfc_wait_dma_finish(nfc);
-	meson_nfc_check_ecc_pages_valid(nfc, nand, raw);
+	meson_nfc_check_ecc_pages_valid(nfc, nand, ecc_nsteps, raw);
 
 	meson_nfc_dma_buffer_release(nand, data_len, info_len, DMA_FROM_DEVICE);
 
@@ -949,10 +994,11 @@ static int meson_nfc_read_page_sub(struct nand_chip *nand,
 static int meson_nfc_read_page_raw(struct nand_chip *nand, u8 *buf,
 				   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	u8 *oob_buf = nand->oob_poi;
-	int ret;
+	int ret, len = mtd->writesize + mtd->oobsize;
 
-	ret = meson_nfc_read_page_sub(nand, page, 1);
+	ret = meson_nfc_read_page_sub(nand, page, 0, len, 1);
 	if (ret)
 		return ret;
 
@@ -977,13 +1023,14 @@ static int meson_nfc_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 	u32 bitflips = 0;
 	u8 *oob_buf = nand->oob_poi;
 	int ret, pages_per_blk_shift;
+	int len = mtd->writesize + mtd->oobsize;
 
-	ret = meson_nfc_read_page_sub(nand, page, 0);
+	ret = meson_nfc_read_page_sub(nand, page, 0, len, 0);
 	if (ret)
 		return -ENODATA;
 
 	meson_nfc_get_user_byte(nand, oob_buf);
-	ret = meson_nfc_ecc_correct(nand, &bitflips, &correct_bitmap);
+	ret = meson_nfc_ecc_correct(nand, &bitflips, &correct_bitmap, nand->ecc.steps);
 	if (ret == ECC_CHECK_RETURN_FF) {
 		if (buf)
 			memset(buf, 0xff, mtd->writesize);
@@ -997,6 +1044,44 @@ static int meson_nfc_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 		memcpy(buf, meson_chip->data_buf, mtd->writesize);
 	}
 
+	return bitflips;
+}
+
+static int meson_nfc_read_subpage_hwecc(struct nand_chip *nand, u32 offset,
+		u32 len, uint8_t *buf, int page)
+{
+	struct mtd_info *mtd = nand_to_mtd(nand);
+	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
+	u64 correct_bitmap = 0;
+	u32 bitflips = 0;
+	u8 *oob_buf = nand->oob_poi;
+	int ret, pages_per_blk_shift, start_step, end_step, num_steps;
+	int data_ecc_alsize = nand->ecc.size + nand->ecc.bytes + 2;
+
+	start_step = offset / nand->ecc.size;
+	end_step = (offset + len - 1) / nand->ecc.size;
+	num_steps = end_step - start_step + 1;
+
+	ret = meson_nfc_read_page_sub(nand, page, start_step * data_ecc_alsize,
+							      num_steps * nand->ecc.size, 0);
+	if (ret)
+		return -ENODATA;
+
+	meson_nfc_get_user_byte(nand, oob_buf);
+	ret = meson_nfc_ecc_correct(nand, &bitflips, &correct_bitmap, num_steps);
+	if (ret == ECC_CHECK_RETURN_FF) {
+		if (buf)
+			memset(buf, 0xff, mtd->writesize);
+		memset(oob_buf, 0xff, mtd->oobsize);
+	} else if (ret < 0) {
+		mtd->ecc_stats.failed++;
+		pages_per_blk_shift = (nand->phys_erase_shift - nand->page_shift);
+		pr_err("read ecc failed here at page:%d, blk:%d\n",
+			page, (page >> pages_per_blk_shift));
+	} else if (buf && buf != meson_chip->data_buf) {
+		memcpy(buf + offset,
+			meson_chip->data_buf + (offset & (nand->ecc.size - 1)), len);
+	}
 	return bitflips;
 }
 
@@ -1499,7 +1584,13 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 		nand->bbt_options |= NAND_BBT_NO_OOB;
 
 	nand->options |= NAND_SKIP_BBTSCAN;
-	nand->options |= NAND_NO_SUBPAGE_WRITE;
+	if (nand->options & NAND_SUBPAGE_WRITE) {
+		nand->options |= NAND_SUBPAGE_READ;
+		nand->options &= ~NAND_NO_SUBPAGE_WRITE;
+	} else {
+		nand->options |= NAND_NO_SUBPAGE_WRITE;
+	}
+
 	meson_chip->bch_info = NFC_ECC_BCH60_1K;
 
 	ret = nand_ecc_choose_conf(nand, nfc->data->ecc_caps,
@@ -1534,11 +1625,16 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	nand->ecc.write_page = meson_nfc_write_page_hwecc;
 	nand->ecc.write_oob_raw = nand_write_oob_std;
 	nand->ecc.write_oob = nand_write_oob_std;
+	if (nand->id.data[0] == 0x98) /* NAND_MFR_TOSHIBA */
+		nand->ecc.write_subpage = meson_nfc_write_subpage_hwecc_tc58nvg2s0;
+	else
+		nand->ecc.write_subpage = meson_nfc_write_subpage_hwecc;
 
 	nand->ecc.read_page_raw = meson_nfc_read_page_raw;
 	nand->ecc.read_page = meson_nfc_read_page_hwecc;
 	nand->ecc.read_oob_raw = meson_nfc_read_oob_raw;
 	nand->ecc.read_oob = meson_nfc_read_oob;
+	nand->ecc.read_subpage = meson_nfc_read_subpage_hwecc;
 
 	if (nand->options & NAND_BUSWIDTH_16) {
 		dev_err(nfc->dev, "16bits bus width not supported");
@@ -1616,11 +1712,11 @@ int meson_nand_block_isbad(struct mtd_info *mtd, loff_t offs)
 	if (nfc->block_status) {
 		block_status = nfc->block_status[pos.eraseblock];
 		if (block_status == NAND_BLOCK_BAD)
-			pr_info("NAND bbt detect Bad block at %llx\n",
+			pr_err("NAND bbt detect Bad block at %llx\n",
 				(u64)offs);
 
 		if (block_status == NAND_FACTORY_BAD)
-			pr_info("NAND bbt detect factory Bad block at %llx\n",
+			pr_err("NAND bbt detect factory Bad block at %llx\n",
 				(u64)offs);
 	}
 	nand_release_device(chip);
