@@ -1,19 +1,49 @@
 #!/bin/bash
 
 enter_path=$(pwd)
-auto_patch_path=$(dirname $(readlink -f "$0"))
-common_driver_path=$(dirname $(dirname $0))
-COMMON_DRIVERS_DIR=${common_driver_path#*/}
-common_kernel_path=$(readlink -f $(dirname $common_driver_path))${COMMON_DIR:-/common}
-KERNEL_DIR=${common_kernel_path##*/}
-common_path=$(dirname $common_kernel_path)
-cd ${common_path}
-if [[ $# < 1 ]]; then
-	version_message=$(grep -rn BRANCH= ${common_kernel_path}/build.config.constants)
+common_path=$(pwd)
+if [[ -z "${KERNEL_DIR}" ]]; then
+	KERNEL_DIR=common
+fi
+if [[ ! -f ${KERNEL_DIR}/init/main.c ]]; then
+	echo "The directory of kernel does not exist";
+	exit
+fi
+if [[ -z "${COMMON_DRIVERS_DIR}" ]]; then
+	if [[ -d ${KERNEL_DIR}/../common_drivers ]]; then
+		COMMON_DRIVERS_DIR=../common_drivers
+	elif [[ -d "${KERNEL_DIR}/common_drivers" ]]; then
+		COMMON_DRIVERS_DIR=common_drivers
+	else
+		echo "The directory of kernel does not exist";
+		exit
+	fi
+fi
+
+if [[ ! -f ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/amlogic_utils.sh ]]; then
+	echo "The directory of common_drivers does not exist";
+	exit
+fi
+auto_patch_path=`realpath $0`
+auto_patch_path=`dirname ${auto_patch_path}`
+if [[ $# == 1 && -d ${auto_patch_path}/$1 ]]; then
+	FULL_KERNEL_VERSION=$1
+elif [[ -f ${KERNEL_DIR}/build.config.constants ]]; then
+	version_message=$(grep -rn BRANCH= ${KERNEL_DIR}/build.config.constants)
 	version_message="common${version_message##*android}"
 	FULL_KERNEL_VERSION=${version_message}
 else
-	FULL_KERNEL_VERSION=$1
+	version=`grep "^VERSION = " common/Makefile | cut -d ' ' -f 3`
+	patchlevel=`grep "^PATCHLEVEL = " common/Makefile | cut -d ' ' -f 3`
+	matching_paths=$(find ${auto_patch_path} -type d -name "common*-${version}\.${patchlevel}")
+	path_array=($(echo "${matching_paths}"))
+	path_count=${#path_array[@]}
+	if [[ $path_count == 1 ]]; then
+		FULL_KERNEL_VERSION=${matching_paths##*/}
+	else
+		echo "Can't find FULL_KERNEL_VERSION"
+		exit
+	fi
 fi
 PATCHES_PATH=${auto_patch_path}/${FULL_KERNEL_VERSION}
 
