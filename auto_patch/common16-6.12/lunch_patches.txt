@@ -3,6 +3,7 @@ tools/external#python#absl-py#0001-tool-bring-up-androidu-with-common16-6.12-1-1
 tools/external#toybox#0001-tool-bring-up-androidu-with-common16-6.12-1-1.patch
 tools/external#zlib#0001-tool-bring-up-androidu-with-common16-6.12-1-1.patch
 tools/external#zopfli#0001-tool-bring-up-androidu-with-common16-6.12-1-1.patch
+tools/prebuilts#build-tools#0001-tool-bring-up-androidu-with-common16-6.12-1-1.patch
 tools/prebuilts#clang#host#linux-x86#0001-tool-bring-up-androidu-with-common16-6.12-1-1.patch
 tools/prebuilts#clang-tools#0001-clang-tools-modify-android.bp-to-android_bp-1-1.patch
 tools/prebuilts#gcc#linux-x86#host#x86_64-linux-glibc2.17-4.8#0001-tool-bring-up-androidu-with-common16-6.12-1-1.patch
