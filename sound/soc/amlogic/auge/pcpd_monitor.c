@@ -25,7 +25,7 @@ static int pcpd_monitor_get_audio_type(struct pcpd_monitor *pc_pd)
 		return 0;
 	}
 
-	pc = (mmio_read(pc_pd->reg_map, AUDIO_PCPD_MON_STAT1) >> 16) & 0xff;
+	pc = (mmio_read(pc_pd->reg_map, AUDIO_PCPD_MON_STAT1) >> 16) & 0xffff;
 	return pc;
 }
 

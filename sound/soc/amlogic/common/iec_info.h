@@ -200,6 +200,11 @@ static const struct spdif_audio_info type_texts[] = {
 	{6, 0x103, "PAUSE"},
 	{6, 0x003, "PAUSE"},
 	{6, 0x100, "PAUSE"},
+	{7, 0x19,  "MPEG-H"},
+	{8, 0x39,  "MPEG-H_X2"},
+	{9, 0x839,  "MPEG-H_X4"},
+	{10, 0x1039,  "MPEG-H_X8"},
+	{11, 0x1839,  "MPEG-H_X16"},
 };
 
 static const char *const audio_type_texts[] = {
@@ -210,6 +215,11 @@ static const char *const audio_type_texts[] = {
 	"DTS-HD",
 	"TRUEHD",
 	"PAUSE",
+	"MPEG-H",
+	"MPEG-H_X2",
+	"MPEG-H_X4",
+	"MPEG-H_X8",
+	"MPEG-H_X16",
 	"NOT_READY"
 };
 
