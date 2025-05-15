@@ -51,6 +51,7 @@ struct meson_vpu_block_para {
 	struct meson_vpu_link_para outputs[MESON_BLOCK_MAX_OUTPUTS];
 	u64 inputs_mask;
 	u64 outputs_mask;
+	u64 capability;
 };
 
 static struct meson_vpu_block *create_block(size_t blk_sz,
@@ -75,6 +76,7 @@ static struct meson_vpu_block *create_block(size_t blk_sz,
 	mvb->max_outputs = para->num_outputs * 2;
 	mvb->inputs_mask = para->inputs_mask;
 	mvb->outputs_mask = para->outputs_mask;
+	mvb->capability = para->capability;
 
 	for (i = 0; i < mvb->avail_inputs; i++) {
 		mvb->inputs[i].port = para->inputs[i].port;
@@ -124,6 +126,12 @@ static void parse_vpu_node(struct device_node *child_node,
 				  &para->num_outputs);
 	if (ret)
 		para->num_outputs = 0;
+
+	ret = of_property_read_u64(child_node, "capability",
+				  &para->capability);
+	if (ret)
+		para->capability = 0;
+
 	ret = of_property_read_string(child_node, "block_name",
 				      (const char **)&para->name);
 	if (ret)
@@ -193,6 +201,7 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->osds[mvb->index] = to_osd_block(mvb);
+		pipeline->osd_capability[mvb->index] = mvb->capability;
 		pipeline->num_osds++;
 		break;
 	case MESON_BLK_AFBC:
@@ -352,10 +361,16 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 	struct meson_vpu_block_para para;
 	struct meson_vpu_sub_pipeline *sub_pipe[MESON_MAX_CRTC] = {0};
 	u32 num_blocks;
+	int ret;
 
 	num_blocks = of_get_child_count(vpu_block_node);
 	if (num_blocks <= 0)
 		return -ENODEV;
+
+	ret = of_property_read_u32(vpu_block_node,
+					"vpu_blocks_type", &pipeline->vpu_blocks_type);
+	if (ret)
+		pipeline->vpu_blocks_type = 0;
 
 	vpu_blocks = kcalloc(BLOCK_ID_MAX, sizeof(*vpu_blocks), GFP_KERNEL);
 	if (!vpu_blocks)
@@ -936,7 +951,6 @@ int vpu_topology_populate(struct meson_vpu_pipeline *pipeline)
 
 	populate_vpu_pipeline(priv->blocks_node, pipeline);
 	of_node_put(priv->blocks_node);
-	of_node_put(priv->topo_node);
 
 	return 0;
 }
@@ -967,14 +981,12 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 			return -ENODEV;
 		}
 	}
-
 	pipeline = kzalloc(sizeof(*pipeline), GFP_KERNEL);
 	if (!pipeline)
 		return -ENOMEM;
 
 	priv->pipeline = pipeline;
 	pipeline->priv = priv;
-	priv->topo_node = child;
 	priv->blocks_node = vpu_block_node;
 
 	return 0;

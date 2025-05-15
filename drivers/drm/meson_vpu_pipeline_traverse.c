@@ -118,7 +118,7 @@ static void pipeline_dfs(int osd_index, struct meson_vpu_sub_pipeline_state *mvp
 			}
 			j++;
 			mvt->num_path++;
-			MESON_DRM_TRAVERSE("\n");
+			MESON_DRM_TRAVERSE("##################\n");
 			prev = stack_pop(mvs);
 			prev_state = meson_vpu_block_get_state(prev, state);
 			prev_state->in_stack = 0;
@@ -348,7 +348,6 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 			mvps->osd_scope_pre[osd_index].v_end =
 				mvps->osd_scope_pre[osd_index].v_start
 				+ scaler_param->output_height - 1;
-			scaler_param->global = 0;
 		} else {
 			/*TODO*/
 			DRM_ERROR("two scaler after blend?!\n");
@@ -1250,7 +1249,7 @@ int vpu_pipeline_traverse(struct meson_vpu_sub_pipeline_state *mvps,
 			continue;
 		osd_index = mvps->plane_index[i];
 		path[i] = mvps->osd_traverse[osd_index].num_path;
-		DRM_DEBUG("osd%d traverse path num: %d\n",
+		MESON_DRM_TRAVERSE("osd%d traverse path num: %d\n",
 			  (osd_index + 1), path[i]);
 	}
 

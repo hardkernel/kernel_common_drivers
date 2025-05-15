@@ -249,6 +249,8 @@
 #define OSD4_PROC_DB_FLT_SEED4                     0x702a
 #define OSD4_PROC_DB_FLT_SEED5                     0x702b
 
+#define VPP_OSD_SCALE_CTRL                         0x1dff
+
 /*macro define for chip const*/
 /*bank length is related to scale fifo:4 line 1920??*/
 #define OSD_SCALE_BANK_LENGTH 4
@@ -287,6 +289,14 @@ enum osd_scaler_f2v_vphase_type_e {
 	OSD_SCALER_F2V_IB2P,
 	OSD_SCALER_F2V_P2P,
 	OSD_SCALER_F2V_TYPE_MAX
+};
+
+/*
+ * indicate scaler1 position compared with osdblend
+ */
+enum scaler1_pos {
+	ATEFR_OSDBLEND,
+	BEFORE_OSDBLEND,
 };
 
 struct osd_scaler_f2v_vphase_s {

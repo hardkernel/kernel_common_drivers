@@ -389,6 +389,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 			container_of(state, struct am_meson_crtc_state, base);
 	struct am_meson_crtc *meson_crtc = to_am_meson_crtc(cstate->base.crtc);
 	struct meson_drm *priv = meson_crtc->priv;
+	struct meson_vpu_pipeline *pipeline = priv->pipeline;
 	struct meson_vpu_sub_pipeline_state *mvps;
 	struct meson_vpu_sub_pipeline *subs;
 	struct drm_private_state *obj_state;
@@ -434,6 +435,9 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
 	drm_printf(p, "\t\tdrm_policy_mask=%llu\n", priv->of_conf.drm_policy_mask);
 	drm_printf(p, "\t\tdv_support_info=%d\n", drm_get_dv_support_info());
+	drm_printf(p, "\t\tvpu_blocks_type=%d\n", pipeline->vpu_blocks_type);
+	for (i = 0; i < MESON_MAX_OSDS; i++)
+		drm_printf(p, "\t\tosd%d_capability=%llx\n", i, pipeline->osd_capability[i]);
 
 	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
 		drm_printf(p, "\t\tgfcd_enable=%u\n",

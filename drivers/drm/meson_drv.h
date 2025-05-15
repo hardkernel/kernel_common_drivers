@@ -115,7 +115,6 @@ struct meson_drm {
 	struct device *dev;
 
 	struct drm_device *drm;
-	struct device_node *topo_node;
 	struct device_node *blocks_node;
 	struct drm_plane *primary_plane;
 	struct drm_plane *cursor_plane;

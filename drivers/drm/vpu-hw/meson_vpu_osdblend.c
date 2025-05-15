@@ -676,7 +676,10 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	mvobs->input_width[OSD_SUB_BLEND1] = max_width;
 	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
 	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
-	MESON_DRM_BLOCK("%s check done.\n", vblk->name);
+	mvps->osdblend_output_width = max_width;
+	mvps->osdblend_output_height = max_height;
+	MESON_DRM_BLOCK("%s check done. width = %d, height = %d\n",
+		vblk->name, mvps->osdblend_output_width, mvps->osdblend_output_height);
 	return 0;
 }
 
@@ -887,6 +890,8 @@ static int s7d_osdblend_check_state(struct meson_vpu_block *vblk,
 	mvobs->input_width[OSD_SUB_BLEND1] = max_width;
 	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
 	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
+	mvps->osdblend_output_width = max_width;
+	mvps->osdblend_output_height = max_height;
 	MESON_DRM_BLOCK("%s check done.\n", vblk->name);
 	return 0;
 }

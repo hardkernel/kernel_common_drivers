@@ -295,6 +295,7 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 	struct osd_scope_s scope = {0, 1919, 0, 1079};
+	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
 	struct postblend_reg_s *reg = postblend->reg;
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 
@@ -306,11 +307,19 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 
-	scope.h_start = mvps->vpp_scope_x;
-	scope.v_start = mvps->vpp_scope_y;
-	scope.h_end = scope.h_start + mvps->scaler_param[0].output_width +
-			mvps->scaler_param[0].output_width_offset - 1;
-	scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
+	if (!(pipeline->osd_capability[MESON_OSD1] & BIT(LOCAL_SCALER_SUPPORT))) {
+		scope.h_start = mvps->vpp_scope_x;
+		scope.v_start = mvps->vpp_scope_y;
+		scope.h_end = scope.h_start + mvps->scaler_param[0].output_width +
+				mvps->scaler_param[0].output_width_offset - 1;
+		scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
+	} else {
+		scope.h_start = 0;
+		scope.v_start = 0;
+		scope.h_end = mvps->osdblend_output_width +
+				mvps->scaler_param[0].output_width_offset - 1;
+		scope.v_end = mvps->osdblend_output_height - 1;
+	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
@@ -565,6 +574,7 @@ static void t6d_postblend_set_state(struct meson_vpu_block *vblk,
 
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 	struct osd_scope_s scope = {0, 1919, 0, 1079};
+	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
 	struct postblend_reg_s *reg = postblend->reg;
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 	u32 *crtcmask_osd;
@@ -581,6 +591,18 @@ static void t6d_postblend_set_state(struct meson_vpu_block *vblk,
 
 	if (vblk->ops->init_register)
 		vblk->ops->init_register(vblk, state);
+
+	if (!(pipeline->osd_capability[MESON_OSD1] & BIT(LOCAL_SCALER_SUPPORT))) {
+		scope.h_start = mvps->vpp_scope_x;
+		scope.v_start = mvps->vpp_scope_y;
+		scope.h_end = scope.h_start + mvps->scaler_param[0].output_width - 1;
+		scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
+	} else {
+		scope.h_start = 0;
+		scope.v_start = 0;
+		scope.h_end = mvps->osdblend_output_width - 1;
+		scope.v_end = mvps->osdblend_output_height - 1;
+	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_config(OSD_MODULE, mvps->sec_src, crtc_index);

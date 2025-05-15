@@ -91,6 +91,12 @@ enum meson_policy_id {
 	HDR_BEFORE_BLEND,
 };
 
+enum meson_osd_capability {
+	AFBC_SUPPORT = 0,
+	SCALER_SUPPORT = 1,
+	LOCAL_SCALER_SUPPORT,
+};
+
 enum slice_index {
 	OSD1_SLICE0,
 	OSD2_SLICE1,
@@ -186,6 +192,7 @@ struct meson_vpu_block {
 	u8 init_done;
 	unsigned long inputs_mask;
 	unsigned long outputs_mask;
+	unsigned long capability;
 	struct meson_vpu_block_link inputs[MESON_BLOCK_MAX_INPUTS];
 	struct meson_vpu_block_link outputs[MESON_BLOCK_MAX_OUTPUTS];
 	struct meson_vpu_block_ops *ops;
@@ -498,6 +505,7 @@ struct meson_vpu_scaler {
 	u32 linebuffer;/*base pixel*/
 	u32 bank_length;/*base line*/
 	enum alpha_proc_mode alpha_mode;
+	enum scaler1_pos scaler1_position;
 };
 
 struct meson_vpu_scaler_state {
@@ -707,6 +715,8 @@ struct meson_vpu_pipeline {
 	struct meson_vpu_gfcd *gfcd[MESON_MAX_OSDS];
 	struct meson_vpu_csc *csc[MESON_MAX_CSCS];
 	struct meson_vpu_pipeline_ops *ops;
+	/*reference enum meson_osd_capability*/
+	u64 osd_capability[MESON_MAX_OSDS];
 	u32 num_osds;
 	u32 num_video;
 	u32 num_afbc_osds;
@@ -721,6 +731,7 @@ struct meson_vpu_pipeline {
 
 	struct meson_drm *priv;
 	struct meson_vpu_block **mvbs;
+	u32 vpu_blocks_type;
 	int num_blocks;
 	/* save runtime crtc index of osd&video */
 	int osd_crtc_index[MESON_MAX_OSDS];
@@ -775,6 +786,8 @@ struct meson_vpu_sub_pipeline_state {
 	int vpp_scope_y;
 	int more_4k;
 	int more_60;
+	u32 osdblend_output_width;
+	u32 osdblend_output_height;
 
 	/*some traverse help structure*/
 	struct meson_vpu_stack osd_stack[MESON_MAX_OSDS];

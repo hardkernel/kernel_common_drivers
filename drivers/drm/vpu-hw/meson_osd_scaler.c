@@ -1047,6 +1047,9 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 	struct osd_scaler_reg_s *reg = scaler->reg;
 	struct meson_vpu_pipeline *pipeline = scaler->base.pipeline;
 
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
+
 	/*todo:move afbc start to afbc block.*/
 	if (pipeline->osd_version < OSD_V7) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -1115,6 +1118,9 @@ static void scaler_register_init(struct meson_vpu_block *vblk,
 	 */
 	if (scaler->alpha_mode == ALPHA_PROC)
 		reg_ops->rdma_write_reg(reg->vpp_osd_sc_div_alpha, 0xb1);
+
+	if (scaler->scaler1_position == BEFORE_OSDBLEND)
+		reg_ops->rdma_write_reg_bits(VPP_OSD_SCALE_CTRL, 0x1, 0, 3);
 
 	vblk->init_done = 1;
 }
@@ -1247,9 +1253,42 @@ static void t3_scaler_register_init(struct meson_vpu_block *vblk,
 static void s7_scaler_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
+	struct meson_vpu_pipeline *pipeline = scaler->base.pipeline;
 
 	scaler->reg = &osd_scaler_reg[vblk->index];
 	scaler->alpha_mode = ALPHA_PROC;
+	if (pipeline->osd_capability[MESON_OSD1] & BIT(LOCAL_SCALER_SUPPORT))
+		scaler->scaler1_position = BEFORE_OSDBLEND;
+	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
+	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
+
+	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
+}
+
+static void s6_scaler_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
+	struct meson_vpu_pipeline *pipeline = scaler->base.pipeline;
+
+	scaler->reg = &osd_scaler_s6_reg[vblk->index];
+	scaler->alpha_mode = ALPHA_PROC;
+	if (pipeline->osd_capability[MESON_OSD1] & BIT(LOCAL_SCALER_SUPPORT))
+		scaler->scaler1_position = BEFORE_OSDBLEND;
+	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
+	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
+
+	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
+}
+
+static void t6d_scaler_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
+	struct meson_vpu_pipeline *pipeline = scaler->base.pipeline;
+
+	scaler->reg = &osd_scaler_t7_reg[vblk->index];
+	scaler->alpha_mode = ALPHA_PROC;
+	if (pipeline->osd_capability[MESON_OSD1] & BIT(LOCAL_SCALER_SUPPORT))
+		scaler->scaler1_position = BEFORE_OSDBLEND;
 	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
 	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
 
@@ -1265,37 +1304,17 @@ static void t6d_scaler_register_init(struct meson_vpu_block *vblk,
 	if (vblk->init_done)
 		return;
 
-	/* default: osd_sc_path_sel -- before osd_blend or after hdr */
-	reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x1, 0, 1);
-	reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 0, 1);
-	reg_ops->rdma_write_reg(scaler->reg->vpp_osd_sc_div_alpha, 0xb1);
+	if (scaler->scaler1_position == BEFORE_OSDBLEND) {
+		/* default: osd_sc_path_sel -- before osd_blend or after hdr */
+		reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x1, 0, 1);
+		reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 0, 1);
+	}
+
+	if (scaler->alpha_mode == ALPHA_PROC)
+		reg_ops->rdma_write_reg(scaler->reg->vpp_osd_sc_div_alpha, 0xb1);
 	vblk->init_done = 1;
 
 	MESON_DRM_BLOCK("%s register_init called.\n", scaler->base.name);
-}
-
-static void s6_scaler_hw_init(struct meson_vpu_block *vblk)
-{
-	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
-
-	scaler->reg = &osd_scaler_s6_reg[vblk->index];
-	scaler->alpha_mode = ALPHA_PROC;
-	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
-	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
-
-	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
-}
-
-static void t6d_scaler_hw_init(struct meson_vpu_block *vblk)
-{
-	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
-
-	scaler->reg = &osd_scaler_t7_reg[vblk->index];
-	scaler->alpha_mode = ALPHA_PROC;
-	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
-	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
-
-	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
 }
 #endif
 
