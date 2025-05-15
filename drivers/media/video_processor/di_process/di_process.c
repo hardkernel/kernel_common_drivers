@@ -628,10 +628,9 @@ static void di_process_task(struct di_process_dev *dev)
 
 	need_process_count = DIPR_POOL_SIZE - kfifo_len(&dev->di_input_free_q);
 	dp_print(dev->index, PRINT_OTHER, "need_process_count %d\n", need_process_count);
-	if (need_process_count > 0) {
+	if (need_process_count > 2) {
 		need_q_drop = false;
-		dp_print(dev->index, PRINT_OTHER, "too many buf need process %d, so not q_drop\n",
-			need_process_count);
+		dp_print(dev->index, PRINT_OTHER, "too many buf need process, so not q_drop\n");
 	}
 
 	if (is_i_frame && drop_count && q_dropped && need_q_drop) {
@@ -672,7 +671,7 @@ static void di_process_task(struct di_process_dev *dev)
 			}
 		} else {
 			buf_mgr_file_unlock(uvm_di_mgr);
-			dp_print(dev->index, PRINT_OTHER, "drop too many frame %d\n", drop_count);
+			dp_print(dev->index, PRINT_OTHER, "drop too many frame\n");
 		}
 	}
 
