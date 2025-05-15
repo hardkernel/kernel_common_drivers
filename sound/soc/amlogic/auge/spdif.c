@@ -1039,8 +1039,11 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 		audio_send_uevent(p_spdif->dev, SPDIFIN_NEW_AUDIO_TYPE_EVENT, 0);
 	}
 
-	if (intrpt_status & 0x40)
-		pr_info("valid changed\n");
+	if (intrpt_status & 0x40) {
+		pr_info("valid changed, valid is %d\n", (intrpt_status >> 31) & 0x1);
+		audio_send_uevent(p_spdif->dev,
+			SPDIFIN_NEW_VALID_EVENT, (intrpt_status >> 31) & 0x1);
+	}
 }
 
 static irqreturn_t aml_spdif_ddr_isr(int irq, void *devid)

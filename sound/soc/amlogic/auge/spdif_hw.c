@@ -47,8 +47,8 @@ void aml_spdif_enable(struct aml_audio_controller *actrl,
 			aml_audiobus_update_bits(actrl, reg, 0x1 << 3, 0x0 << 3);
 		}
 	} else {
-		aml_audiobus_update_bits(actrl,
-			EE_AUDIO_SPDIFIN_CTRL0, 1 << 31, is_enable << 31);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_SPDIFIN_CTRL0, 1 << 3, 1 << 3);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_SPDIFIN_CTRL0, 1 << 31, is_enable << 31);
 	}
 }
 
@@ -130,6 +130,7 @@ void aml_spdifin_clr_irq(struct aml_audio_controller *actrl,
 	} else {
 		aml_audiobus_update_bits(actrl, EE_AUDIO_SPDIFIN_CTRL6,
 				0xff << 16, clr_bits_val << 16);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_SPDIFIN_CTRL6, 0xff << 16, 0);
 	}
 }
 

@@ -40,6 +40,10 @@ static struct audio_uevent audio_events[] = {
 		.env  = "AI_SOUND_MODE=",
 	},
 	{
+		.type = SPDIFIN_NEW_VALID_EVENT,
+		.env  = "SPDIFIN_NEW_VALID=",
+	},
+	{
 		.type = AUDIO_NONE_EVENT,
 	}
 };
