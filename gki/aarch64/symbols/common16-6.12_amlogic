@@ -1,3 +1,7 @@
   trace_buffer
   trace_step
   drm_match_cea_mode
+  nbcon_device_release
+  nbcon_device_try_acquire
+  strreplace
+  sysfs_emit_at

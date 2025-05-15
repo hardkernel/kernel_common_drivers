@@ -16,8 +16,6 @@ AMLOGIC_GKI20_MODULES = [
     "//common_drivers/drivers/memory_ext:mem_debug",
     "common_drivers/drivers/memory_ext/page_trace.ko",
     "//common_drivers/drivers/memory_ext:page_trace",
-    "common_drivers/drivers/memory_ext/user_fault.ko",
-    "//common_drivers/drivers/memory_ext:user_fault",
 ]
 
 AMLOGIC_GKI10_MODULES = [
@@ -171,6 +169,8 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/drivers/memory_debug:amlogic-memory-debug",
     "common_drivers/drivers/memory_ext/aml_smmu.ko",
     "//common_drivers/drivers/memory_ext:aml_smmu",
+    "common_drivers/drivers/memory_ext/user_fault.ko",
+    "//common_drivers/drivers/memory_ext:user_fault",
     "common_drivers/drivers/mmc/host/amlogic-mmc.ko",
     "//common_drivers/drivers/mmc/host:amlogic-mmc",
     "common_drivers/drivers/net/ethernet/stmicro/stmmac/amlogic-phy-debug.ko",
