@@ -116,6 +116,7 @@ struct secure_pool_info {
 static long dmabuf_manage_release_channel(u32 id_high, u32 id_low);
 static int dmabuf_manage_release_dmabufheap_resource(struct secure_pool_info *release_pool);
 static u32 dmabuf_manage_secure_negotiated_version(void);
+static int dmabuf_manage_release_es_data(struct dmabuf_manage_block *block);
 
 static struct list_head pool_list;
 static int dev_no;
@@ -408,6 +409,9 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 		block->type == DMA_BUF_TYPE_SECURE_VDEC) {
 		channel = (struct secure_vdec_channel *)block->priv;
 		dmabuf_manage_release_channel(channel->id_high, channel->id_low);
+	} else if (block && block->priv &&
+		block->type == DMA_BUF_TYPE_VIDEODEC_ES) {
+		dmabuf_manage_release_es_data(block);
 	}
 
 	if (block) {
@@ -849,6 +853,87 @@ error_copy:
 	return res;
 }
 
+static int dmabuf_manage_export_es_data(struct dmabuf_videodec_es_data *vdecdata)
+{
+	struct dmabuf_videodec_es_data tmp_es_data;
+	struct dmabuf_videodec_es_data *k_vdecdata;
+	unsigned long long tmp_addr[32];
+	int i, j;
+	long res;
+
+	if (vdecdata->data_type != DMA_BUF_VIDEODEC_COMBINE)
+		return 0;
+
+	for (i = 0; i < vdecdata->data_len; i++) {
+		tmp_addr[i] = 0;
+		for (j = 0; j < 8; j++) {
+			tmp_addr[i] += vdecdata->data[j + i * 8];
+			vdecdata->data[j + i * 8] = 0;
+			if (j < 7)
+				tmp_addr[i] = tmp_addr[i] << 8;
+		}
+	}
+
+	for (i = 0; i < vdecdata->data_len; i++) {
+		unsigned long long k_vdecdata_ptr;
+
+		res = copy_from_user((void *)&tmp_es_data,
+			(void __user *)((uintptr_t)tmp_addr[i]), sizeof(tmp_es_data));
+		if (res) {
+			pr_error("copy_from_user failed %d\n", i);
+			return -1;
+		}
+		k_vdecdata = kzalloc(sizeof(*k_vdecdata), GFP_KERNEL);
+		if (!k_vdecdata) {
+			pr_error("kmalloc failed\n");
+			return -1;
+		}
+		memcpy(k_vdecdata, &tmp_es_data, sizeof(*k_vdecdata));
+		k_vdecdata_ptr = (uintptr_t)k_vdecdata;
+		vdecdata->data[0 + i * 8] = (k_vdecdata_ptr >> 56) & 0xff;
+		vdecdata->data[1 + i * 8] = (k_vdecdata_ptr >> 48) & 0xff;
+		vdecdata->data[2 + i * 8] = (k_vdecdata_ptr >> 40) & 0xff;
+		vdecdata->data[3 + i * 8] = (k_vdecdata_ptr >> 32) & 0xff;
+		vdecdata->data[4 + i * 8] = (k_vdecdata_ptr >> 24) & 0xff;
+		vdecdata->data[5 + i * 8] = (k_vdecdata_ptr >> 16) & 0xff;
+		vdecdata->data[6 + i * 8] = (k_vdecdata_ptr >> 8) & 0xff;
+		vdecdata->data[7 + i * 8] = k_vdecdata_ptr & 0xff;
+	}
+
+	return 0;
+}
+
+static int dmabuf_manage_release_es_data(struct dmabuf_manage_block *block)
+{
+	struct dmabuf_videodec_es_data *vdecdata;
+	struct dmabuf_videodec_es_data *k_vdecdata_ptr;
+	unsigned long long tmp_addr = 0;
+	int i, j;
+
+	if (!block)
+		return 0;
+
+	if (block->type != DMA_BUF_TYPE_VIDEODEC_ES)
+		return 0;
+
+	vdecdata = (struct dmabuf_videodec_es_data *)block->priv;
+	if (vdecdata->data_type != DMA_BUF_VIDEODEC_COMBINE)
+		return 0;
+
+	for (i = 0; i < vdecdata->data_len; i++) {
+		tmp_addr = 0;
+		for (j = 0; j < 8; j++) {
+			tmp_addr += vdecdata->data[j + i * 8];
+			if (j < 7)
+				tmp_addr = tmp_addr << 8;
+		}
+		k_vdecdata_ptr = (struct dmabuf_videodec_es_data *)((uintptr_t)tmp_addr);
+		kfree(k_vdecdata_ptr);
+	}
+
+	return 0;
+}
+
 static long dmabuf_manage_export_dmabuf(unsigned long args)
 {
 	long res = -EFAULT;
@@ -890,6 +975,10 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 		}
 		memcpy(vdecdata, &info.buffer.vdecdata, sizeof(*vdecdata));
 		block->priv = vdecdata;
+		if (dmabuf_manage_export_es_data(vdecdata)) {
+			pr_error("export_es_data failed\n");
+			goto error_alloc_object;
+		}
 		break;
 	default:
 		block->priv = NULL;
@@ -915,6 +1004,7 @@ error_fd:
 	dma_buf_put(dbuf);
 	return fd;
 error_alloc_object:
+	dmabuf_manage_release_es_data(block);
 	kfree(block->priv);
 	kfree(block);
 error_copy:
@@ -962,6 +1052,10 @@ static long dmabuf_manage_extend_export_dmabuf(unsigned long args)
 		}
 		memcpy(vdecdata, &info.buffer.vdecdata, sizeof(*vdecdata));
 		block->priv = vdecdata;
+		if (dmabuf_manage_export_es_data(vdecdata)) {
+			pr_error("export_es_data failed\n");
+			goto error_alloc_object;
+		}
 		break;
 	default:
 		block->priv = NULL;
@@ -986,6 +1080,7 @@ static long dmabuf_manage_extend_export_dmabuf(unsigned long args)
 error_fd:
 	dma_buf_put(dbuf);
 error_alloc_object:
+	dmabuf_manage_release_es_data(block);
 	kfree(block->priv);
 	kfree(block);
 error_copy:

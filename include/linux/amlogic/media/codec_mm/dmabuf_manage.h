@@ -53,7 +53,9 @@ struct secmem_extend_block {
 };
 
 enum dmabuf_manage_videodec_type {
-	DMA_BUF_VIDEODEC_HDR10PLUS = 1
+	DMA_BUF_VIDEODEC_HDR10PLUS = 1,
+	DMA_BUF_VIDEODEC_DYNAMICASPECT = 2,
+	DMA_BUF_VIDEODEC_COMBINE = 10 //for example: hdr10+ & hdmeta mixed.
 };
 
 struct dmabuf_videodec_es_data {
