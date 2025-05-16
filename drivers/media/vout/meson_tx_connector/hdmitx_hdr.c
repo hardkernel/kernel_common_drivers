@@ -1226,6 +1226,7 @@ void hdmitx_clear_all_infoframe_pkt(struct hdmitx_common *tx_comm)
 	arg = CLR_AVI_BT2020;
 	hdmitx_hw_cntl(tx_hw, AUX_PKT_CONF_AVI_BT2020, (void *)&arg, NULL);
 	hdmitx_hw_cntl(tx_hw, AUX_PKT_CLR_AVI, NULL, NULL);
+	hdmitx_hw_cntl(tx_hw, AUX_PKT_CONF_EMP_VRR_QMS, NULL, NULL);
 	/* step2 SW: reset para */
 	tx_comm->hdr_transfer_feature = T_UNKNOWN;
 	tx_comm->hdr_color_feature = C_UNKNOWN;
@@ -1233,6 +1234,7 @@ void hdmitx_clear_all_infoframe_pkt(struct hdmitx_common *tx_comm)
 	tx_comm->hdmi_current_hdr_mode = 0;
 	tx_comm->hdmi_last_hdr_mode = 0;
 	tx_comm->hdr10plus_feature = 0;
+	tx_comm->vrr_mode = T_VRR_NONE;
 	/* reset hdmitx csc para */
 	tx_comm->in_colorimetry = 0xff;
 	tx_comm->out_colorimetry = 0xff;

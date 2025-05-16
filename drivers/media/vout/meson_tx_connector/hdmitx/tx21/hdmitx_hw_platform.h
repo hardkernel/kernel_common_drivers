@@ -79,7 +79,6 @@ struct hdmitx21_dev {
 	/* 0: RGB444  1: Y444  2: Y422  3: Y420 */
 	/* 4: 24bit  5: 30bit  6: 36bit  7: 48bit */
 	/* if equals to 1, means current video & audio output are blank */
-	enum vrr_type vrr_mode; /* 1: GAME-VRR, 2: QMS-VRR,  0: default no-VRR */
 
 	/*
 	 * debug only, should be positive value. if it is N, then vysnc_handler

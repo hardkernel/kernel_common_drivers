@@ -2311,7 +2311,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct hdmi_forma
 static enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void)
 {
 	int ret;
-	u8 body[31] = {0};
+	u8 body[32] = {0};
 	enum hdmi_tf_type tf_type = HDMI_NONE;
 	enum hdmi_eotf type = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	union hdmi_infoframe info;
@@ -2364,7 +2364,7 @@ static bool hdmitx_vsif_en(u8 *body)
 static enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 {
 	int ret;
-	u8 body[31] = {0};
+	u8 body[32] = {0};
 	enum hdmi_tf_type type = HDMI_NONE;
 	union hdmi_infoframe info;
 	/* struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info; */
@@ -2421,7 +2421,7 @@ static enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void)
 {
 	/* int ret; */
 	unsigned int ieee_code = 0;
-	u8 body[31] = {0};
+	u8 body[32] = {0};
 	enum hdmi_tf_type type = HDMI_NONE;
 	/* union hdmi_infoframe info; */
 	/* struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info; */
@@ -2449,7 +2449,7 @@ static enum hdmi_tf_type hdmitx21_get_cur_cuva_st(void)
 {
 	/* int ret; */
 	unsigned int ieee_code = 0;
-	u8 body[31] = {0};
+	u8 body[32] = {0};
 	enum hdmi_tf_type type = HDMI_NONE;
 	int val;
 
@@ -2478,7 +2478,7 @@ static enum hdmi_tf_type hdmitx21_get_cur_cuva_st(void)
 unsigned int hdmitx21_get_vendor_infoframe_ieee(void)
 {
 	unsigned int ieee_code = 0;
-	u8 body[31] = {0};
+	u8 body[32] = {0};
 
 	if (!hdmitx_vsif_en(body))
 		return 0;
@@ -3952,22 +3952,42 @@ static enum hdmi_color_depth get_cd_from_pkt(void)
 	return cd;
 }
 
-static unsigned short get_qms_en_from_pkt(void)
+static unsigned short get_vrr_en_from_pkt(enum emp_type type)
 {
 	int ret;
-	u8 body[31];
+	u8 body[32] = {0};
 	unsigned int next_tfr = 0;
 	unsigned int qms_en = 0;
+	unsigned int game_en = 0;
+	unsigned int emp_en = 0;
 
 	memset(body, 0, sizeof(body));
+	/* game and qms use the same buff */
 	ret = hdmi_emp_infoframe_get(EMP_TYPE_VRR_QMS, body);
 	if (ret <= 0)
 		return 0;
-	qms_en = !!(body[10] & BIT(2));
-	if (qms_en)
-		next_tfr = (body[12] >> 3) & 0xf;
-	if (qms_en && next_tfr)
-		return 1;
+
+	switch (type) {
+	case EMP_TYPE_NONE:
+		/* emp enable and emp head */
+		if (body[31] == 0xe0 &&
+			body[0] == HDMI_INFOFRAME_TYPE_EMP)
+			emp_en = 1;
+		return emp_en;
+	case EMP_TYPE_VRR_QMS:
+		qms_en = !!(body[10] & BIT(2));
+		if (qms_en)
+			next_tfr = (body[12] >> 3) & 0xf;
+		if (qms_en && next_tfr)
+			return 1;
+		break;
+	case EMP_TYPE_VRR_GAME:
+		game_en = !!(body[10] & BIT(0));
+		return game_en;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
@@ -4278,6 +4298,8 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	u8 *pkt_byte = NULL;
 	struct emp_packet_st sbtm_emp;
 	struct vtem_sbtm_st *sbtm_para;
+	struct emp_packet_st *qms_emp = NULL;
+	struct emp_packet_st *game_emp = NULL;
 
 	if ((cmd & CMD_TYPE_MASK) != CMD_AUX_PKT_OFFSET) {
 		HDMITX_ERROR("%s cmd[0x%x] wrong cmd type\n", __func__, cmd);
@@ -4544,6 +4566,22 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			sbtm_para->frmpblimitint);
 		hdmi_emp_infoframe_set(EMP_TYPE_SBTM, &sbtm_emp);
 		break;
+	case AUX_PKT_CONF_EMP_VRR_QMS:
+		if (!input_argv) {
+			hdmi_emp_infoframe_set(EMP_TYPE_VRR_QMS, NULL);
+			break;
+		}
+		qms_emp = (struct emp_packet_st *)(input_argv);
+		hdmi_emp_infoframe_set(EMP_TYPE_VRR_QMS, qms_emp);
+		break;
+	case AUX_PKT_CONF_EMP_VRR_GAME:
+		if (!input_argv) {
+			hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, NULL);
+			break;
+		}
+		game_emp = (struct emp_packet_st *)(input_argv);
+		hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, game_emp);
+		break;
 	case AUX_PKT_AVI_CONSTRUCT:
 		hdmitx_construct_avi_packet(hdev);
 		break;
@@ -4686,7 +4724,9 @@ static int hdmitx21_hw_cntl_vrr(struct hdmitx_hw_common *tx_hw, u32 cmd,
 {
 	struct hdmitx21_dev *hdev = container_of(tx_hw, struct hdmitx21_dev, hw_comm);
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-	unsigned short tfr_en;
+	unsigned short qms_en;
+	unsigned short game_en;
+	unsigned short emp_en;
 	unsigned short value_brr;
 	u32 arg;
 	int ret = 0;
@@ -4711,8 +4751,14 @@ static int hdmitx21_hw_cntl_vrr(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case QMS_GET_INFO:
 		value_brr = (unsigned short)get_vic_from_pkt();
-		tfr_en = (unsigned short)get_qms_en_from_pkt();
-		return (tfr_en << 16) | value_brr;
+		qms_en = (unsigned short)get_vrr_en_from_pkt(EMP_TYPE_VRR_QMS);
+		return (qms_en << 16) | value_brr;
+	case GAME_GET_INFO:
+		game_en = (unsigned short)get_vrr_en_from_pkt(EMP_TYPE_VRR_GAME);
+		return game_en;
+	case EMP_GET_INFO:
+		emp_en = (unsigned short)get_vrr_en_from_pkt(EMP_TYPE_NONE);
+		return emp_en;
 	default:
 		break;
 	}
@@ -6622,7 +6668,7 @@ void hdmitx21_sw_debug_func(struct hdmitx_common *tx_comm, const char *buf)
 		HDMITX_INFO("hdcp_delay :%d\n", value);
 		p_hdcp->hdcp_debug_delay = value;
 	} else if (strncmp(tmpbuf, "vrr_mode", 8) == 0) {
-		switch (hdev->vrr_mode) {
+		switch (tx_comm->vrr_mode) {
 		case T_VRR_GAME:
 			HDMITX_INFO("%s\n", "game-vrr");
 			break;

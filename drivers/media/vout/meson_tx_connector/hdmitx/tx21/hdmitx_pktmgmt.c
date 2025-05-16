@@ -107,8 +107,9 @@ static int tpi_info_get(u8 sel, u8 *data)
 	}
 	for (i = 0; i < 31; i++)
 		data[i] = hdmitx21_rd_reg(TPI_INFO_B0_IVCTX + i);
+	data[31] = hdmitx21_rd_reg(TPI_INFO_EN_IVCTX);
 	spin_unlock_irqrestore(&tpi_lock, flags);
-	return 31; /* fixed value */
+	return 32; /* fixed value */
 }
 
 void hdmitx_dump_infoframe_packets(struct seq_file *s)
@@ -777,6 +778,7 @@ int hdmi_emp_infoframe_get(enum emp_type type, u8 *body)
  * EMP packets is different as other packets
  * no checksum, the successive packets in a video frame...
  */
+/* only use hw cmd send emp packet */
 void hdmi_emp_infoframe_set(enum emp_type type, struct emp_packet_st *info)
 {
 	u8 body[31] = {0};

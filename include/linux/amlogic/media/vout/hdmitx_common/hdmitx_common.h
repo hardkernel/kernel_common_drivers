@@ -344,6 +344,8 @@ struct hdmitx_common {
 
 	/* 11. vrr related*/
 	struct vrr_device_s hdmitx_vrr_dev;
+	/* 1: GAME-VRR, 2: QMS-VRR,  0: default no-VRR */
+	enum vrr_type vrr_mode;
 	/*
 	 * the qms_log_id is referred from hw_sequence_id
 	 * if value is not changed, the skip massive qms log

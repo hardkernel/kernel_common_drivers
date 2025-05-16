@@ -988,11 +988,36 @@ static void vrr_init_qms_para(struct hdmitx_common *tx_comm, struct tx_vrr_param
 }
 
 /* when exit game-vrr or qms-vrr, the MD of EMP will be set as 0 */
-static void hdmi_vrr_disable_emp_packet(struct tx_vrr_params *para, enum vrr_type vrr_mode)
+static void hdmi_vrr_disable_emp_packet(struct tx_vrr_params *para, struct hdmitx_common *tx_comm)
 {
 	struct emp_packet_st *vrr_pkt;
+	int value;
+	bool emp_en;
+	bool qms_en;
+	bool game_en;
+	int pkt_type = 0;
 
 	if (!para)
+		return;
+
+	/* judgement the emp packet sned or not */
+	emp_en = hdmitx_hw_cntl(tx_comm->tx_hw, EMP_GET_INFO, NULL, NULL);
+	if (!emp_en)
+		return;
+
+	/* judgement the qms enable or not */
+	value = hdmitx_hw_cntl(tx_comm->tx_hw, QMS_GET_INFO, NULL, NULL);
+	qms_en = value >> 16;
+	if (qms_en) {
+		pkt_type = AUX_PKT_CONF_EMP_VRR_QMS;
+	} else {
+		/* judgement the game enable or not */
+		game_en = hdmitx_hw_cntl(tx_comm->tx_hw, GAME_GET_INFO, NULL, NULL);
+		if (game_en)
+			pkt_type = AUX_PKT_CONF_EMP_VRR_GAME;
+	}
+	/* already send emp 0 packet, do nothing */
+	if (pkt_type == 0)
 		return;
 
 	vrr_pkt = &para->emp_vrr_pkt;
@@ -1002,9 +1027,9 @@ static void hdmi_vrr_disable_emp_packet(struct tx_vrr_params *para, enum vrr_typ
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_LAST, 1);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_SEQ_INDEX, 0);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_DS_TYPE, 0);
-	if (vrr_mode == T_VRR_GAME)
+	if (tx_comm->vrr_mode == T_VRR_GAME)
 		hdmi_emp_frame_set_member(vrr_pkt, CONF_SYNC, 0);
-	else if (vrr_mode == T_VRR_QMS)
+	else if (tx_comm->vrr_mode == T_VRR_QMS)
 		hdmi_emp_frame_set_member(vrr_pkt, CONF_SYNC, 1);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_VFR, 1);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_AFR, 0);
@@ -1013,7 +1038,7 @@ static void hdmi_vrr_disable_emp_packet(struct tx_vrr_params *para, enum vrr_typ
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_ORG_ID, 1);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_DATA_SET_TAG, 1);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_DATA_SET_LENGTH, 0);
-	hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, vrr_pkt);
+	hdmitx_hw_cntl(tx_comm->tx_hw, pkt_type, vrr_pkt, NULL);
 }
 
 static void vrr_init_para(struct hdmitx_common *tx_comm, struct tx_vrr_params *para)
@@ -1245,7 +1270,7 @@ int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int _rate, void *data)
 		return -1;
 	}
 	fmt_para->frac_mode = vrr_info->frac_mode;
-	hdev->vrr_mode = vrr_info ? vrr_info->type : T_VRR_QMS;
+	tx_comm->vrr_mode = vrr_info ? vrr_info->type : T_VRR_QMS;
 	/* check current rate, should less or equal than current rate of BRR */
 	tmp_rate = fmt_para->timing.v_freq / 10;
 	/* TODO, BRR mode should have frac_rate_policy as 0 */
@@ -1262,15 +1287,15 @@ int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int _rate, void *data)
 		 */
 		tx_comm->hdmitx_vinfo.brr_duration = 0;
 		memset(&vrr_para.vrr_para_tmp, 0, sizeof(vrr_para.vrr_para_tmp));
-		hdmi_vrr_disable_emp_packet(&vrr_para, hdev->vrr_mode);
-		hdev->vrr_mode = T_VRR_NONE;
+		hdmi_vrr_disable_emp_packet(&vrr_para, tx_comm);
+		tx_comm->vrr_mode = T_VRR_NONE;
 		hdmitx_vrr_set_maxlncnt(fmt_para->timing.v_total);
 		HDMITX_INFO("qms: disable EMP packet\n");
 		return 0;
 	}
 
-	if (hdev->vrr_mode == T_VRR_GAME || hdev->vrr_mode == T_VRR_QMS) {
-		para.type = hdev->vrr_mode;
+	if (tx_comm->vrr_mode == T_VRR_GAME || tx_comm->vrr_mode == T_VRR_QMS) {
+		para.type = tx_comm->vrr_mode;
 	} else {
 		para.vrr_enabled = 0;
 		return 0;
@@ -1329,7 +1354,7 @@ int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int _rate, void *data)
 		para.duration = rate;
 	}
 	updata_vinfo_sync_duration(&tx_comm->hdmitx_vinfo, rate,
-		hdev->vrr_mode == T_VRR_GAME ? 0 : fmt_para->frac_mode,
+		tx_comm->vrr_mode == T_VRR_GAME ? 0 : fmt_para->frac_mode,
 		(fmt_para->timing.v_freq + 999) / 1000);
 
 	para.vrr_enabled = 1;
@@ -1414,7 +1439,7 @@ static void hdmitx_vrr_game_handler(struct hdmitx21_dev *hdev)
 	vrr->game_val.vtotal_fixed = vtotal_tmp;
 	HDMITX_DEBUG_QMS("game-vrr vtotal = %d\n", vrr->game_val.vtotal_fixed);
 
-	hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, &vrr->emp_vrr_pkt);
+	hdmitx_hw_cntl(hdev->tx_comm.tx_hw, AUX_PKT_CONF_EMP_VRR_GAME, &vrr->emp_vrr_pkt, NULL);
 	if (vrr->game_val.vtotal_fixed)
 		hdmitx_vrr_set_maxlncnt(vrr->game_val.vtotal_fixed);
 	vrr_cur_vtotal_debug(vrr->frame_cnt, m_const, vrr->game_val.vtotal_fixed);
@@ -1455,7 +1480,7 @@ irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx21_dev *hdev)
 		m_const = 0;
 		hdmi_emp_frame_set_member(&vrr->emp_vrr_pkt, CONF_M_CONST,
 			m_const);
-		hdmi_emp_infoframe_set(EMP_TYPE_VRR_QMS, &vrr->emp_vrr_pkt);
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_EMP_VRR_QMS, &vrr->emp_vrr_pkt, NULL);
 		vrr_cur_vtotal_debug(vrr->frame_cnt, m_const, vrr->mconst_val->vtotal_fixed);
 		return IRQ_HANDLED;
 	}
@@ -1474,7 +1499,7 @@ irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx21_dev *hdev)
 		m_const = 1;
 
 	hdmi_emp_frame_set_member(&vrr->emp_vrr_pkt, CONF_M_CONST, m_const);
-	hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, &vrr->emp_vrr_pkt);
+	hdmitx_hw_cntl(tx_comm->tx_hw, AUX_PKT_CONF_EMP_VRR_GAME, &vrr->emp_vrr_pkt, NULL);
 	hdmitx_vrr_set_maxlncnt(vtotal_tmp);
 	vrr_cur_vtotal_debug(vrr->frame_cnt, m_const, vrr->mconst_val->vtotal_fixed);
 	/* the frame count will add 1 at end */
