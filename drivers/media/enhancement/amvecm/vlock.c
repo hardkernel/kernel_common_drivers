@@ -4030,7 +4030,7 @@ int phlock_phase_config(char *str)
 			pvlock->video_inverse = 0;
 		}
 	}
-	return 1;
+	return 0;
 }
 __setup("video_reverse=", phlock_phase_config);
 
