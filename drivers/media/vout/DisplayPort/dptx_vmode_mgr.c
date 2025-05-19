@@ -14,7 +14,7 @@ void dptx_vmode_apply_to_act_timing(struct dptx_drv_s *dptx, struct dptx_vmode_s
 	struct dptx_detail_timing_s *vmd_dtd;
 	unsigned long long pclk;
 
-	if (vmd->base_dtd_idx == 0xff)
+	if (vmd->base_dtd_idx > DPTX_DRV_VMODE_MAX) // overflow or safemode
 		vmd_dtd = &DPTX_SafeMode_640x480_timing;
 	else
 		vmd_dtd = &dptx->edid_info.dtd_timing[vmd->base_dtd_idx];
@@ -118,8 +118,17 @@ u32 dptx_print_vmode(struct dptx_drv_s *dptx, char *c_buf, u8 print_flag)
 		} else {
 			fr100 = vmode_p->fr100_int;
 		}
-		h_a   = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].h_act;
-		v_a   = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].v_act;
+		// h_a   = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].h_act;
+		// v_a   = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].v_act;
+
+		if (vmode_p->base_dtd_idx > DPTX_DRV_VMODE_MAX) {// overflow or safemode
+			h_a = 640;
+			v_a = 480;
+		} else {
+			h_a   = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].h_act;
+			v_a   = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].v_act;
+		}
+
 		_pos = snprintf(pr_buf, 199, " %s %2d: %4d * %4d @%3u.%-2uhz : ",
 			idx == dptx->vmode_mgr.vmode_sel_idx ? "*" : "-",
 			idx, h_a, v_a, fr100 / 100, fr100 % 100);
@@ -158,6 +167,9 @@ static u8 dtd_add_vmode_list(struct dptx_drv_s *dptx,
 			break;
 
 		tmp_vmode = &dptx->vmode_mgr.vmodes[idx];
+		if (tmp_vmode->base_dtd_idx > DPTX_DRV_VMODE_MAX) // overflow or safemode
+			continue;
+
 		tmp_dtd = &dptx->edid_info.dtd_timing[tmp_vmode->base_dtd_idx];
 		temp_fr = fr_int ? fr_int : ((dptx->edid_info.dtd_timing[dtd_idx].fr1000 + 5) / 10);
 
@@ -211,6 +223,24 @@ static u8 dtd_add_vmode_list(struct dptx_drv_s *dptx,
 	return 1;
 }
 
+static void safemode_add_vmode_list(struct dptx_drv_s *dptx)
+{
+	u8 idx;
+
+	for (idx = 0; idx < DPTX_DRV_VMODE_MAX; idx++) {
+		if (dptx->vmode_mgr.vmodes[idx].flag == 0)
+			break;
+	}
+	if (idx == DPTX_DRV_VMODE_MAX)
+		return;
+
+	dptx->vmode_mgr.vmodes[idx].fr100_int    = 6000;
+	dptx->vmode_mgr.vmodes[idx].fr_adv       = 0xff;
+	dptx->vmode_mgr.vmodes[idx].base_dtd_idx = 0xff;
+	dptx->vmode_mgr.vmodes[idx].flag         = VMODE_FLAG_VALID;
+	dptx->vmode_mgr.vmodes[idx].cfmt_support = 1 << DPTX_CFMT_RGB_6bit;
+}
+
 static void dptx_vmodes_reorder(struct dptx_drv_s *dptx)
 {
 	unsigned char x, y;
@@ -229,6 +259,15 @@ static void dptx_vmodes_reorder(struct dptx_drv_s *dptx)
 			if (!((vmode_p->flag & VMODE_FLAG_VALID) &&
 			      (vmode_p1->flag & VMODE_FLAG_VALID)))
 				continue;
+
+			if (vmode_p->base_dtd_idx > DPTX_DRV_VMODE_MAX) {// overflow or safemode
+				memcpy(&vmd_t, vmode_p, s_size);
+				memcpy(vmode_p, vmode_p1, s_size);
+				memcpy(vmode_p1, &vmd_t, s_size);
+				continue;
+			} else if (vmode_p1->base_dtd_idx > DPTX_DRV_VMODE_MAX) {
+				continue;
+			}
 
 			dtd0_v = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].v_act;
 			dtd0_h = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].h_act;
@@ -340,6 +379,9 @@ void dptx_vmode_manage(struct dptx_drv_s *dptx)
 		}
 	}
 
+	if (0)
+		safemode_add_vmode_list(dptx);
+
 	dptx_vmodes_reorder(dptx);
 
 	if (dptx_print_level >= LOG_V)
@@ -354,8 +396,9 @@ struct dptx_vmode_s *dptx_get_vmode(struct dptx_drv_s *dptx, u8 th)
 {
 	u8 j;
 
-	if (th >= DPTX_DRV_VMODE_MAX)
-		return NULL;
+	if (th >= DPTX_DRV_VMODE_MAX) {
+		return &DPTX_SafeMode_640x480_vmode;
+	}
 
 	if (dptx->vmode_mgr.vmodes[th].cfmt_support ||
 	    dptx->vmode_mgr.vmodes[th].flag & VMODE_FLAG_VALID) {

@@ -42,5 +42,8 @@
 
 struct dptx_drv_s *aml_dptx_get_driver(u8 drv_idx);
 void aml_dptx_regist_hpd_cb(struct dptx_drv_s *dptx, struct connector_hpd_cb *hpd_cb);
+void aml_dptx_aux_xfer(struct dptx_drv_s *dptx, u32 addr,
+			u8 wr_cnt, u8 wr_buf[16], u8 rd_cnt, u8 rd_buf[16]);
+struct edid *aml_dptx_get_raw_edid(struct dptx_drv_s *dptx);
 
 #endif

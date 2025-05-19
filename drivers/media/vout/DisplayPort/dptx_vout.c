@@ -629,10 +629,29 @@ static struct dptx_chip_data_s dptx_data_t7 = {
 	.venc_clk_msr_id = {222, 221},
 };
 
+static struct dptx_chip_data_s dptx_data_a9 = {
+	// .chip_type = DPTX_CHIP_T7,
+	.chip_name = "A9",
+	//.reg_map_table = &lcd_reg_t7[0],
+	.drv_max = 1,
+	.offset_venc      = {0x0},
+	.offset_venc_if   = {0x0},
+	.offset_venc_data = {0x0},
+
+	.link_rate    = DP_LINK_RATE_HBR2,
+	.TPS_support  = BIT(0),
+	.DACP_support = BIT(2),
+	// .venc_clk_msr_id = {222},
+};
+
 static const struct of_device_id dptx_dt_match_table[] = {
 	{
 		.compatible = "amlogic, DisplayPort-TX-T7",
 		.data = &dptx_data_t7,
+	},
+	{
+		.compatible = "amlogic, DisplayPort-TX-A9",
+		.data = &dptx_data_a9,
 	},
 	{}
 };
@@ -904,10 +923,16 @@ EXPORT_SYMBOL(aml_dptx_get_driver);
 
 void aml_dptx_regist_hpd_cb(struct dptx_drv_s *dptx, struct connector_hpd_cb *hpd_cb)
 {
-	// dptx->drm_hpd_cb.callback = hpd_cb->callback;
-	// dptx->drm_hpd_cb.data = hpd_cb->data;
+	dptx->drm_hpd_cb.callback = hpd_cb->callback;
+	dptx->drm_hpd_cb.data = hpd_cb->data;
 }
 EXPORT_SYMBOL(aml_dptx_regist_hpd_cb);
+
+struct edid *aml_dptx_get_raw_edid(struct dptx_drv_s *dptx)
+{
+	return dptx->edid_info.drm_edid;
+}
+EXPORT_SYMBOL(aml_dptx_get_raw_edid);
 
 //MODULE_DESCRIPTION("Meson DisplayPort TX Driver");
 //MODULE_LICENSE("GPL");

@@ -306,7 +306,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 		sink_hdr_support(vinfo) & CUVA_SUPPORT;
 	bool output_mode = 0;
 
-	if (vinfo->mode == VMODE_LCD ||
+	if (vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 		vinfo->mode == VMODE_DUMMY_ENCP)
 		output_mode = 1;//panel
 	else
@@ -779,7 +779,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 	unsigned int ext_signal_type = 0;
 	enum vpp_matrix_ext_csc_e ext_csc_type = VPP_MATRIX_EXT_NULL;
 
-	if (vinfo->mode == VMODE_LCD ||
+	if (vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 		vinfo->mode == VMODE_DUMMY_ENCP)
 		output_mode = 1;//panel
 	else
@@ -2503,7 +2503,7 @@ void hdmi_packet_process(int signal_change_flag,
 	if (!vinfo)
 		return;
 
-	if (vinfo->mode == VMODE_LCD ||
+	if (vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 		vinfo->mode == VMODE_DUMMY_ENCP)
 		return;
 
@@ -3601,14 +3601,14 @@ void video_post_process(struct vframe_s *vf,
 	}
 
 	if (chip_type_id == chip_a4) {
-		if (!(vinfo->mode == VMODE_LCD ||
+		if (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 			vinfo->mode == VMODE_DUMMY_ENCP))
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
 		else
 			mtx_setting(POST2_MTX, MATRIX_YUV709_RGB, MTX_ON);
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A &&
 		chip_type_id != chip_t3x) {
-		if (!(vinfo->mode == VMODE_LCD ||
+		if (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 			vinfo->mode == VMODE_DUMMY_ENCP)) {
 			pr_csc(12, "%s: vpp_index = %d mode = %d [%d]\n",
 				__func__,

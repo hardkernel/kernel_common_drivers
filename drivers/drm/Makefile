@@ -55,3 +55,9 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
 ifeq ($(CONFIG_AMLOGIC_ZAPPER_CUT),)
         $(MESON_DRM_MODULE_NAME)-y += meson_lcd.o
 endif
+
+ifeq ($(CONFIG_AMLOGIC_ZAPPER_CUT),)
+        $(MESON_DRM_MODULE_NAME)-y += meson_eDP.o
+        # $(MESON_DRM_MODULE_NAME)-y += meson_eDP_aux.o
+        # $(MESON_DRM_MODULE_NAME)-y += meson_eDP_backlight.o
+endif

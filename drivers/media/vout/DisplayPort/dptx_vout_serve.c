@@ -60,7 +60,7 @@ static int dptx_vmode_is_supported(enum vmode_e mode, void *data)
 
 	DPTXPR(dptx->idx, LOG_V, "%s: %x", __func__, mode);
 
-	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_DisplayPort)
+	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_eDP)
 		return true;
 	return false;
 }
@@ -75,7 +75,7 @@ static int dptx_set_current_vmode(enum vmode_e mode, void *data)
 	if (!dptx)
 		return -1;
 
-	if ((mode & VMODE_MODE_BIT_MASK) != VMODE_DisplayPort) {
+	if ((mode & VMODE_MODE_BIT_MASK) != VMODE_eDP) {
 		DPTXPR(dptx->idx, LOG_E, "unsupport mode 0x%x", mode & VMODE_MODE_BIT_MASK);
 		return -1;
 	}
@@ -86,12 +86,14 @@ static int dptx_set_current_vmode(enum vmode_e mode, void *data)
 		//bypass
 		dptx->status |= DPTX_STA_DISP_ON;
 	} else if (dptx->status & DPTX_STA_LINK_ON) { //mode change by vout
-		if (dptx->next_vmd_idx == 0xff)
-			DPTXPR(dptx->idx, LOG_E, "invalid next vmode");
-		else if (dptx->next_vmd_idx == dptx->vmode_mgr.vmode_sel_idx)
-			DPTXPR(dptx->idx, LOG_E, "next vmode same as current");
-		else
+		if (dptx->next_vmd_idx == 0xff) {
+			DPTXPR(dptx->idx, LOG_E, "next vmode to 640x480p60hz");
 			dptx_user_set_vmode(dptx, dptx->next_vmd_idx);
+		} else if (dptx->next_vmd_idx == dptx->vmode_mgr.vmode_sel_idx) {
+			DPTXPR(dptx->idx, LOG_E, "next vmode same as current");
+		} else {
+			dptx_user_set_vmode(dptx, dptx->next_vmd_idx);
+		}
 	} else if (!(dptx->status & DPTX_STA_LINK_ON)) {
 		//mode change by drm (disable + mode_change)
 		if ((dptx->status & DPTX_STA_DRV_READY) == 0)
@@ -191,7 +193,7 @@ static enum vmode_e dptx_validate_vmode(char *mode, unsigned int frac, void *dat
 	if (dptx_vmode_str_check(dptx, mode))
 		return VMODE_MAX;
 
-	return VMODE_DisplayPort;
+	return VMODE_eDP;
 }
 
 static int dptx_set_vframe_rate_hint(int duration, void *data)
@@ -286,32 +288,30 @@ static int dptx_late_resume(void *data)
 void dptx_vout_server_init(struct dptx_drv_s *dptx)
 {
 	char *curr_vout_connector;//, *curr_vout_mode;
-	char dptx_connector[8];
+	char dptx_edp_connector[8];
 
-	snprintf(dptx_connector, 7, "DP-%c", 'A' + dptx->idx);
+	snprintf(dptx_edp_connector, 7, "EDP-%c", 'A' + dptx->idx);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	curr_vout_connector = get_uboot_connector0_type();
 	// curr_vout_mode = get_vout_mode_uboot();
-	if (!strcmp(dptx_connector, curr_vout_connector))
+	if (!strcmp(dptx_edp_connector, curr_vout_connector))
 		dptx->viu_sel = 1;
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	curr_vout_connector = get_uboot_connector1_type();
 	// curr_vout_mode = get_vout2_mode_uboot();
-	if (!strcmp(dptx_connector, curr_vout_connector))
+	if (!strcmp(dptx_edp_connector, curr_vout_connector))
 		dptx->viu_sel = 2;
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	curr_vout_connector = get_uboot_connector2_type();
 	// curr_vout_mode = get_vout3_mode_uboot();
-	if (!strcmp(dptx_connector, curr_vout_connector))
+	if (!strcmp(dptx_edp_connector, curr_vout_connector))
 		dptx->viu_sel = 3;
 #endif
-	//if (dptx->mode)
-	//	dptx->vout_server.connector_type = DRM_MODE_CONNECTOR_MESON_EDP_A + dptx->idx;
-	//else
-	dptx->vout_server.connector_type = DRM_MODE_CONNECTOR_MESON_DP_A + dptx->idx;
+
+	dptx->vout_server.connector_type = DRM_MODE_CONNECTOR_MESON_EDP_A + dptx->idx;
 
 	dptx->vout_server.op.get_vinfo = dptx_get_current_info;
 	dptx->vout_server.op.set_vmode = dptx_set_current_vmode;
@@ -333,7 +333,7 @@ void dptx_vout_server_init(struct dptx_drv_s *dptx)
 	dptx->vout_server.data = (void *)dptx;
 	dptx->vout_server.name = kzalloc(32, GFP_KERNEL);
 	if (dptx->vout_server.name)
-		sprintf(dptx->vout_server.name, "%s_vout_server", dptx_connector);
+		sprintf(dptx->vout_server.name, "%s_vout_server", dptx_edp_connector);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	DPTXPR(dptx->idx, LOG_I, "regist: %s", dptx->vout_server.name);

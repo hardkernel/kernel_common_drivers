@@ -120,6 +120,10 @@ int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 		num_group = am_meson_lcd_get_vrr_range(connector, groups->groups,
 						       MAX_VRR_MODE_GROUP);
 		break;
+	case DRM_MODE_CONNECTOR_eDP:
+		num_group = am_meson_eDP_get_vrr_range(connector, groups->groups,
+						       MAX_VRR_MODE_GROUP);
+		break;
 #endif
 	default:
 		return -ENOENT;

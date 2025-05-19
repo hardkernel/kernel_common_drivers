@@ -187,6 +187,10 @@ u8 dptx_vmode_str_check(struct dptx_drv_s *dptx, char *vmd_str)
 			dptx->next_vmd_idx = idx;
 			return 0;
 		}
+		if (!strcmp("640x480p60hz", vmd_str)) {
+			dptx->next_vmd_idx = 0xff;
+			return 0;
+		}
 	}
 
 	dptx->next_vmd_idx = 0xff;

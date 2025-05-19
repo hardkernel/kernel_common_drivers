@@ -241,6 +241,7 @@ static void lcd_act_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.vsw = ptiming->vsync_width;
 	pdrv->vinfo.vbp = ptiming->vsync_bp;
 	pdrv->vinfo.vfp = ptiming->vsync_fp;
+	pdrv->vinfo.viu_mux = VIU_MUX_ENCL | (pdrv->index << 4);
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_LVDS:
 	case LCD_MLVDS:

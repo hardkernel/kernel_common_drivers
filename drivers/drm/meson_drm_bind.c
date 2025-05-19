@@ -8,6 +8,7 @@
 #include "meson_cvbs.h"
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #include "meson_lcd.h"
+#include "meson_eDP.h"
 #endif
 #include "meson_dummyl.h"
 #include "meson_dummyp.h"
@@ -22,6 +23,15 @@ int meson_connector_dev_bind(struct drm_device *drm,
 		return meson_panel_dev_bind(drm, type, intf);
 #else
 		pr_err("Panel connector is not supported!\n");
+		return -1;
+#endif
+	}
+
+	if (type == DRM_MODE_CONNECTOR_MESON_EDP_A || type == DRM_MODE_CONNECTOR_MESON_EDP_B) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		return meson_eDP_dev_bind(drm, type, intf);
+#else
+		pr_err("eDP connector is not supported!\n");
 		return -1;
 #endif
 	}
@@ -51,8 +61,9 @@ int meson_connector_dev_bind(struct drm_device *drm,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case DRM_MODE_CONNECTOR_LVDS:
 	case DRM_MODE_CONNECTOR_DSI:
-	case DRM_MODE_CONNECTOR_eDP:
 		return meson_panel_dev_bind(drm, type, intf);
+	case DRM_MODE_CONNECTOR_eDP:
+		return meson_eDP_dev_bind(drm, type, intf);
 #endif
 
 	case DRM_MODE_CONNECTOR_MESON_DUMMY_L:
@@ -84,6 +95,15 @@ int meson_connector_dev_unbind(struct drm_device *drm,
 #endif
 	}
 
+	if (type == DRM_MODE_CONNECTOR_MESON_EDP_A || type == DRM_MODE_CONNECTOR_MESON_EDP_B) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		return meson_eDP_dev_unbind(drm, type, intf);
+#else
+		pr_err("eDP connector is not supported!\n");
+		return -1;
+#endif
+	}
+
 	switch (type) {
 #ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
 	case DRM_MODE_CONNECTOR_HDMIA:
@@ -99,8 +119,9 @@ int meson_connector_dev_unbind(struct drm_device *drm,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case DRM_MODE_CONNECTOR_LVDS:
 	case DRM_MODE_CONNECTOR_DSI:
-	case DRM_MODE_CONNECTOR_eDP:
 		return meson_panel_dev_unbind(drm, type, intf);
+	case DRM_MODE_CONNECTOR_eDP:
+		return meson_eDP_dev_unbind(drm, type, intf);
 #endif
 
 	case DRM_MODE_CONNECTOR_MESON_DUMMY_L:

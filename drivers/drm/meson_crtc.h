@@ -166,6 +166,8 @@ int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
 			struct drm_vrr_mode_group *groups, int max_group);
+int am_meson_eDP_get_vrr_range(struct drm_connector *connector,
+			struct drm_vrr_mode_group *groups, int max_group);
 #endif
 #ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
 int am_meson_hdmi_get_vrr_range(struct drm_device *dev,

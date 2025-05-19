@@ -1171,7 +1171,7 @@ void calculate_panel_max_pq(enum signal_format_enum src_format,
 		return;
 	if (panel_max_lumin)
 		panel_max = panel_max_lumin;
-	else if (vinfo->mode == VMODE_LCD)
+	else if (vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP)
 		panel_max = vinfo->hdr_info.lumi_max;
 	if (panel_max < 100)
 		panel_max = 100;

@@ -6749,7 +6749,7 @@ static inline bool is_tv_panel(void)
 		return tv_panel;
 
 	/*panel*/
-	if (!(vinfo->mode == VMODE_LCD ||
+	if (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 		vinfo->mode == VMODE_DUMMY_ENCP))
 		//yuv
 		tv_panel = false;

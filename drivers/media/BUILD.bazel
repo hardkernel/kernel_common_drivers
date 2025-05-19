@@ -198,7 +198,7 @@ ddk_module(
                 "vout/DisplayPort/CLK/dptx_clk_t7.c",
                 "vout/DisplayPort/CLK/dptx_clk_utils.c",
                 "vout/DisplayPort/DPTX_IP/dptx_IP_interface.c",
-                "vout/DisplayPort/DPTX_IP/dptx_IP_DP14.c",
+                "vout/DisplayPort/DPTX_IP/dptx_IP_triliner_DP14.c",
                 "vout/DisplayPort/DPTX_IP/dptx_IP_triliner_DP12.c",
                 "vout/DisplayPort/PHY/dptx_phy_if.c",
                 "vout/DisplayPort/PHY/dptx_phy_t7.c",

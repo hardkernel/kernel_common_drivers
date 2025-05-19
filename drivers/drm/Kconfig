@@ -53,6 +53,17 @@ config AMLOGIC_DRM_PANEL
 		We should confirm AMLOGIC_LCD is configured if
 		AMLOGIC_DRM_PANEL is selected.
 
+config AMLOGIC_DRM_eDP
+	bool "support drm eDP function for meson drm display."
+	default n
+	depends on AMLOGIC_DRM
+	depends on AMLOGIC_DisplayPort_TX
+	help
+		add drm eDP Panel support.
+		use internal amlogic media vout DisplayPort driver.
+		We should confirm AMLOGIC_DisplayPort_TX is configured if
+		AMLOGIC_DRM_PANEL is selected.
+
 config AMLOGIC_DRM_USE_ION
 	bool "gem use ion to alloc/free graphic buffer."
 	default n

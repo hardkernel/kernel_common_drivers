@@ -37,13 +37,14 @@ void dptx_act_timing_to_vinfo(struct dptx_drv_s *dptx)
 {
 	dptx->vinfo.name = dptx->act_timing.name;
 	dptx->vinfo.frac = 0;
+	dptx->vinfo.mode = VMODE_eDP;
 	dptx->vinfo.width               = dptx->act_timing.h_act;
 	dptx->vinfo.height              = dptx->act_timing.v_act;
 	dptx->vinfo.field_height        = dptx->act_timing.v_act;
 	dptx->vinfo.aspect_ratio_num    = dptx->act_timing.h_size;
 	dptx->vinfo.aspect_ratio_den    = dptx->act_timing.v_size;
-	dptx->vinfo.screen_real_width   = dptx->act_timing.h_size;
-	dptx->vinfo.screen_real_height  = dptx->act_timing.v_size;
+	dptx->vinfo.screen_real_width   = dptx->edid_info.display_size[0];
+	dptx->vinfo.screen_real_height  = dptx->edid_info.display_size[1];
 	dptx->vinfo.sync_duration_num   = dptx->act_timing.sync_duration_num;
 	dptx->vinfo.sync_duration_den   = dptx->act_timing.sync_duration_den;
 	//dptx->vinfo.brr_duration = dptx->act_timings.frame_rate;
@@ -63,14 +64,13 @@ void dptx_act_timing_to_vinfo(struct dptx_drv_s *dptx)
 	dptx->vinfo.vfp    = dptx->act_timing.v_fp;
 	dptx->vinfo.cur_enc_ppc =  1;
 	dptx->vinfo.fr_adj_type = VOUT_FR_ADJ_NONE;
+	dptx->vinfo.viu_mux =  VIU_MUX_ENCL | (dptx->idx << 4);
 	dptx->vinfo.viu_color_fmt = (dptx->act_timing.cfmt <= DPTX_CFMT_RGB_12bit) ?
 					COLOR_FMT_RGB444 : COLOR_FMT_YUV444;
-	//if (dptx->mode)
-	//	dptx->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_EDP_A + dptx->idx;
-	//else
-	dptx->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_DP_A + dptx->idx;
 
-	dptx->vinfo.vpp_post_out_color_fmt = (dptx->act_timing.cfmt <= DPTX_CFMT_RGB_12bit) ? 1 : 0;
+	dptx->vinfo.connector_type = DRM_MODE_CONNECTOR_MESON_EDP_A + dptx->idx;
+
+	dptx->vinfo.vpp_post_out_color_fmt = (dptx->act_timing.cfmt <= DPTX_CFMT_RGB_12bit) ? 0 : 1;
 }
 
 void dptx_HPD_trigger_set(struct dptx_drv_s *dptx, u8 en)
@@ -116,7 +116,7 @@ int dptx_timing_config_restore(struct dptx_drv_s *dptx)
 void dptx_driver_ready(struct dptx_drv_s *dptx)
 {
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE))) {
-		DPTXPR(dptx->idx, LOG_E, "DPTX sta=0x%x, not ready for %s", dptx->status, __func__);
+		DPTXPR(dptx->idx, LOG_E, "sta=0x%x, not ready for %s", dptx->status, __func__);
 		return;
 	}
 
@@ -174,12 +174,12 @@ void dptx_drv_check_HPD(struct dptx_drv_s *dptx)
 	u8 data;
 
 	if (!(dptx->status & DPTX_STA_DRV_READY)) {
-		DPTXPR(dptx->idx, LOG_E, "DPTX sta=0x%x, not ready for %s", dptx->status, __func__);
+		DPTXPR(dptx->idx, LOG_E, "sta=0x%x, not ready for %s", dptx->status, __func__);
 		return;
 	}
 
 	if (!dptx->viu_sel) {
-		DPTXPR(dptx->idx, LOG_V, "DPTX sta=0x%x, viu_sel=%x", dptx->status, dptx->viu_sel);
+		DPTXPR(dptx->idx, LOG_V, "sta=0x%x, viu_sel=%x", dptx->status, dptx->viu_sel);
 		return;
 	}
 
@@ -210,7 +210,7 @@ void dptx_drv_start(struct dptx_drv_s *dptx)
 	struct dptx_vmode_s *dp_vmode = NULL;
 
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY | DPTX_STA_HPD_HIGH))) {
-		DPTXPR(dptx->idx, LOG_E, "DPTX sta=0x%x, not ready for %s", dptx->status, __func__);
+		DPTXPR(dptx->idx, LOG_E, "sta=0x%x, not ready for %s", dptx->status, __func__);
 		return;
 	}
 
@@ -276,7 +276,7 @@ void dptx_drv_disp_on(struct dptx_drv_s *dptx)
 {
 	if (!(dptx->status &
 	      (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY | DPTX_STA_HPD_HIGH | DPTX_STA_LINK_ON))) {
-		DPTXPR(dptx->idx, LOG_E, "DPTX sta=0x%x, not ready for %s", dptx->status, __func__);
+		DPTXPR(dptx->idx, LOG_E, "sta=0x%x, not ready for %s", dptx->status, __func__);
 		return;
 	}
 	//if (dptx->idx == 0)
@@ -292,7 +292,7 @@ void dptx_drv_disp_on(struct dptx_drv_s *dptx)
 void dptx_drv_disp_off(struct dptx_drv_s *dptx)
 {
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY))) {
-		DPTXPR(dptx->idx, LOG_E, "DPTX sta=0x%x, not ready for %s", dptx->status, __func__);
+		DPTXPR(dptx->idx, LOG_E, "sta=0x%x, not ready for %s", dptx->status, __func__);
 		return;
 	}
 
@@ -308,7 +308,7 @@ void dptx_driver_close(struct dptx_drv_s *dptx)
 	struct dptx_vmode_s *dp_vmode = NULL;
 
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY))) {
-		DPTXPR(dptx->idx, LOG_E, "DPTX sta=0x%x, not ready for %s", dptx->status, __func__);
+		DPTXPR(dptx->idx, LOG_E, "sta=0x%x, not ready for %s", dptx->status, __func__);
 		return;
 	}
 	//dptx_clear_timing(dptx);

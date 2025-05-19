@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/cdev.h>
-//#include <drm/amlogic/meson_connector_dev.h>
+#include <drm/amlogic/meson_connector_dev.h>
 //#include <drm/drm_dp_helper.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
@@ -237,6 +237,7 @@ struct dptx_clk_cfg_s {
 
 #define DPTX_DRV_TIMING_MAX  8
 struct dptx_edid_info_s {
+	struct edid *drm_edid;
 	u8 manufacturer_id[4];  //[8:9]2byte
 	u16 product_id;         //[10:11]2byte
 	u32 product_sn;         //[12:15]4byte
@@ -247,6 +248,8 @@ struct dptx_edid_info_s {
 	// u32 standard_timing1;   //[38:45]4byte
 	// u32 standard_timing2;   //[46:53]4byte
 	u16 cfmt_support;       // each bit to CFMT
+	u16 display_size[2];    //mm
+	u8 max_bpc;
 
 	char name[14];
 	char serial_num[14];
@@ -352,7 +355,7 @@ struct dptx_drv_s {
 
 	void *if_ctrls;
 
-	//struct connector_hpd_cb drm_hpd_cb;
+	struct connector_hpd_cb drm_hpd_cb;
 };
 
 #endif

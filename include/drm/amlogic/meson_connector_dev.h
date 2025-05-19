@@ -82,7 +82,7 @@ struct meson_panel_dev {
  *display service limit DRM connector type to range of u8 type
  */
 #define DRM_MODE_MESON_CONNECTOR_PANEL_START 99
-#define DRM_MODE_MESON_CONNECTOR_PANEL_END   148
+#define DRM_MODE_MESON_CONNECTOR_PANEL_END   128
 
 #define DRM_MODE_MESON_CONNECTOR_DP_START 149
 #define DRM_MODE_MESON_CONNECTOR_DP_END   158

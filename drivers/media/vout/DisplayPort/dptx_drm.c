@@ -23,43 +23,55 @@
 #include <linux/component.h>
 #include <drm/amlogic/meson_drm_bind.h>
 
-static int meson_DisplayPort_bind(struct device *dev, struct device *master, void *data);
-static void meson_DisplayPort_unbind(struct device *dev, struct device *master, void *data);
+static int meson_eDP_bind(struct device *dev, struct device *master, void *data);
+static void meson_eDP_unbind(struct device *dev, struct device *master, void *data);
 
-struct drm_DisplayPort_wrapper {
-	struct meson_panel_dev drm_dptx_instance;
+struct drm_eDP_wrapper_s {
+	struct meson_panel_dev drm_eDPTX_instance;
 	struct dptx_drv_s *dptx_drv;
 	int drm_type;
 	int drm_id;
 };
 
-#define to_drm_dptx_wrapper(x)	container_of(x, struct drm_DisplayPort_wrapper, drm_dptx_instance)
+#define to_drm_dptx_wrapper(x)	container_of(x, struct drm_eDP_wrapper_s, drm_eDPTX_instance)
 
-static struct drm_DisplayPort_wrapper drm_dptx_wrappers[DPTX_MAX_DRV];
+static struct drm_eDP_wrapper_s drm_eDP_wrappers[DPTX_MAX_DRV];
 
-static void dptx_drm_vmode_add(struct dptx_drv_s *dptx, struct drm_display_mode *pmode, u8 vmd_idx)
+static int dptx_drm_add_modes(struct meson_panel_dev *dptx_drm_dev,
+				struct drm_display_mode *pmode, u8 vmd_idx)
 {
+	struct drm_eDP_wrapper_s *wrapper =
+		(struct drm_eDP_wrapper_s *)to_drm_dptx_wrapper(dptx_drm_dev);
+	struct dptx_drv_s *dptx = wrapper->dptx_drv;
 	struct dptx_detail_timing_s *raw_timing;
 	struct dptx_vmode_s *vmd_p;
 	u64 pclk;
 
-	vmd_p = &dptx->vmode_mgr.vmodes[vmd_idx];
-	raw_timing = &dptx->edid_info.dtd_timing[vmd_p->base_dtd_idx];
 
-	pmode->clock = raw_timing->pclk / 1000;
+	if (vmd_idx == 0xff) {
+		vmd_p = &DPTX_SafeMode_640x480_vmode;
+		raw_timing = &DPTX_SafeMode_640x480_timing;
+	} else {
+		vmd_p = &dptx->vmode_mgr.vmodes[vmd_idx];
+		raw_timing = &dptx->edid_info.dtd_timing[vmd_p->base_dtd_idx];
+	}
 
-	pmode->hdisplay = raw_timing->h_act;
+	pmode->type        = DRM_MODE_TYPE_DRIVER;
+
+	pmode->hdisplay    = raw_timing->h_act;
 	pmode->hsync_start = raw_timing->h_act + raw_timing->h_fp;
-	pmode->hsync_end = raw_timing->h_act + raw_timing->h_fp + raw_timing->h_pw;
-	pmode->htotal = raw_timing->h_period;
-
-	pmode->vdisplay = raw_timing->v_act;
+	pmode->hsync_end   = raw_timing->h_act + raw_timing->h_fp + raw_timing->h_pw;
+	pmode->htotal      = raw_timing->h_period;
+	pmode->flags      |= raw_timing->ctrl & BIT(1) ?
+				DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
+	pmode->vdisplay    = raw_timing->v_act;
 	pmode->vsync_start = raw_timing->v_act + raw_timing->v_fp;
-	pmode->vsync_end = raw_timing->v_act + raw_timing->v_fp + raw_timing->v_pw;
-	pmode->vtotal = raw_timing->v_period;
-
-	pmode->width_mm = raw_timing->h_size;
-	pmode->height_mm = raw_timing->v_size;
+	pmode->vsync_end   = raw_timing->v_act + raw_timing->v_fp + raw_timing->v_pw;
+	pmode->vtotal      = raw_timing->v_period;
+	pmode->flags      |= raw_timing->ctrl & BIT(2) ?
+				DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
+	pmode->width_mm    = raw_timing->h_size;
+	pmode->height_mm   = raw_timing->v_size;
 
 	switch (vmd_p->fr_adv) {
 	case 0: //fr int
@@ -90,17 +102,17 @@ static void dptx_drm_vmode_add(struct dptx_drv_s *dptx, struct drm_display_mode 
 
 	DPTXPR(dptx->idx, LOG_I, "%s: %s, clock=%dkHz, htotal=%d, vtotal=%d",
 		__func__, pmode->name, pmode->clock, pmode->htotal, pmode->vtotal);
+	return 0;
 }
 
 static int get_dptx_modes(struct meson_panel_dev *dptx_drm_dev,
 		struct drm_display_mode **modes, int *num)
 {
-	struct drm_DisplayPort_wrapper *wrapper = to_drm_dptx_wrapper(dptx_drm_dev);
+	struct drm_eDP_wrapper_s *wrapper = to_drm_dptx_wrapper(dptx_drm_dev);
 	struct dptx_drv_s *dptx = wrapper->dptx_drv;
 	u8 mode_idx = 0;
 
 	struct drm_display_mode *nmodes;
-	//struct lcd_detail_timing_s *ptiming;
 	unsigned int i = 0, mode_cnt = 0, valid_mode_cnt = 0;
 
 	if (!dptx)
@@ -114,55 +126,55 @@ static int get_dptx_modes(struct meson_panel_dev *dptx_drm_dev,
 				valid_mode_cnt++;
 		}
 	}
-	if (i == DPTX_DRV_VMODE_MAX)
-		return 0;
 
 	DPTXPR(dptx->idx, LOG_I, "%s: %u/%u", __func__, valid_mode_cnt, mode_cnt);
 
-	nmodes = kcalloc(valid_mode_cnt, sizeof(struct drm_display_mode), GFP_KERNEL);
+	nmodes = kcalloc(valid_mode_cnt + 1, sizeof(struct drm_display_mode), GFP_KERNEL);
 	if (!nmodes) {
 		*num = 0;
 		return -ENOMEM;
 	}
 
-	if (dptx->vmode_mgr.vmodes[i].cfmt_support) {
-		dptx_drm_vmode_add(dptx, &nmodes[mode_idx], i);
-		mode_idx++;
+	for (i = 0; i < DPTX_DRV_VMODE_MAX; i++) {
+		if (dptx->vmode_mgr.vmodes[i].flag & VMODE_FLAG_VALID &&
+		    dptx->vmode_mgr.vmodes[i].cfmt_support) {
+			dptx_drm_add_modes(dptx_drm_dev, nmodes + mode_idx, i);
+			mode_idx++;
+		}
 	}
 
-	*num = valid_mode_cnt;
+	dptx_drm_add_modes(dptx_drm_dev, nmodes + mode_idx, 0xff);
+
+	*num = valid_mode_cnt + 1;
 	*modes = nmodes;
 
 	return 0;
 }
 
-static int meson_DisplayPort_bind(struct device *dev, struct device *master, void *data)
+static int meson_eDP_bind(struct device *dev, struct device *master, void *data)
 {
 	struct meson_drm_bound_data *bound_data = data;
 	struct dptx_drv_s *dptx = (struct dptx_drv_s *)dev_get_drvdata(dev);
 	//int connector_type = 0;
 
 	/*init drm instance*/
-	drm_dptx_wrappers[dptx->idx].dptx_drv = dptx;
-	drm_dptx_wrappers[dptx->idx].drm_dptx_instance.base.ver = MESON_DRM_CONNECTOR_V10;
-	drm_dptx_wrappers[dptx->idx].drm_dptx_instance.get_modes = get_dptx_modes;
+	drm_eDP_wrappers[dptx->idx].dptx_drv = dptx;
+	drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.base.ver = MESON_DRM_CONNECTOR_V10;
+	// drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.add_modes = dptx_drm_add_modes;
+	drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.get_modes = get_dptx_modes;
+	drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.get_modes_vrr_range = NULL;
 
-	if (dptx->idx == 1)
-		drm_dptx_wrappers[dptx->idx].drm_type = DRM_MODE_CONNECTOR_MESON_DP_B;
-	else
-		drm_dptx_wrappers[dptx->idx].drm_type = DRM_MODE_CONNECTOR_MESON_DP_A;
-	// DRM_MODE_CONNECTOR_MESON_EDP_A
-	// DRM_MODE_CONNECTOR_MESON_EDP_B
+	drm_eDP_wrappers[dptx->idx].drm_type = DRM_MODE_CONNECTOR_MESON_EDP_A + dptx->idx;
 
 	/*bind instance to drm*/
 	if (bound_data->connector_component_bind) {
-		drm_dptx_wrappers[dptx->idx].drm_id =
+		drm_eDP_wrappers[dptx->idx].drm_id =
 			bound_data->connector_component_bind(bound_data->drm,
-				drm_dptx_wrappers[dptx->idx].drm_type,
-				&drm_dptx_wrappers[dptx->idx].drm_dptx_instance.base);
+				drm_eDP_wrappers[dptx->idx].drm_type,
+				&drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.base);
 		DPTXPR(dptx->idx, LOG_I, "%s: connector_type: 0x%x, drm_id: %d", __func__,
-			drm_dptx_wrappers[dptx->idx].drm_type,
-			drm_dptx_wrappers[dptx->idx].drm_id);
+			drm_eDP_wrappers[dptx->idx].drm_type,
+			drm_eDP_wrappers[dptx->idx].drm_id);
 	} else {
 		DPTXPR(dptx->idx, LOG_E, "no bind func from drm");
 	}
@@ -170,28 +182,28 @@ static int meson_DisplayPort_bind(struct device *dev, struct device *master, voi
 	return 0;
 }
 
-static void meson_DisplayPort_unbind(struct device *dev, struct device *master, void *data)
+static void meson_eDP_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct meson_drm_bound_data *bound_data = data;
 	struct dptx_drv_s *dptx = (struct dptx_drv_s *)dev_get_drvdata(dev);
 
 	if (bound_data->connector_component_unbind) {
 		bound_data->connector_component_unbind(bound_data->drm,
-			drm_dptx_wrappers[dptx->idx].drm_type,
-			&drm_dptx_wrappers[dptx->idx].drm_dptx_instance.base);
+			drm_eDP_wrappers[dptx->idx].drm_type,
+			&drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.base);
 		DPTXPR(dptx->idx, LOG_I, "%s: connector_type: 0x%x, drm_id: %d", __func__,
-			drm_dptx_wrappers[dptx->idx].drm_type,
-			drm_dptx_wrappers[dptx->idx].drm_id);
+			drm_eDP_wrappers[dptx->idx].drm_type,
+			drm_eDP_wrappers[dptx->idx].drm_id);
 	} else {
 		DPTXPR(dptx->idx, LOG_E, "no unbind func from drm");
 	}
 
-	drm_dptx_wrappers[dptx->idx].drm_id = 0;
+	drm_eDP_wrappers[dptx->idx].drm_id = 0;
 }
 
 static const struct component_ops meson_DisplayPort_bind_ops = {
-	.bind	= meson_DisplayPort_bind,
-	.unbind	= meson_DisplayPort_unbind,
+	.bind	= meson_eDP_bind,
+	.unbind	= meson_eDP_unbind,
 };
 
 int dptx_drm_add(struct device *dev)

@@ -41,6 +41,7 @@ ddk_module(
                 "vpu-hw/meson_vpu_postblend.c",
                 "vpu-hw/meson_osd_csc.c",
                 "meson_lcd.c",
+                "meson_eDP.c",
             ],
         },
         "CONFIG_AMLOGIC_DRM_USE_ION": {
@@ -63,6 +64,7 @@ ddk_module(
         "CONFIG_AMLOGIC_ZAPPER_CUT": {
             False: [
                 "meson_lcd.c",
+                "meson_eDP.c",
             ],
         },
         "CONFIG_AMLOGIC_DRM_EMULATE_FBDEV": {

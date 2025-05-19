@@ -2822,6 +2822,7 @@ static void over_field_info_record(void)
 	if (vinfo &&
 		(vinfo->mode == VMODE_HDMI ||
 		 vinfo->mode == VMODE_LCD ||
+		 vinfo->mode == VMODE_eDP ||
 		 vinfo->mode == VMODE_CVBS)) {
 		valid_mode = true;
 		if (vinfo->sync_duration_num) {

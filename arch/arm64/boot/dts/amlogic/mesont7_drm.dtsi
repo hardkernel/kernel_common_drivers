@@ -67,6 +67,14 @@
 				reg = <5>;
 				remote-endpoint = <&dummyl_to_drm>;
 			};
+			drm_to_eDP0: endpoint@6 {
+				reg = <6>;
+				remote-endpoint = <&eDP0_to_drm>;
+			};
+			drm_to_eDP1: endpoint@7 {
+				reg = <7>;
+				remote-endpoint = <&eDP1_to_drm>;
+			};
 		};
 	};
 
@@ -309,6 +317,32 @@
 			dummyl_to_drm: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&drm_to_dummyl>;
+			};
+		};
+	};
+};
+
+&DisplayPort_TX_0 {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			eDP0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_eDP0>;
+			};
+		};
+	};
+};
+
+&DisplayPort_TX_1 {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			eDP1_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_eDP1>;
 			};
 		};
 	};

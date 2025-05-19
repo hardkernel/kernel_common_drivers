@@ -5283,7 +5283,7 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		vpp_lut_curve_set(VPP_LUT_OETF, vinfo);
 
 		/* xvyccc matrix3: bypass */
-		if (!(vinfo->mode == VMODE_LCD ||
+		if (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 			vinfo->mode == VMODE_DUMMY_ENCP))
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
 				       RGB709_to_YUV709l_coeff,
@@ -8386,7 +8386,7 @@ static void video_process(struct vframe_s *vf,
 	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (!(vinfo->mode == VMODE_LCD ||
+		if (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 			vinfo->mode == VMODE_DUMMY_ENCP)) {
 			if (vpp_index == VPP_TOP1)
 				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
@@ -9215,7 +9215,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		/* gxl handle sdr_mode change bug fix. */
 		if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-		    (!(vinfo->mode == VMODE_LCD ||
+		    (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 		    vinfo->mode == VMODE_DUMMY_ENCP))) {
 			if (sdr_mode != cur_sdr_mode) {
 				force_fake = true;
@@ -9229,7 +9229,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		if (is_video_layer_on(vd_path) &&
 		    (sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    ((cpu_after_eq(MESON_CPU_MAJOR_ID_GXL)) &&
-		     (!(vinfo->mode == VMODE_LCD ||
+		     (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 		     vinfo->mode == VMODE_DUMMY_ENCP)))) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 				if (sdr_mode != cur_sdr_mode) {
