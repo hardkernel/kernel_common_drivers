@@ -49,6 +49,7 @@ static int __init media_main_init(void)
 	call_sub_init(aml_vdac_init);
 	call_sub_init(cvbs_init_module);
 	call_sub_init(DisplayPort_TX_init);
+	call_sub_init(lcd_resman_init);
 	call_sub_init(lcd_init);
 	call_sub_init(aml_lcd_extern_i2c_dev_init);
 	call_sub_init(aml_bl_extern_i2c_init);
