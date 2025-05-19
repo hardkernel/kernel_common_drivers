@@ -113,7 +113,7 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 720p STB androidT size 24M */
+			/* 720p STB android16 size 24M */
 			size = <0x1800000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;

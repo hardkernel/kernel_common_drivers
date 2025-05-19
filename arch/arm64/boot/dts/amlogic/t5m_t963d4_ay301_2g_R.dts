@@ -105,13 +105,13 @@
 		ion_secure_reserved:linux,ion-secure {
 			compatible = "amlogic, ion-secure-mem";
 			no-map;
-			size = <0x0 0x0000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidR size 36M */
+			/* 1080p TV androidR size 28M */
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x00000000 0x0 0x23000000>;

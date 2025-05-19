@@ -107,6 +107,7 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
+			/* 1080p TV android16 size 88M */
 			size = <0x0>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
@@ -115,7 +116,7 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 28M */
+			/* 1080p TV android16 size 28M */
 			size = <0x1c00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;

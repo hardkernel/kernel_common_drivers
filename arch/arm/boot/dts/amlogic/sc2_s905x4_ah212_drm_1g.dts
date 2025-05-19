@@ -116,14 +116,14 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 720p STB androidT size 24M */
+			/* 720p STB android16 size 24M */
 			size = <0x1800000>;
 			alignment = <0x400000>;
 		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p STB androidT size 88M */
+			/* 720p STB android16 size 40M */
 			size = <0x0>;
 			alignment = <0x400000>;
 		};

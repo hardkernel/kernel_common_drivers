@@ -185,7 +185,6 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x6+3840x2160x4x3 round up 4M align */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -210,7 +209,7 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p STB androidU size 88M for direct render*/
+			/* 1080p STB android16 size 88M(hdmitx-only) */
 			size = <0x0 0x5800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -218,7 +217,7 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p UI 1920x1080x4x6 androidU size 56M */
+			/* 1080p STB android16 size 56M(hdmitx-only) */
 			size = <0x0 0x3800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;

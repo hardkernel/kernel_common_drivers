@@ -177,14 +177,12 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 88M */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 36M */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
@@ -192,7 +190,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x400000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x00000000 0x0 0x27000000>;
 		};
@@ -200,6 +198,7 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
+			/* 1080p TV androidR size 28M */
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x00000000 0x0 0x27000000>;

@@ -120,40 +120,35 @@
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
-			status = "disabled";
 		};
 		/* secure ion for gpu, advice size is 80M */
 		ion_secure_reserved:linux,ion-secure {
 			compatible = "amlogic, ion-secure-mem";
 			no-map;
-			size = <0x0000000>;
+			size = <0x0>;
 			alignment = <0x400000>;
-			status = "disabled";
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0>;
 			alignment = <0x400000>;
-			status = "disabled";
 		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0>;
+			/* 1080p TV android16 size 88M */
+			size = <0x5800000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "okay";
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 28M */
+			/* 1080p TV android16 size 28M */
 			size = <0x1c00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "okay";
 		};
 
 		/*  vdin0 CMA pool */

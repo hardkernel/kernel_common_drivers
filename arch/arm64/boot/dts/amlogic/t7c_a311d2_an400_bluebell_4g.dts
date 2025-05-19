@@ -185,7 +185,6 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x6+3840x2160x4x3 round up 4M align */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -210,7 +209,7 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p+4K TV androidT size 4M, no direct render */
+			/* 4k TV + 1080p STB android16 size 4M */
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -218,8 +217,12 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x6+3840x2160x4x3+3840x2160x4x4(whiteboard)round up 4M align */
-			size = <0x0 0x12c00000>;
+			/* 4k TV + 1080p STB android16 size total: 108 + 56 + 128 = 292M
+			 * primary display: (2160p RGBA afbc) * 3 = 108M
+			 * secondary display: (1080p RGBA afbc) * 6 = 56M
+			 * white board: (2160p RGBA afbc) * 4 = 128M
+			 */
+			size = <0x0 0x12400000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};

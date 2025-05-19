@@ -122,13 +122,12 @@
 		ion_secure_reserved:linux,ion-secure {
 			compatible = "amlogic, ion-secure-mem";
 			no-map;
-			size = <0x0 0x0000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0>;
 			alignment = <0x400000>;
 		};
@@ -197,15 +196,15 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 88M */
+			/* 1080p TV android16 size 88M */
 			size = <0x0>;
 			alignment = <0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 36M */
-			size = <0x1C00000>;
+			/* 1080p TV android16 size 28M */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
 		};
 
