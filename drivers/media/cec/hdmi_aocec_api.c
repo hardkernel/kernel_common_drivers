@@ -48,6 +48,9 @@
 #include "../vin/tvin/hdmirx/hdmi_rx_drv_ext.h"
 #endif
 
+//CEC spec 5.2.2 Data Bit Timing --- 1 bit period=2.4ms
+#define CEC_BIT_PERIOD_US	2400
+
 static struct current_spd_device_info  current_spd_info[4];
 
 static struct spd_device_info  spd_tx_device_info;
@@ -55,6 +58,10 @@ static struct spd_device_info  spd_tx_device_info;
 static cec_spd_callback cec_spd_notify;
 
 static int cec_line_cnt;
+static int conflict_result;
+static struct completion conflict_done;
+static atomic_t conflict_attempts;
+static atomic_t required_bit_periods;
 
 static const char * const cec_reg_name1[] = {
 	"CEC_TX_MSG_LENGTH",
@@ -1593,6 +1600,60 @@ void cec_enable_arc_pin(bool enable)
 }
 EXPORT_SYMBOL(cec_enable_arc_pin);
 
+static int cec_read_padreg(void)
+{
+	int reg;
+
+	switch (cec_dev->plat_data->chip_id) {
+	case CEC_CHIP_SC2:
+	case CEC_CHIP_S4:
+		/* GPIOH_3 */
+		reg = read_pad_reg(PADCTRL_GPIOH_I);
+		break;
+	case CEC_CHIP_S5:
+		/* GPIOH_3 */
+		reg = read_pad_reg(PADCTRL_GPIOH_I_S5);
+		break;
+	case CEC_CHIP_T7:
+		/* GPIOW_12 CEC_A */
+	case CEC_CHIP_T3:
+		/* GPIOW_12 */
+		reg = read_pad_reg(PADCTRL_GPIOW_I);
+		break;
+	case CEC_CHIP_TM2:
+		/* GPIOAO_10 */
+		reg = read_ao(AO_GPIO_I);
+		break;
+	case CEC_CHIP_T5D:
+	case CEC_CHIP_T5W:
+		/* case CEC_CHIP_T5: T5 doesn't have kernel5.4 branch */
+		/* GPIOW_12 */
+		reg = read_pad_reg(PREG_PAD_GPIO3_I);
+		break;
+	case CEC_CHIP_T5M:
+		/* GPIOW_16 */
+		reg = read_pad_reg(PADCTRL_GPIOW_I_T5M);
+		break;
+	case CEC_CHIP_T3X:
+		/* GPIOW_16 */
+		reg = read_pad_reg(PADCTRL_GPIOW_I_T3X);
+		break;
+	case CEC_CHIP_TXHD2:
+		/* GPIOA_7 */
+		reg = read_ao(PADCTRL_GPIOAO_I_TXHD2);
+		break;
+	case CEC_CHIP_T6W:
+		/* GPIOW_16 */
+		reg = read_pad_reg(PADCTRL_GPIOW_I_T6W);
+		break;
+	default:
+		/* means not implemented */
+		reg = 0xFF;
+		break;
+	}
+	return reg;
+}
+
 static int get_line(void)
 {
 	int reg, ret = -EINVAL;
@@ -1600,6 +1661,8 @@ static int get_line(void)
 	/*0xff don't check*/
 	if (cec_dev->plat_data->line_reg == 0xff)
 		return 1;
+	else if (cec_dev->plat_data->line_reg == 2)
+		reg = cec_read_padreg();
 	else if (cec_dev->plat_data->line_reg == 1)
 		reg = read_periphs(PREG_PAD_GPIO3_I);
 	else
@@ -1613,30 +1676,37 @@ enum hrtimer_restart cec_line_check(struct hrtimer *timer)
 {
 	if (get_line() == 0)
 		cec_line_cnt++;
-	hrtimer_forward_now(timer, HR_DELAY(1));
+	if (atomic_inc_return(&conflict_attempts) >= atomic_read(&required_bit_periods)) {
+		conflict_result = (cec_line_cnt == 0) ? 0 : -EBUSY;
+		complete(&conflict_done);
+		return HRTIMER_NORESTART;
+	}
+	hrtimer_forward_now(timer, ns_to_ktime(CEC_BIT_PERIOD_US * 1000UL));
 	return HRTIMER_RESTART;
 }
 
-int check_conflict(void)
+int check_conflict(int bit_periods)
 {
 	int i;
+	unsigned int timeout_us = CEC_FREE_TIME_TO_USEC(bit_periods);
 
 	for (i = 0; i < CEC_CHK_BUS_CNT; i++) {
-		/*
-		 * sleep 20ms and using hrtimer to check cec line every 1ms
-		 */
-		cec_line_cnt = 0;
-		hrtimer_start(&start_bit_check, HR_DELAY(1), HRTIMER_MODE_REL);
-		msleep(20);
-		hrtimer_cancel(&start_bit_check);
-		if (cec_line_cnt == 0)
-			break;
-		CEC_INFO("line busy:%d\n", cec_line_cnt);
+		conflict_result = -EBUSY;
+		init_completion(&conflict_done);
+		atomic_set(&conflict_attempts, 0);
+		atomic_set(&required_bit_periods, bit_periods);
+		hrtimer_start(&start_bit_check,
+					  ns_to_ktime(CEC_BIT_PERIOD_US * 1000UL),
+					  HRTIMER_MODE_REL);
+		if (!wait_for_completion_timeout(&conflict_done,
+						usecs_to_jiffies(timeout_us + CEC_BIT_PERIOD_US))) {
+			hrtimer_cancel(&start_bit_check);
+			continue;
+		}
+		if (conflict_result == 0)
+			return 0;
 	}
-	if (i >= CEC_CHK_BUS_CNT)
-		return -EBUSY;
-	else
-		return 0;
+	return -EBUSY;
 }
 
 void cec_ip_share_io(u32 share, u32 cec_ip)

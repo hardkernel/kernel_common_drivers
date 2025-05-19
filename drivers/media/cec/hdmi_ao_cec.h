@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2024/09/30: cec support std hibernate"
+#define CEC_DRIVER_VERSION     "2025/05/20: cec sw check signal_free_time"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -55,6 +55,7 @@ enum cec_chip_ver {
 	CEC_CHIP_S7D,
 	CEC_CHIP_S6,
 	CEC_CHIP_T6D,
+	CEC_CHIP_T6W,
 };
 
 enum cecaver {
@@ -129,7 +130,7 @@ enum {
 
 struct cec_platform_data_s {
 	enum cec_chip_ver chip_id;
-	unsigned char line_reg;/*cec gpio_i reg:0  ao;1 periph*/
+	unsigned char line_reg;/*cec gpio reg -- 0:ao 1:periph 2:pad 0xff:invalid*/
 	unsigned int line_bit;/*cec gpio position in reg*/
 	bool ee_to_ao;/*ee cec hw module mv to ao;ao cec delete*/
 	bool ceca_sts_reg;/*add new internal status register*/
@@ -235,8 +236,9 @@ struct ao_cec_dev {
 	struct clk *ceca_clk;
 	struct clk *cecb_clk;
 	bool framework_on;
+//hw check signal free time,default not enable
 	bool chk_sig_free_time;
-	/* default not enable SW check, for debug */
+//sw check bus,include sw check signal free time
 	bool sw_chk_bus;
 	u32 cec_log_en;
 };
@@ -273,6 +275,9 @@ struct cec_msg_last {
 
 /* T3X #define PADCTRL_GPIOA_I ((0x0005 << 2) + 0xff800000) */
 #define PADCTRL_GPIOAO_I_TXHD2 (0x0005 << 2)
+
+/*T6W 0xfe004050*/
+#define PADCTRL_GPIOW_I_T6W 0x50
 
 enum cec_reg_group {
 	cec_reg_group_old = 0,

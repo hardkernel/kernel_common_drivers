@@ -513,8 +513,8 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_
 	 * device, we should wait it finished.
 	 */
 	if (cec_dev->sw_chk_bus) {
-		if (check_conflict()) {
-			CEC_ERR("bus conflict too long,retry\n");
+		if (check_conflict(signal_free_time)) {
+			CEC_ERR("bus conflict too long，retry (%*phC)\n", len, msg);
 			std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
 			queue_delayed_work(cec_dev->cec_tx_event_wq,
 				&std_ao_cec.work_cec_tx,
@@ -1848,7 +1848,72 @@ static const struct cec_platform_data_s cec_t5w_data = {
 	.reg_tab_group = cec_reg_group_old,
 };
 
+/* based on t3, only has CEC_B */
+static const struct cec_platform_data_s cec_t5m_data = {
+	.chip_id = CEC_CHIP_T5M,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+static const struct cec_platform_data_s cec_s5_data = {
+	.chip_id = CEC_CHIP_S5,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = true,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+/* based on t3, only has CEC_B */
+static const struct cec_platform_data_s cec_t3x_data = {
+	.chip_id = CEC_CHIP_T3X,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+/* based on t5m, only has CEC_B */
+static const struct cec_platform_data_s cec_txhd2_data = {
+	.chip_id = CEC_CHIP_TXHD2,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
+};
+
+static const struct cec_platform_data_s cec_t6w_data = {
+	.chip_id = CEC_CHIP_T6W,
+	.line_reg = 0xff,
+	.line_bit = 17,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+#endif
+
 static const struct of_device_id aml_cec_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, amlogic-aocec",
@@ -1915,6 +1980,27 @@ static const struct of_device_id aml_cec_dt_match[] = {
 		.compatible = "amlogic, aocec-t5w",
 		.data = &cec_t5w_data,
 	},
+	{
+		.compatible = "amlogic, aocec-t5m",
+		.data = &cec_t5m_data,
+	},
+	{
+		.compatible = "amlogic, aocec-s5",
+		.data = &cec_s5_data,
+	},
+	{
+		.compatible = "amlogic, aocec-t3x",
+		.data = &cec_t3x_data,
+	},
+	{
+		.compatible = "amlogic, aocec-txhd2",
+		.data = &cec_txhd2_data,
+	},
+	{
+		.compatible = "amlogic, aocec-t6w",
+		.data = &cec_t6w_data,
+	},
+#endif
 	{}
 };
 #endif
