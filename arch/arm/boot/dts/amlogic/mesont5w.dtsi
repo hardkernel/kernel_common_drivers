@@ -2265,7 +2265,7 @@
 				     "snps,dwmac-3.70a",
 				     "snps,dwmac";
 			reg = <0xff3f0000 0x10000>,
-				  <0xff634400 0x8>;
+				  <0xff634540 0x8>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			clocks = <&clkc CLKID_CLK81_ETH_CORE>,
