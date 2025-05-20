@@ -824,13 +824,13 @@ void dvbc_cfg_sw_hw_sr_max(struct aml_dtvdemod *demod, unsigned int max_sr)
 	qam_write_bits(demod, 0x12, (max_sr - 100) & 0xffff, 8, 16);
 }
 
-static void sort_with_index(int size, int data[], int index[])
+static void sort_with_index(unsigned char size, unsigned char data[], unsigned char index[])
 {
-	int i = 0, j = 0;
+	unsigned char i = 0, j = 0;
 
 	struct index_data {
-		int value;
-		int index;
+		unsigned char value;
+		unsigned char index;
 	};
 
 	struct index_data idx_data[5], temp;
@@ -862,9 +862,9 @@ static void sort_with_index(int size, int data[], int index[])
 	}
 }
 
-static unsigned int find_greater_data_coord(unsigned int matrix[8][8],
-		int row, int col, int value,
-		int coord_row[], int coord_col[])
+static unsigned int find_greater_data_coord(unsigned short matrix[8][8],
+		unsigned char row, unsigned char col, int value,
+		unsigned char coord_row[], unsigned char coord_col[])
 {
 	int i = 0, j = 0;
 	unsigned int count = 0;
@@ -887,23 +887,26 @@ static unsigned int find_greater_data_coord(unsigned int matrix[8][8],
 int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 {
 #define MSIZE 8
-	unsigned int idx_1_acc = 0, idx_2_acc = 0, idx_4_acc = 0;
-	unsigned int idx_8_acc = 0, idx_16_acc = 0, idx_32_acc = 0;
-	unsigned int idx_64_acc = 0, idx_128_acc = 0, idx_256_acc = 0;
-	unsigned int idx[64] = { 0 }, idx_77 = 0, idx_all = 0, temp = 0;
+	unsigned char idx_1_acc = 0, idx_2_acc = 0, idx_4_acc = 0;
+	unsigned char idx_8_acc = 0, idx_16_acc = 0, idx_32_acc = 0;
+	unsigned char idx_64_acc = 0, idx_128_acc = 0, idx_256_acc = 0;
+	unsigned short idx[64] = { 0 }, idx_77 = 0, temp = 0;
+	unsigned int idx_all = 0;
 	unsigned int be = 0, bf = 0, c0 = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0;
 	unsigned int c5 = 0, c6 = 0, c7 = 0, c8 = 0, c9 = 0, ca = 0, cb = 0;
 	unsigned int cc = 0, cd = 0, ce = 0, cf = 0, d0 = 0, d1 = 0, d2 = 0;
 	unsigned int d3 = 0, d4 = 0, d5 = 0;
-	unsigned int eq_state = 0;
-	unsigned int total_64_128_256_acc = 0;
-	unsigned int total_32_64_128_256_acc = 0;
-	unsigned int total_all_acc = 0;
-	int i = 0, j = 0, greater = 0, count = 0, flag = 0, ret = 0;
-	int dis_idx[5] = { 0 }, dis_val[5] = { 0 };
-	unsigned int len = ARRAY_SIZE(dis_val);
-	unsigned int matrix[MSIZE][MSIZE] = { 0 };
-	unsigned int row[MSIZE * MSIZE] = { 0 }, col[MSIZE * MSIZE] = { 0 };
+	unsigned char eq_state = 0;
+	unsigned short total_64_128_256_acc = 0;
+	unsigned short total_32_64_128_256_acc = 0;
+	unsigned short total_all_acc = 0;
+	unsigned char i = 0, greater = 0, count = 0, flag = 0;
+	char ret = 0;
+	int j = 0;
+	unsigned char dis_idx[5] = { 0 }, dis_val[5] = { 0 };
+	unsigned char dis_len = ARRAY_SIZE(dis_val);
+	unsigned short matrix[MSIZE][MSIZE] = { 0 };
+	unsigned char row[MSIZE * MSIZE] = { 0 }, col[MSIZE * MSIZE] = { 0 };
 
 	qam_mode[0] = 0xf;
 	qam_mode[1] = 0xf;
@@ -1137,7 +1140,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 			dis_val[0], dis_val[1],
 			dis_val[2], dis_val[3], dis_val[4]);
 
-	sort_with_index(len, dis_val, dis_idx);
+	sort_with_index(dis_len, dis_val, dis_idx);
 
 	PR_DVBC("sort dis_val(idx): %d(%d), %d(%d), %d(%d), %d(%d), %d(%d)\n",
 			dis_val[0], dis_idx[0], dis_val[1], dis_idx[1],

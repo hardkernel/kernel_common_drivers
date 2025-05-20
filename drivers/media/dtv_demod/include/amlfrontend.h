@@ -202,6 +202,7 @@
 /*  V3.6.022 switch dvb-t/t2 top agc to inner agc on T6D */
 /*  V3.7.001 fix dvbt2 mplp tune */
 /*  V3.7.002 fix debug cmd compile and style error */
+/*  V3.7.003 fix dvbc_auto_qam_process stack allocation */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -218,8 +219,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.7.002"
-#define DTVDEMOD_VER	"2025/05/27 fix debug cmd compile and style error"
+#define AMLDTVDEMOD_VER "V3.7.003"
+#define DTVDEMOD_VER	"2025/05/28 fix dvbc_auto_qam_process stack allocation"
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
