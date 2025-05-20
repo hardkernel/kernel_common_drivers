@@ -447,6 +447,10 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	plane_info->src_y = state->src_y >> 16;
 	plane_info->src_w = (state->src_w >> 16) & 0xffff;
 	plane_info->src_h = (state->src_h >> 16) & 0xffff;
+	plane_info->ori_src_x = plane_info->src_x;
+	plane_info->ori_src_y = plane_info->src_y;
+	plane_info->ori_src_w = plane_info->src_w;
+	plane_info->ori_src_h = plane_info->src_h;
 
 	DRM_DEBUG("original source: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
 		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h);
@@ -456,6 +460,10 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	plane_info->dst_w = state->crtc_w;
 	plane_info->dst_h = state->crtc_h;
 	plane_info->rotation = state->rotation;
+	plane_info->ori_dst_x = plane_info->dst_x;
+	plane_info->ori_dst_y = plane_info->dst_y;
+	plane_info->ori_dst_w = plane_info->dst_w;
+	plane_info->ori_dst_h = plane_info->dst_h;
 	DRM_DEBUG("original destination: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
 	if (state->plane) {
@@ -1783,6 +1791,14 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 	plane_info = &mvps->plane_info[osd_plane->plane_index];
 
 	drm_printf(p, "\tmeson osd plane %d info:\n", osd_plane->plane_index);
+	drm_printf(p, "\t\tori_src_x=%u\n", plane_info->ori_src_x);
+	drm_printf(p, "\t\tori_src_y=%u\n", plane_info->ori_src_y);
+	drm_printf(p, "\t\tori_src_w=%u\n", plane_info->ori_src_w);
+	drm_printf(p, "\t\tori_src_h=%u\n", plane_info->ori_src_h);
+	drm_printf(p, "\t\tori_dst_x=%d\n", plane_info->ori_dst_x);
+	drm_printf(p, "\t\tori_dst_y=%d\n", plane_info->ori_dst_y);
+	drm_printf(p, "\t\tori_dst_w=%u\n", plane_info->ori_dst_w);
+	drm_printf(p, "\t\tori_dst_h=%u\n", plane_info->ori_dst_h);
 	drm_printf(p, "\t\tsrc_x=%u\n", plane_info->src_x);
 	drm_printf(p, "\t\tsrc_y=%u\n", plane_info->src_y);
 	drm_printf(p, "\t\tsrc_w=%u\n", plane_info->src_w);
@@ -1870,18 +1886,18 @@ static void meson_video_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tori_src_y=%u\n", plane_info->ori_src_y);
 	drm_printf(p, "\t\tori_src_w=%u\n", plane_info->ori_src_w);
 	drm_printf(p, "\t\tori_src_h=%u\n", plane_info->ori_src_h);
-	drm_printf(p, "\t\tori_dst_w=%u\n", plane_info->ori_dst_w);
-	drm_printf(p, "\t\tori_dst_h=%u\n", plane_info->ori_dst_h);
 	drm_printf(p, "\t\tori_dst_x=%d\n", plane_info->ori_dst_x);
 	drm_printf(p, "\t\tori_dst_y=%d\n", plane_info->ori_dst_y);
+	drm_printf(p, "\t\tori_dst_w=%u\n", plane_info->ori_dst_w);
+	drm_printf(p, "\t\tori_dst_h=%u\n", plane_info->ori_dst_h);
 	drm_printf(p, "\t\tsrc_x=%u\n", plane_info->src_x);
 	drm_printf(p, "\t\tsrc_y=%u\n", plane_info->src_y);
 	drm_printf(p, "\t\tsrc_w=%u\n", plane_info->src_w);
 	drm_printf(p, "\t\tsrc_h=%u\n", plane_info->src_h);
-	drm_printf(p, "\t\tdst_w=%u\n", plane_info->dst_w);
-	drm_printf(p, "\t\tdst_h=%u\n", plane_info->dst_h);
 	drm_printf(p, "\t\tdst_x=%d\n", plane_info->dst_x);
 	drm_printf(p, "\t\tdst_y=%d\n", plane_info->dst_y);
+	drm_printf(p, "\t\tdst_w=%u\n", plane_info->dst_w);
+	drm_printf(p, "\t\tdst_h=%u\n", plane_info->dst_h);
 	drm_printf(p, "\t\tzorder=%u\n", plane_info->zorder);
 	drm_printf(p, "\t\tbyte_stride=%u\n", plane_info->byte_stride);
 	drm_printf(p, "\t\tpixel_format=%u\n", plane_info->pixel_format);

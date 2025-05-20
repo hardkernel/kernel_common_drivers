@@ -442,8 +442,8 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 					mvsps->plane_info[i].enable = 0;
 					continue;
 				}
-				DRM_DEBUG("crtc%d osdplane [%d] enable:(%d-%llx, %d-%d)\n",
-						mvsps->index,
+				DRM_DEBUG("index:%d,crtc:%d,osdplane:%d,enable:(%d-%llx, %d-%d)\n",
+						i, mvsps->index,
 						mvsps->plane_info[i].plane_index,
 						mvsps->plane_info[i].zorder,
 						mvsps->plane_info[i].phy_addr,
@@ -455,10 +455,10 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 			}
 		} else {
 			if (i == OSD1_SLICE0 && mvsps->plane_info[i].enable) {
-				mvsps->plane_info[i].src_w = mvsps->plane_info[i].src_w / 2;
-				mvsps->plane_info[i].dst_w = mvsps->plane_info[i].dst_w / 2;
+				mvsps->plane_info[i].src_w = mvsps->plane_info[i].ori_src_w / 2;
+				mvsps->plane_info[i].dst_w = mvsps->plane_info[i].ori_dst_w / 2;
 				mvsps->num_plane++;
-			} else if (i == OSD3_SLICE1) {
+			} else if (i == OSD3_SLICE1 && mvsps->plane_info[OSD1_SLICE0].enable) {
 				memcpy(&mvsps->plane_info[i], &mvsps->plane_info[OSD1_SLICE0],
 						sizeof(struct meson_vpu_osd_layer_info));
 				mvsps->plane_info[i].src_w = mvsps->plane_info[OSD1_SLICE0].src_w;
@@ -472,7 +472,10 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				mvsps->plane_index[i] = i;
 				mvsps->num_plane++;
 			} else {
-				DRM_DEBUG("slice mode osdplane [%d] disable.\n", i);
+				if (i == OSD1_SLICE0 || i == OSD3_SLICE1)
+					DRM_DEBUG("slice mode osdplane [%d] disable.\n", i);
+				else if (mvsps->plane_info[i].enable)
+					mvsps->num_plane++;
 			}
 		}
 	}
