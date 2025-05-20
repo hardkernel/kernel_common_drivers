@@ -1794,6 +1794,7 @@ static int vpp_set_filters_internal
 	int is_larger_4k50hz = 0;
 	int is_larger_1080p120hz = 0;
 	u32 src_width_max, src_height_max;
+	int max_zoom_move_range;
 	bool afbc_support;
 	bool crop_adjust = false;
 	bool hskip_adjust = false;
@@ -2472,6 +2473,25 @@ RESTART:
 		next_frame_par->crop_bottom = crop_bottom;
 	}
 
+	if (vpp_zoom_ratio > 100 && zoom_move_en) {
+		max_zoom_move_range = next_frame_par->VPP_vd_start_lines_;
+		if ((move_base_zoom[0] > 0 && move_base_zoom[0] <= max_zoom_move_range) ||
+			(move_base_zoom[0] < 0 && move_base_zoom[0] >= -max_zoom_move_range)) {
+			next_frame_par->VPP_vd_start_lines_ += move_base_zoom[0];
+			next_frame_par->VPP_vd_end_lines_ += move_base_zoom[0];
+		} else {
+			if (move_base_zoom[0] > 0) {
+				next_frame_par->VPP_vd_start_lines_ += max_zoom_move_range;
+				next_frame_par->VPP_vd_end_lines_ += max_zoom_move_range;
+			} else if (move_base_zoom[0] < 0) {
+				next_frame_par->VPP_vd_start_lines_ -= max_zoom_move_range;
+				next_frame_par->VPP_vd_end_lines_ -= max_zoom_move_range;
+			}
+		}
+		if (cur_super_debug)
+			pr_info("max_zoom_move_range: %d v_move: %d\n",
+				max_zoom_move_range, move_base_zoom[0]);
+	}
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->VPP_vd_start_lines_ &= ~1;
 
@@ -2654,6 +2674,26 @@ RESTART:
 		next_frame_par->VPP_hd_end_lines_ += crop_left;
 		next_frame_par->crop_left = crop_left;
 		next_frame_par->crop_right = crop_right;
+	}
+
+	if (vpp_zoom_ratio > 100 && zoom_move_en) {
+		max_zoom_move_range = next_frame_par->VPP_hd_start_lines_;
+		if ((move_base_zoom[1] > 0 && move_base_zoom[1] <= max_zoom_move_range) ||
+			(move_base_zoom[1] < 0 && move_base_zoom[1] >= -max_zoom_move_range)) {
+			next_frame_par->VPP_hd_start_lines_ += move_base_zoom[1];
+			next_frame_par->VPP_hd_end_lines_ += move_base_zoom[1];
+		} else {
+			if (move_base_zoom[1] > 0) {
+				next_frame_par->VPP_hd_start_lines_ += max_zoom_move_range;
+				next_frame_par->VPP_hd_end_lines_ += max_zoom_move_range;
+			} else if (move_base_zoom[1] < 0) {
+				next_frame_par->VPP_hd_start_lines_ -= max_zoom_move_range;
+				next_frame_par->VPP_hd_end_lines_ -= max_zoom_move_range;
+			}
+		}
+		if (cur_super_debug)
+			pr_info("max_zoom_move_range: %d h_move: %d\n",
+				max_zoom_move_range, move_base_zoom[1]);
 	}
 
 	next_frame_par->VPP_line_in_length_ =

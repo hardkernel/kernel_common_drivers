@@ -1129,6 +1129,8 @@ extern u32 pi_enable;
 extern int aisr_demo_types[3];
 extern int aisr_demo_win;
 extern u32 crop_select_mode;
+extern int move_base_zoom[2];
+extern int zoom_move_en;
 
 bool is_crop_from_vf(struct vframe_s *vf);
 bool black_threshold_check(u8 id);
