@@ -266,7 +266,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 			SCALER_OUT_W_CALC_DONE |
 			SCALER_OUT_H_CALC_DONE;
 
-		DRM_DEBUG("Scaler [%d-%d] of osd [%d]  = [%d/%d,%d/%d], scope[%d,%d-%d,%d]\n",
+		DRM_DEBUG("Scaler [%d-%d] of osd [%d] = [%d/%d,%d/%d], scope[%d,%d-%d,%d]\n",
 			m, mvps->scaler_cnt[i], osd_index,
 			scaler_param->ratio_w_num, scaler_param->ratio_w_den,
 			scaler_param->ratio_h_num, scaler_param->ratio_h_den,
@@ -897,10 +897,16 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 	osd_out_hsize_raw = 0;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		MESON_DRM_TRAVERSE("%s,i=%d,enable=%d,src(%d,%d,%dx%d),dst(%d,%d,%dx%d)\n",
+			__func__, i, mvps->plane_info[i].enable,
+			mvps->plane_info[i].src_x, mvps->plane_info[i].src_y,
+			mvps->plane_info[i].src_w, mvps->plane_info[i].src_h,
+			mvps->plane_info[i].dst_x, mvps->plane_info[i].dst_y,
+			mvps->plane_info[i].dst_w, mvps->plane_info[i].dst_h);
 		if (!mvps->plane_info[i].enable)
 			continue;
 
-		if (more_60) {
+		if (more_60 && (i == OSD1_SLICE0 || i == OSD3_SLICE1)) {
 			osd_in_hsize_real += mvps->plane_info[i].src_w;
 			osd_out_hsize_raw += mvps->plane_info[i].dst_w;
 		}
@@ -915,6 +921,9 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 	mvsps->slice2ppc_vsize = mvps->plane_info[OSD1_SLICE0].dst_h;
 	mvsps->osd_out_hsize_raw = osd_out_hsize_raw;
 	mvsps->osd_out_hsize_real = osd_out_hsize_real;
+	MESON_DRM_TRAVERSE("%s,slice2ppc(%dx%d),in_h_real=%d,out_h_real(%d-%d)\n",
+		__func__, mvsps->slice2ppc_hsize, mvsps->slice2ppc_vsize,
+		osd_in_hsize_real, osd_out_hsize_raw, osd_out_hsize_real);
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		memset(&mvps->osd_scope_pre[i], 0, sizeof(mvps->osd_scope_pre[i]));
@@ -1050,15 +1059,21 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 		mvsps->slice_x_end[i] = 0;
 		mvsps->init_phase[i] = init_phase[0];
 		mvsps->slice2ppc_hsize = osd_out_hsize_real / 2;
-		DRM_DEBUG("%s, scaler_d:%u, %u, %u, %u, %d\n", __func__, mvsps->scaler_din_hsize[i],
-			  mvsps->scaler_dout_hsize[i], mvsps->scaler_din_vsize[i],
-			  mvsps->scaler_dout_vsize[i], i);
-		DRM_DEBUG("%s, scaler_p:%u, %u, %u, %u\n", __func__,
-			  mvps->scaler_param[i].input_width,
-			  mvps->scaler_param[i].input_height, mvps->scaler_param[i].output_width,
-			  mvps->scaler_param[i].output_height);
-		DRM_DEBUG("%s, osd_scope_pre:%u, %u\n", __func__, mvps->osd_scope_pre[i].h_end,
-			  mvps->osd_scope_pre[i].v_end);
+		MESON_DRM_TRAVERSE("%s, i:%d, scaler_d:%u, %u, %u, %u, scaler_p:%u, %u, %u, %u\n",
+			  __func__, i,
+			  mvsps->scaler_din_hsize[i], mvsps->scaler_din_vsize[i],
+			  mvsps->scaler_dout_hsize[i], mvsps->scaler_dout_vsize[i],
+			  mvps->scaler_param[i].input_width, mvps->scaler_param[i].input_height,
+			  mvps->scaler_param[i].output_width, mvps->scaler_param[i].output_height);
+		MESON_DRM_TRAVERSE("%s, more_4k=%d, more_60=%d, osd_scope_pre:%u, %u, %u, %u\n",
+			__func__, mvsps->more_4k, mvsps->more_60,
+			mvps->osd_scope_pre[i].h_start, mvps->osd_scope_pre[i].v_start,
+			mvps->osd_scope_pre[i].h_end, mvps->osd_scope_pre[i].v_end);
+		MESON_DRM_TRAVERSE("%s,slice=%d,phase=%d,slice2ppc=%d,cut(%d->%d),slicex(%d->%d)\n",
+			__func__, mvsps->slice_dout_hsize[i],
+			mvsps->init_phase[i], mvsps->slice2ppc_hsize,
+			mvsps->hwincut_bgn[i], mvsps->hwincut_end[i],
+			mvsps->slice_x_st[i], mvsps->slice_x_end[i]);
 	}
 
 	vpu_pipeline_enable_block(combination, num_planes, mvps);

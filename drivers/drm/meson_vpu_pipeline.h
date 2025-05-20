@@ -201,6 +201,17 @@ enum osd_process_unit {
 };
 
 struct meson_vpu_osd_layer_info {
+	/* record the original src and dst info */
+	u32 ori_src_x;
+	u32 ori_src_y;
+	u32 ori_src_w;
+	u32 ori_src_h;
+	u32 ori_dst_w;
+	u32 ori_dst_h;
+	int ori_dst_x;
+	int ori_dst_y;
+
+	/* record the modified src and dst info, they may be the same as the original info */
 	u32 src_x;
 	u32 src_y;
 	u32 src_w;
@@ -209,6 +220,7 @@ struct meson_vpu_osd_layer_info {
 	u32 dst_h;
 	int dst_x;
 	int dst_y;
+
 	u32 fb_w;
 	u32 fb_h;
 	u32 hdisplay;
@@ -307,6 +319,7 @@ struct meson_vpu_osd_state {
 };
 
 struct meson_vpu_video_layer_info {
+	/* record the original src and dst info */
 	u32 ori_src_x;
 	u32 ori_src_y;
 	u32 ori_src_w;
@@ -315,6 +328,8 @@ struct meson_vpu_video_layer_info {
 	u32 ori_dst_h;
 	int ori_dst_x;
 	int ori_dst_y;
+
+	/* record the modified src and dst info, they may be the same as the original info */
 	u32 src_x;
 	u32 src_y;
 	u32 src_w;
@@ -323,6 +338,7 @@ struct meson_vpu_video_layer_info {
 	u32 dst_h;
 	int dst_x;
 	int dst_y;
+
 	u32 fb_w;
 	u32 fb_h;
 	u32 zorder;
