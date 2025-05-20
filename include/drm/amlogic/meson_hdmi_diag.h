@@ -36,7 +36,7 @@ struct hdmi_video_info {
 	__u32 qms_vrr;
 	__u32 m_const;
 	__u32 next_tfr;
-	__u32 bese_refrsh_rate;
+	__u32 base_refresh_rate;
 };
 
 struct hdmi_audio_info {
