@@ -104,6 +104,8 @@ struct lcd_detail_timing_s {
 	unsigned char ss_freq;
 	unsigned char ss_mode;
 	unsigned char ss_force;
+	unsigned char asf_mode;
+	unsigned char ufr_mode;
 	unsigned int pixel_clk;
 
 	unsigned short h_period_min;

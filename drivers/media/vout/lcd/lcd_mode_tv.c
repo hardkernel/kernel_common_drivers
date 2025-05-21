@@ -369,6 +369,7 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.sync_duration_num = ptiming->sync_duration_num;
 	pdrv->vinfo.sync_duration_den = ptiming->sync_duration_den;
 	pdrv->vinfo.frac = ptiming->frac;
+	pdrv->vinfo.brr_duration = info->base_fr;
 	pdrv->vinfo.std_duration = ptiming->frame_rate;
 	pdrv->vinfo.vfreq_max = ptiming->frame_rate_max;
 	pdrv->vinfo.vfreq_min = ptiming->frame_rate_min;
@@ -400,6 +401,8 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	}
 
 	pdrv->vinfo.cur_enc_ppc = pdrv->config.timing.ppc;
+	pdrv->vinfo.asf_mode = ptiming->asf_mode;
+	pdrv->vinfo.ufr_mode = ptiming->ufr_mode;
 	switch (ptiming->fr_adjust_type) {
 	case 0:
 		pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_CLK;

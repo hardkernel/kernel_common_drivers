@@ -605,6 +605,8 @@ static ssize_t vout_vinfo_show(const struct class *class,
 		       "    viu_color_fmt:         %d\n"
 		       "    viu_mux:               0x%x\n"
 		       "    cur_enc_ppc:           %d\n"
+		       "    ufr_mode:              %d\n"
+		       "    asf_mode:              %d\n"
 		       "    3d_info:               %d\n"
 		       "    cs:                    %d\n"
 		       "    cd:                    %d\n"
@@ -621,7 +623,8 @@ static ssize_t vout_vinfo_show(const struct class *class,
 		       info->vfreq_max, info->vfreq_min,
 		       info->htotal, info->vtotal, info->video_clk,
 		       info->fr_adj_type, info->viu_color_fmt,
-		       info->viu_mux, info->cur_enc_ppc, info->info_3d,
+		       info->viu_mux, info->cur_enc_ppc, info->ufr_mode,
+		       info->asf_mode, info->info_3d,
 		       info->cs, info->cd, info->vpp_post_out_color_fmt,
 		       info->vpp_post_out_colorimetry, info->vpp_post_out_range);
 	len += sprintf(buf + len, "master_display_info:\n"

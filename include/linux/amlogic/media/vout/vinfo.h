@@ -432,6 +432,14 @@ struct vinfo_s {
 	 * the default value is 0 or 1.
 	 */
 	u8 cur_enc_ppc;
+	/* ultra frame rate(dlg/hsr) pretreatment
+	 * 0:default, 1: scale down vertically by half
+	 */
+	u8 ufr_mode;
+	/* odd/even line pretreatment for scaler.
+	 * 0:default, 1:alternating odd even line by field
+	 */
+	u8 asf_mode;
 	/* 0: yuv, 1: rgb */
 	u8 vpp_post_out_color_fmt;
 
