@@ -126,4 +126,6 @@
 #define AMSTREAM_IOC_GET_TRICK_VPTS               _IOR((_A_M), 0xf0, int)
 #define AMSTREAM_IOC_DISABLE_SLOW_SYNC            _IOW((_A_M), 0xf1, int)
 
+#define AMSTREAM_IOC_SET_AISR_EN                  _IOW((_A_M), 0xf2, __u32)
+
 #endif
