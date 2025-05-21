@@ -2695,7 +2695,8 @@ void set_c_gain(enum hdr_module_sel module_sel,
 			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(cgain_coef1,
 				0x1000, 16, 13, vpp_sel);
 
-		if (chip_type_id == chip_t6d)
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_s7d)
 			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(cgain_coef1,
 			0, 31, 1, vpp_sel);
 	}
