@@ -3752,6 +3752,7 @@ static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
 	struct di_dev_s *di_devp = NULL;
+	unsigned char tmp;
 
 	if (_IOC_TYPE(cmd) != _DI_) {
 		PR_ERR("%s invalid command: %u\n", __func__, cmd);
@@ -3771,6 +3772,29 @@ static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = dim_pq_load_io(arg);
 
 		break;
+	case AMDI_IOC_SET_NR2_EN:
+		if (copy_from_user(&tmp,
+				   (void __user *)arg,
+				   sizeof(unsigned char))) {
+			ret = -EFAULT;
+		} else {
+			if (tmp != nr2_en)
+				nr2_en = tmp;
+			PR_INF("nr2_en received from user: %d\n", nr2_en);
+		}
+		break;
+	case AMDI_IOC_SET_DNR_EN:
+		if (copy_from_user(&tmp,
+				   (void __user *)arg,
+				   sizeof(unsigned char))) {
+			ret = -EFAULT;
+		} else {
+			if (tmp != dnr_en)
+				dnr_en = tmp;
+			PR_INF("dnr_en received from user: %d\n", dnr_en);
+		}
+		break;
+
 	default:
 		break;
 	}

@@ -787,4 +787,7 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_S_CUVA_SDR_MAX_LUM    _IO(_VE_CM, 0xa5)
 #define AMVECM_IOC_S_CUVA_HDR_MAX_LUM    _IO(_VE_CM, 0xa6)
 
+#define AMDI_IOC_SET_NR2_EN    _IOW(_DI_, 0xa7, unsigned char)
+#define AMDI_IOC_SET_DNR_EN    _IOW(_DI_, 0xa8, unsigned char)
+
 #endif
