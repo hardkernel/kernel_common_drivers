@@ -13,7 +13,7 @@
 #include "meson_uvm_lcevc_processor.h"
 #include "meson_uvm_nn_processor.h"
 
-int attach_uvm_info(int fd, int type, char *buf)
+int attach_uvm_info(struct dma_buf *dmabuf, int fd, int type, char *buf)
 {
 	struct uvm_hook_mod_info info;
 	int ret = 0;
@@ -26,28 +26,18 @@ int attach_uvm_info(int fd, int type, char *buf)
 	switch (type) {
 	case PROCESS_AICOLOR:
 		ret = attach_aicolor_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	case PROCESS_AIFACE:
 		ret = attach_aiface_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	case PROCESS_AIPQ:
 		ret = attach_aipq_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	case PROCESS_LCEVC:
 		ret = attach_lcevc_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	case PROCESS_NN:
 		ret = attach_nn_hook_mod_info(fd, buf, &info);
-		if (ret)
-			return -EINVAL;
 		break;
 	default:
 		pr_err("mod_type is not valid.\n");
@@ -56,6 +46,14 @@ int attach_uvm_info(int fd, int type, char *buf)
 		pr_err("attach_hook_mod_info failed.\n");
 		return -EINVAL;
 	}
+
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+		pr_err("dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (info.type >= VF_SRC_DECODER && info.type < PROCESS_INVALID)
+		ret = uvm_attach_hook_mod(dmabuf, &info);
 
 	return ret;
 }

@@ -874,28 +874,14 @@ put_vframe:
 
 static int mua_attach(struct dma_buf *dmabuf, int fd, int type, char *buf)
 {
-	struct uvm_hook_mod_info info;
 	int ret = 0;
 
-	memset(&info, 0, sizeof(struct uvm_hook_mod_info));
-	info.type = PROCESS_INVALID;
-	info.arg = NULL;
-	info.acquire_fence = NULL;
-
-	ret = AMLOGIC_ATTACH_uvm_info(fd, type, buf);
+	ret = AMLOGIC_ATTACH_uvm_info(dmabuf, fd, type, buf);
 	if (ret) {
 		MUA_PRINTK(MUA_ERROR, "attach hook_mod_info failed\n");
 		return -EINVAL;
 	}
-
-	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		MUA_PRINTK(MUA_ERROR, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
-		return -EINVAL;
-	}
 	MUA_PRINTK(MUA_INFO, "core_attach: type:%d dmabuf:%px.\n", type, dmabuf);
-
-	if (info.type >= VF_SRC_DECODER && info.type < PROCESS_INVALID)
-		ret = uvm_attach_hook_mod(dmabuf, &info);
 
 	return ret;
 }

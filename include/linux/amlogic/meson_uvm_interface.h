@@ -31,8 +31,8 @@ typedef void (*AMLOGIC_V4LVIDEO_data_copy_fun_t)(struct v4l_data_t *,
 void register_amlogic_v4lvideo_data_copy_fun(AMLOGIC_V4LVIDEO_data_copy_fun_t fn);
 void unregister_amlogic_v4lvideo_data_copy_fun(void);
 
-int AMLOGIC_ATTACH_uvm_info(int fd, int type, char *buf);
-typedef int (*AMLOGIC_ATTACH_uvm_info_fun_t)(int, int, char *);
+int AMLOGIC_ATTACH_uvm_info(struct dma_buf *dmabuf, int fd, int type, char *buf);
+typedef int (*AMLOGIC_ATTACH_uvm_info_fun_t)(struct dma_buf *, int, int, char *);
 int register_amlogic_attach_uvm_info_fun(AMLOGIC_ATTACH_uvm_info_fun_t fn);
 int unregister_amlogic_attach_uvm_info_fun(void);
 

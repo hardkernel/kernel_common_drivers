@@ -51,10 +51,10 @@ void unregister_amlogic_v4lvideo_data_copy_fun(void)
 }
 EXPORT_SYMBOL(unregister_amlogic_v4lvideo_data_copy_fun);
 
-int AMLOGIC_ATTACH_uvm_info(int fd, int type, char *buf)
+int AMLOGIC_ATTACH_uvm_info(struct dma_buf *dmabuf, int fd, int type, char *buf)
 {
 	if (g_attach_fun)
-		return g_attach_fun(fd, type, buf);
+		return g_attach_fun(dmabuf, fd, type, buf);
 	pr_err("no %s ERRR!!\n", __func__);
 	return -1;
 }
