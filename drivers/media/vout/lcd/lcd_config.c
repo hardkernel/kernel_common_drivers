@@ -149,7 +149,7 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 
 	if ((lcd_debug_print_flag & LCD_DBG_PR_NORMAL) == 0) {
 		i = sprintf(pr_buf + i, "ppc:%d, clk_mode:%d, ",
-				pconf->timing.ppc, pconf->timing.clk_mode);
+				pconf->timing.ppc, ptiming->clk_mode);
 		if (pconf->timing.pre_de_h || pconf->timing.pre_de_v) {
 			i += sprintf(pr_buf + i, "pre_de:%d,%d, ",
 					pconf->timing.pre_de_h, pconf->timing.pre_de_v);
@@ -170,7 +170,6 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 	      pdrv->index, get_lcd_config_load(pdrv->config_load), pconf->basic.model_name,
 	      lcd_type_type_to_str(pconf->basic.lcd_type));
 	LCDPR("pll_flag = %d\n", pconf->timing.pll_flag);
-	LCDPR("clk_mode = %d\n", pconf->timing.clk_mode);
 	LCDPR("custom_pinmux = %d\n", pconf->custom_pinmux);
 	LCDPR("fr_auto_cus = 0x%x\n", pconf->fr_auto_cus);
 
@@ -823,9 +822,9 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 
 	ret = of_property_read_u32(child, "clk_mode", &val);
 	if (ret)
-		pconf->timing.clk_mode = LCD_BIT_RATE_FIXED;
+		ptiming->clk_mode = LCD_BIT_RATE_FIXED;
 	else
-		pconf->timing.clk_mode = val;
+		ptiming->clk_mode = val;
 
 	ret = of_property_read_u32_array(child, "pre_de", &para[0], 2);
 	if (ret) {
@@ -1311,7 +1310,6 @@ static int lcd_panel_parse_timing(struct json_parse_s *jsp, struct aml_lcd_drv_s
 		return -1;
 	}
 	tims->ppc      = json_get_obj_u32(jsp, parent, "ppc_mode", 1);
-	tims->clk_mode = json_get_obj_u32(jsp, parent, "clk_mode", LCD_BIT_RATE_FIXED);
 	tims->pll_flag = json_get_obj_u32(jsp, parent, "pll_flag", 1);
 
 	parent         = json_get_object_child(jsp, parent, "pre_de");
@@ -1360,6 +1358,7 @@ static int lcd_panel_parse_timing(struct json_parse_s *jsp, struct aml_lcd_drv_s
 		dt->switch_type = strnum_get_num(str, vmode_switch_name,
 						 ARRAY_SIZE(vmode_switch_name),
 						 LCD_VMODE_SWITCH_NONE);
+		dt->clk_mode = json_get_obj_u32(jsp, child, "clk_mode", LCD_BIT_RATE_FIXED);
 
 		child2 = json_get_object_child(jsp, child, "timing");
 		if (!child2 && dt == tims->timings[0]) {
@@ -2462,7 +2461,7 @@ static int lcd_config_load_from_ini(struct aml_lcd_drv_s *pdrv, unsigned char *p
 	/* customer: 31byte */
 	ptiming->fr_adjust_type = lcd_ini_get_val(inip, psec, "fr_adjust_type", 0);
 	pconf->timing.ss_level = lcd_ini_get_val(inip, psec, "ss_level", 0);
-	pconf->timing.clk_mode = lcd_ini_get_val(inip, psec, "clk_mode", 0);
+	ptiming->clk_mode = lcd_ini_get_val(inip, psec, "clk_mode", 0);
 	pconf->timing.pll_flag = lcd_ini_get_val(inip, psec, "clk_auto_gen", 1);
 	ptiming->pixel_clk = lcd_ini_get_val(inip, psec, "pixel_clk", 0);
 	ptiming->h_period_min = lcd_ini_get_val(inip, psec, "h_period_min", 0);

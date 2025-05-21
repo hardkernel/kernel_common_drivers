@@ -494,8 +494,8 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"pll_flag       %d\n\n",
 		pconf->timing.bit_rate,
 		pconf->timing.enc_clk,
-		(pconf->timing.clk_mode ? "independence" : "dependence"),
-		pconf->timing.clk_mode,
+		(pconf->timing.act_timing.clk_mode ? "adapt" : "fixed"),
+		pconf->timing.act_timing.clk_mode,
 		pconf->timing.ss_level, pconf->timing.ss_freq, pconf->timing.ss_mode,
 		pconf->timing.pll_flag);
 

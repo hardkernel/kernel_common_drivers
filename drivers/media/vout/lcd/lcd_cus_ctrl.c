@@ -331,6 +331,9 @@ static int lcd_cus_ctrl_attr_parse_extend_tmg_ini(struct aml_lcd_drv_s *pdrv,
 	for (i = 0;  i < 15; i++) {
 		memcpy((void *)&tmg_temp, (void *)tims->timings[0], sizeof(tmg_temp));
 
+		sprintf(str, "extend_tmg_%d_clk_mode", i);
+		tmg_temp.clk_mode = lcd_ini_get_val(inip, psec, str, tmg_temp.clk_mode);
+
 		sprintf(str, "extend_tmg_%d_hactive", i);
 		tmg_temp.h_active = lcd_ini_get_val(inip, psec, str, 0);
 		if (tmg_temp.h_active == 0)

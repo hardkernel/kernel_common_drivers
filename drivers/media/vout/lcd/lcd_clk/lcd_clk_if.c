@@ -407,7 +407,7 @@ void lcd_vlock_m_update(int index, unsigned int vlock_m)
 		return;
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
-		LCDERR("%s: clk_mode independence, can't adjust single pll m\n", __func__);
+		LCDERR("%s: dual pll, can't adjust single pll m\n", __func__);
 		return;
 	}
 
@@ -435,7 +435,7 @@ void lcd_vlock_frac_update(int index, unsigned int vlock_frac)
 		return;
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
-		LCDERR("%s: clk_mode independence, can't adjust single pll frac\n", __func__);
+		LCDERR("%s: dual pll, can't adjust single pll frac\n", __func__);
 		return;
 	}
 
@@ -527,6 +527,22 @@ void lcd_disable_clk(struct aml_lcd_drv_s *pdrv)
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 }
 
+static void lcd_request_vpu_overclk(struct aml_lcd_drv_s *pdrv, unsigned int enc_clk)
+{
+#ifdef CONFIG_AMLOGIC_VPU
+	if (vpu_support_overclk()) {
+		LCDPR("[%d]: %s: vpu overclk flow: enc_clk=%d\n", pdrv->index, __func__, enc_clk);
+		lcd_venc_enable(pdrv, 0);
+		msleep(30);
+		vpu_dev_clk_request(pdrv->lcd_vpu_dev, enc_clk);
+		msleep(30);
+		lcd_venc_enable(pdrv, 1);
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
+	}
+#endif
+}
+
 void lcd_clk_change(struct aml_lcd_drv_s *pdrv)
 {
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -536,18 +552,8 @@ void lcd_clk_change(struct aml_lcd_drv_s *pdrv)
 
 	if ((pdrv->config.timing.clk_change & LCD_CLK_PLL_CHANGE) ||
 	    (pdrv->config.timing.clk_change & LCD_CLK_PLL_RESET)) {
-#ifdef CONFIG_AMLOGIC_VPU
-		if (vpu_support_overclk() && pdrv->vmode_switch) {
-			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
-			lcd_venc_enable(pdrv, 0);
-			msleep(30);
-			vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
-			msleep(30);
-			lcd_venc_enable(pdrv, 1);
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
-		}
-#endif
+		if (pdrv->vmode_switch)
+			lcd_request_vpu_overclk(pdrv, pdrv->config.timing.enc_clk);
 		lcd_set_clk(pdrv);
 	} else if (pdrv->config.timing.clk_change & LCD_CLK_FRAC_UPDATE) {
 		lcd_update_clk_frac(pdrv);
@@ -563,34 +569,12 @@ int lcd_clk_set_dummy(struct aml_lcd_drv_s *pdrv, int status)
 		return -1;
 
 	if (status) {
-#ifdef CONFIG_AMLOGIC_VPU
-		if (vpu_support_overclk()) {
-			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
-			lcd_venc_enable(pdrv, 0);
-			msleep(30);
-			vpu_dev_clk_request(pdrv->lcd_vpu_dev, 25000000);
-			msleep(30);
-			lcd_venc_enable(pdrv, 1);
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
-		}
-#endif
+		lcd_request_vpu_overclk(pdrv, 25000000);
 		mutex_lock(&lcd_clk_mutex);
 		cconf->data->clk_set_dummy(pdrv);
 		mutex_unlock(&lcd_clk_mutex);
 	} else {
-#ifdef CONFIG_AMLOGIC_VPU
-		if (vpu_support_overclk()) {
-			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
-			lcd_venc_enable(pdrv, 0);
-			msleep(30);
-			vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
-			msleep(30);
-			lcd_venc_enable(pdrv, 1);
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
-		}
-#endif
+		lcd_request_vpu_overclk(pdrv, pdrv->config.timing.enc_clk);
 		lcd_set_clk(pdrv);
 	}
 	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);

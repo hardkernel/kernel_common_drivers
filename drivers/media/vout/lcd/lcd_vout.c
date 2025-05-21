@@ -2348,7 +2348,7 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv, unsigned int init_sta
 	}
 	LCDPR("[%d]: init: ppc: %d, clk_mode: %d, base_fr: %d, status: 0x%x, init_flag: %d\n",
 		pdrv->index, pdrv->config.timing.ppc,
-		pdrv->config.timing.clk_mode,
+		pdrv->config.timing.act_timing.clk_mode,
 		pdrv->config.timing.act_timing.frame_rate,
 		pdrv->status, pdrv->init_flag);
 }
@@ -2378,7 +2378,7 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 	strcpy(pdrv->config.basic.model_name, lcd_panel_name[pdrv->index]);
 	pdrv->config.custom_pinmux = pdrv->boot_ctrl->custom_pinmux;
 	pdrv->config.basic.lcd_type = pdrv->boot_ctrl->lcd_type;
-	pdrv->config.timing.clk_mode = pdrv->boot_ctrl->clk_mode;
+	pdrv->config.timing.act_timing.clk_mode = pdrv->boot_ctrl->clk_mode;
 	pdrv->config.timing.act_timing.frame_rate = pdrv->boot_ctrl->frame_rate;
 	pdrv->config.timing.act_timing.frame_rate_min = pdrv->boot_ctrl->frame_rate;
 	pdrv->config.timing.act_timing.frame_rate_max = pdrv->boot_ctrl->frame_rate;
