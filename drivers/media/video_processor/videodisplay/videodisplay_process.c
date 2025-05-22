@@ -2723,6 +2723,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 	struct vd_prepare_s *vd_prepare = NULL;
 	u64 phy_addr2 = 0;
 	struct vframe_s *vf_ext = NULL;
+	int pic_w = 0, pic_h = 0;
 
 	if (!dev || !received_frames) {
 		pr_info("%s: NULL param.\n", __func__);
@@ -2770,17 +2771,25 @@ static void vframe_display(struct videodisplay_dev *dev,
 	vf->axis[1] = frame_info->dst_y;
 	vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
 	vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
+
+	if (is_dec_vf || is_v4l_vf) {
+		if (vf->type & VIDTYPE_COMPRESS) {
+			pic_w = vf->compWidth;
+			pic_h = vf->compHeight;
+		} else {
+			pic_w = vf->width;
+			pic_h = vf->height;
+		}
+	} else {
+		pic_w = frame_info->buffer_w;
+		pic_h = frame_info->buffer_h;
+	}
 	vf->crop[0] = frame_info->crop_y;
 	vf->crop[1] = frame_info->crop_x;
-	vf->crop[2] = frame_info->buffer_h
-		- frame_info->crop_h
-		- frame_info->crop_y;
-	vf->crop[3] = frame_info->buffer_w
-		- frame_info->crop_w
-		- frame_info->crop_x;
+	vf->crop[2] = pic_h - frame_info->crop_h - frame_info->crop_y;
+	vf->crop[3] = pic_w - frame_info->crop_w - frame_info->crop_x;
 	vf->zorder = frame_info->zorder;
-	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
-		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER | VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 	vf->disp_pts = 0;
 
 	drop_cnt = vf->frame_index + 1 - dev->received_new_count;
@@ -2803,6 +2812,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 	/* copy to uvm vf */
 	vf_ext = vf->uvm_vf;
 	if (vf_ext) {
+		vd_print(dev->index, PRINT_OTHER, "%s: config vf_ext.\n", __func__);
 		vf_ext->axis[0] = vf->axis[0];
 		vf_ext->axis[1] = vf->axis[1];
 		vf_ext->axis[2] = vf->axis[2];
@@ -2812,12 +2822,12 @@ static void vframe_display(struct videodisplay_dev *dev,
 		vf_ext->crop[2] = vf->crop[2];
 		vf_ext->crop[3] = vf->crop[3];
 		vf_ext->zorder = vf->zorder;
-		vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
-			| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+		vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER | VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 		vf_ext->disp_pts = 0;
 	}
 
 	if (!(is_dec_vf || is_v4l_vf)) {
+		vd_print(dev->index, PRINT_OTHER, "%s: dma buf.\n", __func__);
 		if (frame_info->rotation & ROTATION_180_DEGREES)
 			vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
 
@@ -2825,14 +2835,8 @@ static void vframe_display(struct videodisplay_dev *dev,
 		vf->plane_num = 1;
 		vf->canvas0Addr = -1;
 		vf->canvas0_config[0].phy_addr = frame_info->phy_addr[0];
-		vf->canvas0_config[0].width =
-			frame_info->byte_stride;
-		vf->canvas0_config[0].height =
-			frame_info->buffer_h;
-		vd_print(dev->index, PRINT_PATTERN,
-				 "buffer: w %d, h %d.\n",
-				 frame_info->buffer_w,
-				 frame_info->buffer_h);
+		vf->canvas0_config[0].width = frame_info->byte_stride;
+		vf->canvas0_config[0].height = frame_info->buffer_h;
 		vf->canvas0_config[0].endian = 0;
 		vf->canvas1Addr = -1;
 
@@ -2857,25 +2861,33 @@ static void vframe_display(struct videodisplay_dev *dev,
 		vf->bitdepth = frame_info->bitdepth;
 	}
 
-	vd_print(dev->index, PRINT_AXIS, "=========frame info:==========\n");
+	vd_print(dev->index, PRINT_AXIS, "=========dst frame info:==========\n");
 	vd_print(dev->index, PRINT_AXIS, "frame_index=%d.\n", vf->frame_index);
 	vd_print(dev->index, PRINT_AXIS,
-		 "axis: %d %d %d %d, crop: %d %d %d %d\n",
-		 vf->axis[0], vf->axis[1], vf->axis[2], vf->axis[3],
-		 vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3]);
-	vd_print(dev->index, PRINT_AXIS,
-		 "vf_width: %d, vf_height: %d\n",
-		 vf->width, vf->height);
-	vd_print(dev->index, PRINT_AXIS,
 		 "frame aixs x,y,w,h: %d %d %d %d\n",
-		 frame_info->dst_x, frame_info->dst_y,
-		 frame_info->dst_w, frame_info->dst_h);
+		 frame_info->dst_x,
+		 frame_info->dst_y,
+		 frame_info->dst_w,
+		 frame_info->dst_h);
 	vd_print(dev->index, PRINT_AXIS,
 		 "frame crop t,l,b,r: %d %d %d %d\n",
-		 frame_info->crop_y, frame_info->crop_x,
-		 frame_info->crop_h, frame_info->crop_w);
+		 frame_info->crop_y,
+		 frame_info->crop_x,
+		 frame_info->crop_h,
+		 frame_info->crop_w);
 	vd_print(dev->index, PRINT_AXIS,
-		 "frame buffer Width X Height: %d X %d\n",
+		 "axis: %d %d %d %d, crop: %d %d %d %d\n",
+		 vf->axis[0],
+		 vf->axis[1],
+		 vf->axis[2],
+		 vf->axis[3],
+		 vf->crop[0],
+		 vf->crop[1],
+		 vf->crop[2],
+		 vf->crop[3]);
+	vd_print(dev->index, PRINT_AXIS, "vf_width: %d, vf_height: %d\n", vf->width, vf->height);
+	vd_print(dev->index, PRINT_AXIS,
+		 "canvas0 width x height: %d x %d\n",
 		 vf->canvas0_config[0].width,
 		 vf->canvas0_config[0].height);
 	vd_print(dev->index, PRINT_AXIS, "===============================\n");
@@ -3902,6 +3914,51 @@ int vd_set_frames(int index, struct frames_info_t *frames_info)
 		vd_print(index, PRINT_ERROR, "%s: frame_info is NULL.\n", __func__);
 		return -EINVAL;
 	}
+
+	vd_print(dev->index, PRINT_AXIS, "********src frame param********.\n");
+
+	vd_print(dev->index, PRINT_AXIS,
+		"%s: count:%d, index:%d, z:%d, dmabuf:%px, input_fence:%px, release_fence:%px.\n",
+		__func__,
+		frames_info->frame_count,
+		frames_info->layer_index,
+		frames_info->disp_zorder,
+		frames_info->frame_info[index].dmabuf,
+		frames_info->frame_info[index].input_fence,
+		frames_info->frame_info[index].release_fence);
+
+	vd_print(dev->index, PRINT_AXIS,
+		"%s: buf: addr0:0x%lx, addr1:0x%lx, stride:%d, w:%d, h:%d.\n",
+		__func__,
+		frames_info->frame_info[index].phy_addr[0],
+		frames_info->frame_info[index].phy_addr[1],
+		frames_info->frame_info[index].byte_stride,
+		frames_info->frame_info[index].buffer_w,
+		frames_info->frame_info[index].buffer_h);
+
+	vd_print(dev->index, PRINT_AXIS,
+		"%s: axix: x:%d, y:%d,  w:%d, h:%d.\n",
+		__func__,
+		frames_info->frame_info[index].dst_x,
+		frames_info->frame_info[index].dst_y,
+		frames_info->frame_info[index].dst_w,
+		frames_info->frame_info[index].dst_h);
+	vd_print(dev->index, PRINT_AXIS,
+		"%s: crop: x:%d, y:%d,	w:%d, h:%d.\n",
+		__func__,
+		frames_info->frame_info[index].crop_x,
+		frames_info->frame_info[index].crop_y,
+		frames_info->frame_info[index].crop_w,
+		frames_info->frame_info[index].crop_h);
+	vd_print(dev->index, PRINT_AXIS,
+		"%s: option: z:%d, signal_fmt:%d, type:0x%x, bitdepth:%d, rotation:%d.\n",
+		__func__,
+		frames_info->frame_info[index].zorder,
+		frames_info->frame_info[index].signal_fmt,
+		frames_info->frame_info[index].type,
+		frames_info->frame_info[index].bitdepth,
+		frames_info->frame_info[index].rotation);
+	vd_print(dev->index, PRINT_AXIS, "***********************************.\n");
 
 	num = get_unused_received_frames_num(dev);
 	if (num < 0) {
