@@ -201,6 +201,7 @@
 /*  V3.6.021 use kernel configs instead of macros */
 /*  V3.6.022 fix low probability missing dvbt channel */
 /*  V3.6.023 switch dvb-t/t2 top agc to inner agc on T6D */
+/*  V3.6.024 fix debug cmd compile and style error */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -217,8 +218,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.023"
-#define DTVDEMOD_VER	"2025/04/09: switch dvb-t/t2 top agc to inner agc on T6D"
+#define AMLDTVDEMOD_VER "V3.6.024"
+#define DTVDEMOD_VER	"2025/05/27: /*  V3.6.023 "
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

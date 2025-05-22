@@ -1270,6 +1270,7 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 	unsigned int capture_start = 0;
 	unsigned int val = 0;
 	unsigned int addr = 0;
+	int ret = 0, s_val = 0;
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	unsigned int i;
 #endif
@@ -1312,12 +1313,16 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 	if (!demod || !parm[0])
 		goto fail_exec_cmd;
 
+	if (parm[1]) {
+		ret = kstrtouint(parm[1], 0, &val);
+		if (ret)
+			pr_err("parm[1] error %d\n", ret);
+	}
+
 	if (!strcmp(parm[0], "symb_rate")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val) == 0))
-			demod->symbol_rate_manu = val;
+		demod->symbol_rate_manu = val;
 	} else if (!strcmp(parm[0], "symb_rate_en")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val) == 0))
-			demod->symb_rate_en = val;
+		demod->symb_rate_en = val;
 	} else if (!strcmp(parm[0], "capture_mass")) {
 		if (parm[1] && (strlen(parm[1]) < CAP_NAME_LEN)) /* path/name of ssd */
 			strcpy(devp->capture_para.cap_dev_name, parm[1]);
@@ -1331,7 +1336,6 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 
 		capture_start = capture_adc_data_mass();
 		write_usb_mass(&devp->capture_para, capture_start);
-
 	} else if (!strcmp(parm[0], "capture_once")) {
 		if (!parm[1]) {
 			PR_ERR("%s:capture_once, no path para\n", __func__);
@@ -1352,7 +1356,7 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 		tvp.cmd = DTV_DELIVERY_SYSTEM;
 
 		/* ref include/uapi/linux/dvb/frontend.h */
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0) {
+		if (val) {
 			tvp.u.data = val;
 			fe->dtv_property_cache.delivery_system = val;
 		} else {
@@ -1392,31 +1396,25 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 		if (fe->ops.tune)
 			fe->ops.tune(fe, true, 0, &delay, &sts);
 	} else if (!strcmp(parm[0], "tune")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			fe->ops.tune(fe, val, 0, &delay, &sts);
+		fe->ops.tune(fe, val, 0, &delay, &sts);
 	} else if (!strcmp(parm[0], "retune")) {
 		if (fe->ops.tune)
 			fe->ops.tune(fe, true, 0, &delay, &sts);
 	} else if (!strcmp(parm[0], "stop_wr")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			devp->stop_reg_wr = val;
+		devp->stop_reg_wr = val;
 	} else if (!strcmp(parm[0], "timeout_atsc")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			demod->timeout_atsc_ms = val;
+		demod->timeout_atsc_ms = val;
 	} else if (!strcmp(parm[0], "timeout_dvbt")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			demod->timeout_dvbt_ms = val;
+		demod->timeout_dvbt_ms = val;
 #endif
 	} else if (!strcmp(parm[0], "timeout_dvbs")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			demod->timeout_dvbs_ms = val;
+		demod->timeout_dvbs_ms = val;
 #endif
 	} else if (!strcmp(parm[0], "timeout_dvbc")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			demod->timeout_dvbc_ms = val;
+		demod->timeout_dvbc_ms = val;
 #endif
 	} else if (!strcmp(parm[0], "dump_reg")) {
 		dump_regs(demod);
@@ -1426,209 +1424,168 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 #endif
 	} else if (!strcmp(parm[0], "set_plp")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			dvbt2_set_plpid(val);
+		dvbt2_set_plpid(val);
 #endif
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
-	} else if (!strcmp(parm[0], "lnb_en")) {
 	} else if (!strcmp(parm[0], "lnb_sel")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			aml_diseqc_set_voltage(fe, (enum fe_sec_voltage)val);
+		aml_diseqc_set_voltage(fe, (enum fe_sec_voltage)val);
 	} else if (!strcmp(parm[0], "diseqc_reg")) {
 		demod_dump_reg_diseqc();
 	} else if (!strcmp(parm[0], "diseqc_dbg")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			aml_diseqc_dbg_en(val);
+		aml_diseqc_dbg_en(val);
 	} else if (!strcmp(parm[0], "diseqc_sts")) {
 		aml_diseqc_status(&devp->diseqc);
 	} else if (!strcmp(parm[0], "diseqc_cmd")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			diseqc_cmd_bypass = val;
-		PR_INFO("diseqc_cmd_bypass %d\n", val);
+		diseqc_cmd_bypass = val;
 	} else if (!strcmp(parm[0], "diseqc_burston")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			sendburst_on = val;
-		PR_INFO("sendburst_on %d\n", val);
+		sendburst_on = val;
 	} else if (!strcmp(parm[0], "diseqc_burstsa")) {
 		aml_diseqc_toneburst_sa();
 	} else if (!strcmp(parm[0], "diseqc_burstsb")) {
 		aml_diseqc_toneburst_sb();
 	} else if (!strcmp(parm[0], "diseqc_toneon")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0) {
-			aml_diseqc_tone_on(&devp->diseqc, val);
-			PR_INFO("continuous_tone %d\n", val);
-		}
+		aml_diseqc_tone_on(&devp->diseqc, val);
 #endif
 	} else if (!strcmp(parm[0], "monitor")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			devp->print_on = val;
+		devp->print_on = val;
 	} else if (!strcmp(parm[0], "strength_limit")) {
-		if (parm[1] && (kstrtoint(parm[1], 10, &devp->tuner_strength_limit)) == 0)
-			;
+		if (parm[1] && (kstrtoint(parm[1], 10, &s_val)) == 0)
+			devp->tuner_strength_limit = s_val;
 	} else if (!strcmp(parm[0], "debug_on")) {
-		if (parm[1] && (kstrtoint(parm[1], 10, &devp->debug_on)) == 0)
-			;
+		devp->debug_on = val;
 	} else if (!strcmp(parm[0], "dvbc_sel")) {
-		if (parm[1] && (kstrtoint(parm[1], 10, &demod->dvbc_sel)) == 0)
-			;
+		demod->dvbc_sel = val;
 	} else if (!strcmp(parm[0], "dvbsw")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				dvbs_wr_byte(addr, val);
-				PR_INFO("dvbs wr addr:0x%x, val:0x%x\n", addr, val);
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			dvbs_wr_byte(addr, val);
+			PR_INFO("dvbs wr addr:0x%x, val:0x%x\n", addr, val);
 		}
 	} else if (!strcmp(parm[0], "dvbsr")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = dvbs_rd_byte(addr);
-			PR_INFO("dvds rd addr:0x%x, val:0x%x\n", addr, val);
-		}
+		addr = val;
+		val = dvbs_rd_byte(addr);
+		PR_INFO("dvds rd addr:0x%x, val:0x%x\n", addr, val);
 	} else if (!strcmp(parm[0], "dvbsd")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				for (i = addr; i < (addr + val); i++)
-					PR_INFO("dvds rd addr:0x%x, val:0x%x\n",
-						i, dvbs_rd_byte(i));
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			for (i = addr; i < (addr + val); i++)
+				PR_INFO("dvds rd addr:0x%x, val:0x%x\n",
+					i, dvbs_rd_byte(i));
 		}
 #endif
 	} else if (!strcmp(parm[0], "dvbtr")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = dvbt_t2_rdb(addr);
-			PR_INFO("dvdt rd addr:0x%x, val:0x%x\n", addr, val);
-		}
+		addr = val;
+		val = dvbt_t2_rdb(addr);
+		PR_INFO("dvdt rd addr:0x%x, val:0x%x\n", addr, val);
 	} else if (!strcmp(parm[0], "dvbtw")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				dvbt_t2_wrb(addr, val);
-				PR_INFO("dvbt wr addr:0x%x, val:0x%x\n", addr, val);
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			dvbt_t2_wrb(addr, val);
+			PR_INFO("dvbt wr addr:0x%x, val:0x%x\n", addr, val);
 		}
 #endif
 	} else if (!strcmp(parm[0], "topr")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = demod_top_read_reg(addr);
-			PR_INFO("top rd addr:0x%x, val:0x%x\n", addr, val);
-		}
+		addr = val;
+		val = demod_top_read_reg(addr);
+		PR_INFO("top rd addr:0x%x, val:0x%x\n", addr, val);
 	} else if (!strcmp(parm[0], "topw")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				demod_top_write_reg(addr, val);
-				PR_INFO("top wr addr:0x%x, val:0x%x\n", addr, val);
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			demod_top_write_reg(addr, val);
+			PR_INFO("top wr addr:0x%x, val:0x%x\n", addr, val);
 		}
 	} else if (!strcmp(parm[0], "frontr")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = front_read_reg(addr);
-			PR_INFO("front rd addr:0x%x, val:0x%x\n", addr, val);
-		}
+		addr = val;
+		val = front_read_reg(addr);
+		PR_INFO("front rd addr:0x%x, val:0x%x\n", addr, val);
 	} else if (!strcmp(parm[0], "frontw")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				front_write_reg(addr, val);
-				PR_INFO("front wr addr:0x%x, val:0x%x\n", addr, val);
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			front_write_reg(addr, val);
+			PR_INFO("front wr addr:0x%x, val:0x%x\n", addr, val);
 		}
 	} else if (!strcmp(parm[0], "atscr")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = atsc_read_reg_v4(addr);
-			PR_INFO("atsc rd addr:0x%x, val:0x%x\n", addr, val);
-		}
+		addr = val;
+		val = atsc_read_reg_v4(addr);
+		PR_INFO("atsc rd addr:0x%x, val:0x%x\n", addr, val);
 	} else if (!strcmp(parm[0], "atscw")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				atsc_write_reg_v4(addr, val);
-				PR_INFO("atsc wr addr:0x%x, val:0x%x\n", addr, val);
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			atsc_write_reg_v4(addr, val);
+			PR_INFO("atsc wr addr:0x%x, val:0x%x\n", addr, val);
 		}
 #endif
 	} else if (!strcmp(parm[0], "dvbcr")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = qam_read_reg(demod, addr);
-			PR_INFO("dvbc rd addr:0x%x, val:0x%x\n", addr, val);
-		}
+		addr = val;
+		val = qam_read_reg(demod, addr);
+		PR_INFO("dvbc rd addr:0x%x, val:0x%x\n", addr, val);
 	} else if (!strcmp(parm[0], "dvbcw")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				qam_write_reg(demod, addr, val);
-				PR_INFO("dvbc wr addr:0x%x, val:0x%x\n", addr, val);
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			qam_write_reg(demod, addr, val);
+			PR_INFO("dvbc wr addr:0x%x, val:0x%x\n", addr, val);
 		}
 #endif
 	} else if (!strcmp(parm[0], "dtmbr")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = dtmb_read_reg(addr);
-			PR_INFO("dtmb rd addr:0x%x, val:0x%x\n", addr, val);
-		}
+		addr = val;
+		val = dtmb_read_reg(addr);
+		PR_INFO("dtmb rd addr:0x%x, val:0x%x\n", addr, val);
 	} else if (!strcmp(parm[0], "dtmbw")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				dtmb_write_reg(addr, val);
-				PR_INFO("dtmb wr addr:0x%x, val:0x%x\n", addr, val);
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			dtmb_write_reg(addr, val);
+			PR_INFO("dtmb wr addr:0x%x, val:0x%x\n", addr, val);
 		}
 #endif
 	} else if (!strcmp(parm[0], "isdbtr")) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = dvbt_isdbt_rd_reg_new(addr);
-			PR_INFO("isdbt rd addr:0x%x, val:0x%x\n", addr, val);
-		}
+		addr = val;
+		val = dvbt_isdbt_rd_reg_new(addr);
+		PR_INFO("isdbt rd addr:0x%x, val:0x%x\n", addr, val);
 	} else if (!strcmp(parm[0], "isdbtw")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				dvbt_isdbt_wr_reg_new(addr, val);
-				PR_INFO("isdbt wr addr:0x%x, val:0x%x\n", addr, val);
-			}
+		addr = val;
+		if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+			dvbt_isdbt_wr_reg_new(addr, val);
+			PR_INFO("isdbt wr addr:0x%x, val:0x%x\n", addr, val);
 		}
 #endif
 	} else if (!strcmp(parm[0], "demod_thread")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0)
-			devp->demod_thread = val;
+		devp->demod_thread = val;
 	} else if (!strcmp(parm[0], "demod_id")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &val)) == 0)
-			demod_id = val;
+		demod_id = val;
 	} else if (!strcmp(parm[0], "blind_stop")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0)
-			devp->blind_scan_stop = val;
-		PR_INFO("set blind scan %d\n", devp->blind_scan_stop);
+		devp->blind_scan_stop = val;
 	} else if (!strcmp(parm[0], "cr_val")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0)
-			devp->atsc_cr_step_size_dbg = val;
+		devp->atsc_cr_step_size_dbg = val;
 		PR_INFO("set atsc cr val 0x%x\n", devp->atsc_cr_step_size_dbg);
 	} else if (!strcmp(parm[0], "ci_mode")) {
 		if (demod->demod_status.delsys == SYS_DVBC_ANNEX_A) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
-			if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0) {
-				if (val == 0) {
-					qam_write_bits(demod, 0x11, 0x90, 24, 8);
-					demod->ci_mode = 0;
-				} else if (val == 1) {
-					qam_write_bits(demod, 0x11, 0x00, 24, 8);
-					demod->ci_mode = 1;
-				}
-				PR_INFO("ic card set mode %d\n", val);
+			if (val == 0) {
+				qam_write_bits(demod, 0x11, 0x90, 24, 8);
+				demod->ci_mode = 0;
+			} else if (val == 1) {
+				qam_write_bits(demod, 0x11, 0x00, 24, 8);
+				demod->ci_mode = 1;
 			}
+			PR_INFO("ic card set mode %d\n", val);
 #endif
 		} else {
 			PR_INFO("not dvbc mode\n");
 		}
 	} else if (!strcmp(parm[0], "blind_min")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			devp->blind_debug_min_frc = val;
+		devp->blind_debug_min_frc = val;
 		PR_INFO("set blind frec min %d\n", devp->blind_debug_min_frc);
 	} else if (!strcmp(parm[0], "blind_max")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			devp->blind_debug_max_frc = val;
+		devp->blind_debug_max_frc = val;
 		PR_INFO("set blind frec max %d\n", devp->blind_debug_max_frc);
 	} else if (!strcmp(parm[0], "timeout_ddr_leave")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			demod->timeout_ddr_leave = val;
+		demod->timeout_ddr_leave = val;
 	} else if (!strcmp(parm[0], "register_dmc")) {
 		demod_dmc_notifier();
 	} else if (!strcmp(parm[0], "tmcc")) {
@@ -1667,7 +1624,6 @@ static ssize_t attr_show(const struct class *cls,
 	len += sprintf(buf + len, "\tfrontw|topw|dvbsw|atscw|dvbcw|dvbtw [addr] [val]\n");
 	len += sprintf(buf + len, "\tfrontr|topr|dvbsr|atscr|dvbcr|dvbtr [addr]\n");
 	len += sprintf(buf + len, "\tdvbsd [addr] [len]\n");
-	len += sprintf(buf + len, "\tlnb_en [val]\n");
 	len += sprintf(buf + len, "\tlnb_sel [val]\n");
 	len += sprintf(buf + len, "\tdiseqc_reg\n");
 	len += sprintf(buf + len, "\tdiseqc_dbg [val]\n");
