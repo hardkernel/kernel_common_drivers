@@ -89,7 +89,7 @@
 					id = /bits/ 8  <AFBC3_BLOCK>;
 					index = /bits/ 8  <2>;
 					type = /bits/ 8  <1>;
-					block_name = "afbc2_block";
+					block_name = "afbc3_block";
 					num_in_links = /bits/ 8  <0x1>;
 					in_links = <0 &osd3_block>;
 					num_out_links = /bits/ 8  <0x1>;
