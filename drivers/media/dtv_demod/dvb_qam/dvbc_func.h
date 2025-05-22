@@ -467,7 +467,7 @@ enum fe_modulation amdemod_qam_fe(enum qam_md_e qam);
 int dvbc_get_power_strength(int agc_gain, int tuner_strength);
 int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts,
 		struct seq_file *seq);
-void demod_dvbc_set_qam(struct aml_dtvdemod *demod, unsigned int qam, bool auto_sr);
+void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam, bool auto_sr);
 void demod_dvbc_store_qam_cfg(struct aml_dtvdemod *demod);
 void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod);
 u32 dvbc_get_status(struct aml_dtvdemod *demod);
