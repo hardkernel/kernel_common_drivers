@@ -913,8 +913,9 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 		}
 
 		osd_pps_din_hsize[i] = mvps->plane_info[i].src_w;
-		osd_pps_dout_vsize[i] = mvps->plane_info[i].dst_h;
 		osd_pps_din_vsize[i] = mvps->plane_info[i].src_h;
+		osd_pps_dout_hsize[i] = mvps->plane_info[i].dst_w;
+		osd_pps_dout_vsize[i] = mvps->plane_info[i].dst_h;
 	}
 
 	osd_out_hsize_real = ALIGN(osd_out_hsize_raw, 8);
@@ -933,7 +934,7 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 			mvps->index == mvps->plane_info[i].crtc_index))
 			continue;
 
-		if (more_60) {
+		if (more_60 && (i == OSD1_SLICE0 || i == OSD3_SLICE1)) {
 			if (!osd_out_hsize_raw) {
 				DRM_ERROR("invalid osd_out_hsize_raw parameter\n");
 				return -EINVAL;
@@ -1032,7 +1033,7 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 		mvps->scaler_param[i].output_height = osd_pps_dout_vsize[i];
 		mvps->scaler_param[i].global = 0;
 
-		if (more_60) {
+		if (more_60 && (i == OSD1_SLICE0 || i == OSD3_SLICE1)) {
 			mvps->osd_scope_pre[i].h_start = mvps->plane_info[0].dst_x;
 			mvps->osd_scope_pre[i].h_end = mvps->plane_info[0].dst_x +
 						mvps->plane_info[0].dst_w * 2 - 1;

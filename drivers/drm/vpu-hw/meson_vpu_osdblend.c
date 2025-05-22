@@ -1120,12 +1120,29 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
 }
 
+enum osd_channel_e t3x_osd_index_to_channel(u8 osd_index, int more_60)
+{
+	if (osd_index == MESON_OSD1) {
+		if (more_60)
+			return OSD_CHANNEL1;
+		else
+			return OSD_CHANNEL2;
+	} else if (osd_index == MESON_OSD2) {
+		return OSD_CHANNEL3;
+	} else if (osd_index == MESON_OSD3) {
+		return OSD_CHANNEL4;
+	}
+
+	MESON_DRM_BLOCK("osd_index %d is invalid!\n", osd_index);
+	return OSD_CHANNEL_NUM;
+}
+
 static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 			       struct meson_vpu_block_state *state,
 				   struct meson_vpu_block_state *old_state,
 				   struct meson_vpu_sub_pipeline_state *mvps)
 {
-	int i, idx, mask = 0;
+	int i, mask = 0;
 	u32 max_height = 0, max_width = 0, osd_num = 0;
 	struct meson_vpu_osdblend_state *mvobs;
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
@@ -1137,6 +1154,8 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 	};
 	bool has_x_reverse;
 	int align_proc;
+	int osd_index, scope_index;
+	enum osd_channel_e osd_channel;
 
 	MESON_DRM_BLOCK("%s set_state called.\n", osdblend->base.name);
 	mvobs = to_osdblend_state(state);
@@ -1151,6 +1170,7 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 	for (i = 0; i < MAX_DIN_NUM; i++) {
 		memcpy(&mvobs->din_channel_scope[i], &scope_default,
 				sizeof(struct osd_scope_s));
+		mvobs->din_channel_mux[i] = OSD_CHANNEL_NUM;
 	}
 
 	if (mvps->plane_info[0].blend_bypass)
@@ -1158,53 +1178,44 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 	else
 		mvobs->din0_switch = 0;
 
-	if (mvps->more_60) {
-		mvobs->din3_switch = 0;
-		mvobs->blend1_switch = 0;
-		mvobs->din_channel_mux[0] = OSD_CHANNEL1;
-		mvobs->din_channel_mux[1] = OSD_CHANNEL_NUM;
-		mvobs->din_channel_mux[2] = OSD_CHANNEL_NUM;
-		mvobs->din_channel_mux[3] = OSD_CHANNEL_NUM;
-		mvobs->input_mask |= 1 << DIN0;
-		memcpy(&mvobs->din_channel_scope[0],
-			       &mvps->osd_scope_pre[0],
+	mvobs->din3_switch = 0;
+	mvobs->blend1_switch = 0;
+	mvobs->input_mask = 0;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (mvps->plane_info[i].enable &&
+			mvps->plane_info[i].crtc_index == state->sub->index) {
+			if (mvps->more_60 && i == MESON_OSD3)
+				continue;
+			osd_channel = t3x_osd_index_to_channel(i, mvps->more_60);
+			scope_index = osd_channel - 1;
+			memcpy(&mvobs->din_channel_scope[scope_index],
+				&mvps->osd_scope_pre[i],
 				sizeof(struct osd_scope_s));
-	} else {
-		mvobs->din3_switch = 0;
-		mvobs->blend1_switch = 0;
-		mvobs->din_channel_mux[1] = OSD_CHANNEL_NUM;
-		mvobs->din_channel_mux[2] = OSD_CHANNEL_NUM;
-
-		for (i = 0; i < MESON_MAX_OSDS; i++) {
-			if (mvps->plane_info[i].enable &&
-				mvps->plane_info[i].crtc_index == state->sub->index) {
-				osdblend_t3x_din[osd_num].zorder = mvps->plane_info[i].zorder;
-				osdblend_t3x_din[osd_num].plane_index = i;
-				osd_num++;
-			}
+			osdblend_t3x_din[osd_num].zorder = mvps->plane_info[i].zorder;
+			osdblend_t3x_din[osd_num].plane_index = i;
+			osd_num++;
 		}
-		sort_osd_by_zorder(osdblend_t3x_din, osd_num);
+	}
+	/* sort by zorder from smallest to largest */
+	sort_osd_by_zorder(osdblend_t3x_din, osd_num);
 
-		for (i = 0; i < osd_num; i++) {
-			if (mask == MAX_DIN_NUM - 1)
-				break;
-			/*set corresponding osd path index (2/3/4) for din_channel_mux*/
-			idx = osdblend_t3x_din[i].plane_index + 2;
-			mvobs->din_channel_mux[mask] = idx;
-			mvobs->input_mask |= 1 << mask;
-			idx = osdblend_t3x_din[i].plane_index + 1;
-			memcpy(&mvobs->din_channel_scope[idx],
-			&mvps->osd_scope_pre[osdblend_t3x_din[i].plane_index],
-			sizeof(struct osd_scope_s));
-			mask++;
-		}
+	for (i = 0; i < osd_num; i++) {
+		if (mask == MAX_DIN_NUM - 1)
+			break;
+		/*set corresponding osd path index (2/3/4) for din_channel_mux*/
+		osd_index = osdblend_t3x_din[i].plane_index;
+		osd_channel = t3x_osd_index_to_channel(osd_index, mvps->more_60);
+		mvobs->din_channel_mux[mask] = osd_channel;
+		mvobs->input_mask |= 1 << mask;
+		mask++;
 	}
 
 	for (i = 0; i < MAX_DIN_NUM; i++) {
-		MESON_DRM_BLOCK("%s, scope: %u, %u, %u, %u\n", __func__,
-			mvps->osd_scope_pre[i].h_start,
-			  mvps->osd_scope_pre[i].h_end, mvps->osd_scope_pre[i].v_start,
-			  mvps->osd_scope_pre[i].v_end);
+		MESON_DRM_BLOCK("%s, osd:%d, scope:%u, %u, %u, %u\n",
+			__func__, i,
+			mvps->osd_scope_pre[i].h_start, mvps->osd_scope_pre[i].h_end,
+			mvps->osd_scope_pre[i].v_start, mvps->osd_scope_pre[i].v_end);
 
 		if (max_width < mvps->osd_scope_pre[i].h_end + 1)
 			max_width = mvps->osd_scope_pre[i].h_end + 1;
