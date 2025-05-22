@@ -710,7 +710,7 @@ unsigned int earcrx_get_cs_word_length(struct regmap *dmac_map)
 		break;
 	}
 
-	pr_info("max len:%d, %slen:%d, len_mask:%#x\n",
+	pr_debug("max len:%d, %slen:%d, len_mask:%#x\n",
 		max_len,
 		((val >> 1) & 0x7) == 0 ? "(n.a.)" : "",
 		len,
