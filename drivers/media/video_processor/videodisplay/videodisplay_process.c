@@ -90,6 +90,7 @@ static u32 composer_use_444;
 static u32 reset_drop;
 static u32 drop_cnt;
 static u32 drop_cnt_pip;
+static u32 vpp_drop_cnt;
 static u32 receive_count;
 static u32 receive_count_pip;
 static u32 receive_new_count;
@@ -571,6 +572,12 @@ int get_debug_flag_val(enum videodisplay_debug_class_type debug_type)
 		break;
 	case VD_DEBUG_CLASS_DROP_COUNT:
 		ret = drop_cnt;
+		break;
+	case VD_DEBUG_CLASS_VPP_DROP_COUNT:
+		ret = vpp_drop_cnt;
+		break;
+	case VD_DEBUG_CLASS_LAST_FRAME_INDEX:
+		ret = last_frame_index;
 		break;
 	case VD_DEBUG_CLASS_DROP_COUNT_PIP:
 		ret = drop_cnt_pip;
@@ -2776,6 +2783,8 @@ static void vframe_display(struct videodisplay_dev *dev,
 		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 	vf->disp_pts = 0;
 
+	drop_cnt = vf->frame_index + 1 - dev->received_new_count;
+
 	if (is_repeat_vf) {
 		vf->repeat_count++;
 		ready_count = kfifo_len(&dev->ready_q);
@@ -2790,6 +2799,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 
 	dev->received_new_count++;
 	receive_new_count++;
+	last_frame_index = vf->frame_index;
 	/* copy to uvm vf */
 	vf_ext = vf->uvm_vf;
 	if (vf_ext) {
@@ -3598,6 +3608,9 @@ static int video_display_init(struct videodisplay_dev *dev)
 	receive_new_count = 0;
 	total_get_count = 0;
 	total_put_count = 0;
+	last_frame_index = -1;
+	drop_cnt = 0;
+	vpp_drop_cnt = 0;
 	dev->received_count = 0;
 	dev->received_new_count = 0;
 	dev->fence_creat_count = 0;
@@ -3620,7 +3633,6 @@ static int video_display_init(struct videodisplay_dev *dev)
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
 			last_index[i][j] = -1;
 	}
-	last_frame_index = -1;
 	disable_video_layer(dev, 2);
 	video_set_global_output(dev->index, 1);
 

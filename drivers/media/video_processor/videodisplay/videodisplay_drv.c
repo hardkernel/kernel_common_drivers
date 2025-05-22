@@ -668,7 +668,22 @@ static ssize_t drop_cnt_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
-	return -EINVAL;
+	int receive_count, receive_new_count, last_frame_index, drop_count, vpp_drop_count;
+
+	receive_count = get_debug_flag_val(VD_DEBUG_CLASS_RECEIVE_COUNT);
+	receive_new_count = get_debug_flag_val(VD_DEBUG_CLASS_RECEIVE_NEW_COUNT);
+	last_frame_index = get_debug_flag_val(VD_DEBUG_CLASS_LAST_FRAME_INDEX);
+	drop_count = get_debug_flag_val(VD_DEBUG_CLASS_DROP_COUNT);
+	vpp_drop_count = get_debug_flag_val(VD_DEBUG_CLASS_VPP_DROP_COUNT);
+
+	return sprintf(buf,
+		"rec_cnt: %d, frame_index: %d, valid_cnt: %d, player_drop_cnt: %d, vpp_drop_cnt: %d, total_drop_cnt: %d\n",
+		receive_count,
+		last_frame_index,
+		receive_new_count,
+		drop_count,
+		vpp_drop_count,
+		drop_count + vpp_drop_count);
 }
 
 static ssize_t drop_cnt_pip_show(const struct class *class,
