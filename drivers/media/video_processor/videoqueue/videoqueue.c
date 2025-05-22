@@ -727,7 +727,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 		vq_print(dev->inst, P_OTHER, "disp_mode =%d\n", vframe_disp_mode);
 
 	if (vframe_disp_mode == VFRAME_DISP_MODE_SKIP) {
-		vq_print(dev->inst, P_ERROR, "SKIP\n");
+		vq_print(dev->inst, P_SYNC, "SKIP\n");
 		videoqueue_drop_vf(dev);
 		return 0;
 	}
