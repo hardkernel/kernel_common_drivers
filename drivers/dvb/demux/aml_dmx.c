@@ -1170,6 +1170,18 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 			return 0;
 		}
+	} else if (format == PES_FORMAT) {
+		feed->ts_out_elem = ts_output_find_same_pes_pid(sid, pid);
+		if (feed->ts_out_elem) {
+			pr_dbg("find pes same pid elem:0x%lx\n",
+				(unsigned long)(feed->ts_out_elem));
+			ts_output_add_cb(feed->ts_out_elem,
+				out_ts_elem_cb, feed, demux->id,
+				PES_FORMAT, 0, demux->id);
+			feed->cb_id = demux->id;
+			mutex_unlock(demux->pmutex);
+			return 0;
+		}
 	}
 
 	if (!get_demux_feature(SUPPORT_ES_HEADER_NEED_AUCPU))

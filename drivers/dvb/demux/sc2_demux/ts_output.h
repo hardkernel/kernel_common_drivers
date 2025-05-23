@@ -83,6 +83,7 @@ int ts_output_set_pcr(int sid, int pcrpid, int pcr_num);
 int ts_output_get_pcr(int pcr_num, uint64_t *pcr);
 
 struct out_elem *ts_output_find_same_section_pid(int sid, int pid);
+struct out_elem *ts_output_find_same_pes_pid(int sid, int pid);
 
 /**
  * open one output pipeline

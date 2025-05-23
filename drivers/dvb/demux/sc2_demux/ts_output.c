@@ -2758,6 +2758,23 @@ struct out_elem *ts_output_find_same_section_pid(int sid, int pid)
 	return NULL;
 }
 
+struct out_elem *ts_output_find_same_pes_pid(int sid, int pid)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_OUT_ELEM_NUM; i++) {
+		struct out_elem *pout = &out_elem_table[i];
+
+		if (pout->used &&
+			pout->sid == sid &&
+			pout->format == PES_FORMAT &&
+			pout->es_pes &&
+			pout->es_pes->pid == pid)
+			return pout;
+	}
+	return NULL;
+}
+
 struct out_elem *ts_output_find_dvr(int sid, int sec_level)
 {
 	int i = 0;
@@ -3896,7 +3913,8 @@ int ts_output_dump_info(char *buf)
 			buf += r;
 			total += r;
 
-			r = sprintf(buf, "pid:0x%0x ", es_slot->pid);
+			r = sprintf(buf, "pid:0x%0x ref:%d ",
+				es_slot->pid, es_slot->pout->ref);
 			buf += r;
 			total += r;
 
