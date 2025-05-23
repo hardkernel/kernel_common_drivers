@@ -1288,9 +1288,12 @@ static int vt_recv_cmd_process(struct vt_ctrl_data *data,
 }
 
 /*
- * buffer_or_cmd indicate poll buffer or cmd, 1 is buffer and 0 is cmd
+ * vt_poll type indicate poll buffer or cmd or consumer
+ * VT_POLL_CMD: cmd
+ * VT_POLL_BUFFER: buffer
+ * VT_POLL_CONSUMER: if one instance has no conumser, return a positive number
  */
-static int vt_poll_ready(struct vt_session *session, int buffer_or_cmd)
+static int vt_poll_ready(struct vt_session *session, enum vt_poll_type_e type)
 {
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance = NULL;
@@ -1302,13 +1305,16 @@ static int vt_poll_ready(struct vt_session *session, int buffer_or_cmd)
 		instance = rb_entry(n, struct vt_instance, node);
 		mutex_lock(&instance->lock);
 		if (instance->producer && instance->producer == session) {
-			if (buffer_or_cmd == 1)
+			if (type == VT_PULL_BUFFER)
 				size += kfifo_len(&instance->fifo_to_producer);
+			if (type == VT_PULL_CONSUMER)
+				if (!instance->consumer)
+					size++;
 		} else if (instance->consumer &&
 			   instance->consumer == session) {
-			if (buffer_or_cmd == 1)
+			if (type == VT_PULL_BUFFER)
 				size += kfifo_len(&instance->fifo_to_consumer);
-			if (buffer_or_cmd == 0)
+			if (type == VT_PULL_CMD)
 				size += kfifo_len(&instance->fifo_cmd);
 		}
 		mutex_unlock(&instance->lock);
@@ -1324,7 +1330,7 @@ static int vt_poll_cmd_process(struct vt_ctrl_data *data,
 	int time_out = data->video_cmd_data;
 	int ret = 0;
 
-	if (vt_poll_ready(session, 0) > 0)
+	if (vt_poll_ready(session, VT_PULL_CMD) > 0)
 		return POLLIN | POLLRDNORM;
 
 	/* no ready cmd */
@@ -1336,7 +1342,7 @@ static int vt_poll_cmd_process(struct vt_ctrl_data *data,
 	if (ret == 0)
 		return 0;
 
-	if (vt_poll_ready(session, 0) > 0)
+	if (vt_poll_ready(session, VT_PULL_CMD) > 0)
 		return POLLIN | POLLRDNORM;
 	else
 		return -EAGAIN;
@@ -2006,12 +2012,16 @@ static __poll_t vt_poll(struct file *filp, struct poll_table_struct *wait)
 		poll_wait(filp, &session->wait_consumer, wait);
 
 	/* has cmds ready*/
-	if (vt_poll_ready(session, 0) > 0)
+	if (vt_poll_ready(session, VT_PULL_CMD) > 0)
 		ret |= POLLOUT | POLLWRNORM;
 
 	/* has buffer ready */
-	if (vt_poll_ready(session, 1) > 0)
+	if (vt_poll_ready(session, VT_PULL_BUFFER) > 0)
 		ret |= POLLIN | POLLRDNORM;
+
+	/* whether has a consumer */
+	if (vt_poll_ready(session, VT_PULL_CONSUMER) > 0)
+		ret |= POLLHUP;
 
 	if (session->mode != VT_MODE_GAME && ret != 0)
 		ret |= POLLRDBAND;

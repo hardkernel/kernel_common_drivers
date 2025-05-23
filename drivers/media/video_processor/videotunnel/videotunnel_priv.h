@@ -53,6 +53,13 @@ enum vt_mode_e {
 	VT_MODE_INVALID,
 };
 
+enum vt_poll_type_e {
+	VT_PULL_CMD,
+	VT_PULL_BUFFER,
+	VT_PULL_CONSUMER,
+	VT_PULL_INVALID,
+};
+
 union vt_ioctl_arg {
 	struct vt_alloc_id_data alloc_data;
 	struct vt_ctrl_data ctrl_data;
