@@ -349,7 +349,7 @@ void s7d_osdblend_global_alpha_set(struct meson_vpu_block *vblk,
 			  struct rdma_reg_ops *reg_ops,
 			  struct meson_vpu_sub_pipeline_state *mvps)
 {
-	u32 val, core2_val, alpha[MESON_MAX_OSDS] = {0};
+	u32 val, core2_val, alpha[MESON_MAX_OSDS] = {0}, zorder[MESON_MAX_OSDS] = {0};
 	int i, j, num_plane = 0;
 
 	val = meson_drm_read_reg(VIU_OSD_BLEND_DUMMY_ALPHA);
@@ -358,13 +358,14 @@ void s7d_osdblend_global_alpha_set(struct meson_vpu_block *vblk,
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (mvps->plane_info[i].enable) {
 			alpha[i] = mvps->plane_info[i].global_alpha >> 8;
+			zorder[i] = mvps->plane_info[i].zorder;
 			num_plane++;
 		}
 	}
 
 	for (i = 0; i < num_plane; i++) {
 		for (j = (1 + i); j < num_plane; j++) {
-			if (alpha[i] > alpha[j])
+			if (zorder[i] > zorder[j])
 				swap(alpha[i], alpha[j]);
 		}
 	}
