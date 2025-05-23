@@ -39,6 +39,7 @@
 #include <linux/debugfs.h>
 #include "mmc_key.h"
 #include "mmc_dtb.h"
+#include "mmc_common.h"
 #include <linux/proc_fs.h>
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
@@ -60,7 +61,7 @@ static void mmc_info_stat(struct meson_host *host,
 {
 	struct mmc_data *data = cmd->data;
 	int rw_mode = 0;
-	long long xfer_bytes = 0;
+	unsigned int xfer_bytes = 0;
 
 	if (data->flags & MMC_DATA_WRITE)
 		rw_mode = 1;
@@ -96,7 +97,7 @@ static inline u32 aml_mv_dly2_nocmd(u32 x)
 	return (x) | ((x) << 6) | ((x) << 12);
 }
 
-int amlogic_of_parse(struct mmc_host *host)
+static int amlogic_of_parse(struct mmc_host *host)
 {
 	struct device *dev = host->parent;
 	struct meson_host *mmc = mmc_priv(host);
@@ -156,10 +157,12 @@ int amlogic_of_parse(struct mmc_host *host)
 				&mmc->sd_mmc.hs4.tx_delay) < 0)
 		mmc->sd_mmc.hs4.tx_delay = 16;
 
-	device_property_read_u32(dev, "save_para", &mmc->save_para);
-	device_property_read_u32(dev, "compute_cmd_delay",
-				&mmc->compute_cmd_delay);
-	device_property_read_u32(dev, "compute_coef", &mmc->compute_coef);
+	if (device_property_read_u32(dev, "save_para", &mmc->save_para) < 0)
+		mmc->save_para = 0;
+	if (device_property_read_u32(dev, "compute_cmd_delay", &mmc->compute_cmd_delay) < 0)
+		mmc->compute_cmd_delay = 0;
+	if (device_property_read_u32(dev, "compute_coef", &mmc->compute_coef) < 0)
+		mmc->compute_coef = 0;
 
 	if (device_property_read_bool(dev, "mmc_debug_flag"))
 		mmc->debug_flag = 0;
@@ -275,7 +278,7 @@ static void mmc_prepare_mrq(struct mmc_card *card,
 	mmc_set_data_timeout(mrq->data, card);
 }
 
-unsigned int mmc_capacity(struct mmc_card *card)
+static unsigned int mmc_capacity(struct mmc_card *card)
 {
 	if (!mmc_card_sd(card) && mmc_card_is_blockaddr(card))
 		return card->ext_csd.sectors;
@@ -638,7 +641,9 @@ static int no_pxp_clk_set(struct meson_host *host, const struct mmc_ios *ios, un
 		break;
 	}
 
-	clk_prepare_enable(src_clk);
+	ret = clk_prepare_enable(src_clk);
+	if (ret)
+		dev_err(host->dev, "failed to enable src_clk\n");
 	writel(cfg, host->regs + SD_EMMC_CFG);
 	host->src_clk = src_clk;
 	if (host->mux_div) { // C1/C2
@@ -647,8 +652,9 @@ static int no_pxp_clk_set(struct meson_host *host, const struct mmc_ios *ios, un
 		} else {
 			ret = clk_set_parent(host->mux[0], src_clk);
 			if (!ret) {
-				clk_set_rate(host->mux_div, clk_get_rate((src_clk)));
-				ret = clk_set_parent(host->mux[2], host->mux_div);
+				ret = clk_set_rate(host->mux_div, clk_get_rate((src_clk)));
+				if (!ret)
+					ret = clk_set_parent(host->mux[2], host->mux_div);
 			}
 		}
 	} else { // other soc
@@ -681,7 +687,7 @@ static int no_pxp_clk_set(struct meson_host *host, const struct mmc_ios *ios, un
  */
 static int meson_mmc_clk_init(struct meson_host *host)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {0};
 	struct clk_divider *div;
 	char clk_name[32], name[16];
 	int i, ret = 0;
@@ -747,7 +753,6 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	clk_parent[0] = __clk_get_name(host->mux[1]);
 	init.parent_names = clk_parent;
 	init.num_parents = 1;
-	init.flags = CLK_SET_RATE_PARENT;
 
 	div->reg = host->regs + SD_EMMC_CLOCK;
 	div->shift = __ffs(CLK_DIV_MASK);
@@ -881,7 +886,7 @@ static int meson_mmc_set_adjust(struct mmc_host *mmc, u32 value)
 	return 0;
 }
 
-int meson_mmc_tuning_transfer(struct mmc_host *mmc, u32 opcode)
+static int meson_mmc_tuning_transfer(struct mmc_host *mmc, u32 opcode)
 {
 	int tuning_err = 0;
 	int n, nmatch;
@@ -1279,15 +1284,15 @@ tuning:
 	return 0;
 }
 
-void sdio_get_card(struct mmc_host *host, struct mmc_card *card)
+static void sdio_get_card(struct mmc_host *host, struct mmc_card *card)
 {
 	if (!host->card)
 		host->card = card;
 }
 
-int sdio_get_device(void)
+static int sdio_get_device(void)
 {
-	unsigned int i, device = 0;
+	unsigned int i, device = 0xfff0;
 
 	if (sdio_host && sdio_host->card)
 		device = sdio_host->card->cis.device;
@@ -2240,18 +2245,6 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc,
 	return cmd_delay;
 }
 
-ssize_t emmc_scan_cmd_win(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	struct meson_host *host = dev_get_drvdata(dev);
-	struct mmc_host *mmc = host->mmc;
-
-	mmc_claim_host(mmc);
-	scan_emmc_cmd_win(mmc, 1, NULL);
-	mmc_release_host(mmc);
-	return sprintf(buf, "%s\n", "Emmc scan command window.\n");
-}
-
 static void update_all_line_eyetest(struct mmc_host *mmc)
 {
 	int line_x;
@@ -2263,7 +2256,7 @@ static void update_all_line_eyetest(struct mmc_host *mmc)
 	}
 }
 
-int emmc_clktest(struct mmc_host *mmc)
+static int emmc_clktest(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
 	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
@@ -2513,7 +2506,7 @@ static long long _para_checksum_calc(struct aml_tuning_para *para)
  * read tuning para from reserved partition
  * and copy it to pdata->para
  */
-int aml_read_tuning_para(struct mmc_host *mmc)
+static int aml_read_tuning_para(struct mmc_host *mmc)
 {
 	int off, blk;
 	int ret;
@@ -3544,7 +3537,7 @@ static void scan_emmc_tx_win(struct mmc_host *mmc)
 	emmc_show_cmd_window(str, repeat_times);
 }
 
-void emmc_eyetestlog(struct mmc_host *mmc)
+static void emmc_eyetestlog(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
 	u32 dly, dly1_bak, dly2_bak;
@@ -3782,7 +3775,7 @@ static ssize_t get_bootloader_offset(const struct class *class,
 static struct class_attribute bootloader_offset =
 __ATTR(bl_off_bytes, 0444, get_bootloader_offset, NULL);
 
-int add_emmc_attr(void)
+static int add_emmc_attr(void)
 {
 	int ret = 0;
 	struct class *aml_store_class = NULL;
@@ -3814,7 +3807,7 @@ out:
 	return ret;
 }
 
-void add_dtbkey(struct work_struct *work)
+static void add_dtbkey(struct work_struct *work)
 {
 	int ret;
 	struct meson_host *host =
@@ -3840,7 +3833,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	struct meson_host *host;
 	struct mmc_host *mmc;
 	int ret;
-	u32 val, cali_blk_cnt;
+	u32 cali_blk_cnt;
 
 	mmc = mmc_alloc_host(sizeof(struct meson_host), &pdev->dev);
 	if (!mmc)
@@ -3913,13 +3906,6 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(host->clk_tree_base);
 		goto free_host;
 	}
-
-	val = readl(host->clk_tree_base);
-	if (aml_card_type_non_sdio(host))
-		val &= EMMC_SDIO_CLOCK_FELD;
-	else
-		val &= ~EMMC_SDIO_CLOCK_FELD;
-	writel(val, host->clk_tree_base);
 
 	host->res[2] = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	host->pin_mux_base = ioremap(host->res[2]->start, resource_size(host->res[2]));

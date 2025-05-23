@@ -39,6 +39,7 @@
 
 #include <linux/amlogic/aml_sd.h>
 #include "mmc_common.h"
+#include "mmc_dtb.h"
 
 static dev_t amlmmc_dtb_no;
 struct cdev amlmmc_dtb;
@@ -87,7 +88,7 @@ struct aml_dtb_rsv {
 
 static CLASS_ATTR_STRING(emmcdtb, 0644, NULL);
 
-int mmc_dtb_open(struct inode *node, struct file *file)
+static int mmc_dtb_open(struct inode *node, struct file *file)
 {
 	return 0;
 }
@@ -230,7 +231,7 @@ static int _dtb_init(struct mmc_card *mmc)
 	return ret;
 }
 
-int amlmmc_dtb_write(struct mmc_card *mmc, unsigned char *buf, int len)
+static int amlmmc_dtb_write(struct mmc_card *mmc, unsigned char *buf, int len)
 {
 	int ret = 0, blk;
 	int bit = mmc->csd.read_blkbits;
@@ -279,7 +280,7 @@ int amlmmc_dtb_write(struct mmc_card *mmc, unsigned char *buf, int len)
 	return ret;
 }
 
-int amlmmc_dtb_read(struct mmc_card *card, unsigned char *buf, int len)
+static int amlmmc_dtb_read(struct mmc_card *card, unsigned char *buf, int len)
 {
 	int ret = 0, start_blk, blk_cnt;
 	int bit = card->csd.read_blkbits;
@@ -321,7 +322,7 @@ int amlmmc_dtb_read(struct mmc_card *card, unsigned char *buf, int len)
 	return ret;
 }
 
-ssize_t mmc_dtb_read(struct file *file, char __user *buf,
+static ssize_t mmc_dtb_read(struct file *file, char __user *buf,
 		     size_t count, loff_t *ppos)
 {
 	unsigned char *dtb_ptr = NULL;
@@ -368,7 +369,7 @@ exit:
 	return read_size;
 }
 
-ssize_t mmc_dtb_write(struct file *file,
+static ssize_t mmc_dtb_write(struct file *file,
 			const char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned char *dtb_ptr = NULL;
@@ -417,7 +418,7 @@ exit:
 	return write_size;
 }
 
-long mmc_dtb_ioctl(struct file *file, unsigned int cmd, unsigned long args)
+static long mmc_dtb_ioctl(struct file *file, unsigned int cmd, unsigned long args)
 {
 	return 0;
 }

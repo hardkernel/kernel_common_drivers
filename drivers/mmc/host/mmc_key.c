@@ -176,7 +176,7 @@ static int update_key_info(struct mmc_card *mmc, unsigned char *addr)
 	return valid_flag;
 }
 
-int32_t emmc_write_one_key(void *buffer, int valid_flag)
+static int32_t emmc_write_one_key(void *buffer, int valid_flag)
 {
 	int ret;
 	u64 blk, cnt, key_glb_offset;
@@ -224,7 +224,7 @@ exit_err:
 		return ret;
 }
 
-int32_t emmc_read_valid_key(void *buffer, int valid_flag)
+static int32_t emmc_read_valid_key(void *buffer, int valid_flag)
 {
 	int ret;
 	u64  addr = 0;
@@ -236,12 +236,8 @@ int32_t emmc_read_valid_key(void *buffer, int valid_flag)
 
 	size = EMMC_KEYAREA_SIZE;
 
-	/*
-	 * The lib functions don't need to be modified.
-	 */
-	/* coverity[overflow_before_widen:SUPPRESS] */
 	addr = get_reserve_partition_off_from_tbl() + EMMCKEY_RESERVE_OFFSET
-			+ (valid_flag - 1) * EMMC_KEYAREA_SIZE;
+			+ (u64)(valid_flag - 1) * EMMC_KEYAREA_SIZE;
 	blk = addr >> bit;
 	cnt = size >> bit;
 	dst = (unsigned char *)buffer;
@@ -351,7 +347,7 @@ static int write_invalid_key(void *addr, int valid_flag)
 	return ret;
 }
 
-int update_old_key(struct mmc_card *mmc, void *addr)
+static int update_old_key(struct mmc_card *mmc, void *addr)
 {
 	int ret = 0;
 	int valid_flag;
