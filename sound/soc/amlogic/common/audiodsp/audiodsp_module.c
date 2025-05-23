@@ -27,7 +27,7 @@
 #include <linux/amlogic/media/frame_sync/ptsserv.h>
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
-
+#include "sound_init.h"
 unsigned int dsp_debug_flag = 1;
 
 MODULE_DESCRIPTION("AMLOGIC APOLLO Audio dsp driver");
@@ -459,7 +459,7 @@ static struct class audiodsp_class = {
 //	.class_attrs	= audiodsp_attrs,
 };
 
-int audiodsp_probe(void)
+static int audiodsp_probe(void)
 {
 	int res = 0;
 	struct audiodsp_priv *priv;

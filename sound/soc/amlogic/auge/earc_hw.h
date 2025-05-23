@@ -243,6 +243,7 @@ struct earc_chipinfo {
 	bool rx_enable;
 	bool tx_enable;
 	bool rx_pll_new;
+	bool tx_pll_new;
 	int arc_version;
 	u8 idr_trim_val;
 	u8 dmac_slew_con;
@@ -305,7 +306,8 @@ void earctx_dmac_init(struct regmap *top_map,
 		      int earc_spdifout_lane_mask,
 		      unsigned int chmask,
 		      unsigned int swap_masks,
-		      bool mute);
+		      bool mute,
+		      int ch_num);
 void earctx_dmac_set_format(struct regmap *dmac_map,
 			    int frddr_idx, int msb, int frddr_type);
 int earctx_get_cs_iec958(struct regmap *dmac_map);
@@ -360,5 +362,10 @@ void earctx_dmac_force_mode(struct regmap *dmac_map, bool enable);
 int earcrx_get_sample_rate(struct regmap *dmac_map);
 void earcrx_err_correction_force_mode(struct regmap *dmac_map, bool enable);
 void earcrx_efuse_trim_set(struct regmap *rx_top_map);
+void earc_tx_clk_ana_sel(int is_enable);
+void new_searctx_hifi1_auto_cal(struct regmap *top_map, int clk_div, int reample_mode_hifi1);
+void new_searctx_hifi1_control(struct regmap *top_map, int enable);
+void earc_mixer_source_enable(struct regmap *dmac_map, int enable);
+void earc_mixer_fifo_rst(struct regmap *dmac_map);
 
 #endif

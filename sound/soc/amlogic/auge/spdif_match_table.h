@@ -48,7 +48,7 @@ struct spdif_chipinfo {
 	bool only_capture;
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 struct spdif_chipinfo axg_spdif_chipinfo = {
 	.id               = SPDIF_A,
 	.irq_no_papb      = true,
@@ -197,7 +197,7 @@ struct spdif_chipinfo tm2_revb_spdif_b_chipinfo = {
 	.gain_ver = GAIN_VER3,
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 struct spdif_chipinfo a5_spdif_a_chipinfo = {
 	.id           = SPDIF_A,
 	.chnum_en     = true,
@@ -226,7 +226,7 @@ struct spdif_chipinfo a1_spdif_in_chipinfo = {
 #endif
 
 static const struct of_device_id aml_spdif_device_id[] = {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, g12a-snd-spdif-a",
 		.data       = &g12a_spdif_a_chipinfo,
@@ -270,7 +270,7 @@ static const struct of_device_id aml_spdif_device_id[] = {
 		.compatible = "amlogic, tm2-revb-snd-spdif-b",
 		.data		= &tm2_revb_spdif_b_chipinfo,
 	},
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, a5-snd-spdif-a",
 		.data		= &a5_spdif_a_chipinfo,

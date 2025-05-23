@@ -280,7 +280,7 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type)
 	return is_4x;
 }
 
-bool raw_is_hbr_audio(enum aud_codec_types codec_type)
+static bool raw_is_hbr_audio(enum aud_codec_types codec_type)
 {
 	if (codec_type == AUD_CODEC_TYPE_TRUEHD ||
 	    codec_type == AUD_CODEC_TYPE_DTS_HD_MA)

@@ -37,7 +37,8 @@
 #include "misc.h"
 #include "debug.h"
 #include "iec_info.h"
-
+#include "extn.h"
+#include "sound_init.h"
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
@@ -455,7 +456,7 @@ const struct soc_enum arc_src_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(arc_src_texts),
 	arc_src_texts);
 
-int arc_source_get_enum(struct snd_kcontrol *kcontrol,
+static int arc_source_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
@@ -465,7 +466,7 @@ int arc_source_get_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int arc_source_set_enum(struct snd_kcontrol *kcontrol,
+static int arc_source_set_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
@@ -1182,7 +1183,8 @@ struct extn_chipinfo t5m_extn_chipinfo = {
 	.PAO_channel_sync = false,
 	.frhdmirx_version = T7_FRHDMIRX,
 };
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 struct extn_chipinfo txhd2_extn_chipinfo = {
 	.arc_version	= TXHD2_ARC,
 	.PAO_channel_sync = false,
@@ -1218,7 +1220,7 @@ static const struct of_device_id extn_device_id[] = {
 		.compatible = "amlogic, t5m-snd-extn",
 		.data       = &t5m_extn_chipinfo,
 	},
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, txhd2-snd-extn",
 		.data       = &txhd2_extn_chipinfo,

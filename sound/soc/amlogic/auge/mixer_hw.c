@@ -2,13 +2,17 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
+#include<linux/delay.h>
 #include "mixer_hw.h"
+#include "earc.h"
 
-int mixer_format_set(int channel, int sample_bit, int fddr_type)
+static int mixer_en_ref_cnt;
+
+int mixer_format_set(int channel, int sample_bit, int fddr_type, int mixer_lane)
 {
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x7 << 20, fddr_type << 20);
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0xf << 16, channel << 16);
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x7 << 24, mixer_lane << 24);
 
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL2, 0x1f << 24, 0x1 << 24);
 
@@ -26,6 +30,8 @@ EXPORT_SYMBOL_GPL(mixer_format_set);
 
 int mixer_fifo_reset(void)
 {
+	if (mixer_en_ref_cnt > 0)
+		return 0;
 	audiobus_update_bits(EE_AUDIO_SW_RESET1, 0x1 << 19, 0x1 << 19);
 	audiobus_update_bits(EE_AUDIO_SW_RESET1, 0x1 << 19, 0x1 << 0);
 
@@ -96,7 +102,7 @@ int mixer_demux_sel(enum frddr_dest dst, int enable)
 			reg = EE_AUDIO_TDMOUT_A_CTRL1 + offset * index;
 		}
 		audiobus_update_bits(reg, 0x1 << 1, enable << 1);
-	} else {
+	} else if (dst >= SPDIFOUT_A && dst <= SPDIFOUT_B) {
 		if (dst == SPDIFOUT_A)
 			index = 0;
 		else if (dst == SPDIFOUT_B)
@@ -104,6 +110,10 @@ int mixer_demux_sel(enum frddr_dest dst, int enable)
 		offset = EE_AUDIO_SPDIFOUT_B_CTRL1 - EE_AUDIO_SPDIFOUT_CTRL1;
 		reg = EE_AUDIO_SPDIFOUT_CTRL1 + offset * index;
 		audiobus_update_bits(reg, 0x1 << 1, enable << 1);
+	} else if (dst == EARCTX_DMAC) {
+		earc_mixer_enable(enable);
+		if (enable)
+			earc_fifo_reset();
 	}
 	return 0;
 }
@@ -157,15 +167,67 @@ EXPORT_SYMBOL_GPL(mixer_mic_coef_set);
 
 int mixer_en(int enable)
 {
-	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 31, enable << 31);
+	if (enable > 0)
+		mixer_en_ref_cnt++;
+	else
+		mixer_en_ref_cnt--;
+	if (mixer_en_ref_cnt < 0)
+		mixer_en_ref_cnt = 0;
+	if (mixer_en_ref_cnt > 0)
+		audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 31, 1 << 31);
+	else
+		audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 31, 0 << 31);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mixer_en);
 
 int mixer_clip_top_en(int enable)
 {
+	unsigned int status = 0, cnt = 0;
+
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T6D) {
+		if (enable) {
+			while (1) {
+				status = audiobus_read(EE_AUDIO_MIXER_STATUS1);
+				if (status & (1 << 28))
+					break;
+				usleep_range(20, 25);
+				cnt++;
+				if (cnt > 20) {
+					pr_err("mic fddr no init done!\n");
+					break;
+				}
+			}
+		}
+		audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 9, 1 << 9);
+	}
 	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 30, enable << 30);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mixer_clip_top_en);
 
+int background_mixer_en(int enable)
+{
+	unsigned int status = 0, cnt = 0;
+
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T6D)
+		return 0;
+	if (enable) {
+		while (1) {
+			status = audiobus_read(EE_AUDIO_MIXER_STATUS1);
+			if (status & (1 << 27))
+				break;
+			usleep_range(20, 25);
+			cnt++;
+			if (cnt > 20) {
+				pr_err("background fddr no init done!\n");
+				break;
+			}
+		}
+	}
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 9, 0 << 9);
+	audiobus_update_bits(EE_AUDIO_MIXER_CTRL0, 0x1 << 23, enable << 23);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(background_mixer_en);

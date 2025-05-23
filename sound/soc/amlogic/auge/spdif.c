@@ -44,6 +44,7 @@
 #include "card.h"
 #include "audio_controller.h"
 #include "audio_uevent.h"
+#include "sound_init.h"
 
 #define DRV_NAME "snd_spdif"
 
@@ -518,8 +519,9 @@ static int spdifin_audio_type_get_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t state)
+static int aml_spdif_platform_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
 	struct pinctrl_state *pstate = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
@@ -556,8 +558,9 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 	return 0;
 }
 
-static int aml_spdif_platform_resume(struct platform_device *pdev)
+static int aml_spdif_platform_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
 	struct pinctrl_state *state = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
@@ -749,7 +752,7 @@ const struct soc_enum spdifin_src_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdifin_src_texts),
 	spdifin_src_texts);
 
-int spdifin_source_get_enum(struct snd_kcontrol *kcontrol,
+static int spdifin_source_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -760,7 +763,7 @@ int spdifin_source_get_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int spdifin_source_set_enum(struct snd_kcontrol *kcontrol,
+static int spdifin_source_set_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -1494,7 +1497,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 
 		msb = 28 - 1;
 		lsb = (bit_depth <= 24) ? 28 - bit_depth : 4;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (get_resample_version() >= T5_RESAMPLE &&
 		    (get_resample_source(RESAMPLE_A) == SPDIFIN ||
 			get_resample_source(RESAMPLE_C) == SPDIFIN)) {
@@ -2280,12 +2283,9 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_HIBERNATION
 static int aml_spdif_platform_restore(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-
-	aml_spdif_platform_resume(pdev);
+	aml_spdif_platform_resume(dev);
 	return 0;
 }
 
@@ -2337,20 +2337,17 @@ static int aml_spdif_platform_freeze(struct device *dev)
 static const struct dev_pm_ops meson_spdif_pm_ops = {
 	.restore = aml_spdif_platform_restore,
 	.freeze = aml_spdif_platform_freeze,
+	.suspend = aml_spdif_platform_suspend,
+	.resume  = aml_spdif_platform_resume,
 };
-#endif
 
 struct platform_driver aml_spdif_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = aml_spdif_device_id,
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_spdif_pm_ops,
-#endif
 	},
 	.probe = aml_spdif_platform_probe,
-	.suspend = aml_spdif_platform_suspend,
-	.resume  = aml_spdif_platform_resume,
 	.shutdown = aml_spdif_platform_shutdown,
 };
 

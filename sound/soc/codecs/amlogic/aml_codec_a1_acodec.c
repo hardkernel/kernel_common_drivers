@@ -667,6 +667,29 @@ static void aml_a1_acodec_shutdown(struct platform_device *pdev)
 		a1_acodec_remove(component);
 }
 
+static int aml_a1_acodec_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct a1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+
+	schedule_work(&aml_acodec->work);
+	return 0;
+}
+
+static int aml_a1_acodec_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct a1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+
+	cancel_work_sync(&aml_acodec->work);
+	return 0;
+}
+
+static const struct dev_pm_ops meson_a1_acodec_pm_ops = {
+	.restore = aml_a1_acodec_restore,
+	.freeze = aml_a1_acodec_freeze,
+};
+
 static const struct of_device_id aml_a1_acodec_dt_match[] = {
 	{
 		.compatible = "amlogic, a1_acodec",
@@ -684,6 +707,7 @@ static struct platform_driver aml_a1_acodec_platform_driver = {
 		.name = "a1_acodec",
 		.owner = THIS_MODULE,
 		.of_match_table = aml_a1_acodec_dt_match,
+		.pm = &meson_a1_acodec_pm_ops,
 	},
 	.probe = aml_a1_acodec_probe,
 	.remove = aml_a1_acodec_remove,

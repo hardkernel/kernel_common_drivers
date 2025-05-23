@@ -683,11 +683,41 @@ static const struct of_device_id aml_T9015_codec_dt_match[] = {
 	{}
 };
 
+static int aml_T9015_acodec_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_T9015_audio_priv *aml_acodec = platform_get_drvdata(pdev);
+	struct snd_soc_component *component = aml_acodec->component;
+
+	aml_T9015_audio_resume(component);
+	pr_info("%s!\n", __func__);
+
+	return 0;
+}
+
+static int aml_T9015_acodec_platform_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_T9015_audio_priv *aml_acodec = platform_get_drvdata(pdev);
+	struct snd_soc_component *component = aml_acodec->component;
+
+	aml_T9015_audio_suspend(component);
+	pr_info("%s!\n", __func__);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_T9015_pm_ops = {
+	.restore = aml_T9015_acodec_platform_restore,
+	.freeze = aml_T9015_acodec_platform_freeze,
+};
+
 static struct platform_driver aml_T9015_codec_platform_driver = {
 	.driver  = {
 		.name           = "aml_codec_T9015",
 		.owner          = THIS_MODULE,
 		.of_match_table = aml_T9015_codec_dt_match,
+		.pm = &meson_T9015_pm_ops,
 	},
 	.probe    = aml_T9015_audio_codec_probe,
 	.shutdown = aml_T9015_audio_codec_shutdown,

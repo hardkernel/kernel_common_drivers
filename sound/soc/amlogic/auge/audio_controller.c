@@ -27,7 +27,7 @@
 #include "audio_aed_reg_list.h"
 #include "audio_top_reg_list.h"
 #include "audio_controller.h"
-
+#include "sound_init.h"
 #define DRV_NAME "aml-audio-controller"
 
 unsigned int chip_id;

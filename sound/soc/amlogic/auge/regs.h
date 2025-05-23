@@ -735,6 +735,7 @@ struct register_table {
 #define EE_AUDIO_TOHDMITX_CTRL0            0x1d1
 #define EE_AUDIO_TOVAD_CTRL0               0x1d2
 #define EE_AUDIO_FRATV_CTRL0               0x1d3
+#define EE_AUDIO_TOACODEC_CTRL1            0x1d4
 
 #define EE_AUDIO_SPDIFIN_LB_CTRL0          0x1f0
 #define EE_AUDIO_SPDIFIN_LB_CTRL1          0x1f1

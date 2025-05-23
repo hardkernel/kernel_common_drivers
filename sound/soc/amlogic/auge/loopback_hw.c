@@ -104,10 +104,13 @@ void tdminlb_set_lanemask_and_chswap(int swap, int lane_mask, unsigned int mask)
 	/* channel swap */
 	audiobus_write(EE_AUDIO_TDMIN_LB_SWAP0, swap);
 
+	/*need clear the lane mask before set*/
 	/* lane mask */
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++) {
+		tdminlb_set_lane_mask(i, 0x0);
 		if ((1 << i) & lane_mask)
 			tdminlb_set_lane_mask(i, mask);
+	}
 }
 
 void tdminlb_set_src(int src)

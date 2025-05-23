@@ -29,7 +29,7 @@
 #include "pdm.h"
 #include "tdm.h"
 #include "audio_controller.h"
-
+#include "sound_init.h"
 #define DRV_NAME "loopback"
 
 //#define DEBUG
@@ -161,6 +161,7 @@ struct loopback {
 	int tdmlb_mclk_sel;
 	int data_lb_rate;
 	int asrc_sel;
+	int data_in_rate;
 };
 
 static struct loopback *loopback_priv[2];
@@ -595,7 +596,8 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 				(unsigned int)get_resample_enable(RESAMPLE_B);
 		else
 			datalb_cfg.resample_enable = 0;
-
+		if (p_loopback->data_in_rate == 48000)
+			datalb_cfg.resample_enable = 0;
 		lb_set_datalb_cfg(p_loopback->id,
 			&datalb_cfg,
 			p_loopback->chipinfo->multi_bits_lbsrcs,
@@ -760,6 +762,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 			return -EINVAL;
 		}
 	}
+	p_loopback->data_in_rate = runtime->rate;
 	/* config for loopback, datain, datalb */
 	loopback_set_ctrl(p_loopback, bit_depth);
 
@@ -1086,7 +1089,7 @@ static int loopback_dai_hw_params(struct snd_pcm_substream *ss,
 	return ret;
 }
 
-int loopback_dai_hw_free(struct snd_pcm_substream *ss,
+static int loopback_dai_hw_free(struct snd_pcm_substream *ss,
 	struct snd_soc_dai *dai)
 {
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);

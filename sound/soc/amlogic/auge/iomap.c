@@ -17,6 +17,7 @@
 
 #include "regs.h"
 #include "iomap.h"
+#include "sound_init.h"
 
 #define DEV_NAME	"auge_snd_iomap"
 

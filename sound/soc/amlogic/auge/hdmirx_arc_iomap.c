@@ -13,9 +13,9 @@
 #include <linux/regmap.h>
 
 #include "iomapres.h"
-
+#include "sound_init.h"
 #include "regs.h"
-
+#include "hdmirx_arc_iomap.h"
 #define DEV_NAME	"hdmirx_arc_iomap"
 
 struct regmap *hdmirx_arc_map;

@@ -24,6 +24,11 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/regulator/consumer.h>
+#include <linux/clk-provider.h>
+#include <linux/clk.h>
+#include <linux/of_address.h>
+
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
 
@@ -78,7 +83,7 @@ static const struct reg_default tl1_acodec_init_list[] = {
 	{ACODEC_5, 0xFBFB0033},
 	{ACODEC_6, 0x0},
 	{ACODEC_7, 0x0},
-	{ACODEC_8, 0x0}
+	{ACODEC_8, 0x3}
 };
 
 static struct tl1_acodec_chipinfo tl1_acodec_cinfo = {
@@ -487,7 +492,7 @@ static SOC_ENUM_SINGLE_DECL(out_lo2r_enum, ACODEC_3,
 static const struct snd_kcontrol_new lo2r_mux =
 SOC_DAPM_ENUM("LO2R_MUX", out_lo2r_enum);
 
-static const struct snd_soc_dapm_widget tl1_acodec_dapm_widgets[] = {
+static const __maybe_unused struct snd_soc_dapm_widget tl1_acodec_dapm_widgets[] = {
 	/* Input */
 	SND_SOC_DAPM_INPUT("Linein left 1"),
 	SND_SOC_DAPM_INPUT("Linein left 2"),
@@ -567,7 +572,7 @@ static const struct snd_soc_dapm_widget tl1_acodec_dapm_widgets[] = {
 
 };
 
-static const struct snd_soc_dapm_route tl1_acodec_dapm_routes[] = {
+static const __maybe_unused struct snd_soc_dapm_route tl1_acodec_dapm_routes[] = {
 /* Input path */
 	{"Linein left switch", "AIL1", "Linein left 1"},
 	{"Linein left switch", "AIL2", "Linein left 2"},
@@ -678,6 +683,7 @@ static int tl1_acodec_dai_set_bias_level
 		if (component->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			snd_soc_component_cache_sync(component);
 			snd_soc_component_write(component, ACODEC_0, tl1_acodec_init_list[0].def);
+			snd_soc_component_write(component, ACODEC_8, tl1_acodec_init_list[8].def);
 		}
 		break;
 
@@ -933,13 +939,13 @@ static const struct snd_soc_component_driver soc_codec_dev_tl1_acodec = {
 	.remove = tl1_acodec_remove,
 	.suspend = tl1_acodec_suspend,
 	.resume = tl1_acodec_resume,
-	.set_bias_level = tl1_acodec_dai_set_bias_level,
+//	.set_bias_level = tl1_acodec_dai_set_bias_level,
 	.controls = tl1_acodec_snd_controls,
 	.num_controls = ARRAY_SIZE(tl1_acodec_snd_controls),
-	.dapm_widgets = tl1_acodec_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tl1_acodec_dapm_widgets),
-	.dapm_routes = tl1_acodec_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(tl1_acodec_dapm_routes),
+//	.dapm_widgets = tl1_acodec_dapm_widgets,
+//	.num_dapm_widgets = ARRAY_SIZE(tl1_acodec_dapm_widgets),
+//	.dapm_routes = tl1_acodec_dapm_routes,
+//	.num_dapm_routes = ARRAY_SIZE(tl1_acodec_dapm_routes),
 };
 
 static const struct regmap_config tl1_acodec_regmap_config = {
@@ -1203,14 +1209,13 @@ static void aml_tl1_acodec_remove(struct platform_device *pdev)
 
 static void aml_tl1_acodec_shutdown(struct platform_device *pdev)
 {
-	struct tl1_acodec_priv *aml_acodec;
-	struct snd_soc_component *component;
+	struct tl1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+	struct snd_soc_component *component = aml_acodec->component;
 
-	aml_acodec = platform_get_drvdata(pdev);
-	component = aml_acodec->component;
-
-	if (!IS_ERR(aml_acodec->acodec_clk))
-		clk_disable_unprepare(aml_acodec->acodec_clk);
+	if (!IS_ERR(aml_acodec->acodec_clk)) {
+		if (__clk_is_enabled(aml_acodec->acodec_clk))
+			clk_disable_unprepare(aml_acodec->acodec_clk);
+	}
 
 	if (component)
 		tl1_acodec_dai_set_bias_level(component, SND_SOC_BIAS_OFF);
@@ -1236,11 +1241,40 @@ static const struct of_device_id aml_tl1_acodec_dt_match[] = {
 	{},
 };
 
+static int aml_acodec_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct tl1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+
+	if (!IS_ERR(aml_acodec->acodec_clk))
+		clk_prepare_enable(aml_acodec->acodec_clk);
+	else
+		dev_err(&pdev->dev, "Can't retrieve acodec clock\n");
+	schedule_work(&aml_acodec->work);
+
+	return 0;
+}
+
+static int aml_acodec_platform_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct tl1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+
+	cancel_work_sync(&aml_acodec->work);
+	return 0;
+}
+
+static const struct dev_pm_ops meson_acodec_pm_ops = {
+	.restore = aml_acodec_platform_restore,
+	.freeze = aml_acodec_platform_freeze,
+};
+
 static struct platform_driver aml_tl1_acodec_platform_driver = {
 	.driver = {
-		   .name = "tl1_acodec",
-		   .owner = THIS_MODULE,
-		   .of_match_table = aml_tl1_acodec_dt_match,
+			.name = "tl1_acodec",
+			.owner = THIS_MODULE,
+			.of_match_table = aml_tl1_acodec_dt_match,
+			.pm = &meson_acodec_pm_ops,
 		   },
 	.probe = aml_tl1_acodec_probe,
 	.remove = aml_tl1_acodec_remove,

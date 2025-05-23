@@ -480,7 +480,7 @@ unsigned int earcrx_get_cs_iec958(struct regmap *dmac_map, int offset)
 	return earcrx_get_cs_bits(dmac_map, offset * 32, 0xffffffff);
 }
 
-unsigned int earcrx_get_cs_layout(struct regmap *dmac_map)
+static unsigned int earcrx_get_cs_layout(struct regmap *dmac_map)
 {
 	return earcrx_get_cs_bits(dmac_map,
 			IEC_CS_AUDIO_LAYOUT_OFFSET,
@@ -945,6 +945,71 @@ void earctx_cmdc_init(struct regmap *top_map, bool en, struct earc_chipinfo *chi
 			   0x10 << 0     /* earctx_cmdctx_ack_reftrim */
 			  );
 	}
+	if (chipinfo->tx_pll_new) {
+		mmio_update_bits(top_map,
+				EARCTX_ANA_CTRL1,
+				0x1 << 23  |  /* earctx_rterm_tst */
+				0x2 << 21  |  /* earctx_bg_start_r */
+				0x1 << 20  |  /* earctx_bg_en_hard */
+				0x1 << 19  |  /* earctx_bg_en */
+				0x1 << 16  |  /* earctx_reg */
+				0x1 << 13  |  /* earctx_arctx_comsel */
+				//0x1 << 11 |
+				//0x1 << 10 |
+				0x1 << 11 |  /* earctx_arctx_selc */
+				0x1 << 10  |  /* earctx_arctx_seli */
+				0x1 << 9   |  /* earctx_cmdcrx_dat_invsel */
+				0x1f << 4  |  /* earctx_cmdcrx_reftrim */
+				0xf << 0,  /* earctx_cmdcrx_sqcon */
+				0 << 23 |
+				0x2 << 21  |
+				0x0 << 20  |
+				0x1 << 19  |
+				0 << 16    |
+				0x0 << 13  |
+				//0x1 << 11 |
+				//0x0 << 10  |
+				0x0 << 11  |
+				0x1 << 10  |
+				0x0 << 9   |
+				0x10 << 4  |
+				0x8 << 0);
+		mmio_update_bits(top_map,
+			   EARCTX_ANA_CTRL0,
+			   0x1 << 31   |  /* earctx_en_d2a */
+			   0x1 << 30   |  /* earctx_cmdcrx_vrefon_sel */
+			   0x1 << 28  |  /* earctx_cmdcrx_rcfilter_sel */
+			   0x7 << 24  |  /* earctx_cmdcrx_hystrim */
+			   0x1F << 19 |  /* earctx_idr_trim */
+			   0x1 << 18  |  /* earctx_arctx_sinout_seln */
+			   0x1 << 17  |  /* earctx_rterm_on */
+			   0x1F << 12 |  /* earctx_rterm_trim */
+			   0x7 << 8   |  /* earctx_dmac_slew_con */
+			   0x7 << 5   |  /* earctx_cmdctx_ack_hystrim */
+			   0x1F << 0,  /* earctx_cmdctx_ack_reftrim */
+			   en << 31   |
+			   0x1 << 30   |
+			   0x1 << 28  |
+			   0x4 << 24  |
+			   0x10 << 19 |
+			   0x0 << 18  |
+			   0x1 << 17  |
+			   0x10 << 12 |
+			   0x4 << 8	|
+			   0x4 << 5   |
+			   0x10 << 0);
+		mmio_update_bits(top_map,
+			   EARCTX_ANA_CTRL2,
+			   0x1 << 3 |  /* earctx_resampl_mode_sel */
+			   0x1 << 2 |  /* earctx_resamp_resetn_d2a */
+			   0x1 << 1 |  /* earctx_resamp_clk_en_d2a */
+			   0x1 << 0,  /* earctx_ldo_en_d2a */
+			   0x0 << 3 |  /* for hifi0 */
+			   //0x1 << 3 | /* for hifi1 */
+			   0x1 << 2    |
+			   0x1 << 1  |
+			   0x1 << 0);
+	}
 }
 
 void earctx_cmdc_set_timeout(struct regmap *cmdc_map, int no_timeout)
@@ -1067,7 +1132,8 @@ void earctx_dmac_init(struct regmap *top_map,
 		      int earc_spdifout_lane_mask,
 		      unsigned int chmask,
 		      unsigned int swap_masks,
-		      bool mute)
+		      bool mute,
+		      int ch_num)
 {
 	unsigned int lswap_masks, rswap_masks;
 
@@ -1126,6 +1192,13 @@ void earctx_dmac_init(struct regmap *top_map,
 		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
 				 0x1 << 15 | 0x7 << 8,
 				 0x0 << 15 | rswap_masks << 8);
+
+	/* use for channel sync init with t6w */
+	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1,
+			0x1 << 18 |
+			0xff << 8,
+			1 << 18 |
+			ch_num << 8);
 
 	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL4,
 			 0xf << 17,
@@ -1552,7 +1625,7 @@ void earctx_enable(struct regmap *top_map,
 		/* first biphase work clear, and then start
 		 * only for earc
 		 */
-		if (type == ATNDTYP_EARC) {
+		if (type == ATNDTYP_EARC && !chipinfo->tx_pll_new) {
 			mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 					 0x1 << 30,
 					 0x1 << 30);
@@ -1588,6 +1661,8 @@ void earctx_enable(struct regmap *top_map,
 				 type,
 				 coding_type,
 				 enable);
+	/* earc tx new ip with channel sync function */
+	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1, 0x1 << 16, !enable << 16);
 }
 
 static void earcrx_cmdc_get_reg(struct regmap *cmdc_map, int dev_id, int offset,
@@ -2158,4 +2233,63 @@ void earcrx_efuse_trim_set(struct regmap *rx_top_map)
 		val  << 20 |
 		val  << 15 |
 		val  << 7);
+}
+
+void earc_tx_clk_ana_sel(int is_enable)
+{
+	audiobus_update_bits(EE_AUDIO_EARCTX_DMAC_CLK_CTRL,
+				0x1 << 16, is_enable << 16);
+}
+
+void new_searctx_hifi1_auto_cal(struct regmap *top_map, int clk_div, int reample_mode_hifi1)
+{
+	mmio_update_bits(top_map,
+				EARCTX_ANA_CTRL2,
+				0x3ff << 16 |
+				0x1 << 3,
+				(clk_div - 1) << 16 |
+				reample_mode_hifi1 << 3);
+}
+
+void new_searctx_hifi1_control(struct regmap *top_map, int enable)
+{
+	mmio_update_bits(top_map,
+				EARCTX_ANA_CTRL1,
+				0x1 << 19,
+				enable << 19);
+	mmio_update_bits(top_map,
+				EARCTX_ANA_CTRL2,
+				0x1 << 0,
+				enable << 0);
+}
+
+void earc_mixer_source_enable(struct regmap *dmac_map, int enable)
+{
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL1, 0x1 << 1, enable << 1);
+}
+
+void earc_mixer_fifo_rst(struct regmap *dmac_map)
+{
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x3 << 28,
+			 0x0 << 28);
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 29, /* afifo out reset */
+			 0x1 << 29);
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 28, /* afifo out reset */
+			 0x1 << 28);
+	/* need Req_frddr_rst[15] and clear ECC[1] */
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 15,
+			 0x1 << 15);
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 1,
+			 0x1 << 1);
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 15,
+			 0x0 << 15);
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 1,
+			 0x0 << 1);
 }

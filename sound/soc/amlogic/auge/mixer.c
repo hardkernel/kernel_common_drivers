@@ -44,6 +44,7 @@ struct mixer {
 	struct regmap *reg_map;
 	struct frddr *fddr;
 	unsigned int mixer_vol;
+	int mixer_output_src;
 };
 
 #define SPDIF_BUFFER_BYTES (512 * 1024 * 2)
@@ -129,7 +130,7 @@ static int aml_dai_mixer_prepare(struct snd_pcm_substream *substream,
 		mic_mixer_format_set(bit_depth, fddr_type);
 		mixer_fddr_rate(fddr, 1);
 		mic_mixer_source(fifo_id);
-		aml_frddr_select_dst(fddr, TDMOUT_B);
+		aml_frddr_select_dst(fddr, mixer_p->mixer_output_src);
 	}
 	return 0;
 }
@@ -143,14 +144,16 @@ static int aml_dai_mixer_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		aml_frddr_enable(mixer_p->fddr, true);
 		mixer_clip_top_en(true);
+		mixer_en(true);
+		aml_frddr_enable(mixer_p->fddr, true);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		aml_frddr_enable(mixer_p->fddr, false);
 		mixer_clip_top_en(false);
+		mixer_en(false);
 		break;
 	default:
 		return -EINVAL;
@@ -278,6 +281,7 @@ static int aml_mixer_prepare(struct snd_soc_component *component,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = mixer_p->fddr;
 
+		mixer_fifo_reset();
 		mic_mixer_fifo_reset();
 		/*
 		 * Contrast minimum of period and fifo depth,
@@ -441,6 +445,10 @@ static int aml_mixer_platform_probe(struct platform_device *pdev)
 	actrl = (struct aml_audio_controller *)
 				platform_get_drvdata(pdev_parent);
 	mixer_p->actrl = actrl;
+
+	ret = of_property_read_s32(node, "mic_output", &mixer_p->mixer_output_src);
+	if (ret < 0)
+		mixer_p->mixer_output_src = TDMOUT_B;
 
 	ret = devm_snd_soc_register_component(dev,
 			&aml_mixer_component[mixer_p->id],

@@ -40,7 +40,7 @@
 #endif
 #include <linux/amlogic/gpiolib.h>
 #include <linux/kthread.h>
-
+#include "sound_init.h"
 /*the same as audio hal type define!*/
 static const char * const audio_format[] = {
 	"PCM",
@@ -66,7 +66,7 @@ static const char * const audio_format[] = {
 	"DOLBY_AC4_ATMOS_PROMPT_ON_ATMOS",
 };
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 static const char * const digital_mode[] = {
 	"AML_HAL_PCM",
 	"AML_HAL_DD",
@@ -106,7 +106,7 @@ enum audio_hal_format {
 	TYPE_AC4_ATMOS_PROMPT_ON_ATMOS = 20,
 };
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 enum audio_digital_mode {
 	AML_HAL_PCM = 0,
 	AML_HAL_DD = 1,
@@ -173,7 +173,7 @@ struct aml_card_data {
 	enum hdmitx_src hdmitx_src;
 	int i2s_to_hdmitx_mask;
 	int ai_sort_ret;
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 	enum audio_digital_mode dgt_mod;
 	int drc_control;
 	enum audio_output_select output_sel;
@@ -181,6 +181,7 @@ struct aml_card_data {
 	struct task_struct *thread;
 	int gpio_set_flag;
 	wait_queue_head_t wq;
+	int suspend_flag;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -236,7 +237,7 @@ static const struct soc_enum audio_hal_format_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_format),
 			audio_format);
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 static const struct soc_enum audio_digital_mode_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(digital_mode),
 			digital_mode);
@@ -276,7 +277,7 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 static int aml_audio_digital_mode_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -493,7 +494,7 @@ static const struct snd_kcontrol_new snd_user_controls[] = {
 			aml_audio_hal_format_get_enum,
 			aml_audio_hal_format_set_enum),
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 	SOC_ENUM_EXT("Audio Digital Mode",
 			audio_digital_mode_enum,
 			aml_audio_digital_mode_get_enum,
@@ -1123,12 +1124,14 @@ static int aml_card_parse_gpios(struct device_node *node,
 				"av_mute_sleep_time", &sleep_time))
 				msleep(sleep_time);
 			else
-				msleep(500);
-			gpiod_direction_output(priv->avout_mute_desc,
-				GPIOD_OUT_HIGH);
-			pr_debug("av out status: %s\n",
-				gpiod_get_value(priv->avout_mute_desc) ?
-				"high" : "low");
+				msleep(900);
+			if (!priv->suspend_flag) {
+				gpiod_direction_output(priv->avout_mute_desc,
+					GPIOD_OUT_HIGH);
+				pr_debug("av out enable status: %s\n",
+					gpiod_get_value(priv->avout_mute_desc) ?
+					"high" : "low");
+			}
 		} else {
 			gpiod_direction_output(priv->avout_mute_desc,
 				GPIOD_OUT_LOW);
@@ -1239,6 +1242,8 @@ static int card_work_thread(void *data)
 		}
 	} while (!kthread_should_stop());
 
+	priv->suspend_flag = 0;
+
 	pr_debug("%s card thread exit\n", __func__);
 
 	return 0;
@@ -1251,15 +1256,15 @@ static int card_suspend_pre(struct snd_soc_card *card)
 	struct device_node *np = dev->of_node;
 
 	priv->av_mute_enable = 1;
-	aml_card_parse_gpios(np, priv);
-
-	pr_info("it is card_pre_suspend\n");
-
+	priv->suspend_flag = 1;
 	if (priv->thread) {
 		kthread_stop(priv->thread);
 		priv->thread = NULL;
 	}
+	aml_card_parse_gpios(np, priv);
+	priv->suspend_flag = 0;
 
+	pr_info("it is card_pre_suspend\n");
 	return 0;
 }
 
@@ -1507,7 +1512,7 @@ static int aml_card_probe(struct platform_device *pdev)
 
 	snd_soc_add_card_controls(&priv->snd_card, snd_user_controls,
 				  ARRAY_SIZE(snd_user_controls));
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 	priv->drc_control = 0x3; //RF mode
 #endif
 	priv->av_mute_enable = 0;

@@ -14,13 +14,14 @@
 #include "audio_clks.h"
 #include "../regs.h"
 #include "iomapres.h"
+#include "sound_init.h"
 
 #define DRV_NAME "audio-clocks"
 
 DEFINE_SPINLOCK(aclk_lock);
 
 static const struct of_device_id audio_clocks_of_match[] = {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, g12a-audio-clocks",
 		.data       = &g12a_audio_clks_init,
@@ -33,8 +34,6 @@ static const struct of_device_id audio_clocks_of_match[] = {
 		.compatible = "amlogic, tm2-audio-clocks",
 		.data		= &tm2_audio_clks_init,
 	},
-#endif
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	{
 		.compatible = "amlogic, sc2-audio-clocks",
 		.data       = &sc2_audio_clks_init,
@@ -44,7 +43,7 @@ static const struct of_device_id audio_clocks_of_match[] = {
 		.compatible = "amlogic, s1a-audio-clocks",
 		.data		= &s1a_audio_clks_init,
 	},
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, t5-audio-clocks",
 		.data		= &t5_audio_clks_init,
@@ -93,10 +92,12 @@ static const struct of_device_id audio_clocks_of_match[] = {
 		.compatible = "amlogic, t3x-audio-clocks",
 		.data		= &t3x_audio_clks_init,
 	},
+#endif
 	{
 		.compatible = "amlogic, txhd2-audio-clocks",
 		.data		= &txhd2_audio_clks_init,
 	},
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, t6d-audio-clocks",
 		.data		= &t6d_audio_clks_init,

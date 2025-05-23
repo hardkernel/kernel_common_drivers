@@ -104,6 +104,10 @@
 #define REG_MICBIAS_EN				31
 #define REG_MICBIAS_SEL				29 /* bit 29, 30 */
 //#define REG_ANA_RESERVED			16 /* bit 16 ~ 28 */
+#define HEADPHONE_PULLDOWN          23
+#define VMID_SOURCE                 22
+#define HEADPHONE_VCM_SOURCE        21
+
 #define HEADPHONE_MODE              21
 #define DISCHARGE_CURRENT           20
 #define DRIVER_MODE_SEL             16

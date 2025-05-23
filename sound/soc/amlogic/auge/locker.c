@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 
 #include "locker_hw.h"
-
+#include "audio_utils.h"
 #define DRV_NAME "audiolocker"
 
 struct audiolocker {

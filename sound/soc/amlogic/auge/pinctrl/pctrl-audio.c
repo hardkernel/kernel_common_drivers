@@ -18,6 +18,7 @@
 #include "../regs.h"
 #include "../audio_io.h"
 #include "../iomap.h"
+#include "sound_init.h"
 
 #define DRV_NAME "pinctrl-audio"
 

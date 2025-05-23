@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/gpio.h>
 
 #include <sound/initval.h>
 #include <sound/core.h>
@@ -19,6 +20,10 @@
 #include <sound/tlv.h>
 
 #include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/pm.h>
+#include <linux/regulator/consumer.h>
+#include <linux/clk-provider.h>
+#include <linux/clk.h>
 #include "tas5805.h"
 
 #define TAS5805M_DRV_NAME    "tas5805"
@@ -660,7 +665,7 @@ struct tas5805m_priv {
 const struct regmap_config tas5805m_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_NONE,
 };
 
 static int tas5805m_vol_info(struct snd_kcontrol *kcontrol,
@@ -1197,6 +1202,7 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 	struct tas5805m_priv *tas5805m;
 	struct tas5805m_platform_data *pdata;
 	int ret = 0;
+	u32 dummy;
 
 	tas5805m = devm_kzalloc(&i2c->dev,
 		sizeof(struct tas5805m_priv), GFP_KERNEL);
@@ -1222,12 +1228,13 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 
 	dev_set_drvdata(&i2c->dev, tas5805m);
 
-	ret = devm_snd_soc_register_component(&i2c->dev, &soc_codec_tas5805m,
-			&tas5805m_dai, 1);
-	if (ret != 0)
-		return -ENOMEM;
-
 	reset_tas5805m_GPIO(&i2c->dev);
+	ret = regmap_read(regmap, 0x00, &dummy);
+	if (ret != 0) {
+		pr_err("%s device not exit ret:%d\n", __func__, ret);
+		ret = -ENODEV;
+		return ret;
+	}
 
 	tas5805m->m_drc_tab =
 		devm_kzalloc(&i2c->dev,
@@ -1241,6 +1248,10 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 			     sizeof(char) * TAS5805_EQ_PARAM_COUNT,
 			     GFP_KERNEL);
 	if (!tas5805m->m_eq_tab)
+		return -ENOMEM;
+	ret = devm_snd_soc_register_component(&i2c->dev, &soc_codec_tas5805m,
+			&tas5805m_dai, 1);
+	if (ret != 0)
 		return -ENOMEM;
 
 	return ret;
@@ -1259,6 +1270,41 @@ static void tas5805m_i2c_shutdown(struct i2c_client *i2c)
 	if (pdata->reset_pin)
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 }
+
+static int aml_tas5805m_platform_restore(struct device *dev)
+{
+	struct tas5805m_priv *data = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (data->pdata->reset_pin > 0) {
+		ret = devm_gpio_request_one(dev, data->pdata->reset_pin,
+							GPIOF_OUT_INIT_LOW,
+							"tas5805m-reset-pin");
+		if (ret < 0)
+			return -1;
+	}
+	tas5805m_snd_resume(data->component);
+
+	return 0;
+}
+
+static int aml_tas5805m_platform_freeze(struct device *dev)
+{
+	struct tas5805m_priv *data = dev_get_drvdata(dev);
+
+	tas5805m_snd_suspend(data->component);
+	gpio_free(data->pdata->reset_pin);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_tas5805m_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = aml_tas5805m_platform_restore,
+	.freeze = aml_tas5805m_platform_freeze,
+};
 
 static const struct i2c_device_id tas5805m_i2c_id[] = {
 	{"tas5805",},
@@ -1282,8 +1328,9 @@ static struct i2c_driver tas5805m_i2c_driver = {
 	.shutdown = tas5805m_i2c_shutdown,
 	.id_table = tas5805m_i2c_id,
 	.driver = {
-		   .name = TAS5805M_DRV_NAME,
-		   .of_match_table = tas5805m_of_match,
+			.name = TAS5805M_DRV_NAME,
+			.of_match_table = tas5805m_of_match,
+			.pm = &meson_tas5805m_pm_ops,
 		   },
 };
 

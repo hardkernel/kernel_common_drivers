@@ -28,7 +28,7 @@
 /* Amlogic headers */
 #include <linux/amlogic/major.h>
 #include <linux/amlogic/iomap.h>
-
+#include "sound_init.h"
 #define AMAUDIO_MODULE_NAME "amaudio"
 #define AMAUDIO_DRIVER_NAME "amaudio"
 #define AMAUDIO_DEVICE_NAME "amaudio-dev"

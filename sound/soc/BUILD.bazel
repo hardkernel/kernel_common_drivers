@@ -344,6 +344,81 @@ ddk_module(
 )
 
 ddk_module(
+    name = "amlogic-snd-codec-ntp8918",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_NTP8918": {
+            True: [
+                "codecs/amlogic/ntp8918.c",
+            ],
+        },
+    },
+    hdrs = [
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-ntp8918]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-ntp8918.ko",
+    kernel_build = kernel_select(),
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-ad82120b",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_SND_SOC_AD82120B": {
+            True: [
+                "codecs/amlogic/ad82120b.c",
+            ],
+        },
+    },
+    hdrs = [
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-ad82120b]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-ad82120b.ko",
+    kernel_build = kernel_select(),
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
+    name = "amlogic-snd-codec-ad82088d",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOIC_SND_SOC_AD82088D": {
+            True: [
+                "codecs/amlogic/ad82088d.c",
+            ],
+        },
+    },
+    hdrs = [
+    ],
+
+    local_defines = [
+        "pr_fmt(fmt)=\"[snd-codec-ad82088d]: \" fmt",
+    ],
+    out = "amlogic-snd-codec-ad82088d.ko",
+    kernel_build = kernel_select(),
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
+ddk_module(
     name = "amlogic-snd-codec-sy6026l",
     srcs = glob([
         "**/*.h",
@@ -475,8 +550,8 @@ ddk_module(
     linux_includes = [
         "amlogic/common",
         "../../drivers/efuse_unifykey",
+        "amlogic",
     ],
-
     local_defines = [
         "pr_fmt(fmt)=\"[snd-soc]: \" fmt",
     ],

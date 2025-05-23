@@ -43,7 +43,7 @@
 #include "audio_uevent.h"
 #include "audio_controller.h"
 #include "hdmirx_arc_iomap.h"
-
+#include "sound_init.h"
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
@@ -281,6 +281,18 @@ static struct earc *s_earc;
 bool is_earc_spdif(void)
 {
 	return !!s_earc;
+}
+
+void  earc_mixer_enable(int enable)
+{
+	if (s_earc && s_earc->chipinfo)
+		earc_mixer_source_enable(s_earc->tx_dmac_map, enable);
+}
+
+void  earc_fifo_reset(void)
+{
+	if (s_earc && s_earc->chipinfo)
+		earc_mixer_fifo_rst(s_earc->tx_dmac_map);
 }
 
 bool get_earcrx_chnum_mult_mode(void)
@@ -1008,7 +1020,7 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 		mutex_lock(&earc_mutex);
 		if (!p_earc->resumed)
 			earc_clock_enable();
-		earctx_update_attend_event(p_earc, false, false);
+		schedule_delayed_work(&p_earc->send_uevent_work, 0);
 		mutex_unlock(&earc_mutex);
 	}
 	if (status0 & INT_EARCTX_CMDC_IDLE2) {
@@ -1256,7 +1268,8 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 				 p_earc->chipinfo->earc_spdifout_lane_mask,
 				 3,
 				 0x10,
-				 p_earc->tx_mute);
+				 p_earc->tx_mute,
+				 runtime->channels);
 		earctx_dmac_set_format(p_earc->tx_dmac_map,
 				       fr->fifo_id,
 				       bit_depth - 1,
@@ -1347,12 +1360,20 @@ static void earctx_set_dmac_freq_normal_2(struct earc *p_earc, unsigned int freq
 			dev_warn(p_earc->dev, "can't set clk_tx_dmac parent srcpll clock\n");
 		ratio = MPLL_HBR_FIXED_FREQ / p_earc->standard_tx_dmac;
 		clk_set_rate(p_earc->clk_tx_dmac_srcpll, freq * ratio);
+		if (p_earc->chipinfo->tx_pll_new) {
+			earc_tx_clk_ana_sel(0);  /* use normal earctx_dmac_clk */
+			new_searctx_hifi1_auto_cal(p_earc->tx_top_map, 0, 0);
+		}
 	} else if (p_earc->standard_tx_freq % 11025 == 0) {
 		ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_src_cd);
 		if (ret)
 			dev_warn(p_earc->dev, "can't set clk_tx_dmac parent cd clock\n");
 		ratio = MPLL_CD_FIXED_FREQ / p_earc->standard_tx_dmac;
 		clk_set_rate(p_earc->clk_src_cd, freq * ratio);
+		if (p_earc->chipinfo->tx_pll_new) {
+			earc_tx_clk_ana_sel(1);  /* use earctx_dmac_ana_clk */
+			new_searctx_hifi1_auto_cal(p_earc->tx_top_map, ratio, 1);
+		}
 	} else {
 		dev_warn(p_earc->dev, "unsupport clock rate %d\n",
 			p_earc->standard_tx_freq);
@@ -1500,7 +1521,8 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 			 s_earc->chipinfo->earc_spdifout_lane_mask,
 			 chmask,
 			 swap_masks,
-			 s_earc->tx_mute);
+			 s_earc->tx_mute,
+			 s_earc->ss_info.channels);
 	earctx_dmac_set_format(s_earc->tx_dmac_map,
 			       fr->fifo_id,
 			       bit_depth - 1,
@@ -2036,7 +2058,7 @@ static int earcrx_set_cds(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earcrx_get_mute(struct snd_kcontrol *kcontrol,
+static int earcrx_get_mute(struct snd_kcontrol *kcontrol,
 		    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2058,7 +2080,7 @@ int earcrx_get_mute(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
+static int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2110,7 +2132,7 @@ int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earcrx_get_freq(struct snd_kcontrol *kcontrol,
+static int earcrx_get_freq(struct snd_kcontrol *kcontrol,
 		    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2165,7 +2187,7 @@ static int earcrx_get_freq_by_pll(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earcrx_get_word_length(struct snd_kcontrol *kcontrol,
+static int earcrx_get_word_length(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2255,7 +2277,7 @@ static int earctx_get_cds(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earctx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
+static int earctx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2269,7 +2291,7 @@ int earctx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earctx_set_audio_coding_type(struct snd_kcontrol *kcontrol,
+static int earctx_set_audio_coding_type(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2285,7 +2307,7 @@ int earctx_set_audio_coding_type(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earctx_get_mute(struct snd_kcontrol *kcontrol,
+static int earctx_get_mute(struct snd_kcontrol *kcontrol,
 		    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2303,7 +2325,7 @@ int earctx_get_mute(struct snd_kcontrol *kcontrol,
  * eARC TX asserts the Channel Status Mute bit
  * to eARC RX before format change
  */
-int earctx_set_mute(struct snd_kcontrol *kcontrol,
+static int earctx_set_mute(struct snd_kcontrol *kcontrol,
 		    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2426,7 +2448,7 @@ static void tx_resume_work_func(struct work_struct *p_work)
 	earctx_init(p_earc->earctx_port, true);
 }
 
-int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
+static int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -2445,7 +2467,7 @@ int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earctx_earc_mode_get(struct snd_kcontrol *kcontrol,
+static int earctx_earc_mode_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -3152,6 +3174,18 @@ struct earc_chipinfo s7d_earc_chipinfo = {
 	.rx_pll_new = true,
 };
 
+struct earc_chipinfo t6w_earc_chipinfo = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = false,
+	.rterm_on = true,
+	.chnum_mult_mode = true,
+	.unstable_tick_sel = true,
+	.rx_enable = false,
+	.tx_enable = true,
+	.arc_version = T5M_ARC,
+	.tx_pll_new = true,
+};
+
 static const struct of_device_id earc_device_id[] = {
 	{
 		.compatible = "amlogic, sm1-snd-earc",
@@ -3204,12 +3238,17 @@ static const struct of_device_id earc_device_id[] = {
 		.compatible = "amlogic, s7d-snd-earc",
 		.data = &s7d_earc_chipinfo,
 	},
+	{
+		.compatible = "amlogic, t6w-snd-earc",
+		.data = &t6w_earc_chipinfo,
+	},
 	{}
 };
 
 MODULE_DEVICE_TABLE(of, earc_device_id);
 
-void earc_hdmitx_hpdst(bool st)
+#ifdef CONFIG_AMLOGIC_HDMITX21
+static void earc_hdmitx_hpdst(bool st)
 {
 	struct earc *p_earc = s_earc;
 
@@ -3224,7 +3263,7 @@ void earc_hdmitx_hpdst(bool st)
 	p_earc->earcrx_5v = st;
 	earcrx_init(st);
 }
-
+#endif
 static int earcrx_cmdc_setup(struct earc *p_earc)
 {
 	int ret = 0;
@@ -3265,7 +3304,8 @@ static void send_uevent_work_func(struct work_struct *p_work)
 	mutex_unlock(&earc_mutex);
 }
 
-void earc_hdmirx_hpdst(int earc_port, bool st)
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+static void earc_hdmirx_hpdst(int earc_port, bool st)
 {
 	struct earc *p_earc = s_earc;
 
@@ -3280,7 +3320,7 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 	p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 	earctx_init(earc_port, st);
 }
-
+#endif
 static int earctx_cmdc_setup(struct earc *p_earc)
 {
 	int ret = 0;
@@ -3295,7 +3335,9 @@ static int earctx_cmdc_setup(struct earc *p_earc)
 			dev_err(p_earc->dev, "Can't enable earc clk_tx_cmdc\n");
 			return ret;
 		}
-
+		/* new earc ip need enable hifi1 for all audio modules */
+		if (p_earc->chipinfo->tx_pll_new)
+			new_searctx_hifi1_control(p_earc->tx_top_map, 1);
 		/* dmac default 48k clock */
 		clk_set_rate(p_earc->clk_tx_dmac_srcpll, MPLL_HBR_FIXED_FREQ);
 		clk_set_rate(p_earc->clk_tx_dmac, 30720000);
@@ -3638,9 +3680,9 @@ static int earc_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-void earc_platform_remove(struct platform_device *pdev)
+static void earc_platform_remove(struct platform_device *pdev)
 {
-#ifdef CONFIG_AMLOGIC_HDMITX21
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	if (!IS_ERR_OR_NULL(s_earc->rx_top_map))
 		unregister_earcrx_callback();
 #endif
@@ -3652,8 +3694,9 @@ void earc_platform_remove(struct platform_device *pdev)
 	snd_soc_unregister_component(&pdev->dev);
 }
 
-static int earc_platform_resume(struct platform_device *pdev)
+static int earc_platform_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
 
 	if (!p_earc->resumed)
@@ -3662,9 +3705,9 @@ static int earc_platform_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int earc_platform_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int earc_platform_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
 
 	if (p_earc->chipinfo->rx_enable) {
@@ -3722,15 +3765,38 @@ static int earc_platform_suspend(struct platform_device *pdev,
 	return 0;
 }
 
+static int aml_earc_platform_restore(struct device *dev)
+{
+	earc_platform_resume(dev);
+
+	return 0;
+}
+
+static int aml_earc_platform_freeze(struct device *dev)
+{
+	earc_platform_suspend(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_earc_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = aml_earc_platform_restore,
+	.freeze = aml_earc_platform_freeze,
+	.suspend = earc_platform_suspend,
+	.resume  = earc_platform_resume,
+};
+
 struct platform_driver earc_driver = {
 	.driver = {
 		.name           = DRV_NAME,
 		.of_match_table = earc_device_id,
+		.pm = &meson_earc_pm_ops,
 	},
 	.probe = earc_platform_probe,
-	.suspend = earc_platform_suspend,
 	.remove = earc_platform_remove,
-	.resume  = earc_platform_resume,
 };
 
 int __init earc_init(void)

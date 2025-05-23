@@ -8,7 +8,7 @@
 #include "regs.h"
 #include "pcpd_monitor.h"
 #include "iec_info.h"
-
+#include "sound_init.h"
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>

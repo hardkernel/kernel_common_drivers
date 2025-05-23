@@ -33,7 +33,7 @@
 #include "debug.h"
 #include "audio_utils.h"
 #include "mixer_hw.h"
-
+#include "sound_init.h"
 #define DRV_NAME "audio-ddr-manager"
 
 static DEFINE_MUTEX(ddr_mutex);
@@ -88,7 +88,7 @@ struct frddr_enum_table frddr_src_table[FRDDR_MAX] = {
 
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 #define RESAMPLE_MAX_NUM 3
 /* resample */
 static struct toddr_attach attach_resample[RESAMPLE_MAX_NUM];
@@ -196,18 +196,6 @@ static int unregister_toddr_l(struct device *dev, void *data, int use_vad_toddr)
 	pr_debug("toddrs[%d] released by device %s\n", i, dev_name(dev));
 
 	return 0;
-}
-
-int fetch_toddr_index_by_src(int toddr_src)
-{
-	int i;
-
-	for (i = 0; i < DDRMAX; i++) {
-		if (toddrs[i].in_use && toddrs[i].src == toddr_src)
-			return i;
-	}
-
-	return -1;
 }
 
 struct toddr *fetch_toddr_by_src(int toddr_src)
@@ -439,7 +427,7 @@ void aml_toddr_enable(struct toddr *to, bool enable)
 		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
 		aml_audiobus_update_bits(actrl,	reg, 1 << 31, enable << 31);
 	}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	/* check resample */
 	aml_check_resample(to, enable);
 
@@ -500,14 +488,6 @@ int toddr_src_get_reg(struct toddr *to, enum toddr_src src)
 		if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
 			break;
 	return conf->val;
-}
-
-static char *frddr_src2str(enum frddr_dest fsrc)
-{
-	if (fsrc >= FRDDR_MAX)
-		fsrc = TDMOUT_A;
-
-	return frddr_src_table[fsrc].name;
 }
 
 void aml_toddr_select_src(struct toddr *to, enum toddr_src src)
@@ -633,7 +613,7 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 	if (to->chipinfo && to->chipinfo->chnum_sync) {
 		bool chsync_enable = true;
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (to->src == EARCRX_DMAC && !get_earcrx_chnum_mult_mode() && fmt->ch_num > 2)
 			chsync_enable = false;
 #endif
@@ -963,7 +943,7 @@ unsigned int toddr_vad_get_status2(struct toddr *to)
 	return vad_top_read(reg);
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 /* not for tl1 */
 static void aml_toddr_set_resample(struct toddr *to, bool enable)
 {
@@ -1319,18 +1299,6 @@ static int unregister_frddr_l(struct device *dev, void *data)
 	return 0;
 }
 
-int fetch_frddr_index_by_src(int frddr_src)
-{
-	int i;
-
-	for (i = 0; i < DDRMAX; i++) {
-		if (frddrs[i].in_use && frddrs[i].dest == frddr_src)
-			return i;
-	}
-
-	return -1;
-}
-
 struct frddr *fetch_frddr_by_src(int frddr_src)
 {
 	int i;
@@ -1370,27 +1338,6 @@ static inline unsigned int
 	return base + reg - EE_AUDIO_FRDDR_A_CTRL0;
 }
 
-void aml_frddr_select_src(struct frddr *fr, enum frddr_dest src)
-{
-	struct aml_audio_controller *actrl = fr->actrl;
-	unsigned int reg_base = fr->reg_base;
-	unsigned int reg;
-	struct toddr_src_conf *conf;
-	char *src_str = frddr_src2str(src);
-
-	/* store to check toddr num */
-
-	conf = fr->chipinfo->fr_srcs;
-	for (; conf->name[0]; conf++) {
-		if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
-			break;
-	}
-
-	reg = calc_toddr_address(conf->reg, reg_base);
-	aml_audiobus_update_bits(actrl, reg,
-				 conf->mask << conf->shift,
-				 conf->val << conf->shift);
-}
 /*
  * check frddr_src is used by other frddr for sharebuffer
  * if used, disabled the other share frddr src, the module would
@@ -1420,7 +1367,7 @@ int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel)
 	return ret;
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 {
 	struct frddr *fr = fetch_frddr_by_src(p_attach_aed->attach_module);
@@ -1610,8 +1557,7 @@ static void frddr_set_sharebuffer_enable(struct frddr *fr,  int dst, int lvl, bo
 	pr_debug("%s share lvl: %d, dst_src: %d\n",
 		__func__, lvl, dst);
 
-	aml_audiobus_update_bits(actrl, reg, s_m, s_v);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 
 	if (aml_get_mixer_is_exist(fr)) {
 		if (lvl == 1)
@@ -1619,10 +1565,12 @@ static void frddr_set_sharebuffer_enable(struct frddr *fr,  int dst, int lvl, bo
 		else if (lvl == 2)
 			aml_audiobus_update_bits(actrl, reg, 1 << 20, 0 << 20);
 		aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4, s_m, s_v);
-	}
-	if (aml_get_mixer_is_exist(fr) && !aml_check_aed_module(dst))
 		mixer_demux_sel(dst, enable);
+	}
 #endif
+	if (!aml_get_mixer_is_exist(fr))
+		aml_audiobus_update_bits(actrl, reg, s_m, s_v);
+
 }
 
 /*
@@ -1832,7 +1780,7 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 			0x1 << 20 | 0x1 << 12 | 0x1 << 4,
 			0 << 20 | 0 << 12 | 0 << 4);
 	}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	if (aml_get_mixer_is_exist(fr) && !aml_check_aed_module(fr->dest))
 		mixer_demux_sel(fr->dest, enable);
 	if (aml_get_mixer_is_exist(fr) && enable)
@@ -2309,7 +2257,7 @@ struct toddr_src_conf toddr_srcs_vad_v0[] = {
 	{ /* sentinel */ }
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct ddr_chipinfo tl1_ddr_chipinfo = {
 	.same_src_fn           = true,
@@ -2328,7 +2276,7 @@ static struct ddr_chipinfo tl1_ddr_chipinfo = {
 #endif
 #endif
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static struct ddr_chipinfo a1_ddr_chipinfo = {
 	.same_src_fn           = true,
 	.src_sel_ctrl          = true,
@@ -2419,7 +2367,6 @@ static struct ddr_chipinfo c2_ddr_chipinfo = {
 };
 #endif
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.same_src_fn           = true,
 	.ugt                   = true,
@@ -2436,8 +2383,8 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.fr_reset_reg_offset   = &fr_reset_reg_offset_array_v2[0],
 	.fr_reset_reg_shift    = &fr_reset_reg_shift_array_v2[0],
 };
-#endif
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static struct ddr_chipinfo t3_ddr_chipinfo = {
 	.same_src_fn           = true,
 	.ugt                   = true,
@@ -2471,7 +2418,7 @@ static struct ddr_chipinfo s1a_ddr_chipinfo = {
 	.fr_reset_reg_shift    = &fr_reset_reg_shift_array_v2[0],
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static struct ddr_chipinfo p1_ddr_chipinfo = {
 	.same_src_fn           = true,
 	.ugt                   = true,
@@ -2554,7 +2501,7 @@ static struct ddr_chipinfo t3x_ddr_chipinfo = {
 #endif
 
 static const struct of_device_id aml_ddr_mngr_device_id[] = {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, tl1-audio-ddr-manager",
@@ -2586,17 +2533,15 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 		.data       = &c2_ddr_chipinfo,
 	},
 #endif
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	{
 		.compatible = "amlogic, t5-audio-ddr-manager",
 		.data       = &t5_ddr_chipinfo,
 	},
-#endif
 	{
 		.compatible = "amlogic, s1a-audio-ddr-manager",
 		.data       = &s1a_ddr_chipinfo,
 	},
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, t3-audio-ddr-manager",
 		.data       = &t3_ddr_chipinfo,
@@ -2791,7 +2736,7 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 			return -ENXIO;
 		}
 	}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	for (i = 0; i < RESAMPLE_MAX_NUM; i++) {
 		mutex_init(&attach_resample[i].lock);
 		attach_resample[i].attach_module = TODDR_INVAL;

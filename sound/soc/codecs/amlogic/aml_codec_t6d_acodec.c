@@ -23,7 +23,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
-
+#include <linux/regmap.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
 #include <linux/of_device.h>
@@ -53,6 +53,7 @@ struct am_acodec_priv {
 	struct snd_pcm_hw_params *params;
 	struct regmap *regmap;
 	struct regmap *to_acodec_regmap;
+	struct regmap *to_acodec_adc_regmap;
 	struct work_struct work;
 	struct am_acodec_chipinfo *chipinfo;
 	struct clk *acodec_clk;
@@ -85,10 +86,13 @@ struct am_acodec_priv {
 	int suspend_ref;
 	int resume_ref;
 	int early_suspend;
+	int headphone_depop;
+	struct work_struct mute_work;
 };
 
 enum meson_acodec_version {
 	MESON_ACODEC_ID_VERSION_T6D,
+	MESON_ACODEC_ID_VERSION_T6W,
 };
 
 enum output_pin_sel {
@@ -197,51 +201,46 @@ static void aml_am_acodec_dac_extra_gain_set(struct snd_soc_component *component
 }
 
 static void output_path_set(struct snd_soc_component *component,
-		int version, enum output_pin_sel pin)
+		int version, enum output_pin_sel pin, int enable)
 {
-	struct am_acodec_priv *aml_acodec =
-				snd_soc_component_get_drvdata(component);
+	switch (pin) {
+	case LP_RP_EN:
+		snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 4,
+						enable << LOLP_SEL_DACL);
+		snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 0,
+						enable << LORP_SEL_DACR);
+		break;
+	case LP_RN_EN:
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 4,
+						enable << LOLP_SEL_DACL);
+		snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 8,
+						enable << LORN_SEL_DACR);
+		break;
+	case LN_RP_EN:
 
-	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6D) {
-		switch (pin) {
-		case LP_RP_EN:
-			snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 4,
-							1 << LOLP_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 0,
-							1 << LORP_SEL_DACR);
-			break;
-		case LP_RN_EN:
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 4,
-							1 << LOLP_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 8,
-							1 << LORN_SEL_DACR);
-			break;
-		case LN_RP_EN:
-
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
-							1 << LOLN_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 0,
-							1 << LORP_SEL_DACR);
-			break;
-		case LN_RN_EN:
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
-							1 << LOLN_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 8,
-							1 << LORN_SEL_DACR);
-			break;
-		case LR_PN_EN:
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 0,
-							1 << LORP_SEL_DACR);
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 4,
-							1 << LOLP_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
-							1 << LOLN_SEL_DACL_INV);
-			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 8,
-							1 << LORN_SEL_DACR_INV);
-			break;
-		default:
-			break;
-		}
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
+						enable << LOLN_SEL_DACL);
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 0,
+						enable << LORP_SEL_DACR);
+		break;
+	case LN_RN_EN:
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
+						enable << LOLN_SEL_DACL);
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 8,
+						enable << LORN_SEL_DACR);
+		break;
+	case LR_PN_EN:
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 0,
+						enable << LORP_SEL_DACR);
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 4,
+						enable << LOLP_SEL_DACL);
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
+						enable << LOLN_SEL_DACL_INV);
+		snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 8,
+						enable << LORN_SEL_DACR_INV);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -250,13 +249,7 @@ static void acodec_dac_extra_gain_set(struct snd_soc_component *component, int v
 	struct am_acodec_priv *aml_acodec =
 		snd_soc_component_get_drvdata(component);
 
-	switch (version) {
-	case MESON_ACODEC_ID_VERSION_T6D:
-		aml_am_acodec_dac_extra_gain_set(component, 0, aml_acodec->dac_extra_gain);
-		break;
-	default:
-		break;
-	}
+	aml_am_acodec_dac_extra_gain_set(component, 0, aml_acodec->dac_extra_gain);
 }
 
 static void acodec_adc_pga_gain_set(struct snd_soc_component *component, int version)
@@ -264,14 +257,9 @@ static void acodec_adc_pga_gain_set(struct snd_soc_component *component, int ver
 	struct am_acodec_priv *aml_acodec =
 		snd_soc_component_get_drvdata(component);
 
-	switch (version) {
-	case MESON_ACODEC_ID_VERSION_T6D:
-		snd_soc_component_update_bits(component, ACODEC_1, 0x1f << 8 | 0x1f,
-			aml_acodec->adc_pga_gain << 8 | aml_acodec->adc_pga_gain);
-		break;
-	default:
-	break;
-	}
+	snd_soc_component_update_bits(component, ACODEC_1, 0x1f << 8 | 0x1f,
+		aml_acodec->adc_pga_gain << 8 | aml_acodec->adc_pga_gain);
+
 }
 
 static void output_pin_enable(struct snd_soc_component *component,
@@ -338,10 +326,79 @@ static void drop_pop_mode_1(struct snd_soc_component *component)
 							0 << DISCHARGE_CURRENT);
 	snd_soc_component_update_bits(component, ACODEC_8, 1 << EN_CHARGE,
 							1 << EN_CHARGE);
-	snd_soc_component_update_bits(component, ACODEC_8, 1 << EN_C_ONCE,
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W)
+		snd_soc_component_update_bits(component, ACODEC_8, 1 << EN_C_ONCE,
+							0 << EN_C_ONCE);
+	else
+		snd_soc_component_update_bits(component, ACODEC_8, 1 << EN_C_ONCE,
 							1 << EN_C_ONCE);
 	snd_soc_component_update_bits(component, ACODEC_8, 0xf << CHARGE_CURRENT_CAP,
 						level << CHARGE_CURRENT_CAP);
+}
+
+/* t0:acodec0 [15]: 0, [14]:1 ,acodec3 [22] :1
+ * t1(400ms): acodec0 [1:0]:3  unmute
+ * t2(410ms): acodec0 [15]:1
+ * t3(700ms): acodec0 [14]:0, acodec3 [22] :0
+ */
+
+/* t0:acodec0 [15]: 0, [14]:1 ,acodec3 [22] :1
+ * t1(400ms): acodec0 [1:0]:0  mute
+ * t2(410ms): acodec0 [15]:1
+ * t3(700ms): acodec0 [14]:0, acodec3 [22] :0
+ */
+
+static void aml_headphone_mute(struct snd_soc_component *component, int mute)
+{
+	unsigned int mask, val;
+
+	snd_soc_component_update_bits(component, ACODEC_8, 1 << 11,
+						0x0 << 11);
+	snd_soc_component_update_bits(component, ACODEC_3, 1 << 23,
+						0x1 << 23);
+	mask = BIT(VMID_GEN_FAST) | BIT(VMID_GEN_EN);
+	val = BIT(VMID_GEN_FAST) | 0 << VMID_GEN_EN;
+	snd_soc_component_update_bits(component, ACODEC_0, mask, val);
+	snd_soc_component_update_bits(component, ACODEC_3, BIT(VMID_SOURCE),
+						BIT(VMID_SOURCE));
+	msleep(500);
+	snd_soc_component_update_bits(component, ACODEC_0, 0x3 << LORP_EN,
+						(mute ? 0 : 3) << LORP_EN);
+	msleep(20);
+	snd_soc_component_update_bits(component, ACODEC_0, BIT(VMID_GEN_EN),
+						BIT(VMID_GEN_EN));
+	msleep(300);
+	snd_soc_component_update_bits(component, ACODEC_0, BIT(VMID_GEN_FAST),
+						0 << VMID_GEN_FAST);
+	snd_soc_component_update_bits(component, ACODEC_3, BIT(VMID_SOURCE),
+						0x0 << VMID_SOURCE);
+}
+
+static void aml_headphone_mute_work(struct work_struct *acodec)
+{
+	struct am_acodec_priv *aml_acodec;
+
+	aml_acodec = container_of(acodec, struct am_acodec_priv, mute_work);
+	aml_headphone_mute(aml_acodec->component, aml_acodec->headphone_mute);
+}
+
+static void headphone_mute(struct snd_soc_component *component, bool enable)
+{
+	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
+
+#ifdef HEADPHONE_MODE_DEBUG
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W) {
+		if (work_pending(&aml_acodec->mute_work))
+			flush_work(&aml_acodec->mute_work);
+		else
+			schedule_work(&aml_acodec->mute_work);
+	}
+#endif
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6D)
+		output_pin_enable(component, aml_acodec->headphone_pin, enable);
+	else
+		output_path_set(component, aml_acodec->chip_version,
+				aml_acodec->headphone_pin, enable);
 }
 
 static void headphone_mode_sel(struct snd_soc_component *component,
@@ -382,13 +439,15 @@ static void single_mode_headphone_set(struct snd_soc_component *component)
 	struct am_acodec_priv *aml_acodec =
 				snd_soc_component_get_drvdata(component);
 
-	output_path_set(component, aml_acodec->chip_version, aml_acodec->headphone_pin);
+	output_path_set(component, aml_acodec->chip_version, aml_acodec->headphone_pin, 1);
 	headphone_mode_sel(component, aml_acodec->headphone_pin);
 	snd_soc_component_update_bits(component, ACODEC_3, 1 << HEADPHONE_MODE,
 							1 << HEADPHONE_MODE);
 	snd_soc_component_update_bits(component, ACODEC_3, 0x3 << DRIVER_MODE_SEL,
 							0x00 << DRIVER_MODE_SEL);
 	drop_pop_mode_1(component);
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W)
+		aml_headphone_mute(component, 0);
 	output_pin_enable(component, aml_acodec->lineout_pin, 0);
 	output_pin_enable(component, aml_acodec->headphone_pin, 1);
 }
@@ -398,7 +457,7 @@ static void single_mode_lineout_set(struct snd_soc_component *component)
 	struct am_acodec_priv *aml_acodec =
 				snd_soc_component_get_drvdata(component);
 
-	output_path_set(component, aml_acodec->chip_version, aml_acodec->lineout_pin);
+	output_path_set(component, aml_acodec->chip_version, aml_acodec->lineout_pin, 1);
 	snd_soc_component_update_bits(component, ACODEC_3, 1 << HEADPHONE_MODE,
 							0 << HEADPHONE_MODE);
 	snd_soc_component_update_bits(component, ACODEC_3, 0x3 << DRIVER_MODE_SEL,
@@ -414,8 +473,8 @@ static void dual_output_single_mode_set(struct snd_soc_component *component)
 	enum output_pin_sel headphone = aml_acodec->headphone_pin;
 	enum output_pin_sel lineout = aml_acodec->lineout_pin;
 
-	output_path_set(component, aml_acodec->chip_version, headphone);
-	output_path_set(component, aml_acodec->chip_version, lineout);
+	output_path_set(component, aml_acodec->chip_version, headphone, 1);
+	output_path_set(component, aml_acodec->chip_version, lineout, 1);
 
 	snd_soc_component_update_bits(component, ACODEC_3, 1 << HEADPHONE_MODE,
 							1 << HEADPHONE_MODE);
@@ -423,6 +482,8 @@ static void dual_output_single_mode_set(struct snd_soc_component *component)
 							0x3 << DRIVER_MODE_SEL);
 	headphone_mode_sel(component, aml_acodec->headphone_pin);
 	drop_pop_mode_1(component);
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W)
+		aml_headphone_mute(component, 0);
 	output_pin_enable(component, aml_acodec->lineout_pin, 1);
 	output_pin_enable(component, aml_acodec->headphone_pin, 1);
 }
@@ -433,7 +494,7 @@ static void diff_mode_lineout_set(struct snd_soc_component *component)
 				snd_soc_component_get_drvdata(component);
 
 	output_pin_enable(component, LR_PN_EN, 1);
-	output_path_set(component, aml_acodec->chip_version, LR_PN_EN);
+	output_path_set(component, aml_acodec->chip_version, LR_PN_EN, 1);
 	snd_soc_component_update_bits(component, ACODEC_3, 1 << HEADPHONE_MODE,
 							0 << HEADPHONE_MODE);
 	snd_soc_component_update_bits(component, ACODEC_3, 0x3 << DRIVER_MODE_SEL,
@@ -577,7 +638,7 @@ static int aml_DAC_source_sel_get_enum
 	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	u32 val = 0;
 
-	regmap_read(aml_acodec->to_acodec_regmap, EE_AUDIO_TOACODEC_CTRL0, &val);
+	regmap_read(aml_acodec->to_acodec_regmap, 0, &val);
 	if (aml_acodec->lane_offset == 4) {
 		val = (val >> 16) & 0xf;
 		val -= (aml_acodec->tdmout_index << 2);
@@ -609,12 +670,12 @@ static int aml_DAC_source_sel_set_enum
 
 	if (aml_acodec->lane_offset == 4) {
 		val += (aml_acodec->tdmout_index << 2);
-		regmap_update_bits(aml_acodec->to_acodec_regmap, EE_AUDIO_TOACODEC_CTRL0,
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0,
 					(0xf << 16), (val << 16));
 
 	} else {
 		val += (aml_acodec->tdmout_index << 3);
-		regmap_update_bits(aml_acodec->to_acodec_regmap, EE_AUDIO_TOACODEC_CTRL0,
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0,
 					(0x1f << 16), (val << 16));
 	}
 
@@ -675,7 +736,7 @@ static int Headphone_mute_set(struct snd_kcontrol *kcontrol,
 
 	aml_acodec->headphone_mute = value;
 
-	output_pin_enable(component, aml_acodec->headphone_pin, value ? 0 : 1);
+	headphone_mute(component, value ? 0 : 1);
 	return 0;
 }
 
@@ -799,8 +860,7 @@ static int am_acodec_dai_set_bias_level
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (component->dapm.bias_level == SND_SOC_BIAS_OFF)
-			snd_soc_component_cache_sync(component);
+		snd_soc_component_cache_sync(component);
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -849,12 +909,12 @@ static int am_acodec_start_up(struct snd_soc_component *component)
 }
 
 static int am_acodec_set_toacodec(struct am_acodec_priv *aml_acodec);
+static int aml_tocodec_adc_control_init(struct am_acodec_priv *aml_acodec);
 
 static void am_acodec_release_fast_mode_work_func(struct work_struct *p_work)
 {
 	struct am_acodec_priv *aml_acodec;
 	struct snd_soc_component *component;
-	int i;
 
 	aml_acodec = container_of(p_work, struct am_acodec_priv, work);
 	if (!aml_acodec) {
@@ -868,18 +928,17 @@ static void am_acodec_release_fast_mode_work_func(struct work_struct *p_work)
 		return;
 	}
 	am_acodec_set_toacodec(aml_acodec);
+	aml_tocodec_adc_control_init(aml_acodec);
 	/*
 	 * reset audio codec register
 	 * after init, need do reset again.
 	 * only reset before init acodec, there is the
 	 * output phase difference of left and right channels.
 	 */
-	for (i = 0; i < 2; i++) {
-		am_acodec_reset(component);
-		am_acodec_start_up(component);
-		am_acodec_reg_init(component);
-	}
 
+	am_acodec_reset(component);
+	am_acodec_start_up(component);
+	am_acodec_reg_init(component);
 	aml_acodec->component = component;
 	am_acodec_dai_set_bias_level(component, SND_SOC_BIAS_STANDBY);
 }
@@ -994,10 +1053,68 @@ static void am_acodec_remove(struct snd_soc_component *component)
 	am_acodec_dai_set_bias_level(component, SND_SOC_BIAS_OFF);
 }
 
+static int am_acodec_power_on(struct am_acodec_priv *aml_acodec)
+{
+	int i = 0;
+
+	if (!aml_acodec || !aml_acodec->component) {
+		pr_err("Failed to get am acodec priv\n");
+		return -EINVAL;
+	}
+	am_acodec_reset(aml_acodec->component);
+	am_acodec_start_up(aml_acodec->component);
+	/*don't restore power reg*/
+	if (aml_acodec) {
+		for (i = 1; i < ARRAY_SIZE(t6d_acodec_init_list); i++)
+			snd_soc_component_write(aml_acodec->component,
+				t6d_acodec_init_list[i].reg, aml_acodec->user_setting[i]);
+	}
+	/*don't restore power reg*/
+	snd_soc_component_write(aml_acodec->component, ACODEC_0, 0x34003ffc);
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W) {
+		if (work_pending(&aml_acodec->mute_work))
+			flush_work(&aml_acodec->mute_work);
+		else
+			schedule_work(&aml_acodec->mute_work);
+	}
+	return 0;
+}
+
+static int am_acodec_power_off(struct am_acodec_priv *aml_acodec)
+{
+	unsigned int mask, val;
+
+	if (!aml_acodec || !aml_acodec->component) {
+		pr_err("Failed to get am acodec priv\n");
+		return -EINVAL;
+	}
+	snd_soc_component_update_bits(aml_acodec->component, ACODEC_8, 1 << 11,
+						0x0 << 11);
+	snd_soc_component_update_bits(aml_acodec->component, ACODEC_3, 1 << 23,
+						0x1 << 23);
+	mask = BIT(VMID_GEN_FAST) | BIT(VMID_GEN_EN);
+	val = BIT(VMID_GEN_FAST) | 0 << VMID_GEN_EN;
+	snd_soc_component_update_bits(aml_acodec->component, ACODEC_0, mask, val);
+	snd_soc_component_update_bits(aml_acodec->component, ACODEC_3, BIT(VMID_SOURCE),
+						BIT(VMID_SOURCE));
+	msleep(400);
+	snd_soc_component_update_bits(aml_acodec->component, ACODEC_0, 0x3 << LORP_EN,
+						0 << LORP_EN);
+	snd_soc_component_update_bits(aml_acodec->component, ACODEC_0, 0xffff << 0, 0);
+	snd_soc_component_update_bits(aml_acodec->component, ACODEC_8, 1 << 26, 0 << 26);
+	snd_soc_component_update_bits(aml_acodec->component, ACODEC_8, 1 << 28, 0 << 28);
+	return 0;
+}
+
 static int am_acodec_suspend(struct snd_soc_component *component)
 {
 	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	int i = 0;
+
+	if (!aml_acodec) {
+		pr_err("Failed to get am acodec priv\n");
+		return -EINVAL;
+	}
 
 	if (aml_acodec && aml_acodec->suspend_ref > 0) {
 		aml_acodec->suspend_ref = 0;
@@ -1009,6 +1126,11 @@ static int am_acodec_suspend(struct snd_soc_component *component)
 				t6d_acodec_init_list[i].reg);
 	}
 
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W &&
+		aml_acodec->headphone_depop) {
+		am_acodec_power_off(aml_acodec);
+		return 0;
+	}
 	snd_soc_component_update_bits(component, ACODEC_0, 0xffff << 0, 0);
 	snd_soc_component_update_bits(component, ACODEC_8, 1 << 26, 0 << 26);
 	snd_soc_component_update_bits(component, ACODEC_8, 1 << 28, 0 << 28);
@@ -1021,9 +1143,18 @@ static int am_acodec_resume(struct snd_soc_component *component)
 	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	int i = 0;
 
+	if (!aml_acodec) {
+		pr_err("Failed to get am acodec priv\n");
+		return -EINVAL;
+	}
 	/*for str case, early suspend first execute */
 	if (aml_acodec && !aml_acodec->resume_ref)
 		aml_acodec->resume_ref = 1;
+
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W) {
+		am_acodec_power_on(aml_acodec);
+		return 0;
+	}
 	am_acodec_reset(component);
 	am_acodec_start_up(component);
 	am_acodec_reg_init(component);
@@ -1086,6 +1217,32 @@ struct snd_soc_dai_driver aml_am_acodec_dai = {
 	.ops = &am_acodec_dai_ops,
 };
 
+static int aml_tocodec_adc_control_init(struct am_acodec_priv *aml_acodec)
+{
+	unsigned int lrclk_sel = 0, bclk_sel = 0, mclk_sel = 0;
+	unsigned int mask = 0, val = 0;
+
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W) {
+		/*only ph0 is right*/
+		bclk_sel = 8 + aml_acodec->tdmin_index;
+		lrclk_sel = 8 + aml_acodec->tdmin_index;
+		mclk_sel  = aml_acodec->tdmin_index;
+		mask = 0x1 << 9 | 0xf << 12 | 0xf << 4 | 0x7 << 0;
+		val = 0x1 << 9 | bclk_sel << 12 | lrclk_sel << 4 | mclk_sel << 0;
+
+		regmap_update_bits(aml_acodec->to_acodec_adc_regmap, 0,
+							mask,  val);
+		/*clk enable flow*/
+		regmap_update_bits(aml_acodec->to_acodec_adc_regmap, 0,
+							BIT(29), BIT(29));
+		regmap_update_bits(aml_acodec->to_acodec_adc_regmap, 0,
+							BIT(30), BIT(30));
+		regmap_update_bits(aml_acodec->to_acodec_adc_regmap, 0,
+							BIT(31), BIT(31));
+	}
+	return 0;
+}
+
 static int am_acodec_set_toacodec(struct am_acodec_priv *aml_acodec)
 {
 	int dat0_sel, dat1_sel, lrclk_sel, bclk_sel, mclk_sel;
@@ -1118,9 +1275,25 @@ static int am_acodec_set_toacodec(struct am_acodec_priv *aml_acodec)
 	mclk_sel = aml_acodec->tdmin_index;
 
 	update_bits |= dat0_sel | dat1_sel | lrclk_sel | bclk_sel | mclk_sel;
-
-	regmap_update_bits(aml_acodec->to_acodec_regmap, EE_AUDIO_TOACODEC_CTRL0,
+	regmap_update_bits(aml_acodec->to_acodec_regmap, 0,
 		update_bits_msk, update_bits);
+
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W) {
+		unsigned int mask = 0, val = 0;
+
+		/*only ph0 is right*/
+		bclk_sel = 8 + aml_acodec->tdmout_index;
+		lrclk_sel = 8 + aml_acodec->tdmout_index;
+		mclk_sel  = aml_acodec->tdmout_index;
+
+		/* mst_b sclk ctrl1[5:0] :23, tocodec[9:8] :0x1
+		 * mst_b sclk ctrl1[5:0] :22, tocodec[9:8] :0x2
+		 * mst_b sclk ctrl1 is 0x23
+		 */
+		update_bits_msk = 0x1 << 8 | 0xf << 12 | 0xf << 4 | 0x7 << 0;
+		update_bits = 0x1 << 8 | bclk_sel << 12 | lrclk_sel << 4 | mclk_sel << 0;
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0, mask,  val);
+	}
 
 	/* if toacodec_en is separated, need do:
 	 * step1: enable/disable mclk
@@ -1128,13 +1301,13 @@ static int am_acodec_set_toacodec(struct am_acodec_priv *aml_acodec)
 	 * step3: enable/disable dat
 	 */
 	if (aml_acodec->chipinfo->separate_toacodec_en) {
-		regmap_update_bits(aml_acodec->to_acodec_regmap, EE_AUDIO_TOACODEC_CTRL0,
-			0x20000000, 0x1 << 29);
-		regmap_update_bits(aml_acodec->to_acodec_regmap, EE_AUDIO_TOACODEC_CTRL0,
-			0x40000000, 0x1 << 30);
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0,
+			BIT(29), BIT(29));
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0,
+			BIT(30), BIT(30));
 	}
-	regmap_update_bits(aml_acodec->to_acodec_regmap, EE_AUDIO_TOACODEC_CTRL0,
-		0x80000000, 0x1 << 31);
+	regmap_update_bits(aml_acodec->to_acodec_regmap, 0,
+		BIT(31), BIT(31));
 	return 0;
 }
 
@@ -1213,9 +1386,7 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 {
 	struct am_acodec_priv *aml_acodec;
 	struct am_acodec_chipinfo *p_chipinfo;
-	struct resource *res_mem;
 	struct device_node *np;
-	void __iomem *regs;
 	int ret = 0;
 
 	np = pdev->dev.of_node;
@@ -1232,22 +1403,21 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 		dev_warn_once(&pdev->dev, "check whether to update am_acodec_chipinfo\n");
 
 	aml_acodec->chipinfo = p_chipinfo;
-
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem)
-		return -ENODEV;
-
-	regs = devm_ioremap_resource(&pdev->dev, res_mem);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
-
+	aml_acodec->chip_version = MESON_ACODEC_ID_VERSION_T6D;
 	/* Don't change the regmaps order, it will affect the components regmap */
 	aml_acodec->to_acodec_regmap = regmap_resource(&pdev->dev, "to_acodec");
 	if (IS_ERR(aml_acodec->to_acodec_regmap)) {
 		dev_err(&pdev->dev, "miss to_acodec regmap\n");
 		return PTR_ERR(aml_acodec->to_acodec_regmap);
 	}
-
+	if (of_device_is_compatible(pdev->dev.of_node, "amlogic, t6w_acodec")) {
+		aml_acodec->chip_version = MESON_ACODEC_ID_VERSION_T6W;
+		aml_acodec->to_acodec_adc_regmap = regmap_resource(&pdev->dev, "to_acodec_adc");
+		if (IS_ERR(aml_acodec->to_acodec_adc_regmap)) {
+			dev_err(&pdev->dev, "miss to_acodec adc regmap\n");
+			return PTR_ERR(aml_acodec->to_acodec_adc_regmap);
+		}
+	}
 	/*soc component use the last regmap*/
 	aml_acodec->regmap = regmap_resource(&pdev->dev, "acodec");
 	if (IS_ERR(aml_acodec->regmap)) {
@@ -1324,13 +1494,18 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "output_type", &aml_acodec->output_type);
 	if (ret < 0)
 		aml_acodec->output_type = DIFF_LINEOUT;
-	ret = of_property_read_u32(pdev->dev.of_node, "chip_version", &aml_acodec->chip_version);
-	if (ret < 0)
-		aml_acodec->chip_version = MESON_ACODEC_ID_VERSION_T6D;
+
 	ret = of_property_read_u32(pdev->dev.of_node, "early_suspend", &aml_acodec->early_suspend);
 	if (ret < 0)
 		aml_acodec->early_suspend = 0;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "headphone_depop",
+					&aml_acodec->headphone_depop);
+	if (ret < 0)
+		aml_acodec->headphone_depop = 0;
 	platform_set_drvdata(pdev, aml_acodec);
+
+	INIT_WORK(&aml_acodec->mute_work, aml_headphone_mute_work);
 
 	ret = devm_snd_soc_register_component
 			(&pdev->dev,
@@ -1360,6 +1535,9 @@ static void aml_am_acodec_remove(struct platform_device *pdev)
 	if (!IS_ERR(aml_acodec->acodec_clk))
 		clk_disable_unprepare(aml_acodec->acodec_clk);
 
+	if (work_pending(&aml_acodec->mute_work))
+		cancel_work_sync(&aml_acodec->mute_work);
+
 	snd_soc_unregister_component(&pdev->dev);
 }
 
@@ -1374,6 +1552,10 @@ static void aml_am_acodec_shutdown(struct platform_device *pdev)
 	if (!IS_ERR(aml_acodec->acodec_clk))
 		clk_disable_unprepare(aml_acodec->acodec_clk);
 
+	if (work_pending(&aml_acodec->mute_work))
+		flush_work(&aml_acodec->mute_work);
+	if (!component)
+		return;
 	snd_soc_component_update_bits(component, ACODEC_0, 0xffff << 0, 0);
 	snd_soc_component_update_bits(component, ACODEC_8, 1 << 26, 0 << 26);
 	snd_soc_component_update_bits(component, ACODEC_8, 1 << 28, 0 << 28);
@@ -1383,8 +1565,10 @@ static const struct of_device_id aml_am_acodec_dt_match[] = {
 	{
 		.compatible = "amlogic, t6d_acodec",
 		.data = &acodec_cinfo_v3,
-	},
-	{},
+	}, {
+		.compatible = "amlogic, t6w_acodec",
+		.data = &acodec_cinfo_v3,
+	}, {},
 };
 
 static struct platform_driver aml_am_acodec_platform_driver = {

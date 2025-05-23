@@ -32,7 +32,7 @@
 #include "frhdmirx_hw.h"
 #include "loopback.h"
 #include "audio_controller.h"
-
+#include "sound_init.h"
 #define DRV_NAME "audioresample"
 
 #define CLK_RATIO     256
@@ -707,7 +707,7 @@ static int new_resample_init(struct audioresample *p_resample)
 	return 0;
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static struct resample_chipinfo axg_resample_chipinfo = {
 	.num        = 1,
 	.id         = RESAMPLE_A,
@@ -829,7 +829,7 @@ static struct resample_chipinfo t5_resample_b_chipinfo = {
 };
 
 static const struct of_device_id resample_device_id[] = {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, axg-resample",
 		.data = &axg_resample_chipinfo,
@@ -891,9 +891,9 @@ static const struct of_device_id resample_device_id[] = {
 };
 MODULE_DEVICE_TABLE(of, resample_device_id);
 
-static int resample_platform_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int resample_platform_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct audioresample *p_resample = dev_get_drvdata(&pdev->dev);
 
 	if (p_resample->suspend_clk_off && !is_pm_s2idle_mode()) {
@@ -909,8 +909,9 @@ static int resample_platform_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int resample_platform_resume(struct platform_device *pdev)
+static int resample_platform_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct audioresample *p_resample = dev_get_drvdata(&pdev->dev);
 	int ret = 0;
 
@@ -1174,7 +1175,7 @@ static void resample_platform_shutdown(struct platform_device *pdev)
 }
 
 /*don't use devm_kzalloc, when use global pointer*/
-void resample_platform_remove(struct platform_device *pdev)
+static void resample_platform_remove(struct platform_device *pdev)
 {
 	struct audioresample *p_resample = dev_get_drvdata(&pdev->dev);
 
@@ -1191,12 +1192,9 @@ void resample_platform_remove(struct platform_device *pdev)
 	}
 }
 
-#ifdef CONFIG_HIBERNATION
 static int resample_platform_restore(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-
-	resample_platform_resume(pdev);
+	resample_platform_resume(dev);
 	return 0;
 }
 
@@ -1223,22 +1221,19 @@ static const struct dev_pm_ops meson_resample_pm_ops = {
 	 */
 	.restore = resample_platform_restore,
 	.freeze = resample_platform_freeze,
+	.suspend = resample_platform_suspend,
+	.resume  = resample_platform_resume,
 };
-#endif
 
 static struct platform_driver resample_platform_driver = {
 	.driver = {
 		.name  = DRV_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(resample_device_id),
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_resample_pm_ops,
-#endif
 	},
 	.probe  = resample_platform_probe,
 	.remove = resample_platform_remove,
-	.suspend = resample_platform_suspend,
-	.resume  = resample_platform_resume,
 	.shutdown = resample_platform_shutdown,
 };
 

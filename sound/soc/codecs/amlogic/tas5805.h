@@ -7,6 +7,7 @@
 #define _TAS5805_H
 
 #include <linux/regmap.h>
+#include <linux/gpio/consumer.h>
 
 static const int tas5805m_reset[][2] = {
 //RESET

@@ -19,7 +19,7 @@
 #include "regs.h"
 #include "iomap.h"
 
-int mixer_format_set(int channel, int sample_bit, int fddr_type);
+int mixer_format_set(int channel, int sample_bit, int fddr_type, int mixer_lane);
 int mixer_fifo_reset(void);
 int mixer_source_set(int fifo_id);
 int mic_mixer_source(int fifo_id);
@@ -32,3 +32,4 @@ int mixer_coef_set(unsigned int vol);
 int mixer_en(int enable);
 int mixer_clip_top_en(int  enable);
 int mixer_mic_coef_set(unsigned int vol);
+int background_mixer_en(int enable);

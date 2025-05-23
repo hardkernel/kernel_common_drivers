@@ -34,6 +34,7 @@
 #include "vad.h"
 #include "pdm_hw_coeff.h"
 #include "audio_controller.h"
+#include "sound_init.h"
 
 #define DRV_NAME "snd_pdm"
 #define DRV_NAME_B "snd_pdm_b"
@@ -936,7 +937,7 @@ static int aml_pdm_dai_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int aml_pdm_dai_startup(struct snd_pcm_substream *substream,
+static int aml_pdm_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai)
 {
 	struct aml_pdm *p_pdm = snd_soc_dai_get_drvdata(cpu_dai);
@@ -952,7 +953,7 @@ int aml_pdm_dai_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-void aml_pdm_dai_shutdown(struct snd_pcm_substream *substream,
+static void aml_pdm_dai_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai)
 {
 	struct aml_pdm *p_pdm = snd_soc_dai_get_drvdata(cpu_dai);
@@ -1494,8 +1495,9 @@ static void aml_pdm_platform_remove(struct platform_device *pdev)
 #endif
 }
 
-static int pdm_platform_suspend(struct platform_device *pdev, pm_message_t state)
+static int pdm_platform_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
 	int id = p_pdm->chipinfo->id;
 	/* whether in freeze */
@@ -1527,8 +1529,9 @@ static int pdm_platform_suspend(struct platform_device *pdev, pm_message_t state
 	return 0;
 }
 
-static int pdm_platform_resume(struct platform_device *pdev)
+static int pdm_platform_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
 	int id = p_pdm->chipinfo->id;
 	int ret = 0;
@@ -1604,7 +1607,6 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 	}
 }
 
-#ifdef CONFIG_HIBERNATION
 static int pdm_platform_restore(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1612,11 +1614,16 @@ static int pdm_platform_restore(struct device *dev)
 	struct pdm_info info;
 	unsigned int sysclk_srcpll_freq, dclk_srcpll_freq;
 	char *clk_name = NULL;
+
+	unsigned int lpf_filter_mode = p_pdm->lpf_filter_mode;
+	unsigned int hpf_filter_mode = p_pdm->hpf_filter_mode;
+	unsigned int dclk_idx = p_pdm->dclk_idx;
+	unsigned int osr = 64;
 	int ret = 0;
-	unsigned int osr = 64, lpf_filter_mode = 4, hpf_filter_mode = 6, dclk_idx = 1;
 
 	audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
 	audiobus_write(EE_AUDIO_CLK_GATE_EN1, 0xffffffff);
+	aml_pdm_arb_config(p_pdm->actrl, p_pdm->chipinfo->use_arb);
 
 	if (!IS_ERR_OR_NULL(p_pdm->pdm_pins)) {
 		struct pinctrl_state *state = NULL;
@@ -1632,6 +1639,7 @@ static int pdm_platform_restore(struct device *dev)
 	info.lane_masks = p_pdm->lane_mask_in;
 	info.dclk_idx   = dclk_idx;
 	info.sample_count = pdm_get_sample_count(p_pdm->islowpower, dclk_idx);
+	osr = pdm_get_ors(dclk_idx, p_pdm->rate);
 
 	/* lowpower, force dclk to 768k */
 	if (p_pdm->islowpower)
@@ -1705,6 +1713,7 @@ static int pdm_platform_restore(struct device *dev)
 		return -EINVAL;
 	}
 
+	p_pdm->clk_on = true;
 	aml_pdm_ctrl(&info, 0);
 	aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, lpf_filter_mode, hpf_filter_mode, 0);
 
@@ -1756,22 +1765,19 @@ static const struct dev_pm_ops meson_pdm_pm_ops = {
 	 */
 	.restore = pdm_platform_restore,
 	.freeze = pdm_platform_freeze,
+	.suspend = pdm_platform_suspend,
+	.resume  = pdm_platform_resume,
 };
-#endif
 
 struct platform_driver aml_pdm_driver = {
 	.driver  = {
 		.name           = DRV_NAME,
 		.owner          = THIS_MODULE,
 		.of_match_table = of_match_ptr(aml_pdm_device_id),
-#ifdef CONFIG_HIBERNATION
 		.pm = &meson_pdm_pm_ops,
-#endif
 	},
 	.probe   = aml_pdm_platform_probe,
 	.remove  = aml_pdm_platform_remove,
-	.suspend = pdm_platform_suspend,
-	.resume  = pdm_platform_resume,
 	.shutdown = pdm_platform_shutdown,
 };
 

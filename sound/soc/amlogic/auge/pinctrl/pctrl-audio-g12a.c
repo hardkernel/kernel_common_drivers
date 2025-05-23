@@ -18,6 +18,7 @@
 #include "../regs.h"
 #include "../audio_io.h"
 #include "../iomap.h"
+#include "sound_init.h"
 
 #define DRV_NAME "pinctrl-audio-g12a"
 
@@ -450,22 +451,28 @@ static int g12a_ap_set_mux(struct pinctrl_dev *pctldev,
 					0x1 << (0 + val), 1 << (0 + val));
 			}
 		}
-	} else if (selector <= FUNC_TDM_CLK_IN_LAST) {
-		int tmp = group - GRP_TDM_SCLK_START;
-
-		base = EE_AUDIO_MST_PAD_CTRL1(1);
-		addr = base;
-		offset = ((tmp >= 5) ? (tmp - 1) : tmp) * 4;
-
-		if (selector <= FUNC_TDM_CLK_OUT_LAST)
-			val = selector - FUNC_TDM_CLK_OUT_START;
-		else
-			val = selector - FUNC_TDM_CLK_IN_START;
-
-		if (selector == FUNC_TDM_CLK_IN_START)
-			val |= 1 << 3;
-		aml_audiobus_update_bits(actrl, addr,
-			0xf << offset, val << offset);
+	} else if (selector <= FUNC_TDM_CLK_OUT_LAST) {
+		offset = selector - FUNC_TDM_CLK_OUT_START;
+		if (group == 32) {
+			/* mst pad */
+			if (offset / 8 == 0) {
+				val = offset % 8;
+				aml_audiobus_update_bits(actrl, EE_AUDIO_MST_PAD_CTRL1(0),
+				0x1 << (4 + val), 1 << (4 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_MST_PAD_CTRL1(0),
+				0x1 << (0 + val), 1 << (0 + val));
+			}
+		} else if (group == 37) {
+			if (offset / 8 == 0) {
+				val = offset % 8;
+				aml_audiobus_update_bits(actrl, EE_AUDIO_MST_PAD_CTRL1(0),
+				0x1 << (24 + val), 1 << (24 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_MST_PAD_CTRL1(0),
+				0x1 << (20 + val), 1 << (20 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_MST_PAD_CTRL1(0),
+				0x1 << (16 + val), 1 << (16 + val));
+			}
+		}
 	} else if (selector < FUNC_TDMD_DIN_LAST) {
 		base = EE_AUDIO_DAT_PAD_CTRLG;
 		addr = base + (selector - FUNC_TDMD_DIN_START) / 4;

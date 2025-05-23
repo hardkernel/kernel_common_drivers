@@ -26,7 +26,7 @@ struct snd_elem_info {
 	u32 mask;
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static unsigned int audio_inskew;
 #endif
 /* For S4 HIFI used by EMMC/audio, we need force mpll in DTV */
@@ -336,7 +336,7 @@ static int spdifout_channel_status_set(struct snd_kcontrol *kcontrol,
 	.private_value = (unsigned long)&(xenum) \
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static const char *const audio_locker_texts[] = {
 	"Disable",
 	"Enable",
@@ -493,7 +493,7 @@ static const struct snd_kcontrol_new snd_auge_controls[] = {
 	SPDIFOUT_CHSTATUS("SPDIFOUT Channel Status",
 			  spdif_channel_status_enum),
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	/* audio locker */
 	SOC_ENUM_EXT("audio locker enable",
 		     audio_locker_enum,
@@ -519,7 +519,7 @@ static const struct snd_kcontrol_new snd_auge_controls[] = {
 
 int snd_card_add_kcontrols(struct snd_soc_card *card)
 {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	int ret;
 
 	pr_debug("%s card:%p\n", __func__, card);
@@ -618,22 +618,6 @@ void fratv_enable(bool enable)
 
 	audiobus_update_bits(EE_AUDIO_FRATV_CTRL0, 0x1 << 31, enable << 31);
 }
-
-/* source select
- * 0: select from ATV;
- * 1: select from ADEC;
- */
-void fratv_src_select(bool src)
-{
-	audiobus_update_bits(EE_AUDIO_FRATV_CTRL0, 0x1 << 20, src << 20);
-}
-EXPORT_SYMBOL_GPL(fratv_src_select);
-
-void fratv_LR_swap(bool swap)
-{
-	audiobus_update_bits(EE_AUDIO_FRATV_CTRL0, 0x1 << 19, swap << 19);
-}
-EXPORT_SYMBOL_GPL(fratv_LR_swap);
 
 void cec_arc_enable(int src, bool enable)
 {

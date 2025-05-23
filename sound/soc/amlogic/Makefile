@@ -9,13 +9,13 @@ PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
 ccflags-y += $(PR_FMT_DEFINE)
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/sound/soc/amlogic/common
-
+ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/sound/soc/amlogic
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/efuse_unifykey/
 
 obj-$(CONFIG_AMLOGIC_SND_SOC) += $(MODULE_NAME).o
 $(MODULE_NAME)-y += sound_init.o
 
-ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+ifndef CONFIG_AMLOGIC_AUDIO_CUT
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-g12a.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-sm1.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-tm2.o
@@ -35,7 +35,7 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-txhd2.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-t6d.o
 endif
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-s1a.o
-ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
+ifndef CONFIG_AMLOGIC_AUDIO_CUT
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-sc2.o
 endif
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/audio_clks.o
@@ -43,7 +43,7 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_controller.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_io.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pinctrl/pctrl-audio.o
 
-ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+ifndef CONFIG_AMLOGIC_AUDIO_CUT
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pinctrl/pctrl-audio-sm1.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pinctrl/pctrl-audio-g12a.o
 endif
@@ -53,7 +53,7 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/tdm_hw.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/spdif.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/spdif_hw.o
 
-ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+ifndef CONFIG_AMLOGIC_AUDIO_CUT
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pdm.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pdm_hw.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/hdmirx_arc_iomap.o
@@ -61,14 +61,14 @@ endif
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/iomap.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/ddr_mngr.o
 
-ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+ifndef CONFIG_AMLOGIC_AUDIO_CUT
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/aud_sram.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/loopback.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/loopback_hw.o
 endif
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_utils.o
 
-ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+ifndef CONFIG_AMLOGIC_AUDIO_CUT
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/locker.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/locker_hw.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/resample.o
@@ -82,7 +82,7 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/effects_hw_v3.o
 endif
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/sharebuffer.o
 
-ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+ifndef CONFIG_AMLOGIC_AUDIO_CUT
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/extn.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/frhdmirx_hw.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/vad.o
@@ -94,7 +94,7 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/mixer.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/mixer_hw.o
 endif
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/card.o
-ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+ifndef CONFIG_AMLOGIC_AUDIO_CUT
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/aud_sram.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pcpd_monitor.o
 endif

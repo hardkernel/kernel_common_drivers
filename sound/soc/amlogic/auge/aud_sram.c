@@ -13,6 +13,7 @@
 #include <sound/memalloc.h>
 
 #include "aud_sram.h"
+#include "sound_init.h"
 
 #define DRV_NAME "aud_sram"
 

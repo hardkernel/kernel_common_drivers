@@ -24,7 +24,7 @@
 
 #include "audio_data.h"
 #include "efuse.h"
-
+#include "sound_init.h"
 /*#define MYPRT pr_info*/
 #define MYPRT(...)
 /* major device number and minor device number */
@@ -54,7 +54,7 @@ static struct file_operations const audio_data_fops = {
 	/* .unlocked_ioctl = audio_data_ioctl, */
 };
 
-int meson_efuse_fn_smc_query_audioinfo(struct efuse_hal_api_arg *arg)
+static int meson_efuse_fn_smc_query_audioinfo(struct efuse_hal_api_arg *arg)
 {
 	int ret;
 	unsigned int cmd, offset, size;
@@ -93,7 +93,7 @@ int meson_efuse_fn_smc_query_audioinfo(struct efuse_hal_api_arg *arg)
 	return ret;
 }
 
-int meson_trustzone_audio_info_get(struct efuse_hal_api_arg *arg)
+static int meson_trustzone_audio_info_get(struct efuse_hal_api_arg *arg)
 {
 	int ret;
 	struct cpumask org_cpumask;
@@ -107,7 +107,7 @@ int meson_trustzone_audio_info_get(struct efuse_hal_api_arg *arg)
 	return ret;
 }
 
-unsigned long audio_info_get(char *buf, unsigned long count,
+static unsigned long audio_info_get(char *buf, unsigned long count,
 							unsigned long pos)
 {
 	struct efuse_hal_api_arg arg;

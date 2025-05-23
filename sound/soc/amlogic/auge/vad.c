@@ -44,7 +44,7 @@
 #include "pdm_hw.h"
 #include "aud_sram.h"
 #include <linux/vmalloc.h>
-
+#include "sound_init.h"
 #define DRV_NAME "VAD"
 
 #define DMA_BUFFER_BYTES_MAX (96 * 1024)

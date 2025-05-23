@@ -17,14 +17,14 @@
 #include <linux/amlogic/major.h>
 
 #include "vad.h"
-
+#include "sound_init.h"
 #define DRV_NAME "vad"
 
 #define IOCTL_READI_SUSPENDED_FRAMES	_IOR('Z', 0x0, struct snd_xferi)
 
 static bool readable;
 
-bool vad_is_trunk_data_readable(void)
+static bool vad_is_trunk_data_readable(void)
 {
 	return readable;
 }

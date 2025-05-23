@@ -21,7 +21,7 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include "aml_codec_pa1.h"
 
-#define PA1_DRV_NAME    "pa1_acodec"
+#define PA1_DRV_NAME    "aml_p555"
 #define PA1_RATES	(SNDRV_PCM_RATE_8000 | \
 			SNDRV_PCM_RATE_11025 | \
 			SNDRV_PCM_RATE_16000 | \
@@ -1452,7 +1452,7 @@ static const struct snd_soc_dai_ops pa1_acodec_dai_ops = {
 };
 
 static struct snd_soc_dai_driver pa1_acodec_dai = {
-	.name = "pa1_acodec-amplifier",
+	.name = "AMLP555",
 	.playback = {
 		     .stream_name = "Playback",
 		     .channels_min = 2,
@@ -1488,6 +1488,7 @@ static int pa1_acodec_i2c_probe(struct i2c_client *i2c)
 	struct pa1_acodec_priv *pa1_acodec;
 	struct pa1_acodec_platform_data *pdata;
 	int ret = 0;
+	u32 dummy;
 
 	pa1_acodec = devm_kzalloc(&i2c->dev, sizeof(struct pa1_acodec_priv), GFP_KERNEL);
 	if (!pa1_acodec)
@@ -1513,6 +1514,14 @@ static int pa1_acodec_i2c_probe(struct i2c_client *i2c)
 	pa1_acodec->regmap = regmap;
 
 	dev_set_drvdata(&i2c->dev, pa1_acodec);
+	reset_pa1_acodec_GPIO(&i2c->dev);
+
+	ret = regmap_read(regmap, PA1_RESET_CTRL, &dummy);
+	if (ret != 0) {
+		pr_err("%s read ret:%d\n", __func__, ret);
+		ret = -ENODEV;
+		return ret;
+	}
 
 	ret = devm_snd_soc_register_component(&i2c->dev, &soc_codec_pa1_acodec,
 			&pa1_acodec_dai, 1);
@@ -1520,7 +1529,6 @@ static int pa1_acodec_i2c_probe(struct i2c_client *i2c)
 		devm_kfree(&i2c->dev, i2c_get_clientdata(i2c));
 		return -ENOMEM;
 	}
-	reset_pa1_acodec_GPIO(&i2c->dev);
 
 	return ret;
 }
@@ -1549,7 +1557,7 @@ static void pa1_acodec_i2c_shutdown(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id pa1_acodec_i2c_id[] = {
-	{"pa1_acodec",},
+	{"aml_p555",},
 	{}
 };
 
@@ -1557,7 +1565,7 @@ MODULE_DEVICE_TABLE(i2c, pa1_acodec_i2c_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id pa1_acodec_of_match[] = {
-	{.compatible = "amlogic, pa1_acodec",},
+	{.compatible = "AMLOGIC,p555",},
 	{}
 };
 

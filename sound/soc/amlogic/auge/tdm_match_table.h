@@ -86,7 +86,7 @@ struct tdm_chipinfo {
 #define TDMIN_SRC_CONFIG(_name, _val) \
 {	.name = (_name), .val = (_val)}
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 /* for A1 */
 struct src_table tdmin_srcs_v0[] = {
 	TDMIN_SRC_CONFIG(SRC_TDMIN_A, 0),
@@ -126,7 +126,7 @@ struct src_table tdmin_srcs_v2[] = {
 	{ /* sentinel */ }
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 /* t7 afterwards */
 struct src_table tdmin_srcs_v3[] = {
 	TDMIN_SRC_CONFIG(SRC_TDMIN_A, 0),
@@ -453,7 +453,7 @@ struct tdm_chipinfo t5_tdmc_chipinfo = {
 	.need_mute_tdm = true,
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 struct tdm_chipinfo t7_tdma_chipinfo = {
 	.id          = TDM_A,
 	.sclk_ws_inv = true,
@@ -877,7 +877,7 @@ struct tdm_chipinfo t3x_tdmd_chipinfo = {
 #endif
 
 static const struct of_device_id aml_tdm_device_id[] = {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, g12a-snd-tdma",
 		.data       = &g12a_tdma_chipinfo,
@@ -953,7 +953,7 @@ static const struct of_device_id aml_tdm_device_id[] = {
 		.compatible = "amlogic, t5-snd-tdmc",
 		.data       = &t5_tdmc_chipinfo,
 	},
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, t7-snd-tdma",
 		.data       = &t7_tdma_chipinfo,
