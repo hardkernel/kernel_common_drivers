@@ -16,6 +16,7 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/amlogic/media/media_proxy/AmlVideoUserdata.h>
 #include "videodisplay_process.h"
 #include "videodisplay_drv.h"
 
@@ -1318,6 +1319,20 @@ static struct attribute *videodisplay_class_attrs[] = {
 };
 ATTRIBUTE_GROUPS(videodisplay_class);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+struct mediaproxy_info_t vd_mediaproxy_display_info[] = {
+	{
+		.k_producer_name = "videodisplay0"
+	},
+	{
+		.k_producer_name = "videodisplay1"
+	},
+	{
+		.k_producer_name = "videodisplay2"
+	},
+};
+#endif
+
 static struct class videodisplay_class = {
 	.name = VIDEODISPLAY_DEVICE_NAME,
 	.class_groups = videodisplay_class_groups,
@@ -1421,6 +1436,15 @@ static int videodisplay_probe(struct platform_device *pdev)
 				goto error1;
 			}
 		}
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+		if (!vd_mediaproxy_display_info[i].k_producer_session) {
+			media_proxy_produce_init(&vd_mediaproxy_display_info[i].k_producer_session,
+				vd_mediaproxy_display_info[i].k_producer_name,
+				MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO |
+				MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO);
+		}
+#endif
+
 	}
 	pr_info("%s num=%d\n", __func__, videodisplay_instance_num);
 	return ret;
@@ -1466,5 +1490,15 @@ int __init videodisplay_module_init(void)
 
 void __exit videodisplay_module_exit(void)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	int i;
+
+	for (i = 0; i < videodisplay_instance_num; i++) {
+		if (vd_mediaproxy_display_info[i].k_producer_session)
+			media_proxy_produce_deinit(vd_mediaproxy_display_info[i]
+				.k_producer_session);
+	}
+#endif
+
 	platform_driver_unregister(&videodisplay_driver);
 }

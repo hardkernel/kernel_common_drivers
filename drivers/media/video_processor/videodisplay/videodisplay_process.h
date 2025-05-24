@@ -168,10 +168,20 @@ struct output_axis {
 	int height;
 };
 
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+extern struct mediaproxy_info_t vd_mediaproxy_display_info[];
+#endif
+
 int vd_set_enable(int index, u32 val);
 int vd_set_frames(int index, struct frames_info_t *frames_info);
 void vd_vsync_notify(u8 layer_id, u32 vpp_vsync_pts_inc_scale,
 	u32 vpp_vsync_pts_inc_scale_base);
 void set_debug_flag_val(enum videodisplay_debug_class_type debug_type, int value);
 int get_debug_flag_val(enum videodisplay_debug_class_type debug_type);
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+int media_proxy_produce_deinit(void *handle);
+int media_proxy_produce_init(void **handle, char *modulename, u32 msg_type);
+int notify_msg_to_mediaproxy(void *handle, int num, void *data);
+#endif
+
 #endif

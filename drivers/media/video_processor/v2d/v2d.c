@@ -1433,6 +1433,21 @@ static void v2d_fence_signal_cb(struct dma_fence *fence, struct dma_fence_cb *cb
 		fence, kfifo_len(&dev->display_q), kfifo_len(&dev->free_q));
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+static void set_v2d_mediaproxy_info(struct v2d_dev *dev, struct vframe_s *src_vf,
+	struct composer_info_t *composer_info, int index)
+{
+	if (!dev || !src_vf || !composer_info) {
+		pr_info("%s: input param error\n", __func__);
+		return;
+	}
+
+	composer_info->input_info[index].timestamp = src_vf->timestamp;
+	composer_info->input_info[index].decoder_instid = src_vf->decoder_instid;
+	composer_info->input_info[index].frame_index = src_vf->frame_index;
+}
+#endif
+
 static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_vf,
 		bool is_tvp, struct dst_buf_t *output_buffer, struct composer_info_t *composer_info)
 {
@@ -2068,6 +2083,9 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 				v2d_print(dev->index, PRINT_ERROR, "get vf NULL\n");
 				continue;
 			}
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+			set_v2d_mediaproxy_info(dev, input_vf, composer_info, i);
+#endif
 			v2d_print(dev->index, PRINT_OTHER, "frame_index:%d\n",
 				input_vf->frame_index);
 		} else {

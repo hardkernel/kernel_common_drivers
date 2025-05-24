@@ -44,6 +44,7 @@
 #include <linux/ctype.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
+#include <linux/amlogic/media/media_proxy/AmlVideoUserdata.h>
 #include <linux/amlogic/media/resource_mgr/resourcemanage.h>
 #include "../../gdc/inc/api/gdc_api.h"
 #include "../common/video_pp_common.h"
@@ -2219,6 +2220,61 @@ static void video_display_para_reset(int layer_index)
 	actual_delay_count[layer_index] = 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+static void vc_notify_msg_to_mediaproxy(struct videodisplay_dev *dev,
+	struct vframe_s *vf, int event, struct timespec64 ts)
+{
+	struct aml_video_user_data msg[9] = {0};
+	struct input_mediaproxy_info_s *input_vf_info;
+	int count = 0;
+	int i;
+
+	if (!dev || !vf) {
+		pr_info("%s: invalid param.\n", __func__);
+		return;
+	}
+
+	if (!(vf->flag & VFRAME_FLAG_COMPOSER_DONE)) {
+		msg[0].data.frame_info.bitstreamid = div64_u64(vf->timestamp, 1000000000);
+		msg[0].data.frame_info.vd_instid = dev->index;
+		msg[0].data.frame_info.decoder_instid = vf->decoder_instid;
+		msg[0].data.frame_info.frame_index = vf->frame_index;
+		msg[0].data.frame_info.time = 1000000000L * ts.tv_sec + ts.tv_nsec;
+		msg[0].message_type = event;
+
+		notify_msg_to_mediaproxy(vd_mediaproxy_display_info[dev->index].k_producer_session,
+					1,
+					&msg);
+	} else {
+		if (!vf->composer_info) {
+			vd_print(dev->index, PRINT_ERROR,
+				"%s:vc_private is null!\n", __func__);
+			return;
+		}
+		count = vf->composer_info->count;
+		if (count > MXA_LAYER_COUNT) {
+			vd_print(dev->index, PRINT_ERROR,
+				"%s:count (%d) exceeds MXA_LAYER_COUNT(%d)\n",
+				__func__, count, MXA_LAYER_COUNT);
+			count = MXA_LAYER_COUNT;
+		}
+		for (i = 0; i < count; i++) {
+			input_vf_info = &vf->composer_info->input_info[i];
+			msg[i].data.frame_info.bitstreamid =
+				div64_u64(input_vf_info->timestamp, 1000000000);
+			msg[i].data.frame_info.vd_instid = dev->index;
+			msg[i].data.frame_info.decoder_instid =  input_vf_info->decoder_instid;
+			msg[i].data.frame_info.frame_index = input_vf_info->frame_index;
+			msg[i].data.frame_info.time = 1000000000L * ts.tv_sec + ts.tv_nsec;
+			msg[i].message_type = event;
+		}
+		notify_msg_to_mediaproxy(vd_mediaproxy_display_info[dev->index].k_producer_session,
+					count,
+					&msg);
+	}
+}
+#endif
+
 static bool vd_vf_is_tvin(struct vframe_s *vf)
 {
 	if (!vf)
@@ -3271,6 +3327,9 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 	struct mbp_buffer_info_t *mpb_buf = NULL;
 	bool enable_prelink = false;
 	int i, repeat_count;
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	struct timespec64 ts;
+#endif
 
 	if (!vf) {
 		vd_print(dev->index, PRINT_ERROR, "%s: NULL param.", __func__);
@@ -3324,6 +3383,12 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 		vf->width,
 		vf->height);
 	repeat_count = vf->repeat_count;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	ktime_get_real_ts64(&ts);
+	if (vf->rendered)
+		vc_notify_msg_to_mediaproxy(dev, vf, MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO, ts);
+#endif
 
 	if (dev->is_drm_enable) {
 		if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
@@ -3395,6 +3460,9 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 	struct vframe_s *vf = NULL;
 	u32 vsync_index_diff = 0;
 	bool enable_prelink = false;
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	struct timespec64 ts;
+#endif
 
 	if (kfifo_get(&dev->ready_q, &vf)) {
 		if (!vf) {
@@ -3505,6 +3573,12 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 			dev->pre_pat_trace = patten_trace[dev->index];
 			patten_trace[dev->index] = 0;
 		}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+		ktime_get_real_ts64(&ts);
+		vc_notify_msg_to_mediaproxy(dev, vf,
+			MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO, ts);
+#endif
 
 		continue_vsync_count[dev->index] = 0;
 		dev->last_vf_index = vf->frame_index;

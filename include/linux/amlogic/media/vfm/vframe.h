@@ -452,9 +452,16 @@ struct vtem_data {
 #define MAX_COMPOSER_COUNT 9
 #define AXIS_INFO_COUNT    4
 
+struct input_mediaproxy_info_s {
+	u64 timestamp;
+	u32 decoder_instid;
+	u32 frame_index;
+};
+
 struct composer_info_t {
 	int count;
 	int axis[MAX_COMPOSER_COUNT][AXIS_INFO_COUNT];
+	struct input_mediaproxy_info_s input_info[MAX_COMPOSER_COUNT];
 };
 
 struct nn_value_t {
