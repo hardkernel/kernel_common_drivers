@@ -1134,6 +1134,8 @@ static int aml_spdif_open(struct snd_soc_component *component,
 						p_spdif->irq_spdifin, ret);
 			goto err_irq;
 		}
+		/* spdifin interrupt need time, now default is 100ms, it will record failed.*/
+		substream->wait_time = 1000;
 	}
 
 	runtime->private_data = p_spdif;
