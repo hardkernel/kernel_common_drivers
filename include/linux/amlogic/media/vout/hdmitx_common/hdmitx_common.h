@@ -684,14 +684,25 @@ unsigned char hdmitx_common_get_next_tfr(struct hdmitx_common *tx_comm);
 unsigned char hdmitx_common_get_base_refresh_rate(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_audio_n(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_audio_cts(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_audio_layout(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_tmds_clk(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_pixel_clk(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_hdcp_auth_state(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_hdcp_an(struct hdmitx_common *tx_comm, u8 *an);
+unsigned int hdmitx_common_get_hdcp_aksv(struct hdmitx_common *tx_comm, u8 *aksv);
+unsigned int hdmitx_common_get_hdcp_bksv(struct hdmitx_common *tx_comm, u8 *bksv);
+unsigned int hdmitx_common_get_hdcp_bstatus(struct hdmitx_common *tx_comm, u8 *bstatus);
+unsigned int hdmitx_common_get_hdcp_bcaps(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_hdcp_ri(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_vsif_ieeeoui(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_vsif_vic(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_vsif_allm(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_vsif_amdv_signal(struct hdmitx_common *tx_comm);
 unsigned int hdmitx_common_get_vsif_amdv_low_latency(struct hdmitx_common *tx_comm);
+enum hdmi_spd_sdi hdmitx_common_get_spd_sdi(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_scdc_sts_flag0(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_scdc_ln0_ln1_ltp(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_scdc_ln2_ln3_ltp(struct hdmitx_common *tx_comm);
 
 /**********only used for hdmitx20**********/
 #define HDCP_SLAVE	0x3a

@@ -323,6 +323,43 @@ static const char *hdmitx_get_colorimetry(enum hdmi_colorimetry colorimetry,
 	}
 }
 
+static const char *hdmi_spd_sdi_get_name(enum hdmi_spd_sdi sdi)
+{
+	if (sdi < 0 || sdi > 0xff)
+		return "Invalid";
+	switch (sdi) {
+	case HDMI_SPD_SDI_UNKNOWN:
+		return "Unknown";
+	case HDMI_SPD_SDI_DSTB:
+		return "Digital STB";
+	case HDMI_SPD_SDI_DVDP:
+		return "DVD Player";
+	case HDMI_SPD_SDI_DVHS:
+		return "D-VHS";
+	case HDMI_SPD_SDI_HDDVR:
+		return "HDD Videorecorder";
+	case HDMI_SPD_SDI_DVC:
+		return "DVC";
+	case HDMI_SPD_SDI_DSC:
+		return "DSC";
+	case HDMI_SPD_SDI_VCD:
+		return "Video CD";
+	case HDMI_SPD_SDI_GAME:
+		return "Game";
+	case HDMI_SPD_SDI_PC:
+		return "PC General";
+	case HDMI_SPD_SDI_BD:
+		return "Blu-Ray Disc (BD)";
+	case HDMI_SPD_SDI_SACD:
+		return "Super Audio CD";
+	case HDMI_SPD_SDI_HDDVD:
+		return "HD DVD";
+	case HDMI_SPD_SDI_PMP:
+		return "PMP";
+	}
+	return "Reserved";
+}
+
 static const char *hdmitx_get_audio_type(enum hdmi_audio_type coding_type)
 {
 	switch (coding_type) {
@@ -425,7 +462,11 @@ static void hdmitx_basic_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 		strncpy(diagnosis_info->basic_info.audio_type,
 				hdmitx_get_audio_type(coding_type),
 				sizeof(diagnosis_info->basic_info.audio_type) - 1);
-	diagnosis_info->basic_info.hdmi_mode = 1;
+	if (tx_comm->rxcap.ieeeoui == HDMI_IEEE_OUI)
+		diagnosis_info->basic_info.hdmi_mode = 1;
+	else
+		diagnosis_info->basic_info.hdmi_mode = 0;
+
 	strncpy(diagnosis_info->basic_info.hdr_status,
 			hdmitx_get_hdr_statrus(hdr_status),
 			sizeof(diagnosis_info->basic_info.hdr_status) - 1);
@@ -466,7 +507,7 @@ static void hdmitx_audio_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 {
 	diagnosis_info->audio_info.n = hdmitx_common_get_audio_n(tx_comm);
 	diagnosis_info->audio_info.cts = hdmitx_common_get_audio_cts(tx_comm);
-	diagnosis_info->audio_info.layout_value = 0;
+	diagnosis_info->audio_info.layout_value = hdmitx_common_get_audio_layout(tx_comm);
 	diagnosis_info->audio_info.channel_status =
 			hdmitx_common_get_audio_channel(tx_comm) + 1;
 }
@@ -481,10 +522,19 @@ static void hdmitx_phy_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 static void hdmitx_hdcp14_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 			struct hdmitx_common *tx_comm)
 {
+	u8 bstatus[2] = {0};
+
 	if (tx_comm->hdcptx_comm.hdcp_mode == 1) {
 		diagnosis_info->hdcp14_info.enc_en = 1;
 		diagnosis_info->hdcp14_info.status =
 			hdmitx_common_get_hdcp_auth_state(tx_comm);
+		hdmitx_common_get_hdcp_an(tx_comm, diagnosis_info->hdcp14_info.an);
+		hdmitx_common_get_hdcp_aksv(tx_comm, diagnosis_info->hdcp14_info.aksv);
+		hdmitx_common_get_hdcp_bksv(tx_comm, diagnosis_info->hdcp14_info.bksv);
+		hdmitx_common_get_hdcp_bstatus(tx_comm, bstatus);
+		diagnosis_info->hdcp14_info.b_status = bstatus[1] << 8 | bstatus[0];
+		diagnosis_info->hdcp14_info.b_caps = hdmitx_common_get_hdcp_bcaps(tx_comm);
+		diagnosis_info->hdcp14_info.ri = hdmitx_common_get_hdcp_ri(tx_comm);
 	} else {
 		diagnosis_info->hdcp14_info.enc_en = 0;
 		diagnosis_info->hdcp14_info.status = 0;
@@ -504,14 +554,59 @@ static void hdmitx_hdcp22_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 	}
 }
 
-static void hdmitx_scdc_diag_info(struct hdmi_diagnosis_info *diagnosis_info)
+static void hdmitx_scdc_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
+		struct hdmitx_common *tx_comm)
 {
-	diagnosis_info->scdc_info.scrambling_enable = 1;
-	diagnosis_info->scdc_info.tmds_bit_clock_ratio = 1;
-	strncpy(diagnosis_info->scdc_info.scrambling_status, "ok",
+	u8 scrambler_en = tx_comm->fmt_para.scrambler_en;
+	u16 ch0_cnt = tx_comm->ced_cnt.ch0_cnt;
+	u16 ch1_cnt = tx_comm->ced_cnt.ch1_cnt;
+	u16 ch2_cnt = tx_comm->ced_cnt.ch2_cnt;
+	u16 ch3_cnt = tx_comm->ced_cnt.ch3_cnt;
+
+	diagnosis_info->scdc_info.scrambling_enable = scrambler_en;
+	diagnosis_info->scdc_info.tmds_bit_clock_ratio = tx_comm->fmt_para.tmds_clk_div40;
+	strncpy(diagnosis_info->scdc_info.scrambling_status, scrambler_en ? "ok" : "disable",
 			sizeof(diagnosis_info->scdc_info.scrambling_status) - 1);
-	diagnosis_info->scdc_info.clock_detecded = 1;
-	diagnosis_info->scdc_info.ch0_lock = 1;
+	diagnosis_info->scdc_info.clock_detecded = tx_comm->ch_locked_st.clock_detected;
+	diagnosis_info->scdc_info.ch0_lock = tx_comm->ch_locked_st.ch0_locked;
+	diagnosis_info->scdc_info.ch1_lock = tx_comm->ch_locked_st.ch1_locked;
+	diagnosis_info->scdc_info.ch2_lock = tx_comm->ch_locked_st.ch2_locked;
+	diagnosis_info->scdc_info.lane3_lock = tx_comm->ch_locked_st.ch3_locked;
+	/*
+	 * bit6	reg_scdc_flt_rdy
+	 * FLT Ready status from SCDC Sink
+	 */
+	diagnosis_info->scdc_info.flt_ready =
+		(hdmitx_common_get_scdc_sts_flag0(tx_comm) & 0x40) >> 6;
+	diagnosis_info->scdc_info.rs_correction_counter = tx_comm->ced_cnt.rs_c_cnt;
+	/*
+	 * bit7	reg_scdc_dsc_dec_fail
+	 * DSC Decode Fail status from SCDC Sink
+	 */
+	diagnosis_info->scdc_info.dsc_fail =
+		(hdmitx_common_get_scdc_sts_flag0(tx_comm) & 0x80) >> 7;
+	if (ch0_cnt || ch1_cnt || ch2_cnt || ch3_cnt)
+		diagnosis_info->scdc_info.error_count = 1;
+	else
+		diagnosis_info->scdc_info.error_count = 0;
+	diagnosis_info->scdc_info.ch0 = ch0_cnt;
+	diagnosis_info->scdc_info.ch1 = ch1_cnt;
+	diagnosis_info->scdc_info.ch2 = ch2_cnt;
+	diagnosis_info->scdc_info.lane3 = ch3_cnt;
+	/*
+	 * FRL_LTP_OVR_VAL1	0x0	SCDC FRL LTP Req Override1 Register
+	 * 3:0	reg_scdc_ln2_ltp_ovr_val	0x0	Lane2 LTP Request pattern Overwrite Value
+	 * 7:4	reg_scdc_ln3_ltp_ovr_val	0x0	Lane3 LTP Request pattern Overwrite Value
+	 */
+	diagnosis_info->scdc_info.ltp_req = hdmitx_common_get_scdc_ln2_ln3_ltp(tx_comm);
+	/*
+	 * FRL_LTP_OVR_VAL0	0x0	SCDC FRL LTP Req Override0 Register
+	 * 3:0	reg_scdc_ln0_ltp_ovr_val	0x0	Lane0 LTP Request pattern Overwrite Value
+	 * 7:4	reg_scdc_ln1_ltp_ovr_val	0x0	Lane1 LTP Request pattern Overwrite Value
+	 */
+	diagnosis_info->scdc_info.ln0 = hdmitx_common_get_scdc_ln0_ln1_ltp(tx_comm) & 0xf;
+	diagnosis_info->scdc_info.ln1 = (hdmitx_common_get_scdc_ln0_ln1_ltp(tx_comm) & 0xf0) >> 4;
+	diagnosis_info->scdc_info.frl_rate = tx_comm->fmt_para.frl_rate;
 }
 
 static void hdmitx_avi_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
@@ -607,13 +702,26 @@ static void hdmitx_vsif_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 		hdmitx_common_get_vsif_amdv_low_latency(tx_comm);
 }
 
-static void hdmitx_spd_diag_info(struct hdmi_diagnosis_info *diagnosis_info)
+static void hdmitx_spd_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
+			struct hdmitx_common *tx_comm)
 {
-	strncpy(diagnosis_info->spd_infoframe_info.product_description, "OTT",
-			sizeof(diagnosis_info->spd_infoframe_info.product_description) - 1);
-	strncpy(diagnosis_info->spd_infoframe_info.vendor_name, "TV",
-			sizeof(diagnosis_info->spd_infoframe_info.vendor_name) - 1);
-	strncpy(diagnosis_info->spd_infoframe_info.source_info, "HAI",
+	enum hdmi_spd_sdi sdi = HDMI_SPD_SDI_UNKNOWN;
+	struct vendor_info_data *vend_data = NULL;
+
+	if (tx_comm->config_data.vend_data) {
+		vend_data = tx_comm->config_data.vend_data;
+		if (vend_data->vendor_name)
+			strncpy(diagnosis_info->spd_infoframe_info.vendor_name,
+				vend_data->vendor_name,
+				sizeof(diagnosis_info->spd_infoframe_info.vendor_name));
+
+		if (vend_data->product_desc)
+			strncpy(diagnosis_info->spd_infoframe_info.product_description,
+				vend_data->product_desc,
+				sizeof(diagnosis_info->spd_infoframe_info.product_description));
+	}
+	sdi = hdmitx_common_get_spd_sdi(tx_comm);
+	strncpy(diagnosis_info->spd_infoframe_info.source_info, hdmi_spd_sdi_get_name(sdi),
 			sizeof(diagnosis_info->spd_infoframe_info.source_info) - 1);
 }
 
@@ -678,7 +786,8 @@ static void hdmitx_gcp_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 			hdmitx_common_get_color_depth(tx_comm) * 2;
 }
 
-static void hdmitx_reserved_diag_info(struct hdmi_diagnosis_info *diagnosis_info)
+static void hdmitx_reserved_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
+		struct hdmitx_common *tx_comm)
 {
 	diagnosis_info->reserved_info.reserved0 = 0;
 	diagnosis_info->reserved_info.reserved1 = 1;
@@ -750,13 +859,13 @@ int am_meson_hdmi_get_hdmitx_diag(struct drm_device *dev,
 	/* hdcp22 */
 	hdmitx_hdcp22_diag_info(diagnosis_info, tx_comm);
 	/* scdc */
-	hdmitx_scdc_diag_info(diagnosis_info);
+	hdmitx_scdc_diag_info(diagnosis_info, tx_comm);
 	/* avi */
 	hdmitx_avi_diag_info(diagnosis_info, tx_comm);
 	/* vsif */
 	hdmitx_vsif_diag_info(diagnosis_info, tx_comm);
 	/* spd */
-	hdmitx_spd_diag_info(diagnosis_info);
+	hdmitx_spd_diag_info(diagnosis_info, tx_comm);
 	/* drm */
 	hdmitx_drm_diag_info(diagnosis_info, tx_comm);
 	/* audio */
@@ -764,7 +873,7 @@ int am_meson_hdmi_get_hdmitx_diag(struct drm_device *dev,
 	/* gcp */
 	hdmitx_gcp_diag_info(diagnosis_info, tx_comm);
 	/* reserved */
-	hdmitx_reserved_diag_info(diagnosis_info);
+	hdmitx_reserved_diag_info(diagnosis_info, tx_comm);
 
 	return 0;
 }

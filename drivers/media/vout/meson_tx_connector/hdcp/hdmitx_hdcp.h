@@ -236,6 +236,8 @@ void hdcptx2_encryption_update(bool en);
 void hdcptx2_reauth_send(void);
 bool hdcptx2_ds_rptr_capability(void);
 bool hdcptx1_ds_rptr_capability(void);
+void hdcptx1_ds_an_read(u8 *p_an, u8 an_bytes);
+void hdcptx1_ds_aksv_read(u8 *p_aksv, u8 ksv_bytes);
 void hdcptx1_ds_bksv_read(u8 *p_bksv, u8 ksv_bytes);
 u8 hdcptx1_ksv_v_get(void);
 void hdcptx1_protection_enable(bool en);

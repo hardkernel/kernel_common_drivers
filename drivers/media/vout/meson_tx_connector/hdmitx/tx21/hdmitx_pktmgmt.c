@@ -651,7 +651,7 @@ int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, u32 avi_cmd, u8 val
 	return 0;
 }
 
-int hdmi_apd_infoframe_get(u8 *body)
+int hdmi_spd_infoframe_get(u8 *body)
 {
 	int ret;
 

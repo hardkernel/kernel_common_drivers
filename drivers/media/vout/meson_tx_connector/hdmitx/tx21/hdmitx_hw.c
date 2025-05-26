@@ -817,7 +817,7 @@ static int hdmitx_get_channel_from_audio(struct hdmitx21_dev *hdev)
 		return -1;
 	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing audio failed %d\n", ret);
 	else
 		ret = audio->channels;
 
@@ -836,7 +836,7 @@ static int hdmitx_get_coding_type_from_audio(struct hdmitx21_dev *hdev)
 		return -1;
 	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing audio failed %d\n", ret);
 	else
 		ret = audio->coding_type;
 
@@ -855,7 +855,7 @@ static int hdmitx_get_sample_size_from_audio(struct hdmitx21_dev *hdev)
 		return -1;
 	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing audio failed %d\n", ret);
 	else
 		ret = audio->sample_size;
 
@@ -874,7 +874,7 @@ static int hdmitx_get_sample_frequency_from_audio(struct hdmitx21_dev *hdev)
 		return -1;
 	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing audio failed %d\n", ret);
 	else
 		ret = audio->sample_frequency;
 
@@ -893,7 +893,7 @@ static int hdmitx_get_coding_type_ext_from_audio(struct hdmitx21_dev *hdev)
 		return -1;
 	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing audio failed %d\n", ret);
 	else
 		ret = audio->coding_type_ext;
 
@@ -912,7 +912,7 @@ static int hdmitx_get_channel_allocation_from_audio(struct hdmitx21_dev *hdev)
 		return -1;
 	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing audio failed %d\n", ret);
 	else
 		ret = audio->channel_allocation;
 
@@ -931,7 +931,7 @@ static int hdmitx_get_level_shift_value_from_audio(struct hdmitx21_dev *hdev)
 		return -1;
 	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing audio failed %d\n", ret);
 	else
 		ret = audio->level_shift_value;
 
@@ -950,9 +950,28 @@ static int hdmitx_get_downmix_inhibit_from_audio(struct hdmitx21_dev *hdev)
 		return -1;
 	ret = hdmi_audio_infoframe_unpack_renew(audio, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_ERROR("hdmitx21: parsing drm failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing audio failed %d\n", ret);
 	else
 		ret = audio->downmix_inhibit;
+
+	return ret;
+}
+
+static char hdmitx_get_sdi_from_spd(struct hdmitx21_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->tx_comm.infoframe.spd;
+	struct hdmi_spd_infoframe *spd = &infoframe->spd;
+
+	ret = hdmi_spd_infoframe_get(body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_spd_infoframe_unpack_renew(spd, body, sizeof(body));
+	if (ret < 0)
+		HDMITX_ERROR("hdmitx21: parsing spd failed %d\n", ret);
+	else
+		ret = spd->sdi;
 
 	return ret;
 }
@@ -4025,6 +4044,15 @@ static int hdmitx21_check_input_argv(u32 cmd, void *input_argv)
 	return 0;
 }
 
+static int hdmitx21_check_output_argv(u32 cmd, void *output_struct)
+{
+	if (!output_struct) {
+		HDMITX_ERROR("cmd[0x%x] null output_struct\n", cmd);
+		return -1;
+	}
+	return 0;
+}
+
 static int hdmitx21_hw_cntl_ddc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			      void *input_argv, void *output_struct)
 {
@@ -4121,6 +4149,15 @@ static int hdmitx21_hw_cntl_ddc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx21_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 9, 1);
 		usleep_range(1000, 2000);
 		break;
+	case DDC_SCDC_STS_FLAG0:
+		ret = hdmitx21_rd_reg(SCDC_STS_FLAG0_IVCTX);
+		break;
+	case DDC_SCDC_LN0_LN1_LTP:
+		ret = hdmitx21_rd_reg(FRL_LTP_OVR_VAL0_IVCTX);
+		break;
+	case DDC_SCDC_LN2_LN3_LTP:
+		ret = hdmitx21_rd_reg(FRL_LTP_OVR_VAL1_IVCTX);
+		break;
 	default:
 		break;
 	}
@@ -4137,6 +4174,8 @@ static int hdmitx21_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	u32 arg;
 	int ret = 0;
 	u8 *ksv_byte = NULL;
+	u8 *bstatus = NULL;
+	u8 *an = NULL;
 
 	if ((cmd & CMD_TYPE_MASK) != CMD_HDCP_OFFSET) {
 		HDMITX_ERROR("%s cmd[0x%x] wrong cmd type\n", __func__, cmd);
@@ -4152,15 +4191,39 @@ static int hdmitx21_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case HDCP_GET_TOPO_INFO:
 		return (int)get_hdcp2_topo(hdev->tx_comm.tx_hw->chip_data->chip_type);
-	case HDCP_GET_BKSV:
-		if (!output_struct) {
-			HDMITX_ERROR("%s cmd[0x%x] null return arg\n", __func__, cmd);
-			ret = -1;
+	case HDCP_GET_AKSV:
+		ret = hdmitx21_check_output_argv(cmd, output_struct);
+		if (ret < 0)
 			break;
-		}
+		ksv_byte = (u8 *)output_struct;
+		hdcptx1_ds_aksv_read(ksv_byte, 5);
+		break;
+	case HDCP_GET_BKSV:
+		ret = hdmitx21_check_output_argv(cmd, output_struct);
+		if (ret < 0)
+			break;
 		ksv_byte = (u8 *)output_struct;
 		hdcptx1_ds_bksv_read(ksv_byte, 5);
 		break;
+	case HDCP14_GET_AN:
+		ret = hdmitx21_check_output_argv(cmd, output_struct);
+		if (ret < 0)
+			break;
+		an = (u8 *)output_struct;
+		hdcptx1_ds_an_read(an, 8);
+		break;
+	case HDCP14_GET_BCAPS:
+		ret = hdmitx21_rd_reg(TPI_DS_BCAPS_IVCTX);
+		return ret;
+	case HDCP14_GET_BSTATUS:
+		ret = hdmitx21_check_output_argv(cmd, output_struct);
+		if (ret < 0)
+			break;
+		bstatus = (u8 *)output_struct;
+		hdcptx1_bstatus_get(bstatus);
+		break;
+	case HDCP14_GET_RI:
+		return hdcptx1_get_prime_ri();
 	case HDCP_14_LSTORE:
 		return get_hdcp1_lstore(&hdev->tx_comm);
 	case HDCP_22_LSTORE:
@@ -4395,6 +4458,15 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case AUX_PKT_GET_AUDIO_CTS:
 		ret = hdmitx_get_cts_from_audio(hdev);
 		break;
+	case AUX_PKT_GET_AUDIO_LAYOUT:
+		/*
+		 * bit1
+		 * HDMI Audio Packet layout indicator:
+		 *   0 - Layout 0 (2-channel) (default)
+		 *   1 - Layout 1 (Up to 8-channel)
+		 */
+		ret = hdmitx21_rd_reg(AUDP_TXCTRL_IVCTX) & 0x2;
+		break;
 	case AUX_PKT_GET_AUDIO_CHANNEL:
 		ret = hdmitx_get_channel_from_audio(hdev);
 		break;
@@ -4419,17 +4491,8 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case AUX_PKT_GET_AUDIO_DOWNMIX_INHIBIT:
 		ret = hdmitx_get_downmix_inhibit_from_audio(hdev);
 		break;
-	case AUX_PKT_GET_TMDS_CLK:
-		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
-			ret = meson_clk_measure(92);
-		else
-			ret = meson_clk_measure(76);
-		break;
-	case AUX_PKT_GET_PIXEL_CLK:
-		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
-			ret = meson_clk_measure(68);
-		else
-			ret = meson_clk_measure(59);
+	case AUX_PKT_GET_SPD_SDI:
+		ret = hdmitx_get_sdi_from_spd(hdev);
 		break;
 	case AUX_PKT_SET_EMP:
 		ret = hdmitx21_check_input_argv(cmd, input_argv);
@@ -4770,6 +4833,18 @@ static int hdmitx21_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			break;
 		arg = *((bool *)input_argv);
 		hdmitx21_clks_gate_ctrl(!!arg);
+		break;
+	case PLATFORM_GET_TMDS_CLK:
+		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
+			ret = meson_clk_measure(92);
+		else
+			ret = meson_clk_measure(76);
+		break;
+	case PLATFORM_GET_PIXEL_CLK:
+		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
+			ret = meson_clk_measure(68);
+		else
+			ret = meson_clk_measure(59);
 		break;
 	default:
 		break;

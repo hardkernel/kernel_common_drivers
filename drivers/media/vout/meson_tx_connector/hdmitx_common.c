@@ -2780,6 +2780,20 @@ unsigned int hdmitx_common_get_audio_cts(struct hdmitx_common *tx_comm)
 }
 EXPORT_SYMBOL(hdmitx_common_get_audio_cts);
 
+unsigned int hdmitx_common_get_audio_layout(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+	unsigned int layout = 0;
+
+	if (tx_comm) {
+		tx_hw = tx_comm->tx_hw;
+		layout = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_AUDIO_LAYOUT, NULL, NULL);
+	}
+
+	return layout;
+}
+EXPORT_SYMBOL(hdmitx_common_get_audio_layout);
+
 enum hdmi_audio_coding_type hdmitx_common_get_audio_coding_type(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *tx_hw = NULL;
@@ -2960,6 +2974,20 @@ unsigned int hdmitx_common_get_vsif_amdv_low_latency(struct hdmitx_common *tx_co
 }
 EXPORT_SYMBOL(hdmitx_common_get_vsif_amdv_low_latency);
 
+enum hdmi_spd_sdi hdmitx_common_get_spd_sdi(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+	enum hdmi_spd_sdi sdi = HDMI_SPD_SDI_UNKNOWN;
+
+	if (tx_comm) {
+		tx_hw = tx_comm->tx_hw;
+		sdi = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_SPD_SDI, NULL, NULL);
+	}
+
+	return sdi;
+}
+EXPORT_SYMBOL(hdmitx_common_get_spd_sdi);
+
 enum hdmi_color_depth hdmitx_common_get_color_depth(struct hdmitx_common *tx_comm)
 {
 	enum hdmi_color_depth cd = COLORDEPTH_24B;
@@ -3038,7 +3066,7 @@ unsigned int hdmitx_common_get_tmds_clk(struct hdmitx_common *tx_comm)
 
 	if (tx_comm) {
 		tx_hw = tx_comm->tx_hw;
-		tmds_clk = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_TMDS_CLK,
+		tmds_clk = hdmitx_hw_cntl(tx_hw, PLATFORM_GET_TMDS_CLK,
 								NULL, NULL);
 	}
 
@@ -3053,7 +3081,7 @@ unsigned int hdmitx_common_get_pixel_clk(struct hdmitx_common *tx_comm)
 
 	if (tx_comm) {
 		tx_hw = tx_comm->tx_hw;
-		pixel_clk = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_PIXEL_CLK,
+		pixel_clk = hdmitx_hw_cntl(tx_hw, PLATFORM_GET_PIXEL_CLK,
 								NULL, NULL);
 	}
 
@@ -3075,6 +3103,128 @@ unsigned int hdmitx_common_get_hdcp_auth_state(struct hdmitx_common *tx_comm)
 	return hdcp_auth_state;
 }
 EXPORT_SYMBOL(hdmitx_common_get_hdcp_auth_state);
+
+unsigned int hdmitx_common_get_hdcp_an(struct hdmitx_common *tx_comm, u8 *an)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+
+	if (tx_comm && an) {
+		tx_hw = tx_comm->tx_hw;
+		hdmitx_hw_cntl(tx_hw, HDCP14_GET_AN, NULL, an);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdcp_an);
+
+unsigned int hdmitx_common_get_hdcp_bksv(struct hdmitx_common *tx_comm, u8 *bksv)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+
+	if (tx_comm && bksv) {
+		tx_hw = tx_comm->tx_hw;
+		hdmitx_hw_cntl(tx_hw, HDCP_GET_BKSV, NULL, bksv);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdcp_bksv);
+
+unsigned int hdmitx_common_get_hdcp_aksv(struct hdmitx_common *tx_comm, u8 *aksv)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+
+	if (tx_comm && aksv) {
+		tx_hw = tx_comm->tx_hw;
+		hdmitx_hw_cntl(tx_hw, HDCP_GET_AKSV, NULL, aksv);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdcp_aksv);
+
+unsigned int hdmitx_common_get_hdcp_bstatus(struct hdmitx_common *tx_comm, u8 *bstatus)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+
+	if (tx_comm && bstatus) {
+		tx_hw = tx_comm->tx_hw;
+		hdmitx_hw_cntl(tx_hw, HDCP14_GET_BSTATUS, NULL, bstatus);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdcp_bstatus);
+
+unsigned int hdmitx_common_get_hdcp_bcaps(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+	unsigned int bcaps = 0;
+
+	if (tx_comm) {
+		tx_hw = tx_comm->tx_hw;
+		bcaps = hdmitx_hw_cntl(tx_hw, HDCP14_GET_BCAPS, NULL, NULL);
+	}
+
+	return bcaps;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdcp_bcaps);
+
+unsigned int hdmitx_common_get_hdcp_ri(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+	unsigned int ri = 0;
+
+	if (tx_comm) {
+		tx_hw = tx_comm->tx_hw;
+		ri = hdmitx_hw_cntl(tx_hw, HDCP14_GET_RI, NULL, NULL);
+	}
+
+	return ri;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdcp_ri);
+
+unsigned int hdmitx_common_get_scdc_sts_flag0(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+	unsigned int scdc_sts_flag0 = 0;
+
+	if (tx_comm) {
+		tx_hw = tx_comm->tx_hw;
+		scdc_sts_flag0 = hdmitx_hw_cntl(tx_hw, DDC_SCDC_STS_FLAG0, NULL, NULL);
+	}
+
+	return scdc_sts_flag0;
+}
+EXPORT_SYMBOL(hdmitx_common_get_scdc_sts_flag0);
+
+unsigned int hdmitx_common_get_scdc_ln0_ln1_ltp(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+	unsigned int ln0_ln1_ltp = 0;
+
+	if (tx_comm) {
+		tx_hw = tx_comm->tx_hw;
+		ln0_ln1_ltp = hdmitx_hw_cntl(tx_hw, DDC_SCDC_LN0_LN1_LTP, NULL, NULL);
+	}
+
+	return ln0_ln1_ltp;
+}
+EXPORT_SYMBOL(hdmitx_common_get_scdc_ln0_ln1_ltp);
+
+unsigned int hdmitx_common_get_scdc_ln2_ln3_ltp(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+	unsigned int ln2_ln3_ltp = 0;
+
+	if (tx_comm) {
+		tx_hw = tx_comm->tx_hw;
+		ln2_ln3_ltp = hdmitx_hw_cntl(tx_hw, DDC_SCDC_LN2_LN3_LTP, NULL, NULL);
+	}
+
+	return ln2_ln3_ltp;
+}
+EXPORT_SYMBOL(hdmitx_common_get_scdc_ln2_ln3_ltp);
 
 int hdmitx_get_connector(void)
 {
