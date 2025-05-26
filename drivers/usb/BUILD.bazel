@@ -163,6 +163,7 @@ ddk_module(
     },
     hdrs = [
         "//common:drivers/usb/host/xhci-mvebu.h",
+        "//common:drivers/base/base.h",
     ],
     local_defines = [
         "pr_fmt(fmt)=\"[amlogic-usb]: \" fmt",
@@ -175,7 +176,8 @@ ddk_module(
     ],
     linux_includes = [
         "dwc_otg/310/common_port",
-        "../../../../common/drivers/usb/host",
+        "../../../common/drivers/usb/host",
+        "../../../common/drivers/base",
         "xhci_amlogic",
     ],
     out = "amlogic-usb.ko",

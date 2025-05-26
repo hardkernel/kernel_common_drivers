@@ -39,7 +39,7 @@
 #include <linux/suspend.h>
 #include <linux/device/driver.h>
 
-#include "../../../../../common/drivers/base/base.h"
+#include <base.h>
 
 #define CRG_MTP_WR 1
 #define MAX_PACKET_SIZE 1024
