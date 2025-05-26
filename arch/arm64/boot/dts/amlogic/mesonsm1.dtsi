@@ -2052,6 +2052,12 @@
 		quality = /bits/ 16 <1000>;
 	};
 
+	state_led: state_led {
+		compatible = "amlogic,state-led-aocpu";
+		mboxes = <&mbox_pl0 SM1_REE2AO_LED>;
+		status = "disabled";
+	};
+
 	efuse: efuse{
 		compatible = "amlogic, efuse";
 		read_cmd = <0x82000030>;

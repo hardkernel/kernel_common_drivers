@@ -1838,6 +1838,12 @@
 			      GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	state_led: state_led {
+		compatible = "amlogic,state-led-aocpu";
+		mboxes = <&mbox_pl T5D_REE2AO_LED>;
+		status = "disabled";
+	};
+
 	efusecheck: efusecheck{
 		maincmd = <0x8200003E>;
 		checknum = <1>;
