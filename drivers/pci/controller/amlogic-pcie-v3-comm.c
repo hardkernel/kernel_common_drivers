@@ -1177,6 +1177,7 @@ static int amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 
 	if (!amlogic->do_reset_gpio) {
 		dev_info(dev, "GPIO no need reset for W2 when resume\n");
+		usleep_range(9000, 10000);
 		return 0;
 	}
 
