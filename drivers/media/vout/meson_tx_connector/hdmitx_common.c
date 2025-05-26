@@ -76,6 +76,10 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	u8 ch1_locked = 0;
 	u8 ch2_locked = 0;
 
+	/* SCDC not present, should not access SCDC */
+	if (!tx_comm->rxcap.scdc_present)
+		return;
+
 	if (!tx_comm->ready) {
 		HDMITX_INFO("signal disabled, cancel ced process\n");
 		return;

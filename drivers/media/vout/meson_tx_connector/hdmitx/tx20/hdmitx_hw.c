@@ -5570,9 +5570,9 @@ static int hdmitx20_hw_cntl_audio(struct hdmitx_hw_common *tx_hw, unsigned int c
 		if (ret < 0)
 			break;
 		arg = *((u32 *)input_argv);
-		if (arg == 0)
+		if (arg == DISABLE_AUDIO_ACR)
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 0, 1);
-		else if (arg == 1)
+		else if (arg == ENABLE_AUDIO_ACR)
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		break;
 	case AUDIO_PREPARE:

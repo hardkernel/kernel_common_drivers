@@ -163,6 +163,8 @@
 /* 0x13 audio for hdmitx */
 #define AUDIO_RESET					(CMD_AUX_AUD_OFFSET + 0x0)
 #define AUDIO_ACR_CTRL				(CMD_AUX_AUD_OFFSET + 0x1)
+	#define ENABLE_AUDIO_ACR  1
+	#define DISABLE_AUDIO_ACR 0
 #define AUDIO_PREPARE				(CMD_AUX_AUD_OFFSET + 0x2)
 #define AUDIO_MUTE_OP				(CMD_AUX_AUD_OFFSET + 0x3)
 	#define AUDIO_MUTE		0x1
