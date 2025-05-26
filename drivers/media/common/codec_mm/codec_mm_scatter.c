@@ -64,6 +64,9 @@
 #define CACHED_SIZE_DEF_1080P (8 * SZ_1M)
 #define CACHED_SIZE_DEF_4K (20 * SZ_1M)
 
+#define LMT_CACHE_SIZE_1080P (2 * SZ_1M)
+#define LMT_CACHE_SIZE_4K (8 * SZ_1M)
+
 u32 scatter_align_pages_size = 128;
 int scatter_swap_threshold_size = 20;
 
@@ -982,22 +985,36 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags, bool
 	int tvp_free_size = 0;
 	int cma_free_size = 0;
 	int alloc_unit_pages = scatter_get_unit_pages();
-	int total_slot_page_size;
 
-	if (enable_scatter_limited_func && is_cache && smgt->total_limited_size &&
-		!smgt->force_cache_on) {
-		codec_mm_list_lock(smgt);
-		total_slot_page_size = smgt->total_page_num - smgt->one_page_cnt;
-		if (total_slot_page_size >= smgt->total_limited_size) {
+	codec_mm_list_lock(smgt);
+	if ((smgt->no_alloc_from_sys || smgt->tvp_mode) &&
+		enable_scatter_limited_func && is_cache &&
+		smgt->total_limited_size && !smgt->force_cache_on) {
+		int total_slot_page_num = smgt->total_page_num;
+
+		if (total_slot_page_num >= smgt->total_limited_size) {
+			/* consider additional mem for three frame from 60% to 75% */
+			int little_cache_size = is_2k_platform() ?
+				PAGE_COUNT(LMT_CACHE_SIZE_1080P) : PAGE_COUNT(LMT_CACHE_SIZE_4K);
+			int total_free_page = total_slot_page_num - smgt->alloced_page_num
+				+ smgt->cached_pages;
+
 			if (scatter_debug_mode & DUMP_NORMAL_INFO)
-				INFO_LOG("total %d total_limited %llu cache %d alloced %d\n",
-					total_slot_page_size, smgt->total_limited_size,
+				INFO_LOG("total %d total_limit %llu cache %d alloced %d\n",
+					total_slot_page_num, smgt->total_limited_size,
 						smgt->cached_pages, smgt->alloced_page_num);
-			codec_mm_list_unlock(smgt);
-			return NULL;
+			if (total_free_page >= little_cache_size) {
+				if (scatter_debug_mode & DUMP_NORMAL_INFO)
+					INFO_LOG("No need add, free_page %d little_cache %d\n",
+						total_free_page, little_cache_size);
+				codec_mm_list_unlock(smgt);
+				return NULL;
+			}
+
+			try_alloc_size = smgt->try_alloc_in_cma_page_cnt * PAGE_SIZE / 2;
 		}
-		codec_mm_list_unlock(smgt);
 	}
+	codec_mm_list_unlock(smgt);
 
 	/* don't alloc less than one PAGE. */
 	if (try_alloc_size > 0 && try_alloc_size <= PAGE_SIZE)
@@ -1425,18 +1442,8 @@ static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
 		if (smgt->total_page_num <= 0 ||	/*no codec mm. */
 			smgt->alloced_page_num == smgt->total_page_num ||
 			list_empty(&smgt->free_list)) {
-			u32 alloc_pages = 0;
-			int alloc_unit_pages = scatter_get_unit_pages();
-
-			if (is_cache && !smgt->force_cache_on) {
-				// min slot size as 4M
-				alloc_unit_pages = MAX(alloc_unit_pages, 4 * SZ_1M >> PAGE_SHIFT);
-				alloc_pages = ALIGN(neednum, alloc_unit_pages);
-				pr_dbg("alloc pages is %d cache_pages is %d keep_size_page is %d\n",
-					alloc_pages, smgt->cached_pages, smgt->keep_size_PAGE);
-			}
 			/*codec_mm_scatter_info_dump(NULL, 0);*/
-			slot = codec_mm_slot_alloc(smgt, alloc_pages * PAGE_SIZE, 0, is_cache);
+			slot = codec_mm_slot_alloc(smgt, 0, 0, is_cache);
 			if (!slot) {
 				u32 alloc_pages =
 					 smgt->try_alloc_in_cma_page_cnt / 4;
@@ -2553,8 +2560,19 @@ int codec_mm_scatter_alloc_want_pages_in(struct codec_mm_scatter_mgt *smgt,
 		}
 	}
 	codec_mm_scatter_unlock(mms);
-	if (smgt->cached_pages < smgt->keep_size_PAGE)
-		codec_mm_schedule_delay_work(smgt, 0, 1);
+
+	if ((smgt->no_alloc_from_sys || smgt->tvp_mode) &&
+		enable_scatter_limited_func && smgt->total_limited_size &&
+		smgt->total_page_num > smgt->total_limited_size) {
+		int little_cache_size = is_2k_platform() ?
+			PAGE_COUNT(LMT_CACHE_SIZE_1080P) : PAGE_COUNT(LMT_CACHE_SIZE_4K);
+
+		if (smgt->cached_pages < little_cache_size)
+			codec_mm_schedule_delay_work(smgt, 0, 1);
+	} else {
+		if (smgt->cached_pages < smgt->keep_size_PAGE)
+			codec_mm_schedule_delay_work(smgt, 0, 1);
+	}
 
 	return 0;
 }
@@ -2679,11 +2697,13 @@ static int codec_mm_scatter_info_dump_in(struct codec_mm_scatter_mgt *smgt,
 		 smgt->alloc_from_sys_page_cnt);
 	BUFPRINT("\talloc from sys max pages cnt:%d pages\n",
 		 smgt->alloc_from_sys_max_page_cnt);
+	BUFPRINT("\ttotal_limited_size:%llu\n",
+		 smgt->total_limited_size);
 	BUFPRINT("\tscatter_task_run:%d\n",
 		 smgt->scatter_task_run_num);
 	BUFPRINT("\tone_page_cnt:%d\n",
 		 smgt->one_page_cnt);
-	BUFPRINT("\t scatters cnt:%d\n", smgt->scatters_cnt);
+	BUFPRINT("\tscatters cnt:%d\n", smgt->scatters_cnt);
 	BUFPRINT("\tslot cnt:%d\n", smgt->slot_cnt);
 	BUFPRINT("\tcma alloc block size:%d\n",
 		 smgt->try_alloc_in_cma_page_cnt);
@@ -3320,8 +3340,7 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 #define INSTR3 MMU_ALLOC_SCATTER_ALLOC_WANT_PAGE_IN_2_END
 	struct codec_mm_scatter *mms;
 	int alloced = 0;
-	int total_free_page = smgt->total_page_num -
-		smgt->alloced_page_num + smgt->cached_pages;
+	int total_free_page;
 
 	if (smgt->delay_free_on > 0 && smgt->keep_size_PAGE > 0) {
 		/*if alloc too much ,don't cache any more.*/
@@ -3402,6 +3421,8 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 	codec_mm_free_all_free_slots_in(smgt);
 
 	if (smgt->keep_size_PAGE > 0 && smgt->delay_free_on) {
+		total_free_page = smgt->total_page_num -
+			smgt->alloced_page_num + smgt->cached_pages;
 		if (((smgt->force_cache_on ||
 		    total_free_page < smgt->keep_size_PAGE) /*&&*/
 			/*!smgt->tvp_mode*/) &&
