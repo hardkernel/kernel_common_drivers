@@ -2325,10 +2325,10 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 			   struct composer_info_t *composer_info)
 {
 	struct pip_alpha_scpxn_s alpha_win;
-	static struct pip_alpha_scpxn_s last_alpha_win;
+	static struct pip_alpha_scpxn_s last_alpha_win[MAX_VD_LAYER];
 	int win_num = 0;
 	int win_en = 0;
-	static int last_alpha_win_en;
+	static int last_alpha_win_en[MAX_VD_LAYER];
 	int i, update = 0;
 
 	memset(&alpha_win, 0, sizeof(struct pip_alpha_scpxn_s));
@@ -2348,25 +2348,29 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 		}
 	}
 	/* check win num first, if changed update */
-	if (last_alpha_win_en != win_en) {
+	if (last_alpha_win_en[layer->layer_id] != win_en) {
 		update = 1;
 	} else {
 		/* check win set, if changed update */
 		for (i = 0; i < MAX_PIP_WINDOW; i++) {
-			if (alpha_win.scpxn_bgn_h[i] != last_alpha_win.scpxn_bgn_h[i] ||
-				alpha_win.scpxn_end_h[i] != last_alpha_win.scpxn_end_h[i] ||
-				alpha_win.scpxn_bgn_v[i] != last_alpha_win.scpxn_bgn_v[i] ||
-				alpha_win.scpxn_end_v[i] != last_alpha_win.scpxn_end_v[i]) {
+			if (alpha_win.scpxn_bgn_h[i] !=
+					last_alpha_win[layer->layer_id].scpxn_bgn_h[i] ||
+				alpha_win.scpxn_end_h[i] !=
+					last_alpha_win[layer->layer_id].scpxn_end_h[i] ||
+				alpha_win.scpxn_bgn_v[i] !=
+					last_alpha_win[layer->layer_id].scpxn_bgn_v[i] ||
+				alpha_win.scpxn_end_v[i] !=
+					last_alpha_win[layer->layer_id].scpxn_end_v[i]) {
 				update = 1;
 				break;
 			}
 		}
 	}
 	layer->alpha_win_en = win_en;
-	last_alpha_win_en = win_en;
+	last_alpha_win_en[layer->layer_id] = win_en;
 	memcpy(&layer->alpha_win, &alpha_win,
 		sizeof(struct pip_alpha_scpxn_s));
-	memcpy(&last_alpha_win, &alpha_win,
+	memcpy(&last_alpha_win[layer->layer_id], &alpha_win,
 		sizeof(struct pip_alpha_scpxn_s));
 	if (update) {
 		if (layer->layer_id == 0) {
