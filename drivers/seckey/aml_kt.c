@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
-#include <linux/amlogic/aml_kt.h>
+#include <uapi/amlogic/aml_kt.h>
 
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -981,7 +981,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct amlkt_get_flag_param flag_param;
 	u32 handle = 0;
 	u32 key_sts = 0;
-	int ret = 0;
+	int ret = -ENOTTY;
 
 	if (unlikely(!dev)) {
 		KT_LOGE("Empty aml_kt_dev\n");
@@ -1102,10 +1102,10 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	default:
 		KT_LOGE("Unknown cmd: %d\n", cmd);
-		return -EFAULT;
+		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static const struct file_operations aml_kt_fops = {
@@ -1182,10 +1182,11 @@ int aml_kt_init(struct class *aml_kt_class, struct platform_device *pdev)
 	struct device *device;
 	struct resource *res;
 
-	if (alloc_chrdev_region(&aml_kt_devt, 0, DEVICE_INSTANCES,
-				AML_KT_DEVICE_NAME) < 0) {
+	ret = alloc_chrdev_region(&aml_kt_devt, 0, DEVICE_INSTANCES,
+				AML_KT_DEVICE_NAME);
+	if (ret < 0) {
 		KT_LOGE("%s device can't be allocated.\n", AML_KT_DEVICE_NAME);
-		return -ENXIO;
+		return ret;
 	}
 
 	cdev_init(&aml_kt_dev.cdev, &aml_kt_fops);
