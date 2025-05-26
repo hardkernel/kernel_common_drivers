@@ -877,6 +877,7 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
+	run-low-mem;
 	hs4_core_phase = <0>;
 	hs2_core_phase = <2>;
 	init_core_phase = <3>;

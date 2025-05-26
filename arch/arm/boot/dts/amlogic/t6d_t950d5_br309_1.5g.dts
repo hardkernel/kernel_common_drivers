@@ -740,6 +740,7 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
+	run-low-mem;
 //	amlogic,dram-access-quirk;
 
 //	mmc-pwrseq = <&emmc_pwrseq>;

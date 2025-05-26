@@ -655,6 +655,7 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
+	run-low-mem;
 
 //  mmc-pwrseq = <&emmc_pwrseq>;
 //  vmmc-supply = <&vddao_3v3>;

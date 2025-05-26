@@ -212,6 +212,8 @@ struct meson_host {
 	unsigned int vendor_id;
 	struct mmc_stat_t mmc_stat;
 	bool mmc_stat_debug;
+	unsigned int req_size;
+	int run_low_mem;
 };
 
 struct wifi_clk_table {
@@ -369,16 +371,20 @@ extern struct mmc_host *sdio_host;
 #define SD_EMMC_SRAM_DATA_BUF_OFF_V8 0x800
 #define SD_EMMC_SRAM_DATA_BUF_LEN_V8 2048
 
-#define SD_EMMC_MAX_SEGS 256
-#define SD_EMMC_MAX_REQ_SIZE (128 * 1024)
+#define SD_EMMC_MAX_REQ_SIZE (256 * 1024)
+#define SD_EMMC_MAX_REQ_SIZE_LOW_MEM (128 * 1024)
 #define SD_EMMC_MAX_SEG_SIZE (64 * 1024)
+#define SD_EMMC_DESC_MAX_BLKS 511
+#define SD_EMMC_DESC_MAX_SIZE (511 * 512)
 
 #define SD_EMMC_CFG_BLK_SIZE 512 /* internal buffer max: 512 bytes */
 #define SD_EMMC_CFG_RESP_TIMEOUT 256 /* in clock cycles */
 #define SD_EMMC_CMD_TIMEOUT 1024 /* in ms */
 #define SD_EMMC_CMD_TIMEOUT_DATA 4096 /* in ms */
 #define SD_EMMC_CFG_CMD_GAP 16 /* in clock cycles */
-#define SD_EMMC_DESC_BUF_LEN (2 * PAGE_SIZE)
+#define SD_EMMC_DESC_BUF_LEN (3 * PAGE_SIZE)
+#define SD_EMMC_MAX_SEGS     ((SD_EMMC_DESC_BUF_LEN / 16) - 1)
+#define SD_EMMC_MAX_SEGS_LOW_MEM   256
 
 #define SD_EMMC_PRE_REQ_DONE BIT(0)
 #define SD_EMMC_DESC_CHAIN_MODE BIT(1)

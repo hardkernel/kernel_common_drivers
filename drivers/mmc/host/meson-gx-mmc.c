@@ -43,6 +43,7 @@
 #include <linux/proc_fs.h>
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
+#include <linux/thermal.h>
 
 #include "meson-cqhci.h"
 
@@ -208,6 +209,11 @@ static int amlogic_of_parse(struct mmc_host *host)
 	/* Get the wifi model that needs to be optimized */
 	if (device_property_read_u32(dev, "vendor-id", &mmc->vendor_id) < 0)
 		mmc->vendor_id = 0;
+
+	if (device_property_read_bool(dev, "run-low-mem"))
+		mmc->run_low_mem = 1;
+	else
+		mmc->run_low_mem = 0;
 
 	return 0;
 }
@@ -1729,7 +1735,8 @@ static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	struct mmc_data *data = host->cmd->data;
 	struct scatterlist *sg;
 	u32 start;
-	int i, j = 0;
+	int i, j = 0, cnt = 0;
+	bool split = false, block_mode = false;
 
 	if (data->flags & MMC_DATA_WRITE)
 		cmd_cfg |= CMD_CFG_DATA_WR;
@@ -1737,6 +1744,7 @@ static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	if (data->blocks > 1) {
 		cmd_cfg |= CMD_CFG_BLOCK_MODE;
 		meson_mmc_set_blksz(mmc, data->blksz);
+		block_mode = true;
 	}
 
 	if (mmc_op_multi(cmd->opcode) && cmd->mrq->sbc) {
@@ -1755,35 +1763,49 @@ static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	for_each_sg(data->sg, sg, data->sg_count, i) {
 		unsigned int len = sg_dma_len(sg);
 
+		cnt = 0;
 		if (data->blocks > 1)
 			len /= data->blksz;
+		do {
+			desc[i + j].cmd_cfg = cmd_cfg;
+			desc[i + j].cmd_cfg |= FIELD_PREP(CMD_CFG_LENGTH_MASK,
+				(block_mode && len > SD_EMMC_DESC_MAX_BLKS) ?
+				SD_EMMC_DESC_MAX_BLKS : len);
+			if (i > 0 || cnt)
+				desc[i + j].cmd_cfg |= CMD_CFG_NO_CMD;
+			desc[i + j].cmd_arg = host->cmd->arg;
+			desc[i + j].cmd_resp = 0;
+			desc[i + j].cmd_data = sg_dma_address(sg) +
+				(split ? SD_EMMC_DESC_MAX_SIZE * cnt : 0);
 
-		desc[i + j].cmd_cfg = cmd_cfg;
-		desc[i + j].cmd_cfg |= FIELD_PREP(CMD_CFG_LENGTH_MASK, len);
-		if (i > 0)
-			desc[i + j].cmd_cfg |= CMD_CFG_NO_CMD;
-		desc[i + j].cmd_arg = host->cmd->arg;
-		desc[i + j].cmd_resp = 0;
-		desc[i + j].cmd_data = sg_dma_address(sg);
+			if (block_mode && len > SD_EMMC_DESC_MAX_BLKS) {
+				len -= SD_EMMC_DESC_MAX_BLKS;
+				split = true;
+				j++;
+				cnt++; /* split number */
+			} else {
+				split = false;
+			}
+		} while (split);
 	}
 
 	if (mmc_op_multi(cmd->opcode) && !cmd->mrq->sbc) {
-		desc[data->sg_count].cmd_cfg = 0;
-		desc[data->sg_count].cmd_cfg |=
+		desc[i + j].cmd_cfg = 0;
+		desc[i + j].cmd_cfg |=
 			FIELD_PREP(CMD_CFG_CMD_INDEX_MASK,
 				   MMC_STOP_TRANSMISSION);
-		desc[data->sg_count].cmd_cfg |=
+		desc[i + j].cmd_cfg |=
 			FIELD_PREP(CMD_CFG_TIMEOUT_MASK, 0xc);
-		desc[data->sg_count].cmd_cfg |= CMD_CFG_OWNER;
-		desc[data->sg_count].cmd_cfg |= CMD_CFG_RESP_NUM;
-		desc[data->sg_count].cmd_cfg |= CMD_CFG_R1B;
-		desc[data->sg_count].cmd_arg = 0;
-		desc[data->sg_count].cmd_resp = 0;
-		desc[data->sg_count].cmd_data = 0;
+		desc[i + j].cmd_cfg |= CMD_CFG_OWNER;
+		desc[i + j].cmd_cfg |= CMD_CFG_RESP_NUM;
+		desc[i + j].cmd_cfg |= CMD_CFG_R1B;
+		desc[i + j].cmd_arg = 0;
+		desc[i + j].cmd_resp = 0;
+		desc[i + j].cmd_data = 0;
 		j++;
 	}
 
-	desc[data->sg_count + j - 1].cmd_cfg |= CMD_CFG_END_OF_CHAIN;
+	desc[i + j - 1].cmd_cfg |= CMD_CFG_END_OF_CHAIN;
 	dma_wmb(); /* ensure descriptor is written before kicked */
 	start = host->descs_dma_addr | START_DESC_BUSY;
 	writel(start, host->regs + SD_EMMC_START);
@@ -2573,6 +2595,21 @@ static void aml_set_tuning_para(struct mmc_host *mmc)
 	}
 }
 
+static int thermal_get_temp_by_name(const char *name)
+{
+	struct thermal_zone_device *tz;
+	int temperature = 0;
+	int ret;
+
+	tz = thermal_zone_get_zone_by_name(name);
+	if (!tz)
+		return -1;
+	ret = thermal_zone_get_temp(tz, &temperature);
+	if (ret)
+		return -1;
+	return temperature;
+}
+
 /*save parameter on mmc_host pdata*/
 static void aml_save_tuning_para(struct mmc_host *mmc)
 {
@@ -2606,6 +2643,39 @@ static void aml_save_tuning_para(struct mmc_host *mmc)
 	host->para.checksum = checksum;
 }
 
+/*write tuning para on emmc, the offset is 0x14400*/
+static int amlmmc_write_tuning_para(struct mmc_card *card,
+					unsigned int dev_addr)
+{
+	unsigned int size;
+	struct mmc_host *mmc = card->host;
+	struct meson_host *host = mmc_priv(mmc);
+	struct aml_tuning_para *parameter = &host->para;
+	unsigned int *buf;
+	int para_size;
+	int blocks;
+
+	if (host->save_para == 0 || parameter->update == 0)
+		return 0;
+
+	parameter->update = 0;
+	para_size = sizeof(struct aml_tuning_para);
+	blocks = (para_size - 1)  / 512 + 1;
+	size = blocks << card->csd.read_blkbits;
+	buf = kmalloc(size, GFP_KERNEL);
+	memset(buf, 0, size);
+	memcpy(buf, parameter, sizeof(struct aml_tuning_para));
+
+	mmc_claim_host(card->host);
+	aml_disable_mmc_cqe(card);
+	mmc_transfer(card, dev_addr, blocks, buf, 1);
+	aml_enable_mmc_cqe(card);
+	mmc_release_host(card->host);
+
+	kfree(buf);
+	return 0;
+}
+
 /*
  * check if tuning parameter is exist
  * check if temperature is in the 0~69
@@ -2624,7 +2694,7 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 	long long checksum;
 	struct meson_host *host = mmc_priv(mmc);
 	struct aml_tuning_para *para = &host->para;
-	int i;
+	int i, trynum = 0;
 
 	if (host->save_para == 0)
 		return 0;
@@ -2632,9 +2702,15 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 	para->update = 1;
 	temperature = -1;
 
-	if (temperature == -1) {
-		para->update = 0;
-		pr_info("get temperature failed\n");
+	while (trynum < 100) {
+		temperature = thermal_get_temp_by_name("soc_thermal");
+		if (temperature > 0)
+			break;
+		trynum++;
+		mdelay(5);
+	}
+	if (trynum == 100) {
+		pr_info("get temperature failed, trynum:%d\n", trynum);
 		return 0;
 	}
 	pr_info("current temperature is %d\n", temperature);
@@ -2645,6 +2721,11 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 	checksum = _para_checksum_calc(para);
 	if (checksum != para->checksum) {
 		pr_info("warning: checksum is not match\n");
+		return 0;
+	}
+
+	if (mmc->actual_clock != para->clk) {
+		pr_info("warning: clk is not match\n");
 		return 0;
 	}
 
@@ -3835,6 +3916,7 @@ static void add_dtbkey(struct work_struct *work)
 		amlmmc_dtb_init(mmc->card, &ret);
 		if (ret)
 			pr_err("%s:%d,amlmmc_dtb_init fail\n", __func__, __LINE__);
+		amlmmc_write_tuning_para(mmc->card, MMC_TUNING_OFFSET);
 		add_emmc_attr();
 	} else {
 		schedule_delayed_work(&host->dtbkey, 50);
@@ -4005,6 +4087,17 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		goto err_init_clk;
 	if (aml_card_type_mmc(host))
 		mmc->caps |= MMC_CAP_CMD23;
+
+	/*
+	 * 1. Enable with inlinecrypt controller uses link descriptor,
+	 * in this case, the hardware limit is the max value.
+	 * 2. The old soc is not limited by the link function, but if
+	 * it is 4GB and above ddr, the swiotlb max is 256KB, so the IO
+	 * can not exceed this value.
+	 */
+	if (device_property_read_u32(host->dev, "req-size", &host->req_size) < 0)
+		host->req_size = SD_EMMC_MAX_REQ_SIZE;
+
 	if (host->dram_access_quirk) {
 		/* Limit segments to 1 due to low available sram memory */
 		mmc->max_segs = 1;
@@ -4012,10 +4105,16 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		mmc->max_blk_count = MMC_SRAM_DATA_BUF_LEN(host) /
 				     mmc->max_blk_size;
 	} else {
-		mmc->max_blk_count = CMD_CFG_LENGTH_MASK;
-		mmc->max_segs = SD_EMMC_MAX_SEGS;
+		mmc->max_blk_count = host->req_size /
+				     mmc->max_blk_size;
+		if (host->run_low_mem == 0) {
+			mmc->max_segs = SD_EMMC_MAX_SEGS;
+		} else {
+			mmc->max_segs = SD_EMMC_MAX_SEGS_LOW_MEM;
+			host->req_size = SD_EMMC_MAX_REQ_SIZE_LOW_MEM;
+		}
 	}
-	mmc->max_req_size = SD_EMMC_MAX_REQ_SIZE;
+	mmc->max_req_size = host->req_size;
 	mmc->max_seg_size = mmc->max_req_size;
 	mmc->ocr_avail = 0x200080;
 	mmc->max_current_180 = 300; /* 300 mA in 1.8V */

@@ -1608,6 +1608,7 @@
 		hs4_core_phase = <0>;
 		hs4_tx_phase = <0>;
 		card_type = <1>;
+		save_para = <1>;
 		mmc_debug_flag;
 		disable-wp;
 		full-pwr-cycle;
