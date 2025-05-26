@@ -2493,7 +2493,7 @@
 &gpu{
 	reg = <0xffe40000 0x40000>, /*mali APB bus base address*/
 	      <0xffd01000 0x01000>, /*reset register*/
-	      <0xfffb0000 0x01000>, /*aobus for gpu pmu domain*/
+	      <0x0 0x0>, /*aobus for gpu pmu domain*/
 	      <0xff646000 0x01000>, /*hiubus for gpu clk cntl*/
 	      <0xffd01000 0x01000>;
 	interrupts = <0 160 4>, <0 161 4>, <0 162 4>, <0 163 4>,
