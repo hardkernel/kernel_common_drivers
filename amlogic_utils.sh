@@ -801,7 +801,7 @@ function modules_install() {
 		project_name="amlogic"
 	fi
 	project_modules_install="${project_name}_modules_install"
-	project_config="${project_name}_config"
+	project_config="${project_name}_config/out_dir"
 	if [[ ${BAZEL} == "1" ]]; then
 		mkdir ${OUT_AMLOGIC_DIR}/system_dlkm
 		cp ${DIST_DIR}/system_dlkm_staging_archive.tar.gz ${OUT_AMLOGIC_DIR}/system_dlkm/
@@ -947,7 +947,7 @@ function modules_install() {
 
 		pushd ${ROOT_DIR}/bazel-out/k8-fastbuild
 		AMLOGIC_CONFIG=`find -name .config | grep -w "${project_config}"`
-		KERNEL_AARCH64_CONFIG=`find -name .config | grep kernel_aarch64_tv_config`
+		KERNEL_AARCH64_CONFIG=`find -name .config | grep kernel_aarch64_tv_config/out_dir`
 		cp ${AMLOGIC_CONFIG} ${DIST_DIR}/amlogic.config
 		cp ${KERNEL_AARCH64_CONFIG} ${DIST_DIR}/.config
 		cp ${AMLOGIC_CONFIG} ${OUT_AMLOGIC_DIR}/symbols/amlogic.config
@@ -1407,13 +1407,13 @@ function export_env_variable () {
 	export ABI BUILD_CONFIG LTO KMI_SYMBOL_LIST_STRICT_MODE CHECK_DEFCONFIG MANUAL_INSMOD_MODULE ARCH
 	export KERNEL_DIR COMMON_DRIVERS_DIR BUILD_DIR ANDROID_PROJECT GKI_CONFIG UPGRADE_PROJECT ANDROID_VERSION
 	export FAST_BUILD CHECK_GKI_20 DEV_CONFIGS
-	export FULL_KERNEL_VERSION BAZEL PREBUILT_GKI KASAN FATLOAD DDK_BUILD PACKAGE
+	export FULL_KERNEL_VERSION BAZEL PREBUILT_GKI KASAN UPDATE_KERNEL FATLOAD DDK_BUILD PACKAGE
 
 	echo ROOT_DIR=$ROOT_DIR
 	echo ABI=${ABI} BUILD_CONFIG=${BUILD_CONFIG} LTO=${LTO} KMI_SYMBOL_LIST_STRICT_MODE=${KMI_SYMBOL_LIST_STRICT_MODE} CHECK_DEFCONFIG=${CHECK_DEFCONFIG} MANUAL_INSMOD_MODULE=${MANUAL_INSMOD_MODULE} ARCH=${ARCH}
 	echo KERNEL_DIR=${KERNEL_DIR} COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR} BUILD_DIR=${BUILD_DIR} ANDROID_PROJECT=${ANDROID_PROJECT} GKI_CONFIG=${GKI_CONFIG} UPGRADE_PROJECT=${UPGRADE_PROJECT} ANDROID_VERSION=${ANDROID_VERSION}
 	echo FAST_BUILD=${FAST_BUILD} CHECK_GKI_20=${CHECK_GKI_20}
-	echo FULL_KERNEL_VERSION=${FULL_KERNEL_VERSION} BAZEL=${BAZEL} PREBUILT_GKI=${PREBUILT_GKI} KASAN=${KASAN} FATLOAD=${FATLOAD} DDK_BUILD=${DDK_BUILD} PACKAGE=${PACKAGE}
+	echo FULL_KERNEL_VERSION=${FULL_KERNEL_VERSION} BAZEL=${BAZEL} PREBUILT_GKI=${PREBUILT_GKI} KASAN=${KASAN} UPDATE_KERNEL=${UPDATE_KERNEL} FATLOAD=${FATLOAD} DDK_BUILD=${DDK_BUILD} PACKAGE=${PACKAGE}
 	echo MENUCONFIG=${MENUCONFIG} BASICCONFIG=${BASICCONFIG} IMAGE=${IMAGE} MODULES=${MODULES} DTB_BUILD=${DTB_BUILD}
 	echo AMLOGIC_R_USER_DIFFCONFIG=${AMLOGIC_R_USER_DIFFCONFIG} CONFIG_BOOTIMAGE=${CONFIG_BOOTIMAGE}
 }
@@ -1529,6 +1529,11 @@ function handle_input_parameters () {
 			;;
 		--kasan)
 			KASAN=1
+			LTO=none
+			shift
+			;;
+		--update_kernel)
+			UPDATE_KERNEL=1
 			LTO=none
 			shift
 			;;
@@ -1723,7 +1728,8 @@ function build_kernel_with_bazel() {
 	[[ -n ${DDK_BUILD} && -n ${ANDROID_PROJECT} ]] && args="${args} --debug_modpost_warn"
 	[[ -z ${SYS_SKIP_GIT} ]] && args="${args}"
 	[[ -z ${PREBUILT_GKI} ]] && args="${args}"
-	[[ -z ${GKI_CONFIG} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
+	[[ -z ${GKI_CONFIG} || -n ${UPDATE_KERNEL} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
+	[[ -n ${UPDATE_KERNEL} ]] && args="${args} --nokmi_symbol_list_violations_check --defconfig_fragment=//common_drivers:arch/arm64/configs/defconfig_fragment"
 	[[ -d ${ROOT_DIR}/common_drivers ]] && args="${args} --config=common_drivers_on_top"
 
 	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project

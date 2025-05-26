@@ -25,10 +25,10 @@ FRAGMENT_CONFIG_UPGRADE_P=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/a
 FRAGMENT_CONFIG_KASAN=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_kasan.defconfig
 
 function post_defconfig_cmds() {
-	ARM64_DEFCONFIG=${OUT_DIR}/.config
-	KCONFIG_DEFCONFIG=${ARM64_DEFCONFIG}.tmp
 	MERGE_CONFIG_SCRIPT_PATH=${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig
 	local temp_file=`mktemp .tmp.config.XXXXXXXXXXXX`
+	ARM64_DEFCONFIG=${OUT_DIR}/.config
+	KCONFIG_DEFCONFIG=${ARM64_DEFCONFIG}.tmp
 
 	if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
 		echo "CONFIG_AMLOGIC_SERIAL_MESON=y" > ${temp_file}

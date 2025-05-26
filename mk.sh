@@ -28,6 +28,7 @@ function show_help {
 	echo "  --dev_config            for use the config specified by oem instead of amlogic like ./mk.sh --dev_config a_config+b_config+c_config"
 	echo "  --use_prebuilt_gki      for use prebuilt gki, require parameter value, https://ci.android.com/builds/submitted/10412065/kernel_aarch64/latest, --use_prebuilt_gki 10412065"
 	echo "  --kasan                 for build kernel with config kasan"
+	echo "  --update_kernel         for update the debugging kernel"
 	echo "  --fatload          	for force change to fatload mode in android build"
 	echo "  --clean          	for clean out directory"
 	echo "  --ddk_build          	for use ddk to build common_drivers with gki_20 mode"
