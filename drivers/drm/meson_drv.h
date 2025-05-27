@@ -96,7 +96,7 @@ struct meson_drm_param {
 	int osdscaler_v_filter_mode;
 	int osdscaler_h_filter_mode;
 	int osd_hold_line;
-	int force_gfcd_mode;
+	int force_mali_afbc_mode;
 };
 
 extern struct meson_drm_param am_drm_param;

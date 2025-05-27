@@ -31,8 +31,6 @@ static int video_axis_zoom = -1;
 module_param(video_axis_zoom, int, 0664);
 MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
 
-static int force_gfcd_mode;
-
 static int bypass_video_crop;
 module_param(bypass_video_crop, int, 0664);
 MODULE_PARM_DESC(bypass_video_crop, "bypass_video_crop");
@@ -1019,10 +1017,15 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 
 			plane_info->process_unit = GFCD_AFRC;
 		} else {
-			if (drv->vpu_data && drv->vpu_data->has_gfcd && force_gfcd_mode &&
+			if (drv->vpu_data && drv->vpu_data->has_gfcd &&
 					(drv->of_conf.gfcd_enable ||
 					plane_info->pixel_format == DRM_FORMAT_ABGR10101010)) {
 				plane_info->process_unit = GFCD_AFBC;
+				if (am_drm_param.force_mali_afbc_mode) {
+					plane_info->process_unit = MALI_AFBC;
+					plane_info->afbc_en = 1;
+					plane_info->afbc_inter_format = AFBC_EN;
+				}
 			} else {
 				plane_info->afbc_en = 1;
 				plane_info->afbc_inter_format = AFBC_EN;

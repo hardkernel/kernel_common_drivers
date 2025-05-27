@@ -1931,8 +1931,8 @@ AM_BIN_ATTR_MOD_PARAM_R_DEF(osdscaler_h_filter_mode)
 AM_BIN_ATTR_MOD_PARAM_W_DEF(osdscaler_h_filter_mode)
 AM_BIN_ATTR_MOD_PARAM_R_DEF(osd_hold_line)
 AM_BIN_ATTR_MOD_PARAM_W_DEF(osd_hold_line)
-AM_BIN_ATTR_MOD_PARAM_R_DEF(force_gfcd_mode)
-AM_BIN_ATTR_MOD_PARAM_W_DEF(force_gfcd_mode)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(force_mali_afbc_mode)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(force_mali_afbc_mode)
 
 static struct bin_attribute module_param_attr[] = {
 AM_BIN_ATTR_MOD_PARAM_RW(crtc_force_hint)
@@ -1943,7 +1943,7 @@ AM_BIN_ATTR_MOD_PARAM_RW(osdscaler_force_update)
 AM_BIN_ATTR_MOD_PARAM_RW(osdscaler_v_filter_mode)
 AM_BIN_ATTR_MOD_PARAM_RW(osdscaler_h_filter_mode)
 AM_BIN_ATTR_MOD_PARAM_RW(osd_hold_line)
-AM_BIN_ATTR_MOD_PARAM_RW(force_gfcd_mode)
+AM_BIN_ATTR_MOD_PARAM_RW(force_mali_afbc_mode)
 };
 
 static struct attribute_group module_param_group = {
