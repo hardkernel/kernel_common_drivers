@@ -1067,3 +1067,8 @@
 		pinctrl-0 = <&spdifout_b>;
 		pinctrl-1 = <&spdifout_b_mute>;
 };
+
+&chosen {
+	bootargs = "usbcore.autosuspend=-1 dm_mod.reserved_bio_based_ios=8 rodata=off";
+};
+
