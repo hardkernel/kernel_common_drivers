@@ -383,6 +383,7 @@ struct meson_vpu_video {
 	bool video_enabled;
 	struct dma_fence *fence;
 	struct dma_buf *dmabuf[DRM_FORMAT_MAX_PLANES];
+	struct dma_fence *present_fence;
 	struct list_head vfm_node[MESON_MAX_VIDEO];
 	struct meson_vpu_disable_work worker;
 	struct task_struct *disable_thread;

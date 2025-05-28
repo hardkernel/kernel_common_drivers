@@ -1112,7 +1112,7 @@ static bool meson_video_plane_is_repeat_frame(struct meson_vpu_video *mvv)
 
 static const char *am_meson_video_fence_get_driver_name(struct dma_fence *fence)
 {
-	return "meson";
+	return "aml_drm";
 }
 
 static void
@@ -1125,12 +1125,24 @@ am_meson_video_fence_release(struct dma_fence *fence)
 static const char *
 am_meson_video_fence_get_timeline_name(struct dma_fence *fence)
 {
-	return "meson_video_fence";
+	return "video_fence";
+}
+
+static const char *
+am_meson_video_present_fence_get_timeline_name(struct dma_fence *fence)
+{
+	return "video_present_fence";
 }
 
 static const struct dma_fence_ops am_meson_video_plane_fence_ops = {
 	.get_driver_name = am_meson_video_fence_get_driver_name,
 	.get_timeline_name = am_meson_video_fence_get_timeline_name,
+	.release = am_meson_video_fence_release,
+};
+
+static const struct dma_fence_ops am_meson_video_plane_present_fence_ops = {
+	.get_driver_name = am_meson_video_fence_get_driver_name,
+	.get_timeline_name = am_meson_video_present_fence_get_timeline_name,
 	.release = am_meson_video_fence_release,
 };
 
@@ -1149,6 +1161,21 @@ static struct dma_fence *am_meson_video_create_fence(spinlock_t *lock,
 	return fence;
 }
 
+static struct dma_fence *am_meson_video_create_present_fence(spinlock_t *lock,
+		struct am_video_plane *video_plane)
+{
+	struct dma_fence *fence;
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return NULL;
+
+	dma_fence_init(fence, &am_meson_video_plane_present_fence_ops,
+		lock, video_plane->present_context, ++video_plane->present_seqno);
+
+	return fence;
+}
+
 static int meson_video_prepare_fence(struct drm_plane *plane,
 					  struct drm_plane_state *state,
 				struct meson_vpu_video *mvv)
@@ -1159,7 +1186,7 @@ static int meson_video_prepare_fence(struct drm_plane *plane,
 	/*creat implicit fence as out_fence, and next will directly
 	 *export to video composer module
 	 */
-	fence = am_meson_video_create_fence(&video_plane->lock, video_plane);
+	fence = am_meson_video_create_fence(&video_plane->fence_lock, video_plane);
 	if (!fence)
 		return -ENOMEM;
 
@@ -1168,6 +1195,83 @@ static int meson_video_prepare_fence(struct drm_plane *plane,
 		__func__, fence, video_plane->context, video_plane->seqno,
 		video_plane->plane_index);
 	return 0;
+}
+
+static void set_present_fence_for_video(struct am_meson_video_plane_state *plane_state,
+				   s32 __user *fence_ptr)
+{
+	plane_state->video_present_fence_state.video_present_ptr = fence_ptr;
+	MESON_DRM_FENCE("%s, %px, %px\n", __func__, plane_state, fence_ptr);
+}
+
+static s32 __user *get_present_fence_for_video(struct am_meson_video_plane_state *plane_state)
+{
+	s32 __user *fence_ptr;
+
+	fence_ptr = plane_state->video_present_fence_state.video_present_ptr;
+	plane_state->video_present_fence_state.video_present_ptr = NULL;
+	MESON_DRM_FENCE("%s, %px, %px\n", __func__, plane_state, fence_ptr);
+	return fence_ptr;
+}
+
+static int meson_video_prepare_present_fence(struct drm_plane *plane,
+					  struct drm_plane_state *state,
+				struct meson_vpu_video *mvv)
+{
+	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct dma_fence *fence = NULL;
+	struct drm_video_present_fence_state *fence_state;
+	struct am_meson_video_plane_state *plane_state;
+	int ret = 0;
+	s32 __user *fence_ptr;
+
+	plane_state = to_am_meson_video_plane_state(state);
+
+	fence_ptr = get_present_fence_for_video(plane_state);
+	fence_state = &plane_state->video_present_fence_state;
+
+	/*creat implicit fence as out_fence, and next will directly
+	 *export to video composer module
+	 */
+
+	if (fence_ptr) {
+		fence = am_meson_video_create_present_fence(&video_plane->present_fence_lock,
+							    video_plane);
+		if (!fence)
+			return -ENOMEM;
+
+		fence_state->fd = get_unused_fd_flags(O_CLOEXEC);
+		if (fence_state->fd < 0) {
+			ret = fence_state->fd;
+			goto err_put_fence;
+		}
+
+		if (put_user(fence_state->fd, fence_ptr)) {
+			ret = -EFAULT;
+			MESON_DRM_FENCE("put_user fail\n");
+			goto err_put_fence;
+		}
+
+		fence_state->sync_file = sync_file_create(fence);
+		if (!fence_state->sync_file) {
+			ret = -ENOMEM;
+			goto err_put_fd;
+		}
+
+		fd_install(fence_state->fd, fence_state->sync_file->file);
+		mvv->present_fence = fence;
+
+		MESON_DRM_FENCE("%s, fence(%px), fd(%d), plane_index%d\n",
+			__func__, fence, fence_state->fd, video_plane->plane_index);
+
+		return 0;
+
+err_put_fd:
+		put_unused_fd(fence_state->fd);
+err_put_fence:
+		dma_fence_put(fence);
+	}
+	return ret;
 }
 
 static int meson_plane_atomic_get_property(struct drm_plane *plane,
@@ -1262,6 +1366,8 @@ static int meson_video_plane_atomic_get_property(struct drm_plane *plane,
 		*val =  mvv->src_max_size;
 	} else if (property == video_plane->async_in_fence_property) {
 		*val = -1;
+	} else if (property == video_plane->video_present_fence_property) {
+		*val = 0;
 	} else {
 		return -EINVAL;
 	}
@@ -1292,6 +1398,15 @@ static int meson_video_plane_atomic_set_property(struct drm_plane *plane,
 		plane_state->async_in_fence = sync_file_get_fence(val);
 		if (!plane_state->async_in_fence)
 			return -EINVAL;
+	} else if (property == video_plane->video_present_fence_property) {
+		s32 __user *fence_ptr = u64_to_user_ptr(val);
+
+		if (!fence_ptr)
+			return 0;
+
+		if (put_user(-1, fence_ptr))
+			return -EFAULT;
+		set_present_fence_for_video(plane_state, fence_ptr);
 	}
 
 	return 0;
@@ -1343,6 +1458,15 @@ int meson_async_atomic_plane_set_property(struct drm_plane *plane,
 		if (!plane_state->async_in_fence)
 			return -EINVAL;
 
+	} else if (property == video_plane->video_present_fence_property) {
+		s32 __user *fence_ptr = u64_to_user_ptr(val);
+
+		if (!fence_ptr)
+			return 0;
+
+		if (put_user(-1, fence_ptr))
+			return -EFAULT;
+		set_present_fence_for_video(plane_state, fence_ptr);
 	} else if (property == config->prop_crtc_id) {
 		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
 
@@ -1868,17 +1992,21 @@ static void meson_video_plane_atomic_update(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane->state->crtc;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct meson_vpu_pipeline *pipeline = amcrtc->priv->pipeline;
-	struct drm_plane_state *old_state;
+	struct drm_plane_state *old_state, *new_plane_state;
 	struct meson_vpu_video *mvv = pipeline->video[video_plane->plane_index];
 
 	crtc_index = crtc->index;
 	video_index = video_plane->plane_index;
 	mvsp = &pipeline->video_subs[crtc_index];
 	old_state = drm_atomic_get_old_plane_state(old_atomic_state, plane);
+	new_plane_state = drm_atomic_get_new_plane_state(old_atomic_state, plane);
 
 	DRM_DEBUG("video plane atomic_update old_state:%p.\n", old_state);
-	if (old_state && !meson_video_plane_is_repeat_frame(mvv))
+	if (old_state && !meson_video_plane_is_repeat_frame(mvv)) {
 		meson_video_prepare_fence(plane, old_state, mvv);
+		meson_video_prepare_present_fence(plane, new_plane_state, mvv);
+	}
+
 	video_pipeline_block_update(mvsp, old_atomic_state, video_index);
 }
 
@@ -2390,8 +2518,10 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 		obj->state = new_obj_state;
 	}
 
-	if (new_state && !meson_video_plane_is_repeat_frame(mvv))
+	if (new_state && !meson_video_plane_is_repeat_frame(mvv)) {
 		meson_video_prepare_fence(plane, new_state, mvv);
+		meson_video_prepare_present_fence(plane, new_state, mvv);
+	}
 	video_pipeline_block_update(sub_pipe, new_state->state, video_plane->plane_index);
 }
 
@@ -2728,6 +2858,21 @@ static int meson_video_plane_create_in_fence_property(struct meson_drm *priv,
 	return 0;
 }
 
+static void meson_video_create_video_present_fence_property(struct drm_device *drm_dev,
+		struct am_video_plane *video_plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"video_present_fence", 0, U64_MAX);//
+	if (prop) {
+		video_plane->video_present_fence_property = prop;
+		drm_object_attach_property(&video_plane->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to create video_present_fence property\n");
+	}
+}
+
 static void meson_plane_get_primary_plane(struct meson_drm *priv,
 			enum drm_plane_type *type)
 {
@@ -2890,6 +3035,9 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	video_plane->context = dma_fence_context_alloc(1);
 	video_plane->seqno = 0;
 
+	video_plane->present_context = dma_fence_context_alloc(1);
+	video_plane->present_seqno = 0;
+
 	min_zpos = VIDEO_PLANE_BEGIN_ZORDER;
 	max_zpos = VIDEO_PLANE_END_ZORDER;
 
@@ -2903,7 +3051,6 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	plane = &video_plane->base;
 	sprintf(plane_name, "video%d", i);
 	const_plane_name = plane_name;
-	spin_lock_init(&video_plane->lock);
 
 	if (!priv->vpu_data->video_formats) {
 		formats_group = video_supported_drm_formats;
@@ -2925,6 +3072,7 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 				DRM_MODE_ROTATE_MASK);
 	drm_plane_create_zpos_property(plane, zpos, min_zpos, max_zpos);
 	meson_video_plane_create_in_fence_property(priv, video_plane);
+	meson_video_create_video_present_fence_property(priv->drm, video_plane);
 	meson_video_plane_create_signal_fmt_property(video_plane,
 				BIT(SIGNAL_FMT_SDR) |
 				BIT(SIGNAL_FMT_HDR10) |
@@ -2936,6 +3084,10 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	meson_video_create_video_cap_property(priv->drm, video_plane);
 	meson_video_create_video_src_min_size_property(priv->drm, video_plane);
 	meson_video_create_video_src_max_size_property(priv->drm, video_plane);
+
+	spin_lock_init(&video_plane->fence_lock);
+	spin_lock_init(&video_plane->present_fence_lock);
+
 	DRM_INFO("video plane %d create done\n", i);
 	return video_plane;
 }

@@ -30,10 +30,17 @@ struct am_meson_plane_state {
 	u32 sec_en;
 };
 
+struct drm_video_present_fence_state {
+	s32 __user *video_present_ptr;
+	struct sync_file *sync_file;
+	int fd;
+};
+
 struct am_meson_video_plane_state {
 	struct drm_plane_state base;
 	u32 signal_fmt;
 	struct dma_fence *async_in_fence;
+	struct drm_video_present_fence_state video_present_fence_state;
 };
 
 enum meson_max_fb_enum {
@@ -95,9 +102,15 @@ struct am_video_plane {
 	int plane_index;
 	int plane_type;
 
-	/*release fence context*/
+	/*release fence*/
+	spinlock_t fence_lock;
 	u64 context;
 	u64 seqno;
+
+	/*present fence*/
+	spinlock_t present_fence_lock;
+	u64 present_context;
+	u64 present_seqno;
 
 	struct drm_property *signal_fmt_property;
 
@@ -106,6 +119,7 @@ struct am_video_plane {
 	struct drm_property *video_src_max_size_property;
 
 	struct drm_property *async_in_fence_property;
+	struct drm_property *video_present_fence_property;
 
 	struct meson_vpu_pipeline *pipeline;
 	spinlock_t lock; //used for video plane dma_fence

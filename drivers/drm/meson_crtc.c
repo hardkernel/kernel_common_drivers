@@ -321,7 +321,7 @@ int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 	pre_fence->fd = fd;
 	pre_fence->fence = fence;
 	pre_fence->sync_file = sync_file;
-	DRM_DEBUG("%s fd=%d, fence=%px\n", __func__,
+	MESON_DRM_FENCE("%s fd=%d, fence=%px\n", __func__,
 		pre_fence->fd, pre_fence->fence);
 
 	return 0;
