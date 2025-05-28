@@ -2914,7 +2914,6 @@ void hdmitx20_meson_uninit(struct hdmitx_hw_common *tx_hw)
 	hdmitx_free_irq(tx_hw);
 	hdmitx20_hdcp_uninit(hdev);
 	phy_pll_off();
-	hdmitx_hpd_hw_op(HPD_UNMUX_HPD);
 }
 
 static void hw_reset_dbg(void)

@@ -202,20 +202,22 @@ static const struct _hdmi_clkmsr hdmiclkmsr_s7[] = {
 /* only for hpd level */
 int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
-	case MESON_CPU_ID_S5:
-		return !!(hd21_read_reg(PADCTRL_GPIOH_I) & (1 << 2));
-	case MESON_CPU_ID_S1A:
-		return !!(hd21_read_reg(PADCTRL_GPIOH_I_S1A) & (1 << 2));
-	case MESON_CPU_ID_S7:
-		return !!(hd21_read_reg(PADCTRL_GPIOH_I_S7) & (1 << 2));
-	case MESON_CPU_ID_S7D:
-		return !!(hd21_read_reg(PADCTRL_GPIOH_I_S7D) & (1 << 2));
-	case MESON_CPU_ID_S6:
-		return !!(hd21_read_reg(PADCTRL_GPIOH_I_S6) & (1 << 2));
-	case MESON_CPU_ID_T7:
-	default:
-		return !!(hd21_read_reg(PADCTRL_GPIOW_I) & (1 << 15));
+	if (cmd == HPD_READ_HPD_GPIO) {
+		switch (global_tx_hw->base->chip_data->chip_type) {
+		case MESON_CPU_ID_S5:
+			return !!(hd21_read_reg(PADCTRL_GPIOH_I) & (1 << 2));
+		case MESON_CPU_ID_S1A:
+			return !!(hd21_read_reg(PADCTRL_GPIOH_I_S1A) & (1 << 2));
+		case MESON_CPU_ID_S7:
+			return !!(hd21_read_reg(PADCTRL_GPIOH_I_S7) & (1 << 2));
+		case MESON_CPU_ID_S7D:
+			return !!(hd21_read_reg(PADCTRL_GPIOH_I_S7D) & (1 << 2));
+		case MESON_CPU_ID_S6:
+			return !!(hd21_read_reg(PADCTRL_GPIOH_I_S6) & (1 << 2));
+		case MESON_CPU_ID_T7:
+		default:
+			return !!(hd21_read_reg(PADCTRL_GPIOW_I) & (1 << 15));
+		}
 	}
 	return 0;
 }
@@ -3016,8 +3018,8 @@ static void hdmitx21_reset_hdcp_param(struct hdmitx_common *tx_comm)
 {
 	struct hdcptx21_core_priv *p_hdcp;
 
-	if (!tx_comm) {
-		HDMITX_ERROR("NULL tx_comm instance!\n", __func__);
+	if (!tx_comm || !tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("NULL tx_comm or hdcptx instance!\n", __func__);
 		return;
 	}
 	p_hdcp = (struct hdcptx21_core_priv *)tx_comm->hdcptx_priv;

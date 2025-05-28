@@ -1334,6 +1334,13 @@ static void amhdmitx_shutdown(struct platform_device *pdev)
 		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_DISABLE, NULL, NULL);
 		hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_HDMI_CLKS_CTRL, (void *)&arg, NULL);
 	}
+	cancel_work_sync(&tx_comm->work_hdr);
+	cancel_work_sync(&tx_comm->work_hdr_unmute);
+	cancel_delayed_work(&tx_comm->work_hpd_plugout);
+	cancel_delayed_work(&tx_comm->work_hpd_plugin);
+	cancel_delayed_work(&tx_comm->work_internal_intr);
+	cancel_delayed_work(&tx_comm->work_rxsense);
+	cancel_delayed_work(&tx_comm->work_cedst);
 }
 
 static struct platform_driver amhdmitx_driver = {
