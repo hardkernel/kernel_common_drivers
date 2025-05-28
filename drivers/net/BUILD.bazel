@@ -212,6 +212,11 @@ ddk_module(
                 "ethernet/stmicro/stmmac/dwmac-meson8b.c",
             ],
         },
+        "CONFIG_AMLOGIC_WOL": {
+            True: [
+                "ethernet/stmicro/stmmac/amlogic-wol.c",
+            ],
+        },
     },
     hdrs = [
     ],

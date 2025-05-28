@@ -10,6 +10,7 @@ stmmac-objs:= stmmac_main.o stmmac_ethtool.o stmmac_mdio.o ring_mode.o	\
 	      $(stmmac-y)
 
 stmmac-$(CONFIG_STMMAC_SELFTESTS) += stmmac_selftests.o
+stmmac-$(CONFIG_AMLOGIC_WOL) += amlogic-wol.o
 
 # Ordering matters. Generic driver must be last.
 obj-$(CONFIG_AMLOGIC_STMMAC_PLATFORM)	+= stmmac-platform.o

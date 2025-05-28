@@ -31,6 +31,7 @@
 #include <linux/amlogic/arm-smccc.h>
 #endif
 #include <linux/amlogic/aml_phy_debug.h>
+#include "amlogic-wol.h"
 #endif
 
 #define PRG_ETH0			0x0
@@ -122,6 +123,9 @@ struct meson8b_dwmac {
 #ifdef CONFIG_PM_SLEEP
 	struct input_dev		*input_dev;
 	struct mbox_chan		*mbox_chan;
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	bool				wol_en;		/* MAC frames are processed in BL30 */
+#endif
 #endif
 #endif
 };
@@ -475,6 +479,9 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 		if (of_property_read_u32(np, "mdns_wkup", &mdns_switch_from_user) == 0)
 			pr_debug("feature mdns_switch_from_user\n");
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	dwmac->wol_en = of_property_read_bool(np, "amlogic,wol-enable");
+#endif
 #endif
 
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
@@ -621,6 +628,10 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 #ifdef MBOX_NEW_VERSION
 	dwmac->mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
 #endif
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	if (dwmac->wol_en)
+		amlogic_wol_setup(dwmac->dev, dwmac->mbox_chan);
+#endif
 #endif
 	return 0;
 #else
@@ -732,6 +743,27 @@ static int meson8b_suspend(struct device *dev)
 	struct phy_device *phydev = ndev->phydev;
 	int ret;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	/* Using the new WOL mode (processing MAC frames in BL30) */
+	if (dwmac->wol_en) {
+		/* disable the old WOL to prevent the MAC from being re-enabled */
+		wol_switch_from_user = 0;
+		/* enable WOL when phy ready */
+		if (phydev) {
+			phydev->irq_suspended = 0;
+			set_wol_notify_bl31(true);
+			set_wol_notify_bl30(dwmac, 4);
+			amlogic_wol_enter();
+		} else {
+			set_wol_notify_bl30(dwmac, false);
+			/* if it is not an external phy */
+			if (internal_phy != 2 && dwmac->data->suspend)
+				dwmac->data->suspend(dwmac);
+		}
+		return stmmac_suspend(dev);
+	}
+#endif
+
 	/*open wol, shutdown phy when not link*/
 	if (wol_switch_from_user && phydev && phydev->link) {
 		set_wol_notify_bl31(true);
@@ -771,6 +803,30 @@ static int meson8b_resume(struct device *dev)
 	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
 	struct phy_device *phydev = ndev->phydev;
 	int ret;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	/* Using the new WOL mode (processing MAC frames in BL30) */
+	if (dwmac->wol_en) {
+		if (phydev) {
+			if (amlogic_wol_exit()) {
+				input_event(dwmac->input_dev, EV_KEY, KEY_POWER, 1);
+				input_sync(dwmac->input_dev);
+				input_event(dwmac->input_dev, EV_KEY, KEY_POWER, 0);
+				input_sync(dwmac->input_dev);
+			}
+			phydev->irq_suspended = 0;
+		} else {
+			/* if it is not an external phy */
+			if (internal_phy != 2 && dwmac->data->resume)
+				dwmac->data->resume(dwmac);
+		}
+		ret = stmmac_resume(dev);
+		/* The following code fixes the tx exception issue after resume */
+		priv->amlogic_task_action = 100;
+		stmmac_trigger_amlogic_task(priv);
+		return ret;
+	}
+#endif
 
 	priv->wolopts = 0;
 	if ((wol_switch_from_user) && (without_reset)) {
@@ -837,6 +893,10 @@ static void meson8b_dwmac_remove(struct platform_device *pdev)
 {
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	if (dwmac->wol_en)
+		amlogic_wol_remove();
+#endif
 	input_unregister_device(dwmac->input_dev);
 
 	stmmac_dvr_remove(&pdev->dev);

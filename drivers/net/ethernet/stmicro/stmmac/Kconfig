@@ -123,6 +123,14 @@ config AMLOGIC_DWMAC_MESON
 	  the stmmac device driver. This driver is used for Meson6,
 	  Meson8, Meson8b and GXBB SoCs.
 
+config AMLOGIC_WOL
+	bool "Support for Amlogic's WOL"
+	depends on AMLOGIC_DWMAC_MESON
+	depends on AMLOGIC_ETH_PRIVE
+	depends on PM_SLEEP
+	help
+	  Support for Amlogic's WOL.
+
 config DWMAC_QCOM_ETHQOS
 	tristate "Qualcomm ETHQOS support"
 	default ARCH_QCOM
