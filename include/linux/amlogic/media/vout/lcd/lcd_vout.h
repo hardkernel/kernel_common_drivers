@@ -913,7 +913,6 @@ struct aml_lcd_drv_s {
 	unsigned char probe_done;
 	unsigned char viu_sel;
 	unsigned char vsync_none_timer_flag;
-	unsigned char clk_conf_num;
 	char vsync_isr_name[3][15];
 	char vbyone_isr_name[10];
 	char output_name[30];

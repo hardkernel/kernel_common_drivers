@@ -204,16 +204,16 @@ static void lcd_set_pll(struct aml_lcd_drv_s *pdrv)
 	tcon_div_sel = cconf->pll_tcon_div_sel;
 	pll_ctrl = ((0x3 << 17) | /* gate ctrl */
 		(tcon_div[tcon_div_sel][2] << 16) |
-		(cconf->pll_n << LCD_PLL_N_TL1) |
-		(cconf->pll_m << LCD_PLL_M_TL1) |
-		(cconf->pll_od3_sel << LCD_PLL_OD3_TL1) |
-		(cconf->pll_od2_sel << LCD_PLL_OD2_TL1) |
-		(cconf->pll_od1_sel << LCD_PLL_OD1_TL1));
+		(cconf->pll_config[0].pll_n << LCD_PLL_N_TL1) |
+		(cconf->pll_config[0].pll_m << LCD_PLL_M_TL1) |
+		(cconf->pll_config[0].pll_od3_sel << LCD_PLL_OD3_TL1) |
+		(cconf->pll_config[0].pll_od2_sel << LCD_PLL_OD2_TL1) |
+		(cconf->pll_config[0].pll_od1_sel << LCD_PLL_OD1_TL1));
 	pll_ctrl1 = (1 << 28) |
 		(tcon_div[tcon_div_sel][0] << 22) |
 		(tcon_div[tcon_div_sel][1] << 21) |
 		((1 << 20) | /* sdm_en */
-		(cconf->pll_frac << 0));
+		(cconf->pll_config[0].pll_frac << 0));
 
 set_pll_retry_tl1:
 	lcd_ana_write(HHI_TCON_PLL_CNTL0, pll_ctrl);
@@ -238,7 +238,7 @@ set_pll_retry_tl1:
 	usleep_range(10, 15);
 	lcd_ana_write(HHI_TCON_PLL_CNTL2, 0x0000300c);
 
-	ret = lcd_pll_wait_lock(cconf->pll_id, HHI_TCON_PLL_CNTL0, LCD_PLL_LOCK_TL1);
+	ret = lcd_pll_wait_lock(cconf->pll_config[0].pll_id, HHI_TCON_PLL_CNTL0, LCD_PLL_LOCK_TL1);
 	if (ret) {
 		if (cnt++ < PLL_RETRY_MAX)
 			goto set_pll_retry_tl1;
@@ -437,7 +437,7 @@ static void lcd_prbs_config_clk(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prb
 	*encl_clk = lcd_do_div(bit_rate, 5);
 	*fifo_clk = lcd_do_div(bit_rate, 10);
 	lcd_clk_generate_prbs_clk(pdrv, *encl_clk, bit_rate);
-	if (cconf->done == 0)
+	if (cconf->pll_config[0].done == 0)
 		return;
 
 	lcd_clk_set(pdrv);
@@ -558,7 +558,7 @@ lcd_prbs_test_err:
 	lcd_prbs_flag = 0;
 }
 
-static struct lcd_clk_data_s lcd_clk_data_t5d = {
+static struct lcd_pll_data_s lcd_pll_data_t5d = {
 	.pll_od_fb = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
@@ -573,11 +573,17 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.pll_vco_fmin = 3000000000ULL,
 	.pll_out_fmax = 3100000000ULL,
 	.pll_out_fmin = 187500000,
-	.div_in_fmax = 3100000000ULL,
-	.div_out_fmax = 750000000,
-	.xd_out_fmax = 400000000,
 	.od_cnt = 3,
 	.have_tcon_div = 1,
+	.div_in_fmax = 3100000000ULL,
+	.div_out_fmax = 750000000,
+	.div_sel_max = CLK_DIV_SEL_2p33,
+};
+
+static struct lcd_clk_data_s lcd_clk_data_t5d = {
+	.pll_data[0] = &lcd_pll_data_t5d,
+	.pll_data[1] = NULL,
+	.xd_out_fmax = 400000000,
 	.phy_clk_location = 0,
 
 	.vclk_sel = 0,
@@ -585,7 +591,6 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.fifo_clk_msr_id = 129,
 	.tcon_clk_msr_id = 128,
 
-	.div_sel_max = CLK_DIV_SEL_MAX,
 	.xd_max = 256,
 	.phy_div_max = 256,
 
@@ -627,28 +632,31 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 
 struct lcd_clk_config_s *lcd_clk_config_chip_init_t5d(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_clk_config_s *cconf = NULL;
-	unsigned int size;
+	struct lcd_clk_config_s *cconf;
 
-	if (!pdrv)
-		return NULL;
-
-	pdrv->clk_conf_num = 1;
 	if (!pdrv->clk_conf) {
-		size = pdrv->clk_conf_num * sizeof(struct lcd_clk_config_s);
-		cconf = kcalloc(pdrv->clk_conf_num, sizeof(struct lcd_clk_config_s), GFP_KERNEL);
+		cconf = kcalloc(1, sizeof(struct lcd_clk_config_s), GFP_KERNEL);
 		if (!cconf) {
 			LCDERR("[%d]: %s: Not enough memory\n", pdrv->index, __func__);
 			return NULL;
 		}
 	} else {
-		size = pdrv->clk_conf_num * sizeof(struct lcd_clk_config_s);
 		cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
-		memset(cconf, 0, size);
+		memset(cconf, 0, sizeof(struct lcd_clk_config_s));
 	}
+
+	cconf->pll_conf_num = 1;
+	cconf->pll_config = kcalloc(cconf->pll_conf_num, sizeof(struct lcd_pll_config_s),
+					GFP_KERNEL);
+	if (!cconf->pll_config) {
+		LCDERR("[%d]: %s: Not enough memory for pll config\n", pdrv->index, __func__);
+		kfree(cconf);
+		return NULL;
+	}
+
 	cconf->data = &lcd_clk_data_t5d;
-	cconf->pll_id = 0;
-	cconf->pll_od_fb = lcd_clk_data_t5d.pll_od_fb;
+	cconf->pll_config[0].pll_id = 0;
+	cconf->pll_config[0].pll_od_fb = lcd_pll_data_t5d.pll_od_fb;
 
 	return cconf;
 }

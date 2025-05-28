@@ -20,13 +20,19 @@ static inline int is_fr_change(struct aml_lcd_drv_s *pdrv)
 	struct lcd_detail_timing_s *pt = &pdrv->config.timing.act_timing;
 	struct aml_fr_lock_s *fr_lock = pdrv->fr_lock;
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
+	int pll_index;
 
 	if (!pt || !fr_lock || !cconf)
 		return 0;
+	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)
+		pll_index = 1;
+	else
+		pll_index = 0;
+
 	if (fr_lock->base_dura_num != pt->sync_duration_num ||
 	   fr_lock->base_dura_den != pt->sync_duration_den ||
-	   fr_lock->pll_base_m != cconf->pll_m ||
-	   fr_lock->pll_base_frac != cconf->pll_frac)
+	   fr_lock->pll_base_m != cconf->pll_config[pll_index].pll_m ||
+	   fr_lock->pll_base_frac != cconf->pll_config[pll_index].pll_frac)
 		return 1;
 	else
 		return 0;
@@ -38,20 +44,24 @@ static inline void fr_lock_update_freq(struct aml_lcd_drv_s *pdrv)
 	unsigned long long pll_freq;
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned int temp_m, temp_frac;
+	int pll_index;
 
 	if (!fr_lock || !cconf)
 		return;
-
+	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)
+		pll_index = 1;
+	else
+		pll_index = 0;
 	pll_freq = fr_lock->pll_adj_hz;
 	temp_frac = lcd_do_div((u64)do_div(pll_freq, 24000000) << 17, 24000000);
 	temp_m = pll_freq;
-	if (temp_m > cconf->pll_m) {
-		temp_m = cconf->pll_m;
-		temp_frac = cconf->data->pll_frac_range + temp_frac;
-	} else if (temp_m  < cconf->pll_m) {
-		temp_m = cconf->pll_m;
-		temp_frac = (cconf->data->pll_frac_range - temp_frac) |
-			(1 << cconf->data->pll_frac_sign_bit);
+	if (temp_m > cconf->pll_config[0].pll_m) {
+		temp_m = cconf->pll_config[pll_index].pll_m;
+		temp_frac = cconf->data->pll_data[pll_index]->pll_frac_range + temp_frac;
+	} else if (temp_m  < cconf->pll_config[pll_index].pll_m) {
+		temp_m = cconf->pll_config[pll_index].pll_m;
+		temp_frac = (cconf->data->pll_data[pll_index]->pll_frac_range - temp_frac) |
+			(1 << cconf->data->pll_data[pll_index]->pll_frac_sign_bit);
 	}
 
 	fr_lock->pll_adj_m = temp_m;
@@ -64,12 +74,18 @@ void fr_lock_recovery_freq(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	struct aml_fr_lock_s *fr_lock = pdrv->fr_lock;
+	int pll_index;
 
 	if (!fr_lock || !cconf)
 		return;
 
-	lcd_vlock_m_update(pdrv->index, cconf->pll_m);
-	lcd_vlock_frac_update(pdrv->index, cconf->pll_frac);
+	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)
+		pll_index = 1;
+	else
+		pll_index = 0;
+
+	lcd_vlock_m_update(pdrv->index, cconf->pll_config[pll_index].pll_m);
+	lcd_vlock_frac_update(pdrv->index, cconf->pll_config[pll_index].pll_frac);
 }
 
 static inline int hw_framelock_working(int enc_mux)
@@ -177,9 +193,15 @@ void lcd_fr_lock(struct aml_lcd_drv_s *pdrv)
 	long long temp, msr_time_ns = 0;
 	int msr_cnt = 0;
 	int temp_cnt = 0, err = 0;
+	int pll_index;
 
 	if (!fr_lock || !cconf)
 		return;
+
+	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)
+		pll_index = 1;
+	else
+		pll_index = 0;
 
 	msr_time_ns = (s64)sched_clock();
 	msr_cnt = (int)vout_frame_cnt_measure(pdrv->index);
@@ -195,8 +217,8 @@ void lcd_fr_lock(struct aml_lcd_drv_s *pdrv)
 	if (is_fr_change(pdrv) || fr_lock->step == 0) {
 		fr_lock->base_dura_num = pt->sync_duration_num;
 		fr_lock->base_dura_den = pt->sync_duration_den;
-		fr_lock->pll_base_m = cconf->pll_m;
-		fr_lock->pll_base_frac = cconf->pll_frac;
+		fr_lock->pll_base_m = cconf->pll_config[pll_index].pll_m;
+		fr_lock->pll_base_frac = cconf->pll_config[pll_index].pll_frac;
 
 		if (!fr_lock->base_dura_den) {
 			if (fr_lock->show)

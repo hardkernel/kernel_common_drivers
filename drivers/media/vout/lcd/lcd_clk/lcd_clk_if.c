@@ -57,7 +57,7 @@ struct lcd_clk_config_s *get_lcd_clk_config(struct aml_lcd_drv_s *pdrv)
 	}
 	cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
 
-	for (i = 0; i < pdrv->clk_conf_num; i++) {
+	for (i = 0; i < cconf->pll_conf_num; i++) {
 		if (!cconf[i].data) {
 			LCDERR("[%d]: %s: clk config data is null\n",
 				pdrv->index, __func__);
@@ -381,9 +381,9 @@ unsigned long long lcd_pll_freq_get(int index)
 		return 0;
 
 #define PLL_FRAC_CONST_LEN 17
-	m = cconf->pll_m;
-	f = cconf->pll_frac & ((1 << (PLL_FRAC_CONST_LEN + 1)) - 1);
-	sign = (f & (1 << cconf->data->pll_frac_sign_bit)) ? -1 : 1;
+	m = cconf->pll_config->pll_m;
+	f = cconf->pll_config->pll_frac & ((1 << (PLL_FRAC_CONST_LEN + 1)) - 1);
+	sign = (f & (1 << cconf->data->pll_data[0]->pll_frac_sign_bit)) ? -1 : 1;
 	f *= sign;
 	hz = 24000000 * ((m << PLL_FRAC_CONST_LEN) + f) >> PLL_FRAC_CONST_LEN;
 #undef PLL_FRAC_CONST_LEN
@@ -458,7 +458,7 @@ void lcd_update_clk_frac(struct aml_lcd_drv_s *pdrv)
 
 	mutex_lock(&lcd_clk_mutex);
 	if (cconf->data->pll_frac_set)
-		cconf->data->pll_frac_set(pdrv, cconf->pll_frac);
+		cconf->data->pll_frac_set(pdrv, cconf->pll_config->pll_frac);
 	pdrv->config.timing.clk_change = 0; /* clear clk_change flag */
 	mutex_unlock(&lcd_clk_mutex);
 
@@ -794,7 +794,6 @@ void lcd_clk_config_parameter_init(struct aml_lcd_drv_s *pdrv)
 void lcd_clk_config_probe(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf = NULL;
-	unsigned int i;
 
 	switch (pdrv->data->chip_type) {
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
@@ -848,8 +847,7 @@ void lcd_clk_config_probe(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	for (i = 0; i < pdrv->clk_conf_num; i++)
-		cconf[i].fin = FIN_FREQ;
+	cconf->fin = FIN_FREQ;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_CLK) {
 		if (cconf->data->clk_config_init_print)
