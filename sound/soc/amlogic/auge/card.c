@@ -166,7 +166,6 @@ struct aml_card_data {
 	int mic_detect_flag;
 	bool mic_det_enable;
 	bool av_mute_enable;
-	bool spk_mute_enable;
 	int irq_exception64;
 	enum audio_hal_format hal_fmt;
 	/* for I2S to HDMI output audio type */
@@ -1061,7 +1060,7 @@ static int spk_mute_set(struct snd_kcontrol *kcontrol,
 
 	priv->spk_mute_flag = mute;
 
-	if (!IS_ERR(priv->spk_mute))
+	if (IS_ERR(priv->spk_mute))
 		return 0;
 
 	gpiod_set_value(priv->spk_mute, mute);
@@ -1076,7 +1075,7 @@ static int spk_mute_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *soc_card = snd_kcontrol_chip(kcontrol);
 	struct aml_card_data *priv = aml_card_to_priv(soc_card);
 
-	if (!IS_ERR(priv->spk_mute))
+	if (IS_ERR(priv->spk_mute))
 		return 0;
 
 	ucontrol->value.integer.value[0] = gpiod_get_value(priv->spk_mute);
@@ -1095,24 +1094,18 @@ static int aml_card_parse_gpios(struct device_node *node,
 {
 	struct device *dev = aml_priv_to_dev(priv);
 	struct snd_soc_card *soc_card = &priv->snd_card;
-	bool active_low;
 	unsigned int sleep_time = 500;
 	unsigned int spk_mute_sleep_time = 200;
 	struct gpio_desc *spk_mute = devm_gpiod_get(dev, "spk_mute", GPIOD_ASIS);
 	int value = 0;
 
-	if (IS_ERR(spk_mute)) {
-		priv->spk_mute_enable = 0;
-	} else {
-		priv->spk_mute_enable = 1;
-		active_low = gpiod_is_active_low(spk_mute);
-
+	if (!IS_ERR(spk_mute)) {
 		/* delay to depop the speaker noise */
 		if (!of_property_read_u32(node,
 				"spk_mute_sleep_time", &spk_mute_sleep_time))
 			msleep(spk_mute_sleep_time);
 
-		if (!priv->spk_mute_flag)
+		if (priv->spk_mute_flag)
 			value = 1;
 
 		gpiod_direction_output(spk_mute, value);
@@ -1258,7 +1251,6 @@ static int card_suspend_pre(struct snd_soc_card *card)
 	struct device_node *np = dev->of_node;
 
 	priv->av_mute_enable = 1;
-	priv->spk_mute_enable = 1;
 	aml_card_parse_gpios(np, priv);
 
 	pr_info("it is card_pre_suspend\n");
@@ -1276,7 +1268,6 @@ static int card_resume_post(struct snd_soc_card *card)
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
 
 	priv->av_mute_enable = 0;
-	priv->spk_mute_enable = 0;
 	pr_info("it is card_post_resume\n");
 
 	priv->gpio_set_flag = 1;
@@ -1520,7 +1511,6 @@ static int aml_card_probe(struct platform_device *pdev)
 	priv->drc_control = 0x3; //RF mode
 #endif
 	priv->av_mute_enable = 0;
-	priv->spk_mute_enable = 0;
 	priv->thread = NULL;
 	priv->gpio_set_flag = 1;
 	init_waitqueue_head(&priv->wq);
@@ -1579,8 +1569,6 @@ static void aml_card_platform_shutdown(struct platform_device *pdev)
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
 
 	priv->av_mute_enable = 1;
-	priv->spk_mute_enable = 1;
-
 	aml_card_parse_gpios(pdev->dev.of_node, priv);
 
 	if (priv->thread) {
