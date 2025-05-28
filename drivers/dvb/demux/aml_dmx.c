@@ -598,11 +598,20 @@ static void _sec_cb(u8 *sec, int len, void *data)
 {
 	struct dmx_section_filter *source_filter =
 	    (struct dmx_section_filter *)data;
-	struct sw_demux_sec_feed *sec_feed =
-	    (struct sw_demux_sec_feed *)source_filter->parent;
-	struct dmxdev_filter *dmxdevfilter = source_filter->priv;
+	struct sw_demux_sec_feed *sec_feed = NULL;
+	struct dmxdev_filter *dmxdevfilter = NULL;
 	ssize_t free;
 
+	if (!source_filter)
+		return;
+	sec_feed = (struct sw_demux_sec_feed *)source_filter->parent;
+	dmxdevfilter = source_filter->priv;
+	if (!sec_feed ||
+		!dmxdevfilter ||
+		!dmxdevfilter->dev) {
+		dprint("%s filter release\n", __func__);
+		return;
+	}
 	if (sec_feed->state != DMX_STATE_GO)
 		return;
 
@@ -624,8 +633,7 @@ static int _ts_out_sec_cb(struct out_elem *pout, char *buf,
 			  int count, void *udata, int req_len, int *req_ret)
 {
 	struct sw_demux_sec_feed *sec_feed = (struct sw_demux_sec_feed *)udata;
-	struct aml_dmx *demux =
-	    (struct aml_dmx *)sec_feed->sec_feed.parent->priv;
+	struct aml_dmx *demux = NULL;
 	int ret = 0;
 
 //      dprint("%s\n", __func__);
@@ -635,6 +643,10 @@ static int _ts_out_sec_cb(struct out_elem *pout, char *buf,
 		prdump("org", buf, 4);
 	}
 #endif
+	if (!sec_feed || !sec_feed->sec_feed.parent)
+		return 0;
+
+	demux = (struct aml_dmx *)sec_feed->sec_feed.parent->priv;
 	if (sec_feed->state != DMX_STATE_GO)
 		return 0;
 
@@ -1626,6 +1638,8 @@ int check_dmx_filter_buff(struct dmx_ts_feed *feed, int req_len)
 	ssize_t free;
 	struct dvb_ringbuffer *buffer;
 
+	if (!dmxdevfilter)
+		return 0;
 	spin_lock(&dmxdevfilter->dev->lock);
 	if (dmxdevfilter->params.pes.output == DMX_OUT_DECODER) {
 		spin_unlock(&dmxdevfilter->dev->lock);
@@ -1681,16 +1695,22 @@ static int out_ts_elem_cb(struct out_elem *pout, char *buf,
 {
 	struct dmx_ts_feed *source_feed = (struct dmx_ts_feed *)udata;
 	struct sw_demux_ts_feed *ts_feed = (struct sw_demux_ts_feed *)udata;
-	struct aml_dmx *demux = (struct aml_dmx *)ts_feed->ts_feed.parent->priv;
-
-	struct swdmx_ts_parser *tsp = demux->tsp;
+	struct aml_dmx *demux = NULL;
+	struct swdmx_ts_parser *tsp = NULL;
 	int sec_level = 0;
-	struct dmxdev_filter *filter = source_feed->priv;
-
+	struct dmxdev_filter *filter = NULL;
 	u8 *p = buf;
 	int left = count;
 	int pid = 0;
 
+	if (!ts_feed ||
+		!ts_feed->ts_feed.parent ||
+		!source_feed)
+		return 0;
+
+	demux = (struct aml_dmx *)ts_feed->ts_feed.parent->priv;
+	tsp = demux->tsp;
+	filter = source_feed->priv;
 	if (ts_feed->state != DMX_STATE_GO)
 		return 0;
 
