@@ -5,6 +5,10 @@
 #include <linux/sysfs.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/kernel.h>
+#include <linux/netdevice.h>
+#include <linux/inetdevice.h>
+#include <linux/in.h>
 #include "amlogic-wol.h"
 
 #undef pr_fmt
@@ -30,6 +34,7 @@ struct mbox_payload {
 
 #define DATA_TYPE_WKUP_REASON		0x01	/* Get wakeup reason */
 #define DATA_TYPE_WKUP_SRC		0x02	/* Controlling the sources that can wake up */
+#define DATA_TYPE_IPV4_ADDR		0x03	/* Set IPv4 address */
 
 #define WKUP_REASON_UNUSED		0x00
 #define WKUP_REASON_MAGIC		0x01	/* Magic packet wakeup */
@@ -219,8 +224,36 @@ static struct class wol_class = {
 	.class_groups = wol_class_groups,
 };
 
+static void __set_ipv4_address(void)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct in_device *in_dev;
+	struct in_ifaddr *ifa;
+	__be32 ip;
+	char ip_str[16];
+	bool found = false;
+
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(ndev);
+	if (in_dev) {
+		/* Find available IPv4 addresses */
+		in_dev_for_each_ifa_rcu(ifa, in_dev) {
+			ip = ifa->ifa_local;
+			snprintf(ip_str, sizeof(ip_str), "%pI4", &ip);
+			pr_info("found IPv4 address: %s\n", ip_str);
+			found = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (found)
+		__mbox_data_write(DATA_TYPE_IPV4_ADDR, &ip, 4);
+}
+
 void amlogic_wol_enter(void)
 {
+	__set_ipv4_address();
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_enter);
 
