@@ -395,6 +395,7 @@ struct vframe_pic_mode_s {
 #define BITDEPTH_Y10   (2 << BITDEPTH_Y_SHIFT)
 #define BITDEPTH_Y12   (3 << BITDEPTH_Y_SHIFT)
 #define BITDEPTH_YMASK (3 << BITDEPTH_Y_SHIFT)
+#define BITDEPTH_HAS(val, flag) (((val) & (BITDEPTH_YMASK)) == (flag))
 
 #define BITDEPTH_U_SHIFT 10
 #define BITDEPTH_U8    (0 << BITDEPTH_U_SHIFT)

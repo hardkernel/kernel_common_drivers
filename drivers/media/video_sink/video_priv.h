@@ -260,6 +260,18 @@ enum aisr_demo_type_e {
 	SHARPNESS
 };
 
+enum pix_bit_e {
+	PIX_8BIT,
+	//10bit packet
+	PIX_10BIT,
+	PIX_12BIT,
+	PIX_16BIT,
+	//10bit in 12bit
+	PIX_10_IN_12BIT,
+	//10bit in 16bit
+	PIX_10_IN_16BIT,
+};
+
 typedef u32 (*rdma_rd_op)(u32 reg);
 typedef int (*rdma_wr_op)(u32 reg, u32 val);
 typedef int (*rdma_wr_bits_op)(u32 reg, u32 val, u32 start, u32 len);

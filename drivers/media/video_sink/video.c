@@ -10681,6 +10681,73 @@ static ssize_t aisr_state_show(char *buf)
 		       _cur_frame_par->VPP_vsc_endp);
 	return len;
 }
+
+static u32 parse_vframe_bit(struct vframe_s *vf,
+	struct vpp_frame_par_s *frame_par)
+{
+	u32 bit = 0, type = 0;
+
+	type = vf->type;
+	if (frame_par->nocomp)
+		type &= ~VIDTYPE_COMPRESS;
+	/* P010_MODE only worked when nv21 10bit */
+	if (!(type & VIDTYPE_COMPRESS) &&
+		(type & VIDTYPE_VIU_NV21 || type & VIDTYPE_VIU_NV12)) {
+		//10 bit in 16 bit
+		bit = (vf->canvas0_config[0].bit_depth & P010_MODE) ? PIX_10_IN_16BIT : 0;
+	}
+
+	if (bit != PIX_10_IN_16BIT) {
+		if (type & VIDTYPE_COMPRESS) {
+			if (BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10))
+				bit = PIX_10BIT;
+			else if (BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y12))
+				bit = PIX_12BIT;
+			else
+				bit = PIX_8BIT;
+		} else {
+			if (frame_par->nocomp) {
+				if (BITDEPTH_HAS(vf->bitdepth_dw, BITDEPTH_Y10)) {
+					if ((type & VIDTYPE_VIU_444) ||
+						(type & VIDTYPE_RGB_444) ||
+						((type & VIDTYPE_VIU_422) &&
+						vf->bitdepth_dw & FULL_PACK_422_MODE) ||
+						(((type & VIDTYPE_VIU_NV12) ||
+						(type & VIDTYPE_VIU_NV21)) &&
+						(vf->bitdepth_dw & FULL_PACK_420_MODE)))
+						//10 bit full packet
+						bit = PIX_10BIT;
+					else
+						//10 bit in 12 bit
+						bit = PIX_10_IN_12BIT;
+				} else {
+					//8 bit
+					bit = PIX_8BIT;
+				}
+			} else {
+				if (BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10)) {
+					if ((type & VIDTYPE_VIU_444) ||
+						(type & VIDTYPE_RGB_444) ||
+						((type & VIDTYPE_VIU_422) &&
+						vf->bitdepth & FULL_PACK_422_MODE) ||
+						(((type & VIDTYPE_VIU_NV12) ||
+						(type & VIDTYPE_VIU_NV21)) &&
+						(vf->bitdepth & FULL_PACK_420_MODE)))
+						//10 bit full packet
+						bit = PIX_10BIT;
+					else
+						//10 bit in 12 bit
+						bit = PIX_10_IN_12BIT;
+				} else {
+					//8 bit
+					bit = PIX_8BIT;
+				}
+			}
+		}
+	}
+	return bit;
+}
+
 static ssize_t vdx_state_show(u32 index, char *buf)
 {
 	ssize_t len = 0;
@@ -10702,6 +10769,32 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 
 	dispbuf = get_dispbuf(index);
 	if (dispbuf) {
+		u32 format = 0, bit = 0;
+		char  *str = NULL, *str1 = NULL;
+		const char *fmt_str[5] = {
+			"NV21", "NV12", "YUV422", "YUV444", "GRB444",
+		};
+		const char *bit_str[6] = {
+			"8BIT", "10BIT", "12BIT", "16BIT", "10_IN_12BIT", "10_IN_16BIT",
+		};
+
+		if (dispbuf->type & VIDTYPE_VIU_NV21)
+			format = 0;
+		else if (dispbuf->type & VIDTYPE_VIU_NV12)
+			format = 1;
+		else if (dispbuf->type & VIDTYPE_VIU_422)
+			format = 2;
+		else if (dispbuf->type & VIDTYPE_VIU_444)
+			format = 3;
+		else if (dispbuf->type & VIDTYPE_RGB_444)
+			format = 4;
+		bit = parse_vframe_bit(dispbuf, _cur_frame_par);
+		str = (char *)fmt_str[format];
+		str1 = (char *)bit_str[bit];
+		len += sprintf(buf + len,
+			"fmt:%s. bit: %s, bitdepth:0x%x, bitdepth_dw:0x%x, plane_num=%d\n",
+			       str, str1, dispbuf->bitdepth,
+			       dispbuf->bitdepth_dw, dispbuf->plane_num);
 		afbc = dispbuf->type & VIDTYPE_COMPRESS ? 1 : 0;
 		dw = afbc && _cur_frame_par->nocomp;
 		len += sprintf(buf + len, "afbc:%d double_write:%d.\n",
