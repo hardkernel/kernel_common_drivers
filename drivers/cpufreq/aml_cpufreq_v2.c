@@ -678,7 +678,7 @@ free:
 		free_clock(clusterdata[i].cpuclk);
 		free_clock(clusterdata[i].dsuclk);
 	}
-	kfree(clusterdata);
+	devm_kfree(&pdev->dev, clusterdata);
 	proc_remove(root);
 out:
 	return ret;
