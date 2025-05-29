@@ -1910,7 +1910,7 @@
 			pipe-clk-gate-reg = <0xfe03a09c>;
 			pipe-clk-gate-reg-size = <0x4>;
 			m31phy-reset-level-bit = <45>;
-			m31ctl-reset-level-bit = <6>;
+			m31ctl-reset-level-bit = <6>; /* u3drd_reset */
 			m31-utmi-reset-level-bit = <42>;
 			u3-combx0-reset-bit = <3>;
 			m31-settings = <0x1E30CE89>;
@@ -1934,7 +1934,7 @@
 					0xfe03e000 0x2000>;
 			reset-level = <0x40>;
 			phy-reset-level-bits = <9>;
-			usb-reset-bit = <3>;
+			usb-reset-bit = <5>;
 			pll-settings = <0x09400414
 							0x927E0000
 							0xac5f69e5
@@ -1964,7 +1964,7 @@
 					0xfe032000 0x2000>;
 			reset-level = <0x40>;
 			phy-reset-level-bits = <8>;
-			usb-reset-bit = <3>;
+			usb-reset-bit = <4>;
 			pll-settings = <0x09400414
 							0x927E0000
 							0xac5f69e5
