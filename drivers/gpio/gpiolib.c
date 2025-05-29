@@ -5,8 +5,8 @@
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/amlogic/gpiolib.h>
 #include <gpiolib.h>
+#include <linux/amlogic/gpiolib.h>
 
 /*
  * This descriptor validation needs to be inserted verbatim into each

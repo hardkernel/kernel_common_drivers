@@ -16,6 +16,7 @@
 #include <linux/gpio.h>
 #include <gpiolib.h>
 #include "pinctrl/pinctrl-meson.h"
+#include <linux/amlogic/gpiolib.h>
 
 #define GPIO_IRQF_TRIGGER_FALLING	BIT(0)
 #define GPIO_IRQF_TRIGGER_RISING	BIT(1)

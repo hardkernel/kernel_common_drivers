@@ -18,6 +18,16 @@ enum gpiod_pull_type {
 	GPIOD_PULL_UP = 2,
 };
 
+#ifdef gpiod_dbg
+#undef gpiod_dbg
+#define gpiod_dbg(desc, fmt, ...)					\
+do {									\
+	typeof(desc) __desc = (desc);					\
+	pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(__desc),		\
+		 __desc->label->str ? : "?", ##__VA_ARGS__);		\
+} while (0)
+#endif
+
 #ifdef CONFIG_GPIOLIB
 int gpiod_set_pull(struct gpio_desc *desc, unsigned int value);
 #else /* CONFIG_GPIOLIB */
