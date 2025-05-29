@@ -4494,10 +4494,11 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case AUX_PKT_GET_SPD_SDI:
 		ret = hdmitx_get_sdi_from_spd(hdev);
 		break;
-	case AUX_PKT_SET_EMP:
-		ret = hdmitx21_check_input_argv(cmd, input_argv);
-		if (ret < 0)
+	case AUX_PKT_SET_EMP_CUVA:
+		if (!input_argv) {
+			hdmitx_dhdr_send(NULL, sizeof(struct hdmi_packet_t) * 3);
 			break;
+		}
 		pkt_byte = (u8 *)input_argv;
 		hdmitx_dhdr_send(pkt_byte, sizeof(struct hdmi_packet_t) * 3);
 		break;

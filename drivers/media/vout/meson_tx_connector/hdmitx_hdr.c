@@ -1092,7 +1092,7 @@ void hdmitx_set_cuva_hdr_vs_emds(void *tx_instance, struct cuva_hdr_vs_emds_para
 	memset(vs_emds, 0, sizeof(vs_emds));
 	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 	if (!data) {
-		hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_EMP, NULL, NULL);
+		hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_EMP_CUVA, NULL, NULL);
 		spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 		return;
 	}
@@ -1191,7 +1191,7 @@ void hdmitx_set_cuva_hdr_vs_emds(void *tx_instance, struct cuva_hdr_vs_emds_para
 	vs_emds[2].pb[5] = data->max_display_mastering_lum >> 8;
 	vs_emds[2].pb[6] = data->max_display_mastering_lum & 0xff;
 
-	hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_EMP, (u8 *)&vs_emds, NULL);
+	hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_EMP_CUVA, (u8 *)&vs_emds, NULL);
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 }
 

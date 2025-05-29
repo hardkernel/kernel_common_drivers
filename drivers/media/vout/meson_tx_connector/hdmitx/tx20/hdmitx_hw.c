@@ -5480,7 +5480,7 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case AUX_PKT_GET_DRM_EOTF:
 		break;
-	case AUX_PKT_SET_EMP:
+	case AUX_PKT_SET_EMP_CUVA:
 		if (!input_argv) {
 			hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 0, 0, 1);
 			break;
