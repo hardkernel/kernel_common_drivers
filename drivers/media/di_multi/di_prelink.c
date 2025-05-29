@@ -2720,6 +2720,19 @@ static bool vf_m_in(struct dimn_itf_s *itf)
 			ds->dct_sum_in++;
 		}
 		memcpy(&ndvfm->c.vf_in_cp, vf, sizeof(ndvfm->c.vf_in_cp));
+
+		if (vf->type & VIDTYPE_COMPRESS) {
+			if (vf && is_src_crop_valid(vf->src_crop)) {
+				dbg_link("crop info right:%d, bottom:%d\n",
+					ndvfm->c.vf_in_cp.src_crop.right,
+					ndvfm->c.vf_in_cp.src_crop.bottom);
+				ndvfm->c.vf_in_cp.compWidth -= ndvfm->c.vf_in_cp.src_crop.right;
+				ndvfm->c.vf_in_cp.compHeight -= ndvfm->c.vf_in_cp.src_crop.bottom;
+				ndvfm->c.vf_in_cp.src_crop.right = 0;
+				ndvfm->c.vf_in_cp.src_crop.bottom = 0;
+			}
+		}
+
 		dim_dvf_cp(&ndvfm->c.in_dvfm, &ndvfm->c.vf_in_cp, 0);
 
 		if (IS_COMP_MODE(ndvfm->c.in_dvfm.vfs.type)) {
@@ -2840,6 +2853,19 @@ static enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 		vf = buffer->vf;
 		ndvfm->c.ori_vf = vf;
 		memcpy(&ndvfm->c.vf_in_cp, vf, sizeof(ndvfm->c.vf_in_cp));
+
+		if (buffer->vf->type & VIDTYPE_COMPRESS) {
+			if (buffer->vf && is_src_crop_valid(buffer->vf->src_crop)) {
+				dbg_link("crop info right:%d, bottom:%d\n",
+					ndvfm->c.vf_in_cp.src_crop.right,
+					ndvfm->c.vf_in_cp.src_crop.bottom);
+				ndvfm->c.vf_in_cp.compWidth -= ndvfm->c.vf_in_cp.src_crop.right;
+				ndvfm->c.vf_in_cp.compHeight -= ndvfm->c.vf_in_cp.src_crop.bottom;
+				ndvfm->c.vf_in_cp.src_crop.right = 0;
+				ndvfm->c.vf_in_cp.src_crop.bottom = 0;
+			}
+		}
+
 		ndvfm->c.in_dvfm.caller_mng = buffer->caller_mng;
 		dim_dvf_cp(&ndvfm->c.in_dvfm, vf, 0);
 		count_4k(itf, &ndvfm->c.in_dvfm);
