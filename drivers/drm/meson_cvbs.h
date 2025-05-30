@@ -27,6 +27,9 @@ struct am_cvbs_connector_state {
 	bool update : 1;
 };
 
+#define connector_to_am_drm_cvbs(x) \
+			container_of(connector_to_meson_connector(x), struct am_drm_cvbs_s, base)
+
 #define to_am_cvbs_connector_state(x)	container_of(x, struct am_cvbs_connector_state, base)
 
 int meson_cvbs_dev_bind(struct drm_device *drm,

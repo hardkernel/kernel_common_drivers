@@ -106,8 +106,6 @@ static struct drm_display_mode cvbs_mode[] = {
 	},
 };
 
-static struct am_drm_cvbs_s *am_drm_cvbs;
-
 static inline struct am_drm_cvbs_s *con_to_cvbs(struct drm_connector *con)
 {
 	return container_of(connector_to_meson_connector(con), struct am_drm_cvbs_s, base);
@@ -212,6 +210,7 @@ static int am_cvbs_connector_atomic_set_property
 {
 	struct am_cvbs_connector_state *cvbs_state =
 		to_am_cvbs_connector_state(state);
+	struct am_drm_cvbs_s *am_drm_cvbs = connector_to_am_drm_cvbs(connector);
 
 	if (property == am_drm_cvbs->update_attr_prop) {
 		cvbs_state->update = true;
@@ -226,6 +225,8 @@ static int am_cvbs_connector_atomic_get_property
 	const struct drm_connector_state *state,
 	struct drm_property *property, uint64_t *val)
 {
+	struct am_drm_cvbs_s *am_drm_cvbs = connector_to_am_drm_cvbs(connector);
+
 	if (property == am_drm_cvbs->update_attr_prop) {
 		*val = 0;
 		return 0;
@@ -318,6 +319,7 @@ static void meson_cvbs_init_update_property(struct drm_device *drm_dev,
 						  struct drm_connector *connector)
 {
 	struct drm_property *prop;
+	struct am_drm_cvbs_s *am_drm_cvbs = connector_to_am_drm_cvbs(connector);
 
 	prop = drm_property_create_bool(drm_dev, 0, "UPDATE");
 	if (prop) {
@@ -334,6 +336,7 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 	struct meson_drm *priv = drm->dev_private;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	struct am_drm_cvbs_s *am_drm_cvbs;
 	int ret = 0;
 
 	DRM_DEBUG("%s in[%d]\n", __func__, __LINE__);
@@ -392,7 +395,10 @@ cvbs_err:
 int meson_cvbs_dev_unbind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
 {
-	am_drm_cvbs->base.connector.funcs->destroy(&am_drm_cvbs->base.connector);
+	struct drm_connector *connector = intf->conn;
+	struct am_drm_cvbs_s *am_drm_cvbs = connector_to_am_drm_cvbs(connector);
+
+	connector->funcs->destroy(&am_drm_cvbs->base.connector);
 	am_drm_cvbs->encoder.funcs->destroy(&am_drm_cvbs->encoder);
 	kfree(am_drm_cvbs);
 	return 0;
