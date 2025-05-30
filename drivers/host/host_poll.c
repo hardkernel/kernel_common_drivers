@@ -40,54 +40,67 @@ __module_param(logbuff_polling_ms, uint, 0644);
 
 static bool host_health_hang_check(struct host_module *host)
 {
-	u32 cur_cnt = 0;
-	bool ret = false;
-
-	host->hang = 0;
-	cur_cnt = readl(host->health_reg);
+	host->cur_cnt = readl(host->health_reg);
 	pr_debug("[%s][%s][%u %u]\n", __func__,
 		 host->host_data->name,
-		 host->pre_cnt, cur_cnt);
-	if (cur_cnt == host->pre_cnt) {
+		 host->pre_cnt, host->cur_cnt);
+	if (host->cur_cnt == host->pre_cnt) {
 		host->hang = 1;
-		ret = true;
+		return true;
 	}
-	host->pre_cnt = cur_cnt;
-	host->cur_cnt = cur_cnt;
-	return ret;
+
+	host->pre_cnt = host->cur_cnt;
+	return false;
 }
 
 static void host_health_monitor(struct work_struct *work)
 {
-	char data[20], *envp[] = { data, NULL };
+	char data[20], data1[20], data2[20], *envp[] = { data, data1, data2, NULL };
 	struct host_module *host_firm = container_of((struct delayed_work *)work,
 				struct host_module, host_monitor_work);
 
 	if (host_health_hang_check(host_firm)) {
-		snprintf(data, sizeof(data), "ACTION=%s_WTD", host_firm->host_data->name);
-		kobject_uevent_env(&host_firm->dev->kobj, KOBJ_CHANGE,
-				envp);
-		pr_debug("[%s][%s_HANG]\n", __func__, host_firm->host_data->name);
+		pr_info("[%s][%s_HANG!!!!]\n", __func__, host_firm->host_data->name);
+		snprintf(data, sizeof(data), "ACTION=offline");
+		snprintf(data1, sizeof(data1), "DSPNAME=%s", host_firm->host_data->name);
+		snprintf(data2, sizeof(data2), "DSPID=%d", host_firm->host_data->hostid);
+		kobject_uevent_env(&host_firm->dev->kobj, KOBJ_CHANGE, envp);
+		host_firm->host_dsp->uevent_flag = 0;
+	} else {
+		if (!host_firm->host_dsp->uevent_flag) {
+			snprintf(data, sizeof(data), "ACTION=online");
+			snprintf(data1, sizeof(data1), "DSPNAME=%s", host_firm->host_data->name);
+			snprintf(data2, sizeof(data2), "DSPID=%d", host_firm->host_data->hostid);
+			kobject_uevent_env(&host_firm->dev->kobj, KOBJ_CHANGE, envp);
+			host_firm->host_dsp->uevent_flag = 1;
+			/**
+			 * If you want to modify the monitor polling time after
+			 * starting DSP Online, you can adjust the
+			 * health_polling_ms setting in dtsi.
+			 */
+			if (host_firm->health_polling_ms)
+				health_polling_ms = host_firm->health_polling_ms;
+		}
+		queue_delayed_work(host_firm->host_wq, &host_firm->host_monitor_work,
+			msecs_to_jiffies(health_polling_ms));
 	}
-
-	queue_delayed_work(host_firm->host_wq, &host_firm->host_monitor_work,
-		msecs_to_jiffies(health_polling_ms));
 }
 
 void host_health_monitor_start(struct host_module *host)
 {
 	host->pre_cnt = 0;
 	host->cur_cnt = 0;
+	host->hang = 0;
 
 	if (IS_ERR_OR_NULL(host->health_reg))
 		host->health_reg = NULL;
 
 	if (host->health_reg) {
-		host->host_wq = create_workqueue("host_wq");
-		if (host->health_polling_ms)
-			health_polling_ms = host->health_polling_ms;
+		if (IS_ERR_OR_NULL(host->host_wq)) {
+			host->host_wq = create_workqueue("host_wq");
+			INIT_DELAYED_WORK(&host->host_monitor_work, host_health_monitor);
+		}
 
-		INIT_DELAYED_WORK(&host->host_monitor_work, host_health_monitor);
 		queue_delayed_work(host->host_wq, &host->host_monitor_work,
 			   msecs_to_jiffies(health_polling_ms));
 	}

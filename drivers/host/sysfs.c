@@ -113,14 +113,41 @@ static ssize_t pwron_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t corereset_store(struct device *dev, struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct host_module *host = platform_get_drvdata(pdev);
+	int ret = 0;
+	unsigned int core_reset = UINT_MAX;
+
+	if (IS_ERR_OR_NULL(host))
+		dev_err(dev, "[%s] cannot found host through dev\n", __func__);
+	else
+		ret = kstrtouint(buf, 0, &core_reset);
+
+	if (ret)
+		return -EINVAL;
+
+	if (core_reset == 1)
+		host_core_reset(host);
+	else
+		pr_err("[%s] core_reset value is not 1\n", __func__);
+
+	return count;
+}
+
 static DEVICE_ATTR_WO(pwron);
+static DEVICE_ATTR_WO(corereset);
 
 void host_create_device_files(struct device *dev)
 {
 	WARN_ON(device_create_file(dev, &dev_attr_pwron));
+	WARN_ON(device_create_file(dev, &dev_attr_corereset));
 }
 
 void host_destroy_device_files(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_pwron);
+	device_remove_file(dev, &dev_attr_corereset);
 }

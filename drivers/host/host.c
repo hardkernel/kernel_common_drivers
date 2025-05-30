@@ -64,6 +64,37 @@ struct device *host_to_device(u8 host_id)
 }
 EXPORT_SYMBOL(host_to_device);
 
+int host_phyaddr_info(u8 host_id, phys_addr_t *addr, phys_addr_t *size)
+{
+	int ret = -1;
+
+	if (host_id < HOST_NUM && host_p[host_id]) {
+		switch (host_p[host_id]->start_pos) {
+		case PURE_DDR:
+			*addr = host_p[host_id]->phys_ddr_addr;
+			*size = host_p[host_id]->phys_ddr_size;
+			ret = 0;
+			break;
+		case PURE_SRAM:
+			*addr = host_p[host_id]->phys_sram_addr;
+			*size = host_p[host_id]->phys_sram_size;
+			ret = 0;
+			break;
+		case DDR_SRAM:
+			*addr = host_p[host_id]->phys_ddr_addr;
+			*size = host_p[host_id]->phys_ddr_size;
+			ret = 0;
+			break;
+		default:
+			pr_err("%s host start position error!\n", __func__);
+			break;
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(host_phyaddr_info);
+
 /*free reserved memory*/
 static unsigned long host_free_reserved_area(void *start, void *end, int poison, const char *s)
 {
@@ -206,6 +237,13 @@ static unsigned long host_psci_smc(struct host_module *host, unsigned int smc_su
 		arg[2] = addr;
 		arg[3] = host->phys_sram_addr;
 		arg[4] = 2;
+		break;
+	case SMC_SUBID_HIFI_DSP_RESET_HIGH:
+		arg[0] = SMC_HIFI_DSP_CMD;
+		arg[1] = id;
+		arg[2] = 0;
+		arg[3] = 0;
+		arg[4] = 0;
 		break;
 	case SMC_SUBID_MFH_V1_BOOT:
 		arg[0] = SMC_M4_CMD;
@@ -395,6 +433,28 @@ static void *mm_vmap(phys_addr_t phys, unsigned long size, pgprot_t pgprotattr)
 		 (unsigned long)phys, vaddr, npages << PAGE_SHIFT);
 
 	return vaddr;
+}
+
+void host_core_reset(struct host_module *host)
+{
+	if (host->core_reset) {
+		pr_info("[%s][%s will be reset!!!!]\n", __func__, host->host_data->name);
+		host_psci_smc(host, SMC_SUBID_HIFI_DSP_RESET_HIGH);
+		pm_runtime_put_sync(host->dev);
+		writel(0, host->health_reg);
+		if (host->start_pos == PURE_SRAM) {
+			memset_io((void *)host->sram_addr, '\0', (host->phys_sram_size));
+		} else if (host->start_pos == DDR_SRAM) {
+			memset((void *)host->ddr_addr, '\0', (host->phys_ddr_size));
+			memset_io((void *)host->sram_addr, '\0', (host->phys_sram_size));
+		} else {
+			memset((void *)host->ddr_addr, '\0', (host->phys_ddr_size));
+		}
+		host->firmware_load = 0;
+		pm_runtime_get_sync(host->dev);
+	} else {
+		pr_err("core reset is not supported\n");
+	}
 }
 
 static int __maybe_unused host_runtime_suspend(struct device *dev)
@@ -1105,7 +1165,7 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 		dev_err(dev, "Not find mailbox channel from dev\n");
 	else
 		host->mbox_chan_from_dev->cl->rx_callback = host_mbox_callback_from_dev;
-
+	host->core_reset = of_property_read_bool(dev->of_node, "core-reset");
 	of_property_read_u32(dev->of_node, "logbuff-polling-ms",
 			&host->logbuff_polling_ms);
 	of_property_read_u32(dev->of_node, "health-polling-ms",

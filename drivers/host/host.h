@@ -23,6 +23,7 @@
 #define SMC_SUBID_HIFI_DSP_BOOT		0x10
 #define SMC_SUBID_HIFI_DSP_REMAP	0x11
 #define SMC_SUBID_HIFI_DSP_PWR_SET	0x13
+#define SMC_SUBID_HIFI_DSP_RESET_HIGH   0x14
 #define SMC_SUBID_SHIFT			0x8
 #define PACK_SMC_SUBID_ID(subid, id) (((subid) << SMC_SUBID_SHIFT) | (id))
 
@@ -147,6 +148,7 @@ struct host_dsp {
 	struct host_module *host;
 	struct delayed_work host_ffv_work;
 	struct workqueue_struct *host_ffv_wq;
+	u8 uevent_flag;
 };
 
 /** struct host_module, the struct of host module
@@ -232,6 +234,7 @@ struct host_module {
 	struct workqueue_struct *host_wq;
 	struct workqueue_struct *host_logbuff_wq;
 	u32 hang;
+	bool core_reset;
 
 	u32 firmware_load;
 	u32 firmware_started;
@@ -245,5 +248,7 @@ struct host_module {
 
 bool host_firmware_ready(u8 host_id);
 struct device *host_to_device(u8 host_id);
+void host_core_reset(struct host_module *host);
+int host_phyaddr_info(u8 host_id, phys_addr_t *addr, phys_addr_t *size);
 
 #endif /*_HOST_MODULE_H*/
