@@ -209,7 +209,7 @@ static int ramoops_io_en_gki_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 1;
+	return 0;
 }
 __setup("ramoops_io_en=", ramoops_io_en_gki_setup);
 
