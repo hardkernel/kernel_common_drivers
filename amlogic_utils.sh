@@ -1743,37 +1743,31 @@ function build_kernel_with_bazel() {
 	#cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic.illegal >> android/abi_gki_aarch64_amlogic
 	#popd
 
-	if [[ ! -f ${PROJECT_DIR}/build.config.project ]]; then
+	if [[ -z ${ANDROID_PROJECT} ]]; then
+		[[ -f ${PROJECT_DIR}/build.config.project ]] && rm ${PROJECT_DIR}/build.config.project
 		touch ${PROJECT_DIR}/build.config.project
+
 		echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/build.config.project
 		echo 						>> ${PROJECT_DIR}/build.config.project
 	fi
-	sed -i "/ANDROID_PROJECT/d" ${PROJECT_DIR}/build.config.project
+
+
+
 	echo "ANDROID_PROJECT=${ANDROID_PROJECT}"		>> ${PROJECT_DIR}/build.config.project
-	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/build.config.project
 	echo "UPGRADE_PROJECT=${UPGRADE_PROJECT}"		>> ${PROJECT_DIR}/build.config.project
-	sed -i "/DEV_CONFIGS/d" ${PROJECT_DIR}/build.config.project
 	echo "DEV_CONFIGS=\"${DEV_CONFIGS}\""			>> ${PROJECT_DIR}/build.config.project
-	sed -i "/GKI_CONFIG/d" ${PROJECT_DIR}/build.config.project
 	if [[ -z ${GKI_CONFIG} ]]; then
 		echo "GKI_CONFIG=non_gki"			>> ${PROJECT_DIR}/build.config.project
 	else
 		echo "GKI_CONFIG=${GKI_CONFIG}"			>> ${PROJECT_DIR}/build.config.project
 	fi
-	sed -i "/COMMON_DRIVERS_DIR/d" ${PROJECT_DIR}/build.config.project
 	echo "COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR}" 	>> ${PROJECT_DIR}/build.config.project
-	sed -i "/FATLOAD/d" ${PROJECT_DIR}/build.config.project
 	echo "FATLOAD=${FATLOAD}" 				>> ${PROJECT_DIR}/build.config.project
-	sed -i "/KASAN/d" ${PROJECT_DIR}/build.config.project
 	echo "KASAN=${KASAN}"					>> ${PROJECT_DIR}/build.config.project
-	sed -i "/CHECK_GKI_20/d" ${PROJECT_DIR}/build.config.project
 	echo "CHECK_GKI_20=${CHECK_GKI_20}"			>> ${PROJECT_DIR}/build.config.project
-	sed -i "/DDK_BUILD/d" ${PROJECT_DIR}/build.config.project
 	echo "DDK_BUILD=${DDK_BUILD}"				>> ${PROJECT_DIR}/build.config.project
-	sed -i "/AUTO_PATCH/d" ${PROJECT_DIR}/build.config.project
 	echo "AUTO_PATCH=${AUTO_PATCH}"				>> ${PROJECT_DIR}/build.config.project
 	BUILD_TIME=`date +%Y.%m.%d-%H.%M.%S`
-	sed -i "/BUILD_TIME/d" ${PROJECT_DIR}/build.config.project
 	echo "BUILD_TIME=${BUILD_TIME}"				>> ${PROJECT_DIR}/build.config.project
 
 	if [[ -z ${ANDROID_PROJECT} ]]; then
