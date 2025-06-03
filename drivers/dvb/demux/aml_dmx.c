@@ -88,8 +88,9 @@ struct dump_node {
 };
 
 struct dmx_adjust_mem_t {
+	int dmx_id;
 	int format;
-	int data;
+	int pid;
 	int mem_size;
 	struct list_head node;
 };
@@ -125,7 +126,9 @@ static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata,
 			  int req_len, int *req_ret);
 static int _dmx_free_input_id(int id);
-static int find_adjust_mem_item(int format, int data);
+static int add_adjust_mem_item(int dmx_id, int format, int pid, int mem_size);
+static int find_adjust_mem_item(int dmx_id, int format, int data);
+static int del_adjust_mem_item(int dmx_id, int format, int pid);
 static int recovery_dmx_input(struct aml_dmx *pdmx);
 static int free_all_dmx_input(void);
 static int trigger_cache_clear_timer(void);
@@ -1044,7 +1047,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	    pes_type == DMX_PES_AUDIO1 ||
 	    pes_type == DMX_PES_AUDIO2 || pes_type == DMX_PES_AUDIO3) {
 		type = AUDIO_TYPE;
-		mem_size = find_adjust_mem_item(ES_FORMAT, pid);
+		mem_size = find_adjust_mem_item(demux->id, ES_FORMAT, pid);
 		if (mem_size == -1)
 			mem_size = audio_buf_size;
 		media_type = (filter->params.pes.flags >>
@@ -1053,7 +1056,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		   pes_type == DMX_PES_VIDEO1 ||
 		   pes_type == DMX_PES_VIDEO2 || pes_type == DMX_PES_VIDEO3) {
 		type = VIDEO_TYPE;
-		mem_size = find_adjust_mem_item(ES_FORMAT, pid);
+		mem_size = find_adjust_mem_item(demux->id, ES_FORMAT, pid);
 		if (mem_size == -1)
 			mem_size = video_buf_size;
 	} else if (pes_type == DMX_PES_SUBTITLE0 ||
@@ -1061,7 +1064,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		   pes_type == DMX_PES_SUBTITLE2 ||
 		   pes_type == DMX_PES_SUBTITLE3) {
 		type = SUB_TYPE;
-		mem_size = find_adjust_mem_item(PES_FORMAT, pid);
+		mem_size = find_adjust_mem_item(demux->id, PES_FORMAT, pid);
 		if (mem_size == -1)
 			mem_size = pes_buf_size;
 		media_type = MEDIA_PES_SUB;
@@ -1070,13 +1073,13 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		   pes_type == DMX_PES_TELETEXT2 ||
 		   pes_type == DMX_PES_TELETEXT3) {
 		type = TTX_TYPE;
-		mem_size = find_adjust_mem_item(PES_FORMAT, pid);
+		mem_size = find_adjust_mem_item(demux->id, PES_FORMAT, pid);
 		if (mem_size == -1)
 			mem_size = pes_buf_size;
 		media_type = MEDIA_PES_SUB;
 	} else {
 		type = OTHER_TYPE;
-		mem_size = find_adjust_mem_item(PES_FORMAT, pid);
+		mem_size = find_adjust_mem_item(demux->id, PES_FORMAT, pid);
 		if (mem_size == -1)
 			mem_size = pes_buf_size;
 	}
@@ -1093,7 +1096,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			pr_dbg("%s PES_FORMAT\n", __func__);
 		} else {
 			format = DVR_FORMAT;
-			mem_size = find_adjust_mem_item(DVR_FORMAT, demux->id);
+			mem_size = find_adjust_mem_item(demux->id, DVR_FORMAT, 0);
 			if (mem_size == -1)
 				mem_size = dvr_buf_size;
 			pr_dbg("%s DVR_FORMAT\n", __func__);
@@ -1510,7 +1513,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	sec_feed->sec_out_elem = ts_output_open(sid, demux->id,
 		SECTION_FORMAT, SEC_TYPE, MEDIA_TS_SYS, 0);
 	if (sec_feed->sec_out_elem) {
-		mem_size = find_adjust_mem_item(SECTION_FORMAT, sec_feed->pid);
+		mem_size = find_adjust_mem_item(demux->id, SECTION_FORMAT, sec_feed->pid);
 		if (mem_size == -1)
 			mem_size = sec_buf_size;
 		ret = ts_output_set_mem(sec_feed->sec_out_elem,
@@ -3376,15 +3379,16 @@ int ts_clone_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int add_adjust_mem_item(int format, int data, int mem_size)
+static int add_adjust_mem_item(int dmx_id, int format, int pid, int mem_size)
 {
 	struct dmx_adjust_mem_t *adjust_mem_node;
 	struct dmx_adjust_mem_t *tmp;
 
 	//find node
 	list_for_each_entry_safe(adjust_mem_node, tmp, &dmx_adjust_mem_head, node) {
-		if (adjust_mem_node->format == format &&
-			adjust_mem_node->data == data) {
+		if (adjust_mem_node->dmx_id == dmx_id &&
+			adjust_mem_node->format == format &&
+			(adjust_mem_node->pid == pid || format == DVR_FORMAT)) {
 			adjust_mem_node->mem_size = mem_size;
 			return 0;
 		}
@@ -3392,12 +3396,13 @@ static int add_adjust_mem_item(int format, int data, int mem_size)
 	adjust_mem_node = kmalloc(sizeof(*adjust_mem_node), GFP_KERNEL);
 	if (!adjust_mem_node) {
 		dprint("%s kmalloc fail\n", __func__);
-		return -1;
+		return -ENOMEM;
 	}
 
 	memset(adjust_mem_node, 0, sizeof(struct dmx_adjust_mem_t));
+	adjust_mem_node->dmx_id = dmx_id;
 	adjust_mem_node->format = format;
-	adjust_mem_node->data = data;
+	adjust_mem_node->pid = pid;
 	adjust_mem_node->mem_size = mem_size;
 	INIT_LIST_HEAD(&adjust_mem_node->node);
 
@@ -3405,15 +3410,16 @@ static int add_adjust_mem_item(int format, int data, int mem_size)
 	return 0;
 }
 
-static int del_adjust_mem_item(int format, int data)
+static int del_adjust_mem_item(int dmx_id, int format, int pid)
 {
 	struct dmx_adjust_mem_t *adjust_mem_node;
 	struct dmx_adjust_mem_t *tmp;
 
 	//find node
 	list_for_each_entry_safe(adjust_mem_node, tmp, &dmx_adjust_mem_head, node) {
-		if (adjust_mem_node->format == format &&
-			adjust_mem_node->data == data) {
+		if (adjust_mem_node->dmx_id == dmx_id &&
+			adjust_mem_node->format == format &&
+			(adjust_mem_node->pid == pid || format == DVR_FORMAT)) {
 			list_del(&adjust_mem_node->node);
 			kfree(adjust_mem_node);
 			return 0;
@@ -3432,17 +3438,20 @@ static int print_adjust_mem_item(char *buf)
 	//find node
 	list_for_each_entry_safe(adjust_mem_node, tmp, &dmx_adjust_mem_head, node) {
 		if (adjust_mem_node->format == ES_FORMAT)
-			r = sprintf(buf, "es pid:%d mem size:%d\n",
-					adjust_mem_node->data, adjust_mem_node->mem_size);
+			r = sprintf(buf, "dmx:%d es pid:%d mem size:%d\n",
+					adjust_mem_node->dmx_id,
+					adjust_mem_node->pid, adjust_mem_node->mem_size);
 		else if (adjust_mem_node->format == PES_FORMAT)
-			r = sprintf(buf, "pes pid:%d mem size:%d\n",
-					adjust_mem_node->data, adjust_mem_node->mem_size);
+			r = sprintf(buf, "dmx:%d pes pid:%d mem size:%d\n",
+					adjust_mem_node->dmx_id,
+					adjust_mem_node->pid, adjust_mem_node->mem_size);
 		else if (adjust_mem_node->format == SECTION_FORMAT)
-			r = sprintf(buf, "section pid:%d mem size:%d\n",
-					adjust_mem_node->data, adjust_mem_node->mem_size);
+			r = sprintf(buf, "dmx:%d section pid:%d mem size:%d\n",
+					adjust_mem_node->dmx_id,
+					adjust_mem_node->pid, adjust_mem_node->mem_size);
 		else if (adjust_mem_node->format == DVR_FORMAT)
 			r = sprintf(buf, "dvr %d mem size:%d\n",
-					adjust_mem_node->data, adjust_mem_node->mem_size);
+					adjust_mem_node->dmx_id, adjust_mem_node->mem_size);
 		else
 			continue;
 		buf += r;
@@ -3451,18 +3460,22 @@ static int print_adjust_mem_item(char *buf)
 	return total;
 }
 
-static int find_adjust_mem_item(int format, int data)
+static int find_adjust_mem_item(int dmx_id, int format, int pid)
 {
 	struct dmx_adjust_mem_t *adjust_mem_node;
 	struct dmx_adjust_mem_t *tmp;
 
 	//find node
 	list_for_each_entry_safe(adjust_mem_node, tmp, &dmx_adjust_mem_head, node) {
-		if (adjust_mem_node->format == format &&
-			adjust_mem_node->data == data) {
+		if (adjust_mem_node->dmx_id == dmx_id &&
+			adjust_mem_node->format == format &&
+			(adjust_mem_node->pid == pid || format == DVR_FORMAT)) {
+			pr_dbg("dmx:%d, pid:%d, format:%d find mem size:%d\n",
+					dmx_id, pid, format, adjust_mem_node->mem_size);
 			return adjust_mem_node->mem_size;
 		}
 	}
+	pr_dbg("dmx:%d, pid:%d, format:%d can't find buff\n", dmx_id, pid, format);
 	return -1;
 }
 
@@ -3486,7 +3499,7 @@ static ssize_t adjust_mem_store(const struct class *class,
 				 const char *buf, size_t size)
 {
 //	char tmp[255];
-	int device_no;
+	int dmx_id;
 	int mem_size = 0;
 	int pid = 0;
 	struct aml_dvb *advb = aml_get_dvb_device();
@@ -3497,47 +3510,51 @@ static ssize_t adjust_mem_store(const struct class *class,
 
 	dprint("%s\n", buf);
 	if (!strncmp(buf, "dvr", 3)) {
-		ret = sscanf(buf, "dvr %d %d", &device_no, &mem_size);
-		dprint("dvr:%d, mem_size:%d\n", device_no, mem_size);
+		ret = sscanf(buf, "dvr %d %d", &dmx_id, &mem_size);
+		dprint("dvr:%d, mem_size:%d\n", dmx_id, mem_size);
 		if (ret == 2) {
 			if (mem_size == 0) {
-				del_adjust_mem_item(DVR_FORMAT, device_no);
+				del_adjust_mem_item(dmx_id, DVR_FORMAT, 0);
 			} else {
 				mem_size = mem_size / 188 * 188;
-				add_adjust_mem_item(DVR_FORMAT, device_no, mem_size);
+				add_adjust_mem_item(dmx_id, DVR_FORMAT, 0, mem_size);
 			}
 		}
 	} else if (!strncmp(buf, "es", 2)) {
-		ret = sscanf(buf, "es %d %d", &pid, &mem_size);
-		dprint("es pid:%d, mem_size:%d\n", pid, mem_size);
+		ret = sscanf(buf, "es %d %d %d", &dmx_id, &pid, &mem_size);
+		dprint("es dmx:%d pid:%d, mem_size:%d\n", dmx_id, pid, mem_size);
 		if (ret == 2) {
 			if (mem_size == 0)
-				del_adjust_mem_item(ES_FORMAT, pid);
+				del_adjust_mem_item(dmx_id, ES_FORMAT, pid);
 			else
-				add_adjust_mem_item(ES_FORMAT, pid, mem_size);
+				add_adjust_mem_item(dmx_id, ES_FORMAT, pid, mem_size);
 		}
 	} else if (!strncmp(buf, "pes", 3)) {
-		ret = sscanf(buf, "pes %d %d", &pid, &mem_size);
-		dprint("pes pid:0x%0x, mem_size:0x%0x\n", pid, mem_size);
+		ret = sscanf(buf, "pes %d %d %d", &dmx_id, &pid, &mem_size);
+		dprint("pes dmx:%d pid:0x%0x, mem_size:0x%0x\n", dmx_id, pid, mem_size);
 		if (ret == 2) {
 			if (mem_size == 0)
-				del_adjust_mem_item(PES_FORMAT, pid);
+				del_adjust_mem_item(dmx_id, PES_FORMAT, pid);
 			else
-				add_adjust_mem_item(PES_FORMAT, pid, mem_size);
+				add_adjust_mem_item(dmx_id, PES_FORMAT, pid, mem_size);
 		}
 	} else if (!strncmp(buf, "section", 7)) {
-		ret = sscanf(buf, "section %d %d", &pid, &mem_size);
-		dprint("section pid:0x%0x, mem_size:0x%0x\n", pid, mem_size);
+		ret = sscanf(buf, "section %d %d %d", &dmx_id, &pid, &mem_size);
+		dprint("section dmx:%d pid:0x%0x, mem_size:0x%0x\n", dmx_id, pid, mem_size);
 		if (ret == 2) {
 			if (mem_size == 0) {
-				del_adjust_mem_item(SECTION_FORMAT, pid);
+				del_adjust_mem_item(dmx_id, SECTION_FORMAT, pid);
 			} else {
 				mem_size = mem_size / 188 * 188;
-				add_adjust_mem_item(SECTION_FORMAT, pid, mem_size);
+				add_adjust_mem_item(dmx_id, SECTION_FORMAT, pid, mem_size);
 			}
 		}
 	} else {
 		dprint("%s invalid\n", buf);
+		dprint("dvr [dmx_id] [mem_size]\n");
+		dprint("es [dmx_id] [pid] [mem_size]\n");
+		dprint("pes [dmx_id] [pid] [mem_size]\n");
+		dprint("section [dmx_id] [pid] [mem_size]\n");
 	}
 	mutex_unlock(&advb->mutex);
 	return size;
