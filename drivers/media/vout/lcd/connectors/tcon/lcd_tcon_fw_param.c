@@ -141,6 +141,8 @@ static struct tcon_fw_config_s lcd_tcon_fw_config = {
 	.config_size = sizeof(struct tcon_fw_config_s),
 	.chip_type = TCON_CHIP_MAX,
 	.if_type = TCON_IF_TYPE_MAX,
+	.lut_valid = 0,
+	.lut_multi = 0,
 	.axi_cnt = 0,
 	.axi_rmem = NULL,
 };
@@ -369,15 +371,72 @@ void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw)
 	}
 }
 
-void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *tcon_conf)
+void lcd_tcon_fw_lut_update_status(struct aml_lcd_drv_s *pdrv)
 {
-	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	struct tcon_data_multi_s *data_multi = NULL;
 	int i;
 
 	if (!lcd_tcon_fw.config)
 		return;
-	if (!pdrv || !pdrv->data || !tcon_conf || !tcon_rmem || !mm_table)
+	if (!pdrv || !mm_table)
+		return;
+
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_VAC)
+		lcd_tcon_fw.config->lut_valid |= TCON_FW_LUT_VAC;
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DEMURA)
+		lcd_tcon_fw.config->lut_valid |= TCON_FW_LUT_DEMURA;
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_ACC)
+		lcd_tcon_fw.config->lut_valid |= TCON_FW_LUT_DITHER;
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DITHER)
+		lcd_tcon_fw.config->lut_valid |= TCON_FW_LUT_ACC;
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_OD)
+		lcd_tcon_fw.config->lut_valid |= TCON_FW_LUT_OD;
+	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_LOD)
+		lcd_tcon_fw.config->lut_valid |= TCON_FW_LUT_LOD;
+	if (mm_table->data_multi) {
+		for (i = 0; i < mm_table->data_multi_cnt; i++) {
+			data_multi = &mm_table->data_multi[i];
+			switch (data_multi->block_type) {
+			case LCD_TCON_DATA_BLOCK_TYPE_VAC:
+				lcd_tcon_fw.config->lut_multi |= TCON_FW_LUT_VAC;
+				break;
+			case LCD_TCON_DATA_BLOCK_TYPE_DEMURA_LUT:
+				lcd_tcon_fw.config->lut_multi |= TCON_FW_LUT_DEMURA;
+				break;
+			case LCD_TCON_DATA_BLOCK_TYPE_DITHER_LUT:
+				lcd_tcon_fw.config->lut_multi |= TCON_FW_LUT_DITHER;
+				break;
+			case LCD_TCON_DATA_BLOCK_TYPE_ACC_LUT:
+				lcd_tcon_fw.config->lut_multi |= TCON_FW_LUT_ACC;
+				break;
+			case LCD_TCON_DATA_BLOCK_TYPE_OD_LUT:
+				lcd_tcon_fw.config->lut_multi |= TCON_FW_LUT_OD;
+				break;
+			case LCD_TCON_DATA_BLOCK_TYPE_LOD_LUT:
+				lcd_tcon_fw.config->lut_multi |= TCON_FW_LUT_LOD;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("%s: tcon_state: 0x%x, lut_valid: 0x%x, lut_multi: 0x%x\n",
+			__func__, lcd_tcon_fw.tcon_state,
+			lcd_tcon_fw.config->lut_valid,
+			lcd_tcon_fw.config->lut_multi);
+	}
+}
+
+void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *tcon_conf)
+{
+	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
+	int i;
+
+	if (!lcd_tcon_fw.config)
+		return;
+	if (!pdrv || !pdrv->data || !tcon_conf || !tcon_rmem)
 		return;
 
 	switch (pdrv->data->chip_type) {
@@ -430,18 +489,6 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_TCON_EN;
-	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_VAC)
-		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_VAC_VALID;
-	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DEMURA)
-		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_DEMURA_VALID;
-	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_ACC)
-		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_ACC_VALID;
-	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DITHER)
-		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_DITHER_VALID;
-	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_OD)
-		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_OD_VALID;
-	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_LOD)
-		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_LOD_VALID;
 
 	lcd_tcon_fw_base_timing_update(pdrv);
 	init_completion(&lcd_tcon_fw.alg_comp);

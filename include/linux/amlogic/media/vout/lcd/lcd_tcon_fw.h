@@ -50,6 +50,8 @@ struct tcon_fw_config_s {
 	unsigned int config_size;
 	unsigned int chip_type;
 	unsigned int if_type;
+	unsigned int lut_valid;
+	unsigned int lut_multi;
 	unsigned char axi_cnt;
 	struct tcon_fw_axi_rmem_s *axi_rmem;
 
@@ -101,19 +103,46 @@ struct tcon_fw_data_header_s {
 	unsigned char reserved[55];
 };
 
+/*tcon lut bit define*/
+#define TCON_FW_LUT_MASK              0x00ffffff
+#define TCON_FW_LUT_VAC               0x00000001
+#define TCON_FW_LUT_DEMURA            0x00000002
+#define TCON_FW_LUT_DITHER            0x00000004
+#define TCON_FW_LUT_ACC               0x00000010
+#define TCON_FW_LUT_PRE_ACC           0x00000020
+#define TCON_FW_LUT_OD                0x00000100
+#define TCON_FW_LUT_LOD               0x00000200
+#define TCON_FW_LUT_PDF               0x00001000
+
+/*tcon state bit define*/
 #define TCON_FW_STATE_TCON_EN         0x00000001
-#define TCON_FW_STATE_VAC_VALID       0x00000100
-#define TCON_FW_STATE_DEMURA_VALID    0x00000200
-#define TCON_FW_STATE_DITHER_VALID    0x00000400
-#define TCON_FW_STATE_ACC_VALID       0x00001000
-#define TCON_FW_STATE_PRE_ACC_VALID   0x00002000
-#define TCON_FW_STATE_OD_VALID        0x00010000
-#define TCON_FW_STATE_LOD_VALID       0x00100000
 
-#define FWCMD_AUTOCALC_SET_QK_REG  0x1
-#define FWCMD_AUTOCALC_GET_RDY_FLG 0x2
+/*tcon fw_cmd define*/
+#define FWCMD_MASK_AUTOCALC           0x000000ff
+#define FWCMD_MASK_CTRL               0x00000f00
+#define FWCMD_MASK_CHK                0x0000f000
 
-#define TCON_FW_FLAG_DCCD_RUN BIT(8)
+#define FWCMD_AUTOCALC_SET_QK_REG     0x00000001
+#define FWCMD_AUTOCALC_GET_RDY_FLG    0x00000002
+
+#define FWCMD_TCON_CTRL               0x00000100
+#define FWCMD_TCON_CHK_RATIONALITY    0x00001000
+
+/*tcon ctrl sub cmd*/
+#define TCON_FW_CTRL_NONE             0x00
+#define TCON_FW_CTRL_LUT_VALID_GET    0x01
+#define TCON_FW_CTRL_LUT_DEMO_SET     0x02
+#define TCON_FW_CTRL_LUT_DEMO_GET     0x03
+#define TCON_FW_CTRL_LUT_MULTI_GET    0x0a
+
+/*tcon fw_flag define*/
+#define TCON_FW_FLAG_DCCD_RUN         BIT(8)
+
+struct lcd_tcon_ctrl_s {
+	unsigned int ctrl_mask;
+	unsigned int ctrl_type;
+	unsigned int ctrl_val;
+};
 
 struct lcd_tcon_fw_s {
 	/* init by driver */

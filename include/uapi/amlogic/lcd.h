@@ -88,24 +88,46 @@ struct aml_lcd_dccd_config_s {
 	} data;
 };
 
-#define LCD_IOC_TYPE               'C'
-#define LCD_IOC_NR_GET_HDR_INFO    0x0
-#define LCD_IOC_NR_SET_HDR_INFO    0x1
+/*tcon lut bit define, for ctrl_mask*/
+#define LCD_TCON_LUT_MASK              0x00ffffff
+#define LCD_TCON_LUT_VAC               0x00000001
+#define LCD_TCON_LUT_DEMURA            0x00000002
+#define LCD_TCON_LUT_DITHER            0x00000004
+#define LCD_TCON_LUT_ACC               0x00000010
+#define LCD_TCON_LUT_PRE_ACC           0x00000020
+#define LCD_TCON_LUT_OD                0x00000100
+#define LCD_TCON_LUT_LOD               0x00000200
+
+/*tcon ctrl sub cmd, for ctrl_type*/
+#define LCD_TCON_CTRL_LUT_VALID_GET    0x1
+#define LCD_TCON_CTRL_LUT_DEMO_SET     0x2
+#define LCD_TCON_CTRL_LUT_DEMO_GET     0x3
+
+struct aml_lcd_tcon_ctrl_s {
+	unsigned int ctrl_mask;
+	unsigned int ctrl_type;
+	unsigned int ctrl_val;
+};
+
+#define LCD_IOC_TYPE                      'C'
+#define LCD_IOC_NR_GET_HDR_INFO           0x0
+#define LCD_IOC_NR_SET_HDR_INFO           0x1
 #define LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO 0x2
 #define LCD_IOC_SET_TCON_DATA_INDEX_INFO  0x3
 #define LCD_IOC_GET_TCON_BIN_PATH_INFO    0x4
 #define LCD_IOC_SET_TCON_BIN_DATA_INFO    0x5
 
-#define LCD_IOC_POWER_CTRL        0x6
-#define LCD_IOC_MUTE_CTRL         0x7
-#define LCD_IOC_GET_FRAME_RATE    0x9
-#define LCD_IOC_SET_PHY_PARAM     0xa
-#define LCD_IOC_GET_PHY_PARAM     0xb
-#define LCD_IOC_SET_SS            0xc
-#define LCD_IOC_GET_SS            0xd
+#define LCD_IOC_POWER_CTRL                0x6
+#define LCD_IOC_MUTE_CTRL                 0x7
+#define LCD_IOC_GET_FRAME_RATE            0x9
+#define LCD_IOC_SET_PHY_PARAM             0xa
+#define LCD_IOC_GET_PHY_PARAM             0xb
+#define LCD_IOC_SET_SS                    0xc
+#define LCD_IOC_GET_SS                    0xd
+#define LCD_IOC_SET_TCON_BIN_DATA_FINISH  0xe
 
 /*
- * tcon use 0x20~0x2f
+ * tcon dccd: use 0x20~0x2f
  */
 #define TCON_IOC_SET_DCCD         0x20
 #define TCON_IOC_SET_QUICK_REG    0x21
@@ -115,6 +137,11 @@ struct aml_lcd_dccd_config_s {
 #define TCON_IOC_GET_CALC_STATUS  0x25
 #define TCON_IOC_GET_CALC_CNT     0x26
 #define TCON_IOC_SET_DCCD_DONE    0x27
+/*
+ * tcon: use 0x30~0x4f
+ */
+#define TCON_IOC_SET_CTRL         0x30
+#define TCON_IOC_GET_CTRL         0x31
 
 #define LCD_IOC_CMD_GET_HDR_INFO   \
 	_IOR(LCD_IOC_TYPE, LCD_IOC_NR_GET_HDR_INFO, struct lcd_optical_info_s)
@@ -141,6 +168,8 @@ struct aml_lcd_dccd_config_s {
 	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_SS, struct aml_lcd_ss_ctl_s)
 #define LCD_IOC_CMD_GET_SS   \
 	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_SS, struct aml_lcd_ss_ctl_s)
+#define LCD_IOC_CMD_SET_TCON_BIN_DATA_FINISH   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_TCON_BIN_DATA_FINISH, unsigned int)
 
 #define TCON_IOC_CMD_SET_DCCD \
 	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_DCCD, struct aml_lcd_dccd_config_s)
@@ -158,6 +187,11 @@ struct aml_lcd_dccd_config_s {
 	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_CALC_CNT, unsigned int)
 #define TCON_IOC_CMD_SET_DCCD_DONE \
 	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_DCCD_DONE, unsigned int)
+
+#define TCON_IOC_CMD_SET_CTRL \
+	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_CTRL, struct aml_lcd_tcon_lut_ctrl_s)
+#define TCON_IOC_CMD_GET_CTRL \
+	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_CTRL, struct aml_lcd_tcon_lut_ctrl_s)
 
 /* **********************************
  * lcd_extern IOCTL define

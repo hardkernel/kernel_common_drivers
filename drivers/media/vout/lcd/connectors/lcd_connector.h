@@ -47,8 +47,6 @@ void lcd_tcon_global_reset(struct aml_lcd_drv_s *pdrv);
 unsigned int lcd_tcon_table_read(unsigned int addr);
 unsigned int lcd_tcon_table_write(unsigned int addr, unsigned int val);
 int lcd_tcon_core_update(struct aml_lcd_drv_s *pdrv);
-int lcd_tcon_od_set(struct aml_lcd_drv_s *pdrv, int flag);
-int lcd_tcon_od_get(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 			  unsigned char *buf, unsigned int size);
 int lcd_tcon_top_init(struct aml_lcd_drv_s *pdrv);

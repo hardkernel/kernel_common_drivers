@@ -215,11 +215,12 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
 	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	struct lcd_tcon_bin_path_header_s *bin_path_header;
 	unsigned int size, file_size, cnt, m, sec_protect, sec_handle, *data;
 	unsigned char *mem_vaddr;
 	char *str;
-	int len = 0, n, i, ret;
+	int len = 0, n, i, ret = 0;
 
 	ret = lcd_tcon_valid_check();
 	if (ret)
@@ -233,12 +234,13 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 			"\ntcon info:\n"
-			"core_reg_width:  %d\n"
-			"reg_table_len:   %d\n"
-			"tcon_bin_ver:    %s\n"
-			"tcon_rmem_flag:  %d\n"
-			"rsv_mem paddr:   0x%lx\n"
-			"rsv_mem size:    0x%x\n",
+			"fw_ready:       %d\n"
+			"core_reg_width: %d\n"
+			"reg_table_len:  %d\n"
+			"tcon_bin_ver:   %s\n"
+			"tcon_rmem_flag: %d\n"
+			"rsv_mem paddr:  0x%lx, size: 0x%x\n",
+			tcon_fw ? tcon_fw->fw_ready : 0,
 			tcon_conf->core_reg_width,
 			tcon_conf->reg_table_len,
 			local_cfg->bin_ver,
@@ -249,12 +251,11 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n,
 			"bin_path_mem\n"
-			"  paddr: 0x%lx\n"
-			"  vaddr: 0x%px\n"
-			"  size:  0x%x\n",
+			"  paddr: 0x%lx, size: 0x%x\n"
+			"  vaddr: 0x%px\n",
 			(unsigned long)tcon_rmem->bin_path_rmem.mem_paddr,
-			tcon_rmem->bin_path_rmem.mem_vaddr,
-			tcon_rmem->bin_path_rmem.mem_size);
+			tcon_rmem->bin_path_rmem.mem_size,
+			tcon_rmem->bin_path_rmem.mem_vaddr);
 	}
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,	"\n");
@@ -298,12 +299,11 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 			n = lcd_debug_info_len(len + offset);
 			len += snprintf((buf + len), n,
 				"\nsecure_cfg rsv_mem:\n"
-				"  paddr: 0x%lx\n"
-				"  vaddr: 0x%px\n"
-				"  size:  0x%x\n",
+				"  paddr: 0x%lx, size: 0x%x\n"
+				"  vaddr: 0x%px\n",
 				(unsigned long)tcon_rmem->secure_cfg_rmem.mem_paddr,
-				tcon_rmem->secure_cfg_rmem.mem_vaddr,
-				tcon_rmem->secure_cfg_rmem.mem_size);
+				tcon_rmem->secure_cfg_rmem.mem_size,
+				tcon_rmem->secure_cfg_rmem.mem_vaddr);
 			for (i = 0; i < cnt; i++) {
 				m = 2 * i;
 				sec_protect = *(data + m);
@@ -352,6 +352,8 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 	unsigned int temp = 0, val, back_val, i, n, size = 0;
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
 	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
+	struct lcd_tcon_ctrl_s tcon_ctrl;
 	unsigned char data;
 	unsigned char *table = NULL;
 	int ret = -1;
@@ -554,19 +556,110 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 		} else {
 			goto lcd_tcon_debug_store_err;
 		}
-	} else if (strcmp(parm[0], "od") == 0) { /* over drive */
+	} else if (strcmp(parm[0], "lut") == 0) {
+		if (!tcon_fw || !tcon_fw->cmd_handler)
+			goto lcd_tcon_debug_store_err;
 		if (!parm[1]) {
-			temp = lcd_tcon_od_get(pdrv);
-			LCDPR("tcon od is %s: %d\n", temp ? "enabled" : "disabled", temp);
-		} else {
-			ret = kstrtouint(parm[1], 10, &temp);
+			tcon_ctrl.ctrl_mask = TCON_FW_LUT_MASK;
+			tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_VALID_GET;
+			ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
 			if (ret)
 				goto lcd_tcon_debug_store_err;
-			if (temp)
-				lcd_tcon_od_set(pdrv, 1);
-			else
-				lcd_tcon_od_set(pdrv, 0);
+			pr_info("lut_valid:\n"
+				"acc:    %d\n"
+				"od:     %d\n"
+				"lod:    %d\n"
+				"vac:    %d\n"
+				"demura: %d\n"
+				"dither: %d\n",
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_ACC),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_OD),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_LOD),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_VAC),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DEMURA),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DITHER));
+
+			tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_MULTI_GET;
+			ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
+			if (ret)
+				goto lcd_tcon_debug_store_err;
+			pr_info("\nlut_multi:\n"
+				"acc:    %d\n"
+				"od:     %d\n"
+				"lod:    %d\n"
+				"vac:    %d\n"
+				"demura: %d\n"
+				"dither: %d\n",
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_ACC),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_OD),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_LOD),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_VAC),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DEMURA),
+				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DITHER));
+			goto lcd_tcon_debug_store_end;
 		}
+		if (strcmp(parm[1], "demo") == 0) {
+			if (!parm[2]) {
+				tcon_ctrl.ctrl_mask = TCON_FW_LUT_MASK;
+				tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_DEMO_GET;
+				ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
+				if (ret)
+					goto lcd_tcon_debug_store_err;
+				pr_info("lut_demo:\n"
+					"acc:    %d\n"
+					"od:     %d\n"
+					"lod:    %d\n"
+					"vac:    %d\n"
+					"demura: %d\n"
+					"dither: %d\n",
+					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_ACC),
+					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_OD),
+					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_LOD),
+					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_VAC),
+					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DEMURA),
+					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DITHER));
+				goto lcd_tcon_debug_store_end;
+			}
+			if (strcmp(parm[2], "acc") == 0)
+				tcon_ctrl.ctrl_mask = TCON_FW_LUT_ACC;
+			else if (strcmp(parm[2], "od") == 0)
+				tcon_ctrl.ctrl_mask = TCON_FW_LUT_OD;
+			else if (strcmp(parm[2], "vac") == 0)
+				tcon_ctrl.ctrl_mask = TCON_FW_LUT_VAC;
+			else if (strcmp(parm[2], "demura") == 0)
+				tcon_ctrl.ctrl_mask = TCON_FW_LUT_DEMURA;
+			else if (strcmp(parm[2], "lod") == 0)
+				tcon_ctrl.ctrl_mask = TCON_FW_LUT_LOD;
+			else if (strcmp(parm[2], "dither") == 0)
+				tcon_ctrl.ctrl_mask = TCON_FW_LUT_DITHER;
+			else
+				goto lcd_tcon_debug_store_err;
+			if (!parm[3]) {
+				tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_DEMO_GET;
+				ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
+				if (ret)
+					goto lcd_tcon_debug_store_err;
+				pr_info("%s demo: %d\n", parm[2],
+					!!(tcon_ctrl.ctrl_val & tcon_ctrl.ctrl_mask));
+				goto lcd_tcon_debug_store_end;
+			}
+			ret = kstrtouint(parm[3], 10, &temp);
+			if (ret)
+				goto lcd_tcon_debug_store_err;
+			tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_DEMO_SET;
+			tcon_ctrl.ctrl_val = temp ? tcon_ctrl.ctrl_mask : 0;
+			ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
+			if (ret)
+				goto lcd_tcon_debug_store_err;
+		} else {
+			goto lcd_tcon_debug_store_err;
+		}
+	} else if (strcmp(parm[0], "check") == 0) {
+		if (!tcon_fw || !tcon_fw->cmd_handler)
+			goto lcd_tcon_debug_store_err;
+		tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CHK_RATIONALITY, NULL);
+	} else if (strcmp(parm[0], "comp") == 0) {
+		lcd_tcon_complete_data_load(pdrv);
 	} else if (strcmp(parm[0], "multi_lut") == 0) {
 		lcd_tcon_multi_lut_print();
 	} else if (strcmp(parm[0], "multi_update") == 0) {
@@ -1243,6 +1336,7 @@ static struct device_attribute lcd_tcon_debug_attrs[] = {
  * **********************************
  */
 static unsigned int lcd_tcon_bin_path_index;
+static struct aml_lcd_tcon_ctrl_s tcon_ctrl;
 
 long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned long arg)
 {
@@ -1403,6 +1497,10 @@ set_tcon_bin_error_break:
 			kfree(vaddr);
 		ret = -EFAULT;
 		break;
+	case LCD_IOC_SET_TCON_BIN_DATA_FINISH:
+		lcd_tcon_complete_data_load(pdrv);
+		ret = 0;
+		break;
 	case TCON_IOC_SET_DCCD:
 	case TCON_IOC_SET_CORE_BASE:
 		ret = -EINVAL;
@@ -1504,6 +1602,31 @@ __tcon_get_calc_exit:
 		lcd_resource_ready(pdrv->index, LCD_RES_TCON_DCCD, 0);
 		ret = 0;
 		LCDPR("DCCD set done\n");
+		break;
+	case TCON_IOC_SET_CTRL:
+		if (!tcon_fw->cmd_handler) {
+			ret = -EFAULT;
+			break;
+		}
+		if (copy_from_user(&tcon_ctrl, argp, sizeof(struct aml_lcd_tcon_ctrl_s))) {
+			ret = -EFAULT;
+			break;
+		}
+		ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
+		tcon_ctrl.ctrl_type = TCON_FW_CTRL_NONE; //clear sub_cmd to avoid misoperation
+		break;
+	case TCON_IOC_GET_CTRL:
+		if (!tcon_fw->cmd_handler) {
+			ret = -EFAULT;
+			break;
+		}
+		ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
+		if (ret) {
+			ret = -EFAULT;
+			break;
+		}
+		if (copy_to_user(argp, &tcon_ctrl, sizeof(struct aml_lcd_tcon_ctrl_s)))
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -EINVAL;

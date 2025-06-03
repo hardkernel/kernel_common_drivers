@@ -638,70 +638,6 @@ int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 	return 0;
 }
 
-int lcd_tcon_od_set(struct aml_lcd_drv_s *pdrv, int flag)
-{
-	unsigned int reg, bit, temp;
-	int ret;
-
-	ret = lcd_tcon_valid_check();
-	if (ret)
-		return -1;
-
-	if (lcd_tcon_conf->reg_core_od == REG_LCD_TCON_MAX) {
-		LCDERR("%s: invalid od reg\n", __func__);
-		return -1;
-	}
-
-	if (flag) {
-		if (tcon_rmem.flag == 0) {
-			LCDERR("%s: invalid memory, disable od function\n",
-				__func__);
-			return -1;
-		}
-	}
-
-	if (!(pdrv->status & LCD_STATUS_IF_ON))
-		return -1;
-
-	reg = lcd_tcon_conf->reg_core_od;
-	bit = lcd_tcon_conf->bit_od_en;
-	temp = flag ? 1 : 0;
-	if (lcd_tcon_conf->core_reg_width == 8)
-		lcd_tcon_setb_byte(pdrv, reg, temp, bit, 1);
-	else
-		lcd_tcon_setb(pdrv, reg, temp, bit, 1);
-
-	lcd_delay_ms(100);
-	LCDPR("%s: %d\n", __func__, flag);
-
-	return 0;
-}
-
-int lcd_tcon_od_get(struct aml_lcd_drv_s *pdrv)
-{
-	unsigned int reg, bit, temp;
-	int ret = 0;
-
-	ret = lcd_tcon_valid_check();
-	if (ret)
-		return 0;
-
-	if (lcd_tcon_conf->reg_core_od == REG_LCD_TCON_MAX) {
-		LCDERR("%s: invalid od reg\n", __func__);
-		return 0;
-	}
-
-	reg = lcd_tcon_conf->reg_core_od;
-	bit = lcd_tcon_conf->bit_od_en;
-	if (lcd_tcon_conf->core_reg_width == 8)
-		temp = lcd_tcon_read_byte(pdrv, reg);
-	else
-		temp = lcd_tcon_read(pdrv, reg);
-	ret = ((temp >> bit) & 1);
-
-	return ret;
-}
-
 void lcd_tcon_global_reset(struct aml_lcd_drv_s *pdrv)
 {
 	int ret;
@@ -1759,29 +1695,6 @@ static int lcd_tcon_data_multi_reset(struct tcon_mem_map_table_s *mm_table)
 	return 0;
 }
 
-static void lcd_tcon_data_complete_check(struct aml_lcd_drv_s *pdrv, int index)
-{
-	int i, n = 0;
-
-	if (tcon_mm_table.data_complete)
-		return;
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s: index %d\n", __func__, index);
-
-	tcon_mm_table.block_bit_flag |= (1 << index);
-	for (i = 0; i < tcon_mm_table.block_cnt; i++) {
-		if (tcon_mm_table.block_bit_flag & (1 << i))
-			n++;
-	}
-	if (n < tcon_mm_table.block_cnt)
-		return;
-
-	tcon_mm_table.data_complete = 1;
-	lrm_resource_device_finish("lcd_tcon_data");
-	LCDPR("%s: data_complete: %d\n", __func__, tcon_mm_table.data_complete);
-}
-
 void lcd_tcon_data_block_regen_crc(unsigned char *data)
 {
 	unsigned int raw_crc32 = 0, new_crc32 = 0;
@@ -1894,9 +1807,18 @@ int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int 
 			block_header->name);
 	}
 
-	lcd_tcon_data_complete_check(pdrv, index);
-
 	return 0;
+}
+
+void lcd_tcon_complete_data_load(struct aml_lcd_drv_s *pdrv)
+{
+	if (tcon_mm_table.data_complete)
+		return;
+
+	tcon_mm_table.data_complete = 1;
+	lcd_tcon_fw_lut_update_status(pdrv);
+	lrm_resource_device_finish("lcd_tcon_data");
+	LCDPR("%s: data_complete: %d\n", __func__, tcon_mm_table.data_complete);
 }
 
 static char *err_msg[] = {
@@ -3087,7 +3009,6 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 		tcon_mm_table.data_init = NULL;
 		tcon_mm_table.lut_valid_flag = 0;
 		tcon_mm_table.data_complete = 0;
-		tcon_mm_table.block_bit_flag = 0;
 		lcd_tcon_data_multi_remvoe(&tcon_mm_table);
 		if (tcon_mm_table.data_mem_vaddr) {
 			for (i = 0; i < tcon_mm_table.block_cnt; i++) {
