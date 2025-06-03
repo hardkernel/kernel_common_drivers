@@ -1722,8 +1722,8 @@
 		mbox-nums = <C2_MBOX_NUMS>;
 		mboxids = <C2_MBOX_REE2DSPA>,
 			  <C2_MBOX_DSPA2REE>,
-			  <C2_MBOX_REE2AO>,
-			  <C2_MBOX_AO2REE>;
+			  <C2_MBOX_REE2SE>,
+			  <C2_MBOX_SE2REE>;
 		#mbox-cells = <1>;
 	};
 
@@ -1736,7 +1736,7 @@
 			     "se_dev";
 		mboxes = <&mbox_pl C2_REE2DSPA_DEV>,
 			 <&mbox_pl C2_DSPA2REE_DEV>,
-			 <&mbox_pl C2_REE2AO_DEV>;
+			 <&mbox_pl C2_REE2SE_DEV>;
 		mbox-dests = <MAILBOX_DSP>,
 			     <MAILBOX_ARM>,
 			     <MAILBOX_AOCPU>;

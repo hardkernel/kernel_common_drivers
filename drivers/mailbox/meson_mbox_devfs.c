@@ -53,6 +53,8 @@ struct aml_mbox_priv {
 	struct aml_mbox_dev *aml_dev;
 	struct aml_mbox_data *aml_ree2remote_data;
 	struct aml_mbox_data *aml_ao2ree_data;
+	struct aml_mbox_data *aml_dspa2ree_data;
+	struct aml_mbox_data *aml_dspb2ree_data;
 };
 
 static ssize_t mbox_message_write(struct file *filp,
@@ -121,6 +123,8 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 	struct aml_mbox_dev *aml_dev = aml_priv->aml_dev;
 	struct aml_mbox_data *ree2remote_data = aml_priv->aml_ree2remote_data;
 	struct aml_mbox_data *ao2ree_data = aml_priv->aml_ao2ree_data;
+	struct aml_mbox_data *dspa2ree_data = aml_priv->aml_dspa2ree_data;
+	struct aml_mbox_data *dspb2ree_data = aml_priv->aml_dspb2ree_data;
 	struct device *dev = aml_dev->p_dev;
 	int ret = 0;
 	int rxsize;
@@ -144,6 +148,12 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 		if (!strcmp(aml_dev->name, "aocpu2ree")) {
 			rxbuf = ao2ree_data->rxbuf;
 			rxsize = ao2ree_data->rxsize;
+		} else if (!strcmp(aml_dev->name, "dspa2ree")) {
+			rxbuf = dspa2ree_data->rxbuf;
+			rxsize = dspa2ree_data->rxsize;
+		} else if (!strcmp(aml_dev->name, "dspb2ree")) {
+			rxbuf = dspb2ree_data->rxbuf;
+			rxsize = dspb2ree_data->rxsize;
 		} else {
 			dev_err(dev, "Error: Unrecognized device source\n");
 			return -ENXIO;
@@ -181,6 +191,8 @@ static int mbox_message_open(struct inode *inode, struct file *filp)
 	struct aml_mbox_priv *aml_priv;
 	struct aml_mbox_data *ree2remote_data;
 	struct aml_mbox_data *ao2ree_data;
+	struct aml_mbox_data *dspa2ree_data;
+	struct aml_mbox_data *dspb2ree_data;
 
 	aml_priv = devm_kzalloc(aml_dev->p_dev, sizeof(*aml_priv), GFP_KERNEL);
 	if (IS_ERR(aml_priv))
@@ -228,6 +240,42 @@ static int mbox_message_open(struct inode *inode, struct file *filp)
 			}
 			aml_priv->aml_ao2ree_data = ao2ree_data;
 		}
+
+		if (!strcmp(aml_dev->name, "dspa2ree")) {
+			dspa2ree_data = devm_kzalloc(aml_dev->p_dev,
+					sizeof(*dspa2ree_data), GFP_KERNEL);
+			if (IS_ERR(dspa2ree_data)) {
+				devm_kfree(aml_dev->p_dev, aml_priv);
+				return -ENOMEM;
+			}
+
+			dspa2ree_data->rxbuf = devm_kzalloc(aml_dev->p_dev,
+					MBOX_DATA_SIZE, GFP_KERNEL);
+			if (IS_ERR(dspa2ree_data->rxbuf)) {
+				devm_kfree(aml_dev->p_dev, aml_priv);
+				devm_kfree(aml_dev->p_dev, dspa2ree_data);
+				return -ENOMEM;
+			}
+			aml_priv->aml_dspa2ree_data = dspa2ree_data;
+		}
+
+		if (!strcmp(aml_dev->name, "dspb2ree")) {
+			dspb2ree_data = devm_kzalloc(aml_dev->p_dev,
+					sizeof(*dspb2ree_data), GFP_KERNEL);
+			if (IS_ERR(dspb2ree_data)) {
+				devm_kfree(aml_dev->p_dev, aml_priv);
+				return -ENOMEM;
+			}
+
+			dspb2ree_data->rxbuf = devm_kzalloc(aml_dev->p_dev,
+					MBOX_DATA_SIZE, GFP_KERNEL);
+			if (IS_ERR(dspb2ree_data->rxbuf)) {
+				devm_kfree(aml_dev->p_dev, aml_priv);
+				devm_kfree(aml_dev->p_dev, dspb2ree_data);
+				return -ENOMEM;
+			}
+			aml_priv->aml_dspb2ree_data = dspb2ree_data;
+		}
 		break;
 	default:
 		break;
@@ -255,6 +303,16 @@ static int mbox_message_release(struct inode *inode, struct file *filp)
 		if (!strcmp(aml_dev->name, "aocpu2ree")) {
 			devm_kfree(aml_dev->p_dev, aml_priv->aml_ao2ree_data->rxbuf);
 			devm_kfree(aml_dev->p_dev, aml_priv->aml_ao2ree_data);
+		}
+
+		if (!strcmp(aml_dev->name, "dspa2ree")) {
+			devm_kfree(aml_dev->p_dev, aml_priv->aml_dspa2ree_data->rxbuf);
+			devm_kfree(aml_dev->p_dev, aml_priv->aml_dspa2ree_data);
+		}
+
+		if (!strcmp(aml_dev->name, "dspb2ree")) {
+			devm_kfree(aml_dev->p_dev, aml_priv->aml_dspb2ree_data->rxbuf);
+			devm_kfree(aml_dev->p_dev, aml_priv->aml_dspb2ree_data);
 		}
 		break;
 	default:
@@ -337,6 +395,92 @@ static void mbox_ao2ree_rx_callback(struct mbox_client *cl, void *mssg)
 		dev_dbg(dev, "ao2ree: notify userspace to read data\n");
 		kill_fasync(&aml_dev->async_queue, SIGIO, POLL_IN);
 	}
+}
+
+static int mbox_dsp2ree_notify(struct aml_mbox_dev *aml_dev, void *mssg)
+{
+	struct device *dev = aml_dev->p_dev;
+	struct aml_mbox_priv *aml_priv;
+	struct aml_mbox_rx_data *aml_rx_data;
+	struct aml_mbox_data *dsp2ree_data = NULL;
+	u32 cmd;
+	int ret = 0;
+
+	aml_rx_data = mssg;
+	cmd = aml_rx_data->cmd;
+	dev_dbg(dev, "%s: cmd = 0x%x\n", __func__, (unsigned int)cmd);
+
+	aml_priv = aml_dev->priv_data;
+	if (IS_ERR_OR_NULL(aml_priv)) {
+		dev_err(dev, "Err: Device %s has not been opened yet\n",
+			aml_dev->name);
+		return PTR_ERR(aml_priv);
+	}
+
+	if (!strcmp(aml_dev->name, "dspa2ree"))
+		dsp2ree_data = aml_priv->aml_dspa2ree_data;
+	else if (!strcmp(aml_dev->name, "dspb2ree"))
+		dsp2ree_data = aml_priv->aml_dspb2ree_data;
+
+	if (!dsp2ree_data || !dsp2ree_data->rxbuf) {
+		dev_err(dev, "Err: dsp2ree RX pointer is NULL\n");
+		ret = -EINVAL;
+	} else {
+		memcpy(dsp2ree_data->rxbuf, aml_rx_data->buf, aml_rx_data->size);
+		dsp2ree_data->rxsize = aml_rx_data->size;
+		dev_dbg(dev, "dsp2ree: notify userspace to read data\n");
+		kill_fasync(&aml_dev->async_queue, SIGIO, POLL_IN);
+	}
+
+	return ret;
+}
+
+static void mbox_dspa2ree_rx_callback(struct mbox_client *cl, void *mssg)
+{
+	struct device *dev = cl->dev;
+	struct aml_mbox_dev *aml_devs;
+	struct aml_mbox_dev *aml_dev;
+	u32 mbox_nums;
+	int idx;
+
+	aml_devs = dev_get_drvdata(dev);
+	mbox_nums = aml_devs->mbox_nums;
+	for (idx = 0; idx < mbox_nums; idx++) {
+		aml_dev = &aml_devs[idx];
+		if (!strcmp(aml_dev->name, "dspa2ree"))
+			break;
+	}
+
+	if (idx == mbox_nums) {
+		dev_err(dev, "Can't find dspa2ree dev\n");
+		return;
+	}
+
+	mbox_dsp2ree_notify(aml_dev, mssg);
+}
+
+static void mbox_dspb2ree_rx_callback(struct mbox_client *cl, void *mssg)
+{
+	struct device *dev = cl->dev;
+	struct aml_mbox_dev *aml_devs;
+	struct aml_mbox_dev *aml_dev;
+	u32 mbox_nums;
+	int idx;
+
+	aml_devs = dev_get_drvdata(dev);
+	mbox_nums = aml_devs->mbox_nums;
+	for (idx = 0; idx < mbox_nums; idx++) {
+		aml_dev = &aml_devs[idx];
+		if (!strcmp(aml_dev->name, "dspb2ree"))
+			break;
+	}
+
+	if (idx == mbox_nums) {
+		dev_err(dev, "Can't find dspb2ree dev\n");
+		return;
+	}
+
+	mbox_dsp2ree_notify(aml_dev, mssg);
 }
 
 static int mbox_cdev_init(struct device *dev)
@@ -422,6 +566,10 @@ static int mbox_cdev_init(struct device *dev)
 
 		if (!strcmp(mbox_dev->name, "aocpu2ree"))
 			mbox_dev->mbox_chan->cl->rx_callback = mbox_ao2ree_rx_callback;
+		else if (!strcmp(mbox_dev->name, "dspa2ree"))
+			mbox_dev->mbox_chan->cl->rx_callback = mbox_dspa2ree_rx_callback;
+		else if (!strcmp(mbox_dev->name, "dspb2ree"))
+			mbox_dev->mbox_chan->cl->rx_callback = mbox_dspb2ree_rx_callback;
 	}
 	dev_set_drvdata(dev, mbox_devs);
 	dev_dbg(dev, "mbox devfs init done\n");
