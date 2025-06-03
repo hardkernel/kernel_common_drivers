@@ -239,7 +239,6 @@ static struct loopback_chipinfo a5_loopbacka_chipinfo = {
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
 	.multi_bits_lbsrcs = true,
 	.use_resamplea = true,
-	.orig_channel_sync = true,
 };
 
 static struct loopback_chipinfo a1_loopbacka_chipinfo = {
