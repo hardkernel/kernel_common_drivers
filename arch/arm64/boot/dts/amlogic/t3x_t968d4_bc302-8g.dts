@@ -1640,6 +1640,11 @@
 	status = "okay";
 };
 
+&amlvideo2_1 {
+	memory-region = <&amlvideo2_1_cma_reserved>;
+	cma_mode = <0>;
+};
+
 &periphs_pinctrl {
 	pdmin: pdmin {
 		mux { /* GPIOH_19, GPIOH_18,GPIOH_14*/

@@ -1130,6 +1130,11 @@
 	v4l_support_en = <0>;
 };
 
+&amlvideo2_1 {
+	memory-region = <&amlvideo2_1_cma_reserved>;
+	cma_mode = <0>;
+};
+
 /* SD card */
 &sd_emmc_b {
 	status = "okay";
