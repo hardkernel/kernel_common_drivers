@@ -456,7 +456,7 @@
 		key_valid = <1>;
 		pinctrl-names = "pwm_on","pwm_vs_on",
 				"pwm_off";
-		pinctrl-0 = <&pwm_d_pins6>;
+		pinctrl-0 = <&pwm_d_pins5>;
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
 		pinctrl-2 = <&bl_pwm_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
