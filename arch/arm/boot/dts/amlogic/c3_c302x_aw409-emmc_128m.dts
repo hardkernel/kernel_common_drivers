@@ -11,8 +11,7 @@
 	compatible = "c3_c302x_aw409-128m";
 };
 
-&sd_emmc_c
-{
+&sd_emmc_c {
 	status = "okay";
 	pinctrl-0 = <&emmc_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
@@ -22,9 +21,9 @@
 	non-removable;
 	//mmc-run-pxp;
 	//mmc-ddr-1_8v;
-	/delete-property/ mmc-hs200-1_8v;
-	/delete-property/ mmc-hs400-1_8v;
-	max-frequency = <50000000>;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	max-frequency = <200000000>;
 	disable-wp;
 	bus-width = <8>;
 };

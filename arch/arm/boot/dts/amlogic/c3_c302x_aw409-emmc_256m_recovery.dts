@@ -1022,7 +1022,7 @@
 };
 
 &sd_emmc_c {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&emmc_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-2 = <&emmc_pins_sleep>;
@@ -1173,7 +1173,7 @@
 };
 
 &spifc {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spifc_pins>;
 	spi-nand@0 {
@@ -1259,22 +1259,4 @@
 
 &lcd {
 	status = "disabled";
-};
-
-&sd_emmc_c
-{
-	status = "okay";
-	pinctrl-0 = <&emmc_pins>;
-	pinctrl-1 = <&emmc_clk_gate_pins>;
-	pinctrl-2 = <&emmc_pins_sleep>;
-	pinctrl-names = "default", "clk-gate", "sleep";
-	cap-mmc-highspeed;
-	non-removable;
-	//mmc-run-pxp;
-	//mmc-ddr-1_8v;
-	/delete-property/ mmc-hs200-1_8v;
-	/delete-property/ mmc-hs400-1_8v;
-	max-frequency = <50000000>;
-	disable-wp;
-	bus-width = <8>;
 };
