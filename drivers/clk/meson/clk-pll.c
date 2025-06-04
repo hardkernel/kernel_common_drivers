@@ -816,21 +816,18 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 	ret = meson_clk_get_pll_settings(rate, parent_rate, &m, &n, &od, pll);
 	if (ret)
 		return ret;
+	/* calculate frac if need*/
+	if (MESON_PARM_APPLICABLE(&pll->frac))
+		frac = __pll_params_with_frac(rate, parent_rate, m, n, od, pll);
 
-	/*
-	 * Can update the register corresponding to frac directly
-	 * if just change frac and pll to enable.
-	 */
 	if (meson_parm_read(clk->map, &pll->m) == m &&
 	    meson_parm_read(clk->map, &pll->n) == n &&
 	    meson_parm_read(clk->map, &pll->en)) {
-		if (MESON_PARM_APPLICABLE(&pll->frac))
+		if (MESON_PARM_APPLICABLE(&pll->od))
 			meson_parm_write(clk->map, pod, od);
 
-		if (MESON_PARM_APPLICABLE(&pll->frac)) {
-			frac = __pll_params_with_frac(rate, parent_rate, m, n, od, pll);
+		if (MESON_PARM_APPLICABLE(&pll->frac))
 			meson_parm_write(clk->map, pfrac, frac);
-		}
 
 		if (!meson_clk_pll_wait_lock(hw))
 			return 0;

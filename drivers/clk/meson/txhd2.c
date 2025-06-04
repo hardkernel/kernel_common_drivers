@@ -494,9 +494,11 @@ static struct clk_regmap txhd2_gp0_pll = {
 	},
 };
 
-static const struct pll_mult_range txhd2__hifi_pll_mult_range = {
-	.min = 20,
-	.max = 40,
+static const struct pll_params_table txhd2_hifi_pll_table[] = {
+	PLL_PARAMS_OD(36, 3, 0), /* DCO = 1800M OD = 0 PLL = 1800M */
+	PLL_PARAMS_OD(36, 3, 2), /* DCO = 1800M OD = 4 PLL = 450M */
+	PLL_PARAMS_OD(39, 3, 2), /* DCO = 1950M OD = 4 PLL = 487M */
+	{ /* sentinel */  }
 };
 
 /*
@@ -554,7 +556,7 @@ static struct clk_regmap txhd2_hifi_pll = {
 			.shift   = 24,
 			.width   = 1,
 		},
-		.range = &txhd2__hifi_pll_mult_range,
+		.table = txhd2_hifi_pll_table,
 		.od_max = 3,
 		.init_regs = txhd2_hifi_init_regs,
 		.init_count = ARRAY_SIZE(txhd2_hifi_init_regs),
@@ -629,7 +631,7 @@ static struct clk_regmap txhd2_hifi1_pll = {
 			.shift   = 24,
 			.width   = 1,
 		},
-		.range = &txhd2__hifi_pll_mult_range,
+		.table = txhd2_hifi_pll_table,
 		.od_max = 3,
 		.init_regs = txhd2_hifi1_init_regs,
 		.init_count = ARRAY_SIZE(txhd2_hifi1_init_regs),
