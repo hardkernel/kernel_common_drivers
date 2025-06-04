@@ -1461,7 +1461,7 @@ int meson_async_atomic_plane_set_property(struct drm_plane *plane,
 		if (!plane_state->async_in_fence)
 			return -EINVAL;
 
-	} else if (property == video_plane->video_present_fence_property) {
+	} else if (video_plane && property == video_plane->video_present_fence_property) {
 		s32 __user *fence_ptr = u64_to_user_ptr(val);
 
 		if (!fence_ptr)
