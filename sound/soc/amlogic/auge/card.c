@@ -1061,7 +1061,7 @@ static int spk_mute_set(struct snd_kcontrol *kcontrol,
 
 	priv->spk_mute_flag = mute;
 
-	if (IS_ERR(priv->spk_mute))
+	if (IS_ERR_OR_NULL(priv->spk_mute))
 		return 0;
 
 	gpiod_set_value(priv->spk_mute, mute);
@@ -1076,7 +1076,7 @@ static int spk_mute_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *soc_card = snd_kcontrol_chip(kcontrol);
 	struct aml_card_data *priv = aml_card_to_priv(soc_card);
 
-	if (IS_ERR(priv->spk_mute))
+	if (IS_ERR_OR_NULL(priv->spk_mute))
 		return 0;
 
 	ucontrol->value.integer.value[0] = gpiod_get_value(priv->spk_mute);
@@ -1098,9 +1098,11 @@ static int aml_card_parse_gpios(struct device_node *node,
 	unsigned int sleep_time = 500;
 	unsigned int spk_mute_sleep_time = 200;
 	struct gpio_desc *spk_mute = devm_gpiod_get(dev, "spk_mute", GPIOD_ASIS);
+
 	int value = 0;
 
-	if (!IS_ERR(spk_mute)) {
+	if (!IS_ERR_OR_NULL(spk_mute)) {
+		priv->spk_mute = spk_mute;
 		/* delay to depop the speaker noise */
 		if (!of_property_read_u32(node,
 				"spk_mute_sleep_time", &spk_mute_sleep_time))
@@ -1118,7 +1120,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 		priv->avout_mute_desc = devm_gpiod_get(dev,
 					"avout_mute", GPIOD_ASIS);
 	}
-	if (!IS_ERR(priv->avout_mute_desc)) {
+	if (!IS_ERR_OR_NULL(priv->avout_mute_desc)) {
 		if (!priv->av_mute_enable) {
 			if (!of_property_read_u32(node,
 				"av_mute_sleep_time", &sleep_time))
