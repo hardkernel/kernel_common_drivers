@@ -58,18 +58,6 @@ kernel_build_config(
     ],
 )
 
-config_setting(
-    name = "common_drivers_on_top_dir",
-    flag_values = {":common_drivers_on_top": "True"},
-    visibility = ["//visibility:public"],
-)
-
-bool_flag(
-    name = "common_drivers_on_top",
-    build_setting_default = False,
-    visibility = ["//visibility:public"],
-)
-
 ddk_headers(
     name = "soc_headers",
     hdrs = glob([

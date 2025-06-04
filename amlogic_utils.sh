@@ -1730,7 +1730,6 @@ function build_kernel_with_bazel() {
 	[[ -z ${PREBUILT_GKI} ]] && args="${args}"
 	[[ -z ${GKI_CONFIG} || -n ${UPDATE_KERNEL} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
 	[[ -n ${UPDATE_KERNEL} ]] && args="${args} --nokmi_symbol_list_violations_check --defconfig_fragment=//common_drivers:arch/arm64/configs/defconfig_fragment"
-	[[ -d ${ROOT_DIR}/common_drivers ]] && args="${args} --config=common_drivers_on_top"
 
 	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project
 	[[ -d ${PROJECT_DIR} ]] || mkdir -p ${PROJECT_DIR}
@@ -1881,7 +1880,7 @@ function build_kernel_with_bazel() {
 								--nokmi_symbol_list_strict_mode"
 			fi
 		fi
-		[[ -d ${ROOT_DIR}/common_drivers ]] && google_args="${google_args} --config=common_drivers_on_top --debug_modpost_warn"
+		[[ -d ${ROOT_DIR}/common_drivers ]] && google_args="${google_args} --debug_modpost_warn"
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}  ${google_args} --config=fast
 	elif [[ "${ABI}" -eq "1" ]]; then
 		tools/bazel run //common_drivers:amlogic_abi_update_symbol_list ${args}
