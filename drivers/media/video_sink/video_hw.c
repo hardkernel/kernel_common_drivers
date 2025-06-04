@@ -2245,7 +2245,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
  */
 /*coverity[dead_error_line:SUPPRESS]*/
 	if (skip_afbc && (type & VIDTYPE_COMPRESS)) {
-		/* t5d_revb, txhd2 will set afbc */
+		/* t5d_revb, txhd2, t6d will set afbc */
 		vd1_path_select(layer, true, false, di_post, di_pre_link);
 		if (video_is_meson_t5d_revb_cpu())
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
@@ -2318,6 +2318,9 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 			if (type & VIDTYPE_COMB_MODE)
 				r |= (1 << 20);
 		}
+		/* chip attr share_afbc_with_di = 0, disable vd1 afbc when pre-link enabled */
+		if (is_plink_on(layer))
+			r = 0;
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_afbc_reg->afbc_enable, r);
 
 		r = conv_lbuf_len[layer->layer_id];
@@ -2588,6 +2591,9 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 
 	/*enable go field reset default according to vlsi*/
 	r |= VDIF_RESET_ON_GO_FIELD;
+	/* When pre-link enabled, disable vd1 rd mif */
+	if (is_plink_on(layer))
+		r = 0;
 	cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_reg->vd_if0_gen_reg, r);
 	if (is_mvc)
 		cur_dev->rdma_func[vpp_index].rdma_wr
@@ -10399,11 +10405,9 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	    (vf->type & VIDTYPE_COMPRESS)) {
 	    /*coverity[overrun-local]*/
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_afbc_reg->afbc_head_baddr,
-			vf->compHeadAddr >> 4);
+			(vd_afbc_reg->afbc_head_baddr, vf->compHeadAddr >> 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_afbc_reg->afbc_body_baddr,
-			vf->compBodyAddr >> 4);
+			(vd_afbc_reg->afbc_body_baddr, vf->compBodyAddr >> 4);
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
