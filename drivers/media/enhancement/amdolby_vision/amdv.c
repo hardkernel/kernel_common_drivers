@@ -15984,11 +15984,11 @@ static long amdolby_vision_ioctl(struct file *file,
 	u32 amdv_policy;
 
 	if (debug_dolby & 0x200)
-		pr_info("[DV]: %s: cmd_nr = 0x%x\n",
+		pr_dv_dbg("%s: cmd_nr = 0x%x\n",
 			__func__, _IOC_NR(cmd));
 
 	if (!module_installed) {
-		pr_info("[DV] module not install\n");
+		pr_dv_dbg("module not install\n");
 		return ret;
 	}
 	if ((dolby_vision_flags & FLAG_CERTIFICATION) || (test_dv & DEBUG_IGNORE_IOCTL)) {
