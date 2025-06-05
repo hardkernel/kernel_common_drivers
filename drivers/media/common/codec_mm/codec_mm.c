@@ -25,6 +25,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/sched/clock.h>
+#include <linux/dma-buf.h>
 
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_scatter.h>
@@ -611,6 +612,33 @@ static void *codec_mm_search_vaddr(unsigned long phy_addr)
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
 	return vaddr;
+}
+
+static void *codec_mm_search_mem_by_phy(unsigned long phy_addr)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	struct codec_mm_s *mem = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mgt->lock, flags);
+	list_for_each_entry(mem, &mgt->mem_list, list) {
+		/*
+		 * If work on the fast play mode that is allocate a lot of
+		 * memory from CMA, It will be a reserve memory and add to the
+		 * codec_mm list, but this area can't be used for search vaddr
+		 * thus the node of codec_mm list must be ignored.
+		 */
+		if (mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR)
+			continue;
+
+		if (phy_addr == mem->phy_addr) {
+			spin_unlock_irqrestore(&mgt->lock, flags);
+			return mem;
+		}
+	}
+	spin_unlock_irqrestore(&mgt->lock, flags);
+
+	return NULL;
 }
 
 static u8 *__codec_mm_vmap(ulong addr, u32 size, bool is_cache)
@@ -2688,7 +2716,7 @@ static void dump_mem_infos(struct seq_file *m)
 	if (!list_empty(&mgt->mem_list)) {
 		list_for_each_entry(mem, &mgt->mem_list, list) {
 			s = snprintf(pbuf, buf_size - tsize,
-					"\t[%d].%d:%s.%d,addr=0x%lx,size=%d,from=%d,cnt=%d,",
+				"\t[%d].%d:%s.%d,addr=0x%lx,size=%d,from=%d,cnt=%d,",
 				mem->mem_id,
 				mem->ins_id,
 				mem->owner[0] ? mem->owner[0] : "no",
@@ -2707,9 +2735,17 @@ static void dump_mem_infos(struct seq_file *m)
 					"tee alloc %llu us,",
 					mem->tee_set_end_time - mem->tee_set_start_time);
 			s += snprintf(pbuf + s, buf_size - tsize,
-				"flags=%d,used:%u ms\n",
+				"flags=%d,used:%u ms",
 				mem->flags, jiffies_to_msecs(get_jiffies_64() -
 				mem->alloced_jiffies));
+			if (mem->dma_buf)
+				s += snprintf(pbuf + s, buf_size - tsize,
+					",ino:%ld,file_ref:%ld\n",
+					file_inode(mem->dma_buf->file)->i_ino,
+					file_count(mem->dma_buf->file));
+			else
+				s += snprintf(pbuf + s, buf_size - tsize,
+					"\n");
 			pbuf += get_string_offset(&buf_len, &tsize, s);
 
 			if (tsize > buf_size - 256) {
@@ -3707,18 +3743,21 @@ static ssize_t debug_store(const struct class *class,
 	case 200:
 		codec_mm_dbuf_walk(NULL);
 		break;
+	case 201:
+		codec_mm_show_dma_buf();
+		break;
 	case 900: {
-			uint cmd, buffer_page_num, buffer_num, intrval_ms, times;
-			uint wait_size, tvp_mode;
+		uint cmd, buffer_page_num, buffer_num, interval_ms, times;
+		uint wait_size, tvp_mode;
 
-			ret = sscanf(buf, "%d %d %d %d %d %d %d",
-					&cmd, &times, &buffer_page_num, &buffer_num,
-					&intrval_ms, &wait_size, &tvp_mode);
-			pr_info("buf num:%d, page num:%d, intrval_ms:%d, times:%d, wait size:%d, tvp:%d\n",
-					buffer_num, buffer_page_num, intrval_ms,
-					times, wait_size, tvp_mode);
-			codec_mm_scatter_simu_thread_test(times, buffer_page_num, buffer_num,
-					intrval_ms, wait_size, tvp_mode);
+		ret = sscanf(buf, "%d %d %d %d %d %d %d",
+				&cmd, &times, &buffer_page_num, &buffer_num,
+				&interval_ms, &wait_size, &tvp_mode);
+		pr_info("buf num:%d, page num:%d, interval_ms:%d, times:%d, wait size:%d, tvp:%d\n",
+				buffer_num, buffer_page_num, interval_ms,
+				times, wait_size, tvp_mode);
+		codec_mm_scatter_simu_thread_test(times, buffer_page_num, buffer_num,
+				interval_ms, wait_size, tvp_mode);
 		}
 		break;
 	default:
@@ -4537,6 +4576,55 @@ static void prepare_full_pagemap(struct device_node *of_node)
 	}
 
 #endif
+}
+
+void codec_mm_attach_dma_buf(struct dma_buf *dmabuf, ulong phy)
+{
+	struct codec_mm_s *mem = NULL;
+
+	mem = codec_mm_search_mem_by_phy(phy);
+	if (mem)
+		mem->dma_buf = dmabuf;
+	else
+		pr_info("no such a codec_mm buf with phy:%lx to attach\n", phy);
+}
+EXPORT_SYMBOL(codec_mm_attach_dma_buf);
+
+void codec_mm_detach_dma_buf(struct dma_buf *dmabuf, ulong phy)
+{
+	struct codec_mm_s *mem = NULL;
+
+	if (file_count(dmabuf->file) != 1)
+		return;
+
+	mem = codec_mm_search_mem_by_phy(phy);
+	if (mem)
+		mem->dma_buf = NULL;
+	else
+		pr_info("no such a codec_mm buf with phy:%lx to detach\n", phy);
+}
+EXPORT_SYMBOL(codec_mm_detach_dma_buf);
+
+void codec_mm_show_dma_buf(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	struct codec_mm_s *mem = NULL;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&mgt->lock, flags);
+	if (!list_empty(&mgt->mem_list)) {
+		list_for_each_entry(mem, &mgt->mem_list, list) {
+			if (mem->dma_buf)
+				pr_info("%s exporter:%s, addr:0x%lx, size:%d, ino:%ld, ref:%ld\n",
+					mem->owner[0],
+					mem->dma_buf->exp_name,
+					mem->phy_addr,
+					mem->buffer_size,
+					file_inode(mem->dma_buf->file)->i_ino,
+					file_count(mem->dma_buf->file));
+		}
+	}
+	spin_unlock_irqrestore(&mgt->lock, flags);
 }
 
 static int codec_mm_probe(struct platform_device *pdev)

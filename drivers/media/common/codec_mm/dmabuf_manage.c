@@ -1214,6 +1214,7 @@ static int dmabuf_manage_alloc_dmabuf(unsigned long args)
 		pr_error("dma_buf_fd failed\n");
 		goto error_fd;
 	}
+	codec_mm_attach_dma_buf(dbuf, block->paddr);
 	return res;
 error_fd:
 	dma_buf_put(dbuf);

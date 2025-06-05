@@ -49,4 +49,5 @@ int codec_mm_get_scatter_watermark(void);
 bool is_2k_platform(void);
 u32 codec_mm_get_property_from_dts(char *property_name);
 bool codec_mm_get_secure_mem_ctrl(void);
+void codec_mm_show_dma_buf(void);
 #endif /**/

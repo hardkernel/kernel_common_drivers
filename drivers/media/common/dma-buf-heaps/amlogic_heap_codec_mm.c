@@ -80,6 +80,8 @@ static int codec_mm_heap_attach(struct dma_buf *dmabuf,
 	list_add(&a->list, &buffer->attachments);
 	mutex_unlock(&buffer->lock);
 
+	codec_mm_attach_dma_buf(buffer->uvm_dma_buf, buffer->paddr);
+
 	return 0;
 }
 
@@ -375,7 +377,6 @@ static struct dma_buf *codec_mm_heap_do_allocate(struct dma_heap *heap,
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct dma_buf *dmabuf;
 	struct sg_table *table;
-	unsigned long paddr = 0;
 	int ret = -ENOMEM;
 	int memflags = CODEC_MM_FLAGS_DMA;
 
@@ -397,17 +398,16 @@ static struct dma_buf *codec_mm_heap_do_allocate(struct dma_heap *heap,
 	if (sg_alloc_table(table, 1, GFP_KERNEL))
 		goto free_buffer;
 
-	paddr = codec_mm_alloc_for_dma(DMA_BUF_CODEC_MM,
+	buffer->paddr = codec_mm_alloc_for_dma(DMA_BUF_CODEC_MM,
 					PAGE_ALIGN(len) / PAGE_SIZE,
 					0,
 					memflags);
-	if (!paddr)
+	if (!buffer->paddr)
 		goto free_tables;
-
-	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), len, 0);
+	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(buffer->paddr)), len, 0);
 
 	if (heap_flags & DMABUF_FLAG_EXTEND_PROTECTED) {
-		table->sgl->dma_address = paddr;
+		table->sgl->dma_address = buffer->paddr;
 #ifdef CONFIG_NEED_SG_DMA_LENGTH
 		table->sgl->dma_length = PAGE_ALIGN(len);
 #else
@@ -442,8 +442,8 @@ static struct dma_buf *codec_mm_heap_do_allocate(struct dma_heap *heap,
 
 	return dmabuf;
 free_tables:
-	if (paddr)
-		codec_mm_free_for_dma(DMA_BUF_CODEC_MM, paddr);
+	if (buffer->paddr)
+		codec_mm_free_for_dma(DMA_BUF_CODEC_MM, buffer->paddr);
 	sg_free_table(table);
 free_buffer:
 	kfree(buffer);

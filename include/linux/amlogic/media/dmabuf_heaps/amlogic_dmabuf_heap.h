@@ -58,11 +58,13 @@ struct codec_mm_heap_buffer {
 	unsigned long len;
 	struct sg_table sg_table;
 	int vmap_cnt;
+	ulong paddr;
 	void *vaddr;
 	//struct deferred_freelist_item deferred_free;
 	bool uncached;
 	unsigned long heap_flags;
 	void *priv;
+	struct dma_buf *uvm_dma_buf;
 };
 
 #define MESON_CMA_HEAP_IOC_MAGIC 'M'

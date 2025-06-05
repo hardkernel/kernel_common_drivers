@@ -9,6 +9,7 @@
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/dma-buf.h>
 
 #define DMA_BUF_CODEC_MM "CODEC_MM_DMA_BUF"
 
@@ -115,6 +116,7 @@ struct codec_mm_s {
 	u64 tee_set_start_time;
 	u64 tee_set_end_time;
 	u64 local_id;
+	struct dma_buf *dma_buf;
 };
 
 struct codec_mm_cb_s;
@@ -196,5 +198,7 @@ void codec_mm_dev_set_dma_mask(u64 bits);
 u64 codec_mm_managed_max_addr(void);
 u64 codec_mm_secure_vdec_max_addr(void);
 int is_reserved_ext_support(void);
+void codec_mm_attach_dma_buf(struct dma_buf *dmabuf, ulong phy);
+void codec_mm_detach_dma_buf(struct dma_buf *dmabuf, ulong phy);
 
 #endif

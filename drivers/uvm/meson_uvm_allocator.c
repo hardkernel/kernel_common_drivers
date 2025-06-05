@@ -762,6 +762,9 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		buffer->idmabuf[0] = idmabuf;
 		buffer->idmabuf[1] = NULL;
 
+		if (strcmp(CODECMM_HEAP_NAME, name))
+			((struct codec_mm_heap_buffer *)(idmabuf->priv))->uvm_dma_buf = dmabuf;
+
 		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
 		if (!attachment) {
 			MUA_PRINTK(MUA_ERROR, "%s: Failed to set dma attach", __func__);
