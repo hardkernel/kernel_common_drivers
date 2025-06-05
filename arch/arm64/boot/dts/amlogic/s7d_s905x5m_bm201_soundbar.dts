@@ -155,8 +155,8 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x19000000>;
+			/* The CTS test is the largest scenario, requiring 364MB */
+			size = <0x0 0x16C00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -192,7 +192,6 @@
 			/* up to 1280x720 nv21 8bit and 4 buffers
 			 * 1280x720x1.5x4 = 8 M
 			 */
-			status = "disabled";
 			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 		};
@@ -1032,90 +1031,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		nand-ecc-maximize;
-
-		partition@0 {
-			label = "bl2e";
-			reg = <0x0 0x00000000>;
-		};
-		partition@1 {
-			label = "bl2x";
-			reg = <0x0 0x00000000>;
-		};
-		partition@2 {
-			label = "ddrfip";
-			reg = <0x0 0x00000000>;
-		};
-		partition@3 {
-			label = "tpl";
-			reg = <0x0 0x00000000>;
-		};
-		partition@4 {
-			/* Do not modify before the factory partition */
-			label = "factory";
-			reg = <0x0 0x0800000>;
-		};
-		partition@5 {
-			label = "tee";
-			reg = <0x0 0x800000>;
-		};
-		partition@6 {
-			label = "logo";
-			reg = <0x0 0x200000>;
-		};
-		partition@7 {
-			label = "misc";
-			reg = <0x0 0x800000>;
-		};
-		partition@8 {
-			label = "recovery";
-			reg = <0x0 0x2000000>;
-		};
-		partition@9 {
-			label = "boot";
-			reg = <0x0 0x2200000>;
-		};
-		partition@10 {
-			label = "system";
-			reg = <0x0 0xE000000>;
-		};
-		partition@11 {
-			label = "vendor";
-			reg = <0x0 0x1000000>;
-		};
-		partition@12 {
-			label = "vbmeta";
-			reg = <0x0 0x0100000>;
-		};
-		partition@13 {
-			label = "data";
-			reg = <0x0 0xffffffff>;
-		};
 	};
-};
-
-&saradc {
-	status = "okay";
-};
-
-&ethmac {
-	pinctrl-0 = <&eth_led_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-	phy-handle = <&internal_ephy>;
-	phy-mode = "rmii";
-	keep-alive = <1>;
-};
-
-&ir {
-	status = "okay";
-	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
-};
-
-&spicc0 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_z>;
 };
 
 &spi_nfc {
@@ -1138,6 +1054,33 @@
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <83000000>;
 	};
+};
+
+&saradc {
+	status = "okay";
+};
+
+&ethmac {
+	pinctrl-0 = <&eth_led_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	phy-handle = <&internal_ephy>;
+	phy-mode = "rmii";
+	keep-alive = <1>;
+	mac_wol = <1>;
+	mdns_wkup = <1>;
+};
+
+&ir {
+	status = "okay";
+	pinctrl-0 = <&remote_pins>;
+	pinctrl-names = "default";
+};
+
+&spicc0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc0_pins_z>;
 };
 
 &fb {
@@ -1191,7 +1134,7 @@
 	/*compatible = "amlogic, vdin-s7d";*/
 	memory-region = <&vdin1_cma_reserved>;
 	frame_buff_num = <4>;
-	status = "disabled";
+	status = "okay";
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit
 	 *bit1:support 9bit
@@ -1202,7 +1145,7 @@
 };
 
 &aml_wifi{
-	status = "disabled";
+	status = "okay";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
@@ -1217,7 +1160,7 @@
 &pwm_e {
 	pinctrl-0 = <&pwm_e_pins1>;
 	pinctrl-names = "default";
-	status = "disabled";
+	status = "okay";
 };
 
 &uart_A {
