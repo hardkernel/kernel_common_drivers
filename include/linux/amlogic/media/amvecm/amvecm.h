@@ -367,7 +367,8 @@ enum chip_type {
 	chip_sc2,
 	chip_s7d,
 	chip_s6,
-	chip_t6d
+	chip_t6d,
+	chip_t6w
 };
 
 enum chip_cls_e {
@@ -511,6 +512,7 @@ extern enum output_format_e output_format;
 
 extern unsigned int osd_pic_en;
 extern unsigned int slt_en;
+extern bool pq_rdma_init;
 
 void amvecm_size_info_update(int vpp_index);
 

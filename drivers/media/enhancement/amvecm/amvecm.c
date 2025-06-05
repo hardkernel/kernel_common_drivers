@@ -14400,14 +14400,15 @@ static int aml_vecm_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int i = 0;
-
 	struct amvecm_dev_s *devp = &amvecm_dev;
 
 	memset(devp, 0, (sizeof(struct amvecm_dev_s)));
 	/*pr_info("\n VECM probe start\n");*/
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	hdr_lut_buffer_malloc(pdev);
 #endif
+
 	ret = alloc_chrdev_region(&devp->devno, 0, 1, AMVECM_NAME);
 	if (ret < 0)
 		goto fail_alloc_region;
@@ -14417,10 +14418,12 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		ret = PTR_ERR(devp->clsp);
 		goto fail_create_class;
 	}
+
 	for (i = 0; amvecm_class_attrs[i].attr.name; i++) {
 		if (class_create_file(devp->clsp, &amvecm_class_attrs[i]) < 0)
 			goto fail_class_create_file;
 	}
+
 	cdev_init(&devp->cdev, &amvecm_fops);
 	devp->cdev.owner = THIS_MODULE;
 	ret = cdev_add(&devp->cdev, devp->devno, 1);
@@ -14437,6 +14440,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	spin_lock_init(&vpp_lcd_gamma_lock);
 	mutex_init(&vpp_lut3d_lock);
+
 #ifdef CONFIG_AMLOGIC_LCD
 	ret = aml_lcd_atomic_notifier_register(&aml_lcd_gamma_nb);
 	if (ret)
@@ -14444,6 +14448,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 
 	INIT_WORK(&aml_lcd_vlock_param_work, vlock_lcd_param_work);
 #endif
+
 	/* register vout client */
 	vout_register_client(&vlock_notifier_nb);
 	/* register vdin vrr en client*/
@@ -14459,31 +14464,35 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		/* mtx_sel_dbg |= 1 << VPP_MATRIX_2; */
 		/* amvecm_vpp_mtx_debug(mtx_sel_dbg, 1);*/
 		WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, 0x1fff1fff);
-	} else
+	}
 #endif
+
 	if (is_meson_txhd_cpu()) {
 		vpp_set_10bit_datapath1();
 	} else if (is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
 		vpp_set_12bit_datapath_g12a();
 	}
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	memset(&vpp_hist_param.vpp_gamma[0],
 		0, sizeof(unsigned short) * 64);
+
+	hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3) | (1 << 4);
+
 	/* box sdr_mode:auto, tv sdr_mode:off */
 	/* disable contrast and saturation adjustment for HDR on TV */
 	/* disable SDR to HDR convert on TV */
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_gxl_cpu() || is_meson_gxm_cpu()) {
 		hdr_flag = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
-	} else {
-#else
-	{
-#endif
-		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3) | (1 << 4);
 	}
+#endif
+
 	hdr_init(&amvecm_dev.hdr_d);
 #endif
+
 	aml_vecm_dt_parse(devp, pdev);
+	init_pq_rdma_part_ins();
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (chip_type_id == chip_t3x) {

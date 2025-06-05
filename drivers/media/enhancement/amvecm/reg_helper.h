@@ -23,6 +23,7 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 #define CLR_BIT(x) (~(0x01 << (x)))
 #define CLR_BITS(x, y) ((~((0x01 << (y)) - 1)) << (x))
@@ -350,25 +351,157 @@ int VSYNC_WR_MPEG_REG_VPP_SEL(u32 adr, u32 val, int vpp_sel);
 
 #endif
 
+/* table1:hdr; table2:sr dnlp lc;table3:other modules*/
+static int index_rdma_part_ins(u32 reg)
+{
+	int table_index = 1;
+
+	if ((reg >= 0x3800 && reg <= 0x384c) ||
+		(reg >= 0x3850 && reg <= 0x389c) ||
+		(reg >= 0x5930 && reg <= 0x5971) ||
+		(reg >= 0x6000 && reg <= 0x603f) ||
+		(reg >= 0x6200 && reg <= 0x624c) ||
+		(reg >= 0x6280 && reg <= 0x62cc) ||
+		(reg >= 0x38f0 && reg <= 0x38fd) ||
+		(reg >= 0x38a0 && reg <= 0x38df) ||
+		(reg >= 0x5b00 && reg <= 0x5b3f) ||
+		(reg >= 0x5b50 && reg <= 0x5b8f) ||
+		(reg >= 0x3290 && reg <= 0x329d) ||
+		(reg >= 0x39a0 && reg <= 0x39ad) ||
+		(reg >= 0x32b0 && reg <= 0x32bd) ||
+		(reg >= 0x5990 && reg <= 0x599d) ||
+		(reg >= 0x59d0 && reg <= 0x59dd) ||
+		(reg >= 0x3d60 && reg <= 0x3d6d) ||
+		(reg >= 0x0259 && reg <= 0x0266) ||
+		(reg >= 0x3920 && reg <= 0x392d) ||
+		(reg >= 0x4c00 && reg <= 0x4c4f))
+		table_index = 1;
+
+	if ((reg >= 0x5000 && reg <= 0x5081) ||
+		(reg >= 0x5200 && reg <= 0x5281) ||
+		(reg >= 0x5090 && reg <= 0x50af) ||
+		(reg >= 0x5290 && reg <= 0x52af) ||
+		(reg >= 0x52b1 && reg <= 0x52fe) ||
+		(reg >= 0x3e00 && reg <= 0x3e81) ||
+		(reg >= 0x3f00 && reg <= 0x3f81) ||
+		(reg >= 0x3e90 && reg <= 0x3eaf) ||
+		(reg >= 0x3f90 && reg <= 0x3faf) ||
+		(reg >= 0x3fb1 && reg <= 0x3ffe) ||
+		(reg >= 0x50b1 && reg <= 0x50fe) ||
+		(reg >= 0x7500 && reg <= 0x75b0) ||
+		reg == 0x508a || reg == 0x508b ||
+		reg == 0x5134 || reg == 0x5334 ||
+		(reg == 0x52c1 || reg == 0x77c1 ||
+		reg == 0x52e2 || reg == 0x77e2 ||
+		reg == 0x52e9 || reg == 0x77e9 ||
+		reg == 0x52c0 || reg == 0x77c0 ||
+		reg == 0x5a40 || reg == 0x5a80 ||
+		reg == 0x5a41 || reg == 0x5a81 ||
+		reg == 0x5a56 || reg == 0x5a96 ||
+		reg == 0x5a57 || reg == 0x5a97 ||
+		reg == 0x5ae9 || reg == 0x5aea ||
+		reg == 0x5ad9 || reg == 0x5ada ||
+		reg == 0x5ad7 || reg == 0x5ad8 ||
+		reg == 0x52fc || reg == 0x77fc ||
+		reg == 0x52fd || reg == 0x77fd ||
+		reg == 0x52fe || reg == 0x77fe) ||
+		(reg >= 0x7700 && reg <= 0x77b0))
+		table_index = 2;
+
+	if (reg == 0x2880 || reg == 0x2980 ||
+		reg == 0x2a80 || reg == 0x32a0 ||
+		reg == 0x31a0 || reg == 0x2ba0 ||
+		reg == 0x19a0 || reg == 0x3280 ||
+		reg == 0x2e80 || reg == 0x1d40 ||
+		(reg >= 0x1d6a && reg <= 0x1d6e) ||
+		(reg >= 0x39d4 && reg <= 0x39d6) ||
+		(reg >= 0x05b4 && reg <= 0x05b6) ||
+		(reg >= 0x14e9 && reg <= 0x14eb) ||
+		(reg >= 0x1400 && reg <= 0x1402) ||
+		(reg >= 0x14b4 && reg <= 0x14b6) ||
+		reg == 0x2e63 || reg == 0x2863 ||
+		reg == 0x2763 || reg == 0x2663 ||
+		reg == 0x1da1 || reg == 0x1d70 ||
+		reg == 0x1d71 || reg == 0x20f ||
+		(reg >= 0x200 && reg <= 0x20a) ||
+		reg == 0x39d0 || reg == 0x39d1 ||
+		reg == 0x39d2 || reg == 0x39d3)
+		table_index = 3;
+
+	/*use VIDEO_PARTITION_TABLE*/
+	if (chip_type_id >= chip_s7d &&
+		(reg == 0x5048 || reg == 0x5049 ||
+		reg == 0x504d || reg == 0x5100))
+		table_index = 0;
+
+	if ((chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) &&
+		reg == 0x511e)
+		table_index = 0;
+
+	if (chip_type_id == chip_s6 &&
+		reg == 0x518a)
+		table_index = 0;
+
+	if (chip_type_id == chip_t6d &&
+		reg == 0x5125)
+		table_index = 0;
+
+	if (chip_type_id == chip_t6w &&
+		(reg == 0x5126 || reg == 0x5192))
+		table_index = 0;
+
+	return table_index;
+}
+
 /* vsync for vpp_top0 */
 static inline void VSYNC_WRITE_VPP_REG(u32 reg,
 				       const u32 value)
 {
-	VSYNC_WR_MPEG_REG(offset_addr(reg), value);
+	int index;
+	u32 reg_offset;
+
+	reg_offset = offset_addr(reg);
+
+	/*table*/
+	index = index_rdma_part_ins(reg_offset);
+
+	if (pq_rdma_init)
+		VSYNC_WR_TABLE_REG(index, reg_offset, value);
+	else
+		VSYNC_WR_MPEG_REG(reg_offset, value);
 }
 
 static inline u32 VSYNC_READ_VPP_REG(u32 reg)
 {
-	return VSYNC_RD_MPEG_REG(offset_addr(reg));
+	int index;
+	u32 reg_offset;
+
+	reg_offset = offset_addr(reg);
+
+	index = index_rdma_part_ins(reg_offset);
+
+	if (pq_rdma_init)
+		return VSYNC_RD_TABLE_REG(index, reg_offset);
+	else
+		return VSYNC_RD_MPEG_REG(reg_offset);
 }
 
 static inline void VSYNC_WRITE_VPP_REG_EX(u32 reg,
 					  const u32 value,
 					  bool add_offset)
 {
+	int index;
+
 	if (add_offset)
 		reg = offset_addr(reg);
-	VSYNC_WR_MPEG_REG(reg, value);
+
+	index = index_rdma_part_ins(reg);
+
+	if (pq_rdma_init)
+		VSYNC_WR_TABLE_REG(index, reg, value);
+	else
+		VSYNC_WR_MPEG_REG(reg, value);
 }
 
 static inline void VSYNC_WRITE_VPP_REG_BITS_EX(u32 reg,
@@ -377,17 +510,31 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_EX(u32 reg,
 		const u32 len,
 		bool add_offset)
 {
+	int index;
+
 	if (add_offset)
 		reg = offset_addr(reg);
-	VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
+	index = index_rdma_part_ins(reg);
+
+	if (pq_rdma_init)
+		VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
+	else
+		VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
 }
 
 static inline u32 VSYNC_READ_VPP_REG_EX(u32 reg,
 					bool add_offset)
 {
+	int index;
+
 	if (add_offset)
 		reg = offset_addr(reg);
-	return VSYNC_RD_MPEG_REG(reg);
+
+	index = index_rdma_part_ins(reg);
+	if (pq_rdma_init)
+		return VSYNC_RD_TABLE_REG(index, reg);
+	else
+		return VSYNC_RD_MPEG_REG(reg);
 }
 
 static inline void VSYNC_WRITE_VPP_REG_BITS(u32 reg,
@@ -395,7 +542,15 @@ static inline void VSYNC_WRITE_VPP_REG_BITS(u32 reg,
 		const u32 start,
 		const u32 len)
 {
-	VSYNC_WR_MPEG_REG_BITS(offset_addr(reg), value, start, len);
+	int index;
+
+	reg = offset_addr(reg);
+	index = index_rdma_part_ins(reg);
+
+	if (pq_rdma_init)
+		VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
+	else
+		VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
 }
 
 /* vsync for vpp_top1 */
@@ -477,7 +632,15 @@ static inline void VSYNC_WR_MPEG_REG_BITS_S5(u32 reg,
 		      const u32 start,
 		      const u32 len)
 {
-	VSYNC_WR_MPEG_REG(reg, ((aml_read_vcbus(reg) &
+	int index;
+
+	index = index_rdma_part_ins(reg);
+	if (pq_rdma_init)
+		VSYNC_WR_TABLE_REG(index, reg, ((aml_read_vcbus(reg) &
+			     ~(((1L << (len)) - 1) << (start))) |
+			    (((value) & ((1L << (len)) - 1)) << (start))));
+	else
+		VSYNC_WR_MPEG_REG(reg, ((aml_read_vcbus(reg) &
 			     ~(((1L << (len)) - 1) << (start))) |
 			    (((value) & ((1L << (len)) - 1)) << (start))));
 }
@@ -486,34 +649,63 @@ static inline void VSYNC_WR_MPEG_REG_BITS_S5(u32 reg,
 static inline void VSYNC_WRITE_VPP_REG_VPP_SEL(u32 reg,
 				       const u32 value, int vpp_sel)
 {
-	if (vpp_sel == 0xff)
-		aml_write_vcbus_s(offset_addr(reg), value);
-	else if (vpp_sel == 0xfe)
+	int index;
+	u32 reg1;
+
+	reg1 = offset_addr(reg);
+	index = index_rdma_part_ins(reg1);
+
+	if (vpp_sel == 0xff) {
+		aml_write_vcbus_s(reg1, value);
+	} else if (vpp_sel == 0xfe) {
 		aml_write_vcbus(reg, value);
-	else if (vpp_sel == 3)
-		PRE_VSYNC_WR_MPEG_REG(offset_addr(reg), value);
-	else if (vpp_sel == 2)
-		VSYNC_WR_MPEG_REG_VPP2(offset_addr(reg), value);
-	else if (vpp_sel == 1)
-		VSYNC_WR_MPEG_REG_VPP1(offset_addr(reg), value);
-	else
-		VSYNC_WR_MPEG_REG(offset_addr(reg), value);
+	} else if (vpp_sel == 3) {
+		if (pq_rdma_init)
+			PRE_VSYNC_WR_TABLE_REG(index, reg1, value);
+		else
+			PRE_VSYNC_WR_MPEG_REG(reg1, value);
+	} else if (vpp_sel == 2) {
+		VSYNC_WR_MPEG_REG_VPP2(reg1, value);
+	} else if (vpp_sel == 1) {
+		VSYNC_WR_MPEG_REG_VPP1(reg1, value);
+	} else {
+		if (pq_rdma_init)
+			VSYNC_WR_TABLE_REG(index, reg1, value);
+		else
+			VSYNC_WR_MPEG_REG(reg1, value);
+	}
 }
 
 static inline u32 VSYNC_READ_VPP_REG_VPP_SEL(u32 reg, int vpp_sel)
 {
-	if (vpp_sel == 0xff)
-		return aml_read_vcbus_s(offset_addr(reg));
-	else if (vpp_sel == 0xfe)
-		return aml_read_vcbus(reg);
-	else if (vpp_sel == 3)
-		return PRE_VSYNC_RD_MPEG_REG(offset_addr(reg));
-	else if (vpp_sel == 2)
-		return VSYNC_RD_MPEG_REG_VPP2(offset_addr(reg));
-	else if (vpp_sel == 1)
-		return VSYNC_RD_MPEG_REG_VPP1(offset_addr(reg));
-	else
-		return VSYNC_RD_MPEG_REG(offset_addr(reg));
+	int index;
+	u32 reg1;
+	u32 ret = 0;
+
+	reg1 = offset_addr(reg);
+	index = index_rdma_part_ins(reg1);
+
+	if (vpp_sel == 0xff) {
+		ret = aml_read_vcbus_s(reg1);
+	} else if (vpp_sel == 0xfe) {
+		ret = aml_read_vcbus(reg);
+	} else if (vpp_sel == 3) {
+		if (pq_rdma_init)
+			ret = PRE_VSYNC_RD_TABLE_REG(index, reg1);
+		else
+			ret = PRE_VSYNC_RD_MPEG_REG(reg1);
+	} else if (vpp_sel == 2) {
+		ret = VSYNC_RD_MPEG_REG_VPP2(reg1);
+	} else if (vpp_sel == 1) {
+		ret = VSYNC_RD_MPEG_REG_VPP1(reg1);
+	} else {
+		if (pq_rdma_init)
+			ret = VSYNC_RD_TABLE_REG(index, reg1);
+		else
+			ret = VSYNC_RD_MPEG_REG(reg1);
+	}
+
+	return ret;
 }
 
 static inline void VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(u32 reg,
@@ -521,51 +713,89 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(u32 reg,
 		const u32 start,
 		const u32 len, int vpp_sel)
 {
-	if (vpp_sel == 0xff)
-		aml_vcbus_update_bits_s(offset_addr(reg), value, start, len);
-	else if (vpp_sel == 0xfe)
+	int index;
+	u32 reg1;
+
+	reg1 = offset_addr(reg);
+	index = index_rdma_part_ins(reg1);
+
+	if (vpp_sel == 0xff) {
+		aml_vcbus_update_bits_s(reg1, value, start, len);
+	} else if (vpp_sel == 0xfe) {
 		VSYNC_WR_MPEG_REG_BITS_S5(reg, value, start, len);
-	else if (vpp_sel == 3)
-		PRE_VSYNC_WR_MPEG_REG_BITS(offset_addr(reg), value, start, len);
-	else if (vpp_sel == 2)
-		VSYNC_WR_MPEG_REG_BITS_VPP2(offset_addr(reg), value, start, len);
-	else if (vpp_sel == 1)
-		VSYNC_WR_MPEG_REG_BITS_VPP1(offset_addr(reg), value, start, len);
-	else
-		VSYNC_WR_MPEG_REG_BITS(offset_addr(reg), value, start, len);
+	} else if (vpp_sel == 3) {
+		if (pq_rdma_init)
+			PRE_VSYNC_WR_TABLE_REG_BITS(index, reg1, value, start, len);
+		else
+			PRE_VSYNC_WR_MPEG_REG_BITS(reg1, value, start, len);
+	} else if (vpp_sel == 2) {
+		VSYNC_WR_MPEG_REG_BITS_VPP2(reg1, value, start, len);
+	} else if (vpp_sel == 1) {
+		VSYNC_WR_MPEG_REG_BITS_VPP1(reg1, value, start, len);
+	} else {
+		if (pq_rdma_init)
+			VSYNC_WR_TABLE_REG_BITS(index, reg1, value, start, len);
+		else
+			VSYNC_WR_MPEG_REG_BITS(reg1, value, start, len);
+	}
 }
 
 static inline void VSYNC_WRITE_VPP_REG_EX_VPP_SEL(u32 reg,
 					  const u32 value,
 					  bool add_offset, int vpp_sel)
 {
+	int index;
+
 	if (add_offset)
 		reg = offset_addr(reg);
 
-	if (vpp_sel == 3)
-		PRE_VSYNC_WR_MPEG_REG(reg, value);
-	else if (vpp_sel == 2)
+	index = index_rdma_part_ins(reg);
+
+	if (vpp_sel == 3) {
+		if (pq_rdma_init)
+			PRE_VSYNC_WR_TABLE_REG(index, reg, value);
+		else
+			PRE_VSYNC_WR_MPEG_REG(reg, value);
+	} else if (vpp_sel == 2) {
 		VSYNC_WR_MPEG_REG_VPP2(reg, value);
-	else if (vpp_sel == 1)
+	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_VPP1(reg, value);
-	else
-		VSYNC_WR_MPEG_REG(reg, value);
+	} else {
+		if (pq_rdma_init)
+			VSYNC_WR_TABLE_REG(index, reg, value);
+		else
+			VSYNC_WR_MPEG_REG(reg, value);
+	}
 }
 
 static inline u32 VSYNC_READ_VPP_REG_EX_VPP_SEL(u32 reg,
 					bool add_offset, int vpp_sel)
 {
+	int index;
+	u32 ret = 0;
+
 	if (add_offset)
 		reg = offset_addr(reg);
 
-	if (vpp_sel == 3)
-		return PRE_VSYNC_RD_MPEG_REG(reg);
-	else if (vpp_sel == 2)
-		return VSYNC_RD_MPEG_REG_VPP2(reg);
-	else if (vpp_sel == 1)
-		return VSYNC_RD_MPEG_REG_VPP1(reg);
-	else
-		return VSYNC_RD_MPEG_REG(reg);
+	index = index_rdma_part_ins(reg);
+
+	if (vpp_sel == 3) {
+		if (pq_rdma_init)
+			ret = PRE_VSYNC_RD_TABLE_REG(index, reg);
+		else
+			ret = PRE_VSYNC_RD_MPEG_REG(reg);
+	} else if (vpp_sel == 2) {
+		ret = VSYNC_RD_MPEG_REG_VPP2(reg);
+	} else if (vpp_sel == 1) {
+		ret = VSYNC_RD_MPEG_REG_VPP1(reg);
+	} else {
+		if (pq_rdma_init)
+			ret = VSYNC_RD_TABLE_REG(index, reg);
+		else
+			ret = VSYNC_RD_MPEG_REG(reg);
+	}
+
+	return ret;
 }
 
 static inline void VSYNC_WRITE_VPP_REG_BITS_EX_VPP_SEL(u32 reg,
@@ -575,17 +805,27 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_EX_VPP_SEL(u32 reg,
 		bool add_offset,
 		int vpp_sel)
 {
+	int index;
+
 	if (add_offset)
 		reg = offset_addr(reg);
 
-	if (vpp_sel == 3)
-		PRE_VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
-	else if (vpp_sel == 2)
+	index = index_rdma_part_ins(reg);
+	if (vpp_sel == 3) {
+		if (pq_rdma_init)
+			PRE_VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
+		else
+			PRE_VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
+	} else if (vpp_sel == 2) {
 		VSYNC_WR_MPEG_REG_BITS_VPP2(reg, value, start, len);
-	else if (vpp_sel == 1)
+	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_BITS_VPP1(reg, value, start, len);
-	else
-		VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
+	} else {
+		if (pq_rdma_init)
+			VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
+		else
+			VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
+	}
 }
 
 #endif
