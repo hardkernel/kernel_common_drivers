@@ -2986,6 +2986,9 @@ static void signal_present_fence(u32 layer_id)
 	if (dispbuf && dispbuf->vc_private) {
 		vc = dispbuf->vc_private;
 		if (vc->present_fence) {
+			if (debug_common_flag & DEBUG_FLAG_COMMON_FENCE)
+				pr_info("vf:%px index:%d vc_private:%px present_fence:%px\n",
+					dispbuf, dispbuf->frame_index, vc, vc->present_fence);
 			dma_fence_signal(vc->present_fence);
 			dma_fence_put(vc->present_fence);
 			vc->present_fence = NULL;

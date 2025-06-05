@@ -2965,6 +2965,8 @@ static void vframe_display(struct videodisplay_dev *dev,
 	dev->last_file = (struct file *)frame_info->dmabuf;
 	vf->vc_private = vd_private_q_pop(dev);
 	vf->vc_private->present_fence = frame_info->present_fence;
+	if (vf->vf_ext)
+		((struct vframe_s *)vf->vf_ext)->vc_private = vf->vc_private;
 	vf->file_vf = (struct file *)(frame_info->dmabuf);
 	vf->repeat_count = 0;
 	dev->vd_prepare_last = vd_prepare;
@@ -3488,6 +3490,9 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 		enable_prelink = dim_get_pre_link();
 #endif
 		if (vf->vc_private) {
+			vd_print(dev->index, PRINT_OTHER, "%s:vc_p:%px, present_fence:%px\n",
+				__func__, vf->vc_private, vf->vc_private->present_fence);
+
 			vsync_index_diff = vf->vc_private->vsync_index - dev->last_vsync_index;
 			dev->last_vsync_index = vf->vc_private->vsync_index;
 			if (vf->frame_index < dev->last_vf_index) {

@@ -32,6 +32,7 @@ extern struct vd_proc_info_t vd_proc_amdv;
 #define DEBUG_FLAG_COMMON_SAFA     BIT(5)
 #define DEBUG_FLAG_COMMON_PER_PREVSYNC     BIT(6)
 #define DEBUG_FLAG_COMMON_LCEVC    BIT(7)
+#define DEBUG_FLAG_COMMON_FENCE    BIT(9)
 
 extern struct vd_proc_info_t vd_proc_amdv;
 extern struct vd_proc_amvecm_info_t vd_proc_amvecm;
