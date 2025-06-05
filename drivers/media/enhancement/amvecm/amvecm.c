@@ -2869,6 +2869,34 @@ void amvecm_size_info_update(int vpp_index)
 #endif
 }
 
+static int pre_mute_state;
+void vpp_vadj1_align_vd1_mute(void)
+{
+	int vadj1_en = 0;
+	int mute_state;
+
+	if (probe_ok == 0)
+		return;
+
+	mute_state = get_video_mute();
+	if (pre_mute_state != mute_state) {
+		if (!get_video_mute()) {
+			if (dv_pq_bypass == 1 || dv_pq_bypass == 2)
+				vadj1_en = dv_cfg_bypass.vadj1_en;
+			else
+				vadj1_en = pq_cfg.vadj1_en;
+		} else {
+			vadj1_en = 0;
+		}
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
+					vadj1_en, 0, 1, VPP_TOP0);
+		pre_mute_state = mute_state;
+		pr_amvecm_dbg("%s: mute_state:%d, vadj1_en:%d\n",
+			__func__, mute_state, vadj1_en);
+	}
+}
+EXPORT_SYMBOL(vpp_vadj1_align_vd1_mute);
+
 int amvecm_on_vs(struct vframe_s *vf,
 		 struct vframe_s *toggle_vf,
 		 int flags,
@@ -3280,20 +3308,20 @@ int amvecm_set_saturation_hue(int mab, enum wr_md_e mode, int vpp_index)
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 			if (mode == WR_VCB) {
 				WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
-				WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
+				//WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 			} else {
 				VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VADJ1_MC_MD_2, mab, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
-					1, 0, 1, vpp_index);
+				//VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
+				//	1, 0, 1, vpp_index);
 			}
 		} else {
 			if (mode == WR_VCB) {
 				WRITE_VPP_REG(VPP_VADJ1_MC_MD, mab);
-				WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
+				//WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
 			} else {
 				VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VADJ1_MC_MD, mab, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ_CTRL,
-					1, 0, 1, vpp_index);
+				//VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ_CTRL,
+				//	1, 0, 1, vpp_index);
 			}
 		}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -3379,10 +3407,10 @@ static int amvecm_set_saturation_hue_post(int val1,
 #endif
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG(VPP_VADJ2_MC_MD_2, mab);
-		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
+		//WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
 	} else {
 		WRITE_VPP_REG(VPP_VADJ2_MC_MD, mab);
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
+		//WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
 	}
 	return 0;
 }

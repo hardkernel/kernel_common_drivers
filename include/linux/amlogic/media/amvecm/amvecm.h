@@ -536,6 +536,7 @@ enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
 int amvecm_set_saturation_hue(int mab, enum wr_md_e mode, int vpp_index);
 void amvecm_saturation_hue_update(int offset_val);
 void amvecm_update_module_status(void);
+void vpp_vadj1_align_vd1_mute(void);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);

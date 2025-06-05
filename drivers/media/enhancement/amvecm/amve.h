@@ -115,6 +115,7 @@ extern struct mutex vpp_lut3d_lock;
 extern int lut3d_en;/*0:disable;1:enable */
 extern int lut3d_order;/* 0 RGB 1 GBR */
 extern int lut3d_debug;
+extern int dv_pq_bypass;
 
 extern u16 gamma_data_r[257];
 extern u16 gamma_data_g[257];

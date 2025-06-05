@@ -227,7 +227,7 @@ static unsigned int assist_cnt;/* ASSIST_SPARE8_REG1; */
  *1: certification mode
  *2: bypass mode, vadj1 follow config for ui setting
  */
-static int dv_pq_bypass;
+int dv_pq_bypass;
 module_param(dv_pq_bypass, int, 0664);
 MODULE_PARM_DESC(dv_pq_bypass, "\n dv_pq_bypass\n");
 
@@ -2159,9 +2159,6 @@ static void vd1_brightness_contrast(signed int brightness,
 void amvecm_bricon_process(signed int bri_val,
 			   signed int cont_val, struct vframe_s *vf, int vpp_index)
 {
-	static int dbg_cnt_mute;
-	static int dbg_cnt_unmute;
-
 	if (!vf)
 		return;
 
@@ -2172,43 +2169,17 @@ void amvecm_bricon_process(signed int bri_val,
 		pr_amve_dbg("\n[%s] HWC reset brightness, set BRI flag.\n",
 			__func__);
 	} else {
-		if (!get_video_mute()) {
-			dbg_cnt_mute = 0;
-			if (dbg_cnt_unmute < 3) {
-				pr_amve_dbg("\n[%s]unmute dbg_cnt1:%d.\n",
-						__func__, dbg_cnt_unmute);
-				dbg_cnt_unmute++;
-			}
-			if (vecm_latch_flag & FLAG_VADJ1_BRI) {
+		if (vecm_latch_flag & FLAG_VADJ1_BRI) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-				if (is_video_layer_on(VD1_PATH)) {
+			if (is_video_layer_on(VD1_PATH)) {
 #endif
-					vecm_latch_flag &= ~FLAG_VADJ1_BRI;
-					vpp_vd_adj1_brightness(bri_val, vf, vpp_index);
-					pr_amve_dbg("\n[%s] set OK, brightness:%d, type:%d\n",
-						__func__, bri_val, vf->source_type);
+				vecm_latch_flag &= ~FLAG_VADJ1_BRI;
+				vpp_vd_adj1_brightness(bri_val, vf, vpp_index);
+				pr_amve_dbg("\n[%s] set OK, brightness:%d, type:%d\n",
+					__func__, bri_val, vf->source_type);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-				} else {
-					if (dbg_cnt_unmute < 3)
-						pr_amve_dbg("\n[%s]unmute not VD1_PATH video on. dbg_cnt_unmute:%d.\n",
-							__func__, dbg_cnt_unmute);
-				}
+			}
 #endif
-			} else {
-				if (dbg_cnt_unmute < 3)
-					pr_amve_dbg("\n[%s]unmute not set FLAG_VADJ1_BRI. dbg_cnt_unmute:%d.\n",
-						__func__, dbg_cnt_unmute);
-			}
-		} else {
-			vpp_vd_adj1_brightness(VD1_PATH, vf, vpp_index);
-			if (!(vecm_latch_flag & FLAG_VADJ1_BRI))
-				vecm_latch_flag |= FLAG_VADJ1_BRI;
-			dbg_cnt_unmute = 0;
-			if (dbg_cnt_mute < 3) {
-				pr_amve_dbg("\n[%s] mute or video disable reset brightness. brightness:%d, dbg_cnt_mute:%d\n",
-						__func__, bri_val, dbg_cnt_mute);
-				dbg_cnt_mute++;
-			}
 		}
 	}
 

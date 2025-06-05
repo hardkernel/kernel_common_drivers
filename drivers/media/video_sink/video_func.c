@@ -4193,6 +4193,8 @@ static void do_vd1_swap_frame(u8 layer_id,
 	force_switch_slice();
 #endif
 #endif
+	//check_video_mute();
+
 	new_frame = vdx_swap_frame(0, vd1_path_id,
 				  cur_vd1_path_id,
 				  path_new_frame);
@@ -5347,8 +5349,14 @@ void pre_vsync_process(void)
 		do_gettimeofday(&cur_line_info->render_end);
 	do_fun = false;
 	/* do blend set */
-	if (cur_dev->pre_vsync_enable)
+	if (cur_dev->pre_vsync_enable) {
 		vpp_blend_update(vinfo, PRE_VSYNC);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+		if (vd_layer[0].dispbuf)
+			vpp_vadj1_align_vd1_mute();
+#endif
+	}
+
 pre_exit_2:
 	if (cur_pre_func->vd_late_process)
 		cur_pre_func->vd_late_process(0, 0);
@@ -5776,8 +5784,14 @@ exit:
 		alpha_win_set(&vd_layer[0]);
 
 	/* do blend,judge really update in update_vpp_input_info for vpp_index */
-	if (!cur_dev->pre_vsync_enable)
+	if (!cur_dev->pre_vsync_enable) {
 		vpp_blend_update(vinfo, VPP0);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+		if (vd_layer[0].dispbuf)
+			vpp_vadj1_align_vd1_mute();
+#endif
+	}
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	vd2_postblend_update(vinfo, VPP0);
 
