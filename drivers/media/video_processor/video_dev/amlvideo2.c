@@ -6176,6 +6176,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 	vinfo = amlvideo2_get_vinfo(node);
 #endif
+	if (aml2_dev->node_id == 0)
+		node->mode = AML_SCREEN_MODE_FULL;
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE || i != fh->type)
 		return -EINVAL;
 	ret = vb2_ioctl_streamon(file, priv, i);
@@ -6366,8 +6368,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 			para.dest_h_active, para.dest_v_active);
 		pr_info("fh->width: %d, fh->height: %d,",
 			fh->width, fh->height);
-		pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
-			vinfo->mode, para.scan_mode);
+		pr_info("vinfo->mode: %d,para.scan_mode: %d, node->mode=%d\n",
+			vinfo->mode, para.scan_mode, node->mode);
 		pr_info("node->vdin_device_num = %d, is_one_buffer=%d.\n",
 			node->vdin_device_num, para.is_one_buffer);
 		pr_info("crop:top %d left %d width %d height %d\n",
