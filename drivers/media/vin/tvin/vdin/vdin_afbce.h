@@ -21,6 +21,7 @@
 #include "vdin_drv.h"
 #include "vdin_ctl.h"
 #include "vdin_afbce_t3x.h"
+#include "vdin_vfce.h"
 
 #define AFBCE_ENABLE  0x41a0
 /* 0 = auto, triggered by vsync, 1 = pulse, triggered manually */

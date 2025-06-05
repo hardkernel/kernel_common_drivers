@@ -327,6 +327,8 @@ enum tvin_color_fmt_e {
 	TVIN_GBRG,		/* 11 raw data */
 	TVIN_GRBG,		/* 12 raw data */
 	TVIN_YUV420,
+	TVIN_RGBA8888,
+	TVIN_YUV422SP,
 	TVIN_COLOR_FMT_MAX,
 };
 
@@ -550,6 +552,7 @@ struct vdin_qms_param_s {
 	__u8 qms_en;
 	unsigned int qms_fr;
 	__u8 qms_base_fr;
+	__u8 qms_plus_en;
 };
 
 struct vdin_hist_s {
@@ -622,6 +625,25 @@ enum tvin_sg_chg_flg {
 	TVIN_SIG_CHG_STS	= 0x80000000,	/*sm state change*/
 };
 
+struct vdin_dump_buf_arg {
+	unsigned int buf_num;
+	__u64 user_buf;
+	__u32 written_bytes;
+	__u32 padding;
+} __attribute__((packed));
+
+struct vdin_dump_afbc_buf_arg {
+	unsigned int buf_num;
+	__u64 user_head_buf;
+	__u32 user_head_buf_size;
+	__u64 user_table_buf;
+	__u32 user_table_buf_size;
+	__u64 user_body_buf;
+	__u32 user_body_buf_size;
+	__u32 written_bytes;
+	__u32 padding;
+} __attribute__((packed));
+
 #define TVIN_SIG_DV_CHG		(TVIN_SIG_CHG_DV2NO | TVIN_SIG_CHG_NO2DV)
 #define TVIN_SIG_HDR_CHG	(TVIN_SIG_CHG_SDR2HDR | TVIN_SIG_CHG_HDR2SDR)
 
@@ -674,7 +696,8 @@ enum tvin_sg_chg_flg {
 #define TVIN_IOC_G_IMAX_STATUS         _IOR(_TM_T, 0x55, bool)
 #define TVIN_IOC_S_PIP			_IOW(_TM_T, 0x56, struct vdin_pip_s)
 #define TVIN_IOC_G_QMS_STATUS		_IOR(_TM_T, 0x57, struct vdin_qms_param_s)
-
+#define TVIN_IOC_DUMP_BUF _IOWR(_TM_T, 0x58, unsigned int)
+#define TVIN_IOC_DUMP_AFBC_BUF _IOWR(_TM_T, 0x59, unsigned int)
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 /* TVAFE */
 #define TVIN_IOC_S_AFE_VGA_PARM     _IOW(_TM_T, 0x16, struct tvafe_vga_parm_s)

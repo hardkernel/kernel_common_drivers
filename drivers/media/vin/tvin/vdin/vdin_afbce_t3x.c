@@ -228,6 +228,17 @@ void vdin_afbce_config_t3x(struct vdin_dev_s *devp)
 
 	uncompress_bits = devp->source_bitdepth;
 
+	if (devp->is_422_12bit_enabled) {
+		uncompress_bits = 12;
+		reg_format_mode = 1;/*422*/
+		sub_block_num = 16;
+		if (devp->afbce_valid && vdin_is_dolby_signal_in(devp)) {
+			/* reg_detunnel_sel */
+			W_VCBUS_BIT(offset + VDIN0_CORE_DETUNNEL, 0x2c2d0, 0, 18);
+			/* enable detunnel */
+			W_VCBUS_BIT(offset + VDIN0_CORE_CTRL, 1, 0, 1);
+		}
+	}
 	//bit size of uncompressed mode
 	uncompress_size = (((((16 * uncompress_bits * sub_block_num) + 7) >> 3) + 31)
 		      / 32) << 1;
@@ -531,7 +542,7 @@ int vdin_afbce_read_write_down_flag_t3x(struct vdin_dev_s *devp)
 	//frm_end = rd_bits(0, devp->addr_offset + VDIN0_AFBCE_STAT1, 31, 1);
 	wr_abort = rd_bits(0, devp->addr_offset + VDIN0_AFBCE_STA_FLAGT, 2, 2);
 
-	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
 		pr_info("frm_end:%#x,wr_abort:%#x;[%#x]:%#x,[%#x]:%#x\n", frm_end, wr_abort,
 			VDIN0_AFBCE_STAT1, rd(devp->addr_offset, VDIN0_AFBCE_STAT1),
 			VDIN0_AFBCE_STA_FLAGT, rd(devp->addr_offset, VDIN0_AFBCE_STA_FLAGT));
@@ -562,7 +573,7 @@ void vdin_afbce_mode_update_t3x(struct vdin_dev_s *devp)
 //	else
 //		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_MIF);
 
-	if (devp->debug.vdin_dbg_en) {
+	if (vdin_dbg_en) {
 		pr_info("vdin.%d: change afbce_mode %d->%d\n",
 			devp->index, devp->afbce_mode_pre, devp->afbce_mode);
 	}

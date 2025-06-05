@@ -65,6 +65,7 @@ enum meson_cpuid_type_e {
 	MESON_CPU_MAJOR_ID_S5 = 0x3e,
 	MESON_CPU_MAJOR_ID_T5M = 0x41,
 	MESON_CPU_MAJOR_ID_T3X = 0x42,
+	MESON_CPU_MAJOR_ID_T6W = 0x43,
 	MESON_CPU_MAJOR_ID_TXHD2 = 0x44,
 	MESON_CPU_MAJOR_ID_S1A = 0x45,
 	MESON_CPU_MAJOR_ID_S7 = 0x46,
@@ -335,6 +336,11 @@ static inline bool is_meson_s6_cpu(void)
 static inline bool is_meson_t6d_cpu(void)
 {
 	return get_cpu_type() == MESON_CPU_MAJOR_ID_T6D;
+}
+
+static inline bool is_meson_t6w_cpu(void)
+{
+	return get_cpu_type() == MESON_CPU_MAJOR_ID_T6W;
 }
 
 static inline bool cpu_after_eq(unsigned int id)

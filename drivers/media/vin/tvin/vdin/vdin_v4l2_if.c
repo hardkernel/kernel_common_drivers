@@ -496,8 +496,8 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 	vdin_buf = to_vdin_vb_buf(vb_buf);
 
 	/*check buffer*/
-	dprintk(1, "%s min_queued_buffers %d -end\n", __func__,
-		devp->vb_queue.min_queued_buffers);
+	dprintk(1, "%s num_buffers %d -end\n", __func__,
+		devp->vb_queue.max_num_buffers);
 	return ret;
 }
 
@@ -1301,9 +1301,10 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		else
 			devp->parm.info.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
 	}
+
 	/* mipi-csi and loopback donot support state_machine */
 	if (devp->hw_core == VDIN_HW_CORE_LITE ||
-	    devp->parm.port == TVIN_PORT_MIPI) {
+		devp->parm.port == TVIN_PORT_MIPI) {
 		devp->parm.info.status = TVIN_SIG_STATUS_STABLE;
 	}
 	mutex_unlock(&devp->fe_lock);
@@ -1621,15 +1622,17 @@ static int vdin_vb2ops_queue_setup(struct vb2_queue *vq,
 	for (i = 0; i < *num_planes; i++) {
 		sizes[i] = devp->v4l2_fmt.fmt.pix_mp.plane_fmt[i].sizeimage;
 		dprintk(1, "plane %d, size %x\n", i, sizes[i]);
-		//if (devp->index == 0)
-		if (devp->debug.v4l2_buff_area == 0)
+		if (devp->hw_core == VDIN_HW_CORE_LITE)
+			alloc_devs[i] = &devp->this_pdev->dev;/* vdin_cma area */
+		else
 			alloc_devs[i] = v4l_get_dev_from_codec_mm();/* codec_mm_cma area */
-		else if (devp->debug.v4l2_buff_area == 1)
-			alloc_devs[i] = &devp->this_pdev->dev;/* vdin0_cma area */
+
+		if (devp->debug.v4l2_buff_area == 1)
+			alloc_devs[i] = v4l_get_dev_from_codec_mm();/* codec_mm_cma area */
 		else if (devp->debug.v4l2_buff_area == 2)
+			alloc_devs[i] = &devp->this_pdev->dev;/* vdin0_cma area */
+		else if (devp->debug.v4l2_buff_area == 3)
 			alloc_devs[i] = devp->dev;/* CMA reserved area */
-		//else
-			//alloc_devs[i] = &devp->this_pdev->dev;/* vdin1_cma area */
 	}
 
 	dprintk(1, "type: %d, plane: %d, buf cnt: %d, size: [Y: %x, C: %x]\n",
@@ -1696,7 +1699,7 @@ static void vdin_vb2ops_buffer_queue(struct vb2_buffer *vb)
 
 	spin_unlock_irqrestore(&devp->list_head_lock, flags);
 	/* TODO: Update any DMA pointers if necessary */
-	dprintk(3, "max_num_buf:%d, queue_cnt:%d, after state:%s\n",
+	dprintk(3, "num_buf:%d, queue_cnt:%d, after state:%s\n",
 		devp->vb_queue.max_num_buffers,
 		devp->vb_queue.queued_count,
 		vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
@@ -1975,10 +1978,10 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 
 	ret = of_property_read_u32(pl_dev->dev.of_node, "v4l_vd_num",
 			&v4l_vd_num);
-	dprintk(1, "vdin%d,ret = %d,v4l_vd_num=%d\n",
-		devp->index, ret, v4l_vd_num);
 	if (ret)
 		v4l_vd_num = VDIN_VD_NUMBER + (devp->index);
+	dprintk(0, "vdin%d,ret = %d,v4l_vd_num=/dev/video%d\n",
+		devp->index, ret, v4l_vd_num);
 
 	ret = video_register_device(video_dev, VFL_TYPE_VIDEO,
 			v4l_vd_num);
@@ -2093,8 +2096,8 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 	memset(&vdin_cap_param, 0, sizeof(struct vdin_parm_s));
 
 	vdin_cap_param.scan_mode	= fmt_info_p->scan_mode;
-	vdin_cap_param.h_active		= fmt_info_p->h_active;
-	vdin_cap_param.v_active		= fmt_info_p->v_active;
+	vdin_cap_param.h_active = fmt_info_p->h_active;
+	vdin_cap_param.v_active = fmt_info_p->v_active;
 	vdin_cap_param.fmt			= devp->parm.info.fmt;
 	vdin_cap_param.cfmt			= devp->parm.info.cfmt;
 	vdin_cap_param.frame_rate   = devp->parm.info.fps;

@@ -208,6 +208,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_S7D,
 	VDIN_HW_S6,
 	VDIN_HW_T6D,
+	VDIN_HW_T6W,
 };
 
 /* 20230607: game mode optimize and add debug */
@@ -304,12 +305,11 @@ struct match_data_s {
 #define VDIN_FLAG_V4L2_DEBUG            0x00020000
 /*flag for isr req&free*/
 #define VDIN_FLAG_ISR_REQ               0x00040000
+/* flag for rdma done in isr*/
+#define VDIN_FLAG_RDMA_DONE             0x00080000
 #define VDIN_FLAG_ISR_EN		0x00100000
 /*flag for get vdin1 hist start interface*/
 #define VDIN_FLAG_HIST_STARTED		0x00200000
-
-/* flag for rdma done in isr*/
-#define VDIN_FLAG_RDMA_DONE             0x00080000
 
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
@@ -355,7 +355,8 @@ struct match_data_s {
 #define VDIN_AUTO_GAME_MODE		BIT(20)
 #define VDIN_AUTO_PC_MODE		BIT(21)
 #define VDIN_SET_DISPLAY_RATIO_TRANS	BIT(22) //vdin transparent transmission aspect ratio
-#define VDIN_MEM_MEMSET_EN      BIT(23)
+#define VDIN_MEM_MEMSET_EN		BIT(23)
+#define VDIN_CROP_SEL			BIT(24) //0-vdin cut win;1-vdin set src_crop in vf
 
 /* vdin_function_sel control bits end */
 
@@ -370,25 +371,6 @@ struct match_data_s {
 #define VDIN_SET_MODE_MAX_FRAME		60
 #define VDIN_VRR_MIN_FRAME_RATE		25
 #define VDIN_RDMA_UNDONE_MAX_CNT	10
-
-/* Stay in TVIN_SIG_STATE_NOSIG for some
- * cycles => be sure TVIN_SIG_STATE_NOSIG
- */
-#define NOSIG_MAX_CNT 8
-		/* Stay in TVIN_SIG_STATE_UNSTABLE for some
-		 * cycles => be sure TVIN_SIG_STATE_UNSTABLE
-		 */
-#define UNSTABLE_MAX_CNT 2/* 4 */
-		/* Have signal for some cycles	=> exit TVIN_SIG_STATE_NOSIG */
-#define EXIT_NOSIG_MAX_CNT 2/* 1 */
-		/* No signal for some cycles  => back to TVAFE_STATE_NOSIG */
-#define BACK_NOSIG_MAX_CNT 24 /* 8 */
-		/* Signal unstable for some cycles => exit TVAFE_STATE_STABLE */
-#define EXIT_STABLE_MAX_CNT 1
-		/* Signal stable for some cycles  => back to TVAFE_STATE_STABLE */
-		/* must >=500ms,for new api function */
-#define BACK_STABLE_MAX_CNT 3
-#define EXIT_PRESTABLE_MAX_CNT 50
 
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \
@@ -423,6 +405,7 @@ enum vdin_wr_color_depth {
 /* vdin afbce flag */
 #define VDIN_AFBCE_EN                   (BIT0)
 #define VDIN_AFBCE_EN_LOSSY             (BIT1)
+#define VDIN_AFBCE_EN_422_12BIT         (BIT2)
 #define VDIN_AFBCE_EN_4K                (BIT4)
 #define VDIN_AFBCE_EN_1080P             (BIT5)
 #define VDIN_AFBCE_EN_720P              (BIT6)
@@ -473,6 +456,7 @@ enum vdin_vf_put_md {
 
 #define VDIN_ISR_MONITOR_CFMT		BIT(23)
 #define VDIN_ISR_MONITOR_SECURE		BIT(24)
+#define VDIN_ISR_MONITOR_CROP		BIT(25)
 
 #define CURRENT_FRAME_GET_PROP	BIT(0)
 
@@ -604,9 +588,7 @@ struct vdin_vf_info {
 #define DBG_SCT_CTL_DIS			(BIT(0)) /* disable sct memory */
 #define DBG_SCT_CTL_NO_FREE_TAIL	(BIT(1)) /* do not free tail */
 #define DBG_SCT_CTL_NO_FREE_WR_LIST	(BIT(2)) /* do not free vf mem in wr list */
-
 #define DBG_REG_LENGTH			10
-
 #define DBG_REG_START_READ		(BIT(0))
 #define DBG_REG_START_WRITE		(BIT(1))
 #define DBG_REG_START_SET_BIT		(BIT(2))
@@ -620,8 +602,8 @@ struct vdin_vf_info {
 
 /***vdin_dbg_en control for print***/
 #define DBG_VDIN1_HIST		(BIT(1)) /*print vdin1 HIST_IOC */
-#define VDIN_DBG_CNTL_IOCTL	(BIT(10))
-#define VDIN_DBG_CNTL_FLUSH	(BIT(11))
+#define VDIN_DBG_CNTL_IOCTL	BIT(10)
+#define VDIN_DBG_CNTL_FLUSH	BIT(11)
 
 struct vdin_slt_test_s {
 	bool en;
@@ -650,6 +632,7 @@ struct vdin_debug_s {
 	unsigned int dbg_sct_ctl;
 	unsigned int dbg_wrmif_444;
 	unsigned int dbg_de_interlanced_ctl;
+	unsigned int dbg_force_convert;
 	unsigned short scaling4h;/* for vertical scaling */
 	unsigned short scaling4w;/* for horizontal scaling */
 	unsigned short dest_cfmt;/* for color fmt conversion */
@@ -668,6 +651,9 @@ struct vdin_debug_s {
 	bool bypass_filter_vsync;
 	bool force_bypass_tunnel;
 	bool conversion;
+	bool ip_pat_en;
+	bool yuv422_2plane_en;
+	unsigned int force_afbce_422_12bit;/* 0-auto,1-force enable,2-force disable */
 	unsigned int sar_width;
 	unsigned int sar_height;
 	unsigned int ratio_control;
@@ -689,25 +675,9 @@ struct vdin_debug_s {
 	unsigned char rgb_8f[3];
 	unsigned char rgb_8l[3];
 	unsigned int v4l2_buff_area;
-	bool rgb_info_enable;
-	unsigned int rgb_info_x;
-	unsigned int rgb_info_y;
-	unsigned int rgb_info_r;
-	unsigned int rgb_info_g;
-	unsigned int rgb_info_b;
-	bool invert_top_bot;
-	unsigned int dv_dbg_log;
-	unsigned int dv_dbg_log_du;
-	unsigned int dv_dbg_mask;
-	int vdin_ctl_dbg;
-	unsigned int vdin_isr_monitor;
-	int vdin_dbg_en;
-	int vdin_delay_num;
-	bool vdin_time_en;
-	enum vdin_vf_put_md vdin_frame_work_mode;
-	int sct_print_ctl;
-	unsigned int sleep_time;
-	unsigned int sm_debug_enable;
+	bool invalid_input_en;
+	unsigned int matrix_pattern_mode;
+	unsigned int dbg_force_type;
 };
 
 struct vdin_dv_s {
@@ -756,6 +726,11 @@ struct vdin_afbce_s {
 	unsigned int  frame_body_size;/*1 frame body size*/
 	unsigned long head_paddr;
 	unsigned long table_paddr;
+	unsigned int  frame_head_size_y;/*1 frame head size*/
+	unsigned int  frame_table_size_y;/*1 frame table size*/
+	unsigned int  frame_body_size_y;/*1 frame body size*/
+	unsigned long head_paddr_c;
+	unsigned long table_paddr_c;
 	/*every frame head addr*/
 	unsigned long fm_head_paddr[VDIN_CANVAS_MAX_CNT];
 	/*every frame tab addr*/
@@ -781,47 +756,7 @@ struct vdin_dts_config_s {
 	bool v4l_en;
 	bool keystone_sel;
 	unsigned int afbce_flag_cfg;
-	unsigned int canvas_config_mode;
-	/* 0: canvas_config in driver probe; 1: start config; 2: auto config*/
-	unsigned int max_buf_num;
-	unsigned int min_buf_num;
-	bool cm_enable;
-	int vdin_det_idle_wait;
-	bool vdin_get_prop_in_vs_en;
-	bool vdin_get_prop_in_sm_en;
-	bool viu_hw_irq;
-	int game_mode_switch_frames;
-	int game_mode_phlock_switch_frames; /*min num is 5 by 1080p60hz input test*/
-	unsigned int vdin_vrr_switch_cnt;
-	int sct_cache_size;
-	u32 vdin_re_config;
-	u32 vdin_re_cfg_drop_cnt;
-	int back_nosig_max_cnt;
-	int atv_unstable_in_cnt;
-	int atv_unstable_out_cnt;
-	int hdmi_unstable_out_cnt;
-	int hdmi_stable_out_cnt;
-	/* new add in gxtvbb@20160523,reason:
-	 *gxtvbb add atv snow config,the config will affect signal detect.
-	 *if atv_stable_out_cnt < 100,the signal state will change
-	 *after switch source to atv or after atv search
-	 */
-	int atv_stable_out_cnt;
-	/* new add in gxtvbb@20160613,reason:
-	 *gxtvbb add atv snow config,the config will affect signal detect.
-	 *ensure after fmt change,the new fmt can be detect in time!
-	 */
-	int atv_stable_fmt_check_cnt;
-	int atv_prestable_out_cnt;
-	int other_stable_out_cnt;
-	int other_unstable_out_cnt;
-	int other_unstable_in_cnt;
-	int nosig_in_cnt;
-	int nosig2_unstable_cnt;
-	unsigned int vdin_dv_chg_cnt;
-	unsigned int vdin_hdr_chg_cnt;
-	unsigned int vdin_vrr_chg_cnt;
-	unsigned int vdin_qms_chg_cnt;
+	bool dynamic_crop_en;
 };
 
 struct vdin_s5_s {
@@ -887,6 +822,7 @@ struct vdin_vrr_s {
 	/* driver detect status */
 	enum vdin_vrr_mode_e cur_vrr_status;
 	unsigned int qms_chg_cnt;
+	unsigned int qms_plus_chg_cnt;
 };
 
 /* scatter start */
@@ -934,12 +870,19 @@ struct vdin_msct_top_s {
 /* scatter end */
 
 struct vdin_lossy_comp_param_s {
-	u32 lossy_mode;//0:quan_loosy  1:cr_loosy
+	u32 lossy_mode;//0:quan_loosy 1:cr_loosy 2:fixed ratio
 	u32 quant_diff_root_leave;
 	u32 burst_length_add_en;
 	u32 burst_length_add_value;
 	u32 ofset_burst4_en;
 	u32 cr_lossy_ratio;
+	u32 cr_lossy_fixed_ratio;//Byte
+	u32 cr_lossy_target_byte;
+	u32 mmu_en;
+};
+
+struct vdin_local_variable_s {
+	bool is_rgba_en;
 };
 
 struct vdin_dev_s {
@@ -986,6 +929,7 @@ struct vdin_dev_s {
 	struct vf_entry *last_wr_vfe;//last isr config addr because RDMA current isr write this addr
 	unsigned int vdin_delay_vfe2rd_list;
 	unsigned int curr_field_type;
+	unsigned int curr_field_type_dw;/* mif type if dw enabled */
 	unsigned int curr_dv_flag;
 	unsigned int drop_hdr_set_sts;
 	unsigned int starting_chg;
@@ -1014,6 +958,7 @@ struct vdin_dev_s {
 	/* save secure handle */
 	unsigned int secure_handle;
 	bool secure_en;
+	bool secure_video;
 	bool mem_protected;
 	unsigned int vf_mem_size;
 	unsigned int vf_mem_size_small;/* double write use */
@@ -1023,12 +968,18 @@ struct vdin_dev_s {
 	unsigned int frame_buff_num_bak;/* backup */
 	unsigned int h_active;
 	unsigned int v_active;
+	unsigned int dest_h_active; /* backend buffer size */
+	unsigned int dest_v_active;
+	unsigned int crop_h;
+	unsigned int crop_v;
 	unsigned int h_shrink_out;/* double write use */
 	unsigned int v_shrink_out;/* double write use */
 	unsigned int h_shrink_times;/* double write use */
 	unsigned int v_shrink_times;/* double write use */
 	unsigned int h_active_org;/*vdin scaler in*/
 	unsigned int v_active_org;/*vdin scaler in*/
+	int cur_axis[4];
+	int last_axis[4];
 	unsigned int canvas_h;
 	unsigned int canvas_w;
 	unsigned int canvas_active_w;/* mif stride */
@@ -1174,6 +1125,7 @@ struct vdin_dev_s {
 	unsigned int set_canvas_manual;
 	unsigned int keystone_vframe_ready;
 	struct vf_entry *keystone_entry[VDIN_CANVAS_MAX_CNT];
+	unsigned int canvas_config_mode;
 	bool pre_h_scale_en;
 	bool v_shrink_en;
 	bool double_wr_cfg;
@@ -1190,6 +1142,8 @@ struct vdin_dev_s {
 	bool dv_is_not_std;
 	bool bypass_tunnel;
 	bool baddr_en;/*0-use canvas;1-use phy addr*/
+	bool is_vfce_en;
+	bool is_422_12bit_enabled;
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;
@@ -1293,7 +1247,6 @@ struct vdin_dev_s {
 	unsigned int err_active;
 	unsigned int vdin_input_data_threshold;
 	unsigned int report_size_abnormal_cnt;/* drop frames casued by report_hv abnormal*/
-	struct vdin_pip_s pip;
 	enum tvin_port_type_e port_type;
 	unsigned int vdin_drop_cnt;
 	unsigned int vdin_isr_drop;
@@ -1301,23 +1254,25 @@ struct vdin_dev_s {
 	unsigned int fs_open_cnt;
 	unsigned int rdma_undone_cnt;
 	struct vdin_dv_hw5_s dv_hw5;
-	unsigned int delay_line_num;
-	bool enable_reset;
-	int vsync_reset_mask;
-	bool vdin_get_prop_in_fe_en;
-	bool work_mode_simple;
-	unsigned int dv_work_dolby;
+	bool is_one_buffer;
+	struct vdin_local_variable_s local_var;
 };
 
 extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
+extern unsigned int vdin_drop_cnt;
 extern unsigned int vdin0_afbce_debug_force;
 extern unsigned int vdin_dv_de_scramble;
 
 struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name);
 extern bool enable_reset;
 extern unsigned int dolby_size_byte;
+extern unsigned int dv_dbg_mask;
 extern u32 vdin_cfg_444_to_422_wmif_en;
+extern unsigned int vdin_isr_monitor;
+extern unsigned int vdin_get_prop_in_vs_en;
+extern unsigned int vdin_prop_monitor;
+extern unsigned int vdin_get_prop_in_fe_en;
 extern struct vdin_hist_s vdin1_hist;
 
 struct vframe_provider_s *vf_get_provider_by_name(const
@@ -1377,6 +1332,9 @@ bool vlock_get_vlock_flag(void);
 bool frame_lock_vrr_lock_status(void);
 
 u32 vlock_get_phase_en(u32 enc_idx);
+void vdin_change_matrix0(u32 offset, u32 matrix_csc);
+void vdin_change_matrix1(u32 offset, u32 matrix_csc);
+void vdin_change_matrix_hdr(u32 offset, u32 matrix_csc);
 
 struct vdin_dev_s *vdin_get_dev(unsigned int index);
 void vdin_mif_config_init(struct vdin_dev_s *devp);
@@ -1387,6 +1345,7 @@ void vdin_vpu_dev_register(struct vdin_dev_s *devp);
 void vdin_vpu_clk_gate_on_off(struct vdin_dev_s *devp, unsigned int on);
 void vdin_vpu_clk_mem_pd(struct vdin_dev_s *devp, unsigned int on);
 void vdin_afbce_vpu_clk_mem_pd(struct vdin_dev_s *devp, unsigned int on);
+bool vdin_support_axis_change(struct vdin_dev_s *devp);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int vdin_v4l2_probe(struct platform_device *pdev,
@@ -1405,5 +1364,11 @@ void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 void vdin_resume_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 void vdin_reg_dmc_notifier(unsigned int index);
 void vdin_unreg_dmc_notifier(unsigned int index);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
+									unsigned int buf_num);
+void vdin_dump_one_afbce_mem_user(void *output_head_ptr, void *output_table_ptr,
+void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num);
+#endif
 #endif /* __TVIN_VDIN_DRV_H */
 

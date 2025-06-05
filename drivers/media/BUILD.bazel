@@ -751,6 +751,7 @@ ddk_module(
                 "vin/tvin/vdin/vdin_sm.c",
                 "vin/tvin/vdin/vdin_canvas.c",
                 "vin/tvin/vdin/vdin_hw.c",
+                "vin/tvin/vdin/vdin_vfce.c",
             ],
         },
         "CONFIG_AMLOGIC_MEDIA_TVIN_AFE": {

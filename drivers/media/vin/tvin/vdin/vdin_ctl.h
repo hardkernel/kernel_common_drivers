@@ -187,6 +187,7 @@ struct dv_meta_pkt {
 
 extern unsigned int game_mode;
 extern unsigned int vdin_force_game_mode;
+extern int vdin_dbg_en;
 extern unsigned int vdin_pc_mode;
 extern int irq_max_count;
 
@@ -217,7 +218,7 @@ void vdin_set_def_wr_canvas(struct vdin_dev_s *devp);
 void vdin_hw_enable(struct vdin_dev_s *devp);
 void vdin_hw_disable(struct vdin_dev_s *devp);
 void vdin_hw_close(struct vdin_dev_s *devp);
-int vdin_vsync_reset_mif(struct vdin_dev_s *devp);
+int vdin_vsync_reset_mif(int index);
 bool vdin_check_vdi6_afifo_overflow(unsigned int offset);
 void vdin_clear_vdi6_afifo_overflow_flg(unsigned int offset);
 void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable);
@@ -248,7 +249,7 @@ void vdin_wr_reverse(struct vdin_dev_s *devp, bool h_reverse, bool v_reverse);
 void vdin_set_hv_scale(struct vdin_dev_s *devp);
 void vdin_set_bitdepth(struct vdin_dev_s *devp);
 void vdin_set_cm2(unsigned int offset, unsigned int w,
-		  unsigned int h, unsigned int *data, bool cm_enable);
+		  unsigned int h, unsigned int *data);
 void vdin_bypass_isp(unsigned int offset);
 void vdin_set_mpegin(struct vdin_dev_s *devp);
 void vdin_force_go_filed(struct vdin_dev_s *devp);
@@ -274,6 +275,7 @@ void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 			    unsigned int full_pack,
 			    unsigned int source_bitdepth,
 			    unsigned int rdma_enable);
+void vdin_set_wr_ctl_lite(struct vdin_dev_s *devp);
 
 void vdin_urgent_patch_resume(unsigned int offset);
 int vdin_hdr_sei_error_check(struct vdin_dev_s *devp);
@@ -295,6 +297,7 @@ void vdin_set_pixel_aspect_ratio(struct vdin_dev_s *devp,
 void vdin_set_display_ratio(struct vdin_dev_s *devp,
 			    struct vframe_s *vf);
 void vdin_source_bitdepth_reinit(struct vdin_dev_s *devp);
+void set_invert_top_bot(bool invert_flag);
 void vdin_clk_on_off(struct vdin_dev_s *devp, bool on_off);
 
 extern enum tvin_force_color_range_e color_range_force;
@@ -324,6 +327,7 @@ void vdin_dolby_de_tunnel_to_12bit(struct vdin_dev_s *devp,
 				   unsigned int on_off);
 void vdin_wr_frame_en(unsigned int ch, unsigned int on_off);
 void vdin_set_mif_on_off(struct vdin_dev_s *devp, unsigned int rdma_enable);
+void vdin_force_mif_ctl(struct vdin_dev_s *devp, unsigned int rdma_enable, bool on_off);
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp);
 enum tvin_color_fmt_range_e
 	tvin_get_force_fmt_range(enum tvin_color_fmt_e color_fmt);
@@ -333,8 +337,8 @@ bool vdin_is_convert_to_nv21(u32 format_convert);
 bool vdin_is_convert_to_rgb(u32 format_convert);
 bool vdin_is_4k(struct vdin_dev_s *devp);
 void vdin_set_matrix_color(struct vdin_dev_s *devp);
-void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigned int pat);
-
+void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int pat);
+void vdin_set_ip_pattern(struct vdin_dev_s *devp, unsigned int pat);
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
 bool is_amdv_stb_mode(void);
@@ -360,9 +364,9 @@ void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable, boo
 bool vdin_check_is_spd_data(struct vdin_dev_s *devp);
 bool vdin_check_freesync_state_chg(struct vdin_dev_s *devp);
 bool vdin_is_vrr_state_chg(struct vdin_dev_s *devp);
+bool vdin_is_qms_plus_state_chg(struct vdin_dev_s *devp);
 bool vdin_is_qms_state_chg(struct vdin_dev_s *devp);
 void vdin_sw_reset(struct vdin_dev_s *devp);
-void vdin_bist(struct vdin_dev_s *devp, unsigned int mode);
 unsigned int vdin_calculate_common_divisor(unsigned int x, unsigned int y);
 int vdin_get_base_fr(struct vdin_dev_s *devp);
 bool vdin_is_3d_interlace_signal(struct vdin_dev_s *devp);
@@ -381,5 +385,13 @@ bool vdin_package_done_check_state(struct vdin_dev_s *devp);
 unsigned int vdin_get_rx_avi_colorimetry(struct vdin_dev_s *devp, unsigned int colorimetry);
 bool vdin_is_dv_supported(void);
 bool vdin_is_afbce_enabled(struct vdin_dev_s *devp);
+void vdin_set_scl_mode(struct vdin_dev_s *devp, bool on_off);
 u32 vdin_matrix_range_chk(struct vdin_dev_s *devp);
+void vdin_hist_init(struct vdin_dev_s *devp);
+void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
+				    unsigned int offset, unsigned int v,
+				    unsigned int h,
+				    enum vdin_format_convert_e format_convert,
+				    unsigned int full_pack,
+				    unsigned int source_bitdepth);
 #endif

@@ -42,13 +42,32 @@
 /*the value depending on dts config mem limit
  *for skip two vframe case,need +2
  */
+static unsigned int max_buf_num = VDIN_CANVAS_MAX_CNT;
+static unsigned int min_buf_num = VDIN_CANVAS_MIN_CNT;
 static unsigned int max_buf_width = VDIN_CANVAS_MAX_WIDTH_HD;
 static unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGHT;
 /* one frame max metadata size:32x280 bits = 1120bytes(0x460) */
 unsigned int dolby_size_byte = K_DV_META_BUFF_SIZE;
 
+module_param(max_buf_num, uint, 0664);
+MODULE_PARM_DESC(max_buf_num, "vdin max buf num.\n");
+
+module_param(min_buf_num, uint, 0664);
+MODULE_PARM_DESC(min_buf_num, "vdin min buf num.\n");
+
+#ifdef DEBUG_SUPPORT
+module_param(max_buf_width, uint, 0664);
+MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
+
+module_param(max_buf_height, uint, 0664);
+MODULE_PARM_DESC(max_buf_height, "vdin max buf height.\n");
+
+module_param(dolby_size_byte, uint, 0664);
+MODULE_PARM_DESC(dolby_size_byte, "dolby_size_byte.\n");
+#endif
+
 const unsigned int vdin_canvas_ids[VDIN_MAX_DEVS][VDIN_CANVAS_MAX_CNT] = {
-	{
+	{	0x22, 0x23, 0x24, 0x25,
 		0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
 		0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31
 	},
@@ -118,7 +137,7 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
-	unsigned int max_buffer_num = devp->dts_config.max_buf_num;
+	unsigned int max_buffer_num = max_buf_num;
 
 	switch (devp->format_convert) {
 	case VDIN_FORMAT_CONVERT_YUV_YUV444:
@@ -272,16 +291,28 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
-	unsigned int max_buffer_num = devp->dts_config.max_buf_num;
+	unsigned int max_buffer_num = max_buf_num;
 	unsigned int h_active, v_active;
 
 	if (devp->vf_mem_size_small) {
 		h_active = devp->h_shrink_out;
 		v_active = devp->v_shrink_out;
 	} else {
-		h_active = devp->h_active;
-		v_active = devp->v_active;
+		if (devp->hw_core == VDIN_HW_CORE_LITE) {
+			if (vdin_support_axis_change(devp)) {
+				h_active = devp->dest_h_active;
+				v_active = devp->dest_v_active;
+			} else {
+				h_active = devp->h_active;
+				v_active = devp->v_active;
+			}
+		} else {
+			h_active = devp->h_active + devp->crop_h;
+			v_active = devp->v_active + devp->crop_v;
+		}
 	}
+	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
+		h_active = roundup(h_active, devp->canvas_align);
 
 	switch (devp->format_convert) {
 	case VDIN_FORMAT_CONVERT_YUV_YUV444:
@@ -290,7 +321,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	case VDIN_FORMAT_CONVERT_RGB_RGB:
 	case VDIN_FORMAT_CONVERT_YUV_GBR:
 	case VDIN_FORMAT_CONVERT_YUV_BRG:
-		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH ||
+		    devp->local_var.is_rgba_en)
 			devp->canvas_w = h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
 			devp->canvas_w = h_active * VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
@@ -309,7 +341,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 			canvas_num = canvas_num / 2;
 		}
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
-			if (devp->dtdata->hw_ver == VDIN_HW_T6D)
+			if (devp->dtdata->hw_ver == VDIN_HW_T6D ||
+			    devp->dtdata->hw_ver == VDIN_HW_T6W)
 				devp->canvas_w = (h_active * 10) / 8;
 			else
 				devp->canvas_w = (h_active * 3) / 2;
@@ -322,7 +355,9 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	case VDIN_FORMAT_CONVERT_GBR_YUV422:
 	case VDIN_FORMAT_CONVERT_BRG_YUV422:
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
-			if (devp->full_pack == VDIN_422_FULL_PK_EN)
+			if (devp->dtdata->hw_ver == VDIN_HW_T6W && devp->debug.yuv422_2plane_en)
+				devp->canvas_w = (h_active * 10) / 8;
+			else if (devp->full_pack == VDIN_422_FULL_PK_EN)
 				devp->canvas_w = (h_active * 5) / 2;
 			else if (devp->full_pack == VDIN_422_FULL_PK_DIS)
 				devp->canvas_w = h_active * VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
@@ -356,6 +391,13 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	case VDIN_FORMAT_CONVERT_RGB_NV21:
 		chroma_size = devp->canvas_w * devp->canvas_h / 2;
 		break;
+	case VDIN_FORMAT_CONVERT_YUV_YUV422:
+	case VDIN_FORMAT_CONVERT_RGB_YUV422:
+	case VDIN_FORMAT_CONVERT_GBR_YUV422:
+	case VDIN_FORMAT_CONVERT_BRG_YUV422:
+		if (devp->dtdata->hw_ver == VDIN_HW_T6W && devp->debug.yuv422_2plane_en)
+			chroma_size = devp->canvas_w * devp->canvas_h;
+		break;
 	default:
 		break;
 	}
@@ -379,6 +421,7 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 #endif
 	if (devp->baddr_en)
 		return;
+
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		devp->vf_mem_start[i] =
 			roundup(devp->vf_mem_start[i], devp->canvas_align);
@@ -528,7 +571,7 @@ void vdin_mem_memset(struct vdin_dev_s *devp)
 		vdin_dma_flush(devp, buf, frame_size, DMA_TO_DEVICE);
 		if (highmem_flag)
 			vdin_unmap_phyaddr(buf);
-		if (devp->debug.vdin_dbg_en & 0x10)
+		if (vdin_dbg_en & 0x10)
 			pr_info("vdin%d,buf[%d] mem_start = 0x%lx, mem_size = 0x%x, highmem_flag = %d, color_range = %d\n",
 				devp->index, i, devp->vf_mem_start[i],
 				devp->frame_size, highmem_flag, val);
@@ -542,10 +585,10 @@ static char vdin_name[6];
 /* combined canvas and afbce memory */
 unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 {
-	unsigned int mem_size, h_size, v_size, frame_size, temp;
+	unsigned int mem_size, h_size, v_size, frame_size, temp, afrc_body_size = 0;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST | CODEC_MM_FLAGS_CMA_CLEAR |
 		CODEC_MM_FLAGS_DMA;
-	unsigned int max_buffer_num = devp->dts_config.min_buf_num;
+	unsigned int max_buffer_num = min_buf_num;
 	unsigned int i, j;
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 	unsigned int res = 0;
@@ -559,13 +602,19 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	    (IS_HDMI_SRC(devp->parm.port) || IS_TVAFE_SRC(devp->parm.port)))
 		max_buffer_num += devp->vfp->skip_vf_num;
 
-	if (max_buffer_num > devp->dts_config.max_buf_num)
-		max_buffer_num = devp->dts_config.max_buf_num;
+	if (max_buffer_num > max_buf_num)
+		max_buffer_num = max_buf_num;
 
-	/* if vfmem_cfg_num define in dts, use dts's setting */
-	if (devp->frame_buff_num >= devp->dts_config.min_buf_num &&
-	    devp->frame_buff_num <= devp->dts_config.max_buf_num)
+	/*
+	 * if screencap one buffer, set buff num to 1,
+	 * else vfmem_cfg_num define in dts, use dts's setting
+	 */
+	if (devp->hw_core == VDIN_HW_CORE_LITE && devp->is_one_buffer) {
+		max_buffer_num = 1;
+		pr_info("screencap one buffer\n");
+	} else if (devp->frame_buff_num >= min_buf_num && devp->frame_buff_num <= max_buf_num) {
 		max_buffer_num = devp->frame_buff_num;
+	}
 
 	if (!devp->index && devp->frame_buff_num < VDIN_CANVAS_INTERLACED_MIN_CNT &&
 	    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
@@ -581,20 +630,38 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	}
 
 	/*pixels*/
-	h_size = devp->h_active;
-	v_size = devp->v_active;
+	if (devp->hw_core == VDIN_HW_CORE_LITE) {
+		if (vdin_support_axis_change(devp)) {
+			h_size = devp->dest_h_active;
+			v_size = devp->dest_v_active;
+		} else {
+			h_size = devp->h_active;
+			v_size = devp->v_active;
+		}
+	} else {
+		h_size = devp->h_active + devp->crop_h;
+		v_size = devp->v_active + devp->crop_v;
+	}
 
-	if (devp->dts_config.canvas_config_mode == 1) {
+	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
+		h_size = roundup(h_size, devp->canvas_align);
+
+	if (devp->canvas_config_mode == 1) {
 		h_size = max_buf_width;
 		v_size = max_buf_height;
 	}
+
 	if (vdin_is_convert_to_444(devp->format_convert)) {
-		/* 4k is not support 10 bit mode in order to save memory
-		 * up to 4k 444 8bit mode
-		 */
-		if (/*devp->source_bitdepth > VDIN_MIN_SOURCE_BIT_DEPTH &&*/
+		if (devp->local_var.is_rgba_en) {
+			h_size = roundup(h_size * VDIN_RGBA8888_PER_PIXEL_BYTE,
+				devp->canvas_align);
+			devp->canvas_align_w = h_size / VDIN_RGBA8888_PER_PIXEL_BYTE;
+		} else if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH ||
 		    !(vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) ||
 		    (devp->dv_hw5.hw5_ctl & BIT3)) {
+			/* 4k is not support 10 bit mode in order to save memory
+			 * up to 4k 444 8bit mode
+			 */
 			h_size = roundup(h_size * VDIN_YUV444_10BIT_PER_PIXEL_BYTE,
 				devp->canvas_align);
 			devp->canvas_align_w = h_size / VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
@@ -606,7 +673,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
 		/* nv21/nv12 only t3x have 8/10/12 bit mode */
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
-			if (devp->dtdata->hw_ver == VDIN_HW_T6D)
+			if (devp->dtdata->hw_ver == VDIN_HW_T6D ||
+			    devp->dtdata->hw_ver == VDIN_HW_T6W)
 				h_size = roundup((h_size * 10) / 8, devp->canvas_align);
 			else
 				h_size = roundup((h_size * 3) / 2, devp->canvas_align);
@@ -735,23 +803,56 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			PAGE_ALIGN((roundup(devp->h_active, 64) *
 				    roundup(devp->v_active, 64)) / 32
 				    /* + dolby_size_byte*/);
-
 			/*((h * v * byte_per_pixel + dolby) / page_size) * 4(one address size)
 			 * total max_buffer_num
 			 */
 			devp->afbce_info->frame_table_size =
 				PAGE_ALIGN((devp->vf_mem_size * 4) / PAGE_SIZE);
+			devp->afbce_info->frame_body_size = devp->vf_mem_size;
+			if (devp->is_vfce_en) {
+				devp->afbce_info->frame_head_size_y =
+					(devp->h_active * (devp->v_active + 8)) * 2 / (16 * 4);
+				afrc_body_size = roundup((devp->h_active * devp->v_active) *
+					devp->cr_lossy_param.cr_lossy_target_byte / (16 * 4),
+					4 * 4096);
+				devp->afbce_info->frame_table_size_y =
+					roundup((afrc_body_size * 4) / 4096, 16);/* ddr:128bit */
+				if (vdin_is_convert_to_444(devp->format_convert)) {
+					devp->afbce_info->frame_head_size =
+						devp->afbce_info->frame_head_size_y * 3;
+					devp->afbce_info->frame_body_size = afrc_body_size * 3;
+					//devp->afbce_info->frame_table_size =
+					//	devp->afbce_info->frame_table_size_y * 3;
+				} else if (vdin_is_convert_to_422(devp->format_convert)) {
+					devp->afbce_info->frame_head_size =
+						devp->afbce_info->frame_head_size_y * 2;
+					devp->afbce_info->frame_body_size = afrc_body_size * 2;
+					//devp->afbce_info->frame_table_size =
+					//	devp->afbce_info->frame_table_size_y * 2;
+				} else {
+					devp->afbce_info->frame_head_size =
+						(devp->afbce_info->frame_head_size_y * 3) / 2;
+					devp->afbce_info->frame_body_size =
+						(afrc_body_size * 3) / 2;
+					//devp->afbce_info->frame_table_size =
+					//	(devp->afbce_info->frame_table_size_y * 3) / 2;
+				}
+			}
+			if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
+				frame_size = devp->vf_mem_size_small +
+					devp->afbce_info->frame_head_size +
+					devp->afbce_info->frame_table_size;
+			} else {
+				frame_size = devp->vf_mem_size_small +
+					devp->afbce_info->frame_body_size +
+					devp->afbce_info->frame_head_size +
+					devp->afbce_info->frame_table_size;
+			}
 		} else {
 			devp->afbce_info->frame_head_size = 0;
 			devp->afbce_info->frame_table_size = 0;
-		}
-		if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
-			frame_size = devp->vf_mem_size_small + devp->afbce_info->frame_head_size +
-				devp->afbce_info->frame_table_size;
-		} else {
-			frame_size = devp->vf_mem_size_small + devp->vf_mem_size +
-				devp->afbce_info->frame_head_size +
-				devp->afbce_info->frame_table_size;
+			devp->afbce_info->frame_body_size = 0;
+			frame_size = devp->vf_mem_size_small + devp->vf_mem_size;
 		}
 		pr_info("vdin%d small = %#x, vf_mem = %#x, head:%#x,table:%#x,frame_size:%#x.mem_size:%#x\n",
 			devp->index, devp->vf_mem_size_small, devp->vf_mem_size,
@@ -776,7 +877,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 	if (mem_size > devp->cma_mem_size &&
 	    !(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)) {
-		pr_err("vdin[%d] warning: cma_mem_size (need %d, cur %d) is not enough!!!\n",
+		pr_err("vdin[%d] warning: cma_mem_size (need 0x%x, cur 0x%x) is not enough!!!\n",
 		       devp->index, mem_size, devp->cma_mem_size);
 		/*mem_size = devp->cma_mem_size;*/
 		/*devp->cma_mem_alloc = 0;*/
@@ -800,7 +901,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			if (devp->cfg_dma_buf)
 				devp->mem_start = vdin_set_canvas_addr[i].paddr;
 			devp->vf_mem_start[i] = vdin_set_canvas_addr[i].paddr;
-			if (devp->debug.vdin_dbg_en)
+			if (vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
 					devp->index, i,
 					devp->vf_mem_start[i],
@@ -878,7 +979,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				}
 				devp->vf_mem_start[i] = page_to_phys(devp->vf_venc_pages[i]);
 			}
-			if (devp->debug.vdin_dbg_en)
+			if (vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
 					devp->index, i,	devp->vf_mem_start[i], frame_size);
 		}
@@ -906,7 +1007,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		}
 
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
-		if (devp->secure_en) {
+		/* Secure memory is supported in projector scenario */
+		if (devp->secure_en && devp->set_canvas_manual) {
 			devp->secure_handle = 0;
 			res = tee_protect_mem_by_type(TEE_MEM_TYPE_VDIN,
 						      devp->mem_start,
@@ -921,7 +1023,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		for (i = 0; i < max_buffer_num; i++) {
 			devp->vf_mem_start[i] = devp->mem_start + frame_size * i;
 
-			if (devp->debug.vdin_dbg_en)
+			if (vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
 					devp->index, i,
 					devp->vf_mem_start[i], frame_size);
@@ -935,8 +1037,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	devp->cma_mem_alloc = 1;
 
 	if (devp->afbce_info && devp->afbce_valid) {
-		devp->afbce_info->frame_body_size = devp->vf_mem_size;
-
+		if (devp->is_vfce_en) {
+			devp->afbce_info->frame_body_size_y = afrc_body_size;
+		}
 		for (i = 0; i < max_buffer_num; i++) {
 			if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
 				devp->afbce_info->fm_body_paddr[i] = 0;
@@ -949,25 +1052,29 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->afbce_info->fm_body_paddr[i] =
 					devp->vf_mem_start[i] + devp->vf_mem_size_small;
 				devp->afbce_info->fm_head_paddr[i] =
-					devp->afbce_info->fm_body_paddr[i] + devp->vf_mem_size;
+					devp->afbce_info->fm_body_paddr[i] +
+					devp->afbce_info->frame_body_size;
 				devp->afbce_info->fm_table_paddr[i] =
 					devp->afbce_info->fm_head_paddr[i] +
 					devp->afbce_info->frame_head_size;
 			}
 
-			if (devp->debug.vdin_dbg_en) {
-				pr_info("vdin%d fm_head_paddr[%d] = 0x%lx, frame_head_size = 0x%x\n",
+			if (vdin_dbg_en) {
+				pr_info("vdin%d fm_head_paddr[%d] = 0x%lx, frame_head_size = 0x%x,y:0x%x\n",
 					devp->index, i,
 					devp->afbce_info->fm_head_paddr[i],
-					devp->afbce_info->frame_head_size);
-				pr_info("vdin%d fm_table_paddr[%d]=0x%lx, frame_table_size = 0x%x\n",
+					devp->afbce_info->frame_head_size,
+					devp->afbce_info->frame_head_size_y);
+				pr_info("vdin%d fm_table_paddr[%d]=0x%lx, frame_table_size = 0x%x,y:0x%x\n",
 					devp->index, i,
 					devp->afbce_info->fm_table_paddr[i],
-					devp->afbce_info->frame_table_size);
-				pr_info("vdin%d fm_body_paddr[%d]=0x%lx, frame_body_size = 0x%x\n",
+					devp->afbce_info->frame_table_size,
+					devp->afbce_info->frame_table_size_y);
+				pr_info("vdin%d fm_body_paddr[%d]=0x%lx, frame_body_size = 0x%x,y:0x%x\n",
 					devp->index, i,
 					devp->afbce_info->fm_body_paddr[i],
-					devp->afbce_info->frame_body_size);
+					devp->afbce_info->frame_body_size,
+					devp->afbce_info->frame_body_size_y);
 			}
 		}
 	}
@@ -1009,7 +1116,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 	pr_info("vdin%d cma alloc %d buffers ok!\n", devp->index,
 		devp->vf_mem_max_cnt);
-	if (devp->vf_mem_max_cnt < devp->dts_config.min_buf_num) {
+	if (devp->vf_mem_max_cnt < min_buf_num && !devp->is_one_buffer) {
 		pr_info("vdin%d cma alloc num too less need release\n", devp->index);
 		vdin_cma_release(devp);
 		return 1;

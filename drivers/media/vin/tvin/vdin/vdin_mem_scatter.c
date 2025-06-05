@@ -55,6 +55,14 @@
 #define PAGE_ADDR(mm_page) (ulong)(((mm_page) >> MAX_ADDR_SHIFT)\
 			<< MAX_ADDR_SHIFT)
 
+int sct_print_ctl;
+module_param(sct_print_ctl, int, 0664);
+MODULE_PARM_DESC(sct_print_ctl, "sct_print_ctl");
+
+int sct_cache_size = 192;
+module_param(sct_cache_size, int, 0664);
+MODULE_PARM_DESC(sct_cache_size, "sct_cache_size");
+
 static u64 cur_to_usecs(void)/*2019*/
 {
 	u64 cur = sched_clock();
@@ -109,7 +117,7 @@ void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		else
 			vfe->vf.afbce_num = rd(devp->addr_offset, AFBCE_MMU_NUM);
 		devp->msct_top.vfe = vfe;
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_MMU_NUM)
+		if (sct_print_ctl & SCT_PRINT_CTL_MMU_NUM)
 			pr_info("vdin%d vf:%d afbce_num:%d\n",
 				devp->index, vfe->vf.index, vfe->vf.afbce_num);
 	}
@@ -163,7 +171,7 @@ int vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx)
 	timer_st = cur_to_usecs();
 
 	cur_mmu_4k_number = devp->msct_top.mmu_4k_number;
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_ALLOC_IDX)
+	if (sct_print_ctl & SCT_PRINT_CTL_ALLOC_IDX)
 		pr_err("%s:vf_mem_size=%#x,number=%d,vf_idx:%d,%p\n", __func__,
 			devp->vf_mem_size, cur_mmu_4k_number, vf_idx,
 			devp->afbce_info->fm_table_vir_paddr[vf_idx]);
@@ -183,7 +191,7 @@ int vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx)
 
 	timer_end = cur_to_usecs();
 	diff = timer_end - timer_st;
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_ALLOC_IDX)
+	if (sct_print_ctl & SCT_PRINT_CTL_ALLOC_IDX)
 		pr_info("%s:use %u us\n", __func__, (unsigned int)diff);
 	if (diff > 10000)
 		pr_info("%s:takes %llu us,too long\n", __func__, diff);
@@ -201,11 +209,11 @@ void vdin_sct_free_tail(struct vdin_dev_s *devp, int vf_idx, int buffer_used)
 	psct = &devp->msct_top;
 
 	if (!buffer_used) {
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WARN)
+		if (sct_print_ctl & SCT_PRINT_CTL_WARN)
 			pr_err("%s:vf_idx:%d,buffer_used == 0\n", __func__, vf_idx);
 		return;
 	}
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_FREE_TAIL)
+	if (sct_print_ctl & SCT_PRINT_CTL_FREE_TAIL)
 		pr_info("%s:enter,index:%d,buffer_used:%d\n",
 			__func__, vf_idx, buffer_used);
 	if (buffer_used > devp->msct_top.mmu_4k_number) {
@@ -221,7 +229,7 @@ void vdin_sct_free_tail(struct vdin_dev_s *devp, int vf_idx, int buffer_used)
 
 	timer_end = cur_to_usecs();
 	diff = timer_end - timer_st;
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_FREE_TAIL)
+	if (sct_print_ctl & SCT_PRINT_CTL_FREE_TAIL)
 		pr_info("%s:use %uus 0x%x\n", __func__, (unsigned int)diff, buffer_used);
 }
 
@@ -255,7 +263,7 @@ void vdin_sct_free(struct vf_pool *p, int index)
 
 	timer_end = cur_to_usecs();
 	diff = timer_end - timer_st;
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_FREE_IDX)
+	if (sct_print_ctl & SCT_PRINT_CTL_FREE_IDX)
 		pr_info("%s:index:%d,use %uus\n", __func__, index, (unsigned int)diff);
 	if ((unsigned int)diff > 10000)
 		pr_info("%s:use %uus too long\n", __func__, (unsigned int)diff);
@@ -264,7 +272,7 @@ void vdin_sct_free(struct vf_pool *p, int index)
 int vdin_sct_init(struct vdin_dev_s *devp)
 {
 	int tvp_flag = 0;
-	int buf_size = devp->dts_config.sct_cache_size;
+	int buf_size = sct_cache_size;
 	unsigned int need_cache_size;
 	struct vdin_msct_top_s *psct;
 
@@ -279,7 +287,7 @@ int vdin_sct_init(struct vdin_dev_s *devp)
 	psct->sc_start_time = get_jiffies_64();
 	psct->max_buf_num = VDIN_CANVAS_MAX_CNT;
 
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_INIT)
+	if (sct_print_ctl & SCT_PRINT_CTL_INIT)
 		pr_info("%s tvp = 0x%x,max_buf_num:%d,buf_size:%dMB\n", __func__,
 			psct->max_buf_num, tvp_flag, buf_size);
 
@@ -291,7 +299,7 @@ int vdin_sct_init(struct vdin_dev_s *devp)
 		return -1;
 	}
 
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_INIT)
+	if (sct_print_ctl & SCT_PRINT_CTL_INIT)
 		pr_info("%s done\n", __func__);
 
 	return 0;
@@ -315,7 +323,7 @@ void vdin_sct_queue_work(struct vdin_dev_s *devp)
 {
 	if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
 		devp->msct_top.que_work_cnt++;
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_QUE_WORK)
+		if (sct_print_ctl & SCT_PRINT_CTL_QUE_WORK)
 			pr_info("%s,irq:%d,frame_cnt:%d;que_work_cnt:%d,worker run:%d\n",
 				__func__, devp->irq_cnt, devp->frame_cnt,
 				devp->msct_top.que_work_cnt, devp->msct_top.worker_run_cnt);
@@ -336,7 +344,7 @@ void vdin_sct_free_idx_in_game(struct vdin_dev_s *devp)
 			pr_err("%s null vfe\n", __func__);
 			break;
 		}
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_GAME)
+		if (sct_print_ctl & SCT_PRINT_CTL_GAME)
 			pr_info("[%d],index:%d,sct_stat:%d,status:%d,cur_page_cnt:%d\n",
 				i, vfe->vf.index, vfe->sct_stat, vfe->status,
 				devp->msct_top.sct_stat[i].cur_page_cnt);
@@ -368,7 +376,7 @@ void vdin_sct_worker(struct work_struct *work)
 		container_of(work, struct vdin_dev_s, sct_work);
 
 	devp->msct_top.worker_run_cnt++;
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
+	if (sct_print_ctl & SCT_PRINT_CTL_WORKER)
 		pr_info("%s,enter;que_work_cnt:%d,worker run:%d\n", __func__,
 			devp->msct_top.que_work_cnt, devp->msct_top.worker_run_cnt);
 	if (!devp->afbce_info) {
@@ -386,18 +394,18 @@ void vdin_sct_worker(struct work_struct *work)
 	//alloc memory for the next vfe.
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 	if (next_wr_vfe) {
-		if ((devp->debug.sct_print_ctl & SCT_PRINT_CTL_WARN) &&
+		if ((sct_print_ctl & SCT_PRINT_CTL_WARN) &&
 		    !devp->game_mode && next_wr_vfe->sct_stat == VFRAME_SCT_STATE_FULL &&
 		    !(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_TAIL) &&
 		    !(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_WR_LIST))
 			pr_warn("%s,full mem size!!!vf_index:%d,sct_stat:%d,status:%d\n",
 				__func__, next_wr_vfe->vf.index,
 				next_wr_vfe->sct_stat, next_wr_vfe->status);
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
+		if (sct_print_ctl & SCT_PRINT_CTL_WORKER)
 			pr_info("%s,vf_idx:%d,cur_page_cnt:%d\n",
 				__func__, next_wr_vfe->vf.index,
 				devp->msct_top.sct_stat[next_wr_vfe->vf.index].cur_page_cnt);
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_MEM_HLD)
+		if (sct_print_ctl & SCT_PRINT_CTL_MEM_HLD)
 			pr_info("vdin%d,mem handle[%d]:%p\n", devp->index, next_wr_vfe->vf.index,
 			next_wr_vfe->vf.mem_handle);
 		//this memory is used for every vf in one buffer mode,donot alloc again or free it
@@ -411,7 +419,7 @@ void vdin_sct_worker(struct work_struct *work)
 		next_wr_vfe->vf.mem_handle =
 			vdin_mmu_box_get_mem_handle(devp->msct_top.box, next_wr_vfe->vf.index);
 	} else {
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WARN)
+		if (sct_print_ctl & SCT_PRINT_CTL_WARN)
 			pr_info("vdin%d:peek vframe failed,irq:%d,frame:%d;[%d %d %d %d]%d %d\n",
 				devp->index, devp->irq_cnt, devp->frame_cnt,
 				devp->vfp->wr_list_size, devp->vfp->wr_mode_size,
@@ -424,7 +432,7 @@ void vdin_sct_worker(struct work_struct *work)
 	//do not free redundancy pages in game mode,free all pages of these in wr_list.
 	if (vfe) {
 		if (!devp->game_mode && !(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_TAIL)) {
-			if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
+			if (sct_print_ctl & SCT_PRINT_CTL_WORKER)
 				pr_info("%s,vdin%d index:%d,num:%d,stat:%d\n",
 					__func__, devp->index, vfe->vf.index,
 					vfe->vf.afbce_num, vfe->sct_stat);
@@ -436,11 +444,11 @@ void vdin_sct_worker(struct work_struct *work)
 		} else if (devp->game_mode) {
 			vdin_sct_free_idx_in_game(devp);
 		}
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
+		if (sct_print_ctl & SCT_PRINT_CTL_WORKER)
 			pr_info("%s,exit! vf_idx:%d,stat:%d %d\n", __func__,
 				vfe->vf.index, vfe->sct_stat, vfe->status);
 	} else {
-		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WARN)
+		if (sct_print_ctl & SCT_PRINT_CTL_WARN)
 			pr_info("%s,no msct_top.vfe!!!\n", __func__);
 	}
 	//free redundancy memory of captured vf end
@@ -457,7 +465,7 @@ int vdin_mem_init(struct vdin_dev_s *devp)
 	      devp->index || !is_afbce ||
 	    !(devp->cma_config_flag & MEM_ALLOC_CODEC_SCT)) {
 		devp->mem_type = VDIN_MEM_TYPE_CONTINUOUS;
-		if (devp->debug.vdin_dbg_en)
+		if (vdin_dbg_en)
 			pr_info("%s,vdin%d do not use scatter memory;is_afbce:%d,cma_flag:%#x\n",
 				__func__, devp->index, is_afbce, devp->cma_config_flag);
 		return 0;
@@ -482,7 +490,7 @@ int vdin_mem_init(struct vdin_dev_s *devp)
 	}
 	INIT_WORK(&devp->sct_work, vdin_sct_worker);
 	//queue_work(devp->wq, &devp->sct_work);
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_INIT)
+	if (sct_print_ctl & SCT_PRINT_CTL_INIT)
 		pr_info("%s done\n", __func__);
 
 	return 0;
@@ -492,7 +500,7 @@ int vdin_mem_exit(struct vdin_dev_s *devp)
 {
 	int i;
 
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_EXIT)
+	if (sct_print_ctl & SCT_PRINT_CTL_EXIT)
 		pr_info("%s mem_type:%d\n", __func__, devp->mem_type);
 
 	if (devp->mem_type != VDIN_MEM_TYPE_SCT)
@@ -508,7 +516,7 @@ int vdin_mem_exit(struct vdin_dev_s *devp)
 
 	devp->frame_buff_num = devp->frame_buff_num_bak;
 
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_EXIT)
+	if (sct_print_ctl & SCT_PRINT_CTL_EXIT)
 		pr_info("%s done\n", __func__);
 
 	return 0;

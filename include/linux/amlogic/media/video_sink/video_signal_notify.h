@@ -12,6 +12,7 @@
 #define VIDEO_SECURE_TYPE_CHANGED   0x0002
 #define VIDEO_INFO_CHANGED          0x0003
 #define VIDEO_VPU_CLK_CHANGED       0x0004
+#define VIDEO_HDMI_CH_COUNT_CHANGED     0x0005
 
 /* video info event flags */
 #define VIDEO_INFO_CHANGE_NONE      0x0000

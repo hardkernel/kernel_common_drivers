@@ -99,6 +99,7 @@ const char *tvin_color_fmt_str(enum tvin_color_fmt_e color_fmt);
 
 /* hs=he=vs=ve=0 is to disable Cut Window */
 struct tvin_cutwin_s {
+	bool en;
 	unsigned short hs;
 	unsigned short he;
 	unsigned short vs;

@@ -12,6 +12,9 @@
 #include <linux/dma-map-ops.h>
 #include "vdin_drv.h"
 
+extern int vdin_ctl_dbg;
+extern int vdin_dbg_en;
+
 /* ************************************************************************ */
 /* ******** GLOBAL FUNCTION CLAIM ******** */
 /* ************************************************************************ */
@@ -23,7 +26,8 @@ void vdin_set_all_regs_s5(struct vdin_dev_s *devp);
 void vdin_set_default_regmap_s5(struct vdin_dev_s *devp);
 void vdin_hw_enable_s5(struct vdin_dev_s *devp);
 void vdin_hw_disable_s5(struct vdin_dev_s *devp);
-void vdin_set_cutwin_s5(struct vdin_dev_s *devp);
+void vdin_cfg_cutwin_regs_s5(struct vdin_dev_s *devp,
+	unsigned int rdma_enable, struct tvin_cutwin_s *cutwin_s);
 void vdin_set_decimation_s5(struct vdin_dev_s *devp);
 unsigned int vdin_get_active_h(struct vdin_dev_s *devp);
 unsigned int vdin_get_active_v(struct vdin_dev_s *devp);
@@ -38,7 +42,7 @@ void vdin_wr_reverse_s5(unsigned int offset, bool h_reverse,
 void vdin_set_hv_scale_s5(struct vdin_dev_s *devp);
 void vdin_set_bitdepth_s5(struct vdin_dev_s *devp);
 void vdin_set_cm2_s5(unsigned int offset, unsigned int w,
-		  unsigned int h, unsigned int *data, bool cm_enable);
+		  unsigned int h, unsigned int *data);
 void vdin_hdmiin_patch(struct vdin_dev_s *devp);
 void vdin_set_top_s5(struct vdin_dev_s *devp, enum tvin_port_e port,
 		  enum tvin_color_fmt_e input_cfmt, enum bt_path_e bt_path);
@@ -79,5 +83,7 @@ void vdin_set_frame_mif_write_addr_s5(struct vdin_dev_s *devp,
 			unsigned int rdma_enable, struct vf_entry *vfe);
 void vdin_sw_reset_s5(struct vdin_dev_s *devp);
 void vdin_bist_s5(struct vdin_dev_s *devp, unsigned int mode);
+void vdin_get_hist_val_s5(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp);
+void vdin_hist_init_s5(struct vdin_dev_s *devp);
 #endif
 

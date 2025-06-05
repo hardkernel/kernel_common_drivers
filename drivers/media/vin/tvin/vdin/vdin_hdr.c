@@ -35,6 +35,12 @@
 
 #define DBG_ON	0
 
+#define dprintk(level, fmt, arg...) \
+	do { \
+		if (vdin_dbg_en >= (level)) \
+			pr_info("vdin:dv " fmt, ## arg); \
+	} while (0)
+
 void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enable)
 {
 	if (devp->dtdata->hw_ver != VDIN_HW_T7 || devp->index)
@@ -86,8 +92,7 @@ void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enabl
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	}
 #endif
-	if (devp->debug.vdin_dbg_en)
-		pr_info("%s, en=%d", __func__, en);
+	dprintk(1, "%s %d\n", __func__, en);
 #endif
 }
 
@@ -154,8 +159,8 @@ void vdin_wrmif2_addr_update(struct vdin_dev_s *devp)
 		return;
 
 	baddr = devp->dv.meta_data_raw_p_buffer0;
-	if (!baddr && devp->debug.vdin_dbg_en)
-		pr_info("%s, err: meta_data_raw_p_buffer0", __func__);
+	if (!baddr)
+		dprintk(0, "err: meta_data_raw_p_buffer0\n");
 	stride_luma = ((hsize * 8) + 511) >> 9;
 
 	/*dprintk(0, "%s baddr:0x%x stride:0x%x\n", __func__,*/
@@ -197,8 +202,8 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
 
 	if (IS_ERR_OR_NULL(src_dv_meta_vaddr) ||
 	    IS_ERR_OR_NULL(dst_dv_meta_vaddr)) {
-		if (irq_cnt % devp->debug.dv_dbg_log_du)
-			pr_info("%s, err: null meta addr", __func__);
+		if (irq_cnt % dv_dbg_log_du)
+			dprintk(0, "%s err: null meta addr\n", __func__);
 		return sts;
 	}
 
@@ -258,6 +263,13 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
  */
 bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
 {
+	if (dv_dbg_log & DV_DEBUG_NORMAL)
+		pr_info("%s:vdin%d,dv:%d,stb:%d %d;bypass:%d,cfmt:%d,uni_drm:%d\n",
+			__func__, devp->index, devp->dv.dv_flag,
+			is_amdv_stb_mode(), is_hdmi_ll_as_hdr10(),
+			devp->bypass_tunnel, devp->prop.color_format,
+			devp->prop.dv_unique_drm_flag);
+
 	if (devp->dv.dv_flag && /* && (devp->dv.low_latency) */ /* && is_amdv_enable() */
 	    (!(is_amdv_stb_mode() && cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) ||
 	    (is_amdv_stb_mode() && !is_hdmi_ll_as_hdr10())) &&
@@ -277,7 +289,7 @@ bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
  */
 bool vdin_dv_is_visf_data(struct vdin_dev_s *devp)
 {
-	if (((devp->debug.dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) == 0) &&
+	if (((dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) == 0) &&
 	    devp->dv.dv_config && !devp->dv.low_latency &&
 	    devp->prop.dolby_vision == 1)
 		return true;
@@ -292,11 +304,19 @@ bool vdin_dv_is_visf_data(struct vdin_dev_s *devp)
  */
 bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 {
+	if (dv_dbg_log & DV_DEBUG_NORMAL)
+		pr_info("%s:vdin%d,dv:%d,cfmt:%d,depth:%d,drm:%d\n", __func__,
+			devp->index, devp->dv.dv_flag, devp->prop.color_format,
+			devp->prop.colordepth, devp->prop.dv_unique_drm_flag);
+
 	if (devp->dv.dv_flag) {
 		if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
 			return true;
 
-		if (devp->prop.dv_unique_drm_flag) {
+		if (vdin_dv_is_hw2(devp) && devp->prop.color_format == TVIN_YUV420 &&
+			devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT) {
+			devp->bypass_tunnel = true;
+		} else if (devp->prop.dv_unique_drm_flag) {
 			if ((devp->prop.color_format == TVIN_YUV420 ||
 				devp->prop.color_format == TVIN_YUV422) &&
 				devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT)
@@ -321,6 +341,32 @@ bool vdin_dv_is_sink_led(struct vdin_dev_s *devp)
 {
 	if (devp->dv.dv_flag && !devp->dv_is_not_std &&
 	    devp->prop.color_format == TVIN_RGB444)
+		return true;
+	else
+		return false;
+}
+
+bool vdin_dv_is_source_led(struct vdin_dev_s *devp)
+{
+	if (devp->dv.dv_flag && (devp->prop.color_format == TVIN_YUV422 ||
+		devp->prop.color_format == TVIN_YUV420) &&
+	    devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT)
+		return true;
+	else
+		return false;
+}
+
+bool vdin_dv_is_hw2(struct vdin_dev_s *devp)
+{
+	if (devp->dtdata->hw_ver != VDIN_HW_T3X && devp->prop.dv_unique_drm_flag)
+		return true;
+	else
+		return false;
+}
+
+bool vdin_dv_is_hw5(struct vdin_dev_s *devp)
+{
+	if (devp->dtdata->hw_ver == VDIN_HW_T3X && devp->prop.dv_unique_drm_flag)
 		return true;
 	else
 		return false;

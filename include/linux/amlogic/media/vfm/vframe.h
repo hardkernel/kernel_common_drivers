@@ -71,6 +71,15 @@
 #define VIDTYPE_EXT_LCEVC		0x10
 #define VIDTYPE_EXT_DI_DO_ROTATE	0x20
 #define VIDTYPE_EXT_HIGH_BANDWIDTH      0x40
+#define VIDTYPE_EXT_AFRC_COMPRESS	0x80
+#define VIDTYPE_EXT_LUMA_ONLY		0x100
+#define VIDTYPE_EXT_SWAP_UV		0x200
+#define VIDTYPE_EXT_VDIN_QMS_PLUS       0x400
+#define VIDTYPE_EXT_FRC_LINK		0x800
+#define VIDTYPE_EXT_ROTATION		0x1000
+#define VIDTYPE_EXT_COMPOSITION		0x2000
+#define VIDTYPE_EXT_SCALER		0x4000
+#define VIDTYPE_EXT_DETUNNEL_ENABLED    0x8000
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
@@ -605,6 +614,25 @@ struct vf_lcevc_t {
 	u32 len;
 };
 
+struct afrc_frame_info_t {
+	u64 luma_head_addr;
+	u64 luma_body_addr;
+	u32 luma_dict_en; /* dictionary mode */
+	u32 luma_comp_target; /* 12,16,20...48,step =4, compression ratio */
+	u32 luma_header_en;  /* only no header can used mmu */
+
+	u64 chrm_head_addr;
+	u64 chrm_body_addr;
+	u32 chrm_dict_en;
+	u32 chrm_comp_target;
+	u32 chrm_header_en;
+
+	u32 mmu_mode_en; /* mmu enable */
+	u32 mmu_page_mode; /* default 4k page, (0:4k, 1: 8k) */
+	u32 mmu_baddr0; /* luma page address(table address) */
+	u32 mmu_baddr1; /* chroma page address(table address) */
+};
+
 enum dec_set_screen_mode_t {
 	INVALID = 0,
 	VIDEO_OPTION_NORMAL = 1,
@@ -652,6 +680,8 @@ enum vdin_channel_id_e {
 
 struct vf_vrr_param_s {
 	u32 vin_base_fps;
+	u32 qms_en;
+	u32 qms_in_fps;
 };
 
 struct vframe_s {
@@ -659,12 +689,14 @@ struct vframe_s {
 	u32 index_disp;
 	u32 frame_index;
 	u32 type;
+	u32 type_dw;
 	u32 type_ext;
 	u32 type_backup;
 	u32 type_original;
 	u32 blend_mode;
 	u32 duration;
 	u32 duration_pulldown;
+	u32 fps;
 	u32 pts;
 	u64 pts_us64;
 	bool next_vf_pts_valid;
@@ -885,6 +917,7 @@ struct vframe_s {
 	enum dec_fence_status_t dec_fence_status;
 	u32 decoder_instid;
 	struct vf_vrr_param_s vf_vrr_param;
+	struct afrc_frame_info_t afrc_info;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1

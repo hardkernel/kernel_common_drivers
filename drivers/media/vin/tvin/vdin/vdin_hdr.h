@@ -19,6 +19,9 @@
 #define K_DV_META_RAW_BUFF0		(PAGE_SIZE * 5)
 #define K_DV_META_RAW_BUFF1		PAGE_SIZE
 
+extern unsigned int dv_dbg_log;
+extern unsigned int dv_dbg_log_du;
+
 void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enable);
 void vdin_wrmif2_initial(struct vdin_dev_s *devp);
 void vdin_wrmif2_addr_update(struct vdin_dev_s *devp);
@@ -28,6 +31,9 @@ bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp);
 bool vdin_dv_is_visf_data(struct vdin_dev_s *devp);
 bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp);
 bool vdin_dv_is_sink_led(struct vdin_dev_s *devp);
+bool vdin_dv_is_source_led(struct vdin_dev_s *devp);
+bool vdin_dv_is_hw2(struct vdin_dev_s *devp);
+bool vdin_dv_is_hw5(struct vdin_dev_s *devp);
 bool vdin_dv_not_game_mode(struct vdin_dev_s *devp);
 #else
 static inline bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
@@ -46,6 +52,21 @@ static inline bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 }
 
 static inline bool vdin_dv_is_sink_led(struct vdin_dev_s *devp)
+{
+	return false;
+}
+
+static inline bool vdin_dv_is_source_led(struct vdin_dev_s *devp)
+{
+	return false;
+}
+
+static inline bool vdin_dv_is_hw2(struct vdin_dev_s *devp)
+{
+	return false;
+}
+
+static inline bool vdin_dv_is_hw5(struct vdin_dev_s *devp)
 {
 	return false;
 }

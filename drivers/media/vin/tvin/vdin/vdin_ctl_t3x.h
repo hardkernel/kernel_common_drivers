@@ -72,6 +72,9 @@ struct vdin_pre_hsc_s {
 	u32 prehsc_coef_3;
 };
 
+extern int vdin_ctl_dbg;
+extern int vdin_dbg_en;
+
 /* ************************************************************************ */
 /* ******** GLOBAL FUNCTION CLAIM ******** */
 /* ************************************************************************ */
@@ -85,7 +88,8 @@ void vdin_set_double_write_regs_t3x(struct vdin_dev_s *devp);
 void vdin_set_default_regmap_t3x(struct vdin_dev_s *devp);
 void vdin_hw_enable_t3x(struct vdin_dev_s *devp);
 void vdin_hw_disable_t3x(struct vdin_dev_s *devp);
-void vdin_set_cutwin_t3x(struct vdin_dev_s *devp);
+void vdin_cfg_cutwin_regs_t3x(struct vdin_dev_s *devp,
+	unsigned int rdma_enable, struct tvin_cutwin_s *cutwin_s);
 void vdin_set_decimation_t3x(struct vdin_dev_s *devp);
 void vdin_fix_nonstd_vsync_t3x(struct vdin_dev_s *devp);
 unsigned int vdin_get_meas_h_cnt64_t3x(unsigned int offset);
@@ -104,7 +108,7 @@ void vdin_wr_reverse_t3x(unsigned int offset, bool h_reverse,
 void vdin_set_hv_scale_t3x(struct vdin_dev_s *devp);
 void vdin_set_bitdepth_t3x(struct vdin_dev_s *devp);
 void vdin_set_cm2_t3x(unsigned int offset, unsigned int w,
-		  unsigned int h, unsigned int *data, bool cm_enable);
+		  unsigned int h, unsigned int *data);
 void vdin_force_go_filed_t3x(struct vdin_dev_s *devp);
 void vdin_dolby_config_t3x(struct vdin_dev_s *devp);
 void vdin_dolby_addr_update_t3x(struct vdin_dev_s *devp, unsigned int index);
@@ -158,5 +162,7 @@ void vdin_clr_write_done_t3x(struct vdin_dev_s *devp);
 unsigned int vdin_get_div_t3x(struct vdin_dev_s *devp);
 void vdin_set_scl_mode_t3x(struct vdin_dev_s *devp, bool on_off);
 void vdin_set_dsc_config_t3x(struct vdin_dev_s *devp, bool on_off);
-
+void vdin_get_hist_val_t3x(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp);
+void vdin_hist_init_t3x(struct vdin_dev_s *devp);
+void vdin_clear_vdi6_afifo_overflow_t3x(unsigned int offset);
 #endif

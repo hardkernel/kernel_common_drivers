@@ -725,8 +725,8 @@ enum vdin_vdi_x_t3x_e {
 //Bit 10          reg_burst_length_add_en         // unsigned ,   RW, default = 0
 //Bit  9: 8       reg_format_mode                 // unsigned ,   RW, default = 2
 //data format 0 : YUV444  1:YUV422  2:YUV420  3:RGB
-//Bit  7: 4       reg_compbits_c                  // unsigned ,   RW, default = 10 chroma bitwidth
-//Bit  3: 0       reg_compbits_y                  // unsigned ,   RW, default = 10 luma bitwidth
+//Bit  7: 4       reg_comp_bits_c                  // unsigned ,   RW, default = 10 chroma bitwidth
+//Bit  3: 0       reg_comp_bits_y                  // unsigned ,   RW, default = 10 luma bitwidth
 #define VDIN0_AFBCE_MODE_EN                        0x0221
 //Bit 31:28       reserved
 //Bit 27:26       reserved
@@ -789,15 +789,15 @@ enum vdin_vdi_x_t3x_e {
 //2: 2:1 data drop (1  3  5 7..) pixels kept  3: avg
 #define VDIN0_AFBCE_DEFCOLOR_1                     0x0223
 //Bit 31:24       reserved
-//Bit 23:12       reg_enc_defaultcolor_3          // unsigned ,   RW, default = 4095
+//Bit 23:12       reg_enc_default_color_3          // unsigned ,   RW, default = 4095
 //Picture wise default color value in [Y Cb Cr]
-//Bit 11: 0       reg_enc_defaultcolor_0          // unsigned ,   RW, default = 4095
+//Bit 11: 0       reg_enc_default_color_0          // unsigned ,   RW, default = 4095
 //Picture wise default color value in [Y Cb Cr]
 #define VDIN0_AFBCE_DEFCOLOR_2                     0x0224
 //Bit 31:24       reserved
-//Bit 23:12       reg_enc_defaultcolor_2          // unsigned ,   RW, default = 4095
+//Bit 23:12       reg_enc_default_color_2          // unsigned ,   RW, default = 4095
 //wise default color value in [Y Cb Cr]
-//Bit 11: 0       reg_enc_defaultcolor_1          // unsigned ,   RW, default = 4095
+//Bit 11: 0       reg_enc_default_color_1          // unsigned ,   RW, default = 4095
 //wise default color value in [Y Cb Cr]
 #define VDIN0_AFBCE_QUANT_ENABLE                   0x0225
 //Bit 31:12       reserved

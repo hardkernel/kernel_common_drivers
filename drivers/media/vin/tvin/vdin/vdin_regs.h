@@ -21,6 +21,7 @@
 
 #include "vdin_regs_s5.h"
 #include "vdin_regs_t3x.h"
+#include "vdin_regs_t6w.h"
 
 //VPU QoS
 #define VPU_WRARB_UGT_L2C1 0x27c3
@@ -266,7 +267,10 @@
 /* 12:0 lfifo_buf_size */
 #define VDIN_LFIFO_CTRL             ((0x121a))/* + 0xd0100000) */
 #define LFIFO_BUF_SIZE_BIT	0
-#define LFIFO_BUF_SIZE_WID	14
+#define LFIFO_BUF_SIZE_WID	13
+/* pps reg_scl_mode 0-before 1-after*/
+/* #define reg_scl_mode_BIT	16 */
+/* #define reg_scl_mode_WID	1 */
 /* tm2 new add begin */
 #define CH0_OUT_EN_BIT	17
 #define CH1_OUT_EN_BIT	18
@@ -474,6 +478,8 @@
 #define VDIN_CHROMA_ADDR_PORT             ((0x122b))/* + 0xd0100000) */
 #define VDIN_CHROMA_DATA_PORT             ((0x122c))/* + 0xd0100000) */
 #define VDIN_CM_BRI_CON_CTRL              ((0x122d))/* + 0xd0100000) */
+#define VDIN_HDMIRX_CTRL                    0x122e
+
 /* Bit 17  clk_cyc_cnt_clr, if true, clear this register */
 /* Bit 16 if true, use vpu clock to count one line,
  * otherwise use actually hsync to count line_cnt
@@ -944,6 +950,20 @@
 #define VSHRK_IN_HSIZE_WID	13
 #define VSHRK_IN_VSIZE_BIT	16
 #define VSHRK_IN_VSIZE_WID	13
+//dither
+#define VDIN_DITH_CTRL		0x12e0
+#define VDIN_DITH_LUT_1		0x12e1
+#define VDIN_DITH_LUT_2		0x12e2
+#define VDIN_DITH_LUT_3		0x12e3
+#define VDIN_DITH_LUT_4		0x12e4
+#define VDIN_DITH_LUT_5		0x12e5
+#define VDIN_DITH_LUT_6		0x12e6
+#define VDIN_DITH_LUT_7		0x12e7
+#define VDIN_DITH_LUT_8		0x12e8
+#define VDIN_DITH_LUT_9		0x12e9
+#define VDIN_DITH_LUT_10	0x12ea
+#define VDIN_DITH_LUT_11	0x12eb
+#define VDIN_DITH_LUT_12	0x12ec
 
 #define VDIN_HSK_CTRL	0x12ef
 #define HSK_MD_BIT	16
@@ -1065,10 +1085,16 @@
 #define VDIN_TOP_SECURE_REG0		0x410e
 #define VDIN_TOP_SECURE_REG1		0x410f
 
-#define VDIN_SECURE_RX_IN_DW			0x4116
+#define VDIN_SECURE_RX_IN_DW		0x4116
 #define VDIN_TOP_MEAS_RO_LINE		0x4117
 #define VDIN_TOP_MEAS_RO_PIXF		0x4118
 #define VDIN_TOP_MEAS_RO_PIXB		0x4119
+#define VDIN_TOP_SIZE			0x4120
+#define VDIN_VFCE_TRIGGER		0x4121
+#define VDIN_DETUNNEL_HSIZE		0x4122
+#define VDIN_DETUNNEL_CTRL		0x4123
+#define VDIN_DV_HOLD_CTRL		0x4124
+#define VDIN_WR_DONE_RO			0x4125
 
 /* used by other modules,indicates that MPEG input.
  *0: mpeg source to NR directly,

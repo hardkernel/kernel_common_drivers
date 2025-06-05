@@ -36,7 +36,7 @@ struct vdin_mmu_box {
 	struct mutex mutex; /* box mutex */
 	struct list_head list;
 	struct sc_list_expand exp_sc_list;
-	struct codec_mm_scatter *sc_list[1];
+	struct codec_mm_scatter *sc_list[16]; /* for UBSAN check */
 };
 
 #define MAX_KEEP_FRAME 4
