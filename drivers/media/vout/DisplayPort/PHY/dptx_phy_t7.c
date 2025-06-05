@@ -90,6 +90,7 @@ static void dptx_ana_phy_set(struct dptx_drv_s *dptx, u8 status)
 {
 	//u32 flag, data_lane0_aux, data_lane1_aux, data_lane;
 	struct dptx_phy_cfg_s *phy = &dptx->phy_cfg;
+	u32 vswing;
 
 	DPTXPR(dptx->idx, LOG_I, "%s: %u", __func__, status);
 
@@ -98,14 +99,16 @@ static void dptx_ana_phy_set(struct dptx_drv_s *dptx, u8 status)
 	else
 		dptx1_ana_phy_cntl_set(dptx, status);
 
-	if (status)
-		dptx_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00406243 | phy->vswing);
-
+	if (status) {
+		vswing = phy->vswing >= 0x3 ? phy->vswing : 0x3;
+		dptx_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00406240 | vswing);
+	}
 	//DPTXPR(dptx->idx, LOG_I, "phy lane_lock: 0x%x\n", phy_ctrl_p->lane_lock);
 }
 
 static void dptx_phy_enable_t7(struct dptx_drv_s *dptx)
 {
+	dptx->phy_cfg.vswing = 0x3;
 	dptx_ana_phy_set(dptx, 1);
 	dptx_dphy_set(dptx, 1);
 }
