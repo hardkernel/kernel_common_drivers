@@ -873,6 +873,18 @@
 		};
 	};
 
+	tdmb_off_pins: tdmb_off_pin {
+		mux { /* GPIOC_2, GPIOC_3, GPIOC_0, GPIOC_1, GPIOC_5, GPIOC_6 */
+			groups = "GPIOC_2",
+				"GPIOC_3",
+				"GPIOC_0",
+				"GPIOC_1",
+				"GPIOC_5",
+				"GPIOC_6";
+			function = "gpio_periphs";
+		};
+	};
+
 	dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
 			groups = "tsin_a_sop",

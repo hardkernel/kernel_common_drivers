@@ -1981,7 +1981,8 @@
 		amlogic_codec:t9015{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, s4_codec_T9015";
-			reg = <0x0 0xFE01A000 0x0 0x2000>;
+			reg = <0x0 0xFE01A000 0x0 0x24>, <0x0 0xFE330740 0x0 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tocodec_inout = <1>;
 			tdmout_index = <1>;
 			ch0_sel = <0>;
@@ -1996,7 +1997,8 @@
 		acodec:codec {
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t3_acodec";
-			reg = <0x0 0xfe01a000 0x0 0x1c>;
+			reg = <0x0 0xFE01A000 0x0 0x24>, <0x0 0xFE330740 0x0 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <2>;

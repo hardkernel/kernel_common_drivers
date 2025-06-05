@@ -320,7 +320,7 @@
 		/*avout mute gpio*/
 		//avout_mute-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
 		//spk_mute-gpios = <&gpio GPIOA_5 GPIO_ACTIVE_LOW>;
-
+		av_mute_sleep_time = <900>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
@@ -867,7 +867,7 @@
 			<&tdm_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-		pinctrl-1 = <&tdm_gpio>;
+		pinctrl-1 = <&tdmb_gpio>;
 #endif
 		/*
 		 * 0: tdmout_a;

@@ -952,7 +952,8 @@
 		amlogic_codec:t9015{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, s4_codec_T9015";
-			reg = <0xFE01A000 0x2000>;
+			reg = <0xFE01A000 0x24>, <0xFE330740 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tocodec_inout = <0>;
 			tdmout_index = <0>;
 			ch0_sel = <0>;

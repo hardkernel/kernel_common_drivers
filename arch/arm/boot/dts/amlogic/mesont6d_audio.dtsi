@@ -49,6 +49,13 @@
 			status = "okay";
 		};
 
+		amaudio: amaudio {
+			compatible = "amlogic, amaudio";
+			reg = <0xfe440000 0x10000>;
+			reg-names = "otp_tee_base";
+			status = "okay";
+		};
+
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
@@ -147,6 +154,7 @@
 		suspend-clk-off = <1>;
 		/* enable control gain */
 		ctrl_gain = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -269,6 +277,7 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 		suspend-clk-off = <1>;
+		is_arc = <1>;
 		status = "okay";
 	};
 
@@ -527,7 +536,7 @@
 		};
 	};
 
-	tdmout_b_gpio: tdmout_b_gpio {
+	tdmb_gpio: tdmb_gpio {
 		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_15",
 				"GPIOH_16",

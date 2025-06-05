@@ -316,7 +316,7 @@
 
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
-
+		av_mute_sleep_time = <900>;
 		status = "okay";
 
 		aml-audio-card,dai-link@0 {
@@ -907,6 +907,7 @@
 		ctrl_gain = <1>;
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -1038,6 +1039,7 @@
 		 *	EARC_RX,    11
 		 */
 		resample_module = <8>;
+		src-clk-freq = <491520000>;
 
 		status = "okay";
 	};

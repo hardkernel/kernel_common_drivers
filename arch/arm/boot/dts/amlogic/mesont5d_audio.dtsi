@@ -15,7 +15,8 @@
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, tm2_revb_acodec";
 			status = "okay";
-			reg = <0xff632000 0x1c>;
+			reg = <0xff632000 0x24>, <0xff600740 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <2>;
@@ -160,7 +161,7 @@
 			&tdmout_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-		pinctrl-1 = <&tdm_gpio>;
+		pinctrl-1 = <&tdmb_gpio>;
 
 		/* In for ACODEC_ADC */
 		tdmin-src-name = "acodec_adc";

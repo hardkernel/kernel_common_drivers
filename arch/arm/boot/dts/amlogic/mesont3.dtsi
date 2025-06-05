@@ -1387,7 +1387,8 @@
 		acodec:codec {
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t3_acodec";
-			reg = <0xfe01a000 0x1c>;
+			reg = <0xFE01A000 0x24>, <0xFE330740 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <2>;
@@ -1680,7 +1681,7 @@
 			reg = <0xfe39c000 0x10c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			status = "disabled";
+
 			reg-names = "hdmirx-arc";
 		};
 	};

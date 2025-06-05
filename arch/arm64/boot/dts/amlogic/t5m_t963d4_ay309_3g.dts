@@ -478,7 +478,7 @@
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
-
+		av_mute_sleep_time = <900>;
 		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
 		/* headphone insert det */
 		aml-audio-card,hp-det-gpio = <&analog_gpio CDAC_IOUT GPIO_ACTIVE_LOW>;
@@ -894,7 +894,7 @@
 			&tdm_d2_pins
 			&tdm_d3_pins
 			&tdm_clk_pins>;
-		pinctrl-1 = <&tdm_gpio>;
+		pinctrl-1 = <&tdmb_gpio>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1536,7 +1536,7 @@
 		};
 	};
 
-	tdm_gpio: tdm_gpio {
+	tdmb_gpio: tdmb_gpio {
 		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_15",
 				"GPIOH_16",

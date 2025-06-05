@@ -255,7 +255,7 @@
 
 		/* headphone insert det */
 		aml-audio-card,hp-det-gpio = <&gpio_analog CDAC_IOUT GPIO_ACTIVE_LOW>;
-
+		av_mute_sleep_time = <900>;
 		interrupts = <GIC_SPI 235 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
@@ -952,7 +952,7 @@
 		};
 	};
 
-	tdm_gpio: tdm_gpio {
+	tdmb_gpio: tdmb_gpio {
 		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_15",
 				"GPIOH_16",
@@ -1077,7 +1077,7 @@
 };
 
 &earc {
-	status = "disabled";
+	status = "okay";
 };
 
 &spicc0 {	//for TCON/SPINOR

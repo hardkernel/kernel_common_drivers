@@ -422,7 +422,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		avout_mute-gpios = <&gpio GPIOH_27 GPIO_ACTIVE_HIGH>;
-
+		av_mute_sleep_time = <900>;
 		/* headphone insert det */
 		aml-audio-card,hp-det-gpio = <&analog_gpio CDAC_IOUT GPIO_ACTIVE_LOW>;
 
@@ -790,7 +790,7 @@
 			<&tdm_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-		pinctrl-1 = <&tdm_gpio>;
+		pinctrl-1 = <&tdmb_gpio>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1156,7 +1156,7 @@
 
 &earc {
 	suspend-clk-off = <1>;
-	status = "disabled";
+	status = "okay";
 };
 
 &audio_data {
@@ -1435,7 +1435,7 @@
 		};
 	};
 
-	tdm_gpio: tdm_gpio {
+	tdmb_gpio: tdmb_gpio {
 		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_15",
 				"GPIOH_16",
@@ -1489,7 +1489,7 @@
 	ad82128: ad82128@34 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		reset_pin-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 		reg = <0x34>;
 		status = "okay";
 	};

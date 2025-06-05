@@ -390,6 +390,7 @@
 
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+		av_mute_sleep_time = <900>;
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
@@ -733,7 +734,7 @@
 			&tdm_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-		pinctrl-1 = <&tdm_gpio>;
+		pinctrl-1 = <&tdmb_gpio>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -796,8 +797,9 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 		src-clk-freq = <491520000>;
-		pinctrl-names = "pdm_pins";
+		pinctrl-names = "pdm_pins", "pdm_a_gpio";
 		pinctrl-0 = <&pdmin>;
+		pinctrl-1 = <&pdm_sleep>;
 
 		/* mode 0~4, default:1 */
 		filter_mode = <1>;
@@ -908,6 +910,7 @@
 		 */
 		resample_module = <8>;
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -920,6 +923,7 @@
 
 		/*this resample is only used for loopback_A.*/
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -1012,6 +1016,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
+		src-clk-freq = <491520000>;
 
 		status = "okay";
 	};
@@ -1067,6 +1072,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
+		src-clk-freq = <491520000>;
 
 		status = "disabled";
 	};
@@ -1075,7 +1081,7 @@
 &earc {
 	earctx_port = <1>;
 	suspend-clk-off = <1>;
-	status = "disabled";
+	status = "okay";
 };
 
 &audio_data {
@@ -1332,13 +1338,13 @@
 		};
 	};
 
-	tdm_gpio: tdm_gpio {
+	tdmb_gpio: tdmb_gpio {
 		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_15",
 				"GPIOH_16",
 				"GPIOH_17";
 			function = "gpio_periphs";
-			output-low;
+			input-enable;
 		};
 	};
 
@@ -1349,6 +1355,17 @@
 				"pdm_din1_h14",
 				"pdm_din2_h22";
 				function = "pdm";
+		};
+	};
+
+	pdm_sleep:pdm_sleep {
+		mux {
+			groups = "GPIOH_19",
+				"GPIOH_18",
+				"GPIOH_14",
+				"GPIOH_22";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 };

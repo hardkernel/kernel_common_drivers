@@ -273,7 +273,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		avout_mute-gpios = <&gpio_ao GPIOD_6 GPIO_ACTIVE_HIGH>;
-
+		av_mute_sleep_time = <900>;
 		/* headphone insert det */
 		aml-audio-card,hp-det-gpio = <&gpio_analog CDAC_IOUT GPIO_ACTIVE_LOW>;
 
@@ -965,7 +965,7 @@
 		};
 	};
 
-	tdm_gpio: tdm_gpio {
+	tdmb_gpio: tdmb_gpio {
 		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_15",
 				"GPIOH_16",
@@ -1090,7 +1090,7 @@
 };
 
 &earc {
-	status = "disabled";
+	status = "okay";
 };
 
 &spicc0 {	//for TCON/SPINOR

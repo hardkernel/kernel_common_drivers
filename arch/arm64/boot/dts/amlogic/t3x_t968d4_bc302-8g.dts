@@ -344,6 +344,7 @@
 
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+		av_mute_sleep_time = <900>;
 		/* headphone insert det */
 		aml-audio-card,hp-det-gpio = <&analog_gpio CDAC_IOUT GPIO_ACTIVE_LOW>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_EDGE_RISING>;
@@ -813,7 +814,7 @@
 			<&tdm_b_pins
 			&tdm_d0_pins
 			&tdmb_clk_pins>;
-		pinctrl-1 = <&tdm_gpio>;
+		pinctrl-1 = <&tdmb_gpio>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1662,7 +1663,7 @@
 			function = "tdm";
 		};
 	};
-	tdm_gpio: tdm_gpio {
+	tdmb_gpio: tdmb_gpio {
 		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_15",
 				"GPIOH_16",

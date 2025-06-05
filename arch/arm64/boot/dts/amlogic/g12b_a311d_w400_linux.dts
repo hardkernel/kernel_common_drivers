@@ -672,10 +672,11 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdm_a_pins
-			&tdm_d0_pins
+		pinctrl-0 = <&tdm_d0_pins
 			&tdm_d1_pins
 			&tdma_clk_pins>;
+		suspend-clk-off = <1>;
+		status = "okay";
 	};
 
 	aml_tdmb: tdmb {
@@ -685,8 +686,9 @@
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "clk_srcpll";
+		clock-names = "mclk", "mclk_pad", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
 		/* 0: mclk_0; 1: mclk_1 */
@@ -704,6 +706,8 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+		suspend-clk-off = <1>;
+		status = "okay";
 	};
 
 	aml_tdmc: tdmc {
@@ -721,6 +725,8 @@
 		pinctrl-0 = <&tdmc_mclk &tdmout_c &tdmin_c>;
 		 /* 0: mclk_0; 1: mclk_1 */
 		/*mclk_pad = <1>;*/
+		suspend-clk-off = <1>;
+		status = "okay";
 	};
 
 	tdmlb: tdm@3 {
@@ -779,9 +785,10 @@
 				"spdif_pins_mute";
 		pinctrl-0 = <&spdifout>;
 		pinctrl-1 = <&spdifout_a_mute>;
-		status = "okay";
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
+		suspend-clk-off = <1>;
+		status = "okay";
 	};
 	aml_spdif_b: spdif_b {
 		compatible = "amlogic, g12a-snd-spdif-b";
@@ -791,6 +798,7 @@
 				&clkaudio CLKID_AUDIO_SPDIFOUTB_CTRL>;
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -810,6 +818,7 @@
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 		filter_mode = <1>; /* mode 0~4, defalut:1 */
+		start_clk_enable = <0>;
 		status = "okay";
 	};
 
@@ -885,6 +894,7 @@
 		 *	LOOPBACK, 7
 		 */
 		resample_module = <4>;
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -914,16 +924,6 @@
 }; /* end of audiobus */
 
 &pinctrl_periphs {
-	tdm_a_pins: tdm_a_pins {
-		mux { /* GPIOX_11, GPIOX_10, GPIOX_9, GPIOX_8 */
-			groups = "tdm_a_sclk",
-				"tdm_a_fs",
-				"tdm_a_dout0",
-				"tdm_a_din1";
-			function = "tdm_a";
-		};
-	};
-
 	tdmb_mclk: tdmb_mclk {
 		mux {
 			groups = "mclk0_a";
@@ -1007,9 +1007,10 @@
 	//};
 
 	pdmin: pdmin {
-		mux { /* GPIOC_0, GPIOC_4 */
-			groups = "pdm_din0_c",
-				"pdm_dclk_c";
+		mux { /* GPIOA_6, GPIOA_7, GPIOA_8 */
+			groups = "pdm_din2_a",
+				"pdm_dclk_a",
+				"pdm_din0_a";
 			function = "pdm";
 		};
 	};

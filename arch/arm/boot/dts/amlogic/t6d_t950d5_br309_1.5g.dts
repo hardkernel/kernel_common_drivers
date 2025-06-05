@@ -347,6 +347,7 @@
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+		av_mute_sleep_time = <600>;
 		/* headphone insert det */
 		aml-audio-card,hp-det-gpio = <&gpio_analog CDAC_IOUT GPIO_ACTIVE_LOW>;
 		interrupts = <GIC_SPI 149 IRQ_TYPE_EDGE_RISING>;
@@ -406,8 +407,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				prefix-names = "AMP", "AMP1";
-				sound-dai = <&tas5707_1b &tas5707_1d &acodec>;
+				prefix-names = "AMP","AMP1","AMP2";
+				sound-dai = <&acodec &tas5707_1b &tas5707_1d>;
 			};
 		};
 
@@ -1062,7 +1063,7 @@
 			&tdmb_pin
 			&tdm_d0_pins
 			&tdmb_clk_pins>;
-	pinctrl-1 = <&tdmout_b_gpio>;
+	pinctrl-1 = <&tdmb_gpio>;
 };
 
 &pdma {

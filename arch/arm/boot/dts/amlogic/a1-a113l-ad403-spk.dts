@@ -196,7 +196,7 @@
 				dai-tdm-slot-rx-mask = <1 1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
+				system-clock-frequency = <614400000>;
 			};
 			tdmbcodec: codec {
 				sound-dai = <&a1_codec>;
@@ -231,9 +231,12 @@
 		};
 #endif
 		aml-audio-card,dai-link@4 {
+			format = "i2s";
 			mclk-fs = <256>;
 			continuous-clock;
 			suffix-name = "alsaPORT-loopback";
+			bitclock-master = <&loopback>;
+			frame-master = <&loopback>;
 			cpu {
 				sound-dai = <&loopback>;
 				system-clock-frequency = <12288000>;
@@ -393,8 +396,7 @@
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmout_a &tdmin_a>;
 		power-domains = <&pwrdm PDID_AUDIO>;
-		src-clk-freq = <614400000>;
-		ctrl_gain = <1>;
+
 		status = "okay";
 	};
 
@@ -427,7 +429,7 @@
 		power-domains = <&pwrdm PDID_AUDIO>;
 
 		src-clk-freq = <614400000>;
-		ctrl_gain = <1>;
+
 		status = "okay";
 	};
 
@@ -447,8 +449,7 @@
 		 * pinctrl-0 = <&spdifin>;
 		 */
 		power-domains = <&pwrdm PDID_AUDIO>;
-		src-clk-freq = <614400000>;
-		ctrl_gain = <1>;
+
 		status = "disabled";
 	};
 
@@ -472,9 +473,9 @@
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
-		src-clk-freq = <614400000>;
+		sys-src-clk-freq = <614400000>;
 		/*power-domains = <&pwrdm PDID_PDM>;*/
-		ctrl_gain = <1>;
+
 		status = "okay";
 	};
 
@@ -590,7 +591,7 @@
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 0 0>;
 
-		src-clk-freq = <614400000>;
+		sys-src-clk-freq = <614400000>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;

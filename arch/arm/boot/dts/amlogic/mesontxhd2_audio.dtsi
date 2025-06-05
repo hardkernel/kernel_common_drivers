@@ -15,7 +15,7 @@
 		acodec:codec {
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t5w_acodec";
-			reg = <0xff632000 0x1c>, <0xff600740 0x4>;
+			reg = <0xff632000 0x24>, <0xff600740 0x4>;
 			reg-names = "acodec", "to_acodec";
 			tdmout_index = <1>;
 			tdmin_index = <1>;
@@ -136,6 +136,7 @@
 		suspend-clk-off = <1>;
 		/* enable control gain */
 		ctrl_gain = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -201,6 +202,7 @@
 		/* enable control gain */
 		tdmin-src-name = "hdmirx";
 		ctrl_gain = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -401,7 +403,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
-
+		src-clk-freq = <491520000>;
 		/* define loopack with pdm mic. */
 		mic-src = <&pdma>;
 		status = "okay";

@@ -360,7 +360,7 @@
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOH_2 GPIO_ACTIVE_HIGH>;
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
-
+		av_mute_sleep_time = <900>;
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
@@ -1020,6 +1020,7 @@
 		 *	EARC_RX,    11
 		 */
 		resample_module = <8>;
+		src-clk-freq = <491520000>;
 
 		status = "okay";
 	};

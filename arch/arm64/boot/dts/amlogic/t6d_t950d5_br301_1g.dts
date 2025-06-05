@@ -321,6 +321,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+		av_mute_sleep_time = <600>;
 		spk_mute-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_LOW>;
 		spk_mute_sleep_time = <800>;
 
@@ -1030,7 +1031,7 @@
 };
 
 &tdmb {
-	pinctrl-names = "tdm_pins","tdm_gpio";
+	pinctrl-names = "tdm_pins","tdmout_a_gpio";
 	pinctrl-0 = <
 			&tdmb_pin
 			&tdm_d0_pins

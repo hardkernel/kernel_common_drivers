@@ -116,7 +116,8 @@
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, a1_acodec";
 		status = "okay";
-		reg = <0x0 0xFE004800 0x0 0x20>;
+		reg = <0x0 0xFE004800 0x0 0x24>, <0x0 0xFE050740 0x0 0x4>;
+		reg-names = "acodec", "to_acodec";
 		tdmout_index = <1>;
 		tdmin_index = <1>;
 		dat0_ch_sel = <0>;

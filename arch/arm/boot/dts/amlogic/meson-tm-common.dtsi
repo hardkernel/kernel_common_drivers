@@ -73,7 +73,8 @@
 		compatible = "amlogic, tm2_revb_acodec";
 		power-domains = <&pwrc PWRC_TM2_ACODEC_ID>;
 		status = "okay";
-		reg = <0xff632000 0x1c>;
+		reg = <0xff632000 0x24>, <0xff600740 0x4>;
+		reg-names = "acodec", "to_acodec";
 		lane_offset = <4>;
 		tdmout_index = <0>;
 		tdmin_index = <0>;

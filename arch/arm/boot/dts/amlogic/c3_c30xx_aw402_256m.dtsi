@@ -254,14 +254,16 @@
 
 	acodec:acodec {
 		#sound-dai-cells = <0>;
-		compatible = "amlogic, c3_acodec";
+		compatible = "amlogic, t3_acodec";
 		status = "okay";
-		reg = <0xFE01A000 0x20>;
+		reg = <0xFE01A000 0x24>, <0xFE330740 0x4>;
+		reg-names = "acodec", "to_acodec";
 		tdmout_index = <0>;
 		tdmin_index = <0>;
 		dat0_ch_sel = <0>;
 		reset-names = "acodec";
 		resets = <&reset RESET_ACODEC>;
+		diff_input = <1>;
 		//power-domains = <&pwrdm PDID_CX_ACODEC>;
 	};
 
@@ -610,6 +612,7 @@
 		//power-domains = <&pwrdm PDID_CX_AUDIO>;
 		/* tdmin data comes from ACODEC adc */
 		tdmin-src-name = "acodec_adc";
+		src-clk-freq = <1155072000>;
 
 		status = "okay";
 	};
@@ -742,6 +745,7 @@
 		/*this resample is only used for loopback_A.*/
 		/*only support 16000 or 48000Hz for capture*/
 		capture_sample_rate = <16000>;
+		src-clk-freq = <1155072000>;
 
 		status = "okay";
 	};
@@ -801,6 +805,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 		//power-domains = <&pwrdm PDID_CX_AUDIO>;
+		src-clk-freq = <1155072000>;
 
 		status = "okay";
 	};

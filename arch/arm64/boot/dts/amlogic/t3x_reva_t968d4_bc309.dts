@@ -619,6 +619,7 @@
 
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+		av_mute_sleep_time = <900>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
@@ -1212,7 +1213,7 @@
 			<&tdm_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-		pinctrl-1 = <&tdm_gpio>;
+		pinctrl-1 = <&tdmb_gpio>;
 #endif
 		/*
 		 * 0: tdmout_a;
@@ -1991,7 +1992,7 @@
 			function = "tdm";
 		};
 	};
-	tdm_gpio: tdm_gpio {
+	tdmb_gpio: tdmb_gpio {
 		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
 			groups ="GPIOH_15",
 				"GPIOH_16",
