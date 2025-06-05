@@ -884,6 +884,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 		mvsps->more_4k = 0;
 
 	mvsps->more_60 = 0;
+	mvsps->pm_state = priv->pm_state;
 	if (priv->vpu_data->slice_mode == 1) {
 		if (drm_mode_vrefresh(mode) > 60 || priv->of_conf.force_slice)
 			mvsps->more_60 = 1;

@@ -87,6 +87,16 @@ struct meson_of_conf {
 	u32 max_fb_size;
 };
 
+enum drm_pm_state {
+	DRM_PM_NONE = 0,
+	DRM_PM_SUSPEND,
+	DRM_PM_FREEZE,
+	DRM_PM_POWEROFF,
+	DRM_PM_RESUME,
+	DRM_PM_THAW,
+	DRM_PM_RESTORE,
+};
+
 struct meson_drm_param {
 	int crtc_force_hint;
 	int flush_time;
@@ -161,6 +171,7 @@ struct meson_drm {
 	u32 creat_rdma_table;
 	ktime_t start;
 	struct drm_mode_set logo_set[MESON_MAX_CRTC];
+	enum drm_pm_state pm_state;
 };
 
 /*component bind functions*/

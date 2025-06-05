@@ -768,6 +768,7 @@ struct meson_vpu_sub_pipeline_state {
 	u32 global_afbc;
 	int sec_src;
 	int vsync_disabled;
+	enum drm_pm_state pm_state;
 };
 
 struct meson_video_sub_pipeline_state {

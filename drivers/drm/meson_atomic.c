@@ -637,17 +637,16 @@ meson_drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 	}
 }
 
-void meson_atomic_helper_commit_tail_rpm(struct drm_atomic_state *old_state)
+void  __meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	struct meson_drm *priv = dev->dev_private;
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
-	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
 
-	drm_atomic_helper_commit_planes(dev, old_state,
-					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
 	drm_atomic_helper_fake_vblank(old_state);
 
@@ -668,7 +667,7 @@ void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 	struct drm_connector_state *new_conn_state, *old_conn_state;
 	int i;
 
-	/*do  update which dont need       pipe change.*/
+	/*modified by meson to do update which don't need pipe change.*/
 	for_each_oldnew_connector_in_state(old_state, conn, old_conn_state, new_conn_state, i) {
 		if (conn->connector_type == DRM_MODE_CONNECTOR_WRITEBACK) {
 			drm_writeback = connector_to_am_writeback(conn);
@@ -681,7 +680,6 @@ void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 			meson_conn->update(new_conn_state, old_conn_state);
 	}
 
-	/*use */
-	meson_atomic_helper_commit_tail_rpm(old_state);
+	__meson_atomic_helper_commit_tail(old_state);
 }
 

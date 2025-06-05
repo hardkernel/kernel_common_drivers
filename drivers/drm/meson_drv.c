@@ -756,9 +756,11 @@ static int am_meson_drm_pm_suspend(struct device *dev)
 		DRM_ERROR("%s: Failed to get drm device!\n", __func__);
 		return 0;
 	}
+	priv->pm_state = DRM_PM_SUSPEND;
 	drm_kms_helper_poll_disable(drm);
 	am_meson_drm_fb_suspend(drm);
 	priv->state = drm_atomic_helper_suspend(drm);
+	priv->pm_state = DRM_PM_NONE;
 	if (IS_ERR(priv->state)) {
 		am_meson_drm_fb_resume(drm);
 		drm_kms_helper_poll_enable(drm);

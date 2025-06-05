@@ -1489,6 +1489,9 @@ static void osd_hw_disable(struct meson_vpu_block *vblk,
 	struct meson_vpu_osd *osd;
 	struct osd_mif_reg_s *reg;
 	u8 version;
+	enum drm_pm_state pm_state;
+	struct meson_vpu_sub_pipeline_state *mvsps =
+		priv_to_sub_pipeline_state(sub_pipeline->obj.state);
 
 	if (!vblk) {
 		MESON_DRM_BLOCK("disable break for NULL.\n");
@@ -1498,9 +1501,10 @@ static void osd_hw_disable(struct meson_vpu_block *vblk,
 	osd = to_osd_block(vblk);
 	reg = osd->reg;
 	version = vblk->pipeline->osd_version;
+	pm_state = mvsps->pm_state;
 
 	/*G12B should always enable,avoid afbc decoder error*/
-	if (version != OSD_V2 && version != OSD_V3)
+	if ((version != OSD_V2 && version != OSD_V3) || pm_state == DRM_PM_SUSPEND)
 		osd_block_enable(vblk, sub_pipeline->reg_ops, reg, 0);
 	MESON_DRM_BLOCK("%s disable done.\n", osd->base.name);
 }
