@@ -57,6 +57,8 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_dbg_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming);
 void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
 
+void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv);
+
 /* tcon debug */
 int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 ssize_t lcd_tcon_debug_show(struct device *dev, struct device_attribute *attr, char *buf);
@@ -76,7 +78,6 @@ ssize_t lcd_tcon_rdma_dbg_show(struct device *dev, struct device_attribute *attr
 ssize_t lcd_tcon_rdma_dbg_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count);
 ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr, char *buf);
-ssize_t lcd_tcon_cmpr_dbg_show(struct device *dev, struct device_attribute *attr, char *buf);
 long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned long arg);
 #endif
 

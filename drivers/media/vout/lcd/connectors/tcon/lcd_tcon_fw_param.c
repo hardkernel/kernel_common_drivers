@@ -229,8 +229,8 @@ void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_fw.base_timing->de_hend = pdrv->config.timing.hend;
 	lcd_tcon_fw.base_timing->de_vstart = pdrv->config.timing.vstart;
 	lcd_tcon_fw.base_timing->de_vend = pdrv->config.timing.vend;
-	lcd_tcon_fw.base_timing->pre_de_h = 8;
-	lcd_tcon_fw.base_timing->pre_de_v = 8;
+	lcd_tcon_fw.base_timing->pre_de_h = pdrv->config.timing.pre_de_h;
+	lcd_tcon_fw.base_timing->pre_de_v = pdrv->config.timing.pre_de_v;
 
 	lcd_tcon_fw.base_timing->hsw = pdrv->config.timing.act_timing.hsync_width;
 	lcd_tcon_fw.base_timing->hbp = pdrv->config.timing.act_timing.hsync_bp;

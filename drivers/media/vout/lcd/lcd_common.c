@@ -34,6 +34,7 @@
 #include "lcd_common.h"
 #include "lcd_reg.h"
 #include "lcd_clk/lcd_clk_config.h"
+#include "connectors/lcd_connector.h"
 
 int strnum_get_num(const char *str, struct num_str_s *arr, int size_arr, int dft)
 {
@@ -1482,6 +1483,12 @@ void lcd_base_to_enc_timing_init_config(struct aml_lcd_drv_s *pdrv)
 		pdrv->config.timing.ppc = 1;
 
 	lcd_enc_timing_init_config(pdrv);
+
+#ifdef CONFIG_AMLOGIC_LCD_TCON
+	if (pdrv->config.basic.lcd_type == LCD_MLVDS ||
+	    pdrv->config.basic.lcd_type == LCD_P2P)
+		lcd_tcon_fw_base_timing_update(pdrv);
+#endif
 }
 
 //h_timing change for multi ppc if needed

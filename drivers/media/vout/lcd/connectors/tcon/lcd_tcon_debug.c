@@ -335,6 +335,24 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
+static void lcd_tcon_lut_status_print(struct lcd_tcon_ctrl_s *tcon_ctrl, char *lut_str)
+{
+	pr_info("%s:\n"
+		"acc:    %d\n"
+		"od:     %d\n"
+		"lod:    %d\n"
+		"vac:    %d\n"
+		"demura: %d\n"
+		"dither: %d\n\n",
+		lut_str,
+		!!(tcon_ctrl->ctrl_val & TCON_FW_LUT_ACC),
+		!!(tcon_ctrl->ctrl_val & TCON_FW_LUT_OD),
+		!!(tcon_ctrl->ctrl_val & TCON_FW_LUT_LOD),
+		!!(tcon_ctrl->ctrl_val & TCON_FW_LUT_VAC),
+		!!(tcon_ctrl->ctrl_val & TCON_FW_LUT_DEMURA),
+		!!(tcon_ctrl->ctrl_val & TCON_FW_LUT_DITHER));
+}
+
 ssize_t lcd_tcon_debug_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -560,64 +578,31 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 		if (!tcon_fw || !tcon_fw->cmd_handler)
 			goto lcd_tcon_debug_store_err;
 		if (!parm[1]) {
+			tcon_ctrl.ctrl_val = 0;
 			tcon_ctrl.ctrl_mask = TCON_FW_LUT_MASK;
 			tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_VALID_GET;
 			ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
 			if (ret)
 				goto lcd_tcon_debug_store_err;
-			pr_info("lut_valid:\n"
-				"acc:    %d\n"
-				"od:     %d\n"
-				"lod:    %d\n"
-				"vac:    %d\n"
-				"demura: %d\n"
-				"dither: %d\n",
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_ACC),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_OD),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_LOD),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_VAC),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DEMURA),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DITHER));
+			lcd_tcon_lut_status_print(&tcon_ctrl, "lut_valid");
 
+			tcon_ctrl.ctrl_val = 0;
 			tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_MULTI_GET;
 			ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
 			if (ret)
 				goto lcd_tcon_debug_store_err;
-			pr_info("\nlut_multi:\n"
-				"acc:    %d\n"
-				"od:     %d\n"
-				"lod:    %d\n"
-				"vac:    %d\n"
-				"demura: %d\n"
-				"dither: %d\n",
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_ACC),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_OD),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_LOD),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_VAC),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DEMURA),
-				!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DITHER));
+			lcd_tcon_lut_status_print(&tcon_ctrl, "lut_multi");
 			goto lcd_tcon_debug_store_end;
 		}
 		if (strcmp(parm[1], "demo") == 0) {
 			if (!parm[2]) {
+				tcon_ctrl.ctrl_val = 0;
 				tcon_ctrl.ctrl_mask = TCON_FW_LUT_MASK;
 				tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_DEMO_GET;
 				ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
 				if (ret)
 					goto lcd_tcon_debug_store_err;
-				pr_info("lut_demo:\n"
-					"acc:    %d\n"
-					"od:     %d\n"
-					"lod:    %d\n"
-					"vac:    %d\n"
-					"demura: %d\n"
-					"dither: %d\n",
-					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_ACC),
-					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_OD),
-					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_LOD),
-					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_VAC),
-					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DEMURA),
-					!!(tcon_ctrl.ctrl_val & TCON_FW_LUT_DITHER));
+				lcd_tcon_lut_status_print(&tcon_ctrl, "lut_demo");
 				goto lcd_tcon_debug_store_end;
 			}
 			if (strcmp(parm[2], "acc") == 0)
@@ -697,9 +682,19 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 		else
 			goto lcd_tcon_debug_store_err;
 #endif
-#ifdef TCON_DBG_TIME
 	} else if (strcmp(parm[0], "isr") == 0) {
 		if (parm[1]) {
+			if (strcmp(parm[1], "bypass") == 0) {
+				if (parm[2]) {
+					ret = kstrtouint(parm[2], 10, &temp);
+					if (ret)
+						goto lcd_tcon_debug_store_err;
+					pdrv->tcon_isr_bypass = temp ? 1 : 0;
+				}
+				pr_info("tcon isr bypass: %d\n", pdrv->tcon_isr_bypass);
+				goto lcd_tcon_debug_store_end;
+			}
+#ifdef TCON_DBG_TIME
 			if (strcmp(parm[1], "dbg") == 0) {
 				if (parm[2]) {
 					ret = kstrtouint(parm[2], 16, &temp);
@@ -725,7 +720,9 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 				pdrv->tcon_isr_bypass = 0;
 				goto lcd_tcon_debug_store_end;
 			}
+#endif
 		}
+#ifdef TCON_DBG_TIME
 		pr_err("tcon dbg_log_en: %d\n",
 			(lcd_debug_print_flag & LCD_DBG_PR_TEST) ? 1 : 0);
 		if (lcd_debug_print_flag & LCD_DBG_PR_TEST)
@@ -1271,13 +1268,13 @@ ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr
 		memcpy(user_version, local_cfg->cur_core_header->version,
 			sizeof(local_cfg->cur_core_header->version));
 		len += sprintf((buf + len),
-			"bin info:\n"
-			"basic info:\n"
+			"current bin info:\n"
+			"basic:\n"
 			"userVersion=%s\n"
 			"userBinName=%s\n"
 			"h_active=%d\n"
 			"v_active=%d\n"
-			"block_ctrl=%d\n",
+			"block_ctrl=0x%x\n",
 			user_version,
 			local_cfg->cur_core_header->name,
 			local_cfg->cur_core_header->h_active,
@@ -1292,30 +1289,7 @@ ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr
 			local_cfg->cur_core_ext_header->framerate_max);
 	}
 	if (local_cfg->cur_user_info && strlen(local_cfg->cur_user_info) > 0)
-		len += sprintf((buf + len), "\nuser info:\n%s\n", local_cfg->cur_user_info);
-
-	return len;
-}
-
-ssize_t lcd_tcon_cmpr_dbg_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
-	ssize_t len = 0;
-
-	if (!local_cfg)
-		return 0;
-
-	len += sprintf(buf,
-		"cmpr en        = %u\n"
-		"frame max bytes= %llu (%llu KB)\n"
-		"frame cur bytes= %llu (%llu KB)\n"
-		"num_p1         = %u\n",
-		local_cfg->cmpr_info.en,
-		local_cfg->cmpr_info.frame_max_bytes,
-		lcd_do_div(local_cfg->cmpr_info.frame_max_bytes, 1000),
-		local_cfg->cmpr_info.frame_cur_bytes,
-		lcd_do_div(local_cfg->cmpr_info.frame_cur_bytes, 1000),
-		local_cfg->cmpr_info.num_p1);
+		len += sprintf((buf + len), "\nuser:\n%s\n", local_cfg->cur_user_info);
 
 	return len;
 }
@@ -1328,7 +1302,6 @@ static struct device_attribute lcd_tcon_debug_attrs[] = {
 	__ATTR(tcon_pdf,  0644, lcd_tcon_pdf_dbg_show, lcd_tcon_pdf_dbg_store),
 	__ATTR(tcon_rdma, 0644, lcd_tcon_rdma_dbg_show, lcd_tcon_rdma_dbg_store),
 	__ATTR(tcon_info, 0444, lcd_tcon_info_dbg_show, NULL),
-	__ATTR(tcon_cmpr, 0444, lcd_tcon_cmpr_dbg_show, NULL),
 };
 
 /* **********************************

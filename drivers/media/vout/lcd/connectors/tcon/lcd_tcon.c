@@ -668,6 +668,7 @@ int lcd_tcon_core_update(struct aml_lcd_drv_s *pdrv)
 
 int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	unsigned long long local_time[2];
 	int ret;
 
@@ -676,7 +677,9 @@ int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv)
 		return -1;
 
 	local_time[0] = sched_clock();
+	tcon_fw->tcon_state &= ~TCON_FW_STATE_TCON_EN;
 	pdrv->status &= ~LCD_STATUS_TCON_RDY;
+
 	if (lcd_tcon_conf->tcon_disable)
 		lcd_tcon_conf->tcon_disable(pdrv);
 	if (pdrv->config.timing.switch_type != LCD_VMODE_SWITCH_MIN_WO_TCON_RST) {
@@ -694,6 +697,7 @@ int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv)
 
 int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	unsigned long long local_time[2];
 	int ret;
 
@@ -708,6 +712,7 @@ int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv)
 		lcd_tcon_conf->tcon_enable(pdrv);
 
 	pdrv->status |= LCD_STATUS_TCON_RDY;
+	tcon_fw->tcon_state |= TCON_FW_STATE_TCON_EN;
 
 	local_time[1] = sched_clock();
 	pdrv->proc_time.tcon_on_time = local_time[1] - local_time[0];
@@ -729,8 +734,8 @@ int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv)
 	if (lcd_tcon_conf->tcon_enable)
 		lcd_tcon_conf->tcon_enable(pdrv);
 
-	tcon_fw->tcon_state |= TCON_FW_STATE_TCON_EN;
 	pdrv->status |= LCD_STATUS_TCON_RDY;
+	tcon_fw->tcon_state |= TCON_FW_STATE_TCON_EN;
 
 	local_time[1] = sched_clock();
 	pdrv->proc_time.tcon_on_time = local_time[1] - local_time[0];
@@ -751,8 +756,9 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv)
 	LCDPR("lcd_debug: %s\n", __func__);
 
 	local_time[0] = sched_clock();
-	pdrv->status &= ~LCD_STATUS_TCON_RDY;
+
 	tcon_fw->tcon_state &= ~TCON_FW_STATE_TCON_EN;
+	pdrv->status &= ~LCD_STATUS_TCON_RDY;
 
 	/* release data*/
 	if (tcon_mm_table.version < 0xff)
@@ -1508,8 +1514,6 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 
 	if (tcon_fw->vsync_isr)
 		tcon_fw->vsync_isr(tcon_fw);
-
-	lcd_tcon_collect_cmpr_info(pdrv, &tcon_local_cfg.cmpr_info);
 
 	local_time[1] = sched_clock();
 	pdrv->proc_time.tcon_vs_isr_time = local_time[1] - local_time[0];
@@ -2621,16 +2625,6 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.reg_table_len = LCD_TCON_TABLE_LEN_T5D,
 	.core_reg_start = TCON_CORE_REG_START_T5D,
 
-	.reg_top_ctrl = REG_LCD_TCON_MAX,
-	.bit_en = BIT_TOP_EN_T5D,
-
-	.reg_core_od = REG_CORE_OD_T5D,
-	.bit_od_en = BIT_OD_EN_T5D,
-
-	.reg_ctrl_timing_base = REG_LCD_TCON_MAX,
-	.ctrl_timing_offset = CTRL_TIMING_OFFSET_T5D,
-	.ctrl_timing_cnt = CTRL_TIMING_CNT_T5D,
-
 	.axi_bank = LCD_TCON_AXI_BANK_T5D,
 
 	.rsv_mem_size    = 0x00402840, /* 4M more */
@@ -2660,16 +2654,6 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 	.reg_table_len = LCD_TCON_TABLE_LEN_T5,
 	.core_reg_start = TCON_CORE_REG_START_T5,
 	.top_reg_base = TCON_TOP_BASE,
-
-	.reg_top_ctrl = REG_LCD_TCON_MAX,
-	.bit_en = BIT_TOP_EN_T5,
-
-	.reg_core_od = REG_CORE_OD_T5,
-	.bit_od_en = BIT_OD_EN_T5,
-
-	.reg_ctrl_timing_base = REG_LCD_TCON_MAX,
-	.ctrl_timing_offset = CTRL_TIMING_OFFSET_T5,
-	.ctrl_timing_cnt = CTRL_TIMING_CNT_T5,
 
 	.axi_bank = LCD_TCON_AXI_BANK_T5,
 
@@ -2704,16 +2688,6 @@ static struct lcd_tcon_config_s tcon_data_t5m = {
 	.core_reg_start = TCON_CORE_REG_START_T5,
 	.top_reg_base = TCON_TOP_BASE,
 
-	.reg_top_ctrl = REG_LCD_TCON_MAX,
-	.bit_en = BIT_TOP_EN_T5,
-
-	.reg_core_od = REG_CORE_OD_T5,
-	.bit_od_en = BIT_OD_EN_T5,
-
-	.reg_ctrl_timing_base = REG_LCD_TCON_MAX,
-	.ctrl_timing_offset = CTRL_TIMING_OFFSET_T5,
-	.ctrl_timing_cnt = CTRL_TIMING_CNT_T5,
-
 	.axi_bank = LCD_TCON_AXI_BANK_T5,
 
 	/*rsv_mem(12M)    axi_mem(10M)   bin_path(10K) secure_cfg(64byte)
@@ -2746,16 +2720,6 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.reg_table_len = LCD_TCON_TABLE_LEN_T5,
 	.core_reg_start = TCON_CORE_REG_START_T5,
 	.top_reg_base = TCON_TOP_BASE,
-
-	.reg_top_ctrl = REG_LCD_TCON_MAX,
-	.bit_en = BIT_TOP_EN_T5,
-
-	.reg_core_od = REG_CORE_OD_T5,
-	.bit_od_en = BIT_OD_EN_T5,
-
-	.reg_ctrl_timing_base = REG_LCD_TCON_MAX,
-	.ctrl_timing_offset = CTRL_TIMING_OFFSET_T5,
-	.ctrl_timing_cnt = CTRL_TIMING_CNT_T5,
 
 	.axi_bank = LCD_TCON_AXI_BANK_T5,
 
@@ -2790,16 +2754,6 @@ static struct lcd_tcon_config_s tcon_data_t3x = {
 	.core_reg_start = TCON_CORE_REG_START_T5,
 	.top_reg_base = TCON_TOP_BASE,
 
-	.reg_top_ctrl = REG_LCD_TCON_MAX,
-	.bit_en = BIT_TOP_EN_T5,
-
-	.reg_core_od = REG_CORE_OD_T5,
-	.bit_od_en = BIT_OD_EN_T5,
-
-	.reg_ctrl_timing_base = REG_LCD_TCON_MAX,
-	.ctrl_timing_offset = CTRL_TIMING_OFFSET_T5,
-	.ctrl_timing_cnt = CTRL_TIMING_CNT_T5,
-
 	.axi_bank = LCD_TCON_AXI_BANK_T3X,
 
 	/*rsv_mem(12M)    axi_mem(10M)   bin_path(10K) secure_cfg(64byte)
@@ -2832,16 +2786,6 @@ static struct lcd_tcon_config_s tcon_data_txhd2 = {
 	.reg_table_len = LCD_TCON_TABLE_LEN_TXHD2,
 	.core_reg_start = TCON_CORE_REG_START_T5D,
 
-	.reg_top_ctrl = REG_LCD_TCON_MAX,
-	.bit_en = BIT_TOP_EN_T5D,
-
-	.reg_core_od = REG_CORE_OD_T5D,
-	.bit_od_en = BIT_OD_EN_T5D,
-
-	.reg_ctrl_timing_base = REG_LCD_TCON_MAX,
-	.ctrl_timing_offset = CTRL_TIMING_OFFSET_T5D,
-	.ctrl_timing_cnt = CTRL_TIMING_CNT_T5D,
-
 	.axi_bank = LCD_TCON_AXI_BANK_TXHD2,
 
 	.rsv_mem_size    = 0x00502840,
@@ -2870,16 +2814,6 @@ static struct lcd_tcon_config_s tcon_data_t6d = {
 	.reg_table_width = LCD_TCON_TABLE_WIDTH_T5D,
 	.reg_table_len = LCD_TCON_TABLE_LEN_T6D,
 	.core_reg_start = TCON_CORE_REG_START_T5D,
-
-	.reg_top_ctrl = REG_LCD_TCON_MAX,
-	.bit_en = BIT_TOP_EN_T5D,
-
-	.reg_core_od = REG_CORE_OD_T5D,
-	.bit_od_en = BIT_OD_EN_T5D,
-
-	.reg_ctrl_timing_base = REG_LCD_TCON_MAX,
-	.ctrl_timing_offset = CTRL_TIMING_OFFSET_T5D,
-	.ctrl_timing_cnt = CTRL_TIMING_CNT_T5D,
 
 	.axi_bank = LCD_TCON_AXI_BANK_T6D,
 
@@ -2974,7 +2908,6 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 #endif
 
 	spin_lock_init(&tcon_local_cfg.multi_list_lock);
-	memset(&tcon_local_cfg.cmpr_info, 0, sizeof(tcon_local_cfg.cmpr_info));
 
 	ret = lcd_tcon_get_config(pdrv);
 
