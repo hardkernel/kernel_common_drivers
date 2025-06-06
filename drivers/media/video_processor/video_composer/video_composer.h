@@ -87,6 +87,8 @@
 #define SOURCE_PIC_MODE		0x4
 
 extern int actual_delay_count[MAX_VD_LAYERS];
+extern u32 vd_vsync_pts_inc_scale[MAX_VD_LAYERS];
+extern u32 vd_vsync_pts_inc_scale_base[MAX_VD_LAYERS];
 
 #ifndef MAX
 #define MAX(a, b) ({ \
@@ -308,6 +310,8 @@ struct composer_dev {
 	struct vf_aiface_t *aiface_buf;
 	u64 fence_wait_time_total;
 	u32 fence_wait_count;
+	bool is_tv_path;
+	u32 low_latency_case;
 };
 
 struct capability_info_t {

@@ -82,6 +82,7 @@ extern struct video_frame_aiface_s ai_face_value;
 extern int vframe_walk_delay;
 extern u32  video_mirror;
 extern int tvin_source_type;
+extern u64 isr_last_clock;
 
 /* wait queue for poll */
 extern wait_queue_head_t amvideo_prop_change_wait;
@@ -167,5 +168,6 @@ ssize_t blend_conflict_show(const struct class *cla,
 		const struct class_attribute *attr, char *buf);
 void put_buffer_proc(void);
 void update_vppx_property(u8 layer_id);
+int vpp_vsync_in(void);
 #endif
 /*VIDEO_FUNC_HEADER_HH*/

@@ -4259,6 +4259,8 @@ static void do_vd1_swap_frame(u8 layer_id,
 	struct vframe_s *new_frame = NULL;
 	enum vframe_signal_fmt_e fmt;
 	int source_type = 0;
+	u64 diff = 0;
+	u64 time_ns = 0;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	if (cur_dev->vsync_2to1_enable &&
@@ -4274,6 +4276,8 @@ static void do_vd1_swap_frame(u8 layer_id,
 	force_switch_slice();
 #endif
 #endif
+
+	time_ns = sched_clock();
 	new_frame = vdx_swap_frame(0, vd1_path_id,
 				  cur_vd1_path_id,
 				  path_new_frame);
@@ -4288,10 +4292,22 @@ static void do_vd1_swap_frame(u8 layer_id,
 #endif
 	} else if (new_frame) {
 		new_frame_mask |= 1;
-		vframe_walk_delay = (int)div_u64(((jiffies_64 -
-			new_frame->ready_jiffies64) * 1000), HZ);
-		vframe_walk_delay += 1000 *
-			vsync_pts_inc_scale / vsync_pts_inc_scale_base;
+		if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("time_ns=%llu, ready_clock[0]=%llu, isr_last_clock=%llu\n",
+				time_ns, new_frame->ready_clock[0], isr_last_clock);
+		vframe_walk_delay = div_u64(time_ns - new_frame->ready_clock[0], 1000000);
+		if (is_video_process_in_thread()) {
+			diff = div_u64(time_ns - isr_last_clock, 1000000);
+			vframe_walk_delay += 1000 *
+				vsync_pts_inc_scale / vsync_pts_inc_scale_base - diff;
+			if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+				pr_info("diff=%llu, vframe_walk_delay=%d, HZ=%d, vsync_pts_inc_scale=%d, vsync_pts_inc_scale_base=%d\n",
+					diff, vframe_walk_delay, HZ,
+					vsync_pts_inc_scale, vsync_pts_inc_scale_base);
+		} else {
+			vframe_walk_delay += 1000 *
+				vsync_pts_inc_scale / vsync_pts_inc_scale_base;
+		}
 		vframe_walk_delay -= new_frame->duration / 96;
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 		vframe_walk_delay += frc_get_video_latency();

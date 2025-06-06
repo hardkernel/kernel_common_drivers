@@ -19,6 +19,7 @@
 #include <linux/time.h>
 #include <linux/compat.h>
 #include <linux/delay.h>
+#include <linux/sched/clock.h>
 #include <uapi/linux/sched/types.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
@@ -376,6 +377,7 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 	u64 actual_delay = 0;
 	u64 frc_delay = 0;
 	u32 disp_delay_count = 2;
+	u64 time_ns = 0;
 
 	audio_need_delay = get_avsync_delay_time(dev->inst);
 	if (audio_need_delay == 0)
@@ -384,10 +386,13 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 	if (dev->di_backend_en && (vf->type & VIDTYPE_INTERLACE))
 		disp_delay_count += 1;
 
+	time_ns = sched_clock();
 	vdin_vsync = vf->duration / 96;
-	vframe_delay = (int)div_u64(((jiffies_64 -
-		vf->ready_jiffies64) * 1000), HZ);
+	vframe_delay = div_u64(time_ns - vf->ready_clock[0], 1000000);
 	vframe_delay -= vdin_vsync;
+	if (is_video_process_in_thread())
+		disp_delay_count -= 1;
+
 	actual_delay = vframe_delay * 1000 + disp_delay_count * vpp_vsync_us;
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	frc_delay = frc_get_video_latency();
@@ -669,6 +674,11 @@ static int do_file_thread(struct video_queue_dev *dev)
 	} else if (dev->resync_open) {
 		need_resync = true;
 		vq_print(dev->inst, P_OTHER, "Force resync.\n");
+	} else if (dev->game_mode && !(vf->flag & VFRAME_FLAG_GAME_MODE) &&
+		!dev->force_game_mode) {
+		dev->game_mode = false;
+		need_resync = true;
+		vq_print(dev->inst, P_OTHER, "game change to non-game, resync.\n");
 	}
 
 	if (dev->game_mode) {

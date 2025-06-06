@@ -140,6 +140,7 @@ u64 vd_test_fps_val[MAX_VD_LAYERS] = {1, 1, 1};
 u64 vd_test_vsync_val[MAX_VD_LAYERS] = {1, 1, 1};
 u32 dewarp_load_flag; /*0 dynamic load, 1 load bin file*/
 u32 new_afr_pulldown;
+u32 next_vsync_wakeup_vpp_to_get;
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -4134,6 +4135,45 @@ static void set_frc_pattern(struct composer_dev *dev, struct vframe_s *vf)
 	vc_print(dev->index, PRINT_OTHER, "%s: set frc mode:%d\n",
 		__func__, vf->vc_private->frc_operation_mode);
 }
+
+static int is_pulldown_1_1(struct composer_dev *dev, int duration)
+{
+	int ret = 0;
+	int vsync_pts = 0;
+
+	if (vd_vsync_pts_inc_scale[dev->index])
+		vsync_pts = vd_vsync_pts_inc_scale_base[dev->index] /
+			vd_vsync_pts_inc_scale[dev->index];
+
+	vc_print(dev->index, PRINT_OTHER, "vsync_pts=%d, duration=%d.\n",
+		vsync_pts, duration);
+
+	switch (duration) {
+	case 800:
+	case 801:
+		if (vsync_pts == 120)
+			ret = 1;
+		break;
+	case 960:
+		if (vsync_pts == 100)
+			ret = 1;
+		break;
+	case 1600:
+	case 1601:
+		if (vsync_pts == 60)
+			ret = 1;
+		break;
+	case 1920:
+		if (vsync_pts == 50)
+			ret = 1;
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+	return ret;
+}
+
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -4496,6 +4536,36 @@ static void video_composer_task(struct composer_dev *dev)
 				       (const struct vframe_s *)vf))
 				vc_print(dev->index, PRINT_ERROR,
 					 "by_pass ready_q is full\n");
+			if (is_video_process_in_thread()) {
+				if (dev->is_tv_path) {
+					if (is_pulldown_1_1(dev, vf->duration)) {
+						vpp_lowlatency_wakeup();
+						dev->low_latency_case = 1;
+						vc_print(dev->index, PRINT_OTHER,
+							"case1:tv path 1:1 mode use low latency2 mode.\n");
+					} else if ((vf->flag & VFRAME_FLAG_GAME_MODE)) {
+						dev->low_latency_case = 2;
+						vc_print(dev->index, PRINT_OTHER,
+							"case:need next vsync to get.\n");
+					} else {
+						dev->low_latency_case = 0;
+						vc_print(dev->index, PRINT_OTHER,
+							"case:tv path normal to get.\n");
+					}
+				} else {
+					if (enable_prelink &&
+						!(vf->type_original & VIDTYPE_TYPEMASK)) {
+						vpp_lowlatency_wakeup();
+						dev->low_latency_case = 1;
+						vc_print(dev->index, PRINT_OTHER,
+							"case1:P and prelink vc use low latency2 mode.\n");
+					}
+				}
+			} else {
+				dev->low_latency_case = 0;
+				vc_print(dev->index, PRINT_OTHER,
+					"latency2 mode and normal logic.\n");
+			}
 			ready_count = kfifo_len(&dev->ready_q);
 
 			/* dev->video_render_index == 5 means T7 dual screen mode */
@@ -4544,6 +4614,17 @@ static void video_composer_wait_event(struct composer_dev *dev)
 					 dev->need_empty_ready ||
 					 dev->thread_need_stop,
 					 msecs_to_jiffies(5000));
+}
+
+void vpp_vsync_in(void)
+{
+	vc_print(0, PRINT_OTHER, "enter %s, %d\n",
+		__func__, next_vsync_wakeup_vpp_to_get);
+	if (is_video_process_in_thread() && next_vsync_wakeup_vpp_to_get) {
+		vc_print(0, PRINT_OTHER, "vc start wake vpp to get\n");
+		vpp_lowlatency_wakeup();
+		next_vsync_wakeup_vpp_to_get = 0;
+	}
 }
 
 static int video_composer_thread(void *data)
@@ -5028,8 +5109,12 @@ static void set_frames_info(struct composer_dev *dev,
 					is_tvp = true;
 			}
 			if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
-				vf->source_type == VFRAME_SOURCE_TYPE_CVBS)
+				vf->source_type == VFRAME_SOURCE_TYPE_CVBS) {
+				dev->is_tv_path = true;
 				tv_fence_creat_count++;
+			} else {
+				dev->is_tv_path = false;
+			}
 			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
 				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,frame_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld,vf=%px\n",
 				 dev->received_count + 1,

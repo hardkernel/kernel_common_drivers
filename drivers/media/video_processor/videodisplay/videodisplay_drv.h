@@ -226,6 +226,8 @@ struct videodisplay_dev {
 	struct vf_aiface_t *aiface_buf;
 	u64 fence_wait_time_total;
 	u32 fence_wait_count;
+	bool is_tv_path;
+	u32 low_latency_case;
 };
 
 struct videodisplay_port_s *videodisplay_get_port(u32 index);

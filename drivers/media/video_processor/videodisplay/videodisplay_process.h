@@ -120,6 +120,9 @@ enum videodisplay_debug_class_type {
 	VD_DEBUG_CLASS_MAX
 };
 
+extern u32 vd_vsync_pts_inc_scale[MAX_VD_LAYERS];
+extern u32 vd_vsync_pts_inc_scale_base[MAX_VD_LAYERS];
+
 #ifndef MAX
 #define MAX(a, b) ({ \
 	typeof(a) _a = a; \
@@ -183,5 +186,6 @@ int media_proxy_produce_deinit(void *handle);
 int media_proxy_produce_init(void **handle, char *modulename, u32 msg_type);
 int notify_msg_to_mediaproxy(void *handle, int num, void *data);
 #endif
-
+int is_video_process_in_thread(void);
+void vpp_lowlatency_wakeup(void);
 #endif

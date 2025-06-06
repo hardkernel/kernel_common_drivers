@@ -436,6 +436,7 @@ u32 over_field_case1_cnt;
 u32 over_field_case2_cnt;
 u32 video_notify_flag;
 int tvin_source_type;
+u64 isr_last_clock;
 
 DEFINE_SPINLOCK(lock);
 atomic_t cur_over_field_state = ATOMIC_INIT(OVER_FIELD_NORMAL);

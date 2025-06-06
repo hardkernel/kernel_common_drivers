@@ -112,6 +112,7 @@ bool get_video_mute_val(u32 owner);
 void debug_vq_print_flag(const char *module, int debug_flags);
 void debug_vq_game_mode(const char *module, int debug_flags);
 void debug_vq_vframe_delay(const char *module, int debug_flags);
+int is_video_process_in_thread(void);
 
 #define videoqueue_IOC_MAGIC  'I'
 #define videoqueue_IOCTL_ALLOC_ID   _IOW(videoqueue_IOC_MAGIC, 0x00, int)

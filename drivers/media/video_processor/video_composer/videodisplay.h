@@ -38,6 +38,8 @@ extern u32 vd_test_fps[MAX_VD_LAYERS];
 extern u64 vd_test_fps_val[MAX_VD_LAYERS];
 extern u64 vd_test_vsync_val[MAX_VD_LAYERS];
 extern struct video_composer_port_s ports[];
+extern u32 next_vsync_wakeup_vpp_to_get;
+extern struct timespec64 isr_spec_time;
 #ifdef CONFIG_AMLOGIC_MEDIA_PROXY
 extern struct mediaproxy_info_t mediaproxy_display_info[];
 #endif
@@ -103,5 +105,7 @@ int vd_render_index_get(struct composer_dev *dev);
 void video_display_para_reset(int layer_index);
 int find_nearest_duration(struct composer_dev *dev, int duration_val);
 bool check_frc_n2m_status(void);
+int is_video_process_in_thread(void);
+void vpp_lowlatency_wakeup(void);
 
 #endif

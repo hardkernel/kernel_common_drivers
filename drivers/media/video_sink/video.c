@@ -554,6 +554,7 @@ u32 vsync_pts_inc_scale_base = 1;
 int pts_trace;
 #endif
 int vframe_walk_delay;
+struct timespec64 isr_spec_time;
 
 /* display canvas */
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -653,6 +654,7 @@ u64 vsync_cnt[VPP_MAX] = {0, 0, 0};
 u8 vsync_isr_cpuid;
 u8 prevsync_isr_cpuid;
 int dither_mode;
+u64 isr_last_clock;
 static u32 lcevc_alpha = 0x80;
 
 #ifdef CONFIG_PM
@@ -4416,8 +4418,13 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 			pr_info("%s: pre delay need at least 2 vsync.\n", __func__);
 		sync_count_pre = 2;
 	}
-	hdmin_delay_min = sync_count_pre * vdin_vsync +
-		display_path_count * vpp_vsync + ext_delay;
+	if (is_video_process_in_thread())
+		hdmin_delay_min = sync_count_pre * vdin_vsync +
+			(display_path_count - 1) * vpp_vsync + ext_delay;
+	else
+		hdmin_delay_min = sync_count_pre * vdin_vsync +
+			display_path_count * vpp_vsync + ext_delay;
+
 	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
 	hdmin_delay_min_ms += memc_delay;
 
@@ -5454,11 +5461,14 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		last_time = cur_time;
 	}
 
+	isr_last_clock = sched_clock();
 	if (get_lowlatency_mode() || get_low_latency_version() == 2)
 		put_buffer_proc();
 	lowlatency_vsync_count++;
+	ktime_get_ts64(&isr_spec_time);
 
 	if (get_low_latency_version() == 2) {
+		vpp_vsync_in();
 		if (overrun_flag) {
 			overrun_flag = false;
 			vsync_proc_drop++;

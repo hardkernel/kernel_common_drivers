@@ -45,8 +45,8 @@ static struct timeval start_time[MAX_VD_LAYERS];
 static struct timeval end_time[MAX_VD_LAYERS];
 static int start_vsync_count[MAX_VD_LAYERS];
 static int end_vsync_count[MAX_VD_LAYERS];
-static u32 vsync_pts_inc_scale[MAX_VD_LAYERS];
-static u32 vsync_pts_inc_scale_base[MAX_VD_LAYERS];
+u32 vd_vsync_pts_inc_scale[MAX_VD_LAYERS];
+u32 vd_vsync_pts_inc_scale_base[MAX_VD_LAYERS];
 
 #define PATTERN_32_DETECT_RANGE 7
 #define PATTERN_22_DETECT_RANGE 7
@@ -97,8 +97,8 @@ void vsync_notify_video_composer(u8 layer_id,
 	continue_vsync_count[layer_id]++;
 	patten_trace[layer_id]++;
 
-	vsync_pts_inc_scale[layer_id] = vpp_vsync_pts_inc_scale;
-	vsync_pts_inc_scale_base[layer_id] = vpp_vsync_pts_inc_scale_base;
+	vd_vsync_pts_inc_scale[layer_id] = vpp_vsync_pts_inc_scale;
+	vd_vsync_pts_inc_scale_base[layer_id] = vpp_vsync_pts_inc_scale_base;
 	do_gettimeofday(&vsync_time[layer_id]);
 
 	if (layer_id == 0 && get_count[0] > 0)
@@ -311,7 +311,7 @@ static void vd_vsync_video_pattern_22323(struct composer_dev *dev, struct vframe
 	int index_5;
 	int cur_factor_index = dev->patten_factor_index;
 	int vsync_pts_inc = 16 * 90000 *
-		vsync_pts_inc_scale[dev->index] / vsync_pts_inc_scale_base[dev->index];
+		vd_vsync_pts_inc_scale[dev->index] / vd_vsync_pts_inc_scale_base[dev->index];
 	int vframe_duration = vf->duration * 15;
 
 	if (vsync_pts_inc * 12 != vframe_duration * 5)
@@ -382,7 +382,7 @@ static void vd_vsync_video_pattern_13213(struct composer_dev *dev, struct vframe
 {
 	int i = 0, sum = 0, ave = 0;
 	int vsync_pts_inc = 16 * 90000 *
-		vsync_pts_inc_scale[dev->index] / vsync_pts_inc_scale_base[dev->index];
+		vd_vsync_pts_inc_scale[dev->index] / vd_vsync_pts_inc_scale_base[dev->index];
 	int vframe_duration = vf->duration * 15;
 
 	if (vsync_pts_inc * 2 != vframe_duration) {
@@ -408,7 +408,7 @@ static void vd_vsync_video_pattern_53(struct composer_dev *dev, struct vframe_s 
 {
 	int i = 0, sum = 0, ave = 0;
 	int vsync_pts_inc = 16 * 90000 *
-		vsync_pts_inc_scale[dev->index] / vsync_pts_inc_scale_base[dev->index];
+		vd_vsync_pts_inc_scale[dev->index] / vd_vsync_pts_inc_scale_base[dev->index];
 	int vframe_duration = vf->duration * 15;
 
 	if (vsync_pts_inc * 4 != vframe_duration) {
@@ -606,23 +606,23 @@ static bool pulldown_support_vf(struct composer_dev *dev, u32 duration_val)
 
 	if (new_afr_pulldown)
 		support = true;
-	if (vsync_pts_inc_scale[dev->index] == 1 &&
-		vsync_pts_inc_scale_base[dev->index] == 48) {
+	if (vd_vsync_pts_inc_scale[dev->index] == 1 &&
+		vd_vsync_pts_inc_scale_base[dev->index] == 48) {
 		/*48hz for 24fps 23.976fps*/
 		if (duration == 4004 || duration == 4000)
 			support = true;
-	} else if (vsync_pts_inc_scale[dev->index] == 1 &&
-		vsync_pts_inc_scale_base[dev->index] == 50) {
+	} else if (vd_vsync_pts_inc_scale[dev->index] == 1 &&
+		vd_vsync_pts_inc_scale_base[dev->index] == 50) {
 		/*50hz for 25fps 50fps*/
 		if (duration == 3840 || duration == 1920)
 			support = true;
-	} else if (vsync_pts_inc_scale[dev->index] == 1001 &&
-		vsync_pts_inc_scale_base[dev->index] == 60000) {
+	} else if (vd_vsync_pts_inc_scale[dev->index] == 1001 &&
+		vd_vsync_pts_inc_scale_base[dev->index] == 60000) {
 		/*59.94hz for 23.976, 29.97*/
 		if (duration == 4004 || duration == 3203)
 			support = true;
-	} else if (vsync_pts_inc_scale[dev->index] == 1 &&
-		vsync_pts_inc_scale_base[dev->index] == 60) {
+	} else if (vd_vsync_pts_inc_scale[dev->index] == 1 &&
+		vd_vsync_pts_inc_scale_base[dev->index] == 60) {
 		/*60hz for 23.976, 24, 25, 29.97, 30*/
 		if (duration == 4004 ||
 			duration == 4000 ||
@@ -630,20 +630,20 @@ static bool pulldown_support_vf(struct composer_dev *dev, u32 duration_val)
 			duration == 3203 ||
 			duration == 3200)
 			support = true;
-	} else if (vsync_pts_inc_scale[dev->index] == 1 &&
-		vsync_pts_inc_scale_base[dev->index] == 100) {
+	} else if (vd_vsync_pts_inc_scale[dev->index] == 1 &&
+		vd_vsync_pts_inc_scale_base[dev->index] == 100) {
 		/*100hz for 25fps, 50fps*/
 		if (duration == 3840 || duration == 1920)
 			support = true;
-	} else if (vsync_pts_inc_scale[dev->index] == 1001 &&
-		vsync_pts_inc_scale_base[dev->index] == 120000) {
+	} else if (vd_vsync_pts_inc_scale[dev->index] == 1001 &&
+		vd_vsync_pts_inc_scale_base[dev->index] == 120000) {
 		/*119.88hz for 23.976,29.97,59.94*/
 		if (duration == 4004 ||
 			duration == 3203 ||
 			duration == 1601)
 			support = true;
-	} else if (vsync_pts_inc_scale[dev->index] == 1 &&
-		vsync_pts_inc_scale_base[dev->index] == 120) {
+	} else if (vd_vsync_pts_inc_scale[dev->index] == 1 &&
+		vd_vsync_pts_inc_scale_base[dev->index] == 120) {
 		/*120hz for 23.976, 24, 29.97, 30, 59.94, 60*/
 		if (duration == 4004 ||
 			duration == 4000 ||
@@ -680,6 +680,9 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	int input_fps, output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 	int aisr_delay_vsync;
 	int total_delay_vsync;
+	u64 elapsed_ns = 0;
+	struct timespec64 cur_spec_time;
+	u64 next_isr_spec_time = 0;
 
 	time1 = dev->start_time;
 	time2 = vsync_time[dev->index];
@@ -687,6 +690,26 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	if (kfifo_peek(&dev->ready_q, &vf)) {
 		if (get_lowlatency_mode())
 			return vf;
+
+		if (is_video_process_in_thread() && dev->low_latency_case == 2) {
+			if (vd_vsync_pts_inc_scale_base[dev->index])
+				elapsed_ns =
+					div_u64(1000000000LL * vd_vsync_pts_inc_scale[dev->index],
+					vd_vsync_pts_inc_scale_base[dev->index]);
+			next_isr_spec_time = isr_spec_time.tv_sec * 1000000000LL +
+				isr_spec_time.tv_nsec + next_isr_spec_time;
+			ktime_get_ts64(&cur_spec_time);
+			vc_print(dev->index, PRINT_OTHER,
+				"elapsed_ns=%llu, cur_spec_time=%llu, next_isr_spec_time=%llu\n",
+				elapsed_ns, cur_spec_time.tv_sec * 1000000000LL +
+				cur_spec_time.tv_nsec, next_isr_spec_time);
+			if (cur_spec_time.tv_sec * 1000000000LL +
+				cur_spec_time.tv_nsec < next_isr_spec_time) {
+				next_vsync_wakeup_vpp_to_get = 1;
+				vc_print(dev->index, PRINT_OTHER, "vpp to get, not allow to get\n");
+				return NULL;
+			}
+		}
 
 		if (dev->index == 0 && is_meson_t3x_cpu() && check_frc_n2m_status())
 			aisr_delay_vsync = 1;
