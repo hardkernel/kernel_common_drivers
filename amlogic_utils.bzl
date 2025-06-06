@@ -177,6 +177,12 @@ def select_config_field(field_name):
         for config_setting, project_config in _CONFIG_SETTINGS.items()
     })
 
+def ddk_deps_select(deps):
+    return select({
+        config_setting: deps if getattr(project_config, "DDK_BUILD") else []
+        for config_setting, project_config in _CONFIG_SETTINGS.items()
+    })
+
 gki_config = select_config_field("GKI_CONFIG")
 build_time = select_config_field("BUILD_TIME")
 common_drivers_release = select_config_field("COMMON_DRIVERS_RELEASE")
