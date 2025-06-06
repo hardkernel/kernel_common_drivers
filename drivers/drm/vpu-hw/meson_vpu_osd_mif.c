@@ -1171,6 +1171,10 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->src_y = plane_info->src_y;
 	mvos->src_w = plane_info->src_w;
 	mvos->src_h = plane_info->src_h;
+	mvos->dst_x = plane_info->dst_x;
+	mvos->dst_y = plane_info->dst_y;
+	mvos->dst_w = plane_info->dst_w;
+	mvos->dst_h = plane_info->dst_h;
 	mvos->fb_w = plane_info->fb_w;
 	mvos->fb_h = plane_info->fb_h;
 	mvos->byte_stride = plane_info->byte_stride;
@@ -1309,10 +1313,11 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_osd *osd;
 	struct meson_vpu_osd_state *mvos, *old_mvos = NULL;
 	struct meson_vpu_pipeline *pipe;
+	struct meson_vpu_state_check *status;
 	struct meson_drm *priv;
 	struct rdma_reg_ops *reg_ops;
 	int crtc_index;
-	u32 pixel_format, canvas_idx, src_h, byte_stride, flush_reg, hold_line;
+	u32 pixel_format, canvas_idx = 0, src_h, byte_stride, flush_reg, hold_line;
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
 	struct osd_mif_reg_s *reg;
 	bool alpha_div_en = 0, reverse_x, reverse_y, afbc_en;
@@ -1365,8 +1370,22 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	else
 		hold_line = am_drm_param.osd_hold_line;
 
+	afbc_en = mvos->afbc_en ? 1 : 0;
 	flush_reg = osd_check_config(mvos, old_mvos);
 	MESON_DRM_BLOCK("flush_reg-%d index-%d\n", flush_reg, vblk->index);
+	status = &pipe->subs[crtc_index]->status[vblk->index];
+	status->phy_addr = mvos->phy_addr;
+	status->viu_osd_blk1_cfg_w4 = reg->viu_osd_blk1_cfg_w4;
+	status->afbc_en = afbc_en;
+	status->index = vblk->index;
+	status->mif_acc_mode = osd->mif_acc_mode;
+	status->update = 1;
+	MESON_DRM_STATE("osd%d (\"%s\" pid=%d]) state:0x%p\n"
+		"mvps:0x%p phy:0x%llx src[%d %d %d %d] dst[%d %d %d %d]\n",
+		vblk->index, current->comm, task_pid_nr(current),
+		old_state ? old_state->obj.state : state->obj.state, mvsps, mvos->phy_addr,
+		mvos->src_x, mvos->src_y, mvos->src_w, mvos->src_h,
+		mvos->dst_x, mvos->dst_y, mvos->dst_w, mvos->dst_h);
 	if (!flush_reg &&
 		meson_drm_read_reg(reg->viu_osd_tcolor_ag3) == frame_seq[vblk->index] &&
 		osd->mif_acc_mode != CANVAS_MODE) {
@@ -1381,7 +1400,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		return;
 	}
 
-	afbc_en = mvos->afbc_en ? 1 : 0;
 	pixel_format = mvos->pixel_format;
 	if (mvos->pixel_blend == DRM_MODE_BLEND_PREMULTI &&
 		!osd_format_is_rgbx(pixel_format))
@@ -1429,6 +1447,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 			  canvas_idx, &phy_addr);
 	}
 
+	status->canvas_index = canvas_idx;
 	osd_rpt_y_config(vblk, reg_ops, reg);
 	osd_input_size_config(vblk, reg_ops, reg, scope_src);
 	osd_color_config(vblk, reg_ops, reg, pixel_format, mvos->pixel_blend, afbc_en);
@@ -1460,7 +1479,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	frame_seq[vblk->index]++;
 	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, frame_seq[vblk->index]);
-
 	MESON_DRM_BLOCK("plane_index=%d,HW-OSD=%d\n",
 		  mvos->plane_index, vblk->index);
 	MESON_DRM_BLOCK("scope h/v start/end:[%d/%d/%d/%d]\n",

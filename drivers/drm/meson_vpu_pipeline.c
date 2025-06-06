@@ -10,6 +10,10 @@
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <dt-bindings/display/meson-drm-ids.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
+#include <linux/amlogic/media/canvas/canvas.h>
+#include <linux/amlogic/media/canvas/canvas_mgr.h>
+#endif
 
 #include "vpu-hw/meson_osd_afbc.h"
 #include "meson_vpu_pipeline.h"
@@ -574,6 +578,43 @@ void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline)
 					mvb->name, mvbs);
 			mvb->ops->detect_reset(mvb, mvbs);
 		}
+	}
+}
+
+void vpu_pipeline_detect_status(struct meson_vpu_sub_pipeline *sub_pipeline)
+{
+	struct meson_vpu_state_check *status;
+	struct canvas_s canvas;
+	u32 val = 0, phy_addr = 0;
+	int i;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		status = &sub_pipeline->status[i];
+		if (status->update) {
+			if (status->afbc_en) {
+				if (status->vpu_mafbc_header_buf_addr_low_s) {
+					val =
+					meson_drm_read_reg(status->vpu_mafbc_header_buf_addr_low_s);
+					phy_addr = (u32)status->phy_addr;
+				}
+			} else {
+				if (status->mif_acc_mode == CANVAS_MODE) {
+					canvas_read_hw(status->index, &canvas);
+					val = (u32)canvas.addr;
+					phy_addr = (u32)status->phy_addr;
+				} else if (status->viu_osd_blk1_cfg_w4) {
+					val = meson_drm_read_reg(status->viu_osd_blk1_cfg_w4);
+					phy_addr = (u32)(status->phy_addr >> 4);
+				}
+			}
+			if (val != phy_addr)
+				MESON_DRM_STATE("osd%d val:0x%x 0x%x\n",
+					status->index, val, phy_addr);
+			MESON_DRM_STATE("crtc%d osd%d update:%d mode:%d afbc:%d phy_addr:0x%x\n",
+				sub_pipeline->index, i, status->update, status->mif_acc_mode,
+				status->afbc_en, phy_addr);
+		}
+		status->update = 0;
 	}
 }
 
@@ -1145,6 +1186,9 @@ void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline, int crtc_in
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	meson_vpu_reg_vsync_config(crtc_index);
+	MESON_DRM_STATE("(\"%s\" pid=%d]) rdma config\n",
+			current->comm, task_pid_nr(current));
+
 #endif
 }
 EXPORT_SYMBOL(vpu_pipeline_finish_update);

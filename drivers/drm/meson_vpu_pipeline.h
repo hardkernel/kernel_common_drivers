@@ -101,6 +101,7 @@ enum vpp_index {
 	VPP0,
 	VPP1,
 	VPP2,
+	VPP_MAX,
 };
 
 enum meson_vpu_blk_type {
@@ -644,6 +645,17 @@ struct rdma_reg_ops {
 	int (*dummy_write_reg_bits)(u32 addr, u32 val, u32 start, u32 len);
 };
 
+struct meson_vpu_state_check {
+	u32 vpu_mafbc_header_buf_addr_low_s;
+	u32 viu_osd_blk1_cfg_w4;
+	u64 phy_addr;
+	int update;
+	int index;
+	bool afbc_en;
+	u32 mif_acc_mode;
+	u32 canvas_index;
+};
+
 struct meson_vpu_sub_pipeline {
 	struct drm_private_obj obj;
 	int index;
@@ -651,6 +663,7 @@ struct meson_vpu_sub_pipeline {
 	struct drm_display_mode mode;
 	struct rdma_reg_ops *reg_ops;
 	enum vmode_e vmode;
+	struct meson_vpu_state_check status[MESON_MAX_OSDS];
 };
 
 struct meson_video_sub_pipeline {
@@ -885,6 +898,8 @@ int video_pipeline_check_block(struct meson_video_sub_pipeline_state *mvps,
 				   struct drm_atomic_state *state);
 void vpu_pipeline_check_finish_reg(int crtc_index);
 void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline);
+void vpu_pipeline_detect_status(struct meson_vpu_sub_pipeline *sub_pipeline);
+
 struct meson_vpu_sub_pipeline_state *
 meson_vpu_pipeline_get_old_state(struct meson_vpu_sub_pipeline *pipeline,
 			     struct drm_atomic_state *state);

@@ -597,6 +597,7 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	unsigned int depth;
 	int bpp;
 	bool reverse_x, reverse_y;
+	struct meson_vpu_state_check *status;
 
 	struct meson_vpu_afbc *afbc;
 	struct meson_vpu_afbc_state *afbc_state;
@@ -737,6 +738,10 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
 				 reverse_y, 1, 1);
 
+	status = &pipeline->subs[plane_info->crtc_index]->status[osd_index];
+	status->vpu_mafbc_header_buf_addr_low_s = afbc_reg->vpu_mafbc_header_buf_addr_low_s;
+	status->update = 1;
+
 	MESON_DRM_BLOCK("%s set_state called.\n", afbc->base.name);
 }
 
@@ -807,6 +812,7 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	unsigned int depth;
 	int bpp;
 	bool reverse_x, reverse_y;
+	struct meson_vpu_state_check *status;
 
 	struct meson_vpu_afbc *afbc;
 	struct meson_vpu_afbc_state *afbc_state;
@@ -926,6 +932,10 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 						reverse_x, 0, 1);
 			reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
 						reverse_y, 1, 1);
+			status = &pipeline->subs[plane_info->crtc_index]->status[osd_index];
+			status->vpu_mafbc_header_buf_addr_low_s =
+				afbc_reg->vpu_mafbc_header_buf_addr_low_s;
+			status->update = 1;
 
 			if (pipeline->osd_axi_sel == 0) {
 				if (osd_index == 0) {
@@ -999,6 +1009,7 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	unsigned int depth;
 	int bpp;
 	bool reverse_x, reverse_y;
+	struct meson_vpu_state_check *status;
 
 	struct meson_vpu_afbc *afbc;
 	struct meson_vpu_afbc_state *afbc_state;
@@ -1125,6 +1136,10 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 						reverse_x, 0, 1);
 			reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
 						reverse_y, 1, 1);
+			status = &pipeline->subs[plane_info->crtc_index]->status[osd_index];
+			status->vpu_mafbc_header_buf_addr_low_s =
+				afbc_reg->vpu_mafbc_header_buf_addr_low_s;
+			status->update = 1;
 			if (osd_index == 0)
 				reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 1, 31, 1);
 			else if (osd_index == 1)
@@ -1182,6 +1197,7 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	struct afbc_status_reg_s *afbc_stat_reg;
 	const struct drm_format_info *info;
 	struct rdma_reg_ops *reg_ops;
+	struct meson_vpu_state_check *status;
 
 	afbc = to_afbc_block(vblk);
 	afbc_state = to_afbc_state(state);
@@ -1298,6 +1314,10 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 						reverse_x, 0, 1);
 			reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
 						reverse_y, 1, 1);
+			status = &pipeline->subs[plane_info->crtc_index]->status[osd_index];
+			status->vpu_mafbc_header_buf_addr_low_s =
+				afbc_reg->vpu_mafbc_header_buf_addr_low_s;
+			status->update = 1;
 			if (osd_index == 0)
 				reg_ops->rdma_write_reg_bits(VPP_INTF_OSD1_CTRL, 1, 0, 1);
 			else if (osd_index == 1)
@@ -1343,6 +1363,7 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	unsigned int depth;
 	int bpp;
 	bool reverse_x, reverse_y;
+	struct meson_vpu_state_check *status;
 
 	struct meson_vpu_afbc *afbc;
 	struct meson_vpu_afbc_state *afbc_state;
@@ -1469,6 +1490,10 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 						reverse_x, 0, 1);
 			reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
 						reverse_y, 1, 1);
+			status = &pipeline->subs[plane_info->crtc_index]->status[osd_index];
+			status->vpu_mafbc_header_buf_addr_low_s =
+				afbc_reg->vpu_mafbc_header_buf_addr_low_s;
+			status->update = 1;
 			if (osd_index == 0)
 				reg_ops->rdma_write_reg_bits(VPP_INTF_OSD1_CTRL, 1, 0, 1);
 			else if (osd_index == 1)
@@ -1515,6 +1540,7 @@ static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	unsigned int depth;
 	int bpp;
 	bool reverse_x, reverse_y;
+	struct meson_vpu_state_check *status;
 
 	struct meson_vpu_afbc *afbc;
 	struct meson_vpu_afbc_state *afbc_state;
@@ -1647,6 +1673,9 @@ static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				 reverse_x, 0, 1);
 	reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
 				 reverse_y, 1, 1);
+	status = &pipeline->subs[plane_info->crtc_index]->status[osd_index];
+	status->vpu_mafbc_header_buf_addr_low_s = afbc_reg->vpu_mafbc_header_buf_addr_low_s;
+	status->update = 1;
 
 	MESON_DRM_BLOCK("%s set_state called.\n", afbc->base.name);
 }

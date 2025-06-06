@@ -76,4 +76,6 @@ ulong canvas_get_addr(u32 index);
 unsigned int canvas_get_width(u32 index);
 
 unsigned int canvas_get_height(u32 index);
+int canvas_read_hw(u32 index, struct canvas_s *canvas);
+
 #endif /* CANVAS_H */

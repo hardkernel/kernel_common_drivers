@@ -458,6 +458,13 @@ static void video_set_state(struct meson_vpu_block *vblk,
 #endif
 	}
 
+	MESON_DRM_STATE("video%d (\"%s\" pid=%d]) state(0x%p)\n"
+		"mvps:0x%p dmabuf:0x%px src[%d %d %d %d] dst[%d %d %d %d]\n",
+		vblk->index, current->comm, task_pid_nr(current),
+		old_state ? old_state->obj.state : state->obj.state, mvsps, mvvs->dmabuf[0],
+		mvvs->src_x, mvvs->src_y, mvvs->src_w, mvvs->src_h,
+		mvvs->dst_x, mvvs->dst_y, mvvs->dst_w, mvvs->dst_h);
+
 	MESON_DRM_BLOCK("plane_index=%d,HW-video=%d, byte_stride=%d, rotate:%d\n",
 		  mvvs->plane_index, vblk->index, byte_stride, mvvs->rotation);
 	MESON_DRM_BLOCK("phy_addr=0x%pa,phy_addr2=0x%pa, repeat_frame=%d\n",

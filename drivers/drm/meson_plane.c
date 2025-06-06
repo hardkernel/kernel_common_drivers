@@ -2154,6 +2154,13 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	plane_state = to_am_meson_plane_state(state);
 	plane_info->sec_en = plane_state->sec_en;
 
+	MESON_DRM_STATE("osd%d (\"%s\" pid=%d]) state(0x%p)\n"
+		"mvps:0x%p phy:0x%llx src[%d %d %d %d] dst[%d %d %d %d]\n",
+		plane_info->plane_index, current->comm, task_pid_nr(current),
+		atomic_state, mvps, plane_info->phy_addr,
+		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h,
+		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
+
 	DRM_DEBUG("OSD PLANE index=%d, zorder=%d, premult= %d, alpha = %d, phy = %llx\n",
 		  plane_info->plane_index, plane_info->zorder,
 		  state->pixel_blend_mode, plane_info->global_alpha,
@@ -2256,6 +2263,13 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	plane_info->enable = 1;
 
 	video_pipeline_block_check(mvsp, atomic_state);
+
+	MESON_DRM_STATE("video%d (\"%s\" pid=%d]) state:0x%p\n"
+		"mvps:0x%p dmabuf:0x%px src[%d %d %d %d] dst[%d %d %d %d]\n",
+		plane_info->plane_index, current->comm, task_pid_nr(current),
+		atomic_state, mvps, plane_info->dmabuf[0],
+		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h,
+		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
 
 	DRM_DEBUG("VIDOE PLANE index=%d, zorder=%d\n",
 		plane_info->plane_index, plane_info->zorder);

@@ -163,6 +163,7 @@ static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
 	if (!priv->irq_enabled)
 		return IRQ_NONE;
 
+	MESON_DRM_STATE("irq crtc%d coming\n", amcrtc->crtc_index);
 	am_meson_crtc_handle_vsync(amcrtc);
 	amcrtc->priv->pan_async_commit_ran = false;
 

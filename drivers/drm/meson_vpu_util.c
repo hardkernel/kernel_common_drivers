@@ -28,21 +28,21 @@ static void meson_vpu_vsync_rdma_irq(void *arg)
 
 	vpu_pipeline_check_finish_reg(sub_pipeline->index);
 	vpu_pipeline_detect_reset(sub_pipeline);
+	vpu_pipeline_detect_status(sub_pipeline);
 }
 
-static struct rdma_op_s meson_vpu_vsync_rdma_op = {
-	meson_vpu_vsync_rdma_irq,
-};
-
+static struct rdma_op_s meson_vpu_vsync_rdma_op[VPP_MAX];
 void meson_vpu_reg_handle_register(void *arg)
 {
 	struct meson_vpu_sub_pipeline *sub_pipeline = arg;
 	u32 vpp_index = sub_pipeline->index;
 
 	if (drm_vsync_rdma_handle[vpp_index] == -1) {
-			meson_vpu_vsync_rdma_op.arg = sub_pipeline;
-			drm_vsync_rdma_handle[vpp_index] = rdma_register(&meson_vpu_vsync_rdma_op,
-				NULL, MESON_VPU_RDMA_TABLE_SIZE);
+		meson_vpu_vsync_rdma_op[vpp_index].irq_cb = meson_vpu_vsync_rdma_irq;
+		meson_vpu_vsync_rdma_op[vpp_index].arg = sub_pipeline;
+		drm_vsync_rdma_handle[vpp_index] =
+			rdma_register(&meson_vpu_vsync_rdma_op[vpp_index],
+			NULL, MESON_VPU_RDMA_TABLE_SIZE);
 		meson_drm_rdma_init(sub_pipeline->pipeline->priv, vpp_index,
 			drm_vsync_rdma_handle[vpp_index]);
 	}
