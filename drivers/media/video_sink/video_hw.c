@@ -895,7 +895,7 @@ static int debug_flag_3d = 0xf;
 static  int vd1_matrix;
 
 static int video_testpattern_status[MAX_VD_LAYER];
-static int postblend_testpattern_status;
+static int postblend_testpattern_status = VIDEO_TESTPATTERN_OFF;
 static bool vdx_test_pattern_on[MAX_VD_LAYER];
 static bool postblend_test_pattern_on;
 static u32 vdx_color[MAX_VD_LAYER];
