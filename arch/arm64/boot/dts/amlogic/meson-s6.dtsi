@@ -1732,17 +1732,17 @@
 			sustainable-power = <1160>;
 			thermal-sensors = <&c_tsensor 1>;
 			trips {
-				cswitch_on: trip-point@0 {
+				c_switch_on: trip-point@0 {
 					temperature = <85000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				control: trip-point@1 {
+				c_control: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				ccritical: trip-point@2 {
+				c_critical: trip-point@2 {
 					temperature = <105000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -1751,7 +1751,7 @@
 
 			cooling-maps {
 				cooling_map {
-					trip = <&control>;
+					trip = <&c_control>;
 					cooling-device = <&CPU0 0 6>,
 							 <&gpu 0 3>;
 					contribution = <1024>;
