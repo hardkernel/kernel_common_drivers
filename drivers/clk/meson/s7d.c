@@ -21,6 +21,8 @@
 #include "s7d.h"
 #include <dt-bindings/clock/amlogic,s7d-clkc.h>
 
+#include <linux/amlogic/cpu_version.h>
+
 static const struct pll_params_table gp0_pll_table[] = {
 	PLL_PARAMS_OD(128, 0, 0), /* DCO = 1536M OD = 0 PLL = 1536M */
 	PLL_PARAMS_OD(192, 0, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
@@ -4447,6 +4449,16 @@ static int meson_s7d_probe(struct platform_device *pdev)
 		/* array might be sparse */
 		if (!data->hws[i])
 			continue;
+
+		/*
+		 * HACK: S7D fclk_div3 design intent should have been div3
+		 * output 666M, in fact revA designed to div2 output 1G, the
+		 * issue has been fixed in revB.
+		 */
+		if (data->hws[i] == &fclk_div3_div.hw &&
+		    is_meson_rev_a())
+			fclk_div3_div.div = 2;
+
 		ret = devm_clk_hw_register(dev, data->hws[i]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");

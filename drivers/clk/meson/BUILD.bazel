@@ -525,5 +525,10 @@ ddk_module(
     out = "amlogic-clk-soc-s7d.ko",
     kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
-    deps = amlogic_clk_soc_deps,
+    deps = [
+        "//common_drivers/drivers/clk/meson:amlogic-clk",
+        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
+        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
+        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
+        ],
 )
