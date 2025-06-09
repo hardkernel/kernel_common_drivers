@@ -2,6 +2,7 @@
 
 dtb-y += \
 	dht11.dtbo \
+	display_vu7c.dtbo \
 	hktft32.dtbo \
 	i2c0.dtbo \
 	i2c1.dtbo \
