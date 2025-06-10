@@ -20,6 +20,7 @@
 #include <linux/sched/clock.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
+#include <linux/debugfs.h>
 
 #include <linux/amlogic/gki_module.h>
 #include <linux/amlogic/aml_ddr_tool.h>
@@ -1700,6 +1701,89 @@ static void get_ddr_external_bus_width(struct ddr_bandwidth *db,
 	pr_info("bytes_per_cycle:%d, reg:%lx\n", db->bytes_per_cycle, reg);
 }
 
+int reg_field_access(struct ddr_bandwidth *db, u64 *val, int rw,
+		     unsigned int reg, unsigned int offset, unsigned int bits_width)
+{
+	unsigned int i;
+	void *io;
+	u32 reg_value;
+	u32 mask1, mask2;
+
+	mask1 = (1 << bits_width) - 1;
+	mask2 = mask1 << offset;
+	for (i = 0; i < db->dmc_number; i++) {
+		switch (i) {
+		case 0:
+			io = db->ddr_reg1;
+			break;
+		case 1:
+			io = db->ddr_reg2;
+			break;
+		case 2:
+			io = db->ddr_reg3;
+			break;
+		case 3:
+			io = db->ddr_reg4;
+			break;
+		default:
+			break;
+		}
+
+		if (rw == WRITE) {
+			if (*val & ~mask1) {
+				pr_err("%s: out of range. Max=%d, Attempted=%lld\n",
+				       __func__, mask1, *val);
+				return -1;
+			}
+			reg_value = readl(io + reg);
+			reg_value &= ~mask2;
+			reg_value |= (((u32)*val & mask1) << offset);
+			writel(reg_value, io + reg);
+		} else {
+			reg_value = readl(io + reg);
+			reg_value &= mask2;
+			reg_value = reg_value >> offset;
+			*val = reg_value;
+			pr_debug("DMC%d reg[0x%04x << 2][%d...%d] = 0x%x\n",
+				 i, reg >> 2, offset, offset + bits_width - 1, reg_value);
+		}
+	}
+
+	return 0;
+}
+
+static int property_access(u64 *val, enum property_type type, int rw)
+{
+	if (aml_db->ops->property_access) {
+		aml_db->ops->property_access(aml_db, val, type, rw);
+	} else {
+		pr_err("This chip currently does not support the feature.\n");
+		*val = 0;
+	}
+	return 0;
+}
+
+static int wbuf_mid_level_get(void *data, u64 *val)
+{
+	property_access(val, WBUF_M, READ);
+
+	return 0;
+}
+
+static int wbuf_mid_level_set(void *data, u64 val)
+{
+	property_access(&val, WBUF_M, WRITE);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(wbuf_mid_level_fops, wbuf_mid_level_get, wbuf_mid_level_set, "%llu\n");
+
+static void debugfs_init(void)
+{
+	aml_db->debugfs = debugfs_create_dir("aml_ddr", NULL);
+	debugfs_create_file("wbuf_mid_level", 0440, aml_db->debugfs, aml_db, &wbuf_mid_level_fops);
+}
+
 /*
  * ddr_bandwidth_probe only executes before the init process starts
  * to run, so add __ref to indicate it is okay to call __init function
@@ -1839,6 +1923,8 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	r = class_register(&aml_ddr_class);
 	if (r)
 		pr_info("%s, class regist failed\n", __func__);
+
+	debugfs_init();
 
 	return 0;
 }
@@ -2041,6 +2127,7 @@ int __init ddr_bandwidth_init(void)
 
 void ddr_bandwidth_exit(void)
 {
+	debugfs_remove(aml_db->debugfs);
 	platform_driver_unregister(&ddr_bandwidth_driver);
 	ddr_hrtimer_cancel();
 }

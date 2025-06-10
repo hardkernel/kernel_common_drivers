@@ -73,6 +73,8 @@
 #define DMC_MON6_CTRL1			((0x001e << 2))
 #define DMC_MON7_CTRL1			((0x001f << 2))
 
+#define DMC_CMD_FILTER_CTRL3		((0x0042  << 2))
+
 static unsigned int ots_regs_offset[] __initdata = {
 	(0x81 << 2), (0x86 << 2), (0x8b << 2),
 	(0x91 << 2), (0x96 << 2), (0x9b << 2),
@@ -310,6 +312,47 @@ static int outstanding_handle(struct ddr_bandwidth *db, int bus,
 	return ret;
 }
 
+static int dmc_buf_level_handle(struct ddr_bandwidth *db, u64 *val,
+				enum property_type type, int rw)
+{
+	switch (type) {
+	case WBUF_EMPTY:
+		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 31, 1);
+		break;
+	case WBUF_H:
+		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 26, 5);
+		break;
+	case WBUF_M:
+		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 21, 5);
+		break;
+	case WBUF_L:
+		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 16, 5);
+		break;
+	case RBUF_H:
+		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 10, 5);
+		break;
+	case RBUF_M:
+		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 5, 5);
+		break;
+	case RBUF_L:
+		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 0, 5);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int property_access(struct ddr_bandwidth *db, u64 *val,
+			   enum property_type type, int rw)
+{
+	if (type >= WBUF_EMPTY && type <= RBUF_L)
+		return dmc_buf_level_handle(db, val, type, rw);
+
+	return -1;
+}
+
 struct ddr_bandwidth_ops t6d_ddr_bw_ops = {
 	.init             = t6d_dmc_bandwidth_init,
 	.config_port      = t6d_dmc_port_config,
@@ -322,4 +365,5 @@ struct ddr_bandwidth_ops t6d_ddr_bw_ops = {
 #if DDR_BANDWIDTH_DEBUG
 	.dump_reg         = t6d_dump_reg,
 #endif
+	.property_access  = property_access,
 };

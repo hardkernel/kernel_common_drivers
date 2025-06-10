@@ -114,6 +114,16 @@ enum outstanding_type {
 	OUTSTANDING_GET,
 };
 
+enum property_type {
+	WBUF_EMPTY = 1,
+	WBUF_H,
+	WBUF_M,
+	WBUF_L,
+	RBUF_H,
+	RBUF_M,
+	RBUF_L,
+};
+
 struct ddr_bandwidth;
 
 struct ddr_grant {
@@ -138,6 +148,8 @@ struct ddr_bandwidth_ops {
 #if DDR_BANDWIDTH_DEBUG
 	int (*dump_reg)(struct ddr_bandwidth *db, char *buf);
 #endif
+	int (*property_access)(struct ddr_bandwidth *db, u64 *val,
+			       enum property_type type, int rw);
 };
 
 struct ddr_bandwidth_sample {
@@ -235,6 +247,7 @@ struct ddr_bandwidth {
 	struct work_struct work_bandwidth;
 	struct ddr_increase_tool increase_tool;
 	struct ddr_outstanding ost;
+	struct dentry *debugfs;
 };
 
 extern struct ddr_bandwidth *aml_db;
@@ -288,6 +301,9 @@ extern struct ddr_bandwidth_ops t6d_ddr_bw_ops;
 #endif
 
 unsigned int aml_get_ddr_usage(void);
+
+int reg_field_access(struct ddr_bandwidth *db, u64 *val, int type,
+		     unsigned int reg, unsigned int offset, unsigned int bits_width);
 
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH
 int __init ddr_bandwidth_init(void);
