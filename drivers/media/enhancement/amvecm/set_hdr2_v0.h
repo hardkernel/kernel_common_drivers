@@ -133,7 +133,16 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 	struct hdr10pgen_param_s *hdr10pgen_param,
 	enum vpp_index_e vpp_index);
 enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
-	enum hdr_process_sel hdr_process_select,
+	u32 hdr_process_select,
+	struct vinfo_s *vinfo,
+	struct matrix_s *gmt_mtx,
+	enum vpp_index_e vpp_index);
+int hlgp_ebzcurve_update(enum hdr_module_sel module_sel,
+	u32 hdr_process_select,
+	struct hdr10pgen_param_s *hdr10pgen_param,
+	enum vpp_index_e vpp_index);
+enum hdr_process_sel hlgp_func(enum hdr_module_sel module_sel,
+	u32 hdr_process_select,
 	struct vinfo_s *vinfo,
 	struct matrix_s *gmt_mtx,
 	enum vpp_index_e vpp_index);
@@ -252,6 +261,7 @@ void get_hdr_gamut_coef(struct hdr_gamut_data_s *data);
 void set_hdr_parameter_reg(struct hdr_parameter_reg_s *data);
 void get_hdr_parameter_reg(struct hdr_parameter_reg_s *data);
 int hdr10_param_dbg(char **parm);
+int get_hdr_on(void);
 
 #endif
 #endif

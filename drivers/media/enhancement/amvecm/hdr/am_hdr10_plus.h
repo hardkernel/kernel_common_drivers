@@ -7,6 +7,8 @@
 #ifndef AM_HDR_H
 #define AM_HDR_H
 
+#include <linux/amlogic/media/amvecm/amvecm.h>
+
 struct vframe_hdr_plus_sei {
 	u16 present_flag;
 	u16 itu_t_t35_country_code;
@@ -140,17 +142,19 @@ struct cuva_md_bits_s {
 	int clor_sat_gain_bits;
 };
 extern uint debug_hdr;
+extern uint emds_group_idx;
 #define HDR_PLUS_IEEE_OUI 0x90848B
 #define SEI_SYNTAX 0x4
 void hdr10_plus_hdmitx_vsif_parser(struct hdr10plus_para
-				   *hdmitx_hdr10plus_param,
-				   struct vframe_s *vf);
+		*hdmitx_hdr10plus_param,
+		struct vframe_s *vf);
 void parser_dynamic_metadata(struct vframe_s *vf);
 void hdr10_plus_process(struct vframe_s *vf);
 void hdr10_plus_debug(int csc_type);
 extern struct vframe_hdr_plus_sei hdr_plus_sei;
 void cuva_hdr_vsif_pkt_update(struct cuva_hdr_vsif_para *vsif_para);
-void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para);
+void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para,
+		enum hdr_type_e source_format);
 extern struct cuva_hdr_dynamic_metadata_s cuva_metadata;
 #endif /* AM_HDR_H */
 #endif

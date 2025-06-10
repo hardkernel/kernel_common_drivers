@@ -35,8 +35,11 @@ unsigned int max_output_lum[] = {
 };
 
 static s64 lut_ogain[149];
+static s64 lut1_ogain[149];
 static s64 lut_cgain[65];
-char cuva_ver[] = "cuva-2022-02-19, update cuva hdr2sdr parameters";
+char cuva_ver[] = "2024-03-07 V-0.1, alg update for match vivid 1.3.4";
+
+int maxl = 100;
 
 #define LUT_SHIFT 520
 static u16 linear_e_to_o[504] = {
@@ -103,6 +106,7 @@ const char *cuva_func_char[] = {
 
 struct aml_gain_reg vm_reg = {
 	.ogain_lut = lut_ogain,
+	.ogain_lut1 = lut1_ogain,
 	.cgain_lut = lut_cgain
 };
 
@@ -242,8 +246,8 @@ static int get_maxl_e(int maxl)
 	}
 
 	for (i = 0; i < 504; i++) {
-		if (linear_e_to_o[i] >= maxl) {
-			maxl_e = i + LUT_SHIFT;
+		if (linear_e_to_o[i] > maxl) {
+			maxl_e = i + LUT_SHIFT - 1;
 			break;
 		}
 	}
@@ -254,10 +258,14 @@ static int get_maxl_e(int maxl)
 	return maxl_e;
 }
 
+int get_cuva_max_lum(void)
+{
+	return maxl;
+}
+
 static void get_cuva_tm_maxl(enum cuva_func_e tm_func,
 	struct vframe_master_display_colour_s *p)
 {
-	int maxl = 100;
 	int minl = 0;
 	int static_maxl = 4000;
 	struct vinfo_s *vinfo = get_current_vinfo();

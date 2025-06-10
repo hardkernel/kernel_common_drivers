@@ -8,6 +8,7 @@
 #define AM_CSC_PIP_H
 #include <linux/amlogic/media/amvecm/hdr2_ext.h>
 extern uint slice_set;
+extern u32 prime_mode;
 
 int hdr_policy_process(struct vinfo_s *vinfo,
 	enum hdr_type_e *source_format,
@@ -31,17 +32,21 @@ void video_post_process(struct vframe_s *vf,
 	enum hdr_type_e *source_type, enum vpp_index_e vpp_index);
 void output_color_fmt_convert(int vpp_index);
 void hdr_proc_multi_slices(struct vframe_s *vf,
-	      enum hdr_module_sel module_sel,
-	      u32 hdr_process_select,
-	      struct vinfo_s *vinfo,
-	      struct matrix_s *gmt_mtx,
-	      s32 slice_mode,
-	      enum vpp_index_e vpp_index);
+	enum hdr_module_sel module_sel,
+	u32 hdr_process_select,
+	struct vinfo_s *vinfo,
+	struct matrix_s *gmt_mtx,
+	s32 slice_mode,
+	enum vpp_index_e vpp_index);
 void hdr_proc(struct vframe_s *vf,
-	      enum hdr_module_sel module_sel,
-	      u32 hdr_process_select,
-	      struct vinfo_s *vinfo,
-	      struct matrix_s *gmt_mtx,
-	      enum vpp_index_e vpp_index);
+	enum hdr_module_sel module_sel,
+	u32 hdr_process_select,
+	struct vinfo_s *vinfo,
+	struct matrix_s *gmt_mtx,
+	enum vpp_index_e vpp_index);
+
+void cal_gamut_mapping_wrapper_matrix(enum hdr_type_e source_type,
+	struct vinfo_s *vinfo, int bypass_gamut, enum vpp_index_e vpp_index);
+
 #endif
 #endif

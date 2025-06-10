@@ -33,6 +33,8 @@ uint debug_hdr;
 			pr_info(fmt, ## args);\
 	} while (0)
 
+uint emds_group_idx;
+
 #define HDR10_PLUS_VERSION  "hdr10_plus v1_20181024"
 
 struct hdr_plus_bits_s sei_md_bits = {
@@ -497,7 +499,7 @@ void cuva_hdr_metadata_parse(char *metadata, uint32_t size)
 {
 	struct cuva_md_bits_s md_bits;
 	int totbitoffset = 0;
-	int value;
+	int value = 0;
 	int num_wds;
 	int i, j;
 	int tm_param_num;
@@ -1057,7 +1059,8 @@ void parser_dynamic_metadata(struct vframe_s *vf)
 			(debug_csc & 0x10)) {
 			meta_buf = req.aux_buf;
 			pr_csc(0x10,
-				"hdr10 source_type = %d src_fmt = %d metadata(%d):\n",
+				"%s: vf(%p)index(%d, %d) source_type = %d src_fmt = %d metadata(%d):\n",
+				__func__, vf, vf->index, vf->frame_index,
 				get_vframe_src_fmt(vf),
 				vf->source_type, req.aux_size);
 			for (i = 0; i < req.aux_size + 8; i += 8) {
@@ -1292,55 +1295,62 @@ void cuva_hdr_vsif_pkt_update(struct cuva_hdr_vsif_para *vsif_para)
 	memset(vsif_para, 0, sizeof(struct cuva_hdr_vsif_para));
 
 	vsif_para->system_start_code = (u8)cuva_metadata.system_start_code;
-	vsif_para->version_code = 0x5;
-	vsif_para->monitor_mode_en = 0;/*metadata have no monitor_mode_en*/
-	vsif_para->transfer_character = 0;/*metadata have no transfer_character*/
+	vsif_para->version_code = 0x1;
+	vsif_para->monitor_mode_en = 1;
+	vsif_para->transfer_character = 0; /* 0 means ST2084 EOTF */
 
 	memcpy(&dbg_cuva_vsif_pkt, vsif_para,
 		sizeof(struct cuva_hdr_vsif_para));
 }
 
-void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para)
+void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para,
+		enum hdr_type_e source_format)
 {
 	int i;
+	int idx;
+
+	idx = emds_group_idx;
 
 	memset(edms_para, 0, sizeof(struct cuva_hdr_vs_emds_para));
 
 	edms_para->system_start_code = (u8)cuva_metadata.system_start_code;
-	edms_para->version_code = 0x5;
+	edms_para->version_code = 0x1;
 	edms_para->min_maxrgb_pq = (u16)cuva_metadata.min_maxrgb_pq;
 	edms_para->avg_maxrgb_pq = (u16)cuva_metadata.avg_maxrgb_pq;
 	edms_para->var_maxrgb_pq = (u16)cuva_metadata.var_maxrgb_pq;
 	edms_para->max_maxrgb_pq = (u16)cuva_metadata.max_maxrgb_pq;
-	edms_para->targeted_max_lum_pq = (u16)cuva_metadata.tgt_system_dsp_max_luma_pq[0];
-	edms_para->transfer_character = 0;/*metadata have no transfer_character*/
-	edms_para->base_enable_flag = (u8)cuva_metadata.base_en_flag[0];
-	edms_para->base_param_m_p = (u16)cuva_metadata.base_param_m_p[0];
-	edms_para->base_param_m_m = (u16)cuva_metadata.base_param_m_m[0];
-	edms_para->base_param_m_a = (u16)cuva_metadata.base_param_m_a[0];
-	edms_para->base_param_m_n = (u16)cuva_metadata.base_param_m_n[0];
-	edms_para->base_param_k[0] = (u8)cuva_metadata.base_param_m_k1[0];
-	edms_para->base_param_k[1] = (u8)cuva_metadata.base_param_m_k2[0];
-	edms_para->base_param_k[2] = (u8)cuva_metadata.base_param_m_k3[0];
+	edms_para->targeted_max_lum_pq = (u16)cuva_metadata.tgt_system_dsp_max_luma_pq[idx];
+	if (source_format == CUVA_HLG_SOURCE)
+		edms_para->transfer_character = 1; /* 0 means HLG EOTF */
+	else
+		edms_para->transfer_character = 0; /* 0 means ST2084 EOTF */
+	edms_para->base_enable_flag = (u8)cuva_metadata.base_en_flag[idx];
+	edms_para->base_param_m_p = (u16)cuva_metadata.base_param_m_p[idx];
+	edms_para->base_param_m_m = (u16)cuva_metadata.base_param_m_m[idx];
+	edms_para->base_param_m_a = (u16)cuva_metadata.base_param_m_a[idx];
+	edms_para->base_param_m_n = (u16)cuva_metadata.base_param_m_n[idx];
+	edms_para->base_param_k[0] = (u8)cuva_metadata.base_param_m_k1[idx];
+	edms_para->base_param_k[1] = (u8)cuva_metadata.base_param_m_k2[idx];
+	edms_para->base_param_k[2] = (u8)cuva_metadata.base_param_m_k3[idx];
 	edms_para->base_param_delta_enable_mode =
-		(u8)cuva_metadata.base_param_delta_en_mode[0];
-	edms_para->base_param_enable_delta = (u8)cuva_metadata.base_param_en_delta[0];
-	edms_para->_3spline_enable_num = (u8)cuva_metadata.spline_en_num[0];
-	edms_para->_3spline_enable_flag = (u8)cuva_metadata.spline_en_flag[0];
+		(u8)cuva_metadata.base_param_delta_en_mode[idx];
+	edms_para->base_param_enable_delta = (u8)cuva_metadata.base_param_en_delta[idx];
+	edms_para->_3spline_enable_num = (u8)cuva_metadata.spline_en_num[idx];
+	edms_para->_3spline_enable_flag = (u8)cuva_metadata.spline_en_flag[idx];
 	if (edms_para->_3spline_enable_flag) {
 		for (i = 0; i < 2; i++) {
 			edms_para->_3spline_data[i].th_enable_mode =
-				(u8)cuva_metadata.spline_th_en_mode[0][i];
+				(u8)cuva_metadata.spline_th_en_mode[i][idx];
 			edms_para->_3spline_data[i].th_enable_mb =
-				(u8)cuva_metadata.spline_th_en_mb[0][i];
+				(u8)cuva_metadata.spline_th_en_mb[i][idx];
 			edms_para->_3spline_data[i].th_enable =
-				(u16)cuva_metadata.spline_th_enable[0][i];
+				(u16)cuva_metadata.spline_th_enable[i][idx];
 			edms_para->_3spline_data[i].th_enable_delta[0] =
-				(u16)cuva_metadata.spline_th_en_delta1[0][i];
+				(u16)cuva_metadata.spline_th_en_delta1[i][idx];
 			edms_para->_3spline_data[i].th_enable_delta[1] =
-				(u16)cuva_metadata.spline_th_en_delta2[0][i];
+				(u16)cuva_metadata.spline_th_en_delta2[i][idx];
 			edms_para->_3spline_data[i].enable_strength =
-				(u8)cuva_metadata.spline_en_strength[0][i];
+				(u8)cuva_metadata.spline_en_strength[i][idx];
 		}
 	}
 
@@ -1354,7 +1364,7 @@ void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para)
 	/*metadata have no graphic_src_display_value*/
 	edms_para->graphic_src_display_value = 0;
 	/*metadata have no max_display_mastering_lum*/
-	edms_para->max_display_mastering_lum = 0;
+	edms_para->max_display_mastering_lum = 4000;
 
 	memcpy(&dbg_cuva_emds_pkt, edms_para,
 		sizeof(struct cuva_hdr_vs_emds_para));

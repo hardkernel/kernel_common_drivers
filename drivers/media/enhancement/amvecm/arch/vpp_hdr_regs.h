@@ -726,6 +726,9 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 //Bit 0             reg_hdr2_frm_start_sel
 #define VD1_HDR_IN_SIZE                            0x1a57
 #define VD2_HDR_IN_SIZE                            0x1a58
+#define VD3_HDR_IN_SIZE                            0x1a59
+
+#define VD1_1_HDR_IN_SIZE                          0x1aa5
 #define VD2_1_HDR_IN_SIZE                          0x1aa6
 //Bit   31:29     reserved
 //Bit   28:16     vd2_1_hdr_in_vsize     unsigned,default = 1920

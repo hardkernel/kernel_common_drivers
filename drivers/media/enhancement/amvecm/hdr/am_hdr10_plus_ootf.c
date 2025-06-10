@@ -16,6 +16,7 @@
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#include <linux/amlogic/media/amvecm/hdr10p_adaptive_alg.h>
 #include "../arch/vpp_hdr_regs.h"
 #include "am_hdr10_plus.h"
 #include "am_hdr10_plus_ootf.h"
@@ -906,13 +907,43 @@ void vframe_hdr_sei_s_init(struct hdr10_plus_sei_s *hdr10_plus_sei,
 	hdr_plus_sei.num_distribution_maxrgb_percentiles[0] = 0;
 }
 
+static void adap_hdr10p_func(struct scene2094metadata *metadata,
+	unsigned int *ogain, unsigned int *adap_ogain, int panel_lumin)
+{
+	struct hdr10p_adap_param_s *p;
+	unsigned int maxl;
+
+	p = get_hdr10p_par();
+
+	p->peak_nit = panel_lumin;
+	maxl = metadata->maxscenesourceluminance;
+
+	if (!maxl)
+		maxl = 1000;
+	if (maxl < p->peak_nit)
+		maxl = p->peak_nit;
+
+	if (p->adap_hdr10p_alg && p->en) {
+		p->scale = 10000 * (1 << 10) / maxl;
+		p->adap_hdr10p_alg(ogain, adap_ogain, p);
+		if (hdr10_plus_printk & 2)
+			pr_hdr("adaptive hdr10p process; peak_nit=%d, maxl=%d, scale=%d\n",
+				p->peak_nit, maxl, p->scale);
+	} else {
+		memcpy(adap_ogain, ogain, sizeof(unsigned int) * POINTS);
+		if (hdr10_plus_printk & 2)
+			pr_hdr("adaptive hdr10p alg: %p,  en = %d\n", p->adap_hdr10p_alg, p->en);
+	}
+}
+
 unsigned int gain[POINTS];
+unsigned int adap_ogain[POINTS];
 u64 curvex[POINTS], curvey[POINTS];
 
 /*input o->10000, should adaptive scale by shift and gamut*/
 static int match_ootf_output(struct scene2094metadata *metadata,
-			     struct hdr10pgen_param_s *p_hdr10pgen_param,
-	int panel_lumin)
+	struct hdr10pgen_param_s *p_hdr10pgen_param,
+	int panel_lumin, unsigned int *fn_gain)
 {
 	unsigned int scale_float;
 	unsigned int maxl;
@@ -931,7 +962,7 @@ static int match_ootf_output(struct scene2094metadata *metadata,
 	if (p_hdr10pgen_param->shift < 32)
 		p_hdr10pgen_param->scale_gmt =
 			scale_float >> p_hdr10pgen_param->shift;
-	memcpy(p_hdr10pgen_param->gain, gain, sizeof(unsigned int) * POINTS);
+	memcpy(p_hdr10pgen_param->gain, fn_gain, sizeof(unsigned int) * POINTS);
 
 	if (hdr10_plus_printk & 4) {
 		pr_hdr("maxl=%d, scale=%d, shift=%d, ",
@@ -939,7 +970,7 @@ static int match_ootf_output(struct scene2094metadata *metadata,
 		       p_hdr10pgen_param->shift);
 		pr_hdr("scale_gmt=%d, gain=%d-%d-%d\n",
 		       p_hdr10pgen_param->scale_gmt,
-		       gain[0], gain[86], gain[148]);
+		       fn_gain[0], fn_gain[86], fn_gain[148]);
 	}
 	return 0;
 }
@@ -968,6 +999,7 @@ int hdr10_plus_ootf_gen(int panel_lumin,
 	memset(curvex,   0, sizeof(uint64_t) * POINTS);
 	memset(curvey,   0, sizeof(uint64_t) * POINTS);
 	memset(gain,	 0, sizeof(unsigned int) * POINTS);
+	memset(adap_ogain,	 0, sizeof(unsigned int) * POINTS);
 
 	basisootf_params_init(&basisootf_params);
 
@@ -1035,7 +1067,8 @@ int hdr10_plus_ootf_gen(int panel_lumin,
 		}
 	}
 
-	match_ootf_output(&metadata, p_hdr10pgen_param, panel_lumin);
+	adap_hdr10p_func(&metadata, gain, adap_ogain, panel_lumin);
+	match_ootf_output(&metadata, p_hdr10pgen_param, panel_lumin, adap_ogain);
 	hdr10_plus_printk = 0;
 
 	return 0;

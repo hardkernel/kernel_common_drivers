@@ -19,6 +19,7 @@ void cuva_tm_func(enum cuva_func_e tm_func,
 
 unsigned int get_max_output_lum(unsigned int type);
 void set_max_output_lum(unsigned int type, unsigned int val);
+int get_cuva_max_lum(void);
 
 #endif
 #endif

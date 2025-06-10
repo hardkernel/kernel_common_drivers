@@ -204,7 +204,7 @@ int gen_oe_x_val(u64 *oe_x_val)
 
 void decasteliau_alg(u64 *ebzcur, u64 step, u64 range, u64 *p, u32 order)
 {
-	u64 point[MAX_BEIZER_ORDER + 1];
+	u64 point[MAX_BEIZER_ORDER + 1] = {0};
 	int i, j;
 
 	for (i = 0; i < order; i++)

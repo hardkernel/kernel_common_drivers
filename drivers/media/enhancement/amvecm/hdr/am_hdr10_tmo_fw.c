@@ -259,6 +259,9 @@ struct aml_tmo_reg_sw tmo_reg = {
 	.tmo_full_white_th1 = 950,
 	.tmo_special_pat1_th = 80,
 	.tmo_special_pat2_th = 600,
+	.tmo_blend_dark_gain = 350,
+	.tmo_blend_dark_th0 = 128,
+	.tmo_blend_dark_th1 = 216,
 	.tmo_force_ootf1_mode = &tmo_force_ootf1_mode,
 	.tmo_force_ootf1_val = &tmo_force_ootf1_val,
 	.hw_regs = &pq_hw_regs,
@@ -552,6 +555,9 @@ void hdr10_tmo_reg_ext_set(struct hdr_tmo_sw_ext *pre_tmo_reg_ext)
 		pre_tmo_reg_ext->reg_full_white_th1 == 0 &&
 		pre_tmo_reg_ext->reg_special_pat1_th == 0 &&
 		pre_tmo_reg_ext->reg_special_pat2_th == 0 &&
+		pre_tmo_reg_ext->reg_blend_dark_gain == 0 &&
+		pre_tmo_reg_ext->reg_blend_dark_th0 == 0 &&
+		pre_tmo_reg_ext->reg_blend_dark_th1 == 0 &&
 		pre_tmo_reg_ext->reg_fcurve_adj_sync_idx[0] == 0 &&
 		pre_tmo_reg_ext->reg_fcurve_adj_sync_idx[1] == 0 &&
 		pre_tmo_reg_ext->reg_fcurve_adj_sync_idx[2] == 0 &&
@@ -672,6 +678,9 @@ void hdr10_tmo_reg_ext_set(struct hdr_tmo_sw_ext *pre_tmo_reg_ext)
 	tmo_reg.tmo_full_white_th1 = pre_tmo_reg_ext->reg_full_white_th1;
 	tmo_reg.tmo_special_pat1_th = pre_tmo_reg_ext->reg_special_pat1_th;
 	tmo_reg.tmo_special_pat2_th = pre_tmo_reg_ext->reg_special_pat2_th;
+	tmo_reg.tmo_blend_dark_gain = pre_tmo_reg_ext->reg_blend_dark_gain;
+	tmo_reg.tmo_blend_dark_th0 = pre_tmo_reg_ext->reg_blend_dark_th0;
+	tmo_reg.tmo_blend_dark_th1 = pre_tmo_reg_ext->reg_blend_dark_th1;
 	memcpy(tmo_reg.tmo_fcurve_adj_sync_idx,
 		pre_tmo_reg_ext->reg_fcurve_adj_sync_idx, 10 * sizeof(int));
 	memcpy(tmo_reg.tmo_fcurve_adj_gain,
@@ -787,6 +796,9 @@ void hdr10_tmo_reg_ext_get(struct hdr_tmo_sw_ext *pre_tmo_reg_ext_s)
 	pre_tmo_reg_ext_s->reg_full_white_th1 = tmo_reg.tmo_full_white_th1;
 	pre_tmo_reg_ext_s->reg_special_pat1_th = tmo_reg.tmo_special_pat1_th;
 	pre_tmo_reg_ext_s->reg_special_pat2_th = tmo_reg.tmo_special_pat2_th;
+	pre_tmo_reg_ext_s->reg_blend_dark_gain = tmo_reg.tmo_blend_dark_gain;
+	pre_tmo_reg_ext_s->reg_blend_dark_th0 = tmo_reg.tmo_blend_dark_th0;
+	pre_tmo_reg_ext_s->reg_blend_dark_th1 = tmo_reg.tmo_blend_dark_th1;
 	memcpy(pre_tmo_reg_ext_s->reg_fcurve_adj_sync_idx,
 		tmo_reg.tmo_fcurve_adj_sync_idx, 10 * sizeof(int));
 	memcpy(pre_tmo_reg_ext_s->reg_fcurve_adj_gain,
@@ -797,165 +809,168 @@ void hdr10_tmo_reg_ext_get(struct hdr_tmo_sw_ext *pre_tmo_reg_ext_s)
 
 static char hdr_tmo_debug_usage_str[TMO_PARAM_CNT][LINE_SIZE] = {
 	"tmo_en = ",
-	"tmo_display_e = ",
-	"tmo_display_e_bc = ",
-	"tmo_max_th1 = ",
-	"tmo_max_th2 = ",
-	"tmo_max_th3 = ",
-	"tmo_max_th4 = ",
-	"tmo_highlight = ",
-	"tmo_highlight_bc = ",
-	"tmo_ratio = ",
-	"tmo_light_th = ",
-	"tmo_hist_th = ",
-	"tmo_highlight_th1 = ",
-	"tmo_highlight_th2 = ",
-	"tmo_display_adj = ",
-	"tmo_avg_th = ",
-	"tmo_avg_adj = ",
-	"tmo_hl0 = ",
-	"tmo_hl1 = ",
-	"tmo_hl2 = ",
-	"tmo_hl3 = ",
-	"tmo_hl0_bc = ",
-	"tmo_hl1_bc = ",
-	"tmo_hl2_bc = ",
-	"tmo_hl3_bc = ",
-	"tmo_pnum_th = ",
-	"tmo_thold1 = ",
-	"tmo_thold2 = ",
-	"tmo_thold3 = ",
-	"tmo_thold4 = ",
-	"tmo_middle_th = ",
-	"tmo_middle_a = ",
-	"tmo_middle_a_bc = ",
-	"tmo_middle_a_adj = ",
-	"tmo_middle_b = ",
-	"tmo_middle_s = ",
-	"tmo_low_adj = ",
-	"tmo_low_adj_bc = ",
-	"tmo_high_en = ",
-	"tmo_olut_bit_mode = ",
-	"tmo_high_adj1 = ",
-	"tmo_high_adj2 = ",
-	"tmo_high_maxdiff = ",
-	"tmo_high_mindiff = ",
-	"tmo_curve_smo_mode = ",
-	"tmo_soft_clip_th = ",
-	"tmo_r0_32 = ",
-	"tmo_r1_32 = ",
-	"tmo_y_highlight_ratio = ",
-	"tmo_ratio_sat = ",
-	"tmo_avg_lum_ratio = ",
-	"tmo_alpha = ",
-	"tmo_model = ",
-	"tmo_highlight_lut_gain = ",
-	"tmo_highlight_lut_clip = ",
-	"tmo_force_xy_point_en = ",
-	"tmo_highlight_lut_x = ",
-	"tmo_highlight_lut_y = ",
-	"tmo_highlight_lut_pst_gain_en = ",
-	"tmo_highlight_lut_pst_gain = ",
-	"tmo_highlight_y_clip_pos_low = ",
-	"tmo_highlight_y_clip_pos_high = ",
-	"tmo_highlight_y_clip_pos_sup_high = ",
-	"tmo_highlight_y_clip_en = ",
-	"tmo_fcurv_low_th = ",
-	"tmo_fcurv_mid1_th = ",
-	"tmo_fcurv_mid2_th = ",
-	"tmo_fcurv_high1_th = ",
-	"tmo_fcurv_high2_th = ",
-	"tmo_fcurv_high3_th = ",
-	"tmo_avg_lum_th0 = ",
-	"tmo_avg_lum_th1 = ",
-	"tmo_avg_lum_th2 = ",
-	"tmo_avg_lum_alpha0 = ",
-	"tmo_avg_lum_alpha1 = ",
-	"tmo_avg_lum_alpha2 = ",
-	"tmo_avg_lum_alpha3 = ",
-	"tmo_fcurve_adj_en = ",
-	"tmo_fcurve_adj_sync_idx[0] = ",
-	"tmo_fcurve_adj_sync_idx[1] = ",
-	"tmo_fcurve_adj_sync_idx[2] = ",
-	"tmo_fcurve_adj_sync_idx[3] = ",
-	"tmo_fcurve_adj_sync_idx[4] = ",
-	"tmo_fcurve_adj_sync_idx[5] = ",
-	"tmo_fcurve_adj_sync_idx[6] = ",
-	"tmo_fcurve_adj_sync_idx[7] = ",
-	"tmo_fcurve_adj_sync_idx[8] = ",
-	"tmo_fcurve_adj_sync_idx[9] = ",
-	"tmo_fcurve_adj_gain[0] = ",
-	"tmo_fcurve_adj_gain[1] = ",
-	"tmo_fcurve_adj_gain[2] = ",
-	"tmo_fcurve_adj_gain[3] = ",
-	"tmo_fcurve_adj_gain[4] = ",
-	"tmo_fcurve_adj_gain[5] = ",
-	"tmo_fcurve_adj_gain[6] = ",
-	"tmo_fcurve_adj_gain[7] = ",
-	"tmo_fcurve_adj_gain[8] = ",
-	"tmo_fcurve_adj_gain[9] = ",
-	"tmo_avg_lum_alpha_sc_flag = ",
-	"tmo_sc_hist_th = ",
-	"tmo_sc_maxl_th = ",
-	"tmo_fcurv_clip_val[0][0] = ",
-	"tmo_fcurv_clip_val[0][1] = ",
-	"tmo_fcurv_clip_val[0][2] = ",
-	"tmo_fcurv_clip_val[0][3] = ",
-	"tmo_fcurv_clip_val[1][0] = ",
-	"tmo_fcurv_clip_val[1][1] = ",
-	"tmo_fcurv_clip_val[1][2] = ",
-	"tmo_fcurv_clip_val[1][3] = ",
-	"tmo_fcurv_clip_val[2][0] = ",
-	"tmo_fcurv_clip_val[2][1] = ",
-	"tmo_fcurv_clip_val[2][2] = ",
-	"tmo_fcurv_clip_val[2][3] = ",
-	"tmo_fcurv_clip_val[3][0] = ",
-	"tmo_fcurv_clip_val[3][1] = ",
-	"tmo_fcurv_clip_val[3][2] = ",
-	"tmo_fcurv_clip_val[3][3] = ",
-	"tmo_fcurv_clip_val[4][0] = ",
-	"tmo_fcurv_clip_val[4][1] = ",
-	"tmo_fcurv_clip_val[4][2] = ",
-	"tmo_fcurv_clip_val[4][3] = ",
-	"tmo_fcurv_clip_val[5][0] = ",
-	"tmo_fcurv_clip_val[5][1] = ",
-	"tmo_fcurv_clip_val[5][2] = ",
-	"tmo_fcurv_clip_val[5][3] = ",
-	"tmo_fcurv_clip_val[6][0] = ",
-	"tmo_fcurv_clip_val[6][1] = ",
-	"tmo_fcurv_clip_val[6][2] = ",
-	"tmo_fcurv_clip_val[6][3] = ",
-	"tmo_fcurv_clip_val[7][0] = ",
-	"tmo_fcurv_clip_val[7][1] = ",
-	"tmo_fcurv_clip_val[7][2] = ",
-	"tmo_fcurv_clip_val[7][3] = ",
-	"tmo_fcurv_clip_val[8][0] = ",
-	"tmo_fcurv_clip_val[8][1] = ",
-	"tmo_fcurv_clip_val[8][2] = ",
-	"tmo_fcurv_clip_val[8][3] = ",
-	"tmo_fcurv_clip_val[9][0] = ",
-	"tmo_fcurv_clip_val[9][1] = ",
-	"tmo_fcurv_clip_val[9][2] = ",
-	"tmo_fcurv_clip_val[9][3] = ",
-	"tmo_single_bin_th = ",
-	"tmo_oo_init_lut[0] = ",
-	"tmo_oo_init_lut[1] = ",
-	"tmo_oo_init_lut[2] = ",
-	"tmo_oo_init_lut[3] = ",
-	"tmo_oo_init_lut[4] = ",
-	"tmo_oo_init_lut[5] = ",
-	"tmo_oo_init_lut[6] = ",
-	"tmo_oo_init_lut[7] = ",
-	"tmo_oo_init_lut[8] = ",
-	"tmo_oo_init_lut[9] = ",
-	"tmo_oo_init_lut[10] = ",
-	"tmo_oo_init_lut[11] = ",
-	"tmo_oo_init_lut[12] = ",
-	"tmo_full_black_th = ",
-	"tmo_full_white_th0 = ",
-	"tmo_full_white_th1 = ",
-	"tmo_special_pat1_th = ",
-	"tmo_special_pat2_th = ",
+	"display_e = ",
+	"display_e_bc = ",
+	"max_th1 = ",
+	"max_th2 = ",
+	"max_th3 = ",
+	"max_th4 = ",
+	"highlight = ",
+	"highlight_bc = ",
+	"ratio = ",
+	"light_th = ",
+	"hist_th = ",
+	"highlight_th1 = ",
+	"highlight_th2 = ",
+	"display_adj = ",
+	"avg_th = ",
+	"avg_adj = ",
+	"hl0 = ",
+	"hl1 = ",
+	"hl2 = ",
+	"hl3 = ",
+	"hl0_bc = ",
+	"hl1_bc = ",
+	"hl2_bc = ",
+	"hl3_bc = ",
+	"pnum_th = ",
+	"thold1 = ",
+	"thold2 = ",
+	"thold3 = ",
+	"thold4 = ",
+	"middle_th = ",
+	"middle_a = ",
+	"middle_a_bc = ",
+	"middle_a_adj = ",
+	"middle_b = ",
+	"middle_s = ",
+	"low_adj = ",
+	"low_adj_bc = ",
+	"high_en = ",
+	"olut_bit_mode = ",
+	"high_adj1 = ",
+	"high_adj2 = ",
+	"high_maxdiff = ",
+	"high_mindiff = ",
+	"curve_smo_mode = ",
+	"soft_clip_th = ",
+	"r0_32 = ",
+	"r1_32 = ",
+	"y_highlight_ratio = ",
+	"ratio_sat = ",
+	"avg_lum_ratio = ",
+	"alpha = ",
+	"model = ",
+	"highlight_lut_gain = ",
+	"highlight_lut_clip = ",
+	"force_xy_point_en = ",
+	"highlight_lut_x = ",
+	"highlight_lut_y = ",
+	"highlight_lut_pst_gain_en = ",
+	"highlight_lut_pst_gain = ",
+	"highlight_y_clip_pos_low = ",
+	"highlight_y_clip_pos_high = ",
+	"highlight_y_clip_pos_sup_high = ",
+	"highlight_y_clip_en = ",
+	"fcurv_low_th = ",
+	"fcurv_mid1_th = ",
+	"fcurv_mid2_th = ",
+	"fcurv_high1_th = ",
+	"fcurv_high2_th = ",
+	"fcurv_high3_th = ",
+	"avg_lum_th0 = ",
+	"avg_lum_th1 = ",
+	"avg_lum_th2 = ",
+	"avg_lum_alpha0 = ",
+	"avg_lum_alpha1 = ",
+	"avg_lum_alpha2 = ",
+	"avg_lum_alpha3 = ",
+	"fcurve_adj_en = ",
+	"fcurve_adj_sync_idx[0] = ",
+	"fcurve_adj_sync_idx[1] = ",
+	"fcurve_adj_sync_idx[2] = ",
+	"fcurve_adj_sync_idx[3] = ",
+	"fcurve_adj_sync_idx[4] = ",
+	"fcurve_adj_sync_idx[5] = ",
+	"fcurve_adj_sync_idx[6] = ",
+	"fcurve_adj_sync_idx[7] = ",
+	"fcurve_adj_sync_idx[8] = ",
+	"fcurve_adj_sync_idx[9] = ",
+	"fcurve_adj_gain[0] = ",
+	"fcurve_adj_gain[1] = ",
+	"fcurve_adj_gain[2] = ",
+	"fcurve_adj_gain[3] = ",
+	"fcurve_adj_gain[4] = ",
+	"fcurve_adj_gain[5] = ",
+	"fcurve_adj_gain[6] = ",
+	"fcurve_adj_gain[7] = ",
+	"fcurve_adj_gain[8] = ",
+	"fcurve_adj_gain[9] = ",
+	"avg_lum_alpha_sc_flag = ",
+	"sc_hist_th = ",
+	"sc_maxl_th = ",
+	"fcurv_clip_val[0][0] = ",
+	"fcurv_clip_val[0][1] = ",
+	"fcurv_clip_val[0][2] = ",
+	"fcurv_clip_val[0][3] = ",
+	"fcurv_clip_val[1][0] = ",
+	"fcurv_clip_val[1][1] = ",
+	"fcurv_clip_val[1][2] = ",
+	"fcurv_clip_val[1][3] = ",
+	"fcurv_clip_val[2][0] = ",
+	"fcurv_clip_val[2][1] = ",
+	"fcurv_clip_val[2][2] = ",
+	"fcurv_clip_val[2][3] = ",
+	"fcurv_clip_val[3][0] = ",
+	"fcurv_clip_val[3][1] = ",
+	"fcurv_clip_val[3][2] = ",
+	"fcurv_clip_val[3][3] = ",
+	"fcurv_clip_val[4][0] = ",
+	"fcurv_clip_val[4][1] = ",
+	"fcurv_clip_val[4][2] = ",
+	"fcurv_clip_val[4][3] = ",
+	"fcurv_clip_val[5][0] = ",
+	"fcurv_clip_val[5][1] = ",
+	"fcurv_clip_val[5][2] = ",
+	"fcurv_clip_val[5][3] = ",
+	"fcurv_clip_val[6][0] = ",
+	"fcurv_clip_val[6][1] = ",
+	"fcurv_clip_val[6][2] = ",
+	"fcurv_clip_val[6][3] = ",
+	"fcurv_clip_val[7][0] = ",
+	"fcurv_clip_val[7][1] = ",
+	"fcurv_clip_val[7][2] = ",
+	"fcurv_clip_val[7][3] = ",
+	"fcurv_clip_val[8][0] = ",
+	"fcurv_clip_val[8][1] = ",
+	"fcurv_clip_val[8][2] = ",
+	"fcurv_clip_val[8][3] = ",
+	"fcurv_clip_val[9][0] = ",
+	"fcurv_clip_val[9][1] = ",
+	"fcurv_clip_val[9][2] = ",
+	"fcurv_clip_val[9][3] = ",
+	"single_bin_th = ",
+	"oo_init_lut[0] = ",
+	"oo_init_lut[1] = ",
+	"oo_init_lut[2] = ",
+	"oo_init_lut[3] = ",
+	"oo_init_lut[4] = ",
+	"oo_init_lut[5] = ",
+	"oo_init_lut[6] = ",
+	"oo_init_lut[7] = ",
+	"oo_init_lut[8] = ",
+	"oo_init_lut[9] = ",
+	"oo_init_lut[10] = ",
+	"oo_init_lut[11] = ",
+	"oo_init_lut[12] = ",
+	"full_black_th = ",
+	"full_white_th0 = ",
+	"full_white_th1 = ",
+	"special_pat1_th = ",
+	"special_pat2_th = ",
+	"blend_dark_gain = ",
+	"blend_dark_th0 = ",
+	"blend_dark_th1 = ",
 };
 
 void hdr10_tmo_reg_get_arr(int *arry)
@@ -1120,6 +1135,9 @@ void hdr10_tmo_reg_get_arr(int *arry)
 	arry[157] = tmo_reg.tmo_full_white_th1;
 	arry[158] = tmo_reg.tmo_special_pat1_th;
 	arry[159] = tmo_reg.tmo_special_pat2_th;
+	arry[160] = tmo_reg.tmo_blend_dark_gain;
+	arry[161] = tmo_reg.tmo_blend_dark_th0;
+	arry[162] = tmo_reg.tmo_blend_dark_th1;
 }
 
 int hdr_tmo_adb_show(char *str)
@@ -1143,6 +1161,19 @@ struct aml_tmo_reg_sw *tmo_fw_param_get(void)
 	return &tmo_reg;
 };
 EXPORT_SYMBOL(tmo_fw_param_get);
+
+int set_hdr_tmo_reg(void)
+{
+	struct aml_tmo_reg_sw *pre_tmo_reg;
+
+	pre_tmo_reg = tmo_fw_param_get();
+
+	if (chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x)
+		pre_tmo_reg->tmo_model = 2;
+
+	return 0;
+}
 
 void hdr10_tmo_gen(u32 *oo_gain, u32 *cgain, u32 *oo_gain1)
 {
@@ -1286,6 +1317,9 @@ void hdr10_tmo_parm_show(void)
 		tmo_reg.tmo_oo_init_lut[8], tmo_reg.tmo_oo_init_lut[9],
 		tmo_reg.tmo_oo_init_lut[10], tmo_reg.tmo_oo_init_lut[11],
 		tmo_reg.tmo_oo_init_lut[12]);
+	pr_info("tmo_blend_dark_gain = %d\n", tmo_reg.tmo_blend_dark_gain);
+	pr_info("tmo_blend_dark_th0 = %d\n", tmo_reg.tmo_blend_dark_th0);
+	pr_info("tmo_blend_dark_th1 = %d\n", tmo_reg.tmo_blend_dark_th1);
 
 	pr_info("w = %d\n", tmo_reg.w);
 	pr_info("h = %d\n", tmo_reg.h);
@@ -1823,7 +1857,24 @@ int hdr10_tmo_dbg(char **parm)
 		tmo_reg.tmo_special_pat2_th = (int)val;
 		pr_tmo_dbg("tmo_special_pat2_th = %d\n", (int)val);
 		pr_info("\n");
-
+	} else if (!strcmp(parm[0], "blend_dark_gain")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto error;
+		tmo_reg.tmo_blend_dark_gain = (int)val;
+		pr_tmo_dbg("tmo_blend_dark_gain = %d\n", (int)val);
+		pr_info("\n");
+	} else if (!strcmp(parm[0], "blend_dark_th0")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto error;
+		tmo_reg.tmo_blend_dark_th0 = (int)val;
+		pr_tmo_dbg("tmo_blend_dark_th0 = %d\n", (int)val);
+		pr_info("\n");
+	} else if (!strcmp(parm[0], "blend_dark_th1")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto error;
+		tmo_reg.tmo_blend_dark_th1 = (int)val;
+		pr_tmo_dbg("tmo_blend_dark_th1 = %d\n", (int)val);
+		pr_info("\n");
 	} else if (!strcmp(parm[0], "fcurve_adj_sync_idx")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto error;

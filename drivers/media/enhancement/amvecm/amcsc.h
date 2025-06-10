@@ -14,7 +14,7 @@ extern uint debug_csc;
 #define pr_csc(lvl, fmt, args...)\
 	do {\
 		if (debug_csc & (lvl))\
-			pr_info(fmt, ## args);\
+			pr_info("[%s](%d):" fmt, __func__, __LINE__, ## args);\
 	} while (0)
 
 /* white balance value */
@@ -86,6 +86,7 @@ enum output_format_e {
 	BT2020_HLG,
 	BT2100_IPT,
 	BT2020YUV_BT2020RGB_CUVA,
+	BT2020_HLG_DYNAMIC = 10,
 	/* force bypass all process */
 	BT_BYPASS
 };
@@ -95,6 +96,13 @@ struct hdr_cap_info_s {
 	u32 hdr_support;
 	enum hdmi_color_depth cd;
 	enum hdmi_colorspace cs;
+};
+
+enum cuva_mode_type_e {
+	CUVA_SPECIAL_NO = 0,
+	CUVA_MONITOR,
+	CUVA_RECEIVER,
+	CUVA_AUTO
 };
 
 #define POST_MTX_EN_MASK BIT(POST_MTX_EN)
@@ -111,6 +119,7 @@ struct hdr_cap_info_s {
 #define DV_SUPPORT_SHF		(6)
 #define DV_SUPPORT		(3 << DV_SUPPORT_SHF)
 #define CUVA_SUPPORT		(BIT(8))
+#define HLGP_SUPPORT		(BIT(9))
 
 #define CUVA_IEEEOUI 0x047503
 
@@ -172,6 +181,8 @@ enum output_format_e get_force_output(void);
 void set_force_output(enum output_format_e output);
 void set_vout2_change(unsigned int flag);
 unsigned int get_vout2_change(void);
+enum cuva_mode_type_e get_cuva_mode(void);
+enum cuva_mode_type_e get_tx_cuva_mode(struct vinfo_s *vinfo);
 
 /* 0: hdr->hdr, 1:hdr->sdr, 2:hdr->hlg */
 extern uint hdr_process_mode[VD_PATH_MAX];
@@ -193,6 +204,10 @@ extern uint cur_cuva_hlg_process_mode[VD_PATH_MAX];
 extern uint hlg_process_mode[VD_PATH_MAX];
 extern uint cur_hlg_process_mode[VD_PATH_MAX];
 
+/* 0: bypass, 1:hlgp->hlg, 2:hlgp->sdr, 3:hlgp->hdr */
+extern uint hlg_plus_process_mode[VD_PATH_MAX];
+extern uint cur_hlg_plus_process_mode[VD_PATH_MAX];
+
 /* 0: sdr->sdr, 1:sdr->hdr, 2:sdr->hlg */
 extern uint sdr_process_mode[VD_PATH_MAX];
 extern uint cur_sdr_process_mode[VD_PATH_MAX];
@@ -201,6 +216,10 @@ extern uint cur_sdr_process_mode[VD_PATH_MAX];
 extern uint tx_hdr10_plus_support;
 
 extern struct master_display_info_s dbg_hdr_send;
+
+/* 0: not cuva spicial mode, 1:monitor, 2:receiver, 3:auto */
+extern unsigned int tx_cuva_mode;
+extern unsigned int cuva_dbg_mode; /* only for debug tx_cuva_mode*/
 
 int amvecm_matrix_process(struct vframe_s *vf, struct vframe_s *vf_rpt, int flags,
 			  enum vd_path_e vd_path, enum vpp_index_e vpp_index);
@@ -276,6 +295,12 @@ int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
 #define PROC_HDRP_TO_HLG	3
 #define PROC_HDRP_TO_CUVA	4
 
+/* hlg+ */
+#define PROC_HLGP_TO_HLG	1
+#define PROC_HLGP_TO_SDR	2
+#define PROC_HLGP_TO_HDR	3
+#define PROC_HLGP_TO_CUVA	4
+
 /* cuva_hdr */
 #define PROC_CUVA_TO_SDR	1
 #define PROC_CUVA_TO_HDR	2
@@ -312,6 +337,8 @@ void update_cuva_pkt(bool enable,
 #define CUVA_PKT_IDLE	0
 void hdr10_plus_process_update(int force_source_lumin, enum vd_path_e vd_path,
 		enum vpp_index_e vpp_index);
+void hlg_plus_process_update(int force_source_lumin, enum vd_path_e vd_path,
+		enum vpp_index_e vpp_index);
 extern int customer_hdr_clipping;
 
 /* api to get sink capability */
@@ -322,6 +349,7 @@ uint32_t sink_hdr_support_ori_cap(const struct vinfo_s *vinfo);
 extern uint hdr_policy;
 extern uint primary_policy;
 extern uint force_output;
+extern unsigned int hdr_policy_bak;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 extern uint osd_gamut_conv_type;
@@ -371,7 +399,6 @@ void update_muxio_mode(struct vframe_s *vf,
 unsigned int get_muxio_ready_for_dpss(void);
 
 struct gamut_mapping_s {
-	unsigned int enable;
 	unsigned int eotf_en;
 	unsigned int oetf_en;
 	unsigned int ootf_en;
@@ -383,21 +410,20 @@ struct gamut_mapping_s {
 	int oetf_lut[144];
 	int ootf_lut[144];
 	unsigned int flag_update_mtx;
-	int mtx[9];
+	int mtx[3][3];
 	int mtx_pre_offset[3];
 	int mtx_pos_offset[3];
-	//debug
-	int mtx_select;
-	int read;
-	int position;
+	int mtx_rs;
 };
 
-extern struct gamut_mapping_s gamut_mapping0;
-extern struct gamut_mapping_s gamut_mapping1;
+extern struct gamut_mapping_s gamut_mapping0_param;
+extern struct gamut_mapping_s gamut_mapping1_param;
 extern uint gamut_mapping0_en;
 extern uint gamut_mapping1_en;
 
-void gamut_wrapper_init(void);
+void gamut_mapping_wrapper_init(void);
+void set_gamut_mapping_wrapper(int module, int vpp_index);
+void get_gamut_mapping_wrapper(void);
 
 void set_muxio_link_mode(unsigned int link_flag,
 	struct vframe_s *vf, enum vpp_index_e vpp_index);
@@ -406,7 +432,7 @@ void update_muxio_mode(struct vframe_s *vf,
 unsigned int get_muxio_ready_for_dpss(void);
 void update_hdr_settings_dpss(struct vframe_s *vf,
 	enum vd_path_e vd_path, enum vpp_index_e vpp_index);
+enum hdr_module_sel get_hdr_module(enum vd_path_e vd_path);
 #endif
-
 #endif /* AM_CSC_H */
 

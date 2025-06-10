@@ -32,6 +32,7 @@ enum output_format_e output_format;
 
 /*bit4: force mode; bit 0-3 slice num */
 uint slice_set = 0x14;
+u32 prime_mode = BIT(0);
 
 #define INORM  50000
 static u32 bt2020_primaries[3][2] = {
@@ -44,7 +45,7 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
-static const char *module_str[15] = {
+static const char *module_str[HDR_MAX] = {
 	"UNKNOWN",
 	"VD1",
 	"VD2",
@@ -59,10 +60,13 @@ static const char *module_str[15] = {
 	"S5_VD1_S1",
 	"S5_VD1_S2",
 	"S5_VD1_S3",
-	"VICP"
+	"VICP",
+	"VDIN2_HDR",
+	"VD1_1_HDR",
+	"VD2_1_HDR",
 };
 
-static const char *process_str[30] = {
+static const char *process_str[34] = {
 	"UNKNOWN",
 	"HDR_BYPASS",
 	"HDR_SDR",
@@ -92,7 +96,11 @@ static const char *process_str[30] = {
 	"CUVAHLG_HLG",
 	"CUVAHLG_CUVA",
 	"SDR_AC_ENH",
-	"HDR_HDR"
+	"HDR_HDR",
+	"RGB_OSD",
+	"RGB_VDIN",
+	"FULL_VDIN",
+	"HLGP_SDR"
 };
 
 static const char *policy_str[3] = {
@@ -101,7 +109,7 @@ static const char *policy_str[3] = {
 	"force_output"
 };
 
-static const char *input_str[10] = {
+static const char *input_str[13] = {
 	"NONE",
 	"HDR",
 	"HDR+",
@@ -111,11 +119,14 @@ static const char *input_str[10] = {
 	"SDR",
 	"MVC",
 	"CUVA_HDR",
-	"CUVA_HLG"
+	"CUVA_HLG",
+	"SDR_BT2020",
+	"HDR10_709",
+	"HLG+"
 };
 
 /* output_format_e */
-static const char *output_str[11] = {
+static const char *output_str[12] = {
 	"UNKNOWN",
 	"709",
 	"709_HDR",
@@ -126,6 +137,7 @@ static const char *output_str[11] = {
 	"IPT",
 	"CUVA_HDR",
 	"CUVA_HLG",
+	"HLG+",
 	"BYPASS"
 };
 
@@ -139,7 +151,9 @@ static const char *dv_output_str[6] = {
 };
 
 static int process_id[VD_PATH_MAX];
-static void hdr_proc(struct vframe_s *vf,
+static enum vd_path_e cur_vd_path;
+
+void hdr_proc(struct vframe_s *vf,
 	      enum hdr_module_sel module_sel,
 	      u32 hdr_process_select,
 	      struct vinfo_s *vinfo,
@@ -152,15 +166,22 @@ static void hdr_proc(struct vframe_s *vf,
 	unsigned int is_dd_frame = 0;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (is_amdv_enable() && vf && is_amdv_frame(vf))
-			is_dd_frame = 1;
+	if (is_amdv_enable() && vf && is_amdv_frame(vf))
+		is_dd_frame = 1;
 #endif
+	if ((mosaic_mode &&  cur_vd_path != VD1_PATH) &&
+		(module_sel == OSD1_HDR || module_sel == OSD2_HDR ||
+		module_sel == OSD3_HDR)) //in mosaic mode, only vd1 process osd hdr
+		return;
 
-	if (vf)
+	if (vf) {
 		limit_full = (vf->signal_type >> 25) & 0x01;
+		pr_csc(128, "signal_type/type= 0x%x/0x%x,dpss_flg=0x%x\n",
+			vf->signal_type, vf->type, vf->dpss_flg);
+	}
 
-	pr_csc(128, "%s: module_sel = %d, limit_full = %d\n",
-		__func__, module_sel, limit_full);
+//	pr_csc(128, "module_sel = %d, limit_full = %d\n",
+//		module_sel, limit_full);
 
 	/* RGB / YUV vdin input handling  prepare extra op code or info */
 	if (vf && vf->type & VIDTYPE_RGB_444 && !is_amdv_on())
@@ -170,36 +191,87 @@ static void hdr_proc(struct vframe_s *vf,
 		hdr_process_select |= FULL_VDIN;
 	/* RGB / YUV input handling */
 
-	pr_csc(128, "%s: hdr_process_select = 0x%08x, pre_/dpss_mode = %d/%d\n",
-		__func__, hdr_process_select, pre_dpss_mode, dpss_mode);
-
-	if (vf)
-		pr_csc(128, "%s: dpss_flg = 0x%x\n", __func__, vf->dpss_flg);
+//	pr_csc(128, "hdr_process_select = 0x%08x, pre_/dpss_mode = %d/%d\n",
+//		hdr_process_select, pre_dpss_mode, dpss_mode);
 
 	if (vf && !dpss_mode &&
 		!is_dd_frame && module_sel == VD1_HDR &&
 		!(hdr_process_select & HDR_BYPASS))
 		set_muxio_link_mode(1, vf, vpp_index);
 
+	if (vf && !pre_dpss_mode && !dpss_mode &&
+		!is_dd_frame && module_sel == VD1_HDR &&
+		!(hdr_process_select & HDR_BYPASS)) {
+		if ((vf->dpss_flg & DPSS_FLG_HDR) ||
+		(vf->dpss_flg & DPSS_FLG_DDD)) {
+			pr_csc(128, "%s: skip dpss vf(%p) index=%d,frame_index=%d,dpss_flg=%d\n",
+				__func__, vf, vf->index, vf->frame_index, vf->dpss_flg);
+		} else {
+			set_muxio_link_mode(1, vf, vpp_index);
+		}
+	}
+
 	if (hdr_process_select & HDR10P_SDR)
-		cur_hdr_process =
-		hdr10p_func(module_sel, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		cur_hdr_process = hdr10p_func(module_sel,
+			hdr_process_select, vinfo, gmt_mtx, vpp_index);
 	else
-		cur_hdr_process =
-		hdr_func(module_sel, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		cur_hdr_process = hdr_func(module_sel,
+			hdr_process_select, vinfo, gmt_mtx, vpp_index);
 
 	index = 0;
-	for (i = 0; i < 29; i++) {
-		if (BIT(i) == (hdr_process_select & 0x1fffffff)) {
+	for (i = 0; i < 32; i++) {
+		if (BIT(i) == (hdr_process_select & 0xffffffff)) {
 			index = i + 1;
 			break;
 		}
 	}
-	pr_csc(8, "am_vecm: hdr module=%s, process=%s, select=%x\n",
-	       module_str[module_sel],
-			process_str[index],
-			hdr_process_select);
 
+	pr_csc(8, "am_vecm: hdr module=%s, process=%s, select=%x\n",
+		module_str[module_sel],
+		process_str[index],
+		hdr_process_select);
+
+	if (module_sel == VD1_HDR)
+		process_id[0] = index;
+	else if (module_sel == VD2_HDR)
+		process_id[1] = index;
+	else if (module_sel == VD3_HDR)
+		process_id[2] = index;
+}
+
+void hdr_proc_ext(struct vframe_s *vf,
+	      enum hdr_module_sel module_sel,
+	      u32 hdr_process_select,
+	      struct vinfo_s *vinfo,
+	      struct matrix_s *gmt_mtx,
+	      enum vpp_index_e vpp_index)
+{
+	enum hdr_process_sel cur_hdr_process;
+	int limit_full = 0;
+	int index;
+
+	if (vf)
+		limit_full = (vf->signal_type >> 25) & 0x01;
+
+	/* RGB / YUV vdin input handling  prepare extra op code or info */
+	if (vf && vf->type & VIDTYPE_RGB_444 && !is_amdv_on())
+		hdr_process_select |= RGB_VDIN;
+	if (limit_full && !is_amdv_on())
+		hdr_process_select |= FULL_VDIN;
+	/* RGB / YUV input handling */
+//	pr_csc(128, "%s: hdr_process_select = 0x%08x, module_sel = %d, limit_full = %d\n",
+//		__func__, hdr_process_select, module_sel, limit_full);
+
+	if (hdr_process_select & HLGP_SDR)
+		cur_hdr_process =
+		hlgp_func(module_sel, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+	else
+		return;
+
+	if (BIT(0) == (hdr_process_select & 0x1))
+		index = 33;
+//	pr_csc(8, "am_vecm: hdr module=%s, process=%s, select=%x\n",
+//			module_str[module_sel], process_str[index], hdr_process_select);
 
 	if (module_sel == VD1_HDR)
 		process_id[0] = index;
@@ -237,10 +309,9 @@ void hdr_proc_multi_slices(struct vframe_s *vf,
 		return;
 	}
 
-	pr_csc(8, "am_vecm: hdr module=%s %d, sel %d, slice_num = %d\n",
-		module_str[module_sel], module_sel, hdr_process_select, slice_mode);
-
 	if (slice_mode == VD1_1SLICE) {
+		pr_csc(8, "am_vecm: hdr module=%s %d, sel %d, slice_num = %d\n",
+			module_str[module_sel], module_sel, hdr_process_select, slice_mode);
 		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
 	} else if (slice_mode == VD1_2SLICE) {
 		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
@@ -264,6 +335,56 @@ void hdr_proc_multi_slices(struct vframe_s *vf,
 			hdr_proc(vf, S5_VD1_SLICE1, hdr_process_select, vinfo, gmt_mtx, vpp_index);
 			hdr_proc(vf, S5_VD1_SLICE2, hdr_process_select, vinfo, gmt_mtx, vpp_index);
 			hdr_proc(vf, S5_VD1_SLICE3, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		}
+	}
+}
+
+void hdr_proc_multi_slices_ext(struct vframe_s *vf,
+	      enum hdr_module_sel module_sel,
+	      u32 hdr_process_select,
+	      struct vinfo_s *vinfo,
+	      struct matrix_s *gmt_mtx,
+	      s32 slice_mode,
+	      enum vpp_index_e vpp_index)
+{
+	u32 slice_max = 0;
+
+	if (module_sel != VD1_HDR) {
+		pr_csc(8, "am_vecm: hdr module=%s %d has no multi-slice\n",
+			module_str[module_sel], module_sel);
+		return;
+	}
+
+	if (slice_mode == VD1_1SLICE) {
+		pr_csc(8, "am_vecm: hdr module=%s %d, sel %d, slice_num = %d\n",
+			module_str[module_sel], module_sel, hdr_process_select, slice_mode);
+		hdr_proc_ext(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+	} else if (slice_mode == VD1_2SLICE) {
+		hdr_proc_ext(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		hdr_proc_ext(vf, S5_VD1_SLICE1, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+	} else if (slice_mode == VD1_4SLICE) {
+		hdr_proc_ext(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		hdr_proc_ext(vf, S5_VD1_SLICE1, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		hdr_proc_ext(vf, S5_VD1_SLICE2, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		hdr_proc_ext(vf, S5_VD1_SLICE3, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+	} else if (slice_mode == 0) {/*vd1 off, still need to handle vd1 process*/
+		slice_max = get_max_slice();
+		pr_csc(8, "am_vecm: hdr module=%s %d, slice_max %d\n",
+			module_str[module_sel], module_sel, slice_max);
+		if (slice_max == 1) {
+			hdr_proc_ext(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		} else if (slice_max == 2) {
+			hdr_proc_ext(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+			hdr_proc_ext(vf, S5_VD1_SLICE1,
+				hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		} else if (slice_max == 4) {
+			hdr_proc_ext(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+			hdr_proc_ext(vf, S5_VD1_SLICE1,
+				hdr_process_select, vinfo, gmt_mtx, vpp_index);
+			hdr_proc_ext(vf, S5_VD1_SLICE2,
+				hdr_process_select, vinfo, gmt_mtx, vpp_index);
+			hdr_proc_ext(vf, S5_VD1_SLICE3,
+				hdr_process_select, vinfo, gmt_mtx, vpp_index);
 		}
 	}
 }
@@ -310,6 +431,8 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 	bool cuva_support =
 		sink_hdr_support(vinfo) & CUVA_SUPPORT;
 	bool output_mode = 0;
+	bool hlg_plus_support	=
+		sink_hdr_support(vinfo) & HLGP_SUPPORT;
 
 	if (vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 		vinfo->mode == VMODE_DUMMY_ENCP)
@@ -346,6 +469,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 		hdr_process_mode[vd_path] = PROC_BYPASS;
 		hlg_process_mode[vd_path] = PROC_BYPASS;
 		hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+		hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 		cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 		cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 		target_format[vd_path] = BT709;
@@ -356,6 +480,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
@@ -379,6 +504,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
@@ -391,6 +517,10 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 		} else if (source_format[vd_path] == HDRTYPE_HDR10PLUS &&
 			hdr10_plus_support) {
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			target_format[vd_path] = BT2020_PQ_DYNAMIC;
+		} else if (source_format[vd_path] == HDRTYPE_HLGPLUS &&
+			hlg_plus_support) {
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT2020_PQ_DYNAMIC;
 		} else if (source_format[vd_path] == HDRTYPE_CUVA_HDR &&
 			cuva_support) {
@@ -426,12 +556,14 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hlg_process_mode[vd_path] = PROC_MATCH;
 			sdr_process_mode[vd_path] = PROC_MATCH;
 			hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+			hlg_plus_process_mode[vd_path] = PROC_MATCH;
 			cuva_hdr_process_mode[vd_path] = PROC_MATCH;
 			cuva_hlg_process_mode[vd_path] = PROC_MATCH;
 			target_format[vd_path] = BT2100_IPT;
 		} else if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
-			   (source_format[vd_path] != HDRTYPE_HLG ||
-				(hdr_flag & 0x10))) {
+			    (((source_format[vd_path] != HDRTYPE_HLG) &&
+			    (source_format[vd_path] != HDRTYPE_HLGPLUS)) ||
+			    (hdr_flag & 0x10))) {
 			pr_csc(32, "%d %s: vd_path=%d  vpp_index = %d\n",
 				__LINE__,
 				__func__,
@@ -442,6 +574,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 			hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+			hlg_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
 			cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 			cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 			target_format[vd_path] = BT2020_PQ;
@@ -462,6 +595,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 			hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 			hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+			hlg_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
 			cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 			cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 #ifdef AMCSC_DEBUG_TEST
@@ -491,6 +625,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 		} else if (is_amdv_enable() &&
@@ -506,6 +641,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
@@ -623,6 +759,36 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 #endif
 				}
 				break;
+			case HDRTYPE_HLGPLUS:
+				/* source HLG10+ */
+				if (hlg_plus_support) {
+					/* hlg+ bypass */
+					hlg_plus_process_mode[vd_path] = PROC_BYPASS;
+					target_format[vd_path] = BT2020_HLG_DYNAMIC;
+				} else if (sink_hdr_support(vinfo) & HLG_SUPPORT) {
+					/* hlg+ ->hlg */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+					target_format[vd_path] = BT2020_HLG;
+				} else if (sink_hdr_support(vinfo) & HDR_SUPPORT) {
+					/* hdr+->hdr */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
+					target_format[vd_path] = BT2020_PQ;
+				} else if (cuva_support) {
+					/* hlg+ -> cuva */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_CUVA;
+					target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+				} else {
+					/* hlg+ ->sdr */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
+#ifdef AMCSC_DEBUG_TEST
+					if (sink_hdr_support(vinfo) & BT2020_SUPPORT)
+						target_format[vd_path] = BT2020_PQ;
+					else
+#else
+					target_format[vd_path] = BT709;
+#endif
+				}
+				break;
 			case HDRTYPE_CUVA_HDR:
 				/* source cuva */
 				if (cuva_support) {
@@ -685,6 +851,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -693,6 +860,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -701,6 +869,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -709,6 +878,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -717,6 +887,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -725,6 +896,16 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
+				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
+				break;
+			case BT2020_HLG_DYNAMIC:
+				sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
+				hlg_process_mode[vd_path] = PROC_BYPASS;
+				hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
+				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
 				break;
@@ -737,6 +918,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 				break;
@@ -745,6 +927,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_CUVA;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_CUVA;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_CUVA;
+				hlg_plus_process_mode[vd_path] = PROC_HDRP_TO_CUVA;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_CUVA;
 				break;
@@ -753,6 +936,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -777,6 +961,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 	int dv_format = 0;
 	bool hdr10_plus_support	=
 		sink_hdr_support(vinfo) & HDRP_SUPPORT;
+	bool hlg_plus_support	=
+		sink_hdr_support(vinfo) & HLGP_SUPPORT;
 	bool cuva_support =
 		sink_hdr_support(vinfo) & CUVA_SUPPORT;
 	bool output_mode = 0;
@@ -788,6 +974,16 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 		output_mode = 1;//panel
 	else
 		output_mode = 0;//tx output
+
+	if (vd_path == VD1_PATH &&
+		chip_cls_id == TV_CHIP &&
+		hdr_policy_bak != 0x0 &&
+		hdr_policy != hdr_policy_bak) {
+		pr_csc(128, "%s: hdr_policy=%d->%d, hdr_policy_bak=%d->0xff\n",
+			__func__, hdr_policy, hdr_policy_bak, hdr_policy_bak);
+		hdr_policy = hdr_policy_bak;
+		hdr_policy_bak = 0x0;
+	}
 
 	pr_csc(32, "%d  %s: vd_path=%d is vpp(%d %d) vpp_index = %d\n",
 		__LINE__,
@@ -837,6 +1033,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 		hdr_process_mode[vd_path] = PROC_BYPASS;
 		hlg_process_mode[vd_path] = PROC_BYPASS;
 		hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+		hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 		cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 		cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 		target_format[vd_path] = BT709;
@@ -847,6 +1044,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 			if (!is_vpp1(VD2_PATH)) {
@@ -854,6 +1052,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[oth_path] = PROC_BYPASS;
 				hlg_process_mode[oth_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[oth_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[oth_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[oth_path] = PROC_BYPASS;
 				target_format[oth_path] = BT709;
@@ -908,6 +1107,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
@@ -935,11 +1135,24 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			target_format[vd_path] = BT2020_PQ_DYNAMIC;
 		} else if (vd_path == VD1_PATH &&
 			(!is_video_layer_on(VD2_PATH) || is_vpp1(VD2_PATH)) &&
+			source_format[vd_path] == HDRTYPE_HLGPLUS &&
+			hlg_plus_support) {
+			/* vd1 bypass hlg+ when vd2 off */
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
+			target_format[vd_path] = BT2020_HLG_DYNAMIC;
+		} else if (vd_path == VD1_PATH &&
+			(!is_video_layer_on(VD2_PATH) || is_vpp1(VD2_PATH)) &&
 			source_format[vd_path] == HDRTYPE_CUVA_HDR &&
 			cuva_support) {
-			/* vd1 bypass cuva when vd2 off */
-			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
-			target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+			if (get_tx_cuva_mode(vinfo) == CUVA_MONITOR) {
+				/* only support monitor, cuva_hdr to hdr */
+				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
+				target_format[vd_path] = BT2020_PQ;
+			} else {
+				/* vd1 bypass cuva when vd2 off */
+				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
+				target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+			}
 		} else if (vd_path == VD1_PATH &&
 			source_format[vd_path] == HDRTYPE_CUVA_HDR &&
 			(sink_hdr_support(vinfo) & HDR_SUPPORT)) {
@@ -955,10 +1168,16 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			(!is_video_layer_on(VD2_PATH) || is_vpp1(VD2_PATH)) &&
 			source_format[vd_path] == HDRTYPE_CUVA_HLG &&
 			cuva_support) {
-			/* TODO: check the cuva_hlg policy */
-			/* vd1 cuva_hlg to cuva when vd2 off */
-			cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_CUVA;
-			target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+			if (get_tx_cuva_mode(vinfo) == CUVA_MONITOR) {
+				/* only support monitor, cuva_hlg to hdr */
+				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
+				target_format[vd_path] = BT2020_PQ;
+			} else {
+				/* TODO: check the cuva_hlg policy */
+				/* vd1 cuva_hlg to cuva when vd2 off */
+				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_CUVA;
+				target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+			}
 		} else if (vd_path == VD1_PATH &&
 			source_format[vd_path] == HDRTYPE_CUVA_HLG &&
 			(sink_hdr_support(vinfo) & HDR_SUPPORT)) {
@@ -978,6 +1197,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_MATCH;
 				sdr_process_mode[vd_path] = PROC_MATCH;
 				hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+				hlg_plus_process_mode[vd_path] = PROC_MATCH;
 				cuva_hdr_process_mode[vd_path] = PROC_MATCH;
 				cuva_hlg_process_mode[vd_path] = PROC_MATCH;
 				target_format[vd_path] = BT2100_IPT;
@@ -995,6 +1215,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hdr_process_mode[vd_path] = PROC_BYPASS;
 					hlg_process_mode[vd_path] = PROC_BYPASS;
 					hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+					hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 					target_format[vd_path] = BT709;
@@ -1006,6 +1227,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_MATCH;
 					sdr_process_mode[vd_path] = PROC_MATCH;
 					hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+					hlg_plus_process_mode[vd_path] = PROC_MATCH;
 					cuva_hdr_process_mode[vd_path] = PROC_MATCH;
 					cuva_hlg_process_mode[vd_path] = PROC_MATCH;
 					target_format[vd_path] = BT2100_IPT;
@@ -1014,14 +1236,16 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 		} else if (vd_path == VD2_PATH &&
 			   is_video_layer_on(VD1_PATH)) {
 			/* vd1 on and vd2 follow vd1 output */
-			if (target_format[VD1_PATH] == BT2020_HLG) {
-				/* vd2 *->hlg when vd1 output hlg */
+			if (target_format[VD1_PATH] == BT2020_HLG ||
+				   target_format[VD1_PATH] == BT2020_HLG_DYNAMIC) {
+				/* vd2 *->hlg when vd1 output hlg/hlg+ */
 				sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
 				target_format[vd_path] = BT2020_HLG;
 			} else if (target_format[VD1_PATH] == BT2020_PQ ||
 				   target_format[VD1_PATH] == BT2020_PQ_DYNAMIC) {
@@ -1030,6 +1254,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				target_format[vd_path] = BT2020_PQ;
@@ -1039,6 +1264,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[vd_path] = PROC_HDR_TO_CUVA;
 				hlg_process_mode[vd_path] = PROC_HLG_TO_CUVA;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_CUVA;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_CUVA;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_CUVA;
 				target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
@@ -1053,6 +1279,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				if (target_format[VD1_PATH] == BT2020_PQ &&
@@ -1062,7 +1289,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					target_format[vd_path] = BT709;
 			}
 		} else if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
-			(source_format[vd_path] != HDRTYPE_HLG ||
+			(((source_format[vd_path] != HDRTYPE_HLG) &&
+			(source_format[vd_path] != HDRTYPE_HLGPLUS)) ||
 			(hdr_flag & 0x10))) {
 			pr_csc(32, "%d %s: vd_path=%d  vpp_index = %d\n",
 				__LINE__,
@@ -1074,6 +1302,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 			hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+			hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 			cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 			cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 			target_format[vd_path] = BT2020_PQ;
@@ -1093,6 +1322,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+			hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
 			cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 			cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
 			target_format[vd_path] = BT2020_HLG;
@@ -1113,6 +1343,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 			hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 			hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+			hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 			cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 			cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 #ifdef AMCSC_DEBUG_TEST
@@ -1137,7 +1368,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 #endif
 		}
 	} else if (cur_hdr_policy == 1) {
-		pr_csc(4, "am_vecm: vd%d source_format %d, is_amdv_on %d\n",
+		pr_csc(2, "am_vecm: vd%d source_format %d, is_amdv_on %d\n",
 			       vd_path + 1,
 			       source_format[vd_path], is_amdv_on());
 		if (source_format[vd_path] == HDRTYPE_MVC) {
@@ -1146,6 +1377,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 			if (!is_vpp1(VD2_PATH)) {
@@ -1153,6 +1385,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[oth_path] = PROC_BYPASS;
 				hlg_process_mode[oth_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[oth_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[oth_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[oth_path] = PROC_BYPASS;
 				target_format[oth_path] = BT709;
@@ -1201,6 +1434,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 			cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
@@ -1248,14 +1482,16 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 		} else if (vd_path == VD2_PATH &&
 					is_video_layer_on(VD1_PATH)) {
 			/* vd1 on and vd2 follow vd1 output */
-			if (target_format[VD1_PATH] == BT2020_HLG) {
-				/* vd2 *->hlg when vd1 output hlg */
+			if (target_format[VD1_PATH] == BT2020_HLG ||
+				target_format[VD1_PATH] == BT2020_HLG_DYNAMIC) {
+				/* vd2 *->hlg when vd1 output hlg/hlg+ */
 				sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
 				target_format[vd_path] = BT2020_HLG;
 			} else if (target_format[VD1_PATH] == BT2020_PQ ||
 				   target_format[VD1_PATH] == BT2020_PQ_DYNAMIC) {
@@ -1264,6 +1500,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				target_format[vd_path] = BT2020_PQ;
@@ -1273,6 +1510,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[vd_path] = PROC_HDR_TO_CUVA;
 				hlg_process_mode[vd_path] = PROC_HLG_TO_CUVA;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_CUVA;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_CUVA;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_CUVA;
 				target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
@@ -1287,6 +1525,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				if (target_format[VD1_PATH] == BT2020 &&
@@ -1437,13 +1676,63 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 #endif
 				}
 				break;
+			case HDRTYPE_HLGPLUS:
+				/* source HDR10+ */
+				if (hlg_plus_support && !is_video_layer_on(oth_path)) {
+					/* hlg+ bypass */
+					hlg_plus_process_mode[vd_path] = PROC_BYPASS;
+					target_format[vd_path] = BT2020_HLG_DYNAMIC;
+				} else if (hdr10_plus_support) {
+					/* hlg+ -> hdr	  if need hlg+ -> hdr+? */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
+					target_format[vd_path] = BT2020_PQ_DYNAMIC;
+				} else if (sink_hdr_support(vinfo) & HLG_SUPPORT) {
+					/* hdr+->hlg */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+					target_format[vd_path] = BT2020_HLG;
+				} else if (sink_hdr_support(vinfo) & HDR_SUPPORT) {
+					/* hdr+->hdr */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
+					target_format[vd_path] = BT2020_PQ;
+				} else if (cuva_support) {
+					/* cuva bypass */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_CUVA;
+					target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+				} else {
+					/* hdr+ *->sdr */
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
+#ifdef AMCSC_DEBUG_TEST
+					if ((sink_hdr_support(vinfo) & BT2020_SUPPORT) &&
+						!is_video_layer_on(oth_path))
+						target_format[vd_path] = BT2020_PQ;
+					else
+#else
+					target_format[vd_path] = BT709;
+#endif
+				}
+				break;
 			case HDRTYPE_CUVA_HDR:
 				/* source cuva */
 				if (cuva_support && !is_video_layer_on(oth_path)) {
-					/* bypass */
-					cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
-					target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
-				} else if (sink_hdr_support(vinfo) & HDR_SUPPORT) {
+					if (get_cuva_mode() == CUVA_MONITOR ||
+					(get_cuva_mode() == CUVA_AUTO &&
+					(get_tx_cuva_mode(vinfo) == CUVA_MONITOR)) ||
+					(get_cuva_mode() == CUVA_SPECIAL_NO &&
+					(get_force_output() == BT2020_PQ))) {
+					/* monitor, cuva->hdr*/
+					/* auto tx only monitor, cuva->hdr*/
+					/* hdr10 mode(not special), cuva->hdr*/
+						cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
+						target_format[vd_path] = BT2020_PQ;
+					} else {
+					/* receiver, bypass */
+					/* auto receiver, bypass */
+					/* not force output, bypass */
+						cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
+						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+					}
+				} else if (sink_hdr_support(vinfo) & HDR_SUPPORT ||
+					(get_force_output() == BT2020_PQ)) {
 					/* cuva->hdr */
 					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 					target_format[vd_path] = BT2020_PQ;
@@ -1470,6 +1759,27 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					/* cuva_hlg->hdr */
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 					target_format[vd_path] = BT2020_PQ;
+				} else if (cuva_support) {
+					if (get_cuva_mode() == CUVA_MONITOR ||
+					(get_cuva_mode() == CUVA_AUTO &&
+					(get_tx_cuva_mode(vinfo) == CUVA_MONITOR)) ||
+					(get_cuva_mode() == CUVA_SPECIAL_NO &&
+					(get_force_output() == BT2020_PQ))) {
+						/* monitor, cuva->hdr*/
+						/* auto tx only monitor, cuva->hdr*/
+						/* hdr10 mode(not special), cuva->hdr*/
+						cuva_hlg_process_mode[vd_path] =
+							PROC_CUVAHLG_TO_HDR;
+						target_format[vd_path] = BT2020_PQ;
+					} else {
+						/* receiver, bypass */
+						/* auto tx receiver, bypass */
+						/* not force output, bypass */
+						/* cuva_hlg->cuva same as bypass */
+						cuva_hlg_process_mode[vd_path] =
+							PROC_CUVAHLG_TO_CUVA;
+						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+					}
 				} else if ((sink_hdr_support(vinfo)	& HDR_SUPPORT) &&
 					(hdr_flag & 0x10)) {
 					/* cuva_hlg->hdr */
@@ -1517,7 +1827,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* sdr *->hdr */
 						sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
 						target_format[vd_path] = BT2020_PQ;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* other layer on and not sdr */
 						/* sdr *->hlg */
 						sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
@@ -1540,7 +1851,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					break;
 				case HDRTYPE_HLG:
 					/* VD2 source HLG */
-					if (target_format[oth_path] == BT2020_HLG) {
+					if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hlg->hlg */
 						hlg_process_mode[vd_path] = PROC_BYPASS;
 						target_format[vd_path] = BT2020_HLG;
@@ -1568,7 +1880,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* hdr->hdr */
 						hdr_process_mode[vd_path] = PROC_BYPASS;
 						target_format[vd_path] = BT2020_PQ;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hdr->hlg */
 						hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
@@ -1590,18 +1903,43 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* hdr->hdr */
 						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
 						target_format[vd_path] = BT2020_PQ;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hdr->hlg */
-						hdr10_plus_process_mode[vd_path] = PROC_HDR_TO_HLG;
+						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
 					} else if (target_format[oth_path] ==
 						BT2020YUV_BT2020RGB_CUVA) {
 						/* hdr->cuva */
-						hdr10_plus_process_mode[vd_path] = PROC_HDR_TO_CUVA;
+						hdr10_plus_process_mode[vd_path] =
+						PROC_HDRP_TO_CUVA;
 						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
 					} else {
 						/* hdr->sdr */
 						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+						target_format[vd_path] = BT709;
+					}
+					break;
+				case HDRTYPE_HLGPLUS:
+					/* VD2 source HLG10+ */
+					if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
+						/* hlg+ -> hlg */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+						target_format[vd_path] = BT2020_HLG;
+					} else if (target_format[oth_path] == BT2020_PQ ||
+					    target_format[oth_path] == BT2020_PQ_DYNAMIC) {
+						/* hlg+ -> hdr */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
+						target_format[vd_path] = BT2020_PQ;
+					} else if (target_format[oth_path] ==
+						BT2020YUV_BT2020RGB_CUVA) {
+						/* hlg+ -> cuva */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_CUVA;
+						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+					} else {
+						/* hlg+ -> sdr */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 						target_format[vd_path] = BT709;
 					}
 					break;
@@ -1625,6 +1963,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -1633,6 +1972,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -1645,6 +1985,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] =
 					PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -1653,6 +1994,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -1661,6 +2003,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -1669,6 +2012,16 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
+				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
+				break;
+			case BT2020_HLG_DYNAMIC:
+				sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
+				hlg_process_mode[vd_path] = PROC_BYPASS;
+				hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
+				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
 				break;
@@ -1681,6 +2034,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 				break;
@@ -1689,6 +2043,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_CUVA;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_CUVA;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_CUVA;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_CUVA;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_CUVA;
 				break;
@@ -1697,6 +2052,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -1722,7 +2078,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* sdr *->hdr */
 						sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
 						target_format[vd_path] = target_format[oth_path];
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* other layer on and not sdr */
 						/* sdr *->hlg */
 						sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
@@ -1745,7 +2102,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					break;
 				case HDRTYPE_HLG:
 					/* VD2 source HLG */
-					if (target_format[oth_path] == BT2020_HLG) {
+					if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hlg->hlg */
 						hlg_process_mode[vd_path] = PROC_BYPASS;
 						target_format[vd_path] = BT2020_HLG;
@@ -1773,7 +2131,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* hdr->hdr */
 						hdr_process_mode[vd_path] = PROC_BYPASS;
 						target_format[vd_path] = BT2020_PQ;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hdr->hlg */
 						hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
@@ -1795,9 +2154,10 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* hdr->hdr */
 						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
 						target_format[vd_path] = BT2020_PQ;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hdr->hlg */
-						hdr10_plus_process_mode[vd_path] = PROC_HDR_TO_HLG;
+						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
 					} else if (target_format[oth_path] ==
 						BT2020YUV_BT2020RGB_CUVA) {
@@ -1808,6 +2168,30 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					} else {
 						/* hdr->sdr */
 						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+						target_format[vd_path] = BT709;
+					}
+					break;
+				case HDRTYPE_HLGPLUS:
+					/* VD2 source HLG10+ */
+					if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
+						/* hlg+ -> hlg */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+						target_format[vd_path] = BT2020_HLG;
+					} else if (target_format[oth_path] == BT2020_PQ ||
+					    target_format[oth_path] == BT2020_PQ_DYNAMIC) {
+						/* hlg+ -> hdr */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
+						target_format[vd_path] = BT2020_PQ;
+					} else if (target_format[oth_path] ==
+						BT2020YUV_BT2020RGB_CUVA) {
+						/* hlg+ -> cuva */
+						hlg_plus_process_mode[vd_path] =
+							PROC_HLGP_TO_CUVA;
+						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+					} else {
+						/* hlg+ -> sdr */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 						target_format[vd_path] = BT709;
 					}
 					break;
@@ -1823,8 +2207,9 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* hdr10->cuva */
 						cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
-					} else if (target_format[oth_path] == BT2020_HLG) {
-						/* hdr->hlg */
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
+						/* cuva->hlg */
 						cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
 					} else {
@@ -1847,8 +2232,9 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						cuva_hlg_process_mode[vd_path] =
 							PROC_CUVAHLG_TO_CUVA;
 						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
-					} else if (target_format[oth_path] == BT2020_HLG) {
-						/* hdr->hlg */
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
+						/* cuva hlg->hlg */
 						cuva_hlg_process_mode[vd_path] =
 							PROC_CUVAHLG_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
@@ -1879,6 +2265,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 				target_format[vd_path] = BT709;
@@ -1892,6 +2279,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 					hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 					hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 					break;
@@ -1900,6 +2288,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 					hdr_process_mode[vd_path] = PROC_BYPASS;
 					hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 					break;
@@ -1912,6 +2301,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						PROC_HDR_TO_SDR;
 					hdr10_plus_process_mode[vd_path] =
 						PROC_HDRP_TO_SDR;
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 					break;
@@ -1920,6 +2310,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 					hdr_process_mode[vd_path] = PROC_BYPASS;
 					hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 					break;
@@ -1928,6 +2319,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 					hdr_process_mode[vd_path] = PROC_BYPASS;
 					hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 					break;
@@ -1936,6 +2328,16 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_BYPASS;
 					hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 					hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+					hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
+					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
+					break;
+				case BT2020_HLG_DYNAMIC:
+					sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
+					hlg_process_mode[vd_path] = PROC_BYPASS;
+					hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
+					hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+					hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
 					break;
@@ -1948,6 +2350,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_BYPASS;
 					hdr_process_mode[vd_path] = PROC_BYPASS;
 					hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+					hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 					break;
@@ -1956,6 +2359,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_HLG_TO_CUVA;
 					hdr_process_mode[vd_path] = PROC_HDR_TO_CUVA;
 					hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_CUVA;
+					hlg_plus_process_mode[vd_path] = PROC_HDRP_TO_CUVA;
 					cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_CUVA;
 					break;
@@ -1964,6 +2368,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 					hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 					hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+					hlg_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
 					cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 					cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 					break;
@@ -1976,6 +2381,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_MATCH;
 				sdr_process_mode[vd_path] = PROC_MATCH;
 				hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+				hlg_plus_process_mode[vd_path] = PROC_MATCH;
 				cuva_hdr_process_mode[vd_path] = PROC_MATCH;
 				cuva_hlg_process_mode[vd_path] = PROC_MATCH;
 				target_format[vd_path] = BT2100_IPT;
@@ -1993,6 +2399,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hdr_process_mode[vd_path] = PROC_BYPASS;
 					hlg_process_mode[vd_path] = PROC_BYPASS;
 					hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+					hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 					target_format[vd_path] = BT709;
@@ -2004,6 +2411,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_MATCH;
 					sdr_process_mode[vd_path] = PROC_MATCH;
 					hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+					hlg_plus_process_mode[vd_path] = PROC_MATCH;
 					cuva_hdr_process_mode[vd_path] = PROC_MATCH;
 					cuva_hlg_process_mode[vd_path] = PROC_MATCH;
 					target_format[vd_path] = BT2100_IPT;
@@ -2039,12 +2447,16 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			if (source_format[vd_path] == HDRTYPE_HDR10PLUS &&
 				sink_hdr_support(vinfo) & HDRP_SUPPORT)
 				target_format[vd_path] = BT2020_PQ_DYNAMIC;
+			if (source_format[vd_path] == HDRTYPE_HLGPLUS &&
+				sink_hdr_support(vinfo) & HLGP_SUPPORT)
+				target_format[vd_path] = BT2020_HLG_DYNAMIC;
 			switch (target_format[vd_path]) {
 			case BT709:
 				sdr_process_mode[vd_path] = PROC_BYPASS;
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -2053,6 +2465,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -2065,6 +2478,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] =
 					PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -2073,6 +2487,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -2081,6 +2496,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_HDR;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HDR;
 				break;
@@ -2089,6 +2505,16 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+				hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
+				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
+				break;
+			case BT2020_HLG_DYNAMIC:
+				sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
+				hlg_process_mode[vd_path] = PROC_BYPASS;
+				hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
+				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_HLG;
 				break;
@@ -2101,6 +2527,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 				break;
@@ -2109,6 +2536,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_CUVA;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_CUVA;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_CUVA;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_CUVA;
 				break;
@@ -2117,6 +2545,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_HLG_TO_SDR;
 				hdr_process_mode[vd_path] = PROC_HDR_TO_SDR;
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 				cuva_hlg_process_mode[vd_path] = PROC_CUVAHLG_TO_SDR;
 				break;
@@ -2134,7 +2563,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* sdr *->hdr */
 						sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
 						target_format[vd_path] = target_format[oth_path];
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* other layer on and not sdr */
 						/* sdr *->hlg */
 						sdr_process_mode[vd_path] = PROC_SDR_TO_HLG;
@@ -2156,7 +2586,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					break;
 				case HDRTYPE_HLG:
 					/* VD2 source HLG */
-					if (target_format[oth_path] == BT2020_HLG) {
+					if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hlg->hlg */
 						hlg_process_mode[vd_path] = PROC_BYPASS;
 						target_format[vd_path] = BT2020_HLG;
@@ -2184,7 +2615,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* hdr->hdr */
 						hdr_process_mode[vd_path] = PROC_BYPASS;
 						target_format[vd_path] = BT2020_PQ;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hdr->hlg */
 						hdr_process_mode[vd_path] = PROC_HDR_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
@@ -2206,9 +2638,10 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* hdr->hdr */
 						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
 						target_format[vd_path] = BT2020_PQ;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hdr->hlg */
-						hdr10_plus_process_mode[vd_path] = PROC_HDR_TO_HLG;
+						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
 					} else if (target_format[oth_path] ==
 						BT2020YUV_BT2020RGB_CUVA) {
@@ -2219,6 +2652,30 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					} else {
 						/* hdr->sdr */
 						hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
+						target_format[vd_path] = BT709;
+					}
+					break;
+				case HDRTYPE_HLGPLUS:
+					/* VD2 source HLG+ */
+					if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
+						/* hlg+->hlg */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HLG;
+						target_format[vd_path] = BT2020_HLG;
+					} else if (target_format[oth_path] == BT2020_PQ ||
+						target_format[oth_path] == BT2020_PQ_DYNAMIC) {
+						/* hlg+->hdr */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_HDR;
+						target_format[vd_path] = BT2020_PQ;
+					} else if (target_format[oth_path] ==
+						BT2020YUV_BT2020RGB_CUVA) {
+						/* hlg+->cuva */
+						hlg_plus_process_mode[vd_path] =
+							PROC_HLGP_TO_CUVA;
+						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
+					} else {
+						/* hlg+->sdr */
+						hlg_plus_process_mode[vd_path] = PROC_HLGP_TO_SDR;
 						target_format[vd_path] = BT709;
 					}
 					break;
@@ -2234,7 +2691,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* hdr10->cuva */
 						cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hdr->hlg */
 						cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 						target_format[vd_path] = BT2020_HLG;
@@ -2258,7 +2716,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						cuva_hlg_process_mode[vd_path] =
 							PROC_CUVAHLG_TO_CUVA;
 						target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
-					} else if (target_format[oth_path] == BT2020_HLG) {
+					} else if (target_format[oth_path] == BT2020_HLG ||
+						target_format[oth_path] == BT2020_HLG_DYNAMIC) {
 						/* hdr->hlg */
 						cuva_hlg_process_mode[vd_path] =
 							PROC_CUVAHLG_TO_HLG;
@@ -2290,6 +2749,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr_process_mode[vd_path] = PROC_BYPASS;
 				hlg_process_mode[vd_path] = PROC_BYPASS;
 				hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+				hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 				cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 				target_format[vd_path] = BT709;
@@ -2303,6 +2763,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hlg_process_mode[vd_path] = PROC_MATCH;
 				sdr_process_mode[vd_path] = PROC_MATCH;
 				hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+				hlg_plus_process_mode[vd_path] = PROC_MATCH;
 				cuva_hdr_process_mode[vd_path] = PROC_MATCH;
 				cuva_hlg_process_mode[vd_path] = PROC_MATCH;
 				target_format[vd_path] = BT2100_IPT;
@@ -2320,6 +2781,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hdr_process_mode[vd_path] = PROC_BYPASS;
 					hlg_process_mode[vd_path] = PROC_BYPASS;
 					hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+					hlg_plus_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hdr_process_mode[vd_path] = PROC_BYPASS;
 					cuva_hlg_process_mode[vd_path] = PROC_BYPASS;
 					target_format[vd_path] = BT709;
@@ -2331,6 +2793,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					hlg_process_mode[vd_path] = PROC_MATCH;
 					sdr_process_mode[vd_path] = PROC_MATCH;
 					hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+					hlg_plus_process_mode[vd_path] = PROC_MATCH;
 					cuva_hdr_process_mode[vd_path] = PROC_MATCH;
 					cuva_hlg_process_mode[vd_path] = PROC_MATCH;
 					target_format[vd_path] = BT2100_IPT;
@@ -2352,6 +2815,9 @@ out:
 		if (cur_hdr10_plus_process_mode[vd_path]
 		    != hdr10_plus_process_mode[vd_path])
 			change_flag |= SIG_HDR_MODE;
+		if (cur_hlg_plus_process_mode[vd_path]
+		    != hlg_plus_process_mode[vd_path])
+			change_flag |= SIG_HLG_MODE;
 		if (cur_cuva_hdr_process_mode[vd_path]
 		    != cuva_hdr_process_mode[vd_path])
 			change_flag |= SIG_CUVA_HDR_MODE;
@@ -2410,6 +2876,9 @@ out:
 		case HDRTYPE_HDR10PLUS:
 			cur_hdr10_plus_process_mode[oth_path] = PROC_OFF;
 			break;
+		case HDRTYPE_HLGPLUS:
+			cur_hlg_plus_process_mode[oth_path] = PROC_OFF;
+			break;
 		case HDRTYPE_CUVA_HDR:
 			cur_cuva_hdr_process_mode[oth_path] = PROC_OFF;
 			break;
@@ -2431,6 +2900,7 @@ out:
 			cur_hdr_process_mode[oth_path] = PROC_BYPASS;
 			cur_hlg_process_mode[oth_path] = PROC_BYPASS;
 			cur_hdr10_plus_process_mode[oth_path] = PROC_BYPASS;
+			cur_hlg_plus_process_mode[oth_path] = PROC_BYPASS;
 			cur_cuva_hdr_process_mode[oth_path] = PROC_BYPASS;
 			cur_cuva_hlg_process_mode[oth_path] = PROC_BYPASS;
 			break;
@@ -2446,6 +2916,7 @@ static void prepare_hdr_info(struct master_display_info_s *hdr_data,
 			     enum vd_path_e vd_path,
 			     enum hdr_type_e *source_type)
 {
+	hdr_data->present_flag = 0;
 	memset(hdr_data->primaries, 0, sizeof(hdr_data->primaries));
 	if (((hdr_data->features >> 16) & 0xff) == 9) {
 		if (p->present_flag & 1) {
@@ -2538,6 +3009,11 @@ void hdmi_packet_process(int signal_change_flag,
 	void (*f_h)(void *tx_instance, struct master_display_info_s *data);
 	struct hdr10plus_para *h10_para;
 	struct vd_signal_info_s vd_signal;
+	enum hdr_type_e src_type[VD_PATH_MAX];
+	static enum hdr_type_e cur_src_type[VD_PATH_MAX];
+	static int cuva_drm_pkt_null;
+
+	src_type[vd_path] = source_type[vd_path];
 
 	f_h = NULL;
 	f_h10 = NULL;
@@ -2612,13 +3088,18 @@ void hdmi_packet_process(int signal_change_flag,
 
 	/*sbtm*/
 	/* if (vinfo->hdr_info.sbtm_info.sbtm_support) */
-	if (sbtm_en)
+	if (sbtm_en && sbtm_mode &&
+		(src_type[vd_path] == HDR10_SOURCE ||
+	    src_type[vd_path] == SDR_SOURCE) &&
+	    target_format[vd_path] == BT2020_PQ)
 		sbtm_send_sbtmem_pkt(vinfo);
 
 	if (target_format[vd_path] == cur_output_format &&
 	    cur_output_format != BT2020_PQ_DYNAMIC &&
 	    !(signal_change_flag & SIG_FORCE_CHG) &&
-	    (cur_output_format == BT2020_PQ &&
+	    ((src_type[vd_path] != CUVA_HDR_SOURCE &&
+	    src_type[vd_path] != CUVA_HLG_SOURCE) &&
+	    cur_output_format == BT2020_PQ &&
 	     !(signal_change_flag & SIG_PRI_INFO)))
 		return;
 
@@ -2645,14 +3126,42 @@ void hdmi_packet_process(int signal_change_flag,
 				(void *)NULL,
 				(void *)NULL,
 				vpp_index);
-		} else if (vdev->fresh_tx_cuva_hdr_vsif &&
-			vdev->fresh_tx_cuva_hdr_vs_emds) {
-			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1)
-				vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, NULL);
-			else
-				vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, NULL);
+		} else {
+			if (get_tx_cuva_mode(vinfo) == CUVA_MONITOR) {
+				if (vdev->fresh_tx_cuva_hdr_vsif)
+					vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, NULL);
+			} else if (get_tx_cuva_mode(vinfo) == CUVA_RECEIVER ||
+				get_tx_cuva_mode(vinfo) == CUVA_AUTO) {
+				if (vdev->fresh_tx_cuva_hdr_vs_emds)
+					vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, NULL);
+			}
 		}
 		pr_csc(4, "am_vecm: vd%d hdmi clean cuva pkt\n",
+			vd_path + 1);
+	}
+
+	if (target_format[vd_path] != BT2020_PQ &&
+		target_format[vd_path] != BT2020YUV_BT2020RGB_CUVA &&
+		cur_output_format == BT2020_PQ &&
+		(cur_src_type[vd_path] == CUVA_HDR_SOURCE ||
+		cur_src_type[vd_path] == CUVA_HLG_SOURCE)) {
+		if (get_cuva_pkt_delay()) {
+			update_cuva_pkt(false,
+				(void *)NULL,
+				(void *)NULL,
+				(void *)NULL,
+				vpp_index);
+		} else {
+			if (get_tx_cuva_mode(vinfo) == CUVA_MONITOR) {
+				if (vdev->fresh_tx_cuva_hdr_vsif)
+					vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, NULL);
+			} else if (get_tx_cuva_mode(vinfo) == CUVA_RECEIVER ||
+				get_tx_cuva_mode(vinfo) == CUVA_AUTO) {
+				if (vdev->fresh_tx_cuva_hdr_vs_emds)
+					vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, NULL);
+			}
+		}
+		pr_csc(4, "am_vecm: vd%d hdmi clean cuva vsif pkt\n",
 			vd_path + 1);
 	}
 
@@ -2667,6 +3176,12 @@ void hdmi_packet_process(int signal_change_flag,
 		       output_str[cur_output_format],
 		       output_str[target_format[vd_path]]);
 		output_format = target_format[vd_path];
+	}
+
+	if (cur_src_type[vd_path] != src_type[vd_path]) {
+		pr_csc(4, "am_vecm: vd%d src type changed from %d to %d\n",
+			vd_path + 1, cur_src_type[vd_path], src_type[vd_path]);
+		cur_src_type[vd_path] = src_type[vd_path];
 	}
 
 	switch (output_format) {
@@ -2757,6 +3272,21 @@ void hdmi_packet_process(int signal_change_flag,
 		pr_csc(16, "%s: SIGNAL_HDR10PLUS vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
+	case BT2020_HLG_DYNAMIC:
+		send_info.features =
+			(0 << 30) /*sdr output 709*/
+			| (1 << 29)	/*video available*/
+			| (5 << 26)	/* unspecified */
+			| (0 << 25)	/* limit */
+			| (1 << 24)	/*color available*/
+			| (9 << 16)
+			| (18 << 8)
+			| (10 << 0);
+		vd_signal.signal_type = SIGNAL_HLG;
+		pr_csc(16, "%s: SIGNAL_HLGPLUS vpp_index = %d\n",
+			__func__, vpp_index);
+		break;
+
 	case BT2020YUV_BT2020RGB_CUVA:
 			/* same as hdr10 */
 			send_info.features =
@@ -2770,7 +3300,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (16 << 8)
 			| (10 << 0);	/* bt2020c */
 		vd_signal.signal_type = SIGNAL_CUVA;
-		pr_csc(4, "%s: BT2020YUV_BT2020RGB_CUVA vpp_index = %d\n",
+		pr_csc(16, "%s:SIGNAL_CUVA BT2020YUV_BT2020RGB_CUVA vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
 	case UNKNOWN_FMT:
@@ -2784,9 +3314,10 @@ void hdmi_packet_process(int signal_change_flag,
 	memcpy(&dbg_hdr_send, &send_info,
 	       sizeof(struct master_display_info_s));
 
-	/* hdr10+ */
-	if (output_format == BT2020_PQ_DYNAMIC &&
-	    hdmitx_hdr10plus_param) {
+	/* hdr10+ /hlg+ */
+	if ((output_format == BT2020_PQ_DYNAMIC ||
+		output_format == BT2020_HLG_DYNAMIC) &&
+		hdmitx_hdr10plus_param) {
 		if (get_hdr10_plus_pkt_delay()) {
 			update_hdr10_plus_pkt(true,
 					      (void *)h10_para,
@@ -2802,7 +3333,8 @@ void hdmi_packet_process(int signal_change_flag,
 		return;
 	}
 	/* cuva */
-	if (output_format == BT2020YUV_BT2020RGB_CUVA &&
+	if ((src_type[vd_path] == CUVA_HDR_SOURCE ||
+		src_type[vd_path] == CUVA_HLG_SOURCE) &&
 	    hdmitx_vsif_param && hdmitx_edms_param) {
 		if (get_cuva_pkt_delay()) {
 			update_cuva_pkt(true,
@@ -2811,14 +3343,33 @@ void hdmi_packet_process(int signal_change_flag,
 				(void *)&send_info,
 				vpp_index);
 		} else {
-			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
+			//pr_csc(2, "vd%d fresh_tx pkt cuva_mode = %d, tx_cuva_mode = %d\n",
+			//	vd_path + 1, get_cuva_mode(), get_tx_cuva_mode(vinfo));
+			if ((get_cuva_mode() == CUVA_MONITOR) ||
+				(get_cuva_mode() == CUVA_AUTO &&
+				get_tx_cuva_mode(vinfo) == CUVA_MONITOR)) {
+				if (!cuva_drm_pkt_null) {
+					if (f_h)
+						f_h(vdev->tx_instance, NULL);
+					cuva_drm_pkt_null = 1;
+				}
 				if (vdev->fresh_tx_cuva_hdr_vsif)
 					vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance,
 						hdmitx_vsif_param);
-			} else {
+			} else if (output_format == BT2020YUV_BT2020RGB_CUVA) {
+				/* cuva bypass,receiver mode,send emds*/
+				if (!cuva_drm_pkt_null) {
+					if (f_h)
+						f_h(vdev->tx_instance, NULL);
+					cuva_drm_pkt_null = 1;
+				}
 				if (vdev->fresh_tx_cuva_hdr_vs_emds)
 					vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance,
 						hdmitx_edms_param);
+			} else {
+				if (vdev->fresh_tx_hdr_pkt)
+					vdev->fresh_tx_hdr_pkt(vdev->tx_instance, &send_info);
+				cuva_drm_pkt_null = 0;
 			}
 		}
 		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
@@ -2826,13 +3377,16 @@ void hdmi_packet_process(int signal_change_flag,
 	}
 	/* none hdr+ and cuva*/
 	if (f_h) {
-		if (vd_signal.signal_type == SIGNAL_SDR &&
-			last_signal_type == SIGNAL_SDR) {
+		if ((vd_signal.signal_type == SIGNAL_SDR &&
+			last_signal_type == SIGNAL_SDR) ||
+			(src_type[vd_path] == CUVA_HDR_SOURCE ||
+			src_type[vd_path] == CUVA_HLG_SOURCE)) {
 			return;
 		}
 		last_signal_type = vd_signal.signal_type;
 		f_h(vdev->tx_instance, &send_info);
 		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
+		cuva_drm_pkt_null = 0;
 	}
 }
 
@@ -2862,7 +3416,7 @@ void video_post_process_t7(struct vframe_s *vf,
 
 int get_s5_slice_mode(void)
 {
-	int slice_number = 1;
+	int slice_number;
 
 	if (is_meson_t3x_cpu())
 		return get_slice_num(0);
@@ -2911,6 +3465,45 @@ void output_color_fmt_convert(int vpp_index)
 		__func__, vinfo_hdmi_out_fmt());
 }
 
+void cal_gamut_mapping_wrapper_matrix(enum hdr_type_e source_type,
+	struct vinfo_s *vinfo, int bypass_gamut, enum vpp_index_e vpp_index)
+{
+	int i = 0;
+	int mtx_depth = 11;
+	struct matrix_s m = {
+		{0, 0, 0},
+		{
+			{0x800, 0, 0},
+			{0, 0x800, 0},
+			{0, 0, 0x800},
+		},
+		{0, 0, 0},
+		3
+	};
+
+	if (chip_type_id != chip_t6x)
+		return;
+
+//	pr_csc(32,
+//		"[%s]gamut_src_type=%d, gamut_mapping1_en=%d, bypass_gamut=%d, gamut_mode=%d\n",
+//		__func__, source_type, gamut_mapping1_en, bypass_gamut, gamut_mode);
+	if (!bypass_gamut || gamut_mode)
+		gamut_mode_process(vinfo, source_type, &m, mtx_depth, DEST_NONE);
+	for (i = 0; i < 3; i++) {
+		gamut_mapping1_param.mtx[i][0] = m.matrix[i][0];
+		gamut_mapping1_param.mtx[i][1] = m.matrix[i][1];
+		gamut_mapping1_param.mtx[i][2] = m.matrix[i][2];
+		gamut_mapping1_param.mtx_pos_offset[i] = 0;
+		gamut_mapping1_param.mtx_pre_offset[i] = 0;
+	}
+	gamut_mapping1_param.mtx_rs = mtx_depth - 8;//mtx_rs:0=8bit,1=9bit
+	gamut_mapping1_param.flag_update_mtx = 1;
+	gamut_mapping1_param.eotf_en = 1;
+	gamut_mapping1_param.oetf_en = 1;
+	gamut_mapping1_param.mtx_en = 1;
+	set_gamut_mapping_wrapper(1, vpp_index);
+}
+
 void video_post_process(struct vframe_s *vf,
 			enum vpp_matrix_csc_e csc_type,
 			struct vinfo_s *vinfo,
@@ -2933,6 +3526,8 @@ void video_post_process(struct vframe_s *vf,
 		{0, 0, 0},
 		1
 	};
+	enum hdr_type_e gamut_src_format = HDRTYPE_SDR;
+	int bypass_gamut_wrapper = 0;
 	pr_csc(32, "%d  %s: vd_path=%d is vpp(%d %d) vpp_index = %d\n",
 		__LINE__,
 		__func__,
@@ -2948,7 +3543,7 @@ void video_post_process(struct vframe_s *vf,
 		is_video_layer_on(VD2_PATH) ? "on" : "off",
 		get_hdr_module_status(vd_path, vpp_index),
 		cur_source_format[vd_path]);
-
+	cur_vd_path = vd_path;
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 		eo_sel = 1;
 
@@ -2956,10 +3551,8 @@ void video_post_process(struct vframe_s *vf,
 		if (vd_path == VD1_PATH)
 			hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 				vinfo, NULL, s5_silce_mode, vpp_index);
-		else if (vd_path == VD2_PATH)
-			hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 		else
-			hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS, vinfo, NULL, vpp_index);
 		if (!osd_gamut_conv_type &&
 			((vd_path == VD1_PATH &&
 			!is_video_layer_on(VD2_PATH)) ||
@@ -2988,14 +3581,17 @@ void video_post_process(struct vframe_s *vf,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 		if (get_prime_sl_hdr_process_policy(vf) == PRIME_SL_HDR_MODE_2020_TO_709) {
 			gamut_convert_process(vinfo, source_type, vd_path, &m, 8, DEST_NONE);
+			bypass_gamut_wrapper = 1;
 			eo_clip_proc(master_info, eo_sel);
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, SDR_GMT_CONVERT,
 					vinfo, &m, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_SDR, vinfo, &m, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR_SDR, vinfo, &m, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_SDR,
+					vinfo, &m, vpp_index);
+			//hdr_proc(vf, OSD1_HDR, prime_mode, vinfo, NULL, vpp_index);
+			//hdr_proc(vf, OSD2_HDR, prime_mode, vinfo, NULL, vpp_index);
+			//hdr_proc(vf, OSD3_HDR, prime_mode, vinfo, NULL, vpp_index);
 		} else if (get_prime_sl_hdr_process_policy(vf) == PRIME_SL_HDR_MODE_709_TO_2020) {
 			if (sbtm_en && sbtm_mode) {
 				pr_csc(12, "sbtm: vd_path = %d,PROC_SDR_TO_HDR.\n", vd_path);
@@ -3003,24 +3599,39 @@ void video_post_process(struct vframe_s *vf,
 				if (vd_path == VD1_PATH)
 					hdr_proc_multi_slices(vf, VD1_HDR, HDR_HDR, /* unsure */
 						vinfo, &m, s5_silce_mode, vpp_index);
-				else if (vd_path == VD2_PATH)
-					hdr_proc(vf, VD2_HDR, HDR_HDR, vinfo, &m, vpp_index);
-				else if (vd_path == VD3_PATH)
-					hdr_proc(vf, VD3_HDR, HDR_HDR, vinfo, &m, vpp_index);
+				else
+					hdr_proc(vf, get_hdr_module(vd_path), HDR_HDR,
+						vinfo, &m, vpp_index);
 				if (chip_cls_id == TV_CHIP) {
 					/*for tv chip need sd2hdr function*/
+					hdr_proc(vf, OSD1_HDR, prime_mode, vinfo, NULL, vpp_index);
+					hdr_proc(vf, OSD2_HDR, prime_mode, vinfo, NULL, vpp_index);
+					hdr_proc(vf, OSD3_HDR, prime_mode, vinfo, NULL, vpp_index);
 				} else {
 					pr_csc(12, "sbtm: OSD, PROC_SDR_TO_HDR.\n");
 					sbtm_convert_process(SBTM_OSD_PROC,  vinfo, &m, 11);
+					hdr_proc(vf, OSD1_HDR, prime_mode, vinfo, &m, vpp_index);
+					hdr_proc(vf, OSD2_HDR, prime_mode, vinfo, &m, vpp_index);
+					hdr_proc(vf, OSD3_HDR, prime_mode, vinfo, &m, vpp_index);
 				}
 			} else {
+				gamut_src_format = HDRTYPE_HDR10;
 				if (vd_path == VD1_PATH)
 					hdr_proc_multi_slices(vf, VD1_HDR, HDR_HDR,
 						vinfo, NULL, s5_silce_mode, vpp_index);
-				else if (vd_path == VD2_PATH)
-					hdr_proc(vf, VD2_HDR, HDR_HDR, vinfo, NULL, vpp_index);
-				else if (vd_path == VD3_PATH)
-					hdr_proc(vf, VD3_HDR, HDR_HDR, vinfo, NULL, vpp_index);
+				else
+					hdr_proc(vf, get_hdr_module(vd_path), HDR_HDR,
+						vinfo, NULL, vpp_index);
+				if (chip_cls_id == TV_CHIP) {
+					/*for tv chip need sd2hdr function*/
+					hdr_proc(vf, OSD1_HDR, prime_mode, vinfo, NULL, vpp_index);
+					hdr_proc(vf, OSD2_HDR, prime_mode, vinfo, NULL, vpp_index);
+					hdr_proc(vf, OSD3_HDR, prime_mode, vinfo, NULL, vpp_index);
+				} else {
+				//hdr_proc(vf, OSD1_HDR, prime_mode, vinfo, NULL, vpp_index);
+				//hdr_proc(vf, OSD2_HDR, prime_mode, vinfo, NULL, vpp_index);
+				//hdr_proc(vf, OSD3_HDR, prime_mode, vinfo, NULL, vpp_index);
+				}
 			}
 		} else if (get_prime_sl_hdr_process_policy(vf) == PRIME_SL_HDR_MODE_BYPASS_2020) {
 			if (sbtm_en && sbtm_mode) {
@@ -3030,10 +3641,9 @@ void video_post_process(struct vframe_s *vf,
 				if (vd_path == VD1_PATH)
 					hdr_proc_multi_slices(vf, VD1_HDR, HDR_HDR,
 						vinfo, &m, s5_silce_mode, vpp_index);
-				else if (vd_path == VD2_PATH)
-					hdr_proc(vf, VD2_HDR, HDR_HDR, vinfo, &m, vpp_index);
-				else if (vd_path == VD3_PATH)
-					hdr_proc(vf, VD3_HDR, HDR_HDR, vinfo, &m, vpp_index);
+				else
+					hdr_proc(vf, get_hdr_module(vd_path), HDR_HDR,
+						vinfo, &m, vpp_index);
 				if (chip_cls_id == TV_CHIP) {
 					/*for tv chip need sd2hdr function*/
 					hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -3047,13 +3657,13 @@ void video_post_process(struct vframe_s *vf,
 					hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, &m, vpp_index);
 				}
 			}  else {
+				gamut_src_format = src_format;
 				if (vd_path == VD1_PATH)
 					hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 						vinfo, NULL, s5_silce_mode, vpp_index);
-				else if (vd_path == VD2_PATH)
-					hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-				else if (vd_path == VD3_PATH)
-					hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+				else
+					hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
+						vinfo, NULL, vpp_index);
 				if (get_hdr_policy() == 2 &&
 					target_format[vd_path] == BT_BYPASS) {
 					hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -3066,15 +3676,13 @@ void video_post_process(struct vframe_s *vf,
 				}
 			}
 		} else {
+			gamut_src_format = src_format;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL,
-					vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL,
-					vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
+					vinfo, NULL, vpp_index);
 			if ((vd_path == VD1_PATH &&
 				!is_video_layer_on(VD2_PATH)) ||
 			     (vd_path == VD2_PATH &&
@@ -3103,15 +3711,13 @@ void video_post_process(struct vframe_s *vf,
 		    is_amdv_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, SDR_IPT, vinfo, NULL, vpp_index);
 		} else if (sdr_process_mode[vd_path] == PROC_BYPASS) {
+			gamut_src_format = src_format;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL,
-					vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL,
-					vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
+					vinfo, NULL, vpp_index);
 			if (!osd_gamut_conv_type &&
 				((vd_path == VD1_PATH &&
 				!is_video_layer_on(VD2_PATH)) ||
@@ -3133,22 +3739,19 @@ void video_post_process(struct vframe_s *vf,
 					 vpp_index);
 			}
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_TRG) {
-			if (gamut_conv_enable)
+			if (gamut_conv_enable) {
 				gamut_convert_process(
 					vinfo, source_type, vd_path, &m, 11, DEST_NONE);
+				bypass_gamut_wrapper = 1;
+			}
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR,
 					gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
 					vinfo,
 					gamut_conv_enable ? &m : NULL,
 					s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR,
-					gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
-					vinfo,
-					gamut_conv_enable ? &m : NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR,
+			else
+				hdr_proc(vf, get_hdr_module(vd_path),
 					gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
 					vinfo,
 					gamut_conv_enable ? &m : NULL, vpp_index);
@@ -3179,10 +3782,9 @@ void video_post_process(struct vframe_s *vf,
 				if (vd_path == VD1_PATH)
 					hdr_proc_multi_slices(vf, VD1_HDR, SDR_HDR,
 						vinfo, &m, s5_silce_mode, vpp_index);
-				else if (vd_path == VD2_PATH)
-					hdr_proc(vf, VD2_HDR, SDR_HDR, vinfo, &m, vpp_index);
-				else if (vd_path == VD3_PATH)
-					hdr_proc(vf, VD3_HDR, SDR_HDR, vinfo, &m, vpp_index);
+				else
+					hdr_proc(vf, get_hdr_module(vd_path), SDR_HDR,
+						vinfo, &m, vpp_index);
 				if (chip_cls_id == TV_CHIP) {
 					/*for tv chip need sd2hdr function*/
 					if (!osd_gamut_conv_type) {
@@ -3201,21 +3803,22 @@ void video_post_process(struct vframe_s *vf,
 					hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, &m, vpp_index);
 				}
 			} else {
+				gamut_src_format = HDRTYPE_HDR10;
 				if (chip_cls_id == TV_CHIP) {
 					/*for tv chip need sd2hdr function*/
-					if (gamut_conv_enable)
+					if (gamut_conv_enable) {
 						gamut_convert_process(vinfo, source_type,
 							vd_path, &m, 11, DEST_NONE);
+						bypass_gamut_wrapper = 1;
+					}
 					if (vd_path == VD1_PATH)
 						hdr_proc_multi_slices(vf, VD1_HDR, SDR_HDR,
 							vinfo, gamut_conv_enable ? &m : NULL,
 							s5_silce_mode, vpp_index);
-					else if (vd_path == VD2_PATH)
-						hdr_proc(vf, VD2_HDR, SDR_HDR, vinfo,
-							gamut_conv_enable ? &m : NULL, vpp_index);
-					else if (vd_path == VD3_PATH)
-						hdr_proc(vf, VD3_HDR, SDR_HDR, vinfo,
-							gamut_conv_enable ? &m : NULL, vpp_index);
+					else
+						hdr_proc(vf, get_hdr_module(vd_path), SDR_HDR,
+							vinfo, gamut_conv_enable ? &m : NULL,
+							vpp_index);
 
 					if (!osd_gamut_conv_type) {
 						hdr_proc(vf, OSD1_HDR, HDR_BYPASS,
@@ -3229,12 +3832,9 @@ void video_post_process(struct vframe_s *vf,
 					if (vd_path == VD1_PATH)
 						hdr_proc_multi_slices(vf, VD1_HDR, SDR_HDR,
 							vinfo, NULL, s5_silce_mode, vpp_index);
-					else if (vd_path == VD2_PATH)
-						hdr_proc(vf, VD2_HDR, SDR_HDR, vinfo,
-							NULL, vpp_index);
-					else if (vd_path == VD3_PATH)
-						hdr_proc(vf, VD3_HDR, SDR_HDR, vinfo,
-							NULL, vpp_index);
+					else
+						hdr_proc(vf, get_hdr_module(vd_path), SDR_HDR,
+							vinfo, NULL, vpp_index);
 
 					hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 					hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
@@ -3242,13 +3842,14 @@ void video_post_process(struct vframe_s *vf,
 				}
 			}
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_HLG) {
+			gamut_src_format = HDRTYPE_HLG;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, SDR_HLG,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), SDR_HLG,
+					vinfo, NULL, vpp_index);
+
 			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
@@ -3256,11 +3857,8 @@ void video_post_process(struct vframe_s *vf,
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, SDR_AC_ENH,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, SDR_AC_ENH, vinfo, NULL,
-					vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, SDR_AC_ENH, vinfo, NULL,
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), SDR_AC_ENH, vinfo, NULL,
 					vpp_index);
 			if (!osd_gamut_conv_type &&
 				((vd_path == VD1_PATH &&
@@ -3291,14 +3889,12 @@ void video_post_process(struct vframe_s *vf,
 			hdr_proc(vf, VD2_HDR, SDR_IPT, vinfo, NULL, vpp_index);
 		} else if (sdr_process_mode[vd_path] == PROC_BYPASS &&
 			target_format[vd_path] == BT2020) {
+			gamut_src_format = src_format;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL,
-					vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL,
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS, vinfo, NULL,
 					vpp_index);
 			if ((vd_path == VD1_PATH &&
 			     !is_video_layer_on(VD2_PATH)) ||
@@ -3321,6 +3917,7 @@ void video_post_process(struct vframe_s *vf,
 			}
 		} else if (sdr_process_mode[vd_path] == PROC_BYPASS &&
 			target_format[vd_path] == BT709) {
+			gamut_src_format = HDRTYPE_SDR;
 			gamut_convert_process(vinfo, source_type,
 				vd_path, &m, 11, DEST_NONE);
 			if (vd_path == VD1_PATH)
@@ -3329,13 +3926,8 @@ void video_post_process(struct vframe_s *vf,
 					vinfo,
 					&m,
 					s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR,
-					SDR_GMT_CONVERT,
-					vinfo,
-					&m, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR,
+			else
+				hdr_proc(vf, get_hdr_module(vd_path),
 					SDR_GMT_CONVERT,
 					vinfo,
 					&m, vpp_index);
@@ -3359,22 +3951,20 @@ void video_post_process(struct vframe_s *vf,
 					 vpp_index);
 			}
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_TRG) {
-			if (gamut_conv_enable)
+			if (gamut_conv_enable) {
 				gamut_convert_process(vinfo, source_type,
 					vd_path, &m, 11, DEST_NONE);
+				bypass_gamut_wrapper = 1;
+			}
+			gamut_src_format = src_format;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR,
 					gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
 					vinfo,
 					gamut_conv_enable ? &m : NULL,
 					s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR,
-					gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
-					vinfo,
-					gamut_conv_enable ? &m : NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR,
+			else
+				hdr_proc(vf, get_hdr_module(vd_path),
 					gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
 					vinfo,
 					gamut_conv_enable ? &m : NULL, vpp_index);
@@ -3398,15 +3988,15 @@ void video_post_process(struct vframe_s *vf,
 					 vpp_index);
 			}
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_HDR) {
+			gamut_src_format = HDRTYPE_HDR10;
 			gamut_convert_process(vinfo, source_type,
 				vd_path, &m, 11, DEST_HDR10);
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, SDR_HDR,
 					vinfo, &m, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, SDR_HDR, vinfo, &m, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, SDR_HDR, vinfo, &m, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), SDR_HDR,
+					vinfo, &m, vpp_index);
 			if (chip_cls_id == TV_CHIP) {
 				/*for tv chip need sd2hdr function*/
 				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -3423,10 +4013,10 @@ void video_post_process(struct vframe_s *vf,
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, SDR_HLG,
 					vinfo, &m, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, SDR_HLG, vinfo, &m, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, SDR_HLG, vinfo, &m, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), SDR_HLG,
+					vinfo, &m, vpp_index);
+
 			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
@@ -3436,12 +4026,9 @@ void video_post_process(struct vframe_s *vf,
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, SDR_AC_ENH,
 					vinfo, &m, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, SDR_AC_ENH, vinfo, &m,
-					vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, SDR_AC_ENH, vinfo, &m,
-					vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), SDR_AC_ENH,
+					vinfo, &m, vpp_index);
 			if ((vd_path == VD1_PATH &&
 			     !is_video_layer_on(VD2_PATH)) ||
 			     (vd_path == VD2_PATH &&
@@ -3475,10 +4062,10 @@ void video_post_process(struct vframe_s *vf,
 				if (vd_path == VD1_PATH)
 					hdr_proc_multi_slices(vf, VD1_HDR, HDR_HDR,
 						vinfo, &m, s5_silce_mode, vpp_index);
-				else if (vd_path == VD2_PATH)
-					hdr_proc(vf, VD2_HDR, HDR_HDR, vinfo, &m, vpp_index);
-				else if (vd_path == VD3_PATH)
-					hdr_proc(vf, VD3_HDR, HDR_HDR, vinfo, &m, vpp_index);
+				else
+					hdr_proc(vf, get_hdr_module(vd_path), HDR_HDR,
+						vinfo, &m, vpp_index);
+
 				if (chip_cls_id == TV_CHIP) {
 					/*for tv chip need sd2hdr function*/
 					hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -3492,13 +4079,13 @@ void video_post_process(struct vframe_s *vf,
 					hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, &m, vpp_index);
 				}
 			} else {
+				gamut_src_format = src_format;
 				if (vd_path == VD1_PATH)
 					hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 						vinfo, NULL, s5_silce_mode, vpp_index);
-				else if (vd_path == VD2_PATH)
-					hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-				else if (vd_path == VD3_PATH)
-					hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+				else
+					hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
+						vinfo, NULL, vpp_index);
 				if (get_hdr_policy() == 2 &&
 				    target_format[vd_path] == BT_BYPASS) {
 					hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -3512,14 +4099,14 @@ void video_post_process(struct vframe_s *vf,
 			}
 		} else if (hdr_process_mode[vd_path] == PROC_HDR_TO_SDR) {
 			gamut_convert_process(vinfo, source_type, vd_path, &m, 8, DEST_NONE);
+			bypass_gamut_wrapper = 1;
 			eo_clip_proc(master_info, eo_sel);
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_SDR,
 					vinfo, &m, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_SDR, vinfo, &m, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR_SDR, vinfo, &m, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_SDR,
+					vinfo, &m, vpp_index);
 			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -3527,10 +4114,10 @@ void video_post_process(struct vframe_s *vf,
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_HLG, vinfo,
 					NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_HLG, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR_HLG, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_HLG, vinfo,
+					NULL, vpp_index);
+
 			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
@@ -3540,6 +4127,108 @@ void video_post_process(struct vframe_s *vf,
 		if (vd_path == VD2_PATH && is_amdv_on() && is_amdv_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, HLG_IPT, vinfo, NULL, vpp_index);
 		} else if (hlg_process_mode[vd_path] == PROC_BYPASS) {
+			gamut_src_format = src_format;
+			if (vd_path == VD1_PATH)
+				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
+					vinfo, NULL, s5_silce_mode, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
+					vinfo, NULL, vpp_index);
+			if (get_hdr_policy() == 2 &&
+			    target_format[vd_path] == BT_BYPASS) {
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			} else {
+				hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
+			}
+		} else if (hlg_process_mode[vd_path] == PROC_HLG_TO_SDR) {
+			if (vd_path == VD1_PATH)
+				hdr_proc_multi_slices(vf, VD1_HDR, HLG_SDR,
+					vinfo, NULL, s5_silce_mode, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HLG_SDR,
+					vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+		} else if (hlg_process_mode[vd_path] == PROC_HLG_TO_HDR) {
+			if (vd_path == VD1_PATH)
+				hdr_proc_multi_slices(vf, VD1_HDR, HLG_HDR,
+					vinfo, NULL, s5_silce_mode, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HLG_HDR,
+					vinfo, NULL, vpp_index);
+
+			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+		}
+		break;
+	case HDRTYPE_HDR10PLUS:
+		if (vd_path == VD2_PATH && is_amdv_on() && is_amdv_stb_mode()) {
+			hdr_proc(vf, VD2_HDR, HDR_IPT, vinfo, NULL, vpp_index);
+		} else if (hdr10_plus_process_mode[vd_path] == PROC_BYPASS) {
+			gamut_src_format = src_format;
+			if (vd_path == VD1_PATH)
+				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
+					vinfo, NULL, s5_silce_mode, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
+					vinfo, NULL, vpp_index);
+			if (get_hdr_policy() == 2 &&
+			    target_format[vd_path] == BT_BYPASS) {
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			} else {
+				hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+			}
+		} else if (hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_HDR) {
+			gamut_src_format = src_format;
+			if (vd_path == VD1_PATH)
+				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
+					vinfo, &m, s5_silce_mode, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
+					vinfo, &m, vpp_index);
+			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+		} else if (hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR) {
+			gamut_convert_process(vinfo, source_type, vd_path, &m, 13, DEST_NONE);
+			bypass_gamut_wrapper = 1;
+			if (vd_path == VD1_PATH)
+				hdr_proc_multi_slices(vf, VD1_HDR, HDR10P_SDR,
+					vinfo, &m, s5_silce_mode, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR10P_SDR,
+					vinfo, &m, vpp_index);
+			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+		} else if (hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_HLG) {
+			gamut_src_format = HDRTYPE_HLG;
+			if (vd_path == VD1_PATH)
+				hdr_proc_multi_slices(vf, VD1_HDR, HDR_HLG,
+					vinfo, NULL, s5_silce_mode, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), HDR_HLG,
+					vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
+		}
+		break;
+	case HDRTYPE_HLGPLUS:
+		if (vd_path == VD2_PATH && is_amdv_on() && is_amdv_stb_mode()) {
+			hdr_proc(vf, VD2_HDR, HLG_IPT, vinfo, NULL, vpp_index);
+		} else if (hlg_plus_process_mode[vd_path] == PROC_BYPASS) {
+			gamut_src_format = src_format;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
@@ -3557,34 +4246,31 @@ void video_post_process(struct vframe_s *vf,
 				hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 				hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			}
-		} else if (hlg_process_mode[vd_path] == PROC_HLG_TO_SDR) {
-			if (vd_path == VD1_PATH)
-				hdr_proc_multi_slices(vf, VD1_HDR, HLG_SDR,
-					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HLG_SDR, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HLG_SDR, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-		} else if (hlg_process_mode[vd_path] == PROC_HLG_TO_HDR) {
+		} else if (hlg_plus_process_mode[vd_path] == PROC_HLGP_TO_HDR) {
+			gamut_src_format = HDRTYPE_HDR10;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HLG_HDR,
-					vinfo, NULL, s5_silce_mode, vpp_index);
+					vinfo, &m, s5_silce_mode, vpp_index);
 			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HLG_HDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, VD2_HDR, HLG_HDR, vinfo, &m, vpp_index);
 			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HLG_HDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, VD3_HDR, HLG_HDR, vinfo, &m, vpp_index);
 			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-		}
-		break;
-	case HDRTYPE_HDR10PLUS:
-		if (vd_path == VD2_PATH && is_amdv_on() && is_amdv_stb_mode()) {
-			hdr_proc(vf, VD2_HDR, HDR_IPT, vinfo, NULL, vpp_index);
-		} else if (hdr10_plus_process_mode[vd_path] == PROC_BYPASS) {
+		} else if (hlg_plus_process_mode[vd_path] == PROC_HLGP_TO_SDR) {
+			if (vd_path == VD1_PATH)
+				hdr_proc_multi_slices_ext(vf, VD1_HDR, HLGP_SDR,
+					vinfo, &m, s5_silce_mode, vpp_index);
+			else if (vd_path == VD2_PATH)
+				hdr_proc_ext(vf, VD2_HDR, HLGP_SDR, vinfo, &m, vpp_index);
+			else if (vd_path == VD3_PATH)
+				hdr_proc_ext(vf, VD3_HDR, HLGP_SDR, vinfo, &m, vpp_index);
+			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+		} else if (hlg_plus_process_mode[vd_path] == PROC_HLGP_TO_HLG) {
+			gamut_src_format = HDRTYPE_HLG;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
@@ -3592,47 +4278,6 @@ void video_post_process(struct vframe_s *vf,
 				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			else if (vd_path == VD3_PATH)
 				hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-			if (get_hdr_policy() == 2 &&
-			    target_format[vd_path] == BT_BYPASS) {
-				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-				hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-				hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-			} else {
-				hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-				hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-				hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-			}
-		} else if (hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_HDR) {
-			if (vd_path == VD1_PATH)
-				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
-					vinfo, &m, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, &m, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, &m, vpp_index);
-			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-		} else if (hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR) {
-			gamut_convert_process(vinfo, source_type, vd_path, &m, 8, DEST_NONE);
-			if (vd_path == VD1_PATH)
-				hdr_proc_multi_slices(vf, VD1_HDR, HDR10P_SDR,
-					vinfo, &m, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR10P_SDR, vinfo, &m, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR10P_SDR, vinfo, &m, vpp_index);
-			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-		} else if (hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_HLG) {
-			if (vd_path == VD1_PATH)
-				hdr_proc_multi_slices(vf, VD1_HDR, HDR_HLG,
-					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_HLG, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
@@ -3642,14 +4287,14 @@ void video_post_process(struct vframe_s *vf,
 		if (vd_path == VD2_PATH && is_amdv_on() && is_amdv_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, CUVA_IPT, vinfo, NULL, vpp_index);
 		} else if (cuva_hdr_process_mode[vd_path] == PROC_BYPASS) {
-			pr_csc(1, "%s cuva bypass(cuva to cuva)\n", __func__);
+			pr_csc(1, "cuva bypass(cuva to cuva)\n");
+			gamut_src_format = src_format;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVA_BYPASS, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVA_BYPASS, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVA_BYPASS,
+					vinfo, NULL, vpp_index);
 			if (get_hdr_policy() == 2 &&
 			    target_format[vd_path] == BT_BYPASS){
 				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -3664,32 +4309,31 @@ void video_post_process(struct vframe_s *vf,
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_SDR,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVA_SDR, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVA_SDR, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVA_SDR,
+					vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 		} else if (cuva_hdr_process_mode[vd_path] == PROC_CUVA_TO_HDR) {
+			gamut_src_format = HDRTYPE_HDR10;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_HDR,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVA_HDR, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVA_HDR, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVA_HDR,
+					vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 		} else if (cuva_hdr_process_mode[vd_path] == PROC_CUVA_TO_HLG) {
+			gamut_src_format = HDRTYPE_HLG;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_HLG,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVA_HLG, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVA_HLG, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVA_HLG,
+					vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
@@ -3699,14 +4343,14 @@ void video_post_process(struct vframe_s *vf,
 		if (vd_path == VD2_PATH && is_amdv_on() && is_amdv_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, CUVA_IPT, vinfo, NULL, vpp_index);
 		} else if (cuva_hlg_process_mode[vd_path] == PROC_BYPASS) {
+			gamut_src_format = src_format;
 			pr_csc(1, "%s cuva hlg bypass.(cuva hlg to cuva hlg)\n", __func__);
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVA_BYPASS, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVA_BYPASS, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVA_BYPASS,
+					vinfo, NULL, vpp_index);
 			if (get_hdr_policy() == 2 &&
 				target_format[vd_path] == BT_BYPASS){
 				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -3721,44 +4365,42 @@ void video_post_process(struct vframe_s *vf,
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVAHLG_SDR,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVAHLG_SDR, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVAHLG_SDR, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVAHLG_SDR,
+					vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 		} else if (cuva_hlg_process_mode[vd_path] == PROC_CUVAHLG_TO_HDR) {
+			gamut_src_format = HDRTYPE_HDR10;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVAHLG_HDR,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVAHLG_HDR, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVAHLG_HDR, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVAHLG_HDR,
+					vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 		} else if (cuva_hlg_process_mode[vd_path] == PROC_CUVAHLG_TO_HLG) {
+			gamut_src_format = HDRTYPE_HLG;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVAHLG_HLG,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVAHLG_HLG, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVAHLG_HLG, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVAHLG_HLG,
+					vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 		} else if (cuva_hlg_process_mode[vd_path] == PROC_CUVAHLG_TO_CUVA) {
-			pr_csc(1, "%s cuva hlg bypass(cuva hlg to cuva)\n", __func__);
+			pr_csc(1, "cuva hlg bypass(cuva hlg to cuva)\n");
+			gamut_src_format = HDRTYPE_CUVA_HDR;
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVAHLG_CUVA,
 					vinfo, NULL, s5_silce_mode, vpp_index);
-			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, CUVAHLG_CUVA, vinfo, NULL, vpp_index);
-			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, CUVAHLG_CUVA, vinfo, NULL, vpp_index);
+			else
+				hdr_proc(vf, get_hdr_module(vd_path), CUVAHLG_CUVA,
+					vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, SDR_CUVA, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, SDR_CUVA, vinfo, NULL, vpp_index);
@@ -3775,6 +4417,10 @@ void video_post_process(struct vframe_s *vf,
 
 	if (dpss_mode)
 		goto mode_change;
+
+	if (vd_path == VD1_PATH)
+		cal_gamut_mapping_wrapper_matrix(gamut_src_format, vinfo,
+			bypass_gamut_wrapper, vpp_index);
 
 	if (chip_type_id == chip_a4) {
 		if (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
@@ -3826,6 +4472,7 @@ void video_post_process(struct vframe_s *vf,
 					0, 1, 1, vpp_index);
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
 					0, 1, 1, vpp_index);
+
 				if (!watermark_support) {
 					if (vpp_index == VPP_TOP1)
 						mtx_setting(VPP1_POST2_MTX,
@@ -3843,8 +4490,7 @@ void video_post_process(struct vframe_s *vf,
 							MATRIX_YUV709F_RGB, MTX_ON);
 				}
 			} else {
-				pr_csc(12, "%s: type[vd%d]=%d\n",
-					__func__,
+				pr_csc(12, "type[vd%d]=%d\n",
 					vd_path + 1,
 					source_type[vd_path]);
 				pr_csc(128, "%s: others csc_type = %d\n",
@@ -3944,6 +4590,20 @@ mode_change:
 		cur_hdr10_plus_process_mode[vd_path] =
 			hdr10_plus_process_mode[vd_path];
 	}
+
+	if (cur_hlg_plus_process_mode[vd_path]
+		!= hlg_plus_process_mode[vd_path]) {
+		if (cur_source_format[vd_path] == HDRTYPE_HLGPLUS)
+			pr_csc(1,
+				"am_vecm: vd%d: hlg_plus_process_mode %d to %d\n",
+				vd_path + 1,
+				cur_hlg_plus_process_mode[vd_path],
+				hlg_plus_process_mode[vd_path]);
+
+		cur_hlg_plus_process_mode[vd_path] =
+			hlg_plus_process_mode[vd_path];
+	}
+
 	if (cur_cuva_hdr_process_mode[vd_path] !=
 		cuva_hdr_process_mode[vd_path]) {
 		if (cur_source_format[vd_path] == HDRTYPE_CUVA_HDR)

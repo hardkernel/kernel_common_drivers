@@ -88,9 +88,10 @@
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
-#define FLAG_HDR_ON					BIT(25)
-#define FLAG_GAMUT_MAPPING1_UPDATE   BIT(24)
-#define FLAG_GAMUT_MAPPING0_UPDATE   BIT(23)
+#define FLAG_HDR10P_ON              BIT(26)
+#define FLAG_HDR_ON                 BIT(25)
+#define FLAG_GAMUT_MAPPING1_UPDATE  BIT(24)
+#define FLAG_GAMUT_MAPPING0_UPDATE  BIT(23)
 #define FLAG_PRE_SAT_UPDATE         BIT(22)
 #define FLAG_RESUME_RECOVERY        BIT(21)
 #define SHARPNESS_GAIN_UPDATE       BIT(20)
@@ -412,7 +413,9 @@ enum vd_path_e {
 	VD1_PATH = 0,
 	VD2_PATH = 1,
 	VD3_PATH = 2,
-	VD_PATH_MAX = 3
+	VD1_1_PATH = 3,
+	VD2_1_PATH = 4,
+	VD_PATH_MAX = 5
 };
 
 enum vpp_index_e {
@@ -786,6 +789,7 @@ extern int cur_contrast_u;
 extern int cur_vpp_index;
 extern unsigned int hdr_core_fix_mode;
 extern int set_dummy_flag;
+extern bool mosaic_mode;
 
 extern unsigned int flag_cm_lc_dma_en;
 extern unsigned int pc_mode;

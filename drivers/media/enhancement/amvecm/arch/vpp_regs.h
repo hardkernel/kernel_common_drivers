@@ -1616,6 +1616,7 @@
 #define VPP2_GAMMA_CTRL              0x1ed2
 #define VPP2_GAMMA_BIN_ADDR          0x1ed3
 #define VPP2_GAMMA_BIN_DATA          0x1ed4
+#define VPP_MISC2                                  0x1d7a
 
 #define DNLP_MAX_RGB_EN                            0x2e90
 //Bit 31: 1        reserved

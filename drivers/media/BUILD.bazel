@@ -893,6 +893,7 @@ ddk_module(
                 "enhancement/amvecm/hdr/am_cuva_hdr_tm.c",
                 "enhancement/amvecm/am_dma_ctrl.c",
                 "enhancement/amvecm/hdr/am_hdr_sbtm.c",
+                "enhancement/amvecm/hdr/am_hdr10p_adaptive.c",
             ],
         },
         "CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL": {

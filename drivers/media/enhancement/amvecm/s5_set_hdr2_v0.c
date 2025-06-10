@@ -891,15 +891,10 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 		/* 2: none linear Ys -- Do NOT use it */
 		if (hdr_mtx_param->p_sel & HLG_HDR ||
 		    hdr_mtx_param->p_sel & HLG_SDR ||
-		    hdr_mtx_param->p_sel & HLG_IPT) {
-			if (cuva_static_hlg_en &&
-				(hdr_mtx_param->p_sel & HLG_SDR))
-				adpscl_mode = 1;
-			else
+		    hdr_mtx_param->p_sel & HLG_IPT)
 				adpscl_mode = 0;
-		} else {
+		else
 			adpscl_mode = 1;
-		}
 
 		for (i = 0; i < 3; i++) {
 			if (hdr_mtx_param->mtx_only == MTX_ONLY)
@@ -966,11 +961,15 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 			adpscl_shift[1] = OO_NOR -
 				_log2((1 << OO_NOR) / 32);
 		} else if (hdr_mtx_param->p_sel & HLG_SDR) {
-			if (hdr_mtx_param->gmt_bit_mode || cuva_static_hlg_en) {
+			if (hdr_mtx_param->gmt_bit_mode) {
 				adpscl_shift[0] =
 					hdr_lut_param->adp_scal_x_shift;
-				adpscl_shift[1] = OO_NOR -
-				_log2((1 << OO_NOR) / ogain_lut_148);
+				if (cuva_static_hlg_en)
+					adpscl_shift[1] =
+					hdr_lut_param->adp_scal_x_shift;
+				else
+					adpscl_shift[1] = OO_NOR -
+					_log2((1 << OO_NOR) / ogain_lut_148);
 			} else {
 				/*because input 1/2, shift0/shift1 need change*/
 				adpscl_shift[0] =
@@ -1018,8 +1017,10 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift - 1;
 				adpscl_shift[1] = OO_NOR - scale_shift - 1;
 			}
-		} else if (hdr_mtx_param->p_sel &
-			(CUVA_HDR | CUVAHLG_HDR | CUVAHLG_HLG)) {
+		} else if (hdr_mtx_param->p_sel & (CUVA_HDR | CUVAHLG_HDR)) {
+			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
+			adpscl_shift[1] = hdr_lut_param->adp_scal_x_shift + 2;
+		} else if (hdr_mtx_param->p_sel & CUVAHLG_HLG) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = hdr_lut_param->adp_scal_x_shift;
 		} else if (hdr_mtx_param->p_sel == IPT_SDR) {
@@ -1544,7 +1545,7 @@ void s5_set_c_gain(enum hdr_module_sel module_sel,
 	/*cgain mode: 0->y domin*/
 	/*cgain mode: 1->rgb domin, use r/g/b max*/
 	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
-				 0, 12, 1, vpp_sel);
+				 hdr_lut_param->cgain_mode, 12, 1, vpp_sel);
 	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
 				 hdr_lut_param->cgain_en, 0, 1, vpp_sel);
 
@@ -2887,7 +2888,6 @@ void read_dma_buf(void)
 	ootf_off = (2 + 24 + 15) * 4;
 	cgain_off = (2 + 24 + 15 + 19) * 4;
 	tail_off = (2 + 24 + 15 + 19 + 7) * 4;
-	data32 = (u32 *)(dma_vaddr);
 	pr_info("\nshow %s %s %s %s %s %s %s %s dma buf\n",
 			dma_lut_off_str[0], dma_lut_off_str[1],
 			dma_lut_off_str[2], dma_lut_off_str[3],

@@ -224,6 +224,9 @@ struct aml_tmo_reg_sw {
 	int tmo_full_white_th1;                 //u10
 	int tmo_special_pat1_th;                //u10
 	int tmo_special_pat2_th;                //u10
+	int tmo_blend_dark_gain;                //u10
+	int tmo_blend_dark_th0;                 //u10
+	int tmo_blend_dark_th1;                 //u10
 	int *tmo_force_ootf1_mode;
 	int *tmo_force_ootf1_val;
 

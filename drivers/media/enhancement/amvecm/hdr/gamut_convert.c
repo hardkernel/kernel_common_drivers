@@ -297,10 +297,10 @@ static void N2C(s64 (*in)[3],
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 3; j++) {
 			in[i][j] =
-				(in[i][j] + (1 << (ibl - (mtx_depth + 1)))) >>
+				(in[i][j] + ((s64)1 << (ibl - (mtx_depth + 1)))) >>
 				(ibl - mtx_depth);
 			if (in[i][j] < 0)
-				in[i][j] += 1 << obl;
+				in[i][j] += (s64)1 << obl;
 		}
 }
 
@@ -487,6 +487,7 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 	}
 
 	if (force_primary) {
+		pr_gmt("use force primary\n");
 		/* because of blue x,y too close to zero,
 		 * and usually have difference
 		 * force blue dest primary >= src primary to avoid blue clip
@@ -549,4 +550,138 @@ int gamut_convert(s64 *s_prmy,
 
 	return 0;
 }
+
+int gamut_mode;//0:auto 1:force
+module_param(gamut_mode, int, 0664);
+MODULE_PARM_DESC(gamut_mode, "\n gamut_mode\n");
+
+int gamut_mode_process(struct vinfo_s *vinfo,
+			enum hdr_type_e source_type,
+			struct matrix_s *mtx,
+			int mtx_depth,
+			enum dest_hdr_type_e dest_type)
+{
+	int i, j;
+	s64 out[3][3];
+	s64 src_prmy[4][2];
+	s64 dest_prmy[4][2];
+	struct master_display_info_s *p = NULL;
+
+	if (mtx_depth == 0)
+		mtx_depth = 11;
+
+	if (source_type == HDRTYPE_SDR) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				src_prmy[i][j] = std_bt709_prmy[(i + 2) % 3][j];
+				src_prmy[3][j] = std_bt709_white_point[j];
+			}
+		pr_gmt("src_primary: SDR_BT709 case\n");
+	} else if (((source_type == HDRTYPE_HDR10) ||
+		(source_type == HDRTYPE_HDR10_709)) ||
+		(source_type == HDRTYPE_HLG) ||
+		(source_type == HDRTYPE_PRIMESL) ||
+		(source_type == HDRTYPE_HDR10PLUS)) {
+		if (get_primary_policy() == PRIMARIES_AUTO) {
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++) {
+					src_prmy[i][j] =
+						std_p3_primaries
+						[(i + 2) % 3][j];
+					src_prmy[3][j] =
+						std_p3_white_point
+						[j];
+				}
+			pr_gmt("src_primary: HDR_P3 case\n");
+		} else {
+			if (source_type == HDRTYPE_HDR10_709) {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++) {
+						src_prmy[i][j] =
+							std_bt709_prmy[(i + 2) % 3][j];
+						src_prmy[3][j] =
+							std_bt709_white_point[j];
+					}
+				pr_gmt("src_primary: HDR10_BT709 case\n");
+			} else {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++)
+						src_prmy[i][j] = std_bt2020_prmy[(i + 2) % 3][j];
+
+				for (j = 0; j < 2; j++)
+					src_prmy[3][j] = std_bt2020_white_point[j];
+
+				pr_gmt("src_primary: HDR10_BT2020 case\n");
+			}
+		}
+	} else if (source_type == HDRTYPE_SDR2020) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				src_prmy[i][j] = std_bt2020_prmy[(i + 2) % 3][j];
+				src_prmy[3][j] = std_bt2020_white_point[j];
+			}
+	} else {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				src_prmy[i][j] = std_bt709_prmy[(i + 2) % 3][j];
+				src_prmy[3][j] = std_bt709_white_point[j];
+			}
+	}
+
+	if (vinfo->master_display_info.present_flag &&
+		(get_primary_policy() == PRIMARIES_SOURCE)) {
+		p = &vinfo->master_display_info;
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				dest_prmy[i][j] = p->primaries[(i + 2) % 3][j];
+				dest_prmy[3][j] = p->white_point[j];
+			}
+	} else {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				dest_prmy[i][j] =
+					std_bt709_prmy[(i + 2) % 3][j];
+				dest_prmy[3][j] = std_bt709_white_point[j];
+			}
+	}
+
+	if (dest_type == DEST_HDR10) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				dest_prmy[i][j] =
+					std_bt2020_prmy[(i + 2) % 3][j];
+				dest_prmy[3][j] = std_bt2020_white_point[j];
+			}
+	}
+
+	if (gamut_mode) {
+		pr_gmt("use force primary\n");
+		/* because of blue x,y too close to zero,
+		 * and usually have difference
+		 * force blue dest primary >= src primary to avoid blue clip
+		 */
+		if (source_type == HDRTYPE_SDR) {
+			if (force_dst_primary[5] > force_src_primary[5])
+				force_dst_primary[5] = force_src_primary[5];
+			if (force_dst_primary[4] > force_src_primary[4])
+				force_dst_primary[4] = force_src_primary[4];
+		}
+
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 2; j++) {
+				src_prmy[i][j] =
+					force_src_primary[i * 2 + j];
+			}
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 2; j++) {
+				dest_prmy[i][j] =
+					force_dst_primary[i * 2 + j];
+			}
+	}
+
+	gamut_proc(src_prmy, dest_prmy, out, NORM, BL);
+	cal_mtx_seting(out, BL, BL, mtx, mtx_depth);
+	return 0;
+}
+
 #endif

@@ -40,7 +40,8 @@
 #define CUVA_HLG_SOURCE      9
 #define SDR_BT2020_SOURCE      10
 #define HDR10_709_SOURCE      11
-#define MAX_SOURCE      12
+#define HLGPLUS_SOURCE        12
+#define MAX_SOURCE            13
 
 #define FREESYNC_DYNAMIC_GAMMA_NUM 10
 #define FREESYNC_DYNAMIC_GAMMA_CHANNEL 3
@@ -276,7 +277,8 @@ enum hdr_type_e {
 	HDRTYPE_CUVA_HLG = CUVA_HLG_SOURCE,
 	HDRTYPE_PRIMESL = PRIMESL_SOURCE,
 	HDRTYPE_SDR2020 = SDR_BT2020_SOURCE,
-	HDRTYPE_HDR10_709 = HDR10_709_SOURCE
+	HDRTYPE_HDR10_709 = HDR10_709_SOURCE,
+	HDRTYPE_HLGPLUS = HLGPLUS_SOURCE
 };
 
 enum dest_hdr_type_e {
@@ -530,6 +532,9 @@ struct hdr_tmo_sw_ext {
 	int reg_full_white_th1;                /* u10 */
 	int reg_special_pat1_th;               /* u10 */
 	int reg_special_pat2_th;               /* u10 */
+	int reg_blend_dark_gain;               /* u10 */
+	int reg_blend_dark_th0;                /* u10 */
+	int reg_blend_dark_th1;                /* u10 */
 };
 
 struct db_cabc_aad_param_s {
@@ -868,5 +873,5 @@ struct hdr_parameter_reg_s {
 #define AMDI_IOC_SET_DNR_EN    _IOW(_DI_, 0xa8, unsigned char)
 #define AMVECM_IOC_G_FORCE_OUT   _IOR(_VE_CM, 0xa9, int)
 #define AMDI_IOC_SET_DM_EN     _IOW(_DI_, 0xaa, unsigned char)
-
+#define AMVECM_IOC_S_HDR10P_ON   _IOW(_VE_CM, 0xab, int)
 #endif

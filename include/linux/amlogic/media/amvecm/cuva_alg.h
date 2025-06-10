@@ -44,6 +44,7 @@ struct cuva_hdr_dynamic_metadata_s {
 struct aml_gain_reg {
 	s64 *ogain_lut;
 	s64 *cgain_lut;
+	s64 *ogain_lut1;
 };
 
 struct aml_dm_cuva_reg_sw {
@@ -166,11 +167,16 @@ struct aml_cuva_curve_reg_sw {
 	s64 th12;
 	s64 th22;
 	s64 th32;
+	s64 darkcurble_offset;
+	s64 curve_mintiao;
+	s64 high_area_flag;
+	s64 curve_mintiao_high_area;
 };
 
 enum ic_type_e {
 	IC_OTHER = 0,
-	IC_G12A = 1
+	IC_G12A = 1,
+	IC_NEW = 2
 };
 
 struct aml_cuva_data_s {
