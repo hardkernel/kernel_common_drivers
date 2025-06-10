@@ -5511,7 +5511,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		pr_info("bytesperline:%d sizeimage:%d\n",
 			f->fmt.pix.bytesperline, f->fmt.pix.sizeimage);
 	}
-
 	return 0;
 }
 
@@ -5650,6 +5649,11 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	else
 		aml2_dev->is_one_buffer = false;
 
+	if (fh->sizeimage * reqbufs->count > aml2_dev->framebuffer_total_size * 1024 * 1024) {
+		pr_err("%s:no enough mem, amlvideo2 don't allow capture,sizeimage=%u, count=%d\n",
+			__func__, fh->sizeimage, reqbufs->count);
+		return -EINVAL;
+	}
 	if (amlvideo2_dbg_en)
 		pr_info("%s memory:%d,type:%d buff_num:%d\n", __func__,
 			reqbufs->memory, reqbufs->type, reqbufs->count);
