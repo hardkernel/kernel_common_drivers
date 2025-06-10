@@ -1227,8 +1227,8 @@ static int aml_tocodec_adc_control_init(struct am_acodec_priv *aml_acodec)
 		bclk_sel = 8 + aml_acodec->tdmin_index;
 		lrclk_sel = 8 + aml_acodec->tdmin_index;
 		mclk_sel  = aml_acodec->tdmin_index;
-		mask = 0x1 << 9 | 0xf << 12 | 0xf << 4 | 0x7 << 0;
-		val = 0x1 << 9 | bclk_sel << 12 | lrclk_sel << 4 | mclk_sel << 0;
+		mask = 0xf << 12 | 0xf << 4 | 0x7 << 0;
+		val = bclk_sel << 12 | lrclk_sel << 4 | mclk_sel << 0;
 
 		regmap_update_bits(aml_acodec->to_acodec_adc_regmap, 0,
 							mask,  val);
