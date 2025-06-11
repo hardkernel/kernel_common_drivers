@@ -24,7 +24,7 @@
 
 #define MAX_ERR_CNT       0x7fff
 #define ERR_CNT_THRESHOLD 1000
-#define ERR_CNT_CHECK_NUM 10
+#define ERR_CNT_CHECK_NUM 1
 
 int hdmitx_format_para_init(struct hdmi_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,
@@ -126,7 +126,7 @@ static void hdmitx_cedst_process(struct work_struct *work)
 
 	/* After setting the mode, detect the err count information of ced for 10s */
 	tx_comm->ced_check_count += 1;
-	if (tx_comm->ced_check_count > ERR_CNT_CHECK_NUM)
+	if (tx_comm->ced_check_count >= ERR_CNT_CHECK_NUM)
 		cancel_delayed_work(&tx_comm->work_cedst);
 }
 

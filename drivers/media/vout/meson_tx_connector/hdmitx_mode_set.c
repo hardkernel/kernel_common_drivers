@@ -79,8 +79,8 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 	 */
 	tx_comm->ready = 1;
 	hdmitx_update_vinfo(tx_comm);
-	if (para->tmds_clk) {
-		tx_comm->cedst_en = 1;
+	/* cedst_en defaults to 0 */
+	if (para->tmds_clk && tx_comm->cedst_en) {
 		tx_comm->ced_check_count = 0;
 		cancel_delayed_work(&tx_comm->work_cedst);
 		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst,
