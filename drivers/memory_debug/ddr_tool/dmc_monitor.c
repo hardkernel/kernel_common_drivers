@@ -604,7 +604,8 @@ static unsigned int get_other_dev_mask(void)
 		    strstr(dmc_mon->port[i].port_name, "EMMC") ||
 		    strstr(dmc_mon->port[i].port_name, "TEST") ||
 		    strstr(dmc_mon->port[i].port_name, "AMFC") ||
-		    strstr(dmc_mon->port[i].port_name, "MTE"))
+		    strstr(dmc_mon->port[i].port_name, "MTE") ||
+		    strstr(dmc_mon->port[i].port_name, "NNA"))
 			continue;
 
 		ret |= (1 << dmc_mon->port[i].port_id);
@@ -765,7 +766,8 @@ static void dmc_set_default(struct dmc_monitor *mon)
 			mon->debug &= ~DMC_DEBUG_INCLUDE;
 			break;
 		case DMC_TYPE_T3:
-			mon->device = 0x02041c11;
+			/* NNA ration is high if be used*/
+			mon->device = 0x02041c40;
 			mon->debug &= ~DMC_DEBUG_INCLUDE;
 			break;
 		case DMC_TYPE_P1:
