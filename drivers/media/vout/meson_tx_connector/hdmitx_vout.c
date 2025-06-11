@@ -153,8 +153,9 @@ void hdmitx_update_vinfo(struct hdmitx_common *tx_comm)
 		return;
 	}
 
-	edidinfo_attach_to_vinfo(tx_comm);
+	/* vinfo->mode need use, so there need update format para firstly */
 	update_vinfo_from_format_para(tx_comm);
+	edidinfo_attach_to_vinfo(tx_comm);
 }
 
 void hdmitx_reset_vinfo(struct vinfo_s *tx_vinfo)
@@ -211,8 +212,7 @@ static enum vmode_e hdmitx_validate_vmode(char *_mode, unsigned int frac, void *
 	}
 	timing = hdmitx_mode_match_timing_name(mode);
 	if (hdmitx_common_validate_vic(tx_comm, timing->vic) == 0) {
-		/*should save mode name to vinfo, will be used in set_vmode*/
-		calc_vinfo_from_hdmi_timing(tx_comm, timing, vinfo);
+		/* probe will check valid mode, there needn't update vinfo */
 		vinfo->vout_device = tx_comm->vdev;
 		return VMODE_HDMI;
 	}

@@ -517,6 +517,10 @@ void hdmitx_bootup_post_process(struct hdmitx_common *tx_comm)
 				hdmitx_hw_cntl(tx_comm->tx_hw, DDC_SCDC_DIV40_SCRAMB,
 					(void *)&arg, NULL);
 		}
+		/* bootup need parse frac mode and update vinfo */
+		if (tx_comm->fmt_para.frac_mode)
+			hdmitx_mode_update_timing(&tx_comm->fmt_para.timing,
+						  tx_comm->fmt_para.frac_mode);
 		/*
 		 * During the kernel startup process, the HDR/DV module will use
 		 * vinfo information, it needs to attach vinfo after the EDID is
