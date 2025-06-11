@@ -18,7 +18,8 @@ unsigned short lvds_lane_map_flag_8lane[2][3] = {{0x000f, 0x001f, 0x003f},
 						 {0x0f00, 0x1f00, 0x3f00}};
 
 
-unsigned int lcd_phy_vswing_level_to_value_dft(struct aml_lcd_drv_s *pdrv, unsigned int level)
+unsigned int lcd_phy_vswing_level_to_value_dft(struct aml_lcd_drv_s *pdrv,
+				struct aml_lcd_device_s *dev_p, unsigned int level)
 {
 	unsigned int vswing_value = 0;
 
@@ -27,9 +28,10 @@ unsigned int lcd_phy_vswing_level_to_value_dft(struct aml_lcd_drv_s *pdrv, unsig
 	return vswing_value;
 }
 
-unsigned int lcd_phy_preem_level_to_value_dft(struct aml_lcd_drv_s *pdrv, unsigned int level)
+unsigned int lcd_phy_preem_level_to_value_dft(struct aml_lcd_drv_s *pdrv,
+				struct aml_lcd_device_s *dev_p, unsigned int level)
 {
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
+	struct phy_attr_s *phy = dev_p->dev_cfg.phy_cfg.act_phy;
 	unsigned int phy_vmode_preem[6] = {0x07, 0x17, 0x37, 0x77, 0xf7, 0xff};
 	unsigned int phy_cmode_preem[7] = {0x06, 0x26, 0x46, 0x66, 0x86, 0xa6, 0xf6};
 
@@ -41,31 +43,31 @@ unsigned int lcd_phy_preem_level_to_value_dft(struct aml_lcd_drv_s *pdrv, unsign
 			return phy_cmode_preem[level];
 	}
 
-	LCDERR("[%d]: %s: level %d invalid\n", pdrv->index, __func__, level);
+	LCD_ERR(pdrv, "%s: level %d invalid", __func__, level);
 	return 0;
 }
 
-unsigned int lcd_phy_amp_dft(struct aml_lcd_drv_s *pdrv)
+unsigned int lcd_phy_amp_dft(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
 	return 0x7;
 }
 
-void lcd_phy_glb_param_dft(struct aml_lcd_drv_s *pdrv)
+void lcd_phy_glb_param_dft(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
+	struct phy_attr_s *phy = dev_p->dev_cfg.phy_cfg.act_phy;
 
 	if (!phy)
 		return;
 
 	phy->ref_bias = 0;
-	switch (pdrv->config.basic.lcd_type) {
+	switch (dev_p->dev_cfg.basic.lcd_type) {
 	case LCD_LVDS:
 		phy->vcm = 0x27e;
 		phy->odt = 0xff;
 		phy->cv_mode = PHY_CMODE;
 		break;
 	case LCD_VBYONE:
-		if (pdrv->config.phy_cfg.ext_pullup) {
+		if (dev_p->dev_cfg.phy_cfg.ext_pullup) {
 			phy->vcm = 0x27e;
 			phy->odt = 0xff;
 		} else {
@@ -80,7 +82,7 @@ void lcd_phy_glb_param_dft(struct aml_lcd_drv_s *pdrv)
 		phy->cv_mode = PHY_CMODE;
 		break;
 	case LCD_P2P:
-		switch (pdrv->config.control.p2p_cfg.p2p_type & 0x1f) {
+		switch (dev_p->dev_cfg.control.p2p_cfg.p2p_type & 0x1f) {
 		case P2P_CEDS:
 		case P2P_CMPI:
 		case P2P_ISP:
@@ -93,7 +95,7 @@ void lcd_phy_glb_param_dft(struct aml_lcd_drv_s *pdrv)
 		case P2P_CSPI:
 		case P2P_USIT:
 			phy->vcm = 0x027;
-			if ((pdrv->config.control.p2p_cfg.p2p_type >> 5) & 0x1)
+			if ((dev_p->dev_cfg.control.p2p_cfg.p2p_type >> 5) & 0x1)
 				phy->odt = 0xe0; /* 580mV */
 			else
 				phy->odt = 0xfe; /* default 385mV */

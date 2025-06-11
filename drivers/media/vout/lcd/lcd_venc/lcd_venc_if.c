@@ -71,8 +71,7 @@ unsigned int lcd_get_max_line_cnt(struct aml_lcd_drv_s *pdrv)
 		return 0;
 
 	max_lcnt = lcd_venc_op.get_max_lcnt(pdrv);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, max_lcnt);
+	LCD_DBG(pdrv, "%s: %d", __func__, max_lcnt);
 
 	return max_lcnt;
 }
@@ -112,12 +111,12 @@ void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
 		spin_lock_irqsave(&pdrv->isr_lock, flags);
 		pdrv->mute_flag = 0;
 		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+		LCD_PR(pdrv, "%s", __func__);
 	} else if (pdrv->viu_sel == 1) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		set_output_mute(false);
 		pdrv->mute_flag = 0;
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+		LCD_PR(pdrv, "%s", __func__);
 #endif
 	}
 }
@@ -145,8 +144,7 @@ void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv)
 	if (!lcd_venc_op.venc_set_timing)
 		return;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 	lcd_venc_op.venc_set_timing(pdrv);
 
 	lcd_act_timing_dbg_print(pdrv);
@@ -159,8 +157,7 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 		return;
 	}
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 	lcd_venc_op.venc_set(pdrv);
 
 	lcd_act_timing_dbg_print(pdrv);
@@ -175,8 +172,7 @@ void lcd_venc_change(struct aml_lcd_drv_s *pdrv)
 
 	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0)
 		return;
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 	lcd_venc_op.venc_change(pdrv);
 
 	lcd_act_timing_dbg_print(pdrv);
@@ -189,8 +185,7 @@ void lcd_venc_enable(struct aml_lcd_drv_s *pdrv, int flag)
 		return;
 	}
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
+	LCD_DBG(pdrv, "%s: %d", __func__, flag);
 	lcd_venc_op.venc_enable(pdrv, flag);
 }
 
@@ -200,8 +195,7 @@ void lcd_mute_set(struct aml_lcd_drv_s *pdrv,  unsigned char flag)
 		return;
 
 	lcd_venc_op.mute_set(pdrv, flag);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
+	LCD_DBG(pdrv, "%s: %d", __func__, flag);
 }
 
 int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv)
@@ -227,26 +221,35 @@ int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)
 	int ret = 0;
 
 	if (!lcd_venc_op.get_venc_init_config) {
-		LCDERR("[%d]: %s: invalid\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: invalid", __func__);
 		return 0;
 	}
 
 	ret = lcd_venc_op.get_venc_init_config(pdrv);
 
 	if (ret & 0x2) {
-		if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
-			LCDPR("%s: load boot_ctrl from regs:", __func__);
-			LCDPR("\tlcd_type        : %d", boot_ctrl->lcd_type);
-			LCDPR("\tadvanced_flag   : %d", boot_ctrl->advanced_flag);
-			LCDPR("\tcustom_pinmux   : %d", boot_ctrl->custom_pinmux);
-			LCDPR("\tdccd_flag       : %d", boot_ctrl->dccd_flag);
-			LCDPR("\tppc             : %d", boot_ctrl->ppc);
-			LCDPR("\tclk_mode        : %d", boot_ctrl->clk_mode);
-			LCDPR("\tframe_rate      : %d", boot_ctrl->frame_rate);
-			LCDPR("\tinit_level      : %d", boot_ctrl->init_level);
-			LCDPR("\tif_state        : %d", boot_ctrl->if_state);
-			LCDPR("\tbl_state        : %d", boot_ctrl->bl_state);
-		}
+		LCD_DBG_ADV(pdrv, "%s: load boot_ctrl from regs:\n"
+			"\tlcd_type        : %d\n"
+			"\tadvanced_flag   : %d\n"
+			"\tcustom_pinmux   : %d\n"
+			"\tdccd_flag       : %d\n"
+			"\tppc             : %d\n"
+			"\tclk_mode        : %d\n"
+			"\tframe_rate      : %d\n"
+			"\tinit_level      : %d\n"
+			"\tif_state        : %d\n"
+			"\tbl_state        : %d",
+			__func__,
+			boot_ctrl->lcd_type,
+			boot_ctrl->advanced_flag,
+			boot_ctrl->custom_pinmux,
+			boot_ctrl->dccd_flag,
+			boot_ctrl->ppc,
+			boot_ctrl->clk_mode,
+			boot_ctrl->frame_rate,
+			boot_ctrl->init_level,
+			boot_ctrl->if_state,
+			boot_ctrl->bl_state);
 	}
 
 	return ret;
@@ -259,8 +262,7 @@ unsigned int lcd_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
 	if (!lcd_venc_op.get_encl_frm_cnt)
 		return 0;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	cnt = lcd_venc_op.get_encl_frm_cnt(pdrv);
 
@@ -272,8 +274,7 @@ void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv)
 	if (!lcd_venc_op.venc_vrr_recovery)
 		return;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	lcd_venc_op.venc_vrr_recovery(pdrv);
 }
@@ -295,8 +296,7 @@ void lcd_venc_set_dummy(struct aml_lcd_drv_s *pdrv)
 	if (!lcd_venc_op.venc_set_dummy)
 		return;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	lcd_venc_op.venc_set_dummy(pdrv);
 }

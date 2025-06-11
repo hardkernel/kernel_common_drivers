@@ -102,7 +102,7 @@ int lcd_mode_suspend(void *data)
 	pdrv->status &= ~LCD_STATE_POWER;
 	pdrv->status |= LCD_STATE_DUMMY;
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF | LCD_EVENT_ENCL_DUMMY, (void *)pdrv);
-	LCDPR("[%d]: early_suspend finished, status=0x%x\n", pdrv->index, pdrv->status);
+	LCD_PR(pdrv, "early_suspend finished, status=0x%x", pdrv->status);
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }
@@ -132,13 +132,13 @@ int lcd_mode_resume(void *data)
 		lcd_queue_work(&pdrv->late_resume_work);
 	} else {
 		mutex_lock(&lcd_power_mutex);
-		LCDPR("[%d]: directly lcd late_resume, status=0x%x\n", pdrv->index, pdrv->status);
+		LCD_PR(pdrv, "directly lcd late_resume, status=0x%x", pdrv->status);
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE,
 						(void *)pdrv);
 		lcd_if_enable_retry(pdrv);
 		pdrv->status |= LCD_STATE_POWER;
 		pdrv->status &= ~LCD_STATE_DUMMY;
-		LCDPR("[%d]: late_resume finished, status=0x%x\n", pdrv->index, pdrv->status);
+		LCD_PR(pdrv, "late_resume finished, status=0x%x", pdrv->status);
 		mutex_unlock(&lcd_power_mutex);
 	}
 
@@ -164,10 +164,7 @@ int lcd_mode_vmode_is_supported(enum vmode_e mode, void *data)
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 
 	mode &= VMODE_MODE_BIT_MASK;
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s vmode = %d, lcd_vmode = %d\n",
-		      pdrv->index, __func__, mode, VMODE_LCD);
-	}
+	LCD_DBG(pdrv, "%s vmode = %d, lcd_vmode = %d", __func__, mode, VMODE_LCD);
 
 	if (mode == VMODE_LCD)
 		return true;
@@ -184,7 +181,7 @@ int lcd_mode_vout_set_state(int index, void *data)
 
 	mutex_lock(&lcd_vout_mutex);
 	pdrv->vout_state |= (1 << index);
-	LCDPR("[%d]: %s: viu:[%d -> %d]\n", pdrv->index, __func__, pdrv->viu_sel, index);
+	LCD_PR(pdrv, "%s: viu:[%d -> %d]", __func__, pdrv->viu_sel, index);
 	pdrv->viu_sel = index;
 	mutex_unlock(&lcd_vout_mutex);
 
@@ -200,7 +197,7 @@ int lcd_mode_vout_clr_state(int index, void *data)
 
 	mutex_lock(&lcd_vout_mutex);
 	pdrv->vout_state &= ~(1 << index);
-	LCDPR("[%d]: %s: viu=%d, clear_viu=%d\n", pdrv->index, __func__, pdrv->viu_sel, index);
+	LCD_PR(pdrv, "%s: viu=%d, clear_viu=%d", __func__, pdrv->viu_sel, index);
 	if (pdrv->viu_sel == index)
 		pdrv->viu_sel = LCD_VIU_SEL_NONE;
 	mutex_unlock(&lcd_vout_mutex);
@@ -215,11 +212,31 @@ int lcd_mode_vout_get_state(void *data)
 	return pdrv->vout_state;
 }
 
+int lcd_vmode_remove_all(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_vmode_list_s *cur_list;
+	struct lcd_vmode_list_s *next_list;
+
+	cur_list = pdrv->vmode_mgr.vmode_list_header;
+	while (cur_list) {
+		next_list = cur_list->next;
+		kfree(cur_list->info);
+		kfree(cur_list);
+		cur_list = next_list;
+	}
+	pdrv->vmode_mgr.vmode_list_header = NULL;
+	pdrv->vmode_mgr.cur_vmode_info = NULL;
+	pdrv->vmode_mgr.next_vmode_info = NULL;
+	pdrv->vmode_mgr.vmode_cnt = 0;
+
+	return 0;
+}
+
 void lcd_mode_vmode_switch(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long long local_time[2];
 
-	if (pdrv->config.timing.switch_type == LCD_VMODE_SWITCH_NONE)
+	if (pdrv->curr_dev->dev_cfg.timing.switch_type == LCD_VMODE_SWITCH_NONE)
 		return;
 
 	//step 1: switch off
@@ -249,17 +266,17 @@ int lcd_mode_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 	if (!pdrv)
 		return -1;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s\n", __func__);
 	lcd_vout_notify_mode_change_pre(pdrv);
 
 	lcd_frame_rate_change(pdrv);
 
-	if (pdrv->config.timing.clk_change & LCD_CLK_CHANGE) {
-		clk_change = 1; //pdrv->config.timing.clk_change will clear in lcd_clk_change
+	if (pdrv->curr_dev->dev_cfg.timing.clk_change & LCD_CLK_CHANGE) {
+		clk_change = 1;
+		//pdrv->curr_dev->dev_cfg.timing.clk_change will clear in lcd_clk_change
 		if (pdrv->status & LCD_STATUS_IF_ON) {
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-			if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+			if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE)
 				lcd_vbyone_interrupt_enable(pdrv, 0);
 #endif
 		}
@@ -270,7 +287,7 @@ int lcd_mode_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-		if (clk_change && pdrv->config.basic.lcd_type == LCD_VBYONE) {
+		if (clk_change && pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE) {
 			lcd_vbyone_wait_stable(pdrv);
 			lcd_vbyone_interrupt_enable(pdrv, 1);
 		}

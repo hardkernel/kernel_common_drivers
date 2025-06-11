@@ -43,7 +43,7 @@ unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv)
 		{1, 0x0}, {2, 0x1}, {4, 0x2}, {8, 0x3}, {16, 0x4}
 	};
 
-	struct dsi_config_s *dconf = &pdrv->config.control.mipi_cfg;
+	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 	unsigned long long pll_out, phy_clk;
 	unsigned short enc_xd, phy_N;
 	unsigned char tb_idx = 0, x, new_high_bitrate, phy_div, frac_sel;
@@ -128,7 +128,7 @@ dsi_clk_tabel_buffer_full:
 	// should lane_byte_clk = (be phy_clk == phy_bitrate / 2) / 4
 	cconf->phy_div = 1;
 	cconf->phy_clk = clk_div_tb[x].phy_clk;
-	pdrv->config.timing.bit_rate = clk_div_tb[x].phy_clk;
+	pdrv->curr_dev->dev_cfg.timing.bit_rate = clk_div_tb[x].phy_clk;
 	dconf->lane_byte_clk = div_around(clk_div_tb[x].phy_clk, 8);
 
 	// should lane_byte_clk = (be phy_clk == phy_bitrate / 2) / pclk

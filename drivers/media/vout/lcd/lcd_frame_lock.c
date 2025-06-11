@@ -17,7 +17,7 @@
 
 static inline int is_fr_change(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_detail_timing_s *pt = &pdrv->config.timing.act_timing;
+	struct lcd_detail_timing_s *pt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
 	struct aml_fr_lock_s *fr_lock = pdrv->fr_lock;
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	int pll_index;
@@ -207,7 +207,7 @@ void lcd_fr_lock(struct aml_lcd_drv_s *pdrv)
 	msr_cnt = (int)vout_frame_cnt_measure(pdrv->index);
 
 	offset = pdrv->data->offset_venc_data[pdrv->index];
-	pt = &pdrv->config.timing.act_timing;
+	pt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
 
 	lcd_fr_lock_auto_switch(pdrv);
 

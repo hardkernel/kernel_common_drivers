@@ -99,8 +99,8 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	if (num >= LCD_ENC_TST_NUM_MAX)
 		return -1;
 
-	h_active = pdrv->config.timing.act_timing.h_active;
-	video_on_pixel = pdrv->config.timing.hstart;
+	h_active = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active;
+	video_on_pixel = pdrv->curr_dev->dev_cfg.timing.hstart;
 
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, lcd_enc_tst[num][6]);
 	lcd_vcbus_write(ENCL_TST_MDSEL, lcd_enc_tst[num][0]);
@@ -133,7 +133,7 @@ static void lcd_venc_gamma_init(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_venc_set_tcon(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 
 	lcd_vcbus_write(L_RGB_BASE_ADDR, 0x0);
 	lcd_vcbus_write(L_RGB_COEFF_ADDR, 0x400);
@@ -205,7 +205,7 @@ static void lcd_venc_set_tcon(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int hstart, hend, vstart, vend;
 	unsigned int pre_vde, pre_de_vs, pre_de_ve, pre_de_hs, pre_de_he;
 
@@ -289,20 +289,17 @@ static void lcd_venc_change_timing(struct aml_lcd_drv_s *pdrv)
 		htotal = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT) + 1;
 		vtotal = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT) + 1;
 
-		if (pdrv->config.timing.act_timing.h_period != htotal) {
+		if (pdrv->curr_dev->dev_cfg.timing.act_timing.h_period != htotal) {
 			lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT,
-					pdrv->config.timing.act_timing.h_period - 1);
+					pdrv->curr_dev->dev_cfg.timing.act_timing.h_period - 1);
 		}
-		if (pdrv->config.timing.act_timing.v_period != vtotal) {
+		if (pdrv->curr_dev->dev_cfg.timing.act_timing.v_period != vtotal) {
 			lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT,
-					pdrv->config.timing.act_timing.v_period - 1);
+					pdrv->curr_dev->dev_cfg.timing.act_timing.v_period - 1);
 		}
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: venc changed: %d,%d\n",
-			      pdrv->index,
-			      pdrv->config.timing.act_timing.h_period,
-			      pdrv->config.timing.act_timing.v_period);
-		}
+		LCD_DBG(pdrv, "venc changed: %d,%d",
+			pdrv->curr_dev->dev_cfg.timing.act_timing.h_period,
+			pdrv->curr_dev->dev_cfg.timing.act_timing.v_period);
 	}
 
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, (void *)pdrv);
@@ -318,7 +315,7 @@ static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int init_state;
 	struct lcd_boot_ctrl_s *boot_ctrl = pdrv->boot_ctrl;
 	unsigned int val = 0;
@@ -362,7 +359,7 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_venc_set_vrr_recovery(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int vtotal = pdrv->config.timing.act_timing.v_period;
+	unsigned int vtotal = pdrv->curr_dev->dev_cfg.timing.act_timing.v_period;
 
 	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT, vtotal - 1);
 }

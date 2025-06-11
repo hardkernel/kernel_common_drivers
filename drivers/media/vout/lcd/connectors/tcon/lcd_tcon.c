@@ -680,7 +680,7 @@ int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv)
 
 	if (lcd_tcon_conf->tcon_disable)
 		lcd_tcon_conf->tcon_disable(pdrv);
-	if (pdrv->config.timing.switch_type != LCD_VMODE_SWITCH_MIN_WO_TCON_RST) {
+	if (pdrv->curr_dev->dev_cfg.timing.switch_type != LCD_VMODE_SWITCH_MIN_WO_TCON_RST) {
 		if (lcd_tcon_conf->tcon_global_reset) {
 			lcd_tcon_conf->tcon_global_reset(pdrv);
 			LCDPR("reset tcon\n");
@@ -913,6 +913,7 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 		struct lcd_tcon_data_part_ctrl_s *ctrl_part, unsigned char *p)
 {
 	unsigned int data_byte, data_cnt, frame_rate;
+	struct lcd_detail_timing_s *act_timing;
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 	struct aml_bl_drv_s *bldrv;
 	struct bl_pwm_config_s *bl_pwm = NULL;
@@ -928,7 +929,7 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 	data_byte = ctrl_part->data_byte_width;
 	data_cnt = ctrl_part->data_cnt;
 	data_list->ctrl_method = LCD_TCON_DATA_CTRL_MULTI_MAX;
-	frame_rate = pdrv->config.timing.act_timing.frame_rate;
+	frame_rate = pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate;
 
 	data_list->multi.range.min = 0;
 	data_list->multi.range.max = 0;
@@ -1001,14 +1002,12 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 		for (j = 0; j < data_byte; j++)
 			data_list->multi.resolution.vsize |= (p[k + j] << (j * 8));
 
-		if (pdrv->config.timing.act_timing.h_active != data_list->multi.resolution.hsize ||
-		    pdrv->config.timing.act_timing.v_active != data_list->multi.resolution.vsize)
+		act_timing = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+		if (act_timing->h_active != data_list->multi.resolution.hsize ||
+		    act_timing->v_active != data_list->multi.resolution.vsize)
 			goto lcd_tcon_data_multi_match_init_not_match;
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("%s: resolution %dx%d hit\n",
-				__func__, pdrv->config.timing.act_timing.h_active,
-				pdrv->config.timing.act_timing.v_active);
-		}
+		LCD_DBG(pdrv, "%s: resolution %dx%d hit", __func__,
+			act_timing->h_active, act_timing->v_active);
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
 		if (data_cnt != 2)
@@ -1127,7 +1126,7 @@ int lcd_tcon_data_multi_init_check(struct aml_lcd_drv_s *pdrv, unsigned short bl
 
 	data_byte = ctrl_part->data_byte_width;
 	data_cnt = ctrl_part->data_cnt;
-	frame_rate = pdrv->config.timing.act_timing.frame_rate;
+	frame_rate = pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate;
 
 	switch (ctrl_part->ctrl_method) {
 	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT:
@@ -1154,8 +1153,8 @@ int lcd_tcon_data_multi_init_check(struct aml_lcd_drv_s *pdrv, unsigned short bl
 		for (j = 0; j < data_byte; j++)
 			vsize |= (p[k + j] << (j * 8));
 
-		if (pdrv->config.timing.act_timing.h_active != hsize ||
-		    pdrv->config.timing.act_timing.v_active != vsize)
+		if (pdrv->curr_dev->dev_cfg.timing.act_timing.h_active != hsize ||
+		    pdrv->curr_dev->dev_cfg.timing.act_timing.v_active != vsize)
 			goto lcd_tcon_data_multi_init_check_exit;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("%s: resolution %dx%d hit\n", __func__, hsize, vsize);
@@ -1384,7 +1383,7 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 
 	frame_rate = vout_frame_rate_measure(1); //1000 multi
 	if (frame_rate == 0) {
-		frame_rate = pdrv->config.timing.act_timing.frame_rate;
+		frame_rate = pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate;
 		if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
 			LCDERR("%s: vout fr_msr 0, use sw fr %d\n", __func__, frame_rate);
 	} else {
@@ -1505,7 +1504,7 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 
 	if (tcon_pdf->vs_handler)
 		tcon_pdf->vs_handler(tcon_pdf);
-	else if (pdrv->config.customer_sw_pdf)
+	else if (pdrv->curr_dev->dev_cfg.customer_sw_pdf)
 		lcd_swpdf_vs_handle();
 
 	lcd_tcon_rdma_vs_handler(pdrv);
@@ -1735,7 +1734,7 @@ static void lcd_tcon_update_ufr_cur_info(struct aml_lcd_drv_s *pdrv,
 	if (!pdrv || !data_buf)
 		return;
 
-	act_timing = &pdrv->config.timing.act_timing;
+	act_timing = &pdrv->curr_dev->dev_cfg.timing.act_timing;
 	lcd_tcon_init_data_update(data_buf, act_timing);
 }
 
@@ -2403,11 +2402,11 @@ static void lcd_tcon_intr_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int tcon_irq = 0;
 
-	if (!pdrv->res_tcon_irq) {
+	if (!pdrv->drv_res.res_tcon_irq) {
 		LCDERR("res_tcon_irq is null\n");
 		return;
 	}
-	tcon_irq = pdrv->res_tcon_irq;
+	tcon_irq = pdrv->drv_res.res_tcon_irq;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("tcon_irq: %d\n", tcon_irq);
 
@@ -2527,7 +2526,8 @@ static int lcd_tcon_load_init_data(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_data_block_regen_crc(tcon_mm_table.core_reg_bin);
 
 	lcd_tcon_init_data_update(tcon_mm_table.core_reg_bin, NULL);
-	lcd_tcon_init_setting_check(pdrv, &pdrv->config.timing.act_timing, core_reg_table);
+	lcd_tcon_init_setting_check(pdrv, &pdrv->curr_dev->dev_cfg.timing.act_timing,
+					core_reg_table);
 
 	return 0;
 }
@@ -2899,7 +2899,7 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 	if (!lcd_tcon_conf)
 		return 0;
 
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_MLVDS:
 		lcd_tcon_conf->tcon_valid = 1;
 		break;

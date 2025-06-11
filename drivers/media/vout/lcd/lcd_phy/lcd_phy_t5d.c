@@ -85,8 +85,8 @@ static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv,
 static void lcd_phy_common_update(struct aml_lcd_drv_s *pdrv, unsigned int cntl14)
 {
 	unsigned int cntl15 = 0, cntl16 = 0;
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	cntl14 &= ~(0xf);
 	cntl14 |= phy->vswing;
@@ -119,8 +119,8 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status, int bypass)
 {
 	unsigned int chreg, reg_data = 0, chdig = 0;
 	unsigned char i, bit;
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		LCDPR("%s: %d, bypass:%d\n", __func__, status, bypass);
@@ -171,7 +171,7 @@ static void lcd_mlvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int bypass = 1, cntl14 = 0;
 
 	if (status) {
-		bypass = pdrv->config.phy_cfg.bypass_resample;
+		bypass = pdrv->curr_dev->dev_cfg.phy_cfg.bypass_resample;
 		cntl14 = 0xff2027e0;
 		lcd_phy_common_update(pdrv, cntl14);
 	}

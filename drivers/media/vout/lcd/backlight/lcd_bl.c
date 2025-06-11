@@ -1147,9 +1147,9 @@ static int bl_lcd_update_notifier(struct notifier_block *nb,
 	if (bdrv->probe_done == 0)
 		return NOTIFY_DONE;
 
-	frame_rate = pdrv->config.timing.act_timing.frame_rate;
-	hactive = pdrv->config.timing.act_timing.h_active;
-	vactive = pdrv->config.timing.act_timing.v_active;
+	frame_rate = pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate;
+	hactive = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active;
+	vactive = pdrv->curr_dev->dev_cfg.timing.act_timing.v_active;
 
 #ifdef BL_BRIGHTNESS_METER
 	bdrv->bl_metrics_conf.frame_rate = frame_rate;

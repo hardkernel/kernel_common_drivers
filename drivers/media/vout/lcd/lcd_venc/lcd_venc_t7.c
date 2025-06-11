@@ -68,12 +68,12 @@ static void lcd_venc_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag)
 	if (flag) {
 		if (lcd_vcbus_getb(reg, 0, 1) == 0) {
 			lcd_vcbus_setb(reg, 1, 0, 1);
-			LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
+			LCD_PR(pdrv, "%s: %d", __func__, flag);
 		}
 	} else {
 		if (lcd_vcbus_getb(reg, 0, 1)) {
 			lcd_vcbus_setb(reg, 0, 0, 1);
-			LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
+			LCD_PR(pdrv, "%s: %d", __func__, flag);
 		}
 	}
 }
@@ -139,8 +139,8 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 		return -1;
 
 	offset = pdrv->data->offset_venc[pdrv->index];
-	width = pdrv->config.timing.act_timing.h_active / 8 - 1;
-	video_on_pixel = pdrv->config.timing.hstart - 2;
+	width = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active / 8 - 1;
+	video_on_pixel = pdrv->curr_dev->dev_cfg.timing.hstart - 2;
 
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, pcur_test[num].rgb_in);
 	lcd_vcbus_write(ENCL_TST_MDSEL + offset, pcur_test[num].mode);
@@ -152,7 +152,7 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	lcd_vcbus_write(ENCL_TST_EN + offset, pcur_test[num].en);
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, pcur_test[num].vfifo_en, 3, 1);
 	if (num > 0)
-		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, pcur_test[num].name);
+		LCD_PR(pdrv, "show test pattern: %s", pcur_test[num].name);
 
 	return 0;
 }
@@ -172,7 +172,7 @@ static void lcd_venc_gamma_init(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_venc_set_tcon(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int offset_if, offset_data;
 	unsigned int reg_rgb_base, reg_rgb_coeff, reg_dith_ctrl, reg_pol_ctrl;
 	unsigned int reg_de_hs, reg_de_he, reg_de_vs, reg_de_ve;
@@ -268,7 +268,7 @@ static void lcd_venc_set_tcon(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int hstart, hend, vstart, vend;
 	unsigned int offset;
 	unsigned int pre_vde, pre_de_vs, pre_de_ve, pre_de_hs, pre_de_he;
@@ -334,15 +334,15 @@ static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 
 static void dual_set_t7(struct aml_lcd_drv_s *pdrv, u8 en, u8 to_port, u8 dual_mode)
 {
-	// uint16_t single_ha = pdrv->config.timing.act_timing.h_active / 2;
+	// uint16_t single_ha = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active / 2;
 
 	if (pdrv->index != 0) {
-		LCDPR("[%d]: dual-port on VENC %u not supported\n", pdrv->index, pdrv->index);
+		LCD_PR(pdrv, "dual-port on VENC %u not supported", pdrv->index);
 		return;
 	}
 
 	if (to_port != 1) {
-		LCDPR("[%d]: dual-port to PORT-%c not supported\n", pdrv->index, 'A' + to_port);
+		LCD_PR(pdrv, "dual-port to PORT-%c not supported", 'A' + to_port);
 		return;
 	}
 
@@ -351,7 +351,7 @@ static void dual_set_t7(struct aml_lcd_drv_s *pdrv, u8 en, u8 to_port, u8 dual_m
 		return;
 	}
 
-	LCDPR("[%d]: set dual split %s mode (%c->[%c] | %c->[%c])\n", pdrv->index,
+	LCD_PR(pdrv, "set dual split %s mode (%c->[%c] | %c->[%c])",
 		(dual_mode == LCD_DUAL_PORT_L_R || dual_mode == LCD_DUAL_PORT_R_L) ?
 			"Left-Right" : "Odd-Even",
 		dual_mode == LCD_DUAL_PORT_L_R ? 'L' :
@@ -361,11 +361,11 @@ static void dual_set_t7(struct aml_lcd_drv_s *pdrv, u8 en, u8 to_port, u8 dual_m
 			(dual_mode == LCD_DUAL_PORT_R_L ? 'L' :
 				(dual_mode == LCD_DUAL_PORT_O_E ? 'E' : 'O')), 'A' + to_port);
 
-	if (pdrv->config.timing.act_timing.h_active % 2 ||
-		pdrv->config.timing.act_timing.hsync_width % 2 ||
-		pdrv->config.timing.act_timing.hsync_bp % 2 ||
-		pdrv->config.timing.act_timing.hsync_fp % 2) {
-		LCDPR("[%d]: dual-port H-active/bp/fp/sync should be even value\n", pdrv->index);
+	if (pdrv->curr_dev->dev_cfg.timing.act_timing.h_active % 2 ||
+		pdrv->curr_dev->dev_cfg.timing.act_timing.hsync_width % 2 ||
+		pdrv->curr_dev->dev_cfg.timing.act_timing.hsync_bp % 2 ||
+		pdrv->curr_dev->dev_cfg.timing.act_timing.hsync_fp % 2) {
+		LCD_PR(pdrv, "dual-port H-active/bp/fp/sync should be even value");
 	}
 
 	// lcd_clk_setb(CLKCTRL_VID_CLK0_CTRL2, 1, 16, 1);
@@ -376,8 +376,8 @@ static void dual_set_t7(struct aml_lcd_drv_s *pdrv, u8 en, u8 to_port, u8 dual_m
 	 */
 
 	lcd_vcbus_write(VPU_VENC_RGN_RSIZE,
-		(((pdrv->config.timing.act_timing.h_active / 2) << 12) |
-		  (pdrv->config.timing.act_timing.h_active / 2)));
+		(((pdrv->curr_dev->dev_cfg.timing.act_timing.h_active / 2) << 12) |
+		  (pdrv->curr_dev->dev_cfg.timing.act_timing.h_active / 2)));
 	/* @reg: VPU_DISP_WRAP_CTRL 0x278b
 	 * [7:5] reg_difx_link_prot: 0:disp0 sync venc0 1:disp1 sync venc0 2:disp2 sync venc0
 	 * [4] reg_splt2_mode: enable 1ppc->2ppc
@@ -443,7 +443,7 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 	 * bit29: hdmitx enable
 	 * bit28: dsi_edp enable
 	 */
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_LVDS:
 		lcd_vcbus_write(reg_disp_viu_ctrl, (1 << 31) |
 						(0 << 30) |
@@ -469,10 +469,10 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 
 	lcd_venc_gamma_init(pdrv);
 
-	if (pdrv->config.basic.lcd_type == LCD_MIPI &&
-	    pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0)) {
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MIPI &&
+	    pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0)) {
 		dual_set_t7(pdrv, 1, 1,
-			(pdrv->config.control.mipi_cfg.multi_port_cfg >> 4) & 0Xf);
+			(pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg >> 4) & 0Xf);
 	}
 }
 
@@ -488,19 +488,17 @@ static void lcd_venc_change_timing(struct aml_lcd_drv_s *pdrv)
 		htotal = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
 		vtotal = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;
 
-		if (pdrv->config.timing.act_timing.h_period != htotal) {
+		if (pdrv->curr_dev->dev_cfg.timing.act_timing.h_period != htotal) {
 			lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT + offset,
-					pdrv->config.timing.act_timing.h_period - 1);
+					pdrv->curr_dev->dev_cfg.timing.act_timing.h_period - 1);
 		}
-		if (pdrv->config.timing.act_timing.v_period != vtotal) {
+		if (pdrv->curr_dev->dev_cfg.timing.act_timing.v_period != vtotal) {
 			lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset,
-					pdrv->config.timing.act_timing.v_period - 1);
+					pdrv->curr_dev->dev_cfg.timing.act_timing.v_period - 1);
 		}
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: venc changed: %d,%d\n", pdrv->index,
-			      pdrv->config.timing.act_timing.h_period,
-			      pdrv->config.timing.act_timing.v_period);
-		}
+		LCD_DBG(pdrv, "venc changed: %d,%d",
+			pdrv->curr_dev->dev_cfg.timing.act_timing.h_period,
+			pdrv->curr_dev->dev_cfg.timing.act_timing.v_period);
 	}
 
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, (void *)pdrv);
@@ -540,7 +538,7 @@ static void lcd_venc_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag)
 
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int offset, init_state;
 	unsigned int val = 0;
 	struct lcd_boot_ctrl_s *boot_ctrl = pdrv->boot_ctrl;
@@ -590,7 +588,7 @@ static void lcd_venc_set_vrr_recovery(struct aml_lcd_drv_s *pdrv)
 
 	offset = pdrv->data->offset_venc[pdrv->index];
 
-	vtotal = pdrv->config.timing.act_timing.v_period;
+	vtotal = pdrv->curr_dev->dev_cfg.timing.act_timing.v_period;
 
 	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset, vtotal - 1);
 }

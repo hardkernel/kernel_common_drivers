@@ -285,7 +285,7 @@ static int lcd_set_mlvds_clk_phase(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int phase_value;
 
-	phase_value = pdrv->config.phy_cfg.act_phy->clk_phase;
+	phase_value = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy->clk_phase;
 	lcd_ana_setb(HHI_TCON_PLL_CNTL1, (phase_value & 0xf), 24, 4);
 	lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((phase_value >> 4) & 0xf), 28, 4);
 	lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((phase_value >> 8) & 0xf), 24, 4);
@@ -296,13 +296,13 @@ static void lcd_set_tcon_clk_t5(struct aml_lcd_drv_s *pdrv)
 {
 #ifdef CONFIG_AMLOGIC_LCD_TCON
 	struct lcd_clk_config_s *cconf;
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int freq;
 
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		return;
-	if (pdrv->config.basic.lcd_type != LCD_MLVDS &&
-	    pdrv->config.basic.lcd_type != LCD_P2P)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_MLVDS &&
+	    pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_P2P)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)

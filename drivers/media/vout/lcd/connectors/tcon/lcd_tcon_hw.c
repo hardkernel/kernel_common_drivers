@@ -248,7 +248,7 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("config_check disabled\n");
 	} else {
-		ret = lcd_tcon_init_setting_check(pdrv, &pdrv->config.timing.act_timing,
+		ret = lcd_tcon_init_setting_check(pdrv, &pdrv->curr_dev->dev_cfg.timing.act_timing,
 				core_reg_table);
 		if (ret & 0x1) {
 			LCDERR("tcon: %s: tcon setting check fatal error!\n", __func__);
@@ -291,7 +291,7 @@ static void lcd_tcon_data_init_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 	if (!tcon_conf || !mm_table || !local_cfg || !data_buf)
 		return;
 
-	act_timing = &pdrv->config.timing.act_timing;
+	act_timing = &pdrv->curr_dev->dev_cfg.timing.act_timing;
 	init_header = (struct lcd_tcon_init_block_header_s *)data_buf;
 	switch (init_header->block_ctrl) {
 	case LCD_TCON_DATA_CTRL_FLAG_UFR:
@@ -990,7 +990,7 @@ static int lcd_tcon_data_set(struct aml_lcd_drv_s *pdrv, struct tcon_mem_map_tab
 
 int lcd_tcon_top_set_t5(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int p2p_type;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)

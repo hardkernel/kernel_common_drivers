@@ -264,7 +264,7 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	if (!mm_table || !tcon_rmem || !local_cfg || !tcon_conf)
 		return len;
 
-	lcd_tcon_init_setting_check(pdrv, &pdrv->config.timing.act_timing,
+	lcd_tcon_init_setting_check(pdrv, &pdrv->curr_dev->dev_cfg.timing.act_timing,
 			local_cfg->cur_core_reg_table);
 
 	n = lcd_debug_info_len(len + offset);

@@ -44,11 +44,11 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		/* DIF_TX_CTL1:31-16bit, DIF_TX_CTL0:15-0bit */
 		lcd_ana_write(HHI_MIPI_CNTL2, 0x2680045a);
 
-		if (pdrv->config.control.mipi_cfg.lane_num == 1)
+		if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 1)
 			lane = 0x18;
-		else if (pdrv->config.control.mipi_cfg.lane_num == 2)
+		else if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 2)
 			lane = 0x1c;
-		else if (pdrv->config.control.mipi_cfg.lane_num == 3)
+		else if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 3)
 			lane = 0x1e;
 		else
 			lane = 0x1f;

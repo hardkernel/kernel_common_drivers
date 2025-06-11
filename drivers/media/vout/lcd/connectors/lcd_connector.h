@@ -32,6 +32,7 @@ void lcd_vbyone_debug_cdr(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_debug_lock(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_debug_reset(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_probe(struct aml_lcd_drv_s *pdrv);
+int lcd_vbyone_vsync_handler(struct aml_lcd_drv_s *pdrv);
 #endif
 
 #ifdef CONFIG_AMLOGIC_LCD_TCON
@@ -89,7 +90,7 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 void mipi_dsi_link_off(struct aml_lcd_drv_s *pdrv);
 void mipi_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, int status);
 /* @lcd_common.c */
-void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv, struct device_node *m_node);
+void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv);
 void lcd_mipi_dsi_init_table_free(struct dsi_config_s *dconf);
 void lcd_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, unsigned char en);
 unsigned long long lcd_dsi_get_min_bitrate(struct aml_lcd_drv_s *pdrv);

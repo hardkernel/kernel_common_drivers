@@ -213,11 +213,12 @@ dsi_table_load_error:
 	return i;
 }
 
-void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv, struct device_node *m_node)
+void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv)
 {
 	int ret;
 	u32 table;
-	struct dsi_config_s *dconf = &pdrv->config.control.mipi_cfg;
+	struct device_node *m_node;
+	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 
 	kfree(dconf->dsi_init_on);
 	kfree(dconf->dsi_init_off);
@@ -232,6 +233,12 @@ void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv, struct device_no
 		kfree(dconf->dsi_init_off);
 		dconf->dsi_init_on = NULL;
 		dconf->dsi_init_off = NULL;
+		return;
+	}
+
+	m_node = of_get_child_by_name(pdrv->dev->of_node, pdrv->curr_dev->dev_propname);
+	if (!m_node) {
+		LCDERR("[%d]: failed to get %s\n", pdrv->index, pdrv->curr_dev->dev_propname);
 		return;
 	}
 
@@ -419,7 +426,7 @@ int dsi_run_oneline_cmd(struct aml_lcd_drv_s *pdrv, u8 port,
 		dsi_cmd_req.req_ack = ACK_CTRL_SET_MAX_RET_PKT_SIZE;
 		dsi_rd_len  = dsi_cmd_req.payload[0];
 		dsi_rd_len |= (u16)dsi_cmd_req.payload[1] << 8;
-		pdrv->config.control.mipi_cfg.dsi_rd_n = dsi_rd_len;
+		pdrv->curr_dev->dev_cfg.control.mipi_cfg.dsi_rd_n = dsi_rd_len;
 		// DSI_RD_MAX default size is 4, if any read will return size over 4,
 		// enlarge DSI_RD_MAX, each req will kcalloc such mem.
 		if (dsi_rd_len > DSI_RD_MAX)
@@ -527,11 +534,9 @@ int dsi_exec_init_table(struct aml_lcd_drv_s *pdrv,
 					pdrv->index, step, cmd_size);
 				break;
 			}
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("[%d]: step %d: following cmd will be on port-%c%c\n",
-					pdrv->index, step,
-					payload[i + 2] & 0x1 ? 'A' : ' ',
-					payload[i + 2] & 0x2 ? 'B' : ' ');
+			LCD_DBG(pdrv, "step %d: following cmd will be on port-%c%c", step,
+				payload[i + 2] & 0x1 ? 'A' : ' ',
+				payload[i + 2] & 0x2 ? 'B' : ' ');
 			curr_port = payload[i + 2];
 			break;
 		case DT_GEN_SHORT_WR_0:
@@ -615,7 +620,7 @@ int dsi_read(struct aml_lcd_drv_s *pdrv, u8 *payload, u8 *rd_data, u8 len)
 
 static void dsi_panel_init(struct aml_lcd_drv_s *pdrv)
 {
-	struct dsi_config_s *dconf = &pdrv->config.control.mipi_cfg;
+	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	struct lcd_extern_driver_s *edrv;
@@ -646,7 +651,7 @@ dsi_panel_init_main:
 
 static void dsi_panel_deinit(struct aml_lcd_drv_s *pdrv)
 {
-	struct dsi_config_s *dconf = &pdrv->config.control.mipi_cfg;
+	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 
 	if (dconf->dsi_init_off) {
 		dsi_exec_init_table(pdrv, dconf->dsi_init_off, DSI_INIT_OFF_MAX, NULL, 0);
@@ -690,18 +695,21 @@ void lcd_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, u8 en)
 
 u64 lcd_dsi_get_min_bitrate(struct aml_lcd_drv_s *pdrv)
 {
-	struct dsi_config_s *dconf = &pdrv->config.control.mipi_cfg;
+	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 	u64 bit_rate_min, band_width;
 	u8 port_cnt = dconf->multi_port_cfg & BIT(0) ? 2 : 1;
 
 	/* unit in kHz for calculation */
-	band_width = pdrv->config.timing.act_timing.pixel_clk;
+	band_width = pdrv->curr_dev->dev_cfg.timing.act_timing.pixel_clk;
 	if (dconf->operation_mode_display == OPERATION_VIDEO_MODE) {
-		if (dconf->video_mode_type != DSI_VID_BURST)
+		if (dconf->video_mode_type != DSI_VID_BURST) {
 			//band_width = band_width * 4 * dconf->data_bits;
-			band_width = band_width * pdrv->config.timing.act_timing.lcd_bits;
-		else
-			band_width = band_width * pdrv->config.timing.act_timing.lcd_bits;
+			band_width =
+				band_width * pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits;
+		} else {
+			band_width =
+				band_width * pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits;
+		}
 	} else {
 		LCDERR("[%d]: %s: Only VIDEO mode need HS bitrate\n", pdrv->index, __func__);
 		return 0;

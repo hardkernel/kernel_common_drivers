@@ -51,7 +51,7 @@ static void lcd_set_fclk_div(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	f_target = pdrv->config.timing.lcd_clk / 1000;
+	f_target = pdrv->curr_dev->dev_cfg.timing.lcd_clk / 1000;
 	if (f_target >= cconf->data->xd_out_fmax) {
 		LCDERR("%s: freq(%dKHz) out of limit(%dkHz)\n", __func__,
 			f_target, 75000000);
@@ -99,7 +99,7 @@ static void lcd_set_vclk_crt_a4(struct aml_lcd_drv_s *pdrv)  /* from c3 */
 		return;
 
 	/* phase */
-	clk_phase = pdrv->config.control.rgb_cfg.clk_pol;
+	clk_phase = pdrv->curr_dev->dev_cfg.control.rgb_cfg.clk_pol;
 	lcd_clk_setb(CLKCTRL_VOUTENC_CLK_CTRL_A4, clk_phase, 28, 2);
 
 	/* cts_vout_clk */

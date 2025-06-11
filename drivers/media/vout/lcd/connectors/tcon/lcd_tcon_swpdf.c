@@ -396,7 +396,7 @@ __maybe_unused void lcd_swpdf_parse_pat(struct aml_lcd_drv_s *pdrv)
 		LCDERR("[%d]: failed to get swpdf\n", pdrv->index);
 		return;
 	}
-	pat_mask = pdrv->config.customer_sw_pdf;
+	pat_mask = pdrv->curr_dev->dev_cfg.customer_sw_pdf;
 	for (i = 0; i < 32; i++, pat_mask >>= 1) {
 		if (!(pat_mask & 0x1))
 			continue;

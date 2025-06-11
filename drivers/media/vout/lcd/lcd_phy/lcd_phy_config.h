@@ -17,11 +17,18 @@ struct lcd_phy_ctrl_s {
 	unsigned int lane_lock_total;
 	unsigned int lane_lock[LCD_MAX_DRV];
 
-	unsigned int (*phy_vswing_level_to_val)(struct aml_lcd_drv_s *pdrv, unsigned int level);
-	unsigned int (*phy_amp_dft_val)(struct aml_lcd_drv_s *pdrv);
-	unsigned int (*phy_preem_level_to_val)(struct aml_lcd_drv_s *pdrv, unsigned int level);
-	unsigned char (*phy_lane_phase_sel_def)(struct aml_lcd_drv_s *pdrv, unsigned int lane);
-	void (*phy_glb_param_dft_val)(struct aml_lcd_drv_s *pdrv);
+	// pre device op, need assign device
+	void (*phy_glb_param_dft_val)
+		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
+	unsigned int (*phy_vswing_level_to_val)
+		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p, unsigned int level);
+	unsigned int (*phy_preem_level_to_val)
+		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p, unsigned int level);
+	unsigned int (*phy_amp_dft_val)
+		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
+	unsigned char (*phy_lane_phase_sel_def)
+		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p, unsigned int lane);
+
 	int (*phy_param_get)(struct aml_lcd_drv_s *pdrv,
 			     struct phy_config_s *phy_cfg, struct phy_attr_s *phy);
 	int (*phy_reg_dump)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
@@ -45,9 +52,11 @@ struct lcd_phy_ctrl_s *lcd_phy_config_init_t3x(struct lcd_data_s *pdata);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_txhd2(struct lcd_data_s *pdata);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_s6(struct lcd_data_s *pdata);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_t6d(struct lcd_data_s *pdata);
-unsigned int lcd_phy_vswing_level_to_value_dft(struct aml_lcd_drv_s *pdrv, unsigned int level);
-unsigned int lcd_phy_preem_level_to_value_dft(struct aml_lcd_drv_s *pdrv, unsigned int level);
-unsigned int lcd_phy_amp_dft(struct aml_lcd_drv_s *pdrv);
-void lcd_phy_glb_param_dft(struct aml_lcd_drv_s *pdrv);
+unsigned int lcd_phy_vswing_level_to_value_dft(struct aml_lcd_drv_s *pdrv,
+			struct aml_lcd_device_s *dev_p, unsigned int level);
+unsigned int lcd_phy_preem_level_to_value_dft(struct aml_lcd_drv_s *pdrv,
+			struct aml_lcd_device_s *dev_p, unsigned int level);
+unsigned int lcd_phy_amp_dft(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
+void lcd_phy_glb_param_dft(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
 
 #endif

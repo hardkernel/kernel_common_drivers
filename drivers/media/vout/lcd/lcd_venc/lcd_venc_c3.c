@@ -28,7 +28,7 @@ static unsigned int lcd_dth_lut_c3[16] = {
 
 static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int reoder, timgen_mode, serial_rate, field_mode, dith_mode;
 	unsigned int bot_bgn_lne, top_bgn_lne;
 	unsigned int vs_lne_bgn_o, vs_lne_end_o, vs_pix_bgn_o, vs_pix_end_o;
@@ -134,7 +134,7 @@ static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int init_state;
 
 	pconf->timing.act_timing.h_active = lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 0, 13)

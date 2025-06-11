@@ -24,13 +24,12 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	unsigned int offset;
 	unsigned int lsb_first = 0;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	offset = pdrv->data->offset_venc_if[pdrv->index];
-	lvds_repack = pdrv->config.control.lvds_cfg.lvds_repack & 0x3;
-	pn_swap   = pdrv->config.control.lvds_cfg.pn_swap;
-	dual_port = pdrv->config.control.lvds_cfg.dual_port;
+	lvds_repack = pdrv->curr_dev->dev_cfg.control.lvds_cfg.lvds_repack & 0x3;
+	pn_swap   = pdrv->curr_dev->dev_cfg.control.lvds_cfg.pn_swap;
+	dual_port = pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port;
 	fifo_mode = dual_port ? 0x3 : 0x1;
 
 	// H V:  L_POL_CNTL_ADDR LVDS_PACK_CNTL_ADDR
@@ -38,11 +37,12 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	// 0 1:  h: 1  v: 0      1
 	// 1 0:  h: 1  v: 0      0
 	// 1 1:  h: 1  v: 1      0
-	sync_pol_reverse = !pdrv->config.timing.act_timing.hsync_pol; // reserve both h & v
+	sync_pol_reverse = !pdrv->curr_dev->dev_cfg.timing.act_timing.hsync_pol;
+	// reserve both h & v
 
-	if (pdrv->config.timing.act_timing.lcd_bits == 30) {
+	if (pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits == 30) {
 		bit_num = 0;
-	} else if (pdrv->config.timing.act_timing.lcd_bits == 18) {
+	} else if (pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits == 18) {
 		bit_num = 2;
 	} else { // 24bit
 		bit_num = 1;

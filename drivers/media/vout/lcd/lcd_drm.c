@@ -150,17 +150,14 @@ static void lcd_drm_display_mode_add(struct aml_lcd_drv_s *pdrv,
 	pmode->vsync_start = tmp;
 	pmode->vsync_end = ptiming->vsync_width + tmp;
 	pmode->vtotal = ptiming->v_period;
-	pmode->width_mm = pdrv->config.basic.screen_width;
-	pmode->height_mm = pdrv->config.basic.screen_height;
+	pmode->width_mm = pdrv->curr_dev->dev_cfg.basic.screen_width;
+	pmode->height_mm = pdrv->curr_dev->dev_cfg.basic.screen_height;
 
 	if (frame_rate != ptiming->frame_rate)
 		lcd_drm_vmode_update(pdrv, ptiming, pmode, frame_rate);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: %s, clock=%dkHz, htotal=%d, vtotal=%d\n",
-			pdrv->index, __func__, pmode->name, pmode->clock,
-			pmode->htotal, pmode->vtotal);
-	}
+	LCD_DBG(pdrv, "%s: %s, clock=%dkHz, htotal=%d, vtotal=%d",
+		__func__, pmode->name, pmode->clock, pmode->htotal, pmode->vtotal);
 }
 
 static int get_lcd_tv_modes(struct meson_panel_dev *panel,
@@ -173,8 +170,7 @@ static int get_lcd_tv_modes(struct meson_panel_dev *panel,
 	struct lcd_detail_timing_s *ptiming;
 	unsigned int i, frame_rate, mode_cnt = 0, mode_idx;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	if (!pdrv || !pdrv->vmode_mgr.vmode_list_header)
 		return 0;
@@ -228,8 +224,7 @@ static int get_lcd_tablet_modes(struct meson_panel_dev *panel,
 
 	mode_cnt = pdrv->vmode_mgr.vmode_cnt;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, mode_cnt);
+	LCD_DBG(pdrv, "%s: %d\n", __func__, mode_cnt);
 
 	nmodes = kcalloc(mode_cnt, sizeof(struct drm_display_mode), GFP_KERNEL);
 	if (!nmodes) {
@@ -300,10 +295,9 @@ static int get_lcd_modes_vrr_range(struct meson_panel_dev *panel, void *range, i
 		group->vrr_max = timing->frame_rate_max * VRR_DIV;
 		group->brr = timing->frame_rate;
 		sprintf(group->modename, "%s%dhz", temp_list->info->name, temp_list->info->base_fr);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("[%d]: update vrr range[%d]:%s: w:%d, h:%d, range:[%d-%d], fr:%d\n",
-				pdrv->index, cnt, group->modename, group->width, group->height,
-				group->vrr_min, group->vrr_max, timing->frame_rate);
+		LCD_DBG(pdrv, "update vrr range[%d]:%s: w:%d, h:%d, range:[%d-%d], fr:%d",
+			cnt, group->modename, group->width, group->height,
+			group->vrr_min, group->vrr_max, timing->frame_rate);
 
 		temp_list = temp_list->next;
 		cnt++;
@@ -332,7 +326,7 @@ static int meson_lcd_bind(struct device *dev, struct device *master, void *data)
 	drm_lcd_wrappers[index].drm_lcd_instance.get_modes_vrr_range = get_lcd_modes_vrr_range;
 
 	/*set lcd type.*/
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_LVDS:
 	case LCD_MLVDS:
 		if (index == 1)
@@ -367,12 +361,10 @@ static int meson_lcd_bind(struct device *dev, struct device *master, void *data)
 			bound_data->connector_component_bind(bound_data->drm,
 				drm_lcd_wrappers[index].drm_lcd_type,
 				&drm_lcd_wrappers[index].drm_lcd_instance.base);
-		LCDPR("[%d]: %s: connector_type: 0x%x, drm_id: %d\n",
-			index, __func__,
-			drm_lcd_wrappers[index].drm_lcd_type,
-			drm_lcd_wrappers[index].drm_id);
+		LCD_PR(pdrv, "%s: connector_type: 0x%x, drm_id: %d", __func__,
+			drm_lcd_wrappers[index].drm_lcd_type, drm_lcd_wrappers[index].drm_id);
 	} else {
-		LCDERR("[%d]: no bind func from drm\n", index);
+		LCD_ERR(pdrv, "no bind func from drm");
 	}
 
 	return 0;
@@ -388,12 +380,10 @@ static void meson_lcd_unbind(struct device *dev, struct device *master, void *da
 		bound_data->connector_component_unbind(bound_data->drm,
 			drm_lcd_wrappers[index].drm_lcd_type,
 			&drm_lcd_wrappers[index].drm_lcd_instance.base);
-		LCDPR("[%d]: %s: connector_type: 0x%x, drm_id: %d\n",
-			index, __func__,
-			drm_lcd_wrappers[index].drm_lcd_type,
-			drm_lcd_wrappers[index].drm_id);
+		LCD_PR(pdrv, "%s: connector_type: 0x%x, drm_id: %d\n", __func__,
+			drm_lcd_wrappers[index].drm_lcd_type, drm_lcd_wrappers[index].drm_id);
 	} else {
-		LCDERR("[%d]: no unbind func from drm\n", index);
+		LCD_ERR(pdrv, "no unbind func from drm");
 	}
 
 	drm_lcd_wrappers[index].drm_id = 0;

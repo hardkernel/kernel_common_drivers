@@ -217,28 +217,28 @@ void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv)
 	if (!pdrv || !lcd_tcon_fw.base_timing)
 		return;
 
-	lcd_tcon_fw.base_timing->hsize = pdrv->config.timing.act_timing.h_active;
-	lcd_tcon_fw.base_timing->vsize = pdrv->config.timing.act_timing.v_active;
-	lcd_tcon_fw.base_timing->htotal = pdrv->config.timing.act_timing.h_period;
-	lcd_tcon_fw.base_timing->vtotal = pdrv->config.timing.act_timing.v_period;
-	lcd_tcon_fw.base_timing->frame_rate = pdrv->config.timing.act_timing.frame_rate;
-	lcd_tcon_fw.base_timing->pclk = pdrv->config.timing.act_timing.pixel_clk;
-	lcd_tcon_fw.base_timing->bit_rate = pdrv->config.timing.bit_rate;
+	lcd_tcon_fw.base_timing->hsize = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active;
+	lcd_tcon_fw.base_timing->vsize = pdrv->curr_dev->dev_cfg.timing.act_timing.v_active;
+	lcd_tcon_fw.base_timing->htotal = pdrv->curr_dev->dev_cfg.timing.act_timing.h_period;
+	lcd_tcon_fw.base_timing->vtotal = pdrv->curr_dev->dev_cfg.timing.act_timing.v_period;
+	lcd_tcon_fw.base_timing->frame_rate = pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate;
+	lcd_tcon_fw.base_timing->pclk = pdrv->curr_dev->dev_cfg.timing.act_timing.pixel_clk;
+	lcd_tcon_fw.base_timing->bit_rate = pdrv->curr_dev->dev_cfg.timing.bit_rate;
 
-	lcd_tcon_fw.base_timing->de_hstart = pdrv->config.timing.hstart;
-	lcd_tcon_fw.base_timing->de_hend = pdrv->config.timing.hend;
-	lcd_tcon_fw.base_timing->de_vstart = pdrv->config.timing.vstart;
-	lcd_tcon_fw.base_timing->de_vend = pdrv->config.timing.vend;
-	lcd_tcon_fw.base_timing->pre_de_h = pdrv->config.timing.pre_de_h;
-	lcd_tcon_fw.base_timing->pre_de_v = pdrv->config.timing.pre_de_v;
+	lcd_tcon_fw.base_timing->de_hstart = pdrv->curr_dev->dev_cfg.timing.hstart;
+	lcd_tcon_fw.base_timing->de_hend = pdrv->curr_dev->dev_cfg.timing.hend;
+	lcd_tcon_fw.base_timing->de_vstart = pdrv->curr_dev->dev_cfg.timing.vstart;
+	lcd_tcon_fw.base_timing->de_vend = pdrv->curr_dev->dev_cfg.timing.vend;
+	lcd_tcon_fw.base_timing->pre_de_h = pdrv->curr_dev->dev_cfg.timing.pre_de_h;
+	lcd_tcon_fw.base_timing->pre_de_v = pdrv->curr_dev->dev_cfg.timing.pre_de_v;
 
-	lcd_tcon_fw.base_timing->hsw = pdrv->config.timing.act_timing.hsync_width;
-	lcd_tcon_fw.base_timing->hbp = pdrv->config.timing.act_timing.hsync_bp;
-	lcd_tcon_fw.base_timing->hfp = pdrv->config.timing.act_timing.hsync_fp;
+	lcd_tcon_fw.base_timing->hsw = pdrv->curr_dev->dev_cfg.timing.act_timing.hsync_width;
+	lcd_tcon_fw.base_timing->hbp = pdrv->curr_dev->dev_cfg.timing.act_timing.hsync_bp;
+	lcd_tcon_fw.base_timing->hfp = pdrv->curr_dev->dev_cfg.timing.act_timing.hsync_fp;
 
-	lcd_tcon_fw.base_timing->vsw = pdrv->config.timing.act_timing.vsync_width;
-	lcd_tcon_fw.base_timing->vbp = pdrv->config.timing.act_timing.vsync_bp;
-	lcd_tcon_fw.base_timing->vfp = pdrv->config.timing.act_timing.vsync_fp;
+	lcd_tcon_fw.base_timing->vsw = pdrv->curr_dev->dev_cfg.timing.act_timing.vsync_width;
+	lcd_tcon_fw.base_timing->vbp = pdrv->curr_dev->dev_cfg.timing.act_timing.vsync_bp;
+	lcd_tcon_fw.base_timing->vfp = pdrv->curr_dev->dev_cfg.timing.act_timing.vsync_fp;
 
 	lcd_tcon_fw.base_timing->update_flag = 1;
 }
@@ -351,7 +351,7 @@ void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw)
 		return;
 
 	pdrv = (struct aml_lcd_drv_s *)fw->drvdat;
-	dft_timing = pdrv ? pdrv->config.timing.dft_timing : NULL;
+	dft_timing = pdrv ? pdrv->curr_dev->dev_cfg.timing.dft_timing : NULL;
 	if (!pdrv || !dft_timing)
 		return;
 
@@ -464,7 +464,7 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 	default:
 		break;
 	}
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_MLVDS:
 		lcd_tcon_fw.config->if_type = TCON_IF_MLVDS;
 		break;

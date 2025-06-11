@@ -277,8 +277,8 @@ void amblt_zone_pixel_init(struct amblt_drv_s *amblt_drv)
 
 	if (!pdrv)
 		return;
-	h_active = pdrv->config.timing.act_timing.h_active;
-	v_active = pdrv->config.timing.act_timing.v_active;
+	h_active = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active;
+	v_active = pdrv->curr_dev->dev_cfg.timing.act_timing.v_active;
 
 	amblt_drv->hsize = h_active;
 	amblt_drv->vsize = v_active;

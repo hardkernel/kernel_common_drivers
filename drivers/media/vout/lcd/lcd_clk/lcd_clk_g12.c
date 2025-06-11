@@ -28,10 +28,8 @@ static void lcd_pll_frac_set_gp0(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 
 	val = lcd_hiu_read(HHI_GP0_PLL_CNTL1);
 	lcd_hiu_setb(HHI_GP0_PLL_CNTL1, frac, 0, 19);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x\n",
-			__func__, HHI_GP0_PLL_CNTL1, val, lcd_hiu_read(HHI_GP0_PLL_CNTL1), frac);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x", __func__,
+		HHI_GP0_PLL_CNTL1, val, lcd_hiu_read(HHI_GP0_PLL_CNTL1), frac);
 }
 
 static void lcd_pll_m_set_gp0(struct aml_lcd_drv_s *pdrv, unsigned int m)
@@ -40,10 +38,8 @@ static void lcd_pll_m_set_gp0(struct aml_lcd_drv_s *pdrv, unsigned int m)
 
 	val = lcd_hiu_read(HHI_GP0_PLL_CNTL0);
 	lcd_hiu_setb(HHI_GP0_PLL_CNTL0, m, 0, 8);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x, pll_m=0x%x\n",
-			__func__, HHI_GP0_PLL_CNTL0, val, lcd_hiu_read(HHI_GP0_PLL_CNTL0), m);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_m=0x%x\n", __func__,
+		HHI_GP0_PLL_CNTL0, val, lcd_hiu_read(HHI_GP0_PLL_CNTL0), m);
 }
 
 static void lcd_pll_reset_gp0(struct aml_lcd_drv_s *pdrv)
@@ -59,10 +55,8 @@ static void lcd_pll_frac_set_hpll(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 
 	val = lcd_hiu_read(HHI_HDMI_PLL_CNTL1);
 	lcd_hiu_setb(HHI_HDMI_PLL_CNTL1, frac, 0, 19);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x\n",
-			__func__, HHI_HDMI_PLL_CNTL1, val, lcd_hiu_read(HHI_HDMI_PLL_CNTL1), frac);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x", __func__,
+		HHI_HDMI_PLL_CNTL1, val, lcd_hiu_read(HHI_HDMI_PLL_CNTL1), frac);
 }
 
 static void lcd_pll_m_set_hpll(struct aml_lcd_drv_s *pdrv, unsigned int m)
@@ -71,10 +65,8 @@ static void lcd_pll_m_set_hpll(struct aml_lcd_drv_s *pdrv, unsigned int m)
 
 	val = lcd_hiu_read(HHI_HDMI_PLL_CNTL0);
 	lcd_hiu_setb(HHI_HDMI_PLL_CNTL0, m, 0, 8);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x, pll_m=0x%x\n",
-			__func__, HHI_HDMI_PLL_CNTL0, val, lcd_hiu_read(HHI_HDMI_PLL_CNTL0), m);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_m=0x%x", __func__,
+		HHI_HDMI_PLL_CNTL0, val, lcd_hiu_read(HHI_HDMI_PLL_CNTL0), m);
 }
 
 static void lcd_pll_reset_hpll(struct aml_lcd_drv_s *pdrv)
@@ -508,7 +500,7 @@ static void lcd_clk_disable_hpll(struct aml_lcd_drv_s *pdrv)
 static void lcd_pll_frac_generate_g12a(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned long long pll_fout, pll_fvco;
 	unsigned int enc_clk, od;
 	int ret;

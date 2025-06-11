@@ -28,31 +28,30 @@
 #define CLK_ADV_PARSE        "cus_ctrl clk_adv"
 
 static int lcd_cus_ctrl_parse_clk_adv_dts(struct aml_lcd_drv_s *pdrv,
-		struct lcd_cus_ctrl_attr_config_s *attr_conf, struct device_node *child)
+		struct aml_lcd_device_s *dev_p, struct lcd_cus_ctrl_attr_config_s *attr_conf,
+		struct device_node *child)
 {
 	unsigned int para[2];
 
 	if (of_property_read_u32_array(child, "clk_advanced", &para[0], 2)) {
-		LCDERR("[%d]: failed to get clk_advanced\n", pdrv->index);
+		LCD_DEV_ERR(pdrv, dev_p->idx, "failed to get clk_advanced");
 		return -1;
 	}
-	pdrv->config.timing.ss_freq = para[0];
-	pdrv->config.timing.ss_mode = para[1];
+	dev_p->dev_cfg.timing.ss_freq = para[0];
+	dev_p->dev_cfg.timing.ss_mode = para[1];
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: freq=%hu, mode=%hu\n",
-			pdrv->index, CLK_ADV_PARSE, para[0], para[1]);
-	}
+	LCD_DEV_DBG(pdrv, dev_p->idx, "%s: freq=%hu, mode=%hu", CLK_ADV_PARSE, para[0], para[1]);
 
 	return 0;
 }
 
 #define LCD_EXT_TIMING_MAX 8
 static int lcd_cus_ctrl_parse_extend_tmg_dts(struct aml_lcd_drv_s *pdrv,
-		struct lcd_cus_ctrl_attr_config_s *attr_conf, struct device_node *child)
+		struct aml_lcd_device_s *dev_p, struct lcd_cus_ctrl_attr_config_s *attr_conf,
+		struct device_node *child)
 {
 	struct lcd_detail_timing_s *ptiming;
-	struct lcd_timing_s *tims = &pdrv->config.timing;
+	struct lcd_timing_s *tims = &dev_p->dev_cfg.timing;
 	char snode[32];
 	int ret;
 	unsigned char etmg_idx, c_bit;
@@ -67,11 +66,11 @@ static int lcd_cus_ctrl_parse_extend_tmg_dts(struct aml_lcd_drv_s *pdrv,
 
 		ret = of_property_read_u32_array(child, snode, &para[0], 14);
 		if (ret) {
-			LCDERR("[%d]: failed to get %s\n", pdrv->index, snode);
+			LCD_DEV_ERR(pdrv, dev_p->idx, "failed to get %s", snode);
 			break;
 		}
 
-		ptiming = lcd_timing_alloc(pdrv);
+		ptiming = lcd_timing_alloc(pdrv, dev_p);
 		if (!ptiming)
 			break;
 		memcpy(ptiming, tims->timings[0], sizeof(*ptiming));
@@ -114,18 +113,17 @@ static int lcd_cus_ctrl_parse_extend_tmg_dts(struct aml_lcd_drv_s *pdrv,
 		ptiming->switch_type = attr_conf->attr_flag;
 
 		lcd_clk_frame_rate_init(ptiming);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: %s: timing[%d]: %dx%dp%dhz\n", pdrv->index, EXT_TMG_PARSE,
-			      etmg_idx, ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
-		}
+		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: timing[%d]: %dx%dp%dhz", EXT_TMG_PARSE,
+			etmg_idx, ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
 
-		lcd_config_timing_check(pdrv, ptiming);
+		lcd_config_timing_check(pdrv, dev_p, ptiming);
 	}
 
 	return 0;
 }
 
-int lcd_cus_ctrl_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *child)
+int lcd_cus_ctrl_load_from_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+				struct device_node *child)
 {
 	char cus_node[25];
 	unsigned int cut_attr_para[4];
@@ -150,13 +148,14 @@ int lcd_cus_ctrl_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *c
 		switch (cus_type) {
 		case LCD_CUS_CTRL_TYPE_EXTEND_TMG:
 			cus_cfg.attr_flag = cut_attr_para[1];
-			ret = lcd_cus_ctrl_parse_extend_tmg_dts(pdrv, &cus_cfg, child);
+			ret = lcd_cus_ctrl_parse_extend_tmg_dts(pdrv, dev_p, &cus_cfg, child);
 			break;
 		case LCD_CUS_CTRL_TYPE_CLK_ADV:
-			ret = lcd_cus_ctrl_parse_clk_adv_dts(pdrv, &cus_cfg, child);
+			ret = lcd_cus_ctrl_parse_clk_adv_dts(pdrv, dev_p, &cus_cfg, child);
 			break;
 		default:
-			LCDERR("[%d]: %s: invalid cus_type: %d\n", pdrv->index, __func__, cus_type);
+			LCD_DEV_ERR(pdrv, dev_p->idx, "%s: invalid cus_type: %d",
+				__func__, cus_type);
 			break;
 		}
 	}
@@ -164,17 +163,17 @@ int lcd_cus_ctrl_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *c
 	return ret;
 }
 
-static int lcd_cus_ctrl_attr_parse_ufr_ini(struct aml_lcd_drv_s *pdrv,
+static int lcd_cus_ctrl_parse_ufr_ini(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
 		void *inip, void *psec, struct lcd_cus_ctrl_attr_config_s *attr_conf)
 {
 	struct lcd_detail_timing_s *ptiming;
-	struct lcd_timing_s *tims = &pdrv->config.timing;
+	struct lcd_timing_s *tims = &dev_p->dev_cfg.timing;
 	unsigned int temp;
 
 	if (!tims->timings[0])
 		return -1;
 
-	ptiming = lcd_timing_alloc(pdrv);
+	ptiming = lcd_timing_alloc(pdrv, dev_p);
 	if (!ptiming)
 		return -1;
 
@@ -216,22 +215,19 @@ static int lcd_cus_ctrl_attr_parse_ufr_ini(struct aml_lcd_drv_s *pdrv,
 			ptiming->vsync_width - ptiming->vsync_bp;
 	ptiming->switch_type = attr_conf->attr_flag;
 	lcd_clk_frame_rate_init(ptiming);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: %dx%dp%dhz\n",
-			pdrv->index, UFR_TMG_PARSE,
+	LCD_DEV_DBG(pdrv, dev_p->idx, "%s: %dx%dp%dhz", UFR_TMG_PARSE,
 			ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
-	}
 
-	lcd_config_timing_check(pdrv, ptiming);
+	lcd_config_timing_check(pdrv, dev_p, ptiming);
 
 	return 0;
 }
 
-static int lcd_cus_ctrl_attr_parse_dfr_ini(struct aml_lcd_drv_s *pdrv,
+static int lcd_cus_ctrl_parse_dfr_ini(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
 		void *inip, void *psec, struct lcd_cus_ctrl_attr_config_s *attr_conf)
 {
 	struct lcd_detail_timing_s *ptiming, tmg_tmp;
-	struct lcd_timing_s *tims = &pdrv->config.timing;
+	struct lcd_timing_s *tims = &dev_p->dev_cfg.timing;
 	char str[30];
 	unsigned int temp, tmg_index = 0;
 	int i;
@@ -247,8 +243,8 @@ static int lcd_cus_ctrl_attr_parse_dfr_ini(struct aml_lcd_drv_s *pdrv,
 		if (tmg_index == 0xffff)
 			break;
 		if (tmg_index > 15) {
-			LCDERR("[%d]: %s: %s error: %d\n",
-				pdrv->index, DFR_TMG_PARSE, str, tmg_index);
+			LCD_DEV_ERR(pdrv, dev_p->idx, "%s: %s error: %d",
+				DFR_TMG_PARSE, str, tmg_index);
 			return -1;
 		}
 
@@ -290,7 +286,7 @@ static int lcd_cus_ctrl_attr_parse_dfr_ini(struct aml_lcd_drv_s *pdrv,
 				tmg_tmp.vsync_bp = temp;
 		}
 
-		ptiming = lcd_timing_alloc(pdrv);
+		ptiming = lcd_timing_alloc(pdrv, dev_p);
 		if (!ptiming)
 			return -1;
 
@@ -303,29 +299,27 @@ static int lcd_cus_ctrl_attr_parse_dfr_ini(struct aml_lcd_drv_s *pdrv,
 			ptiming->h_period * ptiming->v_period;
 		ptiming->switch_type = attr_conf->attr_flag;
 		lcd_clk_frame_rate_init(ptiming);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: %s: dfr[%d]: %dx%dp%dhz\n",
-				pdrv->index, DFR_TMG_PARSE, i,
-				ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
-		}
+		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: dfr[%d]: %dx%dp%dhz", DFR_TMG_PARSE,
+			i, ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
 
-		lcd_config_timing_check(pdrv, ptiming);
+		lcd_config_timing_check(pdrv, dev_p, ptiming);
 	}
 
 	return 0;
 }
 
-static int lcd_cus_ctrl_attr_parse_extend_tmg_ini(struct aml_lcd_drv_s *pdrv,
-		void *inip, void *psec, struct lcd_cus_ctrl_attr_config_s *attr_conf)
+static int lcd_cus_ctrl_parse_extend_tmg_ini(struct aml_lcd_drv_s *pdrv,
+		struct aml_lcd_device_s *dev_p, void *inip, void *psec,
+		struct lcd_cus_ctrl_attr_config_s *attr_conf)
 {
 	struct lcd_detail_timing_s *ptiming, tmg_temp;
-	struct lcd_timing_s *tims = &pdrv->config.timing;
+	struct lcd_timing_s *tims = &dev_p->dev_cfg.timing;
 	unsigned int val;
 	char str[30];
 	int i;
 
 	if (!tims->timings[0]) {
-		LCDERR("%s: no dft_timing, exit\n", EXT_TMG_PARSE);
+		LCD_DEV_ERR(pdrv, dev_p->idx, "%s: no dft_timing, exit", EXT_TMG_PARSE);
 		return -1;
 	}
 
@@ -423,9 +417,10 @@ static int lcd_cus_ctrl_attr_parse_extend_tmg_ini(struct aml_lcd_drv_s *pdrv,
 		sprintf(str, "extend_tmg_%d_pclk_max", i);
 		tmg_temp.pclk_max = lcd_ini_get_val(inip, psec, str, 0);
 
-		ptiming = lcd_timing_alloc(pdrv);
+		ptiming = lcd_timing_alloc(pdrv, dev_p);
 		if (!ptiming) {
-			LCDERR("%s: ptiming alloc failed, exit\n", EXT_TMG_PARSE);
+			LCD_DEV_ERR(pdrv, dev_p->idx,
+				"%s: ptiming alloc failed, exit", EXT_TMG_PARSE);
 			return -1;
 		}
 		memcpy((void *)ptiming, (void *)&tmg_temp, sizeof(*ptiming));
@@ -438,37 +433,36 @@ static int lcd_cus_ctrl_attr_parse_extend_tmg_ini(struct aml_lcd_drv_s *pdrv,
 		ptiming->switch_type = attr_conf->attr_flag;
 
 		lcd_clk_frame_rate_init(ptiming);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: %s: extend_tmg[%d]: %dx%dp%dhz\n",
-				pdrv->index, EXT_TMG_PARSE, i,
-				ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
-		}
+		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: extend_tmg[%d]: %dx%dp%dhz", EXT_TMG_PARSE,
+			i, ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
 
-		lcd_config_timing_check(pdrv, ptiming);
+		lcd_config_timing_check(pdrv, dev_p, ptiming);
 	}
 
 	return 0;
 }
 
-static int lcd_cus_ctrl_attr_parse_clk_adv_ini(struct aml_lcd_drv_s *pdrv,
-		void *inip, void *psec, struct lcd_cus_ctrl_attr_config_s *attr_conf)
+static int lcd_cus_ctrl_parse_clk_adv_ini(struct aml_lcd_drv_s *pdrv,
+					struct aml_lcd_device_s *dev_p, void *inip, void *psec,
+					struct lcd_cus_ctrl_attr_config_s *attr_conf)
 {
 	unsigned int temp;
 
 	if (attr_conf->attr_flag & (1 << 0)) {
 		temp = lcd_ini_get_val(inip, psec, "ss_freq", 0xffff);
 		if (temp != 0xffff)
-			pdrv->config.timing.ss_freq = temp;
+			dev_p->dev_cfg.timing.ss_freq = temp;
 		temp = lcd_ini_get_val(inip, psec, "ss_mode", 0xffff);
 		if (temp != 0xffff)
-			pdrv->config.timing.ss_mode = temp;
+			dev_p->dev_cfg.timing.ss_mode = temp;
 	}
 
 	return 0;
 }
 
-static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
-		void *inip, void *psec, struct lcd_cus_ctrl_attr_config_s *attr_conf)
+static int lcd_cus_ctrl_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
+					struct aml_lcd_device_s *dev_p, void *inip, void *psec,
+					struct lcd_cus_ctrl_attr_config_s *attr_conf)
 {
 	struct phy_config_s *phy_cfg;
 	struct phy_attr_s *phy, tmp_phy;
@@ -478,12 +472,12 @@ static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 	unsigned int temp;
 	int i, j;
 
-	if (!pdrv->config.phy_cfg.phys[0])
+	if (!dev_p->dev_cfg.phy_cfg.phys[0])
 		return -1;
 
 	tuning_sec = lcd_ini_get_section(inip, "lane_sel_Attr");
 	if (!tuning_sec) {
-		LCDERR("[%d]: %s: not find lane_sel_Attr\n", pdrv->index, TUNING_ATTR_PARSE);
+		LCD_DEV_ERR(pdrv, dev_p->idx, "%s: not find lane_sel_Attr", TUNING_ATTR_PARSE);
 		return -1;
 	}
 
@@ -491,11 +485,11 @@ static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 	if (lane_cnt == 0)
 		return -1;
 	if (lane_cnt > CH_LANE_MAX) {
-		LCDERR("[%d]: %s: lane_cnt %d error\n", pdrv->index, TUNING_ATTR_PARSE, lane_cnt);
+		LCD_DEV_ERR(pdrv, dev_p->idx, "%s: lane_cnt %d error", TUNING_ATTR_PARSE, lane_cnt);
 		return -1;
 	}
 
-	phy_cfg = &pdrv->config.phy_cfg;
+	phy_cfg = &dev_p->dev_cfg.phy_cfg;
 	phy_cfg->lane_num = lane_cnt;
 	for (i = 0; i < lane_cnt; i++) {
 		sprintf(key_str, "ch%u_sel", i);
@@ -509,11 +503,9 @@ static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 
 		phy_cfg->ch_ctrl[i].pn_swap = 0; //reversed
 
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("%s: lane[%d]: sel=0x%x, pn_swap=%d, phase_sel=0x%x\n",
-			      TUNING_ATTR_PARSE, i, phy_cfg->ch_ctrl[i].sel,
-			      phy_cfg->ch_ctrl[i].pn_swap, phy_cfg->ch_ctrl[i].phase_sel);
-		}
+		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: lane[%d]: sel=0x%x, pn_swap=%d, phase_sel=0x%x",
+			TUNING_ATTR_PARSE, i, phy_cfg->ch_ctrl[i].sel,
+			phy_cfg->ch_ctrl[i].pn_swap, phy_cfg->ch_ctrl[i].phase_sel);
 	}
 
 	for (i = 0; i < MAX_NUM_PHY_CFGS; i++) {
@@ -526,8 +518,8 @@ static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 		tuning_sec = lcd_ini_get_section(inip, sec_str);
 		if (!tuning_sec) {
 			if (i == 0) {
-				LCDERR("[%d]: %s: not find %s\n",
-					pdrv->index, TUNING_ATTR_PARSE, sec_str);
+				LCD_DEV_ERR(pdrv, dev_p->idx, "%s: not find %s",
+						TUNING_ATTR_PARSE, sec_str);
 			}
 			break;
 		}
@@ -541,7 +533,7 @@ static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 			lcd_ini_get_val(inip, tuning_sec, "ss_frequency", tmp_phy.ss.freq);
 		tmp_phy.ss.mode = lcd_ini_get_val(inip, tuning_sec, "ss_mode", tmp_phy.ss.mode);
 
-		if (pdrv->config.basic.lcd_type == LCD_MLVDS) {
+		if (dev_p->dev_cfg.basic.lcd_type == LCD_MLVDS) {
 			tmp_phy.clk_phase = lcd_ini_get_val(inip, tuning_sec,
 						"mlvds_clk_phase", tmp_phy.clk_phase);
 		}
@@ -551,12 +543,10 @@ static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 		tmp_phy.ref_bias = lcd_ini_get_val(inip, tuning_sec, "ref_bias", tmp_phy.ref_bias);
 		tmp_phy.odt = lcd_ini_get_val(inip, tuning_sec, "odt", tmp_phy.odt);
 		tmp_phy.cv_mode = lcd_ini_get_val(inip, tuning_sec, "cv_mode", tmp_phy.cv_mode);
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: %s: vswing=0x%x, vcm=0x%x, bias=0x%x, odt=0x%x, cv_mode=%d\n",
-				pdrv->index, TUNING_ATTR_PARSE, tmp_phy.vswing, tmp_phy.vcm,
-				tmp_phy.ref_bias, tmp_phy.odt,
-				tmp_phy.cv_mode);
-		}
+		LCD_DEV_DBG(pdrv, dev_p->idx,
+			"%s: vswing=0x%x, vcm=0x%x, bias=0x%x, odt=0x%x, cv_mode=%d",
+			TUNING_ATTR_PARSE, tmp_phy.vswing, tmp_phy.vcm,
+			tmp_phy.ref_bias, tmp_phy.odt, tmp_phy.cv_mode);
 
 		for (j = 0; j < lane_cnt; j++) {
 			sprintf(key_str, "ch%u_amp", i);
@@ -565,23 +555,17 @@ static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 			sprintf(key_str, "ch%u_preem", i);
 			tmp_phy.lane[j].preem =
 				lcd_ini_get_val(inip, tuning_sec, key_str, tmp_phy.lane[j].preem);
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-				LCDPR("[%d]: %s: lane[%d]: preem=0x%x, amp=0x%x\n",
-					pdrv->index, TUNING_ATTR_PARSE, i,
-					tmp_phy.lane[j].preem, tmp_phy.lane[j].amp);
-			}
+			LCD_DEV_DBG(pdrv, dev_p->idx, "%s: lane[%d]: preem=0x%x, amp=0x%x",
+				TUNING_ATTR_PARSE, i, tmp_phy.lane[j].preem, tmp_phy.lane[j].amp);
 		}
 
-		phy = lcd_phy_alloc(pdrv);
+		phy = lcd_phy_alloc(pdrv, dev_p);
 		if (!phy)
 			return -1;
 		memcpy((void *)phy, (void *)&tmp_phy, sizeof(*phy));
 
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: %s: tuning_param[%d]: phy_clk:%d, lane_cnt:%d\n",
-				pdrv->index, TUNING_ATTR_PARSE, i,
-				tmp_phy.phy_clk, lane_cnt);
-		}
+		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: tuning_param[%d]: phy_clk:%d, lane_cnt:%d",
+			TUNING_ATTR_PARSE, i, tmp_phy.phy_clk, lane_cnt);
 	}
 
 	if (phy_cfg->phys[0] && phy_cfg->phys[1] &&
@@ -597,26 +581,26 @@ static int lcd_cus_ctrl_attr_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 	return 0;
 
 lcd_cus_parse_phy_err:
-	LCDERR("[%d]: %s: %s error\n", pdrv->index, TUNING_ATTR_PARSE, key_str);
+	LCD_DEV_ERR(pdrv, dev_p->idx, "%s: %s error", TUNING_ATTR_PARSE, key_str);
 	return -1;
 }
 
 #ifdef CONFIG_AMLOGIC_LCD_TCON
-static int lcd_cus_ctrl_attr_parse_tcon_sw_pol_ini(struct aml_lcd_drv_s *pdrv,
+static int lcd_cus_ctrl_parse_tcon_sw_pol_ini(struct aml_lcd_drv_s *pdrv,
 		void *inip, void *psec, struct lcd_cus_ctrl_attr_config_s *attr_conf)
 {
 	return 0;
 }
 
-static int lcd_cus_ctrl_attr_parse_tcon_sw_pdf_ini(struct aml_lcd_drv_s *pdrv,
+static int lcd_cus_ctrl_parse_tcon_sw_pdf_ini(struct aml_lcd_drv_s *pdrv,
 		void *inip, void *psec, struct lcd_cus_ctrl_attr_config_s *attr_conf)
 {
 	return 0;
 }
 #endif
 
-int lcd_cus_ctrl_load_from_ini(struct aml_lcd_drv_s *pdrv, void *inip, void *psec,
-			       unsigned char version)
+int lcd_cus_ctrl_load_from_ini(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+			void *inip, void *psec, unsigned char version)
 {
 	struct lcd_cus_ctrl_attr_config_s attr_conf;
 	unsigned int ctrl_en, ctrl_attr;
@@ -633,8 +617,7 @@ int lcd_cus_ctrl_load_from_ini(struct aml_lcd_drv_s *pdrv, void *inip, void *pse
 	if (ctrl_en == 0)
 		return 0;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s: ctrl_en=0x%x\n", pdrv->index, __func__, ctrl_en);
+	LCD_DEV_DBG(pdrv, dev_p->idx, "%s: ctrl_en=0x%x", __func__, ctrl_en);
 
 	for (i = 0; i < LCD_CUS_CTRL_ATTR_CNT_MAX; i++) {
 		if ((ctrl_en & (1 << i)) == 0)
@@ -654,42 +637,46 @@ int lcd_cus_ctrl_load_from_ini(struct aml_lcd_drv_s *pdrv, void *inip, void *pse
 				attr_conf.attr_type,
 				attr_conf.attr_flag,
 				attr_conf.param_flag);
-			LCDPR("[%d]: %s: attr[%d]: %s\n", pdrv->index, __func__, i, pr_buf);
+			LCD_DEV_DBG(pdrv, dev_p->idx, "%s: attr[%d]: %s", __func__, i, pr_buf);
 		}
 
 		switch (attr_conf.attr_type) {
 		case LCD_CUS_CTRL_TYPE_UFR:
-			ret = lcd_cus_ctrl_attr_parse_ufr_ini(pdrv, inip, psec, &attr_conf);
+			ret = lcd_cus_ctrl_parse_ufr_ini(pdrv, dev_p, inip, psec, &attr_conf);
 			break;
 		case LCD_CUS_CTRL_TYPE_DFR:
-			ret = lcd_cus_ctrl_attr_parse_dfr_ini(pdrv, inip, psec, &attr_conf);
+			ret = lcd_cus_ctrl_parse_dfr_ini(pdrv, dev_p, inip, psec, &attr_conf);
 			break;
 		case LCD_CUS_CTRL_TYPE_EXTEND_TMG:
-			ret = lcd_cus_ctrl_attr_parse_extend_tmg_ini(pdrv, inip, psec, &attr_conf);
+			ret = lcd_cus_ctrl_parse_extend_tmg_ini(pdrv, dev_p, inip, psec,
+									&attr_conf);
 			break;
 		case LCD_CUS_CTRL_TYPE_CLK_ADV:
-			ret = lcd_cus_ctrl_attr_parse_clk_adv_ini(pdrv, inip, psec, &attr_conf);
+			ret = lcd_cus_ctrl_parse_clk_adv_ini(pdrv, dev_p, inip, psec,
+									&attr_conf);
 			break;
 		case LCD_CUS_CTRL_TYPE_TUNING_ATTR:
 			if (version < 3) {
 				ret = -1;
-				LCDERR("[%d]: %s, invalid tuning_attr with ukey_ver %d\n",
-					pdrv->index, __func__, version);
+				LCD_DEV_ERR(pdrv, dev_p->idx,
+					"%s, invalid tuning_attr with ukey_ver %d",
+					__func__, version);
 				break;
 			}
-			ret = lcd_cus_ctrl_attr_parse_tuning_attr_ini(pdrv, inip, psec, &attr_conf);
+			ret = lcd_cus_ctrl_parse_tuning_attr_ini(pdrv, dev_p, inip, psec,
+									&attr_conf);
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_TCON
 		case LCD_CUS_CTRL_TYPE_TCON_SW_POL:
-			ret = lcd_cus_ctrl_attr_parse_tcon_sw_pol_ini(pdrv, inip, psec, &attr_conf);
+			ret = lcd_cus_ctrl_parse_tcon_sw_pol_ini(pdrv, inip, psec, &attr_conf);
 			break;
 		case LCD_CUS_CTRL_TYPE_TCON_SW_PDF:
-			ret = lcd_cus_ctrl_attr_parse_tcon_sw_pdf_ini(pdrv, inip, psec, &attr_conf);
+			ret = lcd_cus_ctrl_parse_tcon_sw_pdf_ini(pdrv, inip, psec, &attr_conf);
 			break;
 #endif
 		default:
-			LCDERR("[%d]: %s: invalid attr_type: 0x%x\n",
-				pdrv->index, __func__, attr_conf.attr_type);
+			LCD_DEV_ERR(pdrv, dev_p->idx, "%s: invalid attr_type: 0x%x",
+				__func__, attr_conf.attr_type);
 			goto lcd_cus_ctrl_load_from_ini_err;
 		}
 		if (ret)
@@ -701,4 +688,3 @@ int lcd_cus_ctrl_load_from_ini(struct aml_lcd_drv_s *pdrv, void *inip, void *pse
 lcd_cus_ctrl_load_from_ini_err:
 	return -1;
 }
-

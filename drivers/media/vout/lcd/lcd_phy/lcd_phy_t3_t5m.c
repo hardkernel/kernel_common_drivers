@@ -88,8 +88,8 @@ static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv,
 static void lcd_phy_common_update(struct aml_lcd_drv_s *pdrv, unsigned int cntl14)
 {
 	unsigned int cntl15 = 0, cntl16 = 0;
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	cntl14 &= ~(0xf);
 	cntl14 |= phy->vswing;
@@ -122,8 +122,8 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status, int bypass)
 {
 	unsigned int chreg, reg_data = 0, chdig;
 	unsigned char i, bit;
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		LCDPR("%s: %d, bypass:%d\n", __func__, status, bypass);
@@ -134,7 +134,7 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status, int bypass)
 			reg_data |= 0x000b;
 		else
 			reg_data |= 0x0002;
-		if (pdrv->config.phy_cfg.weakly_pull_down)
+		if (pdrv->curr_dev->dev_cfg.phy_cfg.weakly_pull_down)
 			reg_data &= ~(1 << 3);
 	} else {
 		reg_data = 0; //bit[0]=0
@@ -175,7 +175,7 @@ static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int cntl14 = 0;
 
 	if (status) {
-		if (pdrv->config.phy_cfg.ext_pullup)
+		if (pdrv->curr_dev->dev_cfg.phy_cfg.ext_pullup)
 			cntl14 = 0xff2027e0;
 		else
 			cntl14 = 0xf02027a0;
@@ -201,7 +201,7 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int p2p_type, vcm_flag;
 	unsigned int cntl14 = 0;
 
-	p2p_conf = &pdrv->config.control.p2p_cfg;
+	p2p_conf = &pdrv->curr_dev->dev_cfg.control.p2p_cfg;
 	if (status) {
 		p2p_type = p2p_conf->p2p_type & 0x1f;
 		vcm_flag = (p2p_conf->p2p_type >> 5) & 0x1;
@@ -210,15 +210,15 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		case P2P_CMPI:
 		case P2P_ISP:
 		case P2P_EPI:
-			pdrv->config.phy_cfg.low_common_mode = 0;
+			pdrv->curr_dev->dev_cfg.phy_cfg.low_common_mode = 0;
 			cntl14 = 0xff2027a0;
 			break;
 		case P2P_CHPI: /* low common mode */
 		case P2P_CSPI:
 		case P2P_USIT:
-			pdrv->config.phy_cfg.low_common_mode = 1;
+			pdrv->curr_dev->dev_cfg.phy_cfg.low_common_mode = 1;
 			if (p2p_type == P2P_CHPI)
-				pdrv->config.phy_cfg.weakly_pull_down = 1;
+				pdrv->curr_dev->dev_cfg.phy_cfg.weakly_pull_down = 1;
 			if (vcm_flag) /* 580mV */
 				cntl14 = 0xe0600272;
 			else /* default 385mV */
@@ -233,7 +233,7 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	lcd_phy_cntl_set(pdrv, status, 1);
 }
 
-static unsigned int lcd_phy_amp_t5m(struct aml_lcd_drv_s *pdrv)
+static unsigned int lcd_phy_amp_t5m(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
 	unsigned int amp_value = 0;
 

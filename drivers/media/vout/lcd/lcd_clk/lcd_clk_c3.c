@@ -98,7 +98,7 @@ static void lcd_set_dsi_phy_clk(struct aml_lcd_drv_s *pdrv)
 static void lcd_clk_set(struct aml_lcd_drv_s *pdrv)
 {
 	lcd_set_pll(pdrv);
-	if (pdrv->config.basic.lcd_type == LCD_MIPI)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MIPI)
 		lcd_set_dsi_phy_clk(pdrv);
 }
 
@@ -113,7 +113,7 @@ static void lcd_clk_disable(struct aml_lcd_drv_s *pdrv)
 static void lcd_pll_frac_generate_c3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned long long pll_fout, pll_fvco;
 	unsigned int enc_clk, od;
 	int ret;

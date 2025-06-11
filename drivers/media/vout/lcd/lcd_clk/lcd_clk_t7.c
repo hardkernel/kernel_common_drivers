@@ -134,11 +134,9 @@ static void lcd_pll_frac_set(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 
 	val = lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset);
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1 + offset, frac, 0, 19);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x\n",
-			pdrv->index, __func__, ANACTRL_TCON_PLL0_CNTL1 + offset,
-			val, lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset), frac);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x", __func__,
+		ANACTRL_TCON_PLL0_CNTL1 + offset,
+		val, lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset), frac);
 }
 
 static void lcd_pll_m_set(struct aml_lcd_drv_s *pdrv, unsigned int m)
@@ -153,11 +151,9 @@ static void lcd_pll_m_set(struct aml_lcd_drv_s *pdrv, unsigned int m)
 
 	val = lcd_ana_read(ANACTRL_TCON_PLL0_CNTL0 + offset);
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL0 + offset, m, 0, 8);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x, pll_m=0x%x\n",
-			__func__, ANACTRL_TCON_PLL0_CNTL0 + offset,
-			val, lcd_ana_read(ANACTRL_TCON_PLL0_CNTL0 + offset), m);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_m=0x%x", __func__,
+		ANACTRL_TCON_PLL0_CNTL0 + offset,
+		val, lcd_ana_read(ANACTRL_TCON_PLL0_CNTL0 + offset), m);
 }
 
 static void lcd_pll_reset(struct aml_lcd_drv_s *pdrv)
@@ -307,7 +303,7 @@ static void lcd_set_phy_dig_div_t7(struct aml_lcd_drv_s *pdrv, u8 port_to_pll)
 	// Enable dphy clock
 	lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 1, 0, 1);
 
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_MIPI:
 	case LCD_VBYONE:
 		if (port_sel == 2) {
@@ -417,11 +413,11 @@ static void lcd_clk_set_t7(struct aml_lcd_drv_s *pdrv)
 	lcd_set_phy_dig_div_t7(pdrv, 0);
 	lcd_set_vid_pll_div_t7(pdrv, 0);
 
-	if (pdrv->config.basic.lcd_type == LCD_MIPI) {
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MIPI) {
 		// lcd_set_dsi_meas_clk_t7(pdrv->index);
 		lcd_set_dsi_phy_clk(pdrv, 0);
 
-		if (pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0)) {
+		if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0)) {
 			// lcd_set_pll_t7(pdrv, 1);
 			lcd_set_phy_dig_div_t7(pdrv, 1);
 			lcd_set_vid_pll_div_t7(pdrv, 1);
@@ -476,8 +472,8 @@ static void lcd_set_vclk_crt_by_path(struct aml_lcd_drv_s *pdrv, u8 path)
 		if (venc_clk_sel_bit < 0xff)
 			lcd_clk_setb(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 0, venc_clk_sel_bit, 1);
 
-		if (pdrv->config.basic.lcd_type == LCD_MIPI &&
-		    pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0) && path == 1) {
+		if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MIPI &&
+		    pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0) && path == 1) {
 			lcd_clk_setb(reg_vid2_clk_div, (cconf->xd * 2 - 1), VCLK2_XD, 8);
 		} else {
 			/* setup the XD divider value */
@@ -517,8 +513,8 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 
 	lcd_set_vclk_crt_by_path(pdrv, cconf->pll_config[0].pll_id);
 
-	if (pdrv->config.basic.lcd_type == LCD_MIPI) {
-		if (pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0)) {
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MIPI) {
+		if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0)) {
 			lcd_set_vclk_crt_by_path(pdrv, 1);
 
 			lcd_clk_setb(CLKCTRL_VID_CLK0_CTRL2, 1, 16, 1);
@@ -670,8 +666,7 @@ static void lcd_prbs_config_clk_t7(struct aml_lcd_drv_s *pdrv, unsigned int lcd_
 	lcd_clk_set_t7(pdrv);
 	lcd_set_vclk_crt(pdrv);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s ok\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s ok", __func__);
 }
 
 static void lcd_clk_prbs_test_t7(struct aml_lcd_drv_s *pdrv,
@@ -831,7 +826,7 @@ static void lcd_clk_parameter_init_t7(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_LVDS:
 	case LCD_VBYONE:
 		cconf->data->phy_clk_location = 0;

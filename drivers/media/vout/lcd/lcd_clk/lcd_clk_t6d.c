@@ -145,7 +145,7 @@ static void lcd_set_pll_t6d(struct aml_lcd_drv_s *pdrv)
 	unsigned int pll_ctrl0, pll_ctrl3, pll_ctrl4;
 	unsigned int tcon_div_sel;
 	int ret, cnt = 0;
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
@@ -305,7 +305,7 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 
 static int lcd_set_mlvds_clk_phase_t6d(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int val, p0, pa, pb;
 
 	val = pconf->phy_cfg.act_phy->clk_phase;
@@ -329,7 +329,7 @@ static int lcd_set_mlvds_clk_phase_t6d(struct aml_lcd_drv_s *pdrv)
 static void lcd_set_tcon_clk_t6d(struct aml_lcd_drv_s *pdrv)
 {
 #ifdef CONFIG_AMLOGIC_LCD_TCON
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 
 	if (pconf->basic.lcd_type != LCD_MLVDS)
 		return;
@@ -352,8 +352,8 @@ static void lcd_set_tcon_clk_t6d(struct aml_lcd_drv_s *pdrv)
 	}
 
 	/* global reset tcon */
-	if (pdrv->config.basic.lcd_type == LCD_MLVDS ||
-	    pdrv->config.basic.lcd_type == LCD_P2P)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS ||
+	    pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_P2P)
 		lcd_tcon_global_reset(pdrv);
 #endif
 }
@@ -415,7 +415,7 @@ struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 		ANACTRL_DIF_PHY_CNTL10, ANACTRL_DIF_PHY_CNTL11,
 		ANACTRL_DIF_PHY_CNTL12,
 	};
-	unsigned char is_mlvds = pdrv->config.basic.lcd_type == LCD_MLVDS;
+	unsigned char is_mlvds = pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS;
 
 	if (!cconf)
 		return;

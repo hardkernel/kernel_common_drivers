@@ -820,9 +820,9 @@ int lcd_tcon_pdf_init(struct aml_lcd_drv_s *pdrv)
 		goto __pdf_init_fail;
 	}
 
-	if (cur_plat && pdrv->config.basic.lcd_type == LCD_P2P) {
+	if (cur_plat && pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_P2P) {
 		// p2p needs to judge protocols and assign p2p cmd table
-		p2p_type = pdrv->config.control.p2p_cfg.p2p_type & 0x1f;
+		p2p_type = pdrv->curr_dev->dev_cfg.control.p2p_cfg.p2p_type & 0x1f;
 		switch (p2p_type) {
 		case P2P_ISP:
 		case P2P_CSPI:

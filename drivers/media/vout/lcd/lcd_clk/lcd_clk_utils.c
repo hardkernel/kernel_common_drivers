@@ -82,9 +82,7 @@ int lcd_clk_msr_check(struct aml_lcd_drv_s *pdrv)
 
 	encl_clk_msr = lcd_encl_clk_msr(pdrv);
 	if (lcd_diff(cconf->fout, encl_clk_msr) >= PLL_CLK_CHECK_MAX) {
-		LCDERR("[%d]: %s: expected:%d, msr:%d\n",
-		       pdrv->index, __func__,
-		       cconf->fout, encl_clk_msr);
+		LCD_ERR(pdrv, "%s: expected:%d, msr:%d",  __func__, cconf->fout, encl_clk_msr);
 		return -1;
 	}
 
@@ -635,7 +633,7 @@ static unsigned char lcd_clk_generate_DSI_1PLL(struct aml_lcd_drv_s *pdrv)
 		unsigned char frac_sel;
 	};
 
-	struct dsi_config_s *dconf = &pdrv->config.control.mipi_cfg;
+	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 	unsigned long long pll_out, phy_clk;
 	unsigned short enc_xd, phy_N;
 	unsigned char done, tb_idx = 0, x, new_high_bitrate, frac_sel;
@@ -650,7 +648,7 @@ static unsigned char lcd_clk_generate_DSI_1PLL(struct aml_lcd_drv_s *pdrv)
 
 	clk_div_tb = kcalloc(DSI_CLK_TB_SIZE, sizeof(struct dsi_clk_tb_s), GFP_KERNEL);
 	if (!clk_div_tb) {
-		LCDERR("[%d]: %s: kcalloc failed\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: kcalloc failed", __func__);
 		return 0;
 	}
 
@@ -685,7 +683,7 @@ static unsigned char lcd_clk_generate_DSI_1PLL(struct aml_lcd_drv_s *pdrv)
 					continue;
 
 				if (tb_idx == DSI_CLK_TB_SIZE) {
-					LCDERR("[%d]: dsi clk table full!\n", pdrv->index);
+					LCD_ERR(pdrv, "dsi clk table full!");
 					goto dsi_clk_tabel_buffer_full;
 				}
 
@@ -700,9 +698,9 @@ static unsigned char lcd_clk_generate_DSI_1PLL(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (!tb_idx) {
-		LCDERR("[%d]: %s: no div for pll_out:(%lluHz~%lluHz), bit_rate:(%lluHz~%uMHz)\n",
-		       pdrv->index, __func__, cconf->data->pll_data[0]->pll_out_fmin,
-		       cconf->data->pll_data[0]->pll_out_fmax, bitrate_min, dconf->bit_rate_max);
+		LCD_ERR(pdrv, "%s: no div for pll_out:(%lluHz~%lluHz), bit_rate:(%lluHz~%uMHz)",
+			__func__, cconf->data->pll_data[0]->pll_out_fmin,
+			cconf->data->pll_data[0]->pll_out_fmax, bitrate_min, dconf->bit_rate_max);
 		kfree(clk_div_tb);
 		return 0;
 	}
@@ -716,18 +714,18 @@ dsi_clk_tabel_buffer_full:
 		x--;
 	}
 	if (!done) {
-		LCDERR("[%d]: %s: no pll setting available\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: no pll setting available", __func__);
 		kfree(clk_div_tb);
 		return 0;
 	}
 
-	LCDPR("[%d]: vco=%lluHz pll_out:%lluHz div[%s] xd[%hu]->fout=%uhz div[%hu]->phy=%lluhz\n",
-		pdrv->index, cconf->pll_config[0].pll_fvco, clk_div_tb[x].pllout,
+	LCD_PR(pdrv, "vco=%lluHz pll_out:%lluHz div[%s] xd[%hu]->fout=%uhz div[%hu]->phy=%lluhz",
+		cconf->pll_config[0].pll_fvco, clk_div_tb[x].pllout,
 		lcd_clk_div_table[clk_div_tb[x].frac_sel].name, clk_div_tb[x].enc_xd, cconf->fout,
 		clk_div_tb[x].phy_n, clk_div_tb[x].phy_clk);
 
 	cconf->phy_clk = clk_div_tb[x].phy_clk;
-	pdrv->config.timing.bit_rate = clk_div_tb[x].phy_clk;
+	pdrv->curr_dev->dev_cfg.timing.bit_rate = clk_div_tb[x].phy_clk;
 
 	cconf->phy_div = clk_div_tb[x].phy_n;
 	cconf->xd = clk_div_tb[x].enc_xd; //PLL2enc
@@ -766,7 +764,7 @@ static unsigned char lcd_clk_generate_DP_1PLL(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return 0;
 
-	if (pdrv->config.control.edp_cfg.link_rate == 0x0a) //2.7G
+	if (pdrv->curr_dev->dev_cfg.control.edp_cfg.link_rate == 0x0a) //2.7G
 		clk_level_sel = 1;
 	else
 		clk_level_sel = 0;
@@ -804,10 +802,10 @@ static unsigned char lcd_clk_generate_DP_1PLL(struct aml_lcd_drv_s *pdrv)
 	cconf->edp_div1 = min_err_div1;
 
 	cconf->fout = lcd_do_div(cconf->pll_config->pll_fout, min_err_div);
-	pdrv->config.timing.enc_clk = cconf->fout;
+	pdrv->curr_dev->dev_cfg.timing.enc_clk = cconf->fout;
 
-	LCDPR("[%d]: PLL_out=%llu div=%u [%u, %u] fout:%u enc_clk=%u error=%llu\n",
-		pdrv->index, cconf->pll_config->pll_fout, min_err_div,
+	LCD_PR(pdrv, "PLL_out=%llu div=%u [%u, %u] fout:%u enc_clk=%u error=%llu",
+		cconf->pll_config->pll_fout, min_err_div,
 		edp_div0_table[min_err_div0], edp_div1_table[min_err_div1],
 		cconf->fout, cconf->fout, min_err);
 	return 1;
@@ -817,7 +815,7 @@ static unsigned char lcd_clk_generate_DP_1PLL(struct aml_lcd_drv_s *pdrv)
 static int lcd_pll_frac_generate_phy(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned long long pll_fout, pll_fvco, clk_div_in;
 	unsigned int enc_clk, clk_div_out, clk_div_sel;
 	unsigned int od1 = 1, od2 = 1, od3 = 1;
@@ -907,7 +905,7 @@ static int lcd_pll_frac_generate_phy(struct aml_lcd_drv_s *pdrv)
 static int lcd_pll_frac_generate_pix(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned long long pll_fout, pll_fvco, clk_div_in;
 	unsigned int enc_clk, clk_div_out, clk_div_sel;
 	unsigned int od1 = 1, od2 = 1, od3 = 1;
@@ -1065,7 +1063,7 @@ clk_generate_pix_clk_done:
 void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned long long pll_fout, bit_rate = 0, clk_div_in;
 	unsigned int clk_div_out, clk_div_sel, xd, tcon_div_sel = 0, phy_div = 1;
 	unsigned int od1, od2, od3;
@@ -1528,27 +1526,26 @@ void lcd_clk_config_init_print_dft(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	data = cconf->data;
-	LCDPR("[%d]: clk data init:\n"
+	LCD_PR(pdrv, "clk data init:\n"
 		"xd_out_fmax:         %d\n"
 		"ss_level_max:        %d\n"
 		"ss_dep_base:         %d\n"
 		"ss_dep_sel_max:      %d\n"
 		"ss_str_m_max:        %d\n"
 		"ss_freq_max:         %d\n"
-		"ss_mode_max:         %d\n\n",
-		pdrv->index,
+		"ss_mode_max:         %d\n",
 		data->xd_out_fmax, data->ss_level_max,
 		data->ss_dep_base, data->ss_dep_sel_max,
 		data->ss_str_m_max,
 		data->ss_freq_max, data->ss_mode_max);
 	for (i = 0; i < cconf->pll_conf_num; i++) {
 		if (!cconf->data->pll_data[i]) {
-			LCDERR("[%d]: %s: cconf[%d] data is NULL\n", pdrv->index, __func__, i);
+			LCD_ERR(pdrv, "%s: cconf[%d] data is NULL", __func__, i);
 			return;
 		}
 		pll_config = &cconf->pll_config[i];
 		pll_data = cconf->data->pll_data[i];
-		LCDPR("[%d]: pll[%d] data init:\n"
+		LCD_PR(pdrv, "pll[%d] data init:\n"
 			"pll_m_max:           %d\n"
 			"pll_m_min:           %d\n"
 			"pll_n_max:           %d\n"
@@ -1563,8 +1560,8 @@ void lcd_clk_config_init_print_dft(struct aml_lcd_drv_s *pdrv)
 			"pll_out_fmax:        %lld\n"
 			"pll_out_fmin:        %lld\n\n"
 			"div_in_fmax:         %lld\n"
-			"div_out_fmax:        %d\n\n",
-			pdrv->index, pll_config->pll_id,
+			"div_out_fmax:        %d\n",
+			pll_config->pll_id,
 			pll_data->pll_m_max, pll_data->pll_m_min,
 			pll_data->pll_n_max, pll_data->pll_n_min,
 			pll_data->pll_od_fb, pll_data->pll_frac_range,
@@ -1740,13 +1737,13 @@ void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status)
 		case CLKTREE_DSI_A_HOST_GATE:
 		case CLKTREE_DSI_A_PHY_GATE:
 		case CLKTREE_DSI_A_MEAS:
-			if (pdrv->config.basic.lcd_type == LCD_MIPI)
+			if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MIPI)
 				clk_use = 1;
 			break;
 		case CLKTREE_TCON_GATE:
 		case CLKTREE_TCON:
-			if (pdrv->config.basic.lcd_type == LCD_MLVDS ||
-			    pdrv->config.basic.lcd_type == LCD_P2P)
+			if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS ||
+			    pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_P2P)
 				clk_use = 1;
 			break;
 		default:
@@ -1768,10 +1765,7 @@ void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status)
 		}
 		cnt += snprintf(clk_names + cnt, 120 - cnt, " %s", clktree_list[clk_type].name);
 	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: clktree %s:%s done\n",
-			pdrv->index, status ? "probe" : "remove", clk_names);
-	}
+	LCD_DBG(pdrv, "clktree %s:%s done", status ? "probe" : "remove", clk_names);
 }
 
 void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status)
@@ -1807,8 +1801,5 @@ void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status)
 
 		cnt += snprintf(clk_names + cnt, 120 - cnt, " %s", clktree_list[clk_type].name);
 	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s %s:%s done\n",
-			pdrv->index, __func__, status ? "on" : "off", clk_names);
-	}
+	LCD_DBG(pdrv, "%s %s:%s done", __func__, status ? "on" : "off", clk_names);
 }

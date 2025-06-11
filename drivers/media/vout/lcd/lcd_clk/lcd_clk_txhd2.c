@@ -64,11 +64,10 @@ static void lcd_pll_ss_enable_txhd2(struct aml_lcd_drv_s *pdrv, int status)
 	if (flag) {
 		cconf->ss_en = 1;
 		pll_ctrl2 |= ((cconf->ss_dep_sel << 4) | (cconf->ss_str_m << 12));
-		LCDPR("[%d]: pll ss enable: level %d, %dppm\n",
-			pdrv->index, cconf->ss_level, cconf->ss_ppm);
+		LCD_PR(pdrv, "pll ss enable: level %d, %dppm", cconf->ss_level, cconf->ss_ppm);
 	} else {
 		cconf->ss_en = 0;
-		LCDPR("[%d]: pll ss disable\n", pdrv->index);
+		LCD_PR(pdrv, "pll ss disable");
 	}
 	lcd_ana_write(HHI_TCON_PLL_CNTL2, pll_ctrl2);
 }
@@ -116,7 +115,7 @@ static void lcd_set_pll_ss_txhd2(struct aml_lcd_drv_s *pdrv, unsigned int ss_fla
 	}
 
 	lcd_ana_write(HHI_TCON_PLL_CNTL2, pll_ctrl2);
-	LCDPR("[%d]: set ssc: %s\n", pdrv->index, prt_str);
+	LCD_PR(pdrv, "set ssc: %s", prt_str);
 }
 
 static void lcd_pll_frac_set(struct aml_lcd_drv_s *pdrv, unsigned int frac)
@@ -125,11 +124,8 @@ static void lcd_pll_frac_set(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 
 	val = lcd_ana_read(HHI_TCON_PLL_CNTL1);
 	lcd_ana_setb(HHI_TCON_PLL_CNTL1, frac, 0, 19);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x\n",
-			pdrv->index, __func__, HHI_TCON_PLL_CNTL1,
-			val, lcd_ana_read(HHI_TCON_PLL_CNTL1), frac);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x", __func__,
+		HHI_TCON_PLL_CNTL1, val, lcd_ana_read(HHI_TCON_PLL_CNTL1), frac);
 }
 
 static void lcd_pll_m_set_txhd2(struct aml_lcd_drv_s *pdrv, unsigned int m)
@@ -138,11 +134,8 @@ static void lcd_pll_m_set_txhd2(struct aml_lcd_drv_s *pdrv, unsigned int m)
 
 	val = lcd_ana_read(HHI_TCON_PLL_CNTL0);
 	lcd_ana_setb(HHI_TCON_PLL_CNTL0, m, 0, 9);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x\n",
-			__func__, HHI_TCON_PLL_CNTL0,
-			val, lcd_ana_read(HHI_TCON_PLL_CNTL0));
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x", __func__,
+		HHI_TCON_PLL_CNTL0, val, lcd_ana_read(HHI_TCON_PLL_CNTL0));
 }
 
 static void lcd_pll_reset_txhd2(struct aml_lcd_drv_s *pdrv)
@@ -269,7 +262,7 @@ static void lcd_clk_set_txhd2(struct aml_lcd_drv_s *pdrv)
 	lcd_set_pll_txhd2(pdrv);
 	lcd_set_vid_pll_div_txhd2(pdrv);
 
-	if (pdrv->config.basic.lcd_type == LCD_MIPI) {
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MIPI) {
 		// lcd_set_dsi_meas_clk(pdrv->index);
 		lcd_set_dsi_phy_clk(pdrv);
 	}
@@ -335,7 +328,7 @@ static int lcd_set_mlvds_clk_phase_txhd2(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int phase_value;
 
-	phase_value = pdrv->config.phy_cfg.act_phy->clk_phase;
+	phase_value = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy->clk_phase;
 	// set clock phase value
 	lcd_ana_setb(HHI_TCON_PLL_CNTL1, phase_value, 20, 12);
 
@@ -356,15 +349,14 @@ static int lcd_set_mlvds_clk_phase_txhd2(struct aml_lcd_drv_s *pdrv)
 static void lcd_set_tcon_clk_txhd2(struct aml_lcd_drv_s *pdrv)
 {
 #ifdef CONFIG_AMLOGIC_LCD_TCON
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		return;
-	if (pdrv->config.basic.lcd_type != LCD_MLVDS)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_MLVDS)
 		return;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	switch (pconf->basic.lcd_type) {
 	case LCD_MLVDS:

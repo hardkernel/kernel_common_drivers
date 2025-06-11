@@ -135,11 +135,9 @@ static void lcd_pll_frac_set(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 
 	val = lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset);
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1 + offset, frac, 0, 19);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x\n",
-			pdrv->index, __func__, ANACTRL_TCON_PLL0_CNTL1 + offset,
-			val, lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset), frac);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x", __func__,
+		ANACTRL_TCON_PLL0_CNTL1 + offset,
+		val, lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset), frac);
 }
 
 static void lcd_pll_m_set(struct aml_lcd_drv_s *pdrv, unsigned int m)
@@ -154,11 +152,10 @@ static void lcd_pll_m_set(struct aml_lcd_drv_s *pdrv, unsigned int m)
 
 	val = lcd_ana_read(ANACTRL_TCON_PLL0_CNTL0 + offset);
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL0 + offset, m, 0, 8);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x, pll_m=0x%x\n",
-			__func__, ANACTRL_TCON_PLL0_CNTL0 + offset,
-			val, lcd_ana_read(ANACTRL_TCON_PLL0_CNTL0 + offset), m);
-	}
+	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x, pll_m=0x%x",
+		__func__, ANACTRL_TCON_PLL0_CNTL0 + offset,
+		val, lcd_ana_read(ANACTRL_TCON_PLL0_CNTL0 + offset), m);
+
 }
 
 static void lcd_pll_reset(struct aml_lcd_drv_s *pdrv)
@@ -423,7 +420,7 @@ static int lcd_set_mlvds_clk_phase(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int phase_value;
 
-	phase_value = pdrv->config.phy_cfg.act_phy->clk_phase;
+	phase_value = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy->clk_phase;
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1, (phase_value & 0xf), 24, 4);
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4, ((phase_value >> 4) & 0xf), 28, 4);
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4, ((phase_value >> 8) & 0xf), 24, 4);
@@ -434,7 +431,7 @@ static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 {
 #ifdef CONFIG_AMLOGIC_LCD_TCON
 	struct lcd_clk_config_s *cconf;
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int freq;
 
 	if (pdrv->index > 0) /* tcon_clk only valid for lcd0 */
@@ -442,12 +439,11 @@ static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		return;
-	if (pdrv->config.basic.lcd_type != LCD_MLVDS &&
-	    pdrv->config.basic.lcd_type != LCD_P2P)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_MLVDS &&
+	    pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_P2P)
 		return;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("lcd clk: set_tcon_clk_t3\n");
+	LCD_DBG(pdrv, "lcd clk: set_tcon_clk_t3");
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
 		return;
@@ -564,8 +560,7 @@ static void lcd_prbs_config_clk_t3(struct aml_lcd_drv_s *pdrv, unsigned int lcd_
 	lcd_clk_set_t3(pdrv);
 	lcd_set_vclk_crt(pdrv);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s ok\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s ok", __func__);
 }
 
 static void lcd_clk_prbs_test_t3(struct aml_lcd_drv_s *pdrv,
@@ -736,7 +731,7 @@ static void lcd_clk_generate_t5m(struct aml_lcd_drv_s *pdrv)
 		return;
 	}
 
-	if (pdrv->config.basic.lcd_type != LCD_P2P) {
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_P2P) {
 		lcd_clk_generate_dft(pdrv);
 		return;
 	}
@@ -744,35 +739,35 @@ static void lcd_clk_generate_t5m(struct aml_lcd_drv_s *pdrv)
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
 		return;
-	if (pdrv->config.timing.act_timing.clk_mode == 2) {
+	if (pdrv->curr_dev->dev_cfg.timing.act_timing.clk_mode == 2) {
 		//gp0 pll fixed clk: 1544.4MHz
 		LCDPR("%s: dual pll config\n", __func__);
 		cconf->pll_mode |= LCD_PLL_MODE_DUAL_PLL;
 
-		cconf->fout = pdrv->config.timing.enc_clk;
+		cconf->fout = pdrv->curr_dev->dev_cfg.timing.enc_clk;
 		cconf->data->vclk_sel = 1; //gp0
 		cconf->xd = 2;
 
-		bit_rate = pdrv->config.timing.bit_rate;
+		bit_rate = pdrv->curr_dev->dev_cfg.timing.bit_rate;
 		done = lcd_clk_generate_p2p_with_tcon_div_t5m(cconf, bit_rate);
 		if (done) {
-			pdrv->config.timing.pll_ctrl =
+			pdrv->curr_dev->dev_cfg.timing.pll_ctrl =
 				(cconf->pll_config[0].pll_od1_sel << PLL_CTRL_OD1) |
 				(cconf->pll_config[0].pll_od2_sel << PLL_CTRL_OD2) |
 				(cconf->pll_config[0].pll_od3_sel << PLL_CTRL_OD3) |
 				(cconf->pll_config[0].pll_n << PLL_CTRL_N)         |
 				(cconf->pll_config[0].pll_m << PLL_CTRL_M);
-			pdrv->config.timing.div_ctrl = (cconf->xd << DIV_CTRL_XD);
-			pdrv->config.timing.clk_ctrl =
+			pdrv->curr_dev->dev_cfg.timing.div_ctrl = (cconf->xd << DIV_CTRL_XD);
+			pdrv->curr_dev->dev_cfg.timing.clk_ctrl =
 				(cconf->pll_config[0].pll_frac << CLK_CTRL_FRAC) |
 				(cconf->pll_config[0].pll_frac_half_shift << CLK_CTRL_FRAC_SHIFT);
 			cconf->pll_config[0].done = 1;
 		} else {
-			pdrv->config.timing.pll_ctrl = 0;
-			pdrv->config.timing.div_ctrl = 0;
-			pdrv->config.timing.clk_ctrl = 0;
+			pdrv->curr_dev->dev_cfg.timing.pll_ctrl = 0;
+			pdrv->curr_dev->dev_cfg.timing.div_ctrl = 0;
+			pdrv->curr_dev->dev_cfg.timing.clk_ctrl = 0;
 			cconf->pll_config[0].done = 0;
-			LCDERR("[%d]: %s: Out of clock range\n", pdrv->index, __func__);
+			LCD_ERR(pdrv, "%s: Out of clock range", __func__);
 		}
 	} else {
 		cconf->pll_mode &= ~LCD_PLL_MODE_DUAL_PLL;

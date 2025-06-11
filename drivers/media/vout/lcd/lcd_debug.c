@@ -191,7 +191,7 @@ static ssize_t lcd_debug_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%s\n", lcd_debug_usage_str);
 }
 
-static int lcd_cpu_gpio_register_print(struct lcd_config_s *pconf, char *buf, int offset)
+static int lcd_cpu_gpio_register_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	int i, n, len = 0;
 	struct lcd_cpu_gpio_s *cpu_gpio;
@@ -201,7 +201,7 @@ static int lcd_cpu_gpio_register_print(struct lcd_config_s *pconf, char *buf, in
 
 	i = 0;
 	while (i < LCD_CPU_GPIO_NUM_MAX) {
-		cpu_gpio = &pconf->power.cpu_gpio[i];
+		cpu_gpio = &pdrv->drv_res.cpu_gpio[i];
 		if (cpu_gpio->probe_flag == 0) {
 			i++;
 			continue;
@@ -213,7 +213,7 @@ static int lcd_cpu_gpio_register_print(struct lcd_config_s *pconf, char *buf, in
 				i, cpu_gpio->name, cpu_gpio->gpio);
 		} else {
 			n = lcd_debug_info_len(len + offset);
-			len += snprintf((buf + len), n, "%d: name=%s, no registered\n",
+			len += snprintf((buf + len), n, "%d: name=%s, not registered\n",
 				i, cpu_gpio->name);
 		}
 		i++;
@@ -260,9 +260,9 @@ static int lcd_power_step_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int 
 {
 	int len = 0;
 
-	len += lcd_power_step_print(&pdrv->config, 1, (buf + len), (len + offset));
-	len += lcd_power_step_print(&pdrv->config, 0, (buf + len), (len + offset));
-	len += lcd_cpu_gpio_register_print(&pdrv->config, (buf + len), (len + offset));
+	len += lcd_power_step_print(&pdrv->curr_dev->dev_cfg, 1, (buf + len), (len + offset));
+	len += lcd_power_step_print(&pdrv->curr_dev->dev_cfg, 0, (buf + len), (len + offset));
+	len += lcd_cpu_gpio_register_print(pdrv, (buf + len), (len + offset));
 
 	return len;
 }
@@ -280,13 +280,13 @@ static int lcd_info_print_lvds(struct aml_lcd_drv_s *pdrv, char *buf, int offset
 		"lane_reverse: %u\n"
 		"phy_vswing  : 0x%x\n"
 		"phy_preem   : 0x%x\n\n",
-		pdrv->config.control.lvds_cfg.lvds_repack,
-		pdrv->config.control.lvds_cfg.dual_port,
-		pdrv->config.control.lvds_cfg.pn_swap,
-		pdrv->config.control.lvds_cfg.port_swap,
-		pdrv->config.control.lvds_cfg.lane_reverse,
-		pdrv->config.control.lvds_cfg.phy_vswing,
-		pdrv->config.control.lvds_cfg.phy_preem);
+		pdrv->curr_dev->dev_cfg.control.lvds_cfg.lvds_repack,
+		pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port,
+		pdrv->curr_dev->dev_cfg.control.lvds_cfg.pn_swap,
+		pdrv->curr_dev->dev_cfg.control.lvds_cfg.port_swap,
+		pdrv->curr_dev->dev_cfg.control.lvds_cfg.lane_reverse,
+		pdrv->curr_dev->dev_cfg.control.lvds_cfg.phy_vswing,
+		pdrv->curr_dev->dev_cfg.control.lvds_cfg.phy_preem);
 
 	return len;
 }
@@ -297,7 +297,7 @@ static int lcd_info_print_vbyone(struct aml_lcd_drv_s *pdrv, char *buf, int offs
 	struct vbyone_config_s *vx1_conf;
 	int n, len = 0;
 
-	vx1_conf = &pdrv->config.control.vbyone_cfg;
+	vx1_conf = &pdrv->curr_dev->dev_cfg.control.vbyone_cfg;
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -317,7 +317,7 @@ static int lcd_info_print_vbyone(struct aml_lcd_drv_s *pdrv, char *buf, int offs
 		vx1_conf->region_num,
 		vx1_conf->byte_mode,
 		vx1_conf->color_fmt,
-		pdrv->config.timing.bit_rate,
+		pdrv->curr_dev->dev_cfg.timing.bit_rate,
 		vx1_conf->phy_vswing,
 		vx1_conf->phy_preem,
 		vx1_conf->vx1_intr_en,
@@ -352,7 +352,7 @@ static int lcd_info_print_vbyone(struct aml_lcd_drv_s *pdrv, char *buf, int offs
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"pinmux_flag          %d\n\n", pdrv->config.pinmux_flag);
+		"pinmux_flag          %d\n\n", pdrv->curr_dev->dev_cfg.pinmux_flag);
 
 	return len;
 }
@@ -363,7 +363,7 @@ static int lcd_info_print_mipi(struct aml_lcd_drv_s *pdrv, char *buf, int offset
 {
 	int len = 0;
 
-	lcd_dsi_info_print(&pdrv->config);
+	lcd_dsi_info_print(&pdrv->curr_dev->dev_cfg);
 
 	return len;
 }
@@ -386,19 +386,19 @@ static int lcd_info_print_mlvds(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"phy_vswing  : 0x%x\n"
 		"phy_preem   : 0x%x\n"
 		"bit_rate    : %lluHz\n\n",
-		pdrv->config.control.mlvds_cfg.channel_num,
-		pdrv->config.control.mlvds_cfg.channel_sel0,
-		pdrv->config.control.mlvds_cfg.channel_sel1,
-		pdrv->config.control.mlvds_cfg.clk_phase,
-		pdrv->config.control.mlvds_cfg.pn_swap,
-		pdrv->config.control.mlvds_cfg.bit_swap,
-		pdrv->config.control.mlvds_cfg.phy_vswing,
-		pdrv->config.control.mlvds_cfg.phy_preem,
-		pdrv->config.timing.bit_rate);
+		pdrv->curr_dev->dev_cfg.control.mlvds_cfg.channel_num,
+		pdrv->curr_dev->dev_cfg.control.mlvds_cfg.channel_sel0,
+		pdrv->curr_dev->dev_cfg.control.mlvds_cfg.channel_sel1,
+		pdrv->curr_dev->dev_cfg.control.mlvds_cfg.clk_phase,
+		pdrv->curr_dev->dev_cfg.control.mlvds_cfg.pn_swap,
+		pdrv->curr_dev->dev_cfg.control.mlvds_cfg.bit_swap,
+		pdrv->curr_dev->dev_cfg.control.mlvds_cfg.phy_vswing,
+		pdrv->curr_dev->dev_cfg.control.mlvds_cfg.phy_preem,
+		pdrv->curr_dev->dev_cfg.timing.bit_rate);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"pinmux_flag : %d\n", pdrv->config.pinmux_flag);
+		"pinmux_flag : %d\n", pdrv->curr_dev->dev_cfg.pinmux_flag);
 
 	return len;
 }
@@ -418,19 +418,19 @@ static int lcd_info_print_p2p(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		"bit_rate    : %lluHz\n"
 		"phy_vswing  : 0x%x\n"
 		"phy_preem   : 0x%x\n\n",
-		pdrv->config.control.p2p_cfg.p2p_type,
-		pdrv->config.control.p2p_cfg.lane_num,
-		pdrv->config.control.p2p_cfg.channel_sel0,
-		pdrv->config.control.p2p_cfg.channel_sel1,
-		pdrv->config.control.p2p_cfg.pn_swap,
-		pdrv->config.control.p2p_cfg.bit_swap,
-		pdrv->config.timing.bit_rate,
-		pdrv->config.control.p2p_cfg.phy_vswing,
-		pdrv->config.control.p2p_cfg.phy_preem);
+		pdrv->curr_dev->dev_cfg.control.p2p_cfg.p2p_type,
+		pdrv->curr_dev->dev_cfg.control.p2p_cfg.lane_num,
+		pdrv->curr_dev->dev_cfg.control.p2p_cfg.channel_sel0,
+		pdrv->curr_dev->dev_cfg.control.p2p_cfg.channel_sel1,
+		pdrv->curr_dev->dev_cfg.control.p2p_cfg.pn_swap,
+		pdrv->curr_dev->dev_cfg.control.p2p_cfg.bit_swap,
+		pdrv->curr_dev->dev_cfg.timing.bit_rate,
+		pdrv->curr_dev->dev_cfg.control.p2p_cfg.phy_vswing,
+		pdrv->curr_dev->dev_cfg.control.p2p_cfg.phy_preem);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"pinmux_flag : %d\n\n", pdrv->config.pinmux_flag);
+		"pinmux_flag : %d\n\n", pdrv->curr_dev->dev_cfg.pinmux_flag);
 
 	return len;
 }
@@ -446,7 +446,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	struct lcd_detail_timing_s *dt;
 	const char * const tags[] = {"", "(default)", "(base)"};
 
-	pconf = &pdrv->config;
+	pconf = &pdrv->curr_dev->dev_cfg;
 	sync_duration = pconf->timing.act_timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->timing.act_timing.sync_duration_den;
 	mute_state = lcd_mute_state_get(pdrv);
@@ -463,7 +463,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"key_valid: %d, config_load: %d\n\n",
 		pdrv->index, LCD_DRV_VERSION,
 		pdrv->config_check_glb, pconf->basic.config_check, pdrv->config_check_en,
-		pconf->propname, pdrv->data->chip_type,
+		pdrv->curr_dev->dev_propname, pdrv->data->chip_type,
 		lcd_mode_mode_to_str(pdrv->mode), pdrv->status,
 		pdrv->viu_sel, pdrv->vsync_cnt, pdrv->resume_type,
 		pconf->fr_auto_flag, pdrv->fr_mode, pdrv->fr_duration,
@@ -483,13 +483,13 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"bit_rate       %llu\n"
-		"enc_clk        %uHz\n"
-		"clk_mode       %s(%d)\n"
-		"ss_level       %d\n"
-		"ss_freq        %d\n"
-		"ss_mode        %d\n"
-		"pll_flag       %d\n\n",
+		"  bit_rate       %llu\n"
+		"  enc_clk        %uHz\n"
+		"  clk_mode       %s(%d)\n"
+		"  ss_level       %d\n"
+		"  ss_freq        %d\n"
+		"  ss_mode        %d\n"
+		"  pll_flag       %d\n",
 		pconf->timing.bit_rate,
 		pconf->timing.enc_clk,
 		(pconf->timing.act_timing.clk_mode ? "adapt" : "fixed"),
@@ -501,21 +501,21 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	if (!pr_buf)
 		return len;
 
-	for (i = 0; i < pdrv->config.timing.num_timings; i++) {
-		dt = pdrv->config.timing.timings[i];
+	for (i = 0; i < pdrv->curr_dev->dev_cfg.timing.num_timings; i++) {
+		dt = pdrv->curr_dev->dev_cfg.timing.timings[i];
 		if (!dt)
 			continue;
 		lcd_detail_timing_print(dt, pr_buf, 0, pr_len);
 		n = lcd_debug_info_len(len + offset);
-		tag_id = dt == pdrv->config.timing.dft_timing ? 1 : 0;
-		tag_id2 = dt == pdrv->config.timing.base_timing ? 2 : 0;
+		tag_id = dt == pdrv->curr_dev->dev_cfg.timing.dft_timing ? 1 : 0;
+		tag_id2 = dt == pdrv->curr_dev->dev_cfg.timing.base_timing ? 2 : 0;
 		len += snprintf(buf + len, n, "\ntiming[%d]%s%s:\n%s",
 				i, tags[tag_id], tags[tag_id2], pr_buf);
-		if (dt == pdrv->config.timing.base_timing)
+		if (dt == pdrv->curr_dev->dev_cfg.timing.base_timing)
 			base_id = i;
 	}
 
-	lcd_config_timing_check(pdrv, &pconf->timing.act_timing);
+	lcd_config_timing_check(pdrv, pdrv->curr_dev, &pconf->timing.act_timing);
 	dt = &pconf->timing.act_timing;
 	lcd_detail_timing_print(dt, pr_buf, 0, pr_len);
 	n = lcd_debug_info_len(len + offset);
@@ -554,7 +554,7 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	struct lcd_debug_info_s *lcd_debug_info = (struct lcd_debug_info_s *)pdrv->debug_info;
 	char *buf_tmp;
 	int n, len = 0, i = 0, base_id = 0;
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 	struct phy_attr_s *phy;
 
 	if (!lcd_debug_info) {
@@ -566,7 +566,7 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		len += lcd_debug_info->interface_print(pdrv, (buf + len), (len + offset));
 
 	/* phy_attr */
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_LVDS:
 	case LCD_VBYONE:
 	case LCD_MLVDS:
@@ -589,7 +589,7 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 			lcd_phy_attr_print(phy, phy_cfg->lane_num, buf_tmp, 0, 2048);
 			n = lcd_debug_info_len(len + offset);
 			len += snprintf(buf + len, n, "%s\n", buf_tmp);
-			if (phy == pdrv->config.phy_cfg.act_phy)
+			if (phy == pdrv->curr_dev->dev_cfg.phy_cfg.act_phy)
 				base_id = i;
 		}
 
@@ -631,7 +631,7 @@ static ssize_t lcd_proc_time_show(struct device *dev, struct device_attribute *a
 		"switch_full_time: %llu\n\n"
 		"lcd_vs_isr_time:  %llu\n"
 		"tcon_vs_isr_time: %llu\n\n",
-		pdrv->config.timing.switch_type,
+		pdrv->curr_dev->dev_cfg.timing.switch_type,
 		pdrv->proc_time.mute_time,
 		pdrv->proc_time.bl_off_time,
 		pdrv->proc_time.switch_off_time,
@@ -660,8 +660,8 @@ static int lcd_info_tcon_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset
 {
 	int len = 0;
 
-	if (pdrv->config.basic.lcd_type != LCD_MLVDS &&
-	    pdrv->config.basic.lcd_type != LCD_P2P)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_MLVDS &&
+	    pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_P2P)
 		return len;
 
 	len = lcd_tcon_info_print(pdrv, buf, offset);
@@ -924,7 +924,7 @@ static int lcd_optical_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int off
 	struct lcd_config_s *pconf;
 	int n, len = 0;
 
-	pconf = &pdrv->config;
+	pconf = &pdrv->curr_dev->dev_cfg;
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"\nlcd optical info:\n"
@@ -1066,7 +1066,7 @@ static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute 
 static void lcd_debug_config_update(struct aml_lcd_drv_s *pdrv)
 {
 
-	pdrv->module_reset(pdrv);
+	lcd_module_reset(pdrv);
 
 	lcd_vinfo_update(pdrv);
 }
@@ -1078,7 +1078,7 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 
 	lcd_vout_notify_mode_change_pre(pdrv);
 
-	pconf = &pdrv->config;
+	pconf = &pdrv->curr_dev->dev_cfg;
 	sync_duration = pclk / pconf->timing.act_timing.h_period;
 	sync_duration = sync_duration * 100 / pconf->timing.act_timing.v_period;
 
@@ -1088,8 +1088,8 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 	pconf->timing.act_timing.sync_duration_den = 100;
 	pconf->timing.enc_clk = pconf->timing.act_timing.pixel_clk / pconf->timing.ppc;
 
-	if (pdrv->config.timing.ppc > 1) {
-		LCDPR("ppc=%d, pixel_clk=%d, enc_clk=%d\n", pdrv->config.timing.ppc,
+	if (pdrv->curr_dev->dev_cfg.timing.ppc > 1) {
+		LCDPR("ppc=%d, pixel_clk=%d, enc_clk=%d\n", pdrv->curr_dev->dev_cfg.timing.ppc,
 			pconf->timing.act_timing.pixel_clk, pconf->timing.enc_clk);
 	}
 
@@ -1102,14 +1102,14 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 	lcd_clk_generate_parameter(pdrv);
 
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_interrupt_enable(pdrv, 0);
 #endif
 
 	lcd_set_clk(pdrv);
 
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE) {
 		lcd_vbyone_wait_stable(pdrv);
 		lcd_vbyone_interrupt_enable(pdrv, 1);
 	}
@@ -1129,7 +1129,7 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 	char *print_buf;
 	unsigned long flags = 0;
 
-	pconf = &pdrv->config;
+	pconf = &pdrv->curr_dev->dev_cfg;
 	ptiming = &pconf->timing.act_timing;
 	switch (buf[0]) {
 	case 'c':
@@ -1149,7 +1149,7 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 				return -EINVAL;
 			}
 		} else if (buf[1] == 'h') { /* check */
-			ret = lcd_config_timing_check(pdrv, ptiming);
+			ret = lcd_config_timing_check(pdrv, pdrv->curr_dev, ptiming);
 			if (ret == 0)
 				pr_info("lcd config_timing_check: PASS\n");
 			pr_info("disp_tmg_min_req:\n"
@@ -1297,7 +1297,7 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 			lcd_debug_info_print(print_buf);
 			kfree(print_buf);
 		} else if (buf[2] == 's') { /* reset */
-			pdrv->module_reset(pdrv);
+			lcd_module_reset(pdrv);
 		} else if (buf[2] == 'n') { /* range */
 			ret = sscanf(buf, "range %d %d %d %d %d %d",
 				     &val[0], &val[1], &val[2], &val[3], &val[4], &val[5]);
@@ -1413,7 +1413,7 @@ static ssize_t lcd_debug_change_show(struct device *dev, struct device_attribute
 
 static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int sync_duration;
 	struct lcd_detail_timing_s *ptiming;
 
@@ -1426,9 +1426,9 @@ static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int
 	pconf->timing.act_timing.sync_duration_num = sync_duration;
 	pconf->timing.act_timing.sync_duration_den = 100;
 	pconf->timing.enc_clk = pconf->timing.act_timing.pixel_clk / pconf->timing.ppc;
-	if (pdrv->config.timing.ppc > 1) {
+	if (pdrv->curr_dev->dev_cfg.timing.ppc > 1) {
 		LCDPR("ppc=%d, pixel_clk=%d, enc_clk=%d\n",
-		      pdrv->config.timing.ppc, pconf->timing.act_timing.pixel_clk,
+		      pdrv->curr_dev->dev_cfg.timing.ppc, pconf->timing.act_timing.pixel_clk,
 		      pconf->timing.enc_clk);
 	}
 
@@ -1451,7 +1451,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 	union lcd_ctrl_config_u *pctrl;
 	struct lcd_detail_timing_s *ptiming;
 
-	pconf = &pdrv->config;
+	pconf = &pdrv->curr_dev->dev_cfg;
 	pctrl = &pconf->control;
 
 	switch (buf[0]) {
@@ -1680,9 +1680,9 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 					pctrl->mlvds_cfg.clk_phase,
 					pctrl->mlvds_cfg.pn_swap,
 					pctrl->mlvds_cfg.bit_swap);
-				pdrv->config.phy_cfg.bypass_resample =
+				pdrv->curr_dev->dev_cfg.phy_cfg.bypass_resample =
 							(pctrl->mlvds_cfg.clk_phase >> 12) & 1;
-				pdrv->config.phy_cfg.act_phy->clk_phase =
+				pdrv->curr_dev->dev_cfg.phy_cfg.act_phy->clk_phase =
 							pctrl->mlvds_cfg.clk_phase & 0xfff;
 				lcd_mlvds_phy_ckdi_config(pdrv);
 				ptiming = &pconf->timing.act_timing;
@@ -1735,6 +1735,64 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 	default:
 		LCDERR("wrong command\n");
 		break;
+	}
+
+	return count;
+}
+
+static ssize_t lcd_debug_device_mgr_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+
+	lcd_device_list(pdrv);
+	return sprintf(buf, "lcd_status: 0x%x\n", pdrv->status);
+}
+
+static ssize_t lcd_debug_device_mgr_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	unsigned char set_val = 0xff;
+	char *buf_orig;
+	char **parm = NULL;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return count;
+	parm = kcalloc(4, sizeof(char *), GFP_KERNEL);
+	if (!parm) {
+		kfree(buf_orig);
+		return count;
+	}
+
+	lcd_debug_parse_param(buf_orig, parm, 4);
+
+	if (strcmp(parm[0], "list") == 0) {
+		lcd_device_list(pdrv);
+	} else if (strcmp(parm[0], "switch") == 0) {
+		if (!parm[1])
+			return count;
+		if (kstrtou8(parm[1], 10, &set_val))
+			return count;
+
+		mutex_lock(&lcd_power_mutex);
+		lcd_proc_time_clear(pdrv);
+		pdrv->status &= ~(LCD_STATE_PREPARE | LCD_STATE_POWER);
+		aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
+
+		lcd_device_config_pre_clean(pdrv);
+		lcd_device_switch(pdrv, set_val);
+		lcd_device_config_post_process(pdrv);
+		//! need assign active timing
+
+		aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
+		lcd_if_enable_retry(pdrv);
+		pdrv->status |= (LCD_STATE_PREPARE | LCD_STATE_POWER);
+
+		mutex_unlock(&lcd_power_mutex);
+
+	} else {
 	}
 
 	return count;
@@ -1908,7 +1966,7 @@ static ssize_t lcd_debug_power_step_store(struct device *dev, struct device_attr
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct lcd_power_ctrl_s *power_step;
 
-	power_step = &pdrv->config.power;
+	power_step = &pdrv->curr_dev->dev_cfg.power;
 	switch (buf[1]) {
 	case 'n': /* on */
 		ret = sscanf(buf, "on %d %d %d", &i, &tmp[0], &tmp[1]);
@@ -1971,7 +2029,7 @@ static ssize_t lcd_debug_frame_rate_show(struct device *dev, struct device_attri
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct lcd_detail_timing_s *ptiming;
 
-	ptiming = &pdrv->config.timing.act_timing;
+	ptiming = &pdrv->curr_dev->dev_cfg.timing.act_timing;
 	sync_duration = ptiming->sync_duration_num * 100;
 	sync_duration = sync_duration / ptiming->sync_duration_den;
 
@@ -1990,7 +2048,7 @@ static ssize_t lcd_debug_frame_rate_store(struct device *dev, struct device_attr
 	case 't':
 		ret = sscanf(buf, "type %d", &temp);
 		if (ret == 1) {
-			pdrv->config.timing.act_timing.fr_adjust_type = temp;
+			pdrv->curr_dev->dev_cfg.timing.act_timing.fr_adjust_type = temp;
 			pr_info("set fr_adjust_type: %d\n", temp);
 		} else {
 			pr_info("invalid data\n");
@@ -2001,7 +2059,7 @@ static ssize_t lcd_debug_frame_rate_store(struct device *dev, struct device_attr
 		ret = sscanf(buf, "set %d", &temp);
 		if (ret == 1) {
 			pr_info("set frame rate(*100): %d\n", temp);
-			pdrv->fr_adjust(pdrv, temp);
+			lcd_connector_frame_rate_adjust(pdrv, temp);
 		} else {
 			pr_info("invalid data\n");
 			return -EINVAL;
@@ -2019,7 +2077,7 @@ static ssize_t lcd_debug_fr_flag_show(struct device *dev, struct device_attribut
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "fr_auto_flag: 0x%x\n", pdrv->config.fr_auto_flag);
+	return sprintf(buf, "fr_auto_flag: 0x%x\n", pdrv->curr_dev->dev_cfg.fr_auto_flag);
 }
 
 static ssize_t lcd_debug_fr_flag_store(struct device *dev, struct device_attribute *attr,
@@ -2034,7 +2092,7 @@ static ssize_t lcd_debug_fr_flag_store(struct device *dev, struct device_attribu
 		pr_info("invalid data\n");
 		return -EINVAL;
 	}
-	pdrv->config.fr_auto_flag = temp;
+	pdrv->curr_dev->dev_cfg.fr_auto_flag = temp;
 	pr_info("set fr_auto_flag: 0x%x\n", temp);
 
 	return count;
@@ -2128,7 +2186,7 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 		ret = lcd_set_ss(pdrv, set_val, 0xff, 0xff);
 		if (ret)
 			goto lcd_ss_debug_store_err;
-		pdrv->config.timing.ss_level = set_val;
+		pdrv->curr_dev->dev_cfg.timing.ss_level = set_val;
 	} else if (strcmp(parm[0], "freq") == 0) {
 		ssc_debug_type = SSC_DEBUG_FREQ;
 		if (!parm[1])
@@ -2138,7 +2196,7 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 		ret = lcd_set_ss(pdrv, 0xff, set_val, 0xff);
 		if (ret)
 			goto lcd_ss_debug_store_err;
-		pdrv->config.timing.ss_freq = set_val;
+		pdrv->curr_dev->dev_cfg.timing.ss_freq = set_val;
 	} else if (strcmp(parm[0], "mode") == 0) {
 		ssc_debug_type = SSC_DEBUG_MODE;
 		if (!parm[1])
@@ -2148,7 +2206,7 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 		ret = lcd_set_ss(pdrv, 0xff, 0xff, set_val);
 		if (ret)
 			goto lcd_ss_debug_store_err;
-		pdrv->config.timing.ss_mode = set_val;
+		pdrv->curr_dev->dev_cfg.timing.ss_mode = set_val;
 	} else {
 		ssc_debug_type = SSC_DEBUG_UNKNOWN;
 		goto lcd_ss_debug_store_err;
@@ -2648,11 +2706,11 @@ static ssize_t lcd_debug_vlock_show(struct device *dev, struct device_attribute 
 			   "  vlock_work_mode:   %d\n"
 			   "  vlock_pll_m_limit: %d\n"
 			   "  vlock_line_limit:  %d\n",
-			   pdrv->config.vlock_param[0],
-			   pdrv->config.vlock_param[1],
-			   pdrv->config.vlock_param[2],
-			   pdrv->config.vlock_param[3],
-			   pdrv->config.vlock_param[4]);
+			   pdrv->curr_dev->dev_cfg.vlock_param[0],
+			   pdrv->curr_dev->dev_cfg.vlock_param[1],
+			   pdrv->curr_dev->dev_cfg.vlock_param[2],
+			   pdrv->curr_dev->dev_cfg.vlock_param[3],
+			   pdrv->curr_dev->dev_cfg.vlock_param[4]);
 
 	return len;
 }
@@ -2857,9 +2915,9 @@ static ssize_t lcd_debug_cus_ctrl_store(struct device *dev, struct device_attrib
 		ret = sscanf(buf, "switch %d", &temp);
 		if (ret != 1)
 			goto lcd_debug_cus_ctrl_store_err;
-		pdrv->config.timing.switch_type_dbg = (unsigned char)temp;
+		pdrv->curr_dev->dev_cfg.timing.switch_type_dbg = (unsigned char)temp;
 		LCDPR("set timing_switch_flag_dbg: %d\n",
-			pdrv->config.timing.switch_type_dbg);
+			pdrv->curr_dev->dev_cfg.timing.switch_type_dbg);
 		break;
 	default:
 		goto lcd_debug_cus_ctrl_store_err;
@@ -3109,8 +3167,9 @@ static ssize_t lcd_debug_vs_msr_show(struct device *dev, struct device_attribute
 	if (!pdrv->vs_msr || !pdrv->vs_msr_rt)
 		return sprintf(buf, "vs_msr buffer is NULL\n");
 
-	target = pdrv->config.timing.act_timing.sync_duration_num;
-	target = lcd_do_div(target * 1000000, pdrv->config.timing.act_timing.sync_duration_den);
+	target = pdrv->curr_dev->dev_cfg.timing.act_timing.sync_duration_num;
+	target = lcd_do_div(target * 1000000,
+			pdrv->curr_dev->dev_cfg.timing.act_timing.sync_duration_den);
 	switch (lcd_vs_msr_sel) {
 	case LCD_VS_MSR_DUMP:
 		for (i = 0; i < pdrv->vs_msr_cnt; i++) {
@@ -3290,7 +3349,7 @@ static ssize_t lcd_lvds_debug_show(struct device *dev, struct device_attribute *
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct lvds_config_s *lvds_conf;
 
-	lvds_conf = &pdrv->config.control.lvds_cfg;
+	lvds_conf = &pdrv->curr_dev->dev_cfg.control.lvds_cfg;
 
 	len += sprintf(buf + len, "lvds config: repack=%d, dual_port=%d,",
 		lvds_conf->lvds_repack, lvds_conf->dual_port);
@@ -3308,7 +3367,7 @@ static ssize_t lcd_lvds_debug_store(struct device *dev, struct device_attribute 
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct lvds_config_s *lvds_conf;
 
-	lvds_conf = &pdrv->config.control.lvds_cfg;
+	lvds_conf = &pdrv->curr_dev->dev_cfg.control.lvds_cfg;
 	ret = sscanf(buf, "%d %d %d %d %d",
 		     &lvds_conf->lvds_repack, &lvds_conf->dual_port,
 		     &lvds_conf->pn_swap, &lvds_conf->port_swap,
@@ -3345,7 +3404,7 @@ static ssize_t lcd_vx1_debug_show(struct device *dev, struct device_attribute *a
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct vbyone_config_s *vx1_conf;
 
-	vx1_conf = &pdrv->config.control.vbyone_cfg;
+	vx1_conf = &pdrv->curr_dev->dev_cfg.control.vbyone_cfg;
 
 	len += sprintf(buf + len, "vbyone config: lane_count=%d,", vx1_conf->lane_count);
 	len += sprintf(buf + len, "region_num=%d, byte_mode=%d\n\n",
@@ -3366,7 +3425,7 @@ static ssize_t lcd_vx1_debug_store(struct device *dev, struct device_attribute *
 
 	offset = pdrv->data->offset_venc_if[pdrv->index];
 
-	vx1_conf = &pdrv->config.control.vbyone_cfg;
+	vx1_conf = &pdrv->curr_dev->dev_cfg.control.vbyone_cfg;
 	if (buf[0] == 'i') { /* intr */
 		ret = sscanf(buf, "intr %d %d", &val[0], &val[1]);
 		if (ret == 2) {
@@ -3456,7 +3515,7 @@ static ssize_t lcd_mlvds_debug_show(struct device *dev, struct device_attribute 
 	struct mlvds_config_s *mlvds_conf;
 	int len = 0;
 
-	mlvds_conf = &pdrv->config.control.mlvds_cfg;
+	mlvds_conf = &pdrv->curr_dev->dev_cfg.control.mlvds_cfg;
 	switch (lcd_mlvds_debug_type) {
 	case MLVDS_DEBUG_PHASE:
 		len = sprintf(buf, "for_tool:0x%x\n", mlvds_conf->clk_phase);
@@ -3503,7 +3562,7 @@ static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute
 
 	lcd_debug_parse_param(buf_orig, parm, 8);
 
-	mlvds_conf = &pdrv->config.control.mlvds_cfg;
+	mlvds_conf = &pdrv->curr_dev->dev_cfg.control.mlvds_cfg;
 	if (strcmp(parm[0], "phase") == 0) {
 		lcd_mlvds_debug_type = MLVDS_DEBUG_PHASE;
 		if (!parm[1])
@@ -3511,8 +3570,8 @@ static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute
 		if (kstrtouint(parm[1], 16, &mlvds_conf->clk_phase))
 			goto lcd_mlvds_debug_store_err;
 		pr_info("set mlvds clk_phase: 0x%x\n", mlvds_conf->clk_phase);
-		pdrv->config.phy_cfg.bypass_resample = (mlvds_conf->clk_phase >> 12) & 1;
-		pdrv->config.phy_cfg.act_phy->clk_phase = mlvds_conf->clk_phase & 0xfff;
+		pdrv->curr_dev->dev_cfg.phy_cfg.bypass_resample = (mlvds_conf->clk_phase >> 12) & 1;
+		pdrv->curr_dev->dev_cfg.phy_cfg.act_phy->clk_phase = mlvds_conf->clk_phase & 0xfff;
 		lcd_mlvds_clk_phase_set(pdrv);
 	} else if (strcmp(parm[0], "help") == 0) {
 		lcd_mlvds_debug_type = MLVDS_DEBUG_HELP;
@@ -3546,8 +3605,8 @@ static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute
 			mlvds_conf->channel_sel0, mlvds_conf->channel_sel1,
 			mlvds_conf->clk_phase,
 			mlvds_conf->pn_swap, mlvds_conf->bit_swap);
-		pdrv->config.phy_cfg.bypass_resample = (mlvds_conf->clk_phase >> 12) & 1;
-		pdrv->config.phy_cfg.act_phy->clk_phase = mlvds_conf->clk_phase & 0xfff;
+		pdrv->curr_dev->dev_cfg.phy_cfg.bypass_resample = (mlvds_conf->clk_phase >> 12) & 1;
+		pdrv->curr_dev->dev_cfg.phy_cfg.act_phy->clk_phase = mlvds_conf->clk_phase & 0xfff;
 		lcd_mlvds_phy_ckdi_config(pdrv);
 		lcd_debug_config_update(pdrv);
 	}
@@ -3571,7 +3630,7 @@ static ssize_t lcd_p2p_debug_show(struct device *dev, struct device_attribute *a
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct p2p_config_s *p2p_conf;
 
-	p2p_conf = &pdrv->config.control.p2p_cfg;
+	p2p_conf = &pdrv->curr_dev->dev_cfg.control.p2p_cfg;
 
 	len += sprintf(buf + len, "p2p config: p2p_type=0x%x, lane_num=%d, ",
 		p2p_conf->p2p_type, p2p_conf->lane_num);
@@ -3591,7 +3650,7 @@ static ssize_t lcd_p2p_debug_store(struct device *dev, struct device_attribute *
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct p2p_config_s *p2p_conf;
 
-	p2p_conf = &pdrv->config.control.p2p_cfg;
+	p2p_conf = &pdrv->curr_dev->dev_cfg.control.p2p_cfg;
 	ret = sscanf(buf, "%x %d %x %x %d %d",
 		     &p2p_conf->p2p_type, &p2p_conf->lane_num,
 		     &p2p_conf->channel_sel0, &p2p_conf->channel_sel1,
@@ -3626,7 +3685,7 @@ static ssize_t lcd_rgb_debug_show(struct device *dev, struct device_attribute *a
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct rgb_config_s *rgb_conf;
 
-	rgb_conf = &pdrv->config.control.rgb_cfg;
+	rgb_conf = &pdrv->curr_dev->dev_cfg.control.rgb_cfg;
 
 	len += sprintf(buf + len,
 		"rgb config: type=%d, clk_pol=%d, de_valid=%d, sync_valid=%d,",
@@ -3647,7 +3706,7 @@ static ssize_t lcd_rgb_debug_store(struct device *dev, struct device_attribute *
 	struct rgb_config_s *rgb_conf;
 	unsigned int temp[6];
 
-	rgb_conf = &pdrv->config.control.rgb_cfg;
+	rgb_conf = &pdrv->curr_dev->dev_cfg.control.rgb_cfg;
 	ret = sscanf(buf, "%d %d %d %d %d %d",
 		     &temp[0], &temp[1], &temp[2], &temp[3], &temp[4], &temp[5]);
 	if (ret == 5) {
@@ -3675,7 +3734,7 @@ static ssize_t lcd_bt_debug_show(struct device *dev, struct device_attribute *at
 	struct bt_config_s *bt_conf;
 	int len = 0;
 
-	bt_conf = &pdrv->config.control.bt_cfg;
+	bt_conf = &pdrv->curr_dev->dev_cfg.control.bt_cfg;
 
 	len += sprintf(buf + len, "bt config: clk_phase=%d, field_type=%d, mode_422=%d,",
 		bt_conf->clk_phase, bt_conf->field_type, bt_conf->mode_422);
@@ -3693,7 +3752,7 @@ static ssize_t lcd_bt_debug_store(struct device *dev, struct device_attribute *a
 	unsigned int temp[5];
 	int ret = 0;
 
-	bt_conf = &pdrv->config.control.bt_cfg;
+	bt_conf = &pdrv->curr_dev->dev_cfg.control.bt_cfg;
 	ret = sscanf(buf, "%d %d %d %d %d", &temp[0], &temp[1], &temp[2], &temp[3], &temp[4]);
 	if (ret == 5) {
 		pr_info("set bt config:\n"
@@ -3730,7 +3789,7 @@ static ssize_t lcd_mipi_debug_show(struct device *dev, struct device_attribute *
 	int len = 0;
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	lcd_dsi_info_print(&pdrv->config);
+	lcd_dsi_info_print(&pdrv->curr_dev->dev_cfg);
 
 	len = sprintf(buf, "%s\n", lcd_mipi_debug_usage_str);
 
@@ -3745,7 +3804,7 @@ static ssize_t lcd_mipi_debug_store(struct device *dev, struct device_attribute 
 	struct dsi_config_s *dsi_conf;
 	int val[8];
 
-	dsi_conf = &pdrv->config.control.mipi_cfg;
+	dsi_conf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 	ret = sscanf(buf, "%d %d %d %d %d %d %d %d",
 		     &val[0], &val[1], &val[2], &val[3],
 		     &val[4], &val[5], &val[6], &val[7]);
@@ -3923,8 +3982,8 @@ static ssize_t lcd_mipi_state_debug_show(struct device *dev,
 	state_save = lcd_vcbus_getb(L_VCOM_VS_ADDR + offset, 12, 1);
 
 	return sprintf(buf, "state: %d, check_en: %d, state_save: %d\n",
-		pdrv->config.control.mipi_cfg.check_state,
-		pdrv->config.control.mipi_cfg.check_en,
+		pdrv->curr_dev->dev_cfg.control.mipi_cfg.check_state,
+		pdrv->curr_dev->dev_cfg.control.mipi_cfg.check_en,
 		state_save);
 }
 
@@ -4064,10 +4123,10 @@ static ssize_t lcd_phy_debug_show(struct device *dev, struct device_attribute *a
 		break;
 	case PHY_DEBUG_LCD_IF:
 		len = sprintf(buf, "for_tool:%s\n",
-			lcd_type_type_to_str(pdrv->config.basic.lcd_type));
+			lcd_type_type_to_str(pdrv->curr_dev->dev_cfg.basic.lcd_type));
 		break;
 	case PHY_DEBUG_PHY_CLK:
-		phy_clk = lcd_do_div(pdrv->config.timing.bit_rate, 1000000);
+		phy_clk = lcd_do_div(pdrv->curr_dev->dev_cfg.timing.bit_rate, 1000000);
 		len = sprintf(buf, "for_tool:%u\n", phy_clk);
 		break;
 	case PHY_DEBUG_UNKNOWN:
@@ -4088,9 +4147,9 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 				   const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	union lcd_ctrl_config_u *pctrl = &pdrv->config.control;
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
+	union lcd_ctrl_config_u *pctrl = &pdrv->curr_dev->dev_cfg.control;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
+	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
 	unsigned int para[4], set_val = 0xffffffff;
 	unsigned char op_lane = 0, op_port;
 	int i = 0;
@@ -4201,7 +4260,7 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 			lcd_lane_map_update(pdrv);
 			lcd_lane_map_set(pdrv);
 			//mlvds need set phy reg for ckdi update
-			if (pdrv->config.basic.lcd_type != LCD_MLVDS)
+			if (pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_MLVDS)
 				goto lcd_phy_debug_store_end;
 		} else {
 			if (!parm[3]) {
@@ -4312,7 +4371,7 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 			goto lcd_phy_debug_store_err;
 		if (kstrtou32(parm[1], 16, &para[1]))
 			goto lcd_phy_debug_store_err;
-		switch (pdrv->config.basic.lcd_type) {
+		switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 		case LCD_LVDS:
 			pctrl->lvds_cfg.phy_vswing = para[0];
 			pctrl->lvds_cfg.phy_preem = para[1];
@@ -4335,8 +4394,10 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 		phy_cfg->vswing_level = para[0] & 0xf;
 		phy_cfg->ext_pullup = (para[0] >> 4) & 0x3;
 		phy_cfg->preem_level = para[1];
-		phy->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
-		para[2] = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		phy->vswing = lcd_phy_vswing_level_to_value(pdrv, pdrv->curr_dev,
+								phy_cfg->vswing_level);
+		para[2] = lcd_phy_preem_level_to_value(pdrv, pdrv->curr_dev,
+								phy_cfg->preem_level);
 		for (i = 0; i < phy_cfg->lane_num; i++)
 			phy->lane[i].preem = para[2];
 		pr_info("LCD PHY set: global Vswing_level=0x%02x, PreEm_level=0x%02x\n",
@@ -4363,6 +4424,7 @@ lcd_phy_debug_store_err:
 static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(help,        0444, lcd_debug_common_help, NULL),
 	__ATTR(debug,       0644, lcd_debug_show, lcd_debug_store),
+	__ATTR(device_mgr,  0644, lcd_debug_device_mgr_show, lcd_debug_device_mgr_store),
 	__ATTR(change,      0644, lcd_debug_change_show, lcd_debug_change_store),
 	__ATTR(enable,      0644, lcd_debug_enable_show, lcd_debug_enable_store),
 	__ATTR(resume_type, 0644, lcd_debug_resume_show, lcd_debug_resume_store),
@@ -4455,23 +4517,29 @@ static struct device_attribute lcd_debug_attrs_p2p[] = {
 };
 #endif
 
-static int lcd_debug_file_op(struct aml_lcd_drv_s *pdrv, unsigned char en)
+static int lcd_debug_file_op_basic(struct aml_lcd_drv_s *pdrv, unsigned char en)
 {
-	struct device_attribute *lcd_attr;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(lcd_debug_attrs); i++) {
 		if (en)	{
 			if (device_create_file(pdrv->dev, &lcd_debug_attrs[i])) {
-				LCDERR("create lcd debug attribute %s fail\n",
-				lcd_debug_attrs[i].attr.name);
+				LCD_ERR(pdrv, "create lcd debug attribute %s fail",
+					lcd_debug_attrs[i].attr.name);
 			}
 		} else {
 			device_remove_file(pdrv->dev, &lcd_debug_attrs[i]);
 		}
 	}
 
-	switch (pdrv->config.basic.lcd_type) {
+	return 0;
+}
+
+static int lcd_debug_file_op_interface(struct aml_lcd_drv_s *pdrv, unsigned char en)
+{
+	struct device_attribute *lcd_attr;
+
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_RGB:
 		lcd_attr = lcd_debug_attrs_rgb;
 		break;
@@ -4510,7 +4578,7 @@ static int lcd_debug_file_op(struct aml_lcd_drv_s *pdrv, unsigned char en)
 
 		if (en) {
 			if (device_create_file(pdrv->dev, lcd_attr)) {
-				LCDERR("create interface debug attribute %s fail\n",
+				LCD_ERR(pdrv, "create interface debug attribute %s fail",
 					lcd_attr->attr.name);
 			}
 		} else {
@@ -4801,8 +4869,19 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 		lcd_debug_info = NULL;
 		return -1;
 	}
+	pdrv->debug_info = (void *)lcd_debug_info;
 
-	switch (pdrv->config.basic.lcd_type) {
+	return lcd_debug_file_op_basic(pdrv, 1);
+}
+
+int lcd_debug_init_connector(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_debug_info_s *lcd_debug_info = pdrv->debug_info;
+
+	if (!lcd_debug_info)
+		return -1;
+
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_LVDS:
 		lcd_debug_info->interface_print = lcd_info_print_lvds;
 		lcd_debug_info->reg_dump_interface = lcd_debug_info->reg_dump_lvds;
@@ -4835,12 +4914,15 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
-	pdrv->debug_info = (void *)lcd_debug_info;
-
-	return lcd_debug_file_op(pdrv, 1);
+	return lcd_debug_file_op_interface(pdrv, 1);
 }
 
-int lcd_debug_remove(struct aml_lcd_drv_s *pdrv)
+int lcd_debug_remove_basic(struct aml_lcd_drv_s *pdrv)
 {
-	return lcd_debug_file_op(pdrv, 0);
+	return lcd_debug_file_op_basic(pdrv, 0);
+}
+
+int lcd_debug_remove_connector(struct aml_lcd_drv_s *pdrv)
+{
+	return lcd_debug_file_op_interface(pdrv, 0);
 }

@@ -61,12 +61,11 @@ static int lcd_lane_vbyone_ch_data_map(struct aml_lcd_drv_s *pdrv, unsigned char
 	int ch_idx, slice_idx, i;
 
 	//generate ch slice data map table
-	lane_cnt = pdrv->config.control.vbyone_cfg.lane_count;
-	slice_cnt = pdrv->config.control.vbyone_cfg.slice;
+	lane_cnt = pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count;
+	slice_cnt = pdrv->curr_dev->dev_cfg.control.vbyone_cfg.slice;
 	lane_pre_slice = (lane_cnt + slice_cnt - 1) / slice_cnt;
 	if (lane_cnt >= CH_LANE_MAX) {
-		LCDERR("[%d]: %s: vbyone lane_cnt %d err\n",
-			pdrv->index, __func__, lane_cnt);
+		LCD_ERR(pdrv, "%s: vbyone lane_cnt %d err", __func__, lane_cnt);
 		return -1;
 	}
 
@@ -74,8 +73,8 @@ static int lcd_lane_vbyone_ch_data_map(struct aml_lcd_drv_s *pdrv, unsigned char
 		slice_idx = i / lane_pre_slice;
 		ch_idx = i % lane_pre_slice;
 		if (slice_idx >= 2 || ch_idx >= 8) {
-			LCDERR("[%d]: %s: slice_idx %d or ch_idx %d err\n",
-				pdrv->index, __func__, slice_idx, ch_idx);
+			LCD_ERR(pdrv, "%s: slice_idx %d or ch_idx %d err",
+				__func__, slice_idx, ch_idx);
 			return -1;
 		}
 		data_map[i] = ch_slice[slice_idx][ch_idx];
@@ -95,7 +94,7 @@ static void lcd_lane_sel_to_ch_swap(struct aml_lcd_drv_s *pdrv, struct phy_confi
 
 	phy_cfg->ch_swap0 = 0xffffffff;
 	phy_cfg->ch_swap1 = 0xffffffff;
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_VBYONE:
 		ret = lcd_lane_vbyone_ch_data_map(pdrv, data_map);
 		if (ret)
@@ -141,11 +140,8 @@ static void lcd_lane_sel_to_ch_swap(struct aml_lcd_drv_s *pdrv, struct phy_confi
 	}
 
 	phy_cfg->lane_valid = (valid_flag & phy_cfg->lane_mask) << phy_cfg->lane_offset;
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: lane_num:%d, ch_swap:0x%08x,0x%08x, lane_valid:0x%x\n",
-			pdrv->index, __func__, phy_cfg->lane_num,
-			phy_cfg->ch_swap0, phy_cfg->ch_swap1, phy_cfg->lane_valid);
-	}
+	LCD_DBG(pdrv, "%s: lane_num:%d, ch_swap:0x%08x,0x%08x, lane_valid:0x%x", __func__,
+		phy_cfg->lane_num, phy_cfg->ch_swap0, phy_cfg->ch_swap1, phy_cfg->lane_valid);
 }
 
 static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg)
@@ -155,7 +151,7 @@ static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv, struct phy_confi
 	unsigned int i, j, bit;
 	int ret;
 
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_VBYONE:
 		ret = lcd_lane_vbyone_ch_data_map(pdrv, data_map);
 		if (ret)
@@ -200,22 +196,18 @@ static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv, struct phy_confi
 	}
 
 	phy_cfg->lane_valid = (valid_flag & phy_cfg->lane_mask) << phy_cfg->lane_offset;
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: lane_num:%d, ch_swap:0x%08x,0x%08x, lane_valid:0x%x\n",
-			pdrv->index, __func__, phy_cfg->lane_num,
-			phy_cfg->ch_swap0, phy_cfg->ch_swap1, phy_cfg->lane_valid);
-	}
+	LCD_DBG(pdrv, "%s: lane_num:%d, ch_swap:0x%08x,0x%08x, lane_valid:0x%x", __func__,
+		phy_cfg->lane_num, phy_cfg->ch_swap0, phy_cfg->ch_swap1, phy_cfg->lane_valid);
 }
 
 static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, unsigned int *map1)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 	unsigned char ch_reg_idx = 0, lcd_bits, temp, i, n;
 	unsigned char valid_port0_s = 0xf, valid_port0_e = 0xf;
 	unsigned char valid_port1_s = 0xf, valid_port1_e = 0xf;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	// 12-12 channel:
 	// d0_a:0 d1_a:1 d2_a:2 clk_a:3 d3_a:4 d4_a:5 d0_b:6 d1_b:7 d2_b:8 clk_b:9 d3_b:a d4_b:b
@@ -258,9 +250,9 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 					     0x01234567, 0x89abcdef,   // 0, 1
 					     0x76543210, 0xfedcba98};  // 0, 0
 
-	ch_reg_idx  = pdrv->config.control.lvds_cfg.port_swap ? 0 : 4;
-	ch_reg_idx += pdrv->config.control.lvds_cfg.lane_reverse ? 0 : 2;
-	lcd_bits = pdrv->config.timing.base_timing->lcd_bits;
+	ch_reg_idx  = pdrv->curr_dev->dev_cfg.control.lvds_cfg.port_swap ? 0 : 4;
+	ch_reg_idx += pdrv->curr_dev->dev_cfg.control.lvds_cfg.lane_reverse ? 0 : 2;
+	lcd_bits = pdrv->curr_dev->dev_cfg.timing.base_timing->lcd_bits;
 	if (lcd_bits == 30) {
 		valid_port0_s = 0;
 		valid_port0_e = 5;
@@ -295,7 +287,7 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 		break;
 	case LCD_CHIP_T7:
 		//don't support port_swap and lane_reverse when single port
-		if (pdrv->index == 2 && pdrv->config.control.lvds_cfg.dual_port) {
+		if (pdrv->index == 2 && pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port) {
 			*map0 = ch_map_6_to_5lane[ch_reg_idx];
 			*map1 = ch_map_6_to_5lane[ch_reg_idx + 1];
 		} else if (pdrv->index == 1) {
@@ -336,7 +328,7 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 			temp = (*map0 >> n) & 0xf;
 			if (temp >= valid_port0_s && temp <= valid_port0_e)
 				continue; //port0 valid lane
-			if (pdrv->config.control.lvds_cfg.dual_port &&
+			if (pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port &&
 			    (temp >= valid_port1_s && temp <= valid_port1_e)) {
 				continue; //port1 valid lane
 			}
@@ -348,7 +340,7 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 			temp = (*map1 >> n) & 0xf;
 			if (temp >= valid_port0_s && temp <= valid_port0_e)
 				continue; //port0 valid lane
-			if (pdrv->config.control.lvds_cfg.dual_port &&
+			if (pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port &&
 			    (temp >= valid_port1_s && temp <= valid_port1_e)) {
 				continue; //port1 valid lane
 			}
@@ -359,7 +351,7 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 
 void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 	unsigned int clk_a_sel, clk_b_sel, pi_clk_sel = 0;
 	int i;
 
@@ -406,34 +398,33 @@ void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv)
 	}
 
 	phy_cfg->ckdi = pi_clk_sel;
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: mlvds ckdi=0x%03x\n", pdrv->index, phy_cfg->ckdi);
+	LCD_DBG(pdrv, "mlvds ckdi=0x%03x", phy_cfg->ckdi);
 }
 
 void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 	unsigned int lane_map0 = 0xffffffff, lane_map1 = 0xffffffff;
 	unsigned int bit, sel;
 	int i;
 
 	lcd_lane_map_chip_init(pdrv, phy_cfg);
 
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_LVDS:
 		lcd_lvds_lane_swap(pdrv, &lane_map0, &lane_map1);
 		break;
 	case LCD_VBYONE:
-		if (pdrv->config.control.vbyone_cfg.lane_count == 1) {
+		if (pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 1) {
 			lane_map0 = 0xfffffff0;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->config.control.vbyone_cfg.lane_count == 2) {
+		} else if (pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 2) {
 			lane_map0 = 0xffffff10;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->config.control.vbyone_cfg.lane_count == 4) {
+		} else if (pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 4) {
 			lane_map0 = 0xffff3210;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->config.control.vbyone_cfg.lane_count == 16) {
+		} else if (pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 16) {
 			lane_map0 = 0x76543210;
 			lane_map1 = 0xfedcba98;
 		} else { //8lane
@@ -442,28 +433,28 @@ void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
 		}
 		break;
 	case LCD_MLVDS:
-		lane_map0 = pdrv->config.control.mlvds_cfg.channel_sel0;
-		lane_map1 = pdrv->config.control.mlvds_cfg.channel_sel1;
+		lane_map0 = pdrv->curr_dev->dev_cfg.control.mlvds_cfg.channel_sel0;
+		lane_map1 = pdrv->curr_dev->dev_cfg.control.mlvds_cfg.channel_sel1;
 		break;
 	case LCD_P2P:
-		lane_map0 = pdrv->config.control.p2p_cfg.channel_sel0;
-		lane_map1 = pdrv->config.control.p2p_cfg.channel_sel1;
+		lane_map0 = pdrv->curr_dev->dev_cfg.control.p2p_cfg.channel_sel0;
+		lane_map1 = pdrv->curr_dev->dev_cfg.control.p2p_cfg.channel_sel1;
 		break;
 	case LCD_MIPI:
-		if (pdrv->config.control.mipi_cfg.lane_num == 1) {
+		if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 1) {
 			lane_map0 = 0xfffff2f0;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->config.control.mipi_cfg.lane_num == 2) {
+		} else if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 2) {
 			lane_map0 = 0xfffff210;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->config.control.mipi_cfg.lane_num == 3) {
+		} else if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 3) {
 			lane_map0 = 0xffff3210;
 			lane_map1 = 0xffffffff;
 		} else {
 			lane_map0 = 0xfff43210;
 			lane_map1 = 0xffffffff;
 		}
-		if (pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0))
+		if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0))
 			lane_map1 = lane_map0;
 		break;
 	default:
@@ -479,8 +470,8 @@ void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
 			sel = (lane_map1 >> bit) & 0xf;
 		}
 
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE &&
-		    pdrv->config.control.vbyone_cfg.lane_count == 16) {
+		if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE &&
+		    pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 16) {
 			phy_cfg->ch_ctrl[i].sel = sel;
 		} else {
 			if (sel == 0xf)
@@ -491,16 +482,16 @@ void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
 	}
 
 	lcd_lane_sel_to_ch_swap(pdrv, phy_cfg);
-	if (pdrv->config.basic.lcd_type == LCD_MLVDS)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS)
 		lcd_mlvds_phy_ckdi_config(pdrv);
 }
 
 void lcd_lane_map_update(struct aml_lcd_drv_s *pdrv)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	lcd_lane_sel_to_ch_swap(pdrv, phy_cfg);
-	if (pdrv->config.basic.lcd_type == LCD_MLVDS)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS)
 		lcd_mlvds_phy_ckdi_config(pdrv);
 }
 
@@ -528,8 +519,8 @@ int lcd_lane_sel_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg)
 		phy_cfg->ch_swap1 = lcd_vcbus_read(P2P_CH_SWAP1_T7 + offset);
 		break;
 	case LCD_CHIP_T3X: /* reg P2P_CH_SWAP can't readback, just use phy_cfg value */
-		phy_cfg->ch_swap0 = pdrv->config.phy_cfg.ch_swap0;
-		phy_cfg->ch_swap1 = pdrv->config.phy_cfg.ch_swap1;
+		phy_cfg->ch_swap0 = pdrv->curr_dev->dev_cfg.phy_cfg.ch_swap0;
+		phy_cfg->ch_swap1 = pdrv->curr_dev->dev_cfg.phy_cfg.ch_swap1;
 		break;
 	default:
 		break;
@@ -544,8 +535,8 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 	unsigned int offset, channel_sel0, channel_sel1;
 
 	offset = pdrv->data->offset_venc_if[pdrv->index];
-	channel_sel0 = pdrv->config.phy_cfg.ch_swap0;
-	channel_sel1 = pdrv->config.phy_cfg.ch_swap1;
+	channel_sel0 = pdrv->curr_dev->dev_cfg.phy_cfg.ch_swap0;
+	channel_sel1 = pdrv->curr_dev->dev_cfg.phy_cfg.ch_swap1;
 
 	// lane_swap_set
 	switch (pdrv->data->chip_type) {
@@ -557,14 +548,16 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_CHIP_T7: /* when MIPI-DSI using dual-port, swap B to venc1 */
 		offset = pdrv->data->offset_venc_if[pdrv->index];
-		lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, pdrv->config.phy_cfg.ch_swap0);
-		lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, pdrv->config.phy_cfg.ch_swap1);
+		lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, pdrv->curr_dev->dev_cfg.phy_cfg.ch_swap0);
+		lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, pdrv->curr_dev->dev_cfg.phy_cfg.ch_swap1);
 
-		if (pdrv->config.basic.lcd_type == LCD_MIPI &&
-		    pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0)) {
+		if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MIPI &&
+		    pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0)) {
 			offset = pdrv->data->offset_venc_if[1];
-			lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, pdrv->config.phy_cfg.ch_swap0);
-			lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, pdrv->config.phy_cfg.ch_swap1);
+			lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset,
+						pdrv->curr_dev->dev_cfg.phy_cfg.ch_swap0);
+			lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset,
+						pdrv->curr_dev->dev_cfg.phy_cfg.ch_swap1);
 		}
 		break;
 	case LCD_CHIP_T5W:
@@ -577,8 +570,8 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 	case LCD_CHIP_T3X: /* reg P2P_CH_SWAP can't readback, so print value when write reg */
 		lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, channel_sel1);
-		LCDPR("[%d]: %s: P2P_CH_SWAP0=0x%x, P2P_CH_SWAP1=0x%x\n",
-			pdrv->index, __func__, channel_sel0, channel_sel1);
+		LCD_PR(pdrv, "%s: P2P_CH_SWAP0=0x%x, P2P_CH_SWAP1=0x%x",
+			__func__, channel_sel0, channel_sel1);
 		break;
 	default:
 		break;
@@ -587,8 +580,7 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 
 void lcd_mipi_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 {
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
@@ -596,7 +588,7 @@ void lcd_mipi_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 			break;
 
 		if (pdrv->index == 0) {
-			if (pdrv->config.control.mipi_cfg.multi_port_cfg & BIT(0)) {
+			if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0)) {
 				//Bit 5: reg_phy1_pll_sel
 				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 0x1, 5, 1);
 				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x0, 16, 10);
@@ -606,7 +598,7 @@ void lcd_mipi_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 		} else if (pdrv->index == 1) {
 			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x0, 16, 10);
 		} else {
-			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
+			LCD_ERR(pdrv, "%s: invalid drv_index", __func__);
 			return;
 		}
 		lcd_lane_map_set(pdrv);
@@ -630,8 +622,8 @@ void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 	unsigned int val_lane_sel = 0, len_lane_sel = 0;
 	unsigned int dual_port, phy_div;
 
-	phy_div = pdrv->config.control.lvds_cfg.dual_port ? 2 : 1;
-	dual_port = pdrv->config.control.lvds_cfg.dual_port & 0x1;
+	phy_div = pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port ? 2 : 1;
+	dual_port = pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port & 0x1;
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
@@ -815,17 +807,16 @@ void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 	unsigned int bit_data_in_lvds = 0, bit_data_in_edp = 0, bit_lane_sel = 0;
 	unsigned int bit_fifo_clk = 0, cntl_ser_mask = 0, cntl_ser_bit = 0;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
-	phy_div = pdrv->config.control.vbyone_cfg.phy_div;
-	lane_num = pdrv->config.control.vbyone_cfg.lane_count;
+	phy_div = pdrv->curr_dev->dev_cfg.control.vbyone_cfg.phy_div;
+	lane_num = pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count;
 
-	if (pdrv->config.timing.act_timing.lcd_bits == 18)
+	if (pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits == 18)
 		div_sel = 0;
-	else if (pdrv->config.timing.act_timing.lcd_bits == 24)
+	else if (pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits == 24)
 		div_sel = 2;
-	else // pdrv->config.timing.act_timing.lcd_bits == 30
+	else // pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits == 30
 		div_sel = 3;
 
 	switch (pdrv->data->chip_type) {
@@ -978,11 +969,10 @@ void lcd_mlvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 {
 	unsigned int div_sel;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	/* phy_div: 0=div6, 1=div 7, 2=div8, 3=div10 */
-	if (pdrv->config.timing.act_timing.lcd_bits == 18)
+	if (pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits == 18)
 		div_sel = 0;
 	else // lcd_bits == 24
 		div_sel = 2;
@@ -1075,11 +1065,10 @@ void lcd_p2p_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 {
 	unsigned int p2p_type, phy_div, bit_data_in_lvds, bit_data_in_edp;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s", __func__);
 
 	/* phy_div: 0=div6, 1=div 7, 2=div8, 3=div10 */
-	p2p_type = pdrv->config.control.p2p_cfg.p2p_type & 0x1f;
+	p2p_type = pdrv->curr_dev->dev_cfg.control.p2p_cfg.p2p_type & 0x1f;
 	switch (p2p_type) {
 	case P2P_CHPI: /* 8/10 coding */
 	case P2P_USIT:
@@ -1125,7 +1114,7 @@ void lcd_p2p_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 			 * sel dphy lane.
 			 * For lane8~15 sel [1]: mux to phy0 lane8~15, [2]: mux to phy1 lane0~7
 			 */
-			if (pdrv->config.control.p2p_cfg.lane_num > 8)
+			if (pdrv->curr_dev->dev_cfg.control.p2p_cfg.lane_num > 8)
 				lcd_combo_dphy_write(pdrv, COMBO_DPHY_CNTL1, 0x55555555);
 			else
 				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x5555, 0, 16);

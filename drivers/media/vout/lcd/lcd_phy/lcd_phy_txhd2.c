@@ -90,7 +90,7 @@ static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv,
 
 static void lcd_phy_common_update(struct aml_lcd_drv_s *pdrv, unsigned int cntl14)
 {
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
+	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
 
 	/* vswing */
 	cntl14 &= ~(0xf << 12);
@@ -111,9 +111,9 @@ static void lcd_phy_cntl_lvds_set(struct aml_lcd_drv_s *pdrv, unsigned int statu
 {
 	unsigned int chreg = 0, chdig = 0;
 	unsigned int i, bit, reg_data, dig_data;
-	unsigned char is_mlvds = pdrv->config.basic.lcd_type == LCD_MLVDS;
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	unsigned char is_mlvds = pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS;
+	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s: %d, ckdi:0x%x\n", __func__, status, phy_cfg->ckdi);
@@ -182,7 +182,7 @@ static void lcd_mlvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 	unsigned char bit, i;
 
 	if (status) {
@@ -204,7 +204,8 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	lcd_combo_dphy_write(pdrv, COMBO_DPHY_CNTL0_TXHD2, status ? 0x0 : 0xaaaaa);
 }
 
-static unsigned int lcd_phy_preem_level_to_val_txhd2(struct aml_lcd_drv_s *pdrv, unsigned int level)
+static unsigned int lcd_phy_preem_level_to_val_txhd2(struct aml_lcd_drv_s *pdrv,
+			struct aml_lcd_device_s *dev_p, unsigned int level)
 {
 	unsigned int preem_value = 0;
 
@@ -213,7 +214,8 @@ static unsigned int lcd_phy_preem_level_to_val_txhd2(struct aml_lcd_drv_s *pdrv,
 	return preem_value;
 }
 
-static unsigned int lcd_phy_amp_dft_txhd2(struct aml_lcd_drv_s *pdrv)
+static unsigned int lcd_phy_amp_dft_txhd2(struct aml_lcd_drv_s *pdrv,
+					struct aml_lcd_device_s *dev_p)
 {
 	unsigned int amp_value = 0;
 
@@ -222,9 +224,9 @@ static unsigned int lcd_phy_amp_dft_txhd2(struct aml_lcd_drv_s *pdrv)
 	return amp_value;
 }
 
-static void lcd_phy_glb_param_dft_txhd2(struct aml_lcd_drv_s *pdrv)
+static void lcd_phy_glb_param_dft_txhd2(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
-	struct phy_attr_s *phy = pdrv->config.phy_cfg.act_phy;
+	struct phy_attr_s *phy = dev_p->dev_cfg.phy_cfg.act_phy;
 
 	phy->cv_mode = 0;
 	phy->ref_bias = 0;

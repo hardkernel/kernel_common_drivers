@@ -465,7 +465,7 @@ int lcd_extern_cmd_multi_id(struct lcd_extern_driver_s *edrv, struct lcd_extern_
 	if (!pdrv)
 		return -1;
 
-	frame_rate = pdrv->config.timing.act_timing.frame_rate;
+	frame_rate = pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate;
 
 	temp_list = edev->multi_list_header;
 	while (temp_list) {

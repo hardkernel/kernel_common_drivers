@@ -15,7 +15,7 @@ void lcd_rgb_control_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 
 void lcd_bt_control_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int field_type, mode_422, yc_swap, cbcr_swap;
 
 	field_type = pconf->control.bt_cfg.field_type;

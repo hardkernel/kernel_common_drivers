@@ -101,8 +101,7 @@ int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
 	int i = 0;
 
 	if (!pdrv->data || !pdrv->data->reg_map_table) {
-		LCDERR("[%d]: %s: reg_map table is null\n",
-		       pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: reg_map table is null", __func__);
 		return -1;
 	}
 	table = pdrv->data->reg_map_table;
@@ -110,7 +109,8 @@ int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
 	reg_map = kcalloc(LCD_MAP_MAX, sizeof(struct lcd_reg_map_s), GFP_KERNEL);
 	if (!reg_map)
 		return -1;
-	pdrv->reg_map = reg_map;
+	// pdrv->reg_map = reg_map;
+	pdrv->drv_res.reg_map = reg_map;
 
 	spin_lock_init(&lcd_reg_spinlock);
 
@@ -120,8 +120,7 @@ int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {
-			LCDERR("[%d]: %s: get resource %d error\n",
-			       pdrv->index, __func__, i);
+			LCD_ERR(pdrv, "%s: get resource %d error", __func__, i);
 			goto lcd_ioremap_err;
 		}
 
@@ -133,41 +132,35 @@ int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
 		reg_map[table[i]].p = devm_ioremap(&pdev->dev, res->start, reg_map[table[i]].size);
 		if (!reg_map[table[i]].p) {
 			reg_map[table[i]].flag = 0;
-			LCDERR("[%d]: %s: reg %d failed: 0x%x 0x%x\n",
-			       pdrv->index, __func__, i,
-			       reg_map[table[i]].base_addr,
-			       reg_map[table[i]].size);
+			LCD_ERR(pdrv, "%s: reg %d failed: 0x%x 0x%x", __func__, i,
+			       reg_map[table[i]].base_addr, reg_map[table[i]].size);
 			goto lcd_ioremap_err;
 		}
 		reg_map[table[i]].flag = 1;
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("[%d]: %s: reg %d: 0x%x -> 0x%px, size: 0x%x\n",
-			      pdrv->index, __func__, i,
-			      reg_map[table[i]].base_addr,
-			      reg_map[table[i]].p,
-			      reg_map[table[i]].size);
-		}
+		LCD_DBG(pdrv, "%s: reg %d: 0x%x -> 0x%px, size: 0x%x", __func__, i,
+			reg_map[table[i]].base_addr, reg_map[table[i]].p, reg_map[table[i]].size);
+
 	}
 
 	return 0;
 
 lcd_ioremap_err:
 	kfree(reg_map);
-	pdrv->reg_map = NULL;
+	pdrv->drv_res.reg_map = NULL;
 	return -1;
 }
 
 static int check_lcd_ioremap(struct aml_lcd_drv_s *pdrv, unsigned int n)
 {
-	if (!pdrv->reg_map) {
-		LCDERR("[%d]: %s: reg_map is null\n", pdrv->index, __func__);
+	if (!pdrv->drv_res.reg_map) {
+		LCD_ERR(pdrv, "%s: reg_map is null", __func__);
 		return -1;
 	}
 	if (n >= LCD_MAP_MAX)
 		return -1;
-	if (pdrv->reg_map[n].flag == 0) {
-		LCDERR("[%d]: %s: reg 0x%x mapped error\n",
-		       pdrv->index, __func__, pdrv->reg_map[n].base_addr);
+	if (pdrv->drv_res.reg_map[n].flag == 0) {
+		LCD_ERR(pdrv, "%s: reg 0x%x mapped error",
+			__func__, pdrv->drv_res.reg_map[n].base_addr);
 		return -1;
 	}
 	return 0;
@@ -186,12 +179,11 @@ static inline void __iomem *check_lcd_periphs_reg(struct aml_lcd_drv_s *pdrv,
 
 	reg_offset = LCD_REG_OFFSET(reg);
 
-	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
-		LCDERR("[%d]: invalid periphs reg offset: 0x%04x\n",
-		       pdrv->index, reg);
+	if (reg_offset >= pdrv->drv_res.reg_map[reg_bus].size) {
+		LCD_ERR(pdrv, "invalid periphs reg offset: 0x%04x", reg);
 		return NULL;
 	}
-	p = pdrv->reg_map[reg_bus].p + reg_offset;
+	p = pdrv->drv_res.reg_map[reg_bus].p + reg_offset;
 	return p;
 }
 
@@ -210,12 +202,11 @@ static inline void __iomem *check_lcd_dsi_host_reg(struct aml_lcd_drv_s *pdrv, u
 		return NULL;
 
 	reg_offset = LCD_REG_OFFSET(reg);
-	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
-		LCDERR("[%d]: invalid dsi_host reg offset: 0x%04x\n",
-		       pdrv->index, reg);
+	if (reg_offset >= pdrv->drv_res.reg_map[reg_bus].size) {
+		LCD_ERR(pdrv, "invalid dsi_host reg offset: 0x%04x", reg);
 		return NULL;
 	}
-	p = pdrv->reg_map[reg_bus].p + reg_offset;
+	p = pdrv->drv_res.reg_map[reg_bus].p + reg_offset;
 	return p;
 }
 
@@ -234,12 +225,11 @@ static inline void __iomem *check_lcd_dsi_phy_reg(struct aml_lcd_drv_s *pdrv, u8
 		return NULL;
 
 	reg_offset = LCD_REG_OFFSET(reg);
-	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
-		LCDERR("[%d]: invalid dsi_phy reg offset: 0x%04x\n",
-		       pdrv->index, reg);
+	if (reg_offset >= pdrv->drv_res.reg_map[reg_bus].size) {
+		LCD_ERR(pdrv, "invalid dsi_phy reg offset: 0x%04x", reg);
 		return NULL;
 	}
-	p = pdrv->reg_map[reg_bus].p + reg_offset;
+	p = pdrv->drv_res.reg_map[reg_bus].p + reg_offset;
 	return p;
 }
 
@@ -255,12 +245,11 @@ static inline void __iomem *check_lcd_tcon_reg(struct aml_lcd_drv_s *pdrv,
 		return NULL;
 
 	reg_offset = LCD_REG_OFFSET(reg);
-	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
-		LCDERR("[%d]: invalid tcon reg offset: 0x%04x\n",
-		       pdrv->index, reg);
+	if (reg_offset >= pdrv->drv_res.reg_map[reg_bus].size) {
+		LCD_ERR(pdrv, "invalid tcon reg offset: 0x%04x", reg);
 		return NULL;
 	}
-	p = pdrv->reg_map[reg_bus].p + reg_offset;
+	p = pdrv->drv_res.reg_map[reg_bus].p + reg_offset;
 	return p;
 }
 
@@ -276,12 +265,11 @@ static inline void __iomem *check_lcd_tcon_reg_byte(struct aml_lcd_drv_s *pdrv,
 		return NULL;
 
 	reg_offset = LCD_REG_OFFSET_BYTE(reg);
-	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
-		LCDERR("[%d]: invalid tcon reg offset: 0x%04x\n",
-		       pdrv->index, reg);
+	if (reg_offset >= pdrv->drv_res.reg_map[reg_bus].size) {
+		LCD_ERR(pdrv, "invalid tcon reg offset: 0x%04x", reg);
 		return NULL;
 	}
-	p = pdrv->reg_map[reg_bus].p + reg_offset;
+	p = pdrv->drv_res.reg_map[reg_bus].p + reg_offset;
 	return p;
 }
 
@@ -298,12 +286,11 @@ static inline void __iomem *check_lcd_combo_dphy_reg(struct aml_lcd_drv_s *pdrv,
 
 	reg_offset = LCD_REG_OFFSET(reg);
 
-	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
-		LCDERR("[%d]: invalid combo dphy reg offset: 0x%04x\n",
-		       pdrv->index, reg);
+	if (reg_offset >= pdrv->drv_res.reg_map[reg_bus].size) {
+		LCD_ERR(pdrv, "invalid combo dphy reg offset: 0x%04x", reg);
 		return NULL;
 	}
-	p = pdrv->reg_map[reg_bus].p + reg_offset;
+	p = pdrv->drv_res.reg_map[reg_bus].p + reg_offset;
 	return p;
 }
 
@@ -320,12 +307,11 @@ static inline void __iomem *check_lcd_reset_reg(struct aml_lcd_drv_s *pdrv,
 
 	reg_offset = LCD_REG_OFFSET(reg);
 
-	if (reg_offset >= pdrv->reg_map[reg_bus].size) {
-		LCDERR("[%d]: invalid reset reg offset: 0x%04x\n",
-		       pdrv->index, reg);
+	if (reg_offset >= pdrv->drv_res.reg_map[reg_bus].size) {
+		LCD_ERR(pdrv, "invalid reset reg offset: 0x%04x", reg);
 		return NULL;
 	}
-	p = pdrv->reg_map[reg_bus].p + reg_offset;
+	p = pdrv->drv_res.reg_map[reg_bus].p + reg_offset;
 	return p;
 }
 

@@ -35,7 +35,7 @@
 
 static int lcd_type_supported(struct aml_lcd_drv_s *pdrv)
 {
-	int lcd_type = pdrv->config.basic.lcd_type;
+	int lcd_type = pdrv->curr_dev->dev_cfg.basic.lcd_type;
 	int ret = -1;
 
 	switch (lcd_type) {
@@ -71,8 +71,8 @@ static int lcd_type_supported(struct aml_lcd_drv_s *pdrv)
 
 void lcd_connector_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 {
-	LCDPR("[%d]: connector driver init(ver %s): %s\n", pdrv->index, LCD_DRV_VERSION,
-	      lcd_type_type_to_str(pdrv->config.basic.lcd_type));
+	LCD_PR(pdrv, "connector driver init(ver %s): %s", LCD_DRV_VERSION,
+	      lcd_type_type_to_str(pdrv->curr_dev->dev_cfg.basic.lcd_type));
 
 	if (lcd_type_supported(pdrv))
 		return;
@@ -86,7 +86,7 @@ void lcd_connector_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 	lcd_clk_gate_switch(pdrv, 1);
 
 	/* init driver */
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	case LCD_VBYONE:
 		lcd_vbyone_interrupt_enable(pdrv, 0);
@@ -99,8 +99,7 @@ void lcd_connector_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 	lcd_set_clk(pdrv);
 	lcd_set_venc(pdrv);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s finished\n", __func__);
 }
 
 void lcd_connector_driver_disable_post(struct aml_lcd_drv_s *pdrv)
@@ -114,8 +113,7 @@ void lcd_connector_driver_disable_post(struct aml_lcd_drv_s *pdrv)
 	vpu_dev_clk_release(pdrv->lcd_vpu_dev);
 #endif
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s finished", __func__);
 }
 
 void lcd_connector_driver_change(struct aml_lcd_drv_s *pdrv)
@@ -127,16 +125,15 @@ void lcd_connector_driver_change(struct aml_lcd_drv_s *pdrv)
 
 	local_time[0] = sched_clock();
 
-	LCDPR("[%d]: connector driver change(ver %s): %s\n",
-	      pdrv->index, LCD_DRV_VERSION,
-	      lcd_type_type_to_str(pdrv->config.basic.lcd_type));
+	LCD_PR(pdrv, "connector driver change(ver %s): %s", LCD_DRV_VERSION,
+	      lcd_type_type_to_str(pdrv->curr_dev->dev_cfg.basic.lcd_type));
 
 	if (lcd_type_supported(pdrv))
 		return;
 
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+		if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE)
 			lcd_vbyone_interrupt_enable(pdrv, 0);
 #endif
 	}
@@ -148,15 +145,14 @@ void lcd_connector_driver_change(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
+		if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE) {
 			lcd_vbyone_wait_stable(pdrv);
 			lcd_vbyone_interrupt_enable(pdrv, 1);
 		}
 #endif
 	}
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s finished", __func__);
 	local_time[1] = sched_clock();
 	pdrv->proc_time.driver_change_time = local_time[1] - local_time[0];
 }
@@ -178,7 +174,7 @@ void lcd_connector_driver_init(struct aml_lcd_drv_s *pdrv)
 #endif
 	}
 
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_RGB:
 		lcd_rgb_control_set(pdrv, 1);
 		lcd_rgb_pinmux_set(pdrv, 1);
@@ -231,8 +227,7 @@ void lcd_connector_driver_init(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s finished", __func__);
 
 	if (pdrv->fr_lock)
 		pdrv->fr_lock->rst = 1;
@@ -248,7 +243,7 @@ void lcd_connector_driver_disable(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->fr_lock)
 		pdrv->fr_lock->rst = 1;
 
-	switch (pdrv->config.basic.lcd_type) {
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_RGB:
 		lcd_rgb_pinmux_set(pdrv, 0);
 		break;
@@ -295,28 +290,27 @@ void lcd_connector_driver_disable(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
+	LCD_DBG(pdrv, "%s finished", __func__);
 }
 
 /* sync_duration is real_value * 100 */
 void lcd_connector_frame_rate_adjust(struct aml_lcd_drv_s *pdrv, int duration)
 {
-	LCDPR("[%d]: %s: sync_duration=%d\n", pdrv->index, __func__, duration);
+	LCD_PR(pdrv, "%s: sync_duration=%d", __func__, duration);
 
 	lcd_vout_notify_mode_change_pre(pdrv);
 
 	/* update frame rate */
-	pdrv->config.timing.act_timing.frame_rate = duration / 100;
-	pdrv->config.timing.act_timing.sync_duration_num = duration;
-	pdrv->config.timing.act_timing.sync_duration_den = 100;
-	pdrv->config.timing.act_timing.frac =
-		lcd_fr_is_frac(pdrv, pdrv->config.timing.act_timing.frame_rate);
+	pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate = duration / 100;
+	pdrv->curr_dev->dev_cfg.timing.act_timing.sync_duration_num = duration;
+	pdrv->curr_dev->dev_cfg.timing.act_timing.sync_duration_den = 100;
+	pdrv->curr_dev->dev_cfg.timing.act_timing.frac =
+		lcd_fr_is_frac(pdrv, pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate);
 
 	/* update interface timing */
 	lcd_frame_rate_change(pdrv);
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_interrupt_enable(pdrv, 0);
 #endif
 
@@ -325,11 +319,57 @@ void lcd_connector_frame_rate_adjust(struct aml_lcd_drv_s *pdrv, int duration)
 	lcd_venc_change(pdrv);
 
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE) {
 		lcd_vbyone_wait_stable(pdrv);
 		lcd_vbyone_interrupt_enable(pdrv, 1);
 	}
 #endif
 
 	lcd_vout_notify_mode_change(pdrv);
+}
+
+void lcd_connector_config_probe(struct aml_lcd_drv_s *pdrv)
+{
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
+#ifdef CONFIG_AMLOGIC_LCD_TCON
+	case LCD_MLVDS:
+	case LCD_P2P:
+		lcd_tcon_probe(pdrv);
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_VBYONE
+	case LCD_VBYONE:
+		lcd_vbyone_probe(pdrv);
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
+	case LCD_MIPI:
+		// although config should in lcd_config.c by device,
+		// dsi init table is too large and keep symmetrical with connector_config_remove
+		lcd_mipi_dsi_init_table_detect(pdrv);
+		break;
+#endif
+	default:
+		break;
+	}
+}
+
+void lcd_connector_config_remove(struct aml_lcd_drv_s *pdrv)
+{
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
+#ifdef CONFIG_AMLOGIC_LCD_TCON
+	case LCD_MLVDS:
+	case LCD_P2P:
+		lcd_tcon_remove(pdrv);
+		lcd_swpdf_deinit(pdrv);
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
+	case LCD_MIPI:
+		lcd_mipi_dsi_init_table_free(&pdrv->curr_dev->dev_cfg.control.mipi_cfg);
+		break;
+#endif
+	default:
+		break;
+	}
 }

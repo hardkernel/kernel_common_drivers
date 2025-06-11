@@ -116,7 +116,7 @@ static void lcd_phy_cntl_set_lane_aux_t7(unsigned int flag, unsigned int aux_reg
 
 static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	if (!phy_ctrl_p)
 		return;
@@ -139,7 +139,7 @@ static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	if (!phy_ctrl_p)
 		return;
@@ -162,7 +162,7 @@ static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	if (!phy_ctrl_p)
 		return;
@@ -178,7 +178,7 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_edp_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
 	if (!phy_ctrl_p)
 		return;
@@ -197,7 +197,8 @@ static void lcd_edp_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	}
 }
 
-static unsigned int lcd_phy_preem_level_to_value_t7(struct aml_lcd_drv_s *pdrv, unsigned int level)
+static unsigned int lcd_phy_preem_level_to_value_t7(struct aml_lcd_drv_s *pdrv,
+			struct aml_lcd_device_s *dev_p, unsigned int level)
 {
 	unsigned int preem_value = 0;
 
