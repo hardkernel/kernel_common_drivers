@@ -723,17 +723,17 @@ static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 				pinctrl_select_state(p_spdif->pin_ctl, state);
 		}
 	} else {
-		/* for avrs which don't support dts format, so can't send dts data.
-		 * when spdif dual output dts when audio output devices is speaker,
-		 * audio output devices switch  from speaker to arc, if the data
-		 * format is still dts, then unmute it later and audio hal will
-		 * change the output data format later.
-		 */
-		if (p_spdif->is_arc && !mute && p_spdif->codec_type == AUD_CODEC_TYPE_DTS) {
-			schedule_delayed_work(&p_spdif->mute_work, msecs_to_jiffies(30));
-		} else {
+		if (!p_spdif->is_arc || mute || p_spdif->codec_type != AUD_CODEC_TYPE_DTS) {
 			if (aml_spdif_out_get_mute(p_spdif->actrl, p_spdif->id) != mute)
 				aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, mute);
+		} else {
+			/* for avrs which don't support dts format, so can't send dts data.
+			 * when spdif dual output dts when audio output devices is speaker,
+			 * audio output devices switch  from speaker to arc, if the data
+			 * format is still dts, then unmute it later and audio hal will
+			 * change the output data format later.
+			 */
+			schedule_delayed_work(&p_spdif->mute_work, msecs_to_jiffies(30));
 		}
 	}
 
