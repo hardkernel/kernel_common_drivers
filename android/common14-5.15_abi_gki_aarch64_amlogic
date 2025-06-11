@@ -15,3 +15,9 @@
 
 # dwc_otg.ko
   drain_workqueue
+
+# led triggers
+  avenrun
+  led_set_brightness_nosleep
+  led_blink_set_oneshot
+  led_get_default_pattern
