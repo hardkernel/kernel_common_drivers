@@ -40,6 +40,7 @@ dtb-y += t7c_a311d2_an400_4g.dtb
 dtb-y += t7c_a311d2_an400_linux.dtb
 dtb-y += t7c_a311d2_an400-hdmitx-only-4g.dtb
 dtb-y += t7c_a311d2_an400_8g.dtb
+dtb-y += t7c_a311d2_an400_16g.dtb
 dtb-y += t5m_t963d4_ay301_2g.dtb
 dtb-y += t5m_t963d4_ay301_2.5g.dtb
 dtb-y += t5m_t963d4_ay301_3g.dtb
