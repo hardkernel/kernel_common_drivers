@@ -626,7 +626,6 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifndef CONFIG_ARCH_MESON_ODROID_COMMON
 /*
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
@@ -718,8 +717,8 @@ end:
 
 	return ret;
 }
-#else
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
 static void hk_spi_set_cs(struct spi_device *spi, bool enable, bool force)
 {
 	bool activate = enable;
@@ -1342,6 +1341,11 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct spicc_device *spicc;
 	int ret, irq;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	bool use_hw_cs;
+
+	use_hw_cs = of_property_read_bool(pdev->dev.of_node, "use-hw-cs");
+#endif
 
 	ctlr = __spi_alloc_controller(&pdev->dev, sizeof(*spicc),
 			of_property_read_bool(pdev->dev.of_node, "slave"));
@@ -1427,8 +1431,8 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	ctlr->prepare_message = meson_spicc_prepare_message;
 	ctlr->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
 #ifdef CONFIG_ARCH_MESON_ODROID_COMMON
-	ctlr->transfer_one_message = hk_sw_meson_spicc_transfer_one_message;
-	ctlr->use_gpio_descriptors = true;
+	ctlr->transfer_one_message = use_hw_cs ? meson_spicc_transfer_one_message : hk_sw_meson_spicc_transfer_one_message;
+	ctlr->use_gpio_descriptors = !use_hw_cs;
 #else
 	ctlr->transfer_one_message = meson_spicc_transfer_one_message;
 #endif
