@@ -2448,6 +2448,7 @@ static struct ddr_chipinfo a5_ddr_chipinfo = {
 	.use_arb               = false,
 	.fr_reset_reg_offset   = &fr_reset_reg_offset_array_v2[0],
 	.fr_reset_reg_shift    = &fr_reset_reg_shift_array_v2[0],
+	.chnum_sync            = true,
 };
 
 static struct ddr_chipinfo c3_ddr_chipinfo = {
@@ -2462,6 +2463,7 @@ static struct ddr_chipinfo c3_ddr_chipinfo = {
 	.use_arb               = false,
 	.fr_reset_reg_offset   = &fr_reset_reg_offset_array_v2[0],
 	.fr_reset_reg_shift    = &fr_reset_reg_shift_array_v2[0],
+	.chnum_sync            = true,
 };
 
 static struct ddr_chipinfo s5_ddr_chipinfo = {
