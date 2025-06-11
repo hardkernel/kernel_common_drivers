@@ -37,7 +37,7 @@ static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
 bool dnr_pr;
 bool dnr_dm_en;
-bool dnr_en = true;
+unsigned int dnr_en = 0x1;
 unsigned int nr2_en = 0x1;
 bool dynamic_dm_chk = true;
 unsigned int autonr_en = 0x1;
@@ -2620,7 +2620,7 @@ void nr_drv_init(struct device *dev)
 	else
 		dnr_dm_en = false;
 	if (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) {
-		dnr_en = false;
+		dnr_en = 0x0;
 		dynamic_dm_chk = false;
 		autonr_en = 0x0;
 	}
