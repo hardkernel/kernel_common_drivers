@@ -1709,7 +1709,7 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 	int ret = -ENOMEM;
 	int num_attempts = 0;
 	int max_retries = 5;
-	int dummy;
+	int dummy = 0;
 	unsigned long tick = 0;
 	unsigned long long in_tick, timeout;
 	int timeout_count = 0;
@@ -1720,11 +1720,11 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 		preempt_enable();
 	}
 
-	cma_alloc_trace_start(cma->name, count);
-	in_tick = sched_clock();
-
 	if (!cma || !cma->count || !cma->bitmap)
 		goto out;
+
+	cma_alloc_trace_start(cma->name, count);
+	in_tick = sched_clock();
 
 	cma_debug(0, NULL, "(cma %p, count %lu, align %d)\n",
 		  (void *)cma, count, align);
