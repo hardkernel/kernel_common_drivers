@@ -87,6 +87,10 @@
 
 #define VDIN_PUT_INTERVAL (HZ / 100)   /* 10ms, #define HZ 100 */
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#define VDIN_SCALE_FACTOR 1000
+#endif
+
 static dev_t vdin_devno;
 static struct class *vdin_class;
 static unsigned int vdin_addr_offset[VDIN_MAX_DEVS] = {0, 0x80, 0x400};
@@ -1230,17 +1234,168 @@ static void vdin_is_crop_valid(struct vdin_dev_s *devp, struct vdin_parm_s  *par
 
 int vdin_crop_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
 {
+	u32	h_active, v_active;
+
+	devp->dest_h_active = para->dest_h_active;
+	devp->dest_v_active = para->dest_v_active;
+
 	vdin_is_crop_valid(devp, para);
+
 	if (devp->prop.loopback_crop_en) {
 		devp->prop.hs = para->crop[1];
 		devp->prop.he = para->h_active - para->crop[2] - para->crop[1];
 		devp->prop.vs = para->crop[0];
 		devp->prop.ve = para->v_active - para->crop[3] - para->crop[0];
-		devp->prop.scaling4w = para->dest_h_active;
-		devp->prop.scaling4h = para->dest_v_active;
+
+		h_active = para->h_active - devp->prop.hs - devp->prop.he;
+		v_active = para->v_active - devp->prop.vs - devp->prop.ve;
+
+		if (h_active > devp->dest_h_active)
+			devp->prop.scaling4w = devp->dest_h_active;
+		else
+			devp->prop.scaling4w = h_active;
+
+		if (v_active > devp->dest_v_active)
+			devp->prop.scaling4h = devp->dest_v_active;
+		else
+			devp->prop.scaling4h = v_active;
+
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_CROP)
+			pr_info("crop=[%d %d %d %d], dest=[%dx%d], scale=[%dx%d]\n",
+				devp->prop.hs, devp->prop.he, devp->prop.vs, devp->prop.ve,
+				devp->dest_h_active, devp->dest_v_active,
+				devp->prop.scaling4w, devp->prop.scaling4h);
 	}
 	return 0;
 }
+
+bool vdin_support_axis_change(struct vdin_dev_s *devp)
+{
+	if ((devp->parm.port == TVIN_PORT_VIU1_VIDEO ||
+		devp->parm.port == TVIN_PORT_VIU1_WB0_VD1 ||
+		devp->parm.port == TVIN_PORT_VIU2_VD1) &&
+		devp->dts_config.dynamic_crop_en) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+int vdin_axis_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
+{
+	memset(devp->cur_axis, 0, sizeof(devp->cur_axis));
+	memset(devp->last_axis, 0, sizeof(devp->last_axis));
+
+	if (vdin_support_axis_change(devp) &&
+		vdin_get_video_ready_state(devp->parm.port)) {
+		if (para->port == TVIN_PORT_VIU1_VIDEO ||
+			para->port == TVIN_PORT_VIU1_WB0_VD1)
+			get_vdx_real_axis(0, devp->cur_axis);
+		else if (para->port == TVIN_PORT_VIU2_VD1)
+			get_vdx_real_axis(1, devp->cur_axis);
+
+		memcpy(devp->last_axis, devp->cur_axis, sizeof(devp->cur_axis));
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_CROP)
+			pr_info("vdin%d cur axis [%d %d %d %d], last axis [%d %d %d %d]\n",
+				devp->index,
+				devp->cur_axis[0], devp->cur_axis[1],
+				devp->cur_axis[2], devp->cur_axis[3],
+				devp->last_axis[0], devp->last_axis[1],
+				devp->last_axis[2], devp->last_axis[3]);
+	}
+
+	return 0;
+}
+
+static bool vdin_is_axis_change(struct vdin_dev_s *devp)
+{
+	devp->prop.loopback_axis_en = false;
+
+	if (vdin_support_axis_change(devp) &&
+		vdin_get_video_ready_state(devp->parm.port)) {
+		if (devp->parm.port == TVIN_PORT_VIU1_VIDEO ||
+			devp->parm.port == TVIN_PORT_VIU1_WB0_VD1)
+			get_vdx_real_axis(0, devp->cur_axis);
+		else if (devp->parm.port == TVIN_PORT_VIU2_VD1)
+			get_vdx_real_axis(1, devp->cur_axis);
+		if (devp->cur_axis[0] != devp->last_axis[0] ||
+			devp->cur_axis[1] != devp->last_axis[1] ||
+			devp->cur_axis[2] != devp->last_axis[2] ||
+			devp->cur_axis[3] != devp->last_axis[3]) {
+			devp->prop.loopback_axis_en = true;
+		} else {
+			devp->prop.loopback_axis_en = false;
+		}
+	}
+	return devp->prop.loopback_axis_en;
+}
+
+static void vdin_set_axis_info(struct vdin_dev_s *devp)
+{
+	u32 video_w, video_h;
+	u32 pre_video_w, pre_video_h;
+	u32 scale_x, scale_y;
+
+	video_w = devp->cur_axis[2] - devp->cur_axis[0] + 1;
+	video_h = devp->cur_axis[3] - devp->cur_axis[1] + 1;
+	pre_video_w = devp->last_axis[2] - devp->last_axis[0] + 1;
+	pre_video_h = devp->last_axis[3] - devp->last_axis[1] + 1;
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_CROP)
+		pr_info("%s: hv_active from %dx%d to %dx%d\n",
+			__func__,
+			pre_video_w, pre_video_h,
+			video_w, video_h);
+
+	if (devp->prop.hs || devp->prop.he ||
+		devp->prop.vs || devp->prop.ve) {
+		scale_x = (video_w * VDIN_SCALE_FACTOR) / pre_video_w;
+		scale_y = (video_h * VDIN_SCALE_FACTOR) / pre_video_h;
+		devp->prop.hs = (devp->prop.hs * scale_x) / VDIN_SCALE_FACTOR;
+		devp->prop.he = (devp->prop.he * scale_x) / VDIN_SCALE_FACTOR;
+		devp->prop.vs = (devp->prop.vs * scale_y) / VDIN_SCALE_FACTOR;
+		devp->prop.ve = (devp->prop.ve * scale_y) / VDIN_SCALE_FACTOR;
+	} else {
+		devp->prop.hs = 0;
+		devp->prop.he = 0;
+		devp->prop.vs = 0;
+		devp->prop.ve = 0;
+	}
+
+	devp->fmt_info_p->h_active = video_w;
+	devp->fmt_info_p->v_active = video_h;
+
+	memcpy(devp->last_axis, devp->cur_axis, sizeof(devp->cur_axis));
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_CROP)
+		pr_info("%s: crop [%d %d %d %d]\n",
+			__func__,
+			devp->prop.hs, devp->prop.he,
+			devp->prop.vs, devp->prop.ve);
+
+	vdin_set_decimation(devp);
+	vdin_set_cutwin(devp, 0);
+
+	if (devp->h_active > devp->dest_h_active)
+		devp->prop.scaling4w = devp->dest_h_active;
+	else
+		devp->prop.scaling4w = devp->h_active;
+
+	if (devp->v_active > devp->dest_v_active)
+		devp->prop.scaling4h = devp->dest_v_active;
+	else
+		devp->prop.scaling4h = devp->v_active;
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_CROP)
+		pr_info("%s: %dx%d scale to %dx%d\n",
+			__func__, devp->h_active, devp->v_active,
+			devp->prop.scaling4w, devp->prop.scaling4h);
+
+	vdin_set_hv_scale(devp);
+	vdin_set_wr_ctl_lite(devp);
+}
+#endif
 
 static void vdin_scale_and_cutwin_handle(struct vdin_dev_s *devp)
 {
@@ -1365,6 +1520,25 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	devp->v_skip_en = false;
 	memset(&devp->stats, 0, sizeof(devp->stats));
 	//TBC
+}
+
+bool vdin_get_video_ready_state(enum tvin_port_e port)
+{
+	bool video_ready;
+
+	if ((get_video_enabled(0) &&
+		(port == TVIN_PORT_VIU1_VIDEO ||
+		port == TVIN_PORT_VIU1_WB0_VD1)) ||
+		(get_video_enabled(1) &&
+		port == TVIN_PORT_VIU2_VD1))
+		video_ready = true;
+	else
+		video_ready = false;
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_CROP)
+		pr_info("%s(): port=0x%x, video_ready=%d\n",
+			__func__, port, video_ready);
+	return video_ready;
 }
 
 static void vdin_get_secure_state(struct vdin_dev_s *devp)
@@ -2035,7 +2209,6 @@ int vdin_loopback_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para
 		pr_info("%s vinfo == NULL\n", __func__);
 		return -1;
 	}
-
 	if (vinfo->width * vinfo->height * vinfo->std_duration >
 		VDIN_LITE_CORE_MAX_PIXEL_CLOCK) {
 		pr_info("%s vdin%d,ppc:%d,[%dx%dp%dhz]->[%d %d]\n", __func__, devp->index,
@@ -2102,8 +2275,23 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	}
 
 	mutex_lock(&devp->fe_lock);
+	/* g12a/g12b/sm1 do not have wb0_vpp */
+	if ((is_meson_g12a_cpu() || (is_meson_g12b_cpu()) ||
+		is_meson_sm1_cpu()) && para->port == TVIN_PORT_VIU1_WB0_VPP) {
+		pr_info("line:%d, cpu :%#x, vdin%d force to use postblend\n",
+			__LINE__, get_cpu_type(), devp->index);
+		para->port = TVIN_PORT_VIU1_WB0_POST_BLEND;
+	}
+	devp->parm.port = para->port;
+
+	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO)
+		devp->flags |= VDIN_FLAG_V4L2_DEBUG;
+
 	vdin_loopback_parm_adjust(devp, para);
 	vdin_crop_parm_adjust(devp, para);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	vdin_axis_parm_adjust(devp, para);
+#endif
 	fmt = devp->parm.info.fmt;
 	pr_info("[%s]port:0x%x,fmt:%d %d %d;active:%dx%d,%dx%d;fr:%d;sm:%d\n",
 		__func__, para->port, para->cfmt, fmt,
@@ -2148,18 +2336,6 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		}
 	}
 
-	devp->parm.port = para->port;
-	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO)
-		devp->flags |= VDIN_FLAG_V4L2_DEBUG;
-
-	/* g12a/g12b/sm1 do not have wb0_vpp */
-	if ((is_meson_g12a_cpu() || (is_meson_g12b_cpu()) ||
-		is_meson_sm1_cpu()) && para->port == TVIN_PORT_VIU1_WB0_VPP) {
-		pr_info("line:%d, cpu :%#x, vdin%d force to use postblend\n",
-			__LINE__, get_cpu_type(), devp->index);
-		para->port = TVIN_PORT_VIU1_WB0_POST_BLEND;
-	}
-
 	devp->parm.info.fmt = para->fmt;
 	fmt = devp->parm.info.fmt;
 	/* add for camera random resolution */
@@ -2192,6 +2368,10 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 				((rd(0, VPP_POSTBLEND_VD1_H_START_END) &
 				0xfff) - ((rd(0, VPP_POSTBLEND_VD1_H_START_END)
 				>> 16) & 0xfff) + 1);
+			if (vdin_dbg_en)
+				pr_info("%s() vdin%d hv_active=%dx%d\n",
+					__func__, devp->index,
+					devp->fmt_info_p->h_active, devp->fmt_info_p->v_active);
 		}
 		devp->fmt_info_p->scan_mode = para->scan_mode;
 		devp->fmt_info_p->duration  = 96000 / para->frame_rate;
@@ -2201,7 +2381,6 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	} else {
 		devp->fmt_info_p = (struct tvin_format_s *)
 				tvin_get_fmt_info(fmt);
-		/* devp->fmt_info_p = tvin_get_fmt_info(devp->parm.info.fmt); */
 	}
 	if (!devp->fmt_info_p) {
 		pr_err("%s(%d): error, fmt is null!!!\n", __func__, no);
@@ -2259,7 +2438,6 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		free_irq(devp->irq, (void *)devp);
 		devp->flags &= ~VDIN_FLAG_ISR_REQ;
 	}
-
 	if (devp->parm.port != TVIN_PORT_VIU1 || viu_hw_irq != 0) {
 		if (!(devp->flags & VDIN_FLAG_ISR_REQ)) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -3207,10 +3385,10 @@ static bool vdin_is_input_valid(struct vdin_dev_s *devp)
 	v_diff_val = devp->v_active_org - devp->crop_v - v_report;
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_INPUT)
-		pr_info("vdin%d,hv_active=[%d %d],report=[%d %d],diff=[%d %d],thd:%d\n",
-			devp->index, devp->h_active, devp->v_active,
-			h_report, v_report, h_diff_val, v_diff_val,
-			devp->vdin_input_data_threshold);
+		pr_info("vdin%d,org[%d %d],report[%d %d],crop[%d %d],diff[%d %d]\n",
+			devp->index, devp->h_active_org, devp->v_active_org,
+			h_report, v_report, devp->crop_h, devp->crop_v,
+			h_diff_val, v_diff_val);
 
 	if (abs(h_diff_val) > devp->vdin_input_data_threshold ||
 		abs(v_diff_val) > devp->vdin_input_data_threshold)
@@ -4086,6 +4264,11 @@ static void vdin_set_vfe_type(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		vfe->vf.type_ext |= VIDTYPE_EXT_VDIN_HDCP;
 	else
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_HDCP;
+
+	if (vdin_support_axis_change(devp)) {
+		vfe->vf.width = devp->prop.scaling4w;
+		vfe->vf.height = devp->prop.scaling4h;
+	}
 }
 
 /* hdcp or macrovision state change,set or recovery vdin1 matrix */
@@ -4156,14 +4339,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		goto irq_handled;
 	}
 
-	if (!vdin_is_input_valid(devp) &&
-		!devp->debug.invalid_input_en &&
-		!devp->set_canvas_manual) {
-		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
-		vdin_drop_frame_info(devp, "no data input");
-		goto irq_handled;
-	}
-
 	/* protect mem will fail sometimes due to no res from tee module */
 	if (devp->secure_en && !devp->mem_protected && !devp->set_canvas_manual) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_SECURE_MD;
@@ -4183,9 +4358,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	vdin_v4l2_handle_secure_chg(devp);
 
-	/* if win_size changed for video only */
-	if (!(devp->flags & VDIN_FLAG_V4L2_DEBUG))
-		vdin_set_wr_mif(devp);
 	if (!devp->curr_wr_vfe) {
 		devp->curr_wr_vfe = provider_vf_get(devp->vfp);
 
@@ -4205,6 +4377,38 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 			vdin_drop_frame_info(devp, "no wr vfe");
 			goto irq_handled;
 		}
+	}
+
+	if (!vdin_get_video_ready_state(devp->parm.port) &&
+		vdin_support_axis_change(devp)) {
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
+		vdin_drop_frame_info(devp, "video no already");
+		goto irq_handled;
+	}
+
+	if (vdin_is_axis_change(devp))
+		vdin_set_axis_info(devp);
+
+	if (!vdin_is_input_valid(devp) &&
+		!devp->debug.invalid_input_en &&
+		!devp->set_canvas_manual) {
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
+		vdin_drop_frame_info(devp, "no data input");
+		goto irq_handled;
+	}
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+		pr_info("vdin%d,[%d %d],WL:%d WR:%d RL:%d RM:%d,last_vf:%d,cur_vf:%d\n",
+			devp->index, devp->irq_cnt, devp->frame_cnt,
+			devp->vfp->wr_list_size, devp->vfp->wr_mode_size,
+			devp->vfp->rd_list_size, devp->vfp->rd_mode_size,
+			!devp->last_wr_vfe ? -1 : devp->last_wr_vfe->vf.index,
+			!devp->curr_wr_vfe ? -1 : devp->curr_wr_vfe->vf.index);
+
+	if (devp->prop.loopback_axis_en) {
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_DROP_FRAME;
+		vdin_drop_frame_info(devp, "axis change drop frame");
+		devp->prop.loopback_axis_en = false;
 	}
 
 	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
@@ -6631,6 +6835,9 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	devp->cr_lossy_param.burst_length_add_en = 0;
 	devp->cr_lossy_param.burst_length_add_value = 2;
 	devp->cr_lossy_param.ofset_burst4_en = 0;
+
+	devp->dts_config.dynamic_crop_en = true;
+
 	/* txhd2 keystone,0:vppout;1:postblend */
 	devp->dts_config.keystone_sel = 0;
 	devp->set_canvas_manual = 0;
@@ -6724,6 +6931,15 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	pr_info("chip:%s hw_ver:%d\n", devp->dtdata->name,
 		devp->dtdata->hw_ver);
 
+	/* vd1, vdin loop back use rev memory
+	 * v4l2 use rev memory
+	 */
+	if (!(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)) {
+		ret = of_reserved_mem_device_init(&pdev->dev);
+		if (ret)
+			pr_info("vdin[%d] memory resource undefined!!\n", devp->index);
+	}
+
 #ifdef CONFIG_CMA
 	if (!use_reserved_mem) {
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -6756,15 +6972,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	if (devp->cma_config_en != 1) {
 		devp->mem_start = mem_start;
 		devp->mem_size = mem_end - mem_start + 1;
-	}
-
-	/* vd1, vdin loop back use rev memory
-	 * v4l2 use rev memory
-	 */
-	if (!(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)) {
-		ret = of_reserved_mem_device_init(&pdev->dev);
-		if (ret)
-			pr_info("vdin[%d] memory resource undefined!!\n", devp->index);
 	}
 
 	pr_info("vdin(%d) dma mask\n", devp->index);

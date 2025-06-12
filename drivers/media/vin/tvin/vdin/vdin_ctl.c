@@ -1360,7 +1360,7 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 	new_clk = devp->fmt_info_p->pixel_clk /
 			(devp->prop.decimation_ratio + 1);
 	if (vdin_ctl_dbg)
-		pr_info("%s decimation_ratio=%u,new_clk=%u.\n",
+		pr_info("%s decimation_ratio=%u, new_clk=%u\n",
 			__func__, devp->prop.decimation_ratio, new_clk);
 	devp->h_active = devp->fmt_info_p->h_active /
 			(devp->prop.decimation_ratio + 1);
@@ -1509,9 +1509,9 @@ void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable)
 	struct tvin_cutwin_s cutwin_s;
 
 	if ((devp->prop.hs || devp->prop.he ||
-	     devp->prop.vs || devp->prop.ve) &&
-	    devp->h_active > (devp->prop.hs + devp->prop.he) &&
-	    devp->v_active > (devp->prop.vs + devp->prop.ve)) {
+		devp->prop.vs || devp->prop.ve) &&
+		devp->h_active > (devp->prop.hs + devp->prop.he) &&
+		devp->v_active > (devp->prop.vs + devp->prop.ve)) {
 		devp->crop_h = (devp->prop.he + devp->prop.hs);
 		devp->crop_v = (devp->prop.ve + devp->prop.vs);
 		devp->h_active -= (devp->prop.he + devp->prop.hs);
@@ -2684,34 +2684,23 @@ void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 #endif
 }
 
-/* set vdin_wr_mif for video only */
-void vdin_set_wr_mif(struct vdin_dev_s *devp)
+void vdin_set_wr_ctl_lite(struct vdin_dev_s *devp)
 {
 	int height, width;
-	static unsigned int temp_height;
-	static unsigned int temp_width;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu() || is_meson_t3x_cpu())
 		return;
 #endif
 
-	height = ((rd(0, VPP_POSTBLEND_VD1_V_START_END) & 0xfff) -
-		((rd(0, VPP_POSTBLEND_VD1_V_START_END) >> 16) & 0xfff) + 1);
-	width = ((rd(0, VPP_POSTBLEND_VD1_H_START_END) & 0xfff) -
-		((rd(0, VPP_POSTBLEND_VD1_H_START_END) >> 16) & 0xfff) + 1);
-	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO &&
-	    devp->index == 1 &&
-	    height != temp_height &&
-	    width != temp_width) {
-		if ((width % 2) &&
-		    devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH &&
-		    (devp->full_pack == VDIN_422_FULL_PK_EN) &&
-		    (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422 ||
-		    devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422))
-			width += 1;
+	height = devp->v_active;
+	width = devp->h_active;
+
+	if ((width % 2) &&
+		devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH &&
+		devp->full_pack == VDIN_422_FULL_PK_EN &&
+		(vdin_is_convert_to_422(devp->format_convert)))
+		width += 1;
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 		if (vdin_is_convert_to_nv21(devp->format_convert)) {
@@ -2732,9 +2721,6 @@ void vdin_set_wr_mif(struct vdin_dev_s *devp)
 			(width - 1), WR_HEND_BIT, WR_HEND_WID);
 		wr_bits(devp->addr_offset, VDIN_WR_V_START_END,
 			(height - 1), WR_VEND_BIT, WR_VEND_WID);
-	}
-		temp_height = height;
-		temp_width = width;
 	}
 }
 
@@ -3650,6 +3636,11 @@ static inline ulong vdin_reg_limit(ulong val, ulong wid)
 
 void vdin_set_all_regs(struct vdin_dev_s *devp)
 {
+	unsigned int h_size, v_size;
+
+	h_size = devp->h_active;
+	v_size = devp->v_active;
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
 		vdin_set_all_regs_s5(devp);
@@ -3664,35 +3655,34 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 	vdin_set_matrix(devp);
 
 	/* bbar sub-module */
-	vdin_set_bbar(devp->addr_offset, devp->v_active, devp->h_active);
+	vdin_set_bbar(devp->addr_offset, v_size, h_size);
 #ifdef CONFIG_AML_LOCAL_DIMMING
 	/* ldim sub-module */
 	/* vdin_set_ldim_max_init(devp->addr_offset, 1920, 1080, 8, 2); */
-	vdin_set_ldim_max_init(devp->addr_offset, devp->h_active,
-			       devp->v_active,
-			       VDIN_LDIM_BLK_HNUM, VDIN_LDIM_BLK_VNUM);
+	vdin_set_ldim_max_init(devp->addr_offset, h_size, v_size,
+		VDIN_LDIM_BLK_HNUM, VDIN_LDIM_BLK_VNUM);
 #endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* hist sub-module */
 	if (!(devp->flags & VDIN_FLAG_HIST_STARTED) && devp->hw_core == VDIN_HW_CORE_LITE) {
 		vdin_set_histogram(devp->addr_offset, 0,
-				devp->h_active - 1, 0, devp->v_active - 1);
+			h_size - 1, 0, v_size - 1);
 		/* hist mux select */
 		vdin_set_hist_mux(devp);
 	}
 #endif
 	/* write sub-module */
-	vdin_set_wr_ctrl(devp, devp->addr_offset, devp->v_active,
-			 devp->h_active, devp->format_convert,
-			 devp->full_pack, devp->source_bitdepth);
+	vdin_set_wr_ctrl(devp, devp->addr_offset, v_size,
+		h_size, devp->format_convert,
+		devp->full_pack, devp->source_bitdepth);
 
 	/* top sub-module */
 	vdin_set_top(devp, devp->addr_offset, devp->parm.port,
-		     devp->prop.color_format, devp->h_active,
-		     devp->bt_path);
+		devp->prop.color_format, h_size,
+		devp->bt_path);
 
 	vdin_set_meas_mux(devp->addr_offset, devp->parm.port,
-			  devp->bt_path);
+			devp->bt_path);
 
 	/* for t7 vdin2 write meta data */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -4884,6 +4874,7 @@ void vdin_set_hscale(struct vdin_dev_s *devp, unsigned int dst_w)
 	}
 	/* disable hscale */
 	wr_bits(offset, VDIN_SC_MISC_CTRL, 0, HSCL_EN_BIT, HSCL_EN_WID);
+
 	/* write horz filter coefs */
 	wr(offset, VDIN_SCALE_COEF_IDX, 0x0100);
 	for (i = 0; i < 33; i++)
@@ -4908,15 +4899,16 @@ void vdin_set_hscale(struct vdin_dev_s *devp, unsigned int dst_w)
 	   (0 << HSCL_INI_PHASE_BIT) /* hsc_ini_phase */
 	   );
 
-	wr(offset, VDIN_SC_MISC_CTRL,
-	   rd(offset, VDIN_SC_MISC_CTRL) |
-	   (0 << INIT_PIX_IN_PTR_BIT) |
-	   (1 << HSCL_EN_BIT) | /* hsc_en */
-	   (1 << SHORT_LN_OUT_EN_BIT) | /* short_line_o_en */
-	   (1 << HSCL_NEAREST_EN_BIT) | /* nearest_en */
-	   (0 << PHASE0_ALWAYS_EN_BIT) | /* phase0_always_en */
-	   (4 << HSCL_BANK_LEN_BIT) /* hsc_bank_length */
-	   );
+	if (dst_w != src_w)
+		wr(offset, VDIN_SC_MISC_CTRL,
+			rd(offset, VDIN_SC_MISC_CTRL) |
+			(0 << INIT_PIX_IN_PTR_BIT) |
+			(1 << HSCL_EN_BIT) | /* hsc_en */
+			(1 << SHORT_LN_OUT_EN_BIT) | /* short_line_o_en */
+			(1 << HSCL_NEAREST_EN_BIT) | /* nearest_en */
+			(0 << PHASE0_ALWAYS_EN_BIT) | /* phase0_always_en */
+			(4 << HSCL_BANK_LEN_BIT) /* hsc_bank_length */
+			);
 	devp->h_active = dst_w;
 }
 
@@ -4967,7 +4959,8 @@ void vdin_set_vscale(struct vdin_dev_s *devp)
 		SCALER_INPUT_HEIGHT_BIT, SCALER_INPUT_HEIGHT_WID);
 	wr(offset, VDIN_DUMMY_DATA, 0x008080);
 	/* enable vscale */
-	wr_bits(offset, VDIN_VSC_INI_CTRL, 1, VSC_EN_BIT, VSC_EN_WID);
+	if (dst_h != src_h)
+		wr_bits(offset, VDIN_VSC_INI_CTRL, 1, VSC_EN_BIT, VSC_EN_WID);
 	devp->v_active = dst_h;
 }
 
@@ -5129,15 +5122,15 @@ int vdin_scaling_adjust(struct vdin_dev_s *devp)
 
 	scaling4w = rounddown(devp->prop.scaling4w, devp->canvas_align);
 	if (devp->prop.scaling4w != scaling4w) {
-		pr_info("vdin1,%s.scaling4w=%d round down to %d\n",
-			__func__, devp->prop.scaling4w, scaling4w);
+		pr_info("%s vdin%d scaling4w=%d round down to %d\n",
+			__func__, devp->index, devp->prop.scaling4w, scaling4w);
 		devp->prop.scaling4w = scaling4w;
 	}
 
 	scaling4h = rounddown(devp->prop.scaling4h, 2);
 	if (devp->prop.scaling4h != scaling4h) {
-		pr_info("vdin1,%s.scaling4h=%d round down to %d\n",
-			__func__, devp->prop.scaling4h, scaling4h);
+		pr_info("%s vdin%d scaling4h=%d round down to %d\n",
+			__func__, devp->index, devp->prop.scaling4h, scaling4h);
 		devp->prop.scaling4h = scaling4h;
 	}
 
@@ -5203,8 +5196,10 @@ void vdin_set_hv_scale(struct vdin_dev_s *devp)
 
 		if (devp->prop.scaling4w < devp->h_active)
 			vdin_set_hscale(devp, devp->prop.scaling4w);
-	} else if (devp->h_active > VDIN_MAX_H_ACTIVE) {
-		vdin_set_hscale(devp, VDIN_MAX_H_ACTIVE);
+	} else if (devp->prop.scaling4w == devp->h_active &&
+		devp->prop.scaling4w > 0) {
+		if (devp->prop.loopback_axis_en)
+			vdin_set_hscale(devp, devp->prop.scaling4w);
 	}
 
 	if (devp->prop.scaling4h < devp->v_active &&
@@ -5215,6 +5210,10 @@ void vdin_set_hv_scale(struct vdin_dev_s *devp)
 		}
 
 		if (devp->prop.scaling4h < devp->v_active)
+			vdin_set_vscale(devp);
+	} else if (devp->prop.scaling4h == devp->v_active &&
+		devp->prop.scaling4h > 0) {
+		if (devp->prop.loopback_axis_en)
 			vdin_set_vscale(devp);
 	}
 

@@ -585,8 +585,9 @@ struct vf_entry *provider_vf_get(struct vf_pool *p)
 		p->wr_mode_size++;
 		if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
 			p->vf_move_prt_cnt--;
-			pr_info("del_wr:entry:0x%p wr_size:%x index:%x sta:%x\n",
-				vfe, p->wr_list_size, vfe->vf.index, vfe->status);
+			pr_info("%s(): WL--:%d, WM++:%d, id:%x status:%x\n",
+				__func__, p->wr_list_size, p->wr_mode_size,
+				vfe->vf.index, vfe->status);
 		}
 	}
 	spin_unlock_irqrestore(&p->wr_lock, flags);
@@ -618,6 +619,12 @@ void provider_vf_put(struct vf_entry *vfe, struct vf_pool *p)
 	vf_pool_put(vfe, &p->rd_list);
 	p->rd_list_size++;
 	p->wr_mode_size--;
+	if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+		p->vf_move_prt_cnt--;
+		pr_info("%s(): WM--:%d, RL++:%d id:%x status:%x\n",
+			__func__, p->wr_mode_size, p->rd_list_size,
+			vfe->vf.index, vfe->status);
+	}
 	spin_unlock_irqrestore(&p->rd_lock, flags);
 	spin_lock_irqsave(&p->log_lock, flags);
 	vf_log(p, VF_OPERATION_FPUT, true);
@@ -689,6 +696,12 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 	p->rd_list_size--;
 	vfe->status = VF_STATUS_RM;
 	p->rd_mode_size++;
+	if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+		p->vf_move_prt_cnt--;
+		pr_info("%s(): RL--:%d, RM++:%d, id:%x status:%x\n",
+			__func__, p->rd_list_size, p->rd_mode_size,
+			vfe->vf.index, vfe->status);
+	}
 	spin_unlock_irqrestore(&p->rd_lock, flags);
 	spin_lock_irqsave(&p->log_lock, flags);
 	vf_log(p, VF_OPERATION_BGET, true);
@@ -746,12 +759,6 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 
 	/* normal vframe */
 	if (master->flag & VF_FLAG_NORMAL_FRAME) {
-		if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
-			p->vf_move_prt_cnt--;
-			pr_info("add_wr:entry:0x%p wr_size:%x index:%x sta:%x\n",
-				master, p->wr_list_size, vf->index, master->status);
-		}
-
 		spin_lock_irqsave(&p->wr_lock, flags);
 		if (master->status == VF_STATUS_WL ||
 		    master->status == VF_STATUS_RL) {
@@ -768,6 +775,11 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		master->status = VF_STATUS_WL;
 		vf_pool_put(master, &p->wr_list);
 		p->wr_list_size++;
+		if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+			p->vf_move_prt_cnt--;
+			pr_info("%s(): WL++:%d, id:%x status:%x\n",
+				__func__, p->wr_list_size, vf->index, master->status);
+		}
 		spin_unlock_irqrestore(&p->wr_lock, flags);
 		spin_lock_irqsave(&p->log_lock, flags);
 		vf_log(p, VF_OPERATION_BPUT, true);

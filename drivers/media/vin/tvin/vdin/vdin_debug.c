@@ -3344,6 +3344,14 @@ start_chk:
 			pr_info("urgent_en (%d):%d\n", devp->index,
 				devp->dts_config.urgent_en);
 		}
+	} else if (!strcmp(parm[0], "dynamic_crop")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->dts_config.dynamic_crop_en = val;
+			pr_info("vdin%d dynamic_crop_en %d\n",
+				devp->index, devp->dts_config.dynamic_crop_en);
+		}
 	} else if (!strcmp(parm[0], "irq_cnt")) {
 		pr_info("vdin(%d) irq_cnt: %d\n", devp->index,	devp->irq_cnt);
 	} else if (!strcmp(parm[0], "skip_vf_num")) {

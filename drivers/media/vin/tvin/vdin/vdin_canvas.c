@@ -298,8 +298,18 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		h_active = devp->h_shrink_out;
 		v_active = devp->v_shrink_out;
 	} else {
-		h_active = devp->h_active + devp->crop_h;
-		v_active = devp->v_active + devp->crop_v;
+		if (devp->hw_core == VDIN_HW_CORE_LITE) {
+			if (vdin_support_axis_change(devp)) {
+				h_active = devp->dest_h_active;
+				v_active = devp->dest_v_active;
+			} else {
+				h_active = devp->h_active;
+				v_active = devp->v_active;
+			}
+		} else {
+			h_active = devp->h_active + devp->crop_h;
+			v_active = devp->v_active + devp->crop_v;
+		}
 	}
 	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
 		h_active = roundup(h_active, devp->canvas_align);
@@ -400,6 +410,7 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 #endif
 	if (devp->baddr_en)
 		return;
+
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		devp->vf_mem_start[i] =
 			roundup(devp->vf_mem_start[i], devp->canvas_align);
@@ -608,8 +619,18 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	}
 
 	/*pixels*/
-	h_size = devp->h_active + devp->crop_h;
-	v_size = devp->v_active + devp->crop_v;
+	if (devp->hw_core == VDIN_HW_CORE_LITE) {
+		if (vdin_support_axis_change(devp)) {
+			h_size = devp->dest_h_active;
+			v_size = devp->dest_v_active;
+		} else {
+			h_size = devp->h_active;
+			v_size = devp->v_active;
+		}
+	} else {
+		h_size = devp->h_active + devp->crop_h;
+		v_size = devp->v_active + devp->crop_v;
+	}
 
 	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
 		h_size = roundup(h_size, devp->canvas_align);
@@ -618,6 +639,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		h_size = max_buf_width;
 		v_size = max_buf_height;
 	}
+
 	if (vdin_is_convert_to_444(devp->format_convert)) {
 		/* 4k is not support 10 bit mode in order to save memory
 		 * up to 4k 444 8bit mode
@@ -806,7 +828,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 	if (mem_size > devp->cma_mem_size &&
 	    !(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)) {
-		pr_err("vdin[%d] warning: cma_mem_size (need %d, cur %d) is not enough!!!\n",
+		pr_err("vdin[%d] warning: cma_mem_size (need 0x%x, cur 0x%x) is not enough!!!\n",
 		       devp->index, mem_size, devp->cma_mem_size);
 		/*mem_size = devp->cma_mem_size;*/
 		/*devp->cma_mem_alloc = 0;*/

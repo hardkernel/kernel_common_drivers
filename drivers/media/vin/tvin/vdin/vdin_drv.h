@@ -746,6 +746,7 @@ struct vdin_dts_config_s {
 	bool v4l_en;
 	bool keystone_sel;
 	unsigned int afbce_flag_cfg;
+	bool dynamic_crop_en;
 };
 
 struct vdin_s5_s {
@@ -948,6 +949,8 @@ struct vdin_dev_s {
 	unsigned int frame_buff_num_bak;/* backup */
 	unsigned int h_active;
 	unsigned int v_active;
+	unsigned int dest_h_active; /* backend buffer size */
+	unsigned int dest_v_active;
 	unsigned int crop_h;
 	unsigned int crop_v;
 	unsigned int h_shrink_out;/* double write use */
@@ -956,6 +959,8 @@ struct vdin_dev_s {
 	unsigned int v_shrink_times;/* double write use */
 	unsigned int h_active_org;/*vdin scaler in*/
 	unsigned int v_active_org;/*vdin scaler in*/
+	int cur_axis[4];
+	int last_axis[4];
 	unsigned int canvas_h;
 	unsigned int canvas_w;
 	unsigned int canvas_active_w;/* mif stride */
@@ -1319,6 +1324,7 @@ void vdin_vpu_dev_register(struct vdin_dev_s *devp);
 void vdin_vpu_clk_gate_on_off(struct vdin_dev_s *devp, unsigned int on);
 void vdin_vpu_clk_mem_pd(struct vdin_dev_s *devp, unsigned int on);
 void vdin_afbce_vpu_clk_mem_pd(struct vdin_dev_s *devp, unsigned int on);
+bool vdin_support_axis_change(struct vdin_dev_s *devp);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int vdin_v4l2_probe(struct platform_device *pdev,
@@ -1337,5 +1343,8 @@ void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 void vdin_resume_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 void vdin_reg_dmc_notifier(unsigned int index);
 void vdin_unreg_dmc_notifier(unsigned int index);
+int vdin_get_loopback_mode(enum tvin_port_e port);
+u32 get_video_enabled(u8 layer_id);
+bool vdin_get_video_ready_state(enum tvin_port_e port);
 #endif /* __TVIN_VDIN_DRV_H */
 

@@ -255,7 +255,6 @@ void vdin_set_mpegin(struct vdin_dev_s *devp);
 void vdin_force_go_filed(struct vdin_dev_s *devp);
 void vdin_adjust_tvafe_snow_brightness(void);
 void vdin_set_config(struct vdin_dev_s *devp);
-void vdin_set_wr_mif(struct vdin_dev_s *devp);
 void vdin_dolby_config(struct vdin_dev_s *devp);
 void vdin_dolby_buffer_update(struct vdin_dev_s *devp,
 			      unsigned int index);
@@ -275,6 +274,7 @@ void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 			    unsigned int full_pack,
 			    unsigned int source_bitdepth,
 			    unsigned int rdma_enable);
+void vdin_set_wr_ctl_lite(struct vdin_dev_s *devp);
 
 void vdin_urgent_patch_resume(unsigned int offset);
 int vdin_hdr_sei_error_check(struct vdin_dev_s *devp);

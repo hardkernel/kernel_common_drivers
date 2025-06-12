@@ -62,6 +62,7 @@
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/video_sink/video.h>
 
 /* Local Headers */
 /*#include "../tvin_global.h"*/
@@ -2069,45 +2070,61 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 	int ret;
 	struct vdin_parm_s vdin_cap_param;
 	const struct tvin_format_s *fmt_info_p;
-
-	/* TODO:get vd1/osd loopback source fmt */
-	if (devp->index)
-		vdin_v4l2_loopback_fmt(devp);
-
-	/* Check args */
-	fmt_info_p = tvin_get_fmt_info(devp->parm.info.fmt);
-	if (!fmt_info_p) {
-		dprintk(0, "%s,invalid fmt:%s\n",
-			__func__, tvin_sig_fmt_str(devp->parm.info.fmt));
-		return -1;
-	}
-	dprintk(1, "%s,fmt:%s,cfmt:%s,status:%#x,fps:%d,scan_mode:%d,h=%d,v=%d\n",
-		__func__, tvin_sig_fmt_str(devp->parm.info.fmt),
-		tvin_color_fmt_str(devp->parm.info.cfmt),
-		devp->parm.info.status, devp->parm.info.fps, fmt_info_p->scan_mode,
-		fmt_info_p->h_active, fmt_info_p->v_active);
+	int cur_axis[4];
+	const struct vinfo_s *vinfo;
 
 	memset(&vdin_cap_param, 0, sizeof(struct vdin_parm_s));
+	memset(&cur_axis, 0, sizeof(cur_axis));
 
-	vdin_cap_param.scan_mode	= fmt_info_p->scan_mode;
-	vdin_cap_param.h_active		= fmt_info_p->h_active;
-	vdin_cap_param.v_active		= fmt_info_p->v_active;
-	vdin_cap_param.fmt			= devp->parm.info.fmt;
-	vdin_cap_param.cfmt			= devp->parm.info.cfmt;
+	if (devp->hw_core == VDIN_HW_CORE_LITE) {
+		if (vdin_get_video_ready_state(devp->v4l2_port_cur)) {
+			if (devp->v4l2_port_cur == TVIN_PORT_VIU1_VIDEO ||
+				devp->v4l2_port_cur == TVIN_PORT_VIU1_WB0_VD1)
+				get_vdx_real_axis(0, cur_axis);
+			else if (devp->v4l2_port_cur == TVIN_PORT_VIU2_VD1)
+				get_vdx_real_axis(1, cur_axis);
+
+			vdin_cap_param.h_active = cur_axis[2] - cur_axis[0] + 1;
+			vdin_cap_param.v_active = cur_axis[3] - cur_axis[1] + 1;
+			dprintk(1, "[%s] hv active: %dx%d (video only)\n",
+				__func__, vdin_cap_param.h_active, vdin_cap_param.v_active);
+		} else {
+			vinfo = get_current_vinfo();
+			vdin_cap_param.h_active = vinfo->width;
+			vdin_cap_param.v_active = vinfo->height;
+			dprintk(1, "[%s] hv active: %dx%d (vinfo)\n",
+				__func__, vinfo->width, vinfo->height);
+		}
+
+		vdin_cap_param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
+		vdin_cap_param.cfmt = TVIN_YUV422;
+		vdin_cap_param.fmt = TVIN_SIG_FMT_MAX;
+
+		vdin_cap_param.hsync_phase = 0;
+		vdin_cap_param.vsync_phase = 1;
+		vdin_cap_param.hs_bp = 0;
+		vdin_cap_param.vs_bp = 0;
+	} else {
+		fmt_info_p = tvin_get_fmt_info(devp->parm.info.fmt);
+		if (!fmt_info_p) {
+			dprintk(0, "%s,invalid fmt:%s\n",
+				__func__, tvin_sig_fmt_str(devp->parm.info.fmt));
+			return -1;
+		}
+		vdin_cap_param.h_active = fmt_info_p->h_active;
+		vdin_cap_param.v_active = fmt_info_p->v_active;
+
+		vdin_cap_param.scan_mode = fmt_info_p->scan_mode;
+		vdin_cap_param.cfmt  = devp->parm.info.cfmt;
+		vdin_cap_param.fmt = devp->parm.info.fmt;
+	}
+
 	vdin_cap_param.frame_rate   = devp->parm.info.fps;
 	vdin_cap_param.port         = devp->v4l2_port_cur;
 	vdin_cap_param.dest_h_active = devp->v4l2_fmt.fmt.pix_mp.width;
 	vdin_cap_param.dest_v_active = devp->v4l2_fmt.fmt.pix_mp.height;
 	//vdin_cap_param.reserved    |= PARAM_STATE_SCREEN_CAP;
 
-	if (devp->index) {
-		vdin_cap_param.cfmt = TVIN_YUV422;
-		vdin_cap_param.scan_mode  = TVIN_SCAN_MODE_PROGRESSIVE;
-//		vdin_cap_param.fmt  = TVIN_SIG_FMT_HDMI_1920X1080P_60HZ;
-//		vdin_cap_param.h_active   = 1920;
-//		vdin_cap_param.v_active   = 1080;
-//		vdin_cap_param.frame_rate = 60;
-	}
 	if (vdin_cap_param.frame_rate == 0)
 		vdin_cap_param.frame_rate = 60;
 
@@ -2139,17 +2156,19 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 		vdin_cap_param.dfmt = TVIN_YUV422;
 
 	if (vdin_cap_param.h_active && vdin_cap_param.v_active &&
-	   (vdin_cap_param.h_active > vdin_cap_param.dest_h_active ||
+		(vdin_cap_param.h_active > vdin_cap_param.dest_h_active ||
 		vdin_cap_param.v_active > vdin_cap_param.dest_v_active)) {
 		devp->prop.scaling4w = vdin_cap_param.dest_h_active;
 		devp->prop.scaling4h = vdin_cap_param.dest_v_active;
 	}
 
-	dprintk(1, "%s,dest:%dx%d;scaling:%dx%d\n", __func__,
-		vdin_cap_param.dest_h_active, vdin_cap_param.dest_v_active,
-		devp->prop.scaling4w, devp->prop.scaling4h);
-	ret = start_tvin_service(devp->index, &vdin_cap_param);
+	dprintk(1, "[%s]port:0x%x,fmt:%d %d %d;active:%dx%d,%dx%d;fr:%d;sm:%d\n",
+		__func__, vdin_cap_param.port, vdin_cap_param.cfmt, vdin_cap_param.fmt,
+		vdin_cap_param.dfmt, vdin_cap_param.dest_h_active, vdin_cap_param.dest_v_active,
+		vdin_cap_param.h_active, vdin_cap_param.v_active,
+		vdin_cap_param.frame_rate, vdin_cap_param.scan_mode);
 
+	ret = start_tvin_service(devp->index, &vdin_cap_param);
 	return ret;
 }
 
