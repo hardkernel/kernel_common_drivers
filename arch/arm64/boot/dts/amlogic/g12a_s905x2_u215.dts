@@ -972,7 +972,7 @@
 		 *	LOOPBACK, 7
 		 */
 		resample_module = <4>;
-		status = "okay";
+		status = "disabled";
 	};
 	aml_pwrdet: pwrdet {
 		compatible = "amlogic, g12a-power-detect";

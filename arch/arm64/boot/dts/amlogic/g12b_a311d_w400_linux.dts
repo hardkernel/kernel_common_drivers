@@ -895,7 +895,7 @@
 		 */
 		resample_module = <4>;
 		suspend-clk-off = <1>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	aml_pwrdet: pwrdet {
