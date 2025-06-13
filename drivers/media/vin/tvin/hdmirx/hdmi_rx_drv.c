@@ -2333,6 +2333,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 				msleep(20);
 				rx_set_cur_hpd(0, 4, port_idx);
 				fsm_restart(port_idx);
+				hdmirx_scdc_reset(port_idx);
 			}
 		}
 		rx_info.edid_update_done |= _BIT(port_idx);

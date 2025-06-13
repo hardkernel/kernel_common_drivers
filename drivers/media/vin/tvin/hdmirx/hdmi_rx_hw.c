@@ -5269,6 +5269,10 @@ void rx_get_de_sts(u8 port)
 		tmp = hdmirx_rd_cor(COR_PIXEL_CNT_LO, port) |
 			(hdmirx_rd_cor(COR_PIXEL_CNT_HI, port) << 8);
 		rx[port].cur.hactive = tmp;
+		rx[port].cur.hfront = hdmirx_rd_cor(COR_FDET_HFRONT, port) |
+			(hdmirx_rd_cor(COR_FDET_HFRONT + 1, port) << 8);
+		rx[port].cur.hback = hdmirx_rd_cor(COR_FDET_HBACK, port) |
+			(hdmirx_rd_cor(COR_FDET_HBACK + 1, port) << 8);
 		rx[port].cur.vactive = hdmirx_rd_cor(COR_LINE_CNT_LO, port) |
 			(hdmirx_rd_cor(COR_LINE_CNT_HI, port) << 8);
 		rx[port].cur.htotal = (hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_LO, port) |
@@ -8369,4 +8373,39 @@ void rx_dump_pll_param(void)
 		/* other chips to do */
 		break;
 	}
+}
+
+bool hdmi_rx_is_fifo_unnormal(u8 port)
+{
+	int status1;
+	int status2;
+	int status3;
+
+	status1 = hdmirx_rd_cor(VP_FDET_IRQ_STATUS_VID_IVCRX, port);
+	udelay(1);
+	status2 = hdmirx_rd_cor(VP_FDET_IRQ_STATUS_VID_IVCRX + 1, port);
+	udelay(1);
+	status3 = hdmirx_rd_cor(VP_FDET_IRQ_STATUS_VID_IVCRX + 2, port);
+	if (log_level & FRL_LOG)
+		rx_pr("18bc = 0x%x, 18bd = 0x%x, 18be = 0x%x\n", status1, status2, status3);
+	if ((status2 & 0x07) || (status1 & 0x80))
+		return true;
+	else
+		return false;
+}
+
+void hdmi_rx_frl_pix_chg(u8 port)
+{
+	hdmirx_wr_cor(RX_CLK_PXL_DIV_PWD_IVCRX, 0x1, port);
+	udelay(1);
+	hdmirx_wr_cor(RX_CLK_PXL_DIV_PWD_IVCRX, 0x0, port);
+}
+
+bool hdmi_rx_frl_unnormal(u8 port)
+{
+	hdmi_rx_frl_pix_chg(port);
+	mdelay(1);
+	clr_frl_fifo_status(port);
+	mdelay(1);
+	return hdmi_rx_is_fifo_unnormal(port);
 }

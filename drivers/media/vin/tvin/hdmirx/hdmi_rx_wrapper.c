@@ -59,12 +59,17 @@ static int err_cnt_sum_max;
 static int sig_unstable_max;
 static int sig_unready_max;
 static int fps_unready_max;
-
+static int frl_check_max = 30;
+static int frl_double_check_max = 5;
+static int frl_pix_check_max = 2;
+static int sig_frl_stable_max = 20;
 //int rgb_quant_range;
 //int yuv_quant_range;
 //int it_content;
 static int diff_pixel_th;
 static int diff_line_th;
+static int diff_hfront_th = 1;
+static int diff_hback_th = 1;
 static int diff_frame_th;
 int aud_sr_stb_max;
 //static int audio_coding_type;
@@ -2414,6 +2419,39 @@ static bool rx_is_avi_stable(u8 port)
 	return ret;
 }
 
+static bool rx_is_frl_timing_stable(u8 port)
+{
+	bool ret = true;
+
+	if (abs(rx[port].cur.hfront -
+		rx[port].pre.hfront) > diff_hfront_th) {
+		ret = false;
+		if (log_level & LOG_EN)
+			rx_pr("hfront(%d=>%d),",
+			rx[port].pre.hfront,
+			rx[port].cur.hfront);
+	}
+
+	if (abs(rx[port].cur.hback -
+		rx[port].pre.hback) > diff_hback_th) {
+		ret = false;
+		if (log_level & LOG_EN)
+			rx_pr("hback(%d=>%d),",
+			rx[port].pre.hback,
+			rx[port].cur.hback);
+	}
+
+	if (abs(rx[port].cur.hactive -
+		rx[port].pre.hactive) > diff_pixel_th) {
+		ret = false;
+		if (log_level & LOG_EN)
+			rx_pr("hactive(%d=>%d),",
+			rx[port].pre.hactive,
+			rx[port].cur.hactive);
+	}
+	return ret;
+}
+
 /*
  * check timing info
  */
@@ -3676,6 +3714,12 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(secure_debug),
 		&secure_debug, value))
 		return pr_var(secure_debug, index);
+	if (set_pr_var(tmpbuf, var_to_str(frl_check_max),
+		&frl_check_max, value))
+		return pr_var(frl_check_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(sig_frl_stable_max),
+		&sig_frl_stable_max, value))
+		return pr_var(sig_frl_stable_max, index);
 	//fsm var
 	if (set_pr_var(tmpbuf, var_to_str(rx[E_PORT0].var.dbg_ve),
 		&rx[E_PORT0].var.dbg_ve, value))
@@ -4256,6 +4300,7 @@ void rx_5v_monitor(void)
 			if (rx[i].cur_5v_sts != ((pwr_sts >> i) & 1)) {
 				rx[i].cur_5v_sts = (pwr_sts >> i) & 1;
 				if (rx_info.chip_id == CHIP_ID_T3X) {
+					rx_cor_reset_t3x(i);
 					if (rx[i].cur_5v_sts == 0) {
 						set_fsm_state(FSM_5V_LOST, i);
 						rx[i].pre_5v_sts = 0;
@@ -4411,6 +4456,10 @@ char *fsm_st[] = {
 	"FSM_SIG_HOLD",
 	"FSM_SIG_STABLE",
 	"FSM_SIG_STABLE_TO_READY",
+	"FSM_SIG_FRL_CHECK",
+	"FSM_SIG_FRL_DOUBLE_CHECK",
+	"FSM_SIG_FRL_CHG_PIX",
+	"FSM_SIG_FDET_CHECK",
 	"FSM_SIG_READY",
 	"FSM_NULL",
 };
@@ -5828,6 +5877,8 @@ void rx_port2_main_state_machine(void)
 		rx_irq_en(0, port);
 		if (!(is_earc_hpd_low() && rx_info.main_port == rx_info.arc_port))
 			rx_set_cur_hpd(0, 0, port);
+		rx_cor_reset_t3x(port);
+		rx_set_cur_hpd(0, 0, port);
 		//set_scdc_cfg(1, 0, port);
 		rx[port].state = FSM_INIT;
 		break;
@@ -6073,6 +6124,7 @@ void rx_port2_main_state_machine(void)
 				hdmirx_config_audio(port);
 				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
+				rx[port].frl_check = 0;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
 			}
@@ -6121,7 +6173,12 @@ void rx_port2_main_state_machine(void)
 				rx[port].skip = 0;
 				rx[port].var.mute_cnt = 0;
 				rx[port].last_sw_vic = rx[port].pre.sw_vic;
-				rx[port].state = FSM_SIG_READY;
+				rx[port].frl_check = 0;
+				if (rx_info.chip_id == CHIP_ID_T3X &&
+					rx[port].var.frl_rate && !rx[port].dsc_flag)
+					rx[port].state = FSM_SIG_FRL_CHECK;
+				else
+					rx[port].state = FSM_SIG_READY;
 				rx[port].aud_sr_stable_cnt = 0;
 				rx[port].aud_sr_unstable_cnt = 0;
 				rx[port].no_signal = false;
@@ -6147,6 +6204,65 @@ void rx_port2_main_state_machine(void)
 			}
 			rx_irq_en(0, port);
 			rx[port].state = FSM_FRL_FLT_READY;
+		}
+		break;
+	case FSM_SIG_FRL_CHECK:
+		if (rx[port].var.frl_rate && rx[port].frl_check <= frl_check_max) {
+			rx[port].frl_check++;
+			if (hdmi_rx_frl_unnormal(port)) {
+				rx[port].state = FSM_SIG_FRL_DOUBLE_CHECK;
+				rx[port].frl_double_check = 0;
+				clr_frl_fifo_status(port);
+				break;
+			}
+			break;
+		}
+		rx[port].state = FSM_SIG_FDET_CHECK;
+		rx[port].var.sig_frl_stable_cnt = 0;
+		rx[port].frl_check = 0;
+		break;
+	case FSM_SIG_FRL_DOUBLE_CHECK:
+		if (rx[port].frl_double_check <= frl_double_check_max) {
+			rx[port].frl_double_check++;
+			if (hdmi_rx_is_fifo_unnormal(port)) {
+				clr_frl_fifo_status(port);
+			} else {
+				rx[port].state = FSM_SIG_FDET_CHECK;
+				rx[port].frl_pix_cnt = 0;
+			}
+		} else {
+			rx[port].state = FSM_HPD_LOW;
+		}
+		break;
+	case FSM_SIG_FDET_CHECK:
+		switch (rx[port].frl_fdet_check_step) {
+		case 0:
+			if (rx[port].frl_pix_cnt > frl_pix_check_max) {
+				rx[port].state = FSM_SIG_READY;
+				get_timing_fmt(port);
+				rx[port].frl_pix_cnt = 0;
+				break;
+			}
+			hdmi_rx_frl_pix_chg(port);
+			rx[port].frl_fdet_check_step = 1;
+			break;
+
+		case 1:
+			memcpy(&rx[port].pre, &rx[port].cur, sizeof(struct rx_video_info));
+			rx_get_video_info(port);
+			if (!rx_is_frl_timing_stable(port)) {
+				rx[port].state = FSM_HPD_LOW;
+				rx_pr("frl fdet err, do cor rst\n");
+				break;
+			}
+
+			if (++rx[port].var.sig_frl_stable_cnt >= sig_frl_stable_max) {
+				rx[port].frl_pix_cnt++;
+				rx[port].var.sig_frl_stable_cnt = 0;
+				rx[port].frl_fdet_check_step = 0;
+				rx_pr("frl timing stable\n");
+			}
+			break;
 		}
 		break;
 	case FSM_SIG_READY:
@@ -6373,7 +6489,6 @@ void rx_port3_main_state_machine(void)
 		rx[port].state = FSM_FRL_FLT_READY;
 		break;
 	case FSM_FRL_FLT_READY:
-		hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x0, port);
 		hdmirx_frl_config(port);
 		rx_lts_2_flt_ready(port);
 		rx[port].state = FLT_RX_LTS_3;
@@ -6582,6 +6697,7 @@ void rx_port3_main_state_machine(void)
 				rx_get_aud_info(&rx[port].aud_info, port);
 				hdmirx_config_audio(port);
 				rx_aud_pll_ctl(1, port);
+				rx[port].frl_check = 0;
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -6631,7 +6747,12 @@ void rx_port3_main_state_machine(void)
 				rx[port].skip = 0;
 				rx[port].var.mute_cnt = 0;
 				rx[port].last_sw_vic = rx[port].pre.sw_vic;
-				rx[port].state = FSM_SIG_READY;
+				rx[port].frl_check = 0;
+				if (rx_info.chip_id == CHIP_ID_T3X &&
+					rx[port].var.frl_rate && !rx[port].dsc_flag)
+					rx[port].state = FSM_SIG_FRL_CHECK;
+				else
+					rx[port].state = FSM_SIG_READY;
 				rx[port].aud_sr_stable_cnt = 0;
 				rx[port].aud_sr_unstable_cnt = 0;
 				rx[port].no_signal = false;
@@ -6657,6 +6778,64 @@ void rx_port3_main_state_machine(void)
 			}
 			rx_irq_en(IRQ_EN_HDCP, port);
 			rx[port].state = FSM_FRL_FLT_READY;
+		}
+		break;
+	case FSM_SIG_FRL_CHECK:
+		if (rx[port].var.frl_rate && rx[port].frl_check <= frl_check_max) {
+			rx[port].frl_check++;
+			if (hdmi_rx_frl_unnormal(port)) {
+				rx[port].state = FSM_SIG_FRL_DOUBLE_CHECK;
+				rx[port].frl_double_check = 0;
+				clr_frl_fifo_status(port);
+				break;
+			}
+			break;
+		}
+		rx[port].state = FSM_SIG_FDET_CHECK;
+		rx[port].var.sig_frl_stable_cnt = 0;
+		rx[port].frl_check = 0;
+		break;
+	case FSM_SIG_FRL_DOUBLE_CHECK:
+		if (rx[port].frl_double_check <= frl_double_check_max) {
+			rx[port].frl_double_check++;
+			if (hdmi_rx_is_fifo_unnormal(port)) {
+				clr_frl_fifo_status(port);
+			} else {
+				rx[port].state = FSM_SIG_FDET_CHECK;
+				rx[port].frl_pix_cnt = 0;
+			}
+		} else {
+			rx[port].state = FSM_HPD_LOW;
+		}
+		break;
+	case FSM_SIG_FDET_CHECK:
+		switch (rx[port].frl_fdet_check_step) {
+		case 0:
+			if (rx[port].frl_pix_cnt > frl_pix_check_max) {
+				rx[port].state = FSM_SIG_READY;
+				get_timing_fmt(port);
+				rx[port].frl_pix_cnt = 0;
+				break;
+			}
+			hdmi_rx_frl_pix_chg(port);
+			rx[port].frl_fdet_check_step = 1;
+			break;
+		case 1:
+			memcpy(&rx[port].pre, &rx[port].cur, sizeof(struct rx_video_info));
+			rx_get_video_info(port);
+			if (!rx_is_frl_timing_stable(port)) {
+				rx[port].state = FSM_HPD_LOW;
+				rx_pr("frl fdet err, do cor rst\n");
+				break;
+			}
+
+			if (++rx[port].var.sig_frl_stable_cnt >= sig_frl_stable_max) {
+				rx[port].frl_pix_cnt++;
+				rx[port].var.sig_frl_stable_cnt = 0;
+				rx[port].frl_fdet_check_step = 0;
+				rx_pr("frl timing stable\n");
+			}
+			break;
 		}
 		break;
 	case FSM_SIG_READY:

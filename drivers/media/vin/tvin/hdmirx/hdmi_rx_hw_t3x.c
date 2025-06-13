@@ -5749,6 +5749,8 @@ void rx_cor_reset_t3x(u8 port)
 	hdmirx_wr_top(TOP_SW_RESET, 1, port);
 	udelay(1);
 	hdmirx_wr_top(TOP_SW_RESET, 0, port);
+	udelay(1);
+	hdmirx_wr_cor(SCDCS_100MS_IN_1MS_CNT_SCDC_IVCRX, 0x1, port);
 }
 
 void clr_frl_fifo_status(u8 port)

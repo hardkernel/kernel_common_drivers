@@ -97,8 +97,8 @@
 //2025.06.05 Fix aspect ratio flow
 //2025.06.20 use hrtimer to poll edid sts
 //2025.06.26 modify acr_ref_clk config method
-//2025.07.10 fix irq init error
-#define RX_DRV_VER "ver.2025/07/10"
+//2025.07.31 Fix t3x bright line issue on frl mode
+#define RX_DRV_VER "ver.2025/07/31"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -327,6 +327,7 @@ struct rx_var_param {
 	int dwc_rst_wait_cnt;
 	int dwc_rst_wait_cnt_max;
 	int sig_stable_cnt;
+	int sig_frl_stable_cnt;
 	int sig_stable_max;
 	int sig_stable_err_cnt;//todo
 	int sig_stable_err_max;
@@ -536,6 +537,8 @@ struct rx_video_info {
 	u32 hactive;
 	/** Horizontal total */
 	u32 htotal;
+	u32 hfront;
+	u32 hback;
 	/** AVI Y1-0, video format */
 	u8 colorspace;
 	/** AVI VIC6-0, video identification code */
@@ -1081,6 +1084,10 @@ struct rx_s {
 	int dump_aud_cnt;
 	struct hdmirx_phy_status_s phy_sts;
 	struct edid_capacity edid_cap;
+	u32 frl_check;
+	u32 frl_double_check;
+	u32 frl_pix_cnt;
+	u8 frl_fdet_check_step;
 };
 
 struct reg_map {

@@ -1312,6 +1312,8 @@
 #define COR_PIXEL_CNT_HI	0x188D
 #define COR_LINE_CNT_LO		0x188E
 #define COR_LINE_CNT_HI		0x188F
+#define COR_FDET_HFRONT		0x1894
+#define COR_FDET_HBACK		0x1896
 
 /* h-sync */
 #define COR_HSYNC_LOW_COUNT_LO      0x1890
@@ -3693,4 +3695,7 @@ void rx_get_aud_pkt(u8 port);
 void rx_aud_to_emp_init(u8 port);
 bool rx_get_dvi_mode(u8 port);
 void rx_internal_dacr_mclk_en(bool en, u8 port);
+bool hdmi_rx_frl_unnormal(u8 port);
+bool hdmi_rx_is_fifo_unnormal(u8 port);
+void hdmi_rx_frl_pix_chg(u8 port);
 #endif
