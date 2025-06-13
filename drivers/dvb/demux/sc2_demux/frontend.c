@@ -226,7 +226,9 @@ static void set_dvb_ts(struct platform_device *pdev,
 		enable_tsinb_clk = 1;
 	}
 
-	if (i == 3 && get_cpu_type() == MESON_CPU_MAJOR_ID_T3X)
+	if (i == 3 &&
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T3X ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
 		demod_config_tsin_clk(3, 0);
 
 	if (IS_ERR_OR_NULL(advb->ts[i].pinctrl))
