@@ -448,7 +448,8 @@ int key_unify_query(struct aml_uk_dev *ukdev, char *name,
 	switch (key->dev) {
 	case KEY_EFUSE:
 		ret = key_efuse_query(name, state);
-		*perm = key->perm;
+		if (perm)
+			*perm = key->perm;
 		break;
 	case KEY_SECURE:
 	case KEY_NORMAL:
