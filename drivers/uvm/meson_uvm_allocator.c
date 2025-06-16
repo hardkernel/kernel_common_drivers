@@ -925,9 +925,9 @@ static int mua_set_decoder_para(struct uvm_decoder_para *para)
 	node = (struct uvm_decoder_para *)decoder_para + para->slot_id;
 	*node = *para;
 
-	MUA_PRINTK(MUA_INFO, "%s: set slot %u. w*h(%u*%u) align_w*h(%u*%u) size(%u) compress(%u)\n",
+	MUA_PRINTK(MUA_INFO, "%s:set slot %u. w*h(%u*%u) align_w*h(%u*%u) size(%u) drt_map(%u)\n",
 		__func__, para->slot_id, para->width, para->height,
-		para->w_align, para->h_align, para->size, para->compress);
+		para->w_align, para->h_align, para->size, para->direct_map);
 	return ret;
 }
 
@@ -944,9 +944,9 @@ static int mua_get_decoder_para(struct uvm_decoder_para *para)
 	node = (struct uvm_decoder_para *)decoder_para + para->slot_id;
 	*para = *node;
 
-	MUA_PRINTK(MUA_INFO, "%s: get slot %u. w*h(%u*%u) align_w*h(%u*%u) size(%u) compress(%u)\n",
+	MUA_PRINTK(MUA_INFO, "%s:get slot %u. w*h(%u*%u) align_w*h(%u*%u) size(%u) drt_map(%u)\n",
 		__func__, para->slot_id, para->width, para->height,
-		para->w_align, para->h_align, para->size, para->compress);
+		para->w_align, para->h_align, para->size, para->direct_map);
 	return ret;
 }
 

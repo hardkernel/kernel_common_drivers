@@ -142,7 +142,7 @@ struct uvm_decoder_para {
 	u32 w_align;
 	u32 h_align;
 	u32 size;
-	u32 compress;
+	u32 direct_map;
 };
 
 union uvm_ioctl_arg {
