@@ -495,17 +495,6 @@ void hdcp_key_check(struct timer_list *timer)
 	}
 }
 
-bool hdcp_tx22_daemon_ready(void)
-{
-	bool ret = false;
-
-	if (meson_hdcp.hdcp22_daemon_state != HDCP22_DAEMON_DONE)
-		ret = false;
-	else
-		ret = true;
-	return ret;
-}
-
 static int drm_hdmitx_register_hdcp_cb(struct drm_hdmitx_hdcp_cb *hdcp_cb)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
@@ -568,11 +557,31 @@ unsigned int meson_hdcp_get_tx_cap(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 	unsigned int hdcp_tx_type = meson_hdcp_get_tx_key_version();
+	unsigned int tx_cap;
 
 	/* check hdcp daemon: android or daemon is running */
-	if (hdev->tx_comm.hdcp_ctl_lvl > 0 && !hdcp_tx22_daemon_ready())
-		hdcp_tx_type &= 0x1;
-
+	if (hdev->tx_comm.hdcp_ctl_lvl > 0) {
+		switch (meson_hdcp.hdcp22_daemon_state) {
+		case HDCP22_DAEMON_DONE:
+			tx_cap = hdcp_tx_type & 0x3;
+			HDMITX_DEBUG_HDCP("%s daemon done, return real tx_cap:%d\n", __func__,
+			tx_cap);
+			break;
+		case HDCP22_DAEMON_TIMEOUT:
+			tx_cap = hdcp_tx_type & 0x1;
+			HDMITX_DEBUG_HDCP("%s daemon timeout, return 1.4 tx_cap:%d\n", __func__,
+			tx_cap);
+			break;
+		case HDCP22_DAEMON_LOADING:
+		default:
+			tx_cap = 0;
+			HDMITX_DEBUG_HDCP("%s daemon loading, return null tx_cap:%d\n", __func__,
+				tx_cap);
+			break;
+		}
+		return tx_cap;
+	}
+	HDMITX_DEBUG_HDCP("%s android os, return real tx_cap:%d\n", __func__, hdcp_tx_type & 0x3);
 	return hdcp_tx_type & 0x3;
 }
 
