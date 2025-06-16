@@ -910,11 +910,11 @@ static bool resman_codec_mm_preempt(struct resman_session *curr,
 				}
 			}
 		}
-		if (!selected)
+		if (!selected) {
 			dprintk(2, "fail to find node to preempt\n");
-		else
-			dprintk(2, "preempt node prio:%d\n", lowestprio);
-
+			break;
+		}
+		dprintk(2, "preempt node prio:%d\n", lowestprio);
 		if (resman_preempt_session(curr, selected)) {
 			new_score -= selected->s.codec_mm.score;
 			lowestprio = curr->prio;
@@ -1137,11 +1137,11 @@ static bool resman_capacity_preempt(struct resman_session *curr,
 				}
 			}
 		}
-		if (!selected)
+		if (!selected) {
 			dprintk(2, "fail to find node to preempt\n");
-		else
-			dprintk(2, "preempt node prio:%d\n", lowestprio);
-
+			break;
+		}
+		dprintk(2, "preempt node prio:%d\n", lowestprio);
 		if (resman_preempt_session(curr, selected)) {
 			used_size -= selected->s.capacity.use;
 			lowestprio = curr->prio;
