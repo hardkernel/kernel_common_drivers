@@ -657,6 +657,10 @@ static int vad_init(struct vad *p_vad)
 
 static void vad_deinit(struct vad *p_vad)
 {
+	/* free irq */
+	free_irq(p_vad->irq_wakeup, p_vad);
+	free_irq(p_vad->irq_fs, p_vad);
+
 	if (p_vad->level == LEVEL_KERNEL) {
 #ifdef __VAD_DUMP_DATA__
 		if (p_vad->fp) {
@@ -672,10 +676,6 @@ static void vad_deinit(struct vad *p_vad)
 		kfree(p_vad->buf);
 		p_vad->buf = NULL;
 	}
-
-	/* free irq */
-	free_irq(p_vad->irq_wakeup, p_vad);
-	free_irq(p_vad->irq_fs, p_vad);
 
 	/* clock disabled */
 	vad_set_clks(p_vad, false);
