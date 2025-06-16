@@ -85,6 +85,7 @@ signed int saturation_offset;
 static bool cur_hdmi_out_fmt;
 #endif
 bool limit_8bit_hdr10 = true;
+struct hdr_cap_info_s hdr_cap_info;
 
 /*hdr------------------------------------*/
 
@@ -8971,6 +8972,11 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		current_sink_available[vd_path] = 0;
 		return 0;
 	}
+
+	hdr_cap_info.hdr_support = sink_hdr_support(vinfo);
+	hdr_cap_info.dv_info = vinfo->dv_info;
+	hdr_cap_info.cd = vinfo->cd;
+	hdr_cap_info.cs = vinfo->cs;
 
 	if (reload_mtx) {
 		for (i = 0; i < NUM_MATRIX; i++)

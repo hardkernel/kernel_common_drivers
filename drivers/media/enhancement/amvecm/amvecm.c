@@ -560,6 +560,7 @@ void d_convert_str(int num,
 #endif
 
 bool enable_hdr10plus;/* enable hdr10+ or not */
+u32 hdr_cap_dbg;
 
 /* vpp brightness/contrast/saturation/hue */
 int __init amvecm_load_pq_val(char *str)
@@ -1190,6 +1191,87 @@ static ssize_t amvecm_enable_hdr10plus_show
 	  char *buf)
 {
 	return sprintf(buf, "%d\n", enable_hdr10plus);
+}
+
+static ssize_t amvecm_hdr_cap_dbg_show
+	 (const struct class *cla,
+	  const struct class_attribute *attr,
+	  char *buf)
+{
+	ssize_t len = 0;
+	int i;
+	struct dv_info *dv_info = &hdr_cap_info.dv_info;
+
+	len += sprintf(buf + len, "HDR RX support list:\n");
+	len += sprintf(buf + len,
+		"  HDR10Plus Supported: %d\n", (hdr_cap_info.hdr_support & HDRP_SUPPORT) ? 1 : 0);
+	len += sprintf(buf + len,
+		"  HDR10 Supported: %d\n", (hdr_cap_info.hdr_support & HDR_SUPPORT) ? 1 : 0);
+	len += sprintf(buf + len,
+		"  HLG Supported: %d\n", (hdr_cap_info.hdr_support & HLG_SUPPORT) ? 1 : 0);
+	len += sprintf(buf + len,
+		"  CUVA Supported: %d\n\n", (hdr_cap_info.hdr_support & CUVA_SUPPORT) ? 1 : 0);
+	if (hdr_cap_info.dv_info.ieeeoui != DV_IEEE_OUI ||
+		hdr_cap_info.dv_info.block_flag != CORRECT) {
+		len += sprintf(buf + len,
+			"The Rx don't support DolbyVision\n");
+	} else {
+		len += sprintf(buf + len,
+			"DolbyVision RX support list:\n");
+		len += sprintf(buf + len,
+			"VSVDB Version: V%d\n", dv_info->ver);
+		len += sprintf(buf + len,
+			"2160p%shz: 1\n", dv_info->sup_2160p60hz ? "60" : "30");
+		len += sprintf(buf + len,
+			"Parity: %d\n", dv_info->parity);
+		len += sprintf(buf + len,
+			"Support mode:\n");
+		if (dv_info->Interface != 0x00 && dv_info->Interface != 0x01) {
+			len += sprintf(buf + len,
+				"  DV_RGB_444_8BIT\n");
+			if (dv_info->sup_yuv422_12bit)
+				len += sprintf(buf + len,
+					"  DV_YCbCr_422_12BIT\n");
+		}
+		len += sprintf(buf + len,
+			"  LL_YCbCr_422_12BIT\n");
+		if (dv_info->Interface == 0x01 || dv_info->Interface == 0x03) {
+			if (dv_info->sup_10b_12b_444 == 0x1) {
+				len += sprintf(buf + len,
+					"  LL_RGB_444_10BIT\n");
+			}
+			if (dv_info->sup_10b_12b_444 == 0x2) {
+				len += sprintf(buf + len,
+					"  LL_RGB_444_12BIT\n");
+			}
+		}
+		len += sprintf(buf + len,
+			"IEEEOUI: 0x%06x\n", dv_info->ieeeoui);
+		len += sprintf(buf + len,
+			"EMP: %d\n", dv_info->dv_emp_cap);
+		len += sprintf(buf + len, "VSVDB: ");
+	}
+	for (i = 0; i < (dv_info->length + 1); i++)
+		len += sprintf(buf + len, "%02x", dv_info->rawdata[i]);
+	len += sprintf(buf + len,
+		"\n\noutput attr:\n");
+	if (hdr_cap_info.cs == 0)
+		len += sprintf(buf + len, "  rgb,");
+	else if (hdr_cap_info.cs == 1)
+		len += sprintf(buf + len, "  422,");
+	else if (hdr_cap_info.cs == 2)
+		len += sprintf(buf + len, "  444,");
+	else if (hdr_cap_info.cs == 3)
+		len += sprintf(buf + len, "  420,");
+	if (hdr_cap_info.cd == 4)
+		len += sprintf(buf + len, "8bit\n");
+	else if (hdr_cap_info.cd == 5)
+		len += sprintf(buf + len, "10bit\n");
+	else if (hdr_cap_info.cd == 6)
+		len += sprintf(buf + len, "12bit\n");
+	else if (hdr_cap_info.cd == 7)
+		len += sprintf(buf + len, "16bit\n");
+	return len;
 }
 
 /* #endif */
@@ -13602,6 +13684,8 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_slt_vl_lock_st_store),
 	__ATTR(enable_hdr10plus, 0644,
 		amvecm_enable_hdr10plus_show, NULL),
+	__ATTR(hdr_cap_dbg, 0644,
+		amvecm_hdr_cap_dbg_show, NULL),
 #endif
 	__ATTR_NULL
 };

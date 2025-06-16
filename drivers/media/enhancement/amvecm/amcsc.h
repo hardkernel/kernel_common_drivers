@@ -103,6 +103,13 @@ enum output_format_e {
 	BT_BYPASS
 };
 
+struct hdr_cap_info_s {
+	struct dv_info dv_info;
+	u32 hdr_support;
+	enum hdmi_color_depth cd;
+	enum hdmi_colorspace cs;
+};
+
 #define POST_MTX_EN_MASK BIT(POST_MTX_EN)
 #define VD2_MTX_EN_MASK  BIT(VD2_MTX_EN)
 #define VD1_MTX_EN_MASK  BIT(VD1_MTX_EN)
@@ -161,6 +168,7 @@ extern int video_rgb_ogo_xvy_mtx_latch;
 extern int video_rgb_ogo_xvy_mtx;
 extern int tx_op_color_primary;
 extern uint cur_csc_type[VD_PATH_MAX];
+extern struct hdr_cap_info_s hdr_cap_info;
 
 /* 0: source: use src meta */
 /* 1: Auto: 601/709=709 P3/2020=P3 */
