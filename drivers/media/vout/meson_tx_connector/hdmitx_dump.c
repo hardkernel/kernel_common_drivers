@@ -77,20 +77,21 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 	seq_printf(s, "%s\n", conf);
 
 	seq_puts(s, "hdr_status:");
+	/* check DV or HDR10+ */
 	type = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_HDR10P_ST, NULL, NULL);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF)
 			seq_puts(s, "HDR10Plus-VSIF");
-	}
-	type = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AMDV_ST, NULL, NULL);
-	if (type) {
+	} else {
+		type = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_AMDV_ST, NULL, NULL);
 		if (type == HDMI_DV_VSIF_STD)
 			seq_puts(s, "DolbyVision-Std");
 		else if (type == HDMI_DV_VSIF_LL)
 			seq_puts(s, "DolbyVision-Lowlatency");
 	}
-	type = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_HDR_ST, NULL, NULL);
-	if (type) {
+	/* check HDR */
+	if (type == HDMI_NONE) {
+		type = hdmitx_hw_cntl(hw_comm, AUX_PKT_GET_HDR_ST, NULL, NULL);
 		if (type == HDMI_HDR_SMPTE_2084)
 			seq_puts(s, "HDR10-GAMMA_ST2084");
 		else if (type == HDMI_HDR_HLG)
@@ -100,8 +101,8 @@ int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 		else if (type == HDMI_HDR_SDR)
 			seq_puts(s, "SDR");
 	}
+	/* default is SDR */
 	if (type == HDMI_NONE)
-		/* default is SDR */
 		seq_puts(s, "SDR");
 	seq_puts(s, "\n");
 	seq_printf(s, "cur_VIC: %d\n", tx_comm->fmt_para.vic);
