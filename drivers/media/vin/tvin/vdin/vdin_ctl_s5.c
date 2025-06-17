@@ -36,22 +36,10 @@
 #define VDIN_V_SHRINK_H_LIMIT 1280
 #define VDIN_MAX_H_ACTIVE 4096	/*the max h active of vdin*/
 
-static bool rgb_info_enable;
-static unsigned int rgb_info_x;
-static unsigned int rgb_info_y;
-static unsigned int rgb_info_r;
-static unsigned int rgb_info_g;
-static unsigned int rgb_info_b;
-//static int vdin_det_idle_wait = 100;
-static unsigned int delay_line_num;
-//static bool invert_top_bot;
 //static unsigned int vdin0_afbce_debug_force;
 static unsigned int vdin_luma_max;
 
 //static unsigned int vpu_reg_27af = 0x3;
-
-//tmp
-static bool cm_enable = 1;
 
 /***************************Local defines**********************************/
 
@@ -320,13 +308,13 @@ static struct vdin_matrix_lup_s vdin_matrix_lup[] = {
 void vdin_prob_get_rgb_s5(unsigned int offset,
 		       unsigned int *r, unsigned int *g, unsigned int *b)
 {
-	*b = rgb_info_b = rd_bits(offset, VDIN_MAT0_PROBE_COLOR,
+	*b = rd_bits(offset, VDIN_MAT0_PROBE_COLOR,
 				  COMPONENT2_PROBE_COLOR_BIT,
 				  COMPONENT0_PROBE_COLOR_WID);
-	*g = rgb_info_g = rd_bits(offset, VDIN_MAT0_PROBE_COLOR,
+	*g = rd_bits(offset, VDIN_MAT0_PROBE_COLOR,
 				  COMPONENT1_PROBE_COLOR_BIT,
 				  COMPONENT1_PROBE_COLOR_WID);
-	*r = rgb_info_r = rd_bits(offset, VDIN_MAT0_PROBE_COLOR,
+	*r = rd_bits(offset, VDIN_MAT0_PROBE_COLOR,
 				  COMPONENT0_PROBE_COLOR_BIT,
 				  COMPONENT0_PROBE_COLOR_WID);
 }
@@ -358,7 +346,7 @@ void vdin_prob_matrix_sel_s5(unsigned int offset,
 }
 
 /* this function set flowing parameters:
- *a.rgb_info_x	b.rgb_info_y
+ *a.devp->debug.rgb_info_x	b.devp->debug.rgb_info_y
  *debug usage:
  *echo rgb_xy x y > /sys/class/vdin/vdinx/attr
  */
@@ -366,16 +354,16 @@ void vdin_prob_set_xy_s5(unsigned int offset,
 		      unsigned int x, unsigned int y, struct vdin_dev_s *devp)
 {
 	/* set position */
-	rgb_info_x = x;
+	devp->debug.rgb_info_x = x;
 	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
-		rgb_info_y = y / 2;
+		devp->debug.rgb_info_y = y / 2;
 	else
-		rgb_info_y = y;
+		devp->debug.rgb_info_y = y;
 
 	/* #if defined(VDIN_V1) */
-	wr_bits(offset, VDIN_MAT0_PROBE_POS, rgb_info_y,
+	wr_bits(offset, VDIN_MAT0_PROBE_POS, devp->debug.rgb_info_y,
 		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
-	wr_bits(offset, VDIN_MAT0_PROBE_POS, rgb_info_x,
+	wr_bits(offset, VDIN_MAT0_PROBE_POS, devp->debug.rgb_info_x,
 		PROBE_POS_X_BIT, PROBE_POS_X_WID);
 }
 
@@ -621,7 +609,7 @@ void vdin_set_decimation_s5(struct vdin_dev_s *devp)
 
 	if (devp->prop.decimation_ratio & HDMI_DE_REPEAT_DONE_FLAG) {
 		decimation_in_frontend = true;
-		if (vdin_ctl_dbg)
+		if (devp->debug.vdin_ctl_dbg)
 			pr_info("decimation_in_frontend\n");
 	}
 	devp->prop.decimation_ratio = devp->prop.decimation_ratio &
@@ -629,7 +617,8 @@ void vdin_set_decimation_s5(struct vdin_dev_s *devp)
 
 	new_clk = devp->fmt_info_p->pixel_clk /
 			(devp->prop.decimation_ratio + 1);
-	if (vdin_ctl_dbg)
+
+	if (devp->debug.vdin_ctl_dbg)
 		pr_info("%s decimation_ratio=%u,new_clk=%u.h:%d,v:%d\n",
 			__func__, devp->prop.decimation_ratio, new_clk,
 			devp->h_active, devp->v_active);
@@ -643,7 +632,7 @@ void vdin_set_decimation_s5(struct vdin_dev_s *devp)
 	/* output_width_m1 */
 	//wr_bits(offset, VDIN_INTF_WIDTHM1, (devp->h_active - 1),
 	//	VDIN_INTF_WIDTHM1_BIT, VDIN_INTF_WIDTHM1_WID);
-	if (vdin_ctl_dbg)
+	if (devp->debug.vdin_ctl_dbg)
 		pr_info("%s: h_active=%u, v_active=%u\n",
 			__func__, devp->h_active, devp->v_active);
 }
@@ -703,8 +692,6 @@ void vdin_change_matrix0_s5(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_PP_TOP_CTRL, 1,
 			PP_MAT0_EN_BIT, PP_MAT0_EN_WID);
 	}
-
-	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 /* hdr2 used as only matrix,not hdr matrix
@@ -741,8 +728,6 @@ void vdin_change_matrix1_s5(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_PP_TOP_CTRL, 1,
 			PP_MAT1_EN_BIT, PP_MAT1_EN_WID);
 	}
-
-	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 /*
@@ -782,30 +767,22 @@ void vdin_change_matrix_hdr_s5(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_PP_HDR2_CTRL, 0,//refer to above
 			PP_HDR2_TOP_EN_BIT, PP_HDR2_TOP_EN_WID);
 	}
-
-	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 static enum vdin_matrix_csc_e
-vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
-		       struct tvin_format_s *tvin_fmt_p,
-		       enum vdin_format_convert_e format_convert,
-		       enum tvin_port_e port,
-		       enum tvin_color_fmt_range_e color_fmt_range,
-		       unsigned int vdin_hdr_flag,
-		       unsigned int color_range_mode)
+vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, struct vdin_dev_s *devp,
+				enum vdin_format_convert_e format_convert)
 {
 	enum vdin_matrix_csc_e    matrix_csc = VDIN_MATRIX_NULL;
 	/*struct vdin_matrix_lup_s *matrix_tbl;*/
-	struct tvin_format_s *fmt_info = tvin_fmt_p;
-
-	pr_info("%s tvin_fmt_p:%p %p,format_convert:%d\n",
-		__func__, fmt_info, tvin_fmt_p, format_convert);
+	struct tvin_format_s *fmt_info = devp->fmt_info_p;
+	unsigned int vdin_hdr_flag = devp->prop.vdin_hdr_flag | devp->dv.dv_flag;
 
 	if (!fmt_info) {
-		pr_info("error %s tvin_fmt_p:%p\n", __func__, tvin_fmt_p);
+		pr_err("%s fmt_info NULL\n", __func__);
 		return VDIN_MATRIX_NULL;
 	}
+
 	switch (format_convert)	{
 	case VDIN_MATRIX_XXX_YUV_BLACK:
 		matrix_csc = VDIN_MATRIX_XXX_YUV601_BLACK;
@@ -813,9 +790,9 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 	case VDIN_FORMAT_CONVERT_RGB_YUV422:
 	case VDIN_FORMAT_CONVERT_RGB_NV12:
 	case VDIN_FORMAT_CONVERT_RGB_NV21:
-		if (IS_HDMI_SRC(port)) {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_RGB_FULL) {
+		if (IS_HDMI_SRC(devp->parm.port)) {
+			if (devp->color_range_mode == 1) {
+				if (devp->prop.color_fmt_range == TVIN_RGB_FULL) {
 					matrix_csc = VDIN_MATRIX_RGB_YUV709F;
 					if (vdin_hdr_flag == 1)
 						matrix_csc =
@@ -828,7 +805,7 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 						VDIN_MATRIX_RGBS_YUV709;
 				}
 			} else {
-				if (color_fmt_range == TVIN_RGB_FULL) {
+				if (devp->prop.color_fmt_range == TVIN_RGB_FULL) {
 					if (vdin_hdr_flag == 1)
 						matrix_csc =
 						VDIN_MATRIX_RGB2020_YUV2020;
@@ -840,7 +817,7 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 				}
 			}
 		} else {
-			if (color_range_mode == 1)
+			if (devp->color_range_mode == 1)
 				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
 			else
 				matrix_csc = VDIN_MATRIX_RGB_YUV709;
@@ -853,9 +830,9 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 		matrix_csc = VDIN_MATRIX_BRG_YUV601;
 		break;
 	case VDIN_FORMAT_CONVERT_RGB_YUV444:
-		if (IS_HDMI_SRC(port)) {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_RGB_FULL) {
+		if (IS_HDMI_SRC(devp->parm.port)) {
+			if (devp->color_range_mode == 1) {
+				if (devp->prop.color_fmt_range == TVIN_RGB_FULL) {
 					matrix_csc = VDIN_MATRIX_RGB_YUV709F;
 					if (vdin_hdr_flag == 1)
 						matrix_csc =
@@ -867,7 +844,7 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 						VDIN_MATRIX_RGBS_YUV709;
 				}
 			} else {
-				if (color_fmt_range == TVIN_RGB_FULL) {
+				if (devp->prop.color_fmt_range == TVIN_RGB_FULL) {
 					if (vdin_hdr_flag == 1)
 						matrix_csc =
 						VDIN_MATRIX_RGB2020_YUV2020;
@@ -879,7 +856,7 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 				}
 			}
 		} else {
-			if (color_range_mode == 1)
+			if (devp->color_range_mode == 1)
 				matrix_csc = VDIN_MATRIX_RGB_YUV709F;
 			else
 				matrix_csc = VDIN_MATRIX_RGB_YUV709;
@@ -921,28 +898,28 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 		    (fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
 		     fmt_info->v_active >= 540)) { /* 1080i & above */
 
-			if (color_range_mode == 1 &&
-			    color_fmt_range != TVIN_YUV_FULL)
+			if (devp->color_range_mode == 1 &&
+			    devp->prop.color_fmt_range != TVIN_YUV_FULL)
 				matrix_csc = VDIN_MATRIX_YUV709_YUV709F;
-			else if (color_range_mode == 0 &&
-				 color_fmt_range == TVIN_YUV_FULL)
+			else if (devp->color_range_mode == 0 &&
+				devp->prop.color_fmt_range == TVIN_YUV_FULL)
 				matrix_csc = VDIN_MATRIX_YUV709F_YUV709;
 		} else {
-			if (color_range_mode == 1) {
-				if (color_fmt_range == TVIN_YUV_FULL)
+			if (devp->color_range_mode == 1) {
+				if (devp->prop.color_fmt_range == TVIN_YUV_FULL)
 					matrix_csc =
 						VDIN_MATRIX_YUV601F_YUV709F;
 				else
 					matrix_csc = VDIN_MATRIX_YUV601_YUV709F;
 			} else {
-				if (color_fmt_range == TVIN_YUV_FULL)
+				if (devp->prop.color_fmt_range == TVIN_YUV_FULL)
 					matrix_csc = VDIN_MATRIX_YUV601F_YUV709;
 				else
 					matrix_csc = VDIN_MATRIX_YUV601_YUV709;
 			}
 		}
 		if (vdin_hdr_flag == 1) {
-			if (color_fmt_range == TVIN_YUV_FULL)
+			if (devp->prop.color_fmt_range == TVIN_YUV_FULL)
 				matrix_csc = VDIN_MATRIX_YUV2020F_YUV2020;
 			else
 				matrix_csc = VDIN_MATRIX_NULL;
@@ -956,13 +933,18 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 	//vdin_manual_matrix_csc_s5(&matrix_csc);
 
 	if (matrix_sel == VDIN_SEL_MATRIX0)
-		vdin_change_matrix0_s5(offset, matrix_csc);
+		vdin_change_matrix0_s5(devp->addr_offset, matrix_csc);
 	else if (matrix_sel == VDIN_SEL_MATRIX1)
-		vdin_change_matrix1_s5(offset, matrix_csc);
+		vdin_change_matrix1_s5(devp->addr_offset, matrix_csc);
 	else if (matrix_sel == VDIN_SEL_MATRIX_HDR)
-		vdin_change_matrix_hdr_s5(offset, matrix_csc);
+		vdin_change_matrix_hdr_s5(devp->addr_offset, matrix_csc);
 	else
 		matrix_csc = VDIN_MATRIX_NULL;
+
+	if (devp->debug.vdin_ctl_dbg)
+		pr_info("%s vdin%d fmt_info=%p, fmt_convert=%d, fmt_range=%d, hdr=%d, csc=%d\n",
+			__func__, devp->index, fmt_info, format_convert,
+			devp->prop.color_fmt_range, vdin_hdr_flag, matrix_csc);
 
 	return matrix_csc;
 }
@@ -1058,7 +1040,7 @@ void vdin_set_matrix_s5(struct vdin_dev_s *devp)
 //	unsigned int offset = devp->addr_offset;
 	enum vdin_matrix_sel_e matrix_sel;
 
-	if (rgb_info_enable == 0) {
+	if (devp->debug.rgb_info_enable == 0) {
 		/* matrix1 disable */
 //	wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 //		VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
@@ -1072,21 +1054,10 @@ void vdin_set_matrix_s5(struct vdin_dev_s *devp)
 			matrix_sel = devp->debug.dbg_sel_mat & 0x10;
 		else
 			matrix_sel = VDIN_SEL_MATRIX0;/*VDIN_SEL_MATRIX_HDR*/
-		pr_info("%s %d:%p,conv:%d,port:%d,fmt_range:%d,color_range:%d\n",
-			__func__, __LINE__,
-			devp->fmt_info_p, devp->format_convert,
-			devp->parm.port, devp->prop.color_fmt_range,
-			devp->color_range_mode);
 
 		if (!devp->dv.dv_flag) {
 			devp->csc_idx = vdin_set_color_matrix_s5(matrix_sel,
-				devp->addr_offset,
-				devp->fmt_info_p,
-				devp->format_convert,
-				devp->parm.port,
-				devp->prop.color_fmt_range,
-				devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-				devp->color_range_mode);
+								devp, devp->format_convert);
 		} else {
 			devp->csc_idx = VDIN_MATRIX_NULL;
 		}
@@ -1409,7 +1380,7 @@ void vdin_set_frame_mif_write_addr_s5(struct vdin_dev_s *devp,
 	if (vfe->vf.plane_num == 2)
 		phy_addr_chroma = vfe->vf.canvas0_config[1].phy_addr;
 
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_BUFFER) {
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_BUFFER) {
 		pr_info("vdin%d,phy addr luma:0x%x chroma:0x%x\n", devp->index,
 			phy_addr_luma, phy_addr_chroma);
 		pr_info("vf[%d],stride luma:0x%x, chroma:0x%x\n", vfe->vf.index,
@@ -1544,7 +1515,7 @@ void vdin_set_vframe_prop_info_s5(struct vframe_s *vf,
 	/* fetch meas info - For M2 or further chips only, not for M1 chip */
 	vf->prop.meas.vs_stamp = devp->stamp;
 	vf->prop.meas.vs_cycle = devp->cycle;
-	if ((vdin_ctl_dbg & CTL_DEBUG_LUMA_MAX) &&
+	if ((devp->debug.vdin_ctl_dbg & CTL_DEBUG_LUMA_MAX) &&
 	    vdin_luma_max != vf->prop.hist.luma_max) {
 		vf->ready_clock_hist[0] = sched_clock();
 		divid = vf->ready_clock_hist[0];
@@ -1707,7 +1678,7 @@ void vdin_set_default_regmap_s5(struct vdin_dev_s *devp)
 	vdin_pp_default_s5(devp);
 	vdin_dw_default_s5(devp);
 
-	vdin_delay_line_s5(devp, delay_line_num);
+	vdin_delay_line_s5(devp, devp->delay_line_num);
 }
 
 void vdin_hw_enable_s5(struct vdin_dev_s *devp)
@@ -1755,8 +1726,8 @@ void vdin_hw_disable_s5(struct vdin_dev_s *devp)
 	/* [ 3: 0]  top.mux  = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
 	//wr_bits(offset, VDIN_COM_CTRL0, 0, VDIN_SEL_BIT, VDIN_SEL_WID);
 	//wr(offset, VDIN_COM_CTRL0, 0x00000910);
-	//vdin_delay_line_s5(devp, delay_line_num);
-	//if (enable_reset)
+	//vdin_delay_line_s5(devp, devp->delay_line_num);
+	//if (devp->enable_reset)
 	//	wr(offset, VDIN_WR_CTRL, 0x0b401000 | def_canvas);
 	//else
 	//	wr(offset, VDIN_WR_CTRL, 0x0bc01000 | def_canvas);
@@ -1815,7 +1786,7 @@ bool vdin_write_done_check_s5(struct vdin_dev_s *devp)
 	unsigned int offset;
 
 	offset = devp->addr_offset;
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE) {
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE) {
 		pr_info("vdin%d,[%#x]:%#x,[%#x]:%#x,[%#x]:%#x\n", devp->index,
 			VDIN_LFIFO_BUF_COUNT, rd(0, VDIN_LFIFO_BUF_COUNT),
 			VDIN_IF_TOP_VDI_INT_STATUS1, rd(0, VDIN_IF_TOP_VDI_INT_STATUS1),
@@ -2195,7 +2166,7 @@ set_hv_shrink:
 			vdin_set_v_shrink_s5(devp);
 	}
 
-	if (vdin_dbg_en) {
+	if (devp->debug.vdin_dbg_en) {
 		pr_info("[vdin.%d] %s h_active:%u,v_active:%u.\n", devp->index,
 			__func__, devp->h_active, devp->v_active);
 		pr_info("[vdin.%d] %s shrink out h:%d,v:%d\n", devp->index,
@@ -2314,7 +2285,7 @@ void vdin_set_bitdepth_s5(struct vdin_dev_s *devp)
 	if (!vdin_is_support_10bit_for_dw_s5(devp))
 		wr_bits(offset, VDIN_WRMIF_CTRL2, MIF_8BIT,
 			VDIN_WR_10BIT_MODE_BIT,	VDIN_WR_10BIT_MODE_WID);
-	if (vdin_dbg_en)
+	if (devp->debug.vdin_dbg_en)
 		pr_info("%s %d cfg:0x%x prop.dep:%x\n", __func__, devp->source_bitdepth,
 			devp->color_depth_config, devp->prop.colordepth);
 }
@@ -2341,7 +2312,7 @@ void vdin_wr_reverse_s5(unsigned int offset, bool h_reverse, bool v_reverse)
 }
 
 void vdin_set_cm2_s5(unsigned int offset, unsigned int w,
-		  unsigned int h, unsigned int *cm2)
+		  unsigned int h, unsigned int *cm2, bool cm_enable)
 {
 	unsigned int i = 0, j = 0, start_addr = 0x100;
 
@@ -2502,7 +2473,7 @@ void vdin_set_matrix_color_s5(struct vdin_dev_s *devp)
 		wr(offset, VDIN_MATRIX_CTRL, 0x6);
 	else
 		wr(offset, VDIN_MATRIX_CTRL, 0x0);
-	if (vdin_dbg_en)
+	if (devp->debug.vdin_dbg_en)
 		pr_info("%s offset:%d, md:%d\n", __func__, offset, mode);
 }
 

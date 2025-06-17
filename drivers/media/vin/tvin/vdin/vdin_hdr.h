@@ -19,9 +19,6 @@
 #define K_DV_META_RAW_BUFF0		(PAGE_SIZE * 5)
 #define K_DV_META_RAW_BUFF1		PAGE_SIZE
 
-extern unsigned int dv_dbg_log;
-extern unsigned int dv_dbg_log_du;
-
 void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enable);
 void vdin_wrmif2_initial(struct vdin_dev_s *devp);
 void vdin_wrmif2_addr_update(struct vdin_dev_s *devp);

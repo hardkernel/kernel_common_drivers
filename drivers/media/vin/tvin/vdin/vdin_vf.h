@@ -183,10 +183,15 @@ struct vf_pool {
 	unsigned int vf_move_prt_cnt;
 	enum vframe_disp_mode_e	disp_mode[VFRAME_DISP_MAX_NUM];
 	void *priv;
+	bool vf_log_enable;
+	bool vf_log_fe;
+	bool vf_log_be;
+	unsigned int vf_list_dbg;
+	unsigned int vf_move_print_cnt;
+	unsigned int dv_dbg_mask;
 };
 
 extern unsigned int dolby_size_byte;
-extern unsigned int dv_dbg_mask;
 
 void vf_log_init(struct vf_pool *p);
 void vf_log_print(struct vf_pool *p);

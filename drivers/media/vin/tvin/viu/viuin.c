@@ -26,12 +26,20 @@
 #include "../tvin_global.h"
 #include "../tvin_frontend.h"
 #include "../tvin_format_table.h"
+#include <linux/device.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
 
-#define DEVICE_NAME "viuin"
+#define VIU_DEVICE_NAME "viuin"
+#define VIU_CLS_NAME	"viuin"
+
 #define MODULE_NAME "viuin"
 
 #define AMVIUIN_DEC_START       1
 #define AMVIUIN_DEC_STOP        0
+
+static dev_t viu_devno;
+static struct class *viu_class;
 
 /* register */
 #define VIU_MISC_CTRL1 0x1a07
@@ -82,39 +90,17 @@
 #define VPP_MISC									0x1d26
 
 static unsigned int vsync_enter_line_curr;
-module_param(vsync_enter_line_curr, uint, 0664);
-MODULE_PARM_DESC(vsync_enter_line_curr,
-		 "\n encoder process line num when enter isr.\n");
-
 static unsigned int vsync_enter_line_max;
-module_param(vsync_enter_line_max, uint, 0664);
-MODULE_PARM_DESC(vsync_enter_line_max,
-		 "\n max encoder process line num when enter isr.\n");
-
 static unsigned int vsync_enter_line_max_threshold = 10000;
-module_param(vsync_enter_line_max_threshold, uint, 0664);
-MODULE_PARM_DESC(vsync_enter_line_max_threshold,
-		 "\n max encoder process line num over threshold drop the frame.\n");
-
 static unsigned int vsync_enter_line_min_threshold = 10000;
-module_param(vsync_enter_line_min_threshold, uint, 0664);
-MODULE_PARM_DESC(vsync_enter_line_min_threshold,
-		 "\n max encoder process line num less threshold drop the frame.\n");
 static unsigned int vsync_enter_line_threshold_overflow_count;
-module_param(vsync_enter_line_threshold_overflow_count, uint, 0664);
-MODULE_PARM_DESC(vsync_enter_line_threshold_overflow_count,
-		 "\ncnt overflow encoder process line no over threshold drop the frame\n");
-
-static unsigned short v_cut_offset;
-module_param(v_cut_offset, ushort, 0664);
-MODULE_PARM_DESC(v_cut_offset, "the cut window vertical offset for viuin");
-
 static unsigned short open_cnt;
-module_param(open_cnt, ushort, 0664);
-MODULE_PARM_DESC(open_cnt, "open_cnt for vdin0/1");
 
 struct viuin_s {
 	unsigned int flag;
+	struct device *dev;
+	struct device_node *node;
+	int index;
 	struct vframe_prop_s *prop;
 	/*add for tvin frontend*/
 	struct tvin_frontend_s frontend;
@@ -435,6 +421,7 @@ static void viuin_set_wr_bak_ctrl_t3x(enum tvin_port_e port)
 	vinfo = get_current_vinfo();
 	if (!vinfo) {
 		pr_info("%s vinfo == NULL\n", __func__);
+		return;
 	} else {
 		pr_info("ppc:%d,w:%d,h:%d,dur:%d\n", vinfo->cur_enc_ppc,
 			vinfo->width, vinfo->height, vinfo->std_duration);
@@ -504,7 +491,7 @@ static void viuin_set_wr_bak_ctrl_t3x(enum tvin_port_e port)
 		break;
 	}
 
-	if (vinfo && vinfo->width * vinfo->height * vinfo->std_duration >
+	if (vinfo->width * vinfo->height * vinfo->std_duration >
 		VDIN_LITE_CORE_MAX_PIXEL_CLOCK) { //need skip
 		/* din_mode,2ppc */
 		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);
@@ -661,6 +648,103 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 	}
 }
 
+static struct device *viu_create_device(struct device *parent, int minor)
+{
+	dev_t devno = MKDEV(MAJOR(viu_devno), minor);
+
+	return device_create(viu_class, parent, devno, NULL, "%s%d",
+			VIU_DEVICE_NAME, minor);
+}
+
+static void viu_delete_device(int minor)
+{
+	dev_t devno = MKDEV(MAJOR(viu_devno), minor);
+
+	device_destroy(viu_class, devno);
+}
+
+static ssize_t viu_param_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	int len = 0;
+	struct viuin_s *devp;
+
+	devp = dev_get_drvdata(dev);
+
+	len += sprintf(buf + len, "vsync_enter_line_curr = %d\n",
+		       vsync_enter_line_curr);
+	len += sprintf(buf + len, "vsync_enter_line_max = %d\n",
+		       vsync_enter_line_max);
+	len += sprintf(buf + len, "vsync_enter_line_max_threshold = %d\n",
+		       vsync_enter_line_max_threshold);
+	len += sprintf(buf + len, "vsync_enter_line_min_threshold = %d\n",
+		       vsync_enter_line_min_threshold);
+
+	return len;
+}
+
+static ssize_t viu_param_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *bu, size_t count)
+{
+	const char *delim = " ";
+	char *token;
+	char *cur = (char *)bu;
+	unsigned int val;
+	struct viuin_s *devp;
+
+	devp = dev_get_drvdata(dev);
+
+	token = strsep(&cur, delim);
+	if (token && strncmp(token, "vsync_enter_line_curr", 21) == 0) {
+		/*get the next param*/
+		token = strsep(&cur, delim);
+		/*string to int*/
+		if (!token || kstrtouint(token, 10, &val) < 0)
+			return count;
+		vsync_enter_line_curr = val;
+		pr_info("vsync_enter_line_curr: %d\n", vsync_enter_line_curr);
+	} else if (token && strncmp(token, "vsync_enter_line_max_threshold", 30) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &val) < 0)
+			return count;
+		vsync_enter_line_max_threshold = val;
+		pr_info("vsync_enter_line_max_threshold: %d\n", vsync_enter_line_max_threshold);
+	} else if (token && strncmp(token, "vsync_enter_line_min_threshold", 30) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &val) < 0)
+			return count;
+		vsync_enter_line_min_threshold = val;
+		pr_info("vsync_enter_line_min_threshold: %d\n", vsync_enter_line_min_threshold);
+	} else if (token && strncmp(token, "vsync_enter_line_max", 19) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &val) < 0)
+			return count;
+		vsync_enter_line_max = val;
+		pr_info("vsync_enter_line_max: %d\n", vsync_enter_line_max);
+	} else {
+		pr_info("----cmd list----\n");
+		pr_info("vsync_enter_line_curr\n");
+		pr_info("vsync_enter_line_max\n");
+		pr_info("vsync_enter_line_max_threshold: default 10000\n");
+		pr_info("vsync_enter_line_min_threshold: default 10000\n");
+	}
+	return count;
+}
+static DEVICE_ATTR_RW(viu_param);
+
+int viu_create_dev_class_files(struct device *dev)
+{
+	int ret = 0;
+
+	ret = device_create_file(dev, &dev_attr_viu_param);
+
+	if (ret < 0)
+		pr_err("%s: failed\n", __func__);
+	return ret;
+}
+
 /*g12a/g12b and before: use viu_loop encl/encp*/
 /*tl1: use viu_loop vpp */
 static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
@@ -755,6 +839,7 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 4, 4);
 		wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 8, 4);
 	}
+
 	devp->flag = 0;
 	open_cnt++;
 	return 0;
@@ -972,7 +1057,7 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 		prop->scaling4w = devp->parm.dest_h_active;
 		prop->scaling4h = devp->parm.dest_v_active;
 
-		prop->vs = v_cut_offset;
+		prop->vs = 0;
 		prop->ve = 0;
 		prop->hs = 0;
 		prop->he = 0;
@@ -999,21 +1084,38 @@ static struct tvin_state_machine_ops_s viu_sm_ops = {
 static int viuin_probe(struct platform_device *pdev)
 {
 	struct viuin_s *viuin_devp;
+	int ret = 0;
 
 	viuin_devp = kmalloc(sizeof(*viuin_devp), GFP_KERNEL);
 	if (!viuin_devp)
 		return -ENOMEM;
 	memset(viuin_devp, 0, sizeof(struct viuin_s));
-	sprintf(viuin_devp->frontend.name, "%s", DEVICE_NAME);
+	sprintf(viuin_devp->frontend.name, "%s", VIU_DEVICE_NAME);
 	if (!tvin_frontend_init(&viuin_devp->frontend,
 				&viu_dec_ops, &viu_sm_ops, 0)) {
 		if (tvin_reg_frontend(&viuin_devp->frontend))
 			pr_info("[viuin..]%s register viu frontend error.\n",
 				__func__);
 	}
+
+	viuin_devp->index = 0;
+	viuin_devp->dev = viu_create_device(&pdev->dev, viuin_devp->index);
+	if (IS_ERR_OR_NULL(viuin_devp->dev)) {
+		pr_err("viu_create_device failed\n");
+		ret = PTR_ERR(viuin_devp->dev);
+		return ret;
+	}
+	ret = viu_create_dev_class_files(viuin_devp->dev);
+	if (ret < 0)
+		goto fail_create_dev_file;
+	/* set drvdata */
+	dev_set_drvdata(viuin_devp->dev, viuin_devp);
 	platform_set_drvdata(pdev, viuin_devp);
 	pr_info("[viuin..]%s probe ok.\n", __func__);
 	return 0;
+fail_create_dev_file:
+	viu_delete_device(viuin_devp->index);
+return ret;
 }
 
 void viuin_remove(struct platform_device *pdev)
@@ -1021,6 +1123,10 @@ void viuin_remove(struct platform_device *pdev)
 	struct viuin_s *devp = platform_get_drvdata(pdev);
 
 	if (devp) {
+		device_remove_file(devp->dev, &dev_attr_viu_param);
+		viu_delete_device(devp->index);
+		/* free drvdata */
+		dev_set_drvdata(devp->dev, NULL);
 		tvin_unreg_frontend(&devp->frontend);
 		kfree(devp);
 	}
@@ -1030,7 +1136,7 @@ static struct platform_driver viuin_driver = {
 	.probe	= viuin_probe,
 	.remove	= viuin_remove,
 	.driver	= {
-		.name	= DEVICE_NAME,
+		.name	= VIU_DEVICE_NAME,
 	}
 };
 
@@ -1038,8 +1144,23 @@ static struct platform_device *viuin_device;
 
 int __init viuin_init_module(void)
 {
+	int ret = 0;
+
 	pr_info("[viuin..]%s viuin module init\n", __func__);
-	viuin_device = platform_device_alloc(DEVICE_NAME, 0);
+
+	ret = alloc_chrdev_region(&viu_devno, 0, 1, VIU_DEVICE_NAME);
+	if (ret < 0) {
+		pr_err("%s: failed to allocate major number\n", __func__);
+		goto fail_alloc_cdev_region;
+	}
+
+	viu_class = class_create(VIU_CLS_NAME);
+	if (IS_ERR_OR_NULL(viu_class)) {
+		ret = PTR_ERR(viu_class);
+		pr_err("%s: failed to create class or ret=NULL\n", __func__);
+		goto fail_class_create;
+	}
+	viuin_device = platform_device_alloc(VIU_DEVICE_NAME, 0);
 	if (!viuin_device) {
 		pr_err("[viuin..]%s failed to alloc viuin_device.\n",
 		       __func__);
@@ -1061,11 +1182,18 @@ int __init viuin_init_module(void)
 
 	pr_info("[viuin..]%s done\n", __func__);
 	return 0;
+fail_class_create:
+	unregister_chrdev_region(viu_devno, 1);
+fail_alloc_cdev_region:
+	return ret;
+
 }
 
 void __exit viuin_exit_module(void)
 {
 	pr_info("[viuin..]%s viuin module remove.\n", __func__);
+	class_destroy(viu_class);
+	unregister_chrdev_region(viu_devno, 1);
 	platform_driver_unregister(&viuin_driver);
 	platform_device_unregister(viuin_device);
 }

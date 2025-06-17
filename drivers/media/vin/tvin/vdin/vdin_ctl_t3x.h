@@ -72,9 +72,6 @@ struct vdin_pre_hsc_s {
 	u32 prehsc_coef_3;
 };
 
-extern int vdin_ctl_dbg;
-extern int vdin_dbg_en;
-
 /* ************************************************************************ */
 /* ******** GLOBAL FUNCTION CLAIM ******** */
 /* ************************************************************************ */
@@ -108,7 +105,7 @@ void vdin_wr_reverse_t3x(unsigned int offset, bool h_reverse,
 void vdin_set_hv_scale_t3x(struct vdin_dev_s *devp);
 void vdin_set_bitdepth_t3x(struct vdin_dev_s *devp);
 void vdin_set_cm2_t3x(unsigned int offset, unsigned int w,
-		  unsigned int h, unsigned int *data);
+		  unsigned int h, unsigned int *data, bool cm_enable);
 void vdin_force_go_filed_t3x(struct vdin_dev_s *devp);
 void vdin_dolby_config_t3x(struct vdin_dev_s *devp);
 void vdin_dolby_addr_update_t3x(struct vdin_dev_s *devp, unsigned int index);

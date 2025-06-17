@@ -24,10 +24,6 @@
 #include "vdin_drv.h"
 #include "vdin_screen.h"
 
-static unsigned int debug_sleep_time = 50;
-module_param(debug_sleep_time, uint, 0664);
-MODULE_PARM_DESC(debug_sleep_time, "debug_sleep_time debug");
-
 /* get support pixel format lists */
 
 int vdin_get_support_pixel_format(struct support_pixel_format *pixel_format)
@@ -82,8 +78,8 @@ int vdin_capture_picture(struct vdin_parm_s *vdin_cap_param,
 	vdin_set_canvas_addr[0].size =
 		vdin_set_canvas_addr[0].dma_buffer->size;
 	start_tvin_service(devp->index, vdin_cap_param);
-	if (debug_sleep_time) {
-		msleep(debug_sleep_time);
+	if (devp->debug.sleep_time) {
+		msleep(devp->debug.sleep_time);
 		stop_tvin_service(devp->index);
 		dma_buf_unmap_attachment(vdin_set_canvas_addr[0].dmabuf_attach,
 					 vdin_set_canvas_addr[0].sg_table,

@@ -839,7 +839,7 @@ int vdin_vfce_read_write_down_flag(struct vdin_dev_s *devp)
 	/* bit0-input,bit1-output;0-done,1-undone */
 	frm_end = rd_bits(0, VFCE_CHNL0_STA0_FLAG, 0, 2);
 
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
 		pr_info("vfce sta0_flag:%#x,wr_done_ro:%#x\n",
 			rd(0, VFCE_CHNL0_STA0_FLAG),
 			rd(0, VDIN_WR_DONE_RO));

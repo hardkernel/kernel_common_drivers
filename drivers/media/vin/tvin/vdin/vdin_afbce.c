@@ -567,7 +567,7 @@ void vdin_afbce_maptable_init(struct vdin_dev_s *devp)
 		} else {
 			virt_addr = (unsigned int *)vdin_vmap(phys_addr,
 				devp->afbce_info->frame_table_size);
-			if (vdin_dbg_en) {
+			if (devp->debug.vdin_dbg_en) {
 				pr_err("----vdin vmap v: %p, p: %lx, size: %d\n",
 				       virt_addr, phys_addr,
 				       devp->afbce_info->frame_table_size);
@@ -771,7 +771,7 @@ int vdin_afbce_read_write_down_flag(struct vdin_dev_s *devp)
 	//frm_end = rd_bits(0, AFBCE_STAT1, 31, 1);
 	wr_abort = rd_bits(0, AFBCE_STA_FLAG, 2, 2);
 
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
 		pr_info("frm_end:%#x,wr_abort:%#x\n",
 			frm_end, wr_abort);
 
@@ -843,7 +843,7 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 	 */
 	devp->afbce_mode = 0;
 	devp->afbce_mode_pre = devp->afbce_mode;
-	if (vdin_dbg_en)
+	if (devp->debug.vdin_dbg_en)
 		pr_info("vdin%d init afbce_mode: %d,afbce_flag:%#x %#x\n",
 			devp->index, devp->afbce_mode,
 			devp->dts_config.afbce_flag_cfg, devp->afbce_flag);
@@ -867,7 +867,7 @@ void vdin_afbce_mode_update(struct vdin_dev_s *devp)
 	else
 		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_MIF);
 
-	if (vdin_dbg_en) {
+	if (devp->debug.vdin_dbg_en) {
 		pr_info("vdin.%d: change afbce_mode %d->%d\n",
 			devp->index, devp->afbce_mode_pre, devp->afbce_mode);
 	}

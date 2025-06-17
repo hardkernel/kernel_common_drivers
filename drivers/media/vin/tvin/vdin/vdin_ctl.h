@@ -187,7 +187,6 @@ struct dv_meta_pkt {
 
 extern unsigned int game_mode;
 extern unsigned int vdin_force_game_mode;
-extern int vdin_dbg_en;
 extern unsigned int vdin_pc_mode;
 extern int irq_max_count;
 
@@ -218,7 +217,7 @@ void vdin_set_def_wr_canvas(struct vdin_dev_s *devp);
 void vdin_hw_enable(struct vdin_dev_s *devp);
 void vdin_hw_disable(struct vdin_dev_s *devp);
 void vdin_hw_close(struct vdin_dev_s *devp);
-int vdin_vsync_reset_mif(int index);
+int vdin_vsync_reset_mif(struct vdin_dev_s *devp);
 bool vdin_check_vdi6_afifo_overflow(unsigned int offset);
 void vdin_clear_vdi6_afifo_overflow_flg(unsigned int offset);
 void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable);
@@ -249,7 +248,7 @@ void vdin_wr_reverse(struct vdin_dev_s *devp, bool h_reverse, bool v_reverse);
 void vdin_set_hv_scale(struct vdin_dev_s *devp);
 void vdin_set_bitdepth(struct vdin_dev_s *devp);
 void vdin_set_cm2(unsigned int offset, unsigned int w,
-		  unsigned int h, unsigned int *data);
+		  unsigned int h, unsigned int *data, bool cm_enable);
 void vdin_bypass_isp(unsigned int offset);
 void vdin_set_mpegin(struct vdin_dev_s *devp);
 void vdin_force_go_filed(struct vdin_dev_s *devp);
@@ -297,7 +296,6 @@ void vdin_set_pixel_aspect_ratio(struct vdin_dev_s *devp,
 void vdin_set_display_ratio(struct vdin_dev_s *devp,
 			    struct vframe_s *vf);
 void vdin_source_bitdepth_reinit(struct vdin_dev_s *devp);
-void set_invert_top_bot(bool invert_flag);
 void vdin_clk_on_off(struct vdin_dev_s *devp, bool on_off);
 
 extern enum tvin_force_color_range_e color_range_force;
