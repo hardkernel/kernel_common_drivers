@@ -889,9 +889,9 @@ u32 tee_ioctl_accept_data_pipe(struct tee_context *tee_ctx,
 				wait_status);
 		goto exit;
 	}
-	DEBUG("end block in function accept_data_pipe, pipe->id = %d\n", pipe->id);
 
 	if (pipe) {
+		DEBUG("end block in function accept_data_pipe, pipe->id = %d\n", pipe->id);
 		if (copy_to_user(user_pipe_id, &pipe->id, sizeof(u32))) {
 			ERROR("copy_to_user failed\n");
 			res = TEEC_ERROR_SECURITY;
