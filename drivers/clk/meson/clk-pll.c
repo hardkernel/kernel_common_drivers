@@ -703,7 +703,7 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long old_rate;
 	int ret, retry_cnt = 0;
 #if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
-	unsigned int od;
+	unsigned int od = 0;
 #endif
 
 	if (parent_rate == 0 || rate == 0)
@@ -975,7 +975,7 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 	const struct reg_sequence *init_regs = pll->init_regs;
 	int i, ret = 0, retry = 10;
 #ifdef CONFIG_ARM
-	unsigned int od;
+	unsigned int od = 0;
 	struct parm *pod = &pll->od;
 #endif
 
