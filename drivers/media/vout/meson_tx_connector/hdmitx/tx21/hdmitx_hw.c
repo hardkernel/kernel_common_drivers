@@ -1936,27 +1936,29 @@ void hdmitx_soft_reset(u32 bits_nr)
 	HDMITX_INFO("%s[%d]\n", __func__, __LINE__);
 	if (bits_nr & BIT(0)) {
 		/* 18or10to20 fifos Software reset */
-		hdmitx21_reset_reg_bit(PWD_SRST_IVCTX, 2);
+		hdmitx21_set_reset_reg_bit(PWD_SRST_IVCTX, 2);
 	}
 	if (bits_nr & BIT(1)) {
 		/* Software Reset. Reset all internal logic */
-		hdmitx21_reset_reg_bit(PWD_SRST_IVCTX, 0);
+		hdmitx21_set_reset_reg_bit(PWD_SRST_IVCTX, 0);
 	}
 	if (bits_nr & BIT(2)) {
 		/* reset for the cipher engine */
-		hdmitx21_reset_reg_bit(HDCP_CTRL_IVCTX, 2);
+		hdmitx21_set_reset_reg_bit(HDCP_CTRL_IVCTX, 2);
 	}
 	if (bits_nr & BIT(3)) {
 		/* HW TPI State Machine Reset */
-		hdmitx21_reset_reg_bit(AON_CYP_CTL_IVCTX, 3);
+		hdmitx21_set_reset_reg_bit(AON_CYP_CTL_IVCTX, 3);
 	}
 	if (bits_nr & BIT(4)) {
 		/* Software Reset for hdcp2x logic only */
-		hdmitx21_reset_reg_bit(HDCP2X_TX_SRST_IVCTX, 5);
+		hdmitx21_set_reset_reg_bit(HDCP2X_TX_SRST_IVCTX, 5);
 	}
 	if (bits_nr & BIT(5)) {
 		/* PCLK to TCLK Video FIFO Software reset */
-		hdmitx21_reset_reg_bit(PWD_SRST_IVCTX, 1);
+		hdmitx21_set_reset_reg_bit(PWD_SRST_IVCTX, 1);
+		/* clear pfifo intr */
+		hdmitx21_set_reg_bits(INTR2_SW_TPI_IVCTX, 1, 1, 1);
 	}
 }
 
@@ -1997,6 +1999,9 @@ static void hdmitx_set_phy_todig(struct hdmitx21_dev *hdev)
 	case MESON_CPU_ID_S7:
 	case MESON_CPU_ID_S7D:
 	case MESON_CPU_ID_S6:
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 0, 1, 1);
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 0, 3, 1);
+		usleep_range(100, 110);
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 0, 2);
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 3, 1);
 		break;
@@ -2129,7 +2134,8 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct hdmi_forma
 	data32 |= (1920 << 0);  // [13: 0] cntl_hdcp22_min_size_h
 	hdmitx21_wr_reg(HDMITX_TOP_HDCP22_MIN_SIZE, data32);
 
-	hdmitx_soft_reset(BIT(1) | BIT(2) | BIT(3) | BIT(4));
+	hdmitx_soft_reset(RESET_SOFTWARE_LOGIC | RESET_CIPHER_ENGINE |
+		RESET_HW_TPI | RESET_HDCP2X_LOGIC);
 	//[4] reg_bypass_video_path
 	// For non-DSC, set to bit4 as 0
 	if (hdev->dsc_en)
@@ -2229,16 +2235,18 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct hdmi_forma
 		if (!h_unstable) {
 			while (loop--) {
 				hdmitx21_poll_reg(SYS_STAT_IVCTX, 1 << 0, ~(1 << 0),
-						HDMITX_HZ / 100);
+						HZ / 100);
 				if (is_deep_phase_unstable(cs, cd)) {
 					/* reset pfifo */
-					hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 1, 1);
-					hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 1, 1);
+					hdmitx_soft_reset(RESET_PFIFO);
 					continue;
 				} else {
 					break;
 				}
 			}
+			if (loop < 0)
+				HDMITX_ERROR("%s[%d] phase is still unstable\n", __func__,
+				__LINE__);
 		}
 	}
 
@@ -2282,7 +2290,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct hdmi_forma
 		} else {
 			HDMITX_INFO("cts_htx_tmds_clk:%d, hdmi_clk_todig:%d, do 10to20 fifo rst\n",
 				 meson_clk_measure(92), meson_clk_measure(93));
-			hdmitx_soft_reset(BIT(0));
+			hdmitx_soft_reset(RESET_18OR10TO20);
 			/* for mode switch flow, add 2ms delay after fifo reset
 			 * before enable fifo intr, to prevent fifo reset operation
 			 * itself trigger new fifo over/under flow
@@ -2297,9 +2305,9 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct hdmi_forma
 		 * reset pfifo before training
 		 */
 		if (hdev->dsc_en) {
-			hdmitx_soft_reset(BIT(5));
+			hdmitx_soft_reset(RESET_PFIFO);
 			/* clear pfifo intr */
-			hdmitx21_set_reg_bits(INTR2_SW_TPI_IVCTX, 0, 1, 1);
+			hdmitx21_set_reg_bits(INTR2_SW_TPI_IVCTX, 1, 1, 1);
 		}
 		if (hdev->tx_comm.rxcap.max_frl_rate && hdev->frl_rate)
 			frl_tx_training_handler(hdev);
@@ -5332,8 +5340,7 @@ static void config_hdmi21_tx(struct hdmitx21_dev *hdev)
 	data32 |= (active_lines << 16); // [30:16] cntl_vactive
 	data32 |= (active_pixels << 0);  // [14: 0] cntl_hactive
 	hdmitx21_wr_reg(HDMITX_TOP_HV_ACTIVE, data32);
-	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 3, 1, 2);
-	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 1, 2);
+	hdmitx_soft_reset(RESET_18OR10TO20 | RESET_PFIFO);
 	if (hdev->tx_comm.rxcap.ieeeoui == HDMI_IEEE_OUI)
 		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 1, 0, 1);
 	else

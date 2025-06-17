@@ -207,7 +207,7 @@ void hdmitx21_poll_reg(u32 addr, u8 exp_data, u8 mask, ulong timeout);
 void hdmitx21_set_reg_bits(u32 addr, u32 value, u32 offset, u32 len);
 /* set the bits value */
 void hdmitx21_set_bit(u32 addr, u32 bit_val, bool st);
-void hdmitx21_reset_reg_bit(u32 addr, u32 bit_nr);
+void hdmitx21_set_reset_reg_bit(u32 addr, u32 bit_nr);
 void hdmitx21_n_reset_reg_bit(u32 addr, u32 bit_nr);
 
 /* 4. venc/vpu */
