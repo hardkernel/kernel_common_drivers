@@ -872,6 +872,9 @@ static void dwc_otg_driver_remove(struct platform_device *pdev)
 		if (otg_dev->core_if->phy_port)
 			phy_put(otg_dev->gen_dev, otg_dev->core_if->phy_port);
 
+		if (otg_dev->core_if->usb_peri_reg)
+			iounmap(otg_dev->core_if->usb_peri_reg);
+
 		dwc_otg_cil_remove(otg_dev->core_if);
 	} else {
 		DWC_WARN("%s: otg_dev->core_if NULL!\n", __func__);
@@ -892,9 +895,6 @@ static void dwc_otg_driver_remove(struct platform_device *pdev)
 	if (otg_dev->os_dep.base) {
 		iounmap(otg_dev->os_dep.base);
 	}
-
-	if (otg_dev->core_if->usb_peri_reg)
-		iounmap(otg_dev->core_if->usb_peri_reg);
 
 	DWC_FREE(otg_dev);
 	g_dwc_otg_device[pdev->id] = NULL;
@@ -2459,7 +2459,7 @@ MODULE_PARM_DESC(dwc_otg_eltest_flag, "EL test=1");
  <td>dev_out_nak</td>
  <td>Specifies whether  Device OUT NAK enhancement enabled or no.
  The driver will automatically detect the value for this parameter if
- none is specified. This parameter is valid only when OTG_EN_DESC_DMA == 1¡¯b1.
+ none is specified. This parameter is valid only when OTG_EN_DESC_DMA == 1b1.
  - 0: The core does not set NAK after Bulk OUT transfer complete (default)
  - 1: The core sets NAK after Bulk OUT transfer complete
  </td></tr>
@@ -2471,7 +2471,7 @@ MODULE_PARM_DESC(dwc_otg_eltest_flag, "EL test=1");
  endpoint is re-enabled by the application the
  - 0: Core starts processing from the DOEPDMA descriptor (default)
  - 1: Core starts processing from the descriptor which received the BNA.
- This parameter is valid only when OTG_EN_DESC_DMA == 1¡¯b1.
+ This parameter is valid only when OTG_EN_DESC_DMA == 1b1.
  </td></tr>
 
  <tr>
