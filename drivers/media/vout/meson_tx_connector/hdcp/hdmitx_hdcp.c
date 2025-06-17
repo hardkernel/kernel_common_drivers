@@ -268,8 +268,10 @@ void hdmitx21_disable_hdcp(struct hdcptx21_core_priv *p_hdcp)
 	cancel_delayed_work_sync(&p_hdcp->work_drm_start_hdcp);
 	if (tx_comm->hdcptx_comm.hdcp_mode != 0) {
 		hdcptx_cancel_works(p_hdcp);
-		tx_comm->hdcptx_comm.hdcp_mode = 0;
 		hdcptx_mode_set(p_hdcp, 0);
+		/* need to update hdcp auth result */
+		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_GET_AUTH_RESULT, NULL, NULL);
+		tx_comm->hdcptx_comm.hdcp_mode = 0;
 		mdelay(10);
 		hdmitx21_ctrl_hdcp_gate(tx_comm->tx_hw->chip_data->chip_type, 0, false);
 	}
