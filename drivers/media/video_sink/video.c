@@ -3223,7 +3223,8 @@ void pts_process(void)
 		}
 	} else {
 		if (vsync_slow_factor == 0) {
-			pr_info("invalid vsync_slow_factor, set to 1\n");
+			if (debug_flag & DEBUG_FLAG_PTS_TRACE)
+				pr_info("invalid vsync_slow_factor, set to 1\n");
 			vsync_slow_factor = 1;
 		}
 
