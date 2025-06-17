@@ -2228,30 +2228,31 @@ next:
 
 static void edid_check_pcm_declare(struct rx_cap *prxcap)
 {
-	int idx_pcm = 0;
+	bool pcm = false;
 	int i;
 
 	if (!prxcap || !prxcap->AUD_count)
 		return;
 
-	/* Try to find more than 1 PCMs, RxAudioCap[0] is always basic audio */
-	for (i = 1; i < prxcap->AUD_count; i++) {
-		if (prxcap->RxAudioCap[i].audio_format_code ==
-			prxcap->RxAudioCap[0].audio_format_code) {
-			idx_pcm = i;
+	/* Try to find more than 1 PCMs */
+	for (i = 0; i < prxcap->AUD_count; i++) {
+		if (prxcap->RxAudioCap[i].audio_format_code == CT_PCM) {
+			pcm = true;
 			break;
 		}
 	}
 
-	/* Remove basic audio */
-	if (idx_pcm) {
-		for (i = 0; i < prxcap->AUD_count - 1; i++)
-			memcpy(&prxcap->RxAudioCap[i],
-			       &prxcap->RxAudioCap[i + 1],
-			       sizeof(struct rx_audio_cap));
-		/* Clear the last audio declaration */
-		memset(&prxcap->RxAudioCap[i], 0, sizeof(struct rx_audio_cap));
-		prxcap->AUD_count--;
+	/* not have pcm, add basic pcm cap */
+	if (!pcm) {
+		/* PCM */
+		prxcap->RxAudioCap[prxcap->AUD_count].audio_format_code = 1;
+		/* 2ch */
+		prxcap->RxAudioCap[prxcap->AUD_count].channel_num_max = 1;
+		/* 32/44.1/48 kHz */
+		prxcap->RxAudioCap[prxcap->AUD_count].freq_cc = 7;
+		/* 16bit */
+		prxcap->RxAudioCap[prxcap->AUD_count].cc3 = 1;
+		prxcap->AUD_count++;
 	}
 }
 
