@@ -224,10 +224,15 @@ static void meson_i2c_reset_fifo(struct meson_i2c *i2c)
 	meson_i2c_writel(i2c, 0x00, REG_RX_RD_ADDR);
 }
 
-static void meson_i2c_init(struct meson_i2c *i2c)
+static int meson_i2c_init(struct meson_i2c *i2c)
 {
-	reset_control_assert(i2c->rst);
-	reset_control_deassert(i2c->rst);
+	int ret;
+
+	ret = reset_control_reset(i2c->rst);
+	if (ret) {
+		dev_err(i2c->dev, "reset i2c error\n");
+		return ret;
+	}
 	meson_i2c_set_mask(i2c, REG_CFG_BUS, BUS_FILTER_MASK, 1 << 12);
 	meson_i2c_writel(i2c, 0, REG_CFG_START);
 	meson_i2c_writel(i2c, 0xffff, REG_CGF_IRQ_STATE);//clear irq
@@ -244,6 +249,8 @@ static void meson_i2c_init(struct meson_i2c *i2c)
 	// meson_i2c_set_mask(i2c, REG_CFG_I2C, I2C_RX_THR | I2C_TX_THR, 1 << 16 | 0 << 8);
 	i2c->fifo_depth = 32;
 	meson_i2c_set_clk_div(i2c);
+
+	return 0;
 }
 
 static void meson_i2c_push_data_to_user(struct meson_i2c *i2c, struct i2c_msg *msg, bool last)
@@ -536,7 +543,9 @@ static int meson_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	if (ret < 0)
 		goto out;
 #endif
-	meson_i2c_init(i2c);
+	ret = meson_i2c_init(i2c);
+	if (ret)
+		return ret;
 	for (i = 0; i < num; i++) {
 		ret = meson_i2c_xfer_msg(i2c, msgs + i);
 		if (ret)
@@ -675,7 +684,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get clk rate\n");
 		return -EINVAL;
 	}
-	meson_i2c_init(i2c);
+
 #if FUTURE_USE
 	pm_runtime_mark_last_busy(i2c->dev);
 	pm_runtime_put_autosuspend(i2c->dev);
