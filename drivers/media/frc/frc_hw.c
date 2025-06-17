@@ -1808,9 +1808,9 @@ void config_phs_lut(enum frc_ratio_mode_type frc_ratio_mode,
 	enum en_drv_film_mode film_mode)
 {
 	#define lut_ary_size	18
-	u32 input_n;
+	u32 input_n = 1;
 	u32 tmpregdata;
-	u32 output_m;
+	u32 output_m = 2;
 	u64 phs_lut_table[lut_ary_size];
 	int i;
 

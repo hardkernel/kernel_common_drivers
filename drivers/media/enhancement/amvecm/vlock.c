@@ -1939,7 +1939,7 @@ static void vlock_update_pll(struct stvlock_sig_sts *pvlock)
 		} else if (pvlock->idx == VLOCK_ENC1) {
 			vlock_reg_wt_bits(REG_MAP_ANACTRL, ANACTRL_TCON_PLL_VLOCK, 2, 5, 2);
 			vlock_reg_wt_bits(REG_MAP_ANACTRL, ANACTRL_TCON_PLL_VLOCK, 0, 5, 2);
-		} else if (pvlock->idx == VLOCK_ENC1) {
+		} else if (pvlock->idx == VLOCK_ENC2) {
 			vlock_reg_wt_bits(REG_MAP_ANACTRL, ANACTRL_TCON_PLL_VLOCK, 2, 7, 2);
 			vlock_reg_wt_bits(REG_MAP_ANACTRL, ANACTRL_TCON_PLL_VLOCK, 0, 7, 2);
 		}
@@ -2799,7 +2799,7 @@ u32 vlock_fsm_input_check(struct stvlock_sig_sts *pvlock, struct vframe_s *vf)
 			pr_info("vlock vmode chg\n");
 	}
 
-	if (pvlock->vf_sts)
+	if (vf && pvlock->vf_sts)
 		pvlock->md_support = vlock_fsm_check_support(pvlock, vf, vinfo);
 
 	return ret;
