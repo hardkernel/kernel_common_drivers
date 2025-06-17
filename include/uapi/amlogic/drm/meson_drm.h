@@ -59,6 +59,7 @@ struct drm_mode_test_attr {
 	char modename[DRM_DISPLAY_MODE_LEN];
 	char attr[DRM_DISPLAY_MODE_LEN];
 	__u32 valid;
+	__u32 conn_id;
 };
 
 struct drm_meson_fbdev_rect {

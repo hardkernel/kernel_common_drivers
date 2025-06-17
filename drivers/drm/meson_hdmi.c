@@ -40,7 +40,6 @@
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12
 
-static struct drm_connector *tx_conn;
 /* confirm whether the current mode is integer mode or frac mode */
 static bool meson_hdmitx_is_alter_mode(struct drm_display_mode *mode);
 
@@ -2638,8 +2637,6 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	encoder = &am_hdmi->encoder;
 	connector = &am_hdmi->base.connector;
 	intf->conn = connector;
-	//TODO hwc&weston should pass conn id
-	tx_conn = connector;
 	am_hdmi->hdmi_type = type;
 
 	switch (type) {
@@ -2803,8 +2800,13 @@ int am_meson_mode_testattr_ioctl(struct drm_device *dev,
 	enum hdmi_color_depth cd;
 	enum hdmi_quantization_range cr;
 	struct drm_mode_test_attr *f = data;
+	struct drm_mode_object *mo;
 
-	connector = tx_conn;
+	mo = drm_mode_object_find(dev, file_priv, f->conn_id, DRM_MODE_OBJECT_CONNECTOR);
+	if (!mo)
+		return -EINVAL;
+
+	connector = obj_to_connector(mo);
 	tx_comm = meson_get_hdmitx_common(connector);
 	hdmitx_parse_color_attr(f->attr, &cs, &cd, &cr);
 
