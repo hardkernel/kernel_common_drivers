@@ -505,9 +505,6 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 		if (MESON_PARM_APPLICABLE(&pll->current_en))
 			meson_parm_write(clk->map, &pll->current_en, 0);
 
-		/* Enable the pll */
-		meson_parm_write(clk->map, &pll->en, 1);
-
 		/* Make sure the pll is in lock reset */
 		if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
 			if (pll->flags & CLK_MESON_PLL_L_RSTN)
@@ -515,6 +512,9 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 			else
 				meson_parm_write(clk->map, &pll->l_rst, 1);
 		}
+
+		/* Enable the pll */
+		meson_parm_write(clk->map, &pll->en, 1);
 
 		/* Make sure the pll force lock is clear */
 		if (MESON_PARM_APPLICABLE(&pll->fl))
