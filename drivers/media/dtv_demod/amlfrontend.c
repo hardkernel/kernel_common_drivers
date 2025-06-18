@@ -148,8 +148,10 @@ const char *name_fe_delivery_system[] = {
 
 const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys)
 {
-	if (delsys >= SYS_UNDEFINED && delsys <= SYS_ANALOG)
+	if (delsys >= SYS_UNDEFINED && delsys < END_SYS_DELIVERY)
 		return name_fe_delivery_system[delsys];
+	else if (delsys == SYS_ANALOG_DVB_V512)
+		return name_fe_delivery_system[END_SYS_DELIVERY];
 	else
 		return "invalid delsys";
 }
@@ -436,11 +438,8 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int ret = 0;
 
-	if (delsys < SYS_ANALOG)
-		PR_INFO("%s [id %d]:%s\n", __func__, demod->id,
-				name_fe_delivery_system[delsys]);
-	else
-		PR_ERR("%s [id %d]:%d\n", __func__, demod->id, delsys);
+	PR_INFO("%s [id %d]:%s\n", __func__, demod->id,
+			dtvdemod_get_cur_delsys(delsys));
 
 	set_agc_pinmux(demod, delsys, 1);
 
@@ -588,11 +587,8 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 	struct aml_diseqc *diseqc = &devp->diseqc;
 #endif
 
-	if (delsys < SYS_ANALOG)
-		PR_INFO("%s [id %d]:%s\n", __func__, demod->id,
-				name_fe_delivery_system[delsys]);
-	else
-		PR_ERR("%s [id %d]:%d\n", __func__, demod->id, delsys);
+	PR_INFO("%s [id %d]:%s\n", __func__, demod->id,
+			dtvdemod_get_cur_delsys(delsys));
 
 	demod->en_detect = 0;
 	demod->last_delsys = SYS_UNDEFINED;
@@ -793,7 +789,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 	}
 
 	if (fe->ops.tuner_ops.release &&
-		(cdelsys == SYS_UNDEFINED || cdelsys == SYS_ANALOG))
+		(cdelsys == SYS_UNDEFINED || cdelsys == SYS_ANALOG_DVB_V512))
 		fe->ops.tuner_ops.release(fe);
 
 	if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
@@ -1881,14 +1877,10 @@ int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 		return 0;
 	}
 
-	if (ldelsys <= END_SYS_DELIVERY && cdelsys <= END_SYS_DELIVERY) {
-		PR_DBG("%s [id %d]: delsys last=%s, cur=%s\n",
-				__func__, demod->id,
-				name_fe_delivery_system[ldelsys],
-				name_fe_delivery_system[cdelsys]);
-	} else
-		PR_ERR("%s [id %d]: delsys last=%d, cur=%d\n",
-				__func__, demod->id, ldelsys, cdelsys);
+	PR_DBG("%s [id %d]: delsys last=%s, cur=%s\n",
+			__func__, demod->id,
+			dtvdemod_get_cur_delsys(ldelsys),
+			dtvdemod_get_cur_delsys(cdelsys));
 
 	switch (cdelsys) {
 	case SYS_DVBC_ANNEX_A:
@@ -1937,7 +1929,7 @@ int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 		return 0;
 	}
 
-	if (cdelsys == SYS_ANALOG) {
+	if (cdelsys == SYS_ANALOG_DVB_V512) {
 		if (get_dtvpll_init_flag()) {
 			PR_INFO("delsys %d not support\n", cdelsys);
 			delsys_exit(demod, ldelsys, SYS_UNDEFINED);
@@ -2883,7 +2875,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 	mutex_lock(&devp->lock);
 
 	if (is_not_active(fe) && tvp->cmd != DTV_TS_INPUT &&
-		tvp->cmd != DTV_ENUM_DELSYS) {
+		tvp->cmd != DTV_ENUM_DELSYS && tvp->cmd != DTV_API_VERSION) {
 		mutex_unlock(&devp->lock);
 
 		return -ECANCELED;
@@ -3191,7 +3183,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	case MESON_CPU_MAJOR_ID_TXL:
 		aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
 		aml_dtvdm_ops.delsys[1] = SYS_DTMB;
-		aml_dtvdm_ops.delsys[2] = SYS_ANALOG;
+		aml_dtvdm_ops.delsys[2] = SYS_ANALOG_DVB_V512;
 		if (ic_version == MESON_CPU_MAJOR_ID_GXTVBB)
 			strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C/DTMB dtv demod gxtvbb");
 		else
@@ -3204,7 +3196,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 		aml_dtvdm_ops.delsys[2] = SYS_DVBC_ANNEX_A;
 		aml_dtvdm_ops.delsys[3] = SYS_DVBT;
 		aml_dtvdm_ops.delsys[4] = SYS_ISDBT;
-		aml_dtvdm_ops.delsys[5] = SYS_ANALOG;
+		aml_dtvdm_ops.delsys[5] = SYS_ANALOG_DVB_V512;
 		strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C/T/ISDBT/ATSC dtv demod txlx");
 		break;
 
@@ -3224,7 +3216,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 		aml_dtvdm_ops.delsys[1] = SYS_DVBC_ANNEX_B;
 		aml_dtvdm_ops.delsys[2] = SYS_ATSC;
 		aml_dtvdm_ops.delsys[3] = SYS_DTMB;
-		aml_dtvdm_ops.delsys[4] = SYS_ANALOG;
+		aml_dtvdm_ops.delsys[4] = SYS_ANALOG_DVB_V512;
 		if (ic_version == MESON_CPU_MAJOR_ID_TL1) {
 			strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C/DTMB/ATSC dtv demod tl1");
 		} else {
@@ -3236,7 +3228,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 		/* max delsys is 8, index: 0~7 */
 		aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
 		aml_dtvdm_ops.delsys[1] = SYS_DTMB;
-		aml_dtvdm_ops.delsys[2] = SYS_ANALOG;
+		aml_dtvdm_ops.delsys[2] = SYS_ANALOG_DVB_V512;
 		strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C/DTMB dtv demod t5");
 		break;
 
@@ -3253,7 +3245,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[5] = SYS_DVBT2;
 			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
 			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
-			aml_dtvdm_ops.delsys[8] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[8] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name,
 					"amlogic DVB-C/T/T2/S/S2/ATSC/ISDBT dtv demod t5d");
 			break;
@@ -3261,7 +3253,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 		case DTVDEMOD_HW_S4:
 			aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
 			aml_dtvdm_ops.delsys[1] = SYS_DVBC_ANNEX_B;
-			aml_dtvdm_ops.delsys[2] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[2] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C dtv demod s4");
 			break;
 
@@ -3276,7 +3268,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
 			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
 			aml_dtvdm_ops.delsys[8] = SYS_DTMB;
-			aml_dtvdm_ops.delsys[9] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[9] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name,
 					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t3");
 			break;
@@ -3285,7 +3277,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[1] = SYS_DVBC_ANNEX_B;
 			aml_dtvdm_ops.delsys[2] = SYS_DVBS;
 			aml_dtvdm_ops.delsys[3] = SYS_DVBS2;
-			aml_dtvdm_ops.delsys[4] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[4] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C/DVB-S dtv demod s4d");
 			break;
 		case DTVDEMOD_HW_S1A:
@@ -3294,17 +3286,17 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 				aml_dtvdm_ops.delsys[1] = SYS_DVBC_ANNEX_B;
 				aml_dtvdm_ops.delsys[2] = SYS_DVBS;
 				aml_dtvdm_ops.delsys[3] = SYS_DVBS2;
-				aml_dtvdm_ops.delsys[4] = SYS_ANALOG;
+				aml_dtvdm_ops.delsys[4] = SYS_ANALOG_DVB_V512;
 				strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C/S dtv demod s1a");
 			} else if (is_s1a_dvbs_disabled()) {
 				aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
 				aml_dtvdm_ops.delsys[1] = SYS_DVBC_ANNEX_B;
-				aml_dtvdm_ops.delsys[2] = SYS_ANALOG;
+				aml_dtvdm_ops.delsys[2] = SYS_ANALOG_DVB_V512;
 				strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C dtv demod s1a");
 			} else {
 				aml_dtvdm_ops.delsys[0] = SYS_DVBS;
 				aml_dtvdm_ops.delsys[1] = SYS_DVBS2;
-				aml_dtvdm_ops.delsys[2] = SYS_ANALOG;
+				aml_dtvdm_ops.delsys[2] = SYS_ANALOG_DVB_V512;
 				strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-S dtv demod s1a");
 			}
 			break;
@@ -3320,7 +3312,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[5] = SYS_DVBT2;
 			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
 			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
-			aml_dtvdm_ops.delsys[8] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[8] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name,
 					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT ddemod t5w");
 			break;
@@ -3336,7 +3328,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
 			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
 			aml_dtvdm_ops.delsys[8] = SYS_DTMB;
-			aml_dtvdm_ops.delsys[9] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[9] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name,
 					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t5m");
 			break;
@@ -3352,14 +3344,14 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
 			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
 			aml_dtvdm_ops.delsys[8] = SYS_DTMB;
-			aml_dtvdm_ops.delsys[9] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[9] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name,
 					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t3x");
 			break;
 
 		case DTVDEMOD_HW_TXHD2:
 			aml_dtvdm_ops.delsys[0] = SYS_DTMB;
-			aml_dtvdm_ops.delsys[1] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[1] = SYS_ANALOG_DVB_V512;
 			break;
 
 		case DTVDEMOD_HW_T6D:
@@ -3372,7 +3364,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[5] = SYS_DVBT2;
 			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
 			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
-			aml_dtvdm_ops.delsys[8] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[8] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name,
 					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT ddemod t6d");
 			break;
