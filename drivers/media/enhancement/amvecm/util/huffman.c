@@ -157,7 +157,7 @@ unsigned long huffman_compress(const unsigned char *in,
 			t = n;
 		}
 	}
-	while (t->qnext) {
+	while (t && t->qnext) {
 		for (i = 0; i < 2; ++i) {
 			lowest_prob = 1000;
 			pair[i] = (struct _huffman_node *)0;
@@ -190,9 +190,9 @@ unsigned long huffman_compress(const unsigned char *in,
 	et = (struct _huffman_encode_table *)heapptr;
 	heapptr += (sizeof(struct _huffman_encode_table) * 257);
 	outbitctr = 0;
-	_huffman_write_tree_make_table(out, &outbitctr,
-				       outlen, et,
-				       0, 0, t);
+	if (t)
+		_huffman_write_tree_make_table(out, &outbitctr,
+			outlen, et,	0, 0, t);
 	for (i = 0; i < inlen; ++i) {
 		eti = &(et[(unsigned long)in[i]]);
 		code = eti->code;

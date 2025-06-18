@@ -427,9 +427,8 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			cuva_hlg_process_mode[vd_path] = PROC_MATCH;
 			target_format[vd_path] = BT2100_IPT;
 		} else if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
-			   ((source_format[vd_path] != HDRTYPE_HLG) ||
-				(source_format[vd_path] == HDRTYPE_HLG &&
-				(hdr_flag & 0x10)))) {
+			   (source_format[vd_path] != HDRTYPE_HLG ||
+				(hdr_flag & 0x10))) {
 			pr_csc(32, "%d %s: vd_path=%d  vpp_index = %d\n",
 				__LINE__,
 				__func__,
@@ -1033,9 +1032,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					target_format[vd_path] = BT709;
 			}
 		} else if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
-			((source_format[vd_path] != HDRTYPE_HLG) ||
-			(source_format[vd_path] == HDRTYPE_HLG &&
-			(hdr_flag & 0x10)))) {
+			(source_format[vd_path] != HDRTYPE_HLG ||
+			(hdr_flag & 0x10))) {
 			pr_csc(32, "%d %s: vd_path=%d  vpp_index = %d\n",
 				__LINE__,
 				__func__,

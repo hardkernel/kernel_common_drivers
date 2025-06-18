@@ -3279,9 +3279,11 @@ void set_vpp_lut(enum vpp_lut_sel_e lut_sel,
 
 		if (!is_meson_txlx_cpu()) {
 			for (i = 0; i < OSD_OETF_LUT_SIZE; i++) {
-				hdr_osd_reg.lut_val.or_map[i] = r_map[i];
-				hdr_osd_reg.lut_val.og_map[i] = g_map[i];
-				hdr_osd_reg.lut_val.ob_map[i] = b_map[i];
+				if (r_map && g_map && b_map) {
+					hdr_osd_reg.lut_val.or_map[i] = r_map[i];
+					hdr_osd_reg.lut_val.og_map[i] = g_map[i];
+					hdr_osd_reg.lut_val.ob_map[i] = b_map[i];
+				}
 			}
 			hdr_osd_reg.viu_osd1_oetf_ctl &= 0x1fffffff;
 			hdr_osd_reg.viu_osd1_oetf_ctl |= 7 << 22;
@@ -3290,12 +3292,12 @@ void set_vpp_lut(enum vpp_lut_sel_e lut_sel,
 		} else {
 			/* latch enable */
 			WRITE_VPP_REG_BITS(VIU_OSD1_OETF_CTL, 1, 28, 1);
-			if (on) {
+			if (on && r_map && g_map && b_map) {
 				/* change to 12bit from txlx */
 				if (is_meson_txlx_cpu())
 					for (i = 0;
-					     i < OSD_OETF_LUT_SIZE;
-					     i++) {
+						i < OSD_OETF_LUT_SIZE;
+							i++) {
 						r_map[i] = 4 * r_map[i];
 						g_map[i] = 4 * g_map[i];
 						b_map[i] = 4 * b_map[i];
@@ -3303,33 +3305,33 @@ void set_vpp_lut(enum vpp_lut_sel_e lut_sel,
 				for (i = 0; i < 20; i++) {
 					VSYNC_WRITE_VPP_REG(addr_port, i);
 					val = r_map[i * 2] |
-					      (r_map[i * 2 + 1] << 16);
+						     (r_map[i * 2 + 1] << 16);
 					VSYNC_WRITE_VPP_REG(data_port,
-							    val);
+								    val);
 				}
 				VSYNC_WRITE_VPP_REG(addr_port, 20);
 				val = r_map[41 - 1]
 					| (g_map[0] << 16);
 				VSYNC_WRITE_VPP_REG(data_port,
-						    val);
+						val);
 				for (i = 0; i < 20; i++) {
 					VSYNC_WRITE_VPP_REG(addr_port, 21 + i);
 					val = g_map[i * 2 + 1]
 						| (g_map[i * 2 + 2] << 16);
 					VSYNC_WRITE_VPP_REG(data_port,
-							    val);
+							val);
 				}
 				for (i = 0; i < 20; i++) {
 					VSYNC_WRITE_VPP_REG(addr_port, 41 + i);
 					val = b_map[i * 2]
 						| (b_map[i * 2 + 1] << 16);
 					VSYNC_WRITE_VPP_REG(data_port,
-							    val);
+						val);
 				}
 				VSYNC_WRITE_VPP_REG(addr_port, 61);
 				val = b_map[41 - 1];
 				VSYNC_WRITE_VPP_REG(data_port,
-						    val);
+					val);
 			}
 
 			WRITE_VPP_REG_BITS(VIU_OSD1_OETF_CTL, 7, 22, 3);
@@ -3345,7 +3347,7 @@ void set_vpp_lut(enum vpp_lut_sel_e lut_sel,
 		if (g && g_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				g_map[i] = g[i];
-		if (r && r_map)
+		if (b && b_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				b_map[i] = b[i];
 
@@ -3406,7 +3408,7 @@ void set_vpp_lut(enum vpp_lut_sel_e lut_sel,
 		if (g && g_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				g_map[i] = g[i];
-		if (r && r_map)
+		if (b && b_map)
 			for (i = 0; i < EOTF_LUT_SIZE; i++)
 				b_map[i] = b[i];
 		/*txlx add eotf latch ctl bit 26*/
@@ -3453,14 +3455,12 @@ void set_vpp_lut(enum vpp_lut_sel_e lut_sel,
 		/* set bit to disable latched */
 		WRITE_VPP_REG_BITS(VPP_XVYCC_MISC, 0, 18, 3);
 		if (r && r_map)
-			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-				r_map[i] = r[i];
+			memcpy(r_map, r, VIDEO_OETF_LUT_SIZE * sizeof(unsigned int));
 		if (g && g_map)
-			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-				g_map[i] = g[i];
-		if (r && r_map)
-			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++)
-				b_map[i] = b[i];
+			memcpy(g_map, g, VIDEO_OETF_LUT_SIZE * sizeof(unsigned int));
+		if (b && b_map)
+			memcpy(b_map, b, VIDEO_OETF_LUT_SIZE * sizeof(unsigned int));
+
 		if (on) {
 			VSYNC_WRITE_VPP_REG(ctrl_port, 0x0f);
 			for (i = 0; i < VIDEO_OETF_LUT_SIZE; i++) {

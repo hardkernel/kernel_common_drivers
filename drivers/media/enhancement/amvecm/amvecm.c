@@ -3023,7 +3023,7 @@ int amvecm_on_vs(struct vframe_s *vf,
 				(get_cpu_type() == MESON_CPU_MAJOR_ID_T5W) ||
 				chip_type_id == chip_t5m) {
 				/*frequence meter size config*/
-				amve_fmetersize_config(vf->width, vf->height,
+				amve_fmetersize_config(toggle_vf->width, toggle_vf->height,
 					sps_w_in, sps_h_in, vpp_index);
 				amvecm_fmeter_process(toggle_vf, vpp_index);
 			}
