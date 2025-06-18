@@ -18,7 +18,8 @@ static struct swdmx_pid_filter *pid_filter_get(struct swdmx_demux *dmx, u16 pid)
 
 	f = swdmx_malloc(sizeof(struct swdmx_pid_filter));
 	SWDMX_ASSERT(f);
-
+	if (!f)
+		return NULL;
 	f->pid = pid;
 	f->sec_data = NULL;
 	f->sec_recv = 0;
@@ -239,7 +240,8 @@ struct swdmx_demux *swdmx_demux_new(void)
 
 	dmx = swdmx_malloc(sizeof(struct swdmx_demux));
 	SWDMX_ASSERT(dmx);
-
+	if (!dmx)
+		return NULL;
 	swdmx_list_init(&dmx->pid_filter_list);
 	swdmx_list_init(&dmx->ts_filter_list);
 	swdmx_list_init(&dmx->sec_filter_list);
@@ -252,10 +254,12 @@ struct swdmx_tsfilter *swdmx_demux_alloc_ts_filter(struct swdmx_demux *dmx)
 	struct swdmx_tsfilter *f;
 
 	SWDMX_ASSERT(dmx);
-
+	if (!dmx)
+		return NULL;
 	f = swdmx_malloc(sizeof(struct swdmx_tsfilter));
 	SWDMX_ASSERT(f);
-
+	if (!f)
+		return NULL;
 	f->dmx = dmx;
 	f->state = SWDMX_FILTER_STATE_INIT;
 	f->pid_filter = NULL;
@@ -272,8 +276,12 @@ struct swdmx_secfilter *swdmx_demux_alloc_sec_filter(struct swdmx_demux *dmx)
 	struct swdmx_secfilter *f;
 
 	SWDMX_ASSERT(dmx);
-
+	if (!dmx)
+		return NULL;
 	f = swdmx_malloc(sizeof(struct swdmx_secfilter));
+	SWDMX_ASSERT(f);
+	if (!f)
+		return NULL;
 
 	f->dmx = dmx;
 	f->state = SWDMX_FILTER_STATE_INIT;
@@ -292,6 +300,8 @@ void swdmx_demux_ts_packet_cb(struct swdmx_tspacket *pkt, void *data)
 	struct swdmx_pid_filter *pid_filter;
 
 	SWDMX_ASSERT(pkt && dmx);
+	if (!(pkt && dmx))
+		return;
 	SWDMX_LIST_FOR_EACH(pid_filter, &dmx->pid_filter_list, ln) {
 		if (pkt->pid == pid_filter->pid) {
 			pid_filter_data(pid_filter, pkt);
@@ -303,7 +313,8 @@ void swdmx_demux_ts_packet_cb(struct swdmx_tspacket *pkt, void *data)
 void swdmx_demux_free(struct swdmx_demux *dmx)
 {
 	SWDMX_ASSERT(dmx);
-
+	if (!dmx)
+		return;
 	while (!swdmx_list_is_empty(&dmx->ts_filter_list)) {
 		struct swdmx_tsfilter *f;
 
@@ -339,7 +350,8 @@ swdmx_ts_filter_set_params(struct swdmx_tsfilter *filter,
 			   struct swdmx_tsfilter_params *params)
 {
 	SWDMX_ASSERT(filter && params);
-
+	if (!(filter && params))
+		return SWDMX_ERR;
 	if (!swdmx_is_valid_pid(params->pid) || params->pid == 0x1fff) {
 		swdmx_log("illegal PID 0x%04x", params->pid);
 		return SWDMX_ERR;
@@ -347,7 +359,8 @@ swdmx_ts_filter_set_params(struct swdmx_tsfilter *filter,
 
 	if (filter->state == SWDMX_FILTER_STATE_RUN) {
 		SWDMX_ASSERT(filter->pid_filter);
-
+		if (!filter->pid_filter)
+			return SWDMX_ERR;
 		if (filter->params.pid != params->pid) {
 			swdmx_list_remove(&filter->pid_ln);
 			pid_filter_remove(filter->pid_filter);
@@ -378,7 +391,8 @@ swdmx_ts_filter_add_ts_packet_cb(struct swdmx_tsfilter *filter,
 				 swdmx_tspacket_cb cb, void *data)
 {
 	SWDMX_ASSERT(filter && cb);
-
+	if (!(filter && cb))
+		return SWDMX_ERR;
 	swdmx_cb_list_add(&filter->cb_list, cb, data);
 
 	return SWDMX_OK;
@@ -389,7 +403,8 @@ swdmx_ts_filter_remove_ts_packet_cb(struct swdmx_tsfilter *filter,
 				    swdmx_tspacket_cb cb, void *data)
 {
 	SWDMX_ASSERT(filter && cb);
-
+	if (!(filter && cb))
+		return SWDMX_ERR;
 	swdmx_cb_list_remove(&filter->cb_list, cb, data);
 
 	return SWDMX_OK;
@@ -398,7 +413,8 @@ swdmx_ts_filter_remove_ts_packet_cb(struct swdmx_tsfilter *filter,
 int swdmx_ts_filter_enable(struct swdmx_tsfilter *filter)
 {
 	SWDMX_ASSERT(filter);
-
+	if (!filter)
+		return SWDMX_ERR;
 	if (filter->state == SWDMX_FILTER_STATE_INIT) {
 		swdmx_log("the ts filter's parameters has not been set");
 		return SWDMX_ERR;
@@ -421,10 +437,13 @@ int swdmx_ts_filter_enable(struct swdmx_tsfilter *filter)
 int swdmx_ts_filter_disable(struct swdmx_tsfilter *filter)
 {
 	SWDMX_ASSERT(filter);
+	if (!filter)
+		return SWDMX_ERR;
 
 	if (filter->state == SWDMX_FILTER_STATE_RUN) {
 		SWDMX_ASSERT(filter->pid_filter);
-
+		if (!filter->pid_filter)
+			return SWDMX_ERR;
 		swdmx_list_remove(&filter->pid_ln);
 		pid_filter_remove(filter->pid_filter);
 
@@ -438,6 +457,8 @@ int swdmx_ts_filter_disable(struct swdmx_tsfilter *filter)
 void swdmx_ts_filter_free(struct swdmx_tsfilter *filter)
 {
 	SWDMX_ASSERT(filter);
+	if (!filter)
+		return;
 
 	swdmx_ts_filter_disable(filter);
 
@@ -454,6 +475,8 @@ swdmx_sec_filter_set_params(struct swdmx_secfilter *filter,
 	int i;
 
 	SWDMX_ASSERT(filter && params);
+	if (!(filter && params))
+		return SWDMX_ERR;
 
 	if (!swdmx_is_valid_pid(params->pid) || params->pid == 0x1fff) {
 		swdmx_log("illegal PID 0x%04x", params->pid);
@@ -462,6 +485,8 @@ swdmx_sec_filter_set_params(struct swdmx_secfilter *filter,
 
 	if (filter->state == SWDMX_FILTER_STATE_RUN) {
 		SWDMX_ASSERT(filter->pid_filter);
+		if (!filter->pid_filter)
+			return SWDMX_ERR;
 
 		if (filter->params.pid != params->pid) {
 			swdmx_list_remove(&filter->pid_ln);
@@ -515,7 +540,8 @@ swdmx_sec_filter_add_section_cb(struct swdmx_secfilter *filter,
 				swdmx_sec_cb cb, void *data)
 {
 	SWDMX_ASSERT(filter && cb);
-
+	if (!(filter && cb))
+		return SWDMX_ERR;
 	swdmx_cb_list_add(&filter->cb_list, cb, data);
 
 	return SWDMX_OK;
@@ -526,7 +552,8 @@ swdmx_sec_filter_remove_section_cb(struct swdmx_secfilter *filter,
 				   swdmx_sec_cb cb, void *data)
 {
 	SWDMX_ASSERT(filter && cb);
-
+	if (!(filter && cb))
+		return SWDMX_ERR;
 	swdmx_cb_list_remove(&filter->cb_list, cb, data);
 
 	return SWDMX_OK;
@@ -535,7 +562,8 @@ swdmx_sec_filter_remove_section_cb(struct swdmx_secfilter *filter,
 int swdmx_sec_filter_enable(struct swdmx_secfilter *filter)
 {
 	SWDMX_ASSERT(filter);
-
+	if (!filter)
+		return SWDMX_ERR;
 	if (filter->state == SWDMX_FILTER_STATE_INIT) {
 		swdmx_log("the section filter's parameters has not been set");
 		return SWDMX_ERR;
@@ -559,9 +587,12 @@ int swdmx_sec_filter_enable(struct swdmx_secfilter *filter)
 int swdmx_sec_filter_disable(struct swdmx_secfilter *filter)
 {
 	SWDMX_ASSERT(filter);
-
+	if (!filter)
+		return SWDMX_ERR;
 	if (filter->state == SWDMX_FILTER_STATE_RUN) {
 		SWDMX_ASSERT(filter->pid_filter);
+		if (!filter->pid_filter)
+			return SWDMX_ERR;
 
 		swdmx_list_remove(&filter->pid_ln);
 		pid_filter_remove(filter->pid_filter);
@@ -576,6 +607,8 @@ int swdmx_sec_filter_disable(struct swdmx_secfilter *filter)
 void swdmx_sec_filter_free(struct swdmx_secfilter *filter)
 {
 	SWDMX_ASSERT(filter);
+	if (!filter)
+		return;
 	swdmx_sec_filter_disable(filter);
 
 	swdmx_list_remove(&filter->ln);

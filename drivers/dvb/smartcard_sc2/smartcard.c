@@ -1752,8 +1752,8 @@ static int smc_fiq_get(struct smc_dev *smc, int size, int timeout)
 				if (smc->sc_type == SC_INVERSE)
 					smc->atr.atr[i] =
 					inv_table[smc->atr.atr[i]];
-				else
-					smc->atr.atr[i] = smc->atr.atr[i];
+//				else
+//					smc->atr.atr[i] = smc->atr.atr[i];
 			}
 			smc->atr.atr_len += ret;
 
