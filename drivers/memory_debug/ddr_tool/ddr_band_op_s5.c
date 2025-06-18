@@ -66,8 +66,7 @@
 
 static void s5_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 {
-	unsigned int val;
-	unsigned long off;
+	unsigned int val, off;
 	int i;
 	void *io;
 

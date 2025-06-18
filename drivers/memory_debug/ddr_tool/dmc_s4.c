@@ -155,8 +155,7 @@ static void s4_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 
 static int s4_dmc_mon_set(struct dmc_monitor *mon)
 {
-	unsigned long value, end;
-	unsigned int wb;
+	unsigned long value, end, wb;
 	void *io = dmc_mon->mon_comm[0].io_mem;
 
 	/* aligned to 64KB */
